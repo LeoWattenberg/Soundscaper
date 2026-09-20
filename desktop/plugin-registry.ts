@@ -8,8 +8,8 @@
 import { createHash } from 'node:crypto';
 
 import {
-	type HelperFileIdentity, type HelperPluginFormat, type HelperPluginHostJobGrant,
-	HELPER_PLUGIN_FORMATS, validateHelperJobGrant,
+	type HelperFileIdentity, type HelperEffectPluginFormat, type HelperPluginHostJobGrant,
+	HELPER_EFFECT_PLUGIN_FORMATS, validateHelperJobGrant,
 } from './helper-job-grant.ts';
 import {
 	admitPluginBundleStableIds,
@@ -29,7 +29,7 @@ import {
 	isAdmissiblePluginPath,
 } from './plugin-scan-results.ts';
 
-export type PluginFormat = HelperPluginFormat;
+export type PluginFormat = HelperEffectPluginFormat;
 export type { PluginHostDescriptor } from './plugin-host-descriptor.ts';
 export { installationIdFor } from './plugin-bundle-identity.ts';
 
@@ -490,7 +490,7 @@ function admitObservation(value: unknown): PluginScanObservation {
 		throw new TypeError('A plug-in scan observation must carry a lowercase SHA-256 binary digest.');
 	}
 	const admitted: PluginScanObservation = {
-		format: enumValue(record.format, HELPER_PLUGIN_FORMATS, 'plug-in format'),
+		format: enumValue(record.format, HELPER_EFFECT_PLUGIN_FORMATS, 'effect plug-in format'),
 		stableId,
 		bundleStableIds: admitPluginBundleStableIds(record.bundleStableIds ?? [stableId], stableId),
 		name: boundedText(record.name, 'plug-in name'),

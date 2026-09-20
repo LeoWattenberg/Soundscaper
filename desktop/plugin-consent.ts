@@ -50,6 +50,8 @@ const FORMAT_PLATFORMS: Readonly<Record<PluginFormat, readonly string[]>> = Obje
 	clap: Object.freeze(['darwin', 'linux', 'win32']),
 	au: Object.freeze(['darwin']),
 	lv2: Object.freeze(['linux']),
+	ladspa: Object.freeze(['linux']),
+	vamp: Object.freeze(['darwin', 'linux', 'win32']),
 	fixture: Object.freeze(['darwin', 'linux', 'win32']),
 });
 
@@ -77,6 +79,10 @@ const STANDARD_ROOTS: Readonly<Record<string, readonly StandardRootTemplate[]>> 
 		{ name: 'System Audio Units folder', base: 'system', path: '/Library/Audio/Plug-Ins/Components' },
 		{ name: 'User Audio Units folder', base: 'home', path: 'Library/Audio/Plug-Ins/Components' },
 	),
+	'darwin:vamp': templates(
+		{ name: 'System Vamp folder', base: 'system', path: '/Library/Audio/Plug-Ins/Vamp' },
+		{ name: 'User Vamp folder', base: 'home', path: 'Library/Audio/Plug-Ins/Vamp' },
+	),
 	'linux:vst3': templates(
 		{ name: 'System VST3 folder', base: 'system', path: '/usr/lib/vst3' },
 		{ name: 'Local VST3 folder', base: 'system', path: '/usr/local/lib/vst3' },
@@ -92,11 +98,24 @@ const STANDARD_ROOTS: Readonly<Record<string, readonly StandardRootTemplate[]>> 
 		{ name: 'Local LV2 folder', base: 'system', path: '/usr/local/lib/lv2' },
 		{ name: 'User LV2 folder', base: 'home', path: '.lv2' },
 	),
+	'linux:ladspa': templates(
+		{ name: 'System LADSPA folder', base: 'system', path: '/usr/lib/ladspa' },
+		{ name: 'Local LADSPA folder', base: 'system', path: '/usr/local/lib/ladspa' },
+		{ name: 'User LADSPA folder', base: 'home', path: '.ladspa' },
+	),
+	'linux:vamp': templates(
+		{ name: 'System Vamp folder', base: 'system', path: '/usr/lib/vamp' },
+		{ name: 'Local Vamp folder', base: 'system', path: '/usr/local/lib/vamp' },
+		{ name: 'User Vamp folder', base: 'home', path: 'vamp' },
+	),
 	'win32:vst3': templates(
 		{ name: 'Common VST3 folder', base: 'system', path: 'C:\\Program Files\\Common Files\\VST3' },
 	),
 	'win32:clap': templates(
 		{ name: 'Common CLAP folder', base: 'system', path: 'C:\\Program Files\\Common Files\\CLAP' },
+	),
+	'win32:vamp': templates(
+		{ name: 'Vamp Plugins folder', base: 'system', path: 'C:\\Program Files\\Vamp Plugins' },
 	),
 });
 

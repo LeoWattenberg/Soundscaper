@@ -5,7 +5,9 @@
 import { HelperContractViolationError, assertHelperWireEnvelope } from './helper-wire-admission.ts';
 
 export const HELPER_PERSISTENT_PORT_CONTRACT_VERSION = 1;
-export const HELPER_PERSISTENT_PORT_PURPOSES = Object.freeze(['audio-realtime', 'plugin-rpc'] as const);
+export const HELPER_PERSISTENT_PORT_PURPOSES = Object.freeze([
+	'audio-realtime', 'plugin-rpc', 'plugin-analyzer-rpc',
+] as const);
 export const HELPER_PERSISTENT_PORT_MAXIMUM_MESSAGE_BYTES = 16 * 1024 * 1024;
 export const HELPER_PERSISTENT_PORT_MAXIMUM_IN_FLIGHT_MESSAGES = 8;
 

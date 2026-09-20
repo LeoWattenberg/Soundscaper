@@ -31,6 +31,8 @@ import {
 
 export {
 	HELPER_AUDIO_BACKENDS,
+	HELPER_ANALYZER_PLUGIN_FORMATS,
+	HELPER_EFFECT_PLUGIN_FORMATS,
 	HELPER_JOB_KINDS,
 	HELPER_PLUGIN_FORMATS,
 	HELPER_PROBE_JOB_KINDS,
@@ -55,6 +57,9 @@ export type {
 	HelperJobResult,
 	HelperJobResultByKind,
 	HelperPluginFormat,
+	HelperEffectPluginFormat,
+	HelperAnalyzerPluginFormat,
+	HelperPluginAnalyzeJobGrant,
 	HelperPluginHostJobGrant,
 	HelperPluginScanJobGrant,
 	HelperProbeJobGrant,

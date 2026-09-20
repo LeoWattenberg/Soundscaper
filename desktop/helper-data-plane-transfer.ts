@@ -83,7 +83,7 @@ function nativeBindings(
 	kind: HelperJobKind,
 	grant: AnyHelperJobGrant,
 ): readonly Readonly<{ streamId: string }>[] {
-	if (kind === 'audio-device' || kind === 'plugin-host') {
+	if (kind === 'audio-device' || kind === 'plugin-host' || kind === 'plugin-analyze') {
 		const binding = (grant as { persistentPort?: Readonly<{ streamId: string }> }).persistentPort;
 		return binding ? [binding] : [];
 	}

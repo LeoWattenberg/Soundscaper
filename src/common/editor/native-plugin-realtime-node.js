@@ -124,7 +124,7 @@ export function subscribeNativePluginRuntime(listener) {
 }
 
 export function registerNativePluginRuntimeIdentity(instanceId, format, topology = { inputChannels: 2, outputChannels: 2 }) {
-	if (typeof instanceId !== 'string' || !['vst3', 'clap', 'au', 'lv2'].includes(format)) {
+	if (typeof instanceId !== 'string' || !['vst3', 'clap', 'au', 'lv2', 'ladspa'].includes(format)) {
 		throw new TypeError('A native plug-in runtime identity is invalid.');
 	}
 	const admitted = pluginTopology(topology);

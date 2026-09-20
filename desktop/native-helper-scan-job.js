@@ -18,16 +18,20 @@
 
 /** Closed format-to-candidate mapping; the verified payload declares its subset. */
 export const SCANNABLE_PLUGIN_FORMATS = Object.freeze({
-	fixture: '.scapefx',
-	vst3: '.vst3',
-	clap: '.clap',
-	au: '.component',
-	lv2: '.lv2',
+	fixture: Object.freeze({ darwin: ['.scapefx'], linux: ['.scapefx'], win32: ['.scapefx'] }),
+	vst3: Object.freeze({ darwin: ['.vst3'], linux: ['.vst3'], win32: ['.vst3'] }),
+	clap: Object.freeze({ darwin: ['.clap'], linux: ['.clap'], win32: ['.clap'] }),
+	au: Object.freeze({ darwin: ['.component'] }),
+	lv2: Object.freeze({ linux: ['.lv2'] }),
+	ladspa: Object.freeze({ linux: ['.so'] }),
+	vamp: Object.freeze({ darwin: ['.dylib'], linux: ['.so'], win32: ['.dll'] }),
 });
 
 export const MAXIMUM_SCAN_ENTRIES = 512;
 
-export function createNativePluginScanJobRunner({ loadAddon, addonPath, addonSha256, hashFile }) {
+export function createNativePluginScanJobRunner({
+	loadAddon, addonPath, addonSha256, hashFile, platform = process.platform,
+}) {
 	if (typeof loadAddon !== 'function') throw new TypeError('A native addon loader is required.');
 	if (typeof hashFile !== 'function') throw new TypeError('A file digest function is required.');
 	let addon = null;
@@ -45,10 +49,15 @@ export function createNativePluginScanJobRunner({ loadAddon, addonPath, addonSha
 			if (!supported) {
 				return refusal(format, 'unsupported-format', `This authenticated payload does not implement ${format}.`);
 			}
-			const suffix = SCANNABLE_PLUGIN_FORMATS[format];
+			const suffixes = SCANNABLE_PLUGIN_FORMATS[format][platform] ?? [];
+			if (suffixes.length === 0) {
+				return refusal(format, 'unsupported-format', `This platform does not implement the ${format} format.`);
+			}
 			let candidates;
 			try {
-				candidates = await addon.listPluginCandidates(grant.rootPath, suffix);
+				candidates = [...new Set((await Promise.all(suffixes.map((suffix) => (
+					addon.listPluginCandidates(grant.rootPath, suffix)
+				)))).flat())];
 			} catch (error) {
 				return refusal(format, 'root-unreadable', error instanceof Error ? error.message : String(error));
 			}
