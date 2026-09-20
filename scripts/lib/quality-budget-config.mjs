@@ -79,14 +79,6 @@ export function qualityWorkloadBudget(configValue, workloadId) {
 	});
 }
 
-export function observedDiagnosticEnvironment(environmentId, rendererRequirement = 'any') {
-	if (typeof environmentId !== 'string' || environmentId.length === 0
-		|| !['any', 'hardware'].includes(rendererRequirement)) {
-		throw new Error('Observed diagnostic environment identity is invalid.');
-	}
-	return Object.freeze({ id: environmentId, status: 'active', rendererRequirement });
-}
-
 export function evaluateQualityWorkload(configValue, workloadValue, metricsValue) {
 	const workload = typeof workloadValue === 'string'
 		? qualityWorkload(configValue, workloadValue)

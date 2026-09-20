@@ -16,8 +16,6 @@ import {
 } from './soundscaper-professional-native-build-result-contract.mjs';
 
 export const SOUNDSCAPER_PROFESSIONAL_NATIVE_NOTICE_PREFIX = 'licenses/professional-native/';
-export const SOUNDSCAPER_PROFESSIONAL_NATIVE_NOTICE_MANIFEST_PATH =
-	'config/soundscaper-professional-native-notices.json';
 
 const ALL_SOURCE_IDS = Object.freeze([
 	'electron-node-api-headers', 'juce', 'clap', 'vst3-sdk', 'asio-sdk', 'lv2',

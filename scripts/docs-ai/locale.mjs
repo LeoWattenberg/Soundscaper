@@ -67,11 +67,6 @@ const MINIMUM_PROSE_WORDS = 8;
 const COMPETING_STOPWORD_RATIO = 2;
 const MINIMUM_COMPETING_STOPWORDS = 3;
 
-/** The locales a handbook page may be written in: English and every committed route locale. */
-export function documentationLocales() {
-	return COMMITTED_LOCALE_TAGS;
-}
-
 /** The language subtag whose function words or script a locale is held to. */
 export function assertDocumentationLocale(locale) {
 	if (!COMMITTED_LOCALE_TAGS.includes(locale)) {

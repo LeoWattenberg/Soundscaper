@@ -59,8 +59,6 @@
 		"scripts/lib/desktop-package-content-manifest.mjs": 573,
 		"scripts/lib/desktop-project-library-runtime.mjs": 586,
 		"scripts/lib/desktop-scape-open-smoke.mjs": 598,
-		"scripts/lib/ffmpeg-runtime-manifest.mjs": 555,
-		"scripts/lib/local-model-mirror.mjs": 553,
 		"scripts/lib/m7-local-assistance-privacy-metrics.mjs": 557,
 		"scripts/lib/milestone-5-native-source-acquisitions.mjs": 562,
 		"scripts/lib/soundscaper-soak-playwright.mjs": 567,

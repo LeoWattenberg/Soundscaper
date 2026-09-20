@@ -14,7 +14,7 @@
 
 import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { mkdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { basename, join, relative, resolve } from 'node:path';
 
 import { listNativeSourceTree } from './native-source-tree.mjs';
@@ -247,13 +247,6 @@ function listSourceFiles(directory) {
 		const name = basename(path);
 		return SOURCE_EXTENSIONS.has(name.slice(name.lastIndexOf('.')));
 	});
-}
-
-export function nativeHelperAddonPayloadPath(repositoryRoot, manifest, targetId) {
-	const path = resolve(repositoryRoot, NATIVE_HELPER_ADDON_ROOT, 'prebuilt', targetId, manifest.payloadName);
-	const metadata = statSync(path);
-	assert(metadata.isFile(), `The native helper addon payload for ${targetId} is not a regular file.`);
-	return path;
 }
 
 function sha256(bytes) {

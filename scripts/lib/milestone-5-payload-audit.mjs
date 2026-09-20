@@ -26,7 +26,6 @@ import {
 import { milestone5EngineeringScope } from './milestone-5-product-scope.mjs';
 
 const AUDITED = new WeakSet();
-export const MILESTONE_5_PAYLOAD_ROW_COUNT = 20;
 
 /** Authenticate every built native payload against its owning source manifest and bytes. */
 export async function auditMilestone5Payloads(repositoryRootValue, productIdsValue) {

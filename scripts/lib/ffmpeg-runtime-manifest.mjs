@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { readFile, readdir, realpath, writeFile } from 'node:fs/promises';
+import { realpath, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 
 import { renameIntoPlaceExclusively } from './exclusive-rename.mjs';
@@ -16,10 +16,8 @@ import {
 	deepFreeze,
 	parseJson,
 	readRegularFile,
-	readStagedRegularFile,
 	sha256,
 	verifyDescriptorBytes,
-	writeVerifiedFileExclusive,
 } from './verified-manifest-helpers.mjs';
 
 export { assertSafeRelativePath, canonicalJson };
@@ -143,42 +141,6 @@ export async function stageVerifiedFfmpegRuntime({ release, outputRoot }) {
 		await writeFile(resolve(temporary, release.manifest.publication.manifestName), snapshot.manifestBytes, { flag: 'wx' });
 		return temporary;
 	});
-	return ffmpegRuntimeStageSummary(release);
-}
-
-export async function stageVerifiedFfmpegNotice({ release, outputPath }) {
-	const snapshot = snapshotVerifiedFfmpegRuntime(release);
-	await writeVerifiedFileExclusive(outputPath, snapshot.evidence.notices.bytes, 'FFmpeg notice output');
-}
-
-export async function verifyStagedFfmpegRuntime({ release, outputRoot, stageManifestPath, noticePath }) {
-	verifyBufferedFfmpegRuntime(release);
-	const expectedNames = [
-		...release.runtimeFiles.map(({ name }) => name),
-		release.manifest.publication.manifestName,
-	].sort();
-	const entries = await readdir(outputRoot, { withFileTypes: true });
-	const actualNames = entries.map(({ name }) => name).sort();
-	assert(canonicalJson(actualNames) === canonicalJson(expectedNames),
-		`Staged FFmpeg runtime inventory mismatch: ${actualNames.join(', ') || '<empty>'}`);
-	for (const entry of entries) {
-		assert(entry.isFile() && !entry.isSymbolicLink(), `Staged FFmpeg runtime entry is not a regular file: ${entry.name}`);
-	}
-	for (const descriptor of release.runtimeFiles) {
-		const bytes = await readFile(resolve(outputRoot, descriptor.name));
-		verifyDescriptorBytes(bytes, descriptor, `staged runtime file ${descriptor.name}`);
-	}
-	const stagedManifest = await readFile(resolve(outputRoot, release.manifest.publication.manifestName));
-	assert(stagedManifest.equals(release.manifestBytes), 'Staged FFmpeg runtime manifest does not match the verified policy manifest');
-	if (stageManifestPath) {
-		const stage = parseJson(await readStagedRegularFile(stageManifestPath, 'desktop stage manifest'), 'desktop stage manifest');
-		assert(canonicalJson(stage.ffmpeg) === canonicalJson(ffmpegRuntimeStageSummary(release)),
-			'Desktop stage manifest does not retain the verified FFmpeg runtime summary');
-	}
-	if (noticePath) {
-		const notice = await readStagedRegularFile(noticePath, 'staged FFmpeg notice');
-		verifyDescriptorBytes(notice, release.evidence.notices, 'staged FFmpeg notice');
-	}
 	return ffmpegRuntimeStageSummary(release);
 }
 

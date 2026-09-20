@@ -205,19 +205,6 @@ export function extractPlaceholders(value) {
 }
 
 
-export function emptyConversion(locale, mapping) {
-	return Object.freeze({
-		locale,
-		messages: Object.freeze({}),
-		audit: Object.freeze({
-			mapped: 0,
-			total: mapping.length,
-			coverage: 0,
-			skipped: Object.freeze(mapping.map((entry) => Object.freeze({ key: entry.key, reason: 'catalog-missing' }))),
-		}),
-	});
-}
-
 export function excludedMessageReason(message) {
 	if (message.numerus) return 'numerus';
 	if (message.unsupportedMarkup) return 'unsupported-markup';
@@ -276,4 +263,3 @@ export function compareCandidateIdentity(left, right) {
 export function normalizedCandidateText(value) {
 	return stripEllipses(stripQtMnemonic(value)).normalize('NFC');
 }
-

@@ -22,7 +22,6 @@ import {
 } from './soundscaper-professional-native-build-result-contract.mjs';
 import {
 	assertAuthenticatedSoundscaperProfessionalNativeSelfTestPlan,
-	requiredPipelineSoundscaperProfessionalNativeSelfTestIds,
 	verifyAuthenticatedSoundscaperProfessionalNativeSelfTestPlan,
 } from './soundscaper-professional-native-self-test-plan.mjs';
 import {
@@ -43,10 +42,6 @@ import {
 export { soundscaperProfessionalNativePipelineFailureMessage };
 
 const AUTHENTICATED_PIPELINE_PLANS = new WeakSet();
-
-export function requiredExternalSoundscaperProfessionalNativeSelfTestIds(targetValue) {
-	return requiredPipelineSoundscaperProfessionalNativeSelfTestIds(targetValue);
-}
 
 export function createSoundscaperProfessionalNativeBuildResultPipelinePlan(options) {
 	const target = targetId(options?.target);

@@ -2,8 +2,7 @@
 
 import { createHash } from 'node:crypto';
 import { mkdir, readFile, writeFile } from 'node:fs/promises';
-import { join, resolve } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { join } from 'node:path';
 import { isDeepStrictEqual } from 'node:util';
 
 import {
@@ -278,31 +277,6 @@ export function assertM5bCollectionHost(environment) {
 			throw new Error(`5B native-diagnostic collection refuses hosted-runner evidence (${key} is set).`);
 		}
 	}
-}
-
-export async function runM5bQualityCollectorCli(profileIdValue) {
-	const profileId = pipelineId(profileIdValue);
-	const options = parseM5bQualityCollectorCliArguments(process.argv.slice(2));
-	if (options.measurementPath === null && options.workloadCommand === null) {
-		process.stderr.write(
-			`Usage: node scripts/collect-m5b-${profileId}-quality.mjs `
-			+ `(--measurement <record.json> | --run <absolute-executable> [runner-options] -- [arguments...]) `
-			+ `[output-directory]\n`,
-		);
-		process.exitCode = 2;
-		return;
-	}
-	const collectionOptions = {
-		outputDirectory: resolve(options.outputDirectory ?? fileURLToPath(
-			new URL(`../../test-results/quality/m5b-${profileId}`, import.meta.url),
-		)),
-		...(options.measurementPath === null
-			? { workloadCommand: options.workloadCommand }
-			: { measurementPath: resolve(options.measurementPath) }),
-	};
-	const collected = await collectM5bQuality(profileId, collectionOptions);
-	process.stdout.write(`${JSON.stringify(collected.result, null, '\t')}\n`);
-	if (collected.result.status === 'failed') process.exitCode = 1;
 }
 
 export function parseM5bQualityCollectorCliArguments(argsValue) {

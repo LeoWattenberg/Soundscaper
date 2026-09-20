@@ -11,9 +11,6 @@ import {
 	professionalNativeSummaryArtifact as summaryArtifact, professionalPluginPeerName,
 } from './soundscaper-professional-native-payload-names.mjs';
 import {
-	describeSoundscaperProfessionalNativePayload as describeRuntimeProfessionalNativePayload,
-} from '../../desktop/soundscaper-professional-native-payload.mjs';
-import {
 	canonicalJson as canonicalBuildResultJson, verificationFor as buildResultVerificationFor,
 	validateBuildResultReceipt,
 } from './soundscaper-professional-native-build-result-contract.mjs';
@@ -228,20 +225,6 @@ export async function verifyStagedSoundscaperProfessionalNativePayload({
 		'The desktop stage manifest does not retain the professional native payload summary.');
 	}
 	return professionalNativePayloadStageSummary(release);
-}
-
-export async function describeSoundscaperProfessionalNativePayload(location, readFileImpl = readFile) {
-	return describeRuntimeProfessionalNativePayload(location, readFileImpl);
-}
-
-export function createSoundscaperProfessionalNativeVerifier(location, readFileImpl) {
-	return async () => {
-		const result = await describeSoundscaperProfessionalNativePayload(location, readFileImpl);
-		if (result.status !== 'available') {
-			throw new Error(`The professional native payload is unavailable (${result.reason}): ${result.detail}`);
-		}
-		return result.descriptor;
-	};
 }
 
 function validateManifest(value, sourceRegister) {

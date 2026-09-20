@@ -547,7 +547,3 @@ export function catalogWithMirroredArtifacts(catalog, modelId, artifacts) {
 			: entry)),
 	};
 }
-
-export async function removeStagedModel(stagingRoot, modelId) {
-	await rm(join(stagingRoot, modelId), { recursive: true, force: true });
-}

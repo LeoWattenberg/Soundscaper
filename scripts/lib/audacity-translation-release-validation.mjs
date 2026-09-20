@@ -10,7 +10,6 @@ import {
 	MAX_ARCHIVE_BYTES,
 	SHA256_PATTERN,
 	assert,
-	fail,
 	isPlainObject,
 } from './audacity-translation-release-values.mjs';
 
@@ -57,15 +56,4 @@ export function validateAudacityArtifactResult(artifactResult, run, expected = {
 		assert(artifact.workflow_run.head_sha === run.head_sha, 'Artifact head SHA does not match the selected run');
 	}
 	return { artifact, artifactCreatedAt, expectedSha256 };
-}
-
-export function validateAudacityLicense(bytes, label) {
-	let text;
-	try {
-		text = new TextDecoder('utf-8', { fatal: true }).decode(bytes);
-	} catch {
-		fail(`${label} is not valid UTF-8`);
-	}
-	assert(text.includes('Audacity is released under the GNU General Public License version 3 (GPLv3).'),
-		`${label} does not contain Audacity's GPLv3 notice`);
 }

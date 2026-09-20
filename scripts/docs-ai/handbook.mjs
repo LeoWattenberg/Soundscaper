@@ -27,9 +27,6 @@ import {
 import { assertDocumentationLocale } from './locale.mjs';
 import { checkTranslation, translateDocument } from './workflows.mjs';
 
-/** A page's state in one language, in the order a run acts on it. */
-export const TRANSLATION_STATES = Object.freeze(['missing', 'stale', 'invalid', 'current']);
-
 /** Every English page, as paths relative to the content root, in a stable order. */
 export async function listHandbookPages(root = HANDBOOK_CONTENT_DIRECTORY) {
 	const pages = [];

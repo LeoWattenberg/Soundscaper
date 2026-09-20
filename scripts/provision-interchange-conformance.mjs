@@ -85,10 +85,6 @@ function pythonExecutable() {
 	);
 }
 
-export function provisionedRoot() {
-	return target;
-}
-
 export function provisionState() {
 	const expected = expectedStampSafe();
 	const actual = currentStamp();

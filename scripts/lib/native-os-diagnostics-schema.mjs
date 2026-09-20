@@ -9,9 +9,6 @@ import {
 import { snapshotStrictJsonData } from './strict-json-snapshot.mjs';
 
 export const NATIVE_OS_DIAGNOSTICS_ENVIRONMENT_ID = 'native-os-diagnostics';
-export const NATIVE_OS_DIAGNOSTICS_PLATFORM_IDS = Object.freeze([
-	'windowsX64', 'windowsArm64', 'macosArm64', 'linuxX64', 'linuxArm64',
-]);
 
 const PLATFORM_ARCHITECTURES = Object.freeze({
 	windowsX64: 'x64',
