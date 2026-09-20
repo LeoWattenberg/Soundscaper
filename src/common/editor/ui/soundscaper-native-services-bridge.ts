@@ -111,6 +111,7 @@ export interface NativePluginInstallationView {
 
 export interface NativePluginEntryView {
 	readonly entryId: string;
+	readonly kind?: 'effect' | 'analyzer';
 	readonly format: string;
 	readonly name: string;
 	readonly vendor: string;
@@ -256,9 +257,20 @@ export interface SoundscaperNativePluginHostBridgeV1 {
 	closeNativePluginInstance(request: Readonly<{ instanceId: string }>): Promise<boolean>;
 }
 
+/** Optional on older shells; the controller admits the complete set atomically. */
+export interface SoundscaperNativeVampAnalyzerBridgeV1 {
+	listNativeVampAnalyzers?(): Promise<unknown>;
+	startNativeVampAnalyzer?(request: unknown): Promise<unknown>;
+	configureNativeVampAnalyzer?(request: unknown): Promise<unknown>;
+	pushNativeVampAnalyzerPcm?(request: unknown): Promise<unknown>;
+	finishNativeVampAnalyzer?(request: unknown): Promise<unknown>;
+	cancelNativeVampAnalyzer?(request: unknown): Promise<unknown>;
+}
+
 export interface SoundscaperNativeServicesBridge extends
 	SoundscaperNativeAudioRuntimeBridgeV1,
-	SoundscaperNativePluginHostBridgeV1 {
+	SoundscaperNativePluginHostBridgeV1,
+	SoundscaperNativeVampAnalyzerBridgeV1 {
 	nativeAudioHelperAvailability(): Promise<NativeAudioAvailability>;
 	setNativeAudioHelperEnabled(enabled: boolean): Promise<boolean>;
 	describeNativeAudioBackend(request: Readonly<{ backend: string }>): Promise<NativeAudioInventoryOutcome>;
