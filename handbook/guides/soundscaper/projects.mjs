@@ -49,7 +49,7 @@ export const PROJECT_GUIDES = Object.freeze([
 		],
 		tips: [
 			'An old-style `.aup` project needs its `_data` folder next to it; pick both when asked.',
-			'**File → Audacity projects → Export AUP4** goes the other way, for handing a project back to Audacity.',
+			'**File → Export other → Export AUP4** goes the other way, for handing a project back to Audacity.',
 		],
 	},
 	{

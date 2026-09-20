@@ -15,6 +15,7 @@ import {
 	bootEditor,
 	chooseCommandAction,
 	chooseDropdown,
+	chooseFileAction,
 	chooseNestedCommandAction,
 	clickClipInterior,
 	clipByName,
@@ -22,7 +23,6 @@ import {
 	collectClientErrors,
 	commitInput,
 	disableNativeSavePicker,
-	importFiles,
 	openExportDialog,
 } from '../audio-editor-test-helpers.js';
 import {
@@ -264,7 +264,14 @@ async function executeStep(page, state, entry) {
 			state.editor = await bootEditor(page, '/embed/en/');
 			return;
 		case 'import':
-			await importFiles(state.editor, [guideFixtureFile(entry.fixture)]);
+			{
+				const [chooser] = await Promise.all([
+					page.waitForEvent('filechooser'),
+					chooseFileAction(page, state.editor, 'Import'),
+				]);
+				await chooser.setFiles(guideFixtureFile(entry.fixture));
+				await expectSuccess(state.editor);
+			}
 			state.clipName = guideFixtureClipName(entry.fixture);
 			state.fixture = entry.fixture;
 			await expect(guideClip(state.editor, state.clipName)).toBeVisible();
@@ -352,7 +359,7 @@ async function executeStep(page, state, entry) {
 			await runRackEffect(page, state, entry);
 			return;
 		case 'open-audacity-project':
-			await runOpenAudacityProject(state);
+			await runOpenAudacityProject(page, state);
 			return;
 		case 'export-project':
 			await runExportProject(page, state);

@@ -15,6 +15,7 @@ import { SCAPE_MIME_TYPE } from '../../../src/common/editor/scape-project-format
 import {
 	addRackEffect,
 	chooseExportProjectFileAction,
+	chooseFileAction,
 	closeDialog,
 	closeEffectsPanel,
 	commitInput,
@@ -53,9 +54,13 @@ export async function runRackEffect(page, state, entry) {
 	await closeEffectsPanel(panel);
 }
 
-export async function runOpenAudacityProject(state) {
+export async function runOpenAudacityProject(page, state) {
 	const { editor } = state;
-	await editor.locator('[data-aup4-input]').setInputFiles(await audacityProjectFile());
+	const [chooser] = await Promise.all([
+		page.waitForEvent('filechooser'),
+		chooseFileAction(page, editor, 'Open'),
+	]);
+	await chooser.setFiles(await audacityProjectFile());
 	await expect(editor.locator('[data-status]')).toContainText('Audacity project opened', { timeout: OPEN_TIMEOUT });
 	state.clipName = AUDACITY_EXAMPLE.clip;
 }
@@ -76,7 +81,11 @@ export async function runOpenProjectFile(page, state) {
 	if (!state.projectFile) throw new Error('This step needs a project file from an earlier export step.');
 	const { editor } = state;
 	const originalId = await editor.getAttribute('data-project-id');
-	await editor.locator('[data-aup4-input]').setInputFiles(state.projectFile);
+	const [chooser] = await Promise.all([
+		page.waitForEvent('filechooser'),
+		chooseFileAction(page, editor, 'Open'),
+	]);
+	await chooser.setFiles(state.projectFile);
 	// The library already holds this project, so the editor asks before it
 	// opens a second copy; on another computer the file opens straight away.
 	const copy = page.getByRole('button', { name: /^Open as (?:read-only )?copy$/u });

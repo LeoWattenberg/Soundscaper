@@ -259,7 +259,7 @@ export function rackEffect(name, extras) {
 	return step({ kind: 'rack-effect', name }, extras);
 }
 
-/** Open the example Audacity project through File → Audacity projects. */
+/** Open the example Audacity project through File → Open. */
 export function openAudacityProject(extras) {
 	return step({ kind: 'open-audacity-project' }, extras);
 }
@@ -442,7 +442,7 @@ export function describeStep(entry, { fixture, facet = 'howto' }) {
 			return 'Open Soundscaper. A new, empty project is ready as soon as the editor loads.';
 		case 'import': {
 			const what = howto ? entry.what : `\`${fixture(entry.fixture).file}\` — ${fixture(entry.fixture).description}`;
-			return `Choose ${menuPath(['File', 'Import audio'])} and pick ${what}. The file lands as a clip on its own track.`;
+			return `Choose ${menuPath(['File', 'Import'])} and pick ${what}. The file lands as a clip on its own track.`;
 		}
 		case 'menu':
 			return `Choose ${menuPath(entry.path)}.`;
@@ -519,11 +519,11 @@ export function describeStep(entry, { fixture, facet = 'howto' }) {
 		case 'rack-effect':
 			return `Press ${bold('Effects')} in the track's header to open the Effects panel, press ${bold('Effects')} in the track's rack and choose ${bold(entry.name)}. Its settings window opens; press ${bold('Close')} when you are done with it.`;
 		case 'open-audacity-project':
-			return `Choose ${menuPath(['File', 'Audacity projects', 'Open Audacity project (.aup3, .aup4)'])} and pick the project. Its tracks and clips appear as they were in Audacity.`;
+			return `Choose ${menuPath(['File', 'Open'])} and pick the project. Its tracks and clips appear as they were in Audacity.`;
 		case 'export-project':
 			return `Choose ${menuPath(['File', 'Export project file (.sscape)'])}. The whole project downloads as one \`.sscape\` file.`;
 		case 'open-project-file':
-			return `Choose ${menuPath(['File', 'Open Scape project file (.sscape)'])} and pick the file. On a computer that does not have the project yet it opens directly; here, where the library already holds it, Soundscaper offers ${bold('Open as read-only copy')} — press it.`;
+			return `Choose ${menuPath(['File', 'Open'])} and pick the file. On a computer that does not have the project yet it opens directly; here, where the library already holds it, Soundscaper offers ${bold('Open as read-only copy')} — press it.`;
 		case 'resample':
 			return `Open the clip's menu from the ${bold('Clip menu')} button on its name bar and choose ${bold('Clip properties')}. Press ${bold('Resample')}, set the rate to \`${String(entry.rate)}\` and press ${bold('Resample')} again.`;
 		case 'drag-clip':

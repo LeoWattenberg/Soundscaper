@@ -19,6 +19,8 @@ import {
 	menu,
 	mixRender,
 	open,
+	openAudacityProject,
+	openProjectFile,
 	playAtSpeed,
 	selectClips,
 	selectRange,
@@ -219,6 +221,17 @@ test('the workflow steps validate their input and describe the surfaces they dri
 	assert.match(howto(check({ muted: 'all' })), /every track’s \*\*Mute\*\* button lit/u);
 	assert.match(howto(check({ muted: 'none' })), /no track muted/u);
 	assert.match(howto(check({ panel: { id: 'mixer', name: 'Mixer' } })), /the \*\*Mixer\*\* panel open/u);
+});
+
+test('file workflow prose names the application menu commands the browser suite drives', () => {
+	assert.match(howto(importAudio('music-loop', { what: 'a recording' })), /\*\*File → Import\*\*/u);
+	assert.doesNotMatch(howto(importAudio('music-loop', { what: 'a recording' })), /Import audio/u);
+	assert.match(howto(openAudacityProject()), /\*\*File → Open\*\*/u);
+	assert.match(howto(openProjectFile()), /\*\*File → Open\*\*/u);
+
+	const guide = SOUNDSCAPER_GUIDES.find((entry) => entry.id === 'open-an-audacity-project');
+	assert.ok(guide, 'the Audacity project guide is missing');
+	assert.ok(guide.tips.some((tip) => tip.includes('File → Export other → Export AUP4')));
 });
 
 test('the guides cover the Audacity 3 features Audacity 4 left out', () => {
