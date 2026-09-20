@@ -33,7 +33,7 @@ test.describe('WP-0.3 browser timing-probe qualification', () => {
 			DURABLE_MEDIA_STORAGE_REQUIRED,
 		);
 
-		await editor.locator('[data-import-input]').setInputFiles(videoTimingProbeMedia.map(({ file }) => file));
+		await editor.locator('[data-project-bin-input]').setInputFiles(videoTimingProbeMedia.map(({ file }) => file));
 		await expect.poll(async () => (await persistedTimingEvidence(page)).length, {
 			timeout: 30_000,
 		}).toBe(videoTimingProbeMedia.length);

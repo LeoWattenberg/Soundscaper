@@ -242,7 +242,7 @@ async function reselectTimelineAudio(editor, page) {
 async function openGuidedVideoFixture(page) {
 	const errors = await installFixture(page);
 	const editor = await bootEditor(page, '/framescaper/en/');
-	await editor.locator('[data-import-input]').setInputFiles([VIDEO]);
+	await editor.locator('[data-project-bin-input]').setInputFiles([VIDEO]);
 	const sourceName = VIDEO.name.replace(/\.[^.]+$/u, '');
 	await editor.getByRole('button', {
 		name: `Add to timeline: ${sourceName}`, exact: true,

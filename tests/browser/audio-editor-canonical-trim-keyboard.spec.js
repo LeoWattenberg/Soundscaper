@@ -97,9 +97,8 @@ test.describe('Framescaper canonical clip-focus trim keyboard routing', () => {
 
 		await page.goto('/de/');
 		const soundscaper = await waitForEditor(page);
-		// Import through the shared helper: it dismisses the project bin first, and
-		// an import taken while the bin is open lands there as a source instead of
-		// becoming the timeline clip this fallback assertion needs.
+		// Import through the shared helper: it dismisses the Project bin first so
+		// the timeline clip this fallback assertion needs has the full workspace.
 		await importFiles(soundscaper, [toneA]);
 		const soundscaperProjectId = await soundscaper.getAttribute('data-project-id');
 		expect(soundscaperProjectId).toBeTruthy();

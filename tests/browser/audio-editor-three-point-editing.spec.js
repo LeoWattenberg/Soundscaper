@@ -22,7 +22,7 @@ test.describe('3B-3a three-point editing qualification', () => {
 			!await page.evaluate(hasDurableMediaStorageCapability),
 			DURABLE_MEDIA_STORAGE_REQUIRED,
 		);
-		await editor.locator('[data-import-input]').setInputFiles([CFR.file]);
+		await editor.locator('[data-project-bin-input]').setInputFiles([CFR.file]);
 		// The import lands in the Project Bin, which is where an edit is sourced.
 		await expect.poll(() => binVideoClips(page), { timeout: 60_000 }).not.toHaveLength(0);
 		await expect(editor.locator('[data-status]')).toHaveAttribute('data-state', 'success');
@@ -79,7 +79,7 @@ test.describe('3B-3a three-point editing qualification', () => {
 			!await page.evaluate(hasDurableMediaStorageCapability),
 			DURABLE_MEDIA_STORAGE_REQUIRED,
 		);
-		await editor.locator('[data-import-input]').setInputFiles([CFR.file]);
+		await editor.locator('[data-project-bin-input]').setInputFiles([CFR.file]);
 		await expect.poll(() => binVideoClips(page), { timeout: 60_000 }).not.toHaveLength(0);
 		await addToTimeline(editor);
 		await expect.poll(() => timelineVideoClips(page), { timeout: 30_000 }).not.toHaveLength(0);

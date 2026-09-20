@@ -71,7 +71,7 @@ test.describe('persisted shared track locking', () => {
 			!await page.evaluate(hasDurableMediaStorageCapability),
 			DURABLE_MEDIA_STORAGE_REQUIRED,
 		);
-		await editor.locator('[data-import-input]').setInputFiles([CFR.file]);
+		await editor.locator('[data-project-bin-input]').setInputFiles([CFR.file]);
 		await addVideoToTimeline(editor);
 		const videoClip = editor.getByRole('group', { name: /^Video clip:/u });
 		await expect(videoClip).toHaveCount(1, { timeout: 30_000 });

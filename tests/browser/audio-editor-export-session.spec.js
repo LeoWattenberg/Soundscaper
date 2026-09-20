@@ -563,7 +563,7 @@ test.describe('audio editor React/design-system workflows', () => {
 		// The storage bar is a Help > Debug storage opt-in, so the maintained
 		// baselines show the default chrome without it.
 		await expect(editor.locator('[data-storage-capacity]')).toHaveCount(0);
-		await editor.locator('[data-import-input]').setInputFiles([toneA]);
+		await editor.locator('[data-project-bin-input]').setInputFiles([toneA]);
 		await expect(editor.locator('[data-project-bin-item]')).toHaveCount(1);
 		await expect(editor.locator('[data-save-state]')).toHaveAttribute('data-state', 'saved', { timeout: 10_000 });
 		await page.evaluate(() => document.fonts.ready);

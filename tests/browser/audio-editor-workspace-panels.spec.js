@@ -355,13 +355,13 @@ test.describe('audio editor React/design-system workflows', () => {
 		expect(errors).toEqual([]);
 	});
 
-	test('routes picker imports by effective Project bin visibility and keeps cards reusable across reload', async ({ page }) => {
+	test('keeps Project bin picker cards reusable across reload and File imports on the timeline', async ({ page }) => {
 		const editor = await bootEditor(page, '/embed/en/');
 		const projectBinPanel = editor.locator('[data-workspace-panel="project-bin"]');
 		const projectBin = projectBinPanel.locator('[data-project-bin-drop-target]');
 		await expect(projectBinPanel).toBeVisible();
 
-		await editor.locator('[data-import-input]').setInputFiles([toneA]);
+		await editor.locator('[data-project-bin-input]').setInputFiles([toneA]);
 		await expect(projectBin.locator('[data-project-bin-item]')).toHaveCount(1);
 		await expect(editor).toHaveAttribute('data-clip-count', '0');
 		const card = projectBin.locator('[data-project-bin-item]').first();

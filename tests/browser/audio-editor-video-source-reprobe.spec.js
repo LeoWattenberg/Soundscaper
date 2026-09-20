@@ -113,7 +113,7 @@ test.describe('3B-2c re-import upgrade qualification', () => {
 });
 
 async function importFixture(editor, page) {
-	await editor.locator('[data-import-input]').setInputFiles([CFR.file]);
+	await editor.locator('[data-project-bin-input]').setInputFiles([CFR.file]);
 	await expect.poll(() => persistedVideoSource(page), { timeout: 60_000 }).toBeTruthy();
 	await expect(editor.locator('[data-status]')).toHaveAttribute('data-state', 'success');
 	const name = CFR.file.name.replace(/\.[^.]+$/u, '');

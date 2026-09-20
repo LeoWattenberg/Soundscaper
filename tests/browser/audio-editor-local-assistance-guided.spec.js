@@ -38,7 +38,7 @@ test.describe('menu-only Local Assistance workflows', () => {
 		await installLocalAssistanceFixture(page);
 		const errors = collectClientErrors(page);
 		const editor = await bootEditor(page, '/framescaper/en/');
-		await editor.locator('[data-import-input]').setInputFiles([VIDEO.file]);
+		await editor.locator('[data-project-bin-input]').setInputFiles([VIDEO.file]);
 		const sourceName = VIDEO.file.name.replace(/\.[^.]+$/u, '');
 		const addToTimeline = editor.getByRole('button', {
 			name: `Add to timeline: ${sourceName}`, exact: true,
@@ -187,7 +187,7 @@ test.describe('menu-only Local Assistance workflows', () => {
 		await installLocalAssistanceFixture(page);
 		const errors = collectClientErrors(page);
 		const editor = await bootEditor(page, '/framescaper/en/');
-		await editor.locator('[data-import-input]').setInputFiles([VIDEO.file]);
+		await editor.locator('[data-project-bin-input]').setInputFiles([VIDEO.file]);
 		const sourceName = VIDEO.file.name.replace(/\.[^.]+$/u, '');
 		await editor.getByRole('button', {
 			name: `Add to timeline: ${sourceName}`, exact: true,

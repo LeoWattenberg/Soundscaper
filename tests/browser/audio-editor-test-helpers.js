@@ -111,7 +111,7 @@ export async function readDownloadBytes(page, link) {
 	return downloadBytes(download);
 }
 
-/** Import files through the hidden input; `options.copy` names the route's catalog off the bundled locales. */
+/** Import onto the timeline with the Project bin closed; `options.copy` selects localized panel copy. */
 export async function importFiles(editor, files, options = { timeout: 20_000 }) {
 	const { copy = null, ...expectation } = options;
 	if (await editor.locator('[data-workspace-panel="project-bin"]').isVisible()) await closeWorkspacePanel(editor, 'project-bin', copy);

@@ -31,7 +31,7 @@ test.describe('3B-2b source display geometry qualification', () => {
 			!await page.evaluate(hasDurableMediaStorageCapability),
 			DURABLE_MEDIA_STORAGE_REQUIRED,
 		);
-		await editor.locator('[data-import-input]').setInputFiles(
+		await editor.locator('[data-project-bin-input]').setInputFiles(
 			videoSourceGeometryMedia.map(({ file }) => file),
 		);
 		await expect.poll(async () => (await persistedVideoSources(page)).length, {
@@ -94,7 +94,7 @@ test.describe('3B-2b source display geometry qualification', () => {
 			!await page.evaluate(hasDurableMediaStorageCapability),
 			DURABLE_MEDIA_STORAGE_REQUIRED,
 		);
-		await editor.locator('[data-import-input]').setInputFiles([ROTATED_ANAMORPHIC.file]);
+		await editor.locator('[data-project-bin-input]').setInputFiles([ROTATED_ANAMORPHIC.file]);
 		await expect.poll(async () => (await persistedVideoSources(page)).length, {
 			timeout: 45_000,
 		}).toBe(1);
