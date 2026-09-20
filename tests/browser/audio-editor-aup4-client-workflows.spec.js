@@ -118,13 +118,54 @@ test.describe('Audacity project worker client workflows', () => {
 		expect(requests.filter((type) => type === 'plan-import')).toHaveLength(1);
 		expect(requests.filter((type) => type === 'read-import-chunk').length).toBeGreaterThan(0);
 	});
+
+	test('cancels before staging, cleans up a failed publication, and permits export retry', async ({ page }) => {
+		test.setTimeout(60_000);
+		await installAup4BrowserProbe(page);
+		const editor = await bootEditor(page, '/embed/en/');
+		const status = editor.locator('[data-status]');
+
+		await page.evaluate(() => { globalThis.__aup4BrowserProbe.cancelPicker = true; });
+		await chooseNestedCommandAction(page, editor, 'File', ['Export other', 'Export AUP4']);
+		await expect.poll(() => page.evaluate(() => globalThis.__aup4BrowserProbe.pickerOptions.length)).toBe(1);
+		expect(await requestLog(page)).toEqual([]);
+
+		await page.evaluate(() => {
+			globalThis.__aup4BrowserProbe.cancelPicker = false;
+			globalThis.__aup4BrowserProbe.failWrite = true;
+		});
+		await chooseNestedCommandAction(page, editor, 'File', ['Export other', 'Export AUP4']);
+		await expect(status).toHaveAttribute('data-state', 'error', { timeout: 30_000 });
+		await expect.poll(() => page.evaluate(() => globalThis.__aup4BrowserProbe.abortCalls)).toBe(1);
+		await expect.poll(() => requestTypes(page).then((types) => (
+			types.filter((type) => type === 'delete').length
+		))).toBe(1);
+
+		await page.evaluate(() => { globalThis.__aup4BrowserProbe.failWrite = false; });
+		await chooseNestedCommandAction(page, editor, 'File', ['Export other', 'Export AUP4']);
+		await expect(status).toContainText('Audacity interchange file exported.', { timeout: 30_000 });
+		await expect.poll(() => page.evaluate(() => globalThis.__aup4BrowserProbe.closeCalls)).toBe(1);
+		await expect.poll(() => requestTypes(page).then((types) => (
+			types.filter((type) => type === 'delete').length
+		))).toBe(2);
+
+		const requests = await requestTypes(page);
+		expect(requests.filter((type) => type === 'initialize')).toHaveLength(1);
+		expect(requests.filter((type) => type === 'create')).toHaveLength(2);
+		expect(requests.filter((type) => type === 'begin-snapshot')).toHaveLength(2);
+		expect(requests.filter((type) => type === 'append-snapshot-source')).toHaveLength(0);
+		expect(requests.filter((type) => type === 'export')).toHaveLength(2);
+		expect(await page.evaluate(() => globalThis.__aup4BrowserProbe.pickerOptions)).toHaveLength(3);
+	});
 });
 
 async function installAup4BrowserProbe(page) {
 	await page.addInitScript(() => {
 		const state = {
 			abortCalls: 0,
+			cancelPicker: false,
 			closeCalls: 0,
+			failWrite: false,
 			pickerOptions: [],
 			requestById: {},
 			requests: [],
@@ -166,11 +207,13 @@ async function installAup4BrowserProbe(page) {
 					suggestedName: options.suggestedName,
 					accept: options.types?.[0]?.accept || null,
 				});
+				if (state.cancelPicker) throw new DOMException('The save was cancelled.', 'AbortError');
 				return {
 					name: options.suggestedName,
 					async createWritable() {
 						return {
 							async write(value) {
+								if (state.failWrite) throw new DOMException('The destination is full.', 'QuotaExceededError');
 								const blob = value instanceof Blob ? value : new Blob([value]);
 								const bytes = new Uint8Array(await blob.arrayBuffer());
 								state.writes.push({
