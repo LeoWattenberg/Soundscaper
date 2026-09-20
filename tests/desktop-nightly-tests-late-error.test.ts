@@ -20,6 +20,7 @@ test('partial packaged-runtime metadata does not abort diagnostics', async (cont
 		product: { id: 'soundscaper', name: 'Soundscaper', version: '1.0.0-rc.1' },
 		platform: 'linux',
 		arch: 'x64',
+		sourceRevision: '1'.repeat(40),
 		environment: { SOUNDSCAPER_PACKAGED_RUNTIME_GPU_DRIVER_VERSION: '555.42.02' },
 	}, {
 		startStaticServer: async () => ({
@@ -32,9 +33,10 @@ test('partial packaged-runtime metadata does not abort diagnostics', async (cont
 		},
 		writeMetricsDiagnostics: async () => ({ passed: true }),
 		writePackagedMetricsDiagnostics: async () => ({ passed: true }),
+		preserveCoverageEvidence: async () => '/tmp/nightly-build-evidence',
 	});
 
-	assert.equal(childCalls, 4);
+	assert.equal(childCalls, 5);
 	assert.equal(completed.exitCode, 0);
 	assert.equal(completed.result.status, 'passed');
 	assert.equal(completed.result.failure, null);
