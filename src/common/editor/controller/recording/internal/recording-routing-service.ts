@@ -2,6 +2,7 @@
 
 import type {
 	RecordingRoutingDeviceRow,
+	RecordingRoutingNativeInventory,
 	RecordingRoutingProject,
 	RecordingRoutingRefreshOptions,
 	RecordingRoutingServiceRuntime,
@@ -38,6 +39,7 @@ export function createRecordingRoutingService<
 		stopMicrophoneMetering, store, updatePreferences,
 	} = runtime;
 	let outputDeviceSelectionGeneration = 0;
+	let retainedNativeInventory: RecordingRoutingNativeInventory | null = null;
 	async function loadRecordingRouting(currentProject: Project | null = getProject()) {
 		if (!currentProject) {
 			state.recordingRouting = normalizeRecordingRouting();
@@ -107,8 +109,9 @@ export function createRecordingRoutingService<
 	async function refreshAudioDevices({
 		probe = true,
 		publish = true,
-		nativeInventory = null,
+		nativeInventory,
 	}: RecordingRoutingRefreshOptions = {}) {
+		if (nativeInventory !== undefined) retainedNativeInventory = nativeInventory;
 		const webInputs: RecordingRoutingDeviceRow[] = [];
 		const webOutputs: RecordingRoutingDeviceRow[] = [];
 		if (mediaDevices?.enumerateDevices) {
@@ -124,8 +127,8 @@ export function createRecordingRoutingService<
 				else if (device.kind === 'audiooutput' && row.deviceId !== 'default') webOutputs.push(row);
 			}
 		}
-		const discoveredInputs = uniqueDeviceRows([...webInputs, ...(nativeInventory?.inputs || [])]);
-		const discoveredOutputs = uniqueDeviceRows([...webOutputs, ...(nativeInventory?.outputs || [])]);
+		const discoveredInputs = uniqueDeviceRows([...webInputs, ...(retainedNativeInventory?.inputs || [])]);
+		const discoveredOutputs = uniqueDeviceRows([...webOutputs, ...(retainedNativeInventory?.outputs || [])]);
 		state.recordingEnumeratedDeviceIds = new Set(discoveredInputs.map((device) => device.deviceId));
 		if (discoveredInputs.some((device) => device.label)) state.audioInputAccess = true;
 		updateRecordingDeviceRows(discoveredInputs);
