@@ -12,15 +12,21 @@ import type {
 import type {
 	FramescaperSelectedVisualAuthoringSurface,
 } from './editor-selected-finishing-visual-authoring-model.ts';
+import type {
+	FramescaperSelectedGeneratorAuthoringSurface,
+} from './editor-selected-finishing-authoring-workflows.ts';
 import { assertFramescaperProjectIdentity } from './editor-project-identity.ts';
 
 type Awaitable<Value> = Value | PromiseLike<Value>;
 
 export const FRAMESCAPER_SELECTED_AUTHORING_SURFACES = Object.freeze([
 	'video-transition', 'video-transition-dissolve',
-	'video-still', 'video-title', 'video-text', 'video-shape', 'video-solid',
+	'video-title', 'video-text', 'video-shape', 'video-solid',
 	'video-adjustment-layer', 'video-visual-preset', 'video-mask-matte', 'video-freeze',
 ] as const satisfies readonly FramescaperCandidateAuthoringSurface[]);
+
+type FramescaperSelectedAuthoringSurface =
+	(typeof FRAMESCAPER_SELECTED_AUTHORING_SURFACES)[number];
 
 export interface FramescaperSelectedAuthoringController {
 	readonly project: unknown;
@@ -60,7 +66,7 @@ export function adoptFramescaperSelectedVisualAuthoringRuntime(from: object, to:
 	VISUAL_RUNTIMES.set(to, runtime);
 }
 
-/** Bind every selected web-core authoring surface to the single v1 domain. */
+/** Bind dialog discovery and the directly executed generator surfaces. */
 export function bindFramescaperSelectedAuthoringController(options: Readonly<{
 	readonly controller: FramescaperSelectedAuthoringController;
 	readonly store: AudioEditorProjectStore;
@@ -75,14 +81,16 @@ export function bindFramescaperSelectedAuthoringController(options: Readonly<{
 		tail = result.then(() => undefined, () => undefined);
 		return result;
 	};
-	const serialized = (surface: FramescaperCandidateAuthoringSurface): Promise<void> => enqueue(async () => {
+	const serialized = (surface: FramescaperSelectedAuthoringSurface): Promise<void> => enqueue(async () => {
 		if (DIALOG_SURFACES.has(surface)) {
 			throw new Error('Selected visual authoring requires its menu-opened dialog.');
 		}
 		const project = currentProject(controller.project);
 		const workflow = await import('./editor-selected-finishing-authoring-workflows.ts');
-		const prepared = await workflow.prepareFramescaperSelectedAuthoringFinishing(surface, project, store);
-		if (prepared === null) return;
+		const prepared = await workflow.prepareFramescaperSelectedAuthoringFinishing(
+			surface as FramescaperSelectedGeneratorAuthoringSurface,
+			project,
+		);
 		await commitWithRollback(controller, prepared);
 	});
 	const visualRuntime: FramescaperSelectedVisualAuthoringRuntime = Object.freeze({
