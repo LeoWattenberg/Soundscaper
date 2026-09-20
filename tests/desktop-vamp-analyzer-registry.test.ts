@@ -122,3 +122,24 @@ test('incompatible analyzer libraries stay pathless and cannot mint execution gr
 		error instanceof VampAnalyzerRegistryError && error.code === 'incompatible');
 });
 
+test('registry caps analyzer identities at the renderer catalog boundary', () => {
+	const registry = new DesktopVampAnalyzerRegistry({ isQuarantined: () => false });
+	const descriptors = (start: number, count: number) => Array.from(
+		{ length: count }, (_, index) => rawDescriptor(`com.example.analyzer-${String(start + index)}`),
+	);
+	assert.equal(registry.recordLibrary(observation({
+		descriptors: descriptors(0, 256),
+	})).status, 'recorded');
+	assert.equal(registry.recordLibrary(observation({
+		libraryPath: '/usr/lib/vamp/example-b.so', librarySha256: DIGEST_B,
+		identity: { dev: 7, ino: 12 }, descriptors: descriptors(256, 256),
+	})).status, 'recorded');
+	assert.equal(registry.describe().entries.length, 512);
+	const overflow = registry.recordLibrary(observation({
+		libraryPath: '/usr/lib/vamp/example-c.so', librarySha256: 'c'.repeat(64),
+		identity: { dev: 7, ino: 13 }, descriptors: descriptors(512, 1),
+	}));
+	assert.equal(overflow.status, 'rejected');
+	if (overflow.status === 'rejected') assert.equal(overflow.reason, 'capacity');
+	assert.equal(registry.describe().entries.length, 512);
+});

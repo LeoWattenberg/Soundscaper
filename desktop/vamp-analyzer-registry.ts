@@ -15,7 +15,7 @@ export const VAMP_ANALYZER_COMPATIBILITY = Object.freeze([
 export type VampAnalyzerCompatibility = (typeof VAMP_ANALYZER_COMPATIBILITY)[number];
 
 export const VAMP_ANALYZER_REGISTRY_LIMITS = Object.freeze({
-	maximumEntries: 4_096,
+	maximumEntries: 512,
 	maximumInstallationsPerEntry: 16,
 	maximumDescriptorsPerLibrary: 256,
 	maximumLibraryBytes: 8 * 1_024 * 1_024 * 1_024,

@@ -61,6 +61,20 @@ test('Vamp catalog and requests normalize closed native-independent models', () 
 	);
 });
 
+test('Vamp renderer admission matches native program and feature-value boundaries', () => {
+	const programs = Array.from({ length: 513 }, (_, index) => `Program ${String(index)}`);
+	const catalog = normalizeVampAnalyzerCatalog([{ ...analyzer(), programs }]);
+	assert.equal(catalog[0]?.programs.length, programs.length);
+
+	const request = requestFixture();
+	const values = Array.from({ length: 4_097 }, (_, index) => index / 4_097);
+	const result = normalizeVampAnalysisResult({
+		schemaVersion: 1, request,
+		features: [feature(0, 100_000_000, null, values, 'spectrum')],
+	}, request);
+	assert.equal(result.features[0]?.values.length, values.length);
+});
+
 test('Vamp results bind every feature to the exact request and reject unsafe output', () => {
 	const request = requestFixture();
 	const result = normalizeVampAnalysisResult({
