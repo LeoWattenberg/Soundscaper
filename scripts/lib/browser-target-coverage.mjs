@@ -79,15 +79,18 @@ export function createBrowserTargetCoverageCollector(session) {
 			commands.set(id, { sessionId, resolve, reject });
 		});
 		try {
-			await session.send('Target.sendMessageToTarget', {
-				sessionId,
-				message: JSON.stringify({ id, method, params }),
-			});
+			const [, result] = await Promise.all([
+				session.send('Target.sendMessageToTarget', {
+					sessionId,
+					message: JSON.stringify({ id, method, params }),
+				}),
+				response,
+			]);
+			return result;
 		} catch (error) {
 			commands.delete(id);
 			throw error;
 		}
-		return response;
 	}
 
 	async function startRecorder(recorder) {

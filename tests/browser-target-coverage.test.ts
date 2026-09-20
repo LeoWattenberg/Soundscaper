@@ -77,6 +77,32 @@ test('browser target coverage keeps a triggered update when a short-lived worker
 	]);
 });
 
+test('browser target coverage ignores a detach while its startup command is dispatching', async () => {
+	const root = fakeRootSession();
+	root.holdTargetCommand('short-session', 'Profiler.enable');
+	const collector = createBrowserTargetCoverageCollector(root);
+	await collector.start();
+	root.attach('short-session', 'worker');
+	assert.deepEqual(root.targetMethods('short-session'), ['Profiler.enable']);
+
+	root.detachTarget('short-session');
+	await new Promise<void>((resolve) => { setImmediate(resolve); });
+	root.releaseTargetCommand('short-session', 'Profiler.enable');
+
+	await collector.settle();
+	assert.deepEqual(await collector.collect(), []);
+});
+
+test('browser target coverage reports a startup command error for an active target', async () => {
+	const root = fakeRootSession();
+	root.failTargetCommand('broken-session', 'Profiler.enable', 'Profiler is unavailable.');
+	const collector = createBrowserTargetCoverageCollector(root);
+	await collector.start();
+	root.attach('broken-session', 'worker');
+
+	await assert.rejects(collector.settle(), /Profiler is unavailable\./u);
+});
+
 function coverage(url: string, scriptId: string) {
 	return {
 		url,
@@ -90,6 +116,10 @@ function fakeRootSession() {
 	const direct: [string, unknown][] = [];
 	const targets: { sessionId: string, method: string, params: unknown }[] = [];
 	const takeResult = new Map<string, unknown[]>();
+	const heldTargetCommands = new Map<string, () => void>();
+	const targetCommandsToHold = new Set<string>();
+	const targetCommandErrors = new Map<string, string>();
+	const targetCommandKey = (sessionId: string, method: string) => `${sessionId}\0${method}`;
 	const emit = (event: string, value: unknown) => {
 		for (const listener of listeners.get(event) ?? []) listener(value);
 	};
@@ -109,12 +139,18 @@ function fakeRootSession() {
 				params: unknown,
 			};
 			targets.push({ sessionId, method: message.method, params: message.params });
+			const commandKey = targetCommandKey(sessionId, message.method);
+			if (targetCommandsToHold.has(commandKey)) {
+				await new Promise<void>((resolve) => { heldTargetCommands.set(commandKey, resolve); });
+			}
 			const result = message.method === 'Profiler.takePreciseCoverage'
 				? { result: takeResult.get(sessionId) ?? [] }
 				: {};
 			queueMicrotask(() => emit('Target.receivedMessageFromTarget', {
 				sessionId,
-				message: JSON.stringify({ id: message.id, result }),
+				message: JSON.stringify(targetCommandErrors.has(commandKey)
+					? { id: message.id, error: { message: targetCommandErrors.get(commandKey) } }
+					: { id: message.id, result }),
 			}));
 			return {};
 		},
@@ -123,6 +159,18 @@ function fakeRootSession() {
 		},
 		detachTarget(sessionId: string) {
 			emit('Target.detachedFromTarget', { sessionId });
+		},
+		failTargetCommand(sessionId: string, method: string, message: string) {
+			targetCommandErrors.set(targetCommandKey(sessionId, method), message);
+		},
+		holdTargetCommand(sessionId: string, method: string) {
+			targetCommandsToHold.add(targetCommandKey(sessionId, method));
+		},
+		releaseTargetCommand(sessionId: string, method: string) {
+			const commandKey = targetCommandKey(sessionId, method);
+			targetCommandsToHold.delete(commandKey);
+			heldTargetCommands.get(commandKey)?.();
+			heldTargetCommands.delete(commandKey);
 		},
 		targetEvent(sessionId: string, method: string, params: unknown) {
 			emit('Target.receivedMessageFromTarget', {
