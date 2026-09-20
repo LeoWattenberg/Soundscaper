@@ -125,4 +125,35 @@ test.describe('musical timeline controls', () => {
 		await expect(secondSignature.getByRole('spinbutton', { name: 'denominator', exact: true })).toHaveValue('8');
 		expect(errors).toEqual([]);
 	});
+
+	test('round-trips sample-locked tempo events and removes secondary map events', async ({ page }) => {
+		const errors = collectClientErrors(page);
+		const editor = await bootEditor(page, '/en/');
+		await page.locator('[data-sidebar] [data-workspace-select]').selectOption('music');
+		await editor.getByRole('button', { name: 'Musical timeline', exact: true }).click();
+		const flyout = page.getByRole('dialog', { name: 'Musical timeline', exact: true });
+		const anchoring = flyout.getByRole('combobox', { name: 'Tempo anchoring', exact: true });
+
+		await anchoring.selectOption('sampleLocked');
+		await expect(anchoring).toHaveValue('sampleLocked');
+		await flyout.getByRole('button', { name: 'Add tempo event', exact: true }).click();
+		let secondTempo = flyout.getByRole('form', { name: 'Tempo event 2', exact: true });
+		await expect(secondTempo.locator('input[name="samplePosition"]')).toHaveValue('48000');
+		await secondTempo.getByRole('spinbutton', { name: 'Tempo (BPM) numerator', exact: true }).fill('150');
+		await secondTempo.getByRole('button', { name: 'Save', exact: true }).click();
+		secondTempo = flyout.getByRole('form', { name: 'Tempo event 2', exact: true });
+		await expect(secondTempo.getByRole('spinbutton', { name: 'Tempo (BPM) numerator', exact: true })).toHaveValue('150');
+
+		await anchoring.selectOption('musical');
+		await expect(anchoring).toHaveValue('musical');
+		await flyout.getByRole('button', { name: 'Add time signature event', exact: true }).click();
+		const secondSignature = flyout.getByRole('form', { name: 'Time signature event 2', exact: true });
+		await expect(secondSignature).toBeVisible();
+		await secondSignature.getByRole('button', { name: 'Remove time signature event', exact: true }).click();
+		await expect(secondSignature).toHaveCount(0);
+
+		await secondTempo.getByRole('button', { name: 'Remove tempo event', exact: true }).click();
+		await expect(secondTempo).toHaveCount(0);
+		expect(errors).toEqual([]);
+	});
 });
