@@ -4,8 +4,6 @@ import { LOCAL_ASSISTANCE_ADDITIONAL_COPY } from '../../../i18n/editor-local-ass
 
 /** Semantic, read-only presentation of validated local-assistance outputs. */
 
-import React from 'react';
-
 import type { LocalAssistanceOutputClaim } from '../../assistance/local-assistance-bridge.ts';
 import type {
 	LocalAssistanceOutputReview,

@@ -6,7 +6,7 @@ import { ProcessingSearchField } from './ProcessingSearchField.tsx';
 import { Table } from '@soundscaper/design-system/Table/Table';
 import { Checkbox } from '@soundscaper/design-system/Checkbox';
 import PreferenceDropdownField from './PreferenceDropdownField.jsx';
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 import {
 	isNativeMediaCapabilityUsable,

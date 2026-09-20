@@ -3,7 +3,7 @@ import { usePresentationFeedback, feedbackFailure, type PresentationFeedback } f
 
 import { VIDEO_RETIME_ADDITIONAL_COPY } from '../../../i18n/editor-video-retime-additional-copy.ts';
 
-import React, { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
 import AudioEditorDialogShell from '../AudioEditorDialogShell.tsx';
 import { createVideoRetimeDialogModel } from '../video-retime-dialog-model.ts';

@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import React, { type FormEvent, useEffect, useMemo, useRef, useState } from 'react';
+import { type FormEvent, useEffect, useMemo, useRef, useState } from 'react';
 
 import type { Rational } from '../../timeline-time.ts';
 import type { VideoKeyframeCurves } from '../../video-keyframe-curves.ts';

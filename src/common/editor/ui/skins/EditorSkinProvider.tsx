@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
-import React, { createContext, useContext, useEffect, useMemo, useSyncExternalStore, type ReactNode } from 'react';
+import { createContext, useContext, useEffect, useMemo, useSyncExternalStore, type ReactNode } from 'react';
 import { ThemeProvider } from '@soundscaper/design-system/ThemeProvider';
 import { normalizeSkin, type SkinId } from '../../skin-preferences.ts';
 import { createSkinPreview } from '../../controller/preferences/skin-preview.ts';

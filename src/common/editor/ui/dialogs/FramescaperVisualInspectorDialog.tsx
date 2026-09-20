@@ -3,7 +3,7 @@ import { usePresentationFeedback, feedbackFailure } from '../presentation-feedba
 
 import { FRAMESCAPER_VISUAL_INSPECTOR_ADDITIONAL_COPY } from '../../../i18n/editor-framescaper-visual-inspector-additional-copy.ts';
 
-import React, { type FormEvent, useEffect, useMemo, useState } from 'react';
+import { type FormEvent, useEffect, useMemo, useState } from 'react';
 
 import { Button } from '@soundscaper/design-system/Button';
 import { DialogFooter } from '@soundscaper/design-system/Footer';

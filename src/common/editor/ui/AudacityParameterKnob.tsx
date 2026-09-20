@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import React, { useEffect, useRef, type CSSProperties } from 'react';
+import { useEffect, useRef, type CSSProperties } from 'react';
 import { Knob, type KnobProps } from '@soundscaper/design-system/Knob';
 import { audacityKnobPosition, audacityKnobValue } from './audacity-knob-warp.ts';
 import './AudacityParameterKnob.css';

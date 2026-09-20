@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import React, { useId } from 'react';
+import { useId } from 'react';
 
 import './audio-editor-design-system/20-sound-activation.css';
 

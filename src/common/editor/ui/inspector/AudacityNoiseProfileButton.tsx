@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import React, { type ReactNode } from 'react';
+import { type ReactNode } from 'react';
 import { Button, type ButtonProps } from '@soundscaper/design-system/Button';
 
 interface NoiseProfileButtonProps {

@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import React, { type CSSProperties, type ReactNode, useLayoutEffect, useState } from 'react';
+import { type CSSProperties, type ReactNode, useLayoutEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { useTheme } from '@soundscaper/design-system/ThemeProvider';
 

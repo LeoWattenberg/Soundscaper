@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
-import React, { useState } from 'react'; import { usePresentationFeedback } from '../presentation-feedback.ts';
+import { useState } from 'react'; import { usePresentationFeedback } from '../presentation-feedback.ts';
 import { SKIN_IDS, normalizeSkin, type SkinId } from '../../skin-preferences.ts';
 import { useEditorSkin } from './EditorSkinProvider.tsx';
 import { SKINS } from './skin-themes.ts';

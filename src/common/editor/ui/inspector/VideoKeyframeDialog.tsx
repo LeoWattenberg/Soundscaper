@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import React, { type FormEvent, useMemo, useState } from 'react'; import { usePresentationFeedback, type PresentationFeedback } from '../presentation-feedback.ts';
+import { type FormEvent, useMemo, useState } from 'react'; import { usePresentationFeedback, type PresentationFeedback } from '../presentation-feedback.ts';
 
 import { addRationals, multiplyRationals } from '../../timeline-time.ts';
 import AudioEditorDialogShell from '../AudioEditorDialogShell.tsx';

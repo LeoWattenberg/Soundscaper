@@ -1,7 +1,7 @@
 import { feedbackFailure, usePresentationFeedback } from '../presentation-feedback.ts';
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import React, { useState } from 'react';
+import { useState } from 'react';
 
 import '../audio-editor-design-system/33-workspace-onboarding.css';
 

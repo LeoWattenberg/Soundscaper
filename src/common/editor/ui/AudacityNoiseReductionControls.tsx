@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import React, { useId, type ReactNode } from 'react';
+import { useId, type ReactNode } from 'react';
 import { canonicalCopyValue } from '../../i18n/canonical-extras.js';
 import './AudacityNoiseReductionControls.css';
 

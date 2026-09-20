@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
-import React, { useEffect, useRef } from 'react';
+import { useEffect, useRef } from 'react';
 import { PreferenceThumbnail, type PreferenceThumbnailProps } from '@soundscaper/design-system/PreferenceThumbnail';
 
 /** Localized accessible naming at the owning vendor adapter. */

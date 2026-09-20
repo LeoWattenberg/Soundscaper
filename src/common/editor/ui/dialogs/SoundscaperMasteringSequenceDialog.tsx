@@ -2,8 +2,6 @@
 
 import '../audio-editor-design-system/12a-dialog-mastering-sequences.css';
 
-import React from 'react';
-
 import {
 	createDocumentMasteringSequenceSnapshot,
 	type DocumentMasteringSequenceDocumentSnapshot,

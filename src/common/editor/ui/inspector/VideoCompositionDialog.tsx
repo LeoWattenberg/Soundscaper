@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import React, {
+import {
 	type FormEvent,
 	useEffect,
 	useMemo,

@@ -1,6 +1,5 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import React from 'react';
 import type { EditorSnapshot } from '../../types.ts';
 import { createStorageCapacityViewModel } from '../storage-capacity-model.ts';
 

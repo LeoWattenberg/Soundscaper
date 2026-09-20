@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-3.0-only */
 
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { canonicalCopyValue } from '../../i18n/canonical-extras.js';
 import {
 	audacityAutoDuckEnvelope,

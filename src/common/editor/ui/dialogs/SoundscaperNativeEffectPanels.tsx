@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { ProcessingButton as Button } from './ProcessingButton.tsx';
 import { ProcessingSearchField } from './ProcessingSearchField.tsx';
 import { Table } from '@soundscaper/design-system/Table/Table';

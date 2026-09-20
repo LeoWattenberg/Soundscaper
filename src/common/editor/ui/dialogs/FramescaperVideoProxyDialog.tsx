@@ -3,7 +3,7 @@ import { usePresentationFeedback, feedbackFailure } from '../presentation-feedba
 
 import { VIDEO_PROXY_ADDITIONAL_COPY } from '../../../i18n/editor-video-proxy-additional-copy.ts';
 
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 
 import AudioEditorDialogShell from '../AudioEditorDialogShell.tsx';
 import {
