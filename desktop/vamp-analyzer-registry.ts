@@ -147,7 +147,7 @@ export class DesktopVampAnalyzerRegistry {
 	recordLibrary(value: unknown): VampAnalyzerRegistryAdmission {
 		let observation: Readonly<VampAnalyzerLibraryObservation>;
 		try {
-			observation = admitObservation(value);
+			observation = admitVampAnalyzerLibraryObservation(value);
 		} catch (error) {
 			return rejected('malformed', describeError(error));
 		}
@@ -308,7 +308,9 @@ export function vampAnalyzerInstallationIdFor(digest: string, identifier: string
 	return opaqueHash('vi', 'vamp-analyzer-installation', digest, identifier);
 }
 
-function admitObservation(value: unknown): Readonly<VampAnalyzerLibraryObservation> {
+export function admitVampAnalyzerLibraryObservation(
+	value: unknown,
+): Readonly<VampAnalyzerLibraryObservation> {
 	const record = closedRecord(value, [
 		'kind', 'format', 'libraryPath', 'libraryBytes', 'librarySha256', 'identity',
 		'platform', 'architecture', 'compatibility', 'descriptors',
