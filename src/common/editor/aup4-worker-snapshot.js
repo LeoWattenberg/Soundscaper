@@ -36,22 +36,6 @@ export function createAup4SnapshotWrites({ requireWritableProject }) {
 	const snapshotWrites = new Map();
 	const activeSnapshotByProject = new Map();
 
-	function writeSnapshot(args, context) {
-		if (!args.project || !Array.isArray(args.sources)) throw operationError('A project and its source channels are required.', 'INVALID_SNAPSHOT');
-		const started = beginSnapshot(args, context);
-		try {
-			for (const source of args.sources) appendSnapshotSource({
-				projectId: args.projectId,
-				snapshotId: started.snapshotId,
-				source,
-			}, context);
-			return finalizeSnapshot({ projectId: args.projectId, snapshotId: started.snapshotId }, context);
-		} catch (error) {
-			abortSnapshot({ projectId: args.projectId, snapshotId: started.snapshotId });
-			throw error;
-		}
-	}
-
 	function beginSnapshot(args, context) {
 		const entry = requireWritableProject(args.projectId);
 		if (!args.project) throw operationError('An audio editor project is required.', 'INVALID_SNAPSHOT');
@@ -219,7 +203,6 @@ export function createAup4SnapshotWrites({ requireWritableProject }) {
 	}
 
 	return {
-		write: writeSnapshot,
 		begin: beginSnapshot,
 		appendSource: appendSnapshotSource,
 		finalize: finalizeSnapshot,

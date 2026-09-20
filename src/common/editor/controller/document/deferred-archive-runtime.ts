@@ -128,7 +128,6 @@ function createDeferredAup4Client(
 		export: (...args: unknown[]) => invoke('export', args),
 		inspect: (...args: unknown[]) => invoke('inspect', args),
 		delete: (...args: unknown[]) => invokeOptional('delete', args),
-		close: (...args: unknown[]) => invokeOptional('close', args),
 		dispose: async () => {
 			if (!clientPromise) return;
 			const client = await clientPromise;

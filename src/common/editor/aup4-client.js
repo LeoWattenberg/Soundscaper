@@ -60,17 +60,6 @@ export class Aup4WorkerClient {
 			yield result.channels;
 		}
 	}
-	writeDocument(projectId, encoded, options = {}) {
-		const transfer = [];
-		const transferableEncoded = cloneBinaryRecord(encoded, transfer);
-		const sampleBlocks = (options.sampleBlocks || []).map((block) => cloneBinaryRecord(block, transfer));
-		return this.call('write-document', {
-			projectId,
-			encoded: transferableEncoded,
-			autosave: options.autosave !== false,
-			sampleBlocks,
-		}, { ...options, transfer });
-	}
 	async writeSnapshot(projectId, project, sources, options = {}) {
 		let snapshotId;
 		try {
@@ -99,9 +88,6 @@ export class Aup4WorkerClient {
 		}
 	}
 	commit(projectId, options = {}) { return this.call('commit', { projectId, now: timestamp(options.now) }, options); }
-	restoreHistory(projectId, generation, options = {}) { return this.call('restore-history', { projectId, generation }, options); }
-	history(projectId, options = {}) { return this.call('history', { projectId }, options); }
-	readBlock(projectId, blockId, options = {}) { return this.call('read-block', { projectId, blockId }, options); }
 	export(projectId, options = {}) {
 		return this.call('export', {
 			projectId,
@@ -110,9 +96,7 @@ export class Aup4WorkerClient {
 			...deviceOptions(options),
 		}, options);
 	}
-	close(projectId, options = {}) { return this.call('close', { projectId }, options); }
 	delete(projectId, options = {}) { return this.call('delete', { projectId }, options); }
-	listOpen(options = {}) { return this.call('list-open', {}, options); }
 
 	call(type, args = {}, options = {}) {
 		if (this.disposed) return Promise.reject(new Aup4ClientError('The AUP4 client has been disposed.', 'DISPOSED'));
@@ -249,20 +233,6 @@ function deviceOptions(options) {
 			workingBytes: options.workingBytes,
 		}) : Math.max(0, Number(options.maxBytes) || 0),
 	};
-}
-
-function cloneBinaryRecord(value, transfer) {
-	if (!value || typeof value !== 'object') return value;
-	if (value instanceof ArrayBuffer || ArrayBuffer.isView(value)) {
-		const bytes = value instanceof ArrayBuffer
-			? new Uint8Array(value)
-			: new Uint8Array(value.buffer, value.byteOffset, value.byteLength);
-		const copy = bytes.slice();
-		transfer.push(copy.buffer);
-		return copy;
-	}
-	if (Array.isArray(value)) return value.map((entry) => cloneBinaryRecord(entry, transfer));
-	return Object.fromEntries(Object.entries(value).map(([key, entry]) => [key, cloneBinaryRecord(entry, transfer)]));
 }
 
 async function* snapshotSourceIterable(sources, signal) {

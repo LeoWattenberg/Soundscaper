@@ -8,6 +8,17 @@ import {
 	saveAup4Result,
 } from '../src/common/editor/aup4-client.js';
 
+test('AUP4 client omits worker operations with no application caller', () => {
+	const client = createAup4Client({ worker: new FakeWorker() });
+	try {
+		for (const method of ['writeDocument', 'restoreHistory', 'history', 'readBlock', 'listOpen', 'close']) {
+			assert.equal(method in client, false, `${method} must not keep an unreachable worker request alive`);
+		}
+	} finally {
+		client.dispose();
+	}
+});
+
 test('AUP4 client routes results, progress, structured errors, and cancellation', async () => {
 	const worker = new FakeWorker();
 	const client = createAup4Client({ worker });
@@ -64,12 +75,12 @@ test('AUP4 client cancellation is operation-scoped and quota failures remain str
 		const openMessage = worker.messages.at(-1);
 		assert.equal(openMessage.args.maxBytes, 64 * 1024 * 1024);
 
-		const history = client.history('project-1');
-		const historyMessage = worker.messages.at(-1);
+		const creating = client.create('project-3');
+		const createMessage = worker.messages.at(-1);
 		abortController.abort();
 		await assert.rejects(opening, (error) => error.code === 'ABORTED');
-		worker.emit({ id: historyMessage.id, result: [{ generation: 1, savedAt: 1 }] });
-		assert.deepEqual(await history, [{ generation: 1, savedAt: 1 }]);
+		worker.emit({ id: createMessage.id, result: { projectId: 'project-3' } });
+		assert.deepEqual(await creating, { projectId: 'project-3' });
 		assert.deepEqual(worker.messages.at(-1), { type: 'cancel', id: openMessage.id });
 
 		const exporting = client.export('project-1', { opfs: false });

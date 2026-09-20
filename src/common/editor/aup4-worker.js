@@ -1,20 +1,16 @@
 import sqlite3InitModule from '@sqlite.org/sqlite-wasm';
 import sqliteWasmUrl from '@sqlite.org/sqlite-wasm/sqlite3.wasm?url';
 
-import { decodeAudacityBinaryXml, encodeAudacityBinaryXml } from './audacity-binary-xml.js';
 import {
 	commitAup4Autosave,
 	discardExcludedAup4Metadata,
 	initializeAup4Database,
-	insertAup4SampleBlock,
 	listAup4History,
 	prepareAup4PortableExport,
 	prepareAudacitySerializedDatabase,
 	readAup4SampleBlock,
-	restoreAup4History,
 	upgradeAudacityProjectDatabase,
 	validateAudacityProjectDatabase,
-	writeAup4Document,
 } from './aup4-database.js';
 import { decodeAudacityProjectTree } from './aup4-conversion.js';
 import { Aup4WorkerRequestState } from './aup4-worker-request-state.ts';
@@ -22,7 +18,6 @@ import { createAup4SnapshotWrites } from './aup4-worker-snapshot.js';
 import {
 	WORKER_VALIDATION_OPTIONS,
 	mergeCompatibilityReports,
-	mergeSanitizationReport,
 	mergeValidationOptions,
 	normalizeProjectId,
 	operationError,
@@ -33,8 +28,6 @@ import {
 	serializeError,
 	storageAvailable,
 } from './aup4-worker-values.js';
-
-import { sanitizeAup4Document } from './aup4-sanitization.js';
 const DATABASE_DIRECTORY = 'kw-media/audio-editor/aup4';
 const VFS_NAME = 'kw-media-aup4';
 const INITIAL_POOL_CAPACITY = 12;
@@ -86,20 +79,13 @@ async function handle(type, args, context) {
 		if (!session) throw operationError('The Audacity import has not been planned.', 'IMPORT_NOT_PLANNED');
 		return session.next(args.sourceId, args.index, context.checkCancelled);
 	}
-	if (type === 'write-document') return updateDocument(args, context);
-	if (type === 'write-snapshot') return snapshots.write(args, context);
 	if (type === 'begin-snapshot') return snapshots.begin(args, context);
 	if (type === 'append-snapshot-source') return snapshots.appendSource(args, context);
 	if (type === 'finalize-snapshot') return snapshots.finalize(args, context);
 	if (type === 'abort-snapshot') return snapshots.abort(args);
 	if (type === 'commit') return commitProject(args.projectId, args.now);
-	if (type === 'restore-history') return restoreHistory(args.projectId, args.generation);
-	if (type === 'history') return listHistory(args.projectId);
-	if (type === 'read-block') return readBlock(args.projectId, args.blockId);
 	if (type === 'export') return exportProject(args, context);
-	if (type === 'close') return closeProject(args.projectId);
 	if (type === 'delete') return deleteProject(args.projectId);
-	if (type === 'list-open') return [...projects.values()].map(projectDescriptor);
 	throw operationError(`Unsupported AUP4 worker operation: ${type}.`, 'UNKNOWN_OPERATION');
 }
 
@@ -313,30 +299,6 @@ async function decodeProject(args, context) {
 	};
 }
 
-function updateDocument(args, context) {
-	const entry = requireWritableProject(args.projectId);
-	snapshots.assertNone(entry.projectId);
-	context.checkCancelled();
-	const blockIds = [];
-	entry.database.exec('BEGIN IMMEDIATE');
-	try {
-		for (const block of args.sampleBlocks || []) {
-			context.checkCancelled();
-			blockIds.push(insertAup4SampleBlock(entry.database, block));
-		}
-		const decoded = decodeAudacityBinaryXml(args.encoded?.dictionary, args.encoded?.document);
-		const sanitized = sanitizeAup4Document(decoded);
-		const encoded = encodeAudacityBinaryXml(sanitized.document);
-		const result = writeAup4Document(entry.database, encoded, { autosave: args.autosave !== false });
-		entry.database.exec('COMMIT');
-		entry.discardedCloudMetadata = mergeSanitizationReport(entry.discardedCloudMetadata, sanitized.report);
-		return { ...result, blockIds };
-	} catch (error) {
-		try { entry.database.exec('ROLLBACK'); } catch { /* Preserve original error. */ }
-		throw error;
-	}
-}
-
 async function planImport(args, context) {
 	const [{ Aup4WorkerImportSession }, { readAup4ImportSamples }] = await Promise.all([
 		import('./aup4-worker-import-session.ts'), import('./aup4-import-sample-reader.ts'),
@@ -361,19 +323,6 @@ function commitProject(projectId, now) {
 	snapshots.assertNone(entry.projectId);
 	return { committed: commitAup4Autosave(entry.database, { now }), history: listAup4History(entry.database) };
 }
-
-function restoreHistory(projectId, generation) {
-	const entry = requireWritableProject(projectId);
-	snapshots.assertNone(entry.projectId);
-	return {
-		restored: restoreAup4History(entry.database, generation),
-		validation: portableValidation(validateAudacityProjectDatabase(entry.database, WORKER_VALIDATION_OPTIONS), entry),
-	};
-}
-
-function listHistory(projectId) { return listAup4History(requireProject(projectId).database); }
-
-function readBlock(projectId, blockId) { return readAup4SampleBlock(requireProject(projectId).database, blockId); }
 
 async function exportProject(args, context) {
 	const projectId = normalizeProjectId(args.projectId);
