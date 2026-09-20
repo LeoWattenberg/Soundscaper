@@ -1,0 +1,76 @@
+{
+	"schemaVersion": 1,
+	"archiveId": "audacityteam-nyquist-plugins-ed168a19631ec48d0029dfb5c17d16c339a174c1",
+	"publishedAt": "2026-09-20T21:58:26Z",
+	"purpose": "Preservation snapshot only; these files are not enabled, bundled, or approved for execution by Soundscaper.",
+	"upstream": {
+		"catalogUrl": "https://plugins.audacityteam.org/nyquist-plugins",
+		"repository": "https://github.com/audacity/audacity-support.git",
+		"revision": "ed168a19631ec48d0029dfb5c17d16c339a174c1"
+	},
+	"publication": {
+		"bucket": "soundscaper-assets",
+		"jurisdiction": "eu",
+		"prefix": "plugins/nyquist/audacityteam.org/ed168a19631ec48d0029dfb5c17d16c339a174c1",
+		"publicBaseUrl": "https://assets.soundscaper.org/plugins/nyquist/audacityteam.org/ed168a19631ec48d0029dfb5c17d16c339a174c1/",
+		"objectCount": 120,
+		"totalBytes": 526139
+	},
+	"scope": {
+		"pluginArtifactCount": 115,
+		"exactCatalogDownloadCount": 113,
+		"recoveredIntendedSourceCount": 2,
+		"excluded": [
+			"Catalog sample .wav and .mp3 media",
+			"Unreferenced .ny assets in the source repository"
+		]
+	},
+	"catalogRepairs": [
+		{
+			"fileName": "RFT-Limiter-II.ny",
+			"reason": "The live catalog download is a saved GitHub HTML page rather than a Nyquist program.",
+			"catalogArtifactSha256": "8f0076f3e5d5ebdf93840f28952a0ad94f45a6040bc9aab82e62c19c8f807fae",
+			"archivedSourceRevision": "3931af4e9426203d1092093a2252cc0d228daa84",
+			"archivedSha256": "90741ff084d6317594a0a364301528b60a51c9c85c8ea92730d37b2d0df41217"
+		},
+		{
+			"fileName": "RFT-Limiter-III.ny",
+			"reason": "The live catalog download is a saved GitHub HTML page rather than a Nyquist program.",
+			"catalogArtifactSha256": "45fd735e79d112fc45764ed5cc025cf52f1c19b10b3f6f8f995616d9ee0fd1f2",
+			"archivedSourceRevision": "3931af4e9426203d1092093a2252cc0d228daa84",
+			"archivedSha256": "d96310722b6407f3b34f57fdf2c563e4289551dfa2ced3d60a75e93bed9a7f92"
+		}
+	],
+	"manifest": {
+		"url": "https://assets.soundscaper.org/plugins/nyquist/audacityteam.org/ed168a19631ec48d0029dfb5c17d16c339a174c1/manifest.json",
+		"byteLength": 138341,
+		"sha256": "9b646177cfe178c2d0a03cdda53ae0bbdb7b82f91a1c7594fb7d779e8c45e655"
+	},
+	"companionObjects": [
+		{
+			"path": "LICENSE-GPL-2.0.txt",
+			"byteLength": 17984,
+			"sha256": "edaef632cbb643e4e7a221717a6c441a4c1a7c918e6e4d56debc3d8739b233f6"
+		},
+		{
+			"path": "LICENSE-GPL-3.0.txt",
+			"byteLength": 35149,
+			"sha256": "3972dc9744f6499f0f9b2dbf76696f2ae7ad8af9b23dde66d6af86c9dfb36986"
+		},
+		{
+			"path": "README.txt",
+			"byteLength": 1185,
+			"sha256": "44eb1a5df6cc48b708509c5f6c20549e993b4c9da093d01fce385d287c7fe0b6"
+		},
+		{
+			"path": "SHA256SUMS",
+			"byteLength": 9947,
+			"sha256": "96d07c620f3adfdc77ec7653822850fad1052511d641591494d3af12faf1ca04"
+		}
+	],
+	"verification": {
+		"upload": "Every object was created conditionally at a revision-qualified immutable key.",
+		"publicReadback": "All 120 objects passed public HEAD, one-byte Range GET, CORS, exact Content-Length, full-body byte count, and SHA-256 verification.",
+		"manifestPublishedLast": true
+	}
+}
