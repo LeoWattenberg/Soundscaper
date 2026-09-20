@@ -364,7 +364,10 @@ function sendLevelAddress(project, trackId, sendId) {
 
 export function linearMixerGainToDb(gain, floor = -60) {
 	const value = Number(gain);
-	return value > 0 ? Math.max(floor, Math.min(12, 20 * Math.log10(value))) : floor;
+	if (!(value > 0)) return floor;
+	const decibels = Math.max(floor, Math.min(12, 20 * Math.log10(value)));
+	const wholeDecibels = Math.round(decibels);
+	return Math.abs(decibels - wholeDecibels) < 1e-9 ? wholeDecibels : decibels;
 }
 
 export function mixerDbToLinearGain(db, offValue = -60) {
