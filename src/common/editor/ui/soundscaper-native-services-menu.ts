@@ -101,7 +101,8 @@ export function createSoundscaperNativeServicesMenuItems(
 	if (input.productId !== 'soundscaper' || !input.runtimeAvailable || input.snapshot === null) return EMPTY;
 	const copy = resolveSoundscaperNativeServicesCopy(input.copy);
 	const snapshot = input.snapshot;
-	const reason = unavailableReason(copy, snapshot);
+	const sharedReason = unavailableReason(copy, snapshot);
+	const audioReason = sharedReason ?? (!snapshot.enabled ? copy.nativeAudioDisabled : null);
 
 	const audioDevice = entry({
 		id: 'native-audio-device',
@@ -109,7 +110,7 @@ export function createSoundscaperNativeServicesMenuItems(
 		// A tier that is on and healthy but has no usable backend is a different
 		// problem again, and naming it is the only way a user can tell that
 		// enabling the tier is not what is missing.
-		disabledReason: reason
+		disabledReason: audioReason
 			?? (snapshot.usableAudioBackends.length === 0 ? copy.audioBackendUnavailable : null),
 		open: actions.open,
 	});
@@ -121,7 +122,8 @@ export function createSoundscaperNativeServicesMenuItems(
 	});
 	const use = entry({
 		id: 'native-effect-use', label: copy.audioPluginEffects,
-		disabledReason: reason ?? (input.editingBlocked === true || input.readOnly === true ? copy.projectReadOnly : null)
+		disabledReason: sharedReason
+			?? (input.editingBlocked === true || input.readOnly === true ? copy.projectReadOnly : null)
 			?? (snapshot.enabledPluginFormats.length === 0 ? copy.pluginFormatsBlocked : null),
 		open: actions.open,
 	});
@@ -134,7 +136,7 @@ export function createSoundscaperNativeServicesMenuItems(
 	const analyzer = entry({
 		id: 'native-analyzer-use',
 		label: copy.vampAnalyzers,
-		disabledReason: reason
+		disabledReason: sharedReason
 			?? (input.editingBlocked === true || input.readOnly === true ? copy.projectReadOnly : null)
 			?? (snapshot.enabledPluginFormats.includes('vamp')
 				? null : copy.vampFormatBlocked)
@@ -160,7 +162,6 @@ function unavailableReason(
 ): string | null {
 	if (snapshot.quarantined) return copy.audioHelperQuarantined;
 	if (!snapshot.payloadAvailable) return snapshot.payloadDetail || copy.audioBackendUnavailable;
-	if (!snapshot.enabled) return copy.nativeAudioDisabled;
 	return null;
 }
 

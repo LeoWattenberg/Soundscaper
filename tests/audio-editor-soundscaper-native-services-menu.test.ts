@@ -66,6 +66,13 @@ test('a healthy tier opens each surface exactly once per click', () => {
 	assert.deepEqual(opened, ['native-audio-device', 'native-effect-use', 'native-analyzer-use']);
 });
 
+test('the audio switch does not disable independently enabled effects or analyzers', () => {
+	const { items } = build({}, { ...HEALTHY, enabled: false, usableAudioBackends: [] });
+	assert.equal(find(items.tools, 'native-audio-device').disabled, true);
+	assert.equal(find(items.effect, 'native-effect-use').disabled, false);
+	assert.equal(find(items.analyze, 'native-analyzer-use').disabled, false);
+});
+
 test('Vamp analysis is menu-only and requires the enabled Vamp format', () => {
 	const healthy = build();
 	assert.equal(find(healthy.items.analyze, 'native-analyzer-use').disabled, false);
