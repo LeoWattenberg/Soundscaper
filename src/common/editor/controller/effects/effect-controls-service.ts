@@ -95,6 +95,13 @@ export interface EffectPresetSaveOptions extends Readonly<Record<string, unknown
 	readonly now?: string | number | Date;
 }
 
+export interface EffectPresetImportOptions extends Readonly<Record<string, unknown>> {
+	readonly effectType?: string;
+	readonly name?: string;
+	readonly sourceName?: string;
+	readonly now?: string | number | Date;
+}
+
 export interface ApplyEffectRequest {
 	readonly type?: string;
 	readonly params?: EffectControlParameters;
@@ -256,11 +263,21 @@ export function createEffectControlsService(runtime: EffectControlsServiceRuntim
 		});
 	}
 
-	async function importEffectPresets(input: unknown): Promise<readonly EffectPreset[]> {
+	async function importEffectPresets(
+		input: unknown,
+		options: EffectPresetImportOptions = {},
+	): Promise<readonly EffectPreset[]> {
 		const capturedInput = typeof input === 'string' ? input : structuredClone(input);
+		const request = Object.freeze({
+			effectType: options.effectType || runtime.state.audacityEffectType,
+			name: options.name,
+			sourceName: options.sourceName,
+			now: options.now instanceof Date ? new Date(options.now.getTime()) : options.now,
+		});
 		const snapshot = importAudioEditorEffectPresets(
 			(createAudioEditorEffectPresets as (value?: unknown) => unknown)(),
 			capturedInput,
+			{ ...request, idFactory: () => runtime.createId('preset') },
 		) as EffectPresetCollection;
 		return await enqueuePresetMutation(async () => {
 			const next = importAudioEditorEffectPresets(runtime.state.effectPresets, snapshot, {
@@ -272,7 +289,7 @@ export function createEffectControlsService(runtime: EffectControlsServiceRuntim
 				effectType: string | null,
 			) => unknown)(
 				runtime.state.effectPresets,
-				runtime.state.audacityEffectType,
+				request.effectType,
 			) as readonly EffectPreset[];
 		});
 	}

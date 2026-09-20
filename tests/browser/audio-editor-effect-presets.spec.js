@@ -47,6 +47,42 @@ test.describe('effect presets Audacity ships', () => {
 		expect(errors).toEqual([]);
 	});
 
+	test('imports an Audacity text preset through the existing preset option', async ({ page }) => {
+		const errors = collectClientErrors(page);
+		const editor = await bootEditor(page, '/embed/en/');
+		await importFiles(editor, [toneA]);
+
+		await page.keyboard.press('Control+k');
+		await editor.locator('[data-editor-search-input]').fill('Reverb');
+		await editor.locator('[data-editor-search-popup] [data-editor-search-key="command:audacity-reverb"]').click();
+		const dialog = page.locator('[data-selection-effects-dialog]');
+		await expect(dialog).toBeVisible();
+
+		const chooserPromise = page.waitForEvent('filechooser');
+		await dialog.getByRole('button', { name: 'More options', exact: true }).click();
+		await page.getByRole('menuitem', { name: 'Import preset', exact: true }).click();
+		const chooser = await chooserPromise;
+		await chooser.setFiles({
+			name: 'Vocal room.txt',
+			mimeType: 'text/plain',
+			buffer: Buffer.from([
+				'Reverb:Delay="17" DryGain="-4" HfDamping="63" Reverberance="71"',
+				'RoomSize="82" StereoWidth="91" ToneHigh="76" ToneLow="44" WetGain="-2" WetOnly="0"',
+			].join(' ')),
+		});
+
+		const presets = dialog.getByRole('button', { name: 'Preset', exact: true });
+		await presets.click();
+		const imported = page.getByRole('option', { name: 'Vocal room (custom)', exact: true });
+		await expect(imported).toBeVisible();
+		await imported.click();
+		await expect(dialog.locator('[data-effect-param="roomSize"] input')).toHaveValue('82');
+		await expect(dialog.locator('[data-effect-param="preDelay"] input')).toHaveValue('17');
+
+		await closeDialog(dialog);
+		expect(errors).toEqual([]);
+	});
+
 	test('keeps preset menus clickable after dragging an effect dialog and preserves its skin', async ({ page }) => {
 		const errors = collectClientErrors(page);
 		const editor = await bootEditor(page, '/embed/en/?useskin=sakura');

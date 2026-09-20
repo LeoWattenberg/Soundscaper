@@ -121,6 +121,23 @@ test('selection effect preset import cannot enter a newer project after a stale 
 	}
 });
 
+test('selection effect preset import sends the open effect and Audacity file name for conversion', async () => {
+	const fixture = await mountedSelectionEffectsFixture();
+	try {
+		await fixture.render(effectProject('project-a'), {}, 'audacity-reverb');
+		await fixture.openPresetOptions();
+		await fixture.startPresetImport(Promise.resolve('Reverb:RoomSize="84"'), 'Warm room.txt');
+		await act(async () => { await Promise.resolve(); });
+
+		assert.deepEqual(fixture.importCalls, [{
+			encoded: 'Reverb:RoomSize="84"',
+			options: { effectType: 'audacity-reverb', sourceName: 'Warm room.txt' },
+		}]);
+	} finally {
+		await fixture.cleanup();
+	}
+});
+
 test('reviewed Utility Gain uses the canonical selection-effect label and parameter range', async () => {
 	const fixture = await mountedSelectionEffectsFixture();
 	try {
@@ -239,7 +256,10 @@ async function mountedSelectionEffectsFixture() {
 		request: Readonly<Record<string, unknown>>;
 		completion: Deferred<EffectPreset>;
 	}>> = [];
-	const importCalls: string[] = [];
+	const importCalls: Array<Readonly<{
+		encoded: string;
+		options: Readonly<{ effectType: string; sourceName?: string }>;
+	}>> = [];
 	const closes = { count: 0 };
 	const controller = {
 		get project() { return currentProject; },
@@ -262,7 +282,9 @@ async function mountedSelectionEffectsFixture() {
 						saveCalls.push({ request, completion });
 						return completion.promise;
 					},
-					import: (encoded: string) => { importCalls.push(encoded); },
+					import: (encoded: string, options: Readonly<{ effectType: string; sourceName?: string }>) => {
+						importCalls.push({ encoded, options });
+					},
 					export: () => { throw new Error('not used'); },
 					delete: () => { throw new Error('not used'); },
 				},
@@ -341,11 +363,11 @@ async function mountedSelectionEffectsFixture() {
 			assert.ok(prompt, 'Missing mounted Save as… prompt.');
 			await click(elementNamed(prompt, 'button', ENGLISH_COPY.saveEffectPreset));
 		},
-		startPresetImport: async (text: Promise<string>) => {
+		startPresetImport: async (text: Promise<string>, name = 'preset.json') => {
 			const input = dom.one('[data-effect-preset-file]');
 			await act(async () => {
 				void reactProps(input).onChange({
-					currentTarget: { files: [{ text: () => text }], value: 'preset.json' },
+					currentTarget: { files: [{ name, text: () => text }], value: name },
 				});
 				await Promise.resolve();
 			});

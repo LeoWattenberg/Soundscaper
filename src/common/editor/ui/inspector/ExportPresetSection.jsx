@@ -25,6 +25,7 @@ export default function ExportPresetSection({
 		<section className="audio-editor-export-preset-banner" aria-label={copy.deliveryPreset} data-delivery-presets>
 			<EffectPresetBar
 				copy={copy}
+				acceptAudacityPresets={false}
 				disabled={disabled || busy}
 				presets={presets.map((preset) => ({ id: preset.id, label: preset.label, custom: true }))}
 				selectedId={selectedId}

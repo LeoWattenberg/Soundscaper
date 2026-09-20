@@ -7,6 +7,7 @@ import {
 	audacityFactoryPresets,
 	isAudacityFactoryPresetId,
 } from './audacity-effects/factory-presets.js';
+import { parseAudacityEffectPreset } from './audacity-effect-preset-import.ts';
 
 export const AUDIO_EDITOR_EFFECT_PRESETS_SCHEMA_VERSION = 1;
 
@@ -95,10 +96,29 @@ export function exportAudioEditorEffectPreset(state, presetIdValue) {
 export function importAudioEditorEffectPresets(state, input, options = {}) {
 	const current = createAudioEditorEffectPresets(state);
 	let parsed;
-	try {
-		parsed = typeof input === 'string' ? JSON.parse(input) : input;
-	} catch (cause) {
-		throw new SyntaxError(`Invalid effect preset JSON: ${cause instanceof Error ? cause.message : String(cause)}`);
+	if (typeof input !== 'string') {
+		parsed = input;
+	} else {
+		try {
+			parsed = JSON.parse(input);
+		} catch (cause) {
+			if (!looksLikeAudacityEffectPreset(input)) {
+				throw new SyntaxError(`Invalid effect preset JSON: ${cause instanceof Error ? cause.message : String(cause)}`);
+			}
+			const converted = parseAudacityEffectPreset(input, options.effectType || null);
+			const now = timestamp(options.now);
+			parsed = {
+				schemaVersion: AUDIO_EDITOR_EFFECT_PRESETS_SCHEMA_VERSION,
+				presets: [{
+					id: presetId(options.idFactory),
+					effectType: converted.effectType,
+					name: importedAudacityPresetName(options),
+					params: converted.params,
+					createdAt: now,
+					updatedAt: now,
+				}],
+			};
+		}
 	}
 	const imported = createAudioEditorEffectPresets(parsed).presets;
 	if (!imported.length) throw new RangeError('The effect preset file is empty.');
@@ -112,6 +132,18 @@ export function importAudioEditorEffectPresets(state, input, options = {}) {
 		byId.set(id, normalizePreset({ ...preset, id }));
 	}
 	return freezeState([...byId.values()]);
+}
+
+function looksLikeAudacityEffectPreset(input) {
+	const source = input.charCodeAt(0) === 0xfeff ? input.slice(1) : input;
+	return /^\s*[A-Za-z][A-Za-z0-9_-]*\s*:/u.test(source);
+}
+
+function importedAudacityPresetName(options) {
+	const requested = String(options.name ?? '').trim();
+	if (requested) return requested;
+	const leaf = String(options.sourceName ?? '').split(/[\\/]/u).at(-1)?.trim() || '';
+	return leaf.replace(/\.txt$/iu, '').trim() || 'Imported Audacity preset';
 }
 
 function normalizePreset(value) {

@@ -41,6 +41,7 @@ export default function EffectPresetBar({
 	onDelete,
 	onImport,
 	onExport,
+	acceptAudacityPresets = true,
 	resetKey = /** @type {unknown} */ (null),
 	dataAttribute = 'data-effect-presets',
 }) {
@@ -153,7 +154,7 @@ export default function EffectPresetBar({
 			<input
 				ref={fileRef}
 				type="file"
-				accept="application/json,.json"
+				accept={acceptAudacityPresets ? 'application/json,.json,text/plain,.txt' : 'application/json,.json'}
 				hidden
 				data-effect-preset-file
 				onChange={(event) => {

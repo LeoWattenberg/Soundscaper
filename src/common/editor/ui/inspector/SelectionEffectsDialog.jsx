@@ -156,7 +156,7 @@ export function SelectionEffectsDialog({ isOpen, controller, snapshot, copy, fil
 	const importPreset = (file) => run(async (ownsOperation) => {
 		if (!file) return;
 		const encoded = await file.text();
-		if (ownsOperation()) await controller.actions.effects.presets.import(encoded);
+		if (ownsOperation()) await controller.actions.effects.presets.import(encoded, { effectType: selectionType, sourceName: file.name });
 	});
 	const exportPreset = () => run(async () => {
 		const encoded = controller.actions.effects.presets.export(selectedPresetId);

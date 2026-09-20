@@ -33,6 +33,11 @@ test('the preset bar wires every action Audacity puts beside the dropdown', asyn
 		/canDelete=\{canOverwrite\}/u,
 		'Delete is offered only for a stored preset',
 	);
+	assert.match(
+		source,
+		/application\/json,\.json,text\/plain,\.txt/u,
+		'the existing import option accepts Soundscaper JSON and Audacity text presets',
+	);
 });
 
 test('every preset surface renders the shared bar rather than its own controls', async () => {
@@ -60,6 +65,9 @@ test('every preset surface renders the shared bar rather than its own controls',
 		if (/data-effect-preset-file|data-delivery-preset-file/u.test(source)) owners.push(name);
 	}
 	assert.deepEqual(owners, ['EffectPresetBar.jsx']);
+	const exportSource = await readFile(new URL('ExportPresetSection.jsx', INSPECTOR), 'utf8');
+	assert.match(exportSource, /acceptAudacityPresets=\{false\}/u,
+		'delivery presets retain their JSON-only chooser');
 });
 
 // The bar tells a stored preset from a shipped one by the flag its options

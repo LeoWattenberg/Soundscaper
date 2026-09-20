@@ -67,6 +67,67 @@ test('effect presets import/export atomically and reject collisions and invalid 
 	}
 });
 
+test('Audacity text presets convert to named Soundscaper presets on import', () => {
+	const imported = importAudioEditorEffectPresets(createAudioEditorEffectPresets(), [
+		'Reverb:Delay="17" DryGain="-4" HfDamping="63" Reverberance="71"',
+		'RoomSize="82" StereoWidth="91" ToneHigh="76" ToneLow="44"',
+		'WetGain="-2" WetOnly="0"',
+	].join(' '), {
+		effectType: 'audacity-reverb',
+		idFactory: () => 'preset-vocal-room',
+		now: '2026-09-21T12:00:00.000Z',
+		sourceName: 'Vocal room.txt',
+	});
+
+	assert.deepEqual(imported.presets, [{
+		id: 'preset-vocal-room',
+		effectType: 'audacity-reverb',
+		name: 'Vocal room',
+		params: {
+			roomSize: 82,
+			preDelay: 17,
+			reverberance: 71,
+			damping: 63,
+			toneLow: 44,
+			toneHigh: 76,
+			wetGainDb: -2,
+			dryGainDb: -4,
+			stereoWidth: 91,
+			wetOnly: false,
+		},
+		createdAt: '2026-09-21T12:00:00.000Z',
+		updatedAt: '2026-09-21T12:00:00.000Z',
+	}]);
+});
+
+test('Audacity equalizer presets use the native curve conversion and enforce the open effect', () => {
+	const encoded = [
+		'FilterCurve:f0="20" f1="1000" f2="20000"',
+		'FilterLength="8191" InterpolateLin="0" InterpolationMethod="B-spline"',
+		'v0="-12" v1="3.5" v2="0"',
+	].join(' ');
+	const imported = importAudioEditorEffectPresets(createAudioEditorEffectPresets(), encoded, {
+		effectType: 'audacity-filter-curve-eq',
+		idFactory: () => 'preset-curve',
+		now: '2026-09-21T12:00:00.000Z',
+		sourceName: 'Speech contour.TXT',
+	});
+	assert.equal(imported.presets[0].name, 'Speech contour');
+	assert.deepEqual(imported.presets[0].params.points, [
+		{ frequency: 20, gain: -12 },
+		{ frequency: 1_000, gain: 3.5 },
+		{ frequency: 20_000, gain: 0 },
+	]);
+	assert.throws(() => importAudioEditorEffectPresets(
+		createAudioEditorEffectPresets(), encoded, { effectType: 'audacity-graphic-eq' },
+	), /different effect/u);
+	assert.throws(() => importAudioEditorEffectPresets(
+		createAudioEditorEffectPresets(), 'Echo:Delay="oops" Decay="0.5"', {
+			effectType: 'audacity-echo', sourceName: 'Broken.txt',
+		},
+	), /Invalid Audacity effect parameter/u);
+});
+
 test('parametric EQ presets migrate legacy bands and preserve stable node IDs', () => {
 	const saved = saveAudioEditorEffectPreset(createAudioEditorEffectPresets(), {
 		effectType: 'eq',

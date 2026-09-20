@@ -310,7 +310,7 @@ export function AudioEditorEffectsOverlay({
 	});
 	const importRackPreset = (file) => run(async (ownsOperation) => {
 		const encoded = await file.text();
-		if (ownsOperation()) await controller.actions.effects.presets.import(encoded);
+		if (ownsOperation()) await controller.actions.effects.presets.import(encoded, { effectType: effect.type, sourceName: file.name });
 	});
 	const menuEffects = stackMenu?.scope === 'master' ? masterEffects : channelEffects;
 	const menuTrackId = stackMenu?.scope === 'master' ? null : targetId;

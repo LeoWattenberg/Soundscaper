@@ -185,6 +185,19 @@ test('preset import, export, and deletion round-trip through required storage', 
 	assert.equal(harness.persistence.length, 3);
 });
 
+test('Audacity preset imports convert with file identity before required storage', async () => {
+	const harness = createHarness();
+	const imported = await harness.service.importEffectPresets(
+		'Echo:Delay="0.25" Decay="0.4"',
+		{ effectType: 'audacity-echo', sourceName: 'Telephone echo.txt', now: '2026-09-21T12:00:00Z' },
+	);
+	assert.equal(imported[0]?.name, 'Telephone echo');
+	assert.equal(imported[0]?.effectType, 'audacity-echo');
+	assert.deepEqual(imported[0]?.params, { delaySeconds: 0.25, decay: 0.4 });
+	assert.deepEqual(harness.state.effectPresets.presets, imported);
+	assert.equal(harness.persistence.length, 1);
+});
+
 test('a rejected required preset write leaves state unchanged without poisoning later mutations', async () => {
 	const failure = new Error('settings unavailable');
 	let shouldFail = true;
