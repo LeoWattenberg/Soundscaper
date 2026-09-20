@@ -8,6 +8,7 @@ const TASK_MENUS = {
 	'Enhance Dialogue': ['Effect', 'Noise removal and repair'],
 	'Reduce Reverb': ['Effect', 'Noise removal and repair'],
 	'Clean Filler & Silence': ['Effect', 'Noise removal and repair'],
+	'Separate Dialogue / Music / Effects': ['Effect', 'Source Separation'],
 	'Detect Beats & Tempo': ['Analyze', 'Music'],
 	'Mark Cuts': ['Analyze', 'Video'],
 	'Index Transcript': ['Tools', 'Search'],

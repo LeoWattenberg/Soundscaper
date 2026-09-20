@@ -5,6 +5,7 @@ const MODELS = Object.freeze([
 	['parakeet-tdt-0.6b-v3', '3.0.0', 'speech-recognition'],
 	['deepfilternet3', '3.0.0', 'speech-enhancement'],
 	['dereverb-room', '1.0.0', 'dereverberation'],
+	['tiger-dnr', '1.0.0', 'source-separation'],
 	['panns-cnn10', '1.0.0', 'audio-tagging'],
 	['beat-this-small0', '1.1.0', 'beat-tracking'],
 	['nomic-embed-text-v1.5', '1.5.0', 'text-embedding'],
@@ -13,6 +14,7 @@ const MODELS = Object.freeze([
 	['yunet-face-detection-2026may', '2026.5.0', 'face-detection'],
 	['dfine-nano-coco', '1.0.0', 'object-detection'],
 	['u2netp-saliency', '1.0.0', 'saliency-detection'],
+	['qwen3-4b-q4-k-m', '1.0.0', 'editorial-generation'],
 ]);
 
 export async function installMilestone7LocalAssistanceFixture(page) {
@@ -255,9 +257,12 @@ export async function installMilestone7LocalAssistanceFixture(page) {
 						segmentStartIndex: 0, segmentEndIndexExclusive: 1,
 						label: 'spoken launch plan', embeddingRow: 0 }] },
 				'video-index': videoIndex(video, matrix, matrixSha256, sampleFrame, timelineFrame),
+				'cleanup-proposals': cleanupProposals(request, sourceStart, sourceEnd),
 				'reframe-path': reframePath(request, videoStart, videoEnd),
 				'highlight-proposals': request.workflowId === 'make-highlights'
 					? highlightProposals(request, highlightSignals) : null,
+				'editorial-proposal': request.workflowId === 'generate-editorial-text'
+					? await editorialProposal(request) : null,
 			};
 			if (slotId === 'embeddings' || slotId === 'visual-embeddings') {
 				return new Blob([matrix], { type: outputMediaType(slotId) });
@@ -284,15 +289,24 @@ export async function installMilestone7LocalAssistanceFixture(page) {
 					label: 'Launch Plan' }] } };
 		}
 		function reframePath(request, start, end) {
-			const left = 0.341796875;
+			const left = 0.3734375;
 			return { schemaVersion: 1, kind: 'reframe-path', authority: { width: 1_920,
 				height: 1_080, timescale: 12_800, frames: [
 					{ sourceFrame: start, presentationTick: String(start) },
 					{ sourceFrame: end - 1, presentationTick: String(end - 1) },
 				] }, fallbackChain: ['subject', 'saliency', 'center'], path: { schemaVersion: 1,
-				targetAspect: { width: request.settings.targetAspectWidth,
-					height: request.settings.targetAspectHeight }, keyframes: [crop(start, left),
-					crop(end - 1, left)] } };
+					targetAspect: { width: request.settings.targetAspectWidth,
+						height: request.settings.targetAspectHeight }, keyframes: [crop(start, left),
+						crop(end - 1, left)] } };
+		}
+		function cleanupProposals(request, start, end) {
+			const duration = end - start;
+			const proposalStart = start + Math.max(1, Math.floor(duration / 4));
+			const proposalEnd = Math.min(end, proposalStart
+				+ Math.max(1, Math.floor(duration / 8)));
+			return { schemaVersion: 1, kind: 'cleanup-proposals', preset: request.settings.preset,
+				proposals: [{ id: 'cleanup:filler:1', kind: 'filler', startFrame: proposalStart,
+					endFrame: proposalEnd, text: 'um', selected: false }] };
 		}
 		function highlightProposals(request, signals) {
 			const rows = signals?.sourceTimeAuthority;
@@ -301,25 +315,45 @@ export async function installMilestone7LocalAssistanceFixture(page) {
 				throw new Error('Fixture highlight timing authority is unavailable.');
 			}
 			const start = rows[0];
+			const middle = rows[Math.floor(rows.length / 2)];
 			const end = rows.at(-1);
 			if (start.timelineFrame !== signals.selectionStartFrame
 				|| end.timelineFrame !== signals.selectionEndFrame) {
 				throw new Error('Fixture highlight timing authority lost its admitted endpoints.');
 			}
+			const occurrence = request.fence.sourceRanges.find(({ mediaKind }) =>
+				mediaKind === 'video')?.occurrenceIds[0];
+			const audioOccurrence = request.fence.sourceRanges.find(({ mediaKind }) =>
+				mediaKind === 'audio')?.occurrenceIds[0] ?? null;
 			return { schemaVersion: 1, kind: 'highlight-proposals', workflowId: 'make-highlights',
 				targetAspect: { width: 9, height: 16 }, proposals: [{ id: 'highlight-a',
 					startFrame: start.timelineFrame, endFrame: end.timelineFrame,
 					sourceStartFrame: start.sourceFrame, sourceEndFrame: end.sourceFrame,
 					score: 0.8, evidenceMode: 'transcript', transcriptExcerpt: 'Exact transcript cue.',
 					visualSummary: 'Presenter beside the launch plan.', selected: false,
-					videoOccurrenceId: request.fence.sourceRanges.find(({ mediaKind }) =>
-						mediaKind === 'video')?.occurrenceIds[0],
-					audioOccurrenceId: request.fence.sourceRanges.find(({ mediaKind }) =>
-						mediaKind === 'audio')?.occurrenceIds[0] ?? null,
+					videoOccurrenceId: occurrence, audioOccurrenceId: audioOccurrence,
 					title: 'Launch plan highlight', hook: 'A concise opening hook.',
 					chapters: ['Opening'], explanation: 'Selected from authenticated evidence.',
-					cropKeyframes: [crop(start.sourceFrame, 0.341796875),
-						crop(end.sourceFrame - 1, 0.341796875)] }] };
+					cropKeyframes: [crop(start.sourceFrame, 0.3734375),
+						crop(end.sourceFrame - 1, 0.3734375)] }, { id: 'highlight-b',
+					startFrame: middle.timelineFrame, endFrame: end.timelineFrame,
+					sourceStartFrame: middle.sourceFrame, sourceEndFrame: end.sourceFrame,
+					score: 0.7, evidenceMode: 'speechless', transcriptExcerpt: null,
+					visualSummary: 'A silent product reveal.', selected: false,
+					videoOccurrenceId: occurrence, audioOccurrenceId: audioOccurrence,
+					title: 'Product reveal', hook: null, chapters: [], explanation: null,
+					cropKeyframes: [crop(middle.sourceFrame, 0.3734375),
+						crop(end.sourceFrame - 1, 0.3734375)] }] };
+		}
+		async function editorialProposal(request) {
+			const context = await stagedJson(
+				request.jobId, 'generate-editorial-text', 'editorial-context',
+			);
+			return { schemaVersion: 1, candidates: context.authorizedCandidateIds.map(
+				(candidateId) => ({ candidateId, title: 'Launch plan in one minute',
+					hook: 'Start with the decision.', chapters: ['Opening', 'Payoff'],
+					explanation: 'The authenticated transcript supports this structure.' }),
+			) };
 		}
 		async function stagedJson(jobId, stageId, slotId) {
 			const body = state.stagedInputBodies.get(`${jobId}:${stageId}:${slotId}`);
@@ -328,7 +362,7 @@ export async function installMilestone7LocalAssistanceFixture(page) {
 		}
 		function crop(sourceFrame, left) {
 			return { sourceFrame, authority: 'center', trackIds: [],
-				crop: { left, top: 0, right: 1 - 0.31640625 - left, bottom: 0 } };
+				crop: { left, top: 0.1, right: 1 - 0.253125 - left, bottom: 0.1 } };
 		}
 		function embeddingMatrix() {
 			const magic = new TextEncoder().encode('soundscaper-embedding-matrix-v1\n');

@@ -108,6 +108,68 @@ test.describe('Milestone 7 Guided workflow qualification', () => {
 		await expect(editor).toHaveAttribute('data-product', 'framescaper');
 	});
 
+	test('auditions cleanup ranges and keeps separated stem choices atomic', async ({ page }) => {
+		test.setTimeout(180_000);
+		const { guided, errors } = await openGuidedLinkedFixture(page);
+		acceptConsentDialogs(page);
+
+		let review = await runAndReview(page, guided, 'Clean Filler & Silence');
+		const original = review.locator('label', { hasText: 'Original selection' }).locator('audio');
+		await expect(original).toHaveAttribute('data-skip-range-count', '0');
+		await expect(original).toHaveAttribute('src', /^blob:/u);
+		const originalSource = await original.getAttribute('src');
+		const cleanup = review.getByRole('checkbox', { name: 'Cleanup edit 1', exact: true });
+		await cleanup.check();
+		await expect(original).toHaveAttribute('data-skip-range-count', '1');
+		await expect.poll(() => original.getAttribute('src')).not.toBe(originalSource);
+		await cleanup.uncheck();
+		await expect(original).toHaveAttribute('data-skip-range-count', '0');
+		await expect(review).toContainText(
+			'Audition skips checked ranges without changing the project.',
+		);
+
+		review = await runAndReview(page, guided, 'Separate Dialogue / Music / Effects');
+		await expect(review.locator('audio')).toHaveCount(4);
+		const stems = ['Dialogue', 'Music', 'Effects'].map((name) => (
+			review.getByRole('checkbox', { name, exact: true })
+		));
+		for (const stem of stems) await expect(stem).not.toBeChecked();
+		await stems[0].check();
+		for (const stem of stems) await expect(stem).toBeChecked();
+		await stems[2].uncheck();
+		for (const stem of stems) await expect(stem).not.toBeChecked();
+		expect(errors).toEqual([]);
+	});
+
+	test('renders authenticated editorial fields from an accepted transcript', async ({ page }) => {
+		test.setTimeout(180_000);
+		const { guided, errors } = await openGuidedLinkedFixture(page);
+		acceptConsentDialogs(page);
+
+		let review = await runAndReview(page, guided, 'Transcribe & Captions');
+		await review.getByRole('checkbox', { name: '1 caption cue', exact: true }).check();
+		await guided.getByRole('button', { name: 'Apply selected', exact: true }).click();
+		await expect(guided.getByRole('status', { name: 'Processing status' }))
+			.toHaveText('The proposal was accepted.');
+
+		await selectWorkflow(page, guided, 'Generate Editorial Text');
+		await guided.getByRole('checkbox', {
+			name: 'Generate text suggestions', exact: true,
+		}).check();
+		review = await runSelectedAndReview(page, guided);
+		const proposal = review.getByRole('article', { name: 'Editorial proposal 1', exact: true });
+		await expect(proposal.getByRole('heading', { name: 'Launch plan in one minute' }))
+			.toBeVisible();
+		await expect(proposal).toContainText('Start with the decision.');
+		await expect(proposal.getByRole('listitem')).toHaveText(['Opening', 'Payoff']);
+		await expect(proposal).toContainText(
+			'The authenticated transcript supports this structure.',
+		);
+		await expect(review.getByRole('checkbox', { name: 'Editorial text 1', exact: true }))
+			.not.toBeChecked();
+		expect(errors).toEqual([]);
+	});
+
 	test('publishes OCR indexes, jumps from search, and keeps crop proposals editable', async ({ page }) => {
 		test.setTimeout(240_000);
 		const { editor, assistance, guided, errors } = await openGuidedVideoFixture(page);
@@ -152,6 +214,16 @@ test.describe('Milestone 7 Guided workflow qualification', () => {
 		});
 		await reframePosition.fill('0.2');
 		await expect(reframePosition).toHaveValue('0.2');
+		const reframeVertical = review.getByRole('slider', {
+			name: 'Vertical position', exact: true,
+		});
+		await reframeVertical.fill('0.05');
+		await expect(reframeVertical).toHaveValue('0.05');
+		await expect(review).toContainText('Keyframe 1 / 2');
+		await review.getByRole('button', { name: 'Next keyframe', exact: true }).click();
+		await expect(review).toContainText('Keyframe 2 / 2');
+		await review.getByRole('button', { name: 'Previous keyframe', exact: true }).click();
+		await expect(review).toContainText('Keyframe 1 / 2');
 
 		review = await runAndReview(page, reopenedGuided, 'Make Highlights');
 		await expect(review.getByRole('checkbox', { name: 'Highlight 1', exact: true }))
@@ -201,6 +273,50 @@ test.describe('Milestone 7 Guided workflow qualification', () => {
 		}, editedEndSeconds);
 		expect(stopped.paused).toBe(true);
 		expect(stopped.currentTime).toBeCloseTo(editedEndSeconds, 3);
+		await seekVideo(previewVideo, editedEndSeconds + 0.01);
+		await expect.poll(() => previewVideo.evaluate((video) => video.currentTime))
+			.toBeCloseTo(editedEndSeconds, 3);
+
+		const speechless = review.getByRole('article', {
+			name: 'Highlight proposal 2', exact: true,
+		});
+		await expect(speechless).toContainText('Speechless footage');
+		await expect(speechless).toContainText('A silent product reveal.');
+		await expect(speechless.getByText('Hook:', { exact: true })).toHaveCount(0);
+		await speechless.getByRole('button', { name: 'Preview Highlight 2', exact: true }).click();
+		await expect(preview).toHaveAttribute('data-highlight-proposal-id', 'highlight-b');
+		const speechlessStart = Number(await preview.getAttribute('data-preview-start-seconds'));
+		const speechlessEnd = Number(await preview.getAttribute('data-preview-end-seconds'));
+		expect(speechlessStart).toBeGreaterThan(0);
+		await seekVideo(previewVideo, speechlessEnd);
+		await previewVideo.evaluate(async (video) => {
+			await video.play();
+			video.pause();
+		});
+		await expect.poll(() => previewVideo.evaluate((video) => video.currentTime))
+			.toBeCloseTo(speechlessStart, 2);
+		await seekVideo(previewVideo, speechlessStart - 0.01);
+		await expect.poll(() => previewVideo.evaluate((video) => video.currentTime))
+			.toBeCloseTo(speechlessStart, 2);
+		const vertical = speechless.getByRole('slider', {
+			name: 'Vertical position', exact: true,
+		}).first();
+		await vertical.fill('0.05');
+		await expect(vertical).toHaveValue('0.05');
+		const overlay = speechless.getByLabel('Draggable crop overlay', { exact: true }).first();
+		const beforeDrag = await speechless.getByRole('slider', {
+			name: 'Horizontal position', exact: true,
+		}).first().inputValue();
+		const bounds = await overlay.boundingBox();
+		expect(bounds).not.toBeNull();
+		await page.mouse.move(bounds.x + bounds.width / 2, bounds.y + bounds.height / 2);
+		await page.mouse.down();
+		await page.mouse.move(bounds.x + bounds.width * 0.7, bounds.y + bounds.height * 0.55,
+			{ steps: 3 });
+		await page.mouse.up();
+		await expect.poll(() => speechless.getByRole('slider', {
+			name: 'Horizontal position', exact: true,
+		}).first().inputValue()).not.toBe(beforeDrag);
 		expect(errors).toEqual([]);
 	});
 });
@@ -296,4 +412,14 @@ async function runSelectedAndReview(page, guided) {
 	const review = guided.getByRole('region', { name: 'Guided workflow review', exact: true });
 	await expect(review).toBeVisible();
 	return review;
+}
+
+async function seekVideo(video, currentTime) {
+	await video.evaluate(async (element, target) => {
+		element.pause();
+		await new Promise((resolve) => {
+			element.addEventListener('seeked', resolve, { once: true });
+			element.currentTime = target;
+		});
+	}, currentTime);
 }
