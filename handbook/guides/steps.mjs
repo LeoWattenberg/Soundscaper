@@ -442,7 +442,7 @@ export function describeStep(entry, { fixture, facet = 'howto' }) {
 			return 'Open Soundscaper. A new, empty project is ready as soon as the editor loads.';
 		case 'import': {
 			const what = howto ? entry.what : `\`${fixture(entry.fixture).file}\` — ${fixture(entry.fixture).description}`;
-			return `Choose ${menuPath(['File', 'Import'])} and pick ${what}. The file lands as a clip on its own track.`;
+			return `Choose ${menuPath(['File', 'Import'])} and pick ${what}. If the file appears in the Project bin, press ${bold('Add to timeline')}. It lands as a clip on its own track.`;
 		}
 		case 'menu':
 			return `Choose ${menuPath(entry.path)}.`;

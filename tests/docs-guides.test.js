@@ -224,8 +224,10 @@ test('the workflow steps validate their input and describe the surfaces they dri
 });
 
 test('file workflow prose names the application menu commands the browser suite drives', () => {
-	assert.match(howto(importAudio('music-loop', { what: 'a recording' })), /\*\*File → Import\*\*/u);
-	assert.doesNotMatch(howto(importAudio('music-loop', { what: 'a recording' })), /Import audio/u);
+	const importStep = howto(importAudio('music-loop', { what: 'a recording' }));
+	assert.match(importStep, /\*\*File → Import\*\*/u);
+	assert.match(importStep, /If the file appears in the Project bin, press \*\*Add to timeline\*\*/u);
+	assert.doesNotMatch(importStep, /Import audio/u);
 	assert.match(howto(openAudacityProject()), /\*\*File → Open\*\*/u);
 	assert.match(howto(openProjectFile()), /\*\*File → Open\*\*/u);
 

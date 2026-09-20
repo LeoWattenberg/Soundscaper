@@ -265,16 +265,23 @@ async function executeStep(page, state, entry) {
 			return;
 		case 'import':
 			{
+				const clipName = guideFixtureClipName(entry.fixture);
 				const [chooser] = await Promise.all([
 					page.waitForEvent('filechooser'),
 					chooseFileAction(page, state.editor, 'Import'),
 				]);
 				await chooser.setFiles(guideFixtureFile(entry.fixture));
+				const clip = guideClip(state.editor, clipName);
+				const addToTimeline = state.editor.getByRole('button', {
+					name: `Add to timeline: ${clipName}`, exact: true,
+				});
+				await expect(addToTimeline.or(clip).first()).toBeVisible({ timeout: EFFECT_TIMEOUT });
+				if (await addToTimeline.isVisible()) await addToTimeline.click();
 				await expectSuccess(state.editor);
+				await expect(clip).toBeVisible({ timeout: EFFECT_TIMEOUT });
+				state.clipName = clipName;
 			}
-			state.clipName = guideFixtureClipName(entry.fixture);
 			state.fixture = entry.fixture;
-			await expect(guideClip(state.editor, state.clipName)).toBeVisible();
 			return;
 		case 'menu':
 			if (entry.path.length === 2) await chooseCommandAction(page, state.editor, entry.path[0], entry.path[1]);
