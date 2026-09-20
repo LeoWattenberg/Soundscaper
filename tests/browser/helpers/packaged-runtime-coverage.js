@@ -1,0 +1,221 @@
+/* SPDX-License-Identifier: AGPL-3.0-only */
+
+import { randomUUID } from 'node:crypto';
+import { mkdir, rename, writeFile } from 'node:fs/promises';
+import { isAbsolute, join } from 'node:path';
+
+import { startPackagedRuntimeTargetCoverage } from './packaged-runtime-target-coverage.js';
+
+const COVERAGE_SUBDIRECTORY = 'coverage/v8-packaged';
+const PRODUCT_IDS = new Set(['soundscaper', 'framescaper']);
+const PLATFORMS = new Set(['linux', 'win32', 'darwin']);
+const ARCHITECTURES = new Set(['x64', 'arm64']);
+const START_TIMEOUT_MS = 30_000;
+
+/**
+ * Build the environment for the inner product process without leaking the
+ * outer Electron-as-Node or Node coverage settings into an ordinary launch.
+ */
+export function packagedRuntimeCoverageLaunch(environment = process.env) {
+	const childEnvironment = { ...environment };
+	delete childEnvironment.ELECTRON_RUN_AS_NODE;
+	delete childEnvironment.NODE_V8_COVERAGE;
+	if (environment.SCAPE_BROWSER_COVERAGE !== '1') {
+		return Object.freeze({ coverageDirectory: null, environment: Object.freeze(childEnvironment) });
+	}
+	const runRoot = environment.SOUNDSCAPER_NIGHTLY_TESTS_RUN_ROOT;
+	if (typeof runRoot !== 'string' || !isAbsolute(runRoot)) {
+		throw new Error('SOUNDSCAPER_NIGHTLY_TESTS_RUN_ROOT must be absolute when packaged coverage is enabled.');
+	}
+	const coverageDirectory = join(runRoot, COVERAGE_SUBDIRECTORY);
+	childEnvironment.NODE_V8_COVERAGE = coverageDirectory;
+	return Object.freeze({
+		coverageDirectory,
+		environment: Object.freeze(childEnvironment),
+	});
+}
+
+/**
+ * Record renderer, preload, and recursively attached child-target execution
+ * from the packaged Chromium targets.
+ */
+export function createPackagedRuntimeCoverageCollector(options) {
+	const metadata = coverageMetadata(options);
+	const coverageDirectory = absoluteDirectory(options.coverageDirectory);
+	const context = options.context;
+	if (!context || typeof context.pages !== 'function' || typeof context.newCDPSession !== 'function') {
+		throw new TypeError('Packaged coverage requires a Chromium browser context.');
+	}
+	const recorders = new Map();
+	const startedPages = new Set();
+	const pending = [];
+	let attached = false;
+	let collected = false;
+
+	function keepUrl(url) {
+		if (typeof url !== 'string' || url === '') return false;
+		if (url.startsWith(`${metadata.appOrigin}/`)) return true;
+		if (url.startsWith(`${metadata.baseOrigin}/`)) return true;
+		try {
+			const path = decodeURIComponent(url.startsWith('file:') ? new URL(url).pathname : url)
+				.replaceAll('\\', '/');
+			if (!url.startsWith('file:') && !path.startsWith('/') && !/^[A-Za-z]:\//u.test(path)) return false;
+			return /(?:^|\/)[^/]*preload\.(?:c|m)?js$/u.test(path);
+		} catch {
+			return false;
+		}
+	}
+
+	function attachPage(page) {
+		if (startedPages.has(page) || page.isClosed?.() === true) return;
+		startedPages.add(page);
+		const ready = startRecorder(context, page, keepUrl, pending).then((recorder) => {
+			recorders.set(page, recorder);
+		}).catch((error) => {
+			startedPages.delete(page);
+			throw error;
+		});
+		pending.push(ready);
+	}
+
+	const onPage = (page) => { attachPage(page); };
+
+	async function settle() {
+		while (pending.length > 0) await Promise.all(pending.splice(0, pending.length));
+	}
+
+	return Object.freeze({
+		async start() {
+			if (attached) throw new Error('Packaged runtime coverage was already started.');
+			attached = true;
+			const page = await waitForProductPage(context, metadata.appOrigin);
+			attachPage(page);
+			await settle();
+			context.on('page', onPage);
+			for (const candidate of context.pages()) attachPage(candidate);
+			await settle();
+			for (const [candidate, recorder] of recorders) {
+				if (candidate.isClosed?.() !== true) await recorder.reload(START_TIMEOUT_MS);
+			}
+			await settle();
+		},
+		async checkpoint() {
+			if (!attached || collected) return;
+			await settle();
+			await Promise.all([...recorders.values()].map((recorder) => recorder.checkpoint()));
+			await settle();
+		},
+		async collect() {
+			if (!attached) throw new Error('Packaged runtime coverage has not started.');
+			if (collected) throw new Error('Packaged runtime coverage was already collected.');
+			collected = true;
+			context.off?.('page', onPage);
+			await settle();
+			const entries = [];
+			const pausedTargetCounts = Object.create(null);
+			const sources = Object.create(null);
+			const targetCounts = Object.create(null);
+			const targetTypes = new Set();
+			for (const recorder of recorders.values()) {
+				const capture = await recorder.collect();
+				entries.push(...capture.entries);
+				await settle();
+				for (const [url, source] of capture.sources) {
+					if (!(url in sources)) sources[url] = source;
+				}
+				for (const type of capture.targetTypes) targetTypes.add(type);
+				for (const [type, count] of Object.entries(capture.targetCounts)) {
+					targetCounts[type] = (targetCounts[type] ?? 0) + count;
+				}
+				for (const [type, count] of Object.entries(capture.pausedTargetCounts)) {
+					pausedTargetCounts[type] = (pausedTargetCounts[type] ?? 0) + count;
+				}
+			}
+			const result = entries.filter((entry) => keepUrl(entry.url));
+			if (result.length === 0) throw new Error('Packaged runtime coverage recorded no first-party scripts.');
+			const profile = {
+				result,
+				'script-source-cache': sources,
+				'soundscaper-packaged-runtime': {
+					...metadata,
+					childTargetStrategy: 'recursive-auto-attach-paused',
+					capturesChildTargets: true,
+					pausedTargetCounts,
+					targetCounts,
+					targetTypes: [...targetTypes].sort(),
+				},
+				'source-map-cache': Object.create(null),
+			};
+			await mkdir(coverageDirectory, { recursive: true });
+			const file = join(coverageDirectory, `packaged-${metadata.productId}-${randomUUID()}.json`);
+			const temporary = `${file}.tmp`;
+			await writeFile(temporary, JSON.stringify(profile));
+			await rename(temporary, file);
+			return file;
+		},
+	});
+}
+
+async function startRecorder(context, page, keepUrl, pending) {
+	const session = await context.newCDPSession(page);
+	return startPackagedRuntimeTargetCoverage({ keepUrl, page, pending, rootSession: session });
+}
+
+async function waitForProductPage(context, appOrigin) {
+	const deadline = Date.now() + START_TIMEOUT_MS;
+	while (Date.now() < deadline) {
+		const page = context.pages().find((candidate) => candidate.url().startsWith(`${appOrigin}/`));
+		if (page) {
+			try {
+				await page.waitForFunction(
+					() => document.querySelector('[data-audio-editor]')?.getAttribute('data-audio-editor-bound') === 'true',
+					undefined,
+					{ timeout: Math.max(1, deadline - Date.now()) },
+				);
+				return page;
+			} catch {
+				// Electron may replace its initial webContents while the product settles.
+			}
+		}
+		await new Promise((resolvePromise) => setTimeout(resolvePromise, 100));
+	}
+	throw new Error(`Packaged runtime did not expose its ${appOrigin} product page for coverage.`);
+}
+
+function coverageMetadata(options) {
+	const productId = options.productId;
+	const platform = options.platform;
+	const architecture = options.architecture;
+	if (!PRODUCT_IDS.has(productId)) throw new TypeError('Packaged coverage product ID is invalid.');
+	if (!PLATFORMS.has(platform)) throw new TypeError('Packaged coverage platform is invalid.');
+	if (!ARCHITECTURES.has(architecture)) throw new TypeError('Packaged coverage architecture is invalid.');
+	if (typeof options.executablePath !== 'string' || !isAbsolute(options.executablePath)) {
+		throw new TypeError('Packaged coverage executable path must be absolute.');
+	}
+	if (options.processId !== undefined && (!Number.isSafeInteger(options.processId) || options.processId <= 0)) {
+		throw new TypeError('Packaged coverage process ID must be a positive integer.');
+	}
+	let baseOrigin;
+	try { baseOrigin = new URL(options.baseURL).origin; } catch { throw new TypeError('Packaged coverage base URL is invalid.'); }
+	if (!/^http:\/\/127\.0\.0\.1:\d+$/u.test(baseOrigin)) {
+		throw new TypeError('Packaged coverage base URL must be a loopback HTTP origin.');
+	}
+	return Object.freeze({
+		appOrigin: `${productId}-app://bundle`,
+		architecture,
+		baseOrigin,
+		captureKind: 'cdp-precise-coverage',
+		executablePath: options.executablePath,
+		platform,
+		...(options.processId === undefined ? {} : { processId: options.processId }),
+		productId,
+		schemaVersion: 1,
+	});
+}
+
+function absoluteDirectory(value) {
+	if (typeof value !== 'string' || !isAbsolute(value)) {
+		throw new TypeError('Packaged coverage directory must be absolute.');
+	}
+	return value;
+}

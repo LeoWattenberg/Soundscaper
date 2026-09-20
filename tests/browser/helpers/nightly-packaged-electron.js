@@ -2,7 +2,7 @@
 
 import { spawn } from 'node:child_process';
 import { once } from 'node:events';
-import { access, mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { access, mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { createServer } from 'node:net';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -22,7 +22,14 @@ import {
 	createPackagedRuntimeAudioWave,
 	packagedRuntimeAudioArguments,
 } from './packaged-runtime-audio-fixture.js';
-import { terminatePackagedRuntime } from './packaged-runtime-process.js';
+import {
+	createPackagedRuntimeCoverageCollector,
+	packagedRuntimeCoverageLaunch,
+} from './packaged-runtime-coverage.js';
+import {
+	requestPackagedRuntimeShutdown,
+	terminatePackagedRuntime,
+} from './packaged-runtime-process.js';
 
 const standardTest = base.extend({
 	runtimeBrowser: async ({ browser }, use) => use(browser),
@@ -46,8 +53,10 @@ const packagedTest = base.extend({
 		const profile = await mkdtemp(join(tmpdir(), `${productId}-packaged-metrics-`));
 		const audioFixtureArguments = await prepareAudioFixture(workerInfo, productId, profile);
 		const port = await reserveLoopbackPort();
-		const environment = { ...process.env };
-		delete environment.ELECTRON_RUN_AS_NODE;
+		const coverageLaunch = packagedRuntimeCoverageLaunch(process.env);
+		if (coverageLaunch.coverageDirectory !== null) {
+			await mkdir(coverageLaunch.coverageDirectory, { recursive: true });
+		}
 		const child = spawn(executablePath, [
 			...packagedRuntimeChromiumArguments(requiredEnvironment('SOUNDSCAPER_PACKAGED_RUNTIME_PLATFORM')),
 			...audioFixtureArguments,
@@ -57,7 +66,7 @@ const packagedTest = base.extend({
 			`--remote-debugging-port=${String(port)}`,
 			`--soundscaper-nightly-tests-base-url=${baseURL}`,
 		], {
-			env: environment,
+			env: coverageLaunch.environment,
 			stdio: ['ignore', 'pipe', 'pipe'],
 			windowsHide: true,
 		});
@@ -66,6 +75,8 @@ const packagedTest = base.extend({
 		child.stdout.on('data', append);
 		child.stderr.on('data', append);
 		let browser;
+		let context;
+		let coverageCollector;
 		try {
 			const endpoint = await waitForDevToolsEndpoint(port, child, () => output);
 			try {
@@ -73,11 +84,24 @@ const packagedTest = base.extend({
 			} catch (cause) {
 				throw new Error(`Packaged runtime CDP connection failed.\n${output}`, { cause });
 			}
+			[context] = browser.contexts();
+			if (!context) throw new Error('Packaged runtime exposed no Chromium context.');
+			if (coverageLaunch.coverageDirectory !== null) {
+				coverageCollector = createPackagedRuntimeCoverageCollector({
+					architecture: requiredEnvironment('SOUNDSCAPER_PACKAGED_RUNTIME_ARCH'),
+					baseURL,
+					context,
+					coverageDirectory: coverageLaunch.coverageDirectory,
+					executablePath,
+					platform: requiredEnvironment('SOUNDSCAPER_PACKAGED_RUNTIME_PLATFORM'),
+					processId: child.pid,
+					productId,
+				});
+				await coverageCollector.start();
+			}
 			await use(Object.freeze({ baseURL, browser, executablePath, output: () => output }));
 		} finally {
-			await browser?.close().catch(() => undefined);
-			await terminatePackagedRuntime(child);
-			await rm(profile, { recursive: true, force: true });
+			await finishPackagedRuntime({ browser, child, context, coverageCollector, productId, profile });
 		}
 	}, { scope: 'worker' }],
 	packagedRuntimeProcessLog: [async ({ packagedRuntime }, use, testInfo) => {
@@ -121,6 +145,40 @@ export const test = process.env.SOUNDSCAPER_PACKAGED_RUNTIME_METRICS === '1'
 	? packagedTest
 	: standardTest;
 export { expect };
+
+async function finishPackagedRuntime({ browser, child, context, coverageCollector, productId, profile }) {
+	let shutdownError;
+	let coverageError;
+	try {
+		await coverageCollector?.checkpoint();
+	} catch (error) {
+		coverageError = error;
+	}
+	try {
+		let graceful = false;
+		try {
+			graceful = context === undefined ? false : await requestPackagedRuntimeShutdown({
+				child,
+				checkpoint: coverageCollector === undefined ? null : () => coverageCollector.checkpoint(),
+				context,
+				productId,
+			});
+		} catch (error) {
+			shutdownError = error;
+		}
+		try {
+			await coverageCollector?.collect();
+		} catch (error) {
+			coverageError ??= error;
+		}
+		await browser?.close().catch(() => undefined);
+		if (!graceful) await terminatePackagedRuntime(child);
+	} finally {
+		await rm(profile, { recursive: true, force: true });
+	}
+	if (coverageError) throw coverageError;
+	if (shutdownError) throw shutdownError;
+}
 
 async function prepareAudioFixture(workerInfo, productId, profile) {
 	if (workerInfo.project.metadata.packagedAudioDeviceFixture !== true) return [];
