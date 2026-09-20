@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { existsSync } from 'node:fs';
 import { mkdir, readFile, readdir, rm, unlink, writeFile } from 'node:fs/promises';
 import { basename, dirname, join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -13,6 +14,7 @@ import { pathToFileURL } from 'node:url';
 // therefore hold exactly the files they held before, and the maps wait in a
 // sibling directory that only the coverage run looks at.
 const SOURCE_MAP_SUFFIX = '.map';
+const REPOSITORY_ROOT = resolve(import.meta.dirname, '../..');
 
 /** Whether this build was asked for the maps the browser coverage run reads. */
 export function buildSourceMapsRequested(environment = process.env) {
@@ -43,9 +45,10 @@ export function sourceMapDirectoryFor(outputDirectory) {
  *
  * @param {Record<string, unknown>} map
  * @param {string} mapDirectory the directory the map was emitted into
+ * @param {string} [repositoryRoot] checkout root used to repair nested worker maps
  * @returns {Record<string, unknown>}
  */
-export function absoluteSourceMapSources(map, mapDirectory) {
+export function absoluteSourceMapSources(map, mapDirectory, repositoryRoot = REPOSITORY_ROOT) {
 	if (!Array.isArray(map.sources)) return map;
 	const sourceRoot = typeof map.sourceRoot === 'string' ? map.sourceRoot : '';
 	// The embedded source text is dropped: it doubles the size of every map and
@@ -55,7 +58,9 @@ export function absoluteSourceMapSources(map, mapDirectory) {
 	return {
 		...rest,
 		sourceRoot: '',
-		sources: map.sources.map((source) => absoluteSource(source, sourceRoot, mapDirectory)),
+		sources: map.sources.map((source) => absoluteSource(
+			source, sourceRoot, mapDirectory, repositoryRoot,
+		)),
 	};
 }
 
@@ -117,13 +122,27 @@ export function relocateBuildSourceMaps() {
 	};
 }
 
-function absoluteSource(source, sourceRoot, mapDirectory) {
+function absoluteSource(source, sourceRoot, mapDirectory, repositoryRoot) {
 	// A virtual module has no file behind it, and an absolute URL already says
 	// where it lives; neither is a path this can make more resolvable.
 	if (typeof source !== 'string' || source === '' || source.startsWith('\0')) return source;
 	if (/^[A-Za-z][A-Za-z0-9+.-]*:/u.test(source)) return source;
 	const rooted = sourceRoot === '' ? source : `${sourceRoot.replace(/\/+$/u, '')}/${source}`;
-	return pathToFileURL(resolve(mapDirectory, rooted)).href;
+	const emittedRelative = resolve(mapDirectory, rooted);
+	const repositoryRelative = rooted.replace(/^(?:\.\.\/)+/u, '');
+	const repositoryCandidate = resolve(repositoryRoot, repositoryRelative);
+	// Rolldown currently writes worker-map sources as though every output were a
+	// top-level `dist/assets` tree. Product fixtures nest their output several
+	// directories deeper, so that relative address points into `.wrangler/`
+	// even though its source still lives at the checkout root. Only substitute a
+	// real checkout file; generated and intentionally absent sources retain their
+	// emitted-relative address.
+	const resolved = !existsSync(emittedRelative)
+		&& /^(?:desktop|src|vendor)\//u.test(repositoryRelative)
+		&& existsSync(repositoryCandidate)
+		? repositoryCandidate
+		: emittedRelative;
+	return pathToFileURL(resolved).href;
 }
 
 function parseSourceMap(text, mapPath) {

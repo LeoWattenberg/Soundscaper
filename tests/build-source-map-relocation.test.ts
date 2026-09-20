@@ -97,6 +97,20 @@ test('a sourceRoot is folded into the absolute sources rather than dropped', () 
 	assert.deepEqual(rewritten.sources, [pathToFileURL('/build/src/common/measured.ts').href]);
 });
 
+test('nested product worker maps rebase their build-root-relative sources to the checkout', () => {
+	const workspace = makeWorkspace();
+	const source = join(workspace, 'src/common/measured.ts');
+	mkdirSync(resolve(source, '..'), { recursive: true });
+	writeFileSync(source, 'export const measured = true;\n');
+	const rewritten = absoluteSourceMapSources(
+		{ version: 3, sources: ['../../src/common/measured.ts'], mappings: '' },
+		join(workspace, '.wrangler/browser-products/framescaper/assets'),
+		workspace,
+	);
+
+	assert.deepEqual(rewritten.sources, [pathToFileURL(source).href]);
+});
+
 test('two maps that would overwrite each other stop the build', async () => {
 	const workspace = makeWorkspace();
 	const built = join(workspace, 'dist');
