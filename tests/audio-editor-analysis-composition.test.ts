@@ -67,7 +67,9 @@ test('an absent analysis composition refuses execution without reading or render
 test('analysis cancellation remains eager before the lazy implementation is loaded', () => {
 	const f = fixture();
 	const task = f.dependencies.lifetime.startTask('analysis');
-	createAnalysisComposition(f.dependencies).cancel();
+	const actions = createAnalysisComposition(f.dependencies);
+	assert.equal(actions.vamp, null);
+	actions.cancel();
 	assert.equal(task.signal.aborted, true);
 });
 

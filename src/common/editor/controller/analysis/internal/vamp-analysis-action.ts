@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { audioBufferChannels, type RenderedAudio } from '../../rendered-audio-channels.ts';
+import { audioBufferChannels, type RenderedAudio } from '../../../rendered-audio-channels.ts';
 import {
 	VAMP_ANALYSIS_MAXIMUM_FEATURES,
 	normalizeVampAnalysisRequest,
@@ -11,7 +11,7 @@ import {
 	type VampAnalysisResult,
 	type VampAnalyzerDescriptor,
 	type VampTimestamp,
-} from '../../vamp-analysis.ts';
+} from '../../../vamp-analysis.ts';
 
 const BRIDGE_METHODS = Object.freeze([
 	'listNativeVampAnalyzers', 'startNativeVampAnalyzer', 'configureNativeVampAnalyzer',

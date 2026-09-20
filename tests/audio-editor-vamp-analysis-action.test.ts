@@ -3,7 +3,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { createDesktopVampAnalysisAction } from '../src/common/editor/controller/analysis/vamp-analysis-action.ts';
+import { createDesktopVampAnalysisAction } from '../src/common/editor/controller/analysis/internal/vamp-analysis-action.ts';
 
 const REQUEST = Object.freeze({
 	schemaVersion: 1 as const, analyzerId: 'va' + '1'.repeat(30), stableId: 'vi' + '2'.repeat(30),

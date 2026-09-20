@@ -23,7 +23,6 @@ import {
 	createEffectMacroActions,
 	createEffectPresetActions,
 } from '../effects/effect-library-action-groups.ts';
-import { createDesktopVampAnalysisAction } from '../analysis/vamp-analysis-action.ts';
 
 export type { EditorActionRuntime } from './action-facade-runtime.ts';
 
@@ -95,11 +94,7 @@ export function createGroupedEditorActions(scope: EditorActionRuntime) {
 	]);
 	const crossProductHandoffActions = createCrossProductHandoffActionFacade({ ...scope, copy: { get projectSaved() { return copy.projectSaved; }, get projectSaving() { return copy.projectSaving; } } });
 	const macros = createEffectMacroActions(effectLibraryScope, restricted);
-	const vampAnalysis = createDesktopVampAnalysisAction({
-		bridge: fileService.bridge,
-		engine,
-		getProject,
-	});
+	const vampAnalysis = analysisService.vamp;
 	const actions = Object.freeze({
 		project: Object.freeze({
 			create: (...args: Parameters<typeof newProject>) => newProject(...args),
