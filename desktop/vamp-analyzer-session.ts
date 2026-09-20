@@ -222,6 +222,16 @@ export class DesktopVampAnalyzerSessions {
 		return owned.length;
 	}
 
+	async cancelInstallation(installationIdValue: unknown, cancellationReason: string): Promise<number> {
+		const installationId = opaqueId(installationIdValue, 'installation ID');
+		const admittedReason = reason(cancellationReason);
+		const matching = [...this.#sessions.values()].filter(
+			(session) => session.installationId === installationId,
+		);
+		await Promise.all(matching.map((session) => this.#cancel(session, admittedReason)));
+		return matching.length;
+	}
+
 	async dispose(): Promise<void> {
 		if (this.#disposed) return;
 		this.#disposed = true;

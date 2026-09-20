@@ -150,3 +150,11 @@ test('one session admits only one in-flight operation and owner revocation cance
 	assert.deepEqual(fixture.calls.slice(-2), ['cancel:renderer-revoked', 'close']);
 });
 
+test('withdrawing one analyzer installation cancels only sessions using that installation', async () => {
+	const fixture = harness();
+	await configuredSession(fixture);
+	assert.equal(await fixture.sessions.cancelInstallation(
+		fixture.installationId, 'allowance-withdrawn',
+	), 1);
+	assert.deepEqual(fixture.calls.slice(-2), ['cancel:allowance-withdrawn', 'close']);
+});
