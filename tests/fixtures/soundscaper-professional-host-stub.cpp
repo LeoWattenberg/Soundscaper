@@ -94,3 +94,4 @@ extern "C" void soundscaper_pro_plugin_close_vendor_window(soundscaper_pro_plugi
 }
 extern "C" void soundscaper_pro_plugin_close(soundscaper_pro_plugin_instance *instance) { delete instance; }
 namespace soundscaper { void shutdownJuceMessageDispatcher() {} }
+namespace soundscaper::vamp { int runVampAnalyzerPeer() { return 125; } }
