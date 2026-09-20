@@ -2,6 +2,7 @@
 
 import { audioBufferChannels, type RenderedAudio } from '../../rendered-audio-channels.ts';
 import {
+	VAMP_ANALYSIS_MAXIMUM_FEATURES,
 	normalizeVampAnalysisRequest,
 	normalizeVampAnalysisResult,
 	normalizeVampAnalyzerCatalog,
@@ -120,14 +121,14 @@ export function createDesktopVampAnalysisAction(options: Readonly<{
 						sessionId, startFrame,
 						channels: channels.map((channel) => channel.slice(startFrame, endFrame)),
 					}), 'Vamp analyzer feature batch');
-					nativeFeatures.push(...array(batch.features, 'Vamp analyzer features'));
+					appendNativeFeatures(nativeFeatures, batch.features, 'Vamp analyzer features');
 					signal.throwIfAborted();
 					assertProject(options.getProject(), input.projectId, input.projectRevision);
 				}
 				const finalBatch = record(await bridge.finishNativeVampAnalyzer({ sessionId }),
 					'Vamp analyzer final feature batch');
-				nativeFeatures.push(...array(finalBatch.features, 'Vamp analyzer final features'));
 				finished = true;
+				appendNativeFeatures(nativeFeatures, finalBatch.features, 'Vamp analyzer final features');
 				signal.throwIfAborted();
 				assertProject(options.getProject(), input.projectId, input.projectRevision);
 				const features = rendererFeatures(nativeFeatures, output, sizes.stepSize, request.sampleRate);
@@ -333,6 +334,14 @@ function record(value: unknown, label: string): Record<string, unknown> {
 function array(value: unknown, label: string): unknown[] {
 	if (!Array.isArray(value)) throw new TypeError(`${label} must be an array.`);
 	return value;
+}
+
+function appendNativeFeatures(target: unknown[], value: unknown, label: string): void {
+	const features = array(value, label);
+	if (target.length > VAMP_ANALYSIS_MAXIMUM_FEATURES - features.length) {
+		throw new RangeError('Vamp analysis exceeds its renderer feature limit.');
+	}
+	for (const feature of features) target.push(feature);
 }
 
 function integer(value: unknown, minimum: number, maximum: number, label: string): number {

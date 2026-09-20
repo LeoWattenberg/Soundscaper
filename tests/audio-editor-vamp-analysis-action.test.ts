@@ -25,7 +25,7 @@ function rawCatalog() {
 	}];
 }
 
-function harness() {
+function harness(frameCount = 8) {
 	const calls: Array<readonly [string, unknown]> = [];
 	const project = { id: 'project-1', revision: 5 };
 	const bridge = {
@@ -48,7 +48,7 @@ function harness() {
 	const engine = {
 		renderTrack: async (trackId: unknown, options: unknown) => {
 			calls.push(['render-track', { trackId, options }]);
-			return { channels: [Float32Array.from({ length: 8 }, (_, index) => index / 8)] };
+			return { channels: [Float32Array.from({ length: frameCount }, (_, index) => index / 8)] };
 		},
 		renderMix: async () => { throw new Error('unexpected master render'); },
 	};
@@ -93,6 +93,25 @@ test('desktop Vamp action cancels the exact native session on abort or project-f
 		projectId: 'project-1', projectRevision: 5, selectedTrackId: 'track-1', request: REQUEST,
 	}, new AbortController().signal), /project changed/iu);
 	assert.equal(calls.at(-1)?.[0], 'cancel');
+});
+
+test('desktop Vamp action rejects aggregate native feature floods before retaining them', async () => {
+	const frameCount = 65_536 * 2;
+	const { action, bridge, calls } = harness(frameCount);
+	assert.ok(action);
+	const ignoredFeature = Object.freeze({
+		outputId: 'unselected-output', timestamp: null, duration: null, values: [], label: '',
+	});
+	bridge.pushNativeVampAnalyzerPcm = async (value: unknown) => {
+		calls.push(['push', value]);
+		return { features: new Array(50_001).fill(ignoredFeature) };
+	};
+	await assert.rejects(() => action.analyze({
+		projectId: 'project-1', projectRevision: 5, selectedTrackId: 'track-1',
+		request: { ...REQUEST, endFrame: REQUEST.startFrame + frameCount },
+	}, new AbortController().signal), /renderer feature limit/iu);
+	assert.deepEqual(calls.map(([kind]) => kind),
+		['render-track', 'start', 'configure', 'push', 'push', 'cancel']);
 });
 
 test('Vamp action stays absent when any native analyzer bridge operation is unavailable', () => {
