@@ -10,6 +10,7 @@ import { packagedExecutableCandidates } from './lib/desktop-smoke.mjs';
 import {
 	preserveDesktopNightlyProductCoverageEvidence,
 } from './lib/desktop-nightly-product-coverage-evidence.mjs';
+import { repositoryRevision } from './lib/e2e-coverage-integrity.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const OUTPUT_ROOT = resolve(ROOT, 'release/desktop-nightly-products');
@@ -22,6 +23,7 @@ export async function packageDesktopNightlyTestProducts({
 	platform = PLATFORM,
 	arch = ARCH,
 	run = runCommand,
+	sourceRevision = repositoryRevision(repositoryRoot),
 } = {}) {
 	if (!['win', 'mac', 'linux'].includes(platform)) throw new TypeError('Nightly product platform is invalid.');
 	if (!['x64', 'arm64'].includes(arch)) throw new TypeError('Nightly product architecture is invalid.');
@@ -49,6 +51,7 @@ export async function packageDesktopNightlyTestProducts({
 			buildRoot: resolve(repositoryRoot, '.desktop-build'),
 			productId,
 			productOutput,
+			sourceRevision,
 		});
 		const executable = await resolveProductExecutable({ productOutput, productId, platform, arch });
 		const resources = platform === 'mac'

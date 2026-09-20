@@ -6,10 +6,13 @@ import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
+import { createPackage } from '@electron/asar';
 
 import {
 	preserveDesktopNightlyProductCoverageEvidence,
 } from '../scripts/lib/desktop-nightly-product-coverage-evidence.mjs';
+
+const REVISION = '0123456789abcdef0123456789abcdef01234567';
 
 test('nightly product coverage evidence preserves every executable and renderer map', async (context) => {
 	const workspace = await mkdtemp(join(tmpdir(), 'soundscaper-nightly-coverage-evidence-'));
@@ -28,15 +31,25 @@ test('nightly product coverage evidence preserves every executable and renderer 
 		await mkdir(join(buildRoot, name, '..'), { recursive: true });
 		await writeFile(join(buildRoot, name), contents);
 	}
+	const resources = join(productOutput, 'linux-unpacked/resources');
+	await mkdir(join(resources, 'renderer/assets'), { recursive: true });
+	await writeFile(
+		join(resources, 'renderer/assets/editor-abc.js'),
+		files.get('renderer/assets/editor-abc.js') ?? '',
+	);
+	await createPackage(join(buildRoot, 'app'), join(resources, 'app.asar'));
 
 	const manifest = await preserveDesktopNightlyProductCoverageEvidence({
 		buildRoot,
 		productId: 'soundscaper',
 		productOutput,
+		sourceRevision: REVISION,
 	});
 
-	assert.equal(manifest.schemaVersion, 1);
+	assert.equal(manifest.schemaVersion, 2);
 	assert.equal(manifest.productId, 'soundscaper');
+	assert.equal(manifest.sourceRevision, REVISION);
+	assert.match(manifest.packageArchive.sha256, /^[0-9a-f]{64}$/u);
 	assert.deepEqual(manifest.scripts.map(({ realm, packagedPath, artifactPath }) => ({
 		realm, packagedPath, artifactPath,
 	})), [
@@ -72,6 +85,16 @@ test('nightly product coverage evidence preserves every executable and renderer 
 		JSON.parse(await readFile(join(productOutput, 'e2e-coverage/manifest.json'), 'utf8')),
 		manifest,
 	);
+	await writeFile(join(buildRoot, 'app/desktop/main.mjs'), 'changed after packaging\n');
+	await assert.rejects(
+		preserveDesktopNightlyProductCoverageEvidence({
+			buildRoot,
+			productId: 'soundscaper',
+			productOutput,
+			sourceRevision: REVISION,
+		}),
+		/packaged app\.asar\/desktop\/main\.mjs differs/u,
+	);
 });
 
 test('nightly product coverage evidence refuses a renderer build without maps', async (context) => {
@@ -88,6 +111,7 @@ test('nightly product coverage evidence refuses a renderer build without maps', 
 			buildRoot,
 			productId: 'framescaper',
 			productOutput: join(workspace, 'release', 'framescaper'),
+			sourceRevision: REVISION,
 		}),
 		/renderer source maps/iu,
 	);

@@ -2,7 +2,16 @@
 
 import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
-import { isAbsolute, relative, resolve, sep } from 'node:path';
+import { isAbsolute, sep } from 'node:path';
+
+import {
+	e2eExecutableCoverageKey,
+} from './e2e-coverage-integrity.mjs';
+
+export {
+	validateE2EExecutableObservation,
+	validateE2EInventoryFiles,
+} from './e2e-coverage-integrity.mjs';
 
 export const E2E_COVERAGE_SCHEMA_VERSION = 1;
 export const E2E_EXECUTABLE_URL_PREFIX = 'file:///__soundscaper_e2e__/';
@@ -134,15 +143,16 @@ export function parseE2ESurfaceManifest(value, inventory, configuration = E2E_CO
 	}
 	assertObject(value.coverage, `${value.surface} coverage locator`);
 	const configuredSurface = configuration.requiredSurfaces.find(({ id }) => id === value.surface);
-	if (value.coverage.format !== configuredSurface.coverageFormat || !safeRelativePath(value.coverage.path)) {
+	if (value.coverage.format !== configuredSurface.coverageFormat || !safeRelativePath(value.coverage.path)
+		|| !coverageFiles(value.coverage.files)) {
 		throw new TypeError(`${value.surface} coverage must name a safe Istanbul file or V8 directory.`);
 	}
-	const observed = value.observedScripts;
-	if (!Array.isArray(observed)) throw new TypeError(`${value.surface} must attest its observed scripts.`);
+	const attested = value.inventoriedScripts;
+	if (!Array.isArray(attested)) throw new TypeError(`${value.surface} must attest its inventoried scripts.`);
 	const expected = inventory.scripts
 		.filter((script) => script.surface === value.surface)
 		.map(({ id, sha256: hash }) => ({ id, sha256: hash }));
-	if (stableJson(observed) !== stableJson(expected)) {
+	if (stableJson(attested) !== stableJson(expected)) {
 		throw new Error(`${value.surface} did not attest every inventoried script with its exact hash.`);
 	}
 	return Object.freeze({
@@ -151,27 +161,12 @@ export function parseE2ESurfaceManifest(value, inventory, configuration = E2E_CO
 		surface: value.surface,
 		sourceRevision: value.sourceRevision,
 		inventoryDigest: value.inventoryDigest,
-		coverage: Object.freeze({ ...value.coverage }),
-		observedScripts: Object.freeze(observed.map((script) => Object.freeze({ ...script }))),
+		coverage: Object.freeze({
+			...value.coverage,
+			files: Object.freeze(value.coverage.files.map((file) => Object.freeze({ ...file }))),
+		}),
+		inventoriedScripts: Object.freeze(attested.map((script) => Object.freeze({ ...script }))),
 	});
-}
-
-export function validateE2EInventoryFiles(inventory, repositoryRoot, artifactRoot) {
-	const failures = [];
-	for (const source of inventory.sources) {
-		const root = source.origin === 'repository' ? repositoryRoot : artifactRoot;
-		const path = source.origin === 'repository' ? source.path : source.artifactPath;
-		validateFileHash(resolveInside(root, path), source.sha256, `Executable source ${source.path}`, failures);
-	}
-	for (const script of inventory.scripts) {
-		validateFileHash(
-			resolveInside(artifactRoot, script.artifactPath),
-			script.sha256,
-			`Executable script ${script.id}`,
-			failures,
-		);
-	}
-	return failures;
 }
 
 export function validateRawV8Surface(profiles, surface, inventory) {
@@ -196,8 +191,8 @@ export function validateRawV8Surface(profiles, surface, inventory) {
 			observed.add(entry.url);
 		}
 	}
-	for (const [url, script] of expected) {
-		if (!observed.has(url)) failures.push(`${surface} did not execute inventoried script ${script.id}.`);
+	if (![...observed].some((url) => expected.has(url))) {
+		failures.push(`${surface} supplied no admitted executable coverage entries.`);
 	}
 	for (const url of observed) {
 		if (!expected.has(url)) failures.push(`${surface} reported un-inventoried executable script ${url}.`);
@@ -336,6 +331,10 @@ function executableScript(value, configuredSurfaces, sourcesByPath) {
 		|| !sha256(value.sha256)) {
 		throw new TypeError(`Executable script ${value.id} has no valid artifact path, coverage URL or SHA-256.`);
 	}
+	if ((value.sourceMapSha256 !== null && !sha256(value.sourceMapSha256))
+		|| !sha256(value.coverageKey)) {
+		throw new TypeError(`Executable script ${value.id} has no valid source-map or coverage identity.`);
+	}
 	const sources = stringArray(value.sources, `sources for executable script ${value.id}`);
 	if (sources.length === 0) throw new TypeError(`Executable script ${value.id} owns no source.`);
 	assertUnique(sources, `Executable script ${value.id} names a source twice.`);
@@ -346,6 +345,14 @@ function executableScript(value, configuredSurfaces, sourcesByPath) {
 		if (!source.surfaces.includes(value.surface)) {
 			throw new Error(`Executable script ${value.id} does not share ${path}'s owning surface.`);
 		}
+	}
+	const expectedKey = e2eExecutableCoverageKey({
+		sha256: value.sha256,
+		sourceMapSha256: value.sourceMapSha256,
+		sources,
+	});
+	if (value.coverageKey !== expectedKey) {
+		throw new Error(`Executable script ${value.id} has a mismatched coverage identity.`);
 	}
 	return Object.freeze({ ...value, sources: Object.freeze([...sources]) });
 }
@@ -445,26 +452,6 @@ function summarizeCoverage(files) {
 	}]));
 }
 
-function validateFileHash(path, expected, label, failures) {
-	try {
-		if (digest(readFileSync(path)) !== expected) {
-			failures.push(`${label} is stale: its bytes do not match the inventory SHA-256.`);
-		}
-	} catch (error) {
-		failures.push(`${label} is unavailable: ${errorMessage(error)}`);
-	}
-}
-
-function resolveInside(root, path) {
-	const absoluteRoot = resolve(root);
-	const resolved = resolve(absoluteRoot, path);
-	const child = relative(absoluteRoot, resolved);
-	if (child === '' || child === '..' || child.startsWith(`..${sep}`) || isAbsolute(child)) {
-		throw new Error(`Path ${path} escapes its E2E artifact root.`);
-	}
-	return resolved;
-}
-
 function safeRelativePath(value) {
 	return typeof value === 'string' && value !== '' && !isAbsolute(value)
 		&& !value.includes('\\') && !value.split('/').some((part) => part === '' || part === '.' || part === '..');
@@ -488,6 +475,15 @@ function revision(value) {
 
 function sha256(value) {
 	return typeof value === 'string' && /^sha256:[0-9a-f]{64}$/u.test(value);
+}
+
+function coverageFiles(value) {
+	return Array.isArray(value) && value.length > 0
+		&& value.every((file) => file && typeof file === 'object' && !Array.isArray(file)
+			&& safeRelativePath(file.path) && Number.isSafeInteger(file.byteLength)
+			&& file.byteLength >= 0 && sha256(file.sha256))
+		&& stableJson(value.map(({ path }) => path))
+			=== stableJson([...new Set(value.map(({ path }) => path))].sort());
 }
 
 function digest(value) {

@@ -61,7 +61,7 @@ test('relocation empties the build of maps and leaves its bytes alone', async ()
 	);
 });
 
-test('a relocated map names its sources absolutely and drops their embedded text', async () => {
+test('a relocated map names sources absolutely and binds their original bytes', async () => {
 	const workspace = makeWorkspace();
 	const built = join(workspace, 'dist');
 	writeBuiltChunk(built, 'assets/app-abc123.js', 'console.log(1);\n');
@@ -76,16 +76,24 @@ test('a relocated map names its sources absolutely and drops their embedded text
 
 	const map = JSON.parse(
 		readFileSync(join(sourceMapDirectoryFor(built), 'app-abc123.js.map'), 'utf8'),
-	) as { sources: string[], sourceRoot: string, sourcesContent: unknown };
+	) as {
+		sources: string[];
+		sourceRoot: string;
+		sourcesContent: unknown;
+		x_soundscaper_source_sha256: Array<string | null>;
+	};
 	assert.deepEqual(map.sources, [
 		pathToFileURL(resolve(workspace, 'src/common/measured.ts')).href,
 		'\u0000vite/preload-helper',
 		'https://example.invalid/vendor.js',
 	]);
 	assert.equal(map.sourceRoot, '');
-	// c8 reads the text of an absolute source from disk, so the relocated map
-	// carries no copy of it.
 	assert.equal(map.sourcesContent, undefined);
+	assert.deepEqual(map.x_soundscaper_source_sha256, [
+		'4b22ab8bfdaaf2d3213b45fec08e41b450d5ea2aecb1af8ec2bc7624aeac83c1',
+		null,
+		null,
+	]);
 });
 
 test('a sourceRoot is folded into the absolute sources rather than dropped', () => {

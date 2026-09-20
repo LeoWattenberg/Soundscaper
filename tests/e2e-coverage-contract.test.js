@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import assert from 'node:assert/strict';
+import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -15,10 +16,11 @@ import {
 	parseE2EInventory,
 	parseE2ESurfaceManifest,
 	validateE2EInventoryFiles,
+	validateE2EExecutableObservation,
 	validateRawV8Surface,
 } from '../scripts/lib/e2e-coverage-contract.mjs';
+import { e2eExecutableCoverageKey } from '../scripts/lib/e2e-coverage-integrity.mjs';
 
-const REVISION = '0123456789abcdef0123456789abcdef01234567';
 const workspaces = [];
 
 after(() => {
@@ -102,7 +104,7 @@ test('repository and preserved generated sources are hash-checked against their 
 	]);
 });
 
-test('surface manifests are revision, inventory and observed-script attestations', () => {
+test('surface manifests bind their revision, inventory and inventoried script hashes', () => {
 	const fixture = makeFixture();
 	const inventory = parseE2EInventory(fixture.inventory, E2E_COVERAGE_CONFIGURATION);
 	const surface = fixture.surfaces[0];
@@ -118,7 +120,7 @@ test('surface manifests are revision, inventory and observed-script attestations
 		/inventory digest does not match/u,
 	);
 	assert.throws(
-		() => parseE2ESurfaceManifest({ ...manifest, observedScripts: [] }, inventory, E2E_COVERAGE_CONFIGURATION),
+		() => parseE2ESurfaceManifest({ ...manifest, inventoriedScripts: [] }, inventory, E2E_COVERAGE_CONFIGURATION),
 		/did not attest every inventoried script/u,
 	);
 	assert.throws(
@@ -130,20 +132,42 @@ test('surface manifests are revision, inventory and observed-script attestations
 	);
 });
 
-test('a raw V8 surface must contain a profile and observe exactly its inventoried scripts', () => {
+test('a raw V8 surface contributes to the union without requiring duplicate scripts', () => {
 	const fixture = makeFixture();
-	const inventory = parseE2EInventory(fixture.inventory, E2E_COVERAGE_CONFIGURATION);
 	const surface = fixture.surfaces[0];
+	const original = fixture.inventory.scripts.find((candidate) => candidate.surface === surface);
+	const inventory = parseE2EInventory(withDigest({
+		...fixture.inventory,
+		scripts: [...fixture.inventory.scripts, {
+			...original,
+			id: `${surface}/zz-duplicate.js`,
+			coverageUrl: `file:///__soundscaper_e2e__/${surface}/zz-duplicate.js`,
+		}].sort((left, right) => left.id.localeCompare(right.id)),
+	}), E2E_COVERAGE_CONFIGURATION);
 	const script = inventory.scripts.find((candidate) => candidate.surface === surface);
 
 	assert.deepEqual(validateRawV8Surface([{ result: [v8Entry(script.coverageUrl)] }], surface, inventory), []);
+	assert.deepEqual(validateE2EExecutableObservation(
+		[script.coverageUrl],
+		inventory.scripts.filter((candidate) => candidate.surface === surface),
+	), [], 'one observed URL satisfies a byte-and-map-identical executable class');
 	assert.deepEqual(validateRawV8Surface([], surface, inventory), [
 		`${surface} supplied no raw V8 coverage profiles.`,
 	]);
 	assert.deepEqual(validateRawV8Surface([{ result: [v8Entry('file:///unexpected.js')] }], surface, inventory), [
-		`${surface} did not execute inventoried script ${script.id}.`,
+		`${surface} supplied no admitted executable coverage entries.`,
 		`${surface} reported un-inventoried executable script file:///unexpected.js.`,
 	]);
+	const duplicate = inventory.scripts.find(({ id }) => id.endsWith('/zz-duplicate.js'));
+	const distinct = {
+		...duplicate,
+		sourceMapSha256: sha256('distinct map'),
+	};
+	distinct.coverageKey = e2eExecutableCoverageKey(distinct);
+	assert.match(
+		validateE2EExecutableObservation([script.coverageUrl], [script, distinct]).join('\n'),
+		/did not execute executable equivalence.*zz-duplicate/u,
+	);
 });
 
 test('coverage from all required surfaces merges to a literal four-metric 100%', () => {
@@ -171,7 +195,7 @@ test('coverage from all required surfaces merges to a literal four-metric 100%',
 		inventory,
 		surfaceManifests: manifests,
 		coverageBySurface,
-		expectedRevision: REVISION,
+		expectedRevision: fixture.inventory.sourceRevision,
 	});
 
 	assert.deepEqual(result.failures, []);
@@ -198,7 +222,7 @@ test('one uncovered statement, function or branch fails the E2E union instead of
 		inventory,
 		surfaceManifests: manifests,
 		coverageBySurface,
-		expectedRevision: REVISION,
+		expectedRevision: fixture.inventory.sourceRevision,
 	});
 
 	assert.equal(result.metrics.statements.percentage < 100, true);
@@ -223,7 +247,7 @@ test('missing surfaces, missing inventory sources and generic Node coverage fail
 		inventory,
 		surfaceManifests: manifests,
 		coverageBySurface,
-		expectedRevision: REVISION,
+		expectedRevision: fixture.inventory.sourceRevision,
 	});
 
 	assert.match(result.failures.join('\n'), /is missing its surface manifest/u);
@@ -289,19 +313,25 @@ function makeFixture({ sharedBrowserSource = false } = {}) {
 		const body = `globalThis.surface${index} = true;\n`;
 		writeFileSync(join(artifactRoot, path), body);
 		const source = sources.find((candidate) => candidate.surfaces.includes(surface));
-		return {
+		const script = {
 			id: `${surface}/script-${index}.js`,
 			surface,
 			artifactPath: path,
 			coverageUrl: `file:///__soundscaper_e2e__/${surface}/script-${index}.js`,
 			sha256: sha256(body),
+			sourceMapSha256: null,
 			sources: [source.path],
 		};
+		return {
+			...script,
+			coverageKey: e2eExecutableCoverageKey(script),
+		};
 	});
+	const sourceRevision = commitFixtureRepository(workspace);
 	const unsigned = {
 		schemaVersion: 1,
 		kind: 'soundscaper-e2e-executable-inventory',
-		sourceRevision: REVISION,
+		sourceRevision,
 		sources: [...sources].sort((left, right) => left.path.localeCompare(right.path)),
 		scripts: [...scripts].sort((left, right) => left.id.localeCompare(right.id)),
 	};
@@ -334,10 +364,14 @@ function surfaceManifest(fixture, surface) {
 		schemaVersion: 1,
 		kind: 'soundscaper-e2e-coverage-surface',
 		surface,
-		sourceRevision: REVISION,
+		sourceRevision: fixture.inventory.sourceRevision,
 		inventoryDigest: fixture.inventory.digest,
-		coverage: { format: 'v8', path: 'v8' },
-		observedScripts: fixture.inventory.scripts
+		coverage: {
+			format: 'v8',
+			path: 'v8',
+			files: [{ path: 'profile.json', byteLength: 3, sha256: sha256('{}\n') }],
+		},
+		inventoriedScripts: fixture.inventory.scripts
 			.filter((script) => script.surface === surface)
 			.map(({ id, sha256: digest }) => ({ id, sha256: digest })),
 	};
@@ -387,4 +421,18 @@ function withDigest(inventory) {
 
 function sha256(value) {
 	return `sha256:${createHash('sha256').update(value).digest('hex')}`;
+}
+
+function commitFixtureRepository(repositoryRoot) {
+	for (const args of [
+		['init', '--quiet'],
+		['config', 'user.name', 'Coverage Fixture'],
+		['config', 'user.email', 'coverage@example.invalid'],
+		['add', 'src'],
+		['commit', '--quiet', '-m', 'fixture'],
+	]) {
+		const outcome = spawnSync('git', args, { cwd: repositoryRoot, encoding: 'utf8' });
+		assert.equal(outcome.status, 0, outcome.stderr);
+	}
+	return spawnSync('git', ['rev-parse', 'HEAD'], { cwd: repositoryRoot, encoding: 'utf8' }).stdout.trim();
 }

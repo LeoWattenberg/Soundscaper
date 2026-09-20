@@ -3,6 +3,7 @@
 import { createHash } from 'node:crypto';
 import { mkdir, readFile, readdir, rename, rm, writeFile } from 'node:fs/promises';
 import { dirname, join, relative, resolve, sep } from 'node:path';
+import { extractFile } from '@electron/asar';
 
 const SCRIPT_PATTERN = /\.(?:c|m)?js$/u;
 const SOURCE_MAP_PATTERN = /\.map$/u;
@@ -15,18 +16,22 @@ const SOURCE_MAP_PATTERN = /\.map$/u;
  * evidence beside each packaged product gives the importer a portable source
  * for both URL normalization and its executable-code denominator.
  *
- * @param {{ buildRoot: string, productId: string, productOutput: string }} options
+ * @param {{ buildRoot: string, productId: string, productOutput: string, sourceRevision: string }} options
  */
 export async function preserveDesktopNightlyProductCoverageEvidence({
 	buildRoot,
 	productId,
 	productOutput,
+	sourceRevision,
 }) {
 	if (!['soundscaper', 'framescaper'].includes(productId)) {
 		throw new TypeError('Desktop nightly coverage evidence needs a known product.');
 	}
 	const build = requiredAbsolutePath(buildRoot, 'build root');
 	const output = requiredAbsolutePath(productOutput, 'product output');
+	if (!/^[0-9a-f]{40}$/u.test(sourceRevision ?? '')) {
+		throw new TypeError('Desktop nightly coverage evidence needs a full source revision.');
+	}
 	const evidenceRoot = join(output, 'e2e-coverage');
 	const applicationRoot = join(build, 'app');
 	const rendererRoot = join(build, 'renderer');
@@ -39,26 +44,34 @@ export async function preserveDesktopNightlyProductCoverageEvidence({
 	if (sourceMaps.length === 0) {
 		throw new Error('Desktop nightly coverage evidence requires renderer source maps.');
 	}
+	const appAsar = await uniquePackagedAppAsar(output);
+	const resourcesRoot = dirname(appAsar);
+	const archiveBytes = await readFile(appAsar);
 
 	await rm(evidenceRoot, { recursive: true, force: true });
 	await mkdir(evidenceRoot, { recursive: true });
 	const scripts = [];
 	for (const name of applicationScripts) {
+		const bytes = Buffer.from(extractFile(appAsar, name));
+		await assertSameBytes(join(applicationRoot, name), bytes, `packaged app.asar/${name}`);
 		scripts.push(await preserveFile({
 			artifactPath: `app/${name}`,
+			bytes,
 			evidenceRoot,
 			packagedPath: `app.asar/${name}`,
 			realm: preloadScript(name) ? 'preload' : 'main',
-			sourcePath: join(applicationRoot, name),
 		}));
 	}
 	for (const name of rendererScripts) {
+		const packagedRenderer = join(resourcesRoot, 'renderer', name);
+		const bytes = await readFile(packagedRenderer);
+		await assertSameBytes(join(rendererRoot, name), bytes, `packaged renderer/${name}`);
 		scripts.push(await preserveFile({
 			artifactPath: `renderer/${name}`,
+			bytes,
 			evidenceRoot,
 			packagedPath: `renderer/${name}`,
 			realm: 'renderer',
-			sourcePath: join(rendererRoot, name),
 		}));
 	}
 	const preservedMaps = [];
@@ -70,9 +83,11 @@ export async function preserveDesktopNightlyProductCoverageEvidence({
 		}));
 	}
 	const manifest = {
-		schemaVersion: 1,
+		schemaVersion: 2,
 		kind: 'soundscaper-e2e-product-build-evidence',
 		productId,
+		sourceRevision,
+		packageArchive: fileRecord(archiveBytes),
 		scripts,
 		sourceMaps: preservedMaps,
 	};
@@ -85,19 +100,42 @@ export async function preserveDesktopNightlyProductCoverageEvidence({
 
 async function preserveFile({
 	artifactPath,
+	bytes,
 	evidenceRoot,
 	packagedPath,
 	realm,
 	sourcePath,
 }) {
-	const bytes = await readFile(sourcePath);
+	const contents = bytes ?? await readFile(sourcePath);
 	const target = join(evidenceRoot, artifactPath);
 	await mkdir(dirname(target), { recursive: true });
-	await writeFile(target, bytes, { flag: 'wx' });
+	await writeFile(target, contents, { flag: 'wx' });
 	return Object.freeze({
 		...(realm === undefined ? {} : { realm }),
 		...(packagedPath === undefined ? {} : { packagedPath }),
 		artifactPath,
+		...fileRecord(contents),
+	});
+}
+
+async function uniquePackagedAppAsar(productOutput) {
+	const candidates = (await walkFiles(productOutput))
+		.filter((name) => /(?:^|\/)resources\/app\.asar$/u.test(name));
+	if (candidates.length !== 1) {
+		throw new Error('Desktop nightly coverage evidence needs one finished packaged app.asar.');
+	}
+	return join(productOutput, candidates[0]);
+}
+
+async function assertSameBytes(sourcePath, packagedBytes, label) {
+	const staged = await readFile(sourcePath);
+	if (!staged.equals(packagedBytes)) {
+		throw new Error(`Desktop nightly coverage ${label} differs from the staged executable.`);
+	}
+}
+
+function fileRecord(bytes) {
+	return Object.freeze({
 		byteLength: bytes.byteLength,
 		sha256: createHash('sha256').update(bytes).digest('hex'),
 	});

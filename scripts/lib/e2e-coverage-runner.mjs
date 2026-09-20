@@ -19,9 +19,11 @@ import {
 	formatE2ECoverageResult,
 	parseE2EInventory,
 	parseE2ESurfaceManifest,
+	validateE2EExecutableObservation,
 	validateE2EInventoryFiles,
 	validateRawV8Surface,
 } from './e2e-coverage-contract.mjs';
+import { validateCoverageFileRecords } from './e2e-coverage-integrity.mjs';
 
 export function runE2ECoverageGate({
 	repositoryRoot,
@@ -34,6 +36,7 @@ export function runE2ECoverageGate({
 	const surfaceManifests = {};
 	const coverageBySurface = {};
 	const evidenceFailures = validateE2EInventoryFiles(inventory, repositoryRoot, artifactRoot);
+	const observedCoverageUrls = [];
 	for (const { id } of configuration.requiredSurfaces) {
 		const surfaceDirectory = join(artifactRoot, 'surfaces', id);
 		const manifestPath = join(surfaceDirectory, 'manifest.json');
@@ -64,12 +67,20 @@ export function runE2ECoverageGate({
 					inventory,
 				});
 				evidenceFailures.push(...materialized.failures);
+				observedCoverageUrls.push(...materialized.observedCoverageUrls);
 				coverageBySurface[id] = materialized.coverage;
 			}
 		} catch (error) {
 			evidenceFailures.push(`${id} coverage could not be materialized: ${errorMessage(error)}`);
 		}
 	}
+	const v8Surfaces = new Set(configuration.requiredSurfaces
+		.filter(({ coverageFormat }) => coverageFormat === 'v8')
+		.map(({ id }) => id));
+	evidenceFailures.push(...validateE2EExecutableObservation(
+		observedCoverageUrls,
+		inventory.scripts.filter(({ surface }) => v8Surfaces.has(surface)),
+	));
 	const analysis = analyzeE2ECoverage({
 		configuration,
 		inventory,
@@ -92,7 +103,16 @@ export function materializeV8SurfaceCoverage({
 	inventory,
 }) {
 	const rawDirectory = resolveInside(surfaceDirectory, manifest.coverage.path);
+	const fileFailures = validateCoverageFileRecords(
+		rawDirectory,
+		manifest.coverage.files,
+		manifest.surface,
+	);
+	if (fileFailures.length > 0) throw new Error(fileFailures.join('\n'));
 	const profiles = readV8Profiles(rawDirectory);
+	const observedCoverageUrls = profiles.flatMap(({ profile }) => (
+		(profile.result ?? []).map(({ url }) => url).filter((url) => typeof url === 'string')
+	));
 	const failures = validateRawV8Surface(profiles.map(({ profile }) => profile), manifest.surface, inventory);
 	const rebasedDirectory = join(reportDirectory, 'v8-rebased');
 	rmSync(rebasedDirectory, { recursive: true, force: true });
@@ -109,7 +129,7 @@ export function materializeV8SurfaceCoverage({
 	const c8Configuration = join(reportDirectory, 'c8.json');
 	writeFileSync(c8Configuration, JSON.stringify({
 		all: false,
-		exclude: ['**/node_modules/**'],
+		exclude: ['**/node_modules/**', '**/vendor/**'],
 		extension: ['.js', '.cjs', '.mjs', '.ts', '.cts', '.mts', '.jsx', '.tsx'],
 		include: ['**/*'],
 	}));
@@ -120,6 +140,7 @@ export function materializeV8SurfaceCoverage({
 		`--reports-dir=${istanbulDirectory}`,
 		'--reporter=json',
 		'--allowExternal',
+		'--exclude-after-remap',
 	], { cwd: repositoryRoot, env: process.env, encoding: 'utf8' });
 	if (outcome.error) throw outcome.error;
 	if (outcome.signal) throw new Error(`c8 terminated with ${outcome.signal}.`);
@@ -132,7 +153,7 @@ export function materializeV8SurfaceCoverage({
 		repositoryRoot,
 		artifactRoot,
 	);
-	return { coverage, failures };
+	return { coverage, failures, observedCoverageUrls };
 }
 
 export function rebasePortableV8Profile(profile, inventory, repositoryRoot, artifactRoot) {

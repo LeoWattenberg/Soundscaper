@@ -26,9 +26,16 @@ import {
 	materializeV8SurfaceCoverage,
 	rebasePortableV8Profile,
 } from '../scripts/lib/e2e-coverage-runner.mjs';
+import {
+	coverageFileRecords,
+	e2eExecutableCoverageKey,
+} from '../scripts/lib/e2e-coverage-integrity.mjs';
 
 const REPOSITORY_ROOT = resolve(import.meta.dirname, '..');
-const REVISION = '0123456789abcdef0123456789abcdef01234567';
+const REVISION = execFileSync('git', ['rev-parse', 'HEAD'], {
+	cwd: REPOSITORY_ROOT,
+	encoding: 'utf8',
+}).trim();
 const SURFACE = 'browser-chromium-soundscaper-renderer';
 const TOKEN_URL = 'file:///__soundscaper_e2e__/browser/soundscaper/app.mjs';
 const workspaces = [];
@@ -109,12 +116,84 @@ test('the V8 adapter produces an Istanbul file map for an exact generated execut
 	assert.ok(Object.keys(measured.f).length > 0, 'the Istanbul report must contain functions');
 });
 
-function makeFixture() {
+test('source-map dependencies are excluded after remapping while repository code remains', () => {
+	const fixture = makeFixture({ repositorySource: true });
+	const originalProfiles = join(fixture.workspace, 'mapped-original-v8');
+	mkdirSync(originalProfiles);
+	execFileSync(process.execPath, [join(fixture.artifactRoot, fixture.scriptPath)], {
+		env: { ...process.env, NODE_V8_COVERAGE: originalProfiles },
+	});
+	const original = JSON.parse(readFileSync(join(
+		originalProfiles,
+		readdirSync(originalProfiles).find((name) => name.endsWith('.json')),
+	), 'utf8'));
+	const artifactUrl = pathToFileURL(join(fixture.artifactRoot, fixture.scriptPath)).href;
+	const scriptCoverage = original.result.find(({ url }) => url === artifactUrl);
+	const repositoryContent = readFileSync(join(REPOSITORY_ROOT, fixture.sourcePath), 'utf8');
+	const dependencyPath = 'node_modules/debug/src/index.js';
+	const dependencyContent = readFileSync(join(REPOSITORY_ROOT, dependencyPath), 'utf8');
+	const v8Directory = join(fixture.surfaceDirectory, 'v8');
+	mkdirSync(v8Directory, { recursive: true });
+	writeFileSync(join(v8Directory, 'coverage.json'), JSON.stringify({
+		result: [{ ...scriptCoverage, url: TOKEN_URL }],
+		'source-map-cache': {
+			[TOKEN_URL]: {
+				lineLengths: fixture.body.replace(/\n$/u, '').split('\n').map((line) => line.length),
+				data: {
+					version: 3,
+					sources: [
+						`file:///__soundscaper_repo__/${fixture.sourcePath}`,
+						'file:///__soundscaper_external__/node_modules/debug/src/index.js',
+					],
+					sourcesContent: [repositoryContent, dependencyContent],
+					names: [],
+					mappings: 'AAAA;ACAA',
+				},
+				url: null,
+			},
+		},
+	}));
+
+	const result = materializeV8SurfaceCoverage({
+		repositoryRoot: REPOSITORY_ROOT,
+		artifactRoot: fixture.artifactRoot,
+		surfaceDirectory: fixture.surfaceDirectory,
+		reportDirectory: join(fixture.workspace, 'mapped-report'),
+		manifest: fixture.manifest,
+		inventory: fixture.inventory,
+	});
+
+	assert.deepEqual(result.failures, []);
+	assert.deepEqual(Object.keys(result.coverage), [fixture.sourcePath]);
+});
+
+test('a prepared raw profile cannot be replaced or supplemented after manifest binding', () => {
+	const fixture = makeFixture();
+	const directory = join(fixture.surfaceDirectory, 'v8');
+	mkdirSync(directory, { recursive: true });
+	const profile = join(directory, 'coverage.json');
+	writeFileSync(profile, JSON.stringify({ result: [], 'source-map-cache': {} }));
+	const manifest = fixture.manifest;
+	writeFileSync(profile, JSON.stringify({ result: [v8Entry(TOKEN_URL)], 'source-map-cache': {} }));
+
+	assert.throws(() => materializeV8SurfaceCoverage({
+		repositoryRoot: REPOSITORY_ROOT,
+		artifactRoot: fixture.artifactRoot,
+		surfaceDirectory: fixture.surfaceDirectory,
+		reportDirectory: join(fixture.workspace, 'tampered-report'),
+		manifest,
+		inventory: fixture.inventory,
+	}), /coverage-file inventory or bytes do not match/u);
+});
+
+function makeFixture({ repositorySource = false } = {}) {
 	const workspace = mkdtempSync(join(tmpdir(), 'soundscaper-e2e-runner-'));
 	workspaces.push(workspace);
 	const artifactRoot = join(workspace, 'e2e');
 	const scriptPath = 'executables/app.mjs';
-	const sourcePath = 'generated/browser-chromium-soundscaper-renderer/app.mjs';
+	const sourcePath = repositorySource
+		? 'src/common/url.ts'
+		: 'generated/browser-chromium-soundscaper-renderer/app.mjs';
 	const body = [
 		'export function choose(value) {',
 		'\treturn value ? "yes" : "no";',
@@ -140,7 +219,12 @@ function makeFixture() {
 		schemaVersion: 1,
 		kind: 'soundscaper-e2e-executable-inventory',
 		sourceRevision: REVISION,
-		sources: [{
+		sources: [repositorySource ? {
+			path: sourcePath,
+			origin: 'repository',
+			sha256: sha256(readFileSync(join(REPOSITORY_ROOT, sourcePath))),
+			surfaces: [SURFACE],
+		} : {
 			path: sourcePath,
 			origin: 'artifact',
 			artifactPath: scriptPath,
@@ -153,6 +237,12 @@ function makeFixture() {
 			artifactPath: scriptPath,
 			coverageUrl: TOKEN_URL,
 			sha256: sha256(body),
+			sourceMapSha256: null,
+			coverageKey: e2eExecutableCoverageKey({
+				sha256: sha256(body),
+				sourceMapSha256: null,
+				sources: [sourcePath],
+			}),
 			sources: [sourcePath],
 		}],
 	};
@@ -162,18 +252,36 @@ function makeFixture() {
 	);
 	const surfaceDirectory = join(artifactRoot, 'surfaces', SURFACE);
 	mkdirSync(surfaceDirectory, { recursive: true });
-	const manifest = parseE2ESurfaceManifest({
-		schemaVersion: 1,
-		kind: 'soundscaper-e2e-coverage-surface',
-		surface: SURFACE,
-		sourceRevision: REVISION,
-		inventoryDigest: inventory.digest,
-		coverage: { format: 'v8', path: 'v8' },
-		observedScripts: [{ id: `${SURFACE}/app.mjs`, sha256: sha256(body) }],
-	}, inventory, configuration);
-	return { workspace, artifactRoot, surfaceDirectory, scriptPath, sourcePath, inventory, manifest };
+	return {
+		workspace,
+		artifactRoot,
+		body,
+		surfaceDirectory,
+		scriptPath,
+		sourcePath,
+		inventory,
+		get manifest() {
+			return parseE2ESurfaceManifest({
+				schemaVersion: 1,
+				kind: 'soundscaper-e2e-coverage-surface',
+				surface: SURFACE,
+				sourceRevision: REVISION,
+				inventoryDigest: inventory.digest,
+				coverage: {
+					format: 'v8',
+					path: 'v8',
+					files: coverageFileRecords(join(surfaceDirectory, 'v8')),
+				},
+				inventoriedScripts: [{ id: `${SURFACE}/app.mjs`, sha256: sha256(body) }],
+			}, inventory, configuration);
+		},
+	};
 }
 
 function sha256(value) {
 	return `sha256:${createHash('sha256').update(value).digest('hex')}`;
+}
+
+function v8Entry(url) {
+	return { url, functions: [] };
 }

@@ -7,6 +7,7 @@ import { tmpdir } from 'node:os';
 import { dirname, join, resolve } from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
+import { createPackage } from '@electron/asar';
 
 import { packageDesktopNightlyTestProducts } from '../scripts/desktop-nightly-tests-products.mjs';
 import {
@@ -294,6 +295,7 @@ test('nightly product staging builds isolated Soundscaper and Framescaper trees'
 		outputRoot,
 		platform: 'linux',
 		arch: 'x64',
+		sourceRevision: '0123456789abcdef0123456789abcdef01234567',
 		run: async (_command: string, args: readonly string[], options: { readonly environment: NodeJS.ProcessEnv }) => {
 			const productId = String(options.environment.SCAPE_PRODUCT);
 			calls.push({
@@ -314,9 +316,11 @@ test('nightly product staging builds isolated Soundscaper and Framescaper trees'
 			const outputArgument = args.find((value) => value.startsWith('--config.directories.output='));
 			assert.ok(outputArgument);
 			const productOutput = outputArgument.slice('--config.directories.output='.length);
-			await mkdir(join(productOutput, 'linux-unpacked', 'resources'), { recursive: true });
+			const resources = join(productOutput, 'linux-unpacked', 'resources');
+			await mkdir(join(resources, 'renderer/assets'), { recursive: true });
 			await writeFile(join(productOutput, 'linux-unpacked', productId), 'executable');
-			await writeFile(join(productOutput, 'linux-unpacked', 'resources', 'app.asar'), `${productId} archive`);
+			await writeFile(join(resources, 'renderer/assets/editor.js'), `${productId} renderer`);
+			await createPackage(join(root, '.desktop-build/app'), join(resources, 'app.asar'));
 		},
 	});
 
@@ -329,7 +333,10 @@ test('nightly product staging builds isolated Soundscaper and Framescaper trees'
 			JSON.parse(await readFile(join(outputRoot, productId, 'stage-manifest.json'), 'utf8')).productId,
 			productId,
 		);
-		assert.equal(await readFile(join(outputRoot, `${productId}.asar`), 'utf8'), `${productId} archive`);
+		assert.deepEqual(
+			await readFile(join(outputRoot, `${productId}.asar`)),
+			await readFile(join(outputRoot, productId, 'linux-unpacked/resources/app.asar')),
+		);
 		const coverageEvidence = JSON.parse(await readFile(
 			join(outputRoot, productId, 'e2e-coverage/manifest.json'),
 			'utf8',

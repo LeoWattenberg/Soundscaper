@@ -6,6 +6,7 @@ import { access, cp, readFile, readdir, rm, writeFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 
 import { sourceMapDirectoryFor } from './build-source-map-relocation.mjs';
+import { repositoryRevision } from './e2e-coverage-integrity.mjs';
 import {
 	assertPlan,
 	assertSite,
@@ -97,9 +98,10 @@ export async function verifyBrowserProductSite(site) {
 			{ cause: error },
 		);
 	}
-	if (evidence.schemaVersion !== 1
+	if (evidence.schemaVersion !== 2
 		|| evidence.productId !== site.productId
-		|| evidence.origin !== site.origin) {
+		|| evidence.origin !== site.origin
+		|| evidence.sourceRevision !== repositoryRevision(repositoryRoot)) {
 		throw new Error(`The ${site.productId} browser-site verification evidence names the wrong build.`);
 	}
 	const required = requiredProductFiles(site.productId);
@@ -113,6 +115,17 @@ export async function verifyBrowserProductSite(site) {
 		const record = evidence.files[relativePath];
 		if (record?.byteLength !== bytes.byteLength || record.sha256 !== sha256(bytes)) {
 			throw new Error(`The verified ${site.productId} browser file changed: ${relativePath}.`);
+		}
+	}
+	const actualMaps = await browserSourceMapFiles(outputDirectory);
+	if (JSON.stringify(Object.keys(evidence.sourceMaps ?? {}).sort()) !== JSON.stringify(actualMaps)) {
+		throw new Error(`The ${site.productId} browser-site source-map evidence has an incomplete inventory.`);
+	}
+	for (const relativePath of actualMaps) {
+		const bytes = await readFile(resolve(sourceMapDirectoryFor(outputDirectory), relativePath));
+		const record = evidence.sourceMaps[relativePath];
+		if (record?.byteLength !== bytes.byteLength || record.sha256 !== sha256(bytes)) {
+			throw new Error(`The verified ${site.productId} browser source map changed: ${relativePath}.`);
 		}
 	}
 	const document = await readFile(resolve(outputDirectory, 'en/index.html'), 'utf8');
@@ -150,11 +163,18 @@ export async function recordBrowserProductSiteEvidence(site) {
 		const bytes = await readFile(resolve(outputDirectory, relativePath));
 		files[relativePath] = Object.freeze({ byteLength: bytes.byteLength, sha256: sha256(bytes) });
 	}
+	const sourceMaps = {};
+	for (const relativePath of await browserSourceMapFiles(outputDirectory)) {
+		const bytes = await readFile(resolve(sourceMapDirectoryFor(outputDirectory), relativePath));
+		sourceMaps[relativePath] = Object.freeze({ byteLength: bytes.byteLength, sha256: sha256(bytes) });
+	}
 	const evidence = {
-		schemaVersion: 1,
+		schemaVersion: 2,
 		productId: site.productId,
 		origin: site.origin,
+		sourceRevision: repositoryRevision(repositoryRoot),
 		files,
+		sourceMaps,
 	};
 	await writeFile(
 		resolve(outputDirectory, BROWSER_PRODUCT_EVIDENCE),
@@ -204,6 +224,15 @@ async function browserProductFiles(outputDirectory, relativeDirectory = '') {
 		}
 	}
 	return files.sort();
+}
+
+async function browserSourceMapFiles(outputDirectory) {
+	const root = sourceMapDirectoryFor(outputDirectory);
+	try { return await browserProductFiles(root); }
+	catch (error) {
+		if (error?.code === 'ENOENT') return [];
+		throw error;
+	}
 }
 
 function sha256(bytes) {

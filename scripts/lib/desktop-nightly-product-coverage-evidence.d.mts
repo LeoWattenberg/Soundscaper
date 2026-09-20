@@ -12,9 +12,11 @@ export interface DesktopNightlyProductCoverageScript extends DesktopNightlyProdu
 }
 
 export interface DesktopNightlyProductCoverageEvidence {
-	readonly schemaVersion: 1;
+	readonly schemaVersion: 2;
 	readonly kind: 'soundscaper-e2e-product-build-evidence';
 	readonly productId: 'soundscaper' | 'framescaper';
+	readonly sourceRevision: string;
+	readonly packageArchive: Omit<DesktopNightlyProductCoverageFile, 'artifactPath'>;
 	readonly scripts: readonly DesktopNightlyProductCoverageScript[];
 	readonly sourceMaps: readonly DesktopNightlyProductCoverageFile[];
 }
@@ -23,4 +25,5 @@ export function preserveDesktopNightlyProductCoverageEvidence(options: {
 	readonly buildRoot: string;
 	readonly productId: string;
 	readonly productOutput: string;
+	readonly sourceRevision: string;
 }): Promise<DesktopNightlyProductCoverageEvidence>;

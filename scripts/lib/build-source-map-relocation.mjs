@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { createHash } from 'node:crypto';
 import { existsSync } from 'node:fs';
 import { mkdir, readFile, readdir, rm, unlink, writeFile } from 'node:fs/promises';
 import { basename, dirname, join, resolve } from 'node:path';
@@ -51,9 +52,9 @@ export function sourceMapDirectoryFor(outputDirectory) {
 export function absoluteSourceMapSources(map, mapDirectory, repositoryRoot = REPOSITORY_ROOT) {
 	if (!Array.isArray(map.sources)) return map;
 	const sourceRoot = typeof map.sourceRoot === 'string' ? map.sourceRoot : '';
-	// The embedded source text is dropped: it doubles the size of every map and
-	// of every coverage shard that carries one, and c8 reads a source it is not
-	// given straight from the checkout the absolute URLs below point at.
+	// Keep a compact, build-time binding to every embedded source. Coverage can
+	// restore text from the checkout, but only after proving those bytes are the
+	// exact bytes the source map was generated from.
 	const { sourcesContent: _embedded, ...rest } = map;
 	return {
 		...rest,
@@ -61,6 +62,12 @@ export function absoluteSourceMapSources(map, mapDirectory, repositoryRoot = REP
 		sources: map.sources.map((source) => absoluteSource(
 			source, sourceRoot, mapDirectory, repositoryRoot,
 		)),
+		x_soundscaper_source_sha256: map.sources.map((_, index) => {
+			const content = map.sourcesContent?.[index];
+			return typeof content === 'string'
+				? createHash('sha256').update(content).digest('hex')
+				: null;
+		}),
 	};
 }
 
