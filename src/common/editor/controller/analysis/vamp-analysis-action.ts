@@ -17,6 +17,14 @@ const BRIDGE_METHODS = Object.freeze([
 	'listNativeVampAnalyzers', 'startNativeVampAnalyzer', 'configureNativeVampAnalyzer',
 	'pushNativeVampAnalyzerPcm', 'finishNativeVampAnalyzer', 'cancelNativeVampAnalyzer',
 ] as const);
+const CONFIGURED_SESSION_KEYS = Object.freeze([
+	'kind', 'format', 'sessionId', 'analyzerId', 'installationId', 'binarySha256', 'state',
+	'processedFrames', 'totalFrames', 'outputs',
+] as const);
+const NATIVE_OUTPUT_KEYS = Object.freeze([
+	'identifier', 'name', 'description', 'unit', 'binCount', 'binNames', 'extents',
+	'quantizeStep', 'sampleType', 'sampleRate', 'hasDuration',
+] as const);
 const CHUNK_FRAMES = 65_536;
 
 interface NativeVampBridge {
@@ -87,8 +95,9 @@ export function createDesktopVampAnalysisAction(options: Readonly<{
 			if (row === undefined || !catalog.some((candidate) => catalogKey(candidate) === catalogKey(request))) {
 				throw new Error('The selected Vamp analyzer installation is no longer available.');
 			}
-			const output = row.outputs.find(({ id }) => id === request.outputId);
-			if (output === undefined) throw new Error('The selected Vamp output is no longer available.');
+			if (!row.outputs.some(({ id }) => id === request.outputId)) {
+				throw new Error('The selected Vamp output is no longer available.');
+			}
 			const rendered = await renderSelection(options.engine, input, request);
 			signal.throwIfAborted();
 			assertProject(options.getProject(), input.projectId, input.projectRevision);
@@ -117,12 +126,13 @@ export function createDesktopVampAnalysisAction(options: Readonly<{
 				const parameterValues = Object.freeze(Object.fromEntries(
 					request.parameters.map(({ id, value }) => [id, value]),
 				));
-				await bridge.configureNativeVampAnalyzer({
+				const configured = await bridge.configureNativeVampAnalyzer({
 					sessionId, sampleRate: request.sampleRate, channelCount: channels.length,
 					stepSize: sizes.stepSize, blockSize: sizes.blockSize,
 					frameCount: request.endFrame - request.startFrame,
 					parameters: parameterValues, program: request.program,
 				});
+				const output = configuredOutput(configured, row, request, sessionId);
 				const nativeFeatures: unknown[] = [];
 				for (let startFrame = 0; startFrame < channels[0]!.length; startFrame += CHUNK_FRAMES) {
 					signal.throwIfAborted();
@@ -153,6 +163,42 @@ export function createDesktopVampAnalysisAction(options: Readonly<{
 			}
 		},
 	});
+}
+
+function configuredOutput(
+	value: unknown,
+	row: Readonly<NativeCatalogRow>,
+	request: Readonly<VampAnalysisRequest>,
+	sessionId: string,
+): Readonly<VampAnalyzerDescriptor['outputs'][number]> {
+	const session = exactRecord(value, CONFIGURED_SESSION_KEYS, 'Configured Vamp analyzer session');
+	const expectedFrames = request.endFrame - request.startFrame;
+	if (session.kind !== 'analyzer-session' || session.format !== 'vamp'
+		|| runtimeId(session.sessionId, 'Vamp analyzer session') !== sessionId
+		|| session.analyzerId !== request.analyzerId || session.installationId !== request.stableId
+		|| session.binarySha256 !== request.binarySha256 || session.state !== 'configured'
+		|| integer(session.processedFrames, 0, expectedFrames, 'processed frame count') !== 0
+		|| integer(session.totalFrames, 0, Number.MAX_SAFE_INTEGER, 'total frame count') !== expectedFrames) {
+		throw new Error('The configured Vamp analyzer session does not match its request.');
+	}
+	const outputs = array(session.outputs, 'Configured Vamp analyzer outputs').map((valueOutput) => {
+		const output = exactRecord(valueOutput, NATIVE_OUTPUT_KEYS, 'Configured Vamp output');
+		return Object.freeze({
+			id: output.identifier,
+			name: output.name,
+			description: output.description,
+			unit: output.unit,
+			sampleType: output.sampleType,
+			sampleRate: output.sampleRate,
+			hasDuration: output.hasDuration,
+		});
+	});
+	const descriptor = normalizeVampAnalyzerCatalog([{ ...stripConfiguration(row), outputs }])[0]!;
+	const selected = descriptor.outputs.find(({ id }) => id === request.outputId);
+	if (selected === undefined) {
+		throw new Error('The selected Vamp output is no longer available after configuration.');
+	}
+	return selected;
 }
 
 function admitBridge(value: unknown): NativeVampBridge | null {

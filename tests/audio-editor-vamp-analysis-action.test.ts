@@ -25,6 +25,23 @@ function rawCatalog() {
 	}];
 }
 
+function nativeOutput(overrides: Readonly<Record<string, unknown>> = {}) {
+	return {
+		identifier: 'onsets', name: 'Onsets', description: '', unit: '', binCount: null,
+		binNames: [], extents: null, quantizeStep: null, sampleType: 'one-sample-per-step',
+		sampleRate: null, hasDuration: false, ...overrides,
+	};
+}
+
+function configuredSession(frameCount: number, outputs: readonly unknown[] = [nativeOutput()]) {
+	return {
+		kind: 'analyzer-session', format: 'vamp', sessionId: 'session-1',
+		analyzerId: REQUEST.analyzerId, installationId: REQUEST.stableId,
+		binarySha256: REQUEST.binarySha256, state: 'configured', processedFrames: 0,
+		totalFrames: frameCount, outputs,
+	};
+}
+
 function harness(frameCount = 8) {
 	const calls: Array<readonly [string, unknown]> = [];
 	const project = { id: 'project-1', revision: 5 };
@@ -34,7 +51,7 @@ function harness(frameCount = 8) {
 			calls.push(['start', value]); return { sessionId: 'session-1' };
 		},
 		configureNativeVampAnalyzer: async (value: unknown) => {
-			calls.push(['configure', value]); return { outputs: rawCatalog()[0]!.outputs };
+			calls.push(['configure', value]); return configuredSession(frameCount);
 		},
 		pushNativeVampAnalyzerPcm: async (value: unknown) => {
 			calls.push(['push', value]); return { features: [{ outputId: 'onsets', timestamp: null,
@@ -115,6 +132,38 @@ test('desktop Vamp action requests cancellation while a native PCM operation is 
 	await assert.rejects(operation, { name: 'AbortError' });
 	assert.equal(cancelledWhilePushPending, true);
 	assert.equal(calls.filter(([kind]) => kind === 'cancel').length, 1);
+});
+
+test('desktop Vamp action interprets features with the configured output descriptor', async () => {
+	const { action, bridge, calls } = harness();
+	assert.ok(action);
+	bridge.configureNativeVampAnalyzer = async (value: unknown) => {
+		calls.push(['configure', value]);
+		return configuredSession(8, [nativeOutput({ sampleType: 'fixed-sample-rate', sampleRate: 12_000 })]);
+	};
+	bridge.pushNativeVampAnalyzerPcm = async (value: unknown) => {
+		calls.push(['push', value]);
+		return { features: [0.25, 0.75].map((sample) => ({
+			outputId: 'onsets', timestamp: null, duration: null, values: [sample], label: '',
+		})) };
+	};
+	const result = await action.analyze({
+		projectId: 'project-1', projectRevision: 5, selectedTrackId: 'track-1', request: REQUEST,
+	}, new AbortController().signal);
+	assert.deepEqual(result.features[1]?.timestamp, { seconds: 0, nanoseconds: 83_333 });
+});
+
+test('desktop Vamp action rejects and cancels when configuration removes the selected output', async () => {
+	const { action, bridge, calls } = harness();
+	assert.ok(action);
+	bridge.configureNativeVampAnalyzer = async (value: unknown) => {
+		calls.push(['configure', value]);
+		return configuredSession(8, [nativeOutput({ identifier: 'changed-output' })]);
+	};
+	await assert.rejects(() => action.analyze({
+		projectId: 'project-1', projectRevision: 5, selectedTrackId: 'track-1', request: REQUEST,
+	}, new AbortController().signal), /no longer available after configuration/iu);
+	assert.deepEqual(calls.map(([kind]) => kind), ['render-track', 'start', 'configure', 'cancel']);
 });
 
 test('desktop Vamp action rejects aggregate native feature floods before retaining them', async () => {
