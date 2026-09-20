@@ -404,7 +404,9 @@ function composeProfessionalScannerPeer(effectPeer, vampPeer) {
 			return Object.freeze({ ...description,
 				pluginFormats: Object.freeze([...description.pluginFormats, 'vamp']) });
 		},
-		listPluginCandidates: (...arguments_) => effectPeer.listPluginCandidates(...arguments_),
+		listPluginCandidates: (root, suffix, format) => format === 'vamp'
+			? vampPeer.listPluginCandidates(root, suffix)
+			: effectPeer.listPluginCandidates(root, suffix),
 		inspectPluginCandidate: (path, format, context) => format === 'vamp'
 			? vampPeer.inspectPluginCandidate(path, format, context)
 			: effectPeer.inspectPluginCandidate(path, format, context),

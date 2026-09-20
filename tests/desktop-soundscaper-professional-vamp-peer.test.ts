@@ -2,13 +2,14 @@
 
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
-import { mkdtemp, readFile, realpath, rm, stat, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, readFile, realpath, rm, stat, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
 
 import type { NativeChildIsolationArtifactDescriptor } from '../desktop/native-child-isolation-launcher.ts';
 import {
+	VAMP_PEER_CHILD_CRASH_CODE,
 	createSoundscaperProfessionalVampPeer,
 	type ProfessionalVampPeerLauncher,
 } from '../desktop/soundscaper-professional-vamp-peer.ts';
@@ -57,6 +58,7 @@ test('the Vamp peer snapshots one exact library and launches M5A1 on the authent
 });
 
 test('the Vamp peer admits only exact Vamp analyzer operations', async () => {
+	assert.equal(VAMP_PEER_CHILD_CRASH_CODE, 'vamp-peer-crash');
 	const peer = createSoundscaperProfessionalVampPeer({
 		launcher: { launch: async () => { throw new Error('must not launch'); } },
 		peerExecutable: Object.freeze({
@@ -69,6 +71,22 @@ test('the Vamp peer admits only exact Vamp analyzer operations', async () => {
 		/Vamp format/iu);
 	await assert.rejects(peer.scanExactLibrary('/tmp/example.so', 44_100.5, {} as never),
 		/sample rate/iu);
+});
+
+test('the Vamp candidate lister excludes suffix-matching bundle directories', async (context) => {
+	const root = await realpath(await mkdtemp(join(tmpdir(), 'soundscaper-vamp-candidates-')));
+	context.after(() => rm(root, { recursive: true, force: true }));
+	await mkdir(join(root, 'effect-bundle.so'));
+	await writeFile(join(root, 'analyzer.so'), 'Vamp library fixture');
+	const peer = createSoundscaperProfessionalVampPeer({
+		launcher: { launch: async () => { throw new Error('must not launch'); } },
+		peerExecutable: Object.freeze({
+			path: '/peer', byteLength: 1, sha256: 'a'.repeat(64),
+			identity: Object.freeze({ dev: 1, ino: 1 }),
+		}),
+		runtimeReadExecute: [],
+	});
+	assert.deepEqual(await peer.listPluginCandidates(root, '.so'), [join(root, 'analyzer.so')]);
 });
 
 async function descriptor(path: string): Promise<NativeChildIsolationArtifactDescriptor> {

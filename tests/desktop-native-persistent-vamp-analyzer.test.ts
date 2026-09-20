@@ -100,6 +100,55 @@ test('persistent analyzer cancellation fences a pending operation and releases t
 	assert.equal(link.port1.closed, true);
 });
 
+test('the main analyzer backend cancels out of band while process is awaiting its helper', async () => {
+	const link = channel();
+	let processStarted!: () => void;
+	const processingRequest = new Promise<void>((resolve) => { processStarted = resolve; });
+	let supervisorDisposals = 0;
+	let settleCompletion!: (value: unknown) => void;
+	const completion = new Promise((resolve) => { settleCompletion = resolve; });
+	link.port1.on('message', ({ data }: { data: Record<string, unknown> }) => {
+		if (data.kind === 'configure') {
+			link.port1.postMessage({
+				protocolVersion: 1, kind: 'configured', requestId: data.requestId,
+				outputs: DESCRIPTOR.outputs,
+			});
+		} else if (data.kind === 'process') processStarted();
+	});
+	const backend = createNativeVampAnalyzerBackendFactory({
+		supervisorFor: () => ({
+			runJob: () => completion,
+			dispose: () => {
+				supervisorDisposals += 1;
+				settleCompletion({ reason: 'disposed' });
+			},
+		}),
+		createChannel: () => link as never,
+		mintStreamId: () => 'b'.repeat(40),
+		mintRequestId: (() => {
+			let next = 0;
+			return () => `request-${String(next += 1)}`;
+		})(),
+	});
+	const instance = await backend.open(GRANT);
+	await instance.configure(CONFIGURATION);
+	const processing = instance.process({
+		startFrame: 0, frameCount: 4, channels: [Float32Array.of(1, 2, 3, 4)],
+	});
+	await processingRequest;
+
+	const cancellation = instance.cancel('user-cancelled');
+	assert.equal(await Promise.race([
+		cancellation.then(() => 'cancelled'),
+		new Promise<'blocked'>((resolve) => setImmediate(() => resolve('blocked'))),
+	]), 'cancelled', 'cancel must not join the queued RPC tail');
+	await assert.rejects(processing, /cancelled/iu);
+	assert.equal(link.port2.closed, true);
+	assert.equal(supervisorDisposals, 1);
+	await instance.close();
+	assert.equal(supervisorDisposals, 1, 'close after cancellation remains idempotent');
+});
+
 const DESCRIPTOR: VampAnalyzerDescriptor = Object.freeze({
 	kind: 'analyzer', format: 'vamp', identifier: 'org.example.energy', name: 'Energy',
 	description: '', maker: 'Example', copyright: '', pluginVersion: 1, vampApiVersion: 2,

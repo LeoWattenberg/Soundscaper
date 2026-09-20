@@ -101,6 +101,7 @@ class HelperVampAnalyzerInstance implements VampAnalyzerBackendInstance {
 	#helperFailure: Error | null = null;
 	#closed = false;
 	#closing = false;
+	#supervisorDisposed = false;
 	readonly #listener: (event: unknown) => void;
 
 	constructor(options: Readonly<{
@@ -162,9 +163,16 @@ class HelperVampAnalyzerInstance implements VampAnalyzerBackendInstance {
 	}
 
 	async cancel(reason: string): Promise<void> {
-		if (this.#closed || this.#closing || this.#configuration === null) return;
-		const answer = await this.#request('cancel', { reason: cancellationReason(reason) });
-		if (answer.kind !== 'cancelled') throw new Error('The Vamp helper returned the wrong cancel response.');
+		if (this.#closed) return;
+		this.#closing = true;
+		const error = Object.assign(
+			new Error(`The Vamp analyzer backend was cancelled (${cancellationReason(reason)}).`),
+			{ code: 'cancelled' },
+		);
+		this.#helperFailure = error;
+		this.#pending?.reject(error);
+		this.#pending = null;
+		this.#terminate();
 	}
 
 	async close(): Promise<void> {
@@ -176,10 +184,17 @@ class HelperVampAnalyzerInstance implements VampAnalyzerBackendInstance {
 				await this.#completion;
 			}
 		} finally {
-			this.#closed = true;
-			this.#abort.abort();
-			remove(this.#port, this.#listener);
-			closePort(this.#port);
+			this.#terminate();
+		}
+	}
+
+	#terminate(): void {
+		this.#closed = true;
+		this.#abort.abort();
+		remove(this.#port, this.#listener);
+		closePort(this.#port);
+		if (!this.#supervisorDisposed) {
+			this.#supervisorDisposed = true;
 			this.#supervisor.dispose();
 		}
 	}

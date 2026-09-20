@@ -59,7 +59,7 @@ export function createNativePluginScanJobRunner({
 			let candidates;
 			try {
 				candidates = [...new Set((await Promise.all(suffixes.map((suffix) => (
-					addon.listPluginCandidates(grant.rootPath, suffix)
+					addon.listPluginCandidates(grant.rootPath, suffix, format)
 				)))).flat())];
 			} catch (error) {
 				return refusalFor(format, 'root-unreadable',

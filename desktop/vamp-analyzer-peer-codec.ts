@@ -16,6 +16,7 @@ import {
 
 export const VAMP_PEER_VERSION = 1;
 export const VAMP_PEER_MAXIMUM_FRAME_BYTES = 16 * 1_024 ** 2;
+export const VAMP_PEER_PCM_REQUEST_OVERHEAD_BYTES = 2 + 8 + 4 + 4;
 export const VAMP_PEER_OPERATION = Object.freeze({
 	scan: 1, open: 2, configure: 3, process: 4, finish: 5, cancel: 6, close: 7,
 } as const);
@@ -206,10 +207,41 @@ export function writeVampAnalyzerConfiguration(
 }
 
 export function writeVampAnalyzerPcm(writer: VampPeerWriter, value: Readonly<VampAnalyzerPcmChunk>): void {
+	const pcmBytes = value.frameCount * value.channels.length * Float32Array.BYTES_PER_ELEMENT;
+	if (pcmBytes > VAMP_PEER_MAXIMUM_FRAME_BYTES - VAMP_PEER_PCM_REQUEST_OVERHEAD_BYTES) {
+		throw new RangeError('The Vamp PCM chunk exceeds one M5A1 transport frame.');
+	}
 	writer.unsigned64(value.startFrame);
 	writer.unsigned32(value.channels.length);
 	writer.unsigned32(value.frameCount);
 	for (const channel of value.channels) writer.floats(channel);
+}
+
+export function maximumVampPeerPcmFrames(channelCount: number): number {
+	const channels = integer(channelCount, 1, VAMP_ANALYZER_LIMITS.maximumChannels, 'PCM channel count');
+	return Math.min(VAMP_ANALYZER_LIMITS.maximumPcmChunkFrames, Math.floor(
+		(VAMP_PEER_MAXIMUM_FRAME_BYTES - VAMP_PEER_PCM_REQUEST_OVERHEAD_BYTES)
+		/ (channels * Float32Array.BYTES_PER_ELEMENT),
+	));
+}
+
+export function splitVampPeerPcmChunkForTransport(
+	value: Readonly<VampAnalyzerPcmChunk>,
+): readonly Readonly<VampAnalyzerPcmChunk>[] {
+	const maximumFrames = maximumVampPeerPcmFrames(value.channels.length);
+	if (value.frameCount <= maximumFrames) return Object.freeze([value]);
+	const chunks: Readonly<VampAnalyzerPcmChunk>[] = [];
+	for (let offset = 0; offset < value.frameCount; offset += maximumFrames) {
+		const frameCount = Math.min(maximumFrames, value.frameCount - offset);
+		chunks.push(Object.freeze({
+			startFrame: value.startFrame + offset,
+			frameCount,
+			channels: Object.freeze(value.channels.map(
+				(channel) => channel.subarray(offset, offset + frameCount),
+			)),
+		}));
+	}
+	return Object.freeze(chunks);
 }
 
 export function readVampAnalyzerDescriptor(reader: VampPeerReader): Readonly<VampAnalyzerDescriptor> {

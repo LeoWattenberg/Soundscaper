@@ -111,10 +111,12 @@ test('professional scanner and host roles derive machine containment and select 
 	});
 	const peer = Object.freeze({
 		describe: async () => ({ pluginFormats: ['vst3'] }),
-		listPluginCandidates: async () => [], inspectPluginCandidate: async () => [],
+		listPluginCandidates: async () => ['/plugins/effect-bundle.so'],
+		inspectPluginCandidate: async () => [],
 	});
 	const vampPeer = Object.freeze({
 		describe: async () => ({ pluginFormats: ['vamp'] }),
+		listPluginCandidates: async () => ['/plugins/analyzer.so'],
 		inspectPluginCandidate: async () => [], scanExactLibrary: async () => [],
 	});
 	const systemLoader = artifact('/lib64/ld-linux-x86-64.so.2');
@@ -157,7 +159,12 @@ test('professional scanner and host roles derive machine containment and select 
 		const addon = await seams.loadAddon();
 		if (role === 'plugin-host') assert.equal(addon, peer);
 		else if (role === 'plugin-analyzer') assert.equal(addon, vampPeer);
-		else assert.deepEqual((await addon.describe()).pluginFormats, ['vst3', 'vamp']);
+		else {
+			assert.deepEqual((await addon.describe()).pluginFormats, ['vst3', 'vamp']);
+			assert.deepEqual(await addon.listPluginCandidates('/plugins', '.so', 'vamp'), [
+				'/plugins/analyzer.so',
+			], 'Vamp discovery must not inherit effect bundle-directory candidates');
+		}
 		assert.equal(seams.addonPath, descriptor.pluginPeer.path);
 		assert.deepEqual(launcherOptions.machineWorkload, {
 			kind: 'soundscaper', payloads: [descriptor.pluginPeer],
@@ -191,6 +198,27 @@ test('an announced kind with no runner is refused rather than run as a device jo
 	assert.deepEqual(types(), ['hello', 'error']);
 	assert.match(posted[1].error.message, /does not implement plugin-scan jobs/u);
 	assert.deepEqual(exits, []);
+});
+
+test('the scanner helper preserves the closed isolated Vamp child-crash code', async () => {
+	const posted = [];
+	const worker = createNativeHelperWorker({
+		role: 'plugin-scanner', post: (message) => posted.push(message),
+		runScanJob: () => ({
+			completion: Promise.reject(Object.assign(new Error('isolated child exited'), {
+				code: 'vamp-peer-crash',
+			})),
+			cancel: async () => undefined,
+		}),
+		heartbeatIntervalMs: 1_000_000,
+	});
+	worker.handleMessage(jobMessage(JOB_ID, {
+		rootPath: '/plug-ins', format: 'vamp', identity: { dev: 1, ino: 2 },
+	}, 'plugin-scan'));
+	await new Promise((resolve) => { setImmediate(resolve); });
+	assert.equal(posted.at(-1).type, 'error');
+	assert.equal(posted.at(-1).error.code, 'vamp-peer-crash');
+	worker.dispose();
 });
 
 test('a persistent audio job receives only its exactly bound MessagePort', async () => {
