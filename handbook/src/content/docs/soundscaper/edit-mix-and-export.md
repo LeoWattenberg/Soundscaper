@@ -69,6 +69,28 @@ project and can be adjusted during playback. **Apply to selection** renders the
 effect into the selected audio and supports Undo. Timeline automation is not
 available for these two effects.
 
+### Use LADSPA effects and Vamp analyzers {#native-audio-plugins}
+
+The desktop app can scan third-party plug-ins only after you allow a format and
+one of its folders in **Effect → Plugin Manager**. Scanning is never automatic.
+Allow each discovered installation before using it, and install only plug-ins
+you trust: native plug-ins run executable code even though Soundscaper hosts
+them in supervised helper processes.
+
+LADSPA effects are available on Linux. Open one from **Effect → Audio Plugins**
+after enabling it in the manager. Soundscaper builds controls from the LADSPA
+ports because this format has no vendor interface. Those control values and the
+effect's enabled or bypassed state are saved with the project.
+
+Vamp plug-ins analyze audio instead of changing it. After enabling a Vamp
+installation, select an audio track to analyze that track, or leave no audio
+track selected to analyze the master mix. A time selection limits the analysis;
+otherwise Soundscaper uses the complete project. Choose **Analyze → Vamp
+Plugins**, select the analyzer output and its settings, then run it. Soundscaper
+adds the returned timestamps as a new label track only after the complete
+analysis succeeds, so cancelling or changing the project cannot leave partial
+labels behind.
+
 ## Export
 
 Choose **File → Export audio** for a mixed delivery or **Export selected audio**
