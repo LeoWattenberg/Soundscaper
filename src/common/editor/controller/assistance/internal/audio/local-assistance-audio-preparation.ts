@@ -43,22 +43,6 @@ export interface LocalAssistanceAudioWavePreparationOptionsV1 {
 	) => Promise<LocalAssistanceAudioWaveSpoolV1>;
 }
 
-export async function createLocalAssistanceAudioWave(
-	operation: ProfiledAudioOperation,
-	channelsValue: readonly Float32Array[],
-	expectedFrames: number,
-	inputSampleRate: number,
-	signal?: AbortSignal,
-): Promise<Blob> {
-	assertChunkGeometry(channelsValue, expectedFrames, channelsValue.length);
-	async function* chunks(): AsyncGenerator<readonly Float32Array[]> {
-		yield channelsValue;
-	}
-	return createLocalAssistanceAudioWaveFromChunks(
-		operation, chunks(), expectedFrames, inputSampleRate, channelsValue.length, signal,
-	);
-}
-
 /**
  * Conform a whole fenced selection while retaining one rendered and one encoded chunk.
  * Small bodies have an explicit memory ceiling; larger bodies use a capacity-checked

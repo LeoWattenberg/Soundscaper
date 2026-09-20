@@ -11,7 +11,6 @@ import {
 	inheritTrackFolderMediaStateProjectionV12,
 	projectTrackFolderMediaStateV12,
 } from '../../track-folder-media-runtime.ts';
-import type { AudioBufferLike } from '../source/source-audio.ts';
 import {
 	createMixRenderSnapshotV21 as createFocusedMixRenderSnapshotV21,
 	v21TrackAutomationRemovalCommands,
@@ -19,7 +18,6 @@ import {
 import {
 	findControllerClip,
 	findControllerClipTrack,
-	findControllerSource,
 	findControllerTrack,
 	type ControllerEffect,
 	type ControllerProject,
@@ -203,37 +201,6 @@ export function mixRenderTailFrames(
 			.map((bus) => bus.effectsActive === false ? 0 : rackTailFrames(bus.effects || [], sampleRate, 10)))
 		: 0;
 	return Math.min(sampleRate * 10, trackTail + busTail);
-}
-
-export function mixRenderOutputChannelCount(
-	project: ControllerProject,
-	targetTracks: readonly ControllerTrack[],
-	snapshot: ControllerProject,
-	rendered: AudioBufferLike,
-	isFixedStereoEffect: (type: string) => boolean,
-): number {
-	if (isSoundscaperProductionProject(project)) return mixRenderPlannedOutputChannelCount(project);
-	const allSourcesMono = targetTracks.every((track) => (track.clipIds ?? []).every((clipId) => {
-		const clip = findControllerClip(project, clipId);
-		return findControllerSource(project, clip?.sourceId)?.channelCount === 1;
-	}));
-	const allTracksCentered = targetTracks.every((track) => Number(track.pan ?? 0) === 0);
-	if (!allSourcesMono || !allTracksCentered) return 2;
-	const buses = mixerStrips(snapshot);
-	if (buses.some((bus) => Number(bus.pan ?? 0) !== 0)) return 2;
-	const effects = targetTracks
-		.flatMap((track) => track.effectsActive === false ? [] : track.effects || [])
-		.concat(buses.flatMap((bus) => bus.effectsActive === false ? [] : bus.effects || []))
-		.filter((effect) => effect.enabled !== false && effect.bypassed !== true);
-	if (effects.some((effect) => typeof effect.type === 'string' && isFixedStereoEffect(effect.type))) return 2;
-	if (rendered.numberOfChannels < 2) return 1;
-	const left = rendered.getChannelData(0);
-	const right = rendered.getChannelData(1);
-	if (left.length !== right.length) return 2;
-	for (let frame = 0; frame < left.length; frame += 1) {
-		if (left[frame] !== right[frame]) return 2;
-	}
-	return 1;
 }
 
 function mixRenderPlannedOutputChannelCount(project: ControllerProject): number {

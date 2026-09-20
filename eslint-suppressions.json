@@ -119,11 +119,6 @@
       "count": 1
     }
   },
-  "desktop/soundscaper-project-library-main.ts": {
-    "no-unused-private-class-members": {
-      "count": 1
-    }
-  },
   "desktop/soundscaper-project-library-publication-host.ts": {
     "no-useless-assignment": {
       "count": 2

@@ -149,10 +149,6 @@ export function inspectAiffLayout(options = {}) {
 	});
 }
 
-export function createAiffHeader(options = {}) {
-	return createAiffHeaderFromLayout(prepareAiffLayout(options));
-}
-
 function createAiffHeaderFromLayout(layout) {
 	const {
 		sampleRate, channelCount, totalFrames, bitDepth, floatingPoint,

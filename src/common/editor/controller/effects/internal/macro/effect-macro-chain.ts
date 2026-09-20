@@ -114,11 +114,6 @@ export function planEffectMacroChain(
 	})));
 }
 
-/** Whether the whole macro can take the single-render rack path. */
-export function effectMacroChainIsRealtime(steps: readonly EffectMacroChainStep[]): boolean {
-	return steps.every((step) => isRealtimeEffectMacroStepType(step.type));
-}
-
 export function createEffectMacroChainRunner<Buffer = MacroRenderBuffer>(runtime: EffectMacroChainRuntime<Buffer>) {
 	/**
 	 * Apply one offline step to the audio the chain currently holds. The audio

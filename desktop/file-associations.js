@@ -119,7 +119,6 @@ export function extractProjectPaths(argv, workingDirectory = process.cwd()) {
 }
 
 export const extractAup4Paths = extractProjectPaths;
-export const extractAudacityProjectPaths = extractProjectPaths;
 
 async function releaseDescriptor(release, descriptor, owner) {
 	if (!await release(descriptor.id, owner)) {

@@ -1,6 +1,4 @@
 import {
-	calculateEbuIntegratedLufs,
-	calculateEbuLoudnessRange,
 	createEbuR128Meter,
 	ebuChannelWeights,
 	EBU_R128_MAXIMUM_CHANNELS,
@@ -25,10 +23,6 @@ import { amplitudeToDb, validateAnalysisChannels } from './audio-spectrum.ts';
  * @property {number | null} integratedLufs
  * @property {number | null} loudnessRangeLufs
  */
-
-export function energyToLufs(energy) {
-	return energy > 0 ? -0.691 + 10 * Math.log10(energy) : null;
-}
 
 /**
  * Creates a bounded-state analyzer. Each `push` accepts one equally-sized typed
@@ -266,15 +260,6 @@ function rmsDb(channels) {
 	let count = 0;
 	for (const channel of channels) for (const sample of channel) { squares += sample * sample; count += 1; }
 	return amplitudeToDb(count ? Math.sqrt(squares / count) : 0);
-}
-
-export function calculateIntegratedLufs(blockEnergies) {
-	return calculateEbuIntegratedLufs(blockEnergies);
-}
-
-export function calculateLoudnessRange(shortTermEnergies, integratedLufs) {
-	if (!Number.isFinite(integratedLufs)) return null;
-	return calculateEbuLoudnessRange(shortTermEnergies);
 }
 
 function createKWeightingFilter(sampleRate) {

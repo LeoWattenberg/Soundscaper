@@ -1,5 +1,3 @@
-export const EBU_R128_TARGET_LUFS = -23;
-export const EBU_R128_TRUE_PEAK_LIMIT_DBTP = -1;
 export const EBU_R128_FLOOR_DB = -120;
 export const EBU_R128_MAXIMUM_CHANNELS = 8;
 

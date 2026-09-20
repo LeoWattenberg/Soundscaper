@@ -10,7 +10,7 @@ export {
 	normalizeParametricEqParams,
 	packParametricEqParams,
 } from './parameters.js';
-export { PARAMETRIC_EQ_WORKLET_NAME, PARAMETRIC_EQ_WORKER_OPERATION } from './protocol.js';
+export { PARAMETRIC_EQ_WORKLET_NAME } from './protocol.js';
 export { ParametricEqProcessor, processParametricEqChannels } from './core.js';
 export { createParametricEqFrequencyGrid, evaluateParametricEqResponse } from './response.js';
 export {

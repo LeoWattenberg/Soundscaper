@@ -30,13 +30,12 @@
 		{ "path": "core.js", "sha256": "46651301ebfc0ecf497e9a5155406e949698a55cac0db2e2af8a89ade45f8918" },
 		{ "path": "design.js", "sha256": "019cf668cb298f2ef268c307ca2d65a024541655846c61c39b702b6e39636ebc" },
 		{ "path": "destructive.js", "sha256": "88be5e6f79069b0306b8909f80d2fdefe14acabf8cb4b6c1dc2f8d99fc1f3a9f" },
-		{ "path": "index.js", "sha256": "ade3c26cd68e65ac69397a6ff1c11cbdca3df33fb53dfd9eeb2f7634810b75b9" },
+		{ "path": "index.js", "sha256": "8d44aa574ede0cfe21e47348de3fb01236714bfe083fc998f202aa4354ea9e5f" },
 		{ "path": "parameters.js", "sha256": "bc67b327acb5f696ff0c37cca8301e83fe26c16ecb507d7dcf78f0d38ddb7327" },
-		{ "path": "protocol.js", "sha256": "7cedc5bc5e89f39fd5b53176881c80c7fbe2c846101e14018a8473662d8c6468" },
+		{ "path": "protocol.js", "sha256": "236c867e6ab190af8852137f02e22b18916971ccf005d2256e8003facbd9bfa1" },
 		{ "path": "response.js", "sha256": "3700ecfe45ce08f33f5358f5a5517576a07c7759566a3df68d5782ac20fb433e" },
 		{ "path": "wasm-loader.js", "sha256": "584658887c2cee51e696e67b262c4e2686ec90ed871e583cc1f193551594db6d" },
 		{ "path": "wasm-runtime.js", "sha256": "17595a6977f1423624204e3cf6dcceb374ffa62743177795767d8760e56b3ef2" },
-		{ "path": "worker.js", "sha256": "86057c7a4909166b56edfa8e01d5c85f4f9ff176b208425d905180890302cc32" },
 		{ "path": "worklet.js", "sha256": "bd6811feb350316e8addf14740a1bba3ff515f568f8166c6c7d2072f969b0617" }
 	],
 	"compiledSources": [

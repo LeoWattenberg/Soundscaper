@@ -32,21 +32,6 @@ import {
 } from './export-plan-admission.js';
 import { scaleSampleFrame } from './timeline-time.ts';
 
-export const EXPORT_FORMAT_DEFAULTS = Object.freeze({
-	wav: { bitDepth: 24 },
-	bwf: { bitDepth: 24 },
-	bw64: { bitDepth: 24 },
-	aiff: { bitDepth: 24 },
-	flac: { bitDepth: 24, compressionLevel: 5 },
-	mp3: { bitRateMode: 'preset', bitRatePreset: 2, vbrQuality: 2, bitRate: 192, averageBitRate: 192 },
-	'ogg-vorbis': { quality: 5 },
-	opus: { bitRate: 160, vbrMode: 'on' },
-	wavpack: { bitDepth: 24, compressionLevel: 2 },
-	mp2: { bitRate: 256 },
-	'aac-m4a': { bitRate: 192 },
-	'custom-ffmpeg': {},
-});
-
 export const FAST_RENDER_THRESHOLDS = Object.freeze({
 	mobile: { outputBytes: 96 * 1024 ** 2, totalBytes: 320 * 1024 ** 2 },
 	desktop: { outputBytes: 384 * 1024 ** 2, totalBytes: 1024 * 1024 ** 2 },

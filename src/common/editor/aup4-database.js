@@ -352,10 +352,4 @@ function pruneOrphanSampleBlocks(adapter) {
 	return { deleted: orphanIds.length, skipped: false, referenced: referenced.size };
 }
 
-export const AUP4_DATABASE_PROFILE = Object.freeze({
-	applicationId: AUP4_APPLICATION_ID,
-	userVersion: AUP4_USER_VERSION,
-	historyDepth: AUP4_HISTORY_DEPTH,
-});
-
 export { prepareAudacitySerializedDatabase as prepareAup4SerializedDatabase, upgradeAudacityProjectDatabase as upgradeAup4Database, validateAudacityProjectDatabase as validateAup4Database };

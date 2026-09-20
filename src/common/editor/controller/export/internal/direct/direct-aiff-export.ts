@@ -3,21 +3,12 @@
 import { AIFF_MAXIMUM_FILE_BYTES, inspectAiffLayout } from '../../../../aiff.js';
 import { directAudioRenderStrategy } from './direct-audio-render-plan.ts';
 import {
-	commitDirectPcmDestination,
 	createDirectPcmEncoder,
-	directPcmMaximumPendingChunks,
-	directPcmRenderQueueOptions,
 	openDirectPcmDestination,
 	type DirectPcmContainerEncoder,
 	type DirectPcmDestination,
 	type DirectPcmEncoder,
 	type DirectPcmPreparation,
-} from './direct-pcm-export.ts';
-
-export {
-	DIRECT_PCM_DESTINATION_WRITE_BYTES as DIRECT_AIFF_DESTINATION_WRITE_BYTES,
-	DIRECT_PCM_MAXIMUM_PENDING_BYTES as DIRECT_AIFF_MAXIMUM_PENDING_PCM_BYTES,
-	DIRECT_PCM_RENDER_CHUNK_FRAMES as DIRECT_AIFF_RENDER_CHUNK_FRAMES,
 } from './direct-pcm-export.ts';
 
 export const DIRECT_AIFF_MAXIMUM_FILE_BYTES = AIFF_MAXIMUM_FILE_BYTES;
@@ -56,18 +47,6 @@ export type DirectAiffDestination = DirectPcmDestination;
 export type DirectAiffEncoder = DirectPcmEncoder;
 export type DirectAiffPreparation = DirectPcmPreparation;
 
-export function directAiffMaximumPendingChunks(channelCount: number): number {
-	return directPcmMaximumPendingChunks(channelCount, AIFF_CONTAINER_LABEL);
-}
-
-export function directAiffRenderQueueOptions(channelCount: number): Readonly<{
-	chunkFrames: number;
-	maximumPendingChunks: number;
-	backpressureHighWaterChunks: number;
-}> {
-	return directPcmRenderQueueOptions(channelCount, AIFF_CONTAINER_LABEL);
-}
-
 export async function prepareDirectAiffDestination(
 	fileService: Readonly<{
 		prepareSave?: (request: Readonly<Record<string, unknown>>) => PromiseLike<unknown> | unknown;
@@ -101,21 +80,6 @@ export function createDirectAiffEncoder(
 	options: Readonly<Record<string, unknown>>,
 ): Promise<DirectAiffEncoder> {
 	return createDirectPcmEncoder(destination, createEncoder, options, AIFF_CONTAINER_LABEL);
-}
-
-export function commitDirectAiffDestination(
-	destination: DirectAiffDestination,
-	plannedByteLength: number,
-	encodedByteLength: number,
-	assertReadyToCommit: () => void,
-): Promise<Readonly<Record<string, unknown>>> {
-	return commitDirectPcmDestination(
-		destination,
-		plannedByteLength,
-		encodedByteLength,
-		assertReadyToCommit,
-		AIFF_CONTAINER_LABEL,
-	);
 }
 
 function directAiffPlan(plan: DirectAiffPlan): plan is DirectAiffPlan & {

@@ -5,22 +5,9 @@ import type { RiffMarkerInput } from '../../../../riff-markers.ts';
 import { inspectWavLayout } from '../../../../wav.js';
 import { directAudioRenderStrategy } from './direct-audio-render-plan.ts';
 import {
-	commitDirectPcmDestination,
-	createDirectPcmEncoder,
 	DIRECT_PCM_MAXIMUM_FILE_BYTES,
-	directPcmMaximumPendingChunks,
-	directPcmRenderQueueOptions,
 	openDirectPcmDestination,
-	type DirectPcmContainerEncoder,
-	type DirectPcmDestination,
-	type DirectPcmEncoder,
 	type DirectPcmPreparation,
-} from './direct-pcm-export.ts';
-
-export {
-	DIRECT_PCM_DESTINATION_WRITE_BYTES as DIRECT_WAV_DESTINATION_WRITE_BYTES,
-	DIRECT_PCM_MAXIMUM_PENDING_BYTES as DIRECT_WAV_MAXIMUM_PENDING_PCM_BYTES,
-	DIRECT_PCM_RENDER_CHUNK_FRAMES as DIRECT_WAV_RENDER_CHUNK_FRAMES,
 } from './direct-pcm-export.ts';
 
 export const DIRECT_WAV_MAXIMUM_FILE_BYTES = DIRECT_PCM_MAXIMUM_FILE_BYTES;
@@ -62,21 +49,7 @@ interface DirectWavPlan {
 	readonly trailingChunks?: unknown;
 }
 
-export type DirectWavDestination = DirectPcmDestination;
-export type DirectWavEncoder = DirectPcmEncoder;
 export type DirectWavPreparation = DirectPcmPreparation;
-
-export function directWavMaximumPendingChunks(channelCount: number): number {
-	return directPcmMaximumPendingChunks(channelCount, WAV_CONTAINER_LABEL);
-}
-
-export function directWavRenderQueueOptions(channelCount: number): Readonly<{
-	chunkFrames: number;
-	maximumPendingChunks: number;
-	backpressureHighWaterChunks: number;
-}> {
-	return directPcmRenderQueueOptions(channelCount, WAV_CONTAINER_LABEL);
-}
 
 export async function prepareDirectWavDestination(
 	fileService: Readonly<{
@@ -101,29 +74,6 @@ export async function prepareDirectWavDestination(
 	return openDirectPcmDestination(
 		prepared,
 		plan.outputFileBytesPerRender as number,
-		WAV_CONTAINER_LABEL,
-	);
-}
-
-export function createDirectWavEncoder(
-	destination: DirectWavDestination,
-	createEncoder: (options: Readonly<Record<string, unknown>>) => DirectPcmContainerEncoder,
-	options: Readonly<Record<string, unknown>>,
-): Promise<DirectWavEncoder> {
-	return createDirectPcmEncoder(destination, createEncoder, options, WAV_CONTAINER_LABEL);
-}
-
-export function commitDirectWavDestination(
-	destination: DirectWavDestination,
-	plannedByteLength: number,
-	encodedByteLength: number,
-	assertReadyToCommit: () => void,
-): Promise<Readonly<Record<string, unknown>>> {
-	return commitDirectPcmDestination(
-		destination,
-		plannedByteLength,
-		encodedByteLength,
-		assertReadyToCommit,
 		WAV_CONTAINER_LABEL,
 	);
 }

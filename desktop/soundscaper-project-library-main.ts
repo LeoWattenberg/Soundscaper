@@ -94,7 +94,6 @@ export class SoundscaperDesktopProjectLibraryMain {
 	readonly #owner: Readonly<SoundscaperDesktopProjectLibraryOwner>;
 	readonly #onLeaseLost: (error: unknown) => void;
 	readonly #pluginStates: SoundscaperNativePluginStateStore;
-	readonly #paths: Readonly<SoundscaperDesktopProjectLibraryPaths>;
 	readonly #sessions: SoundscaperDesktopProjectLibraryMainSessionService;
 	#closePromise: Promise<void> | null = null;
 	#closed = false;
@@ -106,7 +105,6 @@ export class SoundscaperDesktopProjectLibraryMain {
 	readonly #leaseTtlMs: number;
 
 	private constructor(
-		paths: Readonly<SoundscaperDesktopProjectLibraryPaths>,
 		database: DatabaseSync,
 		catalog: SoundscaperDesktopProjectLibraryCatalog,
 		host: SoundscaperDesktopProjectLibraryPublicationHost,
@@ -120,7 +118,6 @@ export class SoundscaperDesktopProjectLibraryMain {
 	) {
 		this.#writer = writer;
 		this.#leaseTtlMs = leaseTtlMs;
-		this.#paths = paths;
 		this.#database = database;
 		this.#catalog = catalog;
 		this.#host = host;
@@ -198,7 +195,6 @@ export class SoundscaperDesktopProjectLibraryMain {
 				lease,
 			});
 			return new SoundscaperDesktopProjectLibraryMain(
-				paths,
 				database,
 				catalog,
 				host,

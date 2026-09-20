@@ -5,7 +5,6 @@ import { extname, isAbsolute, relative, resolve, sep } from 'node:path';
 import { Readable } from 'node:stream';
 
 import {
-	APP_HOST,
 	APP_SCHEME,
 	MAX_LINKED_VIDEO_PLAYBACK_RANGE_RESPONSE_BYTES,
 	READ_CAPABILITY_PREFIX,
@@ -501,5 +500,3 @@ function errorResponse(status) {
 	if (status === 416) headers['Content-Range'] = 'bytes */*';
 	return new Response(body, { status, headers });
 }
-
-export const APP_PROTOCOL_IDENTITY = Object.freeze({ scheme: APP_SCHEME, host: APP_HOST });

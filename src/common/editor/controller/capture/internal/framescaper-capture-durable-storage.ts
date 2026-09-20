@@ -309,18 +309,6 @@ export function deinterleaveCapturePcm(
 	return Object.freeze(channels);
 }
 
-export async function cleanupCreatedCaptureSpools(
-	repositories: DurableCaptureStoragePorts,
-	created: Map<string, OwnedCaptureSpool>,
-): Promise<void> {
-	for (const spool of [...created.values()].reverse()) {
-		try {
-			if (spool.kind === 'encoded-media') await repositories.encodedSpools.delete(spool.record);
-			else await repositories.rawPcmSpools.remove(spool.record);
-		} catch { /* Creation failure remains primary; exact leftovers remain inventoried. */ }
-	}
-}
-
 /** Reconcile a raw global reservation after its exact terminal registry row is already absent. */
 export async function releaseMissingCaptureSpoolReservation(
 	repositories: DurableCaptureStoragePorts,
