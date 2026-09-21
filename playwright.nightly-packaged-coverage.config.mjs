@@ -8,6 +8,8 @@ const AUDIO_IO = 'desktop-packaged-audio-io.spec.js';
 const DISPLAY_AUDIO = 'desktop-packaged-display-audio.spec.js';
 const PRODUCTION = 'audio-editor-m4-production-parity.spec.js';
 const KEYED = 'audio-editor-m4b2-keyframe-parity.spec.js';
+const SOAK = 'audio-editor-soak-debug.spec.js';
+const PACKAGED_SOAK = /(?:executes the current-host packaged operations|recovers a real persistent delivery job)/u;
 
 export function createNightlyPackagedCoverageConfig(environment = process.env) {
 	const payloadRoot = requiredRoot(environment, 'SOUNDSCAPER_NIGHTLY_TESTS_PAYLOAD_ROOT');
@@ -40,6 +42,11 @@ export function createNightlyPackagedCoverageConfig(environment = process.env) {
 				name: 'packaged-coverage-soundscaper-audio-devices',
 				metadata: { productId: 'soundscaper', packagedAudioDeviceFixture: true },
 				testMatch: [AUDIO_IO],
+			},
+			{
+				name: 'packaged-coverage-soundscaper-soak',
+				grep: PACKAGED_SOAK,
+				testMatch: [SOAK],
 			},
 			{
 				name: 'packaged-coverage-framescaper',

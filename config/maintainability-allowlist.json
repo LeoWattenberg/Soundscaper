@@ -61,7 +61,6 @@
 		"scripts/lib/desktop-scape-open-smoke.mjs": 598,
 		"scripts/lib/m7-local-assistance-privacy-metrics.mjs": 557,
 		"scripts/lib/milestone-5-native-source-acquisitions.mjs": 562,
-		"scripts/lib/soundscaper-soak-playwright.mjs": 567,
 		"src/common/editor/adm-project-metadata.ts": 576,
 		"src/common/editor/aiff-pcm-chunk-reader.ts": 597,
 		"src/common/editor/assistance/local-assistance-bridge.ts": 600,

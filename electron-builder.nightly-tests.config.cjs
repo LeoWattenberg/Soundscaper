@@ -60,6 +60,7 @@ module.exports = {
 				'.local-browsers/**/*',
 				'config/**/*',
 				'desktop/bundled-*-stream.ts',
+				'desktop/soak-debug-*.mjs',
 				// The guide specs replay handbook step data, which lives outside `tests/`.
 				'handbook/**/*',
 				'sites/**/*',

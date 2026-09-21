@@ -44,6 +44,15 @@ test('packaged coverage plan instruments only the dedicated correctness workload
 	assert.equal(plan.env.SOUNDSCAPER_VIDEO_PREVIEW_BENCHMARK, undefined);
 	assert.equal(plan.env.SOUNDSCAPER_M4_PRODUCTION_PARITY, '1');
 	assert.equal(plan.env.SOUNDSCAPER_M4B2_KEYFRAME_PARITY, '1');
+	assert.equal(plan.env.SOUNDSCAPER_SOAK_CAPTURE_PACKAGED_COVERAGE, '1');
+	assert.equal(
+		plan.env.SOUNDSCAPER_SOAK_PACKAGED_EXECUTABLE,
+		'/opt/Soundscaper Tests/resources/nightly-tests/products/soundscaper/linux-unpacked/soundscaper',
+	);
+	assert.equal(
+		plan.env.SOUNDSCAPER_SOAK_PERSISTENT_DELIVERY_EXECUTABLE,
+		plan.env.SOUNDSCAPER_SOAK_PACKAGED_EXECUTABLE,
+	);
 });
 
 test('coverage evidence preservation makes browser and Electron builds portable', async (context) => {

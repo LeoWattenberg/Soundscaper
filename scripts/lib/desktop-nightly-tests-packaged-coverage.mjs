@@ -39,6 +39,7 @@ export function createDesktopNightlyTestsPackagedCoveragePlan({
 	if (!['x64', 'arm64'].includes(arch)) {
 		throw new TypeError('Packaged coverage architecture is invalid.');
 	}
+	const soakExecutable = soundscaperExecutable(payloadRoot, platform, arch);
 	return Object.freeze({
 		command: executablePath,
 		args: Object.freeze([
@@ -65,6 +66,9 @@ export function createDesktopNightlyTestsPackagedCoveragePlan({
 			GITHUB_ACTIONS: 'false',
 			SOUNDSCAPER_M4B2_KEYFRAME_PARITY: '1',
 			SOUNDSCAPER_M4_PRODUCTION_PARITY: '1',
+			SOUNDSCAPER_SOAK_CAPTURE_PACKAGED_COVERAGE: '1',
+			SOUNDSCAPER_SOAK_PACKAGED_EXECUTABLE: soakExecutable,
+			SOUNDSCAPER_SOAK_PERSISTENT_DELIVERY_EXECUTABLE: soakExecutable,
 		}),
 		logFile: join(runRoot, PACKAGED_COVERAGE_ARTIFACT_PATHS.packagedCoverageConsoleLog),
 	});
@@ -115,6 +119,17 @@ export async function runDesktopNightlyTestsPackagedCoveragePhase(options, depen
 		child,
 		diagnostics: Object.freeze({ passed: child.code === 0 && child.signal == null }),
 	});
+}
+
+function soundscaperExecutable(payloadRoot, platform, arch) {
+	const root = join(payloadRoot, 'products/soundscaper');
+	if (platform === 'win32') {
+		return join(root, `win${arch === 'x64' ? '' : `-${arch}`}-unpacked`, 'Soundscaper.exe');
+	}
+	if (platform === 'darwin') {
+		return join(root, `mac${arch === 'x64' ? '' : `-${arch}`}`, 'Soundscaper.app/Contents/MacOS/Soundscaper');
+	}
+	return join(root, `linux${arch === 'x64' ? '' : `-${arch}`}-unpacked`, 'soundscaper');
 }
 
 async function copyDirectory(source, destination) {

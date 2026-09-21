@@ -61,6 +61,7 @@ test('nightly-with-tests packaging is isolated, portable, and keeps its payload 
 	assert.ok(payload.filter.includes('playwright.nightly-dual-origin.config.mjs'));
 	assert.ok(payload.filter.includes('playwright.nightly-packaged-coverage.config.mjs'));
 	assert.ok(payload.filter.includes('playwright.nightly-tests.config.mjs'));
+	assert.ok(payload.filter.includes('desktop/soak-debug-*.mjs'));
 	assert.ok(payload.filter.includes('scripts/*.mjs'));
 	assert.ok(payload.filter.includes('scripts/lib/**/*'));
 	assert.equal(payload.filter.includes('playwright.config.mjs'), false);

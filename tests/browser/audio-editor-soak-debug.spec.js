@@ -108,6 +108,7 @@ test.describe('Soundscaper packaged soak-debug UI driver', () => {
 		let failed = true;
 		const session = await openSoundscaperSoakSession({
 			target: 'desktop', desktopExecutable, keepProfileOnFailure: false,
+			capturePackagedCoverage: process.env.SOUNDSCAPER_SOAK_CAPTURE_PACKAGED_COVERAGE === '1',
 			outputDirectory: testInfo.outputPath('soak-output'),
 			onRuntimeEvent: async (type, details) => { runtimeEvents.push({ type, details }); },
 		});
@@ -146,6 +147,7 @@ test.describe('Soundscaper packaged soak-debug UI driver', () => {
 		let failed = true;
 		const session = await openSoundscaperSoakSession({
 			target: 'desktop', desktopExecutable, keepProfileOnFailure: false,
+			capturePackagedCoverage: process.env.SOUNDSCAPER_SOAK_CAPTURE_PACKAGED_COVERAGE === '1',
 			outputDirectory: testInfo.outputPath('delivery-soak-output'),
 			onRuntimeEvent: async () => undefined,
 		});

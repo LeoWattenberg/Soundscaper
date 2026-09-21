@@ -33,6 +33,7 @@ test('packaged coverage has a dedicated deterministic Playwright workload', asyn
 		assert.deepEqual(Object.keys(projects), [
 			'packaged-coverage-soundscaper',
 			'packaged-coverage-soundscaper-audio-devices',
+			'packaged-coverage-soundscaper-soak',
 			'packaged-coverage-framescaper',
 		]);
 		assert.deepEqual(projects['packaged-coverage-soundscaper'].metadata, {
@@ -50,6 +51,21 @@ test('packaged coverage has a dedicated deterministic Playwright workload', asyn
 		assert.deepEqual(projects['packaged-coverage-soundscaper-audio-devices'].testMatch, [
 			'desktop-packaged-audio-io.spec.js',
 		]);
+		assert.deepEqual(projects['packaged-coverage-soundscaper-soak'].testMatch, [
+			'audio-editor-soak-debug.spec.js',
+		]);
+		assert.match(
+			'executes the current-host packaged operations and reads process metrics',
+			projects['packaged-coverage-soundscaper-soak'].grep,
+		);
+		assert.match(
+			'recovers a real persistent delivery job in a packaged app with the native helper',
+			projects['packaged-coverage-soundscaper-soak'].grep,
+		);
+		assert.doesNotMatch(
+			'executes every browser operation and samples the live renderer',
+			projects['packaged-coverage-soundscaper-soak'].grep,
+		);
 		assert.deepEqual(projects['packaged-coverage-framescaper'].metadata, {
 			productId: 'framescaper',
 		});

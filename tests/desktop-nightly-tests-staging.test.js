@@ -108,6 +108,8 @@ test('nightly test staging creates a hermetic, manifest-bound Playwright payload
 		'desktop/nightly-tests-progress.html',
 		'desktop/nightly-tests-progress-renderer.js',
 		'desktop/nightly-tests-progress.css',
+		'desktop/soak-debug-dialog.mjs',
+		'desktop/soak-debug-process-metrics.mjs',
 		'scripts/lib/desktop-nightly-tests-runtime.mjs',
 		'scripts/lib/desktop-nightly-tests-phases.mjs',
 		'scripts/lib/desktop-nightly-tests-dual-origin.mjs',
@@ -126,6 +128,11 @@ test('nightly test staging creates a hermetic, manifest-bound Playwright payload
 		'scripts/lib/desktop-nightly-tests-packaged-coverage.mjs',
 		'scripts/lib/desktop-nightly-tests-packaged-runtime.mjs',
 		'scripts/lib/desktop-nightly-tests-presentation.mjs',
+		'scripts/lib/soundscaper-soak-desktop-playwright.mjs',
+		'scripts/lib/soundscaper-soak-media.mjs',
+		'scripts/lib/soundscaper-soak-playwright.mjs',
+		'scripts/lib/soundscaper-soak-scape-custody.mjs',
+		'scripts/lib/soundscaper-soak-workflows.mjs',
 		'scripts/lib/browser-target-coverage.mjs',
 		'scripts/collect-m3-longform-editorial-quality.mjs',
 		'scripts/collect-m4-production-parity-quality.mjs',
@@ -147,6 +154,7 @@ test('nightly test staging creates a hermetic, manifest-bound Playwright payload
 		'sites/framescaper-source-maps/app.js.map',
 		'handbook/src/content/docs/reference/macro-programs.md',
 		'tests/browser/example.spec.js',
+		'tests/browser/audio-editor-soak-debug.spec.js',
 		'tests/electron/local-assistance-models/example.spec.js',
 		'tests/browser/example.spec.js-snapshots/example-chromium-linux.png',
 		'tests/aup3-fixture.js',
@@ -176,10 +184,6 @@ test('nightly test staging creates a hermetic, manifest-bound Playwright payload
 		await access(join(fixture.outputRoot, 'node_modules/@fontsource/inter/files', name));
 	}
 	await assert.rejects(() => access(join(fixture.outputRoot, 'tests/browser/AGENTS.md')), /ENOENT/u);
-	await assert.rejects(
-		() => access(join(fixture.outputRoot, 'tests/browser/audio-editor-soak-debug.spec.js')),
-		/ENOENT/u,
-	);
 	await assert.rejects(() => access(join(fixture.outputRoot, 'tests/browser/handbook')), /ENOENT/u);
 	await assert.rejects(
 		() => access(join(fixture.outputRoot, 'node_modules/playwright-core/.local-browsers')),
