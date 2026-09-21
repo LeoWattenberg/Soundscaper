@@ -18,6 +18,7 @@ import assistanceCatalog from '../config/local-model-catalog.json' with { type: 
 import assistanceNativeRuntimeManifest from '../config/assistance-native-runtime-manifest.json' with { type: 'json' };
 import assistanceRuntimeFamilySupply from '../config/assistance-runtime-family-supply-candidates.json' with { type: 'json' };
 import licensingMatrix from '../config/production-licensing-matrix.json' with { type: 'json' };
+import { awaitAssistanceCleanupPhases } from './project-library-runtime/desktop/assistance-cleanup-barrier.js';
 import {
 	assistanceNativeRuntimeTargetId,
 	verifyAssistanceNativeRuntimePayload,
@@ -330,10 +331,11 @@ export function registerAssistance({
 		confirmWorkflow: (request, stages) => confirmWorkflow(dialog, windowFor(), request, stages),
 	});
 	return Object.freeze({ semanticQuery, dispose: async () => {
-		await workflowIpc.dispose();
-		await operationIpc.dispose();
-		await operations?.dispose();
-		await runtimeFamilies.shutdown();
-		await runtime.shutdown();
+		await awaitAssistanceCleanupPhases([
+			[() => workflowIpc.dispose()],
+			[() => operationIpc.dispose()],
+			[() => operations?.dispose()],
+			[() => runtimeFamilies.shutdown(), () => runtime.shutdown()],
+		]);
 	} });
 }

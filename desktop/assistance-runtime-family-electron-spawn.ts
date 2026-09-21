@@ -304,8 +304,9 @@ async function spawnFamily(
 	}
 
 	function shutdownProcess(): Promise<void> {
+		if (processShutdown) return processShutdown;
 		if (exited) return Promise.resolve();
-		processShutdown ??= awaitGracefulHelperShutdown({
+		processShutdown = awaitGracefulHelperShutdown({
 			channel: {
 				postMessage: (message) => child.postMessage(message),
 				onExit: (listener) => child.on('exit', (value) => listener(

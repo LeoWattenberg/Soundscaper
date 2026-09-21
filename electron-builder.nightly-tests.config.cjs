@@ -15,6 +15,7 @@ module.exports = {
 		output: 'release/desktop-nightly-tests',
 	},
 	files: [
+		'desktop/coverage-checkpoint-exit.mjs',
 		'desktop/nightly-tests-main.mjs',
 		'desktop/nightly-tests-assistance-host.mjs',
 		'desktop/nightly-tests-assistance.html',

@@ -34,7 +34,7 @@ import {
 	type HelperSupervisorState,
 } from './helper-supervision-state.ts';
 import { HelperAdmissionGate } from './helper-admission-gate.ts';
-import { awaitGracefulHelperShutdown } from './graceful-helper-shutdown.ts';
+import { awaitHelperSupervisorShutdown, shutdownSupervisedHelperChannel } from './helper-supervisor-shutdown.ts';
 
 export { HelperSupervisionError } from './helper-supervision-state.ts';
 export type {
@@ -91,6 +91,7 @@ export class HelperSupervisor {
 	#pendingHandshake: { resolve: () => void; reject: (error: Error) => void } | null = null;
 	#starting: Promise<void> | null = null;
 	#disposed = false;
+	#gracefulDisposal = false; #shutdownPromise: Promise<void> | null = null;
 
 	constructor(options: HelperSupervisorOptions) {
 		this.#options = {
@@ -257,15 +258,15 @@ export class HelperSupervisor {
 		this.#teardownChannel();
 	}
 
-	async shutdown(): Promise<void> {
-		const channel = this.#channel;
+	shutdown(): Promise<void> { return this.#shutdownPromise ??= this.#shutdownGracefully(); }
+
+	async #shutdownGracefully(): Promise<void> {
+		this.#gracefulDisposal = true;
+		const starting = this.#starting, channel = this.#channel;
 		this.#channel = null;
 		this.dispose();
-		if (channel) await awaitGracefulHelperShutdown({
-			channel, message: validateHelperHostMessage({ contractVersion: 1, type: 'shutdown' }),
-			timeoutMs: this.#cancellationBudgetMs, label: 'assistance helper',
-			setTimeoutImpl: this.#setTimeout, clearTimeoutImpl: this.#clearTimeout,
-		});
+		await awaitHelperSupervisorShutdown(channel, starting, this.#cancellationBudgetMs,
+			this.#setTimeout, this.#clearTimeout);
 	}
 
 	#state(): HelperSupervisorState {
@@ -315,11 +316,9 @@ export class HelperSupervisor {
 				`The helper process could not be spawned: ${error instanceof Error ? error.message : String(error)}`);
 		}
 		if (this.#disposed) {
-			try {
-				channel.kill();
-			} catch {
-				/* A process created after disposal is already outside supervision. */
-			}
+			if (this.#gracefulDisposal) await shutdownSupervisedHelperChannel(channel,
+				this.#cancellationBudgetMs, this.#setTimeout, this.#clearTimeout);
+			else try { channel.kill(); } catch { /* Disposal is already authoritative. */ }
 			this.#assertNotDisposed();
 		}
 		this.#channel = channel;

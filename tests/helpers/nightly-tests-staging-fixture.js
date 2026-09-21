@@ -48,6 +48,7 @@ export async function createFixture(context) {
 		['playwright.nightly-local-assistance.config.mjs', 'export default {};\n'],
 		['config/accessibility-wcag-baseline.json', '{"routes":[]}\n'],
 		['config/quality-budgets.json', '{"measurementPolicy":{"timingWorkers":1,"benchmarkRetries":0}}\n'],
+		['desktop/coverage-checkpoint-exit.mjs', 'export const exitAfterCoverageCheckpoint = true;\n'],
 		['desktop/nightly-tests-main.mjs', 'export const launcher = true;\n'],
 		['desktop/nightly-tests-assistance-host.mjs', 'export const assistanceHost = true;\n'],
 		['desktop/nightly-tests-assistance.html', '<!doctype html><title>Model tests</title>\n'],

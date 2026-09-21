@@ -20,21 +20,25 @@ export function awaitGracefulHelperShutdown<Message>(options: Readonly<{
 	const clearTimeoutImpl = options.clearTimeoutImpl ?? clearTimeout;
 	return new Promise<void>((resolve, reject) => {
 		let settled = false;
+		let timer: ReturnType<typeof setTimeout> | null = null;
 		const finish = (error: Error | null): void => {
 			if (settled) return;
 			settled = true;
-			clearTimeoutImpl(timer);
+			if (timer !== null) clearTimeoutImpl(timer);
 			if (error) reject(error); else resolve();
 		};
-		const timer = setTimeoutImpl(() => {
+		timer = setTimeoutImpl(() => {
 			finish(new Error(`The ${options.label} missed its graceful shutdown deadline.`));
 			try { options.channel.kill(); } catch { /* The deadline remains authoritative. */ }
 		}, options.timeoutMs);
-		(timer as { unref?: () => void }).unref?.();
+		if (!settled) (timer as { unref?: () => void }).unref?.();
+		if (settled) return;
 		options.channel.onExit((code) => finish(code === 0 ? null
 			: new Error(`The ${options.label} exited unsuccessfully during graceful shutdown.`)));
+		if (settled) return;
 		try { options.channel.postMessage(options.message); }
 		catch (error) {
+			if (settled) return;
 			finish(new Error(`The ${options.label} graceful shutdown could not be requested: ${message(error)}`));
 			try { options.channel.kill(); } catch { /* The request failure remains authoritative. */ }
 		}

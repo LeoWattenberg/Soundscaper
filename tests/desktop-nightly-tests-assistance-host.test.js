@@ -7,7 +7,7 @@ import test from 'node:test';
 import {
 	NIGHTLY_ASSISTANCE_DOCUMENT_URL, NIGHTLY_ASSISTANCE_HOST_FLAG,
 	NIGHTLY_ASSISTANCE_SCHEME, registerNightlyAssistanceScheme,
-	resolveNightlyAssistanceHostPlan, startNightlyAssistanceHost,
+	createNightlyAssistanceHostDisposal, resolveNightlyAssistanceHostPlan, startNightlyAssistanceHost,
 } from '../desktop/nightly-tests-assistance-host.mjs';
 
 const ARGV = [NIGHTLY_ASSISTANCE_HOST_FLAG, '--user-data-dir=/tmp/model-profile',
@@ -113,6 +113,44 @@ test('production assistance keeps its real runtime root as the default and no te
 	assert.match(source, /runtimeRoot = join\(process\.resourcesPath, 'runtime'\)/u);
 	assert.match(source, /onError: onOperationError/u);
 	assert.doesNotMatch(source, /SOUNDSCAPER_LOCAL_ASSISTANCE_REAL_MODELS|nightly-assistance-host/u);
+});
+
+test('Electron checkpoints V8 coverage only after assistance cleanup and immediately before exit', async () => {
+	const [applicationMain, launcherMain, host] = await Promise.all([
+		readFile(new URL('../desktop/main.mjs', import.meta.url), 'utf8'),
+		readFile(new URL('../desktop/nightly-tests-main.mjs', import.meta.url), 'utf8'),
+		readFile(new URL('../desktop/nightly-tests-assistance-host.mjs', import.meta.url), 'utf8'),
+	]);
+	assert.match(applicationMain, /exit: exitWithCoverage/u);
+	const assistanceBranch = launcherMain.slice(
+		launcherMain.indexOf("if (process.argv.includes('--soundscaper-nightly-assistance-host'))"),
+		launcherMain.indexOf('} else {'),
+	);
+	assert.ok(assistanceBranch.indexOf("app.on('window-all-closed'")
+		< assistanceBranch.indexOf("import('./nightly-tests-assistance-host.mjs')"),
+		'the assistance launcher must suppress default quit before its async host starts');
+	assert.match(host, /exitAfterCoverageCheckpoint\(\{ checkpoint: takeCoverage,/u);
+	assert.match(host, /dispose\(\)\.then\(\(\) => exit\(0\), \(error\) => \{ console\.error\(error\); exit\(2\); \}\)/u);
+});
+
+test('host disposal is one cached barrier and retains failures after every teardown leaf', async () => {
+	let release;
+	const calls = [];
+	const dispose = createNightlyAssistanceHostDisposal([
+		[() => new Promise((resolve) => { calls.push('assistance'); release = resolve; })],
+		[() => { calls.push('ipc'); throw new Error('ipc cleanup failed'); },
+			() => { calls.push('protocol'); }],
+	]);
+	const first = dispose();
+	const second = dispose();
+	assert.equal(first, second);
+	await Promise.resolve();
+	assert.deepEqual(calls, ['assistance']);
+	release();
+	await assert.rejects(first, (error) => error instanceof AggregateError
+		&& error.errors.some((entry) => /ipc cleanup failed/u.test(String(entry))));
+	assert.deepEqual(calls, ['assistance', 'ipc', 'protocol']);
+	assert.equal(dispose(), first, 'a failed disposal remains the shared result');
 });
 
 test('the diagnostic document admits only locally supplied data images', async () => {

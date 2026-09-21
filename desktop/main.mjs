@@ -27,7 +27,7 @@ import {
 	UPDATE_TAG_PREFIX,
 } from './constants.js';
 import { DesktopApplicationShutdown, resolveDesktopProjectLibraryAppData } from './project-library-runtime/desktop/application-lifecycle.js';
-import { registerAssistanceSemanticSearchMainIpc } from './project-library-runtime/desktop/assistance-semantic-search-main-ipc.js'; import { registerAssistance } from './assistance-registration.mjs';
+import { registerAssistanceSemanticSearchMainIpc } from './project-library-runtime/desktop/assistance-semantic-search-main-ipc.js'; import { registerAssistance } from './assistance-registration.mjs'; import { exitAfterCoverageCheckpoint } from './coverage-checkpoint-exit.mjs';
 import { disposeDesktopCaptureSecurity, registerDesktopCaptureSecurity, revokeDesktopCaptureOwner } from './framescaper-capture-registration.mjs';
 import { createFramescaperNativeServicesElectronPorts } from './framescaper-native-services-electron-ports.mjs';
 import { startFramescaperNativeServicesRegistration } from './framescaper-native-services-registration.mjs';
@@ -69,7 +69,7 @@ import {
 	validateLocale,
 } from './validation.js';
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const SOAK_DEBUG_ENABLED = PRODUCT_ID === 'soundscaper' && soakDebugProcessMetricsEnabled(process.argv); const dialog = createSoakDebugDialog(electronDialog, SOAK_DEBUG_ENABLED ? process.argv : []); const checkpointSoakMainCoverage = createSoakDebugMainCoverageCheckpoint(takeCoverage);
+const SOAK_DEBUG_ENABLED = PRODUCT_ID === 'soundscaper' && soakDebugProcessMetricsEnabled(process.argv); const dialog = createSoakDebugDialog(electronDialog, SOAK_DEBUG_ENABLED ? process.argv : []); const checkpointSoakMainCoverage = createSoakDebugMainCoverageCheckpoint(takeCoverage); const exitWithCoverage = (code) => exitAfterCoverageCheckpoint({ checkpoint: takeCoverage, exit: (exitCode) => app.exit(exitCode), reportError: (error) => console.error('Desktop V8 coverage checkpoint failed:', cleanError(error)) }, code);
 const readCapabilities = new ReadCapabilityStore();
 const saveTargets = new SaveTargetStore();
 const saves = new AtomicSaveManager({ targets: saveTargets });
@@ -122,7 +122,7 @@ const applicationShutdown = new DesktopApplicationShutdown({
 		{ name: 'read capabilities', run: () => readCapabilities.dispose() },
 		{ name: 'save sessions', run: () => saves.dispose() },
 	],
-	exit: (code) => app.exit(code),
+	exit: exitWithCoverage,
 	reportError: (name, error) => {
 		console.error(`Desktop ${name} shutdown failed:`, cleanError(error));
 	},

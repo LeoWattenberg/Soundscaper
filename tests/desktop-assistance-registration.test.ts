@@ -67,7 +67,8 @@ test('desktop assistance composes lazy runtime families from the truthful shippe
 	assert.match(registration,
 		/createAssistanceOperationService\(\{[\s\S]*?additionalRuntime: runtimeFamilies\.operations,[\s\S]*?onProgress,/u);
 	assert.match(registration,
-		/await runtimeFamilies\.shutdown\(\);[\s\S]*?await runtime\.shutdown\(\);/u);
+		/awaitAssistanceCleanupPhases\(\[\s*\[\(\) => workflowIpc\.dispose\(\)\],\s*\[\(\) => operationIpc\.dispose\(\)\],\s*\[\(\) => operations\?\.dispose\(\)\],\s*\[\(\) => runtimeFamilies\.shutdown\(\), \(\) => runtime\.shutdown\(\)\]/u,
+		'shared service owners dispose in order before both helper flush barriers');
 });
 
 test('indexed search receives one lazy installed-only runtime query executor', async () => {

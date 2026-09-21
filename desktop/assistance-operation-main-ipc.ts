@@ -8,6 +8,7 @@ import {
 	type AssistanceOperationRequest,
 } from './assistance-operation-contract.ts';
 import type { createAssistanceOperationService } from './assistance-operation-service.ts';
+import { awaitAssistanceCleanupPhases } from './assistance-cleanup-barrier.ts';
 import { AssistanceOperationTransfers } from './assistance-operation-transfers.ts';
 import { assistanceElectronEventPort } from './assistance-electron-data-port.ts';
 
@@ -113,7 +114,10 @@ export function registerAssistanceOperationIpc(options: AssistanceOperationIpcOp
 		catch { port.close(); }
 	});
 
-	return Object.freeze({ dispose: async () => { await transfers?.dispose(); await operations?.dispose(); } });
+	return Object.freeze({ dispose: () => awaitAssistanceCleanupPhases([
+		[() => transfers?.dispose()],
+		[() => operations?.dispose()],
+	]) });
 }
 
 type StageRequest =

@@ -31,6 +31,8 @@ import {
 	ASSISTANCE_RUNTIME_FAMILY_IDLE_UNLOAD_MS,
 	createAssistanceIdleUnloadScheduler,
 } from './assistance-runtime-family-idle-unload-v1.ts';
+import { assertOptions, boundedOption } from './assistance-runtime-family-router-options.ts';
+import { AssistanceRuntimeFamilyShutdownBarrier } from './assistance-runtime-family-shutdown.ts';
 import { HelperCrashLedger } from './helper-supervision-state.ts';
 
 export const ASSISTANCE_RUNTIME_FAMILY_CANCELLATION_BUDGET_MS = 2_000;
@@ -147,7 +149,9 @@ export function createAssistanceRuntimeFamilyRouter(options: AssistanceRuntimeFa
 		setTimeoutImpl, clearTimeoutImpl,
 	});
 	const expectedTerminations = new WeakSet<object>();
+	const shutdownBarrier = new AssistanceRuntimeFamilyShutdownBarrier();
 	let disposed = false;
+	let gracefulDisposal = false;
 	let reservedMemoryBytes = 0;
 	const familyIds = Object.keys(ASSISTANCE_RUNTIME_FAMILY_DEFINITIONS) as AssistanceRuntimeFamilyId[];
 	const slots = Object.fromEntries(familyIds.map((familyId) => [familyId, {
@@ -186,10 +190,14 @@ export function createAssistanceRuntimeFamilyRouter(options: AssistanceRuntimeFa
 		if (runOptions.signal?.aborted) {
 			return Promise.reject(failure('cancelled', request, 'The runtime-family job was cancelled.'));
 		}
+		const shutdownController = new AbortController();
+		const signal = runOptions.signal
+			? AbortSignal.any([runOptions.signal, shutdownController.signal]) : shutdownController.signal;
 		slot.reserved = true;
-		return admitAndRun(slot, request, runOptions).finally(() => {
+		const work = admitAndRun(slot, request, { ...runOptions, signal }).finally(() => {
 			slot.reserved = false;
 		});
+		return shutdownBarrier.trackAdmission(work, shutdownController);
 	}
 
 	async function admitAndRun(
@@ -199,10 +207,12 @@ export function createAssistanceRuntimeFamilyRouter(options: AssistanceRuntimeFa
 	): Promise<unknown> {
 		idleUnloads.cancel(slot.familyId);
 		await admitPower(request, runOptions);
+		if (disposed) throw failure('disposed', request, 'The runtime-family router is disposed.');
 		assertMemoryAdmission(request);
 		reservedMemoryBytes += request.maximumRssBytes;
 		try {
 			const process = await ensureProcess(slot, request);
+			if (disposed) throw failure('disposed', request, 'The runtime-family router is disposed.');
 			if (runOptions.signal?.aborted) {
 				throw failure('cancelled', request, 'The runtime-family job was cancelled.');
 			}
@@ -280,6 +290,7 @@ export function createAssistanceRuntimeFamilyRouter(options: AssistanceRuntimeFa
 		});
 		if (outcome.outcome === 'admitted') return;
 		if (outcome.outcome === 'cancelled') {
+			if (disposed) throw failure('disposed', request, 'The runtime-family router is disposed.');
 			throw failure('cancelled', request, 'The runtime-family job was cancelled.');
 		}
 		throw failure('power-deferred', request,
@@ -313,6 +324,8 @@ export function createAssistanceRuntimeFamilyRouter(options: AssistanceRuntimeFa
 				throw failure('manifest-invalid', request,
 					'The runtime-family availability returned a foreign or non-CPU descriptor.');
 			}
+			if (disposed) throw failure('disposed', request,
+				'The runtime-family router was disposed during availability resolution.');
 			let process: AssistanceRuntimeFamilyProcess;
 			try { process = await options.spawns[slot.familyId](availability.descriptor); }
 			catch (error) {
@@ -336,8 +349,8 @@ export function createAssistanceRuntimeFamilyRouter(options: AssistanceRuntimeFa
 			slot.process = process;
 			process.onExit((code) => handleExit(slot, process, code));
 			if (disposed) {
-				expectedTerminations.add(process);
-				await process.terminate();
+				if (gracefulDisposal) await shutdownProcess(slot, process);
+				else await terminateProcess(slot, process);
 				throw failure('disposed', request, 'The runtime-family router was disposed during spawn.');
 			}
 			if (slot.process !== process) {
@@ -457,6 +470,11 @@ export function createAssistanceRuntimeFamilyRouter(options: AssistanceRuntimeFa
 		try { await process.terminate(); return true; }
 		catch { return false; }
 	}
+	async function shutdownProcess(slot: FamilySlot, process: AssistanceRuntimeFamilyProcess): Promise<void> {
+		expectedTerminations.add(process);
+		if (slot.process === process) slot.process = null;
+		await process.shutdown();
+	}
 
 	function settle(slot: FamilySlot, active: ActiveJob, error: Error | null, value?: unknown): void {
 		if (active.settled) return;
@@ -474,7 +492,7 @@ export function createAssistanceRuntimeFamilyRouter(options: AssistanceRuntimeFa
 		idleUnloads.schedule(slot.familyId, () => {
 			const process = slot.process;
 			if (process === null || slot.active || slot.reserved || slot.starting) return;
-			void terminateProcess(slot, process);
+			shutdownBarrier.trackRetirement(shutdownProcess(slot, process));
 		});
 	}
 
@@ -510,35 +528,17 @@ export function createAssistanceRuntimeFamilyRouter(options: AssistanceRuntimeFa
 		}
 		return processes;
 	}
-	function dispose(): void { for (const process of beginDisposal()) void process.terminate(); }
-	async function shutdown(): Promise<void> {
-		await Promise.all(beginDisposal().map(async (process) => process.shutdown()));
+	function dispose(): void {
+		const processes = beginDisposal();
+		shutdownBarrier.abortAdmissions();
+		for (const process of processes) void process.terminate();
+	}
+	function shutdown(): Promise<void> {
+		gracefulDisposal = true;
+		const processes = beginDisposal();
+		return shutdownBarrier.shutdown(processes.map((process) => () => process.shutdown()),
+			(error) => error instanceof AssistanceRuntimeFamilyError && error.code === 'disposed');
 	}
 
 	return Object.freeze({ run, snapshot, clearQuarantine, dispose, shutdown });
-}
-
-function assertOptions(options: AssistanceRuntimeFamilyRouterOptions): void {
-	if (!options || typeof options.availability !== 'function'
-		|| typeof options.totalMemoryBytes !== 'function' || typeof options.availableMemoryBytes !== 'function') {
-		throw new TypeError('The runtime-family router options are incomplete.');
-	}
-	const port = options.powerEtiquette;
-	if (port !== undefined
-		&& (!port || typeof port.observe !== 'function' || typeof port.subscribe !== 'function')) {
-		throw new TypeError('The runtime-family router power etiquette port is invalid.');
-	}
-	for (const familyId of Object.keys(ASSISTANCE_RUNTIME_FAMILY_DEFINITIONS) as AssistanceRuntimeFamilyId[]) {
-		if (typeof options.spawns?.[familyId] !== 'function') {
-			throw new TypeError(`The runtime-family router has no isolated ${familyId} spawn.`);
-		}
-	}
-}
-
-function boundedOption(value: number | undefined, fallback: number, maximum: number, label: string): number {
-	const admitted = value ?? fallback;
-	if (!Number.isSafeInteger(admitted) || admitted < 1 || admitted > maximum) {
-		throw new RangeError(`The runtime-family ${label} is invalid.`);
-	}
-	return admitted;
 }

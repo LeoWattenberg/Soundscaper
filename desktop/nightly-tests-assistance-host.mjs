@@ -3,8 +3,10 @@
 import { access, mkdir, readFile } from 'node:fs/promises';
 import { dirname, isAbsolute, join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
+import { takeCoverage } from 'node:v8';
 
 import { resolvePackagedProductExecutable } from '../scripts/lib/desktop-nightly-tests-packaged-runtime.mjs';
+import { exitAfterCoverageCheckpoint } from './coverage-checkpoint-exit.mjs';
 
 export const NIGHTLY_ASSISTANCE_HOST_FLAG = '--soundscaper-nightly-assistance-host';
 export const NIGHTLY_ASSISTANCE_SCHEME = 'soundscaper-nightly-assistance';
@@ -54,6 +56,9 @@ export async function startNightlyAssistanceHost({ app, BrowserWindow, ipcMain, 
 		argv: dependencies.argv ?? process.argv, environment: dependencies.environment ?? process.env,
 	});
 	const verifyFile = dependencies.access ?? access;
+	const exit = (code) => exitAfterCoverageCheckpoint({ checkpoint: takeCoverage,
+		exit: (exitCode) => app.exit(exitCode),
+		reportError: (error) => console.error('Nightly assistance V8 coverage checkpoint failed:', error) }, code);
 	// Electron treats an archive root as its virtual directory, whose empty entry
 	// cannot be passed to fs.access. Check readability through its preload entry.
 	await verifyFile(plan.preload);
@@ -121,16 +126,15 @@ export async function startNightlyAssistanceHost({ app, BrowserWindow, ipcMain, 
 		// or invokes the unrelated optional system FFmpeg installation.
 		externalFfmpegPreferences: { admission: () => null, invalidateAdmission: () => undefined },
 	});
-	let disposed = false;
-	const dispose = async () => {
-		if (disposed) return;
-		disposed = true;
-		await assistance.dispose();
-		for (const channel of handled) ipcMain.removeHandler(channel);
-		for (const [channel, listener] of listeners) ipcMain.removeListener(channel, listener);
-		documentProtocol.unhandle(NIGHTLY_ASSISTANCE_SCHEME);
-	};
-	window.on('closed', () => { void dispose().then(() => app.exit(0), (error) => { console.error(error); app.exit(2); }); });
+	const dispose = createNightlyAssistanceHostDisposal([
+		[() => assistance.dispose()],
+		[
+			...handled.map((channel) => () => ipcMain.removeHandler(channel)),
+			...listeners.map(([channel, listener]) => () => ipcMain.removeListener(channel, listener)),
+			() => documentProtocol.unhandle(NIGHTLY_ASSISTANCE_SCHEME),
+		],
+	]);
+	window.on('closed', () => { void dispose().then(() => exit(0), (error) => { console.error(error); exit(2); }); });
 	try {
 		await window.loadURL(documentUrl);
 	} catch (error) {
@@ -138,6 +142,20 @@ export async function startNightlyAssistanceHost({ app, BrowserWindow, ipcMain, 
 		throw error;
 	}
 	return Object.freeze({ window, dispose, plan });
+}
+
+export function createNightlyAssistanceHostDisposal(phases) {
+	let disposal = null;
+	return () => disposal ??= settleDisposal(phases);
+}
+
+async function settleDisposal(phases) {
+	const failures = [];
+	for (const phase of phases) {
+		const results = await Promise.allSettled(phase.map((run) => Promise.resolve().then(run)));
+		for (const result of results) if (result.status === 'rejected') failures.push(result.reason);
+	}
+	if (failures.length) throw new AggregateError(failures, 'Nightly assistance host cleanup failed.');
 }
 
 function createDocumentHandler(documentBody) {

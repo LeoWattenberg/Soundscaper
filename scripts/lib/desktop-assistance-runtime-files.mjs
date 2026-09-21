@@ -2,6 +2,7 @@
 
 /** Exact compiled closure owned by desktop local assistance and its model store. */
 export const DESKTOP_ASSISTANCE_RUNTIME_FILES = Object.freeze([
+	'desktop/assistance-cleanup-barrier.js',
 	'desktop/assistance-authenticated-source-snapshot.js',
 	'desktop/assistance-data-claims.js',
 	'desktop/assistance-diarization-runtime.js',
@@ -49,6 +50,8 @@ export const DESKTOP_ASSISTANCE_RUNTIME_FILES = Object.freeze([
 	'desktop/assistance-runtime-family-manifest.js',
 	'desktop/assistance-runtime-family-operation-adapter.js',
 	'desktop/assistance-runtime-family-process-protocol.js',
+	'desktop/assistance-runtime-family-router-options.js',
+	'desktop/assistance-runtime-family-shutdown.js',
 	'desktop/assistance-runtime-family-startup.js',
 	'desktop/assistance-runtime-family-thread-worker.js',
 	'desktop/assistance-runtime-family-utility-worker.js',

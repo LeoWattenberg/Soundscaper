@@ -10,6 +10,7 @@ import {
 	type AssistanceWorkflowV1,
 } from '../src/common/editor/assistance/workflow.ts';
 import { createAssistanceWorkflowConsentAuthority } from './assistance-workflow-consent.ts';
+import { awaitAssistanceCleanupPhases } from './assistance-cleanup-barrier.ts';
 import type { createAssistanceWorkflowService } from './assistance-workflow-service.ts';
 import type { AssistanceWorkflowTransfers } from './assistance-workflow-transfers.ts';
 import { assistanceElectronEventPort } from './assistance-electron-data-port.ts';
@@ -146,9 +147,11 @@ export function registerAssistanceWorkflowIpc(options: AssistanceWorkflowIpcOpti
 
 	return Object.freeze({
 		dispose: async () => {
-			consent.dispose();
-			await transfers?.dispose();
-			await workflows?.dispose();
+			await awaitAssistanceCleanupPhases([
+				[() => consent.dispose()],
+				[() => transfers?.dispose()],
+				[() => workflows?.dispose()],
+			]);
 		},
 	});
 }

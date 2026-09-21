@@ -56,6 +56,7 @@ export const NIGHTLY_TEST_PAYLOAD_INPUTS = Object.freeze([
 	})),
 	{ source: 'desktop/desktop-audio-codec-capability-contract.ts', destination: 'desktop/desktop-audio-codec-capability-contract.ts', kind: 'file', label: 'browser codec capability source map input' },
 	{ source: 'desktop/desktop-audio-codec-operation-contract.ts', destination: 'desktop/desktop-audio-codec-operation-contract.ts', kind: 'file', label: 'browser codec operation source map input' },
+	{ source: 'desktop/coverage-checkpoint-exit.mjs', destination: 'desktop/coverage-checkpoint-exit.mjs', kind: 'file', label: 'Electron V8 coverage exit checkpoint' },
 	{ source: 'desktop/nightly-tests-main.mjs', destination: 'desktop/nightly-tests-main.mjs', kind: 'file', label: 'nightly test launcher' },
 	{ source: 'desktop/nightly-tests-assistance-host.mjs', destination: 'desktop/nightly-tests-assistance-host.mjs', kind: 'file', label: 'nightly-only real assistance Electron host' },
 	{ source: 'desktop/nightly-tests-assistance.html', destination: 'desktop/nightly-tests-assistance.html', kind: 'file', label: 'isolated assistance diagnostic document' },

@@ -204,6 +204,17 @@ test('a missed graceful process shutdown kills the child and rejects', async () 
 	assert.equal(child.kills, 1);
 });
 
+test('a failed graceful exit remains the shared result after the child has exited', async () => {
+	const rig = harness();
+	const { process, child } = await spawnReady(rig);
+	const first = process.shutdown();
+	child.emit('exit', 7);
+	await assert.rejects(first, /unsuccessfully/iu);
+	const second = process.shutdown();
+	assert.equal(second, first);
+	await assert.rejects(second, /unsuccessfully/iu);
+});
+
 test('the spawned inference process is dropped to background priority as soon as it exists', async () => {
 	const priorities: number[] = [];
 	const rig = harness({ applyBackgroundPriority: (pid: number) => priorities.push(pid) });

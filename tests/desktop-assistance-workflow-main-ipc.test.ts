@@ -103,3 +103,33 @@ test('an unknown workflow job is rejected before native consent is requested', a
 	)), /workflow could not be completed/iu);
 	assert.equal(fixture.prompts(), 0);
 });
+
+test('workflow IPC disposal orders transfers before workflows and retains either failure', async () => {
+	const handlers = new Map<string, (event: unknown, value?: unknown) => unknown>();
+	const disposed: string[] = [];
+	const workflows = {
+		createJob: () => ({ contractVersion: 1, jobId: WORKFLOW_JOB_ID }),
+		dispose: async () => { disposed.push('workflows'); throw new Error('workflow cleanup failed'); },
+	};
+	const transfers = {
+		prepareInput: () => ({ prepared: true }),
+		dispose: async () => { disposed.push('transfers'); throw new Error('transfer cleanup failed'); },
+	};
+	const registration = registerAssistanceWorkflowIpc({
+		channels: ASSISTANCE_WORKFLOW_IPC_CHANNELS,
+		handle: (channel, handler) => handlers.set(channel, handler), on: () => undefined,
+		sendToRenderer: () => undefined,
+		createWorkflows: () => workflows as never,
+		createTransfers: () => transfers as never,
+		confirmWorkflow: async () => true,
+	});
+	await handlers.get(ASSISTANCE_WORKFLOW_IPC_CHANNELS.create)?.({});
+	await handlers.get(ASSISTANCE_WORKFLOW_IPC_CHANNELS.stage)?.({}, {
+		operation: 'prepare', jobId: WORKFLOW_JOB_ID, workflowId: 'enhance-dialogue',
+		stageId: 'enhance-dialogue', slotId: 'audio', mediaType: 'audio/wav',
+		byteLength: 4, sha256: 'aa'.repeat(32),
+	});
+	await assert.rejects(registration.dispose(), (error: unknown) => error instanceof AggregateError
+		&& error.errors.length === 2);
+	assert.deepEqual(disposed, ['transfers', 'workflows']);
+});

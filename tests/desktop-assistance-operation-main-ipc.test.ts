@@ -26,6 +26,7 @@ function harness(
 		cancel: async () => { order.push('operation-cancel'); return { contractVersion: 1,
 			jobId: '1'.repeat(40), outcome: 'cancelled' }; },
 		release: async () => { order.push('operation-release'); return true; },
+		dispose: async () => undefined,
 		...overrides,
 	};
 	const transfers = {
@@ -245,4 +246,15 @@ test('port listeners accept exactly one structural MessagePort and close malform
 	fixture.listeners.get(ASSISTANCE_OPERATION_IPC_CHANNELS.outputPort)?.({ ports: [first, second] }, {});
 	assert.equal(first.closed, true);
 	assert.equal(second.closed, true);
+});
+
+test('operation IPC disposal orders transfers before operations and retains either failure', async () => {
+	const fixture = harness();
+	await fixture.handlers.get(ASSISTANCE_OPERATION_IPC_CHANNELS.create)?.(null);
+	const disposed: string[] = [];
+	fixture.transfers.dispose = async () => { disposed.push('transfers'); throw new Error('transfer cleanup failed'); };
+	fixture.operations.dispose = async () => { disposed.push('operations'); throw new Error('operation cleanup failed'); };
+	await assert.rejects(fixture.registration.dispose(), (error: unknown) => error instanceof AggregateError
+		&& error.errors.length === 2);
+	assert.deepEqual(disposed, ['transfers', 'operations']);
 });

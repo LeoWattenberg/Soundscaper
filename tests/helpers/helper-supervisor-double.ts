@@ -60,6 +60,7 @@ export class FakeChannel implements HelperChannel {
 	readonly posted: HelperHostMessage[] = [];
 	readonly transfers: HelperDataPlaneTransferPort[][] = [];
 	killed = 0;
+	exitOnShutdown = false;
 	autoHello = true;
 	kinds: readonly string[] = [JOB_KIND];
 	throwOnPost = false;
@@ -70,6 +71,7 @@ export class FakeChannel implements HelperChannel {
 		if (this.throwOnPost) throw new Error('channel closed');
 		this.posted.push(message);
 		this.transfers.push([...transfer]);
+		if (this.exitOnShutdown && message.type === 'shutdown') queueMicrotask(() => this.exit(0));
 	}
 
 	onMessage(listener: (message: unknown) => void): void {

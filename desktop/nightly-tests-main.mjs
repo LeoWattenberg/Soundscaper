@@ -6,20 +6,27 @@
 import { appendFileSync, mkdtempSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { dirname, isAbsolute, join, resolve } from 'node:path';
+import { takeCoverage } from 'node:v8';
 
 import * as electron from 'electron/main';
+import { exitAfterCoverageCheckpoint } from './coverage-checkpoint-exit.mjs';
 
 const { app, dialog } = electron;
+const exitApplication = (code) => exitAfterCoverageCheckpoint({ checkpoint: takeCoverage,
+	exit: (exitCode) => app.exit(exitCode),
+	reportError: (error) => console.error('Nightly launcher V8 coverage checkpoint failed:', error) }, code);
 if (process.argv.includes('--soundscaper-nightly-assistance-host')) {
 	// Dynamic imports do not delay Electron readiness. Register this exact
 	// host-only scheme synchronously, before loading the assistance host.
+	// This branch owns its asynchronous helper flush and explicit exit too.
+	app.on('window-all-closed', () => undefined);
 	electron.protocol.registerSchemesAsPrivileged([{
 		scheme: 'soundscaper-nightly-assistance',
 		privileges: { standard: true, secure: true },
 	}]);
 	void import('./nightly-tests-assistance-host.mjs')
 		.then(({ startNightlyAssistanceHost }) => startNightlyAssistanceHost(electron))
-		.catch((error) => { console.error(error); app.exit(2); });
+		.catch((error) => { console.error(error); exitApplication(2); });
 } else {
 	// Register synchronously: dynamic payload imports can finish after readiness.
 	electron.protocol.registerSchemesAsPrivileged([{
@@ -86,7 +93,7 @@ async function startNightlyTests() {
 				catch (fallbackError) { log(`Fallback dialog failed: ${errorDetails(fallbackError)}`); }
 			}
 		}
-		app.exit(2);
+		exitApplication(2);
 	};
 	// Destroying a failed-to-load window otherwise requests app quit before the
 	// error dialog can be acknowledged. This runner owns its explicit exit.
@@ -159,7 +166,7 @@ async function startNightlyTests() {
 			});
 		}
 		if (reportingFailure) return;
-		app.exit(run.exitCode);
+		exitApplication(run.exitCode);
 	} catch (error) {
 		await fail(error);
 	}

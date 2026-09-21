@@ -10,10 +10,7 @@ import { DESKTOP_EXTERNAL_FFMPEG_RUNTIME_FILES } from './desktop-external-ffmpeg
 import { DESKTOP_PROJECT_LIBRARY_BASELINE_RUNTIME_FILES } from './desktop-project-library-baseline-runtime-files.mjs';
 import { DESKTOP_SOUNDSCAPER_RUNTIME_FILES } from './desktop-soundscaper-runtime-files.mjs';
 import { DESKTOP_EFFECT_RUNTIME_FILES } from './desktop-effect-runtime-files.mjs';
-import {
-	assertNoTypeScriptImportSpecifiers,
-	assertStagedDesktopImportsResolve,
-} from './desktop-staged-import-hygiene.mjs';
+import { assertNoTypeScriptImportSpecifiers, assertStagedDesktopImportsResolve } from './desktop-staged-import-hygiene.mjs';
 import { stageBundledAudioCodecRuntimeManifest } from './desktop-bundled-audio-codec-runtime-closure.mjs';
 import {
 	assertDesktopProductPackageIsolation,
@@ -87,7 +84,9 @@ export const DESKTOP_EXPECTED_RUNTIME_FILES = Object.freeze([
 	'desktop/helper-native-ofx-host-grant.js',
 	'desktop/helper-probe-service.js',
 	'desktop/helper-resource-policy.js',
+	'desktop/graceful-helper-shutdown.js',
 	'desktop/helper-supervision-state.js',
+	'desktop/helper-supervisor-shutdown.js',
 	'desktop/helper-supervisor-contracts.js',
 	'desktop/helper-supervisor.js',
 	'desktop/native-helper-service.js',

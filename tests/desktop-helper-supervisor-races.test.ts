@@ -78,3 +78,40 @@ test('concurrent starts join one spawn instead of refusing or double-spawning', 
 	assert.equal(channels.length, 1, 'two cold starters must share one helper process');
 	assert.equal(supervisor.snapshot().state, 'ready');
 });
+
+test('graceful shutdown owns an in-flight spawn and shares one exit barrier', async () => {
+	let release!: () => void;
+	const { supervisor, latest } = createHarness({
+		completeSpawn: (channel) => new Promise((resolve) => {
+			release = () => resolve(channel);
+		}),
+	});
+	const starting = supervisor.start();
+	await settled();
+	latest().exitOnShutdown = true;
+	const first = supervisor.shutdown();
+	const second = supervisor.shutdown();
+	assert.equal(first, second);
+	let stopped = false;
+	void first.then(() => { stopped = true; });
+	await Promise.resolve();
+	assert.equal(stopped, false);
+	release();
+	await assert.rejects(starting, (error: unknown) => supervisionCause(error) === 'disposed');
+	await first;
+	assert.deepEqual(latest().posted.at(-1), { contractVersion: 1, type: 'shutdown' });
+	assert.equal(latest().killed, 0);
+});
+
+test('graceful shutdown failure is shared and cannot be masked after the helper exits', async () => {
+	const { supervisor, latest, timers } = createHarness();
+	await supervisor.start();
+	const first = supervisor.shutdown();
+	const second = supervisor.shutdown();
+	assert.equal(first, second);
+	timers.advance(2_000);
+	await assert.rejects(first, (error: unknown) => error instanceof AggregateError
+		&& error.errors.some((entry) => /graceful shutdown deadline/u.test(String(entry))));
+	assert.equal(latest().killed, 1);
+	await assert.rejects(second, AggregateError);
+});
