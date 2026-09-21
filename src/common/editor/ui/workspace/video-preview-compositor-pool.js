@@ -2,6 +2,7 @@
 
 import { resolveVideoKeyframePreviewState } from '../../video-keyframe-preview-state.ts';
 import { resolveVideoSourceDisplaySize } from '../../video-source-presentation.ts';
+import { drawableVideoIntervalInteriorSeconds } from '../../video-drawable-interval.ts';
 import { resolveVideoTransitionPreviewOpacity } from '../../video-transition-preview-opacity.js';
 import { videoTransition } from '../../video-timeline-internals.js';
 import { applyVideoPreviewDisplaySize } from './video-preview-display-size.ts';
@@ -181,7 +182,7 @@ function synchronizeExactPresentation(timeline, clip, timelineFrame, video) {
 	// carries one: a reverse cell's exact source time equals the interval's
 	// exclusive end, and seeking that boundary presents the next frame instead
 	// of the picture the export path delivers.
-	const interior = drawableIntervalInterior(descriptor);
+	const interior = drawableVideoIntervalInteriorSeconds(descriptor, { allowArrayRationals: true });
 	const targetTime = interior !== null ? interior : Number(exact.numerator) / Number(exact.denominator);
 	if (!Number.isFinite(targetTime) || targetTime < 0) {
 		throw new RangeError('Exact program preview source time exceeds the browser media range.');
@@ -193,21 +194,6 @@ function synchronizeExactPresentation(timeline, clip, timelineFrame, video) {
 	} catch {
 		// Metadata readiness callbacks and the next compositor pass retry the exact seek.
 	}
-}
-
-function drawableIntervalInterior(descriptor) {
-	const start = exactRationalSeconds(descriptor.drawableSourceStartTime);
-	const end = exactRationalSeconds(descriptor.drawableSourceEndTime);
-	if (start === null || end === null || !(start < end)) return null;
-	const midpoint = (start + end) / 2;
-	return midpoint >= start && midpoint < end ? midpoint : start;
-}
-
-function exactRationalSeconds(value) {
-	if (!value || typeof value !== 'object' || typeof value.numerator !== 'bigint'
-		|| typeof value.denominator !== 'bigint' || value.denominator <= 0n) return null;
-	const result = Number(value.numerator) / Number(value.denominator);
-	return Number.isFinite(result) ? result : null;
 }
 
 function resolveKeyframeStates(interval, timeline, timelineFrame) {

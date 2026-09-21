@@ -36,6 +36,9 @@ test('desktop staging contains only unversioned v1 project-library authorities',
 	assert.ok(DESKTOP_PROJECT_LIBRARY_BASELINE_RUNTIME_FILES.includes(
 		'src/framescaper/editor-project-feature-manifest-context.js',
 	));
+	assert.ok(DESKTOP_PROJECT_LIBRARY_BASELINE_RUNTIME_FILES.includes(
+		'src/common/editor/video-drawable-interval.js',
+	));
 });
 
 test('desktop staging includes the shared Framescaper durable asset authority', () => {

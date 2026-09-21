@@ -59,6 +59,7 @@ export const DESKTOP_PROJECT_LIBRARY_BASELINE_RUNTIME_FILES = Object.freeze([
 	'src/common/editor/video-caption-track-v27.js',
 	'src/common/editor/video-color-cube-lut-v27.js',
 	'src/common/editor/video-color-management-v27.js',
+	'src/common/editor/video-drawable-interval.js',
 	'src/common/editor/video-exact-presentation.js',
 	'src/common/editor/gray-video-frame-sampling-v1.js',
 	'src/common/editor/video-motion-analysis-v27.js',
