@@ -3,6 +3,7 @@
 import { PROJECT_FEATURE_CAPABILITY_IDS } from './project-feature-capabilities.ts';
 import { isMaintainedProjectFeatureSchema } from './project-schema-version.ts';
 import type { ProjectFeatureRequirementsReport } from './project-feature-requirements.ts';
+import { qualifyingProjectFeatureEffectBypassRequirementIds } from './project-feature-effect-bypass-report.ts';
 import { VIDEO_EFFECT_TYPES } from './video-effects.js';
 
 export const PROJECT_FEATURE_VIDEO_EFFECT_BYPASS_LIMITS = Object.freeze({
@@ -57,7 +58,10 @@ export function projectFeatureVideoEffectPlaybackBypass<Project extends object>(
 ): ProjectFeatureVideoEffectBypassProjection<Project> {
 	const projectRecord = recordValue(project, 'project');
 	if (!isMaintainedProjectFeatureSchema(projectRecord)) return unchanged(project);
-	const requirementIds = qualifyingRequirementIds(report);
+	const requirementIds = qualifyingProjectFeatureEffectBypassRequirementIds(
+		report,
+		PROJECT_FEATURE_CAPABILITY_IDS.videoEffects,
+	);
 	if (requirementIds.length === 0) return unchanged(project);
 	const maximumAffectedEffects = lowerOnlyLimit(
 		options.maximumAffectedEffects,
@@ -126,25 +130,6 @@ export function projectFeatureVideoEffectPlaybackBypass<Project extends object>(
 
 function unchanged<Project>(project: Project): ProjectFeatureVideoEffectBypassProjection<Project> {
 	return Object.freeze({ project, ...EMPTY_RESULT });
-}
-
-function qualifyingRequirementIds(
-	report: ProjectFeatureRequirementsReport | null | undefined,
-): string[] {
-	if (report?.compatible !== false || report.format !== 'soundscaper-project' || !Array.isArray(report.items)) {
-		return [];
-	}
-	const output: string[] = [];
-	for (const item of report.items) {
-		if (
-			item.featureId !== PROJECT_FEATURE_CAPABILITY_IDS.videoEffects
-			|| item.availability !== 'unavailable'
-			|| item.declaredDisposition !== 'bypass'
-			|| item.disposition !== 'bypassed'
-		) continue;
-		output.push(stableId(item.requirementId, 'feature requirement ID'));
-	}
-	return output;
 }
 
 function projectClip(
