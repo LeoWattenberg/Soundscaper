@@ -100,6 +100,11 @@ export function normalizeStripRef(value: unknown): StripRef {
 	throw new RangeError('A strip reference kind must be track, mixer-node, or master.');
 }
 
+/** Collision-free identity for normalized strip references used by runtime indexes. */
+export function canonicalStripRefKey(strip: StripRef): string {
+	return JSON.stringify(stripTuple(strip));
+}
+
 /** Canonical collision-free key used by runtime registries and persisted lane indexes. */
 export function canonicalParameterAddressKey(value: unknown): string {
 	const address = normalizeParameterAddress(value);

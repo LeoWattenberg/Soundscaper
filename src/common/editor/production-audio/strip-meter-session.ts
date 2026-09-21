@@ -5,7 +5,7 @@ import {
 	readClosedDomainField,
 	readClosedDomainRecord,
 } from '../closed-domain-value.ts';
-import { normalizeStripRef } from '../parameter-address.ts';
+import { canonicalStripRefKey, normalizeStripRef } from '../parameter-address.ts';
 import type { StripRef } from '../parameter-address.ts';
 
 export interface StripChannelMeterSnapshot {
@@ -79,7 +79,7 @@ export function createSessionStripMeterStore(optionsValue: unknown = {}): Sessio
 			const strip = normalizeStripRef(stripValue);
 			const input = normalizeUpdate(inputValue, maximumFramesPerUpdate);
 			const snapshot = calculateSnapshot(strip, input, sequence += 1);
-			const key = stripKey(strip);
+			const key = canonicalStripRefKey(strip);
 			states.delete(key);
 			states.set(key, snapshot);
 			while (states.size > maximumStrips) {
@@ -90,7 +90,7 @@ export function createSessionStripMeterStore(optionsValue: unknown = {}): Sessio
 			return snapshot;
 		},
 		get(stripValue: unknown): StripMeterSnapshot | null {
-			return states.get(stripKey(normalizeStripRef(stripValue))) ?? null;
+			return states.get(canonicalStripRefKey(normalizeStripRef(stripValue))) ?? null;
 		},
 		snapshot(): readonly StripMeterSnapshot[] {
 			return Object.freeze([...states.values()]);
@@ -192,10 +192,6 @@ function normalizedPhaseDegrees(correlation: number): number {
 	if (Math.abs(degrees - 90) < 1e-12) return 90;
 	if (Math.abs(degrees - 180) < 1e-12) return 180;
 	return degrees;
-}
-
-function stripKey(strip: StripRef): string {
-	return strip.kind === 'master' ? '["master"]' : JSON.stringify([strip.kind, strip.id]);
 }
 
 function optionalField(

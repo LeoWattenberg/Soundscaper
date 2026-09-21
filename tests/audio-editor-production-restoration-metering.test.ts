@@ -21,6 +21,28 @@ import type { StripRef } from '../src/common/editor/parameter-address.ts';
 
 const track = (id: string): StripRef => ({ kind: 'track', id });
 
+test('meter storage and scheduling agree on every canonical strip identity', () => {
+	const strips: readonly StripRef[] = [
+		{ kind: 'master' },
+		track('mixer-node:shared,[id]'),
+		{ kind: 'mixer-node', id: 'track:shared,[id]' },
+	];
+	const input = { channels: [Float32Array.of(0.25)], channelLabels: ['M'] };
+	const meters = createSessionStripMeterStore({ maximumStrips: strips.length, maximumFramesPerUpdate: 1 });
+	const scheduler = createStripAnalysisScheduler({
+		maximumStripsPerTick: strips.length,
+		maximumFramesPerTick: strips.length,
+	});
+	for (const strip of strips) meters.update(strip, input);
+	assert.deepEqual(meters.snapshot().map(({ strip }) => strip), strips);
+	assert.deepEqual(strips.map((strip) => meters.get(strip)?.strip), strips);
+	assert.deepEqual(
+		scheduler.plan(strips.map((strip) => ({ strip, visible: true, armed: false, costFrames: 1 })))
+			.scheduled.map(({ strip }) => strip),
+		strips,
+	);
+});
+
 test('per-strip session meters report mono, stereo phase references, and declared surround geometry', () => {
 	const meters = createSessionStripMeterStore({ maximumStrips: 8, maximumFramesPerUpdate: 16 });
 	let snapshot = meters.update(track('mono'), {

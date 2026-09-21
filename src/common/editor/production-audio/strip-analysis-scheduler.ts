@@ -5,7 +5,7 @@ import {
 	readClosedDomainField,
 	readClosedDomainRecord,
 } from '../closed-domain-value.ts';
-import { normalizeStripRef } from '../parameter-address.ts';
+import { canonicalStripRefKey, normalizeStripRef } from '../parameter-address.ts';
 import type { StripRef } from '../parameter-address.ts';
 
 export interface StripAnalysisCandidate {
@@ -115,7 +115,7 @@ function normalizeCandidates(value: unknown, maximumFrames: number): readonly St
 		const name = `strip analysis candidates[${String(index)}]`;
 		const record = readClosedDomainRecord(candidateValue, name, CANDIDATE_FIELDS);
 		const strip = normalizeStripRef(readClosedDomainField(record, 'strip', name));
-		const key = stripKey(strip);
+		const key = canonicalStripRefKey(strip);
 		if (keys.has(key)) throw new RangeError('Strip analysis candidates must have unique strip identities.');
 		keys.add(key);
 		const visible = readClosedDomainField(record, 'visible', name);
@@ -142,10 +142,6 @@ function emptyPlan(maximumStrips: number, maximumFrames: number): StripAnalysisP
 		maximumStrips,
 		eligibleCount: 0,
 	});
-}
-
-function stripKey(strip: StripRef): string {
-	return strip.kind === 'master' ? '["master"]' : JSON.stringify([strip.kind, strip.id]);
 }
 
 function boundedInteger(value: unknown, name: string, minimum: number, maximum: number): number {

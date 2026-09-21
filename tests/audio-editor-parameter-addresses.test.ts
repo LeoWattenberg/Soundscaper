@@ -5,11 +5,25 @@ import test from 'node:test';
 
 import {
 	canonicalParameterAddressKey,
+	canonicalStripRefKey,
 	legacySendEdgeId,
 	normalizeParameterAddress,
 	parameterAddressesEqual,
 	type ParameterAddress,
 } from '../src/common/editor/parameter-address.ts';
+
+test('strip references use one collision-free identity across runtime stores', () => {
+	assert.equal(canonicalStripRefKey({ kind: 'master' }), '["master"]');
+	assert.equal(canonicalStripRefKey({ kind: 'track', id: 'track:one' }), '["track","track:one"]');
+	assert.equal(
+		canonicalStripRefKey({ kind: 'mixer-node', id: 'group,[one]' }),
+		'["mixer-node","group,[one]"]',
+	);
+	assert.notEqual(
+		canonicalStripRefKey({ kind: 'track', id: 'one:mixer-node' }),
+		canonicalStripRefKey({ kind: 'mixer-node', id: 'track:one' }),
+	);
+});
 
 test('parameter addresses use stable closed JSON identities', () => {
 	const address: ParameterAddress = {

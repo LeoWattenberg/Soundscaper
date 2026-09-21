@@ -12,7 +12,7 @@ import {
 	type StripMeterSnapshot,
 } from '../production-audio/strip-meter-session.ts';
 import { createStripAnalysisScheduler } from '../production-audio/strip-analysis-scheduler.ts';
-import type { StripRef } from '../parameter-address.ts';
+import { canonicalStripRefKey } from '../parameter-address.ts';
 import type { StripMeterAnalyserBankV21 } from './strip-meter-analyser-bank-v21.ts';
 
 export interface ProductionMeterRuntimeSnapshotV21 {
@@ -48,7 +48,7 @@ export function sampleProductionMeterSessionV21(
 ): ProductionMeterRuntimeSnapshotV21 {
 	const session = sessionFor(owner, project);
 	const bankValues = [...(banks?.values() ?? [])];
-	const byStrip = new Map(bankValues.map((bank) => [stripKey(bank.strip), bank]));
+	const byStrip = new Map(bankValues.map((bank) => [canonicalStripRefKey(bank.strip), bank]));
 	const plan = session.scheduler.plan(bankValues.map((bank) => ({
 		strip: bank.strip,
 		visible: true,
@@ -56,7 +56,7 @@ export function sampleProductionMeterSessionV21(
 		costFrames: bank.analysers.reduce((total, analyser) => total + analyserFrameCount(analyser), 0),
 	})));
 	for (const candidate of plan.scheduled) {
-		const bank = byStrip.get(stripKey(candidate.strip));
+		const bank = byStrip.get(canonicalStripRefKey(candidate.strip));
 		if (!bank) continue;
 		session.meterStore.update(bank.strip, {
 			channels: bank.analysers.map(readAnalyserFrames),
@@ -217,8 +217,4 @@ function nullableDecibel(value: unknown): number | null | undefined {
 
 function dataRecord(value: unknown): value is Readonly<Record<string, unknown>> {
 	return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
-}
-
-function stripKey(strip: StripRef): string {
-	return strip.kind === 'master' ? '["master"]' : JSON.stringify([strip.kind, strip.id]);
 }
