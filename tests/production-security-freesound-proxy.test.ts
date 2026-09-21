@@ -114,10 +114,14 @@ test('Wrangler local secret files cannot be added accidentally', async () => {
 
 	assert.equal(ignoredEntries.has('.dev.vars'), true);
 	assert.equal(ignoredEntries.has('.dev.vars.*'), true);
-	assert.match(readme, /ignored `\.dev\.vars` file.*FREESOUND_LOCAL_DEVELOPMENT=1/isu);
+	assert.match(readme, /ignored `\.dev\.vars`\s+file.*FREESOUND_LOCAL_DEVELOPMENT=1/isu);
 	assert.match(readme, /public read API.*CORS.*does\s+not authenticate.*rate-limit/isu);
 	assert.match(readme, /freesound\.org\/apiv2\/apply.*HQ OGG preview.*not the original.*does not need.*OAuth/isu);
-	assert.match(readme, /--env production.*Preview.*fail closed with `503`.*--env preview/isu);
+	assert.match(
+		readme,
+		/select the \*\*Production\*\* environment.*pages secret put FREESOUND_API_KEY --project-name soundscaper.*Preview.*fail closed with `503`.*\*\*Preview\*\* environment.*does not expose an environment selector/isu,
+	);
+	assert.doesNotMatch(readme, /pages secret put[^\n]*--env/iu);
 	assert.match(readme, /secrets\.required.*does not create a deployed secret/isu);
 	assert.match(readme, /Bulk Redirect.*Vary.*`Origin` and `Range`/isu);
 });

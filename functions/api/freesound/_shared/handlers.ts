@@ -5,6 +5,11 @@ import {
 	normalizeFreesoundSearch,
 	normalizeFreesoundSound,
 } from './contracts.ts';
+import {
+	createBoundedPreviewStream,
+	createUpstreamDeadline,
+	type UpstreamDeadline,
+} from './preview-stream.ts';
 
 export interface FreesoundFunctionContext {
 	readonly request: Request;
@@ -126,25 +131,33 @@ export async function handleFreesoundPreviewRequest(
 		const normalized = await fetchSound(context, upstream, id, true);
 		const headers = new Headers({ Accept: 'audio/ogg' });
 		if (range !== null) headers.set('Range', range);
-		const upstreamResponse = await timedFetch(context.request.signal, upstream, normalized.previewUrl, {
+		const transfer = await timedFetch(context.request.signal, upstream, normalized.previewUrl, {
 			method: admission.head ? 'HEAD' : 'GET',
 			headers,
 			redirect: 'error',
 		});
-		if (upstreamResponse.status === 416) {
+		try {
+			const upstreamResponse = transfer.response;
+			if (upstreamResponse.status === 416) {
+				const responseHeaders = previewHeaders(upstreamResponse.headers, admission, id);
+				responseHeaders.set('Cache-Control', 'no-store');
+				transfer.deadline.dispose();
+				return new Response(null, { status: 416, headers: responseHeaders });
+			}
+			if (upstreamResponse.status !== 200 && upstreamResponse.status !== 206) {
+				throw upstreamStatus(upstreamResponse.status, false, upstreamResponse.headers);
+			}
+			assertPreviewResponse(upstreamResponse);
 			const responseHeaders = previewHeaders(upstreamResponse.headers, admission, id);
-			responseHeaders.set('Cache-Control', 'no-store');
-			return new Response(null, { status: 416, headers: responseHeaders });
+			const body = admission.head || upstreamResponse.body === null
+				? null
+				: createBoundedPreviewStream(upstreamResponse.body, transfer.deadline, MAX_PREVIEW_BYTES);
+			if (body === null) transfer.deadline.dispose();
+			return new Response(body, { status: upstreamResponse.status, headers: responseHeaders });
+		} catch (error) {
+			transfer.deadline.dispose();
+			throw error;
 		}
-		if (upstreamResponse.status !== 200 && upstreamResponse.status !== 206) {
-			throw upstreamStatus(upstreamResponse.status, false, upstreamResponse.headers);
-		}
-		assertPreviewResponse(upstreamResponse);
-		const responseHeaders = previewHeaders(upstreamResponse.headers, admission, id);
-		const body = admission.head || upstreamResponse.body === null
-			? null
-			: boundedPreviewStream(upstreamResponse.body);
-		return new Response(body, { status: upstreamResponse.status, headers: responseHeaders });
 	}, dependencies);
 }
 
@@ -240,10 +253,15 @@ async function timedFetch(
 	upstream: UpstreamDependencies,
 	url: URL,
 	init: RequestInit,
-): Promise<Response> {
-	return withUpstreamTimeout(requestSignal, upstream, (signal) => (
-		upstream.fetchImpl(url, { ...init, signal })
-	));
+): Promise<{ readonly response: Response; readonly deadline: UpstreamDeadline }> {
+	const deadline = createUpstreamDeadline(requestSignal, upstream.timeoutMs);
+	try {
+		const response = await upstream.fetchImpl(url, { ...init, signal: deadline.signal });
+		return { response, deadline };
+	} catch (error) {
+		deadline.dispose();
+		throw upstreamFailure(error, deadline.timedOut());
+	}
 }
 
 async function withUpstreamTimeout<T>(
@@ -251,25 +269,20 @@ async function withUpstreamTimeout<T>(
 	upstream: UpstreamDependencies,
 	operation: (signal: AbortSignal) => Promise<T>,
 ): Promise<T> {
-	const controller = new AbortController();
-	let timedOut = false;
-	const relayAbort = () => controller.abort(requestSignal.reason);
-	if (requestSignal.aborted) relayAbort();
-	else requestSignal.addEventListener('abort', relayAbort, { once: true });
-	const timer = setTimeout(() => {
-		timedOut = true;
-		controller.abort(new DOMException('Freesound request timed out.', 'TimeoutError'));
-	}, upstream.timeoutMs);
+	const deadline = createUpstreamDeadline(requestSignal, upstream.timeoutMs);
 	try {
-		return await operation(controller.signal);
+		return await operation(deadline.signal);
 	} catch (error) {
-		if (error instanceof HttpError) throw error;
-		if (timedOut) throw new HttpError(504, 'upstream_timeout', 'Freesound did not respond in time.');
-		throw new HttpError(502, 'upstream_unavailable', 'Freesound is temporarily unavailable.');
+		throw upstreamFailure(error, deadline.timedOut());
 	} finally {
-		clearTimeout(timer);
-		requestSignal.removeEventListener('abort', relayAbort);
+		deadline.dispose();
 	}
+}
+
+function upstreamFailure(error: unknown, timedOut: boolean): HttpError {
+	if (error instanceof HttpError) return error;
+	if (timedOut) return new HttpError(504, 'upstream_timeout', 'Freesound did not respond in time.');
+	return new HttpError(502, 'upstream_unavailable', 'Freesound is temporarily unavailable.');
 }
 
 async function boundedBody(response: Response, maximumBytes: number): Promise<Uint8Array> {
@@ -298,20 +311,6 @@ async function boundedBody(response: Response, maximumBytes: number): Promise<Ui
 		offset += chunk.byteLength;
 	}
 	return joined;
-}
-
-function boundedPreviewStream(body: ReadableStream<Uint8Array>): ReadableStream<Uint8Array> {
-	let bytes = 0;
-	return body.pipeThrough(new TransformStream<Uint8Array, Uint8Array>({
-		transform(chunk, controller) {
-			bytes += chunk.byteLength;
-			if (bytes > MAX_PREVIEW_BYTES) {
-				controller.error(new Error('Freesound preview exceeded its byte limit.'));
-				return;
-			}
-			controller.enqueue(chunk);
-		},
-	}));
 }
 
 function assertPreviewResponse(response: Response): void {

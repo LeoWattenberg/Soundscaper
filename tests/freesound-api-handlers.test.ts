@@ -224,6 +224,65 @@ test('preview resolves the trusted CDN URL server-side and streams a single rang
 	assert.deepEqual(new Uint8Array(await response.arrayBuffer()), new Uint8Array([0x4f, 0x67, 0x67, 0x53]));
 });
 
+test('preview aborts and cancels an upstream body that stalls after its headers', async () => {
+	let previewSignal: AbortSignal | undefined;
+	let cancelReason: unknown;
+	let calls = 0;
+	const response = await handleFreesoundPreviewRequest(context(new Request(
+		'https://soundscaper.org/api/freesound/sounds/123456/preview',
+	), { id: '123456' }), {
+		timeoutMs: 10,
+		fetchImpl: async (_input, init) => {
+			calls += 1;
+			if (calls === 1) return jsonResponse(soundFixture());
+			previewSignal = init?.signal ?? undefined;
+			return new Response(new ReadableStream<Uint8Array>({
+				start(controller) {
+					controller.enqueue(new Uint8Array([0x4f]));
+				},
+				cancel(reason) {
+					cancelReason = reason;
+				},
+			}), { headers: { 'Content-Type': 'audio/ogg' } });
+		},
+	});
+
+	assert.equal(response.status, 200);
+	assert(response.body);
+	const reader = response.body.getReader();
+	assert.deepEqual(await reader.read(), { done: false, value: new Uint8Array([0x4f]) });
+	await assert.rejects(reader.read(), /timed out/iu);
+	assert.equal(previewSignal?.aborted, true);
+	assert.match(String(cancelReason), /timed out/iu);
+});
+
+test('canceling a preview response cancels upstream and clears its idle deadline', async () => {
+	let previewSignal: AbortSignal | undefined;
+	let cancelReason: unknown;
+	let calls = 0;
+	const response = await handleFreesoundPreviewRequest(context(new Request(
+		'https://soundscaper.org/api/freesound/sounds/123456/preview',
+	), { id: '123456' }), {
+		timeoutMs: 20,
+		fetchImpl: async (_input, init) => {
+			calls += 1;
+			if (calls === 1) return jsonResponse(soundFixture());
+			previewSignal = init?.signal ?? undefined;
+			return new Response(new ReadableStream<Uint8Array>({
+				cancel(reason) {
+					cancelReason = reason;
+				},
+			}), { headers: { 'Content-Type': 'audio/ogg' } });
+		},
+	});
+
+	assert(response.body);
+	await response.body.cancel('consumer stopped');
+	await new Promise((resolve) => setTimeout(resolve, 30));
+	assert.equal(cancelReason, 'consumer stopped');
+	assert.equal(previewSignal?.aborted, false);
+});
+
 test('preview admits the valid one-byte zero range and rejects an empty suffix range', async () => {
 	const ranges: string[] = [];
 	const fetchImpl: typeof fetch = async (_input, init) => {

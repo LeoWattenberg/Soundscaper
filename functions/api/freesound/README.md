@@ -9,11 +9,15 @@ OAuth grant.
 
 ## Secrets and environments
 
-Set the required encrypted secret on the production environment before its next
-deployment:
+Set the required encrypted secret before the next production deployment. In the
+Cloudflare dashboard, open **Workers & Pages → soundscaper → Settings →
+Variables and Secrets**, select the **Production** environment, add
+`FREESOUND_API_KEY`, and choose **Encrypt**. The Wrangler equivalent for the
+project's production secret is:
 
 ```sh
-npx wrangler pages secret put FREESOUND_API_KEY --project-name soundscaper --env production
+npx wrangler pages secret put FREESOUND_API_KEY --project-name soundscaper
+npx wrangler pages secret list --project-name soundscaper
 ```
 
 The `secrets.required` declaration in `wrangler.jsonc` validates local inputs; it
@@ -24,24 +28,29 @@ Preview hostnames are admitted by the request guard, but preview deployments
 deliberately fail closed with `503` unless the Preview environment also has a
 secret. Only enable Freesound on trusted previews; preview URLs are public by
 default. Protect them with Cloudflare Access and, where possible, use a separate
-Freesound application credential before running:
+Freesound application credential. Configure it as an encrypted
+`FREESOUND_API_KEY` in the dashboard's **Preview** environment; the Pages secret
+CLI does not expose an environment selector.
+
+For local development, put only `FREESOUND_API_KEY` in an ignored `.dev.vars`
+file, then explicitly enable loopback request URLs when starting Pages:
 
 ```sh
-npx wrangler pages secret put FREESOUND_API_KEY --project-name soundscaper --env preview
+npx wrangler pages dev dist --binding FREESOUND_LOCAL_DEVELOPMENT=1
 ```
 
-For local `wrangler pages dev` use an ignored `.dev.vars` file containing the
-same secret and `FREESOUND_LOCAL_DEVELOPMENT=1`. The required-secret declaration
-warns when that local value is absent. Never put the value in `wrangler.jsonc`, a
-plain Pages variable, a Vite variable, or a client bundle.
+The required-secret declaration warns when the local key is absent and excludes
+unlisted `.dev.vars` entries, which is why the non-secret loopback flag is a CLI
+binding. Never put the key in `wrangler.jsonc`, a plain Pages variable, a Vite
+variable, or a client bundle.
 
 ## Required Cloudflare controls
 
 Requests are accepted only for the canonical Soundscaper host, Soundscaper Pages
 hosts, or an explicitly enabled loopback development host. This remains a
-public read API: browser CORS is limited to the requesting Soundscaper web origin and
-the packaged app origin. CORS controls browser response sharing, but does not authenticate
-a caller.
+public read API: browser CORS is limited to the requesting Soundscaper web origin
+and the packaged app origin. CORS controls browser response sharing, but does
+not authenticate a caller.
 
 Before production release:
 
