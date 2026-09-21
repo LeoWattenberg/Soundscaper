@@ -6,6 +6,7 @@ import {
 	listEffectMacros,
 	saveEffectMacro,
 } from '../../effect-macro-library.js';
+import { createCoalescingSettingPersistence } from './internal/coalescing-setting-persistence.ts';
 
 export const EFFECT_MACRO_LIBRARY_SETTING_KEY = 'audio-editor-effect-macros-v1';
 
@@ -52,15 +53,19 @@ export interface EffectMacroLibraryServiceRuntime {
  * write rather than one per character.
  */
 export function createEffectMacroLibraryService(runtime: EffectMacroLibraryServiceRuntime) {
-	let pending: EffectMacroLibraryState | null = null;
-	let writing: Promise<void> | null = null;
+	const persistence = createCoalescingSettingPersistence<EffectMacroLibraryState>({
+		persist: (value) => runtime.persistSetting(
+			EFFECT_MACRO_LIBRARY_SETTING_KEY, value, { policy: 'required' },
+		),
+		handleError: runtime.handleError,
+	});
 
 	return Object.freeze({
 		list: listMacros,
 		readOnly: isReadOnly,
 		save: saveMacro,
 		delete: deleteMacro,
-		flush: flushMacroLibrary,
+		flush: persistence.flush,
 	});
 
 	function isReadOnly(): boolean {
@@ -96,39 +101,7 @@ export function createEffectMacroLibraryService(runtime: EffectMacroLibraryServi
 	function commit(next: EffectMacroLibraryState): void {
 		runtime.state.effectMacros = next;
 		runtime.publishDocumentSnapshot();
-		pending = next;
-		if (!writing) writing = drain();
-	}
-
-	async function drain(): Promise<void> {
-		let retried: EffectMacroLibraryState | null = null;
-		try {
-			while (pending) {
-				const value = pending;
-				pending = null;
-				try {
-					await runtime.persistSetting(EFFECT_MACRO_LIBRARY_SETTING_KEY, value, { policy: 'required' });
-				} catch (error) {
-					runtime.handleError(error);
-					// A write that failed leaves the newest value unstored; retry it once the
-					// failing attempt has been reported rather than dropping it silently. An
-					// edit committed while the write was failing is newer and supersedes the
-					// failed value, and a second failure of the same value gives up rather
-					// than spinning against a store that keeps refusing it.
-					if (!pending && retried !== value) {
-						pending = value;
-						retried = value;
-					}
-				}
-			}
-		} finally {
-			writing = null;
-		}
-	}
-
-	/** Settles the trailing write, for callers that must observe it (tests, teardown). */
-	async function flushMacroLibrary(): Promise<void> {
-		while (writing) await writing;
+		persistence.enqueue(next);
 	}
 }
 

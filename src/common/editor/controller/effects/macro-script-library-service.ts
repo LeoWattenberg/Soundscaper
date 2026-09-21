@@ -11,6 +11,7 @@ import {
 	type MacroScriptLibraryState,
 	type MacroScriptRecord,
 } from '../../macro-script-library.ts';
+import { createCoalescingSettingPersistence } from './internal/coalescing-setting-persistence.ts';
 
 export type { MacroScriptLibraryState, MacroScriptRecord };
 
@@ -37,11 +38,15 @@ export interface MacroScriptLibraryServiceRuntime {
  * that waits on a settings round trip loses the caret.
  */
 export function createMacroScriptLibraryService(runtime: MacroScriptLibraryServiceRuntime) {
-	let pending: MacroScriptLibraryState | null = null;
-	let writing: Promise<void> | null = null;
+	const persistence = createCoalescingSettingPersistence<MacroScriptLibraryState>({
+		persist: (value) => runtime.persistSetting(
+			MACRO_SCRIPT_LIBRARY_SETTING_KEY, value, { policy: 'required' },
+		),
+		handleError: runtime.handleError,
+	});
 
 	return Object.freeze({ list, readOnly: isReadOnly, save, delete: remove, trust,
-		import: importFile, export: exportFile, blocked, flush });
+		import: importFile, export: exportFile, blocked, flush: persistence.flush });
 
 	function isReadOnly(): boolean {
 		return runtime.state.macroScriptsReadOnly === true;
@@ -112,33 +117,7 @@ export function createMacroScriptLibraryService(runtime: MacroScriptLibraryServi
 	function commit(next: MacroScriptLibraryState): void {
 		runtime.state.macroScripts = next;
 		runtime.publishDocumentSnapshot();
-		pending = next;
-		if (!writing) writing = drain();
-	}
-
-	async function drain(): Promise<void> {
-		let retried: MacroScriptLibraryState | null = null;
-		try {
-			while (pending) {
-				const value = pending;
-				pending = null;
-				try {
-					await runtime.persistSetting(MACRO_SCRIPT_LIBRARY_SETTING_KEY, value, { policy: 'required' });
-				} catch (error) {
-					runtime.handleError(error);
-					if (!pending && retried !== value) {
-						pending = value;
-						retried = value;
-					}
-				}
-			}
-		} finally {
-			writing = null;
-		}
-	}
-
-	async function flush(): Promise<void> {
-		while (writing) await writing;
+		persistence.enqueue(next);
 	}
 }
 
