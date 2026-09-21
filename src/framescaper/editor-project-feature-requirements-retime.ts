@@ -7,12 +7,12 @@ import { PROJECT_FEATURE_CAPABILITY_IDS } from '../common/editor/project-feature
 import { reconcileProjectOwnedFeatureRequirements } from '../common/editor/project-owned-feature-requirements.ts';
 import {
 	evaluateProjectFeatureRequirements,
-	normalizeProjectFeatureRequirements,
 	PROJECT_FEATURE_REQUIREMENTS_LIMITS,
 	type ProjectFeatureRequirement,
 	type ProjectFeatureRequirementsManifest,
 	type ProjectFeatureRequirementsReport,
 } from '../common/editor/project-feature-requirements.ts';
+import { normalizeFramescaperProjectFeatureManifest } from './editor-project-feature-manifest-context.ts';
 import { normalizeVideoKeyframeCurves } from '../common/editor/video-keyframe-curves.ts';
 import {
 	FRAMESCAPER_RETIME_PROJECT_FEATURE_CAPABILITY_PROFILE,
@@ -198,16 +198,9 @@ function assertNoKeyframeRequirementConflict(manifest: ProjectFeatureRequirement
 }
 
 function normalizeManifest(project: Record<string, unknown>): ProjectFeatureRequirementsManifest {
-	return normalizeProjectFeatureRequirements(dataProperty(
-		project, 'featureRequirements', 'Framescaper retime project',
-	), {
-		sources: dataArray(project, 'sources', 'Framescaper retime project'),
-		clips: dataArray(project, 'clips', 'Framescaper retime project'),
-		tracks: dataArray(project, 'tracks', 'Framescaper retime project'),
-		schemaVersion: dataProperty(project, 'schemaVersion', 'Framescaper retime project'),
-		sampleRate: dataProperty(project, 'sampleRate', 'Framescaper retime project'),
-		sequences: dataArray(project, 'sequences', 'Framescaper retime project'),
-		primarySequenceId: dataProperty(project, 'primarySequenceId', 'Framescaper retime project'),
+	return normalizeFramescaperProjectFeatureManifest(project, {
+		data: (value, key) => dataProperty(value, key, 'Framescaper retime project'),
+		records: (value, key) => dataArray(value, key, 'Framescaper retime project'),
 	});
 }
 

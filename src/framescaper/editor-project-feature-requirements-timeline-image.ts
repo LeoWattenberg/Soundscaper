@@ -5,10 +5,10 @@ import { editorProjectFeatureCapabilityProfileDefinition } from '../common/edito
 import { PROJECT_OWNED_FEATURE_REQUIREMENT_IDS } from '../common/editor/project-owned-feature-requirements.ts';
 import {
 	evaluateProjectFeatureRequirements,
-	normalizeProjectFeatureRequirements,
 	type ProjectFeatureRequirement,
 	type ProjectFeatureRequirementsManifest,
 } from '../common/editor/project-feature-requirements.ts';
+import { normalizeFramescaperProjectFeatureManifest } from './editor-project-feature-manifest-context.ts';
 import { FRAMESCAPER_TIMELINE_IMAGE_PROJECT_FEATURE_CAPABILITY_PROFILE } from './editor-project-feature-capability-profile-timeline-image.ts';
 import { assertFramescaperProjectTimelineImageProfile } from './editor-domain-runtime-profile.ts';
 import { framescaperProjectNativeMediaFoundationShapeTimelineImage } from './editor-project-timeline-image-foundation.ts';
@@ -93,11 +93,9 @@ function assertNoImageRequirementConflict(manifest: ProjectFeatureRequirementsMa
 }
 
 function normalizeManifest(project: Record<string, unknown>): ProjectFeatureRequirementsManifest {
-	return normalizeProjectFeatureRequirements(project.featureRequirements, {
-		sources: records(project.sources, 'sources'), clips: records(project.clips, 'clips'),
-		tracks: records(project.tracks, 'tracks'), schemaVersion: project.schemaVersion,
-		sampleRate: project.sampleRate, sequences: records(project.sequences, 'sequences'),
-		primarySequenceId: project.primarySequenceId,
+	return normalizeFramescaperProjectFeatureManifest(project, {
+		data: (value, key) => value[key],
+		records: (value, key) => records(value[key], key),
 	});
 }
 

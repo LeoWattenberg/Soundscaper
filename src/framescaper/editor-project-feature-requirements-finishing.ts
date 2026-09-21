@@ -6,10 +6,10 @@ import {
 } from '../common/editor/project-feature-capability-profile.ts';
 import {
 	evaluateProjectFeatureRequirements,
-	normalizeProjectFeatureRequirements,
 	type ProjectFeatureRequirement,
 	type ProjectFeatureRequirementsManifest,
 } from '../common/editor/project-feature-requirements.ts';
+import { normalizeFramescaperProjectFeatureManifest } from './editor-project-feature-manifest-context.ts';
 import {
 	FRAMESCAPER_FINISHING_FEATURE_IDS,
 	FRAMESCAPER_FINISHING_PROJECT_FEATURE_CAPABILITY_PROFILE,
@@ -192,14 +192,9 @@ function assertNoPublisherConflict(manifest: ProjectFeatureRequirementsManifest)
 }
 
 function normalizeManifest(project: Record<string, unknown>): ProjectFeatureRequirementsManifest {
-	return normalizeProjectFeatureRequirements(data(project, 'featureRequirements'), {
-		sources: records(data(project, 'sources'), 'sources'),
-		clips: records(data(project, 'clips'), 'clips'),
-		tracks: records(data(project, 'tracks'), 'tracks'),
-		schemaVersion: data(project, 'schemaVersion'),
-		sampleRate: data(project, 'sampleRate'),
-		sequences: records(data(project, 'sequences'), 'sequences'),
-		primarySequenceId: data(project, 'primarySequenceId'),
+	return normalizeFramescaperProjectFeatureManifest(project, {
+		data,
+		records: (value, key) => records(data(value, key), key),
 	});
 }
 

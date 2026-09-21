@@ -90,6 +90,7 @@ export const DESKTOP_PROJECT_LIBRARY_BASELINE_RUNTIME_FILES = Object.freeze([
 	'src/framescaper/editor-project-feature-capability-profile-timeline-image.js',
 	'src/framescaper/editor-project-feature-capability-profile-transitions.js',
 	'src/framescaper/editor-project-feature-capability-profile-visual.js',
+	'src/framescaper/editor-project-feature-manifest-context.js',
 	'src/framescaper/editor-project-feature-requirements-assistance.js',
 	'src/framescaper/editor-project-feature-requirements-composition.js',
 	'src/framescaper/editor-project-feature-requirements-finishing.js',

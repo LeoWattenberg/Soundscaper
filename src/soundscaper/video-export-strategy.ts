@@ -2,6 +2,7 @@
 
 import type { FfmpegOutputSink } from '../common/editor/ffmpeg-output-stream.ts';
 import { createExportRenderProject } from '../common/editor/controller/export/export-render-project.ts';
+import { assertMatchingExportDataGraph } from '../common/editor/controller/export/project-export-data-graph.ts';
 import { projectTrackFolderMediaStateV12 } from '../common/editor/track-folder-media-runtime.ts';
 import type {
 	ProductVideoExportEncodedOutput,
@@ -89,10 +90,11 @@ export function createSoundscaperVideoExportStrategy(
 			if (!authority || authority.canonicalProject !== request.canonicalProject) {
 				throw new TypeError('The Soundscaper baseline export projection is not owned by its exact canonical project.');
 			}
-			assertSameData(
+			assertMatchingExportDataGraph(
 				authority.canonicalProjection,
 				createDetachedExportProject(runtime, request.canonicalProject),
 				'Soundscaper baseline canonical snapshot',
+				'canonical project',
 			);
 			const plan = createSoundscaperVideoKeyframeExportPlan(runtime, request.canonicalProject, {
 				format: request.format, range: request.range, includeAudio: request.includeAudio,
@@ -292,50 +294,6 @@ function freezeExportProject(value: Readonly<Record<string, unknown>>): Readonly
 	}
 	for (let index = order.length - 1; index >= 0; index -= 1) Object.freeze(order[index]);
 	return value;
-}
-
-function assertSameData(left: unknown, right: unknown, name: string): void {
-	const pending: Array<readonly [unknown, unknown]> = [[left, right]];
-	const paired = new WeakMap<object, object>();
-	let nodeCount = 0;
-	while (pending.length > 0) {
-		const [leftValue, rightValue] = pending.pop()!;
-		if (Object.is(leftValue, rightValue)) continue;
-		if (!leftValue || typeof leftValue !== 'object'
-			|| !rightValue || typeof rightValue !== 'object') {
-			throw new Error(`${name} diverges from its exact canonical project.`);
-		}
-		const leftObject = leftValue as object;
-		const rightObject = rightValue as object;
-		const prior = paired.get(leftObject);
-		if (prior) {
-			if (prior !== rightObject) throw new Error(`${name} has divergent object aliases.`);
-			continue;
-		}
-		paired.set(leftObject, rightObject);
-		nodeCount += 1;
-		if (nodeCount > 2_000_000) throw new RangeError(`${name} exceeds its comparison budget.`);
-		if (Array.isArray(leftObject) !== Array.isArray(rightObject)) {
-			throw new Error(`${name} diverges from its exact canonical project.`);
-		}
-		const leftKeys = Reflect.ownKeys(leftObject);
-		const rightKeys = Reflect.ownKeys(rightObject);
-		if (leftKeys.length !== rightKeys.length
-			|| leftKeys.some((key, index) => key !== rightKeys[index])) {
-			throw new Error(`${name} diverges from its exact canonical project.`);
-		}
-		for (const key of leftKeys) {
-			const leftDescriptor = Object.getOwnPropertyDescriptor(leftObject, key);
-			const rightDescriptor = Object.getOwnPropertyDescriptor(rightObject, key);
-			if (!leftDescriptor || !rightDescriptor
-				|| !Object.hasOwn(leftDescriptor, 'value')
-				|| !Object.hasOwn(rightDescriptor, 'value')
-				|| leftDescriptor.enumerable !== rightDescriptor.enumerable) {
-				throw new TypeError(`${name} must contain matching data properties.`);
-			}
-			pending.push([leftDescriptor.value, rightDescriptor.value]);
-		}
-	}
 }
 
 function dataRecord(value: unknown, name: string): Readonly<Record<string, unknown>> {

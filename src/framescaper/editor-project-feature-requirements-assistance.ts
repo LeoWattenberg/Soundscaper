@@ -7,9 +7,12 @@ import {
 } from '../common/editor/project-owned-feature-requirements.ts';
 import {
 	evaluateProjectFeatureRequirements,
-	normalizeProjectFeatureRequirements,
 	type ProjectFeatureRequirementsManifest,
 } from '../common/editor/project-feature-requirements.ts';
+import {
+	framescaperProjectFeatureManifestContext,
+	normalizeFramescaperProjectFeatureManifest,
+} from './editor-project-feature-manifest-context.ts';
 import {
 	FRAMESCAPER_ASSISTANCE_PROJECT_FEATURE_CAPABILITY_PROFILE,
 } from './editor-project-feature-capability-profile-assistance.ts';
@@ -92,22 +95,19 @@ export function createFramescaperProjectFeatureCompatibilityServiceAssistance(pr
 }
 
 function normalizeManifest(project: Record<string, unknown>): ProjectFeatureRequirementsManifest {
-	return normalizeProjectFeatureRequirements(project.featureRequirements, context(project));
+	return normalizeFramescaperProjectFeatureManifest(project, ASSISTANCE_ACCESSORS);
 }
 
 function context(
 	project: Record<string, unknown>,
 ) {
-	return {
-		sources: records(project.sources, 'sources'),
-		clips: records(project.clips, 'clips'),
-		tracks: records(project.tracks, 'tracks'),
-		schemaVersion: project.schemaVersion,
-		sampleRate: project.sampleRate,
-		sequences: records(project.sequences, 'sequences'),
-		primarySequenceId: project.primarySequenceId,
-	};
+	return framescaperProjectFeatureManifestContext(project, ASSISTANCE_ACCESSORS);
 }
+
+const ASSISTANCE_ACCESSORS = Object.freeze({
+	data: (value: Record<string, unknown>, key: string) => value[key],
+	records: (value: Record<string, unknown>, key: string) => records(value[key], key),
+});
 
 function record(value: unknown, name: string): Record<string, unknown> {
 	if (!value || typeof value !== 'object' || Array.isArray(value)) {

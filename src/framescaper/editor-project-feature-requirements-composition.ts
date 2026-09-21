@@ -6,12 +6,12 @@ import {
 import { PROJECT_FEATURE_CAPABILITY_IDS } from '../common/editor/project-feature-capabilities.ts';
 import {
 	evaluateProjectFeatureRequirements,
-	normalizeProjectFeatureRequirements,
 	PROJECT_FEATURE_REQUIREMENTS_LIMITS,
 	type ProjectFeatureRequirement,
 	type ProjectFeatureRequirementsManifest,
 	type ProjectFeatureRequirementsReport,
 } from '../common/editor/project-feature-requirements.ts';
+import { normalizeFramescaperProjectFeatureManifest } from './editor-project-feature-manifest-context.ts';
 import {
 	type EditorProjectRuntimeProfile,
 } from '../common/editor/project-runtime-profile.ts';
@@ -194,14 +194,9 @@ function assertNoCompositionRequirementConflict(manifest: ProjectFeatureRequirem
 }
 
 function normalizeManifest(project: Record<string, unknown>): ProjectFeatureRequirementsManifest {
-	return normalizeProjectFeatureRequirements(dataProperty(project, 'featureRequirements', 'Framescaper composition project'), {
-		sources: dataArray(project, 'sources', 'Framescaper composition project'),
-		clips: dataArray(project, 'clips', 'Framescaper composition project'),
-		tracks: dataArray(project, 'tracks', 'Framescaper composition project'),
-		schemaVersion: dataProperty(project, 'schemaVersion', 'Framescaper composition project'),
-		sampleRate: dataProperty(project, 'sampleRate', 'Framescaper composition project'),
-		sequences: dataArray(project, 'sequences', 'Framescaper composition project'),
-		primarySequenceId: dataProperty(project, 'primarySequenceId', 'Framescaper composition project'),
+	return normalizeFramescaperProjectFeatureManifest(project, {
+		data: (value, key) => dataProperty(value, key, 'Framescaper composition project'),
+		records: (value, key) => dataArray(value, key, 'Framescaper composition project'),
 	});
 }
 

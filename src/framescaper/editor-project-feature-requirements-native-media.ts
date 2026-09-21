@@ -5,10 +5,10 @@ import { editorProjectFeatureCapabilityProfileDefinition } from '../common/edito
 import { PROJECT_OWNED_FEATURE_REQUIREMENT_IDS } from '../common/editor/project-owned-feature-requirements.ts';
 import {
 	evaluateProjectFeatureRequirements,
-	normalizeProjectFeatureRequirements,
 	type ProjectFeatureRequirement,
 	type ProjectFeatureRequirementsManifest,
 } from '../common/editor/project-feature-requirements.ts';
+import { normalizeFramescaperProjectFeatureManifest } from './editor-project-feature-manifest-context.ts';
 import { videoSourceCharacteristicsV25AreReported } from '../common/editor/video-source-professional-characteristics-v25.ts';
 import { FRAMESCAPER_OPENFX_OPENFX_REQUIREMENT } from './editor-project-feature-requirements-openfx.ts';
 import { FRAMESCAPER_NATIVE_MEDIA_PROJECT_FEATURE_CAPABILITY_PROFILE } from './editor-project-feature-capability-profile-native-media.ts';
@@ -109,11 +109,9 @@ function assertNoNativeRequirementConflict(manifest: ProjectFeatureRequirementsM
 }
 
 function normalizeManifest(project: Record<string, unknown>): ProjectFeatureRequirementsManifest {
-	return normalizeProjectFeatureRequirements(project.featureRequirements, {
-		sources: records(project.sources, 'sources'), clips: records(project.clips, 'clips'),
-		tracks: records(project.tracks, 'tracks'), schemaVersion: project.schemaVersion,
-		sampleRate: project.sampleRate, sequences: records(project.sequences, 'sequences'),
-		primarySequenceId: project.primarySequenceId,
+	return normalizeFramescaperProjectFeatureManifest(project, {
+		data: (value, key) => value[key],
+		records: (value, key) => records(value[key], key),
 	});
 }
 

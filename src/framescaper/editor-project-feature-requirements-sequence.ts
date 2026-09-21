@@ -5,12 +5,12 @@ import {
 } from '../common/editor/project-feature-capability-profile.ts';
 import {
 	evaluateProjectFeatureRequirements,
-	normalizeProjectFeatureRequirements,
 	PROJECT_FEATURE_REQUIREMENTS_LIMITS,
 	type ProjectFeatureRequirement,
 	type ProjectFeatureRequirementsManifest,
 	type ProjectFeatureRequirementsReport,
 } from '../common/editor/project-feature-requirements.ts';
+import { normalizeFramescaperProjectFeatureManifest } from './editor-project-feature-manifest-context.ts';
 import {
 	type EditorProjectRuntimeProfile,
 } from '../common/editor/project-runtime-profile.ts';
@@ -189,18 +189,10 @@ export function createFramescaperProjectFeatureCompatibilityServiceSequence(
 }
 
 function normalizeManifest(project: Record<string, unknown>): ProjectFeatureRequirementsManifest {
-	return normalizeProjectFeatureRequirements(
-		dataProperty(project, 'featureRequirements', 'Framescaper sequence project'),
-		{
-			sources: dataArray(project, 'sources', 'Framescaper sequence project'),
-			clips: dataArray(project, 'clips', 'Framescaper sequence project'),
-			tracks: dataArray(project, 'tracks', 'Framescaper sequence project'),
-			schemaVersion: dataProperty(project, 'schemaVersion', 'Framescaper sequence project'),
-			sampleRate: dataProperty(project, 'sampleRate', 'Framescaper sequence project'),
-			sequences: dataArray(project, 'sequences', 'Framescaper sequence project'),
-			primarySequenceId: dataProperty(project, 'primarySequenceId', 'Framescaper sequence project'),
-		},
-	);
+	return normalizeFramescaperProjectFeatureManifest(project, {
+		data: (value, key) => dataProperty(value, key, 'Framescaper sequence project'),
+		records: (value, key) => dataArray(value, key, 'Framescaper sequence project'),
+	});
 }
 
 function assertNoOwnedRequirementConflict(
