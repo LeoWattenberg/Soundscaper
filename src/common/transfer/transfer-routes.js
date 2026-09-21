@@ -135,6 +135,9 @@ export function renderTransferDocument({
 		'<meta name="viewport" content="width=device-width, initial-scale=1" />',
 		'<meta name="color-scheme" content="light dark" />',
 		'<meta name="robots" content="noindex, nofollow" />',
+		// The neutral page has no product icon, but an explicit empty favicon
+		// prevents browsers from probing the nonexistent `/favicon.ico` fallback.
+		'<link rel="icon" href="data:," />',
 		`<meta name="description" content="${escapeHtml(route.summary)}" />`,
 		...(canonical ? [`<link rel="canonical" href="${escapeHtml(canonical)}" />`] : []),
 		...stylesheets.map((href) => `<link rel="stylesheet" href="${escapeHtml(href)}" />`),

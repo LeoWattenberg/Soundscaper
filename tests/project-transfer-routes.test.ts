@@ -153,6 +153,7 @@ test('a transfer document is a standalone page, not a product route', () => {
 	assert.match(html, /<link rel="modulepreload" href="\/assets\/shared-def456\.js" \/>/u);
 	assert.match(html, /<meta name="robots" content="noindex, nofollow" \/>/u);
 	assert.match(html, /<link rel="canonical" href="https:\/\/soundscaper\.org\/transfer\/send\/" \/>/u);
+	assert.match(html, /<link rel="icon" href="data:," \/>/u);
 	// Not a product: no install metadata, no product icon, no application entry.
 	assert.doesNotMatch(html, /rel="manifest"/u);
 	assert.doesNotMatch(html, /data-product-install-icon|data-product-icon|apple-touch-icon/u);
