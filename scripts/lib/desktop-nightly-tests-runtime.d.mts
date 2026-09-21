@@ -92,6 +92,7 @@ export interface DesktopNightlyTestsResultEnvelope {
 		readonly packagedRuntimeSummary: 'packaged-runtime/summary.json';
 		readonly packagedRuntimeTestResults: 'packaged-runtime/test-results';
 		readonly localAssistanceConsoleLog: 'local-assistance/console.log';
+		readonly localAssistanceCoverageRaw: 'coverage/v8-local-assistance';
 		readonly localAssistanceHtmlReport: 'local-assistance/playwright-report/index.html';
 		readonly localAssistanceJsonReport: 'local-assistance/results.json';
 		readonly localAssistanceJunitReport: 'local-assistance/junit.xml';

@@ -11,15 +11,21 @@ import { isAbsolute, join } from 'node:path';
 
 import { chromium } from '@playwright/test';
 
+import { resolvePackagedProductExecutable } from '../../../scripts/lib/desktop-packaged-product-executable.mjs';
 import { terminatePackagedRuntime } from '../../browser/helpers/packaged-runtime-process.js';
 import {
 	createModelInstallEvidence,
 	readNightlyPackageIdentity,
 	verifyCatalogModelDelivery,
 } from './model-delivery-evidence.js';
+import {
+	completeLocalAssistanceCoverage,
+	prepareLocalAssistanceRuntimeCoverage,
+} from './runtime-coverage.js';
 
 const STARTUP_TIMEOUT_MS = 90_000;
 const PUBLIC_DELIVERY_TIMEOUT_MS = 120_000;
+const CONTAINMENT_TIMEOUT_MS = 5_000;
 const LOG_LIMIT = 1_048_576;
 
 export async function launchModelTestElectron({ testInfo, productId = 'framescaper' }) {
@@ -31,16 +37,21 @@ export async function launchModelTestElectron({ testInfo, productId = 'framescap
 	}
 	const executablePath = requiredPath('SOUNDSCAPER_NIGHTLY_TESTS_EXECUTABLE');
 	await access(executablePath);
-	const target = `${process.env.SOUNDSCAPER_PACKAGED_RUNTIME_PLATFORM ?? process.platform}-${process.env.SOUNDSCAPER_PACKAGED_RUNTIME_ARCH ?? process.arch}`;
+	const platform = process.env.SOUNDSCAPER_PACKAGED_RUNTIME_PLATFORM ?? process.platform;
+	const architecture = process.env.SOUNDSCAPER_PACKAGED_RUNTIME_ARCH ?? process.arch;
+	const target = `${platform}-${architecture}`;
+	const productRoot = requiredPath('SOUNDSCAPER_PACKAGED_PRODUCT_ROOT');
 	const packageIdentity = await readNightlyPackageIdentity({
 		payloadRoot: requiredPath('SOUNDSCAPER_NIGHTLY_TESTS_PAYLOAD_ROOT'),
-		productRoot: requiredPath('SOUNDSCAPER_PACKAGED_PRODUCT_ROOT'),
+		productRoot,
 		productId,
 		target,
 	});
 	const profile = await mkdtemp(join(tmpdir(), 'scape-real-models-'));
 	let child;
 	let browser;
+	let page;
+	let coverageCollector = null;
 	let output = '';
 	let closed = false;
 	const processLog = () => output;
@@ -48,10 +59,29 @@ export async function launchModelTestElectron({ testInfo, productId = 'framescap
 	const close = async () => {
 		if (closed) return;
 		closed = true;
+		let failure = null;
 		try {
-			await browser?.close().catch(() => undefined);
-			if (child?.pid) await terminatePackagedRuntime(child);
+			if (child?.pid && page) {
+				await completeLocalAssistanceCoverage({
+					child,
+					closePage: () => page.close(),
+					collector: coverageCollector,
+					timeoutMs: STARTUP_TIMEOUT_MS,
+				});
+			} else if (child?.pid) {
+				await terminatePackagedRuntime(child);
+			}
+		} catch (error) {
+			failure = error;
+			if (child?.pid && child.exitCode === null && child.signalCode === null) {
+				try { await terminatePackagedRuntime(child); }
+				catch (terminateError) {
+					failure = new AggregateError([error, terminateError],
+						'Local-model Electron cleanup and containment failed.');
+				}
+			}
 		} finally {
+			await closeBrowserConnection(browser).catch(() => undefined);
 			await rm(profile, { recursive: true, force: true });
 			if (testInfo && output) {
 				await testInfo.attach('local-model-electron.log', {
@@ -59,11 +89,30 @@ export async function launchModelTestElectron({ testInfo, productId = 'framescap
 				});
 			}
 		}
+		if (failure !== null) throw failure;
 	};
 	try {
 		const port = await reserveLoopbackPort();
-		const environment = { ...process.env, SOUNDSCAPER_LOCAL_ASSISTANCE_PRODUCT_ID: productId };
+		let environment = { ...process.env, SOUNDSCAPER_LOCAL_ASSISTANCE_PRODUCT_ID: productId };
 		delete environment.ELECTRON_RUN_AS_NODE;
+		delete environment.NODE_V8_COVERAGE;
+		let coverageLaunch = null;
+		if (environment.SCAPE_BROWSER_COVERAGE === '1') {
+			coverageLaunch = await prepareLocalAssistanceRuntimeCoverage({
+				architecture,
+				environment,
+				hostExecutablePath: executablePath,
+				packageIdentity,
+				platform,
+				productExecutablePath: resolvePackagedProductExecutable({
+					productRoot, productId, platform, arch: architecture,
+				}),
+				productId,
+				productRoot,
+				runRoot: requiredPath('SOUNDSCAPER_NIGHTLY_TESTS_RUN_ROOT'),
+			});
+			environment = coverageLaunch.environment;
+		}
 		child = spawn(executablePath, [
 			...(process.env.SOUNDSCAPER_NIGHTLY_TESTS_HOST_ENTRY
 				? [requiredPath('SOUNDSCAPER_NIGHTLY_TESTS_HOST_ENTRY')] : []),
@@ -80,7 +129,7 @@ export async function launchModelTestElectron({ testInfo, productId = 'framescap
 		browser = await chromium.connectOverCDP(endpoint, { timeout: STARTUP_TIMEOUT_MS });
 		const [context] = browser.contexts();
 		if (!context) throw new Error('The real-model Electron host exposed no browser context.');
-		const page = context.pages()[0] ?? await context.waitForEvent('page', {
+		page = context.pages()[0] ?? await context.waitForEvent('page', {
 			timeout: STARTUP_TIMEOUT_MS,
 		});
 		await page.waitForURL((url) => url.protocol === 'soundscaper-nightly-assistance:'
@@ -90,13 +139,41 @@ export async function launchModelTestElectron({ testInfo, productId = 'framescap
 		await page.waitForFunction(() =>
 			typeof globalThis.soundscaperDesktop?.v1?.localAssistance?.createJob === 'function'
 			&& typeof globalThis.soundscaperDesktop?.v1?.installAssistanceModel === 'function',
-		undefined, { timeout: STARTUP_TIMEOUT_MS });
+			undefined, { timeout: STARTUP_TIMEOUT_MS });
+		if (coverageLaunch !== null) {
+			coverageCollector = await coverageLaunch.start({
+				context, page, mainProcessId: child.pid, timeoutMs: STARTUP_TIMEOUT_MS,
+			});
+			await page.waitForURL((url) => url.protocol === 'soundscaper-nightly-assistance:'
+				&& url.hostname === 'host' && url.pathname === '/', { timeout: STARTUP_TIMEOUT_MS });
+			await page.waitForFunction(() =>
+				typeof globalThis.soundscaperDesktop?.v1?.localAssistance?.createJob === 'function'
+				&& typeof globalThis.soundscaperDesktop?.v1?.installAssistanceModel === 'function',
+			undefined, { timeout: STARTUP_TIMEOUT_MS });
+		}
 		return Object.freeze({ page, processLog, close, packageIdentity,
 			installModel: (model) => installModel(page, model, packageIdentity, testInfo),
 		});
 	} catch (cause) {
 		await close();
 		throw new Error(`Real-model Electron startup failed.\n${output}`, { cause });
+	}
+}
+
+async function closeBrowserConnection(browser) {
+	if (!browser) return;
+	let timer;
+	try {
+		await Promise.race([
+			browser.close(),
+			new Promise((_resolvePromise, reject) => {
+				timer = setTimeout(() => reject(
+					new Error('Real-model Electron CDP disconnect exceeded its containment deadline.'),
+				), CONTAINMENT_TIMEOUT_MS);
+			}),
+		]);
+	} finally {
+		clearTimeout(timer);
 	}
 }
 

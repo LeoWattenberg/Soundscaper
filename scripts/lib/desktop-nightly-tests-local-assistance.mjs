@@ -5,6 +5,7 @@ import { isAbsolute, join } from 'node:path';
 
 export const LOCAL_ASSISTANCE_ARTIFACT_PATHS = Object.freeze({
 	localAssistanceConsoleLog: 'local-assistance/console.log',
+	localAssistanceCoverageRaw: 'coverage/v8-local-assistance',
 	localAssistanceHtmlReport: 'local-assistance/playwright-report/index.html',
 	localAssistanceJsonReport: 'local-assistance/results.json',
 	localAssistanceJunitReport: 'local-assistance/junit.xml',

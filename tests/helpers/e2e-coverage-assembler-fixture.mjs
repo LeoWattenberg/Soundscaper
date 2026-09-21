@@ -21,9 +21,8 @@ import {
 	macroDynamicCoverageScript,
 	macroDynamicSourceUrl,
 } from '../../scripts/lib/macro-dynamic-coverage.mjs';
-import {
-	packagedExecutableResourceIdentity,
-} from '../../scripts/lib/packaged-executable-resource-identity.mjs';
+import { packagedExecutableResourceIdentity } from '../../scripts/lib/packaged-executable-resource-identity.mjs';
+import { refreshLocalAssistanceEvidence, rewriteLocalAssistanceLayout, writeLocalAssistanceSessions } from './e2e-coverage-local-assistance-fixture.mjs';
 
 const PRODUCTS = ['framescaper', 'soundscaper'];
 const MACRO_PRELUDE_PATH = 'src/common/editor/macro-script/sandbox-prelude.js';
@@ -105,6 +104,7 @@ export function makeFixture() {
 	}
 	writeBrowserProfiles(runRoot, evidenceRoot, repositoryRoot);
 	writePackagedProfiles(runRoot, evidenceRoot);
+	writeLocalAssistanceSessions(runRoot, evidenceRoot, RUNTIME_SCRIPT_PATH);
 	return {
 		workspace,
 		repositoryRoot,
@@ -234,10 +234,7 @@ function writePackagedProfiles(runRoot, evidenceRoot) {
 
 export function rewritePackagedLayout(fixture, layout) {
 	const run = readJson(join(fixture.runRoot, 'run.json'));
-	run.runtime = {
-		platform: layout.platform,
-		arch: layout.platform === 'darwin' ? 'arm64' : 'x64',
-	};
+	run.runtime = { platform: layout.platform, arch: layout.platform === 'darwin' ? 'arm64' : 'x64' };
 	writeJson(join(fixture.runRoot, 'run.json'), run);
 	for (const [index, product] of PRODUCTS.entries()) {
 		const cdpPath = join(fixture.runRoot, `coverage/v8-packaged/packaged-${product}.json`);
@@ -279,6 +276,7 @@ export function rewritePackagedLayout(fixture, layout) {
 		);
 		writeJson(nodePath, node);
 	}
+	rewriteLocalAssistanceLayout(fixture, layout, RUNTIME_SCRIPT_PATH);
 }
 
 function writeProductEvidence(root, productId, sourceRevision, {
@@ -338,6 +336,7 @@ export function refreshPackagedResourceIdentity(fixture, productId) {
 		...manifest.executableResources,
 	};
 	writeJson(profilePath, profile);
+	refreshLocalAssistanceEvidence(fixture, productId, manifest);
 	return manifest;
 }
 

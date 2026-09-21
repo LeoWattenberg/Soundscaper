@@ -91,7 +91,7 @@ export async function openSoundscaperDesktopSoakSession(options, dependencies) {
 						await retireSoundscaperDesktopSoakRuntime(runtime);
 					} else {
 						await runtime.browser.close().catch(() => undefined);
-						await terminate(runtime.child);
+						await terminateSoundscaperDesktopSoakChild(runtime.child);
 					}
 				} catch (error) { operationError = error; }
 				let cleanupError;
@@ -112,7 +112,7 @@ export async function openSoundscaperDesktopSoakSession(options, dependencies) {
 export async function retireSoundscaperDesktopSoakRuntime(runtime, {
 	abrupt = false,
 	quitRuntime = quitDesktopRuntime,
-	terminateRuntime = terminate,
+	terminateRuntime = terminateSoundscaperDesktopSoakChild,
 } = {}) {
 	let coverageError;
 	// SIGKILL cannot run Node's NODE_V8_COVERAGE exit hook, so persist the main
@@ -229,7 +229,7 @@ async function launchDesktopRuntime({
 	} catch (error) {
 		await coverageCollector?.collect().catch(() => undefined);
 		await browser?.close().catch(() => undefined);
-		await terminate(child, { force: true });
+		await terminateSoundscaperDesktopSoakChild(child, { force: true });
 		throw error;
 	}
 }
@@ -325,14 +325,25 @@ async function waitForDesktopPage(context, output = () => '', child = null) {
 	throw bootstrapError(`The packaged app did not expose its editor page (pages: ${context.pages().map((page) => page.url()).join(', ') || 'none'}).\n${output()}`);
 }
 
-async function terminate(child, { force = false } = {}) {
+export async function terminateSoundscaperDesktopSoakChild(child, {
+	force = false,
+	timeoutMs = 5_000,
+} = {}) {
 	if (child.exitCode !== null || child.signalCode !== null) return;
-	child.kill(force ? 'SIGKILL' : undefined);
-	await Promise.race([once(child, 'exit'), new Promise((resolvePromise) => setTimeout(resolvePromise, 5_000))]);
-	if (!force && child.exitCode === null && child.signalCode === null) {
-		child.kill('SIGKILL');
-		await once(child, 'exit');
+	if (!Number.isSafeInteger(timeoutMs) || timeoutMs <= 0) {
+		throw new TypeError('Packaged soak termination timeout must be a positive integer.');
 	}
+	if (!force) {
+		const signalled = child.kill('SIGTERM');
+		if (signalled && await waitForExit(child, timeoutMs)) return;
+		if (child.exitCode !== null || child.signalCode !== null) return;
+	}
+	if (!child.kill('SIGKILL') && child.exitCode === null && child.signalCode === null) {
+		throw new Error('Packaged soak forced termination signal was refused.');
+	}
+	if (await waitForExit(child, timeoutMs)) return;
+	if (child.exitCode !== null || child.signalCode !== null) return;
+	throw new Error('Packaged soak forced termination was not observed before its deadline.');
 }
 
 async function waitForExit(child, timeoutMs) {

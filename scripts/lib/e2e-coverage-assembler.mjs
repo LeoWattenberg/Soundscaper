@@ -382,7 +382,8 @@ function assertOutputRoot(runRoots, repositoryRoot, outputRoot) {
 	const admitted = coverageRoots.some((coverageRoot) => {
 		const child = relative(coverageRoot, outputRoot);
 		return child !== '' && child !== '..' && !child.startsWith(`..${sep}`) && !isAbsolute(child)
-			&& !['build-evidence', 'v8-browser', 'v8-packaged'].includes(child.split(sep)[0]);
+			&& !['build-evidence', 'v8-browser', 'v8-local-assistance', 'v8-packaged']
+				.includes(child.split(sep)[0]);
 	});
 	if (!admitted) {
 		throw new Error(

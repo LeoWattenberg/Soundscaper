@@ -10,6 +10,11 @@ import { E2E_PRODUCTS, normalizeE2ESourceMap } from './e2e-coverage-build-eviden
 import { browserFfmpegCoverageContract, isBrowserFfmpegCoverage } from './browser-ffmpeg-coverage.mjs';
 import { validateBrowserSourceCache } from './browser-dynamic-coverage-sources.mjs';
 import {
+	assembleLocalAssistanceRawProfiles,
+	isAuthenticatedElectronInternalUrl,
+	isCanonicalNodeInternalUrl,
+} from './e2e-coverage-local-assistance.mjs';
+import {
 	classifyBrowserMacroDynamic, classifyPackagedMacroDynamic,
 	isBrowserMacroDynamicCoverage, isMacroDynamicCoverage,
 } from './e2e-coverage-macro-dynamic.mjs';
@@ -37,6 +42,15 @@ export function assembleE2ERawProfiles({ runRoot, evidence, repositoryRoot, runt
 		repositoryRoot,
 		runRuntime,
 	});
+	const ordinaryElectronSurfaces = E2E_PRODUCTS.flatMap((productId) =>
+		['main', 'preload', 'renderer'].map((realm) => electronSurface(productId, realm)));
+	if (ordinaryElectronSurfaces.some((surface) => profiles.get(surface).length === 0)) {
+		throw new Error('Ordinary packaged coverage did not observe every Electron product surface.');
+	}
+	const local = assembleLocalAssistanceRawProfiles({
+		directory: join(runRoot, 'coverage/v8-local-assistance'), evidence, runRuntime,
+	});
+	for (const [surface, values] of local) profiles.get(surface).push(...values);
 	return Object.freeze({
 		dynamicScripts: Object.freeze([...dynamicScripts.values()].sort((left, right) => (
 			left.coverageUrl.localeCompare(right.coverageUrl)
@@ -272,7 +286,11 @@ function classifyNodeEntry(entry, evidence, ffmpegCoverage, runtimes) {
 		throw new Error(`Packaged script ${entry.url} matches more than one product runtime.`);
 	}
 	if (excludedMatches.length === 1) return null;
-	return unique[0] ?? null;
+	if (unique.length === 1) return unique[0];
+	if (isCanonicalNodeInternalUrl(entry.url) || runtimes.some(({ platform, resources }) => (
+		isAuthenticatedElectronInternalUrl(entry.url, platform, [resources])
+	))) return null;
+	throw new Error(`Packaged coverage has an unapproved packaged Node runtime script ${entry.url}.`);
 }
 
 /** Decode a source-less vendor module and bind it to the exact shipped pin. */

@@ -363,8 +363,12 @@ test('Playwright exit mapping and result envelopes distinguish failures from inf
 			metricsSummary: 'metrics/summary.json',
 			metricsTestResults: 'metrics/test-results',
 			...PACKAGED_RUNTIME_ARTIFACT_PATHS,
-			localAssistanceConsoleLog: 'local-assistance/console.log', localAssistanceHtmlReport: 'local-assistance/playwright-report/index.html',
-			localAssistanceJsonReport: 'local-assistance/results.json', localAssistanceJunitReport: 'local-assistance/junit.xml', localAssistanceTestResults: 'local-assistance/test-results',
+			localAssistanceConsoleLog: 'local-assistance/console.log',
+			localAssistanceCoverageRaw: 'coverage/v8-local-assistance',
+			localAssistanceHtmlReport: 'local-assistance/playwright-report/index.html',
+			localAssistanceJsonReport: 'local-assistance/results.json',
+			localAssistanceJunitReport: 'local-assistance/junit.xml',
+			localAssistanceTestResults: 'local-assistance/test-results',
 		},
 	});
 	assert.equal(Object.isFrozen(envelope), true);

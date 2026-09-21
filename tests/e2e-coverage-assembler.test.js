@@ -354,7 +354,7 @@ test('child Node profiles and duplicate URLs merge, while PID/product conflicts 
 		assembled.outputRoot,
 		'profiles/nightly-electron-framescaper-main',
 	)).flatMap(({ result }) => result);
-	assert.equal(mainEntries.length, 3);
+	assert.equal(mainEntries.length, 4, 'ordinary, child, duplicate, and local main observations merge');
 
 	const conflict = makeFixture();
 	const soundscaperPath = join(conflict.runRoot, 'coverage/v8-packaged/coverage-4101-fixture-0.json');
@@ -369,4 +369,38 @@ test('child Node profiles and duplicate URLs merge, while PID/product conflicts 
 	resourceProfile.result.push(v8Entry('file:///opt/framescaper/resources/extra/utility.js'));
 	writeJson(resourcePath, resourceProfile);
 	assert.throws(() => assembleE2ECoverageCapture(resource), /un-inventoried product resource script/u);
+});
+
+test('packaged Node profiles admit only authenticated runtime URLs', () => {
+	for (const url of [
+		'',
+		'evalmachine.<anonymous>',
+		'blob:file:///tmp/foreign',
+		'file:///tmp/foreign.js',
+		'file:///tmp/electron.asar/browser/init.js',
+		'/opt/framescaper/resources/electron.asar/../foreign.js',
+		'/tmp/foreign.js',
+		'node:internal/../spoofed',
+	]) {
+		const fixture = makeFixture();
+		const profilePath = join(fixture.runRoot, 'coverage/v8-packaged/coverage-4100-fixture-0.json');
+		const profile = readJson(profilePath);
+		profile.result.push(v8Entry(url));
+		writeJson(profilePath, profile);
+		assert.throws(
+			() => assembleE2ECoverageCapture(fixture),
+			/unapproved packaged Node runtime script/u,
+			url,
+		);
+	}
+
+	const allowed = makeFixture();
+	const profilePath = join(allowed.runRoot, 'coverage/v8-packaged/coverage-4100-fixture-0.json');
+	const profile = readJson(profilePath);
+	profile.result.push(
+		v8Entry('node:electron/js2c/browser_init'),
+		v8Entry('file:///opt/framescaper/resources/electron.asar/browser/init.js'),
+	);
+	writeJson(profilePath, profile);
+	assert.doesNotThrow(() => assembleE2ECoverageCapture(allowed));
 });

@@ -251,6 +251,42 @@ test('packaged-runtime teardown escalates a process that ignores its grace signa
 	assert.deepEqual(signals, ['SIGTERM', 'SIGKILL']);
 });
 
+test('packaged-runtime teardown rejects when forced containment is never observed', async () => {
+	const signals: NodeJS.Signals[] = [];
+	const child = Object.assign(new EventEmitter(), {
+		exitCode: null as number | null,
+		signalCode: null as NodeJS.Signals | null,
+		kill(signal: NodeJS.Signals = 'SIGTERM') {
+			signals.push(signal);
+			return true;
+		},
+	});
+
+	await assert.rejects(
+		terminatePackagedRuntime(child, 0, 5),
+		/forced termination was not observed/u,
+	);
+	assert.deepEqual(signals, ['SIGTERM', 'SIGKILL']);
+});
+
+test('packaged-runtime teardown rejects a refused forced signal', async () => {
+	const signals: NodeJS.Signals[] = [];
+	const child = Object.assign(new EventEmitter(), {
+		exitCode: null as number | null,
+		signalCode: null as NodeJS.Signals | null,
+		kill(signal: NodeJS.Signals = 'SIGTERM') {
+			signals.push(signal);
+			return signal !== 'SIGKILL';
+		},
+	});
+
+	await assert.rejects(
+		terminatePackagedRuntime(child, 0, 5),
+		/forced termination signal was refused/u,
+	);
+	assert.deepEqual(signals, ['SIGTERM', 'SIGKILL']);
+});
+
 test('packaged video benchmark seeds exact effects and drives localized controls through stable hooks', async () => {
 	const source = await readFile(
 		resolve(ROOT, 'tests/browser/audio-editor-video-preview-benchmark.spec.js'),
@@ -283,6 +319,7 @@ test('nightly product staging builds isolated Soundscaper and Framescaper trees'
 	const root = await mkdtemp(join(tmpdir(), 'soundscaper-nightly-products-'));
 	context.after(() => rm(root, { recursive: true, force: true }));
 	const outputRoot = join(root, 'release/desktop-nightly-products');
+	const sourceRevision = '0123456789abcdef0123456789abcdef01234567';
 	const calls: Array<{
 		readonly args: readonly string[];
 		readonly productId: string;
@@ -295,7 +332,7 @@ test('nightly product staging builds isolated Soundscaper and Framescaper trees'
 		outputRoot,
 		platform: 'linux',
 		arch: 'x64',
-		sourceRevision: '0123456789abcdef0123456789abcdef01234567',
+		sourceRevision,
 		run: async (_command: string, args: readonly string[], options: { readonly environment: NodeJS.ProcessEnv }) => {
 			const productId = String(options.environment.SCAPE_PRODUCT);
 			calls.push({
@@ -304,7 +341,12 @@ test('nightly product staging builds isolated Soundscaper and Framescaper trees'
 				sourceMaps: options.environment.SCAPE_BUILD_SOURCE_MAPS,
 			});
 			if (args.some((value) => value.endsWith('desktop-prepare.mjs'))) {
-				await writeFile(join(root, '.desktop-build/stage-manifest.json'), JSON.stringify({ productId }));
+				await writeFile(join(root, '.desktop-build/stage-manifest.json'), JSON.stringify({
+					productId,
+					schemaVersion: 1,
+					sourceRevision,
+					target: { platform: 'linux', arch: 'x64' },
+				}));
 				await mkdir(join(root, '.desktop-build/app/desktop'), { recursive: true });
 				await mkdir(join(root, '.desktop-build/renderer/assets'), { recursive: true });
 				await mkdir(join(root, '.desktop-build/renderer-source-maps'), { recursive: true });

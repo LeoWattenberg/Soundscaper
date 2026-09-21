@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import assert from 'node:assert/strict';
+import { EventEmitter } from 'node:events';
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
@@ -9,6 +10,7 @@ import test from 'node:test';
 import {
 	createSoundscaperDesktopSoakLaunchEnvironment,
 	retireSoundscaperDesktopSoakRuntime,
+	terminateSoundscaperDesktopSoakChild,
 } from '../scripts/lib/soundscaper-soak-desktop-playwright.mjs';
 
 test('packaged soak binds external executable resources before process launch', async () => {
@@ -179,6 +181,33 @@ test('packaged soak retirement aggregates independent main and CDP checkpoint fa
 	]);
 });
 
+test('packaged soak forced termination is bounded and observed', async () => {
+	const child = stubbornChild(() => true);
+	await assert.rejects(
+		terminateSoundscaperDesktopSoakChild(child, { force: true, timeoutMs: 5 }),
+		/forced termination was not observed/u,
+	);
+	assert.deepEqual(child.signals, ['SIGKILL']);
+});
+
+test('packaged soak rejects a refused forced termination signal', async () => {
+	const child = stubbornChild((signal) => signal !== 'SIGKILL');
+	await assert.rejects(
+		terminateSoundscaperDesktopSoakChild(child, { timeoutMs: 5 }),
+		/forced termination signal was refused/u,
+	);
+	assert.deepEqual(child.signals, ['SIGTERM', 'SIGKILL']);
+});
+
+test('packaged soak fallback termination rejects an unobserved forced exit', async () => {
+	const child = stubbornChild(() => true);
+	await assert.rejects(
+		terminateSoundscaperDesktopSoakChild(child, { timeoutMs: 5 }),
+		/forced termination was not observed/u,
+	);
+	assert.deepEqual(child.signals, ['SIGTERM', 'SIGKILL']);
+});
+
 function fakeRuntime(calls, { mainCheckpointError = null, checkpointError = null } = {}) {
 	return {
 		browser: { async close() { calls.push('browser-close'); } },
@@ -195,4 +224,17 @@ function fakeRuntime(calls, { mainCheckpointError = null, checkpointError = null
 			async collect() { calls.push('coverage-collect'); },
 		},
 	};
+}
+
+function stubbornChild(kill) {
+	const child = Object.assign(new EventEmitter(), {
+		exitCode: null,
+		signalCode: null,
+		signals: [],
+		kill(signal = 'SIGTERM') {
+			this.signals.push(signal);
+			return kill(signal);
+		},
+	});
+	return child;
 }

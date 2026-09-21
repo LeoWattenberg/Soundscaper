@@ -71,7 +71,7 @@ test('platform runs retain distinct archive provenance behind identical executab
 	assert.equal(readProfiles(join(
 		result.outputRoot,
 		'profiles/nightly-electron-soundscaper-main',
-	)).length, 2);
+	)).length, 4, 'ordinary and local main profiles are retained for both platforms');
 	assert.deepEqual(result.captureIndex.buildEvidence.map(({ runtime }) => runtime), [
 		{ platform: 'linux', arch: 'x64' },
 		{ platform: 'win32', arch: 'x64' },

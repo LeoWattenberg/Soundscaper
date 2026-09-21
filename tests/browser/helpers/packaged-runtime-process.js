@@ -85,19 +85,32 @@ export async function waitForPackagedRuntimeExit(child, timeoutMs) {
 	}
 }
 
-export async function terminatePackagedRuntime(child, graceMs = 5_000) {
+export async function terminatePackagedRuntime(child, graceMs = 5_000, forceMs = 5_000) {
 	if (child.exitCode !== null || child.signalCode !== null) return;
 	const exited = once(child, 'exit');
 	child.kill();
-	let timer;
-	const graceful = await Promise.race([
-		exited.then(() => true),
-		new Promise((resolvePromise) => { timer = setTimeout(() => resolvePromise(false), graceMs); }),
-	]);
-	clearTimeout(timer);
+	const graceful = await waitForExitEvent(exited, graceMs);
 	if (graceful || child.exitCode !== null || child.signalCode !== null) return;
-	child.kill('SIGKILL');
-	await exited;
+	if (!child.kill('SIGKILL') && child.exitCode === null && child.signalCode === null) {
+		throw new Error('Packaged runtime forced termination signal was refused.');
+	}
+	if (await waitForExitEvent(exited, forceMs)) return;
+	if (child.exitCode !== null || child.signalCode !== null) return;
+	throw new Error('Packaged runtime forced termination was not observed before its deadline.');
+}
+
+async function waitForExitEvent(exited, timeoutMs) {
+	let timer;
+	try {
+		return await Promise.race([
+			exited.then(() => true),
+			new Promise((resolvePromise) => {
+				timer = setTimeout(() => resolvePromise(false), timeoutMs);
+			}),
+		]);
+	} finally {
+		clearTimeout(timer);
+	}
 }
 
 function packagedProductId(value) {
