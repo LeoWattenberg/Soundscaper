@@ -1,6 +1,6 @@
 ---
-title: "واگرد و بازگردانی"
-description: "به عقب ویرایش‌های خود برگردید و دوباره به جلو بروید."
+title: "بازگردانی و تکرار"
+description: "به عقب برگردید و تغییرات خود را مشاهده کنید و دوباره به جلو بروید."
 editUrl: false
 sidebar:
   order: 12
@@ -8,57 +8,57 @@ head:
   - tag: script
     attrs:
       type: "application/ld+json"
-    content: "{\"@context\":\"https://schema.org\",\"@type\":\"HowTo\",\"name\":\"Undo and redo\",\"description\":\"Step back through your edits and forward again.\",\"tool\":[{\"@type\":\"HowToTool\",\"name\":\"Soundscaper\"}],\"step\":[{\"@type\":\"HowToStep\",\"position\":1,\"name\":\"Open Soundscaper. A new, empty project is ready as soon as the editor loads.\",\"text\":\"Open Soundscaper. A new, empty project is ready as soon as the editor loads.\"},{\"@type\":\"HowToStep\",\"position\":2,\"name\":\"Choose File → Import audio and pick any recording. The file lands as a clip on its own track.\",\"text\":\"Choose File → Import audio and pick any recording. The file lands as a clip on its own track.\"},{\"@type\":\"HowToStep\",\"position\":3,\"name\":\"Press the Split tool button in the toolbar.\",\"text\":\"Press the Split tool button in the toolbar.\"},{\"@type\":\"HowToStep\",\"position\":4,\"name\":\"Click the waveform anywhere in the clip to put the cursor there.\",\"text\":\"Click the waveform anywhere in the clip to put the cursor there. A split is a good edit to practise on because you can see it.\"},{\"@type\":\"HowToStep\",\"position\":5,\"name\":\"Press the Split tool button in the toolbar.\",\"text\":\"Press the Split tool button in the toolbar. Back to the normal pointer.\"},{\"@type\":\"HowToStep\",\"position\":6,\"name\":\"The project now shows 2 clips.\",\"text\":\"The project now shows 2 clips.\"},{\"@type\":\"HowToStep\",\"position\":7,\"name\":\"Press the Undo button in the toolbar.\",\"text\":\"Press the Undo button in the toolbar. The toolbar button and Edit → Undo do the same thing.\"},{\"@type\":\"HowToStep\",\"position\":8,\"name\":\"The project now shows 1 clip.\",\"text\":\"The project now shows 1 clip. The split is gone and the clip is whole again.\"},{\"@type\":\"HowToStep\",\"position\":9,\"name\":\"Press the Redo button in the toolbar.\",\"text\":\"Press the Redo button in the toolbar.\"},{\"@type\":\"HowToStep\",\"position\":10,\"name\":\"The project now shows 2 clips.\",\"text\":\"The project now shows 2 clips. The split is back.\"}]}"
+    content: "{\"@context\":\"https://schema.org\",\"@type\":\"HowTo\",\"name\":\"Undo and redo\",\"description\":\"Step back through your edits and forward again.\",\"tool\":[{\"@type\":\"HowToTool\",\"name\":\"Soundscaper\"}],\"step\":[{\"@type\":\"HowToStep\",\"position\":1,\"name\":\"Open Soundscaper. A new, empty project is ready as soon as the editor loads.\",\"text\":\"Open Soundscaper. A new, empty project is ready as soon as the editor loads.\"},{\"@type\":\"HowToStep\",\"position\":2,\"name\":\"Choose File → Import and pick any recording. It lands as a clip on its own track.\",\"text\":\"Choose File → Import and pick any recording. It lands as a clip on its own track.\"},{\"@type\":\"HowToStep\",\"position\":3,\"name\":\"Press the Split tool button in the toolbar.\",\"text\":\"Press the Split tool button in the toolbar.\"},{\"@type\":\"HowToStep\",\"position\":4,\"name\":\"Click the waveform anywhere in the clip to put the cursor there.\",\"text\":\"Click the waveform anywhere in the clip to put the cursor there. A split is a good edit to practise on because you can see it.\"},{\"@type\":\"HowToStep\",\"position\":5,\"name\":\"Press the Split tool button in the toolbar.\",\"text\":\"Press the Split tool button in the toolbar. Back to the normal pointer.\"},{\"@type\":\"HowToStep\",\"position\":6,\"name\":\"The project now shows 2 clips.\",\"text\":\"The project now shows 2 clips.\"},{\"@type\":\"HowToStep\",\"position\":7,\"name\":\"Press the Undo button in the toolbar.\",\"text\":\"Press the Undo button in the toolbar. The toolbar button and Edit → Undo do the same thing.\"},{\"@type\":\"HowToStep\",\"position\":8,\"name\":\"The project now shows 1 clip.\",\"text\":\"The project now shows 1 clip. The split is gone and the clip is whole again.\"},{\"@type\":\"HowToStep\",\"position\":9,\"name\":\"Press the Redo button in the toolbar.\",\"text\":\"Press the Redo button in the toolbar.\"},{\"@type\":\"HowToStep\",\"position\":10,\"name\":\"The project now shows 2 clips.\",\"text\":\"The project now shows 2 clips. The split is back.\"}]}"
 ---
-<!-- docs-ai-provenance: {"factPacketSha256":"d977a5c97426e241bb079fda77dc648a1ba846e2331811c3fbc259c0931454c8","model":"qwen3.8:latest","modelDigest":"22130167c4c20e20c7b71454612966ca8e8171e9b3cc8ab6ce8aa6cbfec79643","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"d977a5c97426e241bb079fda77dc648a1ba846e2331811c3fbc259c0931454c8","targetLocale":"fa"} -->
+<!-- docs-ai-provenance: {"factPacketSha256":"6d9cdb24c5f9df66cd50e9fa913ee28512b2d5b050122058a661b1576e0580ea","model":"aya-expanse:32b","modelDigest":"1603440383bd5504dc7afd01c0407b425b988dde650a8dc1a737433baa3cd432","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"6d9cdb24c5f9df66cd50e9fa913ee28512b2d5b050122058a661b1576e0580ea","targetLocale":"fa"} -->
 
 <!-- Generated by `node scripts/docs-reference.mjs`. Do not edit. -->
 
-هر ویرایش و افکت در تاریخچه پروژه ثبت می‌شود، بنابراین هیچ‌کدام از کارهایی که انجام می‌دهید ریسک ندارد. Undo (واگرد) یک‌به‌یک تغییرات را برمی‌گرداند — یک افکت، یک برش، یک جابه‌جایی — و Redo (ازنو) آن را دوباره اعمال می‌کند. تاریخچه پس از ذخیره‌سازی و باز کردن مجدد پروژه نیز باقی می‌ماند.
+هر ویرایش و اثری که اعمال می‌کنید در تاریخچه پروژه ثبت می‌شود، بنابراین هیچ امتحانی ریسک ندارد. با استفاده از گزینه‌های 'Undo' (بازگرداندن) و 'Redo' (انجام مجدد)، می‌توانید به ترتیب یک تغییر در هر بار را عقب برگردانید یا دوباره انجام دهید - یک اثر، یک برش، یک جابجایی - و تاریخچه پروژه حتی پس از ذخیره و باز کردن مجدد پروژه نیز باقی می‌ماند.
 
-:::note[از Audacity می‌آیید؟]
-این همان **Edit → Undo و Edit → Redo (Ctrl+Z, Ctrl+Y)** در Audacity است. نام‌های زیر متعلق به خود Soundscaper هستند و گاهی اوقات متفاوت‌اند.
+:::note[اگر از Audacity می‌آیید؟]
+این همان عملکرد **Edit → Undo** و **Edit → Redo** (Ctrl+Z, Ctrl+Y) در Audacity است. نام‌های زیر متعلق به Soundscaper هستند که گاهی متفاوت هستند.
 :::
 
 ## مراحل
 
-1. Soundscaper را باز کنید. یک پروژه جدید و خالی به محض بارگذاری ویرایشگر آماده است.
-2. گزینه **File → Import audio** را انتخاب کنید و هر ضبط‌شده‌ای را انتخاب کنید. فایل به صورت یک کلیپ در یک ترک مجزا قرار می‌گیرد.
-3. روی دکمه **Split tool** در نوار ابزار کلیک کنید.
-4. روی هر نقطه‌ای از موج در کلیپ کلیک کنید تا نشانگر (cursor) آنجا قرار گیرد. یک برش ویرایش مناسبی برای تمرین است، زیرا آن را می‌توانید ببینید.
-5. روی دکمه **Split tool** در نوار ابزار کلیک کنید. به نشانگر عادی برگردید.
-6. اکنون پروژه ۲ کلیپ را نشان می‌دهد.
-7. روی دکمه **Undo** در نوار ابزار کلیک کنید. دکمه نوار ابزار و **Edit → Undo** کار یکسانی را انجام می‌دهند.
-8. اکنون پروژه ۱ کلیپ را نشان می‌دهد.
-   *باید ببینید:* برش حذف شده و کلیپ دوباره یکپارچه است.
-9. روی دکمه **Redo** در نوار ابزار کلیک کنید.
-10. اکنون پروژه ۲ کلیپ را نشان می‌دهد.
-   *باید ببینید:* برش دوباره برگشته است.
+1. Soundscaper را باز کنید. یک پروژه خالی جدید به محض بارگذاری ویرایشگر آماده است.
+2. **File → Import** را انتخاب کنید و هر ضبطی را انتخاب کنید. آن به عنوان یک کلیپ در یک مسیر خودکار قرار می‌گیرد.
+3. دکمه **ابزار تقسیم** را در نوار ابزار فشار دهید.
+4. هر کجا در کلیپ روی موج‌شکل کلیک کنید تا نشانگر در آن مکان قرار گیرد. تقسیم یک ویرایش خوب برای تمرین است زیرا می‌توانید آن را ببینید.
+5. دکمه **ابزار تقسیم** را در نوار ابزار فشار دهید. به نشانگر معمولی برمی‌گردد.
+6. پروژه اکنون 2 کلیپ را نشان می‌دهد.
+7. دکمه **Undo** را در نوار ابزار فشار دهید. دکمه نوار ابزار و **Edit → Undo** همان کار را انجام می‌دهند.
+8. پروژه اکنون 1 کلیپ را نشان می‌دهد.
+   *شما باید ببینید:* تقسیم رفته است و کلیپ دوباره کامل است.
+9. دکمه **Redo** را در نوار ابزار فشار دهید.
+10. پروژه اکنون 2 کلیپ را نشان می‌دهد.
+   *شما باید ببینید:* تقسیم دوباره برگردانده شده است.
 
 ## نکات
 
-- **View → Panels → History** همه مراحل را فهرست می‌کند و با کلیک روی هر کدام مستقیماً به آن مرحله می‌روید.
-- Undo ویرایش‌های پروژه را پوشش می‌دهد، نه خروجی‌ها؛ فایلی که قبلاً ذخیره کرده‌اید همان‌طور که هست باقی می‌ماند.
+- **View → Panels → History** هر مرحله را لیست می‌کند، و کلیک کردن روی یکی از آنها شما را مستقیماً به آن مرحله می‌برد.
+- Undo فقط ویرایش‌های پروژه را پوشش می‌دهد، نه صادرات؛ فایلی که قبلاً ذخیره کرده‌اید همانطور که هست باقی می‌ماند.
 
 ## راهنماهای مرتبط
 
-بیشتر [ویرایش](/guides/editing/) راهنماها:
+بیشتر [راهنماهای ویرایش](/guides/editing/):
 
-- [حذف یک اشتباه از یک ضبط‌شده](/guides/editing/cut-out-a-mistake/) — یک لغزش را انتخاب کنید، آن را حذف کنید و شکاف را ببندید تا ضبط‌شده به جریان خود ادامه دهد.
-- [تقسیم یک کلیپ به دو بخش](/guides/editing/split-a-clip-at-the-cursor/) — یک کلیپ را در یک نقطه برش دهید تا هر بخش بتواند به صورت جداگانه جابه‌جا شود یا پردازش گردد.
-- [فقط بخشی که می‌خواهید را نگه دارید](/guides/editing/keep-only-a-selection/) — همه چیز را خارج از یک انتخاب در یک مرحله حذف کنید.
-- [تکرار یک بخش](/guides/editing/repeat-a-section/) — یک انتخاب را تعداد مشخصی از اوقات حلقه‌بندی کنید تا طولانی‌تر شود.
-- [پخش یک ضبط‌شده به صورت معکوس](/guides/editing/reverse-audio/) — یک انتخاب را معکوس کنید تا از انتها به ابتدا پخش شود.
-- [نشان‌گذاری نقاط در یک ضبط‌شده](/guides/editing/add-markers/) — نشانگرهای نام‌دار را روی خط زمانی قرار دهید تا بتوانید بعداً دوباره نقاط را پیدا کنید.
-- [کپی و پیست کردن یک بخش](/guides/editing/copy-and-paste-a-section/) — یک پاراگراف را کپی کنید و آن را در جای دیگری روی ترک پیست کنید.
-- [تکثیر یک انتخاب به یک ترک جدید](/guides/editing/duplicate-a-selection-to-a-new-track/) — یک پاراگراف را روی ترک اختصاصی خود کپی کنید تا بتوانید آن را به صورت جداگانه پردازش کنید.
-- [افزودن سکوت پس از یک کلیپ](/guides/editing/add-silence-after-a-clip/) — یک شکاف با طول دقیق در محل نشانگر ایجاد کنید.
-- [چیدمان کلیپ‌ها سر به سر](/guides/editing/line-up-clips-end-to-end/) — دو کلیپ روی ترک‌های مختلف را به هم بچسبانید تا یکی پس از دیگری قرار بگیرند.
-- [بزرگ‌نمایی برای ویرایش‌های دقیق](/guides/editing/zoom-in-for-precise-edits/) — به اندازه کافی به موج نزدیک شوید تا بتوانید روی یک ضرب یا بین کلمات برش دهید.
-- [حلقه‌بندی یک بخش هنگام تمرین](/guides/editing/loop-a-section-while-you-practise/) — یک پاراگراف انتخاب‌شده را بارها و بارها پخش کنید.
-- [جابه‌جایی یک کلیپ در طول خط زمانی](/guides/editing/move-a-clip-along-the-timeline/) — یک کلیپ را به زمان دیگری روی ترک خود بکشید.
-- [گوش دادن سریع‌تر یا کندتر بدون تغییر ضبط‌شده](/guides/editing/listen-at-a-different-speed/) — یک پاراگراف را کند کنید تا آن را ترنسکریپت کنید یا یک ضبط طولانی را سریع کنید تا بازبینی شود، در حالی که پروژه دست‌نخورده باقی می‌ماند.
+- [برش اشتباه از یک ضبط](/guides/editing/cut-out-a-mistake/) - یک لغزش را انتخاب کنید، آن را حذف کنید و فاصله را ببندید تا ضبط به جریان خود ادامه دهد.
+- [تقسیم یک کلیپ به دو قسمت](/guides/editing/split-a-clip-at-the-cursor/) - یک کلیپ را در یک نقطه برش دهید تا هر قسمت به صورت جداگانه قابل حرکت یا درمان باشد.
+- [فقط بخشی را که می‌خواهید نگه دارید](/guides/editing/keep-only-a-selection/) - همه چیز خارج از یک انتخاب را در یک مرحله حذف کنید.
+- [تکرار یک بخش](/guides/editing/repeat-a-section/) - یک انتخاب را برای طولانی‌تر کردن آن به تعداد مشخصی تکرار کنید.
+- [پخش یک ضبط به صورت معکوس](/guides/editing/reverse-audio/) - یک انتخاب را به صورت معکوس پخش کنید تا از پایان به شروع پخش شود.
+- [قرار دادن مکان‌ها در یک ضبط](/guides/editing/add-markers/) - نشانگرهای نامدار را در خط زمان رها کنید تا بتوانید بعداً دوباره نقاط را پیدا کنید.
+- [کپی و چسباندن یک بخش](/guides/editing/copy-and-paste-a-section/) - یک گذر را کپی کنید و آن را در جای دیگری از مسیر چسبانده کنید.
+- [تکرار یک انتخاب در یک مسیر جدید](/guides/editing/duplicate-a-selection-to-a-new-track/) - یک گذر را در مسیر خود قرار دهید تا بتوانید آن را به صورت جداگانه پردازش کنید.
+- [اضافه کردن سکوت بعد از یک کلیپ](/guides/editing/add-silence-after-a-clip/) - یک فاصله با طول دقیق در نشانگر ایجاد کنید.
+- [تراز کردن کلیپ‌ها از پایان به پایان](/guides/editing/line-up-clips-end-to-end/) - دو کلیپ را در مسیرهای مختلف در کنار هم قرار دهید تا یکی بعد از دیگری پخش شود.
+- [بزرگنمایی برای ویرایش‌های دقیق](/guides/editing/zoom-in-for-precise-edits/) - به اندازه کافی به موج‌شکل نزدیک شوید تا بتوانید برش را در یک ضرب یا بین کلمات انجام دهید.
+- [تکرار یک بخش در حالی که تمرین می‌کنید](/guides/editing/loop-a-section-while-you-practise/) - یک بخش انتخاب شده را بارها و بارها پخش کنید.
+- [جابجایی یک کلیپ در طول خط زمان](/guides/editing/move-a-clip-along-the-timeline/) - یک کلیپ را به زمان متفاوتی در مسیر خود بکشید.
+- [شنیدن سریع‌تر یا آهسته‌تر بدون تغییر ضبط](/guides/editing/listen-at-a-different-speed/) - یک گذر را برای رونویسی آن آهسته کنید یا یک ضبط طولانی را برای بررسی آن سرعت ببخشید، در حالی که پروژه دست‌نخورده باقی می‌ماند.
 
-## درباره این راهنما
+## در مورد این راهنما
 
-رویه موجود در این صفحه — هر ورودی منو، دیالوگ، فیلد و دکمه، و نتیجه‌ای که تولید می‌کند — توسط مجموعه مرورگر (`tests/browser/soundscaper-guides.spec.js`) در مقابل هر بیلد Soundscaper بازپخش می‌شود. اگر هر یک از آن‌ها با ویرایشگر مطابقت نداشته باشد، بیلد ناموفق می‌شود تا زمانی که راهنما اصلاح شود. مقادیر پیشنهادی نقاط شروعی هستند که پذیرش آن‌ها توسط ویرایشگر اثبات شده است؛ آیا آن‌ها برای ضبط‌شده شما مناسب هستند یا نه، به گوش شما بستگی دارد.
+روش در این صفحه - هر ورودی منو، گفتگو، فیلد و دکمه، و نتیجه‌ای که تولید می‌کند - در هر نسخه Soundscaper توسط مجموعه مرورگر (`tests/browser/soundscaper-guides.spec.js`) دوباره اجرا می‌شود. اگر هر کدام از آنها با ویرایشگر مطابقت نداشته باشد، نسخه تا زمان اصلاح راهنما با شکست مواجه می‌شود. مقادیر پیشنهادی نقاط شروع هستند که اثبات شده است ویرایشگر آنها را می‌پذیرد؛ اینکه آیا آنها برای ضبط شما مناسب هستند، به گوش شما بستگی دارد.

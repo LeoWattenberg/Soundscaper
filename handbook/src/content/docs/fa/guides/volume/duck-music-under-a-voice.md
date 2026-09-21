@@ -1,6 +1,6 @@
 ---
-title: "موسیقی داک زیر صدا"
-description: "هر زمان که یک ردیف صدا در حال صحبت باشد، به‌طور خودکار صدای موسیقی پس‌زمینه را کم کنید."
+title: "موسیقی اردک زیر یک صدا"
+description: "به طور خودکار موسیقی پس زمینه را هر زمان که یک قطعه صوتی صحبت می کند، کم کنید."
 editUrl: false
 sidebar:
   order: 7
@@ -8,49 +8,49 @@ head:
   - tag: script
     attrs:
       type: "application/ld+json"
-    content: "{\"@context\":\"https://schema.org\",\"@type\":\"HowTo\",\"name\":\"Duck music under a voice\",\"description\":\"Turn a music bed down automatically whenever a voice track is speaking.\",\"tool\":[{\"@type\":\"HowToTool\",\"name\":\"Soundscaper\"}],\"step\":[{\"@type\":\"HowToStep\",\"position\":1,\"name\":\"Open Soundscaper. A new, empty project is ready as soon as the editor loads.\",\"text\":\"Open Soundscaper. A new, empty project is ready as soon as the editor loads.\"},{\"@type\":\"HowToStep\",\"position\":2,\"name\":\"Choose File → Import audio and pick the music. The file lands as a clip on its own track.\",\"text\":\"Choose File → Import audio and pick the music. The file lands as a clip on its own track.\"},{\"@type\":\"HowToStep\",\"position\":3,\"name\":\"Choose File → Import audio and pick the voice. The file lands as a clip on its own track.\",\"text\":\"Choose File → Import audio and pick the voice. The file lands as a clip on its own track.\"},{\"@type\":\"HowToStep\",\"position\":4,\"name\":\"Click the name bar of the music clip to select it.\",\"text\":\"Click the name bar of the music clip to select it. The clip you select is the one that gets ducked — the music, not the voice.\"},{\"@type\":\"HowToStep\",\"position\":5,\"name\":\"Choose Effect → Volume and compression → Auto Duck. In the Auto Duck dialog, choose the voice track for Control track and set Duck amount to -12, then press Apply to selection.\",\"text\":\"Choose Effect → Volume and compression → Auto Duck. In the Auto Duck dialog, choose the voice track for Control track and set Duck amount to -12, then press Apply to selection. The control track is the one that triggers the ducking. Twelve decibels down is enough for speech to sit clearly on top.\"},{\"@type\":\"HowToStep\",\"position\":6,\"name\":\"Press Play to listen, then Stop.\",\"text\":\"Press Play to listen, then Stop. The music drops while the other track plays and recovers where it is quiet.\"}]}"
+    content: "{\"@context\":\"https://schema.org\",\"@type\":\"HowTo\",\"name\":\"Duck music under a voice\",\"description\":\"Turn a music bed down automatically whenever a voice track is speaking.\",\"tool\":[{\"@type\":\"HowToTool\",\"name\":\"Soundscaper\"}],\"step\":[{\"@type\":\"HowToStep\",\"position\":1,\"name\":\"Open Soundscaper. A new, empty project is ready as soon as the editor loads.\",\"text\":\"Open Soundscaper. A new, empty project is ready as soon as the editor loads.\"},{\"@type\":\"HowToStep\",\"position\":2,\"name\":\"Choose File → Import and pick the music. It lands as a clip on its own track.\",\"text\":\"Choose File → Import and pick the music. It lands as a clip on its own track.\"},{\"@type\":\"HowToStep\",\"position\":3,\"name\":\"Choose File → Import and pick the voice. It lands as a clip on its own track.\",\"text\":\"Choose File → Import and pick the voice. It lands as a clip on its own track.\"},{\"@type\":\"HowToStep\",\"position\":4,\"name\":\"Click the name bar of the music clip to select it.\",\"text\":\"Click the name bar of the music clip to select it. The clip you select is the one that gets ducked — the music, not the voice.\"},{\"@type\":\"HowToStep\",\"position\":5,\"name\":\"Choose Effect → Volume and compression → Auto Duck. In the Auto Duck dialog, choose the voice track for Control track and set Duck amount to -12, then press Apply to selection.\",\"text\":\"Choose Effect → Volume and compression → Auto Duck. In the Auto Duck dialog, choose the voice track for Control track and set Duck amount to -12, then press Apply to selection. The control track is the one that triggers the ducking. Twelve decibels down is enough for speech to sit clearly on top.\"},{\"@type\":\"HowToStep\",\"position\":6,\"name\":\"Press Play to listen, then Stop.\",\"text\":\"Press Play to listen, then Stop. The music drops while the other track plays and recovers where it is quiet.\"}]}"
 ---
-<!-- docs-ai-provenance: {"factPacketSha256":"29eeeac8471c6886f72ec6f256f4acc11b452190de41307593f4a6a9f07893c5","model":"qwen3.8:latest","modelDigest":"22130167c4c20e20c7b71454612966ca8e8171e9b3cc8ab6ce8aa6cbfec79643","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"29eeeac8471c6886f72ec6f256f4acc11b452190de41307593f4a6a9f07893c5","targetLocale":"fa"} -->
+<!-- docs-ai-provenance: {"factPacketSha256":"313de1012af9c28f0b75a03718401297acb22bdfb48e03bde9f0c5daf2dc8299","model":"aya-expanse:32b","modelDigest":"1603440383bd5504dc7afd01c0407b425b988dde650a8dc1a737433baa3cd432","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"313de1012af9c28f0b75a03718401297acb22bdfb48e03bde9f0c5daf2dc8299","targetLocale":"fa"} -->
 
 <!-- Generated by `node scripts/docs-reference.mjs`. Do not edit. -->
 
-پادکست‌ها و ویدیوها با کاهش حجم موسیقی هر بار که کسی صحبت می‌کند و بازگرداندن آن در فاصله‌ها، پخش موسیقی را زیر صحبت حفظ می‌کنند. Auto Duck این کار را از یک ردیف کنترل انجام می‌دهد: در هر جایی که ردیف کنترل بلندتر از یک آستانه باشد، ردیف انتخابی کاهش می‌یابد، با محو شدن در لبه‌ها.
+پادکست‌ها و ویدئوها با کاهش موسیقی در حین صحبت و بازگرداندن آن در فواصل، موسیقی را در زیر صحبت اجرا می‌کنند. اتو داک (Auto Duck) این کار را با استفاده از یک مسیر کنترل انجام می‌دهد: هرجا که مسیر کنترل از یک آستانه بلندتر باشد، مسیر انتخاب شده کم می‌شود، با محو شدن در لبه‌ها.
 
-:::note[از Audacity می‌آیید؟]
-این همان **Effect → Volume and Compression → Auto Duck** در Audacity است. نام‌های زیر متعلق به خود Soundscaper هستند و گاهی اوقات متفاوت‌اند.
+:::note[از Audacity آمده‌اید؟]
+این **اثر → حجم و فشردگی → اتو داک** در Audacity است. نام‌های زیر متعلق به Soundscaper است که گاهی متفاوت است.
 :::
 
 ## مراحل
 
-1. Soundscaper را باز کنید. یک پروژه جدید و خالی به محض بارگذاری ویرایشگر آماده است.
-2. **File → Import audio** را انتخاب کنید و موسیقی را انتخاب کنید. فایل به عنوان یک کلیپ در ردیف خودش قرار می‌گیرد.
-3. **File → Import audio** را انتخاب کنید و صدا را انتخاب کنید. فایل به عنوان یک کلیپ در ردیف خودش قرار می‌گیرد.
-4. روی نوار نام کلیپ موسیقی کلیک کنید تا آن را انتخاب کنید. کلیپی که انتخاب می‌کنید، همانی است که کاهش می‌یابد — موسیقی، نه صدا.
-5. **Effect → Volume and compression → Auto Duck** را انتخاب کنید. در پنجره **Auto Duck**، ردیف صدا را برای **Control track** انتخاب کنید و **Duck amount** را روی `-12` تنظیم کنید، سپس **Apply to selection** را فشار دهید. ردیف کنترل همانی است که کاهش را فعال می‌کند. کاهش دوازده دسی‌بل برای اینکه صحبت به وضوح در بالا قرار گیرد کافی است.
-6. **Play** را فشار دهید تا گوش دهید، سپس **Stop** را بزنید.
-   *باید ببینید:* موسیقی در حالی که ردیف دیگر پخش می‌شود کاهش می‌یابد و در جایی که ساکت است بازیابی می‌شود.
+1. Soundscaper را باز کنید. یک پروژه خالی جدید به محض بارگذاری ویرایشگر آماده است.
+2. **فایل → وارد کردن** را انتخاب کنید و موسیقی را انتخاب کنید. آن به عنوان یک کلیپ در مسیر خود قرار می‌گیرد.
+3. **فایل → وارد کردن** را انتخاب کنید و صدا را انتخاب کنید. آن به عنوان یک کلیپ در مسیر خود قرار می‌گیرد.
+4. روی نوار نام کلیپ موسیقی کلیک کنید تا انتخاب شود. کلیپی که انتخاب می‌کنید، کلیپی است که کم می‌شود - موسیقی، نه صدا.
+5. **اثر → حجم و فشردگی → اتو داک** را انتخاب کنید. در گفتگوی **اتو داک**، مسیر صدای را برای **مسیر کنترل** و **میزان کم شدن** را به `-12` تنظیم کنید، سپس **بر روی انتخاب اعمال کنید**. مسیر کنترل، مسیری است که کم کردن را فعال می‌کند. کم شدن 12 دسی بل برای قرار گرفتن واضح گفتار روی آن کافی است.
+6. **پلی** را فشار دهید تا بشنوید، سپس **استاپ**.
+  *شما باید ببینید:* موسیقی در حین پخش مسیر دیگر کم می‌شود و جایی که ساکت است، بهبود می‌یابد.
 
 ## نکات
 
-- اگر موسیقی بین کلمات خیلی سریع بالا و پایین می‌رود، زمان‌های **Outer fade** را طولانی‌تر کنید.
-- ردیف صدا را در بالای موسیقی در فهرست ردیف‌ها قرار دهید تا رابطه به راحتی قابل مشاهده باشد.
+- زمان‌های **محو شدن بیرونی** را طولانی‌تر کنید اگر موسیقی بین کلمات خیلی سریع بالا و پایین برود.
+- مسیر صدا را در لیست مسیرها بالای موسیقی قرار دهید تا رابطه آن‌ها به راحتی قابل مشاهده باشد.
 
 ## راهنماهای مرتبط
 
-بیشتر [volume and dynamics](/guides/volume/) راهنماها:
+بیشتر راهنماهای [حجم و دینامیک](/guides/volume/):
 
-- [Make a quiet recording louder](/guides/volume/make-a-recording-louder/) — با Amplify سطح یک ضبط را با تعداد ثابتی از دسی‌بل افزایش دهید.
-- [Normalize peaks to a set level](/guides/volume/normalize-peaks/) — بلندترین نقطه یک ضبط را به سطح دقیق زیر مقیاس کامل بیاورید.
-- [Normalize loudness for a podcast](/guides/volume/normalize-loudness-for-podcasts/) — بلندی ادراک‌شده یک اپیزود را با سطحی که پلتفرم‌های استریم انتظار دارند هماهنگ کنید.
-- [Even out volume with a compressor](/guides/volume/even-out-volume-with-a-compressor/) — فاصله بین لحظات بلند و ساکت را کاهش دهید تا صحبت کردن را دنبال کردن آسان‌تر شود.
-- [Fade in and fade out](/guides/volume/fade-in-and-fade-out/) — یک کلیپ را از سکوت شروع کنید و به‌جای قطع کردن، آن را به‌صورت نرم پایان دهید.
-- [Tame peaks with a limiter](/guides/volume/tame-peaks-with-a-limiter/) — از عبور بلندترین لحظات از یک سقف جلوگیری کنید بدون اینکه بقیه را دست بزنید.
-- [Even out volume with the classic compressor](/guides/volume/even-out-volume-with-the-legacy-compressor/) — از کمپرسور اصلی Audacity 3، با کف نویز و بهره جبران‌کننده، روی یک ضبط استفاده کنید.
+- [یک ضبط آرام را بلندتر کنید](/guides/volume/make-a-recording-louder/) — سطح یک ضبط را با یک مقدار ثابت دسی بل با تقویت کننده بالا ببرید.
+- [پیک‌ها را به یک سطح تنظیم کنید](/guides/volume/normalize-peaks/) — نقطه بلندترین یک ضبط را به یک سطح دقیق زیر مقیاس کامل برسانید.
+- [صدا را برای یک پادکست نرمال کنید](/guides/volume/normalize-loudness-for-podcasts/) — صدای یک قسمت را با سطح مورد انتظار پلتفرم‌های پخش مطابقت دهید.
+- [حجم را با یک کمپرسور یکنواخت کنید](/guides/volume/even-out-volume-with-a-compressor/) — فاصله بین لحظات بلند و آرام را کاهش دهید تا گفتار راحت‌تر دنبال شود.
+- [محو شدن و محو شدن](/guides/volume/fade-in-and-fade-out/) — یک کلیپ را از سکوت شروع کنید و به جای برش خوردن، به آرامی به پایان برسانید.
+- [پیک‌ها را با یک محدود کننده مهار کنید](/guides/volume/tame-peaks-with-a-limiter/) — لحظات بلندترین را بدون لمس بقیه از رسیدن به یک سقف جلوگیری کنید.
+- [حجم را با کمپرسور کلاسیک یکنواخت کنید](/guides/volume/even-out-volume-with-the-legacy-compressor/) — کمپرسور اصلی Audacity 3 را با کف سر و صدای و تقویت کننده جبران خسارت روی یک ضبط استفاده کنید.
 
 ## مرجع
 
-- [هر پارامتر از افکت‌های استفاده‌شده در اینجا، همراه با مقدار پیش‌فرض و محدوده آن، در مرجع افکت‌های صوتی موجود است.](/reference/generated/audio-effects/#parameters)
+- [هر پارامتر اثرات مورد استفاده در اینجا، با مقدار پیش فرض و محدوده آن، در مرجع اثرات صوتی است.](/reference/generated/audio-effects/#parameters)
 
-## درباره این راهنما
+## در مورد این راهنما
 
-روند روی این صفحه — هر ورودی منو، پنجره، فیلد و دکمه، و نتیجه‌ای که تولید می‌کند — توسط مجموعه مرورگر (`tests/browser/soundscaper-guides.spec.js`) در برابر هر بیلد Soundscaper بازپخش می‌شود. اگر هر یک از آن‌ها با ویرایشگر مطابقت نداشته باشد، بیلد تا اصلاح راهنما ناموفق می‌ماند. مقادیر پیشنهادی نقاط شروعی هستند که پذیرش آن‌ها توسط ویرایشگر اثبات شده است؛ آیا آن‌ها برای ضبط شما مناسب هستند یا نه، برای گوش شما تصمیم است.
+روش در این صفحه - هر ورودی منو، گفتگو، فیلد و دکمه، و نتیجه‌ای که تولید می‌کند - در هر نسخه Soundscaper توسط مجموعه مرورگر (`tests/browser/soundscaper-guides.spec.js`) دوباره اجرا می‌شود. اگر هر کدام از آن‌ها با ویرایشگر مطابقت نداشته باشد، نسخه تا اصلاح راهنما با شکست مواجه می‌شود. مقادیر پیشنهادی نقاط شروع هستند که ویرایشگر اثبات کرده است که آن‌ها را می‌پذیرد؛ اینکه آیا آن‌ها برای ضبط شما مناسب هستند، به گوش شما بستگی دارد.
