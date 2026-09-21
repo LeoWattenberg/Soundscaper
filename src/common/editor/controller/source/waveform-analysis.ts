@@ -1,4 +1,5 @@
 import { createLocalizedError } from '../../../i18n/presentation-message.ts'; import { WAVEFORM_PEAK_BLOCK_SIZES, WAVEFORM_PEAKS_VERSION, waveformPeakBlockSizes } from '../../waveform-peak-contract.ts';
+import { projectUnwarpedClipSourceRange } from '../../audio-clip-source-projection.ts';
 import { abortError, throwIfAborted } from '../shared/app-helpers.ts';
 
 export { WAVEFORM_PEAK_BLOCK_SIZES, WAVEFORM_PEAKS_VERSION } from '../../waveform-peak-contract.ts';
@@ -85,19 +86,16 @@ export function clipSourceWindowRange(
 ): WaveformPcmRange {
 	const durationFrames = Math.max(1, Number(clip.durationFrames) || 1);
 	const sourceDurationFrames = Math.max(1, Number(clip.sourceDurationFrames) || durationFrames);
-	const sourceFramesPerTimelineFrame = sourceDurationFrames / durationFrames;
-	const visualStart = startFrame * sourceFramesPerTimelineFrame;
-	const visualEnd = endFrame * sourceFramesPerTimelineFrame;
 	const sourceStartFrame = Math.max(0, Number(clip.sourceStartFrame) || 0);
-	const absoluteStart = sourceStartFrame + (clip.reversed
-		? sourceDurationFrames - visualEnd
-		: visualStart);
-	const absoluteEnd = sourceStartFrame + (clip.reversed
-		? sourceDurationFrames - visualStart
-		: visualEnd);
+	const range = projectUnwarpedClipSourceRange({
+		durationFrames,
+		sourceStartFrame,
+		sourceDurationFrames,
+		reversed: Boolean(clip.reversed),
+	}, startFrame, endFrame);
 	return {
-		startFrame: Math.max(0, Math.floor(Math.min(absoluteStart, absoluteEnd)) - 2),
-		endFrame: Math.min(sourceFrameCount, Math.ceil(Math.max(absoluteStart, absoluteEnd)) + 2),
+		startFrame: Math.max(0, Math.floor(range.startFrame) - 2),
+		endFrame: Math.min(sourceFrameCount, Math.ceil(range.endFrame) + 2),
 	};
 }
 

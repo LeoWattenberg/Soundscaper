@@ -4,6 +4,7 @@ import {
 	audioWarpSourceRange,
 	type AudioWarpRuntimeProject,
 } from '../../audio-warp-runtime.ts';
+import { projectUnwarpedClipSourceRange } from '../../audio-clip-source-projection.ts';
 import { framesToSeconds } from '../../design-system-adapters.js';
 
 const MINIMUM_VISIBLE_CLIP_PIXELS = 48;
@@ -214,18 +215,10 @@ function projectedClipSourceRange(
 			return null;
 		}
 	}
-	const sourceFramesPerTimelineFrame = sourceDurationFrames / clip.durationFrames;
-	const visualStart = clip.waveformStartFrame * sourceFramesPerTimelineFrame;
-	const visualEnd = clip.waveformEndFrame * sourceFramesPerTimelineFrame;
-	const sourceStartFrame = clip.sourceStartFrame ?? 0;
-	const absoluteStart = sourceStartFrame + (clip.reversed
-		? sourceDurationFrames - visualEnd
-		: visualStart);
-	const absoluteEnd = sourceStartFrame + (clip.reversed
-		? sourceDurationFrames - visualStart
-		: visualEnd);
-	return Object.freeze({
-		startFrame: Math.min(absoluteStart, absoluteEnd),
-		endFrame: Math.max(absoluteStart, absoluteEnd),
-	});
+	return Object.freeze(projectUnwarpedClipSourceRange({
+		durationFrames: clip.durationFrames,
+		sourceStartFrame: clip.sourceStartFrame ?? 0,
+		sourceDurationFrames,
+		reversed: Boolean(clip.reversed),
+	}, clip.waveformStartFrame, clip.waveformEndFrame));
 }

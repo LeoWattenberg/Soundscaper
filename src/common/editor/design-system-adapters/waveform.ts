@@ -1,4 +1,5 @@
 import { audacityWaveformMode } from '../audacity-waveform-renderer.js';
+import { projectUnwarpedClipSourceRange } from '../audio-clip-source-projection.ts';
 import type {
 	NumericChannel,
 	PeakPyramidWindowOptions,
@@ -48,17 +49,14 @@ export function prepareBoundedWaveformWindow(
 	const frameCount = endFrame - startFrame;
 	const reversed = Boolean(clip.reversed);
 	if (frameCount) {
-		const sourceSamplesPerTimelineFrame = sourceDurationFrames / durationFrames;
-		const visibleSourceStart = startFrame * sourceSamplesPerTimelineFrame;
-		const visibleSourceEnd = endFrame * sourceSamplesPerTimelineFrame;
-		const absoluteStart = sourceStartFrame + (reversed
-			? sourceDurationFrames - visibleSourceEnd
-			: visibleSourceStart);
-		const absoluteEnd = sourceStartFrame + (reversed
-			? sourceDurationFrames - visibleSourceStart
-			: visibleSourceEnd);
-		if (Math.floor(absoluteStart) < sourceFrameOffset
-			|| Math.ceil(absoluteEnd) > sourceFrameOffset + sourceLength) {
+		const range = projectUnwarpedClipSourceRange({
+			durationFrames,
+			sourceStartFrame,
+			sourceDurationFrames,
+			reversed,
+		}, startFrame, endFrame);
+		if (Math.floor(range.startFrame) < sourceFrameOffset
+			|| Math.ceil(range.endFrame) > sourceFrameOffset + sourceLength) {
 			throw new RangeError('The requested clip window exceeds the supplied source channels.');
 		}
 	}

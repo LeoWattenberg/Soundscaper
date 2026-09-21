@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { calculateAudioSpectrum } from '../../audio-spectrum.ts';
+import { projectUnwarpedClipSourceRange } from '../../audio-clip-source-projection.ts';
 import {
 	spectrogramFrequencyAtFraction,
 	spectrogramFrequencyFraction,
@@ -108,12 +109,14 @@ export function selectedTrackSpectralPeaks(
 		if (end <= start || clip.durationFrames <= 0) continue;
 		const visual = controller.getClipVisualData(clip.id);
 		if (!visual) continue;
-		const ratio = (clip.sourceDurationFrames || clip.durationFrames) / clip.durationFrames;
-		const localStart = (start - clip.timelineStartFrame) * ratio;
-		const localEnd = (end - clip.timelineStartFrame) * ratio;
 		const sourceDuration = clip.sourceDurationFrames || clip.durationFrames;
-		const sourceStart = clip.sourceStartFrame + (clip.reversed ? sourceDuration - localEnd : localStart);
-		const sourceEnd = clip.sourceStartFrame + (clip.reversed ? sourceDuration - localStart : localEnd);
+		const ratio = sourceDuration / clip.durationFrames;
+		const sourceRange = projectUnwarpedClipSourceRange({
+			durationFrames: clip.durationFrames,
+			sourceStartFrame: clip.sourceStartFrame,
+			sourceDurationFrames: sourceDuration,
+			reversed: Boolean(clip.reversed),
+		}, start - clip.timelineStartFrame, end - clip.timelineStartFrame);
 		const window = visual.pcmWindow;
 		const buffer = visual.buffer;
 		const offset = buffer ? 0 : window?.startFrame ?? 0;
@@ -121,7 +124,8 @@ export function selectedTrackSpectralPeaks(
 			? Array.from({ length: Math.min(2, buffer.numberOfChannels) }, (_, index) => buffer.getChannelData(index))
 			: window?.channels ?? [];
 		const selectedChannels = channels.map(channel => channel.subarray(
-			Math.max(0, Math.floor(sourceStart - offset)), Math.max(0, Math.ceil(sourceEnd - offset)),
+			Math.max(0, Math.floor(sourceRange.startFrame - offset)),
+			Math.max(0, Math.ceil(sourceRange.endFrame - offset)),
 		));
 		const effectiveRate = sampleRate * ratio * 2 ** ((clip.pitchCents || 0) / 1_200);
 		peaks.push(...spectralSelectionPeaks(selectedChannels, effectiveRate, size));
