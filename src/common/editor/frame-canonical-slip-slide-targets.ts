@@ -5,13 +5,14 @@ import {
 	collectRelatedClipIds as collectLegacyRelatedClipIds,
 } from './commands/clip-basic-runtime.js';
 import {
-	nonEmptyString,
 	type FrameTrimDataRecord,
 	type FrameTrimProjectIndex,
 } from './frame-canonical-edge-trim-domain.ts';
 import type { FrameCanonicalSlipSlideRole } from './frame-canonical-slip-slide-domain.ts';
 import {
 	frameCanonicalLinkedVideoCompanions,
+	frameCanonicalStableParticipants,
+	frameCanonicalTrackParticipants,
 	frameCanonicalTrimParticipant,
 	type FrameCanonicalTrimParticipant,
 } from './frame-canonical-trim-planning.ts';
@@ -45,7 +46,7 @@ export function resolveFrameCanonicalSlipTargets(
 ): FrameCanonicalSlipTargets {
 	const ids = collectClipTransformIds(project, activeClipId);
 	if (!ids.length) throw new RangeError(`Active clip ${activeClipId} cannot seed a slip.`);
-	const participants = stableParticipants(index, new Set(ids));
+	const participants = frameCanonicalStableParticipants(index, new Set(ids));
 	assertSimpleAvLinks(participants);
 	return { participants };
 }
@@ -64,7 +65,7 @@ export function resolveFrameCanonicalSlideTargets(
 		changed = expandRelations(project, roleByClipId);
 		const laneRoles = rolesByLane(index, roleByClipId);
 		for (const [trackId, roles] of laneRoles) {
-			const lane = trackParticipants(index, trackId);
+			const lane = frameCanonicalTrackParticipants(index, trackId);
 			const triplet = completeTriplet(trackId, lane, roles);
 			for (const [role, participant] of triplet) {
 				if (!roleByClipId.has(participant.clipId)) changed = true;
@@ -72,7 +73,7 @@ export function resolveFrameCanonicalSlideTargets(
 			}
 		}
 	}
-	const participants = stableParticipants(index, new Set(roleByClipId.keys()));
+	const participants = frameCanonicalStableParticipants(index, new Set(roleByClipId.keys()));
 	const left = participants.filter(({ clipId }) => roleByClipId.get(clipId) === 'left');
 	const center = participants.filter(({ clipId }) => roleByClipId.get(clipId) === 'center');
 	const right = participants.filter(({ clipId }) => roleByClipId.get(clipId) === 'right');
@@ -82,7 +83,7 @@ export function resolveFrameCanonicalSlideTargets(
 		if (roles.size !== 3 || [...roles.values()].some((values) => values.length !== 1)) {
 			throw new RangeError(`Slide lane ${trackId} does not contain one left, center, and right clip.`);
 		}
-		completeTriplet(trackId, trackParticipants(index, trackId), roles);
+		completeTriplet(trackId, frameCanonicalTrackParticipants(index, trackId), roles);
 	}
 	return { left, center, right, participants, roleByClipId };
 }
@@ -192,25 +193,4 @@ function assignRole(
 	const prior = roleByClipId.get(clipId);
 	if (prior && prior !== role) throw new RangeError(`Slide relation ${clipId} crosses ${prior} and ${role} roles.`);
 	roleByClipId.set(clipId, role);
-}
-
-function stableParticipants(
-	index: FrameTrimProjectIndex,
-	ids: ReadonlySet<string>,
-): readonly FrameCanonicalTrimParticipant[] {
-	return index.clips
-		.filter((clip) => ids.has(nonEmptyString(clip.id, 'clip.id')))
-		.map((clip) => frameCanonicalTrimParticipant(index, nonEmptyString(clip.id, 'clip.id')));
-}
-
-function trackParticipants(
-	index: FrameTrimProjectIndex,
-	trackId: string,
-): readonly FrameCanonicalTrimParticipant[] {
-	const track = index.trackById.get(trackId);
-	if (!track || !Array.isArray(track.clipIds)) throw new RangeError(`Media lane ${trackId} is missing clip ownership.`);
-	return track.clipIds.map((value) => frameCanonicalTrimParticipant(
-		index,
-		nonEmptyString(value, `track ${trackId} clip ID`),
-	));
 }

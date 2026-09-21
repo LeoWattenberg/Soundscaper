@@ -13,6 +13,8 @@ import {
 } from './frame-canonical-edge-trim-domain.ts';
 import type { FrameCanonicalRollRippleTrimMode } from './frame-canonical-roll-ripple-trim-domain.ts';
 import {
+	frameCanonicalStableParticipants,
+	frameCanonicalTrackParticipants,
 	frameCanonicalTrimParticipant,
 	type FrameCanonicalTrimParticipant,
 } from './frame-canonical-trim-planning.ts';
@@ -63,9 +65,12 @@ function rollTargets(
 			if (!participantIds.has(clipId)) changed = true;
 			participantIds.add(clipId);
 		}
-		const reachedTrackIds = new Set(stableParticipants(index, participantIds).map(({ trackId }) => trackId));
+		const reachedTrackIds = new Set(frameCanonicalStableParticipants(
+			index,
+			participantIds,
+		).map(({ trackId }) => trackId));
 		for (const trackId of reachedTrackIds) {
-			const lane = trackParticipants(index, trackId);
+			const lane = frameCanonicalTrackParticipants(index, trackId);
 			const left = lane.filter((item) => item.timelineEnd === editSample);
 			const right = lane.filter((item) => item.timelineStart === editSample);
 			if (left.length !== 1 || right.length !== 1) {
@@ -78,7 +83,7 @@ function rollTargets(
 			}
 		}
 	}
-	const participants = stableParticipants(index, participantIds);
+	const participants = frameCanonicalStableParticipants(index, participantIds);
 	const left = participants.filter((item) => item.timelineEnd === editSample);
 	const right = participants.filter((item) => item.timelineStart === editSample);
 	if (left.length + right.length !== participants.length) {
@@ -130,7 +135,7 @@ function rippleSuffixClosure(
 	while (changed) {
 		changed = false;
 		for (const [trackId, cut] of cutByTrackId) {
-			for (const item of trackParticipants(index, trackId)) {
+			for (const item of frameCanonicalTrackParticipants(index, trackId)) {
 				if (edgeIds.has(item.clipId)) continue;
 				if (item.timelineStart < cut && item.timelineEnd > cut) {
 					throw new RangeError(`Clip ${item.clipId} straddles ripple suffix cut ${String(cut)}.`);
@@ -160,7 +165,7 @@ function rippleSuffixClosure(
 			changed = true;
 		}
 	}
-	return stableParticipants(index, shiftedIds);
+	return frameCanonicalStableParticipants(index, shiftedIds);
 }
 
 function uniqueTouchingNeighbor(
@@ -169,7 +174,7 @@ function uniqueTouchingNeighbor(
 	edge: FrameCanonicalTrimEdge,
 	editSample: number,
 ): FrameCanonicalTrimParticipant {
-	const candidates = trackParticipants(index, active.trackId).filter((item) => (
+	const candidates = frameCanonicalTrackParticipants(index, active.trackId).filter((item) => (
 		item.clipId !== active.clipId
 		&& (edge === 'right' ? item.timelineStart === editSample : item.timelineEnd === editSample)
 	));
@@ -192,26 +197,6 @@ function assertNoRollStraddler(
 			throw new RangeError(`Roll lane ${trackId} has a transition or third clip across the edit point.`);
 		}
 	}
-}
-
-function stableParticipants(
-	index: FrameTrimProjectIndex,
-	ids: ReadonlySet<string>,
-): readonly FrameCanonicalTrimParticipant[] {
-	return index.clips
-		.filter((clip) => ids.has(nonEmptyString(clip.id, 'clip.id')))
-		.map((clip) => frameCanonicalTrimParticipant(index, nonEmptyString(clip.id, 'clip.id')));
-}
-
-function trackParticipants(
-	index: FrameTrimProjectIndex,
-	trackId: string,
-): readonly FrameCanonicalTrimParticipant[] {
-	const track = index.trackById.get(trackId);
-	if (!track || !Array.isArray(track.clipIds)) throw new RangeError(`Media lane ${trackId} is missing clip ownership.`);
-	return track.clipIds.map((value) => frameCanonicalTrimParticipant(
-		index, nonEmptyString(value, `track ${trackId} clip ID`),
-	));
 }
 
 function selectionClipIds(project: FrameTrimDataRecord): readonly string[] {

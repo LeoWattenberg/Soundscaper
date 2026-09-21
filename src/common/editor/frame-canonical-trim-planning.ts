@@ -103,6 +103,31 @@ export function frameCanonicalTrimParticipant(
 	};
 }
 
+/** Resolve an ID set in the project's canonical clip order. */
+export function frameCanonicalStableParticipants(
+	index: FrameTrimProjectIndex,
+	ids: ReadonlySet<string>,
+): readonly FrameCanonicalTrimParticipant[] {
+	return index.clips
+		.filter((clip) => ids.has(nonEmptyString(clip.id, 'clip.id')))
+		.map((clip) => frameCanonicalTrimParticipant(index, nonEmptyString(clip.id, 'clip.id')));
+}
+
+/** Resolve one lane in its persisted clip order. */
+export function frameCanonicalTrackParticipants(
+	index: FrameTrimProjectIndex,
+	trackId: string,
+): readonly FrameCanonicalTrimParticipant[] {
+	const track = index.trackById.get(trackId);
+	if (!track || !Array.isArray(track.clipIds)) {
+		throw new RangeError(`Media lane ${trackId} is missing clip ownership.`);
+	}
+	return track.clipIds.map((value) => frameCanonicalTrimParticipant(
+		index,
+		nonEmptyString(value, `track ${trackId} clip ID`),
+	));
+}
+
 export function frameCanonicalVideoAuthority(
 	activeClip: FrameTrimDataRecord,
 	videos: readonly FrameCanonicalTrimParticipant[],
