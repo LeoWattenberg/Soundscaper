@@ -5,10 +5,7 @@ import type {
 	PlaybackProjectProjection,
 	PlaybackProjectService,
 } from '../common/editor/controller/source/playback-project-service.ts';
-import { projectFeatureAudioEffectPlaybackBypass } from '../common/editor/project-feature-audio-effect-bypass.ts';
-import { projectFeatureAudioRenderedFallbackPlayback } from '../common/editor/project-feature-audio-rendered-fallback.ts';
-import { projectFeatureVideoEffectPlaybackBypass } from '../common/editor/project-feature-video-effect-bypass.ts';
-import { projectFeatureVideoRenderedFallbackPlayback } from '../common/editor/project-feature-video-rendered-fallback.ts';
+import { composeProjectFeaturePlaybackProjection } from '../common/editor/project-feature-playback-projection.ts';
 import { registerVideoTimingIndex } from '../common/editor/video-source-time.ts';
 import {
 	loadVideoTimingAsset,
@@ -153,31 +150,19 @@ export function createFramescaperPlaybackProjectServiceRetime(
 		project: Project,
 		featureRequirementsReport: ReturnType<typeof compatibility.evaluate>,
 	) {
-		const renderedAudio = projectFeatureAudioRenderedFallbackPlayback(project, featureRequirementsReport);
-		const renderedVideo = projectFeatureVideoRenderedFallbackPlayback(
-			renderedAudio.project,
-			featureRequirementsReport,
-		);
-		const bypassedAudio = projectFeatureAudioEffectPlaybackBypass(
-			renderedVideo.project,
-			featureRequirementsReport,
-		);
-		const bypassedVideo = projectFeatureVideoEffectPlaybackBypass(
-			bypassedAudio.project,
-			featureRequirementsReport,
-		);
+		const features = composeProjectFeaturePlaybackProjection(project, featureRequirementsReport);
 		return Object.freeze({
-			project: bypassedVideo.project,
+			project: features.project,
 			featureRequirementsReport,
-			audioEffectPlaybackBypass: bypassedAudio.metadata,
-			audioRenderedFallback: renderedAudio.metadata,
-			videoEffectPlaybackBypass: bypassedVideo.metadata,
-			videoRenderedFallback: renderedVideo.metadata,
+			audioEffectPlaybackBypass: features.audioEffectPlaybackBypass,
+			audioRenderedFallback: features.audioRenderedFallback,
+			videoEffectPlaybackBypass: features.videoEffectPlaybackBypass,
+			videoRenderedFallback: features.videoRenderedFallback,
 			requiredAudioSourceIds: Object.freeze(
-				renderedAudio.metadata ? [renderedAudio.metadata.sourceId] : [],
+				features.audioRenderedFallback ? [features.audioRenderedFallback.sourceId] : [],
 			),
 			requiredVideoSourceIds: Object.freeze(
-				renderedVideo.metadata ? [renderedVideo.metadata.sourceId] : [],
+				features.videoRenderedFallback ? [features.videoRenderedFallback.sourceId] : [],
 			),
 		});
 	}

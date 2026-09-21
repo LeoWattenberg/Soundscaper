@@ -1,22 +1,14 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import {
-	projectFeatureAudioRenderedFallbackPlayback,
-	type ProjectFeatureAudioRenderedFallbackMetadata,
-} from '../../project-feature-audio-rendered-fallback.ts';
-import {
-	projectFeatureAudioEffectPlaybackBypass,
-	type ProjectFeatureAudioEffectBypassMetadata,
-} from '../../project-feature-audio-effect-bypass.ts';
+import type { ProjectFeatureAudioRenderedFallbackMetadata } from '../../project-feature-audio-rendered-fallback.ts';
+import type { ProjectFeatureAudioEffectBypassMetadata } from '../../project-feature-audio-effect-bypass.ts';
 import type { ProjectFeatureRequirementsReport } from '../../project-feature-requirements.ts';
+import type { ProjectFeatureVideoEffectBypassMetadata } from '../../project-feature-video-effect-bypass.ts';
+import type { ProjectFeatureVideoRenderedFallbackMetadata } from '../../project-feature-video-rendered-fallback.ts';
 import {
-	projectFeatureVideoEffectPlaybackBypass,
-	type ProjectFeatureVideoEffectBypassMetadata,
-} from '../../project-feature-video-effect-bypass.ts';
-import {
-	projectFeatureVideoRenderedFallbackPlayback,
-	type ProjectFeatureVideoRenderedFallbackMetadata,
-} from '../../project-feature-video-rendered-fallback.ts';
+	composeProjectFeatureAudioPlaybackProjection,
+	composeProjectFeaturePlaybackProjection,
+} from '../../project-feature-playback-projection.ts';
 import type { ProjectSchemaFamily } from '../../project-schema-identity.ts';
 import {
 	inheritTrackFolderMediaStateProjectionV12,
@@ -150,31 +142,19 @@ export function createPlaybackProjectService(
 	function projectForPlayback<Project extends object>(project: Project): PlaybackProjectProjection<Project> {
 		const featureRequirementsReport = compatibility.evaluate(project);
 		const mediaProject = projectTrackFolderMediaStateV12(project);
-		const renderedAudio = projectFeatureAudioRenderedFallbackPlayback(mediaProject, featureRequirementsReport);
-		const renderedVideo = projectFeatureVideoRenderedFallbackPlayback(
-			renderedAudio.project,
-			featureRequirementsReport,
-		);
-		const bypassedAudio = projectFeatureAudioEffectPlaybackBypass(
-			renderedVideo.project,
-			featureRequirementsReport,
-		);
-		const bypassedVideo = projectFeatureVideoEffectPlaybackBypass(
-			bypassedAudio.project,
-			featureRequirementsReport,
-		);
+		const features = composeProjectFeaturePlaybackProjection(mediaProject, featureRequirementsReport);
 		return Object.freeze({
-			project: inheritTrackFolderMediaStateProjectionV12(mediaProject, bypassedVideo.project),
+			project: inheritTrackFolderMediaStateProjectionV12(mediaProject, features.project),
 			featureRequirementsReport,
-			audioEffectPlaybackBypass: bypassedAudio.metadata,
-			audioRenderedFallback: renderedAudio.metadata,
-			videoEffectPlaybackBypass: bypassedVideo.metadata,
-			videoRenderedFallback: renderedVideo.metadata,
+			audioEffectPlaybackBypass: features.audioEffectPlaybackBypass,
+			audioRenderedFallback: features.audioRenderedFallback,
+			videoEffectPlaybackBypass: features.videoEffectPlaybackBypass,
+			videoRenderedFallback: features.videoRenderedFallback,
 			requiredAudioSourceIds: Object.freeze(
-				renderedAudio.metadata ? [renderedAudio.metadata.sourceId] : [],
+				features.audioRenderedFallback ? [features.audioRenderedFallback.sourceId] : [],
 			),
 			requiredVideoSourceIds: Object.freeze(
-				renderedVideo.metadata ? [renderedVideo.metadata.sourceId] : [],
+				features.videoRenderedFallback ? [features.videoRenderedFallback.sourceId] : [],
 			),
 		});
 	}
@@ -191,20 +171,13 @@ export function createPlaybackProjectService(
 	): AudioRenderedFallbackDeliveryProjection<Project> {
 		const featureRequirementsReport = compatibility.evaluate(project);
 		const mediaProject = projectTrackFolderMediaStateV12(project);
-		const renderedAudio = projectFeatureAudioRenderedFallbackPlayback(
-			mediaProject,
-			featureRequirementsReport,
-		);
-		const bypassedAudio = projectFeatureAudioEffectPlaybackBypass(
-			renderedAudio.project,
-			featureRequirementsReport,
-		);
+		const features = composeProjectFeatureAudioPlaybackProjection(mediaProject, featureRequirementsReport);
 		return Object.freeze({
-			project: inheritTrackFolderMediaStateProjectionV12(mediaProject, bypassedAudio.project),
+			project: inheritTrackFolderMediaStateProjectionV12(mediaProject, features.project),
 			featureRequirementsReport,
-			audioRenderedFallback: renderedAudio.metadata,
+			audioRenderedFallback: features.audioRenderedFallback,
 			requiredAudioSourceIds: Object.freeze(
-				renderedAudio.metadata ? [renderedAudio.metadata.sourceId] : [],
+				features.audioRenderedFallback ? [features.audioRenderedFallback.sourceId] : [],
 			),
 		});
 	}
@@ -215,32 +188,17 @@ export function createPlaybackProjectService(
 	): VideoRenderedFallbackDeliveryProjection<Project> {
 		const featureRequirementsReport = compatibility.evaluate(project);
 		const mediaProject = projectTrackFolderMediaStateV12(project);
-		const renderedAudio = projectFeatureAudioRenderedFallbackPlayback(
-			mediaProject,
-			featureRequirementsReport,
-		);
-		const renderedVideo = projectFeatureVideoRenderedFallbackPlayback(
-			renderedAudio.project,
-			featureRequirementsReport,
-		);
-		const bypassedAudio = projectFeatureAudioEffectPlaybackBypass(
-			renderedVideo.project,
-			featureRequirementsReport,
-		);
-		const bypassedVideo = projectFeatureVideoEffectPlaybackBypass(
-			bypassedAudio.project,
-			featureRequirementsReport,
-		);
+		const features = composeProjectFeaturePlaybackProjection(mediaProject, featureRequirementsReport);
 		return Object.freeze({
-			project: inheritTrackFolderMediaStateProjectionV12(mediaProject, bypassedVideo.project),
+			project: inheritTrackFolderMediaStateProjectionV12(mediaProject, features.project),
 			featureRequirementsReport,
-			audioRenderedFallback: renderedAudio.metadata,
-			videoRenderedFallback: renderedVideo.metadata,
+			audioRenderedFallback: features.audioRenderedFallback,
+			videoRenderedFallback: features.videoRenderedFallback,
 			requiredAudioSourceIds: Object.freeze(
-				renderedAudio.metadata ? [renderedAudio.metadata.sourceId] : [],
+				features.audioRenderedFallback ? [features.audioRenderedFallback.sourceId] : [],
 			),
 			requiredVideoSourceIds: Object.freeze(
-				renderedVideo.metadata ? [renderedVideo.metadata.sourceId] : [],
+				features.videoRenderedFallback ? [features.videoRenderedFallback.sourceId] : [],
 			),
 		});
 	}

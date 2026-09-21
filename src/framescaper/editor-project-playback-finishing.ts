@@ -4,10 +4,7 @@ import type {
 	PlaybackProjectProjection,
 	PlaybackProjectService,
 } from '../common/editor/controller/source/playback-project-service.ts';
-import { projectFeatureAudioEffectPlaybackBypass } from '../common/editor/project-feature-audio-effect-bypass.ts';
-import { projectFeatureAudioRenderedFallbackPlayback } from '../common/editor/project-feature-audio-rendered-fallback.ts';
-import { projectFeatureVideoEffectPlaybackBypass } from '../common/editor/project-feature-video-effect-bypass.ts';
-import { projectFeatureVideoRenderedFallbackPlayback } from '../common/editor/project-feature-video-rendered-fallback.ts';
+import { composeProjectFeaturePlaybackProjection } from '../common/editor/project-feature-playback-projection.ts';
 import type { VideoTimingMediaStore } from '../common/editor/video-timing-storage.ts';
 import {
 	createFramescaperProjectFeatureCompatibilityServiceFinishing,
@@ -100,19 +97,18 @@ function projection<Project extends object>(
 	project: Project,
 	report: CompatibilityReport,
 ): PlaybackProjectProjection<Project> {
-	const renderedAudio = projectFeatureAudioRenderedFallbackPlayback(project, report);
-	const renderedVideo = projectFeatureVideoRenderedFallbackPlayback(renderedAudio.project, report);
-	const bypassedAudio = projectFeatureAudioEffectPlaybackBypass(renderedVideo.project, report);
-	const bypassedVideo = projectFeatureVideoEffectPlaybackBypass(bypassedAudio.project, report);
+	const features = composeProjectFeaturePlaybackProjection(project, report);
 	return Object.freeze({
-		project: bypassedVideo.project as Project,
+		project: features.project as Project,
 		featureRequirementsReport: report,
-		audioEffectPlaybackBypass: bypassedAudio.metadata,
-		audioRenderedFallback: renderedAudio.metadata,
-		videoEffectPlaybackBypass: bypassedVideo.metadata,
-		videoRenderedFallback: renderedVideo.metadata,
-		requiredAudioSourceIds: Object.freeze(renderedAudio.metadata ? [renderedAudio.metadata.sourceId] : []),
-		requiredVideoSourceIds: Object.freeze(renderedVideo.metadata ? [renderedVideo.metadata.sourceId] : []),
+		audioEffectPlaybackBypass: features.audioEffectPlaybackBypass,
+		audioRenderedFallback: features.audioRenderedFallback,
+		videoEffectPlaybackBypass: features.videoEffectPlaybackBypass,
+		videoRenderedFallback: features.videoRenderedFallback,
+		requiredAudioSourceIds: Object.freeze(features.audioRenderedFallback
+			? [features.audioRenderedFallback.sourceId] : []),
+		requiredVideoSourceIds: Object.freeze(features.videoRenderedFallback
+			? [features.videoRenderedFallback.sourceId] : []),
 	});
 }
 

@@ -13,6 +13,10 @@ import type { ControllerTrack } from '../src/common/editor/controller/track-audi
 import { createEffect } from '../src/common/editor/effects.js';
 import { PROJECT_FEATURE_AUDIO_RENDERED_FALLBACK_IDS } from '../src/common/editor/project-feature-audio-rendered-fallback.ts';
 import { PROJECT_FEATURE_CAPABILITY_IDS } from '../src/common/editor/project-feature-capabilities.ts';
+import {
+	composeProjectFeatureAudioPlaybackProjection,
+	composeProjectFeaturePlaybackProjection,
+} from '../src/common/editor/project-feature-playback-projection.ts';
 import { PROJECT_FEATURE_VIDEO_RENDERED_FALLBACK_IDS } from '../src/common/editor/project-feature-video-rendered-fallback.ts';
 import {
 	createAudioClip,
@@ -346,4 +350,94 @@ test('the playback service retains the existing bounded bypass path and never tr
 	assert.deepEqual(unchanged.requiredAudioSourceIds, []);
 	assert.equal(unchanged.videoRenderedFallback, null);
 	assert.deepEqual(unchanged.requiredVideoSourceIds, []);
+});
+
+test('feature composition applies audio fallback, product projection, then audio bypass', () => {
+	const canonical = fallbackProject();
+	const report = createPlaybackProjectService({ audioEffects: false, videoEffects: true })
+		.projectForPlayback(canonical).featureRequirementsReport!;
+	const augmentedReport = Object.freeze({
+		...report,
+		items: Object.freeze([...report.items, Object.freeze({
+			requirementId: 'hook-audio-bypass',
+			featureId: PROJECT_FEATURE_CAPABILITY_IDS.audioEffects,
+			displayName: 'Hook audio bypass',
+			availability: 'unavailable' as const,
+			declaredDisposition: 'bypass' as const,
+			disposition: 'bypassed' as const,
+			fallback: null,
+			message: '',
+		})]),
+	});
+	let hookCalls = 0;
+	const composed = composeProjectFeaturePlaybackProjection(canonical, augmentedReport, {
+		productProjection(project, context) {
+			hookCalls += 1;
+			assert.equal(context.audioRenderedFallback?.sourceId, 'fallback-source');
+			assert.equal(project.tracks[0]?.id, PROJECT_FEATURE_AUDIO_RENDERED_FALLBACK_IDS.track);
+			const track = project.tracks[0]!;
+			return Object.freeze({
+				...project,
+				tracks: Object.freeze([Object.freeze({
+					...track,
+					effectsActive: true,
+					effects: Object.freeze([createEffect('limiter', { id: 'hook-effect' })]),
+				})]),
+			});
+		},
+	});
+
+	assert.equal(hookCalls, 1);
+	assert.equal(composed.audioEffectPlaybackBypass?.placeholders[0]?.effectId, 'hook-effect');
+	assert.equal((composed.project.tracks[0] as ControllerTrack | undefined)?.effects?.[0]?.bypassed, true);
+});
+
+test('full and audio-only composition keep video projection explicitly separate', () => {
+	const canonical = videoFallbackProject();
+	const report = createPlaybackProjectService({ audioEffects: true, videoEffects: false })
+		.projectForPlayback(canonical).featureRequirementsReport!;
+	const augmentedReport = Object.freeze({
+		...report,
+		items: Object.freeze([...report.items, Object.freeze({
+			requirementId: 'hook-video-bypass',
+			featureId: PROJECT_FEATURE_CAPABILITY_IDS.videoEffects,
+			displayName: 'Hook video bypass',
+			availability: 'unavailable' as const,
+			declaredDisposition: 'bypass' as const,
+			disposition: 'bypassed' as const,
+			fallback: null,
+			message: '',
+		})]),
+	});
+	const full = composeProjectFeaturePlaybackProjection(canonical, augmentedReport, {
+		productProjection(project, context) {
+			assert.equal(context.videoRenderedFallback?.sourceId, 'fallback-video');
+			assert.equal(project.clips[0]?.id, PROJECT_FEATURE_VIDEO_RENDERED_FALLBACK_IDS.clip);
+			const clip = project.clips[0]!;
+			return Object.freeze({
+				...project,
+				clips: Object.freeze([Object.freeze({
+					...clip,
+					videoEffects: Object.freeze([{
+						id: 'hook-video-effect', type: 'pixelate', enabled: true,
+						params: Object.freeze({ blockSize: 12 }),
+					}]),
+				})]),
+			});
+		},
+	});
+	assert.equal(full.videoEffectPlaybackBypass?.placeholders[0]?.effectId, 'hook-video-effect');
+	assert.equal(full.project.clips[0]?.videoEffects[0]?.enabled, false);
+
+	let audioOnlyHookCalls = 0;
+	const audioOnly = composeProjectFeatureAudioPlaybackProjection(canonical, augmentedReport, {
+		productProjection(project, context) {
+			audioOnlyHookCalls += 1;
+			assert.equal(context.audioRenderedFallback, null);
+			assert.strictEqual(project, canonical);
+			return project;
+		},
+	});
+	assert.equal(audioOnlyHookCalls, 1);
+	assert.strictEqual(audioOnly.project, canonical);
 });
