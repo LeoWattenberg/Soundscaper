@@ -44,7 +44,10 @@ const AUDITS = [
 	},
 	{
 		name: 'native helper addon',
-		inputs: ['.gitattributes', 'config', 'native/soundscaper-helper-addon'],
+		inputs: [
+			'.gitattributes', 'config', 'native/common/windows_utf8_path.h',
+			'native/soundscaper-helper-addon',
+		],
 		sourceDirectory: 'native/soundscaper-helper-addon/src',
 		audit: auditNativeHelperAddon,
 	},
