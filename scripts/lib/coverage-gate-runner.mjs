@@ -5,6 +5,7 @@ import { resolve } from 'node:path';
 import { spawnSync } from 'node:child_process';
 
 import { analyzeCoverageSummary, formatCoverageScopes } from './coverage-gates.mjs';
+import { normalizeDuplicateFunctionCoverage } from './coverage-function-normalization.mjs';
 
 /**
  * Merge the recorded shards into one report and hand back its summary.
@@ -35,13 +36,16 @@ export function reportCoverageSummary(repositoryRoot, temporaryDirectory) {
 		'--reporter=text-summary',
 		'--reporter=lcov',
 		'--reporter=json-summary',
+		'--reporter=json',
 	], { cwd: repositoryRoot, env: process.env, stdio: 'inherit' });
 
 	if (result.error) throw result.error;
 	if (result.signal) throw new Error(`The coverage report terminated with ${result.signal}.`);
 	if (result.status !== 0) throw new Error(`The coverage report exited with status ${result.status ?? 1}.`);
 
-	return JSON.parse(readFileSync(resolve(reportDirectory, 'coverage-summary.json'), 'utf8'));
+	const summary = JSON.parse(readFileSync(resolve(reportDirectory, 'coverage-summary.json'), 'utf8'));
+	const detailed = JSON.parse(readFileSync(resolve(reportDirectory, 'coverage-final.json'), 'utf8'));
+	return normalizeDuplicateFunctionCoverage(summary, detailed);
 }
 
 export function runCoverageGate(repositoryRoot, temporaryDirectory) {
