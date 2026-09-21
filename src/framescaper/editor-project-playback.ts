@@ -18,9 +18,11 @@ import {
 	'../common/editor/track-folder-media-runtime.ts';
 import type { VideoTimingMediaStore } from '../common/editor/video-timing-storage.ts';
 import { createFramescaperPlaybackProjectServiceAssistance } from './editor-project-playback-assistance.ts';
+import {
+	framescaperPlaybackDeliveryProjection,
+	opaqueFramescaperPlaybackProjection,
+} from './editor-project-playback-projection.ts';
 import { assertFramescaperProjectRuntimeProfile } from './editor-project-runtime-profile.ts';
-
-const EMPTY = Object.freeze([]) as readonly string[];
 
 export interface FramescaperPlaybackProjectServiceOptions {
 	readonly timingStore?: Pick<VideoTimingMediaStore, 'loadMediaAsset'>;
@@ -57,14 +59,14 @@ export function createFramescaperPlaybackProjectService(
 	}
 
 	function projectForAdmission<Project extends object>(project: Project): PlaybackProjectProjection<Project> {
-		if (!isCurrent(project)) return opaque(project);
+		if (!isCurrent(project)) return opaqueFramescaperPlaybackProjection(project);
 		return baselineProjection(selected.projectForActivationAdmission!(
 			project,
 		)) as PlaybackProjectProjection<Project>;
 	}
 
 	function projectForPlayback<Project extends object>(project: Project): PlaybackProjectProjection<Project> {
-		if (!isCurrent(project)) return opaque(project);
+		if (!isCurrent(project)) return opaqueFramescaperPlaybackProjection(project);
 		const projection = baselineProjection(selected.projectForPlayback(
 			project,
 		));
@@ -77,14 +79,7 @@ export function createFramescaperPlaybackProjectService(
 
 	function projectForDelivery<Project extends object>(project: Project) {
 		const result = projectForPlayback(project);
-		return Object.freeze({
-			project: result.project,
-			featureRequirementsReport: result.featureRequirementsReport,
-			audioRenderedFallback: result.audioRenderedFallback,
-			videoRenderedFallback: result.videoRenderedFallback,
-			requiredAudioSourceIds: result.requiredAudioSourceIds,
-			requiredVideoSourceIds: result.requiredVideoSourceIds,
-		});
+		return framescaperPlaybackDeliveryProjection(result);
 	}
 }
 
@@ -118,17 +113,4 @@ function preserveRuntimeProjectionBrand<Project extends object>(source: Project,
 	return isRuntimeProjectProjection(source)
 		? brandRuntimeProjectProjection(project as Project & RuntimeClipProject)
 		: project;
-}
-
-function opaque<Project extends object>(project: Project): PlaybackProjectProjection<Project> {
-	return Object.freeze({
-		project,
-		featureRequirementsReport: null,
-		audioEffectPlaybackBypass: null,
-		audioRenderedFallback: null,
-		videoEffectPlaybackBypass: null,
-		videoRenderedFallback: null,
-		requiredAudioSourceIds: EMPTY,
-		requiredVideoSourceIds: EMPTY,
-	});
 }

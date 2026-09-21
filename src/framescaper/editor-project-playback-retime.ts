@@ -5,7 +5,6 @@ import type {
 	PlaybackProjectProjection,
 	PlaybackProjectService,
 } from '../common/editor/controller/source/playback-project-service.ts';
-import { composeProjectFeaturePlaybackProjection } from '../common/editor/project-feature-playback-projection.ts';
 import { registerVideoTimingIndex } from '../common/editor/video-source-time.ts';
 import {
 	loadVideoTimingAsset,
@@ -26,8 +25,11 @@ import {
 	type FramescaperProjectRetime,
 } from './editor-project-retime.ts';
 import { validateFramescaperProjectRetime } from './editor-project-retime-validation.ts';
-
-const EMPTY_SOURCE_IDS = Object.freeze([]) as readonly string[];
+import {
+	framescaperFeaturePlaybackProjection,
+	framescaperPlaybackDeliveryProjection,
+	opaqueFramescaperPlaybackProjection,
+} from './editor-project-playback-projection.ts';
 
 export interface FramescaperPlaybackProjectServiceRetimeOptions {
 	readonly timingStore?: Pick<VideoTimingMediaStore, 'loadMediaAsset'>;
@@ -92,11 +94,14 @@ export function createFramescaperPlaybackProjectServiceRetime(
 		project: Project,
 	): PlaybackProjectProjection<Project> {
 		if (!hasFramescaperProjectIdentity(project)) {
-			return opaqueProjection(project);
+			return opaqueFramescaperPlaybackProjection(project);
 		}
 		validateFramescaperProjectRetime(profile, project);
 		const canonical = project as unknown as FramescaperProjectRetime;
-		const projected = compatibilityProjection(canonical, compatibility.evaluate(canonical));
+		const projected = framescaperFeaturePlaybackProjection(
+			canonical,
+			compatibility.evaluate(canonical),
+		);
 		return Object.freeze({
 			project,
 			featureRequirementsReport: projected.featureRequirementsReport,
@@ -116,12 +121,15 @@ export function createFramescaperPlaybackProjectServiceRetime(
 		project: Project,
 	): PlaybackProjectProjection<Project> {
 		if (!hasFramescaperProjectIdentity(project)) {
-			return opaqueProjection(project);
+			return opaqueFramescaperPlaybackProjection(project);
 		}
 		const canonical = project as unknown as FramescaperProjectRetime;
 		const featureRequirementsReport = compatibility.evaluate(canonical);
 		const runtimeProject = framescaperProjectForPlaybackFoundationRetime(profile, canonical);
-		const projected = compatibilityProjection(runtimeProject, featureRequirementsReport);
+		const projected = framescaperFeaturePlaybackProjection(
+			runtimeProject,
+			featureRequirementsReport,
+		);
 		return Object.freeze({
 			project: projected.project as unknown as Project,
 			featureRequirementsReport: projected.featureRequirementsReport,
@@ -136,35 +144,7 @@ export function createFramescaperPlaybackProjectServiceRetime(
 
 	function projectForDelivery<Project extends object>(project: Project) {
 		const projection = projectForPlayback(project);
-		return Object.freeze({
-			project: projection.project,
-			featureRequirementsReport: projection.featureRequirementsReport,
-			audioRenderedFallback: projection.audioRenderedFallback,
-			videoRenderedFallback: projection.videoRenderedFallback,
-			requiredAudioSourceIds: projection.requiredAudioSourceIds,
-			requiredVideoSourceIds: projection.requiredVideoSourceIds,
-		});
-	}
-
-	function compatibilityProjection<Project extends object>(
-		project: Project,
-		featureRequirementsReport: ReturnType<typeof compatibility.evaluate>,
-	) {
-		const features = composeProjectFeaturePlaybackProjection(project, featureRequirementsReport);
-		return Object.freeze({
-			project: features.project,
-			featureRequirementsReport,
-			audioEffectPlaybackBypass: features.audioEffectPlaybackBypass,
-			audioRenderedFallback: features.audioRenderedFallback,
-			videoEffectPlaybackBypass: features.videoEffectPlaybackBypass,
-			videoRenderedFallback: features.videoRenderedFallback,
-			requiredAudioSourceIds: Object.freeze(
-				features.audioRenderedFallback ? [features.audioRenderedFallback.sourceId] : [],
-			),
-			requiredVideoSourceIds: Object.freeze(
-				features.videoRenderedFallback ? [features.videoRenderedFallback.sourceId] : [],
-			),
-		});
+		return framescaperPlaybackDeliveryProjection(projection);
 	}
 }
 
@@ -225,17 +205,4 @@ function nonEmptyString(value: unknown, name: string): string {
 		throw new TypeError(`${name} must be a non-empty string.`);
 	}
 	return value;
-}
-
-function opaqueProjection<Project extends object>(project: Project): PlaybackProjectProjection<Project> {
-	return Object.freeze({
-		project,
-		featureRequirementsReport: null,
-		audioEffectPlaybackBypass: null,
-		audioRenderedFallback: null,
-		videoEffectPlaybackBypass: null,
-		videoRenderedFallback: null,
-		requiredAudioSourceIds: EMPTY_SOURCE_IDS,
-		requiredVideoSourceIds: EMPTY_SOURCE_IDS,
-	});
 }

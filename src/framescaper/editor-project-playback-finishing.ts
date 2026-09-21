@@ -4,7 +4,6 @@ import type {
 	PlaybackProjectProjection,
 	PlaybackProjectService,
 } from '../common/editor/controller/source/playback-project-service.ts';
-import { composeProjectFeaturePlaybackProjection } from '../common/editor/project-feature-playback-projection.ts';
 import type { VideoTimingMediaStore } from '../common/editor/video-timing-storage.ts';
 import {
 	createFramescaperProjectFeatureCompatibilityServiceFinishing,
@@ -19,8 +18,11 @@ import {
 import { FRAMESCAPER_RETIME_PROJECT_RUNTIME_PROFILE } from './editor-domain-runtime-profile.ts';
 import { assertFramescaperProjectFinishingProfile } from './editor-domain-runtime-profile.ts';
 import { type FramescaperProjectFinishing, validateFramescaperProjectFinishing } from './editor-project-finishing.ts';
-
-const EMPTY = Object.freeze([]) as readonly string[];
+import {
+	framescaperFeaturePlaybackProjection,
+	framescaperPlaybackDeliveryProjection,
+	opaqueFramescaperPlaybackProjection,
+} from './editor-project-playback-projection.ts';
 
 export interface FramescaperPlaybackProjectServiceFinishingOptions {
 	readonly timingStore?: Pick<VideoTimingMediaStore, 'loadMediaAsset'>;
@@ -59,64 +61,25 @@ export function createFramescaperPlaybackProjectServiceFinishing(
 	}
 
 	function projectForAdmission<Project extends object>(project: Project): PlaybackProjectProjection<Project> {
-		if (!hasFramescaperProjectIdentity(project)) return opaque(project);
+		if (!hasFramescaperProjectIdentity(project)) return opaqueFramescaperPlaybackProjection(project);
 		validateFramescaperProjectFinishing(profile, project);
 		const foundation = framescaperProjectRetimeFoundationFinishing(
 			profile, project as unknown as FramescaperProjectFinishing);
 		return inheritFramescaperPlaybackAdmission(
-			projection(project, compatibility.evaluate(project)),
+			framescaperFeaturePlaybackProjection(project, compatibility.evaluate(project)),
 			retime.projectForActivationAdmission!(foundation),
 		);
 	}
 
 	function projectForPlayback<Project extends object>(project: Project): PlaybackProjectProjection<Project> {
-		if (!hasFramescaperProjectIdentity(project)) return opaque(project);
+		if (!hasFramescaperProjectIdentity(project)) return opaqueFramescaperPlaybackProjection(project);
 		validateFramescaperProjectFinishing(profile, project);
 		const runtime = framescaperProjectForRuntimeConsumersFinishing(profile, project) as unknown as Project;
-		return projection(runtime, compatibility.evaluate(project));
+		return framescaperFeaturePlaybackProjection(runtime, compatibility.evaluate(project));
 	}
 
 	function projectForDelivery<Project extends object>(project: Project) {
 		const result = projectForPlayback(project);
-		return Object.freeze({
-			project: result.project,
-			featureRequirementsReport: result.featureRequirementsReport,
-			audioRenderedFallback: result.audioRenderedFallback,
-			videoRenderedFallback: result.videoRenderedFallback,
-			requiredAudioSourceIds: result.requiredAudioSourceIds,
-			requiredVideoSourceIds: result.requiredVideoSourceIds,
-		});
+		return framescaperPlaybackDeliveryProjection(result);
 	}
-}
-
-type CompatibilityReport = ReturnType<
-	ReturnType<typeof createFramescaperProjectFeatureCompatibilityServiceFinishing>['evaluate']
->;
-
-function projection<Project extends object>(
-	project: Project,
-	report: CompatibilityReport,
-): PlaybackProjectProjection<Project> {
-	const features = composeProjectFeaturePlaybackProjection(project, report);
-	return Object.freeze({
-		project: features.project as Project,
-		featureRequirementsReport: report,
-		audioEffectPlaybackBypass: features.audioEffectPlaybackBypass,
-		audioRenderedFallback: features.audioRenderedFallback,
-		videoEffectPlaybackBypass: features.videoEffectPlaybackBypass,
-		videoRenderedFallback: features.videoRenderedFallback,
-		requiredAudioSourceIds: Object.freeze(features.audioRenderedFallback
-			? [features.audioRenderedFallback.sourceId] : []),
-		requiredVideoSourceIds: Object.freeze(features.videoRenderedFallback
-			? [features.videoRenderedFallback.sourceId] : []),
-	});
-}
-
-function opaque<Project extends object>(project: Project): PlaybackProjectProjection<Project> {
-	return Object.freeze({
-		project, featureRequirementsReport: null,
-		audioEffectPlaybackBypass: null, audioRenderedFallback: null,
-		videoEffectPlaybackBypass: null, videoRenderedFallback: null,
-		requiredAudioSourceIds: EMPTY, requiredVideoSourceIds: EMPTY,
-	});
 }
