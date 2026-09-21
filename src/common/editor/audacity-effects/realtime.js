@@ -19,6 +19,10 @@
  */
 import { classicFilterCoefficients } from './classic-filter-coefficients.js';
 import {
+	audacityShelfCoefficients,
+	processAudacityShelfSample,
+} from './audacity-bass-treble-kernel.ts';
+import {
 	AUDACITY_DISTORTION_MODES,
 	createDcState,
 	dcFilter,
@@ -52,8 +56,8 @@ export function applyAudacityBassTreble(channels, sampleRate, params = {}) {
 	// The upstream state stores the fixed slope as float before coefficient
 	// calculation, so retain that rounding here.
 	const shelfSlope = Math.fround(0.4);
-	const bass = shelfCoefficients(250, shelfSlope, bassDb, sampleRate, false);
-	const treble = shelfCoefficients(4_000, shelfSlope, trebleDb, sampleRate, true);
+	const bass = audacityShelfCoefficients(250, shelfSlope, bassDb, sampleRate, false);
+	const treble = audacityShelfCoefficients(4_000, shelfSlope, trebleDb, sampleRate, true);
 	const outputGain = dbToLinear(volumeDb);
 
 	return channels.map((input) => {
@@ -61,8 +65,8 @@ export function applyAudacityBassTreble(channels, sampleRate, params = {}) {
 		const bassState = [0, 0, 0, 0];
 		const trebleState = [0, 0, 0, 0];
 		for (let index = 0; index < input.length; index += 1) {
-			const lowShelved = processShelf(input[index], bass, bassState);
-			const highShelved = processShelf(lowShelved, treble, trebleState);
+			const lowShelved = processAudacityShelfSample(input[index], bass, bassState);
+			const highShelved = processAudacityShelfSample(lowShelved, treble, trebleState);
 			output[index] = highShelved * outputGain;
 		}
 		return output;
@@ -359,43 +363,4 @@ function enumParam(value, values, fallback, name) {
 
 function dbToLinear(db) {
 	return Math.exp(Math.log(10) * db / 20);
-}
-
-function shelfCoefficients(frequency, slope, gainDb, sampleRate, highShelf) {
-	const omega = 2 * Math.PI * frequency / sampleRate;
-	const amplitude = Math.exp(Math.log(10) * gainDb / 40);
-	const beta = Math.sqrt((amplitude * amplitude + 1) / slope - (amplitude - 1) ** 2);
-	const sine = Math.sin(omega);
-	const cosine = Math.cos(omega);
-	if (!highShelf) {
-		return {
-			b0: amplitude * ((amplitude + 1) - (amplitude - 1) * cosine + beta * sine),
-			b1: 2 * amplitude * ((amplitude - 1) - (amplitude + 1) * cosine),
-			b2: amplitude * ((amplitude + 1) - (amplitude - 1) * cosine - beta * sine),
-			a0: (amplitude + 1) + (amplitude - 1) * cosine + beta * sine,
-			a1: -2 * ((amplitude - 1) + (amplitude + 1) * cosine),
-			a2: (amplitude + 1) + (amplitude - 1) * cosine - beta * sine,
-		};
-	}
-	return {
-		b0: amplitude * ((amplitude + 1) + (amplitude - 1) * cosine + beta * sine),
-		b1: -2 * amplitude * ((amplitude - 1) + (amplitude + 1) * cosine),
-		b2: amplitude * ((amplitude + 1) + (amplitude - 1) * cosine - beta * sine),
-		a0: (amplitude + 1) - (amplitude - 1) * cosine + beta * sine,
-		a1: 2 * ((amplitude - 1) - (amplitude + 1) * cosine),
-		a2: (amplitude + 1) - (amplitude - 1) * cosine - beta * sine,
-	};
-}
-
-function processShelf(input, coefficient, state) {
-	const output = Math.fround((coefficient.b0 * input
-		+ coefficient.b1 * state[0]
-		+ coefficient.b2 * state[1]
-		- coefficient.a1 * state[2]
-		- coefficient.a2 * state[3]) / coefficient.a0);
-	state[1] = state[0];
-	state[0] = input;
-	state[3] = state[2];
-	state[2] = output;
-	return output;
 }

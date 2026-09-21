@@ -16,6 +16,10 @@
  */
 
 import { dbToLinear } from './basic-channel-math.js';
+import {
+	applyAudacityLookaheadEnvelopeInPlace,
+	audacityDynamicsLookaheadFrames,
+} from './audacity-dynamics-lookahead.ts';
 
 export const RMS_WINDOW_SIZE = 100;
 
@@ -61,8 +65,10 @@ export function applyLinkedDynamics(channels, sampleRate, settings) {
 		envelope[index] = state;
 	}
 
-	const lookaheadFrames = Math.trunc(settings.lookaheadMs * sampleRate / 1_000);
-	if (lookaheadFrames > 0) applyLookaheadEnvelope(envelope, lookaheadFrames);
+	const lookaheadFrames = audacityDynamicsLookaheadFrames(settings.lookaheadMs, sampleRate);
+	if (lookaheadFrames > 0) {
+		applyAudacityLookaheadEnvelopeInPlace(envelope, lookaheadFrames, envelope.length);
+	}
 	return channels.map((channel) => {
 		const output = new Float32Array(frameCount);
 		for (let index = 0; index < frameCount; index += 1) {
@@ -70,24 +76,6 @@ export function applyLinkedDynamics(channels, sampleRate, settings) {
 		}
 		return output;
 	});
-}
-
-export function applyLookaheadEnvelope(envelope, lookaheadFrames) {
-	// SimpleCompressor works backwards through its gain-reduction delay line.
-	// A one-shot selection can compensate the matching audio delay directly,
-	// leaving an aligned, same-length result while preserving that ramp logic.
-	let nextGainReduction = 0;
-	let step = 0;
-	for (let index = envelope.length - 1; index >= 0; index -= 1) {
-		const sample = envelope[index];
-		if (sample > nextGainReduction) {
-			envelope[index] = nextGainReduction;
-			nextGainReduction += step;
-		} else {
-			step = -sample / lookaheadFrames;
-			nextGainReduction = sample + step;
-		}
-	}
 }
 
 export function applyLegacyCompressorChannel(channel, sampleRate, settings) {
@@ -142,4 +130,3 @@ export function applyLegacyCompressorChannel(channel, sampleRate, settings) {
 	}
 	return output;
 }
-

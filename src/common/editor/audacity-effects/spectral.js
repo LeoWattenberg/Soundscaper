@@ -42,6 +42,7 @@ import {
 	validateNoiseProfile,
 } from './spectral-noise-reduction.js';
 import { interpolateAudioLsar } from './spectral-repair-interpolation.js';
+import { removeAudacityClicksFromWindowInPlace } from './audacity-click-removal-kernel.ts';
 
 const CLICK_WINDOW_SIZE = 8_192;
 const CLICK_HOP_SIZE = CLICK_WINDOW_SIZE / 2;
@@ -59,13 +60,15 @@ export function applyAudacityClickRemoval(channels, sampleRate, params = {}) {
 	// Audacity initializes sep to 2049. RemoveClicks rounds it upward to 4096
 	// after using 2049 / 2 for the first window's center offset; the mutated
 	// value is then shared by all later windows and channels in the effect run.
-	const state = { separation: 2_049 };
+	let separation = 2_049;
 	for (const channel of output) {
 		for (let start = 0; start + CLICK_HOP_SIZE < frameCount; start += CLICK_HOP_SIZE) {
 			const copyLength = Math.min(CLICK_WINDOW_SIZE, frameCount - start);
 			const window = new Float32Array(CLICK_WINDOW_SIZE);
 			window.set(channel.subarray(start, start + copyLength));
-			removeClicksFromWindow(window, normalized.threshold, normalized.maximumWidth, state);
+			separation = removeAudacityClicksFromWindowInPlace(
+				window, normalized.threshold, normalized.maximumWidth, separation,
+			);
 			channel.set(window.subarray(0, copyLength), start);
 		}
 	}
@@ -272,56 +275,6 @@ function normalizeContextChannels(value, channelCount, name) {
 function copyChannels(channels) {
 	return channels.map((channel) => new Float32Array(channel));
 }
-
-function removeClicksFromWindow(buffer, threshold, maximumWidth, state) {
-	const length = buffer.length;
-	const centerOffset = Math.floor(state.separation / 2);
-	let rmsWindow = 1;
-	while (rmsWindow < state.separation) rmsWindow *= 2;
-	state.separation = rmsWindow;
-	const squares = new Float64Array(length);
-	const meanSquares = new Float64Array(length - rmsWindow);
-	const prefix = new Float64Array(length + 1);
-	for (let index = 0; index < length; index += 1) {
-		const square = buffer[index] * buffer[index];
-		squares[index] = square;
-		prefix[index + 1] = prefix[index] + square;
-	}
-	for (let index = 0; index < meanSquares.length; index += 1) {
-		meanSquares[index] = (prefix[index + rmsWindow] - prefix[index]) / rmsWindow;
-	}
-
-	let left = 0;
-	for (let widthReciprocal = Math.floor(maximumWidth / 4); widthReciprocal >= 1; widthReciprocal = Math.floor(widthReciprocal / 2)) {
-		const width = Math.floor(maximumWidth / widthReciprocal);
-		for (let index = 0; index < meanSquares.length; index += 1) {
-			let localMeanSquare = 0;
-			for (let offset = 0; offset < width; offset += 1) {
-				localMeanSquare += squares[index + centerOffset + offset];
-			}
-			localMeanSquare /= width;
-			if (localMeanSquare >= threshold * meanSquares[index] / 10) {
-				if (left === 0) left = index + centerOffset;
-				continue;
-			}
-
-			const right = index + width + centerOffset;
-			if (left !== 0 && index - left + centerOffset <= width * 2) {
-				const leftValue = buffer[left];
-				const rightValue = buffer[right];
-				const span = right - left;
-				for (let frame = left; frame < right; frame += 1) {
-					buffer[frame] = (rightValue * (frame - left) + leftValue * (right - frame)) / span;
-					squares[frame] = buffer[frame] * buffer[frame];
-				}
-				left = 0;
-			} else if (left !== 0) {
-				left = 0;
-			}
-		}
-	}
-}
-
 
 function paulstretchBufferSize(sampleRate, timeResolution) {
 	const requested = sampleRate * timeResolution / 2;

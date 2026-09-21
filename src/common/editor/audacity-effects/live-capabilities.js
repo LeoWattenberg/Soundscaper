@@ -16,6 +16,7 @@ import {
 import { audacitySelectionOnlyReason, isAudacityEffectLiveCapable } from './live-capability-policy.js';
 import { secondsToSampleFrame as secondsToFrames } from '../timeline-time.ts';
 import { audacityBrowserReverbTailFrames } from './reverb-parameters.ts';
+import { audacityDynamicsLookaheadFrames } from './audacity-dynamics-lookahead.ts';
 
 export const CLICK_WINDOW_SIZE = 8_192;
 export const EQ_PARTITION_SIZE = 128;
@@ -73,7 +74,7 @@ function liveLatencyFrames(type, sampleRate, params) {
 	}
 	if (type === 'audacity-click-removal') return settings.threshold === 0 || settings.maximumWidth === 0 ? 0 : CLICK_WINDOW_SIZE - 1;
 	if (type === 'audacity-compressor' || type === 'audacity-limiter') {
-		return Math.trunc(settings.lookaheadMs * sampleRate / 1_000);
+		return audacityDynamicsLookaheadFrames(settings.lookaheadMs, sampleRate);
 	}
 	if (type === 'audacity-filter-curve-eq' || type === 'audacity-graphic-eq') {
 		const delay = (settings.filterLength - 1) / 2;

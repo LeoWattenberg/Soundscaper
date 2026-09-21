@@ -8,6 +8,10 @@
  */
 
 import { normalizeAudacityEffectParams } from './manifest.js';
+export {
+	audacityShelfCoefficients as shelfCoefficients,
+	processAudacityShelfSample as processShelf,
+} from './audacity-bass-treble-kernel.ts';
 import {
 	audacityLiveEffectCapability,
 	audacityLiveEffectLatencyFrames as liveLatencyFrames,
@@ -92,33 +96,3 @@ export function ensureArrayLength(array, length, factory) {
 
 export function dbToLinear(db) { return Math.exp(Math.log(10) * db / 20); }
 export function basicDbToLinear(db) { return 10 ** (db / 20); }
-
-export function shelfCoefficients(frequency, slope, gainDb, sampleRate, highShelf) {
-	const omega = 2 * Math.PI * frequency / sampleRate;
-	const amplitude = Math.exp(Math.log(10) * gainDb / 40);
-	const beta = Math.sqrt((amplitude * amplitude + 1) / slope - (amplitude - 1) ** 2);
-	const sine = Math.sin(omega);
-	const cosine = Math.cos(omega);
-	if (!highShelf) return {
-		b0: amplitude * ((amplitude + 1) - (amplitude - 1) * cosine + beta * sine),
-		b1: 2 * amplitude * ((amplitude - 1) - (amplitude + 1) * cosine),
-		b2: amplitude * ((amplitude + 1) - (amplitude - 1) * cosine - beta * sine),
-		a0: (amplitude + 1) + (amplitude - 1) * cosine + beta * sine,
-		a1: -2 * ((amplitude - 1) + (amplitude + 1) * cosine),
-		a2: (amplitude + 1) + (amplitude - 1) * cosine - beta * sine,
-	};
-	return {
-		b0: amplitude * ((amplitude + 1) + (amplitude - 1) * cosine + beta * sine),
-		b1: -2 * amplitude * ((amplitude - 1) + (amplitude + 1) * cosine),
-		b2: amplitude * ((amplitude + 1) + (amplitude - 1) * cosine - beta * sine),
-		a0: (amplitude + 1) - (amplitude - 1) * cosine + beta * sine,
-		a1: 2 * ((amplitude - 1) - (amplitude + 1) * cosine),
-		a2: (amplitude + 1) - (amplitude - 1) * cosine - beta * sine,
-	};
-}
-
-export function processShelf(input, coefficient, state) {
-	const output = Math.fround((coefficient.b0 * input + coefficient.b1 * state[0] + coefficient.b2 * state[1] - coefficient.a1 * state[2] - coefficient.a2 * state[3]) / coefficient.a0);
-	state[1] = state[0]; state[0] = input; state[3] = state[2]; state[2] = output;
-	return output;
-}

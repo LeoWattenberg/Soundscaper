@@ -10,6 +10,10 @@
 
 import { MAX_LIVE_DELAY_SECONDS } from './live-capabilities.js';
 import {
+	applyAudacityLookaheadEnvelopeInPlace,
+	audacityDynamicsLookaheadFrames,
+} from './audacity-dynamics-lookahead.ts';
+import {
 	LiveProcessor,
 	basicDbToLinear,
 	channelAt,
@@ -35,7 +39,7 @@ export class DynamicsLiveProcessor extends LiveProcessor {
 			: this.params.makeupTargetDb - this.params.thresholdDb;
 		this.kneeWidthDb = this.params.kneeWidthDb;
 		this.ratio = compressor ? this.params.ratio : Number.POSITIVE_INFINITY;
-		this.lookaheadFrames = Math.trunc(this.params.lookaheadMs * this.sampleRate / 1_000);
+		this.lookaheadFrames = audacityDynamicsLookaheadFrames(this.params.lookaheadMs, this.sampleRate);
 		const attackSeconds = compressor ? this.params.attackMs / 1_000 : 0;
 		const releaseSeconds = this.params.releaseMs / 1_000;
 		this.alphaAttack = attackSeconds === 0 ? 1 : 1 - Math.exp(-1 / (this.sampleRate * attackSeconds));
@@ -127,7 +131,7 @@ export class DynamicsLiveProcessor extends LiveProcessor {
 		const transformed = this.transformedEnvelope;
 		transformed.set(combinedEnvelope.subarray(0, extent));
 		if (this.lookaheadFrames > 0) {
-			applyLookaheadEnvelope(transformed, this.lookaheadFrames, extent);
+			applyAudacityLookaheadEnvelopeInPlace(transformed, this.lookaheadFrames, extent);
 		}
 		let inputPeak = 0;
 		let outputPeak = 0;
@@ -248,21 +252,6 @@ export class AutoDuckLiveProcessor extends LiveProcessor {
 			return Math.max(this.params.duckAmountDb, gainDown);
 		}
 		return 0;
-	}
-}
-
-function applyLookaheadEnvelope(envelope, lookaheadFrames, length = envelope.length) {
-	let nextGainReduction = 0;
-	let step = 0;
-	for (let index = length - 1; index >= 0; index -= 1) {
-		const sample = envelope[index];
-		if (sample > nextGainReduction) {
-			envelope[index] = nextGainReduction;
-			nextGainReduction += step;
-		} else {
-			step = -sample / lookaheadFrames;
-			nextGainReduction = sample + step;
-		}
 	}
 }
 

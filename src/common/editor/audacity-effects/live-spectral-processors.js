@@ -13,6 +13,7 @@ import {
 	applyAudacityNoiseReduction,
 } from './spectral.js';
 import { fft } from '../pffft.js';
+import { removeAudacityClicksFromWindowInPlace } from './audacity-click-removal-kernel.ts';
 import {
 	CLICK_WINDOW_SIZE,
 	EQ_PARTITION_SIZE,
@@ -65,7 +66,9 @@ export class ClickRemovalLiveProcessor extends LiveProcessor {
 			const window = new Float32Array(CLICK_WINDOW_SIZE);
 			if (this.overlap) window.set(this.overlap[channel]);
 			window.set(this.incoming[channel], this.overlap ? CLICK_HOP_SIZE : 0);
-			this.separation = removeClicksFromWindow(window, this.params.threshold, this.params.maximumWidth, this.separation);
+			this.separation = removeAudacityClicksFromWindowInPlace(
+				window, this.params.threshold, this.params.maximumWidth, this.separation,
+			);
 			this.outputQueues[channel].push(window.subarray(0, CLICK_HOP_SIZE));
 			nextOverlap.push(window.slice(CLICK_HOP_SIZE));
 			this.incoming[channel] = [];
@@ -250,45 +253,4 @@ export class NoiseReductionLiveProcessor extends LiveProcessor {
 			this.baseFrame = dropBefore;
 		}
 	}
-}
-
-function removeClicksFromWindow(buffer, threshold, maximumWidth, initialSeparation) {
-	const length = buffer.length;
-	const centerOffset = Math.floor(initialSeparation / 2);
-	let separation = 1;
-	while (separation < initialSeparation) separation *= 2;
-	const squares = new Float64Array(length);
-	const meanSquares = new Float64Array(length - separation);
-	const prefix = new Float64Array(length + 1);
-	for (let index = 0; index < length; index += 1) {
-		const square = buffer[index] * buffer[index];
-		squares[index] = square;
-		prefix[index + 1] = prefix[index] + square;
-	}
-	for (let index = 0; index < meanSquares.length; index += 1) meanSquares[index] = (prefix[index + separation] - prefix[index]) / separation;
-	let left = 0;
-	for (let reciprocal = Math.floor(maximumWidth / 4); reciprocal >= 1; reciprocal = Math.floor(reciprocal / 2)) {
-		const width = Math.floor(maximumWidth / reciprocal);
-		for (let index = 0; index < meanSquares.length; index += 1) {
-			let local = 0;
-			for (let offset = 0; offset < width; offset += 1) local += squares[index + centerOffset + offset];
-			local /= width;
-			if (local >= threshold * meanSquares[index] / 10) {
-				if (left === 0) left = index + centerOffset;
-				continue;
-			}
-			const right = index + width + centerOffset;
-			if (left !== 0 && index - left + centerOffset <= width * 2) {
-				const leftValue = buffer[left];
-				const rightValue = buffer[right];
-				const span = right - left;
-				for (let frame = left; frame < right; frame += 1) {
-					buffer[frame] = (rightValue * (frame - left) + leftValue * (right - frame)) / span;
-					squares[frame] = buffer[frame] * buffer[frame];
-				}
-				left = 0;
-			} else if (left !== 0) left = 0;
-		}
-	}
-	return separation;
 }
