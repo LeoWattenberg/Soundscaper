@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { selectAudioEditorEditBlock, type AudioEditorEditBlockingSnapshot } from '../edit-blocking.ts';
-import { isAudioWarpProjectSchema } from '../project-schema-version.ts';
+import { resolveSelectedAudioWarpAuthority } from '../selected-audio-warp-authority.ts';
 
 type DataRecord = Readonly<Record<string, unknown>>;
 
@@ -24,30 +24,20 @@ export interface AudioWarpDialogModel {
 /** Project one selected audio clip from the immutable workspace snapshot. */
 export function createAudioWarpDialogModel(input: AudioWarpDialogModelInput): Readonly<AudioWarpDialogModel> {
 	if (input.productId !== 'soundscaper') return emptyModel();
-	const project = dataRecord(input.project);
-	if (!project || !isAudioWarpProjectSchema(project)) return emptyModel();
-	const selectedClipId = typeof input.snapshot.selectedClipId === 'string'
-		? input.snapshot.selectedClipId
-		: null;
-	const clips = dataRecords(project.clips);
-	const tracks = dataRecords(project.tracks);
-	const sources = dataRecords(project.sources);
-	const clip = clips.find(({ id, kind }) => id === selectedClipId && kind === 'audio') ?? null;
-	const owners = clip ? tracks.filter((track) => (
-		Array.isArray(track.clipIds) && track.clipIds.includes(clip.id)
-	)) : [];
-	const source = clip ? sources.find(({ id }) => id === clip.sourceId) ?? null : null;
+	const authority = resolveSelectedAudioWarpAuthority(input.project, input.snapshot.selectedClipId);
+	if (!authority) return emptyModel();
+	const { clip, source, track, target } = authority;
 	const editBlock = selectAudioEditorEditBlock(input.snapshot);
-	const blockReason = !clip || !source || owners.length !== 1 || clip.reversed === true
+	const blockReason = target === null
 		? 'no-audio-clip' as const
-		: owners[0]?.locked === true
+		: target.track.locked === true
 			? 'locked' as const
 			: editBlock.blocked
 				? editBlock.reason === 'read-only' ? 'read-only' as const : 'busy' as const
 				: null;
 	const warpMap = dataRecord(clip?.warpMap);
 	return Object.freeze({
-		clipId: clip && source && owners.length === 1 ? String(clip.id) : null,
+		clipId: clip && source && track ? String(clip.id) : null,
 		clipName: clip ? String(clip.title ?? clip.name ?? clip.id) : '',
 		sourceName: source ? String(source.name ?? source.id) : '',
 		hasWarpMap: warpMap !== null,

@@ -42,6 +42,14 @@ test('audio warp menu is selected-audio-only, Soundscaper-only, and opens no def
 	assert.equal(createAudioWarpApplicationMenuItems({ ...input, selectedClipId: null })[0]?.disabled, true);
 	assert.equal(createAudioWarpApplicationMenuItems({ ...input, editingBlocked: true })[0]?.disabled, true);
 	assert.equal(createAudioWarpApplicationMenuItems({ ...input, project: project(true) })[0]?.disabled, true);
+	const missingSourceProject = { ...project(), sources: [] };
+	assert.equal(createAudioWarpApplicationMenuItems({
+		...input, project: missingSourceProject,
+	})[0]?.disabled, true);
+	assert.equal(createAudioWarpDialogModel({
+		productId: 'soundscaper', project: missingSourceProject,
+		snapshot: { selectedClipId: 'clip' },
+	}).blockReason, 'no-audio-clip');
 
 	const [menus, runtime, overlays] = await Promise.all([
 		readFile(new URL('../src/common/editor/ui/application-menus.js', import.meta.url), 'utf8'),
