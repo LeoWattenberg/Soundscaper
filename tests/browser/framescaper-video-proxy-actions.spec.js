@@ -69,7 +69,7 @@ test('publishes, cancels, verifies, and regenerates an existing video proxy', as
 	expect(clientErrors).toEqual([]);
 });
 
-test('desktop-linked video proxy relinks exact and validates changed originals through the Project Bin menu', async ({ page }) => {
+test('desktop-linked video proxy relinks exact and refuses changed attributed originals', async ({ page }) => {
 	test.setTimeout(120_000);
 	const clientErrors = collectClientErrors(page);
 	const original = createDeterministicSilentVideoFixture('linked-proxy-original.webm');
@@ -111,20 +111,10 @@ test('desktop-linked video proxy relinks exact and validates changed originals t
 
 	await selectDesktopLinkedVideoChoice(page, 'changed');
 	await dialog.getByRole('button', { name: 'Relink original', exact: true }).click();
-	let warning = dialog.getByRole('alert');
-	await expect(warning).toContainText('This file has different content.');
-	await warning.getByRole('button', { name: 'Cancel', exact: true }).click();
-	await expect(warning).toHaveCount(0);
-	await expect(dialog.getByRole('button', { name: 'Detach', exact: true })).toBeVisible();
-
-	await dialog.getByRole('button', { name: 'Relink original', exact: true }).click();
-	warning = dialog.getByRole('alert');
-	await expect(warning).toContainText('This file has different content.');
-	await warning.getByRole('button', { name: 'Relink changed original', exact: true }).click();
 	await expect(proxyFeedback(dialog)).toContainText(
-		'The selected video does not match the linked source duration.',
-		{ timeout: 30_000 },
+		'Import the selected file as new media to preserve attribution; changed-content relink is unavailable for an attributed source.',
 	);
+	await expect(dialog.getByRole('alert')).toHaveCount(0);
 	await expect(dialog.getByRole('button', { name: 'Detach', exact: true })).toBeVisible();
 	await dialog.getByRole('button', { name: 'Detach', exact: true }).click();
 	await expect(proxyFeedback(dialog)).toContainText('Proxy detached.', { timeout: 30_000 });
