@@ -18,6 +18,10 @@ import type {
 	LocalAssistanceSpeakerTurnsReview,
 	LocalAssistanceVoiceActivityReview,
 } from '../../../assistance/local-assistance-result-review.ts';
+import {
+	normalizeLocalAssistanceAudioAcceptanceAuthority,
+	type NormalizedLocalAssistanceAudioAcceptanceAuthority,
+} from './local-assistance-audio-acceptance-authority.ts';
 
 const REVIEW_SAMPLE_RATE = 16_000;
 const MAXIMUM_LABELS = 10_000;
@@ -57,15 +61,7 @@ export interface LocalAssistanceRangeLabelAcceptance {
 	acceptValidatedResult(request: unknown): Promise<void>;
 }
 
-interface NormalizedAuthority {
-	readonly fence: AssistanceSelectionFence;
-	readonly sampleRate: number;
-	readonly timelineStartFrame: number;
-	readonly timelineEndFrame: number;
-	readonly sourceStartFrame: number;
-	readonly sourceEndFrame: number;
-	readonly tracks: readonly DataRecord[];
-}
+type NormalizedAuthority = NormalizedLocalAssistanceAudioAcceptanceAuthority;
 
 interface NormalizedRequest {
 	readonly operation: SupportedOperation;
@@ -322,27 +318,10 @@ function normalizeClaim(value: unknown, operation: SupportedOperation): void {
 }
 
 function normalizeAuthority(value: LocalAssistanceRangeLabelAuthority): NormalizedAuthority {
-	if (!value || !value.project || typeof value.project !== 'object') {
-		throw new TypeError('Range-label acceptance requires selected-media authority.');
-	}
-	const fence = validateAssistanceSelectionFence(value.fence);
-	if (value.project.id !== fence.projectId || value.project.schemaFamily !== fence.schemaFamily
-		|| value.project.schemaVersion !== fence.schemaVersion
-		|| value.project.revision !== fence.revision || !Array.isArray(value.project.tracks)) {
-		throw new AssistanceProposalStaleError();
-	}
-	const sampleRate = integer(value.project.sampleRate, 1, 'project sample rate');
-	const timelineStartFrame = integer(value.startFrame, 0, 'timeline start');
-	const timelineEndFrame = integer(value.endFrame, 1, 'timeline end');
-	const sourceStartFrame = integer(value.sourceStartFrame, 0, 'source start');
-	const sourceEndFrame = integer(value.sourceEndFrame, 1, 'source end');
-	if (timelineEndFrame <= timelineStartFrame || sourceEndFrame <= sourceStartFrame
-		|| timelineEndFrame - timelineStartFrame !== sourceEndFrame - sourceStartFrame
-		|| sourceStartFrame !== fence.sourceStartFrame || sourceEndFrame !== fence.sourceEndFrame) {
-		throw new AssistanceProposalStaleError();
-	}
-	return Object.freeze({ fence, sampleRate, timelineStartFrame, timelineEndFrame,
-		sourceStartFrame, sourceEndFrame, tracks: Object.freeze([...value.project.tracks]) });
+	return normalizeLocalAssistanceAudioAcceptanceAuthority(
+		value,
+		'Range-label acceptance requires selected-media authority.',
+	);
 }
 
 function assertRangesWithinSelection(

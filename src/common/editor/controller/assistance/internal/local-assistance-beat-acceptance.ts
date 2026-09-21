@@ -27,6 +27,10 @@ import {
 } from '../../../assistance/proposal-session.ts';
 import { createAddLabelTrackCommand } from '../../../commands/factories.ts';
 import { scaleSampleFrame } from '../../../timeline-time.ts';
+import {
+	normalizeLocalAssistanceAudioAcceptanceAuthority,
+	type NormalizedLocalAssistanceAudioAcceptanceAuthority,
+} from './local-assistance-audio-acceptance-authority.ts';
 
 const TRACK_EXTENSION_KEY = 'org.soundscaper.assistance-beats-v1';
 const TEMPO_PROPOSAL_ID = 'beat-grid:tempo-map';
@@ -90,14 +94,7 @@ export interface LocalAssistanceBeatReviewSession {
 	cancel(): Promise<void>;
 }
 
-interface NormalizedAuthority {
-	readonly fence: AssistanceSelectionFence;
-	readonly sampleRate: number;
-	readonly timelineStartFrame: number;
-	readonly timelineEndFrame: number;
-	readonly sourceStartFrame: number;
-	readonly sourceEndFrame: number;
-	readonly tracks: readonly DataRecord[];
+interface NormalizedAuthority extends NormalizedLocalAssistanceAudioAcceptanceAuthority {
 	readonly tempoMap: unknown;
 }
 
@@ -273,28 +270,12 @@ function normalizeReview(value: unknown): AssistanceBeatGridV1 {
 }
 
 function normalizeAuthority(value: LocalAssistanceBeatAuthority): NormalizedAuthority {
-	if (!value || !value.project || typeof value.project !== 'object') {
-		throw new TypeError('Beat acceptance requires selected-media authority.');
-	}
-	const fence = validateAssistanceSelectionFence(value.fence);
-	if (value.project.id !== fence.projectId || value.project.schemaFamily !== fence.schemaFamily
-		|| value.project.schemaVersion !== fence.schemaVersion
-		|| value.project.revision !== fence.revision || !Array.isArray(value.project.tracks)) {
-		throw new AssistanceProposalStaleError();
-	}
-	const sampleRate = integer(value.project.sampleRate, 1, 'project sample rate');
-	const timelineStartFrame = integer(value.startFrame, 0, 'timeline start');
-	const timelineEndFrame = integer(value.endFrame, 1, 'timeline end');
-	const sourceStartFrame = integer(value.sourceStartFrame, 0, 'source start');
-	const sourceEndFrame = integer(value.sourceEndFrame, 1, 'source end');
-	if (timelineEndFrame <= timelineStartFrame || sourceEndFrame <= sourceStartFrame
-		|| timelineEndFrame - timelineStartFrame !== sourceEndFrame - sourceStartFrame
-		|| sourceStartFrame !== fence.sourceStartFrame || sourceEndFrame !== fence.sourceEndFrame) {
-		throw new AssistanceProposalStaleError();
-	}
+	const authority = normalizeLocalAssistanceAudioAcceptanceAuthority(
+		value,
+		'Beat acceptance requires selected-media authority.',
+	);
 	return Object.freeze({
-		fence, sampleRate, timelineStartFrame, timelineEndFrame, sourceStartFrame, sourceEndFrame,
-		tracks: Object.freeze([...value.project.tracks]),
+		...authority,
 		tempoMap: structuredClone(value.project.tempoMap),
 	});
 }
@@ -476,13 +457,6 @@ function exactRecord(value: unknown, fields: readonly string[], label: string): 
 
 function dataRecord(value: unknown): DataRecord | null {
 	return value && typeof value === 'object' && !Array.isArray(value) ? value as DataRecord : null;
-}
-
-function integer(value: unknown, minimum: number, label: string): number {
-	if (!Number.isSafeInteger(value) || Number(value) < minimum) {
-		throw new RangeError(`The ${label} is invalid.`);
-	}
-	return Number(value);
 }
 
 function safeAdd(left: number, right: number, label: string): number {
