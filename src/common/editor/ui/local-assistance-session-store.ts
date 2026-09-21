@@ -13,8 +13,8 @@ import {
 import {
 	assertLocalAssistanceShotDetectionReviewMode,
 	localAssistanceModelCompatible,
-	localAssistanceModelTaskSlots,
 	localAssistanceOperationModelsAvailable,
+	localAssistanceReplaceSelectedModel,
 	localAssistanceSelectedModels,
 	normalizeLocalAssistancePreparedMedia,
 	normalizeLocalAssistanceSelectedMediaInventory,
@@ -187,7 +187,10 @@ export function createLocalAssistanceSessionStore(
 		discardCleanupSession();
 		pendingAcceptance = null;
 		update({ phase: modelsAvailable ? 'ready' : 'unavailable',
-			selectedModelIds: selectedModelIds(snapshot, model),
+			selectedModelIds: localAssistanceReplaceSelectedModel(
+				snapshot.selectedOperation!, snapshot.models, snapshot.selectedModelIds, model,
+				snapshot.selectedOperation === 'shot-detection' ? snapshot.shotDetectionMode : undefined,
+			),
 			consent: false, result: null, cleanup: null,
 			unavailableReason: modelsAvailable ? null : 'no-compatible-model', error: null });
 	};
@@ -511,23 +514,5 @@ function freezeSnapshot(value: Omit<LocalAssistanceSnapshot,
 
 function selectedSource(value: Pick<LocalAssistanceSnapshot, 'sources' | 'selectedSourceId'>) {
 	return value.sources.find(({ sourceId }) => sourceId === value.selectedSourceId) ?? null;
-}
-function selectedModelIds(
-	snapshot: LocalAssistanceSnapshot,
-	selected: LocalAssistanceModel,
-): readonly string[] {
-	const operation = snapshot.selectedOperation!;
-	const mode = operation === 'shot-detection' ? snapshot.shotDetectionMode : undefined;
-	const slot = localAssistanceModelTaskSlots(operation, mode).find(
-		(candidate) => candidate.includes(selected.task),
-	)!;
-	const current = snapshot.selectedModelIds
-		.map((modelId) => snapshot.models.find((model) => model.modelId === modelId))
-		.filter((model): model is LocalAssistanceModel => model !== undefined && !slot.includes(model.task));
-	current.push(selected);
-	return Object.freeze(localAssistanceModelTaskSlots(operation, mode).flatMap((candidate) => {
-		const model = current.find(({ task }) => candidate.includes(task));
-		return model ? [model.modelId] : [];
-	}));
 }
 class CancelledSession extends Error {}

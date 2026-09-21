@@ -7,6 +7,7 @@ import {
 	localAssistanceModelCompatible,
 	localAssistanceModelTaskSlots,
 	localAssistanceOperationModelsAvailable,
+	localAssistanceReplaceSelectedModel,
 	localAssistanceSelectedModels,
 } from '../src/common/editor/assistance/local-assistance-preparation.ts';
 
@@ -47,4 +48,17 @@ test('Reframe requires exact separate YuNet and D-FINE model slots in canonical 
 	assert.equal(localAssistanceSelectedModels('subject-detection', [
 		YUNET_MODEL, DFINE_MODEL,
 	], [YUNET_MODEL.modelId]), null);
+});
+
+test('model-slot replacement drops stale choices and restores canonical slot order', () => {
+	const replacement = Object.freeze({
+		...YUNET_MODEL,
+		modelId: 'replacement-face-detector',
+	});
+	assert.deepEqual(localAssistanceReplaceSelectedModel(
+		'subject-detection',
+		[YUNET_MODEL, DFINE_MODEL, replacement],
+		[DFINE_MODEL.modelId, 'stale-model', YUNET_MODEL.modelId],
+		replacement,
+	), [replacement.modelId, DFINE_MODEL.modelId]);
 });

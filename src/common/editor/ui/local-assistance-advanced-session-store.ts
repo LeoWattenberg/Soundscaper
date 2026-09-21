@@ -22,8 +22,8 @@ import type {
 import {
 	assertLocalAssistanceShotDetectionReviewMode,
 	localAssistanceModelCompatible,
-	localAssistanceModelTaskSlots,
 	localAssistanceOperationModelsAvailable,
+	localAssistanceReplaceSelectedModel,
 	localAssistanceSelectedModels,
 	normalizeLocalAssistancePreparedMedia,
 	normalizeLocalAssistanceSelectedMediaInventory,
@@ -197,7 +197,10 @@ export function createLocalAssistanceAdvancedWorkflowSessionStore(
 		pendingAcceptance = null;
 		pendingWorkflow = null;
 		cleanupStore.discard();
-		update({ phase: 'ready', selectedModelIds: selectModelIds(snapshot, model), consent: false,
+		update({ phase: 'ready', selectedModelIds: localAssistanceReplaceSelectedModel(
+			snapshot.selectedOperation!, snapshot.models, snapshot.selectedModelIds, model,
+			snapshot.selectedOperation === 'shot-detection' ? snapshot.shotDetectionMode : undefined,
+		), consent: false,
 			progress: null, result: null, unavailableReason: null, error: null });
 	};
 	const setConsent = (consent: boolean): void => {
@@ -473,21 +476,6 @@ function freezeSnapshot(
 
 function selectedSource(value: Pick<LocalAssistanceSnapshot, 'sources' | 'selectedSourceId'>) {
 	return value.sources.find(({ sourceId }) => sourceId === value.selectedSourceId) ?? null;
-}
-
-function selectModelIds(snapshot: LocalAssistanceSnapshot, selected: LocalAssistanceModel): readonly string[] {
-	const operation = snapshot.selectedOperation!;
-	const mode = operation === 'shot-detection' ? snapshot.shotDetectionMode : undefined;
-	const slot = localAssistanceModelTaskSlots(operation, mode)
-		.find((candidate) => candidate.includes(selected.task))!;
-	const current = snapshot.selectedModelIds.map(
-		(modelId) => snapshot.models.find((model) => model.modelId === modelId),
-	).filter((model): model is LocalAssistanceModel => model !== undefined && !slot.includes(model.task));
-	current.push(selected);
-	return Object.freeze(localAssistanceModelTaskSlots(operation, mode).flatMap((candidate) => {
-		const model = current.find(({ task }) => candidate.includes(task));
-		return model ? [model.modelId] : [];
-	}));
 }
 
 function advancedId(operation: AssistanceOperation | null): AssistanceAdvancedWorkflowId | null {

@@ -44,6 +44,7 @@ export {
 	localAssistanceModelCompatible,
 	localAssistanceModelTaskSlots,
 	localAssistanceOperationModelsAvailable,
+	localAssistanceReplaceSelectedModel,
 	localAssistanceSelectedModels,
 } from '../controller/assistance/local-assistance-model-selection.ts';
 import type {

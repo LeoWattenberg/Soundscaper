@@ -100,6 +100,28 @@ export function localAssistanceSelectedModels(
 	return Object.freeze(ordered);
 }
 
+/** Replace one task slot and return every surviving choice in canonical slot order. */
+export function localAssistanceReplaceSelectedModel(
+	operation: AssistanceOperation,
+	models: readonly LocalAssistanceModel[],
+	selectedModelIds: readonly string[],
+	selected: LocalAssistanceModel,
+	shotDetectionMode?: LocalAssistanceShotDetectionMode,
+): readonly string[] {
+	const slots = operationModelTaskSlots(operation, shotDetectionMode);
+	const slot = slots.find((candidate) => candidate.includes(selected.task))!;
+	const current = selectedModelIds
+		.map((modelId) => models.find((model) => model.modelId === modelId))
+		.filter((model): model is LocalAssistanceModel => (
+			model !== undefined && !slot.includes(model.task)
+		));
+	current.push(selected);
+	return Object.freeze(slots.flatMap((candidate) => {
+		const model = current.find(({ task }) => candidate.includes(task));
+		return model ? [model.modelId] : [];
+	}));
+}
+
 function operationModelTaskSlots(
 	operation: AssistanceOperation,
 	shotDetectionMode?: LocalAssistanceShotDetectionMode,
