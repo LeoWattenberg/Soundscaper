@@ -1,6 +1,10 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { readClosedDomainField, readClosedDomainRecord } from '../common/editor/closed-domain-value.ts';
+import {
+	snapshotOptionalClipPlacement,
+	type FramescaperClipCommandPlacement,
+} from './editor-clip-placement-command.ts';
 import { normalizeVideoFreezeFallbackV1, type VideoFreezeFallbackV1 } from '../common/editor/video-freeze-v24.ts';
 import { normalizeVideoMaskMatteGraphV1, type VideoMaskMatteGraphV1 } from '../common/editor/video-mask-matte-v24.ts';
 import { normalizeVideoVisualPresetV1, type VideoVisualPresetV1 } from '../common/editor/video-visual-preset-v24.ts';
@@ -19,9 +23,7 @@ import {
 
 export type FramescaperVisualSourceVisual = VideoStillSourceV1 | VideoGeneratorSourceV1;
 export type FramescaperVisualClipVisual = VideoStillClipV1 | VideoGeneratorClipV1;
-export type FramescaperVisualClipPlacementVisual =
-	| Readonly<{ readonly scope: 'timeline'; readonly trackId: string }>
-	| Readonly<{ readonly scope: 'project-bin' }>;
+export type FramescaperVisualClipPlacementVisual = FramescaperClipCommandPlacement;
 
 export interface FramescaperVideoVisualSourceSetCommandVisual {
 	readonly type: 'video-visual-source/set';
@@ -296,18 +298,13 @@ function optionalClip(value: unknown): FramescaperVisualClipVisual | null {
 }
 
 function optionalPlacement(value: unknown): FramescaperVisualClipPlacementVisual | null {
-	if (value === null) return null;
-	const discriminant = readClosedDomainRecord(value, 'visual visual clip placement', ['scope', 'trackId'], ['scope']);
-	const scope = field(discriminant, 'scope');
-	if (scope === 'project-bin') {
-		readClosedDomainRecord(value, 'visual project-bin placement', ['scope']);
-		return Object.freeze({ scope });
-	}
-	if (scope === 'timeline') {
-		const placement = readClosedDomainRecord(value, 'visual timeline placement', ['scope', 'trackId']);
-		return Object.freeze({ scope, trackId: stableId(field(placement, 'trackId'), 'placement trackId') });
-	}
-	throw new RangeError('visual visual clip placement scope is unsupported.');
+	return snapshotOptionalClipPlacement(value, {
+		placement: 'visual visual clip placement',
+		projectBin: 'visual project-bin placement',
+		timeline: 'visual timeline placement',
+		unsupported: 'visual visual clip placement scope is unsupported.',
+		trackIdName: 'placement trackId', field, stableId,
+	});
 }
 
 function optional<T>(value: unknown, normalize: (value: unknown) => T): T | null {

@@ -2,15 +2,17 @@
 
 import { readClosedDomainField, readClosedDomainRecord } from '../common/editor/closed-domain-value.ts';
 import {
+	snapshotOptionalClipPlacement,
+	type FramescaperClipCommandPlacement,
+} from './editor-clip-placement-command.ts';
+import {
 	normalizeFramescaperImageClipV1,
 	normalizeFramescaperImageSourceV1,
 	type FramescaperImageClipV1,
 	type FramescaperImageSourceV1,
 } from '../common/editor/timeline-image-model.ts';
 
-export type FramescaperImageClipPlacementTimelineImage =
-	| Readonly<{ readonly scope: 'timeline'; readonly trackId: string }>
-	| Readonly<{ readonly scope: 'project-bin' }>;
+export type FramescaperImageClipPlacementTimelineImage = FramescaperClipCommandPlacement;
 
 export interface FramescaperImageSourceSetCommandTimelineImage {
 	readonly type: 'image-source/set';
@@ -153,20 +155,13 @@ function videoTrack(tracks: readonly Record<string, unknown>[], trackId: string)
 }
 
 function optionalPlacement(value: unknown): FramescaperImageClipPlacementTimelineImage | null {
-	if (value === null) return null;
-	const discriminant = readClosedDomainRecord(value, 'timelineImage image placement', ['scope', 'trackId'], ['scope']);
-	const scope = field(discriminant, 'scope');
-	if (scope === 'project-bin') {
-		readClosedDomainRecord(value, 'timelineImage image Project Bin placement', ['scope']);
-		return Object.freeze({ scope });
-	}
-	if (scope === 'timeline') {
-		const placement = readClosedDomainRecord(value, 'timelineImage image timeline placement', ['scope', 'trackId']);
-		return Object.freeze({
-			scope, trackId: stableId(field(placement, 'trackId'), 'placement.trackId'),
-		});
-	}
-	throw new RangeError('timelineImage image placement scope is unsupported.');
+	return snapshotOptionalClipPlacement(value, {
+		placement: 'timelineImage image placement',
+		projectBin: 'timelineImage image Project Bin placement',
+		timeline: 'timelineImage image timeline placement',
+		unsupported: 'timelineImage image placement scope is unsupported.',
+		trackIdName: 'placement.trackId', field, stableId,
+	});
 }
 
 function optional<T>(value: unknown, normalize: (candidate: unknown) => T): T | null {
