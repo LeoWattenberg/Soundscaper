@@ -25,6 +25,8 @@ export function createDesktopNightlyTestsLocalAssistancePlan({
 	const modelCache = environment.SOUNDSCAPER_LOCAL_ASSISTANCE_MODEL_CACHE
 		?? join(runRoot, 'local-assistance/models');
 	assertAbsolute(modelCache, 'Local assistance model cache');
+	const childEnvironment = { ...environment };
+	delete childEnvironment.NODE_V8_COVERAGE;
 	return Object.freeze({
 		command: executablePath,
 		args: Object.freeze([
@@ -33,8 +35,9 @@ export function createDesktopNightlyTestsLocalAssistancePlan({
 		]),
 		cwd: payloadRoot,
 		env: Object.freeze({
-			...environment,
+			...childEnvironment,
 			ELECTRON_RUN_AS_NODE: '1', PLAYWRIGHT_HTML_OPEN: 'never',
+			SCAPE_BROWSER_COVERAGE: '1',
 			...(esbuildBinaryPath === null ? {} : { ESBUILD_BINARY_PATH: esbuildBinaryPath }),
 			SOUNDSCAPER_NIGHTLY_TESTS_PAYLOAD_ROOT: payloadRoot,
 			SOUNDSCAPER_NIGHTLY_TESTS_EXECUTABLE: executablePath,

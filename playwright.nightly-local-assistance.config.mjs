@@ -28,7 +28,10 @@ export function createNightlyLocalAssistanceConfig(environment = process.env) {
 			['junit', { outputFile: resolve(artifactRoot, 'junit.xml') }],
 		],
 		outputDir: resolve(artifactRoot, 'test-results'),
-		projects: [{ name: 'electron-real-models' }],
+		projects: [
+			{ name: 'electron-real-models-framescaper', metadata: { productId: 'framescaper' } },
+			{ name: 'electron-real-models-soundscaper', metadata: { productId: 'soundscaper' } },
+		],
 	});
 }
 

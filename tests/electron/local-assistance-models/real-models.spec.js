@@ -10,16 +10,19 @@ import { launchModelTestElectron } from './electron-fixture.js';
 import { digest, prepareModelInput } from './model-inputs.js';
 import { validateModelOutputs } from './model-output-validation.js';
 import { executeModelOperation, modelOutputReservations } from './model-operation.js';
+import { localAssistanceCaseRunsInProduct } from './product-case-policy.js';
 
 for (const modelCase of validateLocalModelRealTestCases(manifest, catalog, { candidateTasks: catalogTasks.tasks })) {
 	test(`${modelCase.id}: downloads and executes ${modelCase.modelIds.join(' + ')}`, async ({ browserName: _browserName }, testInfo) => {
+		const productId = testInfo.project.metadata.productId;
+		test.skip(!localAssistanceCaseRunsInProduct(productId, modelCase.operation),
+			`${modelCase.operation} is not packaged for ${productId}.`);
 		const target = `${process.env.SOUNDSCAPER_PACKAGED_RUNTIME_PLATFORM ?? process.platform}-${process.env.SOUNDSCAPER_PACKAGED_RUNTIME_ARCH ?? process.arch}`;
 		const models = modelCase.modelIds.map((id) => catalog.entries.find((entry) => entry.modelId === id));
 		for (const [index, model] of models.entries()) expect(model,
 			`${modelCase.modelIds[index]} needs a published catalog entry before its real installation test can run.`).toBeDefined();
 		const unsupported = models.filter((entry) => !entry.platforms.includes(target));
 		test.skip(unsupported.length > 0, `Catalog does not publish ${unsupported.map((entry) => entry.modelId).join(', ')} on ${target}.`);
-		const productId = process.env.SOUNDSCAPER_LOCAL_ASSISTANCE_PRODUCT_ID ?? 'framescaper';
 		const electron = await launchModelTestElectron({ testInfo, productId });
 		try {
 			const modelDelivery = [];

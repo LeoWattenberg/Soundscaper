@@ -13,6 +13,7 @@ import {
 import { runDesktopNightlyTests } from '../scripts/lib/desktop-nightly-tests-runtime.mjs';
 import { listNodeTestFiles } from '../scripts/lib/node-test-shards.mjs';
 import { runDualOriginPhaseFixture } from './helpers/nightly-tests-dual-origin-phase.ts';
+import { nightlyProductSitesFixture } from './helpers/nightly-tests-product-sites.ts';
 
 const ROOT = resolve(import.meta.dirname, '..');
 const OPTIONS = Object.freeze({
@@ -22,13 +23,18 @@ const OPTIONS = Object.freeze({
 	environment: { PATH: '/usr/bin' },
 });
 
-test('the model plan explicitly enables real downloads and isolates their cache and reports', () => {
-	const plan = createDesktopNightlyTestsLocalAssistancePlan(OPTIONS);
+test('the model plan explicitly enables real downloads and session-scoped coverage', () => {
+	const plan = createDesktopNightlyTestsLocalAssistancePlan({
+		...OPTIONS, environment: { ...OPTIONS.environment, NODE_V8_COVERAGE: '/tmp/outer-node-coverage' },
+	});
 	assert.equal(plan.command, OPTIONS.executablePath);
 	assert.equal(plan.cwd, OPTIONS.payloadRoot);
 	assert.match(plan.args.at(-1), /playwright\.nightly-local-assistance\.config\.mjs$/u);
 	assert.equal(plan.env.ELECTRON_RUN_AS_NODE, '1');
 	assert.equal(plan.env.SOUNDSCAPER_LOCAL_ASSISTANCE_REAL_MODELS, '1');
+	assert.equal(plan.env.SCAPE_BROWSER_COVERAGE, '1');
+	assert.equal(plan.env.NODE_V8_COVERAGE, undefined,
+		'the outer Electron-as-Node runner must not mix its profile with child sessions');
 	assert.equal(plan.env.SOUNDSCAPER_PACKAGED_PRODUCT_ROOT, '/opt/payload/products');
 	assert.equal(plan.env.SOUNDSCAPER_PACKAGED_RUNTIME_PLATFORM, 'linux');
 	assert.equal(plan.env.SOUNDSCAPER_PACKAGED_RUNTIME_ARCH, 'x64');
@@ -47,12 +53,11 @@ test('an interrupted diagnostic phase does not start model downloads afterwards'
 	const outputRoot = await mkdtemp(join(tmpdir(), 'nightly-model-interrupted-'));
 	context.after(() => rm(outputRoot, { recursive: true, force: true }));
 	let childCalls = 0;
-	let serverPort = 44100;
 	const result = await runDesktopNightlyTests({
 		...OPTIONS, outputRoot, product: { id: 'soundscaper-nightly-tests', name: 'Nightly tests', version: '1.0.0' },
 	}, {
 		runDualOriginPhase: runDualOriginPhaseFixture,
-		startStaticServer: async () => ({ baseURL: `http://127.0.0.1:${serverPort++}`, close: async () => undefined }),
+		startProductSites: nightlyProductSitesFixture(44_100),
 		runPlaywright: async () => (++childCalls === 1 ? { code: 0, signal: null } : { code: null, signal: 'SIGINT' }),
 		writeMetricsDiagnostics: async () => ({ passed: false }),
 	});
@@ -82,12 +87,11 @@ test('nightly model failures fail the overall run after the five earlier phases 
 	context.after(() => rm(outputRoot, { recursive: true, force: true }));
 	const phases = [];
 	let active = 0;
-	let serverPort = 44000;
 	const result = await runDesktopNightlyTests({
 		...OPTIONS, outputRoot, product: { id: 'soundscaper-nightly-tests', name: 'Nightly tests', version: '1.0.0' },
 	}, {
 		runDualOriginPhase: runDualOriginPhaseFixture,
-		startStaticServer: async () => ({ baseURL: `http://127.0.0.1:${serverPort++}`, close: async () => undefined }),
+		startProductSites: nightlyProductSitesFixture(44_000),
 		runPlaywright: async (plan) => {
 			assert.equal(active++, 0, 'the model phase must not overlap another test process');
 			phases.push(plan.args.at(-1));
@@ -120,6 +124,10 @@ test('real-model configuration is serial and excluded from normal Node and brows
 		assert.equal(config.retries, 0);
 		assert.equal(config.timeout, 1_800_000);
 		assert.equal(config.webServer, undefined);
+		assert.deepEqual(config.projects.map(({ name, metadata }) => ({ name, metadata })), [
+			{ name: 'electron-real-models-framescaper', metadata: { productId: 'framescaper' } },
+			{ name: 'electron-real-models-soundscaper', metadata: { productId: 'soundscaper' } },
+		]);
 		assert.equal(config.outputDir, '/tmp/nightly-model-config/local-assistance/test-results');
 		assert.throws(() => createNightlyLocalAssistanceConfig({ ...process.env, SOUNDSCAPER_LOCAL_ASSISTANCE_REAL_MODELS: '0' }), /downloads/u);
 		assert.equal(listNodeTestFiles(ROOT).some((path) => path.includes('/tests/electron/')), false);
