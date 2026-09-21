@@ -10,8 +10,7 @@ import {
 } from './project-audio-factory.js';
 import {
 	AUDIO_EDITOR_COORDINATE_MAXIMUM_DENOMINATOR,
-	AUDIO_EDITOR_PROJECT_MAXIMUM_SAMPLE_RATE,
-	AUDIO_EDITOR_PROJECT_MINIMUM_SAMPLE_RATE,
+	normalizeProjectSampleRate,
 } from './project-foundation-validation.ts';
 import type {
 	AudioClipLeaf,
@@ -97,7 +96,7 @@ export function createVideoSource<const Options extends MediaFactoryInput = Medi
 	options: Options = {} as Options,
 	projectSampleRate = AUDIO_EDITOR_PROJECT_DEFAULT_SAMPLE_RATE,
 ): MediaFactoryResult<Options, VideoSourceLeaf> {
-	const sampleRate = boundedSampleRate(options.sampleRate ?? projectSampleRate);
+	const sampleRate = normalizeProjectSampleRate(options.sampleRate ?? projectSampleRate);
 	const sampleFrameCount = positiveSafeInteger(
 		options.sampleFrameCount ?? options.frameCount,
 		'source.sampleFrameCount',
@@ -202,7 +201,7 @@ export function createVideoClip(
 	options: MediaFactoryInput = {}, context?: Readonly<VideoClipContext>,
 ): Record<string, unknown> {
 	if (!context) return { ...clone(options), ...createFoundationVideoClip(options), kind: 'video' };
-	const sampleRate = boundedSampleRate(context.projectSampleRate);
+	const sampleRate = normalizeProjectSampleRate(context.projectSampleRate);
 	const sequenceRate = rationalRate(context.sequence.rate, 'sequence.rate');
 	const sourceRate = rationalRate(context.source.frameRate, 'source.frameRate');
 	const legacyStart = nonNegativeSafeInteger(options.timelineStartFrame ?? 0, 'clip.timelineStartFrame');
@@ -516,16 +515,6 @@ function rationalRate(value: unknown, name: string): RationalRate {
 	const result = rational(value, name);
 	if (result.num <= 0 || result.den <= 0) throw new RangeError(`${name} must be positive.`);
 	return { num: result.num, den: result.den };
-}
-
-function boundedSampleRate(value: unknown): number {
-	const result = positiveSafeInteger(value, 'project.sampleRate');
-	if (result < AUDIO_EDITOR_PROJECT_MINIMUM_SAMPLE_RATE || result > AUDIO_EDITOR_PROJECT_MAXIMUM_SAMPLE_RATE) {
-		throw new RangeError(
-			`project.sampleRate must be between ${String(AUDIO_EDITOR_PROJECT_MINIMUM_SAMPLE_RATE)} and ${String(AUDIO_EDITOR_PROJECT_MAXIMUM_SAMPLE_RATE)}.`,
-		);
-	}
-	return result;
 }
 
 function object(value: unknown, name: string): Record<string, unknown> {

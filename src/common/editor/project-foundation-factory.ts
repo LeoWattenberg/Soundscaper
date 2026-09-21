@@ -3,8 +3,7 @@
 import { createProjectDocumentBase } from './project-document-base-factory.ts';
 import {
 	AUDIO_EDITOR_COORDINATE_MAXIMUM_DENOMINATOR,
-	AUDIO_EDITOR_PROJECT_MAXIMUM_SAMPLE_RATE,
-	AUDIO_EDITOR_PROJECT_MINIMUM_SAMPLE_RATE,
+	normalizeProjectSampleRate,
 } from './project-foundation-validation.ts';
 import {
 	createMediaClip,
@@ -59,7 +58,7 @@ export function createProjectFoundation(
 ): DataRecord {
 	const input = options as Readonly<DataRecord>;
 	const base = createProjectDocumentBase(options);
-	const sampleRate = boundedSampleRate(base.sampleRate);
+	const sampleRate = normalizeProjectSampleRate(base.sampleRate);
 	const sources = arrayOr(input.sources, []).map((value) => (
 		createMediaSource(dataRecord(value, 'source'), sampleRate)
 	));
@@ -290,17 +289,6 @@ function coordinateRational(value: RationalInput | unknown, name: string): Ratio
 function rationalRate(value: unknown, name: string): RationalRate {
 	const result = positiveRational(value, name);
 	return { num: result.num, den: result.den };
-}
-
-function boundedSampleRate(value: unknown): number {
-	const result = positiveSafeInteger(value, 'project.sampleRate');
-	if (result < AUDIO_EDITOR_PROJECT_MINIMUM_SAMPLE_RATE
-		|| result > AUDIO_EDITOR_PROJECT_MAXIMUM_SAMPLE_RATE) {
-		throw new RangeError(
-			`project.sampleRate must be between ${String(AUDIO_EDITOR_PROJECT_MINIMUM_SAMPLE_RATE)} and ${String(AUDIO_EDITOR_PROJECT_MAXIMUM_SAMPLE_RATE)}.`,
-		);
-	}
-	return result;
 }
 
 function arrayOr(value: unknown, fallback: readonly unknown[]): readonly unknown[] {

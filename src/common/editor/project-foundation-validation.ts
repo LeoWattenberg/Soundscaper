@@ -44,6 +44,21 @@ export const AUDIO_EDITOR_RATIONAL_MAXIMUM_DENOMINATOR = 1_000_000;
 export { AUDIO_EDITOR_COORDINATE_MAXIMUM_DENOMINATOR } from './timeline-coordinate-limits.ts';
 export const AUDIO_EDITOR_FOUNDATION_MAXIMUM_EVENTS = 4_096;
 
+/** Admit the one project sample-rate range shared by all foundation factories. */
+export function normalizeProjectSampleRate(value: unknown): number {
+	if (!Number.isSafeInteger(value) || Number(value) <= 0) {
+		throw new RangeError('project.sampleRate must be a positive safe integer.');
+	}
+	const result = Number(value);
+	if (result < AUDIO_EDITOR_PROJECT_MINIMUM_SAMPLE_RATE
+		|| result > AUDIO_EDITOR_PROJECT_MAXIMUM_SAMPLE_RATE) {
+		throw new RangeError(
+			`project.sampleRate must be between ${String(AUDIO_EDITOR_PROJECT_MINIMUM_SAMPLE_RATE)} and ${String(AUDIO_EDITOR_PROJECT_MAXIMUM_SAMPLE_RATE)}.`,
+		);
+	}
+	return result;
+}
+
 const SHA256 = /^[a-f0-9]{64}$/u;
 const DROP_FRAME_RATES = new Set(SEQUENCE_DROP_FRAME_RATES);
 
