@@ -110,6 +110,21 @@ test('an unmapped source-map segment ends the preceding provenance range', () =>
 	assert.equal(mappedE2ESourceAt(map, 0, 5), null);
 });
 
+test('an unmapped boundary exactly at a worker start invalidates the recipe', () => {
+	assert.equal(TIMER_CHUNK.indexOf(TIMER_WORKER), 20);
+	const mappings = TIMER_CHUNK.split('\n').map((_, index) => (
+		index === 0
+			// Generated column 20 (`oB`) is first unmapped, then mapped back to
+			// Mediabunny at the same column (`AAAA` has a zero column delta).
+			? 'AAAA,oB,AAAA'
+			: 'AAAA'
+	)).join(';');
+	assert.throws(
+		() => mediabunnyBlobWorkerSources([descriptor(TIMER_CHUNK, ['misc.js'], 'start.js', mappings)]),
+		/no matching mapped provenance/iu,
+	);
+});
+
 test('an unknown fifth Function-to-string worker fails closed', () => {
 	const source = `const unknownWorker = () => { self.postMessage('unknown'); };
 export function unknown() {

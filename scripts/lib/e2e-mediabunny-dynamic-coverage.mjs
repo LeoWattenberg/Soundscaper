@@ -180,13 +180,13 @@ function mappedMediabunnySpan(map, segments, file, node, sourcePath, label) {
 			`${label} Mediabunny source map`,
 		)?.source) !== sourcePath) return false;
 	}
-	return segments.filter((segment) => afterStart(segment, start) && beforeEnd(segment, end))
+	return segments.filter((segment) => atOrAfterStart(segment, start) && beforeEnd(segment, end))
 		.every(({ source }) => externalSourcePath(source) === sourcePath);
 }
 
-function afterStart(segment, start) {
+function atOrAfterStart(segment, start) {
 	return segment.line > start.line
-		|| segment.line === start.line && segment.column > start.character;
+		|| segment.line === start.line && segment.column >= start.character;
 }
 
 function beforeEnd(segment, end) {
