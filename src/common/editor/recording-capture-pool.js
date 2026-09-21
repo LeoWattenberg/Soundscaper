@@ -109,8 +109,18 @@ export function createRecordingCapturePool(options = {}) {
 		if (pending.has(DISPLAY_INPUT_KEY)) return pending.get(DISPLAY_INPUT_KEY);
 		const current = getLiveEntry(DISPLAY_INPUT_KEY, 'display');
 		if (current) return current.stream;
-		const generation = generationFor(DISPLAY_INPUT_KEY);
+		return requestAndRetainDisplay(acquireOptions, DISPLAY_INPUT_KEY);
+	}
 
+	async function replaceDisplay(acquireOptions = {}) {
+		if (disposed) throw new Error('The recording capture pool has been disposed.');
+		if (pending.has(DISPLAY_REPLACEMENT_KEY)) return pending.get(DISPLAY_REPLACEMENT_KEY);
+		if (pending.has(DISPLAY_INPUT_KEY)) await pending.get(DISPLAY_INPUT_KEY);
+		return requestAndRetainDisplay(acquireOptions, DISPLAY_REPLACEMENT_KEY);
+	}
+
+	function requestAndRetainDisplay(acquireOptions, pendingKey) {
+		const generation = generationFor(DISPLAY_INPUT_KEY);
 		const acquisition = Promise.resolve().then(async () => {
 			const stream = await requestDisplay(acquireOptions);
 			if (disposed || generation !== generationFor(DISPLAY_INPUT_KEY)) {
@@ -132,40 +142,9 @@ export function createRecordingCapturePool(options = {}) {
 				channelCount: exposedAudioChannelCount(stream),
 			});
 			return stream;
-		}).finally(() => pending.delete(DISPLAY_INPUT_KEY));
-		pending.set(DISPLAY_INPUT_KEY, acquisition);
+		}).finally(() => pending.delete(pendingKey));
+		pending.set(pendingKey, acquisition);
 		return acquisition;
-	}
-
-	async function replaceDisplay(acquireOptions = {}) {
-		if (disposed) throw new Error('The recording capture pool has been disposed.');
-		if (pending.has(DISPLAY_REPLACEMENT_KEY)) return pending.get(DISPLAY_REPLACEMENT_KEY);
-		if (pending.has(DISPLAY_INPUT_KEY)) await pending.get(DISPLAY_INPUT_KEY);
-		const generation = generationFor(DISPLAY_INPUT_KEY);
-		const replacement = Promise.resolve().then(async () => {
-			const stream = await requestDisplay(acquireOptions);
-			if (disposed || generation !== generationFor(DISPLAY_INPUT_KEY)) {
-				stopStream(stream);
-				throw new Error('The display input was released while it was opening.');
-			}
-			if (!hasLiveTrack(stream, 'audio')) {
-				stopStream(stream);
-				throw new Error('Display capture did not provide an audio track. Choose a source with Share audio enabled; browser and operating-system support varies.');
-			}
-			if (!hasLiveTrack(stream, 'video')) {
-				stopStream(stream);
-				throw new Error('Display capture did not include its required live video track.');
-			}
-			setEntry(DISPLAY_INPUT_KEY, {
-				key: DISPLAY_INPUT_KEY,
-				kind: 'display',
-				stream,
-				channelCount: exposedAudioChannelCount(stream),
-			});
-			return stream;
-		}).finally(() => pending.delete(DISPLAY_REPLACEMENT_KEY));
-		pending.set(DISPLAY_REPLACEMENT_KEY, replacement);
-		return replacement;
 	}
 
 	function getLiveEntry(key, kind) {

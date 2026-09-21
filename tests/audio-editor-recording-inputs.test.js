@@ -368,6 +368,29 @@ test('capture pool discards audio-less display capture and removes externally en
 	assert.equal(audio.stopCount, 1, 'ending display video releases its remaining audio track');
 });
 
+test('display acquisition and replacement apply the same live-track admission', async () => {
+	for (const operation of ['acquire', 'replace']) {
+		for (const missingKind of ['audio', 'video']) {
+			const retained = createMockStream([createMockTrack('audio', 2), createMockTrack('video')]);
+			const invalid = createMockStream([
+				...(missingKind === 'audio' ? [] : [createMockTrack('audio', 2)]),
+				...(missingKind === 'video' ? [] : [createMockTrack('video')]),
+			]);
+			let request = 0;
+			const pool = createRecordingCapturePool({
+				requestDisplayInput: async () => operation === 'replace' && request++ === 0 ? retained : invalid,
+			});
+			if (operation === 'replace') await pool.acquireDisplay();
+
+			const attempt = operation === 'replace' ? pool.replaceDisplay() : pool.acquireDisplay();
+			await assert.rejects(attempt, missingKind === 'audio' ? /audio track/u : /video track/u);
+			assert.equal(invalid.getTracks().every((track) => track.stopCount === 1), true);
+			assert.equal(pool.getDisplay(), operation === 'replace' ? retained : null);
+			pool.dispose();
+		}
+	}
+});
+
 function createMockTrack(kind, channelCount = 1) {
 	const listeners = new Map();
 	return {
