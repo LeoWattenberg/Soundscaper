@@ -65,10 +65,11 @@ build-derived denominator.
 For Electron, the evidence generator reverse-enumerates JavaScript and HTML in
 `app.asar` and executable resources beside it. Its schema-4 product evidence
 also preserves exact per-file records and copies for every renderer or runtime
-Wasm resource. The packaged runner records the whole Resources identity and
-that Wasm list before launch, attests custom-scheme and local-file debugger
-bytes against those immutable records, and verifies the Resources tree again
-after collection. Assembly rejects added, missing, or changed files, unknown
+Wasm resource. The packaged runner records the complete executable Resources
+identity and that Wasm list before launch, attests custom-scheme and local-file
+debugger bytes against those immutable records, and verifies the executable
+Resources set again after collection. Assembly rejects added, missing, or
+changed files, unknown
 profiler URLs, changed source bytes, and unapproved target-runtime scripts.
 Test-harness files are packaged separately and are not part of the normal
 product inventory; the few generated renderer bridges needed to drive the
@@ -159,7 +160,10 @@ CDP renderer and preload profiles carry an exact script-source cache which is
 checked against the preserved executables. Standard Node V8 profiles contain
 URLs and execution ranges rather than source bytes; their main and child-process
 entries are instead restricted to digest-authenticated installed paths from the
-same preserved package evidence. Real-model Node profiles are read recursively
+same preserved package evidence. Only canonical `node:` runtime namespaces are
+excluded without file evidence; a path inside an `electron.asar` or
+`default_app.asar` file is not treated as an Electron internal. Real-model Node
+profiles are read recursively
 only from their manifest-bound private session directory, so identical or
 reused process IDs across products cannot move coverage between surfaces.
 

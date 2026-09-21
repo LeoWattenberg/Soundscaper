@@ -128,9 +128,6 @@ function validateManifest(value, sessionId, evidence, runRuntime) {
 	return Object.freeze({
 		alias: normalizedInstalledPath(aliasPath, value.platform),
 		hostAppAsar: normalizedInstalledPath(hostAppAsar(value.hostExecutablePath, value.platform), value.platform),
-		hostResources: normalizedInstalledPath(
-			resourcesPath(value.hostExecutablePath, value.platform), value.platform,
-		),
 		mainProcessId: value.mainProcessId,
 		payloadRoot: normalizedInstalledPath(payloadRoot, value.platform),
 		platform: value.platform,
@@ -253,9 +250,6 @@ function classifyNodeEntry(entry, runtime, evidence) {
 		}
 		return null;
 	}
-	if (isAuthenticatedElectronInternalUrl(
-		entry.url, runtime.platform, [runtime.hostResources, runtime.resources],
-	)) return null;
 	if (pathStartsWith(installed, `${runtime.payloadRoot}/`, runtime.platform)) {
 		throw new Error(`Local-assistance Node coverage has an unapproved staged script ${entry.url}.`);
 	}
@@ -265,19 +259,6 @@ function classifyNodeEntry(entry, runtime, evidence) {
 export function isCanonicalNodeInternalUrl(url) {
 	if (!/^node:[A-Za-z\d_./-]+$/u.test(url)) return false;
 	return !url.slice('node:'.length).split('/').some((part) => part === '' || part === '.' || part === '..');
-}
-
-export function isAuthenticatedElectronInternalUrl(url, platform, resourceRoots) {
-	const path = installedFilePath(url, platform);
-	if (path === null) return false;
-	for (const root of resourceRoots) {
-		const prefix = `${root}/`;
-		if (!pathStartsWith(path, prefix, platform)) continue;
-		const relativePath = path.slice(prefix.length);
-		if (relativePath.split('/').some((part) => part === '' || part === '.' || part === '..')) return false;
-		if (/^(?:default_app|electron)\.asar\//iu.test(relativePath)) return true;
-	}
-	return false;
 }
 
 function appendClassified(profiles, observed, values, prefix) {

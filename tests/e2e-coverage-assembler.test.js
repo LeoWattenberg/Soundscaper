@@ -384,13 +384,14 @@ test('child Node profiles and duplicate URLs merge, while PID/product conflicts 
 	assert.throws(() => assembleE2ECoverageCapture(resource), /un-inventoried product resource script/u);
 });
 
-test('packaged Node profiles admit only authenticated runtime URLs', () => {
+test('packaged Node profiles admit only canonical Node runtime URLs', () => {
 	for (const url of [
 		'',
 		'evalmachine.<anonymous>',
 		'blob:file:///tmp/foreign',
 		'file:///tmp/foreign.js',
 		'file:///tmp/electron.asar/browser/init.js',
+		'file:///opt/framescaper/resources/electron.asar/browser/init.js',
 		'/opt/framescaper/resources/electron.asar/../foreign.js',
 		'/tmp/foreign.js',
 		'node:internal/../spoofed',
@@ -410,10 +411,7 @@ test('packaged Node profiles admit only authenticated runtime URLs', () => {
 	const allowed = makeFixture();
 	const profilePath = join(allowed.runRoot, 'coverage/v8-packaged/coverage-4100-fixture-0.json');
 	const profile = readJson(profilePath);
-	profile.result.push(
-		v8Entry('node:electron/js2c/browser_init'),
-		v8Entry('file:///opt/framescaper/resources/electron.asar/browser/init.js'),
-	);
+	profile.result.push(v8Entry('node:electron/js2c/browser_init'));
 	writeJson(profilePath, profile);
 	assert.doesNotThrow(() => assembleE2ECoverageCapture(allowed));
 });

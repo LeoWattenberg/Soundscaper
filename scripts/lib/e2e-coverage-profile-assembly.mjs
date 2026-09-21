@@ -11,7 +11,6 @@ import { browserFfmpegCoverageContract, isBrowserFfmpegCoverage } from './browse
 import { validateBrowserSourceCache } from './browser-dynamic-coverage-sources.mjs';
 import {
 	assembleLocalAssistanceRawProfiles,
-	isAuthenticatedElectronInternalUrl,
 	isCanonicalNodeInternalUrl,
 } from './e2e-coverage-local-assistance.mjs';
 import {
@@ -287,9 +286,7 @@ function classifyNodeEntry(entry, evidence, ffmpegCoverage, runtimes) {
 	}
 	if (excludedMatches.length === 1) return null;
 	if (unique.length === 1) return unique[0];
-	if (isCanonicalNodeInternalUrl(entry.url) || runtimes.some(({ platform, resources }) => (
-		isAuthenticatedElectronInternalUrl(entry.url, platform, [resources])
-	))) return null;
+	if (isCanonicalNodeInternalUrl(entry.url)) return null;
 	throw new Error(`Packaged coverage has an unapproved packaged Node runtime script ${entry.url}.`);
 }
 

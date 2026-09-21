@@ -181,16 +181,21 @@ test('local classifier rejects unknown alias, launcher, payload, Resources, and 
 	}
 });
 
-test('only Electron internal ASAR paths below authenticated Resources roots are ignored', () => {
-	const fixture = makeFixture();
-	const profile = readJson(localFile(fixture, NODE_FILE));
-	profile.result.push(
-		v8Entry('file:///opt/nightly/resources/electron.asar/browser/init.js'),
-		v8Entry('file:///opt/nightly/resources/nightly-tests/products/soundscaper/linux-unpacked/resources/electron.asar/browser/init.js'),
-	);
-	writeJson(localFile(fixture, NODE_FILE), profile);
-	refreshLocalAssistanceFileRecord(fixture.runRoot, PRODUCT, NODE_FILE);
-	assert.doesNotThrow(() => assembleE2ECoverageCapture(fixture));
+test('local Node evidence rejects file-backed Electron archive scripts', () => {
+	for (const [url, expected] of [
+		['file:///opt/nightly/resources/electron.asar/browser/init.js', /unapproved absolute script/u],
+		[
+			'file:///opt/nightly/resources/nightly-tests/products/soundscaper/linux-unpacked/resources/electron.asar/browser/init.js',
+			/unapproved staged script/u,
+		],
+	]) {
+		const fixture = makeFixture();
+		const profile = readJson(localFile(fixture, NODE_FILE));
+		profile.result.push(v8Entry(url));
+		writeJson(localFile(fixture, NODE_FILE), profile);
+		refreshLocalAssistanceFileRecord(fixture.runRoot, PRODUCT, NODE_FILE);
+		assert.throws(() => assembleE2ECoverageCapture(fixture), expected, url);
+	}
 });
 
 test('local Node evidence rejects unbound non-file executable URLs', () => {
