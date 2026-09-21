@@ -5,6 +5,7 @@ import { dirname, extname, join, resolve } from 'node:path';
 import { build } from 'esbuild';
 import { DESKTOP_5B_TRANSITIVE_RUNTIME_FILES, DESKTOP_RUNTIME_BUNDLED_LEAF_FILES } from './desktop-5b-transitive-runtime-files.mjs';
 import { DESKTOP_ASSISTANCE_RUNTIME_FILES } from './desktop-assistance-runtime-files.mjs';
+import { DESKTOP_AUDACITY_EFFECT_RUNTIME_FILES } from './desktop-audacity-effect-runtime-files.mjs';
 import { stageDesktopBundledAudioRuntime } from './desktop-bundled-audio-runtime.mjs';
 import { DESKTOP_EXTERNAL_FFMPEG_RUNTIME_FILES } from './desktop-external-ffmpeg-runtime-files.mjs';
 import { DESKTOP_PROJECT_LIBRARY_BASELINE_RUNTIME_FILES } from './desktop-project-library-baseline-runtime-files.mjs';
@@ -241,23 +242,7 @@ export const DESKTOP_EXPECTED_RUNTIME_FILES = Object.freeze([
 	'src/common/editor/web-vcr-domain.js',
 	'src/common/editor/web-vcr-geometry.js',
 	...DESKTOP_SOUNDSCAPER_RUNTIME_FILES,
-	'src/common/editor/audacity-effects/audacity-bass-treble-kernel.js',
-	'src/common/editor/audacity-effects/audacity-click-removal-kernel.js',
-	'src/common/editor/audacity-effects/audacity-dynamics-lookahead.js',
-	'src/common/editor/audacity-effects/basic-channel-math.js',
-	'src/common/editor/audacity-effects/classic-filter-coefficients.js',
-	'src/common/editor/audacity-effects/distortion-table.js',
-	'src/common/editor/audacity-effects/live.js',
-	'src/common/editor/audacity-effects/live-dynamics-processors.js',
-	'src/common/editor/audacity-effects/live-processor-base.js',
-	'src/common/editor/audacity-effects/live-spectral-processors.js',
-	'src/common/editor/audacity-effects/live-capabilities.js',
-	'src/common/editor/audacity-effects/live-capability-policy.js',
-	'src/common/editor/audacity-effects/manifest.js',
-	'src/common/editor/audacity-effects/spectral.js',
-	'src/common/editor/audacity-effects/spectral-equalization-curves.js',
-	'src/common/editor/audacity-effects/spectral-noise-reduction.js',
-	'src/common/editor/audacity-effects/spectral-repair-interpolation.js',
+	...DESKTOP_AUDACITY_EFFECT_RUNTIME_FILES,
 	'src/common/editor/audio-track-freeze-lifecycle-v21.js',
 	'src/common/editor/audio-track-freeze-v21.js',
 	'src/common/editor/automation-lane-v21.js',

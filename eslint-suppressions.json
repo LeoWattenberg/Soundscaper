@@ -468,41 +468,6 @@
       "count": 1
     }
   },
-  "src/common/editor/controller/recording/take-cycle-capture-orchestrator.ts": {
-    "no-control-regex": {
-      "count": 1
-    }
-  },
-  "src/common/editor/controller/recording/internal/take-cycle/take-cycle-capture-spool-manifest.ts": {
-    "no-control-regex": {
-      "count": 1
-    }
-  },
-  "src/common/editor/controller/recording/internal/take-cycle/take-cycle-capture-spool.ts": {
-    "no-control-regex": {
-      "count": 1
-    }
-  },
-  "src/common/editor/controller/recording/internal/take-cycle/take-cycle-live-capture-request.ts": {
-    "no-control-regex": {
-      "count": 1
-    }
-  },
-  "src/common/editor/controller/recording/internal/take-cycle/take-cycle-live-capture-session.ts": {
-    "no-control-regex": {
-      "count": 1
-    }
-  },
-  "src/common/editor/controller/recording/internal/take-cycle/take-cycle-live-capture-spool.ts": {
-    "no-control-regex": {
-      "count": 1
-    }
-  },
-  "src/common/editor/controller/recording/internal/take-cycle/take-cycle-recording-repository-composition.ts": {
-    "no-control-regex": {
-      "count": 1
-    }
-  },
   "src/common/editor/controller/recording/take-cycle-recording-service.ts": {
     "no-control-regex": {
       "count": 1
