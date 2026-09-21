@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { isFramescaperVideoKeyframeProjectSchema } from '../project-schema-version.ts';
+import { resolveSelectedTimelineVideoAuthority } from '../selected-timeline-video-authority.ts';
 
 export interface VideoKeyframeApplicationMenuInput {
 	readonly productId: string;
@@ -49,27 +50,29 @@ function lightweightSelection(
 	}
 	const selection = dataRecord(data(project, 'selection'));
 	const selectedIds = stringList(selection ? data(selection, 'clipIds') : undefined, budget) ?? [];
-	let targetIds: readonly string[] = selectedIds.length > 0 ? selectedIds : focusedId ? [focusedId] : [];
-	if (focusedId && selectedIds.includes(focusedId)) {
-		const focused = clipById.get(focusedId);
-		const selectedVideoCount = selectedIds.filter((id) => data(clipById.get(id) ?? {}, 'kind') === 'video').length;
-		if (data(focused ?? {}, 'kind') === 'video' && selectedVideoCount === 1) targetIds = [focusedId];
-	}
-	if (targetIds.length !== 1) return null;
-	const clip = clipById.get(targetIds[0]!);
-	if (data(clip ?? {}, 'kind') !== 'video') return null;
-	const keyframes = clip ? Object.getOwnPropertyDescriptor(clip, 'videoKeyframes') : null;
-	if (!keyframes?.enumerable || !Object.hasOwn(keyframes, 'value')) return null;
-	let owner: Readonly<Record<string, unknown>> | null = null;
-	for (const track of tracks) {
-		if (data(track, 'type') !== 'video') continue;
-		const clipIds = stringList(data(track, 'clipIds'), budget);
-		if (!clipIds) return null;
-		if (!clipIds.includes(targetIds[0]!)) continue;
-		if (owner) return null;
-		owner = track;
-	}
-	return owner ? Object.freeze({ locked: data(owner, 'locked') === true }) : null;
+	const selected = resolveSelectedTimelineVideoAuthority({
+		selectedClipIds: selectedIds,
+		focusedClipId: focusedId,
+		clipForId: (clipId) => clipById.get(clipId),
+		isVideoClip: (clip) => data(clip, 'kind') === 'video',
+		admitTargetClip: (clip) => {
+			const keyframes = Object.getOwnPropertyDescriptor(clip, 'videoKeyframes');
+			return Boolean(keyframes?.enumerable && Object.hasOwn(keyframes, 'value'));
+		},
+		owningTracksForClipId: (clipId) => {
+			const owners: Readonly<Record<string, unknown>>[] = [];
+			for (const track of tracks) {
+				if (data(track, 'type') !== 'video') continue;
+				const clipIds = stringList(data(track, 'clipIds'), budget);
+				if (!clipIds) return null;
+				if (!clipIds.includes(clipId)) continue;
+				owners.push(track);
+				if (owners.length > 1) return owners;
+			}
+			return owners;
+		},
+	});
+	return selected ? Object.freeze({ locked: data(selected.track, 'locked') === true }) : null;
 }
 
 function dataRecords(value: unknown, budget: MenuBudget): readonly Readonly<Record<string, unknown>>[] | null {

@@ -30,6 +30,7 @@ import {
 	type VideoKeyframeTarget,
 } from '../video-keyframe-curves.ts';
 import { isFramescaperVideoKeyframeProjectSchema } from '../project-schema-version.ts';
+import { resolveSelectedTimelineVideoAuthority } from '../selected-timeline-video-authority.ts';
 import { mapVideoKeyframeVisiblePosition } from '../video-keyframe-time-domain.ts';
 import { normalizeVideoEffects, videoEffectDefinition } from '../video-effects.js';
 import {
@@ -357,18 +358,25 @@ export function createVideoKeyframeSetCommand(
 function selectedVideo(project: DataRecord, selectedClipId: unknown): Readonly<EditableModel> | null {
 	const clips = ordinaryRecords(requiredDataProperty(project, 'clips', 'project'), 'project.clips');
 	const tracks = ordinaryRecords(requiredDataProperty(project, 'tracks', 'project'), 'project.tracks');
-	const selectedIds = selectedVideoIds(project, clips, selectedClipId);
-	if (selectedIds.length !== 1) return null;
-	const clip = clips.find((candidate) => (
-		requiredDataProperty(candidate, 'id', 'clip') === selectedIds[0]
-			&& requiredDataProperty(candidate, 'kind', 'clip') === 'video'
-	));
-	if (!clip) return null;
-	const owners = tracks.filter((track) => (
-		requiredDataProperty(track, 'type', 'track') === 'video'
-			&& stringArray(requiredDataProperty(track, 'clipIds', 'track'), 'track.clipIds').includes(selectedIds[0]!)
-	));
-	if (owners.length !== 1) return null;
+	const selectionValue = safeDataProperty(project, 'selection');
+	const selection = selectionValue === undefined ? null : ordinaryRecord(selectionValue);
+	const selectedIds = selection
+		? stringArray(requiredDataProperty(selection, 'clipIds', 'project.selection'), 'project.selection.clipIds')
+		: [];
+	const selected = resolveSelectedTimelineVideoAuthority({
+		selectedClipIds: selectedIds,
+		focusedClipId: selectedClipId,
+		clipForId: (clipId) => clips.find((candidate) => (
+			requiredDataProperty(candidate, 'id', 'clip') === clipId
+		)) ?? null,
+		isVideoClip: (clip) => requiredDataProperty(clip, 'kind', 'clip') === 'video',
+		owningTracksForClipId: (clipId) => tracks.filter((track) => (
+			requiredDataProperty(track, 'type', 'track') === 'video'
+				&& stringArray(requiredDataProperty(track, 'clipIds', 'track'), 'track.clipIds').includes(clipId)
+		)),
+	});
+	if (!selected) return null;
+	const { clip, track } = selected;
 	const clipId = canonicalString(requiredDataProperty(clip, 'id', 'video clip'), 'video clip.id');
 	const sequenceStartFrame = nonNegativeSafeInteger(requiredDataProperty(clip, 'sequenceStartFrame', `video clip ${clipId}`), 'sequenceStartFrame');
 	const sequenceFrameCount = positiveSafeInteger(requiredDataProperty(clip, 'sequenceFrameCount', `video clip ${clipId}`), 'sequenceFrameCount');
@@ -393,24 +401,9 @@ function selectedVideo(project: DataRecord, selectedClipId: unknown): Readonly<E
 		composition,
 		videoEffects,
 		keyframes,
-		operationsBlocked: requiredDataProperty(owners[0]!, 'locked', 'video track') === true,
-		blockReason: requiredDataProperty(owners[0]!, 'locked', 'video track') === true ? 'locked' : null,
+		operationsBlocked: requiredDataProperty(track, 'locked', 'video track') === true,
+		blockReason: requiredDataProperty(track, 'locked', 'video track') === true ? 'locked' : null,
 	});
-}
-
-function selectedVideoIds(project: DataRecord, clips: readonly DataRecord[], focused: unknown): readonly string[] {
-	const selectionValue = safeDataProperty(project, 'selection');
-	const selection = selectionValue === undefined ? null : ordinaryRecord(selectionValue);
-	const selected = selection ? stringArray(requiredDataProperty(selection, 'clipIds', 'project.selection'), 'project.selection.clipIds') : [];
-	if (selected.length === 0) return typeof focused === 'string' ? Object.freeze([focused]) : Object.freeze([]);
-	if (typeof focused === 'string' && selected.includes(focused)) {
-		const focusedClip = clips.find((clip) => safeDataProperty(clip, 'id') === focused);
-		const videoCount = selected.filter((id) => clips.some((clip) => (
-			safeDataProperty(clip, 'id') === id && safeDataProperty(clip, 'kind') === 'video'
-		))).length;
-		if (safeDataProperty(focusedClip ?? {}, 'kind') === 'video' && videoCount === 1) return Object.freeze([focused]);
-	}
-	return selected;
 }
 
 function replaceCurve(model: EditableModel, index: number, curve: MutableRecord): VideoKeyframeCurves {

@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { isFramescaperVideoRetimeProjectSchema } from '../project-schema-version.ts';
+import { resolveSelectedTimelineVideoAuthority } from '../selected-timeline-video-authority.ts';
 
 export type VideoRetimeDialogBlockReason = 'unsupported' | 'no-video-clip' | 'locked' | 'busy';
 
@@ -43,21 +44,18 @@ export function createVideoRetimeDialogModel(
 	const tracks = records(project?.tracks);
 	const selection = record(project?.selection);
 	const selectedIds = strings(selection?.clipIds);
-	let targetIds = selectedIds.length > 0
-		? selectedIds
-		: input.selectedClipId ? [input.selectedClipId] : [];
-	if (input.selectedClipId && selectedIds.includes(input.selectedClipId)) {
-		const focused = clips.find(({ id }) => id === input.selectedClipId);
-		const selectedVideos = selectedIds.filter((id) => (
-			clips.find((clip) => clip.id === id)?.kind === 'video'
-		));
-		if (focused?.kind === 'video' && selectedVideos.length === 1) targetIds = [input.selectedClipId];
-	}
-	if (targetIds.length !== 1) return blocked('no-video-clip');
-	const clip = clips.find(({ id }) => id === targetIds[0]);
-	if (!clip || clip.kind !== 'video' || !Object.hasOwn(clip, 'retimeMap')) return blocked('no-video-clip');
-	const owners = tracks.filter(({ type, clipIds }) => type === 'video' && strings(clipIds).includes(targetIds[0]!));
-	if (owners.length !== 1) return blocked('no-video-clip');
+	const selected = resolveSelectedTimelineVideoAuthority({
+		selectedClipIds: selectedIds,
+		focusedClipId: input.selectedClipId,
+		clipForId: (clipId) => clips.find(({ id }) => id === clipId) ?? null,
+		isVideoClip: (clip) => clip.kind === 'video',
+		admitTargetClip: (clip) => Object.hasOwn(clip, 'retimeMap'),
+		owningTracksForClipId: (clipId) => tracks.filter(({ type, clipIds }) => (
+			type === 'video' && strings(clipIds).includes(clipId)
+		)),
+	});
+	if (!selected) return blocked('no-video-clip');
+	const { clip, clipId, track } = selected;
 	const sequenceFrameCount = positiveInteger(clip.sequenceFrameCount);
 	const sourceInFrame = nonNegativeInteger(clip.sourceInFrame);
 	const sourceFrameCount = positiveInteger(clip.sourceFrameCount);
@@ -65,11 +63,11 @@ export function createVideoRetimeDialogModel(
 		|| !Number.isSafeInteger(sourceInFrame + sourceFrameCount)) return blocked('no-video-clip');
 	const expectedRetimeMap = cloneAndFreeze(clip.retimeMap);
 	return Object.freeze({
-		blockReason: input.editingBlocked ? 'busy' : owners[0]?.locked === true ? 'locked' : null,
-		clipId: targetIds[0]!,
-		clipName: typeof clip.name === 'string' && clip.name.length > 0 ? clip.name : targetIds[0]!,
+		blockReason: input.editingBlocked ? 'busy' : track.locked === true ? 'locked' : null,
+		clipId,
+		clipName: typeof clip.name === 'string' && clip.name.length > 0 ? clip.name : clipId,
 		hasRetimeMap: expectedRetimeMap !== null,
-		commandAuthority: Object.freeze({ clipId: targetIds[0]!, expectedRetimeMap }),
+		commandAuthority: Object.freeze({ clipId, expectedRetimeMap }),
 		bounds: Object.freeze({
 			outerFrameCount: sequenceFrameCount,
 			sourceFirstFrame: sourceInFrame,

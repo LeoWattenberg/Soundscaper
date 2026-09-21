@@ -2,6 +2,7 @@
 
 import { selectAudioEditorEditBlock, type AudioEditorEditBlockingSnapshot } from '../edit-blocking.ts';
 import { isFramescaperVideoCompositionProjectSchema } from '../project-schema-version.ts';
+import { resolveSelectedTimelineVideoAuthority } from '../selected-timeline-video-authority.ts';
 import {
 	normalizeVideoClipComposition,
 	type VideoClipComposition,
@@ -70,21 +71,27 @@ export function resolveSelectedVideoCompositionClip(
 ): Readonly<SelectedVideoCompositionClip> | null {
 	const project = dataRecord(projectValue);
 	if (!project || !isFramescaperVideoCompositionProjectSchema(project)) return null;
-	const selectedClipIds = selectedIds(project, selectedClipIdValue);
-	if (selectedClipIds.length !== 1) return null;
 	const clips = dataRecords(project.clips);
 	const tracks = dataRecords(project.tracks);
-	const clip = clips.find(({ id, kind }) => id === selectedClipIds[0] && kind === 'video') ?? null;
-	const owners = clip ? tracks.filter((track) => (
-		track.type === 'video' && Array.isArray(track.clipIds) && track.clipIds.includes(clip.id)
-	)) : [];
-	if (!clip || owners.length !== 1 || typeof clip.id !== 'string') return null;
+	const selection = dataRecord(project.selection);
+	const selectionIds = selectionClipIds(selection);
+	if (selectionIds === null) return null;
+	const selected = resolveSelectedTimelineVideoAuthority({
+		selectedClipIds: selectionIds,
+		focusedClipId: selectedClipIdValue,
+		clipForId: (clipId) => clips.find(({ id }) => id === clipId) ?? null,
+		isVideoClip: (clip) => clip.kind === 'video',
+		owningTracksForClipId: (clipId) => tracks.filter((track) => (
+			track.type === 'video' && Array.isArray(track.clipIds) && track.clipIds.includes(clipId)
+		)),
+	});
+	if (!selected || typeof selected.clip.id !== 'string') return null;
 	try {
 		return Object.freeze({
-			clipId: clip.id,
-			clipName: String(clip.title ?? clip.name ?? clip.id),
-			composition: normalizeVideoClipComposition(clip.videoComposition),
-			locked: owners[0]?.locked === true,
+			clipId: selected.clip.id,
+			clipName: String(selected.clip.title ?? selected.clip.name ?? selected.clip.id),
+			composition: normalizeVideoClipComposition(selected.clip.videoComposition),
+			locked: selected.track.locked === true,
 		});
 	} catch {
 		return null;
@@ -229,20 +236,11 @@ function emptyModel(
 	});
 }
 
-function selectedIds(project: DataRecord, selectedClipId: unknown): readonly string[] {
-	const selection = dataRecord(project.selection);
-	if (Array.isArray(selection?.clipIds) && selection.clipIds.length > 0) {
-		if (!selection.clipIds.every((id) => typeof id === 'string')) return Object.freeze([]);
-		if (typeof selectedClipId === 'string' && selection.clipIds.includes(selectedClipId)) {
-			const focused = dataRecords(project.clips).find(({ id }) => id === selectedClipId);
-			const selectedVideoCount = selection.clipIds.filter((id) => (
-				dataRecords(project.clips).some((clip) => clip.id === id && clip.kind === 'video')
-			)).length;
-			if (focused?.kind === 'video' && selectedVideoCount === 1) return Object.freeze([selectedClipId]);
-		}
-		return selection.clipIds;
-	}
-	return typeof selectedClipId === 'string' ? Object.freeze([selectedClipId]) : Object.freeze([]);
+function selectionClipIds(selection: DataRecord | null): readonly string[] | null {
+	if (!Array.isArray(selection?.clipIds) || selection.clipIds.length === 0) return Object.freeze([]);
+	return selection.clipIds.every((id) => typeof id === 'string')
+		? selection.clipIds as readonly string[]
+		: null;
 }
 
 function numberText(value: string, name: string): number {
