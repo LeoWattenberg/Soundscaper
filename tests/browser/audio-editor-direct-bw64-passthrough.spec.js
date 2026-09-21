@@ -99,7 +99,7 @@ test.describe('direct pristine BW64 passthrough publication', () => {
 			{ exact: true },
 		)).toBeVisible();
 		await expect(exportDialog.locator('[data-export-progress]')).toBeVisible();
-		await waitForPublicationOrExportFailure(page, editor, 0);
+		await waitForPublicationOrExportFailure(page, 0);
 		expect(await page.evaluate(() => globalThis.__directPcmSave.sessions[0]?.closes || 0)).toBe(1);
 		await expect(exportDialog.getByRole('button', { name: 'Export', exact: true })).toBeVisible();
 		await expect(exportDialog.locator('[data-export-download]')).toBeHidden();
@@ -180,12 +180,12 @@ test.describe('direct pristine BW64 passthrough publication', () => {
 	});
 });
 
-async function waitForPublicationOrExportFailure(page, editor, sessionIndex) {
+async function waitForPublicationOrExportFailure(page, sessionIndex) {
 	await page.waitForFunction((index) => (
 		globalThis.__directPcmSave.sessions[index]?.closes === 1
-		|| document.querySelector('[data-audio-editor] [data-status]')?.dataset.state === 'error'
+		|| document.querySelector('[data-editor-toast="workspace-error"], [data-editor-toast="workspace-status-error"]') !== null
 	), sessionIndex, { timeout: PASSTHROUGH_COMPLETION_TIMEOUT_MS });
-	await expect(editor.locator('[data-status]')).not.toHaveAttribute('data-state', 'error');
+	await expect(page.locator('[data-editor-toast="workspace-error"], [data-editor-toast="workspace-status-error"]')).toHaveCount(0);
 }
 
 async function importLazyBw64(page, editor, fixture) {

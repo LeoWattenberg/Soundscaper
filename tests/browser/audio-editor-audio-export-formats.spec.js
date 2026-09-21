@@ -38,7 +38,8 @@ test.describe('audio exporter round trips', () => {
 		const dialog = await openExportDialog(page, editor);
 		await chooseDropdown(page, dialog.locator('[data-export-field="format"]'), 'AAC / M4A');
 		await dialog.getByRole('button', { name: 'Export', exact: true }).click();
-		await expect(editor.locator('[data-status]')).toContainText('This browser does not provide WebCodecs AAC encoding.');
+		await expect(page.locator('[data-editor-toast="workspace-status-error"]'))
+			.toContainText('This browser does not provide WebCodecs AAC encoding.');
 		await expect(dialog.locator('[data-export-download]')).toBeHidden();
 	});
 	for (const [label, extension, signature] of FORMATS) {

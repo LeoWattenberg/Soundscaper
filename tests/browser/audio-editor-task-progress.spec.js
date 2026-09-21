@@ -68,8 +68,9 @@ test.describe('audio editor task progress', () => {
 		await dialog.getByRole('button', { name: 'Export', exact: true }).click();
 		const download = dialog.locator('[data-export-download]');
 		const failure = dialog.locator('.audio-editor-field-error');
-		await expect.poll(async () => await download.isVisible() || await editor.locator('[data-status][data-state="error"]').count() > 0, { timeout: 270_000 }).toBe(true);
-		expect(await editor.locator('[data-status]').getAttribute('data-state'), await editor.locator('[data-status]').getAttribute('title')).not.toBe('error');
+		const workspaceErrors = page.locator('[data-editor-toast="workspace-error"], [data-editor-toast="workspace-status-error"]');
+		await expect.poll(async () => await download.isVisible() || await workspaceErrors.count() > 0, { timeout: 270_000 }).toBe(true);
+		await expect(workspaceErrors).toHaveCount(0);
 		expect(await failure.allTextContents()).toEqual([]);
 		const bytes = await readDownloadBytes(page, download);
 		expect(bytes.length).toBeGreaterThan(1_000_000);

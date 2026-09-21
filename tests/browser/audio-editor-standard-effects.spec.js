@@ -169,7 +169,7 @@ test.describe('regular effects converted from Nyquist', () => {
 		await expect(editor.getByRole('button', { name: 'Pause', exact: true })).toBeVisible();
 		await closeDialog(dialog);
 		await editor.locator('[data-transport="stop"] button').click();
-		await expect(editor.locator('[data-status]')).not.toHaveAttribute('data-state', 'error');
+		await expect(page.locator('[data-editor-toast="workspace-error"], [data-editor-toast="workspace-status-error"]')).toHaveCount(0);
 		await expect(editor.locator('[data-save-state]')).toHaveAttribute('data-state', 'saved', { timeout: 10000 });
 		await page.reload();
 		editor = await waitForEditor(page);
@@ -211,7 +211,7 @@ test.describe('regular effects converted from Nyquist', () => {
 		await expect(editor.getByRole('button', { name: 'Pause', exact: true })).toBeVisible();
 		await closeDialog(dialog);
 		await editor.locator('[data-transport="stop"] button').click();
-		await expect(editor.locator('[data-status]')).not.toHaveAttribute('data-state', 'error');
+		await expect(page.locator('[data-editor-toast="workspace-error"], [data-editor-toast="workspace-status-error"]')).toHaveCount(0);
 		expect(nyquistRequests).toEqual([]);
 		expect(errors).toEqual([]);
 	});
@@ -260,7 +260,7 @@ test.describe('regular effects converted from Nyquist', () => {
 		expect(await page.evaluate(() => globalThis.__standardEffectNodes.created)).toBe(created);
 		await closeDialog(liveSettings);
 		await closeEffectsPanel(panel);
-		await expect(editor.locator('[data-status]')).not.toHaveAttribute('data-state', 'error');
+		await expect(page.locator('[data-editor-toast="workspace-error"], [data-editor-toast="workspace-status-error"]')).toHaveCount(0);
 		await editor.locator('[data-transport="stop"] button').click();
 		await expect(editor.locator('[data-save-state]')).toHaveAttribute('data-state', 'saved', { timeout: 10_000 });
 		await page.reload();

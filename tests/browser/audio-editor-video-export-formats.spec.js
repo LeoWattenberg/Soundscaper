@@ -38,7 +38,7 @@ test.describe('video container exporters', () => {
 			await chooseDropdown(page, dialog.locator('[data-export-field="format"]'), label);
 			await dialog.getByRole('button', { name: 'Export', exact: true }).click();
 			const link = dialog.locator('[data-export-download]');
-			await expect(link.filter({ visible: true }).or(editor.locator('[data-status][data-state="error"]'))).toBeVisible({ timeout: 60000 });
+			await expect(link.filter({ visible: true }).or(page.locator('[data-editor-toast="workspace-error"], [data-editor-toast="workspace-status-error"]'))).toBeVisible({ timeout: 60000 });
 			await expect(link).toBeVisible();
 			await expect(link).toHaveAttribute('download', new RegExp(`\\.${extension}$`));
 			const bytes = await readDownloadBytes(page, link);
