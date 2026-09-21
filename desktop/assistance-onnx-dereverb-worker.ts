@@ -24,6 +24,7 @@ import type {
 	AssistanceOnnxTensorV1,
 } from './assistance-onnx-runtime-worker.ts';
 import {
+	assertAssistanceOnnxCpuJobV1,
 	createAssistanceOnnxCpuSessionV1,
 	reviewAssistanceOnnxRuntimeModuleV1,
 } from './assistance-onnx-worker-common.ts';
@@ -310,12 +311,8 @@ export function assertDereverbModelGrant(
 }
 
 function assertRuntimeJob(context: AssistanceRuntimeFamilyWorkerExecutionContext): void {
-	if (context.grant.familyId !== 'onnxruntime-node' || context.grant.task !== 'dereverberation'
-		|| context.job.descriptor.familyId !== 'onnxruntime-node'
-		|| context.job.descriptor.runtimeVersion !== '1.29.0'
-		|| context.job.descriptor.executionProvider !== 'cpu') {
-		throw new TypeError('The dereverberation adapter received a foreign authenticated CPU job.');
-	}
+	assertAssistanceOnnxCpuJobV1(context, 'dereverberation',
+		'The dereverberation adapter received a foreign authenticated CPU job.');
 }
 
 function assertSettings(context: AssistanceRuntimeFamilyWorkerExecutionContext): void {

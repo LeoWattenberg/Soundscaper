@@ -8,6 +8,7 @@ import type {
 	AssistanceOnnxTensorV1,
 } from './assistance-onnx-runtime-worker.ts';
 import {
+	assertAssistanceOnnxCpuJobV1,
 	createAssistanceOnnxCpuSessionV1,
 	publishAssistanceOnnxOutputV1,
 	reviewAssistanceOnnxRuntimeModuleV1,
@@ -28,12 +29,8 @@ export function assertAssistanceOnnxVisualRuntimeJobV1(
 	context: AssistanceRuntimeFamilyWorkerExecutionContext,
 	task: AssistanceRuntimeFamilyTask,
 ): void {
-	if (context.grant.familyId !== 'onnxruntime-node' || context.grant.task !== task
-		|| context.job.descriptor.familyId !== 'onnxruntime-node'
-		|| context.job.descriptor.runtimeVersion !== '1.29.0'
-		|| context.job.descriptor.executionProvider !== 'cpu') {
-		throw new TypeError('The visual adapter received a foreign authenticated CPU job.');
-	}
+	assertAssistanceOnnxCpuJobV1(context, task,
+		'The visual adapter received a foreign authenticated CPU job.');
 }
 
 export function exactAssistanceOnnxVisualArtifactsV1<Role extends string>(

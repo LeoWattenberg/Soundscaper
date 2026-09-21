@@ -11,6 +11,7 @@ import type {
 } from './assistance-onnx-runtime-worker.ts';
 import type {
 	AssistanceRuntimeFamilyJobResultV1,
+	AssistanceRuntimeFamilyTask,
 } from './assistance-runtime-family-job-contract.ts';
 import type {
 	AssistanceRuntimeFamilyWorkerExecutionContext,
@@ -23,6 +24,20 @@ export interface AssistanceOnnxSurfaceErrorsV1 {
 
 export interface AssistanceOnnxOutputPublicationOptionsV1 {
 	readonly exactOutputCount?: number;
+}
+
+/** Admit only the authenticated, task-bound CPU ONNX job; callers own their error wording. */
+export function assertAssistanceOnnxCpuJobV1(
+	context: AssistanceRuntimeFamilyWorkerExecutionContext,
+	task: AssistanceRuntimeFamilyTask,
+	errorMessage: string,
+): void {
+	if (context.grant.familyId !== 'onnxruntime-node' || context.grant.task !== task
+		|| context.job.descriptor.familyId !== 'onnxruntime-node'
+		|| context.job.descriptor.runtimeVersion !== '1.29.0'
+		|| context.job.descriptor.executionProvider !== 'cpu') {
+		throw new TypeError(errorMessage);
+	}
 }
 
 export function reviewAssistanceOnnxRuntimeModuleV1(

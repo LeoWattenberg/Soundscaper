@@ -21,6 +21,7 @@ import type {
 	AssistanceOnnxTensorV1,
 } from './assistance-onnx-runtime-worker.ts';
 import {
+	assertAssistanceOnnxCpuJobV1,
 	createAssistanceOnnxCpuSessionV1,
 	publishAssistanceOnnxOutputV1,
 	reviewAssistanceOnnxRuntimeModuleV1,
@@ -129,12 +130,8 @@ async function executeNomicTextEmbedding(
 }
 
 function assertRuntimeJob(context: AssistanceRuntimeFamilyWorkerExecutionContext): void {
-	if (context.grant.familyId !== 'onnxruntime-node' || context.grant.task !== 'text-embedding'
-		|| context.job.descriptor.familyId !== 'onnxruntime-node'
-		|| context.job.descriptor.runtimeVersion !== '1.29.0'
-		|| context.job.descriptor.executionProvider !== 'cpu') {
-		throw new TypeError('The nomic adapter received a foreign authenticated CPU job.');
-	}
+	assertAssistanceOnnxCpuJobV1(context, 'text-embedding',
+		'The nomic adapter received a foreign authenticated CPU job.');
 }
 
 function assertSettingsAndGrants(

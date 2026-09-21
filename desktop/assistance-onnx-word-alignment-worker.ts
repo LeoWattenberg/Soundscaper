@@ -27,6 +27,7 @@ import type {
 	AssistanceOnnxTensorV1,
 } from './assistance-onnx-runtime-worker.ts';
 import {
+	assertAssistanceOnnxCpuJobV1,
 	createAssistanceOnnxCpuSessionV1,
 	publishAssistanceOnnxOutputV1,
 	reviewAssistanceOnnxRuntimeModuleV1,
@@ -270,12 +271,8 @@ function logitsToLogProbabilities(
 }
 
 function assertRuntimeJob(context: AssistanceRuntimeFamilyWorkerExecutionContext): void {
-	if (context.grant.familyId !== 'onnxruntime-node' || context.grant.task !== 'word-alignment'
-		|| context.job.descriptor.familyId !== 'onnxruntime-node'
-		|| context.job.descriptor.runtimeVersion !== '1.29.0'
-		|| context.job.descriptor.executionProvider !== 'cpu') {
-		throw new TypeError('The wav2vec2 adapter received a foreign authenticated CPU job.');
-	}
+	assertAssistanceOnnxCpuJobV1(context, 'word-alignment',
+		'The wav2vec2 adapter received a foreign authenticated CPU job.');
 }
 
 function assertSettings(context: AssistanceRuntimeFamilyWorkerExecutionContext): void {

@@ -2,12 +2,14 @@
 
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
+import { readFileSync } from 'node:fs';
 import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test, { type TestContext } from 'node:test';
 
 import {
+	assertAssistanceOnnxCpuJobV1,
 	createAssistanceOnnxCpuSessionV1,
 	publishAssistanceOnnxOutputV1,
 	reviewAssistanceOnnxRuntimeModuleV1,
@@ -28,6 +30,48 @@ const INVALID_RUNTIME = Object.freeze({
 const INVALID_SESSION = Object.freeze({
 	value: 'session value rejected',
 	surface: 'session surface rejected',
+});
+
+test('one CPU job admission authority preserves task and branded descriptor checks', async (testContext) => {
+	const { context } = await publicationFixture(testContext, 64);
+	const error = 'The nomic adapter received a foreign authenticated CPU job.';
+	assert.doesNotThrow(() => assertAssistanceOnnxCpuJobV1(context, 'text-embedding', error));
+	for (const invalid of [
+		{ ...context, grant: { ...context.grant, familyId: 'whisper-cpp' } },
+		{ ...context, grant: { ...context.grant, task: 'beat-tracking' } },
+		{ ...context, job: { ...context.job, descriptor: {
+			...context.job.descriptor, familyId: 'llama-cpp',
+		} } },
+		{ ...context, job: { ...context.job, descriptor: {
+			...context.job.descriptor, runtimeVersion: '1.28.0',
+		} } },
+		{ ...context, job: { ...context.job, descriptor: {
+			...context.job.descriptor, executionProvider: 'cuda',
+		} } },
+	]) {
+		assert.throws(() => assertAssistanceOnnxCpuJobV1(
+			invalid as unknown as AssistanceRuntimeFamilyWorkerExecutionContext,
+			'text-embedding', error,
+		), { name: 'TypeError', message: error });
+	}
+	assert.throws(() => assertAssistanceOnnxCpuJobV1(context, 'audio-tagging',
+		'The audio-tagging adapter received a foreign authenticated CPU job.'),
+	{ message: 'The audio-tagging adapter received a foreign authenticated CPU job.' });
+});
+
+test('all ONNX worker adapters delegate identical CPU job admission to the common authority', () => {
+	for (const file of [
+		'assistance-onnx-audio-runtime-worker.ts',
+		'assistance-onnx-enhancement-separation-worker.ts',
+		'assistance-onnx-dereverb-worker.ts',
+		'assistance-onnx-word-alignment-worker.ts',
+		'assistance-onnx-text-embedding-worker.ts',
+		'assistance-onnx-visual-worker-common.ts',
+	]) {
+		const source = readFileSync(new URL(`../desktop/${file}`, import.meta.url), 'utf8');
+		assert.match(source, /assertAssistanceOnnxCpuJobV1\(/u, file);
+		assert.doesNotMatch(source, /context\.job\.descriptor\.executionProvider/u, file);
+	}
 });
 
 test('shared ONNX runtime review preserves value and surface error boundaries', () => {

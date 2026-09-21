@@ -29,6 +29,7 @@ import type {
 	AssistanceOnnxTensorV1,
 } from './assistance-onnx-runtime-worker.ts';
 import {
+	assertAssistanceOnnxCpuJobV1,
 	createAssistanceOnnxCpuSessionV1,
 	publishAssistanceOnnxOutputV1,
 	reviewAssistanceOnnxRuntimeModuleV1,
@@ -277,12 +278,8 @@ function assertRuntimeJob(
 	context: AssistanceRuntimeFamilyWorkerExecutionContext,
 	task: 'audio-tagging' | 'beat-tracking',
 ): void {
-	if (context.grant.familyId !== 'onnxruntime-node' || context.grant.task !== task
-		|| context.job.descriptor.familyId !== 'onnxruntime-node'
-		|| context.job.descriptor.runtimeVersion !== '1.29.0'
-		|| context.job.descriptor.executionProvider !== 'cpu') {
-		throw new TypeError(`The ${task} adapter received a foreign authenticated CPU job.`);
-	}
+	assertAssistanceOnnxCpuJobV1(context, task,
+		`The ${task} adapter received a foreign authenticated CPU job.`);
 }
 
 function assertSettings(
