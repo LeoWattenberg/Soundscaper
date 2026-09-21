@@ -103,6 +103,9 @@ test('milestone-5 source packet pins and test-enables every native dependency', 
 	}
 
 	assert.equal(requireMilestone5NativeSource(register, 'juce').version, '9.0.1');
+	assert.deepEqual(requireMilestone5NativeSource(register, 'juce').uses, [
+		'native-audio-backends', 'vst3-host', 'audio-unit-host', 'lv2-host', 'ladspa-effect-host',
+	]);
 	assert.equal(requireMilestone5NativeSource(register, 'electron-node-api-headers').version, '43.1.1');
 	assert.equal(requireMilestone5NativeSource(register, 'clap').version, '1.2.4');
 	assert.equal(requireMilestone5NativeSource(register, 'vst3-sdk').version, '3.8.0_build_66');

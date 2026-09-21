@@ -51,7 +51,7 @@
 			"authenticationStatus": "pinned-metadata",
 			"activationStatus": "accepted",
 			"blockedBy": null,
-			"uses": ["native-audio-backends", "vst3-host", "audio-unit-host", "lv2-host"]
+			"uses": ["native-audio-backends", "vst3-host", "audio-unit-host", "lv2-host", "ladspa-effect-host"]
 		},
 		{
 			"id": "clap",
