@@ -32,6 +32,12 @@ test('desktop staging contains only unversioned v1 project-library authorities',
 	assert.ok(DESKTOP_EXPECTED_RUNTIME_FILES.includes('desktop/soundscaper-delivery-worker-port.js'));
 });
 
+test('desktop staging includes the shared Framescaper durable asset authority', () => {
+	assert.ok(DESKTOP_PROJECT_LIBRARY_BASELINE_RUNTIME_FILES.includes(
+		'src/framescaper/editor-scape-durable-asset-plan-core.js',
+	));
+});
+
 test('Soundscaper packaging carries the restart smoke and its exact compiled recovery closure', async () => {
 	const requiredRuntime = [
 		'desktop/soundscaper-delivery-database.js',

@@ -125,6 +125,7 @@ export const DESKTOP_PROJECT_LIBRARY_BASELINE_RUNTIME_FILES = Object.freeze([
 	'src/framescaper/editor-project-visual-validation.js',
 	'src/framescaper/editor-project-visual.js',
 	'src/framescaper/editor-scape-asset-plan.js',
+	'src/framescaper/editor-scape-durable-asset-plan-core.js',
 	'src/framescaper/editor-project-runtime-profile.js',
 	'src/framescaper/editor-project.js',
 ]);
