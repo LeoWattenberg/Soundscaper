@@ -273,7 +273,11 @@ test('BWF spotting respects explicit and project-bin placement and warns on inva
 	assert.equal(explicitClip.timelineStartFrame, 73);
 
 	await service.importFile(file('bin.wav'), { destination: 'project-bin' });
-	const binClip = commandOfType(fixture.commands[1]?.command, 'project-bin/add')?.clip as { timelineStartFrame?: number };
+	const binClip = commandOfType(fixture.commands[1]?.command, 'project-bin/add')?.clip as {
+		kind?: unknown;
+		timelineStartFrame?: number;
+	};
+	assert.equal(binClip.kind, 'audio');
 	assert.equal(binClip.timelineStartFrame, 0);
 
 	const negative = await service.importFile(file('negative.wav'), { destination: 'timeline' });

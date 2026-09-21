@@ -281,7 +281,7 @@ export function createProjectImportService(runtime: ProjectImportRuntime) {
 		} });
 		commands.push(createAddSourceCommand(source));
 		if (importOptions.destination === 'project-bin') {
-			commands.push({ type: 'project-bin/add', clip });
+			commands.push({ type: 'project-bin/add', clip: { ...clip, kind: 'audio' } });
 			return {
 				command: { type: 'batch' as const, commands },
 				selection: {},
