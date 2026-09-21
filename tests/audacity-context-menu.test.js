@@ -32,7 +32,7 @@ test('context metadata preserves localized labels and consumes manifest shortcut
 	});
 	assert.equal(split.label, 'An Abspielposition teilen');
 	assert.equal(split.shortcut, 'Ctrl+I');
-	assert.equal(split.enableWhen, 'editable-selection-or-clip');
+	assert.equal(split.enableWhen, 'editable-split-target');
 	assert.equal(split.disabled, false);
 	assert.equal(
 		audacityContextMenuAction(AUDACITY_CLIP_CONTEXT_ACTION_IDS.remove).shortcut,

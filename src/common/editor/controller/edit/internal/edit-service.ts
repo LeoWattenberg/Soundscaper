@@ -220,7 +220,7 @@ export function createEditorEditService(runtime: EditServiceRuntime): HandleEdit
 				const boundaries = baseSelection
 					? [baseSelection.startFrame, baseSelection.endFrame]
 					: [normalizeTimelineFrame(engine.getPositionFrames())];
-				commitSplitAtFrames(boundaries);
+				commitSplitAtFrames(boundaries, baseSelection ? trackIds : null);
 				return;
 			}
 			if (action === 'split-new-track') {

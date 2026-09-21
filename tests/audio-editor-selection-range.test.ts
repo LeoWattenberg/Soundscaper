@@ -53,6 +53,18 @@ test('a drawn time range answers for the selection', () => {
 	assert.deepEqual(resolveSelectionRange(value), value.selection);
 });
 
+test('invalid persisted range geometry falls back through the shared selection authority', () => {
+	const value = project({
+		selection: { startFrame: 10.5, endFrame: 40, trackIds: ['track-a'], clipIds: ['clip-b'] },
+	});
+	assert.deepEqual(resolveSelectionRange(value), {
+		startFrame: 200,
+		endFrame: 300,
+		trackIds: ['track-a'],
+		clipIds: ['clip-b'],
+	});
+});
+
 test('selected clips answer for the selection when no range was drawn', () => {
 	const value = project({ selection: { startFrame: 0, endFrame: 0, trackIds: ['track-a'], clipIds: ['clip-a'] } });
 	assert.deepEqual(resolveSelectionRange(value), {

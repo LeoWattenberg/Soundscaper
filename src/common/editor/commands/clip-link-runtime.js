@@ -241,6 +241,26 @@ export function ungroupClips(project, clipIds) {
 }
 
 export function joinClips(project, clipIds) {
+	const plan = createClipJoinPlan(project, clipIds);
+	for (const run of plan) applyClipJoinRun(project, run);
+}
+
+/**
+ * The non-mutating command preflight shared by execution and every surface
+ * that offers Join. Catching here is intentional: malformed and merely
+ * incompatible selections are both unavailable UI actions, while execution
+ * retains the validator's exact diagnostic.
+ */
+export function canJoinClips(project, clipIds) {
+	try {
+		createClipJoinPlan(project, clipIds);
+		return true;
+	} catch {
+		return false;
+	}
+}
+
+function createClipJoinPlan(project, clipIds) {
 	const ids = normalizeCommandIds(clipIds, 'clipIds');
 	if (ids.length < 2) throw new RangeError('At least two clips are required to join.');
 	const clips = ids.map((clipId) => requireClip(project, clipId))
@@ -284,10 +304,22 @@ export function joinClips(project, clipIds) {
 		) {
 			throw new RangeError('Joined A/V clips must have matching linked segments.');
 		}
-		for (const track of tracks) joinClips(project, clipsByTrack.get(track.id));
-		return;
+		return tracks.map((track) => createSingleTrackJoinRun(
+			project,
+			clipsByTrack.get(track.id).map((clipId) => requireClip(project, clipId)),
+		));
 	}
+	return [createSingleTrackJoinRun(project, clips)];
+}
+
+function createSingleTrackJoinRun(project, values) {
+	const clips = [...values].sort((left, right) => left.timelineStartFrame - right.timelineStartFrame
+		|| compareCodeUnits(left.id, right.id));
+	if (clips.length < 2) throw new RangeError('At least two clips are required to join.');
 	const track = requireClipTrack(project, clips[0].id);
+	if (clips.some((clip) => requireClipTrack(project, clip.id).id !== track.id)) {
+		throw new RangeError('Joined clips must belong to the same track.');
+	}
 	for (let index = 1; index < clips.length; index += 1) {
 		const previous = clips[index - 1];
 		const current = clips[index];
@@ -298,6 +330,10 @@ export function joinClips(project, clipIds) {
 			throw new RangeError('Clips with different processing or source regions must be rendered before joining.');
 		}
 	}
+	return { clips, track };
+}
+
+function applyClipJoinRun(project, { clips, track }) {
 	const first = clips[0];
 	const last = clips.at(-1);
 	const joinedDurationFrames = clipEndFrame(last) - first.timelineStartFrame;

@@ -121,6 +121,39 @@ test('Tracks menu exposes every implemented structural operation without new def
 	]);
 });
 
+test('Edit menu selection gates use valid media targets and exact Join preflight', () => {
+	const base = menuInput({
+		productId: 'framescaper', type: 'video', locked: false, editBlocked: false,
+		selectedTrackId: null, actions: actionPorts({}),
+	});
+	const videoProject = {
+		...base.project,
+		schemaVersion: 17,
+		tracks: [{ id: 'video-track', type: 'video', clipIds: ['video-clip'], hidden: false }],
+		clips: [{
+			id: 'video-clip', kind: 'video', sourceId: 'video-source',
+			timelineStartFrame: 0, durationFrames: 100, sourceStartFrame: 0, sourceDurationFrames: 100,
+		}],
+		selection: { startFrame: 0, endFrame: 0, trackIds: ['video-track'], clipIds: [] },
+	};
+	const videoMenus = createApplicationMenus({ ...base, project: videoProject });
+	assert.equal(findMenuItem(videoMenus as readonly MenuItem[], 'split').disabled, false);
+
+	const clips = [
+		{ id: 'left', kind: 'audio', sourceId: 'source', timelineStartFrame: 0, durationFrames: 100, sourceStartFrame: 0, sourceDurationFrames: 100, gain: 1, reversed: false },
+		{ id: 'right', kind: 'audio', sourceId: 'source', timelineStartFrame: 101, durationFrames: 100, sourceStartFrame: 100, sourceDurationFrames: 100, gain: 1, reversed: false },
+	];
+	const gapProject = {
+		...videoProject,
+		tracks: [{ id: 'audio-track', type: 'audio', clipIds: clips.map(({ id }) => id) }],
+		clips,
+		selection: { startFrame: 0, endFrame: 0, trackIds: [], clipIds: clips.map(({ id }) => id) },
+	};
+	const gapMenus = createApplicationMenus({ ...base, project: gapProject });
+	assert.equal(findMenuItem(gapMenus as readonly MenuItem[], 'join').disabled, true);
+	assert.equal(findMenuItem(gapMenus as readonly MenuItem[], 'group-clips').disabled, false);
+});
+
 interface MenuItem {
 	readonly id?: unknown;
 	readonly label?: unknown;

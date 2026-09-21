@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { resolveEditingSelection } from './commands/clip-basic-runtime.js';
+import { resolveEditingSelection } from './commands/editing-selection-authority.ts';
 
 // The document is the editor's untyped runtime projection; callers narrow it as
 // their owning services migrate.
@@ -34,11 +34,9 @@ export function resolveSelectionRange(
 	project: RuntimeValue,
 	options: Readonly<{ selectedClipId?: string | null }> = {},
 ): SelectionRange | null {
-	const selection = project?.selection;
-	if (selection && selection.endFrame > selection.startFrame) return selection;
 	if (!project?.tracks || !project?.clips) return null;
 	const editing = resolveEditingSelection(project, { selectedClipId: options.selectedClipId ?? null });
-	if (editing?.kind !== 'clips' || editing.endFrame <= editing.startFrame) return null;
+	if (!editing || editing.endFrame <= editing.startFrame) return null;
 	return Object.freeze({
 		startFrame: editing.startFrame,
 		endFrame: editing.endFrame,

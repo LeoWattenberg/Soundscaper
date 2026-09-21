@@ -77,6 +77,7 @@ export function evaluateAudacityEnableWhen(enableWhen, context = {}) {
 		selectedTrack, selectedAudioTrack, focusedTrack, selectedMediaTrack, selectedClip,
 		selectedAudioClip, timeSelection, frequencySelection, projectHasAudio, audioSelection,
 		unscopedAudioSelection, nonAudioEffectFocus,
+		splitAvailable, joinAvailable, groupAvailable, ungroupAvailable,
 	} = resolveAudacityActionSelectionFacts(snapshot);
 	const telemetry = resolvedContext?.telemetry || {};
 	const ui = resolvedContext?.ui || {};
@@ -135,6 +136,7 @@ export function evaluateAudacityEnableWhen(enableWhen, context = {}) {
 		'audio-selection': audioSelection,
 		'audio-selection-or-clip': audioSelection || Boolean(selectedClip),
 		'editable-selection-or-clip': editable && (audioSelection || Boolean(selectedClip)),
+		'editable-split-target': editable && splitAvailable,
 		'editable-delete-target': editable && (audioSelection || unscopedAudioSelection || Boolean(selectedClip)
 			|| (!timeSelection && Boolean(selectedTrack))),
 		'editable-effect-target': editable && (audioSelection || Boolean(selectedAudioClip) || effectPreferenceTarget),
@@ -143,8 +145,9 @@ export function evaluateAudacityEnableWhen(enableWhen, context = {}) {
 		'clip-selected': Boolean(selectedClip),
 		'editable-clip-selected': editable && Boolean(selectedClip),
 		'editable-transformed-clip': editable && Boolean(selectedClip) && clipHasTimePitchTransform(selectedClip),
-		'multiple-editable-clips': editable && selectedClips.length > 1,
-		'grouped-editable-clips': editable && selectedClips.some((clip) => Boolean(clip.groupId)),
+		'joinable-editable-clips': editable && joinAvailable,
+		'multiple-editable-clips': editable && groupAvailable,
+		'grouped-editable-clips': editable && ungroupAvailable,
 		'track-selected': Boolean(selectedTrack),
 		'editable-track-selected': editable && Boolean(selectedTrack),
 		'audio-track-selected': Boolean(selectedAudioTrack),

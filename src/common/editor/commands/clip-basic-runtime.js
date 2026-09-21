@@ -5,8 +5,8 @@ import {
 	clipEndFrame,
 	findClip,
 	findClipTrack,
-	normalizeFrameRange,
 } from '../project.js';
+import { collectRelatedClipIds } from './editing-selection-authority.ts';
 import { hasCoreEditingProjectAuthority, hasProjectBinMediaAuthority } from '../project-schema-version.ts';
 import {
 	assertClipSourceBounds,
@@ -24,6 +24,12 @@ import {
 	withoutImportedPitchPreset,
 } from './shared-runtime.js';
 import { planTakeGraphClipRipple, planTakeGraphRangeRipple } from './take-graph-range-edit.ts';
+
+export {
+	collectRelatedClipIds,
+	mergeEditingRanges,
+	resolveEditingSelection,
+} from './editing-selection-authority.ts';
 
 // foundation-edit-matrix: move
 
@@ -296,103 +302,6 @@ export function collectClipTransformIds(project, activeClipId, options = {}) {
 		for (const clipId of selectedIds) if (findClip(project, clipId)) ids.add(clipId);
 	}
 	return collectRelatedClipIds(project, [...ids]);
-}
-
-/**
- * Expands clip IDs through both edit groups and linked audio/video pairs.
- * Relations are followed transitively so callers cannot leave half of an A/V
- * pair behind when it belongs to a larger clip group.
- */
-
-export function collectRelatedClipIds(project, clipIds) {
-	const ids = new Set((Array.isArray(clipIds) ? clipIds : [clipIds])
-		.filter((clipId) => findClip(project, clipId)));
-	let changed = true;
-	while (changed) {
-		changed = false;
-		const groupIds = new Set([...ids]
-			.map((clipId) => findClip(project, clipId)?.groupId)
-			.filter(Boolean));
-		const avLinkIds = new Set([...ids]
-			.map((clipId) => findClip(project, clipId)?.avLinkId)
-			.filter(Boolean));
-		for (const clip of project.clips) {
-			if (
-				(clip.groupId && groupIds.has(clip.groupId))
-				|| (clip.avLinkId && avLinkIds.has(clip.avLinkId))
-			) {
-				if (!ids.has(clip.id)) changed = true;
-				ids.add(clip.id);
-			}
-		}
-	}
-	return project.clips.filter((clip) => ids.has(clip.id)).map((clip) => clip.id);
-}
-
-/**
- * Resolve the document's editing selection without collapsing disjoint clip
- * selections into one destructive time range. A real time range always wins;
- * otherwise the selected clips are expanded through edit groups and A/V links.
- */
-
-export function resolveEditingSelection(project, options = {}) {
-	const selection = options.selection || project?.selection || null;
-	if (
-		Number.isSafeInteger(selection?.startFrame)
-		&& Number.isSafeInteger(selection?.endFrame)
-		&& selection.endFrame > selection.startFrame
-	) {
-		const trackIds = (selection.trackIds || [])
-			.filter((trackId) => project.tracks.some((track) => track.id === trackId && Array.isArray(track.clipIds)));
-		return Object.freeze({
-			kind: 'range',
-			startFrame: selection.startFrame,
-			endFrame: selection.endFrame,
-			ranges: Object.freeze([Object.freeze({
-				startFrame: selection.startFrame,
-				endFrame: selection.endFrame,
-				durationFrames: selection.endFrame - selection.startFrame,
-			})]),
-			trackIds: Object.freeze(trackIds),
-			clipIds: Object.freeze([]),
-		});
-	}
-	const requestedClipIds = Array.isArray(options.clipIds) && options.clipIds.length
-		? options.clipIds
-		: selection?.clipIds?.length
-			? selection.clipIds
-			: options.selectedClipId ? [options.selectedClipId] : [];
-	const clipIds = collectRelatedClipIds(project, requestedClipIds);
-	if (!clipIds.length) return null;
-	const clips = clipIds.map((clipId) => requireClip(project, clipId));
-	const trackIds = [...new Set(clips.map((clip) => requireClipTrack(project, clip.id).id))];
-	const ranges = mergeEditingRanges(clips.map((clip) => ({
-		startFrame: clip.timelineStartFrame,
-		endFrame: clipEndFrame(clip),
-	})));
-	return Object.freeze({
-		kind: 'clips',
-		startFrame: ranges[0].startFrame,
-		endFrame: ranges.at(-1).endFrame,
-		ranges: Object.freeze(ranges.map(Object.freeze)),
-		trackIds: Object.freeze(trackIds),
-		clipIds: Object.freeze(clipIds),
-	});
-}
-
-export function mergeEditingRanges(ranges) {
-	const sorted = ranges
-		.map((range) => normalizeFrameRange(range.startFrame, range.endFrame, 'editing selection'))
-		.sort((left, right) => left.startFrame - right.startFrame || left.endFrame - right.endFrame);
-	const merged = [];
-	for (const range of sorted) {
-		const previous = merged.at(-1);
-		if (previous && range.startFrame <= previous.endFrame) {
-			previous.endFrame = Math.max(previous.endFrame, range.endFrame);
-			previous.durationFrames = previous.endFrame - previous.startFrame;
-		} else merged.push({ ...range });
-	}
-	return merged;
 }
 
 /**

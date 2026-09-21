@@ -32,6 +32,7 @@ import { createNyquistPluginMenuItems } from './nyquist-plugin-menu-items.js';
 import { audioSelectionEffectAppliesToAllAudio } from '../effects.js';
 import { selectAudioEditorLabelEditBlock } from '../label-edit-blocking.ts';
 import { createEffectMacroApplicationMenu } from './macro-application-menu.ts';
+import { resolveEditingActionAvailability } from '../commands/editing-selection-authority.ts';
 
 /**
  * The video tracks an edit list would describe.
@@ -86,31 +87,23 @@ export default function createApplicationMenus({
 	// `{projectExtension}` templates resolve here rather than in the catalog.
 	const projectFileCopy = resolveProjectExtensionCopy(copy, productId);
 	const divider = () => ({ divider: true });
-	const clipSelectionActive = Boolean(selectedClip || project?.selection?.clipIds?.some((clipId) => (
-		project.clips.some((clip) => clip.id === clipId)
-	)));
-	const editSelectionActive = selectionActive || clipSelectionActive;
+	const editingActions = resolveEditingActionAvailability({
+		project,
+		focusedClipId: selectedClip?.id ?? null,
+		focusedTrackId: snapshot.selectedTrackId ?? null,
+	});
+	const clipSelectionActive = editingActions.clipIds.length > 0;
+	const editSelectionActive = editingActions.editSelectionActive;
 	const selectedTrack = project?.tracks.find((track) => track.id === snapshot.selectedTrackId) || null;
 	const selectedAudioTrack = selectedTrack?.type === 'audio' ? selectedTrack : null;
-	const selectedMixTrackIds = new Set((project?.selection?.trackIds || []).filter((trackId) => (
+	const selectedMixTrackIds = new Set(editingActions.trackIds.filter((trackId) => (
 		project?.tracks.some((track) => track.id === trackId && track.type === 'audio')
 	)));
 	if (!selectedMixTrackIds.size && selectedAudioTrack) selectedMixTrackIds.add(selectedAudioTrack.id);
 	const mixableAudioSelected = project?.tracks.some((track) => (
 		track.type === 'audio' && selectedMixTrackIds.has(track.id) && track.clipIds.length
 	));
-	const selectedClipIds = project?.selection?.clipIds?.length
-		? project.selection.clipIds
-		: selectedClip ? [selectedClip.id] : [];
-	const splitAvailable = Boolean(
-		selectedClipIds.some((clipId) => project?.clips.some((clip) => clip.id === clipId))
-		|| selectedAudioTrack?.clipIds?.length
-		|| project?.selection?.trackIds?.some((trackId) => (
-			project.tracks.some((track) => track.id === trackId && track.type === 'audio' && track.clipIds.length)
-		)),
-	);
-	const multipleSelectedClips = selectedClipIds.length > 1;
-	const groupedSelectedClips = selectedClipIds.some((clipId) => project?.clips.find((clip) => clip.id === clipId)?.groupId);
+	const splitAvailable = editingActions.split;
 	const frequencySelectionActive = Boolean(snapshot.selection?.frequencyRange);
 	const spectralTrackSelected = audacitySpectrogramTrackSelected(selectedAudioTrack, snapshot);
 	const labelTracks = project?.tracks.filter((track) => track.type === 'label') || [];
@@ -327,10 +320,10 @@ export default function createApplicationMenus({
 					items: [
 						{ id: 'split', label: copy.split, shortcut: 'S', disabled: editBlocked || !splitAvailable, onClick: () => actions.executeEdit('split') },
 						{ id: 'split-into-new-track', label: copy.splitIntoNewTrack, disabled: editBlocked || !editSelectionActive, onClick: () => actions.executeEdit('splitIntoNewTrack') },
-						{ id: 'join', label: copy.joinClips, disabled: editBlocked || !multipleSelectedClips, onClick: () => actions.executeEdit('join') },
+						{ id: 'join', label: copy.joinClips, disabled: editBlocked || !editingActions.join, onClick: () => actions.executeEdit('join') },
 						{ id: 'disjoin', label: copy.disjoinClips, disabled: editBlocked || !editSelectionActive, onClick: () => actions.executeEdit('disjoin') },
-						{ id: 'group-clips', label: copy.groupClips, disabled: editBlocked || !multipleSelectedClips, onClick: () => actions.executeEdit('group') },
-						{ id: 'ungroup-clips', label: copy.ungroupClips, disabled: editBlocked || !groupedSelectedClips, onClick: () => actions.executeEdit('ungroup') },
+						{ id: 'group-clips', label: copy.groupClips, disabled: editBlocked || !editingActions.group, onClick: () => actions.executeEdit('group') },
+						{ id: 'ungroup-clips', label: copy.ungroupClips, disabled: editBlocked || !editingActions.ungroup, onClick: () => actions.executeEdit('ungroup') },
 						...framescaperVideoTrimItems,
 						...(framescaperEditControls.link ? [framescaperEditControls.link] : []),
 						...videoFinishingItems,

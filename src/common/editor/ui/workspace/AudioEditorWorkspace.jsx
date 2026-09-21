@@ -37,6 +37,7 @@ import { openWorkspaceProjectFile } from './open-workspace-project-file.ts';
 import { desktopExternalDestination } from '../workspace-runtime.js'; import { createTimedRecordingDialogValue } from '../dialogs/timed-recording-dialog-model.ts';
 import { useTrackHeaderDrawerFlag, useWorkspaceCompactLayout } from './useWorkspaceCompactLayout.js';
 import { createWorkspaceEditItems } from './workspace-edit-items.js';
+import { resolveEditingActionAvailability } from '../../commands/editing-selection-authority.ts';
 import { useCueImportWorkspace } from './cue-import-workspace.tsx';
 const DEFERRED_WEB_VCR_PANEL_ID = 'web-vcr';
 export default function AudioEditorWorkspace({
@@ -144,23 +145,17 @@ export default function AudioEditorWorkspace({
 	const displayAudioSupported = fileService.isDesktop
 		? desktopEnvironment?.capabilities?.displayAudio === true
 		: supportsDisplayAudioCapture();
-	const selectionActive = Boolean(snapshot.selection);
 	const selectedClip = project?.clips.find((clip) => clip.id === snapshot.selectedClipId) || null;
-	const clipSelectionActive = Boolean(selectedClip || project?.selection?.clipIds?.some((clipId) => (
-		project.clips.some((clip) => clip.id === clipId)
-	)));
-	const editSelectionActive = selectionActive || clipSelectionActive;
 	const selectedTrack = project?.tracks.find((track) => track.id === snapshot.selectedTrackId) || null;
 	const selectedAudioTrack = selectedTrack?.type === 'audio' ? selectedTrack : null;
+	const editingActions = resolveEditingActionAvailability({
+		project,
+		focusedClipId: snapshot.selectedClipId,
+		focusedTrackId: snapshot.selectedTrackId,
+	});
+	const selectionActive = editingActions.range !== null;
+	const editSelectionActive = editingActions.editSelectionActive;
 	const { dialogTrackId, openTrackRate } = useTrackRateDialog(project, setDialog, setDialogValue);
-	const splitAvailable = Boolean(
-		selectedClip
-		|| selectedAudioTrack?.clipIds?.length
-		|| project?.selection?.clipIds?.some((clipId) => project.clips.some((clip) => clip.id === clipId))
-		|| project?.selection?.trackIds?.some((trackId) => (
-			project.tracks.some((track) => track.id === trackId && track.type === 'audio' && track.clipIds.length)
-		)),
-	);
 	const { jumpToEnd, jumpToStart, zoomProject } = useTimelineNavigation({
 		controller,
 		editorRef,
@@ -295,7 +290,7 @@ export default function AudioEditorWorkspace({
 	const recordLabel = showArmControls ? copy.record : copy.recordActiveTrack;
 
 	const editItems = createWorkspaceEditItems({
-		copy, editBlocked, editSelectionActive, hasClipboard: Boolean(snapshot.history?.hasClipboard), splitAvailable,
+		copy, editBlocked, editSelectionActive, hasClipboard: Boolean(snapshot.history?.hasClipboard), splitAvailable: editingActions.split,
 	});
 
 	const executeEdit = useCallback(

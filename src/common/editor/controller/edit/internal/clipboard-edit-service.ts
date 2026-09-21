@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { publishedCopyFor } from '../../shared/presentation-localization.ts'; import { collectClipTransformIds as collectLegacyClipTransformIds } from '../../../commands/clip-basic-runtime.js'; import { setLocalizedStatus } from '../../../../i18n/presentation-message.ts';
+import { publishedCopyFor } from '../../shared/presentation-localization.ts'; import { setLocalizedStatus } from '../../../../i18n/presentation-message.ts';
 import { preparePasteCommand as prepareLegacyPasteCommand } from '../../../commands/clipboard-runtime.js';
 import {
 	prepareLinkedSplitCommand as prepareLegacyLinkedSplitCommand,
@@ -17,6 +17,7 @@ import type {
 } from '../../../commands/protocol.ts';
 import type { EditorControllerLifetime } from '../../shared/lifecycle.ts';
 import type { ControllerEditSessionClipboardCarrier } from '../../document/project-runtime.ts';
+import { resolveEditingSelectionAuthority } from '../../../commands/editing-selection-authority.ts';
 
 export interface ClipboardEditClip extends Readonly<Record<string, unknown>> {
 	readonly id: string;
@@ -378,16 +379,22 @@ export function createClipboardEditService(
 		dependencies.lifetime.assertActive();
 		if (dependencies.editingBlocked()) return;
 		const project = dependencies.getProject();
-		const selection = project.selection;
-		const region = selection && selection.endFrame > selection.startFrame
-			? { startFrame: selection.startFrame, endFrame: selection.endFrame }
-			: null;
-		const clips = disjoinTargetClips(project, region);
+		const authority = resolveEditingSelectionAuthority({
+			project,
+			focusedClipId: dependencies.state.selectedClipId,
+			focusedTrackId: dependencies.state.selectedTrackId,
+		});
+		const clips = disjoinTargetClips(
+			project,
+			authority.range,
+			authority.clipIds,
+			authority.trackIds,
+		);
 		const commands: AudioEditorCommand[] = [];
 		for (const clip of clips) {
 			const buffer = dependencies.sourceBuffers.get(clip.sourceId);
 			if (!buffer) continue;
-			commands.push(...detachCommandsForClip(clip, findClipSilenceRegions(clip, buffer, region)));
+			commands.push(...detachCommandsForClip(clip, findClipSilenceRegions(clip, buffer, authority.range)));
 		}
 		if (!commands.length) {
 			setLocalizedStatus(dependencies.setStatus, dependencies.copy, "noSilencesFound", undefined, 'info');
@@ -400,16 +407,15 @@ export function createClipboardEditService(
 	function disjoinTargetClips(
 		project: ClipboardEditProject,
 		region: Readonly<{ startFrame: number; endFrame: number }> | null,
+		clipIds: readonly string[],
+		trackIds: readonly string[],
 	): readonly ClipboardEditClip[] {
 		if (!region) {
-			const clipIds = project.selection?.clipIds?.length
-				? project.selection.clipIds
-				: dependencies.state.selectedClipId ? [dependencies.state.selectedClipId] : [];
 			return clipIds
 				.map((clipId) => findClip(project, clipId))
 				.filter((clip): clip is ClipboardEditClip => clip !== null);
 		}
-		const requested = project.selection?.trackIds?.length ? new Set(project.selection.trackIds) : null;
+		const requested = trackIds.length ? new Set(trackIds) : null;
 		return project.tracks
 			.filter(isMediaTrack)
 			.filter((track) => !requested || requested.has(track.id))
@@ -481,20 +487,13 @@ export function createClipboardEditService(
 				.filter((track) => trackIds.has(track.id))
 				.flatMap((track) => track.clipIds);
 		}
-		const selectedClipIds = dependencies.state.selectedClipId
-			? project.selection?.clipIds?.filter((clipId) => findClip(project, clipId)) ?? []
-			: [];
-		const seedClipIds = selectedClipIds.length
-			? selectedClipIds
-			: findClip(project, dependencies.state.selectedClipId) ? [dependencies.state.selectedClipId as string] : [];
-		if (seedClipIds.length) {
-			const targetIds = new Set(seedClipIds.flatMap((clipId) => collectClipTransformIds(project, clipId)));
-			return project.clips.filter((clip) => targetIds.has(clip.id)).map((clip) => clip.id);
-		}
-		const selectedTrackIds = project.selection?.trackIds?.length
-			? project.selection.trackIds
-			: dependencies.state.selectedTrackId ? [dependencies.state.selectedTrackId] : [];
-		const trackIds = new Set(selectedTrackIds);
+		const authority = resolveEditingSelectionAuthority({
+			project,
+			focusedClipId: dependencies.state.selectedClipId,
+			focusedTrackId: dependencies.state.selectedTrackId,
+		});
+		if (authority.clipIds.length) return authority.clipIds;
+		const trackIds = new Set(authority.trackIds);
 		return project.tracks
 			.filter(isMediaTrack)
 			.filter((track) => trackIds.has(track.id))
@@ -567,8 +566,4 @@ function groupClipboardLanes(
 		laneGroups.set(track.sourceLaneGroupId, grouped);
 	}
 	return laneGroups;
-}
-
-function collectClipTransformIds(project: ClipboardEditProject, clipId: string): readonly string[] {
-	return collectLegacyClipTransformIds(project, clipId) as readonly string[];
 }
