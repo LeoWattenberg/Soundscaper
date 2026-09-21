@@ -2,8 +2,9 @@
 
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
-import { readFile } from 'node:fs/promises';
-import { resolve } from 'node:path';
+import { mkdir, mkdtemp, readFile, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join, resolve } from 'node:path';
 import test from 'node:test';
 
 import * as rendererExecution from '../desktop/renderer-smoke-execution.js';
@@ -18,6 +19,10 @@ import {
 import {
 	validateE2EDynamicScriptExclusions,
 } from '../scripts/lib/e2e-coverage-build-evidence.mjs';
+import { assertE2EExecutableStringPolicy } from '../scripts/lib/e2e-dynamic-code-audit.mjs';
+import {
+	stageSoundscaperDesktopEntrySources,
+} from '../scripts/lib/desktop-product-runtime-staging.mjs';
 
 const ROOT = resolve(import.meta.dirname, '..');
 
@@ -121,8 +126,11 @@ test('packaged smoke control modules never serialize renderer runner bodies', as
 });
 
 test('E2E build evidence admits exactly the closed dynamic recipe library', () => {
-	const source = Object.values(DESKTOP_RENDERER_DYNAMIC_EXCLUSIONS)
-		.map(({ marker, pathPrefix }) => `${marker}\n${pathPrefix}`).join('\n');
+	const markers = Object.values(DESKTOP_RENDERER_DYNAMIC_EXCLUSIONS)
+		.map(({ marker, pathPrefix }, index) => (
+			`const dynamicRecipe${String(index)} = ${JSON.stringify(`${marker}\n${pathPrefix}`)};`
+		)).join('\n');
+	const source = `${markers}\n${canonicalExecuteRecipeSource()}`;
 	assert.deepEqual(validateE2EDynamicScriptExclusions([{ source }], 'framescaper'),
 		Object.values(DESKTOP_RENDERER_DYNAMIC_EXCLUSIONS).map(({ marker }) => marker).sort());
 	assert.throws(() => validateE2EDynamicScriptExclusions([{ source: '' }], 'framescaper'),
@@ -132,7 +140,95 @@ test('E2E build evidence admits exactly the closed dynamic recipe library', () =
 	}], 'framescaper'), /missing, duplicate, or unapproved/u);
 	assert.throws(() => validateE2EDynamicScriptExclusions([{ source: `${source}\n${source}` }], 'framescaper'),
 		/missing, duplicate, or unapproved/u);
+	for (const injected of [
+		'webContents.executeJavaScript(userControlledSource, false);',
+		'eval(userControlledSource);',
+		'(0, eval)(userControlledSource);',
+		'new Function(userControlledSource)();',
+		'Function(userControlledSource)();',
+		"setTimeout('void 0', 0);",
+		"new Worker(userControlledSource, { eval: true });",
+		"const executable = URL.createObjectURL(new Blob([userControlledSource], { type: 'text/javascript' })); new Worker(executable, { type: 'module' });",
+		'const executable = URL.createObjectURL(new Blob([userControlledSource])); new Worker(executable);',
+		"import('data:text/javascript,export default 1');",
+		'import(userControlledSource);',
+		"new Worker('data:text/javascript,postMessage(1)');",
+		'new Worker(userControlledSource, { type: \'module\' });',
+		'new SharedWorker(userControlledSource);',
+		'audioWorklet.addModule(userControlledSource);',
+		'navigator.serviceWorker.register(userControlledSource);',
+		"document.createElement('script');",
+		"element.innerHTML = '<script>void 0</script>';",
+		'vm.runInThisContext(userControlledSource);',
+		'new vm.Script(userControlledSource);',
+		'globalThis.executeJavaScriptInIsolatedWorld(userControlledSource);',
+	]) {
+		assert.throws(
+			() => validateE2EDynamicScriptExclusions([{ source: `${source}\n${injected}` }], 'framescaper'),
+			/unattested executable-string primitive/u,
+			injected,
+		);
+	}
+	const decoy = canonicalExecuteRecipeSource()
+		.replace('validateDesktopRendererDynamicSource', 'acceptAnything');
+	assert.throws(
+		() => validateE2EDynamicScriptExclusions([{ source: `${markers}\n${decoy}` }], 'framescaper'),
+		/unattested executable-string primitive/u,
+	);
+	const sibling = `${canonicalExecuteRecipeSource()}
+function escape(webContents, productId, recipeId, source, userGesture) {
+	const decoyAttestation = { productId, source };
+	void decoyAttestation;
+	void 'Renderer smoke recipe attestation disagrees.';
+	return webContents.executeJavaScript(source, userGesture === true);
+}`;
+	assert.throws(
+		() => validateE2EDynamicScriptExclusions([{ source: `${markers}\n${sibling}` }], 'framescaper'),
+		/unattested executable-string primitive/u,
+	);
 });
+
+test('the macro Worker admission binds the exact Blob producer to the exact Worker', async () => {
+	const source = await readFile(resolve(
+		ROOT, 'src/common/editor/macro-script/browser-sandbox.ts',
+	), 'utf8');
+	const descriptor = {
+		artifactPath: 'src/common/editor/macro-script/browser-sandbox.ts',
+		source,
+	};
+	assert.doesNotThrow(() => assertE2EExecutableStringPolicy([descriptor]));
+	const injected = source.replace(
+		"\t\t\tconst worker = new Worker(url, { type: 'module', name });",
+		"\t\t\tconst worker = new Worker(url, { type: 'module', name });\n\t\t\tnew Worker(untrustedUrl);",
+	);
+	assert.throws(() => assertE2EExecutableStringPolicy([{ ...descriptor, source: injected }]),
+		/unattested executable-string primitive/u);
+});
+
+test('actual product control sources retain exactly the attested renderer recipe callsite', async (context) => {
+	const framescaper = await readFile(resolve(ROOT, 'desktop/renderer-smoke-execution.js'), 'utf8');
+	assert.doesNotThrow(() => validateE2EDynamicScriptExclusions([{
+		artifactPath: 'app/desktop/renderer-smoke-execution.js', source: framescaper,
+	}], 'framescaper'));
+
+	const temporary = await mkdtemp(join(tmpdir(), 'soundscaper-dynamic-code-audit-'));
+	context.after(() => rm(temporary, { recursive: true, force: true }));
+	const applicationRoot = join(temporary, 'desktop');
+	await mkdir(applicationRoot, { recursive: true });
+	await stageSoundscaperDesktopEntrySources(resolve(ROOT, 'desktop'), applicationRoot);
+	const soundscaper = await readFile(join(applicationRoot, 'desktop-smoke.js'), 'utf8');
+	assert.doesNotThrow(() => validateE2EDynamicScriptExclusions([{
+		artifactPath: 'app/desktop/desktop-smoke.js', source: soundscaper,
+	}], 'soundscaper'));
+});
+
+function canonicalExecuteRecipeSource() {
+	return `function executeRecipe(webContents, productId, recipeId, source, userGesture) {
+	const attestation = validateDesktopRendererDynamicSource({ productId, path: sourceUrlPath(source), source });
+	if (attestation.recipeId !== recipeId) throw new Error('Renderer smoke recipe attestation disagrees.');
+	return webContents.executeJavaScript(source, userGesture === true);
+}`;
+}
 
 function attest(source, productId) {
 	const sourceUrl = source.slice(source.lastIndexOf('sourceURL=') + 'sourceURL='.length);

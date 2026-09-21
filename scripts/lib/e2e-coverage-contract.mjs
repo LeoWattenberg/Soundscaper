@@ -12,10 +12,10 @@ export {
 	validateE2EExecutableObservation,
 	validateE2EInventoryFiles,
 } from './e2e-coverage-integrity.mjs';
+export { E2E_REPOSITORY_URL_PREFIX } from './e2e-coverage-prefixes.mjs';
 
 export const E2E_COVERAGE_SCHEMA_VERSION = 1;
 export const E2E_EXECUTABLE_URL_PREFIX = 'file:///__soundscaper_e2e__/';
-export const E2E_REPOSITORY_URL_PREFIX = 'file:///__soundscaper_repo__/';
 export const E2E_COVERAGE_METRICS = Object.freeze([
 	'lines',
 	'statements',

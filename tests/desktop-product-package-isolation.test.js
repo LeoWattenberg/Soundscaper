@@ -67,6 +67,24 @@ test('Soundscaper package policy excludes product-owned Framescaper implementati
 	]), /Framescaper-owned files/iu);
 });
 
+test('normal product staging excludes the separately packaged nightly test harness', () => {
+	const candidates = [
+		'desktop/main.mjs',
+		'desktop/nightly-tests-main.mjs',
+		'desktop/nightly-tests-progress-window.mjs',
+		'desktop/nightly-tests-progress-renderer.js',
+		'desktop/nightly-tests-progress.html',
+		'desktop/nightly-tests-progress.css',
+	];
+	for (const product of ['framescaper', 'soundscaper']) {
+		assert.deepEqual(desktopProductRuntimeFiles(product, candidates), ['desktop/main.mjs']);
+		assert.equal(desktopProductSourceIncluded(product, 'nightly-tests-main.mjs'), false);
+		assert.equal(desktopProductSourceIncluded(product, 'nightly-tests-progress-window.mjs'), false);
+		assert.throws(() => assertDesktopProductPackageIsolation(product, candidates),
+			/nightly-test harness files/iu);
+	}
+});
+
 test('Soundscaper config closure excludes both Framescaper native payload authorities', () => {
 	const soundscaper = desktopProductConfigFiles('soundscaper');
 	assert.ok(soundscaper.includes('config/soundscaper-professional-native-payload-manifest.json'));

@@ -34,6 +34,7 @@ const SOUNDSCAPER_SHARED_RUNTIME_EXCEPTIONS = new Set([
 	'src/common/editor/video-timing-asset-reference.js',
 ]);
 const SOUNDSCAPER_SHARED_VIDEO_RUNTIME = /^src\/common\/editor\/video-[^/]+\.js$/u;
+const NIGHTLY_TEST_HARNESS_PATH = /(?:^|\/)desktop\/nightly-tests-[^/]+$/u;
 const DESKTOP_RENDERER_ONLY_SOURCE_FILES = new Set([
 	'desktop-chrome-renderer-smoke.js',
 	'direct-wav-renderer-smoke.js',
@@ -78,7 +79,8 @@ export function desktopLegacyNativeAddonIncluded(productIdValue, metadata = null
 
 export function desktopProductRuntimeFiles(productIdValue, filesValue) {
 	const productId = desktopPackageProduct(productIdValue);
-	const files = exactFileInventory(filesValue, 'compiled desktop runtime');
+	const files = exactFileInventory(filesValue, 'compiled desktop runtime')
+		.filter((path) => !NIGHTLY_TEST_HARNESS_PATH.test(path));
 	if (productId === 'framescaper') return Object.freeze([...files]);
 	return Object.freeze(files.filter((path) => !soundscaperForbiddenPackagePath(path)));
 }
@@ -100,7 +102,9 @@ export function desktopProductRuntimePackageImports(productIdValue, importsValue
 export function desktopProductSourceIncluded(productIdValue, relativePathValue) {
 	const productId = desktopPackageProduct(productIdValue);
 	const relativePath = packagePath(relativePathValue, 'desktop application source');
-	if (DESKTOP_RENDERER_ONLY_SOURCE_FILES.has(relativePath)) return false;
+	if (DESKTOP_RENDERER_ONLY_SOURCE_FILES.has(relativePath)
+		|| NIGHTLY_TEST_HARNESS_PATH.test(relativePath)
+		|| NIGHTLY_TEST_HARNESS_PATH.test(`desktop/${relativePath}`)) return false;
 	return productId === 'framescaper' || !soundscaperForbiddenPackagePath(relativePath)
 		&& !SOUNDSCAPER_REPLACED_SOURCE_FILES.has(relativePath);
 }
@@ -108,6 +112,10 @@ export function desktopProductSourceIncluded(productIdValue, relativePathValue) 
 export function assertDesktopProductPackageIsolation(productIdValue, filesValue, contentByPath = new Map()) {
 	const productId = desktopPackageProduct(productIdValue);
 	const files = exactFileInventory(filesValue, 'desktop package');
+	const harness = files.filter((path) => NIGHTLY_TEST_HARNESS_PATH.test(path));
+	if (harness.length > 0) {
+		throw new Error(`Desktop product package contains nightly-test harness files: ${harness.join(', ')}`);
+	}
 	if (productId === 'framescaper') return;
 	const forbidden = files.filter((path) => soundscaperForbiddenPackagePath(path)
 		|| SOUNDSCAPER_FORBIDDEN_CONFIG.test(path));

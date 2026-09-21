@@ -2,17 +2,19 @@
 
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
-import { readFileSync } from 'node:fs';
+import { readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import test, { after } from 'node:test';
 
 import { executeDesktopRendererSmoke } from '../desktop/renderer-smoke-execution.js';
 import { assembleE2ECoverageCapture } from '../scripts/lib/e2e-coverage-assembler.mjs';
+import { loadE2EBuildEvidence } from '../scripts/lib/e2e-coverage-build-evidence.mjs';
 import { attestPinnedVendorDataUrl } from '../scripts/lib/e2e-coverage-profile-assembly.mjs';
 import {
 	cleanupE2ECoverageAssemblerFixtures,
 	makeFixture,
 	readJson,
+	recordBrowserEvidence,
 	writeJson,
 } from './helpers/e2e-coverage-assembler-fixture.mjs';
 
@@ -48,6 +50,106 @@ test('packaged profiles exclude only exact captured closed renderer recipes', ()
 	addRendererRecipe(injected, true);
 	assert.throws(() => assembleE2ECoverageCapture(injected),
 		/dynamic source digest|canonical recipe/u);
+});
+
+test('browser build evidence refuses executable-string primitives before profile filtering', () => {
+	const fixture = makeFixture();
+	const siteRoot = join(fixture.evidenceRoot, 'browser/soundscaper/site');
+	const scriptPath = join(siteRoot, 'assets/app.js');
+	const source = `${readFileSync(scriptPath, 'utf8')}\neval('globalThis.__escapedCoverage = true');\n`;
+	writeFileSync(scriptPath, source);
+	const manifestPath = join(siteRoot, '.browser-product-build.json');
+	const manifest = readJson(manifestPath);
+	manifest.files['assets/app.js'] = {
+		byteLength: Buffer.byteLength(source),
+		sha256: createHash('sha256').update(source).digest('hex'),
+	};
+	writeJson(manifestPath, manifest);
+	assert.throws(() => assembleE2ECoverageCapture(fixture),
+		/unattested executable-string primitive/u);
+});
+
+test('browser build evidence refuses executable inline HTML from the complete file inventory', () => {
+	const fixture = makeFixture();
+	const siteRoot = join(fixture.evidenceRoot, 'browser/soundscaper/site');
+	writeFileSync(join(siteRoot, 'injected.html'), '<script>globalThis.__escapedCoverage = true</script>\n');
+	recordBrowserEvidence(siteRoot, 'soundscaper', fixture.expectedRevision);
+	assert.throws(() => loadE2EBuildEvidence({
+		evidenceRoot: fixture.evidenceRoot,
+		repositoryRoot: fixture.repositoryRoot,
+		sourceRevision: fixture.expectedRevision,
+	}), /unattested executable-string primitive/u);
+});
+
+test('unused first-party map entries cannot hide generated executable bytes behind vendor mappings', () => {
+	const fixture = makeFixture();
+	const siteRoot = join(fixture.evidenceRoot, 'browser/soundscaper/site');
+	const scriptPath = join(siteRoot, 'assets/vendor-only-facade.js');
+	writeFileSync(scriptPath, 'globalThis.generatedFacade = true;\n');
+	const repositorySource = readFileSync(join(fixture.repositoryRoot, 'src/soundscaper-entry.js'), 'utf8');
+	writeJson(join(
+		fixture.evidenceRoot,
+		'browser/soundscaper/source-maps/vendor-only-facade.js.map',
+	), {
+		file: 'vendor-only-facade.js',
+		mappings: 'ACAA',
+		names: [],
+		sourceRoot: '',
+		sources: [
+			'file:///old/checkout/src/soundscaper-entry.js',
+			'file:///old/checkout/node_modules/vendor/runtime.js',
+		],
+		sourcesContent: [repositorySource, 'export const vendorRuntime = true;\n'],
+		version: 3,
+		x_soundscaper_source_sha256: [
+			createHash('sha256').update(repositorySource).digest('hex'),
+			null,
+		],
+	});
+	recordBrowserEvidence(siteRoot, 'soundscaper', fixture.expectedRevision);
+	const evidence = loadE2EBuildEvidence({
+		evidenceRoot: fixture.evidenceRoot,
+		repositoryRoot: fixture.repositoryRoot,
+		sourceRevision: fixture.expectedRevision,
+	});
+	const descriptor = evidence.browser.get('soundscaper').scriptsByPath.get('assets/vendor-only-facade.js');
+	assert.equal(descriptor.owned, true);
+	assert.equal(descriptor.sourceMap, null);
+	assert.equal(descriptor.fullSourceMap, null);
+	assert.deepEqual(descriptor.repositorySources, []);
+});
+
+test('mixed vendor and unknown mappings retain the generated executable bytes', () => {
+	const fixture = makeFixture();
+	const siteRoot = join(fixture.evidenceRoot, 'browser/soundscaper/site');
+	writeFileSync(join(siteRoot, 'assets/mixed-vendor-facade.js'),
+		'globalThis.mixedVendorFacade = true;\n');
+	writeJson(join(
+		fixture.evidenceRoot,
+		'browser/soundscaper/source-maps/mixed-vendor-facade.js.map',
+	), {
+		file: 'mixed-vendor-facade.js',
+		mappings: 'AAAA,CCAA',
+		names: [],
+		sourceRoot: '',
+		sources: [
+			'file:///old/checkout/node_modules/vendor/runtime.js',
+			'https://cdn.invalid/theme.css',
+		],
+		sourcesContent: ['export const vendorRuntime = true;\n', 'body {}\n'],
+		version: 3,
+		x_soundscaper_source_sha256: [null, null],
+	});
+	recordBrowserEvidence(siteRoot, 'soundscaper', fixture.expectedRevision);
+	const evidence = loadE2EBuildEvidence({
+		evidenceRoot: fixture.evidenceRoot,
+		repositoryRoot: fixture.repositoryRoot,
+		sourceRevision: fixture.expectedRevision,
+	});
+	const descriptor = evidence.browser.get('soundscaper').scriptsByPath.get('assets/mixed-vendor-facade.js');
+	assert.equal(descriptor.owned, true);
+	assert.equal(descriptor.sourceMap, null);
+	assert.equal(descriptor.fullSourceMap, null);
 });
 
 function addRendererRecipe(fixture, injectCode) {
