@@ -5,7 +5,7 @@ import { test } from './audio-editor-test-fixtures.js';
 import { readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { transform } from 'esbuild';
-
+test.use({ browserCoverage: false });
 const ROUTE_ROOT = '/__video-keyframe-offline-rgba__';
 
 test('renders one exact keyed RGBA frame through the real compositor with top-down orientation', async ({

@@ -2,7 +2,7 @@
 
 import { expect, test } from './audio-editor-test-fixtures.js';
 import { FIXTURE_PATH, HARNESS_ROOT, installHarnessRoutes } from './helpers/video-retime-preview-harness.js';
-
+test.use({ browserCoverage: false });
 test('presents the last frame when its indexed interval extends beyond the media duration', async ({ page }) => {
 	await installHarnessRoutes(page, { strictModules: true });
 	await page.goto(`${HARNESS_ROOT}/index.html`);

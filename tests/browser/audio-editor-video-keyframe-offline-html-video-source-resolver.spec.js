@@ -11,7 +11,7 @@ import {
 	decodedRgbaMatchesOracle,
 	videoRetimePreviewMedia,
 } from './fixtures/video-retime-preview-media.js';
-
+test.use({ browserCoverage: false });
 const ROUTE_ROOT = '/__video-keyframe-offline-html-source__';
 const FIXTURE_PATH = `${ROUTE_ROOT}/video-retime-vfr-ordinal.mp4`;
 

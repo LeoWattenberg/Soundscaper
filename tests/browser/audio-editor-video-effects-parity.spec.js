@@ -17,7 +17,7 @@ import {
 	rgbaToPpm,
 } from './video-effect-parity-helpers.js';
 import { videoPreviewSourceResponse } from './video-preview-source-route.js';
-
+test.use({ browserCoverage: false });
 const PARITY_ROUTE_ROOT = '/__video-effect-parity__';
 const RUNTIME_ROUTES = new Map([
 	[`${PARITY_ROUTE_ROOT}/ffmpeg/classes.js`, {

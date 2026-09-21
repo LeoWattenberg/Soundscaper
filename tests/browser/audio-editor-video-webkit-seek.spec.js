@@ -3,7 +3,7 @@
 import { expect, test } from './audio-editor-test-fixtures.js';
 import { createDeterministicSilentVideoFixture } from './fixtures/deterministic-av-media.js';
 import { FIXTURE_PATH, HARNESS_ROOT, installHarnessRoutes } from './helpers/video-retime-preview-harness.js';
-
+test.use({ browserCoverage: false });
 for (const left of ['0px', '-10000px']) {
 	test(`paused WebM seeks with video positioned at ${left}`, async ({ page }) => {
 		await installHarnessRoutes(page, { strictModules: true });

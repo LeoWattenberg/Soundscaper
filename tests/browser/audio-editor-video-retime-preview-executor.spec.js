@@ -15,7 +15,7 @@ import {
 	HARNESS_ROOT,
 	installHarnessRoutes,
 } from './helpers/video-retime-preview-harness.js';
-
+const syntheticRouteTest = test.extend({ browserCoverage: false });
 test.describe('3B-5f-b paused retime preview qualification', () => {
 	test('pins and decoder-qualifies every unequal VFR interval including the final ordinal', async ({
 		browserName,
@@ -128,7 +128,7 @@ test.describe('3B-5f-b paused retime preview qualification', () => {
 		}
 	});
 
-	test('presents constant, reverse, freeze, and both ramp modes through one paused adapter', async ({
+	syntheticRouteTest('presents constant, reverse, freeze, and both ramp modes through one paused adapter', async ({
 		browserName,
 		page,
 	}) => {
@@ -276,7 +276,7 @@ test.describe('3B-5f-b paused retime preview qualification', () => {
 		expect(result.sourceError).toMatch(/current|source|changed|stale/iu);
 	});
 
-	test('reuses a validated already-current frame after a missed seeked notification', async ({ page }) => {
+	syntheticRouteTest('reuses a validated already-current frame after a missed seeked notification', async ({ page }) => {
 		await installHarnessRoutes(page, { strictModules: true });
 		await page.goto(`${HARNESS_ROOT}/index.html`);
 		const result = await page.evaluate(async ({ fixturePath, root }) => {
@@ -353,7 +353,7 @@ test.describe('3B-5f-b paused retime preview qualification', () => {
 		});
 	});
 
-	test('presents an interval the paused clock already occupies through a real frame callback', async ({
+	syntheticRouteTest('presents an interval the paused clock already occupies through a real frame callback', async ({
 		page,
 	}) => {
 		await installHarnessRoutes(page, { strictModules: true });
@@ -407,7 +407,7 @@ test.describe('3B-5f-b paused retime preview qualification', () => {
 		expect(result).toEqual({ clockBefore: 0, presentedError: null, inInterval: true });
 	});
 
-	test('ignores a stale presented frame queued before the active seek', async ({ page }) => {
+	syntheticRouteTest('ignores a stale presented frame queued before the active seek', async ({ page }) => {
 		await installHarnessRoutes(page, { strictModules: true });
 		await page.goto(`${HARNESS_ROOT}/index.html`);
 		const result = await page.evaluate(async ({ fixturePath, root }) => {
@@ -465,7 +465,7 @@ test.describe('3B-5f-b paused retime preview qualification', () => {
 		});
 	});
 
-	test('keeps only the latest real seek and fences a stale completed picture', async ({
+	syntheticRouteTest('keeps only the latest real seek and fences a stale completed picture', async ({
 		browserName,
 		page,
 	}) => {
@@ -546,7 +546,7 @@ test.describe('3B-5f-b paused retime preview qualification', () => {
 		expect(result.presentedFrames).toEqual([2]);
 	});
 
-	test('times out cleanly and does not reuse a cancelled decoder slot before drain', async ({
+	syntheticRouteTest('times out cleanly and does not reuse a cancelled decoder slot before drain', async ({
 		browserName,
 		page,
 	}) => {

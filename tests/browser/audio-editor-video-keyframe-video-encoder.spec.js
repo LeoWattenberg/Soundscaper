@@ -5,7 +5,7 @@ import { test } from './audio-editor-test-fixtures.js';
 import { readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { transform } from 'esbuild';
-
+test.use({ browserCoverage: false });
 const ROOT = '/__video-keyframe-video-encoder__';
 const ENTRY_MODULES = [
 	'runtime-clip-projection.ts',

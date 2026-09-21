@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto';
 
 import { expect } from '@playwright/test';
 import { test } from './audio-editor-test-fixtures.js';
-
+const syntheticRouteTest = test.extend({ browserCoverage: false });
 test.use({ serviceWorkers: 'allow' });
 test.setTimeout(90_000);
 
@@ -97,7 +97,7 @@ test('allowlisted optional assets are verified once and reused offline', async (
 	expect(offline).toEqual(online);
 });
 
-test('a failed worker upgrade retains the active shell and its complete cache', async ({ browserName, context, page }) => {
+syntheticRouteTest('a failed worker upgrade retains the active shell and its complete cache', async ({ browserName, context, page }) => {
 	test.skip(browserName === 'webkit', 'Playwright WebKit cannot reliably reload a service-worker page in offline emulation.');
 	test.skip(browserName === 'firefox', 'Playwright Firefox cannot route a service-worker script request, so the failing upgrade candidate never reaches the browser.');
 	await bindSoundscaperAndWaitForWorker(page);

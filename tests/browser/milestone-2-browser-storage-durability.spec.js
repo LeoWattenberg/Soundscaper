@@ -12,7 +12,7 @@ import {
 } from './audio-editor-test-helpers.js';
 import { createDeterministicAvFixture } from './fixtures/deterministic-av-media.js';
 import { FRAMESCAPER_DATABASE_NAME, SOUNDSCAPER_DATABASE_NAME } from './helpers/editor-databases.js';
-
+const syntheticRouteTest = test.extend({ browserCoverage: false });
 const DATABASE_NAME = SOUNDSCAPER_DATABASE_NAME;
 const SCAPE_MIME_TYPE = 'application/vnd.soundscaper.scape+zip';
 
@@ -55,7 +55,7 @@ test.describe('milestone 2 browser storage durability', () => {
 		await expect(reopened.locator('[data-save-state]')).toHaveAttribute('data-state', 'saved');
 	});
 
-	test('opfs-quota-refusal preserves the project or uses the IndexedDB fallback', async ({ page }) => {
+	syntheticRouteTest('opfs-quota-refusal preserves the project or uses the IndexedDB fallback', async ({ page }) => {
 		test.setTimeout(60_000);
 		let wrappedWorkerRequests = 0;
 		await page.route(/\/assets\/opfs-sync-worker-[^/?]+\.js(?:\?.*)?$/u, async (route) => {

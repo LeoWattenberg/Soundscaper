@@ -5,7 +5,7 @@ import { test } from './audio-editor-test-fixtures.js';
 import { readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { transform } from 'esbuild';
-
+test.use({ browserCoverage: false });
 const ROOT = '/__video-delivery-encoder-tiers__';
 const ENTRY_MODULES = ['video-delivery-encoder-tier.ts'];
 /** 29.97, stated as the rational a decimal would quietly round away. */

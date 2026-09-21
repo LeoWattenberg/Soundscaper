@@ -6,7 +6,7 @@ import { buildSync } from 'esbuild';
 import { fileURLToPath } from 'node:url';
 
 import { resolveBrowserProductTestUrl } from './helpers/browser-product-test-url.js';
-
+test.use({ browserCoverage: false });
 const HARNESS_ROUTE = '/__framescaper-v27-motion-webgl2__/harness.js';
 const HARNESS_SOURCE = buildHarness();
 
