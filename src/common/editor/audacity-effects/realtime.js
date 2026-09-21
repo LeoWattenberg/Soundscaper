@@ -17,6 +17,10 @@
  * GPL-2.0-or-later where noted upstream. This modified JavaScript adaptation
  * was created for kw.media in 2026 and selects GPL version 3.
  */
+import {
+	cloneChannels,
+	validateAudacityAudioInput as validateAudio,
+} from './basic-channel-math.js';
 import { classicFilterCoefficients } from './classic-filter-coefficients.js';
 import {
 	audacityShelfCoefficients,
@@ -311,24 +315,6 @@ export function applyAudacityWahwah(channels, sampleRate, params = {}) {
 		}
 		return output;
 	});
-}
-
-function validateAudio(channels, sampleRate) {
-	if (!Array.isArray(channels) || channels.length === 0) {
-		throw new TypeError('channels must be a non-empty array of Float32Array values.');
-	}
-	if (!Number.isFinite(sampleRate) || sampleRate <= 0) {
-		throw new RangeError('sampleRate must be a positive finite number.');
-	}
-	const length = channels[0] instanceof Float32Array ? channels[0].length : -1;
-	for (const channel of channels) {
-		if (!(channel instanceof Float32Array)) throw new TypeError('Every channel must be a Float32Array.');
-		if (channel.length !== length) throw new RangeError('All channels must have the same length.');
-	}
-}
-
-function cloneChannels(channels) {
-	return channels.map((channel) => new Float32Array(channel));
 }
 
 function numberParam(params, name, fallback, minimum, maximum, aliases = []) {
