@@ -18,4 +18,6 @@ test('Windows AAC and MP3 encode share one exact Float32-to-PCM16 input authorit
 		assert.match(caller, /readFloat32StereoPcm16\(inputPath, request->input_bytes, pcm, frameCount\)/u);
 		assert.doesNotMatch(caller, /bool read(?:Exact)?FloatInput\(/u);
 	}
+	assert.match(mp3, /soundscaper::os_audio::readAllBytes\(input, bytes\.data\(\), bytes\.size\(\)\)/u);
+	assert.doesNotMatch(mp3, /\breadAll\(/u);
 });

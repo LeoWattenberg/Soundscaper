@@ -112,7 +112,7 @@ OutputInspection inspectOutput(
 		return OutputInspection::overLimit;
 	}
 	std::vector<uint8_t> bytes(static_cast<size_t>(size.QuadPart));
-	const bool read = readAll(input, bytes.data(), bytes.size());
+	const bool read = soundscaper::os_audio::readAllBytes(input, bytes.data(), bytes.size());
 	const bool closed = CloseHandle(input) != 0;
 	if (!read || !closed) return OutputInspection::invalid;
 	if (!soundscaper::os_audio::exactMp3(bytes, 48000u, 2u, 192u)) {
