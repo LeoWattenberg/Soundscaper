@@ -22,6 +22,7 @@ import {
 import {
 	createTakeCyclePassIdentityAllocator,
 	registerFreshTakeCycleIdentity as freshIdentity,
+	type TakeCycleIdentityKind,
 } from './internal/take-cycle/take-cycle-identity-allocation.ts';
 import {
 	beginTakeCycleLiveCaptureSession,
@@ -493,7 +494,7 @@ function exactDraftBindings(
 }
 
 function registerDraftIdentities(draft: TakeCycleCaptureDraft, identities: Set<string>): void {
-	const owned: Array<readonly [string, string]> = [
+	const owned: Array<readonly [string, TakeCycleIdentityKind]> = [
 		[draft.draftId, 'envelope'],
 		[draft.lane.laneId, 'lane'],
 	];
