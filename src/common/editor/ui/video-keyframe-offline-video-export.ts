@@ -1,13 +1,9 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { canonicalMediaContentBlob } from '../storage/media-content-digest.ts';
-import {
-	admitAudioEditorProjectValidationStructure,
-	AUDIO_EDITOR_PROJECT_VALIDATION_HARD_LIMITS,
-} from '../project-validation-budget.ts';
-import { MAXIMUM_PROJECT_PUBLICATION_DOCUMENT_BYTES } from '../project-publication-admission.ts';
 import { projectForRuntimeConsumers } from '../project-current-runtime.ts';
 import { inheritTrackFolderMediaStateProjectionV12 } from '../track-folder-media-runtime.ts';
+import { cloneFrozenVideoExportProject } from '../video-export-project-snapshot.ts';
 import {
 	createVideoKeyframeExportFrameSource,
 	type VideoKeyframeExportFrameRequest,
@@ -354,49 +350,12 @@ function normalizeRequest(value: unknown): NormalizedRequest {
 
 function snapshotProject(value: unknown): Readonly<Record<string, unknown>> {
 	const project = record(value, 'offline video export project');
-	admitAudioEditorProjectValidationStructure(
-		project,
-		AUDIO_EDITOR_PROJECT_VALIDATION_HARD_LIMITS,
-	);
-	assertSnapshotPayloadBound(project);
-	let snapshot: unknown;
-	try { snapshot = structuredClone(project); } catch (cause) {
-		throw new TypeError('Offline video export project must be structured-clone data.', { cause });
-	}
 	return inheritTrackFolderMediaStateProjectionV12(
 		project,
-		deepFreeze(record(snapshot, 'offline video export project snapshot')),
+		cloneFrozenVideoExportProject(project, 'offline', (snapshot) => {
+			record(snapshot, 'offline video export project snapshot');
+		}),
 	);
-}
-
-function assertSnapshotPayloadBound(value: object): void {
-	const stack: unknown[] = [value];
-	const seen = new WeakSet<object>();
-	let textCodeUnits = 0;
-	while (stack.length > 0) {
-		const current = stack.pop();
-		if (typeof current === 'string') {
-			textCodeUnits += current.length;
-			if (textCodeUnits > MAXIMUM_PROJECT_PUBLICATION_DOCUMENT_BYTES) {
-				throw new RangeError('Offline video export project text exceeds its snapshot byte bound.');
-			}
-			continue;
-		}
-		if (!current || typeof current !== 'object' || seen.has(current)) continue;
-		if (isBinary(current)) {
-			throw new TypeError('Offline video export projects cannot embed binary data.');
-		}
-		seen.add(current);
-		for (const key of Reflect.ownKeys(current)) {
-			stack.push(Object.getOwnPropertyDescriptor(current, key)?.value);
-		}
-	}
-}
-
-function isBinary(value: object): boolean {
-	return value instanceof ArrayBuffer
-		|| ArrayBuffer.isView(value)
-		|| (typeof SharedArrayBuffer === 'function' && value instanceof SharedArrayBuffer);
 }
 
 function snapshotTiming(value: unknown): ReadonlyMap<string, BoundVideoSourceTimingView> {
@@ -502,27 +461,6 @@ function ownFunction(value: unknown, key: string, name: string): (...arguments_:
 		throw new TypeError(`${name}.${key} must be an enumerable own data function.`);
 	}
 	return descriptor.value as (...arguments_: never[]) => unknown;
-}
-
-function deepFreeze<Value extends Readonly<Record<string, unknown>>>(value: Value): Value {
-	const stack: object[] = [value];
-	const seen = new WeakSet<object>();
-	const order: object[] = [];
-	while (stack.length > 0) {
-		const current = stack.pop()!;
-		if (seen.has(current)) continue;
-		seen.add(current);
-		if (isBinary(current)) {
-			throw new TypeError('Offline video export projects cannot embed binary data.');
-		}
-		order.push(current);
-		for (const key of Reflect.ownKeys(current)) {
-			const nested = Object.getOwnPropertyDescriptor(current, key)?.value;
-			if (nested && typeof nested === 'object') stack.push(nested as object);
-		}
-	}
-	for (let index = order.length - 1; index >= 0; index -= 1) Object.freeze(order[index]);
-	return value;
 }
 
 function assertReady(request: Pick<NormalizedRequest, 'signal' | 'assertCurrent'>): void {

@@ -20,12 +20,8 @@ import {
 	type Rational,
 	type RationalInput,
 } from './timeline-time.ts';
-import {
-	admitAudioEditorProjectValidationStructure,
-	AUDIO_EDITOR_PROJECT_VALIDATION_HARD_LIMITS,
-} from './project-validation-budget.ts';
-import { MAXIMUM_PROJECT_PUBLICATION_DOCUMENT_BYTES } from './project-publication-admission.ts';
 import { inheritTrackFolderMediaStateProjectionV12 } from './track-folder-media-runtime.ts';
+import { cloneFrozenVideoExportProject } from './video-export-project-snapshot.ts';
 import {
 	brandRuntimeProjectProjection,
 	isRuntimeProjectProjection,
@@ -524,68 +520,11 @@ function positiveSafeInteger(value: unknown, name: string): number {
 }
 
 function immutableProjectSnapshot(project: ExportProject): ExportProject {
-	admitAudioEditorProjectValidationStructure(
-		project,
-		AUDIO_EDITOR_PROJECT_VALIDATION_HARD_LIMITS,
-	);
-	assertSnapshotPayloadBound(project);
-	let snapshot: unknown;
-	try {
-		snapshot = structuredClone(project);
-	} catch (cause) {
-		throw new TypeError('Video keyframe export project must be structured-clone data.', { cause });
-	}
 	const inherited = inheritTrackFolderMediaStateProjectionV12(
 		project,
-		freezeProjectSnapshot(snapshot) as ExportProject,
+		cloneFrozenVideoExportProject(project, 'keyframe'),
 	);
 	return isRuntimeProjectProjection(project)
 		? brandRuntimeProjectProjection(inherited as never) as ExportProject
 		: inherited;
-}
-
-function assertSnapshotPayloadBound(value: object): void {
-	const stack: unknown[] = [value];
-	const seen = new WeakSet<object>();
-	let textCodeUnits = 0;
-	while (stack.length > 0) {
-		const current = stack.pop();
-		if (typeof current === 'string') {
-			textCodeUnits += current.length;
-			if (textCodeUnits > MAXIMUM_PROJECT_PUBLICATION_DOCUMENT_BYTES) {
-				throw new RangeError('Video keyframe export project text exceeds its snapshot byte bound.');
-			}
-			continue;
-		}
-		if (!current || typeof current !== 'object' || seen.has(current)) continue;
-		if (current instanceof Uint8Array || current instanceof ArrayBuffer) {
-			throw new TypeError('Video keyframe export projects cannot embed binary data.');
-		}
-		seen.add(current);
-		for (const key of Reflect.ownKeys(current)) {
-			stack.push(Object.getOwnPropertyDescriptor(current, key)?.value);
-		}
-	}
-}
-
-function freezeProjectSnapshot(value: unknown): unknown {
-	if (!value || typeof value !== 'object') return value;
-	if (value instanceof Uint8Array || value instanceof ArrayBuffer) {
-		throw new TypeError('Video keyframe export projects cannot embed binary data.');
-	}
-	const stack: object[] = [value];
-	const seen = new WeakSet<object>();
-	const order: object[] = [];
-	while (stack.length > 0) {
-		const current = stack.pop()!;
-		if (seen.has(current)) continue;
-		seen.add(current);
-		order.push(current);
-		for (const key of Reflect.ownKeys(current)) {
-			const nested = Object.getOwnPropertyDescriptor(current, key)?.value;
-			if (nested && typeof nested === 'object') stack.push(nested as object);
-		}
-	}
-	for (let index = order.length - 1; index >= 0; index -= 1) Object.freeze(order[index]);
-	return value;
 }
