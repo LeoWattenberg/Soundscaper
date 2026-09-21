@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { raceAbortableRead } from '../abort-race.ts';
 import {
 	collectProjectStorageKeys,
 	compactProjectSourceMetadata,
@@ -244,7 +245,7 @@ export class ProjectRepository implements ProjectRepositoryPort {
 		{ revision, signal }: ProjectLoadOptions = {},
 	): Promise<ProjectDocument | null> {
 		throwIfProjectLoadAborted(signal);
-		const database = await raceProjectLoad(() => this.#port.database(), signal);
+		const database = await raceAbortableRead(() => this.#port.database(), signal);
 		throwIfProjectLoadAborted(signal);
 		if (!database) {
 			const value = revision === undefined
@@ -489,40 +490,6 @@ async function readProjectRecord(
 	} finally {
 		signal?.removeEventListener('abort', abortTransaction);
 	}
-}
-
-function raceProjectLoad<Value>(
-	read: () => PromiseLike<Value> | Value,
-	signal?: AbortSignal,
-): Promise<Value> {
-	if (!signal) return Promise.resolve().then(read);
-	if (signal.aborted) return Promise.reject(signal.reason);
-	return new Promise<Value>((resolve, reject) => {
-		let settled = false;
-		const finish = (complete: () => void): void => {
-			if (settled) return;
-			settled = true;
-			signal.removeEventListener('abort', onAbort);
-			complete();
-		};
-		const onAbort = (): void => finish(() => reject(signal.reason));
-		signal.addEventListener('abort', onAbort, { once: true });
-		if (signal.aborted) {
-			onAbort();
-			return;
-		}
-		let operation: PromiseLike<Value> | Value;
-		try {
-			operation = read();
-		} catch (error) {
-			finish(() => reject(error));
-			return;
-		}
-		void Promise.resolve(operation).then(
-			(value) => finish(() => resolve(value)),
-			(error: unknown) => finish(() => reject(error)),
-		);
-	});
 }
 
 function throwIfProjectLoadAborted(signal?: AbortSignal): void {

@@ -10,6 +10,7 @@ import {
 	Mp4OutputFormat,
 	Output,
 } from 'mediabunny';
+import { raceAbortablePromise } from './abort-race.ts';
 import { browserAacMetadataTags } from './browser-aac-metadata.ts';
 import {
 	BROWSER_AAC_WEB_CODECS_CODEC,
@@ -50,7 +51,7 @@ export async function encodeBrowserAacM4a(
 ): Promise<Uint8Array<ArrayBuffer>> {
 	const request = normalizeRequest(requestValue);
 	throwIfAborted(request.signal);
-	if (!await awaitWithAbort(probeBrowserAacEncoding(undefined, request), request.signal)) {
+	if (!await raceAbortablePromise(probeBrowserAacEncoding(undefined, request), request.signal, abortReason)) {
 		throw new BrowserAacUnavailableError('This browser does not encode the requested AAC configuration.');
 	}
 	throwIfAborted(request.signal);
@@ -72,7 +73,7 @@ export async function encodeBrowserAacM4a(
 	request.signal?.addEventListener('abort', onAbort, { once: true });
 	try {
 		throwIfAborted(request.signal);
-		await awaitWithAbort(output.start(), request.signal);
+		await raceAbortablePromise(output.start(), request.signal, abortReason);
 		for (let frameOffset = 0; frameOffset < request.frameCount; frameOffset += AUDIO_SAMPLE_FRAMES) {
 			throwIfAborted(request.signal);
 			const frames = Math.min(AUDIO_SAMPLE_FRAMES, request.frameCount - frameOffset);
@@ -85,10 +86,10 @@ export async function encodeBrowserAacM4a(
 				timestamp: frameOffset / request.sampleRate,
 				data: request.input.slice(byteOffset, byteOffset + byteLength),
 			});
-			try { await awaitWithAbort(source.add(sample), request.signal); } finally { sample.close(); }
+			try { await raceAbortablePromise(source.add(sample), request.signal, abortReason); } finally { sample.close(); }
 		}
 		throwIfAborted(request.signal);
-		await awaitWithAbort(output.finalize(), request.signal);
+		await raceAbortablePromise(output.finalize(), request.signal, abortReason);
 		throwIfAborted(request.signal);
 	} catch (error) {
 		await cancelOutput();
@@ -288,30 +289,6 @@ function normalizeValidationExpectation(
 		sampleRate,
 		channelCount,
 		...(value.signal ? { signal: value.signal } : {}),
-	});
-}
-
-function awaitWithAbort<Value>(operation: PromiseLike<Value>, signal?: AbortSignal): Promise<Value> {
-	if (!signal) return Promise.resolve(operation);
-	if (signal.aborted) return Promise.reject(abortReason(signal));
-	return new Promise<Value>((resolve, reject) => {
-		let settled = false;
-		const finish = (complete: () => void): void => {
-			if (settled) return;
-			settled = true;
-			signal.removeEventListener('abort', onAbort);
-			complete();
-		};
-		const onAbort = (): void => finish(() => reject(abortReason(signal)));
-		signal.addEventListener('abort', onAbort, { once: true });
-		if (signal.aborted) {
-			onAbort();
-			return;
-		}
-		void Promise.resolve(operation).then(
-			(value) => finish(() => resolve(value)),
-			(error: unknown) => finish(() => reject(error)),
-		);
 	});
 }
 

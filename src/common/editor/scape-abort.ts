@@ -1,5 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { raceAbortableRead } from './abort-race.ts';
+
 const NORMALIZED_ABORT_REASONS = new WeakMap<DOMException, unknown>();
 const NORMALIZED_ABORT_ERRORS = new WeakMap<AbortSignal, DOMException>();
 
@@ -49,34 +51,7 @@ export function awaitScapeReadOperation<Value>(
 	read: () => PromiseLike<Value> | Value,
 	signal?: AbortSignal,
 ): Promise<Value> {
-	if (!signal) return Promise.resolve().then(read);
-	if (signal.aborted) return Promise.reject(signal.reason);
-	return new Promise<Value>((resolve, reject) => {
-		let settled = false;
-		const finish = (complete: () => void): void => {
-			if (settled) return;
-			settled = true;
-			signal.removeEventListener('abort', onAbort);
-			complete();
-		};
-		const onAbort = (): void => finish(() => reject(signal.reason));
-		signal.addEventListener('abort', onAbort, { once: true });
-		if (signal.aborted) {
-			onAbort();
-			return;
-		}
-		let operation: PromiseLike<Value> | Value;
-		try {
-			operation = read();
-		} catch (error) {
-			finish(() => reject(error));
-			return;
-		}
-		void Promise.resolve(operation).then(
-			(value) => finish(() => resolve(value)),
-			(error: unknown) => finish(() => reject(error)),
-		);
-	});
+	return raceAbortableRead(read, signal);
 }
 
 export function aggregateScapeErrors(primary: unknown, cleanup: readonly unknown[], message: string): unknown {

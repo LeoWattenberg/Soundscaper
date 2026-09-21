@@ -1,4 +1,5 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
+import { raceAbortableRead } from '../../abort-race.ts';
 import { createLocalizedError } from '../../../i18n/presentation-message.ts';
 
 
@@ -148,7 +149,11 @@ export function createStorageCapacityService(
 		update({ lastPreflight: requirement });
 		let estimate: unknown;
 		try {
-			estimate = await awaitStorageEstimate(() => dependencies.estimateStorage(operation), signal);
+			estimate = await raceAbortableRead(
+				() => dependencies.estimateStorage(operation),
+				signal,
+				'immediate',
+			);
 			signal?.throwIfAborted();
 		} catch (error) {
 			const aborted = signal?.aborted === true;
@@ -345,46 +350,6 @@ function storagePreflightRequirement(
 		requiredBytes: required,
 		requiredFreeBytes: required + headroom,
 		status: 'checking',
-	});
-}
-
-function awaitStorageEstimate(
-	estimate: () => PromiseLike<unknown> | unknown,
-	signal?: AbortSignal,
-): Promise<unknown> {
-	if (!signal) {
-		try {
-			return Promise.resolve(estimate());
-		} catch (error) {
-			return Promise.reject(error);
-		}
-	}
-	if (signal.aborted) return Promise.reject(signal.reason);
-	return new Promise((resolve, reject) => {
-		let settled = false;
-		const finish = (complete: () => void): void => {
-			if (settled) return;
-			settled = true;
-			signal.removeEventListener('abort', onAbort);
-			complete();
-		};
-		const onAbort = (): void => finish(() => reject(signal.reason));
-		signal.addEventListener('abort', onAbort, { once: true });
-		if (signal.aborted) {
-			onAbort();
-			return;
-		}
-		let operation: PromiseLike<unknown> | unknown;
-		try {
-			operation = estimate();
-		} catch (error) {
-			finish(() => reject(error));
-			return;
-		}
-		void Promise.resolve(operation).then(
-			(value) => finish(() => resolve(value)),
-			(error: unknown) => finish(() => reject(error)),
-		);
 	});
 }
 

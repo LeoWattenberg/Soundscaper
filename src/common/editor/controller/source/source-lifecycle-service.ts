@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { raceAbortableRead } from '../../abort-race.ts';
 import { localizedErrorMessage, publishLocalizedStatus } from '../../../i18n/presentation-message.ts'; import {
 	createPreparedProjectSources,
 	type PreparedProjectSourceEntry,
@@ -76,40 +77,6 @@ function isAudioWarpRuntimeClip(
 		&& Number.isSafeInteger(clip.durationFrames) && Number(clip.durationFrames) > 0
 		&& Number.isSafeInteger(clip.sourceStartFrame) && Number(clip.sourceStartFrame) >= 0
 		&& Number.isSafeInteger(clip.sourceDurationFrames) && Number(clip.sourceDurationFrames) > 0;
-}
-
-function awaitSourceLoadOperation<Value>(
-	operation: () => PromiseLike<Value> | Value,
-	signal?: AbortSignal,
-): Promise<Value> {
-	if (!signal) return Promise.resolve().then(operation);
-	if (signal.aborted) return Promise.reject(signal.reason);
-	return new Promise<Value>((resolve, reject) => {
-		let settled = false;
-		const finish = (complete: () => void): void => {
-			if (settled) return;
-			settled = true;
-			signal.removeEventListener('abort', onAbort);
-			complete();
-		};
-		const onAbort = (): void => finish(() => reject(signal.reason));
-		signal.addEventListener('abort', onAbort, { once: true });
-		if (signal.aborted) {
-			onAbort();
-			return;
-		}
-		let result: PromiseLike<Value> | Value;
-		try {
-			result = operation();
-		} catch (error) {
-			finish(() => reject(error));
-			return;
-		}
-		void Promise.resolve(result).then(
-			(value) => finish(() => resolve(value)),
-			(error: unknown) => finish(() => reject(error)),
-		);
-	});
 }
 
 import {
@@ -282,7 +249,7 @@ export function createSourceLifecycleService<
 			const required = requiredSourceIds.has(source.id) || requiredVideoSourceIds.has(source.id);
 			try {
 				if (source.kind === 'video') {
-					await awaitSourceLoadOperation(() => activateVideoSource(source, { signal: options.signal }), options.signal);
+					await raceAbortableRead(() => activateVideoSource(source, { signal: options.signal }), options.signal);
 					throwIfSourceLoadAborted(options.signal);
 					continue;
 				}
@@ -290,7 +257,7 @@ export function createSourceLifecycleService<
 				// service. Treating them as PCM made a valid visual-only project look
 				// like it had missing local audio and incorrectly fenced video export.
 				if (source.kind === 'still' || source.kind === 'generator' || source.kind === 'image') continue;
-				const metadata = await awaitSourceLoadOperation(
+				const metadata = await raceAbortableRead(
 					() => store.getSourceMetadata(source.storageKey || source.id),
 					options.signal,
 				);
@@ -309,12 +276,12 @@ export function createSourceLifecycleService<
 						sourceBuffers.delete(source.id);
 						continue;
 					}
-					context ??= await awaitSourceLoadOperation(
+					context ??= await raceAbortableRead(
 						() => engine.getAudioContext?.({ resume: false }),
 						options.signal,
 					);
 					throwIfSourceLoadAborted(options.signal);
-					const buffer = await awaitSourceLoadOperation(
+					const buffer = await raceAbortableRead(
 						() => readStoredAudioBuffer(store, source, context),
 						options.signal,
 					);
@@ -336,12 +303,12 @@ export function createSourceLifecycleService<
 						await store.saveAnalysis(peakCacheKey(source.id), peaks);
 					}
 				} else {
-					context ??= await awaitSourceLoadOperation(
+					context ??= await raceAbortableRead(
 						() => engine.getAudioContext?.({ resume: false }),
 						options.signal,
 					);
 					throwIfSourceLoadAborted(options.signal);
-					const buffer = sourceBuffers.get(source.id) || await awaitSourceLoadOperation(
+					const buffer = sourceBuffers.get(source.id) || await raceAbortableRead(
 						() => readStoredAudioBuffer(store, source, context),
 						options.signal,
 					);
@@ -385,7 +352,7 @@ export function createSourceLifecycleService<
 		let context: unknown = null;
 		try {
 			for (const source of project.sources.filter((candidate) => requiredSourceIds.has(candidate.id))) {
-				const metadata = await awaitSourceLoadOperation(
+				const metadata = await raceAbortableRead(
 					() => store.getSourceMetadata(source.storageKey || source.id),
 					options.signal,
 				);
@@ -399,12 +366,12 @@ export function createSourceLifecycleService<
 					prepared.set(source.id, Object.freeze({ kind: 'provider', value: provider }));
 					continue;
 				}
-				context ??= await awaitSourceLoadOperation(
+				context ??= await raceAbortableRead(
 					() => engine.getAudioContext?.({ resume: false }),
 					options.signal,
 				);
 				throwIfSourceLoadAborted(options.signal);
-				const buffer = await awaitSourceLoadOperation(
+				const buffer = await raceAbortableRead(
 					() => readStoredAudioBuffer(store, source, context),
 					options.signal,
 				);
@@ -455,7 +422,7 @@ export function createSourceLifecycleService<
 		for (const source of (snapshot?.sources || []).filter((candidate) => (
 			requiredVideoSourceIds.has(candidate.id)
 		))) {
-			await awaitSourceLoadOperation(() => activateVideoSource(source, { signal: options.signal }), options.signal);
+			await raceAbortableRead(() => activateVideoSource(source, { signal: options.signal }), options.signal);
 			throwIfSourceLoadAborted(options.signal);
 		}
 		let context: unknown = null;
@@ -464,7 +431,7 @@ export function createSourceLifecycleService<
 		))) {
 			const required = requiredSourceIds.has(source.id);
 			if (required) {
-				const metadata = await awaitSourceLoadOperation(
+				const metadata = await raceAbortableRead(
 					() => store.getSourceMetadata(source.storageKey || source.id),
 					options.signal,
 				);
@@ -478,12 +445,12 @@ export function createSourceLifecycleService<
 					sourceBuffers.delete(source.id);
 					continue;
 				}
-				context ??= await awaitSourceLoadOperation(
+				context ??= await raceAbortableRead(
 					() => engine.getAudioContext?.({ resume: false }),
 					options.signal,
 				);
 				throwIfSourceLoadAborted(options.signal);
-				const buffer = await awaitSourceLoadOperation(
+				const buffer = await raceAbortableRead(
 					() => readStoredAudioBuffer(store, source, context),
 					options.signal,
 				);
@@ -496,7 +463,7 @@ export function createSourceLifecycleService<
 				continue;
 			}
 			if (!sourceChunkProviders.has(source.id)) {
-				const metadata = await awaitSourceLoadOperation(
+				const metadata = await raceAbortableRead(
 					() => store.getSourceMetadata(source.storageKey || source.id),
 					options.signal,
 				);
@@ -505,12 +472,12 @@ export function createSourceLifecycleService<
 				registerStoredChunkProvider(source, metadata);
 			}
 			if (sourceChunkProviders.has(source.id) || sourceBuffers.has(source.id)) continue;
-			context ??= await awaitSourceLoadOperation(
+			context ??= await raceAbortableRead(
 				() => engine.getAudioContext?.({ resume: false }),
 				options.signal,
 			);
 			throwIfSourceLoadAborted(options.signal);
-			const buffer = await awaitSourceLoadOperation(
+			const buffer = await raceAbortableRead(
 				() => readStoredAudioBuffer(store, source, context),
 				options.signal,
 			);

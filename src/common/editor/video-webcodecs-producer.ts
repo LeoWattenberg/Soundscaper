@@ -19,6 +19,7 @@
  * back the chunks it happened to get.
  */
 
+import { raceAbortablePromise } from './abort-race.ts';
 import { createVideoElementaryStreamWriter } from './video-elementary-stream.ts';
 
 const MICROSECONDS_PER_SECOND = 1_000_000;
@@ -254,7 +255,7 @@ export async function produceVideoWebCodecsChunks(
 				await drain();
 			}
 		}
-		await awaitWithAbort(encoder.flush(), request.signal);
+		await raceAbortablePromise(encoder.flush(), request.signal, () => abortError());
 		assertReady(request, failure);
 		await drain();
 		return Object.freeze({ frameCount: frameSource.frameCount, chunkCount, byteLength });
@@ -283,30 +284,6 @@ function assertReady(
 
 function signalOptions(signal: AbortSignal | undefined) {
 	return signal ? Object.freeze({ signal }) : Object.freeze({});
-}
-
-function awaitWithAbort<Value>(operation: PromiseLike<Value>, signal?: AbortSignal): Promise<Value> {
-	if (!signal) return Promise.resolve(operation);
-	if (signal.aborted) return Promise.reject(abortError());
-	return new Promise<Value>((resolve, reject) => {
-		let settled = false;
-		const finish = (complete: () => void): void => {
-			if (settled) return;
-			settled = true;
-			signal.removeEventListener('abort', onAbort);
-			complete();
-		};
-		const onAbort = (): void => finish(() => reject(abortError()));
-		signal.addEventListener('abort', onAbort, { once: true });
-		if (signal.aborted) {
-			onAbort();
-			return;
-		}
-		void Promise.resolve(operation).then(
-			(value) => finish(() => resolve(value)),
-			(error: unknown) => finish(() => reject(error)),
-		);
-	});
 }
 
 /**

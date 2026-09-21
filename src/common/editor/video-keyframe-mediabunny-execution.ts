@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { raceAbortablePromise } from './abort-race.ts';
 import {
 	assertVideoKeyframeAudioInputSource,
 	type VideoKeyframeAudioInputSource,
@@ -125,7 +126,7 @@ export async function executeVideoKeyframeMediabunnyEncoder(
 		});
 		assertReady(request);
 		const activeMuxer = muxer;
-		await awaitWithAbort(activeMuxer.start(), operationSignal);
+		await raceAbortablePromise(activeMuxer.start(), operationSignal, abortReason);
 		const videoTask = Promise.resolve(dependencies.produceVideo({
 				frameSource: authenticatedFrameSource(frameSource, workload),
 				producer: guardedProducer(producer, workload),
@@ -143,7 +144,7 @@ export async function executeVideoKeyframeMediabunnyEncoder(
 						throw new RangeError('The browser-native video output exceeds its requested byte bound.');
 					}
 					encodedVideoBytes += chunk.byteLength;
-					await awaitWithAbort(activeMuxer.addVideoChunk(chunk, metadata), operationSignal);
+					await raceAbortablePromise(activeMuxer.addVideoChunk(chunk, metadata), operationSignal, abortReason);
 				},
 				signal: operationSignal,
 				...(request.assertCurrent ? { assertCurrent: request.assertCurrent } : {}),
@@ -157,7 +158,7 @@ export async function executeVideoKeyframeMediabunnyEncoder(
 		activeTasks = [videoTask, audioTask];
 		const [video] = await Promise.all([videoTask, audioTask]);
 		assertReady(request);
-		const muxed = await awaitWithAbort(activeMuxer.finalize(), operationSignal);
+		const muxed = await raceAbortablePromise(activeMuxer.finalize(), operationSignal, abortReason);
 		assertReady(request);
 		if (video.frameCount !== workload.frameCount
 			|| video.chunkCount !== muxed.videoChunkCount
@@ -253,11 +254,11 @@ async function writeAudio(
 			if (part.byteLength !== sourceBytes) throw new Error('Canonical WAV audio returned a short PCM slice.');
 			bytes.set(part);
 		}
-		await awaitWithAbort(muxer.addAudioPcm({
+		await raceAbortablePromise(muxer.addAudioPcm({
 			data: bytes,
 			frameCount,
 			timestamp: frameOffset / source.sampleRate,
-		}), request.signal);
+		}), request.signal, abortReason);
 		frameOffset += frameCount;
 	}
 }
@@ -379,30 +380,6 @@ function ascii(bytes: Uint8Array, offset: number, length: number): string {
 
 function invalidWav(): never {
 	throw new TypeError('Mediabunny audio requires the admitted canonical float32 WAV.');
-}
-
-function awaitWithAbort<Value>(operation: PromiseLike<Value>, signal?: AbortSignal): Promise<Value> {
-	if (!signal) return Promise.resolve(operation);
-	if (signal.aborted) return Promise.reject(abortReason(signal));
-	return new Promise<Value>((resolve, reject) => {
-		let settled = false;
-		const finish = (complete: () => void): void => {
-			if (settled) return;
-			settled = true;
-			signal.removeEventListener('abort', onAbort);
-			complete();
-		};
-		const onAbort = (): void => finish(() => reject(abortReason(signal)));
-		signal.addEventListener('abort', onAbort, { once: true });
-		if (signal.aborted) {
-			onAbort();
-			return;
-		}
-		void Promise.resolve(operation).then(
-			(value) => finish(() => resolve(value)),
-			(error: unknown) => finish(() => reject(error)),
-		);
-	});
 }
 
 function assertReady(
