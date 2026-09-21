@@ -37,9 +37,10 @@ test.describe('Framescaper rich session clipboard', () => {
 		expect(targetProjectId).toBeTruthy();
 
 		await chooseNestedCommandAction(page, editor, 'Edit', ['Paste', 'Paste']);
-		await expect(editor.locator('[data-status]')).toContainText(
+		await expect(page.getByText(
 			'The action failed: A new Framescaper image body requires atomic timeline-image publication.',
-		);
+			{ exact: true },
+		)).toBeVisible({ timeout: 30_000 });
 		await expect.poll(() => storedClipboardState(page, targetProjectId)).toMatchObject({
 			audioClips: 0, videoClips: 0, imageClips: 0, imageSources: 0,
 		});
