@@ -18,6 +18,8 @@ import {
 	soundscaperProtocolSource,
 } from './desktop-product-package-files.mjs';
 import {
+	soundscaperAssistanceOnnxRuntimeWorkerSource,
+	soundscaperAssistanceRuntimeFamilyHelperSource,
 	soundscaperHelperContractSource,
 	soundscaperHelperDataPlaneTransferSource,
 	soundscaperHelperJobGrantSource,
@@ -51,7 +53,16 @@ export async function collectDesktopProductRuntimeClosure({
 		const compiledSource = await readFile(join(compiledRoot, name), 'utf8');
 		const transform = desktopProductRuntimeTransform(productId, name);
 		const source = transform ? transform(compiledSource) : compiledSource;
-		for (const [, specifier] of source.matchAll(relativeSpecifier)) {
+		const specifiers = [...source.matchAll(relativeSpecifier)].map((match) => match[1]);
+		for (const argumentsList of staticCallArguments(source, /new\s+URL\s*\(/gu)) {
+			if (argumentsList.length !== 2 || argumentsList[1].trim() !== 'import.meta.url') continue;
+			const literal = staticString(argumentsList[0]);
+			if (literal === null) {
+				throw new Error(`Desktop ${productId} runtime ${name} has a nonliteral import-meta URL.`);
+			}
+			if (literal.startsWith('.')) specifiers.push(literal);
+		}
+		for (const specifier of specifiers) {
 			const path = specifier.replace(/[?#].*$/u, '');
 			const target = relative(compiledRoot,
 				resolve(compiledRoot, dirname(name), path)).split(sep).join('/');
@@ -70,6 +81,8 @@ export async function collectDesktopProductRuntimeClosure({
 export function desktopProductRuntimeTransform(productId, name) {
 	if (productId !== 'soundscaper') return undefined;
 	return new Map([
+		['desktop/assistance-onnx-runtime-worker.js', soundscaperAssistanceOnnxRuntimeWorkerSource],
+		['desktop/assistance-runtime-family-helper-process.js', soundscaperAssistanceRuntimeFamilyHelperSource],
 		['desktop/helper-contract.js', soundscaperHelperContractSource],
 		['desktop/helper-data-plane-transfer.js', soundscaperHelperDataPlaneTransferSource],
 		['desktop/helper-job-grant.js', soundscaperHelperJobGrantSource],
@@ -92,16 +105,77 @@ export async function collectApplicationDesktopRuntimeReferences({
 	applicationRoot,
 	applicationFiles,
 	completeFiles,
+	runtimePackageImports = {},
 }) {
 	const complete = new Set(completeFiles);
 	const references = new Set();
 	const pattern = /['"](?:\.\/)?project-library-runtime\/([^'"?#]+)['"]/gu;
+	const packageImport = /(?:\bfrom\s*|\bimport\s*\(\s*|\bimport\s+)['"](#desktop-runtime\/[^'"]+)['"]/gu;
 	for (const name of applicationFiles) {
 		if (!/\.[cm]?js$/u.test(name)) continue;
 		const source = await readFile(join(applicationRoot, name), 'utf8');
 		for (const [, target] of source.matchAll(pattern)) if (complete.has(target)) references.add(target);
+		for (const [, alias] of source.matchAll(packageImport)) {
+			const target = runtimePackageImports[alias]?.replace(
+				/^\.\/desktop\/project-library-runtime\//u, '',
+			);
+			if (complete.has(target)) references.add(target);
+		}
+		for (const argumentsList of staticCallArguments(source, /\bjoin\s*\(/gu)) {
+			if (argumentsList[0]?.trim() !== 'import.meta.dirname') continue;
+			const segments = argumentsList.slice(1).map((argument) => staticString(argument));
+			if (segments.some((segment) => segment === null)) {
+				throw new Error(`Desktop application ${name} has a nonliteral desktop runtime loader.`);
+			}
+			const path = segments.join('/');
+			if (!path.startsWith('project-library-runtime/')) continue;
+			const target = path.slice('project-library-runtime/'.length);
+			if (!complete.has(target)) {
+				throw new Error(`Desktop application ${name} loads an absent desktop runtime member.`);
+			}
+			references.add(target);
+		}
 	}
 	return Object.freeze([...references].sort());
+}
+
+function staticCallArguments(source, pattern) {
+	return [...source.matchAll(pattern)].map((match) => readCallArguments(
+		source, match.index + match[0].length,
+	));
+}
+
+function readCallArguments(source, start) {
+	const argumentsList = [];
+	let argumentStart = start;
+	let depth = 0;
+	let quote = null;
+	let escaped = false;
+	for (let index = start; index < source.length; index += 1) {
+		const character = source[index];
+		if (quote !== null) {
+			if (escaped) escaped = false;
+			else if (character === '\\') escaped = true;
+			else if (character === quote) quote = null;
+			continue;
+		}
+		if (character === "'" || character === '"' || character === '`') quote = character;
+		else if (character === '(' || character === '[' || character === '{') depth += 1;
+		else if (character === ')' && depth === 0) {
+			const finalArgument = source.slice(argumentStart, index);
+			if (finalArgument.trim()) argumentsList.push(finalArgument);
+			return argumentsList;
+		} else if (character === ')' || character === ']' || character === '}') depth -= 1;
+		else if (character === ',' && depth === 0) {
+			argumentsList.push(source.slice(argumentStart, index));
+			argumentStart = index + 1;
+		}
+	}
+	throw new Error('Desktop runtime loader call is unterminated.');
+}
+
+function staticString(source) {
+	return /^(['"])([^'"\\]*)\1$/u.exec(source.trim())?.[2] ?? null;
 }
 
 export async function stageSoundscaperDesktopEntrySources(sourceRoot, applicationRoot) {

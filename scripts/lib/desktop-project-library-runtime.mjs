@@ -459,14 +459,12 @@ export async function stageDesktopApplicationSources({
 		await stageSoundscaperDesktopEntrySources(sourceRoot, applicationRoot);
 	}
 	const stagedSourceFiles = await listRuntimeFiles(applicationRoot);
-	const runtimeRoots = productId === 'soundscaper'
-		? [...DESKTOP_SOUNDSCAPER_RUNTIME_FILES,
-			...await collectApplicationDesktopRuntimeReferences({
-				applicationRoot,
-				applicationFiles: stagedSourceFiles,
-				completeFiles: runtimeFiles,
-			})]
-		: runtimeFiles;
+	const runtimeRoots = await collectApplicationDesktopRuntimeReferences({
+		applicationRoot,
+		applicationFiles: stagedSourceFiles,
+		completeFiles: runtimeFiles,
+		runtimePackageImports: desktopProductRuntimePackageImports(productId, DESKTOP_RUNTIME_PACKAGE_IMPORTS),
+	});
 	const packagedRuntimeFiles = await collectDesktopProductRuntimeClosure({
 		compiledRoot,
 		completeFiles: runtimeFiles,

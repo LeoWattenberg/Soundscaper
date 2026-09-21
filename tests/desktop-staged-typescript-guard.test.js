@@ -25,6 +25,10 @@ import {
 	assertDesktopProductPackageIsolation,
 	desktopProductRuntimePackageImports,
 } from '../scripts/lib/desktop-product-package-files.mjs';
+import {
+	collectApplicationDesktopRuntimeReferences,
+	collectDesktopProductRuntimeClosure,
+} from '../scripts/lib/desktop-product-runtime-staging.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const TYPESCRIPT_SPECIFIER = /(?:\bfrom\s*|\bimport\s*\(\s*|\bimport\s+)['"][^'"]*\.[cm]?tsx?['"]/u;
@@ -35,7 +39,7 @@ test('the staged desktop tree carries no TypeScript specifier and resolves every
 	const runtimeRoot = join(temporaryRoot, 'runtime');
 	const applicationDesktopRoot = join(temporaryRoot, 'application', 'desktop');
 	await compileDesktopProjectLibraryRuntime({ repositoryRoot: ROOT, outputRoot: runtimeRoot });
-	await stageDesktopApplicationSources({
+	const stagedRuntime = await stageDesktopApplicationSources({
 		desktopSourceRoot: join(ROOT, 'desktop'),
 		applicationDesktopRoot,
 		runtimeRoot,
@@ -43,6 +47,10 @@ test('the staged desktop tree carries no TypeScript specifier and resolves every
 	});
 
 	const stagedFiles = await listFilesRecursively(applicationDesktopRoot);
+	await assertRuntimeReachability({
+		productId: 'soundscaper', applicationDesktopRoot, runtimeRoot, stagedRuntime,
+	});
+	await access(join(applicationDesktopRoot, 'nightly-tests-window.mjs'));
 	assert.doesNotThrow(() => assertDesktopProductPackageIsolation(
 		'soundscaper', stagedFiles.map((name) => `desktop/${name}`),
 	), 'Soundscaper staging must not carry Framescaper-owned application files');
@@ -74,11 +82,24 @@ test('the staged desktop tree carries no TypeScript specifier and resolves every
 		await access(join(ROOT, repositoryPackage.imports[alias]));
 	}
 	for (const retired of [
+		'native-helper-realtime-job.js',
 		'project-library-fallback-role-witnesses.js',
 		'project-library-source-bearing-smoke.js',
 	]) {
 		await assert.rejects(access(join(applicationDesktopRoot, retired)), { code: 'ENOENT' });
 	}
+	const framescaperDesktopRoot = join(temporaryRoot, 'framescaper-application', 'desktop');
+	const framescaperRuntime = await stageDesktopApplicationSources({
+		desktopSourceRoot: join(ROOT, 'desktop'),
+		applicationDesktopRoot: framescaperDesktopRoot,
+		runtimeRoot,
+		productId: 'framescaper',
+	});
+	await assertRuntimeReachability({
+		productId: 'framescaper', applicationDesktopRoot: framescaperDesktopRoot,
+		runtimeRoot, stagedRuntime: framescaperRuntime,
+	});
+	await access(join(framescaperDesktopRoot, 'nightly-tests-window.mjs'));
 
 	const reintroducedRoot = join(temporaryRoot, 'desktop-reintroduced');
 	await cp(join(ROOT, 'desktop'), reintroducedRoot, { recursive: true });
@@ -90,6 +111,28 @@ test('the staged desktop tree carries no TypeScript specifier and resolves every
 		runtimeRoot,
 	}), /retained a TypeScript import/u, 'the staging guard must fail on a reintroduced TypeScript import');
 });
+
+async function assertRuntimeReachability({
+	productId, applicationDesktopRoot, runtimeRoot, stagedRuntime,
+}) {
+	const [completeRuntimeFiles, stagedFiles] = await Promise.all([
+		listFilesRecursively(runtimeRoot), listFilesRecursively(applicationDesktopRoot),
+	]);
+	const runtimeRoots = await collectApplicationDesktopRuntimeReferences({
+		applicationRoot: applicationDesktopRoot,
+		applicationFiles: stagedFiles.filter((name) => !name.startsWith('project-library-runtime/')),
+		completeFiles: completeRuntimeFiles,
+		runtimePackageImports: desktopProductRuntimePackageImports(
+			productId, DESKTOP_RUNTIME_PACKAGE_IMPORTS,
+		),
+	});
+	const reachableRuntime = await collectDesktopProductRuntimeClosure({
+		compiledRoot: runtimeRoot, completeFiles: completeRuntimeFiles,
+		rootFiles: runtimeRoots, productId,
+	});
+	assert.deepEqual(stagedRuntime.files, reachableRuntime,
+		'every staged runtime member must be reachable from a retained application import or authenticated loader path');
+}
 
 async function listFilesRecursively(root, relativeRoot = '') {
 	const entries = await readdir(join(root, relativeRoot), { withFileTypes: true });

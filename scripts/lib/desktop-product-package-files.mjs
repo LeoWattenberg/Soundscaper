@@ -34,7 +34,17 @@ const SOUNDSCAPER_SHARED_RUNTIME_EXCEPTIONS = new Set([
 	'src/common/editor/video-timing-asset-reference.js',
 ]);
 const SOUNDSCAPER_SHARED_VIDEO_RUNTIME = /^src\/common\/editor\/video-[^/]+\.js$/u;
-const NIGHTLY_TEST_HARNESS_PATH = /(?:^|\/)desktop\/nightly-tests-[^/]+$/u;
+const NIGHTLY_TEST_LAUNCHER_FILES = new Set([
+	'nightly-tests-assistance-host.mjs',
+	'nightly-tests-assistance.html',
+	'nightly-tests-main.mjs',
+	'nightly-tests-manifest.mjs',
+	'nightly-tests-progress-renderer.js',
+	'nightly-tests-progress-window.d.mts',
+	'nightly-tests-progress-window.mjs',
+	'nightly-tests-progress.css',
+	'nightly-tests-progress.html',
+]);
 const DESKTOP_RENDERER_ONLY_SOURCE_FILES = new Set([
 	'desktop-chrome-renderer-smoke.js',
 	'direct-wav-renderer-smoke.js',
@@ -47,6 +57,9 @@ const DESKTOP_RENDERER_ONLY_SOURCE_FILES = new Set([
 	'scape-open-renderer-smoke.js',
 	'scape-reopen-renderer-smoke.js',
 	'video-timing-probe-renderer-smoke.js',
+]);
+const DESKTOP_RETIRED_SOURCE_FILES = new Set([
+	'native-helper-realtime-job.js',
 ]);
 const SOUNDSCAPER_REPLACED_SOURCE_FILES = new Set([
 	'desktop-smoke-configuration.js',
@@ -80,7 +93,7 @@ export function desktopLegacyNativeAddonIncluded(productIdValue, metadata = null
 export function desktopProductRuntimeFiles(productIdValue, filesValue) {
 	const productId = desktopPackageProduct(productIdValue);
 	const files = exactFileInventory(filesValue, 'compiled desktop runtime')
-		.filter((path) => !NIGHTLY_TEST_HARNESS_PATH.test(path));
+		.filter((path) => !isNightlyTestLauncherPath(path));
 	if (productId === 'framescaper') return Object.freeze([...files]);
 	return Object.freeze(files.filter((path) => !soundscaperForbiddenPackagePath(path)));
 }
@@ -102,9 +115,8 @@ export function desktopProductRuntimePackageImports(productIdValue, importsValue
 export function desktopProductSourceIncluded(productIdValue, relativePathValue) {
 	const productId = desktopPackageProduct(productIdValue);
 	const relativePath = packagePath(relativePathValue, 'desktop application source');
-	if (DESKTOP_RENDERER_ONLY_SOURCE_FILES.has(relativePath)
-		|| NIGHTLY_TEST_HARNESS_PATH.test(relativePath)
-		|| NIGHTLY_TEST_HARNESS_PATH.test(`desktop/${relativePath}`)) return false;
+	if (DESKTOP_RENDERER_ONLY_SOURCE_FILES.has(relativePath) || DESKTOP_RETIRED_SOURCE_FILES.has(relativePath)
+		|| isNightlyTestLauncherPath(relativePath)) return false;
 	return productId === 'framescaper' || !soundscaperForbiddenPackagePath(relativePath)
 		&& !SOUNDSCAPER_REPLACED_SOURCE_FILES.has(relativePath);
 }
@@ -112,7 +124,7 @@ export function desktopProductSourceIncluded(productIdValue, relativePathValue) 
 export function assertDesktopProductPackageIsolation(productIdValue, filesValue, contentByPath = new Map()) {
 	const productId = desktopPackageProduct(productIdValue);
 	const files = exactFileInventory(filesValue, 'desktop package');
-	const harness = files.filter((path) => NIGHTLY_TEST_HARNESS_PATH.test(path));
+	const harness = files.filter((path) => isNightlyTestLauncherPath(path));
 	if (harness.length > 0) {
 		throw new Error(`Desktop product package contains nightly-test harness files: ${harness.join(', ')}`);
 	}
@@ -132,6 +144,10 @@ export function assertDesktopProductPackageIsolation(productIdValue, filesValue,
 			throw new Error(`Soundscaper package contains a callable Framescaper marker ${marker} in ${path}.`);
 		}
 	}
+}
+
+function isNightlyTestLauncherPath(path) {
+	return NIGHTLY_TEST_LAUNCHER_FILES.has(path.replace(/^desktop\//u, ''));
 }
 
 export function soundscaperMainSource(sourceValue) {

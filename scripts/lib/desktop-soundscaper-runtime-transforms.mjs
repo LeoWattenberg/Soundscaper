@@ -2,6 +2,68 @@
 
 /** Product-only rewrites applied to the compiled Soundscaper desktop closure. */
 
+export function soundscaperAssistanceRuntimeFamilyHelperSource(sourceValue) {
+	let source = textSource(sourceValue, 'compiled assistance runtime-family helper');
+	source = replaceOnce(source,
+		/import \{ createAssistanceLlamaCppWorkerSpawnerV1, \} from ['"][^'"]+['"];\n/u,
+		'', 'editorial-generation helper import');
+	source = replaceRange(source,
+		'    if (options.spawnLlamaWorker !== undefined',
+		'    const spawnThreadWorker =',
+		'    const spawnThreadWorker =', 'editorial-generation helper option');
+	source = replaceRange(source,
+		'    const spawnLlamaWorker =',
+		'    return createAssistanceRuntimeFamilyUtilityWorker({',
+		'    return createAssistanceRuntimeFamilyUtilityWorker({',
+		'editorial-generation helper factory');
+	return replaceRange(source,
+		"            if (job.familyId === 'llama-cpp' && job.task === 'editorial-generation') {",
+		'            return spawnThreadWorker(job, runOptions);',
+		'            return spawnThreadWorker(job, runOptions);',
+		'editorial-generation helper dispatch');
+}
+
+export function soundscaperAssistanceOnnxRuntimeWorkerSource(sourceValue) {
+	let source = textSource(sourceValue, 'compiled assistance ONNX worker');
+	for (const dependency of [
+		'binary-formats-v1', 'transnetv2-onnx-adapter-v1',
+		'assistance-onnx-ocr-worker', 'assistance-onnx-saliency-worker',
+		'assistance-onnx-siglip2-worker', 'assistance-onnx-subject-worker',
+	]) {
+		source = replaceOnce(source,
+			new RegExp(`^import \\{[^\\n]+\\} from ['"][^'"]*${dependency}\\.js['"];\\n`, 'mu'),
+			'', dependency + ' import');
+	}
+	for (const dependency of ['node:crypto', 'node:fs/promises']) {
+		source = replaceOnce(source,
+			new RegExp(`^import [^\\n]+ from ['"]${dependency}['"];\\n`, 'mu'),
+			'', dependency + ' import');
+	}
+	source = replaceRange(source, 'const TRANSNET_INPUT_NAMES =',
+		'export function createAssistanceOnnxRuntimeWorkerAdapterV1',
+		'export function createAssistanceOnnxRuntimeWorkerAdapterV1',
+		'visual ONNX constants');
+	for (const adapter of ['Siglip2', 'Ocr', 'Subjects', 'Saliency']) {
+		source = replaceOnce(source,
+			new RegExp(`^    const execute${adapter} = [^\\n]+\\n`, 'mu'),
+			'', adapter + ' ONNX adapter');
+	}
+	for (const task of [
+		['shot-detection', 'executeTransNetV2'],
+		['image-text-embedding', 'executeSiglip2'],
+		['optical-character-recognition', 'executeOcr'],
+		['subject-detection', 'executeSubjects'],
+		['saliency-detection', 'executeSaliency'],
+	]) {
+		source = replaceOnce(source,
+			new RegExp(`^        if \\(context\\.grant\\.task === '${task[0]}'\\)\\s*return ${task[1]}\\([^;]+;\\n`, 'mu'),
+			'', task[0] + ' ONNX dispatch');
+	}
+	return replaceRange(source, 'async function executeTransNetV2',
+		'async function loadOnnxRuntime', 'async function loadOnnxRuntime',
+		'visual ONNX implementation');
+}
+
 export function soundscaperNativeTierControlsSource(sourceValue) {
 	const source = textSource(sourceValue, 'compiled desktop native-tier controls');
 	if (!source.includes("'set-probe-helper-enabled'")
