@@ -19,6 +19,7 @@ import {
 	type VideoSourceTimingView,
 } from '../../../../video-source-timing-view.ts';
 import { resolveVideoSourceTimingViews } from '../../../../video-source-timing-views.ts';
+import { exactVideoMidpointSeconds } from '../../../../video-exact-time-midpoint.ts';
 
 type DataRecord = Readonly<Record<string, unknown>>;
 
@@ -445,13 +446,8 @@ function exactTick(value: ExactSourceTime, timescale: number): bigint {
 }
 
 function midpointSeconds(start: ExactSourceTime, end: ExactSourceTime): number {
-	const numerator = start.numerator * end.denominator + end.numerator * start.denominator;
-	const denominator = 2n * start.denominator * end.denominator;
-	const result = Number(numerator) / Number(denominator);
-	if (!Number.isFinite(result) || result < 0) {
-		throw new RangeError('Selected-video frame midpoint exceeds browser decode timing.');
-	}
-	return result;
+	return exactVideoMidpointSeconds(start, end,
+		'Selected-video frame midpoint exceeds browser decode timing.');
 }
 
 function decimal(value: ExactSourcePosition | ExactSourceTime): DataRecord {

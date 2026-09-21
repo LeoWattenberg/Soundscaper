@@ -4,6 +4,7 @@ import { digestMediaContent } from '../common/editor/storage/media-content-diges
 import type { BlobLike } from '../common/editor/storage/media-records.ts';
 import type { GrayVideoFrameV1 } from '../common/editor/video-motion-processing-v27.ts';
 import { videoBoundaryTime, type VideoSourceTimingView } from '../common/editor/video-source-timing-view.ts';
+import { exactVideoMidpointSeconds } from '../common/editor/video-exact-time-midpoint.ts';
 import { loadVideoTimingAsset } from '../common/editor/video-timing-storage.ts';
 import type { VideoTimingAssetReference } from '../common/editor/video-timing-asset.ts';
 import type {
@@ -188,13 +189,8 @@ function midpointSeconds(
 	start: Readonly<{ readonly numerator: bigint; readonly denominator: bigint }>,
 	end: Readonly<{ readonly numerator: bigint; readonly denominator: bigint }>,
 ): number {
-	const numerator = start.numerator * end.denominator + end.numerator * start.denominator;
-	const denominator = 2n * start.denominator * end.denominator;
-	const seconds = Number(numerator) / Number(denominator);
-	if (!Number.isFinite(seconds) || seconds < 0) {
-		throw new RangeError('The selected finishing motion-analysis presentation timestamp is unsupported.');
-	}
-	return seconds;
+	return exactVideoMidpointSeconds(start, end,
+		'The selected finishing motion-analysis presentation timestamp is unsupported.');
 }
 
 async function defaultExtractor(
