@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 #include "os_audio_codec.h"
+#include "os_audio_codec_windows_file_bytes.h"
 #include "os_mp3_profile.h"
 #include "os_audio_codec_windows_session.h"
 
@@ -25,6 +26,7 @@ namespace {
 
 using Microsoft::WRL::ComPtr;
 using soundscaper::os_audio::MediaFoundationSession;
+using soundscaper::os_audio::readFloat32StereoPcm16;
 
 enum class OutputInspection {
 	exact,
@@ -87,58 +89,6 @@ bool widePath(const char *value, std::wstring &result)
 	return true;
 }
 
-bool readAll(HANDLE input, BYTE *bytes, size_t length)
-{
-	size_t offset = 0u;
-	while (offset < length) {
-		const DWORD requested = static_cast<DWORD>(std::min<size_t>(
-			length - offset, std::numeric_limits<DWORD>::max()));
-		DWORD readBytes = 0u;
-		if (!ReadFile(input, bytes + offset, requested, &readBytes, nullptr) || readBytes == 0u) return false;
-		offset += readBytes;
-	}
-	return true;
-}
-
-bool readFloatInput(
-	const std::wstring &path,
-	uint64_t expectedBytes,
-	std::vector<int16_t> &pcm,
-	uint64_t &frameCount)
-{
-	if (expectedBytes > std::numeric_limits<DWORD>::max()) return false;
-	HANDLE input = CreateFileW(path.c_str(), GENERIC_READ, FILE_SHARE_READ, nullptr, OPEN_EXISTING,
-		FILE_ATTRIBUTE_NORMAL | FILE_FLAG_OPEN_REPARSE_POINT | FILE_FLAG_SEQUENTIAL_SCAN, nullptr);
-	if (input == INVALID_HANDLE_VALUE) return false;
-	BY_HANDLE_FILE_INFORMATION information{};
-	ULARGE_INTEGER size{};
-	const bool metadata = GetFileInformationByHandle(input, &information) != 0;
-	size.HighPart = information.nFileSizeHigh;
-	size.LowPart = information.nFileSizeLow;
-	std::vector<BYTE> bytes(static_cast<size_t>(expectedBytes));
-	const bool read = metadata && (information.dwFileAttributes
-		& (FILE_ATTRIBUTE_DIRECTORY | FILE_ATTRIBUTE_REPARSE_POINT)) == 0u
-		&& size.QuadPart == expectedBytes && readAll(input, bytes.data(), bytes.size());
-	const bool closed = CloseHandle(input) != 0;
-	if (!read || !closed) return false;
-	pcm.resize(bytes.size() / sizeof(float));
-	for (size_t index = 0u; index < pcm.size(); ++index) {
-		const size_t offset = index * sizeof(float);
-		const uint32_t bits = static_cast<uint32_t>(bytes[offset])
-			| static_cast<uint32_t>(bytes[offset + 1u]) << 8u
-			| static_cast<uint32_t>(bytes[offset + 2u]) << 16u
-			| static_cast<uint32_t>(bytes[offset + 3u]) << 24u;
-		float sample = 0.0f;
-		std::memcpy(&sample, &bits, sizeof(sample));
-		if (!std::isfinite(sample)) return false;
-		pcm[index] = sample <= -1.0f ? std::numeric_limits<int16_t>::min()
-			: sample >= 1.0f ? std::numeric_limits<int16_t>::max()
-				: static_cast<int16_t>(std::lround(sample * 32767.0f));
-	}
-	frameCount = pcm.size() / 2u;
-	return frameCount > 0u;
-}
-
 soundscaper_pro_os_mp3_encode_result refused(
 	soundscaper_pro_os_codec_status status,
 	Mp3Refusal reason)
@@ -196,7 +146,7 @@ soundscaper_pro_os_mp3_encode_result encode(
 	}
 	std::vector<int16_t> pcm;
 	uint64_t frameCount = 0u;
-	if (!readFloatInput(inputPath, request->input_bytes, pcm, frameCount)) {
+	if (!readFloat32StereoPcm16(inputPath, request->input_bytes, pcm, frameCount)) {
 		return answer(SOUNDSCAPER_PRO_OS_CODEC_INVALID_REQUEST);
 	}
 

@@ -21,7 +21,9 @@
 #include "os_aac_m4a_profile.h"
 
 #include <algorithm>
+#include <cmath>
 #include <cstdint>
+#include <cstring>
 #include <limits>
 #include <string>
 #include <vector>
@@ -74,6 +76,48 @@ inline BoundedFileRead boundedFileBytes(
 	const bool read = readAllBytes(input, bytes.data(), bytes.size());
 	const bool closed = CloseHandle(input) != 0;
 	return read && closed ? BoundedFileRead::read : BoundedFileRead::unreadable;
+}
+
+/** Read exact interleaved stereo Float32 and apply the reviewed PCM16 rounding. */
+inline bool readFloat32StereoPcm16(
+	const std::wstring &path,
+	uint64_t expectedBytes,
+	std::vector<int16_t> &pcm,
+	uint64_t &frameCount)
+{
+	if (expectedBytes == 0u || expectedBytes > 32u * 1024u * 1024u
+		|| expectedBytes % (2u * sizeof(float)) != 0u
+		|| expectedBytes > std::numeric_limits<DWORD>::max()) return false;
+	HANDLE input = CreateFileW(path.c_str(), GENERIC_READ, FILE_SHARE_READ, nullptr, OPEN_EXISTING,
+		FILE_ATTRIBUTE_NORMAL | FILE_FLAG_OPEN_REPARSE_POINT | FILE_FLAG_SEQUENTIAL_SCAN, nullptr);
+	if (input == INVALID_HANDLE_VALUE) return false;
+	BY_HANDLE_FILE_INFORMATION information{};
+	ULARGE_INTEGER size{};
+	const bool metadata = GetFileInformationByHandle(input, &information) != 0;
+	size.HighPart = information.nFileSizeHigh;
+	size.LowPart = information.nFileSizeLow;
+	std::vector<BYTE> bytes(static_cast<size_t>(expectedBytes));
+	const bool read = metadata && (information.dwFileAttributes
+		& (FILE_ATTRIBUTE_DIRECTORY | FILE_ATTRIBUTE_REPARSE_POINT)) == 0u
+		&& size.QuadPart == expectedBytes && readAllBytes(input, bytes.data(), bytes.size());
+	const bool closed = CloseHandle(input) != 0;
+	if (!read || !closed) return false;
+	pcm.resize(bytes.size() / sizeof(float));
+	for (size_t index = 0u; index < pcm.size(); ++index) {
+		const size_t offset = index * sizeof(float);
+		const uint32_t bits = static_cast<uint32_t>(bytes[offset])
+			| static_cast<uint32_t>(bytes[offset + 1u]) << 8u
+			| static_cast<uint32_t>(bytes[offset + 2u]) << 16u
+			| static_cast<uint32_t>(bytes[offset + 3u]) << 24u;
+		float sample = 0.0f;
+		std::memcpy(&sample, &bits, sizeof(sample));
+		if (!std::isfinite(sample)) return false;
+		pcm[index] = sample <= -1.0f ? std::numeric_limits<int16_t>::min()
+			: sample >= 1.0f ? std::numeric_limits<int16_t>::max()
+				: static_cast<int16_t>(std::lround(sample * 32767.0f));
+	}
+	frameCount = pcm.size() / 2u;
+	return frameCount > 0u;
 }
 
 enum class EncodedOutputInspection {

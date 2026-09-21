@@ -30,6 +30,7 @@ using soundscaper::os_audio::EncodedOutputInspection;
 using soundscaper::os_audio::exactAacLcInput;
 using soundscaper::os_audio::inspectEncodedOutput;
 using soundscaper::os_audio::MediaFoundationSession;
+using soundscaper::os_audio::readFloat32StereoPcm16;
 
 enum class ReviewedCodec {
 	mp3,
@@ -121,48 +122,6 @@ bool exactEncodeRequest(const soundscaper_pro_os_aac_m4a_encode_request *request
 		&& request->input_bytes % (2u * sizeof(float)) == 0u
 		&& request->sample_rate == 48000u && request->channel_count == 2u
 		&& request->bitrate_kbps == 160u;
-}
-
-bool readExactFloatInput(
-	const std::wstring &path,
-	uint64_t expectedBytes,
-	std::vector<int16_t> &pcm,
-	uint64_t &frameCount)
-{
-	if (expectedBytes == 0u || expectedBytes > 32u * 1024u * 1024u
-		|| expectedBytes % (2u * sizeof(float)) != 0u
-		|| expectedBytes > std::numeric_limits<DWORD>::max()) return false;
-	HANDLE input = CreateFileW(path.c_str(), GENERIC_READ, FILE_SHARE_READ, nullptr, OPEN_EXISTING,
-		FILE_ATTRIBUTE_NORMAL | FILE_FLAG_OPEN_REPARSE_POINT | FILE_FLAG_SEQUENTIAL_SCAN, nullptr);
-	if (input == INVALID_HANDLE_VALUE) return false;
-	BY_HANDLE_FILE_INFORMATION information{};
-	ULARGE_INTEGER size{};
-	const bool metadata = GetFileInformationByHandle(input, &information) != 0;
-	size.HighPart = information.nFileSizeHigh;
-	size.LowPart = information.nFileSizeLow;
-	std::vector<BYTE> bytes(static_cast<size_t>(expectedBytes));
-	const bool read = metadata && (information.dwFileAttributes
-		& (FILE_ATTRIBUTE_DIRECTORY | FILE_ATTRIBUTE_REPARSE_POINT)) == 0u
-		&& size.QuadPart == expectedBytes
-		&& soundscaper::os_audio::readAllBytes(input, bytes.data(), bytes.size());
-	const bool closed = CloseHandle(input) != 0;
-	if (!read || !closed) return false;
-	pcm.resize(bytes.size() / sizeof(float));
-	for (size_t index = 0u; index < pcm.size(); ++index) {
-		const size_t offset = index * sizeof(float);
-		const uint32_t bits = static_cast<uint32_t>(bytes[offset])
-			| static_cast<uint32_t>(bytes[offset + 1u]) << 8u
-			| static_cast<uint32_t>(bytes[offset + 2u]) << 16u
-			| static_cast<uint32_t>(bytes[offset + 3u]) << 24u;
-		float sample = 0.0f;
-		std::memcpy(&sample, &bits, sizeof(sample));
-		if (!std::isfinite(sample)) return false;
-		pcm[index] = sample <= -1.0f ? std::numeric_limits<int16_t>::min()
-			: sample >= 1.0f ? std::numeric_limits<int16_t>::max()
-				: static_cast<int16_t>(std::lround(sample * 32767.0f));
-	}
-	frameCount = pcm.size() / 2u;
-	return frameCount > 0u;
 }
 
 bool exactUnsigned(IMFMediaType *type, REFGUID key, uint32_t expected)
@@ -398,7 +357,7 @@ soundscaper_pro_os_aac_m4a_encode_result encodeOperatingSystemAacM4a(
 	}
 	std::vector<int16_t> pcm;
 	uint64_t frameCount = 0u;
-	if (!readExactFloatInput(inputPath, request->input_bytes, pcm, frameCount)) {
+	if (!readFloat32StereoPcm16(inputPath, request->input_bytes, pcm, frameCount)) {
 		return encodeAnswer(SOUNDSCAPER_PRO_OS_CODEC_INVALID_REQUEST);
 	}
 
