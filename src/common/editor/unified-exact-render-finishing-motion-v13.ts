@@ -8,6 +8,7 @@ import {
 	type VideoSimilarityTransformV1,
 } from './video-motion-processing-v27.ts';
 import type { UnifiedExactRenderRgbaFrameV13 } from './unified-exact-render-finishing-consumers-v13.ts';
+import { sampleUnifiedExactRgbaChannelV13 } from './unified-exact-rgba-sampling-v13.ts';
 
 /** Compose first then second. */
 export function composeMotion(
@@ -57,29 +58,13 @@ export function warpApplied(
 			const offset = (y * frame.width + x) * 4;
 			if (sourceX < 0 || sourceY < 0 || sourceX > frame.width - 1 || sourceY > frame.height - 1) continue;
 			for (let channel = 0; channel < 4; channel += 1) {
-				pixels[offset + channel] = Math.round(sample(frame, sourceX, sourceY, channel));
+				pixels[offset + channel] = Math.round(
+					sampleUnifiedExactRgbaChannelV13(frame, sourceX, sourceY, channel),
+				);
 			}
 		}
 	}
 	return Object.freeze({ width: frame.width, height: frame.height, pixels });
-}
-
-function sample(
-	frame: UnifiedExactRenderRgbaFrameV13,
-	x: number,
-	y: number,
-	channel: number,
-): number {
-	const x0 = Math.floor(x);
-	const y0 = Math.floor(y);
-	const x1 = Math.min(frame.width - 1, x0 + 1);
-	const y1 = Math.min(frame.height - 1, y0 + 1);
-	const mixX = x - x0;
-	const mixY = y - y0;
-	const pixel = (px: number, py: number) => frame.pixels[(py * frame.width + px) * 4 + channel]!;
-	const top = pixel(x0, y0) + (pixel(x1, y0) - pixel(x0, y0)) * mixX;
-	const bottom = pixel(x0, y1) + (pixel(x1, y1) - pixel(x0, y1)) * mixX;
-	return top + (bottom - top) * mixY;
 }
 
 export function channelFrame(frame: UnifiedExactRenderRgbaFrameV13, channel: number): GrayVideoFrameV1 {

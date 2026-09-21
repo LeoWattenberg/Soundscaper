@@ -12,6 +12,7 @@ import {
 	type VideoPreviewRenderGeometry,
 } from './video-preview-render-description.ts';
 import type { UnifiedExactRenderRgbaFrameV13 } from './unified-exact-render-finishing-consumers-v13.ts';
+import { sampleUnifiedExactRgbaChannelV13 } from './unified-exact-rgba-sampling-v13.ts';
 
 export interface UnifiedExactLinearPremultipliedFrameV13 {
 	readonly width: number;
@@ -237,22 +238,12 @@ function sample(
 	xValue: number,
 	yValue: number,
 ): readonly [number, number, number, number] {
-	const x = Math.max(0, Math.min(frame.width - 1, xValue));
-	const y = Math.max(0, Math.min(frame.height - 1, yValue));
-	const x0 = Math.floor(x);
-	const y0 = Math.floor(y);
-	const x1 = Math.min(frame.width - 1, x0 + 1);
-	const y1 = Math.min(frame.height - 1, y0 + 1);
-	const mixX = x - x0;
-	const mixY = y - y0;
-	const result = [0, 0, 0, 0];
-	for (let channel = 0; channel < 4; channel += 1) {
-		const at = (px: number, py: number) => frame.pixels[(py * frame.width + px) * 4 + channel]! / 255;
-		const top = at(x0, y0) + (at(x1, y0) - at(x0, y0)) * mixX;
-		const bottom = at(x0, y1) + (at(x1, y1) - at(x0, y1)) * mixX;
-		result[channel] = top + (bottom - top) * mixY;
-	}
-	return result as unknown as readonly [number, number, number, number];
+	return Object.freeze([
+		sampleUnifiedExactRgbaChannelV13(frame, xValue, yValue, 0) / 255,
+		sampleUnifiedExactRgbaChannelV13(frame, xValue, yValue, 1) / 255,
+		sampleUnifiedExactRgbaChannelV13(frame, xValue, yValue, 2) / 255,
+		sampleUnifiedExactRgbaChannelV13(frame, xValue, yValue, 3) / 255,
+	]);
 }
 
 function blend(backdrop: number, source: number, mode: UnifiedExactLinearBlendModeV13): number {

@@ -412,6 +412,8 @@
 		,
 		{ "path": "src/common/editor/unified-exact-render-visual-materializer-v13.ts", "kind": "persisted-contract", "justification": "unified-exact-render-visual-materializer-v13.ts is a persisted domain-component or render-contract revision independent of product schema." }
 		,
+		{ "path": "src/common/editor/unified-exact-rgba-sampling-v13.ts", "kind": "persisted-contract", "justification": "unified-exact-rgba-sampling-v13.ts is the shared sampling kernel for the independently versioned V13 render contract." }
+		,
 		{ "path": "src/common/editor/video-caption-imsc-identities-v27.ts", "kind": "persisted-contract", "justification": "video-caption-imsc-identities-v27.ts is a persisted domain-component or render-contract revision independent of product schema." }
 		,
 		{ "path": "src/common/editor/video-caption-imsc-v27.ts", "kind": "persisted-contract", "justification": "video-caption-imsc-v27.ts is a persisted domain-component or render-contract revision independent of product schema." }
