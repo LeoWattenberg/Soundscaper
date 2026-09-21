@@ -20,11 +20,23 @@
 		},
 		"license": "BSD-3-Clause"
 	},
+	"sharedSourceFiles": [
+		{
+			"path": "native/common/sha256.cpp",
+			"byteLength": 4415,
+			"sha256": "da01b38de59b50e5ce351a555a94313c6a9cb5a2803042df1f393e064acbe28d"
+		},
+		{
+			"path": "native/common/sha256.hpp",
+			"byteLength": 572,
+			"sha256": "5b8efdb22d73191be19b845ae06c5ddba090812baa3d89b0f8bccda7e05b9db5"
+		}
+	],
 	"sourceFiles": [
 		{
 			"path": "CMakeLists.txt",
-			"byteLength": 3053,
-			"sha256": "6c7d68a627d151919629abe63baa348fd2d310430e7400be86f127fab0ba9ce7"
+			"byteLength": 3164,
+			"sha256": "7e9bc5d10e48804a689674dbd976111ae734f3be837bcae82effe100d59d3052"
 		},
 		{
 			"path": "CMakePresets.json",
@@ -38,8 +50,8 @@
 		},
 		{
 			"path": "build/recipe-driver.mjs",
-			"byteLength": 28664,
-			"sha256": "64b1e48e48142107ac0a8552d647875723b41e1c0aeabfd9d7b1d2c2b9e30b9e"
+			"byteLength": 30500,
+			"sha256": "2af7f061325e8853cfc22f6c67c9a24e1f4d36030edb4dc5fdbaba1c1b54dc21"
 		},
 		{
 			"path": "build/source-authentication.mjs",
@@ -193,8 +205,8 @@
 		},
 		{
 			"path": "src/sha256.cpp",
-			"byteLength": 4514,
-			"sha256": "11c88df6f312113f0abe9d74a63c4ab97371462f202afb742e015655b0acfa54"
+			"byteLength": 923,
+			"sha256": "5ef0c115e338cde937be96e7e6870f6dc6367c817e02f75522b2c7d98e0d6a3f"
 		},
 		{
 			"path": "src/sha256.hpp",

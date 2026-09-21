@@ -66,6 +66,7 @@ test('the source audit rejects an unpinned local translation-unit input', (conte
 	const directory = mkdtempSync(join(tmpdir(), 'framescaper-openfx-unpinned-source-'));
 	context.after(() => rmSync(directory, { recursive: true, force: true }));
 	cpSync(hostRoot, join(directory, 'native/framescaper-openfx-host'), { recursive: true });
+	cpSync(join(repositoryRoot, 'native/common'), join(directory, 'native/common'), { recursive: true });
 	cpSync(join(repositoryRoot, '.gitattributes'), join(directory, '.gitattributes'));
 	writeFileSync(join(directory,
 		'native/framescaper-openfx-host/src/unpinned-translation-unit.cpp'), 'int unpinned = 1;\n');
@@ -78,6 +79,7 @@ test('future built targets require two exact target-root payloads before derivat
 	context.after(() => rmSync(directory, { recursive: true, force: true }));
 	const copiedHost = join(directory, 'native/framescaper-openfx-host');
 	cpSync(hostRoot, copiedHost, { recursive: true });
+	cpSync(join(repositoryRoot, 'native/common'), join(directory, 'native/common'), { recursive: true });
 	// The audit reports a root whose line-ending policy does not pin the host tree, so the
 	// fixture root carries the policy the real repository states rather than omitting it.
 	cpSync(join(repositoryRoot, '.gitattributes'), join(directory, '.gitattributes'));
@@ -139,6 +141,7 @@ test('contract-only scanner and per-fingerprint runtime fixtures self-test separ
 	try {
 		const mediaSourceRoot = join(repositoryRoot, 'native/framescaper-media-host/src');
 		const common = [
+			join(repositoryRoot, 'native/common/sha256.cpp'),
 			join(hostRoot, 'src', 'sha256.cpp'),
 			join(hostRoot, 'src', 'dynamic_library.cpp'),
 			join(hostRoot, 'src', 'gpu_runtime.cpp'),

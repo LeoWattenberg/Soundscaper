@@ -23,6 +23,9 @@ const SOURCE_DATE_EPOCH = 1786492800;
 const OPENFX_COMMIT_SHA = 'ab779510b2655b4d11a7e01e5c521f9aa8c88976';
 const OPENFX_ARCHIVE_SHA256 = '7f4fcde6c4bff3ee1f95a0b73a805e662a3e030999523165b40cfbe76c1ab9f5';
 const BOOST_ARCHIVE_SHA256 = '5c1d40cb8e19adbf740a4ec2da35b3e58f3f5804b1dce44deb53df72193cbc6c';
+const SHARED_SOURCE_PATHS = Object.freeze([
+	'native/common/sha256.cpp', 'native/common/sha256.hpp',
+]);
 const MEDIA_CONTRACT_SOURCES = Object.freeze([
 	'legacy_plan_semantics.cpp', 'legacy_plan_v8_filter_semantics.cpp',
 	'media_file_grants.cpp', 'media_plan.cpp', 'sha256.cpp', 'strict_json.cpp',
@@ -65,7 +68,7 @@ export function createFramescaperOpenFxHostBuildRecipe(value) {
 		'OpenFX-host source manifest',
 	);
 	assertCiGeneratedTargets(manifest);
-	verifyPinnedSourceClosure(hostRoot, manifest, witnesses);
+	verifyPinnedSourceClosure(repositoryRoot, hostRoot, manifest, witnesses);
 	const mediaContract = verifyMediaContractClosure(
 		repositoryRoot, hostRoot, manifest, witnesses,
 	);
@@ -203,7 +206,7 @@ function expectedToolchain(targetId) {
 function assertCiGeneratedTargets(manifest) {
 	closedRecord(manifest, [
 		'schemaVersion', 'hostVersion', 'helperContractVersion', 'license', 'sourceDateEpoch',
-		'openfx', 'sourceFiles', 'targets',
+		'openfx', 'sharedSourceFiles', 'sourceFiles', 'targets',
 	], 'OpenFX-host source manifest');
 	closedRecord(manifest.openfx, [
 		'version', 'tag', 'commit', 'commitSha', 'tagObjectSha', 'url', 'byteLength',
@@ -235,7 +238,7 @@ function assertCiGeneratedTargets(manifest) {
 	}
 }
 
-function verifyPinnedSourceClosure(root, manifest, witnesses) {
+function verifyPinnedSourceClosure(repositoryRoot, root, manifest, witnesses) {
 	if (!Array.isArray(manifest.sourceFiles) || manifest.sourceFiles.length === 0) {
 		throw new Error('The OpenFX-host source manifest has no closed source-file inventory.');
 	}
@@ -257,6 +260,30 @@ function verifyPinnedSourceClosure(root, manifest, witnesses) {
 		'build/source-authentication.mjs', 'build/targets.json',
 		...TARGETS.map(({ toolchainFile }) => toolchainFile),
 	]) if (!paths.includes(required)) throw new Error(`Required build input ${required} is not pinned.`);
+	verifySharedSourceClosure(repositoryRoot, manifest.sharedSourceFiles, witnesses);
+	const cmake = pinnedFile(root, manifest, 'CMakeLists.txt', witnesses).toString('utf8');
+	if (!cmake.includes('set(SCAPE_NATIVE_COMMON_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/../common")')
+		|| !cmake.includes('${SCAPE_NATIVE_COMMON_ROOT}/sha256.cpp')) {
+		throw new Error('The OpenFX-host build does not bind the authenticated native-common SHA-256 core.');
+	}
+}
+
+function verifySharedSourceClosure(repositoryRoot, values, witnesses) {
+	if (!Array.isArray(values) || values.length !== SHARED_SOURCE_PATHS.length) {
+		throw new Error('The OpenFX-host shared source-file inventory is incomplete.');
+	}
+	for (const [index, value] of values.entries()) {
+		const entry = closedRecord(value, ['path', 'byteLength', 'sha256'], 'shared source pin');
+		if (entry.path !== SHARED_SOURCE_PATHS[index]
+			|| !Number.isSafeInteger(entry.byteLength) || entry.byteLength < 0
+			|| !DIGEST.test(String(entry.sha256))) {
+			throw new Error('The OpenFX-host shared source-file inventory is not canonical.');
+		}
+		const bytes = witnessFile(join(repositoryRoot, entry.path), witnesses);
+		if (bytes.byteLength !== entry.byteLength || digest(bytes) !== entry.sha256) {
+			throw new Error(`Shared build input ${entry.path} drifted from its pin.`);
+		}
+	}
 }
 
 function verifyMediaContractClosure(repositoryRoot, hostRoot, manifest, witnesses) {
@@ -276,7 +303,7 @@ function verifyMediaContractClosure(repositoryRoot, hostRoot, manifest, witnesse
 	const mediaManifest = jsonBytes(manifestBytes, 'media-host source manifest');
 	closedRecord(mediaManifest, [
 		'schemaVersion', 'hostVersion', 'helperContractVersion', 'license', 'sourceDateEpoch',
-		'ffmpeg', 'boost', 'sourceFiles', 'targets',
+		'ffmpeg', 'boost', 'sharedSourceFiles', 'sourceFiles', 'targets',
 	], 'media-host source manifest');
 	if (mediaManifest.schemaVersion !== 1 || mediaManifest.hostVersion !== '1.0.0'
 		|| mediaManifest.helperContractVersion !== 1
@@ -289,6 +316,10 @@ function verifyMediaContractClosure(repositoryRoot, hostRoot, manifest, witnesse
 	const boostHeaderClosure = closedRecord(mediaManifest.boost.headerClosure, [
 		'algorithm', 'roots', 'fileCount', 'sha256',
 	], 'reused media-host Boost closure');
+	if (canonicalJson(mediaManifest.sharedSourceFiles) !== canonicalJson(manifest.sharedSourceFiles)) {
+		throw new Error('The reused media-host shared source identity disagrees with the OpenFX host.');
+	}
+	verifySharedSourceClosure(repositoryRoot, mediaManifest.sharedSourceFiles, witnesses);
 	if (!Array.isArray(mediaManifest.sourceFiles) || mediaManifest.sourceFiles.length === 0) {
 		throw new Error('The reused media-host source manifest has no source closure.');
 	}
@@ -338,6 +369,7 @@ function verifyMediaContractClosure(repositoryRoot, hostRoot, manifest, witnesse
 			const included = relative(
 				mediaRoot, resolve(dirname(join(mediaRoot, path)), match[1]),
 			).replaceAll('\\', '/');
+			if (included === '../common/sha256.hpp') continue;
 			if (!included.startsWith('src/')) {
 				throw new Error(`Reused media-contract include ${included} resolves outside its source root.`);
 			}

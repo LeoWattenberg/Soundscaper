@@ -114,6 +114,7 @@ export function buildOpenFxNativeContractFixture(context) {
 		], { encoding: 'utf8' }), `OpenFX ${name} plug-in`);
 	}
 	const hostSources = [
+		join(repositoryRoot, 'native/common/sha256.cpp'),
 		join(sources, 'sha256.cpp'), join(sources, 'dynamic_library.cpp'),
 		join(sources, 'gpu_runtime.cpp'),
 		join(sources, 'host_runtime.cpp'), join(sources, 'loaded_plugin_binary.cpp'),

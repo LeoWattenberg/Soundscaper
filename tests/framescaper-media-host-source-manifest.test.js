@@ -122,6 +122,7 @@ test('the C++20 contract fixture self-tests and rejects raw FFmpeg arguments', (
 		const built = spawnSync('c++', [
 			'-std=c++20', '-Wall', '-Wextra', '-Wpedantic', '-Werror',
 			'-DFRAMESCAPER_MEDIA_HOST_CONTRACT_ONLY=1', '-I', join(hostRoot, 'src'),
+			join(repositoryRoot, 'native/common/sha256.cpp'),
 			...[
 				'media_host.cpp', 'image_sequence_pack.cpp', 'legacy_plan_semantics.cpp',
 				'legacy_plan_v8_filter_semantics.cpp', 'media_file_grants.cpp',

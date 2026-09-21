@@ -2,6 +2,8 @@
 cmake_minimum_required(VERSION 3.28)
 project(framescaper_openfx_host VERSION 1.0.0 LANGUAGES CXX)
 
+set(SCAPE_NATIVE_COMMON_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/../common")
+
 if(MSVC)
 	set(CMAKE_MSVC_RUNTIME_LIBRARY "MultiThreaded$<$<CONFIG:Debug>:Debug>")
 endif()
@@ -30,6 +32,7 @@ add_library(framescaper-openfx-host-contract STATIC
 	src/loaded_plugin_binary.cpp
 	src/parameter_values.cpp
 	src/sha256.cpp
+	${SCAPE_NATIVE_COMMON_ROOT}/sha256.cpp
 	src/v12_cancellation_channel.cpp
 	src/v12_host_invocation.cpp
 	src/v12_gpu_support.cpp

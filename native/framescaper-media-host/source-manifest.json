@@ -32,11 +32,23 @@
 			"sha256": "a2f5894e12bc386b7db96936aba5f5bef3910e52da634c7630c73f1fa63e913d"
 		}
 	},
+	"sharedSourceFiles": [
+		{
+			"path": "native/common/sha256.cpp",
+			"byteLength": 4415,
+			"sha256": "da01b38de59b50e5ce351a555a94313c6a9cb5a2803042df1f393e064acbe28d"
+		},
+		{
+			"path": "native/common/sha256.hpp",
+			"byteLength": 572,
+			"sha256": "5b8efdb22d73191be19b845ae06c5ddba090812baa3d89b0f8bccda7e05b9db5"
+		}
+	],
 	"sourceFiles": [
 		{
 			"path": "CMakeLists.txt",
-			"byteLength": 6029,
-			"sha256": "513d5b2d5effe0c38c2d63b2cca26fd09604142f51e81aafad159eaf67ea88aa"
+			"byteLength": 6140,
+			"sha256": "28ed52be58b55a64452ebb03572b024f6201b8dcaad8caa4b49b681cb1a37077"
 		},
 		{
 			"path": "CMakePresets.json",
@@ -70,8 +82,8 @@
 		},
 		{
 			"path": "build/recipe-driver.mjs",
-			"byteLength": 28005,
-			"sha256": "96be5c3e99315b938e3f29dbb3de0455dc8d56507297cd84e783ddbe8637b4f8"
+			"byteLength": 29472,
+			"sha256": "3d99aca20254f9dd10687c3d30b52ef9f960a80c4882f4a339dc52df7baf554b"
 		},
 		{
 			"path": "build/source-authentication.mjs",
@@ -325,8 +337,8 @@
 		},
 		{
 			"path": "src/sha256.cpp",
-			"byteLength": 7630,
-			"sha256": "c25e775e4052015e3a6471985a9c362f88546d60d24aaf9319e2f09f4ae7f204"
+			"byteLength": 4292,
+			"sha256": "8197364dbc8b244777345c061b8a6b069639fe2900f1aa44ae41ceb27b613bae"
 		},
 		{
 			"path": "src/sha256.hpp",

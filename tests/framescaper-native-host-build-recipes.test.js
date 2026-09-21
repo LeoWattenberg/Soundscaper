@@ -166,6 +166,15 @@ test('each native recipe requires its own source authenticator to remain manifes
 			/source-file inventory|Required build input build\/source-authentication\.mjs is not pinned/u);
 	}
 });
+test('both native recipes authenticate the shared SHA-256 core', (context) => {
+	for (const kind of ['media', 'openfx']) {
+		const fixture = buildFixture(context, kind, 'linux-x64');
+		appendFileSync(join(fixture.repositoryRoot, 'native/common/sha256.cpp'), 'drift');
+		const create = kind === 'media'
+			? createFramescaperMediaHostBuildRecipe : createFramescaperOpenFxHostBuildRecipe;
+		assert.throws(() => create(fixture.options), /shared build input.*drifted/iu);
+	}
+});
 test('fake execution runs only the admitted phases once and never writes a payload claim', (context) => {
 	const runtime = `${process.platform}-${process.arch}`;
 	const mediaTarget = FRAMESCAPER_MEDIA_HOST_BUILD_TARGETS.find(({ hostRuntime }) => hostRuntime === runtime);
@@ -439,11 +448,19 @@ function buildFixture(context, kind, targetId) {
 		const destination = join(hostRoot, path);
 		mkdirSync(dirname(destination), { recursive: true });
 		if (kind === 'media' && path === 'CMakeLists.txt') {
-			writeFileSync(destination, 'cmake_minimum_required(VERSION 3.30)\n');
+			writeFileSync(destination, `cmake_minimum_required(VERSION 3.30)
+set(SCAPE_NATIVE_COMMON_ROOT "\${CMAKE_CURRENT_SOURCE_DIR}/../common")
+add_executable(fixture \${SCAPE_NATIVE_COMMON_ROOT}/sha256.cpp)
+`);
 		}
 		else copyFileSync(join(actualHost, path), destination);
 	}
 	const manifest = json(join(actualHost, 'source-manifest.json'));
+	for (const { path } of manifest.sharedSourceFiles) {
+		const destination = join(repositoryRootFixture, path);
+		mkdirSync(dirname(destination), { recursive: true });
+		copyFileSync(join(repositoryRoot, path), destination);
+	}
 	manifest.sourceFiles = sourcePins(hostRoot, inputs);
 	const manifestPath = join(hostRoot, 'source-manifest.json');
 	const targets = kind === 'media'

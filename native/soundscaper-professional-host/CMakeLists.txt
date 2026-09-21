@@ -393,6 +393,7 @@ set(SOUNDSCAPER_DELIVERY_FS_SOURCES
 	src/delivery_fs_main.cpp
 	src/delivery_fs_protocol.cpp
 	src/delivery_fs_sha256.cpp
+	${CMAKE_CURRENT_SOURCE_DIR}/../common/sha256.cpp
 )
 if(APPLE)
 	list(APPEND SOUNDSCAPER_DELIVERY_FS_SOURCES src/delivery_fs_macos.mm)

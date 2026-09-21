@@ -34,6 +34,9 @@ const DIGEST = /^[a-f0-9]{64}$/u;
 const SOURCE_DATE_EPOCH = 1786492800;
 const FFMPEG_ARCHIVE_SHA256 = 'cf38e0e28c7e5605942c4a77755349b0145804a397af37eb1fb4c77cb237f635';
 const BOOST_ARCHIVE_SHA256 = '5c1d40cb8e19adbf740a4ec2da35b3e58f3f5804b1dce44deb53df72193cbc6c';
+const SHARED_SOURCE_PATHS = Object.freeze([
+	'native/common/sha256.cpp', 'native/common/sha256.hpp',
+]);
 const TARGETS = Object.freeze([
 	Object.freeze({ id: 'linux-x64', runtime: 'linux-x64', hostRuntime: 'linux-x64', cmakePreset: 'linux-x64', toolchainFile: 'build/toolchains/linux-x64.cmake', ffmpegTarget: 'x86_64-linux-gnu', payloadName: 'framescaper-media-host' }),
 	Object.freeze({ id: 'linux-arm64', runtime: 'linux-arm64', hostRuntime: 'linux-arm64', cmakePreset: 'linux-arm64', toolchainFile: 'build/toolchains/linux-arm64.cmake', ffmpegTarget: 'aarch64-linux-gnu', payloadName: 'framescaper-media-host' }),
@@ -73,7 +76,7 @@ export function createFramescaperMediaHostBuildRecipe(value) {
 		'media-host source manifest',
 	);
 	assertCiGeneratedTargets(manifest);
-	verifyPinnedSourceClosure(hostRoot, manifest, witnesses);
+	verifyPinnedSourceClosure(repositoryRoot, hostRoot, manifest, witnesses);
 	const target = exactTarget(hostRoot, manifest, options.targetId, witnesses);
 	if (options.hostRuntime !== target.hostRuntime) {
 		throw new Error(`Target ${target.id} requires build host ${target.hostRuntime}.`);
@@ -223,7 +226,7 @@ function expectedToolchain(targetId) {
 function assertCiGeneratedTargets(manifest) {
 	closedRecord(manifest, [
 		'schemaVersion', 'hostVersion', 'helperContractVersion', 'license', 'sourceDateEpoch',
-		'ffmpeg', 'boost', 'sourceFiles', 'targets',
+		'ffmpeg', 'boost', 'sharedSourceFiles', 'sourceFiles', 'targets',
 	], 'media-host source manifest');
 	closedRecord(manifest.ffmpeg, [
 		'version', 'releaseName', 'released', 'url', 'byteLength', 'sha256', 'extractedTree',
@@ -284,7 +287,7 @@ function assertFfmpegConfigure(recipe, manifest) {
 	}
 }
 
-function verifyPinnedSourceClosure(root, manifest, witnesses) {
+function verifyPinnedSourceClosure(repositoryRoot, root, manifest, witnesses) {
 	if (!Array.isArray(manifest.sourceFiles) || manifest.sourceFiles.length === 0) {
 		throw new Error('The media-host source manifest has no closed source-file inventory.');
 	}
@@ -312,6 +315,30 @@ function verifyPinnedSourceClosure(root, manifest, witnesses) {
 		'build/source-authentication.mjs', 'build/targets.json', 'build/windows-vpx.pc',
 		...TARGETS.map(({ toolchainFile }) => toolchainFile),
 	]) if (!paths.includes(required)) throw new Error(`Required build input ${required} is not pinned.`);
+	verifySharedSourceClosure(repositoryRoot, manifest.sharedSourceFiles, witnesses);
+	const cmake = pinnedFile(root, manifest, 'CMakeLists.txt', witnesses).toString('utf8');
+	if (!cmake.includes('set(SCAPE_NATIVE_COMMON_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/../common")')
+		|| !cmake.includes('${SCAPE_NATIVE_COMMON_ROOT}/sha256.cpp')) {
+		throw new Error('The media-host build does not bind the authenticated native-common SHA-256 core.');
+	}
+}
+
+function verifySharedSourceClosure(repositoryRoot, values, witnesses) {
+	if (!Array.isArray(values) || values.length !== SHARED_SOURCE_PATHS.length) {
+		throw new Error('The media-host shared source-file inventory is incomplete.');
+	}
+	for (const [index, value] of values.entries()) {
+		const entry = closedRecord(value, ['path', 'byteLength', 'sha256'], 'shared source pin');
+		if (entry.path !== SHARED_SOURCE_PATHS[index]
+			|| !Number.isSafeInteger(entry.byteLength) || entry.byteLength < 0
+			|| !DIGEST.test(String(entry.sha256))) {
+			throw new Error('The media-host shared source-file inventory is not canonical.');
+		}
+		const bytes = witnessFile(join(repositoryRoot, entry.path), witnesses);
+		if (bytes.byteLength !== entry.byteLength || digest(bytes) !== entry.sha256) {
+			throw new Error(`Shared build input ${entry.path} drifted from its pin.`);
+		}
+	}
 }
 
 function verifyFfmpegSource(root, manifest, witnesses) {

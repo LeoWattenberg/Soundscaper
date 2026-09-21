@@ -23,6 +23,7 @@ test('the main-only SDF1 adapter drives the real Linux target-native helper', {
 		const executable = join(temporary, 'soundscaper_delivery_fs');
 		const compilation = spawnSync('g++', [
 			'-std=c++20', '-O2', '-Wall', '-Wextra', '-Werror', '-pthread',
+			join(REPOSITORY, 'native/common/sha256.cpp'),
 			join(SOURCE, 'delivery_fs_main.cpp'), join(SOURCE, 'delivery_fs_protocol.cpp'),
 			join(SOURCE, 'delivery_fs_sha256.cpp'), join(SOURCE, 'delivery_fs_linux.cpp'),
 			'-o', executable,

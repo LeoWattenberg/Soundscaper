@@ -2,6 +2,8 @@
 cmake_minimum_required(VERSION 3.28)
 project(framescaper_media_host VERSION 1.0.0 LANGUAGES CXX)
 
+set(SCAPE_NATIVE_COMMON_ROOT "${CMAKE_CURRENT_SOURCE_DIR}/../common")
+
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
@@ -38,6 +40,7 @@ add_executable(framescaper-media-host
 	src/media_plan.cpp
 	src/professional_source_probe.cpp
 	src/sha256.cpp
+	${SCAPE_NATIVE_COMMON_ROOT}/sha256.cpp
 	src/selected_v20_frame_executor.cpp
 	src/selected_v20_frame_pack.cpp
 	src/selected_v20_plan_capture.cpp

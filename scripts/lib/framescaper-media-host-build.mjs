@@ -32,6 +32,9 @@ export const FRAMESCAPER_MEDIA_HOST_TARGETS = Object.freeze([
 
 const SOURCE_EXCLUSIONS = new Set(['source-manifest.json']);
 const SHA256 = /^[a-f\d]{64}$/u;
+const SHARED_SOURCE_PATHS = Object.freeze([
+	'native/common/sha256.cpp', 'native/common/sha256.hpp',
+]);
 const TARGET_FIELDS = Object.freeze([
 	'runtime', 'status', 'blockedBy', 'toolchainIdentity', 'buildResult', 'payload',
 	'isolationPayload',
@@ -100,6 +103,7 @@ export function auditFramescaperMediaHost({ repositoryRoot }) {
 	const root = resolve(repositoryRoot);
 	const manifest = readFramescaperMediaHostSourceManifest(root);
 	const findings = [];
+	findings.push(...auditSharedSourceFiles(root, manifest.sharedSourceFiles));
 	const hostRoot = resolve(root, FRAMESCAPER_MEDIA_HOST_ROOT);
 	const tree = listNativeSourceTree(hostRoot);
 	const audited = (path) => !SOURCE_EXCLUSIONS.has(path)
@@ -123,6 +127,7 @@ export function auditFramescaperMediaHost({ repositoryRoot }) {
 		}
 	}
 	findings.push(...lineEndingPolicyFindings(root, [
+		'/native/common/**',
 		`/${FRAMESCAPER_MEDIA_HOST_ROOT}/**`,
 		`/${FRAMESCAPER_MEDIA_HOST_PAYLOAD_MANIFEST}`,
 	]));
@@ -149,6 +154,24 @@ export function auditFramescaperMediaHost({ repositoryRoot }) {
 		}
 	}
 	return Object.freeze({ manifest, findings: Object.freeze(findings) });
+}
+
+function auditSharedSourceFiles(repositoryRoot, values) {
+	const findings = [];
+	if (!Array.isArray(values)
+		|| canonicalJson(values.map(({ path }) => path)) !== canonicalJson(SHARED_SOURCE_PATHS)) {
+		return ['The media-host shared source-file inventory is incomplete or unordered.'];
+	}
+	for (const entry of values) {
+		let bytes;
+		try { bytes = readFileSync(join(repositoryRoot, entry.path)); }
+		catch { findings.push(`Missing shared media-host source: ${String(entry.path)}`); continue; }
+		if (bytes.byteLength !== entry.byteLength || !SHA256.test(String(entry.sha256))
+			|| digest(bytes) !== entry.sha256) {
+			findings.push(`Shared media-host source digest mismatch: ${entry.path}`);
+		}
+	}
+	return findings;
 }
 
 function auditClosedAdapters(hostRoot) {

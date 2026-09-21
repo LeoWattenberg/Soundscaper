@@ -21,6 +21,9 @@ const LINUX_RUNTIME_LOADERS = Object.freeze({
 	'linux-arm64': 'ld-linux-aarch64.so.1',
 });
 const SHA256 = /^[a-f0-9]{64}$/u;
+const SHARED_SOURCE_PATHS = Object.freeze([
+	'native/common/sha256.cpp', 'native/common/sha256.hpp',
+]);
 const TARGET_FIELDS = Object.freeze([
 	'runtime', 'status', 'blockedBy', 'toolchainIdentity', 'scannerPayload',
 	'runtimeHostPayload', 'isolationPayload', 'buildResult',
@@ -75,9 +78,11 @@ export function readFramescaperOpenFxSourceManifest(repositoryRoot) {
 export function auditFramescaperOpenFxHost({ repositoryRoot }) {
 	const manifest = readFramescaperOpenFxSourceManifest(repositoryRoot);
 	const findings = lineEndingPolicyFindings(repositoryRoot, [
+		'/native/common/**',
 		`/${FRAMESCAPER_OPENFX_HOST_ROOT}/**`,
 		`/${FRAMESCAPER_OPENFX_PAYLOAD_MANIFEST}`,
 	]);
+	findings.push(...auditSharedSourceFiles(repositoryRoot, manifest.sharedSourceFiles));
 	if (manifest.schemaVersion !== 1 || manifest.hostVersion !== '1.0.0'
 		|| manifest.helperContractVersion !== 1 || manifest.license !== 'AGPL-3.0-only') {
 		findings.push('The OpenFX host source identity is unsupported.');
@@ -230,6 +235,24 @@ export function auditFramescaperOpenFxHost({ repositoryRoot }) {
 		}
 	}
 	return Object.freeze({ manifest, findings: Object.freeze(findings) });
+}
+
+function auditSharedSourceFiles(repositoryRoot, values) {
+	const findings = [];
+	if (!Array.isArray(values)
+		|| JSON.stringify(values.map(({ path }) => path)) !== JSON.stringify(SHARED_SOURCE_PATHS)) {
+		return ['The OpenFX host shared source-file inventory is incomplete or unordered.'];
+	}
+	for (const entry of values) {
+		let bytes;
+		try { bytes = readFileSync(join(repositoryRoot, entry.path)); }
+		catch { findings.push(`The OpenFX shared source ${String(entry.path)} is missing.`); continue; }
+		if (bytes.byteLength !== entry.byteLength || !SHA256.test(String(entry.sha256))
+			|| createHash('sha256').update(bytes).digest('hex') !== entry.sha256) {
+			findings.push(`The OpenFX shared source ${entry.path} does not match its digest pin.`);
+		}
+	}
+	return findings;
 }
 
 export function deriveFramescaperOpenFxPayloadManifest(sourceManifest) {

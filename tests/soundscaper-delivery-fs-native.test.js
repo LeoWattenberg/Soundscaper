@@ -29,6 +29,7 @@ before(async () => {
 	if (process.platform !== 'linux') return;
 	const result = spawnSync('g++', [
 		'-std=c++20', '-O2', '-Wall', '-Wextra', '-Werror', '-pthread',
+		join(ROOT, 'native/common/sha256.cpp'),
 		join(SOURCE_ROOT, 'delivery_fs_main.cpp'),
 		join(SOURCE_ROOT, 'delivery_fs_protocol.cpp'),
 		join(SOURCE_ROOT, 'delivery_fs_sha256.cpp'),
