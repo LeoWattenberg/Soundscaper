@@ -22,41 +22,15 @@ import {
 } from '../../assistance/shot-detection-mode.ts';
 import {
 	LOCAL_ASSISTANCE_INPUT_MEDIA_TYPES,
+	LOCAL_ASSISTANCE_OPERATION_MEDIA_CONTRACT,
 	LOCAL_ASSISTANCE_OUTPUT_MEDIA_TYPES,
-	type LocalAssistanceInputRole,
-	type LocalAssistanceOutputRole,
+	type LocalAssistanceOperationMediaContract,
 } from '../../assistance/local-assistance-media-contract.ts';
 import type {
 	LocalAssistancePreparedInput,
 	LocalAssistancePreparedMedia,
 	LocalAssistancePreparedOutput,
 } from '../../assistance/local-assistance-preparation.ts';
-
-interface OperationSpec {
-	readonly inputs: readonly LocalAssistanceInputRole[];
-	readonly required: readonly (readonly LocalAssistanceInputRole[])[];
-	readonly outputs: readonly LocalAssistanceOutputRole[];
-}
-
-const OPERATION_SPECS = Object.freeze({
-	'voice-activity-detection': spec(['audio'], [['audio']], ['voice-activity']),
-	'speech-recognition': spec(['audio'], [['audio']], ['transcript']),
-	'word-alignment': spec(['audio', 'transcript'], [['audio'], ['transcript']], ['word-alignment']),
-	'speaker-diarization': spec(['audio'], [['audio']], ['speaker-turns']),
-	'speech-enhancement': spec(['audio'], [['audio']], ['enhanced-audio']),
-	'dereverberation': spec(['audio'], [['audio']], ['enhanced-audio']),
-	'source-separation': spec(['audio'], [['audio']], ['separated-audio']),
-	'audio-tagging': spec(['audio'], [['audio']], ['audio-tags']),
-	'beat-tracking': spec(['audio'], [['audio']], ['beat-grid']),
-	'text-embedding': spec(['transcript', 'text'], [['transcript', 'text']], ['embeddings']),
-	'image-text-embedding': spec(['frame-pack', 'text'], [['frame-pack', 'text']], ['embeddings']),
-	'optical-character-recognition': spec(['frame-pack'], [['frame-pack']], ['recognized-text']),
-	'shot-detection': spec(['video', 'frame-pack'], [['video', 'frame-pack']], ['shot-boundaries']),
-	'subject-detection': spec(['frame-pack'], [['frame-pack']], ['subject-tracks']),
-	'saliency-detection': spec(['frame-pack'], [['frame-pack']], ['saliency-map']),
-	'editorial-generation': spec(['editorial-context'], [['editorial-context']], ['editorial-proposal']),
-} satisfies Readonly<Record<AssistanceOperation, OperationSpec>>);
-
 
 const SOURCE_ID = /^[A-Za-z\d][A-Za-z\d._:-]{0,255}$/u;
 const MEDIA_TYPE = /^[a-z\d][a-z\d!#$&^_.+-]{0,126}\/[a-z\d][a-z\d!#$&^_.+-]{0,126}$/u;
@@ -81,7 +55,7 @@ export function normalizeLocalAssistancePreparedMedia(
 	if (sourceId !== expected.sourceId || operation !== expected.operation) {
 		throw new TypeError('Prepared selected media does not echo its exact selection.');
 	}
-	const operationSpec = OPERATION_SPECS[operation];
+	const operationSpec = LOCAL_ASSISTANCE_OPERATION_MEDIA_CONTRACT[operation];
 	const inputs = normalizeInputs(record.inputs, operationSpec);
 	const outputs = normalizeOutputs(record.outputs, operationSpec, operation);
 	if (hasShotDetectionMode && operation !== 'shot-detection') {
@@ -113,7 +87,10 @@ export function normalizeLocalAssistancePreparedMedia(
 }
 
 
-function normalizeInputs(value: unknown, operation: OperationSpec): readonly LocalAssistancePreparedInput[] {
+function normalizeInputs(
+	value: unknown,
+	operation: LocalAssistanceOperationMediaContract,
+): readonly LocalAssistancePreparedInput[] {
 	if (!Array.isArray(value) || value.length < 1 || value.length > 64) {
 		throw new TypeError('Prepared selected media needs bounded Blob inputs.');
 	}
@@ -139,7 +116,7 @@ function normalizeInputs(value: unknown, operation: OperationSpec): readonly Loc
 
 function normalizeOutputs(
 	value: unknown,
-	operation: OperationSpec,
+	operation: LocalAssistanceOperationMediaContract,
 	operationId: AssistanceOperation,
 ): readonly LocalAssistancePreparedOutput[] {
 	if (!Array.isArray(value) || value.length < 1 || value.length > 64) {
@@ -165,16 +142,6 @@ function normalizeOutputs(
 			maximumByteLength: bytes(record.maximumByteLength) });
 	}));
 }
-
-function spec(
-	inputs: readonly LocalAssistanceInputRole[],
-	required: readonly (readonly LocalAssistanceInputRole[])[],
-	outputs: readonly LocalAssistanceOutputRole[],
-): OperationSpec {
-	return Object.freeze({ inputs: Object.freeze(inputs),
-		required: Object.freeze(required.map((roles) => Object.freeze(roles))), outputs: Object.freeze(outputs) });
-}
-
 
 function admittedMediaType<Role extends string>(
 	value: unknown,

@@ -7,15 +7,11 @@
  */
 
 import {
-	ASSISTANCE_INPUT_ROLES,
-	ASSISTANCE_OUTPUT_ROLES,
 	validateAssistanceOutputClaim,
 	validateAssistanceOutputReservation,
 	validateAssistanceStagedInputClaim,
-	type AssistanceInputRole,
 	type AssistanceOutputClaim,
 	type AssistanceOutputReservation,
-	type AssistanceOutputRole,
 	type AssistanceStagedInputClaim,
 } from './assistance-data-claims.ts';
 import { HELPER_DATA_PLANE_MAXIMUM_BYTES } from './helper-data-plane.ts';
@@ -24,6 +20,8 @@ import {
 	normalizeAssistanceOperation,
 	type AssistanceOperation,
 } from '../src/common/editor/assistance/operation.ts';
+import { LOCAL_ASSISTANCE_OPERATION_MEDIA_CONTRACT } from
+	'../src/common/editor/assistance/local-assistance-media-contract.ts';
 import {
 	validateAssistanceSelectionFence,
 	type AssistanceSelectionFence,
@@ -109,31 +107,6 @@ export class AssistanceOperationProgressTracker {
 		return progress;
 	}
 }
-
-interface AssistanceOperationSpec {
-	readonly admittedInputRoles: readonly AssistanceInputRole[];
-	readonly requiredInputRoleGroups: readonly (readonly AssistanceInputRole[])[];
-	readonly admittedOutputRoles: readonly AssistanceOutputRole[];
-}
-
-const OPERATION_SPECS = Object.freeze({
-	'voice-activity-detection': spec(['audio'], [['audio']], ['voice-activity']),
-	'speech-recognition': spec(['audio', 'voice-activity'], [['audio']], ['transcript']),
-	'word-alignment': spec(['audio', 'transcript'], [['audio'], ['transcript']], ['word-alignment']),
-	'speaker-diarization': spec(['audio'], [['audio']], ['speaker-turns']),
-	'speech-enhancement': spec(['audio'], [['audio']], ['enhanced-audio']),
-	'dereverberation': spec(['audio'], [['audio']], ['enhanced-audio']),
-	'source-separation': spec(['audio'], [['audio']], ['separated-audio']),
-	'audio-tagging': spec(['audio'], [['audio']], ['audio-tags']),
-	'beat-tracking': spec(['audio'], [['audio']], ['beat-grid']),
-	'text-embedding': spec(['transcript', 'text'], [['transcript', 'text']], ['embeddings']),
-	'image-text-embedding': spec(['frame-pack', 'text'], [['frame-pack', 'text']], ['embeddings']),
-	'optical-character-recognition': spec(['frame-pack'], [['frame-pack']], ['recognized-text']),
-	'shot-detection': spec(['video', 'frame-pack'], [['video', 'frame-pack']], ['shot-boundaries']),
-	'subject-detection': spec(['frame-pack'], [['frame-pack']], ['subject-tracks']),
-	'saliency-detection': spec(['frame-pack'], [['frame-pack']], ['saliency-map']),
-	'editorial-generation': spec(['editorial-context'], [['editorial-context']], ['editorial-proposal']),
-} satisfies Readonly<Record<AssistanceOperation, AssistanceOperationSpec>>);
 
 const REQUEST_KEYS = Object.freeze([
 	'contractVersion', 'jobId', 'operation', 'selectionFence', 'models', 'inputs', 'outputs',
@@ -277,9 +250,9 @@ function assertOperationRoles(
 	inputs: readonly AssistanceStagedInputClaim[],
 	outputs: readonly AssistanceOutputReservation[],
 ): void {
-	const operationSpec = OPERATION_SPECS[operation];
+	const operationSpec = LOCAL_ASSISTANCE_OPERATION_MEDIA_CONTRACT[operation];
 	for (const input of inputs) {
-		if (!operationSpec.admittedInputRoles.includes(input.role)) {
+		if (!operationSpec.inputs.some((role) => role === input.role)) {
 			throw new TypeError(`The ${operation} operation does not admit the ${input.role} input role.`);
 		}
 	}
@@ -288,34 +261,16 @@ function assertOperationRoles(
 			|| inputs.filter(({ role }) => role === 'voice-activity').length > 1)) {
 		throw new TypeError('Speech recognition admits exactly one audio and at most one voice-activity input.');
 	}
-	for (const required of operationSpec.requiredInputRoleGroups) {
-		if (!inputs.some(({ role }) => required.includes(role))) {
+	for (const required of operationSpec.required) {
+		if (!inputs.some((input) => required.some((role) => role === input.role))) {
 			throw new TypeError(`The ${operation} operation requires a ${required.join(' or ')} input role.`);
 		}
 	}
 	for (const output of outputs) {
-		if (!operationSpec.admittedOutputRoles.includes(output.role)) {
+		if (!operationSpec.outputs.some((role) => role === output.role)) {
 			throw new TypeError(`The ${operation} operation does not admit the ${output.role} output role.`);
 		}
 	}
-}
-
-function spec(
-	admittedInputRoles: readonly AssistanceInputRole[],
-	requiredInputRoleGroups: readonly (readonly AssistanceInputRole[])[],
-	admittedOutputRoles: readonly AssistanceOutputRole[],
-): AssistanceOperationSpec {
-	for (const role of admittedInputRoles) {
-		if (!ASSISTANCE_INPUT_ROLES.includes(role)) throw new Error(`Unknown assistance input role ${role}.`);
-	}
-	for (const role of admittedOutputRoles) {
-		if (!ASSISTANCE_OUTPUT_ROLES.includes(role)) throw new Error(`Unknown assistance output role ${role}.`);
-	}
-	return Object.freeze({
-		admittedInputRoles: Object.freeze([...admittedInputRoles]),
-		requiredInputRoleGroups: Object.freeze(requiredInputRoleGroups.map((roles) => Object.freeze([...roles]))),
-		admittedOutputRoles: Object.freeze([...admittedOutputRoles]),
-	});
 }
 
 function operationRecord(

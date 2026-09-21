@@ -1,5 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import type { AssistanceOperation } from './operation.ts';
+
 export const LOCAL_ASSISTANCE_INPUT_ROLES = Object.freeze([
 	'audio', 'voice-activity', 'video', 'frame-pack', 'transcript', 'text', 'editorial-context',
 ] as const);
@@ -12,6 +14,31 @@ export const LOCAL_ASSISTANCE_OUTPUT_ROLES = Object.freeze([
 
 export type LocalAssistanceInputRole = typeof LOCAL_ASSISTANCE_INPUT_ROLES[number];
 export type LocalAssistanceOutputRole = typeof LOCAL_ASSISTANCE_OUTPUT_ROLES[number];
+
+export interface LocalAssistanceOperationMediaContract {
+	readonly inputs: readonly LocalAssistanceInputRole[];
+	readonly required: readonly (readonly LocalAssistanceInputRole[])[];
+	readonly outputs: readonly LocalAssistanceOutputRole[];
+}
+
+export const LOCAL_ASSISTANCE_OPERATION_MEDIA_CONTRACT = Object.freeze({
+	'voice-activity-detection': operationMedia(['audio'], [['audio']], ['voice-activity']),
+	'speech-recognition': operationMedia(['audio', 'voice-activity'], [['audio']], ['transcript']),
+	'word-alignment': operationMedia(['audio', 'transcript'], [['audio'], ['transcript']], ['word-alignment']),
+	'speaker-diarization': operationMedia(['audio'], [['audio']], ['speaker-turns']),
+	'speech-enhancement': operationMedia(['audio'], [['audio']], ['enhanced-audio']),
+	dereverberation: operationMedia(['audio'], [['audio']], ['enhanced-audio']),
+	'source-separation': operationMedia(['audio'], [['audio']], ['separated-audio']),
+	'audio-tagging': operationMedia(['audio'], [['audio']], ['audio-tags']),
+	'beat-tracking': operationMedia(['audio'], [['audio']], ['beat-grid']),
+	'text-embedding': operationMedia(['transcript', 'text'], [['transcript', 'text']], ['embeddings']),
+	'image-text-embedding': operationMedia(['frame-pack', 'text'], [['frame-pack', 'text']], ['embeddings']),
+	'optical-character-recognition': operationMedia(['frame-pack'], [['frame-pack']], ['recognized-text']),
+	'shot-detection': operationMedia(['video', 'frame-pack'], [['video', 'frame-pack']], ['shot-boundaries']),
+	'subject-detection': operationMedia(['frame-pack'], [['frame-pack']], ['subject-tracks']),
+	'saliency-detection': operationMedia(['frame-pack'], [['frame-pack']], ['saliency-map']),
+	'editorial-generation': operationMedia(['editorial-context'], [['editorial-context']], ['editorial-proposal']),
+} satisfies Readonly<Record<AssistanceOperation, LocalAssistanceOperationMediaContract>>);
 
 export const LOCAL_ASSISTANCE_INPUT_MEDIA_TYPES = Object.freeze({
 	audio: Object.freeze(['audio/wav', 'audio/x-wav', 'audio/flac']),
@@ -53,4 +80,16 @@ export function isLocalAssistanceMediaType(
 	value: unknown,
 ): value is string {
 	return typeof value === 'string' && mediaTypes.some((mediaType) => mediaType === value);
+}
+
+function operationMedia(
+	inputs: readonly LocalAssistanceInputRole[],
+	required: readonly (readonly LocalAssistanceInputRole[])[],
+	outputs: readonly LocalAssistanceOutputRole[],
+): LocalAssistanceOperationMediaContract {
+	return Object.freeze({
+		inputs: Object.freeze([...inputs]),
+		required: Object.freeze(required.map((roles) => Object.freeze([...roles]))),
+		outputs: Object.freeze([...outputs]),
+	});
 }

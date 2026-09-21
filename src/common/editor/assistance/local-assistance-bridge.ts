@@ -24,6 +24,7 @@ import type { LocalAssistanceWorkflowBridge } from './local-assistance-workflow-
 import {
 	LOCAL_ASSISTANCE_INPUT_MEDIA_TYPES,
 	LOCAL_ASSISTANCE_INPUT_ROLES,
+	LOCAL_ASSISTANCE_OPERATION_MEDIA_CONTRACT,
 	LOCAL_ASSISTANCE_OUTPUT_MEDIA_TYPES,
 	LOCAL_ASSISTANCE_OUTPUT_ROLES,
 	type LocalAssistanceInputRole,
@@ -151,28 +152,6 @@ const JOB_ID = /^[a-f\d]{40}$/u;
 const SHA256 = /^[a-f\d]{64}$/u;
 const MODEL_ID = /^[a-z\d](?:[a-z\d.-]{0,62}[a-z\d])?$/u;
 const MEDIA_TYPE = /^[a-z\d][a-z\d!#$&^_.+-]{0,126}\/[a-z\d][a-z\d!#$&^_.+-]{0,126}$/u;
-const OPERATION_ROLES = Object.freeze({
-	'voice-activity-detection': roles(['audio'], [['audio']], ['voice-activity']),
-	'speech-recognition': roles(['audio'], [['audio']], ['transcript']),
-	'word-alignment': roles(['audio', 'transcript'], [['audio'], ['transcript']], ['word-alignment']),
-	'speaker-diarization': roles(['audio'], [['audio']], ['speaker-turns']),
-	'speech-enhancement': roles(['audio'], [['audio']], ['enhanced-audio']),
-	'dereverberation': roles(['audio'], [['audio']], ['enhanced-audio']),
-	'source-separation': roles(['audio'], [['audio']], ['separated-audio']),
-	'audio-tagging': roles(['audio'], [['audio']], ['audio-tags']),
-	'beat-tracking': roles(['audio'], [['audio']], ['beat-grid']),
-	'text-embedding': roles(['transcript', 'text'], [['transcript', 'text']], ['embeddings']),
-	'image-text-embedding': roles(['frame-pack', 'text'], [['frame-pack', 'text']], ['embeddings']),
-	'optical-character-recognition': roles(['frame-pack'], [['frame-pack']], ['recognized-text']),
-	'shot-detection': roles(['video'], [['video']], ['shot-boundaries']),
-	'subject-detection': roles(['frame-pack'], [['frame-pack']], ['subject-tracks']),
-	'saliency-detection': roles(['frame-pack'], [['frame-pack']], ['saliency-map']),
-	'editorial-generation': roles(['editorial-context'], [['editorial-context']], ['editorial-proposal']),
-} satisfies Readonly<Record<AssistanceOperation, Readonly<{
-	inputs: readonly LocalAssistanceInputRole[];
-	required: readonly (readonly LocalAssistanceInputRole[])[];
-	outputs: readonly LocalAssistanceOutputRole[];
-}>>>);
 const MAXIMUM_BYTES = 8 * 1024 * 1024 * 1024;
 
 export function resolveLocalAssistanceBridge(value: unknown): LocalAssistanceBridge | null {
@@ -425,7 +404,7 @@ function assertOperationRoles(
 	inputs: readonly LocalAssistanceInputClaim[],
 	outputs: readonly LocalAssistanceOutputReservation[],
 ): void {
-	const operationRoles = OPERATION_ROLES[operation];
+	const operationRoles = LOCAL_ASSISTANCE_OPERATION_MEDIA_CONTRACT[operation];
 	if (inputs.some(({ role }) => !operationRoles.inputs.includes(role))
 		|| outputs.some(({ role }) => !operationRoles.outputs.includes(role))) {
 		throw new TypeError('An assistance claim role is not admitted by its operation.');
@@ -435,15 +414,6 @@ function assertOperationRoles(
 			throw new TypeError('An assistance operation omitted one required input role.');
 		}
 	}
-}
-
-function roles(
-	inputs: readonly LocalAssistanceInputRole[],
-	required: readonly (readonly LocalAssistanceInputRole[])[],
-	outputs: readonly LocalAssistanceOutputRole[],
-) {
-	return Object.freeze({ inputs: Object.freeze(inputs),
-		required: Object.freeze(required.map((group) => Object.freeze(group))), outputs: Object.freeze(outputs) });
 }
 
 function roleMediaType<Role extends string>(
