@@ -280,6 +280,7 @@
 		"src/common/editor/reviewed-effects/wasm-abi.ts",
 		"src/common/editor/desktop-codec-coordinator.ts",
 		"src/common/editor/desktop-codec-provider-catalog.ts",
+		"src/common/editor/native-plugin-realtime-worklet.js",
 		"src/common/editor/project-schema-version.ts",
 		"src/common/editor/project-hierarchy-document-validation.ts",
 		"src/common/editor/scape-project-document.ts",

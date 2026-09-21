@@ -421,7 +421,7 @@ async function bundleRuntimeHashModules(root, output) {
 		const result = await build({
 			entryPoints: [outputPath],
 			bundle: true,
-			platform: 'node',
+			platform: 'node', define: { 'import.meta.env.DEV': 'false', 'import.meta.env.PROD': 'false' },
 			format: 'esm',
 			target: 'node26',
 			write: false,

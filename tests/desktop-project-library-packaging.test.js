@@ -49,6 +49,21 @@ test('desktop runtime compilation emits importable JavaScript with rewritten ext
 	assert.ok(result.files.includes('desktop/assistance-float32-mono-wave-file-reader.js'));
 	assert.equal(result.files.includes('src/common/editor/project-current.js'), false);
 	assert.equal(result.files.includes('src/common/editor/pffft.js'), true);
+	assert.equal(result.files.includes('src/common/editor/native-plugin-realtime-contract.js'), true);
+	assert.equal(result.files.includes('src/common/editor/native-plugin-realtime-worklet.js'), true);
+	const packagedNativePluginPlayback = await readFile(join(
+		outputRoot, 'src/soundscaper/editor-native-plugin-playback.js',
+	), 'utf8');
+	assert.doesNotMatch(packagedNativePluginPlayback, /\?worker&url/u,
+		'the Node runtime bundle must eliminate its Vite-only worker URL branch');
+	const packagedNativePluginNode = await readFile(join(
+		outputRoot, 'src/common/editor/native-plugin-realtime-node.js',
+	), 'utf8');
+	assert.match(packagedNativePluginNode, /native-plugin-realtime-worklet\.js\?worker&url/u,
+		'the separately emitted module must preserve its Vite worker URL branch');
+	assert.match(packagedNativePluginNode,
+		/new URL\(["']\.\/native-plugin-realtime-worklet\.js["'],\s*import\.meta\.url\)/u,
+		'the separately emitted module must retain the packaged worklet URL');
 	const soundMain = await import(`${pathToFileURL(join(outputRoot, 'desktop/soundscaper-project-library-main.js')).href}?test=${Date.now()}`);
 	const soundIpc = await import(`${pathToFileURL(join(outputRoot, 'desktop/soundscaper-project-library-main-ipc.js')).href}?test=${Date.now()}`);
 	const frameMain = await import(`${pathToFileURL(join(outputRoot, 'desktop/framescaper-project-library-main.js')).href}?test=${Date.now()}`);
