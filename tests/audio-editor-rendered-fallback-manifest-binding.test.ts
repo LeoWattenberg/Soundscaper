@@ -85,6 +85,15 @@ test('manifest binding rejects every base and relationship mismatch', () => {
 
 test('manifest binding requires one data-backed matching requirement', () => {
 	const binding = bindings[0]!;
+	const absent = projectFor(binding) as {
+		featureRequirements: { requirements: Array<Record<string, unknown>> };
+	};
+	absent.featureRequirements.requirements[0]!.id = 'different-requirement';
+	assert.throws(
+		() => assertProjectFeatureRenderedFallbackManifestBinding(absent, binding),
+		/does not match one project manifest requirement/u,
+	);
+
 	const duplicate = projectFor(binding) as {
 		featureRequirements: { requirements: Array<Record<string, unknown>> };
 	};
