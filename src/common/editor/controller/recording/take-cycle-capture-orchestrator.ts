@@ -16,6 +16,10 @@ import type {
 	TakeCycleSourceDescription,
 } from './internal/take-cycle/take-cycle-recording-repository-composition.ts';
 import {
+	takeCycleStableId as stableId,
+	takeCycleStableName as stableName,
+} from './internal/take-cycle/take-cycle-value-validation.ts';
+import {
 	beginTakeCycleLiveCaptureSession,
 	type BeginTakeCycleLiveSessionRequest,
 	type TakeCycleLiveCaptureSession,
@@ -530,20 +534,6 @@ function freshIdentity(value: string, kind: string, identities: Set<string>): st
 	if (identities.has(id)) throw new RangeError(`Take cycle ${kind} ID ${id} is not globally fresh.`);
 	identities.add(id);
 	return id;
-}
-
-function stableId(value: unknown, name: string): string {
-	if (typeof value !== 'string' || !value.length || value !== value.trim()
-		|| value !== value.normalize('NFC') || value.length > 256
-		|| /[\u0000-\u001f\u007f]/u.test(value)) throw new TypeError(`${name} is invalid.`);
-	return value;
-}
-
-function stableName(value: unknown): string {
-	if (typeof value !== 'string' || !value.length || value !== value.trim() || value.length > 255) {
-		throw new TypeError('Take cycle source name is invalid.');
-	}
-	return value;
 }
 
 function positiveInteger(value: unknown, name: string): number {

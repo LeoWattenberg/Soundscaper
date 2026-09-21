@@ -20,6 +20,10 @@ import type {
 	TakeCycleCapturePcmSpan,
 } from './take-cycle-capture-spool.ts';
 import type { TakeCycleLaneTarget, TakeCycleSourceDescription } from './take-cycle-recording-repository-composition.ts';
+import {
+	takeCycleStableId as stableId,
+	takeCycleStableName as stableName,
+} from './take-cycle-value-validation.ts';
 
 const INTENT_KIND = 'take-cycle-live-capture-intent-v1';
 const DRAFT_KIND = 'take-cycle-live-capture-draft-v1';
@@ -560,20 +564,6 @@ function denseArray(value: unknown, maximum: number): readonly unknown[] {
 	if (!Array.isArray(value) || Object.getPrototypeOf(value) !== Array.prototype
 		|| value.length > maximum || Reflect.ownKeys(value).length !== value.length + 1) {
 		throw new TypeError('Take cycle capture arrays must be bounded, standard, and dense.');
-	}
-	return value;
-}
-
-function stableId(value: unknown, name: string): string {
-	if (typeof value !== 'string' || !value.length || value !== value.trim()
-		|| value !== value.normalize('NFC') || value.length > 256
-		|| /[\u0000-\u001f\u007f]/u.test(value)) throw new TypeError(`${name} is invalid.`);
-	return value;
-}
-
-function stableName(value: unknown): string {
-	if (typeof value !== 'string' || !value.length || value !== value.trim() || value.length > 255) {
-		throw new TypeError('Take cycle source name is invalid.');
 	}
 	return value;
 }

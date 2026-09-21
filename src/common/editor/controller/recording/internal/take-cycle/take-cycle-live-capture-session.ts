@@ -13,6 +13,7 @@ import type {
 	TakeCycleFinalizationResult,
 	TakeCycleRecordingOptions,
 } from '../../take-cycle-recording-service.ts';
+import { takeCycleStableId as stableId } from './take-cycle-value-validation.ts';
 
 export type TakeCycleLiveLaneDescription = TakeCycleLiveLaneRequest['lane'];
 export type BeginTakeCycleLiveSessionRequest = Omit<
@@ -151,13 +152,6 @@ function freshIdentity(value: string, kind: string, identities: Set<string>): st
 	if (identities.has(id)) throw new RangeError(`Take cycle ${kind} ID ${id} is not globally fresh.`);
 	identities.add(id);
 	return id;
-}
-
-function stableId(value: unknown, name: string): string {
-	if (typeof value !== 'string' || !value.length || value !== value.trim()
-		|| value !== value.normalize('NFC') || value.length > 256
-		|| /[\u0000-\u001f\u007f]/u.test(value)) throw new TypeError(`${name} is invalid.`);
-	return value;
 }
 
 function nonNegativeInteger(value: unknown, name: string): number {

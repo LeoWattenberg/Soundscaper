@@ -1,5 +1,10 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import {
+	takeCycleStableId as stableId,
+	takeCycleStableName as stableName,
+} from './take-cycle-value-validation.ts';
+
 export interface TakeCycleLiveLaneRequest {
 	readonly projectId: string;
 	readonly publicationGeneration: number;
@@ -38,20 +43,6 @@ export function normalizeTakeCycleLiveLaneRequest(
 			chunkFrames: positiveInteger(lane.chunkFrames, 'take cycle chunkFrames', 65_536),
 		}),
 	});
-}
-
-function stableId(value: unknown, name: string): string {
-	if (typeof value !== 'string' || !value.length || value !== value.trim()
-		|| value !== value.normalize('NFC') || value.length > 256
-		|| /[\u0000-\u001f\u007f]/u.test(value)) throw new TypeError(`${name} is invalid.`);
-	return value;
-}
-
-function stableName(value: unknown): string {
-	if (typeof value !== 'string' || !value.length || value !== value.trim() || value.length > 255) {
-		throw new TypeError('Take cycle source name is invalid.');
-	}
-	return value;
 }
 
 function positiveInteger(value: unknown, name: string, maximum = Number.MAX_SAFE_INTEGER): number {

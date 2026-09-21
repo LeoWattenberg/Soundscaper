@@ -19,6 +19,7 @@ import type { AudioSourceStageReceipt, OwnedAudioSourceWriter } from '../../../.
 import type { StorageRecord } from '../../../../storage/media-records.ts';
 import type { TakeCycleRecoveryEnvelopeRepository } from '../../../../storage/take-cycle-recovery-envelope-repository.ts';
 import type { EditorControllerLifetime, EditorProjectToken } from '../../../shared/lifecycle.ts';
+import { takeCycleStableId } from './take-cycle-value-validation.ts';
 import {
 	createTakeCycleRecordingService,
 	type MaybePromise,
@@ -529,10 +530,7 @@ function commandObject(value: object): CommandObject {
 }
 
 function stableId(value: unknown, name: string): string {
-	if (typeof value !== 'string' || !value.length || value !== value.trim()
-		|| value !== value.normalize('NFC') || value.length > 160
-		|| /[\u0000-\u001f\u007f]/u.test(value)) throw new TypeError(`${name} is invalid.`);
-	return value;
+	return takeCycleStableId(value, name, 160);
 }
 
 function positiveInteger(value: unknown, name: string): number {
