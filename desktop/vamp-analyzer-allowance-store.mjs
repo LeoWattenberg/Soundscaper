@@ -7,6 +7,12 @@ import {
 	vampAnalyzerIdFor,
 	vampAnalyzerInstallationIdFor,
 } from './project-library-runtime/desktop/vamp-analyzer-registry.js';
+import {
+	applyRegistryAllowanceRecords,
+	captureRegistryAllowanceDecisions,
+	rebindRegistryAllowanceRecord,
+	retainedAllowanceDecisions,
+} from './registry-allowance-decision-store.mjs';
 
 const VERSION = 1;
 const ANALYZER_ID = /^va[a-f\d]{30}$/u;
@@ -24,13 +30,6 @@ export function createVampAnalyzerAllowanceStore({
 		throw new TypeError('A Vamp analyzer allowance store requires a path, writer, and authenticator.');
 	}
 	let records = readState(filePath, fileSystem, logError);
-	const applyRecord = (registry, record) => {
-		try {
-			if (record.allowed) registry.allow(record.installationId);
-			if (record.selected) registry.select(record.installationId);
-			return true;
-		} catch { return false; }
-	};
 	return Object.freeze({
 		observe(observation, admission) {
 			if (admission?.status !== 'recorded') return;
@@ -44,43 +43,30 @@ export function createVampAnalyzerAllowanceStore({
 				records.set(analyzer.installationId, Object.freeze({
 					digest: admitted.librarySha256, analyzerId: analyzer.analyzerId,
 					installationId: analyzer.installationId,
-					allowed: previous?.allowed === true, selected: previous?.selected === true,
+					...retainedAllowanceDecisions(previous),
 					observation: admitted,
 				}));
 			}
 		},
 		apply(registry) {
-			for (const entry of registry.describe().entries) for (const installation of entry.installations) {
-				const record = records.get(installation.installationId);
-				if (record?.analyzerId === entry.analyzerId) applyRecord(registry, record);
-			}
-			return registry.describe();
+			return applyRegistryAllowanceRecords(records, registry,
+				(record, entry) => record.analyzerId === entry.analyzerId);
 		},
 		async rebind(registry, installationId) {
 			const record = records.get(installationId);
-			if (!record) return false;
-			const identity = await authenticateLibrary(record.observation.libraryPath, {
-				byteLength: record.observation.libraryBytes, sha256: record.digest,
+			return rebindRegistryAllowanceRecord({
+				record, registry,
+				authenticate: (value) => authenticateLibrary(value.observation.libraryPath, {
+					byteLength: value.observation.libraryBytes, sha256: value.digest,
+				}),
+				admit: (target, value, identity) => target.recordLibrary({ ...value.observation, identity }),
+				matchesAdmission: (admission, value) => admission.status === 'recorded'
+					&& admission.analyzers.some((analyzer) => analyzer.analyzerId === value.analyzerId
+						&& analyzer.installationId === value.installationId),
 			});
-			if (!identity) return false;
-			const admission = registry.recordLibrary({ ...record.observation, identity });
-			return admission.status === 'recorded'
-				&& admission.analyzers.some((analyzer) => analyzer.analyzerId === record.analyzerId
-					&& analyzer.installationId === record.installationId)
-				&& applyRecord(registry, record);
 		},
 		async capture(registry) {
-			const decisions = new Map();
-			for (const entry of registry.describe().entries) for (const installation of entry.installations) {
-				decisions.set(installation.installationId, installation);
-			}
-			records = new Map([...records].map(([installationId, record]) => {
-				const decision = decisions.get(installationId);
-				return [installationId, Object.freeze({
-					...record, allowed: decision?.allowed ?? record.allowed,
-					selected: decision?.selected ?? record.selected,
-				})];
-			}));
+			records = captureRegistryAllowanceDecisions(records, registry);
 			await fileSystem.writeFile(filePath, JSON.stringify({
 				schemaVersion: VERSION, records: [...records.values()],
 			}));

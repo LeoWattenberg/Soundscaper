@@ -3,6 +3,13 @@
 import { createHash } from 'node:crypto';
 import { readFileSync, statSync } from 'node:fs';
 
+import {
+	applyRegistryAllowanceRecords,
+	captureRegistryAllowanceDecisions,
+	rebindRegistryAllowanceRecord,
+	retainedAllowanceDecisions,
+} from './registry-allowance-decision-store.mjs';
+
 const VERSION = 4;
 const ID = /^[a-z][a-f\d]{15}$/u;
 const DIGEST = /^[a-f\d]{64}$/u;
@@ -13,13 +20,6 @@ export function createPluginRegistryAllowanceStore({
 	filePath, legacyFilePath = /** @type {string | null} */ (null), fileSystem, authenticateBinary,
 }) {
 	let records = readState(filePath, legacyFilePath);
-	const applyRecord = (registry, record) => {
-		try {
-			if (record.allowed) registry.allow(record.installationId);
-			if (record.selected) registry.select(record.installationId);
-			return true;
-		} catch { return false; }
-	};
 	return Object.freeze({
 		observe(observation, admission) {
 			if (admission?.status !== 'recorded') return;
@@ -28,46 +28,31 @@ export function createPluginRegistryAllowanceStore({
 				digest: observation.binarySha256,
 				entryId: admission.entryId,
 				installationId: admission.installationId,
-				allowed: previous?.allowed === true,
-				selected: previous?.selected === true,
+				...retainedAllowanceDecisions(previous),
 				observation: Object.freeze(withoutLegacySignature(observation)),
 			}));
 		},
 		apply(registry) {
-			const projection = registry.describe();
-			for (const entry of projection.entries) for (const installation of entry.installations) {
-				const record = records.get(installation.installationId);
-				if (record?.entryId === entry.entryId
-					&& record.installationId === installation.installationId) applyRecord(registry, record);
-			}
-			return registry.describe();
+			return applyRegistryAllowanceRecords(records, registry, (record, entry, installation) => (
+				record.entryId === entry.entryId
+				&& record.installationId === installation.installationId
+			));
 		},
 		async rebind(registry, installationId) {
 			const record = [...records.values()].find((value) => value.installationId === installationId);
-			if (!record) return false;
-			const identity = await authenticateBinary(record.observation.binaryPath, {
-				byteLength: record.observation.binaryBytes, sha256: record.digest,
+			return rebindRegistryAllowanceRecord({
+				record, registry,
+				authenticate: (value) => authenticateBinary(value.observation.binaryPath, {
+					byteLength: value.observation.binaryBytes, sha256: value.digest,
+				}),
+				admit: (target, value, identity) => target.record({ ...value.observation, identity }),
+				matchesAdmission: (admission, value) => admission.status === 'recorded'
+					&& admission.entryId === value.entryId
+					&& admission.installationId === value.installationId,
 			});
-			if (!identity) return false;
-			const admission = registry.record({ ...record.observation, identity });
-			return admission.status === 'recorded'
-				&& admission.entryId === record.entryId
-				&& admission.installationId === record.installationId
-				&& applyRecord(registry, record);
 		},
 		async capture(registry) {
-			const decisions = new Map();
-			for (const entry of registry.describe().entries) for (const installation of entry.installations) {
-				decisions.set(installation.installationId, installation);
-			}
-			records = new Map([...records].map(([installationId, record]) => {
-				const decision = decisions.get(record.installationId);
-				return [installationId, Object.freeze({
-					...record,
-					allowed: decision?.allowed ?? record.allowed,
-					selected: decision?.selected ?? record.selected,
-				})];
-			}));
+			records = captureRegistryAllowanceDecisions(records, registry);
 			await fileSystem.writeFile(filePath, JSON.stringify({
 				schemaVersion: VERSION, records: [...records.values()],
 			}));
