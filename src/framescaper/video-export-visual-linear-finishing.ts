@@ -39,6 +39,7 @@ import type { UnifiedExactRenderFinishingNode } from '../common/editor/unified-e
 import { evaluateVideoMaskMatteRgbaV13 } from '../common/editor/video-mask-matte-rgba-v13.ts';
 import type { VideoVisualPresentationV1 } from '../common/editor/video-visual-presentation-v27.ts';
 import { videoDeliveryColorChannels } from '../common/editor/video-delivery-color.ts';
+import { identityVisualPlacement, multiplyVisualMaskPlanes } from './visual-finishing-kernel.ts';
 
 /** Reapply the single picture clip's presentation to a decoded linear backdrop. */
 export function applyVideoPresentationLinear(
@@ -219,16 +220,13 @@ export function combinedGraphs(
 	height: number,
 	inputs: ReadonlyMap<string, UnifiedExactRenderVisualRgbaV13>,
 ): Uint8Array<ArrayBuffer> {
-	const output = new Uint8Array(width * height).fill(255);
-	for (const graph of graphs) {
-		const value = evaluateVideoMaskMatteRgbaV13(
+	return multiplyVisualMaskPlanes(
+		graphs,
+		width * height,
+		(graph) => evaluateVideoMaskMatteRgbaV13(
 			graph as Parameters<typeof evaluateVideoMaskMatteRgbaV13>[0], width, height, inputs,
-		);
-		for (let index = 0; index < output.length; index += 1) {
-			output[index] = Math.round(output[index]! * value[index]! / 255);
-		}
-	}
-	return output;
+		),
+	);
 }
 
 export function identityDescription(
@@ -236,14 +234,7 @@ export function identityDescription(
 	height: number,
 	blendMode: VideoVisualPresentationV1['blendMode'],
 ) {
-	return Object.freeze({
-		crop: Object.freeze({
-			normalized: Object.freeze({ left: 0, top: 0, right: 0, bottom: 0 }),
-			sourcePixels: Object.freeze({ x: 0, y: 0, width, height }),
-		}),
-		sourceDisplayToCanvas: Object.freeze([1, 0, 0, 1, 0, 0]),
-		opacityStart: 1, opacityEnd: 1, blendMode, compositingOrder: 0,
-	});
+	return identityVisualPlacement(width, height, blendMode);
 }
 
 function adjustLinearContent(

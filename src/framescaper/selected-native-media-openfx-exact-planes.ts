@@ -19,6 +19,7 @@ import {
 	framescaperOpenFxOutputOrdinalNativeMedia,
 	framescaperOpenFxTransitionProgressNativeMedia,
 } from './editor-openfx-frame-timing-native-media.ts';
+import { identityVisualPlacement } from './visual-finishing-kernel.ts';
 
 export interface FramescaperSelectedOpenFxExecutionNativeMedia {
 	readonly plan: UnifiedExactRenderPlanV14;
@@ -115,21 +116,12 @@ async function apply(
 	});
 	return Object.freeze({
 		frame: placeUnifiedExactLinearRgbaFrameV13({
-		frame: result.frame, displayWidth: result.frame.width, displayHeight: result.frame.height,
-		outputWidth: result.frame.width, outputHeight: result.frame.height,
-		renderDescription: identityDescription(plan.output.canvas.width, plan.output.canvas.height),
+			frame: result.frame, displayWidth: result.frame.width, displayHeight: result.frame.height,
+			outputWidth: result.frame.width, outputHeight: result.frame.height,
+			renderDescription: identityVisualPlacement(plan.output.canvas.width, plan.output.canvas.height, 'normal'),
 		}),
 		dispositions: result.dispositions,
 		reportsDegradation: result.reportsDegradation,
-	});
-}
-
-function identityDescription(width: number, height: number) {
-	return Object.freeze({
-		crop: Object.freeze({ normalized: Object.freeze({ left: 0, top: 0, right: 0, bottom: 0 }),
-			sourcePixels: Object.freeze({ x: 0, y: 0, width, height }) }),
-		sourceDisplayToCanvas: Object.freeze([1, 0, 0, 1, 0, 0]),
-		opacityStart: 1, opacityEnd: 1, blendMode: 'normal', compositingOrder: 0,
 	});
 }
 

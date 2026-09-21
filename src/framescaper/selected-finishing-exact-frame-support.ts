@@ -25,6 +25,7 @@ import type {
 } from '../common/editor/unified-exact-render-plan.ts';
 import { evaluateVideoMaskMatteRgbaV13 } from '../common/editor/video-mask-matte-rgba-v13.ts';
 import { videoDeliveryColorChannels } from '../common/editor/video-delivery-color.ts';
+import { identityVisualPlacement, multiplyVisualMaskPlanes } from './visual-finishing-kernel.ts';
 
 type Data = Readonly<Record<string, unknown>>;
 
@@ -148,14 +149,11 @@ export function combinedGraphs(
 	height: number,
 	inputs: ReadonlyMap<string, UnifiedExactRenderVisualRgbaV13>,
 ): Uint8Array<ArrayBuffer> {
-	const output = new Uint8Array(width * height).fill(255);
-	for (const graph of graphs) {
-		const value = evaluateVideoMaskMatteRgbaV13(graph, width, height, inputs);
-		for (let index = 0; index < output.length; index += 1) {
-			output[index] = Math.round(output[index]! * value[index]! / 255);
-		}
-	}
-	return output;
+	return multiplyVisualMaskPlanes(
+		graphs,
+		width * height,
+		(graph) => evaluateVideoMaskMatteRgbaV13(graph, width, height, inputs),
+	);
 }
 
 export function backgroundLinear(
@@ -178,14 +176,7 @@ export function backgroundLinear(
 }
 
 export function identityDescription(width: number, height: number, blendMode: UnifiedExactLinearBlendModeV13) {
-	return Object.freeze({
-		crop: Object.freeze({
-			normalized: Object.freeze({ left: 0, top: 0, right: 0, bottom: 0 }),
-			sourcePixels: Object.freeze({ x: 0, y: 0, width, height }),
-		}),
-		sourceDisplayToCanvas: Object.freeze([1, 0, 0, 1, 0, 0]),
-		opacityStart: 1, opacityEnd: 1, blendMode, compositingOrder: 0,
-	});
+	return identityVisualPlacement(width, height, blendMode);
 }
 
 export function renderBlendMode(value: unknown): UnifiedExactLinearBlendModeV13 {
