@@ -1,6 +1,6 @@
 ---
 title: "Smíchejte několik stop do jedné"
-description: "Zpracujte vybrané stopy do jediné stopy."
+description: "Vykreslete vybrané stopy do jedné stopy."
 editUrl: false
 sidebar:
   order: 2
@@ -8,48 +8,47 @@ head:
   - tag: script
     attrs:
       type: "application/ld+json"
-    content: "{\"@context\":\"https://schema.org\",\"@type\":\"HowTo\",\"name\":\"Mix several tracks into one\",\"description\":\"Render the selected tracks down to a single track.\",\"tool\":[{\"@type\":\"HowToTool\",\"name\":\"Soundscaper\"}],\"step\":[{\"@type\":\"HowToStep\",\"position\":1,\"name\":\"Open Soundscaper. A new, empty project is ready as soon as the editor loads.\",\"text\":\"Open Soundscaper. A new, empty project is ready as soon as the editor loads.\"},{\"@type\":\"HowToStep\",\"position\":2,\"name\":\"Choose File → Import audio and pick the first part. The file lands as a clip on its own track.\",\"text\":\"Choose File → Import audio and pick the first part. The file lands as a clip on its own track.\"},{\"@type\":\"HowToStep\",\"position\":3,\"name\":\"Choose File → Import audio and pick the second part. The file lands as a clip on its own track.\",\"text\":\"Choose File → Import audio and pick the second part. The file lands as a clip on its own track.\"},{\"@type\":\"HowToStep\",\"position\":4,\"name\":\"Click the name bar of the first clip, then hold Shift and click the name bar of the second clip, so both are selected.\",\"text\":\"Click the name bar of the first clip, then hold Shift and click the name bar of the second clip, so both are selected. Every track with a selected clip goes into the mix.\"},{\"@type\":\"HowToStep\",\"position\":5,\"name\":\"Choose Tracks → Mix & Render. In the Mix & Render dialog, leave Mix down, Render effects and Replace originals checked, choose Stereo for Mix down to, then press Mix & Render.\",\"text\":\"Choose Tracks → Mix & Render. In the Mix & Render dialog, leave Mix down, Render effects and Replace originals checked, choose Stereo for Mix down to, then press Mix & Render.\"},{\"@type\":\"HowToStep\",\"position\":6,\"name\":\"The project now shows a clip named Mix.\",\"text\":\"The project now shows a clip named Mix. One track holds a clip named Mix; the source tracks are gone.\"}]}"
+    content: "{\"@context\":\"https://schema.org\",\"@type\":\"HowTo\",\"name\":\"Mix several tracks into one\",\"description\":\"Render the selected tracks down to a single track.\",\"tool\":[{\"@type\":\"HowToTool\",\"name\":\"Soundscaper\"}],\"step\":[{\"@type\":\"HowToStep\",\"position\":1,\"name\":\"Open Soundscaper. A new, empty project is ready as soon as the editor loads.\",\"text\":\"Open Soundscaper. A new, empty project is ready as soon as the editor loads.\"},{\"@type\":\"HowToStep\",\"position\":2,\"name\":\"Choose File → Import and pick the first part. It lands as a clip on its own track.\",\"text\":\"Choose File → Import and pick the first part. It lands as a clip on its own track.\"},{\"@type\":\"HowToStep\",\"position\":3,\"name\":\"Choose File → Import and pick the second part. It lands as a clip on its own track.\",\"text\":\"Choose File → Import and pick the second part. It lands as a clip on its own track.\"},{\"@type\":\"HowToStep\",\"position\":4,\"name\":\"Click the name bar of the first clip, then hold Shift and click the name bar of the second clip, so both are selected.\",\"text\":\"Click the name bar of the first clip, then hold Shift and click the name bar of the second clip, so both are selected. Every track with a selected clip goes into the mix.\"},{\"@type\":\"HowToStep\",\"position\":5,\"name\":\"Choose Tracks → Mix & Render. In the Mix & Render dialog, leave Mix down, Render effects and Replace originals checked, choose Stereo for Mix down to, then press Mix & Render.\",\"text\":\"Choose Tracks → Mix & Render. In the Mix & Render dialog, leave Mix down, Render effects and Replace originals checked, choose Stereo for Mix down to, then press Mix & Render.\"},{\"@type\":\"HowToStep\",\"position\":6,\"name\":\"The project now shows a clip named Mix.\",\"text\":\"The project now shows a clip named Mix. One track holds a clip named Mix; the source tracks are gone.\"}]}"
 ---
-<!-- docs-ai-provenance: {"factPacketSha256":"a2efb9d82744df50703da530f05fd07938a525026e90a778c97fb783e8fb88c8","model":"qwen3.8:latest","modelDigest":"22130167c4c20e20c7b71454612966ca8e8171e9b3cc8ab6ce8aa6cbfec79643","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"a2efb9d82744df50703da530f05fd07938a525026e90a778c97fb783e8fb88c8","targetLocale":"cs"} -->
+<!-- docs-ai-provenance: {"factPacketSha256":"e3e165f69376430cd8ca49fc9f23263e3de5bf9c4af97309624c2faaba94193b","model":"aya-expanse:32b","modelDigest":"1603440383bd5504dc7afd01c0407b425b988dde650a8dc1a737433baa3cd432","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"e3e165f69376430cd8ca49fc9f23263e3de5bf9c4af97309624c2faaba94193b","targetLocale":"cs"} -->
 
 <!-- Generated by `node scripts/docs-reference.mjs`. Do not edit. -->
 
-Jakmile je lože stop vyvážená, jejich smíchání do jedné stopy zlehčí práci s projektem a poskytne vám jedno klip k exportu nebo přenosu jinde. Mix používá zesílení, panorámu, automatizaci a efekty každé vybrané stopy. Ticho a sólo jsou pro vybrané stopy během této operace ignorovány a zpracování masteru zůstává aktivní.
+Jakmile je soustava stop vyvážená, jejich smíchání do jedné zjednodušuje práci s projektem a poskytuje vám jeden klip pro export nebo další použití. Mix využívá zisk, panoráma, automatizaci a efekty každé vybrané stopy. Tiché a sólové režimy jsou pro vybrané stopy během této operace ignorovány a hlavní zpracování zůstává aktivní.
 
-:::note[Přecházíte z Audacity?]
-To je v Audacity **Tracks → Mix → Mix and Render**. Názvy níže jsou specifické pro Soundscaper a někdy se liší.
+:::poznámka[Přechod z Audacity?]
+Toto je **Stopa → Smíchat → Smíchat a vykreslit** v Audacity. Názvy níže jsou vlastní pro Soundscaper, které se někdy liší.
 :::
 
 ## Postup
 
-1. Otevřete Soundscaper. Nový, prázdný projekt je připraven hned po načtení editoru.
-2. Vyberte **Soubor → Importovat audio** a vyberte první část. Soubor se umístí jako klip na vlastní stopu.
-3. Vyberte **Soubor → Importovat audio** a vyberte druhou část. Soubor se umístí jako klip na vlastní stopu.
-4. Klikněte na lištu s názvem prvního klipu, poté podržte Shift a klikněte na lištu s názvem druhého klipu, aby byly oba vybrány. Každá stopa s vybraným klipem se zapojí do mixu.
-5. Vyberte **Tracks → Mix & Render**. V dialogovém okně **Mix & Render** nechte zaškrtnuté **Mix down**, **Render effects** a **Replace originals**, vyberte **Stereo** pro **Mix down to** a poté stiskněte **Mix & Render**.
+1. Otevřete Soundscaper. Nový prázdný projekt je připraven ihned po načtení editoru.
+2. Vyberte **Soubor → Importovat** a vyberte první část. Přistane jako klip na vlastní stopě.
+3. Vyberte **Soubor → Importovat** a vyberte druhou část. Přistane jako klip na vlastní stopě.
+4. Klikněte na název prvního klipu, poté podržte Shift a klikněte na název druhého klipu, takže jsou oba vybrány. Každá stopa s vybraným klipem se zapojí do mixu.
+5. Vyberte **Stopy → Smíchat a vykreslit**. V dialogovém okně **Smíchat a vykreslit** nechte zaškrtnuté **Smíchat dolů**, **Vykreslit efekty** a **Nahradit originály**, vyberte **Stereo** pro **Smíchat dolů do**, poté stiskněte **Smíchat a vykreslit**.
 6. Projekt nyní zobrazuje klip s názvem **Mix**.
-   *Měli byste vidět:* Jedna stopa obsahuje klip s názvem Mix; původní stopy zmizely.
+   *Měl byste vidět:* Jedna stopa obsahuje klip s názvem Mix; zdrojové stopy zmizely.
 
 ## Tipy
 
-- Před renderováním vyberte **Mono**, **Stereo** nebo nastavenou vícekanálovou konfiguraci projektu v položce **Mix down to**.
-- **Upravit → Zpět** obnoví původní stopy, pokud potřebujete změnit vyvážení.
-- K exportu není nutné mixovat do jedné stopy. **Soubor → Exportovat audio** samostatně renderuje celý projekt.
+- Vyberte **Mono**, **Stereo** nebo konfigurovaný vícekanálový rozložení projektu pod **Smíchat dolů do** před vykreslením.
+- **Úprava → Vrátit zpět** vrátí původní stopy, pokud potřebujete změnit vyvážení.
+- Není nutné smíchat pro export. **Soubor → Exportovat audio** vykreslí celý projekt samostatně.
 
-## Související průvodci
+## Související průvodce
 
-Další [stopy a export](/guides/tracks-and-export/) průvodci:
+Další průvodce [stopy a export](/guides/tracks-and-export/):
 
-- [Rozdělit stereo stopu na dvě mono stopy](/guides/tracks-and-export/split-stereo-into-mono-tracks/) — Oddělte levý a pravý kanál, aby každý mohl být upravován samostatně.
-- [Vygenerovat testovací tón](/guides/tracks-and-export/generate-a-test-tone/) — Vytvořte sinusovku s nastavenou frekvencí a délkou z ničeho.
-- [Exportovat MP3](/guides/tracks-and-export/export-an-mp3/) — Renderujte projekt do souboru MP3 pro sdílení nebo publikování.
-- [Exportovat WAV](/guides/tracks-and-export/export-a-wav/) — Renderujte projekt do nekompresovaného souboru WAV.
-- [Ztlumit a sólo stopy](/guides/tracks-and-export/mute-and-solo-tracks/) — Ztlumte stopu nebo poslouchejte jednu stopu samostatně, zatímco pracujete na mixu.
-- [Přidat prázdnou stopu](/guides/tracks-and-export/add-an-empty-track/) — Vytvořte novou stopu pro nahrávání nebo pro vložení.
-- [Ztlumit všechny stopy najednou](/guides/tracks-and-export/mute-every-track-at-once/) — Ztlumte celý projekt v jednom kroku a poté ho znovu obnovte.
-- [Zamíchat stopy do nové stopy a ponechat původní](/guides/tracks-and-export/mix-tracks-into-a-new-track/) — Renderujte mix několika stop na novou stopu, zatímco zdroje zůstávají v projektu.
-- [Vyvážit stopy v mixéru](/guides/tracks-and-export/balance-tracks-in-the-mixer/) — Otevřete mixážní pult s kanálovým pruhem pro každou stopu pro nastavení úrovní a panorámy vedle sebe.
+- [Rozdělit stereofonní stopu na dvě monofonní stopy](/guides/tracks-and-export/split-stereo-into-mono-tracks/) — Oddělte levý a pravý kanál, aby každý mohl být upraven samostatně.
+- [Vygenerovat testovací tón](/guides/tracks-and-export/generate-a-test-tone/) — Vytvořte sinusový signál dané frekvence a délky z ničeho.
+- [Exportovat MP3](/guides/tracks-and-export/export-an-mp3/) — Vykreslete projekt do souboru MP3 pro sdílení nebo publikování.
+- [Exportovat WAV](/guides/tracks-and-export/export-a-wav/) — Vykreslete projekt do nekomprimovaného souboru WAV.
+- [Tiché a sólové stopy](/guides/tracks-and-export/mute-and-solo-tracks/) — Ztlumte stopu, nebo poslouchejte jednu stopu samostatně, zatímco pracujete na mixu.
+- [Přidat prázdnou stopu](/guides/tracks-and-export/add-an-empty-track/) — Vytvořte novou stopu pro nahrávání nebo lepení.
+- [Ztlumit všechny stopy najednou](/guides/tracks-and-export/mute-every-track-at-once/) — Ztlumte celý projekt jedním krokem a poté ho všechno vraťte zpět.
+- [Smíchat stopy do nové stopy a ponechat originály](/guides/tracks-and-export/mix-tracks-into-a-new-track/) — Vykreslete mix několika stop do nové stopy, zatímco zdroje zůstanou v projektu.
+- [Vyvážit stopy v mixéru](/guides/tracks-and-export/balance-tracks-in-the-mixer/) — Otevřete mixážní konzoli s kanálovým pruhem na stopu pro nastavení úrovní a panorám vedle sebe.
 
 ## O tomto průvodci
-
-Postup na této stránce — každá položka nabídky, dialog, pole a tlačítko a výsledek, který vyvolá — je přehráván proti každé sestavě Soundscaperu pomocí sady prohlížečů (`tests/browser/soundscaper-guides.spec.js`). Pokud jakákoli část přestane odpovídat editoru, sestava selže, dokud není průvodce opraven. Navržené hodnoty jsou výchozími body, které editor prokázal jako přijatelné; zda vyhovují vašemu nahrávce, je na vašich uších.
+Postup na této stránce — každý položka nabídky, dialogové okno, pole a tlačítko, a výsledkem, který produkuje — je přehráván proti každé verzi Soundscaperu v prohlížečové sadě (`tests/browser/soundscaper-guides.spec.js`). Pokud se některá z nich přestane shodovat s editorem, verze selže, dokud nebude průvodce opraven. Navrhované hodnoty jsou výchozími body, které editor jistě přijme; zda jsou vhodné pro vaši nahrávku, musíte rozhodnout podle svého sluchu.

@@ -1,6 +1,6 @@
 ---
-title: "Zpět a znovu"
-description: "Kroky zpět a znovu vpřed v rámci vašich úprav."
+title: "Vrácení a opakování"
+description: "Vraťte se zpět ke svým úpravám a pokračujte vpřed."
 editUrl: false
 sidebar:
   order: 12
@@ -8,57 +8,57 @@ head:
   - tag: script
     attrs:
       type: "application/ld+json"
-    content: "{\"@context\":\"https://schema.org\",\"@type\":\"HowTo\",\"name\":\"Undo and redo\",\"description\":\"Step back through your edits and forward again.\",\"tool\":[{\"@type\":\"HowToTool\",\"name\":\"Soundscaper\"}],\"step\":[{\"@type\":\"HowToStep\",\"position\":1,\"name\":\"Open Soundscaper. A new, empty project is ready as soon as the editor loads.\",\"text\":\"Open Soundscaper. A new, empty project is ready as soon as the editor loads.\"},{\"@type\":\"HowToStep\",\"position\":2,\"name\":\"Choose File → Import audio and pick any recording. The file lands as a clip on its own track.\",\"text\":\"Choose File → Import audio and pick any recording. The file lands as a clip on its own track.\"},{\"@type\":\"HowToStep\",\"position\":3,\"name\":\"Press the Split tool button in the toolbar.\",\"text\":\"Press the Split tool button in the toolbar.\"},{\"@type\":\"HowToStep\",\"position\":4,\"name\":\"Click the waveform anywhere in the clip to put the cursor there.\",\"text\":\"Click the waveform anywhere in the clip to put the cursor there. A split is a good edit to practise on because you can see it.\"},{\"@type\":\"HowToStep\",\"position\":5,\"name\":\"Press the Split tool button in the toolbar.\",\"text\":\"Press the Split tool button in the toolbar. Back to the normal pointer.\"},{\"@type\":\"HowToStep\",\"position\":6,\"name\":\"The project now shows 2 clips.\",\"text\":\"The project now shows 2 clips.\"},{\"@type\":\"HowToStep\",\"position\":7,\"name\":\"Press the Undo button in the toolbar.\",\"text\":\"Press the Undo button in the toolbar. The toolbar button and Edit → Undo do the same thing.\"},{\"@type\":\"HowToStep\",\"position\":8,\"name\":\"The project now shows 1 clip.\",\"text\":\"The project now shows 1 clip. The split is gone and the clip is whole again.\"},{\"@type\":\"HowToStep\",\"position\":9,\"name\":\"Press the Redo button in the toolbar.\",\"text\":\"Press the Redo button in the toolbar.\"},{\"@type\":\"HowToStep\",\"position\":10,\"name\":\"The project now shows 2 clips.\",\"text\":\"The project now shows 2 clips. The split is back.\"}]}"
+    content: "{\"@context\":\"https://schema.org\",\"@type\":\"HowTo\",\"name\":\"Undo and redo\",\"description\":\"Step back through your edits and forward again.\",\"tool\":[{\"@type\":\"HowToTool\",\"name\":\"Soundscaper\"}],\"step\":[{\"@type\":\"HowToStep\",\"position\":1,\"name\":\"Open Soundscaper. A new, empty project is ready as soon as the editor loads.\",\"text\":\"Open Soundscaper. A new, empty project is ready as soon as the editor loads.\"},{\"@type\":\"HowToStep\",\"position\":2,\"name\":\"Choose File → Import and pick any recording. It lands as a clip on its own track.\",\"text\":\"Choose File → Import and pick any recording. It lands as a clip on its own track.\"},{\"@type\":\"HowToStep\",\"position\":3,\"name\":\"Press the Split tool button in the toolbar.\",\"text\":\"Press the Split tool button in the toolbar.\"},{\"@type\":\"HowToStep\",\"position\":4,\"name\":\"Click the waveform anywhere in the clip to put the cursor there.\",\"text\":\"Click the waveform anywhere in the clip to put the cursor there. A split is a good edit to practise on because you can see it.\"},{\"@type\":\"HowToStep\",\"position\":5,\"name\":\"Press the Split tool button in the toolbar.\",\"text\":\"Press the Split tool button in the toolbar. Back to the normal pointer.\"},{\"@type\":\"HowToStep\",\"position\":6,\"name\":\"The project now shows 2 clips.\",\"text\":\"The project now shows 2 clips.\"},{\"@type\":\"HowToStep\",\"position\":7,\"name\":\"Press the Undo button in the toolbar.\",\"text\":\"Press the Undo button in the toolbar. The toolbar button and Edit → Undo do the same thing.\"},{\"@type\":\"HowToStep\",\"position\":8,\"name\":\"The project now shows 1 clip.\",\"text\":\"The project now shows 1 clip. The split is gone and the clip is whole again.\"},{\"@type\":\"HowToStep\",\"position\":9,\"name\":\"Press the Redo button in the toolbar.\",\"text\":\"Press the Redo button in the toolbar.\"},{\"@type\":\"HowToStep\",\"position\":10,\"name\":\"The project now shows 2 clips.\",\"text\":\"The project now shows 2 clips. The split is back.\"}]}"
 ---
-<!-- docs-ai-provenance: {"factPacketSha256":"d977a5c97426e241bb079fda77dc648a1ba846e2331811c3fbc259c0931454c8","model":"qwen3.8:latest","modelDigest":"22130167c4c20e20c7b71454612966ca8e8171e9b3cc8ab6ce8aa6cbfec79643","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"d977a5c97426e241bb079fda77dc648a1ba846e2331811c3fbc259c0931454c8","targetLocale":"cs"} -->
+<!-- docs-ai-provenance: {"factPacketSha256":"6d9cdb24c5f9df66cd50e9fa913ee28512b2d5b050122058a661b1576e0580ea","model":"aya-expanse:32b","modelDigest":"1603440383bd5504dc7afd01c0407b425b988dde650a8dc1a737433baa3cd432","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"6d9cdb24c5f9df66cd50e9fa913ee28512b2d5b050122058a661b1576e0580ea","targetLocale":"cs"} -->
 
 <!-- Generated by `node scripts/docs-reference.mjs`. Do not edit. -->
 
-Každá úprava a efekt se zapisuje do historie projektu, takže žádné vaše pokusy nepředstavují riziko. Tlačítko Zpět (Undo) vrátí jeden krok za sebou — efekt, řez, přesun — a tlačítko Znovu (Redo) ho obnoví. Historie přetrvá i po uložení a opětovném otevření projektu.
+Každá úprava a efekt se zaznamenává do historie projektu, takže nic, co vyzkoušíte, není riziko. Krok **Zrušit** vrátí zpět jednu změnu najednou – efekt, střih, přesun – a **Opakovat** to vrátí zpět. Historie přetrvává i po uložení a opětovném otevření projektu.
 
-:::note[Přecházíte z Audacity?]
-Tohle je funkce **Úpravy → Zpět a Úpravy → Znovu (Ctrl+Z, Ctrl+Y)** v Audacity. Názvy níže jsou specifické pro Soundscaper a mohou se lišit.
+:::poznámka[Přecházíte z Audacity?]
+Toto je **Úpravy → Zrušit** a **Úpravy → Opakovat (Ctrl+Z, Ctrl+Y)** v Audacity. Názvy níže jsou vlastní pro Soundscaper, které se někdy liší.
 :::
 
-## Postup
+## Kroky
 
-1. Otevřete Soundscaper. Nový, prázdný projekt je připraven hned po načtení editoru.
-2. Vyberte **Soubor → Importovat audio** a vyberte jakékoli nahrávku. Soubor se objeví jako klip na vlastní stopě.
-3. Stiskněte tlačítko **Nástroj pro rozdělení** na liště nástrojů.
-4. Klikněte na vlnový tvar kdekoliv v klipu, abyste tam umístili kurzor. Rozdělení je dobrá úprava k procvičení, protože je viditelné.
-5. Stiskněte tlačítko **Nástroj pro rozdělení** na liště nástrojů. Vraťte se na běžný ukazatel myši.
-6. V projektu se nyní zobrazují 2 klipy.
-7. Stiskněte tlačítko **Zpět** na liště nástrojů. Tlačítko na liště a **Úpravy → Zpět** dělají totéž.
-8. V projektu se nyní zobrazuje 1 klip.
-   *Měli byste vidět:* Rozdělení zmizelo a klip je opět celý.
-9. Stiskněte tlačítko **Znovu** na liště nástrojů.
-10. V projektu se nyní zobrazují 2 klipy.
-   *Měli byste vidět:* Rozdělení se vrátilo.
+1. Otevřete Soundscaper. Nový prázdný projekt je připraven ihned po načtení editoru.
+2. Zvolte **Soubor → Importovat** a vyberte libovolnou nahrávku. Umístí se jako klip na vlastní stopu.
+3. Stiskněte tlačítko nástroje **Rozdělit** na panelu nástrojů.
+4. Klikněte na vlnovku kdekoli v klipu, abyste tam umístili kurzor. Rozdělení je dobrá úprava k vyzkoušení, protože ho můžete vidět.
+5. Stiskněte tlačítko nástroje **Rozdělit** na panelu nástrojů. Zpět na normální ukazatel.
+6. Projekt nyní zobrazuje 2 klipy.
+7. Stiskněte tlačítko **Zrušit** na panelu nástrojů. Tlačítko na panelu nástrojů a **Úpravy → Zrušit** dělají totéž.
+8. Projekt nyní zobrazuje 1 klip.
+   *Měli byste vidět:* Rozdělení je pryč a klip je opět celý.
+9. Stiskněte tlačítko **Opakovat** na panelu nástrojů.
+10. Projekt nyní zobrazuje 2 klipy.
+   *Měli byste vidět:* Rozdělení je zpět.
 
 ## Tipy
 
-- **Zobrazení → Panely → Historie** vypisuje každý krok a kliknutím na něj skočíte přímo na daný stav.
-- Funkce Zpět pokrývá úpravy projektu, nikoli exporty; soubor, který jste již uložili, zůstává beze změny.
+- **Zobrazit → Panely → Historie** vyjmenovává každý krok a kliknutím na jeden se k němu okamžitě dostanete.
+- Zrušit pokrývá úpravy projektu, nikoli exporty; soubor, který jste již uložili, zůstává beze změny.
 
-## Související průvodci
+## Související průvodce
 
-Další [úpravy](/guides/editing/) průvodci:
+Další [průvodce úpravami](/guides/editing/):
 
-- [Vystřihnout chybu z nahrávky](/guides/editing/cut-out-a-mistake/) — Vyberte úsek, odeberte ho a uzavřete mezernu, aby nahrávka plynule pokračovala.
-- [Rozdělit klip na dvě části](/guides/editing/split-a-clip-at-the-cursor/) — Narežte klip v určitém bodě, aby každou část bylo možné přesunout nebo zpracovat samostatně.
-- [Ponechat pouze požadovanou část](/guides/editing/keep-only-a-selection/) — Odstřihněte vše mimo výběr v jednom kroku.
-- [Opakovat sekci](/guides/editing/repeat-a-section/) — Opakujte výběr stanovený početkrát, aby byl delší.
-- [Přehrát nahrávku pozpátku](/guides/editing/reverse-audio/) — Obrátěte výběr, aby se přehrával od konce ke začátku.
-- [Označit místa v nahrávce](/guides/editing/add-markers/) — Umístěte pojmenované značky na časovou osu, abyste je mohli znovu najít.
-- [Kopírovat a vložit sekci](/guides/editing/copy-and-paste-a-section/) — Zkopírujte úsek a vložte ho jinam na stopě.
-- [Duplikovat výběr na novou stopu](/guides/editing/duplicate-a-selection-to-a-new-track/) — Zkopírujte úsek na vlastní stopu, abyste ho mohli zpracovat samostatně.
-- [Přidat ticho za klip](/guides/editing/add-silence-after-a-clip/) — Vytvořte mezeru přesné délky na pozici kurzoru.
-- [Seřadit klipy za sebou](/guides/editing/line-up-clips-end-to-end/) — Přiložte dva klipy na různých stopách k sobě, aby jeden následoval po druhém.
-- [Přiblížit pro přesné úpravy](/guides/editing/zoom-in-for-precise-edits/) — Přibližte se k vlnovému tvaru natolik, abyste mohli řezat na tón nebo mezi slovy.
-- [Opakovat sekci při cvičení](/guides/editing/loop-a-section-while-you-practise/) — Přehrávejte vybraný úsek opakovaně.
-- [Přesunout klip podél časové osy](/guides/editing/move-a-clip-along-the-timeline/) — Přetáhněte klip na jiný čas na jeho stopě.
-- [Poslouchat rychleji nebo pomaleji bez změny nahrávky](/guides/editing/listen-at-a-different-speed/) — Zpomalujte úsek pro přepisování nebo zrychlete dlouhý záběr pro přehled, aniž byste dotkli projektu.
+- [Vystřihněte chybu z nahrávky](/guides/editing/cut-out-a-mistake/) — Vyberte část, odstraňte ji a zavřete mezeru, aby nahrávka plynule pokračovala.
+- [Rozdělte klip na dvě části](/guides/editing/split-a-clip-at-the-cursor/) — Nastřihněte klip v určitém bodě, aby každá část mohla být přesunuta nebo zpracována samostatně.
+- [Zachovejte pouze část, kterou chcete](/guides/editing/keep-only-a-selection/) — Ořežte vše mimo výběr v jednom kroku.
+- [Opakujte část](/guides/editing/repeat-a-section/) — Zkratte výběr určitý početkrát, aby se stal delším.
+- [Přehrávejte nahrávku pozpátku](/guides/editing/reverse-audio/) — Obrátíte výběr, aby se přehrával od konce k začátku.
+- [Označte místa v nahrávce](/guides/editing/add-markers/) — Vložte pojmenované značky na časovou osu, abyste mohli později snadno najít body.
+- [Kopírujte a vkládejte část](/guides/editing/copy-and-paste-a-section/) — Zkopírujte pasáž a vložte ji jinde na stopě.
+- [Duplikujte výběr na novou stopu](/guides/editing/duplicate-a-selection-to-a-new-track/) — Zkopírujte pasáž na vlastní stopu, abyste ji mohli zpracovat samostatně.
+- [Přidejte ticho po klipu](/guides/editing/add-silence-after-a-clip/) — Vygenerujte mezeru přesného délky v místě kurzoru.
+- [Umístěte klipy za sebou](/guides/editing/line-up-clips-end-to-end/) — Umístěte dva klipy na různých stopách vedle sebe, aby jeden následoval druhého.
+- [Přiblížte pro přesné úpravy](/guides/editing/zoom-in-for-precise-edits/) — Přiblížte se dostatečně k vlnovce, abyste mohli stříhat na takt nebo mezi slovy.
+- [Opakujte část při cvičení](/guides/editing/loop-a-section-while-you-practise/) — Opakujte vybranou pasáž znovu a znovu.
+- [Přesuňte klip po časové ose](/guides/editing/move-a-clip-along-the-timeline/) — Přetáhněte klip na časové ose do jiného času na jeho stopě.
+- [Poslouchejte rychleji nebo pomaleji, aniž byste měnili nahrávku](/guides/editing/listen-at-a-different-speed/) — Zpomalte pasáž pro přepis nebo zrychlete dlouhý záběr pro jeho přezkoumání, aniž byste ovlivnili projekt.
 
 ## O tomto průvodci
 
-Postup na této stránce — každá položka nabídky, dialog, pole a tlačítko a výsledek, který vyvolá — se přehrává proti každé sestavení Soundscaper pomocí sady prohlížečů (`tests/browser/soundscaper-guides.spec.js`). Pokud se cokoliv z toho přestane shodovat s editorem, sestavení selže, dokud není průvodce opraven. Navržené hodnoty jsou výchozími body, které editor prokázal, že přijímá; zda vyhovují vaší nahrávce, je na vašich uších.
+Postup na této stránce – každý položka nabídky, dialog, pole a tlačítko a výsledný výstup – je přehráván proti každé verzi Soundscaperu v testovací sadě (`tests/browser/soundscaper-guides.spec.js`). Pokud se přestane shodovat s editorem, verze selže, dokud nebude průvodce opraven. Navrhované hodnoty jsou výchozí body, které editor přijímá; zda jsou vhodné pro vaši nahrávku, musí posoudit vaše uši.

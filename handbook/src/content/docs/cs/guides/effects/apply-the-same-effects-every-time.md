@@ -1,6 +1,6 @@
 ---
-title: "Použít stejný řetězec efektů vždy"
-description: "Uložte posloupnost efektů jako makro a spusťte ji na libovolném výběru jedním příkazem."
+title: "Použijte stejný řetězec efektů pokaždé"
+description: "Uložte sekvenci efektů jako makro a spusťte ji na libovolném výběru pomocí jednoho příkazu."
 editUrl: false
 sidebar:
   order: 13
@@ -8,54 +8,54 @@ head:
   - tag: script
     attrs:
       type: "application/ld+json"
-    content: "{\"@context\":\"https://schema.org\",\"@type\":\"HowTo\",\"name\":\"Apply the same chain of effects every time\",\"description\":\"Save a sequence of effects as a macro and run it on any selection with one command.\",\"tool\":[{\"@type\":\"HowToTool\",\"name\":\"Soundscaper\"}],\"step\":[{\"@type\":\"HowToStep\",\"position\":1,\"name\":\"Open Soundscaper. A new, empty project is ready as soon as the editor loads.\",\"text\":\"Open Soundscaper. A new, empty project is ready as soon as the editor loads.\"},{\"@type\":\"HowToStep\",\"position\":2,\"name\":\"Choose File → Import audio and pick a recording to process. The file lands as a clip on its own track.\",\"text\":\"Choose File → Import audio and pick a recording to process. The file lands as a clip on its own track.\"},{\"@type\":\"HowToStep\",\"position\":3,\"name\":\"Choose Select → Select all.\",\"text\":\"Choose Select → Select all. A macro runs on the selection, just as each effect would on its own.\"},{\"@type\":\"HowToStep\",\"position\":4,\"name\":\"Choose Tools → Macro manager and press New macro. Type Episode finish into Macro name. Press Add effect and choose Normalize and Fade Out, pressing Add effect again for each one. Press Run macro; the dialog reports that the macro was applied. Press Close.\",\"text\":\"Choose Tools → Macro manager and press New macro. Type Episode finish into Macro name. Press Add effect and choose Normalize and Fade Out, pressing Add effect again for each one. Press Run macro; the dialog reports that the macro was applied. Press Close. Each step keeps its default settings here; press a step’s Select effect button to change them before you run. The recording is normalized and fades to silence at the end.\"},{\"@type\":\"HowToStep\",\"position\":5,\"name\":\"Press Play to listen, then Stop.\",\"text\":\"Press Play to listen, then Stop.\"}]}"
+    content: "{\"@context\":\"https://schema.org\",\"@type\":\"HowTo\",\"name\":\"Apply the same chain of effects every time\",\"description\":\"Save a sequence of effects as a macro and run it on any selection with one command.\",\"tool\":[{\"@type\":\"HowToTool\",\"name\":\"Soundscaper\"}],\"step\":[{\"@type\":\"HowToStep\",\"position\":1,\"name\":\"Open Soundscaper. A new, empty project is ready as soon as the editor loads.\",\"text\":\"Open Soundscaper. A new, empty project is ready as soon as the editor loads.\"},{\"@type\":\"HowToStep\",\"position\":2,\"name\":\"Choose File → Import and pick a recording to process. It lands as a clip on its own track.\",\"text\":\"Choose File → Import and pick a recording to process. It lands as a clip on its own track.\"},{\"@type\":\"HowToStep\",\"position\":3,\"name\":\"Choose Select → Select all.\",\"text\":\"Choose Select → Select all. A macro runs on the selection, just as each effect would on its own.\"},{\"@type\":\"HowToStep\",\"position\":4,\"name\":\"Choose Tools → Macro manager and press New macro. Type Episode finish into Macro name. Press Add effect and choose Normalize and Fade Out, pressing Add effect again for each one. Press Run macro; the dialog reports that the macro was applied. Press Close.\",\"text\":\"Choose Tools → Macro manager and press New macro. Type Episode finish into Macro name. Press Add effect and choose Normalize and Fade Out, pressing Add effect again for each one. Press Run macro; the dialog reports that the macro was applied. Press Close. Each step keeps its default settings here; press a step’s Select effect button to change them before you run. The recording is normalized and fades to silence at the end.\"},{\"@type\":\"HowToStep\",\"position\":5,\"name\":\"Press Play to listen, then Stop.\",\"text\":\"Press Play to listen, then Stop.\"}]}"
 ---
-<!-- docs-ai-provenance: {"factPacketSha256":"fe27c3ca761a5f223dc61da95d50d67d87079e31b9824488ca90a19d367c70f6","model":"qwen3.8:latest","modelDigest":"22130167c4c20e20c7b71454612966ca8e8171e9b3cc8ab6ce8aa6cbfec79643","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"fe27c3ca761a5f223dc61da95d50d67d87079e31b9824488ca90a19d367c70f6","targetLocale":"cs"} -->
+<!-- docs-ai-provenance: {"factPacketSha256":"a5d3e1397a5d7af65a4e17a19753b03303693a33220b67c809efc56f5741620e","model":"aya-expanse:32b","modelDigest":"1603440383bd5504dc7afd01c0407b425b988dde650a8dc1a737433baa3cd432","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"a5d3e1397a5d7af65a4e17a19753b03303693a33220b67c809efc56f5741620e","targetLocale":"cs"} -->
 
 <!-- Generated by `node scripts/docs-reference.mjs`. Do not edit. -->
 
-Každý epizoda prochází stejným zpracováním: normalizace, vyblednutí konce. Makro tuto sekvenci zaznamená jednou a spustí ji vždy, když požádáte, s nastavením, které jste zvolili, takže desátikroková rutina se stane jedním příkazem. Audacity 3 mělo pro přesně toto Správce makr; Audacity 4 makra nevrátilo.
+Každá epizoda dostane stejnou úpravu: normalizace, vyblednutí konce. Makro zaznamená tuto sekvenci jednou a spustí ji pokaždé, když o to požádáte, se zvolenými nastaveními, takže desetistupňový postup se stane jedním příkazem. Audacity 3 měl Správce makro pro přesně tento účel; Audacity 4 však makra znovu nezavedl.
 
-:::note[Přecházíte z Audacity?]
-To je funkce Audacity **Nástroje → Makra → Spravovat makra a aplikovat makro (Audacity 3; Audacity 4 nemá makra)**. Názvy níže jsou vlastní Soundscaper a někdy se liší.
+:::poznámka[Přecházíte z Audacity?]
+Toto je **Nástroje → Makra → Správa makr a použití makra (Audacity 3; Audacity 4 nemá makra)**. Názvy níže jsou vlastní pro Soundscaper, které se někdy liší.
 :::
 
 ## Kroky
 
-1. Otevřete Soundscaper. Nový, prázdný projekt je připraven hned, jak se editor načte.
-2. Vyberte **Soubor → Importovat audio** a vyberte nahrávku ke zpracování. Soubor se objeví jako klip na vlastní stopě.
-3. Vyberte **Vybrat → Vybrat vše**. Makro běží na výběru, stejně jako by každý efekt běžel sám o sobě.
-4. Vyberte **Nástroje → Správce makr** a stiskněte **Nové makro**. Do pole **Název makra** zadejte `Episode finish`. Stiskněte **Přidat efekt** a vyberte **Normalizovat** a **Vyblednout**, přičemž pro každý z nich stiskněte znovu **Přidat efekt**. Stiskněte **Spustit makro**; dialog ohlásí, že makro bylo aplikováno. Stiskněte **Zavřít**. Každý krok zde si zachovává výchozí nastavení; stiskněte tlačítko **Vybrat efekt** u kroku, abyste je změnila před spuštěním.
-   *Měli byste vidět:* Nahrávka je normalizována a na konci vybledne do ticha.
-5. Stiskněte **Přehrát** pro poslech, poté **Zastavit**.
+1. Otevřete Soundscaper. Nový prázdný projekt je připraven ihned po načtení editoru.
+2. Zvolte **Soubor → Importovat** a vyberte nahrávku, kterou chcete zpracovat. Přistane jako klip na vlastní stopě.
+3. Zvolte **Vybrat → Vybrat vše**. Makro se spustí na výběru, stejně jako každý efekt samostatně.
+4. Zvolte **Nástroje → Správce makr** a stiskněte **Nové makro**. Zadejte `Episode finish` do **Název makra**. Stiskněte **Přidat efekt** a vyberte **Normalizovat** a **Vyblednout**, stiskněte **Přidat efekt** znovu pro každý z nich. Stiskněte **Spustit makro**; dialogové okno hlásí, že bylo makro použito. Stiskněte **Zavřít**. Každý krok zde zachovává výchozí nastavení; stiskněte tlačítko **Vybrat efekt** pro krok, abyste jej změnili, než jej spustíte.
+   *Měli byste vidět:* Nahrávka je normalizována a vybledá do ticha na konci.
+5. Stiskněte **Přehrát**, abyste poslouchali, a pak **Zastavit**.
 
 ## Tipy
 
-- Makro se ukládá s editorem, takže čeká pod **Nástroje → Správce makr** pro další nahrávku.
-- **Exportovat makro** zapíše řetězec jako textový soubor makra Audacity a **Importovat makro** ho načte, takže rutina může putovat mezi těmito dvěma programy.
+- Makro se ukládá s editorem, takže je připraveno pod **Nástroje → Správce makr** pro další nahrávku.
+- **Exportovat makro** zapíše řetězec jako textový soubor makra Audacity a **Importovat makro** jej přečte, takže rutina může přecházet mezi oběma programy.
 
-## Související průvodci
+## Související průvodce
 
-Další průvodci s [efekty](/guides/effects/):
+Více průvodců [efekty](/guides/effects/):
 
-- [Změna tempa bez změny výšky tónu](/guides/effects/change-tempo-without-changing-pitch/) — Zrychlete nahrávku nebo ji zpomalte, přičemž každá nota si zachová stejnou výšku tónu.
-- [Změna výšky tónu bez změny tempa](/guides/effects/change-pitch-without-changing-tempo/) — Posuňte nahrávku nahoru nebo dolů o počet polotónů a zachovejte její načasování.
-- [Přidání echa](/guides/effects/add-echo/) — Opakujte zvuk v pevném intervalu, pokaždé tišeji.
-- [Umístění nahrávky do místnosti](/guides/effects/add-reverb/) — Přidejte reverb, aby suchá nahrávka zněla, jako by byla provedena v reálném prostoru.
-- [Zvýšení basů a výšek](/guides/effects/boost-bass-and-treble/) — Oteplujte nebo osvěžujte nahrávku pomocí dvou jednoduchých tónových ovladačů.
-- [Změna rychlosti jako u pásového přehrávače](/guides/effects/change-speed-like-a-tape/) — Zrychlete nahrávku nebo ji zpomalte s následováním výšky tónu, stejně jako u pásky.
-- [Roztažení zvuku do dronu](/guides/effects/stretch-a-sound-into-a-drone/) — Velmi zpomalte krátký zvuk pomocí Paulstretch, abyste vytvořili ambientní textury.
-- [Přidání zkreslení](/guides/effects/add-distortion/) — Překropte zvuk od jemného tepla po plné fuzz.
-- [Přidání wah-wah](/guides/effects/add-a-wah-wah/) — Prohlídejte rezonanční filtr přes zvuk pro klasický funk efekt.
-- [Použití Nyquist pluginu](/guides/effects/use-a-nyquist-plugin/) — Spusťte jeden ze zabudovaných Nyquist efektů — zde, tremolo.
-- [Přidání reálného efektu na stopu](/guides/effects/add-a-realtime-effect-to-a-track/) — Umístěte efekt na stopu, aby běžel, zatímco přehráváte, bez renderování.
-- [Přidání fázového modulátoru](/guides/effects/add-a-phaser/) — Prohlídejte sadu notchů přes zvuk pro klasický vířivý efekt kytary a kláves.
-- [Plynulé přecházení z jednoho tempa do druhého](/guides/effects/slide-from-one-tempo-to-another/) — Postupně zrychlete nebo zpomalte úsek po celé jeho délce, s nebo bez posunu výšky tónu.
+- [Změna tempa bez změny tónu](/guides/effects/change-tempo-without-changing-pitch/) — Zrychlete nahrávku nebo ji zpomalte, přičemž každá nota zůstane ve stejném tónu.
+- [Změna tónu bez změny tempa](/guides/effects/change-pitch-without-changing-tempo/) — Posuňte nahrávku o určitý počet půltónů nahoru nebo dolů a zachovejte její časování.
+- [Přidání ozvěny](/guides/effects/add-echo/) — Opakujte zvuk v pevných intervalech, tišeji pokaždé.
+- [Umístěte nahrávku do místnosti](/guides/effects/add-reverb/) — Přidejte reverb, aby suchá nahrávka zněla, jako by byla pořízena v reálném prostoru.
+- [Zvýšení basů a výšek](/guides/effects/boost-bass-and-treble/) — Ohřejte nebo rozjasněte nahrávku pomocí dvou jednoduchých tónových ovládacích prvků.
+- [Změna rychlosti jako u páskového magnetofonu](/guides/effects/change-speed-like-a-tape/) — Zrychlete nahrávku nebo ji zpomalte s tónem, který následuje, tak, jak to dělá páska.
+- [Protažení zvuku do dronu](/guides/effects/stretch-a-sound-into-a-drone/) — Velmi zpomalte krátký zvuk pomocí Paulstretch, abyste vytvořili ambientní textury.
+- [Přidání zkreslení](/guides/effects/add-distortion/) — Přidejte do zvuku zkreslení od jemného tepla po plný fuzz.
+- [Přidání wah-wah](/guides/effects/add-a-wah-wah/) — Projeďte rezonantním filtrem zvuk pro klasický funkční efekt.
+- [Použití plug-inu Nyquist](/guides/effects/use-a-nyquist-plugin/) — Spusťte jeden z dodávaných efektů Nyquist — zde nastavitelný vyblednutí.
+- [Přidání efektu v reálném čase na stopu](/guides/effects/add-a-realtime-effect-to-a-track/) — Umístěte efekt na stopu, aby běžel, když hrajete, bez vykreslování.
+- [Přidání fázového efektu](/guides/effects/add-a-phaser/) — Projeďte souborem sadačkových výřezů pro klasický efekt kytary a klávesových nástrojů.
+- [Přechod z jednoho tempa do druhého](/guides/effects/slide-from-one-tempo-to-another/) — Zrychlete nebo zpomalte pasáž postupně po její délce, s možností posunu tónu.
 
-## Reference
+## Referenční materiál
 
-- [Každý příkaz v menu a jeho klávesová zkratka jsou v referenci příkazů a zkratků.](/reference/generated/commands/)
+- [Každý příkaz nabídky a jeho klávesová zkratka je v referenci příkazů a klávesových zkratek.](/reference/generated/commands/)
 
 ## O tomto průvodci
 
-Postup na této stránce — každá položka v menu, dialog, pole a tlačítko, a výsledek, který vyvolá — je přehráván proti každé sestavení Soundscaper sadou prohlížečů (`tests/browser/soundscaper-guides.spec.js`). Pokud jakákoli část přestane odpovídat editoru, sestavení selže, dokud není průvodce opraven. Navržené hodnoty jsou výchozími body, které editor prokázal jako přijatelné; zda vyhovují vaší nahrávce, je na vašich uších rozhodnout.
+Postup na této stránce — každý položka nabídky, dialogové okno, pole a tlačítko, a výsledný výstup — je přehrán proti každé verzi Soundscaperu prohlížečovou sadou testů (`tests/browser/soundscaper-guides.spec.js`). Pokud se některá z nich přestane shodovat s editorem, verze selže, dokud nebude průvodce opraven. Navrhované hodnoty jsou výchozími body, které editor jistě přijme; zda vám vyhovují, je na vašich uších, aby rozhodly.

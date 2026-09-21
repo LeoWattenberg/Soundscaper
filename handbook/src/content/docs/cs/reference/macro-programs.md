@@ -1,41 +1,37 @@
 ---
-title: "Programy makr"
-description: "JavaScript API, proti kterému program makr běží, omezení, v nichž běží, a soubor, ve kterém je přenášeno."
+title: "Makro programy"
+description: "JavaScript API, proti kterému makro program běží, limity, pod kterými běží, a soubor, ve kterém cestuje."
 sidebar:
   order: 7
 ---
-<!-- docs-ai-provenance: {"factPacketSha256":"bfeb48e77dc0013cc1f43bd584ae92a7196983e349631c0b75bfbca2ba0c542a","model":"qwen3.8:latest","modelDigest":"22130167c4c20e20c7b71454612966ca8e8171e9b3cc8ab6ce8aa6cbfec79643","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"bfeb48e77dc0013cc1f43bd584ae92a7196983e349631c0b75bfbca2ba0c542a","targetLocale":"cs"} -->
+<!-- docs-ai-provenance: {"factPacketSha256":"375c684211bdec9dbd3614c197bda423e24858a568ad5ae3c06ab06d7db2522f","model":"aya-expanse:32b","modelDigest":"1603440383bd5504dc7afd01c0407b425b988dde650a8dc1a737433baa3cd432","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"375c684211bdec9dbd3614c197bda423e24858a568ad5ae3c06ab06d7db2522f","targetLocale":"cs"} -->
 
-Makroprogram je makro psaný v JavaScriptu místo seznamu kroků.
-Spouští se v editoru proti malé API označované jako `sound`, která mu umožňuje číst
-otevřený projekt, posouvat výběr a aplikovat stejné efekty a příkazy, které může
-aplikovat makro se seznamem kroků. Všechno ostatní, od souborů a sítě po vaše
-jiné projekty, je mimo jeho dosah.
+Makro program je makro napsané v JavaScriptu namísto jako seznam kroků.
+Spouští se uvnitř editoru proti malému API zvanému `sound`, které mu umožňuje číst
+otevřený projekt, přesouvat výběr a aplikovat stejné efekty a příkazy jako makro se seznamem kroků.
+Vše ostatní, od souborů a sítě po vaše ostatní projekty, je mimo jeho dosah.
 
-Programy jsou funkcí Soundscaperu. Framescaper nemá správce makr.
+Programy jsou funkcí Soundscaperu. Framescaper nemá správce makro.
 
-## Kde se programy nacházejí
+## Kde programy žijí
 
-Vyberte **Nástroje → Správce makr**. V dialogu jsou uvedena makra se seznamem kroků a pod
-**Programy** programy, které jste uložili. Tlačítko **Nový program** vytvoří nový program a v
-podrobnostech se zobrazí **Název programu**, text **Programu** a tlačítko **Spustit
-program**. Text se ukládá při psaní; neexistuje samostatný krok pro uložení.
+Vyberte **Nástroje → Správce makro**. Dialogový rámeček obsahuje seznam makro se seznamem kroků a pod
+**Programy** programy, které jste uložili. Stiskněte **+ (Nový program)** v záhlaví Programy pro vytvoření jednoho.
+Stejná panelová akce nabízí **Import programu**, **Export programu** a **Odstranit program** pro vybraný program.
+Podrobnostní panel zobrazuje **Název programu**, **Program** text a tlačítko **Spustit program**. Text je ukládán při psaní; neexistuje žádný samostatný krok ukládání.
 
-Program je uložen společně s nastavením editoru, nikoli uvnitř projektu, takže je
-dostupný ve všech projektech, které otevřete v tomto editoru. K přenosu programu na jiný
-počítač nebo jinému uživateli použijte **Export programu** a
-**Import programu**; podrobnosti najdete v
-[Sdílení programů](#sharing-programs).
+Program je uložen s nastavením editoru, nikoli uvnitř projektu, takže je k dispozici v každém projektu, který otevřete v tomto editoru. Použijte **Export programu** a
+**Import programu** pro přesun na jiný počítač nebo jiné osobě; viz
+[Sdílení programů](#sharing-programs) pro to, co to obnáší.
 
-Průvodce [Aplikace stejného řetězce efektů pokaždé](/guides/effects/apply-the-same-effects-every-time/)
-se zabývá stranou se seznamem kroků ve stejném dialogu.
+Průvodce [Použijte stejný řetězec efektů pokaždé](/guides/effects/apply-the-same-effects-every-time/)
+pokrývá stranu seznamu kroků stejného dialogu.
 
 ## Psaní programu
 
-Program je tělo funkce `async`, která se spouští v přísném režimu. To znamená, že
-můžete `await` na nejvyšší úrovni, deklarovat proměnné a funkce a používat všechny
-běžné jazykové funkce. Objekt `sound` je jediným spojení programu s
-editorem a každý volání na něm vrací promise.
+Program je tělem funkce `async`, která se spouští v přísném režimu. To znamená, že můžete `await` na nejvyšší úrovni,
+deklarovat proměnné a funkce a používat každou obyčejnou jazykovou funkci. Objekt `sound` je jediným spojením programu s
+editorem a každý volání na něj vrací slib.
 
 ```js
 // Normalize everything, then fade the last two seconds.
@@ -45,84 +41,67 @@ await sound.select.time(2, 0, { relativeTo: 'selection-end' });
 await sound.effect('audacity-fade-out');
 ```
 
-Tab vloží do pole programu dvě mezery. Stisknutím Escape a následně Tab opustíte pole.
+Klávesa Tab vloží do pole programu dvě mezery. Stiskněte Escape a poté Tab pro opuštění pole.
 
-### Co může program používat
+### Co může program použít
 
-Je přítomna běžná standardní knihovna JavaScriptu: `Object`, `Array`, `Map`,
-`Set`, `Math`, `JSON`, `RegExp`, `Promise`, typovaná pole, `Intl`,
-`TextEncoder`, `TextDecoder`, `structuredClone` a `queueMicrotask`. Přítomen je také `console`,
-což znamená, že vše, co je do něj zapsáno, skončí v logu programu.
+Obvyklá JavaScriptová standardní knihovna je přítomna: `Object`, `Array`, `Map`, `Set`, `Math`, `JSON`, `RegExp`, `Promise`, typované pole, `Intl`, `TextEncoder`, `TextDecoder`, `structuredClone` a `queueMicrotask`. `console` je také přítomen a vše, co je do něj napsáno, se objeví v protokolu programu.
 
-### Co program nemůže používat
+### Co program použít nemůže
 
-Program běží ve workeru, jehož schopnosti byly odebrány před spuštěním prvního řádku. Žádná z následujících věcí neexistuje uvnitř programu: `fetch`,
-`XMLHttpRequest`, `WebSocket`, `indexedDB`, `caches`, `crypto`, `navigator`,
-`location`, `Worker`, `WebAssembly`, `SharedArrayBuffer`, `Atomics`, `eval`,
-`setTimeout` a `setInterval`. Čtení kteréhokoli z nich vrací `undefined`.
+Program běží v pracovním procesu, kterému byly odebrány všechny schopnosti před spuštěním první řádky. Žádná z následujících položek neexistuje uvnitř programu: `fetch`, `XMLHttpRequest`, `WebSocket`, `indexedDB`, `caches`, `crypto`, `navigator`, `location`, `Worker`, `WebAssembly`, `SharedArrayBuffer`, `Atomics`, `eval`, `setTimeout` a `setInterval`. Čtení kterékoli z nich vrátí `undefined`.
 
-Program nemůže `import` modul; statické `import` je chyba syntaxe na řádku, který ho obsahuje. Vše, co program potřebuje, musí být v programu.
+Program nemůže `import` modul; statický `import` je syntaktická chyba na řádku, kde se nachází. Vše, co program potřebuje, musí být v programu.
 
-Bezpečnostní hranice nejsou chybějící globální proměnné, ale samotný editor: odpovídá pouze na volání uvedená na této stránce a vše ostatní odmítá podle jména, bez ohledu na to, co se programu podaří poslat.
+Bezpečnostní hranice není definována chybějícími globálními proměnnými, ale samotným editorem: odpovídá pouze voláním uvedeným na této stránce a odmítá vše ostatní podle názvu, bez ohledu na to, co program dokáže poslat.
 
 ## Spuštění programu
 
-Stiskněte **Spustit program**. Celé spuštění je jednou položkou v historii projektu, takže jedno **Zpět** vrátí vše, co program udělal, bez ohledu na to, kolik změn provedl.
-Pokud program vyhodí výjimku, je zrušen nebo běží nad svůj časový limit, projekt se vrátí přesně do stavu, v jakém byl před spuštěním.
+Stiskněte **Spustit program**. Celý spuštěný program představuje jeden záznam v historii projektu, takže jedno **Zrušit** vrátí vše, co program udělal, bez ohledu na počet provedených změn. Pokud program vyhodí výjimku, je zrušen nebo překročí časový limit, projekt se vrátí přesně do stavu před zahájením spuštění.
 
-**Zrušit spuštění** okamžitě zastaví program. Program, který běžel dvě minuty, se zastaví stejným způsobem, se zprávou *Makro běželo déle než 120 sekund.*
+**Zrušit spuštění** okamžitě zastaví program. Program, který běží déle než dvě minuty, je zastaven stejným způsobem s zprávou *Makro běželo déle než 120 sekund.*
 
-Po spuštění zobrazí panel log programu, následovaný zprávou *Program byl aplikován.*
-když spuštění dokončilo. Neúspěšné spuštění zobrazí *Program selhal na řádku N:* a
-zprávu o chybě, kde číslo řádku je řádek vašeho programu, který vyhodil výjimku.
+Po spuštění se v okně zobrazí protokol programu, za nímž následuje *Program byl aplikován.* v případě úspěšného dokončení spuštění. Neúspěšné spuštění zobrazí *Program selhal na řádku N:* a zprávu chyby, kde číslo řádku odpovídá řádku vašeho programu, který vyhodil výjimku.
 
-### Který zvuk efekt zasáhne
+### Který zvukový efekt se dotkne
 
-Efekt aplikovaný programem běží nad aktuálním časovým výběrem na zaměřené stopě, což je stopa, jejíž hlavičku jste naposledy klikli, nebo jejíž klip jste naposledy vybrali. Pokud není žádný časový výběr, ale je vybrán klip, efekt pokrývá tento klip. Volby výběru programu mění časový rozsah a množinu vybraných stop, ale ne to, která stopa je zaměřena, takže jedno spuštění zpracovává jednu stopu. Pokud nic není zaměřeno nebo je výběr prázdný, spuštění selže se stejnou zprávou, jakou dává menu Efekt.
+Efekt aplikovaný programem se spustí na aktuálním výběru času na zaměřené stopě, což je stopa, jejíž záhlaví jste naposledy klikli nebo jejíž klip jste naposledy vybrali. Pokud není vybrán žádný čas, ale je vybrán klip, efekt pokrývá tento klip. Volání výběru programu mění časový rozsah a sadu vybraných stop, ale ne které stopě je zaměřena, takže jeden spuštěný program zpracovává jednu stopu. Pokud není zaměřeno nic nebo je výběr prázdný, spuštění selže se stejnou zprávou, kterou menu Efekt poskytuje.
 
-## API `sound`
+## `sound` API
 
-Každá metoda níže vrací promise, pokud není uvedeno jinak. Každé volání vyčkejte, než provedete další; program, který spustí více než osm volání bez vyčkání, má deváté odmítnuto.
+Každá metoda níže vrací slib, pokud není uvedeno jinak. Každé volání čekejte před provedením dalšího; program, který zahájí více než osm volání bez čekání na jejich dokončení, bude deváté volání odmítnuto.
 
 ### `sound.env`
 
-Běžný objekt popisující spuštění.
+Obyčejný objekt popisující spuštění.
 
 | Pole | Význam |
 | --- | --- |
 | `productId` | `"soundscaper"`. |
 | `locale` | Jazyk rozhraní editoru, například `"en"` nebo `"de"`. |
-| `seed` | Semeno, ze kterého pocházejí náhodná čísla spuštění. Nové pro každé spuštění. |
-| `startedAt` | Čas podle hodin, kdy spuštění začalo, jako řetězec ISO 8601. |
-| `dryRun` | Zatím vždy `false`. Rezervováno. |
+| `seed` | Semínko pro náhodná čísla spuštění. Nové pro každé spuštění. |
+| `startedAt` | Čas zahájení spuštění na stěně, jako řetězec ISO 8601. |
+| `dryRun` | Vždy `false` v současné době. Rezervováno. |
 
 ### `sound.log`
 
-`sound.log.info(...values)`, `sound.log.warn(...values)`,
-`sound.log.error(...values)` a `sound.log.debug(...values)` zapíší každý jeden řádek
-do logu spuštění. `console.log`, `console.info`, `console.warn`,
-`console.error` a `console.debug` dělají totéž. Hodnoty, které nejsou řetězci, se
-zapíší jako JSON. Tyto metody nevracejí nic a nemusí být vyčkány.
+`sound.log.info(...values)`, `sound.log.warn(...values)`, `sound.log.error(...values)` a `sound.log.debug(...values)` zapíšou do protokolu spuštění po jedné řádce. `console.log`, `console.info`, `console.warn`, `console.error` a `console.debug` dělají totéž. Hodnoty, které nejsou řetězci, jsou zapsány jako JSON. Tyto metody nevracejí nic a nemusí být čekány.
 
-Log obsahuje maximálně 1 000 řádků nebo 256 KiB, podle toho, co nastane dříve, a každý řádek
-je oříznut na 4 096 znaků. Řádky nad tuto hranici jsou zahodeny a počítány; počet
-je hlášen jako závěrečné upozornění.
+Protokol uchovává maximálně 1 000 řádků nebo 256 KiB, podle toho, co nastane dříve, a každá řádka je oříznuta na 4 096 znaků. Řádky za tímto limitem jsou vynechány a započítány; počet je hlášen jako konečné varování.
 
 ### `sound.project`
 
-Čtení projektu ho nikdy nemění a nepočítá se proti rozpočtu změn spuštění.
+Čtení projektu ho nikdy nemění a nepočítá se do rozpočtu změn spuštění.
 
-`sound.project.snapshot()` vrací `{ sampleRate, tracks, selection }`, s
-`tracks` a `selection` tak, jak je vrací dvě volání níže. `sampleRate` je
-vzorkovací frekvence projektu v hertzech, což je jednotka, v níž je měřeno každé počítání snímků na této stránce.
+`sound.project.snapshot()` vrátí `{ sampleRate, tracks, selection }`, přičemž `tracks` a `selection` vrátí volání níže. `sampleRate` je vzorkovací frekvence projektu v hertzech, což je to, na čem je měřeno každý počet snímků na této stránce.
 
-`sound.project.tracks()` vrací pole stop v pořadí časové osy:
+`sound.project.tracks()` vrátí pole stop v pořadí časové osy:
 
 ```json
 { "id": "track-…", "name": "Voice", "kind": "audio", "index": 0, "muted": false, "solo": false }
 ```
 
-`sound.project.clips(trackId)` vrací klipy na jednom stopě, nebo na všech stopách, pokud je `trackId` vynechán:
+Metoda `sound.project.clips(trackId)` vrací klipy na jedné stopě, nebo na všech stopách, pokud je `trackId` vynechán:
 
 ```json
 { "id": "clip-…", "name": "Take 1", "startFrame": 0, "durationFrames": 480000 }
@@ -136,51 +115,33 @@ vzorkovací frekvence projektu v hertzech, což je jednotka, v níž je měřeno
 
 ### `sound.select`
 
-Každý volací výběr se počítá jako jedna změna a vrací výběr, který vytvořil,
-v podobě, kterou vrací `sound.project.selection()`.
+Každé volání výběru se počítá jako jedna změna a vrací výběr, který vytvořilo, ve tvaru, který `sound.project.selection()` vrací.
 
-`sound.select.time(start, end, options)` nastaví časový rozsah v sekundách. Jedná se
-o příkaz `SelectTime` v Audacity a `options.relativeTo` určuje, odkud se měří
-každý okraj. Oba okraje mohou být až -100 sekund.
+`sound.select.time(start, end, options)` nastavuje časový rozsah v sekundách. Je to příkaz `SelectTime` programu Audacity a `options.relativeTo` volí, odkud se měří každý okraj. Oba okraje mohou být tak nízké jako -100 sekund.
 
-| `relativeTo` | Začátek okraje | Konec okraje |
+| `relativeTo` | Okraj začátku | Okraj konce |
 | --- | --- | --- |
 | `'project-start'` (výchozí) | `start` sekund od začátku projektu | `end` sekund od začátku projektu |
-| `'project'` | `start` sekund od začátku projektu | `end` sekund za koncem projektu |
+| `'project'` | `start` sekund od začátku projektu | `end` sekund po konci projektu |
 | `'project-end'` | `start` sekund před koncem projektu | `end` sekund před koncem projektu |
 | `'selection-start'` | `start` sekund po začátku výběru | `end` sekund po začátku výběru |
 | `'selection'` | `start` sekund po začátku výběru | `end` sekund po konci výběru |
 | `'selection-end'` | `start` sekund před koncem výběru | `end` sekund před koncem výběru |
 
-Konec projektu je poslední snímek, kterého dosáhne jakýkoli klip. Vybrané stopy zůstanou
-nezměněné.
+Konec projektu je poslední rámec, kterého jakýkoli klip dosahuje. Vybrané stopy zůstávají tak, jak byly.
 
-`sound.select.frames(startFrame, endFrame, options)` nastaví časový rozsah v
-snímcích při vzorkovací frekvenci projektu. `options.trackIds` určuje stopy, které se
-mají vybrat; pokud je vynechán, vybrané zůstanou stopy, které jsou již vybrány.
-Rozsah je omezen na časovou osu a okraje jsou vyměněny, pokud jsou obráceny.
+`sound.select.frames(startFrame, endFrame, options)` nastavuje časový rozsah v bodech při vzorkovací frekvenci projektu. `options.trackIds` pojmenovává stopy, které je třeba vybrat; když je opomenuto, zůstanou vybrány již vybrané stopy. Rozsah je omezen na časovou osu a okraje jsou vyměněny, pokud jsou obráceny.
 
-`sound.select.tracks(options)` je příkaz `SelectTracks` v Audacity. Vybere
-stopy, jejichž index (počítán od 0) je v rozsahu od `options.track`
-(výchozí 0) pokrývající `options.trackCount` stop (výchozí 1). `options.mode` je
-`'set'` pro nahrazení výběru stop, `'add'` pro jeho rozšíření nebo `'remove'` pro
-vyloučení těchto stop z něj. Časový rozsah zůstává nezměněn.
+`sound.select.tracks(options)` je příkaz `SelectTracks` programu Audacity. Vybírá stopy, jejichž index (počítaný od 0) je v rozsahu od `options.track` (výchozí hodnota 0) po `options.trackCount` stop (výchozí hodnota 1). `options.mode` je `'set'` pro nahrazení výběru stop, `'add'` pro rozšíření výběru nebo `'remove'` pro vyjmutí těchto stop z výběru. Časový rozsah zůstává takový, jaký byl.
 
-`sound.select.frequencies(options)` je příkaz `SelectFrequencies` v Audacity.
-Nastaví spektrální výběr na `options.low` a `options.high` v hertzech;
-okraj, který vynecháte, si zachová svou aktuální hodnotu.
+`sound.select.frequencies(options)` je příkaz `SelectFrequencies` programu Audacity. Nastavuje spektrální výběr na `options.low` a `options.high` v hertzech; okraj, který opomenete, si ponechá svou aktuální hodnotu.
 
-`sound.select.all()` vybere celý projekt na všech stopách.
-`sound.select.none()` zruší výběr.
+`sound.select.all()` vybírá celý projekt na každé stopě.
+`sound.select.none()` maže výběr.
 
 ### `sound.effect(type, params)`
 
-Použije jeden efekt na aktuální výběr na zaměřené stopě. `type` je
-ID efektu z [Efekty, které může program použít](#effects-a-program-can-apply),
-a `params` je objekt parametrů tohoto efektu. Parametry, které vynecháte, nabudou
-výchozích hodnot efektu; hodnoty jsou ověřovány podle rozsahů v
-[referenci zvukových efektů](/reference/generated/audio-effects/). Vyhodnotí se na
-`null`.
+Použije jeden efekt na aktuální výběr, na zaměřené stopě. `type` je ID efektu z [Efekty, které může program použít](#effects-a-program-can-apply) a `params` je objekt parametrů tohoto efektu. Parametry, které opomenete, si vezmou výchozí hodnoty efektu; hodnoty jsou zkontrolovány proti rozsahům v [referenci audio efektů](/reference/generated/audio-effects/). Rozliší se na `null`.
 
 ```js
 await sound.effect('audacity-amplify', { gainDb: -3 });
@@ -188,7 +149,7 @@ await sound.effect('audacity-amplify', { gainDb: -3 });
 
 ### `sound.effects(steps)`
 
-Použije řetězec efektů na aktuální výběr v jednom průchodu, přesně tak, jak by to udělala makro se seznamem kroků s těmito kroky. Každý krok je `{ type, params }`, a řetězec vyžaduje alespoň jeden krok. Vyhodnotí se na `null`.
+Použije řetězec efektů na aktuální výběr v jednom kroku, přesně tak, jak by to udělal makro se seznamem kroků s těmito kroky. Každý krok je `{ type, params }` a řetězec musí mít alespoň jeden krok. Vyřeší se `null`.
 
 ```js
 await sound.effects([
@@ -200,8 +161,9 @@ await sound.effects([
 
 ### `sound.command(name, params)`
 
-Spustí jeden z makro příkazů Audacity uvedených v sekci
-[Příkazy, které může program spustit](#commands-a-program-can-run). Čtyři příkazy pro výběr přijímají parametry popsané v této sekci; ostatní žádné parametry nepřijímají. Následně se vyhodnotí na aktuální výběr.
+Spustí jednu z makro příkazů Audacity uvedených v části
+[Příkazy, které může program spustit](#commands-a-program-can-run). Čtyři příkazy pro výběr
+berou parametry popsané tam; ostatní žádné. Vrátí výběr poté.
 
 ```js
 await sound.command('SelectTime', { start: 0, end: 5 });
@@ -210,31 +172,28 @@ await sound.command('Trim');
 
 ### `sound.runSaved(name)`
 
-Spustí makro se seznamem kroků uložené ve stejném správci makr podle jeho přesného názvu,
-včetně všech příkazů pro výběr, které obsahuje. Uložené makro samo o sobě nemůže být
-programem, takže programy se nenestují. Vyřeší se na `null`; neznámý název je zamítnut.
+Spustí makro seznamu kroků uložené ve stejném správci makro, přesně podle jeho názvu,
+včetně jakýchkoli příkazů výběru, které obsahuje. Uložené makro nemůže samo o sobě být programem, takže programy se nehnízdí. Rozliší se na `null`; neznámý název je zamítnut.
 
 ### Čas a náhoda
 
-Provedení je reprodukovatelné: dvě provedení stejného programu nad stejným projektem čtou
-stejné hodnoty, protože hodiny a náhodná čísla nepatří stroji.
+Spustit je reprodukovatelné: dva spustit stejného programu na stejném projektu čtou
+stejné, protože hodiny a náhodná čísla nejsou od stroje. 
 
 `Date.now()` a `new Date()` bez argumentů vrací virtuální hodiny, které
-začínají na 0 a posouvají se o jedno pro každou zodpovězenou volání editoru a o
-`ms` pro každé `sound.wait(ms)`. `sound.wait` se vyřeší okamžitě; neexistuje
-žádný způsob, jak by program mohl čekat na reálný čas, a není to potřeba, protože každé volání
-editoru se dokončí, než se jeho slib vyřeší.
+začínají na 0 a posunou se o jednu pro každou zodpovězenou výzvu editoru, a o
+`ms` pro každou `sound.wait(ms)`. `sound.wait` se okamžitě vyřeší; neexistuje
+žádný způsob, jak program pozastavit pro skutečný čas, a žádný není potřeba, protože každá výzva
+editoru je dokončena před tím, než se jeho slib vyřeší.
 
-`Math.random()` a `sound.random()` jsou stejný generátor, se semínkem z
-`sound.env.seed`. Zaznamenejte semínko, pokud potřebujete vědět, kterou posloupnost provedení použilo.
+`Math.random()` a `sound.random()` jsou stejný generátor, zasazený ze
+`sound.env.seed`. Zaznamenejte semínko, pokud potřebujete vědět, která sekvence byla použita pro spustit.
 
 ### Kontrola vašich předpokladů
 
-`sound.assert(condition, message)` vyhodí `message`, když `condition` je false.
-`sound.assertEqual(actual, expected, message)` porovná dvě hodnoty jako JSON
-a vyhodí výjimku, když se liší, se zprávou, která pojmenuje obě hodnoty, pokud žádnou
-neposkytnete. Protože vyhozená chyba ukončí provedení a vrátí vše před ní zpět, neúspěšná
-asercce ponechá projekt nedotčený. Žádná z metod nevrací slib.
+`sound.assert(condition, message)` hodí `message` když `condition` je nepravdivé.
+`sound.assertEqual(actual, expected, message)` porovnává dvě hodnoty jako JSON
+a hodí, když se liší, s zprávou, která pojmenuje obě hodnoty, pokud žádnou nedáte. Protože chyba vržená ukončí spustit a vrátí všechno před ním, neúspěšné tvrzení ponechá projekt nezměněný. Žádná z metod nevrátí slib.
 
 ```js
 const tracks = await sound.project.tracks();
@@ -244,40 +203,40 @@ const selection = await sound.project.selection();
 sound.assertEqual(selection.trackIds.length, tracks.length, 'Select all should cover every track.');
 ```
 
-## Hodnoty přecházející do editoru
+## Hodnoty, které přecházejí do editoru
 
-Každý argument, který program předá, a každá hodnota, kterou přijme, jsou prostá data:
-`null`, booleovské hodnoty, konečná čísla, řetězce a pole a prosté objekty
-z těchto typů. `NaN`, `Infinity`, funkce, instance tříd, typovaná pole a `Date`
-objekty jsou odmítnuty s chybou, stejně jako jakákoliv hodnota větší než 1 MiB, vnořená hlouběji než
-12 úrovní, nebo obsahující více než 4 096 položek v jednom poli nebo objektu.
-Vlastnosti `undefined` jsou odstraněny.
+Každý argument, který program předává, a každá hodnota, kterou přijímá, jsou prostá data: 
+`null`, logické hodnoty, konečná čísla, řetězce a pole a jednoduché objekty
+techto. `NaN`, `Infinity`, funkce, instance tříd, typizovaná pole a `Date`
+objekty jsou odmítnuty s chybou, stejně jako jakákoli hodnota větší než 1 MiB, vnořená více
+ež 12 úrovní hluboko, nebo obsahující více než 4 096 položek v jednom poli nebo objektu. 
+`undefined` vlastnosti jsou ignorovány.
 
 ## Omezení
 
 | Omezení | Hodnota |
 | --- | --- |
 | Délka programu | 256 KiB |
-| Volání do editoru za běh | 4 096 |
-| Změny projektu za běh (volání výběru, efekty, příkazy) | 256 |
-| Volání čekající na odpověď najednou | 8 |
-| Doba běhu | 120 sekund |
-| Jedna hodnota přecházející do editoru nebo z něj | 1 MiB, 12 úrovní hloubky, 4 096 položek na pole nebo objekt |
+| Volání editoru za spuštění | 4 096 |
+| Změny v projektu za spuštění (výběry, efekty, příkazy) | 256 |
+| Čekající volání najednou | 8 |
+| Doba spuštění | 120 sekund |
+| Jedna hodnota přecházející do nebo z editoru | 1 MiB, 12 úrovní hluboko, 4 096 položek na pole nebo objekt |
 | Protokol | 1 000 řádků nebo 256 KiB; 4 096 znaků na řádek |
 | Programy v knihovně | 128 |
 | Název programu | 256 znaků |
-| Soubor importovaného programu | 1 MiB |
+| Importovaný soubor programu | 1 MiB |
 
 Smyčka, která vybere každý klip a aplikuje jeden efekt, spotřebuje dvě změny na
-klip, takže může pokrýt 128 klipů, než se rozpočet vyčerpá.
+klip, takže může pokrýt 128 klipů, než rozpočet vyprší.
 
 ## Chyby
 
-Volání, které editor odmítne, zamítne svůj slib s `Error`, jehož `message`
+Volání, které editor odmítne, odmítne svůj slib s `Error`, jehož `message`
 uvádí důvod: příkaz mimo slovní zásobu, efekt nad prázdným výběrem,
 parametr mimo rozsah. Chyba také nese `code`, který je
 `MACRO_CALL_FAILED`, pokud editor neposkytl konkrétnější. Program
-je může chytit a pokračovat:
+může tyto chyby zachytit a pokračovat:
 
 ```js
 try {
@@ -287,107 +246,97 @@ try {
 }
 ```
 
-Tento program se dokončí a jeho protokol obsahuje *refused: Unsupported macro command:
+Program dokončí a jeho protokol bude obsahovat *odmítnuto: Nepodporovaný makro příkaz:
 ExportWav.*
 
-Chybu, kterou program nezachytí, ukončí běh, vrátí projekt do předchozího stavu a zobrazí se v panelu spolu s řádkem, ze kterého pochází. Program, který se nepodačí zkompilovat, se hlásí stejným způsobem před spuštěním.
+Chyba, kterou program nechytí, ukončí běh, vrátí projekt zpět a bude
+zobrazen v panelu s řádkem, ze kterého pochází. Program, který se nepodaří zkompilovat,
+je hlášen stejným způsobem před spuštěním jakékoli části.
 
-## Efekty, které může program aplikovat {#effects-a-program-can-apply}
+## Efekty, které může program použít {#effects-a-program-can-apply}
 
-Tyto jsou identifikátory efektů, které přijímají `sound.effect` a `sound.effects`, včetně klíčů parametrů, které každý z nich přijímá, a jejich výchozích hodnot. Rozsahy a jednotky jsou uvedeny v [referenci k audio efektům](/reference/generated/audio-effects/). Plug-iny Nyquist nelze aplikovat z programu.
+Toto jsou ID efektů `sound.effect` a `sound.effects`, které přijímají,
+spolu s klíči parametrů, které každý z nich bere a jejich výchozími hodnotami. Rozsahy a jednotky
+sou v [referenci audio efektů](/reference/generated/audio-effects/). Plug-iny Nyquist
+elze použít z programu.
 
 | Efekt | ID efektu | Parametry a výchozí hodnoty |
 | --- | --- | --- |
-| Zesílení | `audacity-amplify` | `gainDb: 0`, `allowClipping: false` |
-| Automatické utlumení | `audacity-auto-duck` | `duckAmountDb: -12`, `innerFadeDown: 0`, `innerFadeUp: 0`, `outerFadeDown: 0.5`, `outerFadeUp: 0.5`, `thresholdDb: -30`, `maximumPause: 1` |
-| Bas a výšky | `audacity-bass-treble` | `bassDb: 0`, `trebleDb: 0`, `volumeDb: 0` |
+| Zvětšit | `audacity-amplify` | `gainDb: 0`, `allowClipping: false` |
+| Automatická kachna | `audacity-auto-duck` | `duckAmountDb: -12`, `innerFadeDown: 0`, `innerFadeUp: 0`, `outerFadeDown: 0.5`, `outerFadeUp: 0.5`, `thresholdDb: -30`, `maximumPause: 1` |
+| Basy a výšku | `audacity-bass-treble` | `bassDb: 0`, `trebleDb: 0`, `volumeDb: 0` |
 | Bitcrusher | `bitcrusher` | `bitDepth: 8`, `downsampling: 1`, `dither: 'none'`, `interpolation: 'sample-hold'`, `mix: 100` |
-| Změna výšky tónu | `audacity-change-pitch` | `semitones: 0`, `preserveFormants: true` |
-| Změna rychlosti a výšky tónu | `audacity-change-speed-pitch` | `speedPercent: 0` |
+| Změna tóniny | `audacity-change-pitch` | `semitones: 0`, `preserveFormants: true` |
+| Změna rychlosti a tóniny | `audacity-change-speed-pitch` | `speedPercent: 0` |
 | Změna tempa | `audacity-change-tempo` | `tempoPercent: 0` |
 | Klasické filtry | `audacity-classic-filters` | `family: 'butterworth'`, `direction: 'lowpass'`, `order: 1`, `cutoffHz: 1000`, `passbandRippleDb: 1`, `stopbandAttenuationDb: 30` |
-| Odstranění klikání | `audacity-click-removal` | `threshold: 200`, `maximumWidth: 20` |
-| Kompressor | `compressor` | `threshold: -24`, `knee: 30`, `ratio: 4`, `attack: 0.003`, `release: 0.25`, `makeupGain: 0` |
-| Kompressor (Audacity) | `audacity-compressor` | `thresholdDb: -10`, `makeupGainDb: 0`, `kneeWidthDb: 5`, `ratio: 10`, `lookaheadMs: 1`, `attackMs: 30`, `releaseMs: 150` |
+| Odstranění kliku | `audacity-click-removal` | `threshold: 200`, `maximumWidth: 20` |
+| Kompresor | `audacity-compressor` | `thresholdDb: -10`, `makeupGainDb: 0`, `kneeWidthDb: 5`, `ratio: 10`, `lookaheadMs: 1`, `attackMs: 30`, `releaseMs: 150` |
 | Zpoždění | `delay` | `time: 0.25`, `feedback: 0.3`, `mix: 0.2` |
 | Zkreslení | `audacity-distortion` | `mode: 'hard-clipping'`, `dcBlock: false`, `thresholdDb: -6`, `noiseFloorDb: -70`, `parameter1: 50`, `parameter2: 50`, `repeats: 1` |
-| Echa | `audacity-echo` | `delaySeconds: 1`, `decay: 0.5` |
-| Plynulé zesílení | `audacity-fade-in` | žádné |
-| Plynulé zeslabení | `audacity-fade-out` | žádné |
-| EQ křivky filtru | `audacity-filter-curve-eq` | `points`: pole `{ frequency, gain }`, výchozí dvě ploché body na 20 Hz a 20 kHz; `linearFrequencyScale: false`; `filterLength: 8191` |
-| Čtyřpásmový parametrický EQ | `eq` | `outputGain: 0`; `bands`: čtyři objekty `{ id, enabled, type, frequency, gain, q, slope }`, s vrcholy na 100, 500, 2000 a 8000 Hz s `gain: 0`, `q: 1`, `slope: 12` |
+| Ozvěna | `audacity-echo` | `delaySeconds: 1`, `decay: 0.5` |
+| Vyblednutí | `audacity-fade-in` | žádné |
+| Vyblednutí | `audacity-fade-out` | žádné |
+| Filtr křivky EQ | `audacity-filter-curve-eq` | `points`: pole `{ frequency, gain }`, výchozí dvě ploché body při 20 Hz a 20 kHz; `linearFrequencyScale: false`; `filterLength: 8191` |
+| Čtyřpásmový parametr. EQ | `eq` | `outputGain: 0`; `bands`: čtyři `{ id, enabled, type, frequency, gain, q, slope }` objekty, vrcholící při 100, 500, 2000 a 8000 Hz s `gain: 0`, `q: 1`, `slope: 12` |
 | Brána | `gate` | `threshold: -50`, `attack: 0.005`, `hold: 0.05`, `release: 0.1`, `rangeDb: -80` |
-| Grafický EQ | `audacity-graphic-eq` | `gains`: zisky 31 pásem v dB, všechny 0; `interpolation: 'bspline'`; `filterLength: 8191` |
-| Filtr vysokých frekvencí | `highpass` | `frequency: 80`, `q: 0.707` |
+| Grafické EQ | `audacity-graphic-eq` | `gains`: 31 zisků pásem v dB, všechny 0; `interpolation: 'bspline'`; `filterLength: 8191` |
+| Vysokopásmový filtr | `highpass` | `frequency: 80`, `q: 0.707` |
 | Invertovat | `audacity-invert` | žádné |
-| Kompressor (starší verze) | `audacity-legacy-compressor` | `thresholdDb: -12`, `noiseFloorDb: -40`, `ratio: 2`, `attackSeconds: 0.2`, `releaseSeconds: 1`, `normalize: true`, `usePeak: false` |
-| Omezovač | `limiter` | `ceiling: -1`, `lookahead: 0.005`, `release: 0.1` |
-| Omezovač (Audacity) | `audacity-limiter` | `thresholdDb: -5`, `makeupTargetDb: -1`, `kneeWidthDb: 2`, `lookaheadMs: 1`, `releaseMs: 20` |
+| Kompresor (starý) | `audacity-legacy-compressor` | `thresholdDb: -12`, `noiseFloorDb: -40`, `ratio: 2`, `attackSeconds: 0.2`, `releaseSeconds: 1`, `normalize: true`, `usePeak: false` |
+| Limitér | `audacity-limiter` | `thresholdDb: -5`, `makeupTargetDb: -1`, `kneeWidthDb: 2`, `lookaheadMs: 1`, `releaseMs: 20` |
 | Normalizace hlasitosti | `audacity-loudness-normalization` | `mode: 'lufs'`, `targetLufs: -23`, `targetRmsDb: -20`, `stereoIndependent: false`, `dualMono: true` |
-| Filtr nízkých frekvencí | `lowpass` | `frequency: 18000`, `q: 0.707` |
-| Redukce šumu | `audacity-noise-reduction` | `reductionDb: 6`, `sensitivity: 6`, `frequencySmoothingBands: 6`, `output: 'reduce'` |
-| Normalizace | `audacity-normalize` | `peakDb: -1`, `removeDc: true`, `applyGain: true`, `stereoIndependent: false` |
+| Nízkopásmový filtr | `lowpass` | `frequency: 18000`, `q: 0.707` |
+| Snížení šumu | `audacity-noise-reduction` | `reductionDb: 6`, `sensitivity: 6`, `frequencySmoothingBands: 6`, `output: 'reduce'` |
+| Normalizovat | `audacity-normalize` | `peakDb: -1`, `removeDc: true`, `applyGain: true`, `stereoIndependent: false` |
 | Paulstretch | `audacity-paulstretch` | `stretchFactor: 10`, `timeResolution: 0.25` |
-| Fázový modulátor | `audacity-phaser` | `stages: 2`, `dryWet: 128`, `frequency: 0.4`, `phaseDegrees: 0`, `depth: 100`, `feedbackPercent: 0`, `outputGainDb: -6` |
-| Odstranění DC posunu | `audacity-remove-dc-offset` | žádné |
+| Fázový posun | `audacity-phaser` | `stages: 2`, `dryWet: 128`, `frequency: 0.4`, `phaseDegrees: 0`, `depth: 100`, `feedbackPercent: 0`, `outputGainDb: -6` |
+| Odstranění DC offsetu | `audacity-remove-dc-offset` | žádné |
 | Oprava | `audacity-repair` | žádné |
 | Opakování | `audacity-repeat` | `count: 1` |
-| Reverberace | `reverb` | `mix: 0.2`, `decay: 2`, `preDelay: 0.01` |
+| Reverb | `reverb` | `mix: 0.2`, `decay: 2`, `preDelay: 0.01` |
 | Reverb (Audacity) | `audacity-reverb` | `roomSize: 75`, `preDelay: 10`, `reverberance: 50`, `damping: 50`, `toneLow: 100`, `toneHigh: 100`, `wetGainDb: -6`, `dryGainDb: 0`, `stereoWidth: 100`, `wetOnly: false` |
-| Reverse | `audacity-reverse` | žádné |
-| Sliding Stretch | `audacity-sliding-stretch` | `startTempoPercent: 0`, `endTempoPercent: 0`, `startPitchSemitones: 0`, `endPitchSemitones: 0`, `preserveFormants: true` |
-| Truncate Silence | `audacity-truncate-silence` | `thresholdDb: -20`, `action: 'truncate'`, `minimumSilence: 0.5`, `truncateTo: 0.5`, `compressPercent: 50`, `independent: false` |
-| Utility Gain (Reviewed) | `reviewed-utility-gain` | `gain: 1` |
+| Obrátit | `audacity-reverse` | žádné |
+| Skluzové natažení | `audacity-sliding-stretch` | `startTempoPercent: 0`, `endTempoPercent: 0`, `startPitchSemitones: 0`, `endPitchSemitones: 0`, `preserveFormants: true` |
+| Ořezat ticho | `audacity-truncate-silence` | `thresholdDb: -20`, `action: 'truncate'`, `minimumSilence: 0.5`, `truncateTo: 0.5`, `compressPercent: 50`, `independent: false` |
+| Získat užitečnost (zkontrolováno) | `reviewed-utility-gain` | `gain: 1` |
 | Wahwah | `audacity-wahwah` | `frequency: 1.5`, `phaseDegrees: 0`, `depthPercent: 70`, `resonance: 2.5`, `frequencyOffsetPercent: 30`, `outputGainDb: -6` |
 
-Dvě efekty vyžadují něco, co program nemůže poskytnout. Odstranění šumu vyžaduje
-profil šumu zachycený ve vlastním dialogu efektu a Auto Duck vyžaduje ovládací stopu
-pod zaměřenou stopou.
+Dva efekty vyžadují něco, co program nemůže poskytnout. Redukce šumu potřebuje profil šumu zachycený v dialogu samotného efektu a automatické kachny potřebují řídicí stopu pod zaměřenou. 
 
 ## Příkazy, které může program spustit {#commands-a-program-can-run}
 
-`sound.command` přijímá níže uvedené názvy příkazů makra Audacity. Jsou to
-stejné názvy, které může obsahovat makro se seznamem kroků, takže program a seznam kroků
-mají přesně stejný rozsah. Každý příkaz spustí akci editoru, kterou popisuje
-[reference příkazů](/reference/generated/commands/).
+`sound.command` přijímá následující názvy makropříkazů Audacity. Jsou to stejné názvy, které může obsahovat seznam kroků makra, takže program a seznam kroků mají přesně stejný dosah. Každý příkaz spouští editorovou akci, kterou popisuje [odkaz na příkazy](/reference/generated/commands/).
 
 ### Příkazy výběru s parametry
 
 | Příkaz | Parametry |
 | --- | --- |
-| `SelectTime` | `start`, `end` v sekundách; `relativeTo` jako u `sound.select.time` |
-| `SelectFrequencies` | `low`, `high` v hertzích |
+| `SelectTime` | `start`, `end` v sekundách; `relativeTo` jako pro `sound.select.time` |
+| `SelectFrequencies` | `low`, `high` v hertzech |
 | `SelectTracks` | `track`, `trackCount` (0 až 100); `mode` z `'set'`, `'add'` nebo `'remove'` |
-| `Select` | Libovolná kombinace výše uvedených tří sad |
+| `Select` | Jakákoliv kombinace výše uvedených tří sad |
 
-Parametr, který vynecháte, ponechá danou část výběru beze změny, což je také způsob, jak je
-Audacity interpretuje.
+Parametr, který vynecháte, ponechá příslušnou část výběru beze změny, což je také způsob, jakým Audacity tyto parametry čte.
 
 ### Příkazy bez parametrů
 
 | Skupina | Příkazy |
 | --- | --- |
 | Výběr | `SelectAll`, `SelectNone`, `SelCursorStoredCursor`, `SelTrackStartToEnd`, `SelCursorToTrackEnd`, `SelPrevClip`, `SelNextClip`, `ZeroCross` |
-| Úpravy | `Cut`, `Copy`, `Paste`, `Delete`, `Duplicate`, `Split`, `SplitNew`, `Join`, `Disjoin`, `Trim`, `Silence`, `SplitCut`, `SplitDelete` |
-| Stopy | `NewMonoTrack`, `NewStereoTrack`, `NewLabelTrack`, `RemoveTracks`, `MixAndRender`, `SortByName`, `SortByTime` |
+| Úprava | `Cut`, `Copy`, `Paste`, `Delete`, `Duplicate`, `Split`, `SplitNew`, `Join`, `Disjoin`, `Trim`, `Silence`, `SplitCut`, `SplitDelete` |
+| Stopky | `NewMonoTrack`, `NewStereoTrack`, `NewLabelTrack`, `RemoveTracks`, `MixAndRender`, `SortByName`, `SortByTime` |
 | Popisky | `AddLabel` |
 | Analýza | `FindClipping`, `ContrastAnalyser`, `PlotSpectrum`, `RepeatLastEffect` |
 
-### Co je záměrně chybí
+### Co záměrně chybí
 
-`Undo` a `Redo` chybí, protože běh je již jednou položkou historie a
-krok procházející historií by zasáhl za běh do vašich vlastních úprav.
-Příkazy přehrávání a nahrávání chybí, protože program nemá na co čekat a nelze ho
-zpětně vyjmout z nahrávání. Otevírání, ukládání, zavírání, import, export a nastavení
-chybí, protože rozsah programu je ten jeden projekt, který byl otevřen při jeho spuštění.
-Příkazy, které pouze otevřou dialog nebo změní zobrazení, chybí, protože nic v projektu
-nezmění.
+`Undo` a `Redo` chybí, protože jedno spuštění je již jeden záznam historie a krok, který prochází historií, by se dostal za spuštění do vlastních úprav.
+Přepravní a záznamové příkazy chybí, protože program nemá nic na čekání a nemůže být vrácen zpět ze záznamu. Otevírání, ukládání, zavírání, dovozy, vývozy a preference chybí, protože dosah programu je pouze jeden projekt, který byl otevřen, když začal. Příkazy, které pouze otevírají dialog nebo mění zobrazení, chybí, protože nic nezmění v projektu.
 
 ## Sdílení programů {#sharing-programs}
 
-**Export programu** zapíše vybraný program jako soubor `.soundscapemacro`, a
-**Import programu** ho přečte. Soubor je ve formátu JSON, nikoli holý soubor `.js`, takže
-nic na přijímajícím počítači ho nepřemění za něco, co má být spuštěno mimo editor:
+**Export programu** zapíše vybraný program jako soubor `.soundscapemacro` a **Import programu** jej přečte. Soubor je ve formátu JSON, nikoli v čistém formátu `.js`, takže nic na cílovém počítači jej nespustí mimo editor:
 
 ```json
 {
@@ -399,22 +348,13 @@ nic na přijímajícím počítači ho nepřemění za něco, co má být spušt
 }
 ```
 
-Importování uloží pouze text a nic dalšího. Importovaný program nemá tlačítko **Spustit
-program**; na jeho místě panel zobrazuje program, soubor, ze kterého pochází,
-poznámku o tom, co může program udělat s otevřeným projektem, a zaškrtávací
-políčko s textem *Přečetl jsem si tento program a chci ho spustit.* Zaškrtnutím
-tohoto políčka se aktivuje možnost **Povolit tento program** a teprve pak lze
-program spustit.
+Importování ukládá text a nic víc. Importovaný program nemá tlačítko **Spustit program**; místo toho panel zobrazuje program, soubor, ze kterého pochází, poznámku o tom, co program může udělat s otevřeným projektem, a zaškrtávací políčko *Přečetl jsem tento program a chci ho spustit*. Zaškrtnutím se aktivuje **Povolit tento program** a teprve poté může program běžet.
 
-Toto oprávnění platí pro přesný text, který jste přečetli. Pokud se program
-později změní, ať už ho upravíte, nebo nad něj importujete novější kopii,
-kontrola se znovu zobrazí, dokud nepovolíte nový text. Programy, které si
-v správči sami napíšete, nevyžadují kontrolu.
+Toto oprávnění platí přesně pro text, který jste četli. Pokud se program později změní, ať už jej upravíte nebo importujete novější kopii, objeví se opět přezkum, dokud neaktivujete nový text. Programy, které napíšete v manažeru sami, nepotřebují přezkum.
 
 ## Příklady
 
-Zjemnit každý klip na první stopě, která nějaké klipy obsahuje. Před spuštěním
-klikněte na hlavičku této stopy, aby efekt zasáhl stopu, kterou program čte:
+Vybledněte všechny klipy na první stopě, která má nějaký. Před spuštěním klikněte na záhlaví této stopy, aby se efekt aplikoval na stopu, kterou program čte:
 
 ```js
 let target = null;
@@ -436,7 +376,7 @@ for (const clip of clips) {
 }
 ```
 
-Nahlásit na projekt bez jeho změny:
+Nahlásit projekt bez jeho změny:
 
 ```js
 const { sampleRate, tracks } = await sound.project.snapshot();
@@ -447,7 +387,7 @@ for (const track of tracks) {
 }
 ```
 
-Spusťte makro se uloženým seznamem kroků pouze tehdy, když je výběr dostatečně dlouhý:
+Spusťte uloženou makro se seznamem kroků pouze v případě, že je výběr dostatečně dlouhý:
 
 ```js
 const { startFrame, endFrame } = await sound.project.selection();
@@ -458,6 +398,4 @@ await sound.runSaved('Episode finish');
 
 ## O této stránce
 
-Každý program na této stránce, od jednořádkových úryvků po ukázkové příklady,
-se spouští u každé sestavení Soundscaper prostřednictvím sadou testů prohlížeče
-(`tests/browser/handbook-macro-program-examples.spec.js`), která čte programy přímo z textu této stránky. Program, který přestane dokončovat, nebo přestane produkovat to, co tato stránka uvádí, že produkuje, způsobí selhání sestavení, dokud není stránka nebo editor opravena.
+Každý program na této stránce, od jednorázových úryvků po zpracované příklady, je spuštěn proti každé verzi Soundscaperu prohlížečovou sadou testů (`tests/browser/handbook-macro-program-examples.spec.js`), která čte programy z textu této stránky. Program, který přestane dokončovat nebo přestane produkovat to, co tato stránka uvádí, že produkuje, selže při sestavení, dokud nebude stránka nebo editor opraven.
