@@ -2,20 +2,19 @@
 
 /** Copy-verify-settings-swap relocation for a complete authenticated model store. */
 
-import { createHash } from 'node:crypto';
-import { createReadStream, constants as fsConstants } from 'node:fs';
+import { constants as fsConstants } from 'node:fs';
 import {
 	copyFile,
 	lstat,
 	mkdir,
-	open,
 	readdir,
 	rm,
 } from 'node:fs/promises';
 import { dirname, isAbsolute, join, relative, resolve, sep } from 'node:path';
 
 import { LocalModelCapacity } from './local-model-capacity.ts';
-import { FileLocalModelStore, isLocalModelDirectorySyncErrorBenign } from './local-model-store.ts';
+import { FileLocalModelStore } from './local-model-store.ts';
+import { digestLocalModelFile, syncLocalModelPath } from './local-model-file-io.ts';
 
 const STORE_DIRECTORIES = Object.freeze(['blobs', 'manifests', 'staging'] as const);
 const BLOB_NAME_PATTERN = /^sha256-([a-f\d]{64})$/u;
@@ -90,24 +89,6 @@ async function assertAbsent(path: string): Promise<void> {
 	}
 }
 
-async function digestOf(path: string): Promise<string> {
-	const hash = createHash('sha256');
-	for await (const chunk of createReadStream(path)) hash.update(chunk as Uint8Array);
-	return hash.digest('hex');
-}
-
-async function syncPath(path: string): Promise<void> {
-	let handle = null;
-	try {
-		handle = await open(path, 'r');
-		await handle.sync();
-	} catch (error) {
-		if (!isLocalModelDirectorySyncErrorBenign(error)) throw error;
-	} finally {
-		await handle?.close().catch(() => undefined);
-	}
-}
-
 function validOwnedFile(directory: typeof STORE_DIRECTORIES[number], name: string): boolean {
 	if (directory === 'blobs') return BLOB_NAME_PATTERN.test(name);
 	if (directory === 'manifests') return MODEL_MANIFEST_PATTERN.test(name);
@@ -143,7 +124,7 @@ async function authenticateStoreSnapshot(store: FileLocalModelStore): Promise<St
 			if (!metadata.isFile() || metadata.isSymbolicLink()) {
 				throw new Error('A local-model relocation source file is not regular.');
 			}
-			const sha256 = await digestOf(absolutePath);
+			const sha256 = await digestLocalModelFile(absolutePath);
 			if (directory === 'blobs' && BLOB_NAME_PATTERN.exec(entry.name)?.[1] !== sha256) {
 				throw new Error(`The local-model source blob ${entry.name} does not match its digest name.`);
 			}
@@ -204,10 +185,10 @@ async function copySnapshot(
 		const destination = join(target.rootPath, file.relativePath);
 		await copyFileImpl(join(source.rootPath, file.relativePath), destination, fsConstants.COPYFILE_EXCL);
 		consume(file.byteLength);
-		await syncPath(destination);
+		await syncLocalModelPath(destination);
 	}
-	for (const directory of STORE_DIRECTORIES) await syncPath(join(target.rootPath, directory));
-	await syncPath(target.rootPath);
+	for (const directory of STORE_DIRECTORIES) await syncLocalModelPath(join(target.rootPath, directory));
+	await syncLocalModelPath(target.rootPath);
 }
 
 /**

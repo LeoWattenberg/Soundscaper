@@ -2,13 +2,13 @@
 
 /** Explicit zero-network installation and reconciliation for offline model seeds. */
 
-import { createHash } from 'node:crypto';
-import { createReadStream, constants as fsConstants } from 'node:fs';
+import { constants as fsConstants } from 'node:fs';
 import { copyFile, lstat, rm } from 'node:fs/promises';
 import { isAbsolute, join, resolve } from 'node:path';
 
 import { LocalModelCapacity } from './local-model-capacity.ts';
 import type { InstalledLocalModel, FileLocalModelStore, LocalModelArtifact } from './local-model-store.ts';
+import { digestLocalModelFile } from './local-model-file-io.ts';
 
 const FILE_NAME_PATTERN = /^[A-Za-z\d](?:[A-Za-z\d._-]{0,158}[A-Za-z\d])?$/u;
 
@@ -52,16 +52,6 @@ function errorCode(error: unknown): string | undefined {
 	return typeof error === 'object' && error !== null && 'code' in error
 		? String((error as { code?: unknown }).code)
 		: undefined;
-}
-
-async function digestOf(path: string, signal?: AbortSignal): Promise<string> {
-	const digest = createHash('sha256');
-	for await (const chunk of createReadStream(path, { signal })) {
-		signal?.throwIfAborted();
-		digest.update(chunk as Uint8Array);
-	}
-	signal?.throwIfAborted();
-	return digest.digest('hex');
 }
 
 function validateEntry(store: FileLocalModelStore, entry: PreseededLocalModelEntry): void {
@@ -110,7 +100,7 @@ async function authenticateSource(
 	if (metadata.size !== artifact.byteLength) {
 		throw new RangeError(`Seed artifact ${artifact.fileName} does not match its recorded byte length.`);
 	}
-	if (await digestOf(path, signal) !== artifact.sha256) {
+	if (await digestLocalModelFile(path, signal) !== artifact.sha256) {
 		throw new Error(`Seed artifact ${artifact.fileName} does not match its recorded digest.`);
 	}
 }

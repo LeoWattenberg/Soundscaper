@@ -14,8 +14,7 @@
  * separable and keeps a corrupt artifact from ever being named by a manifest.
  */
 
-import { createHash, randomBytes as nodeRandomBytes } from 'node:crypto';
-import { createReadStream } from 'node:fs';
+import { randomBytes as nodeRandomBytes } from 'node:crypto';
 import {
 	lstat,
 	link,
@@ -27,6 +26,12 @@ import {
 	rm,
 } from 'node:fs/promises';
 import { isAbsolute, join, resolve } from 'node:path';
+import {
+	digestLocalModelFile,
+	syncLocalModelPath,
+} from './local-model-file-io.ts';
+
+export { isLocalModelDirectorySyncErrorBenign } from './local-model-file-io.ts';
 
 export const LOCAL_MODEL_MANIFEST_SCHEMA_VERSION = 1;
 
@@ -68,10 +73,6 @@ function errorCode(error: unknown): string | undefined {
 	return typeof error === 'object' && error !== null && 'code' in error
 		? String((error as { code?: unknown }).code)
 		: undefined;
-}
-
-export function isLocalModelDirectorySyncErrorBenign(error: unknown): boolean {
-	return ['EINVAL', 'ENOTSUP', 'EISDIR', 'EPERM'].includes(errorCode(error) ?? '');
 }
 
 function assertModelId(value: unknown): string {
@@ -172,24 +173,6 @@ function normalizeInstallation(value: unknown): InstalledLocalModel {
 	});
 }
 
-async function syncDirectory(path: string): Promise<void> {
-	let handle = null;
-	try {
-		handle = await open(path, 'r');
-		await handle.sync();
-	} catch (error) {
-		if (!isLocalModelDirectorySyncErrorBenign(error)) throw error;
-	} finally {
-		await handle?.close().catch(() => undefined);
-	}
-}
-
-async function digestOf(path: string): Promise<string> {
-	const hash = createHash('sha256');
-	for await (const chunk of createReadStream(path)) hash.update(chunk as Uint8Array);
-	return hash.digest('hex');
-}
-
 /**
  * A models directory on the real filesystem. Every path it touches is derived
  * from a validated id or digest, so a manifest can never name a location
@@ -262,7 +245,7 @@ export class FileLocalModelStore {
 			await rm(stagedPath, { force: true }).catch(() => undefined);
 			throw new RangeError('A staged local model artifact does not match its recorded byte length.');
 		}
-		const observed = await digestOf(stagedPath);
+		const observed = await digestLocalModelFile(stagedPath);
 		if (observed !== expected.sha256) {
 			await rm(stagedPath, { force: true }).catch(() => undefined);
 			throw new Error('A staged local model artifact does not match its recorded digest.');
@@ -284,7 +267,7 @@ export class FileLocalModelStore {
 			await rm(target, { force: true }).catch(() => undefined);
 			throw error;
 		}
-		await syncDirectory(join(this.#root, BLOBS_DIRECTORY));
+		await syncLocalModelPath(join(this.#root, BLOBS_DIRECTORY));
 		return target;
 	}
 
@@ -307,7 +290,7 @@ export class FileLocalModelStore {
 			return metadata.isFile()
 				&& !metadata.isSymbolicLink()
 				&& metadata.size === expected.byteLength
-				&& await digestOf(path) === expected.sha256;
+				&& await digestLocalModelFile(path) === expected.sha256;
 		} catch (error) {
 			if (errorCode(error) === 'ENOENT') return false;
 			throw error;
@@ -364,7 +347,7 @@ export class FileLocalModelStore {
 			handle = null;
 			await rename(temporaryPath, target);
 			published = true;
-			await syncDirectory(parent);
+			await syncLocalModelPath(parent);
 		} finally {
 			await handle?.close().catch(() => undefined);
 			if (!published) await rm(temporaryPath, { force: true }).catch(() => undefined);
@@ -437,7 +420,7 @@ export class FileLocalModelStore {
 	async removeModel(modelId: string): Promise<number> {
 		const target = this.manifestPath(modelId);
 		await rm(target, { force: true });
-		await syncDirectory(join(this.#root, MANIFESTS_DIRECTORY)).catch(() => undefined);
+		await syncLocalModelPath(join(this.#root, MANIFESTS_DIRECTORY)).catch(() => undefined);
 		return this.reclaimUnreferencedBlobs();
 	}
 
