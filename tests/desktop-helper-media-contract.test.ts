@@ -226,7 +226,7 @@ test('helper contract v1 closes the six native media and OFX job families', () =
 		'probe-video-source',
 		'audio-device',
 		'plugin-scan',
-		'plugin-host',
+		'plugin-host', 'plugin-analyze',
 		'media-decode',
 		'media-encode',
 		'media-render',

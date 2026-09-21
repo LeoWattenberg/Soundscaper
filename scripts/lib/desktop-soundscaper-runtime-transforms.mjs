@@ -110,10 +110,10 @@ export function soundscaperHelperJobSubcontractSource(sourceValue) {
 	}
 	return `/* SPDX-License-Identifier: AGPL-3.0-only */
 export const HELPER_JOB_KINDS = Object.freeze([
-\t'audio-device', 'plugin-scan', 'plugin-host', 'assistance-speech',
+\t'audio-device', 'plugin-scan', 'plugin-host', 'plugin-analyze', 'assistance-speech',
 ]);
 export const HELPER_JOB_SUBCONTRACT_VERSIONS = Object.freeze({
-\t'audio-device': 1, 'plugin-scan': 1, 'plugin-host': 1, 'assistance-speech': 1,
+\t'audio-device': 1, 'plugin-scan': 1, 'plugin-host': 1, 'plugin-analyze': 1, 'assistance-speech': 1,
 });
 export function helperJobSubcontractVersion(kind) {
 \tif (!Object.hasOwn(HELPER_JOB_SUBCONTRACT_VERSIONS, kind)) {
@@ -207,7 +207,7 @@ export function soundscaperHelperDataPlaneTransferSource(sourceValue) {
 		'function nativeBindings(',
 		'function streamBindings(',
 		`function nativeBindings(kind, grant) {
-\tif (kind === 'audio-device' || kind === 'plugin-host') {
+\tif (kind === 'audio-device' || kind === 'plugin-host' || kind === 'plugin-analyze') {
 \t\tconst binding = grant.persistentPort;
 \t\treturn binding ? [binding] : [];
 \t}

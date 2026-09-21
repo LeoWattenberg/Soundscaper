@@ -24,6 +24,10 @@ import {
 import {
 	desktopProductRuntimeTransform,
 } from '../scripts/lib/desktop-product-runtime-staging.mjs';
+import {
+	soundscaperHelperDataPlaneTransferSource,
+	soundscaperHelperJobSubcontractSource,
+} from '../scripts/lib/desktop-soundscaper-runtime-transforms.mjs';
 
 test('Soundscaper package policy excludes product-owned Framescaper implementation files', () => {
 	const candidates = [
@@ -85,6 +89,33 @@ test('Soundscaper desktop validation retains the shared source-characteristics c
 		'src/common/editor/source-characteristics-v14.js',
 		'src/common/editor/video-source-characteristics.js',
 	]);
+});
+
+test('Soundscaper packaged helper transforms retain Vamp analysis and its RPC port', async () => {
+	const subcontractSource = soundscaperHelperJobSubcontractSource(
+		"const kinds = ['probe-video-source', 'ofx-host'];\n",
+	);
+	const subcontract = await importSource(subcontractSource);
+	assert.deepEqual([...subcontract.HELPER_JOB_KINDS], [
+		'audio-device', 'plugin-scan', 'plugin-host', 'plugin-analyze', 'assistance-speech',
+	]);
+	assert.equal(subcontract.helperJobSubcontractVersion('plugin-analyze'), 1);
+
+	const transfersSource = soundscaperHelperDataPlaneTransferSource(`
+import { isHelperOfxInteractJobGrantV1 } from './helper-native-ofx-interact-grant.js';
+export function packagedPortCount(kind, grant) { return nativeBindings(kind, grant).length; }
+function nativeBindings(kind, grant) {
+\tif (kind === 'audio-device' || kind === 'plugin-host' || kind === 'plugin-analyze') {
+\t\treturn grant.persistentPort ? [grant.persistentPort] : [];
+\t}
+\treturn [];
+}
+function streamBindings(inputs) { return inputs; }
+`);
+	const transfers = await importSource(transfersSource);
+	assert.equal(transfers.packagedPortCount('plugin-analyze', {
+		persistentPort: { streamId: 'ab'.repeat(20) },
+	}), 1);
 });
 
 test('Stable Soundscaper excludes the legacy development native-addon fixture', () => {
@@ -171,3 +202,7 @@ test('Soundscaper package audit rejects callable bridge and native-service marke
 		), /callable Framescaper marker/iu);
 	}
 });
+
+function importSource(source) {
+	return import(`data:text/javascript,${encodeURIComponent(source)}`);
+}
