@@ -8,12 +8,14 @@ import { packagedExecutableResourceIdentity } from './packaged-executable-resour
 
 const HTML_PATTERN = /\.html?$/u;
 const SCRIPT_PATTERN = /\.(?:c|m)?js$/u;
+const WASM_PATTERN = /\.wasm$/u;
 
 /** Validate the external executable tree claimed by packaged build evidence. */
 export function loadE2EPackagedResourceEvidence({ manifest, productId, root, scripts }) {
 	if (!exactResourceIdentity(manifest.executableResources)
 		|| !Array.isArray(manifest.excludedRuntimeScripts)
-		|| !Array.isArray(manifest.documents)) {
+		|| !Array.isArray(manifest.documents)
+		|| !Array.isArray(manifest.webAssemblyResources)) {
 		throw new Error(`The ${productId} Electron build evidence has invalid executable resources.`);
 	}
 	const excludedRuntimeScripts = manifest.excludedRuntimeScripts.map((entry) => {
@@ -43,11 +45,23 @@ export function loadE2EPackagedResourceEvidence({ manifest, productId, root, scr
 		artifactPath,
 		source: readFileSync(join(root, artifactPath), 'utf8'),
 	})), { label: `${productId} Electron` });
+	const webAssemblyResources = manifest.webAssemblyResources.map((entry) => {
+		if (!exactKeys(entry, ['artifactPath', 'byteLength', 'packagedPath', 'sha256'])
+			|| !safeRelativePath(entry.artifactPath) || !safeRelativePath(entry.packagedPath)
+			|| !WASM_PATTERN.test(entry.packagedPath)
+			|| entry.artifactPath !== `webassembly/${entry.packagedPath}`
+			|| !/^(?:renderer|runtime)\//u.test(entry.packagedPath) || !fileRecord(entry)) {
+			throw new Error(`The ${productId} Electron evidence has invalid WebAssembly.`);
+		}
+		return Object.freeze({ ...entry });
+	});
+	assertCanonicalPaths(webAssemblyResources, 'packagedPath', `${productId} Electron WebAssembly`);
 
 	const externalFiles = [
 		...scripts.filter(({ realm }) => realm === 'renderer').map(resourceRecord),
 		...documents.filter(({ packagedPath }) => !packagedPath.startsWith('app.asar/')).map(resourceRecord),
 		...excludedRuntimeScripts,
+		...webAssemblyResources.map(resourceRecord),
 	].sort(comparePath);
 	let identity;
 	try {
@@ -63,6 +77,8 @@ export function loadE2EPackagedResourceEvidence({ manifest, productId, root, scr
 		excludedRuntimeScripts: Object.freeze(excludedRuntimeScripts),
 		excludedRuntimeScriptsByPath: new Map(excludedRuntimeScripts.map((entry) => [entry.path, entry])),
 		executableResources: Object.freeze({ ...manifest.executableResources }),
+		webAssemblyResources: Object.freeze(webAssemblyResources),
+		webAssemblyResourcesByPackagedPath: new Map(webAssemblyResources.map((entry) => [entry.packagedPath, entry])),
 	});
 }
 

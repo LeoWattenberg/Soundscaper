@@ -40,14 +40,9 @@ test('the browser FFmpeg contract binds the canonical production URL to exact sh
 		retainSource: true,
 		source,
 	});
-	assert.deepEqual(
-		retainedBrowserFfmpegCoverageScript(contract.wasm.url, '', contract),
-		{
-			coverageUrl: contract.wasm.url,
-			path: '/__soundscaper_dynamic__/ffmpeg-core.wasm',
-			retainSource: true,
-			source: '',
-		},
+	assert.throws(
+		() => retainedBrowserFfmpegCoverageScript(contract.wasm.url, '', contract),
+		/typed CDP bytecode attestation/u,
 	);
 
 	const profile = browserCoverageProfile([{
@@ -55,24 +50,13 @@ test('the browser FFmpeg contract binds the canonical production URL to exact sh
 		scriptId: 'ffmpeg',
 		source,
 		url: contract.url,
-	}, {
-		functions: [],
-		scriptId: 'ffmpeg-wasm',
-		source: '',
-		url: contract.wasm.url,
 	}], (url, captured) => retainedBrowserFfmpegCoverageScript(url, captured, contract));
-	assert.deepEqual(profile.result.map(({ url }) => url), [contract.url, contract.wasm.url]);
+	assert.deepEqual(profile.result.map(({ url }) => url), [contract.url]);
 	assert.equal(profile['script-source-cache'][contract.url], source);
-	assert.equal(profile['script-source-cache'][contract.wasm.url], '');
 	assert.deepEqual(Object.keys(profile['source-map-cache']), []);
 	assert.equal(isBrowserFfmpegCoverage({
 		contract,
 		entry: profile.result[0],
-		profile,
-	}), true);
-	assert.equal(isBrowserFfmpegCoverage({
-		contract,
-		entry: profile.result[1],
 		profile,
 	}), true);
 });
@@ -94,11 +78,11 @@ test('the browser FFmpeg contract rejects source mutation and missing captured b
 	assert.throws(() => isBrowserFfmpegCoverage({
 		contract,
 		entry: { url: contract.wasm.url },
-		profile: { 'script-source-cache': { [contract.wasm.url]: 'spoofed' } },
-	}), /expected empty source.*Wasm/iu);
+		profile: { 'script-source-cache': {} },
+	}), /bypassed typed CDP bytecode attestation/iu);
 	assert.throws(
 		() => retainedBrowserFfmpegCoverageScript(contract.wasm.url, undefined, contract),
-		/expected empty source.*Wasm/iu,
+		/typed CDP bytecode attestation/iu,
 	);
 });
 

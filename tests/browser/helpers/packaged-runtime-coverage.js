@@ -10,6 +10,8 @@ import {
 	INSTALL_WORKLET_COVERAGE_CHECKPOINT,
 	WORKLET_COVERAGE_CHECKPOINT_URL,
 } from '../../../scripts/lib/browser-service-worker-coverage.mjs';
+import { browserFfmpegCoverageContract } from '../../../scripts/lib/browser-ffmpeg-coverage.mjs';
+import { createBrowserWebAssemblyAuthenticator } from '../../../scripts/lib/browser-webassembly-coverage.mjs';
 import {
 	INSTALL_NAVIGATION_COVERAGE_CHECKPOINT,
 	NAVIGATION_COVERAGE_CHECKPOINT_URL,
@@ -19,6 +21,7 @@ import {
 	inspectPackagedExecutableResourcesBeforeLaunch,
 	resolvePackagedResourcesPath,
 } from '../../../scripts/lib/packaged-executable-resource-identity.mjs';
+import { createPackagedWebAssemblyAuthenticator } from '../../../scripts/lib/packaged-webassembly-coverage.mjs';
 import { startPackagedRuntimeTargetCoverage } from './packaged-runtime-target-coverage.js';
 
 const COVERAGE_SUBDIRECTORY = 'coverage/v8-packaged';
@@ -100,6 +103,21 @@ export function createPackagedRuntimeCoverageCollector(options) {
 		options.executableResources,
 		resolvePackagedResourcesPath(options.executablePath, options.platform),
 	);
+	const authenticatePackagedWebAssembly = createPackagedWebAssemblyAuthenticator({
+		allowAppUrl: true,
+		productId: metadata.productId,
+		resourcesRoot: executableResourcesBeforeLaunch.path,
+		webAssemblyResources: executableResourcesBeforeLaunch.webAssemblyResources,
+	});
+	const environment = options.environment ?? process.env;
+	const repositoryRoot = environment.SOUNDSCAPER_NIGHTLY_TESTS_PAYLOAD_ROOT ?? process.cwd();
+	const authenticateBrowserWebAssembly = createBrowserWebAssemblyAuthenticator({
+		ffmpegCoverage: browserFfmpegCoverageContract(repositoryRoot),
+		repositoryRoot,
+		sites: packagedBrowserCoverageSites(environment, metadata),
+	});
+	const authenticateWebAssembly = (input) => input.url.startsWith(`${metadata.appOrigin}/`)
+		? authenticatePackagedWebAssembly(input) : authenticateBrowserWebAssembly(input);
 	const coverageDirectory = absoluteDirectory(options.coverageDirectory);
 	const context = options.context;
 	if (!context || typeof context.pages !== 'function' || typeof context.newCDPSession !== 'function') {
@@ -136,7 +154,7 @@ export function createPackagedRuntimeCoverageCollector(options) {
 	function attachPage(page) {
 		if (startedPages.has(page) || page.isClosed?.() === true) return;
 		startedPages.add(page);
-		const ready = startRecorder(context, page, keepUrl, pending).then((recorder) => {
+		const ready = startRecorder(context, page, authenticateWebAssembly, keepUrl, pending).then((recorder) => {
 			recorders.set(page, recorder);
 		}).catch((error) => {
 			startedPages.delete(page);
@@ -156,6 +174,7 @@ export function createPackagedRuntimeCoverageCollector(options) {
 			if (attached) throw new Error('Packaged runtime coverage was already started.');
 			attached = true;
 			serviceWorkerCollector = await createPlaywrightBrowserServiceWorkerCoverageCollector({
+				authenticateWebAssembly,
 				browser,
 				keepUrl,
 			});
@@ -255,6 +274,20 @@ export function createPackagedRuntimeCoverageCollector(options) {
 	});
 }
 
+function packagedBrowserCoverageSites(environment, metadata) {
+	if (environment.SCAPE_BROWSER_COVERAGE_SITES === undefined) return [];
+	let sites;
+	try { sites = JSON.parse(environment.SCAPE_BROWSER_COVERAGE_SITES); }
+	catch { throw new TypeError('Packaged coverage browser sites are invalid JSON.'); }
+	if (!Array.isArray(sites)) throw new TypeError('Packaged coverage browser sites must be an array.');
+	const matching = sites.filter((site) => site?.productId === metadata.productId
+		&& site.origin === metadata.baseOrigin);
+	if (matching.length !== 1) {
+		throw new Error('Packaged coverage needs exactly one browser site for its product and origin.');
+	}
+	return matching;
+}
+
 function authenticateCoverageInstrumentation(url, source) {
 	const expected = new Map([
 		[NAVIGATION_COVERAGE_CHECKPOINT_URL, INSTALL_NAVIGATION_COVERAGE_CHECKPOINT],
@@ -265,9 +298,11 @@ function authenticateCoverageInstrumentation(url, source) {
 	}
 }
 
-async function startRecorder(context, page, keepUrl, pending) {
+async function startRecorder(context, page, authenticateWebAssembly, keepUrl, pending) {
 	const session = await context.newCDPSession(page);
-	return startPackagedRuntimeTargetCoverage({ keepUrl, page, pending, rootSession: session });
+	return startPackagedRuntimeTargetCoverage({
+		authenticateWebAssembly, keepUrl, page, pending, rootSession: session,
+	});
 }
 
 async function waitForProductPage(context, appOrigin) {
@@ -318,7 +353,7 @@ function coverageMetadata(options) {
 		platform,
 		...(options.processId === undefined ? {} : { processId: options.processId }),
 		productId,
-		schemaVersion: 3,
+		schemaVersion: 4,
 	});
 }
 

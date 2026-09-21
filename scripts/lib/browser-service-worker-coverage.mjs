@@ -3,8 +3,9 @@
 import { EventEmitter } from 'node:events';
 
 import {
-	captureCdpWebAssemblyScript,
+	createCdpJavaScriptCoverageState,
 	javaScriptCoverageEntries,
+	observeCdpScript,
 } from './cdp-javascript-coverage.mjs';
 
 const DEFAULT_TARGET_TYPES = Object.freeze(['service_worker']);
@@ -43,6 +44,7 @@ export const INSTALL_WORKLET_COVERAGE_CHECKPOINT = `(() => {
  *
  * @param {{
  *   rootSession: object,
+ *   authenticateWebAssembly?: (input: { bytes: Buffer, url: string }) => Promise<boolean> | boolean,
  *   keepUrl?: (url: string) => boolean,
  *   captureSource?: (url: string) => boolean,
  *   openTargetSession?: (rootSession: object, sessionId: string) => object,
@@ -50,6 +52,7 @@ export const INSTALL_WORKLET_COVERAGE_CHECKPOINT = `(() => {
  * }} options
  */
 export function createBrowserServiceWorkerCoverageCollector({
+	authenticateWebAssembly,
 	rootSession,
 	keepUrl = () => true,
 	captureSource = keepUrl,
@@ -94,13 +97,12 @@ export function createBrowserServiceWorkerCoverageCollector({
 		}
 		const recorder = {
 			active: true,
+			cdpState: createCdpJavaScriptCoverageState({ authenticateWebAssembly }),
 			coverageHookScriptIds: new Set(),
-			scriptUrls: new Map(),
 			session,
 			sources: new Map(),
 			taken: [],
 			type,
-			webAssemblyScriptIds: new Set(),
 			waitingForDebugger: waitingForDebugger === true,
 		};
 		recorders.set(sessionId, recorder);
@@ -108,12 +110,7 @@ export function createBrowserServiceWorkerCoverageCollector({
 		session.on('Debugger.scriptParsed', (event) => {
 			const { scriptId, url } = event;
 			if (url === WORKLET_COVERAGE_CHECKPOINT_URL) recorder.coverageHookScriptIds.add(String(scriptId));
-			if (typeof url === 'string' && url !== '') recorder.scriptUrls.set(String(scriptId), url);
-			const webAssembly = captureCdpWebAssemblyScript({
-				event,
-				session,
-				webAssemblyScriptIds: recorder.webAssemblyScriptIds,
-			});
+			const webAssembly = observeCdpScript({ event, session, state: recorder.cdpState });
 			if (webAssembly !== null) {
 				pending.push(webAssembly.catch((error) => { failures.push(error); }));
 				return;
@@ -283,6 +280,7 @@ export function createBrowserServiceWorkerCoverageCollector({
 						if (recorder.active) throw error;
 					}
 				}
+				await settle();
 			} catch (error) {
 				collectionError = error;
 			}
@@ -317,8 +315,8 @@ export function createBrowserServiceWorkerCoverageCollector({
 			for (const recorder of recorders.values()) {
 				for (const entry of javaScriptCoverageEntries(
 					recorder.taken,
-					recorder.scriptUrls,
-					recorder.webAssemblyScriptIds,
+					recorder.cdpState.scriptUrls,
+					recorder.cdpState.webAssemblyScriptUrls,
 				)) {
 					if (typeof entry.url === 'string' && keepUrl(entry.url)) entries.push(entry);
 				}
@@ -348,6 +346,7 @@ export function createBrowserServiceWorkerCoverageCollector({
 
 /** Create a browser-scoped collector from Playwright's Chromium browser. */
 export async function createPlaywrightBrowserServiceWorkerCoverageCollector({
+	authenticateWebAssembly,
 	browser,
 	keepUrl = () => true,
 	captureSource = keepUrl,
@@ -359,6 +358,7 @@ export async function createPlaywrightBrowserServiceWorkerCoverageCollector({
 	const implementation = browser?._connection?.toImpl?.(browser);
 	const rootSession = createPlaywrightBrowserTargetAdapter(implementation, new Set(targetTypes));
 	return createBrowserServiceWorkerCoverageCollector({
+		authenticateWebAssembly,
 		captureSource,
 		keepUrl,
 		openTargetSession: (root, sessionId) => root.openTargetSession(sessionId),

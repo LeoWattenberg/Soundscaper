@@ -21,11 +21,10 @@ const SOURCE = readFileSync(join(ROOT, 'node_modules/@ffmpeg/core/dist/esm/ffmpe
 
 after(cleanupE2ECoverageAssemblerFixtures);
 
-test('browser assembly excludes only manifest-pinned FFmpeg bytes at the canonical URL', () => {
+test('browser assembly excludes only manifest-pinned FFmpeg JavaScript at the canonical URL', () => {
 	const fixture = makeFixture();
 	const contract = browserFfmpegCoverageContract(fixture.repositoryRoot, fixture.expectedRevision);
 	addBrowserFfmpeg(fixture, contract.url, SOURCE);
-	addBrowserFfmpeg(fixture, contract.wasm.url, '');
 
 	const assembled = assembleE2ECoverageCapture(fixture);
 	assert.equal(
@@ -38,21 +37,16 @@ test('browser assembly excludes only manifest-pinned FFmpeg bytes at the canonic
 	);
 });
 
-test('browser assembly rejects source-cache spoofing and nearby URLs for FFmpeg Wasm', () => {
-	const spoofed = makeFixture();
-	const spoofedContract = browserFfmpegCoverageContract(spoofed.repositoryRoot, spoofed.expectedRevision);
-	addBrowserFfmpeg(spoofed, spoofedContract.wasm.url, 'spoofed JavaScript');
-	assert.throws(
-		() => assembleE2ECoverageCapture(spoofed),
-		/expected empty source.*Wasm/iu,
-	);
-	const missing = makeFixture();
-	const missingContract = browserFfmpegCoverageContract(missing.repositoryRoot, missing.expectedRevision);
-	addBrowserFfmpeg(missing, missingContract.wasm.url, undefined);
-	assert.throws(
-		() => assembleE2ECoverageCapture(missing),
-		/expected empty source.*Wasm/iu,
-	);
+test('browser assembly rejects FFmpeg Wasm that bypassed typed CDP byte attestation', () => {
+	for (const source of ['spoofed JavaScript', '', undefined]) {
+		const fixture = makeFixture();
+		const contract = browserFfmpegCoverageContract(fixture.repositoryRoot, fixture.expectedRevision);
+		addBrowserFfmpeg(fixture, contract.wasm.url, source);
+		assert.throws(
+			() => assembleE2ECoverageCapture(fixture),
+			/bypassed typed CDP bytecode attestation/iu,
+		);
+	}
 
 	const nearby = makeFixture();
 	const nearbyContract = browserFfmpegCoverageContract(nearby.repositoryRoot, nearby.expectedRevision);

@@ -22,15 +22,25 @@ The macro runner is a closed first-party recipe: its fixed,
 digest-authenticated module wrapper is measured while the user's macro program
 remains data. Any other generated module or changed wrapper fails admission.
 
+First-party WebAssembly is authenticated outside the JavaScript denominator.
+Chromium must identify it as `WebAssembly` in `Debugger.scriptParsed`; its exact
+canonical network, packaged custom-scheme, or local file URL must resolve to one
+inventoried product artifact, and `Debugger.getScriptSource` must return empty
+text plus canonical base64 bytes with WebAssembly magic that equal that artifact
+byte for byte. Chromium legitimately may emit no precise-V8-coverage range for
+such a module. The typed parse event and byte identity are therefore the proof,
+and the collector omits authenticated Wasm before writing raw result and source
+caches. If Chromium does emit a range, only the same authenticated script ID and
+parsed URL can be omitted.
+
 Third-party dynamic code is excluded only through byte-exact recipes derived
 from the authenticated build. The admitted Mediabunny `Blob` workers are
 reconstructed from their emitted call sites and matching source-map spans. The
-FFmpeg core is admitted only at its canonical production JavaScript and Wasm
-URLs with the manifest and publication-policy pins committed at the recorded
-revision. Chromium must report the exact protocol language and canonical URL;
-its JavaScript source bytes are checked directly, while its empty debugger text
-is accepted for Wasm only when the captured base64 bytes have the pinned digest
-and WebAssembly magic. A changed URL, query, fragment, source, pin, policy, or
+FFmpeg core remains a separate rule: it is admitted only at its canonical
+production JavaScript and Wasm URLs with the manifest and publication-policy
+pins committed at the recorded revision. Its JavaScript source bytes are
+checked directly; typed Wasm debugger bytes must have the pinned digest and
+WebAssembly magic. A changed URL, query, fragment, source, pin, policy, or
 producer fails rather than widening the exclusion.
 
 Raw V8 input is checked structurally against the authenticated JavaScript and
@@ -53,13 +63,17 @@ of packaged coverage. The corresponding production sources remain in the
 build-derived denominator.
 
 For Electron, the evidence generator reverse-enumerates JavaScript and HTML in
-`app.asar` and executable resources beside it. The packaged runner records
-those resources before launch and after collection. Assembly rejects added,
-missing, or changed files, unknown profiler URLs, changed source bytes, and
-unapproved target-runtime scripts. Test-harness files are packaged separately
-and are not part of the normal product inventory; the few generated renderer
-bridges needed to drive the packaged application are accepted only by their
-exact product-bound recipe and bytes.
+`app.asar` and executable resources beside it. Its schema-4 product evidence
+also preserves exact per-file records and copies for every renderer or runtime
+Wasm resource. The packaged runner records the whole Resources identity and
+that Wasm list before launch, attests custom-scheme and local-file debugger
+bytes against those immutable records, and verifies the Resources tree again
+after collection. Assembly rejects added, missing, or changed files, unknown
+profiler URLs, changed source bytes, and unapproved target-runtime scripts.
+Test-harness files are packaged separately and are not part of the normal
+product inventory; the few generated renderer bridges needed to drive the
+packaged application are accepted only by their exact product-bound recipe and
+bytes.
 
 The real-model phase launches each product through the diagnostic host with a
 fresh private Node coverage directory. It starts precise CDP coverage before
@@ -91,8 +105,9 @@ preserves:
   worklet, and service-worker profiles;
 - `coverage/v8-local-assistance/` for product-bound real-model Electron main,
   preload, utility-process, and worker-thread sessions;
-- `coverage/build-evidence/` for the exact browser and Electron JavaScript plus
-  source maps against which those profiles were recorded.
+- `coverage/build-evidence/` for the exact browser and Electron JavaScript,
+  source maps, HTML, and schema-4 packaged Resources Wasm records against which
+  those profiles were recorded.
 
 The dedicated coverage phase is separate so instrumentation cannot affect the
 nightly performance verdict. Keep the entire run directory. Do not copy only

@@ -153,6 +153,24 @@ test('platform runs reject different packaged JavaScript', () => {
 	assert.throws(() => assemblePair(baseline, changed), /different executable build-evidence hashes/u);
 });
 
+test('platform runs reject different packaged WebAssembly', () => {
+	const baseline = makeFixture();
+	const changed = makeFixture();
+	const electronRoot = join(changed.evidenceRoot, 'electron', 'soundscaper');
+	const artifactPath = 'webassembly/renderer/assets/a-b.wasm';
+	const bytes = Buffer.from([0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x01]);
+	write(join(electronRoot, artifactPath), bytes);
+	const manifestPath = join(electronRoot, 'manifest.json');
+	const manifest = readJson(manifestPath);
+	const record = manifest.webAssemblyResources.find((entry) => entry.artifactPath === artifactPath);
+	record.byteLength = bytes.byteLength;
+	record.sha256 = hash(bytes);
+	writeJson(manifestPath, manifest);
+	refreshPackagedResourceIdentity(changed, 'soundscaper');
+
+	assert.throws(() => assemblePair(baseline, changed), /different executable build-evidence hashes/u);
+});
+
 test('platform runs reject different normalized source maps', () => {
 	const baseline = makeFixture();
 	const changed = makeFixture();

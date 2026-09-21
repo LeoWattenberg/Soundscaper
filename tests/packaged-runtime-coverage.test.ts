@@ -107,7 +107,7 @@ test('packaged coverage records renderer, preload, and a final worker delta bank
 		pausedTargetCounts: { worker: 1 },
 		platform: 'linux',
 		productId: 'soundscaper',
-		schemaVersion: 3,
+		schemaVersion: 4,
 		targetCounts: { worker: 1 },
 		targetTypes: ['worker'],
 	});

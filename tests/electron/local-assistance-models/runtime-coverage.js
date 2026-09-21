@@ -19,6 +19,7 @@ import {
 	capturePackagedExecutableResourcesAfterCollection,
 	capturePackagedExecutableResourcesBeforeLaunch,
 } from '../../../scripts/lib/packaged-executable-resource-identity.mjs';
+import { createPackagedWebAssemblyAuthenticator } from '../../../scripts/lib/packaged-webassembly-coverage.mjs';
 import { startPackagedRuntimeTargetCoverage } from '../../browser/helpers/packaged-runtime-target-coverage.js';
 
 const KIND = 'soundscaper-local-assistance-runtime';
@@ -66,6 +67,12 @@ export async function prepareLocalAssistanceRuntimeCoverage(options, dependencie
 		executablePath: configuration.productExecutablePath,
 		platform: configuration.platform,
 	});
+	const authenticateWebAssembly = createPackagedWebAssemblyAuthenticator({
+		allowFileUrl: true,
+		productId: configuration.productId,
+		resourcesRoot: executableResources.path,
+		webAssemblyResources: executableResources.webAssemblyResources,
+	});
 	assertResourceIdentity(executableResources.beforeLaunch, evidence.executableResources,
 		'Local-assistance product Resources differ from build evidence.');
 
@@ -94,6 +101,7 @@ export async function prepareLocalAssistanceRuntimeCoverage(options, dependencie
 				const aliasPrefix = localAssistanceCoverageFileUrl(productAppAsar.path, configuration.platform);
 				const resourcesPrefix = localAssistanceCoverageFileUrl(executableResources.path, configuration.platform);
 				const target = await startTargetCoverage({
+					authenticateWebAssembly,
 					keepUrl: (url) => typeof url === 'string'
 						&& (url.startsWith(aliasPrefix) || url.startsWith(resourcesPrefix)
 							|| COVERAGE_INSTRUMENTATION.has(url)),
@@ -257,7 +265,7 @@ function createCollector({ configuration, evidence, executableResources, fileSys
 				productAppAsar: { ...productAppAsar, afterCollection: afterArchive },
 				productExecutablePath: configuration.productExecutablePath,
 				productId: configuration.productId,
-				schemaVersion: 1,
+				schemaVersion: 2,
 				sessionId,
 				sourceRevision: configuration.packageIdentity.sourceRevision,
 				targetCounts: collected.targetCounts,
@@ -275,10 +283,11 @@ async function readBuildEvidence(configuration, fileSystem) {
 	let evidence;
 	try { evidence = JSON.parse(await fileSystem.readFile(path, 'utf8')); }
 	catch (cause) { throw new Error('Local-assistance product build evidence is unreadable.', { cause }); }
-	if (evidence?.schemaVersion !== 3 || evidence.kind !== 'soundscaper-e2e-product-build-evidence'
+	if (evidence?.schemaVersion !== 4 || evidence.kind !== 'soundscaper-e2e-product-build-evidence'
 		|| evidence.productId !== configuration.productId
 		|| evidence.sourceRevision !== configuration.packageIdentity.sourceRevision
-		|| !fileIdentityRecord(evidence.packageArchive) || !resourceIdentityRecord(evidence.executableResources)) {
+		|| !fileIdentityRecord(evidence.packageArchive) || !resourceIdentityRecord(evidence.executableResources)
+		|| !Array.isArray(evidence.webAssemblyResources)) {
 		throw new Error('Local-assistance product build evidence is invalid.');
 	}
 	return evidence;

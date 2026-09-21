@@ -8,10 +8,10 @@ import { pathToFileURL } from 'node:url';
 import { sourceMapDirectoryFor } from './build-source-map-relocation.mjs';
 import {
 	browserFfmpegCoverageContract,
-	isBrowserFfmpegWasmCoverageSource,
 	retainedBrowserFfmpegCoverageScript,
 } from './browser-ffmpeg-coverage.mjs';
 import { createPlaywrightBrowserServiceWorkerCoverageCollector } from './browser-service-worker-coverage.mjs';
+import { createBrowserWebAssemblyAuthenticator } from './browser-webassembly-coverage.mjs';
 import {
 	createCdpJavaScriptCoverageState,
 	observeCdpScript,
@@ -214,7 +214,7 @@ export function withoutRepeatedSourceMaps(profile, alreadyWritten) {
  * @param {{
  *   browserName: string,
  *   environment?: Record<string, string | undefined>,
- *   sites?: Array<{ origin: string, outputDirectory: string }>,
+ *   sites?: Array<{ origin: string, outputDirectory: string, productId: 'framescaper' | 'soundscaper' }>,
  *   repositoryRoot?: string,
  *   coverageDirectory?: string,
  *   scripts?: Map<string, { path: string, coverageUrl?: string, sourceMap?: object, source?: string } | null>,
@@ -230,7 +230,6 @@ export function createBrowserCoverageCollector({
 }) {
 	if (!collectsBrowserCoverage(browserName, environment)) return null;
 	const ffmpegCoverage = browserFfmpegCoverageContract(repositoryRoot);
-
 	const configuredDirectory = environment.SCAPE_BROWSER_COVERAGE_DIRECTORY;
 	if (configuredDirectory !== undefined) {
 		if (!isAbsolute(configuredDirectory)) {
@@ -239,6 +238,7 @@ export function createBrowserCoverageCollector({
 		coverageDirectory = configuredDirectory;
 	}
 	const configuredSites = parseCoverageSites(environment.SCAPE_BROWSER_COVERAGE_SITES);
+	const authenticateWebAssembly = createBrowserWebAssemblyAuthenticator({ ffmpegCoverage, repositoryRoot, sites: configuredSites ?? sites ?? [] });
 	const directoriesByOrigin = new Map(
 		(configuredSites ?? sites ?? []).map((site) => [site.origin, resolve(repositoryRoot, site.outputDirectory)]),
 	);
@@ -266,7 +266,7 @@ export function createBrowserCoverageCollector({
 	async function startRecording(page) {
 		const session = await page.context().newCDPSession(page);
 		const recorder = {
-			cdpState: createCdpJavaScriptCoverageState(),
+			cdpState: createCdpJavaScriptCoverageState({ authenticateWebAssembly }),
 			navigationCheckpoints: null,
 			pageOperationCheckpoints: null,
 			session,
@@ -348,6 +348,7 @@ export function createBrowserCoverageCollector({
 		attach(context) {
 			if (workerCollectorStart !== null) throw new Error('Browser coverage was already attached.');
 			workerCollectorStart = createPlaywrightBrowserServiceWorkerCoverageCollector({
+				authenticateWebAssembly,
 				browser: context.browser?.(),
 				captureSource: (url) => needsCapturedBrowserSource(url, directoriesByOrigin),
 				keepUrl: (url) => typeof url === 'string' && url !== '',
@@ -411,11 +412,7 @@ export function createBrowserCoverageCollector({
 			for (const [url, source] of capturedSources) {
 				if (observedUrls.has(url)) continue;
 				const resolved = await resolveScript(url, source);
-				if (resolved !== null && !isBrowserFfmpegWasmCoverageSource(
-					url,
-					source,
-					ffmpegCoverage,
-				)) {
+				if (resolved !== null) {
 					throw new Error(`Browser coverage captured source bytes without a V8 entry for ${url}.`);
 				}
 			}

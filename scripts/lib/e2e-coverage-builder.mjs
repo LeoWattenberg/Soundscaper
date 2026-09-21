@@ -187,6 +187,7 @@ function validateBuildEvidence(value, sourceRevision) {
 			'packageArchives',
 			'runtime',
 			'sourceRevision',
+			'webAssemblyResources',
 		]) || evidence.id !== `run-${String(index + 1).padStart(3, '0')}`
 			|| evidence.sourceRevision !== sourceRevision || !sha256(evidence.digest)
 			|| !sha256(evidence.executableDigest) || !object(evidence.runtime)
@@ -195,6 +196,7 @@ function validateBuildEvidence(value, sourceRevision) {
 			|| !['x64', 'arm64'].includes(evidence.runtime.arch)
 			|| !productEvidence(evidence.documents) || !productEvidence(evidence.executableResources)
 			|| !productEvidence(evidence.excludedRuntimeScripts)
+			|| !productEvidence(evidence.webAssemblyResources)
 			|| !productEvidence(evidence.packageArchives)) {
 			throw new TypeError('Every E2E input build needs exact revision, runtime and digest provenance.');
 		}
@@ -211,6 +213,9 @@ function validateBuildEvidence(value, sourceRevision) {
 		for (const documents of Object.values(evidence.documents)) validateDocuments(documents);
 		for (const exclusions of Object.values(evidence.excludedRuntimeScripts)) {
 			validateRuntimeExclusions(exclusions);
+		}
+		for (const resources of Object.values(evidence.webAssemblyResources)) {
+			validateWebAssemblyResources(resources);
 		}
 	}
 	if (new Set(value.map(({ executableDigest }) => executableDigest)).size !== 1) {
@@ -256,6 +261,18 @@ function validateRuntimeExclusions(value) {
 		|| !exactFileIdentity({ byteLength: script.byteLength, sha256: script.sha256 })
 	)) || !canonicalPaths(value, 'path')) {
 		throw new TypeError('Every E2E input build needs exact runtime-script exclusions.');
+	}
+}
+
+function validateWebAssemblyResources(value) {
+	if (!Array.isArray(value) || value.some((resource) => (
+		!exactKeys(resource, ['artifactPath', 'byteLength', 'packagedPath', 'sha256'])
+		|| !safePath(resource.artifactPath) || !safePath(resource.packagedPath)
+		|| resource.artifactPath !== `webassembly/${resource.packagedPath}`
+		|| !/^(?:renderer|runtime)\/.+\.wasm$/u.test(resource.packagedPath)
+		|| !exactFileIdentity({ byteLength: resource.byteLength, sha256: resource.sha256 })
+	)) || !canonicalPaths(value, 'artifactPath') || !canonicalPaths(value, 'packagedPath')) {
+		throw new TypeError('Every E2E input build needs exact packaged WebAssembly evidence.');
 	}
 }
 

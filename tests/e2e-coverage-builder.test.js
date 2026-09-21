@@ -79,6 +79,20 @@ test('the builder validates retained per-run package and executable provenance',
 		() => prepareE2ECoverageArtifacts(incompatible),
 		/do not share one executable evidence digest/u,
 	);
+
+	for (const resource of [
+		{ artifactPath: 'webassembly/runtime/engine.wasm', packagedPath: 'renderer/engine.wasm' },
+		{ artifactPath: 'webassembly/app/engine.wasm', packagedPath: 'app/engine.wasm' },
+	]) {
+		const malformed = makeFixture();
+		malformed.captureIndex.buildEvidence[0].webAssemblyResources.soundscaper = [{
+			...resource, byteLength: 8, sha256: '7'.repeat(64),
+		}];
+		assert.throws(
+			() => prepareE2ECoverageArtifacts(malformed),
+			/exact packaged WebAssembly evidence/u,
+		);
+	}
 });
 
 function makeFixture() {
@@ -125,6 +139,7 @@ function makeFixture() {
 				soundscaper: { fileCount: 0, totalBytes: 0, sha256: '6'.repeat(64) },
 			},
 			excludedRuntimeScripts: { framescaper: [], soundscaper: [] },
+			webAssemblyResources: { framescaper: [], soundscaper: [] },
 			packageArchives: {
 				framescaper: { byteLength: 1, sha256: '3'.repeat(64) },
 				soundscaper: { byteLength: 1, sha256: '4'.repeat(64) },

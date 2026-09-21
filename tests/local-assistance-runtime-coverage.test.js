@@ -25,23 +25,30 @@ import {
 
 const SOURCE_REVISION = '1'.repeat(40);
 const SESSION_ID = '11111111-2222-4333-8444-555555555555';
+const WASM = Buffer.from([0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00]);
 
 test('one local-assistance launch records a private authenticated CDP and Node session', async (context) => {
 	const fixture = await coverageFixture(context);
 	let reloads = 0;
 	const launch = await prepareLocalAssistanceRuntimeCoverage(fixture.options, {
 		randomUUID: () => SESSION_ID,
-		startTargetCoverage: async () => ({
-			reload: async () => { reloads += 1; }, checkpoint: async () => undefined,
-			collect: async () => ({
-				entries: [v8Entry(fixture.preloadUrl), v8Entry(NAVIGATION_COVERAGE_CHECKPOINT_URL), v8Entry('')],
-				sources: new Map([
-					[fixture.preloadUrl, fixture.preloadSource],
-					[NAVIGATION_COVERAGE_CHECKPOINT_URL, INSTALL_NAVIGATION_COVERAGE_CHECKPOINT],
-				]),
-				pausedTargetCounts: {}, targetCounts: {}, targetTypes: [],
-			}),
-		}),
+		startTargetCoverage: async ({ authenticateWebAssembly }) => {
+			assert.equal(await authenticateWebAssembly({ bytes: WASM, url: fixture.wasmUrl }), true);
+			await assert.rejects(authenticateWebAssembly({
+				bytes: Buffer.from([...WASM.slice(0, -1), 1]), url: fixture.wasmUrl,
+			}), /differs from its installed regular file/u);
+			return {
+				reload: async () => { reloads += 1; }, checkpoint: async () => undefined,
+				collect: async () => ({
+					entries: [v8Entry(fixture.preloadUrl), v8Entry(NAVIGATION_COVERAGE_CHECKPOINT_URL), v8Entry('')],
+					sources: new Map([
+						[fixture.preloadUrl, fixture.preloadSource],
+						[NAVIGATION_COVERAGE_CHECKPOINT_URL, INSTALL_NAVIGATION_COVERAGE_CHECKPOINT],
+					]),
+					pausedTargetCounts: {}, targetCounts: {}, targetTypes: [],
+				}),
+			};
+		},
 	});
 	assert.equal(launch.environment.NODE_V8_COVERAGE, launch.sessionDirectory);
 	assert.equal(launch.environment.ELECTRON_RUN_AS_NODE, undefined);
@@ -65,6 +72,7 @@ test('one local-assistance launch records a private authenticated CDP and Node s
 	assert.deepEqual(manifest.executableResources.beforeLaunch, fixture.executableResources);
 	assert.deepEqual(manifest.executableResources.beforeLaunch,
 		manifest.executableResources.afterCollection);
+	assert.deepEqual(manifest.executableResources.webAssemblyResources, [fixture.wasmRecord]);
 	assert.deepEqual(manifest.nodeProfiles.map(({ fileName }) => fileName), [
 		'coverage-4312-1000-0.json', 'coverage-4900-1000-1.json',
 	]);
@@ -310,14 +318,24 @@ async function coverageFixture(context, name = 'baseline') {
 		writeFile(productExecutablePath, 'product executable'),
 		writeFile(hostExecutablePath, 'nightly executable'),
 		writeFile(join(resourcesPath, 'runtime/vendor/index.js'), 'module.exports = true;\n'),
+		writeFile(join(resourcesPath, 'runtime/vendor/engine.wasm'), WASM),
 	]);
 	const archive = await fileIdentity(aliasPath);
 	const executableResources = packagedExecutableResourceIdentity(
 		await collectPackagedExecutableResourceFiles(resourcesPath),
 	);
+	const wasmRecord = { path: 'runtime/vendor/engine.wasm', ...await fileIdentity(
+		join(resourcesPath, 'runtime/vendor/engine.wasm'),
+	) };
 	await writeFile(join(productDirectory, 'e2e-coverage/manifest.json'), JSON.stringify({
-		schemaVersion: 3, kind: 'soundscaper-e2e-product-build-evidence', productId: 'soundscaper',
+		schemaVersion: 4, kind: 'soundscaper-e2e-product-build-evidence', productId: 'soundscaper',
 		sourceRevision: SOURCE_REVISION, packageArchive: archive, executableResources,
+		webAssemblyResources: [{
+			artifactPath: `webassembly/${wasmRecord.path}`,
+			packagedPath: wasmRecord.path,
+			byteLength: wasmRecord.byteLength,
+			sha256: wasmRecord.sha256,
+		}],
 	}));
 	const packageIdentity = Object.freeze({
 		productId: 'soundscaper', applicationVersion: '1.0.0', sourceRevision: SOURCE_REVISION,
@@ -331,6 +349,8 @@ async function coverageFixture(context, name = 'baseline') {
 		mainUrl: `file://${aliasPath}/desktop/main.mjs`,
 		preloadSource,
 		preloadUrl: `file://${aliasPath}/desktop/preload.mjs`,
+		wasmRecord,
+		wasmUrl: `${localAssistanceCoverageFileUrl(resourcesPath, 'linux')}${wasmRecord.path}`,
 		options: {
 			architecture: 'x64', environment: { ELECTRON_RUN_AS_NODE: '1', NODE_V8_COVERAGE: '/tmp/outer-coverage' },
 			hostExecutablePath, packageIdentity, platform: 'linux', productExecutablePath,

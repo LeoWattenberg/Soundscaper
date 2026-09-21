@@ -4,7 +4,8 @@ import { createHash } from 'node:crypto';
 import { lstat, readFile, readdir } from 'node:fs/promises';
 import { isAbsolute, join, posix, relative, resolve, sep, win32 } from 'node:path';
 
-const EXECUTABLE_RESOURCE_PATTERN = /(?:\.(?:c|m)?js|\.html?)$/u;
+const EXECUTABLE_RESOURCE_PATTERN = /(?:\.(?:c|m)?js|\.html?|\.wasm)$/u;
+const WEBASSEMBLY_RESOURCE_PATTERN = /\.wasm$/u;
 const MAXIMUM_EXECUTABLE_FILES = 10_000;
 const MAXIMUM_EXECUTABLE_FILE_BYTES = 64 * 1024 * 1024;
 const MAXIMUM_EXECUTABLE_TOTAL_BYTES = 1024 * 1024 * 1024;
@@ -24,7 +25,7 @@ export function resolvePackagedResourcesPath(executablePath, platform) {
 		: paths.resolve(directory, 'resources');
 }
 
-/** Inventory every JavaScript and HTML resource shipped outside app.asar. */
+/** Inventory every JavaScript, HTML, and executable Wasm resource outside app.asar. */
 export async function collectPackagedExecutableResourceFiles(resourcesRoot) {
 	if (typeof resourcesRoot !== 'string' || !isAbsolute(resourcesRoot)) {
 		throw new TypeError('Packaged executable resources need an absolute root.');
@@ -91,20 +92,31 @@ export function packagedExecutableResourceIdentity(files) {
 export async function capturePackagedExecutableResourcesBeforeLaunch({ executablePath, platform }) {
 	const path = resolvePackagedResourcesPath(executablePath, platform);
 	const files = await collectPackagedExecutableResourceFiles(path);
-	return Object.freeze({ path, beforeLaunch: packagedExecutableResourceIdentity(files) });
+	return Object.freeze({
+		path,
+		beforeLaunch: packagedExecutableResourceIdentity(files),
+		webAssemblyResources: Object.freeze(files.filter(({ path: name }) => (
+			WEBASSEMBLY_RESOURCE_PATTERN.test(name)
+		))),
+	});
 }
 
 export async function capturePackagedExecutableResourcesAfterCollection(value) {
 	const inspected = inspectPackagedExecutableResourcesBeforeLaunch(value);
 	const files = await collectPackagedExecutableResourceFiles(inspected.path);
 	const afterCollection = packagedExecutableResourceIdentity(files);
+	const webAssemblyResources = files.filter(({ path }) => WEBASSEMBLY_RESOURCE_PATTERN.test(path));
 	if (JSON.stringify(inspected.beforeLaunch) !== JSON.stringify(afterCollection)) {
 		throw new Error('Packaged executable resources changed between launch and collection.');
+	}
+	if (JSON.stringify(inspected.webAssemblyResources) !== JSON.stringify(webAssemblyResources)) {
+		throw new Error('Packaged WebAssembly resources changed between launch and collection.');
 	}
 	return Object.freeze({
 		path: inspected.path,
 		beforeLaunch: inspected.beforeLaunch,
 		afterCollection,
+		webAssemblyResources: inspected.webAssemblyResources,
 	});
 }
 
@@ -115,14 +127,22 @@ export function inspectPackagedExecutableResourcesBeforeLaunch(value, expectedPa
 	return Object.freeze({
 		path: value.path,
 		beforeLaunch: Object.freeze({ ...value.beforeLaunch }),
+		webAssemblyResources: Object.freeze(value.webAssemblyResources.map((entry) => Object.freeze({ ...entry }))),
 	});
 }
 
 function validBeforeLaunch(value) {
 	return value !== null && typeof value === 'object' && !Array.isArray(value)
-		&& exactKeys(value, ['beforeLaunch', 'path'])
+		&& exactKeys(value, ['beforeLaunch', 'path', 'webAssemblyResources'])
 		&& typeof value.path === 'string' && isAbsolute(value.path)
-		&& validIdentity(value.beforeLaunch);
+		&& validIdentity(value.beforeLaunch) && validWebAssemblyResources(value.webAssemblyResources);
+}
+
+function validWebAssemblyResources(value) {
+	return Array.isArray(value) && value.every((entry) => validFileRecord(entry)
+		&& WEBASSEMBLY_RESOURCE_PATTERN.test(entry.path))
+		&& JSON.stringify(value.map(({ path }) => path))
+			=== JSON.stringify([...new Set(value.map(({ path }) => path))].sort(compareText));
 }
 
 function validIdentity(value) {

@@ -29,6 +29,8 @@ const MACRO_PRELUDE_PATH = 'src/common/editor/macro-script/sandbox-prelude.js';
 const MACRO_PRELUDE_ARTIFACT = 'assets/sandbox-prelude-fixture.js';
 const APP_DOCUMENT_SOURCE = '<main>packaged application fixture</main>\n';
 const RENDERER_DOCUMENT_SOURCE = '<main>packaged renderer fixture</main>\n';
+const WEBASSEMBLY_SOURCE = Buffer.from([0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00]);
+const WEBASSEMBLY_PATHS = ['renderer/assets/a-b.wasm', 'renderer/assets/a_b.wasm'];
 export const RUNTIME_SCRIPT_PATH = 'runtime/fixture-vendor/index.js';
 export const RUNTIME_SCRIPT_SOURCE = 'module.exports = "authenticated fixture runtime";\n';
 const MACRO_PRELUDE_SOURCE = readFileSync(join(import.meta.dirname, '../../', MACRO_PRELUDE_PATH), 'utf8');
@@ -92,6 +94,9 @@ export function makeFixture() {
 		write(join(electronRoot, 'renderer/assets/app.js'), renderer);
 		write(join(electronRoot, `renderer/${MACRO_PRELUDE_ARTIFACT}`), MACRO_PRELUDE_SOURCE);
 		write(join(electronRoot, 'renderer/index.html'), RENDERER_DOCUMENT_SOURCE);
+		for (const path of WEBASSEMBLY_PATHS) {
+			write(join(electronRoot, `webassembly/${path}`), WEBASSEMBLY_SOURCE);
+		}
 		writeJson(join(electronRoot, 'renderer-source-maps/app.js.map'), sourceMap);
 		writeProductEvidence(electronRoot, product, sourceRevision, {
 			appDocument: APP_DOCUMENT_SOURCE,
@@ -199,7 +204,7 @@ function writePackagedProfiles(runRoot, evidenceRoot) {
 			},
 			'source-map-cache': {},
 			'soundscaper-packaged-runtime': {
-				schemaVersion: 3,
+				schemaVersion: 4,
 				appAsar: {
 					path: `/opt/${product}/resources/app.asar`,
 					beforeLaunch: { ...packageArchive },
@@ -209,6 +214,9 @@ function writePackagedProfiles(runRoot, evidenceRoot) {
 					path: `/opt/${product}/resources`,
 					beforeLaunch: { ...evidence.executableResources },
 					afterCollection: { ...evidence.executableResources },
+					webAssemblyResources: evidence.webAssemblyResources.map(({
+						packagedPath: path, byteLength, sha256,
+					}) => ({ path, byteLength, sha256 })),
 				},
 				productId: product,
 				platform: 'linux',
@@ -303,13 +311,18 @@ function writeProductEvidence(root, productId, sourceRevision, {
 		),
 	];
 	const excludedRuntimeScripts = [resourceFile(RUNTIME_SCRIPT_PATH, RUNTIME_SCRIPT_SOURCE)];
+	const webAssemblyResources = WEBASSEMBLY_PATHS.map((path) => productFile(
+		undefined, path, `webassembly/${path}`, WEBASSEMBLY_SOURCE,
+	));
 	writeJson(join(root, 'manifest.json'), {
-		schemaVersion: 3,
+		schemaVersion: 4,
 		kind: 'soundscaper-e2e-product-build-evidence',
 		productId,
 		sourceRevision,
 		packageArchive: { byteLength: 123, sha256: hash(`${productId} archive`) },
-		executableResources: resourceIdentity({ documents, excludedRuntimeScripts, scripts }),
+		executableResources: resourceIdentity({
+			documents, excludedRuntimeScripts, scripts, webAssemblyResources,
+		}),
 		excludedRuntimeScripts,
 		documents,
 		scripts,
@@ -319,6 +332,7 @@ function writeProductEvidence(root, productId, sourceRevision, {
 			'renderer-source-maps/app.js.map',
 			readFileSync(join(root, 'renderer-source-maps/app.js.map')),
 		)],
+		webAssemblyResources,
 	});
 }
 
@@ -335,12 +349,17 @@ export function refreshPackagedResourceIdentity(fixture, productId) {
 	profile['soundscaper-packaged-runtime'].executableResources.afterCollection = {
 		...manifest.executableResources,
 	};
+	profile['soundscaper-packaged-runtime'].executableResources.webAssemblyResources = (
+		manifest.webAssemblyResources.map(({ packagedPath: path, byteLength, sha256 }) => ({
+			path, byteLength, sha256,
+		}))
+	);
 	writeJson(profilePath, profile);
 	refreshLocalAssistanceEvidence(fixture, productId, manifest);
 	return manifest;
 }
 
-function resourceIdentity({ documents, excludedRuntimeScripts, scripts }) {
+function resourceIdentity({ documents, excludedRuntimeScripts, scripts, webAssemblyResources = [] }) {
 	return packagedExecutableResourceIdentity([
 		...scripts.filter(({ realm }) => realm === 'renderer').map(({ packagedPath: path, byteLength, sha256 }) => ({
 			path, byteLength, sha256,
@@ -348,7 +367,8 @@ function resourceIdentity({ documents, excludedRuntimeScripts, scripts }) {
 		...documents.filter(({ packagedPath }) => !packagedPath.startsWith('app.asar/'))
 			.map(({ packagedPath: path, byteLength, sha256 }) => ({ path, byteLength, sha256 })),
 		...excludedRuntimeScripts,
-	].sort((left, right) => left.path.localeCompare(right.path)));
+		...webAssemblyResources.map(({ packagedPath: path, byteLength, sha256 }) => ({ path, byteLength, sha256 })),
+	].sort((left, right) => left.path < right.path ? -1 : left.path > right.path ? 1 : 0));
 }
 
 function resourceFile(path, value) {

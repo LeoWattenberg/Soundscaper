@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
 import { EventEmitter } from 'node:events';
 import { mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
@@ -11,14 +12,27 @@ import { createBrowserCoverageCollector } from '../scripts/lib/browser-coverage-
 
 const ORIGIN = 'http://127.0.0.1:4322';
 const SCRIPT_URL = `${ORIGIN}/assets/app.js`;
-const WASM_URL = 'wasm://wasm/00091612';
+const WASM_URL = `${ORIGIN}/assets/pffft-BbtAeRsi.wasm`;
+const WASM_BYTES = Buffer.from([0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00]);
+const SOURCE_REVISION = 'a'.repeat(40);
 
-test('portable page collection excludes CDP-authenticated binary WebAssembly', async (context) => {
+test('portable page collection authenticates a built Wasm URL even when V8 emits no entry', async (context) => {
 	const workspace = mkdtempSync(join(tmpdir(), 'soundscaper-browser-wasm-'));
 	context.after(() => rmSync(workspace, { recursive: true, force: true }));
 	const built = join(workspace, 'sites/soundscaper');
 	mkdirSync(join(built, 'assets'), { recursive: true });
 	writeFileSync(join(built, 'assets/app.js'), 'globalThis.measured = true;\n');
+	writeFileSync(join(built, 'assets/pffft-BbtAeRsi.wasm'), WASM_BYTES);
+	writeFileSync(join(built, '.browser-product-build.json'), JSON.stringify({
+		files: { 'assets/pffft-BbtAeRsi.wasm': {
+			byteLength: WASM_BYTES.byteLength,
+			sha256: createHash('sha256').update(WASM_BYTES).digest('hex'),
+		} },
+		origin: ORIGIN,
+		productId: 'soundscaper',
+		schemaVersion: 2,
+		sourceRevision: SOURCE_REVISION,
+	}));
 	mkdirSync(join(workspace, 'sites/soundscaper-source-maps'), { recursive: true });
 	writeFileSync(join(workspace, 'sites/soundscaper-source-maps/app.js.map'), JSON.stringify({
 		mappings: 'AAAA',
@@ -29,6 +43,10 @@ test('portable page collection excludes CDP-authenticated binary WebAssembly', a
 	}));
 	mkdirSync(join(workspace, 'src'), { recursive: true });
 	writeFileSync(join(workspace, 'src/measured.ts'), 'globalThis.measured = true;\n');
+	writeFileSync(join(workspace, 'stage-manifest.json'), JSON.stringify({
+		kind: 'soundscaper-desktop-nightly-tests',
+		sourceRevision: SOURCE_REVISION,
+	}));
 	mkdirSync(join(workspace, 'config'), { recursive: true });
 	for (const path of [
 		'config/ffmpeg-runtime-manifest.json',
@@ -76,11 +94,10 @@ function fakeContext() {
 			url: WASM_URL,
 		}));
 		if (method === 'Debugger.getScriptSource' && parameters?.scriptId === 'wasm') {
-			return { bytecode: 'AGFzbQEAAAA=', scriptSource: '' };
+			return { bytecode: WASM_BYTES.toString('base64'), scriptSource: '' };
 		}
 		if (method === 'Profiler.takePreciseCoverage') return { result: [
 			coverage('app', SCRIPT_URL, 28),
-			coverage('wasm', WASM_URL, 8),
 		] };
 		return {};
 	};

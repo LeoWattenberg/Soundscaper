@@ -2,7 +2,7 @@
 
 import assert from 'node:assert/strict';
 import { EventEmitter } from 'node:events';
-import { mkdirSync, mkdtempSync, rmSync } from 'node:fs';
+import { mkdirSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import test, { after } from 'node:test';
@@ -18,19 +18,29 @@ after(() => {
 	for (const workspace of workspaces) rmSync(workspace, { recursive: true, force: true });
 });
 
-test('collector authenticates and omits a source-less canonical FFmpeg Wasm parse record', async () => {
+test('collector authenticates and omits typed canonical FFmpeg Wasm bytecode', async () => {
 	const contract = browserFfmpegCoverageContract(ROOT);
-	assert.equal(await collectOrphan({ source: '', url: contract.wasm.url }), null);
+	const bytes = readFileSync(join(ROOT, 'node_modules/@ffmpeg/core/dist/esm/ffmpeg-core.wasm'));
+	assert.equal(await collectOrphan({
+		bytecode: bytes.toString('base64'),
+		scriptLanguage: 'WebAssembly',
+		source: '',
+		url: contract.wasm.url,
+	}), null);
 });
 
-test('collector rejects stale or missing source for canonical FFmpeg Wasm', async () => {
+test('collector rejects untyped or stale canonical FFmpeg Wasm', async () => {
 	const contract = browserFfmpegCoverageContract(ROOT);
-	for (const source of ['spoofed JavaScript', undefined]) {
-		await assert.rejects(
-			collectOrphan({ source, url: contract.wasm.url }),
-			/expected empty source.*Wasm|captured no source bytes/iu,
-		);
-	}
+	await assert.rejects(
+		collectOrphan({ source: '', url: contract.wasm.url }),
+		/typed CDP bytecode attestation/iu,
+	);
+	await assert.rejects(collectOrphan({
+		bytecode: 'AGFzbQEAAAA=',
+		scriptLanguage: 'WebAssembly',
+		source: '',
+		url: contract.wasm.url,
+	}), /pinned FFmpeg WebAssembly does not match/iu);
 });
 
 test('collector rejects nearby external Wasm parse records without V8 ranges', async () => {
@@ -43,7 +53,12 @@ test('collector rejects nearby external Wasm parse records without V8 ranges', a
 	}
 });
 
-async function collectOrphan(dynamic: { source: string | undefined, url: string }) {
+async function collectOrphan(dynamic: {
+	bytecode?: string,
+	scriptLanguage?: string,
+	source: string | undefined,
+	url: string,
+}) {
 	const workspace = mkdtempSync(join(tmpdir(), 'soundscaper-ffmpeg-collector-'));
 	workspaces.push(workspace);
 	const site = join(workspace, 'site');
@@ -71,9 +86,15 @@ function fakePage(dynamic: { source: string | undefined, url: string }) {
 	const session = {
 		async send(method: string) {
 			if (method === 'Debugger.enable') {
-				queueMicrotask(() => parsed?.({ scriptId: 'ffmpeg-wasm', url: dynamic.url }));
+				queueMicrotask(() => parsed?.({
+					scriptId: 'ffmpeg-wasm',
+					scriptLanguage: dynamic.scriptLanguage,
+					url: dynamic.url,
+				}));
 			}
-			if (method === 'Debugger.getScriptSource') return { scriptSource: dynamic.source };
+			if (method === 'Debugger.getScriptSource') {
+				return { bytecode: dynamic.bytecode, scriptSource: dynamic.source };
+			}
 			if (method === 'Profiler.takePreciseCoverage') return { result: [] };
 			return {};
 		},

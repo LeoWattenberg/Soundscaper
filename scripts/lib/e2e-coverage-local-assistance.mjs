@@ -71,7 +71,7 @@ function readSession(directory, sessionId, evidence, runRuntime) {
 
 function validateManifest(value, sessionId, evidence, runRuntime) {
 	if (!record(value) || stableJson(Object.keys(value).sort()) !== stableJson(MANIFEST_FIELDS)
-		|| value.schemaVersion !== 1 || value.kind !== 'soundscaper-local-assistance-runtime'
+		|| value.schemaVersion !== 2 || value.kind !== 'soundscaper-local-assistance-runtime'
 		|| value.sessionId !== sessionId || !E2E_PRODUCTS.includes(value.productId)
 		|| !['darwin', 'linux', 'win32'].includes(value.platform)
 		|| !['arm64', 'x64'].includes(value.architecture)
@@ -109,7 +109,8 @@ function validateManifest(value, sessionId, evidence, runRuntime) {
 		throw new Error(`Local-assistance session ${sessionId} has an invalid product archive identity.`);
 	}
 	const resources = resourcesPath(value.productExecutablePath, value.platform);
-	if (!validResourceWitness(value.executableResources, resources, productEvidence.executableResources)) {
+	if (!validResourceWitness(value.executableResources, resources,
+		productEvidence.executableResources, productEvidence.webAssemblyResources)) {
 		throw new Error(`Local-assistance session ${sessionId} has an invalid executable-resource identity.`);
 	}
 	if (!fileRecord(value.cdpProfile) || value.cdpProfile.fileName !== 'cdp.json'
@@ -388,8 +389,15 @@ function validIdentityWitness(value, expected) {
 		&& stableJson(value.afterCollection) === stableJson(expected);
 }
 
-function validResourceWitness(value, path, expected) {
-	return validIdentityWitness(value, expected) && value.path === path;
+function validResourceWitness(value, path, expected, expectedWebAssembly) {
+	if (!record(value) || !exactKeys(value, [
+		'afterCollection', 'beforeLaunch', 'path', 'webAssemblyResources',
+	]) || value.path !== path || stableJson(value.beforeLaunch) !== stableJson(expected)
+		|| stableJson(value.afterCollection) !== stableJson(expected)) return false;
+	const evidenceWebAssembly = expectedWebAssembly?.map(({ packagedPath: resourcePath, byteLength, sha256 }) => ({
+		path: resourcePath, byteLength, sha256,
+	}));
+	return stableJson(value.webAssemblyResources) === stableJson(evidenceWebAssembly);
 }
 
 function validTargetAccounting(value) {

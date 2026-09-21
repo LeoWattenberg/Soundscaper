@@ -57,13 +57,8 @@ export function browserFfmpegCoverageContract(repositoryRoot, sourceRevision) {
 
 /** Retain exact external runtime bytes only at the canonical production URL. */
 export function retainedBrowserFfmpegCoverageScript(url, source, contract) {
-	if (isBrowserFfmpegWasmCoverageSource(url, source, contract)) {
-		return {
-			coverageUrl: url,
-			path: '/__soundscaper_dynamic__/ffmpeg-core.wasm',
-			retainSource: true,
-			source,
-		};
+	if (url === contract.wasm.url) {
+		throw new Error('Browser FFmpeg WebAssembly must carry typed CDP bytecode attestation.');
 	}
 	if (url !== contract.url) return null;
 	attestSource(source, contract);
@@ -77,25 +72,11 @@ export function retainedBrowserFfmpegCoverageScript(url, source, contract) {
 
 /** Exclude the external runtime only after reauthenticating raw profile bytes. */
 export function isBrowserFfmpegCoverage({ contract, entry, profile }) {
-	if (isBrowserFfmpegWasmCoverageSource(
-		entry?.url,
-		profile?.['script-source-cache']?.[entry?.url],
-		contract,
-	)) return true;
+	if (entry?.url === contract.wasm.url) {
+		throw new Error('Browser FFmpeg WebAssembly profile bypassed typed CDP bytecode attestation.');
+	}
 	if (entry?.url !== contract.url) return false;
 	attestSource(profile?.['script-source-cache']?.[entry.url], contract);
-	return true;
-}
-
-/** Authenticate the source-less Wasm scriptParsed record even when V8 emits no ranges. */
-export function isBrowserFfmpegWasmCoverageSource(url, source, contract) {
-	if (url !== contract.wasm.url) return false;
-	// CDP exposes no textual source for a WebAssembly module: the exact empty
-	// Debugger source is its type sentinel. The revision-bound manifest and
-	// publication policy bind the only raw URL that may use that sentinel.
-	if (source !== '') {
-		throw new Error('Browser coverage did not preserve the expected empty source for pinned FFmpeg Wasm.');
-	}
 	return true;
 }
 

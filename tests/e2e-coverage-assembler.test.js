@@ -56,7 +56,11 @@ test('actual nightly evidence assembles into eight strict portable coverage surf
 		[RUNTIME_SCRIPT_PATH],
 	);
 	assert.equal(result.captureIndex.buildEvidence[0].documents.soundscaper.length, 2);
-	assert.equal(result.captureIndex.buildEvidence[0].executableResources.soundscaper.fileCount, 4);
+	assert.equal(result.captureIndex.buildEvidence[0].executableResources.soundscaper.fileCount, 6);
+	assert.deepEqual(
+		result.captureIndex.buildEvidence[0].webAssemblyResources.soundscaper.map(({ packagedPath }) => packagedPath),
+		['renderer/assets/a-b.wasm', 'renderer/assets/a_b.wasm'],
+	);
 	for (const surface of result.captureIndex.surfaces) {
 		const profiles = readProfiles(join(fixture.outputRoot, surface.coverage.inputPath));
 		assert.ok(profiles.length > 0, `${surface.id} must have a real raw profile`);
@@ -277,6 +281,15 @@ test('Electron evidence rejects ambiguous installed paths and stale CDP source c
 	assert.throws(
 		() => assembleE2ECoverageCapture(ambiguous),
 		/invalid executable script|ambiguous packaged path/u,
+	);
+	const wasm = makeFixture();
+	write(join(
+		wasm.evidenceRoot,
+		'electron/soundscaper/webassembly/renderer/assets/a-b.wasm',
+	), Buffer.from([0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x01]));
+	assert.throws(
+		() => assembleE2ECoverageCapture(wasm),
+		/Electron evidence is stale at .*a-b\.wasm/u,
 	);
 
 	for (const replacement of [undefined, 'stale preload bytes\n']) {

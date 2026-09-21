@@ -151,6 +151,71 @@ test('worker capture excludes protocol-authenticated WebAssembly from JavaScript
 	]]);
 });
 
+test('final worker checkpoint awaits late WebAssembly authentication failure', async () => {
+	const root = new FakeRootSession();
+	const child = new FakeTargetSession();
+	let rejectAuthentication!: (error: Error) => void;
+	let authenticationStarted!: () => void;
+	let debuggerDisabled!: () => void;
+	const started = new Promise<void>((resolvePromise) => { authenticationStarted = resolvePromise; });
+	const disabled = new Promise<void>((resolvePromise) => { debuggerDisabled = resolvePromise; });
+	const authentication = new Promise<boolean>((_resolvePromise, reject) => {
+		rejectAuthentication = reject;
+	});
+	const collector = createBrowserServiceWorkerCoverageCollector({
+		authenticateWebAssembly: () => {
+			authenticationStarted();
+			return authentication;
+		},
+		openTargetSession: () => child,
+		rootSession: root,
+		targetTypes: ['worker'],
+	});
+	await collector.start();
+	root.emit('Target.attachedToTarget', {
+		sessionId: 'worker-session',
+		targetInfo: { type: 'worker', url: 'http://127.0.0.1:4322/worker.js' },
+		waitingForDebugger: true,
+	});
+	await collector.settle();
+	child.onFinalCoverage = () => child.emit('Debugger.scriptParsed', {
+		scriptId: 'late-wasm',
+		scriptLanguage: 'WebAssembly',
+		url: 'http://127.0.0.1:4322/assets/late.wasm',
+	});
+	child.onDebuggerDisabled = debuggerDisabled;
+
+	const collection = collector.collect();
+	await Promise.all([started, disabled]);
+	rejectAuthentication(new Error('late WebAssembly authentication failed'));
+	await assert.rejects(collection, /late WebAssembly authentication failed/u);
+});
+
+test('worker listener banks a script identity rebind failure', async () => {
+	const root = new FakeRootSession();
+	const child = new FakeTargetSession();
+	const collector = createBrowserServiceWorkerCoverageCollector({
+		openTargetSession: () => child,
+		rootSession: root,
+		targetTypes: ['worker'],
+	});
+	await collector.start();
+	root.emit('Target.attachedToTarget', {
+		sessionId: 'worker-session',
+		targetInfo: { type: 'worker', url: 'http://127.0.0.1:4322/worker.js' },
+		waitingForDebugger: true,
+	});
+	await collector.settle();
+	child.emit('Debugger.scriptParsed', {
+		scriptId: '4', scriptLanguage: 'WebAssembly', url: WEBASSEMBLY_URL,
+	});
+	await collector.settle();
+	assert.doesNotThrow(() => child.emit('Debugger.scriptParsed', {
+		scriptId: '4', scriptLanguage: 'JavaScript', url: WEBASSEMBLY_URL,
+	}));
+	await assert.rejects(collector.settle(), /CDP rebound script.*WebAssembly.*JavaScript/u);
+});
+
 test('browser-level worker coverage routes only the requested worker and worklet targets', async () => {
 	const root = new FakeRootSession();
 	const children = new Map([
@@ -270,6 +335,8 @@ class FakeTargetSession extends EventEmitter {
 	readonly sources = new Map<string, string>();
 	detachFailure: Error | null = null;
 	detachCount = 0;
+	onDebuggerDisabled: (() => void) | null = null;
+	onFinalCoverage: (() => void) | null = null;
 
 	close(): void {
 		this.emit('close');
@@ -282,6 +349,7 @@ class FakeTargetSession extends EventEmitter {
 
 	async send(method: string, parameters?: { scriptId?: string }): Promise<unknown> {
 		this.calls.push([method, parameters]);
+		if (method === 'Debugger.disable') this.onDebuggerDisabled?.();
 		if (method === 'Runtime.evaluate') {
 			queueMicrotask(() => {
 				this.emit('Debugger.scriptParsed', {
@@ -293,10 +361,16 @@ class FakeTargetSession extends EventEmitter {
 		}
 		if (method === 'Debugger.getScriptSource') {
 			const scriptId = String(parameters?.scriptId);
-			if (scriptId === '4') return { bytecode: 'AGFzbQEAAAA=', scriptSource: '' };
+			if (scriptId === '4' || scriptId === 'late-wasm') {
+				return { bytecode: 'AGFzbQEAAAA=', scriptSource: '' };
+			}
 			return { scriptSource: this.sources.get(scriptId) ?? `service-worker-source:${scriptId}` };
 		}
-		if (method === 'Profiler.takePreciseCoverage') return { result: [] };
+		if (method === 'Profiler.takePreciseCoverage') {
+			this.onFinalCoverage?.();
+			this.onFinalCoverage = null;
+			return { result: [] };
+		}
 		return {};
 	}
 }

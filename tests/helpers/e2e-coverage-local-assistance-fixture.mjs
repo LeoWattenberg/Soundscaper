@@ -43,6 +43,9 @@ export function refreshLocalAssistanceEvidence(fixture, productId, evidence) {
 	manifest.productAppAsar.afterCollection = { ...evidence.packageArchive };
 	manifest.executableResources.beforeLaunch = { ...evidence.executableResources };
 	manifest.executableResources.afterCollection = { ...evidence.executableResources };
+	manifest.executableResources.webAssemblyResources = evidence.webAssemblyResources.map(({
+		packagedPath: path, byteLength, sha256,
+	}) => ({ path, byteLength, sha256 }));
 	const nodeFile = manifest.nodeProfiles[0].fileName;
 	const nodePath = join(directory, nodeFile);
 	const node = JSON.parse(readFileSync(nodePath, 'utf8'));
@@ -142,6 +145,9 @@ function writeSession(runRoot, evidenceRoot, productId, runtimeScriptPath) {
 			path: resources,
 			beforeLaunch: evidence.executableResources,
 			afterCollection: evidence.executableResources,
+			webAssemblyResources: evidence.webAssemblyResources.map(({
+				packagedPath: path, byteLength, sha256,
+			}) => ({ path, byteLength, sha256 })),
 		},
 		hostExecutablePath: '/opt/nightly/soundscaper-nightly-tests',
 		kind: 'soundscaper-local-assistance-runtime',
@@ -157,7 +163,7 @@ function writeSession(runRoot, evidenceRoot, productId, runtimeScriptPath) {
 		},
 		productExecutablePath: executable,
 		productId,
-		schemaVersion: 1,
+		schemaVersion: 2,
 		sessionId,
 		sourceRevision: evidence.sourceRevision,
 		targetCounts: {},

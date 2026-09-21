@@ -27,8 +27,12 @@ export interface DesktopNightlyProductCoverageDocument extends DesktopNightlyPro
 	readonly packagedPath: string;
 }
 
+export interface DesktopNightlyProductCoverageWebAssembly extends DesktopNightlyProductCoverageFile {
+	readonly packagedPath: string;
+}
+
 export interface DesktopNightlyProductCoverageEvidence {
-	readonly schemaVersion: 3;
+	readonly schemaVersion: 4;
 	readonly kind: 'soundscaper-e2e-product-build-evidence';
 	readonly productId: 'soundscaper' | 'framescaper';
 	readonly sourceRevision: string;
@@ -38,6 +42,7 @@ export interface DesktopNightlyProductCoverageEvidence {
 	readonly documents: readonly DesktopNightlyProductCoverageDocument[];
 	readonly scripts: readonly DesktopNightlyProductCoverageScript[];
 	readonly sourceMaps: readonly DesktopNightlyProductCoverageFile[];
+	readonly webAssemblyResources: readonly DesktopNightlyProductCoverageWebAssembly[];
 }
 
 export function preserveDesktopNightlyProductCoverageEvidence(options: {

@@ -6,7 +6,7 @@ import { E2E_PRODUCTS } from './e2e-coverage-build-evidence.mjs';
 
 export function packagedRuntime(profile, name, evidence) {
 	const value = profile['soundscaper-packaged-runtime'];
-	if (!record(value) || value.schemaVersion !== 3 || !E2E_PRODUCTS.includes(value.productId)
+	if (!record(value) || value.schemaVersion !== 4 || !E2E_PRODUCTS.includes(value.productId)
 		|| !['linux', 'win32', 'darwin'].includes(value.platform)
 		|| !['x64', 'arm64'].includes(value.architecture)
 		|| typeof value.executablePath !== 'string' || typeof value.appOrigin !== 'string'
@@ -35,7 +35,10 @@ export function packagedRuntime(profile, name, evidence) {
 		? paths.resolve(paths.dirname(executable), '../Resources')
 		: paths.resolve(paths.dirname(executable), 'resources');
 	const resourceIdentity = evidence.electron.get(value.productId)?.executableResources;
-	if (!validRuntimeExecutableResources(value.executableResources, resourcesPath, resourceIdentity)) {
+	const webAssemblyResources = evidence.electron.get(value.productId)?.webAssemblyResources;
+	if (!validRuntimeExecutableResources(
+		value.executableResources, resourcesPath, resourceIdentity, webAssemblyResources,
+	)) {
 		throw new Error(`Packaged coverage profile ${name} has an invalid executable-resource identity.`);
 	}
 	const resources = normalizedInstalledPath(resourcesPath, value.platform);
@@ -102,13 +105,27 @@ function exactFileIdentity(value) {
 		&& typeof value.sha256 === 'string' && /^[a-f\d]{64}$/u.test(value.sha256);
 }
 
-function validRuntimeExecutableResources(value, expectedPath, evidenceIdentity) {
+function validRuntimeExecutableResources(value, expectedPath, evidenceIdentity, expectedWebAssembly) {
 	if (!record(value) || stableJson(Object.keys(value).sort())
-		!== stableJson(['afterCollection', 'beforeLaunch', 'path'])
+		!== stableJson(['afterCollection', 'beforeLaunch', 'path', 'webAssemblyResources'])
 		|| value.path !== expectedPath || !exactResourceIdentity(value.beforeLaunch)
-		|| !exactResourceIdentity(value.afterCollection) || !exactResourceIdentity(evidenceIdentity)) return false;
+		|| !exactResourceIdentity(value.afterCollection) || !exactResourceIdentity(evidenceIdentity)
+		|| !exactWebAssemblyResources(value.webAssemblyResources)) return false;
+	const evidenceWebAssembly = expectedWebAssembly?.map(({ packagedPath: path, byteLength, sha256 }) => (
+		{ path, byteLength, sha256 }
+	));
 	return stableJson(value.beforeLaunch) === stableJson(value.afterCollection)
-		&& stableJson(value.beforeLaunch) === stableJson(evidenceIdentity);
+		&& stableJson(value.beforeLaunch) === stableJson(evidenceIdentity)
+		&& stableJson(value.webAssemblyResources) === stableJson(evidenceWebAssembly);
+}
+
+function exactWebAssemblyResources(value) {
+	return Array.isArray(value) && stableJson(value) === stableJson([...value].sort((left, right) => (
+		left.path < right.path ? -1 : left.path > right.path ? 1 : 0
+	))) && value.every((entry) => record(entry)
+		&& stableJson(Object.keys(entry).sort()) === stableJson(['byteLength', 'path', 'sha256'])
+		&& typeof entry.path === 'string' && /\.wasm$/u.test(entry.path)
+		&& exactFileIdentity({ byteLength: entry.byteLength, sha256: entry.sha256 }));
 }
 
 function exactResourceIdentity(value) {

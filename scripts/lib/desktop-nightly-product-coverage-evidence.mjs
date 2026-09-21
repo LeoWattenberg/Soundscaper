@@ -16,14 +16,15 @@ import {
 const SCRIPT_PATTERN = /\.(?:c|m)?js$/u;
 const HTML_PATTERN = /\.html?$/u;
 const SOURCE_MAP_PATTERN = /\.map$/u;
+const WASM_PATTERN = /\.wasm$/u;
 
 /**
- * Preserve the exact JavaScript and renderer maps behind a packaged product.
+ * Preserve the exact JavaScript, renderer maps, and executable Wasm behind a packaged product.
  *
  * The next product preparation destroys `.desktop-build`, while the installed
  * nightly runner writes coverage somewhere else again. Keeping content-addressed
  * evidence beside each packaged product gives the importer a portable source
- * for both URL normalization and its executable-code denominator.
+ * for URL normalization, its JavaScript denominator, and explicit Wasm evidence.
  *
  * @param {{ buildRoot: string, productId: string, productOutput: string, sourceRevision: string }} options
  */
@@ -45,11 +46,12 @@ export async function preserveDesktopNightlyProductCoverageEvidence({
 	const applicationRoot = join(build, 'app');
 	const rendererRoot = join(build, 'renderer');
 	const sourceMapRoot = join(build, 'renderer-source-maps');
-	const [applicationDocuments, applicationScripts, rendererDocuments, rendererScripts, sourceMaps] = await Promise.all([
+	const [applicationDocuments, applicationScripts, rendererDocuments, rendererScripts, rendererWebAssembly, sourceMaps] = await Promise.all([
 		filesMatching(applicationRoot, HTML_PATTERN, 'packaged application documents'),
 		filesMatching(applicationRoot, SCRIPT_PATTERN, 'packaged application scripts'),
 		filesMatching(rendererRoot, HTML_PATTERN, 'packaged renderer documents'),
 		filesMatching(rendererRoot, SCRIPT_PATTERN, 'packaged renderer scripts'),
+		filesMatching(rendererRoot, WASM_PATTERN, 'packaged renderer WebAssembly'),
 		filesMatching(sourceMapRoot, SOURCE_MAP_PATTERN, 'renderer source maps'),
 	]);
 	if (sourceMaps.length === 0) {
@@ -74,6 +76,7 @@ export async function preserveDesktopNightlyProductCoverageEvidence({
 		.map((file) => Object.freeze({ ...file, path: `runtime/${file.path}` }));
 	const stagedRuntimeScripts = stagedRuntimeResources.filter(({ path }) => SCRIPT_PATTERN.test(path));
 	const stagedRuntimeDocuments = stagedRuntimeResources.filter(({ path }) => HTML_PATTERN.test(path));
+	const stagedRuntimeWebAssembly = stagedRuntimeResources.filter(({ path }) => WASM_PATTERN.test(path));
 	assertApprovedRuntimeScripts(stagedRuntimeScripts, excludedRuntimeScripts);
 
 	await rm(evidenceRoot, { recursive: true, force: true });
@@ -81,6 +84,7 @@ export async function preserveDesktopNightlyProductCoverageEvidence({
 	const documents = [];
 	const htmlResources = [];
 	const scripts = [];
+	const webAssemblyResources = [];
 	const rendererExecutableResources = [];
 	for (const name of applicationScripts) {
 		const bytes = Buffer.from(extractFile(appAsar, name));
@@ -136,6 +140,18 @@ export async function preserveDesktopNightlyProductCoverageEvidence({
 			packagedPath: `renderer/${name}`,
 		}));
 	}
+	for (const name of rendererWebAssembly) {
+		const packagedPath = `renderer/${name}`;
+		const bytes = await readFile(join(resourcesRoot, packagedPath));
+		await assertSameBytes(join(rendererRoot, name), bytes, `packaged ${packagedPath}`);
+		rendererExecutableResources.push(Object.freeze({ path: packagedPath, ...fileRecord(bytes) }));
+		webAssemblyResources.push(await preserveFile({
+			artifactPath: `webassembly/${packagedPath}`,
+			bytes,
+			evidenceRoot,
+			packagedPath,
+		}));
+	}
 	for (const record of stagedRuntimeDocuments) {
 		const name = record.path.slice('runtime/'.length);
 		const bytes = await readFile(join(resourcesRoot, record.path));
@@ -143,6 +159,16 @@ export async function preserveDesktopNightlyProductCoverageEvidence({
 		htmlResources.push({ artifactPath: record.path, source: bytes.toString('utf8') });
 		documents.push(await preserveFile({
 			artifactPath: record.path,
+			bytes,
+			evidenceRoot,
+			packagedPath: record.path,
+		}));
+	}
+	for (const record of stagedRuntimeWebAssembly) {
+		const bytes = await readFile(join(resourcesRoot, record.path));
+		await assertSameBytes(join(build, record.path), bytes, `packaged ${record.path}`);
+		webAssemblyResources.push(await preserveFile({
+			artifactPath: `webassembly/${record.path}`,
 			bytes,
 			evidenceRoot,
 			packagedPath: record.path,
@@ -156,6 +182,7 @@ export async function preserveDesktopNightlyProductCoverageEvidence({
 			...rendererExecutableResources,
 			...excludedRuntimeScripts,
 			...stagedRuntimeDocuments,
+			...stagedRuntimeWebAssembly,
 		].sort(comparePath),
 		'Desktop nightly coverage executable resources differ from the staged renderer and runtime.',
 	);
@@ -168,7 +195,7 @@ export async function preserveDesktopNightlyProductCoverageEvidence({
 		}));
 	}
 	const manifest = {
-		schemaVersion: 3,
+		schemaVersion: 4,
 		kind: 'soundscaper-e2e-product-build-evidence',
 		productId,
 		sourceRevision,
@@ -178,6 +205,7 @@ export async function preserveDesktopNightlyProductCoverageEvidence({
 		documents,
 		scripts,
 		sourceMaps: preservedMaps,
+		webAssemblyResources,
 	};
 	const target = join(evidenceRoot, 'manifest.json');
 	const temporary = join(evidenceRoot, '.manifest.json.tmp');

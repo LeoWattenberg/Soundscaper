@@ -24,6 +24,9 @@ const RUNTIME_SCRIPT = [
 	'assistance/sherpa-onnx/1.13.5/node_modules',
 	'sherpa-onnx-node/sherpa-onnx.js',
 ].join('/');
+const RENDERER_WASM = 'renderer/assets/sqlite3-fixture.wasm';
+const RUNTIME_WASM = 'runtime/model/engine.wasm';
+const WASM = '\u0000asm\u0001\u0000\u0000\u0000';
 
 test('nightly product coverage evidence preserves every executable and renderer map', async (context) => {
 	const workspace = await mkdtemp(join(tmpdir(), 'soundscaper-nightly-coverage-evidence-'));
@@ -37,16 +40,17 @@ test('nightly product coverage evidence preserves every executable and renderer 
 		sourceRevision: REVISION,
 	});
 
-	assert.equal(manifest.schemaVersion, 3);
+	assert.equal(manifest.schemaVersion, 4);
 	assert.equal(manifest.productId, 'soundscaper');
 	assert.equal(manifest.sourceRevision, REVISION);
 	assert.match(manifest.packageArchive.sha256, /^[0-9a-f]{64}$/u);
-	assert.equal(manifest.executableResources.fileCount, 4);
+	assert.equal(manifest.executableResources.fileCount, 6);
 	assert.equal(
 		manifest.executableResources.totalBytes,
 		[...files]
-			.filter(([name]) => /(?:\.(?:c|m)?js|\.html?)$/u.test(name)
-				&& (name.startsWith('renderer/') || name === `runtime/${RUNTIME_SCRIPT}`))
+			.filter(([name]) => /(?:\.(?:c|m)?js|\.html?|\.wasm)$/u.test(name)
+				&& (name.startsWith('renderer/') || name === `runtime/${RUNTIME_SCRIPT}`
+					|| name === RUNTIME_WASM))
 			.reduce((total, [, contents]) => total + Buffer.byteLength(contents), 0),
 	);
 	assert.match(manifest.executableResources.sha256, /^[0-9a-f]{64}$/u);
@@ -57,6 +61,18 @@ test('nightly product coverage evidence preserves every executable and renderer 
 			.update(files.get(`runtime/${RUNTIME_SCRIPT}`) ?? '')
 			.digest('hex'),
 	}]);
+	assert.deepEqual(manifest.webAssemblyResources.map(({
+		packagedPath, artifactPath, byteLength,
+	}) => ({ packagedPath, artifactPath, byteLength })), [
+		{ packagedPath: RENDERER_WASM, artifactPath: `webassembly/${RENDERER_WASM}`, byteLength: 8 },
+		{ packagedPath: RUNTIME_WASM, artifactPath: `webassembly/${RUNTIME_WASM}`, byteLength: 8 },
+	]);
+	for (const resource of manifest.webAssemblyResources) {
+		assert.deepEqual(
+			await readFile(join(productOutput, 'e2e-coverage', resource.artifactPath)),
+			Buffer.from(WASM),
+		);
+	}
 	assert.deepEqual(manifest.documents.map(({ packagedPath, artifactPath }) => ({
 		packagedPath, artifactPath,
 	})), [
@@ -184,7 +200,7 @@ test('nightly product coverage evidence admits an absent optional runtime withou
 		sourceRevision: REVISION,
 	});
 	assert.deepEqual(manifest.excludedRuntimeScripts, []);
-	assert.equal(manifest.executableResources.fileCount, 3);
+	assert.equal(manifest.executableResources.fileCount, 5);
 });
 
 test('nightly product coverage evidence refuses uninventoried and unapproved resource scripts', async (context) => {
@@ -197,6 +213,11 @@ test('nightly product coverage evidence refuses uninventoried and unapproved res
 		[
 			'uninventoried renderer document',
 			{ packagedResourceExtras: new Map([['renderer/injected.html', '<main>injected</main>\n']]) },
+			/executable resources differ from the staged renderer and runtime/u,
+		],
+		[
+			'uninventoried WebAssembly',
+			{ packagedResourceExtras: new Map([['renderer/injected.wasm', WASM]]) },
 			/executable resources differ from the staged renderer and runtime/u,
 		],
 		[
@@ -225,6 +246,21 @@ test('nightly product coverage evidence refuses uninventoried and unapproved res
 			);
 		});
 	}
+});
+
+test('nightly product coverage evidence rejects packaged WebAssembly byte substitution', async (context) => {
+	const workspace = await mkdtemp(join(tmpdir(), 'soundscaper-nightly-coverage-wasm-mismatch-'));
+	context.after(() => rm(workspace, { recursive: true, force: true }));
+	const fixture = await createCoverageFixture(workspace);
+	await writeFile(join(
+		fixture.productOutput, 'linux-unpacked/resources', RENDERER_WASM,
+	), Buffer.from([...Buffer.from(WASM).slice(0, -1), 1]));
+	await assert.rejects(preserveDesktopNightlyProductCoverageEvidence({
+		buildRoot: fixture.buildRoot,
+		productId: 'soundscaper',
+		productOutput: fixture.productOutput,
+		sourceRevision: REVISION,
+	}), /packaged renderer\/assets\/sqlite3-fixture\.wasm differs/u);
 });
 
 test('nightly product coverage evidence refuses inline executable HTML', async (context) => {
@@ -288,10 +324,12 @@ async function createCoverageFixture(workspace: string, options: CoverageFixture
 		['app/desktop/ignored.json', '{}\n'],
 		['renderer/assets/editor-abc.js', 'globalThis.editor = true;\n'],
 		['renderer/desktop-renderer-smoke.js', 'export const smoke = true;\n'],
+		[RENDERER_WASM, WASM],
 		['renderer/index.html', options.rendererDocument ?? '<main></main>\n'],
 		['renderer-source-maps/desktop-renderer-smoke.js.map', JSON.stringify({ version: 3, sources: [] })],
 		['renderer-source-maps/editor-abc.js.map', JSON.stringify({ version: 3, sources: [] })],
 		...[...runtimeScripts].map(([name, contents]) => [`runtime/${name}`, contents] as const),
+		[RUNTIME_WASM, WASM],
 	]);
 	const nativeManifest = runtimeAuthority
 		? assistanceNativeManifest(files.get(`runtime/${RUNTIME_SCRIPT}`) ?? '')

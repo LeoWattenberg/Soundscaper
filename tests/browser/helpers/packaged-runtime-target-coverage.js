@@ -7,8 +7,9 @@ import {
 	WORKLET_COVERAGE_CHECKPOINT_URL,
 } from '../../../scripts/lib/browser-service-worker-coverage.mjs';
 import {
-	captureCdpWebAssemblyScript,
+	createCdpJavaScriptCoverageState,
 	javaScriptCoverageEntries,
+	observeCdpScript,
 } from '../../../scripts/lib/cdp-javascript-coverage.mjs';
 import {
 	installNavigationCoverageCheckpoints,
@@ -27,6 +28,7 @@ const AUTO_ATTACH_OPTIONS = Object.freeze({
 
 /** Start precise V8 coverage in a page target and every target it creates. */
 export async function startPackagedRuntimeTargetCoverage({
+	authenticateWebAssembly,
 	keepUrl,
 	page,
 	pending,
@@ -48,9 +50,14 @@ export async function startPackagedRuntimeTargetCoverage({
 		}
 	}
 
+	async function settlePendingWork() {
+		while (pending.length > 0) await Promise.all(pending.splice(0, pending.length));
+	}
+
 	async function instrument(session, type, waitingForDebugger, ownerPage = null) {
 		const recorder = {
 			active: true,
+			cdpState: createCdpJavaScriptCoverageState({ authenticateWebAssembly }),
 			checkpoint: null,
 			checkpointTail: Promise.resolve(),
 			coverageHookScriptIds: new Set(),
@@ -58,11 +65,9 @@ export async function startPackagedRuntimeTargetCoverage({
 			page: ownerPage,
 			pageOperationCheckpoints: null,
 			session,
-			scriptUrls: new Map(),
 			sources: new Map(),
 			taken: [],
 			type,
-			webAssemblyScriptIds: new Set(),
 		};
 		recorders.push(recorder);
 		targetTypes.add(type);
@@ -74,12 +79,7 @@ export async function startPackagedRuntimeTargetCoverage({
 			if (url === WORKLET_COVERAGE_CHECKPOINT_URL) {
 				recorder.coverageHookScriptIds.add(String(scriptId));
 			}
-			if (typeof url === 'string' && url !== '') recorder.scriptUrls.set(String(scriptId), url);
-			const webAssembly = captureCdpWebAssemblyScript({
-				event,
-				session,
-				webAssemblyScriptIds: recorder.webAssemblyScriptIds,
-			});
+			const webAssembly = observeCdpScript({ event, session, state: recorder.cdpState });
 			if (webAssembly !== null) {
 				pending.push(webAssembly);
 				return;
@@ -101,8 +101,8 @@ export async function startPackagedRuntimeTargetCoverage({
 			if (Array.isArray(result)) {
 				recorder.taken.push(...javaScriptCoverageEntries(
 					result,
-					recorder.scriptUrls,
-					recorder.webAssemblyScriptIds,
+					recorder.cdpState.scriptUrls,
+					recorder.cdpState.webAssemblyScriptUrls,
 				));
 			}
 		});
@@ -118,8 +118,8 @@ export async function startPackagedRuntimeTargetCoverage({
 					const { result } = await session.send('Profiler.takePreciseCoverage');
 					recorder.taken.push(...javaScriptCoverageEntries(
 						result,
-						recorder.scriptUrls,
-						recorder.webAssemblyScriptIds,
+						recorder.cdpState.scriptUrls,
+						recorder.cdpState.webAssemblyScriptUrls,
 					));
 				} catch (error) {
 					if (recorder.active) throw error;
@@ -203,8 +203,8 @@ export async function startPackagedRuntimeTargetCoverage({
 						const { result } = await recorder.session.send('Profiler.takePreciseCoverage');
 						recorder.taken.push(...javaScriptCoverageEntries(
 							result,
-							recorder.scriptUrls,
-							recorder.webAssemblyScriptIds,
+							recorder.cdpState.scriptUrls,
+							recorder.cdpState.webAssemblyScriptUrls,
 						));
 						await recorder.navigationCheckpoints?.dispose();
 						await recorder.session.send('Profiler.stopPreciseCoverage');
@@ -215,6 +215,7 @@ export async function startPackagedRuntimeTargetCoverage({
 					}
 				}
 			}
+			await settlePendingWork();
 			for (const session of nestedSessions.reverse()) await session.detach().catch(() => undefined);
 			await rootSession.detach().catch((error) => {
 				if (page.isClosed?.() !== true) throw error;

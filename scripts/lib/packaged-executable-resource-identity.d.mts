@@ -15,6 +15,7 @@ export interface PackagedExecutableResourceIdentity {
 export interface PackagedExecutableResourcesBeforeLaunch {
 	readonly path: string;
 	readonly beforeLaunch: PackagedExecutableResourceIdentity;
+	readonly webAssemblyResources: readonly PackagedExecutableResourceFile[];
 }
 
 export interface PackagedExecutableResources extends PackagedExecutableResourcesBeforeLaunch {

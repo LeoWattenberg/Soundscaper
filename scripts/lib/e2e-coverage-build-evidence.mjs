@@ -145,14 +145,17 @@ function loadElectronEvidence({ productId, repositoryRoot, root, sourceRevision 
 		'scripts',
 		'sourceMaps',
 		'sourceRevision',
-	]) || manifest.schemaVersion !== 3 || manifest.kind !== 'soundscaper-e2e-product-build-evidence'
+		'webAssemblyResources',
+	]) || manifest.schemaVersion !== 4 || manifest.kind !== 'soundscaper-e2e-product-build-evidence'
 		|| manifest.productId !== productId || manifest.sourceRevision !== sourceRevision
 		|| !exactKeys(manifest.packageArchive, ['byteLength', 'sha256'])
 		|| !fileRecord(manifest.packageArchive) || !Array.isArray(manifest.documents)
-		|| !Array.isArray(manifest.scripts) || !Array.isArray(manifest.sourceMaps)) {
+		|| !Array.isArray(manifest.scripts) || !Array.isArray(manifest.sourceMaps)
+		|| !Array.isArray(manifest.webAssemblyResources)) {
 		throw new Error(`The ${productId} Electron build evidence is invalid.`);
 	}
-	const declared = [...manifest.documents, ...manifest.scripts, ...manifest.sourceMaps];
+	const declared = [...manifest.documents, ...manifest.scripts, ...manifest.sourceMaps,
+		...manifest.webAssemblyResources];
 	const declaredPaths = declared.map(({ artifactPath }) => artifactPath).sort();
 	const actualPaths = walkFiles(root)
 		.map((path) => normalizedRelative(root, path))
@@ -380,6 +383,7 @@ function evidenceDigest(browser, electron, sourceRevision, includeTargetSpecific
 		browserSite: browser.get(productId).siteDigest,
 		browserScripts: browser.get(productId).scripts.map(digestibleScript),
 		electronDocuments: electron.get(productId).documents,
+		electronWebAssemblyResources: electron.get(productId).webAssemblyResources,
 		...(includeTargetSpecificEvidence ? {
 			electronArchive: electron.get(productId).packageArchive,
 			electronExecutableResources: electron.get(productId).executableResources,

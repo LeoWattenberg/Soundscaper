@@ -202,7 +202,7 @@ test('the collector records every page a context opens and writes one profile pe
 	const collector = createBrowserCoverageCollector({
 		browserName: 'chromium',
 		environment: { SCAPE_BROWSER_COVERAGE: '1' },
-		sites: [{ origin: ORIGIN, outputDirectory: built }],
+		sites: [{ origin: ORIGIN, outputDirectory: built, productId: 'soundscaper' }],
 		coverageDirectory,
 	});
 	assert.ok(collector, 'chromium with the variable set must collect');
@@ -403,7 +403,11 @@ test('a test that ran nothing the build serves writes no profile', async () => {
 	const collector = createBrowserCoverageCollector({
 		browserName: 'chromium',
 		environment: { SCAPE_BROWSER_COVERAGE: '1' },
-		sites: [{ origin: ORIGIN, outputDirectory: join(workspace, 'soundscaper') }],
+		sites: [{
+			origin: ORIGIN,
+			outputDirectory: join(workspace, 'soundscaper'),
+			productId: 'soundscaper',
+		}],
 		coverageDirectory,
 	});
 	assert.ok(collector);

@@ -353,6 +353,12 @@ function buildEvidenceRecord(capture, index) {
 				evidence.excludedRuntimeScripts.map((script) => ({ ...script })),
 			]),
 		),
+		webAssemblyResources: Object.fromEntries(
+			[...capture.evidence.electron.entries()].map(([productId, evidence]) => [
+				productId,
+				evidence.webAssemblyResources.map((resource) => ({ ...resource })),
+			]),
+		),
 		packageArchives: Object.fromEntries(
 			[...capture.evidence.electron.entries()].map(([productId, evidence]) => [
 				productId,

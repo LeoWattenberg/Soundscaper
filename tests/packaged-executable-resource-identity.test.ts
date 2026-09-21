@@ -38,17 +38,21 @@ test('packaged executable resource identity binds every external script before a
 	await mkdir(join(resources, 'renderer/assets'), { recursive: true });
 	await writeFile(join(resources, 'runtime/vendor/index.cjs'), 'module.exports = true;\n');
 	await writeFile(join(resources, 'renderer/assets/editor.js'), 'globalThis.editor = true;\n');
+	await writeFile(join(resources, 'renderer/assets/editor.wasm'), Buffer.from([
+		0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00,
+	]));
 	await writeFile(join(resources, 'renderer/index.html'), '<main></main>\n');
 
 	const files = await collectPackagedExecutableResourceFiles(resources);
 	assert.deepEqual(files.map(({ path }) => path), [
 		'renderer/assets/editor.js',
+		'renderer/assets/editor.wasm',
 		'renderer/index.html',
 		'runtime/vendor/index.cjs',
 	]);
 	const identity = packagedExecutableResourceIdentity(files);
-	assert.equal(identity.fileCount, 3);
-	assert.equal(identity.totalBytes, 63);
+	assert.equal(identity.fileCount, 4);
+	assert.equal(identity.totalBytes, 71);
 	assert.match(identity.sha256, /^[a-f\d]{64}$/u);
 
 	const before = await capturePackagedExecutableResourcesBeforeLaunch({
