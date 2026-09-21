@@ -19,7 +19,7 @@ const SCAPE_MIME_TYPE = 'application/vnd.soundscaper.scape+zip';
 test.describe('project archive and checksum files', () => {
 	registerAudioEditorHooks();
 
-	test('exports, saves checksums, reopens an uppercase suffix and downloads an editable copy', async ({ page }) => {
+	test('exports, saves checksums, reopens an uppercase suffix and downloads an editable copy', async ({ browserName, page }) => {
 		test.setTimeout(60_000);
 		await disableNativeSavePicker(page);
 		const errors = collectClientErrors(page);
@@ -69,7 +69,9 @@ test.describe('project archive and checksum files', () => {
 			.not.toBe(originalProjectId);
 		await expect(clipByName(editor, toneA.name)).toBeVisible();
 
-		await chooseFileAction(page, editor, 'Save project');
+		await editor.getByRole('menuitem', { name: 'File', exact: true }).click();
+		await page.getByRole('menu', { name: 'File', exact: true })
+			.getByRole('menuitem', { name: /^Save project(?:\s|$)/u }).click();
 		await expect(editor.locator('[data-save-state]')).toHaveAttribute('data-state', 'saved');
 		await editor.getByRole('menuitem', { name: 'File', exact: true }).click();
 		const fileMenu = page.getByRole('menu', { name: 'File', exact: true });
@@ -80,12 +82,22 @@ test.describe('project archive and checksum files', () => {
 		await expect(page.locator('input[data-transfer-choice]:checked')).toHaveCount(1);
 		const editableCopyDownloadPromise = page.waitForEvent(
 			'download',
-			(download) => /\.fscape$/u.test(download.suggestedFilename()),
+			browserName === 'webkit'
+				? undefined
+				: (download) => /\.fscape$/u.test(download.suggestedFilename()),
 		);
 		await page.getByRole('button', { name: 'Download the ticked archives', exact: true }).click();
 		const editableCopyDownload = await editableCopyDownloadPromise;
-		expect(editableCopyDownload.suggestedFilename()).toMatch(/\.fscape$/u);
-		expect((await downloadBytes(editableCopyDownload)).byteLength).toBeGreaterThan(0);
+		if (browserName === 'webkit') {
+			// Playwright WebKit exposes only one of the two downloads started by
+			// this action; accept either the archive or its companion report.
+			expect(editableCopyDownload.suggestedFilename())
+				.toMatch(/\.fscape(?:\.conversion-report\.json)?$/u);
+			expect((await downloadBytes(editableCopyDownload)).byteLength).toBeGreaterThan(0);
+		} else {
+			expect(editableCopyDownload.suggestedFilename()).toMatch(/\.fscape$/u);
+			expect((await downloadBytes(editableCopyDownload)).byteLength).toBeGreaterThan(0);
+		}
 		await expect(page.getByText(
 			'Downloaded 1 of 1 projects. Nothing on this origin was changed.',
 			{ exact: true },

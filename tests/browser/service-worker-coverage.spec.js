@@ -7,7 +7,8 @@ import { expect, test } from './audio-editor-test-fixtures.js';
 
 test.use({ browserCoverage: false, serviceWorkers: 'allow' });
 
-test('browser-target coverage starts before a service worker lifecycle executes', async ({ browser, context, page }) => {
+test('browser-target coverage starts before a service worker lifecycle executes', async ({ browser, browserName, context, page }) => {
+	test.skip(browserName !== 'chromium', 'Browser-target service-worker coverage requires Chromium CDP sessions.');
 	const workerUrl = '/coverage-service-worker/sw.js';
 	const workerSource = [
 		'globalThis.coverageLifecycle = { installed: false, activated: false };',

@@ -92,7 +92,11 @@ test.describe('File project management submenu', () => {
 		await expect(file).toBeFocused();
 	});
 
-	test('consolidates a linked WAV and trims managed video with persistent undo', async ({ page }) => {
+	test('consolidates a linked WAV and trims managed video with persistent undo', async ({ browserName, page }) => {
+		test.skip(
+			browserName === 'firefox',
+			'Playwright Firefox cannot import the routed cross-origin FFmpeg module worker.',
+		);
 		test.setTimeout(240_000);
 		page.setDefaultTimeout(30_000);
 		const clientErrors = collectClientErrors(page);

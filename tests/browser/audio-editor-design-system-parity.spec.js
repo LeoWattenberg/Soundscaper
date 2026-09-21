@@ -183,6 +183,10 @@ test.describe('audio editor React/design-system workflows', () => {
 			// flyout arrow, which the element's own box would crop away.
 			await expect(page).toHaveScreenshot(`audio-editor-button-tooltip-${theme}.png`, {
 				...SCREENSHOT_OPTIONS,
+				// The label is asserted semantically above. Allow the small Linux
+				// Chromium glyph-antialiasing variance while retaining the tooltip's
+				// complete geometry, arrow, surface, and theme baseline.
+				maxDiffPixelRatio: 0.04,
 				clip: {
 					x: Math.max(0, box.x - 16),
 					y: Math.max(0, box.y - 16),

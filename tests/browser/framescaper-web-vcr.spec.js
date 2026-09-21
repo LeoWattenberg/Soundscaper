@@ -12,7 +12,11 @@ import {
 test.describe('Framescaper Web VCR', () => {
 	registerAudioEditorHooks();
 
-	test('opens from capture options and drives the packaged host lifecycle', async ({ page }) => {
+	test('opens from capture options and drives the packaged host lifecycle', async ({ browserName, page }) => {
+		test.skip(
+			browserName !== 'chromium',
+			'The packaged Web VCR capture adapter requires Chromium MediaStreamTrackProcessor support.',
+		);
 		await installWebVcrHost(page);
 		const editor = await bootEditor(page, '/framescaper/en/');
 
