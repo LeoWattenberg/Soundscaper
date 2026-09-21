@@ -39,6 +39,7 @@ export interface FramescaperImageClipboardBodyTransferV13 {
 }
 
 export interface FramescaperSessionClipboardPasteV13 {
+	readonly foundationCommand: FramescaperProjectCommandTimelineImage;
 	readonly command: FramescaperProjectCommandTimelineImage;
 	readonly imageSourceIdMap: ReadonlyMap<string, string>;
 	readonly bodyTransfers: readonly FramescaperImageClipboardBodyTransferV13[];
@@ -178,6 +179,7 @@ export function prepareFramescaperSessionClipboardPasteV13(
 		...clipCommands,
 	];
 	return Object.freeze({
+		foundationCommand: foundationCommand as FramescaperProjectCommandTimelineImage,
 		command: commands.length === 1 ? commands[0]! : Object.freeze({
 			type: 'batch' as const,
 			commands: Object.freeze(commands),

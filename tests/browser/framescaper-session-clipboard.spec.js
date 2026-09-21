@@ -48,6 +48,10 @@ test.describe('Framescaper rich session clipboard', () => {
 			audioClips: 1, videoClips: 1, imageClips: 0, imageSources: 0,
 			videoCropLeft: 0.125, videoPositionX: 0.7, authoredVideoCompositions: 1,
 		});
+		await expect(page.getByText(
+			'The action failed: A new Framescaper image body requires atomic timeline-image publication.',
+			{ exact: true },
+		)).toHaveCount(0);
 	});
 });
 

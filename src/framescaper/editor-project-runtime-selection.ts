@@ -180,7 +180,7 @@ export function createEditorProjectRuntimeSelection(
 				clipboard,
 				command,
 				createId,
-			).command as FramescaperProjectCommand
+			).foundationCommand as FramescaperProjectCommand
 		),
 		stageEditClipboardPasteBodies: (prepared, store, options = {}) => (
 			stageFramescaperSessionClipboardImageBodiesV13(prepared.bodyTransfers, store, options)
