@@ -12,10 +12,10 @@ import {
 	type SoundActivatedRecordingCaptureSession,
 } from './sound-activation/sound-activated-recording-capture-session.ts';
 import { compactSoundActivationSegments } from './sound-activation/sound-activated-recording-chunk.ts';
-import { calculateAudioEditorCountInFrames } from '../../transport/transport-model.ts';
-import { countInSampleFrames, scaleSampleFrame, secondsToSampleFrame } from '../../../timeline-time.ts';
+import { scaleSampleFrame } from '../../../timeline-time.ts';
 import { planRoutedRecordingSources } from './routed-recording-source-plan.ts';
 import { timedRecordingStopFrame } from '../recording-model.ts';
+import { planRecordingStartTiming } from './recording-start-timing.ts';
 import type {
 	RecordingMediaStream,
 	RecordingStartOptions,
@@ -419,36 +419,24 @@ export function createRoutedRecordingCaptureService(runtime: RoutedRecordingCapt
 			state.recordingPreview = state.recordingPreviews[0] || null;
 			state.recordingSelection = selection ? { ...selection } : null;
 			state.recorder = routedRecorder;
-			const remainingSeconds = timedStart ? (timedStartTimeMs - runtime.currentTimeMs()) / 1_000 : null;
-			if (timedStart && remainingSeconds !== null && remainingSeconds <= 0) {
-				throw createLocalizedError(RangeError, { ['timedRecordingPast']: runtime.messages.timedRecordingPast }, 'timedRecordingPast');
-			}
-			const scheduledTime = timedStart
-				? context.currentTime + (remainingSeconds || 0)
-				: context.currentTime + 0.08;
-			const leadInFrames = !timedStart && state.leadInRecording
-				? project.tempoMap != null || project.signatureMap != null
-					? calculateAudioEditorCountInFrames({
-						tempoMap: project.tempoMap,
-						signatureMap: project.signatureMap,
-						sampleRate,
-						positionFrame: requestedStartFrame,
-					})
-					: countInSampleFrames(1, {
-						bpm: Math.max(1, Number(project.tempo?.bpm) || 120),
-						timeSignature: {
-							numerator: Math.max(1, Number(project.tempo?.timeSignature?.numerator) || 4),
-							denominator: Math.max(1, Number(project.tempo?.timeSignature?.denominator) || 4),
-						},
-					}, sampleRate)
-				: 0;
-			const availableLeadInFrames = Math.min(leadInFrames, requestedStartFrame);
+			const timing = planRecordingStartTiming({
+				project,
+				timedStartTimeMs: timedStart ? timedStartTimeMs : null,
+				currentTimeMs: runtime.currentTimeMs(),
+				contextCurrentTime: context.currentTime,
+				projectSampleRate: sampleRate,
+				contextSampleRate: context.sampleRate,
+				requestedStartFrame,
+				leadInEnabled: state.leadInRecording,
+				createTimedRecordingPastError: () => createLocalizedError(
+					RangeError,
+					{ ['timedRecordingPast']: runtime.messages.timedRecordingPast },
+					'timedRecordingPast',
+				),
+			});
+			const { scheduledTime, availableLeadInFrames } = timing;
 			const setRecorderSchedule = (contextStartTime: number) => {
-				const startFrame = secondsToSampleFrame(
-					contextStartTime + availableLeadInFrames / sampleRate,
-					context.sampleRate,
-					'enclosingEnd',
-				);
+				const startFrame = timing.captureStartFrame(contextStartTime);
 				for (const session of sourceSessions) {
 					const selectionProjectFrames = selection
 						? selection.endFrame - selection.startFrame + (session.sourceOffsetProjectFrames || 0)
@@ -475,7 +463,7 @@ export function createRoutedRecordingCaptureService(runtime: RoutedRecordingCapt
 				context.removeEventListener?.('statechange', contextStateChange);
 			};
 			runtime.engine.setLoop(false);
-			runtime.engine.seek(requestedStartFrame - availableLeadInFrames);
+			runtime.engine.seek(timing.seekFrame);
 			if (timedStart) {
 				setRecorderSchedule(scheduledTime);
 				routedRecorder.start();
@@ -483,7 +471,7 @@ export function createRoutedRecordingCaptureService(runtime: RoutedRecordingCapt
 			} else {
 				const playbackStartTime = await runtime.engine.playAt(
 					scheduledTime,
-					requestedStartFrame - availableLeadInFrames,
+					timing.seekFrame,
 				);
 				scope.assertCurrent();
 				await dropFailedSourceSessions();
