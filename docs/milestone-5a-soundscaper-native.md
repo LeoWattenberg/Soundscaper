@@ -285,15 +285,17 @@ be inferred from a neighbouring target.
   explicit user allow decision authorizes that exact digest; a binary change
   revokes that decision and requires a new allowance.
 
-### Hosting, state, PDC, and vendor UI
+### Hosting, analysis, state, PDC, and vendor UI
 
-- VST3 and CLAP are cross-platform targets; Audio Units is macOS-only and LV2
-  Linux-only. Each platform-appropriate format is exposed for testing now.
-  Actual scan and host execution still requires the exact authenticated target
-  payload, OS launcher, plug-in digest, explicit per-digest user allowance, and
-  non-quarantined state. Target CI build results and nightly-with-tests packaged
-  fixture runs are the technical closure for source, notice, target, architecture,
-  payload, and fixture evidence; those machine results close execution eligibility.
+- VST3 and CLAP are cross-platform effect targets; Audio Units is macOS-only,
+  while LADSPA and LV2 effects are Linux-only. Vamp is a cross-platform analyzer
+  target rather than an effect. Each platform-appropriate surface is exposed for
+  testing now. Actual scan and host or analyzer execution still requires the exact
+  authenticated target payload, OS launcher, plug-in digest, explicit per-digest
+  user allowance, and non-quarantined state. Target CI build results and
+  nightly-with-tests packaged fixture runs are the technical closure for source,
+  notice, target, architecture, payload, and fixture evidence; those machine
+  results close execution eligibility.
 - Isolation is one host process per renderer owner and plug-in binary digest.
   Multiple instances of that exact digest may share the host, but unrelated
   binaries and renderer owners never do. Revocation kills the matching host and
@@ -342,10 +344,12 @@ be inferred from a neighbouring target.
    quarantine, retry/revoke, and the menu-owned dialog are implemented.
 6. **5A-3 — Software complete; third-party testing enabled.** Real-time/offline
    DSP, bounded state, exact PDC, recovery, revocation, helper-owned vendor UI,
-   and the per-OS launcher contracts exist. VST3, CLAP, AU, and LV2 are exposed
-   for testing and execute when exact payload, platform, containment, consent,
-   and quarantine checks pass. Machine verification of source, notices, target,
-   architecture, tests, and payload hashes is the complete build gate.
+   finite Vamp analysis, and the per-OS launcher contracts exist. VST3 and CLAP
+   effects on supported targets, AU effects on macOS, LADSPA and LV2 effects on
+   Linux, and Vamp analysis across supported targets are exposed for testing and
+   execute when exact payload, platform, containment, consent, and quarantine
+   checks pass. Machine verification of source, notices, target, architecture,
+   tests, and payload hashes is the complete build gate.
 7. **5A-4 — Complete.** The collector, verifier, correctness/fault suites, and
    five-target build-result publishers exist. Physical-host measurements remain
    optional observations and do not control release or execution.
@@ -417,12 +421,15 @@ accepted result before all product packets close.
   native menu family and nowhere else, so the tier adds no permanent editor
   chrome, and it is the only place a format is granted, a folder admitted, a
   scan watched, its findings read, or a quarantined digest cleared.
-- **Implementation:** JUCE supplies VST3, Audio Units, and LV2 discovery on its
-  applicable targets, while direct CLAP discovery preserves the CLAP ABI and
-  lifecycle. Authenticated bundle-tree identities, descriptor selection, and
-  durable quarantine remain separate from hosting permission.
+- **Implementation:** JUCE supplies VST3, Audio Units, LADSPA, and LV2 effect
+  discovery on its applicable targets, while direct CLAP discovery preserves the
+  CLAP ABI and lifecycle. The direct Vamp SDK route separately discovers
+  analyzers for finite PCM analysis. Authenticated bundle-tree identities,
+  descriptor selection, and durable quarantine remain separate from execution
+  permission.
 - **Result:** target-native CI self-tests scan and host the repository's benign
-  fixture inside a non-publishable packaged Electron harness.
+  fixture and analyze its benign Vamp fixture inside a non-publishable packaged
+  Electron harness.
 - **Non-goals:** DSP execution, project insertion, vendor UI, or instrument
   exposure.
 - **Stop:** stop if a format requires loading into main/renderer, exposes a raw
@@ -436,8 +443,9 @@ accepted result before all product packets close.
   AUP4 opaque-state round trips; exact PDC on every V21 path; crash/hang/
   malformed audio/state/UI faults; durable quarantine and active revocation;
   canonical state survival; truthful bypass/freeze choice; no renderer or
-  in-process native load; packaged VST3/CLAP everywhere, AU on macOS, and LV2
-  on Linux.
+  in-process native load; packaged VST3/CLAP effect hosting everywhere, AU on
+  macOS, LADSPA/LV2 on Linux, and finite Vamp analysis on every supported
+  target.
 - **Implementation:** selected S30 delegates to the exact V29 foundation that
   inserts explicitly allowed `native-plugin` effects into the canonical graph, carries
   one persistent helper RPC port,

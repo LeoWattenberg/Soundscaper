@@ -228,11 +228,11 @@ decision, never an incidental build change.
 ## Licensing decisions
 
 The application is AGPL-3.0-only. The licensing register has
-`nativeFormatPolicies` rows for VST3, CLAP, Audio Units, LV2, OFX, the current
-native FFmpeg set, hardware acceleration, and advanced codec families, in
-addition to the coarse `native-plugins`, `native-audio` and `native-codecs`
-gates. A row's presence is not enablement, and an enabled row is still not a
-shipping capability.
+`nativeFormatPolicies` rows for VST3, CLAP, Audio Units, Linux-only LADSPA
+effects, LV2, cross-platform Vamp analyzers, OFX, the current native FFmpeg set,
+hardware acceleration, and advanced codec families, in addition to the coarse
+`native-plugins`, `native-audio` and `native-codecs` gates. A row's presence is
+not enablement, and an enabled row is still not a shipping capability.
 
 On 2026-08-26 the owner recorded the `native-audio` and
 `native-plugins` gates as enabled, the audio-stack, five OS audio-backend and

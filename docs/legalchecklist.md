@@ -60,7 +60,7 @@ The required separation between copyright and patent review is stated at [produc
 - [x] Approve selecting JUCE 9.0.1 under AGPL-3.0-only rather than its commercial license.
 - [x] Approve the CoreAudio, WASAPI, PipeWire-header, and runtime ALSA system-library positions.
 - [x] Approve ASIO SDK use under GPL-3.0-only and separately approve any “ASIO” name, trademark, or logo usage.
-- [x] Approve per-platform hosting rules for VST3, CLAP, Audio Units, LV2, and OpenFX.
+- [x] Approve per-platform execution rules for VST3, CLAP, Audio Units, Linux-only LADSPA and LV2 effects, cross-platform Vamp analysis, and OpenFX.
 - [x] Confirm third-party plug-ins remain user-installed and are never redistributed.
 - [x] Decide how incompatible plug-in EULAs, scanning, quarantine, vendor windows, crash isolation, and user consent are handled and disclosed.
 -- not a legal problem. What users do with the software once they've downloaded it isn't for us to care about.

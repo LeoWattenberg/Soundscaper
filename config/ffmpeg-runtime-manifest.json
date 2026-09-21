@@ -84,8 +84,8 @@
 		},
 		"threatModel": {
 			"path": "docs/production-threat-model.md",
-			"byteLength": 321888,
-			"sha256": "9da1697ed9cd7fbcecd960f1650e63b4b8600f41808f7d42ad87fa77dbf2ff41"
+			"byteLength": 321969,
+			"sha256": "ccc3a84497b5fa629fb7a9051cdc731b929a4cb872c235d27901775c342d2c28"
 		}
 	},
 	"security": {
@@ -115,6 +115,6 @@
 		}
 	},
 	"integrity": {
-		"payloadSha256": "c44e5ac6124011a156f8ef50a65f533e3076d871140beb3b599b17225828c2f2"
+		"payloadSha256": "03779c38fdd2f96319a024d2740693dac4c2e1d841da828074efb6d536017d3b"
 	}
 }
