@@ -2,15 +2,17 @@
 
 import assert from 'node:assert/strict';
 import { EventEmitter } from 'node:events';
-import { mkdtemp, readFile, readdir, rm } from 'node:fs/promises';
+import { mkdir, mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { basename, join } from 'node:path';
 import test from 'node:test';
 
 import { WORKLET_COVERAGE_CHECKPOINT_URL } from '../scripts/lib/browser-service-worker-coverage.mjs';
 import {
+	capturePackagedAppAsarBeforeLaunch,
 	createPackagedRuntimeCoverageCollector,
 	packagedRuntimeCoverageLaunch,
+	resolvePackagedAppAsarPath,
 } from './browser/helpers/packaged-runtime-coverage.js';
 import {
 	requestPackagedRuntimeShutdown,
@@ -53,7 +55,7 @@ test('packaged coverage is opt-in and NODE_V8_COVERAGE reaches only the product 
 test('packaged coverage records renderer, preload, and a final worker delta banked before detach', async (context) => {
 	const directory = await mkdtemp(join(tmpdir(), 'soundscaper-packaged-coverage-'));
 	context.after(() => rm(directory, { recursive: true, force: true }));
-	const executablePath = join(tmpdir(), 'Soundscaper', 'soundscaper');
+	const { appAsar, executablePath } = await packagedAppFixture(context);
 	const productUrl = 'soundscaper-app://bundle/';
 	const preloadUrl = 'file:///opt/Soundscaper/resources/app.asar/preload.mjs';
 	const sandboxPreloadUrl = '/opt/Soundscaper/resources/app.asar/desktop/soundscaper-project-library-sandbox-preload.cjs';
@@ -71,6 +73,7 @@ test('packaged coverage records renderer, preload, and a final worker delta bank
 	);
 	const browserContext = new FakeContext([page, diagnosticPage]);
 	const collector = createPackagedRuntimeCoverageCollector({
+		appAsar,
 		architecture: 'x64',
 		baseURL: 'http://127.0.0.1:4567/',
 		context: browserContext,
@@ -114,6 +117,10 @@ test('packaged coverage records renderer, preload, and a final worker delta bank
 		diagnosticUrl,
 	]);
 	assert.deepEqual(profile['soundscaper-packaged-runtime'], {
+		appAsar: {
+			...appAsar,
+			afterCollection: appAsar.beforeLaunch,
+		},
 		appOrigin: 'soundscaper-app://bundle',
 		architecture: 'x64',
 		baseOrigin: 'http://127.0.0.1:4567',
@@ -124,7 +131,7 @@ test('packaged coverage records renderer, preload, and a final worker delta bank
 		pausedTargetCounts: { worker: 1 },
 		platform: 'linux',
 		productId: 'soundscaper',
-		schemaVersion: 1,
+		schemaVersion: 2,
 		targetCounts: { worker: 1 },
 		targetTypes: ['worker'],
 	});
@@ -141,9 +148,35 @@ test('packaged coverage records renderer, preload, and a final worker delta bank
 	assert.ok(page.calls.includes('CDP.detach'));
 });
 
+test('packaged coverage refuses to write a profile after app.asar changes', async (context) => {
+	const directory = await mkdtemp(join(tmpdir(), 'soundscaper-packaged-mutation-'));
+	context.after(() => rm(directory, { recursive: true, force: true }));
+	const { appAsar, executablePath } = await packagedAppFixture(context);
+	const productUrl = 'soundscaper-app://bundle/';
+	const collector = createPackagedRuntimeCoverageCollector({
+		appAsar,
+		architecture: 'x64',
+		baseURL: 'http://127.0.0.1:4567/',
+		context: new FakeContext([new FakePage(productUrl, [coverageEntry('11', productUrl, 120)])]),
+		coverageDirectory: directory,
+		executablePath,
+		platform: 'linux',
+		productId: 'soundscaper',
+	});
+
+	await collector.start();
+	await writeFile(appAsar.path, 'mutated application archive');
+	await assert.rejects(
+		collector.collect(),
+		/app\.asar changed between launch and collection/iu,
+	);
+	assert.deepEqual(await readdir(directory), []);
+});
+
 test('packaged coverage checkpoints an audio worklet at its first render quantum', async (context) => {
 	const directory = await mkdtemp(join(tmpdir(), 'soundscaper-packaged-worklet-coverage-'));
 	context.after(() => rm(directory, { recursive: true, force: true }));
+	const { appAsar, executablePath } = await packagedAppFixture(context);
 	const productUrl = 'soundscaper-app://bundle/';
 	const workletUrl = 'soundscaper-app://bundle/assets/audio-worklet.js';
 	const page = new FakePage(
@@ -153,11 +186,12 @@ test('packaged coverage checkpoints an audio worklet at its first render quantum
 		'worklet',
 	);
 	const collector = createPackagedRuntimeCoverageCollector({
+		appAsar,
 		architecture: 'x64',
 		baseURL: 'http://127.0.0.1:4567/',
 		context: new FakeContext([page]),
 		coverageDirectory: directory,
-		executablePath: join(tmpdir(), 'Soundscaper', 'soundscaper'),
+		executablePath,
 		platform: 'linux',
 		productId: 'soundscaper',
 	});
@@ -181,6 +215,19 @@ test('packaged coverage checkpoints an audio worklet at its first render quantum
 	assert.ok(page.calls.includes('child:Profiler.takePreciseCoverage'));
 	assert.ok(page.calls.includes('child:Debugger.resume'));
 });
+
+async function packagedAppFixture(context: { after: (callback: () => Promise<void>) => void }) {
+	const root = await mkdtemp(join(tmpdir(), 'soundscaper-packaged-app-'));
+	context.after(() => rm(root, { force: true, recursive: true }));
+	const executablePath = join(root, 'Soundscaper', 'soundscaper');
+	const appAsarPath = resolvePackagedAppAsarPath(executablePath, 'linux');
+	await mkdir(join(root, 'Soundscaper', 'resources'), { recursive: true });
+	await writeFile(appAsarPath, 'packaged application archive');
+	return {
+		appAsar: await capturePackagedAppAsarBeforeLaunch({ executablePath, platform: 'linux' }),
+		executablePath,
+	};
+}
 
 test('packaged shutdown checkpoints before requesting trusted application quit', async () => {
 	const child = Object.assign(new EventEmitter(), {

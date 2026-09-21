@@ -23,6 +23,7 @@ import {
 	packagedRuntimeAudioArguments,
 } from './packaged-runtime-audio-fixture.js';
 import {
+	capturePackagedAppAsarBeforeLaunch,
 	createPackagedRuntimeCoverageCollector,
 	packagedRuntimeCoverageLaunch,
 } from './packaged-runtime-coverage.js';
@@ -43,10 +44,11 @@ const packagedTest = base.extend({
 	packagedRuntime: [async ({ browserName: _browserName }, use, workerInfo) => {
 		const productId = workerInfo.project.metadata.productId;
 		const baseURL = packagedRuntimeProductBaseURL(productId);
+		const runtimePlatform = requiredEnvironment('SOUNDSCAPER_PACKAGED_RUNTIME_PLATFORM');
 		const executablePath = resolvePackagedProductExecutable({
 			productRoot: requiredEnvironment('SOUNDSCAPER_PACKAGED_PRODUCT_ROOT'),
 			productId,
-			platform: requiredEnvironment('SOUNDSCAPER_PACKAGED_RUNTIME_PLATFORM'),
+			platform: runtimePlatform,
 			arch: requiredEnvironment('SOUNDSCAPER_PACKAGED_RUNTIME_ARCH'),
 		});
 		await access(executablePath);
@@ -57,8 +59,11 @@ const packagedTest = base.extend({
 		if (coverageLaunch.coverageDirectory !== null) {
 			await mkdir(coverageLaunch.coverageDirectory, { recursive: true });
 		}
+		const appAsar = coverageLaunch.coverageDirectory === null
+			? null
+			: await capturePackagedAppAsarBeforeLaunch({ executablePath, platform: runtimePlatform });
 		const child = spawn(executablePath, [
-			...packagedRuntimeChromiumArguments(requiredEnvironment('SOUNDSCAPER_PACKAGED_RUNTIME_PLATFORM')),
+			...packagedRuntimeChromiumArguments(runtimePlatform),
 			...audioFixtureArguments,
 			`--user-data-dir=${profile}`,
 			`--soundscaper-nightly-tests-app-data=${join(profile, 'application-data')}`,
@@ -88,13 +93,14 @@ const packagedTest = base.extend({
 			if (!context) throw new Error('Packaged runtime exposed no Chromium context.');
 			if (coverageLaunch.coverageDirectory !== null) {
 				coverageCollector = createPackagedRuntimeCoverageCollector({
+					appAsar,
 					architecture: requiredEnvironment('SOUNDSCAPER_PACKAGED_RUNTIME_ARCH'),
 					baseURL,
 					browser,
 					context,
 					coverageDirectory: coverageLaunch.coverageDirectory,
 					executablePath,
-					platform: requiredEnvironment('SOUNDSCAPER_PACKAGED_RUNTIME_PLATFORM'),
+					platform: runtimePlatform,
 					processId: child.pid,
 					productId,
 				});

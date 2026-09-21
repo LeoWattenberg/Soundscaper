@@ -1,8 +1,9 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { randomUUID } from 'node:crypto';
+import { createHash, randomUUID } from 'node:crypto';
+import { createReadStream } from 'node:fs';
 import { mkdir, rename, writeFile } from 'node:fs/promises';
-import { isAbsolute, join } from 'node:path';
+import { isAbsolute, join, posix, win32 } from 'node:path';
 
 import {
 	createPlaywrightBrowserServiceWorkerCoverageCollector,
@@ -14,6 +15,42 @@ const PRODUCT_IDS = new Set(['soundscaper', 'framescaper']);
 const PLATFORMS = new Set(['linux', 'win32', 'darwin']);
 const ARCHITECTURES = new Set(['x64', 'arm64']);
 const START_TIMEOUT_MS = 30_000;
+
+/** Resolve Electron's installed app.asar from its platform executable. */
+export function resolvePackagedAppAsarPath(executablePath, platform) {
+	if (!PLATFORMS.has(platform)) throw new TypeError('Packaged app.asar platform is invalid.');
+	const paths = platform === 'win32' ? win32 : posix;
+	if (typeof executablePath !== 'string' || !paths.isAbsolute(executablePath)) {
+		throw new TypeError('Packaged app.asar executable path must be absolute.');
+	}
+	const executableDirectory = paths.dirname(executablePath);
+	return platform === 'darwin'
+		? paths.resolve(executableDirectory, '..', 'Resources', 'app.asar')
+		: paths.resolve(executableDirectory, 'resources', 'app.asar');
+}
+
+/** Hash the installed archive before its Electron process can execute it. */
+export async function capturePackagedAppAsarBeforeLaunch({ executablePath, platform }) {
+	const path = resolvePackagedAppAsarPath(executablePath, platform);
+	return Object.freeze({
+		path,
+		beforeLaunch: await packagedAppAsarFileIdentity(path),
+	});
+}
+
+/** Re-hash an installed archive and reject any launch-to-collection mutation. */
+export async function capturePackagedAppAsarAfterCollection(beforeLaunch) {
+	const inspected = inspectedPackagedAppAsarBeforeLaunch(beforeLaunch);
+	const afterCollection = await packagedAppAsarFileIdentity(inspected.path);
+	if (!sameFileIdentity(inspected.beforeLaunch, afterCollection)) {
+		throw new Error('Packaged coverage app.asar changed between launch and collection.');
+	}
+	return Object.freeze({
+		path: inspected.path,
+		beforeLaunch: inspected.beforeLaunch,
+		afterCollection,
+	});
+}
 
 /**
  * Build the environment for the inner product process without leaking the
@@ -44,6 +81,10 @@ export function packagedRuntimeCoverageLaunch(environment = process.env) {
  */
 export function createPackagedRuntimeCoverageCollector(options) {
 	const metadata = coverageMetadata(options);
+	const appAsarBeforeLaunch = inspectedPackagedAppAsarBeforeLaunch(
+		options.appAsar,
+		resolvePackagedAppAsarPath(options.executablePath, options.platform),
+	);
 	const coverageDirectory = absoluteDirectory(options.coverageDirectory);
 	const context = options.context;
 	if (!context || typeof context.pages !== 'function' || typeof context.newCDPSession !== 'function') {
@@ -149,11 +190,13 @@ export function createPackagedRuntimeCoverageCollector(options) {
 			}
 			const result = entries.filter((entry) => keepUrl(entry.url));
 			if (result.length === 0) throw new Error('Packaged runtime coverage recorded no first-party scripts.');
+			const appAsar = await capturePackagedAppAsarAfterCollection(appAsarBeforeLaunch);
 			const profile = {
 				result,
 				'script-source-cache': sources,
 				'soundscaper-packaged-runtime': {
 					...metadata,
+					appAsar,
 					childTargetStrategy: 'recursive-auto-attach-paused',
 					capturesChildTargets: true,
 					pausedTargetCounts,
@@ -225,8 +268,49 @@ function coverageMetadata(options) {
 		platform,
 		...(options.processId === undefined ? {} : { processId: options.processId }),
 		productId,
-		schemaVersion: 1,
+		schemaVersion: 2,
 	});
+}
+
+function inspectedPackagedAppAsarBeforeLaunch(value, expectedPath = null) {
+	if (!value || typeof value !== 'object' || typeof value.path !== 'string' || !isAbsolute(value.path)
+		|| (expectedPath !== null && value.path !== expectedPath)) {
+		throw new TypeError('Packaged coverage requires the pre-launch app.asar path.');
+	}
+	const beforeLaunch = value.beforeLaunch;
+	if (!beforeLaunch || typeof beforeLaunch !== 'object'
+		|| !Number.isSafeInteger(beforeLaunch.byteLength) || beforeLaunch.byteLength < 0
+		|| typeof beforeLaunch.sha256 !== 'string' || !/^[a-f\d]{64}$/u.test(beforeLaunch.sha256)) {
+		throw new TypeError('Packaged coverage requires a valid pre-launch app.asar identity.');
+	}
+	return Object.freeze({
+		path: value.path,
+		beforeLaunch: Object.freeze({
+			byteLength: beforeLaunch.byteLength,
+			sha256: beforeLaunch.sha256,
+		}),
+	});
+}
+
+async function packagedAppAsarFileIdentity(path) {
+	let byteLength = 0;
+	const hash = createHash('sha256');
+	try {
+		for await (const chunk of createReadStream(path)) {
+			byteLength += chunk.byteLength;
+			hash.update(chunk);
+		}
+	} catch (cause) {
+		throw new Error(`Packaged coverage could not hash app.asar at ${path}.`, { cause });
+	}
+	if (!Number.isSafeInteger(byteLength)) {
+		throw new Error('Packaged coverage app.asar is too large to identify safely.');
+	}
+	return Object.freeze({ byteLength, sha256: hash.digest('hex') });
+}
+
+function sameFileIdentity(left, right) {
+	return left.byteLength === right.byteLength && left.sha256 === right.sha256;
 }
 
 function absoluteDirectory(value) {

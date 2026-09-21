@@ -12,6 +12,7 @@ import { chromium } from '@playwright/test';
 import { SOAK_DEBUG_OUTPUT_DIRECTORY_PREFIX } from '../../desktop/soak-debug-dialog.mjs';
 import { SOAK_DEBUG_FLAG } from '../../desktop/soak-debug-process-metrics.mjs';
 import {
+	capturePackagedAppAsarBeforeLaunch,
 	createPackagedRuntimeCoverageCollector,
 	packagedRuntimeCoverageLaunch,
 } from '../../tests/browser/helpers/packaged-runtime-coverage.js';
@@ -169,6 +170,9 @@ async function launchDesktopRuntime({
 }) {
 	const port = await reserveLoopbackPort();
 	if (launch.coverageDirectory !== null) await mkdir(launch.coverageDirectory, { recursive: true });
+	const appAsar = launch.coverageDirectory === null
+		? null
+		: await capturePackagedAppAsarBeforeLaunch({ executablePath, platform: process.platform });
 	const child = spawn(executablePath, [
 		`--user-data-dir=${profile}`,
 		`--soundscaper-soak-debug-app-data=${join(profile, 'application-data')}`,
@@ -194,6 +198,7 @@ async function launchDesktopRuntime({
 		await page.evaluate(installRuntimeHooks);
 		if (launch.coverageDirectory !== null) {
 			coverageCollector = createPackagedRuntimeCoverageCollector({
+				appAsar,
 				architecture: process.arch,
 				baseURL: endpoint,
 				context,
