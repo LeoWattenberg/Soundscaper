@@ -162,6 +162,7 @@ test('nightly test staging creates a hermetic, manifest-bound Playwright payload
 		'sites/framescaper-source-maps/app.js.map',
 		'handbook/src/content/docs/reference/macro-programs.md',
 		'tests/browser/example.spec.js',
+		'tests/browser/dual-origin/framescaper-service-worker.spec.js',
 		'tests/browser/audio-editor-soak-debug.spec.js',
 		'tests/electron/local-assistance-models/example.spec.js',
 		'tests/browser/example.spec.js-snapshots/example-chromium-linux.png',

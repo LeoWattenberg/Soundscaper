@@ -129,6 +129,7 @@ export async function createFixture(context) {
 		['vendor/audacity-design-system/tokens/src/themes/light.v2.ts', 'export const lightTheme = {};\n'],
 		['handbook/guides/soundscaper/volume.mjs', 'export const guide = true;\n'],
 		['tests/browser/example.spec.js', 'export const test = true;\n'],
+		['tests/browser/dual-origin/framescaper-service-worker.spec.js', 'export const framescaperWorker = true;\n'],
 		['tests/electron/local-assistance-models/example.spec.js', 'export const realModels = true;\n'],
 		['tests/browser/example.spec.js-snapshots/example-chromium-linux.png', 'png'],
 		['tests/browser/AGENTS.md', 'Do not package instructions.\n'],

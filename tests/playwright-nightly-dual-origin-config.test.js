@@ -1,7 +1,8 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import assert from 'node:assert/strict';
-import { resolve } from 'node:path';
+import { readFile } from 'node:fs/promises';
+import { matchesGlob, resolve } from 'node:path';
 import test from 'node:test';
 
 test('nightly dual-origin coverage runs only the reciprocal Chromium workflow', async () => {
@@ -35,6 +36,16 @@ test('nightly dual-origin coverage runs only the reciprocal Chromium workflow', 
 
 	assert.equal(config.testDir, resolve(payloadRoot, 'tests/browser/dual-origin'));
 	assert.equal(config.testMatch, '*.spec.js');
+	const serviceWorkerSpec = 'framescaper-service-worker.spec.js';
+	assert.equal(matchesGlob(serviceWorkerSpec, config.testMatch), true);
+	const serviceWorkerSource = await readFile(
+		new URL(`../tests/browser/dual-origin/${serviceWorkerSpec}`, import.meta.url),
+		'utf8',
+	);
+	assert.match(serviceWorkerSource, /test\.use\(\{ serviceWorkers: 'allow' \}\)/u);
+	assert.match(serviceWorkerSource, /navigator\.serviceWorker\.ready/u);
+	assert.doesNotMatch(serviceWorkerSource, /\.route\(|\.fulfill\(/u,
+		'the coverage-bearing test must execute the authenticated production worker');
 	assert.equal(config.outputDir, resolve(runRoot, 'e2e-coverage/dual-origin/test-results'));
 	assert.equal(config.fullyParallel, false);
 	assert.equal(config.failOnFlakyTests, true);
