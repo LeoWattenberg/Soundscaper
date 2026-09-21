@@ -110,6 +110,7 @@ export const DESKTOP_ASSISTANCE_RUNTIME_FILES = Object.freeze([
 	'src/common/editor/assistance/highlight-ranking-v1.js',
 	'src/common/editor/assistance/internal/centered-periodic-hann-stft-v1.js',
 	'src/common/editor/assistance/internal/radix-two-fft-v1.js',
+	'src/common/editor/assistance/local-assistance-media-contract.js',
 	'src/common/editor/assistance/m7-semantic-results.js',
 	'src/common/editor/assistance/nomic-tokenizer-v1.js',
 	'src/common/editor/assistance/operation.js',
