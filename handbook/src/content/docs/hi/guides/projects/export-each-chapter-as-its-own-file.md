@@ -1,6 +1,6 @@
 ---
 title: "प्रत्येक अध्याय को एक अलग फ़ाइल के रूप में निर्यात करें"
-description: "आपके द्वारा रखे गए मार्करों पर एक लंबे रिकॉर्डिंग को फ़ाइलों में विभाजित करें।"
+description: "जो मार्कर आप रखे हैं, उनके आधार पर एक लंबी रिकॉर्डिंग को फ़ाइलों में विभाजित करें।"
 editUrl: false
 sidebar:
   order: 6
@@ -8,50 +8,51 @@ head:
   - tag: script
     attrs:
       type: "application/ld+json"
-    content: "{\"@context\":\"https://schema.org\",\"@type\":\"HowTo\",\"name\":\"Export each chapter as its own file\",\"description\":\"Split one long recording into files at the markers you have placed.\",\"tool\":[{\"@type\":\"HowToTool\",\"name\":\"Soundscaper\"}],\"step\":[{\"@type\":\"HowToStep\",\"position\":1,\"name\":\"Open Soundscaper. A new, empty project is ready as soon as the editor loads.\",\"text\":\"Open Soundscaper. A new, empty project is ready as soon as the editor loads.\"},{\"@type\":\"HowToStep\",\"position\":2,\"name\":\"Choose File → Import audio and pick the recording to split. The file lands as a clip on its own track.\",\"text\":\"Choose File → Import audio and pick the recording to split. The file lands as a clip on its own track.\"},{\"@type\":\"HowToStep\",\"position\":3,\"name\":\"Choose View → Show markers.\",\"text\":\"Choose View → Show markers. The marker lane is where the chapter starts are shown and named.\"},{\"@type\":\"HowToStep\",\"position\":4,\"name\":\"Press the Jump to project start button in the toolbar.\",\"text\":\"Press the Jump to project start button in the toolbar. The first chapter should begin at the very start, so the first marker goes at zero.\"},{\"@type\":\"HowToStep\",\"position\":5,\"name\":\"With the Markers panel open (View → Panels → Markers shows it), press Add marker at playhead. Press Enter on the new marker, type Part one and press Enter again to name it.\",\"text\":\"With the Markers panel open (View → Panels → Markers shows it), press Add marker at playhead. Press Enter on the new marker, type Part one and press Enter again to name it.\"},{\"@type\":\"HowToStep\",\"position\":6,\"name\":\"Click the waveform where the second part begins to put the cursor there.\",\"text\":\"Click the waveform where the second part begins to put the cursor there.\"},{\"@type\":\"HowToStep\",\"position\":7,\"name\":\"With the Markers panel open (View → Panels → Markers shows it), press Add marker at playhead. Press Enter on the new marker, type Part two and press Enter again to name it.\",\"text\":\"With the Markers panel open (View → Panels → Markers shows it), press Add marker at playhead. Press Enter on the new marker, type Part two and press Enter again to name it.\"},{\"@type\":\"HowToStep\",\"position\":8,\"name\":\"Choose File → Export audio, set Format to MP3, set Output to Chapters (split by markers), and press Export. The file downloads as soon as the render finishes, and its link stays in the dialog.\",\"text\":\"Choose File → Export audio, set Format to MP3, set Output to Chapters (split by markers), and press Export. The file downloads as soon as the render finishes, and its link stays in the dialog. Each chapter becomes an MP3 inside the archive, numbered in order and named after its marker.\"}]}"
+    content: "{\"@context\":\"https://schema.org\",\"@type\":\"HowTo\",\"name\":\"Export each chapter as its own file\",\"description\":\"Split one long recording into files at the markers you have placed.\",\"tool\":[{\"@type\":\"HowToTool\",\"name\":\"Soundscaper\"}],\"step\":[{\"@type\":\"HowToStep\",\"position\":1,\"name\":\"Open Soundscaper. A new, empty project is ready as soon as the editor loads.\",\"text\":\"Open Soundscaper. A new, empty project is ready as soon as the editor loads.\"},{\"@type\":\"HowToStep\",\"position\":2,\"name\":\"Choose File → Import and pick the recording to split. It lands as a clip on its own track.\",\"text\":\"Choose File → Import and pick the recording to split. It lands as a clip on its own track.\"},{\"@type\":\"HowToStep\",\"position\":3,\"name\":\"Choose View → Panels → Project bin.\",\"text\":\"Choose View → Panels → Project bin. The recording is on the timeline now, so hiding the bin leaves room for the Markers panel.\"},{\"@type\":\"HowToStep\",\"position\":4,\"name\":\"Choose View → Show markers.\",\"text\":\"Choose View → Show markers. The marker lane is where the chapter starts are shown and named.\"},{\"@type\":\"HowToStep\",\"position\":5,\"name\":\"Press the Jump to project start button in the toolbar.\",\"text\":\"Press the Jump to project start button in the toolbar. The first chapter should begin at the very start, so the first marker goes at zero.\"},{\"@type\":\"HowToStep\",\"position\":6,\"name\":\"With the Markers panel open (View → Panels → Markers shows it), press Add marker at playhead. Press Enter on the new marker, type Part one and press Enter again to name it.\",\"text\":\"With the Markers panel open (View → Panels → Markers shows it), press Add marker at playhead. Press Enter on the new marker, type Part one and press Enter again to name it.\"},{\"@type\":\"HowToStep\",\"position\":7,\"name\":\"Click the waveform where the second part begins to put the cursor there.\",\"text\":\"Click the waveform where the second part begins to put the cursor there.\"},{\"@type\":\"HowToStep\",\"position\":8,\"name\":\"With the Markers panel open (View → Panels → Markers shows it), press Add marker at playhead. Press Enter on the new marker, type Part two and press Enter again to name it.\",\"text\":\"With the Markers panel open (View → Panels → Markers shows it), press Add marker at playhead. Press Enter on the new marker, type Part two and press Enter again to name it.\"},{\"@type\":\"HowToStep\",\"position\":9,\"name\":\"Choose File → Export audio, set Format to MP3, set Output to Chapters (split by markers), and press Export. The file downloads as soon as the render finishes, and its link stays in the dialog.\",\"text\":\"Choose File → Export audio, set Format to MP3, set Output to Chapters (split by markers), and press Export. The file downloads as soon as the render finishes, and its link stays in the dialog. Each chapter becomes an MP3 inside the archive, numbered in order and named after its marker.\"}]}"
 ---
-<!-- docs-ai-provenance: {"factPacketSha256":"bff231ce5a412139b723774100bc4b0793f5c5b088e471b0f45443684628992e","model":"qwen3.8:latest","modelDigest":"22130167c4c20e20c7b71454612966ca8e8171e9b3cc8ab6ce8aa6cbfec79643","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"bff231ce5a412139b723774100bc4b0793f5c5b088e471b0f45443684628992e","targetLocale":"hi"} -->
+<!-- docs-ai-provenance: {"factPacketSha256":"ccddaabe5789d7d02d6276dddb13a1b3323b9b9f10d8ed85a152061a5b472603","model":"aya-expanse:32b","modelDigest":"1603440383bd5504dc7afd01c0407b425b988dde650a8dc1a737433baa3cd432","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"ccddaabe5789d7d02d6276dddb13a1b3323b9b9f10d8ed85a152061a5b472603","targetLocale":"hi"} -->
 
 <!-- Generated by `node scripts/docs-reference.mjs`. Do not edit. -->
 
-एक व्याख्यान जिसमें प्रत्येक विषय के लिए एक फ़ाइल बननी चाहिए, एक एल्बम साइड जिसमें ट्रैक्स में कटौती की आवश्यकता है, या एक ऑडियोबुक जिसमें प्रत्येक फ़ाइल में एक अध्याय हो: प्रत्येक भाग की शुरुआत पर एक मार्कर रखें और एक बार निर्यात करें। प्रत्येक मार्कर एक अध्याय खोलता है जो अगले मार्कर तक चलता है, और प्रत्येक अध्याय एक अलग फ़ाइल के रूप में लिखा जाता है, जिसका नाम मार्कर के अनुसार होता है, और यह एक ही आर्काइव के अंदर होता है। Audacity 3 ने इसे Export Multiple के साथ किया था; Audacity 4 ने इसे वापस नहीं लाया है।
+एक व्याख्यान जिसे एक विषय प्रति फ़ाइल होना चाहिए, एक एल्बम साइड जिसे ट्रैक में काटने की आवश्यकता होती है, एक ऑडियोबुक जिसमें प्रति फ़ाइल एक अध्याय होता है: प्रत्येक भाग की शुरुआत में एक मार्कर रखें और एक बार निर्यात करें। प्रत्येक मार्कर एक अध्याय को खोलता है जो अगले तक चलता है, और प्रत्येक अध्याय को इसके स्वयं के फ़ाइल के रूप में लिखा जाता है, जिसे मार्कर के बाद नाम दिया जाता है, एक ही आर्काइव के अंदर। ऑडेसिटी 3 ने इसे **फ़ाइल → निर्यात ऑडियो → कई निर्यात, लेबल द्वारा विभाजित** के साथ किया; ऑडेसिटी 4 ने इसे वापस नहीं लाया है।
 
-:::note[Audacity से आ रहे हैं?]
-यह Audacity का **File → Export Audio → Export Multiple, split by labels (Audacity 3; Audacity 4 में Export Multiple नहीं है)** है। नीचे दिए गए नाम Soundscaper के अपने हैं, जो कभी-कभी अलग हो सकते हैं।
+:::note[ऑडेसिटी से आ रहे हैं?]
+यह ऑडेसिटी का **फ़ाइल → निर्यात ऑडियो → कई निर्यात, लेबल द्वारा विभाजित (ऑडेसिटी 3; ऑडेसिटी 4 में कोई कई निर्यात नहीं है)** है। नीचे दिए गए नाम साउंडस्केपर के अपने नाम हैं, जो कभी-कभी अलग होते हैं।
 :::
 
 ## चरण
 
-1. Soundscaper खोलें। एडिटर लोड होते ही एक नया, खाली प्रोजेक्ट तैयार हो जाता है।
-2. **File → Import audio** चुनें और विभाजित करने के लिए रिकॉर्डिंग चुनें। फ़ाइल एक क्लिप के रूप में अपने ट्रैक पर आ जाती है।
-3. **View → Show markers** चुनें। मार्कर लेन वह जगह है जहाँ अध्याय की शुरुआत दिखाई और नामित की जाती है।
-4. टूलबार में **Jump to project start** बटन दबाएं। पहला अध्याय बिल्कुल शुरुआत में शुरू होना चाहिए, इसलिए पहला मार्कर शून्य पर जाता है।
-5. मार्कर पैनल खुला होने पर (**View → Panels → Markers** इसे दिखाता है), **Add marker at playhead** दबाएं। नए मार्कर पर Enter दबाएं, `Part one` टाइप करें और इसे नाम देने के लिए फिर से Enter दबाएं।
-6. वेवफॉर्म पर उस जगह पर क्लिक करें जहाँ दूसरा भाग शुरू होता है, ताकि कर्सर वहाँ आ जाए।
-7. मार्कर पैनल खुला होने पर (**View → Panels → Markers** इसे दिखाता है), **Add marker at playhead** दबाएं। नए मार्कर पर Enter दबाएं, `Part two` टाइप करें और इसे नाम देने के लिए फिर से Enter दबाएं।
-8. **File → Export audio** चुनें, **Format** को **MP3** पर सेट करें, **Output** को **Chapters (split by markers)** पर सेट करें, और **Export** दबाएं। रेंडरिंग समाप्त होते ही फ़ाइल डाउनलोड हो जाती है, और उसका लिंक डायलॉग में रहता है। प्रत्येक अध्याय आर्काइव के अंदर एक MP3 बन जाता है, क्रम में क्रमांकित और अपने मार्कर के नाम पर नामित।
+1. साउंडस्केपर खोलें। एक नया, खाली प्रोजेक्ट एडिटर लोड होते ही तैयार हो जाता है।
+2. **फ़ाइल → आयात** चुनें और विभाजित करने के लिए रिकॉर्डिंग का चयन करें। यह अपने स्वयं के ट्रैक पर एक क्लिप के रूप में लैंड होता है।
+3. **दृश्य → पैनल → प्रोजेक्ट बिन** चुनें। रिकॉर्डिंग अब टाइमलाइन पर है, इसलिए बिन को छिपाने से मार्कर पैनल के लिए जगह बनाता है।
+4. **दृश्य → मार्कर दिखाएँ** चुनें। मार्कर लेन वह जगह है जहाँ अध्याय शुरू होते हैं और नामित होते हैं।
+5. टूलबार में **प्रोजेक्ट की शुरुआत पर कूदें** बटन पर दबाएँ। पहला अध्याय बहुत शुरुआत से शुरू होना चाहिए, इसलिए पहला मार्कर शून्य पर जाता है।
+6. मार्कर पैनल खुला हो (**दृश्य → पैनल → मार्कर** इसे दिखाता है), **प्लेहेड पर मार्कर जोड़ें** पर दबाएँ। नए मार्कर पर Enter दबाएँ, `Part one` टाइप करें और फिर Enter दबाएँ ताकि इसे नामित किया जा सके।
+7. दूसरे भाग की शुरुआत के लिए वेवफ़ॉर्म पर क्लिक करें ताकि कर्सर वहाँ जाए।
+8. मार्कर पैनल खुला हो (**दृश्य → पैनल → मार्कर** इसे दिखाता है), **प्लेहेड पर मार्कर जोड़ें** पर दबाएँ। नए मार्कर पर Enter दबाएँ, `Part two` टाइप करें और फिर Enter दबाएँ ताकि इसे नामित किया जा सके।
+9. **फ़ाइल → ऑडियो निर्यात** चुनें, **फ़ॉर्मेट** को **MP3** पर सेट करें, **आउटपुट** को **मार्कर द्वारा विभाजित अध्याय (स्प्लिट बाई मार्कर्स)** पर सेट करें और **निर्यात** दबाएँ। फ़ाइल रेंडर पूरा होने के तुरंत बाद डाउनलोड हो जाती है, और इसका लिंक संवाद में रहता है। प्रत्येक अध्याय एक MP3 के रूप में आर्काइव के अंदर होता है, क्रम में संख्याबद्ध होता है और अपने मार्कर के नाम से नामित होता है।
 
-## सुझाव
+## टिप्स
 
-- एक नामित क्षेत्र ठीक-ठीक अपने अपने स्पैन को निर्यात करता है, इसलिए जब भागों के बीच गैप हों तो मार्कर के बजाय क्षेत्रों का उपयोग करें।
-- लेबल ट्रैक पर लेबल भी इसी तरह विभाजित होते हैं: मार्कर के बजाय उन पर कटौती करने के लिए **Chapters (split by labels)** चुनें।
-- मार्कर के बजाय ट्रैक्स के अनुसार विभाजित करने के लिए, देखें [Export each track as its own file](/guides/projects/export-each-track-as-its-own-file/).
+- एक नामित क्षेत्र केवल अपने स्वयं के स्पैन का निर्यात करता है, इसलिए जब भागों के बीच अंतराल होते हैं तो क्षेत्रों के बजाय मार्कर का उपयोग करें।
+- लेबल ट्रैक पर लेबल उसी तरह से विभाजित करते हैं: **मार्कर द्वारा विभाजित अध्याय** का चयन करके उन पर काटने के बजाय लेबल का उपयोग करें।
+- मार्करों के बजाय ट्रैक के अनुसार विभाजित करने के लिए, देखें [प्रत्येक ट्रैक को इसकी स्वयं की फ़ाइल के रूप में निर्यात करें](/guides/projects/export-each-track-as-its-own-file/)।
 
 ## संबंधित गाइड
 
-और [projects and files](/guides/projects/) गाइड:
+अधिक [प्रोजेक्ट और फ़ाइल](/guides/projects/) गाइड:
 
-- [Export each track as its own file](/guides/projects/export-each-track-as-its-own-file/) — ट्रैक्स को अलग-अलग, स्टेम्स के रूप में, एक ही डाउनलोड में रेंडर करें।
-- [Save your project](/guides/projects/save-your-project/) — प्रोजेक्ट को, सभी ट्रैक और संपादन के साथ, लोकल प्रोजेक्ट लाइब्रेरी में रखें।
-- [Move a project between computers](/guides/projects/move-a-project-between-computers/) — पूरे प्रोजेक्ट को एक फ़ाइल के रूप में निर्यात करें, फिर उस फ़ाइल को कहीं और खोलें।
-- [Open an Audacity project](/guides/projects/open-an-audacity-project/) — मौजूदा .aup3 या .aup4 प्रोजेक्ट को Soundscaper में लाएं, जिसके ट्रैक अक्षुण्ण हों।
-- [Change a clip’s sample rate](/guides/projects/change-a-clips-sample-rate/) — एक क्लिप को रीसैंपल करें ताकि यह प्रोजेक्ट के बाकी हिस्से द्वारा उपयोग की जाने वाली दर से मेल खाए।
+- [प्रत्येक ट्रैक को इसकी स्वयं की फ़ाइल के रूप में निर्यात करें](/guides/projects/export-each-track-as-its-own-file/) — स्टेम के रूप में ट्रैक को अलग-अलग रेंडर करें, एक डाउनलोड में।
+- [अपना प्रोजेक्ट सहेजें](/guides/projects/save-your-project/) — हर ट्रैक और संपादन के साथ प्रोजेक्ट को स्थानीय प्रोजेक्ट लाइब्रेरी में रखें।
+- [कंप्यूटर के बीच प्रोजेक्ट को स्थानांतरित करें](/guides/projects/move-a-project-between-computers/) — पूरे प्रोजेक्ट को एक फ़ाइल के रूप में निर्यात करें, फिर उसे कहीं और खोलें।
+- [एक ऑडेसिटी प्रोजेक्ट खोलें](/guides/projects/open-an-audacity-project/) — एक मौजूदा .aup3 या .aup4 प्रोजेक्ट को साउंडस्केपर में लाएँ, जिसमें सभी ट्रैक बरकरार हैं।
+- [एक क्लिप की सैंपल दर बदलें](/guides/projects/change-a-clips-sample-rate/) — क्लिप को रीसैंपल करें ताकि यह प्रोजेक्ट के बाकी हिस्से द्वारा उपयोग की जाने वाली दर के साथ मेल खाए।
 
 ## संदर्भ
 
-- [The export formats, their containers and channel limits are in the export formats reference.](/reference/generated/formats/)
-- [Every menu command and its keyboard shortcut is in the commands and shortcuts reference.](/reference/generated/commands/)
+- [निर्यात फ़ॉर्मेट, उनके कंटेनर और चैनल सीमाएँ निर्यात फ़ॉर्मेट संदर्भ में हैं.](/reference/generated/formats/)
+- [प्रत्येक मेनू कमांड और इसका कीबोर्ड शॉर्टकट कमांड और शॉर्टकट संदर्भ में है।](/reference/generated/commands/)
 
 ## इस गाइड के बारे में
 
-इस पेज पर प्रक्रिया — प्रत्येक मेनू एंट्री, डायलॉग, फ़ील्ड और बटन, और उसका परिणाम — ब्राउज़र सूट (`tests/browser/soundscaper-guides.spec.js`) द्वारा Soundscaper के प्रत्येक बिल्ड के विरुद्ध पुनः चलाया जाता है। यदि इसमें से कोई भी एडिटर से मेल नहीं खाता है, तो गाइड को सही करने तक बिल्ड विफल हो जाता है। सुझाए गए मान शुरुआती बिंदु हैं जिन्हें एडिटर स्वीकार करने का प्रमाणित किया गया है; क्या वे आपकी रिकॉर्डिंग के लिए उपयुक्त हैं, यह आपकी सुनने की शक्ति तय करेगी।
+इस पृष्ठ पर प्रक्रिया — प्रत्येक मेनू प्रविष्टि, संवाद, फ़ील्ड और बटन, और यह उत्पन्न करता है — साउंडस्केपर के प्रत्येक बिल्ड के खिलाफ ब्राउज़र सूट (`tests/browser/soundscaper-guides.spec.js`) द्वारा पुनः चलाया जाता है। यदि यह एडिटर के साथ मेल नहीं खाता है, तो बिल्ड गाइड को सुधारे जाने तक विफल हो जाता है। सुझाए गए मान एडिटर को स्वीकार करने के लिए साबित हुए शुरुआती बिंदु हैं; क्या वे आपकी रिकॉर्डिंग के लिए उपयुक्त हैं, यह आपके कानों के लिए तय करना है।

@@ -1,6 +1,6 @@
 ---
-title: "नए ट्रैक में ट्रैक्स को मिक्स करें और मूल को बनाए रखें"
-description: "नए ट्रैक पर कई ट्रैक्स का मिक्स रेंडर करें, जबकि स्रोत प्रोजेक्ट में बना रहें।"
+title: "कई ट्रैक्स को एक नए ट्रैक में मिक्स करें और मूल को बरकरार रखें"
+description: "कई ट्रैक्स का मिक्स एक नए ट्रैक पर रेंडर करें, जबकि स्रोत प्रोजेक्ट में बने रहते हैं।"
 editUrl: false
 sidebar:
   order: 9
@@ -8,47 +8,47 @@ head:
   - tag: script
     attrs:
       type: "application/ld+json"
-    content: "{\"@context\":\"https://schema.org\",\"@type\":\"HowTo\",\"name\":\"Mix tracks into a new track and keep the originals\",\"description\":\"Render a mix of several tracks onto a new track while the sources stay in the project.\",\"tool\":[{\"@type\":\"HowToTool\",\"name\":\"Soundscaper\"}],\"step\":[{\"@type\":\"HowToStep\",\"position\":1,\"name\":\"Open Soundscaper. A new, empty project is ready as soon as the editor loads.\",\"text\":\"Open Soundscaper. A new, empty project is ready as soon as the editor loads.\"},{\"@type\":\"HowToStep\",\"position\":2,\"name\":\"Choose File → Import audio and pick the first track to mix. The file lands as a clip on its own track.\",\"text\":\"Choose File → Import audio and pick the first track to mix. The file lands as a clip on its own track.\"},{\"@type\":\"HowToStep\",\"position\":3,\"name\":\"Choose File → Import audio and pick the second track to mix. The file lands as a clip on its own track.\",\"text\":\"Choose File → Import audio and pick the second track to mix. The file lands as a clip on its own track.\"},{\"@type\":\"HowToStep\",\"position\":4,\"name\":\"Click the name bar of the first clip, then hold Shift and click the name bar of the second clip, so both are selected.\",\"text\":\"Click the name bar of the first clip, then hold Shift and click the name bar of the second clip, so both are selected. Every track with a selected clip goes into the mix.\"},{\"@type\":\"HowToStep\",\"position\":5,\"name\":\"Choose Tracks → Mix & Render. In the Mix & Render dialog, leave Mix down and Render effects checked, turn off Replace originals, choose Stereo for Mix down to, then press Mix & Render.\",\"text\":\"Choose Tracks → Mix & Render. In the Mix & Render dialog, leave Mix down and Render effects checked, turn off Replace originals, choose Stereo for Mix down to, then press Mix & Render.\"},{\"@type\":\"HowToStep\",\"position\":6,\"name\":\"A new track under the originals holds a clip named Mix, and the original clips are still where they were.\",\"text\":\"A new track under the originals holds a clip named Mix, and the original clips are still where they were. Three clips: the two you started with and the mix.\"}]}"
+    content: "{\"@context\":\"https://schema.org\",\"@type\":\"HowTo\",\"name\":\"Mix tracks into a new track and keep the originals\",\"description\":\"Render a mix of several tracks onto a new track while the sources stay in the project.\",\"tool\":[{\"@type\":\"HowToTool\",\"name\":\"Soundscaper\"}],\"step\":[{\"@type\":\"HowToStep\",\"position\":1,\"name\":\"Open Soundscaper. A new, empty project is ready as soon as the editor loads.\",\"text\":\"Open Soundscaper. A new, empty project is ready as soon as the editor loads.\"},{\"@type\":\"HowToStep\",\"position\":2,\"name\":\"Choose File → Import and pick the first track to mix. It lands as a clip on its own track.\",\"text\":\"Choose File → Import and pick the first track to mix. It lands as a clip on its own track.\"},{\"@type\":\"HowToStep\",\"position\":3,\"name\":\"Choose File → Import and pick the second track to mix. It lands as a clip on its own track.\",\"text\":\"Choose File → Import and pick the second track to mix. It lands as a clip on its own track.\"},{\"@type\":\"HowToStep\",\"position\":4,\"name\":\"Click the name bar of the first clip, then hold Shift and click the name bar of the second clip, so both are selected.\",\"text\":\"Click the name bar of the first clip, then hold Shift and click the name bar of the second clip, so both are selected. Every track with a selected clip goes into the mix.\"},{\"@type\":\"HowToStep\",\"position\":5,\"name\":\"Choose Tracks → Mix & Render. In the Mix & Render dialog, leave Mix down and Render effects checked, turn off Replace originals, choose Stereo for Mix down to, then press Mix & Render.\",\"text\":\"Choose Tracks → Mix & Render. In the Mix & Render dialog, leave Mix down and Render effects checked, turn off Replace originals, choose Stereo for Mix down to, then press Mix & Render.\"},{\"@type\":\"HowToStep\",\"position\":6,\"name\":\"A new track under the originals holds a clip named Mix, and the original clips are still where they were.\",\"text\":\"A new track under the originals holds a clip named Mix, and the original clips are still where they were. Three clips: the two you started with and the mix.\"}]}"
 ---
-<!-- docs-ai-provenance: {"factPacketSha256":"2509e4de7079761304d0dcefb76634478608a4a61925bbbe411587b9afb883cb","model":"qwen3.8:latest","modelDigest":"22130167c4c20e20c7b71454612966ca8e8171e9b3cc8ab6ce8aa6cbfec79643","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"2509e4de7079761304d0dcefb76634478608a4a61925bbbe411587b9afb883cb","targetLocale":"hi"} -->
+<!-- docs-ai-provenance: {"factPacketSha256":"04ea60929a4ea39e8f423889db1d214a0b0b91877e92306a9f74812476d14098","model":"aya-expanse:32b","modelDigest":"1603440383bd5504dc7afd01c0407b425b988dde650a8dc1a737433baa3cd432","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"04ea60929a4ea39e8f423889db1d214a0b0b91877e92306a9f74812476d14098","targetLocale":"hi"} -->
 
 <!-- Generated by `node scripts/docs-reference.mjs`. Do not edit. -->
 
-मिक्सिंग ट्रैक्स डाउन आमतौर पर उन्हें बदल देता है, जो एक पूरी तरह तैयार बेड के लिए ठीक है, लेकिन तब नहीं जब आप अभी भी भागों को समायोजित करना चाहते हों। मिक्स और रेंडर डायलॉग में Replace originals बंद करने से मिक्स — गेन्स, पैन और रियलटाइम इफेक्ट्स सहित — एक नए ट्रैक पर रेंडर होता है और हर स्रोत ट्रैक वहीं रहता है जहाँ वह था, ताकि आप तुलना कर सकें, संपादन जारी रख सकें, या स्रोतों को म्यूट करके स्टीरियो मिक्स के साथ आगे बढ़ सकें। Audacity 3 ने इसे Mix and Render to New Track के रूप में प्रदान किया था; Audacity 4 में न तो यह कमांड है और न ही कोई अन्य।
+मिक्सिंग ट्रैक्स आमतौर पर उन्हें बदलने के लिए उपयोग किया जाता है, जो एक पूर्ण बेड के लिए ठीक है लेकिन जब आप अभी भी भागों को समायोजित करना चाहते हैं तो नहीं। मिक्स एंड रेंडर संवाद में ऑरिजिनल को बदलने को बंद करना मिक्स को — गेन्स, पैन्स और रियलटाइम इफेक्ट्स सहित — एक नए ट्रैक पर रेंडर करता है और हर स्रोत ट्रैक को वहीं छोड़ देता है जहां यह था, ताकि आप तुलना कर सकें, संपादन जारी रख सकें या स्रोतों को म्यूट कर सकें और स्टीरियो मिक्स के साथ आगे बढ़ सकें। ऑडेसिटी 3 ने इसे मिक्स और रेंडर टू न्यू ट्रैक के रूप में पेश किया; ऑडेसिटी 4 में न तो यह आदेश है।
 
-:::note[Audacity से आ रहे हैं?]
-यह Audacity का **Tracks → Mix → Mix and Render to New Track (Audacity 3; Audacity 4 में Mix and Render नहीं है)** है। नीचे दिए गए नाम Soundscaper के अपने हैं, जो कभी-कभी अलग हो सकते हैं।
+:::नोट[ऑडेसिटी से आ रहे हैं?]
+यह ऑडेसिटी का **ट्रैक्स → मिक्स → मिक्स एंड रेंडर टू न्यू ट्रैक (ऑडेसिटी 3; ऑडेसिटी 4 में मिक्स एंड रेंडर नहीं है)** है। नीचे दिए गए नाम साउंडस्केपर के अपने नाम हैं, जो कभी-कभी अलग होते हैं।
 :::
 
 ## चरण
 
-1. Soundscaper खोलें। एडिटर लोड होते ही एक नया, खाली प्रोजेक्ट तैयार हो जाता है।
-2. **File → Import audio** चुनें और मिक्स करने के लिए पहला ट्रैक चुनें। फ़ाइल एक क्लिप के रूप में अपने ट्रैक पर आ जाती है।
-3. **File → Import audio** चुनें और मिक्स करने के लिए दूसरा ट्रैक चुनें। फ़ाइल एक क्लिप के रूप में अपने ट्रैक पर आ जाती है।
-4. पहले क्लिप के नाम बार पर क्लिक करें, फिर Shift दबाए रखें और दूसरे क्लिप के नाम बार पर क्लिक करें, ताकि दोनों चयनित हों। चयनित क्लिप वाला हर ट्रैक मिक्स में शामिल हो जाता है।
-5. **Tracks → Mix & Render** चुनें। **Mix & Render** डायलॉग में, **Mix down** और **Render effects** को चेक किया हुआ छोड़ें, **Replace originals** बंद करें, **Mix down to** के लिए **Stereo** चुनें, फिर **Mix & Render** दबाएं।
-6. मूल ट्रैक्स के नीचे एक नया ट्रैक होता है जिसमें **Mix** नाम की एक क्लिप होती है, और मूल क्लिप्स वहीं रहती हैं जहाँ वे थीं।
-   *आपको दिखना चाहिए:* तीन क्लिप्स: जिनसे आपने शुरू किया था और मिक्स।
+1. साउंडस्केपर खोलें। एक नया, खाली प्रोजेक्ट एडिटर लोड होते ही तैयार होता है।
+2. **फ़ाइल → आयात** चुनें और मिक्स करने के लिए पहला ट्रैक चुनें। यह अपने आप एक क्लिप के रूप में एक ट्रैक पर आ जाता है।
+3. **फ़ाइल → आयात** चुनें और मिक्स करने के लिए दूसरा ट्रैक चुनें। यह अपने आप एक क्लिप के रूप में एक ट्रैक पर आ जाता है।
+4. पहले क्लिप के नाम बार पर क्लिक करें, फिर शिफ्ट पकड़ें और दूसरे क्लिप के नाम बार पर क्लिक करें, ताकि दोनों चयनित हो जाएं। हर ट्रैक जिसमें एक चयनित क्लिप है, मिक्स में चला जाता है।
+5. **ट्रैक्स → मिक्स एंड रेंडर** चुनें। **मिक्स एंड रेंडर** संवाद में, **मिक्स डाउन** और **रेंडर इफेक्ट्स** को चेक किया हुआ छोड़ें, **ऑरिजिनल को बदलें** को बंद करें, **स्टीरियो** के लिए **मिक्स डाउन टू** चुनें, फिर **मिक्स एंड रेंडर** दबाएं।
+6. मूल के नीचे एक नया ट्रैक एक **मिक्स** नामक क्लिप को पकड़ता है, और मूल क्लिप अभी भी वहीं हैं जहां वे थीं।
+   *आपको देखना चाहिए:* तीन क्लिप: आप जिनसे शुरू किया, उनमें से दो और मिक्स।
 
-## सुझाव
+## टिप्स
 
-- मिक्स को अकेले सुनने के लिए स्रोत ट्रैक्स को म्यूट करें; अन्यथा दोनों बजेंगे।
-- स्रोतों को मिक्स से बदलने के बजाय, **Replace originals** को चालू छोड़ें: [Mix several tracks into one](/guides/tracks-and-export/mix-tracks-into-one/).
+- स्रोत ट्रैक्स को म्यूट करें ताकि आप मिक्स को अकेले सुन सकें; अन्यथा दोनों बजते हैं।
+- स्रोतों को मिक्स के साथ बदलने के लिए, **ऑरिजिनल को बदलें** को ऑन छोड़ें: [कई ट्रैक्स को एक में मिक्स करें](/guides/tracks-and-export/mix-tracks-into-one/)।
 
 ## संबंधित गाइड
 
-अधिक [tracks and export](/guides/tracks-and-export/) गाइड:
+अधिक [ट्रैक्स और एक्सपोर्ट](/guides/tracks-and-export/) गाइड:
 
-- [Mix several tracks into one](/guides/tracks-and-export/mix-tracks-into-one/) — चयनित ट्रैक्स को एकल ट्रैक में रेंडर करें।
-- [Split a stereo track into two mono tracks](/guides/tracks-and-export/split-stereo-into-mono-tracks/) — बाएं और दाएं चैनल को अलग करें ताकि प्रत्येक को अलग से संपादित किया जा सके।
-- [Generate a test tone](/guides/tracks-and-export/generate-a-test-tone/) — कुछ नहीं होने से एक निर्धारित आवृत्ति और लंबाई की साइन वेव बनाएं।
-- [Export an MP3](/guides/tracks-and-export/export-an-mp3/) — साझा करने या प्रकाशित करने के लिए प्रोजेक्ट को MP3 फ़ाइल में रेंडर करें।
-- [Export a WAV](/guides/tracks-and-export/export-a-wav/) — प्रोजेक्ट को अनकंप्रेस्ड WAV फ़ाइल में रेंडर करें।
-- [Mute and solo tracks](/guides/tracks-and-export/mute-and-solo-tracks/) — मिक्स पर काम करते समय एक ट्रैक को चुप कराएं, या एक ट्रैक को अकेले सुनें।
-- [Add an empty track](/guides/tracks-and-export/add-an-empty-track/) — रिकॉर्ड करने या पेस्ट करने के लिए एक नया ट्रैक बनाएं।
-- [Mute every track at once](/guides/tracks-and-export/mute-every-track-at-once/) — एक ही चरण में पूरे प्रोजेक्ट को चुप कराएं, फिर सबको वापस लाएं।
-- [Balance tracks in the mixer](/guides/tracks-and-export/balance-tracks-in-the-mixer/) — हर ट्रैक के लिए एक चैनल स्ट्रिप के साथ एक मिक्सिंग कंसोल खोलें ताकि लेवल और पैन को साथ-साथ सेट किया जा सके।
+- [कई ट्रैक्स को एक में मिक्स करें](/guides/tracks-and-export/mix-tracks-into-one/) — चयनित ट्रैक्स को एक ट्रैक में रेंडर करें।
+- [स्टीरियो ट्रैक को दो मोनो ट्रैक्स में विभाजित करें](/guides/tracks-and-export/split-stereo-into-mono-tracks/) — बाएं और दाएं चैनलों को अलग करें ताकि प्रत्येक को अलग से संपादित किया जा सके।
+- [एक टेस्ट टोन उत्पन्न करें](/guides/tracks-and-export/generate-a-test-tone/) — एक निश्चित आवृत्ति और लंबाई का एक साइन तरंग कुछ भी नहीं से बनाएं।
+- [एक MP3 एक्सपोर्ट करें](/guides/tracks-and-export/export-an-mp3/) — प्रोजेक्ट को एक MP3 फ़ाइल में रेंडर करें ताकि इसे साझा या प्रकाशित किया जा सके।
+- [एक WAV एक्सपोर्ट करें](/guides/tracks-and-export/export-a-wav/) — प्रोजेक्ट को एक अनकंप्रेस्ड WAV फ़ाइल में रेंडर करें।
+- [ट्रैक्स को म्यूट और सोलो करें](/guides/tracks-and-export/mute-and-solo-tracks/) — एक मिक्स पर काम करते समय पूरे प्रोजेक्ट को चुप कराएं, या एक ट्रैक को अकेले सुनें।
+- [एक खाली ट्रैक जोड़ें](/guides/tracks-and-export/add-an-empty-track/) — रिकॉर्ड करने या पेस्ट करने के लिए एक नया ट्रैक बनाएं।
+- [एक बार में सभी ट्रैक्स को म्यूट करें](/guides/tracks-and-export/mute-every-track-at-once/) — पूरे प्रोजेक्ट को एक बार में चुप कराएं, फिर सब कुछ वापस लाएं।
+- [मिक्सर में ट्रैक्स को संतुलित करें](/guides/tracks-and-export/balance-tracks-in-the-mixer/) — हर ट्रैक के लिए एक चैनल स्ट्रिप के साथ एक मिक्सिंग कंसोल खोलें ताकि साइड-बाय-साइड लेवल और पैन सेट किए जा सकें।
 
 ## इस गाइड के बारे में
 
-इस पेज पर प्रक्रिया — हर मेनू एंट्री, डायलॉग, फ़ील्ड और बटन, और उसका परिणाम — ब्राउज़र सूट (`tests/browser/soundscaper-guides.spec.js`) द्वारा Soundscaper के हर बिल्ड के विरुद्ध दोहराई जाती है। यदि इसमें से कोई भी एडिटर से मेल नहीं खाता है, तो गाइड को सही करने तक बिल्ड विफल हो जाता है। सुझाए गए मान शुरुआती बिंदु हैं जिन्हें एडिटर स्वीकार करने का प्रमाणित किया गया है; क्या वे आपके रिकॉर्डिंग के लिए उपयुक्त हैं, यह आपकी कानों के लिए तय करने के लिए है।
+इस पृष्ठ पर दिए गए प्रक्रिया — हर मेनू प्रविष्टि, संवाद, फ़ील्ड और बटन, और यह उत्पन्न परिणाम — साउंडस्केपर के हर बिल्ड के खिलाफ ब्राउज़र सूट (`tests/browser/soundscaper-guides.spec.js`) द्वारा पुनः चलाया जाता है। यदि यह एडिटर के साथ मेल नहीं खाता है, तो गाइड को सुधारे जाने तक बिल्ड विफल हो जाता है। सुझाए गए मान शुरुआती बिंदु हैं जिन्हें एडिटर स्वीकार करने के लिए साबित हुआ है; क्या वे आपकी रिकॉर्डिंग के लिए उपयुक्त हैं, यह आपके कानों के लिए तय करना है।
