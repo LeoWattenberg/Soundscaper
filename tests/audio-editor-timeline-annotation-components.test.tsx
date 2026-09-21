@@ -159,13 +159,14 @@ test('corner, panel, layer, and ruler creation entries share the accessible comp
 	const directory = new URL('../src/common/editor/ui/timeline/', import.meta.url);
 	const entries = [
 		['TimelineAnnotationLaneActions.jsx', 2],
-		['TimelineAnnotationPanel.jsx', 3],
-		['TimelineAnnotationLayer.jsx', 1],
+		['TimelineAnnotationPanel.jsx', 2],
+		['TimelineAnnotationLayer.jsx', 0],
+		['useTimelineAnnotationInteractions.js', 1],
 		['TimelineWorkspaceView.jsx', 1],
 	] as const;
 	for (const [file, expected] of entries) {
 		const source = readFileSync(new URL(file, directory), 'utf8');
-		assert.equal(source.match(/createAnnotation\(/gu)?.length, expected, file);
+		assert.equal(source.match(/createAnnotation\(/gu)?.length ?? 0, expected, file);
 	}
 });
 

@@ -1,25 +1,20 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import React, { useRef, useState } from 'react'; import { usePresentationFeedback } from '../presentation-feedback.ts';
+import React, { useRef, useState } from 'react';
 import { CLIP_CONTENT_OFFSET } from '@soundscaper/design-system/constants';
 
 import {
-	consumeTimelineAnnotationRenameKey,
-	createTimelineAnnotationUiModel,
 	cycleTimelineAnnotationHitId,
 	planTimelineAnnotationPointerGesture,
-	resolveTimelineAnnotationKeyboardIntent,
 	resolveTimelineAnnotationPointerCompletion,
 	timelineAnnotationEditBounds,
-	timelineAnnotationEditIds,
 	timelineAnnotationHitIds,
 	timelineAnnotationIsVisible,
 	timelineAnnotationPointerDelta,
 	timelineAnnotationPointerEdge,
-	timelineAnnotationCreateKind,
-	timelineAnnotationPointerSelectionIds,
 	timelineAnnotationRegionWidth,
 } from './timeline-annotation-ui-model.ts';
+import { useTimelineAnnotationInteractions } from './useTimelineAnnotationInteractions.js';
 
 export function TimelineAnnotationLayer({
 	controller,
@@ -40,28 +35,42 @@ export function TimelineAnnotationLayer({
 	// pixels in from the viewport edge; shifting the lane's scroll origin by the
 	// same inset keeps annotations under the ticks and the playhead they name.
 	const laneScrollX = scrollX - CLIP_CONTENT_OFFSET;
-	const model = React.useMemo(() => createTimelineAnnotationUiModel({
-		annotations,
-		primarySequenceId: project.primarySequenceId,
-		selectedAnnotationIds: project.selection?.annotationIds || [],
-		focusedAnnotationId: selectedAnnotationId,
-		sampleRate,
-		locale,
-		secondsUnit: copy.annotationSecondsUnit,
-	}), [annotations, copy.annotationSecondsUnit, locale, project.primarySequenceId, project.selection?.annotationIds, sampleRate, selectedAnnotationId]);
-	const itemRefs = useRef(new Map());
 	const layerRef = useRef(null);
 	const dragRef = useRef(null);
 	const hitCycleRef = useRef(null);
 	const lastPointerTargetRef = useRef(null);
-	const renameCompletionRef = useRef(null);
 	const [preview, setPreview] = useState(null);
-	const [editingId, setEditingId] = useState(null);
-	const [draftName, setDraftName] = useState('');
-	const [status, setStatus] = usePresentationFeedback(copy);
 	const statusId = React.useId();
-	const actions = controller.actions.timelineAnnotations;
-	const projected = React.useMemo(() => model.rows.map(({ annotation }) => annotation), [model.rows]);
+	const {
+		actions,
+		beginRename,
+		draftName,
+		editingId,
+		handleKeyDown,
+		handleRenameBlur,
+		handleRenameKeyDown,
+		itemRefs,
+		model,
+		projected,
+		select,
+		setDraftName,
+		setStatus,
+		status,
+	} = useTimelineAnnotationInteractions({
+		controller,
+		project,
+		annotations,
+		selectedAnnotationId,
+		copy,
+		locale,
+		sampleRate,
+		blocked,
+		run,
+		createAnnotation,
+		focusFallbackRef: layerRef,
+		deferKeyboardFocus: true,
+		revealKeyboardFocus: true,
+	});
 	const rowById = React.useMemo(() => new Map(model.rows.map((row) => [row.id, row])), [model.rows]);
 	const visibleRows = React.useMemo(() => model.rows
 		.map((row, index) => ({ row, index }))
@@ -75,140 +84,6 @@ export function TimelineAnnotationLayer({
 	const editingWidth = editingRow?.annotation.kind === 'region'
 		? timelineAnnotationRegionWidth(editingRow.annotation.durationFrames, pixelsPerSecond, sampleRate)
 		: 2;
-	const focusCreated = (annotationId) => {
-		const item = itemRefs.current.get(annotationId);
-		item?.focus({ preventScroll: true });
-		item?.scrollIntoView?.({ block: 'nearest' });
-	};
-
-	const select = (event, annotation) => {
-		if (blocked) return Object.freeze([]);
-		const ids = timelineAnnotationPointerSelectionIds(annotation.id, model.selectedIds, {
-			additive: event.shiftKey,
-			toggle: event.metaKey || event.ctrlKey,
-		});
-		run(() => {
-			const result = event.metaKey || event.ctrlKey
-				? actions.toggle(annotation.id)
-				: actions.select(annotation.id, event.shiftKey);
-			setStatus(message(
-				ids.includes(annotation.id) ? 'timelineAnnotationSelected' : 'timelineAnnotationDeselected',
-				{ name: annotation.name || { key: 'unnamedTimelineAnnotation' } },
-			));
-			return result;
-		});
-		return ids;
-	};
-	const beginRename = (annotation) => {
-		if (blocked) return;
-		setEditingId(annotation.id);
-		setDraftName(annotation.name);
-	};
-	const finishRename = (annotation, save, restoreFocus = false) => {
-		if (!blocked && save && draftName !== annotation.name) {
-			run(() => {
-				const result = actions.rename([annotation.id], draftName);
-				setStatus(message('timelineAnnotationRenamed', {
-					name: draftName || { key: 'unnamedTimelineAnnotation' },
-				}));
-				return result;
-			});
-		}
-		setEditingId(null);
-		if (restoreFocus) requestAnimationFrame(() => (
-			itemRefs.current.get(annotation.id) || layerRef.current
-		)?.focus({ preventScroll: true }));
-	};
-	const remove = (annotation, index) => {
-		if (blocked) return;
-		const ids = timelineAnnotationEditIds(annotation.id, model.selectedIds);
-		const removed = new Set(ids);
-		const targetId = model.rows.slice(index + 1).find(({ id }) => !removed.has(id))?.id
-			|| [...model.rows.slice(0, index)].reverse().find(({ id }) => !removed.has(id))?.id
-			|| null;
-		run(() => {
-			const result = actions.remove(ids);
-			setStatus(message('timelineAnnotationRemoved', { count: ids.length }));
-			requestAnimationFrame(() => (
-				targetId ? itemRefs.current.get(targetId) : layerRef.current
-			)?.focus({ preventScroll: true }));
-			return result;
-		});
-	};
-	const handleKeyDown = (event, row, index) => {
-		const annotation = row.annotation;
-		if (event.key.toLowerCase() === 'b' && !event.altKey && !event.ctrlKey && !event.metaKey
-			&& (event.shiftKey ? model.selectedIds.length > 0 : model.selectedIds.length > 1)) {
-			event.preventDefault();
-			event.stopPropagation();
-			if (blocked) return;
-			run(() => {
-				const result = event.shiftKey ? actions.unbatch(model.selectedIds) : actions.batch(model.selectedIds);
-				setStatus(message(
-					event.shiftKey ? 'timelineAnnotationUnbatched' : 'timelineAnnotationBatched',
-					{ count: model.selectedIds.length },
-				));
-				return result;
-			});
-			return;
-		}
-		const createKind = timelineAnnotationCreateKind(event, project.selection);
-		if (createKind) {
-			event.preventDefault();
-			event.stopPropagation();
-			if (!blocked) createAnnotation(createKind, focusCreated);
-			return;
-		}
-		const bounds = timelineAnnotationEditBounds(annotation.id, model.selectedIds, projected);
-		const intent = resolveTimelineAnnotationKeyboardIntent(annotation, event, sampleRate, bounds);
-		if (!intent) return;
-		event.preventDefault();
-		event.stopPropagation();
-		if (intent.type === 'focus') {
-			const target = model.rows[index + intent.offset];
-			if (!target) return;
-			run(() => actions.focus(target.id));
-			requestAnimationFrame(() => {
-				const item = itemRefs.current.get(target.id);
-				item?.focus({ preventScroll: true });
-				item?.scrollIntoView?.({ block: 'nearest' });
-			});
-		} else if (blocked) {
-			return;
-		} else if (intent.type === 'rename') beginRename(annotation);
-		else if (intent.type === 'remove') remove(annotation, index);
-		else if (intent.type === 'toggle') {
-			run(() => {
-				const result = actions.toggle(annotation.id);
-				setStatus(message(
-					row.selected ? 'timelineAnnotationDeselected' : 'timelineAnnotationSelected',
-					{ name: annotation.name || { key: 'unnamedTimelineAnnotation' } },
-				));
-				return result;
-			});
-		} else if (intent.type === 'resize') {
-			const currentFrame = intent.edge === 'start'
-				? annotation.timelineStartFrame
-				: annotation.timelineEndFrame;
-			if (intent.frame === currentFrame) return;
-			run(() => {
-				const result = actions.resize(annotation.id, intent.edge, intent.frame);
-				setStatus(message('timelineAnnotationResized', {
-					name: annotation.name || { key: 'unnamedTimelineAnnotation' }, frame: intent.frame,
-				}));
-				return result;
-			});
-		} else {
-			if (!intent.deltaFrames) return;
-			run(() => {
-				const result = actions.move(bounds.ids, intent.deltaFrames, annotation.id);
-				setStatus(message('timelineAnnotationMoved', {
-					name: annotation.name || { key: 'unnamedTimelineAnnotation' }, frames: intent.deltaFrames,
-				}));
-				return result;
-			});
-		}
-	};
 	const pointerDown = (event, eventRow) => {
 		if (blocked || event.button !== 0 || event.target.closest?.('input')) return;
 		const edge = timelineAnnotationPointerEdge(event.target.dataset?.annotationEdge);
@@ -392,17 +267,8 @@ export function TimelineAnnotationLayer({
 			disabled={blocked}
 			style={{ left: editingLeft, width: Math.max(90, editingWidth) }}
 			onChange={(event) => setDraftName(event.target.value)}
-			onBlur={() => {
-				const intent = renameCompletionRef.current;
-				renameCompletionRef.current = null;
-				finishRename(editingRow.annotation, intent?.save ?? true, intent?.restoreFocus === true);
-			}}
-			onKeyDown={(event) => {
-				const intent = consumeTimelineAnnotationRenameKey(event);
-				if (!intent) return;
-				renameCompletionRef.current = intent;
-				event.currentTarget.blur();
-			}}
+			onBlur={() => handleRenameBlur(editingRow.annotation)}
+			onKeyDown={handleRenameKeyDown}
 		/>}
 		<span id={statusId} className="kw-audio-editor-sr-only" role="status" aria-live="polite">{status}</span>
 	</>;
