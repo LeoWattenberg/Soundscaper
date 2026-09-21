@@ -20,6 +20,16 @@ test('Soundscaper effect tails follow explicit production mixer paths', () => {
 	}), 30);
 });
 
+test('an all-silent channel map cannot contribute an effect tail to the programme', () => {
+	const project = productionProject({
+		trackEffects: [delay('track-delay', 0.1)],
+		busEffects: [delay('bus-delay', 0.2)],
+		masterEffects: [delay('master-delay', 0.3)],
+	});
+	project.mixer.edges[1] = { ...project.mixer.edges[1]!, channelMap: [-1, -1] };
+	assert.equal(projectEffectTailFrames(project), 0);
+});
+
 function productionProject({
 	trackEffects = [],
 	busEffects = [],

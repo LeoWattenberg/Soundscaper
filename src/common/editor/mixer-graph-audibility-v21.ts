@@ -1,6 +1,11 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { isMixerGraphV21Surface } from './mixer-graph-surface-v21.ts';
+import {
+	createMixerSignalTopologyV21,
+	mixerSignalEndpointKeyV21,
+	type MixerSignalEndpointV21,
+} from './mixer-signal-topology-v21.ts';
 
 type DataRecord = Readonly<Record<string, unknown>>;
 
@@ -51,20 +56,11 @@ export function createMixerGraphAudibilityV21(project: unknown): MixerGraphAudib
 	const mutedByVca = new Set<string>();
 	for (const vca of records(graph.vcas)) {
 		if (vca.mute !== true) continue;
-		for (const member of records(vca.members)) mutedByVca.add(endpointKey(member));
+		for (const member of records(vca.members)) {
+			mutedByVca.add(mixerSignalEndpointKeyV21(member as unknown as MixerSignalEndpointV21));
+		}
 	}
-	const adjacency = new Map<string, Set<string>>();
-	for (const edge of records(graph.edges)) {
-		if (edge.enabled === false) continue;
-		if (!channelMapCarriesSignal(edge.channelMap)) continue;
-		const destination = edge.destination as DataRecord | undefined;
-		if (destination?.kind === 'effect-sidechain') continue;
-		const source = endpointKey(edge.source);
-		const target = endpointKey(destination);
-		if (!source || !target) continue;
-		if (!adjacency.has(source)) adjacency.set(source, new Set());
-		adjacency.get(source)!.add(target);
-	}
+	const topology = createMixerSignalTopologyV21(mixer, { includeOutputs: true });
 	// The render connects only the main-role output to the destination; cue and
 	// control-room outputs terminate unconnected, so a path ending there never
 	// reaches the programme in playback or export.
@@ -77,7 +73,7 @@ export function createMixerGraphAudibilityV21(project: unknown): MixerGraphAudib
 		if (state === undefined) return true;
 		if (state.muted || mutedByVca.has(key)) return false;
 		if (soloed.length === 0) return true;
-		return soloed.some((solo) => reaches(adjacency, key, solo) || reaches(adjacency, solo, key));
+		return soloed.some((solo) => topology.reaches(key, solo) || topology.reaches(solo, key));
 	};
 	const reachesProgramme = (key: string): boolean => {
 		const pending = [key];
@@ -86,10 +82,11 @@ export function createMixerGraphAudibilityV21(project: unknown): MixerGraphAudib
 			const current = pending.pop()!;
 			if (seen.has(current)) continue;
 			seen.add(current);
-			// Master and the main-role outputs are the end of the chain: reaching
-			// either is reaching the programme.
-			if (current.startsWith('master') || programmeOutputs.has(current)) return true;
-			for (const next of adjacency.get(current) ?? []) {
+			// Only a main-role output reaches the rendered programme. Master is a
+			// strip on the way there, and its own output edge may be disabled or
+			// explicitly map every destination channel to silence.
+			if (programmeOutputs.has(current)) return true;
+			for (const next of topology.successors(current)) {
 				if (next.startsWith('mixer-node:') && !open(next)) continue;
 				pending.push(next);
 			}
@@ -111,35 +108,6 @@ export function createMixerGraphAudibilityV21(project: unknown): MixerGraphAudib
 			return 'routed-to-silence';
 		},
 	});
-}
-
-function channelMapCarriesSignal(value: unknown): boolean {
-	return !Array.isArray(value) || value.length === 0 || value.some((source) => source !== -1);
-}
-
-function reaches(
-	adjacency: ReadonlyMap<string, Set<string>>,
-	from: string,
-	to: string,
-): boolean {
-	const pending = [from];
-	const seen = new Set<string>();
-	while (pending.length) {
-		const current = pending.pop()!;
-		if (current === to) return true;
-		if (seen.has(current)) continue;
-		seen.add(current);
-		pending.push(...(adjacency.get(current) ?? []));
-	}
-	return false;
-}
-
-function endpointKey(value: unknown): string {
-	const endpoint = (value && typeof value === 'object' ? value : {}) as DataRecord;
-	const kind = String(endpoint.kind ?? '');
-	if (kind === 'master') return 'master';
-	if (!endpoint.id) return kind;
-	return `${kind}:${String(endpoint.id)}`;
 }
 
 function records(value: unknown): readonly DataRecord[] {

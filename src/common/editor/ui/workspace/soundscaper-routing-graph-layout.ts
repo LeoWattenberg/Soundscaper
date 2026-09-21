@@ -1,7 +1,11 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import type { MixerEdgeV21, MixerGraphV21, MixerNodeKindV21 } from '../../mixer-graph-v21.ts';
-import type { StripRef } from '../../parameter-address.ts';
+import {
+	mixerEndpointKeyV21,
+	type MixerEdgeV21,
+	type MixerGraphV21,
+	type MixerNodeKindV21,
+} from '../../mixer-graph-v21.ts';
 import { resolveTerminalChannelWidths } from '../../terminal-channel-widths.ts';
 import { SOUNDSCAPER_ROUTING_GRAPH_COPY } from '../../../i18n/editor-soundscaper-routing-graph-copy.ts';
 import { resolveEditorCopyScope } from '../../../i18n/editor-copy-scope.ts';
@@ -108,9 +112,9 @@ export function layoutSoundscaperRoutingGraph(
 	const predecessors = new Map<string, string[]>();
 	for (const edge of graph.edges) {
 		if (!edge.enabled || edge.kind === 'sidechain') continue;
-		const source = endpointKey(edge.source);
+		const source = mixerEndpointKeyV21(edge.source);
 		const destination = edge.destination.kind === 'effect-sidechain'
-			? stripKey(edge.destination.strip) : endpointKey(edge.destination);
+			? mixerEndpointKeyV21(edge.destination.strip) : mixerEndpointKeyV21(edge.destination);
 		if (!audioKeys.has(source) || !audioKeys.has(destination)) continue;
 		const entries = predecessors.get(destination) ?? [];
 		entries.push(source);
@@ -169,9 +173,9 @@ export function layoutSoundscaperRoutingGraph(
 	const nodeByKey = new Map(positioned.map((node) => [node.key, node]));
 	const edges: RoutingLayoutEdge[] = [];
 	const visibleEdges = graph.edges.flatMap((edge) => {
-		const sourceKey = endpointKey(edge.source);
+		const sourceKey = mixerEndpointKeyV21(edge.source);
 		const destinationKey = edge.destination.kind === 'effect-sidechain'
-			? stripKey(edge.destination.strip) : endpointKey(edge.destination);
+			? mixerEndpointKeyV21(edge.destination.strip) : mixerEndpointKeyV21(edge.destination);
 		const source = nodeByKey.get(sourceKey);
 		const destination = nodeByKey.get(destinationKey);
 		return source && destination ? [{ edge, sourceKey, destinationKey, source, destination }] : [];
@@ -195,7 +199,7 @@ export function layoutSoundscaperRoutingGraph(
 	}
 	for (const vca of graph.vcas) for (const [index, member] of vca.members.entries()) {
 		const sourceKey = `vca:${vca.id}`;
-		const destinationKey = stripKey(member);
+		const destinationKey = mixerEndpointKeyV21(member);
 		const source = nodeByKey.get(sourceKey);
 		const destination = nodeByKey.get(destinationKey);
 		if (!source || !destination) continue;
@@ -217,7 +221,9 @@ export function layoutSoundscaperRoutingGraph(
 }
 
 export function routingLayoutNodeKeyForEndpoint(endpoint: MixerEdgeV21['source'] | MixerEdgeV21['destination']): string {
-	return endpoint.kind === 'effect-sidechain' ? stripKey(endpoint.strip) : endpointKey(endpoint);
+	return endpoint.kind === 'effect-sidechain'
+		? mixerEndpointKeyV21(endpoint.strip)
+		: mixerEndpointKeyV21(endpoint);
 }
 
 function positionedNode(node: PendingNode, rank: number, x: number, y: number): RoutingLayoutNode {
@@ -226,14 +232,6 @@ function positionedNode(node: PendingNode, rank: number, x: number, y: number): 
 		detail: node.detail, channelCount: node.channelCount, rank, rail: node.rail,
 		x, y, width: CARD_WIDTH, height: CARD_HEIGHT,
 	};
-}
-
-function endpointKey(endpoint: MixerEdgeV21['source'] | Exclude<MixerEdgeV21['destination'], { kind: 'effect-sidechain' }>): string {
-	return endpoint.kind === 'master' ? 'master' : `${endpoint.kind}:${endpoint.id}`;
-}
-
-function stripKey(strip: StripRef): string {
-	return strip.kind === 'master' ? 'master' : `${strip.kind}:${strip.id}`;
 }
 
 function curvePath(source: RoutingLayoutNode, destination: RoutingLayoutNode, parallelOffset: number): string {

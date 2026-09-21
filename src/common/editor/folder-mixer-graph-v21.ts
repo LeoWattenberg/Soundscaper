@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import {
+	mixerEndpointKeyV21,
 	normalizeMixerGraphV21,
 	type MixerEdgeV21,
 	type MixerGraphV21,
@@ -263,10 +264,8 @@ function folderAssignment(
 	source: MixerEdgeV21['source'],
 	destination: Exclude<MixerEdgeV21['destination'], { readonly kind: 'effect-sidechain' }>,
 ): MixerEdgeV21 {
-	const sourceId = source.kind === 'master' ? 'master' : `${source.kind}:${source.id}`
-	const destinationId = destination.kind === 'master'
-		? 'master'
-		: `${destination.kind}:${destination.id}`
+	const sourceId = mixerEndpointKeyV21(source)
+	const destinationId = mixerEndpointKeyV21(destination)
 	return Object.freeze({
 		id: `assignment:${sourceId}:${destinationId}`,
 		kind: 'assignment',

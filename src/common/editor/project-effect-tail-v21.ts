@@ -5,8 +5,8 @@ import {
 } from './project-schema-version.ts';
 import {
 	normalizeMixerGraphV21,
-	type MixerEdgeV21,
 } from './mixer-graph-v21.ts';
+import { createMixerSignalTopologyV21 } from './mixer-signal-topology-v21.ts';
 
 interface EffectRackOwner {
 	readonly effectsActive?: unknown;
@@ -57,14 +57,8 @@ export function projectEffectTailFramesV21(
 	}
 	nodeTails.set('master', options.includeMaster ? options.rackTail(project.master) : 0);
 
-	const outgoing = new Map<string, MixerEdgeV21[]>();
-	for (const edge of graph.edges) {
-		if (!edge.enabled || edge.kind === 'sidechain' || edge.destination.kind === 'effect-sidechain') continue;
-		const key = endpointKey(edge.source);
-		const edges = outgoing.get(key) ?? [];
-		edges.push(edge);
-		outgoing.set(key, edges);
-	}
+	const topology = createMixerSignalTopologyV21(graph, { includeOutputs: true });
+	const mainOutputKey = `output:${mainOutputId}`;
 
 	const cache = new Map<string, number>();
 	const visiting = new Set<string>();
@@ -74,12 +68,10 @@ export function projectEffectTailFramesV21(
 		if (visiting.has(key)) return NO_OUTPUT_PATH;
 		visiting.add(key);
 		let continuation = NO_OUTPUT_PATH;
-		for (const edge of outgoing.get(key) ?? []) {
-			const destination = edge.destination;
-			if (destination.kind === 'effect-sidechain') continue;
-			const destinationTail = destination.kind === 'output'
-				? destination.id === mainOutputId ? 0 : NO_OUTPUT_PATH
-				: tailFrom(endpointKey(destination));
+		for (const destination of topology.successors(key)) {
+			const destinationTail = destination.startsWith('output:')
+				? destination === mainOutputKey ? 0 : NO_OUTPUT_PATH
+				: tailFrom(destination);
 			continuation = Math.max(continuation, destinationTail);
 		}
 		visiting.delete(key);
@@ -94,11 +86,4 @@ export function projectEffectTailFramesV21(
 		(longest, key) => Math.max(longest, tailFrom(key)),
 		0,
 	));
-}
-
-function endpointKey(endpoint: MixerEdgeV21['source'] | Exclude<
-	MixerEdgeV21['destination'],
-	{ readonly kind: 'effect-sidechain' | 'output' }
->): string {
-	return endpoint.kind === 'master' ? 'master' : `${endpoint.kind}:${endpoint.id}`;
 }

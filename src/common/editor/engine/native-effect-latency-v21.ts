@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { normalizeMixerGraphV21, type MixerEdgeV21 } from '../mixer-graph-v21.ts'
+import { mixerEndpointKeyV21, normalizeMixerGraphV21, type MixerEdgeV21 } from '../mixer-graph-v21.ts'
 import { canonicalParameterAddressKey, type StripRef } from '../parameter-address.ts'
 import { effectLatencyFrames } from './effect-rack.ts'
 import {
@@ -231,7 +231,7 @@ export function nativeEffectPdcErrorSamplesV21(project: unknown, plan: ProjectPa
 	let error = 0
 	for (const edge of graph.edges) {
 		if (!edge.enabled) continue
-		const arrival = (plan.nodeOutputLatencyFrames.get(endpointKey(edge.source)) ?? 0)
+		const arrival = (plan.nodeOutputLatencyFrames.get(mixerEndpointKeyV21(edge.source)) ?? 0)
 			+ (plan.edgeCompensationFrames.get(edge.id) ?? 0)
 		error += Math.abs(alignedArrivalFrames(edge, plan) - arrival)
 	}
@@ -538,10 +538,6 @@ function alignedArrivalFrames(edge: MixerEdgeV21, plan: ProjectPathPdcPlanV21): 
 	}
 	const key = destination.kind === 'master' ? 'master' : `mixer-node:${destination.id}`
 	return plan.nodeInputLatencyFrames.get(key) ?? 0
-}
-
-function endpointKey(endpoint: MixerEdgeV21['source']): string {
-	return endpoint.kind === 'master' ? 'master' : `${endpoint.kind}:${endpoint.id}`
 }
 
 function normalizeInstance(value: NativeEffectInstanceV21): NativeEffectInstanceV21 {

@@ -57,6 +57,21 @@ test('an explicit channel map with no routed channels is silent in the file', ()
 	assert.equal(visibility.contributes(track(project, 'music') as never), true);
 });
 
+test('an all-silent route does not create a relationship with a soloed bus', () => {
+	const project = routedProject({ busMuted: false, busSolo: true, voiceChannelMap: [-1, -1] });
+	const audibility = createMixerGraphAudibilityV21(project);
+	assert.ok(audibility);
+	assert.equal(audibility.audibleTrack('voice'), false);
+	assert.equal(audibility.reason('voice'), 'not-soloed');
+});
+
+test('an all-silent master output disconnects every track from the programme', () => {
+	const project = routedProject({ busMuted: false, programmeChannelMap: [-1, -1] });
+	const audibility = createMixerGraphAudibilityV21(project);
+	assert.equal(audibility?.audibleTrack('voice'), false);
+	assert.equal(audibility?.audibleTrack('music'), false);
+});
+
 test('a muted VCA silences the strips it holds', () => {
 	const project = vcaProject();
 	const audibility = createMixerGraphAudibilityV21(project);
@@ -98,9 +113,13 @@ test('a document with no routing graph keeps the track-flag rule', () => {
 
 function routedProject({
 	busMuted,
+	busSolo = false,
+	programmeChannelMap,
 	voiceChannelMap = [],
 }: {
 	readonly busMuted: boolean;
+	readonly busSolo?: boolean;
+	readonly programmeChannelMap?: readonly number[];
 	readonly voiceChannelMap?: readonly number[];
 }) {
 	const base = createSoundscaperProject({
@@ -121,10 +140,14 @@ function routedProject({
 		mixer: {
 			...withBus.mixer,
 			groups: withBus.mixer.groups.map((bus) => (
-				bus.id === 'stems' ? { ...bus, mute: busMuted } : bus
+				bus.id === 'stems' ? { ...bus, mute: busMuted, solo: busSolo } : bus
 			)),
 			edges: [
-				...withBus.mixer.edges.filter(({ id }) => id !== 'assignment:track:voice:master'),
+				...withBus.mixer.edges
+					.filter(({ id }) => id !== 'assignment:track:voice:master')
+					.map((edge) => edge.destination.kind === 'output' && programmeChannelMap
+						? { ...edge, channelMap: programmeChannelMap }
+						: edge),
 				{
 					id: 'assignment:track:voice:mixer-node:stems', kind: 'assignment',
 					source: { kind: 'track', id: 'voice' },

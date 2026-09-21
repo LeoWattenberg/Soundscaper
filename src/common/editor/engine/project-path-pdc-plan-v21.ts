@@ -2,6 +2,7 @@
 
 import {
 	mixerNodeEffectsV21,
+	mixerEndpointKeyV21,
 	normalizeMixerGraphV21,
 	validateMixerGraphV21,
 	type MixerEdgeV21,
@@ -11,7 +12,6 @@ import {
 import {
 	normalizeParameterAddress,
 	type ParameterAddress,
-	type StripRef,
 } from '../parameter-address.ts'
 import { effectLatencyFrames } from './effect-rack.ts'
 import type { EngineEffect } from './types.ts'
@@ -107,12 +107,12 @@ export function compileProjectPathPdcPlanV21(
 			&& edge.destination.kind === 'output'
 			&& edge.destination.id === output.id
 		))
-		const latency = Math.max(...incoming.map((edge) => outputFrames.get(endpointKey(edge.source)) ?? 0), 0)
+		const latency = Math.max(...incoming.map((edge) => outputFrames.get(mixerEndpointKeyV21(edge.source)) ?? 0), 0)
 		outputLatencyFrames.set(output.id, latency)
 		for (const edge of incoming) {
 			edgeCompensationFrames.set(
 				edge.id,
-				exactCompensationFrames(latency - (outputFrames.get(endpointKey(edge.source)) ?? 0), edge.id),
+				exactCompensationFrames(latency - (outputFrames.get(mixerEndpointKeyV21(edge.source)) ?? 0), edge.id),
 			)
 		}
 	}
@@ -123,7 +123,7 @@ export function compileProjectPathPdcPlanV21(
 		}
 		if (edge.destination.kind === 'output') continue
 		const destination = destinationVertex(edge)
-		const sourceOutput = outputFrames.get(endpointKey(edge.source)) ?? 0
+		const sourceOutput = outputFrames.get(mixerEndpointKeyV21(edge.source)) ?? 0
 		const destinationInput = inputFrames.get(destination) ?? 0
 		const effectPrefix = sidechainPrefix(edge, states)
 		edgeCompensationFrames.set(
@@ -252,16 +252,8 @@ function stripEffects(strip: MixerStripV21): readonly EngineEffect[] {
 	return strip.effects as readonly unknown[] as readonly EngineEffect[]
 }
 
-function endpointKey(endpoint: MixerEdgeV21['source']): string {
-	return endpoint.kind === 'master' ? 'master' : `${endpoint.kind}:${endpoint.id}`
-}
-
-function stripKey(strip: StripRef): string {
-	return strip.kind === 'master' ? 'master' : `${strip.kind}:${strip.id}`
-}
-
 function destinationVertex(edge: MixerEdgeV21): string {
-	if (edge.destination.kind === 'effect-sidechain') return stripKey(edge.destination.strip)
+	if (edge.destination.kind === 'effect-sidechain') return mixerEndpointKeyV21(edge.destination.strip)
 	if (edge.destination.kind === 'master') return 'master'
 	if (edge.destination.kind === 'mixer-node') return `mixer-node:${edge.destination.id}`
 	throw new TypeError(`PDC edge ${edge.id} terminates at an output`)
@@ -269,7 +261,7 @@ function destinationVertex(edge: MixerEdgeV21): string {
 
 function sidechainPrefix(edge: MixerEdgeV21, states: ReadonlyMap<string, VertexState>): number {
 	if (edge.destination.kind !== 'effect-sidechain') return 0
-	const prefix = states.get(stripKey(edge.destination.strip))?.effectPrefixFrames.get(edge.destination.effectId)
+	const prefix = states.get(mixerEndpointKeyV21(edge.destination.strip))?.effectPrefixFrames.get(edge.destination.effectId)
 	if (prefix === undefined) throw new TypeError(`PDC edge ${edge.id} has an unknown sidechain effect`)
 	return prefix
 }
@@ -282,7 +274,7 @@ function createDependencies(
 		if (!edge.enabled || edge.destination.kind === 'output') return []
 		return [Object.freeze({
 			edge,
-			source: endpointKey(edge.source),
+			source: mixerEndpointKeyV21(edge.source),
 			destination: destinationVertex(edge),
 			effectPrefixFrames: sidechainPrefix(edge, states),
 		})]
@@ -344,15 +336,15 @@ function createAutomationLatencyResolver(
 	const edges = new Map(graph.edges.map((edge) => [edge.id, edge]))
 	return (value: unknown): number => {
 		const address: ParameterAddress = normalizeParameterAddress(value)
-		if (address.kind === 'strip') return outputFrames.get(stripKey(address.strip)) ?? 0
+		if (address.kind === 'strip') return outputFrames.get(mixerEndpointKeyV21(address.strip)) ?? 0
 		if (address.kind === 'edge') {
 			const edge = edges.get(address.edgeId)
 			if (edge === undefined) throw new TypeError(`Automation addresses unknown mixer edge ${address.edgeId}`)
-			return (outputFrames.get(endpointKey(edge.source)) ?? 0) + (compensationFrames.get(edge.id) ?? 0)
+			return (outputFrames.get(mixerEndpointKeyV21(edge.source)) ?? 0) + (compensationFrames.get(edge.id) ?? 0)
 		}
-		const state = states.get(stripKey(address.strip))
+		const state = states.get(mixerEndpointKeyV21(address.strip))
 		const prefix = state?.effectPrefixFrames.get(address.effectId)
 		if (prefix === undefined) throw new TypeError(`Automation addresses unknown effect ${address.effectId}`)
-		return (inputFrames.get(stripKey(address.strip)) ?? 0) + prefix
+		return (inputFrames.get(mixerEndpointKeyV21(address.strip)) ?? 0) + prefix
 	}
 }

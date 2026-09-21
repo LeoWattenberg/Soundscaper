@@ -23,7 +23,11 @@ import type {
 	MixerGraphV21,
 	MixerStripV21,
 } from '../common/editor/mixer-graph-v21.ts';
-import { defaultMixerChannelMapV21, normalizeMixerGraphV21 } from '../common/editor/mixer-graph-v21.ts';
+import {
+	defaultMixerChannelMapV21,
+	mixerEndpointKeyV21,
+	normalizeMixerGraphV21,
+} from '../common/editor/mixer-graph-v21.ts';
 import { cloneProject } from '../common/editor/project.js';
 import {
 	preparePersistedProjectCommandDraft,
@@ -413,15 +417,11 @@ function canonicalRoute(edge: MixerEdgeV21): edge is MixerEdgeV21 & {
 	readonly destination: Exclude<MixerEdgeV21['destination'], { readonly kind: 'effect-sidechain' }>;
 } {
 	if (edge.destination.kind === 'effect-sidechain') return false;
-	return edge.id === `${edge.kind}:${endpointSegment(edge.source)}:${endpointSegment(edge.destination)}`;
+	return edge.id === `${edge.kind}:${mixerEndpointKeyV21(edge.source)}:${mixerEndpointKeyV21(edge.destination)}`;
 }
 
 function sameChannelMap(left: readonly number[], right: readonly number[]): boolean {
 	return left.length === right.length && left.every((channel, index) => channel === right[index]);
-}
-
-function endpointSegment(endpoint: CanonicalAssignmentEndpointV21): string {
-	return endpoint.kind === 'master' ? 'master' : `${endpoint.kind}:${endpoint.id}`;
 }
 
 function defaultTrackAssignment(

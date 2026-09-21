@@ -352,18 +352,28 @@ export function normalizeMixerGraphV21(value: unknown): MixerGraphV21 {
 	})
 }
 
-function endpointKey(endpoint: MixerEdgeV21['source']): string {
+export function mixerEndpointKeyV21(endpoint: MixerEndpointV21): string {
 	return endpoint.kind === 'master' ? 'master' : `${endpoint.kind}:${endpoint.id}`
 }
 
+export function mixerChannelMapCarriesSignalV21(value: readonly number[]): boolean {
+	return value.length === 0 || value.some((source) => source !== -1)
+}
+
+export function mixerEdgeCarriesSignalV21(
+	edge: Pick<MixerEdgeV21, 'enabled' | 'channelMap'>,
+): boolean {
+	return edge.enabled !== false && mixerChannelMapCarriesSignalV21(edge.channelMap)
+}
+
 function stripKey(strip: StripRef): string {
-	return strip.kind === 'master' ? 'master' : `${strip.kind}:${strip.id}`
+	return mixerEndpointKeyV21(strip)
 }
 
 function destinationKey(destination: MixerEdgeV21['destination']): string | null {
 	if (destination.kind === 'effect-sidechain') return stripKey(destination.strip)
 	if (destination.kind === 'output') return null
-	return endpointKey(destination)
+	return mixerEndpointKeyV21(destination)
 }
 
 function effectId(effect: { readonly id?: unknown }): string | null {
@@ -439,7 +449,7 @@ export function validateMixerGraphV21(
 	for (const edge of graph.edges) {
 		if (edgeIds.has(edge.id)) throw new TypeError(`duplicate mixer edge id: ${edge.id}`)
 		edgeIds.add(edge.id)
-		const source = endpointKey(edge.source)
+		const source = mixerEndpointKeyV21(edge.source)
 		if (!adjacency.has(source)) {
 			const reason = edge.source.kind === 'track' ? `missing track ${edge.source.id}` : 'dangling source'
 			throw new TypeError(`mixer edge ${edge.id} has ${reason}`)

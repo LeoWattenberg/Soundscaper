@@ -1,10 +1,11 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import type { AdmTerminalStripKind } from '../adm-project-metadata.ts';
-import type {
-	MixerEdgeV21,
-	MixerGraphV21,
-	MixerStripV21,
+import {
+	mixerEndpointKeyV21,
+	type MixerEdgeV21,
+	type MixerGraphV21,
+	type MixerStripV21,
 } from '../mixer-graph-v21.ts';
 import type { StripRef } from '../parameter-address.ts';
 import { addNode, connect, setParam, type AudioNodeArray } from './audio-node-utils.ts';
@@ -29,9 +30,7 @@ interface AudioTrackV21 extends EngineTrack {
 	readonly id: string;
 }
 
-export function stripKey(strip: StripRef): string {
-	return strip.kind === 'master' ? 'master' : `${strip.kind}:${strip.id}`;
-}
+export const stripKey = mixerEndpointKeyV21 as (strip: StripRef) => string;
 
 /**
  * What an edge of the production mixer graph resolves to in the audio graph.
@@ -183,7 +182,4 @@ export function excludedTrackEdge(edge: MixerEdgeV21, onlyTrackId: unknown): boo
 		&& edge.source.id !== String(onlyTrackId);
 }
 
-export function endpointKey(endpoint: Exclude<MixerEdgeV21['destination'], { kind: 'effect-sidechain' | 'output' }>
-	| MixerEdgeV21['source']): string {
-	return endpoint.kind === 'master' ? 'master' : `${endpoint.kind}:${endpoint.id}`;
-}
+export const endpointKey = mixerEndpointKeyV21;

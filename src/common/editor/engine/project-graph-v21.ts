@@ -44,6 +44,7 @@ import {
 	type StripMeterAnalyserBankV21,
 } from './strip-meter-analyser-bank-v21.ts';
 import type { EngineEffect, EngineProject, EngineTrack } from './types.ts';
+import { createMixerSignalTopologyV21 } from '../mixer-signal-topology-v21.ts';
 
 interface AudioTrackV21 extends EngineTrack {
 	readonly id: string;
@@ -501,28 +502,10 @@ function createSoloResolver(
 		if (strip.solo) solos.add(`mixer-node:${strip.id}`);
 	}
 	if (!solos.size) return () => true;
-	const adjacency = new Map<string, Set<string>>();
-	for (const edge of graph.edges) {
-		if (!edge.enabled || edge.destination.kind === 'effect-sidechain'
-			|| edge.destination.kind === 'output') continue;
-		const source = endpointKey(edge.source);
-		const destination = endpointKey(edge.destination);
-		if (!adjacency.has(source)) adjacency.set(source, new Set());
-		adjacency.get(source)!.add(destination);
-	}
-	const reaches = (from: string, to: string): boolean => {
-		const pending = [from];
-		const seen = new Set<string>();
-		while (pending.length) {
-			const current = pending.pop()!;
-			if (current === to) return true;
-			if (seen.has(current)) continue;
-			seen.add(current);
-			pending.push(...(adjacency.get(current) ?? []));
-		}
-		return false;
-	};
-	return (key) => [...solos].some((solo) => reaches(key, solo) || reaches(solo, key));
+	const topology = createMixerSignalTopologyV21(graph, { includeOutputs: false });
+	return (key) => [...solos].some((solo) => (
+		topology.reaches(key, solo) || topology.reaches(solo, key)
+	));
 }
 
 function stripVcaFactor(graph: MixerGraphV21, ref: StripRef, includeMaster: boolean): number {

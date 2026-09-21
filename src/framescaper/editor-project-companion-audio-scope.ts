@@ -3,8 +3,8 @@
 /** Exact transient audio-only project scope for one selected Framescaper V15 sequence. */
 
 import {
+	mixerEndpointKeyV21,
 	normalizeMixerGraphV21,
-	type MixerEdgeV21,
 	type MixerGraphV21,
 } from '../common/editor/mixer-graph-v21.ts';
 import type { FramescaperProjectNativeMedia } from './editor-project-native-media.ts';
@@ -166,7 +166,7 @@ function selectedMixerGraph(
 	while (changed) {
 		changed = false;
 		for (const edge of graph.edges) {
-			if (!edge.enabled || edge.kind === 'sidechain' || !reachable.has(endpointKey(edge.source))) continue;
+			if (!edge.enabled || edge.kind === 'sidechain' || !reachable.has(mixerEndpointKeyV21(edge.source))) continue;
 			if (!includedEdgeIds.has(edge.id)) {
 				includedEdgeIds.add(edge.id);
 				changed = true;
@@ -174,7 +174,7 @@ function selectedMixerGraph(
 			if (edge.destination.kind === 'output') {
 				includedOutputIds.add(edge.destination.id);
 			} else if (edge.destination.kind !== 'effect-sidechain') {
-				const destination = endpointKey(edge.destination);
+				const destination = mixerEndpointKeyV21(edge.destination);
 				if (!reachable.has(destination)) {
 					reachable.add(destination);
 					changed = true;
@@ -186,7 +186,7 @@ function selectedMixerGraph(
 		if (!edge.enabled || edge.kind !== 'sidechain'
 			|| edge.destination.kind !== 'effect-sidechain'
 			|| !reachable.has(stripKey(edge.destination.strip))) continue;
-		if (!reachable.has(endpointKey(edge.source))) {
+		if (!reachable.has(mixerEndpointKeyV21(edge.source))) {
 			// The authority projection describes a picture render; a sidechain fed
 			// from outside the scope cannot change its pixels, so it is projected
 			// away rather than refused.
@@ -278,10 +278,6 @@ function assertExactSequenceTrackOwnership(
 	for (const trackId of trackById.keys()) if (!ownerByTrackId.has(trackId)) {
 		throw new ReferenceError(`Framescaper track ${trackId} has no sequence owner.`);
 	}
-}
-
-function endpointKey(endpoint: MixerEdgeV21['source'] | Exclude<MixerEdgeV21['destination'], { kind: 'effect-sidechain' | 'output' }>): string {
-	return endpoint.kind === 'master' ? 'master' : `${endpoint.kind}:${endpoint.id}`;
 }
 
 function stripKey(strip: DataRecord | Readonly<{ kind: string; id?: string }>): string {
