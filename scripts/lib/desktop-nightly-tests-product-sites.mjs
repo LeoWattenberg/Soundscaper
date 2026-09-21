@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { readFile } from 'node:fs/promises';
 import { isAbsolute, join } from 'node:path';
 
 const PRODUCT_IDS = Object.freeze(['soundscaper', 'framescaper']);
@@ -17,22 +18,22 @@ export async function startDesktopNightlyTestsProductSites({
 	if (typeof startStaticServer !== 'function') {
 		throw new TypeError('Desktop nightly tests product sites require a static-server factory.');
 	}
+	const sitePlans = await loadDesktopNightlyTestsProductSitePlans(payloadRoot);
 	const servers = [];
 	try {
-		for (const productId of PRODUCT_IDS) {
-			const server = await startStaticServer({ root: join(payloadRoot, 'sites', productId) });
+		for (const { host, origin, port, productId, root } of sitePlans) {
+			const server = await startStaticServer({ root, host, port });
 			if (typeof server?.close !== 'function') {
 				throw new TypeError(`The ${productId} browser server cannot be closed.`);
 			}
 			servers.push({ productId, server });
-			assertLoopbackOrigin(server.baseURL, `${productId} browser origin`);
+			if (server.baseURL !== origin) {
+				throw new Error(`The ${productId} browser server did not bind its authenticated build origin.`);
+			}
 		}
-		const origins = Object.freeze(Object.fromEntries(servers.map(({ productId, server }) => (
-			[productId, new URL(server.baseURL).origin]
+		const origins = Object.freeze(Object.fromEntries(sitePlans.map(({ productId, origin }) => (
+			[productId, origin]
 		))));
-		if (origins.soundscaper === origins.framescaper) {
-			throw new Error('Desktop nightly tests require distinct product origins.');
-		}
 		const browserEnvironment = Object.freeze({
 			...environment,
 			[PRODUCT_ORIGINS_VARIABLE]: JSON.stringify(origins),
@@ -66,6 +67,34 @@ export async function startDesktopNightlyTestsProductSites({
 	}
 }
 
+export async function loadDesktopNightlyTestsProductSitePlans(payloadRoot) {
+	if (typeof payloadRoot !== 'string' || !isAbsolute(payloadRoot)) {
+		throw new TypeError('Desktop nightly tests payload root must be absolute.');
+	}
+	const sites = [];
+	for (const productId of PRODUCT_IDS) {
+		const root = join(payloadRoot, 'sites', productId);
+		let evidence;
+		try {
+			evidence = JSON.parse(await readFile(join(root, '.browser-product-build.json'), 'utf8'));
+		} catch (error) {
+			throw new Error(`The ${productId} browser build evidence is unreadable.`, { cause: error });
+		}
+		if (evidence?.schemaVersion !== 2 || evidence.productId !== productId) {
+			throw new Error(`The ${productId} browser build evidence names the wrong product.`);
+		}
+		const origin = assertLoopbackOrigin(evidence.origin, `${productId} browser build evidence`);
+		const parsed = new URL(origin);
+		sites.push(Object.freeze({
+			host: parsed.hostname, origin, port: Number(parsed.port), productId, root,
+		}));
+	}
+	if (sites[0].origin === sites[1].origin) {
+		throw new Error('Desktop nightly tests require distinct product origins.');
+	}
+	return Object.freeze(sites);
+}
+
 async function closeProductServers(servers) {
 	const results = await Promise.allSettled(servers.map(({ server }) => server.close()));
 	const errors = results.filter(({ status }) => status === 'rejected').map(({ reason }) => reason);
@@ -80,4 +109,5 @@ function assertLoopbackOrigin(value, label) {
 		|| url.username || url.password || url.pathname !== '/' || url.search || url.hash) {
 		throw new TypeError(`Desktop nightly tests ${label} must be an HTTP 127.0.0.1 origin.`);
 	}
+	return url.origin;
 }

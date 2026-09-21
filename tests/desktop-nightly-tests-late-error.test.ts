@@ -8,12 +8,12 @@ import test from 'node:test';
 
 import { runDesktopNightlyTests } from '../scripts/lib/desktop-nightly-tests-runtime.mjs';
 import { runDualOriginPhaseFixture } from './helpers/nightly-tests-dual-origin-phase.ts';
+import { nightlyProductSitesFixture } from './helpers/nightly-tests-product-sites.ts';
 
 test('partial packaged-runtime metadata does not abort diagnostics', async (context) => {
 	const outputRoot = await mkdtemp(join(tmpdir(), 'soundscaper-nightly-late-error-'));
 	context.after(() => rm(outputRoot, { recursive: true, force: true }));
 	let childCalls = 0;
-	let siteStarts = 0;
 	const completed = await runDesktopNightlyTests({
 		executablePath: '/opt/soundscaper-tests',
 		payloadRoot: '/opt/resources/nightly-tests',
@@ -25,10 +25,7 @@ test('partial packaged-runtime metadata does not abort diagnostics', async (cont
 		environment: { SOUNDSCAPER_PACKAGED_RUNTIME_GPU_DRIVER_VERSION: '555.42.02' },
 	}, {
 		runDualOriginPhase: runDualOriginPhaseFixture,
-		startStaticServer: async () => ({
-			baseURL: `http://127.0.0.1:${String(49996 + siteStarts++)}`,
-			close: async () => undefined,
-		}),
+		startProductSites: nightlyProductSitesFixture(49996),
 		runPlaywright: async () => {
 			childCalls += 1;
 			return { code: 0, signal: null };

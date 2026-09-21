@@ -118,6 +118,8 @@ export function createDesktopNightlyTestsRunDirectory(options: {
 
 export function startDesktopNightlyTestsStaticServer(options: {
 	readonly root: string;
+	readonly host?: string;
+	readonly port?: number;
 }): Promise<DesktopNightlyTestsStaticServer>;
 
 export function resolveDesktopNightlyTestsEsbuildBinary(options: {
@@ -174,6 +176,7 @@ export interface DesktopNightlyTestsRunOptions {
 export interface DesktopNightlyTestsDependencies {
 	readonly now?: () => Date;
 	readonly createRunDirectory?: typeof createDesktopNightlyTestsRunDirectory;
+	readonly startProductSites?: typeof import('./desktop-nightly-tests-product-sites.mjs').startDesktopNightlyTestsProductSites;
 	readonly startStaticServer?: typeof startDesktopNightlyTestsStaticServer;
 	readonly startPagesSiteServer?: (options: {
 		readonly root: string;

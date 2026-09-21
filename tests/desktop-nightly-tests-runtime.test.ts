@@ -27,6 +27,7 @@ import {
 } from '../scripts/lib/desktop-nightly-tests-runtime.mjs';
 import { PACKAGED_RUNTIME_ARTIFACT_PATHS } from '../scripts/lib/desktop-nightly-tests-packaged-runtime.mjs';
 import { runDualOriginPhaseFixture } from './helpers/nightly-tests-dual-origin-phase.ts';
+import { nightlyProductSitesFixture } from './helpers/nightly-tests-product-sites.ts';
 import { rawHttpRequest } from './helpers/raw-http-request.ts';
 
 const PRODUCT = Object.freeze({
@@ -35,14 +36,6 @@ const PRODUCT = Object.freeze({
 	version: '1.0.0-rc.1',
 });
 const PACKAGED_ENVIRONMENT = Object.freeze({ PATH: '/usr/bin', SOUNDSCAPER_PACKAGED_RUNTIME_GPU_DRIVER_VERSION: '555.42.02', SOUNDSCAPER_PACKAGED_RUNTIME_GPU_DEVICE_ID: '10de:2204', SOUNDSCAPER_PACKAGED_RUNTIME_POWER_MODE: 'maximum-performance-ac', SOUNDSCAPER_PACKAGED_RUNTIME_DISPLAY_MODE: '1920x1080@60Hz-100pct' });
-
-function productServerStub(firstPort: number, onClose = () => undefined) {
-	let offset = 0;
-	return async () => ({
-		baseURL: `http://127.0.0.1:${String(firstPort + offset++)}`,
-		close: async () => { onClose(); },
-	});
-}
 
 test('nightly test results resolve beside each portable artifact convention', () => {
 	assert.equal(resolveDesktopNightlyTestsOutputRoot({
@@ -393,14 +386,14 @@ test('the injected nightly runtime turns server and child errors into an error e
 		environment: {},
 	}, {
 		runDualOriginPhase: runDualOriginPhaseFixture,
-		startStaticServer: productServerStub(48888, () => { closeCalls += 1; }),
+		startProductSites: nightlyProductSitesFixture(48888, () => { closeCalls += 1; }),
 		runPlaywright: async () => { throw new Error('browser process could not start'); },
 	});
 
 	assert.equal(completed.exitCode, 2);
 	assert.equal(completed.result.status, 'error');
 	assert.match(completed.result.failure ?? '', /browser process could not start/iu);
-	assert.equal(closeCalls, 2);
+	assert.equal(closeCalls, 1);
 	assert.equal(
 		JSON.parse(await readFile(join(completed.runRoot, 'run.json'), 'utf8')).status,
 		'error',
@@ -463,7 +456,7 @@ test('the default Playwright child runner captures output and reaches a terminal
 		environment: { ...PACKAGED_ENVIRONMENT, PATH: process.env.PATH },
 	}, {
 		runDualOriginPhase: runDualOriginPhaseFixture,
-		startStaticServer: productServerStub(49990),
+		startProductSites: nightlyProductSitesFixture(49990),
 		writeMetricsDiagnostics: async () => ({ passed: true }),
 		writePackagedMetricsDiagnostics: async () => ({ passed: true }),
 		preserveCoverageEvidence: async () => '/tmp/coverage-evidence',
@@ -493,7 +486,7 @@ test('a Playwright child spawn error closes its log and records infrastructure f
 		environment: { PATH: process.env.PATH },
 	}, {
 		runDualOriginPhase: runDualOriginPhaseFixture,
-		startStaticServer: productServerStub(49992),
+		startProductSites: nightlyProductSitesFixture(49992),
 		writeMetricsDiagnostics: async () => ({ passed: true }),
 	});
 
@@ -517,7 +510,7 @@ test('a failed diagnostic metric gate fails an otherwise passing nightly run', a
 		environment: PACKAGED_ENVIRONMENT,
 	}, {
 		runDualOriginPhase: runDualOriginPhaseFixture,
-		startStaticServer: productServerStub(49994),
+		startProductSites: nightlyProductSitesFixture(49994),
 		runPlaywright: async () => {
 			childCalls += 1;
 			return { code: 0, signal: null };

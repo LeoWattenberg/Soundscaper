@@ -1,9 +1,10 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { readFile, mkdir } from 'node:fs/promises';
+import { mkdir } from 'node:fs/promises';
 import { isAbsolute, join } from 'node:path';
 
 import { startPagesSiteStaticServer } from './pages-site-static-server.mjs';
+import { loadDesktopNightlyTestsProductSitePlans } from './desktop-nightly-tests-product-sites.mjs';
 
 export const DUAL_ORIGIN_ARTIFACT_PATHS = Object.freeze({
 	dualOriginConsoleLog: 'e2e-coverage/dual-origin/console.log',
@@ -62,13 +63,21 @@ export function createDesktopNightlyTestsDualOriginPlan({
 }
 
 export async function runDesktopNightlyTestsDualOriginPhase(options, dependencies = {}) {
-	const sites = await loadDualOriginSites(options.payloadRoot);
+	const sites = await loadDesktopNightlyTestsProductSitePlans(options.payloadRoot);
+	const origins = Object.freeze(Object.fromEntries(sites.map(({ productId, origin }) => [productId, origin])));
+	const activeOrigins = options.activeProductOrigins === undefined
+		? null : validateOrigins(options.activeProductOrigins);
+	if (activeOrigins !== null && PRODUCT_IDS.some((productId) => (
+		activeOrigins[productId] !== origins[productId]
+	))) {
+		throw new Error('Dual-origin coverage active product origins disagree with authenticated build evidence.');
+	}
 	const startPagesSiteServer = dependencies.startPagesSiteServer ?? startPagesSiteStaticServer;
 	const servers = [];
 	await mkdir(join(options.runRoot, 'e2e-coverage/dual-origin'), { recursive: true });
 	let result;
 	try {
-		for (const site of sites) {
+		for (const site of activeOrigins === null ? sites : []) {
 			const expected = new URL(site.origin);
 			const server = await startPagesSiteServer({
 				root: site.root,
@@ -83,7 +92,7 @@ export async function runDesktopNightlyTestsDualOriginPhase(options, dependencie
 		}
 		const plan = createDesktopNightlyTestsDualOriginPlan({
 			...options,
-			origins: Object.fromEntries(sites.map(({ productId, origin }) => [productId, origin])),
+			origins,
 		});
 		const child = await dependencies.runPlaywright(plan);
 		result = Object.freeze({
@@ -104,27 +113,6 @@ export async function runDesktopNightlyTestsDualOriginPhase(options, dependencie
 	}
 	await closeServers(servers);
 	return result;
-}
-
-async function loadDualOriginSites(payloadRoot) {
-	assertAbsolute(payloadRoot, 'Nightly tests payload');
-	const sites = [];
-	for (const productId of PRODUCT_IDS) {
-		const root = join(payloadRoot, 'sites', productId);
-		let evidence;
-		try {
-			evidence = JSON.parse(await readFile(join(root, '.browser-product-build.json'), 'utf8'));
-		} catch (error) {
-			throw new Error(`The ${productId} browser build evidence is unreadable.`, { cause: error });
-		}
-		if (evidence?.schemaVersion !== 2 || evidence.productId !== productId) {
-			throw new Error(`The ${productId} browser build evidence names the wrong product.`);
-		}
-		const origin = loopbackOrigin(evidence.origin, `${productId} browser build evidence`);
-		sites.push(Object.freeze({ productId, origin, root }));
-	}
-	validateOrigins(Object.fromEntries(sites.map(({ productId, origin }) => [productId, origin])));
-	return Object.freeze(sites);
 }
 
 async function closeServers(servers) {

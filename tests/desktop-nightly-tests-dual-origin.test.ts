@@ -13,6 +13,7 @@ import {
 import { runDesktopNightlyTests } from '../scripts/lib/desktop-nightly-tests-runtime.mjs';
 import type { DesktopNightlyTestsPlaywrightPlan } from '../scripts/lib/desktop-nightly-tests-runtime.mjs';
 import { runDualOriginPhaseFixture } from './helpers/nightly-tests-dual-origin-phase.ts';
+import { nightlyProductSitesFixture } from './helpers/nightly-tests-product-sites.ts';
 
 const SOUNDSCAPER_ORIGIN = 'http://127.0.0.1:4332';
 const FRAMESCAPER_ORIGIN = 'http://127.0.0.1:4333';
@@ -97,6 +98,67 @@ test('dual-origin coverage serves the authenticated reciprocal builds and closes
 	assert.deepEqual(result.diagnostics, { passed: true });
 });
 
+test('dual-origin coverage reuses an already bound authenticated product pair', async (context) => {
+	const temporaryRoot = await mkdtemp(join(tmpdir(), 'nightly-dual-origin-reuse-'));
+	context.after(() => rm(temporaryRoot, { recursive: true, force: true }));
+	const payloadRoot = join(temporaryRoot, 'payload');
+	for (const [productId, origin] of [
+		['soundscaper', SOUNDSCAPER_ORIGIN],
+		['framescaper', FRAMESCAPER_ORIGIN],
+	] as const) {
+		const manifest = join(payloadRoot, 'sites', productId, '.browser-product-build.json');
+		await mkdir(dirname(manifest), { recursive: true });
+		await writeFile(manifest, `${JSON.stringify({ schemaVersion: 2, productId, origin })}\n`);
+	}
+	let starts = 0;
+	let planSeen: DesktopNightlyTestsPlaywrightPlan | undefined;
+	const result = await runDesktopNightlyTestsDualOriginPhase({
+		executablePath: '/opt/soundscaper-tests', payloadRoot,
+		runRoot: join(temporaryRoot, 'run'), environment: {},
+		activeProductOrigins: {
+			soundscaper: SOUNDSCAPER_ORIGIN,
+			framescaper: FRAMESCAPER_ORIGIN,
+		},
+	}, {
+		startPagesSiteServer: async () => {
+			starts += 1;
+			throw new Error('already-bound sites must be reused');
+		},
+		runPlaywright: async (plan) => {
+			planSeen = plan;
+			return { code: 0, signal: null };
+		},
+	});
+
+	assert.equal(starts, 0);
+	assert.ok(planSeen);
+	assert.deepEqual(result.diagnostics, { passed: true });
+});
+
+test('dual-origin coverage refuses an active origin that disagrees with build evidence', async (context) => {
+	const temporaryRoot = await mkdtemp(join(tmpdir(), 'nightly-dual-origin-active-stale-'));
+	context.after(() => rm(temporaryRoot, { recursive: true, force: true }));
+	const payloadRoot = join(temporaryRoot, 'payload');
+	for (const [productId, origin] of [
+		['soundscaper', SOUNDSCAPER_ORIGIN],
+		['framescaper', FRAMESCAPER_ORIGIN],
+	] as const) {
+		const manifest = join(payloadRoot, 'sites', productId, '.browser-product-build.json');
+		await mkdir(dirname(manifest), { recursive: true });
+		await writeFile(manifest, `${JSON.stringify({ schemaVersion: 2, productId, origin })}\n`);
+	}
+	await assert.rejects(() => runDesktopNightlyTestsDualOriginPhase({
+		executablePath: '/opt/soundscaper-tests', payloadRoot,
+		runRoot: join(temporaryRoot, 'run'), environment: {},
+		activeProductOrigins: {
+			soundscaper: 'http://127.0.0.1:49998',
+			framescaper: FRAMESCAPER_ORIGIN,
+		},
+	}, {
+		runPlaywright: async () => ({ code: 0, signal: null }),
+	}), /active product origins disagree with authenticated build evidence/u);
+});
+
 test('dual-origin coverage refuses stale product identity before opening a server', async (context) => {
 	const temporaryRoot = await mkdtemp(join(tmpdir(), 'nightly-dual-origin-stale-'));
 	context.after(() => rm(temporaryRoot, { recursive: true, force: true }));
@@ -164,7 +226,6 @@ test('the nightly runtime schedules dual-origin coverage before diagnostics', as
 	context.after(() => rm(outputRoot, { recursive: true, force: true }));
 	const plans: DesktopNightlyTestsPlaywrightPlan[] = [];
 	let closeCalls = 0;
-	let port = 47777;
 	const completed = await runDesktopNightlyTests({
 		executablePath: '/opt/soundscaper-tests',
 		payloadRoot: '/opt/resources/nightly-tests',
@@ -175,11 +236,14 @@ test('the nightly runtime schedules dual-origin coverage before diagnostics', as
 		environment: { PATH: '/usr/bin' },
 		sourceRevision: 'b'.repeat(40),
 	}, {
-		runDualOriginPhase: runDualOriginPhaseFixture,
-		startStaticServer: async () => ({
-			baseURL: `http://127.0.0.1:${String(port++)}`,
-			close: async () => { closeCalls += 1; },
-		}),
+		runDualOriginPhase: async (options, dependencies) => {
+			assert.deepEqual(options.activeProductOrigins, {
+				soundscaper: 'http://127.0.0.1:47777',
+				framescaper: 'http://127.0.0.1:47778',
+			});
+			return runDualOriginPhaseFixture(options, dependencies);
+		},
+		startProductSites: nightlyProductSitesFixture(47777, () => { closeCalls += 1; }),
 		runPlaywright: async (plan) => {
 			plans.push(plan);
 			return { code: plans.length === 1 ? 1 : 0, signal: null };
@@ -190,7 +254,7 @@ test('the nightly runtime schedules dual-origin coverage before diagnostics', as
 	});
 
 	assert.equal(completed.exitCode, 1);
-	assert.equal(closeCalls, 2);
+	assert.equal(closeCalls, 1);
 	assert.equal(plans.length, 6);
 	assert.match(plans[1]?.args.at(-1) ?? '', /playwright\.nightly-dual-origin\.config\.mjs$/u);
 	assert.match(plans[2]?.args.at(-1) ?? '', /playwright\.nightly-metrics\.config\.mjs$/u);

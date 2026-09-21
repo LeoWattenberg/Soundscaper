@@ -2,6 +2,7 @@
 
 import assert from 'node:assert/strict';
 import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { createServer } from 'node:net';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
@@ -11,11 +12,30 @@ import {
 } from '../scripts/lib/desktop-nightly-tests-product-sites.mjs';
 import { startDesktopNightlyTestsStaticServer } from '../scripts/lib/desktop-nightly-tests-runtime.mjs';
 
-test('the real nightly servers expose each staged document and root asset only on its product origin', async (context) => {
-	const payloadRoot = await mkdtemp(join(tmpdir(), 'soundscaper-nightly-product-sites-'));
-	context.after(() => rm(payloadRoot, { recursive: true, force: true }));
-	for (const productId of ['soundscaper', 'framescaper']) {
+async function unusedLoopbackOrigin() {
+	const server = createServer();
+	await new Promise<void>((resolve, reject) => {
+		server.once('error', reject);
+		server.listen({ host: '127.0.0.1', port: 0, exclusive: true }, resolve);
+	});
+	const address = server.address();
+	assert.ok(address && typeof address !== 'string');
+	await new Promise<void>((resolve, reject) => server.close((error) => error ? reject(error) : resolve()));
+	return `http://127.0.0.1:${String(address.port)}`;
+}
+
+async function stageProductSites(
+	payloadRoot: string,
+	origins: Readonly<{ soundscaper: string; framescaper: string }>,
+	withContent = false,
+) {
+	for (const productId of ['soundscaper', 'framescaper'] as const) {
 		const siteRoot = join(payloadRoot, 'sites', productId);
+		await mkdir(siteRoot, { recursive: true });
+		await writeFile(join(siteRoot, '.browser-product-build.json'), `${JSON.stringify({
+			schemaVersion: 2, productId, origin: origins[productId],
+		})}\n`);
+		if (!withContent) continue;
 		await Promise.all([
 			mkdir(join(siteRoot, 'en'), { recursive: true }),
 			mkdir(join(siteRoot, 'assets'), { recursive: true }),
@@ -23,12 +43,24 @@ test('the real nightly servers expose each staged document and root asset only o
 		await writeFile(join(siteRoot, 'en/index.html'), `<body data-product="${productId}">`);
 		await writeFile(join(siteRoot, 'assets/product.js'), `export default '${productId}';`);
 	}
+}
+
+test('the real nightly servers expose each staged document and root asset only on its product origin', async (context) => {
+	const payloadRoot = await mkdtemp(join(tmpdir(), 'soundscaper-nightly-product-sites-'));
+	context.after(() => rm(payloadRoot, { recursive: true, force: true }));
+	const origins = {
+		soundscaper: await unusedLoopbackOrigin(),
+		framescaper: await unusedLoopbackOrigin(),
+	};
+	assert.notEqual(origins.soundscaper, origins.framescaper);
+	await stageProductSites(payloadRoot, origins, true);
 	const sites = await startDesktopNightlyTestsProductSites({
 		payloadRoot,
 		environment: {},
 		startStaticServer: startDesktopNightlyTestsStaticServer,
 	});
 	context.after(() => sites.close());
+	assert.deepEqual(sites.origins, origins);
 
 	for (const [productId, origin] of Object.entries(sites.origins)) {
 		assert.match(await (await fetch(`${origin}/en/`)).text(), new RegExp(`data-product="${productId}"`, 'u'));
@@ -36,42 +68,45 @@ test('the real nightly servers expose each staged document and root asset only o
 	}
 });
 
-test('the nightly launcher serves each product from its own staged root and browser origin', async () => {
-	const roots: string[] = [];
+test('the nightly launcher binds each staged root to its authenticated browser origin', async (context) => {
+	const payloadRoot = await mkdtemp(join(tmpdir(), 'soundscaper-nightly-product-bind-'));
+	context.after(() => rm(payloadRoot, { recursive: true, force: true }));
+	const origins = {
+		soundscaper: 'http://127.0.0.1:47777',
+		framescaper: 'http://127.0.0.1:47778',
+	};
+	await stageProductSites(payloadRoot, origins);
+	const starts: Array<{ root: string; host: string; port: number }> = [];
 	const closed: string[] = [];
 	const sites = await startDesktopNightlyTestsProductSites({
-		payloadRoot: '/opt/Soundscaper Tests/resources/nightly-tests',
+		payloadRoot,
 		environment: { PATH: '/usr/bin', EXISTING: 'preserved' },
-		startStaticServer: async ({ root }: { readonly root: string }) => {
-			roots.push(root);
+		startStaticServer: async ({ root, host, port }) => {
+			starts.push({ root, host, port });
 			const productId = root.endsWith('/soundscaper') ? 'soundscaper' : 'framescaper';
 			return {
-				baseURL: productId === 'soundscaper'
-					? 'http://127.0.0.1:47777' : 'http://127.0.0.1:47778',
+				baseURL: `http://${host}:${String(port)}`,
 				close: async () => { closed.push(productId); },
 			};
 		},
 	});
 
-	assert.deepEqual(roots, [
-		'/opt/Soundscaper Tests/resources/nightly-tests/sites/soundscaper',
-		'/opt/Soundscaper Tests/resources/nightly-tests/sites/framescaper',
+	assert.deepEqual(starts, [
+		{ root: join(payloadRoot, 'sites/soundscaper'), host: '127.0.0.1', port: 47777 },
+		{ root: join(payloadRoot, 'sites/framescaper'), host: '127.0.0.1', port: 47778 },
 	]);
-	assert.deepEqual(sites.origins, {
-		soundscaper: 'http://127.0.0.1:47777',
-		framescaper: 'http://127.0.0.1:47778',
-	});
+	assert.deepEqual(sites.origins, origins);
 	assert.deepEqual(JSON.parse(sites.browserEnvironment.SCAPE_PLAYWRIGHT_PRODUCT_ORIGINS ?? ''), sites.origins);
 	assert.deepEqual(JSON.parse(sites.browserEnvironment.SCAPE_BROWSER_COVERAGE_SITES ?? ''), [
 		{
 			productId: 'soundscaper',
 			origin: 'http://127.0.0.1:47777',
-			outputDirectory: '/opt/Soundscaper Tests/resources/nightly-tests/sites/soundscaper',
+			outputDirectory: join(payloadRoot, 'sites/soundscaper'),
 		},
 		{
 			productId: 'framescaper',
 			origin: 'http://127.0.0.1:47778',
-			outputDirectory: '/opt/Soundscaper Tests/resources/nightly-tests/sites/framescaper',
+			outputDirectory: join(payloadRoot, 'sites/framescaper'),
 		},
 	]);
 	assert.equal(sites.browserEnvironment.EXISTING, 'preserved');
@@ -84,11 +119,16 @@ test('the nightly launcher serves each product from its own staged root and brow
 	assert.deepEqual([...closed].sort(), ['framescaper', 'soundscaper']);
 });
 
-test('the nightly launcher closes an already-started product site when its peer cannot start', async () => {
+test('the nightly launcher closes an already-started product site when its peer cannot start', async (context) => {
+	const payloadRoot = await mkdtemp(join(tmpdir(), 'soundscaper-nightly-product-peer-'));
+	context.after(() => rm(payloadRoot, { recursive: true, force: true }));
+	await stageProductSites(payloadRoot, {
+		soundscaper: 'http://127.0.0.1:47777', framescaper: 'http://127.0.0.1:47778',
+	});
 	let starts = 0;
 	let closes = 0;
 	await assert.rejects(() => startDesktopNightlyTestsProductSites({
-		payloadRoot: '/opt/nightly-tests',
+		payloadRoot,
 		environment: {},
 		startStaticServer: async () => {
 			starts += 1;
@@ -102,15 +142,38 @@ test('the nightly launcher closes an already-started product site when its peer 
 	assert.equal(closes, 1);
 });
 
-test('the nightly launcher rejects aliased product origins and closes both servers', async () => {
+test('the nightly launcher rejects aliased build origins before opening a server', async (context) => {
+	const payloadRoot = await mkdtemp(join(tmpdir(), 'soundscaper-nightly-product-alias-'));
+	context.after(() => rm(payloadRoot, { recursive: true, force: true }));
+	await stageProductSites(payloadRoot, {
+		soundscaper: 'http://127.0.0.1:47777', framescaper: 'http://127.0.0.1:47777',
+	});
+	let starts = 0;
+	await assert.rejects(() => startDesktopNightlyTestsProductSites({
+		payloadRoot,
+		environment: {},
+		startStaticServer: async () => {
+			starts += 1;
+			return { baseURL: 'http://127.0.0.1:47777', close: async () => undefined };
+		},
+	}), /distinct product origins/u);
+	assert.equal(starts, 0);
+});
+
+test('the nightly launcher rejects a server that misses the authenticated origin', async (context) => {
+	const payloadRoot = await mkdtemp(join(tmpdir(), 'soundscaper-nightly-product-misbind-'));
+	context.after(() => rm(payloadRoot, { recursive: true, force: true }));
+	await stageProductSites(payloadRoot, {
+		soundscaper: 'http://127.0.0.1:47777', framescaper: 'http://127.0.0.1:47778',
+	});
 	let closes = 0;
 	await assert.rejects(() => startDesktopNightlyTestsProductSites({
-		payloadRoot: '/opt/nightly-tests',
+		payloadRoot,
 		environment: {},
 		startStaticServer: async () => ({
-			baseURL: 'http://127.0.0.1:47777',
+			baseURL: 'http://127.0.0.1:49999',
 			close: async () => { closes += 1; },
 		}),
-	}), /distinct product origins/u);
-	assert.equal(closes, 2);
+	}), /did not bind its authenticated build origin/u);
+	assert.equal(closes, 1);
 });

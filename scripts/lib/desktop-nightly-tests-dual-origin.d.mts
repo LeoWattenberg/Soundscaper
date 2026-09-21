@@ -19,6 +19,10 @@ export interface DesktopNightlyTestsDualOriginOptions {
 	readonly runRoot: string;
 	readonly esbuildBinaryPath?: string | null;
 	readonly environment?: DesktopNightlyTestsEnvironment;
+	readonly activeProductOrigins?: Readonly<{
+		readonly soundscaper: string;
+		readonly framescaper: string;
+	}>;
 }
 
 export function createDesktopNightlyTestsDualOriginPlan(

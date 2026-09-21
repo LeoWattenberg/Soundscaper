@@ -75,8 +75,9 @@ export async function createDesktopNightlyTestsRunDirectory({
 		paths: runPaths(runRoot),
 	});
 }
-export async function startDesktopNightlyTestsStaticServer({ root } = {}) {
+export async function startDesktopNightlyTestsStaticServer({ root, host = STATIC_HOST, port = 0 } = {}) {
 	assertAbsolutePath(root, { isAbsolute }, 'Desktop nightly tests static root');
+	if (host !== STATIC_HOST || !Number.isInteger(port) || port < 0 || port > 65_535) throw new TypeError('Desktop nightly tests static server requires a valid 127.0.0.1 port.');
 	const staticRoot = await realpath(root).catch((error) => {
 		throw new Error(`Desktop nightly tests static root is unavailable: ${message(error)}`, { cause: error });
 	});
@@ -88,7 +89,7 @@ export async function startDesktopNightlyTestsStaticServer({ root } = {}) {
 	server.maxHeadersCount = 64;
 	server.headersTimeout = 10_000;
 	server.requestTimeout = 30_000;
-	await listen(server);
+	await listen(server, { host, port });
 	const address = server.address();
 	if (!address || typeof address === 'string') {
 		await closeServer(server);
@@ -96,7 +97,7 @@ export async function startDesktopNightlyTestsStaticServer({ root } = {}) {
 	}
 	let closed = false;
 	return Object.freeze({
-		baseURL: `http://${STATIC_HOST}:${address.port}`,
+		baseURL: `http://${host}:${address.port}`,
 		async close() {
 			if (closed) return;
 			closed = true;
@@ -104,7 +105,6 @@ export async function startDesktopNightlyTestsStaticServer({ root } = {}) {
 		},
 	});
 }
-
 // The staged esbuild binary belongs to whichever platform package the build
 // host installed, but esbuild resolves that package from the architecture of the
 // process importing it. Those disagree wherever the payload is staged by a Node
@@ -263,6 +263,7 @@ export async function runDesktopNightlyTests(options, dependencies = {}) {
 		status: 'running',
 	}));
 	const startStaticServer = dependencies.startStaticServer ?? startDesktopNightlyTestsStaticServer;
+	const startProductSites = dependencies.startProductSites ?? startDesktopNightlyTestsProductSites;
 	const runPlaywright = dependencies.runPlaywright ?? runPlaywrightChild;
 	let sites = null;
 	let outcome;
@@ -270,9 +271,7 @@ export async function runDesktopNightlyTests(options, dependencies = {}) {
 	let failure = null;
 	try {
 		options.onProgress?.(Object.freeze({ completed: 0, total: 6, label: 'Browser tests' }));
-		sites = await startDesktopNightlyTestsProductSites({
-			payloadRoot: options.payloadRoot, environment, startStaticServer,
-		});
+		sites = await startProductSites({ payloadRoot: options.payloadRoot, environment, startStaticServer });
 		const resolveEsbuildBinary = dependencies.resolveEsbuildBinary ?? resolveDesktopNightlyTestsEsbuildBinary;
 		const esbuildBinaryPath = await resolveEsbuildBinary({ payloadRoot: options.payloadRoot });
 		const plan = createDesktopNightlyTestsPlaywrightPlan({
@@ -290,6 +289,7 @@ export async function runDesktopNightlyTests(options, dependencies = {}) {
 			for await (const phase of runDesktopNightlyTestsDiagnosticPhases({
 				executablePath: options.executablePath, payloadRoot: options.payloadRoot, runRoot,
 				baseURL: sites.origins.soundscaper, esbuildBinaryPath,
+				activeProductOrigins: sites.origins,
 				environment: sites.browserEnvironment, platform, arch,
 				sourceRevision: options.sourceRevision ?? null, onProgress: options.onProgress,
 			}, { ...dependencies, runPlaywright })) {
@@ -364,7 +364,7 @@ function cacheControlFor(relativePath) {
 	return 'no-cache';
 }
 
-function listen(server) {
+function listen(server, { host, port }) {
 	return new Promise((resolvePromise, reject) => {
 		const onError = (error) => {
 			server.off('listening', onListening);
@@ -376,7 +376,7 @@ function listen(server) {
 		};
 		server.once('error', onError);
 		server.once('listening', onListening);
-		server.listen({ host: STATIC_HOST, port: 0, exclusive: true });
+		server.listen({ host, port, exclusive: true });
 	});
 }
 

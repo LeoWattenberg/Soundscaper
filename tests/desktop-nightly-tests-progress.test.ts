@@ -12,6 +12,7 @@ import {
 } from '../scripts/lib/desktop-nightly-tests-presentation.mjs';
 import { runDesktopNightlyTests } from '../scripts/lib/desktop-nightly-tests-runtime.mjs';
 import { runDualOriginPhaseFixture } from './helpers/nightly-tests-dual-origin-phase.ts';
+import { nightlyProductSitesFixture } from './helpers/nightly-tests-product-sites.ts';
 
 test('unavailable GUI-launch stdout cannot abort nightly tests', () => {
 	for (const asynchronous of [false, true]) {
@@ -67,8 +68,6 @@ test('the nightly runtime reports which serial test phase is active', async (con
 	const outputRoot = await mkdtemp(join(tmpdir(), 'soundscaper-nightly-progress-'));
 	context.after(() => rm(outputRoot, { recursive: true, force: true }));
 	const updates: Array<{ completed: number; total: number; label: string }> = [];
-	let siteStarts = 0;
-
 	const completed = await runDesktopNightlyTests({
 		executablePath: '/opt/soundscaper-tests',
 		payloadRoot: '/opt/resources/nightly-tests',
@@ -80,10 +79,7 @@ test('the nightly runtime reports which serial test phase is active', async (con
 		onProgress: (update) => { updates.push(update); },
 	}, {
 		runDualOriginPhase: runDualOriginPhaseFixture,
-		startStaticServer: async () => ({
-			baseURL: `http://127.0.0.1:${String(50100 + siteStarts++)}`,
-			close: async () => undefined,
-		}),
+		startProductSites: nightlyProductSitesFixture(50100),
 		runPlaywright: async () => ({ code: 0, signal: null }),
 		writeMetricsDiagnostics: async () => ({ passed: true }),
 		writePackagedMetricsDiagnostics: async () => ({ passed: true }),
