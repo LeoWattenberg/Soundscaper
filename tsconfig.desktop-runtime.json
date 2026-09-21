@@ -204,6 +204,7 @@
 		"desktop/assistance-speech-runtime.ts",
 		"desktop/external-display-controller.ts",
 		"desktop/external-ffmpeg-audio-operation-runner.ts",
+		"desktop/external-ffmpeg-environment.ts",
 		"desktop/external-ffmpeg-executable-pair-admission.ts",
 		"desktop/external-ffmpeg-installer-node-runtime.ts",
 		"desktop/external-ffmpeg-installer.ts",

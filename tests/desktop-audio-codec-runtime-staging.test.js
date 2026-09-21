@@ -62,6 +62,7 @@ const AUDIO_CODEC_RUNTIME_FILES = Object.freeze([
 	'desktop/desktop-audio-ffmpeg-wave-output.js',
 	'desktop/desktop-audio-os-codec-candidates.js',
 	'desktop/external-ffmpeg-audio-operation-runner.js',
+	'desktop/external-ffmpeg-environment.js',
 	'desktop/os-audio-codec-canary-adapter.js',
 	'desktop/os-audio-codec-operation-runner.js',
 	'desktop/os-audio-codec-runtime.js',

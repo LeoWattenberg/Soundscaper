@@ -7,6 +7,10 @@ import type { Writable } from 'node:stream';
 
 import { shouldDetachProcessTree, terminateProcessTree } from './process-tree-termination.js';
 
+export {
+	curatedExternalFfmpegEnvironment as curatedExternalFfmpegVideoEnvironment,
+} from './external-ffmpeg-environment.js';
+
 const GUARDED_ARGUMENT_PREFIX = Object.freeze([
 	'-nostdin', '-hide_banner', '-nostats', '-loglevel', 'error', '-xerror', '-y',
 	'-protocol_whitelist', 'file,pipe,crypto,data',
@@ -142,17 +146,6 @@ export function closeExternalFfmpegVideoInput(
 			if (error) reject(error); else if (signal.aborted) onAbort(); else resolve();
 		});
 	});
-}
-
-export function curatedExternalFfmpegVideoEnvironment(
-	value: Readonly<Record<string, string | undefined>>,
-): Readonly<Record<string, string>> {
-	const result: Record<string, string> = {};
-	for (const key of ['SystemRoot', 'WINDIR']) {
-		const entry = value[key];
-		if (typeof entry === 'string' && entry.length <= 32_768 && !entry.includes('\0')) result[key] = entry;
-	}
-	return Object.freeze(result);
 }
 
 function superviseProcess(

@@ -14,6 +14,7 @@ import {
 	isExternalFfmpegExecutablePairAdmission,
 	type ExternalFfmpegExecutablePairAdmission,
 } from './external-ffmpeg-executable-pair-admission.ts';
+import { curatedExternalFfmpegEnvironment } from './external-ffmpeg-environment.ts';
 import { shouldDetachProcessTree, terminateProcessTree } from './process-tree-termination.ts';
 
 export interface ExternalFfmpegAudioOperationFiles {
@@ -184,7 +185,7 @@ export function createExternalFfmpegAudioOperationRunner<Operation>(
 	const getExecutable = options.getAdmittedExecutable;
 	const digestExecutable = options.digestExecutable ?? sha256File;
 	const launch = options.spawn ?? defaultSpawn;
-	const environment = curatedBaseEnvironment(options.environment ?? process.env);
+	const environment = curatedExternalFfmpegEnvironment(options.environment ?? process.env);
 	let active = false;
 
 	return Object.freeze({
@@ -498,17 +499,6 @@ function boundedInteger(value: number, minimum: number, maximum: number, label: 
 		throw new RangeError(`The external FFmpeg audio ${label} limit is invalid.`);
 	}
 	return value;
-}
-
-function curatedBaseEnvironment(
-	value: Readonly<Record<string, string | undefined>>,
-): Readonly<Record<string, string>> {
-	const result: Record<string, string> = {};
-	for (const key of ['SystemRoot', 'WINDIR']) {
-		const entry = value[key];
-		if (typeof entry === 'string' && entry.length <= 32_768 && !entry.includes('\0')) result[key] = entry;
-	}
-	return Object.freeze(result);
 }
 
 function childEnvironment(
