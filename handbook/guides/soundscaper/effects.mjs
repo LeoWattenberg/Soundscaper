@@ -254,7 +254,7 @@ export const EFFECT_GUIDES = Object.freeze([
 			'Add several effects to a rack and drag them to change their order; each feeds the next.',
 			'The master rack, at the bottom of the Effects panel, processes the whole mix.',
 			'The rack also offers Delay, high-pass and low-pass filters, Noise gate, Notch filter, Shelf filter, Tremolo and Vocoder. Their core selection and rack controls are shared.',
-			'The [audio effects reference](/reference/generated/audio-effects/#regular-streaming-replacements) explains Delay, Noise gate and Vocoder behavior, including the Vocoder’s normalization during playback.',
+			'The [audio effects reference](/reference/generated/audio-effects/) explains Delay, Noise gate and Vocoder behavior, including the Vocoder’s normalization during playback.',
 		],
 	},
 
