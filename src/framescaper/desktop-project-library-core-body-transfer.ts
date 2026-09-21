@@ -22,6 +22,8 @@ import {
 	type VideoTimingAssetReference,
 } from '../common/editor/video-timing-asset.ts';
 import type { FramescaperProject } from './editor-project.ts';
+import { matchesFramescaperDesktopPublicationIdentity } from
+	'./desktop-project-library-publication-identity.ts';
 
 export const FRAMESCAPER_DESKTOP_CORE_MAXIMUM_BODY_CHUNK_BYTES = 4 * 1024 * 1024;
 
@@ -437,9 +439,7 @@ function descriptorReference(body: FramescaperDesktopCoreBodyDescriptor): BodyRe
 }
 
 function assertPublication(publication: OwnedMediaAssetPublication, body: FramescaperDesktopCoreBodyDescriptor): void {
-	if (!publication || typeof publication !== 'object' || typeof publication.discardIfCurrent !== 'function'
-		|| publication.metadata.sourceId !== body.storageKey || publication.metadata.mimeType !== body.mimeType
-		|| publication.metadata.size !== body.byteLength || publication.metadata.sha256 !== body.sha256) {
+	if (!matchesFramescaperDesktopPublicationIdentity(publication, body)) {
 		throw new Error(`Managed desktop core ${body.kind} publication changed its descriptor.`);
 	}
 }

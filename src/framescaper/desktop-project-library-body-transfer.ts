@@ -34,6 +34,8 @@ import {
 import {
 	validateFramescaperScapeAssetReferenceBytes,
 } from './editor-scape-asset-plan.ts';
+import { matchesFramescaperDesktopPublicationIdentity } from
+	'./desktop-project-library-publication-identity.ts';
 import type { FramescaperProject } from './editor-project.ts';
 
 export type { FramescaperDesktopBodyDescriptor } from './desktop-project-library-body-contract.ts';
@@ -365,9 +367,7 @@ function assertPublication(
 	publication: OwnedMediaAssetPublication,
 	body: Readonly<FramescaperDesktopBodyDescriptor>,
 ): void {
-	if (!publication || typeof publication !== 'object' || typeof publication.discardIfCurrent !== 'function'
-		|| publication.metadata.sourceId !== body.storageKey || publication.metadata.mimeType !== body.mimeType
-		|| publication.metadata.size !== body.byteLength || publication.metadata.sha256 !== body.sha256) {
+	if (!matchesFramescaperDesktopPublicationIdentity(publication, body)) {
 		throw new Error(`Managed baseline ${body.kind} publication changed its descriptor.`);
 	}
 }
