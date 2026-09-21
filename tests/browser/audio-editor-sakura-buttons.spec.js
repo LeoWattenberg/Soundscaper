@@ -14,9 +14,11 @@ const buttonGroups = [
 for (const product of ['soundscaper', 'framescaper']) {
 	for (const mode of ['Light', 'Dark']) test.describe(`${product} Sakura ${mode} buttons`, () => {
 		registerAudioEditorHooks();
-		test.beforeEach(async ({ page }) => {
+		test.beforeEach(async ({ browserName, page }) => {
+			// WebKit imports and pointer sweeps need room when the full suite shares four workers.
+			if (browserName === 'webkit') test.setTimeout(90_000);
 			const editor = await bootEditor(page, `${product === 'soundscaper' ? '' : '/framescaper'}/embed/en/?useskin=sakura`);
-			await importFiles(editor, [monoTone]);
+			await importFiles(editor, [monoTone], { timeout: browserName === 'webkit' ? 60_000 : 20_000 });
 			await chooseCommandAction(page, editor, 'Edit', 'Preferences');
 			const dialog = page.getByRole('dialog', { name: 'Editor preferences', exact: true });
 			await dialog.getByRole('tab', { name: /Appearance$/u }).click();
@@ -24,8 +26,8 @@ for (const product of ['soundscaper', 'framescaper']) {
 			await dialog.getByRole('button', { name: 'Close', exact: true }).last().click();
 			await page.evaluate(() => document.fonts.ready);
 		});
-		// Bound each pointer sweep as well as the stateful interactions so the
-		// exhaustive coverage fits WebKit's per-test budget on the CI runner.
+		// Bound each pointer sweep as well as the stateful interactions within the
+		// WebKit budget even when other full-suite workers are importing media.
 		for (const [group, selector] of buttonGroups) test(`raises ${group} controls without moving their bounds`, async ({ page }, testInfo) => {
 			const editor = page.locator('[data-audio-editor]');
 			const undo = editor.locator('[data-edit="undo"] button');
