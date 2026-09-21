@@ -8,16 +8,34 @@ import {
 	applyAudacityEffectAsync,
 	assertAudacityEffectOutput,
 	audacityEffectDefaults,
+	audacityStaffPadTransform,
 	audacityEffectTypes,
 	captureAudacityNoiseProfile,
+	createAudacityEffectSelection,
 	estimateAudacityEffectOutputFrames,
 	estimateAudacityEffectPeakBytes,
+	isAudacityStaffPadEffect,
 } from '../src/common/editor/audacity-effects/index.js';
+import * as audacityEffectContracts from '../src/common/editor/audacity-effects/contracts.js';
 import { initializePffft } from '../src/common/editor/pffft.js';
 
 await initializePffft();
 
 const SAMPLE_RATE = 8_000;
+
+test('the dispatcher re-exports the exact lightweight contract bindings', () => {
+	const dispatcherBindings = {
+		assertAudacityEffectOutput,
+		audacityStaffPadTransform,
+		createAudacityEffectSelection,
+		estimateAudacityEffectOutputFrames,
+		estimateAudacityEffectPeakBytes,
+		isAudacityStaffPadEffect,
+	};
+	for (const [name, binding] of Object.entries(dispatcherBindings)) {
+		assert.equal(binding, audacityEffectContracts[name], name);
+	}
+});
 
 test('the worker dispatcher applies every registered Audacity effect without mutating its input', async () => {
 	const types = audacityEffectTypes();

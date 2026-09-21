@@ -70,7 +70,12 @@ export function estimateAudacityEffectOutputFrames(type, inputFrames, params = {
 	return frames;
 }
 
-/** Estimate the complete selection-effect browser-process peak. */
+/**
+ * Estimate the browser-process peak for the complete selection-effect path:
+ * dry render, transferred worker inputs, DSP output/scratch, AudioBuffer copy,
+ * chunked persistence, and waveform peak generation. Effect scratch is based
+ * on the one-shot algorithms in this directory, not merely output size.
+ */
 export function estimateAudacityEffectPeakBytes(type, inputFrames, params = {}, options = {}) {
 	const frames = Number(inputFrames);
 	if (!Number.isSafeInteger(frames) || frames <= 0) throw new RangeError('inputFrames must be a positive safe integer.');
@@ -88,6 +93,9 @@ export function estimateAudacityEffectPeakBytes(type, inputFrames, params = {}, 
 		if (windowSize < 32 || (windowSize & (windowSize - 1)) !== 0) {
 			throw new RangeError('spectralWindowSize must be a power of two between 32 and 16384.');
 		}
+		// The bin compositor retains the processed output, allocates a complete
+		// replacement output, two Float64 overlap-add extents, and five reusable
+		// window/complex FFT arrays for one channel.
 		scratchBytes += inputBytes + frames * FLOAT64_BYTES * 2 + windowSize * FLOAT64_BYTES * 5;
 	}
 
@@ -102,6 +110,7 @@ export function estimateAudacityEffectPeakBytes(type, inputFrames, params = {}, 
 			scratchBytes += STAFFPAD_MAXIMUM_MEMORY_BYTES;
 			break;
 		case 'audacity-auto-duck': {
+			// The dry-rendered control track and its transferred worker clone.
 			const controlChannelCount = positiveInteger(
 				options.controlChannelCount ?? channelCount,
 				'controlChannelCount',
@@ -124,6 +133,7 @@ export function estimateAudacityEffectPeakBytes(type, inputFrames, params = {}, 
 		case 'audacity-filter-curve-eq':
 		case 'audacity-graphic-eq': {
 			const fftSize = nextPowerOfTwo(normalized.filterLength * 2);
+			// One Float64 convolution extent plus the reusable kernel/block FFTs.
 			scratchBytes += frames * FLOAT64_BYTES
 				+ normalized.filterLength * FLOAT64_BYTES
 				+ fftSize * FLOAT64_BYTES * 4;
@@ -134,6 +144,8 @@ export function estimateAudacityEffectPeakBytes(type, inputFrames, params = {}, 
 				+ 65_536 * Uint32Array.BYTES_PER_ELEMENT;
 			break;
 		case 'audacity-noise-reduction':
+			// Per-frame spectra/gains and Float64 overlap-add accumulators for the
+			// currently processed channel. The small profile exists in both realms.
 			scratchBytes += frames * 40 + 256 * 1024;
 			contextBytes += 2 * (2_048 / 2 + 1) * FLOAT32_BYTES;
 			break;
@@ -141,6 +153,8 @@ export function estimateAudacityEffectPeakBytes(type, inputFrames, params = {}, 
 			const requested = sampleRate * normalized.timeResolution / 2;
 			const inputBufferSize = Math.max(128, 2 ** Math.floor(Math.log2(requested) + 0.5));
 			const fftSize = inputBufferSize * 2;
+			// Float64 overlap-add and normalization extents for one channel, plus
+			// the Hann window and complex FFT working arrays.
 			scratchBytes += outputFrames * FLOAT64_BYTES * 2
 				+ fftSize * FLOAT64_BYTES * 3;
 			break;
@@ -153,6 +167,7 @@ export function estimateAudacityEffectPeakBytes(type, inputFrames, params = {}, 
 			break;
 		}
 		case 'audacity-truncate-silence':
+			// A shortening pass can briefly retain the preceding and next arrays.
 			scratchBytes += outputBytes;
 			break;
 		default:
