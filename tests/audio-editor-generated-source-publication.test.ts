@@ -148,6 +148,7 @@ test('generated audio publication owns the durable writer, caches, analysis, and
 		sampleRate: 48_000, sampleFormat: 'float32', chunkFrames: 65_536,
 		id: 'generator-1', storageKey: 'generator-1', name: 'Tone', mimeType: 'audio/wav',
 		frameCount: 2, channelCount: 1, originalSampleRate: 48_000,
+		provenance: { schemaVersion: 1, classification: 'generated', contributions: [] },
 	});
 	assert.equal(fixture.buffers.has('generator-1'), true);
 	assert.equal(fixture.peaks.has('generator-1'), true);
