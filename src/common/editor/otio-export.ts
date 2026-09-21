@@ -16,6 +16,7 @@ import {
 	reportInterchangeCaptionTrackOmission,
 } from './interchange-omission-inventory.ts';
 import { createInterchangeVisibility } from './interchange-track-visibility.ts';
+import { portableFileStem } from './portable-file-stem.ts';
 
 /**
  * OpenTimelineIO export.
@@ -204,7 +205,7 @@ export function createOtioExport(request: OtioExportRequest): OtioExportResult {
 
 	return Object.freeze({
 		text: `${JSON.stringify(document, null, '\t')}\n`,
-		fileName: `${sanitizeFileName(title)}.otio`,
+		fileName: `${portableFileStem(title, 'timeline')}.otio`,
 		mimeType: 'application/json' as const,
 		document: Object.freeze(document),
 		report: sealDeliveryReport(draft),
@@ -465,13 +466,4 @@ function positiveInteger(value: unknown, name: string): number {
 		throw new RangeError(`${name} must be a positive safe integer.`);
 	}
 	return number;
-}
-
-function sanitizeFileName(value: string): string {
-	return value
-		.trim()
-		.replaceAll(/[^\w.-]+/gu, '-')
-		.replaceAll(/[-.]{2,}/gu, '-')
-		.replaceAll(/^[-.]+|[-.]+$/gu, '')
-		.slice(0, 64) || 'timeline';
 }

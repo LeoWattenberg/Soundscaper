@@ -34,6 +34,7 @@ import {
 	records,
 } from './dawproject-export-context.ts';
 import { buildArrangement } from './dawproject-export-lanes.ts';
+import { portableFileStem } from './portable-file-stem.ts';
 import type { HoldTempoMap } from './timeline-time.ts';
 
 /**
@@ -147,7 +148,7 @@ export function createDawprojectExport(request: DawprojectExportRequest): Dawpro
 		document,
 		metadataDocument,
 		media: context.media.entries(),
-		fileName: `${sanitizeFileName(title)}${DAWPROJECT_FILE_EXTENSION}`,
+		fileName: `${portableFileStem(title, 'project')}${DAWPROJECT_FILE_EXTENSION}`,
 		mimeType: DAWPROJECT_MIME_TYPE,
 		report: sealDeliveryReport(draft),
 	});
@@ -432,13 +433,4 @@ function rationalValue(value: unknown, fallback: number): number {
 	const num = Number(rational.num);
 	const den = Number(rational.den);
 	return Number.isFinite(num) && Number.isFinite(den) && den !== 0 ? rationalToNumber({ num, den }) : fallback;
-}
-
-function sanitizeFileName(value: string): string {
-	return value
-		.trim()
-		.replaceAll(/[^\w.-]+/gu, '-')
-		.replaceAll(/[-.]{2,}/gu, '-')
-		.replaceAll(/^[-.]+|[-.]+$/gu, '')
-		.slice(0, 64) || 'project';
 }

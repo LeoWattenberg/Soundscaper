@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { createScapeDigest, digestScapeBytes, scapeHex } from './scape-archive-media.ts';
+import { portableFileStem } from './portable-file-stem.ts';
 
 /**
  * Checksum manifests for project archives.
@@ -344,8 +345,8 @@ export async function saveArchiveManifest(
 }
 
 function manifestFileName(manifest: ArchiveManifest): string {
-	const title = sanitize(manifest.projectTitle) || 'project';
-	const stamp = sanitize((manifest.generatedAt ?? '').slice(0, 10));
+	const title = portableFileStem(manifest.projectTitle, 'project');
+	const stamp = portableFileStem((manifest.generatedAt ?? '').slice(0, 10));
 	return stamp ? `${title}-archive-manifest-${stamp}.json` : `${title}-archive-manifest.json`;
 }
 
@@ -375,13 +376,4 @@ function nonNegativeInteger(value: unknown, label: string): number {
 		throw new RangeError(`${label} must be a non-negative safe integer.`);
 	}
 	return number;
-}
-
-function sanitize(value: unknown): string {
-	return String(value ?? '')
-		.trim()
-		.replaceAll(/[^\w.-]+/gu, '-')
-		.replaceAll(/[-.]{2,}/gu, '-')
-		.replaceAll(/^[-.]+|[-.]+$/gu, '')
-		.slice(0, 64);
 }

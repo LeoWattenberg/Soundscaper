@@ -12,6 +12,7 @@ import {
 	createDeliveryReport,
 	sealDeliveryReport,
 } from './delivery-report.ts';
+import { portableFileStem } from './portable-file-stem.ts';
 
 /**
  * CMX3600 EDL export.
@@ -170,7 +171,7 @@ export function createEdlExport(request: EdlExportRequest): EdlExportResult {
 
 	return Object.freeze({
 		text: `${lines.join('\n')}\n`,
-		fileName: `${sanitizeFileName(title)}.edl`,
+		fileName: `${portableFileStem(title, 'sequence')}.edl`,
 		mimeType: 'text/plain' as const,
 		report: sealDeliveryReport(draft),
 	});
@@ -218,13 +219,4 @@ function normalizeReel(
 
 function sanitizeTitle(value: string): string {
 	return value.replaceAll(/[\r\n]+/gu, ' ').slice(0, 70);
-}
-
-function sanitizeFileName(value: string): string {
-	return value
-		.trim()
-		.replaceAll(/[^\w.-]+/gu, '-')
-		.replaceAll(/[-.]{2,}/gu, '-')
-		.replaceAll(/^[-.]+|[-.]+$/gu, '')
-		.slice(0, 64) || 'sequence';
 }

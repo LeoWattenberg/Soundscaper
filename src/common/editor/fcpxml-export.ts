@@ -15,6 +15,7 @@ import {
 	reportInterchangeCaptionTrackOmission,
 } from './interchange-omission-inventory.ts';
 import { createInterchangeVisibility } from './interchange-track-visibility.ts';
+import { portableFileStem } from './portable-file-stem.ts';
 
 /**
  * FCPXML export.
@@ -225,7 +226,7 @@ export function createFcpxmlExport(request: FcpxmlExportRequest): FcpxmlExportRe
 
 	return Object.freeze({
 		text: `${lines.join('\n')}\n`,
-		fileName: `${sanitizeFileName(title)}.fcpxml`,
+		fileName: `${portableFileStem(title, 'timeline')}.fcpxml`,
 		mimeType: 'application/xml' as const,
 		report: sealDeliveryReport(draft),
 	});
@@ -382,13 +383,4 @@ function positiveInteger(value: unknown, name: string): number {
 		throw new RangeError(`${name} must be a positive safe integer.`);
 	}
 	return number;
-}
-
-function sanitizeFileName(value: string): string {
-	return value
-		.trim()
-		.replaceAll(/[^\w.-]+/gu, '-')
-		.replaceAll(/[-.]{2,}/gu, '-')
-		.replaceAll(/^[-.]+|[-.]+$/gu, '')
-		.slice(0, 64) || 'timeline';
 }

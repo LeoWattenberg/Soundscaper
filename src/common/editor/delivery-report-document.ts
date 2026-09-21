@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { type DeliveryReport } from './delivery-report.ts';
+import { portableFileStem } from './portable-file-stem.ts';
 
 /**
  * The saved form of a delivery report.
@@ -73,8 +74,8 @@ export function serializeDeliveryReport(
 }
 
 export function deliveryReportFileName(context: DeliveryReportDocumentContext = {}): string {
-	const title = sanitizeSegment(context.projectTitle) || 'project';
-	const stamp = sanitizeSegment((context.generatedAt ?? '').slice(0, 10));
+	const title = portableFileStem(context.projectTitle, 'project');
+	const stamp = portableFileStem((context.generatedAt ?? '').slice(0, 10));
 	return stamp
 		? `${title}-delivery-report-${stamp}.json`
 		: `${title}-delivery-report.json`;
@@ -111,15 +112,4 @@ function sortedRecord(value: Readonly<Record<string, unknown>>): Record<string, 
 
 function nonEmptyStringOrNull(value: unknown): string | null {
 	return typeof value === 'string' && value.trim() ? value.trim() : null;
-}
-
-function sanitizeSegment(value: unknown): string {
-	return String(value ?? '')
-		.trim()
-		.replaceAll(/[^\w.-]+/gu, '-')
-		// Collapse separator runs so a path-shaped title cannot leave `..-..-`
-		// fragments in the name, then trim them from the ends.
-		.replaceAll(/[-.]{2,}/gu, '-')
-		.replaceAll(/^[-.]+|[-.]+$/gu, '')
-		.slice(0, 64);
 }
