@@ -45,6 +45,20 @@ test('an open bus leaves the track it carries in the file', () => {
 	assert.equal(audibility?.audibleTrack('voice'), true);
 });
 
+test('a soloed downstream bus keeps its upstream track audible', () => {
+	const project = routedProject({ busMuted: false, busSolo: true });
+	const audibility = createMixerGraphAudibilityV21(project);
+	assert.equal(audibility?.audibleTrack('voice'), true);
+	assert.equal(audibility?.audibleTrack('music'), false);
+});
+
+test('a soloed upstream track remains audible through its downstream bus', () => {
+	const project = routedProject({ busMuted: false, voiceSolo: true });
+	const audibility = createMixerGraphAudibilityV21(project);
+	assert.equal(audibility?.audibleTrack('voice'), true);
+	assert.equal(audibility?.audibleTrack('music'), false);
+});
+
 test('an explicit channel map with no routed channels is silent in the file', () => {
 	const project = routedProject({ busMuted: false, voiceChannelMap: [-1, -1] });
 	const audibility = createMixerGraphAudibilityV21(project);
@@ -136,17 +150,19 @@ function routedProject({
 	busMuted,
 	busSolo = false,
 	programmeChannelMap,
+	voiceSolo = false,
 	voiceChannelMap = [],
 }: {
 	readonly busMuted: boolean;
 	readonly busSolo?: boolean;
 	readonly programmeChannelMap?: readonly number[];
+	readonly voiceSolo?: boolean;
 	readonly voiceChannelMap?: readonly number[];
 }) {
 	const base = createSoundscaperProject({
 		id: 'graph-audibility', title: 'Graph audibility', now: NOW,
 		tracks: [
-			createAudioTrack({ id: 'voice', name: 'Voice', clipIds: [] }),
+			createAudioTrack({ id: 'voice', name: 'Voice', clipIds: [], solo: voiceSolo }),
 			createAudioTrack({ id: 'music', name: 'Music', clipIds: [] }),
 		],
 		sequences: [{ id: 'main-sequence', trackIds: ['voice', 'music'] }],

@@ -221,6 +221,28 @@ test('nested folder hidden state gates A/V preview, video export selection, and 
 	assert.deepEqual(project, before);
 });
 
+test('V12 video visibility intersects folder state with a caller predicate', () => {
+	const project = videoFolderProject();
+	const permissive = { isTrackVisible: () => true };
+	assert.deepEqual(
+		resolveActiveVideoLayers(project, 10, permissive).map(({ trackId }) => trackId),
+		['visible-video'],
+		'a caller cannot revive a track hidden by its folder',
+	);
+	const plan = createVideoExportPlan(project, {
+		format: 'mp4',
+		includeAudio: false,
+		range: { startFrame: 0, endFrame: 100 },
+		isTrackVisible: ({ id }: DataRecord) => id === 'hidden-video',
+	});
+	assert.deepEqual(
+		plan.inputs.filter(({ kind }: DataRecord) => kind === 'video-source'),
+		[],
+		'the folder predicate and caller predicate must both admit an export input',
+	);
+	assert.equal(plan.canvas.referenceSourceId, null);
+});
+
 test('legacy audio/video projects retain identity and local visibility semantics', () => {
 	const legacy = {
 		schemaVersion: 11,

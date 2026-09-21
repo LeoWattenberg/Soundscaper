@@ -33,6 +33,18 @@ test('ordinary recording timing owns count-in, clamping, seek, and context-frame
 	assert.equal(clamped.seekFrame, 0);
 });
 
+test('capture start converts fractional lead-in across unequal sample rates with an enclosing end', () => {
+	const timing = planRecordingStartTiming({
+		...base,
+		timedStartTimeMs: null,
+		projectSampleRate: 44_100,
+		contextSampleRate: 48_000,
+		requestedStartFrame: 1,
+	});
+	assert.equal(timing.availableLeadInFrames, 1);
+	assert.equal(timing.captureStartFrame(0.000_01), 2);
+});
+
 test('authoritative maps replace the legacy one-measure count-in calculation', () => {
 	const timing = planRecordingStartTiming({
 		...base,
