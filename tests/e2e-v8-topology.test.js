@@ -111,6 +111,8 @@ export function outer(flag) {
 }
 export const arrow = (value) => value ? 'yes' : 'no';
 export class Example {
+	instanceField = () => 'instance';
+	static staticField = () => 'static';
 	static { this.ready = true; }
 	static method(value) { return value ? 'static-yes' : 'static-no'; }
 	static async asyncMethod(value) { return value ? 'async-yes' : 'async-no'; }
@@ -133,6 +135,7 @@ recovered(); recovered(-1);
 outer(true); outer(false);
 arrow(true); arrow(false);
 const example = new Example(1);
+example.instanceField(); Example.staticField();
 example.method(2); example.method(0); example.value; example.value = 3;
 Example.method(true); Example.method(false);
 Example.asyncMethod(true); Example.asyncMethod(false);
@@ -212,7 +215,83 @@ test('omitted nested functions and branch ranges fail independently', () => {
 	}]).join('\n'), /branch topology/u);
 });
 
-test('complementary profiles union topology and extra V8 functions stay harmless', () => {
+test('complementary profiles union source-derived topology', () => {
+	const fixture = topologyFixture();
+	const left = structuredClone(fixture.entry);
+	const right = structuredClone(fixture.entry);
+	left.functions = left.functions.filter((_, index) => index % 2 === 0);
+	right.functions = right.functions.filter((_, index) => index % 2 === 1);
+	assert.deepEqual(validate(fixture, [left, right]), []);
+});
+
+test('forged function identities and synthetic functions are rejected', () => {
+	const fixture = topologyFixture();
+	const forged = structuredClone(fixture.entry);
+	const choose = forged.functions.find(({ functionName }) => functionName === 'choose');
+	assert.ok(choose);
+	choose.functionName = 'totally-forged-f';
+	assert.match(validate(fixture, [forged]).join('\n'), /not a source-derived V8 function/u);
+
+	const unknownSpan = structuredClone(fixture.entry);
+	const genuineChoose = unknownSpan.functions.find(({ functionName }) => functionName === 'choose');
+	assert.ok(genuineChoose?.ranges[1]);
+	unknownSpan.functions.push({
+		functionName: 'choose',
+		isBlockCoverage: true,
+		ranges: [{ ...genuineChoose.ranges[1] }],
+	});
+	assert.match(validate(fixture, [unknownSpan]).join('\n'), /not a source-derived V8 function/u);
+
+	const synthetic = structuredClone(fixture.entry);
+	synthetic.functions.push({
+		functionName: '<synthetic-runtime-helper>',
+		isBlockCoverage: false,
+		ranges: [{ startOffset: 0, endOffset: SOURCE.length, count: 1 }],
+	});
+	assert.match(validate(fixture, [synthetic]).join('\n'), /duplicates a source-derived function span/u);
+
+	const duplicate = structuredClone(fixture.entry);
+	duplicate.functions.push(structuredClone(
+		duplicate.functions.find(({ functionName }) => functionName === 'choose'),
+	));
+	assert.match(validate(fixture, [duplicate]).join('\n'), /duplicates a source-derived function span/u);
+});
+
+test('V8 block ranges must form an ordered nested or disjoint tree', () => {
+	const fixture = topologyFixture();
+	const forged = structuredClone(fixture.entry);
+	const choose = forged.functions.find(({ functionName }) => functionName === 'choose');
+	assert.ok(choose);
+	const [{ startOffset, endOffset, count }] = choose.ranges;
+	choose.ranges = [
+		{ startOffset, endOffset, count },
+		{ startOffset: startOffset + 1, endOffset: startOffset + 30, count: 1 },
+		{ startOffset: startOffset + 20, endOffset: startOffset + 40, count: 1 },
+	];
+	assert.match(validate(fixture, [forged]).join('\n'), /crossing V8 range topology/u);
+
+	const nonDetailed = structuredClone(fixture.entry);
+	const nonDetailedChoose = nonDetailed.functions.find(({ functionName }) => functionName === 'choose');
+	assert.ok(nonDetailedChoose);
+	nonDetailedChoose.isBlockCoverage = false;
+	assert.match(validate(fixture, [nonDetailed]).join('\n'), /non-block V8 function has nested ranges/u);
+
+	const keywordInterior = structuredClone(fixture.entry);
+	const keywordChoose = keywordInterior.functions.find(({ functionName }) => functionName === 'choose');
+	assert.ok(keywordChoose);
+	const keywordRoot = keywordChoose.ranges[0];
+	keywordChoose.ranges = [
+		keywordRoot,
+		{
+			startOffset: keywordRoot.startOffset + 1,
+			endOffset: keywordRoot.startOffset + 2,
+			count: 1,
+		},
+	];
+	assert.match(validate(fixture, [keywordInterior]).join('\n'), /non-source-derived range boundary/u);
+});
+
+test('an extra forged V8 function cannot hide in complementary profiles', () => {
 	const fixture = topologyFixture();
 	const left = structuredClone(fixture.entry);
 	const right = structuredClone(fixture.entry);
@@ -223,7 +302,75 @@ test('complementary profiles union topology and extra V8 functions stay harmless
 		isBlockCoverage: false,
 		ranges: [{ startOffset: 0, endOffset: SOURCE.length, count: 1 }],
 	});
-	assert.deepEqual(validate(fixture, [left, right]), []);
+	assert.match(validate(fixture, [left, right]).join('\n'), /not a source-derived V8 function/u);
+});
+
+test('implicit class initializer functions remain in the source-derived denominator', () => {
+	const fixture = sourceTopologyFixture([
+		'function side() { return 1; }',
+		'let flag = false;',
+		'class Example {',
+		'\tinstance = flag ? side() : 0;',
+		'\tother = 2;',
+		'\tinner = class { value = flag ? 1 : 2; };',
+		'\tstatic value = side();',
+		'\tstatic other = 3;',
+		'}',
+		'const first = new Example(), Inner = first.inner; new Inner(); flag = true; new Example(); new Inner();',
+	].join('\n'));
+	assert.deepEqual(validate(fixture, [fixture.entry]), []);
+	for (const initializer of ['<instance_members_initializer>', '<static_initializer>']) {
+		const omitted = {
+			...fixture.entry,
+			functions: fixture.entry.functions.filter(({ functionName }) => functionName !== initializer),
+		};
+		assert.match(validate(fixture, [omitted]).join('\n'), /missing the source-derived implicit function/u);
+	}
+	const staticOnly = sourceTopologyFixture('class Only { static { this.ready = true; } }\nvoid Only.ready;\n');
+	staticOnly.entry.functions = staticOnly.entry.functions.filter(({ functionName }) => functionName !== '<static_initializer>');
+	assert.match(validate(staticOnly, [staticOnly.entry]).join('\n'), /missing the source-derived explicit function/u);
+});
+
+test('computed anonymous members retain their genuine contextual V8 names', () => {
+	const fixture = sourceTopologyFixture([
+		"const key = 'computed';",
+		'const object = {',
+		"\t['literalArrow']: (value) => value,",
+		"\t[key + 'Arrow']: (value) => value,",
+		'\tget [key]() { return 1; },',
+		'};',
+		'object.literalArrow(1); object.computedArrow(2); object.computed;',
+		'function make(flag) { return class {',
+		"\t[flag ? 'fieldX' : 'fieldY'] = 1;",
+		"\t[flag ? 'x' : 'y']() { return 1; }",
+		'}; }',
+		'const A = make(true), B = make(false); new A().x(); new B().y();',
+		'',
+	].join('\n'));
+	assert.ok(fixture.entry.functions.filter(({ functionName }) => functionName === 'object').length >= 3);
+	assert.deepEqual(validate(fixture, [fixture.entry]), []);
+});
+
+test('a truncated switch profile cannot erase zero-count case outcomes', () => {
+	const fixture = sourceTopologyFixture([
+		'function a() {} function b() {} function c() {}',
+		'function select(value) {',
+		'\tswitch (value) {',
+		"\t\tcase 0: a(); break;",
+		"\t\tcase 1: b(); break;",
+		"\t\tcase 2: c(); break;",
+		'\t}',
+		'}',
+		'a(); b(); c(); select(0); select(1); select(2); select(99);',
+		'',
+	].join('\n'));
+	assert.deepEqual(validate(fixture, [fixture.entry]), []);
+	const forged = structuredClone(fixture.entry);
+	const select = forged.functions.find(({ functionName }) => functionName === 'select');
+	assert.ok(select);
+	assert.ok(select.ranges.length >= 3);
+	select.ranges = select.ranges.slice(0, 2);
+	assert.match(validate(fixture, [forged]).join('\n'), /missing source-derived switch outcome topology/u);
 });
 
 test('mapped vendor functions stay outside the source-derived first-party denominator', () => {
@@ -270,6 +417,10 @@ test('a partially first-party mapped branch fails closed', () => {
 });
 
 function topologyFixture() {
+	return sourceTopologyFixture(SOURCE);
+}
+
+function sourceTopologyFixture(source) {
 	const workspace = mkdtempSync(join(tmpdir(), 'soundscaper-v8-topology-'));
 	workspaces.push(workspace);
 	const artifactRoot = join(workspace, 'artifacts');
@@ -278,7 +429,7 @@ function topologyFixture() {
 	const executable = join(artifactRoot, artifactPath);
 	mkdirSync(join(artifactRoot, 'executables'), { recursive: true });
 	mkdirSync(coverageRoot);
-	writeFileSync(executable, SOURCE);
+	writeFileSync(executable, source);
 	execFileSync(process.execPath, [executable], {
 		env: { ...process.env, NODE_V8_COVERAGE: coverageRoot },
 	});

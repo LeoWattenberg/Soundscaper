@@ -8,6 +8,14 @@ import ts from 'typescript';
 import { stableSha256Digest } from './e2e-coverage-integrity.mjs';
 import { E2E_REPOSITORY_URL_PREFIX } from './e2e-coverage-prefixes.mjs';
 import { mappedE2ESourceMapSegments } from './e2e-coverage-source-maps.mjs';
+import {
+	deriveV8FunctionTopology,
+	isV8FunctionNode,
+	validateV8FunctionObservations,
+	validateV8OwnerMultiplicity,
+	v8FunctionLabel,
+	v8FunctionStart,
+} from './e2e-v8-function-topology.mjs';
 
 const LOGICAL_OPERATORS = new Set([
 	ts.SyntaxKind.AmpersandAmpersandToken,
@@ -54,12 +62,20 @@ export function validateE2ERawV8Topology({ artifactRoot, profiles, scripts }) {
 		const topology = deriveTopology(source, script.artifactPath, ownerships[0]);
 		failures.push(...topology.failures.map((failure) => `${script.id} ${failure}`));
 		const observations = entries.flatMap(({ functions }) => Array.isArray(functions) ? functions : []);
-		failures.push(...validateRanges(observations, source.length, script.id));
+		for (const { functions } of entries) {
+			if (!Array.isArray(functions)) continue;
+			failures.push(...validateV8FunctionObservations(
+				functions,
+				topology.functionTopology,
+				source.length,
+				script.id,
+			));
+		}
+		failures.push(...validateV8OwnerMultiplicity(entries, topology.owners, script.id));
 		for (const owner of topology.owners) {
 			const matches = observations.filter((observation) => hasSpan(observation, owner));
 			if (matches.length === 0) {
-				const kind = owner.root ? 'root function' : 'explicit function';
-				failures.push(`${script.id} is missing the source-derived ${kind} span ${span(owner)}.`);
+				failures.push(`${script.id} is missing the source-derived ${owner.kind} function span ${span(owner)}.`);
 				continue;
 			}
 			const detailedMatches = matches.filter(({ isBlockCoverage }) => isBlockCoverage === true);
@@ -75,7 +91,7 @@ export function validateE2ERawV8Topology({ artifactRoot, profiles, scripts }) {
 				continue;
 			}
 			for (const branch of owner.branches) {
-				const failure = validateBranch(branch, measured);
+				const failure = validateBranch(branch, measured, properRanges);
 				if (failure) failures.push(`${script.id} ${owner.label} ${failure}`);
 			}
 		}
@@ -129,25 +145,65 @@ function deriveTopology(source, fileName, ownership) {
 		true,
 		ts.ScriptKind.JS,
 	);
-	const root = owner('the root function', 0, source.length, true);
+	const functionTopology = deriveV8FunctionTopology(sourceFile, source.length);
+	const root = owner('the root function', 0, source.length, 'root');
 	const owners = [root];
 	const failures = [];
+	const implicitOwners = functionTopology.functions
+		.filter(({ kind }) => kind === 'implicit')
+		.map((shape) => ({
+			owner: owner(
+				`implicit function ${JSON.stringify([...shape.names][0])}`,
+				shape.start,
+				shape.end,
+				'implicit',
+			),
+			shape,
+		}));
+	for (const { owner: implicitOwner, shape } of implicitOwners) {
+		const exclusions = functionTopology.functions
+			.filter(({ kind, start, end }) => kind === 'explicit'
+				&& shape.start <= start && end <= shape.end)
+			.map(({ start, end }) => ({ start, end }));
+		if (!ownership.ownsAny(shape.start, shape.end, exclusions)) continue;
+		owners.push(implicitOwner);
+	}
 	visitChildren(sourceFile, root);
-	return { failures, owners };
+	return {
+		failures,
+		functionTopology,
+		owners,
+	};
 
 	function visit(node, currentOwner) {
-		if (isExplicitFunction(node)) {
-			const start = functionStart(node, sourceFile);
+		if (ts.isPropertyDeclaration(node)) {
+			const initializerOwner = classInitializerOwner(node);
+			for (const modifier of node.modifiers ?? []) {
+				if (ts.isDecorator(modifier)) visit(modifier, currentOwner);
+			}
+			if (ts.isComputedPropertyName(node.name)) visit(node.name, currentOwner);
+			if (node.initializer) visit(node.initializer, initializerOwner ?? currentOwner);
+			return;
+		}
+		if (ts.isClassStaticBlockDeclaration(node)) {
+			const initializerOwner = classInitializerOwner(node);
+			if (initializerOwner) {
+				visitChildren(node, initializerOwner);
+				return;
+			}
+		}
+		if (isV8FunctionNode(node)) {
+			const start = v8FunctionStart(node, sourceFile);
 			const functionOwner = owner(
-				`explicit function ${functionLabel(node, sourceFile)}`,
+				`explicit function ${v8FunctionLabel(node, sourceFile)}`,
 				start,
 				node.end,
-				false,
+				'explicit',
 			);
 			if (ownership.ownsAny(start, node.end, nestedFunctionSpans(node, sourceFile))) {
 				owners.push(functionOwner);
 			}
-			visitChildren(node, functionOwner);
+			visitFunctionChildren(node, functionOwner, currentOwner);
 			return;
 		}
 		const branch = branchProbe(node, sourceFile);
@@ -165,6 +221,27 @@ function deriveTopology(source, fileName, ownership) {
 	function visitChildren(node, currentOwner) {
 		ts.forEachChild(node, (child) => visit(child, currentOwner));
 	}
+
+	function visitFunctionChildren(node, functionOwner, enclosingOwner) {
+		ts.forEachChild(node, (child) => {
+			const outerEvaluation = (child === node.name && ts.isComputedPropertyName(child))
+				|| ts.isDecorator(child);
+			visit(child, outerEvaluation ? enclosingOwner : functionOwner);
+		});
+	}
+
+	function classInitializerOwner(node) {
+		const staticMember = ts.isClassStaticBlockDeclaration(node)
+			|| node.modifiers?.some(({ kind }) => kind === ts.SyntaxKind.StaticKeyword);
+		const name = staticMember ? '<static_initializer>' : '<instance_members_initializer>';
+		const offset = node.getStart(sourceFile);
+		return implicitOwners
+			.filter(({ shape }) => shape.names.has(name)
+				&& shape.start <= offset && offset < shape.end)
+			.sort((left, right) => (
+				(left.shape.end - left.shape.start) - (right.shape.end - right.shape.start)
+			))[0]?.owner ?? null;
+	}
 }
 
 function nestedFunctionSpans(node, sourceFile) {
@@ -173,7 +250,7 @@ function nestedFunctionSpans(node, sourceFile) {
 	return spans.sort((left, right) => left.start - right.start);
 
 	function visit(child) {
-		if (isExplicitFunction(child)) {
+		if (isV8FunctionNode(child)) {
 			spans.push({
 				start: child.getStart(sourceFile),
 				end: child.end,
@@ -298,40 +375,8 @@ function ownedMapSource(source, ownedSources) {
 	}
 }
 
-function owner(label, start, end, root) {
-	return { branches: [], end, label, root, start };
-}
-
-function isExplicitFunction(node) {
-	return ts.isFunctionLike(node) || ts.isClassStaticBlockDeclaration(node);
-}
-
-function functionStart(node, sourceFile) {
-	if (!ts.isClassStaticBlockDeclaration(node)
-		&& node.modifiers?.some(({ kind }) => kind === ts.SyntaxKind.StaticKeyword)) {
-		const retainedModifier = node.modifiers.find(({ kind }) => kind !== ts.SyntaxKind.StaticKeyword);
-		if (retainedModifier) return retainedModifier.getStart(sourceFile);
-		if (node.asteriskToken) return node.asteriskToken.getStart(sourceFile);
-		const accessorKeyword = node.getChildren(sourceFile).find(({ kind }) => (
-			kind === ts.SyntaxKind.GetKeyword || kind === ts.SyntaxKind.SetKeyword
-		));
-		return accessorKeyword?.getStart(sourceFile) ?? node.name?.getStart(sourceFile)
-			?? node.getStart(sourceFile);
-	}
-	if (!ts.isFunctionDeclaration(node)) return node.getStart(sourceFile);
-	const retainedModifier = node.modifiers?.find(({ kind }) => (
-		kind !== ts.SyntaxKind.ExportKeyword && kind !== ts.SyntaxKind.DefaultKeyword
-	));
-	if (retainedModifier) return retainedModifier.getStart(sourceFile);
-	const functionKeyword = node.getChildren(sourceFile)
-		.find(({ kind }) => kind === ts.SyntaxKind.FunctionKeyword);
-	return functionKeyword?.getStart(sourceFile) ?? node.getStart(sourceFile);
-}
-
-function functionLabel(node, sourceFile) {
-	if (ts.isClassStaticBlockDeclaration(node)) return '<static_initializer>';
-	if (node.name && typeof node.name.getText === 'function') return JSON.stringify(node.name.getText(sourceFile));
-	return `<anonymous at ${node.getStart(sourceFile)}>`;
+function owner(label, start, end, kind) {
+	return { branches: [], end, kind, label, start };
 }
 
 function branchProbe(node, sourceFile) {
@@ -415,7 +460,7 @@ function probe(node, sourceFile) {
 	return { offset: node.getStart(sourceFile) };
 }
 
-function validateBranch(branch, countAt) {
+function validateBranch(branch, countAt, properRanges) {
 	const decisionCount = countAt(branch.decision.offset);
 	const outcomeCounts = branch.outcomes.map(({ offset }) => countAt(offset));
 	if (decisionCount <= 0 || outcomeCounts.some((count) => count <= 0)) {
@@ -433,8 +478,16 @@ function validateBranch(branch, countAt) {
 		}
 		return null;
 	}
-	if (branch.kind === 'switch' && outcomeCounts.every((count) => count >= decisionCount)) {
-		return `${branch.label} has collapsed switch branch topology.`;
+	if (branch.kind === 'switch') {
+		const rangedOutcomes = branch.outcomes.filter(({ offset }) => (
+			properRanges.some(({ startOffset, endOffset }) => startOffset <= offset && offset < endOffset)
+		));
+		if (rangedOutcomes.length < branch.outcomes.length - 1) {
+			return `${branch.label} is missing source-derived switch outcome topology.`;
+		}
+		if (outcomeCounts.every((count) => count >= decisionCount)) {
+			return `${branch.label} has collapsed switch branch topology.`;
+		}
 	}
 	return null;
 }
@@ -448,36 +501,6 @@ function coverageCounter(functions) {
 			));
 		return total + (containing[0]?.count ?? 0);
 	}, 0);
-}
-
-function validateRanges(functions, sourceLength, scriptId) {
-	const failures = [];
-	for (const [functionIndex, entry] of functions.entries()) {
-		if (typeof entry?.functionName !== 'string' || typeof entry?.isBlockCoverage !== 'boolean'
-			|| !Array.isArray(entry?.ranges) || entry.ranges.length === 0) {
-			failures.push(`${scriptId} V8 function ${functionIndex} has invalid range topology.`);
-			continue;
-		}
-		const root = entry.ranges[0];
-		for (const range of entry.ranges) {
-			if (!validRange(range, sourceLength)
-				|| range.startOffset < root.startOffset || range.endOffset > root.endOffset) {
-				failures.push(`${scriptId} V8 function ${functionIndex} has an invalid or escaped range.`);
-				break;
-			}
-		}
-	}
-	return failures;
-}
-
-function validRange(range, sourceLength) {
-	return Number.isSafeInteger(range?.startOffset)
-		&& Number.isSafeInteger(range?.endOffset)
-		&& Number.isSafeInteger(range?.count)
-		&& range.startOffset >= 0
-		&& range.startOffset < range.endOffset
-		&& range.endOffset <= sourceLength
-		&& range.count >= 0;
 }
 
 function hasSpan({ ranges }, { start, end }) {
