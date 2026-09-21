@@ -8,50 +8,51 @@ head:
   - tag: script
     attrs:
       type: "application/ld+json"
-    content: "{\"@context\":\"https://schema.org\",\"@type\":\"HowTo\",\"name\":\"Export each chapter as its own file\",\"description\":\"Split one long recording into files at the markers you have placed.\",\"tool\":[{\"@type\":\"HowToTool\",\"name\":\"Soundscaper\"}],\"step\":[{\"@type\":\"HowToStep\",\"position\":1,\"name\":\"Open Soundscaper. A new, empty project is ready as soon as the editor loads.\",\"text\":\"Open Soundscaper. A new, empty project is ready as soon as the editor loads.\"},{\"@type\":\"HowToStep\",\"position\":2,\"name\":\"Choose File → Import audio and pick the recording to split. The file lands as a clip on its own track.\",\"text\":\"Choose File → Import audio and pick the recording to split. The file lands as a clip on its own track.\"},{\"@type\":\"HowToStep\",\"position\":3,\"name\":\"Choose View → Show markers.\",\"text\":\"Choose View → Show markers. The marker lane is where the chapter starts are shown and named.\"},{\"@type\":\"HowToStep\",\"position\":4,\"name\":\"Press the Jump to project start button in the toolbar.\",\"text\":\"Press the Jump to project start button in the toolbar. The first chapter should begin at the very start, so the first marker goes at zero.\"},{\"@type\":\"HowToStep\",\"position\":5,\"name\":\"With the Markers panel open (View → Panels → Markers shows it), press Add marker at playhead. Press Enter on the new marker, type Part one and press Enter again to name it.\",\"text\":\"With the Markers panel open (View → Panels → Markers shows it), press Add marker at playhead. Press Enter on the new marker, type Part one and press Enter again to name it.\"},{\"@type\":\"HowToStep\",\"position\":6,\"name\":\"Click the waveform where the second part begins to put the cursor there.\",\"text\":\"Click the waveform where the second part begins to put the cursor there.\"},{\"@type\":\"HowToStep\",\"position\":7,\"name\":\"With the Markers panel open (View → Panels → Markers shows it), press Add marker at playhead. Press Enter on the new marker, type Part two and press Enter again to name it.\",\"text\":\"With the Markers panel open (View → Panels → Markers shows it), press Add marker at playhead. Press Enter on the new marker, type Part two and press Enter again to name it.\"},{\"@type\":\"HowToStep\",\"position\":8,\"name\":\"Choose File → Export audio, set Format to MP3, set Output to Chapters (split by markers), and press Export. The file downloads as soon as the render finishes, and its link stays in the dialog.\",\"text\":\"Choose File → Export audio, set Format to MP3, set Output to Chapters (split by markers), and press Export. The file downloads as soon as the render finishes, and its link stays in the dialog. Each chapter becomes an MP3 inside the archive, numbered in order and named after its marker.\"}]}"
+    content: "{\"@context\":\"https://schema.org\",\"@type\":\"HowTo\",\"name\":\"Export each chapter as its own file\",\"description\":\"Split one long recording into files at the markers you have placed.\",\"tool\":[{\"@type\":\"HowToTool\",\"name\":\"Soundscaper\"}],\"step\":[{\"@type\":\"HowToStep\",\"position\":1,\"name\":\"Open Soundscaper. A new, empty project is ready as soon as the editor loads.\",\"text\":\"Open Soundscaper. A new, empty project is ready as soon as the editor loads.\"},{\"@type\":\"HowToStep\",\"position\":2,\"name\":\"Choose File → Import and pick the recording to split. It lands as a clip on its own track.\",\"text\":\"Choose File → Import and pick the recording to split. It lands as a clip on its own track.\"},{\"@type\":\"HowToStep\",\"position\":3,\"name\":\"Choose View → Panels → Project bin.\",\"text\":\"Choose View → Panels → Project bin. The recording is on the timeline now, so hiding the bin leaves room for the Markers panel.\"},{\"@type\":\"HowToStep\",\"position\":4,\"name\":\"Choose View → Show markers.\",\"text\":\"Choose View → Show markers. The marker lane is where the chapter starts are shown and named.\"},{\"@type\":\"HowToStep\",\"position\":5,\"name\":\"Press the Jump to project start button in the toolbar.\",\"text\":\"Press the Jump to project start button in the toolbar. The first chapter should begin at the very start, so the first marker goes at zero.\"},{\"@type\":\"HowToStep\",\"position\":6,\"name\":\"With the Markers panel open (View → Panels → Markers shows it), press Add marker at playhead. Press Enter on the new marker, type Part one and press Enter again to name it.\",\"text\":\"With the Markers panel open (View → Panels → Markers shows it), press Add marker at playhead. Press Enter on the new marker, type Part one and press Enter again to name it.\"},{\"@type\":\"HowToStep\",\"position\":7,\"name\":\"Click the waveform where the second part begins to put the cursor there.\",\"text\":\"Click the waveform where the second part begins to put the cursor there.\"},{\"@type\":\"HowToStep\",\"position\":8,\"name\":\"With the Markers panel open (View → Panels → Markers shows it), press Add marker at playhead. Press Enter on the new marker, type Part two and press Enter again to name it.\",\"text\":\"With the Markers panel open (View → Panels → Markers shows it), press Add marker at playhead. Press Enter on the new marker, type Part two and press Enter again to name it.\"},{\"@type\":\"HowToStep\",\"position\":9,\"name\":\"Choose File → Export audio, set Format to MP3, set Output to Chapters (split by markers), and press Export. The file downloads as soon as the render finishes, and its link stays in the dialog.\",\"text\":\"Choose File → Export audio, set Format to MP3, set Output to Chapters (split by markers), and press Export. The file downloads as soon as the render finishes, and its link stays in the dialog. Each chapter becomes an MP3 inside the archive, numbered in order and named after its marker.\"}]}"
 ---
-<!-- docs-ai-provenance: {"factPacketSha256":"bff231ce5a412139b723774100bc4b0793f5c5b088e471b0f45443684628992e","model":"qwen3.8:latest","modelDigest":"22130167c4c20e20c7b71454612966ca8e8171e9b3cc8ab6ce8aa6cbfec79643","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"bff231ce5a412139b723774100bc4b0793f5c5b088e471b0f45443684628992e","targetLocale":"en-GB"} -->
+<!-- docs-ai-provenance: {"factPacketSha256":"ccddaabe5789d7d02d6276dddb13a1b3323b9b9f10d8ed85a152061a5b472603","model":"aya-expanse:32b","modelDigest":"1603440383bd5504dc7afd01c0407b425b988dde650a8dc1a737433baa3cd432","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"ccddaabe5789d7d02d6276dddb13a1b3323b9b9f10d8ed85a152061a5b472603","targetLocale":"en-GB"} -->
 
 <!-- Generated by `node scripts/docs-reference.mjs`. Do not edit. -->
 
-A lecture that should become one file per topic, an album side that needs cutting into tracks, an audiobook with a chapter per file: put a marker at the start of each part and export once. Every marker opens a chapter that runs to the next one, and each chapter is written as its own file, named after the marker, inside a single archive. Audacity 3 did this with Export Multiple; Audacity 4 has not brought it back.
+A lecture that should become one file per topic, an album side that needs cutting into tracks, an audiobook with a chapter per file: place a marker at the start of each part and export in one go. Each marker opens a chapter that runs until the next one, and every chapter is exported as its own file, named after the marker, inside a single archive. Audacity 3 achieved this with Export Multiple; Audacity 4 does not have this feature.
 
 :::note[Coming from Audacity?]
-This is Audacity's **File → Export Audio → Export Multiple, split by labels (Audacity 3; Audacity 4 has no Export Multiple)**. The names below are Soundscaper's own, which sometimes differ.
+This is Audacity's **File → Export Audio → Export Multiple, split by labels (Audacity 3; Audacity 4 has no Export Multiple)**. The names below are Soundscaper's own, which may differ.
 :::
 
 ## Steps
 
 1. Open Soundscaper. A new, empty project is ready as soon as the editor loads.
-2. Choose **File → Import audio** and pick the recording to split. The file lands as a clip on its own track.
-3. Choose **View → Show markers**. The marker lane is where the chapter starts are shown and named.
-4. Press the **Jump to project start** button in the toolbar. The first chapter should begin at the very start, so the first marker goes at zero.
-5. With the Markers panel open (**View → Panels → Markers** shows it), press **Add marker at playhead**. Press Enter on the new marker, type `Part one` and press Enter again to name it.
-6. Click the waveform where the second part begins to put the cursor there.
-7. With the Markers panel open (**View → Panels → Markers** shows it), press **Add marker at playhead**. Press Enter on the new marker, type `Part two` and press Enter again to name it.
-8. Choose **File → Export audio**, set **Format** to **MP3**, set **Output** to **Chapters (split by markers)**, and press **Export**. The file downloads as soon as the render finishes, and its link stays in the dialog. Each chapter becomes an MP3 inside the archive, numbered in order and named after its marker.
+2. Choose **File → Import** and select the recording you wish to split. It will appear as a clip on its own track.
+3. Choose **View → Panels → Project bin**. The recording is now on the timeline, so hiding the bin frees up space for the Markers panel.
+4. Choose **View → Show markers**. The marker lane is where the chapter starts are displayed and named.
+5. Press the **Jump to project start** button in the toolbar. The first chapter should begin at the very start, so place the first marker at zero.
+6. With the Markers panel open (**View → Panels → Markers**), press **Add marker at playhead**. Press Enter on the new marker, type `Part one` and press Enter again to name it.
+7. Click on the waveform where the second part begins to position the cursor.
+8. With the Markers panel still open (**View → Panels → Markers**), press **Add marker at playhead**. Press Enter on the new marker, type `Part two` and press Enter again to name it.
+9. Choose **File → Export audio**, set **Format** to **MP3**, set **Output** to **Chapters (split by markers)**, and press **Export**. The file will download once the render is complete, and its link will remain in the dialog. Each chapter will be exported as a separate MP3 inside the archive, numbered in order and named after its corresponding marker.
 
 ## Tips
 
-- A named region exports exactly its own span, so use regions instead of markers when the parts have gaps between them.
-- Labels on a label track split the same way: choose **Chapters (split by labels)** to cut on those instead of on the markers.
-- To split by tracks rather than by markers, see [Export each track as its own file](/guides/projects/export-each-track-as-its-own-file/).
+- A named region exports its exact span, so use regions instead of markers when there are gaps between the parts.
+- Labels on a label track can be used to split the audio in the same way: choose **Chapters (split by labels)** to cut using those labels instead of markers.
+- To split by tracks rather than markers, see [Export each track as its own file](/guides/projects/export-each-track-as-its-own-file/).
 
 ## Related guides
 
 More [projects and files](/guides/projects/) guides:
 
-- [Export each track as its own file](/guides/projects/export-each-track-as-its-own-file/) — Render the tracks separately, as stems, in one download.
-- [Save your project](/guides/projects/save-your-project/) — Keep the project, with every track and edit, in the local project library.
-- [Move a project between computers](/guides/projects/move-a-project-between-computers/) — Export the whole project as one file, then open that file elsewhere.
-- [Open an Audacity project](/guides/projects/open-an-audacity-project/) — Bring an existing .aup3 or .aup4 project into Soundscaper with its tracks intact.
-- [Change a clip’s sample rate](/guides/projects/change-a-clips-sample-rate/) — Resample a clip so it matches the rate the rest of the project uses.
+- [Export each track as its own file](/guides/projects/export-each-track-as-its-own-file/) — Render each track separately as a stem, in a single download.
+- [Save your project](/guides/projects/save-your-project/) — Keep the project, with all tracks and edits, in the local project library.
+- [Move a project between computers](/guides/projects/move-a-project-between-computers/) — Export the entire project as one file, then open it on another computer.
+- [Open an Audacity project](/guides/projects/open-an-audacity-project/) — Import an existing .aup3 or .aup4 project into Soundscaper, preserving all tracks and edits.
+- [Change a clip’s sample rate](/guides/projects/change-a-clips-sample-rate/) — Resample a clip to match the sample rate of the rest of the project.
 
 ## Reference
 
-- [The export formats, their containers and channel limits are in the export formats reference.](/reference/generated/formats/)
-- [Every menu command and its keyboard shortcut is in the commands and shortcuts reference.](/reference/generated/commands/)
+- [The export formats, their containers, and channel limits are detailed in the export formats reference.](/reference/generated/formats/)
+- [Every menu command and its keyboard shortcut can be found in the commands and shortcuts reference.](/reference/generated/commands/)
 
 ## About this guide
 
-The procedure on this page — every menu entry, dialog, field and button, and the result it produces — is replayed against each build of Soundscaper by the browser suite (`tests/browser/soundscaper-guides.spec.js`). If any of it stops matching the editor, the build fails until the guide is corrected. The values suggested are starting points that the editor is proven to accept; whether they suit your recording is for your ears to decide.
+The procedure described on this page — every menu entry, dialog, field, and button, along with the resulting output — is tested against each build of Soundscaper by the browser suite (`tests/browser/soundscaper-guides.spec.js`). If any part of the procedure no longer matches the editor, the build will fail until the guide is updated. The values suggested are starting points that the editor has been proven to accept; whether they are suitable for your specific recording is a decision for your ears.
