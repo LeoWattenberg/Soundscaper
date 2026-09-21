@@ -3,7 +3,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { assertMatchingExportDataGraph } from '../src/common/editor/controller/export/project-export-data-graph.ts';
+import { assertMatchingExportDataGraph } from '../src/common/editor/project-export-data-graph.ts';
 
 for (const [canonicalProject, projectLabel] of [
 	['canonical project', 'Soundscaper baseline'],

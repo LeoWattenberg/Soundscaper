@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import type { FfmpegOutputSink } from '../common/editor/ffmpeg-output-stream.ts';
-import { assertMatchingExportDataGraph } from '../common/editor/controller/export/project-export-data-graph.ts';
+import { assertMatchingExportDataGraph } from '../common/editor/project-export-data-graph.ts';
 import { projectTrackFolderMediaStateV12 } from '../common/editor/track-folder-media-runtime.ts';
 import type {
 	ProductVideoExportEncodedOutput,
