@@ -9,6 +9,7 @@ import type {
 	NativeMediaImageSequenceSourcePackReferenceV25,
 } from './native-media-image-sequence-v25.ts';
 import type { NativeMediaImageSequenceRateV1 } from './native-media-image-sequence.ts';
+import { hasOnlyUnicodeScalars } from './unicode-scalar-text.ts';
 
 export const NATIVE_MEDIA_IMAGE_SEQUENCE_PACK_VERSION = 1 as const;
 export const NATIVE_MEDIA_IMAGE_SEQUENCE_PACK_HEADER_BYTES = 128;
@@ -458,18 +459,6 @@ function sha(value: unknown, label: string): string {
 		throw new NativeMediaImageSequenceSourcePackV25Error(`The ${label} SHA-256 identity is invalid.`);
 	}
 	return value;
-}
-
-function hasOnlyUnicodeScalars(value: string): boolean {
-	for (let index = 0; index < value.length; index += 1) {
-		const code = value.charCodeAt(index);
-		if (code >= 0xd800 && code <= 0xdbff) {
-			const low = value.charCodeAt(index + 1);
-			if (low < 0xdc00 || low > 0xdfff) return false;
-			index += 1;
-		} else if (code >= 0xdc00 && code <= 0xdfff) return false;
-	}
-	return true;
 }
 
 function closedRecord(value: unknown, keys: readonly string[], label: string): Record<string, unknown> {

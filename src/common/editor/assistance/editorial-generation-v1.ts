@@ -8,6 +8,7 @@ import {
 	type AssistanceEditorialProposalV1,
 } from './m7-semantic-results.ts';
 import { reviewOwnedHighlightCandidatesV1 } from './owned-video-highlight-validation-v1.ts';
+import { hasOnlyUnicodeScalars } from '../unicode-scalar-text.ts';
 
 export const ASSISTANCE_EDITORIAL_GENERATION_SCHEMA_VERSION = 1;
 export const ASSISTANCE_EDITORIAL_PROMPT_TEMPLATE_ID = 'qwen3-editorial-v1';
@@ -287,7 +288,7 @@ function normalizeEditorialFields(value: unknown): readonly AssistanceEditorialF
 function nullableEvidenceText(value: unknown, maximum: number, label: string): string | null {
 	if (value === null) return null;
 	if (typeof value !== 'string' || value.trim() === '' || value.length > maximum
-		|| UNSAFE_EVIDENCE_CONTROL.test(value) || !hasValidUnicode(value)) {
+		|| UNSAFE_EVIDENCE_CONTROL.test(value) || !hasOnlyUnicodeScalars(value)) {
 		throw new TypeError(`The ${label} exceeds its bounded text contract.`);
 	}
 	return value;
@@ -295,7 +296,7 @@ function nullableEvidenceText(value: unknown, maximum: number, label: string): s
 
 function boundedUtf8Output(value: unknown, maximumBytes: number): string {
 	if (typeof value === 'string') {
-		if (!hasValidUnicode(value)) {
+		if (!hasOnlyUnicodeScalars(value)) {
 			throw new TypeError('Editorial model output is not valid Unicode.');
 		}
 		if (utf8Length(value) > maximumBytes) {
@@ -315,20 +316,6 @@ function boundedUtf8Output(value: unknown, maximumBytes: number): string {
 
 function utf8Length(value: string): number {
 	return new TextEncoder().encode(value).byteLength;
-}
-
-function hasValidUnicode(value: string): boolean {
-	for (let index = 0; index < value.length; index += 1) {
-		const unit = value.charCodeAt(index);
-		if (unit >= 0xd800 && unit <= 0xdbff) {
-			const next = value.charCodeAt(index + 1);
-			if (!(next >= 0xdc00 && next <= 0xdfff)) return false;
-			index += 1;
-		} else if (unit >= 0xdc00 && unit <= 0xdfff) {
-			return false;
-		}
-	}
-	return true;
 }
 
 function sameStrings(left: readonly string[], right: readonly string[]): boolean {

@@ -20,6 +20,7 @@ import {
 	normalizeVideoSourceCharacteristicsV25,
 	type VideoSourceCharacteristicsV25,
 } from './video-source-professional-characteristics-v25.ts';
+import { hasOnlyUnicodeScalars } from './unicode-scalar-text.ts';
 
 export const NATIVE_MEDIA_IMAGE_SEQUENCE_INVENTORY_VERSION = 1 as const;
 export const NATIVE_MEDIA_IMAGE_SEQUENCE_SOURCE_VERSION = 1 as const;
@@ -507,18 +508,6 @@ function plainFileName(value: unknown): string {
 		throw new NativeMediaImageSequenceV25Error('An inventory file name must be one bounded plain name.');
 	}
 	return value;
-}
-
-function hasOnlyUnicodeScalars(value: string): boolean {
-	for (let index = 0; index < value.length; index += 1) {
-		const code = value.charCodeAt(index);
-		if (code >= 0xd800 && code <= 0xdbff) {
-			const low = value.charCodeAt(index + 1);
-			if (low < 0xdc00 || low > 0xdfff) return false;
-			index += 1;
-		} else if (code >= 0xdc00 && code <= 0xdfff) return false;
-	}
-	return true;
 }
 
 function identifier(value: unknown, name: string): string {

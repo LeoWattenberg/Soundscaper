@@ -206,6 +206,8 @@
 		"desktop/external-ffmpeg-audio-operation-runner.ts",
 		"desktop/external-ffmpeg-environment.ts",
 		"desktop/external-ffmpeg-process-security.ts",
+		"desktop/finite-float32-pcm.ts",
+		"desktop/private-scratch-directory.ts",
 		"desktop/external-ffmpeg-executable-pair-admission.ts",
 		"desktop/external-ffmpeg-installer-node-runtime.ts",
 		"desktop/external-ffmpeg-installer.ts",

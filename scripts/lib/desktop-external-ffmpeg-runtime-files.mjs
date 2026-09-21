@@ -49,6 +49,8 @@ export const DESKTOP_AUDIO_CODEC_RUNTIME_FILES = Object.freeze([
 	'desktop/external-ffmpeg-audio-operation-runner.js',
 	'desktop/external-ffmpeg-environment.js',
 	'desktop/external-ffmpeg-process-security.js',
+	'desktop/finite-float32-pcm.js',
+	'desktop/private-scratch-directory.js',
 	'desktop/os-audio-codec-canary-adapter.js',
 	'desktop/os-audio-codec-operation-runner.js',
 	'desktop/os-audio-codec-runtime.js',
@@ -74,6 +76,7 @@ export const DESKTOP_AUDIO_CODEC_RUNTIME_FILES = Object.freeze([
 	'src/common/editor/browser-dedicated-audio-output-validation.js',
 	'src/common/editor/dedicated-audio-encode-session.js',
 	'src/common/editor/large-audio-policy.js',
+	'src/common/editor/unicode-scalar-text.js',
 	'desktop/desktop-audio-stream-service.js',
 	'desktop/desktop-audio-stream-job-runner.js',
 ]);

@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import type { VideoCaptionTrackV1 } from './video-caption-track-v27.ts';
+import { hasOnlyUnicodeScalars } from './unicode-scalar-text.ts';
 
 export const VIDEO_CAPTION_INTERCHANGE_FORMATS_V1 = Object.freeze([
 	'srt', 'webvtt', 'imsc1.1',
@@ -158,7 +159,7 @@ export function decodeCaptionInput(
 			observed: bytes,
 		});
 	}
-	if (!isWellFormedCaptionInput(text)) {
+	if (!hasOnlyUnicodeScalars(text)) {
 		throw interchangeError('Caption interchange input contains an unpaired Unicode surrogate.', 'INVALID_UTF8');
 	}
 	if (/\0/u.test(text)) throw interchangeError('Caption interchange input contains NUL.', 'INVALID_CHARACTER');
@@ -240,16 +241,4 @@ function byteView(input: unknown): Uint8Array {
 		return new Uint8Array(input.buffer, input.byteOffset, input.byteLength);
 	}
 	throw new TypeError('Caption interchange input must be text or bytes.');
-}
-
-function isWellFormedCaptionInput(value: string): boolean {
-	for (let index = 0; index < value.length; index += 1) {
-		const unit = value.charCodeAt(index);
-		if (unit >= 0xd800 && unit <= 0xdbff) {
-			const next = value.charCodeAt(index + 1);
-			if (!(next >= 0xdc00 && next <= 0xdfff)) return false;
-			index += 1;
-		} else if (unit >= 0xdc00 && unit <= 0xdfff) return false;
-	}
-	return true;
 }

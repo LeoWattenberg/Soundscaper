@@ -60,6 +60,8 @@ test('staged manifest closes over control, helper, runner, seven modules, and se
 		'project-library-runtime/desktop/bundled-audio-codec-helper-process.js',
 		'project-library-runtime/desktop/bundled-audio-codec-operation-runner.js',
 		'project-library-runtime/desktop/bundled-audio-codec-isolated-runtime.js',
+		'project-library-runtime/desktop/finite-float32-pcm.js',
+		'project-library-runtime/desktop/private-scratch-directory.js',
 		'bundled-audio-codec-electron-spawn.mjs',
 	]) assert.equal(fixture.manifest.files.some(({ path }) => path === required), true, required);
 	assert.equal(fixture.manifest.files.some(({ path }) => /ffmpeg/iu.test(path)), false);
@@ -84,6 +86,7 @@ test('staged manifest closes over control, helper, runner, seven modules, and se
 			'desktop/desktop-audio-codec-capability-contract.js',
 			'desktop/desktop-audio-codec-operation-contract.js',
 			'desktop/desktop-audio-stream-contract.js',
+			'desktop/finite-float32-pcm.js',
 			'src/common/editor/browser-dedicated-audio-codec.js',
 			'src/common/editor/browser-dedicated-audio-output-validation.js',
 			'src/common/editor/browser-dedicated-audio-profiles.js',
