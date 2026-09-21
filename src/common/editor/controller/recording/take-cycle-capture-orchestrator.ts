@@ -18,7 +18,7 @@ import type {
 import {
 	takeCycleStableId as stableId,
 	takeCycleStableName as stableName,
-} from './internal/take-cycle/take-cycle-value-validation.ts';
+} from './take-cycle-value-validation.ts';
 import {
 	createTakeCyclePassIdentityAllocator,
 	registerFreshTakeCycleIdentity as freshIdentity,

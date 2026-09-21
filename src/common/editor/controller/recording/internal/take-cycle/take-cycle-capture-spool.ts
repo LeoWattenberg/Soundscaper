@@ -29,7 +29,7 @@ import type {
 	TakeCycleLiveCaptureSpool,
 	TakeCycleLiveCaptureWriter,
 } from './take-cycle-live-capture-spool.ts';
-import { takeCycleStableId as stableId } from './take-cycle-value-validation.ts';
+import { takeCycleStableId as stableId } from '../../take-cycle-value-validation.ts';
 import type {
 	TakeCycleLaneTarget,
 	TakeCycleSourceDescription,

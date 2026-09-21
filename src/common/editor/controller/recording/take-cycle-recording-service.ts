@@ -36,7 +36,7 @@ import type {
 	TakeCycleRecordingServiceDependencies,
 	TakeCycleRecoveryRequest,
 } from './internal/take-cycle/take-cycle-recording-service-types.ts';
-import { takeCycleStableId as stableIdentity } from './internal/take-cycle/take-cycle-value-validation.ts';
+import { takeCycleStableId as stableIdentity } from './take-cycle-value-validation.ts';
 
 export type * from './internal/take-cycle/take-cycle-recording-service-types.ts';
 

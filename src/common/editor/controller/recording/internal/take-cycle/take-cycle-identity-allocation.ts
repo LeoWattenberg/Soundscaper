@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import type { TakeCycleCapturePassIdentities } from './take-cycle-capture-validation.ts';
-import { takeCycleStableId } from './take-cycle-value-validation.ts';
+import { takeCycleStableId } from '../../take-cycle-value-validation.ts';
 
 export type TakeCycleIdentityKind = 'envelope' | 'group' | 'lane' | 'take' | 'media' | 'journal';
 export type TakeCycleCreatedIdentityKind = Exclude<TakeCycleIdentityKind, 'group'>;

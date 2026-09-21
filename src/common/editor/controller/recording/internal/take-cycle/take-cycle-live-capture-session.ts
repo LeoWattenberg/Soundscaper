@@ -17,7 +17,7 @@ import {
 	createTakeCyclePassIdentityAllocator,
 	registerFreshTakeCycleIdentity as freshIdentity,
 } from './take-cycle-identity-allocation.ts';
-import { takeCycleStableId as stableId } from './take-cycle-value-validation.ts';
+import { takeCycleStableId as stableId } from '../../take-cycle-value-validation.ts';
 
 export type TakeCycleLiveLaneDescription = TakeCycleLiveLaneRequest['lane'];
 export type BeginTakeCycleLiveSessionRequest = Omit<

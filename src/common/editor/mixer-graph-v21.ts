@@ -12,6 +12,9 @@ import {
 import { snapshotInertJsonValue } from './inert-json-snapshot.ts'
 import { assertAcyclicRoutingV21 } from './routing-cycle-v21.ts'
 import { effectExplicitSidechainCapability } from './effect-explicit-sidechain-capability.ts'
+import { mixerEndpointKeyV21 } from './mixer-signal-edge-v21.ts'
+
+export { mixerChannelMapCarriesSignalV21, mixerEdgeCarriesSignalV21, mixerEndpointKeyV21 } from './mixer-signal-edge-v21.ts'
 
 export const MIXER_GRAPH_V21_SCHEMA_VERSION = 1 as const
 export const MIXER_GRAPH_V21_MAX_ITEMS = 4096
@@ -350,20 +353,6 @@ export function normalizeMixerGraphV21(value: unknown): MixerGraphV21 {
 		outputs: normalizeArray('outputs', normalizeOutput),
 		edges: normalizeArray('edges', normalizeEdge),
 	})
-}
-
-export function mixerEndpointKeyV21(endpoint: MixerEndpointV21): string {
-	return endpoint.kind === 'master' ? 'master' : `${endpoint.kind}:${endpoint.id}`
-}
-
-export function mixerChannelMapCarriesSignalV21(value: readonly number[]): boolean {
-	return value.length === 0 || value.some((source) => source !== -1)
-}
-
-export function mixerEdgeCarriesSignalV21(
-	edge: Pick<MixerEdgeV21, 'enabled' | 'channelMap'>,
-): boolean {
-	return edge.enabled !== false && mixerChannelMapCarriesSignalV21(edge.channelMap)
 }
 
 function stripKey(strip: StripRef): string {

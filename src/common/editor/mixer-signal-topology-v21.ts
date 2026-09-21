@@ -3,15 +3,17 @@
 import {
 	mixerEdgeCarriesSignalV21,
 	mixerEndpointKeyV21,
-	type MixerEndpointV21,
-	type MixerGraphV21,
+} from './mixer-signal-edge-v21.ts';
+import type {
+	MixerEndpointV21,
+	MixerGraphV21,
 } from './mixer-graph-v21.ts';
 
 export {
 	mixerChannelMapCarriesSignalV21,
 	mixerEdgeCarriesSignalV21,
 	mixerEndpointKeyV21 as mixerSignalEndpointKeyV21,
-} from './mixer-graph-v21.ts';
+} from './mixer-signal-edge-v21.ts';
 
 export type MixerSignalEndpointV21 = MixerEndpointV21;
 

@@ -3,7 +3,7 @@
 import {
 	takeCycleStableId as stableId,
 	takeCycleStableName as stableName,
-} from './take-cycle-value-validation.ts';
+} from '../../take-cycle-value-validation.ts';
 
 export interface TakeCycleLiveLaneRequest {
 	readonly projectId: string;

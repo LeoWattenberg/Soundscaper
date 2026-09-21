@@ -7,7 +7,7 @@ import { TAKE_CYCLE_CAPTURE_MAXIMUM_CHUNK_BYTES } from './take-cycle-capture-spo
 import {
 	takeCycleStableId as stableTakeCycleRoutedId,
 	takeCycleStableName as stableTakeCycleRoutedName,
-} from './take-cycle-value-validation.ts';
+} from '../../take-cycle-value-validation.ts';
 import type {
 	RecordingCaptureChunk,
 	RecordingRoute,

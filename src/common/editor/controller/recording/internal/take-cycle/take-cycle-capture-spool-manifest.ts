@@ -17,7 +17,7 @@ import {
 } from './take-cycle-capture-validation.ts';
 import {
 	takeCycleStableId as stableId,
-} from './take-cycle-value-validation.ts';
+} from '../../take-cycle-value-validation.ts';
 
 const DRAFT_VERSION = 1 as const;
 const DRAFT_MARKER = 'take-cycle-capture-draft-v1';

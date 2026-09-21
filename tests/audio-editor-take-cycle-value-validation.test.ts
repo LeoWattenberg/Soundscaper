@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import {
 	takeCycleStableId,
 	takeCycleStableName,
-} from '../src/common/editor/controller/recording/internal/take-cycle/take-cycle-value-validation.ts';
+} from '../src/common/editor/controller/recording/take-cycle-value-validation.ts';
 import { stableId as recoveryStableId } from '../src/common/editor/take-cycle-recovery-envelope-validation.ts';
 import {
 	stableTakeCycleRoutedId,

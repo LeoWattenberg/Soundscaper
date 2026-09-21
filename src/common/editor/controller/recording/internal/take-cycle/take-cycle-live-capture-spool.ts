@@ -24,7 +24,7 @@ import type {
 	TakeCycleCapturePcmSpan,
 } from './take-cycle-capture-spool.ts';
 import type { TakeCycleLaneTarget, TakeCycleSourceDescription } from './take-cycle-recording-repository-composition.ts';
-import { takeCycleStableId as stableId } from './take-cycle-value-validation.ts';
+import { takeCycleStableId as stableId } from '../../take-cycle-value-validation.ts';
 
 const INTENT_KIND = 'take-cycle-live-capture-intent-v1';
 const DRAFT_KIND = 'take-cycle-live-capture-draft-v1';

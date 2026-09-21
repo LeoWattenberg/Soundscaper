@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { takeCycleStableId as stableId } from './controller/recording/internal/take-cycle/take-cycle-value-validation.ts';
+import { takeCycleStableId as stableId } from './controller/recording/take-cycle-value-validation.ts';
 
 export { stableId };
 

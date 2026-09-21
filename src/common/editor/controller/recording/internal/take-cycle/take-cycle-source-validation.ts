@@ -2,7 +2,7 @@
 
 import { WAVPACK_PCM_MAXIMUM_FRAMES } from '../../../../wavpack/pcm.js';
 import type { TakeCycleSourceDescription } from './take-cycle-recording-repository-composition.ts';
-import { takeCycleStableName } from './take-cycle-value-validation.ts';
+import { takeCycleStableName } from '../../take-cycle-value-validation.ts';
 
 export function normalizeTakeCycleSourceDescription(
 	value: TakeCycleSourceDescription,
