@@ -62,7 +62,7 @@ test('desktop startup reports every absent runtime manifest as typed unavailable
 	}
 	assert.equal(typeof runtime.operations.run, 'function');
 	assert.equal(forkCount(), 0);
-	runtime.dispose();
+	await runtime.shutdown();
 	assert.equal(runtime.snapshot('onnxruntime-node').state, 'disposed');
 });
 

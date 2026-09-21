@@ -180,6 +180,30 @@ test('process termination resolves on Electron exit and forwards one normalized 
 	assert.equal(child.kills, 1);
 });
 
+test('graceful process shutdown uses the authenticated protocol and waits for exit', async () => {
+	const rig = harness();
+	const { process, child } = await spawnReady(rig);
+	const stopping = process.shutdown();
+	assert.deepEqual(child.sent.at(-1), { protocolVersion: 1, type: 'shutdown' });
+	assert.equal(child.kills, 0);
+	let settled = false;
+	void stopping.then(() => { settled = true; });
+	await Promise.resolve();
+	assert.equal(settled, false);
+	child.emit('exit', 0);
+	await stopping;
+	assert.equal(child.kills, 0);
+});
+
+test('a missed graceful process shutdown kills the child and rejects', async () => {
+	const rig = harness({ killWaitMs: 5 });
+	const { process, child } = await spawnReady(rig);
+	child.emitExitOnKill = false;
+	await assert.rejects(process.shutdown(), /graceful shutdown|deadline/iu);
+	assert.deepEqual(child.sent.at(-1), { protocolVersion: 1, type: 'shutdown' });
+	assert.equal(child.kills, 1);
+});
+
 test('the spawned inference process is dropped to background priority as soon as it exists', async () => {
 	const priorities: number[] = [];
 	const rig = harness({ applyBackgroundPriority: (pid: number) => priorities.push(pid) });

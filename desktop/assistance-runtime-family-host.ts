@@ -62,8 +62,8 @@ export interface AssistanceRuntimeFamilyProcess {
 	): AssistanceRuntimeFamilyProcessWorker;
 	onExit(listener: (code: number | null) => void): void;
 	sampleRss(): number | null;
-	/** Resolves only after the utility process has terminated. */
 	terminate(): Promise<void>;
+	shutdown(): Promise<void>;
 }
 
 export interface AssistanceRuntimeFamilyRunOptions {
@@ -83,10 +83,8 @@ export interface AssistanceRuntimeFamilyRouterOptions {
 	readonly availableMemoryBytes: () => number;
 	readonly cancellationBudgetMs?: number;
 	readonly rssPollIntervalMs?: number;
-	/** Optional inference is background work, so it waits for mains power and a cool machine. */
 	readonly powerEtiquette?: AssistancePowerEtiquettePort;
 	readonly powerHoldBudgetMs?: number;
-	/** Quiet period after which a warm family process gives its memory back. */
 	readonly idleUnloadMs?: number;
 	readonly quarantineCrashLimit?: number;
 	readonly quarantineWindowMs?: number;
@@ -266,11 +264,7 @@ export function createAssistanceRuntimeFamilyRouter(options: AssistanceRuntimeFa
 		}
 	}
 
-	/**
-	 * Holds new work while the machine runs on battery or reports serious thermal
-	 * pressure. The hold is bounded, and it never touches a job already running:
-	 * a transient condition delays admission, a sustained one reports it.
-	 */
+	/** Holds new work, but never a running job, during bounded power/thermal pressure. */
 	async function admitPower(
 		request: AssistanceRuntimeFamilyJobRequestV1,
 		runOptions: AssistanceRuntimeFamilyRunOptions,
@@ -327,7 +321,7 @@ export function createAssistanceRuntimeFamilyRouter(options: AssistanceRuntimeFa
 			}
 			if (!process || typeof process.startWorker !== 'function'
 				|| typeof process.onExit !== 'function' || typeof process.sampleRss !== 'function'
-				|| typeof process.terminate !== 'function') {
+				|| typeof process.terminate !== 'function' || typeof process.shutdown !== 'function') {
 				throw failure('worker-error', request,
 					'The runtime-family spawn returned no supervised utility process.');
 			}
@@ -475,7 +469,6 @@ export function createAssistanceRuntimeFamilyRouter(options: AssistanceRuntimeFa
 		unloadWhenIdle(slot);
 	}
 
-	/** A family that finished its work keeps no process warm for longer than the quiet period. */
 	function unloadWhenIdle(slot: FamilySlot): void {
 		if (disposed || slot.process === null) return;
 		idleUnloads.schedule(slot.familyId, () => {
@@ -503,20 +496,26 @@ export function createAssistanceRuntimeFamilyRouter(options: AssistanceRuntimeFa
 		slots[familyId].crashes.clear();
 	}
 
-	function dispose(): void {
-		if (disposed) return;
+	function beginDisposal(): AssistanceRuntimeFamilyProcess[] {
+		if (disposed) return [];
 		disposed = true;
 		idleUnloads.dispose();
+		const processes: AssistanceRuntimeFamilyProcess[] = [];
 		for (const slot of Object.values(slots)) {
 			const active = slot.active;
 			if (active) settle(slot, active,
 				failure('disposed', active.request, 'The runtime-family router is disposed.'));
 			const process = slot.process;
-			if (process) void terminateProcess(slot, process);
+			if (process) { expectedTerminations.add(process); slot.process = null; processes.push(process); }
 		}
+		return processes;
+	}
+	function dispose(): void { for (const process of beginDisposal()) void process.terminate(); }
+	async function shutdown(): Promise<void> {
+		await Promise.all(beginDisposal().map(async (process) => process.shutdown()));
 	}
 
-	return Object.freeze({ run, snapshot, clearQuarantine, dispose });
+	return Object.freeze({ run, snapshot, clearQuarantine, dispose, shutdown });
 }
 
 function assertOptions(options: AssistanceRuntimeFamilyRouterOptions): void {
@@ -543,4 +542,3 @@ function boundedOption(value: number | undefined, fallback: number, maximum: num
 	}
 	return admitted;
 }
-

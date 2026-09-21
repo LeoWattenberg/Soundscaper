@@ -43,6 +43,7 @@ export interface AssistanceRuntimeFamilyDesktopStartup {
 	availability(familyId: AssistanceRuntimeFamilyId): Promise<AssistanceRuntimeFamilyAvailability>;
 	snapshot(familyId: AssistanceRuntimeFamilyId): AssistanceRuntimeFamilySnapshot;
 	dispose(): void;
+	shutdown(): Promise<void>;
 }
 
 export function createAssistanceRuntimeFamilyDesktopStartup(
@@ -84,6 +85,7 @@ export function createAssistanceRuntimeFamilyDesktopStartup(
 		availability,
 		snapshot: router.snapshot,
 		dispose: router.dispose,
+		shutdown: router.shutdown,
 	});
 }
 

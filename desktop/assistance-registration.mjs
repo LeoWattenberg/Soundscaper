@@ -333,7 +333,7 @@ export function registerAssistance({
 		await workflowIpc.dispose();
 		await operationIpc.dispose();
 		await operations?.dispose();
-		runtimeFamilies.dispose();
-		runtime.dispose();
+		await runtimeFamilies.shutdown();
+		await runtime.shutdown();
 	} });
 }

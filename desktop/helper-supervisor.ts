@@ -34,6 +34,7 @@ import {
 	type HelperSupervisorState,
 } from './helper-supervision-state.ts';
 import { HelperAdmissionGate } from './helper-admission-gate.ts';
+import { awaitGracefulHelperShutdown } from './graceful-helper-shutdown.ts';
 
 export { HelperSupervisionError } from './helper-supervision-state.ts';
 export type {
@@ -117,18 +118,11 @@ export class HelperSupervisor {
 		});
 	}
 
-	/** Explicit user action is the only path out of quarantine mid-session. */
 	clearQuarantine(): void {
 		this.#crashes.clear();
 	}
 	async start(): Promise<void> { await this.#ensureChannel(); }
-	/**
-	 * Contract v1 admits one concurrent job, so a second caller waits for the
-	 * first instead of being refused. Every native surface shares one supervisor
-	 * over one payload, and two independent user actions arriving together is
-	 * not a fault: refusing the later one would make an ordinary collision look
-	 * like the helper — or the thing it was scanning — had misbehaved.
-	 */
+	/** Contract v1 queues concurrent callers over the one shared helper. */
 	async runJob<Kind extends HelperJobKind>(request: HelperJobRequest<Kind>): Promise<unknown> {
 		this.#assertNotDisposed();
 		if (this.#crashes.quarantined) {
@@ -263,6 +257,17 @@ export class HelperSupervisor {
 		this.#teardownChannel();
 	}
 
+	async shutdown(): Promise<void> {
+		const channel = this.#channel;
+		this.#channel = null;
+		this.dispose();
+		if (channel) await awaitGracefulHelperShutdown({
+			channel, message: validateHelperHostMessage({ contractVersion: 1, type: 'shutdown' }),
+			timeoutMs: this.#cancellationBudgetMs, label: 'assistance helper',
+			setTimeoutImpl: this.#setTimeout, clearTimeoutImpl: this.#clearTimeout,
+		});
+	}
+
 	#state(): HelperSupervisorState {
 		if (this.#disposed) return 'disposed';
 		if (this.#crashes.quarantined) return 'quarantined';
@@ -275,10 +280,7 @@ export class HelperSupervisor {
 	async #ensureChannel(): Promise<void> {
 		this.#assertNotDisposed();
 		if (this.#channel && this.#channelReady) return;
-		// A second caller arriving while the helper is cold joins the start in
-		// flight instead of being refused — or spawning a second process. The
-		// OFX runtime starts the shared per-plugin worker before every job, so
-		// two requests racing a cold spawn is an ordinary collision, not a fault.
+		// Concurrent callers join one cold start instead of spawning twice.
 		const pending = this.#starting;
 		if (pending) {
 			await pending;
@@ -369,11 +371,7 @@ export class HelperSupervisor {
 		}
 		if (validated.type === 'heartbeat') {
 			const expectedJobId = this.#job?.jobId ?? null;
-			// An idle heartbeat races job admission benignly: the helper's timer
-			// fired before the just-posted job message reached it. Liveness is
-			// what a heartbeat proves; only one naming a job the supervisor does
-			// not own is a confused helper. The duration deadline still bounds a
-			// helper that lost its job and keeps heartbeating idle.
+			// An idle heartbeat may race admission; only a foreign job id is confused.
 			if (validated.jobId !== expectedJobId && validated.jobId !== null) {
 				this.#crash(new HelperSupervisionError('job-mismatch',
 					'The helper heartbeat does not match the active job generation.'));

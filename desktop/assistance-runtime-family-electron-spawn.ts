@@ -22,6 +22,7 @@ import {
 	validateAssistanceRuntimeFamilyHostMessageV1,
 	validateAssistanceRuntimeFamilyProcessMessageV1,
 } from './assistance-runtime-family-process-protocol.ts';
+import { awaitGracefulHelperShutdown } from './graceful-helper-shutdown.ts';
 
 export interface AssistanceRuntimeFamilyElectronChild {
 	/** Electron publishes this only after the asynchronous `spawn` event. */
@@ -105,6 +106,7 @@ async function spawnFamily(
 	let active: ActiveJob | null = null;
 	let protocolFailure: Error | null = null;
 	let processTermination: Promise<void> | null = null;
+	let processShutdown: Promise<void> | null = null;
 	const exitListeners = new Set<(code: number | null) => void>();
 	const exitWaiters = new Set<Readonly<{ resolve(): void; reject(error: Error): void }>>();
 	const onSpawn = (): void => {
@@ -301,6 +303,27 @@ async function spawnFamily(
 		return processTermination;
 	}
 
+	function shutdownProcess(): Promise<void> {
+		if (exited) return Promise.resolve();
+		processShutdown ??= awaitGracefulHelperShutdown({
+			channel: {
+				postMessage: (message) => child.postMessage(message),
+				onExit: (listener) => child.on('exit', (value) => listener(
+					Number.isSafeInteger(value) ? Number(value) : null,
+				)),
+				kill: () => child.kill(),
+			},
+			message: validateAssistanceRuntimeFamilyHostMessageV1({
+				protocolVersion: 1, type: 'shutdown',
+			}),
+			timeoutMs: killWaitMs,
+			label: `${familyId} utility process`,
+			setTimeoutImpl,
+			clearTimeoutImpl,
+		});
+		return processShutdown;
+	}
+
 	const processPort: AssistanceRuntimeFamilyProcess = Object.freeze({
 		familyId,
 		runtimeVersion: descriptor.runtimeVersion,
@@ -320,6 +343,7 @@ async function spawnFamily(
 			} catch { return null; }
 		},
 		terminate: terminateProcess,
+		shutdown: shutdownProcess,
 	});
 
 	child.on('spawn', onSpawn);

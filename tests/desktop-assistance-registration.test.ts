@@ -66,7 +66,8 @@ test('desktop assistance composes lazy runtime families from the truthful shippe
 		/createAssistanceRuntimeFamilyDesktopStartup\(\{[\s\S]*?manifests: assistanceRuntimeFamilySupply\.manifests,/u);
 	assert.match(registration,
 		/createAssistanceOperationService\(\{[\s\S]*?additionalRuntime: runtimeFamilies\.operations,[\s\S]*?onProgress,/u);
-	assert.match(registration, /runtimeFamilies\.dispose\(\)/u);
+	assert.match(registration,
+		/await runtimeFamilies\.shutdown\(\);[\s\S]*?await runtime\.shutdown\(\);/u);
 });
 
 test('indexed search receives one lazy installed-only runtime query executor', async () => {

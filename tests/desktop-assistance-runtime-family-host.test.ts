@@ -72,6 +72,7 @@ class FakeProcess implements AssistanceRuntimeFamilyProcess {
 	readonly jobs: AssistanceRuntimeFamilyAdmittedJob[] = [];
 	readonly workers: FakeWorker[] = [];
 	terminations = 0;
+	shutdowns = 0;
 	rss = 0;
 	terminateImpl: () => Promise<void> = () => Promise.resolve();
 	#exit: ((code: number | null) => void) | null = null;
@@ -89,6 +90,7 @@ class FakeProcess implements AssistanceRuntimeFamilyProcess {
 	onExit(listener: (code: number | null) => void): void { this.#exit = listener; }
 	sampleRss(): number | null { return this.rss; }
 	terminate(): Promise<void> { this.terminations += 1; return this.terminateImpl(); }
+	shutdown(): Promise<void> { this.shutdowns += 1; return this.terminateImpl(); }
 	exit(code: number | null): void { this.#exit?.(code); }
 }
 
@@ -505,4 +507,17 @@ test('disposal cancels a pending idle unload rather than terminating twice', asy
 	await until(() => process.terminations === 1);
 	idle.fire!();
 	assert.equal(process.terminations, 1);
+});
+
+test('graceful shutdown awaits every warm family process without hard-killing it', async () => {
+	const { router, processes } = harness();
+	const result = router.run(request());
+	await until(() => processes['onnxruntime-node'][0]?.workers.length === 1);
+	const process = processes['onnxruntime-node'][0]!;
+	process.workers[0]!.resolve('cuts');
+	await result;
+	await router.shutdown();
+	assert.equal(process.shutdowns, 1);
+	assert.equal(process.terminations, 0);
+	assert.equal(router.snapshot('onnxruntime-node').state, 'disposed');
 });

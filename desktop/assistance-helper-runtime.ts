@@ -46,6 +46,7 @@ export interface AssistanceSpeechHostPort {
 		options?: AssistanceJobStartOptions | ((progress: AssistanceJobProgress) => void),
 	): AssistanceJobRun;
 	dispose(): void;
+	shutdown?(): Promise<void>;
 }
 
 export interface AssistanceHelperRuntimeOptions {
@@ -62,7 +63,7 @@ export interface AssistanceFileReadStream extends AsyncIterable<Uint8Array> {
 export function createAssistanceHelperRuntimeAdapter(
 	options: AssistanceHelperRuntimeOptions,
 ): SpeechRuntimeAdapter & VoiceActivityRuntimeAdapter & SpeakerDiarizationRuntimeAdapter
-	& Readonly<{ dispose(): void }> {
+	& Readonly<{ dispose(): void; shutdown(): Promise<void> }> {
 	const mintJobId = options.mintJobId ?? (() => randomBytes(20).toString('hex'));
 	const openFileReadStream = options.openFileReadStream
 		?? ((path: string): AssistanceFileReadStream => createReadStream(path));
@@ -109,6 +110,7 @@ export function createAssistanceHelperRuntimeAdapter(
 			}), grant) as SpeakerDiarizationResult;
 		},
 		dispose: () => options.host.dispose(),
+		shutdown: async () => options.host.shutdown ? await options.host.shutdown() : options.host.dispose(),
 	});
 }
 

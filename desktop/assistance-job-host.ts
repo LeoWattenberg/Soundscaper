@@ -131,6 +131,11 @@ export function createAssistanceJobHost(options: AssistanceJobHostOptions) {
 	return Object.freeze({
 		start,
 		get isBusy(): boolean { return jobs.size > 0; },
+		async shutdown(): Promise<void> {
+			for (const { controller } of jobs.values()) controller.abort();
+			await queue;
+			await supervisor.shutdown();
+		},
 		dispose(): void {
 			for (const { controller } of jobs.values()) controller.abort();
 			supervisor.dispose();

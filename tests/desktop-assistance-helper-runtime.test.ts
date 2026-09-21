@@ -14,6 +14,19 @@ import { nativeChildFileIdentityFromStat } from '../desktop/native-child-file-id
 
 const RESULT = Object.freeze({ language: null, segments: Object.freeze([]) });
 
+test('runtime shutdown awaits the host graceful-exit path', async () => {
+	let shutdowns = 0;
+	const runtime = createAssistanceHelperRuntimeAdapter({
+		host: {
+			start() { throw new Error('No assistance job is expected.'); },
+			dispose() {},
+			async shutdown() { shutdowns += 1; },
+		},
+	});
+	await runtime.shutdown();
+	assert.equal(shutdowns, 1);
+});
+
 test('main grants exact digest-bound audio and model artifacts to the speech helper', async (t) => {
 	const root = await mkdtemp(join(tmpdir(), 'scape-speech-grants-'));
 	t.after(() => rm(root, { recursive: true, force: true }));

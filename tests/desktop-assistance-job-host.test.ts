@@ -32,10 +32,16 @@ const STATUS = Object.freeze({ available: false, reason: 'not installed', module
 class FakeChannel implements AssistanceHelperChannel {
 	readonly sent: unknown[] = [];
 	killed = false;
+	exitOnShutdown = false;
 	#messageListener: ((message: unknown) => void) | null = null;
 	#exitListener: ((code: number | null) => void) | null = null;
 
-	postMessage(message: unknown): void { this.sent.push(message); }
+	postMessage(message: unknown): void {
+		this.sent.push(message);
+		if (this.exitOnShutdown && (message as { type?: string })?.type === 'shutdown') {
+			queueMicrotask(() => this.exit(0));
+		}
+	}
 	onMessage(listener: (message: unknown) => void): void {
 		this.#messageListener = listener;
 		queueMicrotask(() => this.emit({ contractVersion: 1, type: 'hello', kinds: ['assistance-speech'] }));
@@ -83,6 +89,28 @@ test('assistance uses the shared control-v1 envelope and its speech subcontract'
 	assert.deepEqual(await run.completed, STATUS);
 	assert.deepEqual(progress, [{ completed: 0.5, total: 1 }]);
 	assert.equal(host.isBusy, false);
+});
+
+test('assistance shutdown asks an idle helper to exit and awaits it without killing', async () => {
+	const { channel, host } = harness({ cancellationBudgetMs: 50 });
+	const run = host.start(REQUEST);
+	await ready(channel);
+	channel.emit({ contractVersion: 1, type: 'result', jobId: JOB_ID, result: STATUS });
+	await run.completed;
+	channel.exitOnShutdown = true;
+	await host.shutdown();
+	assert.deepEqual(channel.sent.at(-1), { contractVersion: 1, type: 'shutdown' });
+	assert.equal(channel.killed, false);
+});
+
+test('assistance shutdown kills and rejects when the helper misses its exit deadline', async () => {
+	const { channel, host } = harness({ cancellationBudgetMs: 5 });
+	const run = host.start(REQUEST);
+	await ready(channel);
+	channel.emit({ contractVersion: 1, type: 'result', jobId: JOB_ID, result: STATUS });
+	await run.completed;
+	await assert.rejects(host.shutdown(), /graceful shutdown|deadline/iu);
+	assert.equal(channel.killed, true);
 });
 
 test('concurrent assistance jobs queue without losing either admitted identity', async () => {
