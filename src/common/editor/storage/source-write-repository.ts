@@ -2,7 +2,7 @@
 
 import {
 	PCM_CONTAINER_STORAGE_TYPE, PCM_CONTAINER_EXTENSION,
-	PCM_ENCODING_WAVPACK_F32_V1, WAVPACK_PCM_MAXIMUM_FRAMES,
+	PCM_ENCODING_WAVPACK_F32_V1,
 	compressionStatistics,
 	crc32,
 	normalizePcmSampleRate,
@@ -12,6 +12,7 @@ import { normalizeChannels, type StorageRecord } from './media-records.ts';
 import type { OpfsRepository } from './opfs-repository.ts';
 import type { PcmRepository } from './pcm-repository.ts';
 import type { SourceChunkRecord, SourceRecordRepository } from './source-record-repository.ts';
+import { normalizePcmChunkFrames } from './pcm-chunk-geometry.ts';
 
 const PENDING_SOURCE_RETENTION_MS = 24 * 60 * 60 * 1000;
 
@@ -586,12 +587,4 @@ function positiveInteger(value: unknown, fallback: number): number {
 function nonNegativeInteger(value: unknown, fallback: number): number {
 	const number = Number(value);
 	return Number.isFinite(number) && number >= 0 ? Math.floor(number) : fallback;
-}
-
-function normalizePcmChunkFrames(value: unknown): number {
-	const frames = Number(value);
-	if (!Number.isSafeInteger(frames) || frames < 1 || frames > WAVPACK_PCM_MAXIMUM_FRAMES) {
-		throw new RangeError(`PCM chunk size must be an integer between 1 and ${WAVPACK_PCM_MAXIMUM_FRAMES} frames.`);
-	}
-	return frames;
 }

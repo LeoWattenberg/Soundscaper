@@ -1,6 +1,5 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { WAVPACK_PCM_MAXIMUM_FRAMES } from '../wavpack/index.js';
 import { isOpfsPcmStorage, type StorageRecord } from './media-records.ts';
 import type { KeyValueRepository } from './key-value-repository.ts';
 import type { MediaRepository } from './media-repository.ts';
@@ -19,6 +18,7 @@ import {
 	type SourceWriteMaintenance,
 } from './source-write-lifecycle.ts';
 import type { TransientAnalysisCacheRepository } from './transient-analysis-cache-repository.ts';
+import { normalizePcmChunkFrames } from './pcm-chunk-geometry.ts';
 
 const WAVEFORM_PEAK_CACHE_PREFIXES = Object.freeze(['audio-editor-peaks-v1:', 'audio-editor-peaks-v2:']);
 
@@ -32,14 +32,6 @@ export interface SourceRepositoryOptions {
 	readonly transientAnalysisCache?: Pick<TransientAnalysisCacheRepository, 'purge'>;
 	readonly opfs: OpfsRepository;
 	readonly pcm: PcmRepository;
-}
-
-function normalizePcmChunkFrames(value: unknown): number {
-	const frames = Number(value);
-	if (!Number.isSafeInteger(frames) || frames < 1 || frames > WAVPACK_PCM_MAXIMUM_FRAMES) {
-		throw new RangeError(`PCM chunk size must be an integer between 1 and ${WAVPACK_PCM_MAXIMUM_FRAMES} frames.`);
-	}
-	return frames;
 }
 
 /** Public source domain assembled from bounded write and read ports. */
