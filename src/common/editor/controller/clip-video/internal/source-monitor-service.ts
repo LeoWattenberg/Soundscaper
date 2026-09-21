@@ -13,6 +13,7 @@ import {
 	type SourceMonitorMarks,
 	type SourceMonitorPoints,
 } from '../../../source-monitor-model.ts';
+import { normalizeSourceFrameRate } from '../../../sequence-timecode.ts';
 import type { RationalRate } from '../../../timeline-time.ts';
 import type { EditorControllerLifetime } from '../../shared/lifecycle.ts';
 
@@ -119,7 +120,7 @@ export function createSourceMonitorService(
 	function currentView(): SourceMonitorView {
 		const opened = open();
 		if (!opened) return EMPTY_VIEW;
-		const rate = rationalRate(opened.source.frameRate);
+		const rate = normalizeSourceFrameRate(opened.source.frameRate);
 		const position = clampSourceFrame(positionFrame, opened.sourceFrameCount);
 		// The view reports only marks the media can still hold, on the same rule
 		// the edit reads them by.
@@ -268,14 +269,4 @@ function arrayOf(value: unknown): DataRecord[] {
 
 function isRecord(value: unknown): value is DataRecord {
 	return Boolean(value) && typeof value === 'object' && !Array.isArray(value);
-}
-
-function rationalRate(value: unknown): RationalRate {
-	if (!isRecord(value)) throw new TypeError('A source frame rate must be rational.');
-	const num = Number(value.num);
-	const den = Number(value.den);
-	if (!Number.isSafeInteger(num) || !Number.isSafeInteger(den) || num <= 0 || den <= 0) {
-		throw new RangeError('A source frame rate must be a positive rational.');
-	}
-	return Object.freeze({ num, den });
 }

@@ -14,6 +14,7 @@ import { normalizeVideoSourceCharacteristicsForConsumer } from './video-source-c
 import { sequenceFrameAtSample } from './sequence-frame-navigation.ts';
 import {
 	formatSequenceTimecode,
+	normalizeSourceFrameRate,
 	sequenceTimecodeFromFrameCount,
 	sequenceTimecodeToFrameCount,
 	type SequenceRationalRate,
@@ -72,7 +73,7 @@ type DataRecord = Readonly<Record<string, unknown>>;
 export function resolveVideoSourcePropertiesView(sourceValue: unknown): SourcePropertiesView {
 	const source = record(sourceValue, 'source');
 	if (source.kind !== 'video') throw new TypeError('Source properties describe a video source.');
-	const frameRate = rationalRate(source.frameRate);
+	const frameRate = normalizeSourceFrameRate(source.frameRate);
 	const characteristics = normalizeVideoSourceCharacteristicsForConsumer(
 		source.characteristics ?? null,
 		{ rate: frameRate },
@@ -172,7 +173,7 @@ export function resolveSourceTimecodeAtSample(
 	if (!isRecord(sequence)) return null;
 	const frame = sequenceFrameAtSample(
 		Math.max(0, Math.trunc(sample)),
-		rationalRate(sequence.rate),
+		normalizeSourceFrameRate(sequence.rate),
 		sampleRate,
 	);
 	const clips = Array.isArray(project.clips) ? project.clips : [];
@@ -189,7 +190,7 @@ export function resolveSourceTimecodeAtSample(
 		const source = sources.find((candidate) => isRecord(candidate)
 			&& candidate.id === value.sourceId && candidate.kind === 'video');
 		if (!isRecord(source)) continue;
-		const rate = rationalRate(source.frameRate);
+		const rate = normalizeSourceFrameRate(source.frameRate);
 		const characteristics = normalizeVideoSourceCharacteristicsForConsumer(
 			source.characteristics ?? null,
 			{ rate },
@@ -280,16 +281,6 @@ function sourceNotes(
 
 function optionalText(value: unknown): string | null {
 	return typeof value === 'string' && value.length && value !== 'unknown' ? value : null;
-}
-
-function rationalRate(value: unknown): SequenceRationalRate {
-	if (!isRecord(value)) throw new TypeError('A source frame rate must be rational.');
-	const num = Number(value.num);
-	const den = Number(value.den);
-	if (!Number.isSafeInteger(num) || !Number.isSafeInteger(den) || num <= 0 || den <= 0) {
-		throw new RangeError('A source frame rate must be a positive rational.');
-	}
-	return Object.freeze({ num, den });
 }
 
 function record(value: unknown, name: string): DataRecord {

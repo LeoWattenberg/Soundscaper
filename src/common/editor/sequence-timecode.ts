@@ -29,6 +29,20 @@ const DROP_FRAME_RATE_SET: ReadonlySet<string> = new Set(SEQUENCE_DROP_FRAME_RAT
 const MINUTES_PER_SKIPPED_DROP = 10;
 const TIMECODE_PATTERN = /^(-)?(\d{1,6})[:;](\d{1,2})[:;](\d{1,2})[:;](\d{1,3})$/u;
 
+/** Normalize the source-rate shape shared by source inspection and monitoring. */
+export function normalizeSourceFrameRate(value: unknown): SequenceRationalRate {
+	if (!value || typeof value !== 'object' || Array.isArray(value)) {
+		throw new TypeError('A source frame rate must be rational.');
+	}
+	const candidate = value as Record<string, unknown>;
+	const num = Number(candidate.num);
+	const den = Number(candidate.den);
+	if (!Number.isSafeInteger(num) || !Number.isSafeInteger(den) || num <= 0 || den <= 0) {
+		throw new RangeError('A source frame rate must be a positive rational.');
+	}
+	return Object.freeze({ num, den });
+}
+
 /**
  * Labels counted per timecode second. Exact integer division keeps this equal
  * to the bound the persisted `startTimecode` validator applies, so a legal
