@@ -266,6 +266,7 @@ export const DESKTOP_EXPECTED_RUNTIME_FILES = Object.freeze([
 	'src/common/editor/macro-command-steps.js',
 	'src/common/editor/mastering-sequence.js',
 	'src/common/editor/mixer-graph-v21.js',
+	'src/common/editor/mixer-signal-edge-v21.js',
 	'src/common/editor/mixer-signal-topology-v21.js',
 	'src/common/editor/parameter-address.js',
 	'src/common/editor/pcm-dither.js',
