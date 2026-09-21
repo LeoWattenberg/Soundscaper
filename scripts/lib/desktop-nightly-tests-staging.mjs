@@ -113,6 +113,7 @@ export const NIGHTLY_TEST_PAYLOAD_INPUTS = Object.freeze([
 	{ source: 'scripts/lib/browser-dynamic-coverage-sources.mjs', destination: 'scripts/lib/browser-dynamic-coverage-sources.mjs', kind: 'file', label: 'browser dynamic-source admission' },
 	{ source: 'scripts/lib/browser-ffmpeg-coverage.mjs', destination: 'scripts/lib/browser-ffmpeg-coverage.mjs', kind: 'file', label: 'browser FFmpeg coverage admission' },
 	{ source: 'scripts/lib/browser-service-worker-coverage.mjs', destination: 'scripts/lib/browser-service-worker-coverage.mjs', kind: 'file', label: 'browser service-worker coverage recorder' },
+	{ source: 'scripts/lib/browser-target-coverage-state.mjs', destination: 'scripts/lib/browser-target-coverage-state.mjs', kind: 'file', label: 'browser target coverage state' },
 	{ source: 'scripts/lib/browser-target-coverage.mjs', destination: 'scripts/lib/browser-target-coverage.mjs', kind: 'file', label: 'browser worker coverage recorder' },
 	{ source: 'scripts/lib/e2e-coverage-integrity.mjs', destination: 'scripts/lib/e2e-coverage-integrity.mjs', kind: 'file', label: 'E2E coverage source integrity' },
 	{ source: 'scripts/lib/e2e-mediabunny-dynamic-coverage.mjs', destination: 'scripts/lib/e2e-mediabunny-dynamic-coverage.mjs', kind: 'file', label: 'Mediabunny dynamic-worker coverage admission' },

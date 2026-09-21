@@ -50,6 +50,7 @@ test('nightly payload production modules have a closed local-import graph', () =
 
 	assert.ok(result.visited.has('scripts/lib/browser-coverage-profile.mjs'));
 	assert.ok(result.visited.has('scripts/lib/browser-dynamic-coverage-sources.mjs'));
+	assert.ok(result.visited.has('scripts/lib/browser-target-coverage-state.mjs'));
 	assert.ok(result.visited.has('src/common/editor/macro-script/dynamic-source-contract.js'));
 	assert.ok(result.visited.has('src/common/editor/native-plugin-realtime-worklet.js'));
 	assert.ok(result.queryImports.some(({ specifier }) => specifier.endsWith('?worker&url')));
