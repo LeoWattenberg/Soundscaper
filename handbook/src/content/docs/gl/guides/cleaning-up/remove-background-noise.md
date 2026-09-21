@@ -8,33 +8,33 @@ head:
   - tag: script
     attrs:
       type: "application/ld+json"
-    content: "{\"@context\":\"https://schema.org\",\"@type\":\"HowTo\",\"name\":\"Remove background noise\",\"description\":\"Teach Noise Reduction what the hum sounds like, then take it out of the whole recording.\",\"tool\":[{\"@type\":\"HowToTool\",\"name\":\"Soundscaper\"}],\"step\":[{\"@type\":\"HowToStep\",\"position\":1,\"name\":\"Open Soundscaper. A new, empty project is ready as soon as the editor loads.\",\"text\":\"Open Soundscaper. A new, empty project is ready as soon as the editor loads.\"},{\"@type\":\"HowToStep\",\"position\":2,\"name\":\"Choose File → Import audio and pick the recording you want to clean up. The file lands as a clip on its own track.\",\"text\":\"Choose File → Import audio and pick the recording you want to clean up. The file lands as a clip on its own track.\"},{\"@type\":\"HowToStep\",\"position\":3,\"name\":\"Drag in the ruler above the clip to select a stretch that contains only the noise — usually the lead-in before anyone speaks.\",\"text\":\"Drag in the ruler above the clip to select a stretch that contains only the noise — usually the lead-in before anyone speaks. The profile should contain nothing but the noise you want gone.\"},{\"@type\":\"HowToStep\",\"position\":4,\"name\":\"Choose Effect → Noise removal and repair → Noise Reduction and press Get noise profile. The status line reports that the profile is ready. Press Close to leave the dialog for now.\",\"text\":\"Choose Effect → Noise removal and repair → Noise Reduction and press Get noise profile. The status line reports that the profile is ready. Press Close to leave the dialog for now.\"},{\"@type\":\"HowToStep\",\"position\":5,\"name\":\"Choose Select → Select all.\",\"text\":\"Choose Select → Select all. The profile is kept; now the effect needs to know what to clean.\"},{\"@type\":\"HowToStep\",\"position\":6,\"name\":\"Choose Effect → Noise removal and repair → Noise Reduction. In the Noise Reduction dialog, set Noise reduction to 12, then press Apply to selection.\",\"text\":\"Choose Effect → Noise removal and repair → Noise Reduction. In the Noise Reduction dialog, set Noise reduction to 12, then press Apply to selection. Around 12 dB is a good first try. Higher values remove more noise but start to make voices sound hollow.\"},{\"@type\":\"HowToStep\",\"position\":7,\"name\":\"Press Play to listen, then Stop.\",\"text\":\"Press Play to listen, then Stop. The lead-in is much quieter and the voice is untouched.\"}]}"
+    content: "{\"@context\":\"https://schema.org\",\"@type\":\"HowTo\",\"name\":\"Remove background noise\",\"description\":\"Teach Noise Reduction what the hum sounds like, then take it out of the whole recording.\",\"tool\":[{\"@type\":\"HowToTool\",\"name\":\"Soundscaper\"}],\"step\":[{\"@type\":\"HowToStep\",\"position\":1,\"name\":\"Open Soundscaper. A new, empty project is ready as soon as the editor loads.\",\"text\":\"Open Soundscaper. A new, empty project is ready as soon as the editor loads.\"},{\"@type\":\"HowToStep\",\"position\":2,\"name\":\"Choose File → Import and pick the recording you want to clean up. It lands as a clip on its own track.\",\"text\":\"Choose File → Import and pick the recording you want to clean up. It lands as a clip on its own track.\"},{\"@type\":\"HowToStep\",\"position\":3,\"name\":\"Drag in the ruler above the clip to select a stretch that contains only the noise — usually the lead-in before anyone speaks.\",\"text\":\"Drag in the ruler above the clip to select a stretch that contains only the noise — usually the lead-in before anyone speaks. The profile should contain nothing but the noise you want gone.\"},{\"@type\":\"HowToStep\",\"position\":4,\"name\":\"Choose Effect → Noise removal and repair → Noise Reduction and press Get noise profile. The status line reports that the profile is ready. Press Close to leave the dialog for now.\",\"text\":\"Choose Effect → Noise removal and repair → Noise Reduction and press Get noise profile. The status line reports that the profile is ready. Press Close to leave the dialog for now.\"},{\"@type\":\"HowToStep\",\"position\":5,\"name\":\"Choose Select → Select all.\",\"text\":\"Choose Select → Select all. The profile is kept; now the effect needs to know what to clean.\"},{\"@type\":\"HowToStep\",\"position\":6,\"name\":\"Choose Effect → Noise removal and repair → Noise Reduction. In the Noise Reduction dialog, set Noise reduction to 12, then press Apply to selection.\",\"text\":\"Choose Effect → Noise removal and repair → Noise Reduction. In the Noise Reduction dialog, set Noise reduction to 12, then press Apply to selection. Around 12 dB is a good first try. Higher values remove more noise but start to make voices sound hollow.\"},{\"@type\":\"HowToStep\",\"position\":7,\"name\":\"Press Play to listen, then Stop.\",\"text\":\"Press Play to listen, then Stop. The lead-in is much quieter and the voice is untouched.\"}]}"
 ---
-<!-- docs-ai-provenance: {"factPacketSha256":"c579909f7c6a84651400e72c3ef0d3d7896f553e9f091a0d5dfbda1267ba2bb3","model":"qwen3.8:latest","modelDigest":"22130167c4c20e20c7b71454612966ca8e8171e9b3cc8ab6ce8aa6cbfec79643","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"c579909f7c6a84651400e72c3ef0d3d7896f553e9f091a0d5dfbda1267ba2bb3","targetLocale":"gl"} -->
+<!-- docs-ai-provenance: {"factPacketSha256":"dc5ee5727bc89fa1bf625018b6e955abca6ffe475407123662cfca57d83201a7","model":"qwen3.8:latest","modelDigest":"22130167c4c20e20c7b71454612966ca8e8171e9b3cc8ab6ce8aa6cbfec79643","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"dc5ee5727bc89fa1bf625018b6e955abca6ffe475407123662cfca57d83201a7","targetLocale":"gl"} -->
 
 <!-- Generated by `node scripts/docs-reference.mjs`. Do not edit. -->
 
-O ruído de fondo constante — un ventilador, un frigorífico, o zumbido da rede eléctrica — pódese eliminar en dúas pasadas. Primeiro, móstralle a Redución de ruído un tramo de ruído en solitario para que poida crear un perfil; despois, aplica o efecto a todo. O perfil é o que fai que isto funcione, así que escolla unha parte da gravación onde ninguén estea a falar.
+O ruído de fondo constante — un ventilador, un frigorífico, o zumbido da rede eléctrica — pódese eliminar en dúas pasadas. Primeiro, móstralle a Redución de ruído un tramo de ruído en solitario para que poida crear un perfil; despois, aplica o efecto a todo. O perfil é o que fai que isto funcione, así que elixe unha parte da gravación onde ninguén estea a falar.
 
-:::note[Vindos de Audacity?]
+:::note[Vexes de Audacity?]
 Isto é o **Efecto → Eliminación e reparación de ruído → Redución de ruído, en dúas pasadas** de Audacity. Os nomes de abaixo son os propios de Soundscaper, que ás veces difiren.
 :::
 
 ## Pasos
 
-1. Abra Soundscaper. Un proxecto novo e baleiro está listo en canto a editor carga.
-2. Escolle **Ficheiro → Importar audio** e seleccione a gravación que quere limpar. O ficheiro aparece como un clip na súa propia pista.
-3. Arrastre a regra sobre o clip para seleccionar un tramo que conteña só o ruído — xeralmente a introdución antes de que alguén fale. O perfil debe conter nada máis que o ruído que quere eliminar.
-4. Escolle **Efecto → Eliminación e reparación de ruído → Redución de ruído** e preme **Obter perfil de ruído**. A liña de estado informa de que o perfil está listo. Prema **Pechar** para saír do diálogo por agora.
-5. Escolle **Seleccionar → Seleccionar todo**. O mantense; agora o efecto necesita saber que limpar.
-6. Escolle **Efecto → Eliminación e reparación de ruído → Redución de ruído**. No diálogo de **Redución de ruído**, estableza **Redución de ruído** en `12`, e despois prema **Aplicar á selección**. Unha volta de 12 dB é un bo primeiro intento. Valores máis altos eliminan máis ruído pero comezan a facer que as voces sonen ocos.
-7. Prema **Reproducir** para escoitar, e despois **Deter**.
-   *Debería ver:* A introdución é moito máis silenciosa e a voz non está tocada.
+1. Abre Soundscaper. Un proxecto novo e baleiro está listo en canto carga o editor.
+2. Elixes **Ficheiro → Importar** e escolles a gravación que queres limpar. Aparece como un clip na súa propia pista.
+3. Arrastra na regra sobre o clip para seleccionar un tramo que conteña só o ruído — xeralmente a introdución antes de que alguén fale. O perfil debe conter nada máis que o ruído que queres eliminar.
+4. Elixes **Efecto → Eliminación e reparación de ruído → Redución de ruído** e premas **Obter perfil de ruído**. A liña de estado informa de que o perfil está listo. Premes **Pechar** para saír do diálogo por agora.
+5. Elixes **Seleccionar → Seleccionar todo**. O perfil mantense; agora o efecto necesita saber o que debe limpar.
+6. Elixes **Efecto → Eliminación e reparación de ruído → Redución de ruído**. No diálogo de **Redución de ruído**, establece **Redución de ruído** en `12`, e despois preme **Aplicar á selección**. Unha volta de 12 dB é un bo primeiro intento. Valores máis altos eliminan máis ruído pero comezan a facer que as voces sonen ocos.
+7. Premes **Reproducir** para escoitar, e despois **Deter**.
+   *Deberías ver:* A introdución é moito máis silenciosa e a voz non está tocada.
 
 ## Consellos
 
-- Se o resultado soa acuoso ou metálico, desfaga e probe un valor máis baixo de **Redución de ruído** ou unha **Sensibilidade** máis baixa.
-- A Redución de ruído só funciona con ruído que se mantén igual durante toda a gravación. Para unha tose ou clic único, córtao ou use a Eliminación de clics en vez diso.
+- Se o resultado soa acuoso ou metálico, desfai e proba un valor máis baixo de **Redución de ruído** ou unha **Sensibilidade** máis baixa.
+- A Redución de ruído só funciona con ruído que se mantén igual durante toda a gravación. Para unha tose ou clic único, córtao ou usa a Eliminación de clics en vez diso.
 
 ## Guías relacionadas
 
@@ -44,7 +44,7 @@ Máis guías de [limpar unha gravación](/guides/cleaning-up/):
 - [Acurtar pausas longas](/guides/cleaning-up/remove-silent-pauses/) — Apretar unha gravación recortando cada silencio longo ata o mesmo espazo curto.
 - [Silenciar parte dunha gravación](/guides/cleaning-up/silence-part-of-a-recording/) — Substituír un tramo de audio por silencio mentres se mantén todo no seu lugar.
 - [Eliminar zumbido grave](/guides/cleaning-up/remove-low-rumble/) — Cortar os golpes de subgraves do tráfico, o vento e o manexo cun filtro de paso alto.
-- [Corrixir un desprazamento CC](/guides/cleaning-up/fix-dc-offset/) — Recentrar unha forma de onda que se atopa por riba ou por debaixo da liña cero.
+- [Corrixir un desprazamento CC](/guides/cleaning-up/fix-dc-offset/) — Recentrar unha forma de onda que se atopa por riba ou por debaixo da liña de cero.
 - [Eliminar o zumbido da rede cun filtro de muesca](/guides/cleaning-up/remove-mains-hum-with-a-notch-filter/) — Cortar unha frecuencia única — zumbido de 50 ou 60 Hz, un silbido, un timbre — sen tocar o resto.
 - [Silenciar o ruído entre frases cunha porta](/guides/cleaning-up/gate-out-noise-between-phrases/) — Deixar pasar a voz e pechar a porta ao ruído da sala sempre que ninguén estea a falar.
 
@@ -55,4 +55,4 @@ Máis guías de [limpar unha gravación](/guides/cleaning-up/):
 
 ## Sobre esta guía
 
-O procedemento desta páxina — cada entrada de menú, diálogo, campo e botón, e o resultado que produce — reprodúcese contra cada compilación de Soundscaper pola suite de navegador (`tests/browser/soundscaper-guides.spec.js`). Se calquera delas deixa de coincidir co editor, a compilación falla ata que a guía se corrixa. Os valores suxeridos son puntos de partida que o editor está probado a aceptar; se lles convén á súa gravación é para que os seus oídos decidan.
+O procedemento desta páxina — cada entrada de menú, diálogo, campo e botón, e o resultado que produce — reprodúcese contra cada compilación de Soundscaper pola suite de navegadores (`tests/browser/soundscaper-guides.spec.js`). Se calquera parte deixa de coincidir co editor, a compilación falla ata que se corrixa a guía. Os valores suxeridos son puntos de partida que o editor está probado a aceptar; se lles convén á túa gravación é para que os teus oídos decidan.
