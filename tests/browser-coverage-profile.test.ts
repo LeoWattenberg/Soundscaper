@@ -22,6 +22,7 @@ import {
 	sourceMapPathFor,
 	withoutRepeatedSourceMaps,
 } from '../scripts/lib/browser-coverage-profile.mjs';
+import { isUnmappedBrowserSourceMap } from '../scripts/lib/browser-dynamic-coverage-sources.mjs';
 
 const ORIGIN = 'http://127.0.0.1:4322';
 const CHUNK = 'console.log(1);\nexport const measured = 2;\n';
@@ -95,6 +96,12 @@ test('a chunk reads its map from the sibling directory the build wrote it to', (
 		sourceMapPathFor({ path: '/build/soundscaper/assets/app-abc123.js', directory: '/build/soundscaper' }),
 		'/build/soundscaper-source-maps/app-abc123.js.map',
 	);
+});
+
+test('empty and non-executable-only maps leave emitted JavaScript as the coverage source', () => {
+	assert.equal(isUnmappedBrowserSourceMap({ sources: [], mappings: '' }), true);
+	assert.equal(isUnmappedBrowserSourceMap({ sources: ['src/messages.json'], mappings: 'AAAA' }), true);
+	assert.equal(isUnmappedBrowserSourceMap({ sources: ['src/editor.ts'], mappings: 'AAAA' }), false);
 });
 
 test('coverage entries become a raw V8 profile addressed by the chunk on disk', () => {

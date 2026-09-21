@@ -6,14 +6,15 @@ import { basename, isAbsolute, relative, resolve, sep } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
 import { sourceMapDirectoryFor } from './build-source-map-relocation.mjs';
+import { createPlaywrightBrowserServiceWorkerCoverageCollector } from './browser-service-worker-coverage.mjs';
 import {
-	createPlaywrightBrowserServiceWorkerCoverageCollector,
-	INSTALL_WORKLET_COVERAGE_CHECKPOINT,
-	WORKLET_COVERAGE_CHECKPOINT_URL,
-} from './browser-service-worker-coverage.mjs';
+	excludedBrowserCoverageInstrumentation,
+	isUnmappedBrowserSourceMap,
+	mergeCapturedBrowserSources,
+	needsCapturedBrowserSource,
+	retainCapturedBrowserSource,
+} from './browser-dynamic-coverage-sources.mjs';
 import {
-	INSTALL_NAVIGATION_COVERAGE_CHECKPOINT,
-	NAVIGATION_COVERAGE_CHECKPOINT_URL,
 	installNavigationCoverageCheckpoints,
 	installPageOperationCoverageCheckpoints,
 } from './navigation-coverage-checkpoint.mjs';
@@ -261,9 +262,9 @@ export function createBrowserCoverageCollector({
 		};
 		recorders.set(page, recorder);
 		session.on('Debugger.scriptParsed', ({ scriptId, url }) => {
-			if (!needsCapturedSource(url, directoriesByOrigin)) return;
+			if (!needsCapturedBrowserSource(url, directoriesByOrigin)) return;
 			const work = session.send('Debugger.getScriptSource', { scriptId })
-				.then(({ scriptSource }) => retainCapturedSource(recorder.sources, url, scriptSource));
+				.then(({ scriptSource }) => retainCapturedBrowserSource(recorder.sources, url, scriptSource));
 			pending.push(work);
 		});
 		// Binary block coverage straight from the profiler: `callCount: false`
@@ -299,7 +300,7 @@ export function createBrowserCoverageCollector({
 	}
 
 	async function resolveScript(url, source) {
-		if (excludedCoverageInstrumentation(url, source)) return null;
+		if (excludedBrowserCoverageInstrumentation(url, source)) return null;
 		const dynamic = macroDynamicCoverageScript({ repositoryRoot, source, url });
 		if (dynamic !== null) return { ...dynamic, retainSource: true };
 		if (scripts.has(url)) return scripts.get(url) ?? null;
@@ -327,7 +328,7 @@ export function createBrowserCoverageCollector({
 			if (workerCollectorStart !== null) throw new Error('Browser coverage was already attached.');
 			workerCollectorStart = createPlaywrightBrowserServiceWorkerCoverageCollector({
 				browser: context.browser?.(),
-				captureSource: (url) => needsCapturedSource(url, directoriesByOrigin),
+				captureSource: (url) => needsCapturedBrowserSource(url, directoriesByOrigin),
 				keepUrl: (url) => typeof url === 'string' && url !== '',
 				targetTypes: BROWSER_WORKER_TARGET_TYPES,
 			}).then(async (collector) => {
@@ -358,7 +359,7 @@ export function createBrowserCoverageCollector({
 				await recorder.navigationCheckpoints?.settle();
 				recorder.pageOperationCheckpoints?.dispose();
 				entries.push(...recorder.taken);
-				mergeCapturedSources(capturedSources, recorder.sources);
+				mergeCapturedBrowserSources(capturedSources, recorder.sources);
 				const pageClosed = page.isClosed();
 				if (pageClosed) continue;
 				try {
@@ -372,7 +373,7 @@ export function createBrowserCoverageCollector({
 			if (workerCollector !== null) {
 				const capture = await workerCollector.collect();
 				entries.push(...capture.entries);
-				mergeCapturedSources(capturedSources, capture.sources);
+				mergeCapturedBrowserSources(capturedSources, capture.sources);
 			}
 			started.clear();
 
@@ -393,7 +394,7 @@ export function createBrowserCoverageCollector({
 				}
 			}
 			const profile = browserCoverageProfile(entries, (url, source) => {
-				if (excludedCoverageInstrumentation(url, source)) return null;
+				if (excludedBrowserCoverageInstrumentation(url, source)) return null;
 				const dynamic = macroDynamicCoverageScript({ repositoryRoot, source, url });
 				return dynamic === null ? scripts.get(url) ?? null : { ...dynamic, retainSource: true };
 			});
@@ -458,7 +459,7 @@ async function readSourceMap(chunk, { repositoryRoot, productId }) {
 		};
 	}
 	const parsed = JSON.parse(text);
-	if (unmappedSourceMap(parsed)) {
+	if (isUnmappedBrowserSourceMap(parsed)) {
 		return productId === undefined ? null : {
 			path: chunk.path,
 			coverageUrl: portableCoverageUrl(chunk, productId),
@@ -470,11 +471,6 @@ async function readSourceMap(chunk, { repositoryRoot, productId }) {
 		...(productId === undefined ? {} : { coverageUrl: portableCoverageUrl(chunk, productId) }),
 		sourceMap,
 	};
-}
-
-function unmappedSourceMap(map) {
-	return Array.isArray(map?.sources) && typeof map.mappings === 'string'
-		&& (map.sources.length === 0 || !/[A-Za-z\d+/]/u.test(map.mappings));
 }
 
 async function portableSourceMap(map, repositoryRoot) {
@@ -515,41 +511,6 @@ function portableCoverageUrl(chunk, productId) {
 
 function originOf(url) {
 	try { return new URL(url).origin; } catch { return null; }
-}
-
-function needsCapturedSource(url, directoriesByOrigin) {
-	if (typeof url !== 'string' || url === '') return false;
-	let parsed;
-	try { parsed = new URL(url); }
-	catch { return true; }
-	return !(['http:', 'https:'].includes(parsed.protocol) && directoriesByOrigin.has(parsed.origin));
-}
-
-function excludedCoverageInstrumentation(url, source) {
-	const expected = new Map([
-		[NAVIGATION_COVERAGE_CHECKPOINT_URL, INSTALL_NAVIGATION_COVERAGE_CHECKPOINT],
-		[WORKLET_COVERAGE_CHECKPOINT_URL, INSTALL_WORKLET_COVERAGE_CHECKPOINT],
-	]).get(url);
-	if (expected === undefined) return false;
-	if (source !== expected) {
-		throw new Error(`Browser coverage instrumentation source bytes are stale for ${url}.`);
-	}
-	return true;
-}
-
-function retainCapturedSource(sources, url, source) {
-	if (typeof source !== 'string') {
-		throw new Error(`Browser coverage captured no source bytes for ${url}.`);
-	}
-	const previous = sources.get(url);
-	if (previous !== undefined && previous !== source) {
-		throw new Error(`Browser coverage captured conflicting source bytes for ${url}.`);
-	}
-	sources.set(url, source);
-}
-
-function mergeCapturedSources(target, incoming) {
-	for (const [url, source] of incoming) retainCapturedSource(target, url, source);
 }
 
 function profileFileStem(label) {
