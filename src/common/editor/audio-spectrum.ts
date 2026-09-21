@@ -1,5 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { fftRadixTwoFloat64V1 } from './assistance/internal/radix-two-fft-v1.ts';
+
 export const ANALYSIS_FLOOR_DB = -120;
 
 export function amplitudeToDb(amplitude: number): number {
@@ -27,48 +29,12 @@ export function calculateAudioSpectrum(
 		const window = 0.5 - 0.5 * Math.cos(2 * Math.PI * index / (requestedSize - 1));
 		real[index] = sample * window;
 	}
-	fftInPlace(real, imaginary);
+	fftRadixTwoFloat64V1(real, imaginary, false);
 	const bins = Array.from({ length: requestedSize / 2 + 1 }, (_, index) => {
 		const amplitude = Math.hypot(real[index] ?? 0, imaginary[index] ?? 0) * 2 / requestedSize;
 		return Object.freeze({ frequency: index * sampleRate / requestedSize, amplitude, db: amplitudeToDb(amplitude) });
 	});
 	return Object.freeze({ sampleRate, size: requestedSize, bins: Object.freeze(bins) });
-}
-
-function fftInPlace(real: Float64Array, imaginary: Float64Array): void {
-	const length = real.length;
-	for (let index = 1, reversed = 0; index < length; index += 1) {
-		let bit = length >> 1;
-		while (reversed & bit) { reversed ^= bit; bit >>= 1; }
-		reversed ^= bit;
-		if (index >= reversed) continue;
-		[real[index], real[reversed]] = [real[reversed] ?? 0, real[index] ?? 0];
-		[imaginary[index], imaginary[reversed]] = [imaginary[reversed] ?? 0, imaginary[index] ?? 0];
-	}
-	for (let size = 2; size <= length; size <<= 1) {
-		const angle = -2 * Math.PI / size;
-		const stepReal = Math.cos(angle);
-		const stepImaginary = Math.sin(angle);
-		for (let start = 0; start < length; start += size) {
-			let weightReal = 1;
-			let weightImaginary = 0;
-			for (let index = 0; index < size / 2; index += 1) {
-				const even = start + index;
-				const odd = even + size / 2;
-				const evenReal = real[even] ?? 0;
-				const evenImaginary = imaginary[even] ?? 0;
-				const oddReal = (real[odd] ?? 0) * weightReal - (imaginary[odd] ?? 0) * weightImaginary;
-				const oddImaginary = (real[odd] ?? 0) * weightImaginary + (imaginary[odd] ?? 0) * weightReal;
-				real[odd] = evenReal - oddReal;
-				imaginary[odd] = evenImaginary - oddImaginary;
-				real[even] = evenReal + oddReal;
-				imaginary[even] = evenImaginary + oddImaginary;
-				const nextWeightReal = weightReal * stepReal - weightImaginary * stepImaginary;
-				weightImaginary = weightReal * stepImaginary + weightImaginary * stepReal;
-				weightReal = nextWeightReal;
-			}
-		}
-	}
 }
 
 export function validateAnalysisChannels(channels: unknown): asserts channels is readonly Float32Array[] {
