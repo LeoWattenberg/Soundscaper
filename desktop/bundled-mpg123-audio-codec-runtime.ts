@@ -6,6 +6,8 @@ import { createHash } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import { setImmediate as waitImmediate } from 'node:timers/promises';
 
+import { assertFiniteFloat32Pcm } from './finite-float32-pcm.ts';
+
 import {
 	BundledMpegAudioStreamError,
 	BundledMpegAudioStreamUnsupportedError,
@@ -160,7 +162,7 @@ function createRuntime(
 				await yieldControl();
 				throwIfAborted(options.signal);
 				const output = codec.decode(request.input, { ...geometry, outputBytes });
-				validateFiniteFloat32(output);
+				assertFiniteFloat32Pcm(output, () => new Mpg123CodecResultError());
 				throwIfAborted(options.signal);
 				return Object.freeze({
 					status: 'executed', output,
@@ -265,7 +267,7 @@ function verifyCanary(codec: Mpg123Codec): void {
 		const geometry = parseBundledMpegAudioStream(input, candidate.format);
 		const outputBytes = geometry.frameCount * geometry.channelCount * 4;
 		const output = codec.decode(input, { ...geometry, outputBytes });
-		validateFiniteFloat32(output);
+		assertFiniteFloat32Pcm(output, () => new Mpg123CodecResultError());
 		if (output.byteLength !== outputBytes) throw new Mpg123RuntimeError('The mpg123 canary geometry changed.');
 	}
 }
@@ -327,13 +329,6 @@ function matchingOperation(operation: DesktopCodecOperation): boolean {
 
 function isMpegFormat(value: string): value is BundledMpegAudioFormat {
 	return value === 'mp3' || value === 'mp2';
-}
-
-function validateFiniteFloat32(input: Uint8Array): void {
-	const view = new DataView(input.buffer, input.byteOffset, input.byteLength);
-	for (let offset = 0; offset < input.byteLength; offset += 4) {
-		if (!Number.isFinite(view.getFloat32(offset, true))) throw new Mpg123CodecResultError();
-	}
 }
 
 function rejected(reason: string): DesktopCodecPreflightResult {

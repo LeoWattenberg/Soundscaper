@@ -6,6 +6,8 @@ import { createHash } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import { setImmediate as waitImmediate } from 'node:timers/promises';
 
+import { assertFiniteFloat32Pcm } from './finite-float32-pcm.ts';
+
 import {
 	BundledFlacStreamError,
 	parseBundledFlacStream,
@@ -215,7 +217,7 @@ function encode(
 ): Uint8Array {
 	const frameCount = request.input.byteLength / (request.channelCount * Float32Array.BYTES_PER_ELEMENT);
 	const settings = request.settings as Readonly<{ readonly compressionLevel: number }>;
-	validateFiniteFloat32(request.input);
+	assertFiniteFloat32Pcm(request.input, () => new FlacPcmInputError());
 	try {
 		return codec.encode(request.input, {
 			frameCount, channelCount: request.channelCount, sampleRate: request.sampleRate,
@@ -364,13 +366,6 @@ function allocate(exports: FlacExports, byteLength: number): number {
 		throw new FlacRuntimeError('The reviewed FLAC payload exceeded its memory bound.');
 	}
 	return pointer;
-}
-
-function validateFiniteFloat32(input: Uint8Array): void {
-	const view = new DataView(input.buffer, input.byteOffset, input.byteLength);
-	for (let offset = 0; offset < input.byteLength; offset += Float32Array.BYTES_PER_ELEMENT) {
-		if (!Number.isFinite(view.getFloat32(offset, true))) throw new FlacPcmInputError();
-	}
 }
 
 function verifyCanary(codec: FlacCodec): void {

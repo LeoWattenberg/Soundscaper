@@ -6,6 +6,8 @@ import { createHash } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import { setImmediate as waitImmediate } from 'node:timers/promises';
 
+import { assertFiniteFloat32Pcm } from './finite-float32-pcm.ts';
+
 import {
 	BundledVorbisStreamError,
 	BundledVorbisStreamUnsupportedError,
@@ -213,7 +215,7 @@ function encode(
 	codec: VorbisCodec,
 ): Uint8Array {
 	const frameCount = request.input.byteLength / (request.channelCount * Float32Array.BYTES_PER_ELEMENT);
-	validateFiniteFloat32(request.input);
+	assertFiniteFloat32Pcm(request.input, () => new VorbisPcmInputError());
 	try {
 		return codec.encode(request.input, {
 			frameCount, channelCount: request.channelCount, sampleRate: request.sampleRate,
@@ -246,7 +248,7 @@ function decode(
 		throw new VorbisOutputBoundError('The decoded Vorbis PCM exceeds the requested output bound.');
 	}
 	const output = codec.decode(request.input, { ...geometry, outputBytes });
-	validateFiniteFloat32(output);
+	assertFiniteFloat32Pcm(output, () => new VorbisPcmInputError());
 	return Object.freeze({
 		output,
 		decodedGeometry: Object.freeze({
@@ -459,13 +461,6 @@ function encodeProfileSupported(
 ): boolean {
 	return request.sampleRate >= MINIMUM_SAMPLE_RATE && request.sampleRate <= MAXIMUM_SAMPLE_RATE
 		&& request.channelCount >= 1 && request.channelCount <= MAXIMUM_CHANNELS;
-}
-
-function validateFiniteFloat32(input: Uint8Array): void {
-	const view = new DataView(input.buffer, input.byteOffset, input.byteLength);
-	for (let offset = 0; offset < input.byteLength; offset += Float32Array.BYTES_PER_ELEMENT) {
-		if (!Number.isFinite(view.getFloat32(offset, true))) throw new VorbisPcmInputError();
-	}
 }
 
 function supported(): DesktopCodecPreflightResult {

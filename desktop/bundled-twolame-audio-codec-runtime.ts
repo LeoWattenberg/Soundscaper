@@ -6,6 +6,8 @@ import { createHash } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import { setImmediate as waitImmediate } from 'node:timers/promises';
 
+import { assertFiniteFloat32Pcm } from './finite-float32-pcm.ts';
+
 import { parseBundledMpegAudioStream } from './bundled-mpeg-audio-stream.ts';
 import {
 	normalizeDesktopAudioCodecRequest,
@@ -182,7 +184,7 @@ function encode(
 	request: Extract<DesktopAudioCodecRequest, { readonly operation: 'audio-encode'; readonly format: 'mp2' }>,
 	codec: TwolameCodec,
 ): Uint8Array {
-	validateFiniteFloat32(request.input);
+	assertFiniteFloat32Pcm(request.input, () => new TwolamePcmInputError());
 	const frameCount = request.input.byteLength
 		/ (request.channelCount * Float32Array.BYTES_PER_ELEMENT);
 	let output: Uint8Array;
@@ -356,13 +358,6 @@ function admittedCombination(channelCount: number, bitrateKbps: number): boolean
 	return ADMITTED_BITRATES.has(bitrateKbps) && (channelCount === 1
 		? bitrateKbps <= 192
 		: channelCount === 2 && bitrateKbps >= 64 && bitrateKbps !== 80);
-}
-
-function validateFiniteFloat32(input: Uint8Array): void {
-	const view = new DataView(input.buffer, input.byteOffset, input.byteLength);
-	for (let offset = 0; offset < input.byteLength; offset += Float32Array.BYTES_PER_ELEMENT) {
-		if (!Number.isFinite(view.getFloat32(offset, true))) throw new TwolamePcmInputError();
-	}
 }
 
 class TwolameRuntimeError extends Error {}

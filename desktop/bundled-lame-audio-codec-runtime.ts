@@ -6,6 +6,8 @@ import { createHash } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import { setImmediate as waitImmediate } from 'node:timers/promises';
 
+import { assertFiniteFloat32Pcm } from './finite-float32-pcm.ts';
+
 import { parseBundledMpegAudioStream } from './bundled-mpeg-audio-stream.ts';
 import {
 	MP3_MAXIMUM_PRESET,
@@ -195,7 +197,7 @@ function encode(
 	request: Extract<DesktopAudioCodecRequest, { readonly operation: 'audio-encode'; readonly format: 'mp3' }>,
 	codec: LameCodec,
 ): Uint8Array {
-	validateFiniteFloat32(request.input);
+	assertFiniteFloat32Pcm(request.input, () => new LamePcmInputError());
 	const frameCount = request.input.byteLength
 		/ (request.channelCount * Float32Array.BYTES_PER_ELEMENT);
 	let output: Uint8Array;
@@ -413,13 +415,6 @@ function admittedMp3Bitrate(
 	if (Object.hasOwn(record, 'bitrateKbps')) return bitrateKbps === record.bitrateKbps;
 	if (record.preset === 0) return bitrateKbps === 320;
 	return bitrateKbps === null || bitrateKbps >= 32 && bitrateKbps <= 320;
-}
-
-function validateFiniteFloat32(input: Uint8Array): void {
-	const view = new DataView(input.buffer, input.byteOffset, input.byteLength);
-	for (let offset = 0; offset < input.byteLength; offset += Float32Array.BYTES_PER_ELEMENT) {
-		if (!Number.isFinite(view.getFloat32(offset, true))) throw new LamePcmInputError();
-	}
 }
 
 class LameRuntimeError extends Error {}

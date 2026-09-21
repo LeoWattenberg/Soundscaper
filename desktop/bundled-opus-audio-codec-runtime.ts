@@ -6,6 +6,8 @@ import { createHash } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import { setImmediate as waitImmediate } from 'node:timers/promises';
 
+import { assertFiniteFloat32Pcm } from './finite-float32-pcm.ts';
+
 import {
 	BundledOpusStreamError,
 	BundledOpusStreamUnsupportedError,
@@ -218,7 +220,7 @@ function encode(
 	const settings = request.settings as Readonly<{
 		readonly bitrateKbps: number; readonly vbrMode: number;
 	}>;
-	validateFiniteFloat32(request.input);
+	assertFiniteFloat32Pcm(request.input, () => new OpusPcmInputError());
 	try {
 		return codec.encode(request.input, {
 			frameCount, channelCount: request.channelCount,
@@ -253,7 +255,7 @@ function decode(
 	const output = codec.decode(request.input, {
 		frameCount: geometry.frameCount, channelCount: geometry.channelCount, outputBytes,
 	});
-	validateFiniteFloat32(output);
+	assertFiniteFloat32Pcm(output, () => new OpusPcmInputError());
 	return Object.freeze({
 		output,
 		decodedGeometry: Object.freeze({
@@ -454,13 +456,6 @@ function encodeProfileSupported(
 ): boolean {
 	return request.sampleRate === BUNDLED_OPUS_SAMPLE_RATE
 		&& request.channelCount >= 1 && request.channelCount <= BUNDLED_OPUS_MAXIMUM_CHANNELS;
-}
-
-function validateFiniteFloat32(input: Uint8Array): void {
-	const view = new DataView(input.buffer, input.byteOffset, input.byteLength);
-	for (let offset = 0; offset < input.byteLength; offset += Float32Array.BYTES_PER_ELEMENT) {
-		if (!Number.isFinite(view.getFloat32(offset, true))) throw new OpusPcmInputError();
-	}
 }
 
 class OpusRuntimeError extends Error {}
