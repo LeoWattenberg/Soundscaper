@@ -13,6 +13,7 @@ import {
 import { createPlaywrightBrowserServiceWorkerCoverageCollector } from './browser-service-worker-coverage.mjs';
 import { createBrowserWebAssemblyAuthenticator } from './browser-webassembly-coverage.mjs';
 import {
+	attachCdpExecutionContextLifecycle, bankRejectedCdpCoverageWork,
 	createCdpJavaScriptCoverageState,
 	observeCdpScript,
 	takeCdpJavaScriptCoverage,
@@ -274,6 +275,10 @@ export function createBrowserCoverageCollector({
 			taken: [],
 		};
 		recorders.set(page, recorder);
+		attachCdpExecutionContextLifecycle({
+			onFailure: (error) => bankRejectedCdpCoverageWork(pending, error), session,
+			state: recorder.cdpState,
+		});
 		session.on('Debugger.scriptParsed', (event) => {
 			const { scriptId, url } = event;
 			const webAssembly = observeCdpScript({ event, session, state: recorder.cdpState });

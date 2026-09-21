@@ -136,7 +136,7 @@ export async function installNavigationCoverageCheckpoints({ checkpoint, session
 	}
 
 	const failures = [];
-	const hookScriptIds = new Set();
+	const hookScriptContexts = new Map();
 	const pending = new Set();
 	let disposed = false;
 
@@ -147,13 +147,21 @@ export async function installNavigationCoverageCheckpoints({ checkpoint, session
 			.finally(() => { pending.delete(tracked); });
 		pending.add(tracked);
 	};
-	const onScriptParsed = ({ scriptId, url }) => {
-		if (url === NAVIGATION_COVERAGE_CHECKPOINT_URL) hookScriptIds.add(String(scriptId));
+	const onScriptParsed = ({ executionContextId, scriptId, url }) => {
+		if (url === NAVIGATION_COVERAGE_CHECKPOINT_URL) {
+			hookScriptContexts.set(String(scriptId), executionContextId);
+		}
 	};
+	const onExecutionContextDestroyed = ({ executionContextId }) => {
+		for (const [scriptId, contextId] of hookScriptContexts) {
+			if (contextId === executionContextId) hookScriptContexts.delete(scriptId);
+		}
+	};
+	const onExecutionContextsCleared = () => { hookScriptContexts.clear(); };
 	const onPaused = ({ callFrames }) => {
 		const frame = callFrames?.[0];
 		const scriptId = frame?.location?.scriptId;
-		const isNavigationHook = hookScriptIds.has(String(scriptId));
+		const isNavigationHook = hookScriptContexts.has(String(scriptId));
 		const checkpointWork = isNavigationHook
 			? () => checkpoint(checkpointReason(frame?.functionName))
 			: null;
@@ -162,6 +170,8 @@ export async function installNavigationCoverageCheckpoints({ checkpoint, session
 
 	session.on('Debugger.scriptParsed', onScriptParsed);
 	session.on('Debugger.paused', onPaused);
+	session.on('Runtime.executionContextDestroyed', onExecutionContextDestroyed);
+	session.on('Runtime.executionContextsCleared', onExecutionContextsCleared);
 	let identifier;
 	try {
 		({ identifier } = await session.send('Page.addScriptToEvaluateOnNewDocument', {
@@ -171,6 +181,8 @@ export async function installNavigationCoverageCheckpoints({ checkpoint, session
 	} catch (error) {
 		session.off?.('Debugger.scriptParsed', onScriptParsed);
 		session.off?.('Debugger.paused', onPaused);
+		session.off?.('Runtime.executionContextDestroyed', onExecutionContextDestroyed);
+		session.off?.('Runtime.executionContextsCleared', onExecutionContextsCleared);
 		throw error;
 	}
 
@@ -197,6 +209,8 @@ export async function installNavigationCoverageCheckpoints({ checkpoint, session
 			} finally {
 				session.off?.('Debugger.scriptParsed', onScriptParsed);
 				session.off?.('Debugger.paused', onPaused);
+				session.off?.('Runtime.executionContextDestroyed', onExecutionContextDestroyed);
+				session.off?.('Runtime.executionContextsCleared', onExecutionContextsCleared);
 			}
 			if (settleFailure !== null && cleanupFailure !== null) {
 				throw new AggregateError(

@@ -96,6 +96,34 @@ test('packaged target final checkpoint awaits late WebAssembly authentication fa
 	await assert.rejects(collection, /late packaged WebAssembly authentication failed/u);
 });
 
+test('packaged target permits script-ID reuse only after execution contexts clear', async () => {
+	const page = new WasmPage([script('root-js', 'soundscaper-app://bundle/')]);
+	const session = rootSession(page);
+	const pending: Promise<unknown>[] = [];
+	const target = await startPackagedRuntimeTargetCoverage({
+		keepUrl: () => false,
+		page,
+		pending,
+		rootSession: session,
+	});
+	await settlePending(pending);
+	session.emit('Debugger.scriptParsed', {
+		executionContextId: 41,
+		scriptId: 'reused',
+		scriptLanguage: 'JavaScript',
+		url: 'soundscaper-coverage://navigation-checkpoint.js',
+	});
+	session.emit('Runtime.executionContextsCleared', {});
+	session.emit('Debugger.scriptParsed', {
+		executionContextId: 41,
+		scriptId: 'reused',
+		scriptLanguage: 'JavaScript',
+		url: '',
+	});
+	await settlePending(pending);
+	await target.collect();
+});
+
 async function coverageFixture(context: { after(callback: () => Promise<void>): void }) {
 	const root = await mkdtemp(join(tmpdir(), 'soundscaper-packaged-composite-wasm-'));
 	context.after(() => rm(root, { recursive: true, force: true }));

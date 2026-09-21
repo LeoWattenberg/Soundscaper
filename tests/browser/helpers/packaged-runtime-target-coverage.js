@@ -7,6 +7,8 @@ import {
 	WORKLET_COVERAGE_CHECKPOINT_URL,
 } from '../../../scripts/lib/browser-service-worker-coverage.mjs';
 import {
+	attachCdpExecutionContextLifecycle,
+	bankRejectedCdpCoverageWork,
 	createCdpJavaScriptCoverageState,
 	javaScriptCoverageEntries,
 	observeCdpScript,
@@ -74,15 +76,21 @@ export async function startPackagedRuntimeTargetCoverage({
 		targetCounts.set(type, (targetCounts.get(type) ?? 0) + 1);
 		if (waitingForDebugger) pausedTargetCounts.set(type, (pausedTargetCounts.get(type) ?? 0) + 1);
 		session.on('detached', () => { recorder.active = false; });
+		attachCdpExecutionContextLifecycle({
+			onFailure: (error) => bankRejectedCdpCoverageWork(pending, error),
+			retiredScriptIds: recorder.coverageHookScriptIds,
+			session,
+			state: recorder.cdpState,
+		});
 		session.on('Debugger.scriptParsed', (event) => {
 			const { scriptId, url } = event;
-			if (url === WORKLET_COVERAGE_CHECKPOINT_URL) {
-				recorder.coverageHookScriptIds.add(String(scriptId));
-			}
 			const webAssembly = observeCdpScript({ event, session, state: recorder.cdpState });
 			if (webAssembly !== null) {
 				pending.push(webAssembly);
 				return;
+			}
+			if (url === WORKLET_COVERAGE_CHECKPOINT_URL) {
+				recorder.coverageHookScriptIds.add(String(scriptId));
 			}
 			if (!keepUrl(url)) return;
 			pending.push(session.send('Debugger.getScriptSource', { scriptId })

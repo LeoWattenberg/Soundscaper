@@ -15,6 +15,65 @@ export function createCdpJavaScriptCoverageState({ authenticateWebAssembly } = {
 	};
 }
 
+/** Retire every script identity owned by one destroyed execution context. */
+export function retireCdpExecutionContext(state, executionContextId) {
+	if (!Number.isSafeInteger(executionContextId) || executionContextId < 0) {
+		throw new TypeError('CDP supplied an invalid destroyed execution context.');
+	}
+	const retired = [];
+	for (const [scriptId, identity] of state.scriptIdentities) {
+		if (identity.executionContextId !== executionContextId) continue;
+		state.scriptIdentities.delete(scriptId);
+		state.scriptUrls.delete(scriptId);
+		state.webAssemblyScriptUrls.delete(scriptId);
+		retired.push(scriptId);
+	}
+	return retired;
+}
+
+/** Retire every script identity after CDP clears an execution-context generation. */
+export function clearCdpExecutionContexts(state) {
+	const retired = [...state.scriptIdentities.keys()];
+	state.scriptIdentities.clear();
+	state.scriptUrls.clear();
+	state.webAssemblyScriptUrls.clear();
+	return retired;
+}
+
+/** Bind script identity and optional instrumentation IDs to Runtime lifecycle events. */
+export function attachCdpExecutionContextLifecycle({
+	onFailure,
+	retiredScriptIds = null,
+	session,
+	state,
+}) {
+	if (typeof session?.on !== 'function' || typeof onFailure !== 'function'
+		|| (retiredScriptIds !== null && (typeof retiredScriptIds.delete !== 'function'
+			|| typeof retiredScriptIds.clear !== 'function'))) {
+		throw new TypeError('CDP execution-context lifecycle received invalid collectors.');
+	}
+	session.on('Runtime.executionContextDestroyed', ({ executionContextId }) => {
+		try {
+			for (const scriptId of retireCdpExecutionContext(state, executionContextId)) {
+				retiredScriptIds?.delete(scriptId);
+			}
+		} catch (error) {
+			onFailure(error);
+		}
+	});
+	session.on('Runtime.executionContextsCleared', () => {
+		clearCdpExecutionContexts(state);
+		retiredScriptIds?.clear();
+	});
+}
+
+/** Bank a synchronously discovered CDP failure without an unhandled-rejection race. */
+export function bankRejectedCdpCoverageWork(pending, error) {
+	const failure = Promise.reject(error);
+	void failure.catch(() => undefined);
+	pending.push(failure);
+}
+
 /** Record a parsed URL and authenticate it when CDP types it as WebAssembly. */
 export function observeCdpScript({ event, session, state }) {
 	return captureCdpWebAssemblyScript({
@@ -37,6 +96,16 @@ export async function takeCdpJavaScriptCoverage(session, state) {
 	);
 }
 
+/** Normalize and append one optional CDP precise-coverage result. */
+export function appendCdpJavaScriptCoverage(target, result, state) {
+	if (!Array.isArray(result)) return;
+	target.push(...javaScriptCoverageEntries(
+		result,
+		state.scriptUrls,
+		state.webAssemblyScriptUrls,
+	));
+}
+
 /**
  * Authenticate one CDP script as binary WebAssembly rather than JavaScript.
  *
@@ -48,8 +117,8 @@ export async function takeCdpJavaScriptCoverage(session, state) {
  * bytes with the WebAssembly magic and version.
  *
  * @param {{
- *   event: { scriptId?: unknown, scriptLanguage?: unknown, url?: unknown },
- *   scriptIdentities: Map<string, { language: string, url: unknown }>,
+ *   event: { executionContextId?: unknown, scriptId?: unknown, scriptLanguage?: unknown, url?: unknown },
+ *   scriptIdentities: Map<string, { executionContextId: number | null, language: string, url: unknown }>,
  *   scriptUrls: Map<string, string>,
  *   session: { send(method: string, parameters: object): Promise<unknown> },
  *   authenticateWebAssembly?: (input: { bytes: Buffer, url: string }) => Promise<boolean> | boolean,
@@ -68,14 +137,25 @@ export function captureCdpWebAssemblyScript({
 	const scriptId = String(event?.scriptId ?? '');
 	const url = event?.url;
 	const language = event?.scriptLanguage === 'WebAssembly' ? 'WebAssembly' : 'JavaScript';
+	const executionContextId = event?.executionContextId === undefined
+		? null : event.executionContextId;
+	if (executionContextId !== null && (!Number.isSafeInteger(executionContextId)
+		|| executionContextId < 0)) {
+		return Promise.reject(new Error(
+			`CDP supplied an invalid execution context for script ${scriptId}.`,
+		));
+	}
 	const previousIdentity = scriptIdentities.get(scriptId);
 	if (previousIdentity !== undefined && (previousIdentity.url !== url
-		|| previousIdentity.language !== language)) {
+		|| previousIdentity.language !== language
+		|| previousIdentity.executionContextId !== executionContextId)) {
 		return Promise.reject(new Error(
 			`CDP rebound script ${scriptId} from ${previousIdentity.language} ${String(previousIdentity.url)} to ${language} ${String(url)}.`,
 		));
 	}
-	if (previousIdentity === undefined) scriptIdentities.set(scriptId, { language, url });
+	if (previousIdentity === undefined) {
+		scriptIdentities.set(scriptId, { executionContextId, language, url });
+	}
 	if (typeof url === 'string' && url !== '') scriptUrls.set(scriptId, url);
 	if (language !== 'WebAssembly') return null;
 	return (async () => {

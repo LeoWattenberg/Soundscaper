@@ -216,6 +216,72 @@ test('worker listener banks a script identity rebind failure', async () => {
 	await assert.rejects(collector.settle(), /CDP rebound script.*WebAssembly.*JavaScript/u);
 });
 
+test('worker coverage preserves old ranges before execution-context ID reuse', async () => {
+	const root = new FakeRootSession();
+	const child = new FakeTargetSession();
+	const collector = createBrowserServiceWorkerCoverageCollector({
+		openTargetSession: () => child,
+		rootSession: root,
+		targetTypes: ['worker'],
+	});
+	await collector.start();
+	root.emit('Target.attachedToTarget', {
+		sessionId: 'worker-session',
+		targetInfo: { type: 'worker', url: 'http://127.0.0.1:4322/worker.js' },
+		waitingForDebugger: true,
+	});
+	await collector.settle();
+	child.emit('Debugger.scriptParsed', {
+		executionContextId: 41,
+		scriptId: '7',
+		url: 'http://127.0.0.1:4322/old-worker.js',
+	});
+	await collector.settle();
+	child.emit('Profiler.preciseCoverageDeltaUpdate', {
+		result: [coverage('7', '', 21)],
+	});
+	child.emit('Runtime.executionContextsCleared', {});
+	child.emit('Debugger.scriptParsed', {
+		executionContextId: 41,
+		scriptId: '7',
+		url: 'http://127.0.0.1:4322/new-worker.js',
+	});
+	await collector.settle();
+	child.emit('Profiler.preciseCoverageDeltaUpdate', {
+		result: [coverage('7', '', 22)],
+	});
+
+	const capture = await collector.collect();
+	assert.deepEqual(capture.entries, [
+		coverage('7', 'http://127.0.0.1:4322/old-worker.js', 21),
+		coverage('7', 'http://127.0.0.1:4322/new-worker.js', 22),
+	]);
+});
+
+test('worker teardown cannot hide invalid coverage returned while it detaches', async () => {
+	const root = new FakeRootSession();
+	const child = new FakeTargetSession();
+	const collector = createBrowserServiceWorkerCoverageCollector({
+		openTargetSession: () => child,
+		rootSession: root,
+		targetTypes: ['worker'],
+	});
+	await collector.start();
+	root.emit('Target.attachedToTarget', {
+		sessionId: 'worker-session',
+		targetInfo: { type: 'worker', url: 'http://127.0.0.1:4322/worker.js' },
+		waitingForDebugger: true,
+	});
+	await collector.settle();
+	child.emit('Debugger.scriptParsed', {
+		scriptId: '4', scriptLanguage: 'WebAssembly', url: WEBASSEMBLY_URL,
+	});
+	await collector.settle();
+	child.finalCoverageResult = [coverage('4', 'http://127.0.0.1:4322/not-wasm.js', 8)];
+	child.onFinalCoverage = () => child.emit('close');
+	await assert.rejects(collector.collect(), /different WebAssembly script URL/u);
+});
+
 test('browser-level worker coverage routes only the requested worker and worklet targets', async () => {
 	const root = new FakeRootSession();
 	const children = new Map([
@@ -335,6 +401,7 @@ class FakeTargetSession extends EventEmitter {
 	readonly sources = new Map<string, string>();
 	detachFailure: Error | null = null;
 	detachCount = 0;
+	finalCoverageResult: unknown[] = [];
 	onDebuggerDisabled: (() => void) | null = null;
 	onFinalCoverage: (() => void) | null = null;
 
@@ -369,7 +436,7 @@ class FakeTargetSession extends EventEmitter {
 		if (method === 'Profiler.takePreciseCoverage') {
 			this.onFinalCoverage?.();
 			this.onFinalCoverage = null;
-			return { result: [] };
+			return { result: this.finalCoverageResult };
 		}
 		return {};
 	}

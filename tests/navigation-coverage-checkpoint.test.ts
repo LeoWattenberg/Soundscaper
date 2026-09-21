@@ -51,6 +51,26 @@ test('an unrelated debugger pause is resumed without taking a checkpoint', async
 	await checkpoints.dispose();
 });
 
+test('a cleared execution context retires its navigation hook script ID', async () => {
+	const session = new FakeSession();
+	let checkpointCount = 0;
+	const checkpoints = await installNavigationCoverageCheckpoints({
+		checkpoint: async () => { checkpointCount += 1; },
+		session,
+	});
+	const retiredHookScriptId = session.hookScriptId();
+
+	session.emit('Runtime.executionContextsCleared', {});
+	session.emit('Debugger.paused', {
+		callFrames: [{ location: { scriptId: retiredHookScriptId } }],
+		reason: 'other',
+	});
+	await checkpoints.settle();
+	assert.equal(checkpointCount, 0);
+	assert.equal(session.methods.at(-1), 'Debugger.resume');
+	await checkpoints.dispose();
+});
+
 test('an audio-context close identifies its lifecycle checkpoint before resuming', async () => {
 	const session = new FakeSession();
 	const reasons: Array<string | undefined> = [];

@@ -3,8 +3,9 @@
 import { EventEmitter } from 'node:events';
 
 import {
+	appendCdpJavaScriptCoverage,
+	attachCdpExecutionContextLifecycle,
 	createCdpJavaScriptCoverageState,
-	javaScriptCoverageEntries,
 	observeCdpScript,
 } from './cdp-javascript-coverage.mjs';
 
@@ -107,14 +108,20 @@ export function createBrowserServiceWorkerCoverageCollector({
 		};
 		recorders.set(sessionId, recorder);
 		session.on('close', () => { recorder.active = false; });
+		attachCdpExecutionContextLifecycle({
+			onFailure: (error) => failures.push(error),
+			retiredScriptIds: recorder.coverageHookScriptIds,
+			session,
+			state: recorder.cdpState,
+		});
 		session.on('Debugger.scriptParsed', (event) => {
 			const { scriptId, url } = event;
-			if (url === WORKLET_COVERAGE_CHECKPOINT_URL) recorder.coverageHookScriptIds.add(String(scriptId));
 			const webAssembly = observeCdpScript({ event, session, state: recorder.cdpState });
 			if (webAssembly !== null) {
 				pending.push(webAssembly.catch((error) => { failures.push(error); }));
 				return;
 			}
+			if (url === WORKLET_COVERAGE_CHECKPOINT_URL) recorder.coverageHookScriptIds.add(String(scriptId));
 			if (typeof url !== 'string' || !captureSource(url)) return;
 			const work = session.send('Debugger.getScriptSource', { scriptId })
 				.then(({ scriptSource }) => {
@@ -133,7 +140,8 @@ export function createBrowserServiceWorkerCoverageCollector({
 			pending.push(work);
 		});
 		session.on('Profiler.preciseCoverageDeltaUpdate', ({ result }) => {
-			if (Array.isArray(result)) recorder.taken.push(...result);
+			try { appendCdpJavaScriptCoverage(recorder.taken, result, recorder.cdpState); }
+			catch (error) { failures.push(error); }
 		});
 		session.on('Debugger.paused', ({ callFrames }) => {
 			const scriptId = String(callFrames?.[0]?.location?.scriptId);
@@ -204,21 +212,28 @@ export function createBrowserServiceWorkerCoverageCollector({
 
 	async function checkpointRecorder(recorder) {
 		if (!recorder.active) return;
+		let result;
 		try {
-			const { result } = await recorder.session.send('Profiler.takePreciseCoverage');
-			if (Array.isArray(result)) recorder.taken.push(...result);
+			({ result } = await recorder.session.send('Profiler.takePreciseCoverage'));
 		} catch (error) {
 			if (recorder.active) throw error;
+			return;
 		}
+		appendCdpJavaScriptCoverage(recorder.taken, result, recorder.cdpState);
 	}
 
 	async function checkpointAndResumeWorklet(recorder) {
 		let checkpointError = null;
+		let result;
 		try {
-			const { result } = await recorder.session.send('Profiler.takePreciseCoverage');
-			if (Array.isArray(result)) recorder.taken.push(...result);
+			({ result } = await recorder.session.send('Profiler.takePreciseCoverage'));
 		} catch (error) {
 			if (recorder.active) checkpointError = error;
+		}
+		try {
+			appendCdpJavaScriptCoverage(recorder.taken, result, recorder.cdpState);
+		} catch (error) {
+			checkpointError = error;
 		}
 		let resumeError = null;
 		if (recorder.active) {
@@ -313,11 +328,7 @@ export function createBrowserServiceWorkerCoverageCollector({
 			const entries = [];
 			const sources = new Map();
 			for (const recorder of recorders.values()) {
-				for (const entry of javaScriptCoverageEntries(
-					recorder.taken,
-					recorder.cdpState.scriptUrls,
-					recorder.cdpState.webAssemblyScriptUrls,
-				)) {
+				for (const entry of recorder.taken) {
 					if (typeof entry.url === 'string' && keepUrl(entry.url)) entries.push(entry);
 				}
 				for (const [url, source] of recorder.sources) {

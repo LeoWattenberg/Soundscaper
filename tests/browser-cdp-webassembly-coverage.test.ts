@@ -9,6 +9,7 @@ import { join } from 'node:path';
 import test from 'node:test';
 
 import { createBrowserCoverageCollector } from '../scripts/lib/browser-coverage-profile.mjs';
+import { INSTALL_NAVIGATION_COVERAGE_CHECKPOINT } from '../scripts/lib/navigation-coverage-checkpoint.mjs';
 
 const ORIGIN = 'http://127.0.0.1:4322';
 const SCRIPT_URL = `${ORIGIN}/assets/app.js`;
@@ -88,13 +89,31 @@ function fakeContext() {
 	};
 	pageSession.detach = async () => {};
 	pageSession.send = async (method, parameters) => {
-		if (method === 'Debugger.enable') queueMicrotask(() => pageSession.emit('Debugger.scriptParsed', {
-			scriptId: 'wasm',
-			scriptLanguage: 'WebAssembly',
-			url: WASM_URL,
-		}));
+		if (method === 'Debugger.enable') queueMicrotask(() => {
+			pageSession.emit('Debugger.scriptParsed', {
+				executionContextId: 41,
+				scriptId: 'reused-after-navigation',
+				scriptLanguage: 'JavaScript',
+				url: 'soundscaper-coverage://navigation-checkpoint.js',
+			});
+			pageSession.emit('Runtime.executionContextsCleared', {});
+			pageSession.emit('Debugger.scriptParsed', {
+				executionContextId: 41,
+				scriptId: 'reused-after-navigation',
+				scriptLanguage: 'JavaScript',
+				url: '',
+			});
+			pageSession.emit('Debugger.scriptParsed', {
+				scriptId: 'wasm',
+				scriptLanguage: 'WebAssembly',
+				url: WASM_URL,
+			});
+		});
 		if (method === 'Debugger.getScriptSource' && parameters?.scriptId === 'wasm') {
 			return { bytecode: WASM_BYTES.toString('base64'), scriptSource: '' };
+		}
+		if (method === 'Debugger.getScriptSource' && parameters?.scriptId === 'reused-after-navigation') {
+			return { scriptSource: INSTALL_NAVIGATION_COVERAGE_CHECKPOINT };
 		}
 		if (method === 'Profiler.takePreciseCoverage') return { result: [
 			coverage('app', SCRIPT_URL, 28),

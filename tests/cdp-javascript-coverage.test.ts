@@ -6,9 +6,11 @@ import test from 'node:test';
 
 import {
 	captureCdpWebAssemblyScript,
+	clearCdpExecutionContexts,
 	createCdpJavaScriptCoverageState,
 	javaScriptCoverageEntries,
 	observeCdpScript,
+	retireCdpExecutionContext,
 } from '../scripts/lib/cdp-javascript-coverage.mjs';
 
 const WASM_URL = 'wasm://wasm/cdb9d07e';
@@ -190,6 +192,97 @@ test('a JavaScript script identity cannot later be rebound as WebAssembly', asyn
 	await assert.rejects(rebound, /CDP rebound script.*JavaScript.*WebAssembly/u);
 });
 
+test('a cleared execution-context generation may reuse a CDP script ID', async () => {
+	const state = createCdpJavaScriptCoverageState();
+	assert.equal(observeCdpScript({
+		event: {
+			executionContextId: 41,
+			scriptId: '11',
+			scriptLanguage: 'JavaScript',
+			url: 'soundscaper-coverage://navigation-checkpoint.js',
+		},
+		session: { send: async () => ({}) },
+		state,
+	}), null);
+	assert.deepEqual(clearCdpExecutionContexts(state), ['11']);
+	assert.equal(observeCdpScript({
+		event: {
+			executionContextId: 41,
+			scriptId: '11',
+			scriptLanguage: 'JavaScript',
+			url: '',
+		},
+		session: { send: async () => ({}) },
+		state,
+	}), null);
+	assert.equal(state.scriptUrls.has('11'), false);
+});
+
+test('two live execution contexts cannot reuse one CDP script ID', async () => {
+	const state = createCdpJavaScriptCoverageState();
+	assert.equal(observeCdpScript({
+		event: {
+			executionContextId: 41,
+			scriptId: '11',
+			scriptLanguage: 'JavaScript',
+			url: 'https://soundscaper.invalid/assets/app.js',
+		},
+		session: { send: async () => ({}) },
+		state,
+	}), null);
+	const rebound = observeCdpScript({
+		event: {
+			executionContextId: 42,
+			scriptId: '11',
+			scriptLanguage: 'WebAssembly',
+			url: WASM_URL,
+		},
+		session: { send: async () => ({ bytecode: WASM_BYTES.toString('base64'), scriptSource: '' }) },
+		state,
+	});
+	assert.ok(rebound);
+	await assert.rejects(rebound, /CDP rebound script.*JavaScript.*WebAssembly/u);
+});
+
+test('execution-context reuse cannot preserve an earlier WebAssembly identity', async () => {
+	const state = createCdpJavaScriptCoverageState();
+	const webAssembly = observeCdpScript({
+		event: {
+			executionContextId: 41,
+			scriptId: '11',
+			scriptLanguage: 'WebAssembly',
+			url: WASM_URL,
+		},
+		session: {
+			send: async () => ({
+				bytecode: WASM_BYTES.toString('base64'),
+				scriptSource: '',
+			}),
+		},
+		state,
+	});
+	assert.ok(webAssembly);
+	await webAssembly;
+	assert.deepEqual(retireCdpExecutionContext(state, 41), ['11']);
+	const javaScriptUrl = 'https://soundscaper.invalid/assets/app.js';
+	assert.equal(observeCdpScript({
+		event: {
+			executionContextId: 42,
+			scriptId: '11',
+			scriptLanguage: 'JavaScript',
+			url: javaScriptUrl,
+		},
+		session: { send: async () => ({}) },
+		state,
+	}), null);
+	assert.equal(state.webAssemblyScriptUrls.has('11'), false);
+	assert.deepEqual(javaScriptCoverageEntries(
+		[coverageEntry('11', '')],
+		state.scriptUrls,
+		state.webAssemblyScriptUrls,
+	), [coverageEntry('11', javaScriptUrl)]);
+});
+
 function coverageEntry(scriptId: string, url: string) {
 	return {
 		functions: [],
@@ -200,7 +293,11 @@ function coverageEntry(scriptId: string, url: string) {
 
 function captureState(webAssemblyScriptUrls = new Map<string, string>()) {
 	return {
-		scriptIdentities: new Map<string, { language: string, url: unknown }>(),
+		scriptIdentities: new Map<string, {
+			executionContextId: number | null,
+			language: string,
+			url: unknown,
+		}>(),
 		scriptUrls: new Map<string, string>(),
 		webAssemblyScriptUrls,
 	};
