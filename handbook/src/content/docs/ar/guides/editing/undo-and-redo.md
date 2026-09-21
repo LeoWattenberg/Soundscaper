@@ -8,57 +8,57 @@ head:
   - tag: script
     attrs:
       type: "application/ld+json"
-    content: "{\"@context\":\"https://schema.org\",\"@type\":\"HowTo\",\"name\":\"Undo and redo\",\"description\":\"Step back through your edits and forward again.\",\"tool\":[{\"@type\":\"HowToTool\",\"name\":\"Soundscaper\"}],\"step\":[{\"@type\":\"HowToStep\",\"position\":1,\"name\":\"Open Soundscaper. A new, empty project is ready as soon as the editor loads.\",\"text\":\"Open Soundscaper. A new, empty project is ready as soon as the editor loads.\"},{\"@type\":\"HowToStep\",\"position\":2,\"name\":\"Choose File → Import audio and pick any recording. The file lands as a clip on its own track.\",\"text\":\"Choose File → Import audio and pick any recording. The file lands as a clip on its own track.\"},{\"@type\":\"HowToStep\",\"position\":3,\"name\":\"Press the Split tool button in the toolbar.\",\"text\":\"Press the Split tool button in the toolbar.\"},{\"@type\":\"HowToStep\",\"position\":4,\"name\":\"Click the waveform anywhere in the clip to put the cursor there.\",\"text\":\"Click the waveform anywhere in the clip to put the cursor there. A split is a good edit to practise on because you can see it.\"},{\"@type\":\"HowToStep\",\"position\":5,\"name\":\"Press the Split tool button in the toolbar.\",\"text\":\"Press the Split tool button in the toolbar. Back to the normal pointer.\"},{\"@type\":\"HowToStep\",\"position\":6,\"name\":\"The project now shows 2 clips.\",\"text\":\"The project now shows 2 clips.\"},{\"@type\":\"HowToStep\",\"position\":7,\"name\":\"Press the Undo button in the toolbar.\",\"text\":\"Press the Undo button in the toolbar. The toolbar button and Edit → Undo do the same thing.\"},{\"@type\":\"HowToStep\",\"position\":8,\"name\":\"The project now shows 1 clip.\",\"text\":\"The project now shows 1 clip. The split is gone and the clip is whole again.\"},{\"@type\":\"HowToStep\",\"position\":9,\"name\":\"Press the Redo button in the toolbar.\",\"text\":\"Press the Redo button in the toolbar.\"},{\"@type\":\"HowToStep\",\"position\":10,\"name\":\"The project now shows 2 clips.\",\"text\":\"The project now shows 2 clips. The split is back.\"}]}"
+    content: "{\"@context\":\"https://schema.org\",\"@type\":\"HowTo\",\"name\":\"Undo and redo\",\"description\":\"Step back through your edits and forward again.\",\"tool\":[{\"@type\":\"HowToTool\",\"name\":\"Soundscaper\"}],\"step\":[{\"@type\":\"HowToStep\",\"position\":1,\"name\":\"Open Soundscaper. A new, empty project is ready as soon as the editor loads.\",\"text\":\"Open Soundscaper. A new, empty project is ready as soon as the editor loads.\"},{\"@type\":\"HowToStep\",\"position\":2,\"name\":\"Choose File → Import and pick any recording. It lands as a clip on its own track.\",\"text\":\"Choose File → Import and pick any recording. It lands as a clip on its own track.\"},{\"@type\":\"HowToStep\",\"position\":3,\"name\":\"Press the Split tool button in the toolbar.\",\"text\":\"Press the Split tool button in the toolbar.\"},{\"@type\":\"HowToStep\",\"position\":4,\"name\":\"Click the waveform anywhere in the clip to put the cursor there.\",\"text\":\"Click the waveform anywhere in the clip to put the cursor there. A split is a good edit to practise on because you can see it.\"},{\"@type\":\"HowToStep\",\"position\":5,\"name\":\"Press the Split tool button in the toolbar.\",\"text\":\"Press the Split tool button in the toolbar. Back to the normal pointer.\"},{\"@type\":\"HowToStep\",\"position\":6,\"name\":\"The project now shows 2 clips.\",\"text\":\"The project now shows 2 clips.\"},{\"@type\":\"HowToStep\",\"position\":7,\"name\":\"Press the Undo button in the toolbar.\",\"text\":\"Press the Undo button in the toolbar. The toolbar button and Edit → Undo do the same thing.\"},{\"@type\":\"HowToStep\",\"position\":8,\"name\":\"The project now shows 1 clip.\",\"text\":\"The project now shows 1 clip. The split is gone and the clip is whole again.\"},{\"@type\":\"HowToStep\",\"position\":9,\"name\":\"Press the Redo button in the toolbar.\",\"text\":\"Press the Redo button in the toolbar.\"},{\"@type\":\"HowToStep\",\"position\":10,\"name\":\"The project now shows 2 clips.\",\"text\":\"The project now shows 2 clips. The split is back.\"}]}"
 ---
-<!-- docs-ai-provenance: {"factPacketSha256":"d977a5c97426e241bb079fda77dc648a1ba846e2331811c3fbc259c0931454c8","model":"aya-expanse:32b","modelDigest":"1603440383bd5504dc7afd01c0407b425b988dde650a8dc1a737433baa3cd432","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"d977a5c97426e241bb079fda77dc648a1ba846e2331811c3fbc259c0931454c8","targetLocale":"ar"} -->
+<!-- docs-ai-provenance: {"factPacketSha256":"6d9cdb24c5f9df66cd50e9fa913ee28512b2d5b050122058a661b1576e0580ea","model":"aya-expanse:32b","modelDigest":"1603440383bd5504dc7afd01c0407b425b988dde650a8dc1a737433baa3cd432","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"6d9cdb24c5f9df66cd50e9fa913ee28512b2d5b050122058a661b1576e0580ea","targetLocale":"ar"} -->
 
 <!-- Generated by `node scripts/docs-reference.mjs`. Do not edit. -->
 
-يتم تسجيل كل تعديل وتأثير في تاريخ المشروع، لذا لا يوجد أي محاولة تنطوي على مخاطرة. ترجع خطوة التراجع عن الإجراءات إلى تغيير واحد في كل مرة - تأثير، قص، نقل - وتعيد خطوة إعادة الإجراءات كل شيء. يستمر التاريخ حتى بعد حفظ المشروع وإعادة فتحه.
+يتم تسجيل كل تعديل وتأثير في تاريخ المشروع، لذا لا يوجد أي مخاطرة في التجربة. ترجع خطوة التراجع عن الإجراءات إلى تغيير واحد في كل مرة - تأثير، قص، نقل - وتعيد خطوة إعادة الإجراءات ما تم تراجعه. يبقى التاريخ حتى بعد حفظ المشروع وإعادة فتحه.
 
-:::note[قادم من Audacity؟]
-هذا هو **تحرير → التراجع عن الإجراءات وتحرير → إعادة الإجراءات (Ctrl+Z، Ctrl+Y)** في Audacity. الأسماء أدناه خاصة بـ Soundscaper، والتي تختلف أحيانًا.
+:::note[قادم من برنامج Audacity؟]
+هذا هو **تحرير → تراجع عن الإجراءات وتحرير → إعادة الإجراءات (Ctrl+Z، Ctrl+Y)** في برنامج Audacity. الأسماء أدناه خاصة ببرنامج Soundscaper، والتي تختلف أحيانًا.
 :::
 
 ## الخطوات
 
-1. افتح Soundscaper. يكون مشروع جديد فارغ جاهزًا بمجرد تحميل المحرر.
-2. اختر **ملف → استيراد الصوت** واختر أي تسجيل. تصل الملفات كمقطع على مسار خاص به.
+1. افتح برنامج Soundscaper. يكون مشروع جديد فارغ جاهزًا بمجرد تحميل المحرر.
+2. اختر **ملف → استيراد** واختر أي تسجيل. يتم وضعه كمقطع على مساره الخاص.
 3. اضغط على زر **أداة التقسيم** في شريط الأدوات.
 4. انقر على الموجة في أي مكان في المقطع لوضع المؤشر هناك. يعد التقسيم تعديلًا جيدًا للتدرب عليه لأنك تستطيع رؤيته.
-5. اضغط على زر **أداة التقسيم** في شريط الأدوات. العودة إلى المؤشر العادي.
+5. اضغط على زر **أداة التقسيم** في شريط الأدوات. العودة إلى المؤشر الطبيعي.
 6. الآن يظهر المشروع بمقطعين.
-7. اضغط على زر **التراجع عن الإجراءات** في شريط الأدوات. يقوم زر شريط الأدوات و **تحرير → التراجع عن الإجراءات** بنفس الشيء.
+7. اضغط على زر **تراجع** في شريط الأدوات. يقوم زر شريط الأدوات و **تحرير → تراجع عن الإجراءات** بنفس الشيء.
 8. الآن يظهر المشروع بمقطع واحد.
    *يجب أن ترى:* اختفى التقسيم وعاد المقطع كاملاً مرة أخرى.
-9. اضغط على زر **إعادة الإجراءات** في شريط الأدوات.
+9. اضغط على زر **إعادة** في شريط الأدوات.
 10. الآن يظهر المشروع بمقطعين.
-   *يجب أن ترى:* عاد التقسيم.
+   *يجب أن ترى:* عاد التقسيم مرة أخرى.
 
 ## نصائح
 
-- **عرض → لوحات → التاريخ** يسرد كل خطوة، والقفز إلى واحدة ينقلك مباشرة إليها.
-- لا يشمل التراجع عن الإجراءات التصديرات؛ تظل الملفات التي قمت بحفظها بالفعل كما هي.
+- **عرض → لوحات → التاريخ** يسرد كل خطوة، والنقر على واحدة ينقلك مباشرة إليها.
+- لا يشمل التراجع عن الإجراءات التصدير؛ تظل ملفات التي تم حفظها بالفعل كما هي.
 
 ## أدلة ذات صلة
 
 المزيد من أدلة [التحرير](/guides/editing/):
 
-- [قص خطأ من التسجيل](/guides/editing/cut-out-a-mistake/) — حدد خطأ، أزله، وأغلق الفجوة حتى يستمر التسجيل.
-- [تقسيم مقطع إلى نصفين](/guides/editing/split-a-clip-at-the-cursor/) — قم بتقسيم مقطع في نقطة حتى يمكن تحريك كل جزء أو معالجته بشكل منفصل.
-- [الاحتفاظ فقط بالجزء الذي تريده](/guides/editing/keep-only-a-selection/) — قم بتقليم كل ما هو خارج التحديد في خطوة واحدة.
-- [تكرار قسم](/guides/editing/repeat-a-section/) — قم بتكرار قسم محدد عددًا محددًا من المرات لجعله أطول.
-- [تشغيل التسجيل إلى الخلف](/guides/editing/reverse-audio/) — عكس قسم محدد حتى يتم تشغيله من النهاية إلى البداية.
-- [وضع علامات على الأماكن في التسجيل](/guides/editing/add-markers/) — قم بإسقاط علامات مسماة على خط الزمن حتى تتمكن من العثور على النقاط مرة أخرى لاحقًا.
-- [نسخ ولصق قسم](/guides/editing/copy-and-paste-a-section/) — قم بنسخ مقطع ولصقه في مكان آخر على المسار.
-- [تكرار تحديد على مسار جديد](/guides/editing/duplicate-a-selection-to-a-new-track/) — قم بنسخ مقطع على مساره الخاص حتى يمكن معالجته بشكل منفصل.
-- [إضافة صمت بعد المقطع](/guides/editing/add-silence-after-a-clip/) — قم بتوليد فجوة بطول محدد بالضبط في المؤشر.
-- [محاذاة المقاطع من النهاية إلى النهاية](/guides/editing/line-up-clips-end-to-end/) — قم بوضع مقطعين على مسارات مختلفة ضد بعضهما البعض حتى يتبع أحدهما الآخر.
+- [قص خطأ من تسجيل](/guides/editing/cut-out-a-mistake/) — حدد خطأ، أزله، وأغلق الفجوة بحيث يستمر التسجيل في التدفق.
+- [تقسيم مقطع إلى نصفين](/guides/editing/split-a-clip-at-the-cursor/) — قم بتقسيم مقطع في نقطة بحيث يمكن تحريك كل جزء أو معالجته بشكل منفصل.
+- [الاحتفاظ فقط بالجزء الذي تريده](/guides/editing/keep-only-a-selection/) — قم بتقليم كل ما هو خارج الاختيار في خطوة واحدة.
+- [تكرار قسم](/guides/editing/repeat-a-section/) — قم بتكرار اختيار عدد محدد من المرات لجعله أطول.
+- [تشغيل تسجيل إلى الخلف](/guides/editing/reverse-audio/) — عكس اختيار بحيث يتم تشغيله من النهاية إلى البداية.
+- [وضع علامات على الأماكن في التسجيل](/guides/editing/add-markers/) — اسقط علامات مسماة على خط الزمن حتى تتمكن من العثور على النقاط مرة أخرى لاحقًا.
+- [نسخ ولصق قسم](/guides/editing/copy-and-paste-a-section/) — نسخ مقطع ولصقه في مكان آخر على المسار.
+- [تكرار اختيار على مسار جديد](/guides/editing/duplicate-a-selection-to-a-new-track/) — نسخ مقطع على مساره الخاص حتى تتمكن من معالجته بشكل منفصل.
+- [إضافة صمت بعد مقطع](/guides/editing/add-silence-after-a-clip/) — قم بتوليد فجوة بطول محدد بالضبط في المؤشر.
+- [محاذاة المقاطع من النهاية إلى النهاية](/guides/editing/line-up-clips-end-to-end/) — قم بوضع مقطعين على مسارات مختلفة ضد بعضهما البعض بحيث يتبع أحدهما الآخر.
 - [التكبير لإجراء تعديلات دقيقة](/guides/editing/zoom-in-for-precise-edits/) — اقترب بما يكفي من الموجة لتقطيعها على نبضة أو بين الكلمات.
-- [تكرار قسم أثناء الممارسة](/guides/editing/loop-a-section-while-you-practise/) — قم بتشغيل قسم محدد مرارًا وتكرارًا.
+- [تكرار قسم أثناء التدريب](/guides/editing/loop-a-section-while-you-practise/) — قم بتشغيل مقطع مختار مرارًا وتكرارًا.
 - [تحريك مقطع على خط الزمن](/guides/editing/move-a-clip-along-the-timeline/) — اسحب مقطعًا إلى وقت مختلف على مساره.
-- [الاستماع بشكل أسرع أو أبطأ دون تغيير التسجيل](/guides/editing/listen-at-a-different-speed/) — قم بإبطاء مقطع لنسخه أو تسريعه لمراجعة لقطة طويلة، مع ترك المشروع دون تغيير.
+- [الاستماع بشكل أسرع أو أبطأ دون تغيير التسجيل](/guides/editing/listen-at-a-different-speed/) — قم بإبطاء مقطع لنسخه أو تسريعه لمراجعته، مع ترك المشروع دون تغيير.
 
 ## حول هذا الدليل
 
-تمت إعادة تشغيل الإجراء في هذه الصفحة - كل عنصر قائمة، وحوار، وحقل، وزر، والنتيجة التي ينتجها - ضد كل إصدار من Soundscaper بواسطة مجموعة المتصفحات (`tests/browser/soundscaper-guides.spec.js`). إذا توقف أي جزء منه عن مطابقة المحرر، يفشل الإصدار حتى يتم تصحيح الدليل. تم اختبار القيم المقترحة كنقاط بداية يقبلها المحرر؛ ما إذا كانت مناسبة لتسجيلك هو قرار أذنيك.
+تمت إعادة تشغيل الإجراء في هذا الصف - كل عنصر قائمة، وحوار، وحقل، وزر، والنتيجة التي ينتجها - ضد كل إصدار من برنامج Soundscaper بواسطة مجموعة أدوات المتصفح (`tests/browser/soundscaper-guides.spec.js`). إذا توقف أي جزء منه عن مطابقة المحرر، يفشل الإصدار حتى يتم تصحيح الدليل. تعد القيم المقترحة نقاط بداية يتقبلها المحرر؛ ما إذا كانت مناسبة لتسجيلك هو قرار تتخذه أذنك.

@@ -1,6 +1,6 @@
 ---
 title: "مزج عدة مسارات في مسار واحد"
-description: "تحويل المسارات المحددة إلى مسار واحد."
+description: "قم بتحويل المسارات المحددة إلى مسار واحد."
 editUrl: false
 sidebar:
   order: 2
@@ -8,48 +8,48 @@ head:
   - tag: script
     attrs:
       type: "application/ld+json"
-    content: "{\"@context\":\"https://schema.org\",\"@type\":\"HowTo\",\"name\":\"Mix several tracks into one\",\"description\":\"Render the selected tracks down to a single track.\",\"tool\":[{\"@type\":\"HowToTool\",\"name\":\"Soundscaper\"}],\"step\":[{\"@type\":\"HowToStep\",\"position\":1,\"name\":\"Open Soundscaper. A new, empty project is ready as soon as the editor loads.\",\"text\":\"Open Soundscaper. A new, empty project is ready as soon as the editor loads.\"},{\"@type\":\"HowToStep\",\"position\":2,\"name\":\"Choose File → Import audio and pick the first part. The file lands as a clip on its own track.\",\"text\":\"Choose File → Import audio and pick the first part. The file lands as a clip on its own track.\"},{\"@type\":\"HowToStep\",\"position\":3,\"name\":\"Choose File → Import audio and pick the second part. The file lands as a clip on its own track.\",\"text\":\"Choose File → Import audio and pick the second part. The file lands as a clip on its own track.\"},{\"@type\":\"HowToStep\",\"position\":4,\"name\":\"Click the name bar of the first clip, then hold Shift and click the name bar of the second clip, so both are selected.\",\"text\":\"Click the name bar of the first clip, then hold Shift and click the name bar of the second clip, so both are selected. Every track with a selected clip goes into the mix.\"},{\"@type\":\"HowToStep\",\"position\":5,\"name\":\"Choose Tracks → Mix & Render. In the Mix & Render dialog, leave Mix down, Render effects and Replace originals checked, choose Stereo for Mix down to, then press Mix & Render.\",\"text\":\"Choose Tracks → Mix & Render. In the Mix & Render dialog, leave Mix down, Render effects and Replace originals checked, choose Stereo for Mix down to, then press Mix & Render.\"},{\"@type\":\"HowToStep\",\"position\":6,\"name\":\"The project now shows a clip named Mix.\",\"text\":\"The project now shows a clip named Mix. One track holds a clip named Mix; the source tracks are gone.\"}]}"
+    content: "{\"@context\":\"https://schema.org\",\"@type\":\"HowTo\",\"name\":\"Mix several tracks into one\",\"description\":\"Render the selected tracks down to a single track.\",\"tool\":[{\"@type\":\"HowToTool\",\"name\":\"Soundscaper\"}],\"step\":[{\"@type\":\"HowToStep\",\"position\":1,\"name\":\"Open Soundscaper. A new, empty project is ready as soon as the editor loads.\",\"text\":\"Open Soundscaper. A new, empty project is ready as soon as the editor loads.\"},{\"@type\":\"HowToStep\",\"position\":2,\"name\":\"Choose File → Import and pick the first part. It lands as a clip on its own track.\",\"text\":\"Choose File → Import and pick the first part. It lands as a clip on its own track.\"},{\"@type\":\"HowToStep\",\"position\":3,\"name\":\"Choose File → Import and pick the second part. It lands as a clip on its own track.\",\"text\":\"Choose File → Import and pick the second part. It lands as a clip on its own track.\"},{\"@type\":\"HowToStep\",\"position\":4,\"name\":\"Click the name bar of the first clip, then hold Shift and click the name bar of the second clip, so both are selected.\",\"text\":\"Click the name bar of the first clip, then hold Shift and click the name bar of the second clip, so both are selected. Every track with a selected clip goes into the mix.\"},{\"@type\":\"HowToStep\",\"position\":5,\"name\":\"Choose Tracks → Mix & Render. In the Mix & Render dialog, leave Mix down, Render effects and Replace originals checked, choose Stereo for Mix down to, then press Mix & Render.\",\"text\":\"Choose Tracks → Mix & Render. In the Mix & Render dialog, leave Mix down, Render effects and Replace originals checked, choose Stereo for Mix down to, then press Mix & Render.\"},{\"@type\":\"HowToStep\",\"position\":6,\"name\":\"The project now shows a clip named Mix.\",\"text\":\"The project now shows a clip named Mix. One track holds a clip named Mix; the source tracks are gone.\"}]}"
 ---
-<!-- docs-ai-provenance: {"factPacketSha256":"a2efb9d82744df50703da530f05fd07938a525026e90a778c97fb783e8fb88c8","model":"qwen3.8:latest","modelDigest":"22130167c4c20e20c7b71454612966ca8e8171e9b3cc8ab6ce8aa6cbfec79643","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"a2efb9d82744df50703da530f05fd07938a525026e90a778c97fb783e8fb88c8","targetLocale":"ar"} -->
+<!-- docs-ai-provenance: {"factPacketSha256":"e3e165f69376430cd8ca49fc9f23263e3de5bf9c4af97309624c2faaba94193b","model":"aya-expanse:32b","modelDigest":"1603440383bd5504dc7afd01c0407b425b988dde650a8dc1a737433baa3cd432","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"e3e165f69376430cd8ca49fc9f23263e3de5bf9c4af97309624c2faaba94193b","targetLocale":"ar"} -->
 
 <!-- Generated by `node scripts/docs-reference.mjs`. Do not edit. -->
 
-بمجرد تحقيق التوازن في مجموعة المسارات، فإن خلطها في مسار واحد يجعل المشروع أخف في التعامل ويمنحك مقطعًا واحدًا للتصدير أو نقله إلى مكان آخر. يستخدم الخلط كسب الصوت، والتوجيه، والأتمتة، والتأثيرات لكل مسار محدد. يتم تجاهل الكتم والعزلة للمسارات المحددة أثناء هذه العملية، ويبقى المعالجة الرئيسية نشطة.
+بمجرد موازنة سرير من المسارات، فإن مزجها لتصبح واحدة يجعل المشروع أخف للعمل معه ويعطيك مقطعًا واحدًا للتصدير أو أخذه إلى مكان آخر. يستخدم المزيج مكاسب كل مسار مختار، والبانوراما، والتشغيل التلقائي، والتأثيرات. يتم تجاهل الصمت واللوح المنفرد للمسارات المحددة أثناء هذه العملية، ويظل المعالجة الرئيسية مباشرة.
 
-:::note[هل قادم من Audacity؟]
-هذا هو **Tracks → Mix → Mix and Render** في Audacity. الأسماء أدناه خاصة بـ Soundscaper، وقد تختلف أحيانًا.
+:::note[قادم من Audacity؟]
+هذا هو **Tracks → Mix → Mix and Render** في Audacity. الأسماء أدناه هي أسماء خاصة بـ Soundscaper، والتي تختلف أحيانًا.
 :::
 
 ## الخطوات
 
-1. افتح Soundscaper. يكون مشروع جديد فارغ جاهزًا بمجرد تحميل المحرر.
-2. اختر **File → Import audio** واختر الجزء الأول. سيظهر الملف كمقطع على مساره الخاص.
-3. اختر **File → Import audio** واختر الجزء الثاني. سيظهر الملف كمقطع على مساره الخاص.
-4. انقر على شريط اسم المقطع الأول، ثم اضغط باستمرار على Shift وانقر على شريط اسم المقطع الثاني، بحيث يتم تحديد كلاهما. كل مسار يحتوي على مقطع محدد يدخل في الخلط.
-5. اختر **Tracks → Mix & Render**. في مربع حوار **Mix & Render**، اترك **Mix down** و**Render effects** و**Replace originals** محددة، واختر **Stereo** لـ **Mix down to**، ثم اضغط على **Mix & Render**.
-6. يعرض المشروع الآن مقطعًا باسم **Mix**.
-   *ما يجب أن تراه:* يحتوي مسار واحد على مقطع باسم Mix؛ وقد اختفت المسارات المصدرية.
+1. افتح Soundscaper. يكون مشروع جديد فارغ جاهز بمجرد تحميل المحرر.
+2. اختر **File → Import** واختر الجزء الأول. يصل كمقطع على مساره الخاص.
+3. اختر **File → Import** واختر الجزء الثاني. يصل كمقطع على مساره الخاص.
+4. انقر فوق شريط اسم المقطع الأول، ثم اضغط على Shift وانقر فوق شريط اسم المقطع الثاني، بحيث يتم تحديد كليهما. كل مسار يحتوي على مقطع تم تحديده يدخل في المزيج.
+5. اختر **Tracks → Mix & Render**. في مربع حوار **Mix & Render**، اترك **Mix down**، و **Render effects**، و **Replace originals** محددة، واختر **Stereo** لـ **Mix down to**، ثم اضغط على **Mix & Render**.
+6. الآن يظهر المشروع مقطعًا باسم **Mix**.
+   *يجب أن ترى:* يحتوي مسار واحد على مقطع باسم Mix؛ اختفى المسار المصدر.
 
 ## نصائح
 
-- اختر **Mono** أو **Stereo** أو تكوين القنوات المتعددة المهيأ للمشروع تحت **Mix down to** قبل العرض.
+- اختر **Mono**، أو **Stereo**، أو تخطيط متعدد القنوات المحدد للمشروع تحت **Mix down to** قبل التصيير.
 - **Edit → Undo** يعيد المسارات الأصلية إذا كنت بحاجة إلى تغيير التوازن.
-- لا تحتاج إلى الخلط للتصدير. **File → Export audio** يعرض المشروع بأكمله بمفرده.
+- لا يجب عليك مزجها لتصديرها. **File → Export audio** يقوم بتصيير المشروع بأكمله بمفرده.
 
 ## أدلة ذات صلة
 
 المزيد من أدلة [المسارات والتصدير](/guides/tracks-and-export/):
 
-- [تقسيم مسار ستيريو إلى مساري مونو](/guides/tracks-and-export/split-stereo-into-mono-tracks/) — افصل بين القنوات اليسرى واليمنى بحيث يمكن تعديل كل منهما بشكل مستقل.
-- [توليد نغمة اختبار](/guides/tracks-and-export/generate-a-test-tone/) — أنشئ موجة جيبية بتردد وطول محددين من العدم.
-- [تصدير MP3](/guides/tracks-and-export/export-an-mp3/) — اعرض المشروع كملف MP3 للمشاركة أو النشر.
-- [تصدير WAV](/guides/tracks-and-export/export-a-wav/) — اعرض المشروع كملف WAV غير مضغوط.
-- [كتم المسارات وعزلها](/guides/tracks-and-export/mute-and-solo-tracks/) — اصمت مسارًا، أو استمع إلى مسار واحد بمفرده، أثناء العمل على خلط.
-- [إضافة مسار فارغ](/guides/tracks-and-export/add-an-empty-track/) — أنشئ مسارًا جديدًا للتسجيل فيه أو للصق عليه.
-- [كتم جميع المسارات دفعة واحدة](/guides/tracks-and-export/mute-every-track-at-once/) — اصمت المشروع بأكمله في خطوة واحدة، ثم أعد تشغيله.
-- [خلط المسارات في مسار جديد مع الاحتفاظ بالأصلية](/guides/tracks-and-export/mix-tracks-into-a-new-track/) — اعرض خلطًا لعدة مسارات على مسار جديد بينما تبقى المصادر في المشروع.
-- [توازن المسارات في الميكسر](/guides/tracks-and-export/balance-tracks-in-the-mixer/) — افتح وحدة تحكم خلط مع شريط قناة لكل مسار لضبط المستويات والتوجيه جنبًا إلى جنب.
+- [تقسيم مسار ستيريو إلى مسارين أحاديين](/guides/tracks-and-export/split-stereo-into-mono-tracks/) — فصل القنوات اليسرى واليمنى حتى يمكن تحرير كل منها على حدة.
+- [توليد نغمة اختبار](/guides/tracks-and-export/generate-a-test-tone/) — إنشاء موجة جيبية ذات تردد وطول محددين من العدم.
+- [تصدير ملف MP3](/guides/tracks-and-export/export-an-mp3/) — تصيير المشروع إلى ملف MP3 لمشاركته أو نشره.
+- [تصدير ملف WAV](/guides/tracks-and-export/export-a-wav/) — تصيير المشروع إلى ملف WAV غير مضغوط.
+- [تعطيل وتشغيل المسارات](/guides/tracks-and-export/mute-and-solo-tracks/) — إسكات مسار، أو الاستماع إلى مسار واحد فقط، أثناء العمل على مزيج.
+- [إضافة مسار فارغ](/guides/tracks-and-export/add-an-empty-track/) — إنشاء مسار جديد لتسجيله أو لصقه عليه.
+- [تعطيل جميع المسارات في وقت واحد](/guides/tracks-and-export/mute-every-track-at-once/) — إسكات المشروع بأكمله في خطوة واحدة، ثم إعادته جميعًا.
+- [مزج المسارات إلى مسار جديد مع الاحتفاظ بالأصلية](/guides/tracks-and-export/mix-tracks-into-a-new-track/) — تصيير مزيج من عدة مسارات على مسار جديد بينما تظل المصادر في المشروع.
+- [موازنة المسارات في المزج](/guides/tracks-and-export/balance-tracks-in-the-mixer/) — افتح وحدة تحكم مزج مع شريط قناة لكل مسار لضبط المستويات والبانوراما جنبًا إلى جنب.
 
 ## حول هذا الدليل
 
-الإجراء في هذه الصفحة — كل عنصر قائمة، ومربع حوار، وحقل وزر، والنتيجة التي ينتجها — يتم إعادة تشغيله مقابل كل إصدار من Soundscaper بواسطة مجموعة المتصفح (`tests/browser/soundscaper-guides.spec.js`). إذا توقف أي جزء عن مطابقة المحرر، يفشل الإصدار حتى يتم تصحيح الدليل. القيم المقترحة هي نقاط بداية تم إثبات قبول المحرر لها؛ أما ما إذا كانت تناسب تسجيلك فهو قرار يتركه لسماعك.
+الإجراء الموجود في هذه الصفحة — كل إدخال قائمة، وحوار، وحقل، وزر، والنتيجة التي ينتجها — يتم إعادة تشغيله ضد كل إصدار من Soundscaper بواسطة مجموعة المتصفحات (`tests/browser/soundscaper-guides.spec.js`). إذا توقف أي منها عن مطابقة المحرر، يفشل الإصدار حتى يتم تصحيح الدليل. القيم المقترحة هي نقاط بداية يثبت المحرر قبولها؛ ما إذا كانت تناسب تسجيلك هو قرار أذنيك.
