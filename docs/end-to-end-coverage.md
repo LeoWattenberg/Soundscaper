@@ -27,9 +27,22 @@ from the authenticated build. The admitted Mediabunny `Blob` workers are
 reconstructed from their emitted call sites and matching source-map spans. The
 FFmpeg core is admitted only at its canonical production JavaScript and Wasm
 URLs with the manifest and publication-policy pins committed at the recorded
-revision; Chromium's JavaScript source bytes and exact empty Wasm debugger
-sentinel are checked. A changed URL, query, fragment, source, pin, policy, or
+revision. Chromium must report the exact protocol language and canonical URL;
+its JavaScript source bytes are checked directly, while its empty debugger text
+is accepted for Wasm only when the captured base64 bytes have the pinned digest
+and WebAssembly magic. A changed URL, query, fragment, source, pin, policy, or
 producer fails rather than widening the exclusion.
+
+Raw V8 input is checked structurally against the authenticated JavaScript and
+its source map. Required root, explicit-function, and class-initializer spans
+come from an independent parse and cannot disappear from the union. Reported
+functions must match those source-derived spans, while their block ranges must
+use contextual source boundaries and form nonduplicated nested or disjoint
+trees. Selected branch-count and outcome-cardinality checks reject collapsed
+topology. These checks detect malformed or incomplete capture structure; as
+with other local coverage tools, the runtime counts themselves are trusted
+capture evidence, not a cryptographic attestation that could distinguish an
+edited count from an identical genuine count.
 
 Executable routes created only by a browser test do not contribute coverage.
 Those tests opt out of collection, and a recursive static guard follows their
@@ -48,6 +61,17 @@ and are not part of the normal product inventory; the few generated renderer
 bridges needed to drive the packaged application are accepted only by their
 exact product-bound recipe and bytes.
 
+The real-model phase launches each product through the diagnostic host with a
+fresh private Node coverage directory. It starts precise CDP coverage before
+reloading the host, then closes the diagnostic window normally so inference
+helpers shut down and Electron checkpoints its main-process profile. Each
+session binds its files directly to one product, launch, archive alias, and
+canonical executable Resources identity; assembly does not infer ownership from
+an operating-system PID that could be reused. A hard-killed child, missing root
+profile, stale archive or Resources tree, unmanifested file, or foreign script
+invalidates that session. These sessions augment, but never replace, the
+ordinary packaged coverage capture required for both products.
+
 ## Capture evidence
 
 Build and run the ordinary Chromium suite with coverage as described in
@@ -57,14 +81,16 @@ The ordinary runner binds both production-shaped Pages sites to the exact,
 distinct loopback origins recorded by their manifests; the dual-origin phase
 validates and reuses that pair. Both therefore use the same authenticated
 reciprocal browser builds, Pages headers and redirects, and exact
-build-evidence denominator. Both phases append profiles to the same
-`coverage/v8-browser/` directory. The runner later executes packaged coverage
+build-evidence denominator. Both phases append profiles to the same `coverage/v8-browser/`
+directory. The runner later executes packaged coverage
 after the non-instrumented performance phases. Each nightly run directory
 preserves:
 
 - `coverage/v8-browser/` for raw Chromium profiles;
 - `coverage/v8-packaged/` for packaged Electron main, preload, renderer, worker,
   worklet, and service-worker profiles;
+- `coverage/v8-local-assistance/` for product-bound real-model Electron main,
+  preload, utility-process, and worker-thread sessions;
 - `coverage/build-evidence/` for the exact browser and Electron JavaScript plus
   source maps against which those profiles were recorded.
 
@@ -118,7 +144,9 @@ CDP renderer and preload profiles carry an exact script-source cache which is
 checked against the preserved executables. Standard Node V8 profiles contain
 URLs and execution ranges rather than source bytes; their main and child-process
 entries are instead restricted to digest-authenticated installed paths from the
-same preserved package evidence.
+same preserved package evidence. Real-model Node profiles are read recursively
+only from their manifest-bound private session directory, so identical or
+reused process IDs across products cannot move coverage between surfaces.
 
 Service workers, dedicated workers, shared workers, and worklets are attached
 before their first instruction; a later page-target attachment can miss worker
