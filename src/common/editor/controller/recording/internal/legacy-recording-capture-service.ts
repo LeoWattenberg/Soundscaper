@@ -202,7 +202,7 @@ export function createLegacyRecordingCaptureService(runtime: RecordingCaptureCom
 					'timedRecordingPast',
 				),
 			});
-			const { scheduledTime, availableLeadInFrames } = timing;
+			const { scheduledTime } = timing;
 			const selectionProjectFrames = selection
 				? selection.endFrame - selection.startFrame + sourceOffsetProjectFrames
 				: 0;

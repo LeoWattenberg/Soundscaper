@@ -434,7 +434,7 @@ export function createRoutedRecordingCaptureService(runtime: RoutedRecordingCapt
 					'timedRecordingPast',
 				),
 			});
-			const { scheduledTime, availableLeadInFrames } = timing;
+			const { scheduledTime } = timing;
 			const setRecorderSchedule = (contextStartTime: number) => {
 				const startFrame = timing.captureStartFrame(contextStartTime);
 				for (const session of sourceSessions) {

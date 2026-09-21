@@ -13,8 +13,15 @@ export function takeCycleStableId(
 	}
 	if (typeof value !== 'string' || !value.length || value !== value.trim()
 		|| value !== value.normalize('NFC') || value.length > maximumLength
-		|| /[\u0000-\u001f\u007f]/u.test(value)) throw new TypeError(`${name} is invalid.`);
+		|| hasAsciiControlCharacter(value)) throw new TypeError(`${name} is invalid.`);
 	return value;
+}
+
+function hasAsciiControlCharacter(value: string): boolean {
+	return [...value].some((character) => {
+		const codePoint = character.codePointAt(0);
+		return codePoint !== undefined && (codePoint <= 0x1f || codePoint === 0x7f);
+	});
 }
 
 export function takeCycleStableName(value: unknown): string {
