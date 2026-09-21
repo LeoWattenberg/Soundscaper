@@ -6,16 +6,10 @@ import {
 	type RuntimeClipProject,
 } from '../runtime-clip-projection.ts';
 import { isTrackLockProjectSchema } from '../project-schema-version.ts';
+import { createRecursiveBinarySnapshotAuthority } from './recursive-binary-snapshot.ts';
 
 type DataRecord = Record<string, unknown>;
 type SnapshotValue = unknown;
-const BINARY_SNAPSHOT_BYTES = Symbol('track-lock-binary-snapshot-bytes');
-const BINARY_SNAPSHOT_KIND = Symbol('track-lock-binary-snapshot-kind');
-
-interface BinarySnapshot {
-	readonly [BINARY_SNAPSHOT_BYTES]: Uint8Array;
-	readonly [BINARY_SNAPSHOT_KIND]: 'array-buffer' | 'uint8-array';
-}
 
 interface TrackSnapshotContext {
 	readonly project: DataRecord;
@@ -465,70 +459,11 @@ function indexById(values: readonly DataRecord[], name: string): ReadonlyMap<str
 	return result;
 }
 
+const { snapshotValue, snapshotRecord: snapshotRecordWithout, sameSnapshot } =
+	createRecursiveBinarySnapshotAuthority(dataValue);
+
 function snapshotRecord(value: DataRecord): SnapshotValue {
-	return snapshotRecordWithout(value, new Set());
-}
-
-function snapshotRecordWithout(value: DataRecord, omitted: ReadonlySet<string>): SnapshotValue {
-	const result: DataRecord = {};
-	for (const key of Object.keys(value).sort()) {
-		if (omitted.has(key)) continue;
-		result[key] = snapshotValue(dataValue(value, key));
-	}
-	return Object.freeze(result);
-}
-
-function snapshotValue(value: unknown): SnapshotValue {
-	if (value === null || typeof value !== 'object') return value;
-	if (value instanceof Uint8Array) return binarySnapshot(value, 'uint8-array');
-	if (value instanceof ArrayBuffer) return binarySnapshot(new Uint8Array(value), 'array-buffer');
-	if (Array.isArray(value)) return Object.freeze(value.map(snapshotValue));
-	return snapshotRecord(record(value, 'snapshot value'));
-}
-
-function sameSnapshot(left: SnapshotValue, right: SnapshotValue): boolean {
-	if (Object.is(left, right)) return true;
-	if (left === null || right === null || typeof left !== 'object' || typeof right !== 'object') return false;
-	const leftBytes = binarySnapshotBytes(left);
-	const rightBytes = binarySnapshotBytes(right);
-	if (leftBytes !== null || rightBytes !== null) {
-		return leftBytes !== null && rightBytes !== null
-			&& binarySnapshotKind(left) === binarySnapshotKind(right)
-			&& leftBytes.byteLength === rightBytes.byteLength
-			&& leftBytes.every((value, index) => value === rightBytes[index]);
-	}
-	if (Array.isArray(left) || Array.isArray(right)) {
-		return Array.isArray(left) && Array.isArray(right)
-			&& left.length === right.length
-			&& left.every((value, index) => sameSnapshot(value, right[index]));
-	}
-	const leftRecord = left as DataRecord;
-	const rightRecord = right as DataRecord;
-	const leftKeys = Object.keys(leftRecord).sort();
-	const rightKeys = Object.keys(rightRecord).sort();
-	return leftKeys.length === rightKeys.length
-		&& leftKeys.every((key, index) => key === rightKeys[index]
-			&& sameSnapshot(dataValue(leftRecord, key), dataValue(rightRecord, key)));
-}
-
-function binarySnapshot(
-	value: Uint8Array,
-	kind: BinarySnapshot[typeof BINARY_SNAPSHOT_KIND],
-): BinarySnapshot {
-	return Object.freeze({
-		[BINARY_SNAPSHOT_BYTES]: new Uint8Array(value),
-		[BINARY_SNAPSHOT_KIND]: kind,
-	});
-}
-
-function binarySnapshotBytes(value: object): Uint8Array | null {
-	if (!Object.hasOwn(value, BINARY_SNAPSHOT_BYTES)) return null;
-	return (value as BinarySnapshot)[BINARY_SNAPSHOT_BYTES];
-}
-
-function binarySnapshotKind(value: object): BinarySnapshot[typeof BINARY_SNAPSHOT_KIND] | null {
-	if (!Object.hasOwn(value, BINARY_SNAPSHOT_KIND)) return null;
-	return (value as BinarySnapshot)[BINARY_SNAPSHOT_KIND];
+	return snapshotRecordWithout(value);
 }
 
 function dataValue(value: DataRecord, key: string): unknown {

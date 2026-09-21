@@ -6,6 +6,7 @@ import {
 	type RuntimeClipProject,
 } from '../runtime-clip-projection.ts';
 import { isVideoRetimeCurveProjectSchema } from '../project-schema-version.ts';
+import { createRecursiveBinarySnapshotAuthority } from './recursive-binary-snapshot.ts';
 
 type DataRecord = Record<string, unknown>;
 type SnapshotValue = unknown;
@@ -16,13 +17,6 @@ const DERIVED_VIDEO_FIELDS = new Set([
 	'sourceStartFrame', 'sourceEndFrame', 'sourceDurationFrames',
 	'sequenceEndFrame', 'coordinateDomain',
 ]);
-const BINARY_BYTES = Symbol('video-retime-preservation-bytes');
-const BINARY_KIND = Symbol('video-retime-preservation-kind');
-
-interface BinarySnapshot {
-	readonly [BINARY_BYTES]: Uint8Array;
-	readonly [BINARY_KIND]: 'array-buffer' | 'uint8-array';
-}
 
 interface ClipEntry {
 	readonly id: string;
@@ -325,59 +319,8 @@ function protectedCommandSubject(
 	}
 }
 
-function snapshotRecordWithout(value: DataRecord, omitted: ReadonlySet<string>): SnapshotValue {
-	const result: DataRecord = {};
-	for (const key of Object.keys(value).sort()) {
-		if (omitted.has(key)) continue;
-		result[key] = snapshotValue(dataValue(value, key));
-	}
-	return Object.freeze(result);
-}
-
-function snapshotValue(value: unknown): SnapshotValue {
-	if (value === null || typeof value !== 'object') return value;
-	if (value instanceof Uint8Array) return binarySnapshot(value, 'uint8-array');
-	if (value instanceof ArrayBuffer) return binarySnapshot(new Uint8Array(value), 'array-buffer');
-	if (Array.isArray(value)) return Object.freeze(value.map(snapshotValue));
-	return snapshotRecordWithout(record(value, 'snapshot value'), new Set());
-}
-
-function sameSnapshot(left: SnapshotValue, right: SnapshotValue): boolean {
-	if (Object.is(left, right)) return true;
-	if (left === null || right === null || typeof left !== 'object' || typeof right !== 'object') return false;
-	const leftBytes = binaryBytes(left);
-	const rightBytes = binaryBytes(right);
-	if (leftBytes !== null || rightBytes !== null) {
-		return leftBytes !== null && rightBytes !== null
-			&& binaryKind(left) === binaryKind(right)
-			&& leftBytes.byteLength === rightBytes.byteLength
-			&& leftBytes.every((value, index) => value === rightBytes[index]);
-	}
-	if (Array.isArray(left) || Array.isArray(right)) {
-		return Array.isArray(left) && Array.isArray(right)
-			&& left.length === right.length
-			&& left.every((value, index) => sameSnapshot(value, right[index]));
-	}
-	const leftRecord = left as DataRecord;
-	const rightRecord = right as DataRecord;
-	const leftKeys = Object.keys(leftRecord).sort();
-	const rightKeys = Object.keys(rightRecord).sort();
-	return leftKeys.length === rightKeys.length
-		&& leftKeys.every((key, index) => key === rightKeys[index]
-			&& sameSnapshot(dataValue(leftRecord, key), dataValue(rightRecord, key)));
-}
-
-function binarySnapshot(value: Uint8Array, kind: BinarySnapshot[typeof BINARY_KIND]): BinarySnapshot {
-	return Object.freeze({ [BINARY_BYTES]: new Uint8Array(value), [BINARY_KIND]: kind });
-}
-
-function binaryBytes(value: object): Uint8Array | null {
-	return Object.hasOwn(value, BINARY_BYTES) ? (value as BinarySnapshot)[BINARY_BYTES] : null;
-}
-
-function binaryKind(value: object): BinarySnapshot[typeof BINARY_KIND] | null {
-	return Object.hasOwn(value, BINARY_KIND) ? (value as BinarySnapshot)[BINARY_KIND] : null;
-}
+const { snapshotValue, snapshotRecord: snapshotRecordWithout, sameSnapshot } =
+	createRecursiveBinarySnapshotAuthority(dataValue);
 
 function dataValue(value: DataRecord, key: string): unknown {
 	const descriptor = Object.getOwnPropertyDescriptor(value, key);
