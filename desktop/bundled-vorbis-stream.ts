@@ -2,7 +2,7 @@
 
 /** Strict bounded Ogg/Vorbis validation for the reviewed bundled decoder profile. */
 
-import { oggPageCrc } from './ogg-page-crc.ts';
+import { oggPageCrc } from '../src/common/editor/ogg-page-crc.ts';
 
 const CAPTURE = Uint8Array.of(0x4f, 0x67, 0x67, 0x53);
 const VORBIS = Uint8Array.of(0x76, 0x6f, 0x72, 0x62, 0x69, 0x73);

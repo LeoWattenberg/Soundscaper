@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 import { inspectXing, parseHeader } from '../../../desktop/bundled-mpeg-audio-stream.ts';
-import { oggPageCrc } from '../../../desktop/ogg-page-crc.ts';
+import { oggPageCrc } from './ogg-page-crc.ts';
 import { parseBlock } from '../../../desktop/bundled-wavpack-stream.ts';
 import { readAacSourceMetadata, validateAacSourceGeometry } from './aac-source-geometry.ts';
 import type { BrowserDedicatedAudioFormat } from './browser-dedicated-audio-codec.ts';

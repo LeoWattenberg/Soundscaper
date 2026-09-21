@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import { oggPageCrc as opusOggPageCrc } from '../desktop/bundled-opus-stream.ts';
-import { oggPageCrc } from '../desktop/ogg-page-crc.ts';
+import { oggPageCrc } from '../src/common/editor/ogg-page-crc.ts';
 
 test('the shared Ogg page CRC matches a known page and ignores its checksum field', () => {
 	assert.equal(opusOggPageCrc, oggPageCrc);

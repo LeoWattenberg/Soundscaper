@@ -84,13 +84,13 @@ test('staged manifest closes over control, helper, runner, seven modules, and se
 			'desktop/desktop-audio-codec-capability-contract.js',
 			'desktop/desktop-audio-codec-operation-contract.js',
 			'desktop/desktop-audio-stream-contract.js',
-			'desktop/ogg-page-crc.js',
 			'src/common/editor/browser-dedicated-audio-codec.js',
 			'src/common/editor/browser-dedicated-audio-output-validation.js',
 			'src/common/editor/browser-dedicated-audio-profiles.js',
 			'src/common/editor/dedicated-audio-encode-session.js',
 			'src/common/editor/desktop-codec-provider-catalog.js',
 			'src/common/editor/large-audio-policy.js',
+			'src/common/editor/ogg-page-crc.js',
 		].map((path) => {
 			const staged = fixture.manifest.files.find((file) => (
 				file.path === `project-library-runtime/${path}`

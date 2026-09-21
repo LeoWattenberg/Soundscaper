@@ -2,9 +2,9 @@
 
 /** Strict bounded Ogg Opus profile admitted by the reviewed bundled decoder. */
 
-import { oggPageCrc } from './ogg-page-crc.ts';
+import { oggPageCrc } from '../src/common/editor/ogg-page-crc.ts';
 
-export { oggPageCrc } from './ogg-page-crc.ts';
+export { oggPageCrc } from '../src/common/editor/ogg-page-crc.ts';
 
 const CAPTURE = Uint8Array.of(0x4f, 0x67, 0x67, 0x53);
 const OPUS_HEAD = Uint8Array.of(0x4f, 0x70, 0x75, 0x73, 0x48, 0x65, 0x61, 0x64);
