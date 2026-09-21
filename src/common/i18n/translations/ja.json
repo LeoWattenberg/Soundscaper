@@ -3,7 +3,7 @@
 	"locale": "ja",
 	"provenance": {
 		"machine": {"model":"codex","modelDigest":"sha256:f2d7e2a65858aec48d3d9e943d89d1920d918cf49d66ddaa6739e12cd26f8fd9","promptVersion":"i18n-machine-v1"},
-		"audacity": {"repository":"audacity/audacity","headSha":"06595b4fddf92d1f0732bd37ff4fe90f58d8d25b","runId":34582633440,"artifactId":10192470311,"workflowUrl":"https://github.com/audacity/audacity/actions/runs/34582633440","archiveName":"Audacity_locale_262540913.zip","archiveSha256":"84e33f6c26e4a22b763919f8d449689226c1bc7a7c878cc88786e88962186a86","archiveByteLength":14412832,"licenseSpdx":"GPL-3.0-only","upstreamProjectUrl":"https://github.com/audacity/audacity","upstreamLicenseUrl":"https://github.com/audacity/audacity/blob/06595b4fddf92d1f0732bd37ff4fe90f58d8d25b/LICENSE.txt","modificationNotice":"Soundscaper converts reviewed Audacity Qt TS messages to per-locale JSON catalogs, excludes unsafe or inapplicable entries, adapts reviewed placeholders and mnemonics, and removes ellipsis punctuation.","mappingVersion":3,"mappingSha256":"f4cf0434f47eaa9434d079a1623b9d9501e9c8da0d83f0c73344f7765113b57c"}
+		"audacity": {"repository":"audacity/audacity","headSha":"de2e43dc13474ba712ade5ea8e47550eba0e8bfb","runId":35327911264,"artifactId":10539339149,"workflowUrl":"https://github.com/audacity/audacity/actions/runs/35327911264","archiveName":"Audacity_locale_262610911.zip","archiveSha256":"13b1ff11c39a677c711a1d29738a394aaca7a200533927aab3f45bbd76c1ff8e","archiveByteLength":15413913,"licenseSpdx":"GPL-3.0-only","upstreamProjectUrl":"https://github.com/audacity/audacity","upstreamLicenseUrl":"https://github.com/audacity/audacity/blob/de2e43dc13474ba712ade5ea8e47550eba0e8bfb/LICENSE.txt","modificationNotice":"Soundscaper converts reviewed Audacity Qt TS messages to per-locale JSON catalogs, excludes unsafe or inapplicable entries, adapts reviewed placeholders and mnemonics, and removes ellipsis punctuation.","mappingVersion":3,"mappingSha256":"f4cf0434f47eaa9434d079a1623b9d9501e9c8da0d83f0c73344f7765113b57c"}
 	},
 	"entries": {
 		"aboutEditor": ["machine","About Soundscaper","Soundscaper について"],
@@ -1589,7 +1589,7 @@
 		"logarithmic": ["machine","Logarithmic","対数"],
 		"loop": ["machine","Loop selection","ループ選択"],
 		"loopRegion": ["machine","Loop region","ループ領域"],
-		"loopToSelection": ["audacity","Set loop region to selection","選択範囲をループ領域に設定"],
+		"loopToSelection": ["audacity","Set loop region to selection","ループ領域を選択範囲に設定"],
 		"loudnessMeasured": ["machine","Loudness measured","音量を測定"],
 		"loudnessNormalization": ["machine","Loudness normalization","音量正規化"],
 		"loudnessNormalizationA85": ["machine","ATSC A/85 (-24 LUFS)","ATSC A/85 (-24 LUFS)"],
@@ -2044,7 +2044,7 @@
 		"rendering": ["machine","Rendering audio in your browser","ブラウザでオーディオをレンダリング中"],
 		"renderingSection": ["machine","Rendering","レンダリング"],
 		"repeatLastAnalyzer": ["machine","Repeat last analyzer","最後のアナライザーを繰り返す"],
-		"repeatLastEffect": ["audacity","Repeat last effect","前回のエフェクトを繰り返す"],
+		"repeatLastEffect": ["audacity","Repeat last effect","直前のエフェクトを繰り返す"],
 		"repeatLastGenerator": ["machine","Repeat last generator","最後のジェネレーターを繰り返す"],
 		"replaceNoiseProfile": ["machine","Replace noise profile","ノイズプロファイルを置き換える"],
 		"replaceOriginals": ["machine","Replace originals","オリジナルを置き換える"],
@@ -2160,7 +2160,7 @@
 		"selectionEffectUnsupported": ["machine","This selection effect is not supported.","この選択エフェクトはサポートされていません。"],
 		"selectionEffects": ["machine","Apply effect","エフェクトを追加"],
 		"selectionEnd": ["machine","Selection end","選択終了"],
-		"selectionFollowsLoop": ["audacity","Creating a loop also selects audio","ループ作成時にオーディオも選択"],
+		"selectionFollowsLoop": ["audacity","Creating a loop also selects audio","オーディオも選択してループを作成"],
 		"selectionFramesFinite": ["machine","Selection frames must be finite numbers.","選択フレームは有限の数値でなければなりません。"],
 		"selectionStart": ["machine","Selection start","選択開始"],
 		"selectionToLoop": ["machine","Set selection to loop region","選択範囲をループ領域に設定"],
