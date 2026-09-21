@@ -1,11 +1,10 @@
 import { compareCodeUnits } from './code-unit-order.ts';
 import {
-	createVisibleVideoTrackPredicate,
 	isProductVisualClip,
 	resolveVideoCompositionIntervals,
 	videoClipEndFrame,
 } from './video-timeline.js';
-import { isTrackFolderMediaStateProjectionV12 } from './track-folder-media-runtime.ts';
+import { videoTrackVisibility } from './video-timeline-internals.js';
 import { normalizeVideoEffects } from './video-effects.js';
 import { assertStaticVideoKeyframesForExport } from './video-keyframe-export-admission.ts';
 import { resolveVideoKeyframeExportFrameCount } from './video-keyframe-export-frame-source.ts';
@@ -530,14 +529,6 @@ function ensureRuntimeProject(project) {
 		mediaProject,
 		resolveRuntimeProjectProjection(mediaProject),
 	);
-}
-
-function videoTrackVisibility(project, requested) {
-	const visible = createVisibleVideoTrackPredicate(project?.tracks);
-	if (typeof requested !== 'function') return visible;
-	// An explicit predicate still replaces the default outright for a legacy project.
-	if (!isTrackFolderMediaStateProjectionV12(project)) return requested;
-	return (track) => visible(track) && requested(track);
 }
 
 function nonNegativeSafeInteger(value, name) {
