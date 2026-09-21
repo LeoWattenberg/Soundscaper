@@ -8,6 +8,7 @@ import test from 'node:test';
 import {
 	chunkGroupForModulePath,
 	chunkGroups,
+	EDITOR_FFMPEG_RUNTIME_CHUNK_TEST,
 	EDITOR_OPTIONAL_ARCHIVE_CHUNK_TEST,
 	EDITOR_OPTIONAL_EXECUTION_CHUNK_TEST,
 	EDITOR_PRODUCTION_METER_CHUNK_TEST,
@@ -102,6 +103,21 @@ test('Split Tool runtime stays behind its optional feature boundary', () => {
 		'src/common/editor/ui/timeline/split-tool-shortcut.ts',
 	]) assert.equal(chunkGroupForModulePath(path), 'editor-optional-split-tool', path);
 	const group = chunkGroups.find((candidate) => candidate.name === 'editor-optional-split-tool');
+	assert.ok(group);
+	assert.equal(group.minSize, 0);
+	assert.equal(group.includeDependenciesRecursively, false);
+});
+
+test('FFmpeg composition has one browser-lazy, desktop-reachable runtime owner', () => {
+	const path = 'src/common/editor/ffmpeg.js';
+	assert.ok(EDITOR_FFMPEG_RUNTIME_CHUNK_TEST.test(path));
+	assert.ok(EDITOR_FFMPEG_RUNTIME_CHUNK_TEST.test(path.replaceAll('/', '\\')));
+	assert.equal(chunkGroupForModulePath(path), 'editor-ffmpeg-runtime');
+	assert.equal(
+		chunkGroupForModulePath('src/common/editor/video-keyframe-ffmpeg-operation.ts'),
+		'editor-ffmpeg-runtime',
+	);
+	const group = chunkGroups.find((candidate) => candidate.name === 'editor-ffmpeg-runtime');
 	assert.ok(group);
 	assert.equal(group.minSize, 0);
 	assert.equal(group.includeDependenciesRecursively, false);

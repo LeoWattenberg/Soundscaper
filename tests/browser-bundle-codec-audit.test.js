@@ -56,6 +56,48 @@ test('browser bundle audit inspects asset names without rejecting desktop FFmpeg
 	);
 });
 
+test('browser bundle audit admits only the dynamic trim-media FFmpeg closure', async (context) => {
+	const root = await mkdtemp(join(tmpdir(), 'soundscaper-browser-codecs-'));
+	context.after(() => rm(root, { recursive: true, force: true }));
+	await mkdir(join(root, 'assets'));
+	await writeFile(join(root, 'index.html'), '<script src="/assets/editor.js"></script>');
+	await writeFile(
+		join(root, 'assets/editor.js'),
+		'const loadTrim = () => import("./ffmpeg-A1.js");',
+	);
+	await writeFile(
+		join(root, 'assets/ffmpeg-A1.js'),
+		'import { createEditorFfmpeg } from "./editor-ffmpeg-runtime-B2.js"; export { createEditorFfmpeg };',
+	);
+	await writeFile(
+		join(root, 'assets/editor-ffmpeg-runtime-B2.js'),
+		'const core = "ffmpeg-core.wasm"; import("./browser-ffmpeg-runtime-C3.js"); '
+			+ 'import "./ffmpeg-runtime-public-policy-D4.js"; import("./esm-E5.js");',
+	);
+	await writeFile(
+		join(root, 'assets/browser-ffmpeg-runtime-C3.js'),
+		'const manager = "createBrowserFfmpegRuntimeManager"; const core = "@ffmpeg/core";',
+	);
+	await writeFile(
+		join(root, 'assets/ffmpeg-runtime-public-policy-D4.js'),
+		'const origin = "https://assets.soundscaper.org/runtime/ffmpeg/0.12.10";',
+	);
+	await writeFile(
+		join(root, 'assets/esm-E5.js'),
+		'new Worker(new URL("./worker-F6.js", import.meta.url));',
+	);
+	await writeFile(join(root, 'assets/worker-F6.js'), 'const core = "@ffmpeg/core";');
+
+	assert.deepEqual(auditBrowserBundleCodecComposition({ root }), {
+		status: 'browser-codec-composition', inspectedFileCount: 8,
+	});
+	await writeFile(join(root, 'assets/editor.js'), 'import "./ffmpeg-A1.js";');
+	assert.throws(
+		() => auditBrowserBundleCodecComposition({ root }),
+		/FFmpeg facade is statically reachable/iu,
+	);
+});
+
 test('the production build gate runs the browser codec audit', async (context) => {
 	const root = await mkdtemp(join(tmpdir(), 'soundscaper-browser-codecs-'));
 	context.after(() => rm(root, { recursive: true, force: true }));

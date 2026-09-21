@@ -1,22 +1,17 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-/** Browser composition for complete-file audio codecs, with no FFmpeg runtime. */
+/** Browser-native audio codecs with a separate, on-demand video trim lease. */
 
-import {
-	type BrowserDedicatedAudioFormat,
-	type DedicatedAudioDecodeRequest,
-	type DedicatedAudioDecodeResult,
-	type DedicatedAudioEncodeRequest,
-} from './browser-dedicated-audio-codec.ts';
+import type { BrowserDedicatedAudioFormat, DedicatedAudioDecodeRequest,
+	DedicatedAudioDecodeResult, DedicatedAudioEncodeRequest } from './browser-dedicated-audio-codec.ts';
+import { createLazyBrowserTrimMediaRuntime } from './browser-trim-media-codec-runtime.ts';
 import type { BrowserAacEncodeRequest } from './browser-webcodecs-aac.ts';
 import { browserAacMetadataTags } from './browser-aac-metadata.ts';
 import {
 	probeBrowserWebCodecsAudioEncoding,
 	type BrowserAudioEncoderProbe,
 } from './browser-webcodecs-audio-profile.ts';
-import {
-	type FfmpegOutputSink,
-} from './ffmpeg-output-stream.ts';
+import { type FfmpegOutputSink } from './ffmpeg-output-stream.ts';
 import {
 	applyMediaChannelMapping,
 	canonicalMediaExportFormat,
@@ -39,6 +34,7 @@ export interface BrowserAudioCodecRuntimeOptions {
 	readonly webCodecsAac?: boolean;
 	readonly encodeAac?: (request: BrowserAacEncodeRequest) => Promise<Uint8Array>;
 	readonly audioEncoderProbe?: BrowserAudioEncoderProbe;
+	readonly createTrimMediaRuntime?: Parameters<typeof createLazyBrowserTrimMediaRuntime>[0]['createTrimMediaRuntime'];
 	readonly [key: string]: unknown;
 }
 
@@ -122,6 +118,7 @@ export function createBrowserAudioCodecRuntime(options: BrowserAudioCodecRuntime
 	const capabilities = browserAudioCapabilities(options.webCodecsAac ?? hasWebCodecsAac());
 	const lifetimeAbort = new AbortController();
 	let disposed = false;
+	const trimMedia = createLazyBrowserTrimMediaRuntime(options, () => new BrowserCodecRuntimeDisposedError());
 	const runtime = Object.freeze({
 		async load() {
 			assertActive();
@@ -195,11 +192,13 @@ export function createBrowserAudioCodecRuntime(options: BrowserAudioCodecRuntime
 			settings.assertCurrent?.();
 			return decodedChannels(decoded);
 		},
+		runTrimMediaOperation: trimMedia.runTrimMediaOperation,
 		dispose(): void {
 			if (disposed) return;
 			disposed = true;
 			lifetimeAbort.abort(new BrowserCodecRuntimeDisposedError());
 			client.dispose();
+			trimMedia.dispose();
 		},
 		capabilities: () => capabilities,
 	});

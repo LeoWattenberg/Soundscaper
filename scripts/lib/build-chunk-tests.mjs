@@ -138,6 +138,10 @@ export const EDITOR_OPTIONAL_SURFACE_CHUNK_TEST = new RegExp(
 export const EDITOR_OPTIONAL_SPLIT_TOOL_CHUNK_TEST =
 	/src[\\/]common[\\/]editor[\\/]ui[\\/]timeline[\\/]split-tool-(?:guideline|shortcut)\.ts$/;
 
+/** FFmpeg composition and its browser-lazy, desktop-reachable dependency closure. */
+export const EDITOR_FFMPEG_RUNTIME_CHUNK_TEST =
+	/src[\\/]common[\\/]editor[\\/](?:ffmpeg(?:-cfr-ingest|-media-file-operation|-pcm-exchange|-video-output|-video-source-characteristics|-video-timing-operation|-workerfs-name)?|video-(?:effect-ffmpeg|ffmpeg|keyframe-ffmpeg-operation))\.(?:js|ts)$/;
+
 /** Shared parameter editor plus its Audacity and parametric-EQ surface implementations. */
 export const EDITOR_EFFECT_PARAMETER_SURFACE_CHUNK_TEST = new RegExp(
 	`${editorPath}(?:ui[\\/](?:Audacity(?:EffectLayout|DynamicsEffectLayout|PortEffectLayout|PitchControls|RateControls|SlidingStretchControls)|DynamicsActivityPanel|ParametricEqEditor|inspector[\\/]EffectParameter(?:Editor|Number))\\.jsx|ui[\\/](?:Audacity(?:ParameterKnob|LegacyEffectGraph|NoiseReductionControls)\\.tsx|audacity-(?:compression-curve|derived-controls|knob-warp|legacy-effect-graphs)\\.ts)|ui[\\/]inspector[\\/](?:FilterCurveEqEditor|GraphicEqEditor|AudacityNoiseProfileButton)\\.tsx|ui[\\/]dynamics-activity-canvas\\.ts|controller[\\/]effects[\\/](?:filter-curve-gesture|graphic-eq-gesture)\\.ts)$`,

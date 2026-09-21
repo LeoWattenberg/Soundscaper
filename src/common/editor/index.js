@@ -83,8 +83,7 @@ export {
 	FfmpegDisposedError,
 	FfmpegEncodingError,
 	FfmpegVideoEncodingError,
-	createEditorFfmpeg,
-} from './ffmpeg.js';
+} from './ffmpeg-errors.js';
 // The AUP4 archive client is deliberately absent: it is optional archive implementation
 // with no chunk owner, and `controller/document/deferred-archive-runtime.ts` is the only production
 // reach into it, through a dynamic import. Re-exporting it from this eagerly owned barrel

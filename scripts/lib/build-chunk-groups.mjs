@@ -30,6 +30,7 @@ import {
 	EDITOR_EFFECT_CONTRACT_CHUNK_TEST,
 	EDITOR_EFFECT_DIALOG_SHELL_CHUNK_TEST,
 	EDITOR_EFFECT_PARAMETER_SURFACE_CHUNK_TEST,
+	EDITOR_FFMPEG_RUNTIME_CHUNK_TEST,
 	EDITOR_IMPORT_ADMISSION_CHUNK_TEST,
 	EDITOR_OPTIONAL_ASSISTANCE_CHUNK_TEST,
 	EDITOR_OPTIONAL_CAPTURE_CHUNK_TEST,
@@ -60,6 +61,7 @@ export {
 	EDITOR_DOMAIN_CHUNK_TEST,
 	EDITOR_EFFECT_DIALOG_SHELL_CHUNK_TEST,
 	EDITOR_EFFECT_PARAMETER_SURFACE_CHUNK_TEST,
+	EDITOR_FFMPEG_RUNTIME_CHUNK_TEST,
 	EDITOR_IMPORT_ADMISSION_CHUNK_TEST,
 	EDITOR_SOURCE_ACTIVATION_CHUNK_TEST,
 	EDITOR_OPTIONAL_ARCHIVE_CHUNK_TEST,
@@ -238,6 +240,16 @@ export const chunkGroups = [
 		name: 'editor-optional-split-tool',
 		test: EDITOR_OPTIONAL_SPLIT_TOOL_CHUNK_TEST,
 		priority: 93,
+		minSize: 0,
+		maxSize: 400_000,
+		includeDependenciesRecursively: false,
+	},
+	{
+		// The browser audio runtime exposes a trim lease, but the complete FFmpeg
+		// composition remains absent until that menu action actually invokes it.
+		name: 'editor-ffmpeg-runtime',
+		test: EDITOR_FFMPEG_RUNTIME_CHUNK_TEST,
+		priority: 99,
 		minSize: 0,
 		maxSize: 400_000,
 		includeDependenciesRecursively: false,

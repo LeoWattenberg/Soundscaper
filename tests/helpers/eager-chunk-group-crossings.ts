@@ -43,6 +43,9 @@ export const EAGER_CHUNK_GROUPS: ReadonlySet<string> = new Set([
 	'editor-domain',
 	'editor-effect-contracts',
 	'editor-engine',
+	// The browser reaches this composition only through a dynamic trim lease;
+	// the desktop codec runtime imports its keyframe operation during startup.
+	'editor-ffmpeg-runtime',
 	'editor-production-meter',
 	'editor-presentation',
 	'editor-shell',

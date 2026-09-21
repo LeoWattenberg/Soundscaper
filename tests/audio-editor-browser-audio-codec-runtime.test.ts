@@ -241,7 +241,40 @@ test('browser audio preflight refuses dedicated metadata and complete-file bound
 	await runtime.preflightEncodeFile('wav', { frameCount: 100 });
 });
 
-test('browser audio runtime refuses custom FFmpeg and omits unsupported operation capabilities', async () => {
+test('browser audio runtime refuses custom FFmpeg but retains the lazy trim-media lease', async () => {
+	const events: string[] = [];
+	const runtime = createBrowserAudioCodecRuntime({
+		codecClient: clientFixture([], Uint8Array.of(1)),
+		webCodecsAac: false,
+		createTrimMediaRuntime: async () => {
+			events.push('create');
+			return {
+				async runTrimMediaOperation(operation) {
+					events.push('run');
+					return operation({ marker: 'trim-lease' } as never);
+				},
+				dispose() { events.push('dispose'); },
+			};
+		},
+	});
+	assert.equal(events.length, 0, 'constructing the audio runtime must not load FFmpeg');
+	const first = await runtime.runTrimMediaOperation(async (lease) => {
+		events.push((lease as unknown as { marker: string }).marker);
+		return 'trimmed';
+	});
+	const second = await runtime.runTrimMediaOperation(async () => 'again');
+	assert.equal(first, 'trimmed');
+	assert.equal(second, 'again');
+	assert.deepEqual(events, ['create', 'run', 'trim-lease', 'run']);
+	runtime.dispose();
+	assert.deepEqual(events, ['create', 'run', 'trim-lease', 'run', 'dispose']);
+	await assert.rejects(
+		() => runtime.runTrimMediaOperation(async () => 'too late'),
+		(error) => error instanceof BrowserCodecRuntimeDisposedError,
+	);
+});
+
+test('browser audio runtime refuses custom FFmpeg and omits unrelated video capabilities', async () => {
 	const runtime = createBrowserAudioCodecRuntime({ codecClient: clientFixture([], Uint8Array.of(1)), webCodecsAac: false });
 	const wav = encodeWav([Float32Array.of(0)], { sampleRate: 48_000, bitDepth: 32, float: true });
 	await assert.rejects(
@@ -255,11 +288,11 @@ test('browser audio runtime refuses custom FFmpeg and omits unsupported operatio
 		'probeVideoTiming',
 		'conformVideoToCfr',
 		'runVideoKeyframeEncoderOperation',
-		'runTrimMediaOperation',
 		'runProxyMediaOperation',
 	] as const) {
 		assert.equal(Object.hasOwn(runtime, operation), false, `${operation} must not advertise a missing capability`);
 	}
+	assert.equal(typeof runtime.runTrimMediaOperation, 'function');
 });
 
 function clientFixture(
