@@ -2,7 +2,6 @@
 
 /** Exact ffprobe track inspection for a completed external-video canary. */
 
-import { spawn as nodeSpawn } from 'node:child_process';
 import { dirname, isAbsolute, normalize } from 'node:path';
 
 import type { DesktopVideoCodecFormat } from './desktop-video-codec-operation-contract.js';
@@ -13,6 +12,7 @@ import type {
 } from './external-ffmpeg-probe.js';
 import {
 	curatedExternalFfmpegVideoEnvironment,
+	spawnExternalFfmpegVideoProcess,
 	type ExternalFfmpegVideoChildProcess,
 	type ExternalFfmpegVideoLaunchOptions,
 	type ExternalFfmpegVideoSpawn,
@@ -83,7 +83,7 @@ function createCanaryProbeRunner(
 		options.workingDirectory,
 	);
 	const signal = options.signal ?? new AbortController().signal;
-	const launch = options.spawn ?? defaultSpawn;
+	const launch = options.spawn ?? spawnExternalFfmpegVideoProcess;
 	const terminationGraceMs = boundedWait(options.terminationGraceMs, 500);
 	const killWaitMs = boundedWait(options.killWaitMs, 500);
 	return Object.freeze({
@@ -366,17 +366,6 @@ function launchFailure(error: unknown): ExternalFfmpegProcessResult {
 		return Object.freeze({ status: 'unavailable', reason: 'not-executable' });
 	}
 	return unavailable('launch-failed');
-}
-
-function defaultSpawn(
-	executable: string,
-	arguments_: readonly string[],
-	options: ExternalFfmpegVideoLaunchOptions,
-): ExternalFfmpegVideoChildProcess {
-	return nodeSpawn(executable, [...arguments_], {
-		cwd: options.cwd, env: { ...options.env }, shell: false,
-		stdio: [...options.stdio] as never, windowsHide: true, detached: options.detached,
-	}) as unknown as ExternalFfmpegVideoChildProcess;
 }
 
 function inspectionError(message: string): Error {

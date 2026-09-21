@@ -2,9 +2,6 @@
 
 /** Production AssistanceShotRuntimeAdapter for one authenticated external FFmpeg pair. */
 
-import { createHash } from 'node:crypto';
-import { constants as fsConstants } from 'node:fs';
-import { open } from 'node:fs/promises';
 import { dirname, isAbsolute, normalize } from 'node:path';
 
 import type { SpeechRuntimeStatus } from './assistance-speech-runtime.ts';
@@ -21,6 +18,7 @@ import type {
 	ExternalFfmpegRuntimeAdmission,
 	ExternalFfmpegRuntimeInvalidationReason,
 } from './external-ffmpeg-preference-service.ts';
+import { sha256ExternalFfmpegRegularFile } from './external-ffmpeg-process-security.ts';
 import {
 	createExternalFfmpegShotDetector,
 	ExternalFfmpegShotDetectorError,
@@ -240,23 +238,9 @@ function invalidationReason(
 }
 
 async function sha256File(path: string): Promise<string> {
-	const handle = await open(path, fsConstants.O_RDONLY);
-	try {
-		const metadata = await handle.stat();
-		if (!metadata.isFile()) throw new Error('The admitted external FFmpeg path is not a regular file.');
-		const hash = createHash('sha256');
-		const buffer = Buffer.alloc(64 * 1_024);
-		let position = 0;
-		for (;;) {
-			const { bytesRead } = await handle.read(buffer, 0, buffer.byteLength, position);
-			if (bytesRead === 0) break;
-			hash.update(buffer.subarray(0, bytesRead));
-			position += bytesRead;
-		}
-		return hash.digest('hex');
-	} finally {
-		await handle.close();
-	}
+	return await sha256ExternalFfmpegRegularFile(path, {
+		notRegularFile: () => new Error('The admitted external FFmpeg path is not a regular file.'),
+	});
 }
 
 function validateOptions(options: ExternalFfmpegAssistanceShotRuntimeOptions): void {

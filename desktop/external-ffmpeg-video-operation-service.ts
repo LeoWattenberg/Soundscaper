@@ -2,7 +2,7 @@
 
 /** Main-owned, owner-scoped streaming sessions for fixed external-FFmpeg video plans. */
 
-import { createHash, randomBytes } from 'node:crypto';
+import { randomBytes } from 'node:crypto';
 import { constants as fsConstants } from 'node:fs';
 import { chmod, mkdir, mkdtemp, open, rm, type FileHandle } from 'node:fs/promises';
 import { isAbsolute, join } from 'node:path';
@@ -26,6 +26,7 @@ import type {
 	ExternalFfmpegRuntimeAdmission,
 	ExternalFfmpegRuntimeInvalidationReason,
 } from './external-ffmpeg-preference-service.js';
+import { sha256ExternalFfmpegRegularFile } from './external-ffmpeg-process-security.js';
 import {
 	createExternalFfmpegVideoBeginGate,
 	createExternalFfmpegVideoVerifiedCapabilities,
@@ -581,19 +582,7 @@ function operationError(reason: string, message: string): DesktopExternalFfmpegV
 }
 
 async function sha256File(path: string): Promise<string> {
-	const handle = await open(path, fsConstants.O_RDONLY);
-	try {
-		const metadata = await handle.stat();
-		if (!metadata.isFile()) throw new Error('External FFmpeg is not a regular file.');
-		const hash = createHash('sha256');
-		const buffer = Buffer.alloc(64 * 1024);
-		let position = 0;
-		for (;;) {
-			const { bytesRead } = await handle.read(buffer, 0, buffer.byteLength, position);
-			if (bytesRead === 0) break;
-			hash.update(buffer.subarray(0, bytesRead));
-			position += bytesRead;
-		}
-		return hash.digest('hex');
-	} finally { await handle.close(); }
+	return await sha256ExternalFfmpegRegularFile(path, {
+		notRegularFile: () => new Error('External FFmpeg is not a regular file.'),
+	});
 }

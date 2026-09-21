@@ -2,10 +2,7 @@
 
 /** Main-process-only, resource-bounded execution for admitted external FFmpeg audio operations. */
 
-import { spawn as nodeSpawn } from 'node:child_process';
-import { createHash } from 'node:crypto';
-import { constants as fsConstants } from 'node:fs';
-import { chmod, mkdir, mkdtemp, open, rm, writeFile } from 'node:fs/promises';
+import { chmod, mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { isAbsolute, join } from 'node:path';
 
 import { readBoundedRegularFile } from './bounded-regular-file.ts';
@@ -15,6 +12,10 @@ import {
 	type ExternalFfmpegExecutablePairAdmission,
 } from './external-ffmpeg-executable-pair-admission.ts';
 import { curatedExternalFfmpegEnvironment } from './external-ffmpeg-environment.ts';
+import {
+	sha256ExternalFfmpegRegularFile,
+	spawnExternalFfmpegProcess,
+} from './external-ffmpeg-process-security.ts';
 import { shouldDetachProcessTree, terminateProcessTree } from './process-tree-termination.ts';
 
 export interface ExternalFfmpegAudioOperationFiles {
@@ -114,6 +115,9 @@ export type ExternalFfmpegAudioSpawn = (
 	options: ExternalFfmpegAudioLaunchOptions,
 ) => ExternalFfmpegAudioChildProcess;
 
+const DEFAULT_EXTERNAL_FFMPEG_AUDIO_SPAWN =
+	spawnExternalFfmpegProcess as unknown as ExternalFfmpegAudioSpawn;
+
 export interface ExternalFfmpegAudioOperationRunnerOptions<Operation> {
 	/** Fixed main-owned parent; callers of execute cannot select a filesystem path. */
 	readonly scratchRoot: string;
@@ -184,7 +188,7 @@ export function createExternalFfmpegAudioOperationRunner<Operation>(
 	const limits = operationLimits(options);
 	const getExecutable = options.getAdmittedExecutable;
 	const digestExecutable = options.digestExecutable ?? sha256File;
-	const launch = options.spawn ?? defaultSpawn;
+	const launch = options.spawn ?? DEFAULT_EXTERNAL_FFMPEG_AUDIO_SPAWN;
 	const environment = curatedExternalFfmpegEnvironment(options.environment ?? process.env);
 	let active = false;
 
@@ -512,35 +516,11 @@ function childEnvironment(
 	});
 }
 
-function defaultSpawn(
-	executablePath: string,
-	arguments_: readonly string[],
-	options: ExternalFfmpegAudioLaunchOptions,
-): ExternalFfmpegAudioChildProcess {
-	return nodeSpawn(executablePath, [...arguments_], {
-		cwd: options.cwd, env: { ...options.env }, shell: false,
-		stdio: ['ignore', 'pipe', 'pipe'], windowsHide: true,
-		detached: options.detached,
-	}) as unknown as ExternalFfmpegAudioChildProcess;
-}
-
 async function sha256File(path: string): Promise<string> {
 	// Homebrew's public executable is normally a symlink into its versioned Cellar.
-	const handle = await open(path, fsConstants.O_RDONLY);
-	try {
-		const metadata = await handle.stat();
-		if (!metadata.isFile()) throw new Error('The selected external FFmpeg is not a regular file.');
-		const hash = createHash('sha256');
-		const buffer = Buffer.alloc(64 * 1_024);
-		let position = 0;
-		for (;;) {
-			const { bytesRead } = await handle.read(buffer, 0, buffer.byteLength, position);
-			if (bytesRead === 0) break;
-			hash.update(buffer.subarray(0, bytesRead));
-			position += bytesRead;
-		}
-		return hash.digest('hex');
-	} finally { await handle.close(); }
+	return await sha256ExternalFfmpegRegularFile(path, {
+		notRegularFile: () => new Error('The selected external FFmpeg is not a regular file.'),
+	});
 }
 
 function spawnFailure(error: unknown, log = ''): ProcessResult {

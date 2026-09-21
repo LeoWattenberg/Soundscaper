@@ -2,9 +2,9 @@
 
 /** Shell-free FFmpeg child process and backpressured private-pipe primitives. */
 
-import { spawn as nodeSpawn } from 'node:child_process';
 import type { Writable } from 'node:stream';
 
+import { spawnExternalFfmpegProcess } from './external-ffmpeg-process-security.js';
 import { shouldDetachProcessTree, terminateProcessTree } from './process-tree-termination.js';
 
 export {
@@ -43,6 +43,9 @@ export type ExternalFfmpegVideoSpawn = (
 	arguments_: readonly string[],
 	options: ExternalFfmpegVideoLaunchOptions,
 ) => ExternalFfmpegVideoChildProcess;
+
+export const spawnExternalFfmpegVideoProcess =
+	spawnExternalFfmpegProcess as unknown as ExternalFfmpegVideoSpawn;
 
 export interface ExternalFfmpegVideoProcessLimits {
 	readonly duration: number;
@@ -86,7 +89,7 @@ export function launchExternalFfmpegVideoProcess(options: Readonly<{
 	readonly spawn?: ExternalFfmpegVideoSpawn;
 	readonly error: (reason: string, message: string) => Error;
 }>): ExternalFfmpegVideoProcess {
-	const launch = options.spawn ?? defaultSpawn;
+	const launch = options.spawn ?? spawnExternalFfmpegVideoProcess;
 	let child: ExternalFfmpegVideoChildProcess;
 	try {
 		child = launch(options.executablePath, options.arguments, Object.freeze({
@@ -225,17 +228,6 @@ function childEnvironment(
 		AV_LOG_FORCE_NOCOLOR: '1', HOME: scratch, LANG: 'C', LC_ALL: 'C', NO_COLOR: '1',
 		...base, TEMP: scratch, TMP: scratch, TMPDIR: scratch, USERPROFILE: scratch,
 	});
-}
-
-function defaultSpawn(
-	executable: string,
-	arguments_: readonly string[],
-	options: ExternalFfmpegVideoLaunchOptions,
-): ExternalFfmpegVideoChildProcess {
-	return nodeSpawn(executable, [...arguments_], {
-		cwd: options.cwd, env: { ...options.env }, shell: false,
-		stdio: [...options.stdio] as never, windowsHide: true, detached: options.detached,
-	}) as unknown as ExternalFfmpegVideoChildProcess;
 }
 
 function throwIfAborted(signal: AbortSignal): void {

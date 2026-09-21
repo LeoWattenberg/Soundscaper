@@ -86,6 +86,7 @@ export const DESKTOP_ASSISTANCE_RUNTIME_FILES = Object.freeze([
 	'desktop/assistance-workflow-owned-video-highlight-stage-runtime.js',
 	'desktop/assistance-workflow-service.js',
 	'desktop/assistance-workflow-transfers.js',
+	'desktop/external-ffmpeg-process-security.js',
 	'desktop/external-ffmpeg-shot-detection-output.js',
 	'desktop/external-ffmpeg-shot-detector.js',
 	'desktop/local-model-capacity.js',
