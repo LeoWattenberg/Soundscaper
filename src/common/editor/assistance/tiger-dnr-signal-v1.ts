@@ -1,12 +1,19 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { fftRadixTwoFloat64V1 } from './internal/radix-two-fft-v1.ts';
+import {
+	ASSISTANCE_CENTERED_PERIODIC_HANN_FFT_SIZE_V1,
+	ASSISTANCE_CENTERED_PERIODIC_HANN_FREQUENCY_BIN_COUNT_V1,
+	ASSISTANCE_CENTERED_PERIODIC_HANN_HOP_FRAMES_V1,
+	centeredPeriodicHannIstftChannelsV1,
+	centeredPeriodicHannStftChannelV1,
+} from './internal/centered-periodic-hann-stft-v1.ts';
 
 /** Owned deterministic signal geometry for the pinned TIGER-DnR reference. */
 
 export const ASSISTANCE_TIGER_DNR_SAMPLE_RATE = 44_100;
-export const ASSISTANCE_TIGER_DNR_FFT_SIZE = 2_048;
-export const ASSISTANCE_TIGER_DNR_STFT_HOP_FRAMES = 512;
+export const ASSISTANCE_TIGER_DNR_FFT_SIZE = ASSISTANCE_CENTERED_PERIODIC_HANN_FFT_SIZE_V1;
+export const ASSISTANCE_TIGER_DNR_STFT_HOP_FRAMES
+	= ASSISTANCE_CENTERED_PERIODIC_HANN_HOP_FRAMES_V1;
 export const ASSISTANCE_TIGER_DNR_CHUNK_FRAMES = 12 * ASSISTANCE_TIGER_DNR_SAMPLE_RATE;
 export const ASSISTANCE_TIGER_DNR_CHUNK_HOP_FRAMES = 4 * ASSISTANCE_TIGER_DNR_SAMPLE_RATE;
 
@@ -15,7 +22,7 @@ const CHUNK_PADDING_FRAMES = ASSISTANCE_TIGER_DNR_CHUNK_FRAMES
 const OVERLAP_DIVISOR = ASSISTANCE_TIGER_DNR_CHUNK_FRAMES
 	/ ASSISTANCE_TIGER_DNR_CHUNK_HOP_FRAMES;
 const CENTER_PADDING_FRAMES = ASSISTANCE_TIGER_DNR_FFT_SIZE / 2;
-const FREQUENCY_BIN_COUNT = ASSISTANCE_TIGER_DNR_FFT_SIZE / 2 + 1;
+const FREQUENCY_BIN_COUNT = ASSISTANCE_CENTERED_PERIODIC_HANN_FREQUENCY_BIN_COUNT_V1;
 const MAXIMUM_SOURCE_FRAMES = 24 * 60 * 60 * ASSISTANCE_TIGER_DNR_SAMPLE_RATE;
 const MAXIMUM_CHANNELS = 32;
 const MAXIMUM_CHUNKS = 100_000;
@@ -180,29 +187,12 @@ export function tigerDnrStftV1(value: unknown): TigerDnrSpectrumV1 {
 	if (sourceFrameCount <= CENTER_PADDING_FRAMES) {
 		throw new RangeError('TIGER-DnR centered reflection padding needs more than 1024 source frames.');
 	}
-	const timeFrameCount = Math.floor(sourceFrameCount
-		/ ASSISTANCE_TIGER_DNR_STFT_HOP_FRAMES) + 1;
-	const window = periodicHann();
-	const spectra = channels.map((channel) => {
-		const realOutput = new Float32Array(timeFrameCount * FREQUENCY_BIN_COUNT);
-		const imaginaryOutput = new Float32Array(realOutput.length);
-		for (let time = 0; time < timeFrameCount; time += 1) {
-			const real = new Float64Array(ASSISTANCE_TIGER_DNR_FFT_SIZE);
-			const imaginary = new Float64Array(ASSISTANCE_TIGER_DNR_FFT_SIZE);
-			const paddedStart = time * ASSISTANCE_TIGER_DNR_STFT_HOP_FRAMES;
-			for (let frame = 0; frame < ASSISTANCE_TIGER_DNR_FFT_SIZE; frame += 1) {
-				real[frame] = reflectedSample(channel, paddedStart + frame - CENTER_PADDING_FRAMES)
-					* window[frame]!;
-			}
-			fftRadixTwoFloat64V1(real, imaginary, false);
-			for (let bin = 0; bin < FREQUENCY_BIN_COUNT; bin += 1) {
-				const offset = time * FREQUENCY_BIN_COUNT + bin;
-				realOutput[offset] = real[bin]!;
-				imaginaryOutput[offset] = imaginary[bin]!;
-			}
-		}
-		return Object.freeze({ real: realOutput, imaginary: imaginaryOutput });
-	});
+	const channelSpectra = channels.map(centeredPeriodicHannStftChannelV1);
+	const timeFrameCount = channelSpectra[0]!.timeFrameCount;
+	const spectra = channelSpectra.map((spectrum) => Object.freeze({
+		real: spectrum.real,
+		imaginary: spectrum.imaginary,
+	}));
 	return Object.freeze({
 		schemaVersion: 1,
 		sampleRate: ASSISTANCE_TIGER_DNR_SAMPLE_RATE,
@@ -222,47 +212,11 @@ export function tigerDnrIstftV1(value: unknown): readonly Float32Array[] {
 	const sourceFrameCount = integer(row.sourceFrameCount, CENTER_PADDING_FRAMES + 1,
 		MAXIMUM_SOURCE_FRAMES, 'TIGER-DnR ISTFT source frame count');
 	const spectrum = validateSpectrum(row.spectrum, sourceFrameCount);
-	const paddedFrameCount = (spectrum.timeFrameCount - 1) * spectrum.hopFrames + spectrum.fftSize;
-	const window = periodicHann();
-	const normalization = new Float64Array(paddedFrameCount);
-	for (let time = 0; time < spectrum.timeFrameCount; time += 1) {
-		const start = time * spectrum.hopFrames;
-		for (let frame = 0; frame < spectrum.fftSize; frame += 1) {
-			normalization[start + frame] = (normalization[start + frame] ?? 0)
-				+ window[frame]! * window[frame]!;
-		}
-	}
-	const output = spectrum.channels.map((channel) => {
-		const accumulator = new Float64Array(paddedFrameCount);
-		for (let time = 0; time < spectrum.timeFrameCount; time += 1) {
-			const real = new Float64Array(spectrum.fftSize);
-			const imaginary = new Float64Array(spectrum.fftSize);
-			for (let bin = 0; bin < spectrum.frequencyBinCount; bin += 1) {
-				const offset = time * spectrum.frequencyBinCount + bin;
-				real[bin] = channel.real[offset]!;
-				imaginary[bin] = channel.imaginary[offset]!;
-			}
-			for (let bin = 1; bin < spectrum.frequencyBinCount - 1; bin += 1) {
-				real[spectrum.fftSize - bin] = real[bin]!;
-				imaginary[spectrum.fftSize - bin] = -imaginary[bin]!;
-			}
-			fftRadixTwoFloat64V1(real, imaginary, true);
-			const start = time * spectrum.hopFrames;
-			for (let frame = 0; frame < spectrum.fftSize; frame += 1) {
-				accumulator[start + frame] = (accumulator[start + frame] ?? 0)
-					+ real[frame]! * window[frame]!;
-			}
-		}
-		const result = new Float32Array(sourceFrameCount);
-		for (let frame = 0; frame < sourceFrameCount; frame += 1) {
-			const padded = CENTER_PADDING_FRAMES + frame;
-			const divisor = normalization[padded]!;
-			if (!(divisor > 0)) throw new RangeError('TIGER-DnR ISTFT has an uncovered source frame.');
-			result[frame] = accumulator[padded]! / divisor;
-		}
-		return result;
-	});
-	return Object.freeze(output);
+	return centeredPeriodicHannIstftChannelsV1(
+		spectrum.channels,
+		spectrum.timeFrameCount,
+		sourceFrameCount,
+	);
 }
 
 function validatePlan(value: unknown): TigerDnrChunkPlanV1 {
@@ -354,20 +308,6 @@ function finitePlane(value: unknown, length: number, label: string): Float32Arra
 		if (!Number.isFinite(sample)) throw new RangeError(`${label} must contain only finite values.`);
 	}
 	return value;
-}
-
-function periodicHann(): Float64Array {
-	return Float64Array.from({ length: ASSISTANCE_TIGER_DNR_FFT_SIZE }, (_, frame) =>
-		0.5 - 0.5 * Math.cos(2 * Math.PI * frame / ASSISTANCE_TIGER_DNR_FFT_SIZE));
-}
-
-function reflectedSample(channel: Float32Array, frame: number): number {
-	let reflected = frame;
-	while (reflected < 0 || reflected >= channel.length) {
-		if (reflected < 0) reflected = -reflected;
-		else reflected = 2 * channel.length - 2 - reflected;
-	}
-	return channel[reflected]!;
 }
 
 function version(value: unknown, label: string): void {

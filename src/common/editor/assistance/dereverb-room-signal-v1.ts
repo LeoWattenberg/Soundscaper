@@ -1,6 +1,13 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { fftRadixTwoFloat64V1 } from './internal/radix-two-fft-v1.ts';
+import {
+	ASSISTANCE_CENTERED_PERIODIC_HANN_FFT_SIZE_V1,
+	ASSISTANCE_CENTERED_PERIODIC_HANN_FREQUENCY_BIN_COUNT_V1,
+	ASSISTANCE_CENTERED_PERIODIC_HANN_HOP_FRAMES_V1,
+	centeredPeriodicHannIstftChannelsV1,
+	centeredPeriodicHannStftChannelV1,
+	reflectedFloat32SampleV1,
+} from './internal/centered-periodic-hann-stft-v1.ts';
 
 /**
  * Owned deterministic signal geometry for the pinned dereverb-room reference.
@@ -14,15 +21,16 @@ import { fftRadixTwoFloat64V1 } from './internal/radix-two-fft-v1.ts';
  */
 
 export const ASSISTANCE_DEREVERB_ROOM_SAMPLE_RATE = 44_100;
-export const ASSISTANCE_DEREVERB_ROOM_FFT_SIZE = 2_048;
-export const ASSISTANCE_DEREVERB_ROOM_STFT_HOP_FRAMES = 512;
+export const ASSISTANCE_DEREVERB_ROOM_FFT_SIZE = ASSISTANCE_CENTERED_PERIODIC_HANN_FFT_SIZE_V1;
+export const ASSISTANCE_DEREVERB_ROOM_STFT_HOP_FRAMES
+	= ASSISTANCE_CENTERED_PERIODIC_HANN_HOP_FRAMES_V1;
 export const ASSISTANCE_DEREVERB_ROOM_CHUNK_FRAMES = 384_000;
 export const ASSISTANCE_DEREVERB_ROOM_CHUNK_STEP_FRAMES = 192_000;
 export const ASSISTANCE_DEREVERB_ROOM_BORDER_FRAMES = 192_000;
 export const ASSISTANCE_DEREVERB_ROOM_FADE_FRAMES = 38_400;
 
 const CENTER_PADDING_FRAMES = ASSISTANCE_DEREVERB_ROOM_FFT_SIZE / 2;
-const FREQUENCY_BIN_COUNT = ASSISTANCE_DEREVERB_ROOM_FFT_SIZE / 2 + 1;
+const FREQUENCY_BIN_COUNT = ASSISTANCE_CENTERED_PERIODIC_HANN_FREQUENCY_BIN_COUNT_V1;
 const MAXIMUM_SOURCE_FRAMES = 24 * 60 * 60 * ASSISTANCE_DEREVERB_ROOM_SAMPLE_RATE;
 const MAXIMUM_CHUNKS = 100_000;
 const HALF_CHUNK_FRAMES = ASSISTANCE_DEREVERB_ROOM_CHUNK_FRAMES / 2;
@@ -122,7 +130,7 @@ export function extractDereverbRoomChunkV1(value: unknown): Float32Array {
 	for (let frame = 0; frame < chunk.availableFrameCount; frame += 1) {
 		output[frame] = plan.borderFrames === 0
 			? channel[chunk.paddedStartFrame + frame]!
-			: reflectedSample(channel, chunk.paddedStartFrame + frame - plan.borderFrames);
+			: reflectedFloat32SampleV1(channel, chunk.paddedStartFrame + frame - plan.borderFrames);
 	}
 	if (chunk.tailPadMode === 'reflect') {
 		for (let frame = chunk.availableFrameCount;
@@ -182,35 +190,16 @@ export function dereverbRoomStftV1(value: unknown): DereverbRoomSpectrumV1 {
 	if (channel.length <= CENTER_PADDING_FRAMES) {
 		throw new RangeError('dereverb-room centered reflection padding needs more than 1024 source frames.');
 	}
-	const timeFrameCount = Math.floor(channel.length
-		/ ASSISTANCE_DEREVERB_ROOM_STFT_HOP_FRAMES) + 1;
-	const window = periodicHann();
-	const realOutput = new Float32Array(timeFrameCount * FREQUENCY_BIN_COUNT);
-	const imaginaryOutput = new Float32Array(realOutput.length);
-	for (let time = 0; time < timeFrameCount; time += 1) {
-		const real = new Float64Array(ASSISTANCE_DEREVERB_ROOM_FFT_SIZE);
-		const imaginary = new Float64Array(ASSISTANCE_DEREVERB_ROOM_FFT_SIZE);
-		const paddedStart = time * ASSISTANCE_DEREVERB_ROOM_STFT_HOP_FRAMES;
-		for (let frame = 0; frame < ASSISTANCE_DEREVERB_ROOM_FFT_SIZE; frame += 1) {
-			real[frame] = reflectedSample(channel, paddedStart + frame - CENTER_PADDING_FRAMES)
-				* window[frame]!;
-		}
-		fftRadixTwoFloat64V1(real, imaginary, false);
-		for (let bin = 0; bin < FREQUENCY_BIN_COUNT; bin += 1) {
-			const offset = time * FREQUENCY_BIN_COUNT + bin;
-			realOutput[offset] = real[bin]!;
-			imaginaryOutput[offset] = imaginary[bin]!;
-		}
-	}
+	const spectrum = centeredPeriodicHannStftChannelV1(channel);
 	return Object.freeze({
 		schemaVersion: 1,
 		sampleRate: ASSISTANCE_DEREVERB_ROOM_SAMPLE_RATE,
 		fftSize: ASSISTANCE_DEREVERB_ROOM_FFT_SIZE,
 		hopFrames: ASSISTANCE_DEREVERB_ROOM_STFT_HOP_FRAMES,
 		frequencyBinCount: FREQUENCY_BIN_COUNT,
-		timeFrameCount,
-		real: realOutput,
-		imaginary: imaginaryOutput,
+		timeFrameCount: spectrum.timeFrameCount,
+		real: spectrum.real,
+		imaginary: spectrum.imaginary,
 	});
 }
 
@@ -221,44 +210,11 @@ export function dereverbRoomIstftV1(value: unknown): Float32Array {
 	const sourceFrameCount = integer(row.sourceFrameCount, CENTER_PADDING_FRAMES + 1,
 		MAXIMUM_SOURCE_FRAMES, 'dereverb-room ISTFT source frame count');
 	const spectrum = validateSpectrum(row.spectrum, sourceFrameCount);
-	const paddedFrameCount = (spectrum.timeFrameCount - 1) * spectrum.hopFrames + spectrum.fftSize;
-	const window = periodicHann();
-	const normalization = new Float64Array(paddedFrameCount);
-	for (let time = 0; time < spectrum.timeFrameCount; time += 1) {
-		const start = time * spectrum.hopFrames;
-		for (let frame = 0; frame < spectrum.fftSize; frame += 1) {
-			normalization[start + frame]! += window[frame]! * window[frame]!;
-		}
-	}
-	const accumulator = new Float64Array(paddedFrameCount);
-	for (let time = 0; time < spectrum.timeFrameCount; time += 1) {
-		const real = new Float64Array(spectrum.fftSize);
-		const imaginary = new Float64Array(spectrum.fftSize);
-		for (let bin = 0; bin < spectrum.frequencyBinCount; bin += 1) {
-			const offset = time * spectrum.frequencyBinCount + bin;
-			real[bin] = spectrum.real[offset]!;
-			imaginary[bin] = spectrum.imaginary[offset]!;
-		}
-		for (let bin = 1; bin < spectrum.frequencyBinCount - 1; bin += 1) {
-			real[spectrum.fftSize - bin] = real[bin]!;
-			imaginary[spectrum.fftSize - bin] = -imaginary[bin]!;
-		}
-		fftRadixTwoFloat64V1(real, imaginary, true);
-		const start = time * spectrum.hopFrames;
-		for (let frame = 0; frame < spectrum.fftSize; frame += 1) {
-			accumulator[start + frame]! += real[frame]! * window[frame]!;
-		}
-	}
-	const result = new Float32Array(sourceFrameCount);
-	for (let frame = 0; frame < sourceFrameCount; frame += 1) {
-		const padded = CENTER_PADDING_FRAMES + frame;
-		const divisor = normalization[padded]!;
-		if (!(divisor > 0)) {
-			throw new RangeError('dereverb-room ISTFT has an uncovered source frame.');
-		}
-		result[frame] = accumulator[padded]! / divisor;
-	}
-	return result;
+	return centeredPeriodicHannIstftChannelsV1(
+		[{ real: spectrum.real, imaginary: spectrum.imaginary }],
+		spectrum.timeFrameCount,
+		sourceFrameCount,
+	)[0]!;
 }
 
 function fadeWeight(frame: number, fadeIn: boolean, fadeOut: boolean): number {
@@ -335,20 +291,6 @@ function finitePlane(value: unknown, length: number | null, label: string): Floa
 		if (!Number.isFinite(sample)) throw new RangeError(`${label} must contain only finite values.`);
 	}
 	return value;
-}
-
-function periodicHann(): Float64Array {
-	return Float64Array.from({ length: ASSISTANCE_DEREVERB_ROOM_FFT_SIZE }, (_, frame) =>
-		0.5 - 0.5 * Math.cos(2 * Math.PI * frame / ASSISTANCE_DEREVERB_ROOM_FFT_SIZE));
-}
-
-function reflectedSample(channel: Float32Array, frame: number): number {
-	let reflected = frame;
-	while (reflected < 0 || reflected >= channel.length) {
-		if (reflected < 0) reflected = -reflected;
-		else reflected = 2 * channel.length - 2 - reflected;
-	}
-	return channel[reflected]!;
 }
 
 function version(value: unknown, label: string): void {
