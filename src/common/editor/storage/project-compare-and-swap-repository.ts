@@ -4,6 +4,7 @@ import { collectProjectStorageKeys, compactProjectSourceMetadata } from '../rete
 import { serializeScapeProjectDocument } from '../scape-project-document.ts';
 import { request, transact } from './indexeddb-backend.ts';
 import { publishSource } from './media-records.ts';
+import { pruneProjectRevisions } from './project-revision-pruning.ts';
 import type {
 	ProjectDocument,
 	ProjectLoadOptions,
@@ -12,13 +13,12 @@ import type {
 	ProjectRevision,
 } from './project-repository.ts';
 import type { StorageRepositoryPort } from './repository-port.ts';
-
-interface ProjectRevisionRecord {
-	readonly key: string;
-	readonly projectId: string;
-	readonly revision: number;
-	readonly project: ProjectDocument;
-}
+import {
+	asRecord,
+	clone,
+	revisionKey,
+	type ProjectRevisionRecord,
+} from './project-repository-support.ts';
 
 /** Add exact-current publication to a project repository without widening its ordinary save path. */
 export class ProjectCompareAndSwapRepository implements ProjectRepositoryPort {
@@ -94,7 +94,7 @@ export class ProjectCompareAndSwapRepository implements ProjectRepositoryPort {
 			? await publishIndexedDb(database, expected, project, revisionRecord)
 			: publishMemory(this.#port, expected, project, revisionRecord);
 		if (!published) return null;
-		await this.#pruneRevisions(project.id);
+		await pruneProjectRevisions(this.#port, project.id, this.#revisionLimit);
 		await postCommit?.();
 		return clone(project);
 	}
@@ -130,24 +130,6 @@ export class ProjectCompareAndSwapRepository implements ProjectRepositoryPort {
 		return this.#delegate.delete(projectId);
 	}
 
-	async #pruneRevisions(projectId: string): Promise<void> {
-		const database = await this.#port.database();
-		const records = !database
-			? [...this.#port.memory.revisions.values()].map(asRevision).filter(isRevisionFor(projectId))
-			: await transact(database, 'revisions', 'readonly', ({ revisions }) => (
-				request(revisions.index('projectId').getAll(projectId)) as Promise<ProjectRevisionRecord[]>
-			));
-		records.sort((left, right) => right.revision - left.revision);
-		const stale = records.slice(this.#revisionLimit);
-		if (!stale.length) return;
-		if (!database) {
-			for (const record of stale) this.#port.memory.revisions.delete(record.key);
-			return;
-		}
-		await transact(database, 'revisions', 'readwrite', ({ revisions }) => {
-			for (const record of stale) revisions.delete(record.key);
-		});
-	}
 }
 
 async function publishIndexedDb(
@@ -219,30 +201,6 @@ function sameProject(left: unknown, right: ProjectDocument): boolean {
 	return Boolean(left) && serializeScapeProjectDocument(left) === serializeScapeProjectDocument(right);
 }
 
-function asRecord(value: unknown): Record<string, unknown> | null {
-	return value && typeof value === 'object' ? value as Record<string, unknown> : null;
-}
-
-function asRevision(value: unknown): ProjectRevisionRecord | null {
-	const record = asRecord(value);
-	return record && typeof record.key === 'string' && typeof record.projectId === 'string'
-		&& typeof record.revision === 'number' && record.project && typeof record.project === 'object'
-		? record as unknown as ProjectRevisionRecord : null;
-}
-
-function isRevisionFor(projectId: string): (record: ProjectRevisionRecord | null) => record is ProjectRevisionRecord {
-	return (record): record is ProjectRevisionRecord => record?.projectId === projectId;
-}
-
 function revisionNumber(value: unknown): number {
 	return Number.isSafeInteger(value) && Number(value) >= 0 ? Number(value) : 0;
-}
-
-function revisionKey(projectId: string, revision: number): string {
-	return `${projectId}:${String(revision).padStart(12, '0')}`;
-}
-
-function clone<Value>(value: Value): Value {
-	if (typeof globalThis.structuredClone === 'function') return globalThis.structuredClone(value);
-	return JSON.parse(JSON.stringify(value)) as Value;
 }

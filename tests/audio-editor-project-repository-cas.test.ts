@@ -37,6 +37,23 @@ for (const backend of ['memory', 'indexeddb'] as const) {
 		assert.equal(await projects.saveIfCurrent?.(base, competing), null);
 		assert.deepEqual(await projects.load(base.id), target);
 	});
+
+	test(`${backend} ordinary and compare-and-swap publication share revision pruning`, async () => {
+		const store = createProjectStore({
+			indexedDB: backend === 'indexeddb' ? createInstrumentedIndexedDB() : null,
+			preferOpfs: false,
+			databaseName: uniqueName(`project-cas-pruning-${backend}`),
+			revisionLimit: 2,
+		});
+		const projects = store.projectRepository as ProjectRepositoryPort;
+		const base = createAudioEditorProjectV17({ id: 'project-cas-pruning', title: 'Base', now: NOW });
+		await projects.save(base);
+		const first = applyEditorCommand(base, { type: 'project/rename', title: 'First' }, { now: NOW });
+		assert.deepEqual(await projects.saveIfCurrent?.(base, first), first);
+		const second = applyEditorCommand(first, { type: 'project/rename', title: 'Second' }, { now: NOW });
+		assert.deepEqual(await projects.saveIfCurrent?.(first, second), second);
+		assert.deepEqual((await projects.listRevisions(base.id)).map(({ revision }) => revision), [2, 1]);
+	});
 }
 
 test('exact project deletion refuses memory storage before mutation', async () => {

@@ -24,6 +24,7 @@ import {
 } from './linked-original-provisional-root.ts';
 import { publishSource } from './media-records.ts';
 import { sameProjectSnapshot } from './project-snapshot-equality.ts';
+import { pruneProjectRevisions } from './project-revision-pruning.ts';
 import {
 	restoreProjectSnapshot,
 	restoreProjectSnapshotIfCurrent,
@@ -209,7 +210,7 @@ export class ProjectRepository implements ProjectRepositoryPort {
 				const mediaAsset = asRecord(this.#port.memory.mediaAssets.get(sourceId));
 				if (mediaAsset?.pendingProjectUntil) this.#port.memory.mediaAssets.set(sourceId, publishSource(mediaAsset));
 			}
-			await this.#pruneRevisions(snapshot.id);
+			await pruneProjectRevisions(this.#port, snapshot.id, this.#revisionLimit);
 			await postCommit?.();
 			return clone(snapshot);
 		}
@@ -229,7 +230,7 @@ export class ProjectRepository implements ProjectRepositoryPort {
 				if (mediaAsset?.pendingProjectUntil) mediaAssets.put(publishSource(mediaAsset));
 			}
 		});
-		await this.#pruneRevisions(snapshot.id);
+		await pruneProjectRevisions(this.#port, snapshot.id, this.#revisionLimit);
 		await postCommit?.();
 		return clone(snapshot);
 	}
@@ -410,23 +411,6 @@ export class ProjectRepository implements ProjectRepositoryPort {
 		});
 	}
 
-	async #pruneRevisions(projectId: string): Promise<void> {
-		const database = await this.#port.database();
-		const records = !database
-			? [...this.#port.memory.revisions.values()].map(asRevision).filter(isRevisionFor(projectId))
-			: await transact(database, 'revisions', 'readonly', ({ revisions }) => (
-				request(revisions.index('projectId').getAll(projectId)) as Promise<ProjectRevisionRecord[]>
-			));
-		records.sort((left, right) => right.revision - left.revision);
-		if (records.length <= this.#revisionLimit) return;
-		if (!database) {
-			for (const record of records.slice(this.#revisionLimit)) this.#port.memory.revisions.delete(record.key);
-			return;
-		}
-		await transact(database, 'revisions', 'readwrite', ({ revisions }) => {
-			for (const record of records.slice(this.#revisionLimit)) revisions.delete(record.key);
-		});
-	}
 }
 
 interface ProjectPublication {
