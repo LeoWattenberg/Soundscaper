@@ -4,7 +4,7 @@ import type {
 	NativePluginInstanceProjectionV1,
 	NativePluginProjectStateV1,
 } from './soundscaper-native-services-bridge.ts';
-import type { EditorProjectToken } from '../controller/shared/lifecycle.ts';
+import { isCurrentAssertion, type EditorProjectToken } from '../controller/shared/lifecycle.ts';
 
 interface NativeProjectController {
 	readonly project?: unknown;
@@ -39,10 +39,7 @@ export function captureSoundscaperNativeProjectOperation(
 		const current = controller?.project ?? null;
 		if (current !== project || projectIdentity(current) !== projectId) throw projectChangedError();
 	};
-	const isCurrent = (): boolean => {
-		try { assertCurrent(); return true; }
-		catch { return false; }
-	};
+	const isCurrent = (): boolean => isCurrentAssertion(assertCurrent);
 	const commit = <Value>(mutation: () => Value): Value => {
 		assertCurrent();
 		const value = mutation();
