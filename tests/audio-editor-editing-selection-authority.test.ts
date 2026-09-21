@@ -270,7 +270,7 @@ function executeControllerEdit(value: ReturnType<typeof project>, action: string
 		value.tracks.find(({ id }) => id === trackId) ?? null
 	);
 	const findClipTrack = (_project: unknown, clipId: string) => (
-		value.tracks.find((track) => 'clipIds' in track && track.clipIds.includes(clipId)) ?? null
+		value.tracks.find((track) => Array.isArray(track.clipIds) && track.clipIds.includes(clipId)) ?? null
 	);
 	const state = {
 		history: {},

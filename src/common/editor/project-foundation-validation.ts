@@ -40,7 +40,6 @@ import {
 import {
 	AUDIO_EDITOR_PROJECT_MAXIMUM_SAMPLE_RATE,
 	AUDIO_EDITOR_PROJECT_MINIMUM_SAMPLE_RATE,
-	normalizeProjectSampleRate,
 } from './project-sample-rate.ts';
 
 export {
