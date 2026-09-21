@@ -14,7 +14,10 @@ import {
 	evaluateAudacityActionEnablement,
 } from '../src/common/editor/audacity-action-parity.js';
 import { resolveAudacityActionSelectionFacts } from '../src/common/editor/audacity-action-enablement.ts';
+import createApplicationMenus from '../src/common/editor/ui/application-menus.js';
 import { createWorkspaceEditItems } from '../src/common/editor/ui/workspace/workspace-edit-items.js';
+import { WORKSPACE_PANEL_IDS } from '../src/common/editor/ui/workspace/workspace-panel-model.ts';
+import { handleWorkspaceKeyboard } from '../src/common/editor/ui/workspace-shortcuts.ts';
 
 interface ClipOptions {
 	readonly avLinkId?: string | null;
@@ -163,7 +166,7 @@ test('split, group, and ungroup availability use the same effective targets', ()
 	}), true);
 });
 
-test('toolbar and shortcut predicates consume the same selection authority', () => {
+test('Audacity gates and the Split toolbar consume the same selection authority', () => {
 	const value = project();
 	const snapshot = {
 		project: value,
@@ -191,6 +194,54 @@ test('toolbar and shortcut predicates consume the same selection authority', () 
 		splitAvailable: availability.split,
 	}).find(({ action }) => action === 'split');
 	assert.equal(split?.disabled, false);
+});
+
+test('Join, Group, and Ungroup agree across menu, shortcut, Audacity gate, and controller', () => {
+	const cases = [
+		{
+			action: 'join' as const,
+			actionId: 'join',
+			binding: 'Ctrl+J',
+			enabledProject: joinableProject(),
+			disabledProject: project(),
+		},
+		{
+			action: 'group' as const,
+			actionId: 'group-clips',
+			binding: 'Ctrl+G',
+			enabledProject: project(),
+			disabledProject: singleSelectionProject(),
+		},
+		{
+			action: 'ungroup' as const,
+			actionId: 'ungroup-clips',
+			binding: 'Ctrl+Shift+G',
+			enabledProject: project(),
+			disabledProject: singleSelectionProject(),
+		},
+	];
+	for (const { action, actionId, binding, enabledProject, disabledProject } of cases) {
+		for (const [expected, value] of [[true, enabledProject], [false, disabledProject]] as const) {
+			const snapshot = {
+				project: value,
+				selectedClipId: null,
+				selectedTrackId: null,
+				readOnly: false,
+			};
+			assert.equal(resolveEditingActionAvailability({ project: value })[action], expected,
+				`${action} authority`);
+			assert.equal(evaluateAudacityActionEnablement(actionId, { snapshot }), expected,
+				`${action} Audacity gate`);
+			const shortcutCalls: string[] = [];
+			const menus = selectionApplicationMenus(value, (called) => shortcutCalls.push(called));
+			assert.equal(findSelectionMenuItem(menus, actionId).disabled, !expected,
+				`${action} menu`);
+			assert.equal(executeControllerEdit(value, action).length > 0, expected,
+				`${action} controller`);
+			runSelectionShortcut({ actionId, binding, menus, snapshot });
+			assert.deepEqual(shortcutCalls, expected ? [action] : [], `${action} shortcut`);
+		}
+	}
 });
 
 test('Join preflight is the command validator and admits complete adjacent linked lanes', () => {
@@ -223,20 +274,7 @@ test('controller execution obeys the same Join, Group, and Ungroup gates as ever
 	assert.equal(resolveEditingActionAvailability({ project: invalidJoin }).join, false);
 	assert.deepEqual(executeControllerEdit(invalidJoin, 'join'), []);
 
-	const joinable = project();
-	joinable.schemaVersion = 17;
-	joinable.clips.splice(0, joinable.clips.length,
-		clip('video-a', 0, { kind: 'video', avLinkId: 'link-a', sourceStartFrame: 0 }),
-		clip('video-b', 100, { kind: 'video', avLinkId: 'link-b', sourceStartFrame: 100 }),
-		clip('audio-a', 0, { avLinkId: 'link-a', sourceStartFrame: 0 }),
-		clip('audio-b', 100, { avLinkId: 'link-b', sourceStartFrame: 100 }),
-	);
-	joinable.tracks.splice(0, joinable.tracks.length,
-		{ id: 'video-track', type: 'video', laneGroupId: 'lane', clipIds: ['video-a', 'video-b'] },
-		{ id: 'audio-track', type: 'audio', laneGroupId: 'lane', clipIds: ['audio-a', 'audio-b'] },
-	);
-	joinable.selection.clipIds = joinable.clips.map(({ id }) => id);
-	joinable.selection.trackIds = [];
+	const joinable = joinableProject();
 	assert.equal(resolveEditingActionAvailability({ project: joinable }).join, true);
 	assert.deepEqual(executeControllerEdit(joinable, 'join'), [{
 		type: 'clip/join', clipIds: ['video-a', 'video-b', 'audio-a', 'audio-b'],
@@ -262,6 +300,139 @@ test('controller execution obeys the same Join, Group, and Ungroup gates as ever
 		type: 'clip/group', clipIds: ['group-audio', 'group-video', 'linked-audio'], groupId: 'group-created',
 	}]);
 });
+
+function joinableProject(): ReturnType<typeof project> {
+	const value = project();
+	value.schemaVersion = 17;
+	value.clips.splice(0, value.clips.length,
+		clip('video-a', 0, { kind: 'video', avLinkId: 'link-a', sourceStartFrame: 0 }),
+		clip('video-b', 100, { kind: 'video', avLinkId: 'link-b', sourceStartFrame: 100 }),
+		clip('audio-a', 0, { avLinkId: 'link-a', sourceStartFrame: 0 }),
+		clip('audio-b', 100, { avLinkId: 'link-b', sourceStartFrame: 100 }),
+	);
+	value.tracks.splice(0, value.tracks.length,
+		{ id: 'video-track', type: 'video', laneGroupId: 'lane', clipIds: ['video-a', 'video-b'] },
+		{ id: 'audio-track', type: 'audio', laneGroupId: 'lane', clipIds: ['audio-a', 'audio-b'] },
+	);
+	value.selection.clipIds = value.clips.map(({ id }) => id);
+	value.selection.trackIds = [];
+	return value;
+}
+
+function singleSelectionProject(): ReturnType<typeof project> {
+	const value = project();
+	value.selection.clipIds = ['focus-only'];
+	value.selection.trackIds = [];
+	return value;
+}
+
+interface SelectionMenuItem {
+	readonly id?: string;
+	readonly disabled?: boolean;
+	readonly divider?: boolean;
+	readonly items?: readonly SelectionMenuItem[];
+	readonly nativePreferences?: readonly SelectionMenuItem[];
+	readonly onClick?: () => unknown;
+}
+
+function selectionApplicationMenus(
+	value: ReturnType<typeof project>,
+	executeEdit: (action: string) => void,
+): readonly SelectionMenuItem[] {
+	const actions = new Proxy({ executeEdit }, {
+		get(target, property, receiver) {
+			return Reflect.has(target, property)
+				? Reflect.get(target, property, receiver)
+				: () => undefined;
+		},
+	});
+	const copy = new Proxy({}, { get: (_target, property) => String(property) });
+	return createApplicationMenus({
+		productId: 'soundscaper',
+		aboutLabel: 'About',
+		capabilities: {},
+		locale: 'en',
+		copy,
+		project: value,
+		snapshot: {
+			selectedTrackId: null,
+			preferences: { workspace: { custom: [], panels: Object.fromEntries(
+				WORKSPACE_PANEL_IDS.map((id) => [id, { visible: false }]),
+			) }, view: {}, shortcuts: {} },
+			history: { canUndo: false, canRedo: false, hasClipboard: false },
+			effects: { selectionTypes: [], canRepeatLast: false },
+		},
+		blocked: false,
+		editBlocked: false,
+		handoffBlocked: false,
+		showArmControls: false,
+		selectionActive: false,
+		selectedClip: null,
+		durationFrames: 400,
+		effectsPanelOpen: false,
+		projectBinEffectivelyOpen: false,
+		uiFlags: {},
+		actionRuntime: null,
+		actions,
+	}) as readonly SelectionMenuItem[];
+}
+
+function findSelectionMenuItem(items: readonly SelectionMenuItem[], id: string): SelectionMenuItem {
+	for (const item of items) {
+		if (item.id === id) return item;
+		const nested = findSelectionMenuItemOrNull([
+			...(item.items ?? []),
+			...(item.nativePreferences ?? []),
+		], id);
+		if (nested) return nested;
+	}
+	assert.fail(`Missing menu item ${id}.`);
+}
+
+function findSelectionMenuItemOrNull(
+	items: readonly SelectionMenuItem[],
+	id: string,
+): SelectionMenuItem | null {
+	for (const item of items) {
+		if (item.id === id) return item;
+		const nested = findSelectionMenuItemOrNull([
+			...(item.items ?? []),
+			...(item.nativePreferences ?? []),
+		], id);
+		if (nested) return nested;
+	}
+	return null;
+}
+
+function runSelectionShortcut({
+	actionId,
+	binding,
+	menus,
+	snapshot,
+}: Readonly<{
+	actionId: string;
+	binding: string;
+	menus: readonly SelectionMenuItem[];
+	snapshot: Readonly<Record<string, unknown>>;
+}>): void {
+	const parts = new Set(binding.split('+'));
+	const key = binding.split('+').at(-1) ?? '';
+	handleWorkspaceKeyboard({
+		altKey: parts.has('Alt'),
+		code: `Key${key}`,
+		ctrlKey: parts.has('Ctrl'),
+		defaultPrevented: false,
+		key,
+		metaKey: parts.has('Meta'),
+		repeat: false,
+		shiftKey: parts.has('Shift'),
+		target: null,
+		preventDefault: () => undefined,
+	}, { preferences: { shortcuts: { [actionId]: [binding] } } }, (handler) => handler(), {
+		actionContext: { snapshot },
+		menus,
+	});
+}
 
 function executeControllerEdit(value: ReturnType<typeof project>, action: string): readonly unknown[] {
 	const commands: unknown[] = [];
