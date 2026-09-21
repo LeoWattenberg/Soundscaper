@@ -42,7 +42,6 @@ test('packaged coverage has a dedicated deterministic Playwright workload', asyn
 		assert.deepEqual(projects['packaged-coverage-soundscaper'].testMatch, [
 			'desktop-packaged-runtime-smoke.spec.js',
 			'desktop-packaged-display-audio.spec.js',
-			'audio-editor-m4-production-parity.spec.js',
 		]);
 		assert.deepEqual(
 			projects['packaged-coverage-soundscaper-audio-devices'].metadata,
@@ -71,8 +70,16 @@ test('packaged coverage has a dedicated deterministic Playwright workload', asyn
 		});
 		assert.deepEqual(projects['packaged-coverage-framescaper'].testMatch, [
 			'desktop-packaged-runtime-smoke.spec.js',
-			'audio-editor-m4b2-keyframe-parity.spec.js',
 		]);
+		const coverageSpecs = config.projects.flatMap(({ testMatch }) => testMatch);
+		for (const diagnosticSpec of [
+			'audio-editor-m4-production-parity.spec.js',
+			'audio-editor-m4b2-keyframe-parity.spec.js',
+		]) assert.equal(
+			coverageSpecs.includes(diagnosticSpec),
+			false,
+			`${diagnosticSpec} serves synthetic modules and belongs only to packaged metrics`,
+		);
 		assert.deepEqual(config.reporter, [
 			['list'],
 			['html', {

@@ -6,8 +6,6 @@ import { defineConfig } from '@playwright/test';
 const SMOKE = 'desktop-packaged-runtime-smoke.spec.js';
 const AUDIO_IO = 'desktop-packaged-audio-io.spec.js';
 const DISPLAY_AUDIO = 'desktop-packaged-display-audio.spec.js';
-const PRODUCTION = 'audio-editor-m4-production-parity.spec.js';
-const KEYED = 'audio-editor-m4b2-keyframe-parity.spec.js';
 const SOAK = 'audio-editor-soak-debug.spec.js';
 const PACKAGED_SOAK = /(?:executes the current-host packaged operations|recovers a real persistent delivery job)/u;
 
@@ -36,7 +34,7 @@ export function createNightlyPackagedCoverageConfig(environment = process.env) {
 			{
 				name: 'packaged-coverage-soundscaper',
 				metadata: { productId: 'soundscaper' },
-				testMatch: [SMOKE, DISPLAY_AUDIO, PRODUCTION],
+				testMatch: [SMOKE, DISPLAY_AUDIO],
 			},
 			{
 				name: 'packaged-coverage-soundscaper-audio-devices',
@@ -51,7 +49,7 @@ export function createNightlyPackagedCoverageConfig(environment = process.env) {
 			{
 				name: 'packaged-coverage-framescaper',
 				metadata: { productId: 'framescaper' },
-				testMatch: [SMOKE, KEYED],
+				testMatch: [SMOKE],
 			},
 		],
 	});
