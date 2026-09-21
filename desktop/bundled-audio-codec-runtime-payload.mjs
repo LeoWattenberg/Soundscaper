@@ -98,6 +98,7 @@ const COMMON_DEPENDENCIES = Object.freeze([
 	'project-library-runtime/src/common/editor/browser-dedicated-audio-output-validation.js',
 	'project-library-runtime/src/common/editor/dedicated-audio-encode-session.js',
 	'project-library-runtime/src/common/editor/large-audio-policy.js',
+	'project-library-runtime/src/common/editor/wavpack-float32-chunk-layout.js',
 ]);
 const CONTROL_FILES = Object.freeze([...new Set([...CONTROL_ENTRY_FILES, ...COMMON_DEPENDENCIES])].sort());
 const CODEC_DEPENDENCIES = Object.freeze({

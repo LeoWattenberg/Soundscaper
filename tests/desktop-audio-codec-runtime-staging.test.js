@@ -72,6 +72,7 @@ const AUDIO_CODEC_RUNTIME_FILES = Object.freeze([
 	'src/common/editor/desktop-codec-coordinator.js',
 	'src/common/editor/desktop-codec-provider-catalog.js',
 	'src/common/editor/desktop-wavpack-codec-profile.js',
+	'src/common/editor/wavpack-float32-chunk-layout.js',
 	'src/common/editor/flac/flac.wasm',
 	'src/common/editor/lame/lame.wasm',
 	'src/common/editor/mpg123/mpg123.wasm',

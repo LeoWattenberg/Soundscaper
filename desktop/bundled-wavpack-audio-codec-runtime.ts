@@ -32,6 +32,10 @@ import {
 	type DesktopCodecTarget,
 } from '../src/common/editor/desktop-codec-provider-catalog.ts';
 import { DESKTOP_BUNDLED_WAVPACK_COMPRESSION_LEVEL } from '../src/common/editor/desktop-wavpack-codec-profile.ts';
+import {
+	interleavePlanarFloat32Chunk,
+	planarFloat32Chunk,
+} from '../src/common/editor/wavpack-float32-chunk-layout.ts';
 import { loadWavPackWasm } from '../src/common/editor/wavpack/runtime.js';
 
 export const BUNDLED_WAVPACK_VERSION = '5.9.0';
@@ -209,7 +213,7 @@ async function encode(
 	for (let frameOffset = 0; frameOffset < frameCount;) {
 		throwIfAborted(signal);
 		const frames = Math.min(MAXIMUM_BLOCK_FRAMES, frameCount - frameOffset);
-		const planar = planarChunk(request.input, frameOffset, frames, request.channelCount);
+		const planar = planarFloat32Chunk(request.input, frameOffset, frames, request.channelCount);
 		const maximumChunkBytes = Math.min(
 			planar.byteLength * 2 + MAXIMUM_BLOCK_OVERHEAD_BYTES,
 			request.maximumOutputBytes + MAXIMUM_BLOCK_OVERHEAD_BYTES,
@@ -263,7 +267,14 @@ async function decode(
 			frames: group.frameCount, channelCount: geometry.channelCount,
 			sampleRate: geometry.sampleRate,
 		});
-		interleavePlanar(planar, output, group.blockIndex, group.frameCount, geometry.channelCount);
+		interleavePlanarFloat32Chunk(
+			planar,
+			output,
+			group.blockIndex,
+			group.frameCount,
+			geometry.channelCount,
+			() => new Error('The WavPack decoder returned invalid planar PCM geometry.'),
+		);
 		if (index + 1 < geometry.groups.length) await yieldControl();
 	}
 	throwIfAborted(signal);
@@ -388,44 +399,6 @@ function supportedOperation(operation: DesktopCodecOperation): boolean {
 		&& operation.profile === null && operation.sampleFormat === 'f32'
 		&& operation.pixelFormat === null && operation.width === null && operation.height === null
 		&& geometrySupported;
-}
-
-function planarChunk(
-	input: Uint8Array,
-	frameOffset: number,
-	frameCount: number,
-	channelCount: number,
-): Uint8Array {
-	const output = new Uint8Array(frameCount * channelCount * Float32Array.BYTES_PER_ELEMENT);
-	const source = new DataView(input.buffer, input.byteOffset, input.byteLength);
-	const target = new DataView(output.buffer);
-	for (let channel = 0; channel < channelCount; channel += 1) {
-		for (let frame = 0; frame < frameCount; frame += 1) {
-			target.setUint32((channel * frameCount + frame) * 4,
-				source.getUint32(((frameOffset + frame) * channelCount + channel) * 4, true), true);
-		}
-	}
-	return output;
-}
-
-function interleavePlanar(
-	input: Uint8Array,
-	output: Uint8Array,
-	frameOffset: number,
-	frameCount: number,
-	channelCount: number,
-): void {
-	if (input.byteLength !== frameCount * channelCount * Float32Array.BYTES_PER_ELEMENT) {
-		throw new Error('The WavPack decoder returned invalid planar PCM geometry.');
-	}
-	const source = new DataView(input.buffer, input.byteOffset, input.byteLength);
-	const target = new DataView(output.buffer, output.byteOffset, output.byteLength);
-	for (let channel = 0; channel < channelCount; channel += 1) {
-		for (let frame = 0; frame < frameCount; frame += 1) {
-			target.setUint32(((frameOffset + frame) * channelCount + channel) * 4,
-				source.getUint32((channel * frameCount + frame) * 4, true), true);
-		}
-	}
 }
 
 function verifyCanary(codec: WavPackCodec): void {

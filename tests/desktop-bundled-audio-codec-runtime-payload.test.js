@@ -91,6 +91,7 @@ test('staged manifest closes over control, helper, runner, seven modules, and se
 			'src/common/editor/desktop-codec-provider-catalog.js',
 			'src/common/editor/large-audio-policy.js',
 			'src/common/editor/ogg-page-crc.js',
+			'src/common/editor/wavpack-float32-chunk-layout.js',
 		].map((path) => {
 			const staged = fixture.manifest.files.find((file) => (
 				file.path === `project-library-runtime/${path}`

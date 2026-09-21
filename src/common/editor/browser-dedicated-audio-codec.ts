@@ -15,6 +15,10 @@ import {
 	encodeArguments, validateProfile,
 } from './browser-dedicated-audio-profiles.ts';
 import { validateDedicatedAudioOutput } from './browser-dedicated-audio-output-validation.ts';
+import {
+	interleavePlanarFloat32Chunk,
+	planarFloat32Chunk,
+} from './wavpack-float32-chunk-layout.ts';
 
 export type BrowserDedicatedAudioFormat =
 	| 'flac'
@@ -274,7 +278,14 @@ function decodeWavPack(
 				geometry.sampleRate, outputPointer, chunkBytes,
 			)
 		));
-		interleavePlanar(planar, output, group.blockIndex, group.frameCount, geometry.channelCount);
+		interleavePlanarFloat32Chunk(
+			planar,
+			output,
+			group.blockIndex,
+			group.frameCount,
+			geometry.channelCount,
+			() => new DedicatedAudioCodecError('The WavPack decoder returned invalid planar PCM geometry.'),
+		);
 	}
 	return output;
 }
@@ -359,7 +370,7 @@ function encodeWavPack(
 	const chunks: Uint8Array[] = [];
 	for (let frameOffset = 0; frameOffset < request.frameCount;) {
 		const frames = Math.min(MAXIMUM_WAVPACK_BLOCK_FRAMES, request.frameCount - frameOffset);
-		const input = planarChunk(request.input, frameOffset, frames, request.channelCount);
+		const input = planarFloat32Chunk(request.input, frameOffset, frames, request.channelCount);
 		const capacity = Math.min(
 			input.byteLength * 2 + MAXIMUM_WAVPACK_BLOCK_OVERHEAD_BYTES,
 			request.maximumOutputBytes + MAXIMUM_WAVPACK_BLOCK_OVERHEAD_BYTES,
@@ -469,50 +480,6 @@ async function verifyPayload(payload: Uint8Array, descriptor: PayloadDescriptor)
 	const digest = new Uint8Array(await globalThis.crypto.subtle.digest('SHA-256', Uint8Array.from(payload).buffer));
 	const actual = [...digest].map((value) => value.toString(16).padStart(2, '0')).join('');
 	if (actual !== descriptor.sha256) throw new DedicatedAudioCodecError('The reviewed codec payload digest is invalid.');
-}
-
-function planarChunk(
-	input: Uint8Array,
-	frameOffset: number,
-	frameCount: number,
-	channelCount: number,
-): Uint8Array<ArrayBuffer> {
-	const output = new Uint8Array(frameCount * channelCount * Float32Array.BYTES_PER_ELEMENT);
-	const source = new DataView(input.buffer, input.byteOffset, input.byteLength);
-	const target = new DataView(output.buffer);
-	for (let channel = 0; channel < channelCount; channel += 1) {
-		for (let frame = 0; frame < frameCount; frame += 1) {
-			target.setUint32(
-				(channel * frameCount + frame) * 4,
-				source.getUint32(((frameOffset + frame) * channelCount + channel) * 4, true),
-				true,
-			);
-		}
-	}
-	return output;
-}
-
-function interleavePlanar(
-	input: Uint8Array,
-	output: Uint8Array,
-	frameOffset: number,
-	frameCount: number,
-	channelCount: number,
-): void {
-	if (input.byteLength !== frameCount * channelCount * Float32Array.BYTES_PER_ELEMENT) {
-		throw new DedicatedAudioCodecError('The WavPack decoder returned invalid planar PCM geometry.');
-	}
-	const source = new DataView(input.buffer, input.byteOffset, input.byteLength);
-	const target = new DataView(output.buffer, output.byteOffset, output.byteLength);
-	for (let channel = 0; channel < channelCount; channel += 1) {
-		for (let frame = 0; frame < frameCount; frame += 1) {
-			target.setUint32(
-				((frameOffset + frame) * channelCount + channel) * 4,
-				source.getUint32((channel * frameCount + frame) * 4, true),
-				true,
-			);
-		}
-	}
 }
 
 function validateFinitePcm(input: Uint8Array): void {

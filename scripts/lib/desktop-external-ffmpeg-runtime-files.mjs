@@ -57,6 +57,7 @@ export const DESKTOP_AUDIO_CODEC_RUNTIME_FILES = Object.freeze([
 	'src/common/editor/desktop-codec-coordinator.js',
 	'src/common/editor/desktop-codec-provider-catalog.js',
 	'src/common/editor/desktop-wavpack-codec-profile.js',
+	'src/common/editor/wavpack-float32-chunk-layout.js',
 	DESKTOP_BUNDLED_FLAC_WASM.file,
 	DESKTOP_BUNDLED_LAME_WASM.file,
 	DESKTOP_BUNDLED_MPG123_WASM.file,
