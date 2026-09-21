@@ -15,8 +15,21 @@ import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 
 import { DESKTOP_RENDERER_DYNAMIC_EXCLUSIONS } from '../../desktop/renderer-smoke-execution.js';
+import { buildAttestedMacroSandboxModule } from '../../src/common/editor/macro-script/dynamic-source-contract.js';
+import {
+	MACRO_FIXED_COVERAGE_SOURCE_PATH,
+	macroDynamicCoverageScript,
+	macroDynamicSourceUrl,
+} from '../../scripts/lib/macro-dynamic-coverage.mjs';
 
 const PRODUCTS = ['framescaper', 'soundscaper'];
+const MACRO_PRELUDE_PATH = 'src/common/editor/macro-script/sandbox-prelude.js';
+const MACRO_PRELUDE_ARTIFACT = 'assets/sandbox-prelude-fixture.js';
+const MACRO_PRELUDE_SOURCE = readFileSync(join(import.meta.dirname, '../../', MACRO_PRELUDE_PATH), 'utf8');
+const MACRO_WRAPPER_SOURCE = readFileSync(
+	join(import.meta.dirname, '../../', MACRO_FIXED_COVERAGE_SOURCE_PATH),
+	'utf8',
+);
 const workspaces = [];
 
 export function cleanupE2ECoverageAssemblerFixtures() {
@@ -37,6 +50,8 @@ export function makeFixture() {
 		write(join(repositoryRoot, sourcePath), source);
 		sources.set(product, { source, sourcePath });
 	}
+	write(join(repositoryRoot, MACRO_FIXED_COVERAGE_SOURCE_PATH), MACRO_WRAPPER_SOURCE);
+	write(join(repositoryRoot, MACRO_PRELUDE_PATH), MACRO_PRELUDE_SOURCE);
 	const sourceRevision = commitFixtureRepository(repositoryRoot);
 	writeJson(join(runRoot, 'run.json'), {
 		schemaVersion: 2,
@@ -51,6 +66,7 @@ export function makeFixture() {
 		const browserRoot = join(evidenceRoot, 'browser', product);
 		const browserApp = `globalThis.product = ${JSON.stringify(product)};\n`;
 		write(join(browserRoot, 'site/assets/app.js'), browserApp);
+		write(join(browserRoot, `site/${MACRO_PRELUDE_ARTIFACT}`), MACRO_PRELUDE_SOURCE);
 		write(join(browserRoot, 'site/service-worker.js'), 'globalThis.addEventListener("fetch", () => {});\n');
 		const sourceMap = sourceMapFor(sourcePath, source);
 		writeJson(join(browserRoot, 'source-maps/app.js.map'), sourceMap);
@@ -63,8 +79,14 @@ export function makeFixture() {
 		write(join(electronRoot, 'app/desktop/main.mjs'), main);
 		write(join(electronRoot, 'app/desktop/preload.js'), preload);
 		write(join(electronRoot, 'renderer/assets/app.js'), renderer);
+		write(join(electronRoot, `renderer/${MACRO_PRELUDE_ARTIFACT}`), MACRO_PRELUDE_SOURCE);
 		writeJson(join(electronRoot, 'renderer-source-maps/app.js.map'), sourceMap);
-		writeProductEvidence(electronRoot, product, sourceRevision, { main, preload, renderer });
+		writeProductEvidence(electronRoot, product, sourceRevision, {
+			main,
+			prelude: MACRO_PRELUDE_SOURCE,
+			preload,
+			renderer,
+		});
 	}
 	writeBrowserProfiles(runRoot, evidenceRoot, repositoryRoot);
 	writePackagedProfiles(runRoot, evidenceRoot);
@@ -83,11 +105,18 @@ function dynamicExclusionFixture(source, productId) {
 		.filter(({ products }) => products.includes(productId))
 		.map(({ marker, pathPrefix }, index) => (
 			`export const dynamic_recipe_${index} = ${JSON.stringify(`${marker}\n${pathPrefix}`)};\n`
-		)).join('')}`;
+		)).join('')}
+function executeRecipe(webContents, productId, recipeId, source, userGesture) {
+	const attestation = validateDesktopRendererDynamicSource({ productId, path: sourceUrlPath(source), source });
+	if (attestation.recipeId !== recipeId) throw new Error("Renderer smoke recipe attestation disagrees.");
+	return webContents.executeJavaScript(source, userGesture === true);
+}
+`;
 }
 
 function writeBrowserProfiles(runRoot, evidenceRoot, repositoryRoot) {
 	const result = [];
+	const scriptSourceCache = {};
 	const sourceMapCache = {};
 	for (const product of PRODUCTS) {
 		const appUrl = `file:///__soundscaper_e2e__/browser/${product}/assets/app.js`;
@@ -104,8 +133,31 @@ function writeBrowserProfiles(runRoot, evidenceRoot, repositoryRoot) {
 			),
 			url: null,
 		};
+		if (product === 'soundscaper') {
+			const preludeUrl = `file:///__soundscaper_e2e__/browser/${product}/${MACRO_PRELUDE_ARTIFACT}`;
+			const source = buildAttestedMacroSandboxModule(
+				`import "http://127.0.0.1:4322/${MACRO_PRELUDE_ARTIFACT}";`,
+				'globalThis.__fixtureMacroExecuted = true;',
+			);
+			const dynamic = macroDynamicCoverageScript({
+				repositoryRoot,
+				source,
+				url: macroDynamicSourceUrl(source),
+			});
+			result.push(v8Entry(preludeUrl), v8Entry(dynamic.coverageUrl));
+			scriptSourceCache[dynamic.coverageUrl] = source;
+			sourceMapCache[dynamic.coverageUrl] = {
+				data: dynamic.sourceMap,
+				lineLengths: sourceLineLengths(source),
+				url: null,
+			};
+		}
 	}
-	writeJson(join(runRoot, 'coverage/v8-browser/browser.json'), { result, 'source-map-cache': sourceMapCache });
+	writeJson(join(runRoot, 'coverage/v8-browser/browser.json'), {
+		result,
+		'script-source-cache': scriptSourceCache,
+		'source-map-cache': sourceMapCache,
+	});
 }
 
 function writePackagedProfiles(runRoot, evidenceRoot) {
@@ -119,6 +171,7 @@ function writePackagedProfiles(runRoot, evidenceRoot) {
 		const preloadPath = `/opt/${product}/resources/app.asar/desktop/preload.js`;
 		const preloadUrl = index === 0 ? preloadPath : `file://${preloadPath}`;
 		const mainUrl = `file:///opt/${product}/resources/app.asar/desktop/main.mjs`;
+		const packageArchive = { byteLength: 123, sha256: hash(`${product} archive`) };
 		writeJson(join(runRoot, `coverage/v8-packaged/packaged-${product}.json`), {
 			result: [v8Entry(rendererUrl), v8Entry(browserUrl), v8Entry(preloadUrl)],
 			'script-source-cache': {
@@ -128,7 +181,12 @@ function writePackagedProfiles(runRoot, evidenceRoot) {
 			},
 			'source-map-cache': {},
 			'soundscaper-packaged-runtime': {
-				schemaVersion: 1,
+				schemaVersion: 2,
+				appAsar: {
+					path: `/opt/${product}/resources/app.asar`,
+					beforeLaunch: { ...packageArchive },
+					afterCollection: { ...packageArchive },
+				},
 				productId: product,
 				platform: 'linux',
 				architecture: 'x64',
@@ -159,6 +217,15 @@ export function rewritePackagedLayout(fixture, layout) {
 		metadata.platform = layout.platform;
 		metadata.architecture = layout.platform === 'darwin' ? 'arm64' : 'x64';
 		metadata.executablePath = layout.executable(product);
+		metadata.appAsar.path = decodeURIComponent(
+			layout.url(product, '').replace(/^file:\/\//u, '').replace(/\/$/u, ''),
+		);
+		if (layout.platform === 'win32' && metadata.appAsar.path.startsWith('/')
+			&& /^[A-Za-z]:\//u.test(metadata.appAsar.path.slice(1))) {
+			metadata.appAsar.path = metadata.appAsar.path.slice(1).replaceAll('/', '\\');
+		} else if (layout.platform === 'win32' && metadata.appAsar.path.startsWith('server/')) {
+			metadata.appAsar.path = `\\\\${metadata.appAsar.path.replaceAll('/', '\\')}`;
+		}
 		const preloadEntry = cdp.result.find(({ url }) => /preload\.js$/u.test(url));
 		const preloadSource = cdp['script-source-cache'][preloadEntry.url];
 		delete cdp['script-source-cache'][preloadEntry.url];
@@ -173,7 +240,7 @@ export function rewritePackagedLayout(fixture, layout) {
 	}
 }
 
-function writeProductEvidence(root, productId, sourceRevision, { main, preload, renderer }) {
+function writeProductEvidence(root, productId, sourceRevision, { main, prelude, preload, renderer }) {
 	writeJson(join(root, 'manifest.json'), {
 		schemaVersion: 2,
 		kind: 'soundscaper-e2e-product-build-evidence',
@@ -184,6 +251,12 @@ function writeProductEvidence(root, productId, sourceRevision, { main, preload, 
 			productFile('main', 'app.asar/desktop/main.mjs', 'app/desktop/main.mjs', main),
 			productFile('preload', 'app.asar/desktop/preload.js', 'app/desktop/preload.js', preload),
 			productFile('renderer', 'renderer/assets/app.js', 'renderer/assets/app.js', renderer),
+			productFile(
+				'renderer',
+				`renderer/${MACRO_PRELUDE_ARTIFACT}`,
+				`renderer/${MACRO_PRELUDE_ARTIFACT}`,
+				prelude,
+			),
 		],
 		sourceMaps: [productFile(
 			undefined,

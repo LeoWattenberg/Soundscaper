@@ -36,6 +36,11 @@ test('platform runs retain distinct archive provenance behind identical executab
 			sha256: hash(`${productId} windows archive`),
 		};
 		writeJson(manifestPath, manifest);
+		const profilePath = join(windows.runRoot, `coverage/v8-packaged/packaged-${productId}.json`);
+		const profile = readJson(profilePath);
+		profile['soundscaper-packaged-runtime'].appAsar.beforeLaunch = { ...manifest.packageArchive };
+		profile['soundscaper-packaged-runtime'].appAsar.afterCollection = { ...manifest.packageArchive };
+		writeJson(profilePath, profile);
 	}
 
 	const result = assemblePair(linux, windows);
@@ -69,7 +74,10 @@ test('platform runs reject different packaged JavaScript', () => {
 	const changed = makeFixture();
 	const electronRoot = join(changed.evidenceRoot, 'electron', 'soundscaper');
 	const scriptPath = join(electronRoot, 'app/desktop/main.mjs');
-	const changedScript = 'export const mainProduct = "changed";\n';
+	const changedScript = readFileSync(scriptPath, 'utf8').replace(
+		'export const mainProduct = "soundscaper";',
+		'export const mainProduct = "changed";',
+	);
 	write(scriptPath, changedScript);
 	const manifestPath = join(electronRoot, 'manifest.json');
 	const manifest = readJson(manifestPath);

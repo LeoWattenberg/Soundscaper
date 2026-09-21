@@ -61,6 +61,14 @@ test('macro attestation rejects a spoofed name, body, or recipe', () => {
 		),
 		/unsupported macro dynamic source identity/iu,
 	);
+	const nonCanonicalURL = sourceURL.replace(
+		'soundscaper-macro://',
+		'SOUNDSCAPER-MACRO://',
+	);
+	assert.throws(
+		() => attestMacroDynamicSource(nonCanonicalURL, source.replace(sourceURL, nonCanonicalURL)),
+		/unsupported macro dynamic source identity/iu,
+	);
 });
 
 test('macro dynamic coverage maps fixed lines and leaves only the author span unmapped', () => {

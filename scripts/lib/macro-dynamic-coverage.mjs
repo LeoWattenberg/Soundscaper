@@ -114,9 +114,11 @@ function macroIdentity(value) {
 	try { url = new URL(value); }
 	catch { throw new Error('The macro dynamic source identity is malformed.'); }
 	const match = /^\/([a-f0-9]{64})\/([a-f0-9]{64})\.mjs$/u.exec(url.pathname);
+	const canonical = match === null ? null
+		: `${MACRO_PROTOCOL}//${MACRO_HOST}/${match[1]}/${match[2]}.mjs`;
 	if (url.protocol !== MACRO_PROTOCOL || url.hostname !== MACRO_HOST || url.username !== ''
 		|| url.password !== '' || url.port !== '' || url.search !== '' || url.hash !== ''
-		|| match === null || !SHA256.test(match[1]) || !SHA256.test(match[2])) {
+		|| match === null || !SHA256.test(match[1]) || !SHA256.test(match[2]) || value !== canonical) {
 		throw new Error('The profiler reported an unsupported macro dynamic source identity.');
 	}
 	return Object.freeze({ recipeSha256: match[1], programSha256: match[2] });

@@ -5,39 +5,61 @@ import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { join, posix, resolve, win32 } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import {
-	E2E_REPOSITORY_URL_PREFIX,
-} from './e2e-coverage-contract.mjs';
+import { E2E_REPOSITORY_URL_PREFIX } from './e2e-coverage-contract.mjs';
 import { E2E_PRODUCTS, normalizeE2ESourceMap } from './e2e-coverage-build-evidence.mjs';
+import {
+	classifyBrowserMacroDynamic,
+	classifyPackagedMacroDynamic,
+	isBrowserMacroDynamicCoverage,
+	isMacroDynamicCoverage,
+} from './e2e-coverage-macro-dynamic.mjs';
+import { packagedRuntime, validatePackagedSourceCache } from './e2e-packaged-runtime-identity.mjs';
 import { validateDesktopRendererDynamicSource } from '../../desktop/renderer-smoke-execution.js';
 
 const SCRIPT_PATTERN = /\.(?:c|m)?js$/u;
 
 export function assembleE2ERawProfiles({ runRoot, evidence, repositoryRoot }) {
 	const profiles = new Map(requiredSurfaceIds().map((surface) => [surface, []]));
+	const dynamicScripts = new Map();
 	assembleBrowserProfiles({
 		directory: join(runRoot, 'coverage/v8-browser'),
+		dynamicScripts,
 		evidence,
 		profiles,
 		repositoryRoot,
 	});
 	assemblePackagedProfiles({
 		directory: join(runRoot, 'coverage/v8-packaged'),
+		dynamicScripts,
 		evidence,
 		profiles,
 		repositoryRoot,
 	});
-	return profiles;
+	return Object.freeze({
+		dynamicScripts: Object.freeze([...dynamicScripts.values()].sort((left, right) => (
+			left.coverageUrl.localeCompare(right.coverageUrl)
+		))),
+		profiles,
+	});
 }
 
-function assembleBrowserProfiles({ directory, evidence, profiles, repositoryRoot }) {
+function assembleBrowserProfiles({ directory, dynamicScripts, evidence, profiles, repositoryRoot }) {
 	const files = readProfiles(directory, 'browser');
 	const scriptsByUrl = new Map([...evidence.browser.values()].flatMap(({ scripts }) => (
 		scripts.map((script) => [script.coverageUrl, script])
 	)));
 	const suppliedMaps = new Map();
+	const suppliedMacroMaps = new Map();
 	for (const { name, profile } of files) {
 		for (const [url, cache] of Object.entries(profile['source-map-cache'] ?? {})) {
+			if (isBrowserMacroDynamicCoverage(url)) {
+				const previous = suppliedMacroMaps.get(url);
+				if (previous !== undefined && stableJson(previous) !== stableJson(cache)) {
+					throw new Error(`Browser coverage supplied conflicting macro source maps for ${url}.`);
+				}
+				suppliedMacroMaps.set(url, cache);
+				continue;
+			}
 			const script = scriptsByUrl.get(url);
 			if (!script) throw new Error(`Browser coverage has an unmapped first-party browser script ${url}.`);
 			if (script.fullSourceMap === null) {
@@ -60,6 +82,18 @@ function assembleBrowserProfiles({ directory, evidence, profiles, repositoryRoot
 	const observed = new Map();
 	for (const { name, profile } of files) {
 		const grouped = groupEntries(profile.result, (entry) => {
+			if (isBrowserMacroDynamicCoverage(entry.url)) {
+				const classified = classifyBrowserMacroDynamic({
+					dynamicScripts,
+					entry,
+					evidence,
+					name,
+					profile,
+					rawMap: suppliedMacroMaps.get(entry.url),
+					repositoryRoot,
+				});
+				return { ...classified, surface: browserSurface(classified.script.productId) };
+			}
 			const script = scriptsByUrl.get(entry.url);
 			if (!script) {
 				throw new Error(`Browser coverage has an unmapped first-party browser script ${String(entry.url)}.`);
@@ -79,20 +113,26 @@ function assembleBrowserProfiles({ directory, evidence, profiles, repositoryRoot
 	attachObservedMaps(profiles, observed);
 }
 
-function assemblePackagedProfiles({ directory, evidence, profiles, repositoryRoot }) {
+function assemblePackagedProfiles({ directory, dynamicScripts, evidence, profiles, repositoryRoot }) {
 	const files = readProfiles(directory, 'packaged');
 	const cdp = files.filter(({ profile }) => profile['soundscaper-packaged-runtime'] !== undefined);
-	const runtimes = cdp.map(({ name, profile }) => packagedRuntime(profile, name));
+	const runtimes = cdp.map(({ name, profile }) => packagedRuntime(profile, name, evidence));
 	if (new Set(runtimes.map(({ productId }) => productId)).size !== E2E_PRODUCTS.length) {
 		throw new Error('Packaged coverage does not identify both product runtimes.');
 	}
 	const observed = new Map();
 	for (const { name, profile } of cdp) {
-		const runtime = packagedRuntime(profile, name);
+		const runtime = packagedRuntime(profile, name, evidence);
+		validatePackagedSourceCache(profile, name, (url) => classifyCdpEntry({
+			entry: { functions: [], scriptId: 'unobserved', url },
+			dynamicScripts, evidence, profile, repositoryRoot, runtime,
+		}));
 		const grouped = groupEntries(profile.result, (entry) => classifyCdpEntry({
 			entry,
+			dynamicScripts,
 			evidence,
 			profile,
+			repositoryRoot,
 			runtime,
 		}));
 		appendGroupedProfiles(profiles, grouped, `packaged-cdp-${name}`, observed);
@@ -120,8 +160,19 @@ function assemblePackagedProfiles({ directory, evidence, profiles, repositoryRoo
 	attachObservedMaps(profiles, observed);
 }
 
-function classifyCdpEntry({ entry, evidence, profile, runtime }) {
+function classifyCdpEntry({ dynamicScripts, entry, evidence, profile, repositoryRoot, runtime }) {
 	const { productId } = runtime;
+	if (isMacroDynamicCoverage(entry.url)) {
+		const classified = classifyPackagedMacroDynamic({
+			dynamicScripts,
+			entry,
+			evidence,
+			profile,
+			repositoryRoot,
+			runtime,
+		});
+		return { ...classified, surface: electronSurface(runtime.productId, 'renderer') };
+	}
 	let script;
 	let surface;
 	if (entry.url.startsWith(`${runtime.appOrigin}/`)) {
@@ -223,58 +274,6 @@ function ffmpegCoreJavascriptPin(repositoryRoot) {
 		throw new Error('FFmpeg runtime manifest has no pinned JavaScript payload.');
 	}
 	return Object.freeze({ byteLength: descriptor.byteLength, sha256: descriptor.sha256 });
-}
-
-function packagedRuntime(profile, name) {
-	const value = profile['soundscaper-packaged-runtime'];
-	if (!record(value) || value.schemaVersion !== 1 || !E2E_PRODUCTS.includes(value.productId)
-		|| !['linux', 'win32', 'darwin'].includes(value.platform)
-		|| !['x64', 'arm64'].includes(value.architecture)
-		|| typeof value.executablePath !== 'string' || typeof value.appOrigin !== 'string'
-		|| value.appOrigin !== `${value.productId}-app://bundle`
-		|| typeof value.baseOrigin !== 'string' || origin(value.baseOrigin) !== value.baseOrigin
-		|| !/^http:\/\/127\.0\.0\.1:\d+$/u.test(value.baseOrigin)
-		|| !Number.isSafeInteger(value.processId) || value.processId <= 0
-		|| value.captureKind !== 'cdp-precise-coverage' || value.capturesChildTargets !== true
-		|| value.childTargetStrategy !== 'recursive-auto-attach-paused'
-		|| !validTargetAccounting(value)) {
-		throw new Error(`Packaged coverage profile ${name} has invalid runtime metadata.`);
-	}
-	const paths = value.platform === 'win32' ? win32 : posix;
-	if (!paths.isAbsolute(value.executablePath)) {
-		throw new Error(`Packaged coverage profile ${name} has a relative executable path.`);
-	}
-	const executable = value.executablePath.replaceAll('\\', '/');
-	const resourcesPath = value.platform === 'darwin'
-		? paths.resolve(paths.dirname(executable), '../Resources')
-		: paths.resolve(paths.dirname(executable), 'resources');
-	const resources = normalizedInstalledPath(resourcesPath, value.platform);
-	return Object.freeze({
-		appAsar: `${resources}/app.asar`,
-		appOrigin: value.appOrigin,
-		baseOrigin: value.baseOrigin,
-		platform: value.platform,
-		processId: value.processId,
-		productId: value.productId,
-		resources,
-	});
-}
-
-function validTargetAccounting(value) {
-	if (!Array.isArray(value.targetTypes)
-		|| value.targetTypes.some((type) => typeof type !== 'string' || type === '')
-		|| stableJson(value.targetTypes) !== stableJson([...new Set(value.targetTypes)].sort())
-		|| !countRecord(value.targetCounts) || !countRecord(value.pausedTargetCounts)
-		|| stableJson(value.targetTypes) !== stableJson(Object.keys(value.targetCounts).sort())) return false;
-	return Object.entries(value.pausedTargetCounts).every(([type, count]) => (
-		count <= (value.targetCounts[type] ?? -1)
-	));
-}
-
-function countRecord(value) {
-	return record(value) && Object.entries(value).every(([type, count]) => (
-		type !== '' && Number.isSafeInteger(count) && count > 0
-	));
 }
 
 function installedPackagedPath(url, runtime) {

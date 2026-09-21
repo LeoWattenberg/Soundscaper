@@ -45,6 +45,10 @@ export function assembleE2ECoverageCapture({
 	}));
 	assertCompatibleCaptures(captures);
 	const profiles = mergeProfiles(captures.map(({ profiles }) => profiles));
+	const dynamicScripts = mergeDynamicScripts(captures.map(({ dynamicScripts }) => dynamicScripts));
+	if (dynamicScripts.length === 0) {
+		throw new Error('E2E coverage observed no authenticated macro dynamic module.');
+	}
 	assertRequiredSurfaceProfiles(profiles, configuration);
 
 	const staging = `${destination}.staging-${process.pid}-${randomUUID()}`;
@@ -54,6 +58,7 @@ export function assembleE2ECoverageCapture({
 		const captureIndex = createCaptureIndex({
 			buildEvidence: captures.map(buildEvidenceRecord),
 			configuration,
+			dynamicScripts,
 			evidence: captures[0].evidence,
 			outputRoot: staging,
 			profiles,
@@ -101,17 +106,27 @@ function loadRunCapture({ expectedRevision, repositoryRoot, runRoot }) {
 		repositoryRoot,
 		sourceRevision: envelope.sourceRevision,
 	});
+	const assembled = assembleE2ERawProfiles({ evidence, repositoryRoot, runRoot });
 	return Object.freeze({
+		dynamicScripts: assembled.dynamicScripts,
 		evidence,
-		profiles: assembleE2ERawProfiles({ evidence, repositoryRoot, runRoot }),
+		profiles: assembled.profiles,
 		runRoot,
 		runtime: Object.freeze({ ...envelope.runtime }),
 		sourceRevision: envelope.sourceRevision,
 	});
 }
 
-function createCaptureIndex({ buildEvidence, configuration, evidence, outputRoot, profiles, sourceRevision }) {
-	const descriptors = evidenceScripts(evidence);
+function createCaptureIndex({
+	buildEvidence,
+	configuration,
+	dynamicScripts,
+	evidence,
+	outputRoot,
+	profiles,
+	sourceRevision,
+}) {
+	const descriptors = evidenceScripts(evidence, dynamicScripts);
 	const generated = generatedArtifacts(descriptors);
 	const sources = new Map();
 	const scripts = descriptors.map((descriptor) => {
@@ -120,7 +135,7 @@ function createCaptureIndex({ buildEvidence, configuration, evidence, outputRoot
 		let ownedSources;
 		if (descriptor.repositorySources.length > 0) {
 			artifactPath = `executables/${surface}/${descriptor.artifactPath}`;
-			copyFile(descriptor.inputFile, join(outputRoot, artifactPath));
+			materializeExecutable(descriptor, join(outputRoot, artifactPath));
 			ownedSources = [...descriptor.repositorySources];
 			for (const path of ownedSources) addRepositorySource(sources, path, surface);
 		} else {
@@ -217,19 +232,29 @@ function addArtifactSource(sources, artifact, surface) {
 	sources.set(source.path, source);
 }
 
-function evidenceScripts(evidence) {
+function evidenceScripts(evidence, dynamicScripts = []) {
 	return [
 		...[...evidence.browser.values()].flatMap(({ electronScripts, scripts }) => [
 			...scripts,
 			...electronScripts,
 		]),
 		...[...evidence.electron.values()].flatMap(({ scripts }) => scripts),
+		...dynamicScripts,
 	]
 		.filter(({ owned }) => owned)
 		.sort((left, right) => (
 			`${surfaceForScript(left)}/${left.artifactPath}`
 				.localeCompare(`${surfaceForScript(right)}/${right.artifactPath}`)
 		));
+}
+
+function materializeExecutable(descriptor, destination) {
+	if (descriptor.inputFile === null) {
+		mkdirSync(dirname(destination), { recursive: true });
+		writeFileSync(destination, descriptor.source);
+		return;
+	}
+	copyFile(descriptor.inputFile, destination);
 }
 
 function surfaceForScript(script) {
@@ -251,6 +276,21 @@ function mergeProfiles(profileMaps) {
 		}
 	}
 	return merged;
+}
+
+function mergeDynamicScripts(scriptLists) {
+	const merged = new Map();
+	for (const scripts of scriptLists) {
+		for (const script of scripts) {
+			const previous = merged.get(script.coverageUrl);
+			if (previous !== undefined
+				&& stableSha256Digest(previous) !== stableSha256Digest(script)) {
+				throw new Error(`Nightly runs disagree about macro dynamic script ${script.coverageUrl}.`);
+			}
+			merged.set(script.coverageUrl, script);
+		}
+	}
+	return [...merged.values()].sort((left, right) => left.coverageUrl.localeCompare(right.coverageUrl));
 }
 
 function assertRequiredSurfaceProfiles(profiles, configuration) {

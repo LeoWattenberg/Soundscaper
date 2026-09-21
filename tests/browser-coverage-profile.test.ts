@@ -102,6 +102,18 @@ test('empty and non-executable-only maps leave emitted JavaScript as the coverag
 	assert.equal(isUnmappedBrowserSourceMap({ sources: [], mappings: '' }), true);
 	assert.equal(isUnmappedBrowserSourceMap({ sources: ['src/messages.json'], mappings: 'AAAA' }), true);
 	assert.equal(isUnmappedBrowserSourceMap({ sources: ['src/editor.ts'], mappings: 'AAAA' }), false);
+	assert.equal(isUnmappedBrowserSourceMap({
+		sources: ['src/unused.ts', 'node_modules/vendor/runtime.js'],
+		mappings: 'ACAA',
+	}), true, 'an unused listed first-party source cannot transfer map ownership');
+	assert.equal(isUnmappedBrowserSourceMap({
+		sources: ['node_modules/vendor/runtime.js'],
+		mappings: 'AAAA',
+	}), false, 'a pure mapped vendor artifact retains its explicit external provenance');
+	assert.equal(isUnmappedBrowserSourceMap({
+		sources: ['node_modules/vendor/runtime.js', 'https://cdn.invalid/theme.css'],
+		mappings: 'AAAA;ACAA',
+	}), true, 'mapped unknown non-code input prevents vendor-only exclusion');
 });
 
 test('coverage entries become a raw V8 profile addressed by the chunk on disk', () => {

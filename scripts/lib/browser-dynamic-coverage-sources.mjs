@@ -8,6 +8,7 @@ import {
 	INSTALL_NAVIGATION_COVERAGE_CHECKPOINT,
 	NAVIGATION_COVERAGE_CHECKPOINT_URL,
 } from './navigation-coverage-checkpoint.mjs';
+import { mappedE2ESourceMapEntries } from './e2e-coverage-source-maps.mjs';
 
 const EXECUTABLE_SOURCE_PATTERN = /\.(?:[cm]?[jt]sx?)$/u;
 
@@ -49,11 +50,21 @@ export function mergeCapturedBrowserSources(target, incoming) {
 	for (const [url, source] of incoming) retainCapturedBrowserSource(target, url, source);
 }
 
-/** Empty and non-executable-only maps cannot own nonempty emitted JavaScript. */
+/**
+ * A map owns emitted JavaScript only through an executable first-party mapping.
+ * Pure mapped vendor JavaScript remains outside that denominator; every other
+ * zero-first-party map leaves the exact emitted artifact as the coverage source.
+ */
 export function isUnmappedBrowserSourceMap(map) {
-	return Array.isArray(map?.sources) && typeof map.mappings === 'string'
-		&& (map.sources.length === 0 || !/[A-Za-z\d+/]/u.test(map.mappings)
-			|| map.sources.every((source) => !executableSource(source)));
+	if (!Array.isArray(map?.sources) || typeof map.mappings !== 'string') return false;
+	const mapped = mappedE2ESourceMapEntries(map, 'browser build source map');
+	if (mapped.length === 0) return true;
+	if (mapped.some(({ source }) => repositorySource(source) && executableSource(source))) return false;
+	const declaresRepositorySource = map.sources.some(repositorySource);
+	const authenticatedVendorOnly = !declaresRepositorySource && mapped.every(({ source }) => (
+		vendorSource(source) && executableSource(source)
+	));
+	return !authenticatedVendorOnly;
 }
 
 function executableSource(source) {
@@ -61,4 +72,20 @@ function executableSource(source) {
 	let path = source;
 	try { path = decodeURIComponent(new URL(source).pathname); } catch { /* Keep virtual source text. */ }
 	return EXECUTABLE_SOURCE_PATTERN.test(path) && !/\.d\.[cm]?ts$/u.test(path);
+}
+
+function repositorySource(source) {
+	const path = sourcePath(source);
+	return !/(?:^|\/)(?:node_modules|vendor)(?:\/|$)/u.test(path)
+		&& /(?:^|\/)(?:src|desktop)(?:\/|$)/u.test(path);
+}
+
+function vendorSource(source) {
+	return /(?:^|\/)(?:node_modules|vendor)(?:\/|$)/u.test(sourcePath(source));
+}
+
+function sourcePath(source) {
+	if (typeof source !== 'string') return '';
+	try { return decodeURIComponent(new URL(source).pathname).replaceAll('\\', '/'); }
+	catch { return source.replaceAll('\\', '/'); }
 }
