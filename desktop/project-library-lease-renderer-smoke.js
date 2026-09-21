@@ -1,7 +1,9 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
+/* global __SCAPE_RENDERER_SMOKE_PRODUCT__:readonly */
 
 export async function runDesktopProjectLibraryLeaseRendererSmoke(scope, plan) {
-	const api = plan.productId === 'framescaper'
+	const api = (typeof __SCAPE_RENDERER_SMOKE_PRODUCT__ === 'undefined'
+		? plan.productId : __SCAPE_RENDERER_SMOKE_PRODUCT__) === 'framescaper'
 		? scope?.framescaperDesktop?.v1?.projectLibrary
 		: scope?.soundscaperProjectLibraryDesktop?.v1;
 	if (!api) throw new Error(`${plan.productId} lease smoke bridge is unavailable`);

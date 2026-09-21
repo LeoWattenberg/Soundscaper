@@ -1,4 +1,5 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
+/* global __SCAPE_RENDERER_SMOKE_PRODUCT__:readonly */
 
 export async function runDesktopVideoTimingProbeRendererSmoke(scope, plan, storageProfileValue) {
 	const storageProfile = validateStorageProfile(storageProfileValue, plan?.productId);
@@ -192,7 +193,8 @@ export async function runDesktopVideoTimingProbeRendererSmoke(scope, plan, stora
 	}
 
 	function desktopProjectLibraryBridge(globalScope, productId) {
-		return productId === 'soundscaper'
+		return (typeof __SCAPE_RENDERER_SMOKE_PRODUCT__ === 'undefined'
+			? productId : __SCAPE_RENDERER_SMOKE_PRODUCT__) === 'soundscaper'
 			? globalScope.soundscaperProjectLibraryDesktop?.v1
 			: globalScope.framescaperDesktop?.v1?.projectLibrary;
 	}

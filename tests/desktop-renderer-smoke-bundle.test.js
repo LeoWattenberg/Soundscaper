@@ -1,15 +1,19 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
 import { mkdtemp, readFile, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import test from 'node:test';
 
 import {
 	buildDesktopRendererSmokeBundle,
 	DESKTOP_RENDERER_SMOKE_BUNDLE,
 } from '../scripts/lib/desktop-renderer-smoke-bundle.mjs';
+import { normalizeE2ESourceMap } from '../scripts/lib/e2e-coverage-build-evidence.mjs';
+import { repositoryRevision } from '../scripts/lib/e2e-coverage-integrity.mjs';
 
 const ROOT = resolve(import.meta.dirname, '..');
 
@@ -42,5 +46,19 @@ for (const productId of ['soundscaper', 'framescaper']) {
 		assert.ok(map.sources.length >= 7);
 		assert.ok(map.sources.every((url) => url.startsWith('file:')));
 		assert.ok(map.x_soundscaper_source_sha256.every((digest) => /^[a-f\d]{64}$/u.test(digest)));
+		for (const [index, url] of map.sources.entries()) {
+			const source = await readFile(fileURLToPath(url));
+			assert.equal(
+				map.x_soundscaper_source_sha256[index],
+				createHash('sha256').update(source).digest('hex'),
+				`${url} must remain bound to its repository bytes`,
+			);
+		}
+		assert.doesNotThrow(() => normalizeE2ESourceMap(
+			map,
+			ROOT,
+			`${productId} renderer smoke test map`,
+			repositoryRevision(ROOT),
+		));
 	});
 }

@@ -34,11 +34,14 @@ export async function buildDesktopRendererSmokeBundle({
 		platform: 'browser',
 		format: 'esm',
 		target: 'chrome128',
+		define: {
+			__SCAPE_RENDERER_SMOKE_PRODUCT__: JSON.stringify(productId),
+		},
+		minifySyntax: true,
 		sourcemap: sourceMaps ? 'external' : false,
 		sourcesContent: sourceMaps,
 		legalComments: 'inline',
 		logLevel: 'silent',
-		plugins: productId === 'soundscaper' ? [soundscaperRendererIsolation()] : [],
 	});
 	let sourceMapPath = null;
 	if (sourceMaps) {
@@ -52,20 +55,4 @@ export async function buildDesktopRendererSmokeBundle({
 		await unlink(emittedMap);
 	}
 	return Object.freeze({ entryPoint, outputPath, sourceMapPath });
-}
-
-function soundscaperRendererIsolation() {
-	return {
-		name: 'soundscaper-renderer-smoke-isolation',
-		setup(builder) {
-			builder.onLoad({
-				filter: /(?:project-library-lease|video-timing-probe)-renderer-smoke\.js$/,
-			}, async ({ path }) => ({
-				contents: (await readFile(path, 'utf8'))
-					.replaceAll('scope?.framescaperDesktop?.v1?.projectLibrary', 'undefined')
-					.replaceAll('globalScope.framescaperDesktop?.v1?.projectLibrary', 'undefined'),
-				loader: 'js',
-			}));
-		},
-	};
 }
