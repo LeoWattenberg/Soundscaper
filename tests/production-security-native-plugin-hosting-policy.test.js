@@ -213,7 +213,7 @@ test('the native helper row stops describing hosting and device opening as absen
 	);
 	assert.match(
 		residual.exposure,
-		/0\/11.*source-template manifests.*five `ci-generated` targets.*workflow results populate only their matching target/iu,
+		/0\/13.*source-template manifests.*five `ci-generated` targets.*workflow results populate only their matching target/iu,
 	);
 	assert.match(
 		residual.acceptanceCriteria.join(' '),
@@ -235,7 +235,7 @@ test('the threat-model narrative separates enabled testing from machine checks a
 	);
 	assert.match(
 		threatModel,
-		/all eleven required archive\/extracted-tree inputs.*not-materialized.*repository-owned five-target producers.*exact target result must be staged/isu,
+		/all thirteen required archive\/extracted-tree inputs.*not-materialized.*repository-owned five-target producers.*exact target result must be staged/isu,
 	);
 	assert.match(
 		threatModel,
