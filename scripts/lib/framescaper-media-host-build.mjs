@@ -189,8 +189,12 @@ function auditClosedAdapters(hostRoot) {
 		]],
 		['src/ffmpeg_media_engine.cpp', [
 			'sws_scale', 'avformat_alloc_output_context2', 'avcodec_send_frame',
-			'av_interleaved_write_frame', 'framescaper-rgba-frame-pack-v1', 'prores_ks',
+			'drain_encoded_packets', 'framescaper-rgba-frame-pack-v1', 'prores_ks',
 			'execute_image_sequence_decode',
+		]],
+		['src/ffmpeg_encoded_packet_drain.hpp', [
+			'avcodec_receive_packet', 'av_packet_rescale_ts', 'av_interleaved_write_frame',
+			'av_packet_unref', 'av_packet_free', 'AVERROR(EAGAIN)', 'AVERROR_EOF',
 		]],
 		['src/ffmpeg_decode_session.cpp', [
 			'avformat_open_input', 'avcodec_send_packet', 'avcodec_receive_frame',
@@ -206,7 +210,7 @@ function auditClosedAdapters(hostRoot) {
 		]],
 		['src/ffmpeg_simple_render.cpp', [
 			'single-full-frame-clip-v1', 'avformat_alloc_output_context2',
-			'avcodec_send_frame', 'av_interleaved_write_frame', 'unsupported-rate-conversion',
+			'avcodec_send_frame', 'drain_encoded_packets', 'unsupported-rate-conversion',
 		]],
 		['src/ffmpeg_hardware_encode.cpp', [
 			'libx264', 'libvpx-vp9', 'codec-policy-unavailable',
@@ -214,7 +218,7 @@ function auditClosedAdapters(hostRoot) {
 		]],
 		['src/ffmpeg_selected_v20_adapter.cpp', [
 			'execute_selected_v20_frames', 'avcodec_get_supported_config', 'swr_convert',
-			'avcodec_send_frame', 'av_interleaved_write_frame', 'reauthenticate_sources',
+			'avcodec_send_frame', 'drain_encoded_packets', 'reauthenticate_sources',
 			'selected-v20-v7-keyed-rgba',
 		]],
 		['src/selected_v20_frame_pack.cpp', [

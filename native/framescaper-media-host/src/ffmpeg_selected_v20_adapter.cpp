@@ -18,6 +18,8 @@ extern "C" {
 #include <libswresample/swresample.h>
 }
 
+#include "ffmpeg_encoded_packet_drain.hpp"
+
 #include <algorithm>
 #include <array>
 #include <cerrno>
@@ -342,21 +344,9 @@ void configure_audio(
 }
 
 void drain_encoder(AVCodecContext* encoder, AVStream* stream, AVFormatContext* format) {
-	AVPacket* packet = av_packet_alloc();
-	if (packet == nullptr) throw adapter_failure("encode-allocation", "An encoded packet cannot be allocated.");
-	try {
-		while (true) {
-			not_cancelled();
-			const auto status = avcodec_receive_packet(encoder, packet);
-			if (status == AVERROR(EAGAIN) || status == AVERROR_EOF) break;
-			require(status, "Receive an encoded selected-V20 packet");
-			av_packet_rescale_ts(packet, encoder->time_base, stream->time_base);
-			packet->stream_index = stream->index;
-			require(av_interleaved_write_frame(format, packet), "Write an encoded selected-V20 packet");
-			av_packet_unref(packet);
-		}
-	} catch (...) { av_packet_free(&packet); throw; }
-	av_packet_free(&packet);
+	drain_encoded_packets(*encoder, *stream, *format, not_cancelled, require,
+		[] { throw adapter_failure("encode-allocation", "An encoded packet cannot be allocated."); },
+		"Receive an encoded selected-V20 packet", "Write an encoded selected-V20 packet");
 }
 
 void write_video_frame(mux_session& output, const selected_v20_output_frame& frame) {

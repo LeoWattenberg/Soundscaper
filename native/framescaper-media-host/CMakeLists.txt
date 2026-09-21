@@ -87,6 +87,21 @@ if(BUILD_TESTING)
 		NAME framescaper-exact-retime-ordinal-test
 		COMMAND framescaper-exact-retime-ordinal-test
 	)
+	add_executable(framescaper-ffmpeg-packet-drain-test
+		tests/ffmpeg_packet_drain_fixture.cpp
+	)
+	target_include_directories(framescaper-ffmpeg-packet-drain-test PRIVATE src)
+	if(MSVC)
+		target_compile_options(framescaper-ffmpeg-packet-drain-test PRIVATE /W4 /WX /permissive-)
+	else()
+		target_compile_options(framescaper-ffmpeg-packet-drain-test PRIVATE
+			-Wall -Wextra -Wpedantic -Werror
+		)
+	endif()
+	add_test(
+		NAME framescaper-ffmpeg-packet-drain-test
+		COMMAND framescaper-ffmpeg-packet-drain-test
+	)
 	add_executable(framescaper-selected-v20-frame-executor-test
 		tests/selected_v20_frame_executor_fixture.cpp
 		src/selected_v20_frame_executor.cpp
@@ -158,6 +173,7 @@ if(BUILD_TESTING)
 	)
 	foreach(FRAMESCAPER_ASSERTING_TEST
 		framescaper-exact-retime-ordinal-test
+		framescaper-ffmpeg-packet-drain-test
 		framescaper-selected-v20-frame-executor-test
 		framescaper-selected-v20-v8-visual-semantics-test
 		framescaper-professional-source-probe-test

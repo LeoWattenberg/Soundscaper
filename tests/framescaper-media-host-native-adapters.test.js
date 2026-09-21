@@ -340,7 +340,7 @@ test('FFmpeg adapter source uses libav APIs and contains no argv or filter-strin
 	}
 	for (const api of [
 		'sws_scale', 'avformat_alloc_output_context2', 'avcodec_send_frame',
-		'av_interleaved_write_frame',
+		'drain_encoded_packets',
 	]) assert.match(engine, new RegExp(api, 'u'));
 	for (const source of [decodeSession, engine, videoEncode]) {
 		assert.doesNotMatch(source, /avfilter_graph_parse|system\s*\(|popen\s*\(|execv/iu);
@@ -353,7 +353,7 @@ test('FFmpeg adapter source uses libav APIs and contains no argv or filter-strin
 	}
 	for (const token of [
 		'single-full-frame-clip-v1', 'unsupported-rate-conversion',
-		'avcodec_send_frame', 'av_interleaved_write_frame',
+		'avcodec_send_frame', 'drain_encoded_packets',
 	]) assert.match(simple, new RegExp(token, 'u'));
 	assert.match(engine,
 		/admitted_plan\.version\s*==\s*14[\s\S]*simple_full_frame_clip\) return execute_simple_render_job\(job\)/u);
@@ -362,7 +362,7 @@ test('FFmpeg adapter source uses libav APIs and contains no argv or filter-strin
 	assert.doesNotMatch(simple, /-vf|-filter_complex|-codec:|-c:v/iu);
 	for (const token of [
 		'execute_selected_v20_frames', 'avcodec_get_supported_config', 'swr_convert',
-		'avcodec_send_frame', 'av_interleaved_write_frame', 'reauthenticate_sources',
+		'avcodec_send_frame', 'drain_encoded_packets', 'reauthenticate_sources',
 		'selected-v20-v7-keyed-rgba',
 	]) assert.match(selected, new RegExp(token, 'u'));
 	assert.match(framePack, /framescaper-rgba-frame-pack-v1/u);

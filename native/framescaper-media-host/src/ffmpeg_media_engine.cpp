@@ -24,6 +24,8 @@ extern "C" {
 #include <libswscale/swscale.h>
 }
 
+#include "ffmpeg_encoded_packet_drain.hpp"
+
 #include <algorithm>
 #include <array>
 #include <cerrno>
@@ -278,21 +280,9 @@ private:
 }
 
 void drain_encoder(AVCodecContext* encoder, AVStream* stream, AVFormatContext* output) {
-	AVPacket* packet = av_packet_alloc();
-	if (packet == nullptr) throw media_failure("encode-allocation", "An encoder packet cannot be allocated.");
-	try {
-		while (true) {
-			check_cancellation();
-			const auto status = avcodec_receive_packet(encoder, packet);
-			if (status == AVERROR(EAGAIN) || status == AVERROR_EOF) break;
-			require_ffmpeg(status, "Receive a ProRes packet");
-			av_packet_rescale_ts(packet, encoder->time_base, stream->time_base);
-			packet->stream_index = stream->index;
-			require_ffmpeg(av_interleaved_write_frame(output, packet), "Write a ProRes packet");
-			av_packet_unref(packet);
-		}
-	} catch (...) { av_packet_free(&packet); throw; }
-	av_packet_free(&packet);
+	drain_encoded_packets(*encoder, *stream, *output, check_cancellation, require_ffmpeg,
+		[] { throw media_failure("encode-allocation", "An encoder packet cannot be allocated."); },
+		"Receive a ProRes packet", "Write a ProRes packet");
 }
 
 [[nodiscard]] std::pair<std::uint32_t, std::uint32_t> exact_proxy_geometry(

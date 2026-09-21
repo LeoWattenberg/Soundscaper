@@ -13,6 +13,8 @@ extern "C" {
 #include <libavutil/pixfmt.h>
 }
 
+#include "ffmpeg_encoded_packet_drain.hpp"
+
 #include <algorithm>
 #include <array>
 #include <cerrno>
@@ -208,21 +210,10 @@ void require_closed_simple_plan(const admitted_media_plan& plan) {
 }
 
 void write_encoded_packets(output_session& output) {
-	AVPacket* packet = av_packet_alloc();
-	if (packet == nullptr) throw render_failure("encode-allocation", "A delivery packet cannot be allocated.");
-	try {
-		while (true) {
-			not_cancelled();
-			const auto status = avcodec_receive_packet(output.encoder, packet);
-			if (status == AVERROR(EAGAIN) || status == AVERROR_EOF) break;
-			require(status, "Receive a delivery packet");
-			av_packet_rescale_ts(packet, output.encoder->time_base, output.stream->time_base);
-			packet->stream_index = output.stream->index;
-			require(av_interleaved_write_frame(output.format, packet), "Write a delivery packet");
-			av_packet_unref(packet);
-		}
-	} catch (...) { av_packet_free(&packet); throw; }
-	av_packet_free(&packet);
+	drain_encoded_packets(*output.encoder, *output.stream, *output.format,
+		not_cancelled, require,
+		[] { throw render_failure("encode-allocation", "A delivery packet cannot be allocated."); },
+		"Receive a delivery packet", "Write a delivery packet");
 }
 
 void consume_frame(const invocation& job, output_session& output, AVFrame* decoded, std::uint64_t& ordinal) {
