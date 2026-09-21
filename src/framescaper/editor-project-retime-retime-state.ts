@@ -8,6 +8,7 @@ import {
 	type VideoRetimeCurveV16Binding,
 } from '../common/editor/video-retime-v16.ts';
 import type { FramescaperProjectRetime } from './editor-project-retime-validation.ts';
+import { visitFramescaperRetimeClipCollections } from './editor-project-retime-clip-collections.ts';
 
 export type FramescaperVideoRetimeClipScopeRetime = 'timeline' | 'project-bin';
 
@@ -259,28 +260,7 @@ function visitClipCollections(
 	project: DataRecord,
 	visit: (clip: DataRecord, name: string, scope: FramescaperVideoRetimeClipScopeRetime) => void,
 ): void {
-	visitClipArray(dataProperty(project, 'clips', 'Framescaper retime project'),
-		'Framescaper retime project.clips', 'timeline', visit);
-	const projectBin = record(dataProperty(project, 'projectBin', 'Framescaper retime project'),
-		'Framescaper retime project.projectBin');
-	visitClipArray(dataProperty(projectBin, 'clips', 'Framescaper retime project.projectBin'),
-		'Framescaper retime project.projectBin.clips', 'project-bin', visit);
-}
-
-function visitClipArray(
-	value: unknown,
-	name: string,
-	scope: FramescaperVideoRetimeClipScopeRetime,
-	visit: (clip: DataRecord, name: string, scope: FramescaperVideoRetimeClipScopeRetime) => void,
-): void {
-	if (!Array.isArray(value)) throw new TypeError(`${name} must be an array.`);
-	for (let index = 0; index < value.length; index += 1) {
-		const descriptor = Object.getOwnPropertyDescriptor(value, String(index));
-		if (!descriptor?.enumerable || !Object.hasOwn(descriptor, 'value')) {
-			throw new TypeError(`${name}[${String(index)}] must be an own enumerable data property.`);
-		}
-		visit(record(descriptor.value, `${name}[${String(index)}]`), `${name}[${String(index)}]`, scope);
-	}
+	visitFramescaperRetimeClipCollections(project, visit, { record, dataProperty });
 }
 
 function record(value: unknown, name: string): DataRecord {

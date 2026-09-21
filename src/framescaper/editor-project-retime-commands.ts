@@ -26,6 +26,7 @@ import {
 	admitFramescaperProjectCommandRetimeStructure,
 } from './editor-project-retime-command-admission.ts';
 import { flattenFramescaperProjectBatchCommandsRetime } from './editor-project-retime-batch-command.ts';
+import { visitFramescaperRetimeClipCollections } from './editor-project-retime-clip-collections.ts';
 import { FRAMESCAPER_COMPOSITION_PROJECT_RUNTIME_PROFILE } from './editor-domain-runtime-profile.ts';
 import {
 	applyFramescaperProjectCommandComposition,
@@ -515,25 +516,7 @@ function visitClipCollections(
 	project: DataRecord,
 	visit: (clip: DataRecord, name: string, scope: ClipScope) => void,
 ): void {
-	visitClipArray(dataProperty(project, 'clips', 'Framescaper retime project'), 'Framescaper retime project.clips', 'timeline', visit);
-	const projectBin = dataRecord(dataProperty(project, 'projectBin', 'Framescaper retime project'), 'Framescaper retime project.projectBin');
-	visitClipArray(dataProperty(projectBin, 'clips', 'Framescaper retime project.projectBin'), 'Framescaper retime project.projectBin.clips', 'project-bin', visit);
-}
-
-function visitClipArray(
-	value: unknown,
-	name: string,
-	scope: ClipScope,
-	visit: (clip: DataRecord, name: string, scope: ClipScope) => void,
-): void {
-	if (!Array.isArray(value)) throw new TypeError(`${name} must be an array.`);
-	for (let index = 0; index < value.length; index += 1) {
-		const descriptor = Object.getOwnPropertyDescriptor(value, String(index));
-		if (!descriptor?.enumerable || !Object.hasOwn(descriptor, 'value')) {
-			throw new TypeError(`${name}[${String(index)}] must be an own enumerable data property.`);
-		}
-		visit(dataRecord(descriptor.value, `${name}[${String(index)}]`), `${name}[${String(index)}]`, scope);
-	}
+	visitFramescaperRetimeClipCollections(project, visit, { record: dataRecord, dataProperty });
 }
 
 function commandType(value: unknown): string {
