@@ -136,7 +136,7 @@ export function sourceMapPathFor(chunk) {
  *   source?: string,
  * } | null} resolveScript
  * @returns {{
- *   result: object[],
+ *   result: Array<{ scriptId: string, url: string, functions: unknown[] }>,
  *   'script-source-cache': Record<string, string>,
  *   'source-map-cache': Record<string, object>,
  * }}
