@@ -22,6 +22,7 @@ const LINUX_RUNTIME_LOADERS = Object.freeze({
 });
 const SHA256 = /^[a-f0-9]{64}$/u;
 const SHARED_SOURCE_PATHS = Object.freeze([
+	'native/common/exact_time.hpp',
 	'native/common/sha256.cpp', 'native/common/sha256.hpp',
 ]);
 const TARGET_FIELDS = Object.freeze([

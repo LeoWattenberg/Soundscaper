@@ -22,6 +22,11 @@
 	},
 	"sharedSourceFiles": [
 		{
+			"path": "native/common/exact_time.hpp",
+			"byteLength": 3325,
+			"sha256": "a97a7a25225418c83bacb23a4c41f995d757a5b86fdbd529e2ca26ee1bfaaef6"
+		},
+		{
 			"path": "native/common/sha256.cpp",
 			"byteLength": 4415,
 			"sha256": "da01b38de59b50e5ce351a555a94313c6a9cb5a2803042df1f393e064acbe28d"
@@ -50,8 +55,8 @@
 		},
 		{
 			"path": "build/recipe-driver.mjs",
-			"byteLength": 30500,
-			"sha256": "2af7f061325e8853cfc22f6c67c9a24e1f4d36030edb4dc5fdbaba1c1b54dc21"
+			"byteLength": 30580,
+			"sha256": "68836292daaf3fb919951ec2549886987b854b0aae2f8d801f4f62446eaa15d1"
 		},
 		{
 			"path": "build/source-authentication.mjs",
@@ -255,8 +260,8 @@
 		},
 		{
 			"path": "src/v12_retime_authority.cpp",
-			"byteLength": 14020,
-			"sha256": "2338951e110bd89f4a7dc12882de6777edd4c01338d74a4e7028ca185d37a9e0"
+			"byteLength": 13587,
+			"sha256": "0fb972bcf4cc887375707fdf232dac7aca1096c303382dd48d066c99ca095203"
 		},
 		{
 			"path": "src/v12_retime_authority.hpp",
@@ -265,8 +270,8 @@
 		},
 		{
 			"path": "src/v12_transition_authority.cpp",
-			"byteLength": 12434,
-			"sha256": "6712c14c32b5833d7f9affba9f6e672b83ef643352009c54d4dea082423a4b43"
+			"byteLength": 10752,
+			"sha256": "17f7a6ef120b719fb75ddb66934c9fbc9950e767d03d58a46722604e269aaf9a"
 		},
 		{
 			"path": "src/v12_transition_authority.hpp",

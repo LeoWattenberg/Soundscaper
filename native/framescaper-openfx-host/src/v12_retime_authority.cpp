@@ -2,6 +2,7 @@
 
 #include "v12_retime_authority.hpp"
 
+#include "../../common/exact_time.hpp"
 #include "v12_host_invocation.hpp"
 #include "unified_plan_video_timing.hpp"
 
@@ -13,7 +14,6 @@
 #include <algorithm>
 #include <cmath>
 #include <cstdint>
-#include <limits>
 #include <string>
 #include <string_view>
 #include <utility>
@@ -76,32 +76,22 @@ using soundscaper::framescaper::exact_wire_rational;
 	);
 }
 
-[[nodiscard]] cpp_int point_round(cpp_int numerator, const cpp_int& denominator) {
-	if (denominator <= 0 || numerator < 0) {
-		throw v12_invocation_error{"source-time-mismatch", "The exact sequence cadence is invalid."};
-	}
-	const cpp_int quotient = numerator / denominator;
-	const cpp_int remainder = numerator % denominator;
-	return remainder * 2 >= denominator ? quotient + 1 : quotient;
-}
-
 [[nodiscard]] std::uint64_t sequence_frame_at_sample(
 	const std::uint64_t sample,
 	const std::uint64_t rate_num,
 	const std::uint64_t rate_den,
 	const std::uint64_t sample_rate
 ) {
-	const cpp_int denominator = cpp_int(rate_den) * sample_rate;
-	auto frame = cpp_int(sample) * rate_num / denominator;
-	const auto boundary = [&](const cpp_int& value) {
-		return point_round(value * rate_den * sample_rate, cpp_int(rate_num));
-	};
-	while (frame > 0 && boundary(frame) > sample) --frame;
-	while (boundary(frame + 1) <= sample) ++frame;
-	if (frame > std::numeric_limits<std::uint64_t>::max()) {
+	const auto result = scape::native_common::sequence_frame_at_sample(
+		sample, rate_num, rate_den, sample_rate
+	);
+	if (result.status == scape::native_common::exact_cadence_status::invalid) {
+		throw v12_invocation_error{"source-time-mismatch", "The exact sequence cadence is invalid."};
+	}
+	if (result.status == scape::native_common::exact_cadence_status::overflow) {
 		throw v12_invocation_error{"source-time-mismatch", "The exact sequence frame overflows."};
 	}
-	return frame.convert_to<std::uint64_t>();
+	return result.frame;
 }
 
 [[nodiscard]] RetimeMode retime_mode(const std::string_view value) {

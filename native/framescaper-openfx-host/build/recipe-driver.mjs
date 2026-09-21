@@ -24,6 +24,7 @@ const OPENFX_COMMIT_SHA = 'ab779510b2655b4d11a7e01e5c521f9aa8c88976';
 const OPENFX_ARCHIVE_SHA256 = '7f4fcde6c4bff3ee1f95a0b73a805e662a3e030999523165b40cfbe76c1ab9f5';
 const BOOST_ARCHIVE_SHA256 = '5c1d40cb8e19adbf740a4ec2da35b3e58f3f5804b1dce44deb53df72193cbc6c';
 const SHARED_SOURCE_PATHS = Object.freeze([
+	'native/common/exact_time.hpp',
 	'native/common/sha256.cpp', 'native/common/sha256.hpp',
 ]);
 const MEDIA_CONTRACT_SOURCES = Object.freeze([
@@ -369,7 +370,8 @@ function verifyMediaContractClosure(repositoryRoot, hostRoot, manifest, witnesse
 			const included = relative(
 				mediaRoot, resolve(dirname(join(mediaRoot, path)), match[1]),
 			).replaceAll('\\', '/');
-			if (included === '../common/sha256.hpp') continue;
+			if (included === '../common/exact_time.hpp'
+				|| included === '../common/sha256.hpp') continue;
 			if (!included.startsWith('src/')) {
 				throw new Error(`Reused media-contract include ${included} resolves outside its source root.`);
 			}

@@ -2,6 +2,7 @@
 
 #pragma once
 
+#include "../../common/exact_time.hpp"
 #include "sha256.hpp"
 #include "strict_json.hpp"
 
@@ -26,6 +27,8 @@
 #include <vector>
 
 namespace framescaper::media::unified {
+
+using scape::native_common::compare_rationals;
 
 constexpr std::int64_t maximum_safe_integer = 9'007'199'254'740'991;
 
@@ -355,38 +358,6 @@ inline void validate_composition(const json::value& value) {
 		if (!by_id.emplace(id, definitions).second) throw json::parse_error("Unified picture effect ID is duplicated.");
 	}
 	return by_id;
-}
-
-[[nodiscard]] inline int compare_rationals(
-	const std::pair<std::int64_t, std::int64_t>& left,
-	const std::pair<std::int64_t, std::int64_t>& right
-) {
-	if (left.first < 0 && right.first >= 0) return -1;
-	if (left.first >= 0 && right.first < 0) return 1;
-	const bool negative = left.first < 0;
-	auto left_num = static_cast<std::uint64_t>(negative ? -left.first : left.first);
-	auto right_num = static_cast<std::uint64_t>(negative ? -right.first : right.first);
-	auto left_den = static_cast<std::uint64_t>(left.second);
-	auto right_den = static_cast<std::uint64_t>(right.second);
-	bool inverse = false;
-	for (;;) {
-		const auto left_whole = left_num / left_den;
-		const auto right_whole = right_num / right_den;
-		if (left_whole != right_whole) {
-			const auto result = left_whole < right_whole ? -1 : 1;
-			return (inverse ? -result : result) * (negative ? -1 : 1);
-		}
-		const auto left_remainder = left_num % left_den;
-		const auto right_remainder = right_num % right_den;
-		if (left_remainder == 0 || right_remainder == 0) {
-			if (left_remainder == right_remainder) return 0;
-			const auto result = left_remainder == 0 ? -1 : 1;
-			return (inverse ? -result : result) * (negative ? -1 : 1);
-		}
-		left_num = left_den; left_den = left_remainder;
-		right_num = right_den; right_den = right_remainder;
-		inverse = !inverse;
-	}
 }
 
 [[nodiscard]] inline std::pair<std::int64_t, std::int64_t> validate_curve_anchor(

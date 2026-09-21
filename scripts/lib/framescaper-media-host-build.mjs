@@ -33,6 +33,7 @@ export const FRAMESCAPER_MEDIA_HOST_TARGETS = Object.freeze([
 const SOURCE_EXCLUSIONS = new Set(['source-manifest.json']);
 const SHA256 = /^[a-f\d]{64}$/u;
 const SHARED_SOURCE_PATHS = Object.freeze([
+	'native/common/exact_time.hpp',
 	'native/common/sha256.cpp', 'native/common/sha256.hpp',
 ]);
 const TARGET_FIELDS = Object.freeze([

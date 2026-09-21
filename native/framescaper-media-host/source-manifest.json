@@ -34,6 +34,11 @@
 	},
 	"sharedSourceFiles": [
 		{
+			"path": "native/common/exact_time.hpp",
+			"byteLength": 3325,
+			"sha256": "a97a7a25225418c83bacb23a4c41f995d757a5b86fdbd529e2ca26ee1bfaaef6"
+		},
+		{
 			"path": "native/common/sha256.cpp",
 			"byteLength": 4415,
 			"sha256": "da01b38de59b50e5ce351a555a94313c6a9cb5a2803042df1f393e064acbe28d"
@@ -82,8 +87,8 @@
 		},
 		{
 			"path": "build/recipe-driver.mjs",
-			"byteLength": 29472,
-			"sha256": "3d99aca20254f9dd10687c3d30b52ef9f960a80c4882f4a339dc52df7baf554b"
+			"byteLength": 29505,
+			"sha256": "a8de99220fae471b504d405086dfde1ccd76d54c243e28bf4f502ff1254e3c0e"
 		},
 		{
 			"path": "build/source-authentication.mjs",
@@ -357,8 +362,8 @@
 		},
 		{
 			"path": "src/unified_plan_common.hpp",
-			"byteLength": 24050,
-			"sha256": "47526a7fa4b6ab18a56dacaa0662c9245eec6bf18fe542853c0d92a887d316e0"
+			"byteLength": 22806,
+			"sha256": "1aba59208f42475beaf45bfaa602792d56afec02c19347d6a0db1bbe1b8fa6d0"
 		},
 		{
 			"path": "src/unified_plan_identity_authority.hpp",

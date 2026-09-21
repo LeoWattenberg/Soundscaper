@@ -35,6 +35,7 @@ const SOURCE_DATE_EPOCH = 1786492800;
 const FFMPEG_ARCHIVE_SHA256 = 'cf38e0e28c7e5605942c4a77755349b0145804a397af37eb1fb4c77cb237f635';
 const BOOST_ARCHIVE_SHA256 = '5c1d40cb8e19adbf740a4ec2da35b3e58f3f5804b1dce44deb53df72193cbc6c';
 const SHARED_SOURCE_PATHS = Object.freeze([
+	'native/common/exact_time.hpp',
 	'native/common/sha256.cpp', 'native/common/sha256.hpp',
 ]);
 const TARGETS = Object.freeze([

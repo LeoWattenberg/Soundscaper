@@ -166,13 +166,18 @@ test('each native recipe requires its own source authenticator to remain manifes
 			/source-file inventory|Required build input build\/source-authentication\.mjs is not pinned/u);
 	}
 });
-test('both native recipes authenticate the shared SHA-256 core', (context) => {
+test('both native recipes authenticate every shared native authority', (context) => {
 	for (const kind of ['media', 'openfx']) {
 		const fixture = buildFixture(context, kind, 'linux-x64');
-		appendFileSync(join(fixture.repositoryRoot, 'native/common/sha256.cpp'), 'drift');
 		const create = kind === 'media'
 			? createFramescaperMediaHostBuildRecipe : createFramescaperOpenFxHostBuildRecipe;
-		assert.throws(() => create(fixture.options), /shared build input.*drifted/iu);
+		for (const path of ['native/common/exact_time.hpp', 'native/common/sha256.cpp']) {
+			const authority = join(fixture.repositoryRoot, path);
+			const original = readFileSync(authority);
+			appendFileSync(authority, 'drift');
+			assert.throws(() => create(fixture.options), /shared build input.*drifted/iu);
+			writeFileSync(authority, original);
+		}
 	}
 });
 test('fake execution runs only the admitted phases once and never writes a payload claim', (context) => {
