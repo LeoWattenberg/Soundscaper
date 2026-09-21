@@ -83,6 +83,7 @@ const CONTROL_ENTRY_FILES = Object.freeze([
 	'project-library-runtime/desktop/desktop-audio-stream-job-runner.js',
 ]);
 const COMMON_DEPENDENCIES = Object.freeze([
+	'project-library-runtime/desktop/bundled-audio-codec-identity.js',
 	'project-library-runtime/desktop/bundled-audio-codec-helper-configuration.js',
 	'project-library-runtime/desktop/desktop-audio-codec-capability-contract.js',
 	'project-library-runtime/desktop/desktop-audio-codec-operation-contract.js',

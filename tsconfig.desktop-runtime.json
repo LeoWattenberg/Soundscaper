@@ -25,6 +25,7 @@
 		"desktop/desktop-audio-stream-contract.ts",
 		"desktop/bundled-audio-codec-helper-configuration.ts",
 		"desktop/bundled-audio-codec-helper-process.ts",
+		"desktop/bundled-audio-codec-identity.ts",
 		"desktop/bundled-audio-codec-isolated-runtime.ts",
 		"desktop/bundled-audio-codec-operation-runner.ts",
 		"desktop/bundled-audio-codec-provider-catalog.ts",

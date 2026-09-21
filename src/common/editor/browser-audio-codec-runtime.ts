@@ -21,6 +21,7 @@ import {
 	opusCodecRateSettings,
 } from './media-export.js';
 import { inspectWavBlobPcm, streamWavBlobPcm } from './wav-import.js';
+import { writeInterleavedFloat32Pcm } from './interleaved-float32-pcm.ts';
 import type { WavPcmDescriptor } from './wav-pcm-chunk-reader.ts';
 
 export interface BrowserDedicatedAudioCodecClient {
@@ -326,22 +327,14 @@ async function stagedPcm(
 		);
 	}
 	const input = new Uint8Array(byteLength);
-	const view = new DataView(input.buffer);
 	await streamWavBlobPcm(file, {
 		descriptor,
 		...(settings.signal ? { signal: settings.signal } : {}),
 		onChunk(packet: readonly Float32Array[], details: Readonly<{ frameOffset: number }>) {
 			const channels = applyMediaChannelMapping(packet, media.channelMapping as never) as readonly Float32Array[];
-			for (let frame = 0; frame < (channels[0]?.length ?? 0); frame += 1) {
-				for (let channel = 0; channel < channels.length; channel += 1) {
-					const sample = channels[channel]?.[frame];
-					view.setFloat32(
-						((details.frameOffset + frame) * channels.length + channel) * 4,
-						Number.isFinite(sample) ? Number(sample) : 0,
-						true,
-					);
-				}
-			}
+			writeInterleavedFloat32Pcm(input, channels, {
+				destinationFrameOffset: details.frameOffset, nonFinite: 'zero',
+			});
 		},
 	});
 	return Object.freeze({ input, frameCount: descriptor.frameCount, media });

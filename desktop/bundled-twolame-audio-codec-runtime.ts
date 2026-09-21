@@ -6,6 +6,7 @@ import { createHash } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import { setImmediate as waitImmediate } from 'node:timers/promises';
 
+import { BUNDLED_AUDIO_CODEC_IDENTITIES, createBundledAudioCodecProvider } from './bundled-audio-codec-identity.ts';
 import { assertFiniteFloat32Pcm } from './finite-float32-pcm.ts';
 
 import { parseBundledMpegAudioStream } from './bundled-mpeg-audio-stream.ts';
@@ -27,9 +28,9 @@ import {
 	type DesktopCodecTarget,
 } from '../src/common/editor/desktop-codec-provider-catalog.ts';
 
-export const BUNDLED_TWOLAME_VERSION = '0.4.0';
+export const BUNDLED_TWOLAME_VERSION = BUNDLED_AUDIO_CODEC_IDENTITIES.twolame.version;
 export const BUNDLED_TWOLAME_WASM_BYTE_LENGTH = 148_312;
-export const BUNDLED_TWOLAME_WASM_SHA256 = '8b89b6a12eab302c92960865c6b1c7d33df86d6d8760c8549a8ee38a99ef2b30';
+export const BUNDLED_TWOLAME_WASM_SHA256 = BUNDLED_AUDIO_CODEC_IDENTITIES.twolame.wasmSha256;
 export const BUNDLED_TWOLAME_WASM_URL = new URL(
 	'../src/common/editor/twolame/twolame.wasm', import.meta.url,
 );
@@ -325,22 +326,10 @@ function verifyCanary(codec: TwolameCodec): void {
 }
 
 function bundledProvider(target: DesktopCodecTarget): DesktopCodecProvider {
-	return Object.freeze({
-		kind: 'bundled', id: `bundled-twolame-wasm-${target}`,
-		implementation: 'twolame-wasm-f32-mp2', version: BUNDLED_TWOLAME_VERSION,
-		capabilityGeneration: `twolame-${BUNDLED_TWOLAME_WASM_SHA256}`,
-		async preflight(
-			operation: DesktopCodecOperation,
-			options: Readonly<{ readonly signal?: AbortSignal }>,
-		): Promise<DesktopCodecPreflightResult> {
-			throwIfAborted(options?.signal);
-			return matchingOperation(operation)
-				? Object.freeze({ disposition: 'supported', reason: null })
-				: Object.freeze({
-					disposition: 'unsupported',
-					reason: 'The bundled TwoLAME payload supports bounded MPEG-1 Layer II encoding only.',
-				});
-		},
+	return createBundledAudioCodecProvider('twolame', target, {
+		matches: matchingOperation,
+		unsupportedReason: 'The bundled TwoLAME payload supports bounded MPEG-1 Layer II encoding only.',
+		throwIfAborted,
 	});
 }
 

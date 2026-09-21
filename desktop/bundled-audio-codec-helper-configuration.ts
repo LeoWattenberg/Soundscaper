@@ -4,6 +4,7 @@
 
 import { isAbsolute } from 'node:path';
 
+import { bundledAudioCodecProviderIdentity } from './bundled-audio-codec-identity.ts';
 import type { DesktopCodecTarget } from '../src/common/editor/desktop-codec-provider-catalog.js';
 
 export const BUNDLED_AUDIO_CODEC_IDS = Object.freeze([
@@ -49,6 +50,7 @@ const CONFIGURATION_FIELDS = Object.freeze([
 	'dependencies', 'wasmBytes', 'wasmSha256',
 ]);
 const COMMON_DEPENDENCIES = Object.freeze([
+	'desktop/bundled-audio-codec-identity.js',
 	'desktop/bundled-audio-codec-helper-configuration.js',
 	'desktop/desktop-audio-codec-capability-contract.js',
 	'desktop/desktop-audio-codec-operation-contract.js',
@@ -73,42 +75,42 @@ const CODECS: Readonly<Record<BundledAudioCodecId, Readonly<BundledAudioCodecSpe
 		wasmFile: 'src/common/editor/flac/flac.wasm',
 		dependencies: Object.freeze([...COMMON_DEPENDENCIES].sort()),
 		loaderName: 'loadBundledFlacAudioCodecRuntime',
-		providerId: (target: DesktopCodecTarget) => `bundled-libflac-wasm-${target}`,
+		providerId: (target: DesktopCodecTarget) => bundledAudioCodecProviderIdentity('flac', target).id,
 	}),
 	lame: Object.freeze({
 		moduleFile: 'desktop/bundled-lame-audio-codec-runtime.js',
 		wasmFile: 'src/common/editor/lame/lame.wasm',
 		dependencies: Object.freeze([...COMMON_DEPENDENCIES].sort()),
 		loaderName: 'loadBundledLameAudioCodecRuntime',
-		providerId: (target: DesktopCodecTarget) => `bundled-lame-wasm-${target}`,
+		providerId: (target: DesktopCodecTarget) => bundledAudioCodecProviderIdentity('lame', target).id,
 	}),
 	mpg123: Object.freeze({
 		moduleFile: 'desktop/bundled-mpg123-audio-codec-runtime.js',
 		wasmFile: 'src/common/editor/mpg123/mpg123.wasm',
 		dependencies: Object.freeze([...COMMON_DEPENDENCIES].sort()),
 		loaderName: 'loadBundledMpg123AudioCodecRuntime',
-		providerId: (target: DesktopCodecTarget) => `bundled-mpg123-wasm-${target}`,
+		providerId: (target: DesktopCodecTarget) => bundledAudioCodecProviderIdentity('mpg123', target).id,
 	}),
 	opus: Object.freeze({
 		moduleFile: 'desktop/bundled-opus-audio-codec-runtime.js',
 		wasmFile: 'src/common/editor/opus/opus.wasm',
 		dependencies: Object.freeze([...COMMON_DEPENDENCIES].sort()),
 		loaderName: 'loadBundledOpusAudioCodecRuntime',
-		providerId: (target: DesktopCodecTarget) => `bundled-libopus-libogg-wasm-${target}`,
+		providerId: (target: DesktopCodecTarget) => bundledAudioCodecProviderIdentity('opus', target).id,
 	}),
 	twolame: Object.freeze({
 		moduleFile: 'desktop/bundled-twolame-audio-codec-runtime.js',
 		wasmFile: 'src/common/editor/twolame/twolame.wasm',
 		dependencies: Object.freeze([...COMMON_DEPENDENCIES].sort()),
 		loaderName: 'loadBundledTwolameAudioCodecRuntime',
-		providerId: (target: DesktopCodecTarget) => `bundled-twolame-wasm-${target}`,
+		providerId: (target: DesktopCodecTarget) => bundledAudioCodecProviderIdentity('twolame', target).id,
 	}),
 	vorbis: Object.freeze({
 		moduleFile: 'desktop/bundled-vorbis-audio-codec-runtime.js',
 		wasmFile: 'src/common/editor/vorbis/vorbis.wasm',
 		dependencies: Object.freeze([...COMMON_DEPENDENCIES].sort()),
 		loaderName: 'loadBundledVorbisAudioCodecRuntime',
-		providerId: (target: DesktopCodecTarget) => `bundled-libvorbis-libogg-wasm-${target}`,
+		providerId: (target: DesktopCodecTarget) => bundledAudioCodecProviderIdentity('vorbis', target).id,
 	}),
 	wavpack: Object.freeze({
 		moduleFile: 'desktop/bundled-wavpack-audio-codec-runtime.js',
@@ -120,7 +122,7 @@ const CODECS: Readonly<Record<BundledAudioCodecId, Readonly<BundledAudioCodecSpe
 			'src/common/editor/wavpack/runtime.js',
 		].sort()),
 		loaderName: 'loadBundledWavPackAudioCodecRuntime',
-		providerId: (target: DesktopCodecTarget) => `bundled-wavpack-wasm-${target}`,
+		providerId: (target: DesktopCodecTarget) => bundledAudioCodecProviderIdentity('wavpack', target).id,
 	}),
 });
 

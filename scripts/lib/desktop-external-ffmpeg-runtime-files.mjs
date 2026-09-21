@@ -21,6 +21,7 @@ export const DESKTOP_AUDIO_CODEC_RUNTIME_FILES = Object.freeze([
 	'desktop/bundled-audio-codec-composite-provider.js',
 	'desktop/bundled-audio-codec-helper-configuration.js',
 	'desktop/bundled-audio-codec-helper-process.js',
+	'desktop/bundled-audio-codec-identity.js',
 	'desktop/bundled-audio-codec-isolated-runtime.js',
 	'desktop/bundled-audio-codec-operation-runner.js',
 	'desktop/bundled-audio-codec-provider-catalog.js',

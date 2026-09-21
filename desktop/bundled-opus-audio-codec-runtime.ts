@@ -6,6 +6,7 @@ import { createHash } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import { setImmediate as waitImmediate } from 'node:timers/promises';
 
+import { BUNDLED_AUDIO_CODEC_IDENTITIES, createBundledAudioCodecProvider } from './bundled-audio-codec-identity.ts';
 import { assertFiniteFloat32Pcm } from './finite-float32-pcm.ts';
 
 import {
@@ -33,9 +34,9 @@ import {
 	type DesktopCodecTarget,
 } from '../src/common/editor/desktop-codec-provider-catalog.ts';
 
-export const BUNDLED_OPUS_VERSION = 'libopus-1.6.1+libogg-1.3.6';
+export const BUNDLED_OPUS_VERSION = BUNDLED_AUDIO_CODEC_IDENTITIES.opus.version;
 export const BUNDLED_OPUS_WASM_BYTE_LENGTH = 388526;
-export const BUNDLED_OPUS_WASM_SHA256 = 'cc5577fa2a6c74781b7eb57bd754f7d9b50b2355a83d85b0f0cfe96415607dce';
+export const BUNDLED_OPUS_WASM_SHA256 = BUNDLED_AUDIO_CODEC_IDENTITIES.opus.wasmSha256;
 export const BUNDLED_OPUS_SAMPLE_RATE = 48_000;
 export const BUNDLED_OPUS_MAXIMUM_CHANNELS = 2;
 export const BUNDLED_OPUS_WASM_URL = new URL(
@@ -401,22 +402,10 @@ function verifyCanary(codec: OpusCodec): void {
 }
 
 function bundledProvider(target: DesktopCodecTarget): DesktopCodecProvider {
-	return Object.freeze({
-		kind: 'bundled', id: `bundled-libopus-libogg-wasm-${target}`,
-		implementation: 'libopus-libogg-wasm-f32', version: BUNDLED_OPUS_VERSION,
-		capabilityGeneration: `libopus-libogg-${BUNDLED_OPUS_WASM_SHA256}`,
-		async preflight(
-			operation: DesktopCodecOperation,
-			options: Readonly<{ readonly signal?: AbortSignal }>,
-		): Promise<DesktopCodecPreflightResult> {
-			throwIfAborted(options?.signal);
-			return supportedOperation(operation)
-				? Object.freeze({ disposition: 'supported', reason: null })
-				: Object.freeze({
-					disposition: 'unsupported',
-					reason: 'The bundled libopus/libogg payload supports 48 kHz family-0 mono/stereo only.',
-				});
-		},
+	return createBundledAudioCodecProvider('opus', target, {
+		matches: supportedOperation,
+		unsupportedReason: 'The bundled libopus/libogg payload supports 48 kHz family-0 mono/stereo only.',
+		throwIfAborted,
 	});
 }
 

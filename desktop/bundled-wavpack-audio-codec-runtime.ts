@@ -6,6 +6,7 @@ import { createHash } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import { setImmediate as waitImmediate } from 'node:timers/promises';
 
+import { BUNDLED_AUDIO_CODEC_IDENTITIES, createBundledAudioCodecProvider } from './bundled-audio-codec-identity.ts';
 import {
 	assembleBundledWavPackChunks,
 	BundledWavPackStreamError,
@@ -38,9 +39,9 @@ import {
 } from '../src/common/editor/wavpack-float32-chunk-layout.ts';
 import { loadWavPackWasm } from '../src/common/editor/wavpack/runtime.js';
 
-export const BUNDLED_WAVPACK_VERSION = '5.9.0';
+export const BUNDLED_WAVPACK_VERSION = BUNDLED_AUDIO_CODEC_IDENTITIES.wavpack.version;
 export const BUNDLED_WAVPACK_WASM_BYTE_LENGTH = 148_868;
-export const BUNDLED_WAVPACK_WASM_SHA256 = '5197fb8fd8e6cbef210acad11eb2a9dd8395a519b5fd64ba14a1b4978041b0c5';
+export const BUNDLED_WAVPACK_WASM_SHA256 = BUNDLED_AUDIO_CODEC_IDENTITIES.wavpack.wasmSha256;
 // The reviewed ABI fixes libwavpack at CONFIG_FAST_FLAG. Soundscaper's existing
 // WavPack default (level 2) is the sole explicit product mapping to that mode.
 export const BUNDLED_WAVPACK_COMPRESSION_LEVEL = DESKTOP_BUNDLED_WAVPACK_COMPRESSION_LEVEL;
@@ -367,22 +368,10 @@ function allocate(runtime: ReviewedWavPackRuntime, byteLength: number): number {
 }
 
 function bundledProvider(target: DesktopCodecTarget): DesktopCodecProvider {
-	return Object.freeze({
-		kind: 'bundled', id: `bundled-wavpack-wasm-${target}`,
-		implementation: 'wavpack-wasm-f32', version: BUNDLED_WAVPACK_VERSION,
-		capabilityGeneration: `wavpack-${BUNDLED_WAVPACK_WASM_SHA256}`,
-		async preflight(
-			operation: DesktopCodecOperation,
-			options: Readonly<{ readonly signal?: AbortSignal }>,
-		): Promise<DesktopCodecPreflightResult> {
-			throwIfAborted(options?.signal);
-			return supportedOperation(operation)
-				? Object.freeze({ disposition: 'supported', reason: null })
-				: Object.freeze({
-					disposition: 'unsupported',
-					reason: 'The bundled WavPack payload supports only bounded float32 WavPack audio.',
-				});
-		},
+	return createBundledAudioCodecProvider('wavpack', target, {
+		matches: supportedOperation,
+		unsupportedReason: 'The bundled WavPack payload supports only bounded float32 WavPack audio.',
+		throwIfAborted,
 	});
 }
 

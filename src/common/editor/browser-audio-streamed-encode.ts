@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 import { applyMediaChannelMapping, normalizeMediaExportSettings } from './media-export.js';
 import { inspectWavBlobPcm, streamWavBlobPcm } from './wav-import.js';
+import { writeInterleavedFloat32Pcm } from './interleaved-float32-pcm.ts';
 import type { WavPcmDescriptor } from './wav-pcm-chunk-reader.ts';
 import { LARGE_AUDIO_DURATION_SECONDS, LARGE_AUDIO_FILE_BYTES, LARGE_AUDIO_PCM_CHUNK_FRAMES } from './large-audio-policy.ts';
 import { openBrowserAudioEncodeStreamSession, type BrowserAudioEncodeStreamSession } from './browser-audio-encode-stream-client.ts';
@@ -85,13 +86,9 @@ export async function encodeBrowserAudioFileStreamed(
 				const channels = applyMediaChannelMapping(packet, media.channelMapping as never) as readonly Float32Array[];
 				if (channels.length !== media.channelCount) throw new RangeError('The streamed channel mapping changed its geometry.');
 				const bytes = new Uint8Array(details.frames * channels.length * 4);
-				const view = new DataView(bytes.buffer);
-				for (let frame = 0; frame < details.frames; frame++) {
-					for (let channel = 0; channel < channels.length; channel++) {
-						const sample = channels[channel]![frame];
-						view.setFloat32((frame * channels.length + channel) * 4, Number.isFinite(sample) ? sample! : 0, true);
-					}
-				}
+				writeInterleavedFloat32Pcm(bytes, channels, {
+					frameCount: details.frames, nonFinite: 'zero',
+				});
 				await accept(bytes, details.frames, details.frameOffset);
 				settings.onProgress?.((details.frameOffset + details.frames) / descriptor.frameCount);
 				assertCurrent();

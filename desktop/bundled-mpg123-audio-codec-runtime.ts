@@ -6,6 +6,7 @@ import { createHash } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import { setImmediate as waitImmediate } from 'node:timers/promises';
 
+import { BUNDLED_AUDIO_CODEC_IDENTITIES, createBundledAudioCodecProvider } from './bundled-audio-codec-identity.ts';
 import { assertFiniteFloat32Pcm } from './finite-float32-pcm.ts';
 
 import {
@@ -32,9 +33,9 @@ import {
 	type DesktopCodecTarget,
 } from '../src/common/editor/desktop-codec-provider-catalog.ts';
 
-export const BUNDLED_MPG123_VERSION = 'mpg123-1.33.7';
+export const BUNDLED_MPG123_VERSION = BUNDLED_AUDIO_CODEC_IDENTITIES.mpg123.version;
 export const BUNDLED_MPG123_WASM_BYTE_LENGTH = 173_764;
-export const BUNDLED_MPG123_WASM_SHA256 = '1aa30e6e25a9503be94ce3720ce6c4af649b2412c191a6f800f36dd619270bc2';
+export const BUNDLED_MPG123_WASM_SHA256 = BUNDLED_AUDIO_CODEC_IDENTITIES.mpg123.wasmSha256;
 export const BUNDLED_MPG123_WASM_URL = new URL(
 	'../src/common/editor/mpg123/mpg123.wasm', import.meta.url,
 );
@@ -296,22 +297,10 @@ function canaryStream(layer: 2 | 3, sampleRate: number, channelCount: 1 | 2, bit
 }
 
 function bundledProvider(target: DesktopCodecTarget): DesktopCodecProvider {
-	return Object.freeze({
-		kind: 'bundled', id: `bundled-mpg123-wasm-${target}`,
-		implementation: 'libmpg123-wasm-feed-f32', version: BUNDLED_MPG123_VERSION,
-		capabilityGeneration: `mpg123-${BUNDLED_MPG123_WASM_SHA256}`,
-		async preflight(
-			operation: DesktopCodecOperation,
-			options: Readonly<{ readonly signal?: AbortSignal }>,
-		): Promise<DesktopCodecPreflightResult> {
-			throwIfAborted(options?.signal);
-			return matchingOperation(operation)
-				? Object.freeze({ disposition: 'supported', reason: null })
-				: Object.freeze({
-					disposition: 'unsupported',
-					reason: 'The bundled mpg123 payload supports MPEG-1 Layer II/III mono/stereo decoding only.',
-				});
-		},
+	return createBundledAudioCodecProvider('mpg123', target, {
+		matches: matchingOperation,
+		unsupportedReason: 'The bundled mpg123 payload supports MPEG-1 Layer II/III mono/stereo decoding only.',
+		throwIfAborted,
 	});
 }
 

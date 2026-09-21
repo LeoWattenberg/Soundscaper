@@ -7,6 +7,7 @@ import { readFile } from 'node:fs/promises';
 import { setImmediate as waitImmediate } from 'node:timers/promises';
 
 import { assertFiniteFloat32Pcm } from './finite-float32-pcm.ts';
+import { BUNDLED_AUDIO_CODEC_IDENTITIES, createBundledAudioCodecProvider } from './bundled-audio-codec-identity.ts';
 
 import {
 	BundledFlacStreamError,
@@ -30,9 +31,9 @@ import {
 	type DesktopCodecTarget,
 } from '../src/common/editor/desktop-codec-provider-catalog.ts';
 
-export const BUNDLED_FLAC_VERSION = '1.5.0';
+export const BUNDLED_FLAC_VERSION = BUNDLED_AUDIO_CODEC_IDENTITIES.flac.version;
 export const BUNDLED_FLAC_WASM_BYTE_LENGTH = 154763;
-export const BUNDLED_FLAC_WASM_SHA256 = '6246c5d6979f25b733e399383004a6a861478802c376d59885a7b2c7130a1584';
+export const BUNDLED_FLAC_WASM_SHA256 = BUNDLED_AUDIO_CODEC_IDENTITIES.flac.wasmSha256;
 export const BUNDLED_FLAC_PCM_BIT_DEPTH = 24;
 export const BUNDLED_FLAC_WASM_URL = new URL(
 	'../src/common/editor/flac/flac.wasm', import.meta.url,
@@ -387,22 +388,10 @@ function verifyCanary(codec: FlacCodec): void {
 }
 
 function bundledProvider(target: DesktopCodecTarget): DesktopCodecProvider {
-	return Object.freeze({
-		kind: 'bundled', id: `bundled-libflac-wasm-${target}`,
-		implementation: 'libflac-wasm-f32-to-s24', version: BUNDLED_FLAC_VERSION,
-		capabilityGeneration: `libflac-${BUNDLED_FLAC_WASM_SHA256}`,
-		async preflight(
-			operation: DesktopCodecOperation,
-			options: Readonly<{ readonly signal?: AbortSignal }>,
-		): Promise<DesktopCodecPreflightResult> {
-			throwIfAborted(options?.signal);
-			return supportedOperation(operation)
-				? Object.freeze({ disposition: 'supported', reason: null })
-				: Object.freeze({
-					disposition: 'unsupported',
-					reason: 'The bundled libFLAC payload supports bounded f32 decode and signed-24 encode only.',
-				});
-		},
+	return createBundledAudioCodecProvider('flac', target, {
+		matches: supportedOperation,
+		unsupportedReason: 'The bundled libFLAC payload supports bounded f32 decode and signed-24 encode only.',
+		throwIfAborted,
 	});
 }
 

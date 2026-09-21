@@ -7,6 +7,7 @@ import { readFile } from 'node:fs/promises';
 import { setImmediate as waitImmediate } from 'node:timers/promises';
 
 import { assertFiniteFloat32Pcm } from './finite-float32-pcm.ts';
+import { BUNDLED_AUDIO_CODEC_IDENTITIES, createBundledAudioCodecProvider } from './bundled-audio-codec-identity.ts';
 
 import { parseBundledMpegAudioStream } from './bundled-mpeg-audio-stream.ts';
 import {
@@ -34,9 +35,9 @@ import {
 	type DesktopCodecTarget,
 } from '../src/common/editor/desktop-codec-provider-catalog.ts';
 
-export const BUNDLED_LAME_VERSION = '4.0';
+export const BUNDLED_LAME_VERSION = BUNDLED_AUDIO_CODEC_IDENTITIES.lame.version;
 export const BUNDLED_LAME_WASM_BYTE_LENGTH = 214_198;
-export const BUNDLED_LAME_WASM_SHA256 = 'e8ca1786d95a56ead1fc2294be98ea68d31eed5837abd79d2a3322a0af946c6f';
+export const BUNDLED_LAME_WASM_SHA256 = BUNDLED_AUDIO_CODEC_IDENTITIES.lame.wasmSha256;
 export const BUNDLED_LAME_WASM_URL = new URL(
 	'../src/common/editor/lame/lame.wasm', import.meta.url,
 );
@@ -345,22 +346,10 @@ function verifyCanary(codec: LameCodec): void {
 }
 
 function bundledProvider(target: DesktopCodecTarget): DesktopCodecProvider {
-	return Object.freeze({
-		kind: 'bundled', id: `bundled-lame-wasm-${target}`,
-		implementation: 'lame-wasm-f32-mp3', version: BUNDLED_LAME_VERSION,
-		capabilityGeneration: `lame-${BUNDLED_LAME_WASM_SHA256}`,
-		async preflight(
-			operation: DesktopCodecOperation,
-			options: Readonly<{ readonly signal?: AbortSignal }>,
-		): Promise<DesktopCodecPreflightResult> {
-			throwIfAborted(options?.signal);
-			return matchingOperation(operation)
-				? Object.freeze({ disposition: 'supported', reason: null })
-				: Object.freeze({
-					disposition: 'unsupported',
-					reason: 'The bundled LAME payload supports bounded MP3 encoding only.',
-				});
-		},
+	return createBundledAudioCodecProvider('lame', target, {
+		matches: matchingOperation,
+		unsupportedReason: 'The bundled LAME payload supports bounded MP3 encoding only.',
+		throwIfAborted,
 	});
 }
 

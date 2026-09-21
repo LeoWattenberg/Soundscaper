@@ -3,6 +3,7 @@ import { DESKTOP_AUDIO_CODEC_INPUT_LIMIT_BYTES, DESKTOP_AUDIO_CODEC_MAXIMUM_CHAN
 import type { DesktopAudioCodecCapabilityTuple } from '../../../desktop/desktop-audio-codec-capability-contract.ts';
 import { applyMediaChannelMapping, createMediaExportCapabilities, normalizeMediaExportSettings, mp3CodecRateSettings, opusCodecRateSettings } from './media-export.js';
 import { inspectWavBlobPcm, streamWavBlobPcm } from './wav-import.js';
+import { writeInterleavedFloat32Pcm } from './interleaved-float32-pcm.ts';
 import type { WavPcmDescriptor } from './wav-pcm-chunk-reader.ts';
 import type { DesktopAudioCodecRuntimeSettings, NormalizedMediaSettings } from './desktop-audio-codec-runtime.ts';
 import type { DesktopAudioStreamEncoderRequest } from './desktop-audio-stream-encoder.ts';
@@ -83,7 +84,6 @@ export async function stagedDesktopWavPcm(file: Blob, format: DesktopAudioCodecF
 		);
 	}
 	const input = new Uint8Array(byteLength);
-	const view = new DataView(input.buffer);
 	await streamWavBlobPcm(file, {
 		descriptor,
 		signal,
@@ -92,16 +92,9 @@ export async function stagedDesktopWavPcm(file: Blob, format: DesktopAudioCodecF
 			if (channels.length !== media.channelCount) {
 				throw new Error('The staged WAV channel mapping returned unexpected geometry.');
 			}
-			for (let frame = 0; frame < (channels[0]?.length ?? 0); frame += 1) {
-				for (let channel = 0; channel < channels.length; channel += 1) {
-					const sample = channels[channel]?.[frame];
-					view.setFloat32(
-						((details.frameOffset + frame) * channels.length + channel) * 4,
-						Number.isFinite(sample) ? Number(sample) : 0,
-						true,
-					);
-				}
-			}
+			writeInterleavedFloat32Pcm(input, channels, {
+				destinationFrameOffset: details.frameOffset, nonFinite: 'zero',
+			});
 		},
 	});
 	return Object.freeze({ input, media });

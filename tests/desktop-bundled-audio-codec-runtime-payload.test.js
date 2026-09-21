@@ -57,6 +57,7 @@ test('staged manifest closes over control, helper, runner, seven modules, and se
 	for (const required of [
 		'project-library-runtime/desktop/bounded-regular-file.js',
 		'project-library-runtime/desktop/bundled-audio-codec-helper-configuration.js',
+		'project-library-runtime/desktop/bundled-audio-codec-identity.js',
 		'project-library-runtime/desktop/bundled-audio-codec-helper-process.js',
 		'project-library-runtime/desktop/bundled-audio-codec-operation-runner.js',
 		'project-library-runtime/desktop/bundled-audio-codec-isolated-runtime.js',
@@ -78,6 +79,7 @@ test('staged manifest closes over control, helper, runner, seven modules, and se
 		dependencies: [
 			'desktop/audio-codec-stream-helper.js',
 			'desktop/bundled-audio-codec-helper-configuration.js',
+			'desktop/bundled-audio-codec-identity.js',
 			'desktop/bundled-flac-stream.js',
 			'desktop/bundled-mpeg-audio-stream.js',
 			'desktop/bundled-opus-stream.js',

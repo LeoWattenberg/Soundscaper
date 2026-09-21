@@ -6,6 +6,7 @@ import { registerFileBackedExport } from './file-backed-audio-export.ts';
 import { inspectWavBlobPcm, streamWavBlobPcm } from './wav-import.js';
 import type { WavPcmDescriptor } from './wav-pcm-chunk-reader.ts';
 import { applyMediaChannelMapping } from './media-export.js';
+import { writeInterleavedFloat32Pcm } from './interleaved-float32-pcm.ts';
 import { assertFfmpegOutputReady, abortFfmpegOutputSink, streamFfmpegOutputFile,
 	type FfmpegOutputSink } from './ffmpeg-output-stream.ts';
 
@@ -66,12 +67,7 @@ export async function encodeDesktopAudioStreamFile(request: DesktopAudioStreamEn
 				const channels = applyMediaChannelMapping(packet, request.channelMapping as string) as readonly Float32Array[];
 				if (channels.length !== request.plan.tuple.channelCount) throw new Error('Desktop audio streaming channel mapping drifted.');
 				const frames = channels[0]?.length ?? 0; const bytes = new Uint8Array(frames * channels.length * 4);
-				const view = new DataView(bytes.buffer);
-				for (let frame = 0; frame < frames; frame += 1) {
-					for (let channel = 0; channel < channels.length; channel += 1) {
-						view.setFloat32((frame * channels.length + channel) * 4, channels[channel]![frame]!, true);
-					}
-				}
+				writeInterleavedFloat32Pcm(bytes, channels, { frameCount: frames, nonFinite: 'preserve' });
 				const acknowledgement = audioStreamRecord(await bridge(normalizeDesktopAudioStreamCommand({ type: 'write', operationId, offset, bytes })), ['offset']);
 				if (acknowledgement.offset !== offset + bytes.byteLength) throw new Error('Desktop audio stream acknowledgement drifted.');
 				offset += bytes.byteLength; assertFfmpegOutputReady(request.settings);

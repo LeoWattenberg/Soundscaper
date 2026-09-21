@@ -6,6 +6,7 @@ import { createHash } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import { setImmediate as waitImmediate } from 'node:timers/promises';
 
+import { BUNDLED_AUDIO_CODEC_IDENTITIES, createBundledAudioCodecProvider } from './bundled-audio-codec-identity.ts';
 import { assertFiniteFloat32Pcm } from './finite-float32-pcm.ts';
 
 import {
@@ -32,9 +33,9 @@ import {
 	type DesktopCodecTarget,
 } from '../src/common/editor/desktop-codec-provider-catalog.ts';
 
-export const BUNDLED_VORBIS_VERSION = 'libvorbis-1.3.7+libogg-1.3.6';
+export const BUNDLED_VORBIS_VERSION = BUNDLED_AUDIO_CODEC_IDENTITIES.vorbis.version;
 export const BUNDLED_VORBIS_WASM_BYTE_LENGTH = 526_926;
-export const BUNDLED_VORBIS_WASM_SHA256 = 'cfa42717394ce29f8af676fb0ad7bff632306f75e536211eb85b7cc5aaf09aa0';
+export const BUNDLED_VORBIS_WASM_SHA256 = BUNDLED_AUDIO_CODEC_IDENTITIES.vorbis.wasmSha256;
 export const BUNDLED_VORBIS_WASM_URL = new URL(
 	'../src/common/editor/vorbis/vorbis.wasm', import.meta.url,
 );
@@ -417,19 +418,10 @@ function verifyCanary(codec: VorbisCodec): void {
 }
 
 function bundledProvider(target: DesktopCodecTarget): DesktopCodecProvider {
-	return Object.freeze({
-		kind: 'bundled', id: `bundled-libvorbis-libogg-wasm-${target}`,
-		implementation: 'libvorbis-libogg-wasm-f32', version: BUNDLED_VORBIS_VERSION,
-		capabilityGeneration: `libvorbis-libogg-${BUNDLED_VORBIS_WASM_SHA256}`,
-		async preflight(
-			operation: DesktopCodecOperation,
-			options: Readonly<{ readonly signal?: AbortSignal }>,
-		): Promise<DesktopCodecPreflightResult> {
-			throwIfAborted(options?.signal);
-			return supportedOperation(operation) ? supported() : unsupported(
-				'The bundled libvorbis/libogg payload supports bounded 8–192 kHz mono/stereo only.',
-			);
-		},
+	return createBundledAudioCodecProvider('vorbis', target, {
+		matches: supportedOperation,
+		unsupportedReason: 'The bundled libvorbis/libogg payload supports bounded 8–192 kHz mono/stereo only.',
+		throwIfAborted,
 	});
 }
 
