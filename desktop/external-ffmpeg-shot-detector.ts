@@ -2,7 +2,6 @@
 
 /** Automatically verified, shell-free external-FFmpeg fast shot detector. */
 
-import { spawn as nodeSpawn } from 'node:child_process';
 import { dirname, isAbsolute, normalize } from 'node:path';
 
 import {
@@ -15,7 +14,11 @@ import {
 	ExternalFfmpegShotOutputError,
 	type ExternalFfmpegShotDetectionResult,
 } from './external-ffmpeg-shot-detection-output.js';
-import { curatedExternalFfmpegVideoEnvironment } from './external-ffmpeg-video-process.js';
+import { privateExternalFfmpegEnvironment } from './external-ffmpeg-environment.js';
+import {
+	spawnExternalFfmpegProcess,
+	superviseExternalFfmpegProcess,
+} from './external-ffmpeg-process-security.js';
 import { shouldDetachProcessTree, terminateProcessTree } from './process-tree-termination.js';
 
 export interface ExternalFfmpegShotChildProcess {
@@ -44,6 +47,9 @@ export type ExternalFfmpegShotSpawn = (
 	arguments_: readonly string[],
 	options: ExternalFfmpegShotLaunchOptions,
 ) => ExternalFfmpegShotChildProcess;
+
+const DEFAULT_EXTERNAL_FFMPEG_SHOT_SPAWN =
+	spawnExternalFfmpegProcess as unknown as ExternalFfmpegShotSpawn;
 
 export interface ExternalFfmpegShotDetectorLimits {
 	readonly durationMs: number;
@@ -149,8 +155,10 @@ export function createExternalFfmpegShotDetector(
 	const pair = Object.freeze({ ...options.pair });
 	const workingDirectory = normalize(options.workingDirectory);
 	const digestExecutable = options.digestExecutable;
-	const launch = options.spawn ?? defaultSpawn;
-	const environment = privateEnvironment(options.environment ?? process.env, workingDirectory);
+	const launch = options.spawn ?? DEFAULT_EXTERNAL_FFMPEG_SHOT_SPAWN;
+	const environment = privateExternalFfmpegEnvironment(
+		options.environment ?? process.env, workingDirectory,
+	);
 	const limits = normalizeLimits(options.limits);
 	let active = false;
 	let verified = false;
@@ -240,72 +248,42 @@ async function runShotProcess(options: Readonly<{
 		}));
 	} catch { throw detectorError('spawn-failed', 'External FFmpeg shot detection could not start.'); }
 	const metadata = readableAt(child, 4);
-	return await new Promise((resolve, reject) => {
-		let settled = false;
-		let terminating: ExternalFfmpegShotDetectorError | null = null;
-		let runtimeTimer: ReturnType<typeof setTimeout> | null = null;
-		let graceTimer: ReturnType<typeof setTimeout> | null = null;
-		let killTimer: ReturnType<typeof setTimeout> | null = null;
-		const clear = (): void => {
-			if (runtimeTimer !== null) { clearTimeout(runtimeTimer); runtimeTimer = null; }
-			if (graceTimer !== null) { clearTimeout(graceTimer); graceTimer = null; }
-			if (killTimer !== null) { clearTimeout(killTimer); killTimer = null; }
-			options.signal?.removeEventListener('abort', onAbort);
-		};
-		const finish = (error?: unknown): void => {
-			if (settled) return;
-			settled = true;
-			clear();
-			if (error) reject(error); else {
-				try { resolve(parser.finish()); }
-				catch (parseError) { reject(outputError(parseError)); }
-			}
-		};
-		const terminate = (error: ExternalFfmpegShotDetectorError): void => {
-			if (settled || terminating !== null) return;
-			terminating = error;
-			if (runtimeTimer !== null) { clearTimeout(runtimeTimer); runtimeTimer = null; }
-			void terminateProcessTree(child, 'SIGTERM', { environment: options.environment });
-			graceTimer = setTimeout(() => {
-				void terminateProcessTree(child, 'SIGKILL', { environment: options.environment });
-				killTimer = setTimeout(() => finish(error), options.limits.killWaitMs);
-				killTimer.unref?.();
-			}, options.limits.terminationGraceMs);
-			graceTimer.unref?.();
-		};
-		function onAbort(): void {
-			terminate(detectorError('cancelled', 'External FFmpeg shot detection was cancelled.'));
-		}
-		const append = (kind: 'stderr' | 'metadata', chunk: unknown): void => {
-			if (settled || terminating !== null) return;
-			try {
-				if (kind === 'stderr') parser.pushStderr(chunk); else parser.pushMetadata(chunk);
-			} catch (error) { terminate(outputError(error)); }
-		};
-		child.stderr.on('data', (chunk) => { append('stderr', chunk); });
-		metadata.on('data', (chunk) => { append('metadata', chunk); });
-		child.once('error', () => {
-			finish(terminating ?? detectorError('spawn-failed', 'External FFmpeg shot detection failed.'));
-		});
-		child.once('close', (exitCode, processSignal) => {
-			if (terminating !== null) { finish(terminating); return; }
+	const supervision = superviseExternalFfmpegProcess({
+		child,
+		signal: options.signal,
+		environment: options.environment,
+		maximumDurationMs: options.limits.durationMs,
+		terminationGraceMs: options.limits.terminationGraceMs,
+		killWaitMs: options.limits.killWaitMs,
+		timeout: () => detectorError(
+			'timeout', 'External FFmpeg shot detection exceeded its runtime limit.',
+		),
+		cancelled: () => detectorError(
+			'cancelled', 'External FFmpeg shot detection was cancelled.',
+		),
+		terminated: (error) => { throw error; },
+		error: () => { throw detectorError('spawn-failed', 'External FFmpeg shot detection failed.'); },
+		close: (exitCode, processSignal) => {
 			if (processSignal !== null) {
-				finish(detectorError('process-signalled', 'External FFmpeg shot detection was signalled.'));
-				return;
+				throw detectorError('process-signalled', 'External FFmpeg shot detection was signalled.');
 			}
 			if (!Number.isSafeInteger(exitCode) || exitCode !== 0) {
-				finish(detectorError('process-failed', `External FFmpeg shot detection exited with code ${String(exitCode)}.`));
-				return;
+				throw detectorError('process-failed',
+					`External FFmpeg shot detection exited with code ${String(exitCode)}.`);
 			}
-			finish();
-		});
-		options.signal?.addEventListener('abort', onAbort, { once: true });
-		if (options.signal?.aborted) onAbort();
-		runtimeTimer = setTimeout(() => terminate(
-			detectorError('timeout', 'External FFmpeg shot detection exceeded its runtime limit.'),
-		), options.limits.durationMs);
-		runtimeTimer.unref?.();
+			try { return parser.finish(); }
+			catch (error) { throw outputError(error); }
+		},
 	});
+	const append = (kind: 'stderr' | 'metadata', chunk: unknown): void => {
+		if (!supervision.acceptsOutput()) return;
+		try {
+			if (kind === 'stderr') parser.pushStderr(chunk); else parser.pushMetadata(chunk);
+		} catch (error) { supervision.terminate(outputError(error)); }
+	};
+	child.stderr.on('data', (chunk) => { append('stderr', chunk); });
+	metadata.on('data', (chunk) => { append('metadata', chunk); });
+	return await supervision.completion;
 }
 
 function detectionArguments(sourcePath: string): readonly string[] {
@@ -378,18 +356,6 @@ function validateFactoryOptions(options: ExternalFfmpegShotDetectorOptions): voi
 	void normalizeLimits(options.limits);
 }
 
-function privateEnvironment(
-	value: Readonly<Record<string, string | undefined>>,
-	workingDirectory: string,
-): Readonly<Record<string, string>> {
-	return Object.freeze({
-		AV_LOG_FORCE_NOCOLOR: '1', HOME: workingDirectory, LANG: 'C', LC_ALL: 'C', NO_COLOR: '1',
-		...curatedExternalFfmpegVideoEnvironment(value),
-		TEMP: workingDirectory, TMP: workingDirectory, TMPDIR: workingDirectory,
-		USERPROFILE: workingDirectory,
-	});
-}
-
 function readableAt(
 	child: ExternalFfmpegShotChildProcess,
 	index: number,
@@ -402,17 +368,6 @@ function readableAt(
 		throw detectorError('spawn-failed', 'External FFmpeg did not expose its bounded metadata pipe.');
 	}
 	return stream as Readonly<{ on(event: 'data', listener: (chunk: unknown) => void): unknown }>;
-}
-
-function defaultSpawn(
-	executablePath: string,
-	arguments_: readonly string[],
-	options: ExternalFfmpegShotLaunchOptions,
-): ExternalFfmpegShotChildProcess {
-	return nodeSpawn(executablePath, [...arguments_], {
-		cwd: options.cwd, env: { ...options.env }, shell: false,
-		stdio: [...options.stdio] as never, windowsHide: true, detached: options.detached,
-	}) as unknown as ExternalFfmpegShotChildProcess;
 }
 
 function outputError(error: unknown): ExternalFfmpegShotDetectorError {

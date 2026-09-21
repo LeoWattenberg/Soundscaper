@@ -2,7 +2,6 @@
 
 /** Admission-bound, shell-free RGBA sampling for the owned Index Video workflow. */
 
-import { spawn as nodeSpawn } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { open } from 'node:fs/promises';
 import { dirname, isAbsolute, normalize } from 'node:path';
@@ -22,16 +21,20 @@ import type {
 	AssistanceWorkflowOwnedVideoHighlightMaterializerV1,
 } from './assistance-workflow-owned-video-highlight-stage-runtime.ts';
 import {
+	externalFfmpegExecutablePairFromRuntimeAdmission,
 	externalFfmpegExecutablePairMatches,
-	isExternalFfmpegExecutablePairAdmission,
 	type ExternalFfmpegExecutablePairAdmission,
 } from './external-ffmpeg-executable-pair-admission.ts';
 import type {
 	ExternalFfmpegPreferenceService,
 	ExternalFfmpegRuntimeAdmission,
 } from './external-ffmpeg-preference-service.ts';
-import { curatedExternalFfmpegVideoEnvironment } from './external-ffmpeg-video-process.ts';
-import { shouldDetachProcessTree, terminateProcessTree } from './process-tree-termination.ts';
+import { privateExternalFfmpegEnvironment } from './external-ffmpeg-environment.ts';
+import {
+	spawnExternalFfmpegProcess,
+	superviseExternalFfmpegProcess,
+} from './external-ffmpeg-process-security.ts';
+import { shouldDetachProcessTree } from './process-tree-termination.ts';
 import { assistanceSourceMatchesIdentityV1 } from
 	'./assistance-authenticated-source-snapshot.ts';
 
@@ -187,12 +190,8 @@ function inspectAdmission(admission: ExternalFfmpegRuntimeAdmission | null): Rea
 	if (admission === null || admission.version !== admission.identity?.version
 		|| !SHA256.test(admission.capabilityGeneration)
 		|| !hasCapabilities(admission.capabilities)) return null;
-	const pair = Object.freeze({ executablePath: admission.executablePath,
-		ffmpegSha256: admission.identity.ffmpegSha256,
-		ffprobePath: admission.identity.ffprobePath,
-		ffprobeSha256: admission.identity.ffprobeSha256,
-		executablePairClosureSha256: admission.identity.executablePairClosureSha256 });
-	return isExternalFfmpegExecutablePairAdmission(pair)
+	const pair = externalFfmpegExecutablePairFromRuntimeAdmission(admission);
+	return pair !== null
 		? Object.freeze({ admission, pair }) : null;
 }
 
@@ -238,92 +237,68 @@ async function runDecode(request: AssistanceExternalFfmpegFrameDecodeRequestV1):
 		'-fps_mode', 'passthrough', '-pix_fmt', 'rgba', '-f', 'rawvideo', 'pipe:1',
 	]);
 	let child: DecodeChild;
+	const environment = privateExternalFfmpegEnvironment(process.env, dirname(request.sourcePath));
 	try {
-		child = nodeSpawn(request.executablePath, arguments_, {
-			cwd: dirname(request.sourcePath), shell: false, windowsHide: true,
-			detached: shouldDetachProcessTree(), stdio: ['ignore', 'pipe', 'pipe'],
-			env: privateEnvironment(dirname(request.sourcePath)),
+		child = spawnExternalFfmpegProcess(request.executablePath, arguments_, {
+			cwd: dirname(request.sourcePath), detached: shouldDetachProcessTree(),
+			stdio: ['ignore', 'pipe', 'pipe'],
+			env: environment,
 		}) as unknown as DecodeChild;
 	} catch { throw new DecodeError('spawn', 'External FFmpeg frame sampling could not start.'); }
-	return await collectDecode(child, request);
+	return await collectDecode(child, request, environment);
 }
 
 async function collectDecode(
 	child: DecodeChild,
 	request: AssistanceExternalFfmpegFrameDecodeRequestV1,
+	environment: Readonly<Record<string, string>>,
 ): Promise<Uint8Array> {
-	return await new Promise((resolve, reject) => {
-		let settled = false;
-		let terminating: unknown = null;
-		let outputBytes = 0;
-		let stderrBytes = 0;
-		const chunks: Uint8Array[] = [];
-		const finish = (error?: unknown): void => {
-			if (settled) return;
-			settled = true; clearTimeout(timeout); clearTimeout(grace); clearTimeout(killWait);
-			request.signal.removeEventListener('abort', onAbort);
-			if (error) reject(error); else {
-				const output = new Uint8Array(outputBytes); let offset = 0;
-				for (const chunk of chunks) { output.set(chunk, offset); offset += chunk.byteLength; }
-				resolve(output);
-			}
-		};
-		const terminate = (error: unknown): void => {
-			if (settled || terminating !== null) return;
-			terminating = error;
-			void terminateProcessTree(child, 'SIGTERM', {
-				environment: curatedExternalFfmpegVideoEnvironment(process.env),
-			});
-			grace = setTimeout(() => {
-				void terminateProcessTree(child, 'SIGKILL', {
-					environment: curatedExternalFfmpegVideoEnvironment(process.env),
-				});
-				killWait = setTimeout(() => finish(error), KILL_WAIT_MS); killWait.unref?.();
-			}, TERMINATION_GRACE_MS); grace.unref?.();
-		};
-		function onAbort(): void { terminate(request.signal.reason
-			?? new DOMException('Frame sampling was cancelled.', 'AbortError')); }
-		child.stdout.on('data', (value) => {
-			if (terminating !== null) return;
-			try {
-				const chunk = bytes(value); outputBytes += chunk.byteLength;
-				if (outputBytes > request.expectedByteLength) {
-					terminate(new DecodeError('output',
-						'External FFmpeg exceeded exact RGBA output authority.'));
-				} else chunks.push(chunk.slice());
-			} catch (error) { terminate(error); }
-		});
-		child.stderr.on('data', (value) => {
-			try {
-				stderrBytes += bytes(value).byteLength;
-				if (stderrBytes > MAXIMUM_STDERR_BYTES) {
-					terminate(new DecodeError('process',
-						'External FFmpeg exceeded its diagnostic bound.'));
-				}
-			} catch (error) { terminate(error); }
-		});
-		child.once('error', () => finish(terminating
-			?? new DecodeError('spawn', 'External FFmpeg frame sampling failed.')));
-		child.once('close', (code, signal) => {
-			if (terminating !== null) { finish(terminating); return; }
+	let outputBytes = 0;
+	let stderrBytes = 0;
+	const chunks: Uint8Array[] = [];
+	const supervision = superviseExternalFfmpegProcess<Error, unknown, Uint8Array>({
+		child,
+		signal: request.signal,
+		environment,
+		maximumDurationMs: PROCESS_TIMEOUT_MS,
+		terminationGraceMs: TERMINATION_GRACE_MS,
+		killWaitMs: KILL_WAIT_MS,
+		timeout: () => new DecodeError('process', 'External FFmpeg frame sampling timed out.'),
+		cancelled: () => request.signal.reason
+			?? new DOMException('Frame sampling was cancelled.', 'AbortError'),
+		terminated: (error) => { throw error; },
+		error: () => { throw new DecodeError('spawn', 'External FFmpeg frame sampling failed.'); },
+		close: (code, signal) => {
 			if (code !== 0 || signal !== null || outputBytes !== request.expectedByteLength) {
-				finish(new DecodeError('process', 'External FFmpeg returned incomplete RGBA frames.'));
-			} else finish();
-		});
-		request.signal.addEventListener('abort', onAbort, { once: true });
-		let grace: ReturnType<typeof setTimeout> | undefined;
-		let killWait: ReturnType<typeof setTimeout> | undefined;
-		const timeout = setTimeout(() => terminate(new DecodeError('process',
-			'External FFmpeg frame sampling timed out.')), PROCESS_TIMEOUT_MS);
-		timeout.unref?.();
-		if (request.signal.aborted) onAbort();
+				throw new DecodeError('process', 'External FFmpeg returned incomplete RGBA frames.');
+			}
+			const output = new Uint8Array(outputBytes);
+			let offset = 0;
+			for (const chunk of chunks) { output.set(chunk, offset); offset += chunk.byteLength; }
+			return output;
+		},
 	});
-}
-
-function privateEnvironment(directory: string): Readonly<Record<string, string>> {
-	return { ...curatedExternalFfmpegVideoEnvironment(process.env), AV_LOG_FORCE_NOCOLOR: '1',
-		HOME: directory, LANG: 'C', LC_ALL: 'C', NO_COLOR: '1', TEMP: directory,
-		TMP: directory, TMPDIR: directory, USERPROFILE: directory };
+	child.stdout.on('data', (value) => {
+		if (!supervision.acceptsOutput()) return;
+		try {
+			const chunk = bytes(value); outputBytes += chunk.byteLength;
+			if (outputBytes > request.expectedByteLength) {
+				supervision.terminate(new DecodeError('output',
+					'External FFmpeg exceeded exact RGBA output authority.'));
+			} else chunks.push(chunk.slice());
+		} catch (error) { supervision.terminate(error); }
+	});
+	child.stderr.on('data', (value) => {
+		if (!supervision.acceptsOutput()) return;
+		try {
+			stderrBytes += bytes(value).byteLength;
+			if (stderrBytes > MAXIMUM_STDERR_BYTES) {
+				supervision.terminate(new DecodeError('process',
+					'External FFmpeg exceeded its diagnostic bound.'));
+			}
+		} catch (error) { supervision.terminate(error); }
+	});
+	return await supervision.completion;
 }
 
 function bytes(value: unknown): Uint8Array {

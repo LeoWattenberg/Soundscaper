@@ -4,7 +4,11 @@
 
 import type { Writable } from 'node:stream';
 
-import { spawnExternalFfmpegProcess } from './external-ffmpeg-process-security.js';
+import { privateExternalFfmpegEnvironment } from './external-ffmpeg-environment.js';
+import {
+	spawnExternalFfmpegProcess,
+	superviseExternalFfmpegProcess,
+} from './external-ffmpeg-process-security.js';
 import { shouldDetachProcessTree, terminateProcessTree } from './process-tree-termination.js';
 
 export {
@@ -94,7 +98,7 @@ export function launchExternalFfmpegVideoProcess(options: Readonly<{
 	try {
 		child = launch(options.executablePath, options.arguments, Object.freeze({
 			cwd: options.scratchDirectory,
-			env: childEnvironment(options.environment, options.scratchDirectory),
+			env: privateExternalFfmpegEnvironment(options.environment, options.scratchDirectory),
 			shell: false,
 			stdio: Object.freeze(options.hasAudio
 				? ['ignore', 'pipe', 'pipe', 'pipe', 'pipe']
@@ -160,51 +164,39 @@ function superviseProcess(
 		error: (reason: string, message: string) => Error;
 	}>,
 ): Promise<void> {
-	return new Promise((resolve, reject) => {
-		let settled = false;
-		let terminating: Error | null = null;
-		let logBytes = 0;
-		const timers = new Set<ReturnType<typeof setTimeout>>();
-		const finish = (error?: unknown): void => {
-			if (settled) return;
-			settled = true;
-			for (const timer of timers) clearTimeout(timer);
-			signal.removeEventListener('abort', onAbort);
-			if (error) reject(error); else resolve();
-		};
-		const timer = (callback: () => void, delay: number): void => {
-			const value = setTimeout(callback, delay);
-			value.unref?.();
-			timers.add(value);
-		};
-		const terminate = (error: Error): void => {
-			if (settled || terminating) return;
-			terminating = error;
-			void terminateProcessTree(child, 'SIGTERM', { environment: options.environment });
-			timer(() => {
-				void terminateProcessTree(child, 'SIGKILL', { environment: options.environment });
-				timer(() => finish(error), options.limits.killWait);
-			}, options.limits.terminationGrace);
-		};
-		function onAbort(): void { terminate(options.error('cancelled', 'The external FFmpeg video operation was cancelled.')); }
-		const append = (chunk: unknown): void => {
-			if (settled || terminating) return;
-			logBytes += chunkBytes(chunk).byteLength;
-			if (logBytes > options.limits.log) terminate(options.error('log-limit', 'External FFmpeg exceeded its video log limit.'));
-		};
-		child.stdout.on('data', append);
-		child.stderr.on('data', append);
-		child.once('error', () => finish(terminating ?? options.error('spawn-failed', 'The external FFmpeg video process failed.')));
-		child.once('close', (code, processSignal) => {
-			if (terminating) { finish(terminating); return; }
-			if (processSignal !== null) { finish(options.error('process-signalled', 'External FFmpeg video was terminated by a signal.')); return; }
-			if (code !== 0) { finish(options.error('process-failed', `External FFmpeg video exited with code ${String(code)}.`)); return; }
-			finish();
-		});
-		signal.addEventListener('abort', onAbort, { once: true });
-		if (signal.aborted) onAbort();
-		timer(() => terminate(options.error('timeout', 'External FFmpeg video exceeded its runtime limit.')), options.limits.duration);
+	let logBytes = 0;
+	const supervision = superviseExternalFfmpegProcess({
+		child,
+		signal,
+		environment: options.environment,
+		maximumDurationMs: options.limits.duration,
+		terminationGraceMs: options.limits.terminationGrace,
+		killWaitMs: options.limits.killWait,
+		timeout: () => options.error('timeout', 'External FFmpeg video exceeded its runtime limit.'),
+		cancelled: () => options.error('cancelled', 'The external FFmpeg video operation was cancelled.'),
+		terminated: (error) => { throw error; },
+		error: () => { throw options.error('spawn-failed', 'The external FFmpeg video process failed.'); },
+		close: (code, processSignal) => {
+			if (processSignal !== null) {
+				throw options.error('process-signalled', 'External FFmpeg video was terminated by a signal.');
+			}
+			if (code !== 0) {
+				throw options.error('process-failed', `External FFmpeg video exited with code ${String(code)}.`);
+			}
+		},
 	});
+	const append = (chunk: unknown): void => {
+		if (!supervision.acceptsOutput()) return;
+		logBytes += chunkBytes(chunk).byteLength;
+		if (logBytes > options.limits.log) {
+			supervision.terminate(options.error(
+				'log-limit', 'External FFmpeg exceeded its video log limit.',
+			));
+		}
+	};
+	child.stdout.on('data', append);
+	child.stderr.on('data', append);
+	return supervision.completion;
 }
 
 function writableAt(
@@ -218,16 +210,6 @@ function writableAt(
 		throw error('spawn-failed', 'External FFmpeg did not expose its private input pipe.');
 	}
 	return stream as Writable;
-}
-
-function childEnvironment(
-	base: Readonly<Record<string, string>>,
-	scratch: string,
-): Readonly<Record<string, string>> {
-	return Object.freeze({
-		AV_LOG_FORCE_NOCOLOR: '1', HOME: scratch, LANG: 'C', LC_ALL: 'C', NO_COLOR: '1',
-		...base, TEMP: scratch, TMP: scratch, TMPDIR: scratch, USERPROFILE: scratch,
-	});
 }
 
 function throwIfAborted(signal: AbortSignal): void {

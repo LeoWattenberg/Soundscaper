@@ -2,7 +2,7 @@
 
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
-import { once } from 'node:events';
+import { EventEmitter, once } from 'node:events';
 import { mkdtemp, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -11,6 +11,7 @@ import test from 'node:test';
 import {
 	sha256ExternalFfmpegRegularFile,
 	spawnExternalFfmpegProcess,
+	superviseExternalFfmpegProcess,
 } from '../desktop/external-ffmpeg-process-security.ts';
 
 test('one external FFmpeg process authority launches without a shell in the private cwd and environment', async (context) => {
@@ -60,4 +61,57 @@ test('one external FFmpeg digest authority hashes regular files and preserves ca
 		sha256ExternalFfmpegRegularFile(directory, { notRegularFile: () => refusal }),
 		(error: unknown) => error === refusal,
 	);
+});
+
+test('one external FFmpeg supervision authority owns cancellation escalation and terminal settlement', async () => {
+	const events = new EventEmitter();
+	const signals: NodeJS.Signals[] = [];
+	const child = Object.assign(events, {
+		kill(signal: NodeJS.Signals) { signals.push(signal); return true; },
+	});
+	const controller = new AbortController();
+	const supervision = superviseExternalFfmpegProcess({
+		child,
+		signal: controller.signal,
+		environment: {},
+		maximumDurationMs: 1_000,
+		terminationGraceMs: 1,
+		killWaitMs: 1,
+		timeout: () => 'timeout' as const,
+		cancelled: () => 'cancelled' as const,
+		terminated: (reason) => reason,
+		error: () => 'spawn-failed' as const,
+		close: (code, signal) => signal === null && code === 0 ? 'succeeded' as const : 'failed' as const,
+	});
+	assert.equal(supervision.acceptsOutput(), true);
+	controller.abort();
+	assert.equal(supervision.acceptsOutput(), false);
+	assert.equal(await supervision.completion, 'cancelled');
+	assert.deepEqual(signals, ['SIGTERM', 'SIGKILL']);
+	events.emit('close', 0, null);
+	assert.equal(await supervision.completion, 'cancelled');
+});
+
+test('the supervision authority preserves callers whose first tree kill is already forceful', async () => {
+	const events = new EventEmitter();
+	const signals: NodeJS.Signals[] = [];
+	const child = Object.assign(events, {
+		kill(signal: NodeJS.Signals) { signals.push(signal); return true; },
+	});
+	const supervision = superviseExternalFfmpegProcess({
+		child,
+		environment: {},
+		maximumDurationMs: 1_000,
+		terminationGraceMs: 1,
+		killWaitMs: 1,
+		forceKillAfterGrace: false,
+		timeout: () => 'timeout' as const,
+		cancelled: () => 'cancelled' as const,
+		terminated: (reason) => reason,
+		error: () => 'spawn-failed' as const,
+		close: () => 'closed' as const,
+	});
+	supervision.terminate('cancelled');
+	assert.equal(await supervision.completion, 'cancelled');
+	assert.deepEqual(signals, ['SIGTERM']);
 });

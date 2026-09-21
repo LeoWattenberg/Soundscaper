@@ -3,7 +3,7 @@
 /** Main-owned staging and supervision for one-shot bundled-codec utility processes. */
 
 import { createHash } from 'node:crypto';
-import { chmod, mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { rm, writeFile } from 'node:fs/promises';
 import { isAbsolute, join } from 'node:path';
 
 import {
@@ -13,6 +13,7 @@ import {
 	type BundledAudioCodecId,
 } from './bundled-audio-codec-helper-configuration.js';
 import { readBoundedRegularFile } from './bounded-regular-file.js';
+import { createPrivateScratchDirectory } from './private-scratch-directory.js';
 import type {
 	DesktopAudioCodecProviderExecutionResult,
 } from './desktop-audio-codec-broker.js';
@@ -228,7 +229,9 @@ async function runActive(options: Readonly<{
 	let directory: string | null = null;
 	let result: DesktopCodecPreflightResult | DesktopAudioCodecProviderExecutionResult;
 	try {
-		directory = await prepareScratch(options.scratchRoot);
+		directory = await createPrivateScratchDirectory(
+			options.scratchRoot, 'bundled-audio-codec-',
+		);
 		const files = Object.freeze({
 			inputPath: join(directory, 'input.bin'), outputPath: join(directory, 'output.bin'),
 		});
@@ -509,16 +512,6 @@ function failure(
 		? Object.freeze({ disposition: 'unavailable', reason: detail })
 		: Object.freeze({ disposition: 'rejected', reason: detail });
 	return Object.freeze({ status: 'failed', reason, detail });
-}
-
-async function prepareScratch(root: string): Promise<string> {
-	await mkdir(root, { recursive: true, mode: 0o700 });
-	const directory = await mkdtemp(join(root, 'bundled-audio-codec-'));
-	try { await chmod(directory, 0o700); return directory; }
-	catch (error) {
-		await rm(directory, { recursive: true, force: true }).catch(() => undefined);
-		throw error;
-	}
 }
 
 function validateOptions(options: Readonly<{

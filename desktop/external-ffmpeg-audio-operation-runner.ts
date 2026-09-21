@@ -2,7 +2,7 @@
 
 /** Main-process-only, resource-bounded execution for admitted external FFmpeg audio operations. */
 
-import { chmod, mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { rm, writeFile } from 'node:fs/promises';
 import { isAbsolute, join } from 'node:path';
 
 import { readBoundedRegularFile } from './bounded-regular-file.ts';
@@ -11,12 +11,17 @@ import {
 	isExternalFfmpegExecutablePairAdmission,
 	type ExternalFfmpegExecutablePairAdmission,
 } from './external-ffmpeg-executable-pair-admission.ts';
-import { curatedExternalFfmpegEnvironment } from './external-ffmpeg-environment.ts';
+import {
+	curatedExternalFfmpegEnvironment,
+	privateExternalFfmpegEnvironment,
+} from './external-ffmpeg-environment.ts';
 import {
 	sha256ExternalFfmpegRegularFile,
 	spawnExternalFfmpegProcess,
+	superviseExternalFfmpegProcess,
 } from './external-ffmpeg-process-security.ts';
-import { shouldDetachProcessTree, terminateProcessTree } from './process-tree-termination.ts';
+import { createPrivateScratchDirectory } from './private-scratch-directory.ts';
+import { shouldDetachProcessTree } from './process-tree-termination.ts';
 
 export interface ExternalFfmpegAudioOperationFiles {
 	readonly inputPath: string;
@@ -234,7 +239,9 @@ async function executeActive<Operation>(options: Readonly<{
 	let scratchDirectory: string | null = null;
 	let result: ExternalFfmpegAudioOperationResult;
 	try {
-		scratchDirectory = await prepareScratch(options.scratchRoot);
+		scratchDirectory = await createPrivateScratchDirectory(
+			options.scratchRoot, 'audio-operation-',
+		);
 		const files: ExternalFfmpegAudioOperationFiles = Object.freeze({
 			inputPath: join(scratchDirectory, 'input.media'),
 			outputPath: join(scratchDirectory, 'output.media'),
@@ -282,7 +289,9 @@ async function executeStaged<Operation>(options: Readonly<{
 	if (!isExternalFfmpegExecutablePairAdmission(executable)) return unavailable('executable-unavailable');
 	const executablePath = executable.executablePath;
 	const arguments_ = guardedArguments(operationArguments, options.files);
-	const environment = childEnvironment(options.environment, options.scratchDirectory);
+	const environment = privateExternalFfmpegEnvironment(
+		options.environment, options.scratchDirectory,
+	);
 	if (options.request.signal?.aborted) return unavailable('cancelled');
 	let currentIdentityMatches: boolean;
 	try { currentIdentityMatches = await externalFfmpegExecutablePairMatches(executable, options.digestExecutable); }
@@ -314,18 +323,6 @@ async function executeStaged<Operation>(options: Readonly<{
 	return Object.freeze({ status: 'executed', output: output.bytes, log: processResult.log });
 }
 
-async function prepareScratch(root: string): Promise<string> {
-	await mkdir(root, { recursive: true, mode: 0o700 });
-	const directory = await mkdtemp(join(root, 'audio-operation-'));
-	try {
-		await chmod(directory, 0o700);
-		return directory;
-	} catch (error) {
-		await rm(directory, { recursive: true, force: true }).catch(() => undefined);
-		throw error;
-	}
-}
-
 async function runProcess(options: Readonly<{
 	executablePath: string;
 	arguments_: readonly string[];
@@ -335,93 +332,56 @@ async function runProcess(options: Readonly<{
 	signal: AbortSignal | undefined;
 	launch: ExternalFfmpegAudioSpawn;
 }>): Promise<ProcessResult> {
-	return new Promise((resolve) => {
-		let child: ExternalFfmpegAudioChildProcess;
-		try {
-				child = options.launch(options.executablePath, options.arguments_, Object.freeze({
-					cwd: options.cwd, env: options.environment, shell: false,
-					stdio: Object.freeze(['ignore', 'pipe', 'pipe'] as const), windowsHide: true,
-					detached: shouldDetachProcessTree(),
-			}));
-		} catch (error) { resolve(spawnFailure(error)); return; }
+	let child: ExternalFfmpegAudioChildProcess;
+	try {
+		child = options.launch(options.executablePath, options.arguments_, Object.freeze({
+			cwd: options.cwd, env: options.environment, shell: false,
+			stdio: Object.freeze(['ignore', 'pipe', 'pipe'] as const), windowsHide: true,
+			detached: shouldDetachProcessTree(),
+		}));
+	} catch (error) { return spawnFailure(error); }
 
-		const chunks: Buffer[] = [];
-		let logBytes = 0;
-		let settled = false;
-		let terminating: ExternalFfmpegAudioUnavailableReason | null = null;
-		let runtimeTimer: ReturnType<typeof setTimeout> | null = null;
-		let graceTimer: ReturnType<typeof setTimeout> | null = null;
-		let killTimer: ReturnType<typeof setTimeout> | null = null;
-		let windowsTreeTerminationStarted = false;
-		const log = (): string => Buffer.concat(chunks).toString('utf8');
-		const clearTimers = (): void => {
-			if (runtimeTimer !== null) clearTimeout(runtimeTimer);
-			if (graceTimer !== null) clearTimeout(graceTimer);
-			if (killTimer !== null) clearTimeout(killTimer);
-			options.signal?.removeEventListener('abort', onAbort);
-		};
-		const finish = (result: ProcessResult): void => {
-			if (settled) return;
-			settled = true;
-			clearTimers();
-			resolve(Object.freeze(result));
-		};
-		const finishTermination = (): void => {
-			if (terminating !== null) finish(unavailable(terminating, log()));
-		};
-		const terminate = (reason: ExternalFfmpegAudioUnavailableReason): void => {
-			if (settled || terminating !== null) return;
-			terminating = reason;
-			if (runtimeTimer !== null) clearTimeout(runtimeTimer);
-			windowsTreeTerminationStarted = true;
-			void terminateProcessTree(child, 'SIGTERM', { environment: options.environment });
-			if (settled) return;
-			graceTimer = setTimeout(() => {
-				if (shouldDetachProcessTree() || !windowsTreeTerminationStarted) {
-					void terminateProcessTree(child, 'SIGKILL', { environment: options.environment });
-				}
-				if (settled) return;
-				killTimer = setTimeout(finishTermination, options.limits.killWait);
-				killTimer.unref?.();
-			}, options.limits.terminationGrace);
-			graceTimer.unref?.();
-		};
-		function onAbort(): void { terminate('cancelled'); }
-		const append = (chunk: unknown): void => {
-			if (settled || terminating !== null) return;
-			const bytes = chunkBytes(chunk);
-			const remaining = options.limits.log - logBytes;
-			if (remaining > 0) {
-				const admitted = Math.min(remaining, bytes.byteLength);
-				chunks.push(Buffer.from(bytes.subarray(0, admitted)));
-				logBytes += admitted;
-			}
-			if (bytes.byteLength > remaining) terminate('log-limit');
-		};
-		child.stdout.on('data', append);
-		child.stderr.on('data', append);
-		child.once('error', (error) => {
-			if (terminating !== null) finishTermination();
-			else finish(spawnFailure(error, log()));
-		});
-		child.once('close', (exitCode, processSignal) => {
-			if (terminating !== null) { finishTermination(); return; }
-			if (processSignal !== null) { finish(unavailable('process-signalled', log())); return; }
+	const chunks: Buffer[] = [];
+	let logBytes = 0;
+	const log = (): string => Buffer.concat(chunks).toString('utf8');
+	const supervision = superviseExternalFfmpegProcess<NodeJS.ErrnoException,
+		ExternalFfmpegAudioUnavailableReason, ProcessResult>({
+		child,
+		signal: options.signal,
+		environment: options.environment,
+		maximumDurationMs: options.limits.duration,
+		terminationGraceMs: options.limits.terminationGrace,
+		killWaitMs: options.limits.killWait,
+		forceKillAfterGrace: shouldDetachProcessTree(),
+		timeout: () => 'timeout',
+		cancelled: () => 'cancelled',
+		terminated: (reason) => unavailable(reason, log()),
+		error: (error) => spawnFailure(error, log()),
+		close: (exitCode, processSignal) => {
+			if (processSignal !== null) return unavailable('process-signalled', log());
 			if (!Number.isSafeInteger(exitCode) || exitCode === null || exitCode < 0) {
-				finish(unavailable('spawn-failed', log())); return;
+				return unavailable('spawn-failed', log());
 			}
 			if (exitCode !== 0) {
-				finish(Object.freeze({ ...unavailable('process-failed', log()), exitCode })); return;
+				return Object.freeze({ ...unavailable('process-failed', log()), exitCode });
 			}
-			finish(Object.freeze({ status: 'succeeded', log: log() }));
-		});
-		options.signal?.addEventListener('abort', onAbort, { once: true });
-		if (options.signal?.aborted) onAbort();
-		if (!settled && terminating === null) {
-			runtimeTimer = setTimeout(() => { terminate('timeout'); }, options.limits.duration);
-			runtimeTimer.unref?.();
-		}
+			return Object.freeze({ status: 'succeeded', log: log() });
+		},
 	});
+	const append = (chunk: unknown): void => {
+		if (!supervision.acceptsOutput()) return;
+		const bytes = chunkBytes(chunk);
+		const remaining = options.limits.log - logBytes;
+		if (remaining > 0) {
+			const admitted = Math.min(remaining, bytes.byteLength);
+			chunks.push(Buffer.from(bytes.subarray(0, admitted)));
+			logBytes += admitted;
+		}
+		if (bytes.byteLength > remaining) supervision.terminate('log-limit');
+	};
+	child.stdout.on('data', append);
+	child.stderr.on('data', append);
+	return await supervision.completion;
 }
 
 function guardedArguments(
@@ -503,17 +463,6 @@ function boundedInteger(value: number, minimum: number, maximum: number, label: 
 		throw new RangeError(`The external FFmpeg audio ${label} limit is invalid.`);
 	}
 	return value;
-}
-
-function childEnvironment(
-	base: Readonly<Record<string, string>>,
-	scratchDirectory: string,
-): Readonly<Record<string, string>> {
-	return Object.freeze({
-		AV_LOG_FORCE_NOCOLOR: '1', HOME: scratchDirectory, LANG: 'C', LC_ALL: 'C', NO_COLOR: '1',
-		...base, TEMP: scratchDirectory, TMP: scratchDirectory, TMPDIR: scratchDirectory,
-		USERPROFILE: scratchDirectory,
-	});
 }
 
 async function sha256File(path: string): Promise<string> {

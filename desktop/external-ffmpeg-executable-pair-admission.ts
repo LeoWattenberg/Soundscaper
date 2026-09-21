@@ -14,6 +14,16 @@ export interface ExternalFfmpegExecutablePairAdmission {
 	readonly executablePairClosureSha256: string;
 }
 
+interface ExternalFfmpegRuntimeExecutablePairSource {
+	readonly executablePath: string;
+	readonly identity: Readonly<{
+		readonly ffmpegSha256: string;
+		readonly ffprobePath: string;
+		readonly ffprobeSha256: string;
+		readonly executablePairClosureSha256: string;
+	}>;
+}
+
 const SHA256 = /^[0-9a-f]{64}$/u;
 const EXECUTABLE_PATH_LIMIT = 4_096;
 
@@ -36,6 +46,23 @@ export function isExternalFfmpegExecutablePairAdmission(
 			ffprobePath: value.ffprobePath, ffprobeSha256: value.ffprobeSha256,
 		}) === value.executablePairClosureSha256;
 	} catch { return false; }
+}
+
+/** Project and validate the executable-pair fields carried by a runtime admission. */
+export function externalFfmpegExecutablePairFromRuntimeAdmission(
+	value: ExternalFfmpegRuntimeExecutablePairSource | null,
+): ExternalFfmpegExecutablePairAdmission | null {
+	if (value === null) return null;
+	try {
+		const pair = Object.freeze({
+			executablePath: value.executablePath,
+			ffmpegSha256: value.identity.ffmpegSha256,
+			ffprobePath: value.identity.ffprobePath,
+			ffprobeSha256: value.identity.ffprobeSha256,
+			executablePairClosureSha256: value.identity.executablePairClosureSha256,
+		});
+		return isExternalFfmpegExecutablePairAdmission(pair) ? pair : null;
+	} catch { return null; }
 }
 
 export async function externalFfmpegExecutablePairMatches(

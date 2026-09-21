@@ -14,8 +14,8 @@ import {
 	type DesktopVideoCodecOperationPlan,
 } from './desktop-video-codec-operation-contract.js';
 import {
+	externalFfmpegExecutablePairFromRuntimeAdmission,
 	externalFfmpegExecutablePairMatches,
-	isExternalFfmpegExecutablePairAdmission,
 	type ExternalFfmpegExecutablePairAdmission,
 } from './external-ffmpeg-executable-pair-admission.js';
 import type { ExternalFfmpegRuntimeAdmission } from './external-ffmpeg-preference-service.js';
@@ -185,14 +185,8 @@ function canaryPlan(format: DesktopVideoCodecFormat): DesktopVideoCodecOperation
 }
 
 function executablePair(admission: ExternalFfmpegRuntimeAdmission): ExternalFfmpegExecutablePairAdmission {
-	const pair = Object.freeze({
-		executablePath: admission.executablePath,
-		ffmpegSha256: admission.identity.ffmpegSha256,
-		ffprobePath: admission.identity.ffprobePath,
-		ffprobeSha256: admission.identity.ffprobeSha256,
-		executablePairClosureSha256: admission.identity.executablePairClosureSha256,
-	});
-	if (!isExternalFfmpegExecutablePairAdmission(pair)) {
+	const pair = externalFfmpegExecutablePairFromRuntimeAdmission(admission);
+	if (pair === null) {
 		throw new ExternalFfmpegVideoVerificationIdentityError('executable-unavailable');
 	}
 	return pair;

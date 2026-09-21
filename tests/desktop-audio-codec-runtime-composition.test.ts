@@ -18,6 +18,8 @@ import type {
 	ExternalFfmpegPreferenceService,
 	ExternalFfmpegRuntimeAdmission,
 } from '../desktop/external-ffmpeg-preference-service.ts';
+import { externalFfmpegExecutablePairClosureSha256 } from
+	'../desktop/external-ffmpeg-node-runtime.ts';
 import {
 	DesktopCodecOperationError,
 	type DesktopCodecPreflightResult,
@@ -471,14 +473,18 @@ function opusAdmission(
 	version = '9.0.1',
 	generationCharacter = '4',
 ): ExternalFfmpegRuntimeAdmission {
+	const ffmpegSha256 = '1'.repeat(64);
+	const ffprobeSha256 = '2'.repeat(64);
+	const ffprobePath = executablePath.endsWith('.exe')
+		? executablePath.replace(/ffmpeg\.exe$/iu, 'ffprobe.exe')
+		: executablePath.replace(/ffmpeg$/u, 'ffprobe');
 	return {
 		executablePath, version, capabilityGeneration: generationCharacter.repeat(64),
 		identity: {
-			version, ffmpegSha256: '1'.repeat(64), ffprobeSha256: '2'.repeat(64),
-			ffprobePath: executablePath.endsWith('.exe')
-				? executablePath.replace(/ffmpeg\.exe$/iu, 'ffprobe.exe')
-				: executablePath.replace(/ffmpeg$/u, 'ffprobe'),
-			executablePairClosureSha256: '3'.repeat(64),
+			version, ffmpegSha256, ffprobeSha256, ffprobePath,
+			executablePairClosureSha256: externalFfmpegExecutablePairClosureSha256({
+				ffmpegPath: executablePath, ffmpegSha256, ffprobePath, ffprobeSha256,
+			}),
 		},
 		capabilities: {
 			encoders: ['libopus', 'pcm_f32le'], decoders: ['pcm_f32le', 'opus'],

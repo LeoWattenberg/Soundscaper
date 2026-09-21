@@ -3,10 +3,11 @@
 /** Main-owned staging and one-shot utility-process supervision for reviewed OS audio codecs. */
 
 import { createHash } from 'node:crypto';
-import { chmod, mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { rm, writeFile } from 'node:fs/promises';
 import { isAbsolute, join } from 'node:path';
 
 import { readBoundedRegularFile } from './bounded-regular-file.ts';
+import { createPrivateScratchDirectory } from './private-scratch-directory.ts';
 import {
 	desktopAudioMp3ConstantBitrateKbps,
 	normalizeDesktopAudioCodecRequest,
@@ -229,7 +230,9 @@ async function executeActive(options: Readonly<{
 	let scratchDirectory: string | null = null;
 	let result: OperatingSystemAudioCodecOperationResult;
 	try {
-		scratchDirectory = await prepareScratch(options.scratchRoot);
+		scratchDirectory = await createPrivateScratchDirectory(
+			options.scratchRoot, 'os-audio-codec-',
+		);
 		const files: StagedFiles = Object.freeze({
 			inputPath: join(scratchDirectory, options.request.operation === 'audio-encode'
 				? 'input.f32le' : options.request.format === 'mp3' ? 'input.mp3' : 'input.m4a'),
@@ -318,16 +321,6 @@ async function executeStaged(options: Readonly<{
 		return unavailable('output-invalid');
 	}
 	return Object.freeze({ status: 'executed', output: output.bytes, decodedGeometry: geometry });
-}
-
-async function prepareScratch(root: string): Promise<string> {
-	await mkdir(root, { recursive: true, mode: 0o700 });
-	const directory = await mkdtemp(join(root, 'os-audio-codec-'));
-	try { await chmod(directory, 0o700); return directory; }
-	catch (error) {
-		await rm(directory, { recursive: true, force: true }).catch(() => undefined);
-		throw error;
-	}
 }
 
 function superviseChild(options: Readonly<{

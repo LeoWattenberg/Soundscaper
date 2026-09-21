@@ -13,3 +13,22 @@ export function curatedExternalFfmpegEnvironment(
 	}
 	return Object.freeze(result);
 }
+
+/** Bind every writable process-home and temporary root to one private directory. */
+export function privateExternalFfmpegEnvironment(
+	value: Readonly<Record<string, string | undefined>>,
+	directory: string,
+): Readonly<Record<string, string>> {
+	return Object.freeze({
+		AV_LOG_FORCE_NOCOLOR: '1',
+		HOME: directory,
+		LANG: 'C',
+		LC_ALL: 'C',
+		NO_COLOR: '1',
+		...curatedExternalFfmpegEnvironment(value),
+		TEMP: directory,
+		TMP: directory,
+		TMPDIR: directory,
+		USERPROFILE: directory,
+	});
+}

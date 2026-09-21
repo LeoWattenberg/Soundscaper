@@ -53,6 +53,8 @@ import {
 	type ExternalFfmpegAudioOperationRunnerOptions,
 	type ExternalFfmpegAudioUnavailableReason,
 } from './external-ffmpeg-audio-operation-runner.ts';
+import { externalFfmpegExecutablePairFromRuntimeAdmission } from
+	'./external-ffmpeg-executable-pair-admission.ts';
 import type {
 	ExternalFfmpegPreferenceService,
 	ExternalFfmpegRuntimeAdmission,
@@ -291,13 +293,9 @@ function externalRuntime(options: Readonly<{
 				const runner = options.createRunner({
 					scratchRoot: options.scratchRoot,
 					contract: fixedFfmpegContract(request),
-					getAdmittedExecutable: () => Promise.resolve(Object.freeze({
-						executablePath: snapshot.executablePath,
-						ffmpegSha256: snapshot.identity.ffmpegSha256,
-						ffprobePath: snapshot.identity.ffprobePath,
-						ffprobeSha256: snapshot.identity.ffprobeSha256,
-						executablePairClosureSha256: snapshot.identity.executablePairClosureSha256,
-					})),
+					getAdmittedExecutable: () => Promise.resolve(
+						externalFfmpegExecutablePairFromRuntimeAdmission(snapshot),
+					),
 					maximumInputBytes: DESKTOP_AUDIO_CODEC_INPUT_LIMIT_BYTES,
 					maximumOutputBytes: DESKTOP_AUDIO_CODEC_OUTPUT_LIMIT_BYTES
 						+ DESKTOP_AUDIO_FFMPEG_WAVE_OVERHEAD_LIMIT_BYTES,

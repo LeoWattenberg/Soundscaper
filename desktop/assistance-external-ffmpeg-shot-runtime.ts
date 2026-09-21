@@ -10,7 +10,7 @@ import type {
 	AssistanceShotRuntimeAdapter,
 } from './assistance-shot-runtime.ts';
 import {
-	isExternalFfmpegExecutablePairAdmission,
+	externalFfmpegExecutablePairFromRuntimeAdmission,
 	type ExternalFfmpegExecutablePairAdmission,
 } from './external-ffmpeg-executable-pair-admission.ts';
 import type {
@@ -141,19 +141,8 @@ export function createExternalFfmpegAssistanceShotRuntimeAdapter(
 
 function inspectAdmission(admission: ExternalFfmpegRuntimeAdmission | null): InspectedAdmission {
 	if (admission === null) return Object.freeze({ status: 'absent' });
-	let pair: ExternalFfmpegExecutablePairAdmission;
-	try {
-		pair = Object.freeze({
-			executablePath: admission.executablePath,
-			ffmpegSha256: admission.identity.ffmpegSha256,
-			ffprobePath: admission.identity.ffprobePath,
-			ffprobeSha256: admission.identity.ffprobeSha256,
-			executablePairClosureSha256: admission.identity.executablePairClosureSha256,
-		});
-	} catch {
-		return Object.freeze({ status: 'invalid-identity', admission });
-	}
-	if (!isExternalFfmpegExecutablePairAdmission(pair)
+	const pair = externalFfmpegExecutablePairFromRuntimeAdmission(admission);
+	if (pair === null
 		|| typeof admission.version !== 'string' || admission.version.length === 0
 		|| admission.version !== admission.identity.version
 		|| typeof admission.capabilityGeneration !== 'string'

@@ -10,14 +10,15 @@ import type {
 	ExternalFfmpegProcessResult,
 	ExternalFfmpegProcessRunner,
 } from './external-ffmpeg-probe.js';
+import { privateExternalFfmpegEnvironment } from './external-ffmpeg-environment.js';
+import { superviseExternalFfmpegProcess } from './external-ffmpeg-process-security.js';
 import {
-	curatedExternalFfmpegVideoEnvironment,
 	spawnExternalFfmpegVideoProcess,
 	type ExternalFfmpegVideoChildProcess,
 	type ExternalFfmpegVideoLaunchOptions,
 	type ExternalFfmpegVideoSpawn,
 } from './external-ffmpeg-video-process.js';
-import { shouldDetachProcessTree, terminateProcessTree } from './process-tree-termination.js';
+import { shouldDetachProcessTree } from './process-tree-termination.js';
 
 export interface ExternalFfmpegVideoCanaryInspectionRequest {
 	readonly format: DesktopVideoCodecFormat;
@@ -78,7 +79,7 @@ export async function inspectExternalFfmpegVideoCanaryOutput(
 function createCanaryProbeRunner(
 	options: ExternalFfmpegVideoCanaryInspectionRequest,
 ): ExternalFfmpegProcessRunner {
-	const environment = privateEnvironment(
+	const environment = privateExternalFfmpegEnvironment(
 		options.environment ?? process.env,
 		options.workingDirectory,
 	);
@@ -112,76 +113,46 @@ async function runProbe(options: Readonly<{
 			detached: shouldDetachProcessTree(),
 		}) satisfies ExternalFfmpegVideoLaunchOptions);
 	} catch (error) { return launchFailure(error); }
-	return await new Promise((resolve) => {
-		const stdout: Buffer[] = [];
-		const stderr: Buffer[] = [];
-		let outputBytes = 0;
-		let settled = false;
-		let terminating: 'timeout' | 'output-limit' | 'launch-failed' | null = null;
-		let runtimeTimer: ReturnType<typeof setTimeout> | null = null;
-		let graceTimer: ReturnType<typeof setTimeout> | null = null;
-		let killTimer: ReturnType<typeof setTimeout> | null = null;
-		const cleanUp = (): void => {
-			if (runtimeTimer !== null) clearTimeout(runtimeTimer);
-			if (graceTimer !== null) clearTimeout(graceTimer);
-			if (killTimer !== null) clearTimeout(killTimer);
-			options.signal.removeEventListener('abort', onAbort);
-		};
-		const finish = (result: ExternalFfmpegProcessResult): void => {
-			if (settled) return;
-			settled = true;
-			cleanUp();
-			resolve(Object.freeze(result));
-		};
-		const finishTermination = (): void => {
-			if (terminating !== null) finish(unavailable(terminating));
-		};
-		const terminate = (reason: 'timeout' | 'output-limit' | 'launch-failed'): void => {
-			if (settled || terminating !== null) return;
-			terminating = reason;
-			if (runtimeTimer !== null) clearTimeout(runtimeTimer);
-			void terminateProcessTree(child, 'SIGTERM', { environment: options.environment });
-			graceTimer = setTimeout(() => {
-				void terminateProcessTree(child, 'SIGKILL', { environment: options.environment });
-				killTimer = setTimeout(finishTermination, options.killWaitMs);
-				killTimer.unref?.();
-			}, options.terminationGraceMs);
-			graceTimer.unref?.();
-		};
-		function onAbort(): void { terminate('launch-failed'); }
-		const append = (destination: Buffer[], chunk: unknown): void => {
-			if (settled || terminating !== null) return;
-			const bytes = chunkBytes(chunk);
-			const remaining = options.request.maximumOutputBytes - outputBytes;
-			if (remaining > 0) {
-				const admitted = Math.min(remaining, bytes.byteLength);
-				destination.push(Buffer.from(bytes.subarray(0, admitted)));
-				outputBytes += admitted;
-			}
-			if (bytes.byteLength > remaining) terminate('output-limit');
-		};
-		child.stdout.on('data', (chunk) => { append(stdout, chunk); });
-		child.stderr.on('data', (chunk) => { append(stderr, chunk); });
-		child.once('error', (error) => {
-			if (terminating !== null) finishTermination(); else finish(launchFailure(error));
-		});
-		child.once('close', (exitCode, processSignal) => {
-			if (terminating !== null) { finishTermination(); return; }
-			if (processSignal !== null || !Number.isSafeInteger(exitCode) || exitCode === null || exitCode < 0) {
-				finish(unavailable('launch-failed'));
-				return;
-			}
-			finish(Object.freeze({
+	const stdout: Buffer[] = [];
+	const stderr: Buffer[] = [];
+	let outputBytes = 0;
+	type TerminationReason = 'timeout' | 'output-limit' | 'launch-failed';
+	const supervision = superviseExternalFfmpegProcess<NodeJS.ErrnoException, TerminationReason,
+		ExternalFfmpegProcessResult>({
+		child,
+		signal: options.signal,
+		environment: options.environment,
+		maximumDurationMs: options.request.maximumDurationMs,
+		terminationGraceMs: options.terminationGraceMs,
+		killWaitMs: options.killWaitMs,
+		timeout: () => 'timeout',
+		cancelled: () => 'launch-failed',
+		terminated: (reason) => unavailable(reason),
+		error: (error) => launchFailure(error),
+		close: (exitCode, processSignal) => {
+			if (processSignal !== null || !Number.isSafeInteger(exitCode)
+				|| exitCode === null || exitCode < 0) return unavailable('launch-failed');
+			return Object.freeze({
 				status: 'exited', exitCode,
 				stdout: Buffer.concat(stdout).toString('utf8'),
 				stderr: Buffer.concat(stderr).toString('utf8'),
-			}));
-		});
-		options.signal.addEventListener('abort', onAbort, { once: true });
-		if (options.signal.aborted) onAbort();
-		runtimeTimer = setTimeout(() => terminate('timeout'), options.request.maximumDurationMs);
-		runtimeTimer.unref?.();
+			});
+		},
 	});
+	const append = (destination: Buffer[], chunk: unknown): void => {
+		if (!supervision.acceptsOutput()) return;
+		const bytes = chunkBytes(chunk);
+		const remaining = options.request.maximumOutputBytes - outputBytes;
+		if (remaining > 0) {
+			const admitted = Math.min(remaining, bytes.byteLength);
+			destination.push(Buffer.from(bytes.subarray(0, admitted)));
+			outputBytes += admitted;
+		}
+		if (bytes.byteLength > remaining) supervision.terminate('output-limit');
+	};
+	child.stdout.on('data', (chunk) => { append(stdout, chunk); });
+	child.stderr.on('data', (chunk) => { append(stderr, chunk); });
+	return await supervision.completion;
 }
 
 function successfulOutput(result: ExternalFfmpegProcessResult): string {
@@ -325,18 +296,6 @@ function validateOptions(options: ExternalFfmpegVideoCanaryInspectionRequest): v
 function validAbsolutePath(value: unknown): value is string {
 	return typeof value === 'string' && value.length > 0 && value.length <= 4_096
 		&& !value.includes('\0') && isAbsolute(value);
-}
-
-function privateEnvironment(
-	value: Readonly<Record<string, string | undefined>>,
-	workingDirectory: string,
-): Readonly<Record<string, string>> {
-	return Object.freeze({
-		AV_LOG_FORCE_NOCOLOR: '1', HOME: workingDirectory, LANG: 'C', LC_ALL: 'C', NO_COLOR: '1',
-		...curatedExternalFfmpegVideoEnvironment(value),
-		TEMP: workingDirectory, TMP: workingDirectory, TMPDIR: workingDirectory,
-		USERPROFILE: workingDirectory,
-	});
 }
 
 function boundedWait(value: number | undefined, fallback: number): number {
