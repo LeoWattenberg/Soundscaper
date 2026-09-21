@@ -108,6 +108,17 @@ test('no eagerly owned editor module statically imports a lazily owned one', () 
 	assert.deepEqual(eagerImportsOfLazyOwners(EAGER_ROOTS), []);
 });
 
+test('shared Framescaper project helpers retain explicit eager chunk owners', () => {
+	for (const [path, owner] of [
+		['src/framescaper/editor-project-feature-manifest-context.ts', 'framescaper-project-foundations'],
+		['src/framescaper/editor-project-retime-clip-collections.ts', 'framescaper-project-commands'],
+		['src/framescaper/editor-clip-placement-command.ts', 'framescaper-project-commands'],
+	] as const) {
+		assert.equal(chunkGroupForModulePath(path), owner, path);
+		assert.equal(chunkGroupForModulePath(path.replaceAll('/', '\\')), owner, path);
+	}
+});
+
 test('Split Tool runtime stays behind its optional feature boundary', () => {
 	for (const path of [
 		'src/common/editor/ui/timeline/split-tool-guideline.ts',

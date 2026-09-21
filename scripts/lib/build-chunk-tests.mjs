@@ -229,6 +229,7 @@ const framescaperProjectFoundationModules = Object.freeze([
 	'editor-project-feature-capability-profile-timeline-image',
 	'editor-project-feature-capability-profile-transitions',
 	'editor-project-feature-capability-profile-visual',
+	'editor-project-feature-manifest-context',
 	'editor-project-feature-requirements-assistance',
 	'editor-project-feature-requirements-composition',
 	'editor-project-feature-requirements-finishing',
@@ -287,6 +288,7 @@ export const FRAMESCAPER_PROJECT_FOUNDATION_CHUNK_TEST = new RegExp(
  */
 const framescaperProjectCommandModules = Object.freeze([
 	'editor-audio-finishing-reconciliation-finishing',
+	'editor-clip-placement-command',
 	'editor-project-assistance-commands',
 	'editor-project-assistance-transition-allocation',
 	'editor-project-composition-commands',
@@ -303,6 +305,7 @@ const framescaperProjectCommandModules = Object.freeze([
 	'editor-project-professional-media',
 	'editor-project-retime-av-link-command-segmentation',
 	'editor-project-retime-batch-command',
+	'editor-project-retime-clip-collections',
 	'editor-project-retime-command-admission',
 	'editor-project-retime-commands',
 	'editor-project-retime-fresh-video-command',
