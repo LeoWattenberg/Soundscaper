@@ -11,11 +11,16 @@ import {
 	assertNoSeriousAxeViolations,
 	bootEditor,
 	chooseCommandAction,
+	chooseDropdown,
 	chooseFileAction,
 	chooseNestedCommandAction,
+	closeDialog,
 	collectClientErrors,
 	chooseExportProjectFileAction,
+	disableNativeSavePicker,
 	importFiles,
+	openExportDialog,
+	readDownloadBytes,
 	registerAudioEditorHooks,
 	waitForEditor,
 } from './audio-editor-test-helpers.js';
@@ -51,6 +56,79 @@ test.describe('native timeline annotations', () => {
 		await dialog.getByRole('button', { name: 'Labels', exact: true }).click();
 		await expect(editor.locator('[data-status]')).toHaveText('Imported 2 label(s).');
 		await expect(editor.locator('[data-label-track] [data-label-id]')).toHaveCount(2);
+	});
+
+	test('round-trips authored markers and regions through rendered WAV cue metadata', async ({
+		browserName,
+		page,
+	}) => {
+		test.skip(browserName !== 'chromium', 'The nightly browser coverage surface is Chromium.');
+		test.setTimeout(90_000);
+		await disableNativeSavePicker(page);
+		const errors = collectClientErrors(page);
+		const editor = await bootEditor(page, '/embed/en/');
+		await importFiles(editor, [toneA]);
+		await chooseNestedCommandAction(page, editor, 'View', ['Panels', 'Markers']);
+		const panel = editor.getByRole('region', { name: 'Markers and named regions', exact: true });
+		await panel.getByRole('button', { name: 'Add marker at playhead', exact: true }).click();
+
+		let rows = panel.locator('li');
+		await expect(rows).toHaveCount(1);
+		let marker = rows.nth(0).locator('[data-timeline-annotation]');
+		await marker.press('Enter');
+		let markerEditor = rows.nth(0).getByRole('group', { name: 'Edit annotation', exact: true });
+		await markerEditor.getByRole('textbox', { name: 'Name', exact: true }).fill('Slate');
+		await markerEditor.getByRole('textbox', { name: 'Name', exact: true }).press('Enter');
+		markerEditor = rows.nth(0).getByRole('group', { name: 'Edit annotation', exact: true });
+		await markerEditor.getByRole('combobox', { name: 'Color', exact: true }).selectOption('blue');
+		await markerEditor.getByRole('combobox', { name: 'Anchor', exact: true }).selectOption('musical');
+
+		const ruler = editor.locator('[data-ruler]');
+		const rulerBounds = await ruler.boundingBox();
+		expect(rulerBounds).not.toBeNull();
+		await page.mouse.move(rulerBounds.x + 40, rulerBounds.y + 26);
+		await page.mouse.down();
+		await page.mouse.move(rulerBounds.x + 150, rulerBounds.y + 26, { steps: 5 });
+		await page.mouse.up();
+		await expect(panel.getByRole('button', { name: 'Add region from selection', exact: true })).toBeEnabled();
+		await panel.getByRole('button', { name: 'Add region from selection', exact: true }).click();
+
+		rows = panel.locator('li');
+		await expect(rows).toHaveCount(2);
+		const region = rows.nth(1).locator('[data-timeline-annotation]');
+		await region.press('Enter');
+		const regionEditor = rows.nth(1).getByRole('group', { name: 'Edit annotation', exact: true });
+		await regionEditor.getByRole('textbox', { name: 'Name', exact: true }).fill('Verse');
+		await regionEditor.getByRole('textbox', { name: 'Name', exact: true }).press('Enter');
+		marker = rows.nth(0).locator('[data-timeline-annotation]');
+		await marker.click({ modifiers: ['Shift'] });
+		await rows.nth(0).getByRole('button', { name: 'Batch selected annotations', exact: true }).click();
+		await panel.getByRole('button', { name: 'Next annotation', exact: true }).click();
+		await panel.getByRole('button', { name: 'Previous annotation', exact: true }).click();
+
+		const exportDialog = await openExportDialog(page, editor);
+		await chooseDropdown(page, exportDialog.locator('[data-export-field="format"]'), 'WAV');
+		await exportDialog.getByRole('button', { name: 'Export', exact: true }).click();
+		const download = exportDialog.locator('[data-export-download]');
+		await expect(download).toBeVisible({ timeout: 20_000 });
+		const rendered = Buffer.from(await readDownloadBytes(page, download));
+		expect(rendered.indexOf(Buffer.from('cue '))).toBeGreaterThan(12);
+		expect(rendered.indexOf(Buffer.from('adtl'))).toBeGreaterThan(12);
+		await closeDialog(exportDialog);
+
+		const originProjectId = await editor.getAttribute('data-project-id');
+		await editor.getByRole('button', { name: 'New project', exact: true }).click();
+		await expect.poll(() => editor.getAttribute('data-project-id')).not.toBe(originProjectId);
+		await importFiles(editor, [{ name: 'annotated.wav', mimeType: 'audio/wav', buffer: rendered }], {
+			timeout: 30_000,
+		});
+		await expect(editor).toHaveAttribute('data-clip-count', '1', { timeout: 30_000 });
+		const imported = editor.getByRole('region', { name: 'Markers and named regions', exact: true });
+		await expect(imported).toBeVisible();
+		await expect(imported.locator('[data-timeline-annotation]')).toHaveCount(2, { timeout: 30_000 });
+		await expect(imported.getByRole('button', { name: /Slate, Marker/u })).toBeVisible();
+		await expect(imported.getByRole('button', { name: /Verse, Region/u })).toBeVisible();
+		expect(errors).toEqual([]);
 	});
 
 	test('removes the marker lane and its layout offset when markers are hidden', async ({ page }) => {
