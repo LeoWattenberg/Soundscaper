@@ -14,11 +14,11 @@ test('every browser engine receives the source maps required to verify both prod
 		const workflow = await readFile(new URL(`../.github/workflows/${workflowName}`, import.meta.url), 'utf8');
 		for (const stepName of SOURCE_MAP_DOWNLOAD_STEPS) {
 			const escapedName = stepName.replace(/[.*+?^${}()|[\]\\]/gu, '\\$&');
-			assert.match(
-				workflow,
-				new RegExp(`- name: ${escapedName}\\n\\s+uses: actions/download-artifact@`, 'u'),
-				`${workflowName} must download ${stepName.toLowerCase()} without a Chromium-only condition`,
+			const directDownloads = workflow.match(
+				new RegExp(`- name: ${escapedName}\\n\\s+uses: actions/download-artifact@`, 'gu'),
 			);
+			assert.equal(directDownloads?.length, 2,
+				`${workflowName} must download ${stepName.toLowerCase()} for both browser job families`);
 		}
 	}
 });
