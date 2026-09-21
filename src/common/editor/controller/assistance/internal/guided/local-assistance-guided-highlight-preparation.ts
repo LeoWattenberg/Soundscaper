@@ -26,7 +26,10 @@ import {
 	type LocalAssistanceGuidedExternalInput,
 	type LocalAssistanceGuidedPrimitiveFence,
 } from './local-assistance-guided-transcript-context.ts';
-import type { LocalAssistanceSelectedVideoSourceTimeDescriptorV1 } from
+import {
+	matchesLocalAssistanceSelectedVideoSourceTimeFenceV1,
+	type LocalAssistanceSelectedVideoSourceTimeDescriptorV1,
+} from
 	'../../local-assistance-selected-video-source-time.ts';
 
 const VIDEO_SIGNALS_MEDIA_TYPE =
@@ -289,16 +292,7 @@ function sourceTimeAuthority(
 	fence: LocalAssistanceGuidedPrimitiveFence,
 ): LocalAssistanceSelectedVideoSourceTimeDescriptorV1 {
 	const row = record(value, 'selected-video source-time authority');
-	if (row.descriptorVersion !== 1 || row.kind !== 'selected-video-source-time-authority'
-		|| row.schemaFamily !== fence.schemaFamily || row.schemaVersion !== fence.schemaVersion
-		|| row.projectId !== fence.projectId || row.projectRevision !== fence.revision
-		|| row.sequenceId !== fence.sequenceId || row.sourceId !== fence.sourceId
-		|| row.sourceSha256 !== fence.sourceSha256
-		|| row.timingAuthoritySha256 !== fence.timingAuthoritySha256
-		|| row.sourceStartFrame !== fence.sourceStartFrame
-		|| row.sourceEndFrame !== fence.sourceEndFrame
-		|| typeof row.videoOccurrenceId !== 'string'
-		|| !fence.occurrenceIds.includes(row.videoOccurrenceId)) {
+	if (!matchesLocalAssistanceSelectedVideoSourceTimeFenceV1(row, fence)) {
 		throw new Error('Highlight video timing authority changed during preparation.');
 	}
 	return row as unknown as LocalAssistanceSelectedVideoSourceTimeDescriptorV1;

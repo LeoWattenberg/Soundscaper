@@ -45,8 +45,46 @@ export interface LocalAssistanceSelectedVideoSourceTimeDescriptorV1 {
 	readonly frames: AssistanceSourceTimeRowsInventoryV1;
 }
 
+export interface LocalAssistanceSelectedVideoSourceTimeFenceV1 {
+	readonly projectId: unknown;
+	readonly schemaFamily: unknown;
+	readonly schemaVersion: unknown;
+	readonly revision: unknown;
+	readonly sequenceId: unknown;
+	readonly occurrenceIds: readonly unknown[];
+	readonly sourceId: unknown;
+	readonly sourceSha256: unknown;
+	readonly sourceStartFrame: unknown;
+	readonly sourceEndFrame: unknown;
+	readonly timingAuthoritySha256: unknown;
+}
+
 const LEGACY_ROW_MAXIMUM = 100_000;
 const REVIEWED_ROWS = new WeakMap<object, ReviewedAssistanceSourceTimeRowsV1>();
+
+/** Match a selected-video timing descriptor to the complete primitive selection fence. */
+export function matchesLocalAssistanceSelectedVideoSourceTimeFenceV1(
+	descriptor: unknown,
+	fence: LocalAssistanceSelectedVideoSourceTimeFenceV1,
+): boolean {
+	if (!descriptor || typeof descriptor !== 'object' || Array.isArray(descriptor)
+		|| ArrayBuffer.isView(descriptor)) return false;
+	const row = descriptor as Readonly<Record<string, unknown>>;
+	return row.descriptorVersion === 1
+		&& row.kind === 'selected-video-source-time-authority'
+		&& row.schemaFamily === fence.schemaFamily
+		&& row.schemaVersion === fence.schemaVersion
+		&& row.projectId === fence.projectId
+		&& row.projectRevision === fence.revision
+		&& row.sequenceId === fence.sequenceId
+		&& row.sourceId === fence.sourceId
+		&& row.sourceSha256 === fence.sourceSha256
+		&& row.timingAuthoritySha256 === fence.timingAuthoritySha256
+		&& row.sourceStartFrame === fence.sourceStartFrame
+		&& row.sourceEndFrame === fence.sourceEndFrame
+		&& typeof row.videoOccurrenceId === 'string'
+		&& fence.occurrenceIds.includes(row.videoOccurrenceId);
+}
 
 /**
  * Derive an immutable, pathless timing descriptor from authenticated selected-video custody.

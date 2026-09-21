@@ -4,7 +4,10 @@ import { PROJECT_SCHEMA_VERSION, readProjectSchemaIdentity } from '../../../../p
 import type { LocalAssistanceGuidedPreparationUnavailableReason } from
 	'../../../../assistance/local-assistance-preparation.ts';
 import type { LocalAssistanceGuidedPrimitiveFence } from './local-assistance-guided-transcript-context.ts';
-import { reviewLocalAssistanceSelectedVideoSourceTimeDescriptorV1 } from
+import {
+	matchesLocalAssistanceSelectedVideoSourceTimeFenceV1,
+	reviewLocalAssistanceSelectedVideoSourceTimeDescriptorV1,
+} from
 	'../../local-assistance-selected-video-source-time.ts';
 
 /**
@@ -84,17 +87,7 @@ export function recordArray(value: unknown): Record<string, unknown>[] {
 
 export function correlateSelectedVideoDescriptor(value: unknown, fence: PrimitiveFence): unknown {
 	const descriptor = reviewLocalAssistanceSelectedVideoSourceTimeDescriptorV1(value);
-	const row = dataRecord(descriptor, 'selected-video source-time descriptor');
-	if (row.descriptorVersion !== 1 || row.kind !== 'selected-video-source-time-authority'
-		|| row.schemaFamily !== fence.schemaFamily || row.schemaVersion !== fence.schemaVersion
-		|| row.projectId !== fence.projectId || row.projectRevision !== fence.revision
-		|| row.sequenceId !== fence.sequenceId || row.sourceId !== fence.sourceId
-		|| row.sourceSha256 !== fence.sourceSha256
-		|| row.timingAuthoritySha256 !== fence.timingAuthoritySha256
-		|| row.sourceStartFrame !== fence.sourceStartFrame
-		|| row.sourceEndFrame !== fence.sourceEndFrame
-		|| typeof row.videoOccurrenceId !== 'string'
-		|| !fence.occurrenceIds.includes(row.videoOccurrenceId)) {
+	if (!matchesLocalAssistanceSelectedVideoSourceTimeFenceV1(descriptor, fence)) {
 		throw new UnavailableError('timing-authority-unavailable');
 	}
 	return descriptor;
