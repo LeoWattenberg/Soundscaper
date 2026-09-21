@@ -6,17 +6,61 @@ unions evidence from the Chromium browser suite and the packaged
 `nightly-with-tests` runner. It requires exactly 100% coverage for lines, statements, functions, and branches; it does not round a partial result up.
 Node and unit-test coverage is separate and does not contribute to this gate.
 
+## What the gate measures
+
+The denominator comes from the authenticated production build, not from a
+hand-maintained source glob. A source map owns only executable first-party
+sources under `src/` or `desktop/` that it actually maps. If an emitted script
+has no such mapping, the exact emitted JavaScript is measured instead. Exact
+mapped third-party code is excluded; listing an unused first-party source in a
+map is not enough to classify a vendor bundle as first-party.
+
+Before evidence is accepted, the build audit inventories every JavaScript and
+HTML resource and rejects unrecognized executable-string producers such as
+`eval`, executable `Blob` workers, dynamic imports, or inline HTML handlers.
+The macro runner is a closed first-party recipe: its fixed,
+digest-authenticated module wrapper is measured while the user's macro program
+remains data. Any other generated module or changed wrapper fails admission.
+
+Third-party dynamic code is excluded only through byte-exact recipes derived
+from the authenticated build. The admitted Mediabunny `Blob` workers are
+reconstructed from their emitted call sites and matching source-map spans. The
+FFmpeg core is admitted only at its canonical production JavaScript and Wasm
+URLs with the manifest and publication-policy pins committed at the recorded
+revision; Chromium's JavaScript source bytes and exact empty Wasm debugger
+sentinel are checked. A changed URL, query, fragment, source, pin, policy, or
+producer fails rather than widening the exclusion.
+
+Executable routes created only by a browser test do not contribute coverage.
+Those tests opt out of collection, and a recursive static guard follows their
+local helpers to reject an unmarked JavaScript response, inline script, event
+handler, `srcdoc`, or `javascript:` URL. The packaged M4 and M4B2 synthetic
+parity pages remain in the non-instrumented metrics phase and are not members
+of packaged coverage. The corresponding production sources remain in the
+build-derived denominator.
+
+For Electron, the evidence generator reverse-enumerates JavaScript and HTML in
+`app.asar` and executable resources beside it. The packaged runner records
+those resources before launch and after collection. Assembly rejects added,
+missing, or changed files, unknown profiler URLs, changed source bytes, and
+unapproved target-runtime scripts. Test-harness files are packaged separately
+and are not part of the normal product inventory; the few generated renderer
+bridges needed to drive the packaged application are accepted only by their
+exact product-bound recipe and bytes.
+
 ## Capture evidence
 
 Build and run the ordinary Chromium suite with coverage as described in
 `AGENTS.md`. A distributed `nightly-with-tests` application automatically runs
 the ordinary browser suite and then a dedicated Chromium dual-origin phase.
-Both use the same authenticated reciprocal browser builds, so their portable
-script URLs share one exact build-evidence denominator; the second phase serves
-them at the loopback origins recorded by that evidence. Both phases append
-profiles to the same `coverage/v8-browser/` directory. The runner later executes
-packaged coverage after the non-instrumented performance phases. Each nightly
-run directory preserves:
+The ordinary runner binds both production-shaped Pages sites to the exact,
+distinct loopback origins recorded by their manifests; the dual-origin phase
+validates and reuses that pair. Both therefore use the same authenticated
+reciprocal browser builds, Pages headers and redirects, and exact
+build-evidence denominator. Both phases append profiles to the same
+`coverage/v8-browser/` directory. The runner later executes packaged coverage
+after the non-instrumented performance phases. Each nightly run directory
+preserves:
 
 - `coverage/v8-browser/` for raw Chromium profiles;
 - `coverage/v8-packaged/` for packaged Electron main, preload, renderer, worker,
