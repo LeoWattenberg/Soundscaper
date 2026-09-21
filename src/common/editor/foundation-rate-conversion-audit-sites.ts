@@ -36,7 +36,7 @@ export const FOUNDATION_RATE_CONVERSION_AUDIT_SITES: readonly FoundationTimeConv
 	},
 	{
 		id: 'decoded-project-import-duration',
-		file: 'src/common/editor/controller/import/internal/project-import-service.ts',
+		file: 'src/common/editor/controller/import/internal/project-import-service-runtime.ts',
 		behavior: 'Decoded audio import changes canonical buffer length into project-rate clip duration once under point rounding.',
 		conversions: [{ helper: 'scaleSampleFrame', policies: ['point'] }],
 	},

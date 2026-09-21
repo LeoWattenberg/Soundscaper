@@ -27,6 +27,7 @@ import { FRAMESCAPER_CANDIDATE_AUTHORING_SURFACES } from '../src/common/editor/u
 import { FRAMESCAPER_NATIVE_PROJECT_ACTION_SURFACES } from '../src/common/editor/ui/framescaper-native-project-actions.ts';
 import { FRAMESCAPER_NATIVE_SERVICES_LIFECYCLE_METHODS } from '../src/common/editor/ui/framescaper-native-services-lifecycle-bridge.ts';
 import { ENGLISH_COPY } from '../src/common/i18n/catalogs.js';
+import { FREESOUND_ATTRIBUTION_INVENTORY_COPY_BY_LOCALE } from '../src/common/i18n/editor-freesound-attribution-inventory-copy.ts';
 import { PRODUCT_PROFILES } from '../src/common/products.js';
 import { createFramescaperProject } from '../src/framescaper/editor-project.ts';
 import { FRAMESCAPER_PROJECT_RUNTIME_PROFILE } from '../src/framescaper/editor-project-runtime-profile.ts';
@@ -63,6 +64,10 @@ const DYNAMIC_REFERENCE_LABELS = new Map([
 	['workspace-custom', 'Custom workspace'],
 	['framescaper-external-display', 'External display'],
 ]);
+const APPLICATION_MENU_COPY = Object.freeze({
+	...ENGLISH_COPY,
+	'ui.freesoundAttribution.panel': FREESOUND_ATTRIBUTION_INVENTORY_COPY_BY_LOCALE.en.panel,
+});
 
 test('the supplemental application-menu reference is a frozen unique lookup', () => {
 	assert.ok(Object.isFrozen(APPLICATION_MENU_REFERENCE_ENTRIES));
@@ -283,7 +288,7 @@ function applicationMenusForState(product: ProductId, state: ApplicationMenuStat
 		aboutLabel: `About ${profile.name}`,
 		capabilities: profile.capabilities,
 		locale: 'en',
-		copy: ENGLISH_COPY,
+		copy: APPLICATION_MENU_COPY,
 		desktopHost: richDesktopHost(product, profile.name) as never,
 		project,
 		snapshot,
