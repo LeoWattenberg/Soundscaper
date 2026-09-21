@@ -13,6 +13,10 @@ import type {
 	TakeCycleFinalizationResult,
 	TakeCycleRecordingOptions,
 } from '../../take-cycle-recording-service.ts';
+import {
+	createTakeCyclePassIdentityAllocator,
+	registerFreshTakeCycleIdentity as freshIdentity,
+} from './take-cycle-identity-allocation.ts';
 import { takeCycleStableId as stableId } from './take-cycle-value-validation.ts';
 
 export type TakeCycleLiveLaneDescription = TakeCycleLiveLaneRequest['lane'];
@@ -96,14 +100,10 @@ export async function beginTakeCycleLiveCaptureSession(
 			loopEndSample: lane.loopEndSample,
 			target: Object.freeze({ trackId: lane.lane.trackId, sequenceId: lane.lane.sequenceId }),
 			source: lane.lane,
-			createPassIdentities: (passIndex, firstLaneId) => Object.freeze({
-				laneId: passIndex === 0
-					? firstLaneId
-					: freshIdentity(dependencies.createId('lane'), 'lane', identities),
-				takeId: freshIdentity(dependencies.createId('take'), 'take', identities),
-				mediaId: freshIdentity(dependencies.createId('media'), 'media', identities),
-				journalId: freshIdentity(dependencies.createId('journal'), 'journal', identities),
-			}),
+			createPassIdentities: createTakeCyclePassIdentityAllocator(
+				dependencies.createId,
+				identities,
+			),
 		});
 		open.add(writer.draftId);
 		return Object.freeze({
@@ -145,13 +145,6 @@ function normalizeSessionRequest(value: BeginTakeCycleLiveSessionRequest): Begin
 		loopStartSample,
 		loopEndSample,
 	});
-}
-
-function freshIdentity(value: string, kind: string, identities: Set<string>): string {
-	const id = stableId(value, `take cycle ${kind} ID`);
-	if (identities.has(id)) throw new RangeError(`Take cycle ${kind} ID ${id} is not globally fresh.`);
-	identities.add(id);
-	return id;
 }
 
 function nonNegativeInteger(value: unknown, name: string): number {

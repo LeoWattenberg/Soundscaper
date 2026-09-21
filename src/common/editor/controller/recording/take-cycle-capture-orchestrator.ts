@@ -20,6 +20,10 @@ import {
 	takeCycleStableName as stableName,
 } from './internal/take-cycle/take-cycle-value-validation.ts';
 import {
+	createTakeCyclePassIdentityAllocator,
+	registerFreshTakeCycleIdentity as freshIdentity,
+} from './internal/take-cycle/take-cycle-identity-allocation.ts';
+import {
 	beginTakeCycleLiveCaptureSession,
 	type BeginTakeCycleLiveSessionRequest,
 	type TakeCycleLiveCaptureSession,
@@ -185,14 +189,10 @@ export function createTakeCycleCaptureOrchestrator(
 						chunkFrames: lane.chunkFrames,
 					}),
 					capture: lane.capture,
-					createPassIdentities: (passIndex, firstLaneId) => Object.freeze({
-						laneId: passIndex === 0
-							? firstLaneId
-							: freshIdentity(dependencies.createId('lane'), 'lane', identities),
-						takeId: freshIdentity(dependencies.createId('take'), 'take', identities),
-						mediaId: freshIdentity(dependencies.createId('media'), 'media', identities),
-						journalId: freshIdentity(dependencies.createId('journal'), 'journal', identities),
-					}),
+					createPassIdentities: createTakeCyclePassIdentityAllocator(
+						dependencies.createId,
+						identities,
+					),
 				}, options.signal ? { signal: options.signal } : {});
 				indexDraft(draft);
 				prepared.push(draft);
@@ -246,14 +246,7 @@ export function createTakeCycleCaptureOrchestrator(
 		const resolved = await dependencies.spool.resolveOpenCaptures(
 			request.projectId,
 			request.decision,
-			(passIndex, firstLaneId) => Object.freeze({
-				laneId: passIndex === 0
-					? firstLaneId
-					: freshIdentity(dependencies.createId('lane'), 'lane', recoveryIdentities),
-				takeId: freshIdentity(dependencies.createId('take'), 'take', recoveryIdentities),
-				mediaId: freshIdentity(dependencies.createId('media'), 'media', recoveryIdentities),
-				journalId: freshIdentity(dependencies.createId('journal'), 'journal', recoveryIdentities),
-			}),
+			createTakeCyclePassIdentityAllocator(dependencies.createId, recoveryIdentities),
 		);
 		for (const draft of resolved) indexDraft(draft);
 		for (const draft of await dependencies.spool.list(request.projectId)) indexDraft(draft);
@@ -527,13 +520,6 @@ function denseArray<Value>(value: readonly Value[], name: string): readonly Valu
 		throw new TypeError(`${name} must be a bounded standard dense data array.`);
 	}
 	return value;
-}
-
-function freshIdentity(value: string, kind: string, identities: Set<string>): string {
-	const id = stableId(value, `take cycle ${kind} ID`);
-	if (identities.has(id)) throw new RangeError(`Take cycle ${kind} ID ${id} is not globally fresh.`);
-	identities.add(id);
-	return id;
 }
 
 function positiveInteger(value: unknown, name: string): number {
