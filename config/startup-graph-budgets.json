@@ -13,9 +13,11 @@
 		"ceilings": {
 			"requests": 75,
 			"rawBytes": 6056688,
-			"brotliBytes": 1448095
+			"brotliBytes": 1453500
 		},
-		"reasons": {}
+		"reasons": {
+			"brotliBytes": "Raised from 1_448_095 after the shared-authority extraction series reduced the Soundscaper startup graph from 6,021,507 to 6,019,078 raw bytes while splitting it from 69 to 71 requests. Brotli size rose to 1,449,275 because independently compressed semantic chunks lose cross-chunk compression, not because the shipped graph grew. The 1,453,500 ceiling leaves about 0.29% bounded headroom while preserving the 6,056,688-byte raw, 75-request and 500,000-byte chunk ceilings."
+		}
 	},
 	"framescaper": {
 		"ceilings": {
