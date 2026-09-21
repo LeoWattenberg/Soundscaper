@@ -1,6 +1,6 @@
 ---
 title: "Ensimmäinen Soundscaper-työsi"
-description: "Tuo äänitallenne, kuuntele sitä, jaa se, vaimenna se, vie tiedosto ja tallenna projekti."
+description: "Tuo äänitallenne, kuuntele, jaa, vaimenna, vie tiedosto ja tallenna projekti."
 editUrl: false
 sidebar:
   order: 1
@@ -8,18 +8,18 @@ head:
   - tag: script
     attrs:
       type: "application/ld+json"
-    content: "{\"@context\":\"https://schema.org\",\"@type\":\"HowTo\",\"name\":\"Your first Soundscaper project\",\"description\":\"Import a recording, listen, split it, fade it out, export a file and save the project.\",\"tool\":[{\"@type\":\"HowToTool\",\"name\":\"Soundscaper\"}],\"step\":[{\"@type\":\"HowToStep\",\"position\":1,\"name\":\"Open Soundscaper. A new, empty project is ready as soon as the editor loads.\",\"text\":\"Open Soundscaper. A new, empty project is ready as soon as the editor loads.\"},{\"@type\":\"HowToStep\",\"position\":2,\"name\":\"Choose File → Import audio and pick guide-music-loop.wav — a two-second stereo loop. The file lands as a clip on its own track.\",\"text\":\"Choose File → Import audio and pick guide-music-loop.wav — a two-second stereo loop. The file lands as a clip on its own track.\"},{\"@type\":\"HowToStep\",\"position\":3,\"name\":\"Press Play to listen, then Stop.\",\"text\":\"Press Play to listen, then Stop. The playhead travels across the clip and the loop plays once.\"},{\"@type\":\"HowToStep\",\"position\":4,\"name\":\"Press the Split tool button in the toolbar.\",\"text\":\"Press the Split tool button in the toolbar. While the split tool is active, a click on a clip cuts it there instead of selecting.\"},{\"@type\":\"HowToStep\",\"position\":5,\"name\":\"Click the waveform halfway through to put the cursor there.\",\"text\":\"Click the waveform halfway through to put the cursor there.\"},{\"@type\":\"HowToStep\",\"position\":6,\"name\":\"Press the Split tool button in the toolbar.\",\"text\":\"Press the Split tool button in the toolbar. Press it again to go back to the ordinary pointer.\"},{\"@type\":\"HowToStep\",\"position\":7,\"name\":\"The project now shows 2 clips.\",\"text\":\"The project now shows 2 clips. Two clips sit end to end where there was one, each with its own name bar.\"},{\"@type\":\"HowToStep\",\"position\":8,\"name\":\"Choose Select → Select all.\",\"text\":\"Choose Select → Select all. An effect applies to whatever is selected. Select all takes the whole project, both clips included.\"},{\"@type\":\"HowToStep\",\"position\":9,\"name\":\"Choose Effect → Fading → Fade Out. The effect applies to the selection straight away.\",\"text\":\"Choose Effect → Fading → Fade Out. The effect applies to the selection straight away. The waveform tapers to nothing by the end of the second clip.\"},{\"@type\":\"HowToStep\",\"position\":10,\"name\":\"Press Play to listen, then Stop.\",\"text\":\"Press Play to listen, then Stop. The loop dies away instead of stopping hard.\"},{\"@type\":\"HowToStep\",\"position\":11,\"name\":\"Choose File → Export audio, set Format to WAV, and press Export. The file downloads as soon as the render finishes, and its link stays in the dialog.\",\"text\":\"Choose File → Export audio, set Format to WAV, and press Export. The file downloads as soon as the render finishes, and its link stays in the dialog. An export renders what you hear into a file for other programs. It does not change the project.\"},{\"@type\":\"HowToStep\",\"position\":12,\"name\":\"Choose File → Save project. The save indicator in the status bar shows the project is saved.\",\"text\":\"Choose File → Save project. The save indicator in the status bar shows the project is saved. The project — clips, edits, history — lives in the browser’s project library on this computer. Saving keeps it there.\"}]}"
+    content: "{\"@context\":\"https://schema.org\",\"@type\":\"HowTo\",\"name\":\"Your first Soundscaper project\",\"description\":\"Import a recording, listen, split it, fade it out, export a file and save the project.\",\"tool\":[{\"@type\":\"HowToTool\",\"name\":\"Soundscaper\"}],\"step\":[{\"@type\":\"HowToStep\",\"position\":1,\"name\":\"Open Soundscaper. A new, empty project is ready as soon as the editor loads.\",\"text\":\"Open Soundscaper. A new, empty project is ready as soon as the editor loads.\"},{\"@type\":\"HowToStep\",\"position\":2,\"name\":\"Choose File → Import and pick guide-music-loop.wav — a two-second stereo loop. It lands as a clip on its own track.\",\"text\":\"Choose File → Import and pick guide-music-loop.wav — a two-second stereo loop. It lands as a clip on its own track.\"},{\"@type\":\"HowToStep\",\"position\":3,\"name\":\"Press Play to listen, then Stop.\",\"text\":\"Press Play to listen, then Stop. The playhead travels across the clip and the loop plays once.\"},{\"@type\":\"HowToStep\",\"position\":4,\"name\":\"Press the Split tool button in the toolbar.\",\"text\":\"Press the Split tool button in the toolbar. While the split tool is active, a click on a clip cuts it there instead of selecting.\"},{\"@type\":\"HowToStep\",\"position\":5,\"name\":\"Click the waveform halfway through to put the cursor there.\",\"text\":\"Click the waveform halfway through to put the cursor there.\"},{\"@type\":\"HowToStep\",\"position\":6,\"name\":\"Press the Split tool button in the toolbar.\",\"text\":\"Press the Split tool button in the toolbar. Press it again to go back to the ordinary pointer.\"},{\"@type\":\"HowToStep\",\"position\":7,\"name\":\"The project now shows 2 clips.\",\"text\":\"The project now shows 2 clips. Two clips sit end to end where there was one, each with its own name bar.\"},{\"@type\":\"HowToStep\",\"position\":8,\"name\":\"Choose Select → Select all.\",\"text\":\"Choose Select → Select all. An effect applies to whatever is selected. Select all takes the whole project, both clips included.\"},{\"@type\":\"HowToStep\",\"position\":9,\"name\":\"Choose Effect → Fading → Fade Out. The effect applies to the selection straight away.\",\"text\":\"Choose Effect → Fading → Fade Out. The effect applies to the selection straight away. The waveform tapers to nothing by the end of the second clip.\"},{\"@type\":\"HowToStep\",\"position\":10,\"name\":\"Press Play to listen, then Stop.\",\"text\":\"Press Play to listen, then Stop. The loop dies away instead of stopping hard.\"},{\"@type\":\"HowToStep\",\"position\":11,\"name\":\"Choose File → Export audio, set Format to WAV, and press Export. The file downloads as soon as the render finishes, and its link stays in the dialog.\",\"text\":\"Choose File → Export audio, set Format to WAV, and press Export. The file downloads as soon as the render finishes, and its link stays in the dialog. An export renders what you hear into a file for other programs. It does not change the project.\"},{\"@type\":\"HowToStep\",\"position\":12,\"name\":\"Choose File → Save project. The save indicator in the status bar shows the project is saved.\",\"text\":\"Choose File → Save project. The save indicator in the status bar shows the project is saved. The project — clips, edits, history — lives in the browser’s project library on this computer. Saving keeps it there.\"}]}"
 ---
-<!-- docs-ai-provenance: {"factPacketSha256":"7eef059af498c947a93b977ace26ddc71710f57064e7ded909bb9970804cbdff","model":"qwen3.8:latest","modelDigest":"22130167c4c20e20c7b71454612966ca8e8171e9b3cc8ab6ce8aa6cbfec79643","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"7eef059af498c947a93b977ace26ddc71710f57064e7ded909bb9970804cbdff","targetLocale":"fi"} -->
+<!-- docs-ai-provenance: {"factPacketSha256":"0c5a1003c9cdd039885e65d1292b4659577150a0de414c2bda50d0f8c7066447","model":"qwen3.8:latest","modelDigest":"22130167c4c20e20c7b71454612966ca8e8171e9b3cc8ab6ce8aa6cbfec79643","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"0c5a1003c9cdd039885e65d1292b4659577150a0de414c2bda50d0f8c7066447","targetLocale":"fi"} -->
 
 <!-- Generated by `node scripts/docs-reference.mjs`. Do not edit. -->
 
-Tässä oppaassa käydään läpi editorin yksi täysi kierros kahden sekunnin musiikkiloopilla: tiedoston tuominen, sen kuunteleminen, sen muuttaminen efektillä, sen leikkaaminen kahteen osaan, tiedoston renderöinti, jonka voi soittaa missä tahansa, ja projektin tallentaminen, jotta voit palata siihen myöhemmin. Tässä ei tarvita minkäänlaista äänituntemusta; kyse on siitä, missä asiat ovat.
+Tässä oppaassa käydään läpi yhden täyden kerran editorin toiminta kahden sekunnin musiikkiloopilla: tiedoston tuominen, sen kuunteleminen, sen muuttaminen efektillä, sen leikkaaminen kahteen osaan, tiedoston renderöinti, jonka voi soittaa missä tahansa, ja projektin tallentaminen, jotta voit palata siihen myöhemmin. Tässä ei tarvita minkäänlaista äänituntemusta; kyse on siitä, missä asiat sijaitsevat.
 
 :::tip[Mitä tarvitset]
 - Lataa [`guide-music-loop.wav`](https://assets.soundscaper.org/guides/examples/guide-music-loop.wav) — kahden sekunnin stereoloopp.
 
-Kaikki alla olevat vaiheet toimivat näillä tiedostoilla juuri sellaisenaan, joten näkemäsi tulisi vastata oppaan sisältöä. Soundscaper toimii selaimessa; asennusta ei tarvita.
+Kaikki alla olevat vaiheet toimivat näillä tiedostoilla juuri sellaisenaan, joten sen, mitä näet, tulisi vastata oppaan sisältöä. Soundscaper toimii selaimessa; asennusta ei tarvita.
 :::
 
 ## Mitä opit
@@ -31,40 +31,40 @@ Kaikki alla olevat vaiheet toimivat näillä tiedostoilla juuri sellaisenaan, jo
 
 ## Vaiheet
 
-1. Avaa Soundscaper. Uusi, tyhjä projekti on valmis heti, kun editori latautuu.
-2. Valitse **Tiedosto → Tuo ääni** ja valitse `guide-music-loop.wav` — kahden sekunnin stereoloopp. Tiedosto tulee leikeksi omalle raidalleen.
+1. Avaa Soundscaper. Uusi, tyhjä projekti on valmis heti, kun editori on ladattu.
+2. Valitse **Tiedosto → Tuo** ja valitse `guide-music-loop.wav` — kahden sekunnin stereoloopp. Se sijoittuu leikkeenä omalle raidalleen.
 3. Paina **Toista** kuuntelemaan ja sitten **Pysäytä**.
    *Sinun tulisi nähdä:* Toistopäivä liikkuu leikkeen yli ja loop toistetaan kerran.
 4. Paina **Leikkaustyökalu**-painiketta työkalupalkissa. Kun leikkaustyökalu on aktiivinen, napsautus leikkeelle leikkaa sen siinä kohdassa sen sijaan, että se valittaisiin.
 5. Napsauta aaltomuotoa puoliväliin, jotta kursori siirtyy sinne.
 6. Paina **Leikkaustyökalu**-painiketta työkalupalkissa. Paina sitä uudelleen palataksesi tavalliseen osoittimeen.
 7. Projektissa näkyy nyt 2 leikettä.
-   *Sinun tulisi nähdä:* Kaksi leikettä ovat peräkkäin siellä, missä oli yksi, ja kummallakin on oma nimipalkki.
+   *Sinun tulisi nähdä:* Kaksi leikettä sijaitsevat peräkkäin siellä, missä oli yksi, ja kummallakin on oma nimipalkki.
 8. Valitse **Valitse → Valitse kaikki**. Efekti sovelletaan siihen, mikä on valittu. Valitse kaikki ottaa koko projektin, molemmat leikkeet mukaan lukien.
-9. Valitse **Efekti → Fade → Fade Out**. Efekti sovelletaan valintaan heti.
-   *Sinun tulisi nähdä:* Aaltomuoto pienenee mitättömäksi toisen leikkeen lopussa.
+9. Valitse **Efekti → Vaimennus → Fade Out**. Efekti sovelletaan valintaan välittömästi.
+   *Sinun tulisi nähdä:* Aaltomuoto pienenee nollaan toisen leikkeen lopussa.
 10. Paina **Toista** kuuntelemaan ja sitten **Pysäytä**.
-   *Sinun tulisi nähdä:* Loop hiipuu pois sen sijaan, että se pysähtyisi äkillisesti.
-11. Valitse **Tiedosto → Vie ääni**, aseta **Muoto** arvoksi **WAV** ja paina **Vie**. Tiedosto ladataan heti, kun renderöinti on valmis, ja sen linkki pysyy dialogissa. Vienti renderöi sen, mitä kuulet, tiedostoksi muille ohjelmille. Se ei muuta projektia.
-12. Valitse **Tiedosto → Tallenna projekti**. Tallennusindikaattori tilapalkissa osoittaa, että projekti on tallennettu. Projekti — leikkeet, muokkaukset, historia — on selaimen projektikirjastossa tässä tietokoneessa. Tallennus pitää sen siellä.
+   *Sinun tulisi nähdä:* Loop vaimenee sen sijaan, että se pysähtyisi äkillisesti.
+11. Valitse **Tiedosto → Vie ääni**, aseta **Muoto** arvoon **WAV** ja paina **Vie**. Tiedosto ladataan heti, kun renderöinti on valmis, ja sen linkki pysyy dialogissa. Vienti renderöi sen, mitä kuulet, tiedostoksi muille ohjelmille. Se ei muuta projektia.
+12. Valitse **Tiedosto → Tallenna projekti**. Tallennusindikaattori tilapalkissa osoittaa, että projekti on tallennettu. Projekti — leikkeet, muokkaukset, historia — sijaitsee tämän tietokoneen selaimen projektikirjastossa. Tallennus pitää sen siellä.
 
 ## Mihin seuraavaksi
 
-- Kokeile samaa fadea ja leikkausta oman nauhoituksesi kohdalla: [Fade in and fade out](/guides/volume/fade-in-and-fade-out/) ja [Split a clip in two](/guides/editing/split-a-clip-at-the-cursor/). Fade-opas näyttää myös, miten fadea voi tehdä vain alkuun tai loppuun.
+- Kokeile samaa vaimennusta ja leikkausta oman nauhoituksesi kohdalla: [Fade in and fade out](/guides/volume/fade-in-and-fade-out/) ja [Split a clip in two](/guides/editing/split-a-clip-at-the-cursor/). Vaimennusopas näyttää myös, miten vaimennetaan vain alku tai loppu.
 - Vie sitten projektisi johonkin muualle: [Move a project between computers](/guides/projects/move-a-project-between-computers/).
 
 ## Muut oppaat
 
-[Clean up a voice recording](/tutorials/clean-up-a-voice-recording/) — Poista humina otoksesta, leikkaa rumpu pois, tuo se podcastin äänenvoimakkuuteen ja vie MP3.
-[Put music under a voice](/tutorials/put-music-under-a-voice/) — Kerroja kaksi raistaa, alenna toista toisen alle automaattisesti, miksaus ja vie.
+[Clean up a voice recording](/tutorials/clean-up-a-voice-recording/) — Poista humina otoksesta, leikkaa rumpu pois, tuo se podcastin äänenvoimakkuuteen ja vie MP3-tiedosto.
+[Put music under a voice](/tutorials/put-music-under-a-voice/) — Kerroja kaksi raistaa, vaimenna toinen toisen alle automaattisesti, mikseeraa ne ja vie.
 
 ## Viitteet
 
-- [Kaikki tässä käytettyjen efektien parametrit, niiden oletusarvot ja alueet, ovat ääniefektien viitteessä.](/reference/generated/audio-effects/#parameters)
-- [Vientimuodot, niiden kontit ja kanavarajoitukset ovat vientimuotojen viitteessä.](/reference/generated/formats/)
-- [Projektitiedoston päätteet ja labelitiedostomuodot ovat projektien ja labelitiedostojen viitteessä.](/reference/generated/project-files/)
-- [Kaikki valikkokomennot ja niiden näppäimistön lyhenteet ovat komentojen ja lyhenteiden viitteessä.](/reference/generated/commands/).
+- [Kaikki tässä käytettyjen efektien parametrit, niiden oletusarvot ja alueet, löytyvät ääniefektien viitteestä.](/reference/generated/audio-effects/#parameters)
+- [Vientimuodot, niiden kontit ja kanavarajoitukset löytyvät vientimuotojen viitteestä.](/reference/generated/formats/)
+- [Projektitiedoston päätteet ja etikettitiedostomuodot löytyvät projektien ja etikettitiedostojen viitteestä.](/reference/generated/project-files/)
+- [Kaikki valikkokomennot ja niiden näppäimistön lyhenteet löytyvät komentojen ja lyhenteiden viitteestä.](/reference/generated/commands/)
 
 ## Tämän oppaan tietoa
 
-Tämä opas toistetaan, vaihe vaiheelta ja näillä tiedostoilla, jokaisen Soundscaper-rakennuksen kohdalla selaimen testisarjalla (`tests/browser/soundscaper-tutorials.spec.js`). Jos jokin vaihe lakkaa toimimasta, rakennus epäonnistuu, kunnes opas on korjattu, joten mitä luet, on sitä, mitä editori tekee.
+Tämä opas toistetaan vaihe vaiheelta ja näillä tiedostoilla Soundscaperin jokaisen buildin vasten selaimen testisarjalla (`tests/browser/soundscaper-tutorials.spec.js`). Jos jokin vaihe lakkaa toimimasta, build epäonnistuu, kunnes opas on korjattu, joten sen, mitä luet, on se, mitä editori tekee.

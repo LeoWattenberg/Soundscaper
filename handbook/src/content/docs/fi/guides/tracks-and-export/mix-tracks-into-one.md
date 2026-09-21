@@ -1,5 +1,5 @@
 ---
-title: "Sekoita useita kappaleita yhdeksi"
+title: "Sekoituse useita kappaleita yhdeksi"
 description: "Renderöi valitut kappaleet yhdeksi kappaleeksi."
 editUrl: false
 sidebar:
@@ -8,24 +8,24 @@ head:
   - tag: script
     attrs:
       type: "application/ld+json"
-    content: "{\"@context\":\"https://schema.org\",\"@type\":\"HowTo\",\"name\":\"Mix several tracks into one\",\"description\":\"Render the selected tracks down to a single track.\",\"tool\":[{\"@type\":\"HowToTool\",\"name\":\"Soundscaper\"}],\"step\":[{\"@type\":\"HowToStep\",\"position\":1,\"name\":\"Open Soundscaper. A new, empty project is ready as soon as the editor loads.\",\"text\":\"Open Soundscaper. A new, empty project is ready as soon as the editor loads.\"},{\"@type\":\"HowToStep\",\"position\":2,\"name\":\"Choose File → Import audio and pick the first part. The file lands as a clip on its own track.\",\"text\":\"Choose File → Import audio and pick the first part. The file lands as a clip on its own track.\"},{\"@type\":\"HowToStep\",\"position\":3,\"name\":\"Choose File → Import audio and pick the second part. The file lands as a clip on its own track.\",\"text\":\"Choose File → Import audio and pick the second part. The file lands as a clip on its own track.\"},{\"@type\":\"HowToStep\",\"position\":4,\"name\":\"Click the name bar of the first clip, then hold Shift and click the name bar of the second clip, so both are selected.\",\"text\":\"Click the name bar of the first clip, then hold Shift and click the name bar of the second clip, so both are selected. Every track with a selected clip goes into the mix.\"},{\"@type\":\"HowToStep\",\"position\":5,\"name\":\"Choose Tracks → Mix & Render. In the Mix & Render dialog, leave Mix down, Render effects and Replace originals checked, choose Stereo for Mix down to, then press Mix & Render.\",\"text\":\"Choose Tracks → Mix & Render. In the Mix & Render dialog, leave Mix down, Render effects and Replace originals checked, choose Stereo for Mix down to, then press Mix & Render.\"},{\"@type\":\"HowToStep\",\"position\":6,\"name\":\"The project now shows a clip named Mix.\",\"text\":\"The project now shows a clip named Mix. One track holds a clip named Mix; the source tracks are gone.\"}]}"
+    content: "{\"@context\":\"https://schema.org\",\"@type\":\"HowTo\",\"name\":\"Mix several tracks into one\",\"description\":\"Render the selected tracks down to a single track.\",\"tool\":[{\"@type\":\"HowToTool\",\"name\":\"Soundscaper\"}],\"step\":[{\"@type\":\"HowToStep\",\"position\":1,\"name\":\"Open Soundscaper. A new, empty project is ready as soon as the editor loads.\",\"text\":\"Open Soundscaper. A new, empty project is ready as soon as the editor loads.\"},{\"@type\":\"HowToStep\",\"position\":2,\"name\":\"Choose File → Import and pick the first part. It lands as a clip on its own track.\",\"text\":\"Choose File → Import and pick the first part. It lands as a clip on its own track.\"},{\"@type\":\"HowToStep\",\"position\":3,\"name\":\"Choose File → Import and pick the second part. It lands as a clip on its own track.\",\"text\":\"Choose File → Import and pick the second part. It lands as a clip on its own track.\"},{\"@type\":\"HowToStep\",\"position\":4,\"name\":\"Click the name bar of the first clip, then hold Shift and click the name bar of the second clip, so both are selected.\",\"text\":\"Click the name bar of the first clip, then hold Shift and click the name bar of the second clip, so both are selected. Every track with a selected clip goes into the mix.\"},{\"@type\":\"HowToStep\",\"position\":5,\"name\":\"Choose Tracks → Mix & Render. In the Mix & Render dialog, leave Mix down, Render effects and Replace originals checked, choose Stereo for Mix down to, then press Mix & Render.\",\"text\":\"Choose Tracks → Mix & Render. In the Mix & Render dialog, leave Mix down, Render effects and Replace originals checked, choose Stereo for Mix down to, then press Mix & Render.\"},{\"@type\":\"HowToStep\",\"position\":6,\"name\":\"The project now shows a clip named Mix.\",\"text\":\"The project now shows a clip named Mix. One track holds a clip named Mix; the source tracks are gone.\"}]}"
 ---
-<!-- docs-ai-provenance: {"factPacketSha256":"a2efb9d82744df50703da530f05fd07938a525026e90a778c97fb783e8fb88c8","model":"qwen3.8:latest","modelDigest":"22130167c4c20e20c7b71454612966ca8e8171e9b3cc8ab6ce8aa6cbfec79643","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"a2efb9d82744df50703da530f05fd07938a525026e90a778c97fb783e8fb88c8","targetLocale":"fi"} -->
+<!-- docs-ai-provenance: {"factPacketSha256":"e3e165f69376430cd8ca49fc9f23263e3de5bf9c4af97309624c2faaba94193b","model":"qwen3.8:latest","modelDigest":"22130167c4c20e20c7b71454612966ca8e8171e9b3cc8ab6ce8aa6cbfec79643","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"e3e165f69376430cd8ca49fc9f23263e3de5bf9c4af97309624c2faaba94193b","targetLocale":"fi"} -->
 
 <!-- Generated by `node scripts/docs-reference.mjs`. Do not edit. -->
 
-Kun raidat on tasapainotettu, niiden sekoittaminen yhdeksi tekee projektista kevyemmän käsiteltäväksi ja antaa sinulle yhden leikkauksen, jonka voit viedä tai siirtää muualle. Sekoitus käyttää valittujen raidojen voimakkuutta, panoraamaa, automaatiota ja efekti. Mykistys ja soolo ohitetaan valituille radoille tämän operaation aikana, ja masterkäsittely pysyy aktiivisena.
+Kun raidat on tasapainotettu, niiden sekoittaminen yhdeksi tekee projektista kevyemmän käsiteltäväksi ja antaa sinulle yhden leikkauksen, jonka voit viedä tai siirtää muualle. Sekoitus käyttää valittujen raidojen voimakkuutta, panoraamaa, automaatiota ja efekti. Mykistys ja soolo jätetään huomiotta valituille radoille tämän operaation aikana, ja masterkäsittely pysyy aktiivisena.
 
-:::note[Tuleeko Audacitysta?]
-Tämä on Audacityn **Tracks → Mix → Mix and Render**. Nimet alla ovat Soundscaperin omia, ja ne poikkeavat joskus.
+:::note[Tuletko Audacitysta?]
+Tämä on Audacityn **Tracks → Mix → Mix and Render**. Alla olevat nimet ovat Soundscaperin omia, ja ne poikkeavat joskus.
 :::
 
 ## Vaiheet
 
 1. Avaa Soundscaper. Uusi, tyhjä projekti on valmis heti, kun editori latautuu.
-2. Valitse **File → Import audio** ja valitse ensimmäinen osa. Tiedosto tulee leikkaukseksi omalle radalleen.
-3. Valitse **File → Import audio** ja valitse toinen osa. Tiedosto tulee leikkaukseksi omalle radalleen.
-4. Napsauta ensimmäisen leikkauksen nimipalkkia, pidä Shift-näppäintä pohjassa ja napsauta toisen leikkauksen nimipalkkia, jotta molemmat valitaan. Jokainen raita, jolla on valittu leikkaus, menee sekoitukseen.
+2. Valitse **File → Import** ja valitse ensimmäinen osa. Se sijoittuu leikkaukseksi omalle radalleen.
+3. Valitse **File → Import** ja valitse toinen osa. Se sijoittuu leikkaukseksi omalle radalleen.
+4. Napsauta ensimmäisen leikkauksen nimipalkkia, pidä Shift-näppäintä pohjassa ja napsauta toisen leikkauksen nimipalkkia, jotta molemmat valitaan. Jokainen raita, jolla on valittu leikkaus, otetaan mukaan sekoitukseen.
 5. Valitse **Tracks → Mix & Render**. **Mix & Render** -ikkunassa jätä **Mix down**, **Render effects** ja **Replace originals** valituksi, valitse **Stereo** kohdassa **Mix down to** ja paina **Mix & Render**.
 6. Projektissa näkyy nyt leikkaus nimeltä **Mix**.
    *Sinun tulisi nähdä:* Yhdellä radalla on leikkaus nimeltä Mix; lähtöradat ovat poissa.
@@ -33,23 +33,23 @@ Tämä on Audacityn **Tracks → Mix → Mix and Render**. Nimet alla ovat Sound
 ## Vinkkejä
 
 - Valitse **Mono**, **Stereo** tai projektin asetettu monikanavainen asettelu kohdassa **Mix down to** ennen renderöintiä.
-- **Edit → Undo** palauttaa alkuperäiset radat, jos tarvitset tasapainoa muuttaa.
-- Et tarvitse sekoitusta viedäksesi. **File → Export audio** renderöi koko projektin itsenäisesti.
+- **Edit → Undo** palauttaa alkuperäiset radat, jos sinun on muutettava tasapainoa.
+- Et tarvitse sekoitusta vientiin. **File → Export audio** renderöi koko projektin itsenäisesti.
 
 ## Liittyvät ohjeet
 
-Lisää [tracks and export](/guides/tracks-and-export/) -ohjeita:
+Lisää [raidat ja vienti](/guides/tracks-and-export/) -ohjeita:
 
-- [Split a stereo track into two mono tracks](/guides/tracks-and-export/split-stereo-into-mono-tracks/) — Erota vasen ja oikea kanava, jotta kumpaa voi muokata erikseen.
-- [Generate a test tone](/guides/tracks-and-export/generate-a-test-tone/) — Luo siniaalto asetetulla taajuudella ja pituudella tyhjästä.
-- [Export an MP3](/guides/tracks-and-export/export-an-mp3/) — Renderöi projekti MP3-tiedostoksi jakamista tai julkaisemista varten.
-- [Export a WAV](/guides/tracks-and-export/export-a-wav/) — Renderöi projekti pakkaamattomaksi WAV-tiedostoksi.
-- [Mute and solo tracks](/guides/tracks-and-export/mute-and-solo-tracks/) — Mykistä raita tai kuuntele yhtä raistaa erikseen, kun työskentelet sekoituksen parissa.
-- [Add an empty track](/guides/tracks-and-export/add-an-empty-track/) — Luo uusi raita, johon voit nauhoittaa tai liittää.
-- [Mute every track at once](/guides/tracks-and-export/mute-every-track-at-once/) — Mykistä koko projekti yhdellä askeleella ja palauta se sitten.
-- [Mix tracks into a new track and keep the originals](/guides/tracks-and-export/mix-tracks-into-a-new-track/) — Renderöi useiden raidojen sekoitus uuteen raitaan, kun lähteet pysyvät projektissa.
-- [Balance tracks in the mixer](/guides/tracks-and-export/balance-tracks-in-the-mixer/) — Avaa miksauspuoli, jossa on kanavakaista per raita, ja aseta tasot ja panoraamat vierekkäin.
+- [Jaa stereoraita kahteen monoraitaan](/guides/tracks-and-export/split-stereo-into-mono-tracks/) — Erota vasen ja oikea kanava, jotta kumpaa voi muokata itsenäisesti.
+- [Luo testisävy](/guides/tracks-and-export/generate-a-test-tone/) — Luo siniaalto asetetulla taajuudella ja pituudella tyhjästä.
+- [Vie MP3](/guides/tracks-and-export/export-an-mp3/) — Renderöi projekti MP3-tiedostoksi jakamista tai julkaisemista varten.
+- [Vie WAV](/guides/tracks-and-export/export-a-wav/) — Renderöi projekti pakkaamattomaksi WAV-tiedostoksi.
+- [Mykistä ja soolota raidat](/guides/tracks-and-export/mute-and-solo-tracks/) — Mykistä raita tai kuuntele yhtä raitaa itsenäisesti, kun työskentelet sekoituksen parissa.
+- [Lisää tyhjä raita](/guides/tracks-and-export/add-an-empty-track/) — Luo uusi raita nauhoitusta varten tai liimattavaksi.
+- [Mykistä kaikki radat kerralla](/guides/tracks-and-export/mute-every-track-at-once/) — Mykistä koko projekti yhdellä askeleella ja palauta se sitten.
+- [Sekoita raidat uuteen raitaan ja säilytä alkuperäiset](/guides/tracks-and-export/mix-tracks-into-a-new-track/) — Renderöi useiden raidojen sekoitus uuteen raitaan, kun lähteet pysyvät projektissa.
+- [Tasapainota raidat mikserissä](/guides/tracks-and-export/balance-tracks-in-the-mixer/) — Avaa miksauskonsoli, jossa on kanavakaista per raita, ja aseta tasot ja panoraamat vierekkäin.
 
 ## Tämän ohjeen tietoa
 
-Tämän sivun menettely — jokainen valikkotavara, ikkuna, kenttä ja painike sekä sen tuottama tulos — toistetaan Soundscaperin jokaisessa buildissa selaimen testisarjalla (`tests/browser/soundscaper-guides.spec.js`). Jos jokin ei enää vastaa editoria, build epäonnistuu, kunnes ohje on korjattu. Ehdotetut arvot ovat lähtökohtia, jotka editori on todistettu hyväksyvän; sopivatko ne nauhoituksellesi, on korvillesi päätettävä.
+Tämän sivun menettely — jokainen valikkotavara, ikkuna, kenttä ja painike sekä sen tuottama tulos — toistetaan Soundscaperin jokaisessa buildissa selaimen testisarjalla (`tests/browser/soundscaper-guides.spec.js`). Jos jokin ei enää vastaa editoria, build epäonnistuu, kunnes ohje on korjattu. Ehdotetut arvot ovat lähtökohtia, jotka editori on todistettu hyväksyvän; sopivatko ne nauhoituksellesi, on sinun korvien päätettävä.
