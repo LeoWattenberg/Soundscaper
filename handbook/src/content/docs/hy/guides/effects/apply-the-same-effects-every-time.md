@@ -1,6 +1,6 @@
 ---
 title: "Կիրառեք նույն ազդեցությունների շղթան ամեն անգամ"
-description: "Պահպանեք ազդեցությունների հաջորդականությունը որպես մակրո և կատարեք այն ցանկացած ընտրության վրա մեկ հրամանով։"
+description: "Պահպանեք ազդեցությունների հաջորդականությունը որպես մակրո և կիրառեք այն ցանկացած ընտրության վրա մեկ հրամանով։"
 editUrl: false
 sidebar:
   order: 13
@@ -8,49 +8,49 @@ head:
   - tag: script
     attrs:
       type: "application/ld+json"
-    content: "{\"@context\":\"https://schema.org\",\"@type\":\"HowTo\",\"name\":\"Apply the same chain of effects every time\",\"description\":\"Save a sequence of effects as a macro and run it on any selection with one command.\",\"tool\":[{\"@type\":\"HowToTool\",\"name\":\"Soundscaper\"}],\"step\":[{\"@type\":\"HowToStep\",\"position\":1,\"name\":\"Open Soundscaper. A new, empty project is ready as soon as the editor loads.\",\"text\":\"Open Soundscaper. A new, empty project is ready as soon as the editor loads.\"},{\"@type\":\"HowToStep\",\"position\":2,\"name\":\"Choose File → Import audio and pick a recording to process. The file lands as a clip on its own track.\",\"text\":\"Choose File → Import audio and pick a recording to process. The file lands as a clip on its own track.\"},{\"@type\":\"HowToStep\",\"position\":3,\"name\":\"Choose Select → Select all.\",\"text\":\"Choose Select → Select all. A macro runs on the selection, just as each effect would on its own.\"},{\"@type\":\"HowToStep\",\"position\":4,\"name\":\"Choose Tools → Macro manager and press New macro. Type Episode finish into Macro name. Press Add effect and choose Normalize and Fade Out, pressing Add effect again for each one. Press Run macro; the dialog reports that the macro was applied. Press Close.\",\"text\":\"Choose Tools → Macro manager and press New macro. Type Episode finish into Macro name. Press Add effect and choose Normalize and Fade Out, pressing Add effect again for each one. Press Run macro; the dialog reports that the macro was applied. Press Close. Each step keeps its default settings here; press a step’s Select effect button to change them before you run. The recording is normalized and fades to silence at the end.\"},{\"@type\":\"HowToStep\",\"position\":5,\"name\":\"Press Play to listen, then Stop.\",\"text\":\"Press Play to listen, then Stop.\"}]}"
+    content: "{\"@context\":\"https://schema.org\",\"@type\":\"HowTo\",\"name\":\"Apply the same chain of effects every time\",\"description\":\"Save a sequence of effects as a macro and run it on any selection with one command.\",\"tool\":[{\"@type\":\"HowToTool\",\"name\":\"Soundscaper\"}],\"step\":[{\"@type\":\"HowToStep\",\"position\":1,\"name\":\"Open Soundscaper. A new, empty project is ready as soon as the editor loads.\",\"text\":\"Open Soundscaper. A new, empty project is ready as soon as the editor loads.\"},{\"@type\":\"HowToStep\",\"position\":2,\"name\":\"Choose File → Import and pick a recording to process. It lands as a clip on its own track.\",\"text\":\"Choose File → Import and pick a recording to process. It lands as a clip on its own track.\"},{\"@type\":\"HowToStep\",\"position\":3,\"name\":\"Choose Select → Select all.\",\"text\":\"Choose Select → Select all. A macro runs on the selection, just as each effect would on its own.\"},{\"@type\":\"HowToStep\",\"position\":4,\"name\":\"Choose Tools → Macro manager and press New macro. Type Episode finish into Macro name. Press Add effect and choose Normalize and Fade Out, pressing Add effect again for each one. Press Run macro; the dialog reports that the macro was applied. Press Close.\",\"text\":\"Choose Tools → Macro manager and press New macro. Type Episode finish into Macro name. Press Add effect and choose Normalize and Fade Out, pressing Add effect again for each one. Press Run macro; the dialog reports that the macro was applied. Press Close. Each step keeps its default settings here; press a step’s Select effect button to change them before you run. The recording is normalized and fades to silence at the end.\"},{\"@type\":\"HowToStep\",\"position\":5,\"name\":\"Press Play to listen, then Stop.\",\"text\":\"Press Play to listen, then Stop.\"}]}"
 ---
-<!-- docs-ai-provenance: {"factPacketSha256":"fe27c3ca761a5f223dc61da95d50d67d87079e31b9824488ca90a19d367c70f6","model":"qwen3.8:latest","modelDigest":"22130167c4c20e20c7b71454612966ca8e8171e9b3cc8ab6ce8aa6cbfec79643","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"fe27c3ca761a5f223dc61da95d50d67d87079e31b9824488ca90a19d367c70f6","targetLocale":"hy"} -->
+<!-- docs-ai-provenance: {"factPacketSha256":"a5d3e1397a5d7af65a4e17a19753b03303693a33220b67c809efc56f5741620e","model":"qwen3.8:latest","modelDigest":"22130167c4c20e20c7b71454612966ca8e8171e9b3cc8ab6ce8aa6cbfec79643","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"a5d3e1397a5d7af65a4e17a19753b03303693a33220b67c809efc56f5741620e","targetLocale":"hy"} -->
 
 <!-- Generated by `node scripts/docs-reference.mjs`. Do not edit. -->
 
-Ամեն մի էպիզոդը ստանում է նույն մշակումը՝ նորմալիզացիա և ավարտի մարում։ Մակրոն մեկ անգամ գրանցում է այդ հաջորդականությունը և կատարում այն, երբ դուք խնդրում եք, ձեր ընտրած կարգավորումներով, այնպես որ տասը քայլանոց գործընթացը դառնում է մեկ հրաման։ Audacity 3-ը ունեցել է Մակրոների կառավարիչ հենց այս նպատակի համար, բայց Audacity 4-ը չի վերադարձրել մակրոները։
+Ամեն մի էպիզոդ ստանում է նույն մշակումը՝ նորմալիզացիա և վերջում մարում։ Մակրոն մեկ անգամ գրանցում է այդ հաջորդականությունը և կատարում այն, երբ դուք խնդրում եք, ձեր ընտրած կարգավորումներով, այնպես որ տասն քայլանոց գործընթացը դառնում է մեկ հրաման։ Audacity 3-ը ունեցել է Մակրոների կառավարիչ հենց այս նպատակով, իսկ Audacity 4-ը չի վերադարձրել մակրոները։
 
-:::note[Եկել եք Audacity-ից]
-Սա Audacity-ի **Գործիքներ → Մակրոներ → Մակրոների կառավարում և Մակրոի կիրառում (Audacity 3; Audacity 4-ը չունի մակրոներ)** է։ Ցածքում նշված անունները Soundscaper-ի սեփականն են, որոնք երբեմն տարբերվում են։
+:::note[Եթե գալիս եք Audacity-ից]
+Սա Audacity-ի **Գործիքներ → Մակրոներ → Մակրոների կառավարում և մակրոի կիրառում (Audacity 3; Audacity 4-ը մակրոներ չունի)** ֆունկցիան է։ Ցածքում նշված անունները Soundscaper-ի սեփականն են, որոնք երբեմն տարբերվում են։
 :::
 
 ## Քայլեր
 
-1. Բացեք Soundscaper-ը։ Նոր, դատարկ նախագիծը պատրաստ է, հենց երբ խմբագիրը բեռնվում է։
-2. Ընտրեք **Ֆայլ → Իմպորտավորել ձայն** և ընտրեք մշակման համար գրանցում։ Ֆայլը տեղակայվում է որպես կլիպ իր անկախ հոսքում։
-3. Ընտրեք **Ընտրել → Ընտրել բոլորը**։ Մակրոն կատարվում է ընտրված մասի վրա, ինչպես յուրաքանչյուր էֆեկտը կկատարվեր ինքնուրույն։
-4. Ընտրեք **Գործիքներ → Մակրոների կառավարիչ** և սեղմեք **Նոր մակրո**։ Գրեք `Episode finish` **Մակրոի անուն** դաշտում։ Սեղմեք **Ավելացնել էֆեկտ** և ընտրեք **Նորմալիզացիա** և **Մարում**, յուրաքանչյուրի համար նորից սեղմելով **Ավելացնել էֆեկտ**։ Սեղմեք **Կատարել մակրոն**։ Դիալոգային պատուհանը հաղորդում է, որ մակրոն կիրառվել է։ Սեղմեք **Փակել**։ Այստեղ յուրաքանչյուր քայլը պահպանում է իր լռելյայն կարգավորումները. սեղմեք քայլի **Ընտրել էֆեկտ** կոճակը՝ փոխելու դրանք, մինչև կատարումը։
-   *Դուք պետք է տեսնեք.* Գրանցումը նորմալիզացված է և մարվում է դեպի լռություն ավարտին։
-5. Սեղմեք **Խաղ**՝ լսելու համար, ապա **Կանգ**։
+1. Բացեք Soundscaper-ը։ Նոր, դատարկ նախագիծը պատրաստ է, ոչ ոքի լիցքավորվելուն պես։
+2. Ընտրեք **Ֆայլ → Իմպորտ** և ընտրեք մշակման համար գրառում։ Այն տեղակայվում է որպես կլիպ իր առանձին հոսքում։
+3. Ընտրեք **Ընտրել → Ընտրել բոլորը**։ Մակրոն կատարվում է ընտրված մասի վրա, հենց այնպես, ինչպես յուրաքանչյուր էֆեկտը կկատարվեր ինքնուրույն։
+4. Ընտրեք **Գործիքներ → Մակրոների կառավարիչ** և սեղմեք **Նոր մակրո**։ Գրեք `Episode finish` **Մակրոի անուն** դաշտում։ Սեղմեք **Ավելացնել էֆեկտ** և ընտրեք **Նորմալիզացիա** և **Մարում**, յուրաքանչյուրի համար նորից սեղմելով **Ավելացնել էֆեկտ**։ Սեղմեք **Կատարել մակրոն**։ Դիալոգային պատուհանը հաղորդում է, որ մակրոն կիրառվել է։ Սեղմեք **Փակել**։ Այստեղ յուրաքանչյուր քայլը պահպանում է իր լռելյայն կարգավորումները։ Սեղմեք քայլի **Ընտրել էֆեկտ** կոճակը՝ փոխելու դրանք կատարումից առաջ։
+   *Դուք պետք է տեսնեք.* Գրառումը նորմալիզացված է և վերջում մարում է դեպի լռություն։
+5. Սեղմեք **Խաղացնել**՝ լսելու համար, ապա **Կանգնեցնել**։
 
 ## Խորհուրդներ
 
-- Մակրոն պահպանվում է խմբագրի հետ միասին, ուստի այն սպասում է **Գործիքներ → Մակրոների կառավարիչ**-ի տակ հաջորդ գրանցման համար։
-- **Էքսպորտավորել մակրոն** գրում է շղթան որպես Audacity մակրո տեքստային ֆայլ, իսկ **Իմպորտավորել մակրոն** կարդում է մեկը, այնպես որ գործընթացը կարող է փոխանցվել երկու ծրագրերի միջև։
+- Մակրոն պահպանվում է խմբագրիչի հետ, ուստի այն սպասում է **Գործիքներ → Մակրոների կառավարիչ**-ի տակ հաջորդ գրառման համար։
+- **Էքսպորտ մակրո** գրում է շղթան որպես Audacity մակրո տեքստային ֆայլ, իսկ **Իմպորտ մակրո** կարդում է մեկը, այնպես որ գործընթացը կարող է փոխանցվել երկու ծրագրերի միջև։
 
 ## Կապված ուղեցույցներ
 
-Ավելի շատ [էֆեկտների](/guides/effects/) ուղեցույցներ.
+Ավելի շատ [էֆեկտներ](/guides/effects/) ուղեցույցներ.
 
-- [Փոխել տեմպը՝ առանց տոնայնության փոփոխմանի](/guides/effects/change-tempo-without-changing-pitch/) — Արագացրեք կամ դանդաղեցրեք գրանցումը, միևնույն ժամանակ բոլոր նոտաները պահելով նույն տոնայնությամբ։
-- [Փոխել տոնայնությունը՝ առանց տեմպի փոփոխմանի](/guides/effects/change-pitch-without-changing-tempo/) — Տեղափոխեք գրանցումը վերև կամ ներքև թվով կիսատոնով և պահեք դրա ժամանակացույցը։
+- [Արագության փոփոխություն առանց բարձրության փոփոխության](/guides/effects/change-tempo-without-changing-pitch/) — Արագացրեք կամ դանդաղեցրեք գրառումը, միևնույն ժամանակ բոլոր նոտաները պահելով նույն բարձրության վրա։
+- [Բարձրության փոփոխություն առանց արագության փոփոխության](/guides/effects/change-pitch-without-changing-tempo/) — Տեղափոխեք գրառումը վեր կամ ցած որոշակի քանակությամբ կիսատոնով և պահեք դրա ժամանակացույցը։
 - [Ավելացնել էխո](/guides/effects/add-echo/) — Կրկնեք ձայնը ֆիքսված միջակայքով, ավելի թույլ յուրաքանչյուր անգամ։
-- [Տեղադրել գրանցումը սենյակում](/guides/effects/add-reverb/) — Ավելացրեք ռեվերբ, որպեսզի չոր գրանցումը ձայն տա, ինչպես իրական տարածքում կատարվածը։
-- [Ավելացնել բաս և տրեբլ](/guides/effects/boost-bass-and-treble/) — Տաքացրեք կամ պայծառացրեք գրանցումը երկու պարզ ձայնային կարգավորիչներով։
-- [Փոխել արագությունը՝ ինչպես ռոլիկային մեքենան](/guides/effects/change-speed-like-a-tape/) — Արագացրեք կամ դանդաղեցրեք գրանցումը՝ տոնայնությունը հետևելով, ինչպես անում է ռոլիկը։
-- [Ցանցել ձայնը դեպի դրոն](/guides/effects/stretch-a-sound-into-a-drone/) — Չափազանց դանդաղեցրեք կարճ ձայնը Paulstretch-ի միջոցով՝ ստեղծելու շրջակա միջավայրի տեքստուրաներ։
-- [Ավելացնել աղավաղում](/guides/effects/add-distortion/) — Գերբեռնեք ձայնը՝ թեթև տաքությունից մինչև ամբողջական ֆազ։
+- [Գրառումը տեղադրել սենյակում](/guides/effects/add-reverb/) — Ավելացրեք ռեվերբ, որպեսզի չոր գրառումը ձայն տա, ինչպես իրական տարածքում կատարվածը։
+- [Ավելացնել բաս և տրեբլ](/guides/effects/boost-bass-and-treble/) — Տաքացրեք կամ պայծառացրեք գրառումը երկու պարզ ձայնային կարգավորիչներով։
+- [Արագությունը փոխել ինչպես ռոլիկային մեքենայում](/guides/effects/change-speed-like-a-tape/) — Արագացրեք կամ դանդաղեցրեք գրառումը բարձրության հետևողությամբ, ինչպես ռոլիկը անում է։
+- [Ձայնը ձգել դեպի դրոն](/guides/effects/stretch-a-sound-into-a-drone/) — Չափազանց դանդաղեցրեք կարճ ձայնը Paulstretch-ի միջոցով՝ ստեղծելու շրջակա միջավայրի տեքստուրաներ։
+- [Ավելացնել աղավաղում](/guides/effects/add-distortion/) — Օվերդրայվեք ձայնը՝ թեթև տաքությունից մինչև ամբողջական ֆազ։
 - [Ավելացնել վաու-վաու](/guides/effects/add-a-wah-wah/) — Ուղղեք ռեզոնանսային ֆիլտրը ձայնի վրայով՝ դասական ֆանկ էֆեկտի համար։
-- [Օգտագործել Nyquist խմբագիր](/guides/effects/use-a-nyquist-plugin/) — Կատարեք փաթեթավորված Nyquist էֆեկտներից մեկը՝ այստեղ՝ տրեմոլո։
-- [Ավելացնել ռեալ-տայմ էֆեկտ հոսքին](/guides/effects/add-a-realtime-effect-to-a-track/) — Տեղադրեք էֆեկտ հոսքին, որպեսզի այն աշխատի խաղի ընթացքում՝ առանց ռենդերինգի։
+- [Օգտագործել Nyquist խմբագիր](/guides/effects/use-a-nyquist-plugin/) — Կատարեք փաթեթավորված Nyquist էֆեկտներից մեկը՝ այստեղ՝ կարգավորվող մարում։
+- [Ավելացնել ռեալ ժամանակի էֆեկտ հոսքին](/guides/effects/add-a-realtime-effect-to-a-track/) — Թեքեք էֆեկտը հոսքին, որպեսզի այն կատարվի խաղացման ընթացքում՝ առանց ռենդերինգի։
 - [Ավելացնել ֆեյզեր](/guides/effects/add-a-phaser/) — Ուղղեք փոսերի հավաքածուն ձայնի միջով՝ դասական պտտվող կիթառային և կլավիշային էֆեկտի համար։
-- [Սահել մեկ տեմպից մյուսին](/guides/effects/slide-from-one-tempo-to-another/) — Արագացրեք կամ դանդաղեցրեք հատվածը աստիճանաբար ըստ երկարության՝ տոնայնության սահմանափակումով կամ առանց դրա։
+- [Սահել մեկ արագությունից մյուսը](/guides/effects/slide-from-one-tempo-to-another/) — Արագացրեք կամ դանդաղեցրեք հատվածը աստիճանաբար ըստ երկարության, բարձրության սահմանափակումով կամ առանց դրա։
 
 ## Հղում
 
@@ -58,4 +58,4 @@ head:
 
 ## Այս ուղեցույցի մասին
 
-Այս էջի գործընթացը՝ ամեն մի մենյուի մուտքը, դիալոգային պատուհանը, դաշտերը և կոճակները, ինչպես նաև դրանց արդյունքը՝ կրկնօրինակվում է Soundscaper-ի յուրաքանչյուր կառուցման դեմ՝ բրաուզերային հավաքածուի (`tests/browser/soundscaper-guides.spec.js`) կողմից։ Եթե դրանցից որևէ մեկը դադարում է համապատասխանել խմբագրին, կառուցումը ձախողվում է, մինչև ուղեցույցը ուղղվի։ Պատրաստված արժեքները սկզբնակետեր են, որոնք խմբագիրը ապացուցված է ընդունում. արդյոք դրանք հարմար են ձեր գրանցման համար, որոշումը ձեր ականների համար է։
+Այս էջի վրա նկարագրված գործընթացը՝ ամեն մի մենյուի մուտքը, դիալոգային պատուհանը, դաշտերը և կոճակները, ինչպես նաև դրանց արդյունքը, կրկնօրինակվում է Soundscaper-ի յուրաքանչյուր կառուցման դեմ՝ բրաուզերային հավաքածուի (`tests/browser/soundscaper-guides.spec.js`) կողմից։ Եթե դրանցից որևէ մեկը դադարի համապատասխանել խմբագրիչին, կառուցումը ձախողվում է, մինչև ուղեցույցը ուղղվի։ Պատրաստված արժեքները սկզբնակետեր են, որոնք խմբագրիչը ապացուցված ընդունում է. արդյոք դրանք հարմար են ձեր գրառման համար, որոշումը ձեր ականների համար է։

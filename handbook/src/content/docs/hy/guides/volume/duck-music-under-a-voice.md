@@ -1,6 +1,6 @@
 ---
-title: "Ձայնի տակ երաժշտություն"
-description: "Ինքնաշխատ նվազեցրեք երաժշտական ֆոնը, երբ ձայնային հոսքը խոսում է։"
+title: "Խոսքի տակ երաժշտություն"
+description: "Ինքնաշխատ կրճատեք երաժշտական հիմքը, երբ ձայնային հոսքը խոսում է։"
 editUrl: false
 sidebar:
   order: 7
@@ -8,49 +8,49 @@ head:
   - tag: script
     attrs:
       type: "application/ld+json"
-    content: "{\"@context\":\"https://schema.org\",\"@type\":\"HowTo\",\"name\":\"Duck music under a voice\",\"description\":\"Turn a music bed down automatically whenever a voice track is speaking.\",\"tool\":[{\"@type\":\"HowToTool\",\"name\":\"Soundscaper\"}],\"step\":[{\"@type\":\"HowToStep\",\"position\":1,\"name\":\"Open Soundscaper. A new, empty project is ready as soon as the editor loads.\",\"text\":\"Open Soundscaper. A new, empty project is ready as soon as the editor loads.\"},{\"@type\":\"HowToStep\",\"position\":2,\"name\":\"Choose File → Import audio and pick the music. The file lands as a clip on its own track.\",\"text\":\"Choose File → Import audio and pick the music. The file lands as a clip on its own track.\"},{\"@type\":\"HowToStep\",\"position\":3,\"name\":\"Choose File → Import audio and pick the voice. The file lands as a clip on its own track.\",\"text\":\"Choose File → Import audio and pick the voice. The file lands as a clip on its own track.\"},{\"@type\":\"HowToStep\",\"position\":4,\"name\":\"Click the name bar of the music clip to select it.\",\"text\":\"Click the name bar of the music clip to select it. The clip you select is the one that gets ducked — the music, not the voice.\"},{\"@type\":\"HowToStep\",\"position\":5,\"name\":\"Choose Effect → Volume and compression → Auto Duck. In the Auto Duck dialog, choose the voice track for Control track and set Duck amount to -12, then press Apply to selection.\",\"text\":\"Choose Effect → Volume and compression → Auto Duck. In the Auto Duck dialog, choose the voice track for Control track and set Duck amount to -12, then press Apply to selection. The control track is the one that triggers the ducking. Twelve decibels down is enough for speech to sit clearly on top.\"},{\"@type\":\"HowToStep\",\"position\":6,\"name\":\"Press Play to listen, then Stop.\",\"text\":\"Press Play to listen, then Stop. The music drops while the other track plays and recovers where it is quiet.\"}]}"
+    content: "{\"@context\":\"https://schema.org\",\"@type\":\"HowTo\",\"name\":\"Duck music under a voice\",\"description\":\"Turn a music bed down automatically whenever a voice track is speaking.\",\"tool\":[{\"@type\":\"HowToTool\",\"name\":\"Soundscaper\"}],\"step\":[{\"@type\":\"HowToStep\",\"position\":1,\"name\":\"Open Soundscaper. A new, empty project is ready as soon as the editor loads.\",\"text\":\"Open Soundscaper. A new, empty project is ready as soon as the editor loads.\"},{\"@type\":\"HowToStep\",\"position\":2,\"name\":\"Choose File → Import and pick the music. It lands as a clip on its own track.\",\"text\":\"Choose File → Import and pick the music. It lands as a clip on its own track.\"},{\"@type\":\"HowToStep\",\"position\":3,\"name\":\"Choose File → Import and pick the voice. It lands as a clip on its own track.\",\"text\":\"Choose File → Import and pick the voice. It lands as a clip on its own track.\"},{\"@type\":\"HowToStep\",\"position\":4,\"name\":\"Click the name bar of the music clip to select it.\",\"text\":\"Click the name bar of the music clip to select it. The clip you select is the one that gets ducked — the music, not the voice.\"},{\"@type\":\"HowToStep\",\"position\":5,\"name\":\"Choose Effect → Volume and compression → Auto Duck. In the Auto Duck dialog, choose the voice track for Control track and set Duck amount to -12, then press Apply to selection.\",\"text\":\"Choose Effect → Volume and compression → Auto Duck. In the Auto Duck dialog, choose the voice track for Control track and set Duck amount to -12, then press Apply to selection. The control track is the one that triggers the ducking. Twelve decibels down is enough for speech to sit clearly on top.\"},{\"@type\":\"HowToStep\",\"position\":6,\"name\":\"Press Play to listen, then Stop.\",\"text\":\"Press Play to listen, then Stop. The music drops while the other track plays and recovers where it is quiet.\"}]}"
 ---
-<!-- docs-ai-provenance: {"factPacketSha256":"29eeeac8471c6886f72ec6f256f4acc11b452190de41307593f4a6a9f07893c5","model":"qwen3.8:latest","modelDigest":"22130167c4c20e20c7b71454612966ca8e8171e9b3cc8ab6ce8aa6cbfec79643","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"29eeeac8471c6886f72ec6f256f4acc11b452190de41307593f4a6a9f07893c5","targetLocale":"hy"} -->
+<!-- docs-ai-provenance: {"factPacketSha256":"313de1012af9c28f0b75a03718401297acb22bdfb48e03bde9f0c5daf2dc8299","model":"qwen3.8:latest","modelDigest":"22130167c4c20e20c7b71454612966ca8e8171e9b3cc8ab6ce8aa6cbfec79643","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"313de1012af9c28f0b75a03718401297acb22bdfb48e03bde9f0c5daf2dc8299","targetLocale":"hy"} -->
 
 <!-- Generated by `node scripts/docs-reference.mjs`. Do not edit. -->
 
-Պոդկաստները և տեսանյութերը ձայնի ընթացքում երաժշտությունը շարունակում են խաղացնել՝ նվազեցնելով այն ամեն անգամ, երբ որևէ մեկը խոսում է, և վերականգնելով այն դադարների ընթացքում։ Auto Duck-ը կատարում է դա վերահսկողական հոսքից (control track)․ որտեղ վերահսկողական հոսքը ավելի լուսանկար է, քան շեման, ընտրված հոսքը նվազեցվում է՝ եզրերին մեղմումներով (fades)։
+Պոդկաստները և տեսանյութերը ձայնի ընթացքում երաժշտությունը շարունակում են խաղացնել՝ իջեցնելով այն ամեն անգամ, երբ որևէ մեկը խոսում է, և վերականգնելով այն դադարների ընթացքում։ Auto Duck-ը կատարում է դա վերահսկողական հոսքից (control track)․ որտեղ վերահսկողական հոսքը ավելի բարձր է, քան շեման, ընտրված հոսքը ձայնը իջեցվում է՝ եզրերին մեղմ անցումներով (fades)։
 
 :::note[Coming from Audacity?]
-Սա Audacity-ի **Effect → Volume and Compression → Auto Duck** է։ Ցածքի անունները Soundscaper-ին են պատկանում և երբեմն տարբերվում են։
+Սա Audacity-ի **Effect → Volume and Compression → Auto Duck**-ն է։ Ցածքում նշված անունները Soundscaper-ին են պատկանում և երբեմն տարբերվում են։
 :::
 
 ## Քայլեր
 
 1. Բացեք Soundscaper-ը։ Նոր, դատարկ նախագիծը պատրաստ է անմիջապես, երբ խմբագիրը բեռնվում է։
-2. Ընտրեք **File → Import audio** և ընտրեք երաժշտությունը։ Ֆայլը տեղակայվում է որպես կլիպ իր սեփական հոսքում։
-3. Ընտրեք **File → Import audio** և ընտրեք ձայնը։ Ֆայլը տեղակայվում է որպես կլիպ իր սեփական հոսքում։
-4. Սեղմեք երաժշտության կլիպի անվան վրա՝ այն ընտրելու համար։ Ընտրված կլիպը այն է, որը նվազեցվում է (ducked)՝ երաժշտությունը, ոչ թե ձայնը։
-5. Ընտրեք **Effect → Volume and compression → Auto Duck**։ **Auto Duck** երկխոսության պատուհանում ընտրեք ձայնի հոսքը որպես **Control track** և կարգավորեք **Duck amount**-ը `-12` արժեքի, ապա սեղմեք **Apply to selection**։ Վերահսկողական հոսքը այն է, որը ակտիվացնում է նվազեցումը։ Դեցիբելների տասներկուսով նվազեցումը բավարար է, որպեսզի խոսքը հստակ լսվի վերևից։
-6. Սեղմեք **Play**՝ լսելու համար, ապա **Stop**։
-   *Դուք պետք է տեսնեք.* Երաժշտությունը նվազում է, երբ մյուս հոսքը խաղում է, և վերականգնվում է, երբ այն լուռ է։
+2. Ընտրեք **File → Import** և ընտրեք երաժշտությունը։ Այն տեղադրվում է որպես կլիպ իր հատուկ հոսքում։
+3. Ընտրեք **File → Import** և ընտրեք ձայնը։ Այն տեղադրվում է որպես կլիպ իր հատուկ հոսքում։
+4. Սեղմեք երաժշտության կլիպի անվան վրա՝ այն ընտրելու համար։ Ընտրված կլիպը այն է, որի ձայնը իջեցվում է՝ երաժշտությունը, ոչ թե ձայնը։
+5. Ընտրեք **Effect → Volume and compression → Auto Duck**։ **Auto Duck** երկխոսության պատուհանում ընտրեք ձայնի հոսքը որպես **Control track** և կարգավորեք **Duck amount**-ը `-12` արժեքի, ապա սեղմեք **Apply to selection**։ Վերահսկողական հոսքը այն է, որը ակտիվացնում է ձայնի իջեցումը։ Դեցիբելների տասներկուսով իջեցումը բավարար է, որպեսզի խոսքը հստակ լսվի վերևից։
+6. Սեղմեք **Play**-ը՝ լսելու համար, ապա **Stop**-ը։
+   *Դուք պետք է տեսնեք.* Երաժշտությունը իջնում է, երբ մյուս հոսքը խաղացվում է, և վերականգնվում է, երբ այն լռում է։
 
 ## Խորհուրդներ
 
 - Երկարացրեք **Outer fade** ժամանակները, եթե երաժշտությունը շատ արագ է բարձրանում և իջնում բառերի միջև։
-- Տեղադրեք ձայնի հոսքը երաժշտության վերևում հոսքերի ցանկում, որպեսզի կապը հեշտ լինի տեսնել։
+- Տեղադրեք ձայնի հոսքը երաժշտության վերևում հոսքերի ցանկում, որպեսզի կապը հեշտությամբ երևա։
 
 ## Կապված ուղեցույցներ
 
-Ավելի [volume and dynamics](/guides/volume/) ուղեցույցներ.
+Ավելի [volume and dynamics](/guides/volume/) ուղեցույցներ․
 
 - [Make a quiet recording louder](/guides/volume/make-a-recording-louder/) — Բարձրացրեք ձայնագրության մակարդակը որոշակի քանակությամբ դեցիբելներով Amplify-ի միջոցով։
-- [Normalize peaks to a set level](/guides/volume/normalize-peaks/) — Բերեք ձայնագրության ամենալուսանկար կետը ճշգրիտ մակարդակի, որը ավելի ցածր է, քան ամբողջական սանդղակը։
-- [Normalize loudness for a podcast](/guides/volume/normalize-loudness-for-podcasts/) — Կարգավորեք էպիզոդի ընկալվող լուսանկարությունը հոսքային հարթակների կողմից ակնկալվող մակարդակին։
-- [Even out volume with a compressor](/guides/volume/even-out-volume-with-a-compressor/) — Նվազեցրեք լուսանկար և լուռ պահերի միջև ընկած տարբերությունը, որպեսզի խոսքը ավելի հեշտ լինի հետևել։
-- [Fade in and fade out](/guides/volume/fade-in-and-fade-out/) — Սկսեք կլիպը լռությունից և ավարտեք այն մեղմությամբ՝ ոչ թե կտրելով։
-- [Tame peaks with a limiter](/guides/volume/tame-peaks-with-a-limiter/) — Կանխարգելեք ամենալուսանկար պահերը գերազանցել սահմանը՝ չպատճառելով վնաս մնացած մասին։
-- [Even out volume with the classic compressor](/guides/volume/even-out-volume-with-the-legacy-compressor/) — Օգտագործեք Audacity 3-ի բնօրինակ կոմպրեսորը՝ նրա աղմուկի հատակով և փոխհատուցման օգտակարությամբ (make-up gain)՝ ձայնագրության վրա։
+- [Normalize peaks to a set level](/guides/volume/normalize-peaks/) — Բերեք ձայնագրության ամենաձայնարկ կետը ճշգրիտ մակարդակի, որը ցածր է ամբողջական սանդղակից։
+- [Normalize loudness for a podcast](/guides/volume/normalize-loudness-for-podcasts/) — Կարգավորեք էպիզոդի ընկալվող ձայնարկությունը այն մակարդակին, որը սպասվում է հեռարձակման հարթակների կողմից։
+- [Even out volume with a compressor](/guides/volume/even-out-volume-with-a-compressor/) — Կրճատեք ձայնարկ և լուռ պահերի միջև ընկած տարբերությունը, որպեսզի խոսքը ավելի հեշտ լսվի։
+- [Fade in and fade out](/guides/volume/fade-in-and-fade-out/) — Սկսեք կլիպը լռությունից և ավարտեք այն մեղմությամբ՝ ոչ թե կտրուկ կտրելով։
+- [Tame peaks with a limiter](/guides/volume/tame-peaks-with-a-limiter/) — Կանխարգելեք ամենաձայնարկ պահերը գերազանցել սահմանը՝ չպատճառելով վնաս մնացած մասին։
+- [Even out volume with the classic compressor](/guides/volume/even-out-volume-with-the-legacy-compressor/) — Օգտագործեք Audacity 3-ի բնօրինակ կոմպրեսորը՝ նրա աղմուկի հատակի և փոխհատուցման խտացման (make-up gain) հետ՝ ձայնագրության վրա։
 
 ## Հղում
 
-- [Այստեղ օգտագործված էֆեկտների բոլոր պարամետրերը, նրանց չափանիշներով և տիրույթներով, գտնվում են ձայնային էֆեկտների հղումներում։](/reference/generated/audio-effects/#parameters)
+- [Այստեղ օգտագործված էֆեկտների բոլոր պարամետրերը, ներառյալ դրանց սկզբնական արժեքները և տիրույթները, գտնվում են ձայնային էֆեկտների հղումներում։](/reference/generated/audio-effects/#parameters)
 
 ## Այս ուղեցույցի մասին
 
-Այս էջի վրա նկարագրված գործընթացը՝ յուրաքանչյուր մենյուի մուտքը, երկխոսությունը, դաշտը և կոճակը, ինչպես նաև դրանց արդյունքը, վերարտադրվում է Soundscaper-ի յուրաքանչյուր կառուցման դեմ՝ բրաուզերային հավաքածուի (`tests/browser/soundscaper-guides.spec.js`) միջոցով։ Եթե դրանցից որևէ մեկը դադարում է համապատասխանել խմբագրին, կառուցումը ձախողվում է, մինչև ուղեցույցը ճշգրտվի։ Պատկերացված արժեքները սկզբնական կետեր են, որոնք խմբագիրը ապացուցված է ընդունում. արդյոք դրանք հարմար են ձեր ձայնագրության համար, որոշումը ձեր ականների վրա է։
+Այս էջի վրա նկարագրված գործընթացը՝ յուրաքանչյուր մենյուի մուտքը, երկխոսությունը, դաշտը և կոճակը, ինչպես նաև դրանց արդյունքը, կրկնօրինակվում է Soundscaper-ի յուրաքանչյուր կառուցման դեմ՝ բրաուզերային հավաքածուի (`tests/browser/soundscaper-guides.spec.js`) միջոցով։ Եթե դրանցից որևէ մեկը դադարում է համապատասխանել խմբագրին, կառուցումը ձախողվում է, մինչև ուղեցույցը ճշգրտվի։ Պատկերացված արժեքները սկզբնական կետեր են, որոնք խմբագիրը ապացուցված ընդունում է․ արդյոք դրանք հարմար են ձեր ձայնագրության համար, որոշումը ձեր ականի վրա է։

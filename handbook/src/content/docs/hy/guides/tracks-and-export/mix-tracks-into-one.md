@@ -1,6 +1,6 @@
 ---
 title: "Կոմպոզիցիա անել մի քանի հոսքերից մեկի"
-description: "Ռենդերել ընտրված հոսքերը մեկ հոսքի։"
+description: "Ռենդերել ընտրված հոսքերը մեկ հոսքի մեջ։"
 editUrl: false
 sidebar:
   order: 2
@@ -8,13 +8,13 @@ head:
   - tag: script
     attrs:
       type: "application/ld+json"
-    content: "{\"@context\":\"https://schema.org\",\"@type\":\"HowTo\",\"name\":\"Mix several tracks into one\",\"description\":\"Render the selected tracks down to a single track.\",\"tool\":[{\"@type\":\"HowToTool\",\"name\":\"Soundscaper\"}],\"step\":[{\"@type\":\"HowToStep\",\"position\":1,\"name\":\"Open Soundscaper. A new, empty project is ready as soon as the editor loads.\",\"text\":\"Open Soundscaper. A new, empty project is ready as soon as the editor loads.\"},{\"@type\":\"HowToStep\",\"position\":2,\"name\":\"Choose File → Import audio and pick the first part. The file lands as a clip on its own track.\",\"text\":\"Choose File → Import audio and pick the first part. The file lands as a clip on its own track.\"},{\"@type\":\"HowToStep\",\"position\":3,\"name\":\"Choose File → Import audio and pick the second part. The file lands as a clip on its own track.\",\"text\":\"Choose File → Import audio and pick the second part. The file lands as a clip on its own track.\"},{\"@type\":\"HowToStep\",\"position\":4,\"name\":\"Click the name bar of the first clip, then hold Shift and click the name bar of the second clip, so both are selected.\",\"text\":\"Click the name bar of the first clip, then hold Shift and click the name bar of the second clip, so both are selected. Every track with a selected clip goes into the mix.\"},{\"@type\":\"HowToStep\",\"position\":5,\"name\":\"Choose Tracks → Mix & Render. In the Mix & Render dialog, leave Mix down, Render effects and Replace originals checked, choose Stereo for Mix down to, then press Mix & Render.\",\"text\":\"Choose Tracks → Mix & Render. In the Mix & Render dialog, leave Mix down, Render effects and Replace originals checked, choose Stereo for Mix down to, then press Mix & Render.\"},{\"@type\":\"HowToStep\",\"position\":6,\"name\":\"The project now shows a clip named Mix.\",\"text\":\"The project now shows a clip named Mix. One track holds a clip named Mix; the source tracks are gone.\"}]}"
+    content: "{\"@context\":\"https://schema.org\",\"@type\":\"HowTo\",\"name\":\"Mix several tracks into one\",\"description\":\"Render the selected tracks down to a single track.\",\"tool\":[{\"@type\":\"HowToTool\",\"name\":\"Soundscaper\"}],\"step\":[{\"@type\":\"HowToStep\",\"position\":1,\"name\":\"Open Soundscaper. A new, empty project is ready as soon as the editor loads.\",\"text\":\"Open Soundscaper. A new, empty project is ready as soon as the editor loads.\"},{\"@type\":\"HowToStep\",\"position\":2,\"name\":\"Choose File → Import and pick the first part. It lands as a clip on its own track.\",\"text\":\"Choose File → Import and pick the first part. It lands as a clip on its own track.\"},{\"@type\":\"HowToStep\",\"position\":3,\"name\":\"Choose File → Import and pick the second part. It lands as a clip on its own track.\",\"text\":\"Choose File → Import and pick the second part. It lands as a clip on its own track.\"},{\"@type\":\"HowToStep\",\"position\":4,\"name\":\"Click the name bar of the first clip, then hold Shift and click the name bar of the second clip, so both are selected.\",\"text\":\"Click the name bar of the first clip, then hold Shift and click the name bar of the second clip, so both are selected. Every track with a selected clip goes into the mix.\"},{\"@type\":\"HowToStep\",\"position\":5,\"name\":\"Choose Tracks → Mix & Render. In the Mix & Render dialog, leave Mix down, Render effects and Replace originals checked, choose Stereo for Mix down to, then press Mix & Render.\",\"text\":\"Choose Tracks → Mix & Render. In the Mix & Render dialog, leave Mix down, Render effects and Replace originals checked, choose Stereo for Mix down to, then press Mix & Render.\"},{\"@type\":\"HowToStep\",\"position\":6,\"name\":\"The project now shows a clip named Mix.\",\"text\":\"The project now shows a clip named Mix. One track holds a clip named Mix; the source tracks are gone.\"}]}"
 ---
-<!-- docs-ai-provenance: {"factPacketSha256":"a2efb9d82744df50703da530f05fd07938a525026e90a778c97fb783e8fb88c8","model":"qwen3.8:latest","modelDigest":"22130167c4c20e20c7b71454612966ca8e8171e9b3cc8ab6ce8aa6cbfec79643","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"a2efb9d82744df50703da530f05fd07938a525026e90a778c97fb783e8fb88c8","targetLocale":"hy"} -->
+<!-- docs-ai-provenance: {"factPacketSha256":"e3e165f69376430cd8ca49fc9f23263e3de5bf9c4af97309624c2faaba94193b","model":"qwen3.8:latest","modelDigest":"22130167c4c20e20c7b71454612966ca8e8171e9b3cc8ab6ce8aa6cbfec79643","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"e3e165f69376430cd8ca49fc9f23263e3de5bf9c4af97309624c2faaba94193b","targetLocale":"hy"} -->
 
 <!-- Generated by `node scripts/docs-reference.mjs`. Do not edit. -->
 
-Երբ հնչյունների հոսքերի հավաքածուն հավասարակշռված է, դրանց խառնումը մեկի մեջ նվազեցնում է նախագծի աշխատանքային բեռը և տալիս է մեկ կտոր՝ արտահանման կամ այլուր տանելու համար։ Խառնուրդը օգտագործում է յուրաքանչյուր ընտրված հոսքի ամպլիտուդը, պանելավորումը, ավտոմատացումը և էֆեկտները։ Այս գործողության ընթացքում ընտրված հոսքերի համար անտեսվում են անջատումը և մենակ լսելը, իսկ հիմնական մշակումը մնում է ակտիվ։
+Երբ հնչյունների հոսքերի հավաքածուն հավասարակշռված է, դրանց խառնումը մեկի մեջ նվազեցնում է նախագծի աշխատանքային բեռը և տալիս է մեկ կտոր՝ արտահանման կամ այլուր տանելու համար։ Խառնուրդը օգտագործում է յուրաքանչյուր ընտրված հոսքի ամպլիտուդը, պանը, ավտոմատացումը և էֆեկտները։ Այս գործողության ընթացքում ընտրված հոսքերի համար անջատումը և սոլոն անտեսվում են, իսկ մաստեր մշակումը մնում է ակտիվ։
 
 :::note[Եթե գալիս եք Audacity-ից]
 Սա Audacity-ի **Tracks → Mix → Mix and Render** գործողությունն է։ Ցածքում նշված անունները Soundscaper-ին են պատկանում և երբեմն տարբերվում են։
@@ -22,34 +22,34 @@ head:
 
 ## Քայլեր
 
-1. Բացեք Soundscaper-ը։ Նոր, դատարկ նախագիծը պատրաստ է, հենց որ խմբագիրը բեռնվի։
-2. Ընտրեք **File → Import audio** և ընտրեք առաջին մասը։ Ֆայլը դառնում է կտոր՝ իր հատուկ հոսքի վրա։
-3. Ընտրեք **File → Import audio** և ընտրեք երկրորդ մասը։ Ֆայլը դառնում է կտոր՝ իր հատուկ հոսքի վրա։
-4. Սեղմեք առաջին կտորի անվան փոստի վրա, ապա պահեք Shift-ը և սեղմեք երկրորդ կտորի անվան փոստի վրա, որպեսզի երկուսն էլ ընտրվեն։ Յուրաքանչյուր հոսքը, որի վրա կա ընտրված կտոր, մտնում է խառնուրդի մեջ։
+1. Բացեք Soundscaper-ը։ Նոր, դատարկ նախագիծը պատրաստ է անմիջապես, երբ խմբագիրը բեռնվում է։
+2. Ընտրեք **File → Import** և ընտրեք առաջին մասը։ Այն տեղադրվում է որպես կտոր իր հատուկ հոսքում։
+3. Ընտրեք **File → Import** և ընտրեք երկրորդ մասը։ Այն տեղադրվում է որպես կտոր իր հատուկ հոսքում։
+4. Կտտացրեք առաջին կտորի անվան փոստնյակը, ապա սեղմեք Shift-ը և կտտացրեք երկրորդ կտորի անվան փոստնյակը, որպեսզի երկուսն էլ ընտրվեն։ Յուրաքանչյուր հոսքը, որն ունի ընտրված կտոր, մտնում է խառնուրդի մեջ։
 5. Ընտրեք **Tracks → Mix & Render**։ **Mix & Render** երկխոսության պատուհանում թողեք **Mix down**, **Render effects** և **Replace originals** փաթեթները նշված, ընտրեք **Stereo** **Mix down to** դաշտի համար, ապա սեղմեք **Mix & Render**։
 6. Նախագիծը հիմա ցուցադրում է **Mix** անվանված կտոր։
-   *Դուք պետք է տեսնեք.* Մեկ հոսքը պարունակում է Mix անվանված կտոր, իսկ աղբյուրային հոսքերը բացակայում են։
+   *Դուք պետք է տեսնեք.* Մեկ հոսք պարունակում է Mix անվանված կտոր, իսկ աղբյուրային հոսքերը բացակայում են։
 
 ## Խորհուրդներ
 
-- Ընտրեք **Mono**, **Stereo** կամ նախագծի կարգավորված բազմալուսանիշ դասավորությունը **Mix down to** դաշտում՝ մշակումից առաջ։
+- Ընտրեք **Mono**, **Stereo** կամ նախագծի կարգավորված բազմալուծային դասավորությունը **Mix down to** դաշտում՝ ռենդերինգից առաջ։
 - **Edit → Undo** գործողությունը վերադարձնում է բնօրինակ հոսքերը, եթե անհրաժեշտ է փոխել հավասարակշռությունը։
-- Արտահանելու համար անհրաժեշտ չէ խառնել։ **File → Export audio** գործողությունը մշակում է ամբողջ նախագիծը ինքնուրույն։
+- Արտահանելու համար անհրաժեշտ չէ խառնել։ **File → Export audio** գործողությունը ռենդերինգ է անում ամբողջ նախագիծը ինքնուրույն։
 
 ## Կապված ուղեցույցներ
 
-Ավելի շատ [հոսքեր և արտահանում](/guides/tracks-and-export/) ուղեցույցներ.
+Ավելի [հոսքեր և արտահանում](/guides/tracks-and-export/) ուղեցույցներ.
 
-- [Փոխարկել ստերեո հոսքը երկու մոնո հոսքի](/guides/tracks-and-export/split-stereo-into-mono-tracks/) — Առանձնացնեք ձախ և աջ ալիքները, որպեսզի յուրաքանչյուրը կարող է խմբագրվել առանձին։
-- [Գեներացնել փորձարարական տոն](/guides/tracks-and-export/generate-a-test-tone/) — Ստեղծեք սինուսոիդալ ալիք՝ որոշակի հաճախությամբ և երկարությամբ՝ դատարկից։
-- [Արտահանել MP3](/guides/tracks-and-export/export-an-mp3/) — Մշակեք նախագիծը MP3 ֆայլի՝ կիսվելու կամ հրապարակելու համար։
-- [Արտահանել WAV](/guides/tracks-and-export/export-a-wav/) — Մշակեք նախագիծը սեղմված WAV ֆայլի։
-- [Անջատել և մենակ լսել հոսքեր](/guides/tracks-and-export/mute-and-solo-tracks/) — Լռացնեք հոսքը կամ լսեք մեկ հոսքը առանձին՝ խառնուրդի վրա աշխատելիս։
+- [Փոխարկել ստերեո հոսքը երկու մոնո հոսքի](/guides/tracks-and-export/split-stereo-into-mono-tracks/) — Առանձնացրեք ձախ և աջ ալիքները, որպեսզի յուրաքանչյուրը կարող է խմբագրվել առանձին։
+- [Գեներացնել փորձարարական տոն](/guides/tracks-and-export/generate-a-test-tone/) — Խմբագրեք սինուսոիդալ ալիք՝ որոշակի հաճախությամբ և երկարությամբ՝ դատարկ վիճակից։
+- [Արտահանել MP3](/guides/tracks-and-export/export-an-mp3/) — Ռենդերինգ անեք նախագիծը MP3 ֆայլի՝ կիսվելու կամ հրապարակելու համար։
+- [Արտահանել WAV](/guides/tracks-and-export/export-a-wav/) — Ռենդերինգ անեք նախագիծը սեղմված WAV ֆայլի։
+- [Անջատել և սոլո հոսքեր](/guides/tracks-and-export/mute-and-solo-tracks/) — Խափանեք հոսքը կամ լսեք մեկ հոսքը առանձին՝ խառնուրդի վրա աշխատելիս։
 - [Ավելացնել դատարկ հոսք](/guides/tracks-and-export/add-an-empty-track/) — Ստեղծեք նոր հոսք՝ ձայնագրելու կամ ծանցնելու համար։
-- [Անջատել բոլոր հոսքերը միանգամից](/guides/tracks-and-export/mute-every-track-at-once/) — Լռացնեք ամբողջ նախագիծը մեկ քայլով, ապա վերադարձրեք այն։
-- [Խառնել հոսքերը նոր հոսքի մեջ և պահել բնօրինակները](/guides/tracks-and-export/mix-tracks-into-a-new-track/) — Մշակեք մի քանի հոսքերի խառնուրդը նոր հոսքի վրա՝ աղբյուրները պահելով նախագծում։
-- [Հավասարակշռել հոսքերը խառնիչում](/guides/tracks-and-export/balance-tracks-in-the-mixer/) — Բացեք խառնիչի պուլպոն՝ յուրաքանչյուր հոսքի համար ալիքային շերտով, որպեսզի մակարդակները և պանելավորումը կարգավորվեն կողք կողքի։
+- [Անջատել բոլոր հոսքերը միանգամից](/guides/tracks-and-export/mute-every-track-at-once/) — Խափանեք ամբողջ նախագիծը մեկ քայլով, ապա վերադարձրեք այն։
+- [Խառնել հոսքերը նոր հոսքի մեջ և պահել բնօրինակները](/guides/tracks-and-export/mix-tracks-into-a-new-track/) — Ռենդերինգ անեք մի քանի հոսքերի խառնուրդը նոր հոսքի վրա՝ աղբյուրները նախագծում պահելու համար։
+- [Հավասարակշռել հոսքերը միքսերում](/guides/tracks-and-export/balance-tracks-in-the-mixer/) — Բացեք խառնման պուլտ՝ յուրաքանչյուր հոսքի համար ալիքային շերտով՝ մակարդակները և պանը կողք կողքի կարգավորելու համար։
 
 ## Այս ուղեցույցի մասին
 
-Այս էջի գործողությունը՝ բոլոր մենյուի մուտքերը, երկխոսությունները, դաշտերը և կոճակները, ինչպես նաև դրանց արդյունքը, կրկնօրինակվում է Soundscaper-ի յուրաքանչյուր կառուցման դեմ՝ բրաուզերային հավաքածուի կողմից (`tests/browser/soundscaper-guides.spec.js`)։ Եթե դրանցից որևէ մեկը դադարի համապատասխանել խմբագրին, կառուցումը ձախողվում է, մինչև ուղեցույցը ճշգրտվի։ Պատկերացված արժեքները սկզբնակետեր են, որոնք խմբագիրը ապացուցված ընդունում է. արդյոք դրանք հարմար են ձեր ձայնագրության համար, որոշումը ձեր ականի համար է։
+Այս էջի գործընթացը՝ յուրաքանչյուր մենյուի մուտքը, երկխոսությունը, դաշտերը և կոճակները, ինչպես նաև դրանց արդյունքը, կրկնօրինակվում է Soundscaper-ի յուրաքանչյուր կառուցման դեմ՝ բրաուզերային հավաքածուի կողմից (`tests/browser/soundscaper-guides.spec.js`)։ Եթե դրանցից որևէ մեկը դադարում է համապատասխանել խմբագրին, կառուցումը ձախողվում է, մինչև ուղեցույցը ուղղվի։ Պատկերացված արժեքները սկզբնակետեր են, որոնք խմբագիրը ապացուցված ընդունում է. արդյոք դրանք հարմար են ձեր ձայնագրության համար, որոշումը ձեր ականի համար է։

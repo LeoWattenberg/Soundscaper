@@ -1,6 +1,6 @@
 ---
 title: "Տեղադրել երաժշտություն ձայնի տակ"
-description: "Բազմաշերտ երկու հոսք, ավտոմատ կերպով մեկը մյուսի տակ իջեցրեք, խառնեք և արտահանեք։"
+description: "Ունդակերպեք երկու հոսք, ավտոմատ կերպով նվազեցրեք մեկը մյուսի տակ, խառնեք և արտահանեք։"
 editUrl: false
 sidebar:
   order: 3
@@ -8,44 +8,44 @@ head:
   - tag: script
     attrs:
       type: "application/ld+json"
-    content: "{\"@context\":\"https://schema.org\",\"@type\":\"HowTo\",\"name\":\"Put music under a voice\",\"description\":\"Layer two tracks, duck one under the other automatically, mix them down and export.\",\"tool\":[{\"@type\":\"HowToTool\",\"name\":\"Soundscaper\"}],\"step\":[{\"@type\":\"HowToStep\",\"position\":1,\"name\":\"Open Soundscaper. A new, empty project is ready as soon as the editor loads.\",\"text\":\"Open Soundscaper. A new, empty project is ready as soon as the editor loads.\"},{\"@type\":\"HowToStep\",\"position\":2,\"name\":\"Choose File → Import audio and pick guide-music-loop.wav — a two-second stereo loop. The file lands as a clip on its own track.\",\"text\":\"Choose File → Import audio and pick guide-music-loop.wav — a two-second stereo loop. The file lands as a clip on its own track.\"},{\"@type\":\"HowToStep\",\"position\":3,\"name\":\"Choose File → Import audio and pick guide-second-loop.wav — a second two-second loop to layer on top. The file lands as a clip on its own track.\",\"text\":\"Choose File → Import audio and pick guide-second-loop.wav — a second two-second loop to layer on top. The file lands as a clip on its own track.\"},{\"@type\":\"HowToStep\",\"position\":4,\"name\":\"Press Play to listen, then Stop.\",\"text\":\"Press Play to listen, then Stop. Both loops play together, each on its own track.\"},{\"@type\":\"HowToStep\",\"position\":5,\"name\":\"Click the name bar of guide-music-loop.wav to select it.\",\"text\":\"Click the name bar of guide-music-loop.wav to select it. The clip you select is the one that gets ducked — the music, not the voice.\"},{\"@type\":\"HowToStep\",\"position\":6,\"name\":\"Choose Effect → Volume and compression → Auto Duck. In the Auto Duck dialog, choose guide-second-loop for Control track and set Duck amount to -12, then press Apply to selection.\",\"text\":\"Choose Effect → Volume and compression → Auto Duck. In the Auto Duck dialog, choose guide-second-loop for Control track and set Duck amount to -12, then press Apply to selection. Wherever the control track is louder than the threshold, the selected track is turned down by the duck amount, with fades at the edges. The music waveform is smaller wherever the voice is playing.\"},{\"@type\":\"HowToStep\",\"position\":7,\"name\":\"Press Play to listen, then Stop.\",\"text\":\"Press Play to listen, then Stop. The music sits under the voice and recovers where the voice is quiet.\"},{\"@type\":\"HowToStep\",\"position\":8,\"name\":\"Click the name bar of guide-music-loop.wav, then hold Shift and click the name bar of guide-second-loop.wav, so both are selected.\",\"text\":\"Click the name bar of guide-music-loop.wav, then hold Shift and click the name bar of guide-second-loop.wav, so both are selected. Every track with a selected clip goes into the mix.\"},{\"@type\":\"HowToStep\",\"position\":9,\"name\":\"Choose Tracks → Mix & Render. In the Mix & Render dialog, leave Mix down, Render effects and Replace originals checked, choose Stereo for Mix down to, then press Mix & Render.\",\"text\":\"Choose Tracks → Mix & Render. In the Mix & Render dialog, leave Mix down, Render effects and Replace originals checked, choose Stereo for Mix down to, then press Mix & Render.\"},{\"@type\":\"HowToStep\",\"position\":10,\"name\":\"The project now shows a clip named Mix.\",\"text\":\"The project now shows a clip named Mix. One track holds a clip named Mix; the two source tracks are gone. Edit → Undo would bring them back.\"},{\"@type\":\"HowToStep\",\"position\":11,\"name\":\"Choose File → Export audio, set Format to MP3, and press Export. The file downloads as soon as the render finishes, and its link stays in the dialog.\",\"text\":\"Choose File → Export audio, set Format to MP3, and press Export. The file downloads as soon as the render finishes, and its link stays in the dialog.\"}]}"
+    content: "{\"@context\":\"https://schema.org\",\"@type\":\"HowTo\",\"name\":\"Put music under a voice\",\"description\":\"Layer two tracks, duck one under the other automatically, mix them down and export.\",\"tool\":[{\"@type\":\"HowToTool\",\"name\":\"Soundscaper\"}],\"step\":[{\"@type\":\"HowToStep\",\"position\":1,\"name\":\"Open Soundscaper. A new, empty project is ready as soon as the editor loads.\",\"text\":\"Open Soundscaper. A new, empty project is ready as soon as the editor loads.\"},{\"@type\":\"HowToStep\",\"position\":2,\"name\":\"Choose File → Import and pick guide-music-loop.wav — a two-second stereo loop. It lands as a clip on its own track.\",\"text\":\"Choose File → Import and pick guide-music-loop.wav — a two-second stereo loop. It lands as a clip on its own track.\"},{\"@type\":\"HowToStep\",\"position\":3,\"name\":\"Choose File → Import and pick guide-second-loop.wav — a second two-second loop to layer on top. It lands as a clip on its own track.\",\"text\":\"Choose File → Import and pick guide-second-loop.wav — a second two-second loop to layer on top. It lands as a clip on its own track.\"},{\"@type\":\"HowToStep\",\"position\":4,\"name\":\"Press Play to listen, then Stop.\",\"text\":\"Press Play to listen, then Stop. Both loops play together, each on its own track.\"},{\"@type\":\"HowToStep\",\"position\":5,\"name\":\"Click the name bar of guide-music-loop.wav to select it.\",\"text\":\"Click the name bar of guide-music-loop.wav to select it. The clip you select is the one that gets ducked — the music, not the voice.\"},{\"@type\":\"HowToStep\",\"position\":6,\"name\":\"Choose Effect → Volume and compression → Auto Duck. In the Auto Duck dialog, choose guide-second-loop for Control track and set Duck amount to -12, then press Apply to selection.\",\"text\":\"Choose Effect → Volume and compression → Auto Duck. In the Auto Duck dialog, choose guide-second-loop for Control track and set Duck amount to -12, then press Apply to selection. Wherever the control track is louder than the threshold, the selected track is turned down by the duck amount, with fades at the edges. The music waveform is smaller wherever the voice is playing.\"},{\"@type\":\"HowToStep\",\"position\":7,\"name\":\"Press Play to listen, then Stop.\",\"text\":\"Press Play to listen, then Stop. The music sits under the voice and recovers where the voice is quiet.\"},{\"@type\":\"HowToStep\",\"position\":8,\"name\":\"Click the name bar of guide-music-loop.wav, then hold Shift and click the name bar of guide-second-loop.wav, so both are selected.\",\"text\":\"Click the name bar of guide-music-loop.wav, then hold Shift and click the name bar of guide-second-loop.wav, so both are selected. Every track with a selected clip goes into the mix.\"},{\"@type\":\"HowToStep\",\"position\":9,\"name\":\"Choose Tracks → Mix & Render. In the Mix & Render dialog, leave Mix down, Render effects and Replace originals checked, choose Stereo for Mix down to, then press Mix & Render.\",\"text\":\"Choose Tracks → Mix & Render. In the Mix & Render dialog, leave Mix down, Render effects and Replace originals checked, choose Stereo for Mix down to, then press Mix & Render.\"},{\"@type\":\"HowToStep\",\"position\":10,\"name\":\"The project now shows a clip named Mix.\",\"text\":\"The project now shows a clip named Mix. One track holds a clip named Mix; the two source tracks are gone. Edit → Undo would bring them back.\"},{\"@type\":\"HowToStep\",\"position\":11,\"name\":\"Choose File → Export audio, set Format to MP3, and press Export. The file downloads as soon as the render finishes, and its link stays in the dialog.\",\"text\":\"Choose File → Export audio, set Format to MP3, and press Export. The file downloads as soon as the render finishes, and its link stays in the dialog.\"}]}"
 ---
-<!-- docs-ai-provenance: {"factPacketSha256":"ba895710369ae2e8ed5e086058bad164406dd4f85818d1b246e0fda99b30e2bb","model":"qwen3.8:latest","modelDigest":"22130167c4c20e20c7b71454612966ca8e8171e9b3cc8ab6ce8aa6cbfec79643","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"ba895710369ae2e8ed5e086058bad164406dd4f85818d1b246e0fda99b30e2bb","targetLocale":"hy"} -->
+<!-- docs-ai-provenance: {"factPacketSha256":"e4981b16b64b467101c91ffa64c89547deeab7140978a77f6e5c8fadef3db7e6","model":"qwen3.8:latest","modelDigest":"22130167c4c20e20c7b71454612966ca8e8171e9b3cc8ab6ce8aa6cbfec79643","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"e4981b16b64b467101c91ffa64c89547deeab7140978a77f6e5c8fadef3db7e6","targetLocale":"hy"} -->
 
 <!-- Generated by `node scripts/docs-reference.mjs`. Do not edit. -->
 
-Պոդկաստի ներածություն, տեսանյութի ձայնային հաղորդում, ռադիոյի ֆոնային երաժշտություն. երաժշտությունը պետք է դադարի, երբ ձայնը խոսում է, և վերադառնա ընդմիջումներում։ Այս ուղեցույցը օգտագործում է երկու օրինակային շրջանակներ (loop)՝ մեկը ձայնի փոխարեն, մյուսը՝ երաժշտության, Auto Duck-ի միջոցով կառուցելու այդ կապը, ապա խառնելու երկու հոսանքները մեկում և արտահանելու այն։
+Պոդկաստի ներածություն, տեսանյութի ձայնային հաղորդում, ռադիոյի ֆոնային երաժշտություն. երաժշտությունը պետք է դադարի, երբ ձայնը խոսում է, և վերադառնա ընդհատումների ժամանակ։ Այս ուղեցույցը օգտագործում է երկու օրինակային շրջանակներ՝ մեկը ձայնի փոխարեն, մյուսը՝ երաժշտության, Auto Duck-ի միջոցով կառուցելու այդ կապը, ապա խառնում է երկու հոսանքները մեկում և արտահանում է այն։
 
 :::tip[Ինչպիսիք են անհրաժեշտ նյութերը]
 - Ներբեռնեք [`guide-music-loop.wav`](https://assets.soundscaper.org/guides/examples/guide-music-loop.wav) — երկու վայրկյանանոց ստերեո շրջանակ։
-- Ներբեռնեք [`guide-second-loop.wav`](https://assets.soundscaper.org/guides/examples/guide-second-loop.wav) — երկրորդ երկու վայրկյանանոց շրջանակ՝ վերնակարգավորման համար։
+- Ներբեռնեք [`guide-second-loop.wav`](https://assets.soundscaper.org/guides/examples/guide-second-loop.wav) — երկրորդ երկու վայրկյանանոց շրջանակ՝ վերնաշերտավորելու համար։
 
-Ցածքում նշված բոլոր քայլերը աշխատում են այս ֆայլերի հետ ճիշտ այնպես, ինչպես դրանք են, ուստի ինչը դուք տեսնում եք, պետք է համընկնի ուղեցույցի հետ։ Soundscaper-ը աշխատում է բրաուզերում. ոչինչ չի պահանջվում տեղադրել։
+Ցանկացած քայլ ստորև աշխատում է այս ֆայլերի հետ ճիշտ այնպես, ինչպես դրանք են, ուստի ինչը դուք տեսնում եք, պետք է համընկնի ուղեցույցի ասածի հետ։ Soundscaper-ը աշխատում է բրաուզերում. ոչինչ չի պահանջվում տեղադրելու համար։
 :::
 
 ## Ինչ կսովորեք
 
-- Ինչպես երկրորդ ներմուծումը տեղակայվում է իր սեփական հոսանքի վրա։
-- Ինչ է կառավարման հոսանքը և ինչպես է Auto Duck-ը օգտագործում այն։
-- Ինչպես խառնել մի քանի հոսանք մեկում։
+- Ինչպես երկրորդ ներմուծումը տեղակայվում է իր սեփական հոսանքում։
+- Ինչ է վերահսկիչ հոսանքը և ինչպես է Auto Duck-ը օգտագործում այն։
+- Ինչպես խառնել մի քանի հոսանքներ մեկում։
 
 ## Քայլեր
 
-1. Բացեք Soundscaper-ը։ Նոր, դատարկ նախագիծը պատրաստ է, հենց երբ խմբագիրը բեռնվում է։
-2. Ընտրեք **File → Import audio** և ընտրեք `guide-music-loop.wav` — երկու վայրկյանանոց ստերեո շրջանակ։ Ֆայլը տեղակայվում է որպես կլիպ իր սեփական հոսանքի վրա։
-3. Ընտրեք **File → Import audio** և ընտրեք `guide-second-loop.wav` — երկրորդ երկու վայրկյանանոց շրջանակ՝ վերնակարգավորման համար։ Ֆայլը տեղակայվում է որպես կլիպ իր սեփական հոսանքի վրա։
+1. Բացեք Soundscaper-ը։ Նոր, դատարկ նախագիծ պատրաստ է, հենց որ խմբագիրը բեռնվի։
+2. Ընտրեք **File → Import** և ընտրեք `guide-music-loop.wav` — երկու վայրկյանանոց ստերեո շրջանակ։ Այն տեղակայվում է որպես կլիպ իր սեփական հոսանքում։
+3. Ընտրեք **File → Import** և ընտրեք `guide-second-loop.wav` — երկրորդ երկու վայրկյանանոց շրջանակ՝ վերնաշերտավորելու համար։ Այն տեղակայվում է որպես կլիպ իր սեփական հոսանքում։
 4. Սեղմեք **Play**՝ լսելու համար, ապա **Stop**։
-   *Դուք պետք է տեսնեք.* Երկու շրջանակներն էլ նվագում են միասին, յուրաքանչյուրը իր սեփական հոսանքի վրա։
-5. Սեղմեք `guide-music-loop.wav`-ի անվան փոստի վրա՝ ընտրելու համար։ Ընտրված կլիպը այն է, որը կթուլանա (ducked) — երաժշտությունը, ոչ թե ձայնը։
-6. Ընտրեք **Effect → Volume and compression → Auto Duck**։ **Auto Duck** երկխոսության մեջ ընտրեք **guide-second-loop** **Control track**-ի համար և կարգավորեք **Duck amount**-ը `-12`-ի, ապա սեղմեք **Apply to selection**։ Այնտեղ, որտեղ կառավարման հոսանքը ավելի բարձր է, քան շեման, ընտրված հոսանքը թուլանում է duck amount-ով, եզրերում՝ մեղմ անցումներով։
-   *Դուք պետք է տեսնեք.* Երաժշտության ալիքային գծագիրը ավելի փոքր է այնտեղ, որտեղ ձայնը նվագում է։
+   *Դուք պետք է տեսնեք.* Երկու շրջանակներն էլ նվագարկվում են միասին, յուրաքանչյուրը իր սեփական հոսանքում։
+5. Սեղմեք `guide-music-loop.wav`-ի անվան փոստի վրա՝ ընտրելու համար։ Ընտրված կլիպը այն է, որը շեղվում է (ducked) — երաժշտությունը, ոչ թե ձայնը։
+6. Ընտրեք **Effect → Volume and compression → Auto Duck**։ **Auto Duck** երկխոսության պատուհանում ընտրեք **guide-second-loop** **Control track**-ի համար և կարգավորեք **Duck amount**-ը `-12`-ի, ապա սեղմեք **Apply to selection**։ Այնտեղ, որտեղ վերահսկիչ հոսանքը ավելի լուսաձայն է, քան շեմանը, ընտրված հոսանքը թուլացվում է duck amount-ով, իսկ եզրերին՝ մեղմ անցումներով։
+   *Դուք պետք է տեսնեք.* Երաժշտության ալիքային գծագիրը ավելի փոքր է այնտեղ, որտեղ ձայնը նվագարկվում է։
 7. Սեղմեք **Play**՝ լսելու համար, ապա **Stop**։
-   *Դուք պետք է տեսնեք.* Երաժշտությունը գտնվում է ձայնի տակ և վերականգնվում է այնտեղ, որտեղ ձայնը թույլ է։
-8. Սեղմեք `guide-music-loop.wav`-ի անվան փոստի վրա, ապա պահեք Shift-ը և սեղմեք `guide-second-loop.wav`-ի անվան փոստի վրա, որպեսզի երկուսն էլ ընտրվեն։ Բոլոր հոսանքները, որոնք ունեն ընտրված կլիպ, մտնում են խառնուրդի մեջ։
-9. Ընտրեք **Tracks → Mix & Render**։ **Mix & Render** երկխոսության մեջ թողեք **Mix down**, **Render effects** և **Replace originals** նշված, ընտրեք **Stereo** **Mix down to**-ի համար, ապա սեղմեք **Mix & Render**։
+   *Դուք պետք է տեսնեք.* Երաժշտությունը գտնվում է ձայնի տակ և վերականգնվում է այնտեղ, որտեղ ձայնը թուլ է։
+8. Սեղմեք `guide-music-loop.wav`-ի անվան փոստի վրա, ապա պահեք Shift-ը և սեղմեք `guide-second-loop.wav`-ի անվան փոստի վրա, որպեսզի երկուսն էլ ընտրվեն։ Յուրաքանչյուր հոսանքը, որն ունի ընտրված կլիպ, մտնում է խառնուրդի մեջ։
+9. Ընտրեք **Tracks → Mix & Render**։ **Mix & Render** երկխոսության պատուհանում թողեք **Mix down**, **Render effects** և **Replace originals** նշված, ընտրեք **Stereo** **Mix down to**-ի համար, ապա սեղմեք **Mix & Render**։
 10. Նախագիծը հիմա ցույց է տալիս **Mix** անվանված կլիպ։
-   *Դուք պետք է տեսնեք.* Մեկ հոսանքը պարունակում է Mix անվանված կլիպ. երկու աղբյուրային հոսանքները հեռացված են։ Edit → Undo-ն կվերադարձնի դրանք։
-11. Ընտրեք **File → Export audio**, կարգավորեք **Format**-ը **MP3** և սեղմեք **Export**։ Ֆայլը ներբեռնվում է, հենց երբ արտադրումը (render) ավարտվում է, և դրա հղումը մնում է երկխոսության մեջ։
+   *Դուք պետք է տեսնեք.* Մեկ հոսանքը պարունակում է Mix անվանված կլիպ. երկու աղբյուրային հոսանքները չկան։ Edit → Undo-ն կվերադարձնի դրանք։
+11. Ընտրեք **File → Export audio**, կարգավորեք **Format**-ը **MP3** և սեղմեք **Export**։ Ֆայլը ներբեռնվում է, հենց որ մշակումն ավարտվի, և դրա հղումը մնում է երկխոսության պատուհանում։
 
 ## Ինչպիսիք են հաջորդ քայլերը
 
@@ -59,9 +59,9 @@ head:
 
 ## Ծանոթագրություն
 
-- [Այստեղ օգտագործված էֆեկտների բոլոր պարամետրերը, դրանց չափանիշներով և սահմաններով, գտնվում են ձայնային էֆեկտների հղումներում։](/reference/generated/audio-effects/#parameters)
-- [Արտահանման ձևաչափերը, դրանց ամբարձակները և ալիքների սահմանափակումները գտնվում են արտահանման ձևաչափերի հղումներում։](/reference/generated/formats/)
+- [Այստեղ օգտագործված էֆեկտների բոլոր պարամետրերը, դրանց չափանիշներով և միջակայքերով, գտնվում են ձայնային էֆեկտների հղումներում։](/reference/generated/audio-effects/#parameters)
+- [Արտահանման ձևաչափերը, դրանց փաթեթները և ալիքների սահմանափակումները գտնվում են արտահանման ձևաչափերի հղումներում։](/reference/generated/formats/)
 
 ## Այս ուղեցույցի մասին
 
-Այս ուղեցույցը կրկնվում է, քայլ առ քայլ և այս ճիշտ ֆայլերի վրա, Soundscaper-ի յուրաքանչյուր կառուցման դեմ բրաուզերային հավաքածուի (`tests/browser/soundscaper-tutorials.spec.js`) կողմից։ Եթե քայլը դադարում է աշխատել, կառուցումը ձախողվում է, մինչև ուղեցույցը ուղղվի, ուստի ինչը դուք կարդում եք, այն է, ինչը խմբագիրն է անում։
+Այս ուղեցույցը կրկնվում է, քայլ առ քայլ և ճիշտ այս ֆայլերի վրա, Soundscaper-ի յուրաքանչյուր կառուցվածքի համար՝ բրաուզերային հավաքածուի (`tests/browser/soundscaper-tutorials.spec.js`) կողմից։ Եթե քայլը դադարում է աշխատել, կառուցվածքը ձախողվում է, մինչև ուղեցույցը ճշգրտվի, ուստի ինչը դուք կարդում եք, այն է, ինչը խմբագիրն է անում։

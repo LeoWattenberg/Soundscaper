@@ -1,6 +1,6 @@
 ---
 title: "Հեռացնել ֆոնային աղմուկը"
-description: "Մատուցեք Ձայնի նվազեցման ֆունկցիային, թե ինչպես է հնչում թուլացումը, այնուհետև հեռացրեք այն ամբողջ ձայնագրությունից։"
+description: "Մեկնաբանեք Ձայնի նվազեցումին, թե ինչպես է հնչում թնդումը, ապա հեռացրեք այն ամբողջ ձայնագրությունից։"
 editUrl: false
 sidebar:
   order: 1
@@ -8,51 +8,51 @@ head:
   - tag: script
     attrs:
       type: "application/ld+json"
-    content: "{\"@context\":\"https://schema.org\",\"@type\":\"HowTo\",\"name\":\"Remove background noise\",\"description\":\"Teach Noise Reduction what the hum sounds like, then take it out of the whole recording.\",\"tool\":[{\"@type\":\"HowToTool\",\"name\":\"Soundscaper\"}],\"step\":[{\"@type\":\"HowToStep\",\"position\":1,\"name\":\"Open Soundscaper. A new, empty project is ready as soon as the editor loads.\",\"text\":\"Open Soundscaper. A new, empty project is ready as soon as the editor loads.\"},{\"@type\":\"HowToStep\",\"position\":2,\"name\":\"Choose File → Import audio and pick the recording you want to clean up. The file lands as a clip on its own track.\",\"text\":\"Choose File → Import audio and pick the recording you want to clean up. The file lands as a clip on its own track.\"},{\"@type\":\"HowToStep\",\"position\":3,\"name\":\"Drag in the ruler above the clip to select a stretch that contains only the noise — usually the lead-in before anyone speaks.\",\"text\":\"Drag in the ruler above the clip to select a stretch that contains only the noise — usually the lead-in before anyone speaks. The profile should contain nothing but the noise you want gone.\"},{\"@type\":\"HowToStep\",\"position\":4,\"name\":\"Choose Effect → Noise removal and repair → Noise Reduction and press Get noise profile. The status line reports that the profile is ready. Press Close to leave the dialog for now.\",\"text\":\"Choose Effect → Noise removal and repair → Noise Reduction and press Get noise profile. The status line reports that the profile is ready. Press Close to leave the dialog for now.\"},{\"@type\":\"HowToStep\",\"position\":5,\"name\":\"Choose Select → Select all.\",\"text\":\"Choose Select → Select all. The profile is kept; now the effect needs to know what to clean.\"},{\"@type\":\"HowToStep\",\"position\":6,\"name\":\"Choose Effect → Noise removal and repair → Noise Reduction. In the Noise Reduction dialog, set Noise reduction to 12, then press Apply to selection.\",\"text\":\"Choose Effect → Noise removal and repair → Noise Reduction. In the Noise Reduction dialog, set Noise reduction to 12, then press Apply to selection. Around 12 dB is a good first try. Higher values remove more noise but start to make voices sound hollow.\"},{\"@type\":\"HowToStep\",\"position\":7,\"name\":\"Press Play to listen, then Stop.\",\"text\":\"Press Play to listen, then Stop. The lead-in is much quieter and the voice is untouched.\"}]}"
+    content: "{\"@context\":\"https://schema.org\",\"@type\":\"HowTo\",\"name\":\"Remove background noise\",\"description\":\"Teach Noise Reduction what the hum sounds like, then take it out of the whole recording.\",\"tool\":[{\"@type\":\"HowToTool\",\"name\":\"Soundscaper\"}],\"step\":[{\"@type\":\"HowToStep\",\"position\":1,\"name\":\"Open Soundscaper. A new, empty project is ready as soon as the editor loads.\",\"text\":\"Open Soundscaper. A new, empty project is ready as soon as the editor loads.\"},{\"@type\":\"HowToStep\",\"position\":2,\"name\":\"Choose File → Import and pick the recording you want to clean up. It lands as a clip on its own track.\",\"text\":\"Choose File → Import and pick the recording you want to clean up. It lands as a clip on its own track.\"},{\"@type\":\"HowToStep\",\"position\":3,\"name\":\"Drag in the ruler above the clip to select a stretch that contains only the noise — usually the lead-in before anyone speaks.\",\"text\":\"Drag in the ruler above the clip to select a stretch that contains only the noise — usually the lead-in before anyone speaks. The profile should contain nothing but the noise you want gone.\"},{\"@type\":\"HowToStep\",\"position\":4,\"name\":\"Choose Effect → Noise removal and repair → Noise Reduction and press Get noise profile. The status line reports that the profile is ready. Press Close to leave the dialog for now.\",\"text\":\"Choose Effect → Noise removal and repair → Noise Reduction and press Get noise profile. The status line reports that the profile is ready. Press Close to leave the dialog for now.\"},{\"@type\":\"HowToStep\",\"position\":5,\"name\":\"Choose Select → Select all.\",\"text\":\"Choose Select → Select all. The profile is kept; now the effect needs to know what to clean.\"},{\"@type\":\"HowToStep\",\"position\":6,\"name\":\"Choose Effect → Noise removal and repair → Noise Reduction. In the Noise Reduction dialog, set Noise reduction to 12, then press Apply to selection.\",\"text\":\"Choose Effect → Noise removal and repair → Noise Reduction. In the Noise Reduction dialog, set Noise reduction to 12, then press Apply to selection. Around 12 dB is a good first try. Higher values remove more noise but start to make voices sound hollow.\"},{\"@type\":\"HowToStep\",\"position\":7,\"name\":\"Press Play to listen, then Stop.\",\"text\":\"Press Play to listen, then Stop. The lead-in is much quieter and the voice is untouched.\"}]}"
 ---
-<!-- docs-ai-provenance: {"factPacketSha256":"c579909f7c6a84651400e72c3ef0d3d7896f553e9f091a0d5dfbda1267ba2bb3","model":"qwen3.8:latest","modelDigest":"22130167c4c20e20c7b71454612966ca8e8171e9b3cc8ab6ce8aa6cbfec79643","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"c579909f7c6a84651400e72c3ef0d3d7896f553e9f091a0d5dfbda1267ba2bb3","targetLocale":"hy"} -->
+<!-- docs-ai-provenance: {"factPacketSha256":"dc5ee5727bc89fa1bf625018b6e955abca6ffe475407123662cfca57d83201a7","model":"qwen3.8:latest","modelDigest":"22130167c4c20e20c7b71454612966ca8e8171e9b3cc8ab6ce8aa6cbfec79643","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"dc5ee5727bc89fa1bf625018b6e955abca6ffe475407123662cfca57d83201a7","targetLocale":"hy"} -->
 
 <!-- Generated by `node scripts/docs-reference.mjs`. Do not edit. -->
 
-Կայուն ֆոնային աղմուկը՝ օդափոխիչ, սառնարան, ցանցի ջայթոց, կարելի է հեռացնել երկու քայլով։ Նախ ցույց եք տալիս Աղմուկի նվազեցումը աղմուկի միայնակ հատված, որպեսզի այն կազմի պրոֆիլ, ապա կիրառում եք էֆեկտը ամեն ինչի վրա։ Պրոֆիլն է, որ դա հնարավոր է դարձնում, ուստի ընտրեք ձայնագրության այն մասը, որտեղ ոչ ոք չի խոսում։
+Կայուն ֆոնային աղմուկը՝ օդափոխիչ, սառնարան, ցանցի ջայթոց, կարելի է հեռացնել երկու քայլով։ Նախ ցույց եք տալիս Աղմուկի նվազեցումը աղմուկի միայնակ հատված, որպեսզի այն կազմի պրոֆիլ, ապա կիրառում եք էֆեկտը ամեն ինչի վրա։ Պրոֆիլն է, որ դա աշխատեցնում է, ուստի ընտրեք ձայնագրության այն մասը, որտեղ ոչ ոք չի խոսում։
 
 :::note[Եթե գալիս եք Audacity-ից]
-Սա Audacity-ի **Effect → Noise Removal and Repair → Noise Reduction, երկու քայլով** է։ Ցածքում նշված անունները Soundscaper-ին են պատկանում և երբեմն տարբերվում են։
+Սա Audacity-ի **Effect → Noise Removal and Repair → Noise Reduction, երկու քայլով** է։ Ցածքում նշված անունները Soundscaper-ի սեփականն են և երբեմն տարբերվում են։
 :::
 
 ## Քայլեր
 
-1. Բացեք Soundscaper-ը։ Նոր, դատարկ նախագիծը պատրաստ է, հենց որ խմբագիրը բեռնվի։
-2. Ընտրեք **File → Import audio** և ընտրեք այն ձայնագրությունը, որը ցանկանում եք մաքրել։ Ֆայլը հայտնվում է որպես կլիպ իր առանձին հոսքում։
-3. Քաշեք կանոնավորիչը կլիպի վերևում՝ ընտրելու համար միայն աղմուկ պարունակող հատված՝ սովորաբար խոսելուց առաջ գտնվող մուտքը։ Պրոֆիլը պետք է պարունակի միայն այն աղմուկը, որը ցանկանում եք հեռացնել։
+1. Բացեք Soundscaper-ը։ Նոր, դատարկ նախագիծը պատրաստ է, քանի որ խմբագիրը բեռնվում է։
+2. Ընտրեք **File → Import** և ընտրեք այն ձայնագրությունը, որը ցանկանում եք մաքրել։ Այն տեղակայվում է որպես կլիպ իր սեփական հոսքում։
+3. Երկարացրեք կանչիչը կլիպի վերևում՝ ընտրելու համար միայն աղմուկ պարունակող հատված՝ սովորաբար խոսելուց առաջ գտնվող մուտքը։ Պրոֆիլը պետք է պարունակի միայն այն աղմուկը, որը ցանկանում եք հեռացնել։
 4. Ընտրեք **Effect → Noise removal and repair → Noise Reduction** և սեղմեք **Get noise profile**։ Կարգավիճակի տողը հաղորդում է, որ պրոֆիլը պատրաստ է։ Սեղմեք **Close**՝ ժամանակավորապես դուրս գալու համար զրույցից։
-5. Ընտրեք **Select → Select all**։ Պրոֆիլը պահպանվում է, հիմա էֆեկտը պետք է իմանա, թե ինչ մաքրել։
-6. Ընտրեք **Effect → Noise removal and repair → Noise Reduction**։ **Noise Reduction** զրույցում կարգավորեք **Noise reduction**-ը `12` արժեքի, ապա սեղմեք **Apply to selection**։ Մոտ 12 դԲ-ը լավ առաջին փորձ է։ Ավելի բարձր արժեքները հեռացնում են ավելի շատ աղմուկ, բայց սկսում են ձայները դատարկ հնչեցնել։
+5. Ընտրեք **Select → Select all**։ Պրոֆիլը պահվում է, իսկ հիմա էֆեկտը պետք է իմանա, թե ինչ մաքրել։
+6. Ընտրեք **Effect → Noise removal and repair → Noise Reduction**։ **Noise Reduction** զրույցում կարգավորեք **Noise reduction**-ը `12` արժեքի, ապա սեղմեք **Apply to selection**։ Մոտ 12 դԲ-ը լավ առաջին փորձ է։ Ավելի բարձր արժեքները հեռացնում են ավելի շատ աղմուկ, բայց սկսում են ձայները դարձնել փոսպատյակային։
 7. Սեղմեք **Play**՝ լսելու համար, ապա **Stop**։
-   *Դուք պետք է տեսնեք.* Մուտքը շատ ավելի թուլ է, և ձայնը չի դիպված։
+   *Դուք պետք է տեսնեք.* Մուտքը շատ ավելի թուլ է, իսկ ձայնը չի դիպվել։
 
 ## Խորհուրդներ
 
-- Եթե արդյունքը ջրային կամ մետաղական է հնչում, վերադարձրեք և փորձեք ավելի ցածր **Noise reduction** արժեք կամ ավելի ցածր **Sensitivity**։
-- Noise Reduction-ը աշխատում է միայն այն աղմուկի վրա, որը ձայնագրության ընթացքում մնում է նույնը։ Մեկ խոստոցի կամ կտրվածքի համար հատեք այն կամ օգտագործեք Click Removal-ը։
+- Եթե արդյունքը ձայն է տալիս ջրային կամ մետաղական, վերադարձրեք և փորձեք ավելի ցածր **Noise reduction** արժեք կամ ավելի ցածր **Sensitivity**։
+- Noise Reduction-ը աշխատում է միայն այն աղմուկի վրա, որը մնում է նույնը ամբողջ ձայնագրության ընթացքում։ Մեկ փորձառության կամ կտրվածքի համար հեռացրեք այն կամ օգտագործեք Click Removal-ը փոխարենը։
 
 ## Կապված ուղեցույցներ
 
 Ավելի [ձայնագրություն մաքրել](/guides/cleaning-up/) ուղեցույցներ.
 
-- [Հեռացնել կտրվածքներ և պայթյուններ](/guides/cleaning-up/remove-clicks-and-pops/) — Հեռացրեք կարճ, կտրուկ կտրվածքները ձայնագրությունից՝ չդիպչելով մնացածին։
-- [Կարճացնել երկար դադարները](/guides/cleaning-up/remove-silent-pauses/) — Սեղմեք ձայնագրությունը՝ կրճատելով յուրաքանչյուր երկար լռությունը նույն կարճ բացվածքի։
-- [Լռացնել ձայնագրության մի մասը](/guides/cleaning-up/silence-part-of-a-recording/) — Փոխարինեք ձայնային հատվածը լռությամբ՝ պահպանելով ամեն ինչ իր տեղում։
-- [Հեռացնել ցածր ջայթոցը](/guides/cleaning-up/remove-low-rumble/) — Կտրեք ենթաբասի հարվածները շարժից, քամուց և ձեռքի աշխատանքից՝ օգտագործելով բարձր անցուցիչ զտիչ։
-- [Ուղղել DC շեղումը](/guides/cleaning-up/fix-dc-offset/) — Կենտրոնացրեք ալիքը, որը գտնվում է զրոյի գծի վերևում կամ ներքևում։
-- [Հեռացնել ցանցի ջայթոցը նոչ զտիչով](/guides/cleaning-up/remove-mains-hum-with-a-notch-filter/) — Կտրեք մեկ հաճախությունը՝ 50 կամ 60 Հց ջայթոց, փչոց, զանգ՝ չդիպչելով մնացածին։
-- [Լռացնել արտահայտությունների միջև աղմուկը դարպասով](/guides/cleaning-up/gate-out-noise-between-phrases/) — Ձայնը անցկացրեք և փակեք դուռը սենյակի աղմուկի համար, երբ ոչ ոք չի խոսում։
+- [Հեռացնել կտրվածքներ և փչոցներ](/guides/cleaning-up/remove-clicks-and-pops/) — Կարճ, կտրուկ կտրվածքներ հեռացնել ձայնագրությունից՝ չդիպչելով մնացածին։
+- [Կարճել երկար դադարները](/guides/cleaning-up/remove-silent-pauses/) — Կարճել ձայնագրությունը՝ յուրաքանչյուր երկար լռությունը կտրելով մինչև նույն կարճ բացվածքը։
+- [Լռացնել ձայնագրության մի մասը](/guides/cleaning-up/silence-part-of-a-recording/) — Փոխարինել ձայնային հատվածը լռությամբ՝ պահելով ամեն ինչ իր տեղում։
+- [Հեռացնել ցածր ջայթոցը](/guides/cleaning-up/remove-low-rumble/) — Կտրել ենթաբասային հարվածները շարժից, քամուց և ձեռքի աշխատանքից՝ օգտագործելով բարձր անցուցիչ զտիչ։
+- [Ուղղել DC շեղումը](/guides/cleaning-up/fix-dc-offset/) — Կենտրոնացնել ալիքային ձևը, որը գտնվում է զրոյի գծի վերևում կամ ներքևում։
+- [Հեռացնել ցանցի ջայթոցը նոչ զտիչով](/guides/cleaning-up/remove-mains-hum-with-a-notch-filter/) — Կտրել մեկ հաճախություն՝ 50 կամ 60 Հց ջայթոց, փչոց, զանգ՝ չդիպչելով մնացածին։
+- [Լռացնել արտահայտությունների միջև աղմուկը դարպասով](/guides/cleaning-up/gate-out-noise-between-phrases/) — Ձայնը անցկացնել և փակել դուռը սենյակի աղմուկի համար, երբ ոչ ոք չի խոսում։
 
 ## Հղում
 
-- [Այստեղ օգտագործված էֆեկտների բոլոր պարամետրերը, ներառյալ իրենց սկզբնական արժեքները և տիրույթը, գտնվում են ձայնային էֆեկտների հղումներում։](/reference/generated/audio-effects/#parameters)
-- [Բոլոր մենյուի հրամանները և դրանց ստեղնաշարտի լուծումները գտնվում են հրամանների և լուծումների հղումներում։](/reference/generated/commands/)
+- [Այստեղ օգտագործված էֆեկտների բոլոր պարամետրերը, նրանց չափանիշներով և տիրույթներով, գտնվում են ձայնային էֆեկտների հղումներում։](/reference/generated/audio-effects/#parameters)
+- [Բոլոր մենյուի հրամանները և նրանց ստեղնաշարտի լուծումները գտնվում են հրամանների և լուծումների հղումներում։](/reference/generated/commands/)
 
 ## Այս ուղեցույցի մասին
 
-Այս էջի գործողությունը՝ յուրաքանչյուր մենյուի մուտքը, զրույցը, դաշտը և կոճակը, և դրանց արդյունքը՝ կրկնօրինակվում է Soundscaper-ի յուրաքանչյուր կառուցվածքի դեմ՝ բրաուզերային հավաքածուի կողմից (`tests/browser/soundscaper-guides.spec.js`)։ Եթե դրանցից որևէ մեկը դադարում է համապատասխանել խմբագրին, կառուցվածքը ձախողվում է, մինչև ուղեցույցը ուղղվի։ Պատկերացված արժեքները սկզբնակետեր են, որոնք խմբագիրը ապացուցված է ընդունում. արդյոք դրանք հարմար են ձեր ձայնագրության համար, որոշում եք դուք ձեր ականներով։
+Այս էջի վրա նկարագրված գործընթացը՝ յուրաքանչյուր մենյուի մուտքը, զրույցը, դաշտը և կոճակը, և դրանց արդյունքը, կրկնվում է Soundscaper-ի յուրաքանչյուր կառուցման դեմ՝ բրաուզերային հավաքածուի կողմից (`tests/browser/soundscaper-guides.spec.js`)։ Եթե դրանցից որևէ մեկը դադարում է համապատասխանել խմբագրին, կառուցումը ձախողվում է, մինչև ուղեցույցը ուղղվի։ Պատկերացված արժեքները սկզբնական կետեր են, որոնք խմբագիրը ապացուցված է ընդունում. արդյոք դրանք հարմար են ձեր ձայնագրության համար, որոշում են ձեր ականները։
