@@ -152,6 +152,53 @@ export function createNativePersistentPluginJobRunner({
 					});
 					return;
 				}
+				if (message.kind === 'capabilities') {
+					if (typeof addon.pluginCapabilities !== 'function') {
+						throw fault('unsupported', 'This plug-in host exposes no generated controls.');
+					}
+					const capabilities = pluginCapabilities(await addon.pluginCapabilities(instance));
+					if (!current(observedGeneration)) return;
+					post(port, {
+						protocolVersion: PROTOCOL_VERSION,
+						kind: 'capabilities',
+						requestId: requestId(message.requestId),
+						...capabilities,
+					});
+					return;
+				}
+				if (message.kind === 'parameters') {
+					if (typeof addon.describePluginParameters !== 'function') {
+						throw fault('unsupported', 'This plug-in host exposes no generated controls.');
+					}
+					const parameters = pluginParameters(await addon.describePluginParameters(instance));
+					if (!current(observedGeneration)) return;
+					post(port, {
+						protocolVersion: PROTOCOL_VERSION,
+						kind: 'parameters',
+						requestId: requestId(message.requestId),
+						parameters,
+					});
+					return;
+				}
+				if (message.kind === 'parameter-get' || message.kind === 'parameter-set') {
+					const index = integer(message.index, 0, 4_095, 'parameter index');
+					const method = message.kind === 'parameter-get' ? 'readPluginParameter' : 'writePluginParameter';
+					if (typeof addon[method] !== 'function') {
+						throw fault('unsupported', 'This plug-in host exposes no generated controls.');
+					}
+					const value = normalizedParameterValue(message.kind === 'parameter-get'
+						? await addon[method](instance, index)
+						: await addon[method](instance, index, normalizedParameterValue(message.value)));
+					if (!current(observedGeneration)) return;
+					post(port, {
+						protocolVersion: PROTOCOL_VERSION,
+						kind: 'parameter-value',
+						requestId: requestId(message.requestId),
+						index,
+						value,
+					});
+					return;
+				}
 				if (message.kind === 'open-vendor-ui' || message.kind === 'close-vendor-ui') {
 					const method = message.kind === 'open-vendor-ui' ? 'openPluginVendorWindow' : 'closePluginVendorWindow';
 					if (typeof addon[method] !== 'function') throw fault('vendor-ui-unavailable', 'This host has no vendor UI adapter.');
@@ -216,6 +263,65 @@ function ordinaryBytes(value) {
 		|| (typeof SharedArrayBuffer !== 'undefined' && value.buffer instanceof SharedArrayBuffer)) {
 		throw fault('oversize-state', 'Plug-in state must be at most 16 MiB of ordinary bytes.');
 	}
+	return value;
+}
+
+function pluginCapabilities(value) {
+	if (!value || typeof value !== 'object') throw new TypeError('Plug-in capabilities are malformed.');
+	return Object.freeze({
+		parameterCount: integer(value.parameterCount, 0, 4_096, 'parameter count'),
+		hasVendorUi: boolean(value.hasVendorUi, 'vendor UI capability'),
+	});
+}
+
+function pluginParameters(value) {
+	if (!Array.isArray(value) || value.length > 4_096) throw new TypeError('Plug-in parameters are malformed.');
+	const found = value.map((parameter, index) => pluginParameter(parameter, index));
+	if (new Set(found.map(({ id }) => id)).size !== found.length) {
+		throw new TypeError('Plug-in parameter IDs must be unique.');
+	}
+	return Object.freeze(found);
+}
+
+function pluginParameter(value, index) {
+	if (!value || typeof value !== 'object' || value.index !== index) {
+		throw new TypeError('A plug-in parameter is malformed.');
+	}
+	const minimumValue = normalizedParameterValue(value.minimumValue);
+	const defaultValue = normalizedParameterValue(value.defaultValue);
+	const maximumValue = normalizedParameterValue(value.maximumValue);
+	if (minimumValue > defaultValue || defaultValue > maximumValue) {
+		throw new RangeError('A plug-in parameter range is malformed.');
+	}
+	return Object.freeze({
+		index,
+		id: parameterText(value.id, false),
+		name: parameterText(value.name, false),
+		label: parameterText(value.label, true),
+		defaultValue,
+		minimumValue,
+		maximumValue,
+		flags: integer(value.flags, 0, 15, 'parameter flags'),
+	});
+}
+
+function normalizedParameterValue(value) {
+	if (!Number.isFinite(value) || value < 0 || value > 1) {
+		throw new RangeError('A normalized plug-in parameter value is required.');
+	}
+	return value;
+}
+
+function parameterText(value, allowEmpty) {
+	if (typeof value !== 'string' || (!allowEmpty && value.length < 1)
+		|| Buffer.byteLength(value, 'utf8') > 512 || value.includes('\0')) {
+		throw new TypeError('Plug-in parameter text is malformed.');
+	}
+	return value;
+}
+
+function boolean(value, label) {
+	if (typeof value !== 'boolean') throw new TypeError(`Invalid plug-in ${label}.`);
 	return value;
 }
 

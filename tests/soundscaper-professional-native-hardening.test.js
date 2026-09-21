@@ -178,7 +178,7 @@ test('the macOS RSS probe reaches the authenticated peer then requires superviso
 
 test('the target peer contains purpose-built filesystem, network, and child-process attempts', async () => {
 	const source = await readFile(resolve(import.meta.dirname,
-		'../native/soundscaper-professional-host/src/professional_host_peer.cpp'), 'utf8');
+		'../native/soundscaper-professional-host/src/professional_host_containment_probe.cpp'), 'utf8');
 	assert.match(source, /SOUNDSCAPER_CONTAINMENT_PROBE/u);
 	assert.match(source, /(?:fopen|ifstream)/u);
 	assert.match(source, /\bconnect\s*\(/u);

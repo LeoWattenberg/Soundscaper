@@ -18,16 +18,21 @@
 
 /** Closed format-to-candidate mapping; the verified payload declares its subset. */
 export const SCANNABLE_PLUGIN_FORMATS = Object.freeze({
-	fixture: '.scapefx',
-	vst3: '.vst3',
-	clap: '.clap',
-	au: '.component',
-	lv2: '.lv2',
+	fixture: Object.freeze({ darwin: ['.scapefx'], linux: ['.scapefx'], win32: ['.scapefx'] }),
+	vst3: Object.freeze({ darwin: ['.vst3'], linux: ['.vst3'], win32: ['.vst3'] }),
+	clap: Object.freeze({ darwin: ['.clap'], linux: ['.clap'], win32: ['.clap'] }),
+	au: Object.freeze({ darwin: ['.component'] }),
+	lv2: Object.freeze({ linux: ['.lv2'] }),
+	ladspa: Object.freeze({ linux: ['.so'] }),
+	vamp: Object.freeze({ darwin: ['.dylib'], linux: ['.so'], win32: ['.dll'] }),
 });
 
 export const MAXIMUM_SCAN_ENTRIES = 512;
+const MAXIMUM_VAMP_RESULT_BYTES = 15 * 1_024 * 1_024;
 
-export function createNativePluginScanJobRunner({ loadAddon, addonPath, addonSha256, hashFile }) {
+export function createNativePluginScanJobRunner({
+	loadAddon, addonPath, addonSha256, hashFile, platform = process.platform, architecture = process.arch,
+}) {
 	if (typeof loadAddon !== 'function') throw new TypeError('A native addon loader is required.');
 	if (typeof hashFile !== 'function') throw new TypeError('A file digest function is required.');
 	let addon = null;
@@ -43,14 +48,28 @@ export function createNativePluginScanJobRunner({ loadAddon, addonPath, addonSha
 			const declared = (await addon.describe?.())?.pluginFormats;
 			const supported = Array.isArray(declared) ? declared.includes(format) : format === 'fixture';
 			if (!supported) {
-				return refusal(format, 'unsupported-format', `This authenticated payload does not implement ${format}.`);
+				return refusalFor(format, 'unsupported-format',
+					`This authenticated payload does not implement ${format}.`);
 			}
-			const suffix = SCANNABLE_PLUGIN_FORMATS[format];
+			const suffixes = SCANNABLE_PLUGIN_FORMATS[format][platform] ?? [];
+			if (suffixes.length === 0) {
+				return refusalFor(format, 'unsupported-format',
+					`This platform does not implement the ${format} format.`);
+			}
 			let candidates;
 			try {
-				candidates = await addon.listPluginCandidates(grant.rootPath, suffix);
+				candidates = [...new Set((await Promise.all(suffixes.map((suffix) => (
+					addon.listPluginCandidates(grant.rootPath, suffix, format)
+				)))).flat())];
 			} catch (error) {
-				return refusal(format, 'root-unreadable', error instanceof Error ? error.message : String(error));
+				return refusalFor(format, 'root-unreadable',
+					error instanceof Error ? error.message : String(error));
+			}
+			if (format === 'vamp') {
+				return scanVampLibraries({
+					addon, candidates, resourcePolicy, onProgress,
+					hashFile, platform, architecture, cancelled: () => cancelled,
+				});
 			}
 			const entries = [];
 			const truncatedRoot = candidates.length > MAXIMUM_SCAN_ENTRIES;
@@ -89,6 +108,70 @@ export function createNativePluginScanJobRunner({ loadAddon, addonPath, addonSha
 			},
 		});
 	};
+}
+
+async function scanVampLibraries({
+	addon, candidates, resourcePolicy, onProgress, hashFile, platform, architecture, cancelled,
+}) {
+	if (typeof addon.scanExactLibrary !== 'function'
+		|| !['darwin', 'linux', 'win32'].includes(platform)
+		|| !['arm64', 'x64'].includes(architecture)) {
+		return vampRefusal('unsupported-format', 'This payload cannot inspect exact Vamp libraries on this machine.');
+	}
+	const libraries = [];
+	let skipped = 0;
+	let resultBytes = 0;
+	let oversized = candidates.length > MAXIMUM_SCAN_ENTRIES;
+	const inspected = candidates.slice(0, MAXIMUM_SCAN_ENTRIES);
+	for (const [index, path] of inspected.entries()) {
+		if (cancelled()) break;
+		onProgress((index + 1) / inspected.length);
+		const digest = await hashFile(path);
+		let descriptors;
+		try {
+			descriptors = await addon.scanExactLibrary(path, 48_000, {
+				identity: digest.identity, byteLength: digest.byteLength,
+				sha256: digest.sha256, resourcePolicy,
+			});
+		} catch (error) {
+			if (!['library-malformed', 'library-unreadable'].includes(error?.code)) throw error;
+			skipped += 1;
+			continue;
+		}
+		const observation = Object.freeze({
+			kind: 'analyzer-library', format: 'vamp', libraryPath: path,
+			libraryBytes: digest.byteLength, librarySha256: digest.sha256,
+			identity: Object.freeze({ dev: digest.identity.dev, ino: digest.identity.ino }),
+			platform, architecture, compatibility: 'compatible',
+			descriptors: Object.freeze([...descriptors]),
+		});
+		const observationBytes = Buffer.byteLength(JSON.stringify(observation));
+		if (observationBytes > MAXIMUM_VAMP_RESULT_BYTES - resultBytes) {
+			oversized = true;
+			break;
+		}
+		resultBytes += observationBytes;
+		libraries.push(observation);
+		await new Promise((resolve) => { setTimeout(resolve, 0); });
+	}
+	const detail = oversized
+		? `Only the first ${String(libraries.length)} admitted Vamp libraries fit one scan result.`
+		: skipped === 0 ? ''
+			: `Skipped ${String(skipped)} ${skipped === 1 ? 'library' : 'libraries'} that did not expose an admitted Vamp descriptor set.`;
+	return Object.freeze({
+		format: 'vamp', status: oversized ? 'root-oversized' : 'scanned', detail,
+		libraries: Object.freeze(libraries),
+	});
+}
+
+function vampRefusal(status, detail) {
+	return Object.freeze({
+		format: 'vamp', status, detail: String(detail).slice(0, 1_024), libraries: Object.freeze([]),
+	});
+}
+
+function refusalFor(format, status, detail) {
+	return format === 'vamp' ? vampRefusal(status, detail) : refusal(format, status, detail);
 }
 
 function inspectionsFor(value, digest) {

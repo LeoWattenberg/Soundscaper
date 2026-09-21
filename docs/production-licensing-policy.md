@@ -415,8 +415,11 @@ performance conclusion for a user's installation.
 The matrix's `nativeFormatPolicies` register carries one fail-closed row for
 the JUCE native-audio stack, one per operating-system backend (CoreAudio,
 WASAPI, ASIO, PipeWire and ALSA), and one per plug-in format (VST3, CLAP, Audio
-Units, LV2, OFX). The acquisition register pins the exact JUCE, CLAP, VST3,
-ASIO and LV2 source inputs, the four external native codec libraries, and zlib. A
+Units, Linux-only LADSPA effects, LV2, cross-platform Vamp analyzers, and OFX).
+The acquisition register pins the exact JUCE, CLAP, VST3, LADSPA 1.17, Vamp
+Plugin SDK 2.10.0, ASIO and LV2 source inputs, the four external native codec
+libraries, and zlib. LADSPA selects the official header's
+LGPL-2.1-or-later terms; Vamp selects BSD-3-Clause. A
 verified archive hash proves source identity only: it does not supply notices,
 corresponding source, platform compatibility, self-tests, or package verification.
 
@@ -434,7 +437,9 @@ depends on both rows, so clearing one combination cannot authorize the other.
 Each row records the upstream licensing form, the compatibility direction
 into this AGPL-3.0-only work (the ASIO SDK's selected GPLv3 arm combines
 one-way via GPLv3 section 13; the VST3 3.8.0 SDK and other permissive SDKs
-combine trivially; operating-system APIs and
+combine trivially; the LGPL-2.1-or-later LADSPA interface remains compatible
+with the AGPL application while retaining its applicable source and notice
+duties; operating-system APIs and
 platform encoder services are linkage, not combined source), the
 redistribution posture and the remaining stable-distribution choice for that
 exact tuple. Every codec tuple remains distribution-`blocked`, but every tuple

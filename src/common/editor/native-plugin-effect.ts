@@ -9,7 +9,7 @@ export interface NativePluginRackEffect {
 	readonly bypassed: boolean
 	readonly params: Readonly<{ readonly instanceId: string; readonly latencyFrames: number }>
 	readonly context: Readonly<{
-		readonly format: 'vst3' | 'clap' | 'au' | 'lv2'
+		readonly format: 'vst3' | 'clap' | 'au' | 'lv2' | 'ladspa'
 		readonly stablePluginId: string
 		readonly binarySha256: string
 	}>
@@ -81,7 +81,7 @@ function text(value: unknown, label: string): string {
 	return value
 }
 function format(value: unknown): NativePluginRackEffect['context']['format'] {
-	if (value !== 'vst3' && value !== 'clap' && value !== 'au' && value !== 'lv2') {
+	if (value !== 'vst3' && value !== 'clap' && value !== 'au' && value !== 'lv2' && value !== 'ladspa') {
 		throw new TypeError('The native plug-in format is unsupported.')
 	}
 	return value

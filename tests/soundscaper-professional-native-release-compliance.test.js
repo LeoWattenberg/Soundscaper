@@ -20,7 +20,7 @@ import {
 const TARGETS = ['linux-x64', 'linux-arm64', 'mac-arm64', 'win-x64', 'win-arm64'];
 const FORBIDDEN = ['x264', 'x265', 'libvpx', 'libopus'];
 
-test('Stable assembly stages six receipt-bound source archives and the shared notice inventory', async (context) => {
+test('Stable assembly stages eight receipt-bound source archives and the shared notice inventory', async (context) => {
 	const fixture = await releaseFixture(context);
 	const result = await stageSoundscaperProfessionalNativeReleaseCompliance({
 		repositoryRoot: fixture.repositoryRoot,
@@ -31,11 +31,12 @@ test('Stable assembly stages six receipt-bound source archives and the shared no
 	assert.equal(result.status, 'authenticated');
 	assert.equal(Object.hasOwn(result, 'legalApproval'), false);
 	assert.deepEqual(result.sources.map(({ id }) => id).sort(),
-		['asio-sdk', 'clap', 'electron-node-api-headers', 'juce', 'lv2', 'vst3-sdk']);
+		['asio-sdk', 'clap', 'electron-node-api-headers', 'juce', 'ladspa-sdk', 'lv2',
+			'vamp-plugin-sdk', 'vst3-sdk']);
 	assert.equal(result.sources.some(({ id }) => FORBIDDEN.includes(id)), false);
 	assert.equal(result.targetBindings.length, 5);
 	const outputNames = (await readdir(fixture.outputRoot)).sort();
-	assert.equal(outputNames.filter((name) => name.includes('-source-')).length, 6);
+	assert.equal(outputNames.filter((name) => name.includes('-source-')).length, 8);
 	assert.equal(outputNames.some((name) => /x264|x265|libvpx|libopus/iu.test(name)), false);
 	assert.equal(outputNames.includes('Soundscaper-professional-native-compliance.json'), true);
 	for (const name of outputNames) assert.equal((await lstat(join(fixture.outputRoot, name))).isSymbolicLink(), false);
@@ -125,7 +126,10 @@ async function releaseFixture(context) {
 }
 
 function fixtureRegisters() {
-	const ids = ['electron-node-api-headers', 'juce', 'clap', 'vst3-sdk', 'asio-sdk', 'lv2'];
+	const ids = [
+		'electron-node-api-headers', 'juce', 'clap', 'vst3-sdk', 'vamp-plugin-sdk',
+		'asio-sdk', 'ladspa-sdk', 'lv2',
+	];
 	const sources = ids.map((id, index) => {
 		const archiveBytes = Buffer.from(`archive-${id}`);
 		const noticeBytes = Buffer.from(`notice-${id}`);

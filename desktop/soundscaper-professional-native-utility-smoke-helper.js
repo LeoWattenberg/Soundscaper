@@ -139,7 +139,7 @@ async function isolatedFixtureCanary(roots_, target_) {
 		assert(await plugin.closePluginInstance(instance), 'The packaged isolated fixture did not close.');
 	}
 	return Object.freeze({
-		protocol: 'M5F1', fixtureSha256: fixture.sha256,
+		protocol: 'M5F2', fixtureSha256: fixture.sha256,
 		launcherId: machine.launcherId,
 		filesystem: 'broker-grant-only', network: 'denied', childProcesses: 'denied',
 		operations: Object.freeze([

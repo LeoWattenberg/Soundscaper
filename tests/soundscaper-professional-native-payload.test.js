@@ -68,6 +68,12 @@ test('a verified professional Node bridge stages exactly its manifest and payloa
 		'soundscaper_professional.node',
 		'soundscaper_professional_peer',
 	]);
+	const stagedManifest = JSON.parse(await readFile(join(outputRoot,
+		'soundscaper-professional-native-payload-manifest.json'), 'utf8'));
+	assert.deepEqual({
+		protocol: stagedManifest.pluginPeer.protocol,
+		analyzerProtocol: stagedManifest.pluginPeer.analyzerProtocol,
+	}, { protocol: 'M5F2', analyzerProtocol: 'M5A1' });
 	assert.equal(summary.payload.sha256, fixture.sha256);
 	assert.deepEqual(Object.keys(summary.payloadManifest).sort(), ['byteLength', 'id', 'sha256']);
 	assert.equal(summary.payloadManifest.byteLength,
@@ -146,6 +152,25 @@ test('a built payload cannot substitute well-shaped source digests for the pinne
 	await assert.rejects(() => verifySoundscaperProfessionalNativePayload({
 		repositoryRoot: fixture.root, target: 'linux-x64',
 	}), /built record is invalid/iu);
+});
+
+test('payload authority rejects a missing or different Vamp analyzer protocol', async (context) => {
+	for (const analyzerProtocol of [undefined, 'M5A2']) {
+		const fixture = await builtFixture(context);
+		const manifestPath = join(fixture.root, PROFESSIONAL_NATIVE_MANIFEST_PATH);
+		const manifest = JSON.parse(await readFile(manifestPath, 'utf8'));
+		if (analyzerProtocol === undefined) delete manifest.pluginPeer.analyzerProtocol;
+		else manifest.pluginPeer.analyzerProtocol = analyzerProtocol;
+		await writeFile(manifestPath, `${JSON.stringify(manifest, null, '\t')}\n`);
+		await assert.rejects(() => verifySoundscaperProfessionalNativePayload({
+			repositoryRoot: fixture.root, target: 'linux-x64',
+		}), /peer\/isolation description/iu);
+		const runtime = await describeSoundscaperProfessionalNativePayload({
+			applicationRoot: fixture.root, packaged: false, resourcesPath: '',
+			platform: 'linux', arch: 'x64',
+		});
+		assert.deepEqual([runtime.status, runtime.reason], ['unavailable', 'manifest-unreadable']);
+	}
 });
 
 async function builtFixture(context) {
@@ -297,9 +322,9 @@ function hash(bytes) { return createHash('sha256').update(bytes).digest('hex'); 
 function sourceAuthentication(target) {
 	const sourceRegister = JSON.parse(readFileSync(join(ROOT,
 		'config/milestone-5-native-source-acquisitions.json'), 'utf8'));
-	const ids = ['electron-node-api-headers', 'juce', 'clap', 'vst3-sdk',
+	const ids = ['electron-node-api-headers', 'juce', 'clap', 'vst3-sdk', 'vamp-plugin-sdk',
 		...(target.startsWith('win-') ? ['asio-sdk'] : []),
-		...(target.startsWith('linux-') ? ['lv2'] : [])];
+		...(target.startsWith('linux-') ? ['ladspa-sdk', 'lv2'] : [])];
 	return {
 		schemaVersion: 1, status: 'authenticated', sources: ids.map((id) => {
 			const source = sourceRegister.sources.find((entry) => entry.id === id);

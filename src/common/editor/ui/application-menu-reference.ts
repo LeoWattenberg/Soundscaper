@@ -214,6 +214,7 @@ const REFERENCE_SEEDS: readonly ReferenceSeed[] = Object.freeze([
 	['analysis', 'Analysis', 'Analyze', SOUNDSCAPER],
 	['ebu-r128-metrics', 'EBU R 128', 'Analyze', SOUNDSCAPER],
 	['measure-loudness', 'Measure loudness', 'Analyze', SOUNDSCAPER],
+	['native-analyzer-use', 'Vamp Plugins', 'Analyze', SOUNDSCAPER],
 	['framescaper-motion-tracking', 'Motion Tracking', 'Analyze', FRAMESCAPER],
 	['assistance-task-transcribe-captions', 'Transcribe & Captions…', 'Analyze > Speech', BOTH],
 	['assistance-task-identify-speakers', 'Identify Speakers…', 'Analyze > Speech', BOTH],

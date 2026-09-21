@@ -92,6 +92,12 @@ const NATIVE_CHANNELS = Object.freeze([
 	IPC.nativePluginOpenVendorUi,
 	IPC.nativePluginCloseVendorUi,
 	IPC.nativePluginCloseInstance,
+	IPC.nativeVampInventory,
+	IPC.nativeVampSessionStart,
+	IPC.nativeVampSessionConfigure,
+	IPC.nativeVampSessionPush,
+	IPC.nativeVampSessionFinish,
+	IPC.nativeVampSessionCancel,
 ]);
 
 function registrationOptions(userDataPath, overrides = {}) {

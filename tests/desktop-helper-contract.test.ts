@@ -73,6 +73,18 @@ const VALID_FUTURE_JOBS = Object.freeze([
 			identity: { dev: 3, ino: 44 },
 		},
 	},
+	{
+		...VALID_JOB,
+		kind: 'plugin-analyze',
+		grant: {
+			binaryPath: '/Library/Audio/Plug-Ins/Vamp/example.dylib',
+			binaryBytes: 8_192,
+			binarySha256: 'b'.repeat(64),
+			format: 'vamp',
+			stableId: 'example:onsets',
+			identity: { dev: 3, ino: 45 },
+		},
+	},
 ]);
 
 const VALID_HOST_MESSAGES = Object.freeze([
@@ -107,7 +119,7 @@ test('helper contract v1 accepts every well-formed wire message', () => {
 
 test('helper contract v1 negotiates closed job families and kind-correlated main grants', () => {
 	assert.deepEqual(HELPER_JOB_KINDS, [
-		'probe-video-source', 'audio-device', 'plugin-scan', 'plugin-host',
+		'probe-video-source', 'audio-device', 'plugin-scan', 'plugin-host', 'plugin-analyze',
 		'media-decode', 'media-encode', 'media-render', 'media-proxy', 'ofx-scan', 'ofx-host',
 		'assistance-speech',
 	]);
@@ -123,6 +135,7 @@ test('helper contract v1 negotiates closed job families and kind-correlated main
 	assert.equal(helperJobGrantInputBytes('audio-device', VALID_FUTURE_JOBS[0].grant), 0);
 	assert.equal(helperJobGrantInputBytes('plugin-scan', VALID_FUTURE_JOBS[1].grant), 0);
 	assert.equal(helperJobGrantInputBytes('plugin-host', VALID_FUTURE_JOBS[2].grant), 4_096);
+	assert.equal(helperJobGrantInputBytes('plugin-analyze', VALID_FUTURE_JOBS[3].grant), 8_192);
 	assert.throws(() => validateHelperHostMessage({ ...VALID_JOB, jobContractVersion: 2 }),
 		(error: unknown) => error instanceof HelperContractViolationError && error.code === 'unsupported-version');
 	const withoutSubcontract = { ...VALID_JOB } as Record<string, unknown>;
@@ -144,6 +157,8 @@ test('helper contract v1 negotiates closed job families and kind-correlated main
 		{ ...VALID_FUTURE_JOBS[2], grant: { ...VALID_FUTURE_JOBS[2].grant, binarySha256: 'A'.repeat(64) } },
 		{ ...VALID_FUTURE_JOBS[2], grant: { ...VALID_FUTURE_JOBS[2].grant, stableId: '' } },
 		{ ...VALID_FUTURE_JOBS[2], grant: { ...VALID_FUTURE_JOBS[2].grant, binaryPath: `/${'e'.repeat(4_097)}` } },
+		{ ...VALID_FUTURE_JOBS[2], grant: { ...VALID_FUTURE_JOBS[2].grant, format: 'vamp' } },
+		{ ...VALID_FUTURE_JOBS[3], grant: { ...VALID_FUTURE_JOBS[3].grant, format: 'ladspa' } },
 	]) {
 		assert.throws(() => validateHelperHostMessage(value), (error: unknown) => (
 			error instanceof HelperContractViolationError && error.code === 'unsafe-grant'
@@ -367,6 +382,7 @@ test('helper resource policy is lower-only against the hard limits', () => {
 	assert.ok(HELPER_JOB_DURATION_HARD_LIMITS['plugin-scan'] >= 30 * 60_000);
 	assert.equal(HELPER_JOB_DURATION_HARD_LIMITS['audio-device'], 24 * 60 * 60_000);
 	assert.equal(HELPER_JOB_DURATION_HARD_LIMITS['plugin-host'], 24 * 60 * 60_000);
+	assert.equal(HELPER_JOB_DURATION_HARD_LIMITS['plugin-analyze'], 24 * 60 * 60_000);
 	assert.throws(() => normalizeHelperResourcePolicy({
 		maximumJobDurationMs: HELPER_JOB_DURATION_HARD_LIMITS['probe-video-source'] + 1,
 	}, 'probe-video-source'), RangeError);

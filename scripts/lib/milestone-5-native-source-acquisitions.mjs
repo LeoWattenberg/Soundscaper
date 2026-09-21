@@ -26,8 +26,8 @@ export const MILESTONE_5_NATIVE_SOURCE_IDS = Object.freeze([
 	'juce',
 	'clap',
 	'vst3-sdk',
-	'asio-sdk',
-	'lv2',
+	'vamp-plugin-sdk', 'asio-sdk',
+	'ladspa-sdk', 'lv2',
 	'x264',
 	'x265',
 	'libvpx',
@@ -467,7 +467,7 @@ function validateSource(source) {
 	assertPlainObject(source.git, `${source.id}: git`);
 	assert(source.git.tag === null || (typeof source.git.tag === 'string' && source.git.tag.length > 0),
 		`${source.id}: git tag must be a non-empty string or null for an untagged revision.`);
-	assert(['asio-sdk', 'electron-node-api-headers'].includes(source.id)
+	assert(['asio-sdk', 'electron-node-api-headers', 'ladspa-sdk'].includes(source.id)
 		? source.git.commit === null && (source.id !== 'asio-sdk' || source.git.tag === null)
 		: COMMIT_PATTERN.test(source.git.commit),
 	`${source.id}: git provenance must be one honest full SHA-1 or an explicitly admitted vendor artifact.`);

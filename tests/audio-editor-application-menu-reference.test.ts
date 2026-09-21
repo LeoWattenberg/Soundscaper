@@ -425,7 +425,9 @@ function richActions(freezeStatus: 'none' | 'fresh'): Record<string, unknown> {
 		soundscaperNativeServices: {
 			snapshot: {
 				enabled: true, quarantined: false, payloadAvailable: true, payloadDetail: '',
-				usableAudioBackends: ['fixture'], enabledPluginFormats: ['fixture'],
+				pluginEnabled: true, pluginQuarantined: false,
+				pluginPayloadAvailable: true, pluginPayloadDetail: '',
+				usableAudioBackends: ['fixture'], enabledPluginFormats: ['fixture', 'vamp'],
 			},
 			open: noop,
 		},

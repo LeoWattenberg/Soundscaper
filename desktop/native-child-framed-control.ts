@@ -5,15 +5,18 @@
 import type { ChildProcess } from 'node:child_process';
 import type { Readable, Writable } from 'node:stream';
 
-const MAGIC = Buffer.from('M5F1');
 const HEADER_BYTES = 8;
 const MAXIMUM_CONTROL_BYTES = 1024 * 1024;
 
-export interface NativeChildFramedControlBinding {
-	readonly protocolVersion: 1;
+interface NativeChildFramedControlLimits {
 	readonly maximumMessageBytes: number;
 	readonly maximumInFlightMessages: number;
 }
+
+export type NativeChildFramedControlBinding = NativeChildFramedControlLimits & (
+	| Readonly<{ readonly protocolFamily: 'M5F'; readonly protocolVersion: 1 | 2 }>
+	| Readonly<{ readonly protocolFamily: 'M5A'; readonly protocolVersion: 1 }>
+);
 
 export interface NativeChildFramedControl {
 	send(bytes: Uint8Array): Promise<void>;
@@ -64,6 +67,7 @@ function framedControl(
 	refuse: (error: Error) => void,
 ) {
 	const binding = framedBinding(bindingValue);
+	const magic = Buffer.from(`${binding.protocolFamily}${String(binding.protocolVersion)}`, 'ascii');
 	const input = child.stdin;
 	const output = child.stdout;
 	if (!input || !output) throw new Error('A framed isolated child requires stdin and stdout pipes.');
@@ -102,10 +106,10 @@ function framedControl(
 			return fail(new Error('The isolated child framed answer is oversized.'));
 		}
 		while (buffered.byteLength >= HEADER_BYTES) {
-			if (!buffered.subarray(0, MAGIC.byteLength).equals(MAGIC)) {
+			if (!buffered.subarray(0, magic.byteLength).equals(magic)) {
 				return fail(new Error('The isolated child framed answer has an invalid preamble.'));
 			}
-			const length = buffered.readUInt32LE(MAGIC.byteLength);
+			const length = buffered.readUInt32LE(magic.byteLength);
 			if (length < 1 || length > binding.maximumMessageBytes) {
 				return fail(new Error('The isolated child framed answer length is invalid.'));
 			}
@@ -128,7 +132,7 @@ function framedControl(
 			}
 			outstanding += 1;
 			const frame = Buffer.allocUnsafe(HEADER_BYTES + bytes.byteLength);
-			MAGIC.copy(frame); frame.writeUInt32LE(bytes.byteLength, MAGIC.byteLength); bytes.copy(frame, HEADER_BYTES);
+			magic.copy(frame); frame.writeUInt32LE(bytes.byteLength, magic.byteLength); bytes.copy(frame, HEADER_BYTES);
 			const write = writeTail.then(() => writeBytes(input, frame)).catch((error: unknown) => {
 				outstanding -= 1;
 				throw error;
@@ -176,8 +180,10 @@ function boundedText(stream: Readable | null, label: string, refuse: (error: Err
 function framedBinding(value: NativeChildFramedControlBinding) {
 	if (!value || Object.getPrototypeOf(value) !== Object.prototype
 		|| JSON.stringify(Object.keys(value).sort()) !== JSON.stringify([
-			'maximumInFlightMessages', 'maximumMessageBytes', 'protocolVersion',
-		]) || value.protocolVersion !== 1 || !Number.isSafeInteger(value.maximumMessageBytes)
+			'maximumInFlightMessages', 'maximumMessageBytes', 'protocolFamily', 'protocolVersion',
+		]) || !((value.protocolFamily === 'M5F' && (value.protocolVersion === 1 || value.protocolVersion === 2))
+			|| (value.protocolFamily === 'M5A' && value.protocolVersion === 1))
+		|| !Number.isSafeInteger(value.maximumMessageBytes)
 		|| value.maximumMessageBytes < 1 || value.maximumMessageBytes > 16 * 1024 ** 2
 		|| !Number.isSafeInteger(value.maximumInFlightMessages)
 		|| value.maximumInFlightMessages < 1 || value.maximumInFlightMessages > 8) {

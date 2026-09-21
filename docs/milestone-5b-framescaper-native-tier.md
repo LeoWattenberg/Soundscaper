@@ -61,7 +61,7 @@ state selects bypass or an already-verified frozen result while preserving every
 parameter when a binary is missing, changed, crashed, or quarantined.
 
 An ordinary source checkout has no generated native-source cache or target
-payload bytes: the acquisition audit therefore reports 0/11 `not-materialized`
+payload bytes: the acquisition audit therefore reports 0/13 `not-materialized`
 inputs and both payload arrays are empty. That is not an external blocker.
 Every media and OpenFX target row is `ci-generated`; the dedicated target-native
 workflows provision the pinned inputs, build the host and per-OS launcher,
@@ -188,7 +188,7 @@ Milestone 9, but those rows do not disable a machine-admitted test route.
 
 ### Runtime availability and distribution diagnostics
 
-- **Native sources and payloads.** An ordinary checkout reports the eleven exact
+- **Native sources and payloads.** An ordinary checkout reports the thirteen exact
   archive/extracted-tree inputs `not-materialized`, and both source-template
   manifests contain zero payload bytes with five `ci-generated` target rows.
   The dedicated media and OpenFX workflows provision, build, self-test, and

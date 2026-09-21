@@ -75,3 +75,42 @@ test('an immediate bypass instruction supersedes a pending scheduled one', (cont
 	processor.process([[new Float32Array(128).fill(1)]], [[new Float32Array(128)]]);
 	assert.equal(processor.bypassed, false);
 });
+
+test('native plug-in worklet relays generated parameter RPC without touching the audio thread', () => {
+	const processor = new NativePluginRealtimeProcessor({ processorOptions: {
+		instanceId: 'parameters-1', inputChannelCount: 1, outputChannelCount: 1, queueCapacity: 4,
+	} });
+	const control = [];
+	processor.port.postMessage = (message) => { control.push(message); };
+	const peer = {
+		onmessage: null,
+		postMessage(message) {
+			const replies = {
+				capabilities: { kind: 'capabilities', parameterCount: 1, hasVendorUi: false },
+				parameters: { kind: 'parameters', parameters: [{
+					index: 0, id: 'gain', name: 'Gain', label: '', defaultValue: 0.5,
+					minimumValue: 0, maximumValue: 1, flags: 8,
+				}] },
+				'parameter-get': { kind: 'parameter-value', index: 0, value: 0.5 },
+				'parameter-set': { kind: 'parameter-value', index: 0, value: message.value },
+			};
+			this.onmessage?.({ data: { protocolVersion: 1, requestId: message.requestId, ...replies[message.kind] } });
+		},
+		start() {}, close() {},
+	};
+	processor.port.onmessage({
+		data: { type: NATIVE_PLUGIN_CONTROL.attach, generation: 1 }, ports: [peer],
+	});
+	for (const message of [
+		{ type: NATIVE_PLUGIN_CONTROL.capabilities, requestId: 'capabilities-1' },
+		{ type: NATIVE_PLUGIN_CONTROL.describeParameters, requestId: 'parameters-1' },
+		{ type: NATIVE_PLUGIN_CONTROL.readParameter, requestId: 'read-1', index: 0 },
+		{ type: NATIVE_PLUGIN_CONTROL.writeParameter, requestId: 'write-1', index: 0, value: 0.75 },
+	]) processor.port.onmessage({ data: message, ports: [] });
+	assert.deepEqual(control.slice(1).map(({ type, requestId, value }) => [type, requestId, value]), [
+		[NATIVE_PLUGIN_CONTROL.capabilitiesResult, 'capabilities-1', undefined],
+		[NATIVE_PLUGIN_CONTROL.parameters, 'parameters-1', undefined],
+		[NATIVE_PLUGIN_CONTROL.parameterValue, 'read-1', 0.5],
+		[NATIVE_PLUGIN_CONTROL.parameterValue, 'write-1', 0.75],
+	]);
+});

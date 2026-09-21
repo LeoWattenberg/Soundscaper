@@ -164,7 +164,9 @@ test('a binary that changed after it was granted never opens an instance at all'
 });
 
 test('the helper announces hosting alongside discovery and devices', () => {
-	assert.deepEqual([...NATIVE_HELPER_JOB_KINDS], ['audio-device', 'plugin-scan', 'plugin-host']);
+	assert.deepEqual([...NATIVE_HELPER_JOB_KINDS], [
+		'audio-device', 'plugin-scan', 'plugin-host', 'plugin-analyze',
+	]);
 });
 
 test('a host job runs the plug-in out of process and reports what it measured', { skip: !built }, async () => {

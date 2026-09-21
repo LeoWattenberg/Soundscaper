@@ -141,10 +141,22 @@ test('standard roots are offered per platform and stay inert until admitted', ()
 	assert.equal(consentErrorCode(() => linux.grant('au')), 'unsupported-format',
 		'a macOS-only format is not grantable on Linux');
 	assert.equal(formatView(linux, 'lv2').roots.length, 3);
+	assert.deepEqual(formatView(linux, 'ladspa').roots.map((root) => root.name), [
+		'System LADSPA folder', 'Local LADSPA folder', 'User LADSPA folder',
+	]);
+	assert.deepEqual(formatView(linux, 'vamp').roots.map((root) => root.name), [
+		'System Vamp folder', 'Local Vamp folder', 'User Vamp folder',
+	]);
+	assert.equal(formatView(darwin, 'ladspa').supported, false);
+	assert.deepEqual(formatView(darwin, 'vamp').roots.map((root) => root.name), [
+		'System Vamp folder', 'User Vamp folder',
+	]);
 
 	const windows = createConsent({ platform: 'win32', homeDirectory: 'C:\\Users\\tester' }).consent;
 	assert.equal(consentErrorCode(() => windows.grant('lv2')), 'unsupported-format');
 	assert.deepEqual(formatView(windows, 'vst3').roots.map((root) => root.name), ['Common VST3 folder']);
+	assert.equal(formatView(windows, 'ladspa').supported, false);
+	assert.deepEqual(formatView(windows, 'vamp').roots.map((root) => root.name), ['Vamp Plugins folder']);
 
 	const homeless = createConsent({ platform: 'linux', homeDirectory: null }).consent;
 	assert.deepEqual(formatView(homeless, 'vst3').roots.map((root) => root.name),

@@ -111,6 +111,7 @@ export interface NativePluginInstallationView {
 
 export interface NativePluginEntryView {
 	readonly entryId: string;
+	readonly kind?: 'effect' | 'analyzer';
 	readonly format: string;
 	readonly name: string;
 	readonly vendor: string;
@@ -256,9 +257,20 @@ export interface SoundscaperNativePluginHostBridgeV1 {
 	closeNativePluginInstance(request: Readonly<{ instanceId: string }>): Promise<boolean>;
 }
 
+/** Optional on older shells; the controller admits the complete set atomically. */
+export interface SoundscaperNativeVampAnalyzerBridgeV1 {
+	listNativeVampAnalyzers?(): Promise<unknown>;
+	startNativeVampAnalyzer?(request: unknown): Promise<unknown>;
+	configureNativeVampAnalyzer?(request: unknown): Promise<unknown>;
+	pushNativeVampAnalyzerPcm?(request: unknown): Promise<unknown>;
+	finishNativeVampAnalyzer?(request: unknown): Promise<unknown>;
+	cancelNativeVampAnalyzer?(request: unknown): Promise<unknown>;
+}
+
 export interface SoundscaperNativeServicesBridge extends
 	SoundscaperNativeAudioRuntimeBridgeV1,
-	SoundscaperNativePluginHostBridgeV1 {
+	SoundscaperNativePluginHostBridgeV1,
+	SoundscaperNativeVampAnalyzerBridgeV1 {
 	nativeAudioHelperAvailability(): Promise<NativeAudioAvailability>;
 	setNativeAudioHelperEnabled(enabled: boolean): Promise<boolean>;
 	describeNativeAudioBackend(request: Readonly<{ backend: string }>): Promise<NativeAudioInventoryOutcome>;
@@ -327,9 +339,13 @@ export function resolveSoundscaperNativeServicesSnapshot(
 ): SoundscaperNativeServicesSnapshot {
 	return Object.freeze({
 		enabled: audio.enabled === true,
-		quarantined: audio.quarantined === true || plugins?.quarantined === true,
+		quarantined: audio.quarantined === true,
 		payloadAvailable: audio.payload?.status === 'available',
 		payloadDetail: typeof audio.payload?.detail === 'string' ? audio.payload.detail : '',
+		pluginEnabled: plugins?.enabled === true,
+		pluginQuarantined: plugins?.quarantined === true,
+		pluginPayloadAvailable: plugins?.payload?.status === 'available',
+		pluginPayloadDetail: typeof plugins?.payload?.reason === 'string' ? plugins.payload.reason : '',
 		usableAudioBackends: Object.freeze((audio.backends ?? []).filter((backend) => typeof backend === 'string')),
 		enabledPluginFormats: Object.freeze(plugins?.enabled === true
 			? (plugins.formats ?? []).filter((entry) => entry.consented === true).map((entry) => entry.format)
@@ -419,6 +435,10 @@ function sameSnapshot(
 		&& current.quarantined === next.quarantined
 		&& current.payloadAvailable === next.payloadAvailable
 		&& current.payloadDetail === next.payloadDetail
+		&& current.pluginEnabled === next.pluginEnabled
+		&& current.pluginQuarantined === next.pluginQuarantined
+		&& current.pluginPayloadAvailable === next.pluginPayloadAvailable
+		&& current.pluginPayloadDetail === next.pluginPayloadDetail
 		&& sameList(current.usableAudioBackends, next.usableAudioBackends)
 		&& sameList(current.enabledPluginFormats, next.enabledPluginFormats);
 }

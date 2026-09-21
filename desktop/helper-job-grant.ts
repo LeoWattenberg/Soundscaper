@@ -131,8 +131,19 @@ export const NATIVE_AUDIO_INVENTORY_DEVICE_HANDLE = 'inventory';
  * format adapter and payload; distribution licensing metadata never changes
  * this vocabulary.
  */
+export const HELPER_EFFECT_PLUGIN_FORMATS = Object.freeze([
+	'vst3', 'clap', 'au', 'lv2', 'ladspa', 'fixture',
+] as const);
+export type HelperEffectPluginFormat = (typeof HELPER_EFFECT_PLUGIN_FORMATS)[number];
+
+export const HELPER_ANALYZER_PLUGIN_FORMATS = Object.freeze([
+	'vamp',
+] as const);
+export type HelperAnalyzerPluginFormat = (typeof HELPER_ANALYZER_PLUGIN_FORMATS)[number];
+
 export const HELPER_PLUGIN_FORMATS = Object.freeze([
-	'vst3', 'clap', 'au', 'lv2', 'fixture',
+	...HELPER_EFFECT_PLUGIN_FORMATS,
+	...HELPER_ANALYZER_PLUGIN_FORMATS,
 ] as const);
 export type HelperPluginFormat = (typeof HELPER_PLUGIN_FORMATS)[number];
 
@@ -166,7 +177,17 @@ export interface HelperPluginHostJobGrant {
 	readonly binaryPath: string;
 	readonly binaryBytes: number;
 	readonly binarySha256: string;
-	readonly format: HelperPluginFormat;
+	readonly format: HelperEffectPluginFormat;
+	readonly stableId: string;
+	readonly identity: Readonly<HelperFileIdentity>;
+	readonly persistentPort?: HelperPersistentPortBinding;
+}
+
+export interface HelperPluginAnalyzeJobGrant {
+	readonly binaryPath: string;
+	readonly binaryBytes: number;
+	readonly binarySha256: string;
+	readonly format: HelperAnalyzerPluginFormat;
 	readonly stableId: string;
 	readonly identity: Readonly<HelperFileIdentity>;
 	readonly persistentPort?: HelperPersistentPortBinding;
@@ -177,6 +198,7 @@ export interface HelperLegacyJobGrantByKind {
 	readonly 'audio-device': HelperAudioDeviceJobGrant;
 	readonly 'plugin-scan': HelperPluginScanJobGrant;
 	readonly 'plugin-host': HelperPluginHostJobGrant;
+	readonly 'plugin-analyze': HelperPluginAnalyzeJobGrant;
 }
 
 export interface HelperAssistanceJobGrantByKind {
@@ -192,6 +214,7 @@ export interface HelperLegacyJobResultByKind {
 	readonly 'audio-device': unknown;
 	readonly 'plugin-scan': unknown;
 	readonly 'plugin-host': unknown;
+	readonly 'plugin-analyze': unknown;
 }
 
 export interface HelperAssistanceJobResultByKind {
@@ -215,6 +238,7 @@ const PLUGIN_SCAN_KEYS = Object.freeze(['rootPath', 'format', 'identity']);
 const PLUGIN_HOST_KEYS = Object.freeze([
 	'binaryPath', 'binaryBytes', 'binarySha256', 'format', 'stableId', 'identity',
 ]);
+const PLUGIN_ANALYZE_KEYS = PLUGIN_HOST_KEYS;
 const IDENTITY_KEYS = Object.freeze(['dev', 'ino']);
 const SHA256 = /^[a-f0-9]{64}$/u;
 
@@ -230,6 +254,7 @@ export function validateHelperJobGrant<Kind extends HelperJobKind>(
 	if (kind === 'audio-device') return validateAudioDeviceGrant(value) as HelperJobGrant<Kind>;
 	if (kind === 'plugin-scan') return validatePluginScanGrant(value) as HelperJobGrant<Kind>;
 	if (kind === 'plugin-host') return validatePluginHostGrant(value) as HelperJobGrant<Kind>;
+	if (kind === 'plugin-analyze') return validatePluginAnalyzeGrant(value) as HelperJobGrant<Kind>;
 	if (kind === 'assistance-speech') return validateAssistanceSpeechJobGrant(value) as HelperJobGrant<Kind>;
 	return validateHelperNativeJobGrant(
 		kind as HelperNativeJobKind,
@@ -360,11 +385,30 @@ function validatePluginHostGrant(value: unknown): HelperPluginHostJobGrant {
 		binaryPath: absolutePath(record.binaryPath, 'plug-in binary'),
 		binaryBytes: byteCount(record.binaryBytes, 'plug-in binary'),
 		binarySha256: record.binarySha256,
-		format: pluginFormat(record.format),
+		format: effectPluginFormat(record.format),
 		stableId: stablePluginId(record.stableId),
 		identity: fileIdentity(record.identity),
 		...(record.persistentPort === undefined ? {} : {
 			persistentPort: validateHelperPersistentPortBinding(record.persistentPort, 'plugin-rpc'),
+		}),
+	});
+}
+
+function validatePluginAnalyzeGrant(value: unknown): HelperPluginAnalyzeJobGrant {
+	const record = grantRecord(value);
+	exactOptionalKeys(record, PLUGIN_ANALYZE_KEYS, ['persistentPort']);
+	if (typeof record.binarySha256 !== 'string' || !SHA256.test(record.binarySha256)) {
+		unsafe('A helper analyzer binary grant must carry a lowercase SHA-256 digest.');
+	}
+	return Object.freeze({
+		binaryPath: absolutePath(record.binaryPath, 'analyzer binary'),
+		binaryBytes: byteCount(record.binaryBytes, 'analyzer binary'),
+		binarySha256: record.binarySha256,
+		format: analyzerPluginFormat(record.format),
+		stableId: stablePluginId(record.stableId),
+		identity: fileIdentity(record.identity),
+		...(record.persistentPort === undefined ? {} : {
+			persistentPort: validateHelperPersistentPortBinding(record.persistentPort, 'plugin-analyzer-rpc'),
 		}),
 	});
 }
@@ -404,6 +448,14 @@ function byteCount(value: unknown, label: string): number {
 
 function pluginFormat(value: unknown): HelperPluginFormat {
 	return enumValue(value, HELPER_PLUGIN_FORMATS, 'plug-in format');
+}
+
+function effectPluginFormat(value: unknown): HelperEffectPluginFormat {
+	return enumValue(value, HELPER_EFFECT_PLUGIN_FORMATS, 'effect plug-in format');
+}
+
+function analyzerPluginFormat(value: unknown): HelperAnalyzerPluginFormat {
+	return enumValue(value, HELPER_ANALYZER_PLUGIN_FORMATS, 'analyzer plug-in format');
 }
 
 function enumValue<const Values extends readonly string[]>(

@@ -77,7 +77,7 @@ bool pluginOpenValid(
 
 bool juceFormat(const std::string &format)
 {
-	return format == "vst3" || format == "au" || format == "lv2";
+	return format == "vst3" || format == "au" || format == "ladspa" || format == "lv2";
 }
 
 bool opaqueWindowId(const char *value)
@@ -344,6 +344,55 @@ soundscaper_pro_status soundscaper_pro_plugin_load_state(
 	if (instance->clap != nullptr) return instance->clap->loadState(bytes, length);
 	return instance->juce == nullptr ? SOUNDSCAPER_PRO_STATE_REJECTED
 		: soundscaper::loadJucePluginState(*instance->juce, bytes, length);
+}
+
+soundscaper_pro_status soundscaper_pro_plugin_get_capabilities(
+	soundscaper_pro_plugin_instance *instance, soundscaper_pro_plugin_capability_report *report)
+{
+	if (instance == nullptr || report == nullptr) return SOUNDSCAPER_PRO_PLUGIN_MALFORMED;
+	*report = {};
+	if (instance->clap != nullptr) {
+		report->has_vendor_ui = instance->clap->hasVendorUi() ? 1u : 0u;
+		return SOUNDSCAPER_PRO_OK;
+	}
+	return instance->juce == nullptr ? SOUNDSCAPER_PRO_PLUGIN_MALFORMED
+		: soundscaper::jucePluginCapabilities(*instance->juce, *report);
+}
+
+soundscaper_pro_status soundscaper_pro_plugin_describe_parameters(
+	soundscaper_pro_plugin_instance *instance, soundscaper_pro_plugin_parameter *parameters,
+	size_t capacity, size_t *written)
+{
+	if (instance == nullptr || written == nullptr || (parameters == nullptr && capacity != 0u)) {
+		return SOUNDSCAPER_PRO_PLUGIN_MALFORMED;
+	}
+	*written = 0u;
+	if (instance->clap != nullptr) return SOUNDSCAPER_PRO_OK;
+	if (instance->juce == nullptr) return SOUNDSCAPER_PRO_PLUGIN_MALFORMED;
+	std::vector<soundscaper_pro_plugin_parameter> found;
+	const auto status = soundscaper::describeJucePluginParameters(*instance->juce, found);
+	if (status != SOUNDSCAPER_PRO_OK) return status;
+	*written = found.size();
+	if (parameters == nullptr) return SOUNDSCAPER_PRO_OK;
+	if (capacity < found.size()) return SOUNDSCAPER_PRO_FORMAT_REFUSED;
+	std::copy(found.begin(), found.end(), parameters);
+	return SOUNDSCAPER_PRO_OK;
+}
+
+soundscaper_pro_status soundscaper_pro_plugin_read_parameter(
+	soundscaper_pro_plugin_instance *instance, uint32_t index, double *value)
+{
+	if (instance == nullptr || value == nullptr) return SOUNDSCAPER_PRO_PLUGIN_MALFORMED;
+	if (instance->clap != nullptr || instance->juce == nullptr) return SOUNDSCAPER_PRO_UNSUPPORTED;
+	return soundscaper::readJucePluginParameter(*instance->juce, index, *value);
+}
+
+soundscaper_pro_status soundscaper_pro_plugin_write_parameter(
+	soundscaper_pro_plugin_instance *instance, uint32_t index, double value)
+{
+	if (instance == nullptr) return SOUNDSCAPER_PRO_PLUGIN_MALFORMED;
+	if (instance->clap != nullptr || instance->juce == nullptr) return SOUNDSCAPER_PRO_UNSUPPORTED;
+	return soundscaper::writeJucePluginParameter(*instance->juce, index, value);
 }
 
 soundscaper_pro_status soundscaper_pro_plugin_open_vendor_window(

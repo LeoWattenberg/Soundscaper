@@ -2,7 +2,10 @@
 
 /** Pure admission and projection helpers for the plug-in host isolation registry. */
 
-import { HELPER_PLUGIN_FORMATS, type HelperPluginFormat } from './helper-job-grant.ts';
+import {
+	HELPER_EFFECT_PLUGIN_FORMATS,
+	type HelperEffectPluginFormat,
+} from './helper-job-grant.ts';
 import { HelperContractViolationError } from './helper-wire-admission.ts';
 import type { PluginHostStopReason } from './plugin-instance-state.ts';
 import type {
@@ -34,11 +37,11 @@ export function assertBinaryDigest(value: unknown): string {
 	return value;
 }
 
-export function assertPluginFormat(value: unknown): HelperPluginFormat {
-	if (typeof value !== 'string' || !(HELPER_PLUGIN_FORMATS as readonly string[]).includes(value)) {
+export function assertPluginFormat(value: unknown): HelperEffectPluginFormat {
+	if (typeof value !== 'string' || !(HELPER_EFFECT_PLUGIN_FORMATS as readonly string[]).includes(value)) {
 		throw new HelperContractViolationError('unsafe-grant', 'A plug-in host request must name a supported format.');
 	}
-	return value as HelperPluginFormat;
+	return value as HelperEffectPluginFormat;
 }
 
 export function safely(operation: () => void): void {

@@ -41,6 +41,8 @@ export const DESKTOP_5B_TRANSITIVE_RUNTIME_FILES = Object.freeze([
 	'desktop/soundscaper-professional-linux-system-libraries.js',
 	'desktop/soundscaper-professional-linux-system-runtime.js',
 	'desktop/soundscaper-professional-plugin-peer.js',
+	'desktop/soundscaper-professional-vamp-peer.js',
+	'desktop/vamp-analyzer-peer-codec.js',
 	'desktop/plugin-candidate-snapshot.mjs',
 	'desktop/plugin-candidate-authentication.mjs',
 	'desktop/native-media-helper-filesystem.js',

@@ -1,13 +1,13 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import type { HelperPluginFormat } from './helper-job-grant.ts';
+import type { HelperEffectPluginFormat } from './helper-job-grant.ts';
 
 /** Main-private identity needed to bind a hosted instance into project state. */
 export interface PluginHostDescriptor {
 	readonly entryId: string;
 	readonly installationId: string;
 	readonly stableId: string;
-	readonly format: HelperPluginFormat;
+	readonly format: HelperEffectPluginFormat;
 	readonly binarySha256: string;
 	readonly inputChannels: number;
 	readonly outputChannels: number;

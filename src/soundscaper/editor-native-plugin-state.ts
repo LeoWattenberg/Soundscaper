@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 export const SOUNDSCAPER_NATIVE_PLUGIN_FORMATS = Object.freeze([
-	'vst3', 'clap', 'au', 'lv2',
+	'vst3', 'clap', 'au', 'lv2', 'ladspa',
 ] as const)
 
 export type SoundscaperNativePluginFormat =

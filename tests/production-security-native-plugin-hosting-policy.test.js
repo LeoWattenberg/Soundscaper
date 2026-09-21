@@ -17,6 +17,7 @@ test('the native plug-in hosting row describes the out-of-process host that ship
 		'the hosting row must not claim a surface the helper implements',
 	);
 	const controls = new Map(risk.currentControls.map((control) => [control.id, control]));
+	assert.match(risk.actor, /LADSPA.*Vamp/iu);
 
 	const fence = controls.get('menu-reached-plugin-hosting-surface');
 	assert.ok(fence, 'the surface control must say what is and is not machine-runnable');
@@ -30,7 +31,7 @@ test('the native plug-in hosting row describes the out-of-process host that ship
 	);
 	assert.match(
 		fence.summary,
-		/VST3, CLAP, Audio Units, LV2 and OpenFX.*enabled for testing.*source and notice closure.*matching target build result.*self-tests.*architecture.*hashes.*package verification.*optional owner QA.*never controls execution/iu,
+		/VST3, CLAP, Audio Units, Linux LADSPA, LV2, cross-platform Vamp and OpenFX.*enabled for testing.*source and notice closure.*matching target build result.*self-tests.*architecture.*hashes.*package verification.*optional owner QA.*never controls execution/iu,
 	);
 	assert.match(
 		fence.summary,
@@ -86,6 +87,41 @@ test('the native plug-in hosting row describes the out-of-process host that ship
 		'tests/desktop-native-helper-host-job.test.js',
 		'tests/desktop-plugin-host-isolation.test.ts',
 		'tests/native-fixture-plugin-format.test.js',
+	]);
+
+	const formats = controls.get('ladspa-effect-and-vamp-analyzer-contracts');
+	assert.ok(formats, 'LADSPA effects and Vamp analyzers must retain distinct contracts');
+	assert.match(
+		formats.summary,
+		/Linux-only LADSPA.*effect.*persistent.*M5F2.*real-time and offline/iu,
+	);
+	assert.match(
+		formats.summary,
+		/cross-platform Vamp.*analyzer-only.*finite PCM.*timestamped features.*never.*rack effect.*M5A1/iu,
+	);
+	assert.match(
+		formats.summary,
+		/pathless.*renderer IPC.*owner-scoped.*per-format consent.*digest-keyed quarantine.*per-installation allowance/iu,
+	);
+	assert.match(
+		formats.summary,
+		/65,536 frames.*16 MiB.*12 hours.*65,536 features.*1,048,576 values.*1,000,000 features/iu,
+	);
+	assert.match(
+		formats.summary,
+		/authenticated professional helper.*exact library.*same operating-system containment/iu,
+	);
+	assertEvidence(formats, [
+		'desktop/preload.mjs',
+		'desktop/vamp-analyzer-contract.ts',
+		'desktop/vamp-analyzer-session.ts',
+		'desktop/vamp-analyzer-allowance-store.mjs',
+		'desktop/native-vamp-analyzer-helper-backend.ts',
+		'native/soundscaper-professional-host/src/juce_plugin_adapter.cpp',
+		'native/soundscaper-professional-host/src/vamp_analyzer_peer.cpp',
+		'tests/audio-editor-ladspa-format.test.ts',
+		'tests/desktop-vamp-analyzer-contract.test.ts',
+		'tests/desktop-preload-vamp-analyzer.test.js',
 	]);
 
 	const containment = controls.get('digest-keyed-plugin-consent-isolation-and-quarantine');
@@ -177,7 +213,7 @@ test('the native helper row stops describing hosting and device opening as absen
 	);
 	assert.match(
 		residual.exposure,
-		/0\/11.*source-template manifests.*five `ci-generated` targets.*workflow results populate only their matching target/iu,
+		/0\/13.*source-template manifests.*five `ci-generated` targets.*workflow results populate only their matching target/iu,
 	);
 	assert.match(
 		residual.acceptanceCriteria.join(' '),
@@ -199,7 +235,7 @@ test('the threat-model narrative separates enabled testing from machine checks a
 	);
 	assert.match(
 		threatModel,
-		/all eleven required archive\/extracted-tree inputs.*not-materialized.*repository-owned five-target producers.*exact target result must be staged/isu,
+		/all thirteen required archive\/extracted-tree inputs.*not-materialized.*repository-owned five-target producers.*exact target result must be staged/isu,
 	);
 	assert.match(
 		threatModel,
@@ -208,6 +244,10 @@ test('the threat-model narrative separates enabled testing from machine checks a
 	assert.match(
 		threatModel,
 		/launcher source.*CI results.*Landlock.*Seatbelt.*AppContainer/iu,
+	);
+	assert.match(
+		threatModel,
+		/LADSPA.*M5F2.*effect.*Vamp.*M5A1.*finite analysis.*pathless.*allowance.*quarantine/iu,
 	);
 });
 

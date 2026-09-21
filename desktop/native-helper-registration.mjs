@@ -173,7 +173,7 @@ export function productionAudioBackendActivated() {
 export function createDesktopNativeAddonHelperSupervisor({
 	desktopRoot, packaged, resourcesPath, role, serviceName, payloadKind = 'fixture',
 }) {
-	if (!['audio', 'plugin-scanner', 'plugin-host'].includes(role)) {
+	if (!['audio', 'plugin-scanner', 'plugin-host', 'plugin-analyzer'].includes(role)) {
 		throw new RangeError('A native addon helper requires one closed process role.');
 	}
 	const applicationRoot = dirname(desktopRoot);

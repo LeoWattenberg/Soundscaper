@@ -1058,6 +1058,16 @@
 			"evidence": ["docs/production-licensing-policy.md", "roadmap.md#5-electron-native-services-and-extensibility"]
 		},
 		{
+			"id": "plugin-format-ladspa",
+			"kind": "plugin-format",
+			"upstreamLicensing": "LGPL-2.1-or-later at the pinned LADSPA SDK 1.17 source",
+			"agplCompatibilityDirection": "The LGPL-2.1-or-later LADSPA header combines compatibly with the JUCE host and this AGPL-3.0-only work.",
+			"redistribution": "The pinned SDK header and its LGPL-2.1-or-later notice may ship with the applicable source duties; the implemented format is Linux-only, and user-installed third-party plug-in binaries are never redistributed by this project.",
+			"status": "implemented",
+			"blocker": null,
+			"evidence": ["config/milestone-5-native-source-acquisitions.json", "docs/production-licensing-policy.md", "native/soundscaper-professional-host/src/ladspa_plugin_metadata.cpp", "tests/soundscaper-professional-native-build.test.js"]
+		},
+		{
 			"id": "plugin-format-lv2",
 			"kind": "plugin-format",
 			"upstreamLicensing": "ISC",
@@ -1066,6 +1076,16 @@
 			"status": "implemented",
 			"blocker": null,
 			"evidence": ["docs/production-licensing-policy.md", "roadmap.md#5-electron-native-services-and-extensibility"]
+		},
+		{
+			"id": "plugin-format-vamp",
+			"kind": "plugin-format",
+			"upstreamLicensing": "BSD-3-Clause at the pinned Vamp Plugin SDK 2.10.0 source",
+			"agplCompatibilityDirection": "The permissive BSD-3-Clause SDK code combines into this AGPL-3.0-only work trivially.",
+			"redistribution": "The pinned SDK source may ship with its BSD-3-Clause copyright and conditions; the implemented analyzer host is cross-platform, and user-installed third-party analyzer binaries are never redistributed by this project.",
+			"status": "implemented",
+			"blocker": null,
+			"evidence": ["config/milestone-5-native-source-acquisitions.json", "docs/production-licensing-policy.md", "desktop/vamp-analyzer-contract.ts", "native/soundscaper-professional-host/src/vamp_analyzer_adapter.cpp", "tests/desktop-vamp-analyzer-contract.test.ts"]
 		},
 		{
 			"id": "plugin-format-ofx",

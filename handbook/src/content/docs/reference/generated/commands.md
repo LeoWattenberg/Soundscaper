@@ -506,6 +506,7 @@ Product availability follows each product profile’s command filters and each l
 | Use Native Audio Helper | `desktop-use-native-audio-helper` | — | Tools | Soundscaper, Framescaper | Soundscaper local |
 | Use Native Probe Helper | `desktop-use-native-probe-helper` | — | Tools | Soundscaper, Framescaper | Soundscaper local |
 | Utility Gain (Reviewed) | `reviewed-utility-gain` | — | Effect > Special | Soundscaper | Soundscaper local |
+| Vamp Plugins | `native-analyzer-use` | — | Analyze | Soundscaper | Soundscaper local |
 | Video editor | `workspace-video-editor` | — | View > Workspace | Framescaper | Soundscaper local |
 | Video frames (24 fps) | `snap-video-24` | — | View > Snapping > Video frames | Soundscaper, Framescaper | Soundscaper local |
 | Video keyframes | `video-keyframes-editor` | — | Edit > Audio clips | Framescaper | Soundscaper local |

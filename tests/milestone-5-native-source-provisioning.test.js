@@ -36,7 +36,10 @@ test('an absent cache is reported as absent for every registered source and fail
 	const { status, output } = provision(['--check', '--root', join(root, 'cache')]);
 	assert.equal(status, 1, 'an unprovisioned cache is never a success');
 	for (const id of MILESTONE_5_NATIVE_SOURCE_IDS) assert.match(output, new RegExp(`absent\\s+${id}\\b`, 'u'));
-	assert.match(output, /0\/11 exact archive\/extracted-tree inputs authenticated/u);
+	assert.match(output, new RegExp(
+		`0/${MILESTONE_5_NATIVE_SOURCE_IDS.length} exact archive/extracted-tree inputs authenticated`,
+		'u',
+	));
 });
 
 test('an archive that does not match its pin provisions nothing', async (context) => {

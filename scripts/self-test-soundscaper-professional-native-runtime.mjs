@@ -153,7 +153,7 @@ async function isolatedProfessionalPeerSmoke(roots_, target_) {
 		assert(await plugin.closePluginInstance(instance), 'The isolated fixture did not close.');
 	}
 	return Object.freeze({
-		protocol: 'M5F1', fixtureSha256: fixture.sha256,
+		protocol: 'M5F2', fixtureSha256: fixture.sha256,
 		launcherId: machine.launcherId,
 		filesystem: 'broker-grant-only', network: 'denied', childProcesses: 'denied',
 		operations: Object.freeze([
@@ -255,7 +255,7 @@ async function packagedElectronSmoke(roots_, target_, arguments_) {
 		&& JSON.stringify(payload.description?.pluginFormats) === JSON.stringify(expected.addonPluginFormats)
 		&& JSON.stringify(payload.backends?.map(({ backend }) => backend))
 			=== JSON.stringify(expected.backends)
-		&& payload.pluginIsolation?.protocol === 'M5F1'
+		&& payload.pluginIsolation?.protocol === 'M5F2'
 		&& /^[a-f\d]{64}$/u.test(String(payload.pluginIsolation?.fixtureSha256))
 		&& payload.pluginIsolation?.filesystem === 'broker-grant-only'
 		&& payload.pluginIsolation?.network === 'denied'

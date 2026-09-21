@@ -41,7 +41,7 @@ const editorOptionalExportControllerModule = String.raw`export[\\/](?:${controll
  * only deferred delivery consumers and share that export boundary.
  */
 const editorOptionalExportFlatModule = String.raw`(?:audio-export-output|binaural-render|delivery-conformance|delivery-conversion-inventory|delivery-video-conversion-inventory|file-backed-audio-export|loudness-normalization-render|platform-delivery-(?:licensing|presets)|video-burn-in-font|video-delivery-encoder-tier|video-webcodecs-capability)`;
-export const editorOptionalControllerModule = String.raw`(?:analysis[\\/]analysis-service|document[\\/]internal[\\/]cross-product-handoff-action|import[\\/]internal[\\/]dawproject[\\/]dawproject-service|${editorOptionalExportControllerModule})`;
+export const editorOptionalControllerModule = String.raw`(?:analysis[\\/](?:analysis-service|internal[\\/]vamp-analysis-action)|document[\\/]internal[\\/]cross-product-handoff-action|import[\\/]internal[\\/]dawproject[\\/]dawproject-service|${editorOptionalExportControllerModule})`;
 /**
  * The Framescaper capture and Web VCR implementation, loaded when a capture
  * gesture, a desktop bridge or durable recovery state asks for it.
@@ -111,7 +111,7 @@ export const EDITOR_SOURCE_ACTIVATION_CHUNK_TEST = new RegExp(
 
 /** Effect and Analyze implementations reached only after their eager action facade runs. */
 export const EDITOR_OPTIONAL_EXECUTION_CHUNK_TEST = new RegExp(
-	`(?:${editorPath}(?:${editorOptionalExecutionModule}\\.(?:[cm]?[jt]s)|(?:flac|mpg123|opus|vorbis)[\\\\/]source-manifest\\.json|controller[\\\\/]analysis[\\\\/]analysis-service\\.ts)|(?:^|[\\\\/])desktop[\\\\/](?:bundled-(?:mpeg-audio|opus|wavpack)-stream|desktop-audio-stream-contract)\\.ts)$`,
+	`(?:${editorPath}(?:${editorOptionalExecutionModule}\\.(?:[cm]?[jt]s)|(?:flac|mpg123|opus|vorbis)[\\\\/]source-manifest\\.json|controller[\\\\/]analysis[\\\\/](?:analysis-service|internal[\\\\/]vamp-analysis-action)\\.ts)|(?:^|[\\\\/])desktop[\\\\/](?:bundled-(?:mpeg-audio|opus|wavpack)-stream|desktop-audio-stream-contract)\\.ts)$`,
 );
 
 /** Audio and video delivery execution isolated from the effect-runtime graph. */

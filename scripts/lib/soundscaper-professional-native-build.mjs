@@ -45,7 +45,9 @@ const EXPECTED = Object.freeze({
 	juce: Object.freeze({ version: '9.0.1', commit: 'e18f7f506c0b96f2c738a0bcd7fe6467a5005ad8', license: 'AGPL-3.0-only' }),
 	clap: Object.freeze({ version: '1.2.4', commit: '00113aabdccf69c2e27ac269c35b369770e8fa73', license: 'MIT' }),
 	'vst3-sdk': Object.freeze({ version: '3.8.0_build_66', commit: '9fad9770f2ae8542ab1a548a68c1ad1ac690abe0', license: 'MIT' }),
+	'vamp-plugin-sdk': Object.freeze({ version: '2.10.0', commit: '67adfc2bf9486912a0fce5123cf54360ea2678bc', license: 'BSD-3-Clause' }),
 	'asio-sdk': Object.freeze({ version: '2.3.4', commit: null, license: 'GPL-3.0-only' }),
+	'ladspa-sdk': Object.freeze({ version: '1.17', commit: null, license: 'LGPL-2.1-or-later' }),
 	lv2: Object.freeze({ version: '1.18.10', commit: '0bcde338db1c63bbc503b4d1f6d7b55ed43154af', license: 'ISC' }),
 });
 
@@ -88,9 +90,9 @@ export function createSoundscaperProfessionalNativeBuildPlan(options) {
 	const register = readMilestone5NativeSourceAcquisitions(repositoryRoot, sourceManifestPath);
 	for (const [id, expected] of Object.entries(EXPECTED)) assertSource(register, id, expected);
 	const requiredSourceIds = [
-		'electron-node-api-headers', 'juce', 'clap', 'vst3-sdk',
+		'electron-node-api-headers', 'juce', 'clap', 'vst3-sdk', 'vamp-plugin-sdk',
 		...(target.startsWith('win-') ? ['asio-sdk'] : []),
-		...(target.startsWith('linux-') ? ['lv2'] : []),
+		...(target.startsWith('linux-') ? ['ladspa-sdk', 'lv2'] : []),
 	];
 	const sourceRoots = normalizeSourceRoots(options.sourceRoots);
 	const sourceArchives = normalizeSourceArchives(options.sourceArchives);
@@ -137,9 +139,12 @@ function authenticatedBuildPlan({
 	const snapshotRoots = Object.fromEntries(sourceAuthentication.map((witness) => [witness.id, witness.extractedTree.root]));
 	const vst3Closure = assertExtractedJuceVst3Closure(snapshotRoots.juce);
 	assertFile(snapshotRoots.clap, 'include/clap/clap.h', 'direct CLAP 1.2.4 ABI');
+	assertFile(snapshotRoots['vamp-plugin-sdk'], 'vamp/vamp.h', 'Vamp SDK 2.10 C ABI');
+	assertFile(snapshotRoots['vamp-plugin-sdk'], 'vamp-hostsdk/PluginHostAdapter.h', 'Vamp SDK 2.10 host adapter');
 	assertFile(snapshotRoots['electron-node-api-headers'], 'include/node/node_api.h', 'Electron 43.1.1 Node-API headers');
 	if (target.startsWith('win-')) assertFile(snapshotRoots['asio-sdk'], 'common/asio.h', 'ASIO SDK 2.3.4');
 	if (target.startsWith('linux-')) assertFile(snapshotRoots.lv2, `${LV2_INCLUDE_ROOT}/lv2/core/lv2.h`, 'LV2 1.18.10 headers');
+	if (target.startsWith('linux-')) assertFile(snapshotRoots['ladspa-sdk'], 'src/ladspa.h', 'LADSPA SDK 1.17 header');
 	const buildRoot = resolve(options.buildRoot);
 	const installRoot = resolve(options.installRoot ?? `${options.buildRoot}-install`);
 	const sourceRoot = resolve(repositoryRoot, SOUNDSCAPER_PROFESSIONAL_NATIVE_ROOT);
@@ -149,6 +154,7 @@ function authenticatedBuildPlan({
 	const definitions = [
 		`-DSOUNDSCAPER_JUCE_ROOT=${snapshotRoots.juce}`,
 		`-DSOUNDSCAPER_CLAP_ROOT=${snapshotRoots.clap}`,
+		`-DSOUNDSCAPER_VAMP_ROOT=${snapshotRoots['vamp-plugin-sdk']}`,
 		`-DSOUNDSCAPER_NODE_API_INCLUDE=${resolve(snapshotRoots['electron-node-api-headers'], 'include/node')}`,
 		`-DSOUNDSCAPER_VST3_PROVENANCE_COMMIT=${EXPECTED['vst3-sdk'].commit}`,
 		`-DSOUNDSCAPER_NATIVE_TARGET=${target}`,
@@ -160,6 +166,7 @@ function authenticatedBuildPlan({
 		definitions.push('-DCMAKE_SYSTEM_VERSION=10.0.26100');
 	}
 	if (target.startsWith('linux-')) {
+		definitions.push(`-DSOUNDSCAPER_LADSPA_ROOT=${snapshotRoots['ladspa-sdk']}`);
 		definitions.push(`-DSOUNDSCAPER_LV2_ROOT=${resolve(snapshotRoots.lv2, LV2_INCLUDE_ROOT)}`);
 	}
 	if (target === 'mac-arm64') {
@@ -247,11 +254,11 @@ function sourceAuthenticationSummary(witnesses) {
 function normalizeSourceRoots(value) {
 	assert(value && typeof value === 'object' && !Array.isArray(value), 'Native sourceRoots must be a record.');
 	const roots = {};
-	for (const id of ['electron-node-api-headers', 'juce', 'clap', 'vst3-sdk', 'asio-sdk', 'lv2']) {
+	for (const id of ['electron-node-api-headers', 'juce', 'clap', 'vst3-sdk', 'vamp-plugin-sdk', 'asio-sdk', 'ladspa-sdk', 'lv2']) {
 		if (value[id] !== undefined) roots[id] = resolve(String(value[id]));
 	}
-	assert(roots['electron-node-api-headers'] && roots.juce && roots.clap && roots['vst3-sdk'],
-		'Electron Node-API headers, JUCE, direct CLAP, and VST3 provenance extracted source roots are required.');
+	assert(roots['electron-node-api-headers'] && roots.juce && roots.clap && roots['vst3-sdk'] && roots['vamp-plugin-sdk'],
+		'Electron Node-API headers, JUCE, direct CLAP, VST3 provenance, and Vamp extracted source roots are required.');
 	return roots;
 }
 
@@ -259,11 +266,11 @@ function normalizeSourceArchives(value) {
 	assert(value && typeof value === 'object' && !Array.isArray(value),
 		'Native sourceArchives must be a record.');
 	const archives = {};
-	for (const id of ['electron-node-api-headers', 'juce', 'clap', 'vst3-sdk', 'asio-sdk', 'lv2']) {
+	for (const id of ['electron-node-api-headers', 'juce', 'clap', 'vst3-sdk', 'vamp-plugin-sdk', 'asio-sdk', 'ladspa-sdk', 'lv2']) {
 		if (value[id] !== undefined) archives[id] = resolve(String(value[id]));
 	}
-	assert(archives['electron-node-api-headers'] && archives.juce && archives.clap && archives['vst3-sdk'],
-		'Electron Node-API headers, JUCE, direct CLAP, and VST3 provenance source archives are required.');
+	assert(archives['electron-node-api-headers'] && archives.juce && archives.clap && archives['vst3-sdk'] && archives['vamp-plugin-sdk'],
+		'Electron Node-API headers, JUCE, direct CLAP, VST3 provenance, and Vamp source archives are required.');
 	return archives;
 }
 
@@ -316,8 +323,9 @@ function featuresFor(target) {
 			: target === 'mac-arm64' ? ['coreaudio'] : ['wasapi', 'asio']),
 		discoveryOnly: Object.freeze(target.startsWith('linux-') ? ['jack'] : []),
 		plugins: Object.freeze(target.startsWith('linux-')
-			? ['vst3', 'clap', 'lv2']
+			? ['vst3', 'clap', 'lv2', 'ladspa']
 			: target === 'mac-arm64' ? ['vst3', 'clap', 'au'] : ['vst3', 'clap']),
+		analyzers: Object.freeze(['vamp']),
 	});
 }
 

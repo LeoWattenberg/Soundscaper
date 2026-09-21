@@ -35,7 +35,7 @@ elseif(CMAKE_SYSTEM_NAME STREQUAL "Linux")
 	endif()
 endif()
 
-foreach(required SOUNDSCAPER_JUCE_ROOT SOUNDSCAPER_CLAP_ROOT SOUNDSCAPER_VST3_PROVENANCE_COMMIT)
+foreach(required SOUNDSCAPER_JUCE_ROOT SOUNDSCAPER_CLAP_ROOT SOUNDSCAPER_VAMP_ROOT SOUNDSCAPER_VST3_PROVENANCE_COMMIT)
 	if(NOT DEFINED ${required} OR "${${required}}" STREQUAL "")
 		message(FATAL_ERROR "${required} is required by the authenticated build recipe")
 	endif()
@@ -59,6 +59,11 @@ endif()
 if(NOT EXISTS "${SOUNDSCAPER_CLAP_ROOT}/include/clap/clap.h")
 	message(FATAL_ERROR "SOUNDSCAPER_CLAP_ROOT is not the direct CLAP ABI tree")
 endif()
+if(NOT EXISTS "${SOUNDSCAPER_VAMP_ROOT}/vamp/vamp.h"
+	OR NOT EXISTS "${SOUNDSCAPER_VAMP_ROOT}/vamp-hostsdk/PluginHostAdapter.h"
+	OR NOT EXISTS "${SOUNDSCAPER_VAMP_ROOT}/src/vamp-hostsdk/PluginHostAdapter.cpp")
+	message(FATAL_ERROR "SOUNDSCAPER_VAMP_ROOT is not the authenticated Vamp SDK 2.10 source tree")
+endif()
 
 add_subdirectory("${SOUNDSCAPER_JUCE_ROOT}" "${CMAKE_CURRENT_BINARY_DIR}/juce" EXCLUDE_FROM_ALL)
 
@@ -68,7 +73,34 @@ add_library(soundscaper_professional_audio STATIC
 )
 add_library(soundscaper_professional_plugin STATIC
 	src/direct_clap_adapter.cpp src/juce_message_dispatcher.cpp
-	src/juce_plugin_adapter.cpp src/professional_host.cpp
+	src/juce_plugin_adapter.cpp src/ladspa_host_state.cpp src/professional_host.cpp
+)
+add_library(soundscaper_professional_vamp STATIC
+	src/vamp_exact_library.cpp src/vamp_analyzer_adapter.cpp src/vamp_analyzer_peer.cpp
+	"${SOUNDSCAPER_VAMP_ROOT}/src/vamp-hostsdk/PluginHostAdapter.cpp"
+	"${SOUNDSCAPER_VAMP_ROOT}/src/vamp-hostsdk/PluginInputDomainAdapter.cpp"
+	"${SOUNDSCAPER_VAMP_ROOT}/src/vamp-hostsdk/PluginWrapper.cpp"
+	"${SOUNDSCAPER_VAMP_ROOT}/src/vamp-hostsdk/RealTime.cpp"
+)
+target_compile_features(soundscaper_professional_vamp PRIVATE cxx_std_20)
+target_include_directories(soundscaper_professional_vamp PUBLIC
+	"${CMAKE_CURRENT_SOURCE_DIR}/src"
+	"${SOUNDSCAPER_VAMP_ROOT}"
+)
+target_link_libraries(soundscaper_professional_vamp PRIVATE ${CMAKE_DL_LIBS})
+if(MSVC)
+	target_compile_options(soundscaper_professional_vamp PRIVATE /Gy /Gw)
+else()
+	# PluginHostAdapter.cpp also defines the SDK's legacy getPluginPath helper.
+	# We never link its ambient-search section: exact-path loading lives solely
+	# in vamp_exact_library.cpp.
+	target_compile_options(soundscaper_professional_vamp PRIVATE
+		-ffunction-sections -fdata-sections)
+endif()
+set_target_properties(soundscaper_professional_vamp PROPERTIES
+	POSITION_INDEPENDENT_CODE YES
+	CXX_VISIBILITY_PRESET hidden
+	VISIBILITY_INLINES_HIDDEN YES
 )
 foreach(core soundscaper_professional_audio soundscaper_professional_plugin)
 	target_compile_features(${core} PRIVATE cxx_std_20)
@@ -124,7 +156,7 @@ if(APPLE)
 	target_compile_definitions(soundscaper_professional_audio PRIVATE
 		JUCE_ASIO=0 SOUNDSCAPER_COREAUDIO_STREAMING=1)
 	target_compile_definitions(soundscaper_professional_plugin PRIVATE
-		JUCE_PLUGINHOST_AU=1 JUCE_PLUGINHOST_LV2=0 JUCE_ASIO=0)
+		JUCE_PLUGINHOST_AU=1 JUCE_PLUGINHOST_LADSPA=0 JUCE_PLUGINHOST_LV2=0 JUCE_ASIO=0)
 elseif(WIN32)
 	target_sources(soundscaper_professional_audio PRIVATE
 		src/os_audio_codec_windows.cpp src/os_mp3_encode_windows.cpp)
@@ -140,15 +172,21 @@ elseif(WIN32)
 	target_compile_definitions(soundscaper_professional_audio PRIVATE
 		JUCE_ASIO=1 SOUNDSCAPER_WASAPI_STREAMING=1 SOUNDSCAPER_ASIO_STREAMING=1)
 	target_compile_definitions(soundscaper_professional_plugin PRIVATE
-		JUCE_PLUGINHOST_AU=0 JUCE_PLUGINHOST_LV2=0 JUCE_ASIO=0)
+		JUCE_PLUGINHOST_AU=0 JUCE_PLUGINHOST_LADSPA=0 JUCE_PLUGINHOST_LV2=0 JUCE_ASIO=0)
 else()
 	target_sources(soundscaper_professional_audio PRIVATE src/os_audio_codec_unavailable.cpp)
 	if(NOT DEFINED SOUNDSCAPER_LV2_ROOT OR NOT EXISTS "${SOUNDSCAPER_LV2_ROOT}/lv2/core/lv2.h")
 		message(FATAL_ERROR "Linux builds require the authenticated LV2 1.18.10 headers")
 	endif()
-	target_include_directories(soundscaper_professional_plugin PRIVATE "${SOUNDSCAPER_LV2_ROOT}")
+	if(NOT DEFINED SOUNDSCAPER_LADSPA_ROOT OR NOT EXISTS "${SOUNDSCAPER_LADSPA_ROOT}/src/ladspa.h")
+		message(FATAL_ERROR "Linux builds require the authenticated LADSPA SDK headers")
+	endif()
+	target_sources(soundscaper_professional_plugin PRIVATE src/ladspa_plugin_metadata.cpp)
+	target_include_directories(soundscaper_professional_plugin PRIVATE
+		"${SOUNDSCAPER_LADSPA_ROOT}/src"
+		"${SOUNDSCAPER_LV2_ROOT}")
 	target_compile_definitions(soundscaper_professional_plugin PRIVATE
-		JUCE_PLUGINHOST_AU=0 JUCE_PLUGINHOST_LV2=1 JUCE_ASIO=0)
+		JUCE_PLUGINHOST_AU=0 JUCE_PLUGINHOST_LADSPA=1 JUCE_PLUGINHOST_LV2=1 JUCE_ASIO=0)
 	target_compile_definitions(soundscaper_professional_audio PRIVATE
 		JUCE_ASIO=0 SOUNDSCAPER_ALSA_STREAMING=1
 		SOUNDSCAPER_PIPEWIRE_SYSTEM_ABI_ADAPTER=1 SOUNDSCAPER_JACK_DISCOVERY_ONLY=1)
@@ -216,6 +254,63 @@ if(BUILD_TESTING)
 		LIBRARY DESTINATION self-test
 		RUNTIME DESTINATION self-test)
 endif()
+if(BUILD_TESTING AND CMAKE_SYSTEM_NAME STREQUAL "Linux")
+	add_library(soundscaper_professional_ladspa_fixture MODULE
+		tests/professional_ladspa_fixture.c)
+	target_include_directories(soundscaper_professional_ladspa_fixture PRIVATE
+		"${SOUNDSCAPER_LADSPA_ROOT}/src")
+	set_target_properties(soundscaper_professional_ladspa_fixture PROPERTIES
+		PREFIX ""
+		OUTPUT_NAME "soundscaper_professional_ladspa_fixture"
+		SUFFIX ".so"
+		C_VISIBILITY_PRESET hidden
+	)
+	add_executable(soundscaper_ladspa_host_self_test tests/ladspa_host_self_test.cpp)
+	target_compile_features(soundscaper_ladspa_host_self_test PRIVATE cxx_std_20)
+	target_include_directories(soundscaper_ladspa_host_self_test PRIVATE
+		"${CMAKE_CURRENT_SOURCE_DIR}/src")
+	target_link_libraries(soundscaper_ladspa_host_self_test PRIVATE
+		soundscaper_professional_plugin)
+	add_dependencies(soundscaper_ladspa_host_self_test
+		soundscaper_professional_ladspa_fixture)
+	add_test(NAME soundscaper_ladspa_host_self_test
+		COMMAND soundscaper_ladspa_host_self_test
+			$<TARGET_FILE:soundscaper_professional_ladspa_fixture>)
+	set_tests_properties(soundscaper_ladspa_host_self_test PROPERTIES TIMEOUT 15)
+	install(TARGETS soundscaper_professional_ladspa_fixture
+		LIBRARY DESTINATION self-test)
+endif()
+if(BUILD_TESTING)
+	add_library(soundscaper_professional_vamp_fixture MODULE
+		tests/professional_vamp_fixture.cpp)
+	target_compile_features(soundscaper_professional_vamp_fixture PRIVATE cxx_std_20)
+	target_include_directories(soundscaper_professional_vamp_fixture PRIVATE
+		"${SOUNDSCAPER_VAMP_ROOT}")
+	set_target_properties(soundscaper_professional_vamp_fixture PROPERTIES
+		PREFIX ""
+		OUTPUT_NAME "soundscaper_professional_vamp_fixture"
+		CXX_VISIBILITY_PRESET hidden
+		VISIBILITY_INLINES_HIDDEN YES
+	)
+	add_executable(soundscaper_vamp_analyzer_self_test
+		tests/vamp_analyzer_self_test.cpp)
+	target_compile_features(soundscaper_vamp_analyzer_self_test PRIVATE cxx_std_20)
+	target_link_libraries(soundscaper_vamp_analyzer_self_test PRIVATE
+		soundscaper_professional_vamp)
+	if(MSVC)
+		target_link_options(soundscaper_vamp_analyzer_self_test PRIVATE /OPT:REF)
+	elseif(APPLE)
+		target_link_options(soundscaper_vamp_analyzer_self_test PRIVATE "LINKER:-dead_strip")
+	else()
+		target_link_options(soundscaper_vamp_analyzer_self_test PRIVATE "LINKER:--gc-sections")
+	endif()
+	add_dependencies(soundscaper_vamp_analyzer_self_test
+		soundscaper_professional_vamp_fixture)
+	add_test(NAME soundscaper_vamp_analyzer_self_test
+		COMMAND soundscaper_vamp_analyzer_self_test
+			$<TARGET_FILE:soundscaper_professional_vamp_fixture>)
+	set_tests_properties(soundscaper_vamp_analyzer_self_test PROPERTIES TIMEOUT 15)
+endif()
 
 # The utility process loads only this trusted-audio Node-API module. It cannot
 # link, scan, instantiate, or execute third-party plug-in code.
@@ -244,9 +339,18 @@ install(TARGETS soundscaper_professional_node
 # Third-party plug-ins are never loaded by the Electron utility-process addon.
 # The reviewed launcher executes this persistent framed peer as the exact
 # third-party-native child and the utility only proxies bounded RPC frames.
-add_executable(soundscaper_professional_peer src/professional_host_peer.cpp)
+add_executable(soundscaper_professional_peer
+	src/professional_host_containment_probe.cpp src/professional_host_peer.cpp)
 target_compile_features(soundscaper_professional_peer PRIVATE cxx_std_20)
-target_link_libraries(soundscaper_professional_peer PRIVATE soundscaper_professional_plugin)
+target_link_libraries(soundscaper_professional_peer PRIVATE
+	soundscaper_professional_plugin soundscaper_professional_vamp)
+if(MSVC)
+	target_link_options(soundscaper_professional_peer PRIVATE /OPT:REF)
+elseif(APPLE)
+	target_link_options(soundscaper_professional_peer PRIVATE "LINKER:-dead_strip")
+else()
+	target_link_options(soundscaper_professional_peer PRIVATE "LINKER:--gc-sections")
+endif()
 if(WIN32)
 	target_link_libraries(soundscaper_professional_peer PRIVATE ws2_32)
 endif()

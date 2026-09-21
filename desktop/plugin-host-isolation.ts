@@ -21,7 +21,7 @@
  * already authored. This module cannot manufacture a freeze: it renders nothing.
  */
 
-import type { HelperPluginFormat } from './helper-job-grant.ts';
+import type { HelperEffectPluginFormat } from './helper-job-grant.ts';
 import {
 	PLUGIN_HOST_BENIGN_STOP_REASONS,
 	assertPluginInstanceId,
@@ -67,7 +67,7 @@ export type PluginHostRefusalCode =
 
 export interface PluginHostLaunch {
 	readonly hostId: string; readonly ownerId: string;
-	readonly binarySha256: string; readonly format: HelperPluginFormat;
+	readonly binarySha256: string; readonly format: HelperEffectPluginFormat;
 }
 
 /**
@@ -104,7 +104,7 @@ export interface PluginInstanceRequest {
 	/** The renderer owner object; main maps it to an opaque owner id. */
 	readonly owner: object;
 	readonly binarySha256: string;
-	readonly format: HelperPluginFormat;
+	readonly format: HelperEffectPluginFormat;
 	/** Present when the project restores an instance it already owns. */
 	readonly instanceId?: string;
 }
@@ -112,7 +112,7 @@ export interface PluginInstanceRequest {
 export interface PluginInstanceRecord {
 	readonly instanceId: string; readonly ownerId: string; readonly ownerGeneration: number;
 	readonly hostId: string | null; readonly binarySha256: string;
-	readonly format: HelperPluginFormat; readonly state: PluginInstanceState;
+	readonly format: HelperEffectPluginFormat; readonly state: PluginInstanceState;
 }
 
 /** One refusal shape for every gate, so no caller learns two vocabularies. */
@@ -154,7 +154,7 @@ interface OwnerEntry { readonly ownerId: string; generation: number }
 interface HostEntry {
 	readonly hostId: string; readonly hostKey: string; readonly ownerId: string;
 	readonly ownerGeneration: number; readonly binarySha256: string;
-	readonly format: HelperPluginFormat; readonly instanceIds: Set<string>;
+	readonly format: HelperEffectPluginFormat; readonly instanceIds: Set<string>;
 	/** Null until the process is up: the entry exists before the process does. */
 	process: PluginHostProcess | null;
 	stopped: boolean;
@@ -164,7 +164,7 @@ interface StartingHost { readonly entry: HostEntry; readonly promise: Promise<Ho
 
 interface InstanceEntry {
 	readonly instanceId: string; readonly ownerId: string;
-	readonly binarySha256: string; readonly format: HelperPluginFormat;
+	readonly binarySha256: string; readonly format: HelperEffectPluginFormat;
 	ownerGeneration: number; hostId: string | null; state: PluginInstanceState;
 }
 
@@ -215,7 +215,7 @@ export class PluginHostIsolationRegistry {
 		if (this.#disposed) return refused('disposed', 'Plug-in hosting is shut down.');
 		if (!this.#isEnabled()) return refused('hosting-disabled', 'Plug-in hosting is disabled.');
 		let digest: string;
-		let format: HelperPluginFormat;
+		let format: HelperEffectPluginFormat;
 		let requestedId: string | null;
 		try {
 			digest = assertBinaryDigest(request.binarySha256);
@@ -448,7 +448,7 @@ export class PluginHostIsolationRegistry {
 
 	#ensureHost(
 		hostKey: string, owner: OwnerEntry, ownerGeneration: number,
-		binarySha256: string, format: HelperPluginFormat,
+		binarySha256: string, format: HelperEffectPluginFormat,
 	): Promise<HostEntry | null> {
 		// Concurrent requests for one isolation unit share the one start, or
 		// the second request would spawn a second process for the same pair.
@@ -575,4 +575,3 @@ function instanceRecord(entry: InstanceEntry): PluginInstanceRecord {
 		hostId: entry.hostId, binarySha256: entry.binarySha256, format: entry.format, state: entry.state,
 	});
 }
-

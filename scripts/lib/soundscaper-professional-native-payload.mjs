@@ -234,7 +234,9 @@ function validateManifest(value, sourceRegister) {
 		&& value.addon?.napiVersion === 8 && value.addon?.license === 'AGPL-3.0-only',
 		'The professional native addon description is invalid.');
 	assert(value.pluginPeer?.payloadName === 'soundscaper_professional_peer'
-		&& value.pluginPeer?.protocol === 'M5F1' && value.pluginPeer?.license === 'AGPL-3.0-only'
+		&& value.pluginPeer?.protocol === 'M5F2'
+		&& value.pluginPeer?.analyzerProtocol === 'M5A1'
+		&& value.pluginPeer?.license === 'AGPL-3.0-only'
 		&& value.deliveryFilesystem?.payloadName === 'soundscaper_delivery_fs'
 		&& value.deliveryFilesystem?.protocol === 'SDF1'
 		&& value.deliveryFilesystem?.license === 'AGPL-3.0-only'
@@ -280,9 +282,9 @@ function validateManifest(value, sourceRegister) {
 }
 
 function validSourceAuthentication(value, target, sourceRegister) {
-	const ids = ['electron-node-api-headers', 'juce', 'clap', 'vst3-sdk',
+	const ids = ['electron-node-api-headers', 'juce', 'clap', 'vst3-sdk', 'vamp-plugin-sdk',
 		...(target.startsWith('win-') ? ['asio-sdk'] : []),
-		...(target.startsWith('linux-') ? ['lv2'] : [])];
+		...(target.startsWith('linux-') ? ['ladspa-sdk', 'lv2'] : [])];
 	return value?.schemaVersion === 1 && value.status === 'authenticated'
 		&& Array.isArray(value.sources) && value.sources.length === ids.length
 		&& ids.every((id) => value.sources.filter((source) => source?.id === id).length === 1)

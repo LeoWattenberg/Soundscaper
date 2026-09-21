@@ -176,6 +176,7 @@ test('moved controller domains preserve their optional chunk owners', () => {
 	const pathsByOwner = {
 		'editor-optional-execution': [
 			'src/common/editor/controller/analysis/analysis-service.ts',
+			'src/common/editor/controller/analysis/internal/vamp-analysis-action.ts',
 			'src/common/editor/controller/effects/effect-macro-defaults-service.ts',
 			'src/common/editor/controller/effects/internal/macro/effect-macro-defaults.ts',
 		],

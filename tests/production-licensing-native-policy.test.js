@@ -112,7 +112,9 @@ test('native policy rows separate distribution requirements from test activation
 		'plugin-format-vst3',
 		'plugin-format-clap',
 		'plugin-format-audio-units',
+		'plugin-format-ladspa',
 		'plugin-format-lv2',
+		'plugin-format-vamp',
 		'plugin-format-ofx',
 		'codec-native-ffmpeg-current-set',
 		'codec-hardware-acceleration',
@@ -153,7 +155,7 @@ test('native policy rows separate distribution requirements from test activation
 		'audio-backend-coreaudio', 'audio-backend-wasapi', 'audio-backend-asio',
 		'audio-backend-pipewire', 'audio-backend-alsa',
 		'plugin-format-vst3', 'plugin-format-clap', 'plugin-format-audio-units',
-		'plugin-format-lv2', 'plugin-format-ofx',
+		'plugin-format-ladspa', 'plugin-format-lv2', 'plugin-format-vamp', 'plugin-format-ofx',
 	];
 	assert.equal(REVIEWED_ROWS.some((id) => id.startsWith('codec-')), false);
 	for (const row of matrix.nativeFormatPolicies) {
@@ -179,6 +181,16 @@ test('native policy rows separate distribution requirements from test activation
 		// reviewed row carries no blocker at all.
 		if (row.status === 'blocked') assert.match(row.blocker, /native-audio/u, row.id);
 	}
+	const ladspa = matrix.nativeFormatPolicies.find(({ id }) => id === 'plugin-format-ladspa');
+	assert.equal(ladspa.upstreamLicensing,
+		'LGPL-2.1-or-later at the pinned LADSPA SDK 1.17 source');
+	assert.match(ladspa.redistribution, /implemented format is Linux-only/iu);
+	assert.ok(ladspa.evidence.includes('config/milestone-5-native-source-acquisitions.json'));
+	const vamp = matrix.nativeFormatPolicies.find(({ id }) => id === 'plugin-format-vamp');
+	assert.equal(vamp.upstreamLicensing,
+		'BSD-3-Clause at the pinned Vamp Plugin SDK 2.10.0 source');
+	assert.match(vamp.redistribution, /implemented analyzer host is cross-platform/iu);
+	assert.ok(vamp.evidence.includes('config/milestone-5-native-source-acquisitions.json'));
 	const ffmpegRow = matrix.nativeFormatPolicies.find(({ id }) => id === 'codec-native-ffmpeg-current-set');
 	assert.equal(ffmpegRow.testActivation, 'enabled');
 	assert.equal(Object.hasOwn(ffmpegRow, 'humanReviewMilestone'), false);

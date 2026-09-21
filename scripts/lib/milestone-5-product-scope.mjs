@@ -7,7 +7,8 @@ export const MILESTONE_5_TARGETS = Object.freeze([
 	'linux-x64', 'linux-arm64', 'mac-arm64', 'win-x64', 'win-arm64',
 ]);
 export const SOUNDSCAPER_MILESTONE_5_SOURCE_IDS = Object.freeze([
-	'electron-node-api-headers', 'juce', 'clap', 'vst3-sdk', 'asio-sdk', 'lv2',
+	'electron-node-api-headers', 'juce', 'clap', 'vst3-sdk', 'vamp-plugin-sdk',
+	'asio-sdk', 'ladspa-sdk', 'lv2',
 ]);
 export const SOUNDSCAPER_MILESTONE_5_PAYLOAD_PRODUCTS = Object.freeze([
 	'soundscaper-professional',

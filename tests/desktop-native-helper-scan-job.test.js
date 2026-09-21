@@ -112,7 +112,13 @@ test('a bundle descriptor set refuses empty, unbounded, or duplicate native IDs'
 });
 
 test('the helper names every implemented suffix but requires payload capability', async () => {
-	assert.deepEqual(Object.keys(SCANNABLE_PLUGIN_FORMATS), ['fixture', 'vst3', 'clap', 'au', 'lv2']);
+	assert.deepEqual(Object.keys(SCANNABLE_PLUGIN_FORMATS), [
+		'fixture', 'vst3', 'clap', 'au', 'lv2', 'ladspa', 'vamp',
+	]);
+	assert.deepEqual(SCANNABLE_PLUGIN_FORMATS.ladspa.linux, ['.so']);
+	assert.deepEqual(SCANNABLE_PLUGIN_FORMATS.vamp, {
+		darwin: ['.dylib'], linux: ['.so'], win32: ['.dll'],
+	});
 	const result = await runner(fakeAddon(['/roots/a.vst3']))({
 		grant: { rootPath: '/roots', format: 'vst3', identity: { dev: 1, ino: 2 } }, onProgress: () => {},
 	}).completion;

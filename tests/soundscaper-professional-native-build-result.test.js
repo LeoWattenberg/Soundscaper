@@ -33,6 +33,9 @@ import {
 	createSoundscaperProfessionalNativeToolchainReceipt,
 	soundscaperProfessionalNativeToolchainIdentity,
 } from '../scripts/lib/soundscaper-professional-native-toolchain.mjs';
+import {
+	soundscaperProfessionalNativeBuildSelfTestsFixture,
+} from './helpers/soundscaper-professional-native-build-result-fixtures.js';
 
 const ROOT = resolve(import.meta.dirname, '..');
 const SOURCE_REVISION = '12'.repeat(20); const BUILD_PLAN_SHA256 = '34'.repeat(32);
@@ -51,13 +54,13 @@ test('self-test authority recognizes a normalized path on another Windows volume
 
 test('Soundscaper build-result source scope excludes every Framescaper codec input', () => {
 	assert.deepEqual(soundscaperProfessionalNativeSourceIdsForTarget('mac-arm64'), [
-		'electron-node-api-headers', 'juce', 'clap', 'vst3-sdk',
+		'electron-node-api-headers', 'juce', 'clap', 'vst3-sdk', 'vamp-plugin-sdk',
 	]);
 	assert.deepEqual(soundscaperProfessionalNativeSourceIdsForTarget('win-arm64'), [
-		'electron-node-api-headers', 'juce', 'clap', 'vst3-sdk', 'asio-sdk',
+		'electron-node-api-headers', 'juce', 'clap', 'vst3-sdk', 'vamp-plugin-sdk', 'asio-sdk',
 	]);
 	assert.deepEqual(soundscaperProfessionalNativeSourceIdsForTarget('linux-x64'), [
-		'electron-node-api-headers', 'juce', 'clap', 'vst3-sdk', 'lv2',
+		'electron-node-api-headers', 'juce', 'clap', 'vst3-sdk', 'vamp-plugin-sdk', 'ladspa-sdk', 'lv2',
 	]);
 	assert.throws(() => soundscaperProfessionalNativeSourceIdsForTarget('mac-x64'), /target/u);
 });
@@ -154,15 +157,21 @@ test('a build result binds installed payloads, closed dependencies, and passing 
 				? ['libowned.so', 'libc.so.6'] : ['libc.so.6']);
 		},
 		runSelfTest: async (request) => {
-			selfTests.push({ id: request.id, expectedStatus: request.expectedStatus });
+			selfTests.push(request);
 			return { status: request.expectedStatus, stdout: `${request.id} passed\n`, stderr: '' };
 		},
 	});
-	assert.deepEqual(selfTests, [
-		{ id: 'm5f1-malformed-frame', expectedStatus: 125 },
+	assert.deepEqual(selfTests.map(({ id, expectedStatus }) => ({ id, expectedStatus })), [
+		{ id: 'm5f2-malformed-frame', expectedStatus: 125 },
+		{ id: 'm5a1-malformed-frame', expectedStatus: 125 },
 		{ id: 'delivery-filesystem-protocol', expectedStatus: 0 },
 		{ id: 'launcher-refusal', expectedStatus: 125 },
 	]);
+	const m5f2 = selfTests.find(({ id }) => id === 'm5f2-malformed-frame');
+	const m5a1 = selfTests.find(({ id }) => id === 'm5a1-malformed-frame');
+	assert.equal(m5a1.command, m5f2.command);
+	assert.deepEqual(m5a1.args, ['--vamp-analyzer']);
+	assert.deepEqual([...m5a1.input], [0]);
 	assert.equal(candidate.receipt.kind, 'soundscaper-professional-native-build-result');
 	assert.equal(candidate.receipt.target, 'linux-x64');
 	assert.deepEqual(candidate.receipt.isolation.runtimeClosure.map(({ path }) => path), [
@@ -442,7 +451,7 @@ async function candidateFixture(context, target = 'linux-x64', sourceRevision = 
 			toolchainReceipt,
 			packagedAppAuthority: packagedAppAuthority(target, sourceRevision),
 			sourceAuthentication: sourceAuthentication(target),
-			buildSelfTests: buildSelfTests(target),
+			buildSelfTests: soundscaperProfessionalNativeBuildSelfTestsFixture(target),
 			macCodeSealResult,
 		},
 	};
@@ -467,22 +476,6 @@ function fixtureToolchainReceipt(target) {
 			cxxCompilerVersion: '19.44.1', generator, systemName, systemProcessor,
 		},
 	});
-}
-
-function buildSelfTests(target) {
-	const candidateExecuted = new Set([
-		'm5f1-malformed-frame', 'launcher-refusal',
-		'delivery-filesystem-protocol',
-		'closure-recursive-inspection', 'closure-symlink-refusal',
-		'closure-ambient-dependency-refusal', 'closure-rpath-refusal',
-		'closure-undeclared-dependency-refusal', 'closure-runtime-file-limit-refusal',
-	]);
-	return requiredSoundscaperProfessionalNativeSelfTestIds(target)
-		.filter((id) => !candidateExecuted.has(id))
-		.map((id) => ({
-			id, status: 'passed', commandSha256: sha256(`command:${id}`),
-			outputSha256: sha256(`output:${id}`),
-		}));
 }
 
 function dependencyInspection(path, imports, target = 'linux-x64') {

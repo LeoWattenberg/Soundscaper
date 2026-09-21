@@ -28,6 +28,7 @@ extern "C" {
 #define SOUNDSCAPER_PRO_MAX_CHANNELS 4096u
 #define SOUNDSCAPER_PRO_MAX_STATE_BYTES (16u * 1024u * 1024u)
 #define SOUNDSCAPER_PRO_MAX_PLUGIN_DESCRIPTORS 256u
+#define SOUNDSCAPER_PRO_MAX_PLUGIN_PARAMETERS 4096u
 
 typedef enum soundscaper_pro_status {
 	SOUNDSCAPER_PRO_OK = 0,
@@ -76,6 +77,28 @@ typedef struct soundscaper_pro_plugin_description {
 	uint32_t latency_frames;
 } soundscaper_pro_plugin_description;
 
+typedef enum soundscaper_pro_plugin_parameter_flags {
+	SOUNDSCAPER_PRO_PARAMETER_BOOLEAN = 1u,
+	SOUNDSCAPER_PRO_PARAMETER_INTEGER = 2u,
+	SOUNDSCAPER_PRO_PARAMETER_LOGARITHMIC = 4u,
+	SOUNDSCAPER_PRO_PARAMETER_AUTOMATABLE = 8u
+} soundscaper_pro_plugin_parameter_flags;
+
+typedef struct soundscaper_pro_plugin_capability_report {
+	uint32_t parameter_count;
+	uint32_t has_vendor_ui;
+} soundscaper_pro_plugin_capability_report;
+
+typedef struct soundscaper_pro_plugin_parameter {
+	char id[SOUNDSCAPER_PRO_MAX_TEXT];
+	char name[SOUNDSCAPER_PRO_MAX_TEXT];
+	char label[SOUNDSCAPER_PRO_MAX_TEXT];
+	double default_value;
+	double minimum_value;
+	double maximum_value;
+	uint32_t flags;
+} soundscaper_pro_plugin_parameter;
+
 typedef struct soundscaper_pro_audio_session soundscaper_pro_audio_session;
 typedef struct soundscaper_pro_plugin_instance soundscaper_pro_plugin_instance;
 
@@ -104,6 +127,15 @@ SOUNDSCAPER_PRO_API soundscaper_pro_status soundscaper_pro_plugin_save_state(
 	soundscaper_pro_plugin_instance *instance, uint8_t *bytes, size_t capacity, size_t *written);
 SOUNDSCAPER_PRO_API soundscaper_pro_status soundscaper_pro_plugin_load_state(
 	soundscaper_pro_plugin_instance *instance, const uint8_t *bytes, size_t length);
+SOUNDSCAPER_PRO_API soundscaper_pro_status soundscaper_pro_plugin_get_capabilities(
+	soundscaper_pro_plugin_instance *instance, soundscaper_pro_plugin_capability_report *report);
+SOUNDSCAPER_PRO_API soundscaper_pro_status soundscaper_pro_plugin_describe_parameters(
+	soundscaper_pro_plugin_instance *instance, soundscaper_pro_plugin_parameter *parameters,
+	size_t capacity, size_t *written);
+SOUNDSCAPER_PRO_API soundscaper_pro_status soundscaper_pro_plugin_read_parameter(
+	soundscaper_pro_plugin_instance *instance, uint32_t index, double *value);
+SOUNDSCAPER_PRO_API soundscaper_pro_status soundscaper_pro_plugin_write_parameter(
+	soundscaper_pro_plugin_instance *instance, uint32_t index, double value);
 SOUNDSCAPER_PRO_API soundscaper_pro_status soundscaper_pro_plugin_open_vendor_window(
 	soundscaper_pro_plugin_instance *instance, const char *opaque_window_id);
 SOUNDSCAPER_PRO_API void soundscaper_pro_plugin_close_vendor_window(soundscaper_pro_plugin_instance *instance);

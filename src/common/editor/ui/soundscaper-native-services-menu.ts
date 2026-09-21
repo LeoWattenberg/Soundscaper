@@ -30,6 +30,7 @@ export const SOUNDSCAPER_NATIVE_SERVICE_SURFACES = Object.freeze([
 	'native-effect-scan',
 	'native-effect-manage',
 	'native-effect-use',
+	'native-analyzer-use',
 ] as const);
 
 export type SoundscaperNativeServiceSurface =
@@ -52,6 +53,7 @@ export interface SoundscaperNativeServicesMenuItem {
 export interface SoundscaperNativeServicesMenuItems {
 	readonly tools: readonly SoundscaperNativeServicesMenuItem[];
 	readonly effect: readonly SoundscaperNativeServicesMenuItem[];
+	readonly analyze: readonly SoundscaperNativeServicesMenuItem[];
 }
 
 /**
@@ -65,6 +67,10 @@ export interface SoundscaperNativeServicesSnapshot {
 	readonly quarantined: boolean;
 	readonly payloadAvailable: boolean;
 	readonly payloadDetail: string;
+	readonly pluginEnabled: boolean;
+	readonly pluginQuarantined: boolean;
+	readonly pluginPayloadAvailable: boolean;
+	readonly pluginPayloadDetail: string;
 	readonly usableAudioBackends: readonly string[];
 	readonly enabledPluginFormats: readonly string[];
 }
@@ -75,6 +81,7 @@ export interface SoundscaperNativeServicesMenuInput {
 	readonly snapshot: SoundscaperNativeServicesSnapshot | null;
 	readonly editingBlocked?: boolean;
 	readonly readOnly?: boolean;
+	readonly analyzerRuntimeAvailable?: boolean;
 	readonly copy?: Readonly<Record<string, string | undefined>>;
 }
 
@@ -85,6 +92,7 @@ export interface SoundscaperNativeServicesMenuActions {
 const EMPTY: SoundscaperNativeServicesMenuItems = Object.freeze({
 	tools: Object.freeze([]),
 	effect: Object.freeze([]),
+	analyze: Object.freeze([]),
 });
 
 export function createSoundscaperNativeServicesMenuItems(
@@ -97,7 +105,8 @@ export function createSoundscaperNativeServicesMenuItems(
 	if (input.productId !== 'soundscaper' || !input.runtimeAvailable || input.snapshot === null) return EMPTY;
 	const copy = resolveSoundscaperNativeServicesCopy(input.copy);
 	const snapshot = input.snapshot;
-	const reason = unavailableReason(copy, snapshot);
+	const audioReason = audioUnavailableReason(copy, snapshot);
+	const pluginReason = pluginUnavailableReason(copy, snapshot);
 
 	const audioDevice = entry({
 		id: 'native-audio-device',
@@ -105,7 +114,7 @@ export function createSoundscaperNativeServicesMenuItems(
 		// A tier that is on and healthy but has no usable backend is a different
 		// problem again, and naming it is the only way a user can tell that
 		// enabling the tier is not what is missing.
-		disabledReason: reason
+		disabledReason: audioReason
 			?? (snapshot.usableAudioBackends.length === 0 ? copy.audioBackendUnavailable : null),
 		open: actions.open,
 	});
@@ -117,7 +126,8 @@ export function createSoundscaperNativeServicesMenuItems(
 	});
 	const use = entry({
 		id: 'native-effect-use', label: copy.audioPluginEffects,
-		disabledReason: reason ?? (input.editingBlocked === true || input.readOnly === true ? copy.projectReadOnly : null)
+		disabledReason: pluginReason
+			?? (input.editingBlocked === true || input.readOnly === true ? copy.projectReadOnly : null)
 			?? (snapshot.enabledPluginFormats.length === 0 ? copy.pluginFormatsBlocked : null),
 		open: actions.open,
 	});
@@ -125,6 +135,17 @@ export function createSoundscaperNativeServicesMenuItems(
 		id: 'native-effect-manage',
 		label: copy.pluginManage,
 		disabledReason: null,
+		open: actions.open,
+	});
+	const analyzer = entry({
+		id: 'native-analyzer-use',
+		label: copy.vampAnalyzers,
+		disabledReason: pluginReason
+			?? (input.editingBlocked === true || input.readOnly === true ? copy.projectReadOnly : null)
+			?? (snapshot.enabledPluginFormats.includes('vamp')
+				? null : copy.vampFormatBlocked)
+			?? (input.analyzerRuntimeAvailable === false
+				? copy.vampRuntimeUnavailable : null),
 		open: actions.open,
 	});
 
@@ -135,16 +156,27 @@ export function createSoundscaperNativeServicesMenuItems(
 		effect: Object.freeze([
 			manage, use,
 		]),
+		analyze: Object.freeze([analyzer]),
 	});
 }
 
-function unavailableReason(
+function audioUnavailableReason(
 	copy: SoundscaperNativeServicesCopy,
 	snapshot: SoundscaperNativeServicesSnapshot,
 ): string | null {
 	if (snapshot.quarantined) return copy.audioHelperQuarantined;
 	if (!snapshot.payloadAvailable) return snapshot.payloadDetail || copy.audioBackendUnavailable;
 	if (!snapshot.enabled) return copy.nativeAudioDisabled;
+	return null;
+}
+
+function pluginUnavailableReason(
+	copy: SoundscaperNativeServicesCopy,
+	snapshot: SoundscaperNativeServicesSnapshot,
+): string | null {
+	if (snapshot.pluginQuarantined) return copy.pluginHelperQuarantined;
+	if (!snapshot.pluginPayloadAvailable) return snapshot.pluginPayloadDetail || copy.pluginRuntimeUnavailable;
+	if (!snapshot.pluginEnabled) return copy.discoveryDisabled;
 	return null;
 }
 

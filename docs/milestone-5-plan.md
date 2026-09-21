@@ -13,10 +13,10 @@
 > Historical release-admission language retained later in this document is
 > design provenance, not a current requirement or release verdict.
 
-> An unprovisioned checkout reports all eleven exact archive/extracted-tree inputs
+> An unprovisioned checkout reports all thirteen exact archive/extracted-tree inputs
 > as `not-materialized` until CI or a developer provisions the cache — see
 > [Provisioning the native source cache](#provisioning-the-native-source-cache),
-> which reaches 11/11 and grants nothing further. The Soundscaper helper
+> which reaches 13/13 and grants nothing further. The Soundscaper helper
 > workflow produces all five targets; its manifest keeps one checked-in Linux
 > x64 development payload and four CI-generated source-template rows. The
 > professional manifest and both Framescaper manifests use five CI-generated
@@ -228,11 +228,11 @@ decision, never an incidental build change.
 ## Licensing decisions
 
 The application is AGPL-3.0-only. The licensing register has
-`nativeFormatPolicies` rows for VST3, CLAP, Audio Units, LV2, OFX, the current
-native FFmpeg set, hardware acceleration, and advanced codec families, in
-addition to the coarse `native-plugins`, `native-audio` and `native-codecs`
-gates. A row's presence is not enablement, and an enabled row is still not a
-shipping capability.
+`nativeFormatPolicies` rows for VST3, CLAP, Audio Units, Linux-only LADSPA
+effects, LV2, cross-platform Vamp analyzers, OFX, the current native FFmpeg set,
+hardware acceleration, and advanced codec families, in addition to the coarse
+`native-plugins`, `native-audio` and `native-codecs` gates. A row's presence is
+not enablement, and an enabled row is still not a shipping capability.
 
 On 2026-08-26 the owner recorded the `native-audio` and
 `native-plugins` gates as enabled, the audio-stack, five OS audio-backend and
@@ -267,12 +267,12 @@ native-payload implementation or runtime-admission gate.
 
 ### Provisioning the native source cache
 
-`config/milestone-5-native-source-acquisitions.json` pins eleven upstream inputs by
+`config/milestone-5-native-source-acquisitions.json` pins thirteen upstream inputs by
 archive digest and by the portable identity of the tree each archive extracts
 to. `auditMilestone5NativeSourceAcquisitions` authenticates a cache of those
 inputs, reading its root from `SOUNDSCAPER_M5_NATIVE_SOURCE_ROOT`, and an absent
 cache is a truthful `not-materialized` result rather than an error — which is
-why the audit reports 0/11 on a machine that has never provisioned one.
+why the audit reports 0/13 on a machine that has never provisioned one.
 
 `npm run provision:milestone-5-native-sources` assembles that cache into the
 uncommitted `vendor/milestone-5-native-sources/`, one directory per source
