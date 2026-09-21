@@ -525,7 +525,7 @@ function fakeContext(pages: FakePage[], serviceWorker?: { source: string, url: s
 			if (serviceWorker === undefined) throw new Error('This fake has no service worker.');
 			browserRoot.emit('Target.attachedToTarget', {
 				sessionId: 'service-worker-session',
-				targetInfo: { type: 'service_worker', url: serviceWorker.url },
+				targetInfo: { targetId: 'service-worker-target', type: 'service_worker', url: serviceWorker.url },
 				waitingForDebugger: true,
 			});
 		},

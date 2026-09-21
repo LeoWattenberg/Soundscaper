@@ -11,6 +11,7 @@ import {
 	observeCdpScript,
 	readCdpScriptSourceUntilTeardown,
 } from './cdp-javascript-coverage.mjs';
+import { countTargetTypes, createBrowserTargetSessionOwnership } from './browser-target-coverage-state.mjs';
 
 const DEFAULT_TARGET_TYPES = Object.freeze(['service_worker']);
 const ACTIVE_PLAYWRIGHT_ROOTS = new WeakSet();
@@ -396,6 +397,7 @@ function createPlaywrightBrowserTargetAdapter(browser, targetTypes) {
 	const children = new Map();
 	const retainedDetaches = new Map();
 	const targets = new Map();
+	const targetSessions = createBrowserTargetSessionOwnership();
 	const owners = new Map();
 	let closed = false;
 	let existingTargetsEmitted = false;
@@ -420,6 +422,7 @@ function createPlaywrightBrowserTargetAdapter(browser, targetTypes) {
 				retainedDetaches.delete(parameters.sessionId);
 			}
 			if (children.delete(parameters?.sessionId)) {
+				targetSessions.release(parameters.sessionId);
 				events.emit('Target.detachedFromTarget', parameters);
 			}
 		};
@@ -430,6 +433,7 @@ function createPlaywrightBrowserTargetAdapter(browser, targetTypes) {
 				targets.delete(sessionId);
 				installOwner(child);
 				if (targetTypes.has(target.targetInfo?.type)) {
+					if (!targetSessions.admit(target.targetInfo?.targetId, sessionId)) return child;
 					if (!['service_worker', 'worker'].includes(target.targetInfo.type)
 						&& typeof child.detach === 'function') {
 						const originalDetach = child.detach;
@@ -497,6 +501,7 @@ function createPlaywrightBrowserTargetAdapter(browser, targetTypes) {
 			retainedDetaches.clear();
 			children.clear();
 			targets.clear();
+			targetSessions.clear();
 			events.emit('close');
 			events.removeAllListeners();
 		},
@@ -527,6 +532,7 @@ function createPlaywrightBrowserTargetAdapter(browser, targetTypes) {
 					const child = worker?._session;
 					const sessionId = child?._sessionId;
 					if (typeof sessionId !== 'string' || sessionId === '') continue;
+					if (!targetSessions.admit(targetId, sessionId)) continue;
 					children.set(sessionId, child);
 					events.emit('Target.attachedToTarget', {
 						sessionId,
@@ -538,10 +544,4 @@ function createPlaywrightBrowserTargetAdapter(browser, targetTypes) {
 			return {};
 		},
 	});
-}
-
-function countTargetTypes(recorders) {
-	const counts = new Map();
-	for (const { type } of recorders) counts.set(type, (counts.get(type) ?? 0) + 1);
-	return new Map([...counts].sort(([left], [right]) => left.localeCompare(right)));
 }
