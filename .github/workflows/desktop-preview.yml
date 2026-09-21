@@ -796,15 +796,16 @@ jobs:
 
   package-with-tests:
     name: Package nightly-with-tests / ${{ matrix.target.platform }} / ${{ matrix.target.arch }}
-    # Only a green Quality run is packaged. A red, cancelled or skipped upstream
-    # run has no verified source, and this workflow cancels superseded
-    # main-commit packaging rather than building dead source.
+    # Only a green same-repository Quality push is packaged. This rejects fork
+    # pull requests whose branch is also named `main` despite the branch filter.
     if: >-
       !cancelled()
       && (
         (
           github.event_name == 'workflow_run'
           && github.event.workflow_run.conclusion == 'success'
+          && github.event.workflow_run.event == 'push'
+          && github.event.workflow_run.head_repository.full_name == github.repository
         )
         || (
           github.event_name == 'workflow_dispatch'
@@ -857,7 +858,6 @@ jobs:
         with:
           node-version-file: .nvmrc
           architecture: ${{ matrix.target.node_arch }}
-          cache: npm
 
       - name: Pin npm
         run: npm install --global npm@12.0.1

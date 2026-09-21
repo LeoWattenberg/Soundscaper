@@ -182,10 +182,17 @@ test('desktop CI exposes one quality-gated five-target nightly-with-tests artifa
 	assert.match(testJob, new RegExp(
 		String.raw`if: >-\s+!cancelled\(\)`
 		+ String.raw`\s+&& \(\s+\(\s+github\.event_name == 'workflow_run'`
-		+ String.raw`\s+&& github\.event\.workflow_run\.conclusion == 'success'`,
+		+ String.raw`\s+&& github\.event\.workflow_run\.conclusion == 'success'`
+		+ String.raw`\s+&& github\.event\.workflow_run\.event == 'push'`
+		+ String.raw`\s+&& github\.event\.workflow_run\.head_repository\.full_name == github\.repository`,
 		'u',
 	));
 	assert.doesNotMatch(testJob, /workflow_run\.conclusion != '(?:cancelled|skipped|failure)'/u);
+	assert.doesNotMatch(
+		testJob,
+		/cache: npm/u,
+		'the job that checks out a workflow_run revision must not write the shared npm cache',
+	);
 	// The packaged commit must be the verified one, not whatever main moved to.
 	assert.match(testJob, /ref: \$\{\{ github\.event\.workflow_run\.head_sha \|\| github\.sha \}\}/u);
 	assert.match(testJob, new RegExp(
