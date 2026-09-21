@@ -15,6 +15,7 @@ import {
 	type VideoProxyPreservationPlan,
 } from '../common/editor/storage/video-proxy-claim-repository.ts';
 import type { VideoProxyAttachmentV18 } from '../common/editor/video-proxy-attachment-v18.ts';
+import { sameVideoProxyClaimBodyRow } from '../common/editor/storage/video-proxy-claim-row-identity.ts';
 import { assertFramescaperProjectSequenceProfile } from './editor-project-sequence-profile.ts';
 import {
 	framescaperProjectFingerprintSequence,
@@ -273,7 +274,7 @@ async function assertAndPublishBody(
 	attachment: Readonly<VideoProxyAttachmentV18>,
 ): Promise<void> {
 	const row = record(await request(mediaAssets.get(claim.bodyKey)));
-	if (!row || !sameBodyRow(row, claim)) throw new Error('An archive body row changed after verification.');
+	if (!row || !sameVideoProxyClaimBodyRow(row, claim.rowIdentity)) throw new Error('An archive body row changed after verification.');
 	if (claim.bodyKind === 'timing' && (Object.hasOwn(row, 'frameCount')
 		|| Object.hasOwn(row, 'timescale') || Object.hasOwn(row, 'finalFrameDurationTicks'))
 		&& (row.frameCount !== attachment.timingAsset.frameCount
@@ -282,18 +283,6 @@ async function assertAndPublishBody(
 		throw new Error('The archive timing row summary changed before publication.');
 	}
 	mediaAssets.put(publishSource(row as StorageRecord));
-}
-
-function sameBodyRow(row: Record<string, unknown>, claim: Readonly<VideoProxyClaimRecord>): boolean {
-	const identity = claim.rowIdentity;
-	return row.sourceId === identity.sourceId && row.kind === identity.kind
-		&& row.encoding === identity.encoding && row.storage === identity.storage
-		&& (row.path ?? null) === identity.path && (row.mediaChunkToken ?? null) === identity.mediaChunkToken
-		&& (row.mediaChunkBytes ?? null) === identity.mediaChunkBytes
-		&& (row.mediaChunkCount ?? null) === identity.mediaChunkCount
-		&& row.mediaContentDigestVersion === identity.mediaContentDigestVersion
-		&& row.mediaContentToken === identity.mediaContentToken && row.sha256 === identity.sha256
-		&& row.size === identity.byteLength && row.mimeType === identity.mimeType;
 }
 
 function sameProject(value: unknown, expected: FramescaperProjectSequence | null): boolean {
