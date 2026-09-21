@@ -131,7 +131,7 @@ test('dispose rejects both active and queued operations even when termination th
 
 test('dedicated requests do not arm inactivity deadlines', async () => {
 	const originalSetTimeout = globalThis.setTimeout;
-	globalThis.setTimeout = (() => { throw new Error('An inactivity deadline was armed.'); }) as typeof setTimeout;
+	globalThis.setTimeout = (() => { throw new Error('An inactivity deadline was armed.'); }) as unknown as typeof setTimeout;
 	const harness = workerHarness();
 	const client = createBrowserDedicatedAudioCodecClient({ createWorker: harness.createWorker });
 	try {

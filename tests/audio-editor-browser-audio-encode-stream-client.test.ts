@@ -97,7 +97,7 @@ test('an abort raised by the stream worker factory retires the acquired port', a
 
 test('stream requests do not arm inactivity deadlines', async () => {
 	const originalSetTimeout = globalThis.setTimeout;
-	globalThis.setTimeout = (() => { throw new Error('An inactivity deadline was armed.'); }) as typeof setTimeout;
+	globalThis.setTimeout = (() => { throw new Error('An inactivity deadline was armed.'); }) as unknown as typeof setTimeout;
 	const worker = workerFixture();
 	try {
 		const opening = openBrowserAudioEncodeStreamSession(request, { createWorker: () => worker });
