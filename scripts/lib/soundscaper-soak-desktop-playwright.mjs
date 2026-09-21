@@ -111,10 +111,20 @@ export async function retireSoundscaperDesktopSoakRuntime(runtime, {
 	terminateRuntime = terminate,
 } = {}) {
 	let coverageError;
-	try {
-		await runtime.coverageCollector?.checkpoint();
-		await runtime.coverageCollector?.collect();
-	} catch (error) { coverageError = error; }
+	try { await runtime.coverageCollector?.checkpoint(); }
+	catch (error) { coverageError = error; }
+	const collectCoverage = async () => {
+		try { await runtime.coverageCollector?.collect(); }
+		catch (error) {
+			coverageError = combinedError(
+				coverageError, error, 'Packaged soak coverage checkpoint and collection both failed.',
+			);
+		}
+	};
+	// A forced restart destroys its CDP targets without an exit handshake, so its
+	// live ranges must be written first. A graceful quit keeps collection armed
+	// through the real renderer/preload shutdown path, then writes the checkpoint.
+	if (abrupt) await collectCoverage();
 	let shutdownError;
 	try {
 		if (abrupt) await terminateRuntime(runtime.child, { force: true });
@@ -129,8 +139,13 @@ export async function retireSoundscaperDesktopSoakRuntime(runtime, {
 			);
 		});
 	}
+	if (!abrupt) await collectCoverage();
 	try { await runtime.browser.close(); }
-	catch (error) { shutdownError ??= error; }
+	catch (error) {
+		shutdownError = combinedError(
+			shutdownError, error, 'Packaged soak runtime and CDP shutdown both failed.',
+		);
+	}
 	throwCombined(coverageError, shutdownError, 'Packaged soak coverage and shutdown both failed.');
 }
 
@@ -297,6 +312,11 @@ function throwCombined(first, second, message) {
 	if (first && second) throw new AggregateError([first, second], message, { cause: first });
 	if (first) throw first;
 	if (second) throw second;
+}
+
+function combinedError(first, second, message) {
+	if (first && second) return new AggregateError([first, second], message, { cause: first });
+	return first ?? second;
 }
 
 function bootstrapError(message, cause) {

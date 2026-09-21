@@ -77,18 +77,48 @@ test('packaged soak retirement captures live targets before graceful quit', asyn
 	});
 	assert.deepEqual(calls, [
 		'coverage-checkpoint',
-		'coverage-collect',
 		'quit',
+		'coverage-collect',
 		'browser-close',
 	]);
 });
 
-function fakeRuntime(calls) {
+test('packaged soak retirement finalizes coverage after graceful shutdown errors', async () => {
+	const calls = [];
+	const runtime = fakeRuntime(calls, { checkpointError: new Error('checkpoint failed') });
+	await assert.rejects(
+		retireSoundscaperDesktopSoakRuntime(runtime, {
+			async quitRuntime() {
+				calls.push('quit');
+				throw new Error('quit failed');
+			},
+			async terminateRuntime(_child, options) { calls.push(['terminate', options]); },
+		}),
+		(error) => {
+			assert.equal(error instanceof AggregateError, true);
+			assert.match(String(error.errors[0]), /checkpoint failed/u);
+			assert.match(String(error.errors[1]), /quit failed/u);
+			return true;
+		},
+	);
+	assert.deepEqual(calls, [
+		'coverage-checkpoint',
+		'quit',
+		['terminate', { force: false }],
+		'coverage-collect',
+		'browser-close',
+	]);
+});
+
+function fakeRuntime(calls, { checkpointError = null } = {}) {
 	return {
 		browser: { async close() { calls.push('browser-close'); } },
 		child: {},
 		coverageCollector: {
-			async checkpoint() { calls.push('coverage-checkpoint'); },
+			async checkpoint() {
+				calls.push('coverage-checkpoint');
+				if (checkpointError) throw checkpointError;
+			},
 			async collect() { calls.push('coverage-collect'); },
 		},
 	};
