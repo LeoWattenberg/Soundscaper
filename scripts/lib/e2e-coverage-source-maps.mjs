@@ -24,7 +24,6 @@ export function normalizeE2ESourceMap(map, repositoryRoot, label, sourceRevision
 	const declaredRepositorySources = new Set();
 	const thirdPartyExecutableSources = new Set();
 	const thirdPartyMappedSources = new Set();
-	let hasMappedGeneratedRepositorySource = false;
 	for (const [index, source] of map.sources.entries()) {
 		const normalized = normalizeMapSource({
 			content: map.sourcesContent?.[index],
@@ -42,7 +41,6 @@ export function normalizeE2ESourceMap(map, repositoryRoot, label, sourceRevision
 	const mappedIndices = new Set(mappedE2ESourceMapEntries(map, label).map(({ index }) => index));
 	for (const index of mappedIndices) {
 		const normalized = normalizedSources[index];
-		if (normalized.generatedRepositoryPath !== null) hasMappedGeneratedRepositorySource = true;
 		if (normalized.executableRepositoryPath !== null) {
 			repositorySources.add(normalized.executableRepositoryPath);
 		}
@@ -59,7 +57,6 @@ export function normalizeE2ESourceMap(map, repositoryRoot, label, sourceRevision
 		executableRepositorySourceCount: repositorySources.size,
 		executableThirdPartySourceCount: thirdPartyExecutableSources.size,
 		hasOriginalMappings,
-		hasMappedGeneratedRepositorySource,
 		map: Object.freeze({ ...map, sourceRoot: '', sources, sourcesContent }),
 		repositorySourceCount: declaredRepositorySources.size,
 		repositorySources: Object.freeze([...repositorySources].sort()),

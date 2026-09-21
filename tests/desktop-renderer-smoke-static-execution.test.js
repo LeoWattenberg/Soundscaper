@@ -205,6 +205,28 @@ test('the macro Worker admission binds the exact Blob producer to the exact Work
 		/unattested executable-string primitive/u);
 });
 
+test('mapped repository sources cannot hide stable-spelling executable producers', () => {
+	for (const source of [
+		'element.innerHTML = untrustedMarkup;',
+		"document.createElement('script');",
+		"element.insertAdjacentHTML('beforeend', untrustedMarkup);",
+		"new Blob([untrustedSource], { type: 'text/javascript' });",
+		"element.setAttribute('onclick', untrustedHandler);",
+	]) {
+		const artifactPath = 'src/common/editor/mapped-dynamic-producer.ts';
+		assert.throws(() => assertE2EExecutableStringPolicy([{
+			artifactPath: 'assets/mapped-dynamic-producer.js',
+			fullSourceMap: {
+				sources: [`file:///__soundscaper_repo__/${artifactPath}`],
+				sourcesContent: [source],
+			},
+			owned: true,
+			repositorySources: [artifactPath],
+			source: 'globalThis.mappedDynamicProducer = true;\n',
+		}]), /unattested executable-string primitive/u, source);
+	}
+});
+
 test('actual product control sources retain exactly the attested renderer recipe callsite', async (context) => {
 	const framescaper = await readFile(resolve(ROOT, 'desktop/renderer-smoke-execution.js'), 'utf8');
 	assert.doesNotThrow(() => validateE2EDynamicScriptExclusions([{

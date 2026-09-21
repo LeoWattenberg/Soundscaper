@@ -120,6 +120,7 @@ function executablePrimitives(script, index, label, sourceOnly = false, mappedEm
 		if (ts.isCallExpression(node)) inspectCall(node, context, add);
 		else if (ts.isNewExpression(node)) inspectConstruction(node, context, add);
 		else if (sourceOnly && ts.isPropertyAssignment(node)) inspectMappedHtmlProperty(node, context, add);
+		else if (sourceOnly && ts.isBinaryExpression(node)) inspectAssignment(node, add);
 		else if (sourceOnly) {
 			// Emitted bytes own all other executable-source primitives; mapped source
 			// is consulted only to close identifiers that bundling has renamed.
@@ -148,6 +149,7 @@ function inspectCall(node, context, add) {
 	}
 	if (context.sourceOnly) {
 		inspectMappedCall(node, context, add);
+		inspectStableDomCall(node, add);
 		return;
 	}
 	const name = callableName(node.expression);
@@ -166,23 +168,15 @@ function inspectCall(node, context, add) {
 		if (dangerousOrUnresolvedSource(node.arguments[0], true) && !context.hasMappedSources) {
 			add(`${name}(executable source)`, node);
 		}
-	} else if (name === 'createElement' && literalText(node.arguments[0])?.toLowerCase() === 'script') {
-		add('DOM script element', node);
-	} else if (name === 'insertAdjacentHTML' || documentWriter(node.expression)) {
-		add(`DOM ${name}`, node);
-	} else if (name === 'setAttribute') {
-		const attribute = literalText(node.arguments[0])?.toLowerCase();
-		if (attribute?.startsWith('on') || attribute === 'srcdoc'
-			|| attribute === 'src' && dangerousOrUnresolvedSource(node.arguments[1], true)) {
-			add(`DOM ${name}(${attribute})`, node);
-		}
-	}
+	} else inspectStableDomCall(node, add);
 }
 
 function inspectConstruction(node, context, add) {
 	const name = callableName(node.expression);
 	if (context.sourceOnly) {
-		if (name === 'Worker' || name === 'SharedWorker') {
+		if (name === 'Blob' && executableBlob(node)) {
+			add('executable Blob', node, canonicalMacroBlob(node) ? 'macro-worker' : null);
+		} else if (name === 'Worker' || name === 'SharedWorker') {
 			if (workerEvaluatesSource(node.arguments?.[1])) add(`${name} eval`, node);
 			else if (!canonicalMacroWorker(node) && !safeAssetUrl(node.arguments?.[0])) {
 				const admission = closedWorkerCallsite(node, context);
@@ -201,6 +195,21 @@ function inspectConstruction(node, context, add) {
 		else if (!canonicalMacroWorker(node) && !context.hasMappedSources
 			&& dangerousOrUnresolvedWorkerSource(node.arguments?.[0])) {
 			add(`${name}(executable source)`, node, closedWorkerCallsite(node, context));
+		}
+	}
+}
+
+function inspectStableDomCall(node, add) {
+	const name = callableName(node.expression);
+	if (name === 'createElement' && literalText(node.arguments[0])?.toLowerCase() === 'script') {
+		add('DOM script element', node);
+	} else if (name === 'insertAdjacentHTML' || documentWriter(node.expression)) {
+		add(`DOM ${name}`, node);
+	} else if (name === 'setAttribute') {
+		const attribute = literalText(node.arguments[0])?.toLowerCase();
+		if (attribute?.startsWith('on') || attribute === 'srcdoc'
+			|| attribute === 'src' && dangerousOrUnresolvedSource(node.arguments[1], true)) {
+			add(`DOM ${name}(${attribute})`, node);
 		}
 	}
 }

@@ -152,6 +152,44 @@ test('mixed vendor and unknown mappings retain the generated executable bytes', 
 	assert.equal(descriptor.fullSourceMap, null);
 });
 
+test('executable first-party mappings remain authoritative beside generated SVG modules', () => {
+	const fixture = makeFixture();
+	const siteRoot = join(fixture.evidenceRoot, 'browser/soundscaper/site');
+	writeFileSync(join(siteRoot, 'assets/mixed-repository-assets.js'),
+		'globalThis.mixedRepositoryAssets = true;\n');
+	const repositorySource = readFileSync(join(fixture.repositoryRoot, 'src/soundscaper-entry.js'), 'utf8');
+	writeJson(join(
+		fixture.evidenceRoot,
+		'browser/soundscaper/source-maps/mixed-repository-assets.js.map',
+	), {
+		file: 'mixed-repository-assets.js',
+		mappings: 'AAAA,CCAA',
+		names: [],
+		sourceRoot: '',
+		sources: [
+			'file:///old/checkout/src/soundscaper-entry.js',
+			'file:///old/checkout/src/common/editor/ui/skins/previews/Classic.svg',
+		],
+		sourcesContent: [repositorySource, null],
+		version: 3,
+		x_soundscaper_source_sha256: [
+			createHash('sha256').update(repositorySource).digest('hex'),
+			null,
+		],
+	});
+	recordBrowserEvidence(siteRoot, 'soundscaper', fixture.expectedRevision);
+	const evidence = loadE2EBuildEvidence({
+		evidenceRoot: fixture.evidenceRoot,
+		repositoryRoot: fixture.repositoryRoot,
+		sourceRevision: fixture.expectedRevision,
+	});
+	const descriptor = evidence.browser.get('soundscaper').scriptsByPath.get('assets/mixed-repository-assets.js');
+	assert.equal(descriptor.owned, true);
+	assert.notEqual(descriptor.sourceMap, null);
+	assert.notEqual(descriptor.fullSourceMap, null);
+	assert.deepEqual(descriptor.repositorySources, ['src/soundscaper-entry.js']);
+});
+
 function addRendererRecipe(fixture, injectCode) {
 	const profilePath = join(fixture.runRoot, 'coverage/v8-packaged/packaged-soundscaper.json');
 	const profile = readJson(profilePath);
