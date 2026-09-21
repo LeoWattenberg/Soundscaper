@@ -124,6 +124,10 @@
 		,
 		{ "path": "scripts/compact-v8-coverage.mjs", "kind": "upstream-contract", "justification": "compact-v8-coverage.mjs follows the upstream V8 coverage format name and does not identify project schema." }
 		,
+		{ "path": "scripts/lib/e2e-v8-function-topology.mjs", "kind": "upstream-contract", "justification": "e2e-v8-function-topology.mjs validates the upstream V8 function coverage topology and does not identify project schema." }
+		,
+		{ "path": "scripts/lib/e2e-v8-topology.mjs", "kind": "upstream-contract", "justification": "e2e-v8-topology.mjs validates the upstream V8 coverage topology and does not identify project schema." }
+		,
 		{ "path": "scripts/lib/m5b-quality-observations-v2.mjs", "kind": "external-contract", "justification": "m5b-quality-observations-v2.mjs names the retained quality-evidence pipeline revision consumed by repository automation." }
 		,
 		{ "path": "scripts/lib/m5b-quality-pipeline-v2.mjs", "kind": "external-contract", "justification": "m5b-quality-pipeline-v2.mjs names the retained quality-evidence pipeline revision consumed by repository automation." }
@@ -293,6 +297,8 @@
 		{ "path": "src/common/editor/folder-mixer-graph-v21.ts", "kind": "persisted-contract", "justification": "folder-mixer-graph-v21.ts is a persisted domain-component or render-contract revision independent of product schema." }
 		,
 		{ "path": "src/common/editor/framescaper-native-live-render-role-v1.ts", "kind": "ipc-contract", "justification": "framescaper-native-live-render-role-v1.ts names which of a live render stage's two inputs a carrier chunk belongs to; the renderer bridge and the desktop main process both read it, so it is an independently versioned cross-process carrier contract." }
+		,
+		{ "path": "src/common/editor/macro-script/generated-module-wrapper-v1.js", "kind": "external-contract", "justification": "generated-module-wrapper-v1.js is the byte-authenticated generated-module wrapper revision shared by macro execution and E2E coverage admission." }
 		,
 		{ "path": "src/common/editor/mixer-graph-audibility-v21.ts", "kind": "persisted-contract", "justification": "mixer-graph-audibility-v21.ts is a persisted domain-component or render-contract revision independent of product schema." }
 		,
