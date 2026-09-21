@@ -13,6 +13,10 @@ import {
 } from '../../desktop/renderer-smoke-execution.js';
 import { assertE2EExecutableStringPolicy } from './e2e-dynamic-code-audit.mjs';
 import {
+	mediabunnyBlobWorkerSources,
+	rendererMediabunnyBlobWorkerSources,
+} from './e2e-mediabunny-dynamic-coverage.mjs';
+import {
 	loadE2EPackagedResourceEvidence,
 	validE2EPackagedScriptLocation,
 } from './e2e-packaged-resource-evidence.mjs';
@@ -96,6 +100,7 @@ function loadBrowserEvidence({ productId, repositoryRoot, root, sourceRevision }
 		runtime: 'browser',
 		sourceRevision,
 	}));
+	const vendorDynamicSources = mediabunnyBlobWorkerSources(scripts, `${productId} browser`);
 	const htmlResources = actual.filter((path) => /\.html?$/u.test(path)).map((path) => ({
 		artifactPath: path,
 		source: readFileSync(join(siteRoot, path), 'utf8'),
@@ -114,6 +119,7 @@ function loadBrowserEvidence({ productId, repositoryRoot, root, sourceRevision }
 	return Object.freeze({
 		productId,
 		origin: manifest.origin,
+		mediabunnyBlobWorkerSources: vendorDynamicSources,
 		siteDigest: hash(stableJson(manifest.files)),
 		scripts: Object.freeze(scripts),
 		scriptsByPath: new Map(scripts.map((script) => [script.artifactPath, script])),
@@ -197,6 +203,10 @@ function loadElectronEvidence({ productId, repositoryRoot, root, sourceRevision 
 		runtime: 'electron',
 		sourceRevision,
 	}));
+	const vendorDynamicSources = rendererMediabunnyBlobWorkerSources(
+		scripts,
+		`${productId} Electron renderer`,
+	);
 	const resources = loadE2EPackagedResourceEvidence({
 		manifest,
 		productId,
@@ -208,6 +218,7 @@ function loadElectronEvidence({ productId, repositoryRoot, root, sourceRevision 
 		...resources,
 		packageArchive: Object.freeze({ ...manifest.packageArchive }),
 		productId,
+		mediabunnyBlobWorkerSources: vendorDynamicSources,
 		scripts: Object.freeze(scripts),
 		scriptsByArtifactPath: new Map(scripts.map((script) => [script.artifactPath, script])),
 		scriptsByPackagedPath: new Map(scripts.map((script) => [script.packagedPath, script])),

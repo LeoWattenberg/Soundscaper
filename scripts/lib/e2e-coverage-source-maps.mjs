@@ -73,6 +73,39 @@ export function mappedE2ESourceMapEntries(map, label = 'source map') {
 		.map((index) => Object.freeze({ index, source: map.sources[index] })));
 }
 
+/** Return every generated mapping boundary, including explicit unmapped spans. */
+export function mappedE2ESourceMapSegments(map, label = 'source map') {
+	if (!record(map) || !Array.isArray(map.sources) || typeof map.mappings !== 'string') {
+		throw new Error(`${label} has an invalid source map.`);
+	}
+	return Object.freeze([...decodedMappingSegments(map.mappings, map.sources.length, label)]
+		.map(({ column, line, sourceIndex }) => Object.freeze({
+			column,
+			index: sourceIndex,
+			line,
+			source: sourceIndex === null ? null : map.sources[sourceIndex],
+		})));
+}
+
+/** Resolve the closest source-map segment on one generated line. */
+export function mappedE2ESourceAt(map, line, column, label = 'source map') {
+	if (!record(map) || !Array.isArray(map.sources) || typeof map.mappings !== 'string'
+		|| !Number.isSafeInteger(line) || line < 0 || !Number.isSafeInteger(column) || column < 0) {
+		throw new Error(`${label} has an invalid generated source position.`);
+	}
+	let match = null;
+	for (const segment of decodedMappingSegments(map.mappings, map.sources.length, label)) {
+		if (segment.line > line) break;
+		if (segment.line !== line) continue;
+		if (segment.column > column) break;
+		match = segment;
+	}
+	return match === null || match.sourceIndex === null ? null : Object.freeze({
+		index: match.sourceIndex,
+		source: map.sources[match.sourceIndex],
+	});
+}
+
 function normalizeMapSource({ content, digest, label, repositoryRoot, source, sourceRevision }) {
 	if (typeof source !== 'string' || source === '') return externalSource(source, content ?? null);
 	if (source.startsWith(E2E_REPOSITORY_URL_PREFIX)) {
@@ -193,40 +226,60 @@ function externalSource(url, content, executableThirdPartyPath = null, thirdPart
 }
 
 function mappedSourceIndices(mappings, sourceCount, label) {
-	const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
 	const indices = new Set();
-	let sourceIndex = 0;
-	for (const segment of mappings.split(/[;,]/u)) {
-		if (segment === '') continue;
-		const fields = [];
-		let value = 0;
-		let shift = 0;
-		for (const character of segment) {
-			const digit = alphabet.indexOf(character);
-			if (digit < 0) throw new Error(`${label} has invalid source-map mappings.`);
-			value += (digit & 31) * (2 ** shift);
-			if (!Number.isSafeInteger(value)) {
-				throw new Error(`${label} has invalid source-map mappings.`);
-			}
-			if ((digit & 32) !== 0) {
-				shift += 5;
-				continue;
-			}
-			fields.push((value & 1) === 0 ? value / 2 : -(value >> 1));
-			value = 0;
-			shift = 0;
-		}
-		if (shift !== 0 || ![1, 4, 5].includes(fields.length)) {
-			throw new Error(`${label} has invalid source-map mappings.`);
-		}
-		if (fields.length === 1) continue;
-		sourceIndex += fields[1];
-		if (!Number.isSafeInteger(sourceIndex) || sourceIndex < 0 || sourceIndex >= sourceCount) {
-			throw new Error(`${label} maps an invalid source index.`);
-		}
-		indices.add(sourceIndex);
+	for (const { sourceIndex } of decodedMappingSegments(mappings, sourceCount, label)) {
+		if (sourceIndex !== null) indices.add(sourceIndex);
 	}
 	return indices;
+}
+
+function* decodedMappingSegments(mappings, sourceCount, label) {
+	let sourceIndex = 0;
+	for (const [line, encodedLine] of mappings.split(';').entries()) {
+		let column = 0;
+		for (const encoded of encodedLine.split(',')) {
+			if (encoded === '') continue;
+			const fields = decodeVlqFields(encoded, label);
+			if (![1, 4, 5].includes(fields.length)) {
+				throw new Error(`${label} has invalid source-map mappings.`);
+			}
+			column += fields[0];
+			if (!Number.isSafeInteger(column) || column < 0) {
+				throw new Error(`${label} maps an invalid generated column.`);
+			}
+			if (fields.length === 1) {
+				yield { column, line, sourceIndex: null };
+				continue;
+			}
+			sourceIndex += fields[1];
+			if (!Number.isSafeInteger(sourceIndex) || sourceIndex < 0 || sourceIndex >= sourceCount) {
+				throw new Error(`${label} maps an invalid source index.`);
+			}
+			yield { column, line, sourceIndex };
+		}
+	}
+}
+
+function decodeVlqFields(encoded, label) {
+	const alphabet = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/';
+	const fields = [];
+	let value = 0;
+	let shift = 0;
+	for (const character of encoded) {
+		const digit = alphabet.indexOf(character);
+		if (digit < 0) throw new Error(`${label} has invalid source-map mappings.`);
+		value += (digit & 31) * (2 ** shift);
+		if (!Number.isSafeInteger(value)) throw new Error(`${label} has invalid source-map mappings.`);
+		if ((digit & 32) !== 0) {
+			shift += 5;
+			continue;
+		}
+		fields.push((value & 1) === 0 ? value / 2 : -(value >> 1));
+		value = 0;
+		shift = 0;
+	}
+	if (shift !== 0) throw new Error(`${label} has invalid source-map mappings.`);
+	return fields;
 }
 
 function safeRelativePath(value) {

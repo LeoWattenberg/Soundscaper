@@ -104,6 +104,7 @@ export async function createFixture(context) {
 		['scripts/lib/browser-service-worker-coverage.mjs', 'export const serviceWorkerCoverage = true;\n'],
 		['scripts/lib/browser-target-coverage.mjs', 'export const targetCoverage = true;\n'],
 		['scripts/lib/e2e-coverage-integrity.mjs', 'export const coverageIntegrity = true;\n'],
+		['scripts/lib/e2e-mediabunny-dynamic-coverage.mjs', 'export const mediabunnyDynamicCoverage = true;\n'],
 		['scripts/lib/e2e-coverage-prefixes.mjs', 'export const coveragePrefix = true;\n'],
 		['scripts/lib/e2e-coverage-source-maps.mjs', 'export const sourceMaps = true;\n'],
 		['scripts/lib/macro-dynamic-coverage.mjs', 'export const macroCoverage = true;\n'],

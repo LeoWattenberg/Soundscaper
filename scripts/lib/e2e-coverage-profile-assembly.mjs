@@ -7,12 +7,12 @@ import { fileURLToPath } from 'node:url';
 
 import { E2E_REPOSITORY_URL_PREFIX } from './e2e-coverage-contract.mjs';
 import { E2E_PRODUCTS, normalizeE2ESourceMap } from './e2e-coverage-build-evidence.mjs';
+import { validateBrowserSourceCache } from './browser-dynamic-coverage-sources.mjs';
 import {
-	classifyBrowserMacroDynamic,
-	classifyPackagedMacroDynamic,
-	isBrowserMacroDynamicCoverage,
-	isMacroDynamicCoverage,
+	classifyBrowserMacroDynamic, classifyPackagedMacroDynamic,
+	isBrowserMacroDynamicCoverage, isMacroDynamicCoverage,
 } from './e2e-coverage-macro-dynamic.mjs';
+import { isBrowserMediabunnyBlobCoverage, isPackagedMediabunnyBlobCoverage } from './e2e-mediabunny-dynamic-coverage.mjs';
 import { packagedRuntime, validatePackagedSourceCache } from './e2e-packaged-runtime-identity.mjs';
 import { validateDesktopRendererDynamicSource } from '../../desktop/renderer-smoke-execution.js';
 
@@ -52,6 +52,7 @@ function assembleBrowserProfiles({ directory, dynamicScripts, evidence, profiles
 	const suppliedMaps = new Map();
 	const suppliedMacroMaps = new Map();
 	for (const { name, profile } of files) {
+		validateBrowserSourceCache(profile, name);
 		for (const [url, cache] of Object.entries(profile['source-map-cache'] ?? {})) {
 			if (isBrowserMacroDynamicCoverage(url)) {
 				const previous = suppliedMacroMaps.get(url);
@@ -83,6 +84,7 @@ function assembleBrowserProfiles({ directory, dynamicScripts, evidence, profiles
 	const observed = new Map();
 	for (const { name, profile } of files) {
 		const grouped = groupEntries(profile.result, (entry) => {
+			if (isBrowserMediabunnyBlobCoverage({ entry, evidence, profile })) return null;
 			if (isBrowserMacroDynamicCoverage(entry.url)) {
 				const classified = classifyBrowserMacroDynamic({
 					dynamicScripts,
@@ -114,14 +116,7 @@ function assembleBrowserProfiles({ directory, dynamicScripts, evidence, profiles
 	attachObservedMaps(profiles, observed);
 }
 
-function assemblePackagedProfiles({
-	directory,
-	dynamicScripts,
-	evidence,
-	profiles,
-	repositoryRoot,
-	runRuntime,
-}) {
+function assemblePackagedProfiles({ directory, dynamicScripts, evidence, profiles, repositoryRoot, runRuntime }) {
 	const files = readProfiles(directory, 'packaged');
 	const cdp = files.filter(({ profile }) => profile['soundscaper-packaged-runtime'] !== undefined);
 	const runtimes = cdp.map(({ name, profile }) => packagedRuntime(profile, name, evidence));
@@ -175,6 +170,7 @@ function assemblePackagedProfiles({
 
 function classifyCdpEntry({ dynamicScripts, entry, evidence, profile, repositoryRoot, runtime }) {
 	const { productId } = runtime;
+	if (isPackagedMediabunnyBlobCoverage({ entry, evidence, profile, productId })) return null;
 	if (isMacroDynamicCoverage(entry.url)) {
 		const classified = classifyPackagedMacroDynamic({
 			dynamicScripts,

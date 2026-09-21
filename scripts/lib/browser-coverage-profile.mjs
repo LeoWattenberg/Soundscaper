@@ -12,6 +12,7 @@ import {
 	isUnmappedBrowserSourceMap,
 	mergeCapturedBrowserSources,
 	needsCapturedBrowserSource,
+	retainedBrowserDynamicCoverageScript,
 	retainCapturedBrowserSource,
 } from './browser-dynamic-coverage-sources.mjs';
 import {
@@ -303,6 +304,8 @@ export function createBrowserCoverageCollector({
 		if (excludedBrowserCoverageInstrumentation(url, source)) return null;
 		const dynamic = macroDynamicCoverageScript({ repositoryRoot, source, url });
 		if (dynamic !== null) return { ...dynamic, retainSource: true };
+		const retainedDynamic = retainedBrowserDynamicCoverageScript(url, source);
+		if (retainedDynamic !== null) return retainedDynamic;
 		if (scripts.has(url)) return scripts.get(url) ?? null;
 		const chunk = builtChunkFor(url, directoriesByOrigin);
 		const origin = originOf(url);
@@ -396,7 +399,9 @@ export function createBrowserCoverageCollector({
 			const profile = browserCoverageProfile(entries, (url, source) => {
 				if (excludedBrowserCoverageInstrumentation(url, source)) return null;
 				const dynamic = macroDynamicCoverageScript({ repositoryRoot, source, url });
-				return dynamic === null ? scripts.get(url) ?? null : { ...dynamic, retainSource: true };
+				return dynamic === null
+					? retainedBrowserDynamicCoverageScript(url, source) ?? scripts.get(url) ?? null
+					: { ...dynamic, retainSource: true };
 			});
 			if (profile.result.length === 0) return null;
 

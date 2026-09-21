@@ -393,7 +393,7 @@ test('a portable nightly profile rejects an unknown captured source without a V8
 	})]));
 	await assert.rejects(
 		collector.collect('unknown unobserved dynamic', new Set<string>()),
-		/unapproved dynamic script blob:http:\/\/127\.0\.0\.1\/unobserved/u,
+		/captured source bytes without a V8 entry.*blob:http:\/\/127\.0\.0\.1\/unobserved/u,
 	);
 });
 
