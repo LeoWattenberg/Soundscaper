@@ -33,6 +33,9 @@ import {
 	createSoundscaperProfessionalNativeToolchainReceipt,
 	soundscaperProfessionalNativeToolchainIdentity,
 } from '../scripts/lib/soundscaper-professional-native-toolchain.mjs';
+import {
+	soundscaperProfessionalNativeBuildSelfTestsFixture,
+} from './helpers/soundscaper-professional-native-build-result-fixtures.js';
 
 const ROOT = resolve(import.meta.dirname, '..');
 const SOURCE_REVISION = '12'.repeat(20); const BUILD_PLAN_SHA256 = '34'.repeat(32);
@@ -448,7 +451,7 @@ async function candidateFixture(context, target = 'linux-x64', sourceRevision = 
 			toolchainReceipt,
 			packagedAppAuthority: packagedAppAuthority(target, sourceRevision),
 			sourceAuthentication: sourceAuthentication(target),
-			buildSelfTests: buildSelfTests(target),
+			buildSelfTests: soundscaperProfessionalNativeBuildSelfTestsFixture(target),
 			macCodeSealResult,
 		},
 	};
@@ -473,22 +476,6 @@ function fixtureToolchainReceipt(target) {
 			cxxCompilerVersion: '19.44.1', generator, systemName, systemProcessor,
 		},
 	});
-}
-
-function buildSelfTests(target) {
-	const candidateExecuted = new Set([
-		'm5f2-malformed-frame', 'm5a1-malformed-frame', 'launcher-refusal',
-		'delivery-filesystem-protocol',
-		'closure-recursive-inspection', 'closure-symlink-refusal',
-		'closure-ambient-dependency-refusal', 'closure-rpath-refusal',
-		'closure-undeclared-dependency-refusal', 'closure-runtime-file-limit-refusal',
-	]);
-	return requiredSoundscaperProfessionalNativeSelfTestIds(target)
-		.filter((id) => !candidateExecuted.has(id))
-		.map((id) => ({
-			id, status: 'passed', commandSha256: sha256(`command:${id}`),
-			outputSha256: sha256(`output:${id}`),
-		}));
 }
 
 function dependencyInspection(path, imports, target = 'linux-x64') {
