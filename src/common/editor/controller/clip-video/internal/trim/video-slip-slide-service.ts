@@ -19,6 +19,7 @@ import {
 	type FrameCanonicalSlipSlideStep,
 } from '../../../../frame-canonical-slip-slide-step-request.ts';
 import type { EditorControllerLifetime } from '../../../shared/lifecycle.ts';
+import { capturePersistedTrackLockAuthority } from './persisted-track-lock-authority.ts';
 
 type TransformManyCommand = Extract<AudioEditorCommand, { readonly type: 'clip/transform-many' }>;
 
@@ -119,18 +120,7 @@ function persistedLockRequest(
 	project: unknown,
 	request: FrameCanonicalSlipSlideRequest,
 ): Readonly<FrameCanonicalSlipSlideRequest> {
-	const candidate = project !== null && typeof project === 'object'
-		? project as Readonly<Record<string, unknown>>
-		: null;
-	const tracks = Array.isArray(candidate?.tracks) ? candidate.tracks : [];
-	const lockedTrackIds = new Set(tracks.flatMap((value) => {
-		if (value === null || typeof value !== 'object' || Array.isArray(value)) return [];
-		const track = value as Readonly<Record<string, unknown>>;
-		return track.locked === true && typeof track.id === 'string' && track.id.length > 0
-			? [track.id]
-			: [];
-	}));
-	const isTrackLocked = (trackId: string): boolean => lockedTrackIds.has(trackId);
+	const isTrackLocked = capturePersistedTrackLockAuthority(project);
 	return request.mode === 'slip'
 		? Object.freeze({
 			mode: request.mode,
