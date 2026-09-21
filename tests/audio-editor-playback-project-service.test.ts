@@ -427,7 +427,10 @@ test('full and audio-only composition keep video projection explicitly separate'
 		},
 	});
 	assert.equal(full.videoEffectPlaybackBypass?.placeholders[0]?.effectId, 'hook-video-effect');
-	assert.equal(full.project.clips[0]?.videoEffects[0]?.enabled, false);
+	const videoEffects = full.project.clips[0]?.videoEffects as
+		| readonly Readonly<{ enabled: boolean }>[]
+		| undefined;
+	assert.equal(videoEffects?.[0]?.enabled, false);
 
 	let audioOnlyHookCalls = 0;
 	const audioOnly = composeProjectFeatureAudioPlaybackProjection(canonical, augmentedReport, {

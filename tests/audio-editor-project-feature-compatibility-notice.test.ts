@@ -8,7 +8,6 @@ import { renderToStaticMarkup } from 'react-dom/server';
 import type { ProjectFeatureAudioEffectBypassMetadata } from '../src/common/editor/project-feature-audio-effect-bypass.ts';
 import type { ProjectFeatureAudioRenderedFallbackMetadata } from '../src/common/editor/project-feature-audio-rendered-fallback.ts';
 import { PROJECT_FEATURE_CAPABILITY_IDS } from '../src/common/editor/project-feature-capabilities.ts';
-import type { ProjectFeatureRequirementsReport } from '../src/common/editor/project-feature-requirements.ts';
 import type { ProjectFeatureVideoEffectBypassMetadata } from '../src/common/editor/project-feature-video-effect-bypass.ts';
 import type { ProjectFeatureVideoRenderedFallbackMetadata } from '../src/common/editor/project-feature-video-rendered-fallback.ts';
 import { ENGLISH_COPY, GERMAN_COPY } from '../src/common/i18n/catalogs.js';
@@ -18,6 +17,14 @@ import {
 	projectFeatureAvailabilityLabel,
 	projectFeatureDispositionLabel,
 } from '../src/common/editor/ui/dialogs/project-feature-compatibility-model.ts';
+import {
+	assertPlaceholderAttributes,
+	assertVideoPlaceholderAttributes,
+	item,
+	placeholderMarkup,
+	report,
+	videoPlaceholderMarkup,
+} from './helpers/project-feature-compatibility-fixtures.ts';
 
 const COPY = Object.freeze({
 	scapeCompatibilityUnavailable: 'Unavailable',
@@ -546,79 +553,3 @@ test('video-effect placeholders require exact qualifying metadata and render onc
 	assert.equal(duplicateRequirements.match(/data-video-effect-placeholder=/gu)?.length, 1);
 	assert.doesNotMatch(wrongFeature, /data-video-effect-placeholder/iu);
 });
-
-function assertPlaceholderAttributes(
-	markup: string,
-	effectId: string,
-	scope: string,
-	ownerId: string,
-	effectType: string,
-): void {
-	const row = markup.match(new RegExp(
-		`<[^>]+(?=[^>]*data-audio-effect-placeholder="${effectId}")(?=[^>]*data-scope="${scope}")(?=[^>]*data-owner-id="${ownerId}")(?=[^>]*data-effect-type="${effectType}")(?=[^>]*data-effective-disposition="bypassed")[^>]*>`,
-		'iu',
-	));
-	assert.ok(row, `Missing stable placeholder attributes for ${effectId}.`);
-}
-
-function placeholderMarkup(markup: string, effectId: string): string {
-	const row = markup.match(new RegExp(
-		`<li(?=[^>]*data-audio-effect-placeholder="${effectId}")[^>]*>[\\s\\S]*?<\\/li>`,
-		'iu',
-	));
-	assert.ok(row, `Missing placeholder row for ${effectId}.`);
-	return row[0];
-}
-
-function assertVideoPlaceholderAttributes(
-	markup: string,
-	effectId: string,
-	location: string,
-	clipId: string,
-	effectType: string,
-): void {
-	const row = markup.match(new RegExp(
-		`<[^>]+(?=[^>]*data-video-effect-placeholder="${effectId}")(?=[^>]*data-location="${location}")(?=[^>]*data-clip-id="${clipId}")(?=[^>]*data-effect-type="${effectType}")(?=[^>]*data-effective-disposition="bypassed")[^>]*>`,
-		'iu',
-	));
-	assert.ok(row, `Missing stable video placeholder attributes for ${effectId}.`);
-}
-
-function videoPlaceholderMarkup(markup: string, effectId: string): string {
-	const row = markup.match(new RegExp(
-		`<li(?=[^>]*data-video-effect-placeholder="${effectId}")[^>]*>[\\s\\S]*?<\\/li>`,
-		'iu',
-	));
-	assert.ok(row, `Missing video placeholder row for ${effectId}.`);
-	return row[0];
-}
-
-function report(
-	compatible: boolean,
-	items: readonly Record<string, unknown>[],
-): ProjectFeatureRequirementsReport {
-	return {
-		schemaVersion: 1,
-		format: 'soundscaper-project',
-		compatible,
-		counts: { available: 0, unavailable: 0, unknown: 0 },
-		items,
-	} as unknown as ProjectFeatureRequirementsReport;
-}
-
-function item(
-	requirementId: string,
-	featureId: string,
-	displayName: string,
-	availability: string,
-	disposition: string,
-): Record<string, unknown> {
-	return {
-		requirementId,
-		featureId,
-		displayName,
-		availability,
-		declaredDisposition: disposition === 'rendered-fallback' ? 'rendered-fallback' : 'bypass',
-		disposition,
-	};
-}
