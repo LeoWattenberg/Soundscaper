@@ -17,9 +17,9 @@ import type {
 } from './native-services-root-repository.ts';
 import { FramescaperNativeRootRepository } from './native-services-root-repository.ts';
 import {
-	assertFramescaperNativeServicesWriterLease,
 	FramescaperNativeServicesDatabaseError,
 	type FramescaperNativeServicesLease,
+	withFramescaperNativeServicesWriterMutation,
 } from './native-services-database.ts';
 
 const MAXIMUM_RULES = 1_024;
@@ -111,7 +111,7 @@ export class FramescaperNativeWatchRepository {
 		}
 		if (this.list().length >= MAXIMUM_RULES) throw new RangeError('The native watch-rule registry is full.');
 		const rule = createWatchRuleV1({ ...input, recursive: false });
-		this.#mutation(lease, nowMs, () => {
+		withFramescaperNativeServicesWriterMutation(this.#database, lease, nowMs, () => {
 			this.#database.prepare(`
 				INSERT INTO watch_rules (
 					rule_id, grant_id, project_id, bin_id, extensions, recursive,
@@ -148,7 +148,7 @@ export class FramescaperNativeWatchRepository {
 		nowMs: number,
 	): WatchRuleV1 {
 		if (typeof enabled !== 'boolean') throw new TypeError('A native watch rule enabled value must be boolean.');
-		const result = this.#mutation(lease, nowMs, () => {
+		const result = withFramescaperNativeServicesWriterMutation(this.#database, lease, nowMs, () => {
 			if (enabled) {
 				const authority = this.#database.prepare(`
 					SELECT roots.revoked_at_ms AS revoked_at_ms
@@ -176,7 +176,7 @@ export class FramescaperNativeWatchRepository {
 		const rule = this.read(ruleId);
 		if (rule === null) return false;
 		if (rule.enabled) throw new Error('A native watch rule must be disabled before removal.');
-		return this.#mutation(lease, nowMs, () => this.#database.prepare(
+		return withFramescaperNativeServicesWriterMutation(this.#database, lease, nowMs, () => this.#database.prepare(
 			'DELETE FROM watch_rules WHERE rule_id = ?',
 		).run(ruleId).changes === 1);
 	}
@@ -200,29 +200,13 @@ export class FramescaperNativeWatchRepository {
 		if (!Number.isSafeInteger(importedAtMs) || importedAtMs < 0) {
 			throw new RangeError('A native watch import time must be a non-negative safe integer.');
 		}
-		return this.#mutation(lease, importedAtMs, () => this.#database.prepare(`
+		return withFramescaperNativeServicesWriterMutation(this.#database, lease, importedAtMs, () => this.#database.prepare(`
 				INSERT OR IGNORE INTO watch_imports
 					(rule_id, file_identity, content_sha256, imported_at_ms)
 				VALUES (?, ?, ?, ?)
 			`).run(ruleId, fileIdentity, contentSha256, importedAtMs).changes === 1);
 	}
 
-	#mutation<Result>(
-		lease: FramescaperNativeServicesLease,
-		nowMs: number,
-		operation: () => Result,
-	): Result {
-		this.#database.exec('BEGIN IMMEDIATE');
-		try {
-			assertFramescaperNativeServicesWriterLease(this.#database, lease, nowMs);
-			const result = operation();
-			this.#database.exec('COMMIT');
-			return result;
-		} catch (error) {
-			this.#database.exec('ROLLBACK');
-			throw error;
-		}
-	}
 }
 
 export class FramescaperNativeWatchReconciler {

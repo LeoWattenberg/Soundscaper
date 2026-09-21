@@ -22,6 +22,7 @@ import {
 import {
 	assertFramescaperNativeServicesWriterLease,
 	type FramescaperNativeServicesLease,
+	withFramescaperNativeServicesWriterMutation,
 } from './native-services-database.ts';
 
 const MAXIMUM_QUEUE_ROWS = 100_000;
@@ -61,7 +62,7 @@ export class FramescaperNativeQueueRepository {
 		nowMs: number,
 	): NativeQueueRecordV2 {
 		assertNativeQueueRecordV2(record);
-		this.#mutation(lease, nowMs, () => {
+		withFramescaperNativeServicesWriterMutation(this.#database, lease, nowMs, () => {
 			const count = Number((this.#database.prepare(
 				'SELECT COUNT(*) AS count FROM render_queue_jobs',
 			).get() as Record<string, unknown>).count);
@@ -98,7 +99,7 @@ export class FramescaperNativeQueueRepository {
 		lease: FramescaperNativeServicesLease,
 		atMs: number,
 	): NativeQueueTransitionResultV1 & Readonly<{ record: NativeQueueRecordV2 }> {
-		return this.#mutation(lease, atMs, () => {
+		return withFramescaperNativeServicesWriterMutation(this.#database, lease, atMs, () => {
 			const current = this.#require(jobId);
 			const result = applyNativeQueueTransition(current, transition, atMs);
 			assertNativeQueueRecordV2(result.record);
@@ -116,7 +117,7 @@ export class FramescaperNativeQueueRepository {
 		if (!Number.isSafeInteger(index) || index < 0) {
 			throw new RangeError('A native queue reorder index must be a non-negative safe integer.');
 		}
-		return this.#mutation(lease, atMs, () => {
+		return withFramescaperNativeServicesWriterMutation(this.#database, lease, atMs, () => {
 			const rows = [...this.list()];
 			const selected = rows.find((record) => record.jobId === jobIdValue(jobId));
 			if (!selected) throw new Error('The native queue job does not exist.');
@@ -144,7 +145,7 @@ export class FramescaperNativeQueueRepository {
 	}
 
 	remove(jobId: string, lease: FramescaperNativeServicesLease, nowMs: number): boolean {
-		return this.#mutation(lease, nowMs, () => {
+		return withFramescaperNativeServicesWriterMutation(this.#database, lease, nowMs, () => {
 			const record = this.read(jobId);
 			if (record === null) return false;
 			const removable = record.state === 'completed' || record.state === 'failed'
@@ -162,7 +163,7 @@ export class FramescaperNativeQueueRepository {
 		atMs: number,
 		capacity: NativeQueueCapacityV1,
 	): FramescaperNativeQueueDispatch {
-		return this.#mutation(lease, atMs, () => {
+		return withFramescaperNativeServicesWriterMutation(this.#database, lease, atMs, () => {
 			const records = this.list();
 			const runningCount = records.filter((record) => record.state === 'running').length;
 			const admission = admitNativeQueueJobs(records, runningCount, capacity);
@@ -186,7 +187,7 @@ export class FramescaperNativeQueueRepository {
 		atMs: number,
 		revalidate: FramescaperNativeQueueRevalidator,
 	): readonly FramescaperNativeQueueRecovery[] {
-		return this.#mutation(lease, atMs, () => {
+		return withFramescaperNativeServicesWriterMutation(this.#database, lease, atMs, () => {
 			const recovered: FramescaperNativeQueueRecovery[] = [];
 			for (const current of this.list()) {
 				if (!nativeQueueRecordNeedsRecoveryRevalidation(current)) continue;
@@ -211,22 +212,6 @@ export class FramescaperNativeQueueRepository {
 		return record;
 	}
 
-	#mutation<Result>(
-		lease: FramescaperNativeServicesLease,
-		nowMs: number,
-		operation: () => Result,
-	): Result {
-		this.#database.exec('BEGIN IMMEDIATE');
-		try {
-			assertFramescaperNativeServicesWriterLease(this.#database, lease, nowMs);
-			const result = operation();
-			this.#database.exec('COMMIT');
-			return result;
-		} catch (error) {
-			this.#database.exec('ROLLBACK');
-			throw error;
-		}
-	}
 }
 
 function insertRecord(database: DatabaseSync, record: NativeQueueRecordV2): void {

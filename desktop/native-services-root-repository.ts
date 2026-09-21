@@ -5,8 +5,8 @@ import type { DatabaseSync } from 'node:sqlite';
 
 import { assertNativeMediaRelativeDestination } from '../src/common/editor/native-media-atomic-publication.ts';
 import {
-	assertFramescaperNativeServicesWriterLease,
 	type FramescaperNativeServicesLease,
+	withFramescaperNativeServicesWriterMutation,
 } from './native-services-database.ts';
 
 const OPAQUE_ID = /^[a-f0-9]{16,64}$/u;
@@ -55,7 +55,7 @@ export class FramescaperNativeRootRepository {
 		nowMs: number,
 	): FramescaperNativeRootGrant {
 		const grant = admitFramescaperNativeRootSelection(selection);
-		return this.#mutation(lease, nowMs, () => {
+		return withFramescaperNativeServicesWriterMutation(this.#database, lease, nowMs, () => {
 			const existing = this.read(grant.grantId);
 			if (existing !== null) {
 				if (!sameGrant(existing, grant)) {
@@ -100,7 +100,7 @@ export class FramescaperNativeRootRepository {
 	): boolean {
 		const id = opaqueId(grantId, 'grant id');
 		const atMs = timestamp(revokedAtMs, 'revocation time');
-		return this.#mutation(lease, atMs, () => {
+		return withFramescaperNativeServicesWriterMutation(this.#database, lease, atMs, () => {
 			const grant = this.read(id);
 			if (grant === null) return false;
 			if (atMs < grant.authorizedAtMs) {
@@ -149,22 +149,6 @@ export class FramescaperNativeRootRepository {
 		return grant;
 	}
 
-	#mutation<Result>(
-		lease: FramescaperNativeServicesLease,
-		nowMs: number,
-		operation: () => Result,
-	): Result {
-		this.#database.exec('BEGIN IMMEDIATE');
-		try {
-			assertFramescaperNativeServicesWriterLease(this.#database, lease, nowMs);
-			const result = operation();
-			this.#database.exec('COMMIT');
-			return result;
-		} catch (error) {
-			this.#database.exec('ROLLBACK');
-			throw error;
-		}
-	}
 }
 
 export function admitFramescaperNativeRootSelection(

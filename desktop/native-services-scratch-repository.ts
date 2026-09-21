@@ -11,8 +11,8 @@ import {
 	type NativeScratchOutcome,
 } from '../src/common/editor/native-scratch-policy.ts';
 import {
-	assertFramescaperNativeServicesWriterLease,
 	type FramescaperNativeServicesLease,
+	withFramescaperNativeServicesWriterMutation,
 } from './native-services-database.ts';
 import { FramescaperNativeQueueRepository } from './native-services-queue-repository.ts';
 
@@ -77,7 +77,7 @@ export class FramescaperNativeScratchRepository {
 			jobId, directoryName, manifestDigest, rootIdentity, reservedBytes: requestedBytes,
 			state: 'reserved', createdAtMs, expiresAtMs: null,
 		});
-		return this.#mutation(lease, nowMs, () => {
+		return withFramescaperNativeServicesWriterMutation(this.#database, lease, nowMs, () => {
 			const job = new FramescaperNativeQueueRepository(this.#database).read(jobId);
 			if (job === null) throw new Error('A native scratch reservation requires an existing queue job.');
 			if (job.state === 'completed' || job.state === 'failed' || job.state === 'cancelled') {
@@ -216,7 +216,7 @@ export class FramescaperNativeScratchRepository {
 		lease: FramescaperNativeServicesLease,
 		nowMs: number,
 	): void {
-		this.#mutation(lease, nowMs, () => {
+		withFramescaperNativeServicesWriterMutation(this.#database, lease, nowMs, () => {
 			const result = this.#database.prepare(`
 				UPDATE scratch_reservations SET state = ?, expires_at_ms = ?
 				WHERE job_id = ? AND state = ? AND manifest_digest = ? AND root_identity = ?
@@ -236,22 +236,6 @@ export class FramescaperNativeScratchRepository {
 		return byteCount(Number(row.bytes), 'managed bytes');
 	}
 
-	#mutation<Result>(
-		lease: FramescaperNativeServicesLease,
-		nowMs: number,
-		operation: () => Result,
-	): Result {
-		this.#database.exec('BEGIN IMMEDIATE');
-		try {
-			assertFramescaperNativeServicesWriterLease(this.#database, lease, nowMs);
-			const result = operation();
-			this.#database.exec('COMMIT');
-			return result;
-		} catch (error) {
-			this.#database.exec('ROLLBACK');
-			throw error;
-		}
-	}
 }
 
 function assertExactRetryReservation(

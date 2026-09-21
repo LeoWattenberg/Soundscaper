@@ -14,6 +14,7 @@ import {
 	FramescaperNativeServicesDatabaseError,
 	initializeFramescaperNativeServicesDatabase,
 	releaseFramescaperNativeServicesWriterLease,
+	withFramescaperNativeServicesWriterMutation,
 } from '../desktop/native-services-database.ts';
 import {
 	assertNativeQueueRecordV2,
@@ -232,6 +233,52 @@ test('a lease that has aged out cannot dispatch even for its own holder', () => 
 		() => assertFramescaperNativeServicesWriterLease(database, lease, FRAMESCAPER_NATIVE_SERVICES_LEASE_MS),
 		/expired/u,
 	);
+	database.close();
+});
+
+test('the shared leased mutation authority commits results and rolls back thrown values', () => {
+	const database = open();
+	const lease = acquireFramescaperNativeServicesWriterLease(database, {
+		leaseId: 'lease-mutation', instanceId: 'instance-mutation', processId: 100, nowMs: 0,
+	});
+	database.exec('CREATE TABLE mutation_probe (value TEXT NOT NULL) STRICT');
+
+	const result = withFramescaperNativeServicesWriterMutation(database, lease, 1, () => {
+		database.prepare('INSERT INTO mutation_probe (value) VALUES (?)').run('committed');
+		return Object.freeze({ committed: true });
+	});
+	assert.deepEqual(result, { committed: true });
+	assert.equal(database.prepare('SELECT COUNT(*) AS count FROM mutation_probe').get()?.count, 1);
+
+	const failure = Object.freeze({ reason: 'operation failed' });
+	assert.throws(
+		() => withFramescaperNativeServicesWriterMutation(database, lease, 2, () => {
+			database.prepare('INSERT INTO mutation_probe (value) VALUES (?)').run('rolled-back');
+			throw failure;
+		}),
+		(error: unknown) => error === failure,
+	);
+	assert.equal(database.prepare('SELECT COUNT(*) AS count FROM mutation_probe').get()?.count, 1);
+	database.close();
+});
+
+test('the shared leased mutation authority checks the fence before invoking work', () => {
+	const database = open();
+	const lease = acquireFramescaperNativeServicesWriterLease(database, {
+		leaseId: 'lease-expiring', instanceId: 'instance-expiring', processId: 100, nowMs: 0,
+	});
+	let invoked = false;
+	assert.throws(
+		() => withFramescaperNativeServicesWriterMutation(
+			database,
+			lease,
+			FRAMESCAPER_NATIVE_SERVICES_LEASE_MS,
+			() => { invoked = true; },
+		),
+		/expired/u,
+	);
+	assert.equal(invoked, false);
+	assert.equal(database.isTransaction, false);
 	database.close();
 });
 

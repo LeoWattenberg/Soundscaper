@@ -185,6 +185,25 @@ export function assertFramescaperNativeServicesWriterLease(
 	}
 }
 
+/** Run one repository mutation under the exact current single-writer fence. */
+export function withFramescaperNativeServicesWriterMutation<Result>(
+	database: DatabaseSync,
+	lease: FramescaperNativeServicesLease,
+	nowMs: number,
+	operation: () => Result,
+): Result {
+	database.exec('BEGIN IMMEDIATE');
+	try {
+		assertFramescaperNativeServicesWriterLease(database, lease, nowMs);
+		const result = operation();
+		database.exec('COMMIT');
+		return result;
+	} catch (error) {
+		database.exec('ROLLBACK');
+		throw error;
+	}
+}
+
 /** Extend the exact live fence without advancing its takeover generation. */
 export function renewFramescaperNativeServicesWriterLease(
 	database: DatabaseSync,
