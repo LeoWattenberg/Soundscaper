@@ -1,5 +1,6 @@
 import { CLIP_CONTENT_OFFSET } from '@soundscaper/design-system/constants';
 
+import { findPartialClipOverlaps } from '../../audio-clip-overlap.ts';
 import { compareCodeUnits } from '../../code-unit-order.ts';
 import { validateVideoTrackComposition } from '../../video-timeline.js';
 
@@ -74,31 +75,20 @@ export function createVideoOverlapPresentation(
 }
 
 export function createCrossfadeOverlays(clips, overscanStartFrame, pixelsPerSecond, sampleRate) {
-	const ordered = clips
-		.filter((clip) => !clip.isRecordingPreview && clip.isVisible)
-		.slice()
-		.sort((left, right) => left.timelineStartFrame - right.timelineStartFrame
-			|| compareCodeUnits(String(left.id), String(right.id)));
-	const overlays = [];
-	for (let leftIndex = 0; leftIndex < ordered.length; leftIndex += 1) {
-		const left = ordered[leftIndex];
-		const leftEnd = left.timelineStartFrame + left.durationFrames;
-		for (let rightIndex = leftIndex + 1; rightIndex < ordered.length; rightIndex += 1) {
-			const right = ordered[rightIndex];
-			if (right.timelineStartFrame >= leftEnd) break;
-			const startFrame = Math.max(left.timelineStartFrame, right.timelineStartFrame);
-			const endFrame = Math.min(leftEnd, right.timelineStartFrame + right.durationFrames);
-			if (endFrame <= startFrame) continue;
-			overlays.push({
-				id: `${left.id}:${right.id}:${startFrame}:${endFrame}`,
-				left: CLIP_CONTENT_OFFSET
-					+ (startFrame - overscanStartFrame) / sampleRate * pixelsPerSecond,
-				width: Math.max(2, (endFrame - startFrame) / sampleRate * pixelsPerSecond),
-				label: `Automatic crossfade between ${left.name || left.id} and ${right.name || right.id}`,
-			});
-		}
-	}
-	return overlays;
+	return findPartialClipOverlaps(
+		clips.filter((clip) => !clip.isRecordingPreview && clip.isVisible),
+		{
+			id: (clip) => clip.id,
+			startFrame: (clip) => clip.timelineStartFrame,
+			durationFrames: (clip) => clip.durationFrames,
+		},
+	).map(({ left, right, startFrame, endFrame }) => ({
+		id: `${left.id}:${right.id}:${startFrame}:${endFrame}`,
+		left: CLIP_CONTENT_OFFSET
+			+ (startFrame - overscanStartFrame) / sampleRate * pixelsPerSecond,
+		width: Math.max(2, (endFrame - startFrame) / sampleRate * pixelsPerSecond),
+		label: `Automatic crossfade between ${left.name || left.id} and ${right.name || right.id}`,
+	}));
 }
 
 export function AutomaticCrossfadeOverlays({ overlays }) {

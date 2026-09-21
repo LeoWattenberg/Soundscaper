@@ -223,7 +223,7 @@ test('presentation mask resolution uses code-unit order for deterministic refusa
 	), /Z-mask/u);
 });
 
-test('AUP4 overlap lanes and automatic crossfades use code-unit clip order', () => {
+test('AUP4 overlap lanes use code-unit order and equal clips remain drop-ins', () => {
 	const source = {
 		id: 'source', name: 'source', storageKey: 'source', mimeType: 'audio/wav',
 		sampleRate: 48_000, originalSampleRate: 48_000, channelCount: 1,
@@ -252,12 +252,8 @@ test('AUP4 overlap lanes and automatic crossfades use code-unit clip order', () 
 		['Z-clip'], ['alpha-clip'],
 	]);
 	const byId = new Map(orderedProject.clips.map((item) => [item.id, item] as const));
-	assert.deepEqual(byId.get('Z-clip')?.envelope, [
-		{ frame: 0, value: 1 }, { frame: 6, value: 0 },
-	]);
-	assert.deepEqual(byId.get('alpha-clip')?.envelope, [
-		{ frame: 0, value: 0 }, { frame: 6, value: 1 },
-	]);
+	assert.deepEqual(byId.get('Z-clip')?.envelope, []);
+	assert.deepEqual(byId.get('alpha-clip')?.envelope, []);
 });
 
 function twoAudioTrackOptions(): Record<string, unknown> {

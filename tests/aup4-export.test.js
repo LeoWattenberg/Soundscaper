@@ -156,3 +156,24 @@ test('AUP4 export splits overlapping clips into lanes and materializes automatic
 		item.code === 'CLIP_GAIN_AUTOMATION_MERGED' && item.data.automaticCrossfade
 	)).length >= 2);
 });
+
+test('AUP4 export preserves a contained clip as a drop-in without automatic crossfades', () => {
+	const project = fixtureProject({
+		sources: [source('drop-in-source', 48_000, 1, 8)],
+		clips: [
+			clip('outer', 'drop-in-source', { sourceDurationFrames: 8, durationFrames: 8 }),
+			clip('inner', 'drop-in-source', {
+				timelineStartFrame: 2,
+				sourceDurationFrames: 4,
+				durationFrames: 4,
+			}),
+		],
+		tracks: [track('drop-in-track', ['outer', 'inner'])],
+	});
+	const plan = createAup4ExportPlan(project);
+
+	assert.deepEqual(plan.project.clips.map((item) => item.envelope), [[], []]);
+	assert.equal(plan.compatibilityReport.items.some((item) => (
+		item.code === 'CLIP_GAIN_AUTOMATION_MERGED' && item.data.automaticCrossfade
+	)), false);
+});

@@ -435,3 +435,18 @@ test('automatic crossfade ranges pair overlapping clips on the same track', () =
 		crossfadeOutRanges: [],
 	});
 });
+
+test('automatic crossfade ranges leave contained clips as drop-ins', () => {
+	const ranges = automaticCrossfadeRanges([
+		{ id: 'outer', timelineStartFrame: 0, durationFrames: 30 },
+		{ id: 'inner', timelineStartFrame: 5, durationFrames: 10 },
+	]);
+	assert.deepEqual(ranges.get('outer'), {
+		crossfadeInRanges: [],
+		crossfadeOutRanges: [],
+	});
+	assert.deepEqual(ranges.get('inner'), {
+		crossfadeInRanges: [],
+		crossfadeOutRanges: [],
+	});
+});

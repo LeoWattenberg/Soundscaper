@@ -4,10 +4,9 @@
 // control-point envelope per clip and no separate fade or crossfade, so the
 // browser's fades, its automatic clip crossfades and its own envelope have to
 // be evaluated together and sampled adaptively into control points that stay
-// within the format's own limit. Split out of aup4-export.js; no behaviour
-// changes here.
+// within the format's own limit.
 
-import { compareCodeUnits } from './code-unit-order.ts';
+import { findPartialClipOverlaps } from './audio-clip-overlap.ts';
 import {
 	boundedFrame,
 	finiteNonNegative,
@@ -185,30 +184,19 @@ export function automaticAup4CrossfadeRanges(clips) {
 		String(clip.id),
 		{ crossfadeInRanges: [], crossfadeOutRanges: [] },
 	]));
-	const ordered = clips.slice().sort((left, right) => (
-		Number(left.timelineStartFrame) - Number(right.timelineStartFrame)
-		|| compareCodeUnits(String(left.id), String(right.id))
-	));
-	for (let leftIndex = 0; leftIndex < ordered.length; leftIndex += 1) {
-		const left = ordered[leftIndex];
-		const leftStart = Number(left.timelineStartFrame);
-		const leftEnd = leftStart + Number(left.durationFrames);
-		for (let rightIndex = leftIndex + 1; rightIndex < ordered.length; rightIndex += 1) {
-			const right = ordered[rightIndex];
-			const rightStart = Number(right.timelineStartFrame);
-			if (rightStart >= leftEnd) break;
-			const overlapStart = Math.max(leftStart, rightStart);
-			const overlapEnd = Math.min(leftEnd, rightStart + Number(right.durationFrames));
-			if (overlapEnd <= overlapStart) continue;
-			ranges.get(String(left.id)).crossfadeOutRanges.push([
-				overlapStart - leftStart,
-				overlapEnd - leftStart,
-			]);
-			ranges.get(String(right.id)).crossfadeInRanges.push([
-				overlapStart - rightStart,
-				overlapEnd - rightStart,
-			]);
-		}
+	for (const overlap of findPartialClipOverlaps(clips, {
+		id: (clip) => clip.id,
+		startFrame: (clip) => Number(clip.timelineStartFrame),
+		durationFrames: (clip) => Number(clip.durationFrames),
+	})) {
+		ranges.get(String(overlap.left.id)).crossfadeOutRanges.push([
+			overlap.startFrame - overlap.leftStartFrame,
+			overlap.endFrame - overlap.leftStartFrame,
+		]);
+		ranges.get(String(overlap.right.id)).crossfadeInRanges.push([
+			overlap.startFrame - overlap.rightStartFrame,
+			overlap.endFrame - overlap.rightStartFrame,
+		]);
 	}
 	for (const value of ranges.values()) {
 		value.crossfadeInRanges = normalizedFrameRanges(value.crossfadeInRanges, Number.MAX_SAFE_INTEGER);

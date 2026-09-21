@@ -2,7 +2,7 @@
 
 import { AUDIO_EDITOR_STORAGE_CHUNK_FRAMES } from '../chunk-stream.js';
 import { buildAudioWarpRuntimeSegments } from '../audio-warp-runtime.ts';
-import { compareCodeUnits } from '../code-unit-order.ts';
+import { findPartialClipOverlaps } from '../audio-clip-overlap.ts';
 import {
 	clipDuration,
 	clipStart,
@@ -146,38 +146,26 @@ export function getTrackClips(
 	return [];
 }
 
-/** Derive complementary, clip-local crossfade ranges for overlapping clips. */
+/** Derive complementary, clip-local crossfade ranges for proper partial overlaps. */
 export function automaticCrossfadeRanges(clips: readonly EngineClip[]): Map<string, ClipCrossfadeRanges> {
 	if (!Array.isArray(clips)) throw new TypeError('clips must be an array.');
 	const ranges = new Map<string, {
 		crossfadeInRanges: FrameRange[];
 		crossfadeOutRanges: FrameRange[];
 	}>(clips.map((clip) => [String(clip.id), { crossfadeInRanges: [], crossfadeOutRanges: [] }]));
-	const ordered = clips
-		.filter((clip) => clip && clip.id != null && clipDuration(clip) > 0)
-		.slice()
-		.sort((left, right) => clipStart(left) - clipStart(right)
-			|| compareCodeUnits(String(left.id), String(right.id)));
-	for (let leftIndex = 0; leftIndex < ordered.length; leftIndex += 1) {
-		const left = ordered[leftIndex];
-		const leftStart = clipStart(left);
-		const leftEnd = leftStart + clipDuration(left);
-		for (let rightIndex = leftIndex + 1; rightIndex < ordered.length; rightIndex += 1) {
-			const right = ordered[rightIndex];
-			const rightStart = clipStart(right);
-			if (rightStart >= leftEnd) break;
-			const overlapStart = Math.max(leftStart, rightStart);
-			const overlapEnd = Math.min(leftEnd, rightStart + clipDuration(right));
-			if (overlapEnd <= overlapStart) continue;
-			ranges.get(String(left.id))?.crossfadeOutRanges.push([
-				overlapStart - leftStart,
-				overlapEnd - leftStart,
-			]);
-			ranges.get(String(right.id))?.crossfadeInRanges.push([
-				overlapStart - rightStart,
-				overlapEnd - rightStart,
-			]);
-		}
+	for (const overlap of findPartialClipOverlaps<EngineClip>(clips, {
+		id: (clip) => clip.id,
+		startFrame: clipStart,
+		durationFrames: clipDuration,
+	})) {
+		ranges.get(String(overlap.left.id))?.crossfadeOutRanges.push([
+			overlap.startFrame - overlap.leftStartFrame,
+			overlap.endFrame - overlap.leftStartFrame,
+		]);
+		ranges.get(String(overlap.right.id))?.crossfadeInRanges.push([
+			overlap.startFrame - overlap.rightStartFrame,
+			overlap.endFrame - overlap.rightStartFrame,
+		]);
 	}
 	for (const value of ranges.values()) {
 		value.crossfadeInRanges = mergeFrameRanges(value.crossfadeInRanges);

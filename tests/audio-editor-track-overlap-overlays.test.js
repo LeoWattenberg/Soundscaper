@@ -15,3 +15,12 @@ test('audio crossfade overlays share the clip content origin', () => {
 
 	assert.equal(overlays[0]?.left, CLIP_CONTENT_OFFSET + 100);
 });
+
+test('audio crossfade overlays omit contained drop-in clips', () => {
+	const overlays = createCrossfadeOverlays([
+		{ id: 'outer', isVisible: true, timelineStartFrame: 1_000, durationFrames: 3_000 },
+		{ id: 'inner', isVisible: true, timelineStartFrame: 1_500, durationFrames: 1_000 },
+	], 500, 100, 1_000);
+
+	assert.deepEqual(overlays, []);
+});
