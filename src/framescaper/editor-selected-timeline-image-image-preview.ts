@@ -12,6 +12,7 @@ import type {
 import type { VideoCanvasFit } from '../common/editor/video-canvas-fit.ts';
 import { DEFAULT_VIDEO_CLIP_COMPOSITION } from '../common/editor/video-clip-composition.ts';
 import { resolveVideoRenderDescription } from '../common/editor/video-render-description.ts';
+import { createVisibleVideoTrackPredicate } from '../common/editor/video-track-visibility.js';
 import {
 	fitFramescaperImagePreviewSizeTimelineImage,
 	framescaperImageSourceForClipTimelineImage,
@@ -264,17 +265,14 @@ function imageClipContexts(project: FramescaperProjectTimelineImage): readonly O
 	if (!sequence) throw new ReferenceError('The selected timelineImage primary sequence is unavailable.');
 	const sequenceTrackIds = new Set(sequence.trackIds);
 	const videoTracks = project.tracks.filter(track => track.type === 'video').filter(({ id }) => sequenceTrackIds.has(id));
-	const soloed = videoTracks.some((track) => track.solo === true);
-	const visible = new Set(videoTracks.filter((track) => (
-		soloed ? track.solo === true : track.hidden !== true
-	)).map(({ id }) => id));
+	const visible = createVisibleVideoTrackPredicate(videoTracks);
 	const output: Omit<ImageClipPreviewTimelineImage, 'loaded' | 'drawable' | 'lastFrameIndex'>[] = [];
 	for (const value of project.clips) {
 		if (value.kind !== 'image') continue;
 		const clip = value as FramescaperImageClipV1;
 		if (clip.sequenceId !== sequence.id) continue;
 		const owner = videoTracks.find(({ clipIds }) => clipIds.includes(clip.id));
-		if (!owner || !visible.has(owner.id)) continue;
+		if (!owner || !visible(owner)) continue;
 		const trackIndex = sequence.trackIds.indexOf(owner.id);
 		if (trackIndex < 0) throw new ReferenceError(`timelineImage image track ${owner.id} is outside its sequence.`);
 		output.push({ clip, trackId: owner.id, trackIndex, sequenceRate: sequence.rate });

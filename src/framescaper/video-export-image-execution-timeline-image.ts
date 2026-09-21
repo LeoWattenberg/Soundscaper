@@ -10,6 +10,7 @@ import type { UnifiedExactRenderPlanV13 } from '../common/editor/unified-exact-r
 import { DEFAULT_VIDEO_CLIP_COMPOSITION } from '../common/editor/video-clip-composition.ts';
 import { defaultVideoSourceColorInterpretationV1 } from '../common/editor/video-color-management-v27.ts';
 import { resolveVideoRenderDescription } from '../common/editor/video-render-description.ts';
+import { createVisibleVideoTrackPredicate } from '../common/editor/video-track-visibility.js';
 import {
 	framescaperImageSourceForClipTimelineImage,
 	openFramescaperStoredImageFramePackTimelineImage,
@@ -306,16 +307,13 @@ function visibleImageClips(
 	if (!sequence) throw new ReferenceError('The timelineImage image export primary sequence is unavailable.');
 	const sequenceTrackIds = new Set(sequence.trackIds);
 	const tracks = project.tracks.filter(track => track.type === 'video').filter(({ id }) => sequenceTrackIds.has(id));
-	const soloed = tracks.some(({ solo }) => solo === true);
-	const visibleTrackIds = new Set(tracks.filter((track) => (
-		soloed ? track.solo === true : track.hidden !== true
-	)).map(({ id }) => id));
+	const visible = createVisibleVideoTrackPredicate(tracks);
 	return Object.freeze(project.clips.flatMap((value) => {
 		if (value.kind !== 'image') return [];
 		const clip = value as FramescaperImageClipV1;
 		if (clip.sequenceId !== sequence.id || !activeClipIds.has(clip.id)) return [];
 		const track = tracks.find(({ clipIds }) => clipIds.includes(clip.id));
-		if (!track || !visibleTrackIds.has(track.id)) return [];
+		if (!track || !visible(track)) return [];
 		const trackIndex = sequence.trackIds.indexOf(track.id);
 		if (trackIndex < 0) throw new ReferenceError(`timelineImage image track ${track.id} is outside its sequence.`);
 		return [{ clip, trackId: track.id, trackIndex }];
