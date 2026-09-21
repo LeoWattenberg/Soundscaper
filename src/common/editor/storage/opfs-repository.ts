@@ -2,8 +2,6 @@
 
 import {
 	PCM_CONTAINER_EXTENSION,
-	PcmContainerWriter,
-	compressionStatistics,
 	containerCodecToEncoding,
 	parsePcmContainerIndex,
 	readPcmContainerPayload,
@@ -14,6 +12,10 @@ import {
 	type StorageRecord,
 } from './media-records.ts';
 import { MediaAssetCleanupError } from './media-asset-cleanup-error.ts';
+import {
+	createOpfsPcmWriterLifecycle,
+	type OpfsPcmWriter,
+} from './opfs-pcm-writer-lifecycle.ts';
 import { OpfsSyncRepositoryBridge, sharedReadable } from './opfs-sync-repository-bridge.ts';
 import type { OpfsSyncStoragePort } from './opfs-sync-worker-client.ts';
 import type { OpfsSyncOperationId } from './opfs-sync-worker-protocol.ts';
@@ -38,21 +40,6 @@ interface PcmChunk {
 	readonly channels: readonly Float32Array[];
 }
 
-interface StoredPcmChunk extends Record<string, unknown> {
-	readonly frames: number;
-	readonly channelCount: number;
-	readonly sampleRate: number;
-	readonly chunkFrames: number;
-}
-
-interface PcmWriter {
-	readonly path: string;
-	write(chunk: StoredPcmChunk): Promise<void>;
-	close(): Promise<Record<string, unknown>>;
-	remove(): Promise<void>;
-	abort(): Promise<void>;
-}
-
 export interface OpfsBinaryWriter {
 	readonly path: string;
 	write(bytes: Uint8Array, options?: Readonly<{ signal?: AbortSignal }>): Promise<void>;
@@ -64,24 +51,6 @@ export interface OpfsBinaryWriterPlan {
 	readonly path: string;
 	open(): Promise<OpfsBinaryWriter | null>;
 }
-
-interface ContainerWriterInstance {
-	readonly writableReleased: boolean;
-	write(chunk: StoredPcmChunk): Promise<void>;
-	close(): Promise<Record<string, unknown>>;
-	statistics(): Record<string, unknown>;
-}
-
-type ContainerWriterConstructor = new (
-	writable: FileSystemWritableFileStream,
-	options: {
-		readonly channelCount: number;
-		readonly sampleRate: number;
-		readonly chunkFrames: number;
-	},
-) => ContainerWriterInstance;
-
-const ContainerWriter = PcmContainerWriter as unknown as ContainerWriterConstructor;
 
 type DecodeChunk = (
 	record: Record<string, unknown>,
@@ -267,7 +236,7 @@ export class OpfsRepository {
 		if (path) this.#indexCache.delete(path);
 	}
 
-	async createPcmWriter(token: string, metadata: StorageRecord = {}): Promise<PcmWriter | null> {
+	async createPcmWriter(token: string, metadata: StorageRecord = {}): Promise<OpfsPcmWriter | null> {
 		const directory = await this.directory();
 		if (!directory?.getFileHandle) return null;
 		const path = `${token.replace(/[^a-z0-9._-]+/giu, '-')}${PCM_CONTAINER_EXTENSION}`;
@@ -279,49 +248,19 @@ export class OpfsRepository {
 			if (syncWriter) return syncPcmWriter(path, syncWriter, metadata, invalidate, () => this.deletePath(path));
 			const handle = await directory.getFileHandle(path, { create: true });
 			const writable = await handle.createWritable();
-			let container: ContainerWriterInstance | null = null;
-			let writeClosed = false;
-			let finalized = false;
-			return {
+			return createOpfsPcmWriterLifecycle({
 				path,
-				async write(chunk) {
-					if (writeClosed) throw new Error('The OPFS source writer is closed.');
-					if (!container) {
-						container = new ContainerWriter(writable, {
-							channelCount: chunk.channelCount,
-							sampleRate: chunk.sampleRate ?? metadata.sampleRate ?? 48_000,
-							chunkFrames: chunk.chunkFrames ?? metadata.chunkFrames ?? chunk.frames,
-						});
-					}
-					await container.write(chunk);
-				},
-				async close() {
-					if (finalized) return container?.statistics() || compressionStatistics();
-					if (writeClosed) throw new Error('The OPFS source writer close previously failed.');
-					writeClosed = true;
-					const statistics = container
-						? await container.close()
-						: await writable.close().then(() => compressionStatistics());
-					finalized = true;
-					return statistics;
-				},
-				async remove() {
-					invalidate();
+				metadata,
+				writable,
+				closeEmpty: () => writable.close(),
+				abortOpen: () => typeof writable.abort === 'function'
+					? writable.abort()
+					: writable.close(),
+				invalidate,
+				remove: async () => {
 					try { await directory.removeEntry(path); } catch { /* Already absent. */ }
 				},
-				async abort() {
-					if (!finalized) {
-						writeClosed = true;
-						finalized = true;
-						if (!container?.writableReleased) {
-							if (typeof writable.abort === 'function') await writable.abort();
-							else await writable.close();
-						}
-					}
-					invalidate();
-					try { await directory.removeEntry(path); } catch { /* Already absent. */ }
-				},
-			};
+			});
 		} catch {
 			try { await directory.removeEntry(path); } catch { /* Creation may not have reached disk. */ }
 			return null;

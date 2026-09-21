@@ -1,44 +1,11 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import {
-	PcmContainerWriter,
-	compressionStatistics,
-} from '../wavpack/index.js';
 import type { StorageRecord } from './media-records.ts';
+import {
+	createOpfsPcmWriterLifecycle,
+	type OpfsPcmWriter,
+} from './opfs-pcm-writer-lifecycle.ts';
 import type { OpfsSyncWriter } from './opfs-sync-worker-client.ts';
-
-interface SyncPcmChunk extends Record<string, unknown> {
-	readonly frames: number;
-	readonly channelCount: number;
-	readonly sampleRate: number;
-	readonly chunkFrames: number;
-}
-
-interface SyncPcmWriter {
-	readonly path: string;
-	write(chunk: SyncPcmChunk): Promise<void>;
-	close(): Promise<Record<string, unknown>>;
-	remove(): Promise<void>;
-	abort(): Promise<void>;
-}
-
-interface ContainerWriterInstance {
-	readonly writableReleased: boolean;
-	write(chunk: SyncPcmChunk): Promise<void>;
-	close(): Promise<Record<string, unknown>>;
-	statistics(): Record<string, unknown>;
-}
-
-type ContainerWriterConstructor = new (
-	writable: FileSystemWritableFileStream,
-	options: {
-		readonly channelCount: number;
-		readonly sampleRate: number;
-		readonly chunkFrames: number;
-	},
-) => ContainerWriterInstance;
-
-const ContainerWriter = PcmContainerWriter as unknown as ContainerWriterConstructor;
 
 export function syncBinaryWriter(
 	path: string,
@@ -68,51 +35,20 @@ export function syncPcmWriter(
 	metadata: StorageRecord,
 	invalidate: () => void,
 	remove: () => Promise<void>,
-): SyncPcmWriter {
+): OpfsPcmWriter {
 	const writable = {
 		write: (input: unknown) => writer.write(binaryBytes(input)),
 		close: () => writer.close(),
 	};
-	let container: ContainerWriterInstance | null = null;
-	let writeClosed = false;
-	let finalized = false;
-	return {
+	return createOpfsPcmWriterLifecycle({
 		path,
-		async write(chunk) {
-			if (writeClosed) throw new Error('The OPFS source writer is closed.');
-			if (!container) {
-				container = new ContainerWriter(writable as unknown as FileSystemWritableFileStream, {
-					channelCount: chunk.channelCount,
-					sampleRate: chunk.sampleRate ?? metadata.sampleRate ?? 48_000,
-					chunkFrames: chunk.chunkFrames ?? metadata.chunkFrames ?? chunk.frames,
-				});
-			}
-			await container.write(chunk);
-		},
-		async close() {
-			if (finalized) return container?.statistics() || compressionStatistics();
-			if (writeClosed) throw new Error('The OPFS source writer close previously failed.');
-			writeClosed = true;
-			const statistics = container
-				? await container.close()
-				: await writer.close().then(() => compressionStatistics());
-			finalized = true;
-			return statistics;
-		},
-		async remove() {
-			invalidate();
-			await remove();
-		},
-		async abort() {
-			if (!finalized) {
-				writeClosed = true;
-				finalized = true;
-				if (!container?.writableReleased) await writer.abort();
-			}
-			invalidate();
-			await remove();
-		},
-	};
+		metadata,
+		writable,
+		closeEmpty: () => writer.close(),
+		abortOpen: () => writer.abort(),
+		invalidate,
+		remove,
+	});
 }
 
 function binaryBytes(value: unknown): Uint8Array {
