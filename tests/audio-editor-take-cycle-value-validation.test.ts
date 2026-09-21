@@ -6,9 +6,14 @@ import {
 	takeCycleStableName,
 } from '../src/common/editor/controller/recording/internal/take-cycle/take-cycle-value-validation.ts';
 import { stableId as recoveryStableId } from '../src/common/editor/take-cycle-recovery-envelope-validation.ts';
+import {
+	stableTakeCycleRoutedId,
+	stableTakeCycleRoutedName,
+} from '../src/common/editor/controller/recording/internal/take-cycle/take-cycle-routed-capture-validation.ts';
 
 test('take-cycle stable IDs preserve configurable canonical bounds', () => {
 	assert.equal(recoveryStableId, takeCycleStableId);
+	assert.equal(stableTakeCycleRoutedId, takeCycleStableId);
 	assert.equal(takeCycleStableId('x'.repeat(256), 'capture ID'), 'x'.repeat(256));
 	assert.equal(takeCycleStableId('x'.repeat(160), 'take ID', 160), 'x'.repeat(160));
 	for (const [value, maximum] of [
@@ -29,6 +34,7 @@ test('take-cycle stable IDs preserve configurable canonical bounds', () => {
 });
 
 test('take-cycle source names keep their existing compatibility contract', () => {
+	assert.equal(stableTakeCycleRoutedName, takeCycleStableName);
 	assert.equal(takeCycleStableName('x'.repeat(255)), 'x'.repeat(255));
 	assert.equal(takeCycleStableName('e\u0301'), 'e\u0301');
 	assert.equal(takeCycleStableName('control\u0000'), 'control\u0000');

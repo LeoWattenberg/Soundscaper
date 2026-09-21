@@ -4,12 +4,18 @@ import { RECORDING_DISPLAY_ROUTE_LABEL } from '../../../../recording-routing.js'
 import type { EngineLoop } from '../../../../engine/types.ts';
 import { TAKE_COMP_MAXIMUM_ENTITIES } from '../../../../take-comp-domain.ts';
 import { TAKE_CYCLE_CAPTURE_MAXIMUM_CHUNK_BYTES } from './take-cycle-capture-spool.ts';
+import {
+	takeCycleStableId as stableTakeCycleRoutedId,
+	takeCycleStableName as stableTakeCycleRoutedName,
+} from './take-cycle-value-validation.ts';
 import type {
 	RecordingCaptureChunk,
 	RecordingRoute,
 	RecordingTrack,
 } from '../../recording-transaction-types.ts';
 import type { RecordingStartScope } from '../recording-session-service.ts';
+
+export { stableTakeCycleRoutedId, stableTakeCycleRoutedName };
 
 export interface TakeCycleRoutedCaptureProject extends Readonly<Record<string, unknown>> {
 	readonly id: string;
@@ -220,20 +226,6 @@ export function takeCycleRoutedLaneChunkFrames(value: unknown, channelCount: num
 		TAKE_CYCLE_CAPTURE_MAXIMUM_CHUNK_BYTES / channelCount / Float32Array.BYTES_PER_ELEMENT,
 	);
 	return positiveTakeCycleRoutedInteger(value, Math.min(65_536, maximum), 'source chunk frames');
-}
-
-export function stableTakeCycleRoutedId(value: unknown, name: string): string {
-	if (typeof value !== 'string' || !value.length || value !== value.trim()
-		|| value !== value.normalize('NFC') || value.length > 256
-		|| /[\u0000-\u001f\u007f]/u.test(value)) throw new TypeError(`${name} is invalid.`);
-	return value;
-}
-
-export function stableTakeCycleRoutedName(value: unknown): string {
-	if (typeof value !== 'string' || !value.length || value !== value.trim() || value.length > 255) {
-		throw new TypeError('Take cycle routed source name is invalid.');
-	}
-	return value;
 }
 
 export function positiveTakeCycleRoutedInteger(value: unknown, maximum: number, name: string): number {
