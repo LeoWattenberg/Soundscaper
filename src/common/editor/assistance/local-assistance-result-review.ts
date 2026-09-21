@@ -22,6 +22,10 @@ import {
 } from './m7-semantic-results.ts';
 import type { LocalAssistanceOutputClaim } from './local-assistance-bridge.ts';
 import {
+	isLocalAssistanceMediaType,
+	LOCAL_ASSISTANCE_OUTPUT_MEDIA_TYPES,
+} from './local-assistance-media-contract.ts';
+import {
 	reviewLocalAssistanceShotBoundaries,
 	type LocalAssistanceShotBoundariesReview,
 } from './local-assistance-shot-review.ts';
@@ -39,51 +43,6 @@ import {
 const MAXIMUM_REVIEW_BYTES = 8 * 1024 * 1024;
 const MAXIMUM_SAMPLE_RANGES = 100_000;
 const REVIEW_SAMPLE_RATE = 16_000;
-const TRANSCRIPT_MEDIA_TYPES = new Set([
-	'application/json',
-	'application/vnd.soundscaper.transcript+json',
-]);
-const VOICE_ACTIVITY_MEDIA_TYPES = new Set([
-	'application/json',
-	'application/vnd.soundscaper.voice-activity+json',
-]);
-const SPEAKER_TURN_MEDIA_TYPES = new Set([
-	'application/json',
-	'application/vnd.soundscaper.speaker-turns+json',
-]);
-const SHOT_BOUNDARY_MEDIA_TYPES = new Set([
-	'application/json',
-	'application/vnd.soundscaper.shot-boundaries+json',
-]);
-const WORD_ALIGNMENT_MEDIA_TYPES = new Set([
-	'application/json',
-	'application/vnd.soundscaper.word-alignment+json',
-]);
-const AUDIO_TAG_MEDIA_TYPES = new Set([
-	'application/json',
-	'application/vnd.soundscaper.audio-tags+json',
-]);
-const BEAT_GRID_MEDIA_TYPES = new Set([
-	'application/json',
-	'application/vnd.soundscaper.beat-grid+json',
-]);
-const EDITORIAL_PROPOSAL_MEDIA_TYPES = new Set([
-	'application/json',
-	'application/vnd.soundscaper.editorial-proposal+json',
-]);
-const EMBEDDING_MATRIX_MEDIA_TYPES = new Set([
-	'application/vnd.soundscaper.embedding-matrix-v1',
-]);
-const AUDIO_WAVE_MEDIA_TYPES = new Set(['audio/wav']);
-const RECOGNIZED_TEXT_MEDIA_TYPES = new Set([
-	'application/json', 'application/vnd.soundscaper.recognized-text+json',
-]);
-const SUBJECT_TRACK_MEDIA_TYPES = new Set([
-	'application/json', 'application/vnd.soundscaper.subject-tracks+json',
-]);
-const SALIENCY_MAP_MEDIA_TYPES = new Set([
-	'application/json', 'application/vnd.soundscaper.saliency-map+json',
-]);
 const SEGMENT_KEYS = Object.freeze([
 	'startSeconds', 'endSeconds', 'text', 'words', 'speaker',
 ]);
@@ -258,22 +217,13 @@ export async function reviewLocalAssistanceOutput(
 }
 
 function reviewMediaType(claim: LocalAssistanceOutputClaim): boolean {
-	if (isAudioWaveRole(claim.role)) return AUDIO_WAVE_MEDIA_TYPES.has(claim.mediaType);
-	if (claim.role === 'transcript') return TRANSCRIPT_MEDIA_TYPES.has(claim.mediaType);
-	if (claim.role === 'voice-activity') return VOICE_ACTIVITY_MEDIA_TYPES.has(claim.mediaType);
-	if (claim.role === 'speaker-turns') return SPEAKER_TURN_MEDIA_TYPES.has(claim.mediaType);
-	if (claim.role === 'shot-boundaries') return SHOT_BOUNDARY_MEDIA_TYPES.has(claim.mediaType);
-	if (claim.role === 'word-alignment') return WORD_ALIGNMENT_MEDIA_TYPES.has(claim.mediaType);
-	if (claim.role === 'audio-tags') return AUDIO_TAG_MEDIA_TYPES.has(claim.mediaType);
-	if (claim.role === 'beat-grid') return BEAT_GRID_MEDIA_TYPES.has(claim.mediaType);
-	if (claim.role === 'embeddings') return EMBEDDING_MATRIX_MEDIA_TYPES.has(claim.mediaType);
-	if (claim.role === 'recognized-text') return RECOGNIZED_TEXT_MEDIA_TYPES.has(claim.mediaType);
-	if (claim.role === 'subject-tracks') return SUBJECT_TRACK_MEDIA_TYPES.has(claim.mediaType);
-	if (claim.role === 'saliency-map') return SALIENCY_MAP_MEDIA_TYPES.has(claim.mediaType);
-	if (claim.role === 'editorial-proposal') {
-		return EDITORIAL_PROPOSAL_MEDIA_TYPES.has(claim.mediaType);
-	}
-	return false;
+	// Semantic audio review intentionally accepts only canonical Float32 WAV, not the
+	// wider transport contract's FLAC alternative.
+	if (isAudioWaveRole(claim.role)) return claim.mediaType === 'audio/wav';
+	return isLocalAssistanceMediaType(
+		LOCAL_ASSISTANCE_OUTPUT_MEDIA_TYPES[claim.role],
+		claim.mediaType,
+	);
 }
 
 function isAudioWaveRole(

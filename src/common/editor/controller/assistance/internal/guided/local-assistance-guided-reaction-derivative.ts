@@ -3,6 +3,8 @@
 /** Retain reviewed one-second PANNs scores in disposable project custody. */
 
 import { reviewAssistanceAudioTagsV1 } from '../../../../assistance/m7-semantic-results.ts';
+import { isLocalAssistanceMediaType, LOCAL_ASSISTANCE_OUTPUT_MEDIA_TYPES } from
+	'../../../../assistance/local-assistance-media-contract.ts';
 import {
 	validateAssistanceWorkflow,
 	type AssistanceWorkflowFenceV1,
@@ -14,8 +16,7 @@ import type { AssistanceDerivativeRecordV1 } from
 import type { AssistanceDerivativeRepositoryPort } from
 	'../../../../storage/deferred-assistance-derivative-repository.ts';
 
-const AUDIO_TAGS_MEDIA_TYPE = 'application/vnd.soundscaper.audio-tags+json';
-const AUDIO_TAGS_MEDIA_TYPES = new Set(['application/json', AUDIO_TAGS_MEDIA_TYPE]);
+const AUDIO_TAGS_MEDIA_TYPE = LOCAL_ASSISTANCE_OUTPUT_MEDIA_TYPES['audio-tags'][1];
 const MAXIMUM_AUDIO_TAGS_BYTES = 8 * 1024 * 1024;
 const UTF8 = new TextEncoder();
 
@@ -49,7 +50,10 @@ export async function retainLocalAssistanceGuidedReactionScores(
 	const body = await request.readOutput({ jobId: workflow.jobId,
 		workflowId: 'mark-reactions', claim });
 	request.signal?.throwIfAborted();
-	if (!(body instanceof Blob) || !AUDIO_TAGS_MEDIA_TYPES.has(body.type) || body.size < 1
+	if (!(body instanceof Blob)
+		|| !isLocalAssistanceMediaType(
+			LOCAL_ASSISTANCE_OUTPUT_MEDIA_TYPES['audio-tags'], body.type,
+		) || body.size < 1
 		|| body.size > MAXIMUM_AUDIO_TAGS_BYTES) {
 		throw new TypeError('The Guided audio-tags body disagrees with its reserved JSON slot.');
 	}

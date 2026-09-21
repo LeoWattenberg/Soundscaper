@@ -6,6 +6,8 @@ import { sha256 } from '@noble/hashes/sha2.js';
 import { bytesToHex } from '@noble/hashes/utils.js';
 
 import { reviewAssistanceEmbeddingMatrixV1 } from '../../../../assistance/binary-formats-v1.ts';
+import { isLocalAssistanceMediaType, LOCAL_ASSISTANCE_OUTPUT_MEDIA_TYPES } from
+	'../../../../assistance/local-assistance-media-contract.ts';
 import {
 	reviewAssistanceOwnedAudioCutTransformResultV1,
 } from '../../../../assistance/owned-audio-cut-transform-results-v1.ts';
@@ -36,12 +38,9 @@ import type {
 	LocalAssistanceGuidedReviewedResult,
 } from '../../../../assistance/local-assistance-guided-result-review.ts';
 
-const MATRIX_MEDIA_TYPE = 'application/vnd.soundscaper.embedding-matrix-v1';
+const MATRIX_MEDIA_TYPE = LOCAL_ASSISTANCE_OUTPUT_MEDIA_TYPES.embeddings[0];
 const MAXIMUM_MATRIX_BYTES = 512 * 1024 * 1024;
 const MAXIMUM_JSON_BYTES = 8 * 1024 * 1024;
-const SHOT_MEDIA_TYPES = new Set([
-	'application/json', 'application/vnd.soundscaper.shot-boundaries+json',
-]);
 
 export interface LocalAssistanceGuidedIndexPublicationRequest {
 	readonly workflow: unknown;
@@ -147,7 +146,11 @@ async function loadVideoShotTable(
 	const claim = exactOutputClaim(workflow.outputs, 'detect-shots', 'shot-boundaries');
 	const body = await readOutput({ jobId: workflow.jobId, workflowId: 'index-video', claim });
 	signal.throwIfAborted();
-	if (!(body instanceof Blob) || !SHOT_MEDIA_TYPES.has(body.type) || body.size < 1
+	if (!(body instanceof Blob)
+		|| !isLocalAssistanceMediaType(
+			LOCAL_ASSISTANCE_OUTPUT_MEDIA_TYPES['shot-boundaries'], body.type,
+		)
+		|| body.size < 1
 		|| body.size > MAXIMUM_JSON_BYTES) {
 		throw new TypeError('The Guided video shot table disagrees with its reserved JSON slot.');
 	}

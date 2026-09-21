@@ -20,6 +20,8 @@ import {
 	validateAssistanceSelectionFence,
 	type AssistanceSelectionFence,
 } from '../../../assistance/proposal-session.ts';
+import { isLocalAssistanceMediaType, LOCAL_ASSISTANCE_OUTPUT_MEDIA_TYPES } from
+	'../../../assistance/local-assistance-media-contract.ts';
 import {
 	createAssistanceTranscriptBodyPublicationV1,
 	type AssistanceSpeechRecognitionReviewV1,
@@ -44,10 +46,6 @@ const UTF8 = new TextEncoder();
 const SHA256 = /^[a-f0-9]{64}$/u;
 const JOB_ID = /^[a-f0-9]{40}$/u;
 const MODEL_ID = /^[a-z\d](?:[a-z\d.-]{0,62}[a-z\d])?$/u;
-const TRANSCRIPT_MEDIA_TYPES = new Set([
-	'application/json',
-	'application/vnd.soundscaper.transcript+json',
-]);
 
 type Awaitable<Value> = PromiseLike<Value> | Value;
 
@@ -274,7 +272,10 @@ function normalizeTranscriptClaim(value: unknown): void {
 		'claimVersion', 'claimId', 'jobId', 'role', 'mediaType', 'byteLength', 'sha256',
 	], 'accepted transcript output claim');
 	if (claim.claimVersion !== 1 || claim.role !== 'transcript'
-		|| typeof claim.mediaType !== 'string' || !TRANSCRIPT_MEDIA_TYPES.has(claim.mediaType)
+		|| !isLocalAssistanceMediaType(
+			LOCAL_ASSISTANCE_OUTPUT_MEDIA_TYPES.transcript,
+			claim.mediaType,
+		)
 		|| !JOB_ID.test(String(claim.claimId)) || !JOB_ID.test(String(claim.jobId))
 		|| !Number.isSafeInteger(claim.byteLength) || Number(claim.byteLength) < 1
 		|| Number(claim.byteLength) > ASSISTANCE_ASSET_REFERENCE_LIMITS_V1.maximumBodyBytes

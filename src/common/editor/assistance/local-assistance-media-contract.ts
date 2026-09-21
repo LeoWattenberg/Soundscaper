@@ -15,7 +15,7 @@ export type LocalAssistanceOutputRole = typeof LOCAL_ASSISTANCE_OUTPUT_ROLES[num
 
 export const LOCAL_ASSISTANCE_INPUT_MEDIA_TYPES = Object.freeze({
 	audio: Object.freeze(['audio/wav', 'audio/x-wav', 'audio/flac']),
-	'voice-activity': jsonTypes('voice-activity'),
+	'voice-activity': localAssistanceJsonMediaTypes('voice-activity'),
 	video: Object.freeze(['video/mp4', 'video/quicktime', 'video/webm', 'video/x-matroska']),
 	'frame-pack': Object.freeze(['application/vnd.soundscaper.frame-pack']),
 	transcript: Object.freeze(['application/json', 'application/vnd.soundscaper.transcript+json']),
@@ -26,22 +26,31 @@ export const LOCAL_ASSISTANCE_INPUT_MEDIA_TYPES = Object.freeze({
 } satisfies Readonly<Record<LocalAssistanceInputRole, readonly string[]>>);
 
 export const LOCAL_ASSISTANCE_OUTPUT_MEDIA_TYPES = Object.freeze({
-	'voice-activity': jsonTypes('voice-activity'),
-	transcript: jsonTypes('transcript'),
-	'word-alignment': jsonTypes('word-alignment'),
-	'speaker-turns': jsonTypes('speaker-turns'),
+	'voice-activity': localAssistanceJsonMediaTypes('voice-activity'),
+	transcript: localAssistanceJsonMediaTypes('transcript'),
+	'word-alignment': localAssistanceJsonMediaTypes('word-alignment'),
+	'speaker-turns': localAssistanceJsonMediaTypes('speaker-turns'),
 	'enhanced-audio': Object.freeze(['audio/wav', 'audio/flac']),
 	'separated-audio': Object.freeze(['audio/wav', 'audio/flac']),
-	'audio-tags': jsonTypes('audio-tags'),
-	'beat-grid': jsonTypes('beat-grid'),
+	'audio-tags': localAssistanceJsonMediaTypes('audio-tags'),
+	'beat-grid': localAssistanceJsonMediaTypes('beat-grid'),
 	embeddings: Object.freeze(['application/vnd.soundscaper.embedding-matrix-v1']),
-	'recognized-text': jsonTypes('recognized-text'),
-	'shot-boundaries': jsonTypes('shot-boundaries'),
-	'subject-tracks': jsonTypes('subject-tracks'),
-	'saliency-map': jsonTypes('saliency-map'),
-	'editorial-proposal': jsonTypes('editorial-proposal'),
+	'recognized-text': localAssistanceJsonMediaTypes('recognized-text'),
+	'shot-boundaries': localAssistanceJsonMediaTypes('shot-boundaries'),
+	'subject-tracks': localAssistanceJsonMediaTypes('subject-tracks'),
+	'saliency-map': localAssistanceJsonMediaTypes('saliency-map'),
+	'editorial-proposal': localAssistanceJsonMediaTypes('editorial-proposal'),
 } satisfies Readonly<Record<LocalAssistanceOutputRole, readonly string[]>>);
 
-function jsonTypes(role: string): readonly string[] {
-	return Object.freeze(['application/json', `application/vnd.soundscaper.${role}+json`]);
+export function localAssistanceJsonMediaTypes<const Role extends string>(
+	role: Role,
+): readonly ['application/json', `application/vnd.soundscaper.${Role}+json`] {
+	return Object.freeze(['application/json', `application/vnd.soundscaper.${role}+json`] as const);
+}
+
+export function isLocalAssistanceMediaType(
+	mediaTypes: readonly string[],
+	value: unknown,
+): value is string {
+	return typeof value === 'string' && mediaTypes.some((mediaType) => mediaType === value);
 }

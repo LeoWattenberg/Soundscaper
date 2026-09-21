@@ -10,18 +10,20 @@
 
 import { HELPER_DATA_PLANE_MAXIMUM_BYTES } from './helper-data-plane.ts';
 import { assertHelperWireEnvelope } from './helper-wire-admission.ts';
+import {
+	LOCAL_ASSISTANCE_INPUT_MEDIA_TYPES,
+	LOCAL_ASSISTANCE_INPUT_ROLES,
+	LOCAL_ASSISTANCE_OUTPUT_MEDIA_TYPES,
+	LOCAL_ASSISTANCE_OUTPUT_ROLES,
+	localAssistanceJsonMediaTypes,
+} from '../src/common/editor/assistance/local-assistance-media-contract.ts';
 
 export const ASSISTANCE_DATA_CLAIM_VERSION = 1;
 
 export const ASSISTANCE_INPUT_ROLES = Object.freeze([
-	'audio',
-	'voice-activity',
-	'video',
+	...LOCAL_ASSISTANCE_INPUT_ROLES.slice(0, 3),
 	'video-authority',
-	'frame-pack',
-	'transcript',
-	'text',
-	'editorial-context',
+	...LOCAL_ASSISTANCE_INPUT_ROLES.slice(3),
 	'shot-boundaries',
 	'recognized-text',
 	'reaction-ranges',
@@ -32,20 +34,7 @@ export const ASSISTANCE_INPUT_ROLES = Object.freeze([
 ] as const);
 
 export const ASSISTANCE_OUTPUT_ROLES = Object.freeze([
-	'voice-activity',
-	'transcript',
-	'word-alignment',
-	'speaker-turns',
-	'enhanced-audio',
-	'separated-audio',
-	'audio-tags',
-	'beat-grid',
-	'embeddings',
-	'recognized-text',
-	'shot-boundaries',
-	'subject-tracks',
-	'saliency-map',
-	'editorial-proposal',
+	...LOCAL_ASSISTANCE_OUTPUT_ROLES,
 	'captions',
 	'cleanup-proposals',
 	'attributed-transcript',
@@ -109,20 +98,12 @@ const OPAQUE_ID = /^[a-f\d]{40}$/u;
 const SHA256 = /^[a-f\d]{64}$/u;
 const MEDIA_TYPE = /^[a-z\d][a-z\d!#$&^_.+-]{0,126}\/[a-z\d][a-z\d!#$&^_.+-]{0,126}$/u;
 const INPUT_MEDIA_TYPES = Object.freeze({
-	audio: Object.freeze(['audio/wav', 'audio/x-wav', 'audio/flac']),
-	'voice-activity': jsonTypes('voice-activity'),
-	video: Object.freeze(['video/mp4', 'video/quicktime', 'video/webm', 'video/x-matroska']),
-	'video-authority': jsonTypes('video-authority'),
-	'frame-pack': Object.freeze(['application/vnd.soundscaper.frame-pack']),
-	transcript: Object.freeze(['application/json', 'application/vnd.soundscaper.transcript+json']),
-	text: Object.freeze(['text/plain']),
-	'editorial-context': Object.freeze([
-		'application/json', 'application/vnd.soundscaper.editorial-context+json',
-	]),
-	'shot-boundaries': jsonTypes('shot-boundaries'),
-	'recognized-text': jsonTypes('recognized-text'),
-	'reaction-ranges': jsonTypes('reaction-ranges'),
-	embeddings: Object.freeze(['application/vnd.soundscaper.embedding-matrix-v1']),
+	...LOCAL_ASSISTANCE_INPUT_MEDIA_TYPES,
+	'video-authority': localAssistanceJsonMediaTypes('video-authority'),
+	'shot-boundaries': LOCAL_ASSISTANCE_OUTPUT_MEDIA_TYPES['shot-boundaries'],
+	'recognized-text': LOCAL_ASSISTANCE_OUTPUT_MEDIA_TYPES['recognized-text'],
+	'reaction-ranges': localAssistanceJsonMediaTypes('reaction-ranges'),
+	embeddings: LOCAL_ASSISTANCE_OUTPUT_MEDIA_TYPES.embeddings,
 	'highlight-video-signals': Object.freeze([
 		'application/vnd.soundscaper.highlight-video-signals+json',
 	]),
@@ -134,38 +115,23 @@ const INPUT_MEDIA_TYPES = Object.freeze({
 	]),
 } satisfies Readonly<Record<AssistanceInputRole, readonly string[]>>);
 const OUTPUT_MEDIA_TYPES = Object.freeze({
-	'voice-activity': jsonTypes('voice-activity'),
-	transcript: jsonTypes('transcript'),
-	'word-alignment': jsonTypes('word-alignment'),
-	'speaker-turns': jsonTypes('speaker-turns'),
-	'enhanced-audio': Object.freeze(['audio/wav', 'audio/flac']),
-	'separated-audio': Object.freeze(['audio/wav', 'audio/flac']),
-	'audio-tags': jsonTypes('audio-tags'),
-	'beat-grid': jsonTypes('beat-grid'),
-	embeddings: Object.freeze([
-		'application/vnd.soundscaper.embedding-matrix-v1',
-	]),
-	'recognized-text': jsonTypes('recognized-text'),
-	'shot-boundaries': jsonTypes('shot-boundaries'),
-	'subject-tracks': jsonTypes('subject-tracks'),
-	'saliency-map': jsonTypes('saliency-map'),
-	'editorial-proposal': jsonTypes('editorial-proposal'),
-	captions: jsonTypes('captions'),
-	'cleanup-proposals': jsonTypes('cleanup-proposals'),
-	'attributed-transcript': jsonTypes('attributed-transcript'),
-	'reaction-ranges': jsonTypes('reaction-ranges'),
-	'text-chunks': jsonTypes('text-chunks'),
-	'transcript-index': jsonTypes('transcript-index'),
-	'beat-labels': jsonTypes('beat-labels'),
-	'tempo-map-diff': jsonTypes('tempo-map-diff'),
-	'cut-proposals': jsonTypes('cut-proposals'),
-	'frame-pack': Object.freeze(['application/vnd.soundscaper.frame-pack']),
-	'video-index': jsonTypes('video-index'),
-	'tracked-subjects': jsonTypes('tracked-subjects'),
-	'reframe-path': jsonTypes('reframe-path'),
-	'highlight-signals': jsonTypes('highlight-signals'),
-	'highlight-candidates': jsonTypes('highlight-candidates'),
-	'highlight-proposals': jsonTypes('highlight-proposals'),
+	...LOCAL_ASSISTANCE_OUTPUT_MEDIA_TYPES,
+	captions: localAssistanceJsonMediaTypes('captions'),
+	'cleanup-proposals': localAssistanceJsonMediaTypes('cleanup-proposals'),
+	'attributed-transcript': localAssistanceJsonMediaTypes('attributed-transcript'),
+	'reaction-ranges': localAssistanceJsonMediaTypes('reaction-ranges'),
+	'text-chunks': localAssistanceJsonMediaTypes('text-chunks'),
+	'transcript-index': localAssistanceJsonMediaTypes('transcript-index'),
+	'beat-labels': localAssistanceJsonMediaTypes('beat-labels'),
+	'tempo-map-diff': localAssistanceJsonMediaTypes('tempo-map-diff'),
+	'cut-proposals': localAssistanceJsonMediaTypes('cut-proposals'),
+	'frame-pack': LOCAL_ASSISTANCE_INPUT_MEDIA_TYPES['frame-pack'],
+	'video-index': localAssistanceJsonMediaTypes('video-index'),
+	'tracked-subjects': localAssistanceJsonMediaTypes('tracked-subjects'),
+	'reframe-path': localAssistanceJsonMediaTypes('reframe-path'),
+	'highlight-signals': localAssistanceJsonMediaTypes('highlight-signals'),
+	'highlight-candidates': localAssistanceJsonMediaTypes('highlight-candidates'),
+	'highlight-proposals': localAssistanceJsonMediaTypes('highlight-proposals'),
 } satisfies Readonly<Record<AssistanceOutputRole, readonly string[]>>);
 
 export function validateAssistanceStagedInputClaim(value: unknown): AssistanceStagedInputClaim {
@@ -279,9 +245,6 @@ function roleMediaType<Role extends string>(
 	return candidate;
 }
 
-function jsonTypes(role: AssistanceInputRole | AssistanceOutputRole): readonly string[] {
-	return Object.freeze(['application/json', `application/vnd.soundscaper.${role}+json`]);
-}
 
 function byteLength(value: unknown, message: string): number {
 	if (!Number.isSafeInteger(value) || Number(value) < 1

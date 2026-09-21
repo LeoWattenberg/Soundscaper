@@ -9,6 +9,11 @@ import {
 	type AssistanceWorkflowInputClaimV1,
 	type AssistanceWorkflowOutputClaimV1,
 } from './workflow.ts';
+import {
+	LOCAL_ASSISTANCE_INPUT_MEDIA_TYPES,
+	LOCAL_ASSISTANCE_OUTPUT_MEDIA_TYPES,
+	localAssistanceJsonMediaTypes,
+} from './local-assistance-media-contract.ts';
 
 export const ASSISTANCE_WORKFLOW_CUSTODY_VERSION = 1;
 
@@ -43,29 +48,22 @@ interface SlotMediaSpec {
 	readonly mediaTypes: readonly string[];
 }
 
-const JSON = (slot: string): readonly string[] => Object.freeze([
-	'application/json', `application/vnd.soundscaper.${slot}+json`,
-]);
-const MATRIX = Object.freeze(['application/vnd.soundscaper.embedding-matrix-v1']);
-const WAVE = Object.freeze(['audio/wav', 'audio/flac']);
-const FRAME_PACK = Object.freeze(['application/vnd.soundscaper.frame-pack']);
-
 const EXTERNAL_INPUT_SPECS = Object.freeze({
-	audio: spec('audio', ['audio/wav', 'audio/x-wav', 'audio/flac']),
-	'voice-activity': spec('voice-activity', JSON('voice-activity')),
-	video: spec('video', ['video/mp4', 'video/quicktime', 'video/webm', 'video/x-matroska']),
-	'video-authority': spec('video-authority', JSON('video-authority')),
-	'frame-pack': spec('frame-pack', FRAME_PACK),
-	transcript: spec('transcript', JSON('transcript')),
-	text: spec('text', ['text/plain']),
-	'editorial-context': spec('editorial-context', JSON('editorial-context')),
-	'shot-boundaries': spec('shot-boundaries', JSON('shot-boundaries')),
+	audio: spec('audio', LOCAL_ASSISTANCE_INPUT_MEDIA_TYPES.audio),
+	'voice-activity': spec('voice-activity', LOCAL_ASSISTANCE_INPUT_MEDIA_TYPES['voice-activity']),
+	video: spec('video', LOCAL_ASSISTANCE_INPUT_MEDIA_TYPES.video),
+	'video-authority': spec('video-authority', localAssistanceJsonMediaTypes('video-authority')),
+	'frame-pack': spec('frame-pack', LOCAL_ASSISTANCE_INPUT_MEDIA_TYPES['frame-pack']),
+	transcript: spec('transcript', LOCAL_ASSISTANCE_INPUT_MEDIA_TYPES.transcript),
+	text: spec('text', LOCAL_ASSISTANCE_INPUT_MEDIA_TYPES.text),
+	'editorial-context': spec('editorial-context', LOCAL_ASSISTANCE_INPUT_MEDIA_TYPES['editorial-context']),
+	'shot-boundaries': spec('shot-boundaries', LOCAL_ASSISTANCE_OUTPUT_MEDIA_TYPES['shot-boundaries']),
 	// Recognised text comes from an optional stage that a required one consumes, so a
 	// workflow that skips OCR supplies it from outside - the same reason shot boundaries
 	// appear here as well as among the outputs.
-	'recognized-text': spec('recognized-text', JSON('recognized-text')),
-	'reaction-ranges': spec('reaction-ranges', JSON('reaction-ranges')),
-	embeddings: spec('embeddings', MATRIX),
+	'recognized-text': spec('recognized-text', LOCAL_ASSISTANCE_OUTPUT_MEDIA_TYPES['recognized-text']),
+	'reaction-ranges': spec('reaction-ranges', localAssistanceJsonMediaTypes('reaction-ranges')),
+	embeddings: spec('embeddings', LOCAL_ASSISTANCE_OUTPUT_MEDIA_TYPES.embeddings),
 });
 
 const HIGHLIGHT_GATHER_INPUT_SPECS = Object.freeze({
@@ -81,40 +79,40 @@ const HIGHLIGHT_GATHER_INPUT_SPECS = Object.freeze({
 });
 
 const OUTPUT_SPECS = Object.freeze({
-	'voice-activity': spec('voice-activity', JSON('voice-activity')),
-	transcript: spec('transcript', JSON('transcript')),
-	'word-alignment': spec('word-alignment', JSON('word-alignment')),
-	captions: spec('captions', JSON('captions')),
-	'cleanup-proposals': spec('cleanup-proposals', JSON('cleanup-proposals')),
-	'speaker-turns': spec('speaker-turns', JSON('speaker-turns')),
-	'attributed-transcript': spec('attributed-transcript', JSON('attributed-transcript')),
-	'enhanced-audio': spec('enhanced-audio', WAVE),
-	'dereverberated-audio': spec('enhanced-audio', WAVE),
-	dialogue: spec('separated-audio', WAVE),
-	music: spec('separated-audio', WAVE),
-	effects: spec('separated-audio', WAVE),
-	'audio-tags': spec('audio-tags', JSON('audio-tags')),
-	'reaction-ranges': spec('reaction-ranges', JSON('reaction-ranges')),
-	'text-chunks': spec('text-chunks', JSON('text-chunks')),
-	embeddings: spec('embeddings', MATRIX),
-	'transcript-index': spec('transcript-index', JSON('transcript-index')),
-	'beat-grid': spec('beat-grid', JSON('beat-grid')),
-	'beat-labels': spec('beat-labels', JSON('beat-labels')),
-	'tempo-map-diff': spec('tempo-map-diff', JSON('tempo-map-diff')),
-	'shot-boundaries': spec('shot-boundaries', JSON('shot-boundaries')),
-	'cut-proposals': spec('cut-proposals', JSON('cut-proposals')),
-	'frame-pack': spec('frame-pack', FRAME_PACK),
-	'visual-embeddings': spec('embeddings', MATRIX),
-	'recognized-text': spec('recognized-text', JSON('recognized-text')),
-	'video-index': spec('video-index', JSON('video-index')),
-	'subject-tracks': spec('subject-tracks', JSON('subject-tracks')),
-	'saliency-map': spec('saliency-map', JSON('saliency-map')),
-	'tracked-subjects': spec('tracked-subjects', JSON('tracked-subjects')),
-	'reframe-path': spec('reframe-path', JSON('reframe-path')),
-	'highlight-signals': spec('highlight-signals', JSON('highlight-signals')),
-	'highlight-candidates': spec('highlight-candidates', JSON('highlight-candidates')),
-	'editorial-proposal': spec('editorial-proposal', JSON('editorial-proposal')),
-	'highlight-proposals': spec('highlight-proposals', JSON('highlight-proposals')),
+	'voice-activity': spec('voice-activity', LOCAL_ASSISTANCE_OUTPUT_MEDIA_TYPES['voice-activity']),
+	transcript: spec('transcript', LOCAL_ASSISTANCE_OUTPUT_MEDIA_TYPES.transcript),
+	'word-alignment': spec('word-alignment', LOCAL_ASSISTANCE_OUTPUT_MEDIA_TYPES['word-alignment']),
+	captions: spec('captions', localAssistanceJsonMediaTypes('captions')),
+	'cleanup-proposals': spec('cleanup-proposals', localAssistanceJsonMediaTypes('cleanup-proposals')),
+	'speaker-turns': spec('speaker-turns', LOCAL_ASSISTANCE_OUTPUT_MEDIA_TYPES['speaker-turns']),
+	'attributed-transcript': spec('attributed-transcript', localAssistanceJsonMediaTypes('attributed-transcript')),
+	'enhanced-audio': spec('enhanced-audio', LOCAL_ASSISTANCE_OUTPUT_MEDIA_TYPES['enhanced-audio']),
+	'dereverberated-audio': spec('enhanced-audio', LOCAL_ASSISTANCE_OUTPUT_MEDIA_TYPES['enhanced-audio']),
+	dialogue: spec('separated-audio', LOCAL_ASSISTANCE_OUTPUT_MEDIA_TYPES['separated-audio']),
+	music: spec('separated-audio', LOCAL_ASSISTANCE_OUTPUT_MEDIA_TYPES['separated-audio']),
+	effects: spec('separated-audio', LOCAL_ASSISTANCE_OUTPUT_MEDIA_TYPES['separated-audio']),
+	'audio-tags': spec('audio-tags', LOCAL_ASSISTANCE_OUTPUT_MEDIA_TYPES['audio-tags']),
+	'reaction-ranges': spec('reaction-ranges', localAssistanceJsonMediaTypes('reaction-ranges')),
+	'text-chunks': spec('text-chunks', localAssistanceJsonMediaTypes('text-chunks')),
+	embeddings: spec('embeddings', LOCAL_ASSISTANCE_OUTPUT_MEDIA_TYPES.embeddings),
+	'transcript-index': spec('transcript-index', localAssistanceJsonMediaTypes('transcript-index')),
+	'beat-grid': spec('beat-grid', LOCAL_ASSISTANCE_OUTPUT_MEDIA_TYPES['beat-grid']),
+	'beat-labels': spec('beat-labels', localAssistanceJsonMediaTypes('beat-labels')),
+	'tempo-map-diff': spec('tempo-map-diff', localAssistanceJsonMediaTypes('tempo-map-diff')),
+	'shot-boundaries': spec('shot-boundaries', LOCAL_ASSISTANCE_OUTPUT_MEDIA_TYPES['shot-boundaries']),
+	'cut-proposals': spec('cut-proposals', localAssistanceJsonMediaTypes('cut-proposals')),
+	'frame-pack': spec('frame-pack', LOCAL_ASSISTANCE_INPUT_MEDIA_TYPES['frame-pack']),
+	'visual-embeddings': spec('embeddings', LOCAL_ASSISTANCE_OUTPUT_MEDIA_TYPES.embeddings),
+	'recognized-text': spec('recognized-text', LOCAL_ASSISTANCE_OUTPUT_MEDIA_TYPES['recognized-text']),
+	'video-index': spec('video-index', localAssistanceJsonMediaTypes('video-index')),
+	'subject-tracks': spec('subject-tracks', LOCAL_ASSISTANCE_OUTPUT_MEDIA_TYPES['subject-tracks']),
+	'saliency-map': spec('saliency-map', LOCAL_ASSISTANCE_OUTPUT_MEDIA_TYPES['saliency-map']),
+	'tracked-subjects': spec('tracked-subjects', localAssistanceJsonMediaTypes('tracked-subjects')),
+	'reframe-path': spec('reframe-path', localAssistanceJsonMediaTypes('reframe-path')),
+	'highlight-signals': spec('highlight-signals', localAssistanceJsonMediaTypes('highlight-signals')),
+	'highlight-candidates': spec('highlight-candidates', localAssistanceJsonMediaTypes('highlight-candidates')),
+	'editorial-proposal': spec('editorial-proposal', LOCAL_ASSISTANCE_OUTPUT_MEDIA_TYPES['editorial-proposal']),
+	'highlight-proposals': spec('highlight-proposals', localAssistanceJsonMediaTypes('highlight-proposals')),
 });
 
 const CLAIM_KEYS = Object.freeze([

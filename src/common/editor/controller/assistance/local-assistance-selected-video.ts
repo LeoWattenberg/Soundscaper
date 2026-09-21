@@ -7,6 +7,11 @@ import {
 	type AssistanceOperation,
 } from '../../assistance/operation.ts';
 import {
+	isLocalAssistanceMediaType,
+	LOCAL_ASSISTANCE_INPUT_MEDIA_TYPES,
+	LOCAL_ASSISTANCE_OUTPUT_MEDIA_TYPES,
+} from '../../assistance/local-assistance-media-contract.ts';
+import {
 	validateAssistanceSelectionFence,
 	type AssistanceSelectionFence,
 } from '../../assistance/proposal-session.ts';
@@ -60,15 +65,9 @@ import {
 } from '../export/video-export-original-loader.ts';
 const HARD_MAXIMUM_INPUT_BYTES = 8 * 1024 * 1024 * 1024;
 const MAXIMUM_OUTPUT_BYTES = 64 * 1024 * 1024;
-const SHOT_BOUNDARIES_MEDIA_TYPE = 'application/vnd.soundscaper.shot-boundaries+json';
+const SHOT_BOUNDARIES_MEDIA_TYPE = LOCAL_ASSISTANCE_OUTPUT_MEDIA_TYPES['shot-boundaries'][1];
 const SHA256 = /^[a-f\d]{64}$/u;
 const UTF8 = new TextEncoder();
-const VIDEO_MEDIA_TYPES = new Set([
-	'video/mp4',
-	'video/quicktime',
-	'video/webm',
-	'video/x-matroska',
-]);
 const SELECTED_VIDEO_MODEL_OPERATIONS = new Set<LocalAssistanceSelectedVideoModelOperation>([
 	'image-text-embedding', 'optical-character-recognition', 'subject-detection', 'saliency-detection',
 ]);
@@ -558,7 +557,7 @@ function inputBound(value: unknown): number {
 }
 
 function videoMediaType(value: unknown): string {
-	if (typeof value !== 'string' || !VIDEO_MEDIA_TYPES.has(value)) {
+	if (!isLocalAssistanceMediaType(LOCAL_ASSISTANCE_INPUT_MEDIA_TYPES.video, value)) {
 		throw new TypeError('The selected video source MIME type is unsupported.');
 	}
 	return value;
