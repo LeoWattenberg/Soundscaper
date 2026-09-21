@@ -154,15 +154,21 @@ test('a build result binds installed payloads, closed dependencies, and passing 
 				? ['libowned.so', 'libc.so.6'] : ['libc.so.6']);
 		},
 		runSelfTest: async (request) => {
-			selfTests.push({ id: request.id, expectedStatus: request.expectedStatus });
+			selfTests.push(request);
 			return { status: request.expectedStatus, stdout: `${request.id} passed\n`, stderr: '' };
 		},
 	});
-	assert.deepEqual(selfTests, [
+	assert.deepEqual(selfTests.map(({ id, expectedStatus }) => ({ id, expectedStatus })), [
 		{ id: 'm5f2-malformed-frame', expectedStatus: 125 },
+		{ id: 'm5a1-malformed-frame', expectedStatus: 125 },
 		{ id: 'delivery-filesystem-protocol', expectedStatus: 0 },
 		{ id: 'launcher-refusal', expectedStatus: 125 },
 	]);
+	const m5f2 = selfTests.find(({ id }) => id === 'm5f2-malformed-frame');
+	const m5a1 = selfTests.find(({ id }) => id === 'm5a1-malformed-frame');
+	assert.equal(m5a1.command, m5f2.command);
+	assert.deepEqual(m5a1.args, ['--vamp-analyzer']);
+	assert.deepEqual([...m5a1.input], [0]);
 	assert.equal(candidate.receipt.kind, 'soundscaper-professional-native-build-result');
 	assert.equal(candidate.receipt.target, 'linux-x64');
 	assert.deepEqual(candidate.receipt.isolation.runtimeClosure.map(({ path }) => path), [
@@ -471,7 +477,7 @@ function fixtureToolchainReceipt(target) {
 
 function buildSelfTests(target) {
 	const candidateExecuted = new Set([
-		'm5f2-malformed-frame', 'launcher-refusal',
+		'm5f2-malformed-frame', 'm5a1-malformed-frame', 'launcher-refusal',
 		'delivery-filesystem-protocol',
 		'closure-recursive-inspection', 'closure-symlink-refusal',
 		'closure-ambient-dependency-refusal', 'closure-rpath-refusal',

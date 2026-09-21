@@ -375,6 +375,10 @@ async function executeInstalledSelfTests({ target, copied, root, runSelfTest }) 
 			args: [], input: Buffer.from([0]), expectedStatus: 125,
 		},
 		{
+			id: 'm5a1-malformed-frame', command: resolveBuildResultPath(root, copied.pluginPeer.path),
+			args: ['--vamp-analyzer'], input: Buffer.from([0]), expectedStatus: 125,
+		},
+		{
 			id: 'delivery-filesystem-protocol', command: process.execPath,
 			args: [resolve(import.meta.dirname, '..', 'self-test-soundscaper-delivery-fs.mjs'),
 				resolveBuildResultPath(root, copied.deliveryFilesystem.path), target],
