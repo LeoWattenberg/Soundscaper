@@ -90,9 +90,10 @@ test.describe('Audacity project worker client workflows', () => {
 			mimeType: 'application/x-audacity-project',
 			buffer: Buffer.from('This is not a SQLite project.'),
 		});
-		const status = editor.locator('[data-status]');
-		await expect(status).toHaveAttribute('data-state', 'error', { timeout: 30_000 });
-		await expect(status).not.toBeEmpty();
+		const errorToast = editor.locator('[data-editor-toast="workspace-error"]');
+		await expect(errorToast).toBeVisible({ timeout: 30_000 });
+		await expect(errorToast.locator('.toast')).toHaveClass(/toast--error/);
+		await expect(errorToast.locator('.toast__description')).not.toBeEmpty();
 		await expect(editor).toHaveAttribute('data-project-id', originalProject);
 		await expect.poll(() => responseLog(page)).toEqual(expect.arrayContaining([
 			expect.objectContaining({ requestType: 'open-file', kind: 'error' }),
@@ -105,7 +106,8 @@ test.describe('Audacity project worker client workflows', () => {
 			mimeType: 'application/x-audacity-project',
 			buffer: Buffer.from(aup4NativeRichFixture()),
 		});
-		await expect(status).toContainText('Audacity project opened', { timeout: 30_000 });
+		await expect(editor.locator('[data-status]')).toContainText('Audacity project opened', { timeout: 30_000 });
+		await expect(errorToast).toHaveCount(0);
 		await expect(editor).toHaveAttribute('data-track-count', '2');
 		await expect(editor).toHaveAttribute('data-clip-count', '5');
 		await expect.poll(() => requestTypes(page).then((types) => (
@@ -124,6 +126,7 @@ test.describe('Audacity project worker client workflows', () => {
 		await installAup4BrowserProbe(page);
 		const editor = await bootEditor(page, '/embed/en/');
 		const status = editor.locator('[data-status]');
+		const errorToast = editor.locator('[data-editor-toast="workspace-error"]');
 
 		await page.evaluate(() => { globalThis.__aup4BrowserProbe.cancelPicker = true; });
 		await chooseNestedCommandAction(page, editor, 'File', ['Export other', 'Export AUP4']);
@@ -135,7 +138,9 @@ test.describe('Audacity project worker client workflows', () => {
 			globalThis.__aup4BrowserProbe.failWrite = true;
 		});
 		await chooseNestedCommandAction(page, editor, 'File', ['Export other', 'Export AUP4']);
-		await expect(status).toHaveAttribute('data-state', 'error', { timeout: 30_000 });
+		await expect(errorToast).toBeVisible({ timeout: 30_000 });
+		await expect(errorToast.locator('.toast')).toHaveClass(/toast--error/);
+		await expect(errorToast.locator('.toast__description')).not.toBeEmpty();
 		await expect.poll(() => page.evaluate(() => globalThis.__aup4BrowserProbe.abortCalls)).toBe(1);
 		await expect.poll(() => requestTypes(page).then((types) => (
 			types.filter((type) => type === 'delete').length
@@ -144,6 +149,7 @@ test.describe('Audacity project worker client workflows', () => {
 		await page.evaluate(() => { globalThis.__aup4BrowserProbe.failWrite = false; });
 		await chooseNestedCommandAction(page, editor, 'File', ['Export other', 'Export AUP4']);
 		await expect(status).toContainText('Audacity interchange file exported.', { timeout: 30_000 });
+		await expect(errorToast).toHaveCount(0);
 		await expect.poll(() => page.evaluate(() => globalThis.__aup4BrowserProbe.closeCalls)).toBe(1);
 		await expect.poll(() => requestTypes(page).then((types) => (
 			types.filter((type) => type === 'delete').length

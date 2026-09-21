@@ -56,18 +56,21 @@ test('keeps a complete import error readable and permits opening another AUP3', 
 	await editor.locator('[data-aup4-input]').setInputFiles({
 		name: 'unsupported.aup3', mimeType: 'application/x-audacity-project', buffer: Buffer.from(invalid),
 	});
-	const status = editor.locator('[data-status]');
-	await expect(status).toHaveAttribute('data-state', 'error', { timeout: 30_000 });
-	await expect(status).toContainText(`Unexpected SQLite schema object: table ${table}.`);
+	const errorToast = editor.locator('[data-editor-toast="workspace-error"]');
+	await expect(errorToast).toBeVisible({ timeout: 30_000 });
+	await expect(errorToast.locator('.toast')).toHaveClass(/toast--error/);
+	const description = errorToast.locator('.toast__description');
+	await expect(description).toContainText(`Unexpected SQLite schema object: table ${table}.`);
 	await expect(editor).toHaveAttribute('data-project-id', originalProject);
-	await expect(status).toHaveCSS('white-space', 'pre-wrap');
-	expect(await status.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
-	await status.focus();
-	await expect(status).toBeFocused();
-	await expect(status).toHaveAttribute('title', await status.textContent());
+	await expect(description).toHaveCSS('overflow-wrap', 'anywhere');
+	expect(await description.evaluate((element) => element.scrollWidth <= element.clientWidth)).toBe(true);
+	const dismiss = errorToast.locator('.kw-audio-editor__toast-close');
+	await dismiss.focus();
+	await expect(dismiss).toBeFocused();
 	await editor.locator('[data-aup4-input]').setInputFiles({
 		name: 'valid.aup3', mimeType: 'application/x-audacity-project', buffer: Buffer.from(bytes),
 	});
-	await expect(status).toContainText('Audacity project opened', { timeout: 30_000 });
+	await expect(editor.locator('[data-status]')).toContainText('Audacity project opened', { timeout: 30_000 });
+	await expect(errorToast).toHaveCount(0);
 	await expect(editor).toHaveAttribute('data-clip-count', '1');
 });
