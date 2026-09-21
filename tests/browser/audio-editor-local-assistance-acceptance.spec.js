@@ -35,7 +35,7 @@ test.describe('Local Assistance result acceptance', () => {
 		await stubStorageEstimate(page, { usage: 1024 ** 2, quota: 2 * 1024 ** 3 });
 		await installMilestone7LocalAssistanceFixture(page);
 		const errors = collectClientErrors(page);
-		const editor = await bootEditor(page, '/soundscaper/en/');
+		const editor = await bootEditor(page, '/en/');
 		await importFiles(editor, [AUDIO], { timeout: 30_000 });
 		await expect(editor).toHaveAttribute('data-clip-count', '1');
 		const projectId = await editor.getAttribute('data-project-id');
