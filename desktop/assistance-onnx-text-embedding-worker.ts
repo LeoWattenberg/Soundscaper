@@ -2,8 +2,7 @@
 
 /** Authenticated CPU ONNX execution for pinned nomic transcript/query embeddings. */
 
-import { createHash } from 'node:crypto';
-import { readFile, writeFile } from 'node:fs/promises';
+import { readFile } from 'node:fs/promises';
 
 import {
 	createAssistanceEmbeddingMatrixV1,
@@ -18,10 +17,14 @@ import {
 } from '../src/common/editor/assistance/transcript-indexing-v1.ts';
 import type { AssistanceTranscript } from '../src/common/editor/assistance/transcript.ts';
 import type {
-	AssistanceOnnxInferenceSessionV1,
 	AssistanceOnnxRuntimeModuleV1,
 	AssistanceOnnxTensorV1,
 } from './assistance-onnx-runtime-worker.ts';
+import {
+	createAssistanceOnnxCpuSessionV1,
+	publishAssistanceOnnxOutputV1,
+	reviewAssistanceOnnxRuntimeModuleV1,
+} from './assistance-onnx-worker-common.ts';
 import type {
 	AssistanceRuntimeFamilyModelGrantV1,
 } from './assistance-runtime-family-job-contract.ts';
@@ -49,6 +52,14 @@ const MAXIMUM_BATCH_ROWS = 8;
 const MAXIMUM_SEQUENCE_TOKENS = 258;
 const LAYER_NORM_EPSILON = 1e-5;
 const L2_NORMALIZE_EPSILON = 1e-12;
+const NOMIC_RUNTIME_ERRORS = Object.freeze({
+	value: 'The nomic ONNX runtime is invalid.',
+	surface: 'The nomic ONNX runtime surface is invalid.',
+});
+const NOMIC_SESSION_ERRORS = Object.freeze({
+	value: 'The nomic ONNX inference session surface is invalid.',
+	surface: 'The nomic ONNX inference session surface is invalid.',
+});
 
 export function createAssistanceOnnxTextEmbeddingWorkerAdapterV1(
 	loadRuntime: RuntimeLoader,
@@ -81,8 +92,12 @@ async function executeNomicTextEmbedding(
 		? transcriptRows(inputBytes, tokenizer)
 		: queryRows(inputBytes, tokenizer);
 	context.signal?.throwIfAborted();
-	const runtime = runtimeValue(await loadRuntime(context.job.descriptor.entrypoint));
-	const session = await createCpuSession(runtime, models.model_quantized.path);
+	const runtime = reviewAssistanceOnnxRuntimeModuleV1(
+		await loadRuntime(context.job.descriptor.entrypoint), NOMIC_RUNTIME_ERRORS,
+	);
+	const session = await createAssistanceOnnxCpuSessionV1(
+		runtime, models.model_quantized.path, NOMIC_SESSION_ERRORS,
+	);
 	const vectors: Float32Array[] = [];
 	const batchCount = Math.ceil(rows.length / MAXIMUM_BATCH_ROWS);
 	try {
@@ -289,32 +304,6 @@ function layerNormalizeAndL2(value: Float64Array): Float32Array {
 	return result;
 }
 
-async function createCpuSession(
-	runtime: AssistanceOnnxRuntimeModuleV1,
-	modelPath: string,
-): Promise<AssistanceOnnxInferenceSessionV1> {
-	const session = await runtime.InferenceSession.create(modelPath, {
-		executionProviders: ['cpu'], graphOptimizationLevel: 'all',
-		interOpNumThreads: 1, intraOpNumThreads: 4,
-	});
-	if (!session || typeof session !== 'object' || !Array.isArray(session.inputNames)
-		|| !Array.isArray(session.outputNames) || typeof session.run !== 'function'
-		|| session.release !== undefined && typeof session.release !== 'function') {
-		throw new TypeError('The nomic ONNX inference session surface is invalid.');
-	}
-	return session;
-}
-
-function runtimeValue(value: unknown): AssistanceOnnxRuntimeModuleV1 {
-	if (!value || typeof value !== 'object') throw new TypeError('The nomic ONNX runtime is invalid.');
-	const candidate = value as Partial<AssistanceOnnxRuntimeModuleV1>;
-	if (typeof candidate.Tensor !== 'function' || !candidate.InferenceSession
-		|| typeof candidate.InferenceSession.create !== 'function') {
-		throw new TypeError('The nomic ONNX runtime surface is invalid.');
-	}
-	return candidate as AssistanceOnnxRuntimeModuleV1;
-}
-
 function assertExactNames(actual: readonly string[], expected: readonly string[], kind: string): void {
 	if (JSON.stringify([...actual].sort()) !== JSON.stringify([...expected].sort())) {
 		throw new TypeError(`The nomic ONNX graph ${kind} signature is invalid.`);
@@ -335,26 +324,9 @@ async function publishEmbeddings(
 	context: AssistanceRuntimeFamilyWorkerExecutionContext,
 	vectors: readonly Float32Array[],
 ): Promise<unknown> {
-	context.signal?.throwIfAborted();
-	const body = createAssistanceEmbeddingMatrixV1({
+	return publishAssistanceOnnxOutputV1(context, () => createAssistanceEmbeddingMatrixV1({
 		dimensions: ASSISTANCE_NOMIC_EMBEDDING_DIMENSIONS, vectors,
-	});
-	const output = context.grant.outputs[0]!;
-	if (body.byteLength < 1 || body.byteLength > output.maximumByteLength) {
-		throw new RangeError('The nomic embedding matrix exceeds its authenticated reservation.');
-	}
-	await writeFile(output.path, body);
-	context.signal?.throwIfAborted();
-	context.onProgress(1);
-	return Object.freeze({
-		resultVersion: 1, jobId: context.grant.jobId,
-		familyId: context.grant.familyId, task: context.grant.task,
-		outputs: Object.freeze([Object.freeze({
-			claimId: output.claimId, role: output.role, mediaType: output.mediaType,
-			byteLength: body.byteLength,
-			sha256: createHash('sha256').update(body).digest('hex'),
-		})]),
-	});
+	}), 'The nomic embedding matrix exceeds its authenticated reservation.');
 }
 
 function parseJson(bytes: Uint8Array, label: string): unknown {

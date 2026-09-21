@@ -29,10 +29,13 @@ import {
 	type TigerDnrStreamingOverlapV1,
 } from '../src/common/editor/assistance/tiger-dnr-streaming-overlap-v1.ts';
 import type {
-	AssistanceOnnxInferenceSessionV1,
 	AssistanceOnnxRuntimeModuleV1,
 	AssistanceOnnxTensorV1,
 } from './assistance-onnx-runtime-worker.ts';
+import {
+	createAssistanceOnnxCpuSessionV1,
+	reviewAssistanceOnnxRuntimeModuleV1,
+} from './assistance-onnx-worker-common.ts';
 import type {
 	AssistanceRuntimeFamilyWorkerExecutionContext,
 } from './assistance-runtime-family-worker-entry.ts';
@@ -68,6 +71,10 @@ const CONFIG_FIELDS = Object.freeze([
 	'erb_bands', 'fft_bins', 'fft_size', 'hop_size', 'library_name',
 	'min_nb_erb_freqs', 'model_type', 'norm_tau', 'normalization_alpha', 'sample_rate',
 ]);
+const ENHANCEMENT_RUNTIME_ERRORS = Object.freeze({
+	value: 'The enhancement ONNX runtime is invalid.',
+	surface: 'The enhancement ONNX runtime surface is invalid.',
+});
 export const ASSISTANCE_DEEPFILTER_STREAM_CHUNK_FRAMES = 4
 	* ASSISTANCE_DEEPFILTER_SAMPLE_RATE;
 export const ASSISTANCE_DEEPFILTER_STREAM_CONTEXT_FRAMES = ASSISTANCE_DEEPFILTER_SAMPLE_RATE;
@@ -171,8 +178,15 @@ async function executeDeepFilterNet3(
 	try {
 		sink = await options.waveStorage.openSink(output, source.geometry, context.signal);
 		context.signal?.throwIfAborted();
-		const runtime = runtimeValue(await loadRuntime(context.job.descriptor.entrypoint));
-		const session = await createCpuSession(runtime, models.network.path, 'DeepFilterNet3');
+		const runtime = reviewAssistanceOnnxRuntimeModuleV1(
+			await loadRuntime(context.job.descriptor.entrypoint), ENHANCEMENT_RUNTIME_ERRORS,
+		);
+		const session = await createAssistanceOnnxCpuSessionV1(
+			runtime, models.network.path, {
+				value: 'The DeepFilterNet3 ONNX inference session surface is invalid.',
+				surface: 'The DeepFilterNet3 ONNX inference session surface is invalid.',
+			},
+		);
 		try {
 			assertExactNames(session.inputNames, DEEPFILTER_INPUT_NAMES, 'input', 'DeepFilterNet3');
 			assertExactNames(session.outputNames, DEEPFILTER_OUTPUT_NAMES, 'output', 'DeepFilterNet3');
@@ -262,8 +276,15 @@ async function executeTigerDnr(
 			sinks.push(await waveStorage.openSink(output, source.geometry, context.signal));
 		}
 		context.signal?.throwIfAborted();
-		const runtime = runtimeValue(await loadRuntime(context.job.descriptor.entrypoint));
-		const session = await createCpuSession(runtime, grant.models[0].path, 'TIGER-DnR');
+		const runtime = reviewAssistanceOnnxRuntimeModuleV1(
+			await loadRuntime(context.job.descriptor.entrypoint), ENHANCEMENT_RUNTIME_ERRORS,
+		);
+		const session = await createAssistanceOnnxCpuSessionV1(
+			runtime, grant.models[0].path, {
+				value: 'The TIGER-DnR ONNX inference session surface is invalid.',
+				surface: 'The TIGER-DnR ONNX inference session surface is invalid.',
+			},
+		);
 		try {
 			assertExactNames(session.inputNames, TIGER_INPUT_NAMES, 'input', 'TIGER-DnR');
 			assertExactNames(session.outputNames, TIGER_OUTPUT_NAMES, 'output', 'TIGER-DnR');
@@ -482,33 +503,6 @@ function assertSettings(
 		|| JSON.stringify(settings.outputRoles) !== JSON.stringify(outputRoles)) {
 		throw new TypeError(`The ${operation} settings do not bind one exact audio workflow.`);
 	}
-}
-
-async function createCpuSession(
-	runtime: AssistanceOnnxRuntimeModuleV1,
-	modelPath: string,
-	label: string,
-): Promise<AssistanceOnnxInferenceSessionV1> {
-	const session = await runtime.InferenceSession.create(modelPath, {
-		executionProviders: ['cpu'], graphOptimizationLevel: 'all',
-		interOpNumThreads: 1, intraOpNumThreads: 4,
-	});
-	if (!session || typeof session !== 'object' || !Array.isArray(session.inputNames)
-		|| !Array.isArray(session.outputNames) || typeof session.run !== 'function'
-		|| session.release !== undefined && typeof session.release !== 'function') {
-		throw new TypeError(`The ${label} ONNX inference session surface is invalid.`);
-	}
-	return session;
-}
-
-function runtimeValue(value: unknown): AssistanceOnnxRuntimeModuleV1 {
-	if (!value || typeof value !== 'object') throw new TypeError('The enhancement ONNX runtime is invalid.');
-	const candidate = value as Partial<AssistanceOnnxRuntimeModuleV1>;
-	if (typeof candidate.Tensor !== 'function' || !candidate.InferenceSession
-		|| typeof candidate.InferenceSession.create !== 'function') {
-		throw new TypeError('The enhancement ONNX runtime surface is invalid.');
-	}
-	return candidate as AssistanceOnnxRuntimeModuleV1;
 }
 
 function exactOutputs(

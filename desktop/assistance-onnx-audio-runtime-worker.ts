@@ -2,9 +2,6 @@
 
 /** Reviewed CPU ONNX adapters for PANNs Cnn10 and Beat This v1.1.0. */
 
-import { createHash } from 'node:crypto';
-import { writeFile } from 'node:fs/promises';
-
 import {
 	ASSISTANCE_BEAT_THIS_FRAMES_PER_SECOND,
 	createAssistanceBeatThisGridV1,
@@ -28,10 +25,14 @@ import {
 	type AssistanceAudioTagWindowV1,
 } from '../src/common/editor/assistance/m7-semantic-results.ts';
 import type {
-	AssistanceOnnxInferenceSessionV1,
 	AssistanceOnnxRuntimeModuleV1,
 	AssistanceOnnxTensorV1,
 } from './assistance-onnx-runtime-worker.ts';
+import {
+	createAssistanceOnnxCpuSessionV1,
+	publishAssistanceOnnxOutputV1,
+	reviewAssistanceOnnxRuntimeModuleV1,
+} from './assistance-onnx-worker-common.ts';
 import type {
 	AssistanceRuntimeFamilyWorkerExecutionContext,
 } from './assistance-runtime-family-worker-entry.ts';
@@ -72,6 +73,14 @@ const BEAT_CHUNK_FRAMES = 1_500;
 const BEAT_BORDER_FRAMES = 6;
 const BEAT_CHUNK_STEP = BEAT_CHUNK_FRAMES - 2 * BEAT_BORDER_FRAMES;
 const BEAT_MODEL_IDS = new Set(['beat-this-small0', 'beat-this-final0']);
+const AUDIO_RUNTIME_ERRORS = Object.freeze({
+	value: 'The ONNX audio runtime is invalid.',
+	surface: 'The ONNX audio runtime surface is invalid.',
+});
+const AUDIO_SESSION_ERRORS = Object.freeze({
+	value: 'The ONNX audio inference session surface is invalid.',
+	surface: 'The ONNX audio inference session surface is invalid.',
+});
 
 /**
  * Exact zero-based rows from the pinned AudioSet map at revision
@@ -141,8 +150,12 @@ async function executePanns(
 			throw new RangeError('PANNs Cnn10 audio exceeds the one-second window capacity.');
 		}
 		context.signal?.throwIfAborted();
-		const runtime = runtimeValue(await loadRuntime(context.job.descriptor.entrypoint));
-		const session = await createCpuSession(runtime, grant.models[0]!.path);
+		const runtime = reviewAssistanceOnnxRuntimeModuleV1(
+			await loadRuntime(context.job.descriptor.entrypoint), AUDIO_RUNTIME_ERRORS,
+		);
+		const session = await createAssistanceOnnxCpuSessionV1(
+			runtime, grant.models[0]!.path, AUDIO_SESSION_ERRORS,
+		);
 		try {
 			assertExactNames(session.inputNames, PANNS_INPUT_NAMES, 'PANNs Cnn10 input');
 			assertExactNames(session.outputNames, PANNS_OUTPUT_NAMES, 'PANNs Cnn10 output');
@@ -211,8 +224,12 @@ async function executeBeatThis(
 		const frameCount = Math.floor(wave.sampleCount / ASSISTANCE_BEAT_THIS_HOP_SAMPLES) + 1;
 		const starts = beatChunkStarts(frameCount);
 		context.signal?.throwIfAborted();
-		const runtime = runtimeValue(await loadRuntime(context.job.descriptor.entrypoint));
-		const session = await createCpuSession(runtime, model.path);
+		const runtime = reviewAssistanceOnnxRuntimeModuleV1(
+			await loadRuntime(context.job.descriptor.entrypoint), AUDIO_RUNTIME_ERRORS,
+		);
+		const session = await createAssistanceOnnxCpuSessionV1(
+			runtime, model.path, AUDIO_SESSION_ERRORS,
+		);
 		try {
 			assertExactNames(session.inputNames, BEAT_INPUT_NAMES, 'Beat This input');
 			assertExactNames(session.outputNames, BEAT_OUTPUT_NAMES, 'Beat This output');
@@ -279,32 +296,6 @@ function assertSettings(
 		|| JSON.stringify(settings.outputRoles) !== JSON.stringify([outputRole])) {
 		throw new TypeError(`The ${operation} settings do not bind one exact audio workflow.`);
 	}
-}
-
-async function createCpuSession(
-	runtime: AssistanceOnnxRuntimeModuleV1,
-	modelPath: string,
-): Promise<AssistanceOnnxInferenceSessionV1> {
-	const value = await runtime.InferenceSession.create(modelPath, {
-		executionProviders: ['cpu'], graphOptimizationLevel: 'all',
-		interOpNumThreads: 1, intraOpNumThreads: 4,
-	});
-	if (!value || typeof value !== 'object' || !Array.isArray(value.inputNames)
-		|| !Array.isArray(value.outputNames) || typeof value.run !== 'function'
-		|| value.release !== undefined && typeof value.release !== 'function') {
-		throw new TypeError('The ONNX audio inference session surface is invalid.');
-	}
-	return value;
-}
-
-function runtimeValue(value: unknown): AssistanceOnnxRuntimeModuleV1 {
-	if (!value || typeof value !== 'object') throw new TypeError('The ONNX audio runtime is invalid.');
-	const candidate = value as Partial<AssistanceOnnxRuntimeModuleV1>;
-	if (typeof candidate.Tensor !== 'function' || !candidate.InferenceSession
-		|| typeof candidate.InferenceSession.create !== 'function') {
-		throw new TypeError('The ONNX audio runtime surface is invalid.');
-	}
-	return candidate as AssistanceOnnxRuntimeModuleV1;
 }
 
 function assertExactNames(actual: readonly string[], expected: readonly string[], label: string): void {
@@ -414,22 +405,7 @@ async function publishJson(
 	context: AssistanceRuntimeFamilyWorkerExecutionContext,
 	result: unknown,
 ): Promise<unknown> {
-	context.signal?.throwIfAborted();
-	const body = Buffer.from(JSON.stringify(result), 'utf8');
-	const reservation = context.grant.outputs[0]!;
-	if (body.byteLength < 1 || body.byteLength > reservation.maximumByteLength) {
-		throw new RangeError('The ONNX audio result exceeds its authenticated output reservation.');
-	}
-	await writeFile(reservation.path, body);
-	context.signal?.throwIfAborted();
-	context.onProgress(1);
-	return Object.freeze({
-		resultVersion: 1, jobId: context.grant.jobId,
-		familyId: context.grant.familyId, task: context.grant.task,
-		outputs: Object.freeze([Object.freeze({
-			claimId: reservation.claimId, role: reservation.role,
-			mediaType: reservation.mediaType, byteLength: body.byteLength,
-			sha256: createHash('sha256').update(body).digest('hex'),
-		})]),
-	});
+	return publishAssistanceOnnxOutputV1(context,
+		() => Buffer.from(JSON.stringify(result), 'utf8'),
+		'The ONNX audio result exceeds its authenticated output reservation.');
 }

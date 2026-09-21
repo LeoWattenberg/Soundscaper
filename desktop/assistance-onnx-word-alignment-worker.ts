@@ -2,8 +2,7 @@
 
 /** Authenticated CPU ONNX execution for English wav2vec2 CTC word alignment. */
 
-import { createHash } from 'node:crypto';
-import { readFile, writeFile } from 'node:fs/promises';
+import { readFile } from 'node:fs/promises';
 
 import {
 	alignAssistanceCtcWordsV1,
@@ -24,10 +23,14 @@ import {
 	tokenizeAssistanceWav2Vec2EnglishWordV1,
 } from '../src/common/editor/assistance/wav2vec2-english-tokenizer-v1.ts';
 import type {
-	AssistanceOnnxInferenceSessionV1,
 	AssistanceOnnxRuntimeModuleV1,
 	AssistanceOnnxTensorV1,
 } from './assistance-onnx-runtime-worker.ts';
+import {
+	createAssistanceOnnxCpuSessionV1,
+	publishAssistanceOnnxOutputV1,
+	reviewAssistanceOnnxRuntimeModuleV1,
+} from './assistance-onnx-worker-common.ts';
 import type { AssistanceRuntimeFamilyWorkerExecutionContext } from
 	'./assistance-runtime-family-worker-entry.ts';
 
@@ -48,6 +51,14 @@ const MAXIMUM_WORDS = 100_000;
 const MINIMUM_SEGMENT_SAMPLES = 400;
 const MAXIMUM_SEGMENT_SAMPLES = 60 * ASSISTANCE_ALIGNMENT_SAMPLE_RATE;
 const NORMALIZATION_EPSILON = 1e-7;
+const WAV2VEC2_RUNTIME_ERRORS = Object.freeze({
+	value: 'The wav2vec2 ONNX runtime is invalid.',
+	surface: 'The wav2vec2 ONNX runtime surface is invalid.',
+});
+const WAV2VEC2_SESSION_ERRORS = Object.freeze({
+	value: 'The wav2vec2 ONNX inference session surface is invalid.',
+	surface: 'The wav2vec2 ONNX inference session surface is invalid.',
+});
 
 interface AlignmentSegment {
 	readonly startSample: number;
@@ -96,9 +107,13 @@ async function executeWav2Vec2Alignment(
 			schemaVersion: 1, sampleRate: ASSISTANCE_ALIGNMENT_SAMPLE_RATE, words: [],
 		}));
 	}
-	const runtime = runtimeValue(await loadRuntime(context.job.descriptor.entrypoint));
+	const runtime = reviewAssistanceOnnxRuntimeModuleV1(
+		await loadRuntime(context.job.descriptor.entrypoint), WAV2VEC2_RUNTIME_ERRORS,
+	);
 	context.signal?.throwIfAborted();
-	const session = await createCpuSession(runtime, model.path);
+	const session = await createAssistanceOnnxCpuSessionV1(
+		runtime, model.path, WAV2VEC2_SESSION_ERRORS,
+	);
 	try {
 		assertExactNames(session.inputNames, INPUT_NAMES, 'input');
 		assertExactNames(session.outputNames, OUTPUT_NAMES, 'output');
@@ -272,32 +287,6 @@ function assertSettings(context: AssistanceRuntimeFamilyWorkerExecutionContext):
 	}
 }
 
-async function createCpuSession(
-	runtime: AssistanceOnnxRuntimeModuleV1,
-	modelPath: string,
-): Promise<AssistanceOnnxInferenceSessionV1> {
-	const session = await runtime.InferenceSession.create(modelPath, {
-		executionProviders: ['cpu'], graphOptimizationLevel: 'all',
-		interOpNumThreads: 1, intraOpNumThreads: 4,
-	});
-	if (!session || typeof session !== 'object' || !Array.isArray(session.inputNames)
-		|| !Array.isArray(session.outputNames) || typeof session.run !== 'function'
-		|| session.release !== undefined && typeof session.release !== 'function') {
-		throw new TypeError('The wav2vec2 ONNX inference session surface is invalid.');
-	}
-	return session;
-}
-
-function runtimeValue(value: unknown): AssistanceOnnxRuntimeModuleV1 {
-	if (!value || typeof value !== 'object') throw new TypeError('The wav2vec2 ONNX runtime is invalid.');
-	const candidate = value as Partial<AssistanceOnnxRuntimeModuleV1>;
-	if (typeof candidate.Tensor !== 'function' || !candidate.InferenceSession
-		|| typeof candidate.InferenceSession.create !== 'function') {
-		throw new TypeError('The wav2vec2 ONNX runtime surface is invalid.');
-	}
-	return candidate as AssistanceOnnxRuntimeModuleV1;
-}
-
 function exactOutputs(
 	value: Readonly<Record<string, AssistanceOnnxTensorV1>>,
 ): Readonly<Record<string, AssistanceOnnxTensorV1>> {
@@ -318,24 +307,9 @@ async function publishJson(
 	context: AssistanceRuntimeFamilyWorkerExecutionContext,
 	result: unknown,
 ): Promise<unknown> {
-	context.signal?.throwIfAborted();
-	const body = Buffer.from(JSON.stringify(result), 'utf8');
-	const reservation = context.grant.outputs[0]!;
-	if (body.byteLength < 1 || body.byteLength > reservation.maximumByteLength) {
-		throw new RangeError('The wav2vec2 result exceeds its authenticated output reservation.');
-	}
-	await writeFile(reservation.path, body);
-	context.signal?.throwIfAborted();
-	context.onProgress(1);
-	return Object.freeze({
-		resultVersion: 1, jobId: context.grant.jobId,
-		familyId: context.grant.familyId, task: context.grant.task,
-		outputs: Object.freeze([Object.freeze({
-			claimId: reservation.claimId, role: reservation.role,
-			mediaType: reservation.mediaType, byteLength: body.byteLength,
-			sha256: createHash('sha256').update(body).digest('hex'),
-		})]),
-	});
+	return publishAssistanceOnnxOutputV1(context,
+		() => Buffer.from(JSON.stringify(result), 'utf8'),
+		'The wav2vec2 result exceeds its authenticated output reservation.');
 }
 
 function exactRecord<const Field extends string>(

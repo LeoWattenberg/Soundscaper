@@ -2,8 +2,7 @@
 
 /** Reviewed CPU-only ONNX Runtime adapters mounted inside the isolated worker. */
 
-import { createHash } from 'node:crypto';
-import { readFile, writeFile } from 'node:fs/promises';
+import { readFile } from 'node:fs/promises';
 import { pathToFileURL } from 'node:url';
 
 import {
@@ -36,6 +35,11 @@ import {
 import {
 	createAssistanceOnnxWordAlignmentWorkerAdapterV1,
 } from './assistance-onnx-word-alignment-worker.ts';
+import {
+	createAssistanceOnnxCpuSessionV1,
+	publishAssistanceOnnxOutputV1,
+	reviewAssistanceOnnxRuntimeModuleV1,
+} from './assistance-onnx-worker-common.ts';
 import {
 	createAssistanceOnnxOcrWorkerAdapterV1,
 } from './assistance-onnx-ocr-worker.ts';
@@ -91,6 +95,14 @@ const TRANSNET_INPUT_NAMES = Object.freeze(['frames']);
 const TRANSNET_OUTPUT_NAMES = Object.freeze(['single_frame_logits', 'all_frame_logits']);
 const TRANSNET_FRAME_PACK_MEDIA_TYPE = 'application/vnd.soundscaper.frame-pack';
 const TRANSNET_RESULT_MEDIA_TYPE = 'application/vnd.soundscaper.shot-boundaries+json';
+const RUNTIME_MODULE_ERRORS = Object.freeze({
+	value: 'The ONNX Runtime module is invalid.',
+	surface: 'The ONNX Runtime module surface is invalid.',
+});
+const RUNTIME_SESSION_ERRORS = Object.freeze({
+	value: 'The ONNX Runtime session is invalid.',
+	surface: 'The ONNX Runtime session surface is invalid.',
+});
 
 export function createAssistanceOnnxRuntimeWorkerAdapterV1(
 	options: AssistanceOnnxRuntimeWorkerAdapterOptionsV1 = {},
@@ -158,11 +170,12 @@ async function executeTransNetV2(
 	context.onProgress(0);
 	const frames = await inspectFramePacks(grant.inputs, context.signal);
 	context.signal?.throwIfAborted();
-	const runtime = runtimeModule(await loadRuntime(job.descriptor.entrypoint));
-	const session = sessionValue(await runtime.InferenceSession.create(grant.models[0]!.path, {
-		executionProviders: ['cpu'], graphOptimizationLevel: 'all',
-		interOpNumThreads: 1, intraOpNumThreads: 4,
-	}));
+	const runtime = reviewAssistanceOnnxRuntimeModuleV1(
+		await loadRuntime(job.descriptor.entrypoint), RUNTIME_MODULE_ERRORS,
+	);
+	const session = await createAssistanceOnnxCpuSessionV1(
+		runtime, grant.models[0]!.path, RUNTIME_SESSION_ERRORS,
+	);
 	let completedBatches = 0;
 	const batchCount = Math.ceil(frames.sourceFrames.length / 50);
 	try {
@@ -192,23 +205,9 @@ async function executeTransNetV2(
 				});
 			},
 		});
-		context.signal?.throwIfAborted();
-		const body = Buffer.from(JSON.stringify(result), 'utf8');
-		const reservation = grant.outputs[0]!;
-		if (body.byteLength < 1 || body.byteLength > reservation.maximumByteLength) {
-			throw new RangeError('The TransNetV2 result exceeds its authenticated output reservation.');
-		}
-		await writeFile(reservation.path, body);
-		context.signal?.throwIfAborted();
-		context.onProgress(1);
-		return Object.freeze({
-			resultVersion: 1, jobId: grant.jobId, familyId: grant.familyId, task: grant.task,
-			outputs: Object.freeze([Object.freeze({
-				claimId: reservation.claimId, role: reservation.role,
-				mediaType: reservation.mediaType, byteLength: body.byteLength,
-				sha256: createHash('sha256').update(body).digest('hex'),
-			})]),
-		});
+		return await publishAssistanceOnnxOutputV1(context,
+			() => Buffer.from(JSON.stringify(result), 'utf8'),
+			'The TransNetV2 result exceeds its authenticated output reservation.');
 	} finally {
 		frames.release();
 		await session.release?.();
@@ -355,30 +354,11 @@ async function loadOnnxRuntime(entrypoint: string): Promise<AssistanceOnnxRuntim
 	const loaded = await import(pathToFileURL(entrypoint).href) as unknown;
 	if (loaded && typeof loaded === 'object' && 'default' in loaded) {
 		const candidate = (loaded as Readonly<{ default: unknown }>).default;
-		if (candidate && typeof candidate === 'object') return runtimeModule(candidate);
+		if (candidate && typeof candidate === 'object') {
+			return reviewAssistanceOnnxRuntimeModuleV1(candidate, RUNTIME_MODULE_ERRORS);
+		}
 	}
-	return runtimeModule(loaded);
-}
-
-function runtimeModule(value: unknown): AssistanceOnnxRuntimeModuleV1 {
-	if (!value || typeof value !== 'object') throw new TypeError('The ONNX Runtime module is invalid.');
-	const candidate = value as Partial<AssistanceOnnxRuntimeModuleV1>;
-	if (typeof candidate.Tensor !== 'function' || !candidate.InferenceSession
-		|| typeof candidate.InferenceSession.create !== 'function') {
-		throw new TypeError('The ONNX Runtime module surface is invalid.');
-	}
-	return candidate as AssistanceOnnxRuntimeModuleV1;
-}
-
-function sessionValue(value: unknown): AssistanceOnnxInferenceSessionV1 {
-	if (!value || typeof value !== 'object') throw new TypeError('The ONNX Runtime session is invalid.');
-	const session = value as Partial<AssistanceOnnxInferenceSessionV1>;
-	if (!Array.isArray(session.inputNames) || !Array.isArray(session.outputNames)
-		|| typeof session.run !== 'function'
-		|| session.release !== undefined && typeof session.release !== 'function') {
-		throw new TypeError('The ONNX Runtime session surface is invalid.');
-	}
-	return session as AssistanceOnnxInferenceSessionV1;
+	return reviewAssistanceOnnxRuntimeModuleV1(loaded, RUNTIME_MODULE_ERRORS);
 }
 
 function assertExactNames(

@@ -30,6 +30,7 @@ export const DESKTOP_ASSISTANCE_RUNTIME_FILES = Object.freeze([
 	'desktop/assistance-onnx-visual-tensors.js',
 	'desktop/assistance-onnx-visual-worker-common.js',
 	'desktop/assistance-onnx-word-alignment-worker.js',
+	'desktop/assistance-onnx-worker-common.js',
 	'desktop/assistance-owned-frame-pack-materialization.js',
 	'desktop/assistance-operation-contract.js',
 	'desktop/assistance-operation-family-execution.js',

@@ -20,10 +20,13 @@ import {
 	packDereverbRoomSpectrumV1,
 } from './assistance-dereverb-room-onnx-tensors.ts';
 import type {
-	AssistanceOnnxInferenceSessionV1,
 	AssistanceOnnxRuntimeModuleV1,
 	AssistanceOnnxTensorV1,
 } from './assistance-onnx-runtime-worker.ts';
+import {
+	createAssistanceOnnxCpuSessionV1,
+	reviewAssistanceOnnxRuntimeModuleV1,
+} from './assistance-onnx-worker-common.ts';
 import type {
 	AssistanceRuntimeFamilyJobResultV1,
 } from './assistance-runtime-family-job-contract.ts';
@@ -45,6 +48,14 @@ const DEREVERB_INPUT_NAMES = Object.freeze(['input']);
 const DEREVERB_OUTPUT_NAMES = Object.freeze(['output']);
 const SPECTRUM_FRAMES = ASSISTANCE_DEREVERB_ROOM_CHUNK_FRAMES / 512 + 1;
 const FREQUENCY_BINS = 1_025;
+const DEREVERB_RUNTIME_ERRORS = Object.freeze({
+	value: 'The dereverberation ONNX runtime is invalid.',
+	surface: 'The dereverberation ONNX runtime surface is invalid.',
+});
+const DEREVERB_SESSION_ERRORS = Object.freeze({
+	value: 'The dereverb-room ONNX inference session surface is invalid.',
+	surface: 'The dereverb-room ONNX inference session surface is invalid.',
+});
 export const ASSISTANCE_DEREVERB_OUTPUT_WRITE_FRAMES = 16_384;
 export const ASSISTANCE_DEREVERB_MAXIMUM_CHANNELS = 32;
 
@@ -104,8 +115,12 @@ async function executeDereverbRoom(
 	try {
 		sink = await waveStorage.openSink(output, source.geometry, context.signal);
 		context.signal?.throwIfAborted();
-		const runtime = runtimeValue(await loadRuntime(context.job.descriptor.entrypoint));
-		const session = await createCpuSession(runtime, grant.models[0]!.path);
+		const runtime = reviewAssistanceOnnxRuntimeModuleV1(
+			await loadRuntime(context.job.descriptor.entrypoint), DEREVERB_RUNTIME_ERRORS,
+		);
+		const session = await createAssistanceOnnxCpuSessionV1(
+			runtime, grant.models[0]!.path, DEREVERB_SESSION_ERRORS,
+		);
 		try {
 			assertExactNames(session.inputNames, DEREVERB_INPUT_NAMES, 'input');
 			assertExactNames(session.outputNames, DEREVERB_OUTPUT_NAMES, 'output');
@@ -310,34 +325,6 @@ function assertSettings(context: AssistanceRuntimeFamilyWorkerExecutionContext):
 		|| JSON.stringify(settings.outputRoles) !== '["enhanced-audio"]') {
 		throw new TypeError('The dereverberation settings do not bind one exact audio workflow.');
 	}
-}
-
-async function createCpuSession(
-	runtime: AssistanceOnnxRuntimeModuleV1,
-	modelPath: string,
-): Promise<AssistanceOnnxInferenceSessionV1> {
-	const session = await runtime.InferenceSession.create(modelPath, {
-		executionProviders: ['cpu'], graphOptimizationLevel: 'all',
-		interOpNumThreads: 1, intraOpNumThreads: 4,
-	});
-	if (!session || typeof session !== 'object' || !Array.isArray(session.inputNames)
-		|| !Array.isArray(session.outputNames) || typeof session.run !== 'function'
-		|| session.release !== undefined && typeof session.release !== 'function') {
-		throw new TypeError('The dereverb-room ONNX inference session surface is invalid.');
-	}
-	return session;
-}
-
-function runtimeValue(value: unknown): AssistanceOnnxRuntimeModuleV1 {
-	if (!value || typeof value !== 'object') {
-		throw new TypeError('The dereverberation ONNX runtime is invalid.');
-	}
-	const candidate = value as Partial<AssistanceOnnxRuntimeModuleV1>;
-	if (typeof candidate.Tensor !== 'function' || !candidate.InferenceSession
-		|| typeof candidate.InferenceSession.create !== 'function') {
-		throw new TypeError('The dereverberation ONNX runtime surface is invalid.');
-	}
-	return candidate as AssistanceOnnxRuntimeModuleV1;
 }
 
 function exactOutputs(
