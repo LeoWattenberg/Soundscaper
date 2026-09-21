@@ -66,6 +66,7 @@ test.describe('Soundscaper routing inspector', () => {
 		await inspector.getByRole('alert').getByRole('button', { name: 'Confirm delete', exact: true }).click();
 		await expect(output).toHaveCount(0);
 		await expect(graph.locator('[data-routing-edge]')).toHaveCount(initialEdgeCount);
+		await expect(inspector).toHaveCount(0);
 
 		const mainOutput = graph.locator('[data-routing-node^="output:"]').first();
 		await mainOutput.locator('.kw-routing-graph__node-main').press('Enter');
