@@ -18,9 +18,12 @@ import {
 	planPasteMonoConversion,
 	type PasteMonoConversionPlan,
 } from './paste-mono-conversion-policy.ts';
+import {
+	discoverPasteCommandTree,
+	type PasteCommand,
+	type SourceAddCommand,
+} from './internal/paste-command-tree.ts';
 
-type PasteCommand = Extract<AudioEditorCommand, { readonly type: 'clipboard/paste' }>;
-type SourceAddCommand = Extract<AudioEditorCommand, { readonly type: 'source/add' }>;
 type PasteMonoProject = Pick<ControllerProject, 'id' | 'sources' | 'tracks' | 'clips'>;
 
 export interface PasteMonoConfirmationDecision {
@@ -187,7 +190,7 @@ async function preparePlannedMonoConvertingPasteCommand(
 }
 
 function planMonoConvertingPaste(request: MonoConvertingPasteRequest): PlannedMonoConvertingPaste {
-	const discovered = discoverPasteCommands(request.command);
+	const discovered = discoverPasteCommandTree(request.command);
 	if (discovered.pastes.length !== 1) {
 		throw new RangeError('A mono-converting paste command tree must contain exactly one clipboard/paste command.');
 	}
@@ -201,22 +204,6 @@ function planMonoConvertingPaste(request: MonoConvertingPasteRequest): PlannedMo
 		alwaysConvertToMono: request.alwaysConvertToMono,
 	});
 	return { additions, paste, plan };
-}
-
-function discoverPasteCommands(command: AudioEditorCommand): Readonly<{
-	readonly pastes: readonly PasteCommand[];
-	readonly sourceAdds: readonly SourceAddCommand[];
-}> {
-	const pastes: PasteCommand[] = [];
-	const sourceAdds: SourceAddCommand[] = [];
-	visit(command);
-	return { pastes, sourceAdds };
-
-	function visit(candidate: AudioEditorCommand): void {
-		if (candidate.type === 'clipboard/paste') pastes.push(candidate);
-		if (candidate.type === 'source/add') sourceAdds.push(candidate);
-		if (candidate.type === 'batch') candidate.commands.forEach(visit);
-	}
 }
 
 function sourceAdditionsById(commands: readonly SourceAddCommand[]): ReadonlyMap<string, CommandObject> {

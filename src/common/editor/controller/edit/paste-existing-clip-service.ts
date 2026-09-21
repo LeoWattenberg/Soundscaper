@@ -15,9 +15,12 @@ import {
 	type ControllerSourceInventory,
 	type DerivedSourceRecord,
 } from '../track-audio/track-domain-types.ts';
+import {
+	discoverPasteCommandTree,
+	type PasteCommand,
+	type SourceAddCommand,
+} from './internal/paste-command-tree.ts';
 
-type PasteCommand = Extract<AudioEditorCommand, { readonly type: 'clipboard/paste' }>;
-type SourceAddCommand = Extract<AudioEditorCommand, { readonly type: 'source/add' }>;
 type RenderReplaceCommand = Extract<AudioEditorCommand, { readonly type: 'clip/render-replace-many' }>;
 type LiftDeleteCommand = Extract<AudioEditorCommand, { readonly type: 'range/lift-delete' }>;
 type ExistingClipPasteProject = Pick<ControllerProject, 'sampleRate' | 'sources' | 'tracks' | 'clips'>;
@@ -141,7 +144,7 @@ function planPasteIntoExistingClip(
 	command: AudioEditorCommand,
 	project: ExistingClipPasteProject,
 ): ExistingClipPastePlan {
-	const discovered = discoverCommands(command);
+	const discovered = discoverPasteCommandTree(command);
 	if (discovered.pastes.length !== 1) {
 		throw new RangeError('A paste-into-existing command tree must contain exactly one clipboard/paste command.');
 	}
@@ -249,22 +252,6 @@ function planTrackPasteIntoExistingClip(
 		outputFrames,
 		channelCount,
 	};
-}
-
-function discoverCommands(command: AudioEditorCommand): Readonly<{
-	readonly pastes: readonly PasteCommand[];
-	readonly sourceAdds: readonly SourceAddCommand[];
-}> {
-	const pastes: PasteCommand[] = [];
-	const sourceAdds: SourceAddCommand[] = [];
-	visit(command);
-	return { pastes, sourceAdds };
-
-	function visit(candidate: AudioEditorCommand): void {
-		if (candidate.type === 'clipboard/paste') pastes.push(candidate);
-		if (candidate.type === 'source/add') sourceAdds.push(candidate);
-		if (candidate.type === 'batch') candidate.commands.forEach(visit);
-	}
 }
 
 function sourceAdditionsById(commands: readonly SourceAddCommand[]): ReadonlyMap<string, CommandObject> {
