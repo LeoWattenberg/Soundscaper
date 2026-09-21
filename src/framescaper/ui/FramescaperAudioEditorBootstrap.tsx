@@ -1,13 +1,18 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { Suspense, useEffect, useMemo, useState } from 'react';
+import { Suspense } from 'react';
 
 import { createAudioEditorFileService } from '../../common/editor/file-service.js';
 import { BoundAudioEditorApp } from '../../common/editor/ui/AudioEditorApp.jsx';
-import { createMonoConversionConfirmation, type MonoConversionConfirmation } from
+import type { MonoConversionConfirmation } from
 	'../../common/editor/ui/dialogs/mono-conversion-confirmation.ts';
-import { createLocalAssistanceLazySemanticSearchSourceV1 } from
-	'../../common/editor/ui/local-assistance-lazy-semantic-search-source.ts';
+import {
+	AudioEditorWebBootstrap,
+	createAudioEditorWebRuntimeLifecycle,
+	type AudioEditorWebBootstrapConfiguration,
+	type AudioEditorWebBootstrapRenderValue,
+	type AudioEditorWebRuntime,
+} from '../../common/editor/ui/audio-editor-web-bootstrap.tsx';
 import { resolveFramescaperNativeServicesBridge } from
 	'../../common/editor/ui/framescaper-native-services-bridge.ts';
 import { bundledCatalogForLocale, resolveCatalog } from '../../common/i18n/runtime.js';
@@ -24,11 +29,6 @@ import {
 type WebController = ReturnType<typeof createFramescaperAudioEditorController>;
 type WebFileService = ReturnType<typeof createAudioEditorFileService>;
 type RuntimeProjection = FramescaperEditorProjectEnvironment['runtime']['projectForRuntimeConsumers'];
-const PROJECTORS = new WeakMap<object, RuntimeProjection>();
-const ASSISTANCE_SEARCH_SOURCES = new WeakMap<object, ReturnType<
-	typeof createLocalAssistanceLazySemanticSearchSourceV1
->>();
-const MONO_CONFIRMATIONS = new WeakMap<object, MonoConversionConfirmation>();
 const PRESENTATION_FIELDS = ['locale', 'copy'] as const;
 
 export interface FramescaperWebEditorRuntimePresentation {
@@ -36,11 +36,10 @@ export interface FramescaperWebEditorRuntimePresentation {
 	readonly copy: Readonly<Record<string, unknown>>;
 }
 
-export interface FramescaperWebEditorRuntime {
-	readonly controller: WebController;
-	readonly fileService: WebFileService;
-	readonly dispose: () => Promise<void>;
-}
+export type FramescaperWebEditorRuntime = AudioEditorWebRuntime<
+	WebController,
+	WebFileService
+>;
 
 export interface FramescaperAudioEditorBootstrapProps {
 	readonly locale: string;
@@ -48,143 +47,105 @@ export interface FramescaperAudioEditorBootstrapProps {
 	readonly initialSurface?: string;
 }
 
-export async function createFramescaperWebEditorRuntime(
-	presentationValue: FramescaperWebEditorRuntimePresentation | unknown,
-): Promise<Readonly<FramescaperWebEditorRuntime>> {
-	const presentation = snapshotPresentation(presentationValue);
-	const fileService = createAudioEditorFileService();
-	const environment = await createFramescaperEditorProjectEnvironment({
+const RUNTIME_LIFECYCLE = createAudioEditorWebRuntimeLifecycle<
+	FramescaperWebEditorRuntimePresentation,
+	WebFileService,
+	RuntimeProjection,
+	FramescaperEditorProjectEnvironment,
+	WebController,
+	FramescaperNativeWatchImportClient
+>({
+	createFileService: createAudioEditorFileService,
+	createEnvironment: (fileService: WebFileService) => createFramescaperEditorProjectEnvironment({
 		storeOptions: {
 			linkedOriginalPort: fileService.linkedOriginalPort,
 			linkedVideoOriginalPort: fileService.linkedVideoOriginalPort,
 		},
-	});
-	const monoConversionConfirmation = createMonoConversionConfirmation();
-	try {
-		const controller = createFramescaperAudioEditorController(environment, {
-			locale: presentation.locale,
-			copy: presentation.copy,
-			fileService,
-			confirmMonoConversion: monoConversionConfirmation.confirm,
-		});
-		const watchImports = createFramescaperNativeWatchImportClient({
+	}),
+	createController: (
+		environment: FramescaperEditorProjectEnvironment,
+		presentation: FramescaperWebEditorRuntimePresentation,
+		fileService: WebFileService,
+		monoConversionConfirmation: MonoConversionConfirmation,
+	) => createFramescaperAudioEditorController(environment, {
+		locale: presentation.locale,
+		copy: presentation.copy,
+		fileService,
+		confirmMonoConversion: monoConversionConfirmation.confirm,
+	}),
+	createExtension: (controller: WebController, _environment, fileService: WebFileService) => (
+		createFramescaperNativeWatchImportClient({
 			controller,
 			linkedVideoOriginalPort: fileService.linkedVideoOriginalPort,
 			bridge: resolveFramescaperNativeServicesBridge(),
-		});
-		let disposal: Promise<void> | null = null;
-		const dispose = (): Promise<void> => {
-			disposal ??= disposeRuntime(
-				controller, environment, watchImports, monoConversionConfirmation,
-			);
-			return disposal;
-		};
-		const runtime = Object.freeze({ controller, fileService, dispose });
-		PROJECTORS.set(runtime, environment.runtime.projectForRuntimeConsumers);
-		MONO_CONFIRMATIONS.set(runtime, monoConversionConfirmation);
-		if (fileService.isDesktop) {
-			ASSISTANCE_SEARCH_SOURCES.set(runtime, createLocalAssistanceLazySemanticSearchSourceV1({
-				bridgeScope: fileService.bridge,
-				repository: environment.store.assistanceDerivativeRepository,
-			}));
-		}
-		return runtime;
-	} catch (error) {
-		monoConversionConfirmation.dispose();
-		try {
-			await environment.close();
-		} catch (cleanupError) {
-			throw new AggregateError(
-				[error, cleanupError],
-				'Framescaper runtime construction and cleanup both failed.',
-				{ cause: error },
-			);
-		}
-		throw error;
-	}
+		})
+	),
+	disposeExtension: (watchImports: FramescaperNativeWatchImportClient) => watchImports.dispose(),
+	constructionCleanupMessage: 'Framescaper runtime construction and cleanup both failed.',
+	extensionAndControllerDisposalMessage: 'Framescaper watch and controller disposal failed.',
+	controllerAndEnvironmentDisposalMessage:
+		'Framescaper controller and environment disposal failed.',
+	controllerAndEnvironmentDisposalCause: false,
+	exactRuntimeMessage: 'An exact Framescaper web runtime is required.',
+});
+
+export async function createFramescaperWebEditorRuntime(
+	presentationValue: FramescaperWebEditorRuntimePresentation | unknown,
+): Promise<Readonly<FramescaperWebEditorRuntime>> {
+	return RUNTIME_LIFECYCLE.create(snapshotPresentation(presentationValue));
 }
+
+const BOOTSTRAP_CONFIGURATION: AudioEditorWebBootstrapConfiguration<
+	Readonly<FramescaperWebEditorRuntime>
+> = Object.freeze({
+	snapshotFallbackCopy: (value: unknown) => framescaperCopy(snapshotCopy(
+		value, 'Framescaper fallback copy',
+	)),
+	bundledEnglishCopy: () => framescaperCopy(snapshotCopy(
+		bundledCatalogForLocale('en'), 'Framescaper bundled copy',
+	)),
+	loadLocalizedCopy: (locale: string, signal: AbortSignal) => resolveCatalog(locale, { signal }),
+	snapshotLocalizedCopy: (value: unknown) => framescaperCopy(snapshotCopy(
+		value, 'Framescaper localized copy',
+	)),
+	reportLocalizedCopyProjectionFailure: false,
+	createRuntime: createFramescaperWebEditorRuntime,
+	renderEditor: ({ locale, copy, initialSurface, runtime }: AudioEditorWebBootstrapRenderValue<
+		Readonly<FramescaperWebEditorRuntime>
+	>) => (
+		<Suspense fallback={<div role="status" aria-live="polite">{
+			copyText(copy, 'loading', 'Loading project')
+		}</div>}>
+			<BoundAudioEditorApp
+				locale={locale}
+				copy={copy}
+				initialSurface={initialSurface}
+				productId="framescaper"
+				controller={runtime.controller}
+				fileService={runtime.fileService}
+				projectForRuntimeConsumers={runtimeProjector(runtime)}
+				assistanceSearchSource={RUNTIME_LIFECYCLE.assistanceSearchSource(runtime)}
+				monoConversionConfirmation={runtimeMonoConversionConfirmation(runtime)}
+				crossProductHandoffAvailable={true}
+			/>
+		</Suspense>
+	),
+	reportRuntimeDisposalFailure,
+	failureFallback: 'Framescaper failed: {message}',
+	loadingFallback: 'Loading project',
+});
 
 export default function FramescaperAudioEditorBootstrap({
 	locale,
-	fallbackCopy: fallbackCopyValue,
+	fallbackCopy,
 	initialSurface,
 }: FramescaperAudioEditorBootstrapProps) {
-	const fallbackCopy = useMemo(() => framescaperCopy(snapshotCopy(
-		fallbackCopyValue,
-		'Framescaper fallback copy',
-	)), [fallbackCopyValue]);
-	const [copy, setCopy] = useState<Readonly<Record<string, unknown>> | null>(
-		() => locale === 'en'
-			? framescaperCopy(snapshotCopy(bundledCatalogForLocale('en'), 'Framescaper bundled copy'))
-			: null,
-	);
-	const [runtime, setRuntime] = useState<Readonly<FramescaperWebEditorRuntime> | null>(null);
-	const [failure, setFailure] = useState<unknown>(null);
-
-	useEffect(() => {
-		if (copy) return undefined;
-		const controller = new AbortController();
-		void Promise.resolve(resolveCatalog(locale, { signal: controller.signal })).then(
-			(resolved: unknown) => {
-				if (!controller.signal.aborted) {
-					setCopy(framescaperCopy(snapshotCopy(resolved, 'Framescaper localized copy')));
-				}
-			},
-			(error: unknown) => { if (!controller.signal.aborted) setFailure(error); },
-		);
-		return () => { controller.abort(); };
-	}, [copy, locale]);
-
-	useEffect(() => {
-		if (!copy) return undefined;
-		let active = true;
-		let owned: Readonly<FramescaperWebEditorRuntime> | null = null;
-		setFailure(null);
-		void createFramescaperWebEditorRuntime({ locale, copy }).then(
-			(candidate) => {
-				if (!active) {
-					void candidate.dispose().catch(reportRuntimeDisposalFailure);
-					return;
-				}
-				owned = candidate;
-				setRuntime(candidate);
-			},
-			(error: unknown) => { if (active) setFailure(error); },
-		);
-		return () => {
-			active = false;
-			if (owned) void owned.dispose().catch(reportRuntimeDisposalFailure);
-		};
-	}, [copy, locale]);
-
-	if (failure) {
-		const message = failure instanceof Error ? failure.message : String(failure);
-		return <div role="alert">{
-			copyText(fallbackCopy, 'genericError', 'Framescaper failed: {message}')
-				.replace('{message}', message)
-		}</div>;
-	}
-	if (!copy || !runtime) {
-		return <div role="status" aria-live="polite">{
-			copyText(fallbackCopy, 'loading', 'Loading project')
-		}</div>;
-	}
-	return <Suspense fallback={<div role="status" aria-live="polite">{
-		copyText(copy, 'loading', 'Loading project')
-	}</div>}>
-		<BoundAudioEditorApp
-			locale={locale}
-			copy={copy}
-			initialSurface={initialSurface}
-			productId="framescaper"
-			controller={runtime.controller}
-			fileService={runtime.fileService}
-			projectForRuntimeConsumers={runtimeProjector(runtime)}
-			assistanceSearchSource={ASSISTANCE_SEARCH_SOURCES.get(runtime) ?? null}
-			monoConversionConfirmation={runtimeMonoConversionConfirmation(runtime)}
-			crossProductHandoffAvailable={true}
-		/>
-	</Suspense>;
+	return <AudioEditorWebBootstrap
+		configuration={BOOTSTRAP_CONFIGURATION}
+		locale={locale}
+		fallbackCopy={fallbackCopy}
+		{...(initialSurface === undefined ? {} : { initialSurface })}
+	/>;
 }
 
 function reportRuntimeDisposalFailure(error: unknown): void {
@@ -192,40 +153,13 @@ function reportRuntimeDisposalFailure(error: unknown): void {
 }
 
 function runtimeProjector(runtime: Readonly<FramescaperWebEditorRuntime>): RuntimeProjection {
-	const projector = PROJECTORS.get(runtime);
-	if (!projector) throw new TypeError('An exact Framescaper web runtime is required.');
-	return projector;
+	return RUNTIME_LIFECYCLE.projectForRuntimeConsumers(runtime);
 }
 
 function runtimeMonoConversionConfirmation(
 	runtime: Readonly<FramescaperWebEditorRuntime>,
 ): MonoConversionConfirmation {
-	const confirmation = MONO_CONFIRMATIONS.get(runtime);
-	if (!confirmation) throw new TypeError('An exact Framescaper web runtime is required.');
-	return confirmation;
-}
-
-async function disposeRuntime(
-	controller: WebController,
-	environment: Readonly<FramescaperEditorProjectEnvironment>,
-	watchImports: Readonly<FramescaperNativeWatchImportClient>,
-	monoConversionConfirmation: MonoConversionConfirmation,
-): Promise<void> {
-	let failure: unknown;
-	monoConversionConfirmation.dispose();
-	try { await watchImports.dispose(); } catch (error) { failure = error; }
-	try { await controller.dispose(); } catch (error) {
-		failure = failure
-			? new AggregateError([failure, error], 'Framescaper watch and controller disposal failed.')
-			: error;
-	}
-	try { await environment.close(); } catch (error) {
-		if (failure) {
-			throw new AggregateError([failure, error], 'Framescaper controller and environment disposal failed.');
-		}
-		throw error;
-	}
-	if (failure) throw failure;
+	return RUNTIME_LIFECYCLE.monoConversionConfirmation(runtime);
 }
 
 function snapshotPresentation(value: unknown): FramescaperWebEditorRuntimePresentation {

@@ -7,18 +7,20 @@ import test from 'node:test';
 const ROOT = new URL('../', import.meta.url);
 
 test('selected desktop products inject only the menu-lazy project derivative source', async () => {
-	const [soundscaper, framescaper, lazySource] = await Promise.all([
+	const [soundscaper, framescaper, bootstrap, lazySource] = await Promise.all([
 		read('src/soundscaper/ui/SoundscaperAudioEditorBootstrap.tsx'),
 		read('src/framescaper/ui/FramescaperAudioEditorBootstrap.tsx'),
+		read('src/common/editor/ui/audio-editor-web-bootstrap.tsx'),
 		read('src/common/editor/ui/local-assistance-lazy-semantic-search-source.ts'),
 	]);
 	for (const source of [soundscaper, framescaper]) {
 		assert.match(source,
-			/if \(fileService\.isDesktop\)[\s\S]*?createLocalAssistanceLazySemanticSearchSourceV1\(\{[\s\S]*?bridgeScope: fileService\.bridge,[\s\S]*?repository: environment\.store\.assistanceDerivativeRepository,/u);
-		assert.match(source, /assistanceSearchSource=\{[^}]+\?\? null\}/u);
+			/assistanceSearchSource=\{RUNTIME_LIFECYCLE\.assistanceSearchSource\(runtime\)\}/u);
 		assert.doesNotMatch(source,
 			/createLocalAssistanceSemanticIndexCustodyV1|createAssistanceSemanticSearchMenuSourceV1/u);
 	}
+	assert.match(bootstrap,
+		/fileService\.isDesktop[\s\S]*?createLocalAssistanceLazySemanticSearchSourceV1\(\{[\s\S]*?bridgeScope: fileService\.bridge,[\s\S]*?repository: environment\.store\.assistanceDerivativeRepository,/u);
 	assert.match(lazySource,
 		/import\('\.\/local-assistance-semantic-search-source\.ts'\)/u);
 	assert.doesNotMatch(lazySource,

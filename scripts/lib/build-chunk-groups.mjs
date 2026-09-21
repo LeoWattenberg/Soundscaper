@@ -44,6 +44,7 @@ import {
 	EDITOR_SELECTION_EFFECTS_RUNTIME_CHUNK_TEST,
 	EDITOR_SOURCE_ACTIVATION_CHUNK_TEST,
 	EDITOR_VAMP_ANALYZER_CHUNK_TEST,
+	EDITOR_WEB_BOOTSTRAP_CHUNK_TEST,
 	FRAMESCAPER_PROJECT_COMMAND_CHUNK_TEST,
 	FRAMESCAPER_PROJECT_FOUNDATION_CHUNK_TEST,
 	FRAMESCAPER_SESSION_CLIPBOARD_CHUNK_TEST,
@@ -89,6 +90,17 @@ export const chunkGroups = [
 		name: 'editor-presentation',
 		test: EDITOR_PRESENTATION_CHUNK_TEST,
 		priority: 98,
+		minSize: 0,
+		maxSize: 400_000,
+		includeDependenciesRecursively: false,
+	},
+	{
+		// Both products import this lifecycle from separate lazy entries. Its own
+		// owner prevents the broad shell split from emitting a back-edge to whichever
+		// product bootstrap the current build selected.
+		name: 'editor-web-bootstrap',
+		test: EDITOR_WEB_BOOTSTRAP_CHUNK_TEST,
+		priority: 99,
 		minSize: 0,
 		maxSize: 400_000,
 		includeDependenciesRecursively: false,

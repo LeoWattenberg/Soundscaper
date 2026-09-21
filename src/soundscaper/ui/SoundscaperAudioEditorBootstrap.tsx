@@ -1,13 +1,18 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { Suspense, useEffect, useMemo, useState } from 'react';
+import { Suspense } from 'react';
 
 import { createAudioEditorFileService } from '../../common/editor/file-service.js';
 import { BoundAudioEditorApp } from '../../common/editor/ui/AudioEditorApp.jsx';
-import { createMonoConversionConfirmation, type MonoConversionConfirmation } from
+import type { MonoConversionConfirmation } from
 	'../../common/editor/ui/dialogs/mono-conversion-confirmation.ts';
-import { createLocalAssistanceLazySemanticSearchSourceV1 } from
-	'../../common/editor/ui/local-assistance-lazy-semantic-search-source.ts';
+import {
+	AudioEditorWebBootstrap,
+	createAudioEditorWebRuntimeLifecycle,
+	type AudioEditorWebBootstrapConfiguration,
+	type AudioEditorWebBootstrapRenderValue,
+	type AudioEditorWebRuntime,
+} from '../../common/editor/ui/audio-editor-web-bootstrap.tsx';
 import { bundledCatalogForLocale, resolveCatalog } from '../../common/i18n/runtime.js';
 import { createSoundscaperAudioEditorController } from '../editor-controller.ts';
 import {
@@ -20,11 +25,6 @@ type SoundscaperWebFileService = ReturnType<typeof createAudioEditorFileService>
 type SoundscaperProjectRuntimeProjection =
 	SoundscaperEditorProjectEnvironment['runtime']['projectForRuntimeConsumers'];
 
-const RUNTIME_PROJECTORS = new WeakMap<object, SoundscaperProjectRuntimeProjection>();
-const RUNTIME_ASSISTANCE_SEARCH = new WeakMap<object, ReturnType<
-	typeof createLocalAssistanceLazySemanticSearchSourceV1
->>();
-const RUNTIME_MONO_CONFIRMATIONS = new WeakMap<object, MonoConversionConfirmation>();
 const PRESENTATION_FIELDS = ['locale', 'copy'] as const;
 
 export interface SoundscaperWebEditorRuntimePresentation {
@@ -32,11 +32,10 @@ export interface SoundscaperWebEditorRuntimePresentation {
 	readonly copy: Readonly<Record<string, unknown>>;
 }
 
-export interface SoundscaperWebEditorRuntime {
-	readonly controller: SoundscaperWebController;
-	readonly fileService: SoundscaperWebFileService;
-	readonly dispose: () => Promise<void>;
-}
+export type SoundscaperWebEditorRuntime = AudioEditorWebRuntime<
+	SoundscaperWebController,
+	SoundscaperWebFileService
+>;
 
 export interface SoundscaperAudioEditorBootstrapProps {
 	readonly locale: string;
@@ -44,136 +43,96 @@ export interface SoundscaperAudioEditorBootstrapProps {
 	readonly initialSurface?: string;
 }
 
+const RUNTIME_LIFECYCLE = createAudioEditorWebRuntimeLifecycle<
+	SoundscaperWebEditorRuntimePresentation,
+	SoundscaperWebFileService,
+	SoundscaperProjectRuntimeProjection,
+	SoundscaperEditorProjectEnvironment,
+	SoundscaperWebController
+>({
+	createFileService: createAudioEditorFileService,
+	createEnvironment: (fileService: SoundscaperWebFileService) => (
+		createSoundscaperEditorProjectEnvironment({
+			storeOptions: {
+				linkedOriginalPort: fileService.linkedOriginalPort,
+				linkedVideoOriginalPort: fileService.linkedVideoOriginalPort,
+			},
+		})
+	),
+	createController: (
+		environment: SoundscaperEditorProjectEnvironment,
+		presentation: SoundscaperWebEditorRuntimePresentation,
+		fileService: SoundscaperWebFileService,
+		monoConversionConfirmation: MonoConversionConfirmation,
+	) => createSoundscaperAudioEditorController(environment, {
+		locale: presentation.locale,
+		copy: presentation.copy,
+		fileService,
+		confirmMonoConversion: monoConversionConfirmation.confirm,
+	}),
+	constructionCleanupMessage:
+		'Soundscaper baseline web runtime construction and cleanup both failed.',
+	controllerAndEnvironmentDisposalMessage:
+		'Soundscaper baseline controller and environment disposal both failed.',
+	controllerAndEnvironmentDisposalCause: true,
+	exactRuntimeMessage: 'An exact Soundscaper baseline web runtime is required.',
+});
+
 /** Construct the baseline browser runtime from presentation-only input. */
 export async function createSoundscaperWebEditorRuntime(
 	presentationValue: SoundscaperWebEditorRuntimePresentation | unknown,
 ): Promise<Readonly<SoundscaperWebEditorRuntime>> {
-	const presentation = snapshotPresentation(presentationValue);
-	const fileService = createAudioEditorFileService();
-	const environment = await createSoundscaperEditorProjectEnvironment({
-		storeOptions: {
-			linkedOriginalPort: fileService.linkedOriginalPort,
-			linkedVideoOriginalPort: fileService.linkedVideoOriginalPort,
-		},
-	});
-	const monoConversionConfirmation = createMonoConversionConfirmation();
-	try {
-		const controller = createSoundscaperAudioEditorController(environment, {
-			locale: presentation.locale,
-			copy: presentation.copy,
-			fileService,
-			confirmMonoConversion: monoConversionConfirmation.confirm,
-		});
-		let disposal: Promise<void> | null = null;
-		const dispose = (): Promise<void> => {
-			disposal ??= disposeRuntime(controller, environment, monoConversionConfirmation);
-			return disposal;
-		};
-		const runtime = Object.freeze({ controller, fileService, dispose });
-		RUNTIME_PROJECTORS.set(runtime, environment.runtime.projectForRuntimeConsumers);
-		RUNTIME_MONO_CONFIRMATIONS.set(runtime, monoConversionConfirmation);
-		if (fileService.isDesktop) RUNTIME_ASSISTANCE_SEARCH.set(runtime,
-			createLocalAssistanceLazySemanticSearchSourceV1({
-				bridgeScope: fileService.bridge,
-				repository: environment.store.assistanceDerivativeRepository,
-			}));
-		return runtime;
-	} catch (error) {
-		monoConversionConfirmation.dispose();
-		try {
-			await environment.close();
-		} catch (cleanupError) {
-			throw new AggregateError(
-				[error, cleanupError],
-				'Soundscaper baseline web runtime construction and cleanup both failed.',
-				{ cause: error },
-			);
-		}
-		throw error;
-	}
+	return RUNTIME_LIFECYCLE.create(snapshotPresentation(presentationValue));
 }
+
+const BOOTSTRAP_CONFIGURATION: AudioEditorWebBootstrapConfiguration<
+	Readonly<SoundscaperWebEditorRuntime>
+> = Object.freeze({
+	snapshotFallbackCopy: (value: unknown) => snapshotCopy(value, 'Soundscaper fallback copy'),
+	bundledEnglishCopy: () => snapshotCopy(
+		bundledCatalogForLocale('en'), 'Soundscaper bundled copy',
+	),
+	loadLocalizedCopy: (locale: string, signal: AbortSignal) => resolveCatalog(locale, { signal }),
+	snapshotLocalizedCopy: (value: unknown) => snapshotCopy(value, 'Soundscaper localized copy'),
+	reportLocalizedCopyProjectionFailure: true,
+	createRuntime: createSoundscaperWebEditorRuntime,
+	renderEditor: ({ locale, copy, initialSurface, runtime }: AudioEditorWebBootstrapRenderValue<
+		Readonly<SoundscaperWebEditorRuntime>
+	>) => (
+		<Suspense fallback={<div role="status" aria-live="polite">{
+			copyText(copy, 'loading', 'Loading project')
+		}</div>}>
+			<BoundAudioEditorApp
+				locale={locale}
+				copy={copy}
+				initialSurface={initialSurface}
+				productId="soundscaper"
+				controller={runtime.controller}
+				fileService={runtime.fileService}
+				projectForRuntimeConsumers={runtimeProjector(runtime)}
+				assistanceSearchSource={RUNTIME_LIFECYCLE.assistanceSearchSource(runtime)}
+				monoConversionConfirmation={runtimeMonoConversionConfirmation(runtime)}
+				crossProductHandoffAvailable={true}
+			/>
+		</Suspense>
+	),
+	reportRuntimeDisposalFailure,
+	failureFallback: 'Soundscaper failed: {message}',
+	loadingFallback: 'Loading project',
+});
 
 /** Product route adapter; it adds no default-visible production surface. */
 export default function SoundscaperAudioEditorBootstrap({
 	locale,
-	fallbackCopy: fallbackCopyValue,
+	fallbackCopy,
 	initialSurface,
 }: SoundscaperAudioEditorBootstrapProps) {
-	const fallbackCopy = useMemo(() => snapshotCopy(
-		fallbackCopyValue,
-		'Soundscaper fallback copy',
-	), [fallbackCopyValue]);
-	const [copy, setCopy] = useState<Readonly<Record<string, unknown>> | null>(
-		() => locale === 'en'
-			? snapshotCopy(bundledCatalogForLocale('en'), 'Soundscaper bundled copy')
-			: null,
-	);
-	const [runtime, setRuntime] = useState<Readonly<SoundscaperWebEditorRuntime> | null>(null);
-	const [failure, setFailure] = useState<unknown>(null);
-
-	useEffect(() => {
-		if (copy) return undefined;
-		const controller = new AbortController();
-		void Promise.resolve(resolveCatalog(locale, { signal: controller.signal }))
-			.then((resolvedCopy: unknown) => {
-				if (!controller.signal.aborted) {
-					setCopy(snapshotCopy(resolvedCopy, 'Soundscaper localized copy'));
-				}
-			})
-			.catch((error: unknown) => {
-				if (!controller.signal.aborted) setFailure(error);
-			});
-		return () => { controller.abort(); };
-	}, [copy, locale]);
-
-	useEffect(() => {
-		if (!copy) return undefined;
-		let active = true;
-		let ownedRuntime: Readonly<SoundscaperWebEditorRuntime> | null = null;
-		setFailure(null);
-		void createSoundscaperWebEditorRuntime({ locale, copy }).then(
-			(candidate) => {
-				if (!active) {
-					void candidate.dispose().catch(reportRuntimeDisposalFailure);
-					return;
-				}
-				ownedRuntime = candidate;
-				setRuntime(candidate);
-			},
-			(error: unknown) => { if (active) setFailure(error); },
-		);
-		return () => {
-			active = false;
-			if (ownedRuntime) void ownedRuntime.dispose().catch(reportRuntimeDisposalFailure);
-		};
-	}, [copy, locale]);
-
-	if (failure) {
-		const message = failure instanceof Error ? failure.message : String(failure);
-		return <div role="alert">{copyText(fallbackCopy, 'genericError', 'Soundscaper failed: {message}')
-			.replace('{message}', message)}</div>;
-	}
-	if (!copy || !runtime) {
-		return <div role="status" aria-live="polite">{
-			copyText(fallbackCopy, 'loading', 'Loading project')
-		}</div>;
-	}
-	return <Suspense fallback={<div role="status" aria-live="polite">{
-		copyText(copy, 'loading', 'Loading project')
-	}</div>}>
-		<BoundAudioEditorApp
-			locale={locale}
-			copy={copy}
-			initialSurface={initialSurface}
-			productId="soundscaper"
-			controller={runtime.controller}
-			fileService={runtime.fileService}
-			projectForRuntimeConsumers={runtimeProjector(runtime)}
-			assistanceSearchSource={RUNTIME_ASSISTANCE_SEARCH.get(runtime) ?? null}
-			monoConversionConfirmation={runtimeMonoConversionConfirmation(runtime)}
-			crossProductHandoffAvailable={true}
-		/>
-	</Suspense>;
+	return <AudioEditorWebBootstrap
+		configuration={BOOTSTRAP_CONFIGURATION}
+		locale={locale}
+		fallbackCopy={fallbackCopy}
+		{...(initialSurface === undefined ? {} : { initialSurface })}
+	/>;
 }
 
 function reportRuntimeDisposalFailure(error: unknown): void {
@@ -183,44 +142,13 @@ function reportRuntimeDisposalFailure(error: unknown): void {
 function runtimeProjector(
 	runtime: Readonly<SoundscaperWebEditorRuntime>,
 ): SoundscaperProjectRuntimeProjection {
-	const projector = RUNTIME_PROJECTORS.get(runtime);
-	if (!projector) throw new TypeError('An exact Soundscaper baseline web runtime is required.');
-	return projector;
+	return RUNTIME_LIFECYCLE.projectForRuntimeConsumers(runtime);
 }
 
 function runtimeMonoConversionConfirmation(
 	runtime: Readonly<SoundscaperWebEditorRuntime>,
 ): MonoConversionConfirmation {
-	const confirmation = RUNTIME_MONO_CONFIRMATIONS.get(runtime);
-	if (!confirmation) throw new TypeError('An exact Soundscaper baseline web runtime is required.');
-	return confirmation;
-}
-
-async function disposeRuntime(
-	controller: SoundscaperWebController,
-	environment: Readonly<SoundscaperEditorProjectEnvironment>,
-	monoConversionConfirmation: MonoConversionConfirmation,
-): Promise<void> {
-	let failure: unknown;
-	monoConversionConfirmation.dispose();
-	try {
-		await controller.dispose();
-	} catch (error) {
-		failure = error;
-	}
-	try {
-		await environment.close();
-	} catch (error) {
-		if (failure) {
-			throw new AggregateError(
-				[failure, error],
-				'Soundscaper baseline controller and environment disposal both failed.',
-				{ cause: failure },
-			);
-		}
-		throw error;
-	}
-	if (failure) throw failure;
+	return RUNTIME_LIFECYCLE.monoConversionConfirmation(runtime);
 }
 
 function snapshotPresentation(value: unknown): SoundscaperWebEditorRuntimePresentation {

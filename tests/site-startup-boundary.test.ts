@@ -109,13 +109,15 @@ test('route application localizes the initial-load progressbar before the editor
 });
 
 test('selected product bootstraps construct full bundled English copy internally', async () => {
+	const lifecycle = await source('src/common/editor/ui/audio-editor-web-bootstrap.tsx');
+	assert.match(lifecycle, /locale === 'en' \? configuration\.bundledEnglishCopy\(\) : null/u);
 	for (const path of [
 		'src/soundscaper/ui/SoundscaperAudioEditorBootstrap.tsx',
 		'src/framescaper/ui/FramescaperAudioEditorBootstrap.tsx',
 	]) {
 		const bootstrap = await source(path);
 		assert.match(bootstrap, /bundledCatalogForLocale/u, path);
-		assert.match(bootstrap, /locale === 'en'[\s\S]*bundledCatalogForLocale\('en'\)/u, path);
+		assert.match(bootstrap, /bundledEnglishCopy:[\s\S]*bundledCatalogForLocale\('en'\)/u, path);
 	}
 });
 

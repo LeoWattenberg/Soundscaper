@@ -76,6 +76,10 @@ export const EDITOR_COPY_CHUNK_TEST =
 /** Dependency-free message descriptors shared by project models and controllers. */
 export const EDITOR_PRESENTATION_CHUNK_TEST = /src[\\/]common[\\/]i18n[\\/](?:presentation-(?:message|progress)|translation-scope)\.ts$/;
 
+/** Shared React/runtime ownership used only by the two lazy product bootstrap entries. */
+export const EDITOR_WEB_BOOTSTRAP_CHUNK_TEST =
+	/src[\\/]common[\\/]editor[\\/]ui[\\/](?:audio-editor-web-bootstrap\.tsx|dialogs[\\/]mono-conversion-confirmation\.ts)$/;
+
 /** Drafts and file interchange run only after the translation menu opens its surface. */
 export const EDITOR_COMMUNITY_TRANSLATIONS_CHUNK_TEST = /src[\\/]common[\\/](?:i18n[\\/]community-translations(?:-po)?\.ts|editor[\\/](?:controller[\\/]preferences[\\/]translation-drafts\.ts|ui[\\/]community-translations[\\/](?!(?:CommunityTranslationMount\.tsx|community-translation-(?:menu|presentation)\.ts)$)[^\\/]+))$/;
 

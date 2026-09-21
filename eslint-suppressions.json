@@ -1134,11 +1134,6 @@
       "count": 1
     }
   },
-  "src/framescaper/ui/FramescaperAudioEditorBootstrap.tsx": {
-    "preserve-caught-error": {
-      "count": 2
-    }
-  },
   "src/soundscaper/desktop-project-library-freeze-media.ts": {
     "preserve-caught-error": {
       "count": 2
@@ -1157,11 +1152,6 @@
   "src/soundscaper/editor-project-environment.ts": {
     "preserve-caught-error": {
       "count": 1
-    }
-  },
-  "src/soundscaper/ui/SoundscaperAudioEditorBootstrap.tsx": {
-    "preserve-caught-error": {
-      "count": 2
     }
   },
   "tests/audio-editor-adm-metadata.test.ts": {

@@ -33,23 +33,17 @@ export async function startDesktopProjectLibraryProductRuntime(value) {
 			import('./project-library-runtime/desktop/framescaper-project-library-main.js'),
 			import('./project-library-runtime/desktop/framescaper-project-library-main-ipc.js'),
 		]);
-		const host = await FramescaperDesktopProjectLibraryMain.start({
+		return startLoadedDesktopProjectLibraryProductRuntime({
+			productId,
+			productName: 'Framescaper',
+			generation: '1.0',
 			appDataPath,
 			owner,
-			handshake: createFramescaperDesktopProjectLibraryHandshake(),
 			onLeaseLost: options.onLeaseLost,
-			testControl: framescaperTestControl(options.leaseTestControl),
-		});
-		return new DesktopProjectLibraryProductRuntime({
-			productId,
-			host,
-			register: (bridge) => registerFramescaperDesktopProjectLibraryMainIpc({
-				handle: bridge.handle,
-				removeHandler: bridge.removeHandler,
-				ownerFor: bridge.ownerFor,
-				main: host,
-			}),
-			smokeEvidence: (projectId) => createExactSmokeEvidence(host, projectId, 'Framescaper', '1.0'),
+			leaseTestControl: options.leaseTestControl,
+			createHandshake: createFramescaperDesktopProjectLibraryHandshake,
+			startHost: (startOptions) => FramescaperDesktopProjectLibraryMain.start(startOptions),
+			registerIpc: registerFramescaperDesktopProjectLibraryMainIpc,
 		});
 	}
 	if (productId === 'soundscaper') {
@@ -60,38 +54,58 @@ export async function startDesktopProjectLibraryProductRuntime(value) {
 			import('./project-library-runtime/desktop/soundscaper-project-library-main.js'),
 			import('./project-library-runtime/desktop/soundscaper-project-library-main-ipc.js'),
 		]);
-		const host = await SoundscaperDesktopProjectLibraryMain.start({
+		return startLoadedDesktopProjectLibraryProductRuntime({
+			productId,
+			productName: 'Soundscaper',
+			generation: '1.0',
 			appDataPath,
 			owner,
-			handshake: createSoundscaperDesktopProjectLibraryHandshake(),
 			onLeaseLost: options.onLeaseLost,
-			testControl: soundscaperTestControl(options.leaseTestControl),
-		});
-		return new DesktopProjectLibraryProductRuntime({
-			productId,
-			host,
-			register: (bridge) => registerSoundscaperDesktopProjectLibraryMainIpc({
-				handle: bridge.handle,
-				removeHandler: bridge.removeHandler,
-				ownerFor: bridge.ownerFor,
-				main: host,
-			}),
-			smokeEvidence: (projectId) => createExactSmokeEvidence(host, projectId, 'Soundscaper', '1.0'),
+			leaseTestControl: options.leaseTestControl,
+			createHandshake: createSoundscaperDesktopProjectLibraryHandshake,
+			startHost: (startOptions) => SoundscaperDesktopProjectLibraryMain.start(startOptions),
+			registerIpc: registerSoundscaperDesktopProjectLibraryMainIpc,
 		});
 	}
 	throw new RangeError(`Unsupported desktop project-library product ${productId}`);
 }
 
-function soundscaperTestControl(value) {
-	if (value === null) return null;
-	return Object.freeze({
-		leaseTtlMs: value.leaseTtlMs,
-		renewIntervalMs: value.renewIntervalMs,
-		checkpoint: value.checkpoint,
+/** Bind one already authenticated product module set to the common desktop runtime owner. */
+export async function startLoadedDesktopProjectLibraryProductRuntime({
+	productId,
+	productName,
+	generation,
+	appDataPath,
+	owner,
+	onLeaseLost,
+	leaseTestControl,
+	createHandshake,
+	startHost,
+	registerIpc,
+}) {
+	const host = await startHost({
+		appDataPath,
+		owner,
+		handshake: createHandshake(),
+		onLeaseLost,
+		testControl: projectLibraryTestControl(leaseTestControl),
+	});
+	return new DesktopProjectLibraryProductRuntime({
+		productId,
+		host,
+		register: (bridge) => registerIpc({
+			handle: bridge.handle,
+			removeHandler: bridge.removeHandler,
+			ownerFor: bridge.ownerFor,
+			main: host,
+		}),
+		smokeEvidence: (projectId) => createExactSmokeEvidence(
+			host, projectId, productName, generation,
+		),
 	});
 }
 
-function framescaperTestControl(value) {
+function projectLibraryTestControl(value) {
 	if (value === null) return null;
 	return Object.freeze({
 		leaseTtlMs: value.leaseTtlMs,

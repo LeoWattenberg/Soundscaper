@@ -50,6 +50,7 @@ export const EAGER_CHUNK_GROUPS: ReadonlySet<string> = new Set([
 	'editor-presentation',
 	'editor-shell',
 	'editor-shell-design-components',
+	'editor-web-bootstrap',
 	'editor-storage-model',
 	'editor-timeline',
 	'framescaper-project-foundations',

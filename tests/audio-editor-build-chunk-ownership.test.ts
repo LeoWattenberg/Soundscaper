@@ -88,6 +88,17 @@ test('every shared flat editor domain module has an owning chunk group', () => {
 	assert.deepEqual(unowned, [], 'these modules would be placed by reachability alone');
 });
 
+test('the shared web bootstrap has a dedicated product-entry owner', () => {
+	for (const path of [
+		'src/common/editor/ui/audio-editor-web-bootstrap.tsx',
+		'src/common/editor/ui/dialogs/mono-conversion-confirmation.ts',
+	]) assert.equal(chunkGroupForModulePath(path), 'editor-web-bootstrap', path);
+	const group = chunkGroups.find((candidate) => candidate.name === 'editor-web-bootstrap');
+	assert.ok(group);
+	assert.equal(group.minSize, 0);
+	assert.equal(group.includeDependenciesRecursively, false);
+});
+
 test('no eagerly owned editor module statically imports a lazily owned one', () => {
 	// This is the invariant every per-directory ownership rule exists to serve. A static
 	// import across the boundary makes the importer's chunk depend on the lazy chunk, so the
