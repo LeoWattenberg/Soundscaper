@@ -9,6 +9,7 @@ import {
 } from '../src/common/editor/commands/editing-selection-authority.ts';
 import { resolveEditingSelection } from '../src/common/editor/commands/clip-basic-runtime.js';
 import { canJoinClips } from '../src/common/editor/commands/clip-link-runtime.js';
+import { createEditorEditService } from '../src/common/editor/controller/edit/internal/edit-service.ts';
 import {
 	evaluateAudacityActionEnablement,
 } from '../src/common/editor/audacity-action-parity.js';
@@ -216,3 +217,84 @@ test('Join preflight is the command validator and admits complete adjacent linke
 	assert.equal(canJoinClips(value, value.selection.clipIds), false);
 	assert.equal(resolveEditingActionAvailability({ project: value }).join, false);
 });
+
+test('controller execution obeys the same Join, Group, and Ungroup gates as every surface', () => {
+	const invalidJoin = project();
+	assert.equal(resolveEditingActionAvailability({ project: invalidJoin }).join, false);
+	assert.deepEqual(executeControllerEdit(invalidJoin, 'join'), []);
+
+	const joinable = project();
+	joinable.schemaVersion = 17;
+	joinable.clips.splice(0, joinable.clips.length,
+		clip('video-a', 0, { kind: 'video', avLinkId: 'link-a', sourceStartFrame: 0 }),
+		clip('video-b', 100, { kind: 'video', avLinkId: 'link-b', sourceStartFrame: 100 }),
+		clip('audio-a', 0, { avLinkId: 'link-a', sourceStartFrame: 0 }),
+		clip('audio-b', 100, { avLinkId: 'link-b', sourceStartFrame: 100 }),
+	);
+	joinable.tracks.splice(0, joinable.tracks.length,
+		{ id: 'video-track', type: 'video', laneGroupId: 'lane', clipIds: ['video-a', 'video-b'] },
+		{ id: 'audio-track', type: 'audio', laneGroupId: 'lane', clipIds: ['audio-a', 'audio-b'] },
+	);
+	joinable.selection.clipIds = joinable.clips.map(({ id }) => id);
+	joinable.selection.trackIds = [];
+	assert.equal(resolveEditingActionAvailability({ project: joinable }).join, true);
+	assert.deepEqual(executeControllerEdit(joinable, 'join'), [{
+		type: 'clip/join', clipIds: ['video-a', 'video-b', 'audio-a', 'audio-b'],
+	}]);
+
+	const ungrouped = project();
+	ungrouped.selection.clipIds = ['focus-only'];
+	assert.equal(resolveEditingActionAvailability({ project: ungrouped }).ungroup, false);
+	assert.deepEqual(executeControllerEdit(ungrouped, 'ungroup'), []);
+
+	const grouped = project();
+	assert.equal(resolveEditingActionAvailability({ project: grouped }).ungroup, true);
+	assert.deepEqual(executeControllerEdit(grouped, 'ungroup'), [{
+		type: 'clip/ungroup', clipIds: ['group-audio', 'group-video', 'linked-audio'],
+	}]);
+
+	const single = project();
+	single.selection.clipIds = ['focus-only'];
+	assert.equal(resolveEditingActionAvailability({ project: single }).group, false);
+	assert.deepEqual(executeControllerEdit(single, 'group'), []);
+	assert.equal(resolveEditingActionAvailability({ project: grouped }).group, true);
+	assert.deepEqual(executeControllerEdit(grouped, 'group'), [{
+		type: 'clip/group', clipIds: ['group-audio', 'group-video', 'linked-audio'], groupId: 'group-created',
+	}]);
+});
+
+function executeControllerEdit(value: ReturnType<typeof project>, action: string): readonly unknown[] {
+	const commands: unknown[] = [];
+	const findClip = (_project: unknown, clipId: string) => value.clips.find(({ id }) => id === clipId) ?? null;
+	const findTrack = (_project: unknown, trackId: string | null) => (
+		value.tracks.find(({ id }) => id === trackId) ?? null
+	);
+	const findClipTrack = (_project: unknown, clipId: string) => (
+		value.tracks.find((track) => 'clipIds' in track && track.clipIds.includes(clipId)) ?? null
+	);
+	const state = {
+		history: {},
+		selectedClipId: null,
+		selectedTrackId: null,
+		preferences: {},
+		videoEffectGestures: new Map(),
+	};
+	const handleEdit = createEditorEditService({
+		activeSelection: () => null,
+		commit: (command: unknown) => { commands.push(command); },
+		copy: {},
+		editingBlocked: () => false,
+		findClip,
+		findClipTrack,
+		findTrack,
+		getProject: () => value,
+		handleError: (error: unknown) => { throw error; },
+		prepareGroupClipsCommand: (clipIds: readonly string[]) => ({
+			type: 'clip/group', clipIds, groupId: 'group-created',
+		}),
+		resolveEditingSelection,
+		state,
+	});
+	handleEdit(action);
+	return commands;
+}

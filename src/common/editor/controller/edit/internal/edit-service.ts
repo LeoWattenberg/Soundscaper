@@ -11,6 +11,7 @@ import {
 	resolveAudioEditorDefaultDelete,
 	resolveAudioEditorDefaultPaste,
 } from '../../../editing-preferences.ts';
+import { resolveEditingActionAvailability } from '../../../commands/editing-selection-authority.ts';
 
 export interface EditServiceRuntime {
 	// Legacy JavaScript ports are narrowed as their owning services migrate.
@@ -257,17 +258,27 @@ export function createEditorEditService(runtime: EditServiceRuntime): HandleEdit
 				}, { selectTrackId: trackId, selectClipId: split.rightClipId });
 				return;
 			}
-			if (action === 'join' && selectedClipIds.length > 1) {
-				commit({ type: 'clip/join', clipIds: selectedClipIds }, { selectClipId: selectedClipIds[0] });
-				return;
-			}
-			if (action === 'group' && selectedClipIds.length > 1) {
-				commit(prepareGroupClipsCommand(selectedClipIds));
-				return;
-			}
-			if (action === 'ungroup' && selectedClipIds.length) {
-				commit({ type: 'clip/ungroup', clipIds: selectedClipIds });
-				return;
+			if (action === 'join' || action === 'group' || action === 'ungroup') {
+				const availability = resolveEditingActionAvailability({
+					project: getProject(),
+					focusedClipId: state.selectedClipId,
+					focusedTrackId: state.selectedTrackId,
+				});
+				if (action === 'join' && availability.join) {
+					commit(
+						{ type: 'clip/join', clipIds: availability.clipIds },
+						{ selectClipId: availability.clipIds[0] },
+					);
+					return;
+				}
+				if (action === 'group' && availability.group) {
+					commit(prepareGroupClipsCommand(availability.clipIds));
+					return;
+				}
+				if (action === 'ungroup' && availability.ungroup) {
+					commit({ type: 'clip/ungroup', clipIds: availability.clipIds });
+					return;
+				}
 			}
 			if (action === 'trim-outside-selection') {
 				if (baseSelection) {
