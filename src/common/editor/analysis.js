@@ -47,7 +47,6 @@ export function createStreamingAudioAnalyzer(options = {}) {
 		throw new RangeError('A non-negative loudness weight is required for every channel.');
 	}
 
-	const kWeighting = Array.from({ length: channelCount }, () => createKWeightingFilter(sampleRate));
 	const ebuMeter = createEbuR128Meter({
 		sampleRate,
 		channelCount,
@@ -59,12 +58,6 @@ export function createStreamingAudioAnalyzer(options = {}) {
 	const momentaryStep = Math.max(1, Math.round(sampleRate * 0.1));
 	const shortTermFrames = Math.max(momentaryFrames, Math.round(sampleRate * 3));
 	const shortTermStep = Math.max(1, Math.round(sampleRate));
-	const energyRing = new Float64Array(shortTermFrames);
-	const momentaryEnergies = [];
-	const shortTermEnergies = [];
-	let energyWriteIndex = 0;
-	let momentaryEnergySum = 0;
-	let shortTermEnergySum = 0;
 	let frameCount = 0;
 	let sampleSquareSum = 0;
 	let clippedSamples = 0;
@@ -89,7 +82,6 @@ export function createStreamingAudioAnalyzer(options = {}) {
 		ebuMeter.push(channels);
 
 		for (let frame = 0; frame < frames; frame += 1) {
-			let weightedEnergy = 0;
 			let frameClipped = false;
 			for (let channel = 0; channel < channelCount; channel += 1) {
 				const sample = Number(channels[channel][frame]);
@@ -101,8 +93,6 @@ export function createStreamingAudioAnalyzer(options = {}) {
 					clippedSamples += 1;
 					frameClipped = true;
 				}
-				const weighted = kWeighting[channel].process(sample);
-				weightedEnergy += weighted * weighted * channelWeights[channel];
 			}
 			if (frameClipped) clippedFrames += 1;
 			if (channelCount >= 2) {
@@ -114,29 +104,9 @@ export function createStreamingAudioAnalyzer(options = {}) {
 				rightSquareSum += right * right;
 				crossSum += left * right;
 			}
-			pushLoudnessEnergy(weightedEnergy);
 			frameCount += 1;
 		}
 		return api;
-	}
-
-	function pushLoudnessEnergy(energy) {
-		if (frameCount >= shortTermFrames) shortTermEnergySum -= energyRing[energyWriteIndex];
-		if (frameCount >= momentaryFrames) {
-			const expiredIndex = (energyWriteIndex - momentaryFrames + shortTermFrames) % shortTermFrames;
-			momentaryEnergySum -= energyRing[expiredIndex];
-		}
-		energyRing[energyWriteIndex] = energy;
-		energyWriteIndex = (energyWriteIndex + 1) % shortTermFrames;
-		momentaryEnergySum += energy;
-		shortTermEnergySum += energy;
-		const nextFrameCount = frameCount + 1;
-		if (nextFrameCount >= momentaryFrames && (nextFrameCount - momentaryFrames) % momentaryStep === 0) {
-			momentaryEnergies.push(Math.max(0, momentaryEnergySum / momentaryFrames));
-		}
-		if (nextFrameCount >= shortTermFrames && (nextFrameCount - shortTermFrames) % shortTermStep === 0) {
-			shortTermEnergies.push(Math.max(0, shortTermEnergySum / shortTermFrames));
-		}
 	}
 
 	function finish() {
@@ -170,8 +140,8 @@ export function createStreamingAudioAnalyzer(options = {}) {
 			maxShortTermLufs: ebu.maximumShortTermLufs,
 			integratedLufs,
 			loudnessRangeLufs: ebu.loudnessRangeLu,
-			momentaryBlockCount: momentaryEnergies.length,
-			shortTermBlockCount: shortTermEnergies.length,
+			momentaryBlockCount: loudnessBlockCount(frameCount, momentaryFrames, momentaryStep),
+			shortTermBlockCount: loudnessBlockCount(frameCount, shortTermFrames, shortTermStep),
 		});
 		return result;
 	}
@@ -262,59 +232,6 @@ function rmsDb(channels) {
 	return amplitudeToDb(count ? Math.sqrt(squares / count) : 0);
 }
 
-function createKWeightingFilter(sampleRate) {
-	const shelf = createShelfCoefficients(sampleRate);
-	const highpass = createHighpassCoefficients(sampleRate);
-	const shelfState = createBiquadState(shelf);
-	const highpassState = createBiquadState(highpass);
-	return {
-		process(sample) {
-			return processBiquad(highpassState, processBiquad(shelfState, sample));
-		},
-	};
-}
-
-function createShelfCoefficients(sampleRate) {
-	const frequency = 1_681.974450955533;
-	const gain = 3.999843853973347;
-	const q = 0.7071752369554196;
-	const vh = 10 ** (gain / 20);
-	const vb = vh ** 0.4996667741545416;
-	const k = Math.tan(Math.PI * frequency / sampleRate);
-	const a0 = 1 + k / q + k * k;
-	return {
-		b0: (vh + vb * k / q + k * k) / a0,
-		b1: 2 * (k * k - vh) / a0,
-		b2: (vh - vb * k / q + k * k) / a0,
-		a1: 2 * (k * k - 1) / a0,
-		a2: (1 - k / q + k * k) / a0,
-	};
-}
-
-function createHighpassCoefficients(sampleRate) {
-	const frequency = 38.13547087602444;
-	const q = 0.5003270373238773;
-	const k = Math.tan(Math.PI * frequency / sampleRate);
-	const a0 = 1 + k / q + k * k;
-	return {
-		b0: 1 / a0,
-		b1: -2 / a0,
-		b2: 1 / a0,
-		a1: 2 * (k * k - 1) / a0,
-		a2: (1 - k / q + k * k) / a0,
-	};
-}
-
-function createBiquadState(coefficients) {
-	return { ...coefficients, x1: 0, x2: 0, y1: 0, y2: 0 };
-}
-
-function processBiquad(state, x0) {
-	const y0 = state.b0 * x0 + state.b1 * state.x1 + state.b2 * state.x2
-		- state.a1 * state.y1 - state.a2 * state.y2;
-	state.x2 = state.x1;
-	state.x1 = x0;
-	state.y2 = state.y1;
-	state.y1 = y0;
-	return y0;
+function loudnessBlockCount(frameCount, windowFrames, stepFrames) {
+	return frameCount < windowFrames ? 0 : 1 + Math.floor((frameCount - windowFrames) / stepFrames);
 }

@@ -170,3 +170,17 @@ test('streaming analysis handles silence, anti-phase stereo, clipping, and short
 	assert.equal(antiPhase.clippedFrames >= 1, true);
 	assert.equal(antiPhase.shortTermLufs, null);
 });
+
+test('analysis block counts follow the EBU window cadence at exact frame boundaries', () => {
+	const analyzeFrames = (frameCount) => analyzeAudioChannels(
+		[new Float32Array(frameCount)], 8_000,
+	);
+	assert.deepEqual(
+		[3_199, 3_200, 3_999, 4_000].map((frames) => analyzeFrames(frames).momentaryBlockCount),
+		[0, 1, 1, 2],
+	);
+	assert.deepEqual(
+		[23_999, 24_000, 31_999, 32_000].map((frames) => analyzeFrames(frames).shortTermBlockCount),
+		[0, 1, 1, 2],
+	);
+});
