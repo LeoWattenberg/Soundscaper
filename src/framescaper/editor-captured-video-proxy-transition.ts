@@ -8,6 +8,7 @@ import {
 import type {
 	FramescaperCapturedVideoProxyProject,
 } from './editor-captured-video-proxy-preservation.ts';
+import { capturedVideoProxySource } from './editor-captured-video-proxy-scheduler-guards.ts';
 import { sameCapturedVideoProxyAttachment } from './editor-captured-video-proxy-request.ts';
 
 /** Build only the exact next null-to-new or old-to-new attachment revision. */
@@ -22,7 +23,10 @@ export function nextCapturedVideoProxyAttachmentProject(
 		throw new RangeError('The captured proxy revision cannot advance.');
 	}
 	const draft = structuredClone(base) as unknown as Record<string, unknown>;
-	const source = videoSource(draft as unknown as FramescaperCapturedVideoProxyProject, sourceId);
+	const source = capturedVideoProxySource(
+		draft as unknown as FramescaperCapturedVideoProxyProject,
+		sourceId,
+	);
 	if (expectedAttachment
 		? !sameCapturedVideoProxyAttachment(source.proxyAttachment, expectedAttachment)
 		: source.proxyAttachment !== null) {
@@ -34,20 +38,4 @@ export function nextCapturedVideoProxyAttachmentProject(
 	draft.updatedAt = new Date(Math.max(Date.now(), baseTime + 1)).toISOString();
 	draft.featureRequirements = dependencies.reconcileProjectRequirements(draft);
 	return cloneCapturedVideoProxyProject(dependencies, draft);
-}
-
-function videoSource(
-	project: FramescaperCapturedVideoProxyProject,
-	sourceId: string,
-): Record<string, unknown> & { proxyAttachment: VideoProxyAttachmentV18 | null } {
-	const sources = (project as unknown as {
-		readonly sources: readonly Readonly<Record<string, unknown>>[];
-	}).sources;
-	const matches = sources.filter((source) => source.id === sourceId);
-	if (matches.length !== 1 || matches[0]!.kind !== 'video') {
-		throw new ReferenceError(`Captured video proxy source ${sourceId} is missing or ambiguous.`);
-	}
-	return matches[0] as Record<string, unknown> & {
-		proxyAttachment: VideoProxyAttachmentV18 | null;
-	};
 }
