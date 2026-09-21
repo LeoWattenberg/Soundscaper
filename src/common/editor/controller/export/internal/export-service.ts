@@ -3,7 +3,6 @@ import { admitAudioExportBlob, prepareAudioExportBlob } from '../../../audio-exp
 import { audioExportPublicationProgress, NO_AUDIO_EXPORT_PROGRESS as NO_TASK_PROGRESS } from './audio/audio-export-progress.ts';
 import { isVideoExportRequestFormat } from '../../../video-export-request-format.ts';
 import { inheritTrackFolderMediaStateProjectionV12 } from '../../../track-folder-media-runtime.ts';
-import { EDITOR_PROJECT_TASK_SCOPE } from '../../shared/lifecycle.ts';
 import { createExportRenderProject } from '../export-render-project.ts';
 import { createBw64RenderProject } from './bw64-render-project.ts';
 import {
@@ -27,6 +26,7 @@ import { commitDirectPcmDestination, type DirectPcmDestination } from './direct/
 import { commitPreparedDirectStemArchiveDestination, directStemArchiveTemporaryBytes, prepareDirectStemArchiveDestination, streamDirectStemArchive } from './direct/direct-stem-archive-export.ts';
 import { createEditorVideoExportAction } from './video/video-export-service.ts';
 import { createExportOperationAvailability } from './export-operation-availability.ts';
+import { beginExportTask, handleExportFailure } from './export-task-lifecycle.ts';
 import { createExportSnapshotRenderer } from '../export-snapshot-renderer.ts';
 import type { EditorExportState } from '../export-state.ts';
 import { streamStemArchiveExport } from './archive/streaming-stem-archive-export.ts';
@@ -162,18 +162,11 @@ export function createEditorExportService(runtime: ExportServiceRuntime) {
 			releaseExportOwner(executionOwner);
 			throw createLocalizedError(Error, copy, 'localSourcesMissing');
 		}
-		const generation = ++state.exportGeneration;
-		const projectToken = projectGeneration.capture(canonicalProject.id);
-		const exportTask = lifetime.startTask('export', { scope: EDITOR_PROJECT_TASK_SCOPE });
-		const abort = Object.freeze({ signal: exportTask.signal, abort: () => lifetime.cancelTask('export') });
-		const assertExportCurrent = () => {
-			throwIfAborted(abort.signal);
-			exportTask.assertCurrent();
-			projectGeneration.assertCurrent(projectToken);
-			if (generation !== state.exportGeneration || state.disposed) throw abortError();
-		};
-		state.exportAbort = abort;
-		toggleExport(true);
+		const exportOperation = beginExportTask({
+			state, lifetime, projectGeneration, projectId: canonicalProject.id,
+			throwIfAborted, abortError, toggleExport,
+		});
+		const { generation, abort, assertCurrent: assertExportCurrent } = exportOperation;
 		const progressTask = taskProgress?.begin?.('export', copy.rendering, 0, { key: 'rendering' }) || NO_TASK_PROGRESS;
 		progressTask.setCancellation?.(() => { abort.abort(); });
 		let exportProject = createExportRenderProject(deliveredProject);
@@ -460,27 +453,14 @@ export function createEditorExportService(runtime: ExportServiceRuntime) {
 			setLocalizedStatus(setStatus, copy, "done", undefined, 'success');
 			publishDocumentSnapshot();
 			return state.exportOutput;
-		} catch (caughtError) {
-			let error = caughtError;
-			if (pendingDirectDestination) {
-				try {
-					await pendingDirectDestination.abort(error);
-				} catch (cleanupError) {
-					error = new AggregateError(
-						[error, cleanupError],
-						'The streamed audio export and destination cleanup both failed.',
-					);
-				}
-			}
-			await pendingCleanup?.().catch(() => undefined);
-			if ((error as Readonly<{ name?: string }>)?.name !== 'AbortError') handleError(error);
+		} catch (error) {
+			await handleExportFailure({
+				error, destination: pendingDirectDestination, cleanup: pendingCleanup,
+				cleanupFailureMessage: 'The streamed audio export and destination cleanup both failed.',
+				handleError,
+			});
 		} finally {
-			if (generation === state.exportGeneration) {
-				state.exportAbort = null;
-				toggleExport(false);
-			}
-			progressTask.finish();
-			exportTask.finish();
+			exportOperation.finish(progressTask);
 			releaseExportOwner(executionOwner);
 		}
 	}

@@ -5,7 +5,6 @@ import { createVisibleVideoTrackPredicate } from '../../../../video-timeline.js'
 import { prepareBrowserExportBlob } from '../../../../browser-export-output.ts';
 import { getVideoExportFormat } from '../../../../video-export.js';
 import { projectTrackFolderMediaStateV12 } from '../../../../track-folder-media-runtime.ts';
-import { EDITOR_PROJECT_TASK_SCOPE } from '../../../shared/lifecycle.ts';
 import { createExportRenderProject } from '../../export-render-project.ts';
 import { audioRenderedFallbackRenderSources } from '../audio/audio-rendered-fallback-export.ts';
 import {
@@ -41,6 +40,7 @@ import {
 	stagedAudioChannelCount,
 	stagedAudioChannelLayout,
 } from './video-export-staged-audio.ts';
+import { beginExportTask, handleExportFailure } from '../export-task-lifecycle.ts';
 
 export interface VideoExportServiceRuntime {
 	readonly state: EditorExportState;
@@ -114,21 +114,11 @@ export function createEditorVideoExportAction(
 		if (hasMissingTimelineSources(exportProject, { excludedSourceIds: fallbackSourceIds })) {
 			throw createLocalizedError(Error, copy, 'localSourcesMissing');
 		}
-		const generation = ++state.exportGeneration;
-		const projectToken = projectGeneration.capture(canonicalProject.id);
-		const exportTask = lifetime.startTask('export', { scope: EDITOR_PROJECT_TASK_SCOPE });
-		const abort = Object.freeze({
-			signal: exportTask.signal,
-			abort: () => lifetime.cancelTask('export'),
+		const exportOperation = beginExportTask({
+			state, lifetime, projectGeneration, projectId: canonicalProject.id,
+			throwIfAborted, abortError, toggleExport,
 		});
-		const assertVideoExportCurrent = () => {
-			throwIfAborted(abort.signal);
-			exportTask.assertCurrent();
-			projectGeneration.assertCurrent(projectToken);
-			if (generation !== state.exportGeneration || state.disposed) throw abortError();
-		};
-		state.exportAbort = abort;
-		toggleExport(true);
+		const { abort, assertCurrent: assertVideoExportCurrent } = exportOperation;
 		const progressTask = taskProgress?.begin?.('export', copy.rendering, 0, { key: 'rendering' }) || NO_TASK_PROGRESS;
 		let pendingCleanup = null;
 		let pendingDirectDestination: DirectVideoDestination | null = null;
@@ -447,29 +437,16 @@ export function createEditorVideoExportAction(
 			setLocalizedStatus(setStatus, copy, "done", undefined, 'success');
 			publishDocumentSnapshot();
 			return state.exportOutput;
-		} catch (caughtError) {
-			let error = caughtError;
-			if (pendingDirectDestination) {
-				try {
-					await pendingDirectDestination.abort(error);
-				} catch (cleanupError) {
-					error = new AggregateError(
-						[error, cleanupError],
-						'The streamed video export and destination cleanup both failed.',
-					);
-				}
-			}
-			await pendingCleanup?.().catch(() => undefined);
-			if ((error as Readonly<{ name?: string }>)?.name !== 'AbortError') handleError(error);
+		} catch (error) {
+			await handleExportFailure({
+				error, destination: pendingDirectDestination, cleanup: pendingCleanup,
+				cleanupFailureMessage: 'The streamed video export and destination cleanup both failed.',
+				handleError,
+			});
 			return null;
 		} finally {
 			keyedTimingIndexes?.release();
-			if (generation === state.exportGeneration) {
-				state.exportAbort = null;
-				toggleExport(false);
-			}
-			progressTask.finish();
-			exportTask.finish();
+			exportOperation.finish(progressTask);
 		}
 	};
 }
