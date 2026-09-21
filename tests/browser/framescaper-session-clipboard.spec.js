@@ -24,7 +24,8 @@ const PNG = Buffer.from(
 registerAudioEditorHooks();
 
 test.describe('Framescaper rich session clipboard', () => {
-	test('keeps a cross-project image paste atomic without a body publication', async ({ page }) => {
+	test('keeps a cross-project image paste atomic without a body publication', async ({ browserName, page }) => {
+		test.skip(browserName !== 'chromium', 'The nightly browser coverage surface is Chromium.');
 		test.setTimeout(120_000);
 		const { editor, projectId: originProjectId } = await authorRichClipboard(page);
 		await expect.poll(() => storedClipboardState(page, originProjectId)).toMatchObject({
