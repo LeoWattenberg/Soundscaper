@@ -63,6 +63,8 @@ export function createDesktopNightlyTestsPackagedCoveragePlan({
 			SOUNDSCAPER_PACKAGED_RUNTIME_ARCH: arch,
 			AUDIO_EDITOR_FFMPEG_BROWSER: '1',
 			GITHUB_ACTIONS: 'false',
+			SOUNDSCAPER_M4B2_KEYFRAME_PARITY: '1',
+			SOUNDSCAPER_M4_PRODUCTION_PARITY: '1',
 		}),
 		logFile: join(runRoot, PACKAGED_COVERAGE_ARTIFACT_PATHS.packagedCoverageConsoleLog),
 	});

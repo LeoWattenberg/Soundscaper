@@ -42,6 +42,8 @@ test('packaged coverage plan instruments only the dedicated correctness workload
 	);
 	assert.equal(plan.env.SOUNDSCAPER_M3_LONGFORM_BENCHMARK, undefined);
 	assert.equal(plan.env.SOUNDSCAPER_VIDEO_PREVIEW_BENCHMARK, undefined);
+	assert.equal(plan.env.SOUNDSCAPER_M4_PRODUCTION_PARITY, '1');
+	assert.equal(plan.env.SOUNDSCAPER_M4B2_KEYFRAME_PARITY, '1');
 });
 
 test('coverage evidence preservation makes browser and Electron builds portable', async (context) => {
