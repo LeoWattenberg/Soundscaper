@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { createEnvelopeValueEvaluator } from '../../automation.js';
+import { evaluateLinearClipFadeAt } from '../../audio-clip-transition-gain.ts';
 import type {
 	AudioEditorClipboardTrack,
 	AudioEditorCommand,
@@ -347,10 +348,8 @@ function renderClipPcm(
 			const sourceFrame = reversed
 				? sourceStart + sourceDuration - 1 - sourceOffset
 				: sourceStart + sourceOffset;
-			const fadeInGain = fadeIn > 0 && frame < fadeIn ? frame / fadeIn : 1;
-			const fadeOutGain = fadeOut > 0 && frame > outputFrames - fadeOut
-				? (outputFrames - frame) / fadeOut
-				: 1;
+			const fadeInGain = evaluateLinearClipFadeAt(frame, outputFrames, fadeIn, 'in');
+			const fadeOutGain = evaluateLinearClipFadeAt(frame, outputFrames, fadeOut, 'out');
 			output[frame] = input[sourceFrame]! * gain * envelope(frame) * fadeInGain * fadeOutGain;
 		}
 		return output;

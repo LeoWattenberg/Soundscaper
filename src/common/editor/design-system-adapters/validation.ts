@@ -1,4 +1,5 @@
 import { AUDIO_EDITOR_SAMPLE_RATE } from '../project.js';
+import { evaluateLinearClipFadeAt } from '../audio-clip-transition-gain.ts';
 import type { FrameConversionOptions, NumericChannel } from './types.ts';
 
 export const MAXIMUM_FRAME = Number.MAX_SAFE_INTEGER;
@@ -44,12 +45,8 @@ export function fadeEnvelope(
 	fadeInFrames: number,
 	fadeOutFrames: number,
 ): number {
-	let envelope = 1;
-	if (fadeInFrames > 0 && localFrame < fadeInFrames) envelope *= localFrame / fadeInFrames;
-	if (fadeOutFrames > 0 && localFrame > durationFrames - fadeOutFrames) {
-		envelope *= (durationFrames - localFrame) / fadeOutFrames;
-	}
-	return Math.max(0, envelope);
+	return evaluateLinearClipFadeAt(localFrame, durationFrames, fadeInFrames, 'in')
+		* evaluateLinearClipFadeAt(localFrame, durationFrames, fadeOutFrames, 'out');
 }
 
 export function clampedLocalFrame(value: unknown, durationFrames: number, name: string): number {

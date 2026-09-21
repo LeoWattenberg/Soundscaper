@@ -2,7 +2,14 @@
 
 import { AUDIO_EDITOR_STORAGE_CHUNK_FRAMES } from '../chunk-stream.js';
 import { buildAudioWarpRuntimeSegments } from '../audio-warp-runtime.ts';
-import { findPartialClipOverlaps } from '../audio-clip-overlap.ts';
+import {
+	automaticClipCrossfadeRanges,
+	mergeFrameRanges,
+} from '../audio-clip-overlap.ts';
+import type {
+	ClipCrossfadeRanges,
+	FrameRange,
+} from '../audio-clip-overlap.ts';
 import {
 	clipDuration,
 	clipStart,
@@ -22,12 +29,8 @@ import type {
 	UnknownRecord,
 } from './types.ts';
 
-export type FrameRange = readonly [startFrame: number, endFrame: number];
-
-export interface ClipCrossfadeRanges {
-	readonly crossfadeInRanges: readonly FrameRange[];
-	readonly crossfadeOutRanges: readonly FrameRange[];
-}
+export { mergeFrameRanges };
+export type { ClipCrossfadeRanges, FrameRange };
 
 export interface ClipSchedulePlan extends ClipCrossfadeRanges {
 	readonly clip: EngineClip;
@@ -149,43 +152,11 @@ export function getTrackClips(
 /** Derive complementary, clip-local crossfade ranges for proper partial overlaps. */
 export function automaticCrossfadeRanges(clips: readonly EngineClip[]): Map<string, ClipCrossfadeRanges> {
 	if (!Array.isArray(clips)) throw new TypeError('clips must be an array.');
-	const ranges = new Map<string, {
-		crossfadeInRanges: FrameRange[];
-		crossfadeOutRanges: FrameRange[];
-	}>(clips.map((clip) => [String(clip.id), { crossfadeInRanges: [], crossfadeOutRanges: [] }]));
-	for (const overlap of findPartialClipOverlaps<EngineClip>(clips, {
+	return automaticClipCrossfadeRanges<EngineClip>(clips, {
 		id: (clip) => clip.id,
 		startFrame: clipStart,
 		durationFrames: clipDuration,
-	})) {
-		ranges.get(String(overlap.left.id))?.crossfadeOutRanges.push([
-			overlap.startFrame - overlap.leftStartFrame,
-			overlap.endFrame - overlap.leftStartFrame,
-		]);
-		ranges.get(String(overlap.right.id))?.crossfadeInRanges.push([
-			overlap.startFrame - overlap.rightStartFrame,
-			overlap.endFrame - overlap.rightStartFrame,
-		]);
-	}
-	for (const value of ranges.values()) {
-		value.crossfadeInRanges = mergeFrameRanges(value.crossfadeInRanges);
-		value.crossfadeOutRanges = mergeFrameRanges(value.crossfadeOutRanges);
-	}
-	return ranges;
-}
-
-export function mergeFrameRanges(ranges: readonly FrameRange[]): FrameRange[] {
-	const ordered = ranges
-		.filter(([start, end]) => Number.isFinite(start) && Number.isFinite(end) && end > start)
-		.slice()
-		.sort((left, right) => left[0] - right[0] || left[1] - right[1]);
-	const merged: [number, number][] = [];
-	for (const [start, end] of ordered) {
-		const previous = merged.at(-1);
-		if (previous && start <= previous[1]) previous[1] = Math.max(previous[1], end);
-		else merged.push([start, end]);
-	}
-	return merged;
+	});
 }
 
 export interface BuildClipSchedulePlansOptions {

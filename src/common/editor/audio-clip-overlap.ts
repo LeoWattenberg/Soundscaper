@@ -11,11 +11,20 @@ export interface PartialClipOverlap<T> {
 	readonly endFrame: number;
 }
 
-interface ClipOverlapAccessors<T> {
+export type FrameRange = readonly [startFrame: number, endFrame: number];
+
+export interface ClipCrossfadeRanges {
+	readonly crossfadeInRanges: readonly FrameRange[];
+	readonly crossfadeOutRanges: readonly FrameRange[];
+}
+
+export interface ClipOverlapAccessors<T> {
 	readonly id: (clip: T) => unknown;
 	readonly startFrame: (clip: T) => number;
 	readonly durationFrames: (clip: T) => number;
 }
+
+export type FrameRangeNormalizer = (ranges: readonly FrameRange[]) => readonly FrameRange[];
 
 /** Find overlaps where each clip extends beyond a different edge of the other. */
 export function findPartialClipOverlaps<T>(
@@ -50,4 +59,48 @@ export function findPartialClipOverlaps<T>(
 		}
 	}
 	return overlaps;
+}
+
+/** Project proper overlaps into complementary clip-local automatic crossfade ranges. */
+export function automaticClipCrossfadeRanges<T>(
+	clips: readonly T[],
+	accessors: ClipOverlapAccessors<T>,
+	normalizeRanges: FrameRangeNormalizer = mergeFrameRanges,
+): Map<string, ClipCrossfadeRanges> {
+	const ranges = new Map<string, {
+		crossfadeInRanges: FrameRange[];
+		crossfadeOutRanges: FrameRange[];
+	}>(clips.map((clip) => [
+		String(accessors.id(clip)),
+		{ crossfadeInRanges: [], crossfadeOutRanges: [] },
+	]));
+	for (const overlap of findPartialClipOverlaps(clips, accessors)) {
+		ranges.get(String(accessors.id(overlap.left)))?.crossfadeOutRanges.push([
+			overlap.startFrame - overlap.leftStartFrame,
+			overlap.endFrame - overlap.leftStartFrame,
+		]);
+		ranges.get(String(accessors.id(overlap.right)))?.crossfadeInRanges.push([
+			overlap.startFrame - overlap.rightStartFrame,
+			overlap.endFrame - overlap.rightStartFrame,
+		]);
+	}
+	return new Map([...ranges].map(([id, value]) => [id, {
+		crossfadeInRanges: normalizeRanges(value.crossfadeInRanges),
+		crossfadeOutRanges: normalizeRanges(value.crossfadeOutRanges),
+	}]));
+}
+
+/** Sort and merge touching or overlapping frame-boundary ranges. */
+export function mergeFrameRanges(ranges: readonly FrameRange[]): FrameRange[] {
+	const ordered = ranges
+		.filter(([start, end]) => Number.isFinite(start) && Number.isFinite(end) && end > start)
+		.slice()
+		.sort((left, right) => left[0] - right[0] || left[1] - right[1]);
+	const merged: [number, number][] = [];
+	for (const [start, end] of ordered) {
+		const previous = merged.at(-1);
+		if (previous && start <= previous[1]) previous[1] = Math.max(previous[1], end);
+		else merged.push([start, end]);
+	}
+	return merged;
 }

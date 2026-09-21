@@ -1,13 +1,14 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { envelopeValueAtFrame } from '../automation.js';
+import { evaluateClipEdgeGainAt } from '../audio-clip-transition-gain.ts';
+import type { FrameRange } from '../audio-clip-overlap.ts';
 import { linearRamp, setParam } from './audio-node-utils.ts';
 import {
 	clampFrame,
 	finite,
 	getProjectDurationFrames,
 } from './buffer-math.ts';
-import type { FrameRange } from './clip-schedule-plan.ts';
 import type { ProjectGainParams, ScheduledGainParam } from './project-graph.ts';
 import { compileProjectGainEvents } from './project-gain-event-plan.ts';
 import type {
@@ -110,15 +111,11 @@ export function scheduleClipGain(
 	const fadeOut = clampFrame(clip.fadeOutFrames, 0, duration);
 	const crossfadeInRanges = options.crossfadeInRanges || [];
 	const crossfadeOutRanges = options.crossfadeOutRanges || [];
-	const fadeInAt = (frame: number): number => (
-		(fadeIn > 0 && frame < fadeIn ? Math.max(0, frame / fadeIn) : 1)
-		* crossfadeGainAt(frame, crossfadeInRanges, 'in')
+	const fadeInAt = (frame: number): number => evaluateClipEdgeGainAt(
+		frame, duration, fadeIn, crossfadeInRanges, 'in',
 	);
-	const fadeOutAt = (frame: number): number => (
-		(fadeOut > 0 && frame > duration - fadeOut
-			? Math.max(0, (duration - frame) / fadeOut)
-			: 1)
-		* crossfadeGainAt(frame, crossfadeOutRanges, 'out')
+	const fadeOutAt = (frame: number): number => evaluateClipEdgeGainAt(
+		frame, duration, fadeOut, crossfadeOutRanges, 'out',
 	);
 	scheduleGainAutomation(fadeInParam, fadeInAt, segmentStart, segmentEnd, startTime, sampleRate, [
 		0, fadeIn, ...crossfadeInRanges.flat(),
@@ -132,20 +129,7 @@ export function scheduleClipGain(
 	]);
 }
 
-export function crossfadeGainAt(
-	frame: number,
-	ranges: readonly FrameRange[],
-	direction: 'in' | 'out',
-): number {
-	let gain = 1;
-	for (const [start, end] of ranges) {
-		if (frame < start || frame > end) continue;
-		const progress = end > start ? (frame - start) / (end - start) : 1;
-		const value = direction === 'in' ? progress : 1 - progress;
-		gain = Math.min(gain, Math.max(0, Math.min(1, value)));
-	}
-	return gain;
-}
+export { evaluateClipCrossfadeAt as crossfadeGainAt } from '../audio-clip-transition-gain.ts';
 
 function scheduleGainAutomation(
 	param: AudioParam,

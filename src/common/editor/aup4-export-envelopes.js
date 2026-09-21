@@ -6,7 +6,11 @@
 // be evaluated together and sampled adaptively into control points that stay
 // within the format's own limit.
 
-import { findPartialClipOverlaps } from './audio-clip-overlap.ts';
+import {
+	automaticClipCrossfadeRanges,
+	mergeFrameRanges,
+} from './audio-clip-overlap.ts';
+import { evaluateClipTransitionGainAt } from './audio-clip-transition-gain.ts';
 import {
 	boundedFrame,
 	finiteNonNegative,
@@ -25,6 +29,12 @@ export function createNativeClipEnvelope(clip, track, automaticCrossfade = {}) {
 	const trackEnvelope = normalizedEnvelope(track.envelope, Number.MAX_SAFE_INTEGER);
 	const crossfadeInRanges = normalizedFrameRanges(automaticCrossfade.crossfadeInRanges, duration);
 	const crossfadeOutRanges = normalizedFrameRanges(automaticCrossfade.crossfadeOutRanges, duration);
+	const transitionGain = {
+		fadeInFrames: fadeIn,
+		fadeOutFrames: fadeOut,
+		crossfadeInRanges,
+		crossfadeOutRanges,
+	};
 	const hasAutomaticCrossfade = crossfadeInRanges.length > 0 || crossfadeOutRanges.length > 0;
 	const converted = gain !== 1 || fadeIn > 0 || fadeOut > 0 || trackEnvelope.length > 0 || hasAutomaticCrossfade;
 	if (!converted) {
@@ -56,7 +66,7 @@ export function createNativeClipEnvelope(clip, track, automaticCrossfade = {}) {
 		gain
 			* envelopeValueAt(clipEnvelope, frame)
 			* envelopeValueAt(trackEnvelope, timelineStart + frame)
-			* fadeValueAt(frame, duration, fadeIn, fadeOut, crossfadeInRanges, crossfadeOutRanges));
+			* evaluateClipTransitionGainAt(frame, duration, transitionGain));
 	const rawPoints = adaptiveEnvelopePoints([...boundaries], valueAt);
 	const maximum = Math.max(1, ...rawPoints.map((point) => point.value));
 	const pcmGain = maximum > AUP4_CLIP_ENVELOPE_MAX ? maximum / AUP4_CLIP_ENVELOPE_MAX : 1;
@@ -136,15 +146,6 @@ function envelopeValueAt(points, frame) {
 	return left.value + (right.value - left.value) * (frame - left.frame) / (right.frame - left.frame);
 }
 
-function fadeValueAt(frame, duration, fadeIn, fadeOut, crossfadeInRanges, crossfadeOutRanges) {
-	let value = 1;
-	if (fadeIn > 0 && frame < fadeIn) value *= frame / fadeIn;
-	if (fadeOut > 0 && frame > duration - fadeOut) value *= (duration - frame) / fadeOut;
-	value *= crossfadeValueAt(frame, crossfadeInRanges, 'in');
-	value *= crossfadeValueAt(frame, crossfadeOutRanges, 'out');
-	return Math.max(0, value);
-}
-
 function envelopeWithBoundaries(points) {
 	if (!points.length) return [];
 	const output = points.map((point) => ({ ...point }));
@@ -160,47 +161,13 @@ function normalizedFrameRanges(ranges, duration) {
 		])
 		.filter(([start, end]) => Number.isFinite(start) && Number.isFinite(end) && end > start)
 		.sort((left, right) => left[0] - right[0] || left[1] - right[1]);
-	const merged = [];
-	for (const [start, end] of ordered) {
-		const previous = merged.at(-1);
-		if (previous && start <= previous[1]) previous[1] = Math.max(previous[1], end);
-		else merged.push([start, end]);
-	}
-	return merged;
-}
-
-function crossfadeValueAt(frame, ranges, direction) {
-	let gain = 1;
-	for (const [start, end] of ranges) {
-		if (frame < start || frame > end) continue;
-		const progress = end > start ? (frame - start) / (end - start) : 1;
-		gain = Math.min(gain, direction === 'in' ? progress : 1 - progress);
-	}
-	return Math.max(0, Math.min(1, gain));
+	return mergeFrameRanges(ordered);
 }
 
 export function automaticAup4CrossfadeRanges(clips) {
-	const ranges = new Map(clips.map((clip) => [
-		String(clip.id),
-		{ crossfadeInRanges: [], crossfadeOutRanges: [] },
-	]));
-	for (const overlap of findPartialClipOverlaps(clips, {
+	return automaticClipCrossfadeRanges(clips, {
 		id: (clip) => clip.id,
 		startFrame: (clip) => Number(clip.timelineStartFrame),
 		durationFrames: (clip) => Number(clip.durationFrames),
-	})) {
-		ranges.get(String(overlap.left.id)).crossfadeOutRanges.push([
-			overlap.startFrame - overlap.leftStartFrame,
-			overlap.endFrame - overlap.leftStartFrame,
-		]);
-		ranges.get(String(overlap.right.id)).crossfadeInRanges.push([
-			overlap.startFrame - overlap.rightStartFrame,
-			overlap.endFrame - overlap.rightStartFrame,
-		]);
-	}
-	for (const value of ranges.values()) {
-		value.crossfadeInRanges = normalizedFrameRanges(value.crossfadeInRanges, Number.MAX_SAFE_INTEGER);
-		value.crossfadeOutRanges = normalizedFrameRanges(value.crossfadeOutRanges, Number.MAX_SAFE_INTEGER);
-	}
-	return ranges;
+	}, (ranges) => normalizedFrameRanges(ranges, Number.MAX_SAFE_INTEGER));
 }
