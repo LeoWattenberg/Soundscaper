@@ -35,6 +35,7 @@
 		"desktop/bundled-mpg123-audio-codec-runtime.ts",
 		"desktop/bundled-opus-audio-codec-runtime.ts",
 		"desktop/bundled-opus-stream.ts",
+		"desktop/ogg-page-crc.ts",
 		"desktop/bundled-twolame-audio-codec-runtime.ts",
 		"desktop/bundled-vorbis-audio-codec-runtime.ts",
 		"desktop/bundled-vorbis-stream.ts",

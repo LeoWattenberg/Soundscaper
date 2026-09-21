@@ -51,6 +51,7 @@ const AUDIO_CODEC_RUNTIME_FILES = Object.freeze([
 	'desktop/bundled-vorbis-stream.js',
 	'desktop/bundled-wavpack-audio-codec-runtime.js',
 	'desktop/bundled-wavpack-stream.js',
+	'desktop/ogg-page-crc.js',
 	'desktop/desktop-audio-codec-broker.js',
 	'desktop/desktop-audio-codec-capability-contract.js',
 	'desktop/desktop-audio-codec-main-ipc.js',

@@ -29,6 +29,14 @@ for (const format of ['mp3', 'mp2', 'flac', 'opus', 'ogg-vorbis', 'wavpack'] as 
 			assert.ok(largestRead <= 1024 ** 2);
 			await assert.rejects(validateStreamedAudioOutput(blob, { ...request, channelCount: 1 }), /geometry|channel/iu);
 			await assert.rejects(validateStreamedAudioOutput(new Blob([bytes.subarray(0, bytes.length - 1)]), request));
+			if (format === 'opus' || format === 'ogg-vorbis') {
+				const corrupted = bytes.slice();
+				corrupted[corrupted.byteLength - 1]! ^= 1;
+				await assert.rejects(
+					validateStreamedAudioOutput(new Blob([corrupted]), request),
+					/Ogg output page checksum is invalid/u,
+				);
+			}
 		} finally { session.close(); }
 	});
 }

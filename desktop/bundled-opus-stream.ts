@@ -2,6 +2,10 @@
 
 /** Strict bounded Ogg Opus profile admitted by the reviewed bundled decoder. */
 
+import { oggPageCrc } from './ogg-page-crc.ts';
+
+export { oggPageCrc } from './ogg-page-crc.ts';
+
 const CAPTURE = Uint8Array.of(0x4f, 0x67, 0x67, 0x53);
 const OPUS_HEAD = Uint8Array.of(0x4f, 0x70, 0x75, 0x73, 0x48, 0x65, 0x61, 0x64);
 const OPUS_TAGS = Uint8Array.of(0x4f, 0x70, 0x75, 0x73, 0x54, 0x61, 0x67, 0x73);
@@ -13,7 +17,6 @@ const MAXIMUM_FRAME_COUNT = 33_554_432;
 const MAXIMUM_TAG_COMMENTS = 128;
 const MAXIMUM_TAG_COMMENT_BYTES = 4_096;
 const MAXIMUM_PRE_SKIP = 5_760;
-const OGG_CRC_TABLE = createOggCrcTable();
 const NEGATIVE_GRANULE = 0xffff_ffff_ffff_ffffn;
 
 export interface BundledOpusStreamGeometry {
@@ -263,29 +266,6 @@ function appendBounded(left: Uint8Array, right: Uint8Array, maximum: number): Ui
 	result.set(left);
 	result.set(right, left.byteLength);
 	return result;
-}
-
-export function oggPageCrc(page: Uint8Array): number {
-	let crc = 0;
-	for (const [index, sourceByte] of page.entries()) {
-		const byte = index >= 22 && index < 26 ? 0 : sourceByte;
-		const tableValue = OGG_CRC_TABLE[((crc >>> 24) ^ byte) & 255];
-		if (tableValue === undefined) fail();
-		crc = ((crc << 8) ^ tableValue) >>> 0;
-	}
-	return crc;
-}
-
-function createOggCrcTable(): Uint32Array {
-	const table = new Uint32Array(256);
-	for (let index = 0; index < table.length; index++) {
-		let value = index << 24;
-		for (let bit = 0; bit < 8; bit++) {
-			value = value & 0x8000_0000 ? (value << 1) ^ 0x04c1_1db7 : value << 1;
-		}
-		table[index] = value >>> 0;
-	}
-	return table;
 }
 
 function equalsAt(bytes: Uint8Array, offset: number, expected: Uint8Array): boolean {

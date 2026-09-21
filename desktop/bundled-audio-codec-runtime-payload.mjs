@@ -89,6 +89,7 @@ const COMMON_DEPENDENCIES = Object.freeze([
 	'project-library-runtime/desktop/desktop-audio-stream-contract.js',
 	'project-library-runtime/desktop/bundled-flac-stream.js',
 	'project-library-runtime/desktop/bundled-mpeg-audio-stream.js',
+	'project-library-runtime/desktop/ogg-page-crc.js',
 	'project-library-runtime/desktop/bundled-opus-stream.js',
 	'project-library-runtime/desktop/bundled-vorbis-stream.js',
 	'project-library-runtime/desktop/bundled-wavpack-stream.js',

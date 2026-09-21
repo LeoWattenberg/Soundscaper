@@ -2,6 +2,8 @@
 
 /** Strict bounded Ogg/Vorbis validation for the reviewed bundled decoder profile. */
 
+import { oggPageCrc } from './ogg-page-crc.ts';
+
 const CAPTURE = Uint8Array.of(0x4f, 0x67, 0x67, 0x53);
 const VORBIS = Uint8Array.of(0x76, 0x6f, 0x72, 0x62, 0x69, 0x73);
 const MAXIMUM_INPUT_BYTES = 32 * 1024 * 1024;
@@ -13,7 +15,6 @@ const MAXIMUM_FRAME_COUNT = 33_554_432;
 const MAXIMUM_TAG_COMMENTS = 128;
 const MAXIMUM_TAG_STRING_BYTES = 4_096;
 const MAXIMUM_VENDOR_BYTES = 64 * 1024;
-const OGG_CRC_TABLE = createOggCrcTable();
 const NEGATIVE_GRANULE = 0xffff_ffff_ffff_ffffn;
 const UTF8 = new TextDecoder('utf-8', { fatal: true, ignoreBOM: true });
 
@@ -249,29 +250,6 @@ function materializePacket(packet: PacketAccumulator): Uint8Array {
 function validateUtf8(value: Uint8Array): void {
 	try { UTF8.decode(value); }
 	catch { fail(); }
-}
-
-function oggPageCrc(page: Uint8Array): number {
-	let crc = 0;
-	for (const [index, sourceByte] of page.entries()) {
-		const byte = index >= 22 && index < 26 ? 0 : sourceByte;
-		const tableValue = OGG_CRC_TABLE[((crc >>> 24) ^ byte) & 255];
-		if (tableValue === undefined) fail();
-		crc = ((crc << 8) ^ tableValue) >>> 0;
-	}
-	return crc;
-}
-
-function createOggCrcTable(): Uint32Array {
-	const table = new Uint32Array(256);
-	for (let index = 0; index < table.length; index++) {
-		let value = index << 24;
-		for (let bit = 0; bit < 8; bit++) {
-			value = value & 0x8000_0000 ? (value << 1) ^ 0x04c1_1db7 : value << 1;
-		}
-		table[index] = value >>> 0;
-	}
-	return table;
 }
 
 function equalsAt(bytes: Uint8Array, offset: number, expected: Uint8Array): boolean {
