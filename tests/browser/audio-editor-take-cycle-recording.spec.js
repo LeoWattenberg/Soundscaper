@@ -40,7 +40,7 @@ test.describe('Soundscaper routed take-cycle recording', () => {
 		await startTakeCycle(page, editor);
 		await expect.poll(() => rawCaptureState(page)).toMatchObject({ count: 1, hasPcm: true });
 		await page.waitForTimeout(200);
-		await stopTakeCycle(editor);
+		await stopTakeCycle(page, editor);
 		await expect.poll(() => durableCycleState(page), {
 			message: 'ordinary cycle capture settles its durable roots',
 			timeout: 30_000,
@@ -171,8 +171,9 @@ test.describe('Soundscaper routed take-cycle recording', () => {
 
 			const record = editor.getByRole('button', { name: 'Record onto the active track', exact: true });
 			await expect(record).toHaveAttribute('aria-pressed', 'false', { timeout: 30_000 });
-			await expect(editor.locator('[data-status]')).toHaveAttribute('data-state', 'error');
-			await expect(editor.locator('[data-status]')).toContainText(/ended|interrupted|stopped/u);
+			const errorToast = page.locator('[data-editor-toast="workspace-status-error"]');
+			await expect(errorToast).toBeVisible();
+			await expect(errorToast).toContainText(/ended|interrupted|stopped/u);
 			await expect.poll(() => durableCycleState(page), {
 				message: 'input interruption discards the partial lane and settles its durable roots',
 				timeout: 30_000,
@@ -191,19 +192,21 @@ async function startTakeCycle(page, editor) {
 	await expect(start).toBeEnabled();
 	await start.focus();
 	await page.keyboard.press('Enter');
-	if (await editor.locator('[data-status]').getAttribute('data-state') === 'error') {
-		throw new Error(await editor.locator('[data-status]').textContent() ?? 'Cycle recording failed.');
+	const errorToast = page.locator('[data-editor-toast="workspace-status-error"]');
+	if (await errorToast.isVisible()) {
+		throw new Error(await errorToast.textContent() ?? 'Cycle recording failed.');
 	}
 	await expect(editor.getByRole('button', { name: 'Record onto the active track', exact: true }))
 		.toHaveAttribute('aria-pressed', 'true', { timeout: 20_000 });
 }
 
-async function stopTakeCycle(editor) {
+async function stopTakeCycle(page, editor) {
 	const record = editor.getByRole('button', { name: 'Record onto the active track', exact: true });
 	await record.click();
 	await expect(record).toHaveAttribute('aria-pressed', 'false', { timeout: 30_000 });
-	if (await editor.locator('[data-status]').getAttribute('data-state') === 'error') {
-		throw new Error(await editor.locator('[data-status]').textContent() ?? 'Cycle recording finalization failed.');
+	const errorToast = page.locator('[data-editor-toast="workspace-status-error"]');
+	if (await errorToast.isVisible()) {
+		throw new Error(await errorToast.textContent() ?? 'Cycle recording finalization failed.');
 	}
 	await expect(editor.locator('[data-save-state]')).toHaveAttribute('data-state', 'saved', { timeout: 30_000 });
 }

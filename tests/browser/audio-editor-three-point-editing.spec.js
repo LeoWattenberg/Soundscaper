@@ -91,7 +91,7 @@ test.describe('3B-3a three-point editing qualification', () => {
 		const before = await timelineVideoClips(page);
 		await page.locator('[data-bin-action="overwrite"]').first().click();
 		// The refusal is surfaced, and nothing was placed.
-		await expect(editor.locator('[data-status]')).toHaveAttribute('data-state', 'error', { timeout: 15_000 });
+		await expect(page.locator('[data-editor-toast="workspace-error"]')).toBeVisible();
 		expect(await timelineVideoClips(page)).toEqual(before);
 	});
 });

@@ -70,8 +70,9 @@ test.describe('audio editor video composition workflow', () => {
 		await expect(firstVideo.locator('[data-invalid-video-overlap="true"]').first()).toBeVisible();
 		await page.mouse.up();
 
-		await expect(editor.locator('[data-status]')).toHaveAttribute('data-state', 'error');
-		await expect(editor.locator('[data-status]')).toContainText(/overlap|transition/i);
+		const errorToast = page.locator('[data-editor-toast="workspace-error"]');
+		await expect(errorToast).toBeVisible();
+		await expect(errorToast).toContainText(/overlap|transition/i);
 		await expect(firstVideo.locator('[data-clip-kind="video"]')).toHaveCount(2);
 		await expect(thirdVideo.locator('[data-clip-kind="video"]')).toHaveCount(1);
 		await expect(thirdAudio.locator('[data-clip-id]')).toHaveCount(1);
