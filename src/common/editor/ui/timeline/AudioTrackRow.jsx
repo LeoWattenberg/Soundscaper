@@ -162,6 +162,14 @@ export function AudioTrackRow({
 		focusAfterPanel,
 		focusBeforeRuler,
 		focusAfterRuler,
+		focusCurrentPanel,
+		focusCurrentRuler,
+		focusCurrentTrack,
+		focusPanelVertical,
+		focusRulerVertical,
+		focusTrackVertical,
+		handleClipFocusCapture,
+		handleClipKeyDownCapture,
 		moveClipBySeconds,
 		moveClipToTrack,
 		navigateClipVertical,
@@ -222,13 +230,8 @@ export function AudioTrackRow({
 				onOpenEffects={onOpenEffects}
 				onAutomationTarget={onAutomationTarget}
 				onTabOut={focusAfterPanel}
-				onShiftTabOut={() => onFocusTrackContainer(trackIndex)}
-				onNavigateVertical={(direction) => {
-					const targetIndex = trackIndex + (direction === 'down' ? 1 : -1);
-					if (targetIndex >= 0 && targetIndex < trackCount) {
-						onFocusTrackPanelControl(targetIndex);
-					}
-				}}
+				onShiftTabOut={focusCurrentTrack}
+				onNavigateVertical={focusPanelVertical}
 			/>
 			<div
 				className="audio-editor-track-lane"
@@ -255,48 +258,8 @@ export function AudioTrackRow({
 					ref={trackWindowRef}
 					className="audio-editor-track-window"
 					style={{ left: timelineContentLeft(windowLeft), width: windowWidth }}
-					onFocusCapture={(event) => {
-						if (isFlatNavigation || !event.target.matches?.('[data-clip-id][role="group"]')) return;
-						for (const clip of clipGroups(trackWindowRef.current)) clip.tabIndex = -1;
-						event.target.tabIndex = tabIndexFor(2);
-					}}
-					onKeyDownCapture={(event) => {
-						if (!event.target.matches?.('[data-clip-id][role="group"]')) return;
-						const fadeHandle = event.target.querySelector('[data-clip-fade-handle]:not(:disabled)');
-						if (event.key === 'Tab' && !event.shiftKey && fadeHandle) {
-							event.preventDefault();
-							event.stopPropagation();
-							fadeHandle.focus();
-							return;
-						}
-						if (event.key === 'Enter') {
-							event.preventDefault();
-							event.stopPropagation();
-							run(() => controller.actions.timeline.selectClip(String(event.target.dataset.clipId), {
-								additive: event.shiftKey,
-								toggle: event.metaKey || event.ctrlKey,
-							}));
-							return;
-						}
-						if (
-							event.altKey
-							|| event.ctrlKey
-							|| event.metaKey
-							|| event.shiftKey
-							|| (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight')
-						) return;
-						const clips = clipGroups(trackWindowRef.current);
-						const currentIndex = clips.indexOf(event.target);
-						if (currentIndex < 0 || clips.length < 2) return;
-						event.preventDefault();
-						event.stopPropagation();
-						const direction = event.key === 'ArrowRight' ? 1 : -1;
-						const next = clips[(currentIndex + direction + clips.length) % clips.length];
-						if (!isFlatNavigation) {
-							for (const clip of clips) clip.tabIndex = clip === next ? tabIndexFor(2) : -1;
-						}
-						focusFirst(next);
-					}}
+					onFocusCapture={handleClipFocusCapture}
+					onKeyDownCapture={handleClipKeyDownCapture}
 				>
 					<TrackNew
 						clips={projectedClips}
@@ -318,19 +281,16 @@ export function AudioTrackRow({
 						draggingClipIds={draggingClipIds || undefined}
 						tabIndex={tabIndexFor(2)}
 						trackTabIndex={tabIndexFor(0)}
-						onTrackNavigateVertical={(direction) => {
-							const targetIndex = trackIndex + direction;
-							if (targetIndex >= 0 && targetIndex < trackCount) onFocusTrackContainer(targetIndex);
-						}}
+						onTrackNavigateVertical={focusTrackVertical}
 						onContainerFocusChange={(hasFocus) => {
 							if (hasFocus && selectedTrackId !== track.id) {
 								run(() => controller.actions.timeline.selectTrack(track.id));
 							}
 						}}
-						onEnterPanel={() => onFocusTrackPanelControl(trackIndex)}
+						onEnterPanel={focusCurrentPanel}
 						onShiftTabOut={focusBeforeTrack}
 						onContainerEnter={() => run(() => controller.actions.timeline.selectTrack(track.id))}
-						onTabFromLastClip={() => onFocusTrackRuler(trackIndex)}
+						onTabFromLastClip={focusCurrentRuler}
 						onClipClick={(clipId, shiftKey, metaKey) => {
 							if (!shiftKey && !metaKey) return;
 							run(() => controller.actions.timeline.selectClip(String(clipId), {
@@ -485,11 +445,10 @@ export function AudioTrackRow({
 							else focusAfterRuler();
 						} else if (event.key === 'ArrowUp' || event.key === 'ArrowDown') {
 							event.preventDefault();
-							const targetIndex = trackIndex + (event.key === 'ArrowDown' ? 1 : -1);
-							if (targetIndex >= 0 && targetIndex < trackCount) onFocusTrackRuler(targetIndex);
+							focusRulerVertical(event.key === 'ArrowDown' ? 'down' : 'up');
 						} else if (event.key === 'Escape') {
 							event.preventDefault();
-							onFocusTrackContainer(trackIndex);
+							focusCurrentTrack();
 						}
 					}}
 				/>}

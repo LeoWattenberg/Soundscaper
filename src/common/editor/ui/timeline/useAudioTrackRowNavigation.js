@@ -1,8 +1,6 @@
-import { useCallback, useEffect } from 'react';
-
 import { secondsDeltaToFrames } from './geometry.ts';
 import { routeClipFocusTrimKeyboard } from './clip-focus-trim-keyboard-routing.ts';
-import { normalizeClipSemantics } from './timeline-navigation.js';
+import { useTrackRowFocusNavigation } from './useTrackRowFocusNavigation.js';
 
 export function useAudioTrackRowNavigation({
 	controller,
@@ -27,50 +25,32 @@ export function useAudioTrackRowNavigation({
 	onFocusTrackRuler,
 	onFocusSelectionToolbar,
 }) {
-	const tabIndexFor = useCallback(
-		(offset) => isFlatNavigation ? 0 : trackBaseTabIndex + trackIndex * 4 + offset,
-		[isFlatNavigation, trackBaseTabIndex, trackIndex],
-	);
-
-	useEffect(() => {
-		const root = trackWindowRef.current;
-		if (!root) return undefined;
-		const normalize = () => normalizeClipSemantics(root, {
-			flat: isFlatNavigation,
-			tabIndex: tabIndexFor(2),
-		});
-		normalize();
-		const observer = new MutationObserver(normalize);
-		observer.observe(root, {
-			attributes: true,
-			attributeFilter: ['role', 'tabindex'],
-			childList: true,
-			subtree: true,
-		});
-		return () => observer.disconnect();
-	}, [isFlatNavigation, projectedClips, tabIndexFor, trackWindowRef]);
-
-	const focusBeforeTrack = () => {
-		if (trackIndex === 0) return onFocusTimelineRuler();
-		const previousTrack = trackIndex - 1;
-		if (onFocusTrackRuler(previousTrack)) return true;
-		if (onFocusTrackClip(previousTrack, true)) return true;
-		if (onFocusTrackPanelControl(previousTrack, true)) return true;
-		return onFocusTrackContainer(previousTrack);
-	};
-	const focusAfterPanel = () => {
-		if (onFocusTrackClip(trackIndex)) return true;
-		return onFocusTrackRuler(trackIndex);
-	};
-	const focusBeforeRuler = () => {
-		if (onFocusTrackClip(trackIndex, true)) return true;
-		if (onFocusTrackPanelControl(trackIndex, true)) return true;
-		return onFocusTrackContainer(trackIndex);
-	};
-	const focusAfterRuler = () => {
-		if (trackIndex + 1 < trackCount) return onFocusTrackContainer(trackIndex + 1);
-		return onFocusSelectionToolbar();
-	};
+	const focusNavigation = useTrackRowFocusNavigation({
+		trackWindowRef,
+		renderedClips: projectedClips,
+		trackIndex,
+		trackCount,
+		isFlatNavigation,
+		trackBaseTabIndex,
+		hasTrackRuler: true,
+		onFocusTimelineRuler,
+		onFocusTrackContainer,
+		onFocusTrackPanelControl,
+		onFocusTrackClip,
+		onFocusTrackRuler,
+		onFocusSelectionToolbar,
+		onSelectClip: (clipId, options) => run(() => (
+			controller.actions.timeline.selectClip(clipId, options)
+		)),
+		routeClipKey: (event) => {
+			const fadeHandle = event.target.querySelector('[data-clip-fade-handle]:not(:disabled)');
+			if (event.key !== 'Tab' || event.shiftKey || !fadeHandle) return false;
+			event.preventDefault();
+			event.stopPropagation();
+			fadeHandle.focus();
+			return true;
+		},
+	});
 	const moveClipBySeconds = (clipId, deltaSeconds) => {
 		if (blocked) return;
 		const clip = clipLookup.get(String(clipId)) || clipLookup.get(clipId);
@@ -214,11 +194,7 @@ export function useAudioTrackRowNavigation({
 	});
 
 	return {
-		tabIndexFor,
-		focusBeforeTrack,
-		focusAfterPanel,
-		focusBeforeRuler,
-		focusAfterRuler,
+		...focusNavigation,
 		moveClipBySeconds,
 		moveClipToTrack,
 		navigateClipVertical,

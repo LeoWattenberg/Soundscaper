@@ -1,6 +1,6 @@
 
 import { TIMELINE_ADDITIONAL_COPY } from '../../../i18n/editor-timeline-additional-copy.ts';
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { GhostButton } from '@soundscaper/design-system/GhostButton';
 import { Icon } from '@soundscaper/design-system/Icon';
 
@@ -9,9 +9,10 @@ import { isVisualTimelineClipKind } from '../timeline-media-presence.ts';
 import { AutomaticCrossfadeOverlays, createVideoOverlapPresentation } from './TrackOverlapOverlays.jsx';
 import { TimeSelectionOverlay } from './TimelineOverlayComponents.jsx';
 import { TrackNameEditor } from './TrackControls.jsx';
-import { clipGroups, focusFirst, normalizeClipSemantics } from './timeline-navigation.js';
+import { focusFirst } from './timeline-navigation.js';
 import { VideoFilmstripClip } from './VideoFilmstrip.jsx';
 import { timelineContentLeft } from './timeline-scroll-space.ts';
+import { useTrackRowFocusNavigation } from './useTrackRowFocusNavigation.js';
 
 export function VideoTrackRow({
 	controller,
@@ -108,44 +109,59 @@ export function VideoTrackRow({
 		: overlapPresentation.overlays.length
 			? 'crossfade'
 			: 'none';
-	const tabIndexFor = useCallback(
-		(offset) => isFlatNavigation ? 0 : trackBaseTabIndex + trackIndex * 4 + offset,
-		[isFlatNavigation, trackBaseTabIndex, trackIndex],
-	);
-
-	useEffect(() => {
-		const root = trackWindowRef.current;
-		if (!root) return undefined;
-		const normalize = () => normalizeClipSemantics(root, {
-			flat: isFlatNavigation,
-			tabIndex: tabIndexFor(2),
-		});
-		normalize();
-		const observer = new MutationObserver(normalize);
-		observer.observe(root, {
-			attributes: true,
-			attributeFilter: ['role', 'tabindex'],
-			childList: true,
-			subtree: true,
-		});
-		return () => observer.disconnect();
-	}, [isFlatNavigation, projection.clips, tabIndexFor]);
-
-	const focusBeforeTrack = () => {
-		if (trackIndex === 0) return onFocusTimelineRuler();
-		const previousTrack = trackIndex - 1;
-		if (onFocusTrackClip(previousTrack, true)) return true;
-		if (onFocusTrackPanelControl(previousTrack, true)) return true;
-		return onFocusTrackContainer(previousTrack);
-	};
-	const focusAfterTrack = () => {
-		if (trackIndex + 1 < trackCount) return onFocusTrackContainer(trackIndex + 1);
-		return onFocusSelectionToolbar();
-	};
-	const focusAfterPanel = () => {
-		if (onFocusTrackClip(trackIndex)) return true;
-		return focusAfterTrack();
-	};
+	const {
+		focusAfterPanel,
+		focusBeforeTrack,
+		focusCurrentPanel,
+		focusCurrentTrack,
+		focusPanelVertical,
+		focusTrackVertical,
+		handleClipFocusCapture,
+		handleClipKeyDownCapture,
+		tabIndexFor,
+	} = useTrackRowFocusNavigation({
+		trackWindowRef,
+		renderedClips: projection.clips,
+		trackIndex,
+		trackCount,
+		isFlatNavigation,
+		trackBaseTabIndex,
+		hasTrackRuler: false,
+		onFocusTimelineRuler,
+		onFocusTrackContainer,
+		onFocusTrackPanelControl,
+		onFocusTrackClip,
+		onFocusSelectionToolbar,
+		onSelectClip: (clipId, options) => run(() => (
+			controller.actions.timeline.selectClip(clipId, options)
+		)),
+		routeClipKey: (event, router) => {
+			if (
+				event.key === 'F2'
+				&& !event.altKey
+				&& !event.ctrlKey
+				&& !event.metaKey
+				&& !event.shiftKey
+				&& !event.repeat
+				&& !blocked
+				&& selectedClipIdSet.has(String(event.target.dataset.clipId))
+			) {
+				event.preventDefault();
+				event.stopPropagation();
+				setRenameRequest({
+					clipId: String(event.target.dataset.clipId),
+					id: ++renameRequestIdRef.current,
+				});
+				return true;
+			}
+			if (event.key !== 'Tab') return false;
+			event.preventDefault();
+			event.stopPropagation();
+			if (event.shiftKey) router.focusCurrentPanel(true);
+			else router.focusAfterTrack();
+			return true;
+		},
+	});
 
 	return (
 		<div
@@ -171,11 +187,8 @@ export function VideoTrackRow({
 				run={run}
 				onMenu={onMenu}
 				onTabOut={focusAfterPanel}
-				onShiftTabOut={() => onFocusTrackContainer(trackIndex)}
-				onNavigateVertical={(direction) => {
-					const targetIndex = trackIndex + (direction === 'down' ? 1 : -1);
-					if (targetIndex >= 0 && targetIndex < trackCount) onFocusTrackPanelControl(targetIndex);
-				}}
+				onShiftTabOut={focusCurrentTrack}
+				onNavigateVertical={focusPanelVertical}
 			/>
 			<div
 				className="audio-editor-track-lane audio-editor-video-track-lane"
@@ -194,68 +207,8 @@ export function VideoTrackRow({
 					ref={trackWindowRef}
 					className="audio-editor-track-window audio-editor-video-track-window"
 					style={{ left: timelineContentLeft(windowLeft), width: windowWidth }}
-					onFocusCapture={(event) => {
-						if (isFlatNavigation || !event.target.matches?.('[data-clip-id][role="group"]')) return;
-						for (const clip of clipGroups(trackWindowRef.current)) clip.tabIndex = -1;
-						event.target.tabIndex = tabIndexFor(2);
-					}}
-					onKeyDownCapture={(event) => {
-						if (!event.target.matches?.('[data-clip-id][role="group"]')) return;
-						if (
-							event.key === 'F2'
-							&& !event.altKey
-							&& !event.ctrlKey
-							&& !event.metaKey
-							&& !event.shiftKey
-							&& !event.repeat
-							&& !blocked
-							&& selectedClipIdSet.has(String(event.target.dataset.clipId))
-						) {
-							event.preventDefault();
-							event.stopPropagation();
-							setRenameRequest({
-								clipId: String(event.target.dataset.clipId),
-								id: ++renameRequestIdRef.current,
-							});
-							return;
-						}
-						if (event.key === 'Enter') {
-							event.preventDefault();
-							event.stopPropagation();
-							run(() => controller.actions.timeline.selectClip(String(event.target.dataset.clipId), {
-								additive: event.shiftKey,
-								toggle: event.metaKey || event.ctrlKey,
-							}));
-							return;
-						}
-						if (event.key === 'Tab') {
-							event.preventDefault();
-							event.stopPropagation();
-							if (event.shiftKey) onFocusTrackPanelControl(trackIndex, true);
-							else focusAfterTrack();
-							return;
-						}
-						if (
-							event.altKey
-							|| event.ctrlKey
-							|| event.metaKey
-							|| event.shiftKey
-							|| (event.key !== 'ArrowLeft' && event.key !== 'ArrowRight')
-						) return;
-						const clipElements = clipGroups(trackWindowRef.current);
-						const currentIndex = clipElements.indexOf(event.target);
-						if (currentIndex < 0 || clipElements.length < 2) return;
-						event.preventDefault();
-						event.stopPropagation();
-						const direction = event.key === 'ArrowRight' ? 1 : -1;
-						const next = clipElements[(currentIndex + direction + clipElements.length) % clipElements.length];
-						if (!isFlatNavigation) {
-							for (const clipElement of clipElements) {
-								clipElement.tabIndex = clipElement === next ? tabIndexFor(2) : -1;
-							}
-						}
-						focusFirst(next);
-					}}
+					onFocusCapture={handleClipFocusCapture}
+					onKeyDownCapture={handleClipKeyDownCapture}
 				>
 					<div
 						className="track audio-editor-video-track-surface"
@@ -270,11 +223,10 @@ export function VideoTrackRow({
 							if (event.key === 'Tab') {
 								event.preventDefault();
 								if (event.shiftKey) focusBeforeTrack();
-								else onFocusTrackPanelControl(trackIndex);
+								else focusCurrentPanel();
 							} else if (event.key === 'ArrowUp' || event.key === 'ArrowDown') {
 								event.preventDefault();
-								const targetIndex = trackIndex + (event.key === 'ArrowDown' ? 1 : -1);
-								if (targetIndex >= 0 && targetIndex < trackCount) onFocusTrackContainer(targetIndex);
+								focusTrackVertical(event.key === 'ArrowDown' ? 1 : -1);
 							}
 						}}
 					>
