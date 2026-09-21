@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { Button } from '@soundscaper/design-system/Button';
+import { EditorErrorToast } from '../EditorToast.tsx';
 
 import '../audio-editor-design-system/06a-panels-freesound.css';
 import { useEffect, useState } from 'react';
@@ -166,11 +167,13 @@ export function FreesoundPanel({
 
 			<div className="kw-audio-editor__freesound-status" aria-live="polite">
 				{loading ? <p role="status">{copy.searching}</p> : null}
-				{state.status === 'error' ? (
-					<p role="alert">{state.errorMessage || copy.searchError}</p>
-				) : null}
 				{state.status === 'ready' && state.results.length > 0 ? <p>{resultSummary}</p> : null}
 			</div>
+			{state.status === 'error' && <div className="kw-audio-editor__toasts kw-audio-editor__freesound-toasts">
+				<EditorErrorToast key={state.errorMessage || copy.searchError} id="freesound-search-error"
+					title={copy.searchError} description={state.errorMessage}
+					dismissLabel={copy.close} />
+			</div>}
 
 			{state.status === 'idle' ? <p className="kw-audio-editor__panel-empty">{copy.searchPrompt}</p> : null}
 			{state.status === 'ready' && state.results.length === 0

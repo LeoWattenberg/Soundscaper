@@ -2,7 +2,7 @@
 
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import React from 'react';
+import React, { act } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 
 import { ENGLISH_COPY } from '../src/common/i18n/catalogs.js';
@@ -27,6 +27,7 @@ import {
 	workspacePanelLabel,
 } from '../src/common/editor/ui/workspace/workspace-panel-model.ts';
 import { DEFAULT_PANELS } from '../src/common/editor/workspace-layout-defaults.ts';
+import { installReactTestDom, reactProps } from './helpers/react-test-dom.ts';
 
 test('Web VCR is renderable but summon-only and hidden by default', () => {
 	assert.ok(WORKSPACE_PANEL_IDS.includes(WEB_VCR_PANEL_ID));
@@ -146,6 +147,49 @@ test('Web VCR panel presents supported defaults, browser controls and capture di
 	assert.match(markup, /Output.*1280 × 720/us);
 	assert.match(markup, /Source.*1280 × 720/us);
 	assert.match(markup, /Source resolution is lower than the capture surface/u);
+});
+
+test('Web VCR failure is a local toast without moving the browser controls', () => {
+	const markup = render(<WebVcrPanel
+		controller={controller([])}
+		snapshot={{ productId: 'framescaper', webVcr: webVcr({ error: 'Navigation failed' }) }}
+		copy={ENGLISH_COPY}
+		run={(operation) => operation()}
+	/>);
+	assert.match(markup, /class="kw-audio-editor__toasts kw-web-vcr__toasts"/u);
+	assert.match(markup, /data-editor-toast="web-vcr-error"/u);
+	assert.match(markup, /Navigation failed/u);
+	assert.doesNotMatch(markup, /class="kw-web-vcr__error"/u);
+	assert.match(markup, /class="kw-web-vcr__browser-bar"/u);
+	assert.match(markup, /class="kw-web-vcr__status" role="status"/u);
+});
+
+test('Web VCR error toast dismisses and returns after a later failure', async () => {
+	const dom = installReactTestDom();
+	const actGlobal = globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean };
+	const priorAct = actGlobal.IS_REACT_ACT_ENVIRONMENT;
+	actGlobal.IS_REACT_ACT_ENVIRONMENT = true;
+	const { createRoot } = await import('react-dom/client');
+	const root = createRoot(dom.container as unknown as Element);
+	const renderPanel = (error: string | null) => <WebVcrPanel
+		controller={controller([])}
+		snapshot={{ productId: 'framescaper', webVcr: webVcr({ error }) }}
+		copy={ENGLISH_COPY}
+		run={(operation) => operation()}
+	/>;
+	try {
+		await act(async () => root.render(renderPanel('Navigation failed')));
+		assert.ok(dom.find('[data-editor-toast="web-vcr-error"]'));
+		await act(async () => reactProps(dom.one('.kw-audio-editor__toast-close')).onClick());
+		assert.equal(dom.find('[data-editor-toast="web-vcr-error"]'), null);
+		await act(async () => root.render(renderPanel(null)));
+		await act(async () => root.render(renderPanel('Navigation failed')));
+		assert.ok(dom.find('[data-editor-toast="web-vcr-error"]'));
+	} finally {
+		await act(async () => root.unmount());
+		actGlobal.IS_REACT_ACT_ENVIRONMENT = priorAct;
+		dom.restore();
+	}
 });
 
 test('scaled preview input maps and clamps panel coordinates to the guest surface', () => {

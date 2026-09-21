@@ -130,12 +130,15 @@ test.describe('desktop audio recording', () => {
 			await setup.getByRole('combobox', { name: 'Microphone', exact: true }).selectOption('display');
 			await page.keyboard.press('Escape');
 			await page.evaluate((next) => { window.__desktopCaptureOutcome = next; }, outcome);
+			const statusHeight = (await editor.locator('[data-selection-toolbar]').boundingBox()).height;
 			const record = editor.getByRole('button', { name: 'Record onto the active track', exact: true });
 			await record.click();
 			await expect(editor.locator('[data-editor-toast="workspace-error"]')
 				.getByText(outcome === 'failure'
 					? 'The action failed: Could not start audio source'
 					: 'The action failed: Display capture did not provide an audio track. Choose a source with Share audio enabled; browser and operating-system support varies.', { exact: true })).toBeVisible();
+			await expect(editor.locator('[data-editor-status]')).not.toContainText('The action failed');
+			expect((await editor.locator('[data-selection-toolbar]').boundingBox()).height).toBe(statusHeight);
 			await expect(record).toHaveAttribute('aria-pressed', 'false');
 			await expect(editor).toHaveAttribute('data-clip-count', '0');
 			if (outcome === 'video-only') {

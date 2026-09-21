@@ -12,6 +12,7 @@ import React, {
 	type PointerEvent,
 } from 'react';
 
+import EditorToast from '../EditorToast.tsx';
 import { feedbackFailure, usePresentationFeedback } from '../presentation-feedback.ts'; import type { MixerEdgeV21, MixerGraphV21 } from '../../mixer-graph-v21.ts';
 import type { ParameterAddress } from '../../parameter-address.ts';
 import SoundscaperRoutingGraphInspector, {
@@ -54,6 +55,7 @@ export interface SoundscaperRoutingGraphViewProps {
 	readonly graph: MixerGraphV21;
 	readonly disabled: boolean;
 	readonly copy: SoundscaperRoutingGraphCopy;
+	readonly dismissLabel: string;
 	readonly requestedSelection?: RoutingSelection | null;
 	readonly onRequestedSelectionConsumed?: () => void;
 	readonly onCommit: (commit: SoundscaperRoutingGraphCommit) => unknown;
@@ -71,6 +73,7 @@ export default function SoundscaperRoutingGraphView({
 	graph,
 	disabled,
 	copy,
+	dismissLabel,
 	requestedSelection = null,
 	onRequestedSelectionConsumed,
 	onCommit,
@@ -85,6 +88,7 @@ export default function SoundscaperRoutingGraphView({
 	const [fitActive, setFitActive] = useState(false);
 	const [status, setStatus] = usePresentationFeedback(copy, undefined, undefined, { key: 'routingReady' });
 	const [error, setError] = usePresentationFeedback(copy);
+	const [toast, setToast] = useState<{ readonly type: 'success' | 'error'; readonly id: number } | null>(null); const toastIdRef = useRef(0);
 	const [pending, setPending] = useState(false);
 	const [confirmingDelete, setConfirmingDelete] = useState(false);
 	const [focusKey, setFocusKey] = useState(layout.nodes.find(({ rail }) => rail === 'audio')?.key ?? layout.nodes[0]?.key ?? '');
@@ -115,8 +119,7 @@ export default function SoundscaperRoutingGraphView({
 
 	const applyCandidate = useCallback((kind: RoutingCommitKind, candidate: RoutingGraphCandidate): void => {
 		if (graphDisabled) return;
-		setPending(true);
-		setError('');
+		setPending(true); setError(''); setToast(null);
 		const commit: SoundscaperRoutingGraphCommit = Object.freeze({
 			kind, graph: candidate.graph, selection: candidate.selection,
 			addresses: candidate.addresses.length > 0
@@ -127,15 +130,15 @@ export default function SoundscaperRoutingGraphView({
 			.then(() => {
 				setSelection(kind.endsWith('delete') ? null : candidate.selection);
 				setStatus({ key: statusKeyForCommit(kind) });
+				setToast({ type: 'success', id: ++toastIdRef.current });
 				if (kind.endsWith('delete')) requestAnimationFrame(() => viewportRef.current?.focus());
 			})
-			.catch((reason: unknown) => setError(feedbackFailure(reason)))
+			.catch((reason: unknown) => { setError(feedbackFailure(reason)); setStatus(''); setToast({ type: 'error', id: ++toastIdRef.current }); })
 			.finally(() => setPending(false));
 	}, [graphDisabled, onCommit, setError, setStatus]);
 
 	const failAction = useCallback((reason: unknown): void => {
-		setError(feedbackFailure(reason));
-		setStatus('');
+		setError(feedbackFailure(reason)); setStatus(''); setToast({ type: 'error', id: ++toastIdRef.current });
 	}, [setError, setStatus]);
 
 	const chooseSource = (source: MixerEdgeV21['source'], sourceLabel: string): void => {
@@ -146,7 +149,7 @@ export default function SoundscaperRoutingGraphView({
 			x: sourceNode.x + sourceNode.width + 64,
 			y: sourceNode.y + sourceNode.height / 2,
 		} : null);
-		setError('');
+		setError(''); setToast(null);
 		setStatus({ key: 'chooseDestination', parameters: { source: source.kind === 'master' ? { key: 'master' } : sourceLabel } });
 	};
 	const connectTo = (destination: MixerEdgeV21['destination']): void => {
@@ -191,7 +194,7 @@ export default function SoundscaperRoutingGraphView({
 			event.preventDefault();
 			setConnecting(null);
 			setPreviewPoint(null);
-			setStatus({ key: 'connectionCancelled' });
+			setStatus({ key: 'connectionCancelled' }); setToast({ type: 'success', id: ++toastIdRef.current });
 		}}
 	>
 		<div className="kw-routing-graph__toolbar" aria-label={copy.routingControls}>
@@ -313,8 +316,11 @@ export default function SoundscaperRoutingGraphView({
 				onError={failAction}
 			/>
 		</div>
-		<p className="kw-routing-graph__status" role="status" aria-live="polite">{status}</p>
-		{error && <p className="kw-routing-graph__error" role="alert">{error}</p>}
+		<p className={`kw-routing-graph__status${connecting ? ' is-connecting' : ''}`} role="status" aria-live="polite">{status}</p>
+		{toast && <div className="kw-routing-graph__toasts" data-routing-graph-toasts><EditorToast
+			key={toast.id} id={`routing-graph-${toast.id}`} title={toast.type === 'error' ? copy.routing : status}
+			description={toast.type === 'error' ? error : undefined} type={toast.type} dismissLabel={dismissLabel} onDismiss={() => setToast(null)}
+		/></div>}
 	</section>;
 }
 

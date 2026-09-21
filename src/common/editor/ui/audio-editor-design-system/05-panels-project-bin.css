@@ -306,14 +306,17 @@
 	grid-column: 2;
 }
 
-.kw-audio-editor__project-bin-notice {
-	padding: 7px 8px;
-	margin: 0;
-	color: var(--muted);
-	background: var(--control);
-	border: 1px solid var(--line);
-	border-radius: 5px;
-	line-height: 1.4;
+.kw-audio-editor__project-bin-toasts {
+	position: absolute;
+	z-index: 10;
+	right: 10px;
+	bottom: 10px;
+	width: min(320px, calc(100% - 20px));
+	pointer-events: none;
+}
+
+.kw-audio-editor__project-bin-toasts .kw-audio-editor__toast {
+	pointer-events: auto;
 }
 
 .kw-audio-editor__project-bin-list {

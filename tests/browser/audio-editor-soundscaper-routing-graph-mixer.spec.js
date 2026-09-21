@@ -35,11 +35,28 @@ test.describe('Soundscaper mixer routing graph', () => {
 		await expect(mixer.locator('.mixer-panel')).toHaveCount(0);
 
 		const edgesBefore = await graph.locator('[data-routing-edge]').count();
+		const viewportBefore = await graph.locator('.kw-routing-graph__viewport').boundingBox();
+		expect(viewportBefore).not.toBeNull();
 		await graph.locator('[data-routing-source^="track:"]').press('Enter');
 		await expect(graph.locator('.kw-routing-graph__status')).toContainText('Choose a destination');
 		await graph.locator('[data-routing-destination="master"]').press('Enter');
 		await expect(graph.locator('[data-routing-edge]')).toHaveCount(edgesBefore + 1);
 		await expect(graph.locator('.kw-routing-graph__status')).toContainText('Connection added');
+		const resultToast = graph.locator('[data-routing-graph-toasts] [data-editor-toast]');
+		await expect(resultToast).toContainText('Connection added');
+		const [graphBounds, toastBounds, viewportAfter] = await Promise.all([
+			graph.boundingBox(), resultToast.boundingBox(), graph.locator('.kw-routing-graph__viewport').boundingBox(),
+		]);
+		expect(graphBounds).not.toBeNull();
+		expect(toastBounds).not.toBeNull();
+		expect(viewportAfter).not.toBeNull();
+		expect(toastBounds.width).toBeLessThan(graphBounds.width * 0.75);
+		expect(viewportAfter.x).toBe(viewportBefore.x);
+		expect(viewportAfter.width).toBe(viewportBefore.width);
+		expect(viewportAfter.height).toBe(viewportBefore.height);
+		expect(Math.abs(viewportAfter.y - viewportBefore.y)).toBeLessThan(1);
+		await resultToast.getByRole('button', { name: 'Close', exact: true }).click();
+		await expect(resultToast).toBeHidden();
 
 		await graph.locator('[data-routing-edge]').first().click();
 		const inspector = graph.getByRole('complementary', { name: 'Connection inspector', exact: true });

@@ -255,6 +255,7 @@ export default function AudioEditorMixerPanel({ controller, snapshot, copy, run,
 						graph={project.mixer}
 						disabled={snapshot.readOnly}
 						copy={routingCopy}
+						dismissLabel={copy.close}
 						requestedSelection={requestedRoutingSelection}
 						onRequestedSelectionConsumed={consumeRequestedRoutingSelection}
 						onCommit={commitRoutingGraph}

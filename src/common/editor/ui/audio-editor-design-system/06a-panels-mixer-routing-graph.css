@@ -27,11 +27,13 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 .kw-routing-graph {
+	position: relative;
 	display: flex;
 	height: 100%;
 	min-width: 0;
 	min-height: 0;
 	flex-direction: column;
+	overflow: hidden;
 	color: var(--text);
 	background: var(--panel);
 }
@@ -374,22 +376,42 @@
 	padding: 3px 8px;
 }
 
-.kw-routing-graph__status,
-.kw-routing-graph__error {
-	min-height: 18px;
-	margin: 0;
-	padding: 2px 10px;
-	border-top: 1px solid var(--line);
-	font-size: 11px;
-}
-
 .kw-routing-graph__status {
+	position: absolute;
+	z-index: 5;
+	left: 10px;
+	bottom: 10px;
+	max-width: min(320px, calc(100% - 20px));
+	margin: 0;
+	padding: 6px 9px;
+	border: 1px solid var(--line);
+	border-radius: 4px;
+	background: var(--panel);
+	box-shadow: var(--shadow);
+	font-size: 11px;
 	color: var(--muted);
 }
 
-.kw-routing-graph__error {
-	color: var(--danger);
-	background: var(--danger-bg);
+.kw-routing-graph__status:not(.is-connecting) {
+	width: 1px;
+	height: 1px;
+	overflow: hidden;
+	padding: 0;
+	border: 0;
+	box-shadow: none;
+	clip-path: inset(50%);
+	white-space: nowrap;
+}
+
+.kw-routing-graph__toasts {
+	position: absolute;
+	z-index: 6;
+	right: 12px;
+	bottom: 12px;
+	width: min(360px, calc(100% - 24px));
+	max-height: calc(100% - 60px);
+	overflow: auto;
+	pointer-events: none;
 }
 
 @media (max-width: 720px) {

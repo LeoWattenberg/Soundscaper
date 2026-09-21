@@ -27,7 +27,7 @@ test('routing graph view exposes spatial and non-spatial editing without a param
 			project={PROJECT}
 			graph={PROJECT.mixer}
 			disabled={false}
-			copy={SOUNDSCAPER_ROUTING_GRAPH_COPY}
+			copy={SOUNDSCAPER_ROUTING_GRAPH_COPY} dismissLabel="Close"
 			onCommit={(commit) => commits.push(commit)}
 			onParameterGesture={(gesture) => { parameterGestures.push(gesture); return true; }}
 		/>));
@@ -75,7 +75,7 @@ test('routing graph view exposes spatial and non-spatial editing without a param
 			project={PROJECT}
 			graph={PROJECT.mixer}
 			disabled={false}
-			copy={SOUNDSCAPER_ROUTING_GRAPH_COPY}
+			copy={SOUNDSCAPER_ROUTING_GRAPH_COPY} dismissLabel="Close"
 			onCommit={(commit) => commits.push(commit)}
 			onParameterGesture={async (gesture) => {
 				declinedGestures.push(gesture);
@@ -96,7 +96,7 @@ test('routing graph view exposes spatial and non-spatial editing without a param
 			project={PROJECT}
 			graph={PROJECT.mixer}
 			disabled
-			copy={SOUNDSCAPER_ROUTING_GRAPH_COPY}
+			copy={SOUNDSCAPER_ROUTING_GRAPH_COPY} dismissLabel="Close"
 			onCommit={(commit) => commits.push(commit)}
 			onParameterGesture={(gesture) => { parameterGestures.push(gesture); return true; }}
 		/>));
@@ -131,7 +131,7 @@ test('folder-owned groups and canonical assignments remain selectable without gr
 			project={FOLDER_PROJECT}
 			graph={FOLDER_PROJECT.mixer}
 			disabled={false}
-			copy={SOUNDSCAPER_ROUTING_GRAPH_COPY}
+			copy={SOUNDSCAPER_ROUTING_GRAPH_COPY} dismissLabel="Close"
 			onCommit={(commit) => commits.push(commit)}
 			onParameterGesture={(gesture) => { gestures.push(gesture); return true; }}
 		/>));
@@ -181,7 +181,7 @@ test('an authoritative node focus request is consumed once and does not reclaim 
 	const root = createRoot(dom.container as unknown as Element);
 	const render = (graph: MixerGraphV21 = PROJECT.mixer) => <SoundscaperRoutingGraphView
 		project={{ ...PROJECT, mixer: graph }} graph={graph} disabled={false}
-		copy={SOUNDSCAPER_ROUTING_GRAPH_COPY} requestedSelection={requestedSelection}
+		copy={SOUNDSCAPER_ROUTING_GRAPH_COPY} dismissLabel="Close" requestedSelection={requestedSelection}
 		onRequestedSelectionConsumed={() => { consumed += 1; }} onCommit={() => undefined}
 	/>;
 	try {
@@ -219,7 +219,7 @@ test('supported effect sidechain ports are filtered and remain spatially distinc
 			project={SIDECHAIN_PROJECT}
 			graph={SIDECHAIN_PROJECT.mixer}
 			disabled={false}
-			copy={SOUNDSCAPER_ROUTING_GRAPH_COPY}
+			copy={SOUNDSCAPER_ROUTING_GRAPH_COPY} dismissLabel="Close"
 			onCommit={() => undefined}
 		/>));
 
@@ -238,6 +238,43 @@ test('supported effect sidechain ports are filtered and remain spatially distinc
 			return `${style.left}:${style.top}`;
 		});
 		assert.equal(new Set(positions).size, 3);
+	} finally {
+		await act(async () => root.unmount());
+		actGlobal.IS_REACT_ACT_ENVIRONMENT = priorAct;
+		dom.restore();
+	}
+});
+
+test('routing results and failures use dismissible overlay toasts while connection guidance remains available', async () => {
+	const dom = installReactTestDom();
+	const actGlobal = globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean };
+	const priorAct = actGlobal.IS_REACT_ACT_ENVIRONMENT;
+	actGlobal.IS_REACT_ACT_ENVIRONMENT = true;
+	const { createRoot } = await import('react-dom/client');
+	const root = createRoot(dom.container as unknown as Element);
+	let failCommit = false;
+	try {
+		await act(async () => root.render(<SoundscaperRoutingGraphView
+			project={PROJECT} graph={PROJECT.mixer} disabled={false}
+			copy={SOUNDSCAPER_ROUTING_GRAPH_COPY} dismissLabel="Close"
+			onCommit={() => failCommit ? Promise.reject(new Error('Routing rejected')) : undefined}
+		/>));
+		assert.equal(dom.find('[data-routing-graph-toasts]'), null);
+		assert.equal(dom.find('.kw-routing-graph__error'), null);
+		const addNode = dom.one('[aria-label="Add routing node"]');
+		addNode.value = 'cue';
+		await act(async () => reactProps(addNode).onChange?.({ currentTarget: addNode }));
+		await act(async () => Promise.resolve());
+		assert.match(dom.one('[data-routing-graph-toasts]').textContent, /Routing item added/u);
+		assert.equal(dom.find('.kw-routing-graph__error'), null);
+		await act(async () => reactProps(dom.one('[data-routing-graph-toasts]').querySelector('button')!).onClick?.());
+		assert.equal(dom.find('[data-routing-graph-toasts]'), null);
+		failCommit = true;
+		addNode.value = 'cue';
+		await act(async () => reactProps(addNode).onChange?.({ currentTarget: addNode }));
+		await act(async () => Promise.resolve());
+		assert.match(dom.one('[data-routing-graph-toasts]').textContent, /Routing rejected/u);
+		assert.equal(dom.find('.kw-routing-graph__error'), null);
 	} finally {
 		await act(async () => root.unmount());
 		actGlobal.IS_REACT_ACT_ENVIRONMENT = priorAct;
@@ -353,7 +390,7 @@ test('routing feedback follows current copy without rebuilding or committing gra
 	const root = createRoot(dom.container as unknown as Element);
 	let commits = 0;
 	const render = (copy: import('../src/common/editor/ui/workspace/soundscaper-routing-graph-copy.ts').SoundscaperRoutingGraphCopy = SOUNDSCAPER_ROUTING_GRAPH_COPY) => root.render(<SoundscaperRoutingGraphView
-		project={PROJECT} graph={PROJECT.mixer} disabled={false} copy={copy}
+		project={PROJECT} graph={PROJECT.mixer} disabled={false} copy={copy} dismissLabel="Close"
 		onCommit={() => { commits += 1; }} />);
 	try {
 		await act(async () => render());

@@ -11,6 +11,7 @@ import {
 import { loadPlaybackMeterSettings, loadRecordingMeterSettings } from '../meter-settings.ts';
 import AudioEditorWorkspaceView from './AudioEditorWorkspaceView.jsx';
 import { resolveWorkspaceRuntimeProjection } from './workspace-runtime-projection.ts';
+import { workspaceStatusPresentation } from './workspace-status-presentation.ts';
 import { withDesktopProjectReadDescriptor } from './desktop-project-file-routing.ts';
 import { workspacePreferencesPage } from './workspace-preferences-routing.ts';
 import { useTimelineNavigation } from './useTimelineNavigation.js';
@@ -279,8 +280,7 @@ export default function AudioEditorWorkspace({
 			panel.focus({ preventScroll: false });
 		});
 	}, [controller, run, setActiveSurface, snapshot.selectedTrackId]);
-	const statusMessage = localError || snapshot.status?.message || copy.ready;
-	const statusState = localError ? 'error' : snapshot.status?.state || 'info';
+	const { statusMessage, statusState, statusError } = workspaceStatusPresentation(snapshot.status, localError, copy.ready);
 	const aup4Compatibility = snapshot.aup4Compatibility;
 	const saveText = snapshot.save?.state === 'saving'
 		? copy.projectSaving
@@ -288,7 +288,6 @@ export default function AudioEditorWorkspace({
 			? copy.projectDirty
 			: copy.projectSaved;
 	const recordLabel = showArmControls ? copy.record : copy.recordActiveTrack;
-
 	const editItems = createWorkspaceEditItems({
 		copy, editBlocked, editSelectionActive, hasClipboard: Boolean(snapshot.history?.hasClipboard), splitAvailable: editingActions.split,
 	});
@@ -549,6 +548,7 @@ export default function AudioEditorWorkspace({
 		snapshot,
 		statusMessage,
 		statusState,
+		statusError,
 		timelineSearchReveal,
 		toggleFullscreen,
 		toggleSplitTool,

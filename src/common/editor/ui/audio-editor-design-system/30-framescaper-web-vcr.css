@@ -6,6 +6,7 @@
 }
 
 .kw-web-vcr {
+	position: relative;
 	display: grid;
 	width: 100%;
 	min-width: 0;
@@ -19,7 +20,6 @@
 }
 
 .kw-web-vcr__status,
-.kw-web-vcr__error,
 .kw-web-vcr__browser-bar,
 .kw-web-vcr__actions {
 	grid-column: 1 / -1;
@@ -33,7 +33,6 @@
 	color: var(--muted);
 }
 
-.kw-web-vcr__error,
 .kw-web-vcr__dimensions p {
 	padding: 7px 9px;
 	margin: 0;
@@ -41,6 +40,17 @@
 	border-radius: 5px;
 	color: var(--text);
 	background: color-mix(in srgb, var(--warning, #b06b00) 12%, transparent);
+}
+
+.kw-web-vcr > .kw-web-vcr__toasts {
+	right: 10px;
+	bottom: 10px;
+	width: min(360px, calc(100% - 20px));
+	max-height: calc(100% - 20px);
+}
+
+.kw-web-vcr .kw-audio-editor__toast-close {
+	padding: 0;
 }
 
 .kw-web-vcr__browser-bar {

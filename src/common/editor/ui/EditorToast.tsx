@@ -52,3 +52,10 @@ export function EditorWarningToast(props: Omit<EditorToastProps, 'onDismiss' | '
 	if (dismissed) return null;
 	return <EditorToast {...props} type="warning" onDismiss={() => setDismissed(true)} />;
 }
+
+/** A locally dismissible error that remounts when its owning condition returns. */
+export function EditorErrorToast(props: Omit<EditorToastProps, 'onDismiss' | 'type'>) {
+	const [dismissed, setDismissed] = useState(false);
+	if (dismissed) return null;
+	return <EditorToast {...props} type="error" onDismiss={() => setDismissed(true)} />;
+}

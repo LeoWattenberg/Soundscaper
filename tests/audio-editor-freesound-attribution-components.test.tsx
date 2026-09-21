@@ -200,6 +200,39 @@ test('Freesound loading, errors and empty results are announced', () => {
 	/>);
 	assert.match(error, /role="alert"/u);
 	assert.match(error, /Offline/u);
+	assert.match(error, /class="kw-audio-editor__toasts kw-audio-editor__freesound-toasts"/u);
+	assert.match(error, /data-editor-toast="freesound-search-error"/u);
+	assert.doesNotMatch(error, /kw-audio-editor__freesound-status[^<]*<p role="alert"/u);
+});
+
+test('Freesound search error toast can be dismissed and returns on the next failure', async () => {
+	const dom = installReactTestDom();
+	const actGlobal = globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean };
+	const priorAct = actGlobal.IS_REACT_ACT_ENVIRONMENT;
+	actGlobal.IS_REACT_ACT_ENVIRONMENT = true;
+	const { createRoot } = await import('react-dom/client');
+	const root = createRoot(dom.container as unknown as Element);
+	const props = {
+		copy: ENGLISH_COPY, disabled: false,
+		onSearch: () => undefined, onPreview: () => undefined, onStopPreview: () => undefined,
+		onInsertAtPlayhead: () => undefined, onAddToProjectBin: () => undefined,
+	};
+	try {
+		await act(async () => root.render(<FreesoundPanel {...props}
+			state={{ ...FREESOUND_STATE, status: 'error', errorMessage: 'Offline' }} />));
+		assert.ok(dom.find('[data-editor-toast="freesound-search-error"]'));
+		await act(async () => reactProps(dom.one('.kw-audio-editor__toast-close')).onClick());
+		assert.equal(dom.find('[data-editor-toast="freesound-search-error"]'), null);
+		await act(async () => root.render(<FreesoundPanel {...props}
+			state={{ ...FREESOUND_STATE, status: 'loading', errorMessage: undefined }} />));
+		await act(async () => root.render(<FreesoundPanel {...props}
+			state={{ ...FREESOUND_STATE, status: 'error', errorMessage: 'Offline' }} />));
+		assert.ok(dom.find('[data-editor-toast="freesound-search-error"]'));
+	} finally {
+		await act(async () => root.unmount());
+		actGlobal.IS_REACT_ACT_ENVIRONMENT = priorAct;
+		dom.restore();
+	}
 });
 
 test('Freesound gestures submit current criteria and expose the minimal drag transfer', async () => {

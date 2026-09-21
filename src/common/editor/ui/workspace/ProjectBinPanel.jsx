@@ -10,6 +10,7 @@ import { AUDIO_EDITOR_TRACK_COLORS } from '../../project-audio-factory.js';
 import { selectAudioEditorEditBlock } from '../edit-blocking.ts';
 import { createFramescaperVideoProxyApplicationMenuItems } from '../framescaper-video-proxy-application-menu.ts';
 import ProjectBinCard from './ProjectBinCard.jsx';
+import ProjectBinNotices from './ProjectBinNotices.tsx';
 import {
 	dispatchLinkedAudioChoice,
 	prepareLinkedAudioChoice,
@@ -354,12 +355,7 @@ export default function ProjectBinPanel({ controller, snapshot, copy, locale, fi
 					</Button>
 				)}
 			</div>
-			{snapshot.readOnly && (
-				<p className="kw-audio-editor__project-bin-notice" role="status">{copy.projectBinReadOnly}</p>
-			)}
-			{!snapshot.readOnly && blocked && (
-				<p className="kw-audio-editor__project-bin-notice" role="status">{copy.projectBinBusy}</p>
-			)}
+			<ProjectBinNotices readOnly={snapshot.readOnly} busy={blocked} copy={copy} projectId={projectId} />
 			{items.length ? (
 				<ul className="kw-audio-editor__project-bin-list" data-project-bin-list>
 					{items.map((item) => (

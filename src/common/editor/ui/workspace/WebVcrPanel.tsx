@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 
 import '../audio-editor-design-system/30-framescaper-web-vcr.css';
+import { EditorErrorToast } from '../EditorToast.tsx';
 
 import {
 	type WebVcrAspect,
@@ -91,7 +92,11 @@ export default function WebVcrPanel({ controller, snapshot, copy, blocked, run }
 			<span>{phaseText(copy, webVcr.phase)}</span>
 			{webVcr.navigation.loading && <span>{copy.loading}</span>}
 		</div>
-		{webVcr.error && <p className="kw-web-vcr__error" role="alert">{webVcr.error}</p>}
+		{webVcr.error && <div className="kw-audio-editor__toasts kw-web-vcr__toasts">
+			<EditorErrorToast key={webVcr.error} id="web-vcr-error"
+				title={copy.webVcrTitle || 'Web VCR'} description={webVcr.error}
+				dismissLabel={copy.close || 'Close'} />
+		</div>}
 
 		<form className="kw-web-vcr__browser-bar" onSubmit={navigate}>
 			<button type="button" aria-label={copy.webVcrBack}

@@ -142,7 +142,6 @@
 		"src/common/editor/ui/video-preview-compositor.js": 595,
 		"src/common/editor/ui/video-preview-effects.js": 596,
 		"src/common/editor/ui/workspace/AudioEditorWorkspace.jsx": 569,
-		"src/common/editor/ui/workspace/ProjectBinPanel.jsx": 550,
 		"src/common/editor/ui/workspace/VideoPreviewPanel.jsx": 558,
 		"src/common/editor/ui/workspace/soundscaper-routing-graph-candidates.ts": 593,
 		"src/common/editor/video-caption-imsc-v27.ts": 568,

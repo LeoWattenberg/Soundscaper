@@ -1,5 +1,5 @@
 import { useEditorSkin } from '../skins/EditorSkinProvider.tsx';
-import EditorToast, { EditorWarningToast } from '../EditorToast.tsx';
+import EditorToast, { EditorErrorToast, EditorWarningToast } from '../EditorToast.tsx';
 import { Suspense } from 'react';
 import { lazyEditorModule } from '../../../offline/lazy-module.tsx';
 
@@ -104,6 +104,7 @@ export default function AudioEditorWorkspaceView({ model }) {
 		snapshot,
 		statusMessage,
 		statusState,
+		statusError,
 		timelineSearchReveal,
 		toggleFullscreen,
 		toggleSplitTool,
@@ -275,6 +276,8 @@ export default function AudioEditorWorkspaceView({ model }) {
 					dismissLabel={copy.close}
 					onDismiss={clearError}
 				/>}
+				{statusError && <EditorErrorToast key={statusError} id="workspace-status-error"
+					title={copy.unknownError} description={statusError} dismissLabel={copy.close} />}
 				{snapshot.monitor?.enabled && <EditorWarningToast id="input-monitoring" title={copy.recordLevel} description={copy.monitorWarning} dismissLabel={copy.close} />}
 				{snapshot.storage?.ephemeral && <div data-storage-ephemeral-warning>
 					<EditorWarningToast id="temporary-storage" title={copy.storageEphemeralWarning} dismissLabel={copy.close} />
