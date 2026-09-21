@@ -4,6 +4,7 @@
 
 import {
 	createAssistanceAsyncSearchCoordinator,
+	sameAssistanceSemanticSearchSession,
 	validateAssistanceSemanticSearchSession,
 	type AssistanceAsyncSearchCoordinator,
 	type AssistanceAsyncSearchProvider,
@@ -138,7 +139,7 @@ export function createAssistanceSemanticSearchMenuSourceV1(options: Readonly<{
 							session: request.session, ...authority,
 						}), now(),
 					);
-					if (!sameSession(request.session, authorized)) {
+					if (!sameAssistanceSemanticSearchSession(request.session, authorized)) {
 						throw new Error('Main changed semantic-search bearer authority during a query.');
 					}
 					return await provider.search({ ...request, session: authorized });
@@ -245,16 +246,6 @@ function assertSessionAuthority(
 		|| session.projectRevision !== authority.projectRevision) {
 		throw new Error('Main semantic-search session disagrees with current project authority.');
 	}
-}
-
-function sameSession(
-	left: AssistanceSemanticSearchSession,
-	right: AssistanceSemanticSearchSession,
-): boolean {
-	return left.sessionVersion === right.sessionVersion && left.sessionId === right.sessionId
-		&& left.schemaFamily === right.schemaFamily && left.schemaVersion === right.schemaVersion
-		&& left.projectId === right.projectId && left.projectRevision === right.projectRevision
-		&& left.expiresAtEpochMs === right.expiresAtEpochMs;
 }
 
 function exactRecord(

@@ -6,6 +6,7 @@ import { randomBytes as nodeRandomBytes } from 'node:crypto';
 
 import {
 	ASSISTANCE_SEMANTIC_SEARCH_MAXIMUM_SESSION_LIFETIME_MS,
+	sameAssistanceSemanticSearchSession,
 	validateAssistanceSemanticSearchSession,
 	type AssistanceSemanticSearchSession,
 } from '../src/common/editor/assistance/async-search-provider.ts';
@@ -106,7 +107,7 @@ export class AssistanceSemanticSearchSessionAuthority {
 		this.#prune(now);
 		const session = validateAssistanceSemanticSearchSession(value, now);
 		const active = this.#active.get(session.sessionId);
-		if (!active || !sameSession(active, session)) {
+		if (!active || !sameAssistanceSemanticSearchSession(active, session)) {
 			throw new Error('The semantic-search bearer session is not active or was revoked.');
 		}
 		if (session.schemaFamily !== identity.schemaFamily
@@ -154,13 +155,6 @@ export class AssistanceSemanticSearchSessionAuthority {
 		}
 		return expired;
 	}
-}
-
-function sameSession(left: AssistanceSemanticSearchSession, right: AssistanceSemanticSearchSession): boolean {
-	return left.sessionVersion === right.sessionVersion && left.sessionId === right.sessionId
-		&& left.schemaFamily === right.schemaFamily && left.schemaVersion === right.schemaVersion
-		&& left.projectId === right.projectId && left.projectRevision === right.projectRevision
-		&& left.expiresAtEpochMs === right.expiresAtEpochMs;
 }
 
 function currentIdentity(

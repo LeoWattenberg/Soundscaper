@@ -36,6 +36,16 @@ export interface AssistanceSemanticSearchSession {
 	readonly expiresAtEpochMs: number;
 }
 
+export function sameAssistanceSemanticSearchSession(
+	left: AssistanceSemanticSearchSession,
+	right: AssistanceSemanticSearchSession,
+): boolean {
+	return left.sessionVersion === right.sessionVersion && left.sessionId === right.sessionId
+		&& left.schemaFamily === right.schemaFamily && left.schemaVersion === right.schemaVersion
+		&& left.projectId === right.projectId && left.projectRevision === right.projectRevision
+		&& left.expiresAtEpochMs === right.expiresAtEpochMs;
+}
+
 export interface AssistanceAsyncSearchRequest {
 	readonly session: AssistanceSemanticSearchSession;
 	readonly query: string;

@@ -3,6 +3,7 @@
 /** Strict renderer projection of the pathless semantic-search session API. */
 
 import {
+	sameAssistanceSemanticSearchSession,
 	validateAssistanceSemanticSearchSession,
 	type AssistanceSemanticSearchSession,
 } from './async-search-provider.ts';
@@ -47,7 +48,7 @@ export function resolveLocalAssistanceSemanticSearchBridge(
 			const authorized = validateAssistanceSemanticSearchSession(
 				await invoke('authorize', request),
 			);
-			if (!sameSession(request.session, authorized)) {
+			if (!sameAssistanceSemanticSearchSession(request.session, authorized)) {
 				throw new Error('Semantic-search reauthorization changed bearer authority.');
 			}
 			return authorized;
@@ -207,16 +208,6 @@ function assertAuthority(
 		|| session.projectRevision !== authority.projectRevision) {
 		throw new Error('Semantic-search session disagrees with current project authority.');
 	}
-}
-
-function sameSession(
-	left: AssistanceSemanticSearchSession,
-	right: AssistanceSemanticSearchSession,
-): boolean {
-	return left.sessionVersion === right.sessionVersion && left.sessionId === right.sessionId
-		&& left.schemaFamily === right.schemaFamily && left.schemaVersion === right.schemaVersion
-		&& left.projectId === right.projectId && left.projectRevision === right.projectRevision
-		&& left.expiresAtEpochMs === right.expiresAtEpochMs;
 }
 
 function sessionIdValueOf(value: unknown): string {
