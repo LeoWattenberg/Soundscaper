@@ -17,6 +17,7 @@ import {
 import { AUDIO_EDITOR_APPLICATION_MENU_UTILITY_IDS } from '../src/common/editor/ui/application-menu-registry.ts';
 import { createPrivacyPolicyMenuItem } from '../src/common/editor/ui/privacy-policy-menu.ts';
 import { desktopExternalDestination } from '../src/common/editor/ui/workspace-runtime.js';
+import { staticRouteGeneratorArguments } from './helpers/static-route-generator-subprocess.ts';
 
 const execFileAsync = promisify(execFile);
 const CONTROLLER = 'Koytek Wattenberg Media UG (haftungsbeschränkt)';
@@ -104,7 +105,7 @@ test('the static route generator emits dialog-only policy application routes, in
 			const outputRoot = await mkdtemp(join(tmpdir(), `scape-privacy-${productId}-`));
 			t.after(() => rm(outputRoot, { recursive: true, force: true }));
 			await writeBuildFixture(outputRoot);
-			await execFileAsync(process.execPath, ['scripts/generate-static-routes.mjs', outputRoot], {
+			await execFileAsync(process.execPath, staticRouteGeneratorArguments(outputRoot), {
 				cwd: process.cwd(),
 				env: { ...process.env, SCAPE_PRODUCT: productId },
 			});

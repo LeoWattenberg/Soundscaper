@@ -32,6 +32,8 @@ import { join, relative } from 'node:path';
 import test, { after } from 'node:test';
 import { promisify } from 'node:util';
 
+import { staticRouteGeneratorArguments } from './helpers/static-route-generator-subprocess.ts';
+
 import {
 	renderTransferDocument,
 	TRANSFER_PAGE_DEV_MODULE_URL,
@@ -87,7 +89,7 @@ function emittedDocumentPaths(): Promise<readonly string[]> {
 		const outputRoot = await mkdtemp(join(tmpdir(), 'scape-transfer-documents-'));
 		emittedRoot = outputRoot;
 		await writeIndexFixture(outputRoot);
-		await execFileAsync(process.execPath, ['scripts/generate-static-routes.mjs', outputRoot], {
+		await execFileAsync(process.execPath, staticRouteGeneratorArguments(outputRoot), {
 			cwd: process.cwd(),
 		});
 		const paths = await collectDocumentPaths(outputRoot, outputRoot);
@@ -198,7 +200,7 @@ test('the route generator writes both transfer pages against the built chunk', a
 		},
 		'_shared.js': { file: 'assets/shared-4.js', imports: [] },
 	}));
-	await execFileAsync(process.execPath, ['scripts/generate-static-routes.mjs', outputRoot], {
+	await execFileAsync(process.execPath, staticRouteGeneratorArguments(outputRoot), {
 		cwd: process.cwd(),
 	});
 
@@ -220,7 +222,7 @@ test('the route generator falls back to the dev module URL with no build manifes
 	const outputRoot = await mkdtemp(join(tmpdir(), 'scape-transfer-routes-dev-'));
 	context.after(() => rm(outputRoot, { recursive: true, force: true }));
 	await writeIndexFixture(outputRoot);
-	await execFileAsync(process.execPath, ['scripts/generate-static-routes.mjs', outputRoot], {
+	await execFileAsync(process.execPath, staticRouteGeneratorArguments(outputRoot), {
 		cwd: process.cwd(),
 	});
 	const send = await readFile(join(outputRoot, 'transfer/send/index.html'), 'utf8');
@@ -235,7 +237,7 @@ test('the route generator refuses a build whose transfer chunk went missing', as
 		'src/main.jsx': { file: 'assets/main-1.js', isEntry: true },
 	}));
 	await assert.rejects(
-		execFileAsync(process.execPath, ['scripts/generate-static-routes.mjs', outputRoot], {
+		execFileAsync(process.execPath, staticRouteGeneratorArguments(outputRoot), {
 			cwd: process.cwd(),
 		}),
 		(error: unknown) => {

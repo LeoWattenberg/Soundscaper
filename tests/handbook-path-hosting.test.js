@@ -9,6 +9,7 @@ import test from 'node:test';
 import { promisify } from 'node:util';
 
 import { handbookPlan, webBuildRouting } from '../scripts/lib/product-web-routing.mjs';
+import { staticRouteGeneratorArguments } from './helpers/static-route-generator-subprocess.ts';
 
 const execFileAsync = promisify(execFile);
 
@@ -111,7 +112,7 @@ async function handbookFixture(context, base) {
 }
 
 function generateRoutes(outputRoot, productId) {
-	return execFileAsync(process.execPath, ['scripts/generate-static-routes.mjs', outputRoot], {
+	return execFileAsync(process.execPath, staticRouteGeneratorArguments(outputRoot), {
 		cwd: process.cwd(),
 		env: { ...process.env, SCAPE_PRODUCT: productId },
 	});

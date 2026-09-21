@@ -6,6 +6,8 @@ import { mkdtemp, mkdir, readdir, readFile, rm, writeFile } from 'node:fs/promis
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { promisify } from 'node:util';
+
+import { staticRouteGeneratorArguments } from './helpers/static-route-generator-subprocess.ts';
 import test from 'node:test';
 
 import { productWebManifest } from '../scripts/lib/product-web-manifest.mjs';
@@ -218,7 +220,7 @@ async function generateRoutes(context, environment) {
 	</body>
 </html>`);
 	await writeFile(join(outputRoot, '_headers'), await readFile('public/_headers', 'utf8'));
-	await execFileAsync(process.execPath, ['scripts/generate-static-routes.mjs', outputRoot], {
+	await execFileAsync(process.execPath, staticRouteGeneratorArguments(outputRoot), {
 		cwd: process.cwd(),
 		env: { ...process.env, SCAPE_PRODUCT: '', SOUNDSCAPER_SITE: '', FRAMESCAPER_SITE: '', ...environment },
 	});
