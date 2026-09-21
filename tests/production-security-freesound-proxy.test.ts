@@ -122,6 +122,6 @@ test('Wrangler local secret files cannot be added accidentally', async () => {
 		/select the \*\*Production\*\* environment.*pages secret put FREESOUND_API_KEY --project-name soundscaper.*Preview.*fail closed with `503`.*\*\*Preview\*\* environment.*does not expose an environment selector/isu,
 	);
 	assert.doesNotMatch(readme, /pages secret put[^\n]*--env/iu);
-	assert.match(readme, /secrets\.required.*does not create a deployed secret/isu);
+	assert.match(readme, /Pages does not accept.*secrets\.required.*fail closed with `503`/isu);
 	assert.match(readme, /Bulk Redirect.*Vary.*`Origin` and `Range`/isu);
 });

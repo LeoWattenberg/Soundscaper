@@ -2,8 +2,5 @@
 	"$schema": "./node_modules/wrangler/config-schema.json",
 	"name": "soundscaper",
 	"pages_build_output_dir": "./dist",
-	"compatibility_date": "2026-07-14",
-	"secrets": {
-		"required": ["FREESOUND_API_KEY"]
-	}
+	"compatibility_date": "2026-07-14"
 }

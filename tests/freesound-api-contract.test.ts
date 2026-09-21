@@ -150,10 +150,10 @@ test('Cloudflare invokes Functions only for the Freesound API namespace', () => 
 	});
 });
 
-test('Wrangler declares the Freesound credential as a required external secret', () => {
+test('Pages Wrangler configuration omits the Worker-only secrets declaration', () => {
 	const configuration = JSON.parse(
 		readFileSync(new URL('../wrangler.jsonc', import.meta.url), 'utf8'),
-	) as Readonly<{ secrets?: Readonly<{ required?: readonly string[] }> }>;
+	) as Readonly<Record<string, unknown>>;
 
-	assert.deepEqual(configuration.secrets?.required, ['FREESOUND_API_KEY']);
+	assert.equal(Object.hasOwn(configuration, 'secrets'), false);
 });

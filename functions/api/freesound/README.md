@@ -20,9 +20,8 @@ npx wrangler pages secret put FREESOUND_API_KEY --project-name soundscaper
 npx wrangler pages secret list --project-name soundscaper
 ```
 
-The `secrets.required` declaration in `wrangler.jsonc` validates local inputs; it
-does not create a deployed secret. Production requests fail closed with `503`
-when the production secret is absent.
+Pages does not accept the Workers-only `secrets.required` configuration field.
+Production requests fail closed with `503` when the production secret is absent.
 
 Preview hostnames are admitted by the request guard, but preview deployments
 deliberately fail closed with `503` unless the Preview environment also has a
@@ -39,10 +38,10 @@ file, then explicitly enable loopback request URLs when starting Pages:
 npx wrangler pages dev dist --binding FREESOUND_LOCAL_DEVELOPMENT=1
 ```
 
-The required-secret declaration warns when the local key is absent and excludes
-unlisted `.dev.vars` entries, which is why the non-secret loopback flag is a CLI
-binding. Never put the key in `wrangler.jsonc`, a plain Pages variable, a Vite
-variable, or a client bundle.
+The handler returns `503` when the local key is absent. Keep only that key in
+`.dev.vars`; the non-secret loopback flag remains a CLI binding. Never put the
+key in `wrangler.jsonc`, a plain Pages variable, a Vite variable, or a client
+bundle.
 
 ## Required Cloudflare controls
 
