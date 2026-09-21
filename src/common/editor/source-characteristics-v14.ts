@@ -6,6 +6,9 @@ import {
 	type VideoSourceCharacteristics,
 } from './video-source-characteristics.ts';
 import type { SequenceRationalRate } from './sequence-timecode.ts';
+import {
+	sourceCharacteristicsCanonicallyEqual,
+} from './source-characteristics-canonical-equivalence.ts';
 
 /**
  * V14 persists what a probe reported about each video source. The record is
@@ -39,7 +42,7 @@ export function validateVideoSourceCharacteristicsV14(project: DataRecord): void
 			throw new RangeError(`${prefix}.characteristics is required, even when nothing was reported.`);
 		}
 		const canonical = normalizeVideoSourceCharacteristics(value.characteristics, { rate: sourceRate(value) });
-		if (canonicalJson(value.characteristics) !== canonicalJson(canonical)) {
+		if (!sourceCharacteristicsCanonicallyEqual(value.characteristics, canonical)) {
 			throw new RangeError(`${prefix}.characteristics is not in its canonical reported form.`);
 		}
 		validateReportedCodecs(value, canonical, prefix);
@@ -76,13 +79,6 @@ function sourceRate(source: DataRecord): SequenceRationalRate | undefined {
 	const den = Number(rate.den);
 	if (!Number.isSafeInteger(num) || !Number.isSafeInteger(den) || num <= 0 || den <= 0) return undefined;
 	return Object.freeze({ num, den });
-}
-
-function canonicalJson(value: unknown): string {
-	if (value === null || typeof value !== 'object') return JSON.stringify(value) ?? 'null';
-	if (Array.isArray(value)) return `[${value.map(canonicalJson).join(',')}]`;
-	const entries = Object.entries(value as DataRecord).sort(([left], [right]) => (left < right ? -1 : 1));
-	return `{${entries.map(([key, entry]) => `${JSON.stringify(key)}:${canonicalJson(entry)}`).join(',')}}`;
 }
 
 function isRecord(value: unknown): value is DataRecord {

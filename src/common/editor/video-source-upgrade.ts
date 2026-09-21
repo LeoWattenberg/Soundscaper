@@ -5,6 +5,9 @@ import {
 	normalizeVideoSourceCharacteristics,
 	type VideoSourceCharacteristics,
 } from './video-source-characteristics.ts';
+import {
+	sourceCharacteristicsCanonicallyEqual,
+} from './source-characteristics-canonical-equivalence.ts';
 import { normalizeVideoSourceCharacteristicsForConsumer } from './video-source-characteristics-consumer.ts';
 import {
 	normalizeVideoSourceCharacteristicsV25,
@@ -336,16 +339,7 @@ function upgradeTimingAsset(value: unknown, frameCount: number, source: DataReco
 }
 
 function sameValue(left: unknown, right: unknown): boolean {
-	if (left === right) return true;
-	if (left === null || right === null || typeof left !== 'object' || typeof right !== 'object') return false;
-	return canonicalJson(left) === canonicalJson(right);
-}
-
-function canonicalJson(value: unknown): string {
-	if (value === null || typeof value !== 'object') return JSON.stringify(value) ?? 'null';
-	if (Array.isArray(value)) return `[${value.map(canonicalJson).join(',')}]`;
-	const entries = Object.entries(value as DataRecord).sort(([left], [right]) => (left < right ? -1 : 1));
-	return `{${entries.map(([key, entry]) => `${JSON.stringify(key)}:${canonicalJson(entry)}`).join(',')}}`;
+	return sourceCharacteristicsCanonicallyEqual(left, right);
 }
 
 function rationalRate(value: unknown, name: string): RationalRate {
