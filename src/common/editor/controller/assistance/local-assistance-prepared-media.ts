@@ -22,8 +22,8 @@ import {
 } from '../../assistance/shot-detection-mode.ts';
 import {
 	LOCAL_ASSISTANCE_INPUT_MEDIA_TYPES,
-	LOCAL_ASSISTANCE_OPERATION_MEDIA_CONTRACT,
 	LOCAL_ASSISTANCE_OUTPUT_MEDIA_TYPES,
+	resolveLocalAssistanceOperationMediaContract,
 	type LocalAssistanceOperationMediaContract,
 } from '../../assistance/local-assistance-media-contract.ts';
 import type {
@@ -55,7 +55,7 @@ export function normalizeLocalAssistancePreparedMedia(
 	if (sourceId !== expected.sourceId || operation !== expected.operation) {
 		throw new TypeError('Prepared selected media does not echo its exact selection.');
 	}
-	const operationSpec = LOCAL_ASSISTANCE_OPERATION_MEDIA_CONTRACT[operation];
+	const operationSpec = resolveLocalAssistanceOperationMediaContract(operation, 'prepared-media');
 	const inputs = normalizeInputs(record.inputs, operationSpec);
 	const outputs = normalizeOutputs(record.outputs, operationSpec, operation);
 	if (hasShotDetectionMode && operation !== 'shot-detection') {

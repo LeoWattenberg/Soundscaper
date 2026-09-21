@@ -30,14 +30,16 @@ interface ExpectedOperationMediaContract {
 	readonly inputs: readonly LocalAssistanceInputRole[];
 	readonly required: readonly (readonly LocalAssistanceInputRole[])[];
 	readonly outputs: readonly LocalAssistanceOutputRole[];
-	readonly routes: readonly (readonly LocalAssistanceInputRole[])[];
+	readonly desktopRoutes: readonly (readonly LocalAssistanceInputRole[])[];
+	readonly preparedRoutes: readonly (readonly LocalAssistanceInputRole[])[];
+	readonly bridgeRoutes: readonly (readonly LocalAssistanceInputRole[])[];
 }
 
 const EXPECTED = Object.freeze([
 	row('voice-activity-detection', ['audio'], [['audio']], ['voice-activity']),
 	row('speech-recognition', ['audio', 'voice-activity'], [['audio']], ['transcript'], [
 		['audio'], ['audio', 'voice-activity'],
-	]),
+	], [['audio']], [['audio']]),
 	row('word-alignment', ['audio', 'transcript'], [['audio'], ['transcript']], ['word-alignment']),
 	row('speaker-diarization', ['audio'], [['audio']], ['speaker-turns']),
 	row('speech-enhancement', ['audio'], [['audio']], ['enhanced-audio']),
@@ -54,7 +56,7 @@ const EXPECTED = Object.freeze([
 	row('optical-character-recognition', ['frame-pack'], [['frame-pack']], ['recognized-text']),
 	row('shot-detection', ['video', 'frame-pack'], [['video', 'frame-pack']], ['shot-boundaries'], [
 		['video'], ['frame-pack'],
-	]),
+	], [['video'], ['frame-pack']], [['video']]),
 	row('subject-detection', ['frame-pack'], [['frame-pack']], ['subject-tracks']),
 	row('saliency-detection', ['frame-pack'], [['frame-pack']], ['saliency-map']),
 	row('editorial-generation', ['editorial-context'], [['editorial-context']], ['editorial-proposal']),
@@ -93,26 +95,54 @@ test('the operation media contract covers every operation with one frozen role m
 	}
 });
 
-test('desktop, prepared-media, and renderer bridges admit every canonical operation route', async () => {
+test('each operation boundary admits exactly its established routes', async () => {
 	const bridge = rendererBridge();
 	for (const [operationIndex, entry] of EXPECTED.entries()) {
-		for (const [routeIndex, route] of entry.routes.entries()) {
+		for (const route of entry.desktopRoutes) {
 			const desktop = validateAssistanceOperationRequest(desktopRequest(entry, route, operationIndex));
 			assert.deepEqual(desktop.inputs.map(({ role }) => role), route, `${entry.operation}:desktop`);
 			assert.deepEqual(desktop.outputs.map(({ role }) => role), entry.outputs,
 				`${entry.operation}:desktop outputs`);
-
+		}
+		for (const route of entry.preparedRoutes) {
 			const prepared = normalizeLocalAssistancePreparedMedia(preparedMedia(entry, route), {
 				sourceId: 'source-1', operation: entry.operation,
 			});
 			assert.deepEqual(prepared.inputs.map(({ role }) => role), route, `${entry.operation}:prepared`);
 			assert.deepEqual([...new Set(prepared.outputs.map(({ role }) => role))], entry.outputs,
 				`${entry.operation}:prepared outputs`);
-
+		}
+		for (const [routeIndex, route] of entry.bridgeRoutes.entries()) {
 			const outcome = await bridge.run(rendererRequest(entry, route, operationIndex, routeIndex));
 			assert.equal(outcome.outcome, 'unavailable', `${entry.operation}:renderer`);
 		}
 	}
+});
+
+test('shared role authority preserves the narrower prepared and bridge wire boundaries', async () => {
+	const speech = EXPECTED.find(({ operation }) => operation === 'speech-recognition')!;
+	const speechWithVad = ['audio', 'voice-activity'] as const;
+	assert.doesNotThrow(() => validateAssistanceOperationRequest(desktopRequest(speech, speechWithVad, 1)));
+	assert.throws(
+		() => normalizeLocalAssistancePreparedMedia(preparedMedia(speech, speechWithVad), {
+			sourceId: 'source-1', operation: speech.operation,
+		}),
+		/operation input role/u,
+	);
+	await assert.rejects(
+		rendererBridge().run(rendererRequest(speech, speechWithVad, 1, 0)),
+		/not admitted|operation input role/u,
+	);
+
+	const shots = EXPECTED.find(({ operation }) => operation === 'shot-detection')!;
+	const framePack = ['frame-pack'] as const;
+	assert.doesNotThrow(() => normalizeLocalAssistancePreparedMedia(preparedMedia(shots, framePack), {
+		sourceId: 'source-1', operation: shots.operation,
+	}));
+	await assert.rejects(
+		rendererBridge().run(rendererRequest(shots, framePack, 12, 0)),
+		/not admitted|operation input role/u,
+	);
 });
 
 function row(
@@ -120,12 +150,16 @@ function row(
 	inputs: readonly LocalAssistanceInputRole[],
 	required: readonly (readonly LocalAssistanceInputRole[])[],
 	outputs: readonly LocalAssistanceOutputRole[],
-	routes: readonly (readonly LocalAssistanceInputRole[])[] = [required.flat()],
+	desktopRoutes: readonly (readonly LocalAssistanceInputRole[])[] = [required.flat()],
+	preparedRoutes: readonly (readonly LocalAssistanceInputRole[])[] = desktopRoutes,
+	bridgeRoutes: readonly (readonly LocalAssistanceInputRole[])[] = preparedRoutes,
 ): ExpectedOperationMediaContract {
 	return Object.freeze({ operation, inputs: Object.freeze(inputs),
 		required: Object.freeze(required.map((group) => Object.freeze(group))),
 		outputs: Object.freeze(outputs),
-		routes: Object.freeze(routes.map((route) => Object.freeze(route))) });
+		desktopRoutes: Object.freeze(desktopRoutes.map((route) => Object.freeze(route))),
+		preparedRoutes: Object.freeze(preparedRoutes.map((route) => Object.freeze(route))),
+		bridgeRoutes: Object.freeze(bridgeRoutes.map((route) => Object.freeze(route))) });
 }
 
 function desktopRequest(

@@ -24,9 +24,9 @@ import type { LocalAssistanceWorkflowBridge } from './local-assistance-workflow-
 import {
 	LOCAL_ASSISTANCE_INPUT_MEDIA_TYPES,
 	LOCAL_ASSISTANCE_INPUT_ROLES,
-	LOCAL_ASSISTANCE_OPERATION_MEDIA_CONTRACT,
 	LOCAL_ASSISTANCE_OUTPUT_MEDIA_TYPES,
 	LOCAL_ASSISTANCE_OUTPUT_ROLES,
+	resolveLocalAssistanceOperationMediaContract,
 	type LocalAssistanceInputRole,
 	type LocalAssistanceOutputRole,
 } from './local-assistance-media-contract.ts';
@@ -404,7 +404,7 @@ function assertOperationRoles(
 	inputs: readonly LocalAssistanceInputClaim[],
 	outputs: readonly LocalAssistanceOutputReservation[],
 ): void {
-	const operationRoles = LOCAL_ASSISTANCE_OPERATION_MEDIA_CONTRACT[operation];
+	const operationRoles = resolveLocalAssistanceOperationMediaContract(operation, 'bridge');
 	if (inputs.some(({ role }) => !operationRoles.inputs.includes(role))
 		|| outputs.some(({ role }) => !operationRoles.outputs.includes(role))) {
 		throw new TypeError('An assistance claim role is not admitted by its operation.');

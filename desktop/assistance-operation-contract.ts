@@ -20,7 +20,7 @@ import {
 	normalizeAssistanceOperation,
 	type AssistanceOperation,
 } from '../src/common/editor/assistance/operation.ts';
-import { LOCAL_ASSISTANCE_OPERATION_MEDIA_CONTRACT } from
+import { resolveLocalAssistanceOperationMediaContract } from
 	'../src/common/editor/assistance/local-assistance-media-contract.ts';
 import {
 	validateAssistanceSelectionFence,
@@ -250,7 +250,7 @@ function assertOperationRoles(
 	inputs: readonly AssistanceStagedInputClaim[],
 	outputs: readonly AssistanceOutputReservation[],
 ): void {
-	const operationSpec = LOCAL_ASSISTANCE_OPERATION_MEDIA_CONTRACT[operation];
+	const operationSpec = resolveLocalAssistanceOperationMediaContract(operation, 'operation-request');
 	for (const input of inputs) {
 		if (!operationSpec.inputs.some((role) => role === input.role)) {
 			throw new TypeError(`The ${operation} operation does not admit the ${input.role} input role.`);

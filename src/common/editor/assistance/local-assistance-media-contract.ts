@@ -21,6 +21,11 @@ export interface LocalAssistanceOperationMediaContract {
 	readonly outputs: readonly LocalAssistanceOutputRole[];
 }
 
+export type LocalAssistanceOperationMediaBoundary =
+	| 'operation-request'
+	| 'prepared-media'
+	| 'bridge';
+
 export const LOCAL_ASSISTANCE_OPERATION_MEDIA_CONTRACT = Object.freeze({
 	'voice-activity-detection': operationMedia(['audio'], [['audio']], ['voice-activity']),
 	'speech-recognition': operationMedia(['audio', 'voice-activity'], [['audio']], ['transcript']),
@@ -39,6 +44,38 @@ export const LOCAL_ASSISTANCE_OPERATION_MEDIA_CONTRACT = Object.freeze({
 	'saliency-detection': operationMedia(['frame-pack'], [['frame-pack']], ['saliency-map']),
 	'editorial-generation': operationMedia(['editorial-context'], [['editorial-context']], ['editorial-proposal']),
 } satisfies Readonly<Record<AssistanceOperation, LocalAssistanceOperationMediaContract>>);
+
+const BOUNDARY_INPUT_RESTRICTIONS = Object.freeze({
+	'operation-request': Object.freeze({}),
+	'prepared-media': Object.freeze({
+		'speech-recognition': Object.freeze(['audio'] as const),
+	}),
+	bridge: Object.freeze({
+		'speech-recognition': Object.freeze(['audio'] as const),
+		'shot-detection': Object.freeze(['video'] as const),
+	}),
+} satisfies Readonly<Record<
+	LocalAssistanceOperationMediaBoundary,
+	Readonly<Partial<Record<AssistanceOperation, readonly LocalAssistanceInputRole[]>>>
+>>);
+
+/** Project the shared operation vocabulary onto one established protocol boundary. */
+export function resolveLocalAssistanceOperationMediaContract(
+	operation: AssistanceOperation,
+	boundary: LocalAssistanceOperationMediaBoundary,
+): LocalAssistanceOperationMediaContract {
+	const contract = LOCAL_ASSISTANCE_OPERATION_MEDIA_CONTRACT[operation];
+	const inputs = BOUNDARY_INPUT_RESTRICTIONS[boundary][operation];
+	if (inputs === undefined) return contract;
+	const admitted = new Set<LocalAssistanceInputRole>(inputs);
+	const required = contract.required.map((group) => Object.freeze(
+		group.filter((role) => admitted.has(role)),
+	));
+	if (required.some((group) => group.length === 0)) {
+		throw new Error(`Local-assistance ${boundary} input restrictions are internally inconsistent.`);
+	}
+	return operationMedia(inputs, required, contract.outputs);
+}
 
 export const LOCAL_ASSISTANCE_INPUT_MEDIA_TYPES = Object.freeze({
 	audio: Object.freeze(['audio/wav', 'audio/x-wav', 'audio/flac']),
