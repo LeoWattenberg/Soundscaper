@@ -24,7 +24,7 @@ const PNG = Buffer.from(
 registerAudioEditorHooks();
 
 test.describe('Framescaper rich session clipboard', () => {
-	test('keeps a cross-project image paste atomic without a body publication', async ({ browserName, page }) => {
+	test('preserves rich AV metadata without publishing an image body cross-project', async ({ browserName, page }) => {
 		test.skip(browserName !== 'chromium', 'The nightly browser coverage surface is Chromium.');
 		test.setTimeout(120_000);
 		const { editor, projectId: originProjectId } = await authorRichClipboard(page);
@@ -36,14 +36,17 @@ test.describe('Framescaper rich session clipboard', () => {
 		await expect.poll(() => editor.getAttribute('data-project-id')).not.toBe(originProjectId);
 		const targetProjectId = await editor.getAttribute('data-project-id');
 		expect(targetProjectId).toBeTruthy();
-
-		await chooseNestedCommandAction(page, editor, 'Edit', ['Paste', 'Paste']);
-		await expect(page.getByText(
-			'The action failed: A new Framescaper image body requires atomic timeline-image publication.',
-			{ exact: true },
-		)).toBeVisible({ timeout: 30_000 });
+		await expect(editor).toHaveAttribute('data-clip-count', '0', { timeout: 30_000 });
 		await expect.poll(() => storedClipboardState(page, targetProjectId)).toMatchObject({
 			audioClips: 0, videoClips: 0, imageClips: 0, imageSources: 0,
+		});
+
+		await chooseNestedCommandAction(page, editor, 'Edit', ['Paste', 'Paste']);
+		await expect(editor).toHaveAttribute('data-clip-count', '2', { timeout: 30_000 });
+		await expect(editor.locator('[data-clip-kind="image"]')).toHaveCount(0);
+		await expect.poll(() => storedClipboardState(page, targetProjectId)).toMatchObject({
+			audioClips: 1, videoClips: 1, imageClips: 0, imageSources: 0,
+			videoCropLeft: 0.125, videoPositionX: 0.7, authoredVideoCompositions: 1,
 		});
 	});
 });
