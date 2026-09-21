@@ -11,8 +11,9 @@ const ROOT = resolve(import.meta.dirname, '..');
 const HOST = join(ROOT, 'native/soundscaper-professional-host');
 
 test('Windows native ABI and Node bridge expose only the exact bounded MP3 encoder', async () => {
-	const [header, bridge, windows, unavailable] = await Promise.all([
+	const [header, contract, bridge, windows, unavailable] = await Promise.all([
 		readFile(join(HOST, 'src/os_audio_codec.h'), 'utf8'),
+		readFile(join(HOST, 'src/os_audio_codec_contract.h'), 'utf8'),
 		readFile(join(HOST, 'src/node_api_bridge.cpp'), 'utf8'),
 		readFile(join(HOST, 'src/os_mp3_encode_windows.cpp'), 'utf8'),
 		readFile(join(HOST, 'src/os_audio_codec_unavailable.cpp'), 'utf8'),
@@ -30,9 +31,10 @@ test('Windows native ABI and Node bridge expose only the exact bounded MP3 encod
 		'MFCreateSinkWriterFromURL', 'MFAudioFormat_PCM', 'MF_MT_AUDIO_BITS_PER_SAMPLE',
 		'exactMp3', 'FILE_FLAG_OPEN_REPARSE_POINT', 'maximum_output_bytes',
 	]) assert.match(windows, new RegExp(witness, 'u'), witness);
-	assert.match(windows, /sample_rate == 48000u/u);
-	assert.match(windows, /channel_count == 2u/u);
-	assert.match(windows, /bitrate_kbps == 192u/u);
+	assert.match(windows, /exactFloat32StereoEncodeRequest\([\s\S]*bitrate_kbps, 192u\)/u);
+	assert.match(contract, /sampleRate == 48000u/u);
+	assert.match(contract, /channelCount == 2u/u);
+	assert.match(contract, /bitrateKbps == expectedBitrateKbps/u);
 	assert.match(windows, /wave\.nBlockSize = 576u/u);
 });
 

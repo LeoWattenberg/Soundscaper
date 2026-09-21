@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 #include "os_audio_codec.h"
+#include "os_audio_codec_contract.h"
 #include "os_aac_m4a_profile.h"
 
 #include <AudioToolbox/AudioToolbox.h>
@@ -39,37 +40,21 @@ soundscaper_pro_os_mp3_decode_result answer(
 	soundscaper_pro_os_codec_status status,
 	bool nativeApiReached = false)
 {
-	soundscaper_pro_os_mp3_decode_result result{};
-	result.status = status;
-	result.native_api_reached = nativeApiReached ? 1u : 0u;
-	return result;
+	return soundscaper::os_audio::codecAnswer<soundscaper_pro_os_mp3_decode_result>(
+		status, nativeApiReached);
 }
 
 soundscaper_pro_os_aac_m4a_encode_result encodeAnswer(
 	soundscaper_pro_os_codec_status status,
 	bool nativeApiReached = false)
 {
-	soundscaper_pro_os_aac_m4a_encode_result result{};
-	result.status = status;
-	result.native_api_reached = nativeApiReached ? 1u : 0u;
-	return result;
-}
-
-bool requestShapeValues(
-	const char *inputPath,
-	const char *outputPath,
-	uint64_t inputBytes,
-	uint64_t maximumOutputBytes)
-{
-	return inputPath != nullptr && outputPath != nullptr && inputBytes > 0u
-		&& maximumOutputBytes > 0u && std::strlen(inputPath) > 0u
-		&& std::strlen(inputPath) <= 4096u && std::strlen(outputPath) > 0u
-		&& std::strlen(outputPath) <= 4096u && std::strcmp(inputPath, outputPath) != 0;
+	return soundscaper::os_audio::codecAnswer<soundscaper_pro_os_aac_m4a_encode_result>(
+		status, nativeApiReached);
 }
 
 bool requestShape(const soundscaper_pro_os_mp3_decode_request *request)
 {
-	return request != nullptr && requestShapeValues(
+	return request != nullptr && soundscaper::os_audio::exactScratchRequest(
 		request->input_path_utf8, request->output_path_utf8,
 		request->input_bytes, request->maximum_output_bytes);
 }
@@ -83,14 +68,10 @@ bool exactInputFile(const char *path, uint64_t expectedBytes)
 
 bool exactEncodeRequest(const soundscaper_pro_os_aac_m4a_encode_request *request)
 {
-	return request != nullptr && requestShapeValues(
+	return request != nullptr && soundscaper::os_audio::exactFloat32StereoEncodeRequest(
 		request->input_path_utf8, request->output_path_utf8,
-		request->input_bytes, request->maximum_output_bytes)
-		&& request->input_bytes <= 32u * 1024u * 1024u
-		&& request->maximum_output_bytes <= 128u * 1024u * 1024u
-		&& request->input_bytes % (2u * sizeof(float)) == 0u
-		&& request->sample_rate == 48000u && request->channel_count == 2u
-		&& request->bitrate_kbps == 160u;
+		request->input_bytes, request->maximum_output_bytes,
+		request->sample_rate, request->channel_count, request->bitrate_kbps, 160u);
 }
 
 bool readAll(int descriptor, uint8_t *bytes, size_t length)

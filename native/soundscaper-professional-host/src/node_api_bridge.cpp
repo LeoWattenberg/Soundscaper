@@ -4,6 +4,7 @@
 
 #include "professional_host_api.h"
 #include "os_audio_codec.h"
+#include "os_audio_codec_contract.h"
 #include "node_api_runtime.h"
 
 #include <algorithm>
@@ -114,23 +115,6 @@ const char *statusName(soundscaper_pro_status status)
 	case SOUNDSCAPER_PRO_STATE_TOO_LARGE: return "state-too-large";
 	case SOUNDSCAPER_PRO_STATE_REJECTED: return "state-rejected";
 	default: return "unsupported";
-	}
-}
-
-const char *osCodecStatusName(
-	soundscaper_pro_os_codec_status status,
-	const char *success = "decoded",
-	const char *failure = "decode-failed")
-{
-	switch (status) {
-	case SOUNDSCAPER_PRO_OS_CODEC_OK: return success;
-	case SOUNDSCAPER_PRO_OS_CODEC_API_UNAVAILABLE: return "api-unavailable";
-	case SOUNDSCAPER_PRO_OS_CODEC_TUPLE_UNSUPPORTED: return "tuple-unsupported";
-	case SOUNDSCAPER_PRO_OS_CODEC_INVALID_REQUEST: return "invalid-request";
-	case SOUNDSCAPER_PRO_OS_CODEC_INPUT_CHANGED: return "input-changed";
-	case SOUNDSCAPER_PRO_OS_CODEC_OUTPUT_LIMIT: return "output-limit";
-	case SOUNDSCAPER_PRO_OS_CODEC_IO_FAILED: return "io-failed";
-	default: return failure;
 	}
 }
 
@@ -346,7 +330,7 @@ napi_value decodeOperatingSystemAudio(napi_env env, napi_callback_info info,
 	const auto outcome = decode(&request);
 	napi_value result;
 	CHECK(napi_create_object(env, &result));
-	if (!setText(env, result, "status", osCodecStatusName(outcome.status))
+	if (!setText(env, result, "status", soundscaper::os_audio::codecStatusName(outcome.status, "decoded", "decode-failed"))
 		|| !setBoolean(env, result, "nativeApiReached", outcome.native_api_reached == 1u)
 		|| !setBoolean(env, result, "exactTuplePassed", outcome.exact_tuple_passed == 1u)
 		|| !setNumber(env, result, "outputBytes", static_cast<double>(outcome.output_bytes))
@@ -401,7 +385,7 @@ napi_value encodeOperatingSystemAudio(
 	const auto outcome = encode(&request);
 	napi_value result;
 	CHECK(napi_create_object(env, &result));
-	if (!setText(env, result, "status", osCodecStatusName(outcome.status, "encoded", "encode-failed"))
+	if (!setText(env, result, "status", soundscaper::os_audio::codecStatusName(outcome.status, "encoded", "encode-failed"))
 		|| !setBoolean(env, result, "nativeApiReached", outcome.native_api_reached == 1u)
 		|| !setBoolean(env, result, "exactTuplePassed", outcome.exact_tuple_passed == 1u)
 		|| !setNumber(env, result, "outputBytes", static_cast<double>(outcome.output_bytes))

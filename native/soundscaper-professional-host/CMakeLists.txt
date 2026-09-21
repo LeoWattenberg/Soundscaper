@@ -68,7 +68,8 @@ endif()
 add_subdirectory("${SOUNDSCAPER_JUCE_ROOT}" "${CMAKE_CURRENT_BINARY_DIR}/juce" EXCLUDE_FROM_ALL)
 
 add_library(soundscaper_professional_audio STATIC
-	src/juce_audio_adapter.cpp src/os_aac_m4a_profile.cpp src/os_mp3_profile.cpp
+	src/juce_audio_adapter.cpp src/os_aac_m4a_profile.cpp src/os_audio_codec_contract.h
+	src/os_mp3_profile.cpp
 	src/professional_host.cpp
 )
 add_library(soundscaper_professional_plugin STATIC
@@ -224,6 +225,13 @@ if(BUILD_TESTING AND (APPLE OR WIN32))
 		soundscaper_professional_audio)
 	add_test(NAME soundscaper_os_audio_codec_self_test
 		COMMAND soundscaper_os_audio_codec_self_test)
+	add_executable(soundscaper_os_audio_codec_contract_self_test
+		tests/os_audio_codec_contract_self_test.cpp)
+	target_compile_features(soundscaper_os_audio_codec_contract_self_test PRIVATE cxx_std_20)
+	target_include_directories(soundscaper_os_audio_codec_contract_self_test PRIVATE
+		"${CMAKE_CURRENT_SOURCE_DIR}/src")
+	add_test(NAME soundscaper_os_audio_codec_contract_self_test
+		COMMAND soundscaper_os_audio_codec_contract_self_test)
 endif()
 if(BUILD_TESTING AND APPLE)
 	add_executable(soundscaper_juce_message_dispatcher_mac_self_test

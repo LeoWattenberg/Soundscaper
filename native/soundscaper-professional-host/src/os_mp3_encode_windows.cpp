@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 #include "os_audio_codec.h"
+#include "os_audio_codec_contract.h"
 #include "os_audio_codec_windows_file_bytes.h"
 #include "os_mp3_profile.h"
 #include "os_audio_codec_windows_session.h"
@@ -55,27 +56,16 @@ soundscaper_pro_os_mp3_encode_result answer(
 	soundscaper_pro_os_codec_status status,
 	bool nativeApiReached = false)
 {
-	soundscaper_pro_os_mp3_encode_result result{};
-	result.status = status;
-	result.native_api_reached = nativeApiReached ? 1u : 0u;
-	return result;
+	return soundscaper::os_audio::codecAnswer<soundscaper_pro_os_mp3_encode_result>(
+		status, nativeApiReached);
 }
 
 bool exactRequest(const soundscaper_pro_os_mp3_encode_request *request)
 {
-	return request != nullptr && request->input_path_utf8 != nullptr
-		&& request->output_path_utf8 != nullptr && request->input_bytes > 0u
-		&& request->input_bytes <= 32u * 1024u * 1024u
-		&& request->maximum_output_bytes > 0u
-		&& request->maximum_output_bytes <= 128u * 1024u * 1024u
-		&& request->input_bytes % (2u * sizeof(float)) == 0u
-		&& std::strlen(request->input_path_utf8) > 0u
-		&& std::strlen(request->input_path_utf8) <= 4096u
-		&& std::strlen(request->output_path_utf8) > 0u
-		&& std::strlen(request->output_path_utf8) <= 4096u
-		&& std::strcmp(request->input_path_utf8, request->output_path_utf8) != 0
-		&& request->sample_rate == 48000u && request->channel_count == 2u
-		&& request->bitrate_kbps == 192u;
+	return request != nullptr && soundscaper::os_audio::exactFloat32StereoEncodeRequest(
+		request->input_path_utf8, request->output_path_utf8,
+		request->input_bytes, request->maximum_output_bytes,
+		request->sample_rate, request->channel_count, request->bitrate_kbps, 192u);
 }
 
 bool widePath(const char *value, std::wstring &result)

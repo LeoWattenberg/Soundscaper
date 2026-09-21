@@ -35,7 +35,7 @@ test('the codec-only CMake and Node-API surfaces have no device or plug-in autho
 		readFile(join(ROOT, 'package.json'), 'utf8'),
 	]);
 	for (const source of [
-		'os_audio_codec.h', 'os_aac_m4a_profile.cpp', 'os_mp3_profile.cpp',
+		'os_audio_codec.h', 'os_audio_codec_contract.h', 'os_aac_m4a_profile.cpp', 'os_mp3_profile.cpp',
 		'os_audio_codec_windows.cpp', 'os_mp3_encode_windows.cpp', 'os_audio_codec_mac.mm',
 	]) assert.match(cmake, new RegExp(source.replace('.', '\\.'), 'u'), source);
 	assert.match(cmake, /if\(APPLE\)[\s\S]*arm64[\s\S]*AudioToolbox[\s\S]*CoreFoundation/u);
@@ -45,6 +45,7 @@ test('the codec-only CMake and Node-API surfaces have no device or plug-in autho
 	assert.doesNotMatch(`${cmake}\n${bridge}`, /JUCE|CLAP|VST3|ASIO|plug-?in|audio[_-]device/iu);
 	assert.match(cmake, /soundscaper_os_mp3_profile_self_test/u);
 	assert.match(cmake, /soundscaper_os_audio_codec_self_test/u);
+	assert.match(cmake, /soundscaper_os_audio_codec_contract_self_test/u);
 	assert.match(cmake, /include\(CTest\)/u);
 
 	const exports = [...bridge.matchAll(/\{\s*"([A-Za-z0-9]+)",\s*nullptr,/gu)]
@@ -89,6 +90,7 @@ test('build plans authenticate exact Electron 43.1.1 headers and close the targe
 		'native/soundscaper-professional-host/src/os_aac_m4a_profile.cpp',
 		'native/soundscaper-professional-host/src/os_aac_m4a_profile.h',
 		'native/soundscaper-professional-host/src/os_audio_codec.h',
+		'native/soundscaper-professional-host/src/os_audio_codec_contract.h',
 		'native/soundscaper-professional-host/src/os_audio_codec_mac.mm',
 		'native/soundscaper-professional-host/src/os_audio_codec_windows.cpp',
 		'native/soundscaper-professional-host/src/os_audio_codec_windows_file_bytes.h',
@@ -97,6 +99,7 @@ test('build plans authenticate exact Electron 43.1.1 headers and close the targe
 		'native/soundscaper-professional-host/src/os_mp3_profile.cpp',
 		'native/soundscaper-professional-host/src/os_mp3_profile.h',
 		'native/soundscaper-professional-host/tests/os_audio_codec_self_test.cpp',
+		'native/soundscaper-professional-host/tests/os_audio_codec_contract_self_test.cpp',
 		'native/soundscaper-professional-host/tests/os_mp3_profile_self_test.cpp',
 		'scripts/build-os-audio-codec-host.mjs',
 		'scripts/lib/os-audio-codec-host-build.mjs',

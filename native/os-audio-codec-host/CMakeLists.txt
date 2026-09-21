@@ -35,6 +35,7 @@ add_library(soundscaper_os_audio_codec_core STATIC
 	"${SOUNDSCAPER_REVIEWED_CODEC_SOURCE}/os_aac_m4a_profile.cpp"
 	"${SOUNDSCAPER_REVIEWED_CODEC_SOURCE}/os_aac_m4a_profile.h"
 	"${SOUNDSCAPER_REVIEWED_CODEC_SOURCE}/os_audio_codec.h"
+	"${SOUNDSCAPER_REVIEWED_CODEC_SOURCE}/os_audio_codec_contract.h"
 	"${SOUNDSCAPER_REVIEWED_CODEC_SOURCE}/os_mp3_profile.cpp"
 	"${SOUNDSCAPER_REVIEWED_CODEC_SOURCE}/os_mp3_profile.h"
 )
@@ -110,6 +111,13 @@ if(BUILD_TESTING)
 		soundscaper_os_audio_codec_core)
 	add_test(NAME soundscaper_os_audio_codec_self_test
 		COMMAND soundscaper_os_audio_codec_self_test)
+	add_executable(soundscaper_os_audio_codec_contract_self_test
+		"${SOUNDSCAPER_REVIEWED_CODEC_TESTS}/os_audio_codec_contract_self_test.cpp")
+	target_compile_features(soundscaper_os_audio_codec_contract_self_test PRIVATE cxx_std_20)
+	target_include_directories(soundscaper_os_audio_codec_contract_self_test PRIVATE
+		"${SOUNDSCAPER_REVIEWED_CODEC_SOURCE}")
+	add_test(NAME soundscaper_os_audio_codec_contract_self_test
+		COMMAND soundscaper_os_audio_codec_contract_self_test)
 endif()
 
 file(GENERATE
