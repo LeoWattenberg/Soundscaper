@@ -2,7 +2,8 @@
  * SPDX-License-Identifier: GPL-3.0-only
  */
 
-const LIVE_EFFECT_TYPES = new Set([
+/** Audacity effects whose business logic has a bounded live-streaming form. */
+export const AUDACITY_LIVE_EFFECT_TYPES = Object.freeze([
 	'audacity-auto-duck',
 	'audacity-bass-treble',
 	'audacity-click-removal',
@@ -20,6 +21,8 @@ const LIVE_EFFECT_TYPES = new Set([
 	'audacity-wahwah',
 ]);
 
+const LIVE_EFFECT_TYPE_SET = new Set(AUDACITY_LIVE_EFFECT_TYPES);
+
 const SELECTION_ONLY_REASONS = Object.freeze({
 	'audacity-amplify': 'The no-clipping gain depends on the complete selection peak.',
 	'audacity-fade-in': 'The gain curve depends on selection position and length.',
@@ -35,7 +38,7 @@ const SELECTION_ONLY_REASONS = Object.freeze({
 });
 
 export function isAudacityEffectLiveCapable(type) {
-	return LIVE_EFFECT_TYPES.has(type);
+	return LIVE_EFFECT_TYPE_SET.has(type);
 }
 
 export function audacitySelectionOnlyReason(type) {

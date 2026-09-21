@@ -9,6 +9,7 @@ import {
 	audacityLiveEffectCapability,
 	audacityLiveEffectTailFrames,
 } from './audacity-effects/live-capabilities.js';
+import { AUDACITY_LIVE_EFFECT_TYPES } from './audacity-effects/live-capability-policy.js';
 import { canonicalCopyValue, effectNameCopyKey } from '../i18n/canonical-extras.js';
 import { normalizeNativePluginEffect, updateNativePluginEffect } from './native-plugin-effect.ts';
 import {
@@ -122,24 +123,8 @@ export const AUDIO_EFFECT_DEFINITIONS = Object.freeze({
 	},
 });
 
-/** Audacity effects whose business logic has a bounded live-streaming form. */
-export const AUDACITY_RACK_EFFECT_TYPES = Object.freeze([
-	'audacity-auto-duck',
-	'audacity-bass-treble',
-	'audacity-click-removal',
-	'audacity-compressor',
-	'audacity-distortion',
-	'audacity-echo',
-	'audacity-filter-curve-eq',
-	'audacity-graphic-eq',
-	'audacity-invert',
-	'audacity-limiter',
-	'audacity-noise-reduction',
-	'audacity-phaser',
-	'audacity-reverb',
-	'audacity-classic-filters',
-	'audacity-wahwah',
-]);
+/** Public rack name for the canonical Audacity live-capability boundary. */
+export const AUDACITY_RACK_EFFECT_TYPES = AUDACITY_LIVE_EFFECT_TYPES;
 
 const AUDACITY_RACK_EFFECT_TYPE_SET = new Set(AUDACITY_RACK_EFFECT_TYPES);
 

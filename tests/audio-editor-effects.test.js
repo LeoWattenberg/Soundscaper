@@ -33,6 +33,7 @@ import {
 	audacityEffectLabel,
 	audacityEffectTypes,
 } from '../src/common/editor/audacity-effects/manifest.js';
+import * as audacityLiveCapabilityPolicy from '../src/common/editor/audacity-effects/live-capability-policy.js';
 import {
 	AUDACITY_LIVE_EFFECT_CAPABILITIES,
 	audacityLiveEffectCapability,
@@ -75,6 +76,10 @@ const EXPECTED_SELECTION_ONLY_TYPES = [
 	'audacity-reverse',
 	'audacity-truncate-silence',
 ];
+
+test('the rack registry uses the canonical live-capability type binding', () => {
+	assert.equal(AUDACITY_RACK_EFFECT_TYPES, audacityLiveCapabilityPolicy.AUDACITY_LIVE_EFFECT_TYPES);
+});
 
 test('rack registry exposes the existing effects and exactly the live-capable Audacity effects', () => {
 	assert.deepEqual(AUDACITY_RACK_EFFECT_TYPES, EXPECTED_AUDACITY_RACK_TYPES);
