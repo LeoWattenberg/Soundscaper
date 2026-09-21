@@ -21,6 +21,7 @@ import {
 	sampleFrameToVideoFrame,
 	type RationalRate,
 } from './timeline-time.ts';
+import { assertProjectFeatureRenderedFallbackManifestBinding } from './project-feature-rendered-fallback-manifest-binding.ts';
 
 export const PROJECT_FEATURE_VIDEO_RENDERED_FALLBACK_IDS = Object.freeze({
 	track: 'framescaper:rendered-video-fallback:track',
@@ -81,7 +82,7 @@ export function projectFeatureVideoRenderedFallbackPlayback<Project extends obje
 	if (isQualifiedClipFallback(qualified)) {
 		return projectFeatureVideoClipRenderV1Playback(project, qualified);
 	}
-	assertManifestBinding(projectRecord, qualified);
+	assertProjectFeatureRenderedFallbackManifestBinding(projectRecord, qualified);
 	const sources = arrayValue(dataProperty(projectRecord, 'sources', 'project'), 'project.sources');
 	const source = fallbackSource(sources, qualified.fallback.sourceId);
 	const geometry = videoFallbackGeometry(projectRecord, source);
@@ -162,36 +163,6 @@ function isQualifyingItem(item: ProjectFeatureRequirementsReportItem): item is P
 				&& item.availability === 'unavailable'
 				&& item.featureId === PROJECT_FEATURE_CAPABILITY_IDS.videoEffects)
 		);
-}
-
-function assertManifestBinding(project: RecordValue, qualified: QualifiedProjectFallback): void {
-	const manifest = recordValue(dataProperty(project, 'featureRequirements', 'project'), 'project.featureRequirements');
-	const requirements = arrayValue(
-		dataProperty(manifest, 'requirements', 'project.featureRequirements'),
-		'project.featureRequirements.requirements',
-	);
-	const matching = requirements.filter((candidate, index) => isRecord(candidate)
-		&& dataProperty(candidate, 'id', `project.featureRequirements.requirements[${String(index)}]`)
-			=== qualified.requirementId);
-	if (matching.length !== 1) {
-		throw new Error('The rendered fallback descriptor does not match one project manifest requirement.');
-	}
-	const requirement = matching[0]! as RecordValue;
-	const fallback = recordValue(
-		dataProperty(requirement, 'fallback', 'project feature requirement'),
-		'project feature requirement fallback',
-	);
-	if (
-		dataProperty(requirement, 'featureId', 'project feature requirement')
-			!== qualified.featureId
-		|| dataProperty(requirement, 'disposition', 'project feature requirement') !== 'rendered-fallback'
-		|| dataProperty(fallback, 'role', 'project feature requirement fallback') !== qualified.fallback.role
-		|| dataProperty(fallback, 'kind', 'project feature requirement fallback') !== qualified.fallback.kind
-		|| dataProperty(fallback, 'sourceId', 'project feature requirement fallback') !== qualified.fallback.sourceId
-		|| dataProperty(fallback, 'sha256', 'project feature requirement fallback') !== qualified.fallback.sha256
-	) {
-		throw new Error('The rendered fallback descriptor does not match the project manifest.');
-	}
 }
 
 function fallbackSource(sources: readonly unknown[], sourceId: string): RecordValue {

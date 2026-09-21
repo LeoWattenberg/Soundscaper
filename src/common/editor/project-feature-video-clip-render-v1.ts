@@ -5,6 +5,7 @@ import {
 	type ProjectFeatureVideoCapabilityId,
 } from './project-feature-capabilities.ts';
 import type { ProjectFeatureVideoClipRenderFallback } from './project-feature-requirements.ts';
+import { assertProjectFeatureRenderedFallbackManifestBinding } from './project-feature-rendered-fallback-manifest-binding.ts';
 import { resolveRuntimeClipProjection } from './runtime-clip-projection.ts';
 import { normalizeVideoEffects } from './video-effects.js';
 
@@ -41,7 +42,7 @@ export function projectFeatureVideoClipRenderV1Playback<Project extends object>(
 ): ProjectFeatureVideoClipRenderV1Projection<Project> {
 	const projectRecord = recordValue(project, 'project');
 	assertDescriptor(descriptor);
-	assertManifestBinding(projectRecord, descriptor);
+	assertProjectFeatureRenderedFallbackManifestBinding(projectRecord, descriptor);
 	const clips = arrayValue(dataProperty(projectRecord, 'clips', 'project'), 'project.clips');
 	const target = exactRecordById(clips, descriptor.fallback.targetClipId, 'target clip');
 	if (dataProperty(target.value, 'kind', target.name) !== 'video') {
@@ -114,38 +115,6 @@ function assertDescriptor(descriptor: ProjectFeatureVideoClipRenderV1Descriptor)
 	}
 	canonicalString(descriptor.fallback.sourceId, 'Video clip rendered fallback source ID');
 	canonicalString(descriptor.fallback.targetClipId, 'Video clip rendered fallback target clip ID');
-}
-
-function assertManifestBinding(
-	project: RecordValue,
-	descriptor: ProjectFeatureVideoClipRenderV1Descriptor,
-): void {
-	const manifest = recordValue(dataProperty(project, 'featureRequirements', 'project'), 'project.featureRequirements');
-	const requirements = arrayValue(
-		dataProperty(manifest, 'requirements', 'project.featureRequirements'),
-		'project.featureRequirements.requirements',
-	);
-	const matches = requirements.filter((candidate, index) => isRecord(candidate)
-		&& dataProperty(candidate, 'id', `project.featureRequirements.requirements[${String(index)}]`)
-			=== descriptor.requirementId);
-	if (matches.length !== 1) {
-		throw new Error('The rendered fallback descriptor does not match one project manifest requirement.');
-	}
-	const requirement = matches[0]! as RecordValue;
-	const fallback = recordValue(
-		dataProperty(requirement, 'fallback', 'project feature requirement'),
-		'project feature requirement fallback',
-	);
-	if (
-		dataProperty(requirement, 'featureId', 'project feature requirement') !== descriptor.featureId
-		|| dataProperty(requirement, 'disposition', 'project feature requirement') !== 'rendered-fallback'
-		|| dataProperty(fallback, 'role', 'project feature requirement fallback') !== descriptor.fallback.role
-		|| dataProperty(fallback, 'kind', 'project feature requirement fallback') !== descriptor.fallback.kind
-		|| dataProperty(fallback, 'sourceId', 'project feature requirement fallback') !== descriptor.fallback.sourceId
-		|| dataProperty(fallback, 'sha256', 'project feature requirement fallback') !== descriptor.fallback.sha256
-		|| dataProperty(fallback, 'targetClipId', 'project feature requirement fallback')
-			!== descriptor.fallback.targetClipId
-	) throw new Error('The rendered fallback descriptor does not match the project manifest.');
 }
 
 function assertSourceGeometry(

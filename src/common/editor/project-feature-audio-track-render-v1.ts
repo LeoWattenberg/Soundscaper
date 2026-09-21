@@ -4,6 +4,7 @@ import { PROJECT_FEATURE_CAPABILITY_IDS } from './project-feature-capabilities.t
 import type { ProjectFeatureAudioTrackRenderFallback } from './project-feature-requirements.ts';
 import { normalizeAudioTrackFreezeV1, type AudioTrackFreezeV1 } from './audio-track-freeze-v21.ts';
 import { normalizeMixerGraphV21 } from './mixer-graph-v21.ts';
+import { assertProjectFeatureRenderedFallbackManifestBinding } from './project-feature-rendered-fallback-manifest-binding.ts';
 
 export const PROJECT_FEATURE_AUDIO_TRACK_RENDER_IDS = Object.freeze({
 	clip: 'soundscaper:rendered-audio-fallback:track-clip',
@@ -46,7 +47,7 @@ export function projectFeatureAudioTrackRenderV1Playback<Project extends object>
 ): ProjectFeatureAudioTrackRenderV1Projection<Project> {
 	const projectRecord = recordValue(project, 'project');
 	assertDescriptor(descriptor);
-	assertManifestBinding(projectRecord, descriptor);
+	assertProjectFeatureRenderedFallbackManifestBinding(projectRecord, descriptor);
 	assertAdmUnsupported(projectRecord);
 	const tracks = arrayValue(dataProperty(projectRecord, 'tracks', 'project'), 'project.tracks');
 	const target = exactRecordById(tracks, descriptor.fallback.targetTrackId, 'target track');
@@ -129,38 +130,6 @@ function assertDescriptor(descriptor: ProjectFeatureAudioTrackRenderV1Descriptor
 	}
 	canonicalString(descriptor.fallback.sourceId, 'Audio track rendered fallback source ID');
 	canonicalString(descriptor.fallback.targetTrackId, 'Audio track rendered fallback target track ID');
-}
-
-function assertManifestBinding(
-	project: RecordValue,
-	descriptor: ProjectFeatureAudioTrackRenderV1Descriptor,
-): void {
-	const manifest = recordValue(dataProperty(project, 'featureRequirements', 'project'), 'project.featureRequirements');
-	const requirements = arrayValue(
-		dataProperty(manifest, 'requirements', 'project.featureRequirements'),
-		'project.featureRequirements.requirements',
-	);
-	const matches = requirements.filter((candidate, index) => isRecord(candidate)
-		&& dataProperty(candidate, 'id', `project.featureRequirements.requirements[${String(index)}]`)
-			=== descriptor.requirementId);
-	if (matches.length !== 1) {
-		throw new Error('The rendered fallback descriptor does not match one project manifest requirement.');
-	}
-	const requirement = matches[0]! as RecordValue;
-	const fallback = recordValue(
-		dataProperty(requirement, 'fallback', 'project feature requirement'),
-		'project feature requirement fallback',
-	);
-	if (
-		dataProperty(requirement, 'featureId', 'project feature requirement') !== descriptor.featureId
-		|| dataProperty(requirement, 'disposition', 'project feature requirement') !== 'rendered-fallback'
-		|| dataProperty(fallback, 'role', 'project feature requirement fallback') !== descriptor.fallback.role
-		|| dataProperty(fallback, 'kind', 'project feature requirement fallback') !== descriptor.fallback.kind
-		|| dataProperty(fallback, 'sourceId', 'project feature requirement fallback') !== descriptor.fallback.sourceId
-		|| dataProperty(fallback, 'sha256', 'project feature requirement fallback') !== descriptor.fallback.sha256
-		|| dataProperty(fallback, 'targetTrackId', 'project feature requirement fallback')
-			!== descriptor.fallback.targetTrackId
-	) throw new Error('The rendered fallback descriptor does not match the project manifest.');
 }
 
 function assertActiveEffectRack(target: RecordValue, name: string): void {
