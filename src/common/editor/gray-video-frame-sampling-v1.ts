@@ -3,7 +3,7 @@
 interface GrayVideoFrameSamplesV1 {
 	readonly width: number;
 	readonly height: number;
-	readonly samples: Float32Array;
+	readonly samples: ArrayLike<number>;
 }
 
 /** Sample a gray frame with edge-clamped bilinear interpolation. */
