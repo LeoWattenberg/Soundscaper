@@ -35,7 +35,7 @@ export interface MacroSandboxWorker {
 }
 
 export interface MacroSandboxRuntime {
-	/** The prelude, inlined verbatim into the worker the program becomes. */
+	/** Source that loads or embeds the trusted prelude in the generated module. */
 	readonly preludeSource: string;
 	readonly createWorker: (source: string, name: string) => MacroSandboxWorker;
 	readonly dispatch: (method: string, args: readonly MacroValue[]) => Promise<MacroValue>;

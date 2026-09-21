@@ -27,9 +27,10 @@ interface PostedMessage {
 }
 
 /**
- * Runs a program the way a worker does: the real prelude and the real wrapper,
- * compiled as one module under one filename, so every stack frame carries the
- * line the browser would report.
+ * Runs the real prelude body and wrapper in one VM module. Production loads the
+ * prelude as a static dependency; embedding it here deliberately gives both
+ * prelude and author frames one filename so line filtering faces its hardest
+ * case.
  */
 async function runMacroProgram(
 	program: string,

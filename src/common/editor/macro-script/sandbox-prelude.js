@@ -4,11 +4,10 @@
 /**
  * What a macro program's worker looks like before the program's first statement.
  *
- * This file is inlined verbatim into the worker a program becomes, so it has no
- * imports and nothing to resolve. It runs first and does three things: it takes
- * the worker's ambient capabilities away, it replaces the sources of
- * nondeterminism with reproducible ones, and it hands the program the only
- * channel it has left.
+ * This file is the generated worker module's static dependency. It runs first
+ * and does three things: it takes the worker's ambient capabilities away, it
+ * replaces the sources of nondeterminism with reproducible ones, and it hands
+ * the program the only channel it has left.
  *
  * The capability reduction is defence in depth, not the security boundary. The
  * boundary is the host's dispatch table and its admission of every value; this

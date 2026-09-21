@@ -3,15 +3,15 @@
 /**
  * The macro sandbox as it exists in a browser.
  *
- * The prelude is inlined verbatim rather than imported, because the program and
- * the prelude have to be one module: a `blob:` worker is the only way to run a
- * program under a policy that grants no `'unsafe-eval'`, and a blob has nothing
- * to resolve a relative import against.
+ * The authored program remains the body of a `blob:` module because the policy
+ * grants no `'unsafe-eval'`. Its trusted prelude is a static, absolute import:
+ * that dependency evaluates first and stays an observable first-party module
+ * instead of disappearing inside the generated blob's coverage identity.
  */
 
-// Vite's raw loader; the module shape is declared in src/vite-env.d.ts.
-import preludeSource from './sandbox-prelude.js?raw';
+import preludeModuleUrl from './sandbox-prelude.js?url';
 
+import { macroPreludeImportSource } from './browser-prelude-loader.ts';
 import {
 	createMacroSandboxClient,
 	type MacroSandboxRuntime,
@@ -25,7 +25,7 @@ export type BrowserMacroSandboxOptions = Omit<
 export function createBrowserMacroSandbox(options: BrowserMacroSandboxOptions) {
 	return createMacroSandboxClient({
 		...options,
-		preludeSource: preludeSource as string,
+		preludeSource: macroPreludeImportSource(preludeModuleUrl, globalThis.location.href),
 		createWorker: (source, name) => {
 			const url = URL.createObjectURL(new Blob([source], { type: 'text/javascript' }));
 			const worker = new Worker(url, { type: 'module', name });

@@ -13,9 +13,9 @@ import {
 	createMacroSandboxClient,
 } from '../src/common/editor/macro-script/sandbox-client.ts';
 
-// The prelude the browser sandbox actually inlines, not a stand-in: the
-// regression was that its length leaked into the line the author was shown,
-// and a one-line stand-in is the one prelude for which that could not show.
+// Exercise the shipped prelude body, not a stand-in. This harness embeds it so
+// an engine-reported prelude frame and author frame share the exact generated
+// module coordinates whose translation the client has to defend.
 const PRELUDE = readFileSync(
 	new URL('../src/common/editor/macro-script/sandbox-prelude.js', import.meta.url),
 	'utf8',
