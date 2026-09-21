@@ -119,6 +119,20 @@ test('every registered first-party video capability can bind one full-render fal
 	), false, 'geometry has no rendered-fallback publication contract');
 });
 
+test('video fallback rejects a reserved clip ID in the timeline or Project Bin', () => {
+	const input = project();
+	for (const [collision, message] of [
+		[{ clips: [{ id: PROJECT_FEATURE_VIDEO_RENDERED_FALLBACK_IDS.clip }] },
+			'The reserved rendered-fallback clip ID collides with project state.'],
+		[{ projectBin: { clips: [{ id: PROJECT_FEATURE_VIDEO_RENDERED_FALLBACK_IDS.clip }] } },
+			'The reserved rendered-fallback clip ID collides with Project Bin state.'],
+	] as const) {
+		assert.throws(() => projectFeatureVideoRenderedFallbackPlayback({ ...input, ...collision }, report()), {
+			message,
+		});
+	}
+});
+
 test('an admitted first-party video-effects render becomes one neutral full-length preview clip', () => {
 	const input = project();
 	const before = structuredClone(input);

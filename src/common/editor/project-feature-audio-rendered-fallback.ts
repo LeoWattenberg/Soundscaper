@@ -10,6 +10,7 @@ import {
 } from './project-schema-version.ts';
 import { createDefaultMixerGraphV21 } from './mixer-graph-v21.ts';
 import { assertProjectFeatureRenderedFallbackManifestBinding } from './project-feature-rendered-fallback-manifest-binding.ts';
+import { assertProjectFeatureRenderedFallbackReservedIdsAvailable } from './project-feature-rendered-fallback-reserved-ids.ts';
 import { isProjectFeatureRenderedFallbackQualified } from './project-feature-rendered-fallback-qualification.ts';
 import {
 	projectFeatureAudioTrackRenderV1Playback,
@@ -90,7 +91,10 @@ export function projectFeatureAudioRenderedFallbackPlayback<Project extends obje
 	const source = fallbackSource(sources, qualified.fallback.sourceId);
 	assertAudioGeometry(projectRecord, source);
 	assertAdmUnsupported(projectRecord);
-	assertReservedIdsAvailable(projectRecord);
+	assertProjectFeatureRenderedFallbackReservedIdsAvailable(
+		projectRecord, PROJECT_FEATURE_AUDIO_RENDERED_FALLBACK_IDS,
+		{ dataProperty, arrayValue, recordValue, isRecord },
+	);
 
 	const frameCount = positiveSafeInteger(
 		dataProperty(source, 'frameCount', `project source ${qualified.fallback.sourceId}`),
@@ -235,26 +239,6 @@ function assertAdmUnsupported(project: RecordValue): void {
 	const metadata = recordValue(dataProperty(project, 'metadata', 'project'), 'project.metadata');
 	if (dataProperty(metadata, 'adm', 'project.metadata') !== null) {
 		throw new RangeError('Rendered fallback editor playback does not support ADM project routing.');
-	}
-}
-
-function assertReservedIdsAvailable(project: RecordValue): void {
-	for (const [collection, id, kind] of [
-		['tracks', PROJECT_FEATURE_AUDIO_RENDERED_FALLBACK_IDS.track, 'track'],
-		['clips', PROJECT_FEATURE_AUDIO_RENDERED_FALLBACK_IDS.clip, 'clip'],
-	] as const) {
-		const values = arrayValue(dataProperty(project, collection, 'project'), `project.${collection}`);
-		if (values.some((candidate, index) => isRecord(candidate)
-			&& dataProperty(candidate, 'id', `project.${collection}[${String(index)}]`) === id)) {
-			throw new RangeError(`The reserved rendered-fallback ${kind} ID collides with project state.`);
-		}
-	}
-	const projectBin = recordValue(dataProperty(project, 'projectBin', 'project'), 'project.projectBin');
-	const binClips = arrayValue(dataProperty(projectBin, 'clips', 'project.projectBin'), 'project.projectBin.clips');
-	if (binClips.some((candidate, index) => isRecord(candidate)
-		&& dataProperty(candidate, 'id', `project.projectBin.clips[${String(index)}]`)
-			=== PROJECT_FEATURE_AUDIO_RENDERED_FALLBACK_IDS.clip)) {
-		throw new RangeError('The reserved rendered-fallback clip ID collides with Project Bin state.');
 	}
 }
 

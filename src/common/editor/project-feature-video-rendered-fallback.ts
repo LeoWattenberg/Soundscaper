@@ -22,6 +22,7 @@ import {
 	type RationalRate,
 } from './timeline-time.ts';
 import { assertProjectFeatureRenderedFallbackManifestBinding } from './project-feature-rendered-fallback-manifest-binding.ts';
+import { assertProjectFeatureRenderedFallbackReservedIdsAvailable } from './project-feature-rendered-fallback-reserved-ids.ts';
 import { isProjectFeatureRenderedFallbackQualified } from './project-feature-rendered-fallback-qualification.ts';
 
 export const PROJECT_FEATURE_VIDEO_RENDERED_FALLBACK_IDS = Object.freeze({
@@ -87,7 +88,10 @@ export function projectFeatureVideoRenderedFallbackPlayback<Project extends obje
 	const sources = arrayValue(dataProperty(projectRecord, 'sources', 'project'), 'project.sources');
 	const source = fallbackSource(sources, qualified.fallback.sourceId);
 	const geometry = videoFallbackGeometry(projectRecord, source);
-	assertReservedIdsAvailable(projectRecord);
+	assertProjectFeatureRenderedFallbackReservedIdsAvailable(
+		projectRecord, PROJECT_FEATURE_VIDEO_RENDERED_FALLBACK_IDS,
+		{ dataProperty, arrayValue, recordValue, isRecord },
+	);
 
 	const clip = renderedClip(qualified.fallback.sourceId, geometry);
 	const track = renderedTrack();
@@ -215,26 +219,6 @@ function videoFallbackGeometry(project: RecordValue, source: RecordValue): Reado
 		)),
 		sourceFrameCount,
 	});
-}
-
-function assertReservedIdsAvailable(project: RecordValue): void {
-	for (const [collection, id, kind] of [
-		['tracks', PROJECT_FEATURE_VIDEO_RENDERED_FALLBACK_IDS.track, 'track'],
-		['clips', PROJECT_FEATURE_VIDEO_RENDERED_FALLBACK_IDS.clip, 'clip'],
-	] as const) {
-		const values = arrayValue(dataProperty(project, collection, 'project'), `project.${collection}`);
-		if (values.some((candidate, index) => isRecord(candidate)
-			&& dataProperty(candidate, 'id', `project.${collection}[${String(index)}]`) === id)) {
-			throw new RangeError(`The reserved rendered-fallback ${kind} ID collides with project state.`);
-		}
-	}
-	const projectBin = recordValue(dataProperty(project, 'projectBin', 'project'), 'project.projectBin');
-	const binClips = arrayValue(dataProperty(projectBin, 'clips', 'project.projectBin'), 'project.projectBin.clips');
-	if (binClips.some((candidate, index) => isRecord(candidate)
-		&& dataProperty(candidate, 'id', `project.projectBin.clips[${String(index)}]`)
-			=== PROJECT_FEATURE_VIDEO_RENDERED_FALLBACK_IDS.clip)) {
-		throw new RangeError('The reserved rendered-fallback clip ID collides with Project Bin state.');
-	}
 }
 
 function renderedClip(
