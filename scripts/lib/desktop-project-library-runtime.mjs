@@ -8,6 +8,7 @@ import { DESKTOP_ASSISTANCE_RUNTIME_FILES } from './desktop-assistance-runtime-f
 import { DESKTOP_AUDACITY_EFFECT_RUNTIME_FILES } from './desktop-audacity-effect-runtime-files.mjs';
 import { stageDesktopBundledAudioRuntime } from './desktop-bundled-audio-runtime.mjs';
 import { DESKTOP_EXTERNAL_FFMPEG_RUNTIME_FILES } from './desktop-external-ffmpeg-runtime-files.mjs';
+import { DESKTOP_MIXER_RUNTIME_FILES } from './desktop-mixer-runtime-files.mjs';
 import { DESKTOP_PROJECT_LIBRARY_BASELINE_RUNTIME_FILES } from './desktop-project-library-baseline-runtime-files.mjs';
 import { DESKTOP_SOUNDSCAPER_RUNTIME_FILES } from './desktop-soundscaper-runtime-files.mjs';
 import { DESKTOP_EFFECT_RUNTIME_FILES } from './desktop-effect-runtime-files.mjs';
@@ -259,15 +260,12 @@ export const DESKTOP_EXPECTED_RUNTIME_FILES = Object.freeze([
 	'src/common/editor/effect-parameter-descriptors.js',
 	'src/common/editor/effects.js',
 	...DESKTOP_EFFECT_RUNTIME_FILES,
-	'src/common/editor/folder-mixer-graph-v21.js',
+	...DESKTOP_MIXER_RUNTIME_FILES,
 	'src/common/editor/inert-json-snapshot.js',
 	'src/common/editor/interpolation-curve-math.js',
 	'src/common/editor/interpolation-curve.js',
 	'src/common/editor/macro-command-steps.js',
 	'src/common/editor/mastering-sequence.js',
-	'src/common/editor/mixer-graph-v21.js',
-	'src/common/editor/mixer-signal-edge-v21.js',
-	'src/common/editor/mixer-signal-topology-v21.js',
 	'src/common/editor/parameter-address.js',
 	'src/common/editor/pcm-dither.js',
 	'src/common/editor/pffft.js',
