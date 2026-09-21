@@ -139,7 +139,9 @@ export function createAssistanceProposalSession(
 		phase = 'accepting';
 		try {
 			const current = validateAssistanceSelectionFence(await options.currentFence());
-			if (!sameFence(expectedFence, current)) throw new AssistanceProposalStaleError();
+			if (!sameAssistanceSelectionFence(expectedFence, current)) {
+				throw new AssistanceProposalStaleError();
+			}
 			await options.commit(Object.freeze({
 				fence: expectedFence,
 				commands: Object.freeze(proposals
@@ -251,7 +253,10 @@ function normalizeDecision(
 	return new Set(ids);
 }
 
-function sameFence(left: AssistanceSelectionFence, right: AssistanceSelectionFence): boolean {
+export function sameAssistanceSelectionFence(
+	left: AssistanceSelectionFence,
+	right: AssistanceSelectionFence,
+): boolean {
 	return left.projectId === right.projectId
 		&& left.schemaFamily === right.schemaFamily
 		&& left.schemaVersion === right.schemaVersion

@@ -2,6 +2,7 @@
 /** Selection-fence derivation and exact-record checks shared by Guided acceptance. */
 import {
 	AssistanceProposalStaleError,
+	sameAssistanceSelectionFence,
 	validateAssistanceSelectionFence,
 	type AssistanceSelectionFence,
 } from '../../../../assistance/proposal-session.ts';
@@ -49,7 +50,7 @@ export function assertCurrentFence(
 	expected: AssistanceSelectionFence,
 ): void {
 	const current = validateAssistanceSelectionFence(currentSelectionFence(expected.sourceId));
-	if (!sameFence(expected, current)) throw new AssistanceProposalStaleError();
+	if (!sameAssistanceSelectionFence(expected, current)) throw new AssistanceProposalStaleError();
 }
 
 export function exactRecord(
@@ -67,18 +68,6 @@ export function exactRecord(
 		throw new TypeError(`The ${label} must carry exactly its schema fields.`);
 	}
 	return row;
-}
-
-export function sameFence(left: AssistanceSelectionFence, right: AssistanceSelectionFence): boolean {
-	return left.projectId === right.projectId && left.schemaFamily === right.schemaFamily
-		&& left.schemaVersion === right.schemaVersion
-		&& left.revision === right.revision && left.sequenceId === right.sequenceId
-		&& left.sourceId === right.sourceId && left.sourceSha256 === right.sourceSha256
-		&& left.sourceStartFrame === right.sourceStartFrame && left.sourceEndFrame === right.sourceEndFrame
-		&& left.linkMembershipSha256 === right.linkMembershipSha256
-		&& left.timingAuthoritySha256 === right.timingAuthoritySha256
-		&& left.occurrenceIds.length === right.occurrenceIds.length
-		&& left.occurrenceIds.every((id, index) => id === right.occurrenceIds[index]);
 }
 
 export function same(left: unknown, right: unknown): boolean {
