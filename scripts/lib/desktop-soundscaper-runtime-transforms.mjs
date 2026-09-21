@@ -34,7 +34,7 @@ export function soundscaperAssistanceOnnxRuntimeWorkerSource(sourceValue) {
 			new RegExp(`^import \\{[^\\n]+\\} from ['"][^'"]*${dependency}\\.js['"];\\n`, 'mu'),
 			'', dependency + ' import');
 	}
-	for (const dependency of ['node:crypto', 'node:fs/promises']) {
+	for (const dependency of ['node:fs/promises']) {
 		source = replaceOnce(source,
 			new RegExp(`^import [^\\n]+ from ['"]${dependency}['"];\\n`, 'mu'),
 			'', dependency + ' import');

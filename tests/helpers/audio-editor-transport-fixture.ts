@@ -15,6 +15,8 @@ export function createTransportFixture() {
 			events: Array<{ beat: { num: number; den: number }; bpm: { num: number; den: number } }>;
 		};
 		signatureMap: { events: Array<{ bar: number; numerator: number; denominator: number }> };
+		tracks: Array<{ id: string; type: string; clipIds: string[] }>;
+		clips: Array<{ id: string; timelineStartFrame: number; durationFrames: number }>;
 	};
 	type PlaybackState = { state: string; playbackMode: string; playbackRate: number; cutPreview?: boolean };
 	let project: TestProject = {
@@ -29,6 +31,8 @@ export function createTransportFixture() {
 			events: [{ beat: { num: 0, den: 1 }, bpm: { num: 120, den: 1 } }],
 		},
 		signatureMap: { events: [{ bar: 0, numerator: 6, denominator: 8 }] },
+		tracks: [{ id: 'track', type: 'audio', clipIds: [] }],
+		clips: [],
 	};
 	let playbackState: PlaybackState = { state: 'stopped', playbackMode: 'normal', playbackRate: 1 };
 	let missingSources = false;

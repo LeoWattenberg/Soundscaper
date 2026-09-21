@@ -158,6 +158,10 @@
 		,
 		{ "path": "src/common/editor/assistance/highlight-ranking-v1.ts", "kind": "persisted-contract", "justification": "highlight-ranking-v1.ts is a persisted assistance asset, workflow, model-adapter, or result format revision." }
 		,
+		{ "path": "src/common/editor/assistance/internal/centered-periodic-hann-stft-v1.ts", "kind": "persisted-contract", "justification": "centered-periodic-hann-stft-v1.ts is a persisted assistance signal-processing contract revision shared by reviewed model adapters." }
+		,
+		{ "path": "src/common/editor/assistance/internal/radix-two-fft-v1.ts", "kind": "persisted-contract", "justification": "radix-two-fft-v1.ts is a persisted assistance signal-processing contract revision shared by reviewed model adapters." }
+		,
 		{ "path": "src/common/editor/assistance/nomic-tokenizer-v1.ts", "kind": "persisted-contract", "justification": "nomic-tokenizer-v1.ts is a persisted assistance asset, workflow, model-adapter, or result format revision." }
 		,
 		{ "path": "src/common/editor/assistance/owned-audio-cut-transform-registry-v1.ts", "kind": "persisted-contract", "justification": "owned-audio-cut-transform-registry-v1.ts is a persisted assistance asset, workflow, model-adapter, or result format revision." }
@@ -236,6 +240,8 @@
 		,
 		{ "path": "src/common/editor/assistance/wav2vec2-english-tokenizer-v1.ts", "kind": "persisted-contract", "justification": "wav2vec2-english-tokenizer-v1.ts is a persisted assistance asset, workflow, model-adapter, or result format revision." }
 		,
+		{ "path": "src/common/editor/assistance/workflow-claim-correlation-v1.ts", "kind": "persisted-contract", "justification": "workflow-claim-correlation-v1.ts is a persisted assistance claim-correlation format revision shared across workflow boundaries." }
+		,
 		{ "path": "src/common/editor/assistance/workflow-custody-v1.ts", "kind": "persisted-contract", "justification": "workflow-custody-v1.ts is a persisted assistance asset, workflow, model-adapter, or result format revision." }
 		,
 		{ "path": "src/common/editor/assistance/workflow-fence-v1.ts", "kind": "persisted-contract", "justification": "workflow-fence-v1.ts is a persisted assistance asset, workflow, model-adapter, or result format revision." }
@@ -298,6 +304,8 @@
 		,
 		{ "path": "src/common/editor/framescaper-native-live-render-role-v1.ts", "kind": "ipc-contract", "justification": "framescaper-native-live-render-role-v1.ts names which of a live render stage's two inputs a carrier chunk belongs to; the renderer bridge and the desktop main process both read it, so it is an independently versioned cross-process carrier contract." }
 		,
+		{ "path": "src/common/editor/gray-video-frame-sampling-v1.ts", "kind": "persisted-contract", "justification": "gray-video-frame-sampling-v1.ts is a persisted video sampling contract revision shared by motion-processing consumers." }
+		,
 		{ "path": "src/common/editor/macro-script/generated-module-wrapper-v1.js", "kind": "external-contract", "justification": "generated-module-wrapper-v1.js is the byte-authenticated generated-module wrapper revision shared by macro execution and E2E coverage admission." }
 		,
 		{ "path": "src/common/editor/mixer-graph-audibility-v21.ts", "kind": "persisted-contract", "justification": "mixer-graph-audibility-v21.ts is a persisted domain-component or render-contract revision independent of product schema." }
@@ -305,6 +313,10 @@
 		{ "path": "src/common/editor/mixer-graph-surface-v21.ts", "kind": "persisted-contract", "justification": "mixer-graph-surface-v21.ts is a persisted domain-component or render-contract revision independent of product schema." }
 		,
 		{ "path": "src/common/editor/mixer-graph-v21.ts", "kind": "persisted-contract", "justification": "mixer-graph-v21.ts is a persisted domain-component or render-contract revision independent of product schema." }
+		,
+		{ "path": "src/common/editor/mixer-signal-edge-v21.ts", "kind": "persisted-contract", "justification": "mixer-signal-edge-v21.ts is a persisted mixer routing contract revision independent of product schema." }
+		,
+		{ "path": "src/common/editor/mixer-signal-topology-v21.ts", "kind": "persisted-contract", "justification": "mixer-signal-topology-v21.ts is a persisted mixer routing topology revision independent of product schema." }
 		,
 		{ "path": "src/common/editor/native-audio-session-request-v1.ts", "kind": "ipc-contract", "justification": "native-audio-session-request-v1.ts is the session a renderer asks the milestone-5A native audio tier to open, named on both sides of the preload bridge, so it is an independently versioned cross-process carrier contract." }
 		,

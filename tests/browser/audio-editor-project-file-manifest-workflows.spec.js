@@ -71,10 +71,17 @@ test.describe('project archive and checksum files', () => {
 
 		await chooseFileAction(page, editor, 'Save project');
 		await expect(editor.locator('[data-save-state]')).toHaveAttribute('data-state', 'saved');
-		await chooseFileAction(page, editor, 'Edit in Framescaper');
+		await editor.getByRole('menuitem', { name: 'File', exact: true }).click();
+		const fileMenu = page.getByRole('menu', { name: 'File', exact: true });
+		const editInFramescaper = fileMenu.getByRole('menuitem', { name: /^Edit in Framescaper/u });
+		await expect(editInFramescaper).toBeEnabled();
+		await editInFramescaper.click();
 		await expect(page).toHaveURL((url) => url.pathname === '/transfer/send/' && url.searchParams.has('handoff'));
 		await expect(page.locator('input[data-transfer-choice]:checked')).toHaveCount(1);
-		const editableCopyDownloadPromise = page.waitForEvent('download');
+		const editableCopyDownloadPromise = page.waitForEvent(
+			'download',
+			(download) => /\.fscape$/u.test(download.suggestedFilename()),
+		);
 		await page.getByRole('button', { name: 'Download the ticked archives', exact: true }).click();
 		const editableCopyDownload = await editableCopyDownloadPromise;
 		expect(editableCopyDownload.suggestedFilename()).toMatch(/\.fscape$/u);

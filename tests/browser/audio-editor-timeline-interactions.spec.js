@@ -619,7 +619,7 @@ test.describe('audio editor React/design-system workflows', () => {
 		const clipMenu = page.locator('.audio-editor-clip-context-menu');
 		const split = clipMenu.locator('[data-action-id="split"]');
 		await expect(split).toHaveAttribute('data-parity-status', 'implemented');
-		await expect(split).toHaveAttribute('data-enable-when', 'editable-selection-or-clip');
+		await expect(split).toHaveAttribute('data-enable-when', 'editable-split-target');
 		await expect(split.locator('xpath=ancestor::div[@role="menuitem"]')
 			.locator('.context-menu-item-shortcut')).toHaveText('Ctrl+I');
 		await expect(clipMenu.locator('[data-action-id="local://reverse-clip"]')).toHaveAttribute(

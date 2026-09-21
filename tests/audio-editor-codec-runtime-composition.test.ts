@@ -29,11 +29,11 @@ test('browser codec composition uses dedicated codecs without a browser FFmpeg r
 		'probeVideoTiming',
 		'conformVideoToCfr',
 		'runVideoKeyframeEncoderOperation',
-		'runTrimMediaOperation',
 		'runProxyMediaOperation',
 	] as const) {
 		assert.equal(Object.hasOwn(runtime, operation), false, `${operation} must not advertise a missing capability`);
 	}
+	assert.equal(typeof runtime.runTrimMediaOperation, 'function');
 	runtime.dispose();
 });
 

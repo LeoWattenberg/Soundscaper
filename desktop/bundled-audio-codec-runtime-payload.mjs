@@ -70,6 +70,7 @@ const CONTROL_ENTRY_FILES = Object.freeze([
 	'bundled-audio-codec-electron-spawn.mjs',
 	'bundled-audio-codec-runtime-payload.mjs',
 	'project-library-runtime/desktop/bounded-regular-file.js',
+	'project-library-runtime/desktop/bundled-audio-codec-composite-provider.js',
 	'project-library-runtime/desktop/bundled-audio-codec-helper-configuration.js',
 	'project-library-runtime/desktop/bundled-audio-codec-helper-process.js',
 	'project-library-runtime/desktop/bundled-audio-codec-isolated-runtime.js',

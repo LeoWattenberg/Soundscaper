@@ -428,6 +428,18 @@ test('an extracted live-capability helper is owned with the contracts that use i
 		chunkGroupForModulePath('src/common/editor/audacity-effects/live-capability-policy.js'),
 		'editor-effect-contracts',
 	);
+	assert.equal(
+		chunkGroupForModulePath('src/common/editor/audacity-effects/audacity-dynamics-lookahead.ts'),
+		'editor-effect-contracts',
+	);
+	assert.equal(
+		chunkGroupForModulePath('src/common/editor/parametric-eq/authorities.js'),
+		'editor-codec-foundations',
+	);
+	assert.equal(
+		chunkGroupForModulePath('src/common/editor/assistance/internal/radix-two-fft-v1.ts'),
+		'editor-domain',
+	);
 });
 
 test('Reverb parameters and tail estimates share the eager effect contract owner', () => {

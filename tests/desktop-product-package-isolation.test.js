@@ -191,8 +191,7 @@ export function createAssistanceRuntimeFamilyHelperProcessV1(options) {
 	assert.doesNotMatch(helper, /llama|editorial-generation/iu);
 
 	const onnx = soundscaperAssistanceOnnxRuntimeWorkerSource(`
-import { createHash } from 'node:crypto';
-import { readFile, writeFile } from 'node:fs/promises';
+import { readFile } from 'node:fs/promises';
 import { pathToFileURL } from 'node:url';
 import { reviewAssistanceFramePackV1, } from "../src/common/editor/assistance/binary-formats-v1.js";
 import { runAssistanceTransNetV2FrameSourceOnnxAdapterV1, } from "../src/common/editor/assistance/transnetv2-onnx-adapter-v1.js";
