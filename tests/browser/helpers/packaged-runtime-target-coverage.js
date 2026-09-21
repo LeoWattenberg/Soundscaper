@@ -4,6 +4,10 @@ import { EventEmitter } from 'node:events';
 
 const AUTO_ATTACH_OPTIONS = Object.freeze({
 	autoAttach: true,
+	filter: Object.freeze([
+		Object.freeze({ type: 'service_worker', exclude: true }),
+		Object.freeze({}),
+	]),
 	flatten: false,
 	waitForDebuggerOnStart: true,
 });
@@ -49,6 +53,11 @@ export async function startPackagedRuntimeTargetCoverage({
 				})
 				.catch(() => undefined));
 		});
+		session.on('Profiler.preciseCoverageDeltaUpdate', ({ result }) => {
+			if (Array.isArray(result)) {
+				recorder.taken.push(...coverageWithParsedUrls(result, recorder.scriptUrls));
+			}
+		});
 		recorder.checkpoint = () => {
 			recorder.checkpointTail = recorder.checkpointTail.then(async () => {
 				if (!recorder.active) return;
@@ -67,7 +76,11 @@ export async function startPackagedRuntimeTargetCoverage({
 		await session.send('Debugger.enable');
 		await session.send('Profiler.enable');
 		await session.send('Runtime.enable');
-		await session.send('Profiler.startPreciseCoverage', { callCount: false, detailed: true });
+		await session.send('Profiler.startPreciseCoverage', {
+			allowTriggeredUpdates: true,
+			callCount: false,
+			detailed: true,
+		});
 		attachChildren(session);
 		await session.send('Target.setAutoAttach', AUTO_ATTACH_OPTIONS);
 		if (waitingForDebugger) await session.send('Runtime.runIfWaitingForDebugger');

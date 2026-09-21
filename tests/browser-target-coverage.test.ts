@@ -18,7 +18,6 @@ test('browser target coverage instruments related workers before they run', asyn
 		filter: [
 			{ type: 'worker' },
 			{ type: 'shared_worker' },
-			{ type: 'service_worker' },
 			{ type: 'worklet' },
 			{ type: 'shared_storage_worklet' },
 			{ exclude: true },
@@ -61,19 +60,19 @@ test('browser target coverage instruments related workers before they run', asyn
 	}]);
 });
 
-test('browser target coverage keeps a triggered update when a short-lived worker exits', async () => {
+test('browser target coverage keeps a triggered update when a short-lived dedicated worker exits', async () => {
 	const root = fakeRootSession();
 	const collector = createBrowserTargetCoverageCollector(root);
 	await collector.start();
-	root.attach('short-session', 'service_worker');
+	root.attach('short-session', 'worker');
 	await collector.settle();
 	root.targetEvent('short-session', 'Profiler.preciseCoverageDeltaUpdate', {
-		result: [coverage('http://127.0.0.1:4322/service-worker.js', '3')],
+		result: [coverage('http://127.0.0.1:4322/assets/short-worker.js', '3')],
 	});
 	root.detachTarget('short-session');
 
 	assert.deepEqual((await collector.collect()).map(({ url }) => url), [
-		'http://127.0.0.1:4322/service-worker.js',
+		'http://127.0.0.1:4322/assets/short-worker.js',
 	]);
 });
 

@@ -90,6 +90,7 @@ const packagedTest = base.extend({
 				coverageCollector = createPackagedRuntimeCoverageCollector({
 					architecture: requiredEnvironment('SOUNDSCAPER_PACKAGED_RUNTIME_ARCH'),
 					baseURL,
+					browser,
 					context,
 					coverageDirectory: coverageLaunch.coverageDirectory,
 					executablePath,

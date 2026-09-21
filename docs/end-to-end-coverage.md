@@ -76,5 +76,11 @@ URLs and execution ranges rather than source bytes; their main and child-process
 entries are instead restricted to digest-authenticated installed paths from the
 same preserved package evidence.
 
+Service workers are instrumented at Chromium's browser target before their
+first instruction; a page-target attachment is too late to retain top-level,
+install, and activate execution. Both ordinary and packaged collectors also
+bank triggered precise-coverage updates so a worker that exits before profile
+teardown does not lose its final ranges.
+
 The generated `coverage/e2e-capture/`, `coverage/e2e/`, and
 `coverage/e2e-report/` directories are diagnostics and must not be committed.

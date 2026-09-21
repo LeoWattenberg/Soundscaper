@@ -103,9 +103,10 @@ export const NIGHTLY_TEST_PAYLOAD_INPUTS = Object.freeze([
 	{ source: 'scripts/lib/m4b2-keyframe-parity-metrics.mjs', destination: 'scripts/lib/m4b2-keyframe-parity-metrics.mjs', kind: 'file', label: 'M4B2 keyframe parity metrics' },
 	{ source: 'scripts/lib/strict-json-snapshot.mjs', destination: 'scripts/lib/strict-json-snapshot.mjs', kind: 'file', label: 'strict JSON snapshot helper' },
 	// The browser suite's shared `test` object carries the Chromium coverage
-	// collector, so every spec reaches these three whether or not the packaged
+	// collector, so every spec reaches these four whether or not the packaged
 	// run records anything — an unresolved import here would abort the suite.
 	{ source: 'scripts/lib/browser-coverage-profile.mjs', destination: 'scripts/lib/browser-coverage-profile.mjs', kind: 'file', label: 'browser coverage profile writer' },
+	{ source: 'scripts/lib/browser-service-worker-coverage.mjs', destination: 'scripts/lib/browser-service-worker-coverage.mjs', kind: 'file', label: 'browser service-worker coverage recorder' },
 	{ source: 'scripts/lib/browser-target-coverage.mjs', destination: 'scripts/lib/browser-target-coverage.mjs', kind: 'file', label: 'browser worker coverage recorder' },
 	{ source: 'scripts/lib/browser-product-site-plan.mjs', destination: 'scripts/lib/browser-product-site-plan.mjs', kind: 'file', label: 'browser product site plan' },
 	{ source: 'scripts/lib/product-release-lines.mjs', destination: 'scripts/lib/product-release-lines.mjs', kind: 'file', label: 'product release-line reader' },

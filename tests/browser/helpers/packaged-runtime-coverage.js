@@ -4,6 +4,9 @@ import { randomUUID } from 'node:crypto';
 import { mkdir, rename, writeFile } from 'node:fs/promises';
 import { isAbsolute, join } from 'node:path';
 
+import {
+	createPlaywrightBrowserServiceWorkerCoverageCollector,
+} from '../../../scripts/lib/browser-service-worker-coverage.mjs';
 import { startPackagedRuntimeTargetCoverage } from './packaged-runtime-target-coverage.js';
 
 const COVERAGE_SUBDIRECTORY = 'coverage/v8-packaged';
@@ -46,11 +49,14 @@ export function createPackagedRuntimeCoverageCollector(options) {
 	if (!context || typeof context.pages !== 'function' || typeof context.newCDPSession !== 'function') {
 		throw new TypeError('Packaged coverage requires a Chromium browser context.');
 	}
+	const browser = options.browser ?? context.browser?.();
+	if (!browser) throw new TypeError('Packaged coverage requires its Chromium browser.');
 	const recorders = new Map();
 	const startedPages = new Set();
 	const pending = [];
 	let attached = false;
 	let collected = false;
+	let serviceWorkerCollector = null;
 
 	function keepUrl(url) {
 		if (typeof url !== 'string' || url === '') return false;
@@ -88,6 +94,11 @@ export function createPackagedRuntimeCoverageCollector(options) {
 		async start() {
 			if (attached) throw new Error('Packaged runtime coverage was already started.');
 			attached = true;
+			serviceWorkerCollector = await createPlaywrightBrowserServiceWorkerCoverageCollector({
+				browser,
+				keepUrl,
+			});
+			await serviceWorkerCollector.start();
 			const page = await waitForProductPage(context, metadata.appOrigin);
 			attachPage(page);
 			await settle();
@@ -102,6 +113,7 @@ export function createPackagedRuntimeCoverageCollector(options) {
 		async checkpoint() {
 			if (!attached || collected) return;
 			await settle();
+			await serviceWorkerCollector?.checkpoint();
 			await Promise.all([...recorders.values()].map((recorder) => recorder.checkpoint()));
 			await settle();
 		},
@@ -116,8 +128,12 @@ export function createPackagedRuntimeCoverageCollector(options) {
 			const sources = Object.create(null);
 			const targetCounts = Object.create(null);
 			const targetTypes = new Set();
+			const captures = [];
+			if (serviceWorkerCollector !== null) captures.push(await serviceWorkerCollector.collect());
 			for (const recorder of recorders.values()) {
-				const capture = await recorder.collect();
+				captures.push(await recorder.collect());
+			}
+			for (const capture of captures) {
 				entries.push(...capture.entries);
 				await settle();
 				for (const [url, source] of capture.sources) {

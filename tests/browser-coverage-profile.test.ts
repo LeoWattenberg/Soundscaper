@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import assert from 'node:assert/strict';
+import { EventEmitter } from 'node:events';
 import { mkdirSync, mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -259,7 +260,12 @@ test('a portable nightly profile retains an unmapped shipped script', async () =
 		repositoryRoot: payloadRoot,
 	});
 	assert.ok(collector);
-	collector.attach(fakeContext([fakePage(`${ORIGIN}/service-worker.js`)]));
+	const context = fakeContext([fakePage('https://example.invalid/vendor.js')], {
+		source: CHUNK,
+		url: `${ORIGIN}/service-worker.js`,
+	});
+	collector.attach(context);
+	context.emitServiceWorker();
 	await collector.collect('nightly service worker', new Set<string>());
 
 	const [name] = readdirSync(coverageDirectory);
@@ -335,15 +341,58 @@ function fakePage(url: string): FakePage {
 	return page;
 }
 
-function fakeContext(pages: FakePage[]) {
+function fakeContext(pages: FakePage[], serviceWorker?: { source: string, url: string }) {
 	const listeners: ((page: FakePage) => void)[] = [];
+	const child = Object.assign(new EventEmitter(), {
+		async send(method: string, _parameters?: { scriptId?: string }) {
+			if (method === 'Debugger.enable' && serviceWorker !== undefined) {
+				queueMicrotask(() => child.emit('Debugger.scriptParsed', {
+					scriptId: 'service-worker-script',
+					url: serviceWorker.url,
+				}));
+			}
+			if (method === 'Debugger.getScriptSource') return { scriptSource: serviceWorker?.source ?? '' };
+			if (method === 'Profiler.takePreciseCoverage' && serviceWorker !== undefined) {
+				return { result: [{
+					url: '',
+					scriptId: 'service-worker-script',
+					functions: [{
+						functionName: '',
+						isBlockCoverage: true,
+						ranges: [{ startOffset: 0, endOffset: serviceWorker.source.length, count: 1 }],
+					}],
+				}] };
+			}
+			return {};
+		},
+	});
+	const browserRoot = Object.assign(new EventEmitter(), {
+		createChildSession(_sessionId: string) { return child; },
+	});
+	browserRoot.on('Target.attachedToTarget', ({ sessionId }) => {
+		browserRoot.createChildSession(sessionId);
+	});
+	const browserImplementation = Object.assign(new EventEmitter(), { _session: browserRoot });
+	const browser = {
+		_connection: { toImpl: () => browserImplementation },
+		async newBrowserCDPSession() {},
+	};
 	return {
+		browser: () => browser,
 		pages: () => pages,
 		on: (event: string, listener: (page: FakePage) => void) => {
 			if (event === 'page') listeners.push(listener);
 		},
 		emitPage: (page: FakePage) => {
 			for (const listener of listeners) listener(page);
+		},
+		emitServiceWorker: () => {
+			if (serviceWorker === undefined) throw new Error('This fake has no service worker.');
+			browserRoot.emit('Target.attachedToTarget', {
+				sessionId: 'service-worker-session',
+				targetInfo: { type: 'service_worker', url: serviceWorker.url },
+				waitingForDebugger: true,
+			});
 		},
 	};
 }

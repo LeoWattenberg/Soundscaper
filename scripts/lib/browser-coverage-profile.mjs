@@ -6,6 +6,9 @@ import { basename, isAbsolute, relative, resolve, sep } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
 import { sourceMapDirectoryFor } from './build-source-map-relocation.mjs';
+import {
+	createPlaywrightBrowserServiceWorkerCoverageCollector,
+} from './browser-service-worker-coverage.mjs';
 import { createBrowserTargetCoverageCollector } from './browser-target-coverage.mjs';
 
 // What the browser suite measures is the same `src/` the Node suite measures, so
@@ -189,6 +192,8 @@ export function createBrowserCoverageCollector({
 	const started = new Set();
 	const recorders = new Map();
 	const pending = [];
+	let serviceWorkerCollector = null;
+	let serviceWorkerStart = null;
 
 	function start(page) {
 		if (started.has(page) || typeof page.context !== 'function') return;
@@ -238,12 +243,21 @@ export function createBrowserCoverageCollector({
 	}
 
 	async function settle() {
-		await Promise.all(pending.splice(0, pending.length));
+		while (pending.length > 0) await Promise.all(pending.splice(0, pending.length));
 	}
 
 	return {
 		/** Start coverage on every page this context has or will open. */
 		attach(context) {
+			if (serviceWorkerStart !== null) throw new Error('Browser coverage was already attached.');
+			serviceWorkerStart = createPlaywrightBrowserServiceWorkerCoverageCollector({
+				browser: context.browser?.(),
+				keepUrl: (url) => directoriesByOrigin.has(originOf(url)),
+			}).then(async (collector) => {
+				serviceWorkerCollector = collector;
+				await collector.start();
+			});
+			pending.push(serviceWorkerStart);
 			for (const page of context.pages()) start(page);
 			context.on('page', start);
 		},
@@ -259,6 +273,9 @@ export function createBrowserCoverageCollector({
 		async collect(label, alreadyWritten) {
 			await settle();
 			const entries = [];
+			if (serviceWorkerCollector !== null) {
+				entries.push(...(await serviceWorkerCollector.collect()).entries);
+			}
 			for (const page of started) {
 				const recorder = recorders.get(page);
 				recorders.delete(page);

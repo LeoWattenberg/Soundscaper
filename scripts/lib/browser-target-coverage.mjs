@@ -3,14 +3,15 @@
 const TARGET_FILTER = Object.freeze([
 	Object.freeze({ type: 'worker' }),
 	Object.freeze({ type: 'shared_worker' }),
-	Object.freeze({ type: 'service_worker' }),
 	Object.freeze({ type: 'worklet' }),
 	Object.freeze({ type: 'shared_storage_worklet' }),
 	Object.freeze({ exclude: true }),
 ]);
 
 /**
- * Record precise V8 coverage in the non-page targets related to watched pages.
+ * Record precise V8 coverage in non-page, non-service-worker targets related
+ * to watched pages. Service workers are owned by the browser target and need
+ * its earlier pre-registration hook; this collector retains page descendants.
  *
  * Target auto-attach pauses a new worker before its first instruction. The
  * profiler starts first and only then releases it, so short-lived workers do

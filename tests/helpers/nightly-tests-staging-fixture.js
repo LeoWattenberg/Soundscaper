@@ -100,6 +100,7 @@ export async function createFixture(context) {
 		['scripts/lib/m4b2-keyframe-parity-metrics.mjs', 'export const keyframeMetrics = true;\n'],
 		['scripts/lib/strict-json-snapshot.mjs', 'export const snapshot = true;\n'],
 		['scripts/lib/browser-coverage-profile.mjs', 'export const browserCoverage = true;\n'],
+		['scripts/lib/browser-service-worker-coverage.mjs', 'export const serviceWorkerCoverage = true;\n'],
 		['scripts/lib/browser-target-coverage.mjs', 'export const targetCoverage = true;\n'],
 		['scripts/lib/browser-product-site-plan.mjs', 'export const sitePlan = true;\n'],
 		['scripts/lib/product-release-lines.mjs', await readFile(new URL('../../scripts/lib/product-release-lines.mjs', import.meta.url), 'utf8')],

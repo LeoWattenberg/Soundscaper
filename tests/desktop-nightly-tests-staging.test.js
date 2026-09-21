@@ -133,6 +133,7 @@ test('nightly test staging creates a hermetic, manifest-bound Playwright payload
 		'scripts/lib/soundscaper-soak-playwright.mjs',
 		'scripts/lib/soundscaper-soak-scape-custody.mjs',
 		'scripts/lib/soundscaper-soak-workflows.mjs',
+		'scripts/lib/browser-service-worker-coverage.mjs',
 		'scripts/lib/browser-target-coverage.mjs',
 		'scripts/collect-m3-longform-editorial-quality.mjs',
 		'scripts/collect-m4-production-parity-quality.mjs',

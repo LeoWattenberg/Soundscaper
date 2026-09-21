@@ -49,7 +49,7 @@ test('packaged coverage is opt-in and NODE_V8_COVERAGE reaches only the product 
 	);
 });
 
-test('packaged coverage starts before a required product reload and records renderer plus preload', async (context) => {
+test('packaged coverage records renderer, preload, and a final worker delta banked before detach', async (context) => {
 	const directory = await mkdtemp(join(tmpdir(), 'soundscaper-packaged-coverage-'));
 	context.after(() => rm(directory, { recursive: true, force: true }));
 	const executablePath = join(tmpdir(), 'Soundscaper', 'soundscaper');
@@ -134,6 +134,8 @@ test('packaged coverage starts before a required product reload and records rend
 	assert.ok(page.calls.includes('Target.setAutoAttach'));
 	assert.ok(page.calls.includes('child:Profiler.startPreciseCoverage'));
 	assert.ok(page.calls.includes('child:Runtime.runIfWaitingForDebugger'));
+	assert.equal(page.calls.includes('child:Profiler.takePreciseCoverage'), false,
+		'the detached worker survives only through its triggered delta');
 	assert.ok(page.calls.includes('CDP.detach'));
 });
 
@@ -282,12 +284,23 @@ class FakePage {
 }
 
 class FakeContext {
+	readonly #browserRoot = Object.assign(new EventEmitter(), {
+		createChildSession() { throw new Error('This fake creates no service workers.'); },
+	});
 	readonly #listeners: Array<(page: FakePage) => void> = [];
 	readonly #pages: FakePage[];
 
 	constructor(pages: FakePage[]) {
 		this.#pages = pages;
 		for (const page of pages) (page as unknown as { owner: FakeContext }).owner = this;
+	}
+
+	browser() {
+		const implementation = Object.assign(new EventEmitter(), { _session: this.#browserRoot });
+		return {
+			_connection: { toImpl: () => implementation },
+			async newBrowserCDPSession() {},
+		};
 	}
 
 	on(event: string, listener: (page: FakePage) => void): void {
@@ -345,6 +358,16 @@ class FakeContext {
 									sessionId: 'worker-session',
 								});
 							}
+						}
+						if (request.method === 'Runtime.runIfWaitingForDebugger') {
+							emitter.emit('Target.receivedMessageFromTarget', {
+								message: JSON.stringify({
+									method: 'Profiler.preciseCoverageDeltaUpdate',
+									params: { result: page.workerCoverageEntries().map((entry) => ({ ...entry, url: '' })) },
+								}),
+								sessionId: 'worker-session',
+							});
+							emitter.emit('Target.detachedFromTarget', { sessionId: 'worker-session' });
 						}
 					});
 					return {};
