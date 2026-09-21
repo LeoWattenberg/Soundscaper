@@ -8,13 +8,13 @@ head:
   - tag: script
     attrs:
       type: "application/ld+json"
-    content: "{\"@context\":\"https://schema.org\",\"@type\":\"HowTo\",\"name\":\"Remove background noise\",\"description\":\"Teach Noise Reduction what the hum sounds like, then take it out of the whole recording.\",\"tool\":[{\"@type\":\"HowToTool\",\"name\":\"Soundscaper\"}],\"step\":[{\"@type\":\"HowToStep\",\"position\":1,\"name\":\"Open Soundscaper. A new, empty project is ready as soon as the editor loads.\",\"text\":\"Open Soundscaper. A new, empty project is ready as soon as the editor loads.\"},{\"@type\":\"HowToStep\",\"position\":2,\"name\":\"Choose File → Import audio and pick the recording you want to clean up. The file lands as a clip on its own track.\",\"text\":\"Choose File → Import audio and pick the recording you want to clean up. The file lands as a clip on its own track.\"},{\"@type\":\"HowToStep\",\"position\":3,\"name\":\"Drag in the ruler above the clip to select a stretch that contains only the noise — usually the lead-in before anyone speaks.\",\"text\":\"Drag in the ruler above the clip to select a stretch that contains only the noise — usually the lead-in before anyone speaks. The profile should contain nothing but the noise you want gone.\"},{\"@type\":\"HowToStep\",\"position\":4,\"name\":\"Choose Effect → Noise removal and repair → Noise Reduction and press Get noise profile. The status line reports that the profile is ready. Press Close to leave the dialog for now.\",\"text\":\"Choose Effect → Noise removal and repair → Noise Reduction and press Get noise profile. The status line reports that the profile is ready. Press Close to leave the dialog for now.\"},{\"@type\":\"HowToStep\",\"position\":5,\"name\":\"Choose Select → Select all.\",\"text\":\"Choose Select → Select all. The profile is kept; now the effect needs to know what to clean.\"},{\"@type\":\"HowToStep\",\"position\":6,\"name\":\"Choose Effect → Noise removal and repair → Noise Reduction. In the Noise Reduction dialog, set Noise reduction to 12, then press Apply to selection.\",\"text\":\"Choose Effect → Noise removal and repair → Noise Reduction. In the Noise Reduction dialog, set Noise reduction to 12, then press Apply to selection. Around 12 dB is a good first try. Higher values remove more noise but start to make voices sound hollow.\"},{\"@type\":\"HowToStep\",\"position\":7,\"name\":\"Press Play to listen, then Stop.\",\"text\":\"Press Play to listen, then Stop. The lead-in is much quieter and the voice is untouched.\"}]}"
+    content: "{\"@context\":\"https://schema.org\",\"@type\":\"HowTo\",\"name\":\"Remove background noise\",\"description\":\"Teach Noise Reduction what the hum sounds like, then take it out of the whole recording.\",\"tool\":[{\"@type\":\"HowToTool\",\"name\":\"Soundscaper\"}],\"step\":[{\"@type\":\"HowToStep\",\"position\":1,\"name\":\"Open Soundscaper. A new, empty project is ready as soon as the editor loads.\",\"text\":\"Open Soundscaper. A new, empty project is ready as soon as the editor loads.\"},{\"@type\":\"HowToStep\",\"position\":2,\"name\":\"Choose File → Import and pick the recording you want to clean up. It lands as a clip on its own track.\",\"text\":\"Choose File → Import and pick the recording you want to clean up. It lands as a clip on its own track.\"},{\"@type\":\"HowToStep\",\"position\":3,\"name\":\"Drag in the ruler above the clip to select a stretch that contains only the noise — usually the lead-in before anyone speaks.\",\"text\":\"Drag in the ruler above the clip to select a stretch that contains only the noise — usually the lead-in before anyone speaks. The profile should contain nothing but the noise you want gone.\"},{\"@type\":\"HowToStep\",\"position\":4,\"name\":\"Choose Effect → Noise removal and repair → Noise Reduction and press Get noise profile. The status line reports that the profile is ready. Press Close to leave the dialog for now.\",\"text\":\"Choose Effect → Noise removal and repair → Noise Reduction and press Get noise profile. The status line reports that the profile is ready. Press Close to leave the dialog for now.\"},{\"@type\":\"HowToStep\",\"position\":5,\"name\":\"Choose Select → Select all.\",\"text\":\"Choose Select → Select all. The profile is kept; now the effect needs to know what to clean.\"},{\"@type\":\"HowToStep\",\"position\":6,\"name\":\"Choose Effect → Noise removal and repair → Noise Reduction. In the Noise Reduction dialog, set Noise reduction to 12, then press Apply to selection.\",\"text\":\"Choose Effect → Noise removal and repair → Noise Reduction. In the Noise Reduction dialog, set Noise reduction to 12, then press Apply to selection. Around 12 dB is a good first try. Higher values remove more noise but start to make voices sound hollow.\"},{\"@type\":\"HowToStep\",\"position\":7,\"name\":\"Press Play to listen, then Stop.\",\"text\":\"Press Play to listen, then Stop. The lead-in is much quieter and the voice is untouched.\"}]}"
 ---
-<!-- docs-ai-provenance: {"factPacketSha256":"c579909f7c6a84651400e72c3ef0d3d7896f553e9f091a0d5dfbda1267ba2bb3","model":"aya-expanse:32b","modelDigest":"1603440383bd5504dc7afd01c0407b425b988dde650a8dc1a737433baa3cd432","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"c579909f7c6a84651400e72c3ef0d3d7896f553e9f091a0d5dfbda1267ba2bb3","targetLocale":"he"} -->
+<!-- docs-ai-provenance: {"factPacketSha256":"dc5ee5727bc89fa1bf625018b6e955abca6ffe475407123662cfca57d83201a7","model":"aya-expanse:32b","modelDigest":"1603440383bd5504dc7afd01c0407b425b988dde650a8dc1a737433baa3cd432","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"dc5ee5727bc89fa1bf625018b6e955abca6ffe475407123662cfca57d83201a7","targetLocale":"he"} -->
 
 <!-- Generated by `node scripts/docs-reference.mjs`. Do not edit. -->
 
-רעש רקע קבוע — מאוורר, מקרר, זמזום רשת — ניתן להסיר בשני מעברים. ראשית, אתה מראה להפחתת רעש קטע של רעש לבדו כדי שתוכל לבנות פרופיל; לאחר מכן, אתה מיישם את האפקט על הכל. הפרופיל הוא זה שגורם לזה לעבוד, אז בחר חלק מההקלטה שבו אף אחד לא מדבר.
+רעש רקע קבוע — מאוורר, מקרר, זמזום רשת — ניתן להסיר בשני מעברים. ראשית, אתה מראה להפחתת רעש קטע של רעש לבדו כדי שתוכל לבנות פרופיל; ואז אתה מיישם את האפקט על הכל. הפרופיל הוא זה שגורם לזה לעבוד, אז בחר חלק מההקלטה שבו אף אחד לא מדבר.
 
 :::note[מגיע מ-Audacity?]
 זהו **אפקט → הסרת ותיקון רעש → הפחתת רעש** של Audacity, בשני מעברים. השמות למטה הם של Soundscaper, שלפעמים שונים.
@@ -23,12 +23,12 @@ head:
 ## שלבים
 
 1. פתח את Soundscaper. פרויקט חדש וריק מוכן ברגע שהעורך נטען.
-2. בחר **קובץ → יבוא אודיו** ובחר את ההקלטה שאתה רוצה לנקות. הקובץ נוחת כקליפ על מסלול משלו.
+2. בחר **קובץ → יבוא** ובחר את ההקלטה שאתה רוצה לנקות. היא נוחתת כקליפ על מסלול משלה.
 3. גרור את הסרגל מעל הקליפ כדי לבחור קטע שמכיל רק רעש — בדרך כלל ההקדמה לפני שמישהו מדבר. הפרופיל צריך להכיל רק את הרעש שאתה רוצה להסיר.
 4. בחר **אפקט → הסרת ותיקון רעש → הפחתת רעש** ולחץ על **קבל פרופיל רעש**. שורת המצב מדווחת שהפרופיל מוכן. לחץ על **סגור** כדי לעזוב את הדיאלוג כרגע.
 5. בחר **בחר → בחר הכל**. הפרופיל נשמר; עכשיו האפקט צריך לדעת מה לנקות.
 6. בחר **אפקט → הסרת ותיקון רעש → הפחתת רעש**. בדיאלוג **הפחתת רעש**, קבע את **הפחתת רעש** ל-`12`, ואז לחץ על **החל על הבחירה**. כ-12 dB הוא ניסיון טוב ראשון. ערכים גבוהים יותר מסירים יותר רעש אבל מתחילים לגרום לקולות להישמע חלולים.
-7. לחץ על **הפעלה** להאזנה, ואז על **עצירה**.
+7. לחץ על **הפעלה** כדי להאזין, ואז **עצירה**.
    *אתה אמור לראות:* ההקדמה שקטה הרבה יותר והקול לא נפגע.
 
 ## טיפים
@@ -40,19 +40,19 @@ head:
 
 עוד מדריכים ל[ניקוי הקלטה](/guides/cleaning-up/):
 
-- [הסרת קליקים ופופים](/guides/cleaning-up/remove-clicks-and-pops/) — הוצא קליקים קצרים וחדים מההקלטה בלי לגעת בשאר.
-- [הקטנת הפסקות ארוכות](/guides/cleaning-up/remove-silent-pauses/) — התאם הקלטה על ידי חיתוך כל שתיקה ארוכה לפער קצר זהה.
-- [השתיקה חלק מההקלטה](/guides/cleaning-up/silence-part-of-a-recording/) — החלף קטע אודיו בשקט תוך שמירה על הכל במקום.
-- [הסרת רעם נמוך](/guides/cleaning-up/remove-low-rumble/) — חתוך את המכות התת-בסיות מתנועה, רוח וטיפול באמצעות מסנן מעבר גבוה.
-- [תיקון אופסט DC](/guides/cleaning-up/fix-dc-offset/) — מרכז מחדש גל שממוקם מעל או מתחת לקו האפס.
-- [הסרת זמזום רשת באמצעות מסנן חיתוך](/guides/cleaning-up/remove-mains-hum-with-a-notch-filter/) — חתוך תדירות יחידה — זמזום של 50 או 60 הרץ, שריקה, צלצול — בלי לגעת בשאר.
-- [השתיקה רעש בין משפטים עם שער](/guides/cleaning-up/gate-out-noise-between-phrases/) — תן לקול לעבור וסגור את הדלת על רעש החדר בכל פעם שאף אחד לא מדבר.
+- [הסרת קליקים ופופים](/guides/cleaning-up/remove-clicks-and-pops/) — הוציאו קליקים קצרים וחדים מההקלטה בלי לגעת בשאר.
+- [הקטנת הפסקות ארוכות](/guides/cleaning-up/remove-silent-pauses/) — התהדקו הקלטה על ידי חיתוך כל שתיקה ארוכה לפער קצר זהה.
+- [השתיקה חלק מההקלטה](/guides/cleaning-up/silence-part-of-a-recording/) — החליפו קטע אודיו בשקט תוך שמירה על הכל במקום.
+- [הסרת רעם נמוך](/guides/cleaning-up/remove-low-rumble/) — חתכו את המכות התת-בסיות מתנועה, רוח וטיפול באמצעות מסנן מעבר גבוה.
+- [תיקון אופסט DC](/guides/cleaning-up/fix-dc-offset/) — מרכזו מחדש גל קול שיושב מעל או מתחת לקו האפס.
+- [הסרת זמזום רשת באמצעות מסנן חיתוך](/guides/cleaning-up/remove-mains-hum-with-a-notch-filter/) — חתכו תדירות יחידה — 50 או 60 Hz זמזום, שריקה, צלצול — בלי לגעת בשאר.
+- [השתיקה את הרעש בין משפטים עם שער](/guides/cleaning-up/gate-out-noise-between-phrases/) — אפשרו לקול לעבור וסגרו את הדלת על רעש החדר בכל פעם שאף אחד לא מדבר.
 
 ## הפניות
 
 - [כל פרמטר של האפקטים המשמשים כאן, עם הערך ברירת המחדל והטווח, נמצא בהפניות האפקטים האודיו.](/reference/generated/audio-effects/#parameters)
-- [כל פקודה בתפריט וקיצור המקשים שלה נמצא בהפניות הפקודות וקיצורי המקשים.](/reference/generated/commands/)
+- [כל פקודה בתפריט וקיצור המקשים שלה נמצאים בהפניות הפקודות וקיצורי המקשים.](/reference/generated/commands/)
 
 ## על המדריך הזה
 
-ההליך בדף זה — כל כניסה בתפריט, דיאלוג, שדה וכפתור, והתוצאה שהוא מייצר — משוחזר מול כל בניית Soundscaper על ידי סוויטת הדפדפן (`tests/browser/soundscaper-guides.spec.js`). אם משהו מזה מפסיק להתאים לעורך, הבנייה נכשלת עד לתיקון המדריך. הערכים המוצעים הם נקודות התחלה שהעורך הוכיח את קבלתם; האם הם מתאימים להקלטה שלך הוא עניין לאוזניך להחליט.
+ההליך בדף זה — כל כניסה בתפריט, דיאלוג, שדה וכפתור, והתוצאה שהוא מייצר — משוחזר מול כל בניית של Soundscaper על ידי סוויטת הדפדפן (`tests/browser/soundscaper-guides.spec.js`). אם חלק ממנו מפסיק להתאים לעורך, הבנייה נכשלת עד לתיקון המדריך. הערכים המוצעים הם נקודות התחלה שהעורך הוכח כקבלן; האם הם מתאימים להקלטה שלך הוא עניין לאוזניך להחליט.

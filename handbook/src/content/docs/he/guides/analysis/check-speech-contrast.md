@@ -1,6 +1,6 @@
 ---
-title: "בדוק שהדיבור בולט מהרקע"
-description: "מדוד כמה קול נמצא מעל הרעש שמאחוריו, כפי שדורשות הנחיות נגישות."
+title: "בדוק שהדיבור בולט על רקע הרעש"
+description: "מדד עד כמה הקול בולט מעל הרעש ברקע, כפי שדורשות הנחיות הנגישות."
 editUrl: false
 sidebar:
   order: 5
@@ -8,49 +8,49 @@ head:
   - tag: script
     attrs:
       type: "application/ld+json"
-    content: "{\"@context\":\"https://schema.org\",\"@type\":\"HowTo\",\"name\":\"Check that speech stands out from its background\",\"description\":\"Measure how far a voice sits above the noise behind it, the way accessibility guidelines ask.\",\"tool\":[{\"@type\":\"HowToTool\",\"name\":\"Soundscaper\"}],\"step\":[{\"@type\":\"HowToStep\",\"position\":1,\"name\":\"Open Soundscaper. A new, empty project is ready as soon as the editor loads.\",\"text\":\"Open Soundscaper. A new, empty project is ready as soon as the editor loads.\"},{\"@type\":\"HowToStep\",\"position\":2,\"name\":\"Choose File → Import audio and pick the recording with speech over background noise. The file lands as a clip on its own track.\",\"text\":\"Choose File → Import audio and pick the recording with speech over background noise. The file lands as a clip on its own track.\"},{\"@type\":\"HowToStep\",\"position\":3,\"name\":\"Drag in the ruler above the clip to select a stretch of background with nobody speaking.\",\"text\":\"Drag in the ruler above the clip to select a stretch of background with nobody speaking. The background measurement should contain only the noise the voice has to compete with.\"},{\"@type\":\"HowToStep\",\"position\":4,\"name\":\"Choose Analyze → Contrast. The Contrast panel opens.\",\"text\":\"Choose Analyze → Contrast. The Contrast panel opens.\"},{\"@type\":\"HowToStep\",\"position\":5,\"name\":\"In the Contrast panel, press Measure background. The panel keeps the selection’s level as the background.\",\"text\":\"In the Contrast panel, press Measure background. The panel keeps the selection’s level as the background.\"},{\"@type\":\"HowToStep\",\"position\":6,\"name\":\"Drag in the ruler above the clip to select a passage of speech.\",\"text\":\"Drag in the ruler above the clip to select a passage of speech. Pick ordinary speech rather than the loudest word, since the whole passage is averaged.\"},{\"@type\":\"HowToStep\",\"position\":7,\"name\":\"In the Contrast panel, press Measure foreground. The panel reports the foreground level, the background level and the difference between them.\",\"text\":\"In the Contrast panel, press Measure foreground. The panel reports the foreground level, the background level and the difference between them. The foreground and background levels, their difference in dB, and whether the difference meets the recommended 20 dB.\"}]}"
+    content: "{\"@context\":\"https://schema.org\",\"@type\":\"HowTo\",\"name\":\"Check that speech stands out from its background\",\"description\":\"Measure how far a voice sits above the noise behind it, the way accessibility guidelines ask.\",\"tool\":[{\"@type\":\"HowToTool\",\"name\":\"Soundscaper\"}],\"step\":[{\"@type\":\"HowToStep\",\"position\":1,\"name\":\"Open Soundscaper. A new, empty project is ready as soon as the editor loads.\",\"text\":\"Open Soundscaper. A new, empty project is ready as soon as the editor loads.\"},{\"@type\":\"HowToStep\",\"position\":2,\"name\":\"Choose File → Import and pick the recording with speech over background noise. It lands as a clip on its own track.\",\"text\":\"Choose File → Import and pick the recording with speech over background noise. It lands as a clip on its own track.\"},{\"@type\":\"HowToStep\",\"position\":3,\"name\":\"Drag in the ruler above the clip to select a stretch of background with nobody speaking.\",\"text\":\"Drag in the ruler above the clip to select a stretch of background with nobody speaking. The background measurement should contain only the noise the voice has to compete with.\"},{\"@type\":\"HowToStep\",\"position\":4,\"name\":\"Choose Analyze → Contrast. The Contrast panel opens.\",\"text\":\"Choose Analyze → Contrast. The Contrast panel opens.\"},{\"@type\":\"HowToStep\",\"position\":5,\"name\":\"In the Contrast panel, press Measure background. The panel keeps the selection’s level as the background.\",\"text\":\"In the Contrast panel, press Measure background. The panel keeps the selection’s level as the background.\"},{\"@type\":\"HowToStep\",\"position\":6,\"name\":\"Drag in the ruler above the clip to select a passage of speech.\",\"text\":\"Drag in the ruler above the clip to select a passage of speech. Pick ordinary speech rather than the loudest word, since the whole passage is averaged.\"},{\"@type\":\"HowToStep\",\"position\":7,\"name\":\"In the Contrast panel, press Measure foreground. The panel reports the foreground level, the background level and the difference between them.\",\"text\":\"In the Contrast panel, press Measure foreground. The panel reports the foreground level, the background level and the difference between them. The foreground and background levels, their difference in dB, and whether the difference meets the recommended 20 dB.\"}]}"
 ---
-<!-- docs-ai-provenance: {"factPacketSha256":"8d29b926665c31c888346d023adb621b891435a25617b140144789b7e0b97b97","model":"qwen3.8:latest","modelDigest":"22130167c4c20e20c7b71454612966ca8e8171e9b3cc8ab6ce8aa6cbfec79643","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"8d29b926665c31c888346d023adb621b891435a25617b140144789b7e0b97b97","targetLocale":"he"} -->
+<!-- docs-ai-provenance: {"factPacketSha256":"2284b517195eb89b164851099b86e83abc4362133f605f353bb07e0bf733b701","model":"aya-expanse:32b","modelDigest":"1603440383bd5504dc7afd01c0407b425b988dde650a8dc1a737433baa3cd432","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"2284b517195eb89b164851099b86e83abc4362133f605f353bb07e0bf733b701","targetLocale":"he"} -->
 
 <!-- Generated by `node scripts/docs-reference.mjs`. Do not edit. -->
 
-קול שהגברת שלו גבוהה רק מעט מהרעש בסביבה קשה למעקב, והנחיות נגישות קובעות מספר לכך: הקול צריך להיות גבוה לפחות ב-20 דציבלים מהרקע. מנתח ה-Contrast מודד קטע של רעש רקע וקטע של דיבור, מדווח את ההפרש ומציין אם הוא עומד בהמלצה זו. זהו המנתח ש-Audacity 3 סיפק לבדיקות WCAG, ואין אותו ב-Audacity 4.
+קולם שקט רק במעט מהחדר שמאחוריו הוא קשה למעקב, והקווים המנחים לנגישות מציבים מספר: הדיבור צריך להיות לפחות 20 dB מעל הרקע. מנתח הניגודיות מודד קטע רקע וקטע דיבור, מדווח על ההבדל, ואומר אם הוא עומד בהמלצה. זהו המנתח שאדוסיטי 3 הציע לבדיקת WCAG, ואדוסיטי 4 אינו כולל אותו.
 
-:::note[מגיעים מ-Audacity?]
-זהו **Analyze → Contrast (Audacity 3; אין מנתח Contrast ב-Audacity 4)** של Audacity. השמות להלן הם של Soundscaper בלבד, והם עשויים להיות שונים.
+:::note[מגיע מאדוסיטי?]
+זהו **אנליזה → ניגודיות (אדוסיטי 3; לאדוסיטי 4 אין מנתח ניגודיות)**. השמות למטה הם של סאונדסקייפר, ולפעמים הם שונים.
 :::
 
 ## שלבים
 
-1. פתחו את Soundscaper. פרויקט חדש וריק מוכן מיד לאחר שהעורך נטען.
-2. בחרו **File → Import audio** ובחרו את הקלטה עם דיבור מעל רעש רקע. הקובץ ייחתם כקליפ על מסלול נפרד.
-3. גררו את הסרגל מעל הקליפ כדי לבחור קטע של רקע ללא דיבור. מדידת הרקע צריכה להכיל רק את הרעש שהקול צריך להתחרות בו.
-4. בחרו **Analyze → Contrast**. פאנל ה-**Contrast** ייפתח.
-5. בפאנל ה-**Contrast**, לחצו על **Measure background**. הפאנל ישמור את רמת הבחירה כרקע.
-6. גררו את הסרגל מעל הקליפ כדי לבחור קטע של דיבור. בחרו דיבור רגיל ולא את המילה החזקה ביותר, שכן ממוצע הקטע כולו נמדד.
-7. בפאנל ה-**Contrast**, לחצו על **Measure foreground**. הפאנל ידווח את רמת הקדמה, את רמת הרקע ואת ההפרש ביניהם.
-   *מה שתראו:* רמות הקדמה והרקע, ההפרש ביניהן בדציבלים, והאם ההפרש עומד בהמלצה של 20 דציבלים.
+1. פתח את סאונדסקייפר. פרויקט חדש וריק מוכן ברגע שהעורך נטען.
+2. בחר **קובץ → יבוא** ובחר בהקלטה עם דיבור מעל רעש רקע. הוא נוחת כקליפ על מסלול משלו.
+3. גרור את הסרגל מעל הקליפ כדי לבחור קטע רקע בלי דיבור. המדידה של הרקע צריכה להכיל רק את הרעש שהקול צריך להתחרות בו.
+4. בחר **אנליזה → ניגודיות**. לוח **ניגודיות** נפתח.
+5. בלוח **ניגודיות**, לחץ על **מד רקע**. הלוח שומר את רמת הבחירה כרקע.
+6. גרור את הסרגל מעל הקליפ כדי לבחור קטע דיבור. בחר בדיבור רגיל במקום המילה הכי רועמת, מכיוון שהקטע כולו ממוצע.
+7. בלוח **ניגודיות**, לחץ על **מד קדמי**. הלוח מדווח על רמת הקדמי, רמת הרקע וההבדל ביניהם.
+   *אתה אמור לראות:* את רמות הקדמי והרקע, ההבדל ביניהן ב-dB, והאם ההבדל עומד בהמלצה של 20 dB.
 
 ## טיפים
 
-- אם ההפרש נמוך מהנדרש, [הפחיתו את רעש הרקע](/guides/cleaning-up/remove-background-noise/) או [יישרו את הקול עם קומפרסור](/guides/volume/even-out-volume-with-a-compressor/), ואז מידו שוב.
-- המדידה היא ממוצע RMS על פני הבחירה, ולכן הברה חזקה בודדה לא תציל קלטה שקטה.
+- אם ההבדל לא מספיק, [הקטן את רעש הרקע](/guides/cleaning-up/remove-background-noise/) או [יישר את הקול עם קומפרסור](/guides/volume/even-out-volume-with-a-compressor/), ואז מדד שוב.
+- המדידה היא ממוצע RMS על פני הבחירה, אז הברה רועמת אחת לא מצילה הקלטה שקטה.
 
 ## מדריכים קשורים
 
-עוד מדריכי [ניתוח](/guides/analysis/):
+מדריכי [אנליזה](/guides/analysis/) נוספים:
 
-- [הסרת רעש רקע](/guides/cleaning-up/remove-background-noise/) — ללמד את Noise Reduction איך הרעש נשמע, ואז להסיר אותו מהקלטה כולה.
-- [יישור עוצמה עם קומפרסור](/guides/volume/even-out-volume-with-a-compressor/) — הפחתת הפער בין רגעים חזקים לשקטים כדי שהדיבור יהיה קל יותר למעקב.
-- [מדידת עוצמת המיקס](/guides/analysis/measure-loudness/) — קריאת העוצמה המשולבת, הטווח והשיא האמיתי של הפרויקט בדיוק כמו ששדרנים עושים.
-- [צפייה בתדרים שבהם מכיל צליל](/guides/analysis/plot-a-spectrum/) — מיפוי הספקטרום של בחירה כדי למצוא רעש רקע, שיאול או רזוננסים.
-- [מציאת מקומות שבהם הקלטה נחתכה](/guides/analysis/find-clipping/) — מיקום המקומות שבהם הקלטה הגיעה למקסימום והתעוותה.
-- [מציאת הקצבים בלולאה](/guides/analysis/find-the-beats/) — לאפשר למנתח Beat Finder לסמן כל קצב שהוא שומע.
+- [הסר רעש רקע](/guides/cleaning-up/remove-background-noise/) — למד את הפחתת הרעש מהרעש, ואז הסר אותו מההקלטה כולה.
+- [יישר את הנפח עם קומפרסור](/guides/volume/even-out-volume-with-a-compressor/) — הפחת את הפער בין הרם לשקט כדי שהדיבור יהיה קל יותר למעקב.
+- [מדד כמה חזק המיקס שלך](/guides/analysis/measure-loudness/) — קרא את העוצמה המשולבת, הטווח והפיסגה האמיתית של הפרויקט בדרך ששידורי רדיו וטלוויזיה עושים.
+- [ראה אילו תדרים צליל מכיל](/guides/analysis/plot-a-spectrum/) — צייר את הספקטרום של בחירה כדי למצוא זמזום, רשרוש או תהודה.
+- [מצא איפה ההקלטה קוצצה](/guides/analysis/find-clipping/) — מצא את המקומות שבהם ההקלטה הגיעה לסקלה המלאה והתעוותה.
+- [מצא את הפעימות בלולאה](/guides/analysis/find-the-beats/) — תן למנתח המציאת פעימות לסמן כל פעימה שהוא שומע.
 
-## רפרנס
+## הפניות
 
-- [כל פקודת תפריט וקיצור המקלדת שלה נמצאים ברפרנס הפקודות והקיצורים.](/reference/generated/commands/)
+- [כל פקודה וקיצור מקשים בהפניות הפקודות והקיצורים.](/reference/generated/commands/)
 
-## אודות מדריך זה
+## על המדריך הזה
 
-ההליך בעמוד זה — כל פריט תפריט, דיאלוג, שדה וכפתור, והתוצאה שהוא מייצר — מושמע מחדש מול כל בנייה של Soundscaper על ידי סוויט הדפדפן (`tests/browser/soundscaper-guides.spec.js`). אם כל אחד מהם מפסיק להתאים לעורך, הבנייה נכשלת עד שהמדריך מתוקן. הערכים המומלצים הם נקודות פתיחה שהעורך הוכח כקולט אותן; האם הם מתאימים לקלטה שלכם תלוי באוזניים שלכם.
+ההליך בדף זה — כל פריט תפריט, תיבת דיאלוג, שדה וכפתור, והתוצאה שהוא מייצר — משוחזר מול כל בניית סאונדסקייפר על ידי סוויטת הדפדפן (`tests/browser/soundscaper-guides.spec.js`). אם חלק ממנו מפסיק להתאים לעורך, הבנייה נכשלת עד לתיקון המדריך. הערכים המוצעים הם נקודות התחלה שהעורך הוכח כקבלן; האם הם מתאימים להקלטה שלך הוא עניין לאוזניך להחליט.

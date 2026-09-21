@@ -1,6 +1,6 @@
 ---
-title: "מוזיקת רקע מתחת לקול"
-description: "הנמכת אוטומטית של מוזיקת רקע בכל פעם שרצועת קול מדברת."
+title: "מוזיקת ברווזים מתחת לקול"
+description: "הפחת את עוצמת מוזיקת הרקע באופן אוטומטי בכל פעם שיש דיבור במסלול הקולי."
 editUrl: false
 sidebar:
   order: 7
@@ -8,49 +8,49 @@ head:
   - tag: script
     attrs:
       type: "application/ld+json"
-    content: "{\"@context\":\"https://schema.org\",\"@type\":\"HowTo\",\"name\":\"Duck music under a voice\",\"description\":\"Turn a music bed down automatically whenever a voice track is speaking.\",\"tool\":[{\"@type\":\"HowToTool\",\"name\":\"Soundscaper\"}],\"step\":[{\"@type\":\"HowToStep\",\"position\":1,\"name\":\"Open Soundscaper. A new, empty project is ready as soon as the editor loads.\",\"text\":\"Open Soundscaper. A new, empty project is ready as soon as the editor loads.\"},{\"@type\":\"HowToStep\",\"position\":2,\"name\":\"Choose File → Import audio and pick the music. The file lands as a clip on its own track.\",\"text\":\"Choose File → Import audio and pick the music. The file lands as a clip on its own track.\"},{\"@type\":\"HowToStep\",\"position\":3,\"name\":\"Choose File → Import audio and pick the voice. The file lands as a clip on its own track.\",\"text\":\"Choose File → Import audio and pick the voice. The file lands as a clip on its own track.\"},{\"@type\":\"HowToStep\",\"position\":4,\"name\":\"Click the name bar of the music clip to select it.\",\"text\":\"Click the name bar of the music clip to select it. The clip you select is the one that gets ducked — the music, not the voice.\"},{\"@type\":\"HowToStep\",\"position\":5,\"name\":\"Choose Effect → Volume and compression → Auto Duck. In the Auto Duck dialog, choose the voice track for Control track and set Duck amount to -12, then press Apply to selection.\",\"text\":\"Choose Effect → Volume and compression → Auto Duck. In the Auto Duck dialog, choose the voice track for Control track and set Duck amount to -12, then press Apply to selection. The control track is the one that triggers the ducking. Twelve decibels down is enough for speech to sit clearly on top.\"},{\"@type\":\"HowToStep\",\"position\":6,\"name\":\"Press Play to listen, then Stop.\",\"text\":\"Press Play to listen, then Stop. The music drops while the other track plays and recovers where it is quiet.\"}]}"
+    content: "{\"@context\":\"https://schema.org\",\"@type\":\"HowTo\",\"name\":\"Duck music under a voice\",\"description\":\"Turn a music bed down automatically whenever a voice track is speaking.\",\"tool\":[{\"@type\":\"HowToTool\",\"name\":\"Soundscaper\"}],\"step\":[{\"@type\":\"HowToStep\",\"position\":1,\"name\":\"Open Soundscaper. A new, empty project is ready as soon as the editor loads.\",\"text\":\"Open Soundscaper. A new, empty project is ready as soon as the editor loads.\"},{\"@type\":\"HowToStep\",\"position\":2,\"name\":\"Choose File → Import and pick the music. It lands as a clip on its own track.\",\"text\":\"Choose File → Import and pick the music. It lands as a clip on its own track.\"},{\"@type\":\"HowToStep\",\"position\":3,\"name\":\"Choose File → Import and pick the voice. It lands as a clip on its own track.\",\"text\":\"Choose File → Import and pick the voice. It lands as a clip on its own track.\"},{\"@type\":\"HowToStep\",\"position\":4,\"name\":\"Click the name bar of the music clip to select it.\",\"text\":\"Click the name bar of the music clip to select it. The clip you select is the one that gets ducked — the music, not the voice.\"},{\"@type\":\"HowToStep\",\"position\":5,\"name\":\"Choose Effect → Volume and compression → Auto Duck. In the Auto Duck dialog, choose the voice track for Control track and set Duck amount to -12, then press Apply to selection.\",\"text\":\"Choose Effect → Volume and compression → Auto Duck. In the Auto Duck dialog, choose the voice track for Control track and set Duck amount to -12, then press Apply to selection. The control track is the one that triggers the ducking. Twelve decibels down is enough for speech to sit clearly on top.\"},{\"@type\":\"HowToStep\",\"position\":6,\"name\":\"Press Play to listen, then Stop.\",\"text\":\"Press Play to listen, then Stop. The music drops while the other track plays and recovers where it is quiet.\"}]}"
 ---
-<!-- docs-ai-provenance: {"factPacketSha256":"29eeeac8471c6886f72ec6f256f4acc11b452190de41307593f4a6a9f07893c5","model":"qwen3.8:latest","modelDigest":"22130167c4c20e20c7b71454612966ca8e8171e9b3cc8ab6ce8aa6cbfec79643","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"29eeeac8471c6886f72ec6f256f4acc11b452190de41307593f4a6a9f07893c5","targetLocale":"he"} -->
+<!-- docs-ai-provenance: {"factPacketSha256":"313de1012af9c28f0b75a03718401297acb22bdfb48e03bde9f0c5daf2dc8299","model":"aya-expanse:32b","modelDigest":"1603440383bd5504dc7afd01c0407b425b988dde650a8dc1a737433baa3cd432","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"313de1012af9c28f0b75a03718401297acb22bdfb48e03bde9f0c5daf2dc8299","targetLocale":"he"} -->
 
 <!-- Generated by `node scripts/docs-reference.mjs`. Do not edit. -->
 
-פודקאסטים וסרטונים ממשיכים את הנגינה של המוזיקה מתחת לדברים שנאמרים על ידי הורדת עוצמתה בכל פעם שמדברים והחזרתה בחלקים השקטים. Auto Duck מבצע זאת מרצועת בקרה: בכל מקום שרצועת הבקרה חזקה יותר מהסף, הרצועה הנבחרת מורדת, עם דעיכה בקצוות.
+פודקאסטים וסרטונים משמרים את המוזיקה ברקע במהלך דיבור על ידי הנמכתו בכל פעם שמישהו מדבר והחזרתו בפסקות. Auto Duck מבצע זאת ממסלול שליטה: בכל מקום בו מסלול השליטה חזק יותר מסף מסוים, המסלול הנבחר מונמך, עם התכהיות בקצוות.
 
-:::note[מגיעים מ-Audacity?]
-זהו **Effect → Volume and Compression → Auto Duck** של Audacity. השמות להלן הם של Soundscaper, ולעיתים הם שונים.
+:::note[מגיע מ-Audacity?]
+זהו **אפקט → נפח ודחיסה → Auto Duck** של Audacity. השמות למטה הם של Soundscaper, ולפעמים הם שונים.
 :::
 
 ## שלבים
 
 1. פתח את Soundscaper. פרויקט חדש וריק מוכן ברגע שהעורך נטען.
-2. בחר **File → Import audio** ובחר את המוזיקה. הקובץ נחת כקליפ על רצועה משלו.
-3. בחר **File → Import audio** ובחר את הקול. הקובץ נחת כקליפ על רצועה משלו.
-4. לחץ על סרגל השם של קליפ המוזיקה כדי לבחור אותו. הקליפ שאתה בוחר הוא זה שייחשק — המוזיקה, לא הקול.
-5. בחר **Effect → Volume and compression → Auto Duck**. בחלון הדיאלוג **Auto Duck**, בחר את רצועת הקול עבור **Control track** והגדר את **Duck amount** ל-`-12`, ואז לחץ על **Apply to selection**. רצועת הבקרה היא זו שמפעילה את החישוק. ירידה של שנים עשר דציבלים מספיקה כדי שהדיבור יישב בבירור מעל.
-6. לחץ על **Play** להאזנה, ואז **Stop**.
-   *מה שצריך להיראות:* המוזיקה יורדת בזמן שרצועה אחרת נשמעת וחוזרת למקומה כשהיא שקטה.
+2. בחר **קובץ → יבוא** ובחר את המוזיקה. הוא נוחת כקליפ במסלול שלו.
+3. בחר **קובץ → יבוא** ובחר את הקול. הוא נוחת כקליפ במסלול שלו.
+4. לחץ על סרגל השם של קליפ המוזיקה כדי לבחור אותו. הקליפ שאתה בוחר הוא זה שמתנמך - המוזיקה, לא הקול.
+5. בחר **אפקט → נפח ודחיסה → Auto Duck**. בדיאלוג **Auto Duck**, בחר את מסלול הקול עבור **מסלול שליטה** והגדר **כמות התנמכות** ל-`-12`, ואז לחץ על **החל על הבחירה**. מסלול השליטה הוא זה שמפעיל את ההתנמכות. שתים-עשרה דציבלים למטה מספיקים כדי שהדיבור יהיה ברור מעל.
+6. לחץ על **הפעלה** כדי להאזין, ואז **עצירה**.
+   *אתה אמור לראות:* המוזיקה יורדת בזמן שהמסלול האחר מתנגן ומתאוששת איפה שהוא שקט.
 
 ## טיפים
 
-- הארך את זמני **Outer fade** אם המוזיקה עולה ויורדת מהר מדי בין מילים.
-- שים את רצועת הקול מעל המוזיקה ברשימת הרצועות כדי שהקשר יהיה קל לזיהוי.
+- האריך את זמני **התכהיות חיצוניות** אם המוזיקה מתנפחת ומתמעטת מהר מדי בין מילים.
+- שם את מסלול הקול מעל המוזיקה ברשימת המסלולים כדי שהקשר יהיה קל לראות.
 
 ## מדריכים קשורים
 
-עוד מדריכים [עוצמה ודינמיקה](/guides/volume/):
+עוד מדריכים על [נפח ודינמיקה](/guides/volume/):
 
-- [העלמת הקלטה שקטה](/guides/volume/make-a-recording-louder/) — העלאת רמת ההקלטה במספר דציבלים קבוע באמצעות Amplify.
-- [נרמול שיאים לרמה קבועה](/guides/volume/normalize-peaks/) — הובלת הנקודה החזקה ביותר בהקלטה לרמה מדויקת מתחת למקסימום.
-- [נרמול עוצמה לפודקאסט](/guides/volume/normalize-loudness-for-podcasts/) — התאמת העוצמה התפוסה של פרק לרמה שפלטפורמות הזרמה מצפות אליה.
-- [השוואת עוצמה עם מחוסן](/guides/volume/even-out-volume-with-a-compressor/) — הפחתת הפער בין רגעים חזקים ושקטים כדי שהדיבור יהיה קל יותר לעקוב אחריו.
-- [דעיכה כניסה ודעיכה יציאה](/guides/volume/fade-in-and-fade-out/) — התחלת קליפ משקט והסתייגות חלקה במקום חיתוך.
-- [מתיחת שיאים עם מגביל](/guides/volume/tame-peaks-with-a-limiter/) — מניעת רגעים החזקים ביותר מעבר לתקרה ללא נגיעה בשאר.
-- [השוואת עוצמה עם המחוסן הקלאסי](/guides/volume/even-out-volume-with-the-legacy-compressor/) — שימוש במחוסן המקורי של Audacity 3, עם רצפת הרעש וההגברת ההשלמה, על הקלטה.
+- [הפוך הקלטה שקטה לחזקה יותר](/guides/volume/make-a-recording-louder/) — העלה את רמת הקלטה במספר דציבלים קבוע עם Amplify.
+- [נרמל פסגות לרמה קבועה](/guides/volume/normalize-peaks/) — הביא את הנקודה הכי רועשת של הקלטה לרמה מדויקת מתחת למקסימום.
+- [נרמל עוצמת קול לפודקאסט](/guides/volume/normalize-loudness-for-podcasts/) — התאם את עוצמת הקול הנתפסת של פרק לרמה שפלטפורמות סטרימינג מצפות לה.
+- [יישר עוצמה עם קומפרסור](/guides/volume/even-out-volume-with-a-compressor/) — צמצם את הפער בין רגעי רעש ושקט כך שהדיבור יהיה קל יותר לעקוב אחריו.
+- [התכהות כניסה ויציאה](/guides/volume/fade-in-and-fade-out/) — התחל קליפ משקט והסתיים בצורה חלקה במקום לחתוך.
+- [רסן פסגות עם מגביל](/guides/volume/tame-peaks-with-a-limiter/) — עצור את הרגעים הכי רועשים מלעבור גבול מסוים בלי לגעת בשאר.
+- [יישר עוצמה עם הקומפרסור הקלאסי](/guides/volume/even-out-volume-with-the-legacy-compressor/) — השתמש בקומפרסור המקורי של Audacity 3, עם רצפת הרעש והגברת הפיצוי שלו, על הקלטה.
 
 ## הפניה
 
 - [כל פרמטר של האפקטים המשמשים כאן, עם ברירת המחדל והטווח שלו, נמצא בהפניה לאפקטים אודיו.](/reference/generated/audio-effects/#parameters)
 
-## אודות מדריך זה
+## על המדריך הזה
 
-ההליך בעמוד זה — כל פריט תפריט, דיאלוג, שדה וכפתור, והתוצאה שהוא מייצר — מושמע מחדש מול כל בנייה של Soundscaper על ידי סוויט הדפדפן (`tests/browser/soundscaper-guides.spec.js`). אם כל אחד מהם מפסיק להתאים לעורך, הבנייה נכשלת עד שהמדריך מתוקן. הערכים המוצעים הם נקודות התחלה שהעורך הוכח כמקבל אותן; האם הם מתאימים להקלטה שלך תלוי באוזניך להחליט.
+ההליך בעמוד זה - כל פריט תפריט, דיאלוג, שדה וכפתור, והתוצאה שהוא מייצר - משוחזר מול כל בנייה של Soundscaper על ידי סוויטת הדפדפן (`tests/browser/soundscaper-guides.spec.js`). אם משהו מזה מפסיק להתאים לעורך, הבנייה נכשלת עד שהמדריך מתוקן. הערכים המוצעים הם נקודות התחלה שהעורך מוכיח לקבל; האם הם מתאימים להקלטה שלך הוא עניין לאוזניים שלך להחליט.

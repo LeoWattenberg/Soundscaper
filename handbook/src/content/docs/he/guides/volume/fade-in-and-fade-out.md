@@ -1,6 +1,6 @@
 ---
-title: "התחלה בהדרגה והסתיימות בהדרגה"
-description: "התחל קטע מריקות והסתיים בצורה חלקה במקום לחתוך."
+title: "דהייה פנימה ודהייה החוצה"
+description: "התחל קליפ משקט וסיים אותו בצורה חלקה במקום לחתוך אותו."
 editUrl: false
 sidebar:
   order: 5
@@ -8,50 +8,50 @@ head:
   - tag: script
     attrs:
       type: "application/ld+json"
-    content: "{\"@context\":\"https://schema.org\",\"@type\":\"HowTo\",\"name\":\"Fade in and fade out\",\"description\":\"Start a clip from silence and end it smoothly instead of cutting off.\",\"tool\":[{\"@type\":\"HowToTool\",\"name\":\"Soundscaper\"}],\"step\":[{\"@type\":\"HowToStep\",\"position\":1,\"name\":\"Open Soundscaper. A new, empty project is ready as soon as the editor loads.\",\"text\":\"Open Soundscaper. A new, empty project is ready as soon as the editor loads.\"},{\"@type\":\"HowToStep\",\"position\":2,\"name\":\"Choose File → Import audio and pick the recording that starts or stops too hard. The file lands as a clip on its own track.\",\"text\":\"Choose File → Import audio and pick the recording that starts or stops too hard. The file lands as a clip on its own track.\"},{\"@type\":\"HowToStep\",\"position\":3,\"name\":\"Drag in the ruler above the clip to select as much of the start as you want the fade to last.\",\"text\":\"Drag in the ruler above the clip to select as much of the start as you want the fade to last.\"},{\"@type\":\"HowToStep\",\"position\":4,\"name\":\"Choose Effect → Fading → Fade In. The effect applies to the selection straight away.\",\"text\":\"Choose Effect → Fading → Fade In. The effect applies to the selection straight away.\"},{\"@type\":\"HowToStep\",\"position\":5,\"name\":\"Drag in the ruler above the clip to select the same amount at the end.\",\"text\":\"Drag in the ruler above the clip to select the same amount at the end.\"},{\"@type\":\"HowToStep\",\"position\":6,\"name\":\"Choose Effect → Fading → Fade Out. The effect applies to the selection straight away.\",\"text\":\"Choose Effect → Fading → Fade Out. The effect applies to the selection straight away.\"},{\"@type\":\"HowToStep\",\"position\":7,\"name\":\"Press Play to listen, then Stop.\",\"text\":\"Press Play to listen, then Stop. The recording swells in and dies away instead of starting and stopping hard.\"}]}"
+    content: "{\"@context\":\"https://schema.org\",\"@type\":\"HowTo\",\"name\":\"Fade in and fade out\",\"description\":\"Start a clip from silence and end it smoothly instead of cutting off.\",\"tool\":[{\"@type\":\"HowToTool\",\"name\":\"Soundscaper\"}],\"step\":[{\"@type\":\"HowToStep\",\"position\":1,\"name\":\"Open Soundscaper. A new, empty project is ready as soon as the editor loads.\",\"text\":\"Open Soundscaper. A new, empty project is ready as soon as the editor loads.\"},{\"@type\":\"HowToStep\",\"position\":2,\"name\":\"Choose File → Import and pick the recording that starts or stops too hard. It lands as a clip on its own track.\",\"text\":\"Choose File → Import and pick the recording that starts or stops too hard. It lands as a clip on its own track.\"},{\"@type\":\"HowToStep\",\"position\":3,\"name\":\"Drag in the ruler above the clip to select as much of the start as you want the fade to last.\",\"text\":\"Drag in the ruler above the clip to select as much of the start as you want the fade to last.\"},{\"@type\":\"HowToStep\",\"position\":4,\"name\":\"Choose Effect → Fading → Fade In. The effect applies to the selection straight away.\",\"text\":\"Choose Effect → Fading → Fade In. The effect applies to the selection straight away.\"},{\"@type\":\"HowToStep\",\"position\":5,\"name\":\"Drag in the ruler above the clip to select the same amount at the end.\",\"text\":\"Drag in the ruler above the clip to select the same amount at the end.\"},{\"@type\":\"HowToStep\",\"position\":6,\"name\":\"Choose Effect → Fading → Fade Out. The effect applies to the selection straight away.\",\"text\":\"Choose Effect → Fading → Fade Out. The effect applies to the selection straight away.\"},{\"@type\":\"HowToStep\",\"position\":7,\"name\":\"Press Play to listen, then Stop.\",\"text\":\"Press Play to listen, then Stop. The recording swells in and dies away instead of starting and stopping hard.\"}]}"
 ---
-<!-- docs-ai-provenance: {"factPacketSha256":"e8598595815502e051036875f30c4266c32181fc523c976c99b3ac430d99f0e9","model":"qwen3.8:latest","modelDigest":"22130167c4c20e20c7b71454612966ca8e8171e9b3cc8ab6ce8aa6cbfec79643","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"e8598595815502e051036875f30c4266c32181fc523c976c99b3ac430d99f0e9","targetLocale":"he"} -->
+<!-- docs-ai-provenance: {"factPacketSha256":"dd587cefa66ffc1928b495d6acc075f6717d569220d474268488433a141ea60a","model":"aya-expanse:32b","modelDigest":"1603440383bd5504dc7afd01c0407b425b988dde650a8dc1a737433baa3cd432","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"dd587cefa66ffc1928b495d6acc075f6717d569220d474268488433a141ea60a","targetLocale":"he"} -->
 
 <!-- Generated by `node scripts/docs-reference.mjs`. Do not edit. -->
 
-פיד (Fade) הוא הדרך הפשוטה ביותר להימנע מהשמעה פתאומית בתחילת קליפ או מעצור פתאומי בסופו. Fade In מעלה את רמת השקט של הבחירה לאורך כל אורכה; Fade Out מורידה אותה. אורך הבחירה הוא אורך הפיד.
+דהייה היא הדרך הפשוטה ביותר להימנע מקליק בתחילת קטע או מעצירה פתאומית בסוף. דהייה פנימה מעלה את הבחירה משקט לאורך כל אורכה; דהייה החוצה מורידה אותה. אורך הבחירה הוא אורך הדהייה.
 
-:::note[מגיעים מ-Audacity?]
-זהו הפונקציה **Effect → Fading → Fade In and Fade Out** ב-Audacity. השמות להלן הם של Soundscaper בלבד, והם עשויים להיות שונים.
+:::note[מגיע מ-Audacity?]
+זהו **אפקט → דהייה → דהייה פנימה ודהייה החוצה** של Audacity. השמות למטה הם של Soundscaper, שלפעמים שונים.
 :::
 
 ## שלבים
 
-1. פתחו את Soundscaper. פרויקט חדש וריק מוכן מיד עם טעינת העורך.
-2. בחרו **File → Import audio** ובחרו את ההקלטה שמתחילה או נגמרת בצורה חדה מדי. הקובץ יופיע כקליפ על מסלול נפרד.
-3. גררו בסרגל מעל הקליפ כדי לבחור את חלק התחילת הרצוי לאורך הפיד.
-4. בחרו **Effect → Fading → Fade In**. האפקט יחול על הבחירה מיד.
-5. גררו בסרגל מעל הקליפ כדי לבחור את אותה כמות בסוף.
-6. בחרו **Effect → Fading → Fade Out**. האפקט יחול על הבחירה מיד.
-7. לחצו **Play** להאזנה, ואז **Stop**.
-   *מה שתראו:* ההקלטה תתגבר בהדרגה ותחלש בהדרגה במקום להתחיל ולהסתיים בצורה חדה.
+1. פתח את Soundscaper. פרויקט חדש וריק מוכן ברגע שהעורך נטען.
+2. בחר **קובץ → יבוא** ובחר את ההקלטה שמתחילה או מסתיימת בצורה קשה מדי. היא נוחתת כקטע על מסלול משלה.
+3. גרור על גבי הסרגל מעל הקטע כדי לבחור כמה מההתחלה תרצה שהדהייה תימשך.
+4. בחר **אפקט → דהייה → דהייה פנימה**. האפקט מוחל על הבחירה מיד.
+5. גרור על גבי הסרגל מעל הקטע כדי לבחור את אותה הכמות בסוף.
+6. בחר **אפקט → דהייה → דהייה החוצה**. האפקט מוחל על הבחירה מיד.
+7. לחץ על **הפעל** להאזנה, ואז **עצור**.
+   *אתה אמור לראות:* ההקלטה מתעצמת ונחלשת במקום להתחיל ולהסתיים בצורה קשה.
 
 ## טיפים
 
-- הפידים הם לינאריים. לפיד מהיר יותר בקצה הסופי, בחרו טווח קצר יותר.
-- פידים הם עריכות, ולכן **Edit → Undo** יבטל אותם כמו כל דבר אחר.
+- הדהיות הן ליניאריות. לדהייה מהירה יותר בסוף, בחר טווח קצר יותר.
+- דהיות הן עריכות, אז **עריכה → ביטול** מבטלות אותן כמו כל דבר אחר.
 
 ## מדריכים קשורים
 
-עוד [רמות ודינמיקה](/guides/volume/) מדריכים:
+עוד מדריכים על [עוצמה ודינמיקה](/guides/volume/):
 
-- [הגברת הקלטה שקטה](/guides/volume/make-a-recording-louder/) — הגברת רמת ההקלטה במספר דציבלים קבוע באמצעות Amplify.
-- [נרמול שיאורים לרמה קבועה](/guides/volume/normalize-peaks/) — הגעת הנקודה החזקה ביותר בהקלטה לרמה מדויקת מתחת למקסימום.
-- [נרמול חזותיות לפרודקסט](/guides/volume/normalize-loudness-for-podcasts/) — התאמת החזותיות המורגשת של פרק לרמה שפלטפורמות הזרמה מצפות אליה.
-- [יישור רמות עם קומפרסור](/guides/volume/even-out-volume-with-a-compressor/) — הצרת הפער בין רגעים חזקים ושקטים כדי שהדיבור יהיה קל יותר לעקוב אחריו.
-- [ריסון שיאורים עם לימיטר](/guides/volume/tame-peaks-with-a-limiter/) — מניעת חריגה של הרגעים החזקים ביותר מעבר לתקרה ללא השפעה על שאר החלקים.
-- [הנמכת מוזיקה מתחת לקול](/guides/volume/duck-music-under-a-voice/) — הפחתת אוטומטית של רקע מוזיקלי בכל פעם שמסלול קול מדבר.
-- [יישור רמות עם הקומפרסור הקלאסי](/guides/volume/even-out-volume-with-the-legacy-compressor/) — שימוש בקומפרסור המקורי של Audacity 3, כולל רצפת רעש והגברת תיקון, על הקלטה.
+- [הפוך הקלטה שקטה לחזקה יותר](/guides/volume/make-a-recording-louder/) — העלה את רמת ההקלטה במספר דציבלים קבוע באמצעות הגברה.
+- [נרמל פסגות לרמה קבועה](/guides/volume/normalize-peaks/) — הביא את הנקודה הכי רועשת של ההקלטה לרמה מדויקת מתחת למקסימום.
+- [נרמל עוצמה לפודקאסט](/guides/volume/normalize-loudness-for-podcasts/) — התאם את העוצמה הנתפסת של פרק לרמה שפלטפורמות הזרמה מצפות לה.
+- [יישר עוצמה עם קומפרסור](/guides/volume/even-out-volume-with-a-compressor/) — הפחת את הפער בין רעש שקט לרעש חזק כדי שהדיבור יהיה קל יותר לעקוב אחריו.
+- [רסן פסגות עם לימיטר](/guides/volume/tame-peaks-with-a-limiter/) — עצור את הרגעים הכי רועשים מלעבור גבול מסוים בלי לגעת בשאר.
+- [הנמך מוזיקה מתחת לקול](/guides/volume/duck-music-under-a-voice/) — הורד אוטומטית את המוזיקה כשמסלול קול מדבר.
+- [יישר עוצמה עם הקומפרסור הקלאסי](/guides/volume/even-out-volume-with-the-legacy-compressor/) — השתמש בקומפרסור המקורי של Audacity 3, עם רעש רצפה והגברת פיצוי, על הקלטה.
 
-## רפרנס
+## הפניה
 
-- [כל פרמטר של האפקטים המוזכרים כאן, כולל ערכי ברירת המחדל והטווחים, מופיע ברפרנס אפקטים אודיו.](/reference/generated/audio-effects/#parameters)
+- [כל פרמטר של האפקטים המשמשים כאן, עם הערך ברירת המחדל והטווח שלו, נמצא בהפניה לאפקטים אודיו.](/reference/generated/audio-effects/#parameters)
 
-## אודות מדריך זה
+## על המדריך הזה
 
-ההליך בעמוד זה — כל פריט תפריט, חלון דיאלוג, שדה וכפתור, והתוצאה שהוא מייצר — מושמע מחדש מול כל בנייה של Soundscaper על ידי סוויט הדפדפן (`tests/browser/soundscaper-guides.spec.js`). אם חלק מהתוכן מפסיק להתאים לעורך, הבנייה נכשלת עד לתקן המדריך. הערכים המוצעים הם נקודות פתיחה שהעורך הוכח כמקבל אותן; האם הם מתאימים להקלטה שלכם תלוי באוזניים שלכם.
+ההליך שבעמוד זה — כל פריט תפריט, תיבה, שדה וכפתור, והתוצאה שהוא מייצר — מבוצע מחדש מול כל בניית Soundscaper על ידי סוויטת הדפדפן (`tests/browser/soundscaper-guides.spec.js`). אם משהו ממנו מפסיק להתאים לעורך, הבנייה נכשלת עד לתיקון המדריך. הערכים המוצעים הם נקודות התחלה שהעורך מוכיח את קבלתם; האם הם מתאימים להקלטה שלך הוא עניין לאוזניך להחליט.

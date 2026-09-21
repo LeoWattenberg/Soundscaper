@@ -8,50 +8,51 @@ head:
   - tag: script
     attrs:
       type: "application/ld+json"
-    content: "{\"@context\":\"https://schema.org\",\"@type\":\"HowTo\",\"name\":\"Export each chapter as its own file\",\"description\":\"Split one long recording into files at the markers you have placed.\",\"tool\":[{\"@type\":\"HowToTool\",\"name\":\"Soundscaper\"}],\"step\":[{\"@type\":\"HowToStep\",\"position\":1,\"name\":\"Open Soundscaper. A new, empty project is ready as soon as the editor loads.\",\"text\":\"Open Soundscaper. A new, empty project is ready as soon as the editor loads.\"},{\"@type\":\"HowToStep\",\"position\":2,\"name\":\"Choose File → Import audio and pick the recording to split. The file lands as a clip on its own track.\",\"text\":\"Choose File → Import audio and pick the recording to split. The file lands as a clip on its own track.\"},{\"@type\":\"HowToStep\",\"position\":3,\"name\":\"Choose View → Show markers.\",\"text\":\"Choose View → Show markers. The marker lane is where the chapter starts are shown and named.\"},{\"@type\":\"HowToStep\",\"position\":4,\"name\":\"Press the Jump to project start button in the toolbar.\",\"text\":\"Press the Jump to project start button in the toolbar. The first chapter should begin at the very start, so the first marker goes at zero.\"},{\"@type\":\"HowToStep\",\"position\":5,\"name\":\"With the Markers panel open (View → Panels → Markers shows it), press Add marker at playhead. Press Enter on the new marker, type Part one and press Enter again to name it.\",\"text\":\"With the Markers panel open (View → Panels → Markers shows it), press Add marker at playhead. Press Enter on the new marker, type Part one and press Enter again to name it.\"},{\"@type\":\"HowToStep\",\"position\":6,\"name\":\"Click the waveform where the second part begins to put the cursor there.\",\"text\":\"Click the waveform where the second part begins to put the cursor there.\"},{\"@type\":\"HowToStep\",\"position\":7,\"name\":\"With the Markers panel open (View → Panels → Markers shows it), press Add marker at playhead. Press Enter on the new marker, type Part two and press Enter again to name it.\",\"text\":\"With the Markers panel open (View → Panels → Markers shows it), press Add marker at playhead. Press Enter on the new marker, type Part two and press Enter again to name it.\"},{\"@type\":\"HowToStep\",\"position\":8,\"name\":\"Choose File → Export audio, set Format to MP3, set Output to Chapters (split by markers), and press Export. The file downloads as soon as the render finishes, and its link stays in the dialog.\",\"text\":\"Choose File → Export audio, set Format to MP3, set Output to Chapters (split by markers), and press Export. The file downloads as soon as the render finishes, and its link stays in the dialog. Each chapter becomes an MP3 inside the archive, numbered in order and named after its marker.\"}]}"
+    content: "{\"@context\":\"https://schema.org\",\"@type\":\"HowTo\",\"name\":\"Export each chapter as its own file\",\"description\":\"Split one long recording into files at the markers you have placed.\",\"tool\":[{\"@type\":\"HowToTool\",\"name\":\"Soundscaper\"}],\"step\":[{\"@type\":\"HowToStep\",\"position\":1,\"name\":\"Open Soundscaper. A new, empty project is ready as soon as the editor loads.\",\"text\":\"Open Soundscaper. A new, empty project is ready as soon as the editor loads.\"},{\"@type\":\"HowToStep\",\"position\":2,\"name\":\"Choose File → Import and pick the recording to split. It lands as a clip on its own track.\",\"text\":\"Choose File → Import and pick the recording to split. It lands as a clip on its own track.\"},{\"@type\":\"HowToStep\",\"position\":3,\"name\":\"Choose View → Panels → Project bin.\",\"text\":\"Choose View → Panels → Project bin. The recording is on the timeline now, so hiding the bin leaves room for the Markers panel.\"},{\"@type\":\"HowToStep\",\"position\":4,\"name\":\"Choose View → Show markers.\",\"text\":\"Choose View → Show markers. The marker lane is where the chapter starts are shown and named.\"},{\"@type\":\"HowToStep\",\"position\":5,\"name\":\"Press the Jump to project start button in the toolbar.\",\"text\":\"Press the Jump to project start button in the toolbar. The first chapter should begin at the very start, so the first marker goes at zero.\"},{\"@type\":\"HowToStep\",\"position\":6,\"name\":\"With the Markers panel open (View → Panels → Markers shows it), press Add marker at playhead. Press Enter on the new marker, type Part one and press Enter again to name it.\",\"text\":\"With the Markers panel open (View → Panels → Markers shows it), press Add marker at playhead. Press Enter on the new marker, type Part one and press Enter again to name it.\"},{\"@type\":\"HowToStep\",\"position\":7,\"name\":\"Click the waveform where the second part begins to put the cursor there.\",\"text\":\"Click the waveform where the second part begins to put the cursor there.\"},{\"@type\":\"HowToStep\",\"position\":8,\"name\":\"With the Markers panel open (View → Panels → Markers shows it), press Add marker at playhead. Press Enter on the new marker, type Part two and press Enter again to name it.\",\"text\":\"With the Markers panel open (View → Panels → Markers shows it), press Add marker at playhead. Press Enter on the new marker, type Part two and press Enter again to name it.\"},{\"@type\":\"HowToStep\",\"position\":9,\"name\":\"Choose File → Export audio, set Format to MP3, set Output to Chapters (split by markers), and press Export. The file downloads as soon as the render finishes, and its link stays in the dialog.\",\"text\":\"Choose File → Export audio, set Format to MP3, set Output to Chapters (split by markers), and press Export. The file downloads as soon as the render finishes, and its link stays in the dialog. Each chapter becomes an MP3 inside the archive, numbered in order and named after its marker.\"}]}"
 ---
-<!-- docs-ai-provenance: {"factPacketSha256":"bff231ce5a412139b723774100bc4b0793f5c5b088e471b0f45443684628992e","model":"aya-expanse:32b","modelDigest":"1603440383bd5504dc7afd01c0407b425b988dde650a8dc1a737433baa3cd432","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"bff231ce5a412139b723774100bc4b0793f5c5b088e471b0f45443684628992e","targetLocale":"he"} -->
+<!-- docs-ai-provenance: {"factPacketSha256":"ccddaabe5789d7d02d6276dddb13a1b3323b9b9f10d8ed85a152061a5b472603","model":"aya-expanse:32b","modelDigest":"1603440383bd5504dc7afd01c0407b425b988dde650a8dc1a737433baa3cd432","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"ccddaabe5789d7d02d6276dddb13a1b3323b9b9f10d8ed85a152061a5b472603","targetLocale":"he"} -->
 
 <!-- Generated by `node scripts/docs-reference.mjs`. Do not edit. -->
 
-הרצאה שצריכה להפוך לקובץ אחד לנושא, צד באלבום שצריך לחלק למסלולים, ספר שמע עם פרק לקובץ: הכנס סימון בתחילת כל חלק וייצא פעם אחת. כל סימן פותח פרק שמתמשך עד לסימן הבא, וכל פרק נכתב כקובץ נפרד, בשם הסימן שלו, בתוך ארכיון יחיד. Audacity 3 עשה זאת עם ייצוא מרובה; Audacity 4 לא החזיר את זה.
+הרצאה שצריכה להפוך לקובץ אחד לנושא, צד באלבום שצריך לחתוך למסלולים, ספר שמע עם פרק לקובץ: הכנס סימון בתחילת כל חלק וייצא פעם אחת. כל סימן פותח פרק שמתמשך עד הסימן הבא, וכל פרק נכתב כקובץ עצמאי, בשם הסימן שלו, בתוך ארכיון יחיד. Audacity 3 עשה זאת עם ייצוא מרובה; ל-Audacity 4 אין את האפשרות הזו.
 
 :::note[מגיע מ-Audacity?]
-זהו **קובץ → ייצוא אודיו → ייצוא מרובה, חלוקה לפי תוויות (Audacity 3; Audacity 4 אין ייצוא מרובה)** של Audacity. השמות למטה הם של Soundscaper, שלפעמים שונים.
+זהו **קובץ → ייצוא אודיו → ייצוא מרובה, חלוקה לפי תוויות** ב-Audacity (ל-Audacity 3; ל-Audacity 4 אין ייצוא מרובה). השמות למטה הם של Soundscaper, שלפעמים שונים.
 :::
 
 ## שלבים
 
 1. פתח את Soundscaper. פרויקט חדש וריק מוכן ברגע שהעורך נטען.
-2. בחר **קובץ → ייבוא אודיו** ובחר את ההקלטה לחלוקה. הקובץ נוחת כקליפ במסלול שלו.
-3. בחר **תצוגה → הצג סימנים**. נתיב הסימנים הוא המקום בו מוצגים ומנויים התחלת הפרקים.
-4. לחץ על כפתור **קפוץ להתחלת הפרויקט** בסרגל הכלים. הפרק הראשון צריך להתחיל בהתחלה המוחלטת, אז הסימן הראשון הולך באפס.
-5. עם לוח הסימנים פתוח (**תצוגה → לוחות → סימנים** מראה אותו), לחץ על **הוסף סימן בראש הנחית**. לחץ על Enter על הסימן החדש, הקלד `Part one` ולחץ שוב על Enter כדי לקרוא לו.
-6. לחץ על הצורה הגלית במקום בו מתחיל החלק השני כדי לשים את הסמן שם.
-7. עם לוח הסימנים פתוח (**תצוגה → לוחות → סימנים** מראה אותו), לחץ על **הוסף סימן בראש הנחית**. לחץ על Enter על הסימן החדש, הקלד `Part two` ולחץ שוב על Enter כדי לקרוא לו.
-8. בחר **קובץ → ייצוא אודיו**, קבע את **פורמט** ל-**MP3**, קבע את **פלט** ל-**פרקים (חלוקה לפי סימנים)**, ולחץ על **ייצוא**. הקובץ יורד ברגע שהעיבוד מסתיים, וקישורו נשאר בדיאלוג. כל פרק הופך ל-MP3 בתוך הארכיון, ממוספר בסדר ונקרא בשם הסימן שלו.
+2. בחר **קובץ → ייבוא** ובחר את ההקלטה לחלוקה. היא נוחתת כקליפ במסלול עצמאי.
+3. בחר **תצוגה → פאנלים → ארגז פרויקט**. ההקלטה נמצאת כעת על ציר הזמן, אז הסתרת הארגז משאירה מקום לפאנל הסימנים.
+4. בחר **תצוגה → הצג סימנים**. נתיב הסימנים הוא המקום בו מתחילי הפרקים מוצגים ונקראים.
+5. לחץ על כפתור **קפוץ להתחלת הפרויקט** בסרגל הכלים. הפרק הראשון צריך להתחיל בהתחלה המוחלטת, אז הסימן הראשון הולך באפס.
+6. עם פאנל הסימנים פתוח (**תצוגה → פאנלים → סימנים** מראה אותו), לחץ על **הוסף סימן בראש הנחית**. לחץ על Enter על הסימן החדש, הקלד `Part one` ולחץ שוב על Enter כדי לקרוא לו.
+7. לחץ על הגלומה במקום בו מתחיל החלק השני כדי לשים את הסמן שם.
+8. עם פאנל הסימנים פתוח (**תצוגה → פאנלים → סימנים** מראה אותו), לחץ על **הוסף סימן בראש הנחית**. לחץ על Enter על הסימן החדש, הקלד `Part two` ולחץ שוב על Enter כדי לקרוא לו.
+9. בחר **קובץ → ייצוא אודיו**, קבע את **פורמט** ל-**MP3**, קבע את **פלט** ל-**פרקים (חלוקה לפי סימנים)**, ולחץ על **ייצוא**. הקובץ יורד ברגע שהעיבוד מסתיים, וקישור אליו נשאר בדיאלוג. כל פרק הופך ל-MP3 בתוך הארכיון, ממוספר בסדר ונקרא בשם הסימן שלו.
 
 ## טיפים
 
-- אזור בשם מייצא בדיוק את הטווח שלו, אז השתמש באזורים במקום בסימנים כאשר החלקים יש רווחים ביניהם.
+- אזור בשם מייצא בדיוק את הטווח שלו, אז השתמש באזורים במקום בסימנים כאשר החלקים מופרדים בפערים.
 - תוויות במסלול תוויות מחלקות באותו אופן: בחר **פרקים (חלוקה לפי תוויות)** כדי לחתוך על פי אלה במקום על פי הסימנים.
-- כדי לחלק לפי מסלולים במקום לפי סימנים, ראה [ייצוא כל מסלול כקובץ נפרד](/guides/projects/export-each-track-as-its-own-file/).
+- כדי לחלק לפי מסלולים במקום לפי סימנים, ראה [ייצוא כל מסלול כקובץ עצמאי](/guides/projects/export-each-track-as-its-own-file/).
 
 ## מדריכים קשורים
 
 עוד מדריכים על [פרויקטים וקבצים](/guides/projects/):
 
-- [ייצוא כל מסלול כקובץ נפרד](/guides/projects/export-each-track-as-its-own-file/) — עיבוד המסלולים בנפרד, כסטמפים, בהורדה אחת.
+- [ייצוא כל מסלול כקובץ עצמאי](/guides/projects/export-each-track-as-its-own-file/) — עיבוד המסלולים בנפרד, כסטמפים, בהורדה אחת.
 - [שמור את הפרויקט](/guides/projects/save-your-project/) — שמור את הפרויקט, עם כל המסלולים והעריכות, בספריית הפרויקט המקומית.
-- [העבר פרויקט בין מחשבים](/guides/projects/move-a-project-between-computers/) — ייצוא הפרויקט כולו כקובץ אחד, ואז פתח אותו במקום אחר.
-- [פתיחת פרויקט Audacity](/guides/projects/open-an-audacity-project/) — הכנס פרויקט קיים של .aup3 או .aup4 ל-Soundscaper עם המסלולים שלו שלמים.
+- [העבר פרויקט בין מחשבים](/guides/projects/move-a-project-between-computers/) — ייצוא הפרויקט כקובץ יחיד, ואז פתח אותו במקום אחר.
+- [פתיחת פרויקט Audacity](/guides/projects/open-an-audacity-project/) — הכנס פרויקט קיים של .aup3 או .aup4 ל-Soundscaper עם המסלולים שלמים.
 - [שנה את קצב הדגימה של הקליפ](/guides/projects/change-a-clips-sample-rate/) — דגום מחדש קליפ כך שיתאים לקצב שאר הפרויקט משתמש בו.
 
 ## הפניה
 
-- [פורמטי הייצוא, המכילות שלהם ומגבלות הערוצים שלהם נמצאים בהפניה פורמטי הייצוא.](/reference/generated/formats/)
-- [כל פקודה בתפריט והקיצור המקלדת שלה נמצאים בהפניה הפקודות והקיצורים.](/reference/generated/commands/)
+- [פורמטי הייצוא, המכילות שלהם ומגבלות הערוצים שלהם נמצאים בהפניה של פורמטי הייצוא.](/reference/generated/formats/)
+- [כל פקודה בתפריט והקיצור המקלדת שלה נמצאים בהפניה של הפקודות והקיצורים.](/reference/generated/commands/)
 
 ## על המדריך הזה
 
-ההליך בדף זה — כל פריט תפריט, דיאלוג, שדה וכפתור, והתוצאה שהוא מייצר — משוחזר מול כל בניית Soundscaper על ידי סוויטת הדפדפן (`tests/browser/soundscaper-guides.spec.js`). אם חלק ממנו מפסיק להתאים לעורך, הבנייה נכשלת עד שהמדריך מתוקן. הערכים המוצעים הם נקודות התחלה שהעורך הוכח לקבל; האם הם מתאימים להקלטה שלך הוא עניין לאוזניים שלך להחליט.
+ההליך בדף זה — כל פריט תפריט, דיאלוג, שדה וכפתור, והתוצאה שהוא מייצר — משוחזר מול כל בניית Soundscaper על ידי סוויטת הדפדפן (`tests/browser/soundscaper-guides.spec.js`). אם חלק ממנו מפסיק להתאים לעורך, הבנייה נכשלת עד שהמדריך מתוקן. הערכים המוצעים הם נקודות התחלה שהעורך הוכח כמקבל; האם הם מתאימים להקלטה שלך הוא עניין לאוזניים שלך להחליט.

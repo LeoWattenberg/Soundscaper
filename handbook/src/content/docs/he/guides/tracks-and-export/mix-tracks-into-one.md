@@ -1,6 +1,6 @@
 ---
-title: "ערבוב מספר רצועות לרצועה אחת"
-description: "עיבוד הרצועות הנבחרות לרצועה אחת."
+title: "ערבב מספר מסלולים למסלול אחד"
+description: "הפעל את המסלולים הנבחרים למסלול יחיד."
 editUrl: false
 sidebar:
   order: 2
@@ -8,48 +8,48 @@ head:
   - tag: script
     attrs:
       type: "application/ld+json"
-    content: "{\"@context\":\"https://schema.org\",\"@type\":\"HowTo\",\"name\":\"Mix several tracks into one\",\"description\":\"Render the selected tracks down to a single track.\",\"tool\":[{\"@type\":\"HowToTool\",\"name\":\"Soundscaper\"}],\"step\":[{\"@type\":\"HowToStep\",\"position\":1,\"name\":\"Open Soundscaper. A new, empty project is ready as soon as the editor loads.\",\"text\":\"Open Soundscaper. A new, empty project is ready as soon as the editor loads.\"},{\"@type\":\"HowToStep\",\"position\":2,\"name\":\"Choose File → Import audio and pick the first part. The file lands as a clip on its own track.\",\"text\":\"Choose File → Import audio and pick the first part. The file lands as a clip on its own track.\"},{\"@type\":\"HowToStep\",\"position\":3,\"name\":\"Choose File → Import audio and pick the second part. The file lands as a clip on its own track.\",\"text\":\"Choose File → Import audio and pick the second part. The file lands as a clip on its own track.\"},{\"@type\":\"HowToStep\",\"position\":4,\"name\":\"Click the name bar of the first clip, then hold Shift and click the name bar of the second clip, so both are selected.\",\"text\":\"Click the name bar of the first clip, then hold Shift and click the name bar of the second clip, so both are selected. Every track with a selected clip goes into the mix.\"},{\"@type\":\"HowToStep\",\"position\":5,\"name\":\"Choose Tracks → Mix & Render. In the Mix & Render dialog, leave Mix down, Render effects and Replace originals checked, choose Stereo for Mix down to, then press Mix & Render.\",\"text\":\"Choose Tracks → Mix & Render. In the Mix & Render dialog, leave Mix down, Render effects and Replace originals checked, choose Stereo for Mix down to, then press Mix & Render.\"},{\"@type\":\"HowToStep\",\"position\":6,\"name\":\"The project now shows a clip named Mix.\",\"text\":\"The project now shows a clip named Mix. One track holds a clip named Mix; the source tracks are gone.\"}]}"
+    content: "{\"@context\":\"https://schema.org\",\"@type\":\"HowTo\",\"name\":\"Mix several tracks into one\",\"description\":\"Render the selected tracks down to a single track.\",\"tool\":[{\"@type\":\"HowToTool\",\"name\":\"Soundscaper\"}],\"step\":[{\"@type\":\"HowToStep\",\"position\":1,\"name\":\"Open Soundscaper. A new, empty project is ready as soon as the editor loads.\",\"text\":\"Open Soundscaper. A new, empty project is ready as soon as the editor loads.\"},{\"@type\":\"HowToStep\",\"position\":2,\"name\":\"Choose File → Import and pick the first part. It lands as a clip on its own track.\",\"text\":\"Choose File → Import and pick the first part. It lands as a clip on its own track.\"},{\"@type\":\"HowToStep\",\"position\":3,\"name\":\"Choose File → Import and pick the second part. It lands as a clip on its own track.\",\"text\":\"Choose File → Import and pick the second part. It lands as a clip on its own track.\"},{\"@type\":\"HowToStep\",\"position\":4,\"name\":\"Click the name bar of the first clip, then hold Shift and click the name bar of the second clip, so both are selected.\",\"text\":\"Click the name bar of the first clip, then hold Shift and click the name bar of the second clip, so both are selected. Every track with a selected clip goes into the mix.\"},{\"@type\":\"HowToStep\",\"position\":5,\"name\":\"Choose Tracks → Mix & Render. In the Mix & Render dialog, leave Mix down, Render effects and Replace originals checked, choose Stereo for Mix down to, then press Mix & Render.\",\"text\":\"Choose Tracks → Mix & Render. In the Mix & Render dialog, leave Mix down, Render effects and Replace originals checked, choose Stereo for Mix down to, then press Mix & Render.\"},{\"@type\":\"HowToStep\",\"position\":6,\"name\":\"The project now shows a clip named Mix.\",\"text\":\"The project now shows a clip named Mix. One track holds a clip named Mix; the source tracks are gone.\"}]}"
 ---
-<!-- docs-ai-provenance: {"factPacketSha256":"a2efb9d82744df50703da530f05fd07938a525026e90a778c97fb783e8fb88c8","model":"qwen3.8:latest","modelDigest":"22130167c4c20e20c7b71454612966ca8e8171e9b3cc8ab6ce8aa6cbfec79643","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"a2efb9d82744df50703da530f05fd07938a525026e90a778c97fb783e8fb88c8","targetLocale":"he"} -->
+<!-- docs-ai-provenance: {"factPacketSha256":"e3e165f69376430cd8ca49fc9f23263e3de5bf9c4af97309624c2faaba94193b","model":"aya-expanse:32b","modelDigest":"1603440383bd5504dc7afd01c0407b425b988dde650a8dc1a737433baa3cd432","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"e3e165f69376430cd8ca49fc9f23263e3de5bf9c4af97309624c2faaba94193b","targetLocale":"he"} -->
 
 <!-- Generated by `node scripts/docs-reference.mjs`. Do not edit. -->
 
-ברגע שהמיזוג של המסלולים מאוזן, ערבובם למסלול אחד הופך את הפרויקט לקל יותר לעבודה ומעניק קליפ יחיד לייצוא או להעברה למקום אחר. הערבוב משתמש ברמת הגל (gain), הפנורמה, האוטומציה והאפקטים של כל מסלול שנבחר. השתקה (Mute) ובידוד (Solo) מתעלמים ממסלולים שנבחרו במהלך פעולה זו, בעוד שהעיבוד הראשי נשאר פעיל.
+כאשר מסלול של מסלולים מאוזן, ערבובם למסלול אחד הופך את הפרויקט לקל יותר לעבודה ומספק לך קליפ יחיד לייצוא או להעברה למקום אחר. הערבוב משתמש ברווח, בפן, באוטומציה ובאפקטים של כל מסלול נבחר. השתקה וסולו מתעלמים ממסלולים נבחרים במהלך פעולה זו, ועיבוד המאסטר נשאר חי. 
 
-:::note[מגיעים מ-Audacity?]
-זהו הפקודת **Tracks → Mix → Mix and Render** של Audacity. השמות להלן הם של Soundscaper בלבד, והם עשויים להיות שונים.
+:::note[מגיע מ-Audacity?]
+זהו **מסלולים → ערבוב → ערבוב והצגה** של Audacity. השמות למטה הם של Soundscaper, אשר לפעמים שונים.
 :::
 
 ## שלבים
 
-1. פתח את Soundscaper. פרויקט חדש וריק מוכן מיד עם טעינת העורך.
-2. בחר **File → Import audio** ובחר את החלק הראשון. הקובץ נחת כקליפ במסלול משלו.
-3. בחר **File → Import audio** ובחר את החלק השני. הקובץ נחת כקליפ במסלול משלו.
-4. לחץ על סרגל השם של הקליפ הראשון, ואז החזק את Shift ולחץ על סרגל השם של הקליפ השני, כך ששניהם ייבחרו. כל מסלול עם קליפ שנבחר נכנס לערבוב.
-5. בחר **Tracks → Mix & Render**. בחלון הדיאלוג **Mix & Render**, השאר את **Mix down**, **Render effects** ו-**Replace originals** מסומנים, בחר **Stereo** עבור **Mix down to**, ואז לחץ על **Mix & Render**.
-6. הפרויקט מציג כעת קליפ בשם **Mix**.
-   *מה שצריך להיראות:* מסלול אחד מכיל קליפ בשם Mix; מסלולי המקור נעלמו.
+1. פתח את Soundscaper. פרויקט חדש וריק מוכן ברגע שהעורך נטען.
+2. בחר **קובץ → ייבוא** ובחר את החלק הראשון. הוא נוחת כקליפ במסלול שלו.
+3. בחר **קובץ → ייבוא** ובחר את החלק השני. הוא נוחת כקליפ במסלול שלו.
+4. לחץ על שורת השם של הקליפ הראשון, ואז החזק Shift ולחץ על שורת השם של הקליפ השני, כך ששניהם נבחרו. כל מסלול עם קליפ נבחר נכנס לערבוב.
+5. בחר **מסלולים → ערבוב והצגה**. בדיאלוג **ערבוב והצגה**, השאירו את **ערבוב למטה**, **הצגת אפקטים** ו-**החלפת המקוריים** מסומנים, בחרו **סטריאו** עבור **ערבוב למטה ל**, ואז לחצו על **ערבוב והצגה**.
+6. הפרויקט כעת מציג קליפ בשם **ערבוב**.
+   *עליך לראות:* מסלול יחיד מחזיק קליפ בשם ערבוב; המסלולים המקוריים נעלמו.
 
 ## טיפים
 
-- בחר **Mono**, **Stereo**, או פריסת רב-ערוצית שהוגדרה בפרויקט תחת **Mix down to** לפני הרנדור.
-- **Edit → Undo** מחזיר את המסלולים המקוריים אם אתה צריך לשנות את האיזון.
-- אין צורך לערבב כדי לייצא. **File → Export audio** מרנדר את כל הפרויקט בפני עצמו.
+- בחר **מונו**, **סטריאו** או תצורת ערוצים מרובים של הפרויקט תחת **ערבוב למטה ל** לפני ההצגה.
+- **עריכה → ביטול** מחזירה את המסלולים המקוריים אם תצטרך לשנות את האיזון.
+- אין צורך לערבב למטה לייצוא. **קובץ → ייצוא אודיו** מציג את כל הפרויקט לבדו.
 
 ## מדריכים קשורים
 
-עוד [מסלולים וייצוא](/guides/tracks-and-export/) מדריכים:
+עוד מדריכים על [מסלולים וייצוא](/guides/tracks-and-export/):
 
-- [פילול מסלול סטריאו לשני מסלולי מונו](/guides/tracks-and-export/split-stereo-into-mono-tracks/) — הפרד את ערוצי השמאל והימין כך שכל אחד יוכל לעורר בנפרד.
-- [יצירת טון בדיקה](/guides/tracks-and-export/generate-a-test-tone/) — יצירת גל סינוס בתדר ובאורך קבועים מאפס.
-- [ייצוא MP3](/guides/tracks-and-export/export-an-mp3/) — רנדור הפרויקט לקובץ MP3 לשתף או לפרסום.
-- [ייצוא WAV](/guides/tracks-and-export/export-a-wav/) — רנדור הפרויקט לקובץ WAV ללא דחיסה.
-- [השתקה ובידוד מסלולים](/guides/tracks-and-export/mute-and-solo-tracks/) — השתקת מסלול, או האזנה למסלול אחד בלבד, בעוד שאתה עובד על ערבוב.
+- [פיצול מסלול סטריאו לשני מסלולים מונו](/guides/tracks-and-export/split-stereo-into-mono-tracks/) — הפרדת הערוצים השמאלי והימני כך שכל אחד ניתן לעריכה בנפרד.
+- [יצירת טון בדיקה](/guides/tracks-and-export/generate-a-test-tone/) — יצירת גל סינוס בתדר ואורך מוגדרים מאפס.
+- [ייצוא MP3](/guides/tracks-and-export/export-an-mp3/) — הצגת הפרויקט לקובץ MP3 לשיתוף או פרסום.
+- [ייצוא WAV](/guides/tracks-and-export/export-a-wav/) — הצגת הפרויקט לקובץ WAV לא דחוס.
+- [השתקת מסלולים וסולו](/guides/tracks-and-export/mute-and-solo-tracks/) — השתקת מסלול, או האזנה למסלול אחד לבדו, בזמן שאתה עובד על ערבוב.
 - [הוספת מסלול ריק](/guides/tracks-and-export/add-an-empty-track/) — יצירת מסלול חדש להקלטה או להדבקה.
-- [השתקת כל המסלולים בבת אחת](/guides/tracks-and-export/mute-every-track-at-once/) — השתקת כל הפרויקט בשלב אחד, ואז החזרתו כולו.
-- [ערבוב מסלולים למסלול חדש ושמירה על המקוריים](/guides/tracks-and-export/mix-tracks-into-a-new-track/) — רנדור ערבוב של מספר מסלולים למסלול חדש בעוד המקורות נשארים בפרויקט.
-- [איזון מסלולים במערבל](/guides/tracks-and-export/balance-tracks-in-the-mixer/) — פתיחת קונסולת ערבוב עם רצועת ערוץ לכל מסלול להגדרת רמות ופנורמות צד לצד.
+- [השתקת כל המסלולים בבת אחת](/guides/tracks-and-export/mute-every-track-at-once/) — השתקת הפרויקט כולו בצעד אחד, ואז החזרתו.
+- [ערבוב מסלולים למסלול חדש ושמירת המקוריים](/guides/tracks-and-export/mix-tracks-into-a-new-track/) — הצגת ערבוב של מספר מסלולים למסלול חדש בעוד המקורות נשארים בפרויקט.
+- [איזון מסלולים במיקסר](/guides/tracks-and-export/balance-tracks-in-the-mixer/) — פתיחת קונסולת ערבוב עם רצועת ערוצים לכל מסלול להגדרת רמות ופן זה לצד זה.
 
-## אודות מדריך זה
+## על המדריך הזה
 
-ההליך בעמוד זה — כל פריט תפריט, דיאלוג, שדה וכפתור, והתוצאה שהוא מייצר — מושמע מחדש מול כל בנייה של Soundscaper על ידי סוויט הדפדפן (`tests/browser/soundscaper-guides.spec.js`). אם כל אחד מהם מפסיק להתאים לעורך, הבנייה נכשלת עד שהמדריך יתוקן. הערכים המוצעים הם נקודות פתיחה שהעורך הוכח כמקבל אותן; האם הם מתאימים להקלטה שלך תלוי באוזניך להחליט.
+ההליך בדף זה — כל פריט תפריט, דיאלוג, שדה וכפתור, והתוצאה שהוא מייצר — מופעל מחדש מול כל בנייה של Soundscaper על ידי סוויטת הדפדפן (`tests/browser/soundscaper-guides.spec.js`). אם חלק ממנו מפסיק להתאים לעורך, הבנייה נכשלת עד לתיקון המדריך. הערכים המוצעים הם נקודות התחלה שהעורך מוכיח לקבל; האם הם מתאימים להקלטה שלך הוא עניין לאוזניך להחליט.

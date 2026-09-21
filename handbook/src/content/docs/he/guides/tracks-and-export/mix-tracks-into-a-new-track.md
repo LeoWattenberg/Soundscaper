@@ -1,6 +1,6 @@
 ---
-title: "ערבוב רצועות לרצועה חדשה תוך שמירה על המקוריות"
-description: "עיבוד תערובת של מספר רצועות לרצועה חדשה, בעוד המקורות נשארים בפרויקט."
+title: "ערבוב מסלולים למסלול חדש ושמירה על המקוריים"
+description: "יצירת מסלול חדש המכיל ערבוב של מספר מסלולים, בעוד המסלולים המקוריים נשארים בפרויקט."
 editUrl: false
 sidebar:
   order: 9
@@ -8,47 +8,47 @@ head:
   - tag: script
     attrs:
       type: "application/ld+json"
-    content: "{\"@context\":\"https://schema.org\",\"@type\":\"HowTo\",\"name\":\"Mix tracks into a new track and keep the originals\",\"description\":\"Render a mix of several tracks onto a new track while the sources stay in the project.\",\"tool\":[{\"@type\":\"HowToTool\",\"name\":\"Soundscaper\"}],\"step\":[{\"@type\":\"HowToStep\",\"position\":1,\"name\":\"Open Soundscaper. A new, empty project is ready as soon as the editor loads.\",\"text\":\"Open Soundscaper. A new, empty project is ready as soon as the editor loads.\"},{\"@type\":\"HowToStep\",\"position\":2,\"name\":\"Choose File → Import audio and pick the first track to mix. The file lands as a clip on its own track.\",\"text\":\"Choose File → Import audio and pick the first track to mix. The file lands as a clip on its own track.\"},{\"@type\":\"HowToStep\",\"position\":3,\"name\":\"Choose File → Import audio and pick the second track to mix. The file lands as a clip on its own track.\",\"text\":\"Choose File → Import audio and pick the second track to mix. The file lands as a clip on its own track.\"},{\"@type\":\"HowToStep\",\"position\":4,\"name\":\"Click the name bar of the first clip, then hold Shift and click the name bar of the second clip, so both are selected.\",\"text\":\"Click the name bar of the first clip, then hold Shift and click the name bar of the second clip, so both are selected. Every track with a selected clip goes into the mix.\"},{\"@type\":\"HowToStep\",\"position\":5,\"name\":\"Choose Tracks → Mix & Render. In the Mix & Render dialog, leave Mix down and Render effects checked, turn off Replace originals, choose Stereo for Mix down to, then press Mix & Render.\",\"text\":\"Choose Tracks → Mix & Render. In the Mix & Render dialog, leave Mix down and Render effects checked, turn off Replace originals, choose Stereo for Mix down to, then press Mix & Render.\"},{\"@type\":\"HowToStep\",\"position\":6,\"name\":\"A new track under the originals holds a clip named Mix, and the original clips are still where they were.\",\"text\":\"A new track under the originals holds a clip named Mix, and the original clips are still where they were. Three clips: the two you started with and the mix.\"}]}"
+    content: "{\"@context\":\"https://schema.org\",\"@type\":\"HowTo\",\"name\":\"Mix tracks into a new track and keep the originals\",\"description\":\"Render a mix of several tracks onto a new track while the sources stay in the project.\",\"tool\":[{\"@type\":\"HowToTool\",\"name\":\"Soundscaper\"}],\"step\":[{\"@type\":\"HowToStep\",\"position\":1,\"name\":\"Open Soundscaper. A new, empty project is ready as soon as the editor loads.\",\"text\":\"Open Soundscaper. A new, empty project is ready as soon as the editor loads.\"},{\"@type\":\"HowToStep\",\"position\":2,\"name\":\"Choose File → Import and pick the first track to mix. It lands as a clip on its own track.\",\"text\":\"Choose File → Import and pick the first track to mix. It lands as a clip on its own track.\"},{\"@type\":\"HowToStep\",\"position\":3,\"name\":\"Choose File → Import and pick the second track to mix. It lands as a clip on its own track.\",\"text\":\"Choose File → Import and pick the second track to mix. It lands as a clip on its own track.\"},{\"@type\":\"HowToStep\",\"position\":4,\"name\":\"Click the name bar of the first clip, then hold Shift and click the name bar of the second clip, so both are selected.\",\"text\":\"Click the name bar of the first clip, then hold Shift and click the name bar of the second clip, so both are selected. Every track with a selected clip goes into the mix.\"},{\"@type\":\"HowToStep\",\"position\":5,\"name\":\"Choose Tracks → Mix & Render. In the Mix & Render dialog, leave Mix down and Render effects checked, turn off Replace originals, choose Stereo for Mix down to, then press Mix & Render.\",\"text\":\"Choose Tracks → Mix & Render. In the Mix & Render dialog, leave Mix down and Render effects checked, turn off Replace originals, choose Stereo for Mix down to, then press Mix & Render.\"},{\"@type\":\"HowToStep\",\"position\":6,\"name\":\"A new track under the originals holds a clip named Mix, and the original clips are still where they were.\",\"text\":\"A new track under the originals holds a clip named Mix, and the original clips are still where they were. Three clips: the two you started with and the mix.\"}]}"
 ---
-<!-- docs-ai-provenance: {"factPacketSha256":"2509e4de7079761304d0dcefb76634478608a4a61925bbbe411587b9afb883cb","model":"qwen3.8:latest","modelDigest":"22130167c4c20e20c7b71454612966ca8e8171e9b3cc8ab6ce8aa6cbfec79643","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"2509e4de7079761304d0dcefb76634478608a4a61925bbbe411587b9afb883cb","targetLocale":"he"} -->
+<!-- docs-ai-provenance: {"factPacketSha256":"04ea60929a4ea39e8f423889db1d214a0b0b91877e92306a9f74812476d14098","model":"aya-expanse:32b","modelDigest":"1603440383bd5504dc7afd01c0407b425b988dde650a8dc1a737433baa3cd432","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"04ea60929a4ea39e8f423889db1d214a0b0b91877e92306a9f74812476d14098","targetLocale":"he"} -->
 
 <!-- Generated by `node scripts/docs-reference.mjs`. Do not edit. -->
 
-בדרך כלל, ערבוב של מסלולים כלפי מטה מחליף אותם, מה שמתאים למיזם מוגמר אך לא כאשר עדיין יש צורך בהתאמת החלקים. כיבוי האפשרות Replace originals בתיבת הדיאלוג Mix & Render מייצר את הערבוב — כולל רמות, פאנים ואפקטים בזמן אמת — על מסלול חדש ומשאיר כל מסלול מקור במקומו, כך שניתן להשוות, להמשיך לערוך, או להשתק את המקורות ולהמשיך עם הערבוב הסטריאו. Audacity 3 סיפקה זאת כ-Mix and Render to New Track; ב-Audacity 4 אין פקודה כזו.
+ערבוב מסלולים בדרך כלל מחליף אותם, מה שמתאים למיטה גמורה אך לא כאשר ייתכן שתרצה עדיין להתאים את החלקים. כיבוי החלפת המקור בדיאלוג ערבוב והצגה מציג את הערבוב - רווחים, פנורמות ואפקטים בזמן אמת כלולים - על מסלול חדש ומשאיר כל מסלול מקור במקום שבו הוא היה, כך שתוכל להשוות, להמשיך לערוך, או להשתיק את המקורות ולהמשיך עם ערבוב הסטריאו. Audacity 3 הציע זאת כערבוב והצגה למסלול חדש; ל-Audacity 4 אין את הפקודה הזו.
 
-:::note[מגיעים מ-Audacity?]
-זהו הפקודת **Tracks → Mix → Mix and Render to New Track (Audacity 3; ב-Audacity 4 אין Mix and Render)** של Audacity. השמות להלן הם של Soundscaper, והם עשויים להיות שונים לעיתים.
+:::note[מגיע מ-Audacity?]
+זהו **מסלולים → ערבוב → ערבוב והצגה למסלול חדש (Audacity 3; ל-Audacity 4 אין ערבוב והצגה)**. השמות למטה הם של Soundscaper, שלפעמים שונים.
 :::
 
 ## שלבים
 
-1. פתחו את Soundscaper. פרויקט חדש וריק מוכן מיד לאחר שהעורך נטען.
-2. בחרו **File → Import audio** ובחרו את המסלול הראשון לערבוב. הקובץ נחת כקליפ על מסלול משלו.
-3. בחרו **File → Import audio** ובחרו את המסלול השני לערבוב. הקובץ נחת כקליפ על מסלול משלו.
-4. לחצו על סרגל השם של הקליפ הראשון, ואז החזיקו את Shift ולחצו על סרגל השם של הקליפ השני, כך ששניהם ייבחרו. כל מסלול עם קליפ נבחר נכנס לערבוב.
-5. בחרו **Tracks → Mix & Render**. בתיבת הדיאלוג **Mix & Render**, השאירו את **Mix down** ו-**Render effects** מסומנים, כיבו את **Replace originals**, בחרו **Stereo** עבור **Mix down to**, ואז לחצו **Mix & Render**.
-6. מסלול חדש מתחת למקוריים מכיל קליפ בשם **Mix**, והקליפים המקוריים נשארו במקומם.
-   *מה שצריך להיראות:* שלושה קליפים: שני המקוריים והערבוב.
+1. פתח את Soundscaper. פרויקט חדש וריק מוכן ברגע שהעורך נטען.
+2. בחר **קובץ → יבוא** ובחר את המסלול הראשון לערבוב. הוא נוחת כקליפ במסלול שלו.
+3. בחר **קובץ → יבוא** ובחר את המסלול השני לערבוב. הוא נוחת כקליפ במסלול שלו.
+4. לחץ על שורת השם של הקליפ הראשון, ואז החזק Shift ולחץ על שורת השם של הקליפ השני, כך ששניהם נבחרו. כל מסלול עם קליפ נבחר נכנס לערבוב.
+5. בחר **מסלולים → ערבוב והצגה**. בדיאלוג **ערבוב והצגה**, השאירו את **ערבוב למטה** ו-**הצגת אפקטים** מסומנים, כבו את **החלפת המקור**, בחרו **סטריאו** עבור **ערבוב למטה ל**, ואז לחצו על **ערבוב והצגה**.
+6. מסלול חדש מתחת למקור מחזיק קליפ בשם **ערבוב**, והקליפים המקוריים עדיין במקום שבו הם היו.
+   *אתה אמור לראות:* שלושה קליפים: שניים שהתחלת איתם והערבוב.
 
 ## טיפים
 
-- השתקו את מסלולי המקור כדי לשמוע את הערבוב לבדו; אחרת שניהם יושמעו.
-- כדי להחליף את המקורות בערבוב במקום זאת, השאירו את **Replace originals** דלוק: [ערבוב מספר מסלולים לאחד](/guides/tracks-and-export/mix-tracks-into-one/).
+- השתק את מסלולי המקור כדי לשמוע את הערבוב לבדו; אחרת שניהם מנגנים.
+- כדי להחליף את המקורות עם הערבוב במקום זאת, השאירו את **החלפת המקור** פועלת: [ערבוב מספר מסלולים למסלול אחד](/guides/tracks-and-export/mix-tracks-into-one/).
 
 ## מדריכים קשורים
 
-עוד [מסלולים וייצוא](/guides/tracks-and-export/) מדריכים:
+מדריכים נוספים על [מסלולים וייצוא](/guides/tracks-and-export/):
 
-- [ערבוב מספר מסלולים לאחד](/guides/tracks-and-export/mix-tracks-into-one/) — יצירת הערבוב של המסלולים הנבחרים למסלול יחיד.
-- [פיצול מסלול סטריאו לשני מסלולים מונו](/guides/tracks-and-export/split-stereo-into-mono-tracks/) — הפרדת ערוצי שמאל וימין כך שכל אחד יוכל לערוך בנפרד.
-- [יצירת טון בדיקה](/guides/tracks-and-export/generate-a-test-tone/) — יצירת גל סינוס בתדר ואורך קבועים מאפס.
-- [ייצוא MP3](/guides/tracks-and-export/export-an-mp3/) — יצירת הפרויקט לקובץ MP3 לשיתוף או פרסום.
-- [ייצוא WAV](/guides/tracks-and-export/export-a-wav/) — יצירת הפרויקט לקובץ WAV ללא דחיסה.
-- [השתקה וסולו של מסלולים](/guides/tracks-and-export/mute-and-solo-tracks/) — השתקת מסלול, או האזנה למסלול אחד בלבד, בעודכם עובדים על ערבוב.
+- [ערבוב מספר מסלולים למסלול אחד](/guides/tracks-and-export/mix-tracks-into-one/) — הצג את המסלולים הנבחרים למסלול יחיד.
+- [פיצול מסלול סטריאו לשני מסלולים מונו](/guides/tracks-and-export/split-stereo-into-mono-tracks/) — הפרדת הערוצים השמאלי והימני כך שכל אחד ניתן לעריכה בנפרד.
+- [יצירת טון בדיקה](/guides/tracks-and-export/generate-a-test-tone/) — יצירת גל סינוס בתדר ואורך מוגדרים מאפס.
+- [ייצוא MP3](/guides/tracks-and-export/export-an-mp3/) — הצג את הפרויקט לקובץ MP3 לשיתוף או פרסום.
+- [ייצוא WAV](/guides/tracks-and-export/export-a-wav/) — הצג את הפרויקט לקובץ WAV לא דחוס.
+- [השתקת וסולו מסלולים](/guides/tracks-and-export/mute-and-solo-tracks/) — השתק מסלול, או שמע מסלול אחד בעצמו, בזמן שאתה עובד על ערבוב.
 - [הוספת מסלול ריק](/guides/tracks-and-export/add-an-empty-track/) — יצירת מסלול חדש להקלטה או להדבקה.
-- [השתקת כל המסלולים בבת אחת](/guides/tracks-and-export/mute-every-track-at-once/) — השתקת כל הפרויקט בשלב אחד, ואז החזרתו.
-- [איזון מסלולים במיקסר](/guides/tracks-and-export/balance-tracks-in-the-mixer/) — פתיחת קונסולת ערבוב עם רצועת ערוץ לכל מסלול להגדרת רמות ופאנים זה לצד זה.
+- [השתקת כל המסלולים בבת אחת](/guides/tracks-and-export/mute-every-track-at-once/) — השתק את כל הפרויקט בצעד אחד, ואז החזר הכל.
+- [איזון מסלולים במיקסר](/guides/tracks-and-export/balance-tracks-in-the-mixer/) — פתח קונסולת מיקס עם רצועת ערוצים לכל מסלול כדי להגדיר רמות ופנורמות זו לצד זו.
 
-## אודות מדריך זה
+## על המדריך הזה
 
-ההליך בדף זה — כל פריט תפריט, דיאלוג, שדה וכפתור, והתוצאה שהוא מייצר — מושמע מחדש מול כל בנייה של Soundscaper על ידי סוויט הדפדפן (`tests/browser/soundscaper-guides.spec.js`). אם כל אחד מהם מפסיק להתאים לעורך, הבנייה נכשלת עד שהמדריך יתוקן. הערכים המוצעים הם נקודות פתיחה שהעורך הוכח כמקבל אותן; האם הם מתאימים להקלטה שלכם תלוי באוזניים שלכם.
+ההליך בעמוד זה — כל פריט תפריט, דיאלוג, שדה וכפתור, והתוצאה שהוא מייצר — מופעל מחדש מול כל בנייה של Soundscaper על ידי סוויטת הדפדפן (`tests/browser/soundscaper-guides.spec.js`). אם חלק ממנו מפסיק להתאים לעורך, הבנייה נכשלת עד לתיקון המדריך. הערכים המוצעים הם נקודות התחלה שהעורך הוכח כמקבל; האם הם מתאימים להקלטה שלך הוא עניין לאוזניים שלך להחליט.
