@@ -2,12 +2,12 @@
 
 import {
 	createTakeCompDocumentGroupsV17,
+	projectTakeCompDocumentGroupToCore,
 	type TakeCompDocumentGroup,
 } from '../take-comp-document-v17.ts';
 import {
 	normalizeTakeCompGroupId,
 	planTakeCompFlatten,
-	type TakeCompGroup,
 } from '../take-comp-domain.ts';
 import { isTakeCompProjectSchema } from '../project-schema-version.ts';
 import {
@@ -107,7 +107,7 @@ function flattenGroup(
 	if (!normalizedSnapshot || !sameData(normalizedSnapshot, group)) {
 		throw new RangeError(`Take group ${groupId} changed after flatten rendering began.`);
 	}
-	const plan = planTakeCompFlatten(coreGroup(group), {
+	const plan = planTakeCompFlatten(projectTakeCompDocumentGroupToCore(group), {
 		operationId: command.operationId,
 		outputId: command.outputId,
 	});
@@ -115,18 +115,6 @@ function flattenGroup(
 	dispatchChild(project, { type: 'source/add', source: command.source });
 	dispatchChild(project, { type: 'clip/add', trackId: group.trackId, clip: command.clip });
 	replaceGroups(project, current.filter((candidate) => candidate.id !== groupId));
-}
-
-function coreGroup(group: TakeCompDocumentGroup): TakeCompGroup {
-	return {
-		id: group.id,
-		startSample: group.startSample,
-		endSample: group.endSample,
-		laneOrder: group.laneOrder,
-		lanes: group.lanes,
-		takes: group.takes.map(({ id, laneId }) => ({ id, laneId })),
-		compRegions: group.compRegions,
-	};
 }
 
 function assertPublication(

@@ -27,6 +27,10 @@ import {
 	createAudioEditorProjectV17,
 	type AudioEditorProjectV17,
 } from '../src/common/editor/project-v17.ts';
+import {
+	projectTakeCompDocumentGroupToCore,
+	type TakeCompDocumentGroup,
+} from '../src/common/editor/take-comp-document-v17.ts';
 import { createSoundscaperProject } from '../src/soundscaper/editor-project.ts';
 
 const NOW = '2026-08-12T12:00:00.000Z';
@@ -73,6 +77,23 @@ function project(takeGroups: readonly unknown[] = [group()], locked = false): Au
 		takeGroups,
 	});
 }
+
+test('take-comp document projection has one core-domain authority', () => {
+	const document = group() as unknown as TakeCompDocumentGroup;
+	const core = projectTakeCompDocumentGroupToCore(document);
+	assert.deepEqual(core, {
+		id: 'group-a', startSample: 100, endSample: 500,
+		laneOrder: ['lane-a', 'lane-b'],
+		lanes: [{ id: 'lane-a' }, { id: 'lane-b' }],
+		takes: [{ id: 'take-a', laneId: 'lane-a' }, { id: 'take-b', laneId: 'lane-b' }],
+		compRegions: [{
+			id: 'original', takeId: 'take-a', startSample: 100, endSample: 500,
+		}],
+	});
+	assert.equal(core.lanes, document.lanes);
+	assert.notEqual(core.takes, document.takes);
+	assert.equal(core.compRegions, document.compRegions);
+});
 
 test('serializable V17 commands create, replace, and remove canonical take groups fail-closed', () => {
 	const empty = project([]);

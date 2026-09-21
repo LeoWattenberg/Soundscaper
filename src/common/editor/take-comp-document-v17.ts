@@ -23,6 +23,19 @@ export interface TakeCompDocumentGroup extends Omit<TakeCompGroup, 'takes'> {
 	readonly takes: readonly TakeCompDocumentTake[];
 }
 
+/** Project persisted media-enriched take state onto the pure comp-planning domain. */
+export function projectTakeCompDocumentGroupToCore(group: TakeCompDocumentGroup): TakeCompGroup {
+	return {
+		id: group.id,
+		startSample: group.startSample,
+		endSample: group.endSample,
+		laneOrder: group.laneOrder,
+		lanes: group.lanes,
+		takes: group.takes.map(({ id, laneId }) => ({ id, laneId })),
+		compRegions: group.compRegions,
+	};
+}
+
 type DataRecord = Readonly<Record<string, unknown>>;
 
 interface DocumentContext {

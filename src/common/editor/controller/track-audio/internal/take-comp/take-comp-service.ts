@@ -3,6 +3,7 @@
 import type { AudioEditorCommand, CommandObject } from '../../../../commands/protocol.ts';
 import {
 	createTakeCompDocumentGroupsV17,
+	projectTakeCompDocumentGroupToCore,
 	type TakeCompDocumentGroup,
 } from '../../../../take-comp-document-v17.ts';
 import {
@@ -118,7 +119,7 @@ export function createTakeCompService(
 
 	function auditionTake(groupId: string, takeId: string): TakeAuditionPlan {
 		const group = readableGroup(groupId);
-		return planTakeAudition(coreGroup(group), takeId);
+		return planTakeAudition(projectTakeCompDocumentGroupToCore(group), takeId);
 	}
 
 	function auditionLane(groupId: string, laneIdValue: string): TakeLaneAuditionPlan {
@@ -129,7 +130,7 @@ export function createTakeCompService(
 		}
 		const takes = group.takes
 			.filter((take) => take.laneId === laneId)
-			.map((take) => planTakeAudition(coreGroup(group), take.id));
+			.map((take) => planTakeAudition(projectTakeCompDocumentGroupToCore(group), take.id));
 		return Object.freeze({
 			kind: 'audition-lane', groupId: group.id, laneId,
 			takes: Object.freeze(takes),
@@ -137,20 +138,29 @@ export function createTakeCompService(
 	}
 
 	function promoteTake(groupId: string, request: TakePromotionRequest): unknown {
-		return updateFromPlan(groupId, (group) => planTakePromotion(coreGroup(group), request).nextGroup);
+		return updateFromPlan(groupId, (group) => (
+			planTakePromotion(projectTakeCompDocumentGroupToCore(group), request).nextGroup
+		));
 	}
 
 	function editCompBoundary(groupId: string, request: CompRegionBoundaryEditRequest): unknown {
-		return updateFromPlan(groupId, (group) => planCompRegionBoundaryEdit(coreGroup(group), request).nextGroup);
+		return updateFromPlan(groupId, (group) => (
+			planCompRegionBoundaryEdit(projectTakeCompDocumentGroupToCore(group), request).nextGroup
+		));
 	}
 
 	function editSharedCompBoundary(groupId: string, request: SharedCompBoundaryEditRequest): unknown {
-		return updateFromPlan(groupId, (group) => planSharedCompBoundaryEdit(coreGroup(group), request).nextGroup);
+		return updateFromPlan(groupId, (group) => (
+			planSharedCompBoundaryEdit(projectTakeCompDocumentGroupToCore(group), request).nextGroup
+		));
 	}
 
 	function prepareFlatten(groupId: string, operationId: string, outputId: string): PreparedTakeCompFlatten {
 		const group = readableGroup(groupId);
-		const renderPlan = planTakeCompFlatten(coreGroup(group), { operationId, outputId });
+		const renderPlan = planTakeCompFlatten(
+			projectTakeCompDocumentGroupToCore(group),
+			{ operationId, outputId },
+		);
 		return Object.freeze({ renderPlan, documentSnapshot: group });
 	}
 
@@ -229,18 +239,6 @@ function assertTrackWritable(project: TakeCompProject, trackId: string): void {
 	const track = project.tracks.find((candidate) => candidate.id === trackId);
 	if (!track) throw new ReferenceError(`Unknown take group track: ${trackId}.`);
 	if (track.locked === true) throw new RangeError(`Track ${trackId} is locked.`);
-}
-
-function coreGroup(group: TakeCompDocumentGroup): TakeCompGroup {
-	return {
-		id: group.id,
-		startSample: group.startSample,
-		endSample: group.endSample,
-		laneOrder: group.laneOrder,
-		lanes: group.lanes,
-		takes: group.takes.map(({ id, laneId }) => ({ id, laneId })),
-		compRegions: group.compRegions,
-	};
 }
 
 function documentGroupWithCore(
