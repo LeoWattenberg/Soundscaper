@@ -9,6 +9,7 @@ import { DESKTOP_AUDACITY_EFFECT_RUNTIME_FILES } from './desktop-audacity-effect
 import { stageDesktopBundledAudioRuntime } from './desktop-bundled-audio-runtime.mjs';
 import { DESKTOP_EXTERNAL_FFMPEG_RUNTIME_FILES } from './desktop-external-ffmpeg-runtime-files.mjs';
 import { DESKTOP_MIXER_RUNTIME_FILES } from './desktop-mixer-runtime-files.mjs';
+import { DESKTOP_PROJECT_RUNTIME_FILES } from './desktop-project-runtime-files.mjs';
 import { DESKTOP_PROJECT_LIBRARY_BASELINE_RUNTIME_FILES } from './desktop-project-library-baseline-runtime-files.mjs';
 import { DESKTOP_SOUNDSCAPER_RUNTIME_FILES } from './desktop-soundscaper-runtime-files.mjs';
 import { DESKTOP_EFFECT_RUNTIME_FILES } from './desktop-effect-runtime-files.mjs';
@@ -179,28 +180,7 @@ export const DESKTOP_EXPECTED_RUNTIME_FILES = Object.freeze([
 	'src/common/editor/musical-map-contract.js',
 	'src/common/editor/pcm-chunks.js',
 	'src/common/editor/persisted-audio-effect-validation.js',
-	'src/common/editor/project-bext-metadata.js',
-	'src/common/editor/project-feature-capabilities.js',
-	'src/common/editor/project-feature-capability-profile.js',
-	'src/common/editor/project-feature-requirement-types.js',
-	'src/common/editor/project-feature-requirements.js',
-	'src/common/editor/project-owned-feature-requirements.js',
-	'src/common/editor/project-revision-cas.js',
-	'src/common/editor/project-runtime-profile-prerequisite.js',
-	'src/common/editor/project-runtime-profile.js',
-	'src/common/editor/project-sample-rate.js',
-	'src/common/editor/project-schema-version.js',
-	'src/common/editor/project-audio-warp-validation.js',
-	'src/common/editor/project-foundation-take-graph.js',
-	'src/common/editor/project-foundation-validation.js',
-	'src/common/editor/project-hierarchy-document-validation.js',
-	'src/common/editor/project-track-lock-validation.js',
-	'src/common/editor/project-v17-validation.js',
-	'src/common/editor/project-document-validation.js',
-	'src/common/editor/project-media-validation.js',
-	'src/common/editor/project-media-types.js',
-	'src/common/editor/project-validation-budget.js',
-	'src/common/editor/project-validation-primitives.js',
+	...DESKTOP_PROJECT_RUNTIME_FILES,
 	'src/common/editor/required-array-entry.js',
 	'src/common/editor/routing-cycle-v21.js',
 	'src/common/editor/runtime-clip-projection.js',
@@ -270,10 +250,6 @@ export const DESKTOP_EXPECTED_RUNTIME_FILES = Object.freeze([
 	'src/common/editor/parameter-address.js',
 	'src/common/editor/pcm-dither.js',
 	'src/common/editor/pffft.js',
-	'src/common/editor/project-current-runtime.js',
-	'src/common/editor/project-command-projection.js',
-	'src/common/editor/project-effect-tail-v21.js',
-	'src/common/editor/project-hierarchy-reconcile.js',
 	'src/common/editor/project.js',
 	'src/common/editor/reviewed-effects/catalog.js',
 	'src/common/editor/reviewed-effects/errors.js',
@@ -336,7 +312,6 @@ export const DESKTOP_EXPECTED_RUNTIME_FILES = Object.freeze([
 	'src/common/editor/native-watch-reconciliation.js',
 	'src/common/editor/native-watch-rule.js',
 	'src/common/editor/platform/bounded-transfer.js',
-	'src/common/editor/project-publication-admission.js',
 	'src/common/editor/publication-byte-estimates.js',
 	'src/common/editor/sequence-frame-navigation.js',
 	'src/common/editor/unified-exact-render-identity-authority.js',

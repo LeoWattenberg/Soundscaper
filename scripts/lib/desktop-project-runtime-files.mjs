@@ -1,0 +1,32 @@
+/* SPDX-License-Identifier: AGPL-3.0-only */
+
+/** Shared project authorities shipped in the compiled desktop runtime. */
+export const DESKTOP_PROJECT_RUNTIME_FILES = Object.freeze([
+	'src/common/editor/project-audio-warp-validation.js',
+	'src/common/editor/project-bext-metadata.js',
+	'src/common/editor/project-command-projection.js',
+	'src/common/editor/project-current-runtime.js',
+	'src/common/editor/project-document-validation.js',
+	'src/common/editor/project-effect-tail-v21.js',
+	'src/common/editor/project-feature-capabilities.js',
+	'src/common/editor/project-feature-capability-profile.js',
+	'src/common/editor/project-feature-requirement-types.js',
+	'src/common/editor/project-feature-requirements.js',
+	'src/common/editor/project-foundation-take-graph.js',
+	'src/common/editor/project-foundation-validation.js',
+	'src/common/editor/project-hierarchy-document-validation.js',
+	'src/common/editor/project-hierarchy-reconcile.js',
+	'src/common/editor/project-media-types.js',
+	'src/common/editor/project-media-validation.js',
+	'src/common/editor/project-owned-feature-requirements.js',
+	'src/common/editor/project-publication-admission.js',
+	'src/common/editor/project-revision-cas.js',
+	'src/common/editor/project-runtime-profile-prerequisite.js',
+	'src/common/editor/project-runtime-profile.js',
+	'src/common/editor/project-sample-rate.js',
+	'src/common/editor/project-schema-version.js',
+	'src/common/editor/project-track-lock-validation.js',
+	'src/common/editor/project-v17-validation.js',
+	'src/common/editor/project-validation-budget.js',
+	'src/common/editor/project-validation-primitives.js',
+]);
