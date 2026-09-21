@@ -5,6 +5,7 @@ import type {
 	DedicatedAudioDecodeResult,
 	DedicatedAudioEncodeRequest,
 } from './browser-dedicated-audio-codec.ts';
+import { createNumericWorkerRequestBrokerBoundary } from './numeric-worker-request-broker-boundary.ts';
 import { WorkerRequestBroker } from './worker-request-broker.ts';
 
 type WorkerRequest = Readonly<{
@@ -59,7 +60,6 @@ type Operation = Readonly<{
 
 interface QueuedOperation {
 	readonly id: number;
-	readonly key: string;
 	readonly operation: Operation;
 }
 
@@ -68,6 +68,7 @@ export function createBrowserDedicatedAudioCodecClient(
 ): BrowserDedicatedAudioWorkerClient {
 	const createWorker = options.createWorker ?? defaultWorker;
 	const requests = new WorkerRequestBroker();
+	const numericRequests = createNumericWorkerRequestBrokerBoundary(requests);
 	const queued: QueuedOperation[] = [];
 	let worker: WorkerPort | null = null;
 	let active: QueuedOperation | null = null;
@@ -111,16 +112,16 @@ export function createBrowserDedicatedAudioCodecClient(
 	): Promise<Extract<WorkerResponse, { readonly status: 'ok' }>> {
 		if (disposed) return Promise.reject(disposedError());
 		const id = nextId++;
-		const item: QueuedOperation = { id, key: String(id), operation };
-		const result = requests.request<Extract<WorkerResponse, { readonly status: 'ok' }>, QueuedOperation>({
-			id: item.key,
+		const item: QueuedOperation = { id, operation };
+		const result = numericRequests.request<Extract<WorkerResponse, { readonly status: 'ok' }>, QueuedOperation>({
+			id: item.id,
 			context: item,
 			signal,
 			armOnRequest: false,
 			abortError: () => signal?.reason instanceof Error ? signal.reason : abortError(),
 			onAbort: () => cancel(item),
 		});
-		if (requests.has(item.key)) {
+		if (numericRequests.has(item.id)) {
 			queued.push(item);
 			pump();
 		}
@@ -134,7 +135,7 @@ export function createBrowserDedicatedAudioCodecClient(
 			while (!disposed && !active) {
 				const item = queued.shift();
 				if (!item) break;
-				if (!requests.has(item.key)) continue;
+				if (!numericRequests.has(item.id)) continue;
 				active = item;
 				let port: WorkerPort | null = null;
 				try {
@@ -150,10 +151,10 @@ export function createBrowserDedicatedAudioCodecClient(
 				} catch (error) {
 					if (active === item) {
 						active = null;
-						requests.reject(item.key, error);
+						numericRequests.reject(item.id, error);
 					}
 				}
-				if (active === item && requests.has(item.key)) break;
+				if (active === item && numericRequests.has(item.id)) break;
 			}
 		} finally {
 			pumping = false;
@@ -164,7 +165,7 @@ export function createBrowserDedicatedAudioCodecClient(
 	function acquirePort(item: QueuedOperation): WorkerPort | null {
 		if (worker) return worker;
 		const candidate = createPort();
-		if (disposed || active !== item || !requests.has(item.key)) {
+		if (disposed || active !== item || !numericRequests.has(item.id)) {
 			terminatePort(candidate);
 			return null;
 		}
@@ -213,8 +214,8 @@ export function createBrowserDedicatedAudioCodecClient(
 	): void {
 		if (active !== item) return;
 		active = null;
-		if (result instanceof Error) requests.reject(item.key, result);
-		else requests.resolve(item.key, result);
+		if (result instanceof Error) numericRequests.reject(item.id, result);
+		else numericRequests.resolve(item.id, result);
 		pump();
 	}
 
@@ -235,7 +236,7 @@ export function createBrowserDedicatedAudioCodecClient(
 		terminatePort(port);
 		const item = active;
 		active = null;
-		if (item) requests.reject(item.key, reason);
+		if (item) numericRequests.reject(item.id, reason);
 		pump();
 	}
 }

@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 import type { DedicatedAudioEncodeSessionRequest } from './dedicated-audio-encode-session.ts';
+import { createNumericWorkerRequestBrokerBoundary } from './numeric-worker-request-broker-boundary.ts';
 import { WorkerRequestBroker } from './worker-request-broker.ts';
 
 export type AudioEncodeStreamRequest = Readonly<{ id: number; operation: 'open'; request: DedicatedAudioEncodeSessionRequest }>
@@ -28,10 +29,11 @@ export async function openBrowserAudioEncodeStreamSession(
 	if (signal?.aborted) throw signal.reason ?? abortError();
 	const port = (options.createWorker ?? defaultWorker)();
 	const requests = new WorkerRequestBroker();
+	const numericRequests = createNumericWorkerRequestBrokerBoundary(requests);
 	let nextId = 1;
 	let closed = false;
 	let busy = false;
-	let pendingId: string | null = null;
+	let pendingId: number | null = null;
 	const onAbort = (): void => close(signal?.reason ?? abortError());
 	signal?.addEventListener('abort', onAbort, { once: true });
 	port.addEventListener('message', ({ data }) => {
@@ -40,15 +42,14 @@ export async function openBrowserAudioEncodeStreamSession(
 			close(new Error('The incremental encoder returned malformed output.'));
 			return;
 		}
-		const id = String(data.id);
-		if (id !== pendingId) {
+		if (data.id !== pendingId) {
 			close(new Error('The incremental encoder returned an unexpected response id.'));
 			return;
 		}
 		if (data.status === 'ok' && data.bytes instanceof ArrayBuffer && data.bytes.byteLength <= 1024 ** 2
 			&& (data.prefixPatch === undefined || data.prefixPatch instanceof ArrayBuffer && data.prefixPatch.byteLength <= 1024 ** 2)) {
 			pendingId = null;
-			requests.resolve(id, data);
+			numericRequests.resolve(data.id, data);
 			return;
 		}
 		if (data.status === 'error' && typeof data.message === 'string') {
@@ -85,11 +86,10 @@ export async function openBrowserAudioEncodeStreamSession(
 		if (signal?.aborted) throw signal.reason ?? abortError();
 		busy = true;
 		try {
-			const id = String(message.id);
-			pendingId = id;
+			pendingId = message.id;
 			try {
-				return await requests.request<Extract<AudioEncodeStreamResponse, { status: 'ok' }>>({
-					id,
+				return await numericRequests.request<Extract<AudioEncodeStreamResponse, { status: 'ok' }>>({
+					id: message.id,
 					armOnRequest: false,
 					post: () => port.postMessage(message, transfer),
 				});

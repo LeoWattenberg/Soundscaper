@@ -31,6 +31,25 @@ for (const failureType of ['error', 'messageerror'] as const) {
 	});
 }
 
+test('a late message from a replaced worker cannot settle the current request', async () => {
+	const harness = workerHarness();
+	const client = createBrowserDedicatedAudioCodecClient({ createWorker: harness.createWorker });
+	const controller = new AbortController();
+	const first = client.encode(encodeRequest(1), { signal: controller.signal });
+	const oldWorker = await harness.nextWorker();
+	controller.abort();
+	await assert.rejects(first, (error: Error) => error.name === 'AbortError');
+
+	const second = client.encode(encodeRequest(2));
+	const currentWorker = await harness.nextWorker();
+	oldWorker.succeed(Uint8Array.of(99));
+	assert.equal(currentWorker.terminationCount, 0);
+	currentWorker.succeed(Uint8Array.of(2));
+
+	assert.deepEqual([...(await second)], [2]);
+	client.dispose();
+});
+
 test('a failure from the current worker still rejects pending work and permits a replacement', async () => {
 	const harness = workerHarness();
 	const client = createBrowserDedicatedAudioCodecClient({ createWorker: harness.createWorker });
@@ -85,6 +104,25 @@ test('an active abort replaces the worker while preserving queued work', async (
 	client.dispose();
 });
 
+test('an active abort preserves queued work when retiring the worker throws', async () => {
+	const harness = workerHarness();
+	const client = createBrowserDedicatedAudioCodecClient({ createWorker: harness.createWorker });
+	const controller = new AbortController();
+	const first = client.encode(encodeRequest(1), { signal: controller.signal });
+	const oldWorker = await harness.nextWorker();
+	oldWorker.throwTerminate = true;
+	const queued = client.encode(encodeRequest(2));
+	const reason = new DOMException('Active operation cancelled.', 'AbortError');
+	controller.abort(reason);
+
+	await assert.rejects(first, (error: unknown) => error === reason);
+	assert.equal(oldWorker.terminationCount, 1);
+	const replacement = await harness.nextWorker();
+	replacement.succeed(Uint8Array.of(2));
+	assert.deepEqual([...(await queued)], [2]);
+	client.dispose();
+});
+
 test('an abort raised by the worker factory prevents posting and retires the acquired port', async () => {
 	const controller = new AbortController();
 	const reason = new DOMException('Factory cancelled.', 'AbortError');
@@ -111,6 +149,32 @@ test('a failed post is rolled back and the next queued operation still runs', as
 	assert.equal(worker.requests.length, 1);
 	worker.succeed(Uint8Array.of(2));
 	assert.deepEqual([...(await second)], [2]);
+	client.dispose();
+});
+
+test('an operation error rejects once and continues queued work on the same worker', async () => {
+	const harness = workerHarness();
+	const client = createBrowserDedicatedAudioCodecClient({ createWorker: harness.createWorker });
+	const first = client.encode(encodeRequest(1));
+	const worker = await harness.nextWorker();
+	const queued = client.encode(encodeRequest(2));
+	worker.respond({
+		id: worker.requests[0]!.id,
+		status: 'error',
+		name: 'EncodingError',
+		message: 'encode failed',
+		code: 'ENCODE_FAILED',
+	});
+
+	await assert.rejects(first, (error: Error & { code?: string }) => (
+		error.name === 'EncodingError'
+		&& error.message === 'encode failed'
+		&& error.code === 'ENCODE_FAILED'
+	));
+	assert.equal(worker.terminationCount, 0);
+	assert.equal(worker.requests.length, 2);
+	worker.succeed(Uint8Array.of(2));
+	assert.deepEqual([...(await queued)], [2]);
 	client.dispose();
 });
 
