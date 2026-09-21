@@ -19,13 +19,11 @@ import {
 	nativeMediaV14EncodeDispatch,
 	type NativeMediaV14EncodeProfileId,
 } from '../common/editor/native-media-v14-native-dispatch.ts';
-import {
-	findPlatformDeliveryPreset,
-	type PlatformNativeMediaV15Execution,
-} from '../common/editor/platform-delivery-presets.ts';
+import type { PlatformNativeMediaV15Execution } from '../common/editor/platform-delivery-presets.ts';
 import type { DeliveryReportItem } from '../common/editor/delivery-report.ts';
 import type { UnifiedExactRenderCaptionDeliveryV15 } from '../common/editor/unified-exact-render-delivery-v15.ts';
 import type { UnifiedExactRenderTimingSidecars } from '../common/editor/unified-exact-render-plan.ts';
+import { nativeDeliveryTargetExecution } from './delivery-native-target-execution-v1.ts';
 import {
 	videoBurnInCuesOverlap,
 	videoBurnInUndrawableCharacters,
@@ -136,7 +134,7 @@ export function deriveFramescaperNativeDeliveryClosureV1(input: Readonly<{
 	}
 	const profileId = profileValue as NativeMediaV14EncodeProfileId;
 	const dispatch = nativeMediaV14EncodeDispatch(profileId);
-	const execution = nativeTargetExecution(targetId, profileId);
+	const execution = nativeDeliveryTargetExecution(targetId, profileId);
 	const caption = envelope.plan.version === 15 ? envelope.plan.captionDelivery : null;
 	const companion = envelope.plan.version === 15 ? envelope.plan.companionAudio : null;
 	const adapter = bundle === null ? null : validateCaptionBundle(bundle, caption);
@@ -319,23 +317,6 @@ function validateCompanionBundle(
 		|| semantic((payload as { readonly plan?: unknown }).plan) !== semantic(audio.plan)) {
 		throw new Error('The V15 companion-audio authority payload changed.');
 	}
-}
-
-function nativeTargetExecution(
-	targetId: string,
-	profileId: NativeMediaV14EncodeProfileId,
-): PlatformNativeMediaV15Execution {
-	const preset = findPlatformDeliveryPreset(targetId);
-	if (!preset) throw new RangeError(`Native delivery report target ${targetId} is not in the platform catalog.`);
-	if (preset.execution.kind !== 'native-media-v15') {
-		throw new RangeError(`Platform delivery target ${targetId} is not a native-media-v15 target.`);
-	}
-	if (preset.execution.profileId !== profileId) {
-		throw new RangeError(
-			`Platform delivery target ${targetId} does not select exact profile ${profileId}.`,
-		);
-	}
-	return preset.execution;
 }
 
 function captionDisposition(

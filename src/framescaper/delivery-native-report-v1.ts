@@ -8,16 +8,14 @@ import {
 	nativeMediaV14EncodeDispatch,
 	type NativeMediaV14EncodeProfileId,
 } from '../common/editor/native-media-v14-native-dispatch.ts';
-import {
-	findPlatformDeliveryPreset,
-	type PlatformNativeMediaV15Execution,
-} from '../common/editor/platform-delivery-presets.ts';
+import type { PlatformNativeMediaV15Execution } from '../common/editor/platform-delivery-presets.ts';
 import type { UnifiedExactRenderTimingSidecars } from '../common/editor/unified-exact-render-plan.ts';
 import {
 	deriveFramescaperNativeDeliveryClosureV1,
 	type FramescaperNativeCaptionDispositionV1,
 	type FramescaperNativeDeliveryArtifactManifestEntryV1,
 } from './delivery-native-report-closure-v1.ts';
+import { nativeDeliveryTargetExecution } from './delivery-native-target-execution-v1.ts';
 import type {
 	DeliveryReport,
 	DeliveryReportItem,
@@ -142,7 +140,7 @@ function createSeed(input: Readonly<{
 	const profileId = text(input.profileId, ID, 'native delivery report profile ID');
 	nativeMediaV14EncodeDispatch(profileId as NativeMediaV14EncodeProfileId);
 	const targetId = text(input.targetId, ID, 'native delivery report target ID');
-	const execution = nativeTargetExecution(targetId, profileId as NativeMediaV14EncodeProfileId);
+	const execution = nativeDeliveryTargetExecution(targetId, profileId as NativeMediaV14EncodeProfileId);
 	const foundation = Object.freeze({
 		schemaVersion: 1 as const,
 		jobId: text(input.jobId, JOB_ID, 'native delivery report jobId'),
@@ -251,23 +249,6 @@ export function sealFramescaperNativeDeliveryReportV1(
 		publication,
 		report,
 	});
-}
-
-function nativeTargetExecution(
-	targetId: string,
-	profileId: NativeMediaV14EncodeProfileId,
-): PlatformNativeMediaV15Execution {
-	const preset = findPlatformDeliveryPreset(targetId);
-	if (!preset) throw new RangeError(`Native delivery report target ${targetId} is not in the platform catalog.`);
-	if (preset.execution.kind !== 'native-media-v15') {
-		throw new RangeError(`Platform delivery target ${targetId} is not a native-media-v15 target.`);
-	}
-	if (preset.execution.profileId !== profileId) {
-		throw new RangeError(
-			`Platform delivery target ${targetId} does not select exact profile ${profileId}.`,
-		);
-	}
-	return preset.execution;
 }
 
 function assertSeedClosureAuthority(
