@@ -58,6 +58,7 @@ test('packaged soak retirement captures live targets before a forced restart', a
 		async terminateRuntime(_child, options) { calls.push(['terminate', options]); },
 	});
 	assert.deepEqual(calls, [
+		'main-coverage-checkpoint',
 		'coverage-checkpoint',
 		'coverage-collect',
 		['terminate', { force: true }],
@@ -76,6 +77,7 @@ test('packaged soak retirement captures live targets before graceful quit', asyn
 		async terminateRuntime() { calls.push('terminate'); },
 	});
 	assert.deepEqual(calls, [
+		'main-coverage-checkpoint',
 		'coverage-checkpoint',
 		'quit',
 		'coverage-collect',
@@ -102,6 +104,7 @@ test('packaged soak retirement finalizes coverage after graceful shutdown errors
 		},
 	);
 	assert.deepEqual(calls, [
+		'main-coverage-checkpoint',
 		'coverage-checkpoint',
 		'quit',
 		['terminate', { force: false }],
@@ -110,10 +113,62 @@ test('packaged soak retirement finalizes coverage after graceful shutdown errors
 	]);
 });
 
-function fakeRuntime(calls, { checkpointError = null } = {}) {
+test('packaged soak retirement preserves CDP coverage and shutdown after a main checkpoint failure', async () => {
+	const calls = [];
+	const runtime = fakeRuntime(calls, { mainCheckpointError: new Error('main checkpoint failed') });
+	await assert.rejects(
+		retireSoundscaperDesktopSoakRuntime(runtime, {
+			abrupt: true,
+			async terminateRuntime(_child, options) { calls.push(['terminate', options]); },
+		}),
+		/main checkpoint failed/u,
+	);
+	assert.deepEqual(calls, [
+		'main-coverage-checkpoint',
+		'coverage-checkpoint',
+		'coverage-collect',
+		['terminate', { force: true }],
+		'browser-close',
+	]);
+});
+
+test('packaged soak retirement aggregates independent main and CDP checkpoint failures', async () => {
+	const calls = [];
+	const runtime = fakeRuntime(calls, {
+		mainCheckpointError: new Error('main checkpoint failed'),
+		checkpointError: new Error('CDP checkpoint failed'),
+	});
+	await assert.rejects(
+		retireSoundscaperDesktopSoakRuntime(runtime, {
+			abrupt: true,
+			async terminateRuntime(_child, options) { calls.push(['terminate', options]); },
+		}),
+		(error) => {
+			assert.equal(error instanceof AggregateError, true);
+			assert.deepEqual(error.errors.map(String), [
+				'Error: main checkpoint failed',
+				'Error: CDP checkpoint failed',
+			]);
+			return true;
+		},
+	);
+	assert.deepEqual(calls, [
+		'main-coverage-checkpoint',
+		'coverage-checkpoint',
+		'coverage-collect',
+		['terminate', { force: true }],
+		'browser-close',
+	]);
+});
+
+function fakeRuntime(calls, { mainCheckpointError = null, checkpointError = null } = {}) {
 	return {
 		browser: { async close() { calls.push('browser-close'); } },
 		child: {},
+		async checkpointMainCoverage() {
+			calls.push('main-coverage-checkpoint');
+			if (mainCheckpointError) throw mainCheckpointError;
+		},
 		coverageCollector: {
 			async checkpoint() {
 				calls.push('coverage-checkpoint');

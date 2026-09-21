@@ -7,7 +7,7 @@ const SOAK_DEBUG_ENABLED = PRELOAD_PRODUCT_ID === 'soundscaper'
 /* Keys main may hold but the renderer may never see, whatever the shape. */
 const PLUGIN_PATH_KEYS = new Set(['binaryPath', 'rootPath', 'path', 'absolutePath', 'filePath']);
 const CHANNELS = Object.freeze({
-	environment: 'soundscaper:v1:environment', soakDebugProcessMetrics: 'soundscaper:v1:soak-debug:process-metrics', chooseFiles: 'soundscaper:v1:files:choose', releaseRead: 'soundscaper:v1:files:release', chooseLinkedVideoOriginal: 'soundscaper:v1:linked-video:choose', loadLinkedVideoOriginal: 'soundscaper:v1:linked-video:load', reconcileLinkedVideoOriginals: 'soundscaper:v1:linked-video:reconcile', releaseLinkedVideoOriginal: 'soundscaper:v1:linked-video:release', chooseLinkedAudioOriginal: 'soundscaper:v1:linked-audio:choose', loadLinkedAudioOriginal: 'soundscaper:v1:linked-audio:load', reconcileLinkedOriginals: 'soundscaper:v1:linked-original:reconcile', releaseLinkedOriginal: 'soundscaper:v1:linked-original:release', chooseSaveTarget: 'soundscaper:v1:save:choose', beginWrite: 'soundscaper:v1:save:begin', writeChunk: 'soundscaper:v1:save:chunk', patchFinalPrefix: 'soundscaper:v1:save:prefix', finishWrite: 'soundscaper:v1:save:finish', abortWrite: 'soundscaper:v1:save:abort',
+	environment: 'soundscaper:v1:environment', soakDebugProcessMetrics: 'soundscaper:v1:soak-debug:process-metrics', soakDebugCoverageCheckpoint: 'soundscaper:v1:soak-debug:coverage-checkpoint', chooseFiles: 'soundscaper:v1:files:choose', releaseRead: 'soundscaper:v1:files:release', chooseLinkedVideoOriginal: 'soundscaper:v1:linked-video:choose', loadLinkedVideoOriginal: 'soundscaper:v1:linked-video:load', reconcileLinkedVideoOriginals: 'soundscaper:v1:linked-video:reconcile', releaseLinkedVideoOriginal: 'soundscaper:v1:linked-video:release', chooseLinkedAudioOriginal: 'soundscaper:v1:linked-audio:choose', loadLinkedAudioOriginal: 'soundscaper:v1:linked-audio:load', reconcileLinkedOriginals: 'soundscaper:v1:linked-original:reconcile', releaseLinkedOriginal: 'soundscaper:v1:linked-original:release', chooseSaveTarget: 'soundscaper:v1:save:choose', beginWrite: 'soundscaper:v1:save:begin', writeChunk: 'soundscaper:v1:save:chunk', patchFinalPrefix: 'soundscaper:v1:save:prefix', finishWrite: 'soundscaper:v1:save:finish', abortWrite: 'soundscaper:v1:save:abort',
 	helperProbeAvailability: 'soundscaper:v1:helper:probe-availability',
 	helperProbeBegin: 'soundscaper:v1:helper:probe-begin',
 	helperProbeAwait: 'soundscaper:v1:helper:probe-await',
@@ -52,7 +52,7 @@ const MAX_MATERIALIZED_READ_DESCRIPTOR_BYTES = 512 * 1024 ** 2; const MAX_SCAPE_
 const SHA256 = /^[a-f0-9]{64}$/u;
 const api = Object.freeze({
 	getEnvironment: () => ipcRenderer.invoke(CHANNELS.environment),
-	...(SOAK_DEBUG_ENABLED ? { readSoakProcessMetrics: () => ipcRenderer.invoke(CHANNELS.soakDebugProcessMetrics).then(soakDebugProcessMetrics) } : {}),
+	...(SOAK_DEBUG_ENABLED ? { readSoakProcessMetrics: () => ipcRenderer.invoke(CHANNELS.soakDebugProcessMetrics).then(soakDebugProcessMetrics), checkpointSoakMainCoverage: () => ipcRenderer.invoke(CHANNELS.soakDebugCoverageCheckpoint).then((value) => strictBoolean(value, 'Desktop soak main coverage checkpoint acknowledgement must be a boolean')) } : {}),
 	chooseFiles: (options) => ipcRenderer.invoke(CHANNELS.chooseFiles, {
 		purpose: text(options?.purpose, 24),
 		multiple: options?.multiple === true,

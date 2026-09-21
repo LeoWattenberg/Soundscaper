@@ -111,8 +111,16 @@ export async function retireSoundscaperDesktopSoakRuntime(runtime, {
 	terminateRuntime = terminate,
 } = {}) {
 	let coverageError;
-	try { await runtime.coverageCollector?.checkpoint(); }
+	// SIGKILL cannot run Node's NODE_V8_COVERAGE exit hook, so persist the main
+	// isolate before capturing and detaching Chromium's renderer/preload targets.
+	try { await runtime.checkpointMainCoverage?.(); }
 	catch (error) { coverageError = error; }
+	try { await runtime.coverageCollector?.checkpoint(); }
+	catch (error) {
+		coverageError = combinedError(
+			coverageError, error, 'Packaged soak main and target coverage checkpoints both failed.',
+		);
+	}
 	const collectCoverage = async () => {
 		try { await runtime.coverageCollector?.collect(); }
 		catch (error) {
@@ -198,12 +206,27 @@ async function launchDesktopRuntime({
 			await coverageCollector.start();
 			await waitForEditor(page, { allowPendingRecovery });
 		}
-		return { browser, child, context, coverageCollector, output: () => output, page };
+		return {
+			browser, child, context, coverageCollector, output: () => output, page,
+			checkpointMainCoverage: launch.coverageDirectory === null
+				? null : () => checkpointSoakMainCoverage(page),
+		};
 	} catch (error) {
 		await coverageCollector?.collect().catch(() => undefined);
 		await browser?.close().catch(() => undefined);
 		await terminate(child, { force: true });
 		throw error;
+	}
+}
+
+async function checkpointSoakMainCoverage(page) {
+	const acknowledged = await page.evaluate(async () => {
+		const bridge = globalThis.soundscaperDesktop?.v1 ?? globalThis.scapeDesktop?.v1;
+		return typeof bridge?.checkpointSoakMainCoverage === 'function'
+			? bridge.checkpointSoakMainCoverage() : null;
+	});
+	if (acknowledged !== true) {
+		throw bootstrapError('The packaged app did not acknowledge its main-process coverage checkpoint.');
 	}
 }
 

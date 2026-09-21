@@ -1,4 +1,4 @@
-import { randomUUID } from 'node:crypto';
+import { randomUUID } from 'node:crypto'; import { takeCoverage } from 'node:v8';
 import { existsSync } from 'node:fs';
 import { dirname, extname, isAbsolute, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -47,7 +47,7 @@ import { registerFileCapabilityIpc } from './main-file-capability-ipc.mjs';
 import { createProtocolHandler, registerAppScheme } from './protocol.js';
 import { createDesktopSmokeProbe } from './desktop-smoke.js';
 import { createDesktopNightlyTestsWindow } from './nightly-tests-window.mjs';
-import { createSoakDebugDialog } from './soak-debug-dialog.mjs'; import { collectSoakDebugProcessMetrics, soakDebugProcessMetricsEnabled, SOAK_DEBUG_FLAG } from './soak-debug-process-metrics.mjs';
+import { createSoakDebugDialog } from './soak-debug-dialog.mjs'; import { collectSoakDebugProcessMetrics, createSoakDebugMainCoverageCheckpoint, soakDebugProcessMetricsEnabled, SOAK_DEBUG_FLAG } from './soak-debug-process-metrics.mjs';
 import { createDesktopLinkedVideoLocatorRuntime } from './linked-video-locator-runtime.js';
 import { startDesktopProjectLibraryProductRuntime } from './project-library-product-runtime.js';
 import { startSoundscaperDeliveryRegistration } from './soundscaper-delivery-registration.mjs';
@@ -69,7 +69,7 @@ import {
 	validateLocale,
 } from './validation.js';
 const __dirname = dirname(fileURLToPath(import.meta.url));
-const SOAK_DEBUG_ENABLED = PRODUCT_ID === 'soundscaper' && soakDebugProcessMetricsEnabled(process.argv); const dialog = createSoakDebugDialog(electronDialog, SOAK_DEBUG_ENABLED ? process.argv : []);
+const SOAK_DEBUG_ENABLED = PRODUCT_ID === 'soundscaper' && soakDebugProcessMetricsEnabled(process.argv); const dialog = createSoakDebugDialog(electronDialog, SOAK_DEBUG_ENABLED ? process.argv : []); const checkpointSoakMainCoverage = createSoakDebugMainCoverageCheckpoint(takeCoverage);
 const readCapabilities = new ReadCapabilityStore();
 const saveTargets = new SaveTargetStore();
 const saves = new AtomicSaveManager({ targets: saveTargets });
@@ -384,7 +384,7 @@ async function registerIpcHandlers(desktopSession) {
 		supportedLocales: [...SUPPORTED_LOCALES], runtimeVersions: { electron: process.versions.electron, chromium: process.versions.chrome, node: process.versions.node },
 		capabilities: { displayAudio: process.platform === 'win32', updates: settings.snapshot().updatesEnabled },
 	}));
-	if (SOAK_DEBUG_ENABLED) handle(IPC.soakDebugProcessMetrics, () => collectSoakDebugProcessMetrics(app));
+	if (SOAK_DEBUG_ENABLED) { handle(IPC.soakDebugProcessMetrics, () => collectSoakDebugProcessMetrics(app)); handle(IPC.soakDebugCoverageCheckpoint, checkpointSoakMainCoverage); }
 	registerFileCapabilityIpc({
 		channels: IPC, desktopSmokeProbe, dialog, handle, opaqueId, ownerFor: rendererSaveOwnerFor,
 		pendingOpenProjects, readCapabilities, saves, saveTargets, windowFor: () => mainWindow,

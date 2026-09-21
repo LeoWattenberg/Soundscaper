@@ -10,6 +10,7 @@ import vm from 'node:vm';
 import {
 	SOAK_DEBUG_FLAG,
 	collectSoakDebugProcessMetrics,
+	createSoakDebugMainCoverageCheckpoint,
 	soakDebugProcessMetricsEnabled,
 	validateSoakDebugProcessMetrics,
 } from '../desktop/soak-debug-process-metrics.mjs';
@@ -45,7 +46,14 @@ test('desktop process metrics return a closed read-only working-set projection',
 	assert.throws(() => validateSoakDebugProcessMetrics({ ...metrics, path: '/tmp/private' }), /fields/iu);
 });
 
-test('the sandbox preload exposes the read-only bridge only under the startup flag', async () => {
+test('the main-process coverage checkpoint writes before acknowledging', () => {
+	const calls = [];
+	const checkpoint = createSoakDebugMainCoverageCheckpoint(() => { calls.push('take-coverage'); });
+	assert.equal(checkpoint(), true);
+	assert.deepEqual(calls, ['take-coverage']);
+});
+
+test('the sandbox preload exposes soak diagnostics only under the startup flag', async () => {
 	const source = await readFile(new URL('../desktop/preload.mjs', import.meta.url), 'utf8');
 	const response = {
 		schemaVersion: 1,
@@ -54,18 +62,29 @@ test('the sandbox preload exposes the read-only bridge only under the startup fl
 	};
 	const dormant = evaluatePreload(source, ['electron'], response);
 	assert.equal(Object.hasOwn(dormant.bridge, 'readSoakProcessMetrics'), false);
+	assert.equal(Object.hasOwn(dormant.bridge, 'checkpointSoakMainCoverage'), false);
 	const framescaper = evaluatePreload(source, [
 		'electron', '--soundscaper-product=framescaper', SOAK_DEBUG_FLAG,
 	], response);
 	assert.equal(Object.hasOwn(framescaper.bridge, 'readSoakProcessMetrics'), false);
+	assert.equal(Object.hasOwn(framescaper.bridge, 'checkpointSoakMainCoverage'), false);
 
 	const active = evaluatePreload(source, ['electron', SOAK_DEBUG_FLAG], response);
 	assert.equal(typeof active.bridge.readSoakProcessMetrics, 'function');
+	assert.equal(typeof active.bridge.checkpointSoakMainCoverage, 'function');
 	assert.deepEqual(JSON.parse(JSON.stringify(await active.bridge.readSoakProcessMetrics())), response);
-	assert.deepEqual(active.invocations, ['soundscaper:v1:soak-debug:process-metrics']);
+	assert.equal(await active.bridge.checkpointSoakMainCoverage(), true);
+	assert.deepEqual(active.invocations, [
+		'soundscaper:v1:soak-debug:process-metrics',
+		'soundscaper:v1:soak-debug:coverage-checkpoint',
+	]);
 
 	const malicious = evaluatePreload(source, ['electron', SOAK_DEBUG_FLAG], { ...response, path: '/private' });
 	await assert.rejects(malicious.bridge.readSoakProcessMetrics(), /fields/iu);
+	const falseAcknowledgement = evaluatePreload(source, ['electron', SOAK_DEBUG_FLAG], response, false);
+	assert.equal(await falseAcknowledgement.bridge.checkpointSoakMainCoverage(), false);
+	const invalidAcknowledgement = evaluatePreload(source, ['electron', SOAK_DEBUG_FLAG], response, null);
+	await assert.rejects(invalidAcknowledgement.bridge.checkpointSoakMainCoverage(), /checkpoint/iu);
 });
 
 test('the soak dialog is dormant without the flag and contains automated outputs', async (context) => {
@@ -131,7 +150,7 @@ test('desktop soak output names remain unique after the Electron process restart
 	assert.equal(second.filePath, join(resolve(directory), 'mix-0002.wav'));
 });
 
-function evaluatePreload(source, argv, response) {
+function evaluatePreload(source, argv, response, coverageAcknowledgement = true) {
 	let bridge;
 	const invocations = [];
 	vm.runInNewContext(source, {
@@ -144,7 +163,13 @@ function evaluatePreload(source, argv, response) {
 				exposeInMainWorld(name, value) { if (name === 'scapeDesktop') bridge = value.v1; },
 			},
 			ipcRenderer: {
-				invoke(channel) { invocations.push(channel); return Promise.resolve(structuredClone(response)); },
+				invoke(channel) {
+					invocations.push(channel);
+					return Promise.resolve(structuredClone(
+						channel === 'soundscaper:v1:soak-debug:coverage-checkpoint'
+							? coverageAcknowledgement : response,
+					));
+				},
 				on: () => {}, postMessage: () => {}, removeListener: () => {}, send: () => {},
 			},
 		}),

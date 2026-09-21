@@ -10,6 +10,14 @@ export function soakDebugProcessMetricsEnabled(argv) {
 	return Array.isArray(argv) && argv.includes(SOAK_DEBUG_FLAG);
 }
 
+/** Flush main-isolate counters before the soak harness deliberately simulates a crash. */
+export function createSoakDebugMainCoverageCheckpoint(writeCoverage) {
+	return () => {
+		writeCoverage();
+		return true;
+	};
+}
+
 export function collectSoakDebugProcessMetrics(application) {
 	if (!application || typeof application.getAppMetrics !== 'function') {
 		throw new TypeError('Electron process metrics require app.getAppMetrics().');
