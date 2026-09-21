@@ -90,9 +90,8 @@ test.describe('milestone 2 browser storage durability', () => {
 		await editor.locator('[data-import-input]').setInputFiles(fixture);
 		await expect.poll(async () => {
 			const clipCount = Number(await editor.getAttribute('data-clip-count'));
-			const status = await editor.locator('[data-status]').getAttribute('data-state');
 			if (clipCount > 0) return 'indexeddb-fallback';
-			if (status === 'error') return 'opfs-refused';
+			if (await editor.locator('[data-editor-toast="workspace-status-error"], [data-editor-toast="workspace-error"]').count() > 0) return 'opfs-refused';
 			return 'pending';
 		}, { timeout: 30_000 }).toMatch(/^(?:indexeddb-fallback|opfs-refused)$/u);
 		expect(wrappedWorkerRequests).toBeGreaterThan(0);
