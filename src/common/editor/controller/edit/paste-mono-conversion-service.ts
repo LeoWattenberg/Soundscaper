@@ -23,6 +23,7 @@ import {
 	type PasteCommand,
 	type SourceAddCommand,
 } from './internal/paste-command-tree.ts';
+import { rollbackDerivedSourcesAfterFailure } from './internal/paste-derived-source-failure.ts';
 
 type PasteMonoProject = Pick<ControllerProject, 'id' | 'sources' | 'tracks' | 'clips'>;
 
@@ -96,7 +97,10 @@ export function commitMonoConvertingPasteCommand(
 			request.assertCurrent();
 			return await request.commit(result.command);
 		} catch (error) {
-			return rollbackAfterFailure(request.derivedSources, result.derivedRecords, error);
+			return rollbackDerivedSourcesAfterFailure(result.derivedRecords, error, {
+				message: 'Mono paste conversion and derived-source rollback both failed.',
+				rollback: (records) => request.derivedSources.rollbackDerivedSources(records),
+			});
 		}
 	}
 }
@@ -185,7 +189,10 @@ async function preparePlannedMonoConvertingPasteCommand(
 			derivedRecords: Object.freeze(derivedRecords.slice()),
 		});
 	} catch (error) {
-		return rollbackAfterFailure(request.derivedSources, derivedRecords, error);
+		return rollbackDerivedSourcesAfterFailure(derivedRecords, error, {
+			message: 'Mono paste conversion and derived-source rollback both failed.',
+			rollback: (records) => request.derivedSources.rollbackDerivedSources(records),
+		});
 	}
 }
 
@@ -357,24 +364,6 @@ function rewriteCommandTree(
 	return commands.length
 		? Object.freeze({ type: 'batch', commands: Object.freeze(commands) })
 		: null;
-}
-
-async function rollbackAfterFailure(
-	derivedSources: PasteMonoDerivedSourcesPort,
-	records: readonly DerivedSourceRecord[],
-	error: unknown,
-): Promise<never> {
-	if (!records.length) throw error;
-	try {
-		await derivedSources.rollbackDerivedSources(records);
-	} catch (rollbackError) {
-		throw new AggregateError(
-			[error, rollbackError],
-			'Mono paste conversion and derived-source rollback both failed.',
-			{ cause: rollbackError },
-		);
-	}
-	throw error;
 }
 
 function nonEmptyId(value: unknown, label: string): string {

@@ -377,6 +377,26 @@ test('a final atomic commit failure rolls the joined source back', async () => {
 	assert.equal(fixture.derived.rollbacks[0]?.[0], fixture.derived.persisted[0]);
 });
 
+test('a joined paste reports both commit and derived-source rollback failures', async () => {
+	const commitFailure = new Error('commit failed');
+	const rollbackFailure = new Error('rollback failed');
+	const fixture = request(paste(), project(), {
+		commit: () => { throw commitFailure; },
+	}, {
+		rollbackDerivedSources: async () => { throw rollbackFailure; },
+	});
+
+	await assert.rejects(async () => {
+		await commitPasteIntoExistingClipCommand(fixture.input);
+	}, (error: unknown) => {
+		assert.ok(error instanceof AggregateError);
+		assert.deepEqual(error.errors, [commitFailure, rollbackFailure]);
+		assert.equal(error.message, 'Paste joining and derived-source rollback both failed.');
+		assert.equal(error.cause, rollbackFailure);
+		return true;
+	});
+});
+
 test('a later multi-track persistence failure rolls every completed joined source back', async () => {
 	const failure = new Error('second persistence failed');
 	let persistenceCount = 0;

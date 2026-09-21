@@ -20,6 +20,7 @@ import {
 	type PasteCommand,
 	type SourceAddCommand,
 } from './internal/paste-command-tree.ts';
+import { rollbackDerivedSourcesAfterFailure } from './internal/paste-derived-source-failure.ts';
 
 type RenderReplaceCommand = Extract<AudioEditorCommand, { readonly type: 'clip/render-replace-many' }>;
 type LiftDeleteCommand = Extract<AudioEditorCommand, { readonly type: 'range/lift-delete' }>;
@@ -135,7 +136,10 @@ export function commitPasteIntoExistingClipCommand(
 			);
 			return await request.commit(command);
 		} catch (error) {
-			return rollbackAfterFailure(request.derivedSources, records, error);
+			return rollbackDerivedSourcesAfterFailure(records, error, {
+				message: 'Paste joining and derived-source rollback both failed.',
+				rollback: (ownedRecords) => request.derivedSources.rollbackDerivedSources(ownedRecords),
+			});
 		}
 	}
 }
@@ -483,24 +487,6 @@ function estimatedOutputBytes(targets: readonly ExistingClipPasteTarget[]): numb
 	), 0);
 	if (!Number.isSafeInteger(bytes)) throw new RangeError('Joined paste storage estimate exceeds the safe integer range.');
 	return bytes;
-}
-
-async function rollbackAfterFailure(
-	derivedSources: ExistingClipPasteDerivedSourcesPort,
-	records: readonly DerivedSourceRecord[],
-	error: unknown,
-): Promise<never> {
-	if (!records.length) throw error;
-	try {
-		await derivedSources.rollbackDerivedSources(records);
-	} catch (rollbackError) {
-		throw new AggregateError(
-			[error, rollbackError],
-			'Paste joining and derived-source rollback both failed.',
-			{ cause: rollbackError },
-		);
-	}
-	throw error;
 }
 
 function boundedFrame(value: unknown, maximum: number): number {

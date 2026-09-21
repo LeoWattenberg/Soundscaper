@@ -403,6 +403,26 @@ test('a later persistence failure rolls back every completed derived source', as
 	assert.equal(derived.rolledBack.length, 1);
 });
 
+test('a preflight failure with no derived sources rethrows without rollback', async () => {
+	const stereo = source('stereo', 2);
+	const failure = new Error('capacity refused');
+	let rollbackCalls = 0;
+	const derived = derivedFixture({}, {
+		rollbackDerivedSources: async () => { rollbackCalls += 1; },
+	});
+
+	await assert.rejects(prepareMonoConvertingPasteCommand({
+		command: paste(),
+		project: project([source('mono', 1), stereo]),
+		alwaysConvertToMono: true,
+		confirmConversion: async () => { throw new Error('confirmation should not run'); },
+		derivedSources: derived.port,
+		preflightStorage: async () => { throw failure; },
+		updateAlwaysConvertToMono: () => undefined,
+	}), (error: unknown) => error === failure);
+	assert.equal(rollbackCalls, 0);
+});
+
 test('a post-persistence command validation failure rolls back and rethrows', async () => {
 	const stereo = source('stereo', 2);
 	const derived = derivedFixture({
@@ -442,6 +462,37 @@ test('the commit owner rolls persisted mono sources back when the atomic commit 
 		});
 	}, (error: unknown) => error === failure);
 	assert.deepEqual(derived.events, ['load:stereo', 'persist:stereo', 'rollback:mono-stereo']);
+});
+
+test('mono conversion reports both commit and derived-source rollback failures', async () => {
+	const stereo = source('stereo', 2);
+	const commitFailure = new Error('commit failed');
+	const rollbackFailure = new Error('rollback failed');
+	const derived = derivedFixture({
+		stereo: [Float32Array.of(1, -1), Float32Array.of(-1, 1)],
+	}, {
+		rollbackDerivedSources: async () => { throw rollbackFailure; },
+	});
+
+	await assert.rejects(async () => {
+		await commitMonoConvertingPasteCommand({
+			command: paste(),
+			project: project([source('mono', 1), stereo]),
+			alwaysConvertToMono: true,
+			confirmConversion: async () => { throw new Error('confirmation should not run'); },
+			derivedSources: derived.port,
+			preflightStorage: async () => undefined,
+			updateAlwaysConvertToMono: () => undefined,
+			assertCurrent: () => undefined,
+			commit: () => { throw commitFailure; },
+		});
+	}, (error: unknown) => {
+		assert.ok(error instanceof AggregateError);
+		assert.deepEqual(error.errors, [commitFailure, rollbackFailure]);
+		assert.equal(error.message, 'Mono paste conversion and derived-source rollback both failed.');
+		assert.equal(error.cause, rollbackFailure);
+		return true;
+	});
 });
 
 test('command discovery requires exactly one recursively nested paste before side effects', async () => {
