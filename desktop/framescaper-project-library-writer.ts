@@ -5,6 +5,7 @@ import { rm } from 'node:fs/promises';
 import { relative, resolve, sep } from 'node:path';
 import { setTimeout as delay } from 'node:timers/promises';
 import type { DatabaseSync } from 'node:sqlite';
+import { withProjectLibraryImmediateTransaction } from './project-library-immediate-transaction.ts';
 
 import type {
 	FramescaperDesktopProjectLibraryExactGenerationExtension,
@@ -433,9 +434,7 @@ class FramescaperDesktopProjectLibraryWriter implements FramescaperDesktopProjec
 	}
 
 	#transaction(operation: () => void): void {
-		this.#database.exec('BEGIN IMMEDIATE');
-		try { operation(); this.#database.exec('COMMIT'); }
-		catch (error) { this.#database.exec('ROLLBACK'); throw error; }
+		withProjectLibraryImmediateTransaction(this.#database, operation, { rollbackWhenInactive: true });
 	}
 }
 
@@ -444,8 +443,7 @@ function acquireLease(
 	owner: Readonly<Record<string, unknown>>,
 	ttlMs: number,
 ): Readonly<{ lease: Readonly<Lease> | null; retryAtMs: number }> {
-	database.exec('BEGIN IMMEDIATE');
-	try {
+	return withProjectLibraryImmediateTransaction(database, () => {
 		const now = Date.now();
 		const row = database.prepare(`
 			SELECT active, fencing_token AS fencingToken, expires_at_ms AS expiresAtMs
@@ -453,7 +451,6 @@ function acquireLease(
 		`).get() as Record<string, unknown>;
 		const held = row.active === 1 && Number.isSafeInteger(row.expiresAtMs) && Number(row.expiresAtMs) > now;
 		if (held) {
-			database.exec('COMMIT');
 			return Object.freeze({ lease: null, retryAtMs: Number(row.expiresAtMs) });
 		}
 		const fencingToken = Number(row.fencingToken) + 1;
@@ -471,15 +468,11 @@ function acquireLease(
 			leaseId, fencingToken, ownerJson, expiresAtMs, tookOverStaleLease ? 1 : 0,
 			previousFencingToken,
 		).changes !== 1) throw new Error('Framescaper 1.0 writer lease acquisition raced');
-		database.exec('COMMIT');
 		return Object.freeze({
 			lease: Object.freeze({ leaseId, fencingToken, tookOverStaleLease, expiresAtMs }),
 			retryAtMs: expiresAtMs,
 		});
-	} catch (error) {
-		database.exec('ROLLBACK');
-		throw error;
-	}
+	}, { rollbackWhenInactive: true });
 }
 
 function timingOptions(testControl: Readonly<FramescaperDesktopProjectLibraryTestControl> | null) {

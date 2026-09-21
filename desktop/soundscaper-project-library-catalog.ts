@@ -2,6 +2,7 @@
 
 import { randomBytes } from 'node:crypto';
 import { DatabaseSync } from 'node:sqlite';
+import { withProjectLibraryImmediateTransaction } from './project-library-immediate-transaction.ts';
 
 import {
 	type SoundscaperDesktopProjectLibraryHandshake,
@@ -430,16 +431,10 @@ export class SoundscaperDesktopProjectLibraryCatalog {
 	}
 
 	#transaction<Result>(operation: () => Result): Result {
-		this.#database.exec('BEGIN IMMEDIATE');
-		try {
+		return withProjectLibraryImmediateTransaction(this.#database, () => {
 			assertSoundscaperDesktopProjectLibraryDatabaseIdentity(this.#database);
-			const result = operation();
-			this.#database.exec('COMMIT');
-			return result;
-		} catch (error) {
-			if (this.#database.isTransaction) this.#database.exec('ROLLBACK');
-			throw error;
-		}
+			return operation();
+		});
 	}
 
 	#exclusiveMetadataOperation<Result>(operation: () => Result): Result {

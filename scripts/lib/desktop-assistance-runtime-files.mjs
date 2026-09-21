@@ -92,6 +92,7 @@ export const DESKTOP_ASSISTANCE_RUNTIME_FILES = Object.freeze([
 	'desktop/local-model-catalog.js',
 	'desktop/local-model-catalog-integrity.js',
 	'desktop/local-model-download.js',
+	'desktop/local-model-file-io.js',
 	'desktop/local-model-garbage-collection.js',
 	'desktop/local-model-install-plan.js',
 	'desktop/local-model-notices.js',

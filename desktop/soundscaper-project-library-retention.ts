@@ -3,6 +3,7 @@
 import { createHash } from 'node:crypto';
 import { lstat, unlink } from 'node:fs/promises';
 import { DatabaseSync } from 'node:sqlite';
+import { withProjectLibraryImmediateTransaction } from './project-library-immediate-transaction.ts';
 import { isAbsolute, relative, resolve, sep } from 'node:path';
 
 import type {
@@ -309,15 +310,7 @@ function revisionKey(projectId: string, revision: number): string {
 
 function transaction<Result>(database: DatabaseSync, operation: () => Result): Result {
 	if (database.isTransaction) throw new Error('Soundscaper desktop baseline reclamation cannot nest a transaction');
-	database.exec('BEGIN IMMEDIATE');
-	try {
-		const result = operation();
-		database.exec('COMMIT');
-		return result;
-	} catch (error) {
-		if (database.isTransaction) database.exec('ROLLBACK');
-		throw error;
-	}
+	return withProjectLibraryImmediateTransaction(database, operation);
 }
 
 function errorCode(error: unknown): string | null {

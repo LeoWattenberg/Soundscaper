@@ -2,6 +2,7 @@
 
 import { createHash } from 'node:crypto';
 import { DatabaseSync } from 'node:sqlite';
+import { withProjectLibraryImmediateTransaction } from './project-library-immediate-transaction.ts';
 
 import {
 	freezeRelativeFileForSoundscaperDesktopLibraryBinding,
@@ -519,15 +520,7 @@ function assertMetadataSnapshot(
 }
 
 function transaction<Result>(database: DatabaseSync, operation: () => Result): Result {
-	database.exec('BEGIN IMMEDIATE');
-	try {
-		const result = operation();
-		database.exec('COMMIT');
-		return result;
-	} catch (error) {
-		if (database.isTransaction) database.exec('ROLLBACK');
-		throw error;
-	}
+	return withProjectLibraryImmediateTransaction(database, operation);
 }
 
 function publicationState(value: unknown): SoundscaperDesktopProjectLibraryPublicationJournalState {
