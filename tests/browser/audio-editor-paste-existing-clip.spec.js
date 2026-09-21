@@ -11,6 +11,7 @@ import {
 	collectClientErrors,
 	importFiles,
 	openClipProperties,
+	waitForEditor,
 } from './audio-editor-test-helpers.js';
 
 test('joins a paste into the containing clip and preserves it through history', async ({ page }) => {
@@ -71,5 +72,14 @@ test('joins a paste into the containing clip and preserves it through history', 
 	await expect(clipField(properties, 'durationFrame')).toHaveValue(joinedDuration);
 	await properties.getByRole('button', { name: 'Close', exact: true }).click();
 	await expect(editor.locator('[data-save-state]')).toHaveAttribute('data-state', 'saved');
+
+	await page.reload();
+	const restoredEditor = await waitForEditor(page);
+	await expect(restoredEditor).toHaveAttribute('data-clip-count', '1');
+	const restoredClip = restoredEditor.locator(`[data-clip-id="${clipId}"]`);
+	await expect(restoredClip).toBeVisible();
+	properties = await openClipProperties(page, restoredEditor, restoredClip);
+	await expect(clipField(properties, 'durationFrame')).toHaveValue(joinedDuration);
+	await properties.getByRole('button', { name: 'Close', exact: true }).click();
 	expect(errors).toEqual([]);
 });

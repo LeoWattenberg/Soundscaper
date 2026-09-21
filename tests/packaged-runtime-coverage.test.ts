@@ -7,6 +7,7 @@ import { tmpdir } from 'node:os';
 import { basename, join } from 'node:path';
 import test from 'node:test';
 
+import { WORKLET_COVERAGE_CHECKPOINT_URL } from '../scripts/lib/browser-service-worker-coverage.mjs';
 import {
 	createPackagedRuntimeCoverageCollector,
 	packagedRuntimeCoverageLaunch,
@@ -132,11 +133,53 @@ test('packaged coverage records renderer, preload, and a final worker delta bank
 	assert.ok(page.calls.includes('Profiler.disable'));
 	assert.ok(page.calls.includes('Debugger.disable'));
 	assert.ok(page.calls.includes('Target.setAutoAttach'));
+	assert.ok(page.calls.includes('Page.addScriptToEvaluateOnNewDocument'));
 	assert.ok(page.calls.includes('child:Profiler.startPreciseCoverage'));
 	assert.ok(page.calls.includes('child:Runtime.runIfWaitingForDebugger'));
 	assert.equal(page.calls.includes('child:Profiler.takePreciseCoverage'), false,
 		'the detached worker survives only through its triggered delta');
 	assert.ok(page.calls.includes('CDP.detach'));
+});
+
+test('packaged coverage checkpoints an audio worklet at its first render quantum', async (context) => {
+	const directory = await mkdtemp(join(tmpdir(), 'soundscaper-packaged-worklet-coverage-'));
+	context.after(() => rm(directory, { recursive: true, force: true }));
+	const productUrl = 'soundscaper-app://bundle/';
+	const workletUrl = 'soundscaper-app://bundle/assets/audio-worklet.js';
+	const page = new FakePage(
+		productUrl,
+		[coverageEntry('11', productUrl, 120)],
+		[coverageEntry('21', workletUrl, 50)],
+		'worklet',
+	);
+	const collector = createPackagedRuntimeCoverageCollector({
+		architecture: 'x64',
+		baseURL: 'http://127.0.0.1:4567/',
+		context: new FakeContext([page]),
+		coverageDirectory: directory,
+		executablePath: join(tmpdir(), 'Soundscaper', 'soundscaper'),
+		platform: 'linux',
+		productId: 'soundscaper',
+	});
+
+	await collector.start();
+	const profilePath = await collector.collect();
+	assert.ok(profilePath);
+	const profile = JSON.parse(await readFile(profilePath, 'utf8')) as {
+		result: Array<{ url: string }>;
+		'soundscaper-packaged-runtime': {
+			pausedTargetCounts: Record<string, number>;
+			targetCounts: Record<string, number>;
+			targetTypes: string[];
+		};
+	};
+	assert.ok(profile.result.some(({ url }) => url === workletUrl));
+	assert.deepEqual(profile['soundscaper-packaged-runtime'].pausedTargetCounts, { worklet: 1 });
+	assert.deepEqual(profile['soundscaper-packaged-runtime'].targetCounts, { worklet: 1 });
+	assert.deepEqual(profile['soundscaper-packaged-runtime'].targetTypes, ['worklet']);
+	assert.ok(page.calls.includes('child:Runtime.evaluate'));
+	assert.ok(page.calls.includes('child:Profiler.takePreciseCoverage'));
+	assert.ok(page.calls.includes('child:Debugger.resume'));
 });
 
 test('packaged shutdown checkpoints before requesting trusted application quit', async () => {
@@ -246,17 +289,21 @@ function coverageEntry(scriptId: string, url: string, endOffset: number) {
 
 class FakePage {
 	readonly calls: string[] = [];
+	readonly #childType: string;
 	readonly #context: FakeContext | null = null;
 	readonly #entries: ReturnType<typeof coverageEntry>[];
 	readonly #workerEntries: ReturnType<typeof coverageEntry>[];
 	readonly #url: string;
+	#coverageTakes = 0;
 	reloadCount = 0;
 
 	constructor(
 		url: string,
 		entries: ReturnType<typeof coverageEntry>[],
 		workerEntries: ReturnType<typeof coverageEntry>[] = [],
+		childType = 'worker',
 	) {
+		this.#childType = childType;
 		this.#url = url;
 		this.#entries = entries;
 		this.#workerEntries = workerEntries;
@@ -279,6 +326,11 @@ class FakePage {
 	url(): string { return this.#url; }
 
 	coverageEntries() { return this.#entries; }
+	childType() { return this.#childType; }
+	takeCoverageEntries() {
+		this.#coverageTakes += 1;
+		return this.#coverageTakes === 1 ? [] : this.#entries;
+	}
 
 	workerCoverageEntries() { return this.#workerEntries; }
 }
@@ -324,7 +376,11 @@ class FakeContext {
 					childAttached = true;
 					queueMicrotask(() => emitter.emit('Target.attachedToTarget', {
 						sessionId: 'worker-session',
-						targetInfo: { targetId: 'worker-target', type: 'worker', url: page.workerCoverageEntries()[0]?.url },
+						targetInfo: {
+							targetId: 'worker-target',
+							type: page.childType(),
+							url: page.workerCoverageEntries()[0]?.url,
+						},
 						waitingForDebugger: true,
 					}));
 				}
@@ -342,6 +398,8 @@ class FakeContext {
 						result = {
 							result: page.workerCoverageEntries().map((entry) => ({ ...entry, url: '' })),
 						};
+					} else if (request.method === 'Runtime.evaluate' && page.childType() === 'worklet') {
+						result = { result: { value: true } };
 					}
 					queueMicrotask(() => {
 						emitter.emit('Target.receivedMessageFromTarget', {
@@ -359,6 +417,15 @@ class FakeContext {
 								});
 							}
 						}
+						if (request.method === 'Runtime.evaluate' && page.childType() === 'worklet') {
+							emitter.emit('Target.receivedMessageFromTarget', {
+								message: JSON.stringify({ method: 'Debugger.scriptParsed', params: {
+									scriptId: 'coverage-worklet-hook',
+									url: WORKLET_COVERAGE_CHECKPOINT_URL,
+								} }),
+								sessionId: 'worker-session',
+							});
+						}
 						if (request.method === 'Runtime.runIfWaitingForDebugger') {
 							emitter.emit('Target.receivedMessageFromTarget', {
 								message: JSON.stringify({
@@ -367,7 +434,16 @@ class FakeContext {
 								}),
 								sessionId: 'worker-session',
 							});
-							emitter.emit('Target.detachedFromTarget', { sessionId: 'worker-session' });
+							if (page.childType() === 'worklet') {
+								emitter.emit('Target.receivedMessageFromTarget', {
+									message: JSON.stringify({ method: 'Debugger.paused', params: {
+										callFrames: [{ location: { scriptId: 'coverage-worklet-hook' } }],
+									} }),
+									sessionId: 'worker-session',
+								});
+							} else {
+								emitter.emit('Target.detachedFromTarget', { sessionId: 'worker-session' });
+							}
 						}
 					});
 					return {};
@@ -384,7 +460,7 @@ class FakeContext {
 					return { scriptSource: `source:${String(parameters?.scriptId)}` };
 				}
 				if (method === 'Profiler.takePreciseCoverage') {
-					return { result: page.coverageEntries() };
+					return { result: page.takeCoverageEntries() };
 				}
 				return {};
 			},

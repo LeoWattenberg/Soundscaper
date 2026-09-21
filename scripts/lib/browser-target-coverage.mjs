@@ -95,14 +95,25 @@ export function createBrowserTargetCoverageCollector(session) {
 	}
 
 	async function startRecorder(recorder) {
-		await send(recorder.sessionId, 'Profiler.enable');
-		await send(recorder.sessionId, 'Runtime.enable');
-		await send(recorder.sessionId, 'Profiler.startPreciseCoverage', {
+		// Queue every command before yielding. Playwright owns another listener on
+		// the worker target and can resume it as soon as this attachment callback
+		// returns; commands already sent keep profiler startup ahead of that resume.
+		const debuggerEnabled = send(recorder.sessionId, 'Debugger.enable');
+		const profilerEnabled = send(recorder.sessionId, 'Profiler.enable');
+		const runtimeEnabled = send(recorder.sessionId, 'Runtime.enable');
+		const coverageStarted = send(recorder.sessionId, 'Profiler.startPreciseCoverage', {
 			callCount: false,
 			detailed: true,
 			allowTriggeredUpdates: true,
 		});
-		await send(recorder.sessionId, 'Runtime.runIfWaitingForDebugger');
+		const resumed = send(recorder.sessionId, 'Runtime.runIfWaitingForDebugger');
+		await Promise.all([
+			debuggerEnabled,
+			profilerEnabled,
+			runtimeEnabled,
+			coverageStarted,
+			resumed,
+		]);
 	}
 
 	async function settle() {
@@ -121,6 +132,18 @@ export function createBrowserTargetCoverageCollector(session) {
 			});
 		},
 		settle,
+		async checkpoint() {
+			await settle();
+			for (const recorder of recorders.values()) {
+				if (!recorder.active) continue;
+				try {
+					const { result } = await send(recorder.sessionId, 'Profiler.takePreciseCoverage');
+					recorder.taken.push(...result);
+				} catch (error) {
+					if (recorder.active) throw error;
+				}
+			}
+		},
 		async collect() {
 			closed = true;
 			let entries = [];

@@ -76,11 +76,21 @@ URLs and execution ranges rather than source bytes; their main and child-process
 entries are instead restricted to digest-authenticated installed paths from the
 same preserved package evidence.
 
-Service workers are instrumented at Chromium's browser target before their
-first instruction; a page-target attachment is too late to retain top-level,
-install, and activate execution. Both ordinary and packaged collectors also
-bank triggered precise-coverage updates so a worker that exits before profile
-teardown does not lose its final ranges.
+Service workers, dedicated workers, shared workers, and worklets are attached
+before their first instruction; a later page-target attachment can miss worker
+startup and service-worker install/activate execution. Triggered
+precise-coverage updates are banked when Chromium emits them, but detaching a
+worker does not itself emit a final update. The coverage-only page hook therefore
+pauses `Worker.prototype.terminate()`, checkpoints active workers, and resumes
+before the native termination runs.
+
+Cross-document navigation is checkpointed before the old renderer context is
+destroyed. The collector pauses the document in `beforeunload`, drains both its
+page profiler and its attached dedicated workers, and only then resumes the
+reload or navigation. A take triggered by `Runtime.executionContextsCleared` is
+too late: Chromium has already discarded the prior document's ranges. Playwright
+navigation and close operations also checkpoint first, including a
+`page.close({ runBeforeUnload: false })` that deliberately skips the hook.
 
 The generated `coverage/e2e-capture/`, `coverage/e2e/`, and
 `coverage/e2e-report/` directories are diagnostics and must not be committed.

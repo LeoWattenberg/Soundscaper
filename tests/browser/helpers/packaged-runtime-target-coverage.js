@@ -2,6 +2,15 @@
 
 import { EventEmitter } from 'node:events';
 
+import {
+	INSTALL_WORKLET_COVERAGE_CHECKPOINT,
+	WORKLET_COVERAGE_CHECKPOINT_URL,
+} from '../../../scripts/lib/browser-service-worker-coverage.mjs';
+import {
+	installNavigationCoverageCheckpoints,
+	installPageOperationCoverageCheckpoints,
+} from '../../../scripts/lib/navigation-coverage-checkpoint.mjs';
+
 const AUTO_ATTACH_OPTIONS = Object.freeze({
 	autoAttach: true,
 	filter: Object.freeze([
@@ -25,12 +34,25 @@ export async function startPackagedRuntimeTargetCoverage({
 	const targetTypes = new Set();
 	const nestedSessions = [];
 
+	async function checkpointAll(reason) {
+		await Promise.all(recorders.map((recorder) => recorder.checkpoint()));
+		if (reason !== 'audio-context-close') return;
+		for (const recorder of recorders) {
+			if (!recorder.active || recorder.type !== 'worklet') continue;
+			await recorder.session.detach?.();
+			recorder.active = false;
+		}
+	}
+
 	async function instrument(session, type, waitingForDebugger, ownerPage = null) {
 		const recorder = {
 			active: true,
 			checkpoint: null,
 			checkpointTail: Promise.resolve(),
+			coverageHookScriptIds: new Set(),
+			navigationCheckpoints: null,
 			page: ownerPage,
+			pageOperationCheckpoints: null,
 			session,
 			scriptUrls: new Map(),
 			sources: new Map(),
@@ -43,6 +65,9 @@ export async function startPackagedRuntimeTargetCoverage({
 		if (waitingForDebugger) pausedTargetCounts.set(type, (pausedTargetCounts.get(type) ?? 0) + 1);
 		session.on('detached', () => { recorder.active = false; });
 		session.on('Debugger.scriptParsed', ({ scriptId, url }) => {
+			if (url === WORKLET_COVERAGE_CHECKPOINT_URL) {
+				recorder.coverageHookScriptIds.add(String(scriptId));
+			}
 			if (typeof url === 'string' && url !== '') recorder.scriptUrls.set(String(scriptId), url);
 			if (!keepUrl(url) || recorder.sources.has(url)) return;
 			pending.push(session.send('Debugger.getScriptSource', { scriptId })
@@ -58,6 +83,11 @@ export async function startPackagedRuntimeTargetCoverage({
 				recorder.taken.push(...coverageWithParsedUrls(result, recorder.scriptUrls));
 			}
 		});
+		session.on('Debugger.paused', ({ callFrames }) => {
+			const scriptId = String(callFrames?.[0]?.location?.scriptId);
+			if (!recorder.coverageHookScriptIds.has(scriptId)) return;
+			pending.push(checkpointAndResumeWorklet(recorder));
+		});
 		recorder.checkpoint = () => {
 			recorder.checkpointTail = recorder.checkpointTail.then(async () => {
 				if (!recorder.active) return;
@@ -70,19 +100,40 @@ export async function startPackagedRuntimeTargetCoverage({
 			});
 			return recorder.checkpointTail;
 		};
-		const checkpointOnExit = () => { pending.push(recorder.checkpoint()); };
-		session.on('Runtime.executionContextDestroyed', checkpointOnExit);
-		session.on('Runtime.executionContextsCleared', checkpointOnExit);
-		await session.send('Debugger.enable');
-		await session.send('Profiler.enable');
-		await session.send('Runtime.enable');
-		await session.send('Profiler.startPreciseCoverage', {
+		const debuggerEnabled = session.send('Debugger.enable');
+		const profilerEnabled = session.send('Profiler.enable');
+		const runtimeEnabled = session.send('Runtime.enable');
+		const coverageStarted = session.send('Profiler.startPreciseCoverage', {
 			allowTriggeredUpdates: true,
 			callCount: false,
 			detailed: true,
 		});
+		const workletInstrumented = type === 'worklet'
+			? session.send('Runtime.evaluate', { expression: INSTALL_WORKLET_COVERAGE_CHECKPOINT })
+			: Promise.resolve();
+		const startup = await Promise.all([
+			debuggerEnabled,
+			profilerEnabled,
+			runtimeEnabled,
+			coverageStarted,
+			workletInstrumented,
+		]);
+		if (type === 'worklet' && startup[4]?.result?.value !== true) {
+			throw new Error('Audio worklet coverage checkpoint instrumentation was not installed.');
+		}
 		attachChildren(session);
 		await session.send('Target.setAutoAttach', AUTO_ATTACH_OPTIONS);
+		if (ownerPage !== null) {
+			await session.send('Page.enable');
+			recorder.navigationCheckpoints = await installNavigationCoverageCheckpoints({
+				checkpoint: checkpointAll,
+				session,
+			});
+			recorder.pageOperationCheckpoints = installPageOperationCoverageCheckpoints({
+				checkpoint: checkpointAll,
+				page: ownerPage,
+			});
+		}
 		if (waitingForDebugger) await session.send('Runtime.runIfWaitingForDebugger');
 		return recorder;
 	}
@@ -103,6 +154,7 @@ export async function startPackagedRuntimeTargetCoverage({
 
 	return Object.freeze({
 		async reload(timeoutMs) {
+			await checkpointAll();
 			await rootSession.send('Page.enable');
 			const loaded = waitForSessionEvent(rootSession, 'Page.loadEventFired', timeoutMs);
 			try {
@@ -113,14 +165,17 @@ export async function startPackagedRuntimeTargetCoverage({
 			}
 		},
 		async checkpoint() {
-			await Promise.all(recorders.map((recorder) => recorder.checkpoint()));
+			await checkpointAll();
 		},
 		async collect() {
 			for (const recorder of [...recorders].reverse()) {
+				await recorder.navigationCheckpoints?.settle();
+				recorder.pageOperationCheckpoints?.dispose();
 				if (recorder.active && recorder.page?.isClosed?.() !== true) {
 					try {
 						const { result } = await recorder.session.send('Profiler.takePreciseCoverage');
 						recorder.taken.push(...coverageWithParsedUrls(result, recorder.scriptUrls));
+						await recorder.navigationCheckpoints?.dispose();
 						await recorder.session.send('Profiler.stopPreciseCoverage');
 						await recorder.session.send('Profiler.disable');
 						await recorder.session.send('Debugger.disable');
@@ -154,6 +209,24 @@ export async function startPackagedRuntimeTargetCoverage({
 			});
 		},
 	});
+}
+
+async function checkpointAndResumeWorklet(recorder) {
+	let checkpointError = null;
+	try { await recorder.checkpoint(); } catch (error) { checkpointError = error; }
+	let resumeError = null;
+	if (recorder.active) {
+		try { await recorder.session.send('Debugger.resume'); }
+		catch (error) { resumeError = error; }
+	}
+	if (checkpointError !== null && resumeError !== null) {
+		throw new AggregateError(
+			[checkpointError, resumeError],
+			'Worklet first-process checkpoint and resume both failed.',
+		);
+	}
+	if (checkpointError !== null) throw checkpointError;
+	if (resumeError !== null) throw resumeError;
 }
 
 function coverageWithParsedUrls(entries, urls) {

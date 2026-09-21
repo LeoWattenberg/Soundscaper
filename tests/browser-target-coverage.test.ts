@@ -27,6 +27,7 @@ test('browser target coverage instruments related workers before they run', asyn
 	root.attach('worker-session', 'worker');
 	await collector.settle();
 	assert.deepEqual(root.targetMethods('worker-session'), [
+		'Debugger.enable',
 		'Profiler.enable',
 		'Runtime.enable',
 		'Profiler.startPreciseCoverage',
@@ -76,13 +77,38 @@ test('browser target coverage keeps a triggered update when a short-lived dedica
 	]);
 });
 
+test('browser target coverage checkpoints a worker before its owner navigates away', async () => {
+	const root = fakeRootSession();
+	const collector = createBrowserTargetCoverageCollector(root);
+	await collector.start();
+	root.attach('navigating-session', 'worker');
+	await collector.settle();
+	root.takeResult.set('navigating-session', [coverage(
+		'http://127.0.0.1:4322/assets/navigation-worker.js',
+		'4',
+	)]);
+
+	await collector.checkpoint();
+	root.detachTarget('navigating-session');
+
+	assert.deepEqual((await collector.collect()).map(({ url }) => url), [
+		'http://127.0.0.1:4322/assets/navigation-worker.js',
+	]);
+});
+
 test('browser target coverage ignores a detach while its startup command is dispatching', async () => {
 	const root = fakeRootSession();
 	root.holdTargetCommand('short-session', 'Profiler.enable');
 	const collector = createBrowserTargetCoverageCollector(root);
 	await collector.start();
 	root.attach('short-session', 'worker');
-	assert.deepEqual(root.targetMethods('short-session'), ['Profiler.enable']);
+	assert.deepEqual(root.targetMethods('short-session'), [
+		'Debugger.enable',
+		'Profiler.enable',
+		'Runtime.enable',
+		'Profiler.startPreciseCoverage',
+		'Runtime.runIfWaitingForDebugger',
+	]);
 
 	root.detachTarget('short-session');
 	await new Promise<void>((resolve) => { setImmediate(resolve); });

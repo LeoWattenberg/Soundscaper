@@ -165,6 +165,13 @@ test('the collector records every page a context opens and writes one profile pe
 	context.emitPage(popup);
 	await collector.settle();
 	assert.deepEqual([opened.started, popup.started], [true, true], 'a popup is measured too');
+	for (const page of [opened, popup]) {
+		assert.equal(
+			page.sent.some(([method]) => method === 'Page.addScriptToEvaluateOnNewDocument'),
+			true,
+			'a page installs its pre-navigation coverage checkpoint',
+		);
+	}
 
 	const file = await collector.collect('workspace › records a take', new Set<string>());
 

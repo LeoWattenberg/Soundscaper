@@ -102,6 +102,7 @@ export async function createFixture(context) {
 		['scripts/lib/browser-coverage-profile.mjs', 'export const browserCoverage = true;\n'],
 		['scripts/lib/browser-service-worker-coverage.mjs', 'export const serviceWorkerCoverage = true;\n'],
 		['scripts/lib/browser-target-coverage.mjs', 'export const targetCoverage = true;\n'],
+		['scripts/lib/navigation-coverage-checkpoint.mjs', 'export const navigationCoverage = true;\n'],
 		['scripts/lib/browser-product-site-plan.mjs', 'export const sitePlan = true;\n'],
 		['scripts/lib/product-release-lines.mjs', await readFile(new URL('../../scripts/lib/product-release-lines.mjs', import.meta.url), 'utf8')],
 		['config/product-release-lines.json', await readFile(new URL('../../config/product-release-lines.json', import.meta.url), 'utf8')],

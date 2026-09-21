@@ -2,11 +2,32 @@
 
 import { EventEmitter } from 'node:events';
 
-const SERVICE_WORKER_FILTER = Object.freeze([
-	Object.freeze({ type: 'service_worker' }),
-	Object.freeze({ exclude: true }),
-]);
+const DEFAULT_TARGET_TYPES = Object.freeze(['service_worker']);
 const ACTIVE_PLAYWRIGHT_ROOTS = new WeakSet();
+export const WORKLET_COVERAGE_CHECKPOINT_URL = 'soundscaper-coverage://worklet-checkpoint.js';
+export const INSTALL_WORKLET_COVERAGE_CHECKPOINT = `(() => {
+	const key = Symbol.for('org.soundscaper.coverage.worklet-checkpoint');
+	if (globalThis[key] === true) return true;
+	if (typeof globalThis.registerProcessor !== 'function') return false;
+	const originalRegisterProcessor = globalThis.registerProcessor;
+	globalThis.registerProcessor = function(name, Processor) {
+		let checkpointed = false;
+		class SoundscaperCoverageProcessor extends Processor {
+			process(...args) {
+				const result = super.process(...args);
+				if (!checkpointed) {
+					checkpointed = true;
+					debugger;
+				}
+				return result;
+			}
+		}
+		return Reflect.apply(originalRegisterProcessor, this, [name, SoundscaperCoverageProcessor]);
+	};
+	globalThis[key] = true;
+	return true;
+})();
+//# sourceURL=${WORKLET_COVERAGE_CHECKPOINT_URL}`;
 
 /**
  * Start coverage on service workers from the browser target which creates them.
@@ -19,12 +40,14 @@ const ACTIVE_PLAYWRIGHT_ROOTS = new WeakSet();
  *   rootSession: object,
  *   keepUrl?: (url: string) => boolean,
  *   openTargetSession?: (rootSession: object, sessionId: string) => object,
+ *   targetTypes?: readonly string[],
  * }} options
  */
 export function createBrowserServiceWorkerCoverageCollector({
 	rootSession,
 	keepUrl = () => true,
 	openTargetSession,
+	targetTypes = DEFAULT_TARGET_TYPES,
 }) {
 	if (!rootSession || typeof rootSession.on !== 'function' || typeof rootSession.send !== 'function') {
 		throw new TypeError('Service-worker coverage requires a browser CDP session.');
@@ -32,6 +55,16 @@ export function createBrowserServiceWorkerCoverageCollector({
 	if (typeof openTargetSession !== 'function') {
 		throw new TypeError('Service-worker coverage requires a paused-target session adapter.');
 	}
+	const coveredTargetTypes = new Set(targetTypes);
+	if (coveredTargetTypes.size === 0 || [...coveredTargetTypes].some((type) => (
+		typeof type !== 'string' || type === ''
+	))) {
+		throw new TypeError('Worker coverage requires at least one target type.');
+	}
+	const targetFilter = Object.freeze([
+		...[...coveredTargetTypes].map((type) => Object.freeze({ type })),
+		Object.freeze({ exclude: true }),
+	]);
 	let attached = false;
 	let finished = false;
 	let rootClosed = false;
@@ -40,7 +73,8 @@ export function createBrowserServiceWorkerCoverageCollector({
 	const recorders = new Map();
 
 	const onAttached = ({ sessionId, targetInfo, waitingForDebugger }) => {
-		if (finished || targetInfo?.type !== 'service_worker' || typeof sessionId !== 'string') return;
+		const type = targetInfo?.type;
+		if (finished || !coveredTargetTypes.has(type) || typeof sessionId !== 'string') return;
 		let session;
 		try {
 			session = openTargetSession(rootSession, sessionId);
@@ -50,15 +84,18 @@ export function createBrowserServiceWorkerCoverageCollector({
 		}
 		const recorder = {
 			active: true,
+			coverageHookScriptIds: new Set(),
 			scriptUrls: new Map(),
 			session,
 			sources: new Map(),
 			taken: [],
+			type,
 			waitingForDebugger: waitingForDebugger === true,
 		};
 		recorders.set(sessionId, recorder);
 		session.on('close', () => { recorder.active = false; });
 		session.on('Debugger.scriptParsed', ({ scriptId, url }) => {
+			if (url === WORKLET_COVERAGE_CHECKPOINT_URL) recorder.coverageHookScriptIds.add(String(scriptId));
 			if (typeof url === 'string' && url !== '') recorder.scriptUrls.set(String(scriptId), url);
 			if (typeof url !== 'string' || !keepUrl(url) || recorder.sources.has(url)) return;
 			const work = session.send('Debugger.getScriptSource', { scriptId })
@@ -74,6 +111,13 @@ export function createBrowserServiceWorkerCoverageCollector({
 		});
 		session.on('Profiler.preciseCoverageDeltaUpdate', ({ result }) => {
 			if (Array.isArray(result)) recorder.taken.push(...result);
+		});
+		session.on('Debugger.paused', ({ callFrames }) => {
+			const scriptId = String(callFrames?.[0]?.location?.scriptId);
+			if (!recorder.coverageHookScriptIds.has(scriptId)) return;
+			pending.push(checkpointAndResumeWorklet(recorder).catch((error) => {
+				if (recorder.active) failures.push(error);
+			}));
 		});
 		pending.push(startRecorder(recorder).catch((error) => {
 			if (recorder.active) failures.push(error);
@@ -109,10 +153,19 @@ export function createBrowserServiceWorkerCoverageCollector({
 			callCount: false,
 			detailed: true,
 		});
-		await debuggerEnabled;
-		await profilerEnabled;
-		await runtimeEnabled;
-		await coverageStarted;
+		const workletInstrumented = recorder.type === 'worklet'
+			? recorder.session.send('Runtime.evaluate', { expression: INSTALL_WORKLET_COVERAGE_CHECKPOINT })
+			: Promise.resolve();
+		const startup = await Promise.all([
+			debuggerEnabled,
+			profilerEnabled,
+			runtimeEnabled,
+			coverageStarted,
+			workletInstrumented,
+		]);
+		if (recorder.type === 'worklet' && startup[4]?.result?.value !== true) {
+			throw new Error('Audio worklet coverage checkpoint instrumentation was not installed.');
+		}
 		if (recorder.waitingForDebugger) {
 			await recorder.session.send('Runtime.runIfWaitingForDebugger');
 		}
@@ -136,6 +189,29 @@ export function createBrowserServiceWorkerCoverageCollector({
 		}
 	}
 
+	async function checkpointAndResumeWorklet(recorder) {
+		let checkpointError = null;
+		try {
+			const { result } = await recorder.session.send('Profiler.takePreciseCoverage');
+			if (Array.isArray(result)) recorder.taken.push(...result);
+		} catch (error) {
+			if (recorder.active) checkpointError = error;
+		}
+		let resumeError = null;
+		if (recorder.active) {
+			try { await recorder.session.send('Debugger.resume'); }
+			catch (error) { resumeError = error; }
+		}
+		if (checkpointError !== null && resumeError !== null) {
+			throw new AggregateError(
+				[checkpointError, resumeError],
+				'Worklet first-process checkpoint and resume both failed.',
+			);
+		}
+		if (checkpointError !== null) throw checkpointError;
+		if (resumeError !== null) throw resumeError;
+	}
+
 	return Object.freeze({
 		collected: () => finished,
 		async start() {
@@ -144,16 +220,23 @@ export function createBrowserServiceWorkerCoverageCollector({
 			await rootSession.send('Target.setAutoAttach', {
 				autoAttach: true,
 				flatten: true,
-				filter: SERVICE_WORKER_FILTER,
+				filter: targetFilter,
 				waitForDebuggerOnStart: true,
 			});
 			await settle();
 		},
 		settle,
-		async checkpoint() {
+		async checkpoint({ releaseWorklets = false } = {}) {
 			if (!attached || finished) return;
 			await settle();
 			await Promise.all([...recorders.values()].map(checkpointRecorder));
+			if (releaseWorklets) {
+				for (const recorder of recorders.values()) {
+					if (!recorder.active || recorder.type !== 'worklet') continue;
+					await recorder.session.detach?.();
+					recorder.active = false;
+				}
+			}
 			await settle();
 		},
 		async collect() {
@@ -213,14 +296,16 @@ export function createBrowserServiceWorkerCoverageCollector({
 					if (keepUrl(url) && !sources.has(url)) sources.set(url, source);
 				}
 			}
-			const count = recorders.size;
-			const paused = [...recorders.values()].filter(({ waitingForDebugger }) => waitingForDebugger).length;
+			const counts = countTargetTypes(recorders.values());
+			const paused = countTargetTypes(
+				[...recorders.values()].filter(({ waitingForDebugger }) => waitingForDebugger),
+			);
 			return Object.freeze({
 				entries,
-				pausedTargetCounts: paused === 0 ? {} : { service_worker: paused },
+				pausedTargetCounts: Object.fromEntries(paused),
 				sources,
-				targetCounts: count === 0 ? {} : { service_worker: count },
-				targetTypes: count === 0 ? [] : ['service_worker'],
+				targetCounts: Object.fromEntries(counts),
+				targetTypes: [...counts.keys()],
 			});
 		},
 	});
@@ -230,20 +315,22 @@ export function createBrowserServiceWorkerCoverageCollector({
 export async function createPlaywrightBrowserServiceWorkerCoverageCollector({
 	browser,
 	keepUrl = () => true,
+	targetTypes = DEFAULT_TARGET_TYPES,
 }) {
 	if (!browser || typeof browser.newBrowserCDPSession !== 'function') {
 		throw new TypeError('Service-worker coverage requires Playwright Chromium.');
 	}
 	const implementation = browser?._connection?.toImpl?.(browser);
-	const rootSession = createPlaywrightBrowserTargetAdapter(implementation);
+	const rootSession = createPlaywrightBrowserTargetAdapter(implementation, new Set(targetTypes));
 	return createBrowserServiceWorkerCoverageCollector({
 		keepUrl,
 		openTargetSession: (root, sessionId) => root.openTargetSession(sessionId),
 		rootSession,
+		targetTypes,
 	});
 }
 
-function createPlaywrightBrowserTargetAdapter(browser) {
+function createPlaywrightBrowserTargetAdapter(browser, targetTypes) {
 	const parent = browser?._session;
 	if (!parent || typeof parent.prependListener !== 'function'
 		|| typeof parent.createChildSession !== 'function'
@@ -256,48 +343,107 @@ function createPlaywrightBrowserTargetAdapter(browser) {
 	ACTIVE_PLAYWRIGHT_ROOTS.add(parent);
 	const events = new EventEmitter();
 	const children = new Map();
+	const retainedDetaches = new Map();
 	const targets = new Map();
-	const originalCreateChildSession = parent.createChildSession;
+	const owners = new Map();
 	let closed = false;
 	let existingTargetsEmitted = false;
-	const markTarget = (parameters) => {
-		if (parameters?.targetInfo?.type === 'service_worker') {
-			targets.set(parameters.sessionId, parameters);
-		}
-	};
-	const forwardDetached = (parameters) => {
-		children.delete(parameters?.sessionId);
-		events.emit('Target.detachedFromTarget', parameters);
-	};
 	const forwardClose = () => { events.emit('close'); };
-	const wrappedCreateChildSession = function(sessionId, listener) {
-		const child = originalCreateChildSession.call(this, sessionId, listener);
-		const target = targets.get(sessionId);
-		if (target) {
-			targets.delete(sessionId);
-			children.set(sessionId, child);
-			events.emit('Target.attachedToTarget', target);
-		}
-		return child;
+
+	const installOwner = (owner) => {
+		if (!owner || owners.has(owner) || typeof owner.prependListener !== 'function'
+			|| typeof owner.createChildSession !== 'function') return;
+		const originalCreateChildSession = owner.createChildSession;
+		const markTarget = (parameters) => {
+			const type = parameters?.targetInfo?.type;
+			if (targetTypes.has(type) || type === 'iframe' || type === 'page') {
+				targets.set(parameters.sessionId, parameters);
+			}
+		};
+		const forwardDetached = (parameters) => {
+			const retained = retainedDetaches.get(parameters?.sessionId);
+			if (retained) {
+				if (retained.child.detach === retained.suppressedDetach) {
+					retained.child.detach = retained.originalDetach;
+				}
+				retainedDetaches.delete(parameters.sessionId);
+			}
+			if (children.delete(parameters?.sessionId)) {
+				events.emit('Target.detachedFromTarget', parameters);
+			}
+		};
+		const wrappedCreateChildSession = function(sessionId, listener) {
+			const child = originalCreateChildSession.call(this, sessionId, listener);
+			const target = targets.get(sessionId);
+			if (target) {
+				targets.delete(sessionId);
+				installOwner(child);
+				if (targetTypes.has(target.targetInfo?.type)) {
+					if (!['service_worker', 'worker'].includes(target.targetInfo.type)
+						&& typeof child.detach === 'function') {
+						const originalDetach = child.detach;
+						const suppressedDetach = async () => {};
+						child.detach = suppressedDetach;
+						retainedDetaches.set(sessionId, { child, originalDetach, suppressedDetach });
+					}
+					children.set(sessionId, child);
+					events.emit('Target.attachedToTarget', target);
+				}
+			}
+			return child;
+		};
+		owner.prependListener('Target.attachedToTarget', markTarget);
+		owner.on('Target.detachedFromTarget', forwardDetached);
+		owner.createChildSession = wrappedCreateChildSession;
+		owners.set(owner, {
+			forwardDetached,
+			markTarget,
+			originalCreateChildSession,
+			wrappedCreateChildSession,
+		});
 	};
-	parent.prependListener('Target.attachedToTarget', markTarget);
-	parent.on('Target.detachedFromTarget', forwardDetached);
+
+	installOwner(parent);
+	for (const page of browser._crPages?.values?.() ?? []) {
+		for (const frameSession of page?._sessions?.values?.() ?? []) {
+			installOwner(frameSession?._client);
+		}
+	}
 	browser.on('disconnected', forwardClose);
-	parent.createChildSession = wrappedCreateChildSession;
+
+	const releaseTarget = async (sessionId) => {
+		const retained = retainedDetaches.get(sessionId);
+		if (!retained) return;
+		retainedDetaches.delete(sessionId);
+		if (retained.child.detach === retained.suppressedDetach) {
+			retained.child.detach = retained.originalDetach;
+		}
+		await retained.originalDetach.call(retained.child);
+	};
 
 	return Object.freeze({
 		detach: async () => {
 			if (closed) return;
 			closed = true;
-			parent.off('Target.attachedToTarget', markTarget);
-			parent.off('Target.detachedFromTarget', forwardDetached);
 			browser.off('disconnected', forwardClose);
 			ACTIVE_PLAYWRIGHT_ROOTS.delete(parent);
-			if (parent.createChildSession === wrappedCreateChildSession) {
-				parent.createChildSession = originalCreateChildSession;
-			} else {
-				throw new Error('Playwright browser target interception changed during coverage.');
+			for (const [owner, interception] of [...owners].reverse()) {
+				owner.off('Target.attachedToTarget', interception.markTarget);
+				owner.off('Target.detachedFromTarget', interception.forwardDetached);
+				if (owner.createChildSession === interception.wrappedCreateChildSession) {
+					owner.createChildSession = interception.originalCreateChildSession;
+				} else {
+					throw new Error('Playwright browser target interception changed during coverage.');
+				}
 			}
+			owners.clear();
+			for (const retained of retainedDetaches.values()) {
+				if (retained.child.detach === retained.suppressedDetach) {
+					retained.child.detach = retained.originalDetach;
+				}
+				await retained.originalDetach.call(retained.child).catch(() => undefined);
+			}
+			retainedDetaches.clear();
 			children.clear();
 			targets.clear();
 			events.emit('close');
@@ -310,7 +456,7 @@ function createPlaywrightBrowserTargetAdapter(browser) {
 			if (!child) throw new Error('Playwright lost a paused service-worker CDP target.');
 			return Object.freeze({
 				close() {},
-				async detach() {},
+				detach: () => releaseTarget(sessionId),
 				on: child.on.bind(child),
 				off: child.off.bind(child),
 				send: child.send.bind(child),
@@ -323,7 +469,8 @@ function createPlaywrightBrowserTargetAdapter(browser) {
 			}
 			// Playwright owns this root session and already keeps recursive targets
 			// paused. Do not replace or disable its auto-attach configuration.
-			if (parameters?.autoAttach === true && !existingTargetsEmitted) {
+			if (parameters?.autoAttach === true && !existingTargetsEmitted
+				&& targetTypes.has('service_worker')) {
 				existingTargetsEmitted = true;
 				for (const [targetId, worker] of browser._serviceWorkers ?? []) {
 					const child = worker?._session;
@@ -340,6 +487,12 @@ function createPlaywrightBrowserTargetAdapter(browser) {
 			return {};
 		},
 	});
+}
+
+function countTargetTypes(recorders) {
+	const counts = new Map();
+	for (const { type } of recorders) counts.set(type, (counts.get(type) ?? 0) + 1);
+	return new Map([...counts].sort(([left], [right]) => left.localeCompare(right)));
 }
 
 function coverageWithParsedUrls(entries, urls) {

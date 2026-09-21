@@ -6,6 +6,7 @@ import test from 'node:test';
 
 import {
 	createBrowserServiceWorkerCoverageCollector,
+	WORKLET_COVERAGE_CHECKPOINT_URL,
 } from '../scripts/lib/browser-service-worker-coverage.mjs';
 
 test('browser-level service-worker coverage starts before execution and keeps a final delta', async () => {
@@ -79,6 +80,96 @@ test('browser-level service-worker coverage starts before execution and keeps a 
 	assert.equal(child.detachCount, 1, 'the detached child wrapper is released exactly once');
 });
 
+test('browser-level worker coverage routes only the requested worker and worklet targets', async () => {
+	const root = new FakeRootSession();
+	const children = new Map([
+		['worker-session', new FakeTargetSession()],
+		['worklet-session', new FakeTargetSession()],
+	]);
+	const collector = createBrowserServiceWorkerCoverageCollector({
+		openTargetSession: (_root: unknown, sessionId: string) => {
+			const child = children.get(sessionId);
+			if (child === undefined) throw new Error(`Unexpected target ${sessionId}.`);
+			return child;
+		},
+		rootSession: root,
+		targetTypes: ['worker', 'worklet'],
+	});
+
+	await collector.start();
+	assert.deepEqual(root.calls[0], ['Target.setAutoAttach', {
+		autoAttach: true,
+		flatten: true,
+		filter: [{ type: 'worker' }, { type: 'worklet' }, { exclude: true }],
+		waitForDebuggerOnStart: true,
+	}]);
+	root.emit('Target.attachedToTarget', {
+		sessionId: 'page-session',
+		targetInfo: { type: 'page', url: 'http://127.0.0.1:4322/' },
+		waitingForDebugger: true,
+	});
+	root.emit('Target.attachedToTarget', {
+		sessionId: 'service-worker-session',
+		targetInfo: { type: 'service_worker', url: 'http://127.0.0.1:4322/sw.js' },
+		waitingForDebugger: true,
+	});
+	root.emit('Target.attachedToTarget', {
+		sessionId: 'worker-session',
+		targetInfo: { type: 'worker', url: 'http://127.0.0.1:4322/worker.js' },
+		waitingForDebugger: true,
+	});
+	root.emit('Target.attachedToTarget', {
+		sessionId: 'worklet-session',
+		targetInfo: { type: 'worklet', url: 'http://127.0.0.1:4322/worklet.js' },
+		waitingForDebugger: false,
+	});
+	await collector.settle();
+	children.get('worker-session')?.emit('Profiler.preciseCoverageDeltaUpdate', {
+		result: [coverage('4', 'http://127.0.0.1:4322/worker.js', 24)],
+	});
+	children.get('worklet-session')?.emit('Profiler.preciseCoverageDeltaUpdate', {
+		result: [coverage('5', 'http://127.0.0.1:4322/worklet.js', 32)],
+	});
+	children.get('worklet-session')?.emit('Debugger.paused', {
+		callFrames: [{ location: { scriptId: 'coverage-worklet-hook' } }],
+	});
+	await collector.settle();
+	assert.ok(children.get('worklet-session')?.calls.some(([method]) => method === 'Debugger.resume'));
+
+	const capture = await collector.collect();
+	assert.deepEqual(capture.entries.map(({ url }) => url), [
+		'http://127.0.0.1:4322/worker.js',
+		'http://127.0.0.1:4322/worklet.js',
+	]);
+	assert.deepEqual(capture.pausedTargetCounts, { worker: 1 });
+	assert.deepEqual(capture.targetCounts, { worker: 1, worklet: 1 });
+	assert.deepEqual(capture.targetTypes, ['worker', 'worklet']);
+});
+
+test('a worklet release failure fails its lifecycle checkpoint closed', async () => {
+	const root = new FakeRootSession();
+	const child = new FakeTargetSession();
+	const collector = createBrowserServiceWorkerCoverageCollector({
+		openTargetSession: () => child,
+		rootSession: root,
+		targetTypes: ['worklet'],
+	});
+	await collector.start();
+	root.emit('Target.attachedToTarget', {
+		sessionId: 'worklet-session',
+		targetInfo: { type: 'worklet', url: 'http://127.0.0.1:4322/worklet.js' },
+		waitingForDebugger: false,
+	});
+	await collector.settle();
+	child.detachFailure = new Error('worklet release failed');
+	await assert.rejects(
+		collector.checkpoint({ releaseWorklets: true }),
+		/worklet release failed/u,
+	);
+	child.detachFailure = null;
+	await collector.collect();
+});
+
 function coverage(scriptId: string, url: string, endOffset: number) {
 	return {
 		functions: [{
@@ -105,16 +196,29 @@ class FakeRootSession extends EventEmitter {
 
 class FakeTargetSession extends EventEmitter {
 	readonly calls: Array<[string, unknown]> = [];
+	detachFailure: Error | null = null;
 	detachCount = 0;
 
 	close(): void {
 		this.emit('close');
 	}
 
-	async detach(): Promise<void> { this.detachCount += 1; }
+	async detach(): Promise<void> {
+		this.detachCount += 1;
+		if (this.detachFailure !== null) throw this.detachFailure;
+	}
 
 	async send(method: string, parameters?: { scriptId?: string }): Promise<unknown> {
 		this.calls.push([method, parameters]);
+		if (method === 'Runtime.evaluate') {
+			queueMicrotask(() => {
+				this.emit('Debugger.scriptParsed', {
+					scriptId: 'coverage-worklet-hook',
+					url: WORKLET_COVERAGE_CHECKPOINT_URL,
+				});
+			});
+			return { result: { value: true } };
+		}
 		if (method === 'Debugger.getScriptSource') {
 			return { scriptSource: `service-worker-source:${String(parameters?.scriptId)}` };
 		}

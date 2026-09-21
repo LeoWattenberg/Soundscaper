@@ -9,7 +9,18 @@ import { sourceMapDirectoryFor } from './build-source-map-relocation.mjs';
 import {
 	createPlaywrightBrowserServiceWorkerCoverageCollector,
 } from './browser-service-worker-coverage.mjs';
-import { createBrowserTargetCoverageCollector } from './browser-target-coverage.mjs';
+import {
+	installNavigationCoverageCheckpoints,
+	installPageOperationCoverageCheckpoints,
+} from './navigation-coverage-checkpoint.mjs';
+
+const BROWSER_WORKER_TARGET_TYPES = Object.freeze([
+	'service_worker',
+	'shared_storage_worklet',
+	'shared_worker',
+	'worker',
+	'worklet',
+]);
 
 // What the browser suite measures is the same `src/` the Node suite measures, so
 // it has to arrive in the same shape: a raw V8 profile with a source-map cache
@@ -192,8 +203,8 @@ export function createBrowserCoverageCollector({
 	const started = new Set();
 	const recorders = new Map();
 	const pending = [];
-	let serviceWorkerCollector = null;
-	let serviceWorkerStart = null;
+	let workerCollector = null;
+	let workerCollectorStart = null;
 
 	function start(page) {
 		if (started.has(page) || typeof page.context !== 'function') return;
@@ -209,24 +220,43 @@ export function createBrowserCoverageCollector({
 
 	async function startRecording(page) {
 		const session = await page.context().newCDPSession(page);
-		const targetCollector = createBrowserTargetCoverageCollector(session);
-		const recorder = { session, targetCollector, taken: [] };
+		const recorder = {
+			navigationCheckpoints: null,
+			pageOperationCheckpoints: null,
+			session,
+			taken: [],
+		};
 		recorders.set(page, recorder);
 		// Binary block coverage straight from the profiler: `callCount: false`
 		// records whether a block ran, not how often, which is all a line and
 		// branch report needs and far cheaper than Playwright's counted coverage.
 		// The realtime BW64 export spec missed its budget on the runner under the
-		// counted kind. Coverage of a document that navigates away is taken as its
-		// contexts clear, the way Playwright keeps coverage across navigations.
+		// counted kind. A document that navigates away is paused and drained before
+		// Chromium clears its old execution context; waiting for the cleared event
+		// loses both that page's ranges and any dedicated worker it owned.
 		await session.send('Profiler.enable');
 		await session.send('Runtime.enable');
-		session.on('Runtime.executionContextsCleared', () => {
-			pending.push(session.send('Profiler.takePreciseCoverage')
-				.then(({ result }) => { recorder.taken.push(...result); })
-				.catch(() => {}));
-		});
+		await session.send('Page.enable');
+		await session.send('Debugger.enable');
 		await session.send('Profiler.startPreciseCoverage', { callCount: false, detailed: true });
-		await targetCollector.start();
+		recorder.navigationCheckpoints = await installNavigationCoverageCheckpoints({
+			checkpoint: (reason) => checkpointRecorder(recorder, reason),
+			session,
+		});
+		recorder.pageOperationCheckpoints = installPageOperationCoverageCheckpoints({
+			checkpoint: () => checkpointRecorder(recorder),
+			page,
+		});
+	}
+
+	async function checkpointRecorder(recorder, reason) {
+		const [{ result }] = await Promise.all([
+			recorder.session.send('Profiler.takePreciseCoverage'),
+			workerCollectorStart?.then(() => workerCollector?.checkpoint({
+				releaseWorklets: reason === 'audio-context-close',
+			})),
+		]);
+		recorder.taken.push(...result);
 	}
 
 	async function resolveScript(url) {
@@ -249,15 +279,16 @@ export function createBrowserCoverageCollector({
 	return {
 		/** Start coverage on every page this context has or will open. */
 		attach(context) {
-			if (serviceWorkerStart !== null) throw new Error('Browser coverage was already attached.');
-			serviceWorkerStart = createPlaywrightBrowserServiceWorkerCoverageCollector({
+			if (workerCollectorStart !== null) throw new Error('Browser coverage was already attached.');
+			workerCollectorStart = createPlaywrightBrowserServiceWorkerCoverageCollector({
 				browser: context.browser?.(),
 				keepUrl: (url) => directoriesByOrigin.has(originOf(url)),
+				targetTypes: BROWSER_WORKER_TARGET_TYPES,
 			}).then(async (collector) => {
-				serviceWorkerCollector = collector;
+				workerCollector = collector;
 				await collector.start();
 			});
-			pending.push(serviceWorkerStart);
+			pending.push(workerCollectorStart);
 			for (const page of context.pages()) start(page);
 			context.on('page', start);
 		},
@@ -273,24 +304,25 @@ export function createBrowserCoverageCollector({
 		async collect(label, alreadyWritten) {
 			await settle();
 			const entries = [];
-			if (serviceWorkerCollector !== null) {
-				entries.push(...(await serviceWorkerCollector.collect()).entries);
-			}
 			for (const page of started) {
 				const recorder = recorders.get(page);
 				recorders.delete(page);
 				if (!recorder) continue;
+				await recorder.navigationCheckpoints?.settle();
+				recorder.pageOperationCheckpoints?.dispose();
 				entries.push(...recorder.taken);
 				const pageClosed = page.isClosed();
-				entries.push(...await recorder.targetCollector.collect());
 				if (pageClosed) continue;
 				try {
-					entries.push(...await stopRecording(recorder.session));
+					entries.push(...await stopRecording(recorder.session, recorder.navigationCheckpoints));
 				} catch (error) {
 					// A page the test closed on its way out has nothing left to
 					// report; anything else is a real failure to record.
 					if (!page.isClosed()) throw error;
 				}
+			}
+			if (workerCollector !== null) {
+				entries.push(...(await workerCollector.collect()).entries);
 			}
 			started.clear();
 
@@ -337,10 +369,12 @@ function parseCoverageSites(serialized) {
 	return sites;
 }
 
-async function stopRecording(session) {
+async function stopRecording(session, navigationCheckpoints) {
 	const { result } = await session.send('Profiler.takePreciseCoverage');
+	await navigationCheckpoints?.dispose();
 	await session.send('Profiler.stopPreciseCoverage');
 	await session.send('Profiler.disable');
+	await session.send('Debugger.disable');
 	await session.detach();
 	return result;
 }
