@@ -9,6 +9,7 @@
 #define WIN32_LEAN_AND_MEAN
 #define NOMINMAX
 #include <windows.h>
+#include "../../common/windows_utf8_path.h"
 #include <winternl.h>
 
 #include <algorithm>
@@ -116,12 +117,9 @@ owned_handle open_relative(HANDLE root, std::wstring& leaf, ACCESS_MASK access,
 }
 
 std::wstring utf16(const std::string& value) {
-	const auto size = MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, value.data(),
-		static_cast<int>(value.size()), nullptr, 0);
-	if (size <= 0) fail_windows("malformed-control", "utf8-decode");
-	std::wstring output(static_cast<std::size_t>(size), L'\0');
-	if (MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, value.data(),
-		static_cast<int>(value.size()), output.data(), size) != size) {
+	std::wstring output;
+	if (!soundscaper::windows_path::decode(output, value.data(),
+		static_cast<int>(value.size()), 1, INT_MAX, false)) {
 		fail_windows("malformed-control", "utf8-decode");
 	}
 	return output;

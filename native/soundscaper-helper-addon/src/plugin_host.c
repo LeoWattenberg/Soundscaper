@@ -8,6 +8,7 @@
 #if defined(_WIN32)
 #define SOUNDSCAPER_PLUGIN_HAS_WIN32 1
 #include <windows.h>
+#include "../../common/windows_utf8_path.h"
 #else
 #define SOUNDSCAPER_PLUGIN_HAS_WIN32 0
 #include <dlfcn.h>
@@ -16,22 +17,9 @@
 #if SOUNDSCAPER_PLUGIN_HAS_WIN32
 typedef HMODULE soundscaper_plugin_library;
 
-static wchar_t *wide_path(const char *path)
-{
-	const int length = MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, path, -1, NULL, 0);
-	if (length <= 0) return NULL;
-	wchar_t *wide = calloc((size_t)length, sizeof(*wide));
-	if (wide == NULL) return NULL;
-	if (MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, path, -1, wide, length) != length) {
-		free(wide);
-		return NULL;
-	}
-	return wide;
-}
-
 static soundscaper_plugin_library open_plugin_library(const char *path)
 {
-	wchar_t *wide = wide_path(path);
+	wchar_t *wide = soundscaper_windows_wide_path_alloc_nul(path);
 	if (wide == NULL) return NULL;
 	const DWORD attributes = GetFileAttributesW(wide);
 	if (attributes == INVALID_FILE_ATTRIBUTES

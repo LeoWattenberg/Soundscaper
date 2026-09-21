@@ -11,6 +11,7 @@
 #if defined(_WIN32)
 #define SOUNDSCAPER_PLUGIN_HAS_WIN32 1
 #include <windows.h>
+#include "../../common/windows_utf8_path.h"
 #include <wchar.h>
 #else
 #define SOUNDSCAPER_PLUGIN_HAS_WIN32 0
@@ -33,19 +34,6 @@
 #if SOUNDSCAPER_PLUGIN_HAS_WIN32
 typedef HMODULE soundscaper_plugin_library;
 
-static wchar_t *wide_path(const char *path)
-{
-	const int length = MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, path, -1, NULL, 0);
-	if (length <= 0) return NULL;
-	wchar_t *wide = calloc((size_t)length, sizeof(*wide));
-	if (wide == NULL) return NULL;
-	if (MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, path, -1, wide, length) != length) {
-		free(wide);
-		return NULL;
-	}
-	return wide;
-}
-
 static int utf8_name(const wchar_t *wide, char *output, size_t capacity)
 {
 	const int required = WideCharToMultiByte(CP_UTF8, WC_ERR_INVALID_CHARS,
@@ -63,7 +51,7 @@ static int regular_win32_file(DWORD attributes)
 
 static soundscaper_plugin_library open_plugin_library(const char *path, char *detail, size_t capacity)
 {
-	wchar_t *wide = wide_path(path);
+	wchar_t *wide = soundscaper_windows_wide_path_alloc_nul(path);
 	if (wide == NULL) {
 		snprintf(detail, capacity, "The module path is not valid UTF-8.");
 		return NULL;
@@ -171,7 +159,7 @@ int soundscaper_plugin_list_candidates(
 	closedir(directory);
 	return 0;
 #elif SOUNDSCAPER_PLUGIN_HAS_WIN32
-	wchar_t *wide_root = wide_path(root);
+	wchar_t *wide_root = soundscaper_windows_wide_path_alloc_nul(root);
 	if (wide_root == NULL) return SOUNDSCAPER_PLUGIN_LIST_UNREADABLE;
 	const DWORD root_attributes = GetFileAttributesW(wide_root);
 	if (root_attributes == INVALID_FILE_ATTRIBUTES

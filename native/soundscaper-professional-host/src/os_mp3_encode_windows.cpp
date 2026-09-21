@@ -9,6 +9,7 @@
 #define WIN32_LEAN_AND_MEAN
 #define NOMINMAX
 #include <windows.h>
+#include "../../common/windows_utf8_path.h"
 #include <mfapi.h>
 #include <mfidl.h>
 #include <mfreadwrite.h>
@@ -68,17 +69,6 @@ bool exactRequest(const soundscaper_pro_os_mp3_encode_request *request)
 		request->sample_rate, request->channel_count, request->bitrate_kbps, 192u);
 }
 
-bool widePath(const char *value, std::wstring &result)
-{
-	const int length = MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, value, -1, nullptr, 0);
-	if (length <= 1 || length > 32768) return false;
-	result.resize(static_cast<size_t>(length));
-	if (MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, value, -1,
-		result.data(), length) != length) return false;
-	result.pop_back();
-	return true;
-}
-
 soundscaper_pro_os_mp3_encode_result refused(
 	soundscaper_pro_os_codec_status status,
 	Mp3Refusal reason)
@@ -128,7 +118,8 @@ soundscaper_pro_os_mp3_encode_result encode(
 	if (!exactRequest(request)) return answer(SOUNDSCAPER_PRO_OS_CODEC_INVALID_REQUEST);
 	std::wstring inputPath;
 	std::wstring outputPath;
-	if (!widePath(request->input_path_utf8, inputPath) || !widePath(request->output_path_utf8, outputPath)) {
+	if (!soundscaper::windows_path::decode_bounded_path(inputPath, request->input_path_utf8)
+		|| !soundscaper::windows_path::decode_bounded_path(outputPath, request->output_path_utf8)) {
 		return answer(SOUNDSCAPER_PRO_OS_CODEC_INVALID_REQUEST);
 	}
 	if (GetFileAttributesW(outputPath.c_str()) != INVALID_FILE_ATTRIBUTES) {

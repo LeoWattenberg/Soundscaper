@@ -33,15 +33,22 @@ test('the Windows helper discovers and loads fixture modules through wide-path W
 		'native/soundscaper-helper-addon/src/plugin_scan.c'), 'utf8');
 	const host = readFileSync(resolve(root,
 		'native/soundscaper-helper-addon/src/plugin_host.c'), 'utf8');
+	const conversion = readFileSync(resolve(root,
+		'native/common/windows_utf8_path.h'), 'utf8');
 	for (const symbol of [
-		'MultiByteToWideChar', 'FindFirstFileW', 'FindNextFileW',
+		'FindFirstFileW', 'FindNextFileW',
 		'LoadLibraryExW', 'GetProcAddress', 'FreeLibrary',
 	]) {
 		assert.match(scan, new RegExp(`\\b${symbol}\\b`, 'u'));
 	}
 	assert.match(scan, /FILE_ATTRIBUTE_REPARSE_POINT/u);
-	for (const symbol of ['MultiByteToWideChar', 'LoadLibraryExW', 'GetProcAddress', 'FreeLibrary']) {
+	for (const symbol of ['LoadLibraryExW', 'GetProcAddress', 'FreeLibrary']) {
 		assert.match(host, new RegExp(`\\b${symbol}\\b`, 'u'));
+	}
+	assert.match(conversion, /MultiByteToWideChar\(CP_UTF8, MB_ERR_INVALID_CHARS/u);
+	for (const source of [scan, host]) {
+		assert.match(source, /soundscaper_windows_wide_path_alloc_nul\(/u);
+		assert.doesNotMatch(source, /MultiByteToWideChar\(/u);
 	}
 	const selfTest = readFileSync(resolve(root,
 		'scripts/self-test-native-helper-addon-result.mjs'), 'utf8');

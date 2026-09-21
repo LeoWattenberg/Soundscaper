@@ -9,6 +9,7 @@
 #define WIN32_LEAN_AND_MEAN
 #define NOMINMAX
 #include <windows.h>
+#include "../../common/windows_utf8_path.h"
 #include <mfapi.h>
 #include <mfidl.h>
 #include <mfreadwrite.h>
@@ -73,17 +74,6 @@ bool requestShape(const soundscaper_pro_os_mp3_decode_request *request)
 	return request != nullptr && soundscaper::os_audio::exactScratchRequest(
 		request->input_path_utf8, request->output_path_utf8,
 		request->input_bytes, request->maximum_output_bytes);
-}
-
-bool widePath(const char *value, std::wstring &result)
-{
-	const int length = MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, value, -1, nullptr, 0);
-	if (length <= 1 || length > 32768) return false;
-	result.resize(static_cast<size_t>(length));
-	if (MultiByteToWideChar(CP_UTF8, MB_ERR_INVALID_CHARS, value, -1,
-		result.data(), length) != length) return false;
-	result.pop_back();
-	return true;
 }
 
 bool exactInputFile(const std::wstring &path, uint64_t expectedBytes)
@@ -183,7 +173,8 @@ soundscaper_pro_os_mp3_decode_result decodeOperatingSystemAudio(
 	if (!requestShape(request)) return answer(SOUNDSCAPER_PRO_OS_CODEC_INVALID_REQUEST);
 	std::wstring inputPath;
 	std::wstring outputPath;
-	if (!widePath(request->input_path_utf8, inputPath) || !widePath(request->output_path_utf8, outputPath)) {
+	if (!soundscaper::windows_path::decode_bounded_path(inputPath, request->input_path_utf8)
+		|| !soundscaper::windows_path::decode_bounded_path(outputPath, request->output_path_utf8)) {
 		return answer(SOUNDSCAPER_PRO_OS_CODEC_INVALID_REQUEST);
 	}
 	if (!exactInputFile(inputPath, request->input_bytes)) {
@@ -327,7 +318,8 @@ soundscaper_pro_os_aac_m4a_encode_result encodeOperatingSystemAacM4a(
 	if (!exactEncodeRequest(request)) return encodeAnswer(SOUNDSCAPER_PRO_OS_CODEC_INVALID_REQUEST);
 	std::wstring inputPath;
 	std::wstring outputPath;
-	if (!widePath(request->input_path_utf8, inputPath) || !widePath(request->output_path_utf8, outputPath)) {
+	if (!soundscaper::windows_path::decode_bounded_path(inputPath, request->input_path_utf8)
+		|| !soundscaper::windows_path::decode_bounded_path(outputPath, request->output_path_utf8)) {
 		return encodeAnswer(SOUNDSCAPER_PRO_OS_CODEC_INVALID_REQUEST);
 	}
 	if (!exactInputFile(inputPath, request->input_bytes)) {

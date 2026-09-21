@@ -75,7 +75,46 @@ test('the checked-in native helper addon sources and payloads match their pins',
 	const { findings, manifest } = auditNativeHelperAddon({ repositoryRoot });
 	assert.deepEqual(findings, []);
 	assert.ok(manifest.sourceFiles.length >= 3);
+	assert.equal(manifest.sharedSourceFiles?.[0]?.path, 'native/common/windows_utf8_path.h');
 	assert.equal(manifest.targets['linux-x64'].status, 'built');
+});
+
+test('a shared Windows path source is pinned and repinned with the addon closure', () => {
+	const root = createFixture((manifest, { root: fixtureRoot }) => {
+		const common = join(fixtureRoot, 'native/common');
+		mkdirSync(common, { recursive: true });
+		const bytes = Buffer.from('shared path kernel\n');
+		writeFileSync(join(common, 'windows_utf8_path.h'), bytes);
+		manifest.sharedSourceFiles = [{
+			path: 'native/common/windows_utf8_path.h',
+			byteLength: bytes.byteLength,
+			sha256: digest(bytes),
+		}];
+	});
+	try {
+		assert.deepEqual(auditNativeHelperAddon({ repositoryRoot: root }).findings, []);
+		writeFileSync(join(root, 'native/common/windows_utf8_path.h'), 'changed path kernel\n');
+		assert.match(auditNativeHelperAddon({ repositoryRoot: root }).findings.join('\n'),
+			/Shared source digest mismatch for native\/common\/windows_utf8_path\.h/u);
+		repinNativeHelperAddonSources({ repositoryRoot: root });
+		assert.deepEqual(auditNativeHelperAddon({ repositoryRoot: root }).findings, []);
+	} finally {
+		rmSync(root, { recursive: true, force: true });
+	}
+});
+
+test('a Windows plug-in caller cannot drop its shared path source pin', () => {
+	const root = createFixture((manifest, { sourceRoot }) => {
+		const bytes = Buffer.from('#include "../../common/windows_utf8_path.h"\n');
+		writeFileSync(join(sourceRoot, 'plugin_scan.c'), bytes);
+		manifest.sourceFiles.push({ path: 'plugin_scan.c', byteLength: bytes.byteLength, sha256: digest(bytes) });
+	});
+	try {
+		assert.match(auditNativeHelperAddon({ repositoryRoot: root }).findings.join('\n'),
+			/Unpinned native helper addon shared source: native\/common\/windows_utf8_path\.h/u);
+	} finally {
+		rmSync(root, { recursive: true, force: true });
+	}
 });
 
 test('every claimed target is recorded and macOS x64 is retired', () => {

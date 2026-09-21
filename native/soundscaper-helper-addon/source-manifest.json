@@ -134,8 +134,8 @@
 		},
 		{
 			"path": "plugin_host.c",
-			"byteLength": 7362,
-			"sha256": "284ea50ba29a3b54eec1f2c6da058baa9f76da746ea8eedd7569a47d740ffebe"
+			"byteLength": 7038,
+			"sha256": "8af965ddc3adfb31779c949ae74a105d9c97fbc9cead411fa7e55e584a4a1bab"
 		},
 		{
 			"path": "plugin_host.h",
@@ -144,8 +144,8 @@
 		},
 		{
 			"path": "plugin_scan.c",
-			"byteLength": 11241,
-			"sha256": "f42edfc422638a5a47f63320c7f3294d561e49df81a3ffd5fd2fc0eb58f9c99b"
+			"byteLength": 10947,
+			"sha256": "15083298f9f7c53c5e6379ab3d72036f211483d0000f66a6070edd44731de3eb"
 		},
 		{
 			"path": "plugin_scan.h",
@@ -161,6 +161,13 @@
 			"path": "synthetic_engine.h",
 			"byteLength": 3370,
 			"sha256": "2841342f70d4b4c945bb06a5363c1b33f86f4eeb56710eda7c546b2fc534fefc"
+		}
+	],
+	"sharedSourceFiles": [
+		{
+			"path": "native/common/windows_utf8_path.h",
+			"byteLength": 2694,
+			"sha256": "4a9e362303b8a091036bacb9ace98e4de7a1ffbf59876925ee04008f2a2bee68"
 		}
 	],
 	"targets": {

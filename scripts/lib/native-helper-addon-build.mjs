@@ -21,6 +21,7 @@ import { listNativeSourceTree } from './native-source-tree.mjs';
 
 export const NATIVE_HELPER_ADDON_ROOT = 'native/soundscaper-helper-addon';
 export const NATIVE_HELPER_ADDON_SOURCE_MANIFEST = `${NATIVE_HELPER_ADDON_ROOT}/source-manifest.json`;
+const SHARED_WINDOWS_PATH_SOURCE = 'native/common/windows_utf8_path.h';
 
 /**
  * The five claimed milestone-5A targets, named with electron-builder's
@@ -56,6 +57,12 @@ export function readNativeHelperAddonSourceManifest(repositoryRoot) {
 	/* An empty pin list is readable but never auditable: the audit reports every
 	 * on-disk source as unpinned, so a freshly seeded manifest fails closed. */
 	assert(Array.isArray(manifest.sourceFiles), 'The native helper addon source manifest must pin its sources.');
+	if (manifest.sharedSourceFiles !== undefined) {
+		assert(Array.isArray(manifest.sharedSourceFiles)
+			&& manifest.sharedSourceFiles.length === 1
+			&& manifest.sharedSourceFiles[0]?.path === SHARED_WINDOWS_PATH_SOURCE,
+		'The native helper addon shared Windows path source must be pinned exactly.');
+	}
 	assert(typeof manifest.payloadName === 'string' && /^[a-z\d_]+\.node$/u.test(manifest.payloadName),
 		'The native helper addon payload name is invalid.');
 	assert(manifest.toolchain && typeof manifest.toolchain === 'object', 'The addon toolchain record is required.');
@@ -75,6 +82,10 @@ export function auditNativeHelperAddon({ repositoryRoot }) {
 	const findings = [];
 	const sourceRoot = resolve(repositoryRoot, NATIVE_HELPER_ADDON_ROOT, 'src');
 	const pinned = new Map(manifest.sourceFiles.map((entry) => [entry.path, entry]));
+	if ((pinned.has('plugin_scan.c') || pinned.has('plugin_host.c'))
+		&& manifest.sharedSourceFiles === undefined) {
+		findings.push(`Unpinned native helper addon shared source: ${SHARED_WINDOWS_PATH_SOURCE}`);
+	}
 	for (const path of listSourceFiles(sourceRoot).map((file) => relative(sourceRoot, file).split('\\').join('/'))) {
 		if (!pinned.has(path)) findings.push(`Unpinned native helper addon source: ${path}`);
 	}
@@ -95,6 +106,13 @@ export function auditNativeHelperAddon({ repositoryRoot }) {
 		}
 		if (bytes.byteLength !== entry.byteLength) findings.push(`Source byte length mismatch for ${path}`);
 		if (sha256(bytes) !== entry.sha256) findings.push(`Source digest mismatch for ${path}`);
+	}
+	for (const entry of manifest.sharedSourceFiles ?? []) {
+		let bytes;
+		try { bytes = readFileSync(resolve(repositoryRoot, entry.path)); }
+		catch { findings.push(`Missing pinned native helper addon shared source: ${entry.path}`); continue; }
+		if (bytes.byteLength !== entry.byteLength) findings.push(`Shared source byte length mismatch for ${entry.path}`);
+		if (sha256(bytes) !== entry.sha256) findings.push(`Shared source digest mismatch for ${entry.path}`);
 	}
 	for (const target of NATIVE_HELPER_ADDON_TARGETS) {
 		findings.push(...auditTarget(repositoryRoot, manifest, target));
@@ -213,6 +231,10 @@ export function repinNativeHelperAddonSources({ repositoryRoot, build = null, fi
 			const bytes = readFileSync(join(sourceRoot, relativePath));
 			return { path: relativePath, byteLength: bytes.byteLength, sha256: sha256(bytes) };
 		});
+	const sharedSourceFiles = manifest.sharedSourceFiles?.map(({ path: sharedPath }) => {
+		const bytes = readFileSync(resolve(repositoryRoot, sharedPath));
+		return { path: sharedPath, byteLength: bytes.byteLength, sha256: sha256(bytes) };
+	});
 	const targets = { ...manifest.targets };
 	if (build) {
 		targets[build.target.id] = {
@@ -231,7 +253,7 @@ export function repinNativeHelperAddonSources({ repositoryRoot, build = null, fi
 			[fixtures.targetId]: { status: 'built', files: fixtures.files },
 		};
 	}
-	const updated = { ...manifest, sourceFiles, targets, fixturePlugins };
+	const updated = { ...manifest, sourceFiles, ...(sharedSourceFiles ? { sharedSourceFiles } : {}), targets, fixturePlugins };
 	writeFileSync(path, `${JSON.stringify(updated, null, '\t')}\n`);
 	return updated;
 }
