@@ -25,16 +25,15 @@ test.describe('Framescaper selected-web Scape preservation boundary', () => {
 		const fixedArchive = await createFramescaperV18Format2Scape();
 
 		await input.setInputFiles(fixedArchive);
-		await expect(editor.locator('[data-status]')).toHaveAttribute('data-state', 'error');
-		await expect(editor.locator('[data-status]')).toContainText(
+		const errorToast = page.locator('[data-editor-toast="workspace-error"]');
+		await expect(errorToast).toContainText(
 			'Scape format 2 predates the family-qualified 1.0 baseline; re-import the source media.',
 		);
 		await expect(editor).toHaveAttribute('data-project-id', originalProjectId);
 		// Expanding the error resizes the preview; later viewport reports must
 		// preserve the failure too, rather than act like a new user command.
 		await page.setViewportSize({ width: 1100, height: 800 });
-		await expect(editor.locator('[data-status]')).toHaveAttribute('data-state', 'error');
-		await expect(editor.locator('[data-status]')).toContainText('Scape format 2 predates');
+		await expect(errorToast).toContainText('Scape format 2 predates');
 		await expect(editor.getByRole('tab', { name: expectedArchive.projectTitle, exact: true })).toHaveCount(0);
 		await expect(page.getByRole('dialog', { name: 'Project features unavailable' })).toHaveCount(0);
 		expect(errors).toEqual([]);

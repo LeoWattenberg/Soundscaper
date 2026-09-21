@@ -321,10 +321,8 @@ test.describe('native timeline annotations', () => {
 			const frameErrors = collectClientErrors(framesPage);
 			const framescaper = await bootEditor(framesPage, '/framescaper/embed/en/');
 			await openScapeArchive(framescaper, outbound, 'timeline-annotations.sscape');
-			await expect(framescaper.locator('[data-status]')).toHaveAttribute('data-state', 'error', {
-				timeout: 20_000,
-			});
-			await expect(framescaper.locator('[data-status]')).toHaveText('This project is read-only.');
+			await expect(framesPage.locator('[data-editor-toast="workspace-status-error"]'))
+				.toContainText('This project is read-only.', { timeout: 20_000 });
 			await expect(framescaper).toHaveAttribute('data-product', 'framescaper');
 			await expect(framescaper).toHaveAttribute('data-project-id', projectId);
 			await expect(framescaper).toHaveAttribute('data-edit-block-reason', 'read-only');

@@ -198,7 +198,8 @@ test.describe('audio warp and transient workflow', () => {
 		await openAudioWarpArchive(editor, true);
 		await expect(editor).toHaveAttribute('data-project-id', PROJECT_ID, { timeout: 20_000 });
 		await expect(editor).toHaveAttribute('data-edit-block-reason', 'read-only');
-		await expect(editor.locator('[data-status]')).toHaveText('This project is read-only.');
+		await expect(page.locator('[data-editor-toast="workspace-status-error"]'))
+			.toContainText('This project is read-only.');
 		await expect(page.getByRole('dialog', { name: 'Project features unavailable', exact: true })).toHaveCount(0);
 		await expect(clipByName(editor, 'Warp drums')).toHaveCount(0);
 		await expect(editor.getByRole('menuitem', { name: 'Effect', exact: true })).toHaveCount(0);
