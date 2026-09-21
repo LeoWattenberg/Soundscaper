@@ -46,7 +46,9 @@ test('trusted audio stays in Node while real plug-ins execute only through the i
 	assert.match(cmake, /target_link_libraries\(soundscaper_professional_node PRIVATE soundscaper_professional_audio\)/u);
 	assert.match(cmake,
 		/target_link_libraries\(soundscaper_professional_node PRIVATE soundscaper_professional_audio\)\nif\(APPLE\)\n\ttarget_link_options\(soundscaper_professional_node PRIVATE[\s\S]*"LINKER:-undefined,dynamic_lookup"/u);
-	assert.match(cmake, /target_link_libraries\(soundscaper_professional_peer PRIVATE soundscaper_professional_plugin\)/u);
+	assert.match(cmake,
+		/target_link_libraries\(soundscaper_professional_peer PRIVATE\s+soundscaper_professional_plugin soundscaper_professional_vamp\)/u,
+		'the isolated peer must link both effect and analyzer hosts');
 	assert.match(cmake,
 		/"-framework AudioToolbox" "-framework CoreFoundation"\)\n\ttarget_link_libraries\(soundscaper_professional_plugin PRIVATE "-framework CoreAudioKit"\)/u);
 	assert.match(cmake, /SOUNDSCAPER_NODE_API_INCLUDE/u);
@@ -96,8 +98,8 @@ test('trusted audio stays in Node while real plug-ins execute only through the i
 		/writeFrame\(answer\)[\s\S]*peer\.finished\(\)[\s\S]*shutdownJuceMessageDispatcher\(\)/u,
 		'the successful close frame must precede explicit bounded-lifetime JUCE teardown');
 	assert.match(peer,
-		/int main\(int argc, char \*\*argv\)[\s\S]*_setmode\(_fileno\(stdout\), _O_BINARY\)[\s\S]*containmentProbe\(argc, argv\)/u,
-		'Windows containment receipts must enter binary stdout mode before emitting exact LF markers');
+		/int main\(int argc, char \*\*argv\)[\s\S]*_setmode\(_fileno\(stdout\), _O_BINARY\)[\s\S]*runVampAnalyzerPeer\(\)[\s\S]*professionalHostContainmentProbe\(argc, argv\)/u,
+		'Windows analyzer frames and containment receipts must enter binary stdout mode before emitting bytes');
 	for (const method of [
 		'describe', 'enumerateAudioBackends', 'openAudioDevice', 'writeAudioDevice',
 		'readAudioDevice', 'closeAudioDevice', 'listPluginCandidates',
@@ -220,8 +222,8 @@ test('target builds select concrete Linux, identity-preserving macOS Seatbelt an
 	assert.match(macBootstrap, /sandbox_init[\s\S]*exactWrite[\s\S]*close\([^)]*enforcement/u);
 	assert.match(macBootstrap, /dup2\(extraInputDescriptor, enforcementDescriptor\)/u);
 	assert.match(peer,
-		/int main\(int argc, char \*\*argv\)[\s\S]*soundscaperProfessionalMacosBootstrap\(\)[\s\S]*containmentProbe/u,
-		'the macOS sandbox bootstrap must precede containment probes and framed protocol work');
+		/int main\(int argc, char \*\*argv\)[\s\S]*soundscaperProfessionalMacosBootstrap\(\)[\s\S]*runVampAnalyzerPeer\(\)[\s\S]*professionalHostContainmentProbe/u,
+		'the macOS sandbox bootstrap must precede analyzer, containment-probe and framed protocol work');
 	assert.match(macProfile, /\(deny default\)/u);
 	assert.doesNotMatch(macProfile, /coreaudiod/u);
 	assert.match(windows, /DeriveAppContainerSidFromAppContainerName/u);
