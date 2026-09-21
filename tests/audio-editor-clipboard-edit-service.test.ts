@@ -326,35 +326,35 @@ test('product clipboard carrier survives copy and composes the next paste atomic
 	const carrier = Object.freeze({
 		descriptor,
 		originProjectId: 'project-a',
-		sources: Object.freeze([{ id: 'source-a' }]),
+		sources: Object.freeze([{ id: 'image-source', kind: 'image', storageKey: 'image-source' }]),
 		productToken: 'selected-v11',
 	});
 	const fixture = createFixture(project(), {
 		createEditSessionClipboard: () => carrier,
 		prepareEditClipboardPasteCommand: (_project, clipboard, command) => {
 			composedCarrier = clipboard;
+			assert.deepEqual(command.type === 'batch' ? command.commands.map(({ type }) => type) : [], ['source/add', 'clipboard/paste']);
 			return { type: 'batch', commands: [command, { type: 'project/rename', title: 'Composed' }] };
 		},
 		session: {
 			setClipboard: (value) => {
 				sessionValue = value;
-				return { clipboard: { descriptor, sources: [{ id: 'source-a' }] } };
+				return { clipboard: { descriptor, sources: [{ id: 'image-source', kind: 'image' }] } };
 			},
-			clipboardForProject: () => ({ descriptor, sources: [{ id: 'source-a' }] }),
+			clipboardForProject: () => ({ descriptor, sources: [{ id: 'image-source', kind: 'image' }] }),
 		},
 	});
 	const service = createClipboardEditService(fixture.dependencies);
-
 	service.setSessionClipboard(descriptor);
 	const command = service.prepareControllerPaste('overlap', 120);
 
 	assert.deepEqual(sessionValue, {
-		schemaVersion: 1, originProjectId: 'project-a', descriptor, sources: [{ id: 'source-a' }],
+		schemaVersion: 1, originProjectId: 'project-a', descriptor, sources: [{ id: 'image-source', kind: 'image', storageKey: 'image-source' }],
 	});
 	assert.equal(composedCarrier, carrier);
 	assert.equal(command.type, 'batch');
 	if (command.type === 'batch') {
-		assert.deepEqual(command.commands.map(({ type }) => type), ['clipboard/paste', 'project/rename']);
+		assert.deepEqual(command.commands.map(({ type }) => type), ['batch', 'project/rename']);
 	}
 });
 

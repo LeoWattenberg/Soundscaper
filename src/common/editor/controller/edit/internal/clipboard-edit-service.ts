@@ -236,9 +236,12 @@ export function createClipboardEditService(
 		if (!clipboard) throw new TypeError('An audio editor clipboard is required.');
 		const trackMap: Record<string, string> = {};
 		const sessionClipboard = dependencies.session.clipboardForProject(project.id);
+		const preparedCarrier = editSessionClipboard && sameClipboardDescriptor(editSessionClipboard.descriptor, clipboard) && dependencies.prepareEditClipboardPasteCommand ? editSessionClipboard : null;
 		const commands: AudioEditorCommand[] = (sessionClipboard?.sources ?? [])
 			.filter((source) => !findSource(project, source.id))
-			.map((source) => createAddSourceCommand(source));
+			.map((source) => preparedCarrier && source.kind !== undefined && source.kind !== 'audio' && source.kind !== 'video'
+				? { type: 'source/add', source: structuredClone(source) } as AudioEditorCommand
+				: createAddSourceCommand(source));
 		let addedTrackCount = 0;
 		const usedTrackIds = new Set<string>();
 		const selected = findMediaTrack(project, dependencies.state.selectedTrackId);
@@ -356,14 +359,9 @@ export function createClipboardEditService(
 		}
 		commands.push(preparePaste(clipboard, project, atFrame, trackMap, mode, pasteAsNewClip));
 		const command: AudioEditorCommand = commands.length === 1 ? commands[0]! : { type: 'batch', commands };
-		if (!editSessionClipboard
-			|| !sameClipboardDescriptor(editSessionClipboard.descriptor, clipboard)
-			|| !dependencies.prepareEditClipboardPasteCommand) return command;
+		if (!preparedCarrier || !dependencies.prepareEditClipboardPasteCommand) return command;
 		return dependencies.prepareEditClipboardPasteCommand(
-			project,
-			editSessionClipboard,
-			command,
-			dependencies.createId,
+			project, preparedCarrier, command, dependencies.createId,
 		) as AudioEditorCommand;
 	}
 
