@@ -12,7 +12,7 @@ import type {
 	EffectAudioBuffer,
 } from './effect-audio-service-types.ts';
 import type { EffectTarget } from '../effect-selection-service.ts';
-import type { EditorProjectToken, EditorTaskScope } from '../../shared/lifecycle.ts';
+import { isCurrentAssertion, type EditorProjectToken, type EditorTaskScope } from '../../shared/lifecycle.ts';
 import { createIsolatedTrackRenderProjectV21 } from '../../track-audio/isolated-track-render-project-v21.ts';
 import {
 	inheritTrackFolderMediaStateProjectionV12,
@@ -379,11 +379,11 @@ function finishProcessing<Buffer>(runtime: EffectAudioServiceRuntime<Buffer>, ow
 }
 
 function taskIsCurrent(task: EditorTaskScope): boolean {
-	try { task.assertCurrent(); return true; } catch { return false; }
+	return isCurrentAssertion(() => task.assertCurrent());
 }
 
 function projectIsCurrent<Buffer>(runtime: EffectAudioServiceRuntime<Buffer>, token: EditorProjectToken): boolean {
-	try { runtime.assertProject(token); return true; } catch { return false; }
+	return isCurrentAssertion(() => runtime.assertProject(token));
 }
 
 function findTrack(project: EffectAudioProject, trackId: string | null | undefined): EffectAudioTrack | null {

@@ -8,7 +8,7 @@ import { projectForRuntimeConsumers } from '../../../../project-current-runtime.
 import { sampleFrameToBeat } from '../../../../timeline-tempo-inverse.ts';
 import { compareRationals, type HoldTempoEvent, type HoldTempoMap } from '../../../../timeline-time.ts';
 import { nyquistChannelStats } from './nyquist-audio.ts';
-import type { EditorProjectToken } from '../../../shared/lifecycle.ts';
+import { isCurrentAssertion, type EditorProjectToken } from '../../../shared/lifecycle.ts';
 import type {
 	EffectSelection,
 	EffectSelectionProject,
@@ -280,7 +280,7 @@ function assertCurrent(runtime: NyquistHostServiceRuntime, projectToken: EditorP
 }
 
 function projectIsCurrent(runtime: NyquistHostServiceRuntime, token: EditorProjectToken): boolean {
-	try { runtime.assertProject(token); return true; } catch { return false; }
+	return isCurrentAssertion(() => runtime.assertProject(token));
 }
 
 function throwIfAborted(signal: AbortSignal | null): void {

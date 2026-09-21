@@ -2,6 +2,7 @@
 
 import {
 	EDITOR_PROJECT_TASK_SCOPE,
+	isCurrentAssertion,
 	type EditorProjectToken,
 	type EditorTaskScope,
 } from '../../shared/lifecycle.ts'; import { publishedCopyFor } from '../../shared/presentation-localization.ts'; import { createLocalizedError, setLocalizedStatus } from '../../../../i18n/presentation-message.ts';
@@ -439,12 +440,12 @@ function finishSelectionEffectProcessing(
 }
 
 function selectionEffectTaskIsCurrent(task: EditorTaskScope): boolean {
-	try { task.assertCurrent(); return true; } catch { return false; }
+	return isCurrentAssertion(() => task.assertCurrent());
 }
 
 function selectionEffectProjectIsCurrent(
 	runtime: SelectionEffectExecutionRuntime,
 	token: EditorProjectToken,
 ): boolean {
-	try { runtime.assertProject(token); return true; } catch { return false; }
+	return isCurrentAssertion(() => runtime.assertProject(token));
 }
