@@ -7,6 +7,7 @@ import { fileURLToPath } from 'node:url';
 
 import { E2E_REPOSITORY_URL_PREFIX } from './e2e-coverage-contract.mjs';
 import { E2E_PRODUCTS, normalizeE2ESourceMap } from './e2e-coverage-build-evidence.mjs';
+import { browserFfmpegCoverageContract, isBrowserFfmpegCoverage } from './browser-ffmpeg-coverage.mjs';
 import { validateBrowserSourceCache } from './browser-dynamic-coverage-sources.mjs';
 import {
 	classifyBrowserMacroDynamic, classifyPackagedMacroDynamic,
@@ -46,6 +47,7 @@ export function assembleE2ERawProfiles({ runRoot, evidence, repositoryRoot, runt
 
 function assembleBrowserProfiles({ directory, dynamicScripts, evidence, profiles, repositoryRoot }) {
 	const files = readProfiles(directory, 'browser');
+	const ffmpegCoverage = browserFfmpegCoverageContract(repositoryRoot, evidence.sourceRevision);
 	const scriptsByUrl = new Map([...evidence.browser.values()].flatMap(({ scripts }) => (
 		scripts.map((script) => [script.coverageUrl, script])
 	)));
@@ -84,6 +86,7 @@ function assembleBrowserProfiles({ directory, dynamicScripts, evidence, profiles
 	const observed = new Map();
 	for (const { name, profile } of files) {
 		const grouped = groupEntries(profile.result, (entry) => {
+			if (isBrowserFfmpegCoverage({ contract: ffmpegCoverage, entry, profile })) return null;
 			if (isBrowserMediabunnyBlobCoverage({ entry, evidence, profile })) return null;
 			if (isBrowserMacroDynamicCoverage(entry.url)) {
 				const classified = classifyBrowserMacroDynamic({
@@ -118,6 +121,7 @@ function assembleBrowserProfiles({ directory, dynamicScripts, evidence, profiles
 
 function assemblePackagedProfiles({ directory, dynamicScripts, evidence, profiles, repositoryRoot, runRuntime }) {
 	const files = readProfiles(directory, 'packaged');
+	const ffmpegCoverage = browserFfmpegCoverageContract(repositoryRoot, evidence.sourceRevision);
 	const cdp = files.filter(({ profile }) => profile['soundscaper-packaged-runtime'] !== undefined);
 	const runtimes = cdp.map(({ name, profile }) => packagedRuntime(profile, name, evidence));
 	if (new Set(runtimes.map(({ productId }) => productId)).size !== E2E_PRODUCTS.length) {
@@ -150,7 +154,7 @@ function assemblePackagedProfiles({ directory, dynamicScripts, evidence, profile
 	))) {
 		const classified = [];
 		for (const entry of resultEntries(profile.result, `packaged profile ${name}`)) {
-			const match = classifyNodeEntry(entry, evidence, runtimes, repositoryRoot);
+			const match = classifyNodeEntry(entry, evidence, ffmpegCoverage, runtimes);
 			if (match !== null) classified.push(match);
 		}
 		if (classified.length === 0) continue;
@@ -227,12 +231,12 @@ function classifyCdpEntry({ dynamicScripts, entry, evidence, profile, repository
 	return { entry: { ...entry, url: script.coverageUrl }, script, surface };
 }
 
-function classifyNodeEntry(entry, evidence, runtimes, repositoryRoot) {
+function classifyNodeEntry(entry, evidence, ffmpegCoverage, runtimes) {
 	// NODE_V8_COVERAGE carries URLs and ranges, but no script-source cache. Bind
 	// those URLs to the exact preserved installed path; the evidence manifest,
 	// rather than the raw profile alone, authenticates the executable bytes.
 	if (entry.url.startsWith('data:')) {
-		attestPinnedVendorDataUrl(entry.url, ffmpegCoreJavascriptPin(repositoryRoot));
+		attestPinnedVendorDataUrl(entry.url, ffmpegCoverage);
 		return null;
 	}
 	const matches = [];
@@ -289,19 +293,6 @@ export function attestPinnedVendorDataUrl(url, descriptor) {
 		throw new Error('Packaged coverage vendor data: script does not match the pinned FFmpeg JavaScript.');
 	}
 	return true;
-}
-
-function ffmpegCoreJavascriptPin(repositoryRoot) {
-	const manifest = readJson(
-		resolve(repositoryRoot, 'config/ffmpeg-runtime-manifest.json'),
-		'FFmpeg runtime manifest',
-	);
-	const descriptor = manifest?.runtime?.files?.find(({ name }) => name === 'ffmpeg-core.js');
-	if (!descriptor || !Number.isSafeInteger(descriptor.byteLength) || descriptor.byteLength <= 0
-		|| typeof descriptor.sha256 !== 'string' || !/^[a-f\d]{64}$/u.test(descriptor.sha256)) {
-		throw new Error('FFmpeg runtime manifest has no pinned JavaScript payload.');
-	}
-	return Object.freeze({ byteLength: descriptor.byteLength, sha256: descriptor.sha256 });
 }
 
 function installedPackagedPath(url, runtime) {

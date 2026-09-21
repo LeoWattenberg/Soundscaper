@@ -6,6 +6,11 @@ import { basename, isAbsolute, relative, resolve, sep } from 'node:path';
 import { pathToFileURL } from 'node:url';
 
 import { sourceMapDirectoryFor } from './build-source-map-relocation.mjs';
+import {
+	browserFfmpegCoverageContract,
+	isBrowserFfmpegWasmCoverageSource,
+	retainedBrowserFfmpegCoverageScript,
+} from './browser-ffmpeg-coverage.mjs';
 import { createPlaywrightBrowserServiceWorkerCoverageCollector } from './browser-service-worker-coverage.mjs';
 import {
 	excludedBrowserCoverageInstrumentation,
@@ -219,6 +224,7 @@ export function createBrowserCoverageCollector({
 	scripts = new Map(),
 }) {
 	if (!collectsBrowserCoverage(browserName, environment)) return null;
+	const ffmpegCoverage = browserFfmpegCoverageContract(repositoryRoot);
 
 	const configuredDirectory = environment.SCAPE_BROWSER_COVERAGE_DIRECTORY;
 	if (configuredDirectory !== undefined) {
@@ -304,6 +310,8 @@ export function createBrowserCoverageCollector({
 		if (excludedBrowserCoverageInstrumentation(url, source)) return null;
 		const dynamic = macroDynamicCoverageScript({ repositoryRoot, source, url });
 		if (dynamic !== null) return { ...dynamic, retainSource: true };
+		const ffmpeg = retainedBrowserFfmpegCoverageScript(url, source, ffmpegCoverage);
+		if (ffmpeg !== null) return ffmpeg;
 		const retainedDynamic = retainedBrowserDynamicCoverageScript(url, source);
 		if (retainedDynamic !== null) return retainedDynamic;
 		if (scripts.has(url)) return scripts.get(url) ?? null;
@@ -392,16 +400,20 @@ export function createBrowserCoverageCollector({
 			for (const [url, source] of capturedSources) {
 				if (observedUrls.has(url)) continue;
 				const resolved = await resolveScript(url, source);
-				if (resolved !== null) {
+				if (resolved !== null && !isBrowserFfmpegWasmCoverageSource(
+					url,
+					source,
+					ffmpegCoverage,
+				)) {
 					throw new Error(`Browser coverage captured source bytes without a V8 entry for ${url}.`);
 				}
 			}
 			const profile = browserCoverageProfile(entries, (url, source) => {
 				if (excludedBrowserCoverageInstrumentation(url, source)) return null;
 				const dynamic = macroDynamicCoverageScript({ repositoryRoot, source, url });
-				return dynamic === null
-					? retainedBrowserDynamicCoverageScript(url, source) ?? scripts.get(url) ?? null
-					: { ...dynamic, retainSource: true };
+				if (dynamic !== null) return { ...dynamic, retainSource: true };
+				return retainedBrowserFfmpegCoverageScript(url, source, ffmpegCoverage)
+					?? retainedBrowserDynamicCoverageScript(url, source) ?? scripts.get(url) ?? null;
 			});
 			if (profile.result.length === 0) return null;
 

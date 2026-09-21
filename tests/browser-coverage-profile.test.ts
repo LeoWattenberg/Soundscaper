@@ -531,5 +531,12 @@ function fakeContext(pages: FakePage[], serviceWorker?: { source: string, url: s
 function makeWorkspace(): string {
 	const workspace = mkdtempSync(join(tmpdir(), 'soundscaper-browser-coverage-'));
 	workspaces.push(workspace);
+	for (const root of [workspace, join(workspace, 'payload')]) {
+		mkdirSync(join(root, 'config'), { recursive: true });
+		for (const path of [
+			'config/ffmpeg-runtime-manifest.json',
+			'config/ffmpeg-runtime-publication-policy.json',
+		]) writeFileSync(join(root, path), readFileSync(new URL(`../${path}`, import.meta.url)));
+	}
 	return workspace;
 }

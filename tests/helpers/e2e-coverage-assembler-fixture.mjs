@@ -59,6 +59,10 @@ export function makeFixture() {
 	}
 	write(join(repositoryRoot, MACRO_FIXED_COVERAGE_SOURCE_PATH), MACRO_WRAPPER_SOURCE);
 	write(join(repositoryRoot, MACRO_PRELUDE_PATH), MACRO_PRELUDE_SOURCE);
+	for (const path of [
+		'config/ffmpeg-runtime-manifest.json',
+		'config/ffmpeg-runtime-publication-policy.json',
+	]) write(join(repositoryRoot, path), readFileSync(join(import.meta.dirname, '../..', path)));
 	const sourceRevision = commitFixtureRepository(repositoryRoot);
 	writeJson(join(runRoot, 'run.json'), {
 		schemaVersion: 2,
@@ -488,7 +492,7 @@ export function commitFixtureRepository(repositoryRoot) {
 		['init', '--quiet'],
 		['config', 'user.name', 'Coverage Fixture'],
 		['config', 'user.email', 'coverage@example.invalid'],
-		['add', 'src'],
+		['add', 'src', 'config'],
 		['commit', '--quiet', '-m', 'fixture'],
 	]) {
 		const outcome = spawnSync('git', args, {

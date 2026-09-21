@@ -107,6 +107,7 @@ export const NIGHTLY_TEST_PAYLOAD_INPUTS = Object.freeze([
 	// run records anything — an unresolved import here would abort the suite.
 	{ source: 'scripts/lib/browser-coverage-profile.mjs', destination: 'scripts/lib/browser-coverage-profile.mjs', kind: 'file', label: 'browser coverage profile writer' },
 	{ source: 'scripts/lib/browser-dynamic-coverage-sources.mjs', destination: 'scripts/lib/browser-dynamic-coverage-sources.mjs', kind: 'file', label: 'browser dynamic-source admission' },
+	{ source: 'scripts/lib/browser-ffmpeg-coverage.mjs', destination: 'scripts/lib/browser-ffmpeg-coverage.mjs', kind: 'file', label: 'browser FFmpeg coverage admission' },
 	{ source: 'scripts/lib/browser-service-worker-coverage.mjs', destination: 'scripts/lib/browser-service-worker-coverage.mjs', kind: 'file', label: 'browser service-worker coverage recorder' },
 	{ source: 'scripts/lib/browser-target-coverage.mjs', destination: 'scripts/lib/browser-target-coverage.mjs', kind: 'file', label: 'browser worker coverage recorder' },
 	{ source: 'scripts/lib/e2e-coverage-integrity.mjs', destination: 'scripts/lib/e2e-coverage-integrity.mjs', kind: 'file', label: 'E2E coverage source integrity' },
@@ -120,6 +121,8 @@ export const NIGHTLY_TEST_PAYLOAD_INPUTS = Object.freeze([
 	{ source: 'scripts/lib/product-release-lines.mjs', destination: 'scripts/lib/product-release-lines.mjs', kind: 'file', label: 'product release-line reader' },
 	{ source: 'config/product-release-lines.json', destination: 'config/product-release-lines.json', kind: 'file', label: 'product release lines' },
 	{ source: 'scripts/lib/build-source-map-relocation.mjs', destination: 'scripts/lib/build-source-map-relocation.mjs', kind: 'file', label: 'build source-map relocation' },
+	{ source: 'config/ffmpeg-runtime-manifest.json', destination: 'config/ffmpeg-runtime-manifest.json', kind: 'file', label: 'pinned FFmpeg runtime manifest' },
+	{ source: 'config/ffmpeg-runtime-publication-policy.json', destination: 'config/ffmpeg-runtime-publication-policy.json', kind: 'file', label: 'FFmpeg runtime publication policy' },
 	{ source: 'config/accessibility-wcag-baseline.json', destination: 'config/accessibility-wcag-baseline.json', kind: 'file', label: 'WCAG 2.2 AA baseline' },
 	{ source: 'config/quality-budgets.json', destination: 'config/quality-budgets.json', kind: 'file', label: 'quality budget register' },
 	{ source: 'playwright.nightly-metrics.config.mjs', destination: 'playwright.nightly-metrics.config.mjs', kind: 'file', label: 'nightly metrics Playwright config' },
