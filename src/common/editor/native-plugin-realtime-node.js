@@ -6,9 +6,11 @@ import {
 	NATIVE_PLUGIN_WORKLET_NAME,
 } from './native-plugin-realtime-contract.ts';
 import { nativePluginOfflineInstanceIds } from './engine/native-plugin-offline-admission.ts';
+import { createAudioWorkletLoadOnce } from './audio-worklet-load-once.ts';
 
-const loaded = new WeakSet();
-const loading = new WeakMap();
+const realtimeWorklet = createAudioWorkletLoadOnce((context) => (
+	Promise.resolve(workletUrl()).then((url) => context.audioWorklet.addModule(String(url)))
+));
 const nodes = new WeakMap();
 const contextMaps = new Set();
 const offers = new Map();
@@ -116,7 +118,7 @@ export function scheduleNativePluginRuntimeLatency(instanceId, latencyFrames, de
 	latencyPublicationTimers.set(instanceId, timer);
 }
 
-export function isNativePluginRealtimeWorkletLoaded(context) { return loaded.has(context); }
+export function isNativePluginRealtimeWorkletLoaded(context) { return realtimeWorklet.isLoaded(context); }
 
 export function subscribeNativePluginRuntime(listener) {
 	listeners.add(listener);
@@ -159,14 +161,7 @@ export function waitForNativePluginRuntime(instanceId, timeoutMs = 10_000) {
 }
 
 export async function ensureNativePluginRealtimeWorklet(context) {
-	if (loaded.has(context)) return;
-	let pending = loading.get(context);
-	if (!pending) {
-		pending = Promise.resolve(workletUrl()).then((url) => context.audioWorklet.addModule(String(url)));
-		loading.set(context, pending);
-	}
-	try { await pending; loaded.add(context); }
-	finally { if (loading.get(context) === pending) loading.delete(context); }
+	await realtimeWorklet.ensure(context);
 }
 
 export function createNativePluginEffectNode(context, effect, channelCount = 2, outputChannelCount = channelCount) {

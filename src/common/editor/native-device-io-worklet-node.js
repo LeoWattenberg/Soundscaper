@@ -4,19 +4,14 @@ import {
 	NATIVE_DEVICE_IO_CONTROL,
 	NATIVE_DEVICE_IO_WORKLET_NAME,
 } from './native-device-io-worklet.js';
+import { createAudioWorkletLoadOnce } from './audio-worklet-load-once.ts';
 
-const loaded = new WeakSet();
-const loading = new WeakMap();
+const deviceIoWorklet = createAudioWorkletLoadOnce((context) => (
+	Promise.resolve(workletUrl()).then((url) => context.audioWorklet.addModule(String(url)))
+));
 
 export async function ensureNativeDeviceIoWorklet(context) {
-	if (loaded.has(context)) return;
-	let pending = loading.get(context);
-	if (!pending) {
-		pending = Promise.resolve(workletUrl()).then((url) => context.audioWorklet.addModule(String(url)));
-		loading.set(context, pending);
-	}
-	try { await pending; loaded.add(context); }
-	finally { if (loading.get(context) === pending) loading.delete(context); }
+	await deviceIoWorklet.ensure(context);
 }
 
 export async function createNativeDeviceIoWorkletNode(context, options) {

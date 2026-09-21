@@ -11,38 +11,34 @@ import { loadPffftWasmModule } from '../pffft-wasm-loader.js';
 import { isParametricEqType, projectEffectRacks } from './project-effects.ts';
 import type { EngineProject } from './types.ts';
 import { ensureNativePluginRealtimeWorklet } from '../native-plugin-realtime-node.js';
+import { createAudioWorkletLoadOnce, type AudioWorkletLoadOnce } from '../audio-worklet-load-once.ts';
 
-const dynamicsWorkletContexts = new WeakSet<BaseAudioContext>();
-const delayWorkletContexts = new WeakSet<BaseAudioContext>();
-const bitcrusherWorkletContexts = new WeakSet<BaseAudioContext>();
-const audacityWorkletContexts = new WeakSet<BaseAudioContext>();
+const dynamicsWorklet = workletModuleLoadOnce(() => new URL('../dynamics-worklet.js', import.meta.url));
+const delayWorklet = workletModuleLoadOnce(() => new URL('../delay-worklet.js', import.meta.url));
+const bitcrusherWorklet = workletModuleLoadOnce(bitcrusherWorkletModuleUrl);
+const audacityWorklet = workletModuleLoadOnce(audacityWorkletModuleUrl);
 const audacityReadyContexts = new WeakSet<BaseAudioContext>();
-const parametricEqWorkletContexts = new WeakSet<BaseAudioContext>();
+const parametricEqWorklet = workletModuleLoadOnce(parametricEqWorkletModuleUrl);
 const audacityPffftWasmModules = new WeakMap<BaseAudioContext, WebAssembly.Module>();
 const parametricEqWasmModules = new WeakMap<BaseAudioContext, WebAssembly.Module>();
-const dynamicsWorkletLoads = new WeakMap<BaseAudioContext, Promise<void>>();
-const delayWorkletLoads = new WeakMap<BaseAudioContext, Promise<void>>();
-const bitcrusherWorkletLoads = new WeakMap<BaseAudioContext, Promise<void>>();
-const audacityWorkletLoads = new WeakMap<BaseAudioContext, Promise<void>>();
 const audacityReadyLoads = new WeakMap<BaseAudioContext, Promise<void>>();
-const parametricEqWorkletLoads = new WeakMap<BaseAudioContext, Promise<void>>();
 
 export const AUDACITY_WORKLET_READY_TIMEOUT_MS = 10_000;
 
 export function isDynamicsWorkletLoaded(context: BaseAudioContext): boolean {
-	return dynamicsWorkletContexts.has(context);
+	return dynamicsWorklet.isLoaded(context);
 }
 
 export function isDelayWorkletLoaded(context: BaseAudioContext): boolean {
-	return delayWorkletContexts.has(context);
+	return delayWorklet.isLoaded(context);
 }
 
 export function isBitcrusherWorkletLoaded(context: BaseAudioContext): boolean {
-	return bitcrusherWorkletContexts.has(context);
+	return bitcrusherWorklet.isLoaded(context);
 }
 
 export function isAudacityWorkletLoaded(context: BaseAudioContext): boolean {
-	return audacityWorkletContexts.has(context);
+	return audacityWorklet.isLoaded(context);
 }
 
 export function getAudacityPffftWasmModule(context: BaseAudioContext): WebAssembly.Module | undefined {
@@ -50,7 +46,7 @@ export function getAudacityPffftWasmModule(context: BaseAudioContext): WebAssemb
 }
 
 export function isParametricEqWorkletLoaded(context: BaseAudioContext): boolean {
-	return parametricEqWorkletContexts.has(context);
+	return parametricEqWorklet.isLoaded(context);
 }
 
 export function getParametricEqWasmModule(context: BaseAudioContext): WebAssembly.Module | undefined {
@@ -61,16 +57,16 @@ export async function ensureProjectWorklets(
 	context: BaseAudioContext,
 	project: EngineProject,
 ): Promise<void> {
-	const needsDynamics = projectUsesDynamicsWorklet(project) && !dynamicsWorkletContexts.has(context);
-	const needsDelay = projectUsesDelayWorklet(project) && !delayWorkletContexts.has(context);
-	const needsBitcrusher = projectUsesBitcrusherWorklet(project) && !bitcrusherWorkletContexts.has(context);
+	const needsDynamics = projectUsesDynamicsWorklet(project) && !dynamicsWorklet.isLoaded(context);
+	const needsDelay = projectUsesDelayWorklet(project) && !delayWorklet.isLoaded(context);
+	const needsBitcrusher = projectUsesBitcrusherWorklet(project) && !bitcrusherWorklet.isLoaded(context);
 	const needsBandDynamics = projectUsesEffect(project, isBandDynamicsEffect) && !isBandDynamicsWorkletLoaded(context);
 	const needsStandard = projectUsesEffect(project, isStandardEffect) && !isStandardEffectWorkletLoaded(context);
 	const usesStandardDelay = projectUsesEffect(project, type => type === 'multi-tap-delay');
 	const usesAudacity = projectUsesAudacityWorklet(project);
 	const needsAudacity = usesAudacity && !audacityReadyContexts.has(context);
 	const usesParametricEq = projectUsesParametricEqWorklet(project);
-	const needsParametricEq = usesParametricEq && !parametricEqWorkletContexts.has(context);
+	const needsParametricEq = usesParametricEq && !parametricEqWorklet.isLoaded(context);
 	const needsParametricEqWasm = usesParametricEq && !parametricEqWasmModules.has(context);
 	const usesNativePlugin = projectUsesNativePluginWorklet(project);
 	if (!needsDynamics && !needsDelay && !needsBitcrusher && !needsBandDynamics && !needsAudacity && !needsParametricEq
@@ -91,29 +87,14 @@ export async function ensureProjectWorklets(
 	if (usesNativePlugin) loads.push(ensureNativePluginRealtimeWorklet(context));
 	if (usesParametricEq) loads.push(ensureParametricEqWorklet(context));
 	if (needsDynamics) {
-		loads.push(addWorkletModuleOnce(
-			context,
-			dynamicsWorkletContexts,
-			dynamicsWorkletLoads,
-			() => new URL('../dynamics-worklet.js', import.meta.url),
-		));
+		loads.push(dynamicsWorklet.ensure(context));
 	}
 	if (needsDelay) {
 		// Delay has a native Web Audio fallback, so its optional load remains soft.
-		loads.push(addWorkletModuleOnce(
-			context,
-			delayWorkletContexts,
-			delayWorkletLoads,
-			() => new URL('../delay-worklet.js', import.meta.url),
-		).catch(() => undefined));
+		loads.push(delayWorklet.ensure(context).catch(() => undefined));
 	}
 	if (needsBitcrusher) {
-		loads.push(addWorkletModuleOnce(
-			context,
-			bitcrusherWorkletContexts,
-			bitcrusherWorkletLoads,
-			bitcrusherWorkletModuleUrl,
-		));
+		loads.push(bitcrusherWorklet.ensure(context));
 	}
 	if (needsAudacity) {
 		loads.push(ensureAudacityWorkletReady(context));
@@ -126,12 +107,8 @@ async function ensureAudacityWorkletReady(context: BaseAudioContext): Promise<vo
 	let pending = audacityReadyLoads.get(context);
 	if (!pending) {
 		pending = loadAudacityPffftWasmModule(context)
-			.then((wasmModule) => addWorkletModuleOnce(
-				context,
-				audacityWorkletContexts,
-				audacityWorkletLoads,
-				audacityWorkletModuleUrl,
-			).then(() => warmAudacityWorklet(context, wasmModule)))
+			.then((wasmModule) => audacityWorklet.ensure(context)
+				.then(() => warmAudacityWorklet(context, wasmModule)))
 			.then(() => { audacityReadyContexts.add(context); });
 		audacityReadyLoads.set(context, pending);
 	}
@@ -220,35 +197,16 @@ export async function ensureParametricEqWorklet(context: BaseAudioContext): Prom
 		}
 		parametricEqWasmModules.set(context, module);
 	}
-	await addWorkletModuleOnce(
-		context,
-		parametricEqWorkletContexts,
-		parametricEqWorkletLoads,
-		parametricEqWorkletModuleUrl,
-	);
+	await parametricEqWorklet.ensure(context);
 	return module;
 }
 
-async function addWorkletModuleOnce(
-	context: BaseAudioContext,
-	loadedContexts: WeakSet<BaseAudioContext>,
-	pendingLoads: WeakMap<BaseAudioContext, Promise<void>>,
+function workletModuleLoadOnce(
 	moduleUrl: () => URL | string | Promise<URL | string>,
-): Promise<void> {
-	if (loadedContexts.has(context)) return;
-	let pending = pendingLoads.get(context);
-	if (!pending) {
-		pending = Promise.resolve()
+): AudioWorkletLoadOnce {
+	return createAudioWorkletLoadOnce((context) => Promise.resolve()
 			.then(moduleUrl)
-			.then((url) => context.audioWorklet.addModule(String(url)))
-			.then(() => { loadedContexts.add(context); });
-		pendingLoads.set(context, pending);
-	}
-	try {
-		await pending;
-	} finally {
-		if (pendingLoads.get(context) === pending) pendingLoads.delete(context);
-	}
+			.then((url) => context.audioWorklet.addModule(String(url))));
 }
 
 async function audacityWorkletModuleUrl(): Promise<URL | string> {

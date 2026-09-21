@@ -12,27 +12,16 @@ import {
 	NATIVE_REALTIME_WORKLET_NAME,
 } from './native-realtime-worklet.js';
 import { PLATFORM_TRANSFER_HARD_LIMITS } from './platform/bounded-transfer.ts';
+import { createAudioWorkletLoadOnce } from './audio-worklet-load-once.ts';
 
-const loadedWorkletContexts = new WeakSet();
-const pendingWorkletLoads = new WeakMap();
+const realtimeWorklet = createAudioWorkletLoadOnce((audioContext) => (
+	Promise.resolve(nativeRealtimeWorkletUrl())
+		.then((url) => audioContext.audioWorklet.addModule(url))
+));
 
 export async function ensureNativeRealtimeWorklet(audioContext) {
 	if (!audioContext?.audioWorklet?.addModule) throw new TypeError('An AudioContext with audioWorklet support is required.');
-	if (loadedWorkletContexts.has(audioContext)) return;
-	let load = pendingWorkletLoads.get(audioContext);
-	if (!load) {
-		load = Promise.resolve(nativeRealtimeWorkletUrl())
-			.then((url) => audioContext.audioWorklet.addModule(url));
-		pendingWorkletLoads.set(audioContext, load);
-	}
-	try {
-		await load;
-		loadedWorkletContexts.add(audioContext);
-		pendingWorkletLoads.delete(audioContext);
-	} catch (error) {
-		if (pendingWorkletLoads.get(audioContext) === load) pendingWorkletLoads.delete(audioContext);
-		throw error;
-	}
+	await realtimeWorklet.ensure(audioContext);
 }
 
 function nativeRealtimeWorkletUrl() {

@@ -2,13 +2,18 @@
 
 import type { StandardEffectType } from '../first-party-effects/standard/definition.ts';
 import { standardEffectStateBytes } from '../first-party-effects/standard/selection-contract.ts';
+import { createAudioWorkletLoadOnce } from '../audio-worklet-load-once.ts';
 
-const loaded = new WeakSet<BaseAudioContext>();
-const pending = new WeakMap<BaseAudioContext, Promise<void>>();
+const standardEffectWorklet = createAudioWorkletLoadOnce(async (context) => {
+	const url = import.meta.env?.DEV || import.meta.env?.PROD
+		? (await import('../first-party-effects/standard/worklet.js?worker&url')).default
+		: new URL('../first-party-effects/standard/worklet.js', import.meta.url);
+	await context.audioWorklet.addModule(String(url));
+});
 const staffPadModules = new WeakMap<BaseAudioContext, WebAssembly.Module>();
 const staffPadLoads = new WeakMap<BaseAudioContext, Promise<void>>();
 const standardNodes = new WeakSet<AudioWorkletNode>();
-export const isStandardEffectWorkletLoaded = (context: BaseAudioContext): boolean => loaded.has(context);
+export const isStandardEffectWorkletLoaded = (context: BaseAudioContext): boolean => standardEffectWorklet.isLoaded(context);
 
 /** Release native echo sessions before a stopped rack becomes unreachable. */
 export function disposeStandardEffectNode(node: AudioNode): void {
@@ -30,20 +35,7 @@ export async function ensureStandardDelayRuntime(context: BaseAudioContext): Pro
 }
 
 export async function ensureStandardEffectWorklet(context: BaseAudioContext): Promise<void> {
-	if (loaded.has(context)) return;
-	let operation = pending.get(context);
-	if (!operation) {
-		operation = (async () => {
-			const url = import.meta.env?.DEV || import.meta.env?.PROD
-				? (await import('../first-party-effects/standard/worklet.js?worker&url')).default
-				: new URL('../first-party-effects/standard/worklet.js', import.meta.url);
-			await context.audioWorklet.addModule(String(url));
-			loaded.add(context);
-		})();
-		pending.set(context, operation);
-	}
-	try { await operation; }
-	finally { if (pending.get(context) === operation) pending.delete(context); }
+	await standardEffectWorklet.ensure(context);
 }
 
 interface WorkletNodeConstructor {
@@ -52,7 +44,7 @@ interface WorkletNodeConstructor {
 
 export function createStandardEffectNode(context: BaseAudioContext, WorkletNode: WorkletNodeConstructor | null,
 	type: StandardEffectType, params: Record<string, unknown>, channelCount: number): AudioWorkletNode {
-	if (!loaded.has(context) || !WorkletNode) throw new Error('The standard effect processor was not loaded.');
+	if (!standardEffectWorklet.isLoaded(context) || !WorkletNode) throw new Error('The standard effect processor was not loaded.');
 	standardEffectStateBytes(type, params, context.sampleRate, channelCount);
 	const node = new WorkletNode(context, 'kw-standard-effect', {
 		numberOfInputs: 1, numberOfOutputs: 1, outputChannelCount: [channelCount],

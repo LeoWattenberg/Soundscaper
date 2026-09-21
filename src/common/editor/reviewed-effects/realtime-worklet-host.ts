@@ -7,6 +7,7 @@ import {
 	type ReviewedEffectManifest,
 } from './manifest.ts';
 import { loadReviewedEffectPackage } from './runtime.ts';
+import { createAudioWorkletLoadOnce } from '../audio-worklet-load-once.ts';
 
 export const REVIEWED_EFFECT_WORKLET_NAME = 'soundscaper-reviewed-effect-v1';
 
@@ -15,8 +16,9 @@ export interface ReviewedEffectRealtimeOptions {
 	readonly parameters?: Readonly<Record<string, number>>;
 }
 
-const loadedContexts = new WeakSet<BaseAudioContext>();
-const pendingContextLoads = new WeakMap<BaseAudioContext, Promise<void>>();
+const realtimeWorklet = createAudioWorkletLoadOnce((context) => (
+	context.audioWorklet.addModule(new URL('./realtime-worklet.js', import.meta.url).href)
+));
 
 /** Create only separately realtime-approved catalog packages in the static host. */
 export async function createReviewedEffectRealtimeNode(
@@ -75,18 +77,7 @@ export function configureReviewedEffectRealtimeNode(
 }
 
 async function ensureWorkletSource(context: BaseAudioContext): Promise<void> {
-	if (loadedContexts.has(context)) return;
-	let pending = pendingContextLoads.get(context);
-	if (!pending) {
-		pending = context.audioWorklet.addModule(new URL('./realtime-worklet.js', import.meta.url).href)
-			.then(() => { loadedContexts.add(context); });
-		pendingContextLoads.set(context, pending);
-	}
-	try {
-		await pending;
-	} finally {
-		pendingContextLoads.delete(context);
-	}
+	await realtimeWorklet.ensure(context);
 }
 
 function normalizeParameters(

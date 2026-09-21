@@ -1,7 +1,9 @@
 import { EBU_R128_WORKLET_NAME } from './ebu-r128-worklet.js';
+import { createAudioWorkletLoadOnce } from './audio-worklet-load-once.ts';
 
-const loadedContexts = new WeakSet();
-const pendingLoads = new WeakMap();
+const ebuR128Worklet = createAudioWorkletLoadOnce((context) => Promise.resolve()
+	.then(ebuR128WorkletUrl)
+	.then((url) => context.audioWorklet.addModule(url)));
 
 export async function createEbuR128MeterNode(context, options = {}) {
 	if (!context?.audioWorklet?.addModule) {
@@ -65,20 +67,7 @@ export async function createEbuR128MeterNode(context, options = {}) {
 }
 
 export async function ensureEbuR128Worklet(context) {
-	if (loadedContexts.has(context)) return;
-	let pending = pendingLoads.get(context);
-	if (!pending) {
-		pending = Promise.resolve()
-			.then(ebuR128WorkletUrl)
-			.then((url) => context.audioWorklet.addModule(url))
-			.then(() => { loadedContexts.add(context); });
-		pendingLoads.set(context, pending);
-	}
-	try {
-		await pending;
-	} finally {
-		if (pendingLoads.get(context) === pending) pendingLoads.delete(context);
-	}
+	await ebuR128Worklet.ensure(context);
 }
 
 async function ebuR128WorkletUrl() {

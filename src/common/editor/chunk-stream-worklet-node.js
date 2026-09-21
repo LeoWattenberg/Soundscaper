@@ -4,27 +4,16 @@ import {
 	AUDIO_EDITOR_CHUNK_STREAM_WORKLET_NAME,
 	AUDIO_EDITOR_STREAM_MAX_QUEUE_PACKETS,
 } from './chunk-stream.js';
+import { createAudioWorkletLoadOnce } from './audio-worklet-load-once.ts';
 
-const loadedWorkletContexts = new WeakSet();
-const pendingWorkletLoads = new WeakMap();
+const chunkStreamWorklet = createAudioWorkletLoadOnce((audioContext) => (
+	Promise.resolve(chunkStreamWorkletUrl())
+		.then((url) => audioContext.audioWorklet.addModule(url))
+));
 
 export async function ensureChunkStreamWorklet(audioContext) {
 	if (!audioContext?.audioWorklet?.addModule) throw new TypeError('An AudioContext with audioWorklet support is required.');
-	if (loadedWorkletContexts.has(audioContext)) return;
-	let load = pendingWorkletLoads.get(audioContext);
-	if (!load) {
-		load = Promise.resolve(chunkStreamWorkletUrl())
-			.then((url) => audioContext.audioWorklet.addModule(url));
-		pendingWorkletLoads.set(audioContext, load);
-	}
-	try {
-		await load;
-		loadedWorkletContexts.add(audioContext);
-		pendingWorkletLoads.delete(audioContext);
-	} catch (error) {
-		if (pendingWorkletLoads.get(audioContext) === load) pendingWorkletLoads.delete(audioContext);
-		throw error;
-	}
+	await chunkStreamWorklet.ensure(audioContext);
 }
 
 function chunkStreamWorkletUrl() {
