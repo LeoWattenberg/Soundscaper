@@ -5,7 +5,7 @@ import {
 	createFreesoundImportService,
 	type FreesoundImportRequest,
 	type FreesoundImportServiceRuntime,
-} from '../../controller/import/internal/freesound-import-service.ts';
+} from '../../controller/import/freesound-import-service.ts';
 import type { EditorProjectToken } from '../../controller/shared/lifecycle.ts';
 
 interface FreesoundWorkspaceSnapshot {

@@ -190,6 +190,7 @@ export const DESKTOP_EXPECTED_RUNTIME_FILES = Object.freeze([
 	'src/common/editor/sequence-timecode.js',
 	'src/common/editor/source-characteristics-canonical-equivalence.js',
 	'src/common/editor/source-characteristics-v14.js',
+	'src/common/editor/source-provenance-root.js',
 	'src/common/editor/source-provenance.js',
 	'src/common/editor/stable-id.js',
 	'src/common/editor/storage/project-storage-profile.js',

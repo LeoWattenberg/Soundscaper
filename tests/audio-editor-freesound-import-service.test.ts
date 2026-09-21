@@ -3,7 +3,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { createFreesoundImportService } from '../src/common/editor/controller/import/internal/freesound-import-service.ts';
+import { createFreesoundImportService } from '../src/common/editor/controller/import/freesound-import-service.ts';
 
 const SOUND = Object.freeze({
 	id: 42,

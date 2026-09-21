@@ -144,6 +144,7 @@
 		"export/video-export-timing.ts",
 		"import/dawproject-audio-decode.ts",
 		"import/deferred-dawproject-service.ts",
+		"import/freesound-import-service.ts",
 		"import/import-composition.ts",
 		"import/imported-audio-content-identity.ts",
 		"import/prepared-project-sources.ts",
