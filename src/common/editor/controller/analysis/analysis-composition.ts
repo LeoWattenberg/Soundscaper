@@ -8,10 +8,6 @@ import { createDeferredAudioAnalysisService } from './internal/deferred-analysis
 import type { EditorProjectGeneration } from '../shared/lifecycle.ts';
 import type { EditorTaskProgressCoordinator } from '../shared/task-progress.ts';
 import { analyzeChannelsInWorker } from '../source/waveform-analysis.ts';
-import { createDeferredDesktopVampAnalysisAction } from './internal/deferred-vamp-analysis-action.ts';
-import {
-	type DesktopVampAnalysisAction,
-} from './internal/vamp-analysis-action.ts';
 
 type AnalysisProject = AnalysisRenderProject & ReturnType<AnalysisDependencies['getProject']>;
 export type AnalysisCompositionState = AnalysisState & {
@@ -21,10 +17,7 @@ export type AnalysisCompositionState = AnalysisState & {
 	preferences?: { readonly spectrogram?: { readonly windowSize?: number } };
 };
 
-type CoreAnalysisActions = ReturnType<typeof createDeferredAudioAnalysisService>;
-export type AnalysisActions = CoreAnalysisActions & {
-	readonly vamp: Readonly<DesktopVampAnalysisAction> | null;
-};
+export type AnalysisActions = ReturnType<typeof createDeferredAudioAnalysisService>;
 
 export interface AnalysisCompositionDependencies<Project extends AnalysisProject, Buffers>
 	extends Omit<AnalysisRenderDependencies<Project, Buffers>, 'getProject' | 'getSelectedTrackId' | 'copy'> {
@@ -46,10 +39,6 @@ export interface AnalysisCompositionDependencies<Project extends AnalysisProject
 	readonly handleError: AnalysisDependencies['handleError'];
 	/** Browser worker transport; hosts may supply their own analysis backend. */
 	readonly analyzeChannels?: typeof analyzeChannelsInWorker;
-	readonly nativeVamp?: Readonly<{
-		readonly bridge: unknown;
-		readonly engine: Parameters<typeof createDeferredDesktopVampAnalysisAction>[0]['engine'];
-	}>;
 }
 
 /** Own analysis wiring, lazy execution and progress while retaining eager cancellation. */
@@ -63,7 +52,7 @@ export function createAnalysisComposition<Project extends AnalysisProject, Buffe
 		if (!project) throw new Error('Analysis requires an open project.');
 		return project;
 	};
-	const service: CoreAnalysisActions = dependencies.enabled ? createDeferredAudioAnalysisService({
+	const service: AnalysisActions = dependencies.enabled ? createDeferredAudioAnalysisService({
 		lifetime: dependencies.lifetime, copy, state,
 		captureProject: () => dependencies.projectGeneration.capture(dependencies.getProject()?.id ?? null),
 		assertProject: (token) => dependencies.projectGeneration.assertCurrent(token),
@@ -98,13 +87,8 @@ export function createAnalysisComposition<Project extends AnalysisProject, Buffe
 		setProcessing: (processing) => { state.analysisProcessing = processing; },
 		setStatus: dependencies.setStatus, publish: dependencies.publish, handleError: dependencies.handleError,
 	}) : createAbsentAnalysisService({ productName: dependencies.productName });
-	const vamp = dependencies.nativeVamp === undefined ? null : createDeferredDesktopVampAnalysisAction({
-		...dependencies.nativeVamp,
-		getProject: dependencies.getProject,
-	});
 	return Object.freeze({
 		...service,
-		vamp,
 		run: (...args) => dependencies.taskProgress.run('analysis', copy.analysisRendering, () => service.run(...args), undefined, { key: "analysisRendering" }),
 		plotSpectrum: (...args) => dependencies.taskProgress.run('analysis', copy.analysisRendering, () => service.plotSpectrum(...args), undefined, { key: "analysisRendering" }),
 		findClipping: (...args) => dependencies.taskProgress.run('analysis', copy.analysisRendering, () => service.findClipping(...args), undefined, { key: "analysisRendering" }),

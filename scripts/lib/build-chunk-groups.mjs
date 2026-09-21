@@ -43,6 +43,7 @@ import {
 	EDITOR_PRODUCTION_METER_CHUNK_TEST,
 	EDITOR_SELECTION_EFFECTS_RUNTIME_CHUNK_TEST,
 	EDITOR_SOURCE_ACTIVATION_CHUNK_TEST,
+	EDITOR_VAMP_ANALYZER_CHUNK_TEST,
 	FRAMESCAPER_PROJECT_COMMAND_CHUNK_TEST,
 	FRAMESCAPER_PROJECT_FOUNDATION_CHUNK_TEST,
 	FRAMESCAPER_SESSION_CLIPBOARD_CHUNK_TEST,
@@ -74,6 +75,7 @@ export {
 	EDITOR_PFFFT_RUNTIME_CHUNK_TEST,
 	EDITOR_PRODUCTION_METER_CHUNK_TEST,
 	EDITOR_SELECTION_EFFECTS_RUNTIME_CHUNK_TEST,
+	EDITOR_VAMP_ANALYZER_CHUNK_TEST,
 	FRAMESCAPER_PROJECT_COMMAND_CHUNK_TEST,
 	FRAMESCAPER_TIMELINE_IMAGE_CHUNK_TEST,
 	PROJECT_INTERCHANGE_FOUNDATION_CHUNK_TEST,
@@ -145,6 +147,16 @@ export const chunkGroups = [
 		name: 'editor-selection-effects-runtime',
 		test: EDITOR_SELECTION_EFFECTS_RUNTIME_CHUNK_TEST,
 		priority: 98,
+		minSize: 0,
+		maxSize: 400_000,
+		includeDependenciesRecursively: false,
+	},
+	{
+		// The menu host dynamically opens this complete analyzer slice. A dedicated
+		// owner prevents its shared domain from joining the product-ready chunks.
+		name: 'editor-vamp-analyzer',
+		test: EDITOR_VAMP_ANALYZER_CHUNK_TEST,
+		priority: 99,
 		minSize: 0,
 		maxSize: 400_000,
 		includeDependenciesRecursively: false,

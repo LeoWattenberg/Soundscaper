@@ -17,6 +17,7 @@ import {
 	EDITOR_OPTIONAL_SURFACE_CHUNK_TEST,
 	EDITOR_PFFFT_RUNTIME_CHUNK_TEST,
 	EDITOR_SELECTION_EFFECTS_RUNTIME_CHUNK_TEST,
+	EDITOR_VAMP_ANALYZER_CHUNK_TEST,
 } from '../scripts/lib/build-chunk-groups.mjs';
 import { sourceModules } from './helpers/eager-chunk-group-crossings.ts';
 import { flatEditorModules } from './helpers/editor-chunk-module-inventory.ts';
@@ -189,6 +190,50 @@ test('optional effect and analysis implementations have a dedicated lazy owner',
 		assert.equal(chunkGroupForModulePath(path), 'editor-optional-execution', `${path} must stay behind its lazy action`);
 	}
 	assert.equal(chunkGroupForModulePath('node_modules/@echogarden/pffft-wasm/simd.js'), null);
+});
+
+test('Vamp analyzer UI, session, domain, and execution share one isolated lazy owner', () => {
+	for (const path of [
+		'src/common/editor/vamp-analysis.ts',
+		'src/common/editor/vamp-analysis-labels.ts',
+		'src/common/editor/controller/analysis/internal/deferred-vamp-analysis-action.ts',
+		'src/common/editor/controller/analysis/internal/vamp-analysis-action.ts',
+		'src/common/editor/ui/dialogs/VampAnalyzerDialog.tsx',
+		'src/common/editor/ui/workspace/SoundscaperVampAnalyzerSurface.tsx',
+		'src/common/editor/ui/workspace/soundscaper-vamp-analyzer-runtime.ts',
+	]) {
+		assert.ok(EDITOR_VAMP_ANALYZER_CHUNK_TEST.test(path), `${path} must be Vamp implementation`);
+		assert.equal(chunkGroupForModulePath(path), 'editor-vamp-analyzer');
+	}
+	const group = chunkGroups.find((candidate) => candidate.name === 'editor-vamp-analyzer');
+	assert.ok(group);
+	assert.equal(group.includeDependenciesRecursively, false);
+	assert.equal(group.minSize, 0);
+	const eagerHost = readFileSync(
+		new URL('../src/common/editor/ui/workspace/SoundscaperNativeServicesSurface.tsx', import.meta.url),
+		'utf8',
+	);
+	const lazyDialog = readFileSync(
+		new URL('../src/common/editor/ui/dialogs/SoundscaperNativeServicesDialog.tsx', import.meta.url),
+		'utf8',
+	);
+	assert.match(lazyDialog, /import\('\.\.\/workspace\/SoundscaperVampAnalyzerSurface\.tsx'\)/u);
+	assert.doesNotMatch(eagerHost, /import\('\.\/SoundscaperVampAnalyzerSurface\.tsx'\)/u);
+	assert.doesNotMatch(
+		eagerHost,
+		/^import\s+(?!type\b)[^;]+from\s+'\.\/soundscaper-vamp-analyzer-runtime\.ts';/mu,
+		'the product-ready menu host must not initialize the Vamp session implementation',
+	);
+});
+
+test('the native plug-in node imports only its protocol contract, not the worklet implementation', () => {
+	const nodeSource = readFileSync(
+		new URL('../src/common/editor/native-plugin-realtime-node.js', import.meta.url),
+		'utf8',
+	);
+	assert.match(nodeSource, /from '\.\/native-plugin-realtime-contract\.ts'/u);
+	assert.doesNotMatch(nodeSource, /from '\.\/native-plugin-realtime-worklet\.js'/u);
+	assert.match(nodeSource, /import\('\.\/native-plugin-realtime-worklet\.js\?worker&url'\)/u);
 });
 
 test('PFFFT has an isolated lazy runtime owner', () => {

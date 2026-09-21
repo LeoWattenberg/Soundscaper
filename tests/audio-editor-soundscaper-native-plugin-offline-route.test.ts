@@ -8,16 +8,18 @@ import {
 	acceptNativePluginPortOffer,
 	closeNativePluginRuntimeVendorUi,
 	createNativePluginEffectNode,
-	describeNativePluginRuntimeParameters,
-	nativePluginRuntimeCapabilities,
 	openNativePluginRuntimeVendorUi,
 	prepareNativePluginOfflineRuntimes,
-	readNativePluginRuntimeParameter,
 	registerNativePluginOfflineRuntimeProvider,
 	registerNativePluginRuntimeIdentity,
 	releaseNativePluginRuntime,
-	writeNativePluginRuntimeParameter,
 } from '../src/common/editor/native-plugin-realtime-node.js';
+import {
+	describeNativePluginRuntimeParameters,
+	nativePluginRuntimeCapabilities,
+	readNativePluginRuntimeParameter,
+	writeNativePluginRuntimeParameter,
+} from '../src/common/editor/ui/dialogs/native-plugin-parameter-runtime.ts';
 
 const PROJECT = Object.freeze({
 	sampleRate: 48_000,

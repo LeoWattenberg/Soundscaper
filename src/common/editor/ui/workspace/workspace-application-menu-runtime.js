@@ -75,7 +75,6 @@ export function createWorkspaceApplicationMenus({
 	const soundscaperNativeServices = resolveSoundscaperNativeServicesWorkspaceRuntime({
 		productId, copy, engine: controller?.engine, controller, durationFrames,
 		selectedTrackId: snapshot.selectedTrackId ?? null,
-		vampAnalyzer: controller?.actions?.analysis?.vamp,
 		processingBlocked: editBlocked || snapshot.readOnly === true,
 	});
 	const framescaperRuntime = createProductWorkspaceApplicationMenuRuntime({

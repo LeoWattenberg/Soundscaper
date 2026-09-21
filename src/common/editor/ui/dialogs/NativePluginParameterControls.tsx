@@ -6,34 +6,19 @@ import {
 	describeNativePluginRuntimeParameters,
 	nativePluginRuntimeCapabilities,
 	readNativePluginRuntimeParameter,
+	type NativePluginParameterDescriptor,
+	type NativePluginParameterRuntime,
 	writeNativePluginRuntimeParameter,
-} from '../../native-plugin-realtime-node.js';
+} from './native-plugin-parameter-runtime.ts';
 import { SOUNDSCAPER_NATIVE_SERVICES_COPY } from '../../../i18n/editor-soundscaper-native-services-copy.ts';
 
 const BOOLEAN_PARAMETER_FLAG = 1;
 
-export interface NativePluginParameterCapabilities {
-	readonly parameterCount: number;
-	readonly hasVendorUi: boolean;
-}
-
-export interface NativePluginParameterDescriptor {
-	readonly index: number;
-	readonly id: string;
-	readonly name: string;
-	readonly label: string;
-	readonly defaultValue: number;
-	readonly minimumValue: number;
-	readonly maximumValue: number;
-	readonly flags: number;
-}
-
-export interface NativePluginParameterRuntime {
-	capabilities(instanceId: string): Promise<NativePluginParameterCapabilities>;
-	describeParameters(instanceId: string): Promise<readonly NativePluginParameterDescriptor[]>;
-	readParameter(instanceId: string, index: number): Promise<number>;
-	writeParameter(instanceId: string, index: number, value: number): Promise<number>;
-}
+export type {
+	NativePluginParameterCapabilities,
+	NativePluginParameterDescriptor,
+	NativePluginParameterRuntime,
+} from './native-plugin-parameter-runtime.ts';
 
 export interface NativePluginParameterControlsCopy {
 	readonly title: string;

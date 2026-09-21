@@ -4,6 +4,7 @@ import type {
 	createDesktopVampAnalysisAction,
 	DesktopVampAnalysisAction,
 } from './vamp-analysis-action.ts';
+import { createDeferredModuleFacade } from '../../shared/deferred-module-facade.ts';
 
 const BRIDGE_METHODS = Object.freeze([
 	'listNativeVampAnalyzers', 'startNativeVampAnalyzer', 'configureNativeVampAnalyzer',
@@ -17,20 +18,14 @@ export function createDeferredDesktopVampAnalysisAction(
 	options: Readonly<DesktopVampAnalysisOptions>,
 ): Readonly<DesktopVampAnalysisAction> | null {
 	if (!hasVampBridge(options.bridge)) return null;
-	let actionPromise: Promise<Readonly<DesktopVampAnalysisAction>> | null = null;
-	const load = (): Promise<Readonly<DesktopVampAnalysisAction>> => {
-		actionPromise ??= import('./vamp-analysis-action.ts').then(({ createDesktopVampAnalysisAction }) => {
+	return createDeferredModuleFacade<DesktopVampAnalysisAction, readonly ['list', 'analyze']>(
+		async () => import('./vamp-analysis-action.ts').then(({ createDesktopVampAnalysisAction }) => {
 			const action = createDesktopVampAnalysisAction(options);
 			if (action === null) throw new Error('The native Vamp analyzer bridge became unavailable.');
 			return action;
-		});
-		return actionPromise;
-	};
-	const deferred: DesktopVampAnalysisAction = {
-		list: async () => (await load()).list(),
-		analyze: async (input, signal) => (await load()).analyze(input, signal),
-	};
-	return Object.freeze(deferred);
+		}),
+		['list', 'analyze'],
+	);
 }
 
 function hasVampBridge(value: unknown): boolean {

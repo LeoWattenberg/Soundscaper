@@ -2,24 +2,40 @@
 
 /** Menu-owned asynchronous catalog shell for the lazy Vamp dialog. */
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 
-import type { SoundscaperVampAnalyzerSession } from './soundscaper-vamp-analyzer-runtime.ts';
+import {
+	createSoundscaperVampAnalyzerSession,
+} from './soundscaper-vamp-analyzer-runtime.ts';
+import { createDesktopVampAnalysisAction } from '../../controller/analysis/internal/vamp-analysis-action.ts';
+import type { SoundscaperVampAnalyzerSurfaceInput } from './SoundscaperNativeServicesSurface.tsx';
 
 const VampAnalyzerDialog = React.lazy(() => import('../dialogs/VampAnalyzerDialog.tsx'));
 
 export interface SoundscaperVampAnalyzerSurfaceProps {
-	readonly session: Readonly<SoundscaperVampAnalyzerSession>;
+	readonly input: Readonly<SoundscaperVampAnalyzerSurfaceInput>;
 	readonly onClose: () => void;
 }
 
 export default function SoundscaperVampAnalyzerSurface({
-	session,
+	input,
 	onClose,
 }: Readonly<SoundscaperVampAnalyzerSurfaceProps>) {
+	const port = useMemo(() => createDesktopVampAnalysisAction({
+		bridge: input.bridge,
+		engine: input.engine,
+		getProject: () => input.controller.project,
+	}), [input.bridge, input.controller, input.engine]);
+	const session = useMemo(() => createSoundscaperVampAnalyzerSession({
+		controller: input.controller,
+		durationFrames: input.durationFrames,
+		selectedTrackId: input.selectedTrackId,
+		port,
+	}), [input, port]);
 	const [catalog, setCatalog] = useState<unknown>(Object.freeze([]));
 	const [catalogMessage, setCatalogMessage] = useState('Loading enabled Vamp analyzers…');
 	useEffect(() => {
+		if (session === null) return undefined;
 		let active = true;
 		void session.loadCatalog().then((value) => {
 			if (!active) return;
@@ -32,6 +48,7 @@ export default function SoundscaperVampAnalyzerSurface({
 		});
 		return () => { active = false; };
 	}, [session]);
+	if (session === null) return null;
 	return <React.Suspense fallback={null}>
 		<VampAnalyzerDialog
 			key={`${session.projectId}:${String(session.projectRevision)}`}

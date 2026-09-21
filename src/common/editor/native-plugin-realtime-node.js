@@ -4,7 +4,7 @@ import {
 	NATIVE_PLUGIN_CONTROL,
 	NATIVE_PLUGIN_PIPELINE_BLOCKS,
 	NATIVE_PLUGIN_WORKLET_NAME,
-} from './native-plugin-realtime-worklet.js';
+} from './native-plugin-realtime-contract.ts';
 import { nativePluginOfflineInstanceIds } from './engine/native-plugin-offline-admission.ts';
 
 const loaded = new WeakSet();
@@ -270,41 +270,8 @@ export function closeNativePluginRuntimeVendorUi(instanceId, windowHandleId) {
 	return vendorUiRequest(instanceId, NATIVE_PLUGIN_CONTROL.closeVendorUi, windowHandleId);
 }
 
-export function nativePluginRuntimeCapabilities(instanceId) {
-	return stateRequest(instanceId, NATIVE_PLUGIN_CONTROL.capabilities).then((answer) => {
-		if (!Number.isSafeInteger(answer.parameterCount) || answer.parameterCount < 0
-			|| answer.parameterCount > 4_096 || typeof answer.hasVendorUi !== 'boolean') {
-			throw new Error('The native plug-in returned malformed capabilities.');
-		}
-		return Object.freeze({
-			parameterCount: answer.parameterCount, hasVendorUi: answer.hasVendorUi,
-		});
-	});
-}
-
-export function describeNativePluginRuntimeParameters(instanceId) {
-	return stateRequest(instanceId, NATIVE_PLUGIN_CONTROL.describeParameters).then((answer) => {
-		const parameters = pluginParameters(answer.parameters);
-		if (!parameters) throw new Error('The native plug-in returned malformed parameters.');
-		return parameters;
-	});
-}
-
-export function readNativePluginRuntimeParameter(instanceId, index) {
-	const admittedIndex = pluginParameterIndex(index);
-	return stateRequest(instanceId, NATIVE_PLUGIN_CONTROL.readParameter, undefined, {
-		index: admittedIndex,
-	}).then((answer) => pluginParameterAnswer(answer, admittedIndex));
-}
-
-export function writeNativePluginRuntimeParameter(instanceId, index, value) {
-	const admittedIndex = pluginParameterIndex(index);
-	let admittedValue;
-	try { admittedValue = normalizedPluginParameter(value); }
-	catch (error) { return Promise.reject(error); }
-	return stateRequest(instanceId, NATIVE_PLUGIN_CONTROL.writeParameter, undefined, {
-		index: admittedIndex, value: admittedValue,
-	}).then((answer) => pluginParameterAnswer(answer, admittedIndex));
+export function requestNativePluginRuntimeControl(instanceId, type, fields = {}) {
+	return stateRequest(instanceId, type, undefined, fields);
 }
 
 export function releaseNativePluginRuntime(instanceId) {
@@ -447,57 +414,6 @@ function pluginTopology(value) {
 	return Object.freeze({ inputChannels, outputChannels });
 }
 
-function pluginParameterIndex(value) {
-	if (!Number.isSafeInteger(value) || value < 0 || value > 4_095) {
-		throw new RangeError('The native plug-in parameter index is invalid.');
-	}
-	return value;
-}
-
-function normalizedPluginParameter(value) {
-	if (!Number.isFinite(value) || value < 0 || value > 1) {
-		throw new RangeError('A normalized native plug-in parameter value is required.');
-	}
-	return value;
-}
-
-function pluginParameterAnswer(answer, index) {
-	if (answer.index !== index) throw new Error('The native plug-in returned a mismatched parameter index.');
-	return normalizedPluginParameter(answer.value);
-}
-
-function pluginParameters(value) {
-	if (!Array.isArray(value) || value.length > 4_096) return null;
-	const ids = new Set();
-	const parameters = [];
-	for (let index = 0; index < value.length; index += 1) {
-		const parameter = value[index];
-		if (!parameter || parameter.index !== index || !pluginParameterText(parameter.id, false)
-			|| !pluginParameterText(parameter.name, false) || !pluginParameterText(parameter.label, true)
-			|| !Number.isSafeInteger(parameter.flags) || parameter.flags < 0 || parameter.flags > 15
-			|| ids.has(parameter.id)) return null;
-		let minimumValue;
-		let defaultValue;
-		let maximumValue;
-		try {
-			minimumValue = normalizedPluginParameter(parameter.minimumValue);
-			defaultValue = normalizedPluginParameter(parameter.defaultValue);
-			maximumValue = normalizedPluginParameter(parameter.maximumValue);
-		} catch { return null; }
-		if (minimumValue > defaultValue || defaultValue > maximumValue) return null;
-		ids.add(parameter.id);
-		parameters.push(Object.freeze({
-			index, id: parameter.id, name: parameter.name, label: parameter.label,
-			defaultValue, minimumValue, maximumValue, flags: parameter.flags,
-		}));
-	}
-	return Object.freeze(parameters);
-}
-
-function pluginParameterText(value, allowEmpty) {
-	return typeof value === 'string' && (allowEmpty || value.length > 0)
-		&& value.length <= 512 && !value.includes('\0');
-}
 async function workletUrl() {
 	if (import.meta.env?.DEV || import.meta.env?.PROD) return (await import('./native-plugin-realtime-worklet.js?worker&url')).default;
 	return new URL('./native-plugin-realtime-worklet.js', import.meta.url);

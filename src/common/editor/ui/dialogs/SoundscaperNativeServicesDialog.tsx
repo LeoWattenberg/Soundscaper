@@ -44,6 +44,11 @@ import {
 	SoundscaperNativeEffectManagePanel,
 	SoundscaperNativeEffectScanPanel,
 } from './SoundscaperNativeEffectPanels.tsx';
+import type { SoundscaperVampAnalyzerSurfaceInput } from '../workspace/SoundscaperNativeServicesSurface.tsx';
+
+const SoundscaperVampAnalyzerSurface = React.lazy(() => (
+	import('../workspace/SoundscaperVampAnalyzerSurface.tsx')
+));
 
 export interface SoundscaperNativeServicesDialogProps {
 	readonly processingBlocked?: boolean;
@@ -52,10 +57,15 @@ export interface SoundscaperNativeServicesDialogProps {
 	readonly initialState?: SoundscaperNativeServicesDialogState;
 	readonly runtime?: SoundscaperNativeServicesDialogRuntime;
 	readonly copy?: Readonly<Record<string, string | undefined>>;
+	readonly vampAnalyzerInput?: Readonly<SoundscaperVampAnalyzerSurfaceInput> | null;
 	readonly onClose: () => void;
 }
 
 export default function SoundscaperNativeServicesDialog(props: SoundscaperNativeServicesDialogProps) {
+	if (props.initialSurface === 'native-analyzer-use') return props.vampAnalyzerInput === null
+		|| props.vampAnalyzerInput === undefined ? null : <React.Suspense fallback={null}>
+			<SoundscaperVampAnalyzerSurface input={props.vampAnalyzerInput} onClose={props.onClose} />
+		</React.Suspense>;
 	return <NativeProcessingTheme><NativeServicesDialog {...props} /></NativeProcessingTheme>;
 }
 

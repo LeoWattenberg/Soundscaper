@@ -94,7 +94,6 @@ export function createGroupedEditorActions(scope: EditorActionRuntime) {
 	]);
 	const crossProductHandoffActions = createCrossProductHandoffActionFacade({ ...scope, copy: { get projectSaved() { return copy.projectSaved; }, get projectSaving() { return copy.projectSaving; } } });
 	const macros = createEffectMacroActions(effectLibraryScope, restricted);
-	const vampAnalysis = analysisService.vamp;
 	const actions = Object.freeze({
 		project: Object.freeze({
 			create: (...args: Parameters<typeof newProject>) => newProject(...args),
@@ -473,7 +472,6 @@ export function createGroupedEditorActions(scope: EditorActionRuntime) {
 			findClipping: restricted('audioAnalysis', analysisService.findClipping),
 			contrast: restricted('audioAnalysis', analysisService.captureContrast), repeatLast: restricted('audioAnalysis', analysisService.repeatLast),
 			measureLoudness: restricted('audioAnalysis', analysisService.measureLoudness),
-			...(vampAnalysis === null ? {} : { vamp: vampAnalysis }),
 		}),
 		export: createExportActionGroup({ handleExportAction, state, productName: product.name, getProjectTitle: () => getProject()?.title ?? null, getProject, fileService, persistSetting, publishDocumentSnapshot, createId: createStableId }),
 		media: createProjectMediaActionGroup({
