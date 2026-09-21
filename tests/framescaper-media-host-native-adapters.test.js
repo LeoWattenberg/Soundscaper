@@ -2,7 +2,7 @@
 
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
-import { mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join, resolve } from 'node:path';
 import { spawnSync } from 'node:child_process';
@@ -206,7 +206,7 @@ test('image-sequence pack admission reaches the machine executor after binding e
 		assert.deepEqual(JSON.parse(admitted.stdout), {
 			error: 'contract-build-has-no-ffmpeg', operation: 'media-decode',
 		});
-		assert.equal(exists(sequence.decodeOutput), false);
+		assert.equal(existsSync(sequence.decodeOutput), false);
 
 		const alias = sequenceArguments(sequence);
 		alias[alias.indexOf('image-sequence-pack')] = 'original';
@@ -232,7 +232,7 @@ test('image-sequence pack admission reaches the machine executor after binding e
 		const tampered = run(fixture.executable, tamperedArguments);
 		assert.equal(tampered.status, 64);
 		assert.match(tampered.stderr, /frame payload|SHA-256|inventory/iu);
-		assert.equal(exists(sequence.decodeOutput), false);
+		assert.equal(existsSync(sequence.decodeOutput), false);
 	} finally {
 		fixture.cleanup();
 	}
@@ -551,10 +551,6 @@ function sequencePlan(packSha256, inventorySha256) {
 	professional.proxyAttachment = null;
 	plan.nodes = [professional];
 	return createUnifiedExactRenderPlan(plan);
-}
-
-function exists(path) {
-	try { readFileSync(path); return true; } catch { return false; }
 }
 
 function renderArguments(paths) {

@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { readFileSync, readdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
@@ -40,4 +41,27 @@ export function writeJson(path, value) {
 
 export function sha256(value) {
 	return createHash('sha256').update(value).digest('hex');
+}
+
+export function assertNativeHostBuildRecipe(recipe, target, phases, sourceDateEpoch) {
+	assert.deepEqual(recipe.target.id, target.id);
+	assert.equal(recipe.target.runtime, target.runtime);
+	assert.equal(recipe.target.hostRuntime, target.hostRuntime);
+	assert.equal(recipe.payloadManifestMutation, false);
+	assert.deepEqual(recipe.commands.map(({ phase }) => phase), phases);
+	assert.ok(Object.isFrozen(recipe));
+	assert.ok(Object.isFrozen(recipe.commands));
+	for (const command of recipe.commands) {
+		assert.ok(Object.isFrozen(command));
+		assert.ok(command.args.every((argument) => !/curl|wget|git clone|https?:/iu.test(argument)));
+		assert.equal(command.environment.SOURCE_DATE_EPOCH, String(sourceDateEpoch));
+		assert.equal(command.environment.TZ, 'UTC');
+		assert.equal(command.environment.LC_ALL, 'C');
+	}
+}
+
+export function refreshNativeHostSourcePins(fixture) {
+	const manifest = json(fixture.manifestPath);
+	manifest.sourceFiles = sourcePins(fixture.hostRoot, fixture.inputs);
+	writeJson(fixture.manifestPath, manifest);
 }

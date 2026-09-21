@@ -54,9 +54,14 @@
 			"sha256": "97d802b49dde6ec32f3fedbe9ec873466440420e119267799907916e494ba1d5"
 		},
 		{
+			"path": "build/recipe-cli.mjs",
+			"byteLength": 1920,
+			"sha256": "92d8ee265b722a4d458f91ae4b5115782002b9abead3ed57ba2f2b907eb70149"
+		},
+		{
 			"path": "build/recipe-driver.mjs",
-			"byteLength": 30580,
-			"sha256": "68836292daaf3fb919951ec2549886987b854b0aae2f8d801f4f62446eaa15d1"
+			"byteLength": 29196,
+			"sha256": "c6b0bd40f873473503a794a27ddc920ba413422d5d1df191936d3c9d929a885f"
 		},
 		{
 			"path": "build/source-authentication.mjs",

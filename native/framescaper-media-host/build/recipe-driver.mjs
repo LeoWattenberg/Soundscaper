@@ -7,7 +7,6 @@ import {
 	cpSync, lstatSync, mkdirSync, readFileSync, readdirSync, realpathSync, statSync,
 } from 'node:fs';
 import { isAbsolute, join, relative, resolve, sep } from 'node:path';
-import { pathToFileURL } from 'node:url';
 
 import {
 	addBoostClosureWitness,
@@ -27,6 +26,7 @@ import {
 	framescaperMediaHostLocalSourceInventory,
 	verifyFramescaperFfmpegConfiguration,
 } from './media-build-commands.mjs';
+import { runFramescaperMediaHostRecipeCli } from './recipe-cli.mjs';
 
 const HOST_ROOT = 'native/framescaper-media-host';
 const SOURCE_RECEIPT = '.framescaper-source-identity.json';
@@ -577,33 +577,9 @@ function currentHostRuntime() {
 	return `${process.platform}-${process.arch}`;
 }
 
-function parseCli(argv) {
-	const values = {};
-	let mode = null;
-	for (let index = 0; index < argv.length; index += 1) {
-		const key = argv[index];
-		if (key === '--print' || key === '--run') {
-			if (mode !== null) throw new TypeError('Choose exactly one recipe mode.');
-			mode = key.slice(2);
-			continue;
-		}
-		if (!key?.startsWith('--') || index + 1 >= argv.length) throw new TypeError('The media-host recipe arguments are invalid.');
-		const field = key.slice(2).replaceAll(/-([a-z])/gu, (_match, letter) => letter.toUpperCase());
-		if (!OPTION_FIELDS.includes(field) || Object.hasOwn(values, field)) throw new TypeError(`Unsupported recipe option ${key}.`);
-		values[field] = argv[index += 1];
-	}
-	if (mode === null) throw new TypeError('Choose --print or --run.');
-	return { values, mode };
-}
-
-if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href) {
-	try {
-		const cli = parseCli(process.argv.slice(2));
-		const recipe = createFramescaperMediaHostBuildRecipe(cli.values);
-		if (cli.mode === 'run') executeFramescaperMediaHostBuildRecipe(recipe);
-		else process.stdout.write(`${JSON.stringify(recipe, null, '\t')}\n`);
-	} catch (error) {
-		process.stderr.write(`${error instanceof Error ? error.message : String(error)}\n`);
-		process.exitCode = 1;
-	}
-}
+runFramescaperMediaHostRecipeCli({
+	moduleUrl: import.meta.url,
+	optionFields: OPTION_FIELDS,
+	createRecipe: createFramescaperMediaHostBuildRecipe,
+	executeRecipe: executeFramescaperMediaHostBuildRecipe,
+});

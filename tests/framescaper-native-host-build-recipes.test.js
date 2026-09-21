@@ -32,7 +32,8 @@ import {
 	FRAMESCAPER_FFMPEG_POLICY,
 } from '../native/framescaper-media-host/build/media-build-commands.mjs';
 import {
-	closureIdentity, json, listRelativeFiles, sha256, sourcePins, writeJson,
+	assertNativeHostBuildRecipe, closureIdentity, json, listRelativeFiles,
+	refreshNativeHostSourcePins, sha256, sourcePins, writeJson,
 } from './helpers/framescaper-native-host-build-fixture.mjs';
 const repositoryRoot = resolve(import.meta.dirname, '..');
 const SOURCE_DATE_EPOCH = 1786492800;
@@ -40,12 +41,12 @@ const BOOST_ARCHIVE_SHA256 = '5c1d40cb8e19adbf740a4ec2da35b3e58f3f5804b1dce44deb
 const MEDIA_INPUTS = Object.freeze([
 	'CMakeLists.txt', 'CMakePresets.json', 'build/external-source-authentication.mjs',
 	'build/ffmpeg-9.0.1-configure.json', 'build/ffmpeg-9.0.1-external-sources.json',
-	'build/media-build-commands.mjs', 'build/recipe-driver.mjs',
+	'build/media-build-commands.mjs', 'build/recipe-cli.mjs', 'build/recipe-driver.mjs',
 	'build/source-authentication.mjs', 'build/targets.json', 'build/windows-vpx.pc',
 	...FRAMESCAPER_MEDIA_HOST_BUILD_TARGETS.map(({ toolchainFile }) => toolchainFile),
 ].sort());
 const OPENFX_INPUTS = Object.freeze([
-	'CMakeLists.txt', 'CMakePresets.json', 'build/recipe-driver.mjs',
+	'CMakeLists.txt', 'CMakePresets.json', 'build/recipe-cli.mjs', 'build/recipe-driver.mjs',
 	'build/source-authentication.mjs', 'build/targets.json',
 	...FRAMESCAPER_OPENFX_HOST_BUILD_TARGETS.map(({ toolchainFile }) => toolchainFile),
 ].sort());
@@ -109,7 +110,7 @@ test('all five media and OpenFX targets emit immutable closed dry-run recipes', 
 	for (const target of FRAMESCAPER_MEDIA_HOST_BUILD_TARGETS) {
 		const fixture = buildFixture(context, 'media', target.id);
 		const recipe = createFramescaperMediaHostBuildRecipe(fixture.options);
-		assertRecipe(recipe, target, [
+		assertNativeHostBuildRecipe(recipe, target, [
 			'zlib-configure', 'zlib-build', 'zlib-install-metadata', 'zlib-install-library-directory',
 			'zlib-install-static-library',
 			'x264-configure', 'x264-build', 'x264-install',
@@ -119,7 +120,7 @@ test('all five media and OpenFX targets emit immutable closed dry-run recipes', 
 			'libopus-configure', 'libopus-build', 'libopus-install',
 			'ffmpeg-configure', 'ffmpeg-build', 'ffmpeg-install', 'host-configure', 'host-build',
 			'host-install',
-		]);
+		], SOURCE_DATE_EPOCH);
 		const configure = recipe.commands.find(({ phase }) => phase === 'ffmpeg-configure');
 		assert.equal(configure.args[1], '--disable-everything');
 		assert.ok(!configure.args.includes('--enable-cross-compile'),
@@ -133,7 +134,9 @@ test('all five media and OpenFX targets emit immutable closed dry-run recipes', 
 	for (const target of FRAMESCAPER_OPENFX_HOST_BUILD_TARGETS) {
 		const fixture = buildFixture(context, 'openfx', target.id);
 		const recipe = createFramescaperOpenFxHostBuildRecipe(fixture.options);
-		assertRecipe(recipe, target, ['host-configure', 'host-build', 'host-install']);
+		assertNativeHostBuildRecipe(
+			recipe, target, ['host-configure', 'host-build', 'host-install'], SOURCE_DATE_EPOCH,
+		);
 		assert.ok(recipe.commands[0].args.includes(
 			`-DFRAMESCAPER_OPENFX_SOURCE_ROOT=${fixture.openfxSourceRoot}`,
 		));
@@ -277,7 +280,7 @@ test('repinning cannot broaden FFmpeg or smuggle ambient paths into exact preset
 	const configuration = json(configurationPath);
 	configuration.configureFlags.push('--enable-decoder=h264');
 	writeJson(configurationPath, configuration);
-	refreshPins(ffmpeg);
+	refreshNativeHostSourcePins(ffmpeg);
 	assert.throws(() => createFramescaperMediaHostBuildRecipe(ffmpeg.options), /configure recipe is not closed/u);
 
 	const preset = buildFixture(context, 'openfx', 'linux-x64');
@@ -285,13 +288,13 @@ test('repinning cannot broaden FFmpeg or smuggle ambient paths into exact preset
 	const presets = json(presetPath);
 	presets.configurePresets[1].cacheVariables = { FRAMESCAPER_OPENFX_SOURCE_ROOT: '$env{HOME}' };
 	writeJson(presetPath, presets);
-	refreshPins(preset);
+	refreshNativeHostSourcePins(preset);
 	assert.throws(() => createFramescaperOpenFxHostBuildRecipe(preset.options), /CMake presets drifted/u);
 
 	const toolchain = buildFixture(context, 'media', 'linux-x64');
 	const toolchainPath = join(toolchain.hostRoot, 'build/toolchains/linux-x64.cmake');
 	appendFileSync(toolchainPath, 'set(CMAKE_CXX_COMPILER /ambient/compiler)\n');
-	refreshPins(toolchain);
+	refreshNativeHostSourcePins(toolchain);
 	assert.throws(() => createFramescaperMediaHostBuildRecipe(toolchain.options), /toolchain drifted/u);
 
 	const shared = buildFixture(context, 'openfx', 'linux-x64');
@@ -420,23 +423,6 @@ test('admitted source-tree and Boost-closure witnesses are rechecked before exec
 	}), /drifted from its pinned content closure/iu);
 	assert.equal(calls, 0);
 });
-
-function assertRecipe(recipe, target, phases) {
-	assert.deepEqual(recipe.target.id, target.id);
-	assert.equal(recipe.target.runtime, target.runtime);
-	assert.equal(recipe.target.hostRuntime, target.hostRuntime);
-	assert.equal(recipe.payloadManifestMutation, false);
-	assert.deepEqual(recipe.commands.map(({ phase }) => phase), phases);
-	assert.ok(Object.isFrozen(recipe));
-	assert.ok(Object.isFrozen(recipe.commands));
-	for (const command of recipe.commands) {
-		assert.ok(Object.isFrozen(command));
-		assert.ok(command.args.every((argument) => !/curl|wget|git clone|https?:/iu.test(argument)));
-		assert.equal(command.environment.SOURCE_DATE_EPOCH, String(SOURCE_DATE_EPOCH));
-		assert.equal(command.environment.TZ, 'UTC');
-		assert.equal(command.environment.LC_ALL, 'C');
-	}
-}
 
 function buildFixture(context, kind, targetId) {
 	const root = mkdtempSync(join(tmpdir(), `framescaper-${kind}-recipe-`));
@@ -611,10 +597,4 @@ function provisionOpenFxSource(fixture, manifest) {
 		root: fixture.openfxSourceRoot,
 	});
 	provisionBoostSource(fixture, manifest);
-}
-
-function refreshPins(fixture) {
-	const manifest = json(fixture.manifestPath);
-	manifest.sourceFiles = sourcePins(fixture.hostRoot, fixture.inputs);
-	writeJson(fixture.manifestPath, manifest);
 }

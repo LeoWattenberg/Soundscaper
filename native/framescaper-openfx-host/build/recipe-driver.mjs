@@ -7,13 +7,16 @@ import {
 	lstatSync, mkdirSync, readFileSync, readdirSync, realpathSync, statSync,
 } from 'node:fs';
 import { dirname, isAbsolute, join, relative, resolve, sep } from 'node:path';
-import { pathToFileURL } from 'node:url';
 
 import {
 	addBoostClosureWitness,
 	addSourceTreeWitness,
 	verifySourceAuthenticationWitness,
 } from './source-authentication.mjs';
+import {
+	createFramescaperOpenFxBuildCommand as command,
+	runFramescaperOpenFxHostRecipeCli,
+} from './recipe-cli.mjs';
 
 const HOST_ROOT = 'native/framescaper-openfx-host';
 const MEDIA_HOST_ROOT = 'native/framescaper-media-host';
@@ -558,16 +561,6 @@ function jsonBytes(bytes, name) {
 	return closedRecord(result, Object.keys(result ?? {}), name);
 }
 
-function command(phase, executable, args, cwd, environment) {
-	if (!Array.isArray(args) || args.some((value) => typeof value !== 'string' || value.includes('\0'))) {
-		throw new TypeError(`Build phase ${phase} has unsafe arguments.`);
-	}
-	return Object.freeze({
-		phase, executable, args: Object.freeze(args), cwd,
-		environment: Object.freeze({ ...environment }),
-	});
-}
-
 function closedRecord(value, fields, name, optional = false) {
 	if (optional && value === undefined) value = {};
 	if (!value || typeof value !== 'object' || Array.isArray(value)
@@ -601,34 +594,7 @@ function deepFreeze(value) {
 function currentHostRuntime() {
 	return `${process.platform}-${process.arch}`;
 }
-
-function parseCli(argv) {
-	const values = {};
-	let mode = null;
-	for (let index = 0; index < argv.length; index += 1) {
-		const key = argv[index];
-		if (key === '--print' || key === '--run') {
-			if (mode !== null) throw new TypeError('Choose exactly one recipe mode.');
-			mode = key.slice(2);
-			continue;
-		}
-		if (!key?.startsWith('--') || index + 1 >= argv.length) throw new TypeError('The OpenFX-host recipe arguments are invalid.');
-		const field = key.slice(2).replaceAll(/-([a-z])/gu, (_match, letter) => letter.toUpperCase());
-		if (!OPTION_FIELDS.includes(field) || Object.hasOwn(values, field)) throw new TypeError(`Unsupported recipe option ${key}.`);
-		values[field] = argv[index += 1];
-	}
-	if (mode === null) throw new TypeError('Choose --print or --run.');
-	return { values, mode };
-}
-
-if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href) {
-	try {
-		const cli = parseCli(process.argv.slice(2));
-		const recipe = createFramescaperOpenFxHostBuildRecipe(cli.values);
-		if (cli.mode === 'run') executeFramescaperOpenFxHostBuildRecipe(recipe);
-		else process.stdout.write(`${JSON.stringify(recipe, null, '\t')}\n`);
-	} catch (error) {
-		process.stderr.write(`${error instanceof Error ? error.message : String(error)}\n`);
-		process.exitCode = 1;
-	}
-}
+runFramescaperOpenFxHostRecipeCli({
+	moduleUrl: import.meta.url, optionFields: OPTION_FIELDS,
+	createRecipe: createFramescaperOpenFxHostBuildRecipe, executeRecipe: executeFramescaperOpenFxHostBuildRecipe,
+});
