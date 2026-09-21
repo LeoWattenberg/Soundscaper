@@ -1,6 +1,6 @@
 ---
-title: "Μουσική πάπια κάτω από μια φωνή"
-description: "Μειώστε αυτόματα το επίπεδο της μουσικής υποβάθρου όποτε μια φωνητική διαδρομή μιλάει."
+title: "Μουσική πάπιας κάτω από μια φωνή"
+description: "Μειώστε αυτόματα τη μουσική υπόκρουση όταν υπάρχει ομιλία σε μια φωνητική διαδρομή."
 editUrl: false
 sidebar:
   order: 7
@@ -8,49 +8,49 @@ head:
   - tag: script
     attrs:
       type: "application/ld+json"
-    content: "{\"@context\":\"https://schema.org\",\"@type\":\"HowTo\",\"name\":\"Duck music under a voice\",\"description\":\"Turn a music bed down automatically whenever a voice track is speaking.\",\"tool\":[{\"@type\":\"HowToTool\",\"name\":\"Soundscaper\"}],\"step\":[{\"@type\":\"HowToStep\",\"position\":1,\"name\":\"Open Soundscaper. A new, empty project is ready as soon as the editor loads.\",\"text\":\"Open Soundscaper. A new, empty project is ready as soon as the editor loads.\"},{\"@type\":\"HowToStep\",\"position\":2,\"name\":\"Choose File → Import audio and pick the music. The file lands as a clip on its own track.\",\"text\":\"Choose File → Import audio and pick the music. The file lands as a clip on its own track.\"},{\"@type\":\"HowToStep\",\"position\":3,\"name\":\"Choose File → Import audio and pick the voice. The file lands as a clip on its own track.\",\"text\":\"Choose File → Import audio and pick the voice. The file lands as a clip on its own track.\"},{\"@type\":\"HowToStep\",\"position\":4,\"name\":\"Click the name bar of the music clip to select it.\",\"text\":\"Click the name bar of the music clip to select it. The clip you select is the one that gets ducked — the music, not the voice.\"},{\"@type\":\"HowToStep\",\"position\":5,\"name\":\"Choose Effect → Volume and compression → Auto Duck. In the Auto Duck dialog, choose the voice track for Control track and set Duck amount to -12, then press Apply to selection.\",\"text\":\"Choose Effect → Volume and compression → Auto Duck. In the Auto Duck dialog, choose the voice track for Control track and set Duck amount to -12, then press Apply to selection. The control track is the one that triggers the ducking. Twelve decibels down is enough for speech to sit clearly on top.\"},{\"@type\":\"HowToStep\",\"position\":6,\"name\":\"Press Play to listen, then Stop.\",\"text\":\"Press Play to listen, then Stop. The music drops while the other track plays and recovers where it is quiet.\"}]}"
+    content: "{\"@context\":\"https://schema.org\",\"@type\":\"HowTo\",\"name\":\"Duck music under a voice\",\"description\":\"Turn a music bed down automatically whenever a voice track is speaking.\",\"tool\":[{\"@type\":\"HowToTool\",\"name\":\"Soundscaper\"}],\"step\":[{\"@type\":\"HowToStep\",\"position\":1,\"name\":\"Open Soundscaper. A new, empty project is ready as soon as the editor loads.\",\"text\":\"Open Soundscaper. A new, empty project is ready as soon as the editor loads.\"},{\"@type\":\"HowToStep\",\"position\":2,\"name\":\"Choose File → Import and pick the music. It lands as a clip on its own track.\",\"text\":\"Choose File → Import and pick the music. It lands as a clip on its own track.\"},{\"@type\":\"HowToStep\",\"position\":3,\"name\":\"Choose File → Import and pick the voice. It lands as a clip on its own track.\",\"text\":\"Choose File → Import and pick the voice. It lands as a clip on its own track.\"},{\"@type\":\"HowToStep\",\"position\":4,\"name\":\"Click the name bar of the music clip to select it.\",\"text\":\"Click the name bar of the music clip to select it. The clip you select is the one that gets ducked — the music, not the voice.\"},{\"@type\":\"HowToStep\",\"position\":5,\"name\":\"Choose Effect → Volume and compression → Auto Duck. In the Auto Duck dialog, choose the voice track for Control track and set Duck amount to -12, then press Apply to selection.\",\"text\":\"Choose Effect → Volume and compression → Auto Duck. In the Auto Duck dialog, choose the voice track for Control track and set Duck amount to -12, then press Apply to selection. The control track is the one that triggers the ducking. Twelve decibels down is enough for speech to sit clearly on top.\"},{\"@type\":\"HowToStep\",\"position\":6,\"name\":\"Press Play to listen, then Stop.\",\"text\":\"Press Play to listen, then Stop. The music drops while the other track plays and recovers where it is quiet.\"}]}"
 ---
-<!-- docs-ai-provenance: {"factPacketSha256":"29eeeac8471c6886f72ec6f256f4acc11b452190de41307593f4a6a9f07893c5","model":"qwen3.8:latest","modelDigest":"22130167c4c20e20c7b71454612966ca8e8171e9b3cc8ab6ce8aa6cbfec79643","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"29eeeac8471c6886f72ec6f256f4acc11b452190de41307593f4a6a9f07893c5","targetLocale":"el"} -->
+<!-- docs-ai-provenance: {"factPacketSha256":"313de1012af9c28f0b75a03718401297acb22bdfb48e03bde9f0c5daf2dc8299","model":"aya-expanse:32b","modelDigest":"1603440383bd5504dc7afd01c0407b425b988dde650a8dc1a737433baa3cd432","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"313de1012af9c28f0b75a03718401297acb22bdfb48e03bde9f0c5daf2dc8299","targetLocale":"el"} -->
 
 <!-- Generated by `node scripts/docs-reference.mjs`. Do not edit. -->
 
-Τα podcast και τα βίντεο διατηρούν τη μουσική να παίζει κάτω από τον λόγο, μειώνοντάς την κάθε φορά που κάποιος μιλάει και επαναφέροντάς την στα κενά. Το Auto Duck κάνει αυτό από ένα έλεγχο: όπου το έλεγχο είναι πιο δυνατό από ένα όριο, η επιλεγμένη διαδρομή σιγάζεται, με αδιαφάνειες στις άκρες.
+Τα podcasts και τα βίντεο διατηρούν τη μουσική σε λειτουργία κάτω από τον λόγο μειώνοντάς την κάθε φορά που κάποιος μιλάει και επαναφέροντάς την στα κενά. Το Auto Duck κάνει αυτό από μια διαδρομή ελέγχου: όπου η διαδρομή ελέγχου είναι πιο δυνατή από ένα όριο, η επιλεγμένη διαδρομή χαμηλώνει, με ξεθωριάσματα στα άκρα. 
 
-:::note[Ερχόσαστε από το Audacity;]
-Αυτό είναι το **Effect → Volume and Compression → Auto Duck** του Audacity. Τα ονόματα παρακάτω είναι δικά του Soundscaper, τα οποία μερικές φορές διαφέρουν.
+:::note[Έρχεστε από το Audacity;]
+Αυτό είναι το **Εφέ → Όγκος και Συμπίεση → Αυτοματοποιημένο Duck** του Audacity. Οι ονομασίες παρακάτω είναι οι δικές του Soundscaper, οι οποίες μερικές φορές διαφέρουν.
 :::
 
 ## Βήματα
 
-1. Ανοίξτε το Soundscaper. Ένα νέο, κενό έργο είναι έτοιμο μόλις φορτωθεί ο επεξεργαστής.
-2. Επιλέξτε **File → Import audio** και επιλέξτε τη μουσική. Το αρχείο τοποθετείται ως κλιπ σε μια δική του διαδρομή.
-3. Επιλέξτε **File → Import audio** και επιλέξτε τη φωνή. Το αρχείο τοποθετείται ως κλιπ σε μια δική του διαδρομή.
-4. Κάντε κλικ στη μπάρα ονόματος του κλιπ μουσικής για να το επιλέξετε. Το κλιπ που επιλέγετε είναι αυτό που σιγάζεται — η μουσική, όχι η φωνή.
-5. Επιλέξτε **Effect → Volume and compression → Auto Duck**. Στο παράθυρο διαλόγου **Auto Duck**, επιλέξτε τη διαδρομή φωνής για **Control track** και ορίστε το **Duck amount** σε `-12`, στη συνέχεια πατήστε **Apply to selection**. Η διαδρομή ελέγχου είναι αυτή που ενεργοποιεί τη σίγαση. Δώδεκα ντεσιμπέλ κάτω είναι αρκετά για ομιλία να κάθεται καθαρά από πάνω.
-6. Πατήστε **Play** για να ακούσετε, στη συνέχεια **Stop**.
-   *Θα πρέπει να δείτε:* Η μουσική πέφτει ενώ η άλλη διαδρομή παίζει και ανακτάται όπου είναι ήσυχη.
+1. Ανοίξτε το Soundscaper. Ένα νέο, άδειο έργο είναι έτοιμο μόλις φορτωθεί ο επεξεργαστής.
+2. Επιλέξτε **Αρχείο → Εισαγωγή** και επιλέξτε τη μουσική. Προσγειώνεται ως κλιπ στη δική του διαδρομή.
+3. Επιλέξτε **Αρχείο → Εισαγωγή** και επιλέξτε τη φωνή. Προσγειώνεται ως κλιπ στη δική του διαδρομή.
+4. Κάντε κλικ στη γραμμή ονόματος του κλιπ μουσικής για να το επιλέξετε. Το κλιπ που επιλέγετε είναι αυτό που θα «κατηχηθεί» — η μουσική, όχι η φωνή.
+5. Επιλέξτε **Εφέ → Όγκος και συμπίεση → Αυτοματοποιημένο Duck**. Στο παράθυρο διαλόγου **Αυτοματοποιημένο Duck**, επιλέξτε τη διαδρομή φωνής για **Διαδρομή ελέγχου** και ορίστε το **Ποσό κατηχητισμού** σε `-12`, στη συνέχεια πατήστε **Εφαρμογή στην επιλογή**. Η διαδρομή ελέγχου είναι αυτή που ενεργοποιεί τον κατηχητισμό. Δώδεκα ντεσιμπέλ προς τα κάτω είναι αρκετά για να καθίσει ο λόγος καθαρά από πάνω.
+6. Πατήστε **Αναπαραγωγή** για να ακούσετε, στη συνέχεια **Διακοπή**.
+   *Θα πρέπει να δείτε:* Η μουσική πέφτει ενώ παίζει η άλλη διαδρομή και ανακάμπτει όπου είναι ήσυχη.
 
 ## Συμβουλές
 
-- Επεκτείνετε τους χρόνους **Outer fade** αν η μουσική ανεβαίνει και κατεβαίνει πολύ γρήγορα μεταξύ των λέξεων.
-- Τοποθετήστε τη διαδρομή φωνής πάνω από τη μουσική στη λίστα διαδρομών ώστε η σχέση να είναι εύκολη να δει.
+- Μακρύνετε τους χρόνους **Εξωτερικού ξεθωριάσματος** αν η μουσική φουσκώνει και πέφτει πολύ γρήγορα μεταξύ των λέξεων.
+- Βάλτε τη διαδρομή φωνής πάνω από τη μουσική στη λίστα διαδρομών ώστε η σχέση να είναι εύκολο να δει κανείς.
 
-## Σχετικά οδηγούς
+## Σχετικοί οδηγοί
 
-Περισσότεροι [volume and dynamics](/guides/volume/) οδηγούς:
+Περισσότεροι οδηγοί [όγκου και δυναμικής](/guides/volume/):
 
-- [Make a quiet recording louder](/guides/volume/make-a-recording-louder/) — Αυξήστε το επίπεδο μιας εγγραφής κατά έναν σταθερό αριθμό ντεσιμπέλ με το Amplify.
-- [Normalize peaks to a set level](/guides/volume/normalize-peaks/) — Φέρτε το πιο δυνατό σημείο μιας εγγραφής σε ένα ακριβές επίπεδο κάτω από την πλήρη κλίμακα.
-- [Normalize loudness for a podcast](/guides/volume/normalize-loudness-for-podcasts/) — Ταιριάξτε την αντιληπτή ένταση ενός επεισοδίου με το επίπεδο που περιμένουν οι πλατφόρμες streaming.
-- [Even out volume with a compressor](/guides/volume/even-out-volume-with-a-compressor/) — Μειώστε το κενό μεταξύ δυνατών και ήσυχων στιγμών ώστε η ομιλία να είναι ευκολότερη να ακολουθηθεί.
-- [Fade in and fade out](/guides/volume/fade-in-and-fade-out/) — Ξεκινήστε ένα κλιπ από σιωπή και τελειώστε το ομαλά αντί να κόβεται.
-- [Tame peaks with a limiter](/guides/volume/tame-peaks-with-a-limiter/) — Εμποδίστε τις πιο δυνατές στιγμές να υπερβούν ένα οροφή χωρίς να αγγίξετε το υπόλοιπο.
-- [Even out volume with the classic compressor](/guides/volume/even-out-volume-with-the-legacy-compressor/) — Χρησιμοποιήστε τον αρχικό συμπιεστή του Audacity 3, με το επίπεδο θορύβου και την κερδοφορία make-up, σε μια εγγραφή.
+- [Κάντε μια ήσυχη εγγραφή πιο δυνατή](/guides/volume/make-a-recording-louder/) — Αυξήστε το επίπεδο μιας εγγραφής με έναν σταθερό αριθμό ντεσιμπέλ με την Ενίσχυση.
+- [Κάντε τα πικ κανονικά σε ένα ορισμένο επίπεδο](/guides/volume/normalize-peaks/) — Φέρτε το πιο δυνατό σημείο μιας εγγραφής σε ένα ακριβές επίπεδο κάτω από την κλίμακα πλήρους κλίμακας.
+- [Κάντε τα πικ κανονικά για ένα podcast](/guides/volume/normalize-loudness-for-podcasts/) — Ταιριάξτε την αντίληψη του όγκου ενός επεισοδίου με το επίπεδο που αναμένουν οι πλατφόρμες ροής.
+- [Εξισώστε τον όγκο με έναν συμπιεστή](/guides/volume/even-out-volume-with-a-compressor/) — Μειώστε το χάσμα μεταξύ των δυνατών και ήσυχων στιγμών ώστε ο λόγος να είναι ευκολότερο να ακολουθηθεί.
+- [Φθίνουσα και φθίνουσα](/guides/volume/fade-in-and-fade-out/) — Ξεκινήστε ένα κλιπ από τη σιωπή και τελειώστε το ομαλά αντί να το κόψετε.
+- [Εξημερώστε τα πικ με έναν περιοριστή](/guides/volume/tame-peaks-with-a-limiter/) — Σταματήστε τις πιο δυνατές στιγμές να ξεπερνούν μια οροφή χωρίς να αγγίξετε το υπόλοιπο.
+- [Εξισώστε τον όγκο με τον κλασικό συμπιεστή](/guides/volume/even-out-volume-with-the-legacy-compressor/) — Χρησιμοποιήστε τον αρχικό συμπιεστή του Audacity 3, με το θόρυβο του δαπέδου του και το κέρδος του, σε μια εγγραφή.
 
 ## Αναφορά
 
-- [Κάθε παράμετρος των εφέ που χρησιμοποιούνται εδώ, με την προεπιλογή και το εύρος της, βρίσκεται στην αναφορά εφέ ήχου.](/reference/generated/audio-effects/#parameters)
+- [Κάθε παράμετρος των εφέ που χρησιμοποιούνται εδώ, με την προεπιλεγμένη και την κλίμακά του, βρίσκεται στην αναφορά εφέ ήχου.](/reference/generated/audio-effects/#parameters)
 
-## Περί αυτού του οδηγού
+## Σχετικά με αυτόν τον οδηγό
 
-Η διαδικασία σε αυτή τη σελίδα — κάθε είσοδος μενού, παράθυρο διαλόγου, πεδίο και κουμπί, και το αποτέλεσμα που παράγει — αναπαράγεται εναντίον κάθε έκδοσης του Soundscaper από τη σουίτα περιηγητή (`tests/browser/soundscaper-guides.spec.js`). Αν οποιονδήποτε από αυτά σταματήσει να ταιριάζει με τον επεξεργαστή, η έκδοση αποτυγχάνει μέχρι να διορθωθεί ο οδηγός. Οι τιμές που προτείνονται είναι σημεία εκκίνησης που αποδεικνύεται ότι αποδέχεται ο επεξεργαστής· αν ταιριάζουν στην εγγραφή σας είναι για τα αυτιά σας να αποφασίσουν.
+Η διαδικασία σε αυτήν τη σελίδα — κάθε καταχώριση μενού, παράθυρο διαλόγου, πεδίο και κουμπί, και το αποτέλεσμα που παράγει — αναπαράγεται σε κάθε δημιουργία του Soundscaper από το πρόγραμμα περιήγησης (`tests/browser/soundscaper-guides.spec.js`). Εάν τυχόν από αυτά σταματήσει να ταιριάζει με τον επεξεργαστή, η δημιουργία αποτυγχάνει μέχρι να διορθωθεί ο οδηγός. Οι τιμές που προτείνονται είναι σημεία εκκίνησης που αποδέκτηκε ο επεξεργαστής, αν ταιριάζουν ή όχι με την εγγραφή σας είναι για τα αυτιά σας να αποφασίσουν.

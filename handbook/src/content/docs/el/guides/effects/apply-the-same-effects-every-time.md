@@ -1,6 +1,6 @@
 ---
-title: "Εφαρμογή του ίδιου αλυσιδωτού αποτελέσματος κάθε φορά"
-description: "Αποθήκευση μιας ακολουθίας εφέ ως μακροεντολή και εκτέλεσή της σε οποιαδήποτε επιλογή με μία εντολή."
+title: "Εφαρμόστε την ίδια αλυσίδα αποτελεσμάτων κάθε φορά"
+description: "Αποθηκεύστε μια ακολουθία αποτελεσμάτων ως μακροεντολή και εκτελέστε την σε οποιαδήποτε επιλογή με μία εντολή."
 editUrl: false
 sidebar:
   order: 13
@@ -8,54 +8,54 @@ head:
   - tag: script
     attrs:
       type: "application/ld+json"
-    content: "{\"@context\":\"https://schema.org\",\"@type\":\"HowTo\",\"name\":\"Apply the same chain of effects every time\",\"description\":\"Save a sequence of effects as a macro and run it on any selection with one command.\",\"tool\":[{\"@type\":\"HowToTool\",\"name\":\"Soundscaper\"}],\"step\":[{\"@type\":\"HowToStep\",\"position\":1,\"name\":\"Open Soundscaper. A new, empty project is ready as soon as the editor loads.\",\"text\":\"Open Soundscaper. A new, empty project is ready as soon as the editor loads.\"},{\"@type\":\"HowToStep\",\"position\":2,\"name\":\"Choose File → Import audio and pick a recording to process. The file lands as a clip on its own track.\",\"text\":\"Choose File → Import audio and pick a recording to process. The file lands as a clip on its own track.\"},{\"@type\":\"HowToStep\",\"position\":3,\"name\":\"Choose Select → Select all.\",\"text\":\"Choose Select → Select all. A macro runs on the selection, just as each effect would on its own.\"},{\"@type\":\"HowToStep\",\"position\":4,\"name\":\"Choose Tools → Macro manager and press New macro. Type Episode finish into Macro name. Press Add effect and choose Normalize and Fade Out, pressing Add effect again for each one. Press Run macro; the dialog reports that the macro was applied. Press Close.\",\"text\":\"Choose Tools → Macro manager and press New macro. Type Episode finish into Macro name. Press Add effect and choose Normalize and Fade Out, pressing Add effect again for each one. Press Run macro; the dialog reports that the macro was applied. Press Close. Each step keeps its default settings here; press a step’s Select effect button to change them before you run. The recording is normalized and fades to silence at the end.\"},{\"@type\":\"HowToStep\",\"position\":5,\"name\":\"Press Play to listen, then Stop.\",\"text\":\"Press Play to listen, then Stop.\"}]}"
+    content: "{\"@context\":\"https://schema.org\",\"@type\":\"HowTo\",\"name\":\"Apply the same chain of effects every time\",\"description\":\"Save a sequence of effects as a macro and run it on any selection with one command.\",\"tool\":[{\"@type\":\"HowToTool\",\"name\":\"Soundscaper\"}],\"step\":[{\"@type\":\"HowToStep\",\"position\":1,\"name\":\"Open Soundscaper. A new, empty project is ready as soon as the editor loads.\",\"text\":\"Open Soundscaper. A new, empty project is ready as soon as the editor loads.\"},{\"@type\":\"HowToStep\",\"position\":2,\"name\":\"Choose File → Import and pick a recording to process. It lands as a clip on its own track.\",\"text\":\"Choose File → Import and pick a recording to process. It lands as a clip on its own track.\"},{\"@type\":\"HowToStep\",\"position\":3,\"name\":\"Choose Select → Select all.\",\"text\":\"Choose Select → Select all. A macro runs on the selection, just as each effect would on its own.\"},{\"@type\":\"HowToStep\",\"position\":4,\"name\":\"Choose Tools → Macro manager and press New macro. Type Episode finish into Macro name. Press Add effect and choose Normalize and Fade Out, pressing Add effect again for each one. Press Run macro; the dialog reports that the macro was applied. Press Close.\",\"text\":\"Choose Tools → Macro manager and press New macro. Type Episode finish into Macro name. Press Add effect and choose Normalize and Fade Out, pressing Add effect again for each one. Press Run macro; the dialog reports that the macro was applied. Press Close. Each step keeps its default settings here; press a step’s Select effect button to change them before you run. The recording is normalized and fades to silence at the end.\"},{\"@type\":\"HowToStep\",\"position\":5,\"name\":\"Press Play to listen, then Stop.\",\"text\":\"Press Play to listen, then Stop.\"}]}"
 ---
-<!-- docs-ai-provenance: {"factPacketSha256":"fe27c3ca761a5f223dc61da95d50d67d87079e31b9824488ca90a19d367c70f6","model":"qwen3.8:latest","modelDigest":"22130167c4c20e20c7b71454612966ca8e8171e9b3cc8ab6ce8aa6cbfec79643","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"fe27c3ca761a5f223dc61da95d50d67d87079e31b9824488ca90a19d367c70f6","targetLocale":"el"} -->
+<!-- docs-ai-provenance: {"factPacketSha256":"a5d3e1397a5d7af65a4e17a19753b03303693a33220b67c809efc56f5741620e","model":"aya-expanse:32b","modelDigest":"1603440383bd5504dc7afd01c0407b425b988dde650a8dc1a737433baa3cd432","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"a5d3e1397a5d7af65a4e17a19753b03303693a33220b67c809efc56f5741620e","targetLocale":"el"} -->
 
 <!-- Generated by `node scripts/docs-reference.mjs`. Do not edit. -->
 
-Κάθε επεισόδιο λαμβάνει την ίδια μεταχείριση: κανονικοποίηση, αφαίρεση του τέλους. Ένα μακρο ενregistre αυτή τη σειρά μία φορά και την εκτελεί όποτε το ζητήσετε, με τις ρυθμίσεις που επιλέξατε, ώστε μια ρουτίνα δέκα βημάτων να γίνει μία εντολή. Το Audacity 3 είχε έναν Διαχειριστή Μακρο για ακριβώς αυτό. Το Audacity 4 δεν έχει επαναφέρει τα μακρο.
+Κάθε επεισόδιο λαμβάνει την ίδια μεταχείριση: κανονικοποίηση, εξασθένιση του τέλους. Μια μακροεντολή καταγράφει αυτή τη σειρά μία φορά και την εκτελεί όποτε ζητηθεί, με τις ρυθμίσεις που επιλέξατε, έτσι ώστε μια ρουτίνα δέκα βημάτων γίνεται μία εντολή. Το Audacity 3 είχε έναν Διαχειριστή Μακροεντολών για ακριβώς αυτό το σκοπό; το Audacity 4 δεν έχει επαναφέρει τις μακροεντολές.
 
-:::note[Ερχόσαστε από το Audacity;]
-Αυτό είναι το **Tools → Macros → Manage Macros and Apply Macro (Audacity 3. Το Audacity 4 δεν έχει μακρο)** του Audacity. Τα ονόματα παρακάτω είναι δικά του Soundscaper, τα οποία μερικές φορές διαφέρουν.
+:::note[Έρχεστε από το Audacity;]
+Αυτό είναι το **Εργαλεία → Μακροεντολές → Διαχείριση Μακροεντολών και Εφαρμογή Μακροεντολής (Audacity 3; το Audacity 4 δεν διαθέτει μακροεντολές)**. Τα ονόματα παρακάτω είναι δικά του Soundscaper, τα οποία μερικές φορές διαφέρουν.
 :::
 
 ## Βήματα
 
-1. Ανοίξτε το Soundscaper. Ένα νέο, κενό έργο είναι έτοιμο μόλις φορτώσει ο επεξεργαστής.
-2. Επιλέξτε **File → Import audio** και επιλέξτε μια ηχογράφηση για επεξεργασία. Το αρχείο τοποθετείται ως κλιπ σε ένα ξεχωριστό κομμάτι.
-3. Επιλέξτε **Select → Select all**. Ένα μακρο εκτελείται στην επιλογή, όπως θα έκανε κάθε εφέ από μόνο του.
-4. Επιλέξτε **Tools → Macro manager** και πατήστε **New macro**. Πληκτρολογήστε `Episode finish` στο **Macro name**. Πατήστε **Add effect** και επιλέξτε **Normalize** και **Fade Out**, πατώντας **Add effect** ξανά για το καθένα. Πατήστε **Run macro**. Ο διάλογος αναφέρει ότι το μακρο εφαρμόστηκε. Πατήστε **Close**. Κάθε βήμα διατηρεί τις προεπιλεγμένες ρυθμίσεις εδώ. Πατήστε το κουμπί **Select effect** ενός βήματος για να τις αλλάξετε πριν την εκτέλεση.
-   *Πρέπει να δείτε:* Η ηχογράφηση κανονικοποιείται και αδειάζει στη σιωπή στο τέλος.
-5. Πατήστε **Play** για να ακούσετε, και στη συνέχεια **Stop**.
+1. Ανοίξτε το Soundscaper. Ένα νέο, κενό έργο είναι έτοιμο μόλις φορτωθεί ο επεξεργαστής.
+2. Επιλέξτε **Αρχείο → Εισαγωγή** και επιλέξτε μια εγγραφή για επεξεργασία. Καταλήγει ως κλιπ στο δικό του κανάλι.
+3. Επιλέξτε **Επιλογή → Επιλέξτε όλα**. Μια μακροεντολή εκτελείται στην επιλογή, ακριβώς όπως κάθε εφέ θα εκτελούνταν μόνο του.
+4. Επιλέξτε **Εργαλεία → Διαχειριστής Μακροεντολών** και πατήστε **Νέα μακροεντολή**. Πληκτρολογήστε `Episode finish` στο **Όνομα μακροεντολής**. Πατήστε **Προσθήκη εφέ** και επιλέξτε **Κανονικοποίηση** και **Εξασθένιση Εξόδου**, πατώντας **Προσθήκη εφέ** ξανά για κάθε ένα. Πατήστε **Εκτέλεση μακροεντολής**· το παράθυρο διαλόγου αναφέρει ότι η μακροεντολή εφαρμόστηκε. Πατήστε **Κλείσιμο**. Κάθε βήμα διατηρεί τις προεπιλεγμένες ρυθμίσεις εδώ· πατήστε το κουμπί **Επιλογή εφέ** ενός βήματος για να αλλάξετε τις ρυθμίσεις πριν από την εκτέλεση.
+   *Θα πρέπει να δείτε:* Η εγγραφή κανονικοποιείται και εξασθενεί σιγά-σιγά στο τέλος.
+5. Πατήστε **Αναπαραγωγή** για να ακούσετε, και στη συνέχεια **Διακοπή**.
 
 ## Συμβουλές
 
-- Το μακρο αποθηκεύεται με τον επεξεργαστή, οπότε περιμένει κάτω από **Tools → Macro manager** για την επόμενη ηχογράφηση.
-- Το **Export macro** γράφει τη σειρά ως αρχείο κειμένου μακρο του Audacity, και το **Import macro** διαβάζει ένα, ώστε μια ρουτίνα να μπορεί να μετακινηθεί μεταξύ των δύο προγραμμάτων.
+- Η μακροεντολή αποθηκεύεται με τον επεξεργαστή, οπότε περιμένει στο **Εργαλεία → Διαχειριστής Μακροεντολών** για την επόμενη εγγραφή.
+- **Εξαγωγή μακροεντολής** γράφει την αλυσίδα ως αρχείο κειμένου μακροεντολών Audacity, και **Εισαγωγή μακροεντολής** διαβάζει ένα, έτσι ώστε μια ρουτίνα μπορεί να μετακινηθεί μεταξύ των δύο προγραμμάτων.
 
 ## Σχετικοί οδηγοί
 
-Περισσότεροι οδηγοί [effects](/guides/effects/):
+Περισσότεροι οδηγοί [εφέ](/guides/effects/):
 
-- [Change tempo without changing pitch](/guides/effects/change-tempo-without-changing-pitch/) — Επιταχύνετε ή επιβραδύνετε μια ηχογράφηση ενώ κάθε νότα παραμένει στο ίδιο ύψος.
-- [Change pitch without changing tempo](/guides/effects/change-pitch-without-changing-tempo/) — Μετακινήστε μια ηχογράφηση πάνω ή κάτω κατά έναν αριθμό ημιτόνων και διατηρήστε τον χρόνο της.
-- [Add an echo](/guides/effects/add-echo/) — Επαναλάβετε έναν ήχο σε σταθερό διάστημα, πιο ήσυχο κάθε φορά.
-- [Put a recording in a room](/guides/effects/add-reverb/) — Προσθέστε ηχώ ώστε μια ξηρή ηχογράφηση να ακούγεται σαν να έγινε σε πραγματικό χώρο.
-- [Boost bass and treble](/guides/effects/boost-bass-and-treble/) — Ζεστάνετε ή φωτίστε μια ηχογράφηση με δύο απλούς ελεγκτές τόνου.
-- [Change speed like a tape machine](/guides/effects/change-speed-like-a-tape/) — Επιταχύνετε ή επιβραδύνετε μια ηχογράφηση με το ύψος να ακολουθεί, όπως κάνει το ταινία.
-- [Stretch a sound into a drone](/guides/effects/stretch-a-sound-into-a-drone/) — Επιβραδύνετε έναν σύντομο ήχο enormously με Paulstretch για να δημιουργήσετε περιβαλλοντικές υφές.
-- [Add distortion](/guides/effects/add-distortion/) — Υπερφορτίστε έναν ήχο από απαλή ζεστασιά έως πλήρη fuzz.
-- [Add a wah-wah](/guides/effects/add-a-wah-wah/) — Κάντε μια σαρώση σε έναν συντονισμένο φίλτρο πάνω από έναν ήχο για το κλασικό funk εφέ.
-- [Use a Nyquist plug-in](/guides/effects/use-a-nyquist-plugin/) — Εκτελέστε ένα από τα συσκευασμένα εφέ Nyquist — εδώ, ένα tremolo.
-- [Add a realtime effect to a track](/guides/effects/add-a-realtime-effect-to-a-track/) — Τοποθετήστε ένα εφέ σε ένα κομμάτι ώστε να εκτελείται ενώ παίζετε, χωρίς απόδοση.
-- [Add a phaser](/guides/effects/add-a-phaser/) — Κάντε μια σαρώση σε ένα σύνολο κοιλότητας μέσα από έναν ήχο για το κλασικό εφέ στροβιλισμού κιθάρας και πληκτρολογίου.
-- [Slide from one tempo to another](/guides/effects/slide-from-one-tempo-to-another/) — Επιταχύνετε ή επιβραδύνετε σταδιακά ένα απόσπασμα κατά μήκος του μήκους του, με ή χωρίς ολίσθηση ύψους.
+- [Αλλαγή τέμπο χωρίς αλλαγή τόνου](/guides/effects/change-tempo-without-changing-pitch/) — Επιταχύνετε ή επιβραδύνετε μια εγγραφή ενώ κάθε νότα παραμένει στον ίδιο τόνο.
+- [Αλλαγή τόνου χωρίς αλλαγή τέμπο](/guides/effects/change-pitch-without-changing-tempo/) — Μετακινήστε μια εγγραφή πάνω ή κάτω κατά ένα αριθμό ημιτονίων και διατηρήστε τον χρονισμό της.
+- [Προσθήκη ηχώ](/guides/effects/add-echo/) — Επαναλάβετε έναν ήχο σε ένα σταθερό διάστημα, πιο ήσυχα κάθε φορά.
+- [Βάλτε μια εγγραφή σε ένα δωμάτιο](/guides/effects/add-reverb/) — Προσθέστε αντήχηση έτσι ώστε μια στεγνή εγγραφή να ακούγεται σαν να έγινε σε πραγματικό χώρο.
+- [Ενίσχυση μπάσων και τρεμπλ](/guides/effects/boost-bass-and-treble/) — Ζεστάνετε ή φωτίστε μια εγγραφή με δύο απλούς ελέγχους τόνου.
+- [Αλλαγή ταχύτητας σαν μαγνητόφωνο](/guides/effects/change-speed-like-a-tape/) — Επιταχύνετε ή επιβραδύνετε μια εγγραφή με τον τόνο να ακολουθεί, όπως κάνει η ταινία.
+- [Τραβήξτε έναν ήχο σε ένα drone](/guides/effects/stretch-a-sound-into-a-drone/) — Επιβραδύνετε πολύ έναν σύντομο ήχο με το Paulstretch για να δημιουργήσετε περιβαλλοντικές υφές.
+- [Προσθήκη παραμόρφωσης](/guides/effects/add-distortion/) — Υπερφορτώστε έναν ήχο από απαλή ζεστασιά σε πλήρη θόρυβο.
+- [Προσθήκη wah-wah](/guides/effects/add-a-wah-wah/) — Σκουπίστε ένα συντονισμένο φίλτρο σε έναν ήχο για το κλασικό εφέ της φάνκ.
+- [Χρήση ενός πρόσθετου Nyquist](/guides/effects/use-a-nyquist-plugin/) — Εκτελέστε ένα από τα ενσωματωμένα εφέ Nyquist — εδώ, μια προσαρμόσιμη εξασθένιση.
+- [Προσθήκη εφέ σε πραγματικό χρόνο σε ένα κανάλι](/guides/effects/add-a-realtime-effect-to-a-track/) — Βάλτε ένα εφέ σε ένα κανάλι έτσι ώστε να εκτελείται ενώ παίζετε, χωρίς απόδοση.
+- [Προσθήκη φάσματος](/guides/effects/add-a-phaser/) — Σκουπίστε ένα σύνολο αυλακώσεων μέσα από έναν ήχο για το κλασικό εφέ κιθάρας και πληκτρολογίου.
+- [Μεταβείτε από ένα τέμπο σε άλλο](/guides/effects/slide-from-one-tempo-to-another/) — Επιταχύνετε ή επιβραδύνετε μια φράση σταδιακά σε όλο το μήκος της, με ή χωρίς διακύμανση του τόνου.
 
 ## Αναφορά
 
-- [Κάθε εντολή μενού και η συντόμευση πληκτρολογίου της βρίσκεται στην αναφορά εντολών και συντομεύσεων.](/reference/generated/commands/)
+- [Κάθε εντολή μενού και το πληκτρολόγιό της βρίσκεται στην αναφορά εντολών και συντομεύσεων.](/reference/generated/commands/)
 
-## Περί αυτού του οδηγού
+## Σχετικά με αυτόν τον οδηγό
 
-Η διαδικασία σε αυτή τη σελίδα — κάθε είσοδος μενού, διάλογος, πεδίο και κουμπί, και το αποτέλεσμα που παράγει — αναπαράγεται εναντίον κάθε έκδοσης του Soundscaper από τη σουίτα περιηγητή (`tests/browser/soundscaper-guides.spec.js`). Αν οποιοδήποτε από αυτά σταματήσει να ταιριάζει με τον επεξεργαστή, η έκδοση αποτυγχάνει μέχρι να διορθωθεί ο οδηγός. Οι τιμές που προτείνονται είναι σημεία εκκίνησης που αποδεικνύεται ότι αποδέχεται ο επεξεργαστής. Αν ταιριάζουν στην ηχογράφησή σας, είναι για τα αυτιά σας να αποφασίσουν.
+Η διαδικασία σε αυτήν τη σελίδα — κάθε στοιχείο μενού, παράθυρο διαλόγου, πεδίο και κουμπί, και το αποτέλεσμα που παράγει — αναπαράγεται σε κάθε έκδοση του Soundscaper από το πρόγραμμα περιήγησης (`tests/browser/soundscaper-guides.spec.js`). Εάν οποιοδήποτε από αυτά σταματήσει να ταιριάζει με τον επεξεργαστή, η έκδοση αποτυγχάνει μέχρι να διορθωθεί ο οδηγός. Οι τιμές που προτείνονται είναι σημεία εκκίνησης που αποδέχεται ο επεξεργαστής· αν ταιριάζουν με την εγγραφή σας είναι για τα αυτιά σας να αποφασίσουν.

@@ -1,6 +1,6 @@
 ---
 title: "Αναίρεση και επανάληψη"
-description: "Επιστρέψτε πίσω από τις επεξεργασίες σας και προχωρήστε ξανά."
+description: "Κάντε βήματα πίσω στις επεξεργασίες σας και προχωρήστε ξανά."
 editUrl: false
 sidebar:
   order: 12
@@ -8,57 +8,57 @@ head:
   - tag: script
     attrs:
       type: "application/ld+json"
-    content: "{\"@context\":\"https://schema.org\",\"@type\":\"HowTo\",\"name\":\"Undo and redo\",\"description\":\"Step back through your edits and forward again.\",\"tool\":[{\"@type\":\"HowToTool\",\"name\":\"Soundscaper\"}],\"step\":[{\"@type\":\"HowToStep\",\"position\":1,\"name\":\"Open Soundscaper. A new, empty project is ready as soon as the editor loads.\",\"text\":\"Open Soundscaper. A new, empty project is ready as soon as the editor loads.\"},{\"@type\":\"HowToStep\",\"position\":2,\"name\":\"Choose File → Import audio and pick any recording. The file lands as a clip on its own track.\",\"text\":\"Choose File → Import audio and pick any recording. The file lands as a clip on its own track.\"},{\"@type\":\"HowToStep\",\"position\":3,\"name\":\"Press the Split tool button in the toolbar.\",\"text\":\"Press the Split tool button in the toolbar.\"},{\"@type\":\"HowToStep\",\"position\":4,\"name\":\"Click the waveform anywhere in the clip to put the cursor there.\",\"text\":\"Click the waveform anywhere in the clip to put the cursor there. A split is a good edit to practise on because you can see it.\"},{\"@type\":\"HowToStep\",\"position\":5,\"name\":\"Press the Split tool button in the toolbar.\",\"text\":\"Press the Split tool button in the toolbar. Back to the normal pointer.\"},{\"@type\":\"HowToStep\",\"position\":6,\"name\":\"The project now shows 2 clips.\",\"text\":\"The project now shows 2 clips.\"},{\"@type\":\"HowToStep\",\"position\":7,\"name\":\"Press the Undo button in the toolbar.\",\"text\":\"Press the Undo button in the toolbar. The toolbar button and Edit → Undo do the same thing.\"},{\"@type\":\"HowToStep\",\"position\":8,\"name\":\"The project now shows 1 clip.\",\"text\":\"The project now shows 1 clip. The split is gone and the clip is whole again.\"},{\"@type\":\"HowToStep\",\"position\":9,\"name\":\"Press the Redo button in the toolbar.\",\"text\":\"Press the Redo button in the toolbar.\"},{\"@type\":\"HowToStep\",\"position\":10,\"name\":\"The project now shows 2 clips.\",\"text\":\"The project now shows 2 clips. The split is back.\"}]}"
+    content: "{\"@context\":\"https://schema.org\",\"@type\":\"HowTo\",\"name\":\"Undo and redo\",\"description\":\"Step back through your edits and forward again.\",\"tool\":[{\"@type\":\"HowToTool\",\"name\":\"Soundscaper\"}],\"step\":[{\"@type\":\"HowToStep\",\"position\":1,\"name\":\"Open Soundscaper. A new, empty project is ready as soon as the editor loads.\",\"text\":\"Open Soundscaper. A new, empty project is ready as soon as the editor loads.\"},{\"@type\":\"HowToStep\",\"position\":2,\"name\":\"Choose File → Import and pick any recording. It lands as a clip on its own track.\",\"text\":\"Choose File → Import and pick any recording. It lands as a clip on its own track.\"},{\"@type\":\"HowToStep\",\"position\":3,\"name\":\"Press the Split tool button in the toolbar.\",\"text\":\"Press the Split tool button in the toolbar.\"},{\"@type\":\"HowToStep\",\"position\":4,\"name\":\"Click the waveform anywhere in the clip to put the cursor there.\",\"text\":\"Click the waveform anywhere in the clip to put the cursor there. A split is a good edit to practise on because you can see it.\"},{\"@type\":\"HowToStep\",\"position\":5,\"name\":\"Press the Split tool button in the toolbar.\",\"text\":\"Press the Split tool button in the toolbar. Back to the normal pointer.\"},{\"@type\":\"HowToStep\",\"position\":6,\"name\":\"The project now shows 2 clips.\",\"text\":\"The project now shows 2 clips.\"},{\"@type\":\"HowToStep\",\"position\":7,\"name\":\"Press the Undo button in the toolbar.\",\"text\":\"Press the Undo button in the toolbar. The toolbar button and Edit → Undo do the same thing.\"},{\"@type\":\"HowToStep\",\"position\":8,\"name\":\"The project now shows 1 clip.\",\"text\":\"The project now shows 1 clip. The split is gone and the clip is whole again.\"},{\"@type\":\"HowToStep\",\"position\":9,\"name\":\"Press the Redo button in the toolbar.\",\"text\":\"Press the Redo button in the toolbar.\"},{\"@type\":\"HowToStep\",\"position\":10,\"name\":\"The project now shows 2 clips.\",\"text\":\"The project now shows 2 clips. The split is back.\"}]}"
 ---
-<!-- docs-ai-provenance: {"factPacketSha256":"d977a5c97426e241bb079fda77dc648a1ba846e2331811c3fbc259c0931454c8","model":"qwen3.8:latest","modelDigest":"22130167c4c20e20c7b71454612966ca8e8171e9b3cc8ab6ce8aa6cbfec79643","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"d977a5c97426e241bb079fda77dc648a1ba846e2331811c3fbc259c0931454c8","targetLocale":"el"} -->
+<!-- docs-ai-provenance: {"factPacketSha256":"6d9cdb24c5f9df66cd50e9fa913ee28512b2d5b050122058a661b1576e0580ea","model":"aya-expanse:32b","modelDigest":"1603440383bd5504dc7afd01c0407b425b988dde650a8dc1a737433baa3cd432","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"6d9cdb24c5f9df66cd50e9fa913ee28512b2d5b050122058a661b1576e0580ea","targetLocale":"el"} -->
 
 <!-- Generated by `node scripts/docs-reference.mjs`. Do not edit. -->
 
-Κάθε επεξεργασία και εφέ καταγράφεται στο ιστορικό του έργου, οπότε τίποτα από ό,τι δοκιμάζετε δεν αποτελεί ρίσκο. Η αναιρέση (Undo) επιστρέφει ένα βήμα κάθε φορά — ένα εφέ, μια κοπή, μια μετακίνηση — και η επανάληψη (Redo) το επαναφέρει. Το ιστορικό διατηρείται μετά την αποθήκευση και την επανάνοιξη του έργου.
+Κάθε επεξεργασία και αποτέλεσμα προστίθεται στην ιστορία του έργου, επομένως τίποτα από όσα δοκιμάζετε δεν αποτελεί κίνδυνο. Τα βήματα Αναίρεσης επιστρέφουν σε μία αλλαγή τη φορά — ένα αποτέλεσμα, ένα κόψιμο, μια κίνηση — και το Επαναφορά το επαναφέρει. Η ιστορία διατηρείται μετά την αποθήκευση και την επαναλειτουργία του έργου.
 
-:::note[Ερχόσαστε από το Audacity;]
-Αυτό αντιστοιχεί στο **Edit → Undo και Edit → Redo (Ctrl+Z, Ctrl+Y)** του Audacity. Οι ονόματα παρακάτω είναι του Soundscaper και μερικές φορές διαφέρουν.
+:::note[Έρχεστε από το Audacity;]
+Αυτό είναι το **Επεξεργασία → Αναίρεση** και **Επεξεργασία → Επαναφορά (Ctrl+Z, Ctrl+Y)** του Audacity. Τα ονόματα παρακάτω είναι δικά του Soundscaper, τα οποία μερικές φορές διαφέρουν.
 :::
 
 ## Βήματα
 
-1. Ανοίξτε το Soundscaper. Ένα νέο, κενό έργο είναι έτοιμο μόλις φορτώσει ο επεξεργαστής.
-2. Επιλέξτε **File → Import audio** και επιλέξτε οποιαδήποτε ηχογράφηση. Το αρχείο εμφανίζεται ως κλιπ σε δικό του ρυθμό.
-3. Πατήστε το κουμπί **Split tool** στη γραμμή εργαλείων.
-4. Κάντε κλικ στο κύμα οποιουδήποτε σημείου του κλιπ για να τοποθετήσετε τον δείκτη εκεί. Η διαίρεση είναι μια καλή επεξεργασία για εξάσκηση, επειδή μπορείτε να τη δείτε.
-5. Πατήστε το κουμπί **Split tool** στη γραμμή εργαλείων. Επιστροφή στον κανονικό δείκτη.
+1. Ανοίξτε το Soundscaper. Ένα νέο, κενό έργο είναι έτοιμο μόλις φορτωθεί ο επεξεργαστής.
+2. Επιλέξτε **Αρχείο → Εισαγωγή** και επιλέξτε οποιαδήποτε εγγραφή. Προσγειώνεται ως κλιπ στο δικό του κομμάτι.
+3. Πατήστε το κουμπί **Εργαλείο Διαχωρισμού** στη γραμμή εργαλείων.
+4. Κάντε κλικ στο κύμα οπουδήποτε στο κλιπ για να τοποθετήσετε τον δείκτη εκεί. Ένας διαχωρισμός είναι μια καλή επεξεργασία για εξάσκηση επειδή μπορείτε να τον δείτε.
+5. Πατήστε ξανά το κουμπί **Εργαλείο Διαχωρισμού** στη γραμμή εργαλείων. Επιστροφή στον κανονικό δείκτη.
 6. Το έργο εμφανίζει τώρα 2 κλιπ.
-7. Πατήστε το κουμπί **Undo** στη γραμμή εργαλείων. Το κουμπί της γραμμής εργαλείων και το **Edit → Undo** κάνουν το ίδιο πράγμα.
+7. Πατήστε το κουμπί **Αναίρεση** στη γραμμή εργαλείων. Το κουμπί στη γραμμή εργαλειών και το **Επεξεργασία → Αναίρεση** κάνουν το ίδιο πράγμα.
 8. Το έργο εμφανίζει τώρα 1 κλιπ.
-   *Πρέπει να δείτε:* Η διαίρεση έχει εξαφανιστεί και το κλιπ είναι ξανά ολόκληρο.
-9. Πατήστε το κουμπί **Redo** στη γραμμή εργαλείων.
+   *Θα πρέπει να δείτε:* Ο διαχωρισμός έχει φύγει και το κλιπ είναι ολόκληρο ξανά.
+9. Πατήστε το κουμπί **Επαναφορά** στη γραμμή εργαλείων.
 10. Το έργο εμφανίζει τώρα 2 κλιπ.
-   *Πρέπει να δείτε:* Η διαίρεση επέστρεψε.
+   *Θα πρέπει να δείτε:* Ο διαχωρισμός είναι πίσω.
 
 ## Συμβουλές
 
-- Το **View → Panels → History** καταγράφει κάθε βήμα, και κάνοντας κλικ σε ένα μεταφέρετε απευθείας σε αυτό.
-- Η αναιρέση καλύπτει επεξεργασίες στο έργο, όχι εξαγωγές· ένα αρχείο που έχετε ήδη αποθηκεύσει παραμένει όπως είναι.
+- **Προβολή → Πίνακες → Ιστορία** απαριθμεί κάθε βήμα, και το κλικ σε ένα οδηγεί απευθείας σε αυτό.
+- Η Αναίρεση καλύπτει τις επεξεργασίες στο έργο, όχι τις εξαγωγές· ένα αρχείο που έχετε ήδη αποθηκεύσει παραμένει ως έχει.
 
 ## Σχετικοί οδηγοί
 
-Περισσότεροι [editing](/guides/editing/) οδηγοί:
+Περισσότεροι οδηγοί [επεξεργασίας](/guides/editing/):
 
-- [Κόψτε ένα λάθος από μια ηχογράφηση](/guides/editing/cut-out-a-mistake/) — Επιλέξτε μια ολίσθηση, αφαιρέστε την και κλείστε το κενό ώστε η ηχογράφηση να συνεχιστεί.
-- [Διαχωρίστε ένα κλιπ σε δύο](/guides/editing/split-a-clip-at-the-cursor/) — Κόψτε ένα κλιπ σε ένα σημείο ώστε κάθε μέρος να μπορεί να μετακινηθεί ή να επεξεργαστείται ξεχωριστά.
-- [Κρατήστε μόνο το μέρος που θέλετε](/guides/editing/keep-only-a-selection/) — Κόψτε ό,τι βρίσκεται εκτός επιλογής σε ένα βήμα.
-- [Επαναλάβετε μια ενότητα](/guides/editing/repeat-a-section/) — Επαναλάβετε μια επιλογή έναν καθορισμένο αριθμό φορές για να την κάνετε μακρύτερη.
-- [Αναπαράγετε μια ηχογράφηση προς τα πίσω](/guides/editing/reverse-audio/) — Αντιστρέψτε μια επιλογή ώστε να αναπαράγεται από το τέλος προς την αρχή.
-- [Σημειώστε σημεία σε μια ηχογράφηση](/guides/editing/add-markers/) — Τοποθετήστε ονομασμένους δείκτες στον άξονα χρόνου ώστε να μπορείτε να βρείτε ξανά σημεία αργότερα.
-- [Αντιγράψτε και επικολλήστε μια ενότητα](/guides/editing/copy-and-paste-a-section/) — Αντιγράψτε ένα απόσπασμα και επικολλήστε το κάπου αλλού στο ρυθμό.
-- [Διπλασιάστε μια επιλογή σε νέο ρυθμό](/guides/editing/duplicate-a-selection-to-a-new-track/) — Αντιγράψτε ένα απόσπασμα σε δικό του ρυθμό ώστε να μπορείτε να το επεξεργαστείτε ξεχωριστά.
-- [Προσθέστε σιωπή μετά από ένα κλιπ](/guides/editing/add-silence-after-a-clip/) — Δημιουργήστε ένα κενό ακριβούς μήκους στη θέση του δείκτη.
-- [Συντονίστε κλιπ το ένα μετά το άλλο](/guides/editing/line-up-clips-end-to-end/) — Σφίξτε δύο κλιπ σε διαφορετικούς ρυθμούς το ένα απέναντι στο άλλο ώστε το ένα να ακολουθεί το άλλο.
-- [Μεταβείτε για ακριβείς επεξεργασίες](/guides/editing/zoom-in-for-precise-edits/) — Προσεγγίστε αρκετά το κύμα ώστε να κόψετε σε ένα χτύπημα ή μεταξύ λέξεων.
-- [Επαναλάβετε μια ενότητα ενώ εξασκείστε](/guides/editing/loop-a-section-while-you-practise/) — Αναπαράγετε ένα επιλεγμένο απόσπασμα ξανά και ξανά.
-- [Μετακινήστε ένα κλιπ κατά μήκος του άξονα χρόνου](/guides/editing/move-a-clip-along-the-timeline/) — Σύρετε ένα κλιπ σε διαφορετικό χρόνο στο ρυθμό του.
-- [Ακούστε πιο γρήγορα ή πιο αργά χωρίς να αλλάξετε την ηχογράφηση](/guides/editing/listen-at-a-different-speed/) — Εξασθενίστε ένα απόσπασμα για να το μεταγράψετε ή επιταχύνετε ένα μακρύ take για να το εξετάσετε, αφήνοντας το έργο αμετάβλητο.
+- [Κόψτε ένα λάθος από μια εγγραφή](/guides/editing/cut-out-a-mistake/) — Επιλέξτε ένα σφάλμα, αφαιρέστε το και κλείστε το κενό ώστε η εγγραφή να συνεχίσει να ρέει.
+- [Διαχωρίστε ένα κλιπ στα δύο](/guides/editing/split-a-clip-at-the-cursor/) — Κόψτε ένα κλιπ σε ένα σημείο ώστε κάθε μέρος να μπορεί να μετακινηθεί ή να επεξεργαστεί ξεχωριστά.
+- [Διατηρήστε μόνο το τμήμα που θέλετε](/guides/editing/keep-only-a-selection/) — Κόψτε τα πάντα εκτός από μια επιλογή σε ένα βήμα.
+- [Επαναλαμβάνετε ένα τμήμα](/guides/editing/repeat-a-section/) — Επαναλαμβάνετε μια επιλογή έναν ορισμένο αριθμό φορών για να την κάνετε μεγαλύτερη.
+- [Αναπαραγάγετε μια εγγραφή ανάποδα](/guides/editing/reverse-audio/) — Αναστρέψτε μια επιλογή ώστε να αναπαράγεται από το τέλος προς την αρχή.
+- [Σημειώστε σημεία σε μια εγγραφή](/guides/editing/add-markers/) — Ρίξτε ονομασμένα σημεία αναφοράς στη χρονογραμμή ώστε να μπορείτε να βρείτε ξανά τα σημεία αργότερα.
+- [Αντιγράψτε και επικολλήστε ένα τμήμα](/guides/editing/copy-and-paste-a-section/) — Αντιγράψτε ένα απόσπασμα και επικολλήστε το κάπου αλλού στο κομμάτι.
+- [Διπλώστε μια επιλογή σε ένα νέο κομμάτι](/guides/editing/duplicate-a-selection-to-a-new-track/) — Αντιγράψτε ένα απόσπασμα στο δικό του κομμάτι ώστε να μπορείτε να το επεξεργαστείτε ξεχωριστά.
+- [Προσθέστε σιωπή μετά από ένα κλιπ](/guides/editing/add-silence-after-a-clip/) — Δημιουργήστε ένα κενό ακριβούς μήκους στον δείκτη.
+- [Ταιριάξτε κλιπ άκρη με άκρη](/guides/editing/line-up-clips-end-to-end/) — Στρώστε δύο κλιπ σε διαφορετικά κομμάτια το ένα πάνω στο άλλο ώστε το ένα να ακολουθεί το άλλο.
+- [Μεγαλώστε για ακριβείς επεξεργασίες](/guides/editing/zoom-in-for-precise-edits/) — Πλησιάστε αρκετά στο κύμα για να κόψετε σε ένα χτύπημα ή ανάμεσα σε λέξεις.
+- [Επαναλαμβάνετε ένα τμήμα ενώ εξασκείστε](/guides/editing/loop-a-section-while-you-practise/) — Αναπαραγάγετε μια επιλεγμένη παράγραφο επανειλημμένα.
+- [Κινήστε ένα κλιπ κατά μήκος της χρονογραμμής](/guides/editing/move-a-clip-along-the-timeline/) — Σύρετε ένα κλιπ σε διαφορετικό χρόνο στο κομμάτι του.
+- [Ακούστε γρηγορότερα ή πιο αργά χωρίς να αλλάξετε την εγγραφή](/guides/editing/listen-at-a-different-speed/) — Επιβραδύνετε μια παράγραφο για να την μεταγράψετε ή επιταχύνετε μια μεγάλη λήψη για να την αναθεωρήσετε, αφήνοντας το έργο ανέπαφο.
 
 ## Σχετικά με αυτόν τον οδηγό
 
-Η διαδικασία σε αυτή τη σελίδα — κάθε είσοδος μενού, διάλογος, πεδίο και κουμπί, και το αποτέλεσμα που παράγει — αναπαράγεται σε κάθε έκδοση του Soundscaper από τη σουίτα του περιηγητή (`tests/browser/soundscaper-guides.spec.js`). Αν οποιονδήποτε από αυτά σταματήσει να ταιριάζει με τον επεξεργαστή, η έκδοση αποτυγχάνει μέχρι να διορθωθεί ο οδηγός. Οι προτεινόμενες τιμές είναι σημεία εκκίνησης που αποδεικνύεται ότι αποδέχεται ο επεξεργαστής· αν ταιριάζουν στην ηχογράφησή σας, είναι για τα αυτιά σας να αποφασίσουν.
+Η διαδικασία σε αυτήν τη σελίδα — κάθε στοιχείο μενού, παράθυρο διαλόγου, πεδίο και κουμπί, και το αποτέλεσμα που παράγει — αναπαράγεται σε κάθε δημιουργία του Soundscaper από το πρόγραμμα περιήγησης (`tests/browser/soundscaper-guides.spec.js`). Εάν οποιοδήποτε από αυτά σταματήσει να ταιριάζει με τον επεξεργαστή, η δημιουργία αποτυγχάνει μέχρι να διορθωθεί ο οδηγός. Οι τιμές που προτείνονται είναι σημεία εκκίνησης που αποδεικνύεται ότι αποδέχεται ο επεξεργαστής; αν ταιριάζουν με την εγγραφή σας είναι για τα αυτιά σας να αποφασίσουν.

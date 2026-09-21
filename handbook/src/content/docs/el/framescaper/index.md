@@ -4,7 +4,7 @@ description: "Οργανώστε βίντεο, συνθέστε εικόνα κ�
 sidebar:
   order: 1
 ---
-<!-- docs-ai-provenance: {"factPacketSha256":"6193de9a731d010659be03c1372890bf230bb54161c79a2aa1e3ffe4a63c51bd","model":"aya-expanse:32b","modelDigest":"1603440383bd5504dc7afd01c0407b425b988dde650a8dc1a737433baa3cd432","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"6193de9a731d010659be03c1372890bf230bb54161c79a2aa1e3ffe4a63c51bd","targetLocale":"el"} -->
+<!-- docs-ai-provenance: {"factPacketSha256":"fe5df8f699907289847a5d9022c094e32168b502a532ebdf7708436a99db38b7","model":"aya-expanse:32b","modelDigest":"1603440383bd5504dc7afd01c0407b425b988dde650a8dc1a737433baa3cd432","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"fe5df8f699907289847a5d9022c094e32168b502a532ebdf7708436a99db38b7","targetLocale":"el"} -->
 
 Framescaper είναι η προβολή εστίασης βίντεο του κοινού επεξεργαστή. Δίνει έμφαση στην προεπισκόπηση βίντεο, την παρακολούθηση πηγής, τα εφέ εικόνας, τη σύνθεση, τις εμφωλευμένες ακολουθίες και τη δουλειά με πολλαπλές κάμερες.
 
@@ -22,5 +22,6 @@ Framescaper είναι η προβολή εστίασης βίντεο του κ
 2. [Προετοιμασία και εξαγωγή βίντεο](/framescaper/video-export/).
 3. Αναθεωρήστε τη συμπεριφορά [αρχείου έργου και αντιγράφων ασφαλείας](/projects-and-data/project-files/).
 
-Ανοίξτε τον επεξεργαστή του προγράμματος περιήγησης στο
-[soundscaper.org/framescaper/en](https://soundscaper.org/framescaper/en/).
+Ανοίξτε τον επεξεργαστή περιηγητή στο [soundscaper.org/framescaper/en](https://soundscaper.org/framescaper/en/).
+
+Για βοήθεια υπολογιστή, δείτε [τοπική επεξεργασία, μοντέλα και πρόσθετα](/help/local-processing/).
