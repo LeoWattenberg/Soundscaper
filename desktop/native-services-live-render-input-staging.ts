@@ -30,6 +30,7 @@ import {
 	nativeRenderInputDigest,
 	nativeRenderInputSafeSum,
 	nativeRenderInputReceiveRequest,
+	sameNativeRenderInputStageIdentity,
 	nativeRenderInputStageId,
 	nativeRenderInputStageIdRequest,
 	type FramescaperNativeRenderInputStageIdentity,
@@ -502,11 +503,7 @@ function assertIdentity(
 	identity: FramescaperNativeRenderInputStageIdentity,
 	request: ReturnType<typeof nativeRenderInputClaimRequest>,
 ): void {
-	if (identity.planFingerprint !== request.planFingerprint || identity.projectId !== request.projectId
-		|| identity.schemaFamily !== request.schemaFamily
-		|| identity.schemaVersion !== request.schemaVersion
-		|| identity.projectRevision !== request.projectRevision
-		|| JSON.stringify(identity.inputFingerprints) !== JSON.stringify(request.inputFingerprints)) {
+	if (!sameNativeRenderInputStageIdentity(identity, request)) {
 		throw new Error('The live V14 claim substituted its plan, project, or originals.');
 	}
 }
@@ -516,12 +513,7 @@ function assertLiveRecord(stage: PendingLiveStage, record: NativeRenderInputQueu
 	assertNativeQueueRecordV3(record);
 	if (!stage.claimed || record.jobId !== stage.owned.ownership.stageId || record.planVersion !== 14
 		|| (record.taskKind !== 'encoded-export' && record.taskKind !== 'image-sequence-export')
-		|| record.planFingerprint !== stage.identity.planFingerprint
-		|| record.schemaFamily !== stage.identity.schemaFamily
-		|| record.schemaVersion !== stage.identity.schemaVersion
-		|| record.projectId !== stage.identity.projectId
-		|| record.projectRevision !== stage.identity.projectRevision
-		|| JSON.stringify(record.inputFingerprints) !== JSON.stringify(stage.identity.inputFingerprints)) {
+		|| !sameNativeRenderInputStageIdentity(record, stage.identity)) {
 		throw new Error('The live V14 stage disagrees with its exact queue record.');
 	}
 }

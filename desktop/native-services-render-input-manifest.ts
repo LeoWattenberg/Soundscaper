@@ -19,6 +19,7 @@ import {
 	nativeRenderInputIdentifier,
 	nativeRenderInputNonNegative,
 	nativeRenderInputPositive,
+	sameNativeRenderInputStageIdentity,
 	nativeRenderInputStageBindingDigest,
 	nativeRenderInputStageIdentityDigest,
 	nativeRenderInputStageId,
@@ -181,12 +182,9 @@ function assertRecordIdentity(
 	manifest: NativeRenderInputStageManifest,
 	record: NativeRenderInputQueueRecord,
 ): void {
-	if (manifest.stageId !== record.jobId || manifest.planFingerprint !== record.planFingerprint
-		|| manifest.schemaFamily !== record.schemaFamily
-		|| manifest.schemaVersion !== record.schemaVersion
+	if (manifest.stageId !== record.jobId
 		|| manifest.planVersion !== record.planVersion
-		|| manifest.projectId !== record.projectId || manifest.projectRevision !== record.projectRevision
-		|| JSON.stringify(manifest.inputFingerprints) !== JSON.stringify(record.inputFingerprints)) {
+		|| !sameNativeRenderInputStageIdentity(manifest, record)) {
 		throw new Error('The durable native render-input identity disagrees with its queue record.');
 	}
 }

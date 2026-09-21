@@ -79,6 +79,19 @@ export interface FramescaperNativeRenderInputStageIdentity {
 	readonly inputFingerprints: readonly NativeQueueInputFingerprintV1[];
 }
 
+/** Compare one normalized stage identity without owning any caller's refusal wording. */
+export function sameNativeRenderInputStageIdentity(
+	left: FramescaperNativeRenderInputStageIdentity,
+	right: FramescaperNativeRenderInputStageIdentity,
+): boolean {
+	return left.planFingerprint === right.planFingerprint
+		&& left.projectId === right.projectId
+		&& left.schemaFamily === right.schemaFamily
+		&& left.schemaVersion === right.schemaVersion
+		&& left.projectRevision === right.projectRevision
+		&& JSON.stringify(left.inputFingerprints) === JSON.stringify(right.inputFingerprints);
+}
+
 export function nativeRenderInputBeginRequest(
 	value: unknown,
 ): FramescaperNativeRenderInputStageBeginRequestV1 {

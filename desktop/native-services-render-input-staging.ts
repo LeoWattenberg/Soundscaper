@@ -35,6 +35,7 @@ import {
 	nativeRenderInputNonNegative,
 	nativeRenderInputReceiveRequest,
 	nativeRenderInputSafeSum,
+	sameNativeRenderInputStageIdentity,
 	nativeRenderInputStageBindingDigest,
 	nativeRenderInputStageIdentityDigest,
 	nativeRenderInputStageId,
@@ -534,11 +535,7 @@ function assertClaimIdentity(
 	identity: FramescaperNativeRenderInputStageIdentity,
 	request: ReturnType<typeof nativeRenderInputClaimRequest>,
 ): void {
-	if (identity.planFingerprint !== request.planFingerprint || identity.projectId !== request.projectId
-		|| identity.schemaFamily !== request.schemaFamily
-		|| identity.schemaVersion !== request.schemaVersion
-		|| identity.projectRevision !== request.projectRevision
-		|| JSON.stringify(identity.inputFingerprints) !== JSON.stringify(request.inputFingerprints)) {
+	if (!sameNativeRenderInputStageIdentity(identity, request)) {
 		throw new Error('The native render-input claim substituted its plan, project, or originals.');
 	}
 }
