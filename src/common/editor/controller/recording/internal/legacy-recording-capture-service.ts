@@ -6,6 +6,7 @@ import { createLocalizedError } from '../../../../i18n/presentation-message.ts';
 	RecordingStartScope,
 	RecordingSourceWriter,
 } from '../recording-transaction-types.ts';
+import { isCurrentAssertion } from '../../shared/lifecycle.ts';
 import type { RecordingCaptureControllerLike } from './recording-session-service.ts';
 import {
 	createSoundActivatedRecordingCaptureSession,
@@ -51,12 +52,7 @@ export function createLegacyRecordingCaptureService(runtime: RecordingCaptureCom
 		const ownsGeneration = () => scope.generation === state.recordingStartGeneration;
 		const ownsStart = () => {
 			if (!ownsGeneration()) return false;
-			try {
-				scope.assertCurrent();
-				return true;
-			} catch {
-				return false;
-			}
+			return isCurrentAssertion(() => scope.assertCurrent());
 		};
 		try {
 			scope.assertCurrent();

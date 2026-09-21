@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { createLocalizedError } from '../../../../i18n/presentation-message.ts'; import { publishLocalizedStatus } from '../../../../i18n/presentation-message.ts'; import type { RecordingCaptureControllerLike } from './recording-session-service.ts';
+import { isCurrentAssertion } from '../../shared/lifecycle.ts';
 import {
 	recordingCapturePeak,
 	recordingCapturePeakDb,
@@ -73,12 +74,7 @@ export function createRoutedRecordingCaptureService(runtime: RoutedRecordingCapt
 		const ownsGeneration = () => scope.generation === state.recordingStartGeneration;
 		const isCurrent = () => {
 			if (!ownsGeneration()) return false;
-			try {
-				scope.assertCurrent();
-				return true;
-			} catch {
-				return false;
-			}
+			return isCurrentAssertion(() => scope.assertCurrent());
 		};
 		const maybeFinalizeDisconnectedSession = () => {
 			if (isCurrent() && state.recorder === routedRecorder

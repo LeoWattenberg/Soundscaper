@@ -95,6 +95,16 @@ export interface EditorTaskOptions {
 	readonly scope?: string | null;
 }
 
+/** Convert an assertion-style authority check to its established boolean form. */
+export function isCurrentAssertion(assertCurrent: () => void): boolean {
+	try {
+		assertCurrent();
+		return true;
+	} catch {
+		return false;
+	}
+}
+
 interface ActiveTask {
 	readonly generation: number;
 	readonly scope: string | null;

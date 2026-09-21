@@ -15,11 +15,12 @@ import {
 	planEffectMacroChain,
 	type EffectMacroChainStep,
 } from './effect-macro-chain.ts';
-import type {
-	EditorControllerLifetime,
-	EditorProjectGeneration,
-	EditorProjectToken,
-	EditorTaskScope,
+import {
+	isCurrentAssertion,
+	type EditorControllerLifetime,
+	type EditorProjectGeneration,
+	type EditorProjectToken,
+	type EditorTaskScope,
 } from '../../../shared/lifecycle.ts';
 import type { EffectTarget } from '../../effect-selection-service.ts';
 import { createIsolatedTrackRenderProjectV21 } from '../../../track-audio/isolated-track-render-project-v21.ts';
@@ -438,21 +439,11 @@ function ownershipIsCurrent<Buffer>(runtime: EffectMacroServiceRuntime<Buffer>, 
 }
 
 function taskIsCurrent(task: EditorTaskScope): boolean {
-	try {
-		task.assertCurrent();
-		return true;
-	} catch {
-		return false;
-	}
+	return isCurrentAssertion(() => task.assertCurrent());
 }
 
 function projectIsCurrent<Buffer>(runtime: EffectMacroServiceRuntime<Buffer>, token: EditorProjectToken): boolean {
-	try {
-		runtime.projectGeneration.assertCurrent(token);
-		return true;
-	} catch {
-		return false;
-	}
+	return isCurrentAssertion(() => runtime.projectGeneration.assertCurrent(token));
 }
 
 function isCancellation(error: unknown): boolean {

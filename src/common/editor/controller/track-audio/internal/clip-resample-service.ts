@@ -6,10 +6,11 @@ import { createAddClipCommand, createAddSourceCommand } from '../../../commands/
 import type { AudioEditorCommand } from '../../../commands/protocol.ts';
 import { scaleSampleFrame } from '../../../timeline-time.ts';
 import type { DerivedSourceService } from './derived-audio/derived-source-service.ts';
-import type {
-	EditorControllerLifetime,
-	EditorProjectToken,
-	EditorTaskScope,
+import {
+	isCurrentAssertion,
+	type EditorControllerLifetime,
+	type EditorProjectToken,
+	type EditorTaskScope,
 } from '../../shared/lifecycle.ts';
 import {
 	findControllerClip,
@@ -198,20 +199,10 @@ export function createClipResampleService(
 	}
 
 	function projectIsCurrent(token: EditorProjectToken): boolean {
-		try {
-			dependencies.assertProject(token);
-			return true;
-		} catch {
-			return false;
-		}
+		return isCurrentAssertion(() => dependencies.assertProject(token));
 	}
 
 	function taskIsCurrent(task: EditorTaskScope): boolean {
-		try {
-			task.assertCurrent();
-			return true;
-		} catch {
-			return false;
-		}
+		return isCurrentAssertion(() => task.assertCurrent());
 	}
 }

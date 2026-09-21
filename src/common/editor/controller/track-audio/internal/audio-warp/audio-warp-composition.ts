@@ -14,7 +14,7 @@ import {
 	type AudioWarpGrooveApplicationOptions,
 	type PreparedAudioWarpClipEdit,
 } from './audio-warp-authoring-service.ts';
-import type { EditorControllerLifetime, EditorProjectToken } from '../../../shared/lifecycle.ts';
+import { isCurrentAssertion, type EditorControllerLifetime, type EditorProjectToken } from '../../../shared/lifecycle.ts';
 import {
 	addAudioWarpMarker,
 	deleteAudioWarpMarker,
@@ -286,13 +286,10 @@ export function createAudioWarpControllerComposition(
 
 	function processingScopeIsCurrent(projectToken: EditorProjectToken): boolean {
 		if (disposed) return false;
-		try {
+		return isCurrentAssertion(() => {
 			dependencies.lifetime.assertActive();
 			dependencies.assertProject(projectToken);
-			return true;
-		} catch {
-			return false;
-		}
+		});
 	}
 }
 

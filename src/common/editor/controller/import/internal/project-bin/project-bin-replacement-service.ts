@@ -4,10 +4,11 @@ import { createLocalizedError } from '../../../../../i18n/presentation-message.t
 
 import { createAddSourceCommand } from '../../../../commands/factories.ts';
 import type { AudioEditorCommand, CommandObject } from '../../../../commands/protocol.ts';
-import type {
-	EditorControllerLifetime,
-	EditorProjectToken,
-	EditorTaskScope,
+import {
+	isCurrentAssertion,
+	type EditorControllerLifetime,
+	type EditorProjectToken,
+	type EditorTaskScope,
 } from '../../../shared/lifecycle.ts';
 import {
 	findProjectBinClip,
@@ -315,12 +316,7 @@ function sameKinds(first: readonly string[], second: readonly string[]): boolean
 }
 
 function taskOwnsWork(task: EditorTaskScope): boolean {
-	try {
-		task.assertCurrent();
-		return true;
-	} catch {
-		return false;
-	}
+	return isCurrentAssertion(() => task.assertCurrent());
 }
 
 function toCommandObject(clip: ProjectBinClip): CommandObject {

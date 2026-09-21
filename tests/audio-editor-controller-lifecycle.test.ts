@@ -7,6 +7,7 @@ import {
 	EditorDisposedError,
 	EditorProjectChangedError,
 	EditorProjectGeneration,
+	isCurrentAssertion,
 } from '../src/common/editor/controller/shared/lifecycle.ts';
 
 test('controller lifetime is terminal and invalidates captured work', async () => {
@@ -66,4 +67,13 @@ test('project generations invalidate late work without disposing the controller 
 		&& error.code === 'PROJECT_CHANGED'
 		&& error.name === 'AbortError'
 	));
+});
+
+test('currentness assertions preserve the existing catch-all boolean contract', () => {
+	let calls = 0;
+	assert.equal(isCurrentAssertion(() => { calls += 1; }), true);
+	assert.equal(calls, 1);
+	for (const reason of [new Error('stale'), new DOMException('disposed', 'AbortError'), 'non-error']) {
+		assert.equal(isCurrentAssertion(() => { throw reason; }), false);
+	}
 });

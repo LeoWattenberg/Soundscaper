@@ -9,10 +9,11 @@ import {
 import type { EngineSourceBufferInput } from '../../../../engine/public-api.ts';
 import type { AudioEditorCommand } from '../../../../commands/protocol.ts';
 import type { DerivedSourceService } from '../derived-audio/derived-source-service.ts';
-import type {
-	EditorControllerLifetime,
-	EditorProjectToken,
-	EditorTaskScope,
+import {
+	isCurrentAssertion,
+	type EditorControllerLifetime,
+	type EditorProjectToken,
+	type EditorTaskScope,
 } from '../../../shared/lifecycle.ts';
 import {
 	createMixRenderPlan,
@@ -445,21 +446,11 @@ export function createMixRenderService(
 	}
 
 	function taskIsCurrent(task: EditorTaskScope): boolean {
-		try {
-			task.assertCurrent();
-			return true;
-		} catch {
-			return false;
-		}
+		return isCurrentAssertion(() => task.assertCurrent());
 	}
 
 	function projectIsCurrent(token: EditorProjectToken): boolean {
-		try {
-			dependencies.assertProject(token);
-			return true;
-		} catch {
-			return false;
-		}
+		return isCurrentAssertion(() => dependencies.assertProject(token));
 	}
 
 	async function rollbackStagedSources(

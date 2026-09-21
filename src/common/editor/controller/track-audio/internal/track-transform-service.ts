@@ -13,10 +13,11 @@ import { scaleSampleFrame } from '../../../timeline-time.ts';
 import { resampledClipCommands } from './clip-resample-service.ts';
 import type { DerivedSourceService } from './derived-audio/derived-source-service.ts';
 import { v21StripLaneRemovalCommands } from '../mix-render-model.ts';
-import type {
-	EditorControllerLifetime,
-	EditorProjectToken,
-	EditorTaskScope,
+import {
+	isCurrentAssertion,
+	type EditorControllerLifetime,
+	type EditorProjectToken,
+	type EditorTaskScope,
 } from '../../shared/lifecycle.ts';
 import {
 	findControllerClip,
@@ -419,21 +420,11 @@ export function createTrackTransformService(
 	}
 
 	function projectIsCurrent(token: EditorProjectToken): boolean {
-		try {
-			dependencies.assertProject(token);
-			return true;
-		} catch {
-			return false;
-		}
+		return isCurrentAssertion(() => dependencies.assertProject(token));
 	}
 
 	function taskIsCurrent(task: EditorTaskScope): boolean {
-		try {
-			task.assertCurrent();
-			return true;
-		} catch {
-			return false;
-		}
+		return isCurrentAssertion(() => task.assertCurrent());
 	}
 
 	function addResampledClipCommands(

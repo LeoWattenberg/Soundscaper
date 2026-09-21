@@ -1,9 +1,10 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import type {
-	EditorControllerLifetime,
-	EditorProjectToken,
-	EditorTaskScope,
+import {
+	isCurrentAssertion,
+	type EditorControllerLifetime,
+	type EditorProjectToken,
+	type EditorTaskScope,
 } from '../shared/lifecycle.ts';
 import { EDITOR_PROJECT_TASK_SCOPE } from '../shared/lifecycle.ts';
 import { PROJECT_BIN_LINKED_ORIGINAL_RELINK_TASK } from './internal/project-bin/project-bin-linked-original-relink-task.ts';
@@ -427,13 +428,10 @@ export function createProjectBinLinkedVideoRelinkService(
 
 	function operationOwnsProject(projectToken: EditorProjectToken, operationId: number): boolean {
 		if (disposed || operationId !== operationSequence) return false;
-		try {
+		return isCurrentAssertion(() => {
 			dependencies.lifetime.assertActive();
 			dependencies.assertProject(projectToken);
-			return true;
-		} catch {
-			return false;
-		}
+		});
 	}
 
 	function dispose(): Promise<void> {

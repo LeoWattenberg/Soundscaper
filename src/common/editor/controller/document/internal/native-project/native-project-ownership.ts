@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { createLocalizedError } from '../../../../../i18n/presentation-message.ts'; import { EditorDisposedError, type EditorProjectToken, type EditorTaskOptions, type EditorTaskScope } from '../../../shared/lifecycle.ts';
+import { createLocalizedError } from '../../../../../i18n/presentation-message.ts'; import { EditorDisposedError, isCurrentAssertion, type EditorProjectToken, type EditorTaskOptions, type EditorTaskScope } from '../../../shared/lifecycle.ts';
 import type { NativeProjectDocument, NativeProjectServiceRuntime } from '../../native-project-types.ts';
 
 /** A started operation, paired with the project generation it began against. */
@@ -71,12 +71,7 @@ export function createNativeProjectOwnership(runtime: NativeProjectServiceRuntim
 	}
 
 	function ownershipIsCurrent(task: EditorTaskScope, token: EditorProjectToken): boolean {
-		try {
-			assertOwnership(task, token);
-			return true;
-		} catch {
-			return false;
-		}
+		return isCurrentAssertion(() => assertOwnership(task, token));
 	}
 
 	function beginImport(task: EditorTaskScope): void {
