@@ -10,7 +10,7 @@ import {
 	type FramescaperNativeRenderDeliveryRequestNativeMedia,
 } from './editor-native-project-action-requests.ts';
 import { createFramescaperProjectUnifiedExactRenderPlanFinishing } from './editor-project-unified-render-plan-finishing.ts';
-import { framescaperProjectFinishingFoundationShapeNativeMedia } from './editor-project-native-media-foundation.ts';
+import { framescaperNativeRenderCarrierProjectNativeMedia } from './editor-native-render-carrier-project.ts';
 import type { FramescaperProjectNativeMedia } from './editor-project-native-media.ts';
 import { FRAMESCAPER_FINISHING_PROJECT_RUNTIME_PROFILE } from './editor-domain-runtime-profile.ts';
 import type { FramescaperVideoExportPictureDispositionFinishing } from './video-export-visual-execution-finishing.ts';
@@ -34,7 +34,7 @@ function assertExactV13CarrierFoundation(
 	plan: UnifiedExactRenderPlanV14,
 	project: FramescaperProjectNativeMedia,
 ): void {
-	const inherited = framescaperProjectFinishingFoundationShapeNativeMedia(project);
+	const inherited = framescaperNativeRenderCarrierProjectNativeMedia(project);
 	const delivery = framescaperNativeRenderDeliveryRequestFromPlanNativeMedia(plan);
 	const expected = createFramescaperProjectUnifiedExactRenderPlanFinishing(
 		FRAMESCAPER_FINISHING_PROJECT_RUNTIME_PROFILE, inherited,
@@ -57,8 +57,8 @@ function assertExactV13CarrierFoundation(
 			throw new ReferenceError(`Selected nativeMedia carrier source ${source.nodeId} has no V13 foundation.`);
 		}
 		// V14 authenticates the custom pack held by the native decoder. The V13
-		// picture plan describes the constituent image format; the pathless source
-		// resolver, rather than HTMLVideoElement, consumes the pack bytes.
+		// keyed plan carries a synthetic video MIME solely to pass its closed video
+		// vocabulary; the resolver still reads canonical sequence metadata.
 		return Object.freeze({ ...source, mimeType: inheritedSource.mimeType });
 	});
 	projected.nodes = plan.nodes.filter(

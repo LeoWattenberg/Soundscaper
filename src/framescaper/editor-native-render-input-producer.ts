@@ -84,6 +84,7 @@ import {
 	assertFramescaperNativeCarrierPlanParityNativeMedia,
 	framescaperNativeCarrierPlanningRateNativeMedia,
 } from './editor-native-render-carrier-semantics.ts';
+import { framescaperNativeRenderCarrierProjectNativeMedia } from './editor-native-render-carrier-project.ts';
 
 interface OfflineCanvas extends HTMLCanvasElement { width: number; height: number }
 export interface NativeRenderInputStoreNativeMedia extends FramescaperVideoExportVisualAssetStoreFinishing {
@@ -225,7 +226,7 @@ async function executeCarrier<Result>(
 	produce: (prepared: PreparedCarrierRenderer) => Promise<Result>,
 ): Promise<Result> {
 	assertFramescaperNativeCarrierFamiliesNativeMedia(plan, project);
-	const inherited = framescaperProjectFinishingFoundationShapeNativeMedia(project);
+	const inherited = framescaperNativeRenderCarrierProjectNativeMedia(project);
 	const strategy = createFramescaperVideoExportStrategyFinishing(
 		FRAMESCAPER_FINISHING_PROJECT_RUNTIME_PROFILE, undefined, store,
 	);
