@@ -68,11 +68,10 @@ test.describe('project archive and checksum files', () => {
 		await expect.poll(() => editor.getAttribute('data-project-id'), { timeout: 20_000 })
 			.not.toBe(originalProjectId);
 		await expect(clipByName(editor, toneA.name)).toBeVisible();
-
-		await editor.getByRole('menuitem', { name: 'File', exact: true }).click();
-		await page.getByRole('menu', { name: 'File', exact: true })
-			.getByRole('menuitem', { name: /^Save project(?:\s|$)/u }).click();
-		await expect(editor.locator('[data-save-state]')).toHaveAttribute('data-state', 'saved');
+		await expect(editor).not.toHaveAttribute('data-edit-block-reason', /.+/u, { timeout: 20_000 });
+		await expect(editor.locator('[data-save-state]')).toHaveAttribute('data-state', 'saved', {
+			timeout: 20_000,
+		});
 		await editor.getByRole('menuitem', { name: 'File', exact: true }).click();
 		const fileMenu = page.getByRole('menu', { name: 'File', exact: true });
 		const editInFramescaper = fileMenu.getByRole('menuitem', { name: /^Edit in Framescaper/u });
