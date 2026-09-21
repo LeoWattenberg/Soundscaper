@@ -262,7 +262,7 @@ export async function runDesktopNightlyTests(options, dependencies = {}) {
 		...common,
 		status: 'running',
 	}));
-	const startStaticServer = dependencies.startStaticServer ?? startDesktopNightlyTestsStaticServer;
+	const startStaticServer = dependencies.startStaticServer;
 	const startProductSites = dependencies.startProductSites ?? startDesktopNightlyTestsProductSites;
 	const runPlaywright = dependencies.runPlaywright ?? runPlaywrightChild;
 	let sites = null;

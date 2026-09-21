@@ -10,7 +10,6 @@ import test from 'node:test';
 import {
 	startDesktopNightlyTestsProductSites,
 } from '../scripts/lib/desktop-nightly-tests-product-sites.mjs';
-import { startDesktopNightlyTestsStaticServer } from '../scripts/lib/desktop-nightly-tests-runtime.mjs';
 
 async function unusedLoopbackOrigin() {
 	const server = createServer();
@@ -39,9 +38,18 @@ async function stageProductSites(
 		await Promise.all([
 			mkdir(join(siteRoot, 'en'), { recursive: true }),
 			mkdir(join(siteRoot, 'assets'), { recursive: true }),
+			mkdir(join(siteRoot, 'transfer/send'), { recursive: true }),
 		]);
 		await writeFile(join(siteRoot, 'en/index.html'), `<body data-product="${productId}">`);
 		await writeFile(join(siteRoot, 'assets/product.js'), `export default '${productId}';`);
+		await writeFile(join(siteRoot, 'transfer/send/index.html'), '<body>transfer sender</body>');
+		await writeFile(join(siteRoot, '_headers'), [
+			'/transfer/send/',
+			'\tCross-Origin-Opener-Policy: same-origin-allow-popups',
+			'\tCross-Origin-Embedder-Policy: credentialless',
+		].join('\n'));
+		await writeFile(join(siteRoot, '_redirects'), productId === 'soundscaper'
+			? '/framescaper/en/ https://framescaper.org/en/ 301\n' : '# no retired routes\n');
 	}
 }
 
@@ -57,7 +65,6 @@ test('the real nightly servers expose each staged document and root asset only o
 	const sites = await startDesktopNightlyTestsProductSites({
 		payloadRoot,
 		environment: {},
-		startStaticServer: startDesktopNightlyTestsStaticServer,
 	});
 	context.after(() => sites.close());
 	assert.deepEqual(sites.origins, origins);
@@ -66,6 +73,12 @@ test('the real nightly servers expose each staged document and root asset only o
 		assert.match(await (await fetch(`${origin}/en/`)).text(), new RegExp(`data-product="${productId}"`, 'u'));
 		assert.equal(await (await fetch(`${origin}/assets/product.js`)).text(), `export default '${productId}';`);
 	}
+	const transfer = await fetch(`${sites.origins.soundscaper}/transfer/send/`);
+	assert.equal(transfer.headers.get('cross-origin-opener-policy'), 'same-origin-allow-popups');
+	assert.equal(transfer.headers.get('cross-origin-embedder-policy'), 'credentialless');
+	const retired = await fetch(`${sites.origins.soundscaper}/framescaper/en/`, { redirect: 'manual' });
+	assert.equal(retired.status, 301);
+	assert.equal(retired.headers.get('location'), 'https://framescaper.org/en/');
 });
 
 test('the nightly launcher binds each staged root to its authenticated browser origin', async (context) => {

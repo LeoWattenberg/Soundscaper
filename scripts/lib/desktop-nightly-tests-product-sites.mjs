@@ -3,6 +3,8 @@
 import { readFile } from 'node:fs/promises';
 import { isAbsolute, join } from 'node:path';
 
+import { startPagesSiteStaticServer } from './pages-site-static-server.mjs';
+
 const PRODUCT_IDS = Object.freeze(['soundscaper', 'framescaper']);
 const PRODUCT_ORIGINS_VARIABLE = 'SCAPE_PLAYWRIGHT_PRODUCT_ORIGINS';
 
@@ -10,7 +12,7 @@ const PRODUCT_ORIGINS_VARIABLE = 'SCAPE_PLAYWRIGHT_PRODUCT_ORIGINS';
 export async function startDesktopNightlyTestsProductSites({
 	payloadRoot,
 	environment = process.env,
-	startStaticServer,
+	startStaticServer = startPagesSiteStaticServer,
 } = {}) {
 	if (typeof payloadRoot !== 'string' || !isAbsolute(payloadRoot)) {
 		throw new TypeError('Desktop nightly tests payload root must be absolute.');

@@ -27,7 +27,7 @@ export function loadDesktopNightlyTestsProductSitePlans(
 export function startDesktopNightlyTestsProductSites(options: {
 	readonly payloadRoot: string;
 	readonly environment?: DesktopNightlyTestsEnvironment;
-	readonly startStaticServer: (options: {
+	readonly startStaticServer?: (options: {
 		readonly root: string;
 		readonly host: string;
 		readonly port: number;
