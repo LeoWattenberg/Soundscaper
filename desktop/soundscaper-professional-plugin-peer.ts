@@ -15,6 +15,7 @@ import {
 } from './native-child-isolation-launcher.ts';
 import type { HelperJobResourcePolicy } from './helper-resource-policy.ts';
 import { snapshotAuthenticatedPluginCandidate } from './plugin-candidate-snapshot.mjs';
+import { professionalPeerLoaderArgumentsValid } from './professional-peer-loader-arguments.ts';
 
 const VERSION = 2;
 const MAXIMUM_FRAME_BYTES = 16 * 1024 ** 2;
@@ -367,12 +368,9 @@ async function openSession(
 }
 
 function loaderArguments(value: readonly string[]): readonly string[] {
-	if (!Array.isArray(value) || value.length !== 3 || value[0] !== '--inhibit-cache'
-		|| value[1] !== '--library-path' || typeof value[2] !== 'string'
-		|| value[2].length < 1 || value[2].length > 32_768 || value[2].includes('\0')
-		|| value[2].split(':').length > 48 || value[2].split(':').some((path) => (
-			path.length < 1 || resolve(path) !== path
-		))) throw new TypeError('The professional peer loader arguments are invalid.');
+	if (!professionalPeerLoaderArgumentsValid(value)) {
+		throw new TypeError('The professional peer loader arguments are invalid.');
+	}
 	return Object.freeze([...value]);
 }
 

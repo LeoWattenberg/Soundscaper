@@ -40,6 +40,7 @@ export const DESKTOP_5B_TRANSITIVE_RUNTIME_FILES = Object.freeze([
 	'desktop/native-child-framed-control.js',
 	'desktop/soundscaper-professional-linux-system-libraries.js',
 	'desktop/soundscaper-professional-linux-system-runtime.js',
+	'desktop/professional-peer-loader-arguments.js',
 	'desktop/soundscaper-professional-plugin-peer.js',
 	'desktop/soundscaper-professional-vamp-peer.js',
 	'desktop/vamp-analyzer-peer-codec.js',
