@@ -6,11 +6,10 @@ import {
 	type VideoKeyframeAudioInputSource,
 } from './video-keyframe-audio-input.ts';
 import type { VideoKeyframeEncoderWorkload } from './video-keyframe-encoder-admission.ts';
-import {
-	assertVideoKeyframeExportFrame,
-	type VideoKeyframeExportFrameSource,
-} from './video-keyframe-export-frame-source.ts';
+import type { VideoKeyframeExportFrameSource } from './video-keyframe-export-frame-source.ts';
+import { createAuthenticatedVideoKeyframeExecutionFrameSource } from './video-keyframe-execution-frame-source.ts';
 import type { VideoKeyframeRgbaFrameProducer } from './video-keyframe-encoder-stream.ts';
+import { createExactVideoKeyframeRgbaProducer } from './video-keyframe-rgba-producer-guard.ts';
 import type { VideoKeyframeWebCodecsEncode } from './video-keyframe-webcodecs-execution.ts';
 import type {
 	VideoMediabunnyMuxer,
@@ -128,8 +127,11 @@ export async function executeVideoKeyframeMediabunnyEncoder(
 		const activeMuxer = muxer;
 		await raceAbortablePromise(activeMuxer.start(), operationSignal, abortReason);
 		const videoTask = Promise.resolve(dependencies.produceVideo({
-				frameSource: authenticatedFrameSource(frameSource, workload),
-				producer: guardedProducer(producer, workload),
+				frameSource: createAuthenticatedVideoKeyframeExecutionFrameSource(frameSource, workload),
+				producer: createExactVideoKeyframeRgbaProducer(producer, workload.frameBytes, {
+					returnValue: 'Video keyframe RGBA producers must return void.',
+					allocation: 'The video keyframe producer did not retain its exact RGBA allocation.',
+				}),
 				videoCodec: workload.format === 'mp4' ? 'h264' : 'vp9',
 				codec: webCodecs.codec,
 				bitrate: webCodecs.bitrate,
@@ -298,46 +300,6 @@ async function readExact(
 	assertReady(request);
 	if (bytes.byteLength !== byteLength) invalidWav();
 	return bytes;
-}
-
-function authenticatedFrameSource(
-	frameSource: VideoKeyframeExportFrameSource,
-	workload: VideoKeyframeEncoderWorkload,
-) {
-	return Object.freeze({
-		frameCount: workload.frameCount,
-		canvas: Object.freeze({
-			width: workload.width,
-			height: workload.height,
-			frameRate: workload.frameRate,
-		}),
-		frame(index: number): unknown {
-			const frame: unknown = frameSource.frame(index);
-			assertVideoKeyframeExportFrame(frameSource, frame);
-			return frame;
-		},
-	});
-}
-
-function guardedProducer(
-	producer: VideoKeyframeRgbaFrameProducer,
-	workload: VideoKeyframeEncoderWorkload,
-) {
-	return Object.freeze({
-		byteLength: workload.frameBytes,
-		async produce(frame: unknown, target: Uint8Array, options: Readonly<{ signal?: AbortSignal }>) {
-			const expectedBuffer = target.buffer;
-			const produced: unknown = await producer.produce(frame as never, target as never, options);
-			if (produced !== undefined) {
-				throw new TypeError('Video keyframe RGBA producers must return void.');
-			}
-			if (target.buffer !== expectedBuffer || target.byteOffset !== 0
-				|| target.byteLength !== workload.frameBytes
-				|| expectedBuffer.byteLength !== workload.frameBytes) {
-				throw new Error('The video keyframe producer did not retain its exact RGBA allocation.');
-			}
-		},
-	});
 }
 
 function ceilRationalFrames(

@@ -17,6 +17,7 @@ import {
 	runVideoKeyframeExecution,
 	type VideoKeyframeExecutionProductionContext,
 } from './video-keyframe-execution-engine.ts';
+import { produceIntoExactVideoKeyframeRgbaAllocation } from './video-keyframe-rgba-producer-guard.ts';
 import type {
 	VideoKeyframeEncoderFfmpegPort,
 	VideoKeyframeEncoderResult,
@@ -104,20 +105,9 @@ async function writeRgbaFrames(
 		ready();
 		const frame: unknown = frameSource.frame(index);
 		assertVideoKeyframeExportFrame(frameSource, frame);
-		const expectedBuffer = target.buffer;
-		const produced: unknown = await producer.produce(
-			frame,
-			target,
-			signalOptions(context.signal) ?? {},
+		await produceIntoExactVideoKeyframeRgbaAllocation(
+			producer, frame, target, signalOptions(context.signal) ?? {}, workload.frameBytes,
 		);
-		if (produced !== undefined) {
-			throw new TypeError('Video keyframe RGBA producers must return void and cannot replace the target.');
-		}
-		if (target.buffer !== expectedBuffer || target.byteOffset !== 0
-			|| target.byteLength !== workload.frameBytes
-			|| expectedBuffer.byteLength !== workload.frameBytes) {
-			throw new Error('The video keyframe producer did not retain the exact reusable RGBA allocation.');
-		}
 		ready();
 		for (let offset = 0; offset < workload.frameBytes; offset += workload.ringCapacityBytes) {
 			ready();

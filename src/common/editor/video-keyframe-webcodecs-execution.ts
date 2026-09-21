@@ -16,10 +16,8 @@
  * two products.
  */
 
-import {
-	assertVideoKeyframeExportFrame,
-	type VideoKeyframeExportFrameSource,
-} from './video-keyframe-export-frame-source.ts';
+import { type VideoKeyframeExportFrameSource } from './video-keyframe-export-frame-source.ts';
+import { createAuthenticatedVideoKeyframeExecutionFrameSource } from './video-keyframe-execution-frame-source.ts';
 import type { VideoKeyframeAudioInputSource } from './video-keyframe-audio-input.ts';
 import type { VideoKeyframeEncoderWorkload } from './video-keyframe-encoder-admission.ts';
 import type {
@@ -32,6 +30,7 @@ import {
 	runVideoKeyframeExecution,
 	type VideoKeyframeExecutionProductionContext,
 } from './video-keyframe-execution-engine.ts';
+import { createExactVideoKeyframeRgbaProducer } from './video-keyframe-rgba-producer-guard.ts';
 import { produceVideoWebCodecsStream } from './video-webcodecs-producer.ts';
 
 /** What the capability probe decided, carried down to the encoder that runs. */
@@ -112,8 +111,8 @@ async function writeEncodedStream(
 ): Promise<void> {
 	const { workload, webCodecs, frameSource, producer } = request;
 	await produceVideoWebCodecsStream({
-		frameSource: authenticatedFrameSource(frameSource, workload),
-		producer: guardedProducer(producer, workload),
+		frameSource: createAuthenticatedVideoKeyframeExecutionFrameSource(frameSource, workload),
+		producer: createExactVideoKeyframeRgbaProducer(producer, workload.frameBytes),
 		videoCodec: workload.elementaryFormat === 'ivf' ? 'vp9' : 'h264',
 		codec: webCodecs.codec,
 		bitrate: webCodecs.bitrate,
@@ -148,53 +147,4 @@ async function writeThroughRing(
 			{ signal: context.signal },
 		);
 	}
-}
-
-/** Frames are authenticated against their own source, exactly as the RGBA tier does. */
-function authenticatedFrameSource(
-	frameSource: VideoKeyframeExportFrameSource,
-	workload: VideoKeyframeEncoderWorkload,
-) {
-	return Object.freeze({
-		frameCount: workload.frameCount,
-		canvas: Object.freeze({
-			width: workload.width,
-			height: workload.height,
-			frameRate: workload.frameRate,
-		}),
-		frame(index: number): unknown {
-			const frame: unknown = frameSource.frame(index);
-			assertVideoKeyframeExportFrame(frameSource, frame);
-			return frame;
-		},
-	});
-}
-
-function guardedProducer(
-	producer: VideoKeyframeRgbaFrameProducer,
-	workload: VideoKeyframeEncoderWorkload,
-) {
-	return Object.freeze({
-		byteLength: workload.frameBytes,
-		async produce(
-			frame: unknown,
-			target: Uint8Array,
-			options: Readonly<{ signal?: AbortSignal }>,
-		): Promise<void> {
-			const expectedBuffer = target.buffer;
-			const produced: unknown = await producer.produce(
-				frame as never,
-				target as Uint8Array<ArrayBuffer>,
-				options,
-			);
-			if (produced !== undefined) {
-				throw new TypeError('Video keyframe RGBA producers must return void and cannot replace the target.');
-			}
-			if (target.buffer !== expectedBuffer || target.byteOffset !== 0
-				|| target.byteLength !== workload.frameBytes
-				|| expectedBuffer.byteLength !== workload.frameBytes) {
-				throw new Error('The video keyframe producer did not retain the exact reusable RGBA allocation.');
-			}
-		},
-	});
 }

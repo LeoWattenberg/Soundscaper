@@ -11,6 +11,7 @@ import {
 	createVideoExactPictureExportFrameSource,
 	createVideoKeyframeExportFrameSource,
 } from '../src/common/editor/video-keyframe-export-frame-source.ts';
+import { createAuthenticatedVideoKeyframeExecutionFrameSource } from '../src/common/editor/video-keyframe-execution-frame-source.ts';
 import { createFramescaperProjectRetime } from '../src/framescaper/editor-project-retime.ts';
 import { FRAMESCAPER_RETIME_PROJECT_MODEL_PROFILE } from '../src/framescaper/editor-project-retime-profile.ts';
 import {
@@ -197,6 +198,23 @@ test('frame source privately brands each lazy frame to its exact owning snapshot
 		() => assertVideoKeyframeExportFrame(first, structuredClone(frame)),
 		/owned by the requested.*frame source/u,
 	);
+});
+
+test('encoder execution uses one authenticated workload-geometry frame wrapper', () => {
+	const source = createVideoExactPictureExportFrameSource({
+		sampleRate: 48_000, startFrame: 0, endFrame: 4_800,
+		canvas: { width: 4, height: 2, frameRate: { num: 10, den: 1 } },
+	});
+	const execution = createAuthenticatedVideoKeyframeExecutionFrameSource(source, {
+		frameCount: source.frameCount,
+		width: source.canvas.width,
+		height: source.canvas.height,
+		frameRate: source.canvas.frameRate,
+	});
+	assert.deepEqual(execution.canvas, { width: 4, height: 2, frameRate: { num: 10, den: 1 } });
+	assert.deepEqual(execution.frame(0), source.frame(0));
+	assert.equal(Object.isFrozen(execution), true);
+	assert.equal(Object.isFrozen(execution.canvas), true);
 });
 
 test('frame source owns an immutable project snapshot', () => {
