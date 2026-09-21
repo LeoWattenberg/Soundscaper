@@ -134,9 +134,7 @@ test('all five media and OpenFX targets emit immutable closed dry-run recipes', 
 	for (const target of FRAMESCAPER_OPENFX_HOST_BUILD_TARGETS) {
 		const fixture = buildFixture(context, 'openfx', target.id);
 		const recipe = createFramescaperOpenFxHostBuildRecipe(fixture.options);
-		assertNativeHostBuildRecipe(
-			recipe, target, ['host-configure', 'host-build', 'host-install'], SOURCE_DATE_EPOCH,
-		);
+		assertNativeHostBuildRecipe(recipe, target, ['host-configure', 'host-build', 'host-install'], SOURCE_DATE_EPOCH);
 		assert.ok(recipe.commands[0].args.includes(
 			`-DFRAMESCAPER_OPENFX_SOURCE_ROOT=${fixture.openfxSourceRoot}`,
 		));
