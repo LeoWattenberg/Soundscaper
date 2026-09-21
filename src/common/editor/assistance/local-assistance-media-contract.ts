@@ -65,7 +65,11 @@ export function resolveLocalAssistanceOperationMediaContract(
 	boundary: LocalAssistanceOperationMediaBoundary,
 ): LocalAssistanceOperationMediaContract {
 	const contract = LOCAL_ASSISTANCE_OPERATION_MEDIA_CONTRACT[operation];
-	const inputs = BOUNDARY_INPUT_RESTRICTIONS[boundary][operation];
+	const restrictions: Readonly<Partial<Record<
+		AssistanceOperation,
+		readonly LocalAssistanceInputRole[]
+	>>> = BOUNDARY_INPUT_RESTRICTIONS[boundary];
+	const inputs = restrictions[operation];
 	if (inputs === undefined) return contract;
 	const admitted = new Set<LocalAssistanceInputRole>(inputs);
 	const required = contract.required.map((group) => Object.freeze(
