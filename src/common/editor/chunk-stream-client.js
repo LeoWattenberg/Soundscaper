@@ -100,7 +100,7 @@ export class ChunkStreamClient {
 		};
 		stream.removePortListener = addMessageListener(outputPort, (message) => this.#handleWorkletMessage(stream, message));
 		if (stream.externalSignal) {
-			stream.externalAbort = () => this.#cancelStream(stream, createChunkStreamAbortError());
+			stream.externalAbort = () => this.#rejectAndCancelStream(stream, createChunkStreamAbortError());
 			stream.externalSignal.addEventListener('abort', stream.externalAbort, { once: true });
 		}
 		this.streams.set(streamId, stream);
@@ -167,7 +167,7 @@ export class ChunkStreamClient {
 							contextStartFrame: stream.playContextStartFrame,
 						});
 					} catch (error) {
-						this.#failStream(stream, error);
+						this.#rejectAndCancelStream(stream, error);
 						throw error;
 					}
 				}
@@ -177,10 +177,10 @@ export class ChunkStreamClient {
 				stream.playing = false;
 				if (!stream.settled) {
 					try { outputPort.postMessage({ type: 'pause-stream', streamId }); }
-					catch (error) { this.#failStream(stream, error); }
+					catch (error) { this.#rejectAndCancelStream(stream, error); }
 				}
 			},
-			cancel: (reason) => this.#cancelStream(
+			cancel: (reason) => this.#rejectAndCancelStream(
 				stream,
 				createChunkStreamAbortError(typeof reason === 'string' && reason ? reason : undefined),
 			),
@@ -199,7 +199,7 @@ export class ChunkStreamClient {
 		if (this.disposed) return;
 		this.disposed = true;
 		for (const stream of [...this.streams.values()]) {
-			this.#cancelStream(stream, createChunkStreamAbortError('Audio streaming client was disposed.'));
+			this.#rejectAndCancelStream(stream, createChunkStreamAbortError('Audio streaming client was disposed.'));
 		}
 		try { this.worker?.terminate?.(); } catch {}
 		this.worker = null;
@@ -231,7 +231,7 @@ export class ChunkStreamClient {
 		try {
 			if (message.type === 'stream-ready') {
 				if (Number(message.protocolVersion) !== AUDIO_EDITOR_CHUNK_STREAM_PROTOCOL_VERSION) {
-					this.#failStream(stream, new Error(`Unsupported worker protocol version ${message.protocolVersion}.`));
+					this.#rejectAndCancelStream(stream, new Error(`Unsupported worker protocol version ${message.protocolVersion}.`));
 					return;
 				}
 				stream.workerReady = true;
@@ -253,12 +253,12 @@ export class ChunkStreamClient {
 				stream.workerComplete = true;
 				this.#completeIfFinished(stream);
 			} else if (message.type === 'stream-error') {
-				this.#failStream(stream, deserializeChunkStreamError(message.error));
+				this.#rejectAndCancelStream(stream, deserializeChunkStreamError(message.error));
 			} else if (message.type === 'stream-cancelled') {
-				this.#failStream(stream, createChunkStreamAbortError());
+				this.#rejectAndCancelStream(stream, createChunkStreamAbortError());
 			}
 		} catch (error) {
-			this.#failStream(stream, error);
+			this.#rejectAndCancelStream(stream, error);
 		}
 	}
 
@@ -268,7 +268,7 @@ export class ChunkStreamClient {
 		try {
 			if (message.type === 'worklet-ready') {
 				if (Number(message.protocolVersion) !== AUDIO_EDITOR_CHUNK_STREAM_PROTOCOL_VERSION) {
-					this.#failStream(stream, new Error(`Unsupported worklet protocol version ${message.protocolVersion}.`));
+					this.#rejectAndCancelStream(stream, new Error(`Unsupported worklet protocol version ${message.protocolVersion}.`));
 					return;
 				}
 				stream.workletReady = true;
@@ -309,12 +309,12 @@ export class ChunkStreamClient {
 			} else if (message.type === 'stream-playhead') {
 				stream.onPlayhead?.(Number(message.frame) || 0);
 			} else if (message.type === 'stream-error') {
-				this.#failStream(stream, deserializeChunkStreamError(message.error));
+				this.#rejectAndCancelStream(stream, deserializeChunkStreamError(message.error));
 			} else if (message.type === 'worklet-cancelled') {
-				this.#failStream(stream, createChunkStreamAbortError());
+				this.#rejectAndCancelStream(stream, createChunkStreamAbortError());
 			}
 		} catch (error) {
-			this.#failStream(stream, error);
+			this.#rejectAndCancelStream(stream, error);
 		}
 	}
 
@@ -334,7 +334,7 @@ export class ChunkStreamClient {
 				highWaterMark: Math.min(stream.highWaterMark, stream.workletCapacity),
 			});
 		} catch (error) {
-			this.#failStream(stream, error);
+			this.#rejectAndCancelStream(stream, error);
 		}
 	}
 
@@ -372,7 +372,7 @@ export class ChunkStreamClient {
 					error: serializeChunkStreamError(error),
 				});
 			} catch (postError) {
-				this.#failStream(stream, postError);
+				this.#rejectAndCancelStream(stream, postError);
 			}
 		}
 	}
@@ -388,29 +388,16 @@ export class ChunkStreamClient {
 		});
 	}
 
-	#cancelStream(stream, error) {
+	#rejectAndCancelStream(stream, error) {
 		if (!stream || stream.settled) return;
 		const worker = this.worker;
 		const outputPort = stream.outputPort;
-		this.#rejectAndDetach(stream, error);
-		try { worker?.postMessage({ type: 'cancel-stream', streamId: stream.id, reason: error.message }); } catch {}
-		try { outputPort.postMessage({ type: 'cancel-stream', streamId: stream.id, reason: error.message }); } catch {}
-	}
-
-	#failStream(stream, error) {
-		if (!stream || stream.settled) return;
-		const worker = this.worker;
-		const outputPort = stream.outputPort;
-		this.#rejectAndDetach(stream, error);
-		try { worker?.postMessage({ type: 'cancel-stream', streamId: stream.id, reason: error.message }); } catch {}
-		try { outputPort.postMessage({ type: 'cancel-stream', streamId: stream.id, reason: error.message }); } catch {}
-	}
-
-	#rejectAndDetach(stream, error) {
 		stream.ready.reject(error);
 		stream.primed.reject(error);
 		stream.done.reject(error);
 		this.#detachStream(stream);
+		try { worker?.postMessage({ type: 'cancel-stream', streamId: stream.id, reason: error.message }); } catch {}
+		try { outputPort.postMessage({ type: 'cancel-stream', streamId: stream.id, reason: error.message }); } catch {}
 	}
 
 	#detachStream(stream) {
@@ -427,7 +414,7 @@ export class ChunkStreamClient {
 
 	#handleWorkerFailure(worker, error) {
 		if (worker !== this.worker) return;
-		for (const stream of [...this.streams.values()]) this.#failStream(stream, error);
+		for (const stream of [...this.streams.values()]) this.#rejectAndCancelStream(stream, error);
 		try { worker.terminate?.(); } catch {}
 		this.worker = null;
 	}
