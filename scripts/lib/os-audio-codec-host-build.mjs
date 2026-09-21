@@ -280,6 +280,7 @@ function portableCommands(target) {
 			'--build', '$BUILD_ROOT', '--config', 'Release', '--parallel', '--target',
 			'soundscaper_os_audio_codec', 'soundscaper_os_audio_codec_self_test',
 			'soundscaper_os_mp3_profile_self_test',
+			'soundscaper_os_audio_codec_contract_self_test',
 		],
 		nativeCanary: [
 			'--test-dir', '$BUILD_ROOT', '-C', 'Release', '--output-on-failure', '--no-tests=error',

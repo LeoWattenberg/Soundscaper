@@ -146,6 +146,15 @@ test('build plans authenticate exact Electron 43.1.1 headers and close the targe
 	assert.deepEqual(windows.nativeCanary, {
 		command: 'ctest', argv: ['--test-dir', windows.buildRoot, '-C', 'Release', '--output-on-failure', '--no-tests=error'],
 	});
+	const cmake = await readFile(join(NATIVE_ROOT, 'CMakeLists.txt'), 'utf8');
+	const registeredCanaries = [...cmake.matchAll(/add_test\(NAME\s+(\w+)\s+COMMAND\s+(\w+)\)/gu)]
+		.map(([, name, command]) => {
+			assert.equal(name, command);
+			return command;
+		});
+	assert.equal(registeredCanaries.length, 3);
+	assert.deepEqual(windows.build.argv.filter((argument) => argument.endsWith('_self_test')).sort(),
+		registeredCanaries.sort(), 'the build must include every executable selected by CTest');
 
 	const arm = plan(fixture, 'win-arm64', 'windows-arm');
 	assert.equal(arm.configure.argv.includes('ARM64'), true);
