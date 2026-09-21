@@ -176,7 +176,7 @@ export function createBrowserServiceWorkerCoverageCollector({
 		const runtimeEnabled = recorder.session.send('Runtime.enable');
 		const coverageStarted = recorder.session.send('Profiler.startPreciseCoverage', {
 			allowTriggeredUpdates: true,
-			callCount: false,
+			callCount: true,
 			detailed: true,
 		});
 		const workletInstrumented = recorder.type === 'worklet'

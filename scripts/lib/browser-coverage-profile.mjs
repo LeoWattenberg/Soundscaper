@@ -286,18 +286,16 @@ export function createBrowserCoverageCollector({
 				.then(({ scriptSource }) => retainCapturedBrowserSource(recorder.sources, url, scriptSource));
 			pending.push(work);
 		});
-		// Binary block coverage straight from the profiler: `callCount: false`
-		// records whether a block ran, not how often, which is all a line and
-		// branch report needs and far cheaper than Playwright's counted coverage.
-		// The realtime BW64 export spec missed its budget on the runner under the
-		// counted kind. A document that navigates away is paused and drained before
+		// Counted block coverage preserves the parent/child execution relation that
+		// the source-derived E2E denominator uses to reject omitted branch ranges.
+		// A document that navigates away is paused and drained before
 		// Chromium clears its old execution context; waiting for the cleared event
 		// loses both that page's ranges and any dedicated worker it owned.
 		await session.send('Profiler.enable');
 		await session.send('Runtime.enable');
 		await session.send('Page.enable');
 		await session.send('Debugger.enable');
-		await session.send('Profiler.startPreciseCoverage', { callCount: false, detailed: true });
+		await session.send('Profiler.startPreciseCoverage', { callCount: true, detailed: true });
 		recorder.navigationCheckpoints = await installNavigationCoverageCheckpoints({
 			checkpoint: (reason) => checkpointRecorder(recorder, reason),
 			session,

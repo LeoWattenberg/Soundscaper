@@ -102,7 +102,7 @@ export function createBrowserTargetCoverageCollector(session) {
 		const profilerEnabled = send(recorder.sessionId, 'Profiler.enable');
 		const runtimeEnabled = send(recorder.sessionId, 'Runtime.enable');
 		const coverageStarted = send(recorder.sessionId, 'Profiler.startPreciseCoverage', {
-			callCount: false,
+			callCount: true,
 			detailed: true,
 			allowTriggeredUpdates: true,
 		});

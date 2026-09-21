@@ -439,7 +439,7 @@ function fakePage(url: string, dynamic: { orphanSource: string; orphanUrl: strin
 					send: (method, params) => {
 						page.sent.push([method, params]);
 						if (method === 'Profiler.startPreciseCoverage') {
-							assert.deepEqual(params, { callCount: false, detailed: true }, 'binary block coverage');
+							assert.deepEqual(params, { callCount: true, detailed: true }, 'counted block coverage');
 							page.started = true;
 						}
 						if (method === 'Debugger.enable' && dynamic !== null) {

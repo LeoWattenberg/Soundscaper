@@ -132,7 +132,7 @@ export async function startPackagedRuntimeTargetCoverage({
 		const runtimeEnabled = session.send('Runtime.enable');
 		const coverageStarted = session.send('Profiler.startPreciseCoverage', {
 			allowTriggeredUpdates: true,
-			callCount: false,
+			callCount: true,
 			detailed: true,
 		});
 		const workletInstrumented = type === 'worklet'

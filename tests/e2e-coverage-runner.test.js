@@ -118,6 +118,43 @@ test('the V8 adapter produces an Istanbul file map for an exact generated execut
 	assert.ok(Object.keys(measured.f).length > 0, 'the Istanbul report must contain functions');
 });
 
+test('the V8 adapter rejects a profile whose explicit source topology was erased', () => {
+	const fixture = makeFixture();
+	const originalProfiles = join(fixture.workspace, 'forged-original-v8');
+	mkdirSync(originalProfiles);
+	execFileSync(process.execPath, [join(fixture.artifactRoot, fixture.scriptPath)], {
+		env: { ...process.env, NODE_V8_COVERAGE: originalProfiles },
+	});
+	const original = JSON.parse(readFileSync(join(
+		originalProfiles,
+		readdirSync(originalProfiles).find((name) => name.endsWith('.json')),
+	), 'utf8'));
+	const artifactUrl = pathToFileURL(join(fixture.artifactRoot, fixture.scriptPath)).href;
+	const scriptCoverage = original.result.find(({ url }) => url === artifactUrl);
+	assert.ok(scriptCoverage);
+	const rootFunction = scriptCoverage.functions.find(({ ranges }) => (
+		ranges[0]?.startOffset === 0 && ranges[0]?.endOffset === fixture.body.length
+	));
+	assert.ok(rootFunction);
+	const v8Directory = join(fixture.surfaceDirectory, 'v8');
+	mkdirSync(v8Directory, { recursive: true });
+	writeFileSync(join(v8Directory, 'coverage.json'), JSON.stringify({
+		result: [{ ...scriptCoverage, functions: [rootFunction], url: TOKEN_URL }],
+		'source-map-cache': {},
+	}));
+
+	const result = materializeV8SurfaceCoverage({
+		repositoryRoot: REPOSITORY_ROOT,
+		artifactRoot: fixture.artifactRoot,
+		surfaceDirectory: fixture.surfaceDirectory,
+		reportDirectory: join(fixture.workspace, 'forged-report'),
+		manifest: fixture.manifest,
+		inventory: fixture.inventory,
+	});
+
+	assert.match(result.failures.join('\n'), /missing the source-derived explicit function/u);
+});
+
 test('source-map dependencies are excluded after remapping while repository code remains', () => {
 	const fixture = makeFixture({ repositorySource: true });
 	const originalProfiles = join(fixture.workspace, 'mapped-original-v8');

@@ -42,7 +42,7 @@ test('browser-level service-worker coverage starts before execution and keeps a 
 		['Runtime.enable', undefined],
 		['Profiler.startPreciseCoverage', {
 			allowTriggeredUpdates: true,
-			callCount: false,
+			callCount: true,
 			detailed: true,
 		}],
 		['Runtime.runIfWaitingForDebugger', undefined],

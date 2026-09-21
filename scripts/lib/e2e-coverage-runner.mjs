@@ -24,6 +24,7 @@ import {
 	validateRawV8Surface,
 } from './e2e-coverage-contract.mjs';
 import { validateCoverageFileRecords } from './e2e-coverage-integrity.mjs';
+import { validateE2ERawV8Topology } from './e2e-v8-topology.mjs';
 
 export function runE2ECoverageGate({
 	repositoryRoot,
@@ -158,6 +159,11 @@ export function materializeV8CoverageUnion({
 		collected.push(...profiles.map((profile) => ({ ...profile, surface: manifest.surface })));
 	}
 	if (collected.length === 0) return { coverage: {}, failures, observedCoverageUrls };
+	failures.push(...validateE2ERawV8Topology({
+		artifactRoot,
+		profiles: collected.map(({ profile }) => profile),
+		scripts: inventory.scripts,
+	}));
 	const rebasedDirectory = join(reportDirectory, 'v8-rebased');
 	rmSync(rebasedDirectory, { recursive: true, force: true });
 	mkdirSync(rebasedDirectory, { recursive: true });

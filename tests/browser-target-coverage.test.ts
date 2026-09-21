@@ -34,7 +34,7 @@ test('browser target coverage instruments related workers before they run', asyn
 		'Runtime.runIfWaitingForDebugger',
 	]);
 	assert.deepEqual(root.targetParams('worker-session', 'Profiler.startPreciseCoverage'), {
-		callCount: false,
+		callCount: true,
 		detailed: true,
 		allowTriggeredUpdates: true,
 	});

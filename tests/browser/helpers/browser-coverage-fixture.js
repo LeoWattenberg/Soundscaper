@@ -31,7 +31,7 @@ function browserProductSites() {
 
 export const test = base.extend({
 	// A spec whose budget is bound by realtime work can switch collection off
-	// with `test.use({ browserCoverage: false })`: even binary block coverage
+	// with `test.use({ browserCoverage: false })`: even precise block coverage
 	// slows a page, and a test that races a render clock is not the place to
 	// pay for it.
 	browserCoverage: [true, { option: true }],
