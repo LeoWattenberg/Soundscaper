@@ -414,6 +414,14 @@
 	pointer-events: none;
 }
 
+.kw-routing-graph__toasts .kw-audio-editor__toast {
+	pointer-events: none;
+}
+
+.kw-routing-graph__toasts .kw-audio-editor__toast :is(button, a) {
+	pointer-events: auto;
+}
+
 @media (max-width: 720px) {
 	.kw-routing-graph__body {
 		grid-template-columns: minmax(0, 1fr);
