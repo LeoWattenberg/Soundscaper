@@ -106,6 +106,7 @@ export const NIGHTLY_TEST_PAYLOAD_INPUTS = Object.freeze([
 	// collector, so every spec reaches these helpers whether or not the packaged
 	// run records anything — an unresolved import here would abort the suite.
 	{ source: 'scripts/lib/browser-coverage-profile.mjs', destination: 'scripts/lib/browser-coverage-profile.mjs', kind: 'file', label: 'browser coverage profile writer' },
+	{ source: 'scripts/lib/cdp-javascript-coverage.mjs', destination: 'scripts/lib/cdp-javascript-coverage.mjs', kind: 'file', label: 'CDP JavaScript coverage admission' },
 	{ source: 'scripts/lib/browser-dynamic-coverage-sources.mjs', destination: 'scripts/lib/browser-dynamic-coverage-sources.mjs', kind: 'file', label: 'browser dynamic-source admission' },
 	{ source: 'scripts/lib/browser-ffmpeg-coverage.mjs', destination: 'scripts/lib/browser-ffmpeg-coverage.mjs', kind: 'file', label: 'browser FFmpeg coverage admission' },
 	{ source: 'scripts/lib/browser-service-worker-coverage.mjs', destination: 'scripts/lib/browser-service-worker-coverage.mjs', kind: 'file', label: 'browser service-worker coverage recorder' },

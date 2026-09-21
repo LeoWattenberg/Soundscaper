@@ -9,6 +9,8 @@ import {
 	WORKLET_COVERAGE_CHECKPOINT_URL,
 } from '../scripts/lib/browser-service-worker-coverage.mjs';
 
+const WEBASSEMBLY_URL = 'wasm://wasm/00091612';
+
 test('browser-level service-worker coverage starts before execution and keeps a final delta', async () => {
 	const root = new FakeRootSession();
 	const child = new FakeTargetSession();
@@ -106,6 +108,47 @@ test('dynamic target sources are captured by exact URL and conflicting bytes fai
 	first.emit('Debugger.scriptParsed', { scriptId: 'dynamic', url: dynamicUrl });
 	second.emit('Debugger.scriptParsed', { scriptId: 'dynamic', url: dynamicUrl });
 	await assert.rejects(collector.collect(), /conflicting source bytes/u);
+});
+
+test('worker capture excludes protocol-authenticated WebAssembly from JavaScript profiles', async () => {
+	const root = new FakeRootSession();
+	const child = new FakeTargetSession();
+	const collector = createBrowserServiceWorkerCoverageCollector({
+		openTargetSession: () => child,
+		rootSession: root,
+		targetTypes: ['worker'],
+	});
+	await collector.start();
+	root.emit('Target.attachedToTarget', {
+		sessionId: 'worker-session',
+		targetInfo: { type: 'worker', url: 'http://127.0.0.1:4322/worker.js' },
+		waitingForDebugger: true,
+	});
+	await collector.settle();
+	child.emit('Debugger.scriptParsed', {
+		scriptId: '3',
+		url: 'http://127.0.0.1:4322/worker.js',
+	});
+	child.emit('Debugger.scriptParsed', {
+		scriptId: '4',
+		scriptLanguage: 'WebAssembly',
+		url: WEBASSEMBLY_URL,
+	});
+	child.emit('Profiler.preciseCoverageDeltaUpdate', {
+		result: [coverage('3', '', 42), coverage('4', '', 8)],
+	});
+	await collector.settle();
+
+	const capture = await collector.collect();
+	assert.deepEqual(capture.entries, [coverage(
+		'3',
+		'http://127.0.0.1:4322/worker.js',
+		42,
+	)]);
+	assert.deepEqual([...capture.sources], [[
+		'http://127.0.0.1:4322/worker.js',
+		'service-worker-source:3',
+	]]);
 });
 
 test('browser-level worker coverage routes only the requested worker and worklet targets', async () => {
@@ -250,6 +293,7 @@ class FakeTargetSession extends EventEmitter {
 		}
 		if (method === 'Debugger.getScriptSource') {
 			const scriptId = String(parameters?.scriptId);
+			if (scriptId === '4') return { bytecode: 'AGFzbQEAAAA=', scriptSource: '' };
 			return { scriptSource: this.sources.get(scriptId) ?? `service-worker-source:${scriptId}` };
 		}
 		if (method === 'Profiler.takePreciseCoverage') return { result: [] };

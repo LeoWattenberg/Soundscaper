@@ -13,6 +13,11 @@ import {
 } from './browser-ffmpeg-coverage.mjs';
 import { createPlaywrightBrowserServiceWorkerCoverageCollector } from './browser-service-worker-coverage.mjs';
 import {
+	createCdpJavaScriptCoverageState,
+	observeCdpScript,
+	takeCdpJavaScriptCoverage,
+} from './cdp-javascript-coverage.mjs';
+import {
 	excludedBrowserCoverageInstrumentation,
 	isUnmappedBrowserSourceMap,
 	mergeCapturedBrowserSources,
@@ -261,6 +266,7 @@ export function createBrowserCoverageCollector({
 	async function startRecording(page) {
 		const session = await page.context().newCDPSession(page);
 		const recorder = {
+			cdpState: createCdpJavaScriptCoverageState(),
 			navigationCheckpoints: null,
 			pageOperationCheckpoints: null,
 			session,
@@ -268,7 +274,13 @@ export function createBrowserCoverageCollector({
 			taken: [],
 		};
 		recorders.set(page, recorder);
-		session.on('Debugger.scriptParsed', ({ scriptId, url }) => {
+		session.on('Debugger.scriptParsed', (event) => {
+			const { scriptId, url } = event;
+			const webAssembly = observeCdpScript({ event, session, state: recorder.cdpState });
+			if (webAssembly !== null) {
+				pending.push(webAssembly);
+				return;
+			}
 			if (!needsCapturedBrowserSource(url, directoriesByOrigin)) return;
 			const work = session.send('Debugger.getScriptSource', { scriptId })
 				.then(({ scriptSource }) => retainCapturedBrowserSource(recorder.sources, url, scriptSource));
@@ -297,8 +309,8 @@ export function createBrowserCoverageCollector({
 	}
 
 	async function checkpointRecorder(recorder, reason) {
-		const [{ result }] = await Promise.all([
-			recorder.session.send('Profiler.takePreciseCoverage'),
+		const [result] = await Promise.all([
+			takeCdpJavaScriptCoverage(recorder.session, recorder.cdpState),
 			workerCollectorStart?.then(() => workerCollector?.checkpoint({
 				releaseWorklets: reason === 'audio-context-close',
 			})),
@@ -374,7 +386,7 @@ export function createBrowserCoverageCollector({
 				const pageClosed = page.isClosed();
 				if (pageClosed) continue;
 				try {
-					entries.push(...await stopRecording(recorder.session, recorder.navigationCheckpoints));
+					entries.push(...await stopRecording(recorder));
 				} catch (error) {
 					// A page the test closed on its way out has nothing left to
 					// report; anything else is a real failure to record.
@@ -386,6 +398,7 @@ export function createBrowserCoverageCollector({
 				entries.push(...capture.entries);
 				mergeCapturedBrowserSources(capturedSources, capture.sources);
 			}
+			await settle();
 			started.clear();
 
 			for (const entry of entries) {
@@ -451,13 +464,13 @@ function parseCoverageSites(serialized) {
 	return sites;
 }
 
-async function stopRecording(session, navigationCheckpoints) {
-	const { result } = await session.send('Profiler.takePreciseCoverage');
-	await navigationCheckpoints?.dispose();
-	await session.send('Profiler.stopPreciseCoverage');
-	await session.send('Profiler.disable');
-	await session.send('Debugger.disable');
-	await session.detach();
+async function stopRecording(recorder) {
+	const result = await takeCdpJavaScriptCoverage(recorder.session, recorder.cdpState);
+	await recorder.navigationCheckpoints?.dispose();
+	await recorder.session.send('Profiler.stopPreciseCoverage');
+	await recorder.session.send('Profiler.disable');
+	await recorder.session.send('Debugger.disable');
+	await recorder.session.detach();
 	return result;
 }
 

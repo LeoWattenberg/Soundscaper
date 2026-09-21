@@ -2,6 +2,11 @@
 
 import { EventEmitter } from 'node:events';
 
+import {
+	captureCdpWebAssemblyScript,
+	javaScriptCoverageEntries,
+} from './cdp-javascript-coverage.mjs';
+
 const DEFAULT_TARGET_TYPES = Object.freeze(['service_worker']);
 const ACTIVE_PLAYWRIGHT_ROOTS = new WeakSet();
 export const WORKLET_COVERAGE_CHECKPOINT_URL = 'soundscaper-coverage://worklet-checkpoint.js';
@@ -95,13 +100,24 @@ export function createBrowserServiceWorkerCoverageCollector({
 			sources: new Map(),
 			taken: [],
 			type,
+			webAssemblyScriptIds: new Set(),
 			waitingForDebugger: waitingForDebugger === true,
 		};
 		recorders.set(sessionId, recorder);
 		session.on('close', () => { recorder.active = false; });
-		session.on('Debugger.scriptParsed', ({ scriptId, url }) => {
+		session.on('Debugger.scriptParsed', (event) => {
+			const { scriptId, url } = event;
 			if (url === WORKLET_COVERAGE_CHECKPOINT_URL) recorder.coverageHookScriptIds.add(String(scriptId));
 			if (typeof url === 'string' && url !== '') recorder.scriptUrls.set(String(scriptId), url);
+			const webAssembly = captureCdpWebAssemblyScript({
+				event,
+				session,
+				webAssemblyScriptIds: recorder.webAssemblyScriptIds,
+			});
+			if (webAssembly !== null) {
+				pending.push(webAssembly.catch((error) => { failures.push(error); }));
+				return;
+			}
 			if (typeof url !== 'string' || !captureSource(url)) return;
 			const work = session.send('Debugger.getScriptSource', { scriptId })
 				.then(({ scriptSource }) => {
@@ -299,7 +315,11 @@ export function createBrowserServiceWorkerCoverageCollector({
 			const entries = [];
 			const sources = new Map();
 			for (const recorder of recorders.values()) {
-				for (const entry of coverageWithParsedUrls(recorder.taken, recorder.scriptUrls)) {
+				for (const entry of javaScriptCoverageEntries(
+					recorder.taken,
+					recorder.scriptUrls,
+					recorder.webAssemblyScriptIds,
+				)) {
 					if (typeof entry.url === 'string' && keepUrl(entry.url)) entries.push(entry);
 				}
 				for (const [url, source] of recorder.sources) {
@@ -510,11 +530,4 @@ function countTargetTypes(recorders) {
 	const counts = new Map();
 	for (const { type } of recorders) counts.set(type, (counts.get(type) ?? 0) + 1);
 	return new Map([...counts].sort(([left], [right]) => left.localeCompare(right)));
-}
-
-function coverageWithParsedUrls(entries, urls) {
-	return entries.map((entry) => {
-		const parsedUrl = urls.get(String(entry.scriptId));
-		return typeof parsedUrl === 'string' && parsedUrl !== entry.url ? { ...entry, url: parsedUrl } : entry;
-	});
 }

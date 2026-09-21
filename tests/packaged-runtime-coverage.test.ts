@@ -124,6 +124,39 @@ test('packaged coverage records renderer, preload, and a final worker delta bank
 	assert.ok(page.calls.includes('CDP.detach'));
 });
 
+test('packaged page and worker capture exclude protocol-authenticated binary WebAssembly', async (context) => {
+	const directory = await mkdtemp(join(tmpdir(), 'soundscaper-packaged-wasm-coverage-'));
+	context.after(() => rm(directory, { recursive: true, force: true }));
+	const { appAsar, executablePath, executableResources } = await packagedAppFixture(context);
+	const [productUrl, workerUrl] = ['soundscaper-app://bundle/', 'soundscaper-app://bundle/assets/peaks-worker.js'];
+	const page = new FakePage(productUrl, [
+		coverageEntry('11', productUrl, 120),
+		coverageEntry('12', 'wasm://wasm/00091612', 8),
+	], [
+		coverageEntry('21', workerUrl, 50),
+		coverageEntry('22', 'wasm://wasm/cdb9d07e', 8),
+	]);
+	const collector = createPackagedRuntimeCoverageCollector({
+		appAsar,
+		architecture: 'x64',
+		baseURL: 'http://127.0.0.1:4567/',
+		context: new FakeContext([page]),
+		coverageDirectory: directory,
+		executablePath,
+		executableResources,
+		platform: 'linux',
+		productId: 'soundscaper',
+	});
+
+	await collector.start();
+	const profilePath = await collector.collect();
+	const profile = JSON.parse(await readFile(profilePath, 'utf8')) as {
+		result: Array<{ url: string }>; 'script-source-cache': Record<string, string>;
+	};
+	assert.deepEqual(profile.result.map(({ url }) => url), [productUrl, workerUrl]);
+	assert.deepEqual(Object.keys(profile['script-source-cache']), [productUrl, workerUrl]);
+});
+
 test('packaged coverage refuses to write a profile after app.asar changes', async (context) => {
 	const directory = await mkdtemp(join(tmpdir(), 'soundscaper-packaged-mutation-'));
 	context.after(() => rm(directory, { recursive: true, force: true }));
@@ -424,11 +457,15 @@ class FakeContext {
 					page.calls.push(`child:${request.method}`);
 					let result: unknown = {};
 					if (request.method === 'Debugger.getScriptSource') {
-						result = {
-							scriptSource: request.params?.scriptId === 'coverage-worklet-hook'
-								? INSTALL_WORKLET_COVERAGE_CHECKPOINT
-								: `worker-source:${String(request.params?.scriptId)}`,
-						};
+						const entry = page.workerCoverageEntries()
+							.find(({ scriptId }) => scriptId === request.params?.scriptId);
+						result = entry?.url.startsWith('wasm:')
+							? { bytecode: 'AGFzbQEAAAA=', scriptSource: '' }
+							: {
+								scriptSource: request.params?.scriptId === 'coverage-worklet-hook'
+									? INSTALL_WORKLET_COVERAGE_CHECKPOINT
+									: `worker-source:${String(request.params?.scriptId)}`,
+							};
 					} else if (request.method === 'Profiler.takePreciseCoverage') {
 						result = {
 							result: page.workerCoverageEntries().map((entry) => ({ ...entry, url: '' })),
@@ -446,6 +483,8 @@ class FakeContext {
 								emitter.emit('Target.receivedMessageFromTarget', {
 									message: JSON.stringify({ method: 'Debugger.scriptParsed', params: {
 										scriptId: entry.scriptId,
+										...(entry.url.startsWith('wasm:')
+											? { scriptLanguage: 'WebAssembly' } : {}),
 										url: entry.url,
 									} }),
 									sessionId: 'worker-session',
@@ -487,12 +526,18 @@ class FakeContext {
 					for (const entry of page.coverageEntries()) {
 						queueMicrotask(() => emitter.emit('Debugger.scriptParsed', {
 							scriptId: entry.scriptId,
+							...(entry.url.startsWith('wasm:')
+								? { scriptLanguage: 'WebAssembly' } : {}),
 							url: entry.url,
 						}));
 					}
 				}
 				if (method === 'Debugger.getScriptSource') {
-					return { scriptSource: `source:${String(parameters?.scriptId)}` };
+					const entry = page.coverageEntries()
+						.find(({ scriptId }) => scriptId === parameters?.scriptId);
+					return entry?.url.startsWith('wasm:')
+						? { bytecode: 'AGFzbQEAAAA=', scriptSource: '' }
+						: { scriptSource: `source:${String(parameters?.scriptId)}` };
 				}
 				if (method === 'Profiler.takePreciseCoverage') {
 					return { result: page.takeCoverageEntries() };

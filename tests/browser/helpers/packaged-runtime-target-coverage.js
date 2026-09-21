@@ -7,6 +7,10 @@ import {
 	WORKLET_COVERAGE_CHECKPOINT_URL,
 } from '../../../scripts/lib/browser-service-worker-coverage.mjs';
 import {
+	captureCdpWebAssemblyScript,
+	javaScriptCoverageEntries,
+} from '../../../scripts/lib/cdp-javascript-coverage.mjs';
+import {
 	installNavigationCoverageCheckpoints,
 	installPageOperationCoverageCheckpoints,
 } from '../../../scripts/lib/navigation-coverage-checkpoint.mjs';
@@ -58,17 +62,28 @@ export async function startPackagedRuntimeTargetCoverage({
 			sources: new Map(),
 			taken: [],
 			type,
+			webAssemblyScriptIds: new Set(),
 		};
 		recorders.push(recorder);
 		targetTypes.add(type);
 		targetCounts.set(type, (targetCounts.get(type) ?? 0) + 1);
 		if (waitingForDebugger) pausedTargetCounts.set(type, (pausedTargetCounts.get(type) ?? 0) + 1);
 		session.on('detached', () => { recorder.active = false; });
-		session.on('Debugger.scriptParsed', ({ scriptId, url }) => {
+		session.on('Debugger.scriptParsed', (event) => {
+			const { scriptId, url } = event;
 			if (url === WORKLET_COVERAGE_CHECKPOINT_URL) {
 				recorder.coverageHookScriptIds.add(String(scriptId));
 			}
 			if (typeof url === 'string' && url !== '') recorder.scriptUrls.set(String(scriptId), url);
+			const webAssembly = captureCdpWebAssemblyScript({
+				event,
+				session,
+				webAssemblyScriptIds: recorder.webAssemblyScriptIds,
+			});
+			if (webAssembly !== null) {
+				pending.push(webAssembly);
+				return;
+			}
 			if (!keepUrl(url)) return;
 			pending.push(session.send('Debugger.getScriptSource', { scriptId })
 				.then(({ scriptSource }) => {
@@ -84,7 +99,11 @@ export async function startPackagedRuntimeTargetCoverage({
 		});
 		session.on('Profiler.preciseCoverageDeltaUpdate', ({ result }) => {
 			if (Array.isArray(result)) {
-				recorder.taken.push(...coverageWithParsedUrls(result, recorder.scriptUrls));
+				recorder.taken.push(...javaScriptCoverageEntries(
+					result,
+					recorder.scriptUrls,
+					recorder.webAssemblyScriptIds,
+				));
 			}
 		});
 		session.on('Debugger.paused', ({ callFrames }) => {
@@ -97,7 +116,11 @@ export async function startPackagedRuntimeTargetCoverage({
 				if (!recorder.active) return;
 				try {
 					const { result } = await session.send('Profiler.takePreciseCoverage');
-					recorder.taken.push(...coverageWithParsedUrls(result, recorder.scriptUrls));
+					recorder.taken.push(...javaScriptCoverageEntries(
+						result,
+						recorder.scriptUrls,
+						recorder.webAssemblyScriptIds,
+					));
 				} catch (error) {
 					if (recorder.active) throw error;
 				}
@@ -178,7 +201,11 @@ export async function startPackagedRuntimeTargetCoverage({
 				if (recorder.active && recorder.page?.isClosed?.() !== true) {
 					try {
 						const { result } = await recorder.session.send('Profiler.takePreciseCoverage');
-						recorder.taken.push(...coverageWithParsedUrls(result, recorder.scriptUrls));
+						recorder.taken.push(...javaScriptCoverageEntries(
+							result,
+							recorder.scriptUrls,
+							recorder.webAssemblyScriptIds,
+						));
 						await recorder.navigationCheckpoints?.dispose();
 						await recorder.session.send('Profiler.stopPreciseCoverage');
 						await recorder.session.send('Profiler.disable');
@@ -235,13 +262,6 @@ async function checkpointAndResumeWorklet(recorder) {
 	}
 	if (checkpointError !== null) throw checkpointError;
 	if (resumeError !== null) throw resumeError;
-}
-
-function coverageWithParsedUrls(entries, urls) {
-	return entries.map((entry) => {
-		const parsedUrl = urls.get(String(entry.scriptId));
-		return typeof parsedUrl === 'string' && parsedUrl !== entry.url ? { ...entry, url: parsedUrl } : entry;
-	});
 }
 
 function waitForSessionEvent(session, event, timeoutMs) {

@@ -52,6 +52,22 @@ test('packaged profiles exclude only exact captured closed renderer recipes', ()
 		/dynamic source digest|canonical recipe/u);
 });
 
+test('assembly rejects a raw wasm URL without live CDP WebAssembly attestation', () => {
+	const fixture = makeFixture();
+	const profilePath = join(fixture.runRoot, 'coverage/v8-packaged/packaged-soundscaper.json');
+	const profile = readJson(profilePath);
+	profile.result.push({
+		functions: [],
+		scriptId: 'wasm-spoof',
+		url: 'wasm://wasm/00091612',
+	});
+	writeJson(profilePath, profile);
+	assert.throws(
+		() => assembleE2ECoverageCapture(fixture),
+		/unmapped first-party packaged script wasm:\/\/wasm\/00091612/u,
+	);
+});
+
 test('browser build evidence refuses executable-string primitives before profile filtering', () => {
 	const fixture = makeFixture();
 	const siteRoot = join(fixture.evidenceRoot, 'browser/soundscaper/site');
