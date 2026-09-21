@@ -30,7 +30,14 @@ the raw profile files or rebuild the applications before checking them.
 
 One nightly run covers both products on one target. Runs from multiple operating
 systems or architectures may be combined when platform-specific paths require
-it. Every input must name the same full Git revision and have identical executable evidence and normalized source maps; assembly rejects stale or mixed builds.
+it. Every input must name the same full Git revision and carry
+identical executable evidence and normalized source maps, plus identical
+authenticated browser evidence. Target-generated
+native-runtime manifests intentionally make the enclosing Electron package
+archives different; assembly retains each run's runtime, full evidence digest,
+and exact archive records while comparing a separate executable-evidence digest.
+It still rejects stale sources, different JavaScript, different maps, or mixed
+browser builds.
 
 ## Assemble and check
 
@@ -54,12 +61,13 @@ npm run coverage:e2e:check -- coverage/e2e coverage/e2e-report
 ```
 
 Assembly fails for missing runtime surfaces, unknown executable URLs, mismatched
-source maps, changed repository sources, or unequal build evidence. Preparation
-copies the exact generated executables and binds every source, script, surface,
-revision, and digest into the inventory. The final command independently
-validates each surface, rebases all admitted raw V8 profiles, and materializes
-their union in one c8 pass. That lets complementary Chromium and Electron ranges
-share the one coverage map c8 derives from their combined execution. The command
+source maps, changed repository sources, or unequal executable build evidence.
+The capture index keeps the distinct full package provenance for every input
+run. Preparation copies the exact generated executables and binds every source,
+script, surface, revision, and digest into the inventory. The final command
+independently validates each surface, rebases all admitted raw V8 profiles, and
+materializes their union in one c8 pass. That lets complementary Chromium and
+Electron ranges share the one coverage map c8 derives from their combined execution. The command
 exits nonzero if any required surface or executable coverage point is absent.
 
 CDP renderer and preload profiles carry an exact script-source cache which is

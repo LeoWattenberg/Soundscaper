@@ -52,6 +52,7 @@ export function assembleE2ECoverageCapture({
 	try {
 		mkdirSync(staging, { recursive: true });
 		const captureIndex = createCaptureIndex({
+			buildEvidence: captures.map(buildEvidenceRecord),
 			configuration,
 			evidence: captures[0].evidence,
 			outputRoot: staging,
@@ -81,8 +82,11 @@ function loadRunCapture({ expectedRevision, repositoryRoot, runRoot }) {
 	const envelope = readJson(join(runRoot, 'run.json'), `nightly run envelope at ${runRoot}`);
 	if (!record(envelope) || envelope.schemaVersion !== 2
 		|| envelope.kind !== 'soundscaper-desktop-nightly-tests'
-		|| !/^[0-9a-f]{40}$/u.test(envelope.sourceRevision ?? '')) {
-		throw new Error(`Nightly run ${runRoot} has no valid source revision envelope.`);
+		|| !/^[0-9a-f]{40}$/u.test(envelope.sourceRevision ?? '')
+		|| !record(envelope.runtime)
+		|| !['linux', 'win32', 'darwin'].includes(envelope.runtime.platform)
+		|| !['x64', 'arm64'].includes(envelope.runtime.arch)) {
+		throw new Error(`Nightly run ${runRoot} has no valid source revision and runtime envelope.`);
 	}
 	if (envelope.status !== 'passed' || typeof envelope.finishedAt !== 'string') {
 		throw new Error(`Nightly run ${runRoot} did not finish successfully.`);
@@ -101,11 +105,12 @@ function loadRunCapture({ expectedRevision, repositoryRoot, runRoot }) {
 		evidence,
 		profiles: assembleE2ERawProfiles({ evidence, repositoryRoot, runRoot }),
 		runRoot,
+		runtime: Object.freeze({ ...envelope.runtime }),
 		sourceRevision: envelope.sourceRevision,
 	});
 }
 
-function createCaptureIndex({ configuration, evidence, outputRoot, profiles, sourceRevision }) {
+function createCaptureIndex({ buildEvidence, configuration, evidence, outputRoot, profiles, sourceRevision }) {
 	const descriptors = evidenceScripts(evidence);
 	const generated = generatedArtifacts(descriptors);
 	const sources = new Map();
@@ -165,6 +170,7 @@ function createCaptureIndex({ configuration, evidence, outputRoot, profiles, sou
 		schemaVersion: E2E_COVERAGE_SCHEMA_VERSION,
 		kind: 'soundscaper-e2e-capture-index',
 		sourceRevision,
+		buildEvidence,
 		sources: [...sources.values()]
 			.map((source) => ({ ...source, surfaces: [...source.surfaces].sort() }))
 			.sort((left, right) => left.path.localeCompare(right.path)),
@@ -262,10 +268,26 @@ function assertCompatibleCaptures(captures) {
 		if (capture.sourceRevision !== first.sourceRevision) {
 			throw new Error('Nightly run roots name different source revisions.');
 		}
-		if (capture.evidence.digest !== first.evidence.digest) {
-			throw new Error('Nightly run roots contain different build-evidence hashes.');
+		if (capture.evidence.executableDigest !== first.evidence.executableDigest) {
+			throw new Error('Nightly run roots contain different executable build-evidence hashes.');
 		}
 	}
+}
+
+function buildEvidenceRecord(capture, index) {
+	return {
+		id: `run-${String(index + 1).padStart(3, '0')}`,
+		sourceRevision: capture.sourceRevision,
+		runtime: { ...capture.runtime },
+		digest: capture.evidence.digest,
+		executableDigest: capture.evidence.executableDigest,
+		packageArchives: Object.fromEntries(
+			[...capture.evidence.electron.entries()].map(([productId, evidence]) => [
+				productId,
+				{ ...evidence.packageArchive },
+			]),
+		),
+	};
 }
 
 function normalizedRunRoots(runRoot, runRoots) {

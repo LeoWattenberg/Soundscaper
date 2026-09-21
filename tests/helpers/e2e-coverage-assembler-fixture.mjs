@@ -39,6 +39,7 @@ export function makeFixture() {
 	writeJson(join(runRoot, 'run.json'), {
 		schemaVersion: 2,
 		kind: 'soundscaper-desktop-nightly-tests',
+		runtime: { platform: 'linux', arch: 'x64' },
 		sourceRevision,
 		status: 'passed',
 		finishedAt: '2026-09-20T12:00:00.000Z',

@@ -61,6 +61,26 @@ test('the builder refuses a capture that omits a mandatory surface before writin
 	);
 });
 
+test('the builder validates retained per-run package and executable provenance', () => {
+	const missingArchive = makeFixture();
+	missingArchive.captureIndex.buildEvidence[0].packageArchives.soundscaper.sha256 = 'invalid';
+	assert.throws(
+		() => prepareE2ECoverageArtifacts(missingArchive),
+		/exact package-archive evidence/u,
+	);
+
+	const incompatible = makeFixture();
+	incompatible.captureIndex.buildEvidence.push({
+		...structuredClone(incompatible.captureIndex.buildEvidence[0]),
+		id: 'run-002',
+		executableDigest: `sha256:${'5'.repeat(64)}`,
+	});
+	assert.throws(
+		() => prepareE2ECoverageArtifacts(incompatible),
+		/do not share one executable evidence digest/u,
+	);
+});
+
 function makeFixture() {
 	const workspace = mkdtempSync(join(tmpdir(), 'soundscaper-e2e-builder-'));
 	workspaces.push(workspace);
@@ -93,6 +113,17 @@ function makeFixture() {
 		schemaVersion: 1,
 		kind: 'soundscaper-e2e-capture-index',
 		sourceRevision,
+		buildEvidence: [{
+			id: 'run-001',
+			sourceRevision,
+			runtime: { platform: 'linux', arch: 'x64' },
+			digest: `sha256:${'1'.repeat(64)}`,
+			executableDigest: `sha256:${'2'.repeat(64)}`,
+			packageArchives: {
+				framescaper: { byteLength: 1, sha256: '3'.repeat(64) },
+				soundscaper: { byteLength: 1, sha256: '4'.repeat(64) },
+			},
+		}],
 		sources: [
 			{
 				path: 'src/browser.js',

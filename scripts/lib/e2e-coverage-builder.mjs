@@ -136,6 +136,7 @@ export function validateCaptureIndex(value, configuration = E2E_COVERAGE_CONFIGU
 	if (!Array.isArray(value.sources) || !Array.isArray(value.scripts) || !Array.isArray(value.surfaces)) {
 		throw new TypeError('The E2E capture index must list sources, scripts and surfaces.');
 	}
+	validateBuildEvidence(value.buildEvidence, value.sourceRevision);
 	const configured = configuration.requiredSurfaces.map(({ id }) => id);
 	const surfaceIds = value.surfaces.map((surface) => surface?.id);
 	if (JSON.stringify(surfaceIds) !== JSON.stringify(configured)) {
@@ -169,6 +170,33 @@ export function validateCaptureIndex(value, configuration = E2E_COVERAGE_CONFIGU
 		}
 	}
 	return value;
+}
+
+function validateBuildEvidence(value, sourceRevision) {
+	if (!Array.isArray(value) || value.length === 0) {
+		throw new TypeError('The E2E capture index must retain its input build evidence.');
+	}
+	for (const [index, evidence] of value.entries()) {
+		if (!object(evidence) || evidence.id !== `run-${String(index + 1).padStart(3, '0')}`
+			|| evidence.sourceRevision !== sourceRevision || !sha256(evidence.digest)
+			|| !sha256(evidence.executableDigest) || !object(evidence.runtime)
+			|| !['linux', 'win32', 'darwin'].includes(evidence.runtime.platform)
+			|| !['x64', 'arm64'].includes(evidence.runtime.arch)
+			|| !object(evidence.packageArchives)
+			|| JSON.stringify(Object.keys(evidence.packageArchives).sort())
+				!== JSON.stringify(['framescaper', 'soundscaper'])) {
+			throw new TypeError('Every E2E input build needs exact revision, runtime and digest provenance.');
+		}
+		for (const archive of Object.values(evidence.packageArchives)) {
+			if (!object(archive) || !Number.isSafeInteger(archive.byteLength) || archive.byteLength < 0
+				|| typeof archive.sha256 !== 'string' || !/^[0-9a-f]{64}$/u.test(archive.sha256)) {
+				throw new TypeError('Every E2E input build needs exact package-archive evidence.');
+			}
+		}
+	}
+	if (new Set(value.map(({ executableDigest }) => executableDigest)).size !== 1) {
+		throw new Error('E2E input builds do not share one executable evidence digest.');
+	}
 }
 
 function copyEvidence(inputRoot, inputPath, outputRoot, outputPath) {

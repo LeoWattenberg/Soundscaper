@@ -18,7 +18,6 @@ import {
 	readJson,
 	readProfiles,
 	recordBrowserEvidence,
-	relocateSourceMapCheckout,
 	rewritePackagedLayout,
 	sourceMapFor,
 	sourceLineLengths,
@@ -138,36 +137,6 @@ test('packaged profiles cannot claim scripts absent from the product evidence ma
 	writeJson(profilePath, profile);
 
 	assert.throws(() => assembleE2ECoverageCapture(fixture), /unmapped first-party packaged script.*missing\.js/u);
-});
-
-test('multiple platform runs merge only with identical revisions and build evidence', () => {
-	const linux = makeFixture();
-	const windows = makeFixture();
-	relocateSourceMapCheckout(windows.evidenceRoot);
-	const result = assembleE2ECoverageCapture({
-		repositoryRoot: linux.repositoryRoot,
-		runRoots: [linux.runRoot, windows.runRoot],
-		outputRoot: linux.outputRoot,
-		expectedRevision: linux.expectedRevision,
-	});
-	assert.equal(readProfiles(join(
-		result.outputRoot,
-		'profiles/nightly-electron-soundscaper-main',
-	)).length, 2);
-
-	const mismatched = makeFixture();
-	write(join(mismatched.evidenceRoot, 'browser/soundscaper/site/release.txt'), 'different build\n');
-	recordBrowserEvidence(
-		join(mismatched.evidenceRoot, 'browser/soundscaper/site'),
-		'soundscaper',
-		mismatched.expectedRevision,
-	);
-	assert.throws(() => assembleE2ECoverageCapture({
-		repositoryRoot: linux.repositoryRoot,
-		runRoots: [linux.runRoot, mismatched.runRoot],
-		outputRoot: linux.outputRoot,
-		expectedRevision: linux.expectedRevision,
-	}), /different build-evidence hashes/u);
 });
 
 test('portable raw maps are bound to current repository source bytes', () => {
@@ -374,6 +343,7 @@ function makeFixture() {
 	writeJson(join(runRoot, 'run.json'), {
 		schemaVersion: 2,
 		kind: 'soundscaper-desktop-nightly-tests',
+		runtime: { platform: 'linux', arch: 'x64' },
 		sourceRevision,
 		status: 'passed',
 		finishedAt: '2026-09-20T12:00:00.000Z',

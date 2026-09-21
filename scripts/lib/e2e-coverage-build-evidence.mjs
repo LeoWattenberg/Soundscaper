@@ -41,7 +41,8 @@ export function loadE2EBuildEvidence({ repositoryRoot, evidenceRoot, sourceRevis
 	return Object.freeze({
 		browser,
 		electron,
-		digest: evidenceDigest(browser, electron, sourceRevision),
+		digest: evidenceDigest(browser, electron, sourceRevision, true),
+		executableDigest: evidenceDigest(browser, electron, sourceRevision, false),
 		sourceRevision,
 	});
 }
@@ -401,13 +402,13 @@ function hash(value) {
 	return createHash('sha256').update(value).digest('hex');
 }
 
-function evidenceDigest(browser, electron, sourceRevision) {
+function evidenceDigest(browser, electron, sourceRevision, includePackageArchives) {
 	const products = E2E_PRODUCTS.map((productId) => ({
 		productId,
 		browserOrigin: browser.get(productId).origin,
 		browserSite: browser.get(productId).siteDigest,
 		browserScripts: browser.get(productId).scripts.map(digestibleScript),
-		electronArchive: electron.get(productId).packageArchive,
+		...(includePackageArchives ? { electronArchive: electron.get(productId).packageArchive } : {}),
 		electronScripts: electron.get(productId).scripts.map(digestibleScript),
 	}));
 	return `sha256:${hash(stableJson({ products, sourceRevision }))}`;
