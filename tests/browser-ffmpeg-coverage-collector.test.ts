@@ -53,12 +53,14 @@ test('collector rejects nearby external Wasm parse records without V8 ranges', a
 	}
 });
 
-async function collectOrphan(dynamic: {
+interface DynamicScriptFixture {
 	bytecode?: string,
 	scriptLanguage?: string,
 	source: string | undefined,
 	url: string,
-}) {
+}
+
+async function collectOrphan(dynamic: DynamicScriptFixture) {
 	const workspace = mkdtempSync(join(tmpdir(), 'soundscaper-ffmpeg-collector-'));
 	workspaces.push(workspace);
 	const site = join(workspace, 'site');
@@ -81,7 +83,7 @@ async function collectOrphan(dynamic: {
 	return collector.collect('FFmpeg Wasm orphan', new Set<string>());
 }
 
-function fakePage(dynamic: { source: string | undefined, url: string }) {
+function fakePage(dynamic: DynamicScriptFixture) {
 	let parsed: ((value: unknown) => void) | null = null;
 	const session = {
 		async send(method: string) {

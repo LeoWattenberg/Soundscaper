@@ -7,7 +7,9 @@ import React, { useEffect, useMemo, useState } from 'react';
 import {
 	createSoundscaperVampAnalyzerSession,
 } from './soundscaper-vamp-analyzer-runtime.ts';
-import { createDesktopVampAnalysisAction } from '../../controller/analysis/internal/vamp-analysis-action.ts';
+import {
+	createDesktopVampAnalysisAction,
+} from '../../controller/analysis/vamp-analysis-action-facade.ts';
 import type { SoundscaperVampAnalyzerSurfaceInput } from './SoundscaperNativeServicesSurface.tsx';
 
 const VampAnalyzerDialog = React.lazy(() => import('../dialogs/VampAnalyzerDialog.tsx'));

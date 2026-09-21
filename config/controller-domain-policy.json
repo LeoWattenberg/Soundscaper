@@ -5,6 +5,7 @@
 		"analysis/analysis-service.ts",
 		"analysis/transient-analysis-pcm-access.ts",
 		"analysis/transient-analysis-service.ts",
+		"analysis/vamp-analysis-action-facade.ts",
 		"assistance/deferred-local-assistance-runtime.ts",
 		"assistance/local-assistance-audio-spool-release.ts",
 		"assistance/local-assistance-guided-framescaper-acceptance.ts",

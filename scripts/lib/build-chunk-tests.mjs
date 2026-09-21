@@ -96,7 +96,7 @@ export const EDITOR_SELECTION_EFFECTS_RUNTIME_CHUNK_TEST = new RegExp(
 
 /** Complete menu-opened Vamp analyzer UI, project session, domain, and native execution. */
 export const EDITOR_VAMP_ANALYZER_CHUNK_TEST = new RegExp(
-	`${editorPath}(?:vamp-analysis(?:-labels)?\\.ts|controller[\\\\/]analysis[\\\\/]internal[\\\\/](?:deferred-)?vamp-analysis-action\\.ts|ui[\\\\/](?:dialogs[\\\\/]VampAnalyzerDialog\\.tsx|workspace[\\\\/](?:SoundscaperVampAnalyzerSurface\\.tsx|soundscaper-vamp-analyzer-runtime\\.ts)))$`,
+	`${editorPath}(?:vamp-analysis(?:-labels)?\\.ts|controller[\\\\/]analysis[\\\\/](?:vamp-analysis-action-facade|internal[\\\\/](?:deferred-)?vamp-analysis-action)\\.ts|ui[\\\\/](?:dialogs[\\\\/]VampAnalyzerDialog\\.tsx|workspace[\\\\/](?:SoundscaperVampAnalyzerSurface\\.tsx|soundscaper-vamp-analyzer-runtime\\.ts)))$`,
 );
 
 /** Shared session-only production metering used by the engine and product UI. */

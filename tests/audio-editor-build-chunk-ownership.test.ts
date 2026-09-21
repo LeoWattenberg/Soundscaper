@@ -180,6 +180,7 @@ test('moved controller domains preserve their optional chunk owners', () => {
 			'src/common/editor/controller/effects/internal/macro/effect-macro-defaults.ts',
 		],
 		'editor-vamp-analyzer': [
+			'src/common/editor/controller/analysis/vamp-analysis-action-facade.ts',
 			'src/common/editor/controller/analysis/internal/deferred-vamp-analysis-action.ts',
 			'src/common/editor/controller/analysis/internal/vamp-analysis-action.ts',
 		],

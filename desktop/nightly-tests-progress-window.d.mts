@@ -30,6 +30,12 @@ export interface DesktopNightlyTestsProgressWindow {
 export const NIGHTLY_TESTS_PROGRESS_SCHEME: 'soundscaper-nightly-progress';
 export const NIGHTLY_TESTS_PROGRESS_DOCUMENT_URL: string;
 
+export function createDesktopNightlyTestsProgressUpdateSource(value: unknown): string;
+
+export function validateDesktopNightlyTestsProgressUpdateSource(
+	source: unknown,
+): DesktopNightlyTestsProgress;
+
 export function createDesktopNightlyTestsProgressWindow(options: {
 	readonly BrowserWindow: new (options: Readonly<Record<string, unknown>>) => NightlyTestsBrowserWindow;
 	readonly protocol: {

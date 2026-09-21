@@ -44,8 +44,21 @@ import {
 	sealDeliveryReport,
 	type DeliveryReport,
 } from '../../delivery-report.ts';
-import { executeTrimMediaCopy, type TrimMediaFfmpegRuntime } from './internal/trim-media-execution.ts';
+import { executeTrimMediaCopy } from './internal/trim-media-execution.ts';
 import { trimMediaContainerForMimeType } from '../../trim-media-ffmpeg.ts';
+
+export interface TrimMediaFfmpegRuntime {
+	/** Put the source bytes where FFmpeg can read them, and answer the path. */
+	writeInput(bytes: Uint8Array, options: Readonly<{ signal?: AbortSignal }>): Promise<string>;
+	writeText(path: string, text: string, options: Readonly<{ signal?: AbortSignal }>): Promise<void>;
+	/** Run FFmpeg and answer its exit code and log lines. */
+	exec(
+		args: readonly string[],
+		options: Readonly<{ signal?: AbortSignal }>,
+	): Promise<Readonly<{ exitCode: number; logs: readonly string[] }>>;
+	readOutput(path: string, options: Readonly<{ signal?: AbortSignal }>): Promise<Uint8Array>;
+	deletePath(path: string): Promise<void>;
+}
 
 export interface TrimMediaStore {
 	loadMediaAsset(

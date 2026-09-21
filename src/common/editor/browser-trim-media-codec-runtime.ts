@@ -1,7 +1,9 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import type { TrimMediaFfmpegHost } from './controller/document/trim-media-service.ts';
-import type { TrimMediaFfmpegRuntime } from './controller/document/internal/trim-media-execution.ts';
+import type {
+	TrimMediaFfmpegHost,
+	TrimMediaFfmpegRuntime,
+} from './controller/document/trim-media-service.ts';
 
 type DisposableTrimMediaRuntime = TrimMediaFfmpegHost & Readonly<{ dispose(): void }>;
 

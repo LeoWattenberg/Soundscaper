@@ -267,7 +267,7 @@ test('the collector honors a packaged run site map and durable coverage director
 			}]),
 		},
 		repositoryRoot: payloadRoot,
-		sites: [{ origin: 'http://127.0.0.1:9999', outputDirectory: '/wrong/build' }],
+		sites: [{ origin: 'http://127.0.0.1:9999', outputDirectory: '/wrong/build', productId: 'framescaper' }],
 	});
 	assert.ok(collector);
 	collector.attach(fakeContext([fakePage(`${ORIGIN}/assets/app-abc123.js`)]));

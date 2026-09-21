@@ -16,6 +16,17 @@ const WASM_PATH = /^(?:[A-Za-z\d][A-Za-z\d._~-]*\/)*[A-Za-z\d][A-Za-z\d._~-]*\.w
  * Authenticate the only network URLs that CDP may classify as WebAssembly.
  * First-party modules are bound to an exact verified product-build file;
  * external FFmpeg stays on its separate committed manifest/policy identity.
+ *
+ * @param {{
+ *   expectedSourceRevision?: string | null,
+ *   ffmpegCoverage: { wasm: { byteLength: number, sha256: string, url: string } },
+ *   repositoryRoot?: string,
+ *   sites?: Array<{
+ *     origin: string,
+ *     outputDirectory: string,
+ *     productId: 'framescaper' | 'soundscaper',
+ *   }>,
+ * }} options
  */
 export function createBrowserWebAssemblyAuthenticator({
 	expectedSourceRevision = null,

@@ -86,7 +86,7 @@ test('external FFmpeg WebAssembly remains a disjoint exact digest-pinned identit
 	const url = 'https://assets.soundscaper.org/runtime/ffmpeg/0.12.10/ffmpeg-core.wasm';
 	const authenticate = createBrowserWebAssemblyAuthenticator({
 		expectedSourceRevision: REVISION,
-		ffmpegCoverage: { wasm: record(WASM, { url }) },
+		ffmpegCoverage: { wasm: { ...record(WASM), url } },
 		repositoryRoot: workspace,
 	});
 	assert.equal(await authenticate({ bytes: WASM, url }), true);
@@ -100,10 +100,14 @@ test('external FFmpeg WebAssembly remains a disjoint exact digest-pinned identit
 	);
 });
 
-function authenticator(repositoryRoot: string, sites: object[]) {
+function authenticator(repositoryRoot: string, sites: Array<{
+	origin: string,
+	outputDirectory: string,
+	productId: 'framescaper' | 'soundscaper',
+}>) {
 	return createBrowserWebAssemblyAuthenticator({
 		expectedSourceRevision: REVISION,
-		ffmpegCoverage: { wasm: record(WASM, { url: 'https://assets.invalid/ffmpeg-core.wasm' }) },
+		ffmpegCoverage: { wasm: { ...record(WASM), url: 'https://assets.invalid/ffmpeg-core.wasm' } },
 		repositoryRoot,
 		sites,
 	});
@@ -118,7 +122,7 @@ function writeSite({
 	mutation?: 'file' | 'origin' | 'product' | 'revision' | 'record' | 'record-shape' | 'bytes' | null,
 	origin: string,
 	outputDirectory: string,
-	productId: string,
+	productId: 'framescaper' | 'soundscaper',
 }) {
 	const artifactPath = 'assets/pffft-BbtAeRsi.wasm';
 	mkdirSync(join(outputDirectory, 'assets'), { recursive: true });

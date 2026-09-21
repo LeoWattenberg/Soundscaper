@@ -196,6 +196,7 @@ test('Vamp analyzer UI, session, domain, and execution share one isolated lazy o
 	for (const path of [
 		'src/common/editor/vamp-analysis.ts',
 		'src/common/editor/vamp-analysis-labels.ts',
+		'src/common/editor/controller/analysis/vamp-analysis-action-facade.ts',
 		'src/common/editor/controller/analysis/internal/deferred-vamp-analysis-action.ts',
 		'src/common/editor/controller/analysis/internal/vamp-analysis-action.ts',
 		'src/common/editor/ui/dialogs/VampAnalyzerDialog.tsx',
