@@ -249,9 +249,16 @@ test('remains a closed scalar owner with only the reviewed cumulative consumers'
 		'src/framescaper/editor-video-proxy-attachment-retention-sequence.ts',
 		'src/framescaper/editor-video-proxy-preview-media-retime.ts',
 		'src/framescaper/editor-video-proxy-revalidation-contract-sequence.ts',
+		// Both Scape wrappers delegate to this one durable-asset consumer.
+		'src/framescaper/editor-scape-durable-asset-plan-core.ts',
+	]);
+	for (const wrapper of [
 		'src/framescaper/editor-scape-asset-plan-finishing.ts',
 		'src/framescaper/editor-scape-asset-plan.ts',
-	]);
+	]) {
+		assert.match(fs.readFileSync(path.join(ROOT, wrapper), 'utf8'),
+			/from ['"]\.\/editor-scape-durable-asset-plan-core\.ts['"]/u, wrapper);
+	}
 	for (const root of ['src', 'desktop', 'scripts']) for (const file of sourceFiles(path.join(ROOT, root))) {
 		const relative = path.relative(ROOT, file).replaceAll(path.sep, '/');
 		if (relative === sourceFile) continue;
