@@ -45,6 +45,29 @@ test('the nightly payload carries the data file its release-line reader opens at
 		'the nightly-tests extraResources filter must retain the release-line data');
 });
 
+test('the nightly package retains every staged browser source-map input', async () => {
+	const sourceMapInputs = NIGHTLY_TEST_PAYLOAD_INPUTS
+		.filter(({ label }) => label.endsWith('source map input'));
+	assert.deepEqual(
+		sourceMapInputs.map(({ source }) => source),
+		[
+			'desktop/desktop-audio-codec-capability-contract.ts',
+			'desktop/desktop-audio-codec-operation-contract.ts',
+		],
+		'the regression must cover every source file read while making browser maps portable',
+	);
+	const filter = await readPackagedPayloadFilter();
+	const dropped = sourceMapInputs
+		.map(({ source }) => packagedPathOf(source))
+		.filter((packaged) => packaged === null
+			|| !filter.some((pattern) => matchesGlob(packaged, pattern)));
+	assert.deepEqual(
+		dropped,
+		[],
+		`the nightly-tests extraResources filter drops source-map inputs: ${dropped.join(', ')}`,
+	);
+});
+
 test('the nightly test payload satisfies every import its browser specs reach', async () => {
 	const browserTests = [...await collectTestFiles(BROWSER_TESTS),
 		...await collectTestFiles(join(REPOSITORY_ROOT, 'tests/electron/local-assistance-models'))]

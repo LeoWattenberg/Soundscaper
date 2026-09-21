@@ -60,6 +60,8 @@ module.exports = {
 				'.local-browsers/**/*',
 				'config/**/*',
 				'desktop/bundled-*-stream.ts',
+				'desktop/desktop-audio-codec-capability-contract.ts',
+				'desktop/desktop-audio-codec-operation-contract.ts',
 				'desktop/soak-debug-*.mjs',
 				// The guide specs replay handbook step data, which lives outside `tests/`.
 				'handbook/**/*',
