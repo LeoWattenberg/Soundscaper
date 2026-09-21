@@ -1,4 +1,5 @@
 import { designParametricEq, sectionMagnitudeSquared } from './design.js';
+import { normalizeParametricEqSampleRate as normalizeSampleRate } from './authorities.js';
 
 export function evaluateParametricEqResponse(params, sampleRate, frequencies) {
 	const frequencyValues = frequencies == null
@@ -41,12 +42,4 @@ function normalizeFrequencies(frequencies, sampleRate) {
 		}
 		return number;
 	});
-}
-
-function normalizeSampleRate(value) {
-	const sampleRate = Number(value);
-	if (!Number.isFinite(sampleRate) || sampleRate < 8_000 || sampleRate > 768_000) {
-		throw new RangeError('Parametric EQ sample rate must be between 8,000 and 768,000 Hz.');
-	}
-	return sampleRate;
 }

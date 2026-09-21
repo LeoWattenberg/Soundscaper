@@ -1,4 +1,8 @@
 import { designParametricEq } from './design.js';
+import {
+	groupParametricEqSections as groupSections,
+	normalizeParametricEqSampleRate as normalizeSampleRate,
+} from './authorities.js';
 
 const DEFAULT_PARAMETER_SMOOTHING_SECONDS = 0.005;
 const DEFAULT_BYPASS_CROSSFADE_SECONDS = 0.01;
@@ -315,16 +319,6 @@ class TptSection {
 	}
 }
 
-function groupSections(sections) {
-	const groups = [];
-	for (const section of sections) {
-		const previous = groups[groups.length - 1];
-		if (previous?.[0]?.bandId === section.bandId) previous.push(section);
-		else groups.push([section]);
-	}
-	return groups;
-}
-
 function normalizeInputChannels(channels) {
 	if (!Array.isArray(channels)) throw new TypeError('Parametric EQ channels must be an array.');
 	return channels.map((channel) => {
@@ -332,14 +326,6 @@ function normalizeInputChannels(channels) {
 		if (ArrayBuffer.isView(channel) || Array.isArray(channel)) return Float32Array.from(channel);
 		throw new TypeError('Parametric EQ channels must contain numeric typed arrays.');
 	});
-}
-
-function normalizeSampleRate(value) {
-	const sampleRate = Number(value);
-	if (!Number.isFinite(sampleRate) || sampleRate < 8_000 || sampleRate > 768_000) {
-		throw new RangeError('Parametric EQ sample rate must be between 8,000 and 768,000 Hz.');
-	}
-	return sampleRate;
 }
 
 function normalizeFrames(value, fallback) {

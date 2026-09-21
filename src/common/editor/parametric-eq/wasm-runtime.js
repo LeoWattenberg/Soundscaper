@@ -1,4 +1,5 @@
 import { designParametricEq } from './design.js';
+import { groupParametricEqSections as groupSections } from './authorities.js';
 
 export const PARAMETRIC_EQ_WASM_ABI_VERSION = 2;
 export const PARAMETRIC_EQ_WASM_MEMORY_BYTES = 1_048_576;
@@ -367,16 +368,6 @@ function nativeBandType(type, audition) {
 		return NATIVE_BAND_TYPES.highpass;
 	}
 	return NATIVE_BAND_TYPES.bandpass;
-}
-
-function groupSections(sections) {
-	const groups = [];
-	for (const section of sections) {
-		const previous = groups[groups.length - 1];
-		if (previous?.[0]?.bandId === section.bandId) previous.push(section);
-		else groups.push([section]);
-	}
-	return groups;
 }
 
 function validateDesignedConfiguration(configuration) {

@@ -27,15 +27,16 @@
 		{ "path": "vendor/signalsmith/vicanek_reference.h", "sha256": "cb3f88e036b3f3b9c28559129741323dc2d22de4d59784f4bd74e9d213e65601", "origin": "signalsmith-extracted" }
 	],
 	"localExtensions": [
-		{ "path": "core.js", "sha256": "46651301ebfc0ecf497e9a5155406e949698a55cac0db2e2af8a89ade45f8918" },
-		{ "path": "design.js", "sha256": "019cf668cb298f2ef268c307ca2d65a024541655846c61c39b702b6e39636ebc" },
+		{ "path": "authorities.js", "sha256": "041dd133668bb56d47c45cfc0d08dc5817992afaf44503178135ca385b1b14bd" },
+		{ "path": "core.js", "sha256": "0e6f327aea626407ec2604d56c70a442ade28e75b7ad317b4588a7328d68cde4" },
+		{ "path": "design.js", "sha256": "9e2803a0ddd8d718b58289255fee42d82731b746ac95645c7aca63772ca26335" },
 		{ "path": "destructive.js", "sha256": "88be5e6f79069b0306b8909f80d2fdefe14acabf8cb4b6c1dc2f8d99fc1f3a9f" },
 		{ "path": "index.js", "sha256": "8d44aa574ede0cfe21e47348de3fb01236714bfe083fc998f202aa4354ea9e5f" },
 		{ "path": "parameters.js", "sha256": "bc67b327acb5f696ff0c37cca8301e83fe26c16ecb507d7dcf78f0d38ddb7327" },
 		{ "path": "protocol.js", "sha256": "236c867e6ab190af8852137f02e22b18916971ccf005d2256e8003facbd9bfa1" },
-		{ "path": "response.js", "sha256": "3700ecfe45ce08f33f5358f5a5517576a07c7759566a3df68d5782ac20fb433e" },
+		{ "path": "response.js", "sha256": "347016bd704f99c38ebf7fe4aaeff60823b6a3156bb7cc152783453fbf3fed1d" },
 		{ "path": "wasm-loader.js", "sha256": "584658887c2cee51e696e67b262c4e2686ec90ed871e583cc1f193551594db6d" },
-		{ "path": "wasm-runtime.js", "sha256": "17595a6977f1423624204e3cf6dcceb374ffa62743177795767d8760e56b3ef2" },
+		{ "path": "wasm-runtime.js", "sha256": "0bc9a8ccc7607e3552ccb3cb563f637c0b3efc80d005fd0d641e5c7b95d65672" },
 		{ "path": "worklet.js", "sha256": "bd6811feb350316e8addf14740a1bba3ff515f568f8166c6c7d2072f969b0617" }
 	],
 	"compiledSources": [

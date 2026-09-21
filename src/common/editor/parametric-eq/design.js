@@ -9,6 +9,7 @@
  */
 
 import { packParametricEqParams } from './parameters.js';
+import { normalizeParametricEqSampleRate as normalizeSampleRate } from './authorities.js';
 
 const PI = Math.PI;
 const MIN_MAGNITUDE_SQUARED = 1e-60;
@@ -374,14 +375,6 @@ function validateCoefficients(coefficients) {
 
 function effectiveFrequency(value, sampleRate) {
 	return Math.max(10, Math.min(24_000, sampleRate * 0.49, Number(value) || 1_000));
-}
-
-function normalizeSampleRate(value) {
-	const sampleRate = Number(value);
-	if (!Number.isFinite(sampleRate) || sampleRate < 8_000 || sampleRate > 768_000) {
-		throw new RangeError('Parametric EQ sample rate must be between 8,000 and 768,000 Hz.');
-	}
-	return sampleRate;
 }
 
 function positiveEndpoint(preferred, fallback) {
