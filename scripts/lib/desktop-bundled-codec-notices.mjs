@@ -51,7 +51,7 @@ export const DESKTOP_BUNDLED_CODEC_NOTICE_FILES = Object.freeze([
 	codecFile('opus', 'licenses/OPUS.txt', 1_945,
 		'01e1167d54a096d123cf6dfbbeb19587278845c6481d2d66d545669846079551'),
 	codecFile('opus', 'source-manifest.json', 3958,
-		'b208252974166210339d4e1f3c593a42084d49f5462caa290f2a37062a745a89'),
+		'd5df110c7aee7c692e5ea7d6f2892a13ad661ad7f15ac994b4a0eb3627ef0039'),
 	codecFile('twolame', 'NOTICE.md', 1_297,
 		'75b8e9d4717fec80d9cceeced0400654915a1e307aa6099e5841eedbed1ae984'),
 	codecFile('twolame', 'SOURCE.md', 1_107,

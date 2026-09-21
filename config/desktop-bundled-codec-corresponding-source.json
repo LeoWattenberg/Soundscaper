@@ -94,7 +94,7 @@
 			"id": "opus",
 			"sourceManifest": {
 				"path": "src/common/editor/opus/source-manifest.json",
-				"sha256": "b208252974166210339d4e1f3c593a42084d49f5462caa290f2a37062a745a89"
+				"sha256": "d5df110c7aee7c692e5ea7d6f2892a13ad661ad7f15ac994b4a0eb3627ef0039"
 			},
 			"buildScript": {
 				"path": "scripts/build-opus-wasm.mjs",

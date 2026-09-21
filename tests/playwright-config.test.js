@@ -153,7 +153,7 @@ test('the dual-origin Playwright harness serves two reciprocal built Pages sites
 	assert.equal(scripts['pretest:browser:dual-origin'], 'node scripts/build-dual-origin-browser-sites.mjs');
 	assert.equal(scripts['test:browser:dual-origin'],
 		'playwright test --config playwright.dual-origin.config.mjs');
-	assert.equal(packageDocument.devDependencies.wrangler, '4.114.0');
+	assert.equal(packageDocument.devDependencies.wrangler, '4.136.0');
 	assert.match(buildScript, /buildBrowserProductSite/u);
 	assert.match(buildScript, /productId: 'soundscaper'[\s\S]*?origin: 'http:\/\/127\.0\.0\.1:4332'[\s\S]*?peerOrigin: 'http:\/\/127\.0\.0\.1:4333'/u);
 	assert.match(buildScript, /productId: 'framescaper'[\s\S]*?origin: 'http:\/\/127\.0\.0\.1:4333'[\s\S]*?peerOrigin: 'http:\/\/127\.0\.0\.1:4332'/u);
