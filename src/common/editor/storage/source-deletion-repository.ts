@@ -7,6 +7,10 @@ import {
 import { deleteByIndex, request, transact } from './indexeddb-backend.ts';
 import type { StorageRecord } from './media-records.ts';
 import type { StorageRepositoryPort } from './repository-port.ts';
+import {
+	findMemoryDependentSourceId,
+	findStoredDependentSourceId,
+} from './source-dependency-query.ts';
 import { deletePairedVideoDerivativeRecords } from './video-derivative-repository.ts';
 
 const WAVEFORM_PEAK_CACHE_PREFIXES = Object.freeze(['audio-editor-peaks-v1:', 'audio-editor-peaks-v2:']);
@@ -42,7 +46,7 @@ export class SourceDeletionRepository {
 			const sources = stores.sources;
 			const source = asStorageRecord(await request(sources.get(sourceId)));
 			if (source) {
-				const dependentSourceId = await findDependentSourceId(sources, sourceId);
+				const dependentSourceId = await findStoredDependentSourceId(sources, sourceId);
 				if (dependentSourceId !== null) return { status: 'retained', dependentSourceId };
 			}
 			const [mediaAssetValue, ...waveformValues] = await Promise.all([
@@ -78,11 +82,9 @@ export class SourceDeletionRepository {
 		const memory = this.#port.memory;
 		const source = asStorageRecord(memory.sources.get(sourceId));
 		if (source) {
-			const dependent = [...memory.sources.values()]
-				.map(asStorageRecord)
-				.find((candidate) => candidate?.baseSourceId === sourceId);
-			if (dependent) {
-				return { status: 'retained', dependentSourceId: String(dependent.id) };
+			const dependentSourceId = findMemoryDependentSourceId(memory.sources, sourceId);
+			if (dependentSourceId !== null) {
+				return { status: 'retained', dependentSourceId };
 			}
 		}
 		const mediaAsset = asStorageRecord(memory.mediaAssets.get(sourceId));
@@ -111,23 +113,6 @@ export class SourceDeletionRepository {
 			derivatives: Object.freeze(derivatives.map(clone)),
 		};
 	}
-}
-
-function findDependentSourceId(sources: IDBObjectStore, baseSourceId: string): Promise<string | null> {
-	return new Promise((resolve, reject) => {
-		const cursorRequest = sources.openCursor();
-		cursorRequest.onerror = () => reject(cursorRequest.error || new Error('Could not enumerate source metadata.'));
-		cursorRequest.onsuccess = () => {
-			const cursor = cursorRequest.result;
-			if (!cursor) { resolve(null); return; }
-			const candidate = cursor.value as StorageRecord;
-			if (candidate.baseSourceId === baseSourceId) {
-				resolve(String(candidate.id ?? cursor.primaryKey));
-				return;
-			}
-			cursor.continue();
-		};
-	});
 }
 
 function asStorageRecord(value: unknown): StorageRecord | null {

@@ -6,6 +6,7 @@ import test from 'node:test';
 import { openDatabase } from '../src/common/editor/storage/indexeddb-backend.ts';
 import { getMemoryDatabase } from '../src/common/editor/storage/memory-backend.ts';
 import type { StorageRecord } from '../src/common/editor/storage/media-records.ts';
+import { SourceDeletionRepository } from '../src/common/editor/storage/source-deletion-repository.ts';
 import { SourceRecordRepository } from '../src/common/editor/storage/source-record-repository.ts';
 import { SourceRepository } from '../src/common/editor/storage/source-repository.ts';
 import { createInstrumentedIndexedDB } from './helpers/instrumented-indexeddb.js';
@@ -86,6 +87,78 @@ test('derived publication and base deletion are atomic in every backend', async 
 				baseSourceId: 'deleted-first',
 			}, deletedBeforePublication), 'base-changed');
 			assert.equal(await records.getMetadata('orphan-refused'), null);
+		});
+	}
+});
+
+test('source retention returns the first dependent primary identity in every repository and backend', async (context) => {
+	for (const repository of ['metadata', 'storage'] as const) {
+		for (const backend of ['memory', 'indexeddb'] as const) {
+			await context.test(`${repository}-${backend}`, async (nested) => {
+				const databaseName = `source-dependent-identity-${repository}-${backend}-${Date.now()}-${Math.random()}`;
+				const indexedDB = createInstrumentedIndexedDB();
+				const database = backend === 'indexeddb'
+					? await openDatabase(indexedDB as unknown as IDBFactory, databaseName)
+					: null;
+				nested.after(() => { database?.close(); });
+				const memory = getMemoryDatabase(databaseName);
+				const port = { memory, database: async () => database };
+				const seed = (primaryKey: string, value: Readonly<Record<string, unknown>>): void => {
+					if (database) indexedDB.seedRecord(databaseName, 'sources', value, primaryKey);
+					else memory.sources.set(primaryKey, value);
+				};
+				seed('base', { id: 'base', storage: 'indexeddb-chunks', sourceToken: 'base-token' });
+				seed('00-unrelated', { id: '00-unrelated', storage: 'indexeddb-chunks' });
+				seed('dependent-primary', { storage: 'copy-on-write', baseSourceId: 'base' });
+				seed('dependent-second', {
+					id: 'dependent-second', storage: 'copy-on-write', baseSourceId: 'base',
+				});
+
+				const result = repository === 'metadata'
+					? await new SourceRecordRepository(port).deleteMetadataIfUnreferenced('base')
+					: await new SourceDeletionRepository(port).detachIfUnreferenced('base');
+				assert.deepEqual(result, { status: 'retained', dependentSourceId: 'dependent-primary' });
+			});
+		}
+	}
+});
+
+test('missing bases and bases without dependents preserve repository semantics in every backend', async (context) => {
+	for (const backend of ['memory', 'indexeddb'] as const) {
+		await context.test(backend, async (nested) => {
+			const databaseName = `source-retention-edges-${backend}-${Date.now()}-${Math.random()}`;
+			const database = backend === 'indexeddb'
+				? await openDatabase(createInstrumentedIndexedDB() as unknown as IDBFactory, databaseName)
+				: null;
+			nested.after(() => { database?.close(); });
+			const port = {
+				memory: getMemoryDatabase(databaseName),
+				database: async () => database,
+			};
+			const records = new SourceRecordRepository(port);
+			const deletion = new SourceDeletionRepository(port);
+			await records.putMetadata({
+				id: 'orphan', storage: 'copy-on-write', baseSourceId: 'missing-base',
+			});
+			assert.deepEqual(await records.deleteMetadataIfUnreferenced('missing-base'), { status: 'missing' });
+			assert.deepEqual(await deletion.detachIfUnreferenced('missing-base'), {
+				status: 'detached', source: null, mediaAsset: null, derivatives: [],
+			});
+
+			const metadataOnly: StorageRecord = {
+				id: 'metadata-only', storage: 'indexeddb-chunks', sourceToken: 'metadata-token',
+			};
+			const storageOnly: StorageRecord = {
+				id: 'storage-only', storage: 'indexeddb-chunks', sourceToken: 'storage-token',
+			};
+			await records.putMetadata(metadataOnly);
+			await records.putMetadata(storageOnly);
+			assert.deepEqual(await records.deleteMetadataIfUnreferenced('metadata-only'), {
+				status: 'deleted', record: metadataOnly,
+			});
+			assert.deepEqual(await deletion.detachIfUnreferenced('storage-only'), {
+				status: 'detached', source: storageOnly, mediaAsset: null, derivatives: [],
+			});
 		});
 	}
 });
