@@ -4,6 +4,8 @@ import { Suspense } from 'react';
 
 import { createAudioEditorFileService } from '../../common/editor/file-service.js';
 import { BoundAudioEditorApp } from '../../common/editor/ui/AudioEditorApp.jsx';
+import { snapshotBootstrapCopyFields } from
+	'../../common/editor/ui/audio-editor-bootstrap-copy-snapshot.ts';
 import type { MonoConversionConfirmation } from
 	'../../common/editor/ui/dialogs/mono-conversion-confirmation.ts';
 import {
@@ -184,20 +186,7 @@ function framescaperCopy(value: Readonly<Record<string, unknown>>): Readonly<Rec
 }
 
 function snapshotCopy(value: unknown, label: string): Readonly<Record<string, unknown>> {
-	const record = plainRecord(value, label);
-	const keys = Reflect.ownKeys(record);
-	if (keys.length > 4_096 || keys.some((key) => typeof key !== 'string')) {
-		throw new RangeError(`${label} has an invalid field inventory.`);
-	}
-	const output: Record<string, unknown> = Object.create(null);
-	for (const key of keys as string[]) {
-		const descriptor = Object.getOwnPropertyDescriptor(record, key);
-		if (!descriptor?.enumerable || !Object.hasOwn(descriptor, 'value')) {
-			throw new TypeError(`${label}.${key} must be an own data property.`);
-		}
-		output[key] = descriptor.value;
-	}
-	return Object.freeze(output);
+	return snapshotBootstrapCopyFields(plainRecord(value, label), label, 'own data property');
 }
 
 function closedRecord<const Field extends string>(
