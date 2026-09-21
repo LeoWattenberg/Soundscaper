@@ -5,8 +5,10 @@ import {
 	takeCycleStableId,
 	takeCycleStableName,
 } from '../src/common/editor/controller/recording/internal/take-cycle/take-cycle-value-validation.ts';
+import { stableId as recoveryStableId } from '../src/common/editor/take-cycle-recovery-envelope-validation.ts';
 
 test('take-cycle stable IDs preserve configurable canonical bounds', () => {
+	assert.equal(recoveryStableId, takeCycleStableId);
 	assert.equal(takeCycleStableId('x'.repeat(256), 'capture ID'), 'x'.repeat(256));
 	assert.equal(takeCycleStableId('x'.repeat(160), 'take ID', 160), 'x'.repeat(160));
 	for (const [value, maximum] of [

@@ -36,6 +36,7 @@ import type {
 	TakeCycleRecordingServiceDependencies,
 	TakeCycleRecoveryRequest,
 } from './internal/take-cycle/take-cycle-recording-service-types.ts';
+import { takeCycleStableId as stableIdentity } from './internal/take-cycle/take-cycle-value-validation.ts';
 
 export type * from './internal/take-cycle/take-cycle-recording-service-types.ts';
 
@@ -504,15 +505,6 @@ function positiveSafeInteger(value: unknown, name: string): number {
 		throw new RangeError(`${name} must be a positive safe integer.`);
 	}
 	return Number(value);
-}
-
-function stableIdentity(value: unknown, name: string): string {
-	if (typeof value !== 'string' || !value.length || value !== value.trim()
-		|| value !== value.normalize('NFC') || value.length > 256
-		|| /[\u0000-\u001f\u007f]/u.test(value)) {
-		throw new TypeError(`${name} must be a canonical stable identity.`);
-	}
-	return value;
 }
 
 function throwIfAborted(signal: AbortSignal): void {

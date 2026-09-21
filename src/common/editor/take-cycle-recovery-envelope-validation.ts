@@ -1,5 +1,9 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { takeCycleStableId as stableId } from './controller/recording/internal/take-cycle/take-cycle-value-validation.ts';
+
+export { stableId };
+
 const SHA256_PATTERN = /^[a-f0-9]{64}$/u;
 
 export type TakeCycleDataRecord = Readonly<Record<string, unknown>>;
@@ -43,15 +47,6 @@ export function denseArray(value: unknown, name: string): readonly unknown[] {
 		}
 	}
 	return Object.freeze([...value]);
-}
-
-export function stableId(value: unknown, name: string): string {
-	if (typeof value !== 'string' || !value.length || value !== value.trim()
-		|| value !== value.normalize('NFC') || value.length > 256
-		|| /[\u0000-\u001f\u007f]/u.test(value)) {
-		throw new TypeError(`${name} must be a canonical stable identity.`);
-	}
-	return value;
 }
 
 export function digest(value: unknown, name: string): string {
