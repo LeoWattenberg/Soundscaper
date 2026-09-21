@@ -6,6 +6,7 @@ import { PROJECT_FEATURE_AUDIO_RENDERED_FALLBACK_IDS } from '../../../../project
 import type { ProjectFeatureAudioRenderedFallbackMetadata } from '../../../../project-feature-audio-rendered-fallback.ts';
 import { PROJECT_FEATURE_AUDIO_TRACK_RENDER_IDS } from '../../../../project-feature-audio-track-render-v1.ts';
 import { PROJECT_FEATURE_CAPABILITY_IDS } from '../../../../project-feature-capabilities.ts';
+import { isProjectFeatureRenderedFallbackQualified } from '../../../../project-feature-rendered-fallback-qualification.ts';
 import type {
 	ProjectFeatureRequirementsReport,
 	ProjectFeatureRequirementsReportItem,
@@ -302,15 +303,13 @@ function matchesFallback(
 	return Boolean(item
 		&& item.requirementId === metadata.requirementId
 		&& item.featureId === metadata.featureId
-		&& (
-			(metadata.role === 'project-audio-mix-v1'
-				&& (item.availability === 'unavailable' || item.availability === 'unknown'))
-			|| (metadata.role === 'audio-track-render-v1'
-				&& metadata.featureId === PROJECT_FEATURE_CAPABILITY_IDS.audioEffects
-				&& item.availability === 'unavailable')
-		)
-		&& item.declaredDisposition === 'rendered-fallback'
-		&& item.disposition === 'rendered-fallback'
+		&& isProjectFeatureRenderedFallbackQualified({
+			role: metadata.role,
+			featureId: item.featureId,
+			availability: item.availability,
+			declaredDisposition: item.declaredDisposition,
+			effectiveDisposition: item.disposition,
+		}, 'audio-export')
 		&& item.fallback?.kind === 'audio'
 		&& item.fallback.role === metadata.role
 		&& item.fallback.sourceId === metadata.sourceId

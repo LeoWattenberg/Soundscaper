@@ -10,6 +10,7 @@ import {
 } from './project-schema-version.ts';
 import { createDefaultMixerGraphV21 } from './mixer-graph-v21.ts';
 import { assertProjectFeatureRenderedFallbackManifestBinding } from './project-feature-rendered-fallback-manifest-binding.ts';
+import { isProjectFeatureRenderedFallbackQualified } from './project-feature-rendered-fallback-qualification.ts';
 import {
 	projectFeatureAudioTrackRenderV1Playback,
 	type ProjectFeatureAudioTrackRenderV1Metadata,
@@ -182,17 +183,16 @@ function qualifyingFallback(
 
 function isQualifyingItem(item: ProjectFeatureRequirementsReportItem): item is ProjectFeatureRequirementsReportItem &
 	Readonly<{ fallback: ProjectFeatureAudioMixFallback | ProjectFeatureAudioTrackRenderFallback }> {
-	if (item.declaredDisposition !== 'rendered-fallback'
-		|| item.disposition !== 'rendered-fallback'
-		|| item.fallback?.kind !== 'audio') return false;
-	if (item.fallback.role === 'project-audio-mix-v1') {
-		return item.availability === 'unavailable' || item.availability === 'unknown';
-	}
-	// The track relationship is first-party, so its feature is always known.
-	return item.fallback.role === 'audio-track-render-v1'
-		&& item.availability === 'unavailable'
-		&& (item.featureId === PROJECT_FEATURE_CAPABILITY_IDS.audioEffects
-			|| item.featureId === PROJECT_FEATURE_CAPABILITY_IDS.audioTrackFreeze);
+	const fallback = item.fallback;
+	return fallback?.kind === 'audio'
+		&& (fallback.role === 'project-audio-mix-v1' || fallback.role === 'audio-track-render-v1')
+		&& isProjectFeatureRenderedFallbackQualified({
+			role: fallback.role,
+			featureId: item.featureId,
+			availability: item.availability,
+			declaredDisposition: item.declaredDisposition,
+			effectiveDisposition: item.disposition,
+		}, 'audio-playback');
 }
 
 function isQualifiedTrackFallback(qualified: QualifiedFallback): qualified is QualifiedTrackFallback {

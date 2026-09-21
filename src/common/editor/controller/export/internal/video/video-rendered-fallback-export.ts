@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { PROJECT_FEATURE_CAPABILITY_IDS } from '../../../../project-feature-capabilities.ts';
+import { isProjectFeatureRenderedFallbackQualified } from '../../../../project-feature-rendered-fallback-qualification.ts';
 import type {
 	ProjectFeatureRequirementsReport,
 	ProjectFeatureRequirementsReportItem,
@@ -294,13 +295,13 @@ function matchesFallback(
 	return Boolean(item
 		&& item.requirementId === metadata.requirementId
 		&& item.featureId === metadata.featureId
-		&& (
-			(metadata.role === 'project-video-render-v1'
-				&& (item.availability === 'unavailable' || item.availability === 'unknown'))
-			|| (metadata.role === 'video-clip-render-v1' && item.availability === 'unavailable')
-		)
-		&& item.declaredDisposition === 'rendered-fallback'
-		&& item.disposition === 'rendered-fallback'
+		&& isProjectFeatureRenderedFallbackQualified({
+			role: metadata.role,
+			featureId: item.featureId,
+			availability: item.availability,
+			declaredDisposition: item.declaredDisposition,
+			effectiveDisposition: item.disposition,
+		}, 'video-export')
 		&& item.fallback?.kind === 'video'
 		&& item.fallback.role === metadata.role
 		&& item.fallback.sourceId === metadata.sourceId

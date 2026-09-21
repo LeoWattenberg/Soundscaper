@@ -344,6 +344,32 @@ test('an unknown closed whole-mix role receives the active playback indicator', 
 	assert.doesNotMatch(markup, /rendered-source|soundscaper:rendered-audio-fallback/iu);
 });
 
+test('an active track-freeze fallback receives the playback indicator', () => {
+	const markup = renderToStaticMarkup(React.createElement(ProjectFeatureCompatibilityReport, {
+		report: report(false, [item(
+			'audio-track-freeze',
+			PROJECT_FEATURE_CAPABILITY_IDS.audioTrackFreeze,
+			'Audio track freeze',
+			'unavailable',
+			'rendered-fallback',
+		)]),
+		copy: ENGLISH_COPY,
+		audioRenderedFallback: {
+			schemaVersion: 1,
+			role: 'audio-track-render-v1',
+			featureId: PROJECT_FEATURE_CAPABILITY_IDS.audioTrackFreeze,
+			requirementId: 'audio-track-freeze',
+			sourceId: 'frozen-source',
+			targetTrackId: 'dialogue',
+			clipId: 'soundscaper:rendered-audio-fallback:track-clip',
+		} satisfies ProjectFeatureAudioRenderedFallbackMetadata,
+	}));
+
+	assert.equal(markup.match(/data-project-feature-audio-rendered-fallback/gu)?.length, 1);
+	assert.match(markup, /Audio track freeze.*Rendered fallback active during editor playback/isu);
+	assert.doesNotMatch(markup, /frozen-source|dialogue|track-clip/iu);
+});
+
 test('video rendered fallback activation is localized and bound to its exact requirement', () => {
 	const metadata = {
 		schemaVersion: 1,

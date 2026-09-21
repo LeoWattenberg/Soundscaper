@@ -15,6 +15,7 @@ import type {
 } from '../../project-feature-audio-effect-bypass.ts';
 import type { ProjectFeatureAudioRenderedFallbackMetadata } from '../../project-feature-audio-rendered-fallback.ts';
 import { PROJECT_FEATURE_CAPABILITY_IDS } from '../../project-feature-capabilities.ts';
+import { isProjectFeatureRenderedFallbackQualified } from '../../project-feature-rendered-fallback-qualification.ts';
 import type { ProjectFeatureRequirementsReport } from '../../project-feature-requirements.ts';
 import type {
 	ProjectFeatureVideoEffectBypassMetadata,
@@ -228,15 +229,13 @@ function audioRenderedFallbackApplies(
 	return metadata?.schemaVersion === 1
 		&& item.featureId === metadata.featureId
 		&& item.requirementId === metadata.requirementId
-		&& (
-			(metadata.role === 'project-audio-mix-v1'
-				&& (item.availability === 'unavailable' || item.availability === 'unknown'))
-			|| (metadata.role === 'audio-track-render-v1'
-				&& metadata.featureId === PROJECT_FEATURE_CAPABILITY_IDS.audioEffects
-				&& item.availability === 'unavailable')
-		)
-		&& item.declaredDisposition === 'rendered-fallback'
-		&& item.effectiveDisposition === 'rendered-fallback';
+		&& isProjectFeatureRenderedFallbackQualified({
+			role: metadata.role,
+			featureId: item.featureId,
+			availability: item.availability,
+			declaredDisposition: item.declaredDisposition,
+			effectiveDisposition: item.effectiveDisposition,
+		}, 'audio-ui');
 }
 
 function videoRenderedFallbackApplies(
@@ -252,15 +251,13 @@ function videoRenderedFallbackApplies(
 	return metadata?.schemaVersion === 1
 		&& item.featureId === metadata.featureId
 		&& item.requirementId === metadata.requirementId
-		&& (
-			(metadata.role === 'project-video-render-v1'
-				&& (item.availability === 'unavailable' || item.availability === 'unknown'))
-			|| (metadata.role === 'video-clip-render-v1'
-				&& metadata.featureId === PROJECT_FEATURE_CAPABILITY_IDS.videoEffects
-				&& item.availability === 'unavailable')
-		)
-		&& item.declaredDisposition === 'rendered-fallback'
-		&& item.effectiveDisposition === 'rendered-fallback';
+		&& isProjectFeatureRenderedFallbackQualified({
+			role: metadata.role,
+			featureId: item.featureId,
+			availability: item.availability,
+			declaredDisposition: item.declaredDisposition,
+			effectiveDisposition: item.effectiveDisposition,
+		}, 'video-ui');
 }
 
 function audioEffectPlaceholders(

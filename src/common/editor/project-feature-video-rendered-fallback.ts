@@ -22,6 +22,7 @@ import {
 	type RationalRate,
 } from './timeline-time.ts';
 import { assertProjectFeatureRenderedFallbackManifestBinding } from './project-feature-rendered-fallback-manifest-binding.ts';
+import { isProjectFeatureRenderedFallbackQualified } from './project-feature-rendered-fallback-qualification.ts';
 
 export const PROJECT_FEATURE_VIDEO_RENDERED_FALLBACK_IDS = Object.freeze({
 	track: 'framescaper:rendered-video-fallback:track',
@@ -153,16 +154,16 @@ function isQualifiedClipFallback(value: QualifiedFallback): value is QualifiedCl
 
 function isQualifyingItem(item: ProjectFeatureRequirementsReportItem): item is ProjectFeatureRequirementsReportItem &
 	Readonly<{ fallback: ProjectFeatureVideoRenderFallback | ProjectFeatureVideoClipRenderFallback }> {
-	return item.declaredDisposition === 'rendered-fallback'
-		&& item.disposition === 'rendered-fallback'
-		&& item.fallback?.kind === 'video'
-		&& (
-			(item.fallback.role === 'project-video-render-v1'
-				&& (item.availability === 'unavailable' || item.availability === 'unknown'))
-			|| (item.fallback.role === 'video-clip-render-v1'
-				&& item.availability === 'unavailable'
-				&& item.featureId === PROJECT_FEATURE_CAPABILITY_IDS.videoEffects)
-		);
+	const fallback = item.fallback;
+	return fallback?.kind === 'video'
+		&& (fallback.role === 'project-video-render-v1' || fallback.role === 'video-clip-render-v1')
+		&& isProjectFeatureRenderedFallbackQualified({
+			role: fallback.role,
+			featureId: item.featureId,
+			availability: item.availability,
+			declaredDisposition: item.declaredDisposition,
+			effectiveDisposition: item.disposition,
+		}, 'video-playback');
 }
 
 function fallbackSource(sources: readonly unknown[], sourceId: string): RecordValue {
