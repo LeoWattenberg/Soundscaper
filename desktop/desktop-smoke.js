@@ -7,14 +7,12 @@ import {
 	DESKTOP_DIRECT_WAV_SMOKE_STAGE_KEY,
 	DESKTOP_DIRECT_WAV_SMOKE_TIMEOUT_MS,
 	createDirectWavSmokeTargetHarness,
-	runDirectWavRendererSmoke,
 	validateDirectWavRendererResult,
 	validateDirectWavSmokeResult,
 } from './direct-wav-smoke.js';
 import {
 	DESKTOP_SCAPE_OPEN_SMOKE_MODE,
 	DESKTOP_SCAPE_OPEN_SMOKE_PREFIX,
-	runScapeOpenRendererSmoke,
 	validateScapeOpenProjectDescriptor,
 	validateScapeOpenRendererResult,
 	validateScapeOpenSmokeResult,
@@ -22,17 +20,14 @@ import {
 import {
 	DESKTOP_SCAPE_REOPEN_SMOKE_MODE,
 	DESKTOP_SCAPE_REOPEN_SMOKE_PREFIX,
-	runScapeReopenRendererSmoke,
 	validateScapeReopenRendererResult,
 	validateScapeReopenSmokeResult,
 } from './scape-reopen-smoke.js';
 import {
 	FRAMESCAPER_BASELINE_ARTIFACT_LIBRARY_IDENTITY,
 	joinFramescaperBaselineArtifactEvidence,
-	runFramescaperBaselineArtifactRendererSmoke,
 } from './framescaper-baseline-artifact-smoke.js';
 import {
-	runFramescaperCaptureArtifactRendererSmoke,
 	validateFramescaperCaptureArtifactEvidence,
 } from './framescaper-capture-artifact-smoke.js';
 import {
@@ -46,7 +41,6 @@ import {
 	DESKTOP_VIDEO_TIMING_PROBE_TIMEOUT_MS,
 	createDesktopVideoTimingProbeFileHarness,
 	createDesktopVideoTimingProbeStorageProfile,
-	runDesktopVideoTimingProbeRendererSmoke,
 	validateDesktopVideoTimingProbeResult,
 } from './video-timing-probe-smoke.js';
 import {
@@ -57,62 +51,13 @@ import {
 } from './framescaper-web-vcr-smoke-plan.js';
 import { createFramescaperWebVcrSmokeSession } from './framescaper-web-vcr-smoke-session.js';
 import { FRAMESCAPER_WEB_VCR_SMOKE_STAGE_KEY } from './framescaper-web-vcr-renderer-smoke.js';
+import {
+	executeDesktopRendererSmoke,
+	readDesktopRendererSmokeStallWitness,
+} from './renderer-smoke-execution.js';
 import { runSoundscaperProfessionalNativeUtilitySmoke } from './soundscaper-professional-native-utility-smoke.mjs';
 
-const ARTIFACT_SMOKE_SCRIPT = `(async () => ({
-	url: location.href,
-	title: document.title,
-	bridge: Object.keys(window.soundscaperDesktop?.v1 || {}).sort(),
-	environment: await window.soundscaperDesktop?.v1?.getEnvironment?.(),
-	hasEditor: Boolean(document.querySelector('main')),
-	nodeExposed: typeof globalThis.process !== 'undefined' || typeof globalThis.require !== 'undefined',
-	saveOwnerReady: await window.soundscaperDesktop?.v1?.beginWrite?.({
-		targetId: '0'.repeat(48),
-		size: 0,
-	}).then(() => false, (error) => /Save target expired or was already used/u.test(String(error?.message || error))),
-}))()`;
 
-/** Observe the renderer-owned chrome from the actual packaged application window. */
-export async function collectDesktopChromeArtifactWitness(scope) {
-	const platform = (await scope.scapeDesktop?.v1?.getEnvironment?.())?.platform;
-	const accessKeyReady = (value) => platform === 'darwin'
-		? value === null : typeof value === 'string' && /^Alt\+[\p{Letter}\p{Number}]$/u.test(value);
-	const deadline = Date.now() + 5_000;
-	let witness;
-	do {
-		const document = scope.document;
-		const editor = document?.querySelector?.('[data-audio-editor-bound="true"]');
-		const shell = document?.querySelector?.('.website-site-shell');
-		const header = editor?.querySelector?.('[data-desktop-chrome="true"]');
-		const titlebar = header?.querySelector?.('.application-header__windows-titlebar');
-		const actions = header?.querySelector?.('.kw-audio-editor__window-actions');
-		const buttons = [...(actions?.querySelectorAll?.('button') || [])];
-		const actionFor = (button) => button.classList.contains('kw-audio-editor__fullscreen')
-			? 'fullscreen' : button.dataset.windowControl;
-		const bounds = editor?.getBoundingClientRect?.();
-		const editorStyle = editor ? scope.getComputedStyle(editor) : null;
-		const region = (element) => element
-			? scope.getComputedStyle(element).getPropertyValue('-webkit-app-region').trim() : '';
-		const file = header?.querySelector?.('[data-application-menubar] [role="menuitem"]');
-		witness = {
-			documentDesktop: document?.documentElement?.dataset?.desktop === 'true',
-			shellDesktop: shell?.classList?.contains?.('website-desktop') === true,
-			fullBleed: Boolean(bounds && Math.abs(bounds.left) < 1 && Math.abs(bounds.top) < 1
-				&& Math.abs(bounds.right - scope.innerWidth) < 1 && Math.abs(bounds.bottom - scope.innerHeight) < 1
-				&& editorStyle?.borderTopWidth === '0px' && editorStyle?.borderTopLeftRadius === '0px'),
-			customHeader: Boolean(header),
-			titlebarDraggable: region(titlebar) === 'drag',
-			controlsNoDrag: region(actions) === 'no-drag',
-			controlsVisible: buttons.length === 4 && buttons.every((button) => button.getClientRects().length > 0),
-			maximizeEnabled: buttons.some((button) => ['maximize', 'restore'].includes(button.dataset.windowControl) && !button.disabled),
-			controlOrder: buttons.map(actionFor),
-			fileAccessKey: file?.getAttribute?.('aria-keyshortcuts') ?? null,
-		};
-		if (witness.customHeader && witness.controlsVisible && accessKeyReady(witness.fileAccessKey)) break;
-		await new Promise((resolve) => scope.setTimeout(resolve, 25));
-	} while (Date.now() < deadline);
-	return Object.freeze(witness);
-}
 
 export function parseDesktopSmokeConfiguration(argv) {
 	return parseConfiguration(argv);
@@ -193,7 +138,8 @@ export function createDesktopSmokeProbe(options) {
 				const stageKey = configuration.mode === DESKTOP_DIRECT_WAV_SMOKE_MODE
 					? DESKTOP_DIRECT_WAV_SMOKE_STAGE_KEY
 					: webVcrSmokeSession ? FRAMESCAPER_WEB_VCR_SMOKE_STAGE_KEY : null;
-				const stage = stageKey ? await stalledStage(window, { schedule, cancel }, 5_000, stageKey) : null;
+				const stage = stageKey
+					? await stalledStage(window, { schedule, cancel }, 5_000, stageKey, productId) : null;
 				await fail(`${prefixFor(configuration.mode)} timed out${stage ? ` waiting for ${stage}` : ''}`);
 			})();
 		}, timeoutFor(configuration.mode));
@@ -227,22 +173,22 @@ export function createDesktopSmokeProbe(options) {
 		if (started || finished) return;
 		started = true;
 		try {
-			const execution = productId === 'framescaper'
-				? await window.webContents.executeJavaScript(
-					`(${runFramescaperBaselineArtifactRendererSmoke.toString()})(globalThis, ${JSON.stringify({
+			const execution = await executeDesktopRendererSmoke(window.webContents, {
+				productId,
+				operation: productId === 'framescaper' ? 'artifact-baseline' : 'artifact-soundscaper',
+				arguments: productId === 'framescaper' ? [{
 						appName,
 						appOrigin,
 						library: FRAMESCAPER_BASELINE_ARTIFACT_LIBRARY_IDENTITY,
-					})})`,
-				)
-				: await window.webContents.executeJavaScript(ARTIFACT_SMOKE_SCRIPT);
-			const desktopChrome = await window.webContents.executeJavaScript(
-				`(${collectDesktopChromeArtifactWitness.toString()})(globalThis)`, true,
-			);
+					}] : [],
+			});
+			const desktopChrome = await executeDesktopRendererSmoke(window.webContents, {
+				productId, operation: 'artifact-chrome', userGesture: true,
+			});
 			const captureExecution = productId === 'framescaper'
-				? await window.webContents.executeJavaScript(
-					`(${runFramescaperCaptureArtifactRendererSmoke.toString()})(globalThis)`, true,
-				)
+				? await executeDesktopRendererSmoke(window.webContents, {
+					productId, operation: 'artifact-capture', userGesture: true,
+				})
 				: undefined;
 			const result = productId === 'framescaper'
 				? {
@@ -309,10 +255,9 @@ export function createDesktopSmokeProbe(options) {
 			}
 			if (configuration.mode === DESKTOP_DIRECT_WAV_SMOKE_MODE) {
 				const renderer = validateDirectWavRendererResult(
-					await attachedWindow.webContents.executeJavaScript(
-						`(${runDirectWavRendererSmoke.toString()})(globalThis, ${JSON.stringify(plan)})`,
-						true,
-					),
+					await executeDesktopRendererSmoke(attachedWindow.webContents, {
+						productId, operation: 'direct-wav', arguments: [plan], userGesture: true,
+					}),
 				);
 				const native = await directWavTargetHarness.evidence();
 				const payload = validateDirectWavSmokeResult({
@@ -329,9 +274,9 @@ export function createDesktopSmokeProbe(options) {
 			}
 			if (configuration.mode === DESKTOP_SCAPE_OPEN_SMOKE_MODE) {
 				const renderer = validateScapeOpenRendererResult(
-					await attachedWindow.webContents.executeJavaScript(
-						`(${runScapeOpenRendererSmoke.toString()})(globalThis, ${JSON.stringify(plan)})`,
-					),
+					await executeDesktopRendererSmoke(attachedWindow.webContents, {
+						productId, operation: 'scape-open', arguments: [plan],
+					}),
 					plan,
 				);
 				if (!scapeDescriptorObservation) {
@@ -353,9 +298,9 @@ export function createDesktopSmokeProbe(options) {
 			}
 			if (configuration.mode === DESKTOP_SCAPE_REOPEN_SMOKE_MODE) {
 				const execution = validateScapeReopenRendererResult(
-					await attachedWindow.webContents.executeJavaScript(
-						`(${runScapeReopenRendererSmoke.toString()})(globalThis, ${JSON.stringify(plan)})`, true,
-					),
+					await executeDesktopRendererSmoke(attachedWindow.webContents, {
+						productId, operation: 'scape-reopen', arguments: [plan], userGesture: true,
+					}),
 					plan,
 				);
 				const payload = validateScapeReopenSmokeResult({ ...plan, ...execution }, plan);
@@ -364,9 +309,13 @@ export function createDesktopSmokeProbe(options) {
 				return;
 			}
 			if (configuration.mode === DESKTOP_VIDEO_TIMING_PROBE_MODE) {
-				const rendererExpression = `(${runDesktopVideoTimingProbeRendererSmoke.toString()})(globalThis, ${JSON.stringify(plan)}, ${JSON.stringify(videoTimingStorageProfile)})`;
 				const payload = validateDesktopVideoTimingProbeResult(
-					await executeRendererSmoke(attachedWindow.webContents, rendererExpression, true),
+					await executeDesktopRendererSmoke(attachedWindow.webContents, {
+						productId,
+						operation: 'video-timing',
+						arguments: [plan, videoTimingStorageProfile],
+						userGesture: true,
+					}),
 					plan,
 				);
 				log(`${DESKTOP_VIDEO_TIMING_PROBE_PREFIX} ${JSON.stringify(payload)}`);
@@ -460,6 +409,7 @@ async function stalledStage(
 	{ schedule, cancel },
 	budgetMs = 5_000,
 	stageKey = DESKTOP_DIRECT_WAV_SMOKE_STAGE_KEY,
+	productId = 'soundscaper',
 ) {
 	const contents = window?.webContents;
 	if (!contents || typeof contents.executeJavaScript !== 'function' || contents.isDestroyed?.()) return null;
@@ -468,13 +418,11 @@ async function stalledStage(
 		// The stage names what stalled; the editor's status line and the export
 		// progress say whether a render was starved or a step never fired.
 		const stage = await Promise.race([
-			contents.executeJavaScript(`(() => {
-				const stage = globalThis[${JSON.stringify(stageKey)}] ?? null;
-				if (typeof stage !== 'string' || !stage) return null;
-				const status = String(document.querySelector('[data-status]')?.textContent || '').replace(/\\s+/gu, ' ').trim();
-				const progress = document.querySelector('[role="progressbar"]')?.getAttribute('aria-valuenow') ?? null;
-				return stage + (status ? ' (status: ' + status.slice(0, 160) + ')' : '') + (progress !== null ? ' (progress: ' + progress + ')' : '');
-			})()`, true),
+			readDesktopRendererSmokeStallWitness(contents, {
+				productId,
+				stageKey,
+				userGesture: true,
+			}),
 			new Promise((resolve) => { timer = schedule(() => resolve(null), budgetMs); }),
 		]);
 		return typeof stage === 'string' && stage ? stage.slice(0, 400) : null;
@@ -494,24 +442,6 @@ function prefixFor(mode) {
 	if (mode === FRAMESCAPER_WEB_VCR_DORMANT_SMOKE_MODE) return FRAMESCAPER_WEB_VCR_DORMANT_SMOKE_PREFIX.trimEnd();
 	if (mode === FRAMESCAPER_WEB_VCR_PACKAGED_SMOKE_MODE) return FRAMESCAPER_WEB_VCR_PACKAGED_SMOKE_PREFIX.trimEnd();
 	return 'SOUNDSCAPER_DESKTOP_SMOKE';
-}
-
-async function executeRendererSmoke(webContents, expression, userGesture = false) {
-	const envelope = await webContents.executeJavaScript(`(async () => {
-		try {
-			return { status: 'fulfilled', value: await (${expression}) };
-		} catch (error) {
-			const detail = typeof error?.message === 'string' ? error.message : String(error);
-			return { status: 'rejected', message: detail.slice(0, 2048) };
-		}
-	})()`, userGesture);
-	if (envelope?.status === 'rejected') {
-		throw new Error(typeof envelope.message === 'string' && envelope.message
-			? envelope.message
-			: 'Renderer smoke failed without diagnostic detail.');
-	}
-	if (envelope?.status !== 'fulfilled') throw new TypeError('Renderer smoke returned a malformed diagnostic envelope.');
-	return envelope.value;
 }
 
 function cleanError(error) {

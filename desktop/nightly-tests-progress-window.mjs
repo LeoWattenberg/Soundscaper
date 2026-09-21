@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { createHash } from 'node:crypto';
 import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 
@@ -14,6 +15,10 @@ const ASSETS = Object.freeze([
 ]);
 const CSP = "default-src 'none'; script-src 'self'; style-src 'self'; base-uri 'none'; form-action 'none'";
 const TITLE = 'Soundscaper Nightly Tests';
+const PROGRESS_UPDATE_RECIPE = Object.freeze({
+	marker: 'soundscaper-e2e-recipe:nightly-progress-update-v1',
+	pathPrefix: '__e2e-excluded__/nightly-progress-update-v1-',
+});
 
 /** Open the attended runner surface before any test processes are launched. */
 export async function createDesktopNightlyTestsProgressWindow({ BrowserWindow, protocol, initialProgress, onError = () => undefined }) {
@@ -92,9 +97,8 @@ export async function createDesktopNightlyTestsProgressWindow({ BrowserWindow, p
 		} catch (error) {
 			onError(error);
 		}
-		const payload = JSON.stringify(progress).replaceAll('<', '\\u003c');
 		void window.webContents.executeJavaScript(
-			`globalThis.renderNightlyTestsProgress(${payload})`,
+			createDesktopNightlyTestsProgressUpdateSource(progress),
 			false,
 		).catch(onError);
 	};
@@ -108,9 +112,58 @@ export async function createDesktopNightlyTestsProgressWindow({ BrowserWindow, p
 	});
 }
 
+/** Build the sole harness-only expression admitted by the progress window. */
+export function createDesktopNightlyTestsProgressUpdateSource(value) {
+	if (!value || typeof value !== 'object' || Array.isArray(value)
+		|| JSON.stringify(Reflect.ownKeys(value).sort()) !== '["completed","label","total"]') {
+		throw new TypeError('Nightly tests progress must be a closed record.');
+	}
+	const progress = validateDesktopNightlyTestsProgress(value);
+	const payload = JSON.stringify(progress)
+		.replaceAll('<', '\\u003c')
+		.replaceAll('\u2028', '\\u2028')
+		.replaceAll('\u2029', '\\u2029');
+	const body = `/* ${PROGRESS_UPDATE_RECIPE.marker} */\nglobalThis.renderNightlyTestsProgress(${payload})`;
+	const digest = createHash('sha256').update(body, 'utf8').digest('hex');
+	const path = `${PROGRESS_UPDATE_RECIPE.pathPrefix}${digest}.js`;
+	return `${body}\n//# sourceURL=${NIGHTLY_TESTS_PROGRESS_DOCUMENT_URL}${path}`;
+}
+
+/** Authenticate the exact closed update recipe used by an archived harness. */
+export function validateDesktopNightlyTestsProgressUpdateSource(source) {
+	if (typeof source !== 'string') throw new TypeError('Nightly progress update source is invalid.');
+	const suffixPattern = new RegExp(
+		`\\n//[#] sourceURL=${escapeRegExp(NIGHTLY_TESTS_PROGRESS_DOCUMENT_URL)}`
+		+ `${escapeRegExp(PROGRESS_UPDATE_RECIPE.pathPrefix)}([a-f\\d]{64})\\.js$`,
+		'u',
+	);
+	const match = suffixPattern.exec(source);
+	if (match === null) throw new Error('Nightly progress update has no canonical source URL.');
+	const body = source.slice(0, match.index);
+	if (body.includes('sourceURL=')
+		|| createHash('sha256').update(body, 'utf8').digest('hex') !== match[1]) {
+		throw new Error('Nightly progress update source attestation failed.');
+	}
+	const prefix = `/* ${PROGRESS_UPDATE_RECIPE.marker} */\nglobalThis.renderNightlyTestsProgress(`;
+	if (!body.startsWith(prefix) || !body.endsWith(')')) {
+		throw new Error('Nightly progress update does not match its closed recipe.');
+	}
+	let progress;
+	try { progress = JSON.parse(body.slice(prefix.length, -1)); } catch {
+		throw new Error('Nightly progress update payload is malformed.');
+	}
+	const canonical = createDesktopNightlyTestsProgressUpdateSource(progress);
+	if (canonical !== source) throw new Error('Nightly progress update is not canonical.');
+	return progress;
+}
+
 function progressMode(status) {
 	if (status === 'passed') return 'normal';
 	if (status === 'interrupted') return 'paused';
 	if (status === 'failed' || status === 'error') return 'error';
 	throw new TypeError('Nightly tests terminal status is invalid.');
+}
+
+function escapeRegExp(value) {
+	return value.replace(/[.*+?^${}()|[\]\\]/gu, '\\$&');
 }

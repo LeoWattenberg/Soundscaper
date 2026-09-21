@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { createHash } from 'node:crypto';
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { join, posix, resolve, win32 } from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -8,6 +9,7 @@ import {
 	E2E_REPOSITORY_URL_PREFIX,
 } from './e2e-coverage-contract.mjs';
 import { E2E_PRODUCTS, normalizeE2ESourceMap } from './e2e-coverage-build-evidence.mjs';
+import { validateDesktopRendererDynamicSource } from '../../desktop/renderer-smoke-execution.js';
 
 const SCRIPT_PATTERN = /\.(?:c|m)?js$/u;
 
@@ -23,6 +25,7 @@ export function assembleE2ERawProfiles({ runRoot, evidence, repositoryRoot }) {
 		directory: join(runRoot, 'coverage/v8-packaged'),
 		evidence,
 		profiles,
+		repositoryRoot,
 	});
 	return profiles;
 }
@@ -76,7 +79,7 @@ function assembleBrowserProfiles({ directory, evidence, profiles, repositoryRoot
 	attachObservedMaps(profiles, observed);
 }
 
-function assemblePackagedProfiles({ directory, evidence, profiles }) {
+function assemblePackagedProfiles({ directory, evidence, profiles, repositoryRoot }) {
 	const files = readProfiles(directory, 'packaged');
 	const cdp = files.filter(({ profile }) => profile['soundscaper-packaged-runtime'] !== undefined);
 	const runtimes = cdp.map(({ name, profile }) => packagedRuntime(profile, name));
@@ -99,7 +102,7 @@ function assemblePackagedProfiles({ directory, evidence, profiles }) {
 	))) {
 		const classified = [];
 		for (const entry of resultEntries(profile.result, `packaged profile ${name}`)) {
-			const match = classifyNodeEntry(entry, evidence, runtimes);
+			const match = classifyNodeEntry(entry, evidence, runtimes, repositoryRoot);
 			if (match !== null) classified.push(match);
 		}
 		if (classified.length === 0) continue;
@@ -123,6 +126,14 @@ function classifyCdpEntry({ entry, evidence, profile, runtime }) {
 	let surface;
 	if (entry.url.startsWith(`${runtime.appOrigin}/`)) {
 		const path = decodedUrlPath(entry.url);
+		if (path.startsWith('__e2e-excluded__/')) {
+			validateDesktopRendererDynamicSource({
+				path,
+				productId,
+				source: profile['script-source-cache']?.[entry.url],
+			});
+			return null;
+		}
 		script = evidence.electron.get(productId).scriptsByArtifactPath.get(`renderer/${path}`);
 		surface = electronSurface(productId, 'renderer');
 	} else if (origin(entry.url) === runtime.baseOrigin) {
@@ -146,10 +157,14 @@ function classifyCdpEntry({ entry, evidence, profile, runtime }) {
 	return { entry: { ...entry, url: script.coverageUrl }, script, surface };
 }
 
-function classifyNodeEntry(entry, evidence, runtimes) {
+function classifyNodeEntry(entry, evidence, runtimes, repositoryRoot) {
 	// NODE_V8_COVERAGE carries URLs and ranges, but no script-source cache. Bind
 	// those URLs to the exact preserved installed path; the evidence manifest,
 	// rather than the raw profile alone, authenticates the executable bytes.
+	if (entry.url.startsWith('data:')) {
+		attestPinnedVendorDataUrl(entry.url, ffmpegCoreJavascriptPin(repositoryRoot));
+		return null;
+	}
 	const matches = [];
 	for (const runtime of runtimes) {
 		const packagedPath = installedPackagedPath(entry.url, runtime);
@@ -175,6 +190,39 @@ function classifyNodeEntry(entry, evidence, runtimes) {
 	const unique = uniqueMatches(matches);
 	if (unique.length > 1) throw new Error(`Packaged script ${entry.url} matches more than one product runtime.`);
 	return unique[0] ?? null;
+}
+
+/** Decode a source-less vendor module and bind it to the exact shipped pin. */
+export function attestPinnedVendorDataUrl(url, descriptor) {
+	if (typeof url !== 'string' || !url.startsWith('data:')) return false;
+	const prefix = 'data:text/javascript;base64,';
+	if (!url.startsWith(prefix) || !descriptor || typeof descriptor !== 'object') {
+		throw new Error('Packaged coverage contains an unapproved dynamic data: script.');
+	}
+	const encoded = url.slice(prefix.length);
+	if (encoded === '' || !/^[A-Za-z\d+/]+={0,2}$/u.test(encoded)) {
+		throw new Error('Packaged coverage contains a non-canonical vendor data: script.');
+	}
+	const bytes = Buffer.from(encoded, 'base64');
+	if (bytes.toString('base64') !== encoded
+		|| bytes.byteLength !== descriptor.byteLength
+		|| createHash('sha256').update(bytes).digest('hex') !== descriptor.sha256) {
+		throw new Error('Packaged coverage vendor data: script does not match the pinned FFmpeg JavaScript.');
+	}
+	return true;
+}
+
+function ffmpegCoreJavascriptPin(repositoryRoot) {
+	const manifest = readJson(
+		resolve(repositoryRoot, 'config/ffmpeg-runtime-manifest.json'),
+		'FFmpeg runtime manifest',
+	);
+	const descriptor = manifest?.runtime?.files?.find(({ name }) => name === 'ffmpeg-core.js');
+	if (!descriptor || !Number.isSafeInteger(descriptor.byteLength) || descriptor.byteLength <= 0
+		|| typeof descriptor.sha256 !== 'string' || !/^[a-f\d]{64}$/u.test(descriptor.sha256)) {
+		throw new Error('FFmpeg runtime manifest has no pinned JavaScript payload.');
+	}
+	return Object.freeze({ byteLength: descriptor.byteLength, sha256: descriptor.sha256 });
 }
 
 function packagedRuntime(profile, name) {

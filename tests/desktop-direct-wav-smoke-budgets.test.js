@@ -11,9 +11,10 @@ import {
 import {
 	DESKTOP_DIRECT_WAV_SMOKE_STAGE_KEY,
 	DESKTOP_DIRECT_WAV_SMOKE_TIMEOUT_MS,
-	directWavRendererSmokeContract,
-	runDirectWavRendererSmoke,
 } from '../desktop/direct-wav-smoke.js';
+import {
+	runDirectWavRendererSmoke,
+} from '../desktop/direct-wav-renderer-smoke.js';
 import { createRendererScope } from './helpers/desktop-direct-wav-renderer-scope.js';
 
 const TOKEN = '0123456789abcdef0123456789abcdef';
@@ -25,7 +26,7 @@ test('each direct-WAV timeout outlasts the one it supervises', async () => {
 	// which is how the packaged smoke came to report only "timed out". Every
 	// stage draws its window from the routine's own table, so none of them can
 	// contribute time these budgets have not counted.
-	const { stageWindows } = await directWavRendererSmokeContract();
+	const { stageWindows } = await runDirectWavRendererSmoke();
 	assert.equal(Object.isFrozen(stageWindows), true);
 	const windows = Object.values(stageWindows);
 	assert.ok(windows.length >= 4, `expected the renderer stage windows to be declared, found ${windows.length}`);
@@ -65,9 +66,8 @@ test('the direct-WAV driver bound is the application watchdog plus its declared 
 
 test('the direct-WAV watchdog reads the stage marker the renderer smoke writes', async () => {
 	// The watchdog names the stalled stage by reading this key out of the
-	// renderer, and the renderer smoke is stringified rather than imported, so
-	// nothing but this test holds the two ends of that key together.
-	const contract = await directWavRendererSmokeContract();
+	// renderer, so this test holds the main and static renderer ends together.
+	const contract = await runDirectWavRendererSmoke();
 	assert.equal(Object.isFrozen(contract), true);
 	assert.equal(contract.stageKey, DESKTOP_DIRECT_WAV_SMOKE_STAGE_KEY);
 

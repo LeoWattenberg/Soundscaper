@@ -1,10 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import {
-	FRAMESCAPER_WEB_VCR_SMOKE_CAPTURE_GESTURE_KEY,
-	FRAMESCAPER_WEB_VCR_SMOKE_STAGE_KEY,
-	runFramescaperWebVcrDormantRendererSmoke,
-	runFramescaperWebVcrPackagedRendererSmoke,
 	validateFramescaperWebVcrDormantSmokeResult,
 	validateFramescaperWebVcrPackagedRendererSmokeResult,
 	validateFramescaperWebVcrPackagedSmokeResult,
@@ -15,6 +11,11 @@ import {
 	FRAMESCAPER_WEB_VCR_PACKAGED_SMOKE_MODE,
 	FRAMESCAPER_WEB_VCR_PACKAGED_SMOKE_PREFIX,
 } from './framescaper-web-vcr-smoke-plan.js';
+import {
+	executeDesktopRendererSmoke,
+	invokeFramescaperWebVcrSmokeGesture,
+	readFramescaperWebVcrSmokeStage,
+} from './renderer-smoke-execution.js';
 
 export function createFramescaperWebVcrSmokeSession(configuration) {
 	const mode = configuration?.mode;
@@ -25,9 +26,6 @@ export function createFramescaperWebVcrSmokeSession(configuration) {
 		throw new TypeError('Framescaper Web VCR smoke session requires its exact plan.');
 	}
 	const dormant = mode === FRAMESCAPER_WEB_VCR_DORMANT_SMOKE_MODE;
-	const runner = dormant
-		? runFramescaperWebVcrDormantRendererSmoke
-		: runFramescaperWebVcrPackagedRendererSmoke;
 	const validate = dormant
 		? validateFramescaperWebVcrDormantSmokeResult
 		: validateFramescaperWebVcrPackagedRendererSmokeResult;
@@ -63,30 +61,16 @@ export function createFramescaperWebVcrSmokeSession(configuration) {
 			}
 			completed = true;
 			try {
-				const execution = webContents.executeJavaScript(
-					`(async () => {
-						try {
-							return { status: 'fulfilled', value: await (${runner.toString()})(globalThis, ${JSON.stringify(plan)}) };
-						} catch (error) {
-							const message = typeof error?.message === 'string' ? error.message : String(error);
-							const stage = globalThis[${JSON.stringify(FRAMESCAPER_WEB_VCR_SMOKE_STAGE_KEY)}];
-							return { status: 'rejected', message: message.slice(0, 2048), stage };
-						}
-					})()`,
-					true,
-				);
+				const execution = executeDesktopRendererSmoke(webContents, {
+					productId: 'framescaper',
+					operation: dormant ? 'web-vcr-dormant' : 'web-vcr-packaged',
+					arguments: [plan],
+					userGesture: true,
+				});
 				if (!dormant) await driveCaptureGestures(webContents, execution, {
 					pendingDisplayWitnesses, capturedDisplayWitnesses,
 				});
-				const envelope = await execution;
-				if (envelope?.status === 'rejected') {
-					const stage = typeof envelope.stage === 'string' ? ` at stage ${envelope.stage}` : '';
-					throw new Error(`${String(envelope.message || 'Renderer smoke failed')}${stage}`);
-				}
-				if (envelope?.status !== 'fulfilled') {
-					throw new TypeError('Framescaper Web VCR renderer smoke returned a malformed envelope.');
-				}
-				const renderer = validate(envelope.value, plan);
+				const renderer = validate(await execution, plan);
 				if (dormant) return renderer;
 				while (pendingDisplayWitnesses.length > 0 && capturedDisplayWitnesses.length < 2) {
 					capturedDisplayWitnesses.push(pendingDisplayWitnesses.shift());
@@ -117,15 +101,10 @@ async function driveCaptureGestures(webContents, execution, witnesses) {
 		const deadline = Date.now() + 20_000;
 		let invoked = false;
 		while (!settled && Date.now() < deadline) {
-			const stage = await webContents.executeJavaScript(
-				`globalThis[${JSON.stringify(FRAMESCAPER_WEB_VCR_SMOKE_STAGE_KEY)}] ?? null`,
-			);
+			const stage = await readFramescaperWebVcrSmokeStage(webContents);
 			if (stage === expected) {
 				webContents.focus();
-				const accepted = await webContents.executeJavaScript(`(() => {
-					const invoke = globalThis[${JSON.stringify(FRAMESCAPER_WEB_VCR_SMOKE_CAPTURE_GESTURE_KEY)}];
-					return typeof invoke === 'function' && invoke() === true;
-				})()`, true);
+				const accepted = await invokeFramescaperWebVcrSmokeGesture(webContents);
 				if (accepted !== true) throw new Error(`Web VCR smoke capture gesture ${expected} was not armed.`);
 				await captureDisplayWitness(execution, settled, witnesses, expected);
 				invoked = true;

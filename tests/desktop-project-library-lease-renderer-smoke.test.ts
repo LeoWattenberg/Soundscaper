@@ -8,7 +8,7 @@ import test from 'node:test';
 
 import {
 	runDesktopProjectLibraryLeaseRendererSmoke,
-} from '../desktop/project-library-lease-smoke.js';
+} from '../desktop/project-library-lease-renderer-smoke.js';
 import {
 	createDesktopProjectLibraryLeaseMatrixDocument,
 } from '../scripts/lib/desktop-project-library-lease-matrix.mjs';

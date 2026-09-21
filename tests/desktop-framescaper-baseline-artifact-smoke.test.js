@@ -8,8 +8,10 @@ import vm from 'node:vm';
 import { createDesktopSmokeProbe } from '../desktop/desktop-smoke.js';
 import {
 	FRAMESCAPER_BASELINE_ARTIFACT_LIBRARY_IDENTITY,
-	runFramescaperBaselineArtifactRendererSmoke,
 } from '../desktop/framescaper-baseline-artifact-smoke.js';
+import {
+	runFramescaperBaselineArtifactRendererSmoke,
+} from '../desktop/framescaper-baseline-artifact-renderer-smoke.js';
 
 test('Framescaper artifact renderer witnesses the exact ready UI, baseline preload, handshake, and baseline bundle', async () => {
 	const fixture = rendererFixture();
@@ -293,7 +295,10 @@ function fakeWindow(...executionResults) {
 		once(name, listener) { listeners.set(name, listener); },
 		async executeJavaScript(source) {
 			this.executions.push(source);
-			return structuredClone(executionResults[executionIndex++]);
+			return {
+				status: 'fulfilled',
+				value: structuredClone(executionResults[executionIndex++]),
+			};
 		},
 		async emit(name, ...args) {
 			const listener = listeners.get(name);

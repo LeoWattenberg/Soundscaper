@@ -5,8 +5,8 @@ export async function runDirectWavRendererSmoke(scope, plan) {
 	// The supervising watchdog in main has to outlast every window a stage can
 	// wait out, so the windows are one table rather than call-site literals and
 	// waitFor refuses any window the table does not declare. This function is
-	// stringified into the renderer, so the table and the stage marker key are
-	// declared here; a scopeless call reports both to direct-wav-smoke.js.
+	// shipped in the static renderer smoke module, so the table and the stage
+	// marker key are declared here; a scopeless call reports both to tests.
 	const stageWindows = Object.freeze({
 		stage: 45_000,
 		fixtureImport: 30_000,

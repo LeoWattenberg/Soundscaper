@@ -14,6 +14,9 @@ import {
 	E2E_REPOSITORY_URL_PREFIX,
 } from './e2e-coverage-contract.mjs';
 import { revisionBoundSource } from './e2e-coverage-integrity.mjs';
+import {
+	DESKTOP_RENDERER_DYNAMIC_EXCLUSIONS,
+} from '../../desktop/renderer-smoke-execution.js';
 
 export const E2E_PRODUCTS = Object.freeze(['framescaper', 'soundscaper']);
 const SCRIPT_PATTERN = /\.(?:c|m)?js$/u;
@@ -168,6 +171,7 @@ function loadElectronEvidence({ productId, repositoryRoot, root, sourceRevision 
 		runtime: 'electron',
 		sourceRevision,
 	}));
+	validateE2EDynamicScriptExclusions(scripts, productId);
 	return Object.freeze({
 		packageArchive: Object.freeze({ ...manifest.packageArchive }),
 		productId,
@@ -175,6 +179,30 @@ function loadElectronEvidence({ productId, repositoryRoot, root, sourceRevision 
 		scriptsByArtifactPath: new Map(scripts.map((script) => [script.artifactPath, script])),
 		scriptsByPackagedPath: new Map(scripts.map((script) => [script.packagedPath, script])),
 	});
+}
+
+/** Refuse packaged evidence unless it contains only the closed recipe library. */
+export function validateE2EDynamicScriptExclusions(scripts, productId = 'packaged product') {
+	const source = scripts.map((script) => String(script?.source ?? '')).join('\n');
+	const recipes = Object.values(DESKTOP_RENDERER_DYNAMIC_EXCLUSIONS);
+	const approvedMarkers = new Set(recipes.map(({ marker }) => marker));
+	const approvedPaths = new Set(recipes.map(({ pathPrefix }) => pathPrefix));
+	const observedMarkers = source.match(/soundscaper-e2e-recipe:[a-z\d-]+/gu) ?? [];
+	const observedPaths = source.match(/__e2e-excluded__\/[a-z\d-]+-v\d+-/gu) ?? [];
+	const invalid = observedMarkers.some((marker) => !approvedMarkers.has(marker))
+		|| observedPaths.some((path) => !approvedPaths.has(path));
+	const countsAreInvalid = recipes.some(({ marker, pathPrefix, products }) => {
+		const markerCount = observedMarkers.filter((value) => value === marker).length;
+		const pathCount = observedPaths.filter((value) => value === pathPrefix).length;
+		const required = productId === 'packaged product' || products.includes(productId);
+		return markerCount !== pathCount || markerCount > 1 || (required && markerCount !== 1);
+	});
+	if (invalid || countsAreInvalid) {
+		throw new Error(
+			`The ${productId} Electron evidence has missing, duplicate, or unapproved dynamic-script recipes.`,
+		);
+	}
+	return Object.freeze(observedMarkers.sort());
 }
 
 function descriptor({

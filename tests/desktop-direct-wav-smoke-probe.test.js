@@ -13,13 +13,14 @@ import {
 	DIRECT_WAV_SMOKE_FILE_BYTES,
 	createDirectWavSmokeTargetHarness,
 	decodeDirectWavSmokePlan,
-	directWavRendererSmokeContract,
 	encodeDirectWavSmokePlan,
-	runDirectWavRendererSmoke,
 	validateDirectWavRendererResult,
 	validateDirectWavSmokePlan,
 	validateDirectWavSmokeResult,
 } from '../desktop/direct-wav-smoke.js';
+import {
+	runDirectWavRendererSmoke,
+} from '../desktop/direct-wav-renderer-smoke.js';
 import { createRendererScope } from './helpers/desktop-direct-wav-renderer-scope.js';
 
 const PLAN = Object.freeze({
@@ -75,7 +76,7 @@ test('serialized renderer grants authored BW64 a ten-minute bounded export windo
 	// The routine is stringified into the renderer, so it declares its stage
 	// windows as one table and reports them through this contract; the authored
 	// BW64 render is the slowest stage and outlasts the shorter containers.
-	const { stageWindows } = await directWavRendererSmokeContract();
+	const { stageWindows } = await runDirectWavRendererSmoke();
 	assert.equal(stageWindows.completedBw64Export, 10 * 60_000);
 	assert.ok(
 		stageWindows.completedBw64Export > stageWindows.completedExport,

@@ -15,6 +15,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 
 import { generateDesktopIcon } from './desktop-icons.mjs';
 import { listTranslationCatalogLocales, readTranslationCatalog } from './i18n-ai/catalog.mjs';
+import { buildSourceMapsRequested } from './lib/build-source-map-relocation.mjs';
 import { stageDesktopBundledCodecNotices } from './lib/desktop-bundled-codec-notices.mjs';
 import { stageDesktopAssistanceRuntimeFamilies } from './lib/desktop-assistance-runtime-families.mjs';
 import { stageDesktopAssistanceSpeechRuntime } from './lib/desktop-assistance-speech-runtime.mjs';
@@ -30,6 +31,9 @@ import {
 } from './lib/desktop-project-library-runtime.mjs';
 import { DESKTOP_CODEC_POLICY } from './lib/desktop-codec-policy.mjs';
 import { auditDesktopRendererCodecComposition } from './lib/desktop-renderer-codec-audit.mjs';
+import {
+	buildDesktopRendererSmokeBundle,
+} from './lib/desktop-renderer-smoke-bundle.mjs';
 import {
 	nativeAddonPayloadOutputRoot,
 	resolveNativeAddonPayloadTarget,
@@ -340,6 +344,12 @@ async function buildRenderer() {
 			SCAPE_PRODUCT: PRODUCT_ID,
 			SCAPE_DESKTOP_CODEC_RUNTIME: 'main-process',
 		},
+	});
+	await buildDesktopRendererSmokeBundle({
+		repositoryRoot: ROOT,
+		rendererRoot: RENDERER_ROOT,
+		productId: PRODUCT_ID,
+		sourceMaps: buildSourceMapsRequested(process.env),
 	});
 	await auditDesktopRendererCodecComposition({ root: RENDERER_ROOT });
 	await assertFile(resolve(RENDERER_ROOT, 'index.html'), 'desktop editor document');

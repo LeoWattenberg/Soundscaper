@@ -63,7 +63,7 @@ test('lease smoke keeps fault paths in main and records catalog descriptor evide
 	const pending = session.rendererReady({
 		async executeJavaScript(source) {
 			executed.push(source);
-			return { status: 'committed', document };
+			return { status: 'fulfilled', value: { status: 'committed', document } };
 		},
 	});
 	await waitForFile(control.ready);
@@ -109,7 +109,7 @@ test('renderer execution retains the product identity that selects the packaged 
 	const pending = session.rendererReady({
 		async executeJavaScript(source) {
 			executed = source;
-			return { status: 'committed', document: '{}' };
+			return { status: 'fulfilled', value: { status: 'committed', document: '{}' } };
 		},
 	});
 	await waitForFile(control.ready);
@@ -156,7 +156,7 @@ test('the crash checkpoint ignores publications the plan never drove', async (co
 		async executeJavaScript() {
 			session.leaseTestControl.checkpoint('prepared');
 			checkpointsDuringPlan += 1;
-			return { status: 'committed', document };
+			return { status: 'fulfilled', value: { status: 'committed', document } };
 		},
 	});
 	await waitForFile(control.ready);
@@ -191,7 +191,7 @@ test('the staged renderer crash leaves reload ownership to application recovery'
 	const pending = session.rendererReady({
 		async executeJavaScript() {
 			session.leaseTestControl.checkpoint('prepared');
-			return { status: 'committed', document };
+			return { status: 'fulfilled', value: { status: 'committed', document } };
 		},
 	});
 	await waitForFile(control.ready);
@@ -205,7 +205,7 @@ test('the staged renderer crash leaves reload ownership to application recovery'
 	const recovered = await session.rendererReady({
 		async executeJavaScript() {
 			session.leaseTestControl.checkpoint('prepared');
-			return { status: 'committed', document };
+			return { status: 'fulfilled', value: { status: 'committed', document } };
 		},
 	});
 	assert.equal(recovered.renderer.status, 'committed');
@@ -238,7 +238,7 @@ test('the staged crash composes with one cleanup-gated application reload', asyn
 			session.leaseTestControl.checkpoint('prepared');
 			throw new Error('The staged renderer exited');
 		}
-		return { status: 'committed', document };
+		return { status: 'fulfilled', value: { status: 'committed', document } };
 	};
 	const window = {
 		isDestroyed: () => false,

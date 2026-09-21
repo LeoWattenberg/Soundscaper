@@ -5,9 +5,11 @@ import test from 'node:test';
 import vm from 'node:vm';
 
 import {
-	runFramescaperCaptureArtifactRendererSmoke,
 	validateFramescaperCaptureArtifactEvidence,
 } from '../desktop/framescaper-capture-artifact-smoke.js';
+import {
+	runFramescaperCaptureArtifactRendererSmoke,
+} from '../desktop/framescaper-capture-artifact-renderer-smoke.js';
 
 test('packaged Framescaper capture smoke grants no-device authority and retires it exactly once', async () => {
 	const fixture = captureFixture();

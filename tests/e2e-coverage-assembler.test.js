@@ -10,6 +10,9 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test, { after } from 'node:test';
 
+import {
+	DESKTOP_RENDERER_DYNAMIC_EXCLUSIONS,
+} from '../desktop/renderer-smoke-execution.js';
 import { assembleE2ECoverageCapture } from '../scripts/lib/e2e-coverage-assembler.mjs';
 import { prepareE2ECoverageArtifacts } from '../scripts/lib/e2e-coverage-builder.mjs';
 import {
@@ -359,7 +362,7 @@ function makeFixture() {
 		recordBrowserEvidence(join(browserRoot, 'site'), product, sourceRevision);
 
 		const electronRoot = join(evidenceRoot, 'electron', product);
-		const main = `export const mainProduct = ${JSON.stringify(product)};\n`;
+		const main = dynamicExclusionFixture(`export const mainProduct = ${JSON.stringify(product)};\n`, product);
 		const preload = `globalThis.preloadProduct = ${JSON.stringify(product)};\n`;
 		const renderer = browserApp;
 		write(join(electronRoot, 'app/desktop/main.mjs'), main);
@@ -378,6 +381,14 @@ function makeFixture() {
 		outputRoot,
 		expectedRevision: sourceRevision,
 	};
+}
+
+function dynamicExclusionFixture(source, productId) {
+	return `${source}${Object.values(DESKTOP_RENDERER_DYNAMIC_EXCLUSIONS)
+		.filter(({ products }) => products.includes(productId))
+		.map(({ marker, pathPrefix }, index) => (
+			`export const dynamic_recipe_${index} = ${JSON.stringify(`${marker}\n${pathPrefix}`)};\n`
+		)).join('')}`;
 }
 
 function writeBrowserProfiles(runRoot, evidenceRoot, repositoryRoot) {

@@ -5,8 +5,10 @@ import test from 'node:test';
 
 import {
 	createDesktopVideoTimingProbeStorageProfile,
-	runDesktopVideoTimingProbeRendererSmoke,
 } from '../desktop/video-timing-probe-smoke.js';
+import {
+	runDesktopVideoTimingProbeRendererSmoke,
+} from '../desktop/video-timing-probe-renderer-smoke.js';
 
 for (const productId of ['soundscaper', 'framescaper']) {
 	test(`${productId} timing probe imports through File when the project bin is closed`, async context => {

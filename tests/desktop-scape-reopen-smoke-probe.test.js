@@ -9,11 +9,11 @@ import {
 	SOUNDSCAPER_SCAPE_REOPEN_PROJECT_SCHEMA_VERSION,
 	decodeScapeReopenSmokePlan,
 	encodeScapeReopenSmokePlan,
-	runScapeReopenRendererSmoke,
 	validateScapeReopenRendererResult,
 	validateScapeReopenSmokePlan,
 	validateScapeReopenSmokeResult,
 } from '../desktop/scape-reopen-smoke.js';
+import { runScapeReopenRendererSmoke } from '../desktop/scape-reopen-renderer-smoke.js';
 import {
 	SOUNDSCAPER_DESKTOP_LIBRARY_PROJECT_SCHEMA_VERSION,
 } from '../desktop/soundscaper-project-library-contract.ts';
@@ -508,7 +508,7 @@ function fakeWindow(execution, userGestures) {
 			once() {},
 			executeJavaScript(_script, userGesture) {
 				userGestures.push(userGesture);
-				return execution;
+				return Promise.resolve(execution).then((value) => ({ status: 'fulfilled', value }));
 			},
 		},
 	};

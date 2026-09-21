@@ -3,7 +3,9 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { collectDesktopChromeArtifactWitness } from '../desktop/desktop-smoke.js';
+import {
+	collectDesktopChromeArtifactWitness,
+} from '../desktop/desktop-chrome-renderer-smoke.js';
 
 test('artifact smoke observes full-bleed custom chrome and platform menu access keys', async () => {
 	for (const [platform, fileAccessKey] of [['linux', 'Alt+D'], ['win32', 'Alt+F'], ['darwin', null]]) {

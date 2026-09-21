@@ -5,9 +5,11 @@ import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 
 import {
+	createDesktopNightlyTestsProgressUpdateSource,
 	createDesktopNightlyTestsProgressWindow,
 	NIGHTLY_TESTS_PROGRESS_DOCUMENT_URL,
 	NIGHTLY_TESTS_PROGRESS_SCHEME,
+	validateDesktopNightlyTestsProgressUpdateSource,
 } from '../desktop/nightly-tests-progress-window.mjs';
 
 test('the attended nightly runner opens a locked-down visible progress window', async () => {
@@ -64,7 +66,13 @@ test('the attended nightly runner opens a locked-down visible progress window', 
 	assert.equal(observed.shown, 1);
 	assert.deepEqual(observed.bars, [[0, undefined], [0.25, undefined], [1, { mode: 'normal' }]]);
 	assert.equal(observed.titles.at(-1), 'Soundscaper Nightly Tests — Tests passed');
-	assert.match(observed.scripts.at(-1) ?? '', /"label":"Tests passed"/u);
+	const lastSource = observed.scripts.at(-1) ?? '';
+	assert.match(lastSource, /"label":"Tests passed"/u);
+	assert.match(lastSource,
+		/\/\/# sourceURL=soundscaper-nightly-progress:\/\/runner\/__e2e-excluded__\/nightly-progress-update-v1-[a-f\d]{64}\.js$/u);
+	assert.deepEqual(validateDesktopNightlyTestsProgressUpdateSource(lastSource), {
+		completed: 4, total: 4, label: 'Tests passed',
+	});
 	let prevented = 0;
 	const event = { preventDefault: () => { prevented += 1; } };
 	navigate(event, observed.url);
@@ -72,6 +80,23 @@ test('the attended nightly runner opens a locked-down visible progress window', 
 	assert.equal(prevented, 1);
 	closed();
 	assert.deepEqual(protocol.removed, [NIGHTLY_TESTS_PROGRESS_SCHEME]);
+});
+
+test('nightly progress updates are a closed data-only named recipe', () => {
+	const progress = { completed: 1, total: 4, label: 'Phase <one>\u2028' };
+	const source = createDesktopNightlyTestsProgressUpdateSource(progress);
+	assert.deepEqual(validateDesktopNightlyTestsProgressUpdateSource(source), progress);
+	assert.doesNotMatch(source, /<one>/u);
+	assert.match(source, /\\u003cone>/u);
+	assert.match(source, /\\u2028/u);
+	assert.throws(() => validateDesktopNightlyTestsProgressUpdateSource(
+		source.replace('\n//# sourceURL=', '\nvoid 0;\n//# sourceURL='),
+	), /attestation failed|closed recipe/u);
+	assert.throws(() => validateDesktopNightlyTestsProgressUpdateSource(`${source}\nvoid 0;`),
+		/no canonical source URL/u);
+	assert.throws(() => createDesktopNightlyTestsProgressUpdateSource({
+		...progress, label: 'Phase', sourceURL: 'https://unexpected.invalid/',
+	}), /progress/u);
 });
 
 test('the progress document is self-contained, script-restricted, and visibly explains the run', async () => {

@@ -5,12 +5,12 @@ import test from 'node:test';
 import vm from 'node:vm';
 
 import {
-	runFramescaperWebVcrDormantRendererSmoke,
-	runFramescaperWebVcrPackagedRendererSmoke,
 	validateFramescaperWebVcrDormantSmokeResult,
 	validateFramescaperWebVcrPackagedRendererSmokeResult,
 	validateFramescaperWebVcrPackagedSmokeResult,
 } from '../desktop/framescaper-web-vcr-renderer-smoke.js';
+import { runFramescaperWebVcrDormantRendererSmoke,
+	runFramescaperWebVcrPackagedRendererSmoke } from '../desktop/framescaper-web-vcr-renderer-runner.js';
 import { parseDesktopSmokeConfiguration } from '../desktop/desktop-smoke.js';
 import { createFramescaperWebVcrSmokeSession } from '../desktop/framescaper-web-vcr-smoke-session.js';
 
@@ -89,8 +89,8 @@ test('desktop smoke configuration and session admit only the dedicated plan and 
 	}), evidence);
 	assert.ok(calls.length >= 1);
 	assert.equal(calls[0].userGesture, true);
-	assert.match(calls[0].source, /getDisplayMedia/u);
-	assert.match(calls[0].source, /userActivation/u);
+	assert.match(calls[0].source, /framescaper-app:\/\/bundle\/desktop-renderer-smoke\.js[\s\S]+"operation":"web-vcr-packaged"/u);
+	assert.doesNotMatch(calls[0].source, /getDisplayMedia|userActivation/u);
 	assert.match(calls[0].source, new RegExp(plan.token, 'u'));
 	assert.equal(calls.slice(1).every(({ userGesture }) => userGesture !== true), true);
 	assert.equal(focusCalls, 0);

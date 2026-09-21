@@ -8,11 +8,17 @@ import { join } from 'node:path';
 import test from 'node:test';
 import { createPackage } from '@electron/asar';
 
+import { DESKTOP_RENDERER_DYNAMIC_EXCLUSIONS } from '../desktop/renderer-smoke-execution.js';
 import {
 	preserveDesktopNightlyProductCoverageEvidence,
 } from '../scripts/lib/desktop-nightly-product-coverage-evidence.mjs';
 
 const REVISION = '0123456789abcdef0123456789abcdef01234567';
+const DYNAMIC_EXCLUSIONS = Object.values(DESKTOP_RENDERER_DYNAMIC_EXCLUSIONS)
+	.filter(({ products }) => products.includes('soundscaper'))
+	.map(({ marker, pathPrefix }, index) => (
+		`export const dynamic_recipe_${index} = ${JSON.stringify(`${marker}\n${pathPrefix}`)};`
+	)).join('\n');
 
 test('nightly product coverage evidence preserves every executable and renderer map', async (context) => {
 	const workspace = await mkdtemp(join(tmpdir(), 'soundscaper-nightly-coverage-evidence-'));
@@ -20,11 +26,13 @@ test('nightly product coverage evidence preserves every executable and renderer 
 	const buildRoot = join(workspace, '.desktop-build');
 	const productOutput = join(workspace, 'release', 'soundscaper');
 	const files = new Map([
-		['app/desktop/main.mjs', 'export const main = true;\n'],
+		['app/desktop/main.mjs', `export const main = true;\n${DYNAMIC_EXCLUSIONS}\n`],
 		['app/desktop/preload.cjs', 'module.exports = true;\n'],
 		['app/desktop/ignored.json', '{}\n'],
 		['renderer/assets/editor-abc.js', 'globalThis.editor = true;\n'],
+		['renderer/desktop-renderer-smoke.js', 'export const smoke = true;\n'],
 		['renderer/index.html', '<main></main>\n'],
+		['renderer-source-maps/desktop-renderer-smoke.js.map', JSON.stringify({ version: 3, sources: [] })],
 		['renderer-source-maps/editor-abc.js.map', JSON.stringify({ version: 3, sources: [] })],
 	]);
 	for (const [name, contents] of files) {
@@ -36,6 +44,10 @@ test('nightly product coverage evidence preserves every executable and renderer 
 	await writeFile(
 		join(resources, 'renderer/assets/editor-abc.js'),
 		files.get('renderer/assets/editor-abc.js') ?? '',
+	);
+	await writeFile(
+		join(resources, 'renderer/desktop-renderer-smoke.js'),
+		files.get('renderer/desktop-renderer-smoke.js') ?? '',
 	);
 	await createPackage(join(buildRoot, 'app'), join(resources, 'app.asar'));
 
@@ -68,19 +80,26 @@ test('nightly product coverage evidence preserves every executable and renderer 
 			packagedPath: 'renderer/assets/editor-abc.js',
 			artifactPath: 'renderer/assets/editor-abc.js',
 		},
+		{
+			realm: 'renderer',
+			packagedPath: 'renderer/desktop-renderer-smoke.js',
+			artifactPath: 'renderer/desktop-renderer-smoke.js',
+		},
 	]);
 	for (const script of manifest.scripts) {
 		const contents = await readFile(join(productOutput, 'e2e-coverage', script.artifactPath));
 		assert.equal(script.byteLength, contents.byteLength);
 		assert.equal(script.sha256, createHash('sha256').update(contents).digest('hex'));
 	}
-	assert.deepEqual(manifest.sourceMaps, [{
-		artifactPath: 'renderer-source-maps/editor-abc.js.map',
-		byteLength: files.get('renderer-source-maps/editor-abc.js.map')?.length,
+	assert.deepEqual(manifest.sourceMaps, [
+		'desktop-renderer-smoke.js.map', 'editor-abc.js.map',
+	].map((name) => ({
+		artifactPath: `renderer-source-maps/${name}`,
+		byteLength: files.get(`renderer-source-maps/${name}`)?.length,
 		sha256: createHash('sha256')
-			.update(files.get('renderer-source-maps/editor-abc.js.map') ?? '')
+			.update(files.get(`renderer-source-maps/${name}`) ?? '')
 			.digest('hex'),
-	}]);
+	})));
 	assert.deepEqual(
 		JSON.parse(await readFile(join(productOutput, 'e2e-coverage/manifest.json'), 'utf8')),
 		manifest,

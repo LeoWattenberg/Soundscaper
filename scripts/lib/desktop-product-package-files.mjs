@@ -34,11 +34,24 @@ const SOUNDSCAPER_SHARED_RUNTIME_EXCEPTIONS = new Set([
 	'src/common/editor/video-timing-asset-reference.js',
 ]);
 const SOUNDSCAPER_SHARED_VIDEO_RUNTIME = /^src\/common\/editor\/video-[^/]+\.js$/u;
+const DESKTOP_RENDERER_ONLY_SOURCE_FILES = new Set([
+	'desktop-chrome-renderer-smoke.js',
+	'direct-wav-renderer-smoke.js',
+	'framescaper-baseline-artifact-renderer-smoke.js',
+	'framescaper-capture-artifact-renderer-smoke.js',
+	'framescaper-web-vcr-renderer-runner.js',
+	'project-library-lease-renderer-smoke.js',
+	'renderer-smoke-runtime-framescaper.js',
+	'renderer-smoke-runtime-soundscaper.js',
+	'scape-open-renderer-smoke.js',
+	'scape-reopen-renderer-smoke.js',
+	'video-timing-probe-renderer-smoke.js',
+]);
 const SOUNDSCAPER_REPLACED_SOURCE_FILES = new Set([
 	'desktop-smoke-configuration.js',
-	'direct-wav-renderer-smoke.js',
 	'direct-wav-smoke.js',
 	'project-library-lease-smoke.js',
+	'renderer-smoke-execution.js',
 	'scape-open-smoke.js',
 	'scape-reopen-smoke.js',
 	'helper-registration.mjs',
@@ -87,6 +100,7 @@ export function desktopProductRuntimePackageImports(productIdValue, importsValue
 export function desktopProductSourceIncluded(productIdValue, relativePathValue) {
 	const productId = desktopPackageProduct(productIdValue);
 	const relativePath = packagePath(relativePathValue, 'desktop application source');
+	if (DESKTOP_RENDERER_ONLY_SOURCE_FILES.has(relativePath)) return false;
 	return productId === 'framescaper' || !soundscaperForbiddenPackagePath(relativePath)
 		&& !SOUNDSCAPER_REPLACED_SOURCE_FILES.has(relativePath);
 }

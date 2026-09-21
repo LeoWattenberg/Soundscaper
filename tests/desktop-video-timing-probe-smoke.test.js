@@ -15,9 +15,9 @@ import {
 	decodeDesktopVideoTimingProbePlan,
 	encodeDesktopVideoTimingProbePlan,
 	formatDesktopVideoTimingProbeEvidence,
-	runDesktopVideoTimingProbeRendererSmoke,
 	validateDesktopVideoTimingProbeResult,
 } from '../desktop/video-timing-probe-smoke.js';
+import { runDesktopVideoTimingProbeRendererSmoke } from '../desktop/video-timing-probe-renderer-smoke.js';
 import { videoTimingProbeMedia } from './browser/fixtures/video-timing-probe-media.js';
 import {
 	FRAMESCAPER_PROJECT_RUNTIME_PROFILE,
@@ -417,7 +417,7 @@ test('desktop smoke routing admits the ordinary media chooser once and emits onl
 	assert.equal(executions.length, 1);
 	assert.equal(executions[0].userGesture, true);
 	assert.ok(executions[0].source.includes(
-		`, ${JSON.stringify(createDesktopVideoTimingProbeStorageProfile(PRODUCT_ID))})`,
+		JSON.stringify(createDesktopVideoTimingProbeStorageProfile(PRODUCT_ID)),
 	));
 	assert.match(logs[0], /^SOUNDSCAPER_DESKTOP_VIDEO_TIMING_PROBE /u);
 	assert.deepEqual(exits, [0]);
@@ -448,7 +448,7 @@ test('Framescaper packaged timing probe executes against the family-v1 storage p
 	await probe.rendererReady();
 	assert.equal(executions.length, 1);
 	assert.ok(executions[0].includes(
-		`, ${JSON.stringify(createDesktopVideoTimingProbeStorageProfile('framescaper'))})`,
+		JSON.stringify(createDesktopVideoTimingProbeStorageProfile('framescaper')),
 	));
 });
 
@@ -471,7 +471,7 @@ test('packaged timing probe preserves renderer failure detail across the Electro
 		webContents: {
 			once: () => undefined,
 			async executeJavaScript(source) {
-				assert.match(source, /error\?\.message/u);
+				assert.match(source, /runDesktopRendererSmokeEnvelope/u);
 				return { status: 'rejected', message: 'The renderer timing import failed exactly here.' };
 			},
 		},

@@ -3,24 +3,18 @@
 import { mkdir, readdir, stat } from 'node:fs/promises';
 import { isAbsolute, join, normalize } from 'node:path';
 
-import { runDirectWavRendererSmoke } from './direct-wav-renderer-smoke.js';
-
-export { runDirectWavRendererSmoke };
-
 export const DESKTOP_DIRECT_WAV_SMOKE_MODE = 'direct-wav-export-v1';
 export const DESKTOP_DIRECT_WAV_SMOKE_PREFIX = 'SOUNDSCAPER_DESKTOP_DIRECT_WAV_SMOKE';
 // The renderer smoke records the stage it is waiting on under this key so the
-// supervising watchdog can name it. runDirectWavRendererSmoke is stringified
-// into the renderer, so it declares the key itself and reports it through
-// directWavRendererSmokeContract; desktop-direct-wav-smoke.test.js holds this
-// binding equal to the key the stringified routine actually writes.
+// supervising watchdog can name it. The static renderer module declares the
+// key itself; desktop-direct-wav-smoke.test.js holds this binding equal to the
+// key the routine actually writes.
 export const DESKTOP_DIRECT_WAV_SMOKE_STAGE_KEY = '__scapeDirectWavSmokeStage';
 // This watchdog supervises the renderer smoke's own per-stage windows, so it
 // must exceed their sum or it fires first and hides which stage stalled. The
-// windows are declared as one table inside runDirectWavRendererSmoke because
-// that function is stringified into the renderer; desktop-direct-wav-smoke.test.js
-// reads the table through directWavRendererSmokeContract and holds this budget
-// above its total.
+// windows are declared as one table inside runDirectWavRendererSmoke;
+// desktop-direct-wav-smoke.test.js reads that renderer-owned table and holds
+// this budget above its total.
 // Measured at roughly ten and a half minutes on a healthy CI runner, so a
 // twenty-minute budget left barely a factor of two. A runner whose GPU drops
 // the packaged application to software rendering takes longer than that, and
@@ -50,10 +44,6 @@ const NATIVE_FIELDS = Object.freeze([
 	'aiffChoiceValidated', 'bwfChoiceValidated', 'bw64ChoiceValidated', 'cancelledAbsent', 'stagingFilesRemaining',
 ]);
 const RESULT_FIELDS = Object.freeze([...PLAN_FIELDS, 'renderer', 'native']);
-
-export function directWavRendererSmokeContract() {
-	return runDirectWavRendererSmoke();
-}
 
 export function validateDirectWavSmokePlan(value) {
 	assertClosedRecord(value, PLAN_FIELDS, 'Direct WAV smoke plan');

@@ -8,12 +8,12 @@ import {
 	DESKTOP_SCAPE_OPEN_SMOKE_PREFIX,
 	decodeScapeOpenSmokePlan,
 	encodeScapeOpenSmokePlan,
-	runScapeOpenRendererSmoke,
 	validateScapeOpenProjectDescriptor,
 	validateScapeOpenRendererResult,
 	validateScapeOpenSmokePlan,
 	validateScapeOpenSmokeResult,
 } from '../desktop/scape-open-smoke.js';
+import { runScapeOpenRendererSmoke } from '../desktop/scape-open-renderer-smoke.js';
 import {
 	createDesktopSmokeProbe,
 	parseDesktopSmokeConfiguration,
@@ -366,7 +366,7 @@ function fakeWindow(execution) {
 			once(name, listener) { listeners.set(name, listener); },
 			executeJavaScript(source) {
 				this.executions.push(source);
-				return execution;
+				return Promise.resolve(execution).then((value) => ({ status: 'fulfilled', value }));
 			},
 		},
 	};

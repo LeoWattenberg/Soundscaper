@@ -105,8 +105,12 @@ function fakeWindow(executionResult, executionError) {
 			this.executions.push(source);
 			this.userGestures.push(userGesture === true);
 			if (executionError !== undefined) throw executionError;
-			if (source.includes('collectDesktopChromeArtifactWitness')) {
-				return structuredClone(validDesktopChrome(executionResult?.environment?.platform));
+			if (source.includes('soundscaper-e2e-recipe:runner-v1')) {
+				const operation = /"operation":"([a-z\d-]+)"/u.exec(source)?.[1];
+				const value = operation === 'artifact-chrome'
+					? validDesktopChrome(executionResult?.environment?.platform)
+					: executionResult;
+				return { status: 'fulfilled', value: structuredClone(value) };
 			}
 			return structuredClone(executionResult);
 		},
