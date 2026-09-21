@@ -1,6 +1,11 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { isAbsolute, join, normalize, relative, resolve, sep } from 'node:path';
+import { isAbsolute, normalize } from 'node:path';
+import {
+	createFixedProjectLibraryPaths,
+	fixedProjectLibraryPaths,
+	isProjectLibraryDescendant,
+} from './project-library-path-layout.ts';
 
 export const SOUNDSCAPER_DESKTOP_LIBRARY_SCHEMA_VERSION = 1 as const;
 export const SOUNDSCAPER_DESKTOP_LIBRARY_PROJECT_SCHEMA_FAMILY = 'soundscaper' as const;
@@ -69,14 +74,9 @@ export function createSoundscaperDesktopProjectLibraryPaths(
 		throw new TypeError('Soundscaper desktop baseline library requires an absolute appData path');
 	}
 	const normalizedRoot = normalize(appDataRoot);
-	const libraryRoot = resolve(normalizedRoot, ...LIBRARY_SCOPE);
-	assertDescendant(normalizedRoot, libraryRoot, 'library root');
-	return Object.freeze({
-		libraryRoot,
-		databasePath: join(libraryRoot, 'library.sqlite3'),
-		projectsRoot: join(libraryRoot, 'projects'),
-		managedMediaRoot: join(libraryRoot, 'media'),
-	});
+	const paths = createFixedProjectLibraryPaths(normalizedRoot, LIBRARY_SCOPE);
+	assertDescendant(normalizedRoot, paths.libraryRoot, 'library root');
+	return paths;
 }
 
 export function validateSoundscaperDesktopProjectLibraryPaths(
@@ -84,12 +84,7 @@ export function validateSoundscaperDesktopProjectLibraryPaths(
 ): Readonly<SoundscaperDesktopProjectLibraryPaths> {
 	const record = snapshotClosedRecord(value, PATH_FIELDS, 'Soundscaper desktop baseline library paths');
 	const libraryRoot = absolutePath(record.libraryRoot, 'libraryRoot');
-	const expected = Object.freeze({
-		libraryRoot,
-		databasePath: join(libraryRoot, 'library.sqlite3'),
-		projectsRoot: join(libraryRoot, 'projects'),
-		managedMediaRoot: join(libraryRoot, 'media'),
-	});
+	const expected = fixedProjectLibraryPaths(libraryRoot);
 	for (const field of PATH_FIELDS) {
 		if (normalize(absolutePath(record[field], field)) !== expected[field]) {
 			throw new TypeError(`Soundscaper desktop baseline library ${field} leaves its fixed scope`);
@@ -252,8 +247,7 @@ function positiveSafeInteger(value: unknown, name: string): number {
 }
 
 function assertDescendant(parent: string, child: string, name: string): void {
-	const path = relative(parent, child);
-	if (!path || path === '..' || path.startsWith(`..${sep}`) || isAbsolute(path)) {
+	if (!isProjectLibraryDescendant(parent, child)) {
 		throw new TypeError(`Soundscaper desktop baseline ${name} must stay inside appData`);
 	}
 }

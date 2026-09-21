@@ -13,6 +13,7 @@ export const DESKTOP_PROJECT_LIBRARY_BASELINE_RUNTIME_FILES = Object.freeze([
 	'desktop/project-library-exact-generation-storage.js',
 	'desktop/project-library-session-admission.js',
 	'desktop/project-library-immediate-transaction.js',
+	'desktop/project-library-path-layout.js',
 	'desktop/framescaper-project-library-contract.js',
 	'desktop/framescaper-project-library-current-project.js',
 	'desktop/framescaper-project-library-database.js',

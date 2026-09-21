@@ -1,6 +1,11 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { isAbsolute, join, normalize, relative, resolve, sep } from 'node:path';
+import { isAbsolute, normalize } from 'node:path';
+import {
+	createFixedProjectLibraryPaths,
+	fixedProjectLibraryPaths,
+	isProjectLibraryDescendant,
+} from './project-library-path-layout.ts';
 
 export const FRAMESCAPER_DESKTOP_LIBRARY_SCHEMA_VERSION = 1 as const;
 export const FRAMESCAPER_DESKTOP_LIBRARY_PROJECT_SCHEMA_FAMILY = 'framescaper' as const;
@@ -68,14 +73,9 @@ export function createFramescaperDesktopProjectLibraryPaths(
 		throw new TypeError('Framescaper desktop project library requires an absolute appData path without NUL bytes');
 	}
 	const normalizedRoot = normalize(appDataRoot);
-	const libraryRoot = resolve(normalizedRoot, ...LIBRARY_SCOPE);
-	assertDescendant(normalizedRoot, libraryRoot, 'library root');
-	return Object.freeze({
-		libraryRoot,
-		databasePath: join(libraryRoot, 'library.sqlite3'),
-		projectsRoot: join(libraryRoot, 'projects'),
-		managedMediaRoot: join(libraryRoot, 'media'),
-	});
+	const paths = createFixedProjectLibraryPaths(normalizedRoot, LIBRARY_SCOPE);
+	assertDescendant(normalizedRoot, paths.libraryRoot, 'library root');
+	return paths;
 }
 
 export function validateFramescaperDesktopProjectLibraryPaths(
@@ -83,12 +83,7 @@ export function validateFramescaperDesktopProjectLibraryPaths(
 ): Readonly<FramescaperDesktopProjectLibraryPaths> {
 	const record = snapshotClosedRecord(value, PATH_FIELDS, 'Framescaper desktop library paths');
 	const libraryRoot = absolutePath(record.libraryRoot, 'libraryRoot');
-	const expected = Object.freeze({
-		libraryRoot,
-		databasePath: join(libraryRoot, 'library.sqlite3'),
-		projectsRoot: join(libraryRoot, 'projects'),
-		managedMediaRoot: join(libraryRoot, 'media'),
-	});
+	const expected = fixedProjectLibraryPaths(libraryRoot);
 	for (const field of PATH_FIELDS) {
 		if (normalize(absolutePath(record[field], field)) !== expected[field]) {
 			throw new TypeError(`Framescaper desktop library ${field} leaves its fixed scope`);
@@ -223,8 +218,7 @@ function positiveSafeInteger(value: unknown, field: string): number {
 }
 
 function assertDescendant(parent: string, child: string, field: string): void {
-	const rel = relative(parent, child);
-	if (!rel || rel === '..' || rel.startsWith(`..${sep}`) || isAbsolute(rel)) {
+	if (!isProjectLibraryDescendant(parent, child)) {
 		throw new TypeError(`Framescaper desktop ${field} leaves appData`);
 	}
 }
