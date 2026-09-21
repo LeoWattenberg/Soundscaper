@@ -139,6 +139,8 @@ test('waveform helpers map source windows and compute validated peak pyramids', 
 
 test('controller file helpers preserve formats, summaries, and compatibility counts', () => {
 	assert.equal(normalizeProjectSampleRate(96_000), 96_000);
+	assert.equal(normalizeProjectSampleRate(768_000), 768_000);
+	assert.equal(normalizeProjectSampleRate(768_001), 48_000);
 	assert.equal(normalizeProjectSampleRate(1), 48_000);
 	assert.deepEqual(historyEntrySummary({ command: { type: 'batch', commands: [{ type: 'split' }, { type: 'move' }] } }), {
 		type: 'batch', commandCount: 2, commands: ['split', 'move'],

@@ -1,5 +1,6 @@
 import { releaseDownloadObjectUrl } from '../../object-url-revoke.ts';
 import { AUDIO_EDITOR_SAMPLE_RATE } from '../../project.js';
+import { isAudioEditorProjectSampleRate } from '../../project-sample-rate.ts';
 
 interface NamedFile {
 	readonly name?: unknown;
@@ -65,8 +66,7 @@ export function classifyMobile(): boolean {
 
 export function normalizeProjectSampleRate(value: unknown): number {
 	const sampleRate = Number(value ?? AUDIO_EDITOR_SAMPLE_RATE);
-	if (!Number.isSafeInteger(sampleRate) || sampleRate < 8_000 || sampleRate > 384_000) return AUDIO_EDITOR_SAMPLE_RATE;
-	return sampleRate;
+	return isAudioEditorProjectSampleRate(sampleRate) ? sampleRate : AUDIO_EDITOR_SAMPLE_RATE;
 }
 
 export function historyEntrySummary(entry: unknown) {
