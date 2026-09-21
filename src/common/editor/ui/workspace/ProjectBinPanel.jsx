@@ -82,7 +82,7 @@ export default function ProjectBinPanel({ controller, snapshot, copy, locale, fi
 	const mutationBlocked = selectAudioEditorEditBlock(snapshot).blocked;
 	const { dropActive, dropHandlers, resetDropState } = useProjectBinFileDrop({
 		blocked: mutationBlocked,
-		onFiles: (files) => run(() => importFiles(files)),
+		onFiles: (files) => run(() => importFiles(files)), onFreesoundSound: (soundId) => run(() => controller.actions.freesound.importSound({ soundId, destination: 'project-bin' })),
 	});
 	const selectedMediaTrack = project?.tracks.find((track) => (
 		track.id === snapshot.selectedTrackId && ['audio', 'video'].includes(track.type)

@@ -355,7 +355,7 @@ export function createImportVideoFile(runtime: ImportVideoRuntime): ImportVideoF
 				hasAudio: Boolean(canonicalAudio),
 				posterStorageKey: null,
 				thumbnailStorageKey: null,
-				opaqueExtensions: {},
+				opaqueExtensions: {}, ...(importOptions.sourceProvenance ? { provenance: importOptions.sourceProvenance } : {}),
 			};
 			if (canonicalAudio && !audioContentIdentity) throw new Error(
 				'Extracted audio content identity is unavailable after persistence.');
@@ -373,7 +373,7 @@ export function createImportVideoFile(runtime: ImportVideoRuntime): ImportVideoF
 				originalSampleRate: originalAudioSampleRate,
 				contentSha256: audioContentIdentity.contentSha256,
 				byteLength: audioContentIdentity.byteLength,
-				opaqueExtensions: { originVideoSourceId: videoSourceId },
+				opaqueExtensions: { originVideoSourceId: videoSourceId }, ...(importOptions.sourceProvenance ? { provenance: importOptions.sourceProvenance } : {}),
 			} : null;
 			const videoClip = {
 				kind: 'video',

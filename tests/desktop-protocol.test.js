@@ -77,6 +77,10 @@ test('CSP hashes exact inline script bodies and byte ranges are bounded', () => 
 	const headers = securityHeaders({ html });
 	assert.match(headers['Content-Security-Policy'], /frame-ancestors 'none'/u);
 	assert.match(headers['Content-Security-Policy'], /connect-src 'self' blob:/u);
+	const soundscaperCsp = securityHeaders({ productId: 'soundscaper' })['Content-Security-Policy'];
+	assert.match(soundscaperCsp, /connect-src 'self' blob: https:\/\/soundscaper\.org/u);
+	assert.match(soundscaperCsp, /media-src 'self' blob: https:\/\/soundscaper\.org/u);
+	assert.doesNotMatch(securityHeaders({ productId: 'framescaper' })['Content-Security-Policy'], /soundscaper\.org/u);
 	assert.deepEqual(parseSingleRange('bytes=2-5', 10), { start: 2, end: 5, length: 4 });
 	assert.deepEqual(parseSingleRange('bytes=-3', 10), { start: 7, end: 9, length: 3 });
 	assert.throws(() => parseSingleRange('bytes=20-30', 10), (error) => error.status === 416);

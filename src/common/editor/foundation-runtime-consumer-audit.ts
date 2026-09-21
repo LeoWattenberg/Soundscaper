@@ -113,6 +113,7 @@ export const FOUNDATION_RUNTIME_SHIELDED_OWNERS: readonly FoundationRuntimeShiel
 	{ file: 'src/common/editor/aup4-export.js', surfaces: ['interchange'] },
 	{ file: 'src/common/editor/aup4-annotation-interchange.ts', surfaces: ['interchange'] },
 	{ file: 'src/common/editor/timeline-annotation-riff-interchange.ts', surfaces: ['interchange'] },
+	{ file: 'src/common/editor/project-attribution-report.ts', surfaces: ['interchange'] },
 	{ file: 'src/common/editor/controller/export/interchange-export-action.ts', surfaces: ['interchange'] },
 	{ file: 'src/common/editor/controller/effects/internal/nyquist/nyquist-host-service.ts', surfaces: ['interchange'] },
 	{ file: 'src/common/editor/controller/edit/generator-service.ts', surfaces: ['composition'] },

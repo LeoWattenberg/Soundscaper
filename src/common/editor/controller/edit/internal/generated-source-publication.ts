@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import type { AudioBufferLike } from '../../source/source-audio.ts';
+import { createNonImportedSourceProvenance } from '../../../source-provenance.ts';
 import type { AudioGeneratorStore, AudioGeneratorWriter } from '../generator-service.ts';
 
 export type GeneratedAudioSource = Readonly<Record<string, unknown>> & Readonly<{
@@ -14,6 +15,7 @@ export type GeneratedAudioSource = Readonly<Record<string, unknown>> & Readonly<
 	readonly frameCount: number;
 	readonly channelCount: number;
 	readonly originalSampleRate: number;
+	readonly provenance: ReturnType<typeof createNonImportedSourceProvenance>;
 }>;
 
 interface GeneratedAudioSourcePublisherDependencies<Context> {
@@ -89,6 +91,7 @@ export async function publishGeneratedAudioSource<Context, Prepared, Result>(
 			frameCount: request.frameCount,
 			channelCount: request.channelCount,
 			originalSampleRate: request.sampleRate,
+			provenance: createNonImportedSourceProvenance('generated'),
 		};
 		const prepared = request.prepare(source);
 		dependencies.cacheSourceBuffer(sourceId, buffer);

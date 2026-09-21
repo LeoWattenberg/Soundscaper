@@ -6,6 +6,7 @@ export function workspacePanelAvailable(
 	_productId: string,
 	panelId: string,
 ): boolean {
+	if (panelId === 'freesound') return true;
 	return !DEFERRED_PANEL_IDS.has(panelId);
 }
 

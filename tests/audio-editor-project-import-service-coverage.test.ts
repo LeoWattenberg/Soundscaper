@@ -87,6 +87,22 @@ test('decoded audio imports cannot cross projects while decoding or after persis
 	assert.equal(persisted.sourcePeaks.size, 0);
 });
 
+test('an externally captured import project remains authoritative during asynchronous admission', async () => {
+	const fixture = createFixture();
+	let requestedProjectCurrent = true;
+	const operation = createProjectImportService(fixture.runtime).importFile(
+		file('remote-preview.ogg', 'audio/ogg'),
+		{ destination: 'project-bin' },
+		() => {
+			if (!requestedProjectCurrent) throw new Error('The requested project changed.');
+		},
+	);
+	requestedProjectCurrent = false;
+
+	await assert.rejects(operation, /requested project changed/iu);
+	assert.equal(fixture.commands.length, 0);
+});
+
 test('audio imports create indexed tracks and clean persisted data after analysis failure', async () => {
 	const fixture = createFixture();
 	const service = createProjectImportService(fixture.runtime);
@@ -463,8 +479,12 @@ test('multi-file imports skip legacy blocks, summarize failures, and offset targ
 	assert.ok(importSignal instanceof AbortSignal);
 	assert.equal(importSignal.aborted, false);
 	assert.deepEqual(placement.placements.map((value) => {
-		const { signal, ...options } = value as Record<string, unknown>;
+		const { signal, sourceProvenance, ...options } = value as Record<string, unknown>;
 		assert.strictEqual(signal, importSignal, 'Each file retains the foreground import cancellation signal.');
+		assert.equal(
+			(sourceProvenance as Readonly<{ classification?: unknown }>).classification,
+			'imported',
+		);
 		return options;
 	}), [
 		{ destination: 'timeline', trackId: 'target', timelineStartFrame: 9 },

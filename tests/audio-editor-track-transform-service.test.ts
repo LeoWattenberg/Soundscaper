@@ -9,6 +9,7 @@ import {
 	type TrackTransformServiceDependencies,
 } from '../src/common/editor/controller/track-audio/internal/track-transform-service.ts';
 import { findControllerSource } from '../src/common/editor/controller/track-audio/track-domain-types.ts';
+import { createImportedSourceProvenance } from '../src/common/editor/source-provenance.ts';
 import type {
 	ControllerClip,
 	ControllerProject,
@@ -377,7 +378,10 @@ test('joining mono tracks bakes each authored strip and resets the merged strip'
 	});
 	const fixture = createTransformFixture(projectFixture({
 		tracks: [left, right], clips: [leftClip, rightClip],
-		sources: [sourceFixture('left-source'), sourceFixture('right-source')],
+		sources: [
+			sourceFixture('left-source', { provenance: importedProvenance('left') }),
+			sourceFixture('right-source', { provenance: importedProvenance('right') }),
+		],
 		automationLanes: [
 			{ id: 'left-gain', address: { kind: 'strip', strip: { kind: 'track', id: 'left' } } },
 			{ id: 'right-gain', address: { kind: 'strip', strip: { kind: 'track', id: 'right' } } },
@@ -385,6 +389,8 @@ test('joining mono tracks bakes each authored strip and resets the merged strip'
 	}));
 
 	await fixture.service.makeStereoTrack('left', 'right');
+	assert.deepEqual(fixture.calls.persisted[0]?.template.provenance?.contributions
+		.map(({ id }) => id), ['left', 'right']);
 	assert.ok(fixture.calls.renders.every((args) => args.at(-1) === 'authored'));
 	const batch = fixture.calls.commits[0]?.command;
 	assert.equal(batch?.type, 'batch');
@@ -478,3 +484,10 @@ test('empty mono pairs merge synchronously and split failures roll back partial 
 	assert.equal(failed.calls.rollbacks[0]?.length, 1);
 	assert.deepEqual(failed.calls.processing, [true, false]);
 });
+
+function importedProvenance(id: string) {
+	return createImportedSourceProvenance({
+		id,
+		origin: { kind: 'local-file', originalFileName: `${id}.wav`, mimeType: 'audio/wav' },
+	});
+}

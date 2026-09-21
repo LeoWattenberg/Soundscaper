@@ -204,7 +204,7 @@ export function createAudioEditorFileService(options = {}) {
 	}
 
 	async function chooseSaveTarget(request = {}) {
-		const purpose = normalizePurpose(request.purpose, ['project', 'project-copy', 'aup4', 'audio-pcm-mix', 'audio', 'video', 'media', 'labels', 'preset', 'macro', 'report', 'interchange']);
+		const purpose = normalizePurpose(request.purpose, ['project', 'project-copy', 'aup4', 'audio-pcm-mix', 'audio', 'video', 'media', 'labels', 'preset', 'macro', 'report', 'attribution-csv', 'interchange']);
 		const suggestedName = sanitizeSuggestedName(request.suggestedName || request.fileName);
 		if (bridge?.chooseSaveTarget) {
 			return bridge.chooseSaveTarget({

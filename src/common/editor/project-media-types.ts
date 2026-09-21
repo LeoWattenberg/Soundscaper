@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import type { PersistedAudioEffect } from './persisted-audio-effect-validation.ts';
+import type { SourceProvenanceV1 } from './source-provenance.ts';
 
 import type { BreakpointMap, Rational, RationalRate } from './timeline-time.ts';
 import type { VideoTimingAssetReference } from './video-timing-asset-reference.ts';
@@ -25,6 +26,7 @@ export interface AudioSourceLeaf {
 	readonly sampleFormat: string;
 	readonly chunkFrames: number;
 	readonly opaqueExtensions: Record<string, unknown>;
+	readonly provenance?: SourceProvenanceV1;
 }
 
 export interface VideoSourceLeaf {
@@ -51,6 +53,7 @@ export interface VideoSourceLeaf {
 		readonly mode: 'exact' | 'conform-cfr-at-ingest';
 		readonly rate: RationalRate;
 	}>;
+	readonly provenance?: SourceProvenanceV1;
 }
 
 export interface AudioClipLeaf {

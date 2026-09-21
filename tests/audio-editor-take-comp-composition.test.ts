@@ -14,6 +14,7 @@ import {
 	createAudioTrack,
 } from '../src/common/editor/project-media-factory.ts';
 import { createAudioEditorProjectV17, type AudioEditorProjectV17 } from '../src/common/editor/project-v17.ts';
+import { createImportedSourceProvenance, type SourceProvenanceV1 } from '../src/common/editor/source-provenance.ts';
 import { formatPresentationMessage, type LocalizedPresentationMessage } from '../src/common/i18n/presentation-message.ts';
 
 const NOW = '2026-08-12T12:00:00.000Z';
@@ -30,6 +31,7 @@ test('take flatten statuses carry owned identities while published media names s
 	assert.equal(formatPresentationMessage({ 'ui.takeComp.flattened': 'Zusammenstellung gerendert' }, statuses[1]!.localization!),
 		'Zusammenstellung gerendert');
 	assert.equal(fixture.project().clips.at(-1)?.title, 'group-a — flattened take');
+	assert.deepEqual(fixture.persistedProvenance?.contributions.map(({ id }) => id), ['source-a']);
 });
 
 test('take and lane audition use an isolated exact-source preview and toggle without document edits', async () => {
@@ -201,6 +203,7 @@ function compositionFixture(options: Readonly<{
 	const rollbacks: string[][] = [];
 	const ids = new Map<string, number>();
 	let playbackStops = 0;
+	let persistedProvenance: SourceProvenanceV1 | undefined;
 	const lifetime = new EditorControllerLifetime();
 	const buffer = audioBuffer(400);
 	const composition = createTakeCompControllerComposition({
@@ -211,8 +214,9 @@ function compositionFixture(options: Readonly<{
 		sourceChunkProviders: new Map(),
 		sourceResolver: null,
 		derivedSources: {
-			async persistRenderedMixSource(rendered: AudioBufferLike) {
+			async persistRenderedMixSource(rendered: AudioBufferLike, _name: string, provenance?: SourceProvenanceV1) {
 				assert.equal(rendered, buffer);
+				persistedProvenance = provenance;
 				const record = {
 					source: {
 						id: 'flat-source', storageKey: 'flat-source', name: 'Flat source', mimeType: 'audio/wav',
@@ -277,6 +281,7 @@ function compositionFixture(options: Readonly<{
 	return {
 		composition, commands, previewEngines, renderedProjects, renderRanges, rollbacks,
 		project: () => current,
+		get persistedProvenance() { return persistedProvenance; },
 		get playbackStops() { return playbackStops; },
 	};
 }
@@ -288,10 +293,12 @@ function project(locked: boolean): AudioEditorProjectV17 {
 			createAudioSource({
 				id: 'source-a', storageKey: 'source-a', name: 'Take A',
 				frameCount: 1_000, channelCount: 1, sampleRate: 48_000,
+				provenance: importedProvenance('source-a'),
 			}),
 			createAudioSource({
 				id: 'source-b', storageKey: 'source-b', name: 'Take B',
 				frameCount: 1_000, channelCount: 1, sampleRate: 48_000,
+				provenance: importedProvenance('source-b'),
 			}),
 		],
 		tracks: [createAudioTrack({
@@ -318,6 +325,13 @@ function project(locked: boolean): AudioEditorProjectV17 {
 				id: 'original', takeId: 'take-a', startSample: 100, endSample: 500,
 			}],
 		}],
+	});
+}
+
+function importedProvenance(id: string) {
+	return createImportedSourceProvenance({
+		id,
+		origin: { kind: 'local-file', originalFileName: `${id}.wav`, mimeType: 'audio/wav' },
 	});
 }
 

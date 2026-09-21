@@ -18,6 +18,7 @@ import {
 import { normalizeVideoEffects } from './video-effects.js';
 import { validateVideoTrackComposition } from './video-timeline.js';
 import { hasCoreEditingProjectAuthority } from './project-schema-version.ts';
+import { validateSourceProvenance } from './source-provenance.ts';
 
 const SAMPLE_FORMATS = new Set(['int16', 'int24', 'int32', 'float32', 'float64', 'unknown']);
 const DISPLAY_MODES = new Set(['waveform', 'spectrogram', 'multiview', 'half-wave']);
@@ -66,6 +67,9 @@ function validateSource(source: ProjectDataRecord, foundation: boolean): void {
 	projectString(source.mimeType, `source ${String(source.id)}.mimeType`);
 	projectString(source.storageKey, `source ${String(source.id)}.storageKey`);
 	projectSafeInteger(source.sampleRate, 1, `source ${String(source.id)}.sampleRate`);
+	if (Object.hasOwn(source, 'provenance')) {
+		validateSourceProvenance(source.provenance, `source ${String(source.id)}.provenance`);
+	}
 	if (source.kind === 'audio') {
 		projectSafeInteger(source.frameCount, 1, `source ${String(source.id)}.frameCount`);
 		projectSafeInteger(source.channelCount, 1, `source ${String(source.id)}.channelCount`);

@@ -12,6 +12,7 @@ import type { VideoDerivativeInput } from '../../../storage/video-derivative-rep
 import type { EditorProjectToken } from '../../shared/lifecycle.ts';
 import type { AudioBufferLike } from '../../source/source-audio.ts';
 import type { WaveformPeaks } from '../../source/waveform-analysis.ts';
+import type { SourceProvenanceV1 } from '../../../source-provenance.ts';
 import type {
 	ImportedVideoAudioBuffer,
 	ImportedVideoDecodedAudio,
@@ -37,6 +38,7 @@ export interface ImportVideoOptions {
 	readonly signal?: AbortSignal;
 	readonly linkedVideoLocatorId?: string;
 	readonly linkedVideoLocatorRevision?: string;
+	readonly sourceProvenance?: SourceProvenanceV1;
 }
 
 export interface ImportVideoResult {
@@ -121,6 +123,7 @@ export interface ImportVideoCopy {
 
 export interface ImportVideoSource extends FoundationLinkedVideoOriginalSource {
 	readonly characteristics: VideoSourceCharacteristics;
+	readonly provenance?: SourceProvenanceV1;
 }
 
 export interface ImportVideoStore {

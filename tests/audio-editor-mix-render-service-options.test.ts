@@ -15,19 +15,25 @@ import type {
 	DerivedSourceRecord,
 	SourceWriter,
 } from '../src/common/editor/controller/track-audio/track-domain-types.ts';
+import { createImportedSourceProvenance } from '../src/common/editor/source-provenance.ts';
 
 test('individual Mix and Render skips empty targets and stages project-ordered outputs in one commit', async () => {
-	const project = fixture();
+	const project = fixture({ sources: [
+		{ ...source('first-source'), provenance: importedProvenance('first') },
+		{ ...source('second-source'), provenance: importedProvenance('second') },
+	] });
 	const renders: ControllerProject[] = [];
 	const commits: AudioEditorCommand[] = [];
 	const persisted: DerivedSourceRecord[] = [];
+	const provenanceIds: string[][] = [];
 	let preflightBytes = 0;
 	const dependencies = runtime(project, {
 		renderSnapshot: async (snapshot) => {
 			renders.push(snapshot);
 			return buffer([new Float32Array(6).fill(Math.SQRT1_2), new Float32Array(6).fill(Math.SQRT1_2)]);
 		},
-		persistRenderedMixSource: async (rendered, name) => {
+		persistRenderedMixSource: async (rendered, name, provenance) => {
+			provenanceIds.push(provenance?.contributions.map(({ id }) => id) ?? []);
 			const record = derived(`render-${String(persisted.length + 1)}`, rendered, name);
 			persisted.push(record);
 			return record;
@@ -45,6 +51,7 @@ test('individual Mix and Render skips empty targets and stages project-ordered o
 	assert.deepEqual(renders.map((snapshot) => snapshot.mixer.groups), [[], []]);
 	assert.equal(preflightBytes, 2 * 6 * Float32Array.BYTES_PER_ELEMENT);
 	assert.equal(persisted.length, 2);
+	assert.deepEqual(provenanceIds, [['first'], ['second']]);
 	assert.deepEqual(persisted.map(({ source }) => source.channelCount), [1, 1]);
 	assert.deepEqual(result, { trackId: 'first', clipId: 'rendered-clip-1', sourceId: 'render-1' });
 	assert.equal(commits.length, 1);
@@ -299,7 +306,7 @@ test('streamed Mix and Render aborts the raw writer when streaming-writer creati
 
 interface RuntimeOverrides {
 	renderSnapshot?: MixRenderServiceDependencies['renderSnapshot'];
-	persistRenderedMixSource?: (buffer: AudioBufferLike, name: string) => Promise<DerivedSourceRecord>;
+	persistRenderedMixSource?: MixRenderServiceDependencies['derivedSources']['persistRenderedMixSource'];
 	rollbackDerivedSources?: (records: readonly DerivedSourceRecord[]) => Promise<void>;
 	preflightStorage?: MixRenderServiceDependencies['preflightStorage'];
 	commit?: MixRenderServiceDependencies['commit'];
@@ -404,4 +411,11 @@ function derived(id: string, rendered: AudioBufferLike, name: string): DerivedSo
 	const channels = Array.from({ length: rendered.numberOfChannels }, (_, channel) => rendered.getChannelData(channel));
 	return { source: { ...source(id), name, frameCount: rendered.length, channelCount: rendered.numberOfChannels },
 		buffer: rendered, channels };
+}
+
+function importedProvenance(id: string) {
+	return createImportedSourceProvenance({
+		id,
+		origin: { kind: 'local-file', originalFileName: `${id}.wav`, mimeType: 'audio/wav' },
+	});
 }

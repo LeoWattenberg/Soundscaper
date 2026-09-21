@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import type { EngineEnvelopePoint } from '../../engine/types.ts';
+import type { SourceProvenanceV1 } from '../../source-provenance.ts';
 import type { AudioBufferLike } from '../source/source-audio.ts';
 
 export interface ControllerEffect extends Readonly<Record<string, unknown>> {
@@ -34,6 +35,7 @@ export interface ControllerSource extends Readonly<Record<string, unknown>> {
 	readonly originalSampleRate: number;
 	readonly sampleFormat?: string;
 	readonly chunkFrames?: number;
+	readonly provenance?: SourceProvenanceV1;
 }
 
 /** Media inventory includes visual sources; PCM consumers narrow through findControllerSource. */

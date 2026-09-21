@@ -88,6 +88,10 @@ const SAVE_PURPOSES = Object.freeze({
 	preset: Object.freeze({ defaultExtension: 'json', filters: [{ name: 'Soundscaper preset', extensions: ['json'] }] }),
 	macro: Object.freeze({ defaultExtension: 'txt', filters: [{ name: 'Audacity macro', extensions: ['txt'] }] }),
 	report: Object.freeze({ defaultExtension: 'json', filters: [{ name: 'Analysis report', extensions: ['json'] }] }),
+	'attribution-csv': Object.freeze({
+		defaultExtension: 'csv',
+		filters: [{ name: 'Attribution list', extensions: ['csv'] }],
+	}),
 	// One purpose for the whole 6C-1 profile family, so OTIO and FCPXML land
 	// here rather than each adding a purpose of its own.
 	interchange: Object.freeze({

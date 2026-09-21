@@ -100,6 +100,7 @@ export function workspacePanelAvailable(
 	webVcr?: Pick<WebVcrUiSnapshot, 'capability' | 'modeActive'> | null,
 	capture?: Pick<FramescaperCaptureUiSnapshot, 'phase'> | null,
 ): boolean {
+	if (panelId === 'freesound') return productId === 'soundscaper';
 	if (panelId === WEB_VCR_PANEL_ID) {
 		return productProfile(productId).applicationFeatures.framescaperWebVcr === true
 			&& webVcrCapabilityAvailable(webVcr);

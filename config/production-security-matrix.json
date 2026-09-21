@@ -1,6 +1,6 @@
 {
 	"schemaVersion": 1,
-	"groundedAt": "2026-08-30",
+	"groundedAt": "2026-09-21",
 	"modelDocument": "docs/production-threat-model.md",
 	"productVersions": {
 		"version": "1.0.0-rc.10",
@@ -1665,6 +1665,65 @@
 				{
 					"kind": "test",
 					"path": "tests/browser/dual-origin/editable-copy-handoff.spec.js"
+				}
+			]
+		},
+		{
+			"id": "public-client-to-freesound-proxy",
+			"from": "Public browser, packaged Soundscaper client, or other network caller",
+			"to": "Soundscaper Cloudflare Pages Freesound Functions and their server-only API credential",
+			"data": "Request host and Origin, read-only method, bounded search fields or sound ID, and an optional single byte range",
+			"entryPoints": [
+				"functions/api/freesound/search.ts",
+				"functions/api/freesound/sounds/[id]/index.ts",
+				"functions/api/freesound/sounds/[id]/preview.ts",
+				"functions/api/freesound/_shared/handlers.ts",
+				"public/_routes.json"
+			],
+			"evidence": [
+				{
+					"kind": "implementation",
+					"path": "functions/api/freesound/_shared/handlers.ts"
+				},
+				{
+					"kind": "implementation",
+					"path": "public/_routes.json"
+				},
+				{
+					"kind": "test",
+					"path": "tests/freesound-api-handlers.test.ts"
+				},
+				{
+					"kind": "test",
+					"path": "tests/freesound-api-contract.test.ts"
+				}
+			]
+		},
+		{
+			"id": "freesound-upstream-to-proxy",
+			"from": "Freesound API metadata and Freesound CDN preview responses",
+			"to": "Soundscaper's owned JSON contract and streamed preview response",
+			"data": "Third-party JSON, metadata fields, preview locators, response headers, and Ogg preview bytes",
+			"entryPoints": [
+				"functions/api/freesound/_shared/contracts.ts",
+				"functions/api/freesound/_shared/handlers.ts"
+			],
+			"evidence": [
+				{
+					"kind": "implementation",
+					"path": "functions/api/freesound/_shared/contracts.ts"
+				},
+				{
+					"kind": "implementation",
+					"path": "functions/api/freesound/_shared/handlers.ts"
+				},
+				{
+					"kind": "test",
+					"path": "tests/freesound-api-contract.test.ts"
+				},
+				{
+					"kind": "test",
+					"path": "tests/freesound-api-handlers.test.ts"
 				}
 			]
 		},
@@ -5146,6 +5205,74 @@
 					"ownerMilestone": "2",
 					"acceptanceCriteria": [
 						"Reference-scale dual-origin evidence measures aggregate heap and storage amplification, proves bounded cancellation and concurrent admission, and reopens only complete projects after abrupt sender, receiver, worker, browser, and power-loss faults."
+					]
+				}
+			]
+		},
+		{
+			"id": "freesound-proxy-boundary",
+			"title": "The public Freesound proxy leaks its credential, accepts unintended fetch targets, or permits unbounded resource use",
+			"boundaryIds": [
+				"public-client-to-freesound-proxy",
+				"freesound-upstream-to-proxy"
+			],
+			"assets": [
+				"Freesound API credential",
+				"Soundscaper and Freesound service availability",
+				"proxy egress and API quota",
+				"returned metadata and preview integrity"
+			],
+			"actor": "A public caller, malicious browser origin, or compromised third-party response attempts credential disclosure, server-side request forgery, response smuggling, or resource amplification.",
+			"impact": "high",
+			"status": "partial",
+			"surfaceDisposition": "conditional",
+			"ownerMilestone": "1",
+			"currentControls": [
+				{
+					"id": "bounded-freesound-read-proxy",
+					"summary": "The Pages route map sends only `/api/freesound/*` to Functions. The read-only handlers fail closed on unrecognized hosts and browser Origins, methods outside GET/HEAD/OPTIONS, unknown or duplicate search parameters, invalid sound IDs, multiple or malformed byte ranges, and a missing or malformed server secret. They read `FREESOUND_API_KEY` only from the environment and carry that credential only in an Authorization header to the fixed https://freesound.org API; URLSearchParams constructs the query, redirects are disabled, and API JSON work has an eight-second default deadline. Successful JSON must declare `application/json`, fit a 2 MiB declared and streamed ceiling, decode as UTF-8, and normalize through a closed bounded owned contract that omits upstream pagination and preview locators. A preview locator must be a credential-free HTTPS URL on exact `cdn.freesound.org` with no port or fragment and a `/previews/` path ending in `.ogg`; the credential is not forwarded, redirects remain disabled, responses must have an allowlisted Ogg MIME, and declared and streamed bodies stop at 256 MiB. Public responses expose only owned JSON or allowlisted preview headers, set `nosniff` and explicit cache policy, scope CORS to the Soundscaper web, packaged-app, or current same origin, and normalize errors without upstream bodies or secrets. Tests cover secret confinement, admission failure before fetch, SSRF and multi-range rejection, media typing, deadlines, response ownership, and route scoping. The proxy is public: host and CORS checks constrain deployment and browser response sharing, not client authentication.",
+					"evidence": [
+						{
+							"kind": "implementation",
+							"path": "functions/api/freesound/_shared/contracts.ts"
+						},
+						{
+							"kind": "implementation",
+							"path": "functions/api/freesound/_shared/handlers.ts"
+						},
+						{
+							"kind": "implementation",
+							"path": "public/_routes.json"
+						},
+						{
+							"kind": "test",
+							"path": "tests/freesound-api-contract.test.ts"
+						},
+						{
+							"kind": "test",
+							"path": "tests/freesound-api-handlers.test.ts"
+						}
+					],
+					"policyAuthority": "family-v1-active"
+				}
+			],
+			"residualRisks": [
+				{
+					"id": "freesound-proxy-deployment-rate-limiting",
+					"exposure": "The repository does not provision or verify a Cloudflare rate-limit rule for `/api/freesound/*`. Per-request parsing, response-byte ceilings, and Freesound's normalized 429 response do not bound aggregate request volume, concurrent preview streams, proxy egress, or shared API-quota consumption. CORS does not stop non-browser or same-origin callers.",
+					"requiredControl": "Provision and retain reviewable production rate-limiting and monitoring for the Freesound namespace, with separate treatment for metadata and range-capable preview traffic and a response plan for sustained upstream 429 or proxy-abuse signals.",
+					"ownerMilestone": "1",
+					"acceptanceCriteria": [
+						"Deployment evidence identifies the active production route match, thresholds, actions, and alert ownership; an external probe proves abusive request bursts are limited while ordinary search, detail, HEAD, and single-range preview requests remain usable."
+					]
+				},
+				{
+					"id": "freesound-preview-stream-lifecycle",
+					"exposure": "There is no proxy-owned preview-body idle or total deadline after response headers and no preview digest, signature, or Ogg structural authentication. The 256 MiB transform limits actual bytes, but a slow stream can retain work until platform or connection teardown, and an allowed-host, allowed-MIME response remains trusted Freesound CDN content rather than cryptographically authenticated media.",
+					"requiredControl": "Before claiming bounded preview elapsed time or end-to-end preview authenticity, enforce and test an explicit streamed-body lifecycle deadline and bind preview bytes to authenticated metadata or retain the CDN trust dependency as an explicit limitation.",
+					"ownerMilestone": "1",
+					"acceptanceCriteria": [
+						"A stalled or slow preview body is cancelled within a documented lower-only deadline without a late response, client abort drains upstream work, and any future authenticity claim includes a tested mismatch rejection against an authenticated preview digest or signature."
 					]
 				}
 			]

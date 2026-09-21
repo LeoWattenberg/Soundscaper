@@ -69,6 +69,7 @@ const RUNTIME_MODULES = Object.freeze({
 	effects: 'src/common/editor/effects.js',
 	exportSettings: 'src/common/editor/controller/export/export-settings.ts',
 	factoryPresets: 'src/common/editor/audacity-effects/factory-presets.js',
+	freesoundAttributionCopy: 'src/common/i18n/editor-freesound-attribution-copy.ts',
 	labels: 'src/common/editor/label-io.js',
 	liveEffects: 'src/common/editor/audacity-effects/live-capabilities.js',
 	locales: 'src/common/i18n/locales.js',
@@ -189,6 +190,11 @@ export function renderReferenceDocuments(sources) {
 	} = sources;
 	const productProfiles = products.PRODUCT_IDS.map((id) => products.PRODUCT_PROFILES[id]);
 	const englishCopy = copy.COPY_BY_LOCALE.en;
+	const workspaceEnglishCopy = Object.freeze({
+		...englishCopy,
+		'ui.freesoundAttribution.panel': sources.freesoundAttributionCopy
+			.FREESOUND_ATTRIBUTION_ENGLISH_COPY.panel,
+	});
 	return new Map([
 		['commands.md', renderCommandReference({
 			manifest: actions.AUDACITY_ACTION_MANIFEST,
@@ -225,7 +231,7 @@ export function renderReferenceDocuments(sources) {
 		})],
 		['workspaces.md', renderWorkspaceReference({
 			products: productProfiles,
-			copy: englishCopy,
+			copy: workspaceEnglishCopy,
 			builtInWorkspaces: workspaces.AUDIO_EDITOR_BUILT_IN_WORKSPACES,
 			presets: workspaces.AUDIO_EDITOR_WORKSPACE_PRESETS,
 			defaultPanels: workspaces.DEFAULT_PANELS,

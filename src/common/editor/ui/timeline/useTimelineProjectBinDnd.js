@@ -1,6 +1,10 @@
 import { useCallback, useEffect } from 'react';
 
-import { AUDIO_EDITOR_PROJECT_BIN_DRAG_TYPE } from '../../project-bin-dnd.js';
+import {
+	AUDIO_EDITOR_FREESOUND_RESULT_DRAG_TYPE,
+	AUDIO_EDITOR_PROJECT_BIN_DRAG_TYPE,
+	parseFreesoundResultDragPayload,
+} from '../../project-bin-dnd.js';
 import { compatibleMediaTrack } from './geometry.ts';
 import { NEW_AUDIO_TRACK_DROP_TARGET } from './constants.ts';
 import {
@@ -24,7 +28,8 @@ export function useTimelineProjectBinDnd({
 	const onTimelineDragOver = useCallback((event) => {
 		const binDrag = dataTransferHasType(event.dataTransfer, AUDIO_EDITOR_PROJECT_BIN_DRAG_TYPE);
 		const fileDrag = dataTransferHasType(event.dataTransfer, 'Files');
-		if (!binDrag && !fileDrag) return;
+		const freesoundDrag = dataTransferHasType(event.dataTransfer, AUDIO_EDITOR_FREESOUND_RESULT_DRAG_TYPE);
+		if (!binDrag && !fileDrag && !freesoundDrag) return;
 		event.preventDefault();
 		if (mutationsBlocked || !project) {
 			event.dataTransfer.dropEffect = 'none';
@@ -101,10 +106,14 @@ export function useTimelineProjectBinDnd({
 
 	const onTimelineDrop = useCallback((event) => {
 		const binDrag = dataTransferHasType(event.dataTransfer, AUDIO_EDITOR_PROJECT_BIN_DRAG_TYPE);
+		const freesoundDrag = dataTransferHasType(event.dataTransfer, AUDIO_EDITOR_FREESOUND_RESULT_DRAG_TYPE);
 		const files = [...(event.dataTransfer?.files || [])];
-		if (!binDrag && !files.length) return;
+		if (!binDrag && !freesoundDrag && !files.length) return;
 		event.preventDefault();
 		const payload = binDrag ? projectBinPayloadFromDataTransfer(event.dataTransfer) : null;
+		const freesound = freesoundDrag ? parseFreesoundResultDragPayload(
+			event.dataTransfer.getData(AUDIO_EDITOR_FREESOUND_RESULT_DRAG_TYPE),
+		) : null;
 		const target = timelineDropTargetAt(event);
 		clearProjectBinDragState(true);
 		if (mutationsBlocked || !project) return;
@@ -114,6 +123,16 @@ export function useTimelineProjectBinDnd({
 			if (!clip) return;
 			run(() => controller.actions.projectBin.place(clip.id, {
 				...(target.trackId ? { trackId: target.trackId } : {}),
+				timelineStartFrame: target.timelineStartFrame,
+			}));
+			return;
+		}
+		if (freesound) {
+			const targetTrack = target.trackId ? compatibleMediaTrack(project, target.trackId, 'audio') : null;
+			run(() => controller.actions.freesound.importSound({
+				soundId: freesound.soundId,
+				destination: 'timeline',
+				...(targetTrack ? { trackId: targetTrack.id } : {}),
 				timelineStartFrame: target.timelineStartFrame,
 			}));
 			return;

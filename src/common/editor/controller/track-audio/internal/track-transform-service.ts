@@ -10,6 +10,7 @@ import {
 } from '../../../commands/factories.ts';
 import type { AudioEditorCommand } from '../../../commands/protocol.ts';
 import { scaleSampleFrame } from '../../../timeline-time.ts';
+import { deriveSourceProvenance } from '../../../source-provenance-derivation.ts';
 import { resampledClipCommands } from './clip-resample-service.ts';
 import type { DerivedSourceService } from './derived-audio/derived-source-service.ts';
 import { v21StripLaneRemovalCommands } from '../mix-render-model.ts';
@@ -320,11 +321,17 @@ export function createTrackTransformService(
 				]);
 				assertOwned(ownership);
 				const sourceRate = dependencies.projectSampleRate();
-				const template = findControllerSource(project, clips[0]?.sourceId) || syntheticSource(track.name, frameCount, sourceRate);
+				const inputSources = [...new Map(clips.flatMap((clip) => {
+					const source = findControllerSource(project, clip.sourceId);
+					return source ? [[source.id, source] as const] : [];
+				})).values()];
+				const template = inputSources[0] || syntheticSource(track.name, frameCount, sourceRate);
+				const provenance = deriveSourceProvenance(inputSources);
 				const stereo = await dependencies.derivedSources.persistDerivedSource({
 					...template,
 					sampleRate: sourceRate,
 					originalSampleRate: template.originalSampleRate || template.sampleRate || sourceRate,
+					...(provenance ? { provenance } : {}),
 				}, [leftChannels[0]!, rightChannels[0]!], `${track.name} — ${publishedCopyFor(dependencies.copy).stereo}`, 'stereo-source');
 				derived.push(stereo);
 				assertOwned(ownership);

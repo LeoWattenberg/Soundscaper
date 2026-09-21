@@ -8,6 +8,8 @@ import { createLocalizedError } from '../../../../i18n/presentation-message.ts';
 } from '../../../commands/protocol.ts';
 import type { EffectSelectionFrequencyRange, EffectTarget } from '../effect-selection-service.ts';
 import type { AudioBufferLike } from '../../source/source-audio.ts';
+import { deriveSourceProvenance } from '../../../source-provenance-derivation.ts';
+import type { SourceProvenanceV1 } from '../../../source-provenance.ts';
 
 type RangeReplacementCommand = Extract<AudioEditorCommand, { readonly type: 'range/replace' }>;
 type SelectionCommand = Extract<AudioEditorCommand, { readonly type: 'selection/set' }>;
@@ -15,6 +17,20 @@ type PasteCommand = Extract<AudioEditorCommand, { readonly type: 'clipboard/past
 
 export interface EffectResultProject {
 	readonly id: string;
+	readonly sources?: readonly Readonly<{
+		readonly id?: unknown;
+		readonly provenance?: SourceProvenanceV1;
+	}>[];
+	readonly clips?: readonly Readonly<{
+		readonly id?: unknown;
+		readonly sourceId?: unknown;
+		readonly timelineStartFrame?: unknown;
+		readonly durationFrames?: unknown;
+	}>[];
+	readonly tracks?: readonly Readonly<{
+		readonly id?: unknown;
+		readonly clipIds?: readonly string[];
+	}>[];
 }
 
 export interface SelectionEffectResult {
@@ -68,6 +84,7 @@ export interface EffectResultSource extends CommandObject {
 	readonly channelCount: number;
 	readonly sampleRate: number;
 	readonly originalSampleRate: number;
+	readonly provenance?: SourceProvenanceV1;
 }
 
 export interface EffectResultSourceWriter {
@@ -153,6 +170,7 @@ export interface SelectionEffectResultRuntime<Buffer extends AudioBufferLike = A
 		options: RangeReplacementOptions,
 	) => RangeReplacementCommand;
 	readonly getProject: () => EffectResultProject;
+	readonly getAttributionProject?: () => EffectResultProject;
 	readonly projectSampleRate: () => number;
 	readonly sourceBuffers: EffectResultCache;
 	readonly sourcePeaks: EffectResultPeakCache;
@@ -276,6 +294,10 @@ export function createSelectionEffectResultService<Buffer extends AudioBufferLik
 			assertOperationCurrent();
 			const sourceId = createStableId('audacity-effect');
 			const sourceName = `${target.track.name} — ${effectName}.wav`;
+			const provenance = effectResultProvenance(
+				runtime.getAttributionProject?.() ?? getProject(),
+				target,
+			);
 			const source: EffectResultSource = {
 				id: sourceId,
 				storageKey: sourceId,
@@ -285,6 +307,7 @@ export function createSelectionEffectResultService<Buffer extends AudioBufferLik
 				channelCount: buffer.numberOfChannels,
 				sampleRate,
 				originalSampleRate: sampleRate,
+				...(provenance ? { provenance } : {}),
 			};
 			const replacement = target.clipId ? null : prepareRangeReplacementCommand(getProject(), {
 				trackId: target.track.id,
@@ -464,4 +487,24 @@ function effectCommandSource(entry: EffectResultEntry, sampleRate: number): Comm
 		sampleRate,
 		originalSampleRate: sampleRate,
 	};
+}
+
+function effectResultProvenance(
+	project: EffectResultProject,
+	target: EffectTarget,
+): SourceProvenanceV1 | undefined {
+	const track = project.tracks?.find(({ id }) => String(id) === target.track.id);
+	const clipIds = target.clipId
+		? [target.clipId]
+		: target.clipIds?.length
+			? target.clipIds
+			: track?.clipIds ?? [];
+	const sourceIds = new Set((project.clips ?? []).flatMap((clip) => (
+		clipIds.includes(String(clip.id))
+			&& Number(clip.timelineStartFrame) < target.endFrame
+			&& Number(clip.timelineStartFrame) + Number(clip.durationFrames) > target.startFrame
+			? [String(clip.sourceId)]
+			: []
+	)));
+	return deriveSourceProvenance((project.sources ?? []).filter(({ id }) => sourceIds.has(String(id))));
 }

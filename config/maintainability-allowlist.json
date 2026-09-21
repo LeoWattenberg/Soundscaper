@@ -79,7 +79,6 @@
 		"src/common/editor/commands/track-lock-admission.ts": 571,
 		"src/common/editor/controller/assistance/local-assistance-selected-video.ts": 599,
 		"src/common/editor/controller/capture/framescaper-capture-app-composition.ts": 589,
-		"src/common/editor/controller/capture/internal/framescaper-capture-canonical-assets.ts": 551,
 		"src/common/editor/controller/capture/internal/framescaper-capture-durable-session.ts": 589,
 		"src/common/editor/controller/capture/internal/framescaper-capture-publication-plan.ts": 596,
 		"src/common/editor/controller/capture/internal/framescaper-capture-session-service.ts": 600,

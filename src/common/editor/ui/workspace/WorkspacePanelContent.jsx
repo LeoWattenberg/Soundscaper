@@ -5,7 +5,6 @@ import { EbuR128WorkspacePanel } from '../toolbar/AudioEditorMeters.jsx';
 import AudioEditorMixerPanel from './AudioEditorMixerPanel.jsx';
 import { LabelManagerRow } from './LabelManagerRows.jsx';
 import ProjectBinPanel from './ProjectBinPanel.jsx';
-import ProjectMetadataPanel from './ProjectMetadataPanel.tsx';
 import SourceMonitorPanel from './SourceMonitorPanel.jsx';
 import TimelineAnnotationWorkspacePanel from './TimelineAnnotationWorkspacePanel.tsx';
 import VideoPreviewPanel from './VideoPreviewPanel.jsx';
@@ -44,6 +43,11 @@ function DockedEffectsPanel({ host, panelActive = true, ...props }) {
 const AudioEditorEffectsOverlay = lazyEditorModule(() => import('../inspector/AudioEditorEffectsOverlay.jsx'));
 const FRAMESCAPER_BUILD = typeof __SCAPE_PRODUCT__ === 'undefined'
 	|| __SCAPE_PRODUCT__ === 'framescaper';
+const SOUNDSCAPER_BUILD = typeof __SCAPE_PRODUCT__ === 'undefined'
+	|| __SCAPE_PRODUCT__ === 'soundscaper';
+const FreesoundPanelContainer = SOUNDSCAPER_BUILD
+	? lazyEditorModule(() => import('./FreesoundPanelContainer.tsx')) : null;
+const ProjectMetadataPanel = lazyEditorModule(() => import('./ProjectMetadataPanel.tsx'));
 const RecordingSetupPanel = FRAMESCAPER_BUILD
 	? lazyEditorModule(() => import('./RecordingSetupPanel.tsx')) : null;
 const WebVcrPanel = FRAMESCAPER_BUILD
@@ -73,6 +77,8 @@ export default function WorkspacePanelContent({
 	onRoutingParameterGesture = /** @type {import('./soundscaper-routing-graph-gesture.ts').SoundscaperRoutingParameterGestureHandler | undefined} */ (undefined),
 	effectsPanelTarget,
 	onEffectWindowChange,
+	attributionReport = null,
+	onExportAttributionCsv = undefined,
 	blocked,
 }) {
 	const project = snapshot.project;
@@ -121,6 +127,19 @@ export default function WorkspacePanelContent({
 		return (
 			<React.Suspense fallback={<LazyInspectorFallback copy={copy} />}>
 				<WebVcrPanel controller={controller} snapshot={snapshot} copy={copy} run={run} blocked={blocked} />
+			</React.Suspense>
+		);
+	}
+	if (SOUNDSCAPER_BUILD && panelId === 'freesound' && FreesoundPanelContainer) {
+		return (
+			<React.Suspense fallback={<LazyInspectorFallback copy={copy} />}>
+				<FreesoundPanelContainer
+					controller={controller}
+					snapshot={snapshot}
+					copy={copy}
+					panelActive={panelActive}
+					disabled={Boolean(snapshot.readOnly || blocked)}
+				/>
 			</React.Suspense>
 		);
 	}
@@ -218,12 +237,19 @@ export default function WorkspacePanelContent({
 	}
 	if (panelId === 'metadata') {
 		return (
-			<ProjectMetadataPanel
-				project={project}
-				copy={copy}
-				disabled={snapshot.readOnly}
-				onUpdate={(changes) => run(() => controller.actions.metadata.update(changes))}
-			/>
+			<React.Suspense fallback={<LazyInspectorFallback copy={copy} />}>
+				<ProjectMetadataPanel
+					project={project}
+					copy={copy}
+					locale={locale}
+					disabled={snapshot.readOnly}
+					onUpdate={(changes) => run(() => controller.actions.metadata.update(changes))}
+					fileService={fileService}
+					run={run}
+					attributionReport={attributionReport}
+					onExportAttributionCsv={onExportAttributionCsv}
+				/>
+			</React.Suspense>
 		);
 	}
 	if (panelId === 'effects') {

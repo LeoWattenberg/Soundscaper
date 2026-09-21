@@ -1,5 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { createNonImportedSourceProvenance } from '../../../source-provenance.ts';
+
 import type {
 	FramescaperCaptureSessionManifestV1,
 	FramescaperCaptureStreamManifestV1,
@@ -46,6 +48,7 @@ import {
 	inspectFramescaperCapturePcmTimeline,
 	writeFramescaperCapturePcmTimeline,
 } from './framescaper-capture-canonical-pcm.ts';
+import { framescaperCaptureAudioSource } from './framescaper-capture-audio-source.ts';
 import { loadRetainedCaptureVideoBody } from './framescaper-capture-retained-media.ts';
 import { framescaperCapturePublicationName } from './framescaper-capture-publication-name.ts';
 
@@ -120,7 +123,7 @@ async function publishRawPcm(
 	const existing = await options.store.getSourceMetadata(storage.sourceId);
 	if (existing) {
 		assertExistingAudio(existing, storage, timeline.outputFrameCount, fingerprint);
-		return borrowedPublication(audioSource(streamManifest, spool, timeline.outputFrameCount, name), durationFrames);
+		return borrowedPublication(framescaperCaptureAudioSource(streamManifest, spool, timeline.outputFrameCount, name), durationFrames);
 	}
 	if (publicationMode === 'reconcile-only') {
 		throw new Error(`Capture source ${storage.sourceId} is missing during commit reconciliation.`);
@@ -142,7 +145,7 @@ async function publishRawPcm(
 		}, { ...(signal ? { signal } : {}), ifAbsent: true });
 		assertExistingAudio(committed, storage, timeline.outputFrameCount, fingerprint);
 		return Object.freeze({
-			source: audioSource(streamManifest, spool, timeline.outputFrameCount, name),
+			source: framescaperCaptureAudioSource(streamManifest, spool, timeline.outputFrameCount, name),
 			timelineDurationFrames: durationFrames,
 			discardIfCurrent: () => options.store.discardSourceIfCurrent(committed!),
 		});
@@ -161,7 +164,7 @@ async function publishRawPcm(
 		const concurrent = await options.store.getSourceMetadata(storage.sourceId);
 		if (concurrent) {
 			assertExistingAudio(concurrent, storage, timeline.outputFrameCount, fingerprint);
-			return borrowedPublication(audioSource(streamManifest, spool, timeline.outputFrameCount, name), durationFrames);
+			return borrowedPublication(framescaperCaptureAudioSource(streamManifest, spool, timeline.outputFrameCount, name), durationFrames);
 		}
 		throw error;
 	}
@@ -233,6 +236,7 @@ async function publishEncodedVideo(
 			videoCodec: probed.characteristics.videoCodec ?? 'unknown',
 			audioCodec: null, hasAudio: false,
 			posterStorageKey: null, thumbnailStorageKey: null,
+			provenance: createNonImportedSourceProvenance('recorded'),
 			opaqueExtensions: Object.freeze({}),
 		});
 		return compositeMediaPublication(source, durationFrames, [body.publication, timingPublication]);
@@ -325,24 +329,6 @@ async function publishCanonicalTiming(
 		throw new Error(`The immutable capture timing asset is ${loaded.status} during commit reconciliation.`);
 	}
 	return Object.freeze({ reference, created: false, publication: null });
-}
-
-function audioSource(
-	stream: FramescaperCaptureStreamManifestV1,
-	spool: RawPcmSpoolRecord,
-	outputFrameCount: number,
-	name: string,
-): Readonly<Record<string, unknown>> {
-	if (stream.storage.kind !== 'raw-pcm') throw new Error('Capture PCM source storage changed.');
-	return Object.freeze({
-		kind: 'audio',
-		id: stream.storage.sourceId, storageKey: stream.storage.sourceId,
-		name, mimeType: 'audio/x-soundscaper-pcm',
-		sampleRate: stream.storage.sampleRate, originalSampleRate: stream.storage.sampleRate,
-		frameCount: outputFrameCount, channelCount: stream.storage.channelCount,
-		sampleFormat: 'float32', chunkFrames: spool.chunkFrames,
-		opaqueExtensions: Object.freeze({}),
-	});
 }
 
 function normalizeVideoProbe(value: FramescaperCaptureVideoProbeResult) {

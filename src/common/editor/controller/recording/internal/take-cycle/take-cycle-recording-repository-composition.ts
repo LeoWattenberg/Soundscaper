@@ -2,6 +2,7 @@
 
 import type { AudioEditorCommand, CommandObject } from '../../../../commands/protocol.ts';
 import { createAudioSource } from '../../../../project-media-factory.ts';
+import { createNonImportedSourceProvenance } from '../../../../source-provenance.ts';
 import { validateAudioEditorProjectV17 } from '../../../../project-v17-validation.ts';
 import { applyDefaultTakeCycleProjectCommand, type TakeCycleProjectDocument } from './take-cycle-project-document.ts';
 import { createScapeDigest, digestScapeBytes, scapeHex } from '../../../../scape-archive-media.ts';
@@ -423,6 +424,7 @@ function projectCommand(
 			originalSampleRate: description.sampleRate,
 			sampleFormat: 'float32',
 			chunkFrames: description.chunkFrames,
+			provenance: createNonImportedSourceProvenance('recorded'),
 		})),
 	}));
 	const takes = operation.plan.passes.map((pass, index) => ({

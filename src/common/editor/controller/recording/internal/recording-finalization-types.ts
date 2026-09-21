@@ -15,6 +15,7 @@ import type {
 	RecordingSourceWriter,
 	RoutedRecordingEntry,
 } from '../recording-transaction-types.ts';
+import type { SourceProvenanceV1 } from '../../../source-provenance.ts';
 
 export interface RecordingProjectTransactionScope {
 	readonly project: RecordingProject;
@@ -33,6 +34,7 @@ export interface RecordedAudioSource extends Readonly<Record<string, unknown>> {
 	readonly mimeType: 'audio/wav';
 	readonly frameCount: number;
 	readonly channelCount: number;
+	readonly provenance: SourceProvenanceV1;
 }
 
 export interface RecordingPunchOptions {

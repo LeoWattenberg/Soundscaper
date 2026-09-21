@@ -32,6 +32,7 @@ import { PROJECT_MEDIA_COPY_BY_LOCALE, CROSS_PRODUCT_HANDOFF_COPY_BY_LOCALE, IMP
 import { EFFECTS_OVERLAY_COPY_BY_LOCALE } from './editor-effects-overlay-copy.ts';
 import { SELECTED_VISUAL_AUTHORING_COPY, SELECTED_VISUAL_AUTHORING_SURFACE_COPY } from './editor-selected-visual-authoring-copy.ts';
 import { SOURCE_STATUS_COPY_BY_LOCALE } from './editor-source-status-copy.ts';
+import { FREESOUND_ATTRIBUTION_INVENTORY_COPY_BY_LOCALE } from './editor-freesound-attribution-copy.ts';
 
 export interface EditorCopyOwner {
 	readonly owner: string;
@@ -124,6 +125,7 @@ const inventory = buildEditorCopyInventory(ENGLISH_COPY, GERMAN_COPY, [
 	{ owner: 'importStatus', ...IMPORT_STATUS_COPY_BY_LOCALE },
 	{ owner: 'effectsOverlay', ...EFFECTS_OVERLAY_COPY_BY_LOCALE },
 	{ owner: 'sourceStatus', ...SOURCE_STATUS_COPY_BY_LOCALE },
+	{ owner: 'freesoundAttribution', ...FREESOUND_ATTRIBUTION_INVENTORY_COPY_BY_LOCALE },
 	{ owner: 'selectedVisualAuthoring', en: SELECTED_VISUAL_AUTHORING_COPY },
 	...Object.entries(SELECTED_VISUAL_AUTHORING_SURFACE_COPY).map(([surface, en]) => ({
 		owner: `selectedVisualAuthoring.surfaces.${surface}`, en,

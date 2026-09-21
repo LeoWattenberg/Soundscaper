@@ -134,6 +134,7 @@ export function securityHeaders({
 } = {}) {
 	const hashes = html === null ? [] : inlineScriptHashes(html);
 	const scriptSources = ["'self'", "'wasm-unsafe-eval'", ...hashes.map((hash) => `'sha256-${hash}'`)];
+	const remoteMediaSources = productId === 'soundscaper' ? ' https://soundscaper.org' : '';
 	return {
 		'Content-Security-Policy': [
 			"default-src 'self'",
@@ -141,9 +142,9 @@ export function securityHeaders({
 			"style-src 'self' 'unsafe-inline'",
 			"font-src 'self' data:",
 			"img-src 'self' data: blob:",
-			"media-src 'self' blob:",
+			`media-src 'self' blob:${remoteMediaSources}`,
 			"worker-src 'self' blob:",
-			"connect-src 'self' blob:",
+			`connect-src 'self' blob:${remoteMediaSources}`,
 			"object-src 'none'",
 			"base-uri 'self'",
 			"frame-src 'none'",

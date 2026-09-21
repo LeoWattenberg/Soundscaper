@@ -1,6 +1,10 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { useRef, useState } from 'react';
+import {
+	AUDIO_EDITOR_FREESOUND_RESULT_DRAG_TYPE,
+	parseFreesoundResultDragPayload,
+} from '../../project-bin-dnd.js';
 
 /**
  * Dragging files onto the Project Bin.
@@ -13,13 +17,14 @@ import { useRef, useState } from 'react';
  * A blocked bin still accepts the drag events — it must, to stop the browser navigating to
  * the dropped file — but refuses the import and never lights up.
  */
-export function useProjectBinFileDrop({ blocked, onFiles }) {
+export function useProjectBinFileDrop({ blocked, onFiles, onFreesoundSound }) {
 	const dragDepthRef = useRef(0);
 	const [dropActive, setDropActive] = useState(false);
 
-	const isFileDrag = (dataTransfer) => {
+	const isImportDrag = (dataTransfer) => {
 		const types = [...(dataTransfer?.types || [])];
-		return types.includes('Files') || [...(dataTransfer?.items || [])].some((item) => item.kind === 'file');
+		return types.includes(AUDIO_EDITOR_FREESOUND_RESULT_DRAG_TYPE)
+			|| types.includes('Files') || [...(dataTransfer?.items || [])].some((item) => item.kind === 'file');
 	};
 
 	const resetDropState = (element = null) => {
@@ -33,7 +38,7 @@ export function useProjectBinFileDrop({ blocked, onFiles }) {
 		resetDropState,
 		dropHandlers: {
 			onDragEnter: (event) => {
-				if (!isFileDrag(event.dataTransfer)) return;
+				if (!isImportDrag(event.dataTransfer)) return;
 				// Cancelling comes before the block check, as it does on drop: an element
 				// whose dragenter/dragover is not cancelled is not a drop target at all,
 				// and the browser navigates to the dropped file instead.
@@ -44,7 +49,7 @@ export function useProjectBinFileDrop({ blocked, onFiles }) {
 				setDropActive(true);
 			},
 			onDragOver: (event) => {
-				if (!isFileDrag(event.dataTransfer)) return;
+				if (!isImportDrag(event.dataTransfer)) return;
 				event.preventDefault();
 				event.stopPropagation();
 				event.dataTransfer.dropEffect = blocked ? 'none' : 'copy';
@@ -52,17 +57,24 @@ export function useProjectBinFileDrop({ blocked, onFiles }) {
 				setDropActive(true);
 			},
 			onDragLeave: (event) => {
-				if (!isFileDrag(event.dataTransfer)) return;
+				if (!isImportDrag(event.dataTransfer)) return;
 				event.stopPropagation();
 				dragDepthRef.current = Math.max(0, dragDepthRef.current - 1);
 				if (!dragDepthRef.current) setDropActive(false);
 			},
 			onDrop: (event) => {
-				if (!isFileDrag(event.dataTransfer)) return;
+				if (!isImportDrag(event.dataTransfer)) return;
 				event.preventDefault();
 				event.stopPropagation();
 				resetDropState(event.currentTarget);
 				if (blocked) return;
+				const freesound = parseFreesoundResultDragPayload(
+					event.dataTransfer.getData?.(AUDIO_EDITOR_FREESOUND_RESULT_DRAG_TYPE),
+				);
+				if (freesound) {
+					onFreesoundSound?.(freesound.soundId);
+					return;
+				}
 				const files = [...(event.dataTransfer.files || [])];
 				if (files.length) onFiles(files);
 			},

@@ -1,6 +1,8 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { createLocalizedError } from '../../../../../i18n/presentation-message.ts'; import type { EditorControllerLifetime, EditorProjectToken } from '../../../shared/lifecycle.ts';
+import { deriveSourceProvenance } from '../../../../source-provenance-derivation.ts';
+import type { SourceProvenanceV1 } from '../../../../source-provenance.ts';
 import {
 	createImportedAudioContentIdentityWriter,
 	type ImportedAudioContentIdentity,
@@ -62,7 +64,11 @@ export interface DerivedSourceService {
 		name: string,
 		idPrefix?: string,
 	): Promise<DerivedSourceRecord>;
-	persistRenderedMixSource(rendered: AudioBufferLike, name: string): Promise<DerivedSourceRecord>;
+	persistRenderedMixSource(
+		rendered: AudioBufferLike,
+		name: string,
+		provenance?: SourceProvenanceV1,
+	): Promise<DerivedSourceRecord>;
 	rollbackDerivedSources(records: readonly Pick<DerivedSourceRecord, 'source'>[]): Promise<void>;
 }
 
@@ -126,6 +132,7 @@ export function createDerivedSourceService(
 	async function persistRenderedMixSource(
 		rendered: AudioBufferLike,
 		name: string,
+		provenance?: SourceProvenanceV1,
 	): Promise<DerivedSourceRecord> {
 		dependencies.lifetime.assertActive();
 		const channels = bufferChannels(rendered);
@@ -148,6 +155,7 @@ export function createDerivedSourceService(
 			sampleFormat: 'float32',
 			opaqueExtensions: {},
 			chunkFrames: dependencies.sourceChunkFrames,
+			...(provenance ? { provenance } : {}),
 		}, channels, sourceId, name, sampleRate);
 		const identity = await persistBuffer(source, rendered, channels, token);
 		const authenticatedSource = Object.freeze({ ...source, ...identity });
@@ -252,8 +260,10 @@ function createDerivedSource(
 	sampleRate: number,
 ): ControllerSource {
 	const { contentSha256: _contentSha256, byteLength: _byteLength, ...contentIndependent } = template;
+	const provenance = deriveSourceProvenance([template]);
 	return Object.freeze({
 		...contentIndependent,
+		...(provenance ? { provenance } : {}),
 		id,
 		storageKey: id,
 		name,

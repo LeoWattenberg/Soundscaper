@@ -20,6 +20,8 @@ release/*
 .env
 .env.*
 !.env.example
+.dev.vars
+.dev.vars.*
 private/
 # Model weights staged for mirroring. Hundreds of megabytes per model, already
 # digest-pinned in config/local-model-catalog.json and served from the object

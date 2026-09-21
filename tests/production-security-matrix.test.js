@@ -147,12 +147,12 @@ test('security matrix covers the production threat-model surfaces without promot
 		'native-plugin-hosting': 'partial',
 		'long-job-cancellation': 'partial',
 		'runtime-supply-chain': 'partial',
+		'freesound-proxy-boundary': 'partial',
 	};
 	assert.deepEqual(
 		Object.fromEntries(matrix.risks.map((risk) => [risk.id, risk.status])),
 		expectedStatuses,
 	);
-
 	for (const risk of matrix.risks) {
 		assert.match(risk.id, /^[a-z0-9]+(?:-[a-z0-9]+)*$/u);
 		assert.ok(STATUS_VALUES.includes(risk.status), `${risk.id} has an invalid status`);

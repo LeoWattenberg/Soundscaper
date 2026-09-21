@@ -28,6 +28,7 @@ export type ImportCompositionProject = ReturnType<ProjectBinServiceDependencies[
 }>;
 
 export type ImportCompositionState = {
+	readOnly?: boolean;
 	selectedTrackId: string | null;
 	selectedClipId: string | null;
 	importing: boolean;
@@ -93,6 +94,9 @@ export type ImportCompositionFfmpeg =
 
 export interface ImportCompositionDependencies {
 	readonly adaptAudacityProject?: (value: unknown) => unknown;
+	readonly freesoundEnabled: boolean;
+	readonly freesoundFetch: typeof fetch;
+	readonly freesoundApiBaseUrl: string;
 	readonly state: ImportCompositionState;
 	readonly copy: ImportCompositionCopy;
 	readonly lifetime: EditorControllerLifetime;

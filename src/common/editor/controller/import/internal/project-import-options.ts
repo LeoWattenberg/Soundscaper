@@ -1,5 +1,10 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import {
+	normalizeSourceProvenance,
+	type SourceProvenanceV1,
+} from '../../../source-provenance.ts';
+
 type ImportOptionsRecord = Record<string, unknown>;
 
 export type ProjectImportDestination = 'timeline' | 'project-bin';
@@ -15,6 +20,7 @@ export interface NormalizedProjectImportOptions extends Readonly<Record<string, 
 	readonly linkedAudioLocatorRevision?: string;
 	readonly linkedVideoLocatorId?: string;
 	readonly linkedVideoLocatorRevision?: string;
+	readonly sourceProvenance?: SourceProvenanceV1;
 }
 
 export interface LinkedVideoImportLocatorReference {
@@ -57,6 +63,12 @@ export function normalizeProjectImportOptions(
 		...(typeof candidate.trackIndex === 'number' && Number.isSafeInteger(candidate.trackIndex)
 			? { trackIndex: candidate.trackIndex } : {}),
 		...normalizeLinkedOriginalImportLocator(candidate),
+		...(candidate.sourceProvenance == null ? {} : {
+			sourceProvenance: normalizeSourceProvenance(
+				candidate.sourceProvenance,
+				'import options.sourceProvenance',
+			),
+		}),
 		...(candidate.signal instanceof AbortSignal ? { signal: candidate.signal } : {}),
 	}, timelineStartExplicit);
 }

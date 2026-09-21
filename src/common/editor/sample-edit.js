@@ -1,6 +1,7 @@
 import { AUDACITY_WAVEFORM_STEM_PIXELS_PER_SAMPLE } from './audacity-waveform-renderer.js';
 import { createStableId } from './project.js';
 import { AUDIO_EDITOR_SOURCE_CHUNK_FRAMES } from './project-audio-factory.js';
+import { deriveSourceProvenance } from './source-provenance-derivation.ts';
 import {
 	createImmutablePcmChunks,
 	editImmutablePcmSamples,
@@ -220,8 +221,10 @@ function editStoredChunk(channels, edits, frameOffset, chunkFrames) {
 }
 
 function createPersistedSampleEditResult(store, source, sourceId, metadata, editsByChunk, revision) {
+	const provenance = deriveSourceProvenance([source]);
 	const descriptor = Object.freeze({
 		...source,
+		...(provenance ? { provenance } : {}),
 		id: sourceId,
 		storageKey: sourceId,
 		sampleFormat: 'float32',

@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import React, { act } from 'react';
 
+import { AUDIO_EDITOR_FREESOUND_RESULT_DRAG_TYPE } from '../src/common/editor/project-bin-dnd.js';
 import { useProjectBinFileDrop } from '../src/common/editor/ui/workspace/use-project-bin-file-drop.js';
 import { installReactTestDom } from './helpers/react-test-dom.ts';
 
@@ -11,7 +12,7 @@ import { installReactTestDom } from './helpers/react-test-dom.ts';
 // only treats an element as a drop target when a handler cancels the event, so
 // the recorded `defaultPrevented` is exactly what decides whether the tab
 // navigates to the dropped file instead of importing it.
-function dragEvent(options: { types?: readonly string[]; files?: readonly unknown[] } = {}) {
+function dragEvent(options: { types?: readonly string[]; files?: readonly unknown[]; data?: string } = {}) {
 	const removedAttributes: string[] = [];
 	return {
 		dataTransfer: {
@@ -19,6 +20,7 @@ function dragEvent(options: { types?: readonly string[]; files?: readonly unknow
 			items: [] as readonly unknown[],
 			files: options.files ?? [],
 			dropEffect: '',
+			getData: () => options.data ?? '',
 		},
 		currentTarget: {
 			removedAttributes,
@@ -39,11 +41,13 @@ async function mountProjectBinDrop(blocked: boolean) {
 	const { createRoot } = await import('react-dom/client');
 	const root = createRoot(dom.container as unknown as Element);
 	const imported: unknown[][] = [];
+	const freesoundImports: number[] = [];
 	let state: ReturnType<typeof useProjectBinFileDrop> | null = null;
 	function Harness() {
 		state = useProjectBinFileDrop({
 			blocked,
 			onFiles: (files: unknown[]) => { imported.push(files); },
+			onFreesoundSound: (soundId: number) => { freesoundImports.push(soundId); },
 		});
 		return null;
 	}
@@ -54,6 +58,7 @@ async function mountProjectBinDrop(blocked: boolean) {
 	};
 	return {
 		imported,
+		freesoundImports,
 		dropActive: () => current().dropActive,
 		deliver: async (name: 'onDragEnter' | 'onDragOver' | 'onDragLeave' | 'onDrop', event: unknown) => {
 			await act(async () => { current().dropHandlers[name](event); });
@@ -79,6 +84,24 @@ test('a blocked Project Bin cancels the file drag so the browser cannot navigate
 		assert.equal(over.defaultPrevented, true, 'dragover is cancelled while blocked');
 		assert.equal(over.dataTransfer.dropEffect, 'none');
 		assert.equal(bin.dropActive(), false, 'the blocked bin never lights up');
+	} finally {
+		await bin.cleanup();
+	}
+});
+
+test('an unblocked Project Bin accepts a strict Freesound result drag', async () => {
+	const bin = await mountProjectBinDrop(false);
+	try {
+		const drag = dragEvent({
+			types: [AUDIO_EDITOR_FREESOUND_RESULT_DRAG_TYPE],
+			data: '{"schemaVersion":1,"soundId":42}',
+		});
+		await bin.deliver('onDragOver', drag);
+		assert.equal(drag.defaultPrevented, true);
+		assert.equal(drag.dataTransfer.dropEffect, 'copy');
+		await bin.deliver('onDrop', drag);
+		assert.deepEqual(bin.freesoundImports, [42]);
+		assert.deepEqual(bin.imported, []);
 	} finally {
 		await bin.cleanup();
 	}

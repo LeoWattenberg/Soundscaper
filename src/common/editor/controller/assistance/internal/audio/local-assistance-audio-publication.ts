@@ -18,6 +18,10 @@ import {
 	createAudioSource,
 	createAudioTrack,
 } from '../../../../project-media-factory.ts';
+import {
+	deriveSourceProvenance,
+	type SourceProvenanceCarrier,
+} from '../../../../source-provenance-derivation.ts';
 import { streamWavBlobPcm } from '../../../../wav-import.js';
 import {
 	assertLocalAssistanceAudioResultCurrent,
@@ -155,6 +159,9 @@ function createPublicationPlans(
 	result: NormalizedLocalAssistanceAudioResult,
 	authority: NormalizedAuthority,
 ): readonly PublicationPlan[] {
+	const provenance = deriveSourceProvenance([
+		authority.source as SourceProvenanceCarrier,
+	]);
 	const occupied = new Set([
 		...recordArray(authority.project.sources, 'project sources').map(({ id }) => String(id)),
 		...recordArray(authority.project.clips, 'project clips').map(({ id }) => String(id)),
@@ -174,6 +181,7 @@ function createPublicationPlans(
 			sampleRate: output.review.sampleRate, originalSampleRate: output.review.sampleRate,
 			sampleFormat: 'float32', chunkFrames: SOURCE_CHUNK_FRAMES,
 			contentSha256: output.claim.sha256, byteLength: output.claim.byteLength,
+			...(provenance ? { provenance } : {}),
 			opaqueExtensions: {
 				[EXTENSION_KEY]: {
 					version: 1, operation: result.operation, slotId: output.slotId,

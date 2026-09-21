@@ -1,4 +1,5 @@
 export const AUDIO_EDITOR_PROJECT_BIN_DRAG_TYPE = 'application/x-soundscaper-project-bin-clip';
+export const AUDIO_EDITOR_FREESOUND_RESULT_DRAG_TYPE = 'application/x-soundscaper-freesound-result+json';
 
 let activeProjectBinDragPayload = null;
 
@@ -27,4 +28,25 @@ export function getActiveProjectBinDragPayload() {
 
 export function clearActiveProjectBinDragPayload() {
 	activeProjectBinDragPayload = null;
+}
+
+export function createFreesoundResultDragPayload(soundId) {
+	if (!Number.isSafeInteger(soundId) || soundId < 1) {
+		throw new RangeError('Freesound soundId must be a positive safe integer.');
+	}
+	return JSON.stringify({ schemaVersion: 1, soundId });
+}
+
+export function parseFreesoundResultDragPayload(value) {
+	if (typeof value !== 'string' || !value) return null;
+	try {
+		const parsed = JSON.parse(value);
+		if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) return null;
+		const keys = Object.keys(parsed);
+		if (keys.length !== 2 || parsed.schemaVersion !== 1
+			|| !Number.isSafeInteger(parsed.soundId) || parsed.soundId < 1) return null;
+		return Object.freeze({ schemaVersion: 1, soundId: parsed.soundId });
+	} catch {
+		return null;
+	}
 }

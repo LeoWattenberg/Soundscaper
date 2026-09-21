@@ -11,6 +11,7 @@ import {
 import type { AudioEditorCommand } from '../../../../commands/protocol.ts';
 import type { EffectSelection, EffectTarget } from '../../effect-selection-service.ts';
 import type { EditorProjectToken } from '../../../shared/lifecycle.ts';
+import { createNonImportedSourceProvenance } from '../../../../source-provenance.ts';
 
 export interface NyquistGeneratedTrack extends Readonly<Record<string, unknown>> {
 	readonly id: string;
@@ -201,6 +202,7 @@ export function createNyquistGeneratedAudioService<Buffer extends NyquistGenerat
 				frameCount,
 				channelCount: channels.length,
 				originalSampleRate: sampleRate,
+				provenance: createNonImportedSourceProvenance('generated'),
 			};
 			let targetTrack = findTrack(project, options.trackId || runtime.state.selectedTrackId);
 			if (targetTrack?.type !== 'audio') {

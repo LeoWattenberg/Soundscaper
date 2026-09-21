@@ -39,7 +39,7 @@ export function createGroupedEditorActions(scope: EditorActionRuntime) {
 	commitRackEffectGesture, configureDisplayInput, continueLoudnessMeasurement, copy, copyEffectStack,
 	createStableId, deleteProject, disjoinSelectedClip, dismissAup4CompatibilitySummary, duplicateProject,
 	duplicateTrack, engine, framescaperCaptureActions, framescaperWebVcrActions, exportLabels, ffmpeg,
-	fileService, findTrack, persistSetting, publishDocumentSnapshot, flushProject, generateSelectionSilence,
+	fileService, findTrack, freesoundPreviewUrl, importFreesoundSound, searchFreesoundSounds, persistSetting, publishDocumentSnapshot, flushProject, generateSelectionSilence,
 	generateSignal, repeatLastGenerator, getClipVisualData, getProjectBinClipVisualData, getVisibleClips,
 	handleClipAction, handleEdit, handleExportAction, handlePlayAtSpeed, handleTransport,
 	hasMissingTimelineSources, importFiles, importLabelFile, importCueFile, inspectScape, listProjects, makeStereoTrack,
@@ -166,6 +166,11 @@ export function createGroupedEditorActions(scope: EditorActionRuntime) {
 			playPause: playPauseProjectBinClip,
 			stopPreview: stopProjectBinPreview,
 			getVisualData: getProjectBinClipVisualData,
+		}),
+		freesound: Object.freeze({
+			search: searchFreesoundSounds,
+			importSound: importFreesoundSound,
+			previewUrl: freesoundPreviewUrl,
 		}),
 		video: createVideoActionGroup(scope, restricted),
 		edit: Object.freeze({

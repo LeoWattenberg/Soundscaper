@@ -123,6 +123,29 @@ test('FFmpeg composition has one browser-lazy, desktop-reachable runtime owner',
 	assert.equal(group.includeDependenciesRecursively, false);
 });
 
+test('Freesound and attribution UI stay behind the optional surface boundary', () => {
+	for (const path of [
+		'src/common/editor/project-attribution-csv.ts',
+		'src/common/editor/project-attribution-report.ts',
+		'src/common/editor/ui/AttributionTab.tsx',
+		'src/common/editor/ui/MetadataEditorTabs.tsx',
+		'src/common/editor/ui/workspace/FreesoundPanel.tsx',
+		'src/common/editor/ui/workspace/FreesoundPanelContainer.tsx',
+		'src/common/editor/ui/workspace/ProjectAttributionTab.tsx',
+		'src/common/editor/ui/workspace/ProjectMetadataPanel.tsx',
+		'src/common/editor/ui/workspace/project-attribution-presentation.ts',
+		'src/common/i18n/freesound-attribution-copy.js',
+	]) assert.equal(chunkGroupForModulePath(path), 'editor-optional-surfaces', path);
+});
+
+test('Freesound and imported metadata stay behind import admission', () => {
+	for (const path of [
+		'src/common/editor/imported-media-metadata.ts',
+		'src/common/editor/controller/import/internal/freesound-import-service.ts',
+		'src/common/editor/controller/import/internal/imported-source-provenance.ts',
+	]) assert.equal(chunkGroupForModulePath(path), 'editor-import-admission', path);
+});
+
 test('only a wholly type-only import clause is absent from the eager graph', () => {
 	assert.equal(importsOnlyTypes('{ type LazyShape, type LazyOptions as Options }'), true);
 	assert.equal(importsOnlyTypes('LazyRuntime, { type LazyShape }'), false);

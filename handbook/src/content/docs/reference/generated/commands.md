@@ -192,6 +192,7 @@ Product availability follows each product profile’s command filters and each l
 | Follow track color | `action://trackedit/clip/change-color-auto` | — | Clip context > Color | Soundscaper, Framescaper | Audacity |
 | Four-band parametric EQ | `eq` | — | Effect > EQ and filters | Soundscaper | Soundscaper local |
 | Framescaper Help | `desktop-product-help-framescaper` | — | Help | Framescaper | Soundscaper local |
+| Freesound | `panel-freesound` | — | View > Panels | Soundscaper | Soundscaper local |
 | Freeze Video | `framescaper-freeze-video` | — | Effect | Framescaper | Soundscaper local |
 | Freeze track | `soundscaper-freeze-track` | — | Tracks > Freeze | Soundscaper | Soundscaper local |
 | Fullscreen | `fullscreen` | F11 | View | Soundscaper, Framescaper | Audacity |

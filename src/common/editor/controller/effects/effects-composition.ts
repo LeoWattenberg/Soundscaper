@@ -38,7 +38,10 @@ import { createEffectAudioService } from './internal/effect-audio-service.ts';
 import { createEffectControlsService } from './effect-controls-service.ts';
 import { createSelectionEffectExecutionService } from './internal/effect-execution-service.ts';
 import { createEffectMacroService, type EffectMacroServiceRuntime } from './internal/macro/effect-macro-service.ts';
-import { createSelectionEffectResultService } from './internal/effect-result-service.ts';
+import {
+	createSelectionEffectResultService,
+	type EffectResultProject,
+} from './internal/effect-result-service.ts';
 import { createEffectSelectionService } from './effect-selection-service.ts';
 import type { EffectsCompositionDependencies, EffectsCompositionProject } from './effects-composition-types.ts';
 import {
@@ -196,6 +199,7 @@ export function createEffectsComposition(dependencies: EffectsCompositionDepende
 		prepareRangeDeleteCommand,
 		prepareRangeReplacementCommand,
 		getProject: requireProject,
+		getAttributionProject: () => dependencies.getCommandProject() as unknown as EffectResultProject,
 		projectSampleRate: dependencies.projectSampleRate,
 		sourceBuffers: dependencies.sourceBuffers,
 		sourcePeaks: dependencies.sourcePeaks,

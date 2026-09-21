@@ -92,9 +92,16 @@ test('already-normalized default placement remains implicit when routed to video
 	const options = service.normalizeImportOptions({ destination: 'project-bin' });
 	assert.equal(options.timelineStartExplicit, false);
 	assert.equal(Object.keys(options).includes('timelineStartExplicit'), false);
-	const routed = await service.importFile({ name: 'movie.mp4' }, options);
-	assert.equal(routed, options);
+	const routed = await service.importFile(
+		new File([], 'movie.mp4', { type: 'video/mp4' }),
+		options,
+	);
+	assert.equal(routed.destination, options.destination);
+	assert.equal(routed.trackId, options.trackId);
+	assert.equal(routed.timelineStartFrame, options.timelineStartFrame);
+	assert.equal(routed.sourceProvenance.classification, 'imported');
 	assert.equal(routed.timelineStartExplicit, false);
+	assert.equal(Object.keys(routed).includes('timelineStartExplicit'), false);
 });
 
 test('normalization cleanup requires an exact valid locator reference', async () => {

@@ -9,7 +9,7 @@ qualify, attest to, or sign off a release. Historical “qualified” and
 “admitted” wording in retained version narratives means only that a bounded
 technical input or operation passed its named checks.
 
-The model is grounded on 2026-08-30. It must be updated when a trust boundary, supported input, renderer bridge, worker ABI, native executable, plug-in surface, release channel, or long-job lifecycle changes.
+The model is grounded on 2026-09-21. It must be updated when a trust boundary, supported input, renderer bridge, worker ABI, native executable, plug-in surface, release channel, or long-job lifecycle changes.
 
 ## 1.0 project-identity boundary
 
@@ -63,9 +63,9 @@ Documentation, a roadmap entry, or a passing happy-path test is not by itself an
 
 ## Scope, assets, and actors
 
-Protected assets are project and source integrity, user-selected files, local storage capacity, renderer and desktop-process availability, same-origin data, release provenance, and the authority of the user's operating-system account.
+Protected assets are project and source integrity, user-selected files, local storage capacity, renderer and desktop-process availability, same-origin data, server-held service credentials and quota, release provenance, and the authority of the user's operating-system account.
 
-The attacker may provide a malformed project, archive, audio/video file, metadata block, Nyquist program, or future plug-in; compromise renderer content; or substitute a dependency or release input. Accidental corruption, interrupted writes, project switches, cancellation, and renderer/process crashes are treated as security-relevant fault cases because they can violate the same integrity and availability invariants.
+The attacker may provide a malformed project, archive, audio/video file, metadata block, Nyquist program, or future plug-in; call a public proxy or supply an adversarial third-party response; compromise renderer content; or substitute a dependency or release input. Accidental corruption, interrupted writes, project switches, cancellation, and renderer/process crashes are treated as security-relevant fault cases because they can violate the same integrity and availability invariants.
 
 The browser, Electron/Chromium runtime, operating system, and hardware are trusted to enforce their documented primitives. Local operating-system compromise is out of scope. A malicious native plug-in is not made safe merely by running in another ordinary user process.
 
@@ -76,6 +76,8 @@ The browser, Electron/Chromium runtime, operating system, and hardware are trust
 | `external-input-to-parser` | User-selected files and collaborator-supplied bytes | Project, archive, media, and metadata parsers | Reject invalid structure and resource amplification before persistent publication. |
 | `archive-reader-to-storage` | ZIP entries and admitted family-v1 project records | IndexedDB/OPFS projects and sources | A failed or cancelled import does not publish a project or leave staged sources. |
 | `browser-origin-to-peer-project-store` | Soundscaper or Framescaper transfer origin and manually selected archives | Peer-origin transfer page and its product-family stores | Admit only the configured origin and peer window, a closed bounded handshake, and ordinary family-qualified Scape publication. |
+| `public-client-to-freesound-proxy` | Public browsers, packaged Soundscaper clients, and other network callers | Pages Functions and their server-only Freesound credential | Admit only fixed read routes and bounded inputs, and never expose or forward the credential outside the fixed API origin. |
+| `freesound-upstream-to-proxy` | Freesound API metadata and CDN preview responses | Owned JSON and streamed preview responses | Reject untrusted fetch targets, redirects, open response shapes, disallowed media types, and bodies beyond per-response ceilings. |
 | `renderer-to-electron-main` | Sandboxed renderer | Electron main process | Only the product-qualified v1 bridge, including bounded pathless linked-video, maintained linked PCM container, and owning-family project-library calls, reaches privileged handlers. |
 | `electron-main-to-filesystem` | Protocol and IPC requests | User-selected files and packaged resources | Renderer code receives capabilities, not ambient paths or arbitrary filesystem access; persisted linked-video and maintained linked PCM container paths remain main-private. |
 | `electron-main-to-shared-project-library` | Soundscaper or Framescaper Electron main-process host | Product-isolated family-v1 appData catalog, project-document tree, and managed-media tree | The family-qualified handshake and current fenced lease must agree before project use; only the current lease may publish state, exact-absent managed bodies receive point-in-time catalog and destination-capacity admission before body work, immutable bodies are complete and digest-bound before catalog publication, and recovery roots remain protected before host exposure. |
@@ -650,6 +652,54 @@ The receiver's persistent write is separately registered as
 `web-cross-origin-project-transfer-import` in the publication fault matrix.
 Reference-scale aggregate memory and elapsed-time evidence, abrupt browser and
 power loss, and cross-tab concurrent reservation remain unqualified.
+
+### Freesound API proxy
+
+`freesound-proxy-boundary` is **partial** at the
+`public-client-to-freesound-proxy` and `freesound-upstream-to-proxy`
+boundaries.
+
+<!-- policy-narrative:bounded-freesound-read-proxy -->
+The Pages route map sends only `/api/freesound/*` to Functions. The read-only
+handlers fail closed on unrecognized hosts and browser Origins, methods outside
+GET/HEAD/OPTIONS, unknown or duplicate search parameters, invalid sound IDs,
+multiple or malformed byte ranges, and a missing or malformed server secret.
+They read `FREESOUND_API_KEY` only from the environment and carry that
+credential only in an Authorization header to the fixed https://freesound.org
+API; URLSearchParams constructs the query, redirects are disabled, and API JSON
+work has an eight-second default deadline. Successful JSON must declare
+`application/json`, fit a 2 MiB declared and streamed ceiling, decode as UTF-8,
+and normalize through a closed bounded owned contract that omits upstream
+pagination and preview locators. A preview locator must be a credential-free
+HTTPS URL on exact `cdn.freesound.org` with no port or fragment and a
+`/previews/` path ending in `.ogg`; the credential is not forwarded, redirects
+remain disabled, responses must have an allowlisted Ogg MIME, and declared and
+streamed bodies stop at 256 MiB. Public responses expose only owned JSON or
+allowlisted preview headers, set `nosniff` and explicit cache policy, scope CORS
+to the Soundscaper web, packaged-app, or current same origin, and normalize
+errors without upstream bodies or secrets. Tests cover secret confinement,
+admission failure before fetch, SSRF and multi-range rejection, media typing,
+deadlines, response ownership, and route scoping. The proxy is public: host and
+CORS checks constrain deployment and browser response sharing, not client
+authentication.
+<!-- /policy-narrative:bounded-freesound-read-proxy -->
+
+<!-- policy-narrative:freesound-proxy-deployment-rate-limiting -->
+The repository does not provision or verify a Cloudflare rate-limit rule for
+`/api/freesound/*`. Per-request parsing, response-byte ceilings, and Freesound's
+normalized 429 response do not bound aggregate request volume, concurrent
+preview streams, proxy egress, or shared API-quota consumption. CORS does not
+stop non-browser or same-origin callers.
+<!-- /policy-narrative:freesound-proxy-deployment-rate-limiting -->
+
+<!-- policy-narrative:freesound-preview-stream-lifecycle -->
+There is no proxy-owned preview-body idle or total deadline after response
+headers and no preview digest, signature, or Ogg structural authentication. The
+256 MiB transform limits actual bytes, but a slow stream can retain work until
+platform or connection teardown, and an allowed-host, allowed-MIME response
+remains trusted Freesound CDN content rather than cryptographically
+authenticated media.
+<!-- /policy-narrative:freesound-preview-stream-lifecycle -->
 
 ### Electron renderer, IPC, and filesystem capabilities
 

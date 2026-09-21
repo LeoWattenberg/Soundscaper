@@ -1,17 +1,29 @@
-import { useState } from 'react';
+import { Suspense, useState } from 'react';
 
+import type {
+	AttributionCsvFileService,
+	AttributionReportPresentation,
+} from '../attribution-presentation-contract.ts';
 import AdmMetadataFields from '../AdmMetadataFields.tsx';
 import BextMetadataFields from '../BextMetadataFields.tsx';
 import MetadataEditorTabs, { type MetadataEditorTab } from '../MetadataEditorTabs.tsx';
 import { createProjectAdmEditorValue } from '../adm-metadata-editor-model.ts';
 import { createBextMetadataEditorValue } from '../bext-metadata-editor-model.ts';
+import { lazyEditorModule } from '../../../offline/lazy-module.tsx';
 import { MetadataEditorField } from './LabelManagerRows.jsx';
 
-interface ProjectMetadataPanelProps {
+const ProjectAttributionTab = lazyEditorModule(() => import('./ProjectAttributionTab.tsx'));
+
+export interface ProjectMetadataPanelProps {
 	readonly project: Readonly<Record<string, unknown>> | null | undefined;
 	readonly copy: Readonly<Record<string, string>>;
+	readonly locale?: string;
 	readonly disabled: boolean;
 	readonly onUpdate: (changes: Readonly<Record<string, unknown>>) => void;
+	readonly fileService?: AttributionCsvFileService | null;
+	readonly run?: (operation: () => unknown) => unknown;
+	readonly attributionReport?: AttributionReportPresentation | null;
+	readonly onExportAttributionCsv?: () => void;
 }
 
 function objectValue(value: unknown): Readonly<Record<string, unknown>> {
@@ -20,12 +32,24 @@ function objectValue(value: unknown): Readonly<Record<string, unknown>> {
 		: {};
 }
 
-export function ProjectMetadataPanel({ project, copy, disabled, onUpdate }: ProjectMetadataPanelProps) {
+export function ProjectMetadataPanel({
+	project,
+	copy,
+	locale,
+	disabled,
+	onUpdate,
+	fileService,
+	run,
+	attributionReport,
+	onExportAttributionCsv,
+}: ProjectMetadataPanelProps) {
 	const [activeTab, setActiveTab] = useState<MetadataEditorTab>('general');
 	const metadata = objectValue(project?.metadata);
 	const tags = objectValue(metadata.tags);
 	const bext = createBextMetadataEditorValue(project);
 	const adm = createProjectAdmEditorValue(project);
+	const attributionTabLabel = copy['ui.freesoundAttribution.metadataTab']
+		|| copy.metadataTab;
 	const fields = [
 		['title', copy.metadataTitle],
 		['artist', copy.metadataArtist],
@@ -37,12 +61,21 @@ export function ProjectMetadataPanel({ project, copy, disabled, onUpdate }: Proj
 
 	return (
 		<div className="kw-audio-editor__metadata-editor" data-metadata-editor>
-			<MetadataEditorTabs activeTab={activeTab} showBext showAdm copy={copy} onChange={setActiveTab} />
+			<MetadataEditorTabs
+				activeTab={activeTab}
+				showBext
+				showAdm
+				showAttribution
+				copy={copy}
+				onChange={setActiveTab}
+			/>
 			<div
 				role="tabpanel"
 				aria-label={activeTab === 'bext'
 					? copy.metadataBextTab
-					: activeTab === 'adm' ? copy.metadataAdmTab : copy.metadataGeneralTab}
+					: activeTab === 'adm'
+						? copy.metadataAdmTab
+						: activeTab === 'attribution' ? attributionTabLabel : copy.metadataGeneralTab}
 				data-metadata-tab={activeTab}
 			>
 				{activeTab === 'general' ? (
@@ -77,7 +110,7 @@ export function ProjectMetadataPanel({ project, copy, disabled, onUpdate }: Proj
 						disabled={disabled}
 						onCommit={(value) => onUpdate({ bext: value })}
 					/>
-				) : (
+				) : activeTab === 'adm' ? (
 					<AdmMetadataFields
 						value={adm}
 						project={project}
@@ -85,6 +118,18 @@ export function ProjectMetadataPanel({ project, copy, disabled, onUpdate }: Proj
 						disabled={disabled}
 						onCommit={(value) => onUpdate({ adm: value })}
 					/>
+				) : (
+					<Suspense fallback={<p role="status" aria-live="polite">{copy.loading}</p>}>
+						<ProjectAttributionTab
+							project={project}
+							copy={copy}
+							locale={locale}
+							fileService={fileService}
+							run={run}
+							report={attributionReport}
+							onExportCsv={onExportAttributionCsv}
+						/>
+					</Suspense>
 				)}
 			</div>
 		</div>

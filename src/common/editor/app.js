@@ -548,7 +548,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		normalizeTimelineFrame, snapTimelineFrame: bindings.snapTimelineFrame, activeSelection, cacheSourceBuffer: bindings.cacheSourceBuffer, projectChanged: bindings.projectChanged, garbageCollectSources: bindings.garbageCollectSources, compactLiveSourceState: bindings.compactLiveSourceState,
 	});
 	const imports = createImportComposition({
-		state, copy, lifetime, projectGeneration, store, engine, ffmpeg, helperTimingProbe: fileService.helperTimingProbe, adaptAudacityProject: options.adaptAudacityProject,
+		state, copy, lifetime, projectGeneration, store, engine, ffmpeg, helperTimingProbe: fileService.helperTimingProbe, adaptAudacityProject: options.adaptAudacityProject, freesoundEnabled: productId === 'soundscaper', freesoundFetch: options.freesoundFetch || globalThis.fetch.bind(globalThis), freesoundApiBaseUrl: options.freesoundApiBaseUrl || (fileService.isDesktop ? 'https://soundscaper.org' : globalThis.location?.origin || 'https://soundscaper.org'),
 		sourceBuffers, sourceChunkProviders, sourcePeaks, sourceResolver: clipTimePitchSourceResolver, sourceChunkFrames: SOURCE_CHUNK_FRAMES,
 		protectedSourceIds: stagedProjectBinSourceIds, trackColors: AUDIO_EDITOR_TRACK_COLORS, taskProgress, projectVisual: sources.projectVisual,
 		createPreviewEngine: (previewOptions) => renderEngineFactory(previewOptions),
@@ -582,7 +582,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		exportVideo, ffmpeg, fileService, findClip, findTrack,
 		getVideoSourceVisualData: sources.projectVisual.getVideoSourceVisualData, handleEdit: edits.handleEdit,
 		handleExportAction, handlePlayAtSpeed, handleTransport,
-		importFiles: imports.importFiles, inspectScape,
+		importFiles: imports.importFiles, searchFreesoundSounds: imports.freesound.search, importFreesoundSound: imports.freesound.importSound, freesoundPreviewUrl: imports.freesound.previewUrl, inspectScape,
 		listAudioEditorEffectPresets,
 		movePanelPreference, activatePanelTabPreference,
 		moveToolbarPreference, moveTrack, normalizePlaybackFrame,

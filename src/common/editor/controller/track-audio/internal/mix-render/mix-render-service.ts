@@ -1,6 +1,8 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { publishedCopyFor } from '../../../shared/presentation-localization.ts'; import { findStereoLimitedMultichannelRenderEffects } from '../../../../adm-render-safety.ts'; import { createLocalizedError, setLocalizedStatus } from '../../../../../i18n/presentation-message.ts';
+import { deriveSourceProvenance } from '../../../../source-provenance-derivation.ts';
+import type { SourceProvenanceV1 } from '../../../../source-provenance.ts';
 import {
 	hasCoreEditingProjectAuthority,
 	isSoundscaperProductionProject,
@@ -150,6 +152,7 @@ interface MixRenderJob {
 	readonly plan: NonNullable<ReturnType<typeof createMixRenderPlan>>;
 	readonly name: string;
 	readonly sourceName: string;
+	readonly provenance?: SourceProvenanceV1;
 }
 
 export function createMixRenderService(
@@ -211,7 +214,7 @@ export function createMixRenderService(
 						rendered, job.plan.outputChannelCount, job.plan.outputFrames, ownership,
 					);
 					renderedSource = await dependencies.derivedSources.persistRenderedMixSource(
-						normalized, job.sourceName,
+						normalized, job.sourceName, job.provenance,
 					);
 				}
 				renderedSources.push(renderedSource);
@@ -303,6 +306,7 @@ export function createMixRenderService(
 				name,
 				sourceName: `${name} — ${dependencies.copy.mixRender
 					|| dependencies.copy.mixdownTo || 'Mix and render'}.wav`,
+				provenance: deriveSourceProvenance(renderProject.sources),
 			});
 		});
 	}
@@ -349,6 +353,7 @@ export function createMixRenderService(
 		ownership: MixOwnership,
 	): Promise<DerivedSourceRecord> {
 		const sampleRate = project.sampleRate;
+		const provenance = deriveSourceProvenance(project.sources);
 		const sourceId = dependencies.createId('mixed-source');
 		const renderEngine = dependencies.createRenderEngine();
 		let rawWriter: SourceWriter | null = null;
@@ -412,6 +417,7 @@ export function createMixRenderService(
 				sampleFormat: 'float32',
 				chunkFrames: dependencies.sourceChunkFrames,
 				opaqueExtensions: {},
+				...(provenance ? { provenance } : {}),
 			});
 			await dependencies.activateStoredSource(source, metadata);
 			assertOwned(ownership);

@@ -24,6 +24,7 @@ import {
 	createAudioTrack,
 } from '../src/common/editor/project-media-factory.ts';
 import { projectForCommand } from '../src/common/editor/project-command-projection.ts';
+import { createImportedSourceProvenance } from '../src/common/editor/source-provenance.ts';
 
 const NOW = '2026-09-10T12:00:00.000Z';
 
@@ -190,12 +191,22 @@ function request(
 }
 
 test('a different-source paste in the middle renders one extended existing clip', async () => {
-	const fixture = request(paste(), project({ laterClip: true }));
+	const base = project({ laterClip: true });
+	const attributed = {
+		...base,
+		sources: base.sources.map((value) => ({
+			...value,
+			provenance: importedProvenance(value.id),
+		})),
+	};
+	const fixture = request(paste(), attributed);
 	const result = await commitPasteIntoExistingClipCommand(fixture.input);
 
 	assert.equal(result, 'committed');
 	assert.deepEqual(fixture.preflights, [6 * Float32Array.BYTES_PER_ELEMENT]);
 	assert.deepEqual(Array.from(fixture.derived.persisted[0]?.channels?.[0] ?? []), [1, 2, 9, 8, 3, 4]);
+	assert.deepEqual(fixture.derived.persisted[0]?.source.provenance?.contributions
+		.map(({ id }) => id), ['existing-source', 'paste-source']);
 	assert.deepEqual(fixture.derived.events, [
 		'load:existing-source', 'load:paste-source',
 		'persist:existing-source:joined-paste-source',
@@ -210,6 +221,13 @@ test('a different-source paste in the middle renders one extended existing clip'
 	assert.deepEqual(rewrittenPaste?.collisionClipIds, []);
 	assert.deepEqual(rewrittenPaste?.collisionTrackIds, []);
 });
+
+function importedProvenance(id: string) {
+	return createImportedSourceProvenance({
+		id,
+		origin: { kind: 'local-file', originalFileName: `${id}.wav`, mimeType: 'audio/wav' },
+	});
+}
 
 test('the prepared batch atomically extends the clip without moving later nonoverlapping material', async () => {
 	const document = currentProject();

@@ -76,6 +76,14 @@ const entries: FoundationRuntimeConsumerEvidence[] = [
 		evidence: 'RIFF cue and region export projects the current document before resolving annotations or maintained musical labels into bounded sample offsets.',
 	},
 	{
+		id: 'project-attribution-report',
+		surface: 'interchange',
+		file: 'src/common/editor/project-attribution-report.ts',
+		entryPoint: 'createProjectAttributionReport',
+		inputIdentifier: 'project', projectedIdentifier: 'projection', boundary: 'resolveRuntimeClipProjection',
+		evidence: 'Attribution display and CSV export resolve each persisted clip before reporting the exact current timeline ranges where its source is used.',
+	},
+	{
 		id: 'aup4-export-plan',
 		surface: 'interchange',
 		file: 'src/common/editor/aup4-export.js',

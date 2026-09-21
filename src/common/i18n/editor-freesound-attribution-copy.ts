@@ -1,0 +1,57 @@
+/* SPDX-License-Identifier: AGPL-3.0-only */
+
+/** English source inventory shared by the eager catalog and lazy feature resolver. */
+export const FREESOUND_ATTRIBUTION_ENGLISH_COPY = Object.freeze({
+	metadataTab: 'Attribution',
+	panel: 'Freesound',
+	intro: 'Imported sources currently used on the timeline or held in the Project Bin.',
+	exportCsv: 'Export CSV',
+	empty: 'No imported sources are currently used or held in the Project Bin.',
+	track: 'Track',
+	currentUse: 'Current use',
+	sources: 'Sources',
+	by: 'By',
+	license: 'License',
+	importedMetadata: 'Imported metadata',
+	searchLabel: 'Search Freesound',
+	searchPlaceholder: 'Search sounds',
+	search: 'Search',
+	filterLicense: 'License',
+	licenseAll: 'All licenses',
+	licenseCc0: 'CC0',
+	licenseAttribution: 'Attribution',
+	licenseAttributionNoncommercial: 'Attribution Noncommercial',
+	sort: 'Sort by',
+	sortRelevance: 'Relevance',
+	sortNewest: 'Newest',
+	sortDownloads: 'Most downloaded',
+	sortRating: 'Highest rated',
+	searching: 'Searching Freesound',
+	searchError: 'Freesound search failed.',
+	importError: 'The Freesound sound could not be imported.',
+	unavailable: 'Freesound is unavailable right now.',
+	searchPrompt: 'Search Freesound to find audio for this project.',
+	noResults: 'No sounds match this search.',
+	resultsCount: '{count} sounds',
+	results: 'Freesound results',
+	byInline: 'by',
+	preview: 'Preview',
+	stopPreview: 'Stop preview',
+	insertAtPlayhead: 'Insert at playhead',
+	addToProjectBin: 'Add to Project Bin',
+	pagination: 'Freesound result pages',
+	previousPage: 'Previous',
+	nextPage: 'Next',
+	page: 'Page {page} of {pages}',
+	resultsProvidedBy: 'Results provided by',
+	siteName: 'Freesound.org',
+});
+
+/** Only eagerly visible feature labels need bundled German before the surface opens. */
+export const FREESOUND_ATTRIBUTION_INVENTORY_COPY_BY_LOCALE = Object.freeze({
+	en: FREESOUND_ATTRIBUTION_ENGLISH_COPY,
+	de: Object.freeze({
+		metadataTab: 'Quellen',
+		panel: 'Freesound',
+	}),
+});

@@ -15,6 +15,7 @@ const EXPECTED_ACTION_GROUPS = Object.freeze([
 	'edit',
 	'effects',
 	'export',
+	'freesound',
 	'generators',
 	'labels',
 	'macros',
@@ -46,6 +47,26 @@ test('controller action facade exposes stable frozen responsibility groups', () 
 	assert.deepEqual(Object.keys(actions).sort(), EXPECTED_ACTION_GROUPS);
 	assert.equal(Object.isFrozen(actions), true);
 	for (const group of Object.values(actions)) assert.equal(Object.isFrozen(group), true);
+});
+
+test('Freesound actions preserve the import service contracts', async () => {
+	const calls: unknown[][] = [];
+	const runtime = new Proxy(createActionFacadeRuntime(), {
+		get(target, name, receiver) {
+			if (name === 'searchFreesoundSounds') return async (...args: unknown[]) => { calls.push(['search', ...args]); return 'results'; };
+			if (name === 'importFreesoundSound') return async (...args: unknown[]) => { calls.push(['import', ...args]); return 'source'; };
+			if (name === 'freesoundPreviewUrl') return (...args: unknown[]) => { calls.push(['preview', ...args]); return 'https://soundscaper.org/api/freesound/sounds/42/preview'; };
+			return Reflect.get(target, name, receiver);
+		},
+	});
+	const freesound = createGroupedEditorActions(runtime).freesound;
+	const search = { query: 'rain', license: 'cc-by' as const };
+	const request = { soundId: 42, destination: 'project-bin' as const };
+
+	assert.equal(await freesound.search(search), 'results');
+	assert.equal(await freesound.importSound(request), 'source');
+	assert.equal(freesound.previewUrl(42), 'https://soundscaper.org/api/freesound/sounds/42/preview');
+	assert.deepEqual(calls, [['search', search], ['import', request], ['preview', 42]]);
 });
 
 test('project actions dispatch stable-ID musical map commands', () => {

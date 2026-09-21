@@ -67,11 +67,11 @@ export const editorOptionalAssistanceModule = String.raw`assistance[\\/](?:${con
  * claim that eager code reads it.
  */
 const editorEagerAssistanceModule = String.raw`(?:assistance-asset-command-v1|assistance-asset-reference-v1|operation|shots|transcript|transcript-scape-asset-extension-v1)`;
-export const editorOptionalSurfaceModule = String.raw`ui[\\/](?:AudacityEffectLayout\.jsx|ParametricEqEditor\.jsx|PrivacyPolicyRoute\.tsx|ProjectLockToast\.tsx|SoundActivationPreferences\.tsx|VideoDeliveryFields\.jsx|desktop-export-codec-model\.ts|export-(?:dialog-audio-codec-options\.ts|dialog-model\.js|preset-(?:actions\.js|model\.ts))|framescaper-(?:caption-file-interchange|finishing-dialog-model|native-services-dialog-model|visual-inspector-model)\.ts|local-assistance-(?!lazy-)(?!menu\.ts$)(?!review-authority\.ts$)[a-z\d-]+\.ts|local-model-manager-store\.ts|soundscaper-(?:production-dialog-model|routing-editor-model)\.ts|video-keyframe-(?:curve-transfer|dialog-model)\.ts|workspace[\\/](?:(?:FramescaperCaptureSources|RecordingSetupPanel|WebVcrPanel|WebVcrPreview|SoundscaperRoutingGraph(?:Inspector|View))\.tsx|soundscaper-routing-(?:folder-authority|graph-(?:candidates|gesture|layout))\.ts))`;
+export const editorOptionalSurfaceModule = String.raw`(?:project-attribution-(?:csv|report)\.ts|ui[\\/](?:AttributionTab\.tsx|AudacityEffectLayout\.jsx|MetadataEditorTabs\.tsx|ParametricEqEditor\.jsx|PrivacyPolicyRoute\.tsx|ProjectLockToast\.tsx|SoundActivationPreferences\.tsx|VideoDeliveryFields\.jsx|desktop-export-codec-model\.ts|export-(?:dialog-audio-codec-options\.ts|dialog-model\.js|preset-(?:actions\.js|model\.ts))|framescaper-(?:caption-file-interchange|finishing-dialog-model|native-services-dialog-model|visual-inspector-model)\.ts|local-assistance-(?!lazy-)(?!menu\.ts$)(?!review-authority\.ts$)[a-z\d-]+\.ts|local-model-manager-store\.ts|soundscaper-(?:production-dialog-model|routing-editor-model)\.ts|video-keyframe-(?:curve-transfer|dialog-model)\.ts|workspace[\\/](?:(?:FramescaperCaptureSources|FreesoundPanel(?:Container)?|ProjectAttributionTab|ProjectMetadataPanel|RecordingSetupPanel|WebVcrPanel|WebVcrPreview|SoundscaperRoutingGraph(?:Inspector|View))\.tsx|project-attribution-presentation\.ts|soundscaper-routing-(?:folder-authority|graph-(?:candidates|gesture|layout))\.ts)))`;
 export const EDITOR_ASSISTANCE_SEMANTIC_SEARCH_RUNTIME_CHUNK_TEST =
 	/src[\\/]common[\\/]editor[\\/](?:assistance[\\/]local-assistance-semantic-search-bridge|ui[\\/]local-assistance-semantic-search-source)\.ts$/;
 export const EDITOR_COPY_CHUNK_TEST =
-	/(?:src[\\/]common[\\/]i18n[\\/](?:(?:catalogs|runtime|canonical-extras(?:-standard-effects)?|(?!(?:site|site-sidebar)-copy\.js$)[^\\/]+-copy)\.js|(?:editor-copy-(?:inventory|scope)|[^\\/]+-copy)\.ts)|src[\\/]soundscaper[\\/]framescaper-capture-copy\.js)$/;
+	/(?:src[\\/]common[\\/]i18n[\\/](?:(?:catalogs|runtime|canonical-extras(?:-standard-effects)?|(?!(?:freesound-attribution|site|site-sidebar)-copy\.js$)[^\\/]+-copy)\.js|(?:editor-copy-(?:inventory|scope)|[^\\/]+-copy)\.ts)|src[\\/]soundscaper[\\/]framescaper-capture-copy\.js)$/;
 
 /** Dependency-free message descriptors shared by project models and controllers. */
 export const EDITOR_PRESENTATION_CHUNK_TEST = /src[\\/]common[\\/]i18n[\\/](?:presentation-(?:message|progress)|translation-scope)\.ts$/;
@@ -106,7 +106,7 @@ export const EDITOR_PRODUCTION_METER_CHUNK_TEST = new RegExp(
 
 /** Import admission runs after an import starts, apart from codec execution. */
 export const EDITOR_IMPORT_ADMISSION_CHUNK_TEST = new RegExp(
-	String.raw`${editorPath}(?:controller[\\/]import[\\/]internal[\\/](?:import-task-cancellation|project-import-admission|standalone-audio-import-decoder)|encoded-audio-marker-scan|streamed-audio-import-file)\.ts$`,
+	String.raw`${editorPath}(?:controller[\\/]import[\\/]internal[\\/](?:freesound-import-service|import-task-cancellation|imported-source-provenance|project-import-admission|standalone-audio-import-decoder)|encoded-audio-marker-scan|imported-media-metadata|streamed-audio-import-file)\.ts$`,
 );
 
 /** Stored PCM and waveform activation reached after a source is opened. */
@@ -136,7 +136,7 @@ export const EDITOR_OPTIONAL_ASSISTANCE_CHUNK_TEST = new RegExp(
 
 /** Menu-opened UI implementations and their deferred native authoring contracts. */
 export const EDITOR_OPTIONAL_SURFACE_CHUNK_TEST = new RegExp(
-	`(?:${editorPath}(?:${editorOptionalSurfaceModule}|ui[\\\\/]local-assistance-review-authority\\.ts|local-diagnostics-(?:report|contract)\\.ts|native-ofx-(?:host-contract(?:-v2)?|interact-contract)\\.ts)|src[\\\\/]framescaper[\\\\/](?:editor-selected-timeline-image-image-(?:preview|filmstrip|preview-resources)|editor-native-openfx-authoring-model)\\.ts)$`,
+	`(?:${editorPath}(?:${editorOptionalSurfaceModule}|ui[\\\\/]local-assistance-review-authority\\.ts|local-diagnostics-(?:report|contract)\\.ts|native-ofx-(?:host-contract(?:-v2)?|interact-contract)\\.ts)|src[\\\\/]common[\\\\/]i18n[\\\\/]freesound-attribution-copy\\.js|src[\\\\/]framescaper[\\\\/](?:editor-selected-timeline-image-image-(?:preview|filmstrip|preview-resources)|editor-native-openfx-authoring-model)\\.ts)$`,
 );
 
 /** Split Tool interaction runtimes kept out of the product-ready startup graph. */

@@ -77,6 +77,7 @@ const REFERENCE_SEEDS: readonly ReferenceSeed[] = Object.freeze([
 	['panel-labels', 'Labels', 'View > Panels', BOTH, 'setting'],
 	['panel-markers', 'Markers', 'View > Panels', BOTH, 'setting'],
 	['panel-metadata', 'Metadata', 'View > Panels', BOTH, 'setting'],
+	['panel-freesound', 'Freesound', 'View > Panels', SOUNDSCAPER, 'setting'],
 	['panel-mixer', 'Mixer', 'View > Panels', BOTH, 'setting'],
 	['panel-recording-setup', 'Recording setup', 'View > Panels', FRAMESCAPER, 'setting'],
 	['framescaper-mixer', 'Mixer & Routing', 'View > Panels', FRAMESCAPER],

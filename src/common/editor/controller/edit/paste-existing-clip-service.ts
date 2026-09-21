@@ -21,6 +21,7 @@ import {
 	type SourceAddCommand,
 } from './internal/paste-command-tree.ts';
 import { rollbackDerivedSourcesAfterFailure } from './internal/paste-derived-source-failure.ts';
+import { deriveJoinedPasteSourceTemplate } from './internal/paste-source-provenance.ts';
 
 type RenderReplaceCommand = Extract<AudioEditorCommand, { readonly type: 'clip/render-replace-many' }>;
 type LiftDeleteCommand = Extract<AudioEditorCommand, { readonly type: 'range/lift-delete' }>;
@@ -116,10 +117,9 @@ export function commitPasteIntoExistingClipCommand(
 			}>> = [];
 			for (const joined of joinedTargets) {
 				const record = await request.derivedSources.persistDerivedSource(
-					{
-						...joined.target.existingSource,
-						sampleRate: request.project.sampleRate,
-					},
+					deriveJoinedPasteSourceTemplate(
+						joined.target.existingSource, joined.target.pastedSource, request.project.sampleRate,
+					),
 					joined.channels,
 					joined.target.existingSource.name,
 					'joined-paste-source',

@@ -7,6 +7,8 @@ import {
 } from '../../clip-time-pitch-cache.js';
 import { estimatePcmRenderPublication } from '../../publication-byte-estimates.ts';
 import { scaleSampleFrame } from '../../timeline-time.ts';
+import { deriveSourceProvenance } from '../../source-provenance-derivation.ts';
+import type { SourceProvenanceV1 } from '../../source-provenance.ts';
 import {
 	createAddClipCommand,
 	createAddSourceCommand,
@@ -66,6 +68,7 @@ interface RenderSource extends ClipTransformSource {
 	readonly channelCount: number;
 	readonly sampleRate: number;
 	readonly originalSampleRate: number;
+	readonly provenance?: SourceProvenanceV1;
 }
 
 interface RenderFingerprint {
@@ -258,8 +261,10 @@ function renderedSource(
 	name: string,
 	buffer: AudioBufferLike,
 ): RenderSource {
+	const provenance = deriveSourceProvenance([source]);
 	return {
 		...source,
+		...(provenance ? { provenance } : {}),
 		id,
 		storageKey: id,
 		name,

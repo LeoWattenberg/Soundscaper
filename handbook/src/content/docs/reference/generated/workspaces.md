@@ -33,6 +33,7 @@ A workspace is a saved arrangement of the panels and toolbars around the timelin
 | Labels | `labels` | Right | Hidden | Hidden | Hidden | Hidden | Hidden |
 | Markers | `markers` | Right | Hidden | Hidden | Hidden | Hidden | Hidden |
 | Metadata | `metadata` | Right | Hidden | Hidden | Hidden | Hidden | Hidden |
+| Freesound | `freesound` | Right | Hidden | Hidden | Hidden | Hidden | Hidden |
 | Effects | `effects` | Right | Hidden | Visible | Hidden | Hidden | Hidden |
 | Mixer | `mixer` | Bottom | Hidden | Visible | Hidden | Hidden | Hidden |
 | Analysis | `analysis` | Right | Hidden | Hidden | Hidden | Hidden | Hidden |

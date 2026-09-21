@@ -40,7 +40,8 @@ test('privacy policy locale and product URLs are closed over English and German 
 
 test('English and German dialog content carries equivalent privacy disclosures', () => {
 	const policies = [privacyPolicyContent('en'), privacyPolicyContent('de')];
-	for (const policy of policies) {
+	const effectiveDates = ['21 September 2026', '21. September 2026'];
+	for (const [index, policy] of policies.entries()) {
 		const prose = [policy.effectiveDate, policy.summary, ...policy.sections.flatMap(
 			({ heading, body }) => [heading, body],
 		)].join('\n');
@@ -62,8 +63,31 @@ test('English and German dialog content carries equivalent privacy disclosures',
 		assert.match(prose, /no accounts|keine Konten/iu);
 		assert.match(prose, /no product analytics|keine Produktanalyse/iu);
 		assert.match(prose, /supervisory authority|Aufsichtsbehörde/iu);
-		assert.match(prose, /28 August 2026|28\. August 2026/iu);
+		assert.equal(policy.effectiveDate, effectiveDates[index]);
 		assert.doesNotMatch(prose, /google-analytics|googletagmanager|cloudflareinsights|posthog|sentry/iu);
+
+		const network = policy.sections.find(({ id }) => id === 'network')?.body ?? '';
+		assert.match(network, /Freesound/iu);
+		assert.match(network, /search terms|Suchbegriffe/iu);
+		assert.match(network, /result page|Ergebnisseite/iu);
+		assert.match(network, /license filter|Lizenzfilter/iu);
+		assert.match(network, /sort choice|Sortierauswahl/iu);
+		assert.match(network, /sound ID|Sound-ID/iu);
+		assert.match(network, /sound details|Sounddetails/iu);
+		assert.match(network, /preview|Vorschau/iu);
+		assert.match(network, /import/iu);
+		assert.match(network, /byte range|Byte-Bereich/iu);
+		assert.match(network, /Cloudflare.*Soundscaper.*proxy|Cloudflare.*Soundscaper-Proxy/iu);
+		assert.match(network, /server-side credential|serverseitigen Zugangsschlüssel/iu);
+		assert.match(network, /Ogg preview|Ogg-Vorschau/iu);
+		assert.match(network, /not sent|nicht übermittelt/iu);
+
+		const recipients = policy.sections.find(({ id }) => id === 'recipients')?.body ?? '';
+		assert.match(recipients, /Freesound/iu);
+		assert.match(recipients, /Universitat Pompeu Fabra/iu);
+		assert.match(recipients, /proxy.*connection data|Verbindungsdaten des Proxys/iu);
+		assert.match(recipients, /own privacy policy|eigen(?:e|en) Datenschutzerklärung/iu);
+		assert.match(recipients, /href="https:\/\/freesound\.org\/help\/privacy\/"/u);
 	}
 	assert.deepEqual(
 		policies[0].sections.map(({ id }) => id),
