@@ -91,26 +91,12 @@ public:
 	const std::string& staging_reference() const noexcept override { return staging_reference_; }
 
 	void write_at(std::uint64_t offset, std::span<const std::byte> bytes) override {
-		std::size_t written = 0;
-		while (written < bytes.size()) {
-			const auto result = ::pwrite(file_fd_.get(), bytes.data() + written, bytes.size() - written,
-				static_cast<off_t>(offset + written));
-			if (result < 0) {
-				if (errno == EINTR) continue;
-				fail_errno("staging-write-failed", "write", true);
-			}
-			if (result == 0) throw protocol_error("staging-write-failed", "write", true,
-				"The anonymous delivery file accepted a zero-byte write.");
-			written += static_cast<std::size_t>(result);
-		}
+		write_posix_staging_fd(file_fd_.get(), offset, bytes,
+			"The anonymous delivery file accepted a zero-byte write.");
 	}
 
 	std::size_t read_at(std::uint64_t offset, std::span<std::byte> bytes) override {
-		for (;;) {
-			const auto result = ::pread(file_fd_.get(), bytes.data(), bytes.size(), static_cast<off_t>(offset));
-			if (result >= 0) return static_cast<std::size_t>(result);
-			if (errno != EINTR) fail_errno("staging-read-failed", "seal-read", true);
-		}
+		return read_posix_staging_fd(file_fd_.get(), offset, bytes);
 	}
 
 	std::uint64_t size() const override {
@@ -119,7 +105,7 @@ public:
 	}
 
 	void flush_file() override {
-		if (::fsync(file_fd_.get()) < 0) fail_errno("staging-sync-failed", "seal-sync", true);
+		sync_posix_staging_fd(file_fd_.get());
 	}
 
 	publication_result publish() override {

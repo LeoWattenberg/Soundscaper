@@ -44,19 +44,40 @@ file_identity regular_file_identity(const struct stat& details) {
 		"inode:" + hex_value(static_cast<std::uint64_t>(details.st_ino))};
 }
 
-bool same(const root_identity& left, const root_identity& right) {
-	return left.volume_identity == right.volume_identity
-		&& left.directory_identity == right.directory_identity;
-}
-
-bool same(const file_identity& left, const file_identity& right) {
-	return left.volume_identity == right.volume_identity
-		&& left.file_identity_value == right.file_identity_value;
-}
-
 [[noreturn]] void fail_errno(const char* code, const char* phase, bool retryable) {
 	const auto saved = errno;
 	throw protocol_error(code, phase, retryable, std::strerror(saved));
+}
+
+void write_posix_staging_fd(
+	int descriptor,
+	std::uint64_t offset,
+	std::span<const std::byte> bytes,
+	const char* zero_write_detail) {
+	std::size_t written = 0;
+	while (written < bytes.size()) {
+		const auto result = ::pwrite(descriptor, bytes.data() + written, bytes.size() - written,
+			static_cast<off_t>(offset + written));
+		if (result < 0) {
+			if (errno == EINTR) continue;
+			fail_errno("staging-write-failed", "write", true);
+		}
+		if (result == 0) throw protocol_error("staging-write-failed", "write", true,
+			zero_write_detail);
+		written += static_cast<std::size_t>(result);
+	}
+}
+
+std::size_t read_posix_staging_fd(int descriptor, std::uint64_t offset, std::span<std::byte> bytes) {
+	for (;;) {
+		const auto result = ::pread(descriptor, bytes.data(), bytes.size(), static_cast<off_t>(offset));
+		if (result >= 0) return static_cast<std::size_t>(result);
+		if (errno != EINTR) fail_errno("staging-read-failed", "seal-read", true);
+	}
+}
+
+void sync_posix_staging_fd(int descriptor) {
+	if (::fsync(descriptor) < 0) fail_errno("staging-sync-failed", "seal-sync", true);
 }
 
 owned_fd open_authenticated_root(

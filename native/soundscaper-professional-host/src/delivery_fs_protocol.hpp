@@ -62,6 +62,16 @@ struct file_identity final {
 	std::string file_identity_value;
 };
 
+inline bool same(const root_identity& left, const root_identity& right) {
+	return left.volume_identity == right.volume_identity
+		&& left.directory_identity == right.directory_identity;
+}
+
+inline bool same(const file_identity& left, const file_identity& right) {
+	return left.volume_identity == right.volume_identity
+		&& left.file_identity_value == right.file_identity_value;
+}
+
 struct session_limits final {
 	std::uint64_t maximum_bytes;
 	std::uint32_t maximum_chunk_bytes;

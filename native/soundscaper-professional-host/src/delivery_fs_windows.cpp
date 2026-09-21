@@ -140,16 +140,6 @@ file_identity regular_file_identity(const BY_HANDLE_FILE_INFORMATION& details) {
 	return {"device:" + hex_value(details.dwVolumeSerialNumber), "inode:" + hex_value(file_index(details))};
 }
 
-bool same(const root_identity& left, const root_identity& right) {
-	return left.volume_identity == right.volume_identity
-		&& left.directory_identity == right.directory_identity;
-}
-
-bool same(const file_identity& left, const file_identity& right) {
-	return left.volume_identity == right.volume_identity
-		&& left.file_identity_value == right.file_identity_value;
-}
-
 BY_HANDLE_FILE_INFORMATION handle_information(HANDLE handle, const char* phase) {
 	BY_HANDLE_FILE_INFORMATION output {};
 	if (!GetFileInformationByHandle(handle, &output)) fail_windows("filesystem-stat-failed", phase, true);

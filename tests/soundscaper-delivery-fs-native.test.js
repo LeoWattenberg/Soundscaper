@@ -65,11 +65,23 @@ test('the target-native delivery helper source admits only handle-anchored publi
 			'delivery authentication scratch space must not consume the Windows process stack reserve');
 	}
 	for (const authority of ['class owned_fd final', 'root_identity directory_identity',
-		'file_identity regular_file_identity', 'bool same\\(', 'void fail_errno\\(',
+		'file_identity regular_file_identity', 'void fail_errno\\(',
 		'owned_fd open_authenticated_root']) assert.match(`${posixHeader}\n${posix}`, new RegExp(authority, 'u'));
+	assert.match(protocol, /bool same\(const root_identity&/u);
+	assert.match(protocol, /bool same\(const file_identity&/u);
+	assert.doesNotMatch(posix, /bool same\(/u);
+	assert.doesNotMatch(windows, /bool same\(/u);
+	for (const operation of ['write_posix_staging_fd', 'read_posix_staging_fd', 'sync_posix_staging_fd']) {
+		assert.match(posixHeader, new RegExp(operation, 'u'));
+		assert.match(posix, new RegExp(operation, 'u'));
+		for (const platform of [linux, macos]) assert.match(platform, new RegExp(operation, 'u'));
+	}
 	for (const platform of [linux, macos]) {
 		assert.match(platform, /#include "delivery_fs_posix\.hpp"/u);
 		assert.doesNotMatch(platform, /class owned_fd final|root_identity directory_identity|file_identity regular_file_identity|bool same\(|void fail_errno\(|owned_fd open_authenticated_root/u);
+		const stagingIo = platform.slice(platform.indexOf('\tvoid write_at('),
+			platform.indexOf('\n\tpublication_result publish() override'));
+		assert.doesNotMatch(stagingIo, /::pwrite\(|::pread\(|::fsync\(/u);
 	}
 	assert.match(linux, /root_non_directory_error::destination_unavailable/u);
 	assert.match(macos, /root_non_directory_error::identity_mismatch/u);

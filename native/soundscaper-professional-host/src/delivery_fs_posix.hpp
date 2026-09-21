@@ -4,6 +4,9 @@
 
 #include "delivery_fs_protocol.hpp"
 
+#include <cstddef>
+#include <cstdint>
+#include <span>
 #include <string>
 #include <sys/stat.h>
 
@@ -33,10 +36,16 @@ enum class root_non_directory_error {
 
 root_identity directory_identity(const struct stat& details);
 file_identity regular_file_identity(const struct stat& details);
-bool same(const root_identity& left, const root_identity& right);
-bool same(const file_identity& left, const file_identity& right);
 
 [[noreturn]] void fail_errno(const char* code, const char* phase, bool retryable = false);
+
+void write_posix_staging_fd(
+	int descriptor,
+	std::uint64_t offset,
+	std::span<const std::byte> bytes,
+	const char* zero_write_detail);
+std::size_t read_posix_staging_fd(int descriptor, std::uint64_t offset, std::span<std::byte> bytes);
+void sync_posix_staging_fd(int descriptor);
 
 owned_fd open_authenticated_root(
 	const std::string& path,
