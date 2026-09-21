@@ -12,8 +12,11 @@ import type {
 } from './take-cycle-capture-spool.ts';
 import type { TakeCycleLaneFinalizationRequest } from '../../take-cycle-recording-service.ts';
 import {
+	normalizeTakeCycleCaptureSourceBase,
+	normalizeTakeCycleLaneTarget,
+} from './take-cycle-capture-validation.ts';
+import {
 	takeCycleStableId as stableId,
-	takeCycleStableName as stableName,
 } from './take-cycle-value-validation.ts';
 
 const DRAFT_VERSION = 1 as const;
@@ -115,33 +118,23 @@ export function normalizeDraft(value: unknown, draftTokenValue: unknown): TakeCy
 			interrupted: plan.interrupted,
 			publications: Object.freeze(publications),
 		}),
-		target: normalizeTarget(record.target),
+		target: normalizeTakeCycleLaneTarget(record.target),
 		sources: Object.freeze(sources),
 	});
 }
 
 function normalizeSource(value: unknown, mediaId: string, expectedFrames: number): TakeCycleCaptureDraftSource {
 	const record = dataRecord(value, 'take cycle source description');
+	const base = normalizeTakeCycleCaptureSourceBase(record);
 	const source = {
 		mediaId: stableId(record.mediaId, 'take cycle source mediaId'),
-		name: stableName(record.name),
-		sampleRate: positiveInteger(record.sampleRate, 'take cycle sampleRate'),
-		channelCount: positiveInteger(record.channelCount, 'take cycle channelCount'),
-		chunkFrames: positiveInteger(record.chunkFrames, 'take cycle chunkFrames'),
+		...base,
 		frameCount: positiveInteger(record.frameCount, 'take cycle frameCount'),
 	};
 	if (source.mediaId !== mediaId || source.frameCount !== expectedFrames) {
 		throw new Error('Take cycle source description does not match its pass.');
 	}
 	return Object.freeze(source);
-}
-
-function normalizeTarget(value: unknown) {
-	const record = dataRecord(value, 'take cycle lane target');
-	return Object.freeze({
-		trackId: stableId(record.trackId, 'take cycle trackId'),
-		sequenceId: stableId(record.sequenceId, 'take cycle sequenceId'),
-	});
 }
 
 function dataRecord(value: unknown, name: string): Readonly<Record<string, unknown>> {

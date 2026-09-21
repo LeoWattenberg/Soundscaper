@@ -8,8 +8,12 @@ import {
 } from '../../../../take-cycle-capture-domain.ts';
 import { digestScapeBytes } from '../../../../scape-archive-media.ts';
 import type { RawPcmSpoolRecord, RawPcmSpoolRepository } from '../../../../storage/raw-pcm-spool-repository.ts';
-import { WAVPACK_PCM_MAXIMUM_FRAMES } from '../../../../wavpack/pcm.js';
 import { TAKE_CYCLE_CAPTURE_MAXIMUM_CHUNK_BYTES } from './take-cycle-capture-pcm-evidence.ts';
+import {
+	normalizeTakeCycleCapturePassIdentities,
+	normalizeTakeCycleCaptureSourceBase,
+	normalizeTakeCycleLaneTarget,
+} from './take-cycle-capture-validation.ts';
 import { normalizeDraft, sameDraft } from './take-cycle-capture-spool-manifest.ts';
 import { discardTakeCycleLiveCapture } from './take-cycle-live-capture-discard.ts';
 import { collectTakeCycleLivePassEvidence } from './take-cycle-live-pass-evidence.ts';
@@ -20,10 +24,7 @@ import type {
 	TakeCycleCapturePcmSpan,
 } from './take-cycle-capture-spool.ts';
 import type { TakeCycleLaneTarget, TakeCycleSourceDescription } from './take-cycle-recording-repository-composition.ts';
-import {
-	takeCycleStableId as stableId,
-	takeCycleStableName as stableName,
-} from './take-cycle-value-validation.ts';
+import { takeCycleStableId as stableId } from './take-cycle-value-validation.ts';
 
 const INTENT_KIND = 'take-cycle-live-capture-intent-v1';
 const DRAFT_KIND = 'take-cycle-live-capture-draft-v1';
@@ -333,7 +334,9 @@ export function createTakeCycleLiveCaptureSpool(
 		}
 		const identities = Array.from(
 			{ length: passCount },
-			(_, passIndex) => normalizePassIdentities(createPassIdentities(passIndex, intent.laneId)),
+			(_, passIndex) => normalizeTakeCycleCapturePassIdentities(
+				createPassIdentities(passIndex, intent.laneId),
+			),
 		);
 		const plan = planExactTakeCycleCapture({
 			groupId: intent.groupId,
@@ -414,7 +417,7 @@ function normalizeSeed(value: TakeCycleLiveCaptureSeed): NormalizedSeed {
 	const loopStartSample = nonNegativeInteger(value.loopStartSample, 'take cycle loopStartSample');
 	const loopEndSample = nonNegativeInteger(value.loopEndSample, 'take cycle loopEndSample');
 	if (loopEndSample <= loopStartSample) throw new RangeError('Take cycle loop extent must be positive.');
-	const source = normalizeSource(value.source);
+	const source = normalizeTakeCycleCaptureSourceBase(value.source);
 	return Object.freeze({
 		...value,
 		draftId: stableId(value.draftId, 'take cycle draftId'),
@@ -425,7 +428,7 @@ function normalizeSeed(value: TakeCycleLiveCaptureSeed): NormalizedSeed {
 		laneId: stableId(value.laneId, 'take cycle laneId'),
 		loopStartSample,
 		loopEndSample,
-		target: normalizeTarget(value.target),
+		target: normalizeTakeCycleLaneTarget(value.target),
 		source,
 	});
 }
@@ -466,8 +469,8 @@ function normalizeIntent(value: unknown, record: RawPcmSpoolRecord): LiveCapture
 		laneId: stableId(intent.laneId, 'take cycle laneId'),
 		loopStartSample: nonNegativeInteger(intent.loopStartSample, 'take cycle loopStartSample'),
 		loopEndSample: nonNegativeInteger(intent.loopEndSample, 'take cycle loopEndSample'),
-		target: normalizeTarget(intent.target),
-		source: normalizeSource(intent.source),
+		target: normalizeTakeCycleLaneTarget(intent.target),
+		source: normalizeTakeCycleCaptureSourceBase(intent.source),
 		captureSpans: Object.freeze(captureSpans),
 	});
 	if (normalized.projectId !== record.projectId || normalized.envelopeId !== record.spoolId
@@ -515,38 +518,6 @@ function capturePlan(draft: TakeCycleCaptureDraft) {
 		takeIds: draft.lane.publications.map(({ takeId }) => takeId),
 		interrupted: draft.lane.interrupted,
 	});
-}
-
-function normalizePassIdentities(value: TakeCycleCapturePassIdentities): TakeCycleCapturePassIdentities {
-	return Object.freeze({
-		laneId: stableId(value?.laneId, 'take cycle pass laneId'),
-		takeId: stableId(value?.takeId, 'take cycle takeId'),
-		mediaId: stableId(value?.mediaId, 'take cycle mediaId'),
-		journalId: stableId(value?.journalId, 'take cycle journalId'),
-	});
-}
-
-function normalizeTarget(value: unknown): TakeCycleLaneTarget {
-	const target = dataRecord(value, 'take cycle lane target');
-	return Object.freeze({
-		trackId: stableId(target.trackId, 'take cycle trackId'),
-		sequenceId: stableId(target.sequenceId, 'take cycle sequenceId'),
-	});
-}
-
-function normalizeSource(value: unknown): Omit<TakeCycleSourceDescription, 'frameCount'> {
-	const source = dataRecord(value, 'take cycle source description');
-	const normalized = {
-		name: stableName(source.name),
-		sampleRate: boundedPositiveInteger(source.sampleRate, 768_000, 'take cycle sampleRate'),
-		channelCount: boundedPositiveInteger(source.channelCount, 64, 'take cycle channelCount'),
-		chunkFrames: boundedPositiveInteger(source.chunkFrames, WAVPACK_PCM_MAXIMUM_FRAMES, 'take cycle chunkFrames'),
-	};
-	if (normalized.channelCount * normalized.chunkFrames * Float32Array.BYTES_PER_ELEMENT
-		> TAKE_CYCLE_CAPTURE_MAXIMUM_CHUNK_BYTES) {
-		throw new RangeError('Take cycle capture PCM chunk exceeds its strict memory bound.');
-	}
-	return Object.freeze(normalized);
 }
 
 function dataRecord(value: unknown, name: string): Readonly<Record<string, unknown>> {
