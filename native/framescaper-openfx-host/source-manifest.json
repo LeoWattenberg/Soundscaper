@@ -40,8 +40,8 @@
 	"sourceFiles": [
 		{
 			"path": "CMakeLists.txt",
-			"byteLength": 3164,
-			"sha256": "7e9bc5d10e48804a689674dbd976111ae734f3be837bcae82effe100d59d3052"
+			"byteLength": 3203,
+			"sha256": "faf5f1d7936af54f3ad27744602a7094c49c555f4db9c5a0fd3822cd0cb79cd5"
 		},
 		{
 			"path": "CMakePresets.json",
@@ -139,6 +139,16 @@
 			"sha256": "cf66aa099308c89f6499ab71703a5ba9a2fd1b377fede17548e07a48bdce0445"
 		},
 		{
+			"path": "src/host_parameter_wire_hydration.cpp",
+			"byteLength": 10967,
+			"sha256": "ff96dff92b7033e447ad0844425617c8af61258d89b296a72a900e36b64bea06"
+		},
+		{
+			"path": "src/host_parameter_wire_hydration.hpp",
+			"byteLength": 627,
+			"sha256": "192668221054d18b428f145ab34bef195ad283298a90f9befa8075dd162bd416"
+		},
+		{
 			"path": "src/host_runtime.cpp",
 			"byteLength": 45639,
 			"sha256": "80eae8e240f349a0c5edcd2849190a735487bf1b999a64f25ef3fd67848138c4"
@@ -165,8 +175,8 @@
 		},
 		{
 			"path": "src/interact_v1_invocation.cpp",
-			"byteLength": 19164,
-			"sha256": "5ef3a24f7036f5b40db92381d7c5bb26091ce91dc09f9057dbc099d0e31cbc67"
+			"byteLength": 11583,
+			"sha256": "c9450844ac54ff6dcd0b3c746e23bf8bf32d50402ee49056f91d9032237010bb"
 		},
 		{
 			"path": "src/interact_v1_invocation.hpp",
@@ -245,8 +255,8 @@
 		},
 		{
 			"path": "src/v12_host_invocation.cpp",
-			"byteLength": 28540,
-			"sha256": "64ac7bf4297ede79138f7609bf19b313f03f3f0712e2c9a4c0d9ebcadf67c896"
+			"byteLength": 20983,
+			"sha256": "d9d6f78b9d27fc435e94d4daa6a63f334e4a3c258cd0a47c159336069c6c980b"
 		},
 		{
 			"path": "src/v12_host_invocation.hpp",

@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 #include "interact_v1_invocation.hpp"
+#include "host_parameter_wire_hydration.hpp"
 #include "sha256.hpp"
 
 #include "../../framescaper-media-host/src/media_file_grants.hpp"
@@ -69,155 +70,6 @@ void exact(const json::value& value, const std::initializer_list<std::string_vie
 	return output;
 }
 
-[[nodiscard]] double finite_number(const json::value& value, const std::string_view label) {
-	if (value.kind != json::type::number) fail("admission", std::string{label} + " must be numeric.");
-	double output = 0;
-	const auto [end, error] = std::from_chars(
-		value.text.data(), value.text.data() + value.text.size(), output
-	);
-	if (error != std::errc{} || end != value.text.data() + value.text.size()
-		|| !std::isfinite(output)) {
-		fail("admission", std::string{label} + " must be one finite OFX number.");
-	}
-	return output;
-}
-
-[[nodiscard]] int native_integer(const json::value& value, const std::string_view label) {
-	if (value.kind != json::type::number) fail("admission", std::string{label} + " must be an integer.");
-	std::int64_t output = 0;
-	const auto [end, error] = std::from_chars(
-		value.text.data(), value.text.data() + value.text.size(), output
-	);
-	if (error != std::errc{} || end != value.text.data() + value.text.size()
-		|| output < std::numeric_limits<int>::min() || output > std::numeric_limits<int>::max()) {
-		fail("admission", std::string{label} + " exceeds the signed OFX integer domain.");
-	}
-	return static_cast<int>(output);
-}
-
-[[nodiscard]] bool valid_parameter_name(const std::string_view value) {
-	return !value.empty() && value.size() <= 64
-		&& (std::isalpha(static_cast<unsigned char>(value.front())) != 0 || value.front() == '_')
-		&& std::all_of(value.begin() + 1, value.end(), [](const unsigned char byte) {
-			return std::isalnum(byte) != 0 || byte == '_';
-		});
-}
-
-[[nodiscard]] const char* native_parameter_type(const std::string_view type) {
-	if (type == "integer") return kOfxParamTypeInteger;
-	if (type == "integer2d") return kOfxParamTypeInteger2D;
-	if (type == "integer3d") return kOfxParamTypeInteger3D;
-	if (type == "double") return kOfxParamTypeDouble;
-	if (type == "double2d") return kOfxParamTypeDouble2D;
-	if (type == "double3d") return kOfxParamTypeDouble3D;
-	if (type == "rgb") return kOfxParamTypeRGB;
-	if (type == "rgba") return kOfxParamTypeRGBA;
-	if (type == "boolean") return kOfxParamTypeBoolean;
-	if (type == "choice") return kOfxParamTypeChoice;
-	if (type == "string") return kOfxParamTypeString;
-	if (type == "group") return kOfxParamTypeGroup;
-	if (type == "page") return kOfxParamTypePage;
-	if (type == "pushbutton") return kOfxParamTypePushButton;
-	if (type == "parametric") return kOfxParamTypeParametric;
-	if (type == "custom") return kOfxParamTypeCustom;
-	fail("admission", "The authored OpenFX parameter type is unsupported.");
-}
-
-[[nodiscard]] std::size_t component_count(const std::string_view type) {
-	if (type == "double" || type == "integer" || type == "boolean" || type == "choice") return 1;
-	if (type == "integer2d" || type == "double2d") return 2;
-	if (type == "integer3d" || type == "double3d" || type == "rgb") return 3;
-	if (type == "rgba") return 4;
-	return 0;
-}
-
-[[nodiscard]] HydratedParameterState parameter_state(
-	const json::value& value,
-	const Context context,
-	std::size_t& total_keys
-) {
-	exact(value, {"name", "type", "value", "keyframes"});
-	HydratedParameterState output;
-	output.name = text(json::member(value, "name"), "OpenFX parameter name", 64);
-	if (!valid_parameter_name(output.name)) fail("admission", "The OpenFX parameter name is not canonical.");
-	if ((context == Context::retimer && output.name == "SourceTime")
-		|| (context == Context::transition && output.name == "Transition")) {
-		fail("admission", "Authored state cannot override a host-owned OpenFX standard parameter.");
-	}
-	output.wire_type = text(json::member(value, "type"), "OpenFX parameter type", 32);
-	output.ofx_type = native_parameter_type(output.wire_type);
-	if (!initialize_parameter_values(output.values, output.ofx_type)) {
-		fail("admission", "The native host cannot initialize the authored OpenFX parameter type.");
-	}
-	const auto& current = json::member(value, "value");
-	const auto type = std::string_view{output.wire_type};
-	if (type == "boolean") {
-		output.values.current = std::vector<int>{json::boolean(current, "OFX boolean value") ? 1 : 0};
-	} else if (type == "integer" || type == "choice") {
-		output.values.current = std::vector<int>{native_integer(current, "OFX integer value")};
-	} else if (type == "integer2d" || type == "integer3d") {
-		const auto& components = json::array(current, "OFX integer components");
-		if (components.size() != component_count(type)) fail("admission", "The OFX integer component count is inexact.");
-		std::vector<int> parsed; parsed.reserve(components.size());
-		for (const auto& component : components) parsed.push_back(native_integer(component, "OFX integer component"));
-		output.values.current = std::move(parsed);
-	} else if (type == "double" || type == "double2d" || type == "double3d"
-		|| type == "rgb" || type == "rgba") {
-		const auto& components = json::array(current, "OFX real components");
-		if (components.size() != component_count(type)) fail("admission", "The OFX real component count is inexact.");
-		std::vector<double> parsed; parsed.reserve(components.size());
-		for (const auto& component : components) parsed.push_back(finite_number(component, "OFX real component"));
-		output.values.current = std::move(parsed);
-	} else if (type == "string" || type == "custom") {
-		if (current.kind != json::type::string
-			|| current.text.size() > (type == "custom" ? 65'536U : 4'096U)) {
-			fail("admission", "The authored OFX UTF-8 string exceeds its byte ceiling.");
-		}
-		output.values.current = current.text;
-	} else if (type == "parametric") {
-		const auto& points = json::array(current, "OFX parametric points");
-		if (points.size() > 8'192U) fail("admission", "The OFX parametric point ceiling is exceeded.");
-		std::vector<ParametricPoint> parsed; parsed.reserve(points.size());
-		double previous = -std::numeric_limits<double>::infinity();
-		for (const auto& point : points) {
-			const auto& pair = json::array(point, "OFX parametric point");
-			if (pair.size() != 2) fail("admission", "An OFX parametric point is malformed.");
-			const auto key = finite_number(pair[0], "OFX parametric key");
-			const auto item = finite_number(pair[1], "OFX parametric value");
-			if (key <= previous) fail("admission", "OFX parametric keys must be strictly ordered.");
-			previous = key; parsed.push_back({key, item});
-		}
-		output.values.curves[0][0] = std::move(parsed);
-	} else if (current.kind != json::type::null_value) {
-		fail("admission", "A valueless OFX parameter cannot carry authored state.");
-	}
-	const auto& keys = json::array(json::member(value, "keyframes"), "OFX parameter keyframes");
-	if (keys.size() > 8'192U || total_keys > 65'536U - keys.size()) {
-		fail("admission", "The native OFX Interact keyframe ceiling is exceeded.");
-	}
-	if (!keys.empty() && type != "integer" && type != "choice"
-		&& type != "boolean" && type != "double") {
-		fail("admission", "The authored OFX keyframe wire represents only scalar values.");
-	}
-	total_keys += keys.size(); output.keyframe_count = keys.size();
-	for (const auto& key : keys) {
-		exact(key, {"frame", "value"});
-		const auto frame = safe_integer(json::member(key, "frame"), "OFX keyframe frame");
-		ParameterSnapshot snapshot;
-		if (type == "double") {
-			snapshot = std::vector<double>{finite_number(json::member(key, "value"), "OFX keyframe value")};
-		} else {
-			const auto item = native_integer(json::member(key, "value"), "OFX keyframe value");
-			if (type == "boolean" && item != 0 && item != 1) fail("admission", "An OFX boolean keyframe is invalid.");
-			snapshot = std::vector<int>{item};
-		}
-		if (!output.values.keys.emplace(static_cast<double>(frame), std::move(snapshot)).second) {
-			fail("admission", "An OFX keyframe time is duplicated.");
-		}
-	}
-	return output;
-}
-
 [[nodiscard]] std::vector<HydratedParameterState> parameter_states(
 	const json::value& value,
 	const Context context
@@ -227,7 +79,7 @@ void exact(const json::value& value, const std::initializer_list<std::string_vie
 	std::vector<HydratedParameterState> output; output.reserve(list.size());
 	std::set<std::string> names; std::size_t total_keys = 0;
 	for (const auto& entry : list) {
-		auto parsed = parameter_state(entry, context, total_keys);
+		auto parsed = hydrate_parameter_wire_state(entry, context, total_keys, ParameterWireOrigin::authored_interact);
 		if (!names.insert(parsed.name).second) fail("admission", "An OpenFX Interact parameter is duplicated.");
 		output.push_back(std::move(parsed));
 	}

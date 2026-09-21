@@ -52,7 +52,6 @@
 		"native/framescaper-openfx-host/build/recipe-driver.mjs": 600,
 		"native/framescaper-openfx-host/src/gpu_runtime.cpp": 567,
 		"native/framescaper-openfx-host/src/host_runtime.cpp": 584,
-		"native/framescaper-openfx-host/src/v12_host_invocation.cpp": 599,
 		"native/soundscaper-helper-addon/src/addon.c": 551,
 		"scripts/lib/desktop-bundled-codec-corresponding-source.mjs": 587,
 		"scripts/lib/desktop-nightly-tests-runtime.mjs": 584,

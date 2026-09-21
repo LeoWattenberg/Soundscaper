@@ -27,6 +27,7 @@ endif()
 add_library(framescaper-openfx-host-contract STATIC
 	src/dynamic_library.cpp
 	src/gpu_runtime.cpp
+	src/host_parameter_wire_hydration.cpp
 	src/host_runtime.cpp
 	src/interact_v1_invocation.cpp
 	src/loaded_plugin_binary.cpp

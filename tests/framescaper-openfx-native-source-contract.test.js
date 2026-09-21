@@ -17,12 +17,13 @@ test('production sources bind to the pinned SDK ABI and contain no ambient autho
 	const allSources = [
 		'isolation_contract.hpp', 'openfx_abi.hpp', 'sha256.cpp', 'sha256.hpp',
 		'dynamic_library.cpp', 'dynamic_library.hpp', 'host_runtime.cpp',
-		'host_runtime.hpp', 'host_parameter_hydration.hpp', 'host_scan_inspection.inc',
+		'host_runtime.hpp', 'host_parameter_hydration.hpp',
+		'host_parameter_wire_hydration.cpp', 'host_parameter_wire_hydration.hpp', 'host_scan_inspection.inc',
 		'host_standard_parameters.inc', 'loaded_plugin_binary.cpp', 'ofx_scanner.cpp',
 		'ofx_runtime_host.cpp', 'rgba_frame.hpp', 'gpu_runtime.cpp', 'gpu_runtime.hpp',
 		'v12_gpu_support.cpp', 'v12_gpu_support.hpp',
 		'v12_cancellation_channel.cpp', 'v12_cancellation_channel.hpp',
-		'v12_host_invocation.cpp', 'v12_host_invocation.hpp',
+		'interact_v1_invocation.cpp', 'v12_host_invocation.cpp', 'v12_host_invocation.hpp',
 		'v12_output_file.cpp', 'v12_output_file.hpp',
 		'v12_retime_authority.cpp', 'v12_retime_authority.hpp',
 		'v12_transition_authority.cpp', 'v12_transition_authority.hpp',
@@ -43,4 +44,17 @@ test('production sources bind to the pinned SDK ABI and contain no ambient autho
 	const cmake = readFileSync(join(repositoryRoot, 'native/framescaper-openfx-host/CMakeLists.txt'), 'utf8');
 	assert.match(cmake, /find_package\(Boost 1\.92\.0 EXACT REQUIRED\)/u);
 	assert.match(cmake, /media_plan\.cpp/u);
+	assert.match(cmake, /src\/host_parameter_wire_hydration\.cpp/u);
+});
+
+test('Interact and V12 share one wire-to-OFX ABI while retaining separate grant admission', () => {
+	const wire = readFileSync(join(sources, 'host_parameter_wire_hydration.cpp'), 'utf8');
+	assert.match(wire, /kOfxParamTypeInteger2D/u);
+	assert.match(wire, /ParameterWireOrigin::authored_interact/u);
+	assert.match(wire, /8'192U/u);
+	for (const filename of ['interact_v1_invocation.cpp', 'v12_host_invocation.cpp']) {
+		const invocation = readFileSync(join(sources, filename), 'utf8');
+		assert.match(invocation, /hydrate_parameter_wire_state\(/u);
+		assert.doesNotMatch(invocation, /native_parameter_type\(|kOfxParamTypeInteger2D|component_count\(/u);
+	}
 });

@@ -117,6 +117,7 @@ export function buildOpenFxNativeContractFixture(context) {
 		join(repositoryRoot, 'native/common/sha256.cpp'),
 		join(sources, 'sha256.cpp'), join(sources, 'dynamic_library.cpp'),
 		join(sources, 'gpu_runtime.cpp'),
+		join(sources, 'host_parameter_wire_hydration.cpp'),
 		join(sources, 'host_runtime.cpp'), join(sources, 'loaded_plugin_binary.cpp'),
 		join(sources, 'interact_v1_invocation.cpp'),
 		join(sources, 'parameter_values.cpp'), join(sources, 'v12_cancellation_channel.cpp'),

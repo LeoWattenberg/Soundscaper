@@ -39,6 +39,8 @@ const REQUIRED_CONTRACT_FILES = Object.freeze([
 	'src/gpu_runtime.hpp',
 	'src/host_runtime.cpp',
 	'src/host_runtime.hpp',
+	'src/host_parameter_wire_hydration.cpp',
+	'src/host_parameter_wire_hydration.hpp',
 	'src/host_interact.inc',
 	'src/host_runtime_invoke.inc',
 	'src/host_scan_inspection.inc',
