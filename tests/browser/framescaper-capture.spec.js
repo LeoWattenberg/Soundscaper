@@ -243,18 +243,15 @@ test.describe('Framescaper v1 recoverable capture', () => {
 		await expect.poll(async () => (await captureHarnessState(page)).audioDataClosed).toBeGreaterThanOrEqual(2);
 		await panel.getByRole('button', { name: 'Stop and import', exact: true }).press('Enter');
 		await expectCapturePhase(panel, 'inactive', 30_000);
+		await expect(editor.locator('[data-editor-toast]').filter({
+			hasText: 'capture derivatives completed with failures',
+		})).toContainText('This runtime cannot generate captured video proxies.', { timeout: 90_000 });
 
 			for (const name of ['Camera', 'Screen', 'Microphone', 'System Audio']) {
 				await expect(trackNameText(editor).filter({ hasText: new RegExp(`^${name}$`, 'u') })).toHaveCount(1);
 				await expect(projectBinCaptureCard(editor, `${name} Capture`)).toBeVisible();
 			}
 			expect((await captureHarnessState(page)).videoDataEvents).toBe(2);
-			await expect(editor.locator('[data-status]')).toContainText(
-				'capture derivatives completed with failures', { timeout: 90_000 },
-			);
-			await expect(editor.locator('[data-status]')).toContainText(
-				'This runtime cannot generate captured video proxies.',
-			);
 			await expect.poll(
 				() => storedCaptureState(page, projectId),
 				{ timeout: 90_000 },
