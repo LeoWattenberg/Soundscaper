@@ -57,9 +57,10 @@ Assembly fails for missing runtime surfaces, unknown executable URLs, mismatched
 source maps, changed repository sources, or unequal build evidence. Preparation
 copies the exact generated executables and binds every source, script, surface,
 revision, and digest into the inventory. The final command independently
-materializes the raw V8 profiles, unions compatible counters across Chromium and
-Electron, and exits nonzero if any required surface or executable coverage point
-is absent.
+validates each surface, rebases all admitted raw V8 profiles, and materializes
+their union in one c8 pass. That lets complementary Chromium and Electron ranges
+share the one coverage map c8 derives from their combined execution. The command
+exits nonzero if any required surface or executable coverage point is absent.
 
 CDP renderer and preload profiles carry an exact script-source cache which is
 checked against the preserved executables. Standard Node V8 profiles contain

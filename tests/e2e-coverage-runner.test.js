@@ -23,8 +23,10 @@ import {
 	parseE2ESurfaceManifest,
 } from '../scripts/lib/e2e-coverage-contract.mjs';
 import {
+	materializeV8CoverageUnion,
 	materializeV8SurfaceCoverage,
 	rebasePortableV8Profile,
+	runE2ECoverageGate,
 } from '../scripts/lib/e2e-coverage-runner.mjs';
 import {
 	coverageFileRecords,
@@ -167,6 +169,89 @@ test('source-map dependencies are excluded after remapping while repository code
 	assert.deepEqual(Object.keys(result.coverage), [fixture.sourcePath]);
 });
 
+test('complementary raw V8 observations union before coverage-dependent branch maps materialize', () => {
+	const fixture = makeComplementaryFixture();
+	const separate = fixture.surfaces.map((surface, index) => materializeV8SurfaceCoverage({
+		repositoryRoot: REPOSITORY_ROOT,
+		artifactRoot: fixture.artifactRoot,
+		surfaceDirectory: surface.directory,
+		reportDirectory: join(fixture.workspace, `separate-report-${index}`),
+		manifest: surface.manifest,
+		inventory: fixture.inventory,
+	}));
+	assert.notDeepEqual(
+		separate[0].coverage[fixture.sourcePath].branchMap,
+		separate[1].coverage[fixture.sourcePath].branchMap,
+		'V8-to-Istanbul branch discovery must reproduce the map mismatch this union prevents',
+	);
+
+	const union = materializeV8CoverageUnion({
+		repositoryRoot: REPOSITORY_ROOT,
+		artifactRoot: fixture.artifactRoot,
+		reportDirectory: join(fixture.workspace, 'union-report'),
+		surfaces: fixture.surfaces.map(({ directory, manifest }) => ({
+			surfaceDirectory: directory,
+			manifest,
+		})),
+		inventory: fixture.inventory,
+	});
+
+	assert.deepEqual(union.failures, []);
+	assert.deepEqual(Object.keys(union.coverage), [fixture.sourcePath]);
+	const measured = union.coverage[fixture.sourcePath];
+	assert.ok(Object.values(measured.s).every((count) => count > 0));
+	assert.ok(Object.values(measured.f).every((count) => count > 0));
+	assert.ok(Object.values(measured.b).flat().every((count) => count > 0));
+
+	writeFileSync(join(fixture.artifactRoot, 'inventory.json'), JSON.stringify(fixture.inventory));
+	for (const { directory, manifest } of fixture.surfaces) {
+		writeFileSync(join(directory, 'manifest.json'), JSON.stringify(manifest));
+	}
+	const gated = runE2ECoverageGate({
+		repositoryRoot: REPOSITORY_ROOT,
+		artifactRoot: fixture.artifactRoot,
+		reportRoot: join(fixture.workspace, 'gate-report'),
+		configuration: fixture.configuration,
+		expectedRevision: REVISION,
+	});
+	assert.deepEqual(gated.failures, []);
+	assert.equal(gated.metrics.branches.percentage, 100);
+});
+
+test('a surface cannot contribute another surface\'s complementary raw V8 ranges', () => {
+	const fixture = makeComplementaryFixture();
+	const [first, second] = fixture.surfaces;
+	const firstProfilePath = join(first.directory, 'v8/coverage.json');
+	const firstProfile = JSON.parse(readFileSync(firstProfilePath, 'utf8'));
+	const secondProfile = JSON.parse(readFileSync(join(second.directory, 'v8/coverage.json'), 'utf8'));
+	firstProfile.result[0].url = secondProfile.result[0].url;
+	writeFileSync(firstProfilePath, JSON.stringify(firstProfile));
+	first.manifest = parseE2ESurfaceManifest({
+		...first.manifest,
+		coverage: {
+			...first.manifest.coverage,
+			files: coverageFileRecords(join(first.directory, 'v8')),
+		},
+	}, fixture.inventory, fixture.configuration);
+
+	const union = materializeV8CoverageUnion({
+		repositoryRoot: REPOSITORY_ROOT,
+		artifactRoot: fixture.artifactRoot,
+		reportDirectory: join(fixture.workspace, 'cross-surface-report'),
+		surfaces: fixture.surfaces.map(({ directory, manifest }) => ({
+			surfaceDirectory: directory,
+			manifest,
+		})),
+		inventory: fixture.inventory,
+	});
+
+	assert.match(union.failures.join('\n'), /reported un-inventoried executable script/u);
+	assert.ok(
+		Object.values(union.coverage[fixture.sourcePath].b).flat().some((count) => count === 0),
+		'invalid cross-surface ranges must not contribute to the materialized union',
+	);
+});
+
 test('a prepared raw profile cannot be replaced or supplemented after manifest binding', () => {
 	const fixture = makeFixture();
 	const directory = join(fixture.surfaceDirectory, 'v8');
@@ -276,6 +361,102 @@ function makeFixture({ repositorySource = false } = {}) {
 			}, inventory, configuration);
 		},
 	};
+}
+
+function makeComplementaryFixture() {
+	const workspace = mkdtempSync(join(tmpdir(), 'soundscaper-e2e-union-'));
+	workspaces.push(workspace);
+	const artifactRoot = join(workspace, 'e2e');
+	const scriptPath = 'executables/complementary.mjs';
+	const sourcePath = 'generated/complementary.mjs';
+	const body = [
+		'export function choose(value) {',
+		'\tif (value === "first" || value === "second") return "chosen";',
+		'\treturn "other";',
+		'}',
+		'for (const value of process.env.CASES.split(",")) choose(value);',
+		'',
+	].join('\n');
+	mkdirSync(join(artifactRoot, 'executables'), { recursive: true });
+	writeFileSync(join(artifactRoot, scriptPath), body);
+	const surfaceIds = ['browser-complementary-first', 'browser-complementary-second'];
+	const configuration = parseE2ECoverageConfiguration({
+		schemaVersion: 1,
+		thresholds: { lines: 100, statements: 100, functions: 100, branches: 100 },
+		repositorySourceRoots: ['src/'],
+		requiredSurfaces: surfaceIds.map((id) => ({
+			id,
+			coverageFormat: 'v8',
+			description: `A complete complementary raw V8 fixture for ${id}.`,
+		})),
+		reason: 'This fixture proves that complementary raw V8 observations union before coverage-dependent Istanbul maps are constructed.',
+	});
+	const scripts = surfaceIds.map((surface, index) => {
+		const script = {
+			id: `${surface}/complementary.mjs`,
+			surface,
+			artifactPath: scriptPath,
+			coverageUrl: `file:///__soundscaper_e2e__/browser/complementary-${index}.mjs`,
+			sha256: sha256(body),
+			sourceMapSha256: null,
+			sources: [sourcePath],
+		};
+		return { ...script, coverageKey: e2eExecutableCoverageKey(script) };
+	});
+	const unsigned = {
+		schemaVersion: 1,
+		kind: 'soundscaper-e2e-executable-inventory',
+		sourceRevision: REVISION,
+		sources: [{
+			path: sourcePath,
+			origin: 'artifact',
+			artifactPath: scriptPath,
+			sha256: sha256(body),
+			surfaces: surfaceIds,
+		}],
+		scripts,
+	};
+	const inventory = parseE2EInventory(
+		{ ...unsigned, digest: digestE2EInventory(unsigned) },
+		configuration,
+	);
+	const cases = ['first,other', 'second'];
+	const surfaces = surfaceIds.map((surface, index) => {
+		const originalDirectory = join(workspace, `original-${index}`);
+		mkdirSync(originalDirectory);
+		execFileSync(process.execPath, [join(artifactRoot, scriptPath)], {
+			env: { ...process.env, CASES: cases[index], NODE_V8_COVERAGE: originalDirectory },
+		});
+		const original = JSON.parse(readFileSync(join(
+			originalDirectory,
+			readdirSync(originalDirectory).find((name) => name.endsWith('.json')),
+		), 'utf8'));
+		const artifactUrl = pathToFileURL(join(artifactRoot, scriptPath)).href;
+		const scriptCoverage = original.result.find(({ url }) => url === artifactUrl);
+		assert.ok(scriptCoverage, 'Node must measure the complementary fixture');
+		const directory = join(artifactRoot, 'surfaces', surface);
+		const coverageDirectory = join(directory, 'v8');
+		mkdirSync(coverageDirectory, { recursive: true });
+		writeFileSync(join(coverageDirectory, 'coverage.json'), JSON.stringify({
+			result: [{ ...scriptCoverage, url: scripts[index].coverageUrl }],
+			'source-map-cache': {},
+		}));
+		const manifest = parseE2ESurfaceManifest({
+			schemaVersion: 1,
+			kind: 'soundscaper-e2e-coverage-surface',
+			surface,
+			sourceRevision: REVISION,
+			inventoryDigest: inventory.digest,
+			coverage: {
+				format: 'v8',
+				path: 'v8',
+				files: coverageFileRecords(coverageDirectory),
+			},
+			inventoriedScripts: [{ id: scripts[index].id, sha256: scripts[index].sha256 }],
+		}, inventory, configuration);
+		return { directory, manifest };
+	});
+	return { artifactRoot, configuration, inventory, sourcePath, surfaces, workspace };
 }
 
 function sha256(value) {

@@ -205,6 +205,7 @@ export function analyzeE2ECoverage({
 	inventory,
 	surfaceManifests,
 	coverageBySurface,
+	coverageUnion,
 	expectedRevision,
 }) {
 	const failures = [];
@@ -232,36 +233,26 @@ export function analyzeE2ECoverage({
 
 	const sources = new Map(inventory.sources.map((source) => [source.path, source]));
 	const merged = new Map();
+	if (coverageUnion !== undefined) {
+		if (!coverageUnion || typeof coverageUnion !== 'object' || Array.isArray(coverageUnion)) {
+			failures.push('E2E supplied no usable union coverage profile.');
+		} else {
+			mergeReportedCoverage({
+				reported: coverageUnion,
+				label: 'E2E union',
+				sources,
+				merged,
+				failures,
+			});
+		}
+	}
 	for (const surface of required) {
-		const reported = coverageBySurface[surface];
+		const reported = coverageBySurface?.[surface];
 		if (!reported || typeof reported !== 'object' || Array.isArray(reported)) {
 			failures.push(`${surface} supplied no usable coverage profile.`);
 			continue;
 		}
-		for (const [reportedPath, fileCoverage] of Object.entries(reported)) {
-			const path = normalizePath(reportedPath);
-			const source = sources.get(path);
-			if (!source) {
-				failures.push(`${surface} reported un-inventoried source ${path}.`);
-				continue;
-			}
-			if (!source.surfaces.includes(surface)) {
-				failures.push(`${surface} reported source ${path}, which its executable inventory does not own.`);
-				continue;
-			}
-			try {
-				const normalized = normalizedFileCoverage(path, fileCoverage);
-				const existing = merged.get(path);
-				if (existing === undefined) merged.set(path, normalized);
-				else if (existing.mapDigest !== normalized.mapDigest) {
-					failures.push(`${path} has incompatible coverage maps across E2E surfaces.`);
-				} else {
-					mergeCounters(existing.coverage, normalized.coverage);
-				}
-			} catch (error) {
-				failures.push(`${surface} ${path}: ${errorMessage(error)}`);
-			}
-		}
+		mergeReportedCoverage({ reported, label: surface, surface, sources, merged, failures });
 	}
 	for (const path of sources.keys()) {
 		if (!merged.has(path)) failures.push(`E2E reported no coverage for executable source ${path}.`);
@@ -279,6 +270,33 @@ export function analyzeE2ECoverage({
 		}
 	}
 	return { metrics, failures, files: merged.size, surfaces: parsedManifests.size };
+}
+
+function mergeReportedCoverage({ reported, label, surface, sources, merged, failures }) {
+	for (const [reportedPath, fileCoverage] of Object.entries(reported)) {
+		const path = normalizePath(reportedPath);
+		const source = sources.get(path);
+		if (!source) {
+			failures.push(`${label} reported un-inventoried source ${path}.`);
+			continue;
+		}
+		if (surface !== undefined && !source.surfaces.includes(surface)) {
+			failures.push(`${surface} reported source ${path}, which its executable inventory does not own.`);
+			continue;
+		}
+		try {
+			const normalized = normalizedFileCoverage(path, fileCoverage);
+			const existing = merged.get(path);
+			if (existing === undefined) merged.set(path, normalized);
+			else if (existing.mapDigest !== normalized.mapDigest) {
+				failures.push(`${path} has incompatible coverage maps across E2E surfaces.`);
+			} else {
+				mergeCounters(existing.coverage, normalized.coverage);
+			}
+		} catch (error) {
+			failures.push(`${label} ${path}: ${errorMessage(error)}`);
+		}
+	}
 }
 
 export function formatE2ECoverageResult(result) {
