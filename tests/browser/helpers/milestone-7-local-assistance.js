@@ -230,6 +230,9 @@ export async function installMilestone7LocalAssistanceFixture(page) {
 			const video = request.fence.sourceRanges.find(({ mediaKind }) => mediaKind === 'video');
 			const sourceStart = audio?.sourceStartFrame ?? 0;
 			const sourceEnd = Math.max(sourceStart + 1, audio?.sourceEndFrame ?? 48_000);
+			const reactionEnd = Math.max(1, Math.min(32_000, Math.floor(
+				(sourceEnd - sourceStart) * 32_000 / (audio?.sourceSampleRate ?? 48_000),
+			)));
 			const videoStart = video?.sourceStartFrame ?? 0;
 			const videoEnd = Math.max(videoStart + 2, video?.sourceEndFrame ?? 24);
 			const highlightSignals = request.workflowId === 'make-highlights'
@@ -249,6 +252,11 @@ export async function installMilestone7LocalAssistanceFixture(page) {
 				'tempo-map-diff': { schemaVersion: 1, kind: 'tempo-map-diff',
 					applicationRequested: request.settings.applyTempoMap,
 					proposal: { kind: 'constant', bpm: 120 } },
+				'reaction-ranges': { schemaVersion: 1, kind: 'reaction-ranges', sampleRate: 32_000,
+					threshold: request.settings.threshold,
+					ranges: [{ id: `reaction:laughter:0:${String(reactionEnd)}`, kind: 'reaction',
+						label: 'Laughter', startSample: 0, endSample: reactionEnd,
+						score: 0.9, selected: false }] },
 				'transcript-index': { schemaVersion: 1, kind: 'transcript-index',
 					sourceId: audio?.sourceId, sampleRate: audio?.sourceSampleRate ?? 48_000,
 					embedding: { schemaVersion: 1, byteLength: matrix.byteLength,
