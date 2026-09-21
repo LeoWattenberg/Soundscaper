@@ -339,7 +339,7 @@ test('a silent picture carrier ignores empty sequence audio tracks in its V13 pa
 	const audioTrack = (framescaperV20Options().tracks as Data[])
 		.find(({ type }) => type === 'audio');
 	assert.ok(audioTrack, 'the maintained project fixture supplies one valid audio track');
-	const emptyAudioTrack = { ...audioTrack, clipIds: [] };
+	const emptyAudioTrack: Data = { ...audioTrack, clipIds: [] };
 	options.tracks = [...options.tracks as Data[], emptyAudioTrack];
 	const sequence = (options.sequences as Data[])[0]!;
 	sequence.trackIds = [...sequence.trackIds as string[], String(emptyAudioTrack.id)];

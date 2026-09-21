@@ -52,7 +52,8 @@ test('the inherited keyed carrier alone projects a native sequence to a canonica
 	);
 	const carrierProject = framescaperNativeRenderCarrierProjectNativeMedia(project);
 	const canonicalSource = project.sources.find(({ kind }) => kind === 'video');
-	const carrierSource = carrierProject.sources.find(({ kind }) => kind === 'video');
+	const carrierSource = (carrierProject.sources as unknown as readonly Data[])
+		.find(({ kind }) => kind === 'video');
 
 	assert.equal(canonicalSource?.mimeType, 'image/png');
 	assert.ok(canonicalSource?.imageSequence);
