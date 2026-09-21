@@ -16,6 +16,7 @@ import {
 	readJson,
 	readProfiles,
 	recordBrowserEvidence,
+	RUNTIME_SCRIPT_PATH,
 	rewritePackagedLayout,
 	sourceMapFor,
 	sourceLineLengths,
@@ -50,6 +51,12 @@ test('actual nightly evidence assembles into eight strict portable coverage surf
 	)));
 	assert.ok(result.captureIndex.scripts.some(({ coverageUrl }) => coverageUrl.endsWith('/service-worker.js')),
 		'unmapped generated first-party workers stay in the denominator');
+	assert.deepEqual(
+		result.captureIndex.buildEvidence[0].excludedRuntimeScripts.soundscaper.map(({ path }) => path),
+		[RUNTIME_SCRIPT_PATH],
+	);
+	assert.equal(result.captureIndex.buildEvidence[0].documents.soundscaper.length, 2);
+	assert.equal(result.captureIndex.buildEvidence[0].executableResources.soundscaper.fileCount, 4);
 	for (const surface of result.captureIndex.surfaces) {
 		const profiles = readProfiles(join(fixture.outputRoot, surface.coverage.inputPath));
 		assert.ok(profiles.length > 0, `${surface.id} must have a real raw profile`);
@@ -267,7 +274,10 @@ test('Electron evidence rejects ambiguous installed paths and stale CDP source c
 	const manifest = readJson(manifestPath);
 	manifest.scripts[1].packagedPath = manifest.scripts[0].packagedPath;
 	writeJson(manifestPath, manifest);
-	assert.throws(() => assembleE2ECoverageCapture(ambiguous), /ambiguous packaged path/u);
+	assert.throws(
+		() => assembleE2ECoverageCapture(ambiguous),
+		/invalid executable script|ambiguous packaged path/u,
+	);
 
 	for (const replacement of [undefined, 'stale preload bytes\n']) {
 		const fixture = makeFixture();
@@ -279,6 +289,46 @@ test('Electron evidence rejects ambiguous installed paths and stale CDP source c
 		writeJson(path, profile);
 		assert.throws(() => assembleE2ECoverageCapture(fixture), /script bytes are stale/u);
 	}
+	for (const replacement of [undefined, 'stale runtime bytes\n']) {
+		const fixture = makeFixture();
+		const path = join(fixture.runRoot, 'coverage/v8-packaged/packaged-soundscaper.json');
+		const profile = readJson(path);
+		const runtime = profile.result.find(({ url }) => url.includes('/runtime/')).url;
+		if (replacement === undefined) delete profile['script-source-cache'][runtime];
+		else profile['script-source-cache'][runtime] = replacement;
+		writeJson(path, profile);
+		assert.throws(
+			() => assembleE2ECoverageCapture(fixture),
+			/(?:no source bytes|excluded runtime script bytes are stale)/u,
+		);
+	}
+});
+
+test('Electron evidence re-audits preserved HTML and binds the run platform', () => {
+	const html = makeFixture();
+	const documentPath = join(html.evidenceRoot, 'electron/soundscaper/renderer/index.html');
+	const source = '<button onclick="globalThis.hidden = true">Run</button>\n';
+	write(documentPath, source);
+	const manifestPath = join(html.evidenceRoot, 'electron/soundscaper/manifest.json');
+	const manifest = readJson(manifestPath);
+	const document = manifest.documents.find(({ artifactPath }) => artifactPath === 'renderer/index.html');
+	document.byteLength = Buffer.byteLength(source);
+	document.sha256 = hash(source);
+	writeJson(manifestPath, manifest);
+	assert.throws(
+		() => assembleE2ECoverageCapture(html),
+		/unattested executable-string primitive.*inline HTML executable attribute/iu,
+	);
+
+	const runtime = makeFixture();
+	const runPath = join(runtime.runRoot, 'run.json');
+	const envelope = readJson(runPath);
+	envelope.runtime = { platform: 'darwin', arch: 'arm64' };
+	writeJson(runPath, envelope);
+	assert.throws(
+		() => assembleE2ECoverageCapture(runtime),
+		/runtime metadata disagrees with its nightly run identity/u,
+	);
 });
 
 test('child Node profiles and duplicate URLs merge, while PID/product conflicts fail closed', () => {

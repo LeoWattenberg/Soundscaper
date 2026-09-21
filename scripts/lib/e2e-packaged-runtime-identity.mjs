@@ -6,7 +6,7 @@ import { E2E_PRODUCTS } from './e2e-coverage-build-evidence.mjs';
 
 export function packagedRuntime(profile, name, evidence) {
 	const value = profile['soundscaper-packaged-runtime'];
-	if (!record(value) || value.schemaVersion !== 2 || !E2E_PRODUCTS.includes(value.productId)
+	if (!record(value) || value.schemaVersion !== 3 || !E2E_PRODUCTS.includes(value.productId)
 		|| !['linux', 'win32', 'darwin'].includes(value.platform)
 		|| !['x64', 'arm64'].includes(value.architecture)
 		|| typeof value.executablePath !== 'string' || typeof value.appOrigin !== 'string'
@@ -34,10 +34,15 @@ export function packagedRuntime(profile, name, evidence) {
 	const resourcesPath = value.platform === 'darwin'
 		? paths.resolve(paths.dirname(executable), '../Resources')
 		: paths.resolve(paths.dirname(executable), 'resources');
+	const resourceIdentity = evidence.electron.get(value.productId)?.executableResources;
+	if (!validRuntimeExecutableResources(value.executableResources, resourcesPath, resourceIdentity)) {
+		throw new Error(`Packaged coverage profile ${name} has an invalid executable-resource identity.`);
+	}
 	const resources = normalizedInstalledPath(resourcesPath, value.platform);
 	return Object.freeze({
 		appAsar: `${resources}/app.asar`,
 		appOrigin: value.appOrigin,
+		architecture: value.architecture,
 		baseOrigin: value.baseOrigin,
 		platform: value.platform,
 		processId: value.processId,
@@ -94,6 +99,23 @@ function exactFileIdentity(value) {
 	return record(value)
 		&& stableJson(Object.keys(value).sort()) === stableJson(['byteLength', 'sha256'])
 		&& Number.isSafeInteger(value.byteLength) && value.byteLength >= 0
+		&& typeof value.sha256 === 'string' && /^[a-f\d]{64}$/u.test(value.sha256);
+}
+
+function validRuntimeExecutableResources(value, expectedPath, evidenceIdentity) {
+	if (!record(value) || stableJson(Object.keys(value).sort())
+		!== stableJson(['afterCollection', 'beforeLaunch', 'path'])
+		|| value.path !== expectedPath || !exactResourceIdentity(value.beforeLaunch)
+		|| !exactResourceIdentity(value.afterCollection) || !exactResourceIdentity(evidenceIdentity)) return false;
+	return stableJson(value.beforeLaunch) === stableJson(value.afterCollection)
+		&& stableJson(value.beforeLaunch) === stableJson(evidenceIdentity);
+}
+
+function exactResourceIdentity(value) {
+	return record(value)
+		&& stableJson(Object.keys(value).sort()) === stableJson(['fileCount', 'sha256', 'totalBytes'])
+		&& Number.isSafeInteger(value.fileCount) && value.fileCount >= 0
+		&& Number.isSafeInteger(value.totalBytes) && value.totalBytes >= 0
 		&& typeof value.sha256 === 'string' && /^[a-f\d]{64}$/u.test(value.sha256);
 }
 

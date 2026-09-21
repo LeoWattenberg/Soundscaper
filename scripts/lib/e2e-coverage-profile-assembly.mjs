@@ -18,7 +18,7 @@ import { validateDesktopRendererDynamicSource } from '../../desktop/renderer-smo
 
 const SCRIPT_PATTERN = /\.(?:c|m)?js$/u;
 
-export function assembleE2ERawProfiles({ runRoot, evidence, repositoryRoot }) {
+export function assembleE2ERawProfiles({ runRoot, evidence, repositoryRoot, runtime: runRuntime }) {
 	const profiles = new Map(requiredSurfaceIds().map((surface) => [surface, []]));
 	const dynamicScripts = new Map();
 	assembleBrowserProfiles({
@@ -34,6 +34,7 @@ export function assembleE2ERawProfiles({ runRoot, evidence, repositoryRoot }) {
 		evidence,
 		profiles,
 		repositoryRoot,
+		runRuntime,
 	});
 	return Object.freeze({
 		dynamicScripts: Object.freeze([...dynamicScripts.values()].sort((left, right) => (
@@ -113,12 +114,24 @@ function assembleBrowserProfiles({ directory, dynamicScripts, evidence, profiles
 	attachObservedMaps(profiles, observed);
 }
 
-function assemblePackagedProfiles({ directory, dynamicScripts, evidence, profiles, repositoryRoot }) {
+function assemblePackagedProfiles({
+	directory,
+	dynamicScripts,
+	evidence,
+	profiles,
+	repositoryRoot,
+	runRuntime,
+}) {
 	const files = readProfiles(directory, 'packaged');
 	const cdp = files.filter(({ profile }) => profile['soundscaper-packaged-runtime'] !== undefined);
 	const runtimes = cdp.map(({ name, profile }) => packagedRuntime(profile, name, evidence));
 	if (new Set(runtimes.map(({ productId }) => productId)).size !== E2E_PRODUCTS.length) {
 		throw new Error('Packaged coverage does not identify both product runtimes.');
+	}
+	if (!record(runRuntime) || runtimes.some(({ architecture, platform }) => (
+		architecture !== runRuntime.arch || platform !== runRuntime.platform
+	))) {
+		throw new Error('Packaged coverage runtime metadata disagrees with its nightly run identity.');
 	}
 	const observed = new Map();
 	for (const { name, profile } of cdp) {
@@ -197,6 +210,16 @@ function classifyCdpEntry({ dynamicScripts, entry, evidence, profile, repository
 			script = evidence.electron.get(productId).scriptsByPackagedPath.get(installed);
 			if (script?.realm !== 'preload') script = undefined;
 			surface = electronSurface(productId, 'preload');
+		} else {
+			const excluded = excludedRuntimeScript(entry.url, evidence, runtime);
+			if (excluded !== null) {
+				authenticateExcludedRuntimeSource(
+					profile['script-source-cache']?.[entry.url],
+					excluded,
+					entry.url,
+				);
+				return null;
+			}
 		}
 	}
 	if (!script) throw new Error(`Packaged coverage has an unmapped first-party packaged script ${String(entry.url)}.`);
@@ -217,9 +240,15 @@ function classifyNodeEntry(entry, evidence, runtimes, repositoryRoot) {
 		return null;
 	}
 	const matches = [];
+	const excludedMatches = [];
 	for (const runtime of runtimes) {
 		const packagedPath = installedPackagedPath(entry.url, runtime);
 		if (packagedPath === null) {
+			const excluded = excludedRuntimeScript(entry.url, evidence, runtime);
+			if (excluded !== null) {
+				excludedMatches.push(runtime.productId);
+				continue;
+			}
 			if (productResourceScript(entry.url, runtime)) {
 				throw new Error(`Packaged coverage has an un-inventoried product resource script ${entry.url}.`);
 			}
@@ -239,7 +268,10 @@ function classifyNodeEntry(entry, evidence, runtimes, repositoryRoot) {
 		});
 	}
 	const unique = uniqueMatches(matches);
-	if (unique.length > 1) throw new Error(`Packaged script ${entry.url} matches more than one product runtime.`);
+	if (unique.length + excludedMatches.length > 1) {
+		throw new Error(`Packaged script ${entry.url} matches more than one product runtime.`);
+	}
+	if (excludedMatches.length === 1) return null;
 	return unique[0] ?? null;
 }
 
@@ -301,13 +333,35 @@ function installedFilePath(url, platform) {
 }
 
 function productResourceScript(url, runtime) {
+	const relativePath = installedResourceScriptPath(url, runtime);
+	if (relativePath === null) return false;
+	return !/^(?:default_app|electron)\.asar\//iu.test(relativePath);
+}
+
+function excludedRuntimeScript(url, evidence, runtime) {
+	const path = installedResourceScriptPath(url, runtime);
+	if (path === null) return null;
+	return evidence.electron.get(runtime.productId).excludedRuntimeScriptsByPath.get(path) ?? null;
+}
+
+function installedResourceScriptPath(url, runtime) {
 	const path = installedFilePath(url, runtime.platform);
-	if (path === null || !SCRIPT_PATTERN.test(path)) return false;
+	if (path === null || !SCRIPT_PATTERN.test(path)) return null;
 	const actual = runtime.platform === 'win32' ? path.toLowerCase() : path;
 	const root = runtime.platform === 'win32' ? runtime.resources.toLowerCase() : runtime.resources;
-	if (!actual.startsWith(`${root}/`)) return false;
-	const relativePath = actual.slice(root.length + 1);
-	return !/^(?:default_app|electron)\.asar\//u.test(relativePath);
+	if (!actual.startsWith(`${root}/`)) return null;
+	return path.slice(runtime.resources.length + 1);
+}
+
+function authenticateExcludedRuntimeSource(source, descriptor, url) {
+	if (typeof source !== 'string') {
+		throw new Error(`Packaged coverage captured no source bytes for excluded runtime script ${url}.`);
+	}
+	const bytes = Buffer.from(source, 'utf8');
+	if (bytes.byteLength !== descriptor.byteLength
+		|| createHash('sha256').update(bytes).digest('hex') !== descriptor.sha256) {
+		throw new Error(`Packaged coverage excluded runtime script bytes are stale for ${url}.`);
+	}
 }
 
 function normalizedInstalledPath(path, platform) {

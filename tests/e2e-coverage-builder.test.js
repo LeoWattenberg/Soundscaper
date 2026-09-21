@@ -118,7 +118,13 @@ function makeFixture() {
 			sourceRevision,
 			runtime: { platform: 'linux', arch: 'x64' },
 			digest: `sha256:${'1'.repeat(64)}`,
+			documents: { framescaper: [], soundscaper: [] },
 			executableDigest: `sha256:${'2'.repeat(64)}`,
+			executableResources: {
+				framescaper: { fileCount: 0, totalBytes: 0, sha256: '5'.repeat(64) },
+				soundscaper: { fileCount: 0, totalBytes: 0, sha256: '6'.repeat(64) },
+			},
+			excludedRuntimeScripts: { framescaper: [], soundscaper: [] },
 			packageArchives: {
 				framescaper: { byteLength: 1, sha256: '3'.repeat(64) },
 				soundscaper: { byteLength: 1, sha256: '4'.repeat(64) },

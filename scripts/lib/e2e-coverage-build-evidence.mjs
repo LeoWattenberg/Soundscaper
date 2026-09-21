@@ -12,6 +12,10 @@ import {
 	DESKTOP_RENDERER_DYNAMIC_EXCLUSIONS,
 } from '../../desktop/renderer-smoke-execution.js';
 import { assertE2EExecutableStringPolicy } from './e2e-dynamic-code-audit.mjs';
+import {
+	loadE2EPackagedResourceEvidence,
+	validE2EPackagedScriptLocation,
+} from './e2e-packaged-resource-evidence.mjs';
 import { normalizeE2ESourceMap } from './e2e-coverage-source-maps.mjs';
 
 export { normalizeE2ESourceMap } from './e2e-coverage-source-maps.mjs';
@@ -124,13 +128,25 @@ function loadBrowserEvidence({ productId, repositoryRoot, root, sourceRevision }
 
 function loadElectronEvidence({ productId, repositoryRoot, root, sourceRevision }) {
 	const manifest = readJson(join(root, 'manifest.json'), `${productId} Electron build manifest`);
-	if (manifest.schemaVersion !== 2 || manifest.kind !== 'soundscaper-e2e-product-build-evidence'
+	if (!exactKeys(manifest, [
+		'documents',
+		'excludedRuntimeScripts',
+		'executableResources',
+		'kind',
+		'packageArchive',
+		'productId',
+		'schemaVersion',
+		'scripts',
+		'sourceMaps',
+		'sourceRevision',
+	]) || manifest.schemaVersion !== 3 || manifest.kind !== 'soundscaper-e2e-product-build-evidence'
 		|| manifest.productId !== productId || manifest.sourceRevision !== sourceRevision
-		|| !fileRecord(manifest.packageArchive) || !Array.isArray(manifest.scripts)
-		|| !Array.isArray(manifest.sourceMaps)) {
+		|| !exactKeys(manifest.packageArchive, ['byteLength', 'sha256'])
+		|| !fileRecord(manifest.packageArchive) || !Array.isArray(manifest.documents)
+		|| !Array.isArray(manifest.scripts) || !Array.isArray(manifest.sourceMaps)) {
 		throw new Error(`The ${productId} Electron build evidence is invalid.`);
 	}
-	const declared = [...manifest.scripts, ...manifest.sourceMaps];
+	const declared = [...manifest.documents, ...manifest.scripts, ...manifest.sourceMaps];
 	const declaredPaths = declared.map(({ artifactPath }) => artifactPath).sort();
 	const actualPaths = walkFiles(root)
 		.map((path) => normalizedRelative(root, path))
@@ -150,12 +166,17 @@ function loadElectronEvidence({ productId, repositoryRoot, root, sourceRevision 
 		);
 	}
 	const scriptEntries = manifest.scripts.map((entry) => {
-		if (!['main', 'preload', 'renderer'].includes(entry.realm)
-			|| !safeRelativePath(entry.packagedPath) || !SCRIPT_PATTERN.test(entry.artifactPath)) {
+		if (!exactKeys(entry, ['artifactPath', 'byteLength', 'packagedPath', 'realm', 'sha256'])
+			|| !['main', 'preload', 'renderer'].includes(entry.realm)
+			|| !safeRelativePath(entry.packagedPath) || !SCRIPT_PATTERN.test(entry.artifactPath)
+			|| !validE2EPackagedScriptLocation(entry)) {
 			throw new Error(`The ${productId} Electron evidence contains an invalid executable script.`);
 		}
 		return entry;
 	});
+	if (manifest.sourceMaps.some((entry) => !exactKeys(entry, ['artifactPath', 'byteLength', 'sha256']))) {
+		throw new Error(`The ${productId} Electron evidence contains an invalid source-map record.`);
+	}
 	if (new Set(scriptEntries.map(({ packagedPath }) => packagedPath)).size !== scriptEntries.length) {
 		throw new Error(`The ${productId} Electron evidence contains an ambiguous packaged path.`);
 	}
@@ -176,8 +197,15 @@ function loadElectronEvidence({ productId, repositoryRoot, root, sourceRevision 
 		runtime: 'electron',
 		sourceRevision,
 	}));
+	const resources = loadE2EPackagedResourceEvidence({
+		manifest,
+		productId,
+		root,
+		scripts: scriptEntries,
+	});
 	validateE2EDynamicScriptExclusions(scripts, productId);
 	return Object.freeze({
+		...resources,
 		packageArchive: Object.freeze({ ...manifest.packageArchive }),
 		productId,
 		scripts: Object.freeze(scripts),
@@ -334,13 +362,18 @@ function hash(value) {
 	return createHash('sha256').update(value).digest('hex');
 }
 
-function evidenceDigest(browser, electron, sourceRevision, includePackageArchives) {
+function evidenceDigest(browser, electron, sourceRevision, includeTargetSpecificEvidence) {
 	const products = E2E_PRODUCTS.map((productId) => ({
 		productId,
 		browserOrigin: browser.get(productId).origin,
 		browserSite: browser.get(productId).siteDigest,
 		browserScripts: browser.get(productId).scripts.map(digestibleScript),
-		...(includePackageArchives ? { electronArchive: electron.get(productId).packageArchive } : {}),
+		electronDocuments: electron.get(productId).documents,
+		...(includeTargetSpecificEvidence ? {
+			electronArchive: electron.get(productId).packageArchive,
+			electronExecutableResources: electron.get(productId).executableResources,
+			electronExcludedRuntimeScripts: electron.get(productId).excludedRuntimeScripts,
+		} : {}),
 		electronScripts: electron.get(productId).scripts.map(digestibleScript),
 	}));
 	return `sha256:${hash(stableJson({ products, sourceRevision }))}`;
@@ -371,4 +404,8 @@ function stableJson(value) {
 
 function record(value) {
 	return value !== null && typeof value === 'object' && !Array.isArray(value);
+}
+
+function exactKeys(value, keys) {
+	return record(value) && stableJson(Object.keys(value).sort()) === stableJson(keys);
 }

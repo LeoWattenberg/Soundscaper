@@ -14,6 +14,11 @@ import {
 	INSTALL_NAVIGATION_COVERAGE_CHECKPOINT,
 	NAVIGATION_COVERAGE_CHECKPOINT_URL,
 } from '../../../scripts/lib/navigation-coverage-checkpoint.mjs';
+import {
+	capturePackagedExecutableResourcesAfterCollection,
+	inspectPackagedExecutableResourcesBeforeLaunch,
+	resolvePackagedResourcesPath,
+} from '../../../scripts/lib/packaged-executable-resource-identity.mjs';
 import { startPackagedRuntimeTargetCoverage } from './packaged-runtime-target-coverage.js';
 
 const COVERAGE_SUBDIRECTORY = 'coverage/v8-packaged';
@@ -90,6 +95,10 @@ export function createPackagedRuntimeCoverageCollector(options) {
 	const appAsarBeforeLaunch = inspectedPackagedAppAsarBeforeLaunch(
 		options.appAsar,
 		resolvePackagedAppAsarPath(options.executablePath, options.platform),
+	);
+	const executableResourcesBeforeLaunch = inspectPackagedExecutableResourcesBeforeLaunch(
+		options.executableResources,
+		resolvePackagedResourcesPath(options.executablePath, options.platform),
 	);
 	const coverageDirectory = absoluteDirectory(options.coverageDirectory);
 	const context = options.context;
@@ -217,13 +226,17 @@ export function createPackagedRuntimeCoverageCollector(options) {
 				return false;
 			});
 			if (result.length === 0) throw new Error('Packaged runtime coverage recorded no first-party scripts.');
-			const appAsar = await capturePackagedAppAsarAfterCollection(appAsarBeforeLaunch);
+			const [appAsar, executableResources] = await Promise.all([
+				capturePackagedAppAsarAfterCollection(appAsarBeforeLaunch),
+				capturePackagedExecutableResourcesAfterCollection(executableResourcesBeforeLaunch),
+			]);
 			const profile = {
 				result,
 				'script-source-cache': sources,
 				'soundscaper-packaged-runtime': {
 					...metadata,
 					appAsar,
+					executableResources,
 					childTargetStrategy: 'recursive-auto-attach-paused',
 					capturesChildTargets: true,
 					pausedTargetCounts,
@@ -305,7 +318,7 @@ function coverageMetadata(options) {
 		platform,
 		...(options.processId === undefined ? {} : { processId: options.processId }),
 		productId,
-		schemaVersion: 2,
+		schemaVersion: 3,
 	});
 }
 

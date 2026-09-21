@@ -28,6 +28,9 @@ import {
 	packagedRuntimeCoverageLaunch,
 } from './packaged-runtime-coverage.js';
 import {
+	capturePackagedExecutableResourcesBeforeLaunch,
+} from '../../../scripts/lib/packaged-executable-resource-identity.mjs';
+import {
 	requestPackagedRuntimeShutdown,
 	terminatePackagedRuntime,
 } from './packaged-runtime-process.js';
@@ -59,9 +62,15 @@ const packagedTest = base.extend({
 		if (coverageLaunch.coverageDirectory !== null) {
 			await mkdir(coverageLaunch.coverageDirectory, { recursive: true });
 		}
-		const appAsar = coverageLaunch.coverageDirectory === null
-			? null
-			: await capturePackagedAppAsarBeforeLaunch({ executablePath, platform: runtimePlatform });
+		const [appAsar, executableResources] = coverageLaunch.coverageDirectory === null
+			? [null, null]
+			: await Promise.all([
+				capturePackagedAppAsarBeforeLaunch({ executablePath, platform: runtimePlatform }),
+				capturePackagedExecutableResourcesBeforeLaunch({
+					executablePath,
+					platform: runtimePlatform,
+				}),
+			]);
 		const child = spawn(executablePath, [
 			...packagedRuntimeChromiumArguments(runtimePlatform),
 			...audioFixtureArguments,
@@ -100,6 +109,7 @@ const packagedTest = base.extend({
 					context,
 					coverageDirectory: coverageLaunch.coverageDirectory,
 					executablePath,
+					executableResources,
 					platform: runtimePlatform,
 					processId: child.pid,
 					productId,

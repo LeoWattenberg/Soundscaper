@@ -12,7 +12,7 @@ import {
 	writeFileSync,
 } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { dirname, join } from 'node:path';
+import { dirname, join, posix, win32 } from 'node:path';
 
 import { DESKTOP_RENDERER_DYNAMIC_EXCLUSIONS } from '../../desktop/renderer-smoke-execution.js';
 import { buildAttestedMacroSandboxModule } from '../../src/common/editor/macro-script/dynamic-source-contract.js';
@@ -21,10 +21,17 @@ import {
 	macroDynamicCoverageScript,
 	macroDynamicSourceUrl,
 } from '../../scripts/lib/macro-dynamic-coverage.mjs';
+import {
+	packagedExecutableResourceIdentity,
+} from '../../scripts/lib/packaged-executable-resource-identity.mjs';
 
 const PRODUCTS = ['framescaper', 'soundscaper'];
 const MACRO_PRELUDE_PATH = 'src/common/editor/macro-script/sandbox-prelude.js';
 const MACRO_PRELUDE_ARTIFACT = 'assets/sandbox-prelude-fixture.js';
+const APP_DOCUMENT_SOURCE = '<main>packaged application fixture</main>\n';
+const RENDERER_DOCUMENT_SOURCE = '<main>packaged renderer fixture</main>\n';
+export const RUNTIME_SCRIPT_PATH = 'runtime/fixture-vendor/index.js';
+export const RUNTIME_SCRIPT_SOURCE = 'module.exports = "authenticated fixture runtime";\n';
 const MACRO_PRELUDE_SOURCE = readFileSync(join(import.meta.dirname, '../../', MACRO_PRELUDE_PATH), 'utf8');
 const MACRO_WRAPPER_SOURCE = readFileSync(
 	join(import.meta.dirname, '../../', MACRO_FIXED_COVERAGE_SOURCE_PATH),
@@ -78,13 +85,17 @@ export function makeFixture() {
 		const renderer = browserApp;
 		write(join(electronRoot, 'app/desktop/main.mjs'), main);
 		write(join(electronRoot, 'app/desktop/preload.js'), preload);
+		write(join(electronRoot, 'app/desktop/window.html'), APP_DOCUMENT_SOURCE);
 		write(join(electronRoot, 'renderer/assets/app.js'), renderer);
 		write(join(electronRoot, `renderer/${MACRO_PRELUDE_ARTIFACT}`), MACRO_PRELUDE_SOURCE);
+		write(join(electronRoot, 'renderer/index.html'), RENDERER_DOCUMENT_SOURCE);
 		writeJson(join(electronRoot, 'renderer-source-maps/app.js.map'), sourceMap);
 		writeProductEvidence(electronRoot, product, sourceRevision, {
+			appDocument: APP_DOCUMENT_SOURCE,
 			main,
 			prelude: MACRO_PRELUDE_SOURCE,
 			preload,
+			rendererDocument: RENDERER_DOCUMENT_SOURCE,
 			renderer,
 		});
 	}
@@ -171,21 +182,29 @@ function writePackagedProfiles(runRoot, evidenceRoot) {
 		const preloadPath = `/opt/${product}/resources/app.asar/desktop/preload.js`;
 		const preloadUrl = index === 0 ? preloadPath : `file://${preloadPath}`;
 		const mainUrl = `file:///opt/${product}/resources/app.asar/desktop/main.mjs`;
-		const packageArchive = { byteLength: 123, sha256: hash(`${product} archive`) };
+		const runtimeUrl = `file:///opt/${product}/resources/${RUNTIME_SCRIPT_PATH}`;
+		const evidence = readJson(join(electronRoot, 'manifest.json'));
+		const packageArchive = evidence.packageArchive;
 		writeJson(join(runRoot, `coverage/v8-packaged/packaged-${product}.json`), {
-			result: [v8Entry(rendererUrl), v8Entry(browserUrl), v8Entry(preloadUrl)],
+			result: [v8Entry(rendererUrl), v8Entry(browserUrl), v8Entry(preloadUrl), v8Entry(runtimeUrl)],
 			'script-source-cache': {
 				[rendererUrl]: readFileSync(join(electronRoot, 'renderer/assets/app.js'), 'utf8'),
 				[browserUrl]: readFileSync(join(evidenceRoot, 'browser', product, 'site/assets/app.js'), 'utf8'),
 				[preloadUrl]: readFileSync(join(electronRoot, 'app/desktop/preload.js'), 'utf8'),
+				[runtimeUrl]: RUNTIME_SCRIPT_SOURCE,
 			},
 			'source-map-cache': {},
 			'soundscaper-packaged-runtime': {
-				schemaVersion: 2,
+				schemaVersion: 3,
 				appAsar: {
 					path: `/opt/${product}/resources/app.asar`,
 					beforeLaunch: { ...packageArchive },
 					afterCollection: { ...packageArchive },
+				},
+				executableResources: {
+					path: `/opt/${product}/resources`,
+					beforeLaunch: { ...evidence.executableResources },
+					afterCollection: { ...evidence.executableResources },
 				},
 				productId: product,
 				platform: 'linux',
@@ -203,13 +222,19 @@ function writePackagedProfiles(runRoot, evidenceRoot) {
 			},
 		});
 		writeJson(join(runRoot, `coverage/v8-packaged/coverage-${4100 + index}-fixture-0.json`), {
-			result: [v8Entry(mainUrl), v8Entry('node:internal/bootstrap')],
+			result: [v8Entry(mainUrl), v8Entry(runtimeUrl), v8Entry('node:internal/bootstrap')],
 			'source-map-cache': {},
 		});
 	}
 }
 
 export function rewritePackagedLayout(fixture, layout) {
+	const run = readJson(join(fixture.runRoot, 'run.json'));
+	run.runtime = {
+		platform: layout.platform,
+		arch: layout.platform === 'darwin' ? 'arm64' : 'x64',
+	};
+	writeJson(join(fixture.runRoot, 'run.json'), run);
 	for (const [index, product] of PRODUCTS.entries()) {
 		const cdpPath = join(fixture.runRoot, `coverage/v8-packaged/packaged-${product}.json`);
 		const cdp = readJson(cdpPath);
@@ -226,38 +251,66 @@ export function rewritePackagedLayout(fixture, layout) {
 		} else if (layout.platform === 'win32' && metadata.appAsar.path.startsWith('server/')) {
 			metadata.appAsar.path = `\\\\${metadata.appAsar.path.replaceAll('/', '\\')}`;
 		}
+		const paths = layout.platform === 'win32' ? win32 : posix;
+		metadata.executableResources.path = paths.dirname(metadata.appAsar.path);
 		const preloadEntry = cdp.result.find(({ url }) => /preload\.js$/u.test(url));
 		const preloadSource = cdp['script-source-cache'][preloadEntry.url];
 		delete cdp['script-source-cache'][preloadEntry.url];
 		preloadEntry.url = layout.url(product, 'desktop/preload.js');
 		cdp['script-source-cache'][preloadEntry.url] = preloadSource;
+		const runtimeEntry = cdp.result.find(({ url }) => url.includes('/runtime/'));
+		const runtimeSource = cdp['script-source-cache'][runtimeEntry.url];
+		delete cdp['script-source-cache'][runtimeEntry.url];
+		runtimeEntry.url = resourceUrl(layout, product, RUNTIME_SCRIPT_PATH);
+		cdp['script-source-cache'][runtimeEntry.url] = runtimeSource;
 		writeJson(cdpPath, cdp);
 
 		const nodePath = join(fixture.runRoot, `coverage/v8-packaged/coverage-${4100 + index}-fixture-0.json`);
 		const node = readJson(nodePath);
 		node.result[0].url = layout.url(product, 'desktop/main.mjs');
+		node.result.find(({ url }) => url.includes('/runtime/')).url = resourceUrl(
+			layout,
+			product,
+			RUNTIME_SCRIPT_PATH,
+		);
 		writeJson(nodePath, node);
 	}
 }
 
-function writeProductEvidence(root, productId, sourceRevision, { main, prelude, preload, renderer }) {
+function writeProductEvidence(root, productId, sourceRevision, {
+	appDocument,
+	main,
+	prelude,
+	preload,
+	renderer,
+	rendererDocument,
+}) {
+	const documents = [
+		productFile(undefined, 'app.asar/desktop/window.html', 'app/desktop/window.html', appDocument),
+		productFile(undefined, 'renderer/index.html', 'renderer/index.html', rendererDocument),
+	];
+	const scripts = [
+		productFile('main', 'app.asar/desktop/main.mjs', 'app/desktop/main.mjs', main),
+		productFile('preload', 'app.asar/desktop/preload.js', 'app/desktop/preload.js', preload),
+		productFile('renderer', 'renderer/assets/app.js', 'renderer/assets/app.js', renderer),
+		productFile(
+			'renderer',
+			`renderer/${MACRO_PRELUDE_ARTIFACT}`,
+			`renderer/${MACRO_PRELUDE_ARTIFACT}`,
+			prelude,
+		),
+	];
+	const excludedRuntimeScripts = [resourceFile(RUNTIME_SCRIPT_PATH, RUNTIME_SCRIPT_SOURCE)];
 	writeJson(join(root, 'manifest.json'), {
-		schemaVersion: 2,
+		schemaVersion: 3,
 		kind: 'soundscaper-e2e-product-build-evidence',
 		productId,
 		sourceRevision,
 		packageArchive: { byteLength: 123, sha256: hash(`${productId} archive`) },
-		scripts: [
-			productFile('main', 'app.asar/desktop/main.mjs', 'app/desktop/main.mjs', main),
-			productFile('preload', 'app.asar/desktop/preload.js', 'app/desktop/preload.js', preload),
-			productFile('renderer', 'renderer/assets/app.js', 'renderer/assets/app.js', renderer),
-			productFile(
-				'renderer',
-				`renderer/${MACRO_PRELUDE_ARTIFACT}`,
-				`renderer/${MACRO_PRELUDE_ARTIFACT}`,
-				prelude,
-			),
-		],
+		executableResources: resourceIdentity({ documents, excludedRuntimeScripts, scripts }),
+		excludedRuntimeScripts,
+		documents,
+		scripts,
 		sourceMaps: [productFile(
 			undefined,
 			undefined,
@@ -265,6 +318,43 @@ function writeProductEvidence(root, productId, sourceRevision, { main, prelude, 
 			readFileSync(join(root, 'renderer-source-maps/app.js.map')),
 		)],
 	});
+}
+
+export function refreshPackagedResourceIdentity(fixture, productId) {
+	const manifestPath = join(fixture.evidenceRoot, 'electron', productId, 'manifest.json');
+	const manifest = readJson(manifestPath);
+	manifest.executableResources = resourceIdentity(manifest);
+	writeJson(manifestPath, manifest);
+	const profilePath = join(fixture.runRoot, `coverage/v8-packaged/packaged-${productId}.json`);
+	const profile = readJson(profilePath);
+	profile['soundscaper-packaged-runtime'].executableResources.beforeLaunch = {
+		...manifest.executableResources,
+	};
+	profile['soundscaper-packaged-runtime'].executableResources.afterCollection = {
+		...manifest.executableResources,
+	};
+	writeJson(profilePath, profile);
+	return manifest;
+}
+
+function resourceIdentity({ documents, excludedRuntimeScripts, scripts }) {
+	return packagedExecutableResourceIdentity([
+		...scripts.filter(({ realm }) => realm === 'renderer').map(({ packagedPath: path, byteLength, sha256 }) => ({
+			path, byteLength, sha256,
+		})),
+		...documents.filter(({ packagedPath }) => !packagedPath.startsWith('app.asar/'))
+			.map(({ packagedPath: path, byteLength, sha256 }) => ({ path, byteLength, sha256 })),
+		...excludedRuntimeScripts,
+	].sort((left, right) => left.path.localeCompare(right.path)));
+}
+
+function resourceFile(path, value) {
+	const bytes = Buffer.from(value);
+	return { path, byteLength: bytes.byteLength, sha256: hash(bytes) };
+}
+
+function resourceUrl(layout, product, path) {
+	return `${layout.url(product, '').replace(/app\.asar\/$/u, '')}${path}`;
 }
 
 function productFile(realm, packagedPath, artifactPath, value) {

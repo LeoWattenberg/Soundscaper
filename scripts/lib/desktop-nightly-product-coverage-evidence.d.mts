@@ -6,17 +6,36 @@ export interface DesktopNightlyProductCoverageFile {
 	readonly sha256: string;
 }
 
+export interface DesktopNightlyProductCoverageResourceIdentity {
+	readonly fileCount: number;
+	readonly totalBytes: number;
+	readonly sha256: string;
+}
+
+export interface DesktopNightlyProductCoverageExcludedScript {
+	readonly path: string;
+	readonly byteLength: number;
+	readonly sha256: string;
+}
+
 export interface DesktopNightlyProductCoverageScript extends DesktopNightlyProductCoverageFile {
 	readonly realm: 'main' | 'preload' | 'renderer';
 	readonly packagedPath: string;
 }
 
+export interface DesktopNightlyProductCoverageDocument extends DesktopNightlyProductCoverageFile {
+	readonly packagedPath: string;
+}
+
 export interface DesktopNightlyProductCoverageEvidence {
-	readonly schemaVersion: 2;
+	readonly schemaVersion: 3;
 	readonly kind: 'soundscaper-e2e-product-build-evidence';
 	readonly productId: 'soundscaper' | 'framescaper';
 	readonly sourceRevision: string;
 	readonly packageArchive: Omit<DesktopNightlyProductCoverageFile, 'artifactPath'>;
+	readonly executableResources: DesktopNightlyProductCoverageResourceIdentity;
+	readonly excludedRuntimeScripts: readonly DesktopNightlyProductCoverageExcludedScript[];
+	readonly documents: readonly DesktopNightlyProductCoverageDocument[];
 	readonly scripts: readonly DesktopNightlyProductCoverageScript[];
 	readonly sourceMaps: readonly DesktopNightlyProductCoverageFile[];
 }

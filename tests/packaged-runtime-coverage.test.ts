@@ -12,53 +12,21 @@ import {
 	WORKLET_COVERAGE_CHECKPOINT_URL,
 } from '../scripts/lib/browser-service-worker-coverage.mjs';
 import {
+	capturePackagedExecutableResourcesBeforeLaunch,
+} from '../scripts/lib/packaged-executable-resource-identity.mjs';
+import {
 	capturePackagedAppAsarBeforeLaunch,
 	createPackagedRuntimeCoverageCollector,
-	packagedRuntimeCoverageLaunch,
 	resolvePackagedAppAsarPath,
 } from './browser/helpers/packaged-runtime-coverage.js';
 import {
 	requestPackagedRuntimeShutdown,
 } from './browser/helpers/packaged-runtime-process.js';
 
-test('packaged coverage is opt-in and NODE_V8_COVERAGE reaches only the product child', () => {
-	const runRoot = join(tmpdir(), 'soundscaper-nightly-run');
-	const coverageDirectory = join(runRoot, 'coverage/v8-packaged');
-	const ordinaryEnvironment = {
-		ELECTRON_RUN_AS_NODE: '1',
-		NODE_V8_COVERAGE: '/outer/coverage',
-		SOUNDSCAPER_NIGHTLY_TESTS_RUN_ROOT: runRoot,
-	};
-	assert.deepEqual(packagedRuntimeCoverageLaunch(ordinaryEnvironment), {
-		coverageDirectory: null,
-		environment: { SOUNDSCAPER_NIGHTLY_TESTS_RUN_ROOT: runRoot },
-	});
-	assert.deepEqual(ordinaryEnvironment, {
-		ELECTRON_RUN_AS_NODE: '1',
-		NODE_V8_COVERAGE: '/outer/coverage',
-		SOUNDSCAPER_NIGHTLY_TESTS_RUN_ROOT: runRoot,
-	}, 'the outer Playwright environment is not mutated');
-
-	const enabled = packagedRuntimeCoverageLaunch({
-		...ordinaryEnvironment,
-		SCAPE_BROWSER_COVERAGE: '1',
-	});
-	assert.equal(enabled.coverageDirectory, coverageDirectory);
-	assert.deepEqual(enabled.environment, {
-		NODE_V8_COVERAGE: coverageDirectory,
-		SCAPE_BROWSER_COVERAGE: '1',
-		SOUNDSCAPER_NIGHTLY_TESTS_RUN_ROOT: runRoot,
-	});
-	assert.throws(
-		() => packagedRuntimeCoverageLaunch({ SCAPE_BROWSER_COVERAGE: '1' }),
-		/SOUNDSCAPER_NIGHTLY_TESTS_RUN_ROOT/u,
-	);
-});
-
 test('packaged coverage records renderer, preload, and a final worker delta banked before detach', async (context) => {
 	const directory = await mkdtemp(join(tmpdir(), 'soundscaper-packaged-coverage-'));
 	context.after(() => rm(directory, { recursive: true, force: true }));
-	const { appAsar, executablePath } = await packagedAppFixture(context);
+	const { appAsar, executablePath, executableResources } = await packagedAppFixture(context);
 	const productUrl = 'soundscaper-app://bundle/';
 	const preloadUrl = 'file:///opt/Soundscaper/resources/app.asar/preload.mjs';
 	const sandboxPreloadUrl = '/opt/Soundscaper/resources/app.asar/desktop/soundscaper-project-library-sandbox-preload.cjs';
@@ -82,6 +50,7 @@ test('packaged coverage records renderer, preload, and a final worker delta bank
 		context: browserContext,
 		coverageDirectory: directory,
 		executablePath,
+		executableResources,
 		platform: 'linux',
 		productId: 'soundscaper',
 	});
@@ -131,10 +100,14 @@ test('packaged coverage records renderer, preload, and a final worker delta bank
 		capturesChildTargets: true,
 		childTargetStrategy: 'recursive-auto-attach-paused',
 		executablePath,
+		executableResources: {
+			...executableResources,
+			afterCollection: executableResources.beforeLaunch,
+		},
 		pausedTargetCounts: { worker: 1 },
 		platform: 'linux',
 		productId: 'soundscaper',
-		schemaVersion: 2,
+		schemaVersion: 3,
 		targetCounts: { worker: 1 },
 		targetTypes: ['worker'],
 	});
@@ -154,7 +127,7 @@ test('packaged coverage records renderer, preload, and a final worker delta bank
 test('packaged coverage refuses to write a profile after app.asar changes', async (context) => {
 	const directory = await mkdtemp(join(tmpdir(), 'soundscaper-packaged-mutation-'));
 	context.after(() => rm(directory, { recursive: true, force: true }));
-	const { appAsar, executablePath } = await packagedAppFixture(context);
+	const { appAsar, executablePath, executableResources } = await packagedAppFixture(context);
 	const productUrl = 'soundscaper-app://bundle/';
 	const collector = createPackagedRuntimeCoverageCollector({
 		appAsar,
@@ -163,6 +136,7 @@ test('packaged coverage refuses to write a profile after app.asar changes', asyn
 		context: new FakeContext([new FakePage(productUrl, [coverageEntry('11', productUrl, 120)])]),
 		coverageDirectory: directory,
 		executablePath,
+		executableResources,
 		platform: 'linux',
 		productId: 'soundscaper',
 	});
@@ -179,7 +153,7 @@ test('packaged coverage refuses to write a profile after app.asar changes', asyn
 test('packaged coverage checkpoints an audio worklet at its first render quantum', async (context) => {
 	const directory = await mkdtemp(join(tmpdir(), 'soundscaper-packaged-worklet-coverage-'));
 	context.after(() => rm(directory, { recursive: true, force: true }));
-	const { appAsar, executablePath } = await packagedAppFixture(context);
+	const { appAsar, executablePath, executableResources } = await packagedAppFixture(context);
 	const productUrl = 'soundscaper-app://bundle/';
 	const workletUrl = 'soundscaper-app://bundle/assets/audio-worklet.js';
 	const page = new FakePage(
@@ -195,6 +169,7 @@ test('packaged coverage checkpoints an audio worklet at its first render quantum
 		context: new FakeContext([page]),
 		coverageDirectory: directory,
 		executablePath,
+		executableResources,
 		platform: 'linux',
 		productId: 'soundscaper',
 	});
@@ -224,11 +199,17 @@ async function packagedAppFixture(context: { after: (callback: () => Promise<voi
 	context.after(() => rm(root, { force: true, recursive: true }));
 	const executablePath = join(root, 'Soundscaper', 'soundscaper');
 	const appAsarPath = resolvePackagedAppAsarPath(executablePath, 'linux');
-	await mkdir(join(root, 'Soundscaper', 'resources'), { recursive: true });
+	const resources = join(root, 'Soundscaper', 'resources');
+	await mkdir(join(resources, 'renderer/assets'), { recursive: true });
 	await writeFile(appAsarPath, 'packaged application archive');
+	await writeFile(join(resources, 'renderer/assets/editor.js'), 'globalThis.editor = true;\n');
 	return {
 		appAsar: await capturePackagedAppAsarBeforeLaunch({ executablePath, platform: 'linux' }),
 		executablePath,
+		executableResources: await capturePackagedExecutableResourcesBeforeLaunch({
+			executablePath,
+			platform: 'linux',
+		}),
 	};
 }
 

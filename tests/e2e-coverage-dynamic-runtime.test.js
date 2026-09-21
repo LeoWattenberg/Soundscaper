@@ -212,15 +212,21 @@ test('assembly keeps emitted JavaScript raw when its map owns only non-executabl
 	assert.equal(assembled.captureIndex.sources.find(({ path }) => path === script.sources[0])?.origin, 'artifact');
 });
 
-test('schema-v2 packaged profiles bind the launched app.asar path and bytes to build evidence', () => {
+test('schema-v3 packaged profiles bind launched archives and external resources to build evidence', () => {
 	for (const mutate of [
-		(metadata) => { metadata.schemaVersion = 1; },
+		(metadata) => { metadata.schemaVersion = 2; },
 		(metadata) => { metadata.appAsar.path = '/opt/soundscaper/resources/other.asar'; },
 		(metadata) => { metadata.platform = 'darwin'; },
 		(metadata) => { metadata.appAsar.afterCollection.byteLength += 1; },
 		(metadata) => {
 			metadata.appAsar.beforeLaunch.sha256 = '0'.repeat(64);
 			metadata.appAsar.afterCollection.sha256 = '0'.repeat(64);
+		},
+		(metadata) => { metadata.executableResources.path = '/opt/soundscaper/other-resources'; },
+		(metadata) => { metadata.executableResources.afterCollection.totalBytes += 1; },
+		(metadata) => {
+			metadata.executableResources.beforeLaunch.sha256 = '0'.repeat(64);
+			metadata.executableResources.afterCollection.sha256 = '0'.repeat(64);
 		},
 	]) {
 		const fixture = makeFixture();
@@ -230,7 +236,7 @@ test('schema-v2 packaged profiles bind the launched app.asar path and bytes to b
 		writeJson(path, profile);
 		assert.throws(
 			() => assembleE2ECoverageCapture(fixture),
-			/invalid (?:runtime metadata|app\.asar identity)/iu,
+			/invalid (?:runtime metadata|app\.asar identity|executable-resource identity)/iu,
 		);
 	}
 });

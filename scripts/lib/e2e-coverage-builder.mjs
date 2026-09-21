@@ -177,26 +177,95 @@ function validateBuildEvidence(value, sourceRevision) {
 		throw new TypeError('The E2E capture index must retain its input build evidence.');
 	}
 	for (const [index, evidence] of value.entries()) {
-		if (!object(evidence) || evidence.id !== `run-${String(index + 1).padStart(3, '0')}`
+		if (!exactKeys(evidence, [
+			'digest',
+			'documents',
+			'excludedRuntimeScripts',
+			'executableDigest',
+			'executableResources',
+			'id',
+			'packageArchives',
+			'runtime',
+			'sourceRevision',
+		]) || evidence.id !== `run-${String(index + 1).padStart(3, '0')}`
 			|| evidence.sourceRevision !== sourceRevision || !sha256(evidence.digest)
 			|| !sha256(evidence.executableDigest) || !object(evidence.runtime)
+			|| !exactKeys(evidence.runtime, ['arch', 'platform'])
 			|| !['linux', 'win32', 'darwin'].includes(evidence.runtime.platform)
 			|| !['x64', 'arm64'].includes(evidence.runtime.arch)
-			|| !object(evidence.packageArchives)
-			|| JSON.stringify(Object.keys(evidence.packageArchives).sort())
-				!== JSON.stringify(['framescaper', 'soundscaper'])) {
+			|| !productEvidence(evidence.documents) || !productEvidence(evidence.executableResources)
+			|| !productEvidence(evidence.excludedRuntimeScripts)
+			|| !productEvidence(evidence.packageArchives)) {
 			throw new TypeError('Every E2E input build needs exact revision, runtime and digest provenance.');
 		}
 		for (const archive of Object.values(evidence.packageArchives)) {
-			if (!object(archive) || !Number.isSafeInteger(archive.byteLength) || archive.byteLength < 0
-				|| typeof archive.sha256 !== 'string' || !/^[0-9a-f]{64}$/u.test(archive.sha256)) {
+			if (!exactFileIdentity(archive)) {
 				throw new TypeError('Every E2E input build needs exact package-archive evidence.');
 			}
+		}
+		for (const identity of Object.values(evidence.executableResources)) {
+			if (!exactResourceIdentity(identity)) {
+				throw new TypeError('Every E2E input build needs exact executable-resource evidence.');
+			}
+		}
+		for (const documents of Object.values(evidence.documents)) validateDocuments(documents);
+		for (const exclusions of Object.values(evidence.excludedRuntimeScripts)) {
+			validateRuntimeExclusions(exclusions);
 		}
 	}
 	if (new Set(value.map(({ executableDigest }) => executableDigest)).size !== 1) {
 		throw new Error('E2E input builds do not share one executable evidence digest.');
 	}
+}
+
+function productEvidence(value) {
+	return object(value) && JSON.stringify(Object.keys(value).sort())
+		=== JSON.stringify(['framescaper', 'soundscaper']);
+}
+
+function exactFileIdentity(value) {
+	return exactKeys(value, ['byteLength', 'sha256'])
+		&& Number.isSafeInteger(value.byteLength) && value.byteLength >= 0
+		&& typeof value.sha256 === 'string' && /^[0-9a-f]{64}$/u.test(value.sha256);
+}
+
+function exactResourceIdentity(value) {
+	return exactKeys(value, ['fileCount', 'sha256', 'totalBytes'])
+		&& Number.isSafeInteger(value.fileCount) && value.fileCount >= 0
+		&& Number.isSafeInteger(value.totalBytes) && value.totalBytes >= 0
+		&& typeof value.sha256 === 'string' && /^[0-9a-f]{64}$/u.test(value.sha256);
+}
+
+function validateDocuments(value) {
+	if (!Array.isArray(value) || value.some((document) => (
+		!exactKeys(document, ['artifactPath', 'byteLength', 'packagedPath', 'sha256'])
+		|| !safePath(document.artifactPath) || !safePath(document.packagedPath)
+		|| !/\.html?$/u.test(document.artifactPath) || !exactFileIdentity({
+			byteLength: document.byteLength,
+			sha256: document.sha256,
+		})
+	)) || !canonicalPaths(value, 'artifactPath')) {
+		throw new TypeError('Every E2E input build needs exact packaged-document evidence.');
+	}
+}
+
+function validateRuntimeExclusions(value) {
+	if (!Array.isArray(value) || value.some((script) => (
+		!exactKeys(script, ['byteLength', 'path', 'sha256']) || !safePath(script.path)
+		|| !script.path.startsWith('runtime/') || !/\.(?:c|m)?js$/u.test(script.path)
+		|| !exactFileIdentity({ byteLength: script.byteLength, sha256: script.sha256 })
+	)) || !canonicalPaths(value, 'path')) {
+		throw new TypeError('Every E2E input build needs exact runtime-script exclusions.');
+	}
+}
+
+function canonicalPaths(value, key) {
+	const paths = value.map((entry) => entry[key]);
+	return JSON.stringify(paths) === JSON.stringify([...new Set(paths)].sort());
+}
+
+function exactKeys(value, keys) {
+	return object(value) && JSON.stringify(Object.keys(value).sort()) === JSON.stringify(keys);
 }
 
 function copyEvidence(inputRoot, inputPath, outputRoot, outputPath) {

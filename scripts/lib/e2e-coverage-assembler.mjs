@@ -106,7 +106,12 @@ function loadRunCapture({ expectedRevision, repositoryRoot, runRoot }) {
 		repositoryRoot,
 		sourceRevision: envelope.sourceRevision,
 	});
-	const assembled = assembleE2ERawProfiles({ evidence, repositoryRoot, runRoot });
+	const assembled = assembleE2ERawProfiles({
+		evidence,
+		repositoryRoot,
+		runRoot,
+		runtime: envelope.runtime,
+	});
 	return Object.freeze({
 		dynamicScripts: assembled.dynamicScripts,
 		evidence,
@@ -304,6 +309,7 @@ function assertRequiredSurfaceProfiles(profiles, configuration) {
 
 function assertCompatibleCaptures(captures) {
 	const first = captures[0];
+	const targetDigests = new Map();
 	for (const capture of captures.slice(1)) {
 		if (capture.sourceRevision !== first.sourceRevision) {
 			throw new Error('Nightly run roots name different source revisions.');
@@ -311,6 +317,14 @@ function assertCompatibleCaptures(captures) {
 		if (capture.evidence.executableDigest !== first.evidence.executableDigest) {
 			throw new Error('Nightly run roots contain different executable build-evidence hashes.');
 		}
+	}
+	for (const capture of captures) {
+		const target = `${capture.runtime.platform}-${capture.runtime.arch}`;
+		const previous = targetDigests.get(target);
+		if (previous !== undefined && previous !== capture.evidence.digest) {
+			throw new Error(`Nightly ${target} runs contain different full build-evidence hashes.`);
+		}
+		targetDigests.set(target, capture.evidence.digest);
 	}
 }
 
@@ -320,7 +334,25 @@ function buildEvidenceRecord(capture, index) {
 		sourceRevision: capture.sourceRevision,
 		runtime: { ...capture.runtime },
 		digest: capture.evidence.digest,
+		documents: Object.fromEntries(
+			[...capture.evidence.electron.entries()].map(([productId, evidence]) => [
+				productId,
+				evidence.documents.map((document) => ({ ...document })),
+			]),
+		),
 		executableDigest: capture.evidence.executableDigest,
+		executableResources: Object.fromEntries(
+			[...capture.evidence.electron.entries()].map(([productId, evidence]) => [
+				productId,
+				{ ...evidence.executableResources },
+			]),
+		),
+		excludedRuntimeScripts: Object.fromEntries(
+			[...capture.evidence.electron.entries()].map(([productId, evidence]) => [
+				productId,
+				evidence.excludedRuntimeScripts.map((script) => ({ ...script })),
+			]),
+		),
 		packageArchives: Object.fromEntries(
 			[...capture.evidence.electron.entries()].map(([productId, evidence]) => [
 				productId,

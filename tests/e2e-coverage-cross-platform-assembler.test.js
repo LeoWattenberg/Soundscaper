@@ -14,7 +14,9 @@ import {
 	readJson,
 	readProfiles,
 	recordBrowserEvidence,
+	refreshPackagedResourceIdentity,
 	relocateSourceMapCheckout,
+	rewritePackagedLayout,
 	write,
 	writeJson,
 } from './helpers/e2e-coverage-assembler-fixture.mjs';
@@ -24,13 +26,22 @@ after(cleanupE2ECoverageAssemblerFixtures);
 test('platform runs retain distinct archive provenance behind identical executables', () => {
 	const linux = makeFixture();
 	const windows = makeFixture();
+	rewritePackagedLayout(windows, {
+		platform: 'win32',
+		executable: (product) => `C:\\Nightly\\${product}\\${product}.exe`,
+		url: (product, path) => `file:///C:/Nightly/${product}/resources/app.asar/${path}`,
+	});
 	relocateSourceMapCheckout(windows.evidenceRoot);
-	const windowsRun = readJson(join(windows.runRoot, 'run.json'));
-	windowsRun.runtime = { platform: 'win32', arch: 'x64' };
-	writeJson(join(windows.runRoot, 'run.json'), windowsRun);
 	for (const productId of ['framescaper', 'soundscaper']) {
 		const manifestPath = join(windows.evidenceRoot, 'electron', productId, 'manifest.json');
 		const manifest = readJson(manifestPath);
+		const runtimePath = `runtime/windows-${productId}/index.js`;
+		const runtimeSource = `module.exports = ${JSON.stringify(`windows-${productId}`)};\n`;
+		manifest.excludedRuntimeScripts = [{
+			path: runtimePath,
+			byteLength: Buffer.byteLength(runtimeSource),
+			sha256: hash(runtimeSource),
+		}];
 		manifest.packageArchive = {
 			byteLength: manifest.packageArchive.byteLength + 1,
 			sha256: hash(`${productId} windows archive`),
@@ -38,9 +49,22 @@ test('platform runs retain distinct archive provenance behind identical executab
 		writeJson(manifestPath, manifest);
 		const profilePath = join(windows.runRoot, `coverage/v8-packaged/packaged-${productId}.json`);
 		const profile = readJson(profilePath);
+		const runtimeEntry = profile.result.find(({ url }) => url.includes('/runtime/'));
+		delete profile['script-source-cache'][runtimeEntry.url];
+		runtimeEntry.url = `file:///C:/Nightly/${productId}/resources/${runtimePath}`;
+		profile['script-source-cache'][runtimeEntry.url] = runtimeSource;
 		profile['soundscaper-packaged-runtime'].appAsar.beforeLaunch = { ...manifest.packageArchive };
 		profile['soundscaper-packaged-runtime'].appAsar.afterCollection = { ...manifest.packageArchive };
 		writeJson(profilePath, profile);
+		const processId = productId === 'framescaper' ? '4100' : '4101';
+		const nodePath = join(
+			windows.runRoot,
+			`coverage/v8-packaged/coverage-${processId}-fixture-0.json`,
+		);
+		const node = readJson(nodePath);
+		node.result.find(({ url }) => url.includes('/runtime/')).url = runtimeEntry.url;
+		writeJson(nodePath, node);
+		refreshPackagedResourceIdentity(windows, productId);
 	}
 
 	const result = assemblePair(linux, windows);
@@ -66,7 +90,45 @@ test('platform runs retain distinct archive provenance behind identical executab
 		result.captureIndex.buildEvidence[0].packageArchives,
 		result.captureIndex.buildEvidence[1].packageArchives,
 	);
+	assert.notDeepEqual(
+		result.captureIndex.buildEvidence[0].excludedRuntimeScripts,
+		result.captureIndex.buildEvidence[1].excludedRuntimeScripts,
+	);
+	assert.notDeepEqual(
+		result.captureIndex.buildEvidence[0].executableResources,
+		result.captureIndex.buildEvidence[1].executableResources,
+	);
 	assert.doesNotThrow(() => validateCaptureIndex(result.captureIndex));
+});
+
+test('platform unions reject changed packaged HTML even when JavaScript is identical', () => {
+	const baseline = makeFixture();
+	const changed = makeFixture();
+	const documentPath = join(changed.evidenceRoot, 'electron/soundscaper/renderer/index.html');
+	const source = '<main>different safe packaged document</main>\n';
+	write(documentPath, source);
+	const manifestPath = join(changed.evidenceRoot, 'electron/soundscaper/manifest.json');
+	const manifest = readJson(manifestPath);
+	const document = manifest.documents.find(({ artifactPath }) => artifactPath === 'renderer/index.html');
+	document.byteLength = Buffer.byteLength(source);
+	document.sha256 = hash(source);
+	writeJson(manifestPath, manifest);
+	refreshPackagedResourceIdentity(changed, 'soundscaper');
+
+	assert.throws(() => assemblePair(baseline, changed), /different executable build-evidence hashes/u);
+});
+
+test('same-target unions reject changed authenticated runtime resources', () => {
+	const baseline = makeFixture();
+	const changed = makeFixture();
+	replaceRuntimeExclusion({
+		fixture: changed,
+		productId: 'soundscaper',
+		path: 'runtime/alternate-vendor/index.js',
+		source: 'module.exports = "alternate authenticated runtime";\n',
+		url: 'file:///opt/soundscaper/resources/runtime/alternate-vendor/index.js',
+	});
+	assert.throws(() => assemblePair(baseline, changed), /different full build-evidence hashes/u);
 });
 
 test('platform runs reject different packaged JavaScript', () => {
@@ -126,4 +188,28 @@ function assemblePair(first, second) {
 		outputRoot: first.outputRoot,
 		expectedRevision: first.expectedRevision,
 	});
+}
+
+function replaceRuntimeExclusion({ fixture, productId, path, source, url }) {
+	const manifestPath = join(fixture.evidenceRoot, 'electron', productId, 'manifest.json');
+	const manifest = readJson(manifestPath);
+	manifest.excludedRuntimeScripts = [{
+		path,
+		byteLength: Buffer.byteLength(source),
+		sha256: hash(source),
+	}];
+	writeJson(manifestPath, manifest);
+	const profilePath = join(fixture.runRoot, `coverage/v8-packaged/packaged-${productId}.json`);
+	const profile = readJson(profilePath);
+	const runtimeEntry = profile.result.find(({ url: candidate }) => candidate.includes('/runtime/'));
+	delete profile['script-source-cache'][runtimeEntry.url];
+	runtimeEntry.url = url;
+	profile['script-source-cache'][url] = source;
+	writeJson(profilePath, profile);
+	const processId = productId === 'framescaper' ? '4100' : '4101';
+	const nodePath = join(fixture.runRoot, `coverage/v8-packaged/coverage-${processId}-fixture-0.json`);
+	const node = readJson(nodePath);
+	node.result.find(({ url: candidate }) => candidate.includes('/runtime/')).url = url;
+	writeJson(nodePath, node);
+	refreshPackagedResourceIdentity(fixture, productId);
 }
