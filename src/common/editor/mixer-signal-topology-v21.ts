@@ -38,7 +38,10 @@ export function createMixerSignalTopologyV21(
 	for (const edge of graph.edges) {
 		if (!mixerEdgeCarriesSignalV21(edge)) continue;
 		if (edge.destination.kind === 'effect-sidechain') continue;
-		if (!options.includeOutputs && edge.destination.kind === 'output') continue;
+		if (!options.includeOutputs && (
+			edge.destination.kind === 'output'
+			|| (edge.source as MixerEndpointV21).kind === 'output'
+		)) continue;
 		const source = mixerEndpointKeyV21(edge.source);
 		const destination = mixerEndpointKeyV21(edge.destination);
 		const targets = adjacency.get(source) ?? new Set<string>();

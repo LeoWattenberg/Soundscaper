@@ -72,6 +72,27 @@ test('an all-silent master output disconnects every track from the programme', (
 	assert.equal(audibility?.audibleTrack('music'), false);
 });
 
+test('an output edge can terminate programme reachability but never establish a solo relationship', () => {
+	const project = routedProject({ busMuted: false, busSolo: true });
+	const outputId = project.mixer.outputs.find(({ role }) => role === 'main')!.id;
+	const withHostileOutputSource = {
+		...project,
+		mixer: {
+			...project.mixer,
+			edges: [...project.mixer.edges, {
+				id: 'hostile-output-solo-bridge', kind: 'assignment',
+				source: { kind: 'output', id: outputId },
+				destination: { kind: 'mixer-node', id: 'stems' },
+				position: 'post-fader', level: 1, enabled: true, channelMap: [],
+			}],
+		},
+	};
+	const audibility = createMixerGraphAudibilityV21(withHostileOutputSource);
+	assert.ok(audibility);
+	assert.equal(audibility.audibleTrack('music'), false);
+	assert.equal(audibility.reason('music'), 'not-soloed');
+});
+
 test('a muted VCA silences the strips it holds', () => {
 	const project = vcaProject();
 	const audibility = createMixerGraphAudibilityV21(project);

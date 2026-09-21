@@ -60,7 +60,8 @@ export function createMixerGraphAudibilityV21(project: unknown): MixerGraphAudib
 			mutedByVca.add(mixerSignalEndpointKeyV21(member as unknown as MixerSignalEndpointV21));
 		}
 	}
-	const topology = createMixerSignalTopologyV21(mixer, { includeOutputs: true });
+	const programmeTopology = createMixerSignalTopologyV21(mixer, { includeOutputs: true });
+	const soloTopology = createMixerSignalTopologyV21(mixer, { includeOutputs: false });
 	// The render connects only the main-role output to the destination; cue and
 	// control-room outputs terminate unconnected, so a path ending there never
 	// reaches the programme in playback or export.
@@ -73,7 +74,9 @@ export function createMixerGraphAudibilityV21(project: unknown): MixerGraphAudib
 		if (state === undefined) return true;
 		if (state.muted || mutedByVca.has(key)) return false;
 		if (soloed.length === 0) return true;
-		return soloed.some((solo) => topology.reaches(key, solo) || topology.reaches(solo, key));
+		return soloed.some((solo) => (
+			soloTopology.reaches(key, solo) || soloTopology.reaches(solo, key)
+		));
 	};
 	const reachesProgramme = (key: string): boolean => {
 		const pending = [key];
@@ -86,7 +89,7 @@ export function createMixerGraphAudibilityV21(project: unknown): MixerGraphAudib
 			// strip on the way there, and its own output edge may be disabled or
 			// explicitly map every destination channel to silence.
 			if (programmeOutputs.has(current)) return true;
-			for (const next of topology.successors(current)) {
+			for (const next of programmeTopology.successors(current)) {
 				if (next.startsWith('mixer-node:') && !open(next)) continue;
 				pending.push(next);
 			}
