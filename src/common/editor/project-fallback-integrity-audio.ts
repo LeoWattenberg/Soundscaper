@@ -19,9 +19,16 @@ import {
 	type ProjectFeatureFallback,
 	type ProjectFeatureRequirement,
 } from './project-feature-requirements.ts';
+import {
+	sameProjectFallbackSelector,
+	selectProjectFallbackTarget,
+	snapshotProjectFallbackSelector,
+} from './project-fallback-selector-integrity-core.ts';
 import { packPlanarFloat32 } from './wavpack/pcm.js';
 
 export const PROJECT_AUDIO_FALLBACK_INTEGRITY_ERROR_CODE = 'PROJECT_AUDIO_FALLBACK_INTEGRITY' as const;
+const INVALID_AUDIO_FALLBACK_SELECTOR = 'The selected audio rendered fallback is invalid.';
+const AUDIO_FALLBACK_SELECTOR_MISMATCH = 'The selected audio rendered fallback does not match one active project requirement and source claim.';
 
 interface ProjectAudioFallbackIntegritySelectorBase {
 	readonly requirementId: string;
@@ -115,28 +122,12 @@ export function isProjectAudioFallbackIntegrityError(error: unknown): boolean {
 export function snapshotProjectAudioFallbackSelector(
 	value: unknown,
 ): ProjectAudioFallbackIntegritySelector {
-	if (!value || typeof value !== 'object' || Array.isArray(value)) {
-		throw new TypeError('The selected audio rendered fallback is invalid.');
-	}
-	const selector = value as Record<PropertyKey, unknown>;
-	const captured = Object.freeze({
-		requirementId: ownSelectorData(selector, 'requirementId'),
-		featureId: ownSelectorData(selector, 'featureId'),
-		role: ownSelectorData(selector, 'role'),
-		kind: ownSelectorData(selector, 'kind'),
-		sourceId: ownSelectorData(selector, 'sourceId'),
-		sha256: ownSelectorData(selector, 'sha256'),
-		targetTrackId: ownSelectorData(selector, 'targetTrackId'),
+	return snapshotProjectFallbackSelector(value, {
+		kind: 'audio',
+		targetKey: 'targetTrackId',
+		invalidMessage: INVALID_AUDIO_FALLBACK_SELECTOR,
+		validRelationship: validAudioRelationship,
 	});
-	if (typeof captured.requirementId !== 'string' || !captured.requirementId
-		|| typeof captured.featureId !== 'string' || !captured.featureId
-		|| captured.kind !== 'audio'
-		|| typeof captured.sourceId !== 'string' || !captured.sourceId
-		|| typeof captured.sha256 !== 'string' || !/^[0-9a-f]{64}$/u.test(captured.sha256)
-		|| !validAudioRelationship(captured.role, captured.targetTrackId)) {
-		throw new TypeError('The selected audio rendered fallback is invalid.');
-	}
-	return captured as ProjectAudioFallbackIntegritySelector;
 }
 
 function validAudioRelationship(role: unknown, targetTrackId: unknown): boolean {
@@ -152,23 +143,10 @@ export function selectProjectAudioFallbackTarget<Source extends ProjectAudioFall
 	sources: readonly Source[],
 	selector: ProjectAudioFallbackIntegritySelector,
 ): Readonly<{ claim: ProjectFeatureFallback; source: Source }> {
-	const matches = requirements.filter(({ id }) => id === selector.requirementId);
-	const requirement = matches.length === 1 ? matches[0] : undefined;
-	const fallback = requirement?.fallback;
-	const sourceMatches = sources.filter(({ id }) => id === selector.sourceId);
-	const source = sourceMatches.length === 1 ? sourceMatches[0] : undefined;
-	const conflictingClaim = requirements.some((candidate) => candidate.fallback?.sourceId === selector.sourceId
-		&& (!sameAudioRelationship(candidate.fallback, selector)
-			|| candidate.fallback.kind !== selector.kind
-			|| candidate.fallback.sha256 !== selector.sha256));
-	if (!requirement || requirement.featureId !== selector.featureId
-		|| requirement.disposition !== 'rendered-fallback' || fallback?.kind !== selector.kind
-		|| !sameAudioRelationship(fallback, selector)
-		|| fallback.sourceId !== selector.sourceId || fallback.sha256 !== selector.sha256
-		|| !source || source.kind !== selector.kind || conflictingClaim) {
-		throw new Error('The selected audio rendered fallback does not match one active project requirement and source claim.');
-	}
-	return Object.freeze({ claim: fallback, source });
+	return selectProjectFallbackTarget(requirements, sources, selector, {
+		mismatchMessage: AUDIO_FALLBACK_SELECTOR_MISMATCH,
+		sameRelationship: sameAudioRelationship,
+	});
 }
 
 function sameAudioRelationship(
@@ -196,10 +174,9 @@ export function sameProjectAudioFallbackSelector(
 	left: ProjectAudioFallbackIntegritySelector,
 	right: ProjectAudioFallbackIntegritySelector,
 ): boolean {
-	return left.requirementId === right.requirementId && left.featureId === right.featureId
-		&& left.role === right.role && left.kind === right.kind
-		&& left.sourceId === right.sourceId && left.sha256 === right.sha256
-		&& left.targetTrackId === right.targetTrackId;
+	return sameProjectFallbackSelector(left, right, (leftSelector, rightSelector) => (
+		leftSelector.targetTrackId === rightSelector.targetTrackId
+	));
 }
 
 /** Preserve the controller-activation verifier used when no exact selector is present. */
@@ -526,14 +503,6 @@ function canonicalSampleRate(value: unknown, sourceId: string): number {
 		throw new RangeError(`Rendered fallback source ${sourceId} has an invalid sample rate.`);
 	}
 	return Number(value);
-}
-
-function ownSelectorData(record: Record<PropertyKey, unknown>, key: PropertyKey): unknown {
-	const descriptor = Object.getOwnPropertyDescriptor(record, key);
-	if (!descriptor || !('value' in descriptor)) {
-		throw new TypeError('The selected audio rendered fallback is invalid.');
-	}
-	return descriptor.value;
 }
 
 function ownChunkData(record: Record<PropertyKey, unknown>, key: PropertyKey, sourceId: string): unknown {
