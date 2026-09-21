@@ -16,6 +16,9 @@ import {
 	createPackagedRuntimeCoverageCollector,
 	packagedRuntimeCoverageLaunch,
 } from '../../tests/browser/helpers/packaged-runtime-coverage.js';
+import {
+	capturePackagedExecutableResourcesBeforeLaunch,
+} from './packaged-executable-resource-identity.mjs';
 
 const REPOSITORY_ROOT = resolve(import.meta.dirname, '../..');
 
@@ -170,9 +173,15 @@ async function launchDesktopRuntime({
 }) {
 	const port = await reserveLoopbackPort();
 	if (launch.coverageDirectory !== null) await mkdir(launch.coverageDirectory, { recursive: true });
-	const appAsar = launch.coverageDirectory === null
-		? null
-		: await capturePackagedAppAsarBeforeLaunch({ executablePath, platform: process.platform });
+	const [appAsar, executableResources] = launch.coverageDirectory === null
+		? [null, null]
+		: await Promise.all([
+			capturePackagedAppAsarBeforeLaunch({ executablePath, platform: process.platform }),
+			capturePackagedExecutableResourcesBeforeLaunch({
+				executablePath,
+				platform: process.platform,
+			}),
+		]);
 	const child = spawn(executablePath, [
 		`--user-data-dir=${profile}`,
 		`--soundscaper-soak-debug-app-data=${join(profile, 'application-data')}`,
@@ -204,6 +213,7 @@ async function launchDesktopRuntime({
 				context,
 				coverageDirectory: launch.coverageDirectory,
 				executablePath,
+				executableResources,
 				platform: process.platform,
 				processId: child.pid,
 				productId: 'soundscaper',

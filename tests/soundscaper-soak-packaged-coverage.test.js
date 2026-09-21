@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import test from 'node:test';
@@ -9,6 +10,23 @@ import {
 	createSoundscaperDesktopSoakLaunchEnvironment,
 	retireSoundscaperDesktopSoakRuntime,
 } from '../scripts/lib/soundscaper-soak-desktop-playwright.mjs';
+
+test('packaged soak binds external executable resources before process launch', async () => {
+	const source = await readFile(new URL(
+		'../scripts/lib/soundscaper-soak-desktop-playwright.mjs',
+		import.meta.url,
+	), 'utf8');
+	const launch = source.slice(source.indexOf('async function launchDesktopRuntime'));
+	const resourceSnapshot = launch.indexOf('capturePackagedExecutableResourcesBeforeLaunch({');
+	const processLaunch = launch.indexOf('const child = spawn(');
+	assert.ok(resourceSnapshot >= 0, 'the soak must snapshot every external JavaScript and HTML resource');
+	assert.ok(processLaunch > resourceSnapshot, 'the resource snapshot must finish before the process can execute');
+	assert.match(
+		launch,
+		/createPackagedRuntimeCoverageCollector\(\{[\s\S]*?\n\s*executableResources,/u,
+		'the collector must retain the pre-launch snapshot for stale-resource rejection after collection',
+	);
+});
 
 test('packaged soak coverage reaches only its product processes', () => {
 	const runRoot = join(tmpdir(), 'soundscaper-packaged-soak-coverage');
