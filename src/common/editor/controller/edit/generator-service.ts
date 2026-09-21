@@ -18,6 +18,7 @@ import {
 	type EditorTaskScope,
 } from '../shared/lifecycle.ts';
 import type { AudioBufferLike } from '../source/source-audio.ts';
+import { publishGeneratedAudioSource } from './internal/generated-source-publication.ts';
 import { projectForAudioGeneratorCommands, type AudioGeneratorSelection, type AudioGeneratorTrack,
 	type AudioGeneratorClip, type AudioGeneratorProject, type AudioGeneratorDocument } from './internal/generator-project-view.ts';
 import { createLabeledAudioSilence } from './internal/labeled-audio-silence.ts';
@@ -246,8 +247,6 @@ export function createAudioGeneratorService<Context, Target extends AudioGenerat
 		if (dependencies.editingBlocked()) return null;
 		const ownership = beginOperation();
 		let processing = false;
-		let writer: AudioGeneratorWriter | null = null;
-		let sourceId: string | null = null;
 		try {
 			const project = ownership.project;
 			const selection = activeSelection(project);
@@ -272,70 +271,43 @@ export function createAudioGeneratorService<Context, Target extends AudioGenerat
 			);
 			assertOwnership(ownership);
 			processing = markProcessing();
-			const context = await dependencies.getAudioContext();
-			assertOwnership(ownership);
-			const buffer = await dependencies.createBuffer(generated.channels, sampleRate, context);
-			assertOwnership(ownership);
-			sourceId = dependencies.createId('generator');
 			const name = generatorName(type, publishedCopyFor(dependencies.copy));
-			writer = await dependencies.store.beginSourceWrite(sourceId, {
+			return await publishGeneratedAudioSource(dependencies, {
 				name,
-				mimeType: 'audio/wav',
 				sampleRate,
 				channelCount,
-				chunkFrames: dependencies.sourceChunkFrames,
-			});
-			assertOwnership(ownership);
-			await dependencies.writeBuffer(writer, buffer, ownership.task.signal);
-			assertOwnership(ownership);
-			await writer.commit({ sampleRate, channelCount });
-			assertOwnership(ownership);
-			const source = {
-				sampleRate,
-				sampleFormat: 'float32',
-				chunkFrames: dependencies.sourceChunkFrames,
-				id: sourceId,
-				storageKey: sourceId,
-				name,
-				mimeType: 'audio/wav',
 				frameCount: generated.frameCount,
-				channelCount,
-				originalSampleRate: sampleRate,
-			};
-			const prepared = prepareGeneratorCommand(
-				project,
-				selection,
-				targetTrack,
-				generated.frameCount,
-				source,
-				name,
-				options,
-			);
-			assertOwnership(ownership);
-			dependencies.cacheSourceBuffer(sourceId, buffer);
-			const peaks = await dependencies.generatePeaks(generated.channels);
-			assertOwnership(ownership);
-			dependencies.sourcePeaks.set(sourceId, peaks);
-			await dependencies.store.saveAnalysis(dependencies.peakCacheKey(sourceId), peaks);
-			assertOwnership(ownership);
-			dependencies.commit(prepared.command, {
-				selectTrackId: prepared.trackId,
-				selectClipId: prepared.clipId,
+				channels: generated.channels,
+				ownership: {
+					signal: ownership.task.signal,
+					assertCurrent: () => assertOwnership(ownership),
+				},
+				prepare: (source) => {
+					const prepared = prepareGeneratorCommand(
+						project,
+						selection,
+						targetTrack,
+						generated.frameCount,
+						source,
+						name,
+						options,
+					);
+					assertOwnership(ownership);
+					return prepared;
+				},
+				accept: (_source, prepared) => {
+					dependencies.commit(prepared.command, {
+						selectTrackId: prepared.trackId,
+						selectClipId: prepared.clipId,
+					});
+					dependencies.state.lastGeneratorRequest = Object.freeze({
+						type,
+						options: Object.freeze({ ...options }),
+					});
+					setLocalizedStatus(dependencies.setStatus, dependencies.copy, "done", undefined, 'success');
+					return prepared.clipId;
+				},
 			});
-			dependencies.state.lastGeneratorRequest = Object.freeze({
-				type,
-				options: Object.freeze({ ...options }),
-			});
-			setLocalizedStatus(dependencies.setStatus, dependencies.copy, "done", undefined, 'success');
-			return prepared.clipId;
-		} catch (error) {
-			if (writer) await Promise.resolve(writer.abort(error)).catch(() => undefined);
-			if (sourceId) {
-				dependencies.sourceBuffers.delete(sourceId);
-				dependencies.sourcePeaks.delete(sourceId);
-				await dependencies.store.deleteSource(sourceId).catch(() => undefined);
-			}
-			throw error;
 		} finally {
 			finishOperation(ownership, processing);
 		}

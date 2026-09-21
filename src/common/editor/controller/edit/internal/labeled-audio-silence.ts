@@ -11,13 +11,13 @@ import type { AudioEditorCommand } from '../../../commands/protocol.ts';
 import { prepareDisjointRangeDeleteCommand } from '../../../commands/range-runtime.js';
 import { generateAudioEditorSignal } from '../../../generators.js';
 import { normalizeProjectSampleRate } from '../../shared/app-helpers.ts';
+import { publishGeneratedAudioSource } from './generated-source-publication.ts';
 import type {
 	AudioGeneratorClip,
 	AudioGeneratorEffectTarget,
 	AudioGeneratorProject,
 	AudioGeneratorServiceDependencies,
 	AudioGeneratorTrack,
-	AudioGeneratorWriter,
 	GeneratedSignal,
 	OperationOwnership,
 } from '../generator-service.ts';
@@ -60,8 +60,6 @@ export function createLabeledAudioSilence<Context, Target extends AudioGenerator
 		if (spans.length === 0 || trackIds.length === 0) return false;
 		const owned = ownership.begin();
 		let processing = false;
-		let writer: AudioGeneratorWriter | null = null;
-		let sourceId: string | null = null;
 		try {
 			const persistedProject = owned.project;
 			const project = projectForAudioGeneratorCommands(persistedProject, dependencies.getCommandProject);
@@ -92,73 +90,46 @@ export function createLabeledAudioSilence<Context, Target extends AudioGenerator
 			);
 			ownership.assert(owned);
 			processing = ownership.markProcessing();
-			const context = await dependencies.getAudioContext();
-			ownership.assert(owned);
-			const buffer = await dependencies.createBuffer(generated.channels, sampleRate, context);
-			ownership.assert(owned);
-			sourceId = dependencies.createId('generator');
 			const name = publishedCopyFor(dependencies.copy).silenceAudio;
-			writer = await dependencies.store.beginSourceWrite(sourceId, {
+			return await publishGeneratedAudioSource(dependencies, {
 				name,
-				mimeType: 'audio/wav',
 				sampleRate,
 				channelCount,
-				chunkFrames: dependencies.sourceChunkFrames,
-			});
-			ownership.assert(owned);
-			await dependencies.writeBuffer(writer, buffer, owned.task.signal);
-			ownership.assert(owned);
-			await writer.commit({ sampleRate, channelCount });
-			ownership.assert(owned);
-			const source = {
-				sampleRate,
-				sampleFormat: 'float32',
-				chunkFrames: dependencies.sourceChunkFrames,
-				id: sourceId,
-				storageKey: sourceId,
-				name,
-				mimeType: 'audio/wav',
 				frameCount: generated.frameCount,
-				channelCount,
-				originalSampleRate: sampleRate,
-			};
-			dependencies.cacheSourceBuffer(sourceId, buffer);
-			const peaks = await dependencies.generatePeaks(generated.channels);
-			ownership.assert(owned);
-			dependencies.sourcePeaks.set(sourceId, peaks);
-			await dependencies.store.saveAnalysis(dependencies.peakCacheKey(sourceId), peaks);
-			ownership.assert(owned);
-			const commandProject = project;
-			dependencies.commit({
-				type: 'batch',
-				commands: [
-					createAddSourceCommand(source),
-					prepareDisjointRangeDeleteCommand(commandProject, {
-						ranges: spans.map((region) => ({ startFrame: region.startFrame, endFrame: region.endFrame })),
-						trackIds: plan.map((entry) => entry.trackId),
-						rippleMode: 'none',
-					}) as AudioEditorCommand,
-					...plan.flatMap((entry) => entry.spans.map((region) => createAddClipCommand(entry.trackId, {
-						id: dependencies.createId('clip'),
-						sourceId: sourceId as string,
-						title: name,
-						timelineStartFrame: region.startFrame,
-						sourceStartFrame: 0,
-						sourceDurationFrames: region.endFrame - region.startFrame,
-						durationFrames: region.endFrame - region.startFrame,
-					}))),
-				],
+				channels: generated.channels,
+				ownership: {
+					signal: owned.task.signal,
+					assertCurrent: () => ownership.assert(owned),
+				},
+				prepare: () => undefined,
+				accept: (source) => {
+					dependencies.commit({
+						type: 'batch',
+						commands: [
+							createAddSourceCommand(source),
+							prepareDisjointRangeDeleteCommand(project, {
+								ranges: spans.map((region) => ({
+									startFrame: region.startFrame,
+									endFrame: region.endFrame,
+								})),
+								trackIds: plan.map((entry) => entry.trackId),
+								rippleMode: 'none',
+							}) as AudioEditorCommand,
+							...plan.flatMap((entry) => entry.spans.map((region) => createAddClipCommand(entry.trackId, {
+								id: dependencies.createId('clip'),
+								sourceId: source.id,
+								title: name,
+								timelineStartFrame: region.startFrame,
+								sourceStartFrame: 0,
+								sourceDurationFrames: region.endFrame - region.startFrame,
+								durationFrames: region.endFrame - region.startFrame,
+							}))),
+						],
+					});
+					setLocalizedStatus(dependencies.setStatus, dependencies.copy, "done", undefined, 'success');
+					return true;
+				},
 			});
-			setLocalizedStatus(dependencies.setStatus, dependencies.copy, "done", undefined, 'success');
-			return true;
-		} catch (error) {
-			if (writer) await Promise.resolve(writer.abort(error)).catch(() => undefined);
-			if (sourceId) {
-				dependencies.sourceBuffers.delete(sourceId);
-				dependencies.sourcePeaks.delete(sourceId);
-				await dependencies.store.deleteSource(sourceId).catch(() => undefined);
-			}
-			throw error;
 		} finally {
 			ownership.finish(owned, processing);
 		}

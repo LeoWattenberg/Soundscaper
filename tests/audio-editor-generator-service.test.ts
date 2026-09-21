@@ -6,6 +6,7 @@ import test from 'node:test';
 import {
 	createAudioGeneratorService,
 	type AudioGeneratorProject,
+	type AudioGeneratorService,
 	type AudioGeneratorState,
 	type AudioGeneratorServiceDependencies,
 } from '../src/common/editor/controller/edit/generator-service.ts';
@@ -147,6 +148,15 @@ function createFixture(overrides: Partial<AudioGeneratorServiceDependencies> = {
 	};
 }
 
+function runGeneratedSourceOperation(
+	service: Readonly<AudioGeneratorService>,
+	operation: 'signal' | 'labeled-silence',
+): Promise<unknown> {
+	return operation === 'signal'
+		? service.generateSignal('silence')
+		: service.generateLabeledSilence([{ startFrame: 20, endFrame: 40 }], ['track-a']);
+}
+
 test('generator persists audio and commits a prepared range replacement exactly once', async () => {
 	const fixture = createFixture();
 	const service = createAudioGeneratorService(fixture.dependencies);
@@ -266,6 +276,46 @@ test('storage failures abort and delete the partially generated source', async (
 	assert.deepEqual(fixture.deletedSources, ['generator-1']);
 	assert.equal(fixture.state.audacityEffectProcessing, false);
 });
+
+for (const operation of ['signal', 'labeled-silence'] as const) {
+	void test(`${operation} reports every generated-source rollback failure without skipping cleanup`, async () => {
+		const primary = new Error('commit failed');
+		const failures = [
+			new Error('abort failed'),
+			new Error('buffer cleanup failed'),
+			new Error('peak cleanup failed'),
+			new Error('source cleanup failed'),
+		];
+		const events: string[] = [];
+		const fixture = createFixture({
+			store: {
+				beginSourceWrite: async () => ({
+					write: async () => undefined,
+					commit: async () => { throw primary; },
+					abort: async () => { events.push('abort'); throw failures[0]; },
+				}),
+				saveAnalysis: async () => undefined,
+				deleteSource: async () => { events.push('source-delete'); throw failures[3]; },
+			},
+			sourceBuffers: {
+				delete: () => { events.push('buffer-delete'); throw failures[1]; },
+			},
+			sourcePeaks: {
+				set: () => undefined,
+				delete: () => { events.push('peak-delete'); throw failures[2]; },
+			},
+		});
+		const service = createAudioGeneratorService(fixture.dependencies);
+
+		await assert.rejects(runGeneratedSourceOperation(service, operation), (error: unknown) => {
+			assert.ok(error instanceof AggregateError);
+			assert.equal(error.cause, primary);
+			assert.deepEqual(error.errors, [primary, ...failures]);
+			return true;
+		});
+		assert.deepEqual(events, ['abort', 'buffer-delete', 'peak-delete', 'source-delete']);
+	});
+}
 
 test('generation on an empty timeline prepares source, track, and clip in one batch', async () => {
 	const emptyProject: AudioGeneratorProject = {
