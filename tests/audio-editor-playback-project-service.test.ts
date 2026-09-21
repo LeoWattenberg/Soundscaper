@@ -114,6 +114,59 @@ function videoFallbackProject(featureId: string = PROJECT_FEATURE_CAPABILITY_IDS
 	});
 }
 
+function combinedFallbackAndBypassProject() {
+	const audio = fallbackProject('org.example.publisher-audio');
+	const video = videoFallbackProject('org.example.publisher-video');
+	return createCurrentAudioEditorProject({
+		id: 'combined-feature-order',
+		now: '2026-08-01T12:00:00.000Z',
+		sources: [...audio.sources, ...video.sources],
+		clips: [...audio.clips, ...video.clips],
+		tracks: [...audio.tracks, ...video.tracks],
+		featureRequirements: { schemaVersion: 2, requirements: [
+			{
+				id: 'publisher-audio-render', featureId: 'org.example.publisher-audio',
+				displayName: 'Publisher audio render', disposition: 'rendered-fallback',
+				fallback: {
+					role: 'project-audio-mix-v1', kind: 'audio',
+					sourceId: 'fallback-source', sha256: DIGEST,
+				},
+			},
+			{
+				id: 'publisher-video-render', featureId: 'org.example.publisher-video',
+				displayName: 'Publisher video render', disposition: 'rendered-fallback',
+				fallback: {
+					role: 'project-video-render-v1', kind: 'video',
+					sourceId: 'fallback-video', sha256: DIGEST,
+				},
+			},
+			{
+				id: 'audio-effect-bypass', featureId: PROJECT_FEATURE_CAPABILITY_IDS.audioEffects,
+				displayName: 'Audio effect bypass', disposition: 'bypass', fallback: null,
+			},
+			{
+				id: 'video-effect-bypass', featureId: PROJECT_FEATURE_CAPABILITY_IDS.videoEffects,
+				displayName: 'Video effect bypass', disposition: 'bypass', fallback: null,
+			},
+		] },
+	});
+}
+
+test('the common route applies both rendered fallbacks before both effect bypasses', () => {
+	const projection = createPlaybackProjectService({ audioEffects: false, videoEffects: false })
+		.projectForPlayback(combinedFallbackAndBypassProject());
+	assert.equal(projection.audioRenderedFallback?.sourceId, 'fallback-source');
+	assert.equal(projection.videoRenderedFallback?.sourceId, 'fallback-video');
+	assert.equal(projection.audioEffectPlaybackBypass, null,
+		'the audio fallback removed the canonical effect before bypass projection');
+	assert.equal(projection.videoEffectPlaybackBypass, null,
+		'the video fallback removed the canonical effect before bypass projection');
+	assert.deepEqual(projection.project.tracks.map(({ id }) => id), [
+		PROJECT_FEATURE_AUDIO_RENDERED_FALLBACK_IDS.track,
+		PROJECT_FEATURE_VIDEO_RENDERED_FALLBACK_IDS.track,
+	]);
+});
+
 test('the playback service composes capability evaluation with a required rendered-audio source', () => {
 	const canonical = fallbackProject();
 	const service = createPlaybackProjectService({

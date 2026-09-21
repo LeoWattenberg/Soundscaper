@@ -9,6 +9,8 @@ import {
 import type {
 	ProjectFeatureRequirementsManifest,
 } from '../src/common/editor/project-feature-requirements.ts';
+import { composeProjectFeaturePlaybackProjection } from
+	'../src/common/editor/project-feature-playback-projection.ts';
 import {
 	createAudioClip,
 	createAudioSource,
@@ -20,11 +22,19 @@ import {
 	SOUNDSCAPER_AUDIO_TRACK_FREEZE_REQUIREMENT_ID_PREFIX,
 } from '../src/soundscaper/editor-project-feature-requirements.ts';
 import {
+	projectNativePluginPlayback,
 	SOUNDSCAPER_NATIVE_PLUGIN_REQUIREMENT_PREFIX,
 } from '../src/soundscaper/editor-native-plugin-playback.ts';
+import { createSoundscaperProjectFeatureCompatibilityService } from
+	'../src/soundscaper/editor-project-feature-compatibility.ts';
 import { applySoundscaperProjectCommand } from '../src/soundscaper/editor-project-commands.ts';
+import { createSoundscaperPlaybackProjectService } from '../src/soundscaper/editor-project-playback.ts';
 import { validateSoundscaperProject } from '../src/soundscaper/editor-project-validation.ts';
 import { createSoundscaperProject } from '../src/soundscaper/editor-project.ts';
+import {
+	inheritTrackFolderMediaStateProjectionV12,
+	projectTrackFolderMediaStateV12,
+} from '../src/common/editor/track-folder-media-runtime.ts';
 
 const LIVE_DIGEST = 'ab'.repeat(32);
 const DERIVED_DIGEST = 'cd'.repeat(32);
@@ -68,6 +78,45 @@ test('a track can be frozen in a project that already hosts a native plug-in', (
 		SOUNDSCAPER_AUDIO_TRACK_FREEZE_REQUIREMENT_ID_PREFIX,
 		SOUNDSCAPER_NATIVE_PLUGIN_REQUIREMENT_PREFIX,
 	]);
+});
+
+test('the Soundscaper route composes its native plug-in hook in the shared projection slot', () => {
+	const canonical = applySoundscaperProjectCommand(fixture().project, binding(), { now: NOW });
+	const report = createSoundscaperProjectFeatureCompatibilityService().evaluate(canonical);
+	assert.ok(report);
+	const mediaProject = projectTrackFolderMediaStateV12(canonical);
+	const expected = composeProjectFeaturePlaybackProjection(mediaProject, report, {
+		productProjection: (project, { audioRenderedFallback }) => projectNativePluginPlayback(
+			project,
+			report,
+			audioRenderedFallback?.role === 'audio-track-render-v1'
+				? audioRenderedFallback.targetTrackId : null,
+			canonical,
+		),
+	});
+	const projection = createSoundscaperPlaybackProjectService().projectForPlayback(canonical);
+	assert.deepEqual(
+		projection.project,
+		inheritTrackFolderMediaStateProjectionV12(mediaProject, expected.project),
+	);
+	assert.deepEqual({
+		audioRenderedFallback: projection.audioRenderedFallback,
+		videoRenderedFallback: projection.videoRenderedFallback,
+		audioEffectPlaybackBypass: projection.audioEffectPlaybackBypass,
+		videoEffectPlaybackBypass: projection.videoEffectPlaybackBypass,
+	}, {
+		audioRenderedFallback: expected.audioRenderedFallback,
+		videoRenderedFallback: expected.videoRenderedFallback,
+		audioEffectPlaybackBypass: expected.audioEffectPlaybackBypass,
+		videoEffectPlaybackBypass: expected.videoEffectPlaybackBypass,
+	});
+	const projected = projection.project as Readonly<Record<string, unknown>>;
+	const states = projected.nativePluginStates as readonly Readonly<Record<string, unknown>>[];
+	assert.deepEqual(
+		states.map(({ bypassed, continuity }) => ({ bypassed, continuity })),
+		[{ bypassed: true, continuity: 'bypass' }],
+		'the explicit Soundscaper product hook must remain active',
+	);
 });
 
 function prefixes(manifestValue: unknown): readonly string[] {

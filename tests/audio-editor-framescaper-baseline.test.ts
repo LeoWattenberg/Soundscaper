@@ -181,16 +181,25 @@ test('Framescaper v1 keeps an oversized whole-mix fallback attached to chunk pla
 		id: 'framescaper-streamed-fallback', title: 'Framescaper streamed fallback',
 		now: '2026-08-28T00:00:00.000Z', sampleRate: 48_000,
 		sources: [originalSource, fallbackSource], clips: [originalClip], tracks: [originalTrack],
-		featureRequirements: { schemaVersion: 2, requirements: [{
-			id: 'publisher-audio-render',
-			featureId: PROJECT_FEATURE_CAPABILITY_IDS.audioEffects,
-			displayName: 'Audio effects',
-			disposition: 'rendered-fallback',
-			fallback: {
-				role: 'project-audio-mix-v1', kind: 'audio',
-				sourceId: fallbackSource.id, sha256: fallbackDigest,
+		featureRequirements: { schemaVersion: 2, requirements: [
+			{
+				id: 'publisher-audio-render',
+				featureId: PROJECT_FEATURE_CAPABILITY_IDS.audioEffects,
+				displayName: 'Audio effects render',
+				disposition: 'rendered-fallback',
+				fallback: {
+					role: 'project-audio-mix-v1', kind: 'audio',
+					sourceId: fallbackSource.id, sha256: fallbackDigest,
+				},
 			},
-		}] },
+			{
+				id: 'publisher-audio-bypass',
+				featureId: PROJECT_FEATURE_CAPABILITY_IDS.audioEffects,
+				displayName: 'Audio effects bypass',
+				disposition: 'bypass',
+				fallback: null,
+			},
+		] },
 	});
 	const playback = createFramescaperPlaybackProjectService(FRAMESCAPER_PROJECT_RUNTIME_PROFILE);
 	const admission = playback.projectForActivationAdmission!(project);
@@ -202,6 +211,8 @@ test('Framescaper v1 keeps an oversized whole-mix fallback attached to chunk pla
 	assert.deepEqual(admission.requiredAudioSourceIds, [fallbackSource.id]);
 	assert.deepEqual(projection.requiredAudioSourceIds, admission.requiredAudioSourceIds);
 	assert.equal(projection.audioRenderedFallback?.sourceId, fallbackSource.id);
+	assert.equal(projection.audioEffectPlaybackBypass, null,
+		'the Framescaper route must apply its fallback before the shared bypass stage');
 	assert.equal(projectedProject.schemaFamily, 'framescaper');
 	assert.equal(projectedProject.schemaVersion, 1);
 	assert.equal(
