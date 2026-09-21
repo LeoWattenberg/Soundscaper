@@ -2,6 +2,7 @@
 
 import { WAVPACK_PCM_MAXIMUM_FRAMES } from '../../../../wavpack/pcm.js';
 import type { TakeCycleSourceDescription } from './take-cycle-recording-repository-composition.ts';
+import { takeCycleStableName } from './take-cycle-value-validation.ts';
 
 export function normalizeTakeCycleSourceDescription(
 	value: TakeCycleSourceDescription,
@@ -19,8 +20,7 @@ export function normalizeTakeCycleSourceDescription(
 	if (sampleRate !== projectSampleRate) throw new Error('Take cycle source PCM must use the project sample rate.');
 	if (channelCount > 64) throw new RangeError('Take cycle source channelCount exceeds its limit.');
 	if (chunkFrames > WAVPACK_PCM_MAXIMUM_FRAMES) throw new RangeError('Take cycle source chunkFrames exceeds its limit.');
-	const name = String(value.name ?? '').trim();
-	if (!name || name !== value.name || name.length > 255) throw new TypeError('Take cycle source name is invalid.');
+	const name = takeCycleStableName(value.name);
 	return Object.freeze({ name, sampleRate, channelCount, chunkFrames, frameCount });
 }
 

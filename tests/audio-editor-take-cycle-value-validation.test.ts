@@ -10,6 +10,7 @@ import {
 	stableTakeCycleRoutedId,
 	stableTakeCycleRoutedName,
 } from '../src/common/editor/controller/recording/internal/take-cycle/take-cycle-routed-capture-validation.ts';
+import { normalizeTakeCycleSourceDescription } from '../src/common/editor/controller/recording/internal/take-cycle/take-cycle-source-validation.ts';
 
 test('take-cycle stable IDs preserve configurable canonical bounds', () => {
 	assert.equal(recoveryStableId, takeCycleStableId);
@@ -43,4 +44,7 @@ test('take-cycle source names keep their existing compatibility contract', () =>
 			name: 'TypeError', message: 'Take cycle source name is invalid.',
 		});
 	}
+	assert.equal(normalizeTakeCycleSourceDescription({
+		name: 'e\u0301', sampleRate: 48_000, channelCount: 1, chunkFrames: 256, frameCount: 1,
+	}, 1, 48_000).name, 'e\u0301');
 });
