@@ -11,18 +11,15 @@ import {
 	validateBrowserSourceCache,
 } from '../scripts/lib/browser-dynamic-coverage-sources.mjs';
 
-test('only parser-authenticated browser-internal scripts bypass dynamic capture', () => {
+test('only the exact parser-authenticated Chromium error page bypasses dynamic capture', () => {
 	const directories = new Map([['http://127.0.0.1:4322', '/build/soundscaper']]);
-	for (const url of [
-		'about:blank',
-		'chrome://resources/js/load_time_data.js',
-		'chrome-error://chromewebdata/',
-		'devtools://devtools/bundled/devtools_app.html',
-	]) {
-		assert.equal(isBrowserInternalCdpScript({ url }), true, url);
-		assert.equal(isBrowserInternalCdpScript({ hasSourceURL: true, url }), false, url);
-		assert.equal(needsCapturedBrowserSource(url, directories), true, url);
-	}
+	const errorPage = 'chrome-error://chromewebdata/';
+	assert.equal(isBrowserInternalCdpScript({ url: errorPage }), true);
+	assert.equal(isBrowserInternalCdpScript({ hasSourceURL: true, url: errorPage }), false);
+	assert.equal(isBrowserInternalCdpScript({ url: 'chrome-error://changed/' }), false);
+	assert.equal(isBrowserInternalCdpScript({ url: 'about:blank' }), false);
+	assert.equal(isBrowserInternalCdpScript({ url: 'about:srcdoc' }), false);
+	assert.equal(needsCapturedBrowserSource(errorPage, directories), true);
 	assert.equal(needsCapturedBrowserSource('soundscaper-unapproved://runtime.js', directories), true);
 	assert.equal(needsCapturedBrowserSource('blob:http://127.0.0.1:4322/worker', directories), true);
 });

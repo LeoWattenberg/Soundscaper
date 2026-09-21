@@ -57,6 +57,19 @@ test('an application sourceURL cannot masquerade as a browser-internal profile',
 	assert.equal(target.sourceReadCount(), 1);
 });
 
+test('an authored about:srcdoc script is captured and rejected rather than hidden', async () => {
+	const url = 'about:srcdoc';
+	const target = fakeTarget(url, Promise.resolve({ scriptSource: 'globalThis.authored = true;' }), [coverage(url)]);
+	const collector = coverageCollector({ portable: true });
+	assert.ok(collector);
+	collector.attach(target.context);
+	await assert.rejects(
+		collector.collect('authored srcdoc', new Set()),
+		/unapproved dynamic script about:srcdoc/u,
+	);
+	assert.equal(target.sourceReadCount(), 1);
+});
+
 function coverageCollector({ portable = false } = {}) {
 	const site = { origin: ORIGIN, outputDirectory: process.cwd(), productId: 'soundscaper' as const };
 	return createBrowserCoverageCollector({

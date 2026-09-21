@@ -3,10 +3,7 @@
 import { Buffer } from 'node:buffer';
 
 const CDP_WEBASSEMBLY_URL = /^wasm:\/\/wasm\/[a-f\d]{8}$/u;
-const BROWSER_INTERNAL_PROTOCOLS = new Set([
-	'about:', 'chrome:', 'chrome-error:', 'chrome-extension:',
-	'chrome-search:', 'chrome-untrusted:', 'devtools:', 'extensions:',
-]);
+const BROWSER_INTERNAL_SCRIPT_URLS = new Set(['chrome-error://chromewebdata/']);
 const WEBASSEMBLY_HEADER = Buffer.from([0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00]);
 
 /** The per-CDP-session identity needed to separate JavaScript from Wasm. */
@@ -90,11 +87,10 @@ export async function readCdpScriptSourceUntilTeardown({ isActive, scriptId, ses
 	}
 }
 
-/** Trust browser-owned URL schemes only when the parser says no sourceURL supplied them. */
+/** Trust the observed browser-owned URL only when the parser says no sourceURL supplied it. */
 export function isBrowserInternalCdpScript(event) {
 	if (event?.hasSourceURL === true || typeof event?.url !== 'string') return false;
-	try { return BROWSER_INTERNAL_PROTOCOLS.has(new URL(event.url).protocol); }
-	catch { return false; }
+	return BROWSER_INTERNAL_SCRIPT_URLS.has(event.url);
 }
 
 /** Exclude one authenticated browser-owned JavaScript identity from the profile. */

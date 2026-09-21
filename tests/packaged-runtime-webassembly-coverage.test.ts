@@ -127,8 +127,8 @@ test('packaged target permits script-ID reuse only after execution contexts clea
 
 test('packaged targets exclude parser-owned internals but retain sourceURL lookalikes', async () => {
 	const root = script('root-js', 'soundscaper-app://bundle/');
-	const internal = script('browser-internal', 'chrome-extension://playwright/internal.js');
-	const spoof = { ...script('application-spoof', 'chrome-extension://playwright/spoof.js'), hasSourceURL: true };
+	const internal = script('browser-internal', 'chrome-error://chromewebdata/');
+	const spoof = { ...script('application-spoof', 'chrome-error://chromewebdata/'), hasSourceURL: true };
 	const page = new WasmPage([root, internal, spoof]);
 	const pending: Promise<unknown>[] = [];
 	const target = await startPackagedRuntimeTargetCoverage({

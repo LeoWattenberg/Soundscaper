@@ -36,7 +36,7 @@ test('packaged coverage records renderer, preload, and a final worker delta bank
 		coverageEntry('11', productUrl, 120),
 		coverageEntry('12', preloadUrl, 80),
 		coverageEntry('13', sandboxPreloadUrl, 70),
-		coverageEntry('15', 'chrome-extension://playwright/internal.js', 40),
+		coverageEntry('15', 'chrome-error://chromewebdata/', 40),
 	], [coverageEntry('21', workerUrl, 50)]);
 	const diagnosticPage = new FakePage(
 		'http://127.0.0.1:4567/',
