@@ -1,11 +1,16 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import type { FfmpegOutputSink } from '../common/editor/ffmpeg-output-stream.ts';
+import {
+	createVideoExportOfflineRequest,
+	projectVideoExportBrowserResult,
+	projectVideoExportSinkResult,
+	type VideoExportEncodeErrorText,
+} from '../common/editor/video-export-strategy-encode-core.ts';
 import { createExportRenderProject } from '../common/editor/controller/export/export-render-project.ts';
 import { assertMatchingExportDataGraph } from '../common/editor/project-export-data-graph.ts';
 import { projectTrackFolderMediaStateV12 } from '../common/editor/track-folder-media-runtime.ts';
 import type {
-	ProductVideoExportEncodedOutput,
 	ProductVideoExportSinkOutput,
 	ProductVideoExportStrategy,
 	ProductVideoExportStrategyEncodeRequest,
@@ -23,7 +28,6 @@ import {
 	type VideoKeyframeExportPlanV7,
 } from '../common/editor/video-keyframe-export-plan-v7.ts';
 import type {
-	VideoKeyframeVideoEncoderResult,
 	VideoKeyframeVideoSinkEncoderResult,
 } from '../common/editor/video-keyframe-video-encoder.ts';
 import { createSoundscaperVideoKeyframeExportPlan } from './video-export-plan.ts';
@@ -110,7 +114,7 @@ export function createSoundscaperVideoExportStrategy(
 		},
 		async encode(request: ProductVideoExportStrategyEncodeRequest) {
 			const plan = ownedPlan(request, planAuthorities);
-			return browserResult(await dependencies.encodeOffline(offlineRequest(request, plan)), plan);
+			return projectVideoExportBrowserResult(await dependencies.encodeOffline(offlineRequest(request, plan)), plan, EXPORT_ERRORS);
 		},
 		async encodeToSink<Output>(
 			request: ProductVideoExportStrategyEncodeRequest,
@@ -120,7 +124,7 @@ export function createSoundscaperVideoExportStrategy(
 			const result = await dependencies.encodeOfflineToSink(
 				offlineRequest(request, plan), sink as FfmpegOutputSink<unknown>,
 			);
-			return sinkResult(result, plan) as ProductVideoExportSinkOutput<Output>;
+			return projectVideoExportSinkResult(result, plan, EXPORT_ERRORS) as ProductVideoExportSinkOutput<Output>;
 		},
 	});
 }
@@ -162,99 +166,23 @@ function createDetachedExportProject(
 	return freezeExportProject(projectTrackFolderMediaStateV12(projection));
 }
 
+const EXPORT_ERRORS: VideoExportEncodeErrorText = Object.freeze({
+	sourceSet: 'The Soundscaper keyed export Blob set must exactly match active source IDs.',
+	sourceMissing: (sourceId: string) => `Active source ${sourceId} has no authenticated video Blob.`,
+	audioMix: 'The Soundscaper keyed export audio mix must exactly match its plan.',
+	identity: 'The Soundscaper keyed encoder output does not match its detached plan.',
+	bytes: 'The Soundscaper keyed browser output byte length is inconsistent.',
+	chunks: 'The Soundscaper keyed direct output chunk count is invalid.',
+});
+
 function offlineRequest(
 	request: ProductVideoExportStrategyEncodeRequest,
 	plan: VideoKeyframeExportPlanV7,
 ): VideoKeyframeOfflineVideoExportRequest {
-	const sources = exactSources(plan, request.videoBlobs);
-	const includesAudio = plan.inputs.some((input) => input.kind === 'staged-audio-mix');
-	if (includesAudio !== (request.audioMix instanceof Blob)) {
-		throw new TypeError('The Soundscaper keyed export audio mix must exactly match its plan.');
-	}
-	return Object.freeze({
-		project: request.exportProject,
-		timingBySourceId: request.timingBySourceId,
-		sources,
-		canvas: Object.freeze({
-			width: plan.canvas.width, height: plan.canvas.height,
-			frameRate: plan.canvas.frameRate, fit: plan.canvas.fit,
-			backgroundColor: plan.canvas.backgroundColor,
-		}),
-		startFrame: plan.range.startFrame,
-		endFrame: plan.range.endFrame,
-		format: plan.format,
-		quality: plan.quality,
-		...(request.webCodecs
-			? { webCodecs: request.webCodecs }
-			: { editorFfmpeg: request.editorFfmpeg as VideoKeyframeOfflineVideoExportRequest['editorFfmpeg'] }),
-		...(request.audioMix instanceof Blob ? { audioMix: request.audioMix } : {}),
-		...(request.maximumOutputBytes === undefined ? {} : {
-			maximumOutputBytes: request.maximumOutputBytes as number,
-		}),
-		...(request.rgbaPostprocessor === undefined ? {} : { rgbaPostprocessor: request.rgbaPostprocessor }),
-		...(request.rgbaCompositor === undefined ? {} : { rgbaCompositor: request.rgbaCompositor }),
-		signal: request.signal,
-		assertCurrent: request.assertCurrent,
-	});
-}
-
-function exactSources(
-	plan: VideoKeyframeExportPlanV7,
-	videoBlobs: ReadonlyMap<string, Blob>,
-): readonly Readonly<{ sourceId: string; blob: Blob }>[] {
-	if (!(videoBlobs instanceof Map) || videoBlobs.size !== plan.activeSourceIds.length) {
-		throw new TypeError('The Soundscaper keyed export Blob set must exactly match active source IDs.');
-	}
-	return Object.freeze(plan.activeSourceIds.map((sourceId) => {
-		const blob = videoBlobs.get(sourceId);
-		if (!(blob instanceof Blob)) throw new TypeError(`Active source ${sourceId} has no authenticated video Blob.`);
-		return Object.freeze({ sourceId, blob });
-	}));
-}
-
-function browserResult(
-	encoded: VideoKeyframeVideoEncoderResult,
-	plan: VideoKeyframeExportPlanV7,
-): ProductVideoExportEncodedOutput {
-	assertResultIdentity(encoded, plan);
-	if (!(encoded.bytes instanceof Uint8Array) || encoded.bytes.byteLength !== encoded.byteLength) {
-		throw new Error('The Soundscaper keyed browser output byte length is inconsistent.');
-	}
-	return Object.freeze({
-		bytes: encoded.bytes, byteLength: encoded.byteLength, videoEncoder: encoded.videoEncoder,
-		...(encoded.codec === undefined ? {} : { codec: encoded.codec }),
-		extension: encoded.extension, mimeType: encoded.mimeType,
-	});
-}
-
-function sinkResult(
-	encoded: VideoKeyframeVideoSinkEncoderResult<unknown>,
-	plan: VideoKeyframeExportPlanV7,
-): ProductVideoExportSinkOutput<unknown> {
-	assertResultIdentity(encoded, plan);
-	if (!Number.isSafeInteger(encoded.outputChunkCount) || encoded.outputChunkCount < 0) {
-		throw new RangeError('The Soundscaper keyed direct output chunk count is invalid.');
-	}
-	return Object.freeze({
-		output: encoded.output, byteLength: encoded.byteLength, chunkCount: encoded.outputChunkCount,
-		videoEncoder: encoded.videoEncoder,
-		...(encoded.codec === undefined ? {} : { codec: encoded.codec }),
-		extension: encoded.extension, mimeType: encoded.mimeType,
-	});
-}
-
-function assertResultIdentity(
-	encoded: Readonly<{
-		readonly byteLength: number; readonly format: string; readonly extension: string;
-		readonly mimeType: string;
-	}>,
-	plan: VideoKeyframeExportPlanV7,
-): void {
-	if (!Number.isSafeInteger(encoded.byteLength) || encoded.byteLength < 0
-		|| encoded.format !== plan.format || encoded.extension !== `.${plan.extension}`
-		|| encoded.mimeType !== plan.mimeType) {
-		throw new Error('The Soundscaper keyed encoder output does not match its detached plan.');
-	}
+	const backend = request.webCodecs
+		? { webCodecs: request.webCodecs }
+		: { editorFfmpeg: request.editorFfmpeg as VideoKeyframeOfflineVideoExportRequest['editorFfmpeg'] };
+	return createVideoExportOfflineRequest(request, plan, backend, EXPORT_ERRORS);
 }
 
 function snapshotDependencies(value: unknown): SoundscaperVideoExportStrategyDependencies {
