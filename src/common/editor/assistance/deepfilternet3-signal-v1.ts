@@ -1,5 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { fftRadixTwoFloat64V1 } from './internal/radix-two-fft-v1.ts';
+
 /** Owned DeepFilterNet3 analysis, feature normalization, filtering, and synthesis. */
 
 export const ASSISTANCE_DEEPFILTER_SAMPLE_RATE = 48_000;
@@ -267,7 +269,7 @@ function createBluesteinPlan(size: number): BluesteinPlan {
 			kernelImaginary[convolutionSize - index] = sine[index]!;
 		}
 	}
-	fftRadixTwo(kernelReal, kernelImaginary, false);
+	fftRadixTwoFloat64V1(kernelReal, kernelImaginary, false);
 	return { size, convolutionSize, cosine, sine, kernelReal, kernelImaginary };
 }
 
@@ -291,7 +293,7 @@ function transformBluestein(real: Float64Array, imaginary: Float64Array, inverse
 		workReal[index] = real[index]! * cosine + imaginary[index]! * sine;
 		workImaginary[index] = imaginary[index]! * cosine - real[index]! * sine;
 	}
-	fftRadixTwo(workReal, workImaginary, false);
+	fftRadixTwoFloat64V1(workReal, workImaginary, false);
 	for (let index = 0; index < workReal.length; index += 1) {
 		const candidateReal = workReal[index]! * FFT_PLAN.kernelReal[index]!
 			- workImaginary[index]! * FFT_PLAN.kernelImaginary[index]!;
@@ -299,52 +301,12 @@ function transformBluestein(real: Float64Array, imaginary: Float64Array, inverse
 			+ workImaginary[index]! * FFT_PLAN.kernelReal[index]!;
 		workReal[index] = candidateReal;
 	}
-	fftRadixTwo(workReal, workImaginary, true);
+	fftRadixTwoFloat64V1(workReal, workImaginary, true);
 	for (let index = 0; index < FFT_PLAN.size; index += 1) {
 		const cosine = FFT_PLAN.cosine[index]!;
 		const sine = FFT_PLAN.sine[index]!;
 		real[index] = workReal[index]! * cosine + workImaginary[index]! * sine;
 		imaginary[index] = workImaginary[index]! * cosine - workReal[index]! * sine;
-	}
-}
-
-function fftRadixTwo(real: Float64Array, imaginary: Float64Array, inverse: boolean): void {
-	for (let source = 1, destination = 0; source < real.length; source += 1) {
-		let bit = real.length >> 1;
-		for (; destination & bit; bit >>= 1) destination ^= bit;
-		destination ^= bit;
-		if (source < destination) {
-			[real[source], real[destination]] = [real[destination]!, real[source]!];
-			[imaginary[source], imaginary[destination]] = [imaginary[destination]!, imaginary[source]!];
-		}
-	}
-	for (let length = 2; length <= real.length; length *= 2) {
-		const angle = (inverse ? 2 : -2) * Math.PI / length;
-		const rootReal = Math.cos(angle);
-		const rootImaginary = Math.sin(angle);
-		for (let start = 0; start < real.length; start += length) {
-			let factorReal = 1;
-			let factorImaginary = 0;
-			for (let index = 0; index < length / 2; index += 1) {
-				const even = start + index;
-				const odd = even + length / 2;
-				const oddReal = real[odd]! * factorReal - imaginary[odd]! * factorImaginary;
-				const oddImaginary = real[odd]! * factorImaginary + imaginary[odd]! * factorReal;
-				real[odd] = real[even]! - oddReal;
-				imaginary[odd] = imaginary[even]! - oddImaginary;
-				real[even] = (real[even] ?? 0) + oddReal;
-				imaginary[even] = (imaginary[even] ?? 0) + oddImaginary;
-				const nextReal = factorReal * rootReal - factorImaginary * rootImaginary;
-				factorImaginary = factorReal * rootImaginary + factorImaginary * rootReal;
-				factorReal = nextReal;
-			}
-		}
-	}
-	if (inverse) {
-		for (let index = 0; index < real.length; index += 1) {
-			real[index] = (real[index] ?? 0) / real.length;
-			imaginary[index] = (imaginary[index] ?? 0) / real.length;
-		}
 	}
 }
 

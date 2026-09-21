@@ -1,5 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { fftRadixTwoFloat64V1 } from './internal/radix-two-fft-v1.ts';
+
 /** Owned deterministic signal geometry for the pinned TIGER-DnR reference. */
 
 export const ASSISTANCE_TIGER_DNR_SAMPLE_RATE = 44_100;
@@ -192,7 +194,7 @@ export function tigerDnrStftV1(value: unknown): TigerDnrSpectrumV1 {
 				real[frame] = reflectedSample(channel, paddedStart + frame - CENTER_PADDING_FRAMES)
 					* window[frame]!;
 			}
-			fft(real, imaginary, false);
+			fftRadixTwoFloat64V1(real, imaginary, false);
 			for (let bin = 0; bin < FREQUENCY_BIN_COUNT; bin += 1) {
 				const offset = time * FREQUENCY_BIN_COUNT + bin;
 				realOutput[offset] = real[bin]!;
@@ -244,7 +246,7 @@ export function tigerDnrIstftV1(value: unknown): readonly Float32Array[] {
 				real[spectrum.fftSize - bin] = real[bin]!;
 				imaginary[spectrum.fftSize - bin] = -imaginary[bin]!;
 			}
-			fft(real, imaginary, true);
+			fftRadixTwoFloat64V1(real, imaginary, true);
 			const start = time * spectrum.hopFrames;
 			for (let frame = 0; frame < spectrum.fftSize; frame += 1) {
 				accumulator[start + frame] = (accumulator[start + frame] ?? 0)
@@ -366,47 +368,6 @@ function reflectedSample(channel: Float32Array, frame: number): number {
 		else reflected = 2 * channel.length - 2 - reflected;
 	}
 	return channel[reflected]!;
-}
-
-function fft(real: Float64Array, imaginary: Float64Array, inverse: boolean): void {
-	const size = real.length;
-	for (let source = 1, destination = 0; source < size; source += 1) {
-		let bit = size >> 1;
-		for (; destination & bit; bit >>= 1) destination ^= bit;
-		destination ^= bit;
-		if (source < destination) {
-			[real[source], real[destination]] = [real[destination]!, real[source]!];
-			[imaginary[source], imaginary[destination]] = [imaginary[destination]!, imaginary[source]!];
-		}
-	}
-	for (let length = 2; length <= size; length *= 2) {
-		const angle = (inverse ? 2 : -2) * Math.PI / length;
-		const rootReal = Math.cos(angle);
-		const rootImaginary = Math.sin(angle);
-		for (let offset = 0; offset < size; offset += length) {
-			let factorReal = 1;
-			let factorImaginary = 0;
-			for (let index = 0; index < length / 2; index += 1) {
-				const even = offset + index;
-				const odd = even + length / 2;
-				const oddReal = real[odd]! * factorReal - imaginary[odd]! * factorImaginary;
-				const oddImaginary = real[odd]! * factorImaginary + imaginary[odd]! * factorReal;
-				real[odd] = real[even]! - oddReal;
-				imaginary[odd] = imaginary[even]! - oddImaginary;
-				real[even] = (real[even] ?? 0) + oddReal;
-				imaginary[even] = (imaginary[even] ?? 0) + oddImaginary;
-				const nextReal = factorReal * rootReal - factorImaginary * rootImaginary;
-				factorImaginary = factorReal * rootImaginary + factorImaginary * rootReal;
-				factorReal = nextReal;
-			}
-		}
-	}
-	if (inverse) {
-		for (let index = 0; index < size; index += 1) {
-			real[index] = (real[index] ?? 0) / size;
-			imaginary[index] = (imaginary[index] ?? 0) / size;
-		}
-	}
 }
 
 function version(value: unknown, label: string): void {
