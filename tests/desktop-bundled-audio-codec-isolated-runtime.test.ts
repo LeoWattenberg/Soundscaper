@@ -9,11 +9,15 @@ import { fileURLToPath } from 'node:url';
 import {
 	loadIsolatedBundledAudioCodecRuntime,
 } from '../desktop/bundled-audio-codec-isolated-runtime.ts';
+import { createBundledDesktopAudioCodecRuntime } from
+	'../desktop/bundled-audio-codec-runtime.ts';
 import type {
 	BundledAudioCodecHelperConfiguration,
 	BundledAudioCodecId,
 } from '../desktop/bundled-audio-codec-helper-configuration.ts';
 import { bundledAudioCodecSpec } from '../desktop/bundled-audio-codec-helper-configuration.ts';
+import { createIsolatedBundledAudioCodecProvider } from
+	'../desktop/bundled-audio-codec-provider-catalog.ts';
 import type { BundledAudioCodecOperationRunner } from '../desktop/bundled-audio-codec-operation-runner.ts';
 import type { DesktopAudioCodecProviderRuntime } from '../desktop/desktop-audio-codec-broker.ts';
 import type { DesktopAudioCodecRequest } from '../desktop/desktop-audio-codec-operation-contract.ts';
@@ -67,6 +71,37 @@ function operation(format: DesktopAudioCodecRequest['format'], direction: 'decod
 		channelCount: direction === 'encode' ? 2 : null, width: null, height: null,
 	}) satisfies DesktopCodecOperation;
 }
+
+test('in-process and isolated composites share identity until admitted children differ', async () => {
+	const direct = createBundledDesktopAudioCodecRuntime({
+		target: 'linux-x64',
+		runtimes: IDS.map((codec) => Object.freeze({
+			provider: createIsolatedBundledAudioCodecProvider(codec, 'linux-x64'),
+			execute: async () => Object.freeze({
+				status: 'failed' as const, reason: 'unavailable' as const, detail: 'unused',
+			}),
+		})),
+	});
+	const load = (omitted: BundledAudioCodecId | null) => loadIsolatedBundledAudioCodecRuntime({
+		target: 'linux-x64', scratchRoot: '/scratch',
+		verifyPayload: async (codec) => configuration(codec),
+		spawn: () => assert.fail('injected runner owns canaries'),
+		createRunner: () => Object.freeze({
+			async canary(codec: BundledAudioCodecId) { return codec !== omitted; },
+			async preflight() { return Object.freeze({ disposition: 'supported' as const, reason: null }); },
+			async execute() {
+				return Object.freeze({ status: 'failed' as const,
+					reason: 'unavailable' as const, detail: 'unused' });
+			},
+		}),
+	});
+	const isolated = await load(null);
+	assert.ok(isolated);
+	assert.deepEqual(providerIdentity(isolated.provider), providerIdentity(direct.provider));
+	const missing = await load('vorbis');
+	assert.ok(missing);
+	assert.notDeepEqual(providerIdentity(missing.provider), providerIdentity(direct.provider));
+});
 
 test('isolated runtime verifies all seven identities and routes every exact tuple to its proxy', async () => {
 	const verified: BundledAudioCodecId[] = [];
@@ -123,6 +158,12 @@ test('isolated runtime verifies all seven identities and routes every exact tupl
 		request('aac-m4a', 'audio-decode'), { operation: operation('aac-m4a', 'decode') },
 	), null);
 });
+
+function providerIdentity(provider: DesktopAudioCodecProviderRuntime['provider']) {
+	return Object.freeze({ kind: provider.kind, id: provider.id,
+		implementation: provider.implementation, version: provider.version,
+		capabilityGeneration: provider.capabilityGeneration });
+}
 
 test('startup canaries use max-four batches without busy-dropping the second batch', async () => {
 	const started: BundledAudioCodecId[] = [];

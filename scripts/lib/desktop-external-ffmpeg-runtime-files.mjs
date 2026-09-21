@@ -18,6 +18,7 @@ export {
 /** Exact compiled transitive modules required by desktop main audio codec entry points. */
 export const DESKTOP_AUDIO_CODEC_RUNTIME_FILES = Object.freeze([
 	'desktop/bounded-regular-file.js',
+	'desktop/bundled-audio-codec-composite-provider.js',
 	'desktop/bundled-audio-codec-helper-configuration.js',
 	'desktop/bundled-audio-codec-helper-process.js',
 	'desktop/bundled-audio-codec-isolated-runtime.js',

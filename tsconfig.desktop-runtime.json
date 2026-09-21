@@ -18,6 +18,7 @@
 	"include": [
 		"desktop/application-lifecycle.ts",
 		"desktop/bounded-regular-file.ts",
+		"desktop/bundled-audio-codec-composite-provider.ts",
 		"desktop/desktop-audio-stream-service.ts",
 		"desktop/desktop-audio-stream-job-runner.ts",
 		"desktop/audio-codec-stream-helper.ts",

@@ -2,8 +2,6 @@
 
 /** One reviewed bundled tier composed from format-specific desktop runtimes. */
 
-import { createHash } from 'node:crypto';
-
 import type {
 	DesktopAudioCodecProviderExecutionResult,
 	DesktopAudioCodecProviderRuntime,
@@ -12,12 +10,13 @@ import type { DesktopAudioCodecRequest } from './desktop-audio-codec-operation-c
 import type {
 	DesktopCodecOperation,
 	DesktopCodecPreflightResult,
-	DesktopCodecProvider,
 } from '../src/common/editor/desktop-codec-coordinator.ts';
 import {
 	DESKTOP_CODEC_TARGETS,
 	type DesktopCodecTarget,
 } from '../src/common/editor/desktop-codec-provider-catalog.ts';
+import { createBundledAudioCodecCompositeProvider } from
+	'./bundled-audio-codec-composite-provider.ts';
 
 const TARGETS = new Set<string>(DESKTOP_CODEC_TARGETS);
 
@@ -27,7 +26,11 @@ export function createBundledDesktopAudioCodecRuntime(options: Readonly<{
 }>): DesktopAudioCodecProviderRuntime {
 	const target = desktopTarget(options?.target);
 	const runtimes = runtimeList(options?.runtimes, target);
-	const provider = compositeProvider(target, runtimes);
+	const provider = createBundledAudioCodecCompositeProvider({
+		target,
+		providers: runtimes.map(({ provider: candidate }) => candidate),
+		unsupportedReason: 'The reviewed bundled audio inventory has no exact codec for this operation.',
+	});
 	return Object.freeze({
 		provider,
 		async selectRequestRuntime(
@@ -98,43 +101,6 @@ export function createBundledDesktopAudioCodecRuntime(options: Readonly<{
 	});
 }
 
-function compositeProvider(
-	target: DesktopCodecTarget,
-	runtimes: readonly DesktopAudioCodecProviderRuntime[],
-): DesktopCodecProvider {
-	const implementations = runtimes.map(({ provider }) => provider.implementation).sort();
-	const versions = runtimes.map(({ provider }) => provider.version).sort();
-	const generations = runtimes.map(({ provider }) => provider.capabilityGeneration).sort();
-	const labels = [
-		...(implementations.some((value) => value.includes('libflac')) ? ['libflac'] : []),
-		...(implementations.some((value) => value.includes('lame')) ? ['lame'] : []),
-		...(implementations.some((value) => value.includes('libmpg123')) ? ['mpg123'] : []),
-		...(implementations.some((value) => value.includes('libopus')) ? ['libopus-libogg'] : []),
-		...(implementations.some((value) => value.includes('twolame')) ? ['twolame'] : []),
-		...(implementations.some((value) => value.includes('libvorbis')) ? ['libvorbis-libogg'] : []),
-		...(implementations.some((value) => value.includes('wavpack')) ? ['wavpack'] : []),
-	];
-	return Object.freeze({
-		kind: 'bundled', id: `bundled-reviewed-audio-${target}`,
-		implementation: 'soundscaper-reviewed-audio-codecs',
-		version: versions.join('+'),
-		capabilityGeneration: `${labels.join('-')}-${sha256(generations.join('\n'))}`,
-		async preflight(
-			operation: DesktopCodecOperation,
-			preflightOptions: Readonly<{ readonly signal?: AbortSignal }>,
-		): Promise<DesktopCodecPreflightResult> {
-			for (const runtime of runtimes) {
-				const result = await runtime.provider.preflight(operation, preflightOptions);
-				if (result.disposition === 'supported' || result.disposition === 'rejected') return result;
-			}
-			return Object.freeze({
-				disposition: 'unsupported',
-				reason: 'The reviewed bundled audio inventory has no exact codec for this operation.',
-			});
-		},
-	});
-}
-
 function runtimeList(
 	value: unknown,
 	target: DesktopCodecTarget,
@@ -173,8 +139,4 @@ function desktopTarget(value: unknown): DesktopCodecTarget {
 		throw new TypeError('The bundled audio codec desktop target is unsupported.');
 	}
 	return value as DesktopCodecTarget;
-}
-
-function sha256(value: string): string {
-	return createHash('sha256').update(value).digest('hex');
 }

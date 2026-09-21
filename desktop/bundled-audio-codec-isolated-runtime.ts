@@ -2,7 +2,6 @@
 
 /** Main-safe bundled tier whose exact codec work is delegated to utility processes. */
 
-import { createHash } from 'node:crypto';
 import { isAbsolute } from 'node:path';
 
 import {
@@ -27,12 +26,13 @@ import type { DesktopAudioCodecRequest } from './desktop-audio-codec-operation-c
 import type {
 	DesktopCodecOperation,
 	DesktopCodecPreflightResult,
-	DesktopCodecProvider,
 } from '../src/common/editor/desktop-codec-coordinator.js';
 import {
 	DESKTOP_CODEC_TARGETS,
 	type DesktopCodecTarget,
 } from '../src/common/editor/desktop-codec-provider-catalog.js';
+import { createBundledAudioCodecCompositeProvider } from
+	'./bundled-audio-codec-composite-provider.js';
 
 const TARGETS = new Set<string>(DESKTOP_CODEC_TARGETS);
 const STARTUP_CANARY_BATCH_SIZE = 4;
@@ -94,7 +94,11 @@ function compositeRuntime(
 	target: DesktopCodecTarget,
 	runtimes: ReadonlyMap<BundledAudioCodecId, DesktopAudioCodecProviderRuntime>,
 ): DesktopAudioCodecProviderRuntime {
-	const provider = compositeProvider(target, [...runtimes.values()]);
+	const provider = createBundledAudioCodecCompositeProvider({
+		target,
+		providers: [...runtimes.values()].map(({ provider: candidate }) => candidate),
+		unsupportedReason: 'The authenticated bundled audio inventory has no exact codec for this operation.',
+	});
 	return Object.freeze({
 		provider,
 		async selectRequestRuntime(
@@ -115,42 +119,6 @@ function compositeRuntime(
 			return Object.freeze({
 				status: 'failed', reason: 'unavailable',
 				detail: 'The authenticated bundled inventory has no exact codec for this request.',
-			});
-		},
-	});
-}
-
-function compositeProvider(
-	target: DesktopCodecTarget,
-	runtimes: readonly DesktopAudioCodecProviderRuntime[],
-): DesktopCodecProvider {
-	const versions = runtimes.map(({ provider }) => provider.version).sort();
-	const generations = runtimes.map(({ provider }) => provider.capabilityGeneration).sort();
-	const implementations = runtimes.map(({ provider }) => provider.implementation).sort();
-	const labels = [
-		...(implementations.some((value) => value.includes('libflac')) ? ['libflac'] : []),
-		...(implementations.some((value) => value.includes('lame')) ? ['lame'] : []),
-		...(implementations.some((value) => value.includes('libmpg123')) ? ['mpg123'] : []),
-		...(implementations.some((value) => value.includes('libopus')) ? ['libopus-libogg'] : []),
-		...(implementations.some((value) => value.includes('twolame')) ? ['twolame'] : []),
-		...(implementations.some((value) => value.includes('libvorbis')) ? ['libvorbis-libogg'] : []),
-		...(implementations.some((value) => value.includes('wavpack')) ? ['wavpack'] : []),
-	];
-	return Object.freeze({
-		kind: 'bundled', id: `bundled-reviewed-audio-${target}`,
-		implementation: 'soundscaper-reviewed-audio-codecs', version: versions.join('+'),
-		capabilityGeneration: `${labels.join('-')}-${digest(generations.join('\n'))}`,
-		async preflight(
-			operation: DesktopCodecOperation,
-			options: Readonly<{ readonly signal?: AbortSignal }>,
-		): Promise<DesktopCodecPreflightResult> {
-			for (const runtime of runtimes) {
-				const result = await runtime.provider.preflight(operation, options);
-				if (result.disposition === 'supported' || result.disposition === 'rejected') return result;
-			}
-			return Object.freeze({
-				disposition: 'unsupported',
-				reason: 'The authenticated bundled audio inventory has no exact codec for this operation.',
 			});
 		},
 	});
@@ -179,8 +147,4 @@ function signalOptions(signal?: AbortSignal): Readonly<{ readonly signal?: Abort
 function abortReason(signal: AbortSignal): Error {
 	if (signal.reason instanceof Error) return signal.reason;
 	return new DOMException('The isolated bundled codec operation was cancelled.', 'AbortError');
-}
-
-function digest(value: string): string {
-	return createHash('sha256').update(value).digest('hex');
 }
