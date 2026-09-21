@@ -8,6 +8,8 @@ import {
 	captureCdpWebAssemblyScript,
 	clearCdpExecutionContexts,
 	createCdpJavaScriptCoverageState,
+	excludeCdpJavaScriptCoverage,
+	isBrowserInternalCdpScript,
 	javaScriptCoverageEntries,
 	observeCdpScript,
 	retireCdpExecutionContext,
@@ -54,6 +56,38 @@ test('a JavaScript sourceURL cannot masquerade as protocol-typed WebAssembly', (
 		new Map([['11', WASM_URL]]),
 		new Map(),
 	), /without protocol WebAssembly attestation/u);
+});
+
+test('browser-internal exclusion remains bound to the exact parser URL', () => {
+	const state = createCdpJavaScriptCoverageState();
+	const event = {
+		executionContextId: 41,
+		scriptId: '11',
+		scriptLanguage: 'JavaScript',
+		url: 'chrome-error://chromewebdata/',
+	};
+	assert.equal(isBrowserInternalCdpScript(event), true);
+	assert.equal(observeCdpScript({ event, session: { send: async () => ({}) }, state }), null);
+	excludeCdpJavaScriptCoverage(state, event.scriptId);
+	assert.deepEqual(javaScriptCoverageEntries(
+		[coverageEntry(event.scriptId, '')],
+		state.scriptUrls,
+		state.webAssemblyScriptUrls,
+		state.excludedJavaScriptScriptIds,
+	), []);
+	assert.throws(() => javaScriptCoverageEntries(
+		[coverageEntry(event.scriptId, 'chrome-error://changed/')],
+		state.scriptUrls,
+		state.webAssemblyScriptUrls,
+		state.excludedJavaScriptScriptIds,
+	), /different browser-internal script URL/u);
+	state.scriptUrls.clear();
+	assert.throws(() => javaScriptCoverageEntries(
+		[coverageEntry(event.scriptId, '')],
+		state.scriptUrls,
+		state.webAssemblyScriptUrls,
+		state.excludedJavaScriptScriptIds,
+	), /lost the authenticated browser-internal script URL/u);
 });
 
 test('typed WebAssembly rejects noncanonical URLs and non-binary source replies', async () => {

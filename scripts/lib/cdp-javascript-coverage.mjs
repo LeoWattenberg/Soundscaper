@@ -3,12 +3,17 @@
 import { Buffer } from 'node:buffer';
 
 const CDP_WEBASSEMBLY_URL = /^wasm:\/\/wasm\/[a-f\d]{8}$/u;
+const BROWSER_INTERNAL_PROTOCOLS = new Set([
+	'about:', 'chrome:', 'chrome-error:', 'chrome-extension:',
+	'chrome-search:', 'chrome-untrusted:', 'devtools:', 'extensions:',
+]);
 const WEBASSEMBLY_HEADER = Buffer.from([0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00]);
 
 /** The per-CDP-session identity needed to separate JavaScript from Wasm. */
 export function createCdpJavaScriptCoverageState({ authenticateWebAssembly } = {}) {
 	return {
 		authenticateWebAssembly,
+		excludedJavaScriptScriptIds: new Set(),
 		scriptIdentities: new Map(),
 		scriptUrls: new Map(),
 		webAssemblyScriptUrls: new Map(),
@@ -24,6 +29,7 @@ export function retireCdpExecutionContext(state, executionContextId) {
 	for (const [scriptId, identity] of state.scriptIdentities) {
 		if (identity.executionContextId !== executionContextId) continue;
 		state.scriptIdentities.delete(scriptId);
+		state.excludedJavaScriptScriptIds.delete(scriptId);
 		state.scriptUrls.delete(scriptId);
 		state.webAssemblyScriptUrls.delete(scriptId);
 		retired.push(scriptId);
@@ -35,6 +41,7 @@ export function retireCdpExecutionContext(state, executionContextId) {
 export function clearCdpExecutionContexts(state) {
 	const retired = [...state.scriptIdentities.keys()];
 	state.scriptIdentities.clear();
+	state.excludedJavaScriptScriptIds.clear();
 	state.scriptUrls.clear();
 	state.webAssemblyScriptUrls.clear();
 	return retired;
@@ -74,6 +81,27 @@ export function bankRejectedCdpCoverageWork(pending, error) {
 	pending.push(failure);
 }
 
+/** Read text while a target lives; a target teardown makes only its rejected read irrelevant. */
+export async function readCdpScriptSourceUntilTeardown({ isActive, scriptId, session }) {
+	try { return await session.send('Debugger.getScriptSource', { scriptId }); }
+	catch (error) {
+		if (isActive()) throw error;
+		return null;
+	}
+}
+
+/** Trust browser-owned URL schemes only when the parser says no sourceURL supplied them. */
+export function isBrowserInternalCdpScript(event) {
+	if (event?.hasSourceURL === true || typeof event?.url !== 'string') return false;
+	try { return BROWSER_INTERNAL_PROTOCOLS.has(new URL(event.url).protocol); }
+	catch { return false; }
+}
+
+/** Exclude one authenticated browser-owned JavaScript identity from the profile. */
+export function excludeCdpJavaScriptCoverage(state, scriptId) {
+	state.excludedJavaScriptScriptIds.add(String(scriptId));
+}
+
 /** Record a parsed URL and authenticate it when CDP types it as WebAssembly. */
 export function observeCdpScript({ event, session, state }) {
 	return captureCdpWebAssemblyScript({
@@ -93,6 +121,7 @@ export async function takeCdpJavaScriptCoverage(session, state) {
 		result,
 		state.scriptUrls,
 		state.webAssemblyScriptUrls,
+		state.excludedJavaScriptScriptIds,
 	);
 }
 
@@ -103,6 +132,7 @@ export function appendCdpJavaScriptCoverage(target, result, state) {
 		result,
 		state.scriptUrls,
 		state.webAssemblyScriptUrls,
+		state.excludedJavaScriptScriptIds,
 	));
 }
 
@@ -190,17 +220,28 @@ export function captureCdpWebAssemblyScript({
  * @param {Entry[]} entries
  * @param {Map<string, string>} scriptUrls
  * @param {Map<string, string>} webAssemblyScriptUrls
+ * @param {Set<string>} [excludedJavaScriptScriptIds]
  * @returns {Entry[]}
  */
 export function javaScriptCoverageEntries(
 	entries,
 	scriptUrls,
 	webAssemblyScriptUrls,
+	excludedJavaScriptScriptIds,
 ) {
 	const retained = [];
 	for (const entry of entries) {
 		const scriptId = String(entry.scriptId ?? '');
 		const parsedUrl = scriptUrls.get(scriptId);
+		if (excludedJavaScriptScriptIds?.has(scriptId)) {
+			if (typeof parsedUrl !== 'string' || parsedUrl === '') {
+				throw new Error(`CDP coverage lost the authenticated browser-internal script URL for ${scriptId}.`);
+			}
+			if (entry.url !== '' && entry.url !== undefined && entry.url !== parsedUrl) {
+				throw new Error(`CDP coverage carried a different browser-internal script URL ${String(entry.url)}.`);
+			}
+			continue;
+		}
 		const candidate = typeof parsedUrl === 'string' && parsedUrl !== entry.url
 			? { ...entry, url: parsedUrl }
 			: entry;

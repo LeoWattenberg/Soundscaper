@@ -139,7 +139,6 @@ export function createPackagedRuntimeCoverageCollector(options) {
 		try {
 			if (/^[a-z][a-z\d+.-]*:/iu.test(url) && !/^[A-Za-z]:[\\/]/u.test(url)) {
 				const parsed = new URL(url);
-				if (parsed.protocol === 'chrome-extension:' || parsed.protocol === 'devtools:') return false;
 				if (!['file:', 'http:', 'https:'].includes(parsed.protocol)) return true;
 			}
 			const path = decodeURIComponent(url.startsWith('file:') ? new URL(url).pathname : url)

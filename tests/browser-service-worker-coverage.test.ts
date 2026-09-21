@@ -110,6 +110,77 @@ test('dynamic target sources are captured by exact URL and conflicting bytes fai
 	await assert.rejects(collector.collect(), /conflicting source bytes/u);
 });
 
+test('a detached target may close before its pending source reply', async () => {
+	const root = new FakeRootSession();
+	const child = new FakeTargetSession();
+	let rejectSource!: (error: Error) => void;
+	child.scriptSourceReply = new Promise((_resolve, reject) => { rejectSource = reject; });
+	const collector = createBrowserServiceWorkerCoverageCollector({
+		openTargetSession: () => child,
+		rootSession: root,
+	});
+	await collector.start();
+	root.emit('Target.attachedToTarget', {
+		sessionId: 'detaching-service-worker',
+		targetInfo: { type: 'service_worker', url: 'http://127.0.0.1:4322/transient.js' },
+		waitingForDebugger: false,
+	});
+	await collector.settle();
+	child.emit('Debugger.scriptParsed', {
+		scriptId: 'transient',
+		url: 'http://127.0.0.1:4322/transient.js',
+	});
+	root.emit('Target.detachedFromTarget', { sessionId: 'detaching-service-worker' });
+	rejectSource(new Error('Internal server error, session closed'));
+	const capture = await collector.collect();
+	assert.deepEqual(capture.entries, []);
+	assert.deepEqual([...capture.sources], []);
+});
+
+test('a live target cannot hide a source capture failure', async () => {
+	const root = new FakeRootSession();
+	const child = new FakeTargetSession();
+	child.scriptSourceReply = Promise.reject(new Error('live source capture failed'));
+	const collector = createBrowserServiceWorkerCoverageCollector({
+		openTargetSession: () => child,
+		rootSession: root,
+	});
+	await collector.start();
+	root.emit('Target.attachedToTarget', {
+		sessionId: 'live-service-worker',
+		targetInfo: { type: 'service_worker', url: 'http://127.0.0.1:4322/live.js' },
+		waitingForDebugger: false,
+	});
+	await collector.settle();
+	child.emit('Debugger.scriptParsed', { scriptId: 'live', url: 'http://127.0.0.1:4322/live.js' });
+	await assert.rejects(collector.collect(), /live source capture failed/u);
+});
+
+test('browser-owned worker scripts stay outside capture and final profiles', async () => {
+	const root = new FakeRootSession();
+	const child = new FakeTargetSession();
+	const collector = createBrowserServiceWorkerCoverageCollector({
+		openTargetSession: () => child,
+		rootSession: root,
+		targetTypes: ['worker'],
+	});
+	await collector.start();
+	root.emit('Target.attachedToTarget', {
+		sessionId: 'browser-worker',
+		targetInfo: { type: 'worker', url: 'chrome-error://chromewebdata/' },
+		waitingForDebugger: false,
+	});
+	await collector.settle();
+	child.emit('Debugger.scriptParsed', { scriptId: 'browser', url: 'chrome-error://chromewebdata/' });
+	child.emit('Profiler.preciseCoverageDeltaUpdate', {
+		result: [coverage('browser', 'chrome-error://chromewebdata/', 1)],
+	});
+	const capture = await collector.collect();
+	assert.deepEqual(capture.entries, []);
+	assert.deepEqual([...capture.sources], []);
+	assert.equal(child.calls.some(([method]) => method === 'Debugger.getScriptSource'), false);
+});
+
 test('worker capture excludes protocol-authenticated WebAssembly from JavaScript profiles', async () => {
 	const root = new FakeRootSession();
 	const child = new FakeTargetSession();
@@ -404,6 +475,7 @@ class FakeTargetSession extends EventEmitter {
 	finalCoverageResult: unknown[] = [];
 	onDebuggerDisabled: (() => void) | null = null;
 	onFinalCoverage: (() => void) | null = null;
+	scriptSourceReply: Promise<unknown> | null = null;
 
 	close(): void {
 		this.emit('close');
@@ -427,6 +499,7 @@ class FakeTargetSession extends EventEmitter {
 			return { result: { value: true } };
 		}
 		if (method === 'Debugger.getScriptSource') {
+			if (this.scriptSourceReply !== null) return this.scriptSourceReply;
 			const scriptId = String(parameters?.scriptId);
 			if (scriptId === '4' || scriptId === 'late-wasm') {
 				return { bytecode: 'AGFzbQEAAAA=', scriptSource: '' };

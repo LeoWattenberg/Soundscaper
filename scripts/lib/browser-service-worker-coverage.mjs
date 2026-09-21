@@ -6,7 +6,10 @@ import {
 	appendCdpJavaScriptCoverage,
 	attachCdpExecutionContextLifecycle,
 	createCdpJavaScriptCoverageState,
+	excludeCdpJavaScriptCoverage,
+	isBrowserInternalCdpScript,
 	observeCdpScript,
+	readCdpScriptSourceUntilTeardown,
 } from './cdp-javascript-coverage.mjs';
 
 const DEFAULT_TARGET_TYPES = Object.freeze(['service_worker']);
@@ -121,22 +124,22 @@ export function createBrowserServiceWorkerCoverageCollector({
 				pending.push(webAssembly.catch((error) => { failures.push(error); }));
 				return;
 			}
+			if (isBrowserInternalCdpScript(event)) {
+				excludeCdpJavaScriptCoverage(recorder.cdpState, scriptId);
+				return;
+			}
 			if (url === WORKLET_COVERAGE_CHECKPOINT_URL) recorder.coverageHookScriptIds.add(String(scriptId));
 			if (typeof url !== 'string' || !captureSource(url)) return;
-			const work = session.send('Debugger.getScriptSource', { scriptId })
-				.then(({ scriptSource }) => {
-					if (typeof scriptSource !== 'string') {
-						throw new Error(`Browser target supplied no source bytes for ${url}.`);
-					}
-					const previous = recorder.sources.get(url);
-					if (previous !== undefined && previous !== scriptSource) {
-						throw new Error(`Browser target supplied conflicting source bytes for ${url}.`);
-					}
-					recorder.sources.set(url, scriptSource);
-				})
-				.catch((error) => {
-					failures.push(error);
-				});
+			const work = readCdpScriptSourceUntilTeardown({
+				isActive: () => recorder.active, scriptId, session,
+			}).then((response) => {
+				if (response === null) return;
+				const { scriptSource } = response;
+				if (typeof scriptSource !== 'string') throw new Error(`Browser target supplied no source bytes for ${url}.`);
+				const previous = recorder.sources.get(url);
+				if (previous !== undefined && previous !== scriptSource) throw new Error(`Browser target supplied conflicting source bytes for ${url}.`);
+				recorder.sources.set(url, scriptSource);
+			}).catch((error) => { failures.push(error); });
 			pending.push(work);
 		});
 		session.on('Profiler.preciseCoverageDeltaUpdate', ({ result }) => {

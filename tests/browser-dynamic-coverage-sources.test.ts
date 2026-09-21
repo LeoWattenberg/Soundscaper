@@ -4,10 +4,28 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import { browserCoverageProfile } from '../scripts/lib/browser-coverage-profile.mjs';
+import { isBrowserInternalCdpScript } from '../scripts/lib/cdp-javascript-coverage.mjs';
 import {
+	needsCapturedBrowserSource,
 	retainedBrowserDynamicCoverageScript,
 	validateBrowserSourceCache,
 } from '../scripts/lib/browser-dynamic-coverage-sources.mjs';
+
+test('only parser-authenticated browser-internal scripts bypass dynamic capture', () => {
+	const directories = new Map([['http://127.0.0.1:4322', '/build/soundscaper']]);
+	for (const url of [
+		'about:blank',
+		'chrome://resources/js/load_time_data.js',
+		'chrome-error://chromewebdata/',
+		'devtools://devtools/bundled/devtools_app.html',
+	]) {
+		assert.equal(isBrowserInternalCdpScript({ url }), true, url);
+		assert.equal(isBrowserInternalCdpScript({ hasSourceURL: true, url }), false, url);
+		assert.equal(needsCapturedBrowserSource(url, directories), true, url);
+	}
+	assert.equal(needsCapturedBrowserSource('soundscaper-unapproved://runtime.js', directories), true);
+	assert.equal(needsCapturedBrowserSource('blob:http://127.0.0.1:4322/worker', directories), true);
+});
 
 test('a Blob program keeps exact bytes for final build-evidence authentication', () => {
 	const url = 'blob:http://127.0.0.1:4322/vendor-worker';

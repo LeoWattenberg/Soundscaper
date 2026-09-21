@@ -101,6 +101,7 @@ test('packaged target permits script-ID reuse only after execution contexts clea
 	const session = rootSession(page);
 	const pending: Promise<unknown>[] = [];
 	const target = await startPackagedRuntimeTargetCoverage({
+		authenticateWebAssembly: undefined,
 		keepUrl: () => false,
 		page,
 		pending,
@@ -122,6 +123,26 @@ test('packaged target permits script-ID reuse only after execution contexts clea
 	});
 	await settlePending(pending);
 	await target.collect();
+});
+
+test('packaged targets exclude parser-owned internals but retain sourceURL lookalikes', async () => {
+	const root = script('root-js', 'soundscaper-app://bundle/');
+	const internal = script('browser-internal', 'chrome-extension://playwright/internal.js');
+	const spoof = { ...script('application-spoof', 'chrome-extension://playwright/spoof.js'), hasSourceURL: true };
+	const page = new WasmPage([root, internal, spoof]);
+	const pending: Promise<unknown>[] = [];
+	const target = await startPackagedRuntimeTargetCoverage({
+		authenticateWebAssembly: undefined,
+		keepUrl: () => true,
+		page,
+		pending,
+		rootSession: rootSession(page),
+	});
+	await settlePending(pending);
+	await target.checkpoint();
+	const capture = await target.collect();
+	assert.deepEqual(capture.entries.map(({ url }) => url), [root.url, spoof.url]);
+	assert.deepEqual([...capture.sources.keys()], [root.url, spoof.url]);
 });
 
 async function coverageFixture(context: { after(callback: () => Promise<void>): void }) {
@@ -174,7 +195,12 @@ function fileRecord(bytes: Buffer) {
 	return { byteLength: bytes.byteLength, sha256: createHash('sha256').update(bytes).digest('hex') };
 }
 
-interface ParsedScript { readonly bytes?: Buffer; readonly scriptId: string; readonly url: string }
+interface ParsedScript {
+	readonly bytes?: Buffer;
+	readonly hasSourceURL?: boolean;
+	readonly scriptId: string;
+	readonly url: string;
+}
 
 function script(scriptId: string, url: string): ParsedScript { return { scriptId, url }; }
 function wasm(scriptId: string, url: string, bytes: Buffer): ParsedScript { return { bytes, scriptId, url }; }
@@ -310,6 +336,7 @@ function emitChildParsed(emitter: EventEmitter, scripts: readonly ParsedScript[]
 
 function parsedEvent(entry: ParsedScript) {
 	return { scriptId: entry.scriptId, url: entry.url,
+		...(entry.hasSourceURL === true ? { hasSourceURL: true } : {}),
 		...(entry.bytes === undefined ? {} : { scriptLanguage: 'WebAssembly' }) };
 }
 

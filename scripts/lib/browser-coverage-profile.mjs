@@ -15,7 +15,10 @@ import { createBrowserWebAssemblyAuthenticator } from './browser-webassembly-cov
 import {
 	attachCdpExecutionContextLifecycle, bankRejectedCdpCoverageWork,
 	createCdpJavaScriptCoverageState,
+	excludeCdpJavaScriptCoverage,
+	isBrowserInternalCdpScript,
 	observeCdpScript,
+	readCdpScriptSourceUntilTeardown,
 	takeCdpJavaScriptCoverage,
 } from './cdp-javascript-coverage.mjs';
 import {
@@ -286,9 +289,16 @@ export function createBrowserCoverageCollector({
 				pending.push(webAssembly);
 				return;
 			}
+			if (isBrowserInternalCdpScript(event)) {
+				excludeCdpJavaScriptCoverage(recorder.cdpState, scriptId);
+				return;
+			}
 			if (!needsCapturedBrowserSource(url, directoriesByOrigin)) return;
-			const work = session.send('Debugger.getScriptSource', { scriptId })
-				.then(({ scriptSource }) => retainCapturedBrowserSource(recorder.sources, url, scriptSource));
+			const work = readCdpScriptSourceUntilTeardown({
+				isActive: () => !page.isClosed(), scriptId, session,
+			}).then((response) => {
+				if (response !== null) retainCapturedBrowserSource(recorder.sources, url, response.scriptSource);
+			});
 			pending.push(work);
 		});
 		// Counted block coverage preserves the parent/child execution relation that

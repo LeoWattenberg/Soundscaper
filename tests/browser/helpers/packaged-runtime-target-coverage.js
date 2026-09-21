@@ -10,8 +10,11 @@ import {
 	attachCdpExecutionContextLifecycle,
 	bankRejectedCdpCoverageWork,
 	createCdpJavaScriptCoverageState,
+	excludeCdpJavaScriptCoverage,
+	isBrowserInternalCdpScript,
 	javaScriptCoverageEntries,
 	observeCdpScript,
+	readCdpScriptSourceUntilTeardown,
 } from '../../../scripts/lib/cdp-javascript-coverage.mjs';
 import {
 	installNavigationCoverageCheckpoints,
@@ -89,21 +92,30 @@ export async function startPackagedRuntimeTargetCoverage({
 				pending.push(webAssembly);
 				return;
 			}
+			if (isBrowserInternalCdpScript(event)) {
+				excludeCdpJavaScriptCoverage(recorder.cdpState, scriptId);
+				return;
+			}
 			if (url === WORKLET_COVERAGE_CHECKPOINT_URL) {
 				recorder.coverageHookScriptIds.add(String(scriptId));
 			}
 			if (!keepUrl(url)) return;
-			pending.push(session.send('Debugger.getScriptSource', { scriptId })
-				.then(({ scriptSource }) => {
-					if (typeof scriptSource !== 'string') {
-						throw new Error(`Packaged coverage captured no source bytes for ${url}.`);
-					}
-					const previous = recorder.sources.get(url);
-					if (previous !== undefined && previous !== scriptSource) {
-						throw new Error(`Packaged coverage captured conflicting source bytes for ${url}.`);
-					}
-					recorder.sources.set(url, scriptSource);
-				}));
+			pending.push(readCdpScriptSourceUntilTeardown({
+				isActive: () => recorder.active && recorder.page?.isClosed?.() !== true,
+				scriptId,
+				session,
+			}).then((response) => {
+				if (response === null) return;
+				const { scriptSource } = response;
+				if (typeof scriptSource !== 'string') {
+					throw new Error(`Packaged coverage captured no source bytes for ${url}.`);
+				}
+				const previous = recorder.sources.get(url);
+				if (previous !== undefined && previous !== scriptSource) {
+					throw new Error(`Packaged coverage captured conflicting source bytes for ${url}.`);
+				}
+				recorder.sources.set(url, scriptSource);
+			}));
 		});
 		session.on('Profiler.preciseCoverageDeltaUpdate', ({ result }) => {
 			if (Array.isArray(result)) {
@@ -111,6 +123,7 @@ export async function startPackagedRuntimeTargetCoverage({
 					result,
 					recorder.cdpState.scriptUrls,
 					recorder.cdpState.webAssemblyScriptUrls,
+					recorder.cdpState.excludedJavaScriptScriptIds,
 				));
 			}
 		});
@@ -128,6 +141,7 @@ export async function startPackagedRuntimeTargetCoverage({
 						result,
 						recorder.cdpState.scriptUrls,
 						recorder.cdpState.webAssemblyScriptUrls,
+						recorder.cdpState.excludedJavaScriptScriptIds,
 					));
 				} catch (error) {
 					if (recorder.active) throw error;
@@ -213,6 +227,7 @@ export async function startPackagedRuntimeTargetCoverage({
 							result,
 							recorder.cdpState.scriptUrls,
 							recorder.cdpState.webAssemblyScriptUrls,
+							recorder.cdpState.excludedJavaScriptScriptIds,
 						));
 						await recorder.navigationCheckpoints?.dispose();
 						await recorder.session.send('Profiler.stopPreciseCoverage');
