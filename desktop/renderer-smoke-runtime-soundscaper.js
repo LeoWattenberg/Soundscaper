@@ -11,6 +11,10 @@ import {
 import { runScapeOpenRendererSmoke } from './scape-open-renderer-smoke.js';
 import { runScapeReopenRendererSmoke } from './scape-reopen-renderer-smoke.js';
 import {
+	runDesktopRendererSmokeOperation,
+	runDesktopRendererSmokeOperationEnvelope,
+} from './renderer-smoke-runtime.js';
+import {
 	runDesktopVideoTimingProbeRendererSmoke,
 } from './video-timing-probe-renderer-smoke.js';
 
@@ -26,24 +30,10 @@ const OPERATIONS = Object.freeze({
 
 /** Execute only named, statically bundled Soundscaper renderer smoke code. */
 export function runDesktopRendererSmoke(scope, request) {
-	if (!request || typeof request !== 'object' || Array.isArray(request)
-		|| JSON.stringify(Object.keys(request).sort()) !== '["arguments","operation"]'
-		|| !Array.isArray(request.arguments)) {
-		throw new TypeError('Desktop renderer smoke request is invalid.');
-	}
-	const operation = OPERATIONS[request.operation];
-	if (typeof operation !== 'function') {
-		throw new TypeError('Desktop renderer smoke operation is unsupported.');
-	}
-	return operation(scope, ...request.arguments);
+	return runDesktopRendererSmokeOperation(scope, request, OPERATIONS);
 }
 
 /** Keep error normalization in inventoried renderer code, not the launcher. */
-export async function runDesktopRendererSmokeEnvelope(scope, request) {
-	try {
-		return { status: 'fulfilled', value: await runDesktopRendererSmoke(scope, request) };
-	} catch (error) {
-		const message = typeof error?.message === 'string' ? error.message : String(error);
-		return { status: 'rejected', message: message.slice(0, 2_048) };
-	}
+export function runDesktopRendererSmokeEnvelope(scope, request) {
+	return runDesktopRendererSmokeOperationEnvelope(scope, request, OPERATIONS);
 }

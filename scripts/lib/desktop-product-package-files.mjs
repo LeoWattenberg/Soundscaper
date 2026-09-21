@@ -53,6 +53,7 @@ const DESKTOP_RENDERER_ONLY_SOURCE_FILES = new Set([
 	'framescaper-web-vcr-renderer-runner.js',
 	'project-library-lease-renderer-smoke.js',
 	'renderer-smoke-runtime-framescaper.js',
+	'renderer-smoke-runtime.js',
 	'renderer-smoke-runtime-soundscaper.js',
 	'scape-open-renderer-smoke.js',
 	'scape-reopen-renderer-smoke.js',
