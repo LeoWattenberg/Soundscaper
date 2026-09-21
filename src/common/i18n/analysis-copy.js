@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-/** Copy for the Analyze menu: the spectrum plot, clipping and contrast reports, and the label-producing finders. */
+/** Copy for the Analyze menu: the spectrum plot, clipping and contrast reports, and beat finding. */
 export const ANALYSIS_COPY_BY_LOCALE = Object.freeze({
 	de: Object.freeze({
 			analysis: 'Analyse',
@@ -21,8 +21,6 @@ export const ANALYSIS_COPY_BY_LOCALE = Object.freeze({
 			contrastPass: 'Der Kontrast erfüllt die 20-dB-Empfehlung.',
 			contrastFail: 'Der Kontrast liegt unter der 20-dB-Empfehlung.',
 			beatFinder: 'Beat-Finder',
-			silenceFinder: 'Stille-Finder',
-			soundFinder: 'Klang-Finder',
 			analyzeTrack: 'Spur analysieren',
 			analyzeMaster: 'Master analysieren',
 	}),
@@ -45,8 +43,6 @@ export const ANALYSIS_COPY_BY_LOCALE = Object.freeze({
 			contrastPass: 'Contrast meets the recommended 20 dB difference.',
 			contrastFail: 'Contrast is below the recommended 20 dB difference.',
 			beatFinder: 'Beat finder',
-			silenceFinder: 'Silence finder',
-			soundFinder: 'Sound finder',
 			analyzeTrack: 'Analyze track',
 			analyzeMaster: 'Analyze master',
 	}),

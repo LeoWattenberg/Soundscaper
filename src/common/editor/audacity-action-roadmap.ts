@@ -73,8 +73,6 @@ const plannedActionMilestones: Readonly<Record<string, string>> = Object.freeze(
 	'local://unmute-all': '3',
 	'local://repeat-generator': '3',
 	'local://repeat-analyzer': '3',
-	'local://silence-finder': '7',
-	'local://sound-finder': '7',
 	'regular-interval-labels': '3',
 	'device-info': '5',
 	'action://playback/change-api': '5',

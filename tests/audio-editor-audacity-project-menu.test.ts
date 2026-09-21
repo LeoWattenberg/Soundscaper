@@ -128,3 +128,14 @@ test('populated compatibility reports add no permanent menu or command search en
 		}
 	}
 });
+
+test('obsolete Audacity finder placeholders are absent from the Analyze menu', () => {
+	const input = menuInput();
+	const menus = createApplicationMenus({
+		...input,
+		capabilities: { ...input.capabilities, audioAnalysis: true },
+	});
+	for (const id of ['local://silence-finder', 'local://sound-finder']) {
+		assert.equal(findMenuItem(menus, id), undefined, id);
+	}
+});
