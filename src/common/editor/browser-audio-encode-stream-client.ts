@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 import type { DedicatedAudioEncodeSessionRequest } from './dedicated-audio-encode-session.ts';
+import { WorkerRequestBroker } from './worker-request-broker.ts';
 
 export type AudioEncodeStreamRequest = Readonly<{ id: number; operation: 'open'; request: DedicatedAudioEncodeSessionRequest }>
 	| Readonly<{ id: number; operation: 'write'; bytes: Uint8Array<ArrayBuffer>; frames: number }>
@@ -26,22 +27,43 @@ export async function openBrowserAudioEncodeStreamSession(
 	const signal = options.signal;
 	if (signal?.aborted) throw signal.reason ?? abortError();
 	const port = (options.createWorker ?? defaultWorker)();
+	const requests = new WorkerRequestBroker();
 	let nextId = 1;
 	let closed = false;
 	let busy = false;
-	let pending: Readonly<{ id: number; resolve: (value: Extract<AudioEncodeStreamResponse, { status: 'ok' }>) => void; reject: (reason: unknown) => void }> | null = null;
+	let pendingId: string | null = null;
 	const onAbort = (): void => close(signal?.reason ?? abortError());
 	signal?.addEventListener('abort', onAbort, { once: true });
 	port.addEventListener('message', ({ data }) => {
-		if (!pending || data?.id !== pending.id) return;
+		if (closed || pendingId === null) return;
+		if (!isRecord(data) || typeof data.id !== 'number' || !Number.isSafeInteger(data.id)) {
+			close(new Error('The incremental encoder returned malformed output.'));
+			return;
+		}
+		const id = String(data.id);
+		if (id !== pendingId) {
+			close(new Error('The incremental encoder returned an unexpected response id.'));
+			return;
+		}
 		if (data.status === 'ok' && data.bytes instanceof ArrayBuffer && data.bytes.byteLength <= 1024 ** 2
 			&& (data.prefixPatch === undefined || data.prefixPatch instanceof ArrayBuffer && data.prefixPatch.byteLength <= 1024 ** 2)) {
-			pending.resolve(data);
-		} else pending.reject(new Error(data.status === 'error' ? data.message : 'The incremental encoder returned malformed output.'));
-		pending = null;
+			pendingId = null;
+			requests.resolve(id, data);
+			return;
+		}
+		if (data.status === 'error' && typeof data.message === 'string') {
+			close(new Error(data.message));
+			return;
+		}
+		close(new Error('The incremental encoder returned malformed output.'));
 	});
 	const fail = (): void => close(new Error('The incremental audio encoder worker failed.'));
 	port.addEventListener('error', fail); port.addEventListener('messageerror', fail);
+	if (signal?.aborted) {
+		const reason = signal.reason instanceof Error ? signal.reason : abortError();
+		close(reason);
+		throw reason;
+	}
 	try { await execute({ id: nextId++, operation: 'open', request }, []); }
 	catch (error) { close(error); throw error; }
 	return Object.freeze({
@@ -63,17 +85,30 @@ export async function openBrowserAudioEncodeStreamSession(
 		if (signal?.aborted) throw signal.reason ?? abortError();
 		busy = true;
 		try {
-			return await new Promise<Extract<AudioEncodeStreamResponse, { status: 'ok' }>>((resolve, reject) => {
-				pending = { id: message.id, resolve, reject };
-				try { port.postMessage(message, transfer); } catch (error) { pending = null; reject(error); }
-			});
-		} finally { busy = false; }
+			const id = String(message.id);
+			pendingId = id;
+			try {
+				return await requests.request<Extract<AudioEncodeStreamResponse, { status: 'ok' }>>({
+					id,
+					armOnRequest: false,
+					post: () => port.postMessage(message, transfer),
+				});
+			} catch (error) {
+				close(error);
+				throw error;
+			}
+		} finally {
+			pendingId = null;
+			busy = false;
+		}
 	}
 	function close(reason: unknown): void {
 		if (closed) return;
 		closed = true;
 		signal?.removeEventListener('abort', onAbort);
-		port.terminate(); pending?.reject(reason); pending = null;
+		pendingId = null;
+		requests.dispose(errorFrom(reason));
+		try { port.terminate(); } catch { /* The initiating failure remains primary. */ }
 	}
 }
 
@@ -83,3 +118,11 @@ function defaultWorker(): AudioEncodeStreamWorkerPort {
 	}) as unknown as AudioEncodeStreamWorkerPort;
 }
 function abortError(): Error { return new DOMException('The incremental audio export was cancelled.', 'AbortError'); }
+
+function errorFrom(reason: unknown): Error {
+	return reason instanceof Error ? reason : new Error(String(reason));
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+	return Boolean(value) && typeof value === 'object';
+}

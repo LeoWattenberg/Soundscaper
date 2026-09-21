@@ -5,6 +5,7 @@ import type {
 	DedicatedAudioDecodeResult,
 	DedicatedAudioEncodeRequest,
 } from './browser-dedicated-audio-codec.ts';
+import { WorkerRequestBroker } from './worker-request-broker.ts';
 
 type WorkerRequest = Readonly<{
 	readonly id: number; readonly operation: 'encode'; readonly request: DedicatedAudioEncodeRequest;
@@ -50,36 +51,39 @@ export interface BrowserDedicatedAudioWorkerClientOptions {
 	readonly createWorker?: () => WorkerPort;
 }
 
-interface PendingOperation {
-	readonly resolve: (response: Extract<WorkerResponse, { readonly status: 'ok' }>) => void;
-	readonly reject: (reason: unknown) => void;
+type Operation = Readonly<{
+	readonly operation: 'encode'; readonly request: DedicatedAudioEncodeRequest;
+}> | Readonly<{
+	readonly operation: 'decode'; readonly request: DedicatedAudioDecodeRequest;
+}>;
+
+interface QueuedOperation {
+	readonly id: number;
+	readonly key: string;
+	readonly operation: Operation;
 }
 
 export function createBrowserDedicatedAudioCodecClient(
 	options: BrowserDedicatedAudioWorkerClientOptions = {},
 ): BrowserDedicatedAudioWorkerClient {
 	const createWorker = options.createWorker ?? defaultWorker;
-	const pending = new Map<number, PendingOperation>();
+	const requests = new WorkerRequestBroker();
+	const queued: QueuedOperation[] = [];
 	let worker: WorkerPort | null = null;
-	let queue = Promise.resolve();
+	let active: QueuedOperation | null = null;
 	let nextId = 1;
 	let disposed = false;
+	let pumping = false;
 
 	return Object.freeze({
 		encode(request: DedicatedAudioEncodeRequest, encodeOptions: Readonly<{ signal?: AbortSignal }> = {}) {
-			const run = () => execute({ operation: 'encode', request }, encodeOptions.signal);
-			const result = queue.then(run, run);
-			queue = result.then(() => undefined, () => undefined);
-			return result.then((response) => {
+			return enqueue({ operation: 'encode', request }, encodeOptions.signal).then((response) => {
 				if (response.operation !== 'encode') throw new Error('The dedicated audio worker confused encode and decode.');
 				return new Uint8Array(response.bytes);
 			});
 		},
 		decode(request: DedicatedAudioDecodeRequest, decodeOptions: Readonly<{ signal?: AbortSignal }> = {}) {
-			const run = () => execute({ operation: 'decode', request }, decodeOptions.signal);
-			const result = queue.then(run, run);
-			queue = result.then(() => undefined, () => undefined);
-			return result.then((response) => {
+			return enqueue({ operation: 'decode', request }, decodeOptions.signal).then((response) => {
 				if (response.operation !== 'decode') throw new Error('The dedicated audio worker confused decode and encode.');
 				return Object.freeze({
 					interleaved: new Uint8Array(response.bytes),
@@ -92,85 +96,156 @@ export function createBrowserDedicatedAudioCodecClient(
 		dispose() {
 			if (disposed) return;
 			disposed = true;
-			terminate(new Error('The dedicated browser audio worker was disposed.'));
+			queued.length = 0;
+			active = null;
+			const port = worker;
+			worker = null;
+			terminatePort(port);
+			requests.dispose(disposedError());
 		},
 	});
 
-	function execute(
-		operation: Readonly<{
-			readonly operation: 'encode'; readonly request: DedicatedAudioEncodeRequest;
-		}> | Readonly<{
-			readonly operation: 'decode'; readonly request: DedicatedAudioDecodeRequest;
-		}>,
+	function enqueue(
+		operation: Operation,
 		signal?: AbortSignal,
 	): Promise<Extract<WorkerResponse, { readonly status: 'ok' }>> {
-		if (disposed) return Promise.reject(new Error('The dedicated browser audio worker was disposed.'));
-		if (signal?.aborted) return Promise.reject(signal.reason ?? abortError());
-		const port = worker ??= createPort();
+		if (disposed) return Promise.reject(disposedError());
 		const id = nextId++;
-		const input = Uint8Array.from(operation.request.input);
-		const transferred = Object.freeze({ ...operation.request, input });
-		return new Promise<Extract<WorkerResponse, { readonly status: 'ok' }>>((resolve, reject) => {
-			const onAbort = (): void => terminate(signal?.reason ?? abortError(), port);
-			pending.set(id, {
-				resolve(response) {
-					signal?.removeEventListener('abort', onAbort);
-					resolve(response);
-				},
-				reject(reason) {
-					signal?.removeEventListener('abort', onAbort);
-					reject(reason);
-				},
-			});
-			signal?.addEventListener('abort', onAbort, { once: true });
-			try {
-				port.postMessage({ id, operation: operation.operation, request: transferred } as WorkerRequest, [input.buffer]);
-			} catch (error) {
-				pending.delete(id);
-				signal?.removeEventListener('abort', onAbort);
-				reject(error);
-			}
+		const item: QueuedOperation = { id, key: String(id), operation };
+		const result = requests.request<Extract<WorkerResponse, { readonly status: 'ok' }>, QueuedOperation>({
+			id: item.key,
+			context: item,
+			signal,
+			armOnRequest: false,
+			abortError: () => signal?.reason instanceof Error ? signal.reason : abortError(),
+			onAbort: () => cancel(item),
 		});
+		if (requests.has(item.key)) {
+			queued.push(item);
+			pump();
+		}
+		return result;
+	}
+
+	function pump(): void {
+		if (pumping || disposed || active) return;
+		pumping = true;
+		try {
+			while (!disposed && !active) {
+				const item = queued.shift();
+				if (!item) break;
+				if (!requests.has(item.key)) continue;
+				active = item;
+				let port: WorkerPort | null = null;
+				try {
+					port = acquirePort(item);
+					if (!port) continue;
+					const input = Uint8Array.from(item.operation.request.input);
+					const transferred = Object.freeze({ ...item.operation.request, input });
+					port.postMessage({
+						id: item.id,
+						operation: item.operation.operation,
+						request: transferred,
+					} as WorkerRequest, [input.buffer]);
+				} catch (error) {
+					if (active === item) {
+						active = null;
+						requests.reject(item.key, error);
+					}
+				}
+				if (active === item && requests.has(item.key)) break;
+			}
+		} finally {
+			pumping = false;
+		}
+		if (!active && queued.length && !disposed) pump();
+	}
+
+	function acquirePort(item: QueuedOperation): WorkerPort | null {
+		if (worker) return worker;
+		const candidate = createPort();
+		if (disposed || active !== item || !requests.has(item.key)) {
+			terminatePort(candidate);
+			return null;
+		}
+		worker = candidate;
+		return candidate;
 	}
 
 	function createPort(): WorkerPort {
-		const port = createWorker();
+		const port: WorkerPort = createWorker();
 		if (!port || typeof port.postMessage !== 'function' || typeof port.terminate !== 'function'
 			|| typeof port.addEventListener !== 'function') {
 			throw new TypeError('The dedicated audio worker factory returned an invalid port.');
 		}
 		port.addEventListener('message', ({ data }) => {
-			if (!data || typeof data !== 'object' || !Number.isSafeInteger(data.id)) {
-				terminate(new Error('The dedicated audio worker returned a malformed response.'), port);
+			if (port !== worker) return;
+			if (!isRecord(data) || typeof data.id !== 'number' || !Number.isSafeInteger(data.id)) {
+				failPort(new Error('The dedicated audio worker returned a malformed response.'), port);
 				return;
 			}
-			const operation = pending.get(data.id);
-			if (!operation) return;
-			pending.delete(data.id);
-			if (data.status === 'ok' && data.bytes instanceof ArrayBuffer) {
-				operation.resolve(data);
+			const item = active;
+			if (!item || data.id !== item.id) {
+				failPort(new Error('The dedicated audio worker returned an unexpected response id.'), port);
 				return;
 			}
-			if (data.status === 'error') {
-				operation.reject(workerError(data));
+			if (data.status === 'ok' && data.bytes instanceof ArrayBuffer
+				&& (data.operation === 'encode' || data.operation === 'decode')) {
+				settle(item, data as Extract<WorkerResponse, { readonly status: 'ok' }>);
 				return;
 			}
-			operation.reject(new Error('The dedicated audio worker returned an invalid result.'));
+			if (data.status === 'error' && typeof data.name === 'string' && typeof data.message === 'string'
+				&& (data.code === undefined || typeof data.code === 'string')) {
+				settle(item, workerError(data as Extract<WorkerResponse, { readonly status: 'error' }>));
+				return;
+			}
+			failPort(new Error('The dedicated audio worker returned an invalid result.'), port);
 		});
-		const fail = (): void => terminate(new Error('The dedicated audio worker failed.'), port);
+		const fail = (): void => failPort(new Error('The dedicated audio worker failed.'), port);
 		port.addEventListener('error', fail);
 		port.addEventListener('messageerror', fail);
 		return port;
 	}
 
-	function terminate(reason: unknown, expectedPort?: WorkerPort): void {
-		const port = worker;
-		if (expectedPort !== undefined && port !== expectedPort) return;
-		worker = null;
-		try { port?.terminate(); } catch { /* The original failure remains primary. */ }
-		for (const operation of pending.values()) operation.reject(reason);
-		pending.clear();
+	function settle(
+		item: QueuedOperation,
+		result: Extract<WorkerResponse, { readonly status: 'ok' }> | Error,
+	): void {
+		if (active !== item) return;
+		active = null;
+		if (result instanceof Error) requests.reject(item.key, result);
+		else requests.resolve(item.key, result);
+		pump();
 	}
+
+	function cancel(item: QueuedOperation): void {
+		const index = queued.indexOf(item);
+		if (index >= 0) queued.splice(index, 1);
+		if (active !== item) return;
+		active = null;
+		const port = worker;
+		worker = null;
+		terminatePort(port);
+		pump();
+	}
+
+	function failPort(reason: Error, port: WorkerPort): void {
+		if (port !== worker) return;
+		worker = null;
+		terminatePort(port);
+		const item = active;
+		active = null;
+		if (item) requests.reject(item.key, reason);
+		pump();
+	}
+}
+
+function terminatePort(port: WorkerPort | null): void {
+	try { port?.terminate(); } catch { /* The original failure remains primary. */ }
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+	return Boolean(value) && typeof value === 'object';
 }
 
 function defaultWorker(): WorkerPort {
@@ -191,4 +266,8 @@ function abortError(): Error {
 	return typeof DOMException === 'function'
 		? new DOMException('The dedicated browser audio operation was aborted.', 'AbortError')
 		: Object.assign(new Error('The dedicated browser audio operation was aborted.'), { name: 'AbortError' });
+}
+
+function disposedError(): Error {
+	return new Error('The dedicated browser audio worker was disposed.');
 }
