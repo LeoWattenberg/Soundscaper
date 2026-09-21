@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
@@ -45,4 +46,19 @@ test('the timeline ruler represents an empty loop range as absent', () => {
 		return null;
 	}
 	renderToStaticMarkup(<ThemeProvider><Probe /></ThemeProvider>);
+});
+
+test('mapped timeline rulers share one canvas and loop-hit implementation', async () => {
+	const [shared, musical, timecode] = await Promise.all([
+		readFile(new URL('../src/common/editor/ui/timeline/MappedTimelineRulerCanvas.jsx', import.meta.url), 'utf8'),
+		readFile(new URL('../src/common/editor/ui/timeline/MusicalTimelineRuler.jsx', import.meta.url), 'utf8'),
+		readFile(new URL('../src/common/editor/ui/timeline/SequenceTimecodeRuler.jsx', import.meta.url), 'utf8'),
+	]);
+	assert.match(shared, /getContext\('2d'\)/u);
+	assert.match(shared, /onLoopRegionEnabledToggle/u);
+	for (const wrapper of [musical, timecode]) {
+		assert.match(wrapper, /MappedTimelineRulerCanvas/u);
+		assert.doesNotMatch(wrapper, /getContext\('2d'\)/u);
+		assert.doesNotMatch(wrapper, /onClick=/u);
+	}
 });
