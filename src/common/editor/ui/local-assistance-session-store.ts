@@ -3,22 +3,15 @@
 /** Explicit renderer session for one local-assistance job and its staged custody. */
 
 import type { AssistanceOperation } from '../assistance/operation.ts';
-import { normalizeLocalAssistanceShotDetectionMode,
-	type LocalAssistanceShotDetectionMode } from '../assistance/shot-detection-mode.ts';
+import type { LocalAssistanceShotDetectionMode } from '../assistance/shot-detection-mode.ts';
 import {
 	LOCAL_ASSISTANCE_PROGRESS_PHASES,
-	type LocalAssistanceModel,
 	type LocalAssistanceUnavailableReason,
 } from '../assistance/local-assistance-bridge.ts';
 import {
 	assertLocalAssistanceShotDetectionReviewMode,
-	localAssistanceModelCompatible,
-	localAssistanceOperationModelsAvailable,
-	localAssistanceReplaceSelectedModel,
 	localAssistanceSelectedModels,
 	normalizeLocalAssistancePreparedMedia,
-	normalizeLocalAssistanceSelectedMediaInventory,
-	type LocalAssistanceSelectedMediaSource,
 	type LocalAssistanceValidatedResultAcceptanceRequest,
 } from '../assistance/local-assistance-preparation.ts';
 import {
@@ -43,15 +36,24 @@ import type {
 	LocalAssistanceValidatedResult,
 	StoreOptions,
 } from './local-assistance-session-types.ts';
+import {
+	createLocalAssistanceListenerAuthority,
+	EMPTY_LOCAL_ASSISTANCE_MODEL_IDS as EMPTY_MODEL_IDS,
+	EMPTY_LOCAL_ASSISTANCE_MODELS as EMPTY_MODELS,
+	EMPTY_LOCAL_ASSISTANCE_SOURCES as EMPTY_SOURCES,
+	loadLocalAssistanceSelectionInventory,
+	localAssistanceConsentChange,
+	selectLocalAssistanceModel,
+	selectLocalAssistanceOperation,
+	selectLocalAssistanceShotDetectionMode,
+	selectLocalAssistanceSource,
+} from './local-assistance-selection-state.ts';
 
-const EMPTY_SOURCES = Object.freeze([]) as readonly LocalAssistanceSelectedMediaSource[];
-const EMPTY_MODELS = Object.freeze([]) as readonly LocalAssistanceModel[];
-const EMPTY_MODEL_IDS = Object.freeze([]) as readonly string[];
 const EMPTY_PROPOSALS = Object.freeze([]);
 export function createLocalAssistanceSessionStore(
 	options: StoreOptions,
 ): LocalAssistanceSessionStore {
-	const listeners = new Set<() => void>();
+	const listeners = createLocalAssistanceListenerAuthority();
 	let pendingAcceptance: LocalAssistanceValidatedResultAcceptanceRequest | null = null;
 	let reviewedVoiceActivity: LocalAssistanceTranscriptCleanupVoiceActivity | null = null;
 	let cleanupEpoch = 0;
@@ -71,13 +73,12 @@ export function createLocalAssistanceSessionStore(
 	let running: Promise<void> | null = null;
 	let disposed = false;
 
-	const emit = () => listeners.forEach((listener) => listener());
 	const update = (change: Partial<LocalAssistanceSnapshot>) => {
 		snapshot = freezeSnapshot({ ...snapshot, ...change }, pendingAcceptance !== null
 			&& typeof options.preparation?.acceptValidatedResult === 'function',
 		pendingAcceptance !== null && localAssistanceTranscriptCleanupPortAvailable(options.preparation)
 			&& localAssistanceTranscriptCleanupEligible(pendingAcceptance));
-		emit();
+		listeners.emit();
 	};
 	const connect = () => {
 		if (!progressDisconnect && options.bridge) {
@@ -122,17 +123,12 @@ export function createLocalAssistanceSessionStore(
 		}
 		update({ phase: 'loading', unavailableReason: null, error: null, result: null, cleanup: null });
 		try {
-			const [inventoryValue, modelValues] = await Promise.all([
-				options.preparation.listSelectedMedia(), options.bridge.models(),
-			]);
-			if (disposed) return;
-			const inventory = normalizeLocalAssistanceSelectedMediaInventory(inventoryValue);
-			update({ phase: inventory.sources.length ? 'ready' : 'selection-required',
-				sources: inventory.sources, models: modelValues,
-				selectedSourceId: null, selectedOperation: null, selectedModelIds: EMPTY_MODEL_IDS,
-				shotDetectionMode: 'fast', consent: false,
-				unavailableReason: inventory.sources.length ? null : 'selection-required',
-				error: null, progress: null, result: null, cleanup: null });
+			const change = await loadLocalAssistanceSelectionInventory({
+				listSelectedMedia: () => options.preparation!.listSelectedMedia(),
+				listModels: () => options.bridge!.models(),
+				isCurrent: () => !disposed,
+			});
+			if (change) update(change);
 		} catch {
 			if (!disposed) update({ phase: 'error', error: 'Local assistance could not load its selected-media inventory.',
 				unavailableReason: null });
@@ -140,63 +136,33 @@ export function createLocalAssistanceSessionStore(
 	};
 
 	const selectSource = (sourceId: string): void => {
-		if (!snapshot.sources.some((source) => source.sourceId === sourceId)) {
-			throw new TypeError('The selected local-assistance source is unavailable.');
-		}
+		const change = selectLocalAssistanceSource(snapshot, sourceId);
 		discardCleanupSession();
 		pendingAcceptance = null;
 		reviewedVoiceActivity = null;
-		update({ phase: 'ready', selectedSourceId: sourceId, selectedOperation: null,
-			shotDetectionMode: 'fast', selectedModelIds: EMPTY_MODEL_IDS,
-			consent: false, progress: null, result: null,
-			unavailableReason: null, error: null, cleanup: null });
+		update(change);
 	};
 	const selectOperation = (operation: AssistanceOperation): void => {
-		const source = selectedSource(snapshot);
-		if (!source?.operations.includes(operation)) {
-			throw new TypeError('The selected media does not admit that assistance operation.');
-		}
-		const modelsAvailable = localAssistanceOperationModelsAvailable(operation, snapshot.models,
-			operation === 'shot-detection' ? 'fast' : undefined);
+		const change = selectLocalAssistanceOperation(snapshot, operation);
 		discardCleanupSession();
 		pendingAcceptance = null;
-		update({ phase: modelsAvailable ? 'ready' : 'unavailable', selectedOperation: operation,
-			shotDetectionMode: 'fast', selectedModelIds: EMPTY_MODEL_IDS,
-			consent: false, progress: null, result: null,
-			unavailableReason: modelsAvailable ? null : 'no-compatible-model', error: null, cleanup: null });
+		update(change);
 	};
 	const selectShotDetectionMode = (value: LocalAssistanceShotDetectionMode): void => {
-		if (snapshot.selectedOperation !== 'shot-detection') throw new TypeError('Only Mark Cuts has a detection mode.');
-		const mode = normalizeLocalAssistanceShotDetectionMode(value);
-		if (mode === snapshot.shotDetectionMode) return;
-		const available = localAssistanceOperationModelsAvailable('shot-detection', snapshot.models, mode);
+		const change = selectLocalAssistanceShotDetectionMode(snapshot, value);
+		if (change.shotDetectionMode === snapshot.shotDetectionMode) return;
 		discardCleanupSession();
 		pendingAcceptance = null;
-		update({ phase: available ? 'ready' : 'unavailable', shotDetectionMode: mode,
-			selectedModelIds: EMPTY_MODEL_IDS, consent: false, progress: null, result: null,
-			unavailableReason: available ? null : 'no-compatible-model', error: null, cleanup: null });
+		update(change);
 	};
 	const selectModel = (modelId: string): void => {
-		const operation = snapshot.selectedOperation;
-		const model = snapshot.models.find((candidate) => candidate.modelId === modelId);
-		const mode = operation === 'shot-detection' ? snapshot.shotDetectionMode : undefined;
-		if (!operation || !model || !localAssistanceModelCompatible(operation, model, mode)) {
-			throw new TypeError('The selected local-assistance model is incompatible.');
-		}
-		const modelsAvailable = localAssistanceOperationModelsAvailable(operation, snapshot.models, mode);
+		const change = selectLocalAssistanceModel(snapshot, modelId);
 		discardCleanupSession();
 		pendingAcceptance = null;
-		update({ phase: modelsAvailable ? 'ready' : 'unavailable',
-			selectedModelIds: localAssistanceReplaceSelectedModel(
-				snapshot.selectedOperation!, snapshot.models, snapshot.selectedModelIds, model,
-				snapshot.selectedOperation === 'shot-detection' ? snapshot.shotDetectionMode : undefined,
-			),
-			consent: false, result: null, cleanup: null,
-			unavailableReason: modelsAvailable ? null : 'no-compatible-model', error: null });
+		update(change);
 	};
 	const setConsent = (consent: boolean): void => {
-		if (typeof consent !== 'boolean') throw new TypeError('Local-processing consent must be explicit.');
-		update({ consent });
+		update(localAssistanceConsentChange(consent));
 	};
 
 	const execute = async (): Promise<void> => {
@@ -479,7 +445,7 @@ export function createLocalAssistanceSessionStore(
 
 	return Object.freeze({
 		getSnapshot: () => snapshot,
-		subscribe(listener: () => void) { listeners.add(listener); return () => listeners.delete(listener); },
+		subscribe: listeners.subscribe,
 		connect, load, selectSource, selectOperation, selectShotDetectionMode,
 		selectModel, setConsent, run, cancel, accept,
 		prepareTranscriptCleanup, setTranscriptCleanupProposalSelected,
