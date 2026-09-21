@@ -24,6 +24,10 @@ import {
 	validateAssistanceWorkflowCustodyClaimV1,
 	type AssistanceWorkflowCustodyClaimV1,
 } from '../src/common/editor/assistance/workflow-custody-v1.ts';
+import {
+	assistanceWorkflowCustodyCorrelatesClaimV1,
+	sameAssistanceWorkflowClaimSequenceV1,
+} from '../src/common/editor/assistance/workflow-claim-correlation-v1.ts';
 import type { AssistanceVisualSearchTagV1 } from
 	'../src/common/editor/assistance/visual-search-records-v1.ts';
 import {
@@ -461,8 +465,12 @@ function validateExecution(stageId: StageId, execution: AssistanceWorkflowStageE
 			execution.inputs.map(({ claimId }) => claimId))
 		|| JSON.stringify(execution.custody.outputClaimIds) !== JSON.stringify(
 			execution.outputs.map(({ claimId }) => claimId))
-		|| !sameClaimSet(execution.inputs, request.inputs.filter((claim) => claim.stageId === stageId))
-		|| !sameClaimSet(execution.outputs, request.outputs.filter((claim) => claim.stageId === stageId))) {
+		|| !sameAssistanceWorkflowClaimSequenceV1(
+			execution.inputs, request.inputs.filter((claim) => claim.stageId === stageId),
+		)
+		|| !sameAssistanceWorkflowClaimSequenceV1(
+			execution.outputs, request.outputs.filter((claim) => claim.stageId === stageId),
+		)) {
 		throw new TypeError('The owned video/highlight stage binding is stale or uncorrelated.');
 	}
 	return request;
@@ -474,9 +482,11 @@ function assertCustodyCorrelation(
 	claim: AssistanceWorkflowInputClaimV1 | AssistanceWorkflowOutputClaimV1,
 	direction: 'input' | 'output',
 ): void {
-	if (token.direction !== direction || token.workflowId !== execution.request.workflowId
-		|| token.jobId !== execution.request.jobId || token.stageId !== execution.stage.stageId
-		|| token.slotId !== claim.slotId || token.claimId !== claim.claimId) {
+	if (!assistanceWorkflowCustodyCorrelatesClaimV1(token, {
+		workflowId: execution.request.workflowId,
+		jobId: execution.request.jobId,
+		stageId: execution.stage.stageId,
+	}, claim, direction)) {
 		throw new TypeError('Owned video/highlight custody does not correlate to its exact stage slot.');
 	}
 }
@@ -572,18 +582,6 @@ function input(slotId: string, kind: InputKind, optional = false): InputSpec {
 
 function outputMaximum(stageId: StageId): number {
 	return stageId === 'sample-shot-frames' ? ASSISTANCE_BINARY_MAXIMUM_BYTES : MAXIMUM_JSON_BYTES;
-}
-
-function sameClaimSet(
-	left: readonly (AssistanceWorkflowInputClaimV1 | AssistanceWorkflowOutputClaimV1)[],
-	right: readonly (AssistanceWorkflowInputClaimV1 | AssistanceWorkflowOutputClaimV1)[],
-): boolean {
-	return left.length === right.length && left.every((claim, index) => {
-		const expected = right[index];
-		return expected !== undefined && claim.claimId === expected.claimId
-			&& claim.direction === expected.direction && claim.jobId === expected.jobId
-			&& claim.stageId === expected.stageId && claim.slotId === expected.slotId;
-	});
 }
 
 function digestChunks(chunks: readonly Uint8Array[]): string {

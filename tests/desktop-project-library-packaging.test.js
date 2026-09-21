@@ -48,6 +48,9 @@ test('desktop runtime compilation emits importable JavaScript with rewritten ext
 	assert.ok(result.files.includes('src/common/editor/timeline-annotation.js'));
 	assert.ok(result.files.includes('desktop/assistance-float32-mono-wave-file-reader.js'));
 	assert.ok(result.files.includes('desktop/assistance-onnx-worker-common.js'));
+	assert.ok(result.files.includes(
+		'src/common/editor/assistance/workflow-claim-correlation-v1.js',
+	));
 	assert.equal(result.files.includes('src/common/editor/project-current.js'), false);
 	assert.equal(result.files.includes('src/common/editor/pffft.js'), true);
 	assert.equal(result.files.includes('src/common/editor/native-plugin-realtime-contract.js'), true);

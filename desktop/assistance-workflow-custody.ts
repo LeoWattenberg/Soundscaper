@@ -38,6 +38,8 @@ import {
 	type AssistanceWorkflowOutputClaimV1,
 	type AssistanceWorkflowV1,
 } from '../src/common/editor/assistance/workflow.ts';
+import { sameAssistanceWorkflowClaimIdentityV1 as sameClaim } from
+	'../src/common/editor/assistance/workflow-claim-correlation-v1.ts';
 
 export interface AssistanceWorkflowCustodyHandleV1 {
 	readonly custody: AssistanceWorkflowCustodyClaimV1;
@@ -539,12 +541,6 @@ function assertRepeatedInputOrder(
 			throw new TypeError('The workflow frame-pack claims disagree with staged custody order.');
 		}
 	}
-}
-
-function sameClaim(left: AssistanceWorkflowClaimV1, right: AssistanceWorkflowClaimV1): boolean {
-	return left.claimVersion === right.claimVersion && left.direction === right.direction
-		&& left.claimId === right.claimId && left.jobId === right.jobId
-		&& left.stageId === right.stageId && left.slotId === right.slotId;
 }
 
 function sameCustody(left: AssistanceWorkflowCustodyClaimV1, right: AssistanceWorkflowCustodyClaimV1): boolean {

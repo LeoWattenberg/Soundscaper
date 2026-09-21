@@ -25,6 +25,10 @@ import {
 import type { AssistanceWorkflowCustodyClaimV1 } from
 	'../src/common/editor/assistance/workflow-custody-v1.ts';
 import {
+	assistanceWorkflowCustodyCorrelatesClaimV1,
+	sameAssistanceWorkflowClaimSequenceV1,
+} from '../src/common/editor/assistance/workflow-claim-correlation-v1.ts';
+import {
 	validateAssistanceOutputClaim,
 	validateAssistanceStagedInputClaim,
 	type AssistanceOutputClaim,
@@ -275,8 +279,12 @@ function validateExecution(
 		|| execution.stage.stageId !== stageId || execution.stage.operation !== null
 		|| execution.stageIndex !== request.stageIds.indexOf(stageId)
 		|| execution.stageCount !== request.stageIds.length
-		|| !sameClaimSet(execution.inputs, request.inputs.filter((claim) => claim.stageId === stageId))
-		|| !sameClaimSet(execution.outputs, request.outputs.filter((claim) => claim.stageId === stageId))) {
+		|| !sameAssistanceWorkflowClaimSequenceV1(
+			execution.inputs, request.inputs.filter((claim) => claim.stageId === stageId),
+		)
+		|| !sameAssistanceWorkflowClaimSequenceV1(
+			execution.outputs, request.outputs.filter((claim) => claim.stageId === stageId),
+		)) {
 		throw new TypeError('The owned assistance stage binding is stale or uncorrelated.');
 	}
 	return request;
@@ -288,9 +296,11 @@ function assertCustodyCorrelation(
 	claim: AssistanceWorkflowInputClaimV1 | AssistanceWorkflowOutputClaimV1,
 	direction: 'input' | 'output',
 ): void {
-	if (token.direction !== direction || token.workflowId !== execution.request.workflowId
-		|| token.jobId !== execution.request.jobId || token.stageId !== execution.stage.stageId
-		|| token.slotId !== claim.slotId || token.claimId !== claim.claimId) {
+	if (!assistanceWorkflowCustodyCorrelatesClaimV1(token, {
+		workflowId: execution.request.workflowId,
+		jobId: execution.request.jobId,
+		stageId: execution.stage.stageId,
+	}, claim, direction)) {
 		throw new TypeError('Owned workflow custody does not correlate to its exact stage slot.');
 	}
 }
@@ -354,18 +364,6 @@ function slot(
 	optional = false,
 ): SlotSpec {
 	return Object.freeze({ slotId, body, ...(optional ? { optional: true } : {}) });
-}
-
-function sameClaimSet(
-	left: readonly (AssistanceWorkflowInputClaimV1 | AssistanceWorkflowOutputClaimV1)[],
-	right: readonly (AssistanceWorkflowInputClaimV1 | AssistanceWorkflowOutputClaimV1)[],
-): boolean {
-	return left.length === right.length && left.every((claim, index) => {
-		const expected = right[index];
-		return expected !== undefined && claim.claimId === expected.claimId
-			&& claim.direction === expected.direction && claim.jobId === expected.jobId
-			&& claim.stageId === expected.stageId && claim.slotId === expected.slotId;
-	});
 }
 
 function digest(bytes: Uint8Array): string {
