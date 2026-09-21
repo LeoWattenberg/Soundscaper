@@ -27,6 +27,7 @@ import {
 	normalizeMacroValue,
 	readMacroWorkerMessage,
 } from './protocol.ts';
+import { buildAttestedMacroSandboxModule } from './dynamic-source-contract.js';
 
 export interface MacroSandboxWorker {
 	postMessage(message: unknown): void;
@@ -81,13 +82,7 @@ export class MacroSandboxError extends Error {
  * the engine performs for us.
  */
 export function buildMacroSandboxModule(preludeSource: string, program: string): string {
-	return `const __macroMain = async (sound) => {
-"use strict";
-${program}
-};
-${preludeSource}
-globalThis.__macroBoot(__macroMain);
-`;
+	return buildAttestedMacroSandboxModule(preludeSource, program);
 }
 
 export function createMacroSandboxClient(runtime: MacroSandboxRuntime) {

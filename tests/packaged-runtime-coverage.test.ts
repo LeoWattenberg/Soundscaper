@@ -7,7 +7,10 @@ import { tmpdir } from 'node:os';
 import { basename, join } from 'node:path';
 import test from 'node:test';
 
-import { WORKLET_COVERAGE_CHECKPOINT_URL } from '../scripts/lib/browser-service-worker-coverage.mjs';
+import {
+	INSTALL_WORKLET_COVERAGE_CHECKPOINT,
+	WORKLET_COVERAGE_CHECKPOINT_URL,
+} from '../scripts/lib/browser-service-worker-coverage.mjs';
 import {
 	capturePackagedAppAsarBeforeLaunch,
 	createPackagedRuntimeCoverageCollector,
@@ -440,7 +443,11 @@ class FakeContext {
 					page.calls.push(`child:${request.method}`);
 					let result: unknown = {};
 					if (request.method === 'Debugger.getScriptSource') {
-						result = { scriptSource: `worker-source:${String(request.params?.scriptId)}` };
+						result = {
+							scriptSource: request.params?.scriptId === 'coverage-worklet-hook'
+								? INSTALL_WORKLET_COVERAGE_CHECKPOINT
+								: `worker-source:${String(request.params?.scriptId)}`,
+						};
 					} else if (request.method === 'Profiler.takePreciseCoverage') {
 						result = {
 							result: page.workerCoverageEntries().map((entry) => ({ ...entry, url: '' })),

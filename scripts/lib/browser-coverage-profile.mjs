@@ -8,11 +8,16 @@ import { pathToFileURL } from 'node:url';
 import { sourceMapDirectoryFor } from './build-source-map-relocation.mjs';
 import {
 	createPlaywrightBrowserServiceWorkerCoverageCollector,
+	INSTALL_WORKLET_COVERAGE_CHECKPOINT,
+	WORKLET_COVERAGE_CHECKPOINT_URL,
 } from './browser-service-worker-coverage.mjs';
 import {
+	INSTALL_NAVIGATION_COVERAGE_CHECKPOINT,
+	NAVIGATION_COVERAGE_CHECKPOINT_URL,
 	installNavigationCoverageCheckpoints,
 	installPageOperationCoverageCheckpoints,
 } from './navigation-coverage-checkpoint.mjs';
+import { macroDynamicCoverageScript } from './macro-dynamic-coverage.mjs';
 
 const BROWSER_WORKER_TARGET_TYPES = Object.freeze([
 	'service_worker',
@@ -116,15 +121,27 @@ export function sourceMapPathFor(chunk) {
  * Turn Playwright's coverage entries into one raw V8 profile.
  *
  * @param {Array<{ url: string, scriptId?: string, source?: string, functions?: unknown[] }>} entries
- * @param {(url: string) => { path: string, coverageUrl?: string, sourceMap?: object, source?: string } | null} resolveScript
- * @returns {{ result: object[], 'source-map-cache': Record<string, object> }}
+ * @param {(url: string, source?: string) => {
+ *   path: string,
+ *   coverageUrl?: string,
+ *   retainSource?: boolean,
+ *   sourceMap?: object,
+ *   source?: string,
+ * } | null} resolveScript
+ * @returns {{
+ *   result: object[],
+ *   'script-source-cache': Record<string, string>,
+ *   'source-map-cache': Record<string, object>,
+ * }}
  */
 export function browserCoverageProfile(entries, resolveScript) {
 	const result = [];
+	/** @type {Record<string, string>} */
+	const scriptSourceCache = Object.create(null);
 	/** @type {Record<string, object>} */
 	const sourceMapCache = Object.create(null);
 	for (const entry of entries) {
-		const resolved = resolveScript(entry.url);
+		const resolved = resolveScript(entry.url, entry.source);
 		if (!resolved) continue;
 		const url = resolved.coverageUrl ?? pathToFileURL(resolved.path).href;
 		result.push({
@@ -132,6 +149,17 @@ export function browserCoverageProfile(entries, resolveScript) {
 			url,
 			functions: entry.functions ?? [],
 		});
+		if (resolved.retainSource === true) {
+			const source = entry.source ?? resolved.source;
+			if (typeof source !== 'string') {
+				throw new Error(`Browser coverage captured no source bytes for ${entry.url}.`);
+			}
+			const previous = scriptSourceCache[url];
+			if (previous !== undefined && previous !== source) {
+				throw new Error(`Browser coverage captured conflicting source bytes for ${entry.url}.`);
+			}
+			scriptSourceCache[url] = source;
+		}
 		if (resolved.sourceMap === undefined || url in sourceMapCache) continue;
 		sourceMapCache[url] = {
 			lineLengths: sourceLineLengths(entry.source ?? resolved.source ?? ''),
@@ -139,7 +167,7 @@ export function browserCoverageProfile(entries, resolveScript) {
 			url: null,
 		};
 	}
-	return { result, 'source-map-cache': sourceMapCache };
+	return { result, 'script-source-cache': scriptSourceCache, 'source-map-cache': sourceMapCache };
 }
 
 /**
@@ -161,7 +189,11 @@ export function withoutRepeatedSourceMaps(profile, alreadyWritten) {
 		alreadyWritten.add(url);
 		sourceMapCache[url] = entry;
 	}
-	return { result: profile.result, 'source-map-cache': sourceMapCache };
+	return {
+		result: profile.result,
+		'script-source-cache': profile['script-source-cache'] ?? {},
+		'source-map-cache': sourceMapCache,
+	};
 }
 
 /**
@@ -224,9 +256,16 @@ export function createBrowserCoverageCollector({
 			navigationCheckpoints: null,
 			pageOperationCheckpoints: null,
 			session,
+			sources: new Map(),
 			taken: [],
 		};
 		recorders.set(page, recorder);
+		session.on('Debugger.scriptParsed', ({ scriptId, url }) => {
+			if (!needsCapturedSource(url, directoriesByOrigin)) return;
+			const work = session.send('Debugger.getScriptSource', { scriptId })
+				.then(({ scriptSource }) => retainCapturedSource(recorder.sources, url, scriptSource));
+			pending.push(work);
+		});
 		// Binary block coverage straight from the profiler: `callCount: false`
 		// records whether a block ran, not how often, which is all a line and
 		// branch report needs and far cheaper than Playwright's counted coverage.
@@ -259,7 +298,10 @@ export function createBrowserCoverageCollector({
 		recorder.taken.push(...result);
 	}
 
-	async function resolveScript(url) {
+	async function resolveScript(url, source) {
+		if (excludedCoverageInstrumentation(url, source)) return null;
+		const dynamic = macroDynamicCoverageScript({ repositoryRoot, source, url });
+		if (dynamic !== null) return { ...dynamic, retainSource: true };
 		if (scripts.has(url)) return scripts.get(url) ?? null;
 		const chunk = builtChunkFor(url, directoriesByOrigin);
 		const origin = originOf(url);
@@ -268,6 +310,9 @@ export function createBrowserCoverageCollector({
 			repositoryRoot,
 			productId,
 		});
+		if (resolved === null && portableProductsByOrigin.size > 0 && url !== '') {
+			throw new Error(`Browser coverage captured an unapproved dynamic script ${url}.`);
+		}
 		scripts.set(url, resolved);
 		return resolved;
 	}
@@ -282,7 +327,8 @@ export function createBrowserCoverageCollector({
 			if (workerCollectorStart !== null) throw new Error('Browser coverage was already attached.');
 			workerCollectorStart = createPlaywrightBrowserServiceWorkerCoverageCollector({
 				browser: context.browser?.(),
-				keepUrl: (url) => directoriesByOrigin.has(originOf(url)),
+				captureSource: (url) => needsCapturedSource(url, directoriesByOrigin),
+				keepUrl: (url) => typeof url === 'string' && url !== '',
 				targetTypes: BROWSER_WORKER_TARGET_TYPES,
 			}).then(async (collector) => {
 				workerCollector = collector;
@@ -304,6 +350,7 @@ export function createBrowserCoverageCollector({
 		async collect(label, alreadyWritten) {
 			await settle();
 			const entries = [];
+			const capturedSources = new Map();
 			for (const page of started) {
 				const recorder = recorders.get(page);
 				recorders.delete(page);
@@ -311,6 +358,7 @@ export function createBrowserCoverageCollector({
 				await recorder.navigationCheckpoints?.settle();
 				recorder.pageOperationCheckpoints?.dispose();
 				entries.push(...recorder.taken);
+				mergeCapturedSources(capturedSources, recorder.sources);
 				const pageClosed = page.isClosed();
 				if (pageClosed) continue;
 				try {
@@ -322,17 +370,33 @@ export function createBrowserCoverageCollector({
 				}
 			}
 			if (workerCollector !== null) {
-				entries.push(...(await workerCollector.collect()).entries);
+				const capture = await workerCollector.collect();
+				entries.push(...capture.entries);
+				mergeCapturedSources(capturedSources, capture.sources);
 			}
 			started.clear();
 
 			for (const entry of entries) {
-				const resolved = await resolveScript(entry.url);
+				const captured = capturedSources.get(entry.url);
+				if (captured !== undefined) entry.source = captured;
+				const resolved = await resolveScript(entry.url, entry.source);
 				if (resolved !== null && resolved.source === undefined && typeof entry.source !== 'string') {
 					resolved.source = await readFile(resolved.path, 'utf8');
 				}
 			}
-			const profile = browserCoverageProfile(entries, (url) => scripts.get(url) ?? null);
+			const observedUrls = new Set(entries.map(({ url }) => url));
+			for (const [url, source] of capturedSources) {
+				if (observedUrls.has(url)) continue;
+				const resolved = await resolveScript(url, source);
+				if (resolved !== null) {
+					throw new Error(`Browser coverage captured source bytes without a V8 entry for ${url}.`);
+				}
+			}
+			const profile = browserCoverageProfile(entries, (url, source) => {
+				if (excludedCoverageInstrumentation(url, source)) return null;
+				const dynamic = macroDynamicCoverageScript({ repositoryRoot, source, url });
+				return dynamic === null ? scripts.get(url) ?? null : { ...dynamic, retainSource: true };
+			});
 			if (profile.result.length === 0) return null;
 
 			const file = resolve(coverageDirectory, `${profileFileStem(label)}-${randomUUID()}.json`);
@@ -393,14 +457,24 @@ async function readSourceMap(chunk, { repositoryRoot, productId }) {
 			coverageUrl: portableCoverageUrl(chunk, productId),
 		};
 	}
-	const sourceMap = productId === undefined
-		? JSON.parse(text)
-		: await portableSourceMap(JSON.parse(text), repositoryRoot);
+	const parsed = JSON.parse(text);
+	if (unmappedSourceMap(parsed)) {
+		return productId === undefined ? null : {
+			path: chunk.path,
+			coverageUrl: portableCoverageUrl(chunk, productId),
+		};
+	}
+	const sourceMap = productId === undefined ? parsed : await portableSourceMap(parsed, repositoryRoot);
 	return {
 		path: chunk.path,
 		...(productId === undefined ? {} : { coverageUrl: portableCoverageUrl(chunk, productId) }),
 		sourceMap,
 	};
+}
+
+function unmappedSourceMap(map) {
+	return Array.isArray(map?.sources) && typeof map.mappings === 'string'
+		&& (map.sources.length === 0 || !/[A-Za-z\d+/]/u.test(map.mappings));
 }
 
 async function portableSourceMap(map, repositoryRoot) {
@@ -441,6 +515,41 @@ function portableCoverageUrl(chunk, productId) {
 
 function originOf(url) {
 	try { return new URL(url).origin; } catch { return null; }
+}
+
+function needsCapturedSource(url, directoriesByOrigin) {
+	if (typeof url !== 'string' || url === '') return false;
+	let parsed;
+	try { parsed = new URL(url); }
+	catch { return true; }
+	return !(['http:', 'https:'].includes(parsed.protocol) && directoriesByOrigin.has(parsed.origin));
+}
+
+function excludedCoverageInstrumentation(url, source) {
+	const expected = new Map([
+		[NAVIGATION_COVERAGE_CHECKPOINT_URL, INSTALL_NAVIGATION_COVERAGE_CHECKPOINT],
+		[WORKLET_COVERAGE_CHECKPOINT_URL, INSTALL_WORKLET_COVERAGE_CHECKPOINT],
+	]).get(url);
+	if (expected === undefined) return false;
+	if (source !== expected) {
+		throw new Error(`Browser coverage instrumentation source bytes are stale for ${url}.`);
+	}
+	return true;
+}
+
+function retainCapturedSource(sources, url, source) {
+	if (typeof source !== 'string') {
+		throw new Error(`Browser coverage captured no source bytes for ${url}.`);
+	}
+	const previous = sources.get(url);
+	if (previous !== undefined && previous !== source) {
+		throw new Error(`Browser coverage captured conflicting source bytes for ${url}.`);
+	}
+	sources.set(url, source);
+}
+
+function mergeCapturedSources(target, incoming) {
+	for (const [url, source] of incoming) retainCapturedSource(target, url, source);
 }
 
 function profileFileStem(label) {

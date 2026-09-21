@@ -80,6 +80,34 @@ test('browser-level service-worker coverage starts before execution and keeps a 
 	assert.equal(child.detachCount, 1, 'the detached child wrapper is released exactly once');
 });
 
+test('dynamic target sources are captured by exact URL and conflicting bytes fail closed', async () => {
+	const root = new FakeRootSession();
+	const first = new FakeTargetSession();
+	const second = new FakeTargetSession();
+	const dynamicUrl = 'soundscaper-macro://module-v1/' + 'a'.repeat(64) + '/' + 'b'.repeat(64) + '.mjs';
+	first.sources.set('dynamic', 'first source');
+	second.sources.set('dynamic', 'changed source');
+	const collector = createBrowserServiceWorkerCoverageCollector({
+		captureSource: (url: string) => url === dynamicUrl,
+		openTargetSession: (_root, sessionId) => sessionId === 'first-worker' ? first : second,
+		rootSession: root,
+		targetTypes: ['worker'],
+	});
+
+	await collector.start();
+	for (const sessionId of ['first-worker', 'second-worker']) {
+		root.emit('Target.attachedToTarget', {
+			sessionId,
+			targetInfo: { type: 'worker', url: 'blob:http://127.0.0.1/dynamic' },
+			waitingForDebugger: true,
+		});
+	}
+	await collector.settle();
+	first.emit('Debugger.scriptParsed', { scriptId: 'dynamic', url: dynamicUrl });
+	second.emit('Debugger.scriptParsed', { scriptId: 'dynamic', url: dynamicUrl });
+	await assert.rejects(collector.collect(), /conflicting source bytes/u);
+});
+
 test('browser-level worker coverage routes only the requested worker and worklet targets', async () => {
 	const root = new FakeRootSession();
 	const children = new Map([
@@ -196,6 +224,7 @@ class FakeRootSession extends EventEmitter {
 
 class FakeTargetSession extends EventEmitter {
 	readonly calls: Array<[string, unknown]> = [];
+	readonly sources = new Map<string, string>();
 	detachFailure: Error | null = null;
 	detachCount = 0;
 
@@ -220,7 +249,8 @@ class FakeTargetSession extends EventEmitter {
 			return { result: { value: true } };
 		}
 		if (method === 'Debugger.getScriptSource') {
-			return { scriptSource: `service-worker-source:${String(parameters?.scriptId)}` };
+			const scriptId = String(parameters?.scriptId);
+			return { scriptSource: this.sources.get(scriptId) ?? `service-worker-source:${scriptId}` };
 		}
 		if (method === 'Profiler.takePreciseCoverage') return { result: [] };
 		return {};

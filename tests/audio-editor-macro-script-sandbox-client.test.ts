@@ -13,6 +13,7 @@ import {
 	buildMacroSandboxModule,
 	createMacroSandboxClient,
 } from '../src/common/editor/macro-script/sandbox-client.ts';
+import { MACRO_SANDBOX_SOURCE_URL_PREFIX } from '../src/common/editor/macro-script/dynamic-source-contract.js';
 
 const ENV = Object.freeze({
 	productId: 'soundscaper', locale: 'en', seed: 'abc', startedAt: '2026-01-01T00:00:00.000Z', dryRun: false,
@@ -61,6 +62,12 @@ test('the program is the worker module\'s own body, under a fixed wrapper', () =
 	assert.equal(lines[MACRO_SOURCE_LINE_OFFSET], 'await sound.select.all();',
 		'the author\'s first line must sit exactly under the wrapper the offset names');
 	assert.match(module, /globalThis\.__macroBoot\(__macroMain\);/u);
+	assert.match(
+		module,
+		new RegExp(`//# sourceURL=${MACRO_SANDBOX_SOURCE_URL_PREFIX.replaceAll('/', '\\/')}`
+			+ '[a-f0-9]{64}/[a-f0-9]{64}\\.mjs\\n$', 'u'),
+		'the generated user module binds both its fixed recipe and author program',
+	);
 });
 
 test('a call is answered, and its result crosses back as plain data', async () => {

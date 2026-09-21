@@ -69,14 +69,18 @@ export async function startPackagedRuntimeTargetCoverage({
 				recorder.coverageHookScriptIds.add(String(scriptId));
 			}
 			if (typeof url === 'string' && url !== '') recorder.scriptUrls.set(String(scriptId), url);
-			if (!keepUrl(url) || recorder.sources.has(url)) return;
+			if (!keepUrl(url)) return;
 			pending.push(session.send('Debugger.getScriptSource', { scriptId })
 				.then(({ scriptSource }) => {
-					if (typeof scriptSource === 'string' && !recorder.sources.has(url)) {
-						recorder.sources.set(url, scriptSource);
+					if (typeof scriptSource !== 'string') {
+						throw new Error(`Packaged coverage captured no source bytes for ${url}.`);
 					}
-				})
-				.catch(() => undefined));
+					const previous = recorder.sources.get(url);
+					if (previous !== undefined && previous !== scriptSource) {
+						throw new Error(`Packaged coverage captured conflicting source bytes for ${url}.`);
+					}
+					recorder.sources.set(url, scriptSource);
+				}));
 		});
 		session.on('Profiler.preciseCoverageDeltaUpdate', ({ result }) => {
 			if (Array.isArray(result)) {
@@ -193,7 +197,11 @@ export async function startPackagedRuntimeTargetCoverage({
 			for (const recorder of recorders) {
 				entries.push(...recorder.taken);
 				for (const [url, source] of recorder.sources) {
-					if (!sources.has(url)) sources.set(url, source);
+					const previous = sources.get(url);
+					if (previous !== undefined && previous !== source) {
+						throw new Error(`Packaged coverage captured conflicting source bytes for ${url}.`);
+					}
+					sources.set(url, source);
 				}
 			}
 			return Object.freeze({

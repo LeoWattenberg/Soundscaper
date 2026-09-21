@@ -9,6 +9,10 @@ import { pathToFileURL } from 'node:url';
 import test, { after } from 'node:test';
 
 import {
+	buildMacroSandboxModule,
+} from '../src/common/editor/macro-script/sandbox-client.ts';
+
+import {
 	browserCoverageProfile,
 	browserCoverageRequested,
 	builtChunkFor,
@@ -141,6 +145,32 @@ test('a map is written once per worker, not once per test', () => {
 	assert.deepEqual(second.result, profile.result);
 });
 
+test('an authenticated macro module keeps exact dynamic source and a fixed-wrapper map', () => {
+	const prelude = `import "${ORIGIN}/assets/sandbox-prelude-abc123.js";`;
+	const source = buildMacroSandboxModule(prelude, 'await sound.select.all();');
+	const sourceUrl = /\/\/# sourceURL=(\S+)\n$/u.exec(source)?.[1];
+	assert.ok(sourceUrl);
+	const profile = browserCoverageProfile(
+		[{ url: sourceUrl, scriptId: 'macro', source, functions: [] }],
+		(url, captured) => ({
+			coverageUrl: url,
+			path: '/unused/generated-macro.js',
+			retainSource: true,
+			source: captured,
+			sourceMap: MAP,
+		}),
+	);
+
+	assert.deepEqual(profile.result.map(({ url }) => url), [sourceUrl]);
+	assert.equal(profile['script-source-cache'][sourceUrl], source);
+	assert.deepEqual(profile['source-map-cache'][sourceUrl], {
+		data: MAP,
+		lineLengths: sourceLineLengths(source),
+		url: null,
+	});
+	assert.equal(withoutRepeatedSourceMaps(profile, new Set())['script-source-cache'][sourceUrl], source);
+});
+
 test('the collector records every page a context opens and writes one profile per test', async () => {
 	const workspace = makeWorkspace();
 	const built = join(workspace, 'soundscaper');
@@ -246,12 +276,22 @@ test('the collector honors a packaged run site map and durable coverage director
 	]);
 });
 
-test('a portable nightly profile retains an unmapped shipped script', async () => {
+test('a portable nightly profile retains exact shipped bytes when its source map has no mappings', async () => {
 	const workspace = makeWorkspace();
 	const payloadRoot = join(workspace, 'payload');
 	const built = join(payloadRoot, 'sites/soundscaper');
 	mkdirSync(built, { recursive: true });
 	writeFileSync(join(built, 'service-worker.js'), CHUNK);
+	const mapRoot = join(payloadRoot, 'sites/soundscaper-source-maps');
+	mkdirSync(mapRoot, { recursive: true });
+	writeFileSync(join(mapRoot, 'service-worker.js.map'), JSON.stringify({
+		version: 3,
+		file: 'service-worker.js',
+		sourceRoot: '',
+		sources: [],
+		names: [],
+		mappings: '',
+	}));
 	const coverageDirectory = join(workspace, 'run/coverage/v8-browser');
 	const collector = createBrowserCoverageCollector({
 		browserName: 'chromium',
@@ -267,7 +307,7 @@ test('a portable nightly profile retains an unmapped shipped script', async () =
 		repositoryRoot: payloadRoot,
 	});
 	assert.ok(collector);
-	const context = fakeContext([fakePage('https://example.invalid/vendor.js')], {
+	const context = fakeContext([fakePage('')], {
 		source: CHUNK,
 		url: `${ORIGIN}/service-worker.js`,
 	});
@@ -283,6 +323,59 @@ test('a portable nightly profile retains an unmapped shipped script', async () =
 		'file:///__soundscaper_e2e__/browser/soundscaper/service-worker.js',
 	]);
 	assert.deepEqual(Object.keys(profile['source-map-cache']), []);
+});
+
+test('a portable nightly profile rejects an unknown named dynamic script', async () => {
+	const workspace = makeWorkspace();
+	const built = join(workspace, 'sites/soundscaper');
+	mkdirSync(built, { recursive: true });
+	const collector = createBrowserCoverageCollector({
+		browserName: 'chromium',
+		coverageDirectory: join(workspace, 'run/coverage/v8-browser'),
+		environment: {
+			SCAPE_BROWSER_COVERAGE: '1',
+			SCAPE_BROWSER_COVERAGE_SITES: JSON.stringify([{
+				productId: 'soundscaper',
+				origin: ORIGIN,
+				outputDirectory: built,
+			}]),
+		},
+		repositoryRoot: workspace,
+	});
+	assert.ok(collector);
+	collector.attach(fakeContext([fakePage('soundscaper-unapproved://runtime.js')]));
+	await assert.rejects(
+		collector.collect('unknown named dynamic', new Set<string>()),
+		/unapproved dynamic script soundscaper-unapproved:\/\/runtime\.js/u,
+	);
+});
+
+test('a portable nightly profile rejects an unknown captured source without a V8 entry', async () => {
+	const workspace = makeWorkspace();
+	const built = join(workspace, 'sites/soundscaper');
+	mkdirSync(built, { recursive: true });
+	const collector = createBrowserCoverageCollector({
+		browserName: 'chromium',
+		coverageDirectory: join(workspace, 'run/coverage/v8-browser'),
+		environment: {
+			SCAPE_BROWSER_COVERAGE: '1',
+			SCAPE_BROWSER_COVERAGE_SITES: JSON.stringify([{
+				productId: 'soundscaper',
+				origin: ORIGIN,
+				outputDirectory: built,
+			}]),
+		},
+		repositoryRoot: workspace,
+	});
+	assert.ok(collector);
+	collector.attach(fakeContext([fakePage('', {
+		orphanSource: 'globalThis.unowned = true;',
+		orphanUrl: 'blob:http://127.0.0.1/unobserved',
+	})]));
+	await assert.rejects(
+		collector.collect('unknown unobserved dynamic', new Set<string>()),
+		/unapproved dynamic script blob:http:\/\/127\.0\.0\.1\/unobserved/u,
+	);
 });
 
 test('a test that ran nothing the build serves writes no profile', async () => {
@@ -310,11 +403,11 @@ interface FakePage {
 
 interface FakeSession {
 	send: (method: string, params?: unknown) => Promise<unknown>;
-	on: (event: string, listener: () => void) => void;
+	on: (event: string, listener: (value: unknown) => void) => void;
 	detach: () => Promise<void>;
 }
 
-function fakePage(url: string): FakePage {
+function fakePage(url: string, dynamic: { orphanSource: string; orphanUrl: string } | null = null): FakePage {
 	const page: FakePage = {
 		started: false,
 		sent: [],
@@ -322,12 +415,22 @@ function fakePage(url: string): FakePage {
 		context: () => ({
 			newCDPSession: (target) => {
 				assert.equal(target, page, 'the session belongs to the page it records');
+				let parsed: ((value: unknown) => void) | null = null;
 				const session: FakeSession = {
 					send: (method, params) => {
 						page.sent.push([method, params]);
 						if (method === 'Profiler.startPreciseCoverage') {
 							assert.deepEqual(params, { callCount: false, detailed: true }, 'binary block coverage');
 							page.started = true;
+						}
+						if (method === 'Debugger.enable' && dynamic !== null) {
+							queueMicrotask(() => parsed?.({
+								scriptId: 'orphan',
+								url: dynamic.orphanUrl,
+							}));
+						}
+						if (method === 'Debugger.getScriptSource') {
+							return Promise.resolve({ scriptSource: dynamic?.orphanSource });
 						}
 						if (method === 'Profiler.takePreciseCoverage') {
 							return Promise.resolve({ result: [{
@@ -338,7 +441,9 @@ function fakePage(url: string): FakePage {
 						}
 						return Promise.resolve({});
 					},
-					on: () => {},
+					on: (event, listener) => {
+						if (event === 'Debugger.scriptParsed') parsed = listener;
+					},
 					detach: () => Promise.resolve(),
 				};
 				return Promise.resolve(session);

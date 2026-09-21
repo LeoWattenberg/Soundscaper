@@ -39,6 +39,7 @@ export const INSTALL_WORKLET_COVERAGE_CHECKPOINT = `(() => {
  * @param {{
  *   rootSession: object,
  *   keepUrl?: (url: string) => boolean,
+ *   captureSource?: (url: string) => boolean,
  *   openTargetSession?: (rootSession: object, sessionId: string) => object,
  *   targetTypes?: readonly string[],
  * }} options
@@ -46,6 +47,7 @@ export const INSTALL_WORKLET_COVERAGE_CHECKPOINT = `(() => {
 export function createBrowserServiceWorkerCoverageCollector({
 	rootSession,
 	keepUrl = () => true,
+	captureSource = keepUrl,
 	openTargetSession,
 	targetTypes = DEFAULT_TARGET_TYPES,
 }) {
@@ -54,6 +56,9 @@ export function createBrowserServiceWorkerCoverageCollector({
 	}
 	if (typeof openTargetSession !== 'function') {
 		throw new TypeError('Service-worker coverage requires a paused-target session adapter.');
+	}
+	if (typeof keepUrl !== 'function' || typeof captureSource !== 'function') {
+		throw new TypeError('Worker coverage URL and source filters must be functions.');
 	}
 	const coveredTargetTypes = new Set(targetTypes);
 	if (coveredTargetTypes.size === 0 || [...coveredTargetTypes].some((type) => (
@@ -97,15 +102,20 @@ export function createBrowserServiceWorkerCoverageCollector({
 		session.on('Debugger.scriptParsed', ({ scriptId, url }) => {
 			if (url === WORKLET_COVERAGE_CHECKPOINT_URL) recorder.coverageHookScriptIds.add(String(scriptId));
 			if (typeof url === 'string' && url !== '') recorder.scriptUrls.set(String(scriptId), url);
-			if (typeof url !== 'string' || !keepUrl(url) || recorder.sources.has(url)) return;
+			if (typeof url !== 'string' || !captureSource(url)) return;
 			const work = session.send('Debugger.getScriptSource', { scriptId })
 				.then(({ scriptSource }) => {
-					if (typeof scriptSource === 'string' && !recorder.sources.has(url)) {
-						recorder.sources.set(url, scriptSource);
+					if (typeof scriptSource !== 'string') {
+						throw new Error(`Browser target supplied no source bytes for ${url}.`);
 					}
+					const previous = recorder.sources.get(url);
+					if (previous !== undefined && previous !== scriptSource) {
+						throw new Error(`Browser target supplied conflicting source bytes for ${url}.`);
+					}
+					recorder.sources.set(url, scriptSource);
 				})
 				.catch((error) => {
-					if (recorder.active) failures.push(error);
+					failures.push(error);
 				});
 			pending.push(work);
 		});
@@ -293,7 +303,12 @@ export function createBrowserServiceWorkerCoverageCollector({
 					if (typeof entry.url === 'string' && keepUrl(entry.url)) entries.push(entry);
 				}
 				for (const [url, source] of recorder.sources) {
-					if (keepUrl(url) && !sources.has(url)) sources.set(url, source);
+					if (!keepUrl(url)) continue;
+					const previous = sources.get(url);
+					if (previous !== undefined && previous !== source) {
+						throw new Error(`Browser targets supplied conflicting source bytes for ${url}.`);
+					}
+					sources.set(url, source);
 				}
 			}
 			const counts = countTargetTypes(recorders.values());
@@ -315,6 +330,7 @@ export function createBrowserServiceWorkerCoverageCollector({
 export async function createPlaywrightBrowserServiceWorkerCoverageCollector({
 	browser,
 	keepUrl = () => true,
+	captureSource = keepUrl,
 	targetTypes = DEFAULT_TARGET_TYPES,
 }) {
 	if (!browser || typeof browser.newBrowserCDPSession !== 'function') {
@@ -323,6 +339,7 @@ export async function createPlaywrightBrowserServiceWorkerCoverageCollector({
 	const implementation = browser?._connection?.toImpl?.(browser);
 	const rootSession = createPlaywrightBrowserTargetAdapter(implementation, new Set(targetTypes));
 	return createBrowserServiceWorkerCoverageCollector({
+		captureSource,
 		keepUrl,
 		openTargetSession: (root, sessionId) => root.openTargetSession(sessionId),
 		rootSession,

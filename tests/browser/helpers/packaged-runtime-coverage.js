@@ -7,7 +7,13 @@ import { isAbsolute, join, posix, win32 } from 'node:path';
 
 import {
 	createPlaywrightBrowserServiceWorkerCoverageCollector,
+	INSTALL_WORKLET_COVERAGE_CHECKPOINT,
+	WORKLET_COVERAGE_CHECKPOINT_URL,
 } from '../../../scripts/lib/browser-service-worker-coverage.mjs';
+import {
+	INSTALL_NAVIGATION_COVERAGE_CHECKPOINT,
+	NAVIGATION_COVERAGE_CHECKPOINT_URL,
+} from '../../../scripts/lib/navigation-coverage-checkpoint.mjs';
 import { startPackagedRuntimeTargetCoverage } from './packaged-runtime-target-coverage.js';
 
 const COVERAGE_SUBDIRECTORY = 'coverage/v8-packaged';
@@ -104,6 +110,11 @@ export function createPackagedRuntimeCoverageCollector(options) {
 		if (url.startsWith(`${metadata.appOrigin}/`)) return true;
 		if (url.startsWith(`${metadata.baseOrigin}/`)) return true;
 		try {
+			if (/^[a-z][a-z\d+.-]*:/iu.test(url) && !/^[A-Za-z]:[\\/]/u.test(url)) {
+				const parsed = new URL(url);
+				if (parsed.protocol === 'chrome-extension:' || parsed.protocol === 'devtools:') return false;
+				if (!['file:', 'http:', 'https:'].includes(parsed.protocol)) return true;
+			}
 			const path = decodeURIComponent(url.startsWith('file:') ? new URL(url).pathname : url)
 				.replaceAll('\\', '/');
 			if (!url.startsWith('file:') && !path.startsWith('/') && !/^[A-Za-z]:\//u.test(path)) return false;
@@ -178,7 +189,10 @@ export function createPackagedRuntimeCoverageCollector(options) {
 				entries.push(...capture.entries);
 				await settle();
 				for (const [url, source] of capture.sources) {
-					if (!(url in sources)) sources[url] = source;
+					if (url in sources && sources[url] !== source) {
+						throw new Error(`Packaged coverage captured conflicting source bytes for ${url}.`);
+					}
+					sources[url] = source;
 				}
 				for (const type of capture.targetTypes) targetTypes.add(type);
 				for (const [type, count] of Object.entries(capture.targetCounts)) {
@@ -188,7 +202,20 @@ export function createPackagedRuntimeCoverageCollector(options) {
 					pausedTargetCounts[type] = (pausedTargetCounts[type] ?? 0) + count;
 				}
 			}
-			const result = entries.filter((entry) => keepUrl(entry.url));
+			const excludedInstrumentation = new Set();
+			for (const [url, source] of Object.entries(sources)) {
+				if (!url.startsWith('soundscaper-coverage:')) continue;
+				authenticateCoverageInstrumentation(url, source);
+				excludedInstrumentation.add(url);
+				delete sources[url];
+			}
+			const result = entries.filter((entry) => {
+				if (!entry.url.startsWith('soundscaper-coverage:')) return keepUrl(entry.url);
+				if (!excludedInstrumentation.has(entry.url)) {
+					throw new Error(`Packaged coverage captured no instrumentation source for ${entry.url}.`);
+				}
+				return false;
+			});
 			if (result.length === 0) throw new Error('Packaged runtime coverage recorded no first-party scripts.');
 			const appAsar = await capturePackagedAppAsarAfterCollection(appAsarBeforeLaunch);
 			const profile = {
@@ -213,6 +240,16 @@ export function createPackagedRuntimeCoverageCollector(options) {
 			return file;
 		},
 	});
+}
+
+function authenticateCoverageInstrumentation(url, source) {
+	const expected = new Map([
+		[NAVIGATION_COVERAGE_CHECKPOINT_URL, INSTALL_NAVIGATION_COVERAGE_CHECKPOINT],
+		[WORKLET_COVERAGE_CHECKPOINT_URL, INSTALL_WORKLET_COVERAGE_CHECKPOINT],
+	]).get(url);
+	if (expected === undefined || source !== expected) {
+		throw new Error(`Packaged coverage captured unapproved instrumentation source ${url}.`);
+	}
 }
 
 async function startRecorder(context, page, keepUrl, pending) {

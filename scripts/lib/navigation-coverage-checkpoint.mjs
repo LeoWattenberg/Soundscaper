@@ -1,8 +1,8 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 const HOOK_KEY = 'org.soundscaper.coverage.navigation-checkpoint';
-const HOOK_URL = 'soundscaper-coverage://navigation-checkpoint.js';
-const INSTALL_HOOK_SOURCE = `(() => {
+export const NAVIGATION_COVERAGE_CHECKPOINT_URL = 'soundscaper-coverage://navigation-checkpoint.js';
+export const INSTALL_NAVIGATION_COVERAGE_CHECKPOINT = `(() => {
 	const key = Symbol.for(${JSON.stringify(HOOK_KEY)});
 	if (globalThis[key]?.installed === true) return;
 	function __soundscaperCoverageBeforeUnload() { debugger; }
@@ -57,7 +57,7 @@ const INSTALL_HOOK_SOURCE = `(() => {
 	globalThis[key] = state;
 	addEventListener('beforeunload', __soundscaperCoverageBeforeUnload, { capture: true });
 })();
-//# sourceURL=${HOOK_URL}`;
+//# sourceURL=${NAVIGATION_COVERAGE_CHECKPOINT_URL}`;
 const REMOVE_HOOK_SOURCE = `(() => {
 	const key = Symbol.for(${JSON.stringify(HOOK_KEY)});
 	const state = globalThis[key];
@@ -148,7 +148,7 @@ export async function installNavigationCoverageCheckpoints({ checkpoint, session
 		pending.add(tracked);
 	};
 	const onScriptParsed = ({ scriptId, url }) => {
-		if (url === HOOK_URL) hookScriptIds.add(String(scriptId));
+		if (url === NAVIGATION_COVERAGE_CHECKPOINT_URL) hookScriptIds.add(String(scriptId));
 	};
 	const onPaused = ({ callFrames }) => {
 		const frame = callFrames?.[0];
@@ -165,9 +165,9 @@ export async function installNavigationCoverageCheckpoints({ checkpoint, session
 	let identifier;
 	try {
 		({ identifier } = await session.send('Page.addScriptToEvaluateOnNewDocument', {
-			source: INSTALL_HOOK_SOURCE,
+			source: INSTALL_NAVIGATION_COVERAGE_CHECKPOINT,
 		}));
-		await session.send('Runtime.evaluate', { expression: INSTALL_HOOK_SOURCE });
+		await session.send('Runtime.evaluate', { expression: INSTALL_NAVIGATION_COVERAGE_CHECKPOINT });
 	} catch (error) {
 		session.off?.('Debugger.scriptParsed', onScriptParsed);
 		session.off?.('Debugger.paused', onPaused);
