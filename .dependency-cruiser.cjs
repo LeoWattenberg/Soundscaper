@@ -3,8 +3,8 @@
  *
  * `desktop/` is not only the main process: it is also where the renderer/main
  * contracts and the bundled stream parsers live, and browser code genuinely reads
- * both. Nine modules under `src/common/editor` import eight modules under
- * `desktop/`, and the allow-list is written out so that a tenth is a decision
+ * both. Ten modules under `src/common/editor` import nine modules under
+ * `desktop/`, and the allow-list is written out so that an eleventh is a decision
  * someone makes rather than one that happens.
  *
  * Two kinds are named here, and they are not the same claim:
@@ -33,6 +33,7 @@ const SHARED_DESKTOP_CONTRACTS = [
 	'^desktop/bundled-opus-stream\\.ts$',
 	'^desktop/bundled-vorbis-stream\\.ts$',
 	'^desktop/bundled-wavpack-stream\\.ts$',
+	'^desktop/ogg-page-crc\\.ts$',
 ];
 
 /**

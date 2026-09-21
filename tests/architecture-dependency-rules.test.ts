@@ -191,8 +191,9 @@ test('the desktop boundary is one-way, and names what src may read', () => {
 	const shared = rule('src-imports-only-shared-desktop-contracts');
 	assert.deepEqual(shared.from, { path: '^src/' });
 	const allowed = (shared.to as { readonly pathNot: readonly string[] }).pathNot;
-	assert.equal(allowed.length, 9);
+	assert.equal(allowed.length, 10);
 	assert.ok(allowed.includes('^desktop/desktop-audio-stream-contract\\.ts$'));
+	assert.ok(allowed.includes('^desktop/ogg-page-crc\\.ts$'));
 	for (const entry of allowed) assert.match(entry, /^\^desktop\//u);
 	assert.equal((shared.to as { readonly path: string }).path, '^desktop/');
 });
