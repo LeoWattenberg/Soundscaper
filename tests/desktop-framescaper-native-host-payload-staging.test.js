@@ -127,6 +127,7 @@ function fixture(context, built) {
 	mkdirSync(join(root, 'config'), { recursive: true });
 	cpSync(join(REPOSITORY_ROOT, MEDIA_ROOT), join(root, MEDIA_ROOT), { recursive: true });
 	cpSync(join(REPOSITORY_ROOT, OPENFX_ROOT), join(root, OPENFX_ROOT), { recursive: true });
+	cpSync(join(REPOSITORY_ROOT, 'native/common'), join(root, 'native/common'), { recursive: true });
 	cpSync(join(REPOSITORY_ROOT, 'config/boost-multiprecision-source-manifest.json'),
 		join(root, 'config/boost-multiprecision-source-manifest.json'));
 	cpSync(join(REPOSITORY_ROOT, '.gitattributes'), join(root, '.gitattributes'));

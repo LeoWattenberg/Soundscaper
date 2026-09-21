@@ -32,13 +32,13 @@ function stageRoot(paths, mutate) {
 const AUDITS = [
 	{
 		name: 'media host',
-		inputs: ['.gitattributes', 'config', 'native/framescaper-media-host'],
+		inputs: ['.gitattributes', 'config', 'native/common', 'native/framescaper-media-host'],
 		sourceDirectory: 'native/framescaper-media-host/src',
 		audit: auditFramescaperMediaHost,
 	},
 	{
 		name: 'OpenFX host',
-		inputs: ['.gitattributes', 'config', 'native/framescaper-openfx-host'],
+		inputs: ['.gitattributes', 'config', 'native/common', 'native/framescaper-openfx-host'],
 		sourceDirectory: 'native/framescaper-openfx-host/src',
 		audit: auditFramescaperOpenFxHost,
 	},
