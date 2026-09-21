@@ -7,6 +7,7 @@ import {
 	type GrayVideoFrameV1,
 	type VideoSimilarityTransformV1,
 } from './video-motion-processing-v27.ts';
+import { sampleGrayVideoFrameBilinearV1 } from './gray-video-frame-sampling-v1.ts';
 
 export interface VideoTemporalNeighborV1 {
 	readonly frame: GrayVideoFrameV1;
@@ -106,7 +107,7 @@ function temporalDenoiseCpu(
 					{ x, y }, neighbor.transform,
 				);
 				if (!inside(neighbor.frame, coordinate.x, coordinate.y)) continue;
-				total += sampleBilinear(neighbor.frame, coordinate.x, coordinate.y);
+				total += sampleGrayVideoFrameBilinearV1(neighbor.frame, coordinate.x, coordinate.y);
 				count += 1;
 			}
 			const original = pixel(current, x, y);
@@ -143,18 +144,6 @@ function pixel(frame: GrayVideoFrameV1, x: number, y: number): number {
 
 function pixelClamped(frame: GrayVideoFrameV1, x: number, y: number): number {
 	return pixel(frame, Math.max(0, Math.min(frame.width - 1, x)), Math.max(0, Math.min(frame.height - 1, y)));
-}
-
-function sampleBilinear(frame: GrayVideoFrameV1, x: number, y: number): number {
-	const x0 = Math.max(0, Math.min(frame.width - 1, Math.floor(x)));
-	const y0 = Math.max(0, Math.min(frame.height - 1, Math.floor(y)));
-	const x1 = Math.min(frame.width - 1, x0 + 1);
-	const y1 = Math.min(frame.height - 1, y0 + 1);
-	const mixX = Math.max(0, Math.min(1, x - x0));
-	const mixY = Math.max(0, Math.min(1, y - y0));
-	const top = pixel(frame, x0, y0) + (pixel(frame, x1, y0) - pixel(frame, x0, y0)) * mixX;
-	const bottom = pixel(frame, x0, y1) + (pixel(frame, x1, y1) - pixel(frame, x0, y1)) * mixX;
-	return top + (bottom - top) * mixY;
 }
 
 function inside(frame: GrayVideoFrameV1, x: number, y: number): boolean {

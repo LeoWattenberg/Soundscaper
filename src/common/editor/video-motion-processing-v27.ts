@@ -1,5 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { sampleGrayVideoFrameBilinearV1 } from './gray-video-frame-sampling-v1.ts';
+
 /** Deterministic CPU motion processing with an optional GPU execution port. */
 
 export interface VideoPointV1 {
@@ -283,9 +285,12 @@ function lucasKanadeLevel(
 			for (let ox = -radius; ox <= radius; ox += 1) {
 				const nextX = targetX + ox;
 				const nextY = targetY + oy;
-				const gradientX = (sampleBilinear(next, nextX + 1, nextY) - sampleBilinear(next, nextX - 1, nextY)) / 2;
-				const gradientY = (sampleBilinear(next, nextX, nextY + 1) - sampleBilinear(next, nextX, nextY - 1)) / 2;
-				const error = sampleBilinear(previous, sourceX + ox, sourceY + oy) - sampleBilinear(next, nextX, nextY);
+				const gradientX = (sampleGrayVideoFrameBilinearV1(next, nextX + 1, nextY)
+					- sampleGrayVideoFrameBilinearV1(next, nextX - 1, nextY)) / 2;
+				const gradientY = (sampleGrayVideoFrameBilinearV1(next, nextX, nextY + 1)
+					- sampleGrayVideoFrameBilinearV1(next, nextX, nextY - 1)) / 2;
+				const error = sampleGrayVideoFrameBilinearV1(previous, sourceX + ox, sourceY + oy)
+					- sampleGrayVideoFrameBilinearV1(next, nextX, nextY);
 				xx += gradientX * gradientX;
 				xy += gradientX * gradientY;
 				yy += gradientY * gradientY;
@@ -483,18 +488,6 @@ function pointValueChecked(value: unknown, name: string): VideoPointV1 {
 
 function pixel(frame: GrayVideoFrameV1, x: number, y: number): number {
 	return frame.samples[y * frame.width + x]!;
-}
-
-function sampleBilinear(frame: GrayVideoFrameV1, x: number, y: number): number {
-	const x0 = Math.max(0, Math.min(frame.width - 1, Math.floor(x)));
-	const y0 = Math.max(0, Math.min(frame.height - 1, Math.floor(y)));
-	const x1 = Math.min(frame.width - 1, x0 + 1);
-	const y1 = Math.min(frame.height - 1, y0 + 1);
-	const mixX = Math.max(0, Math.min(1, x - x0));
-	const mixY = Math.max(0, Math.min(1, y - y0));
-	const top = pixel(frame, x0, y0) + (pixel(frame, x1, y0) - pixel(frame, x0, y0)) * mixX;
-	const bottom = pixel(frame, x0, y1) + (pixel(frame, x1, y1) - pixel(frame, x0, y1)) * mixX;
-	return top + (bottom - top) * mixY;
 }
 
 function inside(frame: GrayVideoFrameV1, x: number, y: number, margin: number): boolean {

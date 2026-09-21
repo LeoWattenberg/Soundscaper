@@ -17,6 +17,7 @@ import {
 	trackPyramidalLucasKanadeV1,
 } from '../src/common/editor/video-motion-processing-v27.ts';
 import { processTemporalDenoiseV1 } from '../src/common/editor/video-motion-denoise-v27.ts';
+import { sampleGrayVideoFrameBilinearV1 } from '../src/common/editor/gray-video-frame-sampling-v1.ts';
 
 const SHA_A = 'a1'.repeat(32);
 const SHA_B = 'b2'.repeat(32);
@@ -30,6 +31,13 @@ function translatedDot(dx: number, dy: number): ReturnType<typeof createGrayVide
 	}
 	return createGrayVideoFrameV1({ width, height, samples });
 }
+
+test('gray-frame bilinear sampling clamps coordinates and interpolates edges', () => {
+	const frame = createGrayVideoFrameV1({ width: 2, height: 2, samples: [0, 0.25, 0.75, 1] });
+	assert.equal(sampleGrayVideoFrameBilinearV1(frame, 0.5, 0.5), 0.5);
+	assert.equal(sampleGrayVideoFrameBilinearV1(frame, -2, 0.5), 0.375);
+	assert.equal(sampleGrayVideoFrameBilinearV1(frame, 3, 0.5), 0.625);
+});
 
 test('processor stacks are closed, bounded, and keep optical flow out of retime', () => {
 	const stack = normalizeVideoProcessorStackV1({
