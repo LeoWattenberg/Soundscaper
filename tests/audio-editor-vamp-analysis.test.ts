@@ -122,6 +122,10 @@ test('Vamp time conversion is exact at variable sample rates and encloses durati
 	assert.equal(vampTimestampToFrame({ seconds: 1, nanoseconds: 500_000_000 }, 44_100), 66_150);
 	assert.equal(vampTimestampToFrame({ seconds: 0, nanoseconds: 1 }, 44_100, 'enclosingStart'), 0);
 	assert.equal(vampTimestampToFrame({ seconds: 0, nanoseconds: 1 }, 44_100, 'enclosingEnd'), 1);
+	assert.throws(
+		() => vampTimestampToFrame({ seconds: 0, nanoseconds: 1 }, 44_100, 'directional'),
+		/directional rounding requires/iu,
+	);
 
 	const range = vampFeatureFrameRange(requestFixture(), feature(
 		0,

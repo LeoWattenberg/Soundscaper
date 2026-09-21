@@ -237,10 +237,15 @@ export function vampTimestampToFrame(
 ): number {
 	const timestamp = normalizeTimestamp(timestampValue, 'Vamp timestamp', false);
 	const sampleRate = positiveSafeInteger(sampleRateValue, 'Vamp timestamp sample rate');
+	if (policy === 'directional') {
+		throw new RangeError('Directional rounding requires a previous or next direction.');
+	}
 	return roundRational(
 		timestampNanoseconds(timestamp) * BigInt(sampleRate),
 		NANOSECONDS_PER_SECOND,
-		policy,
+		policy === 'point' ? 'point'
+			: policy === 'enclosingStart' ? 'enclosingStart'
+				: 'enclosingEnd',
 	);
 }
 

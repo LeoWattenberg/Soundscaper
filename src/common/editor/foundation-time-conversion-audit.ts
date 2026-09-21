@@ -402,6 +402,12 @@ const FOUNDATION_TIME_CONVERSION_EDITOR_SITES: readonly FoundationTimeConversion
 		],
 	},
 	{
+		id: 'vamp-feature-time-projection',
+		file: 'src/common/editor/vamp-analysis.ts',
+		behavior: 'Vamp feature timestamps resolve their rational nanosecond positions to nearest sample points, while duration-bearing feature ranges floor their starts and ceil their ends so analysis labels enclose the complete reported interval.',
+		conversions: [{ helper: 'roundRational', policies: ['point', 'enclosingStart', 'enclosingEnd'] }],
+	},
+	{
 		id: 'video-source-upgrade-conform',
 		file: 'src/common/editor/video-source-upgrade.ts',
 		behavior: 'Re-reading a source conforms each persisted clip boundary onto the corrected nominal grid as an exact integer change of basis, point-rounded, so both endpoints move independently rather than a duration being scaled.',
@@ -439,4 +445,3 @@ export const FOUNDATION_TIME_CONVERSION_SITES: readonly FoundationTimeConversion
 	...FOUNDATION_TIME_CONVERSION_ASSISTANCE_SITES,
 	...FOUNDATION_TIME_CONVERSION_PRODUCT_SITES,
 ]);
-
