@@ -9,9 +9,7 @@ import {
 } from '../shared/lifecycle.ts';
 import { changedContentRelinkClassification } from './internal/linked-media/changed-content-relink-attribution.ts';
 import { PROJECT_BIN_LINKED_ORIGINAL_RELINK_TASK } from './internal/project-bin/project-bin-linked-original-relink-task.ts';
-
 export const PROJECT_BIN_LINKED_VIDEO_RELINK_TASK = PROJECT_BIN_LINKED_ORIGINAL_RELINK_TASK;
-
 type MaybePromise<Value> = PromiseLike<Value> | Value;
 
 export interface ProjectBinLinkedVideoRelinkLocator {

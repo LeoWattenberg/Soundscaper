@@ -27,17 +27,13 @@ import {
 	verifyFramescaperFfmpegConfiguration,
 } from './media-build-commands.mjs';
 import { runFramescaperMediaHostRecipeCli } from './recipe-cli.mjs';
-
 const HOST_ROOT = 'native/framescaper-media-host';
 const SOURCE_RECEIPT = '.framescaper-source-identity.json';
 const DIGEST = /^[a-f0-9]{64}$/u;
 const SOURCE_DATE_EPOCH = 1786492800;
 const FFMPEG_ARCHIVE_SHA256 = 'cf38e0e28c7e5605942c4a77755349b0145804a397af37eb1fb4c77cb237f635';
 const BOOST_ARCHIVE_SHA256 = '5c1d40cb8e19adbf740a4ec2da35b3e58f3f5804b1dce44deb53df72193cbc6c';
-const SHARED_SOURCE_PATHS = Object.freeze([
-	'native/common/exact_time.hpp',
-	'native/common/sha256.cpp', 'native/common/sha256.hpp',
-]);
+const SHARED_SOURCE_PATHS = Object.freeze(['native/common/exact_time.hpp', 'native/common/sha256.cpp', 'native/common/sha256.hpp']);
 const TARGETS = Object.freeze([
 	Object.freeze({ id: 'linux-x64', runtime: 'linux-x64', hostRuntime: 'linux-x64', cmakePreset: 'linux-x64', toolchainFile: 'build/toolchains/linux-x64.cmake', ffmpegTarget: 'x86_64-linux-gnu', payloadName: 'framescaper-media-host' }),
 	Object.freeze({ id: 'linux-arm64', runtime: 'linux-arm64', hostRuntime: 'linux-arm64', cmakePreset: 'linux-arm64', toolchainFile: 'build/toolchains/linux-arm64.cmake', ffmpegTarget: 'aarch64-linux-gnu', payloadName: 'framescaper-media-host' }),
