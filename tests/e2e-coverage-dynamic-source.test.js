@@ -10,6 +10,7 @@ import { executeDesktopRendererSmoke } from '../desktop/renderer-smoke-execution
 import { assembleE2ECoverageCapture } from '../scripts/lib/e2e-coverage-assembler.mjs';
 import { loadE2EBuildEvidence } from '../scripts/lib/e2e-coverage-build-evidence.mjs';
 import { attestPinnedVendorDataUrl } from '../scripts/lib/e2e-coverage-profile-assembly.mjs';
+import { assertE2EHtmlExecutablePolicy } from '../scripts/lib/e2e-dynamic-code-audit.mjs';
 import {
 	cleanupE2ECoverageAssemblerFixtures,
 	makeFixture,
@@ -95,6 +96,24 @@ test('browser build evidence refuses executable inline HTML from the complete fi
 		repositoryRoot: fixture.repositoryRoot,
 		sourceRevision: fixture.expectedRevision,
 	}), /unattested executable-string primitive/u);
+});
+
+test('HTML executable auditing parses attribute boundaries instead of filtering tags with regexes', () => {
+	for (const source of [
+		'<img/onerror="globalThis.__escapedCoverage = true">',
+		'<a href=javascript:globalThis.__escapedCoverage=true>Run</a>',
+		'<script src="./safe.js">',
+	]) {
+		assert.throws(
+			() => assertE2EHtmlExecutablePolicy([{ artifactPath: 'crafted.html', source }]),
+			/unattested executable-string primitive/u,
+			source,
+		);
+	}
+	assert.doesNotThrow(() => assertE2EHtmlExecutablePolicy([{
+		artifactPath: 'safe.html',
+		source: '<!doctype html><script src="./safe.js"></script>',
+	}]));
 });
 
 test('unused first-party map entries cannot hide generated executable bytes behind vendor mappings', () => {

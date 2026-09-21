@@ -71,7 +71,7 @@ int scop_stream_write(ScopStream *session, const float *input, uint32_t frames) 
 	for (uint32_t offset = 0; offset < frames;) {
 		uint32_t count = frames - offset;
 		if (count > SCOP_FRAME_SIZE - session->partial) count = SCOP_FRAME_SIZE - session->partial;
-		memcpy(session->frame + session->partial * session->channels, input + offset * session->channels, count * session->channels * sizeof(float));
+		memcpy(session->frame + session->partial * session->channels, input + offset * session->channels, (size_t)count * session->channels * sizeof(float));
 		session->partial += count; offset += count;
 		if (session->partial == SCOP_FRAME_SIZE && !scop_stream_frame(session, 0)) return 0;
 	}

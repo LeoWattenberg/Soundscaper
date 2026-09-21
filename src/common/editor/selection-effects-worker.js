@@ -1,5 +1,9 @@
 import { captureAudacityNoiseProfile } from './audacity-effects/index.js';
 import { applyAudioSelectionEffectAsync } from './selection-effects.js';
+import {
+	asFloat32Array,
+	normalizeSelectionEffectWorkerContext,
+} from './selection-effects-worker-context.ts';
 import { initializePffft } from './pffft.js';
 
 globalThis.onmessage = async ({ data }) => {
@@ -11,9 +15,9 @@ globalThis.onmessage = async ({ data }) => {
 			globalThis.postMessage({ type: 'noise-profile', profile }, transferableBuffers(profile));
 			return;
 		}
-		const context = normalizeContext(data.context || {});
+		const context = normalizeSelectionEffectWorkerContext(data.context);
 		context.onProgress = (progress) => globalThis.postMessage({ type: 'progress', ratio: progress });
-		if (data.wasmModule !== undefined) context.wasmModule = data.wasmModule;
+		if (data.wasmModule instanceof WebAssembly.Module) context.wasmModule = data.wasmModule;
 		const output = await applyAudioSelectionEffectAsync(
 			data.effectType,
 			channels,
@@ -31,18 +35,6 @@ globalThis.onmessage = async ({ data }) => {
 		});
 	}
 };
-
-function normalizeContext(context) {
-	const output = { ...context };
-	for (const key of ['controlChannels', 'beforeChannels', 'afterChannels']) {
-		if (Array.isArray(output[key])) output[key] = output[key].map(asFloat32Array);
-	}
-	return output;
-}
-
-function asFloat32Array(value) {
-	return value instanceof Float32Array ? value : new Float32Array(value || 0);
-}
 
 function transferableBuffers(value, found = new Set()) {
 	if (!value || typeof value !== 'object') return [...found];

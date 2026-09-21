@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import ts from 'typescript';
+import { parse } from 'parse5';
 
 import {
 	callableName,
@@ -266,20 +267,37 @@ function htmlPrimitives(resource, index, label) {
 		? resource.artifactPath : `<inline-html-${String(index + 1)}>`;
 	const found = [];
 	const add = (kind) => found.push({ admission: null, artifactPath, kind, node: null });
-	if (/\s(?:on[a-z\d_-]+|srcdoc)\s*=/iu.test(resource.source)
-		|| /\b(?:href|src)\s*=\s*(["'])\s*javascript:/iu.test(resource.source)) {
-		add('inline HTML executable attribute');
-	}
-	for (const match of resource.source.matchAll(/<script\b([^>]*)>([\s\S]*?)<\/script\s*>/giu)) {
-		const attributes = match[1];
-		const body = match[2];
-		const src = /\bsrc\s*=\s*(["'])(.*?)\1/iu.exec(attributes)?.[2] ?? null;
-		if (src === null || body.trim() !== '' || !safeHtmlScriptSource(src)) add('inline HTML script');
-	}
-	const opening = resource.source.match(/<script\b/giu)?.length ?? 0;
-	const closing = resource.source.match(/<\/script\s*>/giu)?.length ?? 0;
-	if (opening !== closing) add('malformed HTML script');
+	const document = parse(resource.source, { sourceCodeLocationInfo: true });
+	visitHtmlNodes(document, add);
 	return found;
+}
+
+function visitHtmlNodes(node, add) {
+	if (typeof node?.tagName === 'string') inspectHtmlElement(node, add);
+	for (const child of node?.childNodes ?? []) visitHtmlNodes(child, add);
+	if (node?.content) visitHtmlNodes(node.content, add);
+}
+
+function inspectHtmlElement(node, add) {
+	const attributes = node.attrs ?? [];
+	if (attributes.some(({ name, value }) => (
+		name === 'srcdoc'
+		|| /^on[a-z\d_-]+$/u.test(name)
+		|| ['href', 'src'].includes(name) && /^\s*javascript:/iu.test(value)
+	))) add('inline HTML executable attribute');
+	if (node.tagName !== 'script') return;
+	if (!node.sourceCodeLocation?.endTag) {
+		add('malformed HTML script');
+		return;
+	}
+	const src = attributes.find(({ name }) => name === 'src')?.value ?? null;
+	const body = (node.childNodes ?? [])
+		.filter((child) => child.nodeName === '#text')
+		.map((child) => child.value ?? '')
+		.join('');
+	if (src === null || body.trim() !== '' || !safeHtmlScriptSource(src)) {
+		add('inline HTML script');
+	}
 }
 
 function executableBlob(node) {

@@ -88,7 +88,7 @@
 		},
 		{
 			"path": "native/stream_encode.h",
-			"sha256": "0fd696671221c398cc6b8c3c6a4e208891e2f73d4d84cad12bb8e1acf4347468"
+			"sha256": "9004586024f093489eee9aff86840f91de83b6e6c514487347b8f223e9e79203"
 		},
 		{
 			"path": "native/soundscaper_opus_stream_decode.h",
