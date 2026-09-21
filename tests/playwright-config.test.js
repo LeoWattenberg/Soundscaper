@@ -2,9 +2,12 @@
 
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
+import { resolve } from 'node:path';
 import test from 'node:test';
 
 import { extractJob } from './helpers/workflow-jobs.js';
+
+const ROOT = resolve(import.meta.dirname, '..');
 
 // Both workflows build the site once and verify it with the same browser jobs,
 // but quality.yml shards its static checks so those jobs start about ninety
@@ -114,6 +117,18 @@ test('the dual-origin Playwright harness serves two reciprocal built Pages sites
 	assert.equal(config.retries, 0);
 	assert.equal(config.use.baseURL, 'http://127.0.0.1:4332');
 	assert.equal(config.use.serviceWorkers, 'block');
+	assert.deepEqual(JSON.parse(process.env.SCAPE_BROWSER_COVERAGE_SITES), [
+		{
+			productId: 'soundscaper',
+			origin: 'http://127.0.0.1:4332',
+			outputDirectory: resolve(ROOT, '.wrangler/dual-origin-browser/soundscaper'),
+		},
+		{
+			productId: 'framescaper',
+			origin: 'http://127.0.0.1:4333',
+			outputDirectory: resolve(ROOT, '.wrangler/dual-origin-browser/framescaper'),
+		},
+	]);
 	assert.deepEqual(config.projects.map(({ name }) => name), ['chromium']);
 	assert.equal(config.outputDir, 'test-results/dual-origin');
 	assert.ok(Array.isArray(config.webServer));
@@ -139,12 +154,11 @@ test('the dual-origin Playwright harness serves two reciprocal built Pages sites
 	assert.equal(scripts['test:browser:dual-origin'],
 		'playwright test --config playwright.dual-origin.config.mjs');
 	assert.equal(packageDocument.devDependencies.wrangler, '4.114.0');
-	assert.match(buildScript, /SCAPE_PRODUCT: 'soundscaper'/u);
-	assert.match(buildScript, /SOUNDSCAPER_SITE: 'http:\/\/127\.0\.0\.1:4332'/u);
-	assert.match(buildScript, /PUBLIC_TRANSFER_PEER_ORIGIN: 'http:\/\/127\.0\.0\.1:4333'/u);
-	assert.match(buildScript, /SCAPE_PRODUCT: 'framescaper'/u);
-	assert.match(buildScript, /FRAMESCAPER_SITE: 'http:\/\/127\.0\.0\.1:4333'/u);
-	assert.match(buildScript, /PUBLIC_TRANSFER_PEER_ORIGIN: 'http:\/\/127\.0\.0\.1:4332'/u);
+	assert.match(buildScript, /buildBrowserProductSite/u);
+	assert.match(buildScript, /productId: 'soundscaper'[\s\S]*?origin: 'http:\/\/127\.0\.0\.1:4332'[\s\S]*?peerOrigin: 'http:\/\/127\.0\.0\.1:4333'/u);
+	assert.match(buildScript, /productId: 'framescaper'[\s\S]*?origin: 'http:\/\/127\.0\.0\.1:4333'[\s\S]*?peerOrigin: 'http:\/\/127\.0\.0\.1:4332'/u);
+	assert.match(buildScript, /outputDirectory: '\.wrangler\/dual-origin-browser\/soundscaper'/u);
+	assert.match(buildScript, /outputDirectory: '\.wrangler\/dual-origin-browser\/framescaper'/u);
 });
 
 test('each site-verifying workflow runs the dual-origin proof exactly once', async () => {

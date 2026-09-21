@@ -122,6 +122,8 @@ export function createBrowserTargetCoverageCollector(session) {
 		settle,
 		async collect() {
 			closed = true;
+			let entries = [];
+			let collectionFailure = null;
 			try {
 				await settle();
 				for (const recorder of recorders.values()) {
@@ -135,16 +137,42 @@ export function createBrowserTargetCoverageCollector(session) {
 						if (recorder.active) throw error;
 					}
 				}
-				return [...recorders.values()].flatMap(({ taken }) => taken);
-			} finally {
-				if (!sessionClosed) await session.send('Target.setAutoAttach', {
-					autoAttach: false,
-					waitForDebuggerOnStart: false,
-					flatten: false,
-				});
+				entries = [...recorders.values()].flatMap(({ taken }) => taken);
+			} catch (error) {
+				collectionFailure = error;
 			}
+			let cleanupFailure = null;
+			if (!sessionClosed) {
+				try {
+					await session.send('Target.setAutoAttach', {
+						autoAttach: false,
+						waitForDebuggerOnStart: false,
+						flatten: false,
+					});
+				} catch (error) {
+					// A workflow can deliberately close every page before the
+					// fixture collects. Its ranges are already banked above; only
+					// the best-effort root auto-attach cleanup has lost its target.
+					if (!rootTargetClosed(error)) cleanupFailure = error;
+				}
+			}
+			if (collectionFailure !== null && cleanupFailure !== null) {
+				throw new AggregateError(
+					[collectionFailure, cleanupFailure],
+					'Browser target coverage collection and cleanup both failed.',
+				);
+			}
+			if (collectionFailure !== null) throw collectionFailure;
+			if (cleanupFailure !== null) throw cleanupFailure;
+			return entries;
 		},
 	});
+}
+
+function rootTargetClosed(error) {
+	if (!(error instanceof Error)) return false;
+	return error.name === 'TargetClosedError'
+		|| /Target page, context or browser has been closed|Session closed\.?$/iu.test(error.message);
 }
 
 function parseMessage(message) {

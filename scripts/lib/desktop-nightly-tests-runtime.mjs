@@ -8,7 +8,7 @@ import { extname, isAbsolute, join, posix, win32 } from 'node:path';
 import { startDesktopNightlyTestsProductSites } from './desktop-nightly-tests-product-sites.mjs';
 import { resolveDesktopNightlyTestsStaticRequestFile, StaticRequestError } from './desktop-nightly-tests-static-route.mjs';
 import { pipeDesktopNightlyTestsStaticResponse } from './desktop-nightly-tests-static-response.mjs';
-import { runDesktopNightlyTestsDiagnosticPhases } from './desktop-nightly-tests-phases.mjs';
+import { DUAL_ORIGIN_ARTIFACT_PATHS, runDesktopNightlyTestsDiagnosticPhases } from './desktop-nightly-tests-phases.mjs';
 import { staticSiteContentType } from './static-site-content-types.mjs';
 import { PACKAGED_RUNTIME_ARTIFACT_PATHS } from './desktop-nightly-tests-packaged-runtime.mjs';
 import { LOCAL_ASSISTANCE_ARTIFACT_PATHS } from './desktop-nightly-tests-local-assistance.mjs';
@@ -213,7 +213,7 @@ export function createDesktopNightlyTestsResultEnvelope({
 		signal,
 		failure,
 		artifacts: Object.freeze({
-			browserCoverageRaw: 'coverage/v8-browser',
+			browserCoverageRaw: 'coverage/v8-browser', ...DUAL_ORIGIN_ARTIFACT_PATHS,
 			consoleLog: 'console.log',
 			htmlReport: 'playwright-report/index.html',
 			jsonReport: 'results.json',
@@ -269,7 +269,7 @@ export async function runDesktopNightlyTests(options, dependencies = {}) {
 	let signal = null;
 	let failure = null;
 	try {
-		options.onProgress?.(Object.freeze({ completed: 0, total: 5, label: 'Browser tests' }));
+		options.onProgress?.(Object.freeze({ completed: 0, total: 6, label: 'Browser tests' }));
 		sites = await startDesktopNightlyTestsProductSites({
 			payloadRoot: options.payloadRoot, environment, startStaticServer,
 		});

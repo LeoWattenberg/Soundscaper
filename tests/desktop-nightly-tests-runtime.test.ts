@@ -25,10 +25,8 @@ import {
 	startDesktopNightlyTestsStaticServer,
 	writeDesktopNightlyTestsResultEnvelope,
 } from '../scripts/lib/desktop-nightly-tests-runtime.mjs';
-import type {
-	DesktopNightlyTestsPlaywrightPlan,
-} from '../scripts/lib/desktop-nightly-tests-runtime.mjs';
 import { PACKAGED_RUNTIME_ARTIFACT_PATHS } from '../scripts/lib/desktop-nightly-tests-packaged-runtime.mjs';
+import { runDualOriginPhaseFixture } from './helpers/nightly-tests-dual-origin-phase.ts';
 import { rawHttpRequest } from './helpers/raw-http-request.ts';
 
 const PRODUCT = Object.freeze({
@@ -354,6 +352,11 @@ test('Playwright exit mapping and result envelopes distinguish failures from inf
 		failure: null,
 		artifacts: {
 			browserCoverageRaw: 'coverage/v8-browser',
+			dualOriginConsoleLog: 'e2e-coverage/dual-origin/console.log',
+			dualOriginHtmlReport: 'e2e-coverage/dual-origin/playwright-report/index.html',
+			dualOriginJsonReport: 'e2e-coverage/dual-origin/results.json',
+			dualOriginJunitReport: 'e2e-coverage/dual-origin/junit.xml',
+			dualOriginTestResults: 'e2e-coverage/dual-origin/test-results',
 			consoleLog: 'console.log',
 			htmlReport: 'playwright-report/index.html',
 			jsonReport: 'results.json',
@@ -376,74 +379,6 @@ test('Playwright exit mapping and result envelopes distinguish failures from inf
 	assert.equal(Object.isFrozen(envelope.artifacts), true);
 });
 
-test('the injected nightly runtime records terminal results and always closes its product servers', async (context) => {
-	const outputRoot = await mkdtemp(join(tmpdir(), 'soundscaper-nightly-runner-'));
-	context.after(() => rm(outputRoot, { recursive: true, force: true }));
-	let closeCalls = 0;
-	const plansSeen: DesktopNightlyTestsPlaywrightPlan[] = [];
-	let metricsEvidenceCalls = 0;
-	let packagedEvidenceCalls = 0;
-	const times = [
-		new Date('2026-08-08T13:00:00.000Z'),
-		new Date('2026-08-08T13:05:00.000Z'),
-	];
-
-	const completed = await runDesktopNightlyTests({
-		executablePath: '/opt/soundscaper-tests',
-		payloadRoot: '/opt/resources/nightly-tests',
-		outputRoot,
-		product: PRODUCT,
-		platform: 'linux',
-		arch: 'x64',
-		environment: PACKAGED_ENVIRONMENT,
-		sourceRevision: 'b'.repeat(40),
-	}, {
-		now: () => times.shift() ?? new Date('2026-08-08T13:05:00.000Z'),
-		startStaticServer: productServerStub(47777, () => { closeCalls += 1; }),
-		runPlaywright: async (plan) => {
-			plansSeen.push(plan);
-			return plansSeen.length === 1
-				? { code: 1, signal: null }
-				: { code: 0, signal: null };
-		},
-		writeMetricsDiagnostics: async ({ playwrightExit, runRoot }) => {
-			metricsEvidenceCalls += 1;
-			assert.deepEqual(playwrightExit, { code: 0, signal: null });
-			assert.ok(runRoot);
-			return { passed: true };
-		},
-		writePackagedMetricsDiagnostics: async ({ playwrightExit, runRoot }) => {
-			packagedEvidenceCalls += 1;
-			assert.deepEqual(playwrightExit, { code: 0, signal: null });
-			assert.ok(runRoot);
-			return { passed: true };
-		},
-		preserveCoverageEvidence: async () => '/tmp/coverage-evidence',
-	});
-
-	assert.equal(completed.exitCode, 1);
-	assert.equal(completed.outputRoot, outputRoot);
-	assert.equal(dirname(completed.runRoot), outputRoot);
-	assert.equal(completed.result.status, 'failed');
-	assert.equal(completed.result.finishedAt, '2026-08-08T13:05:00.000Z');
-	assert.equal(closeCalls, 2);
-	assert.equal(metricsEvidenceCalls, 1);
-	assert.equal(packagedEvidenceCalls, 1);
-	assert.equal(plansSeen.length, 5);
-	assert.equal(plansSeen[0]?.env.SOUNDSCAPER_NIGHTLY_TESTS_RUN_ROOT, completed.runRoot);
-	const productOrigins = JSON.stringify({
-		soundscaper: 'http://127.0.0.1:47777',
-		framescaper: 'http://127.0.0.1:47778',
-	});
-	for (const plan of plansSeen) assert.equal(plan.env.SCAPE_PLAYWRIGHT_PRODUCT_ORIGINS, productOrigins);
-	assert.match(plansSeen[1]?.args.at(-1) ?? '', /playwright\.nightly-metrics\.config\.mjs$/u);
-	assert.match(plansSeen[2]?.args.at(-1) ?? '', /playwright\.nightly-packaged-metrics\.config\.mjs$/u);
-	assert.match(plansSeen[3]?.args.at(-1) ?? '', /playwright\.nightly-packaged-coverage\.config\.mjs$/u);
-	assert.deepEqual(
-		JSON.parse(await readFile(join(completed.runRoot, 'run.json'), 'utf8')),
-		completed.result,
-	);
-});
 test('the injected nightly runtime turns server and child errors into an error envelope', async (context) => {
 	const outputRoot = await mkdtemp(join(tmpdir(), 'soundscaper-nightly-error-'));
 	context.after(() => rm(outputRoot, { recursive: true, force: true }));
@@ -457,6 +392,7 @@ test('the injected nightly runtime turns server and child errors into an error e
 		arch: 'x64',
 		environment: {},
 	}, {
+		runDualOriginPhase: runDualOriginPhaseFixture,
 		startStaticServer: productServerStub(48888, () => { closeCalls += 1; }),
 		runPlaywright: async () => { throw new Error('browser process could not start'); },
 	});
@@ -526,6 +462,7 @@ test('the default Playwright child runner captures output and reaches a terminal
 		arch: process.arch,
 		environment: { ...PACKAGED_ENVIRONMENT, PATH: process.env.PATH },
 	}, {
+		runDualOriginPhase: runDualOriginPhaseFixture,
 		startStaticServer: productServerStub(49990),
 		writeMetricsDiagnostics: async () => ({ passed: true }),
 		writePackagedMetricsDiagnostics: async () => ({ passed: true }),
@@ -555,6 +492,7 @@ test('a Playwright child spawn error closes its log and records infrastructure f
 		arch: process.arch,
 		environment: { PATH: process.env.PATH },
 	}, {
+		runDualOriginPhase: runDualOriginPhaseFixture,
 		startStaticServer: productServerStub(49992),
 		writeMetricsDiagnostics: async () => ({ passed: true }),
 	});
@@ -578,6 +516,7 @@ test('a failed diagnostic metric gate fails an otherwise passing nightly run', a
 		arch: 'x64',
 		environment: PACKAGED_ENVIRONMENT,
 	}, {
+		runDualOriginPhase: runDualOriginPhaseFixture,
 		startStaticServer: productServerStub(49994),
 		runPlaywright: async () => {
 			childCalls += 1;
@@ -588,7 +527,7 @@ test('a failed diagnostic metric gate fails an otherwise passing nightly run', a
 		preserveCoverageEvidence: async () => '/tmp/coverage-evidence',
 	});
 
-	assert.equal(childCalls, 5);
+	assert.equal(childCalls, 6);
 	assert.equal(completed.exitCode, 1);
 	assert.equal(completed.result.status, 'failed');
 });

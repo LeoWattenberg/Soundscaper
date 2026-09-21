@@ -103,6 +103,28 @@ test('browser target coverage reports a startup command error for an active targ
 	await assert.rejects(collector.settle(), /Profiler is unavailable\./u);
 });
 
+test('browser target coverage tolerates only a closed root target during final detach', async () => {
+	const closed = fakeRootSession();
+	const closedCollector = createBrowserTargetCoverageCollector(closed);
+	await closedCollector.start();
+	closed.failNextDirect('Target.setAutoAttach', 'Target page, context or browser has been closed');
+	assert.deepEqual(await closedCollector.collect(), []);
+
+	const broken = fakeRootSession();
+	const brokenCollector = createBrowserTargetCoverageCollector(broken);
+	await brokenCollector.start();
+	broken.failNextDirect('Target.setAutoAttach', 'Coverage transport is unavailable.');
+	await assert.rejects(brokenCollector.collect(), /Coverage transport is unavailable\./u);
+
+	const brokenCollection = fakeRootSession();
+	brokenCollection.failTargetCommand('broken-session', 'Profiler.enable', 'Profiler is unavailable.');
+	const brokenCollectionCollector = createBrowserTargetCoverageCollector(brokenCollection);
+	await brokenCollectionCollector.start();
+	brokenCollection.attach('broken-session', 'worker');
+	brokenCollection.failNextDirect('Target.setAutoAttach', 'Target page, context or browser has been closed');
+	await assert.rejects(brokenCollectionCollector.collect(), /Profiler is unavailable\./u);
+});
+
 function coverage(url: string, scriptId: string) {
 	return {
 		url,
@@ -119,6 +141,7 @@ function fakeRootSession() {
 	const heldTargetCommands = new Map<string, () => void>();
 	const targetCommandsToHold = new Set<string>();
 	const targetCommandErrors = new Map<string, string>();
+	const directCommandErrors = new Map<string, string>();
 	const targetCommandKey = (sessionId: string, method: string) => `${sessionId}\0${method}`;
 	const emit = (event: string, value: unknown) => {
 		for (const listener of listeners.get(event) ?? []) listener(value);
@@ -131,6 +154,11 @@ function fakeRootSession() {
 		},
 		async send(method: string, params: Record<string, unknown>) {
 			direct.push([method, params]);
+			const directError = directCommandErrors.get(method);
+			if (directError !== undefined) {
+				directCommandErrors.delete(method);
+				throw new Error(directError);
+			}
 			if (method !== 'Target.sendMessageToTarget') return {};
 			const sessionId = String(params.sessionId);
 			const message = JSON.parse(String(params.message)) as {
@@ -162,6 +190,9 @@ function fakeRootSession() {
 		},
 		failTargetCommand(sessionId: string, method: string, message: string) {
 			targetCommandErrors.set(targetCommandKey(sessionId, method), message);
+		},
+		failNextDirect(method: string, message: string) {
+			directCommandErrors.set(method, message);
 		},
 		holdTargetCommand(sessionId: string, method: string) {
 			targetCommandsToHold.add(targetCommandKey(sessionId, method));

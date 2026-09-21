@@ -233,6 +233,16 @@ as the executable (or beside the macOS `.app`), a unique
 - `run.json` — launcher status, exit code, source revision, platform, and paths;
 - `console.log` — the Playwright console stream.
 
+The next Chromium phase serves the two staged reciprocal Pages sites at the exact
+reciprocal loopback origins authenticated by their build manifests and runs the
+editable-copy handoff in both directions. Its raw V8 profiles join the ordinary
+browser profiles in `coverage/v8-browser/`; its isolated reports are
+`e2e-coverage/dual-origin/results.json`,
+`e2e-coverage/dual-origin/junit.xml`,
+`e2e-coverage/dual-origin/console.log`,
+`e2e-coverage/dual-origin/playwright-report/index.html`, and
+`e2e-coverage/dual-origin/test-results/`.
+
 After the functional suite, the binary runs the registered M1 720p preview,
 M4 production-parity, and M4B2 keyframe collectors in a separate Chromium
 process with one worker and zero retries. Its `metrics/`

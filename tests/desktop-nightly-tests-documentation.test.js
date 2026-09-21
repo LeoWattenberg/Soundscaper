@@ -21,6 +21,8 @@ test('desktop documentation explains how to run and find nightly-with-tests resu
 		'playwright-report/index.html',
 		'test-results/',
 		'console.log',
+		'e2e-coverage/dual-origin/results.json',
+		'e2e-coverage/dual-origin/console.log',
 		'metrics/summary.json',
 		'metrics/raw.json',
 		'metrics/results.json',

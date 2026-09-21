@@ -40,6 +40,9 @@ test('nightly-with-tests packaging is isolated, portable, and keeps its payload 
 	assert.ok(config.files.includes('desktop/nightly-tests-progress-renderer.js'));
 	assert.ok(config.files.includes('desktop/nightly-tests-progress.css'));
 	assert.ok(config.files.includes('scripts/lib/desktop-nightly-tests-runtime.mjs'));
+	assert.ok(config.files.includes('scripts/lib/desktop-nightly-tests-dual-origin.mjs'));
+	assert.ok(config.files.includes('scripts/lib/pages-site-static-server.mjs'));
+	assert.ok(config.files.includes('scripts/lib/product-web-routing.mjs'));
 	assert.ok(config.files.includes('scripts/lib/desktop-nightly-tests-static-response.mjs'));
 	assert.ok(config.files.includes('scripts/lib/desktop-nightly-tests-product-sites.mjs'));
 	assert.ok(config.files.includes('scripts/lib/desktop-nightly-tests-static-route.mjs'));
@@ -55,6 +58,7 @@ test('nightly-with-tests packaging is isolated, portable, and keeps its payload 
 	assert.ok(payload.filter.includes('sites/**/*'));
 	assert.equal(payload.filter.includes('dist/**/*'), false);
 	assert.ok(payload.filter.includes('playwright.nightly-metrics.config.mjs'));
+	assert.ok(payload.filter.includes('playwright.nightly-dual-origin.config.mjs'));
 	assert.ok(payload.filter.includes('playwright.nightly-packaged-coverage.config.mjs'));
 	assert.ok(payload.filter.includes('playwright.nightly-tests.config.mjs'));
 	assert.ok(payload.filter.includes('scripts/*.mjs'));
@@ -209,12 +213,15 @@ test('desktop CI exposes one quality-gated five-target nightly-with-tests artifa
 	assert.match(testJob, /node scripts\/desktop-nightly-tests-products\.mjs/u);
 	assert.match(testJob, /npm run build:browser:framescaper/u);
 	assert.match(testJob, /npm run prepare:browser:products/u);
+	assert.match(testJob, /npm run pretest:browser:dual-origin/u);
 	assert.ok(
 		testJob.indexOf('npm run build:browser:framescaper')
 			< testJob.indexOf('npm run prepare:browser:products')
 			&& testJob.indexOf('npm run prepare:browser:products')
+				< testJob.indexOf('npm run pretest:browser:dual-origin')
+			&& testJob.indexOf('npm run pretest:browser:dual-origin')
 				< testJob.indexOf('node scripts/desktop-nightly-tests-prepare.mjs'),
-		'the verified product sites must be ready before the test runner stages them',
+		'the ordinary and reciprocal verified sites must be ready before the test runner stages them',
 	);
 	assert.ok(
 		testJob.indexOf('node scripts/desktop-nightly-tests-products.mjs')

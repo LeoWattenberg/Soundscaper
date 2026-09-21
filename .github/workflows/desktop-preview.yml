@@ -888,6 +888,9 @@ jobs:
       - name: Prepare the verified browser product sites
         run: npm run prepare:browser:products
 
+      - name: Build the verified reciprocal browser product sites
+        run: npm run pretest:browser:dual-origin
+
       - name: Install Linux browser dependencies
         if: runner.os == 'Linux'
         run: npx playwright install-deps chromium firefox webkit

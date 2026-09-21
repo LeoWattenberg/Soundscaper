@@ -12,6 +12,7 @@ import {
 } from '../scripts/lib/desktop-nightly-tests-local-assistance.mjs';
 import { runDesktopNightlyTests } from '../scripts/lib/desktop-nightly-tests-runtime.mjs';
 import { listNodeTestFiles } from '../scripts/lib/node-test-shards.mjs';
+import { runDualOriginPhaseFixture } from './helpers/nightly-tests-dual-origin-phase.ts';
 
 const ROOT = resolve(import.meta.dirname, '..');
 const OPTIONS = Object.freeze({
@@ -50,6 +51,7 @@ test('an interrupted diagnostic phase does not start model downloads afterwards'
 	const result = await runDesktopNightlyTests({
 		...OPTIONS, outputRoot, product: { id: 'soundscaper-nightly-tests', name: 'Nightly tests', version: '1.0.0' },
 	}, {
+		runDualOriginPhase: runDualOriginPhaseFixture,
 		startStaticServer: async () => ({ baseURL: `http://127.0.0.1:${serverPort++}`, close: async () => undefined }),
 		runPlaywright: async () => (++childCalls === 1 ? { code: 0, signal: null } : { code: null, signal: 'SIGINT' }),
 		writeMetricsDiagnostics: async () => ({ passed: false }),
@@ -75,7 +77,7 @@ test('the real-model phase preserves a failing child result for the nightly verd
 	assert.equal(result.diagnostics.passed, false);
 });
 
-test('nightly model failures fail the overall run after the four earlier phases finish', async (context) => {
+test('nightly model failures fail the overall run after the five earlier phases finish', async (context) => {
 	const outputRoot = await mkdtemp(join(tmpdir(), 'nightly-model-run-'));
 	context.after(() => rm(outputRoot, { recursive: true, force: true }));
 	const phases = [];
@@ -84,6 +86,7 @@ test('nightly model failures fail the overall run after the four earlier phases 
 	const result = await runDesktopNightlyTests({
 		...OPTIONS, outputRoot, product: { id: 'soundscaper-nightly-tests', name: 'Nightly tests', version: '1.0.0' },
 	}, {
+		runDualOriginPhase: runDualOriginPhaseFixture,
 		startStaticServer: async () => ({ baseURL: `http://127.0.0.1:${serverPort++}`, close: async () => undefined }),
 		runPlaywright: async (plan) => {
 			assert.equal(active++, 0, 'the model phase must not overlap another test process');
@@ -96,8 +99,8 @@ test('nightly model failures fail the overall run after the four earlier phases 
 		writePackagedMetricsDiagnostics: async () => ({ passed: true }),
 		preserveCoverageEvidence: async () => '/tmp/nightly-build-evidence',
 	});
-	assert.equal(phases.length, 5);
-	assert.match(phases[4], /nightly-local-assistance/u);
+	assert.equal(phases.length, 6);
+	assert.match(phases[5], /nightly-local-assistance/u);
 	assert.equal(result.exitCode, 1);
 	assert.equal(result.result.status, 'failed');
 	assert.equal(result.result.artifacts.localAssistanceJsonReport, 'local-assistance/results.json');

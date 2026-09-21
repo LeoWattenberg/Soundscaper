@@ -1,3 +1,4 @@
+import { resolve } from 'node:path';
 import { defineConfig, devices } from '@playwright/test';
 
 import {
@@ -8,6 +9,22 @@ import {
 const soundscaperOrigin = 'http://127.0.0.1:4332';
 const framescaperOrigin = 'http://127.0.0.1:4333';
 const fixtureRoot = '.wrangler/dual-origin-browser';
+process.env.SCAPE_PLAYWRIGHT_PRODUCT_ORIGINS = JSON.stringify({
+	soundscaper: soundscaperOrigin,
+	framescaper: framescaperOrigin,
+});
+process.env.SCAPE_BROWSER_COVERAGE_SITES = JSON.stringify([
+	{
+		productId: 'soundscaper',
+		origin: soundscaperOrigin,
+		outputDirectory: resolve(fixtureRoot, 'soundscaper'),
+	},
+	{
+		productId: 'framescaper',
+		origin: framescaperOrigin,
+		outputDirectory: resolve(fixtureRoot, 'framescaper'),
+	},
+]);
 const outputDir = process.env.PLAYWRIGHT_DUAL_ORIGIN_OUTPUT_DIR ?? 'test-results/dual-origin';
 
 function pagesServer(productId, origin, readinessPath) {

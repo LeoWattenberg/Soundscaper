@@ -11,6 +11,7 @@ import {
 	createDesktopNightlyTestsProgressBar,
 } from '../scripts/lib/desktop-nightly-tests-presentation.mjs';
 import { runDesktopNightlyTests } from '../scripts/lib/desktop-nightly-tests-runtime.mjs';
+import { runDualOriginPhaseFixture } from './helpers/nightly-tests-dual-origin-phase.ts';
 
 test('unavailable GUI-launch stdout cannot abort nightly tests', () => {
 	for (const asynchronous of [false, true]) {
@@ -78,6 +79,7 @@ test('the nightly runtime reports which serial test phase is active', async (con
 		environment: {},
 		onProgress: (update) => { updates.push(update); },
 	}, {
+		runDualOriginPhase: runDualOriginPhaseFixture,
 		startStaticServer: async () => ({
 			baseURL: `http://127.0.0.1:${String(50100 + siteStarts++)}`,
 			close: async () => undefined,
@@ -90,10 +92,11 @@ test('the nightly runtime reports which serial test phase is active', async (con
 
 	assert.equal(completed.exitCode, 0);
 	assert.deepEqual(updates, [
-		{ completed: 0, total: 5, label: 'Browser tests' },
-		{ completed: 1, total: 5, label: 'Performance diagnostics' },
-		{ completed: 2, total: 5, label: 'Packaged app diagnostics' },
-		{ completed: 3, total: 5, label: 'Packaged app coverage' },
-		{ completed: 4, total: 5, label: 'Local model tests' },
+		{ completed: 0, total: 6, label: 'Browser tests' },
+		{ completed: 1, total: 6, label: 'Dual-origin browser coverage' },
+		{ completed: 2, total: 6, label: 'Performance diagnostics' },
+		{ completed: 3, total: 6, label: 'Packaged app diagnostics' },
+		{ completed: 4, total: 6, label: 'Packaged app coverage' },
+		{ completed: 5, total: 6, label: 'Local model tests' },
 	]);
 });

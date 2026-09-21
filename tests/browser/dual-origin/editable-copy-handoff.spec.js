@@ -17,9 +17,10 @@ import {
 	FRAMESCAPER_DATABASE_NAME,
 	SOUNDSCAPER_DATABASE_NAME,
 } from '../helpers/editor-databases.js';
+import { resolveBrowserProductTestUrl } from '../helpers/browser-product-test-url.js';
 
-const SOUNDSCAPER_ORIGIN = 'http://127.0.0.1:4332';
-const FRAMESCAPER_ORIGIN = 'http://127.0.0.1:4333';
+const SOUNDSCAPER_ORIGIN = new URL(resolveBrowserProductTestUrl('/')).origin;
+const FRAMESCAPER_ORIGIN = new URL(resolveBrowserProductTestUrl('/framescaper/')).origin;
 
 test('the built product origins exchange independent editable copies in both directions', async ({ context }) => {
 	await assertTransferResponsePolicies(context.request);
@@ -169,8 +170,13 @@ async function exerciseEditableCopy(context, options) {
 		expect(JSON.stringify(await persistedProject(sourceVerifier, options.sourceDatabase, sourceProjectId)))
 			.toBe(sourceBytesBefore);
 	} finally {
-		for (const page of [sourceVerifier, receiver, source]) {
-			if (page && !page.isClosed()) await page.close({ runBeforeUnload: false });
+		// The coverage fixture snapshots live pages after the test body returns.
+		// Ordinary runs still close each direction promptly; instrumented runs let
+		// the owning context close them after its final precise-coverage take.
+		if (process.env.SCAPE_BROWSER_COVERAGE !== '1') {
+			for (const page of [sourceVerifier, receiver, source]) {
+				if (page && !page.isClosed()) await page.close({ runBeforeUnload: false });
+			}
 		}
 	}
 }

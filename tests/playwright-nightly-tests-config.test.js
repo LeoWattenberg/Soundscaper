@@ -184,7 +184,7 @@ test('package scripts expose local preparation and packaging of the diagnostic f
 	);
 	assert.equal(
 		packageMetadata.scripts['desktop:nightly-tests:dist'],
-		'npm run build && npm run build:browser:framescaper && npm run prepare:browser:products && npm run desktop:nightly-tests:products && npm run desktop:nightly-tests:prepare && electron-builder --config electron-builder.nightly-tests.config.cjs --publish never',
+		'npm run build && npm run build:browser:framescaper && npm run prepare:browser:products && npm run pretest:browser:dual-origin && npm run desktop:nightly-tests:products && npm run desktop:nightly-tests:prepare && electron-builder --config electron-builder.nightly-tests.config.cjs --publish never',
 	);
 });
 

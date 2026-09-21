@@ -10,8 +10,13 @@ Node and unit-test coverage is separate and does not contribute to this gate.
 
 Build and run the ordinary Chromium suite with coverage as described in
 `AGENTS.md`. A distributed `nightly-with-tests` application automatically runs
-its dedicated packaged-coverage phase after the non-instrumented correctness
-and performance phases. Each nightly run directory preserves:
+the ordinary browser suite and then a dedicated Chromium dual-origin phase.
+Both use the same authenticated reciprocal browser builds, so their portable
+script URLs share one exact build-evidence denominator; the second phase serves
+them at the loopback origins recorded by that evidence. Both phases append
+profiles to the same `coverage/v8-browser/` directory. The runner later executes
+packaged coverage after the non-instrumented performance phases. Each nightly
+run directory preserves:
 
 - `coverage/v8-browser/` for raw Chromium profiles;
 - `coverage/v8-packaged/` for packaged Electron main, preload, renderer, worker,
