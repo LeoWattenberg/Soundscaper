@@ -24,6 +24,10 @@ import {
 	createFramescaperCubeLutActionsFinishing,
 } from './editor-cube-lut-actions-finishing.ts';
 import type { FramescaperEditorProjectEnvironment } from './editor-project-environment.ts';
+import {
+	framescaperNativeImageSequenceActionBridgeAvailableNativeMedia,
+	framescaperNativeOpenFxActionBridgeAvailableNativeMedia,
+} from './editor-native-action-bridge-availability.ts';
 import type {
 	BindFramescaperNativeImageSequenceActionNativeMediaOptions,
 } from './editor-native-image-sequence-action.ts';
@@ -340,23 +344,4 @@ function retryableImageSequenceActionLoader(
 		});
 		return attempt;
 	};
-}
-
-function framescaperNativeImageSequenceActionBridgeAvailableNativeMedia(
-	value: unknown,
-): value is BindFramescaperNativeImageSequenceActionNativeMediaOptions['bridge'] {
-	if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
-	const bridge = value as Readonly<Record<string, unknown>>;
-	return [
-		'capabilities', 'selectImageSequence', 'readImageSequenceFile', 'releaseImageSequence',
-		'imageSequenceImport', 'writeImageSequenceImportChunk', 'readImageSequenceImportBody',
-	].every((method) => typeof bridge[method] === 'function');
-}
-
-function framescaperNativeOpenFxActionBridgeAvailableNativeMedia(
-	value: unknown,
-): value is BindFramescaperNativeOpenFxActionNativeMediaOptions['bridge'] {
-	if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
-	const bridge = value as Readonly<Record<string, unknown>>;
-	return typeof bridge.capabilities === 'function' && typeof bridge.listOpenFxPlugins === 'function';
 }

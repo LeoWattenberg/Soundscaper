@@ -33,7 +33,10 @@ import {
 	framescaperNativeProjectActionRuntimeFor,
 	type FramescaperNativeProjectActionRuntime,
 } from '../common/editor/ui/framescaper-native-project-actions.ts';
-import type { FramescaperNativeServicesBridge } from '../common/editor/ui/framescaper-native-services-bridge.ts';
+import {
+	framescaperNativeOpenFxActionBridgeAvailableNativeMedia,
+	type FramescaperNativeOpenFxActionBridgeNativeMedia,
+} from './editor-native-action-bridge-availability.ts';
 import { verifyFramescaperOpenFxEffectOpenFx } from './editor-native-openfx-authoring.ts';
 import {
 	createFramescaperOpenFxAuthoringDraftNativeMedia,
@@ -43,6 +46,11 @@ import {
 	type FramescaperOpenFxAuthoringRequestNativeMedia,
 } from './editor-native-openfx-authoring-model.ts';
 import { cloneFramescaperProjectNativeMedia, type FramescaperProjectNativeMedia } from './editor-project-native-media.ts';
+
+export {
+	framescaperNativeOpenFxActionBridgeAvailableNativeMedia,
+	type FramescaperNativeOpenFxActionBridgeNativeMedia,
+} from './editor-native-action-bridge-availability.ts';
 
 const SURFACES = Object.freeze(['ofx-add'] as const);
 const ID = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/u;
@@ -57,11 +65,6 @@ interface OpenFxControllerNativeMedia {
 		readonly project: Readonly<{ save(): PromiseLike<unknown> | unknown }>;
 	}>;
 }
-
-export type FramescaperNativeOpenFxActionBridgeNativeMedia = Required<Pick<
-	FramescaperNativeServicesBridge,
-	'capabilities' | 'listOpenFxPlugins'
->>;
 
 export interface BindFramescaperNativeOpenFxActionNativeMediaOptions {
 	readonly profile: unknown;
@@ -100,14 +103,6 @@ export interface FramescaperOpenFxInteractAuthoringModelNativeMedia {
 export interface FramescaperNativeOpenFxActionRuntimeCompositionNativeMedia {
 	readonly actionRuntime: FramescaperNativeProjectActionRuntime;
 	readonly authoringRuntime: FramescaperNativeOpenFxAuthoringRuntimeNativeMedia;
-}
-
-export function framescaperNativeOpenFxActionBridgeAvailableNativeMedia(
-	value: unknown,
-): value is FramescaperNativeOpenFxActionBridgeNativeMedia {
-	if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
-	const bridge = value as Readonly<Record<string, unknown>>;
-	return typeof bridge.capabilities === 'function' && typeof bridge.listOpenFxPlugins === 'function';
 }
 
 /** Compose into Effect > Video Effects; this creates no always-visible UI. */

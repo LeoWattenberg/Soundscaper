@@ -10,7 +10,6 @@ import {
 	framescaperNativeProjectActionRuntimeFor,
 	type FramescaperNativeProjectActionRuntime,
 } from '../common/editor/ui/framescaper-native-project-actions.ts';
-import type { FramescaperNativeServicesBridge } from '../common/editor/ui/framescaper-native-services-bridge.ts';
 import {
 	createFramescaperImageSequenceProductionPortsProfessionalMedia,
 	type FramescaperImageSequenceProductionPortsProfessionalMedia,
@@ -24,6 +23,15 @@ import {
 import { assertFramescaperProjectNativeMediaProfile } from './editor-domain-runtime-profile.ts';
 import { createFramescaperImageSequenceSourceAdmissionCommandProfessionalMedia } from './editor-project-professional-media-source-command.ts';
 import { cloneFramescaperProjectNativeMedia, type FramescaperProjectNativeMedia } from './editor-project-native-media.ts';
+import {
+	framescaperNativeImageSequenceActionBridgeAvailableNativeMedia,
+	type FramescaperNativeImageSequenceActionBridgeNativeMedia,
+} from './editor-native-action-bridge-availability.ts';
+
+export {
+	framescaperNativeImageSequenceActionBridgeAvailableNativeMedia,
+	type FramescaperNativeImageSequenceActionBridgeNativeMedia,
+} from './editor-native-action-bridge-availability.ts';
 
 const SURFACES = Object.freeze(['image-sequence-import'] as const);
 const MAXIMUM_BODY_CHUNK_BYTES = 16 * 1024 * 1024;
@@ -55,23 +63,6 @@ export interface BindFramescaperNativeImageSequenceActionNativeMediaOptions {
 	readonly store: ImageSequenceBodyStoreNativeMedia;
 	readonly bridge: FramescaperNativeImageSequenceActionBridgeNativeMedia;
 	readonly mintId?: () => string;
-}
-
-export type FramescaperNativeImageSequenceActionBridgeNativeMedia = Required<Pick<
-	FramescaperNativeServicesBridge,
-	'capabilities' | 'selectImageSequence' | 'readImageSequenceFile' | 'releaseImageSequence'
-	| 'imageSequenceImport' | 'writeImageSequenceImportChunk' | 'readImageSequenceImportBody'
->>;
-
-export function framescaperNativeImageSequenceActionBridgeAvailableNativeMedia(
-	value: unknown,
-): value is FramescaperNativeImageSequenceActionBridgeNativeMedia {
-	if (!value || typeof value !== 'object' || Array.isArray(value)) return false;
-	const bridge = value as Readonly<Record<string, unknown>>;
-	return [
-		'capabilities', 'selectImageSequence', 'readImageSequenceFile', 'releaseImageSequence',
-		'imageSequenceImport', 'writeImageSequenceImportChunk', 'readImageSequenceImportBody',
-	].every((method) => typeof bridge[method] === 'function');
 }
 
 /** Compose into the existing menu action runtime; no new visible UI is created. */
