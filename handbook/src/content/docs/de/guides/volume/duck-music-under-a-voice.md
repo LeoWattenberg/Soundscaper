@@ -1,6 +1,6 @@
 ---
-title: "Musik unter einer Stimme"
-description: "Reduziert die Musikautomatisch, sobald eine Sprachspur spricht."
+title: "Entenmusik unter einer Stimme"
+description: "Reduzieren Sie automatisch die Lautstärke eines Musikbetts, sobald eine Sprachspur spricht."
 editUrl: false
 sidebar:
   order: 7
@@ -8,50 +8,49 @@ head:
   - tag: script
     attrs:
       type: "application/ld+json"
-    content: "{\"@context\":\"https://schema.org\",\"@type\":\"HowTo\",\"name\":\"Duck music under a voice\",\"description\":\"Turn a music bed down automatically whenever a voice track is speaking.\",\"tool\":[{\"@type\":\"HowToTool\",\"name\":\"Soundscaper\"}],\"step\":[{\"@type\":\"HowToStep\",\"position\":1,\"name\":\"Open Soundscaper. A new, empty project is ready as soon as the editor loads.\",\"text\":\"Open Soundscaper. A new, empty project is ready as soon as the editor loads.\"},{\"@type\":\"HowToStep\",\"position\":2,\"name\":\"Choose File → Import audio and pick the music. The file lands as a clip on its own track.\",\"text\":\"Choose File → Import audio and pick the music. The file lands as a clip on its own track.\"},{\"@type\":\"HowToStep\",\"position\":3,\"name\":\"Choose File → Import audio and pick the voice. The file lands as a clip on its own track.\",\"text\":\"Choose File → Import audio and pick the voice. The file lands as a clip on its own track.\"},{\"@type\":\"HowToStep\",\"position\":4,\"name\":\"Click the name bar of the music clip to select it.\",\"text\":\"Click the name bar of the music clip to select it. The clip you select is the one that gets ducked — the music, not the voice.\"},{\"@type\":\"HowToStep\",\"position\":5,\"name\":\"Choose Effect → Volume and compression → Auto Duck. In the Auto Duck dialog, choose the voice track for Control track and set Duck amount to -12, then press Apply to selection.\",\"text\":\"Choose Effect → Volume and compression → Auto Duck. In the Auto Duck dialog, choose the voice track for Control track and set Duck amount to -12, then press Apply to selection. The control track is the one that triggers the ducking. Twelve decibels down is enough for speech to sit clearly on top.\"},{\"@type\":\"HowToStep\",\"position\":6,\"name\":\"Press Play to listen, then Stop.\",\"text\":\"Press Play to listen, then Stop. The music drops while the other track plays and recovers where it is quiet.\"}]}"
+    content: "{\"@context\":\"https://schema.org\",\"@type\":\"HowTo\",\"name\":\"Duck music under a voice\",\"description\":\"Turn a music bed down automatically whenever a voice track is speaking.\",\"tool\":[{\"@type\":\"HowToTool\",\"name\":\"Soundscaper\"}],\"step\":[{\"@type\":\"HowToStep\",\"position\":1,\"name\":\"Open Soundscaper. A new, empty project is ready as soon as the editor loads.\",\"text\":\"Open Soundscaper. A new, empty project is ready as soon as the editor loads.\"},{\"@type\":\"HowToStep\",\"position\":2,\"name\":\"Choose File → Import and pick the music. It lands as a clip on its own track.\",\"text\":\"Choose File → Import and pick the music. It lands as a clip on its own track.\"},{\"@type\":\"HowToStep\",\"position\":3,\"name\":\"Choose File → Import and pick the voice. It lands as a clip on its own track.\",\"text\":\"Choose File → Import and pick the voice. It lands as a clip on its own track.\"},{\"@type\":\"HowToStep\",\"position\":4,\"name\":\"Click the name bar of the music clip to select it.\",\"text\":\"Click the name bar of the music clip to select it. The clip you select is the one that gets ducked — the music, not the voice.\"},{\"@type\":\"HowToStep\",\"position\":5,\"name\":\"Choose Effect → Volume and compression → Auto Duck. In the Auto Duck dialog, choose the voice track for Control track and set Duck amount to -12, then press Apply to selection.\",\"text\":\"Choose Effect → Volume and compression → Auto Duck. In the Auto Duck dialog, choose the voice track for Control track and set Duck amount to -12, then press Apply to selection. The control track is the one that triggers the ducking. Twelve decibels down is enough for speech to sit clearly on top.\"},{\"@type\":\"HowToStep\",\"position\":6,\"name\":\"Press Play to listen, then Stop.\",\"text\":\"Press Play to listen, then Stop. The music drops while the other track plays and recovers where it is quiet.\"}]}"
 ---
-<!-- docs-ai-provenance: {"factPacketSha256":"29eeeac8471c6886f72ec6f256f4acc11b452190de41307593f4a6a9f07893c5","model":"qwen3.8:latest","modelDigest":"22130167c4c20e20c7b71454612966ca8e8171e9b3cc8ab6ce8aa6cbfec79643","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"29eeeac8471c6886f72ec6f256f4acc11b452190de41307593f4a6a9f07893c5","targetLocale":"de"} -->
+<!-- docs-ai-provenance: {"factPacketSha256":"313de1012af9c28f0b75a03718401297acb22bdfb48e03bde9f0c5daf2dc8299","model":"aya-expanse:32b","modelDigest":"1603440383bd5504dc7afd01c0407b425b988dde650a8dc1a737433baa3cd432","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"313de1012af9c28f0b75a03718401297acb22bdfb48e03bde9f0c5daf2dc8299","targetLocale":"de"} -->
 
 <!-- Generated by `node scripts/docs-reference.mjs`. Do not edit. -->
 
-Podcasts und Videos lassen die Musik unter der Sprache weiterlaufen, indem sie sie jedes Mal leiser gestellt wird, wenn jemand spricht, und in den Pausen wieder lauter wird. Auto Duck erledigt dies anhand einer Steuer-Spur: An jeder Stelle, an der die Steuer-Spur lauter als ein Schwellenwert ist, wird die ausgewählte Spur leiser gestellt, mit Überblendungen an den Rändern.
+Podcasts und Videos halten die Musik unter der Sprache am Laufen, indem sie sie jedes Mal, wenn jemand spricht, leiser macht und sie in den Pausen wieder anhebt. Auto Duck erledigt dies mit einer Steuerspur: Wo immer die Steuerspur lauter als ein Schwellenwert ist, wird die ausgewählte Spur leiser gestellt, mit Übergängen an den Rändern.
 
-:::note[Kommst du von Audacity?]
-Dies ist Audacitys **Effekt → Lautstärke und Kompression → Auto Duck**. Die untenstehenden Bezeichnungen sind Soundscapers eigene und weichen manchmal ab.
+:::note[Kommt von Audacity?]
+Dies ist Audacitys **Effekt → Lautstärke und Kompression → Auto Duck**. Die unten genannten Namen sind Soundscapers eigene, die sich manchmal unterscheiden.
 :::
 
 ## Schritte
 
-1. Öffne Soundscaper. Ein neues, leeres Projekt ist bereit, sobald der Editor geladen ist.
-2. Wähle **Datei → Audio importieren** und wähle die Musik aus. Die Datei erscheint als Clip auf einer eigenen Spur.
-3. Wähle **Datei → Audio importieren** und wähle die Stimme aus. Die Datei erscheint als Clip auf einer eigenen Spur.
-4. Klicke auf die Namensleiste des Musikclips, um ihn auszuwählen. Der ausgewählte Clip ist derjenige, der gedämpft wird – die Musik, nicht die Stimme.
-5. Wähle **Effekt → Lautstärke und Kompression → Auto Duck**. Wähle im Dialog **Auto Duck** die Stimmspur für **Steuer-Spur** aus und setze **Dämpfungsgrad** auf `-12`, dann drücke **Auf Auswahl anwenden**. Die Steuer-Spur ist diejenige, die die Dämpfung auslöst. Zwölf Dezibel weniger reichen aus, damit die Sprache klar darüber liegt.
-6. Drücke **Abspielen**, um zuzuhören, dann **Stopp**.
-   *Du solltest sehen:* Die Musik wird leiser, während die andere Spur abgespielt wird, und erholt sich dort, wo es leise ist.
+1. Öffnen Sie Soundscaper. Ein neues, leeres Projekt ist bereit, sobald der Editor geladen ist.
+2. Wählen Sie **Datei → Importieren** und wählen Sie die Musik aus. Sie landet als Clip auf ihrer eigenen Spur.
+3. Wählen Sie **Datei → Importieren** und wählen Sie die Stimme aus. Sie landet als Clip auf ihrer eigenen Spur.
+4. Klicken Sie auf die Namenleiste des Musikclips, um ihn auszuwählen. Der Clip, den Sie auswählen, ist der, der geduckt wird – die Musik, nicht die Stimme.
+5. Wählen Sie **Effekt → Lautstärke und Kompression → Auto Duck**. Im **Auto Duck**-Dialog wählen Sie die Stimmespur für **Steuerspur** und setzen Sie **Duck-Betrag** auf `-12`, dann drücken Sie **Auf Auswahl anwenden**. Die Steuerspur ist die, die das Ducking auslöst. Zwölf Dezibel nach unten reichen aus, damit die Sprache klar obenauf liegt.
+6. Drücken Sie **Abspielen**, um zuzuhören, dann **Stopp**.
+  *Sie sollten sehen:* Die Musik sinkt, während die andere Spur spielt, und erholt sich, wo es ruhig ist.
 
 ## Tipps
 
-
-- Verlängere die Zeiten für **Äußere Überblendung**, wenn die Musik zwischen den Wörtern zu schnell hoch- und runtergeht.
-- Stelle die Stimmspur in der Spurliste über die Musik, damit die Beziehung leicht zu erkennen ist.
+- Verlängern Sie die **äußeren Fade**-Zeiten, wenn die Musik zwischen den Wörtern zu schnell auf und ab pumpt.
+- Stellen Sie die Stimmespur über der Musik in der Spurliste, damit die Beziehung leicht zu sehen ist.
 
 ## Verwandte Anleitungen
 
-Weitere [Lautstärke und Dynamik](/guides/volume/) Anleitungen:
+Mehr [Lautstärke und Dynamik](/guides/volume/) Anleitungen:
 
-- [Eine leise Aufnahme lauter machen](/guides/volume/make-a-recording-louder/) — Erhöhe die Lautstärke einer Aufnahme um eine feste Anzahl von Dezibel mit Amplify.
-- [Spitzen auf ein festes Niveau normalisieren](/guides/volume/normalize-peaks/) — Bringe den lautesten Punkt einer Aufnahme auf ein exaktes Niveau unterhalb der Vollskala.
-- [Lautstärke für einen Podcast normalisieren](/guides/volume/normalize-loudness-for-podcasts/) — Passe die wahrgenommene Lautstärke einer Folge an das Niveau an, das Streaming-Plattformen erwarten.
-- [Lautstärke mit einem Kompressor ausgleichen](/guides/volume/even-out-volume-with-a-compressor/) — Reduziere den Abstand zwischen lauten und leisen Momenten, damit die Sprache leichter zu folgen ist.
-- [Einfaden und ausfaden](/guides/volume/fade-in-and-fade-out/) — Beginne einen Clip aus der Stille und beende ihn sanft, statt ihn abzuschneiden.
-- [Spitzen mit einem Limiter zähmen](/guides/volume/tame-peaks-with-a-limiter/) — Verhindere, dass die lautesten Momente über eine Obergrenze hinausgehen, ohne den Rest zu berühren.
-- [Lautstärke mit dem klassischen Kompressor ausgleichen](/guides/volume/even-out-volume-with-the-legacy-compressor/) — Verwende den ursprünglichen Kompressor von Audacity 3, mit seinem Rauschboden und Make-up-Gain, auf einer Aufnahme.
+- [Eine leise Aufnahme lauter machen](/guides/volume/make-a-recording-louder/) — Heben Sie den Pegel einer Aufnahme um eine festgelegte Anzahl von Dezibel mit Verstärken an.
+- [Peaks auf ein festes Niveau normalisieren](/guides/volume/normalize-peaks/) — Bringen Sie den lautesten Punkt einer Aufnahme auf ein genaues Niveau unter Vollausschlag.
+- [Lautstärke für einen Podcast normalisieren](/guides/volume/normalize-loudness-for-podcasts/) — Passen Sie die empfundene Lautstärke einer Folge an das Niveau an, das Streaming-Plattformen erwarten.
+- [Lautstärke mit einem Kompressor ausgleichen](/guides/volume/even-out-volume-with-a-compressor/) — Verringern Sie die Lücke zwischen lauten und leisen Momenten, damit die Sprache leichter zu verfolgen ist.
+- [Ein- und Ausblenden](/guides/volume/fade-in-and-fade-out/) — Beginnen Sie einen Clip von Stille und beenden Sie ihn sanft, anstatt ihn abzuschneiden.
+- [Peaks mit einem Limiter zähmen](/guides/volume/tame-peaks-with-a-limiter/) — Stoppen Sie die lautesten Momente, um über eine Decke zu gehen, ohne den Rest zu berühren.
+- [Lautstärke mit dem klassischen Kompressor ausgleichen](/guides/volume/even-out-volume-with-the-legacy-compressor/) — Verwenden Sie Audacity 3’s ursprünglichen Kompressor, mit seinem Rauschboden und Make-up-Gain, auf einer Aufnahme.
 
 ## Referenz
 
-- [Jeder Parameter der hier verwendeten Effekte, mit seinem Standardwert und Bereich, ist in der Audio-Effekt-Referenz zu finden.](/reference/generated/audio-effects/#parameters)
+- [Jeder Parameter der hier verwendeten Effekte, mit seinem Standardwert und Bereich, befindet sich in der Audioeffektreferenz.](/reference/generated/audio-effects/#parameters)
 
 ## Über diese Anleitung
 
-Das Verfahren auf dieser Seite – jeder Menüeintrag, Dialog, Feld und Button, und das Ergebnis, das es erzeugt – wird gegen jeden Build von Soundscaper durch die Browser-Suite (`tests/browser/soundscaper-guides.spec.js`) abgespielt. Wenn etwas davon nicht mehr mit dem Editor übereinstimmt, schlägt der Build fehl, bis die Anleitung korrigiert ist. Die vorgeschlagenen Werte sind Startpunkte, die der Editor nachweislich akzeptiert; ob sie zu deiner Aufnahme passen, ist eine Entscheidung für dein Ohr.
+Das Verfahren auf dieser Seite – jede Menüoption, Dialog, Feld und Knopf, und das Ergebnis, das es erzeugt – wird gegen jede Version von Soundscaper durch die Browsersuite (`tests/browser/soundscaper-guides.spec.js`) wiederholt. Wenn irgendetwas davon aufhört, dem Editor zu entsprechen, schlägt die Version fehl, bis die Anleitung korrigiert ist. Die vorgeschlagenen Werte sind Ausgangspunkte, die der Editor akzeptiert; ob sie für Ihre Aufnahme geeignet sind, hängt von Ihren Ohren ab.

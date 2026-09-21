@@ -1,6 +1,6 @@
 ---
-title: "Mehrere Tracks zusammenmischen"
-description: "Erstelle aus den ausgewählten Tracks ein einzelnes Track."
+title: "Mehrere Spuren in eine Spur mischen"
+description: "Die ausgewählten Spuren in eine einzelne Spur rendern."
 editUrl: false
 sidebar:
   order: 2
@@ -8,49 +8,47 @@ head:
   - tag: script
     attrs:
       type: "application/ld+json"
-    content: "{\"@context\":\"https://schema.org\",\"@type\":\"HowTo\",\"name\":\"Mix several tracks into one\",\"description\":\"Render the selected tracks down to a single track.\",\"tool\":[{\"@type\":\"HowToTool\",\"name\":\"Soundscaper\"}],\"step\":[{\"@type\":\"HowToStep\",\"position\":1,\"name\":\"Open Soundscaper. A new, empty project is ready as soon as the editor loads.\",\"text\":\"Open Soundscaper. A new, empty project is ready as soon as the editor loads.\"},{\"@type\":\"HowToStep\",\"position\":2,\"name\":\"Choose File → Import audio and pick the first part. The file lands as a clip on its own track.\",\"text\":\"Choose File → Import audio and pick the first part. The file lands as a clip on its own track.\"},{\"@type\":\"HowToStep\",\"position\":3,\"name\":\"Choose File → Import audio and pick the second part. The file lands as a clip on its own track.\",\"text\":\"Choose File → Import audio and pick the second part. The file lands as a clip on its own track.\"},{\"@type\":\"HowToStep\",\"position\":4,\"name\":\"Click the name bar of the first clip, then hold Shift and click the name bar of the second clip, so both are selected.\",\"text\":\"Click the name bar of the first clip, then hold Shift and click the name bar of the second clip, so both are selected. Every track with a selected clip goes into the mix.\"},{\"@type\":\"HowToStep\",\"position\":5,\"name\":\"Choose Tracks → Mix & Render. In the Mix & Render dialog, leave Mix down, Render effects and Replace originals checked, choose Stereo for Mix down to, then press Mix & Render.\",\"text\":\"Choose Tracks → Mix & Render. In the Mix & Render dialog, leave Mix down, Render effects and Replace originals checked, choose Stereo for Mix down to, then press Mix & Render.\"},{\"@type\":\"HowToStep\",\"position\":6,\"name\":\"The project now shows a clip named Mix.\",\"text\":\"The project now shows a clip named Mix. One track holds a clip named Mix; the source tracks are gone.\"}]}"
+    content: "{\"@context\":\"https://schema.org\",\"@type\":\"HowTo\",\"name\":\"Mix several tracks into one\",\"description\":\"Render the selected tracks down to a single track.\",\"tool\":[{\"@type\":\"HowToTool\",\"name\":\"Soundscaper\"}],\"step\":[{\"@type\":\"HowToStep\",\"position\":1,\"name\":\"Open Soundscaper. A new, empty project is ready as soon as the editor loads.\",\"text\":\"Open Soundscaper. A new, empty project is ready as soon as the editor loads.\"},{\"@type\":\"HowToStep\",\"position\":2,\"name\":\"Choose File → Import and pick the first part. It lands as a clip on its own track.\",\"text\":\"Choose File → Import and pick the first part. It lands as a clip on its own track.\"},{\"@type\":\"HowToStep\",\"position\":3,\"name\":\"Choose File → Import and pick the second part. It lands as a clip on its own track.\",\"text\":\"Choose File → Import and pick the second part. It lands as a clip on its own track.\"},{\"@type\":\"HowToStep\",\"position\":4,\"name\":\"Click the name bar of the first clip, then hold Shift and click the name bar of the second clip, so both are selected.\",\"text\":\"Click the name bar of the first clip, then hold Shift and click the name bar of the second clip, so both are selected. Every track with a selected clip goes into the mix.\"},{\"@type\":\"HowToStep\",\"position\":5,\"name\":\"Choose Tracks → Mix & Render. In the Mix & Render dialog, leave Mix down, Render effects and Replace originals checked, choose Stereo for Mix down to, then press Mix & Render.\",\"text\":\"Choose Tracks → Mix & Render. In the Mix & Render dialog, leave Mix down, Render effects and Replace originals checked, choose Stereo for Mix down to, then press Mix & Render.\"},{\"@type\":\"HowToStep\",\"position\":6,\"name\":\"The project now shows a clip named Mix.\",\"text\":\"The project now shows a clip named Mix. One track holds a clip named Mix; the source tracks are gone.\"}]}"
 ---
-<!-- docs-ai-provenance: {"factPacketSha256":"a2efb9d82744df50703da530f05fd07938a525026e90a778c97fb783e8fb88c8","model":"aya-expanse:8b","modelDigest":"65f986688a01b456158c57b042bc48afcb85d060646a82d491d1c0a01375b10e","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"a2efb9d82744df50703da530f05fd07938a525026e90a778c97fb783e8fb88c8","targetLocale":"de"} -->
+<!-- docs-ai-provenance: {"factPacketSha256":"e3e165f69376430cd8ca49fc9f23263e3de5bf9c4af97309624c2faaba94193b","model":"aya-expanse:32b","modelDigest":"1603440383bd5504dc7afd01c0407b425b988dde650a8dc1a737433baa3cd432","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"e3e165f69376430cd8ca49fc9f23263e3de5bf9c4af97309624c2faaba94193b","targetLocale":"de"} -->
 
 <!-- Generated by `node scripts/docs-reference.mjs`. Do not edit. -->
 
-Sobald ein Schienenbett ausgewogen ist, das Mischen aller ausgewählten Spuren zu einer macht das Projekt leichter bearbeitbar und liefert Ihnen einen einzelnen Clip, den Sie exportieren oder anderswo verwenden können. Die Mischung berücksichtigt die Lautstärke, Panorama, Automatisierung und Effekte jeder ausgewählten Spur. Muting und Solo werden während dieser Operation für die ausgewählten Spuren ignoriert, und die Master-Verarbeitung bleibt aktiv.
+Sobald ein Bett aus Spuren ausgeglichen ist, macht das Heruntermischen auf eine einzige Spur das Projekt leichter zu bearbeiten und gibt Ihnen einen einzelnen Clip zum Exportieren oder Mitnehmen an anderer Stelle. Das Mix verwendet den Gewinn, Pan, Automatisierung und Effekte jeder ausgewählten Spur. Stummschalten und Solo werden für ausgewählte Spuren während dieses Vorgangs ignoriert, und die Master-Verarbeitung bleibt aktiv.
 
-:::hinweis[Von Audacity?]
-Dies ist Audacitys **Spuren → Mischung → Mischung und Rendern**. Die Namen können in Soundscaper abweichen.
+:::note[Komme von Audacity?]
+Dies ist Audacity's **Spuren → Mischen → Mischen und Rendern**. Die Namen unten sind Soundscapers eigene, die sich manchmal unterscheiden.
 :::
 
 ## Schritte
 
 1. Öffnen Sie Soundscaper. Ein neues, leeres Projekt ist bereit, sobald der Editor geladen ist.
-2. Wählen Sie **Datei → Audio importieren** und wählen Sie den ersten Teil aus. Die Datei landet als Clip auf seiner eigenen Spur.
-3. Wählen Sie **Datei → Audio importieren** und wählen Sie den zweiten Teil aus. Die Datei landet als Clip auf seiner eigenen Spur.
-4. Klicken Sie auf den Namenbereich des ersten Clips, halten Sie dann Strg und klicken Sie auf den Namenbereich des zweiten Clips, sodass beide ausgewählt sind. Alle Spuren mit ausgewählten Clips werden in die Mischung aufgenommen.
-5. Wählen Sie **Spuren → Mischung & Rendern**. Im **Mischung & Rendern**-Dialog lassen Sie **Mischen herunter**, **Effekte rendern** und **Originale ersetzen** aktiviert, wählen Sie **Stereo** für **Mischen herunter auf** und klicken Sie auf **Mischen & Rendern**.
-6. Das Projekt zeigt nun einen Clip mit dem Namen **Mischung**.
-
-*Sie sollten Folgendes sehen:* Eine Spur enthält einen Clip mit der Bezeichnung **Mischung**; die Quellspuren sind verschwunden.
+2. Wählen Sie **Datei → Importieren** und wählen Sie den ersten Teil. Er landet als Clip auf seiner eigenen Spur.
+3. Wählen Sie **Datei → Importieren** und wählen Sie den zweiten Teil. Er landet als Clip auf seiner eigenen Spur.
+4. Klicken Sie auf die Namenleiste des ersten Clips, halten Sie dann Umschalt gedrückt und klicken Sie auf die Namenleiste des zweiten Clips, sodass beide ausgewählt sind. Jede Spur mit einem ausgewählten Clip geht in das Mix.
+5. Wählen Sie **Spuren → Mischen & Rendern**. Im **Mischen & Rendern**-Dialog lassen Sie **Heruntermischen**, **Effekte rendern** und **Originale ersetzen** aktiviert, wählen Sie **Stereo** für **Heruntermischen zu**, und drücken Sie dann **Mischen & Rendern**.
+6. Das Projekt zeigt nun einen Clip mit dem Namen **Mix**.
+   *Sie sollten sehen:* Eine Spur enthält einen Clip namens Mix; die Quellspuren sind weg.
 
 ## Tipps
 
-- Wählen Sie **Mono**, **Stereo** oder das mehrkanalige Layout des Projekts unter **Mischen herunter auf** vor der Rendern.
-- **Bearbeiten → Rückgängig** bringt die ursprünglichen Spuren zurück, falls Sie das Gleichgewicht ändern möchten.
-- Sie müssen die Mischung nicht exportieren. **Datei → Audio exportieren** rendert das gesamte Projekt auf eigene Faust.
+- Wählen Sie **Mono**, **Stereo** oder die vom Projekt konfigurierte Multikanal-Anordnung unter **Heruntermischen zu** aus, bevor Sie rendern.
+- **Bearbeiten → Rückgängig** bringt die Originalspuren zurück, falls Sie das Gleichgewicht ändern müssen.
+- Sie müssen nicht heruntermischen, um zu exportieren. **Datei → Audio exportieren** rendert das gesamte Projekt selbstständig.
 
 ## Verwandte Anleitungen
 
 Mehr [Spuren und Export](/guides/tracks-and-export/)-Anleitungen:
 
-- [Eine Stereo-Spur in zwei Mono-Spuren aufteilen](/guides/tracks-and-export/split-stereo-into-mono-tracks/) — Trennen Sie die Links- und Rechskanäle, damit sie einzeln bearbeitet werden können.
-- [Einen Testton erzeugen](/guides/tracks-and-export/generate-a-test-tone/) — Erstellen Sie eine Sinuswelle einer festen Frequenz und Länge aus dem Nichts.
-- [Als MP3 exportieren](/guides/tracks-and-export/export-an-mp3/) — Rendern Sie das Projekt zu einer MP3-Datei für das Teilen oder Veröffentlichen.
-- [Als WAV exportieren](/guides/tracks-and-export/export-a-wav/) — Rendern Sie das Projekt zu einer unkomprimierten WAV-Datei.
-- [Spuren stummschalten und solo spielen](/guides/tracks-and-export/mute-and-solo-tracks/) — Schalten Sie eine Spur stumm oder hören Sie eine Spur alleine, während Sie an einem Mix arbeiten.
+- [Eine Stereospur in zwei Monospuren aufteilen](/guides/tracks-and-export/split-stereo-into-mono-tracks/) — Trennen Sie die linken und rechten Kanäle, damit jeder einzeln bearbeitet werden kann.
+- [Einen Testton generieren](/guides/tracks-and-export/generate-a-test-tone/) — Erstellen Sie eine Sinuswelle mit einer festgelegten Frequenz und Länge aus dem Nichts.
+- [MP3 exportieren](/guides/tracks-and-export/export-an-mp3/) — Rendern Sie das Projekt in eine MP3-Datei zum Teilen oder Veröffentlichen.
+- [WAV exportieren](/guides/tracks-and-export/export-a-wav/) — Rendern Sie das Projekt in eine unkomprimierte WAV-Datei.
+- [Spuren stummschalten und solo schalten](/guides/tracks-and-export/mute-and-solo-tracks/) — Schalten Sie eine Spur stumm oder hören Sie eine Spur allein, während Sie an einem Mix arbeiten.
 - [Eine leere Spur hinzufügen](/guides/tracks-and-export/add-an-empty-track/) — Erstellen Sie eine neue Spur zum Aufnehmen oder Einfügen.
-- [Alle Spuren stummschalten](/guides/tracks-and-export/mute-every-track-at-once/) — Schalten Sie das gesamte Projekt stumm und bringen Sie es dann wieder zurück.
-- [Spuren in eine neue Spur mischen und die Originale behalten](/guides/tracks-and-export/mix-tracks-into-a-new-track/) — Rendern Sie ein Mix mehrerer Spuren auf eine neue Spur, während die Quellen im Projekt bleiben.
-- [Spuren im Mixer ausbalancieren](/guides/tracks-and-export/balance-tracks-in-the-mixer/) — Öffnen Sie ein Mischpult mit einem Kanalstrip pro Spur, um Level und Panorama nebeneinander zu setzen.
+- [Alle Spuren auf einmal stummschalten](/guides/tracks-and-export/mute-every-track-at-once/) — Schalten Sie das gesamte Projekt in einem Schritt stumm und bringen Sie es dann zurück.
+- [Spuren in eine neue Spur mischen und die Originale behalten](/guides/tracks-and-export/mix-tracks-into-a-new-track/) — Rendern Sie einen Mix mehrerer Spuren auf eine neue Spur, während die Quellen im Projekt bleiben.
+- [Spuren im Mixer ausbalancieren](/guides/tracks-and-export/balance-tracks-in-the-mixer/) — Öffnen Sie eine Mischkonsole mit einem Kanalfeld pro Spur, um Pegel und Pan nebeneinander einzustellen.
 
-## Zu diesem Leitfaden
-
-Das Verfahren auf dieser Seite — jede Menüauswahl, Dialogfeld, Feld und Schaltfläche sowie das daraus resultierende Ergebnis — wird gegen jede Version von Soundscaper von der Browser-Suite (`tests/browser/soundscaper-guides.spec.js`) überprüft. Wenn irgendetwas nicht mehr übereinstimmt, scheitert der Build, bis die Anleitung korrigiert ist. Die vorgeschlagenen Werte sind Ausgangspunkte, die vom Editor als akzeptabel erwiesen sind; ob sie für Ihre Aufnahme geeignet sind, müssen Sie selbst entscheiden.
+## Über diese Anleitung
+Die Prozedur auf dieser Seite — jeder Menüpunkt, Dialog, Feld und Knopf sowie das von ihm erzeugte Ergebnis — wird bei jeder Version von Soundscaper durch den Browsertest (`tests/browser/soundscaper-guides.spec.js`) wiederholt. Wenn irgendetwas davon nicht mehr mit dem Editor übereinstimmt, schlägt die Version fehl, bis die Anleitung korrigiert ist. Die vorgeschlagenen Werte sind Ausgangspunkte, die der Editor akzeptiert; ob sie für Ihre Aufnahme geeignet sind, entscheidet Ihr Gehör.

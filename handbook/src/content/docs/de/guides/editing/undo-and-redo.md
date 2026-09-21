@@ -1,6 +1,6 @@
 ---
-title: "Rückgängig machen und wiederherstellen"
-description: "Gehe zurück zu deinen Änderungen und setze sie erneut fort."
+title: "Rückgängig machen und wiederholen"
+description: "Gehen Sie durch Ihre Bearbeitungen zurück und wieder vorwärts."
 editUrl: false
 sidebar:
   order: 12
@@ -8,57 +8,56 @@ head:
   - tag: script
     attrs:
       type: "application/ld+json"
-    content: "{\"@context\":\"https://schema.org\",\"@type\":\"HowTo\",\"name\":\"Undo and redo\",\"description\":\"Step back through your edits and forward again.\",\"tool\":[{\"@type\":\"HowToTool\",\"name\":\"Soundscaper\"}],\"step\":[{\"@type\":\"HowToStep\",\"position\":1,\"name\":\"Open Soundscaper. A new, empty project is ready as soon as the editor loads.\",\"text\":\"Open Soundscaper. A new, empty project is ready as soon as the editor loads.\"},{\"@type\":\"HowToStep\",\"position\":2,\"name\":\"Choose File → Import audio and pick any recording. The file lands as a clip on its own track.\",\"text\":\"Choose File → Import audio and pick any recording. The file lands as a clip on its own track.\"},{\"@type\":\"HowToStep\",\"position\":3,\"name\":\"Press the Split tool button in the toolbar.\",\"text\":\"Press the Split tool button in the toolbar.\"},{\"@type\":\"HowToStep\",\"position\":4,\"name\":\"Click the waveform anywhere in the clip to put the cursor there.\",\"text\":\"Click the waveform anywhere in the clip to put the cursor there. A split is a good edit to practise on because you can see it.\"},{\"@type\":\"HowToStep\",\"position\":5,\"name\":\"Press the Split tool button in the toolbar.\",\"text\":\"Press the Split tool button in the toolbar. Back to the normal pointer.\"},{\"@type\":\"HowToStep\",\"position\":6,\"name\":\"The project now shows 2 clips.\",\"text\":\"The project now shows 2 clips.\"},{\"@type\":\"HowToStep\",\"position\":7,\"name\":\"Press the Undo button in the toolbar.\",\"text\":\"Press the Undo button in the toolbar. The toolbar button and Edit → Undo do the same thing.\"},{\"@type\":\"HowToStep\",\"position\":8,\"name\":\"The project now shows 1 clip.\",\"text\":\"The project now shows 1 clip. The split is gone and the clip is whole again.\"},{\"@type\":\"HowToStep\",\"position\":9,\"name\":\"Press the Redo button in the toolbar.\",\"text\":\"Press the Redo button in the toolbar.\"},{\"@type\":\"HowToStep\",\"position\":10,\"name\":\"The project now shows 2 clips.\",\"text\":\"The project now shows 2 clips. The split is back.\"}]}"
+    content: "{\"@context\":\"https://schema.org\",\"@type\":\"HowTo\",\"name\":\"Undo and redo\",\"description\":\"Step back through your edits and forward again.\",\"tool\":[{\"@type\":\"HowToTool\",\"name\":\"Soundscaper\"}],\"step\":[{\"@type\":\"HowToStep\",\"position\":1,\"name\":\"Open Soundscaper. A new, empty project is ready as soon as the editor loads.\",\"text\":\"Open Soundscaper. A new, empty project is ready as soon as the editor loads.\"},{\"@type\":\"HowToStep\",\"position\":2,\"name\":\"Choose File → Import and pick any recording. It lands as a clip on its own track.\",\"text\":\"Choose File → Import and pick any recording. It lands as a clip on its own track.\"},{\"@type\":\"HowToStep\",\"position\":3,\"name\":\"Press the Split tool button in the toolbar.\",\"text\":\"Press the Split tool button in the toolbar.\"},{\"@type\":\"HowToStep\",\"position\":4,\"name\":\"Click the waveform anywhere in the clip to put the cursor there.\",\"text\":\"Click the waveform anywhere in the clip to put the cursor there. A split is a good edit to practise on because you can see it.\"},{\"@type\":\"HowToStep\",\"position\":5,\"name\":\"Press the Split tool button in the toolbar.\",\"text\":\"Press the Split tool button in the toolbar. Back to the normal pointer.\"},{\"@type\":\"HowToStep\",\"position\":6,\"name\":\"The project now shows 2 clips.\",\"text\":\"The project now shows 2 clips.\"},{\"@type\":\"HowToStep\",\"position\":7,\"name\":\"Press the Undo button in the toolbar.\",\"text\":\"Press the Undo button in the toolbar. The toolbar button and Edit → Undo do the same thing.\"},{\"@type\":\"HowToStep\",\"position\":8,\"name\":\"The project now shows 1 clip.\",\"text\":\"The project now shows 1 clip. The split is gone and the clip is whole again.\"},{\"@type\":\"HowToStep\",\"position\":9,\"name\":\"Press the Redo button in the toolbar.\",\"text\":\"Press the Redo button in the toolbar.\"},{\"@type\":\"HowToStep\",\"position\":10,\"name\":\"The project now shows 2 clips.\",\"text\":\"The project now shows 2 clips. The split is back.\"}]}"
 ---
-<!-- docs-ai-provenance: {"factPacketSha256":"d977a5c97426e241bb079fda77dc648a1ba846e2331811c3fbc259c0931454c8","model":"aya-expanse:8b","modelDigest":"65f986688a01b456158c57b042bc48afcb85d060646a82d491d1c0a01375b10e","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"d977a5c97426e241bb079fda77dc648a1ba846e2331811c3fbc259c0931454c8","targetLocale":"de"} -->
+<!-- docs-ai-provenance: {"factPacketSha256":"6d9cdb24c5f9df66cd50e9fa913ee28512b2d5b050122058a661b1576e0580ea","model":"aya-expanse:32b","modelDigest":"1603440383bd5504dc7afd01c0407b425b988dde650a8dc1a737433baa3cd432","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"6d9cdb24c5f9df66cd50e9fa913ee28512b2d5b050122058a661b1576e0580ea","targetLocale":"de"} -->
 
 <!-- Generated by `node scripts/docs-reference.mjs`. Do not edit. -->
 
-Jede Änderung und Wirkung wird in der Projektgeschichte gespeichert, sodass kein Versuch ein Risiko darstellt. Mit den Schritten Zurück und Wiederherstellen können Sie einen Schritt zurücknehmen – eine Wirkung, ein Schneiden oder eine Verschiebung – und Wiederherstellen bringt es zurück. Die Geschichte überdauert das Speichern und erneute Öffnen des Projekts.
+Jede Bearbeitung und jeder Effekt wird in der Projektgeschichte aufgezeichnet, sodass kein Versuch ein Risiko darstellt. Mit „Rückgängig“ wird jeweils ein Schritt zurückgenommen – ein Effekt, ein Schnitt, eine Bewegung – und mit „Wiederholen“ wird er rückgängig gemacht. Die Geschichte überlebt das Speichern und erneute Öffnen des Projekts.
 
-:::hinweis[Aus Audacity?]
-Dies ist Audacitys **Bearbeiten → Rückgängig machen** und **Bearbeiten → Wiederherstellen (Strg+Z, Strg+Y)**. Die Namen können in Soundscaper abweichen.
-:::
+:::note[Komme ich von Audacity?]
+Dies ist Audacitys **Bearbeiten → Rückgängig und Bearbeiten → Wiederholen (Strg+Z, Strg+Y)**. Die unten genannten Namen sind Soundscapers eigene, die sich manchmal unterscheiden.:::
 
 ## Schritte
 
-1. Öffnen Sie Soundscaper. Ein neues, leeres Projekt ist bereit, sobald der Editor geladen ist.
-2. Wählen Sie **Datei → Audio importieren** und wählen Sie eine Aufnahme. Die Datei landet als Clip auf seinem eigenen Spur.
-3. Klicken Sie auf die **Split-Werkzeug**-Schaltfläche in der Symbolleiste.
-4. Klicken Sie die Wellenform überall im Clip, um den Cursor dorthin zu setzen. Ein Split ist eine gute Übung, weil man ihn sehen kann.
-5. Klicken Sie erneut auf die **Split-Werkzeug**-Schaltfläche in der Symbolleiste. Zurück zur normalen Zeiger.
-6. Das Projekt zeigt nun 2 Clips.
-7. Klicken Sie auf die **Rückgängig**-Schaltfläche in der Symbolleiste. Die Schaltfläche in der Symbolleiste und **Bearbeiten → Rückgängig machen** erledigen dasselbe.
-8. Das Projekt zeigt nun 1 Clip.
-   *Sie sollten sehen:* Der Split ist verschwunden und der Clip ist wieder ganz.
-9. Klicken Sie auf die **Wiederherstellen**-Schaltfläche in der Symbolleiste.
-10. Das Projekt zeigt nun 2 Clips.
-   *Sie sollten sehen:* Der Split ist zurück.
+1. Öffnen Sie Soundscaper. Ein neues, leeres Projekt ist sofort bereit, sobald der Editor geladen ist.
+2. Wählen Sie **Datei → Importieren** und wählen Sie jede beliebige Aufnahme. Sie landet als Clip auf ihrer eigenen Spur.
+3. Drücken Sie die Schaltfläche **Teilen-Werkzeug** in der Symbolleiste.
+4. Klicken Sie auf die Wellenform irgendwo im Clip, um den Cursor dorthin zu setzen. Ein Split ist eine gute Bearbeitung, um zu üben, da Sie ihn sehen können.
+5. Drücken Sie die Schaltfläche **Teilen-Werkzeug** in der Symbolleiste. Zurück zum normalen Zeiger.
+6. Das Projekt zeigt nun 2 Clips an.
+7. Drücken Sie die Schaltfläche **Rückgängig** in der Symbolleiste. Die Schaltfläche in der Symbolleiste und **Bearbeiten → Rückgängig** tun das Gleiche.
+8. Das Projekt zeigt nun 1 Clip an.
+*Sie sollten sehen:* Der Split ist verschwunden und der Clip ist wieder ganz.
+9. Drücken Sie die Schaltfläche **Wiederholen** in der Symbolleiste.
+10. Das Projekt zeigt nun 2 Clips an.
+*Sie sollten sehen:* Der Split ist zurück.
 
 ## Tipps
 
-- **Ansicht → Panels → Geschichte** listet jeden Schritt auf und ein Klick auf einen springt direkt zu ihm.
-- Rückgängig machen betrifft Änderungen an dem Projekt, nicht Exporten; eine Datei, die Sie bereits gespeichert haben, bleibt unverändert.
+- **Ansicht → Bereiche → Geschichte** listet jeden Schritt auf, und ein Klick auf einen springt direkt zu ihm.
+- Rückgängig umfasst Bearbeitungen am Projekt, nicht an Exporten; eine bereits gespeicherte Datei bleibt unverändert.
 
-## Verknüpfte Anleitungen
+## Verwandte Anleitungen
 
-Mehr [Bearbeitungs](/guides/editing/)-Anleitungen:
+Mehr [Bearbeitungs](/guides/editing/) Anleitungen:
 
-- [Ein Fehler aus einem Tonaufnahme schneiden](/guides/editing/cut-out-a-mistake/) – Wählen Sie einen Fehler aus, entfernen Sie ihn und schließen Sie die Lücke, damit die Aufnahme nahtlos weiterläuft.
-- [Ein Clip in zwei Teile schneiden](/guides/editing/split-a-clip-at-the-cursor/) – Schneiden Sie einen Clip an einem Punkt, um ihn in zwei Teile zu teilen.
-- [Nur den gewünschten Teil behalten](/guides/editing/keep-only-a-selection/) – Schneiden Sie alles außerhalb einer Auswahl in einem Schritt weg.
-- [Einen Abschnitt wiederholen](/guides/editing/repeat-a-section/) – Schleifen Sie eine Auswahl eine bestimmte Anzahl von Malen, um sie länger zu machen.
-- [Eine Aufnahme rückwärts abspielen](/guides/editing/reverse-audio/) – Drehen Sie eine Auswahl, damit sie von Ende zu Anfang abgespielt wird.
-- [Orte in einer Aufnahme markieren](/guides/editing/add-markers/) – Legen Sie Markierungen mit Namen auf die Zeitleiste, um auf Punkte später zurückzugreifen.
-- [Einen Abschnitt kopieren und einfügen](/guides/editing/copy-and-paste-a-section/) – Kopieren Sie einen Abschnitt und fügen Sie ihn an einer anderen Stelle auf der Spur ein.
-- [Eine Auswahl auf eine neue Spur duplizieren](/guides/editing/duplicate-a-selection-to-a-new-track/) – Kopieren Sie einen Abschnitt auf eine eigene Spur, um ihn separat zu bearbeiten.
-- [Nach einem Clip Stille einfügen](/guides/editing/add-silence-after-a-clip/) – Erzeugen Sie eine Lücke der exakten Länge an der Cursorposition.
-- [Clips Ende an Ende ausrichten](/guides/editing/line-up-clips-end-to-end/) – Drücken Sie zwei Clips auf verschiedenen Spuren gegeneinander, damit einer dem anderen folgt.
-- [Für präzise Bearbeitungen in die Wellenform zoomen](/guides/editing/zoom-in-for-precise-edits/) – Kommen Sie der Wellenform nahe genug, um auf einem Beat oder zwischen Wörtern zu schneiden.
-- [Einen Abschnitt während des Übens im Schleifmodus abspielen](/guides/editing/loop-a-section-while-you-practise/) – Spielen Sie eine ausgewählte Passage immer wieder ab.
-- [Einen Clip entlang der Zeitleiste verschieben](/guides/editing/move-a-clip-along-the-timeline/) – Ziehen Sie einen Clip an eine andere Position auf seiner Spur.
-- [Eine Aufnahme langsamer oder schneller abspielen, ohne die Aufnahme zu verändern](/guides/editing/listen-at-a-different-speed/) – Verlangsamen Sie eine Passage, um sie zu transkribieren, oder beschleunigen Sie eine lange Aufnahme, um sie zu überprüfen, ohne das Projekt zu verändern.
+- [Einen Fehler aus einer Aufnahme entfernen](/guides/editing/cut-out-a-mistake/) — Wählen Sie einen Slip aus, entfernen Sie ihn und schließen Sie die Lücke, sodass die Aufnahme weiterläuft.
+- [Einen Clip in zwei Teile teilen](/guides/editing/split-a-clip-at-the-cursor/) — Schneiden Sie einen Clip an einem Punkt, sodass jeder Teil separat bewegt oder behandelt werden kann.
+- [Nur den gewünschten Teil behalten](/guides/editing/keep-only-a-selection/) — Schneiden Sie alles außerhalb einer Auswahl in einem Schritt ab.
+- [Einen Abschnitt wiederholen](/guides/editing/repeat-a-section/) — Schleifen Sie eine Auswahl eine bestimmte Anzahl von Malen, um sie länger zu machen.
+- [Eine Aufnahme rückwärts abspielen](/guides/editing/reverse-audio/) — Kehren Sie eine Auswahl um, damit sie von Ende zu Anfang abgespielt wird.
+- [Positionen in einer Aufnahme markieren](/guides/editing/add-markers/) — Legen Sie benannte Marker auf der Zeitleiste ab, damit Sie später Punkte wiederfinden können.
+- [Abschnitt kopieren und einfügen](/guides/editing/copy-and-paste-a-section/) — Kopieren Sie einen Abschnitt und fügen Sie ihn an einer anderen Stelle auf der Spur ein.
+- [Auswahl auf eine neue Spur duplizieren](/guides/editing/duplicate-a-selection-to-a-new-track/) — Kopieren Sie einen Abschnitt auf seine eigene Spur, damit Sie ihn separat verarbeiten können.
+- [Nach einem Clip Stille hinzufügen](/guides/editing/add-silence-after-a-clip/) — Generieren Sie eine Lücke mit exakter Länge an der Cursorposition.
+- [Clips Ende an Ende ausrichten](/guides/editing/line-up-clips-end-to-end/) — Setzen Sie zwei Clips auf verschiedenen Spuren gegeneinander, damit der eine den anderen folgt.
+- [Für präzise Bearbeitungen heranzoomen](/guides/editing/zoom-in-for-precise-edits/) — Kommen Sie der Wellenform nahe genug, um auf einem Beat oder zwischen Wörtern zu schneiden.
+- [Einen Abschnitt während der Übung schleifen](/guides/editing/loop-a-section-while-you-practise/) — Spielen Sie eine ausgewählte Passage immer wieder ab.
+- [Einen Clip entlang der Zeitleiste bewegen](/guides/editing/move-a-clip-along-the-timeline/) — Ziehen Sie einen Clip zu einer anderen Zeit auf seiner Spur.
+- [Schneller oder langsamer abspielen, ohne die Aufnahme zu verändern](/guides/editing/listen-at-a-different-speed/) — Verlangsamen Sie einen Abschnitt, um ihn zu transkribieren, oder beschleunigen Sie eine lange Aufnahme, um sie zu überprüfen, ohne das Projekt zu verändern.
 
-## Zu dieser Anleitung
+## Über diese Anleitung
 
-Die auf dieser Seite beschriebene Prozedur – jede Menüauswahl, Dialogfeld, Feld und Schaltfläche sowie das daraus resultierende Ergebnis – wird von der Browser-Suite (`tests/browser/soundscaper-guides.spec.js`) für jede Build von Soundscaper überprüft. Wenn irgendetwas nicht mehr übereinstimmt, scheitert die Build, bis die Anleitung korrigiert ist. Die vorgeschlagenen Werte sind Ausgangspunkte, die von der Editor-Überprüfung als akzeptabel bestätigt wurden; ob sie für Ihre Aufnahme geeignet sind, müssen Sie selbst entscheiden.
+Das Verfahren auf dieser Seite — jede Menüoption, jeder Dialog, jedes Feld und jede Schaltfläche sowie das von ihnen erzeugte Ergebnis — wird bei jeder Soundscaper-Version vom Browser-Suite (`tests/browser/soundscaper-guides.spec.js`) wiederholt. Wenn irgendetwas davon nicht mehr mit dem Editor übereinstimmt, schlägt die Version fehl, bis die Anleitung korrigiert ist. Die vorgeschlagenen Werte sind Ausgangspunkte, die der Editor akzeptiert; ob sie für Ihre Aufnahme geeignet sind, hängt von Ihrem Gehör ab.

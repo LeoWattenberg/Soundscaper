@@ -1,6 +1,6 @@
 ---
-title: "Die gleiche Kette von Effekten jedes Mal anwenden"
-description: "Speichern Sie eine Folge von Effekten als Makro und führen Sie es mit einem Befehl auf jede Auswahl aus."
+title: "Wende dieselbe Effektkette jedes Mal an"
+description: "Speichere eine Sequenz von Effekten als Makro und führe sie mit einem Befehl auf jeder beliebigen Auswahl aus."
 editUrl: false
 sidebar:
   order: 13
@@ -8,55 +8,54 @@ head:
   - tag: script
     attrs:
       type: "application/ld+json"
-    content: "{\"@context\":\"https://schema.org\",\"@type\":\"HowTo\",\"name\":\"Apply the same chain of effects every time\",\"description\":\"Save a sequence of effects as a macro and run it on any selection with one command.\",\"tool\":[{\"@type\":\"HowToTool\",\"name\":\"Soundscaper\"}],\"step\":[{\"@type\":\"HowToStep\",\"position\":1,\"name\":\"Open Soundscaper. A new, empty project is ready as soon as the editor loads.\",\"text\":\"Open Soundscaper. A new, empty project is ready as soon as the editor loads.\"},{\"@type\":\"HowToStep\",\"position\":2,\"name\":\"Choose File → Import audio and pick a recording to process. The file lands as a clip on its own track.\",\"text\":\"Choose File → Import audio and pick a recording to process. The file lands as a clip on its own track.\"},{\"@type\":\"HowToStep\",\"position\":3,\"name\":\"Choose Select → Select all.\",\"text\":\"Choose Select → Select all. A macro runs on the selection, just as each effect would on its own.\"},{\"@type\":\"HowToStep\",\"position\":4,\"name\":\"Choose Tools → Macro manager and press New macro. Type Episode finish into Macro name. Press Add effect and choose Normalize and Fade Out, pressing Add effect again for each one. Press Run macro; the dialog reports that the macro was applied. Press Close.\",\"text\":\"Choose Tools → Macro manager and press New macro. Type Episode finish into Macro name. Press Add effect and choose Normalize and Fade Out, pressing Add effect again for each one. Press Run macro; the dialog reports that the macro was applied. Press Close. Each step keeps its default settings here; press a step’s Select effect button to change them before you run. The recording is normalized and fades to silence at the end.\"},{\"@type\":\"HowToStep\",\"position\":5,\"name\":\"Press Play to listen, then Stop.\",\"text\":\"Press Play to listen, then Stop.\"}]}"
+    content: "{\"@context\":\"https://schema.org\",\"@type\":\"HowTo\",\"name\":\"Apply the same chain of effects every time\",\"description\":\"Save a sequence of effects as a macro and run it on any selection with one command.\",\"tool\":[{\"@type\":\"HowToTool\",\"name\":\"Soundscaper\"}],\"step\":[{\"@type\":\"HowToStep\",\"position\":1,\"name\":\"Open Soundscaper. A new, empty project is ready as soon as the editor loads.\",\"text\":\"Open Soundscaper. A new, empty project is ready as soon as the editor loads.\"},{\"@type\":\"HowToStep\",\"position\":2,\"name\":\"Choose File → Import and pick a recording to process. It lands as a clip on its own track.\",\"text\":\"Choose File → Import and pick a recording to process. It lands as a clip on its own track.\"},{\"@type\":\"HowToStep\",\"position\":3,\"name\":\"Choose Select → Select all.\",\"text\":\"Choose Select → Select all. A macro runs on the selection, just as each effect would on its own.\"},{\"@type\":\"HowToStep\",\"position\":4,\"name\":\"Choose Tools → Macro manager and press New macro. Type Episode finish into Macro name. Press Add effect and choose Normalize and Fade Out, pressing Add effect again for each one. Press Run macro; the dialog reports that the macro was applied. Press Close.\",\"text\":\"Choose Tools → Macro manager and press New macro. Type Episode finish into Macro name. Press Add effect and choose Normalize and Fade Out, pressing Add effect again for each one. Press Run macro; the dialog reports that the macro was applied. Press Close. Each step keeps its default settings here; press a step’s Select effect button to change them before you run. The recording is normalized and fades to silence at the end.\"},{\"@type\":\"HowToStep\",\"position\":5,\"name\":\"Press Play to listen, then Stop.\",\"text\":\"Press Play to listen, then Stop.\"}]}"
 ---
-<!-- docs-ai-provenance: {"factPacketSha256":"fe27c3ca761a5f223dc61da95d50d67d87079e31b9824488ca90a19d367c70f6","model":"aya-expanse:8b","modelDigest":"65f986688a01b456158c57b042bc48afcb85d060646a82d491d1c0a01375b10e","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"fe27c3ca761a5f223dc61da95d50d67d87079e31b9824488ca90a19d367c70f6","targetLocale":"de"} -->
+<!-- docs-ai-provenance: {"factPacketSha256":"a5d3e1397a5d7af65a4e17a19753b03303693a33220b67c809efc56f5741620e","model":"aya-expanse:32b","modelDigest":"1603440383bd5504dc7afd01c0407b425b988dde650a8dc1a737433baa3cd432","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"a5d3e1397a5d7af65a4e17a19753b03303693a33220b67c809efc56f5741620e","targetLocale":"de"} -->
 
 <!-- Generated by `node scripts/docs-reference.mjs`. Do not edit. -->
 
-Jede Episode erhält die gleiche Behandlung: Normalisierung und Ausblenden des Endes. Ein Makro zeichnet diese Sequenz einmal auf und führt sie aus, wenn Sie es anfordern, mit den von Ihnen gewählten Einstellungen, sodass eine Zehn-Schritte-Routine zu einem Befehl wird. Audacity 3 hatte einen Makro-Manager für genau diesen Zweck; Audacity 4 hat Makros nicht wieder eingeführt.
+Jede Episode erhält die gleiche Behandlung: Normalisieren, Ausblenden. Eine Makro zeichnet diese Sequenz einmal auf und führt sie aus, wann immer Sie es anfordern, mit den von Ihnen gewählten Einstellungen, so dass eine zehnstufige Routine zu einem Befehl wird. Audacity 3 hatte einen Makro-Manager für genau dies; Audacity 4 hat die Makros nicht wieder eingeführt.
 
-:::note[Aus Audacity?]
-Dies ist Audacity's **Tools → Makro → Makro-Manager und Makro anwenden (Audacity 3; Audacity 4 hat keine Makros)**. Die Namen unten stammen von Soundscaper, die sich manchmal unterscheiden können.
+:::note[Komme von Audacity?]
+Dies ist Audacitys **Werkzeuge → Makros → Makros verwalten und Makro anwenden (Audacity 3; Audacity 4 hat keine Makros)**. Die Namen unten sind Soundscapers eigene, die manchmal abweichen.
 :::
 
 ## Schritte
 
 1. Öffnen Sie Soundscaper. Ein neues, leeres Projekt ist bereit, sobald der Editor geladen ist.
-2. Wählen Sie **Datei → Audio importieren** und wählen Sie eine Aufnahme zum Verarbeiten aus. Die Datei landet als Clip auf ihrer eigenen Spur.
-3. Wählen Sie **Auswählen → Alle auswählen**. Ein Makro wird auf die Auswahl angewendet, genau wie jedes Effekt auf seine eigene.
-4. Wählen Sie **Tools → Makro-Manager** und klicken Sie auf **Neues Makro**. Geben Sie `Episode finish` in **Makro-Name** ein. Klicken Sie auf **Effekt hinzufügen** und wählen Sie **Normalisieren** und **Ausblenden**, klicken Sie erneut auf **Effekt hinzufügen** für jedes. Klicken Sie auf **Makro ausführen**; das Dialogfeld berichtet, dass das Makro angewendet wurde. Klicken Sie auf **Schließen**. Jeder Schritt behält hier seine Standard-Einstellungen; klicken Sie auf die Schaltfläche **Effekt auswählen** eines Schritts, um sie vor der Ausführung zu ändern.
-
-*Sie sollten Folgendes sehen:* Die Aufnahme ist normalisiert und blendet bis zum Ende aus.
-5. Spielen Sie **Ab** und dann **Stopp**.
+2. Wählen Sie **Datei → Importieren** und wählen Sie eine Aufnahme zum Verarbeiten aus. Sie landet als Clip auf ihrer eigenen Spur.
+3. Wählen Sie **Auswahl → Alles auswählen**. Ein Makro läuft auf der Auswahl, genau wie jeder Effekt für sich allein.
+4. Wählen Sie **Werkzeuge → Makro-Manager** und drücken Sie **Neues Makro**. Geben Sie `Episode finish` in **Makro-Name** ein. Drücken Sie **Effekt hinzufügen** und wählen Sie **Normalisieren** und **Ausblenden**, drücken Sie **Effekt hinzufügen** erneut für jeden. Drücken Sie **Makro ausführen**; das Dialogfeld meldet, dass das Makro angewendet wurde. Drücken Sie **Schließen**. Jeder Schritt behält hier seine Standard-Einstellungen; drücken Sie die Schaltfläche **Effekt auswählen** eines Schritts, um sie zu ändern, bevor Sie ausführen.
+   *Sie sollten sehen:* Die Aufnahme wird normalisiert und verblasst am Ende in Stille.
+5. Drücken Sie **Wiedergabe**, um zuzuhören, und dann **Stopp**.
 
 ## Tipps
 
-- Das Makro wird mit dem Editor gespeichert, sodass es unter **Tools → Makro-Manager** für die nächste Aufnahme bereitsteht.
-- **Makro exportieren** schreibt die Kette als Audacity-Makro-Textdatei und **Makro importieren** liest eine solche Datei, sodass eine Routine zwischen den beiden Programmen übertragen werden kann.
+- Das Makro wird mit dem Editor gespeichert, sodass es unter **Werkzeuge → Makro-Manager** für die nächste Aufnahme bereit steht.
+- **Makro exportieren** schreibt die Kette als Audacity-Makro-Textdatei, und **Makro importieren** liest eine, sodass eine Routine zwischen den beiden Programmen verschoben werden kann.
 
 ## Verwandte Anleitungen
 
-Mehr [Effekte](/guides/effects/)-Anleitungen:
+Mehr [Effekte](/guides/effects/) Anleitungen:
 
-- [Tempo ändern, ohne Tonhöhe zu verändern](/guides/effects/change-tempo-without-changing-pitch/) — Beschleunigen oder Verlangsamen einer Aufnahme, während jede Note die gleiche Tonhöhe beibehält.
-- [Tonhöhe ändern, ohne Tempo zu verändern](/guides/effects/change-pitch-without-changing-tempo/) — Verschieben einer Aufnahme um eine bestimmte Anzahl von Halbtönen und beibehalten ihrer Zeit.
-- [Echo hinzufügen](/guides/effects/add-echo/) — Wiederholen eines Sounds in festen Abständen, immer lauter.
-- [Einen Raum hinzufügen](/guides/effects/add-reverb/) — Fügen Sie Reverb hinzu, um eine trockene Aufnahme so klingen zu lassen, als wäre sie in einem echten Raum aufgenommen worden.
-- [Bass und Treble anpassen](/guides/effects/boost-bass-and-treble/) — Erwärmen oder Aufhellen einer Aufnahme mit zwei einfachen Tonsteuerelementen.
-- [Geschwindigkeit wie eine Bandmaschine ändern](/guides/effects/change-speed-like-a-tape/) — Beschleunigen oder Verlangsamen einer Aufnahme, während die Tonhöhe mitfolgt, wie es bei einer Bandmaschine der Fall ist.
-- [Ein Sound in einen Drone verwandeln](/guides/effects/stretch-a-sound-into-a-drone/) — Verlangsamen eines kurzen Sounds enorm, um ambienten Texturen zu erzeugen, mit Paulstretch.
-- [Verzerrung hinzufügen](/guides/effects/add-distortion/) — Übertreiben Sie einen Sound von einem sanften Warmton bis zu einem vollen Fuzz.
-- [Wah-Wah hinzufügen](/guides/effects/add-a-wah-wah/) — Schwenken Sie einen resonanten Filter über einen Sound für den klassischen Funk-Effekt.
-- [Ein Nyquist-Plugin hinzufügen](/guides/effects/use-a-nyquist-plugin/) — Führen Sie eines der mitgelieferten Nyquist-Effekte aus, hier ein Tremolo.
-- [Einen Echtzeit-Effekt auf eine Spur anwenden](/guides/effects/add-a-realtime-effect-to-a-track/) — Fügen Sie einen Effekt auf eine Spur hinzu, damit er während Sie spielen laufen, ohne gerendert zu werden.
-- [Phaser hinzufügen](/guides/effects/add-a-phaser/) — Schwenken Sie eine Reihe von Schlitzen durch einen Sound für den klassischen, schwebenden Gitarren- und Keyboard-Effekt.
-- [Von einem Tempo zum anderen wechseln](/guides/effects/slide-from-one-tempo-to-another/) — Beschleunigen oder Verlangsamen eines Abschnitts allmählich über seine Länge, mit oder ohne Tonhöhen-Schiebe.
+- [Tempo ändern, ohne die Tonhöhe zu ändern](/guides/effects/change-tempo-without-changing-pitch/) — Eine Aufnahme beschleunigen oder verlangsamen, während jede Note in der gleichen Tonhöhe bleibt.
+- [Tonhöhe ändern, ohne das Tempo zu ändern](/guides/effects/change-pitch-without-changing-tempo/) — Eine Aufnahme um eine Anzahl von Halbtonen nach oben oder unten verschieben und das Timing beibehalten.
+- [Ein Echo hinzufügen](/guides/effects/add-echo/) — Einen Klang in festen Abständen wiederholen, jedes Mal leiser.
+- [Eine Aufnahme in einen Raum stellen](/guides/effects/add-reverb/) — Reverb hinzufügen, sodass eine trockene Aufnahme so klingt, als wäre sie in einem realen Raum aufgenommen worden.
+- [Bass und Höhen verstärken](/guides/effects/boost-bass-and-treble/) — Eine Aufnahme mit zwei einfachen Tonreglern aufwärmen oder aufhellen.
+- [Wie ein Tonbandgerät die Geschwindigkeit ändern](/guides/effects/change-speed-like-a-tape/) — Eine Aufnahme beschleunigen oder verlangsamen, wobei die Tonhöhe mitgeht, wie bei Tonband.
+- [Einen Klang in einen Drone umwandeln](/guides/effects/stretch-a-sound-into-a-drone/) — Einen kurzen Klang extrem verlangsamen mit Paulstretch, um ambient Texturen zu erzeugen.
+- [Verzerrung hinzufügen](/guides/effects/add-distortion/) — Einen Klang von sanfter Wärme bis hin zu vollem Fuzz übersteuern.
+- [Ein Wah-Wah hinzufügen](/guides/effects/add-a-wah-wah/) — Einen resonanten Filter über einen Klang kehren, um den klassischen Funk-Effekt zu erzeugen.
+- [Einen Nyquist-Plug-in verwenden](/guides/effects/use-a-nyquist-plugin/) — Einen der mitgelieferten Nyquist-Effekte ausführen — hier ein einstellbares Ausblenden.
+- [Einen Echtzeit-Effekt zu einer Spur hinzufügen](/guides/effects/add-a-realtime-effect-to-a-track/) — Einen Effekt auf eine Spur legen, damit er beim Abspielen läuft, ohne zu rendern.
+- [Einen Phaser hinzufügen](/guides/effects/add-a-phaser/) — Eine Reihe von Notches durch einen Klang kehren, um den klassischen Swirl-Effekt für Gitarre und Keyboard zu erzeugen.
+- [Von einem Tempo zum anderen gleiten](/guides/effects/slide-from-one-tempo-to-another/) — Eine Passage beschleunigen oder verlangsamen, allmählich über ihre Länge, mit oder ohne Tonhöhen-Gleit.
 
 ## Referenz
 
-- [Alle Menübefehle und ihre Tastaturkürzel finden Sie in der Befehle und Tastaturkürzel-Referenz.](/reference/generated/commands/)
+- [Jeder Menübefehl und seine Tastenkombination finden Sie in der Referenz zu Befehlen und Tastenkombinationen.](/reference/generated/commands/)
 
 ## Über diese Anleitung
 
-Das Verfahren auf dieser Seite – jeder Menü-Eintrag, Dialogfeld, Feld und Schaltfläche sowie das Ergebnis, das es produziert – wird gegen jede Version von Soundscaper von einem Browser-Suite (`tests/browser/soundscaper-guides.spec.js`) wiederholt. Wenn irgendetwas nicht mehr übereinstimmt, scheitert der Build, bis die Anleitung korrigiert ist. Die vorgeschlagenen Werte sind Ausgangspunkte, die der Editor als gültig akzeptiert; ob sie für Ihre Aufnahme geeignet sind, müssen Sie selbst entscheiden.
+Das Verfahren auf dieser Seite — jeder Menüpunkt, Dialog, Feld und Knopf sowie das von ihm erzeugte Ergebnis — wird von der Browser-Suite (`tests/browser/soundscaper-guides.spec.js`) gegen jede Version von Soundscaper abgespielt. Wenn irgendetwas davon aufhört, mit dem Editor übereinzustimmen, schlägt der Build fehl, bis die Anleitung korrigiert wird. Die vorgeschlagenen Werte sind Ausgangspunkte, die der Editor akzeptiert hat; ob sie für Ihre Aufnahme geeignet sind, hängt von Ihrem Gehör ab.
