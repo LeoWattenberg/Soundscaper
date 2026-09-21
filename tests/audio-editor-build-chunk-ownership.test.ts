@@ -150,6 +150,7 @@ test('Freesound and imported metadata stay behind import admission', () => {
 		'src/common/editor/imported-media-metadata.ts',
 		'src/common/editor/source-provenance.ts',
 		'src/common/editor/source-provenance-derivation.ts',
+		'src/common/editor/controller/import/freesound-import-service.ts',
 		'src/common/editor/controller/import/internal/freesound-import-service.ts',
 		'src/common/editor/controller/import/internal/imported-source-provenance.ts',
 		'src/common/editor/controller/import/internal/project-import-options-for-use.ts',

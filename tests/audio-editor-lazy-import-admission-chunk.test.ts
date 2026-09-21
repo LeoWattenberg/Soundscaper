@@ -4,7 +4,7 @@ import test from 'node:test';
 import { chunkGroupForModulePath, chunkGroups } from '../scripts/lib/build-chunk-groups.mjs';
 
 test('foreground import admission stays in a focused lazy owner independent of codec execution', () => {
-	for (const module of ['controller/import/internal/import-task-cancellation.ts', 'controller/import/internal/project-import-admission.ts', 'controller/import/internal/standalone-audio-import-decoder.ts', 'encoded-audio-marker-scan.ts', 'streamed-audio-import-file.ts']) {
+	for (const module of ['controller/import/freesound-import-service.ts', 'controller/import/internal/import-task-cancellation.ts', 'controller/import/internal/project-import-admission.ts', 'controller/import/internal/standalone-audio-import-decoder.ts', 'encoded-audio-marker-scan.ts', 'streamed-audio-import-file.ts']) {
 		assert.equal(chunkGroupForModulePath(`/workspace/src/common/editor/${module}`), 'editor-import-admission', module);
 	}
 	const group = chunkGroups.find(({ name }) => name === 'editor-import-admission');
