@@ -4,7 +4,6 @@
 
 import {
 	ASSISTANCE_OPERATIONS,
-	normalizeAssistanceOperation,
 	type AssistanceOperation,
 } from '../../../assistance/operation.ts';
 import {
@@ -18,24 +17,13 @@ import {
 	prepareLocalAssistanceGuidedEditorialContext,
 	prepareLocalAssistanceGuidedTranscriptInput,
 } from './guided/local-assistance-guided-transcript-context.ts';
-import { enumValue, exactRecord, id, text } from '../local-assistance-prepared-media.ts';
 import { prepareLocalAssistanceAlignmentContext } from './local-assistance-alignment-context.ts';
+import {
+	normalizeLocalAssistanceSelectedMediaInventory,
+} from '../local-assistance-selected-media-inventory.ts';
 
 const MAXIMUM_OUTPUT_BYTES = 64 * 1024 * 1024;
-const MEDIA_KINDS = Object.freeze([
-	'audio', 'video', 'frame-pack', 'transcript', 'text', 'editorial-context',
-] as const);
-
-interface AdvancedInventorySource {
-	readonly sourceId: string;
-	readonly label: string;
-	readonly mediaKind: typeof MEDIA_KINDS[number];
-	readonly operations: readonly AssistanceOperation[];
-}
-
-interface AdvancedInventory {
-	readonly sources: readonly AdvancedInventorySource[];
-}
+type AdvancedInventory = ReturnType<typeof normalizeLocalAssistanceSelectedMediaInventory>;
 
 interface SelectedPreparationPort {
 	listSelectedMedia(): Promise<unknown>;
@@ -79,7 +67,7 @@ export function createLocalAssistanceAdvancedSelectedContextPreparation<
 	assertDependencies(dependencies);
 
 	async function listSelectedMedia(): Promise<AdvancedInventory> {
-		const inventory = normalizeInventory(
+		const inventory = normalizeLocalAssistanceSelectedMediaInventory(
 			await dependencies.selected.listSelectedMedia(),
 		);
 		const contexts = new Map<string, Exclude<Awaited<ReturnType<typeof readContext>>, null>>();
@@ -127,7 +115,7 @@ export function createLocalAssistanceAdvancedSelectedContextPreparation<
 			throw new TypeError('Advanced context preparation requires a valid cancellation signal.');
 		}
 		signal.throwIfAborted();
-		const inventory = normalizeInventory(
+		const inventory = normalizeLocalAssistanceSelectedMediaInventory(
 			await dependencies.selected.listSelectedMedia(),
 		);
 		const context = await readContext(inventory, request.sourceId, signal);
@@ -216,30 +204,4 @@ function dataRecord(value: unknown, label: string): Record<string, unknown> {
 		throw new TypeError(`${label} must be a record.`);
 	}
 	return value as Record<string, unknown>;
-}
-
-function normalizeInventory(value: unknown): AdvancedInventory {
-	const root = exactRecord(value, ['sources'], 'Advanced selected-media inventory');
-	if (!Array.isArray(root.sources) || root.sources.length > 128) {
-		throw new TypeError('The Advanced selected-media source inventory is invalid.');
-	}
-	const seen = new Set<string>();
-	const sources = root.sources.map((value) => {
-		const source = exactRecord(value, ['sourceId', 'label', 'mediaKind', 'operations'],
-			'Advanced selected-media source');
-		const sourceId = id(source.sourceId);
-		if (seen.has(sourceId)) throw new TypeError('An Advanced selected-media source is repeated.');
-		seen.add(sourceId);
-		if (!Array.isArray(source.operations) || source.operations.length < 1
-			|| source.operations.length > ASSISTANCE_OPERATIONS.length) {
-			throw new TypeError('An Advanced selected-media operation inventory is invalid.');
-		}
-		const operations = Object.freeze(source.operations.map(normalizeAssistanceOperation));
-		if (new Set(operations).size !== operations.length) {
-			throw new TypeError('An Advanced selected-media source repeats an operation.');
-		}
-		return Object.freeze({ sourceId, label: text(source.label, 160, 'source label'),
-			mediaKind: enumValue(source.mediaKind, MEDIA_KINDS, 'media kind'), operations });
-	});
-	return Object.freeze({ sources: Object.freeze(sources) });
 }
