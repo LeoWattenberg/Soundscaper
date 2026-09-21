@@ -6,10 +6,8 @@ import { isAbsolute, join } from 'node:path';
 import { writeDesktopNightlyTestsMetricsDiagnostics } from './desktop-nightly-tests-metrics.mjs';
 import { PACKAGED_COVERAGE_ARTIFACT_PATHS } from './desktop-nightly-tests-packaged-coverage.mjs';
 
-const PRODUCTS = Object.freeze({
-	soundscaper: Object.freeze({ executable: 'Soundscaper', linuxExecutable: 'soundscaper' }),
-	framescaper: Object.freeze({ executable: 'Framescaper', linuxExecutable: 'framescaper' }),
-});
+export { resolvePackagedProductExecutable } from './desktop-packaged-product-executable.mjs';
+
 export const PACKAGED_RUNTIME_ARTIFACT_PATHS = Object.freeze({
 	...PACKAGED_COVERAGE_ARTIFACT_PATHS,
 	packagedRuntimeConsoleLog: 'packaged-runtime/console.log',
@@ -29,24 +27,6 @@ export function packagedRuntimeChromiumArguments(platform) {
 		'--ignore-gpu-blocklist',
 		...(platform === 'linux' ? ['--enable-unsafe-swiftshader'] : []),
 	]);
-}
-
-export function resolvePackagedProductExecutable({ productRoot, productId, platform, arch }) {
-	assertAbsolute(productRoot, 'Packaged product root');
-	const product = PRODUCTS[productId];
-	if (!product) throw new TypeError('Packaged product ID is invalid.');
-	if (!['x64', 'arm64'].includes(arch)) throw new TypeError('Packaged product architecture is invalid.');
-	const root = join(productRoot, productId);
-	if (platform === 'win32') {
-		return join(root, `win${arch === 'x64' ? '' : `-${arch}`}-unpacked`, `${product.executable}.exe`);
-	}
-	if (platform === 'darwin') {
-		return join(root, `mac${arch === 'x64' ? '' : `-${arch}`}`, `${product.executable}.app`, 'Contents', 'MacOS', product.executable);
-	}
-	if (platform === 'linux') {
-		return join(root, `linux${arch === 'x64' ? '' : `-${arch}`}-unpacked`, product.linuxExecutable);
-	}
-	throw new TypeError('Packaged product platform is invalid.');
 }
 
 export function createDesktopNightlyTestsPackagedMetricsPlan({

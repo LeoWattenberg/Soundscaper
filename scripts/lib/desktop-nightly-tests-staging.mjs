@@ -84,6 +84,7 @@ export const NIGHTLY_TEST_PAYLOAD_INPUTS = Object.freeze([
 	{ source: 'scripts/lib/desktop-nightly-tests-static-route.mjs', destination: 'scripts/lib/desktop-nightly-tests-static-route.mjs', kind: 'file', label: 'nightly test static route resolver' },
 	{ source: 'scripts/lib/desktop-nightly-tests-metrics.mjs', destination: 'scripts/lib/desktop-nightly-tests-metrics.mjs', kind: 'file', label: 'nightly metrics runtime' },
 	{ source: 'scripts/lib/desktop-nightly-tests-packaged-coverage.mjs', destination: 'scripts/lib/desktop-nightly-tests-packaged-coverage.mjs', kind: 'file', label: 'nightly packaged-runtime coverage' },
+	{ source: 'scripts/lib/desktop-packaged-product-executable.mjs', destination: 'scripts/lib/desktop-packaged-product-executable.mjs', kind: 'file', label: 'packaged product executable resolution' },
 	{ source: 'scripts/lib/desktop-nightly-tests-packaged-runtime.mjs', destination: 'scripts/lib/desktop-nightly-tests-packaged-runtime.mjs', kind: 'file', label: 'nightly packaged-runtime metrics' },
 	{ source: 'scripts/lib/desktop-nightly-tests-presentation.mjs', destination: 'scripts/lib/desktop-nightly-tests-presentation.mjs', kind: 'file', label: 'nightly test presentation' },
 	{ source: 'scripts/lib/soundscaper-soak-desktop-playwright.mjs', destination: 'scripts/lib/soundscaper-soak-desktop-playwright.mjs', kind: 'file', label: 'packaged soak runtime launcher' },

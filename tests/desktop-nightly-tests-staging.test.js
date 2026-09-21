@@ -127,6 +127,7 @@ test('nightly test staging creates a hermetic, manifest-bound Playwright payload
 		'scripts/lib/desktop-nightly-tests-static-route.mjs',
 		'scripts/lib/desktop-nightly-tests-metrics.mjs',
 		'scripts/lib/desktop-nightly-tests-packaged-coverage.mjs',
+		'scripts/lib/desktop-packaged-product-executable.mjs',
 		'scripts/lib/desktop-nightly-tests-packaged-runtime.mjs',
 		'scripts/lib/desktop-nightly-tests-presentation.mjs',
 		'scripts/lib/soundscaper-soak-desktop-playwright.mjs',

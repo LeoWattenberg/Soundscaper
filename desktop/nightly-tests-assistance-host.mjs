@@ -5,7 +5,7 @@ import { dirname, isAbsolute, join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { takeCoverage } from 'node:v8';
 
-import { resolvePackagedProductExecutable } from '../scripts/lib/desktop-nightly-tests-packaged-runtime.mjs';
+import { resolvePackagedProductExecutable } from '../scripts/lib/desktop-packaged-product-executable.mjs';
 import { exitAfterCoverageCheckpoint } from './coverage-checkpoint-exit.mjs';
 
 export const NIGHTLY_ASSISTANCE_HOST_FLAG = '--soundscaper-nightly-assistance-host';

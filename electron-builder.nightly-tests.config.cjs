@@ -36,6 +36,7 @@ module.exports = {
 		'scripts/lib/desktop-nightly-tests-static-route.mjs',
 		'scripts/lib/desktop-nightly-tests-metrics.mjs',
 		'scripts/lib/desktop-nightly-tests-packaged-coverage.mjs',
+		'scripts/lib/desktop-packaged-product-executable.mjs',
 		'scripts/lib/desktop-nightly-tests-packaged-runtime.mjs',
 		'scripts/lib/desktop-nightly-tests-presentation.mjs',
 		'scripts/collect-m3-longform-editorial-quality.mjs',

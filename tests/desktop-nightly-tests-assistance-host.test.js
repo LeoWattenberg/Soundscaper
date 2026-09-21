@@ -5,6 +5,10 @@ import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 
 import {
+	createSourceFile, isImportDeclaration, isStringLiteral, ScriptTarget,
+} from 'typescript';
+
+import {
 	NIGHTLY_ASSISTANCE_DOCUMENT_URL, NIGHTLY_ASSISTANCE_HOST_FLAG,
 	NIGHTLY_ASSISTANCE_SCHEME, registerNightlyAssistanceScheme,
 	createNightlyAssistanceHostDisposal, resolveNightlyAssistanceHostPlan, startNightlyAssistanceHost,
@@ -115,6 +119,18 @@ test('production assistance keeps its real runtime root as the default and no te
 	assert.doesNotMatch(source, /SOUNDSCAPER_LOCAL_ASSISTANCE_REAL_MODELS|nightly-assistance-host/u);
 });
 
+test('the diagnostic host has an exact dependency-free local import closure', async () => {
+	const [host, executableResolver] = await Promise.all([
+		readFile(new URL('../desktop/nightly-tests-assistance-host.mjs', import.meta.url), 'utf8'),
+		readFile(new URL('../scripts/lib/desktop-packaged-product-executable.mjs', import.meta.url), 'utf8'),
+	]);
+	assert.deepEqual(staticRelativeImports(host), [
+		'../scripts/lib/desktop-packaged-product-executable.mjs',
+		'./coverage-checkpoint-exit.mjs',
+	]);
+	assert.deepEqual(staticRelativeImports(executableResolver), []);
+});
+
 test('Electron checkpoints V8 coverage only after assistance cleanup and immediately before exit', async () => {
 	const [applicationMain, launcherMain, host] = await Promise.all([
 		readFile(new URL('../desktop/main.mjs', import.meta.url), 'utf8'),
@@ -158,3 +174,12 @@ test('the diagnostic document admits only locally supplied data images', async (
 	assert.match(source, /default-src 'none'; img-src data:;/u);
 	assert.doesNotMatch(source, /<script|https?:/u);
 });
+
+function staticRelativeImports(source) {
+	return createSourceFile('coverage-harness.mjs', source, ScriptTarget.Latest, true).statements
+		.filter((statement) => isImportDeclaration(statement)
+			&& isStringLiteral(statement.moduleSpecifier)
+			&& /^\.\.?\//u.test(statement.moduleSpecifier.text))
+		.map((statement) => statement.moduleSpecifier.text)
+		.sort();
+}

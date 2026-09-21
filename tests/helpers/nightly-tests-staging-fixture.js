@@ -81,6 +81,7 @@ export async function createFixture(context) {
 		['scripts/lib/desktop-nightly-tests-static-route.mjs', 'export const staticRoute = true;\n'],
 		['scripts/lib/desktop-nightly-tests-metrics.mjs', 'export const metricsRuntime = true;\n'],
 		['scripts/lib/desktop-nightly-tests-packaged-coverage.mjs', 'export const packagedCoverage = true;\n'],
+		['scripts/lib/desktop-packaged-product-executable.mjs', 'export const productExecutable = true;\n'],
 		['scripts/lib/desktop-nightly-tests-packaged-runtime.mjs', 'export const packagedRuntime = true;\n'],
 		['scripts/lib/desktop-nightly-tests-presentation.mjs', 'export const presentation = true;\n'],
 		['scripts/lib/soundscaper-soak-desktop-playwright.mjs', 'export const desktopSoak = true;\n'],
