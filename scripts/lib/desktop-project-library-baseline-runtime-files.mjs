@@ -24,6 +24,7 @@ export const DESKTOP_PROJECT_LIBRARY_BASELINE_RUNTIME_FILES = Object.freeze([
 	'desktop/framescaper-project-library-writer.js',
 	'src/framescaper/desktop-project-library-body-contract.js',
 	'src/framescaper/desktop-project-library-core-body-transfer.js',
+	'src/framescaper/desktop-project-library-publication-identity.js',
 	'src/common/editor/project-schema-identity.js',
 	'src/common/editor/command-project-view.js',
 	'src/common/editor/project-document-body-types.js',
