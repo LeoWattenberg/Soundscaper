@@ -26,6 +26,7 @@ import {
 	retainedBrowserDynamicCoverageScript,
 	retainCapturedBrowserSource,
 } from './browser-dynamic-coverage-sources.mjs';
+import { portableE2ESourceMap } from './e2e-coverage-source-maps.mjs';
 import {
 	installNavigationCoverageCheckpoints,
 	installPageOperationCoverageCheckpoints,
@@ -54,7 +55,6 @@ const BROWSER_WORKER_TARGET_TYPES = Object.freeze([
 // the artifact inventory can own shipped scripts such as `service-worker.js`.
 export const BROWSER_COVERAGE_DIRECTORY = 'coverage/v8-browser';
 export const PORTABLE_BROWSER_COVERAGE_URL_PREFIX = 'file:///__soundscaper_e2e__/browser/';
-export const PORTABLE_REPOSITORY_SOURCE_URL_PREFIX = 'file:///__soundscaper_repo__/';
 
 const REPOSITORY_ROOT = resolve(import.meta.dirname, '../..');
 const SCRIPT_FILE_PATTERN = /\.m?js$/u;
@@ -495,43 +495,12 @@ async function readSourceMap(chunk, { repositoryRoot, productId }) {
 			coverageUrl: portableCoverageUrl(chunk, productId),
 		};
 	}
-	const sourceMap = productId === undefined ? parsed : await portableSourceMap(parsed, repositoryRoot);
+	const sourceMap = productId === undefined ? parsed : await portableE2ESourceMap(parsed, repositoryRoot);
 	return {
 		path: chunk.path,
 		...(productId === undefined ? {} : { coverageUrl: portableCoverageUrl(chunk, productId) }),
 		sourceMap,
 	};
-}
-
-async function portableSourceMap(map, repositoryRoot) {
-	if (!Array.isArray(map.sources)) return map;
-	const sourcesContent = [];
-	const sources = [];
-	for (const source of map.sources) {
-		const repositoryPath = repositorySourcePath(source);
-		if (repositoryPath === null) {
-			sources.push(source);
-			sourcesContent.push(null);
-			continue;
-		}
-		sources.push(`${PORTABLE_REPOSITORY_SOURCE_URL_PREFIX}${repositoryPath}`);
-		sourcesContent.push(await readFile(resolve(repositoryRoot, repositoryPath), 'utf8'));
-	}
-	return { ...map, sourceRoot: '', sources, sourcesContent };
-}
-
-function repositorySourcePath(source) {
-	if (typeof source !== 'string') return null;
-	let pathname;
-	try { pathname = decodeURIComponent(new URL(source).pathname).replaceAll('\\', '/'); }
-	catch { return null; }
-	if (pathname.includes('/node_modules/') || pathname.includes('/vendor/')) return null;
-	for (const root of ['src', 'desktop']) {
-		const marker = `/${root}/`;
-		const at = pathname.lastIndexOf(marker);
-		if (at >= 0) return pathname.slice(at + 1);
-	}
-	return null;
 }
 
 function portableCoverageUrl(chunk, productId) {

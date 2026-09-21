@@ -134,7 +134,14 @@ function absoluteSource(source, sourceRoot, mapDirectory, repositoryRoot) {
 	// where it lives; neither is a path this can make more resolvable.
 	if (typeof source !== 'string' || source === '' || source.startsWith('\0')) return source;
 	if (/^[A-Za-z][A-Za-z0-9+.-]*:/u.test(source)) return source;
-	const rooted = sourceRoot === '' ? source : `${sourceRoot.replace(/\/+$/u, '')}/${source}`;
+	// Vite resource imports retain their loader query in the emitted source-map
+	// entry. Keep it as URL metadata: passing it through pathToFileURL would
+	// encode `?url` into the pathname and make consumers open that literal,
+	// nonexistent file name.
+	const suffixAt = source.search(/[?#]/u);
+	const sourcePath = suffixAt > 0 ? source.slice(0, suffixAt) : source;
+	const urlSuffix = suffixAt > 0 ? source.slice(suffixAt) : '';
+	const rooted = sourceRoot === '' ? sourcePath : `${sourceRoot.replace(/\/+$/u, '')}/${sourcePath}`;
 	const emittedRelative = resolve(mapDirectory, rooted);
 	const repositoryRelative = rooted.replace(/^(?:\.\.\/)+/u, '');
 	const repositoryCandidate = resolve(repositoryRoot, repositoryRelative);
@@ -149,7 +156,8 @@ function absoluteSource(source, sourceRoot, mapDirectory, repositoryRoot) {
 		&& existsSync(repositoryCandidate)
 		? repositoryCandidate
 		: emittedRelative;
-	return pathToFileURL(resolved).href;
+	const resolvedUrl = pathToFileURL(resolved);
+	return urlSuffix === '' ? resolvedUrl.href : new URL(urlSuffix, resolvedUrl).href;
 }
 
 function parseSourceMap(text, mapPath) {

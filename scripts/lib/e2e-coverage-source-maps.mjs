@@ -1,12 +1,14 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { existsSync, lstatSync } from 'node:fs';
+import { readFile } from 'node:fs/promises';
 import { basename, isAbsolute, resolve } from 'node:path';
 
 import { revisionBoundSource } from './e2e-coverage-integrity.mjs';
 import { E2E_REPOSITORY_URL_PREFIX } from './e2e-coverage-prefixes.mjs';
 
 const EXECUTABLE_SOURCE_PATTERN = /\.(?:[cm]?[jt]sx?)$/u;
+const E2E_GENERATED_SOURCE_URL_PREFIX = 'file:///__soundscaper_generated__/';
 
 export function normalizeE2ESourceMap(map, repositoryRoot, label, sourceRevision) {
 	if (!record(map) || map.version !== 3 || !Array.isArray(map.sources)
@@ -63,6 +65,37 @@ export function normalizeE2ESourceMap(map, repositoryRoot, label, sourceRevision
 	});
 }
 
+/** Make checkout-backed map sources portable without mistaking loader stubs for files. */
+export async function portableE2ESourceMap(map, repositoryRoot) {
+	if (!Array.isArray(map.sources)) return map;
+	const sourcesContent = [];
+	const sources = [];
+	for (const source of map.sources) {
+		const repositoryPath = repositorySourcePath(source);
+		if (repositoryPath === null) {
+			sources.push(source);
+			sourcesContent.push(null);
+			continue;
+		}
+		if (isGeneratedE2ERepositoryPath(repositoryPath)) {
+			sources.push(generatedE2ESourceUrl(repositoryPath));
+			sourcesContent.push(null);
+			continue;
+		}
+		sources.push(`${E2E_REPOSITORY_URL_PREFIX}${repositoryPath}`);
+		sourcesContent.push(await readFile(resolve(repositoryRoot, repositoryPath), 'utf8'));
+	}
+	return { ...map, sourceRoot: '', sources, sourcesContent };
+}
+
+export function generatedE2ESourceUrl(path) {
+	return `${E2E_GENERATED_SOURCE_URL_PREFIX}${encodePath(path)}`;
+}
+
+export function isGeneratedE2ERepositoryPath(path) {
+	return /[?#]/u.test(path) || !EXECUTABLE_SOURCE_PATTERN.test(path) || /\.d\.[cm]?ts$/u.test(path);
+}
+
 /** Return only the source entries that original-mapping segments actually reference. */
 export function mappedE2ESourceMapEntries(map, label = 'source map') {
 	if (!record(map) || !Array.isArray(map.sources) || typeof map.mappings !== 'string') {
@@ -110,7 +143,7 @@ function normalizeMapSource({ content, digest, label, repositoryRoot, source, so
 	if (typeof source !== 'string' || source === '') return externalSource(source, content ?? null);
 	if (source.startsWith(E2E_REPOSITORY_URL_PREFIX)) {
 		const path = decodeURIComponent(source.slice(E2E_REPOSITORY_URL_PREFIX.length));
-		if (generatedRepositoryPath(path)) return generatedRepositorySource(path, content);
+		if (isGeneratedE2ERepositoryPath(path)) return generatedRepositorySource(path, content);
 		return repositorySource(
 			path,
 			repositoryRoot,
@@ -120,9 +153,9 @@ function normalizeMapSource({ content, digest, label, repositoryRoot, source, so
 			sourceRevision,
 		);
 	}
-	let pathname;
-	try { pathname = decodeURIComponent(new URL(source).pathname).replaceAll('\\', '/'); }
-	catch { return externalSource(source, null); }
+	const parsed = parsedSourceUrl(source);
+	if (parsed === null) return externalSource(source, null);
+	const { pathname, suffix } = parsed;
 	if (pathname.endsWith('/__vite-browser-external')) {
 		return externalSource(
 			'file:///__soundscaper_external__/vite-browser-external',
@@ -151,8 +184,8 @@ function normalizeMapSource({ content, digest, label, repositoryRoot, source, so
 		if (/(?:^|\/)\.(?:wrangler|desktop-build)(?:\/|$)|(?:^|\/)dist(?:\/|$)/u.test(prefix)) {
 			throw new Error(`${label} maps through a stale nested build path: ${source}.`);
 		}
-		const path = pathname.slice(at + 1);
-		if (generatedRepositoryPath(path)) return generatedRepositorySource(path, content);
+		const path = `${pathname.slice(at + 1)}${suffix}`;
+		if (isGeneratedE2ERepositoryPath(path)) return generatedRepositorySource(path, content);
 		return repositorySource(path, repositoryRoot, label, content, digest, sourceRevision);
 	}
 	if (EXECUTABLE_SOURCE_PATTERN.test(pathname)) {
@@ -199,7 +232,7 @@ function repositorySource(path, repositoryRoot, label, embedded, expectedDigest,
 
 function generatedRepositorySource(path, content) {
 	return {
-		url: `file:///__soundscaper_generated__/${encodePath(path)}`,
+		url: generatedE2ESourceUrl(path),
 		content: typeof content === 'string' ? content : null,
 		executableRepositoryPath: null,
 		executableThirdPartyPath: null,
@@ -209,8 +242,29 @@ function generatedRepositorySource(path, content) {
 	};
 }
 
-function generatedRepositoryPath(path) {
-	return /[?#]/u.test(path) || !EXECUTABLE_SOURCE_PATTERN.test(path) || /\.d\.[cm]?ts$/u.test(path);
+function repositorySourcePath(source) {
+	if (typeof source !== 'string') return null;
+	const parsed = parsedSourceUrl(source);
+	if (parsed === null || parsed.pathname.includes('/node_modules/')
+		|| parsed.pathname.includes('/vendor/')) return null;
+	for (const root of ['src', 'desktop']) {
+		const marker = `/${root}/`;
+		const at = parsed.pathname.lastIndexOf(marker);
+		if (at >= 0) return `${parsed.pathname.slice(at + 1)}${parsed.suffix}`;
+	}
+	return null;
+}
+
+function parsedSourceUrl(source) {
+	try {
+		const parsed = new URL(source);
+		return {
+			pathname: decodeURIComponent(parsed.pathname).replaceAll('\\', '/'),
+			suffix: `${parsed.search}${parsed.hash}`,
+		};
+	} catch {
+		return null;
+	}
 }
 
 function externalSource(url, content, executableThirdPartyPath = null, thirdPartyPath = null) {

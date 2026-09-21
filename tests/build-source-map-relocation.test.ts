@@ -119,6 +119,20 @@ test('nested product worker maps rebase their build-root-relative sources to the
 	assert.deepEqual(rewritten.sources, [pathToFileURL(source).href]);
 });
 
+test('Vite resource queries remain URL metadata instead of becoming source file names', () => {
+	const workspace = makeWorkspace();
+	const source = join(workspace, 'src/common/editor/macro-script/sandbox-prelude.js');
+	mkdirSync(resolve(source, '..'), { recursive: true });
+	writeFileSync(source, 'export const prelude = true;\n');
+	const rewritten = absoluteSourceMapSources(
+		{ version: 3, sources: ['../../src/common/editor/macro-script/sandbox-prelude.js?url'], mappings: '' },
+		join(workspace, '.wrangler/browser-products/soundscaper/assets'),
+		workspace,
+	);
+
+	assert.deepEqual(rewritten.sources, [`${pathToFileURL(source).href}?url`]);
+});
+
 test('two maps that would overwrite each other stop the build', async () => {
 	const workspace = makeWorkspace();
 	const built = join(workspace, 'dist');
