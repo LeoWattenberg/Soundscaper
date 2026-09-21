@@ -32,6 +32,7 @@ import { createLocalAssistanceGuidedAggregateFenceV1 } from
 import { deriveLocalAssistanceReviewAuthority } from '../local-assistance-review-authority.ts';
 import { LocalAssistanceAdvancedContextUnavailableError } from
 	'./local-assistance-advanced-selected-context.ts';
+import { assertSlottedCustodyClaim } from './local-assistance-slotted-custody-claim.ts';
 
 export interface LocalAssistanceAdvancedWorkflowPreparationRequest {
 	readonly jobId: string;
@@ -185,20 +186,17 @@ function modelBindings(
 }
 
 function assertHandle(
-	handle: Readonly<{ custody: AssistanceWorkflowCustodyClaimV1;
-		workflowClaim: AssistanceWorkflowClaimV1 }>,
+	handle: Readonly<{
+		custody: AssistanceWorkflowCustodyClaimV1;
+		workflowClaim: AssistanceWorkflowClaimV1;
+	}>,
 	direction: 'input' | 'output',
 	jobId: string,
 	stageId: string,
 	slotId: string,
 ): AssistanceWorkflowClaimV1 {
-	const claim = handle?.workflowClaim;
-	if (!handle?.custody || claim?.direction !== direction || claim.jobId !== jobId
-		|| claim.stageId !== stageId || claim.slotId !== slotId
-		|| claim.claimId !== handle.custody.claimId) {
-		throw new TypeError('Advanced custody returned an uncorrelated slotted claim.');
-	}
-	return claim;
+	return assertSlottedCustodyClaim(handle, direction, jobId, stageId, slotId,
+		'Advanced custody returned an uncorrelated slotted claim.');
 }
 
 function safeSum(total: number, value: number): number {

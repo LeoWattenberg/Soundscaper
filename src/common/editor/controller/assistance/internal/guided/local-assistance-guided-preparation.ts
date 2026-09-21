@@ -21,6 +21,7 @@ import type { LocalAssistanceModel } from '../../../../assistance/local-assistan
 import type { LocalAssistanceWorkflowCustodyBridge } from '../../../../assistance/local-assistance-workflow-bridge.ts';
 import type { LocalAssistanceGuidedPreparationUnavailableReason } from
 	'../../../../assistance/local-assistance-preparation.ts';
+import { assertSlottedCustodyClaim } from '../local-assistance-slotted-custody-claim.ts';
 import { deriveLocalAssistanceGuidedReviewAuthority } from './local-assistance-guided-review-authority.ts';
 import {
 	prepareLocalAssistanceGuidedEditorialContext,
@@ -410,13 +411,8 @@ function assertHandle(
 	handle: LocalAssistanceAggregateCustodyHandle,
 	direction: 'input' | 'output', jobId: string, stageId: string, slotId: string,
 ): AssistanceWorkflowClaimV1 {
-	const claim = handle?.workflowClaim;
-	if (!handle?.custody || claim?.direction !== direction || claim.jobId !== jobId
-		|| claim.stageId !== stageId || claim.slotId !== slotId
-		|| claim.claimId !== handle.custody.claimId) {
-		throw new TypeError('Aggregate custody returned an uncorrelated slotted claim.');
-	}
-	return claim;
+	return assertSlottedCustodyClaim(handle, direction, jobId, stageId, slotId,
+		'Aggregate custody returned an uncorrelated slotted claim.');
 }
 
 function bindingKey(stageId: string, slotId: string): string { return `${stageId}\0${slotId}`; }
@@ -476,4 +472,3 @@ function unavailable(
 ): LocalAssistanceGuidedWorkflowPreparationOutcome {
 	return Object.freeze({ outcome: 'unavailable', reason });
 }
-
