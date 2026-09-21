@@ -7,6 +7,7 @@ import {
 	type LinkedOriginalBinding,
 	type LinkedOriginalKind,
 } from './linked-original-binding.ts';
+import { linkedOriginalManagedKinds } from './linked-original-inventory.ts';
 import {
 	assertLinkedOriginalProvisionalRootCapacity,
 	deleteMemoryLinkedOriginalPairs,
@@ -88,7 +89,7 @@ export class LinkedOriginalProjectAliasRepository {
 			MAX_LINKED_ORIGINAL_INVENTORY_REFERENCES,
 			'exact-reference',
 		);
-		this.#managedKinds = managedKinds(options.managedKinds);
+		this.#managedKinds = linkedOriginalManagedKinds(options.managedKinds);
 		this.#persistLegacyVideo = this.#managedKinds.size === 1 && this.#managedKinds.has('video');
 	}
 
@@ -452,19 +453,4 @@ function createSecureBindingToken(): string {
 	const uuid = globalThis.crypto?.randomUUID?.();
 	if (!uuid) throw new Error('Secure random generation is required for a linked original project alias.');
 	return `binding_${uuid.replaceAll('-', '')}`;
-}
-
-function managedKinds(value: unknown = ['audio', 'video']): ReadonlySet<LinkedOriginalKind> {
-	if (!Array.isArray(value) || value.length < 1 || value.length > 2) {
-		throw new TypeError('Linked original managed kinds must be a non-empty array.');
-	}
-	const kinds = new Set<LinkedOriginalKind>();
-	for (const kind of value) {
-		if (kind !== 'audio' && kind !== 'video') {
-			throw new TypeError('Linked original managed kind must be audio or video.');
-		}
-		if (kinds.has(kind)) throw new Error('Linked original managed kinds contain a duplicate.');
-		kinds.add(kind);
-	}
-	return kinds;
 }

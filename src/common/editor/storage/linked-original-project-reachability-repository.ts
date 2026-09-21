@@ -5,6 +5,7 @@ import { validateCurrentAudioEditorProject, type AudioEditorProjectCurrent } fro
 import { collectProjectSourceIds } from '../retention.js';
 import { request, transact } from './indexeddb-backend.ts';
 import type { LinkedOriginalKind } from './linked-original-binding.ts';
+import { linkedOriginalManagedKinds } from './linked-original-inventory.ts';
 import {
 	applyMemoryLinkedOriginalProjectBindingPrune,
 	planMemoryLinkedOriginalProjectBindingPrune,
@@ -122,7 +123,7 @@ export class LinkedOriginalProjectReachabilityRepository {
 			MAX_LINKED_ORIGINAL_INVENTORY_REFERENCES,
 			'Linked original project binding inventory reference',
 		);
-		this.#managedKinds = managedKinds(options.managedKinds);
+		this.#managedKinds = linkedOriginalManagedKinds(options.managedKinds);
 	}
 
 	async pruneProjectBindings(
@@ -246,7 +247,7 @@ function currentProjectRootState(
 			durable: new Map(),
 			retained: new Set(protectedRoots),
 			maximumRoots,
-			managedKinds: managedKindsValue ?? managedKinds(),
+			managedKinds: managedKindsValue ?? linkedOriginalManagedKinds(),
 		};
 		collectOriginalRoots(project, projectId, accumulator);
 		return {
@@ -493,21 +494,6 @@ function closedReference(
 		output[field] = descriptor.value;
 	}
 	return output;
-}
-
-function managedKinds(value: unknown = ['audio', 'video']): ReadonlySet<LinkedOriginalKind> {
-	if (!Array.isArray(value) || value.length < 1 || value.length > 2) {
-		throw new TypeError('Linked original managed kinds must be a non-empty array.');
-	}
-	const kinds = new Set<LinkedOriginalKind>();
-	for (const kind of value) {
-		if (kind !== 'audio' && kind !== 'video') {
-			throw new TypeError('Linked original managed kind must be audio or video.');
-		}
-		if (kinds.has(kind)) throw new Error('Linked original managed kinds contain a duplicate.');
-		kinds.add(kind);
-	}
-	return kinds;
 }
 
 function isPotentialTargetMemoryRevision(primaryKey: string, value: unknown, projectId: string): boolean {

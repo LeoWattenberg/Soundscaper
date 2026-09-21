@@ -1,6 +1,10 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import type { LinkedOriginalBinding, LinkedOriginalKind } from './linked-original-binding.ts';
+import {
+	readBoundedLinkedOriginalBindingRows,
+	type LinkedOriginalBindingInventoryRow,
+} from './linked-original-inventory.ts';
 import { validateLinkedOriginalInventoryBinding } from './linked-original-repository-inventory.ts';
 import type {
 	LinkedOriginalProvisionalRootInventory,
@@ -18,11 +22,6 @@ export interface LinkedOriginalProjectBindingPrunePlan {
 	readonly settledTransientBindings: readonly LinkedOriginalTransientBindingReference[];
 }
 
-interface BindingRow {
-	readonly key: string;
-	readonly binding: LinkedOriginalBinding;
-}
-
 /** Validate the complete memory inventory before planning binding/root deletion. */
 export function planMemoryLinkedOriginalProjectBindingPrune(
 	records: ReadonlyMap<string, unknown>,
@@ -36,7 +35,7 @@ export function planMemoryLinkedOriginalProjectBindingPrune(
 	maximumReferences: number,
 	maximumReachabilityRoots: number,
 ): LinkedOriginalProjectBindingPrunePlan {
-	const rows: BindingRow[] = [];
+	const rows: LinkedOriginalBindingInventoryRow[] = [];
 	let count = 0;
 	for (const [primaryKey, value] of records) {
 		count += 1;
@@ -72,7 +71,10 @@ export async function planStoredLinkedOriginalProjectBindingPrune(
 	maximumReferences: number,
 	maximumReachabilityRoots: number,
 ): Promise<LinkedOriginalProjectBindingPrunePlan> {
-	const rows = await readStoredBindingRows(store, maximumRecords);
+	const rows = await readBoundedLinkedOriginalBindingRows(store, maximumRecords, {
+		enumerationError: 'Could not enumerate linked original project bindings.',
+		limitError: 'Linked original project binding inventory exceeds its record limit.',
+	});
 	return projectBindingPrunePlan(
 		rows,
 		rootInventory,
@@ -124,7 +126,7 @@ export function applyMemoryLinkedOriginalProjectBindingPrune(
 }
 
 function projectBindingPrunePlan(
-	rows: readonly BindingRow[],
+	rows: readonly LinkedOriginalBindingInventoryRow[],
 	rootInventory: LinkedOriginalProvisionalRootInventory,
 	projectId: string,
 	durableSourceKeys: ReadonlySet<string>,
@@ -167,35 +169,6 @@ function projectBindingPrunePlan(
 		rootDeletionKeys: Object.freeze([...rootDeletionKeys].sort()),
 		removedReferences,
 		settledTransientBindings: Object.freeze([...ownedTransientBindings]),
-	});
-}
-
-function readStoredBindingRows(
-	store: IDBObjectStore,
-	maximumRecords: number,
-): Promise<readonly BindingRow[]> {
-	return new Promise((resolve, reject) => {
-		const rows: BindingRow[] = [];
-		let cursorRequest: IDBRequest<IDBCursorWithValue | null>;
-		try { cursorRequest = store.openCursor(); } catch (error) { reject(error); return; }
-		cursorRequest.onerror = () => reject(
-			cursorRequest.error || new Error('Could not enumerate linked original project bindings.'),
-		);
-		cursorRequest.onsuccess = () => {
-			const cursor = cursorRequest.result;
-			if (!cursor) { resolve(Object.freeze(rows)); return; }
-			try {
-				if (rows.length >= maximumRecords) {
-					throw new RangeError('Linked original project binding inventory exceeds its record limit.');
-				}
-				const binding = validateLinkedOriginalInventoryBinding(cursor.value, cursor.primaryKey);
-				rows.push(Object.freeze({
-					key: linkedOriginalBindingKey(binding.projectId, binding.sourceId),
-					binding,
-				}));
-				cursor.continue();
-			} catch (error) { reject(error); }
-		};
 	});
 }
 

@@ -5,7 +5,10 @@ import { validateCurrentAudioEditorProject, type AudioEditorProjectCurrent } fro
 import { collectProjectSourceIds } from '../retention.js';
 import { request, transact } from './indexeddb-backend.ts';
 import type { LinkedOriginalBinding, LinkedOriginalKind } from './linked-original-binding.ts';
-import { validateLinkedOriginalInventoryBinding } from './linked-original-repository-inventory.ts';
+import {
+	readBoundedLinkedOriginalBindingRows,
+	type LinkedOriginalBindingInventoryRow,
+} from './linked-original-inventory.ts';
 import {
 	MAX_LINKED_ORIGINAL_CANONICAL_PROJECTS,
 	MAX_LINKED_ORIGINAL_INVENTORY_RECORDS,
@@ -41,11 +44,6 @@ export interface LinkedOriginalStartupReconciliationRepositoryOptions {
 	readonly maximumInventoryReferences?: number;
 	/** Product-owned stores may prove roots against their exact document generation. */
 	readonly validateProject?: (value: unknown) => boolean;
-}
-
-interface BindingRow {
-	readonly key: string;
-	readonly binding: LinkedOriginalBinding;
 }
 
 interface ReconciliationPlan {
@@ -147,9 +145,13 @@ export class LinkedOriginalStartupReconciliationRepository {
 		], 'readwrite', async (stores) => {
 			const bindings = stores[LINKED_ORIGINAL_STORE_NAME];
 			const provisionalRoots = stores[LINKED_ORIGINAL_PROVISIONAL_ROOT_STORE_NAME];
-			const rows = await readBindingRows(
+			const rows = await readBoundedLinkedOriginalBindingRows(
 				bindings,
 				this.#maximumInventoryRecords,
+				{
+					enumerationError: 'Could not enumerate startup linked-original bindings.',
+					limitError: 'Linked-original startup binding inventory exceeds its record limit.',
+				},
 			);
 			const provisionalRootInventory = await readStoredLinkedOriginalProvisionalRootInventory(
 				bindings,
@@ -230,32 +232,6 @@ function catalogRevisions(
 		catalog.set(id as string, revision === null ? null : Number(revision));
 	}
 	return catalog;
-}
-
-function readBindingRows(store: IDBObjectStore, maximumRecords: number): Promise<readonly BindingRow[]> {
-	return new Promise((resolve, reject) => {
-		const rows: BindingRow[] = [];
-		let cursorRequest: IDBRequest<IDBCursorWithValue | null>;
-		try { cursorRequest = store.openCursor(); } catch (error) { reject(error); return; }
-		cursorRequest.onerror = () => reject(
-			cursorRequest.error || new Error('Could not enumerate startup linked-original bindings.'),
-		);
-		cursorRequest.onsuccess = () => {
-			const cursor = cursorRequest.result;
-			if (!cursor) { resolve(Object.freeze(rows)); return; }
-			try {
-				if (rows.length >= maximumRecords) {
-					throw new RangeError('Linked-original startup binding inventory exceeds its record limit.');
-				}
-				const binding = validateLinkedOriginalInventoryBinding(cursor.value, cursor.primaryKey);
-				rows.push(Object.freeze({
-					key: linkedOriginalBindingKey(binding.projectId, binding.sourceId),
-					binding,
-				}));
-				cursor.continue();
-			} catch (error) { reject(error); }
-		};
-	});
 }
 
 async function exactProjectRoots(
@@ -388,7 +364,7 @@ function collectRoots(
 }
 
 function reconciliationPlan(
-	rows: readonly BindingRow[],
+	rows: readonly LinkedOriginalBindingInventoryRow[],
 	catalog: ReadonlyMap<string, number | null>,
 	roots: ReadonlyMap<string, ReadonlySet<string> | null>,
 	managedKinds: ReadonlySet<LinkedOriginalKind>,
