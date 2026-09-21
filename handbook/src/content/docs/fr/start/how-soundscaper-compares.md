@@ -1,28 +1,26 @@
 ---
-title: "Comparaison de Soundscaper"
-description: "Comparez Soundscaper avec Audacity 4 et Adobe Audition en matière d'enregistrement, de montage, de mixage, de livraison et d'interchange."
+title: "Comment Soundscaper se compare"
+description: "Comparez Soundscaper avec Audacity 4 et Adobe Audition en termes d'enregistrement, de montage, de mixage, de livraison et d'échange."
 sidebar:
   order: 3
 ---
-<!-- docs-ai-provenance: {"factPacketSha256":"703e76cffbe1464f1283f6c8f45cee52c0d37faae852b7efc163879710a2ddb2","model":"qwen3.8:latest","modelDigest":"22130167c4c20e20c7b71454612966ca8e8171e9b3cc8ab6ce8aa6cbfec79643","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"703e76cffbe1464f1283f6c8f45cee52c0d37faae852b7efc163879710a2ddb2","targetLocale":"fr"} -->
+<!-- docs-ai-provenance: {"factPacketSha256":"71097403d87aba03cddc2ccd696ff9a8663268afba3a7bf750fe8d9913de3eba","model":"aya-expanse:32b","modelDigest":"1603440383bd5504dc7afd01c0407b425b988dde650a8dc1a737433baa3cd432","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"71097403d87aba03cddc2ccd696ff9a8663268afba3a7bf750fe8d9913de3eba","targetLocale":"fr"} -->
 
-Soundscaper réimplémente Audacity 4 sur le web et ajoute une couche de production par-dessus. Adobe Audition est l'outil commercial de post-production auquel les deux sont généralement comparés. Cette page compare les trois afin que vous puissiez déterminer lequel remplit déjà la tâche que vous avez à accomplir.
+Soundscaper réimplémente Audacity 4 sur le web et y ajoute une couche de production. Adobe Audition est l'outil commercial de post-production auquel les deux sont généralement comparés. Cette page compare les trois pour vous aider à déterminer lequel répond déjà à vos besoins.
 
 ## Comment lire cette page
 
-Chaque cellule indique **Oui**, **Partiel** ou **Non**, suivi du détail qui le qualifie.
+Chaque cellule indique **Oui**, **Partiel** ou **Non**, suivi d'un détail qui le justifie.
 
-**Partiel** couvre trois situations différentes, et la note précise laquelle s'applique : la fonctionnalité existe mais est plus restreinte qu'ailleurs, elle existe mais dépend d'un élément que vous devez fournir, ou elle n'est accessible qu'en contournant une absence.
+**Partiel** couvre trois situations différentes, et la note précise laquelle s'applique : la fonctionnalité existe mais est plus limitée qu'ailleurs, elle existe mais dépend de quelque chose que vous devez fournir, ou elle n'est accessible qu'en contournant une absence.
 
-Les lignes décrivent des fonctionnalités, et non des commandes de menu. Pour l'inventaire exact des commandes, voir [Commandes et raccourcis](/reference/generated/commands/), et pour ce que chaque produit permet, voir
-[Fonctionnalités du produit](/reference/generated/product-capabilities/).
+Les lignes décrivent des fonctionnalités, pas des commandes de menu. Pour la liste exacte des commandes, voir [Commandes et raccourcis](/reference/generated/commands/), et pour les fonctionnalités offertes par chaque produit, voir [Fonctionnalités des produits](/reference/generated/product-capabilities/).
 
-### Origine de ces affirmations
+### Origine des affirmations
 
-- Les lignes **Soundscaper** proviennent de ce dépôt : les profils de fonctionnalités du produit, le manifeste d'actions d'exécution et le registre des formats d'exportation.
-  Les charges utiles cibles natives pour bureau sont générées par l'IC du dépôt ou par l'emballage de la cible. Un paquet n'active une fonctionnalité qu'après avoir mis en file d'attente et vérifié le résultat exact correspondant ; ces lignes indiquent quand une charge utile est encore requise.
-- Les lignes **Audacity 4** proviennent de l'inventaire amont épinglé dans ce dépôt, `4.0.0` à l'engagement `4c177d43`. Une fonctionnalité que l'amont enregistre mais laisse désactivée ou commente hors du menu est enregistrée comme telle, et une fonctionnalité sans enregistrement dans la construction épinglée est signalée comme absente de cette construction plutôt que comme définitivement absente.
-- Les lignes **Audition** proviennent de la documentation publiée par Adobe pour la version actuelle. Elles ne sont pas vérifiées par rapport à une construction en cours d'exécution.
+- Les lignes **Soundscaper** proviennent de ce dépôt : les profils de capacités des produits, le manifeste d'actions d'exécution et le registre des formats d'exportation. Les charges utiles natives de bureau sont générées par le CI du dépôt ou l'emballage de la cible. Un package n'est activé qu'après mise en scène et vérification du résultat exact correspondant ; ces lignes indiquent quand une charge utile est encore requise.
+- Les lignes **Audacity 4** proviennent de l'inventaire en amont épinglé dans ce dépôt, `4.0.0` au commit `4c177d43`. Une fonctionnalité que l'amont enregistre mais laisse désactivée ou commente hors menu est enregistrée comme telle, et une fonctionnalité sans enregistrement dans la version épinglée est signalée comme absente de cette version plutôt que comme définitivement absente.
+- Les lignes **Audition** proviennent de la documentation publiée par Adobe pour la version actuelle. Elles ne sont pas vérifiées sur une version exécutable.
 
 ## Plateforme et termes
 
@@ -30,182 +28,183 @@ Les lignes décrivent des fonctionnalités, et non des commandes de menu. Pour l
 | --- | --- | --- | --- |
 | Licence | Oui — AGPL-3.0-only | Oui — GPL, open source | Non — propriétaire et fermé |
 | Coût | Oui — gratuit | Oui — gratuit | Non — abonnement Creative Cloud |
-| Fonctionne dans un navigateur | Oui — Chromium, Firefox et WebKit | Non — bureau uniquement | Non — bureau uniquement |
+| S'exécute dans un navigateur | Oui — Chromium, Firefox et WebKit | Non — uniquement bureau | Non — uniquement bureau |
 | Versions bureau | Oui — Windows et Linux sur x64 et ARM64, macOS sur ARM64 | Oui — Windows, macOS, Linux | Partiel — Windows et macOS, pas de Linux |
-| Fonctionne sans compte | Oui — aucun compte n'existe | Oui — connexion uniquement pour audio.com | Non — abonnement connecté requis |
-| Stockage de projets cloud | Non — exclu par la conception local-first | Oui — enregistrer et partager via audio.com | Partiel — fichiers Creative Cloud, les sessions ne se synchronisent pas |
-| Exigences système | Oui — fonctionne partout où un navigateur actuel fonctionne | Partiel — considérablement augmentées par rapport à Audacity 3 | Partiel — classe de poste de travail professionnel |
+| Fonctionne sans compte | Oui — aucun compte n'existe | Oui — connexion uniquement pour audio.com | Non — connexion requise avec abonnement |
+| Stockage de projets dans le cloud | Non — exclu par la conception axée sur le local | Oui — sauvegarde et partage via audio.com | Partiel — fichiers Creative Cloud, les sessions ne sont pas synchronisées |
+| Exigences système | Oui — s'exécute partout où un navigateur actuel s'exécute | Partiel — augmentées de manière significative par rapport à Audacity 3 | Partiel — classe de poste de travail professionnel |
 
 ## Modèle de projet et de session
 
 | Fonctionnalité | Soundscaper | Audacity 4 | Audition |
 | --- | --- | --- | --- |
 | Format de projet natif | Oui — `.sscape`, une archive portable sans perte | Oui — `.aup4` | Oui — `.sesx` |
-| Ouverture des projets Audacity | Oui — importation et exportation AUP4 | Oui — natif | Non |
-| Chronologie de clips non destructive | Oui | Oui | Oui — éditeur multitrack |
-| Éditeur de fichier unique dédié | Partiel — l'édition d'échantillons se fait dans la chronologie | Partiel — les modifications s'appliquent en place dans la chronologie | Oui — éditeur de forme d'onde |
-| Contenu mono et stéréo sur une seule piste | Oui — une piste contient l'un ou l'autre | Non — une piste est mono ou stéréo | Non — le format de canal est fixe par piste |
-| Dossiers de pistes imbriqués | Oui — profondeur illimitée, annulable, avec routage | Non | Partiel — uniquement des bus de sous-mélange, pas de pistes de dossier |
-| Bin de projet | Oui — organise les fichiers et sert de presse-papiers | Non | Partiel — le panneau Fichiers liste les fichiers ouverts |
-| Sauvegarde automatique et récupération après plantage | Oui — sauvegarde automatique, verrous et enveloppes de récupération | Oui | Oui |
-| Marqueurs et régions nommées | Oui — de premier ordre, avec navigation et comportement en cascade | Partiel — pistes d'étiquettes | Oui — marqueurs et plages |
-| Cartes de tempo et de signature | Oui — cartes ordonnées résolues avec précision à l'échantelle | Partiel — un tempo et une signature par projet | Partiel — un tempo par session |
+| Ouvre les projets Audacity | Oui — importation et exportation AUP4 | Oui — natif | Non |
+| Chronologie de clip non destructive | Oui | Oui | Oui — éditeur multitrack |
+| Éditeur de fichier unique | Partiel — l'édition d'échantillon se fait dans la chronologie | Partiel — les modifications s'appliquent en place dans la chronologie | Oui — éditeur de forme d'onde |
+| Contenu mono et stéréo sur une piste | Oui — une piste contient soit l'un soit l'autre | Non — une piste est mono ou stéréo | Non — le format de canal est fixe par piste |
+| Dossiers de pistes imbriqués | Oui — à n'importe quelle profondeur, annulable, avec routage | Non | Partiel — bus de sous-mixage uniquement, pas de pistes de dossier |
+| Bin de projet | Oui — organise les fichiers et fait office de presse-papiers | Non | Partiel — le panneau Fichiers liste les fichiers ouverts |
+| Autosave et récupération en cas de plantage | Oui — autosave, verrous et enveloppes de récupération | Oui | Oui |
+| Marqueurs et régions nommées | Oui — de première classe, avec navigation et comportement de balayage | Partiel — pistes d'étiquette | Oui — marqueurs et plages |
+| Cartes de tempo et de signature temporelle | Oui — cartes ordonnées résolues avec précision d'échantillon | Partiel — un tempo et une signature de projet | Partiel — un tempo de session |
 
 ## Enregistrement
 
 | Fonctionnalité | Soundscaper | Audacity 4 | Audition |
 | --- | --- | --- | --- |
-| Enregistrement multitrack | Oui — plusieurs sources à la fois | Partiel — un seul périphérique d'entrée à la fois | Oui — interfaces multi-entrées et multicanal |
-| Audio micro et bureau ensemble | Oui — intégré | Non | Partiel — nécessite un périphérique de boucle du système d'exploitation |
-| Enregistrement programmé | Oui | Oui | Non |
+| Enregistrement multitrack | Oui — plusieurs sources à la fois | Partiel — un périphérique d'entrée à la fois | Oui — interfaces multi-entrées et multicanaux |
+| Microphone et audio de bureau ensemble | Oui — intégré | Non | Partiel — nécessite un périphérique de bouclage du système d'exploitation |
+| Enregistrement chronométré | Oui | Oui | Non |
 | Enregistrement activé par le son | Oui — avec un seuil réglable | Oui — avec un seuil réglable | Non |
-| Comptage avant la prise | Oui — conscient de la carte de tempo, gère le mètre composé | Partiel — enregistrement d'introduction | Partiel — pré-roulement dans le cadre du punch and roll |
-| Enregistrement en punch | Oui — une seule transaction, capture par défaut et routée | Non | Oui — punch and roll |
-| Enregistrement en boucle dans les prises | Oui — une voie par passage, ajoutée au même groupe | Non | Partiel — prises sur un seul clip, choisies dans une liste |
-| Comping de prises | Oui — audition, promotion, édition des régions de comp, aplatissement en une seule modification annulable | Non | Non — pas d'éditeur de comp |
-| Surveillance et mesure des entrées | Oui | Oui | Oui |
+| Compte à rebours avant la prise | Oui — conscient de la carte de tempo, gère les mètres composés | Partiel — enregistrement de lead-in | Partiel — pré-roll dans le cadre du punch and roll |
+| Enregistrement punch | Oui — une transaction, capture par défaut et routée | Non | Oui — punch and roll |
+| Enregistrement en boucle dans des prises | Oui — une voie par passage, appendée au même groupe | Non | Partiel — prises sur un clip, choisies dans une liste |
+| Comping de prise | Oui — audition, promouvoir, éditer les régions de comp, aplatir en une seule édition annulable | Non | Non — pas d'éditeur de comp |
+| Surveillance et métrage d'entrée | Oui | Oui | Oui |
 
 ## Édition de la chronologie
 
-| Fonctionnalité | Soundscaper | Audacity 4 | Audition |
+| Capacité | Soundscaper | Audacity 4 | Audition |
 | --- | --- | --- | --- |
-| Variantes d'édition en cascade | Oui — par clip, par piste et toutes les pistes, lors de la coupe et de la suppression | Oui — les mêmes trois, lors de la coupe et de la suppression | Partiel — suppression en cascade sur une sélection ou un espace |
-| Découpage, fusion et découpage aux silences | Oui | Oui | Partiel — découpage et rognage, pas de fusion de clips |
+| Variants d'édition en cascade | Oui — par clip, par piste et pour toutes les pistes, lors de la coupe et de la suppression | Oui — les trois mêmes, lors de la coupe et de la suppression | Partiel — suppression en cascade sur une sélection ou un vide |
+| Diviser, joindre et diviser aux silences | Oui | Oui | Partiel — diviser et rognage, pas de jointure de clip |
 | Groupes de clips | Oui | Oui | Oui |
-| Gain des clips | Oui | Oui | Oui |
-| Hauteur et vitesse par clip | Oui — ajuster, rendre ou réinitialiser | Oui — ajuster, rendre ou réinitialiser | Partiel — l'étirement reste modifiable, la hauteur est un effet |
-| Suivi des changements de tempo | Oui — les clips s'étirent lorsque la carte se déplace | Oui | Non |
-| Quantification et groove sensibles aux battements | Oui — cartes de déformation avec force de groove ajustable | Non | Non |
-| Aimantation aux zéros de passage | Oui | Oui | Oui |
+| Gain de clip | Oui | Oui | Oui |
+| Vitesse et hauteur par clip | Oui — ajuster, rendre ou réinitialiser | Oui — ajuster, rendre ou réinitialiser | Partiel — l'étirement reste éditable, la hauteur est un effet |
+| Suivre les changements de tempo | Oui — les clips s'étirent lorsque la carte bouge | Oui | Non |
+| Quantification et groove sensibles aux pulsations | Oui — cartes de guerre avec force de groove ajustable | Non | Non |
+| Accrochage aux passages à zéro | Oui | Oui | Oui |
 | Dessin au niveau de l'échantillon | Oui | Partiel — aucune action de dessin enregistrée dans la version épinglée | Oui — dans l'éditeur de forme d'onde |
 | Édition uniquement au clavier | Oui — chaque primitive d'édition a une action de navigation | Oui — chaque primitive d'édition a une action de navigation | Partiel — raccourcis étendus, certains panneaux nécessitent la souris |
 
-## Travail spectral et restauration
-
-| Fonctionnalité | Soundscaper | Audacity 4 | Audition |
-| --- | --- | --- | --- |
-| Vue spectrogramme | Oui — avec paramètres par piste | Oui — avec paramètres par piste | Oui — affichages de fréquence et de hauteur |
-| Sélection bornée en fréquence | Oui | Oui | Oui — lasso et sélection libre |
-| Pinceau spectral | Oui | Oui | Oui — pinceau et retouche de taches |
-| Supprimer ou amplifier une région spectrale | Oui — les deux comme actions directes | Oui — les deux comme actions directes | Partiel — appliquer un effet à la sélection |
-| Réparation de dommages courts | Oui — Réparation | Oui — Réparation | Oui — Réparation automatique et Pinceau de retouche de taches |
-| Réduction du bruit large bande | Oui — avec un profil capturé | Oui — avec un profil capturé | Oui — Réduction du bruit, Réduction adaptative du bruit, DeNoise |
-| Dé-réverbération | Non | Non | Oui — DeReverb |
-| Outils pour clics, ronflements et sibilances | Partiel — uniquement Suppression des clics | Partiel — uniquement Suppression des clics | Oui — DeClicker, DeHummer, DeEsser, Éliminateur de clics/pop |
-| Panneau de diagnostic | Partiel — Find Clipping en tant qu'analyseur | Partiel — Find Clipping en tant qu'analyseur | Oui — diagnostics avec réparation par problème |
-
-## Effets et plug-ins
-
-| Fonctionnalité | Soundscaper | Audacity 4 | Audition |
-| --- | --- | --- | --- |
-| Suite d'effets intégrée | Oui — les 30 effets Audacity, les plug-ins Nyquist intégrés et les effets de première partie sans équivalent en amont, tels que le bitcrusher | Oui — la même collection intégrée de 30 effets | Oui — environ cinquante, y compris la dynamique multibande |
-| Rack d'effets en temps réel par piste | Oui — un ensemble en temps réel plus large que l'amont | Oui | Oui — seize emplacements par clip, piste et master |
-| Égaliseur paramétrique | Oui — un nouvel égaliseur paramétrique avec bandes automatisables | Partiel — Filter Curve et Graphic EQ | Oui — filtres paramétriques, graphiques et FFT |
-| Préréglages d'effets | Oui — appliquer, enregistrer, importer, exporter | Oui — appliquer, enregistrer, importer, exporter | Oui |
-| Macros et chaînes par lots | Oui — bibliothèque de macros enregistrées avec modèles | Non — la version épinglée commente le menu Macros | Oui — Favoris et Traitement par lots |
-| Formats de plug-ins tiers | Partiel — VST3, CLAP, AU et LV2 sur bureau derrière consentement et confinement, aucun dans le navigateur | Oui — VST3, AU, LV2 et Nyquist, avec un gestionnaire de plug-ins | Partiel — VST3 et AU sur macOS, pas de CLAP ou LV2 |
-| Scripting Nyquist | Oui — plug-ins intégrés et invite Nyquist | Oui — plug-ins intégrés et invite Nyquist | Non |
-| Paquets d'effets sandboxés | Partiel — paquets WebAssembly examinés, un est livré et les externes sont cloisonnés | Non | Non |
-| Instruments virtuels | Non — après la 1.0 | Non | Non |
-
-## Mixage, routage et automatisation
-
-| Fonctionnalité | Soundscaper | Audacity 4 | Audition |
-| --- | --- | --- | --- |
-| Mixeur avec bandes de canaux | Oui | Partiel — contrôles de piste et une piste master | Oui |
-| Bus et sous-mixages | Oui — imbriqués, avec validation de cycle | Non | Oui — pistes bus |
-| Envois | Oui — pré et post-fader, affectations multiples | Non | Oui — pré et post-fader |
-| Groupes VCA | Oui | Non | Non |
-| Entrée de sidechain | Oui | Non | Oui — via les envois |
-| Mixages de cue et de salle de contrôle | Oui | Non | Non |
-| Compensation de délai des plug-ins | Oui — lecture, monitoring, bus, sidechains, rendu et figeage | Partiel — non exposé dans les sources épinglées | Oui |
-| Voies d'automatisation | Oui — gain, panoramique, sourdine, envois, bus et paramètres de plug-in | Non — pas de voies et pas d'outil d'enveloppe dans la version épinglée | Oui — volume, panoramique et paramètres d'effet |
-| Modes d'automatisation | Oui — lecture, trim, touch, latch et écriture | Non | Partiel — lecture, écriture, latch et touch, pas de trim |
-| Formes de courbe | Oui — ligne, maintien et courbe | Non | Oui — linéaire et spline |
-| Figeage de piste | Oui — figer, défiger et valider sans perte d'état | Non | Partiel — rebond vers une nouvelle piste |
-
-## Mesure et analyse
-
-| Fonctionnalité | Soundscaper | Audacity 4 | Audition |
-| --- | --- | --- | --- |
-| Mètre de niveau sonore | Oui — style EBU R 128, avec historique | Non — un effet de normalisation du niveau sonore mais pas de mètre | Oui — Radar de niveau sonore conforme à ITU-R BS.1770 |
-| Mètre de phase et de corrélation | Oui | Non | Oui — mètre de phase et analyse |
-| Mesure du son surround | Oui | Non | Partiel — jusqu'à 5.1 |
-| Tracé du spectre | Oui — Tracé du spectre | Partiel — enregistré, mais la version épinglée le commente hors du menu Analyser | Oui — Analyse de fréquence |
-| Clipping et RMS dans la forme d'onde | Oui — les deux, activés par projet | Oui — les deux, activés par projet | Partiel — indicateurs de clipping, RMS dans les statistiques d'amplitude |
-| Contraste d'intelligibilité de la parole | Oui — analyseur de contraste | Partiel — enregistré, mais la version épinglée le commente hors du menu Analyser | Non |
-
-## Canaux et audio immersif
-
-| Fonctionnalité | Soundscaper | Audacity 4 | Audition |
-| --- | --- | --- | --- |
-| Canaux par fichier | Oui — jusqu'à 32 pour les formats PCM | Partiel — pistes mono et stéréo | Oui — jusqu'à 32 dans l'éditeur de forme d'onde |
-| Mixage surround | Oui — lits jusqu'à 7.1.4 | Non | Partiel — jusqu'à 5.1 |
-| Audio basé sur des objets | Oui — objets aux côtés des lits | Non | Non |
-| Création et passage transparent ADM | Oui — BW64/ADM avec vérifications de conformité | Non | Non |
-| Rendu binaural | Oui — un modèle binaural nommé | Non | Partiel — binauraliseur pour l'ambisonique |
-| Ambisonique | Non | Non | Oui — premier ordre, avec un panoramiseur VR |
-
-## Export et livraison
-
-| Fonctionnalité | Soundscaper | Audacity 4 | Audition |
-| --- | --- | --- | --- |
-| Sortie sans perte | Oui — WAV, AIFF, BWF et BW64 écrits nativement | Oui — WAV, AIFF et FLAC | Oui — WAV, AIFF, FLAC et plus encore |
-| Sortie avec perte | Partiel — MP3, AAC, Opus, Vorbis, MP2, FLAC et WavPack, tous via le runtime FFmpeg | Partiel — MP3 intégré, le reste via une installation FFmpeg optionnelle | Oui — intégré |
-| Paramètres d'encodeur personnalisés | Oui — une cible FFmpeg personnalisée | Oui — une cible FFmpeg personnalisée | Oui — options par format |
-| File d'attente d'export | Oui — pause, annulation, nouvelle tentative et réorganisation | Non — un export à la fois | Partiel — Traitement par lots sans contrôle de la file d'attente |
-| Stems et alternatives en une seule passe | Oui — mis en file d'attente avec le mix | Non | Partiel — un mixdown par stem |
-| Livraison par région | Oui — séquences de mastering avec métadonnées par région, espaces et fondu | Partiel — export de libellés, pas d'export multi-fichiers dans la version épinglée | Oui — export de marqueurs vers des fichiers séparés |
-| Normalisation du niveau sonore à l'export | Oui — partie du plan de livraison | Partiel — exécuter l'effet d'abord | Oui — Correspondance du niveau sonore |
-| Dither et mappage des canaux | Oui — contrôles explicites | Partiel — dither dans les préférences | Oui — contrôles explicites |
-| Rapport de livraison | Oui — détaillé par tâche | Non | Non |
-| La file d'attente de rendu survit à un redémarrage | Oui — sur bureau, redémarrage depuis le zéro octet avec un journal de crash | Non | Non |
-
-## Interopérabilité avec d'autres outils
+## Travail et restauration spectrale
 
 | Capacité | Soundscaper | Audacity 4 | Audition |
 | --- | --- | --- | --- |
-| Projets Audacity | Oui — entrée et sortie AUP4, avec un rapport d'omissions | Oui — natif | Non |
-| EDL | Partiel — export de classe CMX3600, pas d'import | Non | Non |
-| OpenTimelineIO | Partiel — export uniquement | Non | Non |
-| FCPXML | Partiel — export uniquement | Non | Oui — import et export |
-| DAWproject | Oui — import et export, avec un rapport d'échange | Non | Non |
-| OMF | Non | Non | Partiel — import et export |
-| Aller-retour avec un éditeur vidéo | Partiel — transmet le même projet à Framescaper sans copier les médias | Non | Oui — Dynamic Link avec Premiere Pro |
-| Échange d'étiquettes et de marqueurs | Oui — import et export | Oui — import et export | Oui — listes de marqueurs |
+| Vue spectrogramme | Oui — avec paramètres par piste | Oui — avec paramètres par piste | Oui — affichages de la fréquence et de la hauteur |
+| Sélection limitée en fréquence | Oui | Oui | Oui — sélection en forme de losange et lasso |
+| Pinceau spectral | Oui | Oui | Oui — pinceau et brosse de réparation ponctuelle |
+| Supprimer ou amplifier une région spectrale | Oui — les deux comme actions directes | Oui — les deux comme actions directes | Partiel — appliquer un effet à la sélection |
+| Réparation des dommages courts | Oui — Réparer | Oui — Réparer | Oui — Auto Heal et Spot Healing Brush |
+| Réduction du bruit large bande | Oui — avec un profil capturé | Oui — avec un profil capturé | Oui — Réduction du bruit, Réduction du bruit adaptative, DeNoise |
+| Désreverbe | Non | Non | Oui — DeReverb |
+| Outils pour les clics, le bourdonnement et les sibilances | Partiel — Suppression des clics seulement | Partiel — Suppression des clics seulement | Oui — DeClicker, DeHummer, DeEsser, Élimination des clics/pops |
+| Panneau de diagnostic | Partiel — Analyseur de clipping | Partiel — Analyseur de clipping | Oui — diagnostics avec réparation par problème |
+
+## Effets et plug-ins
+
+| Capacité | Soundscaper | Audacity 4 | Audition |
+| --- | --- | --- | --- |
+| Suite d'effets intégrée | Oui — les 30 effets Audacity, les plug-ins Nyquist intégrés et les effets premiers sans équivalent en amont, tels que le broyeur de bits | Oui — la même collection intégrée de 30 effets | Oui — environ cinquante, y compris les dynamiques en bandes multiples |
+| Rack d'effets en temps réel par piste | Oui — un ensemble plus large en temps réel que celui en amont | Oui | Oui — seize emplacements par clip, piste et maître |
+| Égaliseur paramétrique | Oui — un nouvel égaliseur paramétrique avec bandes automatisables | Partiel — Courbe de filtre et Égaliseur graphique | Oui — égaliseur paramétrique, graphique et FFT |
+| Présets d'effets | Oui — appliquer, enregistrer, importer, exporter | Oui — appliquer, enregistrer, importer, exporter | Oui |
+| Macros et chaînes par lots | Oui — bibliothèque de macros enregistrées avec des modèles | Non — le menu Macros est commenté dans la version épinglée | Oui — Favoris et Traitement par lots |
+| Formats de plug-in tiers | Partiel — effets VST3, CLAP, AU, LV2 et LADSPA Linux, ainsi que les analyseurs Vamp sur le bureau derrière le consentement et l'enfermement ; aucun dans le navigateur | Oui — VST3, AU, LV2 et Nyquist, avec un gestionnaire de plug-ins | Partiel — VST3 et AU sur macOS, pas de CLAP ou LV2 |
+| Scripting Nyquist | Oui — plug-ins intégrés et invite Nyquist | Oui — plug-ins intégrés et invite Nyquist | Non |
+| Packages d'effets sandboxés | Partiel — packages WebAssembly examinés, un est livré et les externes sont clôturés | Non | Non |
+| Instruments virtuels | Non — après 1.0 | Non | Non |
+
+## Mixage, routage et automatisation
+
+| Capacité | Soundscaper | Audacity 4 | Audition |
+| --- | --- | --- | --- |
+| Mixeur avec bandes de canaux | Oui | Partiel — contrôles de piste et une piste maître | Oui |
+| Buses et sous-mixages | Oui — imbriqués, avec validation du cycle | Non | Oui — pistes de bus |
+| Envois | Oui — pré et post-fader, multiples affectations | Non | Oui — pré et post-fader |
+| Groupes VCA | Oui | Non | Non |
+| Entrée en chaîne latérale | Oui | Non | Oui — via les envois |
+| Mélanges de surveillance et de contrôle | Oui | Non | Non |
+| Compensation de retard des plug-ins | Oui — lecture, surveillance, bus, chaînes latérales, rendu et gel | Partiel — non exposé dans les sources épinglées | Oui |
+| Voies d'automatisation | Oui — gain, panoramique, mute, envois, bus et paramètres de plug-in | Non — pas de voies ni d'outil d'enveloppe dans la version épinglée | Oui — volume, panoramique et paramètres d'effet |
+| Modes d'automatisation | Oui — lire, rognage, toucher, verrouiller et écrire | Non | Partiel — lire, écrire, verrouiller et toucher, pas de rognage |
+| Formes de courbe | Oui — ligne, maintien et courbe | Non | Oui — linéaire et spline |
+| Gel de piste | Oui — geler, dégeler et valider sans perdre l'état | Non | Partiel — rebondir vers une nouvelle piste |
+
+## Mesures et analyse
+
+| Capacité | Soundscaper | Audacity 4 | Audition |
+| --- | --- | --- | --- |
+| Mètre de puissance sonore | Oui — style EBU R 128, avec historique | Non — un effet de normalisation de la puissance sonore mais pas de mètre | Oui — Radar de puissance sonore selon ITU-R BS.1770 |
+| Mètre de phase et de corrélation | Oui | Non | Oui — mètre de phase et analyse |
+| Mesures surround | Oui | Non | Partiel — jusqu'à 5.1 |
+| Tracé du spectre | Oui — Tracer le spectre | Partiel — enregistré, mais la version épinglée commente sa sortie du menu Analyser | Oui — Analyse de fréquence |
+| Clipping et RMS dans la forme d'onde | Oui — les deux, basculés par projet | Oui — les deux, basculés par projet | Partiel — indicateurs de clipping, RMS dans les statistiques d'amplitude |
+| Contraste d'intelligibilité de la parole | Oui — Analyseur de contraste | Partiel — enregistré, mais la version épinglée commente sa sortie du menu Analyser | Non |
+
+## Canaux et audio immersif
+
+| Capacité | Soundscaper | Audacity 4 | Audition |
+| --- | --- | --- | --- |
+| Canaux par fichier | Oui — jusqu'à 32 pour les formats PCM | Partiel — pistes mono et stéréo | Oui — jusqu'à 32 dans l'éditeur de formes d'onde |
+| Mixage surround | Oui — lits jusqu'à 7.1.4 | Non | Partiel — jusqu'à 5.1 |
+| Audio basé sur les objets | Oui — objets avec lits | Non | Non |
+| Auteur ADM et passage | Oui — BW64/ADM avec vérifications de conformité | Non | Non |
+| Rendu binaural | Oui — un modèle binaural nommé | Non | Partiel — binauriseur pour les ambisons |
+| Ambisonics | Non | Non | Oui — premier ordre, avec un panneur VR |
+
+## Exportation et livraison
+
+| Capacité | Soundscaper | Audacity 4 | Audition |
+| --- | --- | --- | --- |
+| Sortie sans perte | Oui — WAV, AIFF, BWF et BW64 écrits nativement | Oui — WAV, AIFF et FLAC | Oui — WAV, AIFF, FLAC et plus |
+| Sortie avec perte | Partiel — MP3, AAC, Opus, Vorbis, MP2, FLAC et WavPack, tous via le runtime FFmpeg | Partiel — MP3 intégré, le reste via une installation FFmpeg optionnelle | Oui — intégré |
+| Paramètres de codeur personnalisés | Oui — une cible FFmpeg personnalisée | Oui — une cible FFmpeg personnalisée | Oui — options par format |
+| File d'attente d'exportation | Oui — pause, annulation, nouvelle tentative et réordonnancement | Non — une exportation à la fois | Partiel — Traitement par lots sans contrôle de file d'attente |
+| Livraison de tiges et d'alternatives en une seule passe | Oui — mises en file d'attente avec le mix | Non | Partiel — un mixage par tige |
+| Livraison région par région | Oui — séquences de mastering avec métadonnées, vides et fondues par région | Partiel — étiquettes d'exportation, pas d'exportation multi-fichiers dans la version épinglée | Oui — exportation de marqueurs vers des fichiers séparés |
+| Normalisation de la loudness à l'exportation | Oui — partie du plan de livraison | Partiel — exécutez d'abord l'effet | Oui — Correspondance de la loudness |
+| Dither et mappage des canaux | Oui — contrôles explicites | Partiel — dither dans les préférences | Oui — contrôles explicites |
+| Rapport de livraison | Oui — détaillé par travail | Non | Non |
+| File d'attente de rendu survivant à un redémarrage | Oui — sur le bureau, redémarre à partir de l'octet zéro avec un journal de plantage | Non | Non |
+
+## Échange avec d'autres outils
+
+| Capacité | Soundscaper | Audacity 4 | Audition |
+| --- | --- | --- | --- |
+| Projets Audacity | Oui — AUP4 entrée et sortie, avec un rapport d'omission | Oui — natif | Non |
+| EDL | Partiel — exportation CMX3600-class, pas d'importation | Non | Non |
+| OpenTimelineIO | Partiel — exportation uniquement | Non | Non |
+| FCPXML | Partiel — exportation uniquement | Non | Oui — importation et exportation |
+| DAWproject | Oui — importation et exportation, avec un rapport d'échange | Non | Non |
+| OMF | Non | Non | Partiel — importation et exportation |
+| Allers-retours avec un éditeur vidéo | Partiel — transmet le même projet à Framescaper sans copier les médias | Non | Oui — Liaison dynamique avec Premiere Pro |
+| Échange de labels et de marqueurs | Oui — importation et exportation | Oui — importation et exportation | Oui — listes de marqueurs |
 
 ## Vidéo
 
 | Capacité | Soundscaper | Audacity 4 | Audition |
 | --- | --- | --- | --- |
-| Import vidéo pour référence | Oui — sur la timeline, avec audio lié | Non | Partiel — une piste vidéo, aperçu uniquement |
-| Édition de la timeline vidéo | Partiel — édition de base, la surface complète est Framescaper | Non | Non |
-| Export vidéo | Oui — MP4 et WebM via le runtime FFmpeg | Non | Non — audio uniquement |
-| Compositing, étalonnage et effets | Partiel — dans Framescaper, sur le même projet | Non | Non |
+| Importer une vidéo pour référence | Oui — sur la ligne de temps, avec audio lié | Non | Partiel — une piste vidéo, aperçu uniquement |
+| Édition de la ligne de temps vidéo | Partiel — édition de base, la surface complète est Framescaper | Non | Non |
+| Exportation vidéo | Oui — MP4 et WebM via le runtime FFmpeg | Non | Non — uniquement audio |
+| Composition, notation et effets | Partiel — dans Framescaper, sur le même projet | Non | Non |
 
-## Assistance par machine
+## Assistance machine
 
 | Capacité | Soundscaper | Audacity 4 | Audition |
 | --- | --- | --- | --- |
-| Amélioration de la parole | Partiel — bureau uniquement, une fois la charge utile du modèle installée | Non | Oui — Enhance Speech |
-| Transcription et diarisation | Partiel — bureau uniquement, modèles opt-in | Non | Non — les transcriptions sont dans Premiere Pro |
-| Séparation de source en tiges | Partiel — bureau uniquement, modèles opt-in | Non | Non |
-| Ducking automatique | Oui — effet Auto Duck | Oui — effet Auto Duck | Oui — ducking Essential Sound |
-| Détection de beat et de shot | Partiel — bureau uniquement, modèles opt-in | Non | Partiel — Remix retiming la musique automatiquement |
-| Fonctionne entièrement sur votre machine | Oui — l'inférence est uniquement sur bureau et hors ligne après installation | Oui — aucune inférence du tout | Partiel — certaines fonctionnalités sont traitées dans le cloud d'Adobe |
-| Les modèles sont optionnels et supprimables | Oui — téléchargés séparément, épinglés par digest, supprimables | Oui — rien à installer | Non — intégrés à l'application |
+| Amélioration de la parole | Partiel — uniquement sur bureau, une fois la charge utile du modèle installée | Non | Oui — Améliorer la parole |
+| Transcription et diarisation | Partiel — uniquement sur bureau, modèles opt-in | Non | Non — les transcriptions vivent dans Premiere Pro |
+| Séparation des sources en tiges | Partiel — uniquement sur bureau, modèles opt-in | Non | Non |
+| Canardage automatique | Oui — effet Auto Duck | Oui — effet Auto Duck | Oui — canardage Essential Sound |
+| Détection de battements et de plans | Partiel — uniquement sur bureau, modèles opt-in | Non | Partiel — Remix retemps la musique automatiquement |
+| S'exécute entièrement sur votre machine | Oui — l'inférence est uniquement sur bureau et hors ligne après installation | Oui — pas d'inférence du tout | Partiel — certaines fonctionnalités traitent dans le cloud d'Adobe |
+| Les modèles sont optionnels et supprimables | Oui — téléchargés séparément, épinglés, supprimables | Oui — rien à installer | Non — fourni avec l'application |
 
-## Ce que les différences représentent
+## Ce que les différences signifient
 
-Audacity 4 est un éditeur en passe unique. Il n'a pas de bus, pas d'envois, pas
-de pistes d'automatisation et pas de macros dans la version épinglée. Soundscaper conserve ce
-modèle d'édition et ajoute la couche de mixage, d'automatisation et de livraison par-dessus,
-ainsi que l'enregistrement, la vidéo et l'interchange que Audacity n'essaie pas.
+Audacity 4 est un éditeur à passe unique. Il n'a pas de bus, pas d'envois,
+pas de voies d'automatisation et pas de macros dans la version épinglée. Soundscaper conserve
+ce modèle d'édition et ajoute la couche de mixage, d'automatisation et de livraison
+par-dessus, plus le travail d'enregistrement, de vidéo et d'échange que Audacity ne tente pas.
 
-Audition reste en tête sur la profondeur de restauration, sur les allers-retours avec Premiere Pro, et sur
-les ambisonics. Là où Soundscaper est en tête, c'est la livraison immersive, la gestion de projet, et
-le fait qu'il fonctionne dans un navigateur sur du matériel que ni l'un ni l'autre ne supporte.
+Audition reste en tête en termes de profondeur de restauration, d'allers-retours avec Premiere Pro,
+et d'ambisons. Là où Soundscaper prend l'avantage, c'est sur la livraison immersive,
+la gestion des projets et le fait qu'il s'exécute dans un navigateur sur du matériel
+que ni l'un ni l'autre ne prend en charge.
 
-Si vous travaillez déjà dans Audacity, voir
-[fichiers de projet et interchange Audacity](/projects-and-data/project-files/) pour
-comment déplacer un projet.
+Si vous travaillez déjà avec Audacity, consultez
+[fichiers de projet et échange Audacity](/projects-and-data/project-files/) pour
+comment transférer un projet.
