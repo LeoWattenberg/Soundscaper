@@ -20,10 +20,12 @@ import {
 	normalizeLocalAssistanceShotDetectionMode,
 	type LocalAssistanceShotDetectionMode,
 } from '../../assistance/shot-detection-mode.ts';
-import type {
-	LocalAssistanceInputRole,
-	LocalAssistanceOutputRole,
-} from '../../assistance/local-assistance-bridge.ts';
+import {
+	LOCAL_ASSISTANCE_INPUT_MEDIA_TYPES,
+	LOCAL_ASSISTANCE_OUTPUT_MEDIA_TYPES,
+	type LocalAssistanceInputRole,
+	type LocalAssistanceOutputRole,
+} from '../../assistance/local-assistance-media-contract.ts';
 import type {
 	LocalAssistancePreparedInput,
 	LocalAssistancePreparedMedia,
@@ -56,30 +58,6 @@ const OPERATION_SPECS = Object.freeze({
 } satisfies Readonly<Record<AssistanceOperation, OperationSpec>>);
 
 
-const INPUT_MEDIA_TYPES = Object.freeze({
-	audio: Object.freeze(['audio/wav', 'audio/x-wav', 'audio/flac']),
-	'voice-activity': Object.freeze([
-		'application/json', 'application/vnd.soundscaper.voice-activity+json',
-	]),
-	video: Object.freeze(['video/mp4', 'video/quicktime', 'video/webm', 'video/x-matroska']),
-	'frame-pack': Object.freeze(['application/vnd.soundscaper.frame-pack']),
-	transcript: Object.freeze(['application/json', 'application/vnd.soundscaper.transcript+json']),
-	text: Object.freeze(['text/plain']),
-	'editorial-context': Object.freeze([
-		'application/json', 'application/vnd.soundscaper.editorial-context+json',
-	]),
-} satisfies Readonly<Record<LocalAssistanceInputRole, readonly string[]>>);
-const OUTPUT_MEDIA_TYPES: Readonly<Record<LocalAssistanceOutputRole, readonly string[]>> = Object.freeze({
-	'voice-activity': jsonTypes('voice-activity'), transcript: jsonTypes('transcript'),
-	'word-alignment': jsonTypes('word-alignment'), 'speaker-turns': jsonTypes('speaker-turns'),
-	'enhanced-audio': Object.freeze(['audio/wav', 'audio/flac']),
-	'separated-audio': Object.freeze(['audio/wav', 'audio/flac']),
-	'audio-tags': jsonTypes('audio-tags'), 'beat-grid': jsonTypes('beat-grid'),
-	embeddings: Object.freeze(['application/vnd.soundscaper.embedding-matrix-v1']),
-	'recognized-text': jsonTypes('recognized-text'),
-	'shot-boundaries': jsonTypes('shot-boundaries'), 'subject-tracks': jsonTypes('subject-tracks'),
-	'saliency-map': jsonTypes('saliency-map'), 'editorial-proposal': jsonTypes('editorial-proposal'),
-});
 const SOURCE_ID = /^[A-Za-z\d][A-Za-z\d._:-]{0,255}$/u;
 const MEDIA_TYPE = /^[a-z\d][a-z\d!#$&^_.+-]{0,126}\/[a-z\d][a-z\d!#$&^_.+-]{0,126}$/u;
 const MAXIMUM_BYTES = 8 * 1024 * 1024 * 1024;
@@ -142,7 +120,7 @@ function normalizeInputs(value: unknown, operation: OperationSpec): readonly Loc
 	const inputs = value.map((candidate) => {
 		const record = exactRecord(candidate, ['role', 'mediaType', 'bytes'], 'prepared input');
 		const role = enumValue(record.role, operation.inputs, 'operation input role');
-		const mediaType = admittedMediaType(record.mediaType, role, INPUT_MEDIA_TYPES);
+		const mediaType = admittedMediaType(record.mediaType, role, LOCAL_ASSISTANCE_INPUT_MEDIA_TYPES);
 		if (!(record.bytes instanceof Blob) || record.bytes.size < 1 || record.bytes.size > MAXIMUM_BYTES) {
 			throw new TypeError('Prepared selected media must carry a bounded Blob body.');
 		}
@@ -183,7 +161,7 @@ function normalizeOutputs(
 			throw new TypeError('Prepared audio publication slots must be complete and canonical.');
 		}
 		return Object.freeze({ ...(slots ? { slotId: slots[index] } : {}), role,
-			mediaType: admittedMediaType(record.mediaType, role, OUTPUT_MEDIA_TYPES),
+			mediaType: admittedMediaType(record.mediaType, role, LOCAL_ASSISTANCE_OUTPUT_MEDIA_TYPES),
 			maximumByteLength: bytes(record.maximumByteLength) });
 	}));
 }
@@ -197,10 +175,6 @@ function spec(
 		required: Object.freeze(required.map((roles) => Object.freeze(roles))), outputs: Object.freeze(outputs) });
 }
 
-
-function jsonTypes(role: LocalAssistanceOutputRole): readonly string[] {
-	return Object.freeze(['application/json', `application/vnd.soundscaper.${role}+json`]);
-}
 
 function admittedMediaType<Role extends string>(
 	value: unknown,

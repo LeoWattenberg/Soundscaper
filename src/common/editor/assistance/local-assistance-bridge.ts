@@ -21,8 +21,20 @@ import { lazyAssistanceWorkflowBridge } from './local-assistance-lazy-workflow-b
 import { lazyLocalAssistanceSemanticSearchBridge } from
 	'./local-assistance-lazy-semantic-search-bridge.ts';
 import type { LocalAssistanceWorkflowBridge } from './local-assistance-workflow-bridge.ts';
+import {
+	LOCAL_ASSISTANCE_INPUT_MEDIA_TYPES,
+	LOCAL_ASSISTANCE_INPUT_ROLES,
+	LOCAL_ASSISTANCE_OUTPUT_MEDIA_TYPES,
+	LOCAL_ASSISTANCE_OUTPUT_ROLES,
+	type LocalAssistanceInputRole,
+	type LocalAssistanceOutputRole,
+} from './local-assistance-media-contract.ts';
 
 export type { LocalAssistanceWorkflowBridge } from './local-assistance-workflow-bridge.ts';
+export type {
+	LocalAssistanceInputRole,
+	LocalAssistanceOutputRole,
+} from './local-assistance-media-contract.ts';
 
 export const LOCAL_ASSISTANCE_PROGRESS_PHASES = Object.freeze([
 	'queued', 'staging-input', 'loading-model', 'running', 'staging-output', 'finalizing',
@@ -33,15 +45,6 @@ export const LOCAL_ASSISTANCE_UNAVAILABLE_REASONS = Object.freeze([
 
 export type LocalAssistanceProgressPhase = typeof LOCAL_ASSISTANCE_PROGRESS_PHASES[number];
 export type LocalAssistanceUnavailableReason = typeof LOCAL_ASSISTANCE_UNAVAILABLE_REASONS[number];
-export type LocalAssistanceInputRole =
-	| 'audio' | 'voice-activity' | 'video' | 'frame-pack' | 'transcript' | 'text'
-	| 'editorial-context';
-export type LocalAssistanceOutputRole =
-	| 'voice-activity' | 'transcript' | 'word-alignment' | 'speaker-turns'
-	| 'enhanced-audio' | 'separated-audio' | 'audio-tags' | 'beat-grid' | 'embeddings'
-	| 'recognized-text' | 'shot-boundaries' | 'subject-tracks' | 'saliency-map'
-	| 'editorial-proposal';
-
 export interface LocalAssistanceModel {
 	readonly modelId: string;
 	readonly version: string;
@@ -148,34 +151,6 @@ const JOB_ID = /^[a-f\d]{40}$/u;
 const SHA256 = /^[a-f\d]{64}$/u;
 const MODEL_ID = /^[a-z\d](?:[a-z\d.-]{0,62}[a-z\d])?$/u;
 const MEDIA_TYPE = /^[a-z\d][a-z\d!#$&^_.+-]{0,126}\/[a-z\d][a-z\d!#$&^_.+-]{0,126}$/u;
-const INPUT_ROLES = Object.freeze([
-	'audio', 'voice-activity', 'video', 'frame-pack', 'transcript', 'text', 'editorial-context',
-] as const);
-const OUTPUT_ROLES = Object.freeze([
-	'voice-activity', 'transcript', 'word-alignment', 'speaker-turns', 'enhanced-audio',
-	'separated-audio', 'audio-tags', 'beat-grid', 'embeddings', 'recognized-text',
-	'shot-boundaries', 'subject-tracks', 'saliency-map', 'editorial-proposal',
-] as const);
-const INPUT_MEDIA_TYPES: Readonly<Record<LocalAssistanceInputRole, readonly string[]>> = Object.freeze({
-	audio: Object.freeze(['audio/wav', 'audio/x-wav', 'audio/flac']),
-	'voice-activity': jsonTypes('voice-activity'),
-	video: Object.freeze(['video/mp4', 'video/quicktime', 'video/webm', 'video/x-matroska']),
-	'frame-pack': Object.freeze(['application/vnd.soundscaper.frame-pack']),
-	transcript: Object.freeze(['application/json', 'application/vnd.soundscaper.transcript+json']),
-	text: Object.freeze(['text/plain']),
-	'editorial-context': Object.freeze(['application/json', 'application/vnd.soundscaper.editorial-context+json']),
-});
-const OUTPUT_MEDIA_TYPES: Readonly<Record<LocalAssistanceOutputRole, readonly string[]>> = Object.freeze({
-	'voice-activity': jsonTypes('voice-activity'), transcript: jsonTypes('transcript'),
-	'word-alignment': jsonTypes('word-alignment'), 'speaker-turns': jsonTypes('speaker-turns'),
-	'enhanced-audio': Object.freeze(['audio/wav', 'audio/flac']),
-	'separated-audio': Object.freeze(['audio/wav', 'audio/flac']),
-	'audio-tags': jsonTypes('audio-tags'), 'beat-grid': jsonTypes('beat-grid'),
-	embeddings: Object.freeze(['application/vnd.soundscaper.embedding-matrix-v1']),
-	'recognized-text': jsonTypes('recognized-text'),
-	'shot-boundaries': jsonTypes('shot-boundaries'), 'subject-tracks': jsonTypes('subject-tracks'),
-	'saliency-map': jsonTypes('saliency-map'), 'editorial-proposal': jsonTypes('editorial-proposal'),
-});
 const OPERATION_ROLES = Object.freeze({
 	'voice-activity-detection': roles(['audio'], [['audio']], ['voice-activity']),
 	'speech-recognition': roles(['audio'], [['audio']], ['transcript']),
@@ -411,37 +386,37 @@ function normalizeStageInput(value: unknown) {
 	if (!(record.bytes instanceof Blob)) throw new TypeError('Selected media must be supplied as a Blob.');
 	const byteLengthValue = bytes(record.byteLength);
 	if (record.bytes.size !== byteLengthValue) throw new TypeError('The selected-media Blob length is inconsistent.');
-	return Object.freeze({ jobId: jobId(record.jobId), role: enumValue(record.role, INPUT_ROLES, 'input role'),
+	return Object.freeze({ jobId: jobId(record.jobId), role: enumValue(record.role, LOCAL_ASSISTANCE_INPUT_ROLES, 'input role'),
 		mediaType: mediaType(record.mediaType), byteLength: byteLengthValue, bytes: record.bytes });
 }
 
 function normalizeReserveOutput(value: unknown) {
 	const record = exactRecord(value, ['jobId', 'role', 'mediaType', 'maximumByteLength'], 'output reservation request');
-	return Object.freeze({ jobId: jobId(record.jobId), role: enumValue(record.role, OUTPUT_ROLES, 'output role'),
+	return Object.freeze({ jobId: jobId(record.jobId), role: enumValue(record.role, LOCAL_ASSISTANCE_OUTPUT_ROLES, 'output role'),
 		mediaType: mediaType(record.mediaType), maximumByteLength: bytes(record.maximumByteLength) });
 }
 
 function normalizeInputClaim(value: unknown): LocalAssistanceInputClaim {
 	const record = claimRecord(value, ['claimVersion', 'claimId', 'jobId', 'role', 'mediaType', 'byteLength', 'sha256']);
-	const role = enumValue(record.role, INPUT_ROLES, 'input role');
+	const role = enumValue(record.role, LOCAL_ASSISTANCE_INPUT_ROLES, 'input role');
 	return Object.freeze({ claimVersion: 1, claimId: jobId(record.claimId), jobId: jobId(record.jobId),
-		role, mediaType: roleMediaType(record.mediaType, role, INPUT_MEDIA_TYPES),
+		role, mediaType: roleMediaType(record.mediaType, role, LOCAL_ASSISTANCE_INPUT_MEDIA_TYPES),
 		byteLength: bytes(record.byteLength), sha256: digest(record.sha256) });
 }
 
 function normalizeOutputReservation(value: unknown): LocalAssistanceOutputReservation {
 	const record = claimRecord(value, ['claimVersion', 'claimId', 'jobId', 'role', 'mediaType', 'maximumByteLength']);
-	const role = enumValue(record.role, OUTPUT_ROLES, 'output role');
+	const role = enumValue(record.role, LOCAL_ASSISTANCE_OUTPUT_ROLES, 'output role');
 	return Object.freeze({ claimVersion: 1, claimId: jobId(record.claimId), jobId: jobId(record.jobId),
-		role, mediaType: roleMediaType(record.mediaType, role, OUTPUT_MEDIA_TYPES),
+		role, mediaType: roleMediaType(record.mediaType, role, LOCAL_ASSISTANCE_OUTPUT_MEDIA_TYPES),
 		maximumByteLength: bytes(record.maximumByteLength) });
 }
 
 function normalizeOutputClaim(value: unknown): LocalAssistanceOutputClaim {
 	const record = claimRecord(value, ['claimVersion', 'claimId', 'jobId', 'role', 'mediaType', 'byteLength', 'sha256']);
-	const role = enumValue(record.role, OUTPUT_ROLES, 'output role');
+	const role = enumValue(record.role, LOCAL_ASSISTANCE_OUTPUT_ROLES, 'output role');
 	return Object.freeze({ claimVersion: 1, claimId: jobId(record.claimId), jobId: jobId(record.jobId),
-		role, mediaType: roleMediaType(record.mediaType, role, OUTPUT_MEDIA_TYPES),
+		role, mediaType: roleMediaType(record.mediaType, role, LOCAL_ASSISTANCE_OUTPUT_MEDIA_TYPES),
 		byteLength: bytes(record.byteLength), sha256: digest(record.sha256) });
 }
 
@@ -469,10 +444,6 @@ function roles(
 ) {
 	return Object.freeze({ inputs: Object.freeze(inputs),
 		required: Object.freeze(required.map((group) => Object.freeze(group))), outputs: Object.freeze(outputs) });
-}
-
-function jsonTypes(role: LocalAssistanceOutputRole): readonly string[] {
-	return Object.freeze(['application/json', `application/vnd.soundscaper.${role}+json`]);
 }
 
 function roleMediaType<Role extends string>(
