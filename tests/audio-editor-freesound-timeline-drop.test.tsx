@@ -27,7 +27,8 @@ test('a Freesound result dropped on the timeline imports at the exact audio targ
 	const root = createRoot(dom.container as unknown as Element);
 	function Harness() {
 		handlers = useTimelineProjectBinDnd({
-			controller: { actions: { freesound: { importSound: (request: unknown) => { imports.push(request); } } } },
+			controller: {},
+			importFreesoundSound: async (_controller: unknown, request: unknown) => { imports.push(request); },
 			mutationsBlocked: false,
 			state: { setDraggingClipIds() {}, setProjectBinDragPreview() {} },
 			model: {
@@ -53,7 +54,7 @@ test('a Freesound result dropped on the timeline imports at the exact audio targ
 		await act(async () => handlers!.onTimelineDrop({
 			dataTransfer: {
 				types: [AUDIO_EDITOR_FREESOUND_RESULT_DRAG_TYPE], files: [],
-				getData: () => '{"schemaVersion":1,"soundId":42}',
+				getData: () => '42',
 			},
 			preventDefault: () => { prevented = true; },
 		}));

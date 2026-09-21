@@ -1,12 +1,13 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import {
+	EDITOR_PROJECT_TASK_SCOPE,
 	isCurrentAssertion,
 	type EditorControllerLifetime,
 	type EditorProjectToken,
 	type EditorTaskScope,
 } from '../../../shared/lifecycle.ts';
-import { EDITOR_PROJECT_TASK_SCOPE } from '../../../shared/lifecycle.ts';
+import { changedContentRelinkClassification } from '../linked-media/changed-content-relink-attribution.ts';
 import { PROJECT_BIN_LINKED_ORIGINAL_RELINK_TASK } from './project-bin-linked-original-relink-task.ts';
 
 export const PROJECT_BIN_LINKED_AUDIO_RELINK_TASK = PROJECT_BIN_LINKED_ORIGINAL_RELINK_TASK;
@@ -183,13 +184,13 @@ export function createProjectBinLinkedAudioRelinkService(
 			throw new Error('The Project Bin audio source is not currently bound to a linked audio original.');
 		}
 		const currentBinding = requiredAudioRelinkBinding(binding);
-		if (file.size !== currentBinding.byteLength) return 'changed-content';
+		if (file.size !== currentBinding.byteLength) return changedContentRelinkClassification(source);
 		const digest = await dependencies.digestContent(file, {});
 		assertNotDisposed(disposed);
 		dependencies.lifetime.assertActive();
 		dependencies.assertProject(projectToken);
 		assertProjectTarget(dependencies.getProject(), expectedTarget);
-		return digest === currentBinding.sha256 ? 'exact-content' : 'changed-content';
+		return digest === currentBinding.sha256 ? 'exact-content' : changedContentRelinkClassification(source);
 	}
 
 	async function canRelinkLinkedAudio(clipId: string): Promise<boolean> {
@@ -263,6 +264,7 @@ export function createProjectBinLinkedAudioRelinkService(
 			assertProjectTarget(dependencies.getProject(), expectedTarget);
 			assertWritable(dependencies);
 			if (changedContent) {
+				changedContentRelinkClassification(source);
 				if (relinkOptions.allowChangedContent !== true) {
 					throw new Error(
 						'The selected linked audio original has changed content; '

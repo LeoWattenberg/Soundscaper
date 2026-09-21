@@ -7,11 +7,12 @@ const MAXIMUM_METADATA_DEPTH = 12;
 const MAXIMUM_METADATA_NODES = 8_192;
 const MAXIMUM_METADATA_WARNINGS = 256;
 const MAXIMUM_METADATA_ATTACHMENTS = 256;
+const MAXIMUM_METADATA_ATTACHMENT_BYTES = 4 * 1024 * 1024;
+const MAXIMUM_TOTAL_METADATA_ATTACHMENT_BYTES = 8 * 1024 * 1024;
 const MAXIMUM_METADATA_KEY_LENGTH = 256;
 const MAXIMUM_AIFF_CHUNKS = 4_096;
 const MAXIMUM_AIFF_METADATA_CHUNK_BYTES = 4 * 1024 * 1024;
 const MAC_EPOCH_TO_UNIX_SECONDS = 2_082_844_800;
-
 type JsonScalar = string | number | boolean | null;
 export type ImportedMediaMetadataValue = JsonScalar
 	| readonly ImportedMediaMetadataValue[]
@@ -23,6 +24,7 @@ export interface ImportedMediaMetadataRecord {
 
 export interface ImportedMediaMetadataAttachment {
 	readonly path: string;
+	readonly kind?: string;
 	readonly mimeType?: string;
 	readonly name?: string;
 	readonly description?: string;
@@ -56,6 +58,7 @@ interface CanonicalizationContext {
 	readonly warnings: string[];
 	readonly seen: WeakSet<object>;
 	nodes: number;
+	attachmentBytes: number;
 	nodeLimitReported: boolean;
 	attachmentLimitReported: boolean;
 }
@@ -98,7 +101,8 @@ export async function canonicalizeImportedMediaMetadata(
 		attachments: [],
 		warnings: [],
 		seen: new WeakSet<object>(),
-		nodes: 0,
+		nodes: 3,
+		attachmentBytes: 0,
 		nodeLimitReported: false,
 		attachmentLimitReported: false,
 	};
@@ -166,6 +170,7 @@ async function canonicalizeRawTags(
 		const path = `raw.${key}`;
 		const attachment = await describeBinaryValue(candidate, path, context);
 		if (attachment) {
+			if (!reserveMetadataNodes(context, 2)) continue;
 			defineRecordValue(output, key, Object.freeze({ attachmentPath: attachment.path }));
 			continue;
 		}
@@ -197,6 +202,15 @@ async function describeBinaryValue(
 		}
 		return null;
 	}
+	const byteLength = bytes.byteLength;
+	const exceededBudget = byteLength > MAXIMUM_METADATA_ATTACHMENT_BYTES
+		? ['per-attachment', MAXIMUM_METADATA_ATTACHMENT_BYTES] as const
+		: byteLength > MAXIMUM_TOTAL_METADATA_ATTACHMENT_BYTES - context.attachmentBytes
+			? ['aggregate', MAXIMUM_TOTAL_METADATA_ATTACHMENT_BYTES] as const : null;
+	if (exceededBudget) {
+		pushWarning(context, `${path} binary metadata attachment was ${String(byteLength)} bytes; the ${exceededBudget[0]} limit of ${String(exceededBudget[1])} bytes omitted it.`);
+		return null;
+	}
 	const mimeType = boundedAttachmentText(
 		stringValue(ownDataValue(record, 'mimeType')) ?? 'application/octet-stream',
 		256,
@@ -207,14 +221,19 @@ async function describeBinaryValue(
 	const description = boundedOptionalAttachmentText(
 		ownDataValue(record, 'description'), `${path}.description`, context,
 	);
+	const kindValue = stringValue(ownDataValue(record, 'kind'));
+	const kind = kindValue
+		? boundedAttachmentText(kindValue, MAXIMUM_METADATA_KEY_LENGTH, `${path}.kind`, context) : undefined;
 	const descriptor = Object.freeze({
 		path,
+		...(kind ? { kind } : {}),
 		mimeType,
 		...(name ? { name } : {}),
 		...(description ? { description } : {}),
-		byteLength: bytes.byteLength,
+		byteLength,
 		sha256: await sha256Hex(bytes),
 	});
+	context.attachmentBytes += byteLength;
 	context.attachments.push(descriptor);
 	return descriptor;
 }
@@ -225,14 +244,7 @@ function canonicalValue(
 	context: CanonicalizationContext,
 	depth: number,
 ): ImportedMediaMetadataValue | undefined {
-	context.nodes += 1;
-	if (context.nodes > MAXIMUM_METADATA_NODES) {
-		if (!context.nodeLimitReported) {
-			context.nodeLimitReported = true;
-			pushWarning(context, `Metadata exceeded ${String(MAXIMUM_METADATA_NODES)} values and was truncated.`);
-		}
-		return undefined;
-	}
+	if (!reserveMetadataNodes(context, 1)) return undefined;
 	if (value === undefined) return undefined;
 	if (value === null || typeof value === 'boolean') return value;
 	if (typeof value === 'string') {
@@ -284,6 +296,15 @@ function canonicalValue(
 	} finally {
 		context.seen.delete(value);
 	}
+}
+
+function reserveMetadataNodes(context: CanonicalizationContext, count: number): boolean {
+	context.nodes += count;
+	if (context.nodes <= MAXIMUM_METADATA_NODES) return true;
+	if (context.nodeLimitReported) return false;
+	context.nodeLimitReported = true;
+	pushWarning(context, `Metadata exceeded ${String(MAXIMUM_METADATA_NODES)} values and was truncated.`);
+	return false;
 }
 
 async function inspectAiffMetadata(file: Blob, signal?: AbortSignal): Promise<AiffInspection | null> {

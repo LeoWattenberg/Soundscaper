@@ -7,7 +7,7 @@ import {
 } from '../../clip-time-pitch-cache.js';
 import { estimatePcmRenderPublication } from '../../publication-byte-estimates.ts';
 import { scaleSampleFrame } from '../../timeline-time.ts';
-import { deriveSourceProvenance } from '../../source-provenance-derivation.ts';
+import { loadSourceProvenanceDerivation } from '../../source-provenance-derivation-loader.ts';
 import type { SourceProvenanceV1 } from '../../source-provenance.ts';
 import {
 	createAddClipCommand,
@@ -27,6 +27,8 @@ import type {
 	EditorTaskScope,
 } from '../shared/lifecycle.ts';
 import { audioBufferChannels, type AudioBufferLike } from '../source/source-audio.ts';
+
+type DeriveSourceProvenance = typeof import('../../source-provenance-derivation.ts')['deriveSourceProvenance'];
 
 interface ClipTimePitchRenderCopy {
 	readonly audioClipNotFound: string;
@@ -183,6 +185,8 @@ export function createClipTimePitchRenderService(
 				'effect',
 			);
 			assertOwned(task, projectToken, fingerprint);
+			const { deriveSourceProvenance } = await loadSourceProvenanceDerivation();
+			assertOwned(task, projectToken, fingerprint);
 			const channels = audioBufferChannels(buffer).map((channel) => channel.slice());
 			renderedSourceId = dependencies.createId('rendered-clip');
 			const name = `${source.name || clip.title || track.name} — ${publishedCopyFor(dependencies.copy).renderPitchSpeed}`;
@@ -202,7 +206,9 @@ export function createClipTimePitchRenderService(
 			});
 			writerCommitted = true;
 			assertOwned(task, projectToken, fingerprint);
-			const nextSource = renderedSource(source, renderedSourceId, name, buffer);
+			const nextSource = renderedSource(
+				source, renderedSourceId, name, buffer, deriveSourceProvenance,
+			);
 			const nextClip = renderedClip(clip, renderedSourceId, buffer, project.sampleRate);
 			dependencies.cacheSourceBuffer(renderedSourceId, buffer);
 			const peaks = await dependencies.generateWaveformPeaks(channels, task.signal);
@@ -260,6 +266,7 @@ function renderedSource(
 	id: string,
 	name: string,
 	buffer: AudioBufferLike,
+	deriveSourceProvenance: DeriveSourceProvenance,
 ): RenderSource {
 	const provenance = deriveSourceProvenance([source]);
 	return {

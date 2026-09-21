@@ -130,7 +130,42 @@ test('source provenance copies, merges and deduplicates contributions without lo
 	]), /conflicting contribution/iu);
 });
 
-test('source factories normalize provenance and project validation rejects malformed persisted provenance', () => {
+test('semantic provenance validation enforces metadata bounds and rejects hidden state', () => {
+	const atLimit = structuredClone(createImportedSourceProvenance(LOCAL_CONTRIBUTION));
+	mutableMetadata(atLimit).normalized = { values: Array.from({ length: 8_188 }, () => null) };
+	mutableMetadata(atLimit).raw = {};
+	mutableMetadata(atLimit).namespaces = {};
+	assert.doesNotThrow(() => normalizeSourceProvenance(atLimit));
+	const tooManyNodes = structuredClone(atLimit);
+	mutableMetadata(tooManyNodes).normalized = { values: Array.from({ length: 8_189 }, () => null) };
+	assert.throws(() => normalizeSourceProvenance(tooManyNodes), /node safety limit/iu);
+
+	for (const key of ['hidden', 'accessor'] as const) {
+		const unsafe = structuredClone(createImportedSourceProvenance(LOCAL_CONTRIBUTION));
+		const raw = mutableMetadata(unsafe).raw;
+		let reads = 0;
+		Object.defineProperty(raw, key, key === 'accessor'
+			? { enumerable: true, get: () => { reads += 1; return 'unsafe'; } }
+			: { enumerable: false, value: 'unsafe' });
+		assert.throws(() => normalizeSourceProvenance(unsafe), /enumerable data property/iu);
+		assert.equal(reads, 0);
+	}
+	const symbol = structuredClone(createImportedSourceProvenance(LOCAL_CONTRIBUTION));
+	Object.defineProperty(mutableMetadata(symbol).raw, Symbol('hidden'), { value: 'unsafe' });
+	assert.throws(() => normalizeSourceProvenance(symbol), /symbol keys/iu);
+});
+
+test('source factories detach caller-owned provenance', () => {
+	const input = structuredClone(createImportedSourceProvenance(LOCAL_CONTRIBUTION));
+	const source = createAudioSource({
+		id: 'detached-source', frameCount: 1_000, channelCount: 1, provenance: input,
+	});
+	assert.notEqual(source.provenance, input);
+	mutableMetadata(input).normalized.artist = 'Changed';
+	assert.equal(source.provenance?.contributions[0]?.metadata.normalized.artist, 'Ada');
+});
+
+test('project admission rejects unsafe envelopes before deferred attribution semantics', () => {
 	const source = createAudioSource({
 		id: 'source-a', frameCount: 1_000, channelCount: 1,
 		provenance: createImportedSourceProvenance(LOCAL_CONTRIBUTION),
@@ -152,6 +187,34 @@ test('source factories normalize provenance and project validation rejects malfo
 	const sources = malformed.sources as Record<string, unknown>[];
 	sources[0]!.provenance = { schemaVersion: 9, classification: 'imported', contributions: [] };
 	assert.throws(() => validateAudioEditorProjectV17(malformed), /provenance\.schemaVersion/iu);
+
+	const unsafeUrl = structuredClone(project) as Record<string, unknown>;
+	const unsafeSources = unsafeUrl.sources as Record<string, unknown>[];
+	const unsafeProvenance = unsafeSources[0]!.provenance as Record<string, unknown>;
+	const unsafeContributions = unsafeProvenance.contributions as Record<string, unknown>[];
+	const unsafeOrigin = unsafeContributions[0]!.origin as Record<string, unknown>;
+	unsafeOrigin.kind = 'freesound';
+	Object.assign(unsafeOrigin, {
+		soundId: 42,
+		soundUrl: 'javascript:alert(1)',
+		creator: 'Mallory',
+		creatorUrl: 'https://freesound.org/people/Mallory/',
+		license: { family: 'cc0', name: 'CC0', url: 'https://creativecommons.org/publicdomain/zero/1.0/' },
+		importedVariant: 'preview-hq-ogg',
+	});
+	delete unsafeOrigin.byteLength;
+	delete unsafeOrigin.lastModified;
+	assert.equal(validateAudioEditorProjectV17(unsafeUrl), true);
+	assert.throws(() => createProjectAttributionReport(unsafeUrl), /HTTPS URL/iu);
+
+	const unsafeMetadata = structuredClone(project) as Record<string, unknown>;
+	const metadataSources = unsafeMetadata.sources as Record<string, unknown>[];
+	const metadataProvenance = metadataSources[0]!.provenance as Record<string, unknown>;
+	const metadataContributions = metadataProvenance.contributions as Record<string, unknown>[];
+	const metadata = metadataContributions[0]!.metadata as Record<string, unknown>;
+	metadata.raw = { artwork: new Uint8Array([1, 2, 3]) };
+	assert.equal(validateAudioEditorProjectV17(unsafeMetadata), true);
+	assert.throws(() => createProjectAttributionReport(unsafeMetadata), /plain record|JSON-compatible|binary/iu);
 });
 
 test('attribution report derives timeline, comp and Project Bin uses while excluding non-imported media', () => {
@@ -324,6 +387,18 @@ test('attribution CSV is deterministic RFC 4180 with one defended row per curren
 	assert.match(first, /"contribution-local"/u);
 	assert.match(first, /"contribution-freesound"/u);
 });
+
+function mutableMetadata(provenance: ReturnType<typeof createImportedSourceProvenance>): {
+	normalized: Record<string, unknown>;
+	raw: Record<string, unknown>;
+	namespaces: Record<string, unknown>;
+} {
+	return provenance.contributions[0]!.metadata as {
+		normalized: Record<string, unknown>;
+		raw: Record<string, unknown>;
+		namespaces: Record<string, unknown>;
+	};
+}
 
 function audioSource(
 	id: string,

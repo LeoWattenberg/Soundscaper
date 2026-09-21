@@ -18,8 +18,6 @@ export interface ProjectAttributionTabProps {
 	readonly locale?: string;
 	readonly fileService?: AttributionCsvFileService | null;
 	readonly run?: (operation: () => unknown) => unknown;
-	readonly report?: AttributionReportPresentation | null;
-	readonly onExportCsv?: () => void;
 }
 
 /** Lazy project adapter which keeps report generation and CSV serialization off the startup graph. */
@@ -29,21 +27,29 @@ export function ProjectAttributionTab({
 	locale,
 	fileService,
 	run,
-	report: suppliedReport,
-	onExportCsv,
 }: ProjectAttributionTabProps) {
-	const domainReport = project ? createProjectAttributionReport(project) : null;
-	const report = suppliedReport ?? (domainReport ? presentProjectAttributionReport(domainReport) : null);
-	const exportCsv = onExportCsv ?? (domainReport && fileService ? () => {
+	const localizedCopy = { ...copy, ...freesoundAttributionCopy(locale, copy) };
+	let domainReport: ReturnType<typeof createProjectAttributionReport> | null = null;
+	let report: AttributionReportPresentation | null = null;
+	let reportFailed = false;
+	try {
+		domainReport = project ? createProjectAttributionReport(project) : null;
+		report = domainReport ? presentProjectAttributionReport(domainReport) : null;
+	} catch {
+		domainReport = null;
+		reportFailed = true;
+	}
+	const exportCsv = domainReport && fileService ? () => {
 		const operation = () => saveProjectAttributionCsv(domainReport, project?.title, fileService);
 		if (run) void run(operation);
 		else void operation();
-	} : undefined);
+	} : undefined;
 
 	return <AttributionTab
-		copy={{ ...copy, ...freesoundAttributionCopy(locale, copy) }}
+		copy={localizedCopy}
 		report={report}
 		onExportCsv={exportCsv}
+		errorMessage={reportFailed ? localizedCopy.reportError : undefined}
 	/>;
 }
 

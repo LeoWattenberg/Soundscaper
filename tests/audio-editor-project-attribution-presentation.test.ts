@@ -38,7 +38,7 @@ const report: ProjectAttributionReport = {
 				namespaces: { vorbis: { location: 'Forest' } },
 			},
 			attachments: [{
-				path: 'images[0]', name: 'cover.png', mimeType: 'image/png', byteLength: 3,
+				path: 'images[0]', kind: 'front-cover', name: 'cover.png', mimeType: 'image/png', byteLength: 3,
 				sha256: '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef',
 			}],
 			warnings: ['One tag was truncated.'],
@@ -51,7 +51,8 @@ test('attribution presentation expands every current use and all stored metadata
 
 	assert.equal(presented.occurrences.length, 1);
 	assert.deepEqual(presented.occurrences[0], {
-		key: 'source-a:clip:clip-a', clipName: 'Forest bed', trackName: 'Ambience',
+		key: 'source-a:clip:main:clip-a', clipName: 'Forest bed', trackName: 'Ambience',
+		sequenceId: 'main', sequenceName: 'Main',
 		useTimeLabel: '00:00:00.500–00:00:01.500',
 		sources: [{
 			key: 'source-a:credit-a', name: 'Rain in the forest', url: 'https://freesound.org/s/42/',
@@ -68,13 +69,36 @@ test('attribution presentation expands every current use and all stored metadata
 				{ key: 'normalized.artist', label: 'normalized.artist', value: 'Ada' },
 				{ key: 'raw.TITLE', label: 'raw.TITLE', value: 'Rain' },
 				{ key: 'namespaces.vorbis.location', label: 'namespaces.vorbis.location', value: 'Forest' },
-				{ key: 'attachment:images[0]', label: 'attachment: images[0]', value: 'cover.png · image/png · 3 bytes · SHA-256 0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef' },
+				{ key: 'attachment:images[0]', label: 'attachment: images[0]', value: 'front-cover · cover.png · image/png · 3 bytes · SHA-256 0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef' },
 				{ key: 'warning:0', label: 'warning', value: 'One tag was truncated.' },
 				{ key: 'source.namespaces.bext.description', label: 'source.namespaces.bext.description', value: 'Imported broadcast master' },
 				{ key: 'source.warning:0', label: 'warning', value: 'One source namespace was unavailable.' },
 			],
+			modified: true,
 		}],
 	});
+});
+
+test('attribution presentation distinguishes the same clip use in multiple sequences', () => {
+	const firstSource = report.sources[0]!;
+	const firstUse = firstSource.uses[0]!;
+	assert.notEqual(firstUse.kind, 'project-bin');
+	if (firstUse.kind === 'project-bin') return;
+	const presented = presentProjectAttributionReport({
+		...report,
+		sources: [{
+			...firstSource,
+			uses: [firstUse, { ...firstUse, sequenceId: 'alternate', sequenceName: 'Alternate' }],
+		}],
+	});
+
+	assert.deepEqual(presented.occurrences.map(({ key, sequenceId, sequenceName }) => ({
+		key, sequenceId, sequenceName,
+	})), [{
+		key: 'source-a:clip:main:clip-a', sequenceId: 'main', sequenceName: 'Main',
+	}, {
+		key: 'source-a:clip:alternate:clip-a', sequenceId: 'alternate', sequenceName: 'Alternate',
+	}]);
 });
 
 test('attribution presentation emits source metadata and source warnings once for a derived source', () => {

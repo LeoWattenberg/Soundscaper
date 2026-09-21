@@ -68,11 +68,11 @@ export function useProjectBinFileDrop({ blocked, onFiles, onFreesoundSound }) {
 				event.stopPropagation();
 				resetDropState(event.currentTarget);
 				if (blocked) return;
-				const freesound = parseFreesoundResultDragPayload(
+				const freesoundSoundId = parseFreesoundResultDragPayload(
 					event.dataTransfer.getData?.(AUDIO_EDITOR_FREESOUND_RESULT_DRAG_TYPE),
 				);
-				if (freesound) {
-					onFreesoundSound?.(freesound.soundId);
+				if (freesoundSoundId !== null) {
+					onFreesoundSound?.(freesoundSoundId);
 					return;
 				}
 				const files = [...(event.dataTransfer.files || [])];

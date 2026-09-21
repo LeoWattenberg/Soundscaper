@@ -158,6 +158,7 @@ test('derived source persistence removes a committed source when project ownersh
 	let currentProjectId = project.id;
 	let resolvePeaks!: (value: unknown) => void;
 	const peaks = new Promise<unknown>((resolve) => { resolvePeaks = resolve; });
+	let markPeaksStarted!: () => void; const peaksStarted = new Promise<void>((resolve) => { markPeaksStarted = resolve; });
 	const deleted: string[] = [];
 	const buffers = new Map<string, { length: number; numberOfChannels: number; sampleRate: number; getChannelData(channel: number): Float32Array }>();
 	const peakCache = new Map<string, unknown>();
@@ -182,7 +183,7 @@ test('derived source persistence removes a committed source when project ownersh
 		writeBuffer: async (writer, buffer) => {
 			await writer.write([buffer.getChannelData(0)]);
 		},
-		generateWaveformPeaks: async () => peaks,
+		generateWaveformPeaks: async () => { markPeaksStarted(); return peaks; },
 		peakCacheKey: (sourceId) => `peaks:${sourceId}`,
 		cacheSourceBuffer: (sourceId, buffer) => { buffers.set(sourceId, buffer); },
 		sourceBuffers: buffers,
@@ -204,8 +205,7 @@ test('derived source persistence removes a committed source when project ownersh
 		[new Float32Array([1, 2])],
 		'Derived',
 	);
-	await Promise.resolve();
-	await Promise.resolve();
+	await peaksStarted;
 	currentProjectId = 'switched';
 	resolvePeaks({ levels: [] });
 

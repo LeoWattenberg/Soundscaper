@@ -24,12 +24,17 @@ export function presentProjectAttributionReport(
 ): AttributionReportPresentation {
 	return Object.freeze({
 		occurrences: Object.freeze(report.sources.flatMap((source) => source.uses.map((use) => Object.freeze({
-			key: `${source.sourceId}:${use.kind}:${use.id}`,
+			key: use.kind === 'project-bin'
+				? `${source.sourceId}:${use.kind}:${use.id}`
+				: `${source.sourceId}:${use.kind}:${use.sequenceId}:${use.id}`,
 			clipName: use.title,
 			trackName: use.kind === 'project-bin' ? '' : use.trackName,
 			useTimeLabel: use.kind === 'project-bin' ? ''
 				: `${formatProjectAttributionTime(use.startFrame, report.sampleRate)}–${formatProjectAttributionTime(use.endFrame, report.sampleRate)}`,
-			...(use.kind === 'project-bin' ? { projectBin: true } : {}),
+			...(use.kind === 'project-bin' ? { projectBin: true } : {
+				sequenceId: use.sequenceId,
+				sequenceName: use.sequenceName,
+			}),
 			sources: presentSources(source),
 		})))),
 	});
@@ -81,6 +86,7 @@ function presentContribution(
 		name: origin.kind === 'freesound'
 			? origin.title ?? origin.originalFileName ?? source.sourceName
 			: origin.originalFileName ?? source.sourceName,
+		...(source.classification === 'derived' ? { modified: true } : {}),
 		...(origin.kind === 'freesound' ? {
 			url: origin.soundUrl,
 			creator: origin.creator,
@@ -95,6 +101,7 @@ function presentContribution(
 				key: `attachment:${attachment.path}`,
 				label: `attachment: ${attachment.path}`,
 				value: [
+					attachment.kind,
 					attachment.name,
 					attachment.description,
 					attachment.mimeType,

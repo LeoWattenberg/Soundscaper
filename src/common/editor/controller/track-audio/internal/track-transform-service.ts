@@ -10,7 +10,7 @@ import {
 } from '../../../commands/factories.ts';
 import type { AudioEditorCommand } from '../../../commands/protocol.ts';
 import { scaleSampleFrame } from '../../../timeline-time.ts';
-import { deriveSourceProvenance } from '../../../source-provenance-derivation.ts';
+import { loadSourceProvenanceDerivation } from '../../../source-provenance-derivation-loader.ts';
 import { resampledClipCommands } from './clip-resample-service.ts';
 import type { DerivedSourceService } from './derived-audio/derived-source-service.ts';
 import { v21StripLaneRemovalCommands } from '../mix-render-model.ts';
@@ -321,12 +321,11 @@ export function createTrackTransformService(
 				]);
 				assertOwned(ownership);
 				const sourceRate = dependencies.projectSampleRate();
-				const inputSources = [...new Map(clips.flatMap((clip) => {
-					const source = findControllerSource(project, clip.sourceId);
-					return source ? [[source.id, source] as const] : [];
-				})).values()];
-				const template = inputSources[0] || syntheticSource(track.name, frameCount, sourceRate);
-				const provenance = deriveSourceProvenance(inputSources);
+				const { deriveClipSourceTemplate } = await loadSourceProvenanceDerivation();
+				assertOwned(ownership);
+				const { template, provenance } = deriveClipSourceTemplate(
+					project, clips, track.name, frameCount, sourceRate,
+				);
 				const stereo = await dependencies.derivedSources.persistDerivedSource({
 					...template,
 					sampleRate: sourceRate,
@@ -501,18 +500,4 @@ export function createTrackTransformService(
 function trackClips(project: ControllerProject, track: ControllerTrack): ControllerClip[] {
 	return (track.clipIds ?? []).map((clipId) => findControllerClip(project, clipId))
 		.filter((clip): clip is ControllerClip => Boolean(clip));
-}
-
-function syntheticSource(name: string, frameCount: number, sampleRate: number): ControllerSource {
-	return {
-		id: 'stereo-template',
-		storageKey: 'stereo-template',
-		name,
-		mimeType: 'audio/wav',
-		frameCount,
-		channelCount: 1,
-		sampleRate,
-		originalSampleRate: sampleRate,
-		sampleFormat: 'float32',
-	};
 }

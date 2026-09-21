@@ -21,7 +21,7 @@ import {
 	type SourceAddCommand,
 } from './internal/paste-command-tree.ts';
 import { rollbackDerivedSourcesAfterFailure } from './internal/paste-derived-source-failure.ts';
-import { deriveJoinedPasteSourceTemplate } from './internal/paste-source-provenance.ts';
+import { loadSourceProvenanceDerivation } from '../../source-provenance-derivation-loader.ts';
 
 type RenderReplaceCommand = Extract<AudioEditorCommand, { readonly type: 'clip/render-replace-many' }>;
 type LiftDeleteCommand = Extract<AudioEditorCommand, { readonly type: 'range/lift-delete' }>;
@@ -110,6 +110,8 @@ export function commitPasteIntoExistingClipCommand(
 				);
 				return { target, channels: insertChannels(existing, pasted, target.insertionOffsetFrames) };
 			}));
+			request.assertCurrent();
+			const { deriveJoinedPasteSourceTemplate } = await loadSourceProvenanceDerivation();
 			request.assertCurrent();
 			const replacements: Array<Readonly<{
 				target: ExistingClipPasteTarget;

@@ -1,7 +1,7 @@
 import { AUDACITY_WAVEFORM_STEM_PIXELS_PER_SAMPLE } from './audacity-waveform-renderer.js';
 import { createStableId } from './project.js';
 import { AUDIO_EDITOR_SOURCE_CHUNK_FRAMES } from './project-audio-factory.js';
-import { deriveSourceProvenance } from './source-provenance-derivation.ts';
+import { loadSourceProvenanceDerivation } from './source-provenance-derivation-loader.ts';
 import {
 	createImmutablePcmChunks,
 	editImmutablePcmSamples,
@@ -144,6 +144,8 @@ export async function persistImmutableSampleEdit({
 	if (smooth != null) normalizedEdits = await createSmoothingEdits(store, source, smooth, radius, signal);
 	const editsByChunk = groupEditsByChunk(normalizedEdits, source.chunkFrames);
 	const revision = Number(source.opaqueExtensions?.sampleEditRevision || 0) + 1;
+	const { deriveSourceProvenance } = await loadSourceProvenanceDerivation();
+	throwIfAborted(signal);
 	if (typeof store.writeDerivedSource === 'function') {
 		const replacementChunks = [];
 		const pendingChunkIndices = new Set(editsByChunk.keys());
@@ -174,7 +176,9 @@ export async function persistImmutableSampleEdit({
 			chunkFrames: source.chunkFrames,
 			sampleEditRevision: revision,
 		});
-		return createPersistedSampleEditResult(store, source, stableSourceId, metadata, editsByChunk, revision);
+		return createPersistedSampleEditResult(
+			store, source, stableSourceId, metadata, editsByChunk, revision, deriveSourceProvenance,
+		);
 	}
 	const writer = await store.beginSourceWrite(stableSourceId, {
 		name: source.name,
@@ -206,7 +210,9 @@ export async function persistImmutableSampleEdit({
 			sampleEditRevision: revision,
 		});
 		committed = true;
-		return createPersistedSampleEditResult(store, source, stableSourceId, metadata, editsByChunk, revision);
+		return createPersistedSampleEditResult(
+			store, source, stableSourceId, metadata, editsByChunk, revision, deriveSourceProvenance,
+		);
 	} catch (error) {
 		if (!committed) await writer.abort().catch(() => undefined);
 		throw error;
@@ -220,7 +226,9 @@ function editStoredChunk(channels, edits, frameOffset, chunkFrames) {
 	);
 }
 
-function createPersistedSampleEditResult(store, source, sourceId, metadata, editsByChunk, revision) {
+function createPersistedSampleEditResult(
+	store, source, sourceId, metadata, editsByChunk, revision, deriveSourceProvenance,
+) {
 	const provenance = deriveSourceProvenance([source]);
 	const descriptor = Object.freeze({
 		...source,

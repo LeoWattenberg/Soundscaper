@@ -1,10 +1,12 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { createImportedSourceProvenance } from '../../../source-provenance.ts';
+import type { EditorProjectToken } from '../../shared/lifecycle.ts';
+import type { ImportCompositionState } from './import-composition-types.ts';
 import type { NormalizedProjectImportOptions, ProjectImportDestination } from './project-import-options.ts';
 
 const DEFAULT_MAXIMUM_PREVIEW_BYTES = 128 * 1024 * 1024;
-const MAXIMUM_JSON_BYTES = 1024 * 1024;
+const MAXIMUM_JSON_BYTES = 2 * 1024 * 1024;
 const FREESOUND_SOUND_ID_PATTERN = /^[1-9][0-9]{0,15}$/u;
 const FREESOUND_PREVIEW_MIME_TYPES: ReadonlySet<string> = new Set([
 	'audio/ogg', 'application/ogg', 'audio/vorbis',
@@ -83,10 +85,13 @@ export interface FreesoundImportRequest {
 
 export interface FreesoundImportServiceRuntime {
 	readonly enabled: boolean;
-	readonly fetch: typeof fetch;
-	readonly apiBaseUrl: string;
-	readonly createContributionId: () => string;
+	readonly fetch?: typeof fetch | undefined;
+	readonly apiBaseUrl?: string | undefined;
+	readonly createContributionId: (prefix: 'attribution') => string;
 	readonly maximumPreviewBytes?: number;
+	readonly admission?: { token: EditorProjectToken | null };
+	readonly state?: Pick<ImportCompositionState, 'importing' | 'readOnly'>;
+	readonly assertProject?: (token: EditorProjectToken) => void;
 	readonly importFile: (
 		file: File,
 		options: Readonly<NormalizedProjectImportOptions> | Readonly<Record<string, unknown>>,
@@ -96,7 +101,12 @@ export interface FreesoundImportServiceRuntime {
 
 export function createFreesoundImportService(runtime: FreesoundImportServiceRuntime) {
 	const maximumPreviewBytes = positiveInteger(runtime.maximumPreviewBytes ?? DEFAULT_MAXIMUM_PREVIEW_BYTES);
-	const apiBaseUrl = normalizeApiBaseUrl(runtime.apiBaseUrl);
+	const locationOrigin = globalThis.location?.origin;
+	const apiBaseUrl = normalizeApiBaseUrl(runtime.apiBaseUrl ?? (
+		locationOrigin?.startsWith('http://') || locationOrigin?.startsWith('https://')
+			? locationOrigin : 'https://soundscaper.org'
+	));
+	const fetchRequest = runtime.fetch ?? globalThis.fetch.bind(globalThis);
 
 	const requireEnabled = (): void => {
 		if (!runtime.enabled) throw new Error('Freesound is unavailable for this product.');
@@ -129,31 +139,39 @@ export function createFreesoundImportService(runtime: FreesoundImportServiceRunt
 
 	async function importSound(
 		request: FreesoundImportRequest,
-		assertProjectCurrent: () => void = () => undefined,
+		admission: (() => void) | EditorProjectToken = () => undefined,
 	): Promise<unknown> {
 		requireEnabled();
+		const assertProjectCurrent = typeof admission === 'function' ? admission : () => {
+			request.signal?.throwIfAborted();
+			if (runtime.admission?.token !== admission || !runtime.state?.importing) {
+				throw new Error('Freesound import admission is no longer current.');
+			}
+			if (runtime.state.readOnly) throw new Error('The project became read-only during Freesound import.');
+			try { runtime.assertProject?.(admission); }
+			catch (error) { throw new Error('The project changed during Freesound import.', { cause: error }); }
+		};
 		assertProjectCurrent();
 		const soundId = normalizeSoundId(request.soundId);
 		const sound = await getSound(soundId, request.signal);
-		request.signal?.throwIfAborted();
 		assertProjectCurrent();
 		if (!sound.preview.available) throw new Error('The selected Freesound sound has no HQ OGG preview.');
-		const response = await runtime.fetch(soundUrl(soundId, '/preview'), {
+		const response = await fetchRequest(soundUrl(soundId, '/preview'), {
 			method: 'GET', credentials: 'omit', redirect: 'error', signal: request.signal,
 			headers: { Accept: 'audio/ogg' },
 		});
+		assertProjectCurrent();
 		if (!response.ok) throw await responseError(response, 'Freesound preview download failed');
 		const contentType = response.headers.get('Content-Type')?.split(';', 1)[0]?.trim().toLowerCase() ?? '';
 		if (!FREESOUND_PREVIEW_MIME_TYPES.has(contentType)) {
 			throw new TypeError('The Freesound preview response was not OGG audio.');
 		}
 		const preview = await readCappedPreview(response, maximumPreviewBytes, request.signal);
-		request.signal?.throwIfAborted();
 		assertProjectCurrent();
 		const fileName = oggFileName(sound.name, soundId);
 		const file = new File([preview], fileName, { type: contentType, lastModified: 0 });
 		const sourceProvenance = createImportedSourceProvenance({
-			id: runtime.createContributionId(),
+			id: runtime.createContributionId('attribution'),
 			origin: {
 				kind: 'freesound',
 				soundId,
@@ -182,7 +200,7 @@ export function createFreesoundImportService(runtime: FreesoundImportServiceRunt
 	}
 
 	async function fetchJson(url: URL, signal?: AbortSignal): Promise<unknown> {
-		const response = await runtime.fetch(url, {
+		const response = await fetchRequest(url, {
 			method: 'GET', credentials: 'omit', redirect: 'error', signal,
 			headers: { Accept: 'application/json' },
 		});
@@ -199,12 +217,7 @@ export function createFreesoundImportService(runtime: FreesoundImportServiceRunt
 
 	return Object.freeze({
 		search,
-		getSound,
 		importSound,
-		previewUrl: (soundId: number) => {
-			requireEnabled();
-			return soundUrl(soundId, '/preview').href;
-		},
 	});
 
 	async function responseError(response: Response, fallback: string): Promise<Error> {
@@ -304,7 +317,7 @@ function normalizeSound(value: unknown): FreesoundSound {
 			username: requiredString(dataValue(creator, 'username'), 'creator username', 256),
 			pageUrl: creatorPageUrl,
 		}),
-		description: requiredString(dataValue(record, 'description'), 'description', 65_536),
+		description: boundedString(dataValue(record, 'description'), 'description', 65_536),
 		tags: Object.freeze([...tags] as string[]),
 		category: nullableString(dataValue(record, 'category'), 'category', 512),
 		subcategory: nullableString(dataValue(record, 'subcategory'), 'subcategory', 512),

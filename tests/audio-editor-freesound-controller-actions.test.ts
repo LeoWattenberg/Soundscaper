@@ -7,6 +7,7 @@ import { createAudioEditorController } from '../src/common/editor/app.js';
 import { createAudioEditorEngine } from '../src/common/editor/engine.js';
 import { createAudioEditorFileService } from '../src/common/editor/file-service.js';
 import { createProjectStore } from '../src/common/editor/storage.js';
+import { createFreesoundWorkspaceActions } from '../src/common/editor/ui/workspace/freesound-workspace-service.ts';
 import type { ControllerOptions } from '../src/common/editor/controller/composition/controller-options.ts';
 
 const COPY = Object.freeze({
@@ -41,102 +42,179 @@ const SOUND_WITHOUT_PREVIEW = Object.freeze({
 	preview: { available: false, format: 'ogg', quality: 'high', approximateBitrateKbps: 192 },
 });
 
-test('Soundscaper composes Freesound actions against the configured owned proxy', async () => {
+test('the lazy Soundscaper workspace service searches through the configured owned proxy', async () => {
 	const requested: string[] = [];
-	const controller = createController('soundscaper', async (input) => {
-		requested.push(String(input));
-		return Response.json({ data: {
-			query: 'rain', page: 1, pageSize: 20, totalCount: 0, totalPages: 0,
-			hasNextPage: false, hasPreviousPage: false, results: [],
-		} });
+	const controller = createController('soundscaper');
+	const actions = createFreesoundWorkspaceActions(controller, {
+		apiBaseUrl: 'https://proxy.example',
+		fetch: async (input) => {
+			requested.push(String(input));
+			return emptySearchResponse();
+		},
 	});
 	try {
-		const result = await controller.actions.freesound.search({ query: 'rain' });
+		const result = await actions.search({ query: 'rain' });
 		assert.equal(result.totalCount, 0);
 		assert.deepEqual(requested, ['https://proxy.example/api/freesound/search?q=rain&page=1&license=all&sort=relevance']);
-		assert.equal(
-			controller.actions.freesound.previewUrl(42),
-			'https://proxy.example/api/freesound/sounds/42/preview',
-		);
 	} finally {
 		await controller.dispose();
 	}
 });
 
-test('Framescaper keeps the Freesound action boundary disabled', async () => {
-	const controller = createController('framescaper', async () => {
-		throw new Error('Framescaper must not request Freesound.');
+test('the eager controller has no Freesound group and the lazy boundary rejects Framescaper', async () => {
+	const controller = createController('framescaper');
+	const actions = createFreesoundWorkspaceActions(controller, {
+		apiBaseUrl: 'https://proxy.example',
+		fetch: async () => { throw new Error('Framescaper must not request Freesound.'); },
 	});
 	try {
-		await assert.rejects(controller.actions.freesound.search({ query: 'rain' }), /unavailable/iu);
-		assert.throws(() => controller.actions.freesound.previewUrl(42), /unavailable/iu);
+		assert.equal(Object.hasOwn(controller.actions, 'freesound'), false);
+		await assert.rejects(actions.search({ query: 'rain' }), /unavailable/iu);
 	} finally {
 		await controller.dispose();
 	}
 });
 
-test('desktop Freesound actions default to the public Soundscaper proxy', async () => {
-	const controller = createAudioEditorController(null, {
-		headless: true,
-		productId: 'soundscaper',
-		copy: COPY,
-		store: createProjectStore({ indexedDB: null, preferOpfs: false }),
-		engine: createAudioEditorEngine({ audioContextFactory: null, offlineAudioContextFactory: null }),
-		fileService: createAudioEditorFileService({ bridge: {} }),
-		freesoundFetch: async () => { throw new Error('Preview URL generation must not fetch.'); },
+test('the packaged workspace service defaults to the public Soundscaper proxy', async () => {
+	let requestedUrl = '';
+	const controller = createController('soundscaper');
+	const actions = createFreesoundWorkspaceActions(controller, {
+		fetch: async (input) => {
+			requestedUrl = String(input);
+			return emptySearchResponse();
+		},
 	});
 	try {
-		assert.equal(
-			controller.actions.freesound.previewUrl(42),
-			'https://soundscaper.org/api/freesound/sounds/42/preview',
-		);
+		await actions.search({ query: 'rain' });
+		assert.equal(requestedUrl, 'https://soundscaper.org/api/freesound/search?q=rain&page=1&license=all&sort=relevance');
 	} finally {
 		await controller.dispose();
 	}
 });
 
-test('Freesound import owns controller import admission for the whole network request', async () => {
+test('the workspace service admits only one Freesound import at a time', async () => {
 	const detail = deferred<Response>();
 	let requests = 0;
-	const controller = createController('soundscaper', async () => {
-		requests += 1;
-		return detail.promise;
+	const controller = createController('soundscaper');
+	const actions = createFreesoundWorkspaceActions(controller, {
+		apiBaseUrl: 'https://proxy.example',
+		fetch: async () => { requests += 1; return detail.promise; },
 	});
 	try {
 		await controller.ready;
-		const first = controller.actions.freesound.importSound({ soundId: 42, destination: 'project-bin' });
+		const first = actions.importSound({ soundId: 42, destination: 'project-bin' });
 		const firstFailure = assert.rejects(first, /no HQ OGG preview/iu);
-		assert.equal(controller.getSnapshot().importing, true);
 		await assert.rejects(
-			controller.actions.freesound.importSound({ soundId: 43, destination: 'project-bin' }),
-			/editing is blocked/iu,
+			actions.importSound({ soundId: 43, destination: 'project-bin' }),
+			/import is already in progress/iu,
 		);
-		await waitFor(() => requests === 1);
 		assert.equal(requests, 1);
 		detail.resolve(Response.json({ data: SOUND_WITHOUT_PREVIEW }));
 		await firstFailure;
-		assert.equal(controller.getSnapshot().importing, false);
 	} finally {
 		await controller.dispose();
 	}
 });
 
-test('Freesound import refuses to publish after the active project loses write authority', async () => {
+test('a normal import that starts during download explicitly supersedes the Freesound import', async () => {
+	const detail = deferred<Response>();
+	let importing = false;
+	let imported = false;
+	let previewRequested = false;
+	const projectToken = Object.freeze({ generation: 1, projectId: 'project-a' });
+	const controller = {
+		actions: { project: { importFiles: async () => { imported = true; } } },
+		getSnapshot: () => ({
+			productId: 'soundscaper', readOnly: false, importing, project: { id: 'project-a' },
+		}),
+		captureProjectGeneration: () => projectToken,
+		assertProjectGeneration: () => undefined,
+	};
+	const actions = createFreesoundWorkspaceActions(controller, {
+		apiBaseUrl: 'https://proxy.example',
+		fetch: async (input) => {
+			if (String(input).endsWith('/preview')) {
+				previewRequested = true;
+				return oggResponse();
+			}
+			return detail.promise;
+		},
+	});
+	const operation = actions.importSound({ soundId: 42, destination: 'project-bin' });
+	importing = true;
+	detail.resolve(Response.json({ data: previewSound() }));
+
+	await assert.rejects(operation, /another import began/iu);
+	assert.equal(previewRequested, false);
+	assert.equal(imported, false);
+});
+
+test('cancelling a Freesound workspace import releases its admission', async () => {
+	const detail = deferred<Response>();
+	let requests = 0;
+	const controller = createController('soundscaper');
+	const actions = createFreesoundWorkspaceActions(controller, {
+		apiBaseUrl: 'https://proxy.example',
+		fetch: async () => {
+			requests += 1;
+			return requests === 1 ? detail.promise : Response.json({ data: SOUND_WITHOUT_PREVIEW });
+		},
+	});
+	try {
+		await controller.ready;
+		const abort = new AbortController();
+		const operation = actions.importSound({
+			soundId: 42, destination: 'project-bin', signal: abort.signal,
+		});
+		abort.abort();
+		detail.resolve(Response.json({ data: SOUND_WITHOUT_PREVIEW }));
+		await assert.rejects(operation, /abort/iu);
+		await assert.rejects(
+			actions.importSound({ soundId: 43, destination: 'project-bin' }),
+			/no HQ OGG preview/iu,
+		);
+		assert.equal(requests, 2);
+	} finally {
+		await controller.dispose();
+	}
+});
+
+test('the lazy import is revoked when its captured project switches', async () => {
+	const detail = deferred<Response>();
+	let previewRequested = false;
+	const controller = createController('soundscaper');
+	const actions = createFreesoundWorkspaceActions(controller, {
+		apiBaseUrl: 'https://proxy.example',
+		fetch: async (input) => {
+			if (String(input).endsWith('/preview')) {
+				previewRequested = true;
+				return oggResponse();
+			}
+			return detail.promise;
+		},
+	});
+	try {
+		await controller.ready;
+		const originalProjectId = controller.getSnapshot().project?.id;
+		const operation = actions.importSound({ soundId: 42, destination: 'project-bin' });
+		const refusal = assert.rejects(operation, /project changed/iu);
+		await controller.actions.project.create({ title: 'Replacement', skipFlush: true });
+		assert.notEqual(controller.getSnapshot().project?.id, originalProjectId);
+		detail.resolve(Response.json({ data: previewSound() }));
+		await refusal;
+		assert.equal(previewRequested, false);
+	} finally {
+		await controller.dispose();
+	}
+});
+
+test('the lazy import refuses to publish after the active project loses write authority', async () => {
 	const detail = deferred<Response>();
 	const lost = deferred<void>();
 	let acquisitions = 0;
 	let detailRequested = false;
 	let previewRequested = false;
-	const controller = createController('soundscaper', async (input) => {
-		if (String(input).endsWith('/preview')) {
-			previewRequested = true;
-			return new Response(new Uint8Array([0x4f, 0x67, 0x67, 0x53]), {
-				headers: { 'Content-Type': 'audio/ogg' },
-			});
-		}
-		detailRequested = true;
-		return detail.promise;
-	}, {
+	const controller = createController('soundscaper', {
 		acquireProjectLock: async (projectId) => {
 			acquisitions += 1;
 			return acquisitions === 1 ? {
@@ -146,37 +224,37 @@ test('Freesound import refuses to publish after the active project loses write a
 			};
 		},
 	});
+	const actions = createFreesoundWorkspaceActions(controller, {
+		apiBaseUrl: 'https://proxy.example',
+		fetch: async (input) => {
+			if (String(input).endsWith('/preview')) {
+				previewRequested = true;
+				return oggResponse();
+			}
+			detailRequested = true;
+			return detail.promise;
+		},
+	});
 	try {
 		await controller.ready;
-		const initialProject = controller.getSnapshot().project;
-		assert.ok(initialProject);
-		assert.ok(Array.isArray(initialProject.sources));
-		const initialSourceCount = initialProject.sources.length;
-		const operation = controller.actions.freesound.importSound({ soundId: 42, destination: 'project-bin' });
+		const initialProject = controller.getSnapshot().project as Readonly<{ sources: readonly unknown[] }> | null;
+		const initialSourceCount = initialProject?.sources.length;
+		const operation = actions.importSound({ soundId: 42, destination: 'project-bin' });
 		const refusal = assert.rejects(operation, /became read-only/iu);
-		await waitFor(() => detailRequested && acquisitions === 1 && controller.getSnapshot().importing === true);
+		await waitFor(() => detailRequested && acquisitions === 1);
 		lost.resolve();
 		await waitFor(() => controller.getSnapshot().readOnly === true);
-		detail.resolve(Response.json({ data: { ...SOUND_WITHOUT_PREVIEW, preview: {
-			available: true, format: 'ogg', quality: 'high', approximateBitrateKbps: 192,
-		} } }));
+		detail.resolve(Response.json({ data: previewSound() }));
 		await refusal;
 		assert.equal(previewRequested, false);
-		const finalProject = controller.getSnapshot().project;
-		assert.ok(finalProject);
-		assert.ok(Array.isArray(finalProject.sources));
-		assert.equal(finalProject.sources.length, initialSourceCount);
-		assert.equal(controller.getSnapshot().importing, false);
+		const finalProject = controller.getSnapshot().project as Readonly<{ sources: readonly unknown[] }> | null;
+		assert.equal(finalProject?.sources.length, initialSourceCount);
 	} finally {
 		await controller.dispose();
 	}
 });
 
-function createController(
-	productId: string,
-	freesoundFetch: typeof fetch,
-	overrides: Partial<ControllerOptions> = {},
-) {
+function createController(productId: string, overrides: Partial<ControllerOptions> = {}) {
 	return createAudioEditorController(null, {
 		headless: true,
 		productId,
@@ -184,9 +262,26 @@ function createController(
 		store: createProjectStore({ indexedDB: null, preferOpfs: false }),
 		engine: createAudioEditorEngine({ audioContextFactory: null, offlineAudioContextFactory: null }),
 		fileService: createAudioEditorFileService(),
-		freesoundFetch,
-		freesoundApiBaseUrl: 'https://proxy.example',
 		...overrides,
+	});
+}
+
+function emptySearchResponse(): Response {
+	return Response.json({ data: {
+		query: 'rain', page: 1, pageSize: 20, totalCount: 0, totalPages: 0,
+		hasNextPage: false, hasPreviousPage: false, results: [],
+	} });
+}
+
+function previewSound() {
+	return { ...SOUND_WITHOUT_PREVIEW, preview: {
+		available: true, format: 'ogg', quality: 'high', approximateBitrateKbps: 192,
+	} };
+}
+
+function oggResponse(): Response {
+	return new Response(new Uint8Array([0x4f, 0x67, 0x67, 0x53]), {
+		headers: { 'Content-Type': 'audio/ogg' },
 	});
 }
 

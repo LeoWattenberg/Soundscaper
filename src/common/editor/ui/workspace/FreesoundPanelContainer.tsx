@@ -8,18 +8,10 @@ import FreesoundPanel, {
 	type FreesoundResultPresentation,
 	type FreesoundSearchRequest,
 } from './FreesoundPanel.tsx';
-
-interface ServiceSearchRequest extends FreesoundSearchRequest {
-	readonly signal?: AbortSignal;
-}
-
-interface FreesoundSearchPage {
-	readonly query: string;
-	readonly page: number;
-	readonly totalCount: number;
-	readonly totalPages: number;
-	readonly results: readonly FreesoundSound[];
-}
+import {
+	freesoundWorkspaceActions,
+	type FreesoundWorkspaceController,
+} from './freesound-workspace-service.ts';
 
 interface FreesoundSound {
 	readonly id: number;
@@ -31,21 +23,7 @@ interface FreesoundSound {
 	readonly preview: Readonly<{ readonly available: boolean }>;
 }
 
-interface FreesoundImportRequest {
-	readonly soundId: number;
-	readonly destination: 'timeline' | 'project-bin';
-	readonly trackId?: string;
-	readonly timelineStartFrame?: number;
-}
-
-interface FreesoundActions {
-	search(request: ServiceSearchRequest): Promise<FreesoundSearchPage>;
-	importSound(request: FreesoundImportRequest): Promise<unknown>;
-	previewUrl(soundId: number): string;
-}
-
-interface FreesoundPanelController {
-	readonly actions: Readonly<{ readonly freesound?: FreesoundActions }>;
+interface FreesoundPanelController extends FreesoundWorkspaceController {
 	readonly engine?: Readonly<{ getPositionFrames?: () => number }>;
 }
 
@@ -69,7 +47,7 @@ export function FreesoundPanelContainer({
 	disabled = false,
 	panelActive = true,
 }: FreesoundPanelContainerProps) {
-	const actions = controller.actions.freesound;
+	const actions = freesoundWorkspaceActions(controller);
 	const localizedCopy = useMemo(() => Object.freeze({
 		...copy,
 		...freesoundAttributionCopy(snapshot.locale, copy),
@@ -106,7 +84,6 @@ export function FreesoundPanelContainer({
 	}, []);
 
 	const search = useCallback((request: FreesoundSearchRequest) => {
-		if (!actions) return;
 		stopPreview();
 		searchAbort.current?.abort();
 		const abort = new AbortController();
@@ -138,9 +115,9 @@ export function FreesoundPanelContainer({
 	}, [actions, localizedCopy.searchError, stopPreview]);
 
 	const startPreview = useCallback((soundId: number) => {
-		if (!panelActive || !actions || typeof Audio !== 'function') return;
+		if (!panelActive || typeof Audio !== 'function') return;
 		stopPreview();
-		const audio = new Audio(actions.previewUrl(soundId));
+		const audio = new Audio(freesoundPreviewUrl(soundId));
 		preview.current = audio;
 		const finish = () => { if (preview.current === audio) stopPreview(); };
 		audio.preload = 'metadata';
@@ -148,12 +125,12 @@ export function FreesoundPanelContainer({
 		audio.addEventListener('error', finish, { once: true });
 		setState((current) => ({ ...current, previewingSoundId: soundId }));
 		void audio.play().catch(finish);
-	}, [actions, panelActive, stopPreview]);
+	}, [panelActive, stopPreview]);
 
 	const importSound = useCallback((soundId: number, destination: 'timeline' | 'project-bin') => {
-		if (!actions || pendingSoundId !== null) return;
+		if (pendingSoundId !== null) return;
 		setPendingSoundId(soundId);
-		const request: FreesoundImportRequest = {
+		const request = {
 			soundId,
 			destination,
 			...(destination === 'timeline' ? {
@@ -175,7 +152,6 @@ export function FreesoundPanelContainer({
 		})),
 	}), [pendingSoundId, state]);
 
-	if (!actions) return <p className="kw-audio-editor__panel-empty">{localizedCopy.unavailable}</p>;
 	return <FreesoundPanel
 		copy={localizedCopy}
 		state={presentationState}
@@ -186,6 +162,17 @@ export function FreesoundPanelContainer({
 		onInsertAtPlayhead={(soundId) => importSound(soundId, 'timeline')}
 		onAddToProjectBin={(soundId) => importSound(soundId, 'project-bin')}
 	/>;
+}
+
+export function freesoundPreviewUrl(
+	soundId: number,
+	location: Readonly<Pick<Location, 'origin' | 'protocol'>> | undefined = globalThis.location,
+): string {
+	if (!Number.isSafeInteger(soundId) || soundId <= 0) throw new TypeError('A valid Freesound sound ID is required.');
+	const baseUrl = location && ['http:', 'https:'].includes(location.protocol)
+		? location.origin
+		: 'https://soundscaper.org';
+	return new URL(`/api/freesound/sounds/${String(soundId)}/preview`, baseUrl).href;
 }
 
 export function toFreesoundPanelResult(sound: FreesoundSound): FreesoundResultPresentation {

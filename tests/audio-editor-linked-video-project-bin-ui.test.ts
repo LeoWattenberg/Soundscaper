@@ -10,6 +10,7 @@ import { ENGLISH_COPY, GERMAN_COPY } from '../src/common/i18n/catalogs.js';
 import ProjectBinPanel from '../src/common/editor/ui/workspace/ProjectBinPanel.jsx';
 
 const PANEL_URL = new URL('../src/common/editor/ui/workspace/ProjectBinPanel.jsx', import.meta.url);
+const HANDOFF_URL = new URL('../src/common/editor/ui/workspace/linked-video-choice-handoff.ts', import.meta.url);
 (globalThis as typeof globalThis & { React: typeof React }).React = React;
 
 test('the Project Bin exposes the localized linked-video chooser only when its platform capability exists', () => {
@@ -35,17 +36,17 @@ test('the linked-video Project Bin action forwards only the chosen File and opaq
 
 test('a bound Project Bin video can relink through only the pathless chooser snapshot', async () => {
 	const source = await readFile(PANEL_URL, 'utf8');
+	const handoff = await readFile(HANDOFF_URL, 'utf8');
 
 	assert.equal(ENGLISH_COPY.projectBinRelink, 'Relink');
 	assert.equal(GERMAN_COPY.projectBinRelink, 'Neu verknüpfen');
-	assert.match(source, /const relinkLinkedVideo = \(clipId\) => run\(async \(\) => \{\s*if \(mutationBlocked\) return;\s*const choice = await fileService\.chooseLinkedVideoOriginal\(\)/u);
-	assert.match(source, /const locator = \{\s*locatorId: choice\.locatorId,\s*locatorRevision: choice\.locatorRevision,\s*\};/u);
-	assert.match(source, /classifyLinkedVideoRelink\(clipId, choice\.file\)/u, 'the panel classifies content before dispatching');
-	assert.match(source, /classification === 'changed-content'[\s\S]{0,250}storeRelinkChangedChoice\(\{[\s\S]{0,100}kind: 'video', clipId, file: choice\.file, locator/u);
-	assert.match(source, /controller\.actions\.projectBin\.relinkLinkedVideo\(clipId, choice\.file, locator\)/u);
+	assert.match(source, /const relinkLinkedVideo = \(clipId\) => run\(async \(\) => \{\s*if \(mutationBlocked\) return;\s*const relinkScope = linkedAudioRelinkProjectRef\.current;\s*if \(!relinkScope\) return;\s*const \{ handoffLinkedVideoRelinkChoice \} = await import\('\.\/linked-video-choice-handoff\.ts'\)/u);
+	assert.match(source, /handoffLinkedVideoRelinkChoice\(\s*controller, fileService, clipId, relinkScope,[\s\S]{0,250}storeRelinkChangedChoice\(\{[\s\S]{0,100}kind: 'video', clipId, file, locator, scope: relinkScope, apply/u);
+	assert.match(handoff, /prepareLinkedAudioChoice\(\{[\s\S]{0,250}release,[\s\S]{0,150}classifyLinkedVideoRelink\(clipId, file\)/u, 'the UI owns the locator through classification');
+	assert.match(handoff, /dispatchLinkedAudioChoice\(\{[\s\S]{0,300}relinkLinkedVideo\(clipId, file, locator/u);
 	assert.match(
 		source,
-		/applyRelinkChangedChoice[\s\S]{0,900}relinkLinkedVideo\([\s\S]{0,200}\{ allowChangedContent: true \}/u,
+		/applyRelinkChangedChoice[\s\S]{0,900}run\(accepted\.apply\)/u,
 		'changed content dispatches only through the explicit confirmation',
 	);
 	assert.match(source, /releaseRelinkChangedChoice[\s\S]{0,350}releaseLinkedVideoOriginal\(choice\.locator\)/u);

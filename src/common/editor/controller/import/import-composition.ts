@@ -24,11 +24,6 @@ import { deferredArchiveRuntime } from '../document/deferred-archive-runtime.ts'
 import type { ImportCompositionDependencies } from './internal/import-composition-types.ts';
 import { createProjectBinService } from './internal/project-bin/project-bin-service.ts';
 import { createProjectImportService } from './internal/project-import-service.ts';
-import type {
-	createFreesoundImportService,
-	FreesoundImportRequest,
-	FreesoundSearchRequest,
-} from './internal/freesound-import-service.ts';
 import {
 	audioBufferChannels,
 	bufferFromChannels,
@@ -133,57 +128,6 @@ export function createImportComposition(dependencies: ImportCompositionDependenc
 		writeBuffer,
 		taskProgress,
 	});
-	type FreesoundService = ReturnType<typeof createFreesoundImportService>;
-	let freesoundService: Promise<FreesoundService> | null = null;
-	let activeFreesoundImport: symbol | null = null;
-	const loadFreesoundService = async (): Promise<FreesoundService> => {
-		assertFreesoundEnabled(dependencies.freesoundEnabled);
-		freesoundService ??= import('./internal/freesound-import-service.ts').then(({ createFreesoundImportService: create }) => create({
-			enabled: true,
-			fetch: dependencies.freesoundFetch,
-			apiBaseUrl: dependencies.freesoundApiBaseUrl,
-			createContributionId: () => createStableId('attribution'),
-			importFile: projectImport.importFile,
-		}));
-		return freesoundService;
-	};
-	const freesound = Object.freeze({
-		search: async (request: FreesoundSearchRequest) => (await loadFreesoundService()).search(request),
-		getSound: async (soundId: number, signal?: AbortSignal) => (await loadFreesoundService()).getSound(soundId, signal),
-		importSound: async (request: FreesoundImportRequest) => {
-			if (activeFreesoundImport !== null || dependencies.editingBlocked()) {
-				throw new Error('Editing is blocked during Freesound import.');
-			}
-			const projectToken = captureProject();
-			const importLease = Symbol('freesound-import');
-			const assertImportProjectCurrent = () => {
-				request.signal?.throwIfAborted();
-				if (activeFreesoundImport !== importLease || !state.importing) {
-					throw new Error('Freesound import admission is no longer current.');
-				}
-				if (state.readOnly) throw new Error('The project became read-only during Freesound import.');
-				try { assertProject(projectToken); }
-				catch (error) { throw new Error('The project changed during Freesound import.', { cause: error }); }
-			};
-			activeFreesoundImport = importLease;
-			try {
-				state.importing = true;
-				dependencies.publishDocumentSnapshot();
-				const service = await loadFreesoundService();
-				assertImportProjectCurrent();
-				return await service.importSound(request, assertImportProjectCurrent);
-			} finally {
-				if (activeFreesoundImport === importLease) {
-					activeFreesoundImport = null;
-					state.importing = false;
-					dependencies.publishDocumentSnapshot();
-				}
-			}
-		},
-		previewUrl: (soundId: number) => freesoundPreviewUrl(
-			dependencies.freesoundEnabled, dependencies.freesoundApiBaseUrl, soundId,
-		),
-	});
 	importVideoFile = createImportVideoFile({
 		SOURCE_CHUNK_FRAMES: dependencies.sourceChunkFrames,
 		activateVideoSource,
@@ -287,7 +231,6 @@ export function createImportComposition(dependencies: ImportCompositionDependenc
 		normalizeImportOptions: projectImport.normalizeImportOptions,
 		normalizeImportTimelineStartFrame: projectImport.normalizeImportTimelineStartFrame,
 		importVideoFile,
-		freesound,
 		projectBin,
 	});
 }
@@ -303,18 +246,4 @@ function changedContentCandidateSource(
 		throw new TypeError(`Video source ${source.id} has no canonical characteristics to admit a changed-content relink against.`);
 	}
 	return { width, height, sampleFrameCount, sampleRate };
-}
-
-function assertFreesoundEnabled(enabled: boolean): void {
-	if (!enabled) throw new Error('Freesound is unavailable for this product.');
-}
-
-function freesoundPreviewUrl(enabled: boolean, apiBaseUrl: string, soundId: number): string {
-	assertFreesoundEnabled(enabled);
-	if (!Number.isSafeInteger(soundId) || soundId <= 0) throw new TypeError('A valid Freesound sound ID is required.');
-	const base = new URL(apiBaseUrl);
-	if (base.protocol !== 'https:' && !(base.protocol === 'http:' && ['localhost', '127.0.0.1'].includes(base.hostname))) {
-		throw new TypeError('The Freesound API proxy base URL must use HTTPS.');
-	}
-	return new URL(`/api/freesound/sounds/${String(soundId)}/preview`, base).href;
 }

@@ -133,16 +133,28 @@ test('Freesound and attribution UI stay behind the optional surface boundary', (
 		'src/common/editor/ui/workspace/FreesoundPanelContainer.tsx',
 		'src/common/editor/ui/workspace/ProjectAttributionTab.tsx',
 		'src/common/editor/ui/workspace/ProjectMetadataPanel.tsx',
+		'src/common/editor/ui/workspace/linked-video-choice-handoff.ts',
 		'src/common/editor/ui/workspace/project-attribution-presentation.ts',
 		'src/common/i18n/freesound-attribution-copy.js',
+		'src/common/editor/ui/audio-editor-design-system/06a-panels-attribution.css',
+		'src/common/editor/ui/audio-editor-design-system/06a-panels-freesound.css',
 	]) assert.equal(chunkGroupForModulePath(path), 'editor-optional-surfaces', path);
+	assert.equal(
+		chunkGroupForModulePath('src/common/i18n/editor-freesound-attribution-inventory-copy.ts'),
+		'editor-copy',
+	);
 });
 
 test('Freesound and imported metadata stay behind import admission', () => {
 	for (const path of [
 		'src/common/editor/imported-media-metadata.ts',
+		'src/common/editor/source-provenance.ts',
+		'src/common/editor/source-provenance-derivation.ts',
 		'src/common/editor/controller/import/internal/freesound-import-service.ts',
 		'src/common/editor/controller/import/internal/imported-source-provenance.ts',
+		'src/common/editor/controller/import/internal/project-import-options-for-use.ts',
+		'src/common/editor/controller/import/internal/project-import-service-runtime.ts',
+		'src/common/editor/ui/workspace/freesound-workspace-service.ts',
 	]) assert.equal(chunkGroupForModulePath(path), 'editor-import-admission', path);
 });
 

@@ -7,6 +7,7 @@ interface MetadataEditorTabsProps {
 	readonly showBext: boolean;
 	readonly showAdm?: boolean;
 	readonly showAttribution?: boolean;
+	readonly attributionLabel?: string;
 	readonly copy: Readonly<Record<string, string>>;
 	readonly onChange: (tab: MetadataEditorTab) => void;
 }
@@ -17,11 +18,10 @@ export function MetadataEditorTabs({
 	showAdm = false,
 	showAttribution = false,
 	copy,
+	attributionLabel = copy.metadataTab,
 	onChange,
 }: MetadataEditorTabsProps) {
 	const tabListRef = useRef<HTMLDivElement>(null);
-	const attributionLabel = copy['ui.freesoundAttribution.metadataTab']
-		|| copy.metadataTab;
 	const tabs: readonly Readonly<{ id: MetadataEditorTab; label: string }>[] = [
 		{ id: 'general', label: copy.metadataGeneralTab },
 		...(showBext ? [{ id: 'bext' as const, label: copy.metadataBextTab }] : []),

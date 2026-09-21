@@ -69,7 +69,7 @@ const RUNTIME_MODULES = Object.freeze({
 	effects: 'src/common/editor/effects.js',
 	exportSettings: 'src/common/editor/controller/export/export-settings.ts',
 	factoryPresets: 'src/common/editor/audacity-effects/factory-presets.js',
-	freesoundAttributionCopy: 'src/common/i18n/editor-freesound-attribution-copy.ts',
+	freesoundAttributionCopy: 'src/common/i18n/freesound-attribution-copy.js',
 	labels: 'src/common/editor/label-io.js',
 	liveEffects: 'src/common/editor/audacity-effects/live-capabilities.js',
 	locales: 'src/common/i18n/locales.js',

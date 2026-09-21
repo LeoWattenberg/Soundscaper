@@ -8,7 +8,7 @@ import { createLocalizedError } from '../../../../i18n/presentation-message.ts';
 } from '../../../commands/protocol.ts';
 import type { EffectSelectionFrequencyRange, EffectTarget } from '../effect-selection-service.ts';
 import type { AudioBufferLike } from '../../source/source-audio.ts';
-import { deriveSourceProvenance } from '../../../source-provenance-derivation.ts';
+import { loadSourceProvenanceDerivation } from '../../../source-provenance-derivation-loader.ts';
 import type { SourceProvenanceV1 } from '../../../source-provenance.ts';
 
 type RangeReplacementCommand = Extract<AudioEditorCommand, { readonly type: 'range/replace' }>;
@@ -292,9 +292,11 @@ export function createSelectionEffectResultService<Buffer extends AudioBufferLik
 			}
 			const buffer = await bufferFromChannels(channels, sampleRate, context, copy);
 			assertOperationCurrent();
+			const { deriveEffectResultProvenance } = await loadSourceProvenanceDerivation();
+			assertOperationCurrent();
 			const sourceId = createStableId('audacity-effect');
 			const sourceName = `${target.track.name} — ${effectName}.wav`;
-			const provenance = effectResultProvenance(
+			const provenance = deriveEffectResultProvenance(
 				runtime.getAttributionProject?.() ?? getProject(),
 				target,
 			);
@@ -487,24 +489,4 @@ function effectCommandSource(entry: EffectResultEntry, sampleRate: number): Comm
 		sampleRate,
 		originalSampleRate: sampleRate,
 	};
-}
-
-function effectResultProvenance(
-	project: EffectResultProject,
-	target: EffectTarget,
-): SourceProvenanceV1 | undefined {
-	const track = project.tracks?.find(({ id }) => String(id) === target.track.id);
-	const clipIds = target.clipId
-		? [target.clipId]
-		: target.clipIds?.length
-			? target.clipIds
-			: track?.clipIds ?? [];
-	const sourceIds = new Set((project.clips ?? []).flatMap((clip) => (
-		clipIds.includes(String(clip.id))
-			&& Number(clip.timelineStartFrame) < target.endFrame
-			&& Number(clip.timelineStartFrame) + Number(clip.durationFrames) > target.startFrame
-			? [String(clip.sourceId)]
-			: []
-	)));
-	return deriveSourceProvenance((project.sources ?? []).filter(({ id }) => sourceIds.has(String(id))));
 }

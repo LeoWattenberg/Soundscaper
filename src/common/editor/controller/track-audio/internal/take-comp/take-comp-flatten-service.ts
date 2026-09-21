@@ -4,7 +4,7 @@ import type { CommandObject } from '../../../../commands/protocol.ts';
 import { setLocalizedStatus } from '../../../../../i18n/presentation-message.ts';
 import { createAudioPreviewProject } from '../../../../engine/audio-preview-project.ts';
 import { createAudioClip, createAudioSource } from '../../../../project-media-factory.ts';
-import { deriveSourceProvenance } from '../../../../source-provenance-derivation.ts';
+import { loadSourceProvenanceDerivation } from '../../../../source-provenance-derivation-loader.ts';
 import { readTakeCompProjectGroups, type TakeCompProject } from './take-comp-project.ts';
 import type { TakeCompDocumentGroup, TakeCompDocumentTake } from '../../../../take-comp-document-v17.ts';
 import type { TakeCompFlattenTakeSegment } from '../../../../take-comp-domain.ts';
@@ -117,10 +117,11 @@ export function createTakeCompFlattenService(dependencies: TakeCompFlattenServic
 		if (rendered.length !== duration || rendered.sampleRate !== project.sampleRate) {
 			throw new RangeError('Flatten renderer returned an inexact take group extent.');
 		}
-		const renderedSourceIds = new Set(renderProject.sources?.map(({ id }) => String(id)) ?? []);
-		const provenance = deriveSourceProvenance(project.sources.filter(({ id }) => (
-			renderedSourceIds.has(String(id))
-		)));
+		const { deriveSourceProvenanceForIds } = await loadSourceProvenanceDerivation();
+		assertOwned(ownership);
+		const provenance = deriveSourceProvenanceForIds(
+			project.sources, renderProject.sources?.map(({ id }) => id) ?? [],
+		);
 		const record = await dependencies.derivedSources.persistRenderedMixSource(
 			rendered,
 			`${group.id} — flattened take.wav`,

@@ -4,11 +4,15 @@ import {
 	test,
 } from './audio-editor-test-fixtures.js';
 import { encodeDedicatedAudioPcm } from '../../src/common/editor/browser-dedicated-audio-codec.ts';
+import { createRiffId3Chunk } from '../../src/common/editor/id3-metadata.js';
 import {
 	bootEditor,
 	chooseCommandAction,
+	chooseExportProjectFileAction,
+	disableNativeSavePicker,
 	downloadBytes,
 	getMenuItem,
+	importFiles,
 	openNestedCommandMenu,
 	registerAudioEditorHooks,
 } from './audio-editor-test-helpers.js';
@@ -57,13 +61,22 @@ const SOUND = Object.freeze({
 });
 
 const PREVIEW_FRAME_COUNT = 38_400;
+const SCAPE_MIME_TYPE = 'application/vnd.soundscaper.scape+zip';
+const LOCAL_SOUND = Object.freeze({
+	name: 'harbor-master.wav',
+	clipTitle: 'harbor-master',
+	title: 'Harbor master',
+	artist: 'Local recordist',
+	location: 'North pier',
+});
 let previewFixturePromise;
 
 test.describe('Freesound discovery and attribution', () => {
 	registerAudioEditorHooks();
 
-	test('opens from the Panels menu, imports a result, and exports its current-use attribution', async ({ page }) => {
-		test.setTimeout(60_000);
+	test('previews and drops a result, preserves local metadata, and round-trips attribution', async ({ browser, page }) => {
+		test.setTimeout(90_000);
+		await disableNativeSavePicker(page);
 		const requests = await mockFreesoundApi(page);
 		const editor = await bootEditor(page, '/embed/en/');
 		const freesoundPanel = editor.locator('[data-workspace-panel="freesound"]');
@@ -94,16 +107,41 @@ test.describe('Freesound discovery and attribution', () => {
 			sort: 'relevance',
 		});
 
-		await result.getByRole('button', {
-			name: /^Insert at playhead\s*:\s*Harbor ambience$/u,
-		}).click();
+		await result.getByRole('button', { name: /^Preview\s*:\s*Harbor ambience$/u }).click();
+		await expect.poll(() => requests.filter(({ pathname }) => (
+			pathname === `/api/freesound/sounds/${String(SOUND.id)}/preview`
+		)).length).toBeGreaterThan(0);
+
+		const lane = editor.locator('.audio-editor-track-lane[data-track-lane]').first();
+		const laneBounds = await lane.boundingBox();
+		expect(laneBounds).not.toBeNull();
+		const dropPosition = {
+			x: laneBounds.x + Math.min(180, laneBounds.width - 24),
+			y: laneBounds.y + laneBounds.height / 2,
+		};
+		const transfer = await page.evaluateHandle(() => new DataTransfer());
+		await result.dispatchEvent('dragstart', { dataTransfer: transfer });
+		await lane.dispatchEvent('dragover', {
+			dataTransfer: transfer,
+			clientX: dropPosition.x,
+			clientY: dropPosition.y,
+		});
+		await lane.dispatchEvent('drop', {
+			dataTransfer: transfer,
+			clientX: dropPosition.x,
+			clientY: dropPosition.y,
+		});
+		await result.dispatchEvent('dragend', { dataTransfer: transfer });
+		await transfer.dispose();
 		await expect(editor).toHaveAttribute('data-clip-count', '1', { timeout: 20_000 });
 		await expect(editor.locator('[data-status]')).toHaveAttribute('data-state', 'success');
-		expect(requests.map(({ pathname }) => pathname)).toEqual([
-			'/api/freesound/search',
+		expect(requests.map(({ pathname }) => pathname)).toEqual(expect.arrayContaining([
 			`/api/freesound/sounds/${String(SOUND.id)}`,
 			`/api/freesound/sounds/${String(SOUND.id)}/preview`,
-		]);
+		]));
+
+		await importFiles(editor, [localMetadataWav()]);
+		await expect(editor).toHaveAttribute('data-clip-count', '2', { timeout: 20_000 });
 
 		await chooseCommandAction(page, editor, 'Edit', 'Metadata editor');
 		const metadataPanel = editor.locator('[data-workspace-panel="metadata"]');
@@ -111,22 +149,35 @@ test.describe('Freesound discovery and attribution', () => {
 		await metadataPanel.getByRole('tab', { name: 'Attribution', exact: true }).click();
 		const attribution = metadataPanel.getByRole('tabpanel', { name: 'Attribution', exact: true });
 		await expect(attribution).toBeVisible();
-		await expect(attribution.getByRole('heading', { name: SOUND.name, exact: true })).toBeVisible();
-		await expect(attribution.getByText('Current use', { exact: true })).toBeVisible();
-		const currentUse = attribution.getByText(
-			/^00:00:00\.000–00:00:00\.(?!000$)\d{3}$/u,
+		const freesoundOccurrence = attribution.locator('.kw-audio-editor__attribution-occurrence')
+			.filter({ has: page.getByRole('heading', { name: SOUND.name, exact: true }) });
+		await expect(freesoundOccurrence).toBeVisible();
+		await expect(freesoundOccurrence.getByText('Current use', { exact: true })).toBeVisible();
+		const currentUse = freesoundOccurrence.getByText(
+			/^\d{2}:\d{2}:\d{2}\.\d{3}–\d{2}:\d{2}:\d{2}\.\d{3}$/u,
 		);
 		await expect(currentUse).toBeVisible();
 		const currentUseCsv = String(await currentUse.textContent())
 			.split('–')
 			.map((value) => `"${value}"`)
 			.join(',');
-		await expect(attribution.getByRole('link', { name: SOUND.name, exact: true }))
+		await expect(freesoundOccurrence.getByRole('link', { name: SOUND.name, exact: true }))
 			.toHaveAttribute('href', SOUND.pageUrl);
-		await expect(attribution.getByRole('link', { name: SOUND.creator.username, exact: true }))
+		await expect(freesoundOccurrence.getByRole('link', { name: SOUND.creator.username, exact: true }))
 			.toHaveAttribute('href', SOUND.creator.pageUrl);
-		await expect(attribution.getByRole('link', { name: SOUND.license.name, exact: true }))
+		await expect(freesoundOccurrence.getByRole('link', { name: SOUND.license.name, exact: true }))
 			.toHaveAttribute('href', SOUND.license.url);
+
+		const localOccurrence = attribution.locator('.kw-audio-editor__attribution-occurrence')
+			.filter({ has: page.getByRole('heading', { name: LOCAL_SOUND.clipTitle, exact: true }) });
+		await expect(localOccurrence).toBeVisible();
+		await localOccurrence.getByText('Imported metadata', { exact: true }).click();
+		await expect(metadataField(page, localOccurrence, 'normalized.title'))
+			.toContainText(LOCAL_SOUND.title);
+		await expect(metadataField(page, localOccurrence, 'normalized.artist'))
+			.toContainText(LOCAL_SOUND.artist);
+		await expect(metadataField(page, localOccurrence, 'raw.TXXX.location'))
+			.toContainText(LOCAL_SOUND.location);
 
 		const downloadPromise = page.waitForEvent('download');
 		await attribution.getByRole('button', { name: 'Export CSV', exact: true }).click();
@@ -138,8 +189,85 @@ test.describe('Freesound discovery and attribution', () => {
 		expect(csv).toContain(SOUND.creator.username);
 		expect(csv).toContain(SOUND.license.name);
 		expect(csv).toContain(currentUseCsv);
+		expect(csv).toContain(LOCAL_SOUND.name);
+		expect(csv).toContain(LOCAL_SOUND.artist);
+		expect(csv).toContain(LOCAL_SOUND.location);
+
+		const archivePromise = page.waitForEvent('download');
+		await chooseExportProjectFileAction(page, editor);
+		const archiveDownload = await archivePromise;
+		const archive = await downloadBytes(archiveDownload);
+		await archiveDownload.delete();
+		const reopenedPage = await browser.newPage({
+			baseURL: new URL(page.url()).origin,
+			serviceWorkers: 'block',
+		});
+		try {
+			const reopenedEditor = await bootEditor(reopenedPage, '/embed/en/');
+			await reopenedEditor.locator('[data-aup4-input]').setInputFiles({
+				name: 'attribution-roundtrip.sscape',
+				mimeType: SCAPE_MIME_TYPE,
+				buffer: Buffer.from(archive),
+			});
+			await expect(reopenedEditor).toHaveAttribute('data-clip-count', '2', { timeout: 20_000 });
+			await chooseCommandAction(reopenedPage, reopenedEditor, 'Edit', 'Metadata editor');
+			const reopenedMetadata = reopenedEditor.locator('[data-workspace-panel="metadata"]');
+			await reopenedMetadata.getByRole('tab', { name: 'Attribution', exact: true }).click();
+			const reopenedAttribution = reopenedMetadata.getByRole('tabpanel', {
+				name: 'Attribution', exact: true,
+			});
+			await expect(reopenedAttribution.getByRole('link', { name: SOUND.name, exact: true }))
+				.toHaveAttribute('href', SOUND.pageUrl);
+			const reopenedLocal = reopenedAttribution.locator('.kw-audio-editor__attribution-occurrence')
+				.filter({ has: reopenedPage.getByRole('heading', { name: LOCAL_SOUND.clipTitle, exact: true }) });
+			await reopenedLocal.getByText('Imported metadata', { exact: true }).click();
+			await expect(metadataField(reopenedPage, reopenedLocal, 'normalized.artist'))
+				.toContainText(LOCAL_SOUND.artist);
+			await expect(metadataField(reopenedPage, reopenedLocal, 'raw.TXXX.location'))
+				.toContainText(LOCAL_SOUND.location);
+		} finally {
+			await reopenedPage.close({ runBeforeUnload: false });
+		}
 	});
 });
+
+function localMetadataWav() {
+	const frameCount = 4_800;
+	const channelCount = 1;
+	const sampleRate = 48_000;
+	const dataByteLength = frameCount * 2;
+	const buffer = Buffer.alloc(44 + dataByteLength);
+	buffer.write('RIFF', 0);
+	buffer.writeUInt32LE(36 + dataByteLength, 4);
+	buffer.write('WAVE', 8);
+	buffer.write('fmt ', 12);
+	buffer.writeUInt32LE(16, 16);
+	buffer.writeUInt16LE(1, 20);
+	buffer.writeUInt16LE(channelCount, 22);
+	buffer.writeUInt32LE(sampleRate, 24);
+	buffer.writeUInt32LE(sampleRate * channelCount * 2, 28);
+	buffer.writeUInt16LE(channelCount * 2, 32);
+	buffer.writeUInt16LE(16, 34);
+	buffer.write('data', 36);
+	buffer.writeUInt32LE(dataByteLength, 40);
+	for (let frame = 0; frame < frameCount; frame += 1) {
+		const sample = Math.sin(2 * Math.PI * 220 * frame / sampleRate) * 0.2;
+		buffer.writeInt16LE(Math.round(sample * 32767), 44 + frame * 2);
+	}
+	const metadata = createRiffId3Chunk({
+		title: LOCAL_SOUND.title,
+		artist: LOCAL_SOUND.artist,
+		location: LOCAL_SOUND.location,
+	});
+	const tagged = Buffer.concat([buffer, Buffer.from(metadata)]);
+	tagged.writeUInt32LE(tagged.byteLength - 8, 4);
+	return { name: LOCAL_SOUND.name, mimeType: 'audio/wav', buffer: tagged };
+}
+
+function metadataField(page, occurrence, key) {
+	return occurrence.locator('.kw-audio-editor__attribution-metadata > div')
+		.filter({ has: page.getByText(key, { exact: true }) });
+}
 
 async function mockFreesoundApi(page) {
 	const requests = [];

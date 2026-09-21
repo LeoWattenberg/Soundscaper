@@ -7,6 +7,10 @@ import {
 	createProjectImportService,
 	type ProjectImportRuntime,
 } from './helpers/project-import-runtime-fixture.ts';
+import {
+	createProjectImportService as createProductionProjectImportService,
+	type ProjectImportServiceRuntimeLoader,
+} from '../src/common/editor/controller/import/internal/project-import-service.ts';
 
 function createRuntime(): ProjectImportRuntime {
 	const callable = () => undefined;
@@ -59,6 +63,52 @@ test('project import options reject unsupported destinations and non-finite fram
 		() => service.normalizeImportOptions({ linkedVideoLocatorId: 'locator_0000000000000001' }),
 		/locator and revision.*together/iu,
 	);
+});
+
+test('project import execution loads once while option normalization stays synchronous', async () => {
+	let loads = 0;
+	let creations = 0;
+	const importFilesCalls: unknown[][] = [];
+	type RuntimeModule = Awaited<ReturnType<ProjectImportServiceRuntimeLoader>>;
+	let resolveRuntime: (module: RuntimeModule) => void = () => {
+		throw new Error('The runtime loader promise was not initialized.');
+	};
+	const runtimePromise = new Promise<RuntimeModule>((resolve) => { resolveRuntime = resolve; });
+	const service = createProductionProjectImportService(
+		createRuntime() as unknown as Parameters<typeof createProductionProjectImportService>[0],
+		() => {
+		loads += 1;
+		return runtimePromise;
+		},
+	);
+
+	assert.deepEqual(service.normalizeImportOptions({ projectBinVisible: true }), {
+		destination: 'project-bin', trackId: null, timelineStartFrame: 0,
+	});
+	assert.equal(loads, 0);
+	const first = service.importFiles(['first.wav']);
+	const second = service.importFiles(['second.wav']);
+	resolveRuntime({
+		createProjectImportServiceRuntime: () => {
+			creations += 1;
+			return {
+				importFile: async (...args: unknown[]) => args,
+				importFiles: async (...args: unknown[]) => { importFilesCalls.push(args); },
+				normalizeImportOptions: () => Object.freeze({
+					destination: 'timeline' as const,
+					trackId: null,
+					timelineStartFrame: 0,
+				}),
+				normalizeImportTimelineStartFrame: (value: unknown) => Number(value),
+			};
+		},
+	});
+
+	assert.deepEqual(await Promise.all([first, second]), [undefined, undefined]);
+	assert.deepEqual(importFilesCalls.map(([files]) => files), [['first.wav'], ['second.wav']]);
+	assert.deepEqual(importFilesCalls.map(([, , initialStatusHandled]) => initialStatusHandled), [true, true]);
+	assert.equal(loads, 1);
+	assert.equal(creations, 1);
 });
 
 test('a linked video locator is refused and released for non-video imports', async () => {

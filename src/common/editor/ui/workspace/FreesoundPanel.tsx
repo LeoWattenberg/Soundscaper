@@ -2,13 +2,13 @@
 
 import { Button } from '@soundscaper/design-system/Button';
 
-import '../audio-editor-design-system/06a-panels-freesound-attribution.css';
+import '../audio-editor-design-system/06a-panels-freesound.css';
 import { useEffect, useState } from 'react';
 
 import {
-	FREESOUND_RESULT_DRAG_MIME_TYPE,
-	encodeFreesoundResultDragPayload,
-} from './freesound-result-drag.ts';
+	AUDIO_EDITOR_FREESOUND_RESULT_DRAG_TYPE,
+	createFreesoundResultDragPayload,
+} from '../../project-bin-dnd.js';
 
 export type FreesoundLicenseFilter = 'all' | 'cc0' | 'cc-by' | 'cc-by-nc';
 export type FreesoundSort = 'relevance' | 'newest' | 'rating' | 'downloads';
@@ -195,8 +195,8 @@ export function FreesoundPanel({
 									event.dataTransfer.clearData();
 									event.dataTransfer.effectAllowed = 'copy';
 									event.dataTransfer.setData(
-										FREESOUND_RESULT_DRAG_MIME_TYPE,
-										encodeFreesoundResultDragPayload(result.soundId),
+										AUDIO_EDITOR_FREESOUND_RESULT_DRAG_TYPE,
+										createFreesoundResultDragPayload(result.soundId),
 									);
 								}}
 							>

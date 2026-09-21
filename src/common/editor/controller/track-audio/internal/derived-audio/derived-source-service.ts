@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { createLocalizedError } from '../../../../../i18n/presentation-message.ts'; import type { EditorControllerLifetime, EditorProjectToken } from '../../../shared/lifecycle.ts';
-import { deriveSourceProvenance } from '../../../../source-provenance-derivation.ts';
+import { loadSourceProvenanceDerivation } from '../../../../source-provenance-derivation-loader.ts';
 import type { SourceProvenanceV1 } from '../../../../source-provenance.ts';
 import {
 	createImportedAudioContentIdentityWriter,
@@ -18,6 +18,8 @@ import {
 	type SourceStoragePort,
 	type SourceWriter,
 } from '../../track-domain-types.ts';
+
+type DeriveSourceProvenance = typeof import('../../../../source-provenance-derivation.ts')['deriveSourceProvenance'];
 
 interface DerivedSourceCopy {
 	readonly effectInvalidAudio: string;
@@ -117,12 +119,15 @@ export function createDerivedSourceService(
 		const buffer = await dependencies.createBufferFromChannels(channels, sampleRate, context);
 		assertOwned(token);
 		const sourceId = dependencies.createId(idPrefix);
+		const { deriveSourceProvenance } = await loadSourceProvenanceDerivation();
+		assertOwned(token);
 		const source = createDerivedSource(
 			{ ...template, chunkFrames: dependencies.sourceChunkFrames },
 			channels,
 			sourceId,
 			name,
 			sampleRate,
+			deriveSourceProvenance,
 		);
 		const identity = await persistBuffer(source, buffer, channels, token);
 		const authenticatedSource = Object.freeze({ ...source, ...identity });
@@ -143,6 +148,8 @@ export function createDerivedSourceService(
 		const token = dependencies.captureProject();
 		const sourceId = dependencies.createId('mixed-source');
 		const sampleRate = dependencies.projectSampleRate();
+		const { deriveSourceProvenance } = await loadSourceProvenanceDerivation();
+		assertOwned(token);
 		const source = createDerivedSource({
 			id: sourceId,
 			storageKey: sourceId,
@@ -156,7 +163,7 @@ export function createDerivedSourceService(
 			opaqueExtensions: {},
 			chunkFrames: dependencies.sourceChunkFrames,
 			...(provenance ? { provenance } : {}),
-		}, channels, sourceId, name, sampleRate);
+		}, channels, sourceId, name, sampleRate, deriveSourceProvenance);
 		const identity = await persistBuffer(source, rendered, channels, token);
 		const authenticatedSource = Object.freeze({ ...source, ...identity });
 		return Object.freeze({ source: authenticatedSource, buffer: rendered, channels: Object.freeze(channels) });
@@ -258,6 +265,7 @@ function createDerivedSource(
 	id: string,
 	name: string,
 	sampleRate: number,
+	deriveSourceProvenance: DeriveSourceProvenance,
 ): ControllerSource {
 	const { contentSha256: _contentSha256, byteLength: _byteLength, ...contentIndependent } = template;
 	const provenance = deriveSourceProvenance([template]);

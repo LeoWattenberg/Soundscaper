@@ -1,12 +1,13 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import {
+	EDITOR_PROJECT_TASK_SCOPE,
 	isCurrentAssertion,
 	type EditorControllerLifetime,
 	type EditorProjectToken,
 	type EditorTaskScope,
 } from '../shared/lifecycle.ts';
-import { EDITOR_PROJECT_TASK_SCOPE } from '../shared/lifecycle.ts';
+import { changedContentRelinkClassification } from './internal/linked-media/changed-content-relink-attribution.ts';
 import { PROJECT_BIN_LINKED_ORIGINAL_RELINK_TASK } from './internal/project-bin/project-bin-linked-original-relink-task.ts';
 
 export const PROJECT_BIN_LINKED_VIDEO_RELINK_TASK = PROJECT_BIN_LINKED_ORIGINAL_RELINK_TASK;
@@ -154,12 +155,12 @@ export function createProjectBinLinkedVideoRelinkService(
 		if (!binding) {
 			throw new Error('The Project Bin video is not currently bound to a linked original.');
 		}
-		if (file.size !== binding.byteLength) return 'changed-content';
+		if (file.size !== binding.byteLength) return changedContentRelinkClassification(source);
 		const digest = await dependencies.digestContent(file, {});
 		assertNotDisposed(disposed);
 		dependencies.lifetime.assertActive();
 		dependencies.assertProject(projectToken);
-		return digest === binding.sha256 ? 'exact-content' : 'changed-content';
+		return digest === binding.sha256 ? 'exact-content' : changedContentRelinkClassification(source);
 	}
 
 	async function canRelinkLinkedVideo(clipId: string): Promise<boolean> {
@@ -230,6 +231,7 @@ export function createProjectBinLinkedVideoRelinkService(
 			assertCurrent(dependencies, activeTask, projectToken);
 			assertWritable(dependencies);
 			if (changedContent) {
+				changedContentRelinkClassification(source);
 				if (relinkOptions.allowChangedContent !== true) {
 					throw new Error(
 						'The selected linked video original has changed content; '

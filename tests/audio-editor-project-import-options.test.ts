@@ -6,8 +6,8 @@ import test from 'node:test';
 import {
 	linkedOriginalLocatorReferenceFromImportOptions,
 	normalizeProjectImportOptions,
-	normalizeProjectImportOptionsForUse,
 } from '../src/common/editor/controller/import/internal/project-import-options.ts';
+import { normalizeProjectImportOptionsForUse } from '../src/common/editor/controller/import/internal/project-import-options-for-use.ts';
 
 const LOCATOR_ID = 'locator_0000000000000001';
 const LOCATOR_REVISION = 'revision_0000000000000001';
@@ -76,6 +76,41 @@ test('failed option validation releases the exact kindful linked locator', async
 	}), /Unsupported audio import destination/u);
 	assert.deepEqual(released, [{
 		kind: 'audio', locatorId: LOCATOR_ID, locatorRevision: LOCATOR_REVISION,
+	}]);
+});
+
+test('malformed provenance releases raw and normalized linked-original locators', async () => {
+	const released: unknown[] = [];
+	const malformedProvenance = {
+		schemaVersion: 1,
+		classification: 'imported',
+		contributions: [],
+	};
+	await assert.rejects(normalizeProjectImportOptionsForUse({
+		linkedAudioLocatorId: LOCATOR_ID,
+		linkedAudioLocatorRevision: LOCATOR_REVISION,
+		sourceProvenance: malformedProvenance,
+	}, 'Frames must be finite.', (reference) => {
+		released.push(reference);
+	}), /at least one contribution/iu);
+
+	const normalized = normalizeProjectImportOptions({
+		linkedVideoLocatorId: 'locator_0000000000000002',
+		linkedVideoLocatorRevision: 'revision_0000000000000002',
+		sourceProvenance: malformedProvenance,
+	}, 'Frames must be finite.');
+	await assert.rejects(normalizeProjectImportOptionsForUse(
+		normalized,
+		'Frames must be finite.',
+		(reference) => { released.push(reference); },
+	), /at least one contribution/iu);
+
+	assert.deepEqual(released, [{
+		kind: 'audio', locatorId: LOCATOR_ID, locatorRevision: LOCATOR_REVISION,
+	}, {
+		kind: 'video',
+		locatorId: 'locator_0000000000000002',
+		locatorRevision: 'revision_0000000000000002',
 	}]);
 });
 

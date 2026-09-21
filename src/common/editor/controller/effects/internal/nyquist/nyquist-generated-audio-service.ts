@@ -11,7 +11,7 @@ import {
 import type { AudioEditorCommand } from '../../../../commands/protocol.ts';
 import type { EffectSelection, EffectTarget } from '../../effect-selection-service.ts';
 import type { EditorProjectToken } from '../../../shared/lifecycle.ts';
-import { createNonImportedSourceProvenance } from '../../../../source-provenance.ts';
+import { createNonImportedSourceProvenance } from '../../../../source-provenance-root.ts';
 
 export interface NyquistGeneratedTrack extends Readonly<Record<string, unknown>> {
 	readonly id: string;

@@ -32,7 +32,7 @@ import { PROJECT_MEDIA_COPY_BY_LOCALE, CROSS_PRODUCT_HANDOFF_COPY_BY_LOCALE, IMP
 import { EFFECTS_OVERLAY_COPY_BY_LOCALE } from './editor-effects-overlay-copy.ts';
 import { SELECTED_VISUAL_AUTHORING_COPY, SELECTED_VISUAL_AUTHORING_SURFACE_COPY } from './editor-selected-visual-authoring-copy.ts';
 import { SOURCE_STATUS_COPY_BY_LOCALE } from './editor-source-status-copy.ts';
-import { FREESOUND_ATTRIBUTION_INVENTORY_COPY_BY_LOCALE } from './editor-freesound-attribution-copy.ts';
+import { FREESOUND_ATTRIBUTION_INVENTORY_COPY_BY_LOCALE } from './editor-freesound-attribution-inventory-copy.ts';
 
 export interface EditorCopyOwner {
 	readonly owner: string;

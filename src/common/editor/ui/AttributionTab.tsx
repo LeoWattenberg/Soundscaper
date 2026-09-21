@@ -3,7 +3,7 @@
 import { Button } from '@soundscaper/design-system/Button';
 
 import type { AttributionReportPresentation } from './attribution-presentation-contract.ts';
-import './audio-editor-design-system/06a-panels-freesound-attribution.css';
+import './audio-editor-design-system/06a-panels-attribution.css';
 
 export type {
 	AttributionMetadataPresentation,
@@ -16,6 +16,7 @@ export interface AttributionTabProps {
 	readonly copy: Readonly<Record<string, string>>;
 	readonly report?: AttributionReportPresentation | null;
 	readonly onExportCsv?: () => void;
+	readonly errorMessage?: string;
 }
 
 function LinkedValue({ value, url }: Readonly<{ value: string; url?: string }>) {
@@ -24,8 +25,9 @@ function LinkedValue({ value, url }: Readonly<{ value: string; url?: string }>) 
 		: value;
 }
 
-export function AttributionTab({ copy, report, onExportCsv }: AttributionTabProps) {
+export function AttributionTab({ copy, report, onExportCsv, errorMessage }: AttributionTabProps) {
 	const occurrences = report?.occurrences ?? [];
+	const canExport = !errorMessage && Boolean(onExportCsv) && occurrences.length > 0;
 	return (
 		<section className="kw-audio-editor__attribution" data-attribution-tab="true">
 			<div className="kw-audio-editor__attribution-heading">
@@ -33,11 +35,13 @@ export function AttributionTab({ copy, report, onExportCsv }: AttributionTabProp
 				<Button
 					variant="secondary"
 					size="small"
-					disabled={!onExportCsv || occurrences.length === 0}
-					onClick={() => onExportCsv?.()}
+					disabled={!canExport}
+					onClick={() => { if (canExport) onExportCsv?.(); }}
 				>{copy.exportCsv}</Button>
 			</div>
-			{occurrences.length === 0 ? (
+			{errorMessage ? (
+				<p className="kw-audio-editor__panel-error" role="alert">{errorMessage}</p>
+			) : occurrences.length === 0 ? (
 				<p className="kw-audio-editor__panel-empty">{copy.empty}</p>
 			) : (
 				<ol className="kw-audio-editor__attribution-occurrences">
@@ -47,7 +51,10 @@ export function AttributionTab({ copy, report, onExportCsv }: AttributionTabProp
 							<dl className="kw-audio-editor__attribution-use">
 								<div><dt>{copy.track}</dt><dd>{occurrence.projectBin ? copy.panelProjectBin : occurrence.trackName}</dd></div>
 								{occurrence.projectBin ? null : (
-									<div><dt>{copy.currentUse}</dt><dd>{occurrence.useTimeLabel}</dd></div>
+									<>
+										<div><dt>{copy.sequence}</dt><dd>{sequenceLabel(occurrence.sequenceName, occurrence.sequenceId)}</dd></div>
+										<div><dt>{copy.currentUse}</dt><dd>{occurrence.useTimeLabel}</dd></div>
+									</>
 								)}
 							</dl>
 							<h4>{copy.sources}</h4>
@@ -55,6 +62,9 @@ export function AttributionTab({ copy, report, onExportCsv }: AttributionTabProp
 								{occurrence.sources.map((source) => (
 									<li key={source.key}>
 										<strong><LinkedValue value={source.name} url={source.url} /></strong>
+										{source.modified ? (
+											<p className="kw-audio-editor__attribution-modified">{copy.modifiedSource}</p>
+										) : null}
 										{source.creator ? (
 											<p>{copy.by}{' '}
 												<LinkedValue value={source.creator} url={source.creatorUrl} />
@@ -84,6 +94,11 @@ export function AttributionTab({ copy, report, onExportCsv }: AttributionTabProp
 			)}
 		</section>
 	);
+}
+
+function sequenceLabel(name?: string, id?: string): string {
+	if (!id) return name ?? '';
+	return name && name !== id ? `${name} (${id})` : id;
 }
 
 export default AttributionTab;

@@ -122,6 +122,8 @@ test('selected product bootstraps construct full bundled English copy internally
 test('feature CSS is imported only by its owning editor surface', async () => {
 	const manifest = await source('src/common/editor/ui/audio-editor-design-system.css');
 	const ownership = new Map([
+		['06a-panels-freesound.css', 'src/common/editor/ui/workspace/FreesoundPanel.tsx'],
+		['06a-panels-attribution.css', 'src/common/editor/ui/AttributionTab.tsx'],
 		['15-adm.css', 'src/common/editor/ui/AdmMetadataFields.tsx'],
 		['18-musical-timeline.css', 'src/common/editor/ui/toolbar/MusicalTimelineControls.jsx'],
 		['20-sound-activation.css', 'src/common/editor/ui/SoundActivationPreferences.tsx'],

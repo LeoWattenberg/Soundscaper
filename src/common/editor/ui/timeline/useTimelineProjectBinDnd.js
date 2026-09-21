@@ -19,6 +19,7 @@ export function useTimelineProjectBinDnd({
 	model,
 	hitTesting,
 	menuActions,
+	importFreesoundSound = importFreesoundTimelineDrop,
 }) {
 	const { setDraggingClipIds, setProjectBinDragPreview } = state;
 	const { project } = model;
@@ -111,7 +112,7 @@ export function useTimelineProjectBinDnd({
 		if (!binDrag && !freesoundDrag && !files.length) return;
 		event.preventDefault();
 		const payload = binDrag ? projectBinPayloadFromDataTransfer(event.dataTransfer) : null;
-		const freesound = freesoundDrag ? parseFreesoundResultDragPayload(
+		const freesoundSoundId = freesoundDrag ? parseFreesoundResultDragPayload(
 			event.dataTransfer.getData(AUDIO_EDITOR_FREESOUND_RESULT_DRAG_TYPE),
 		) : null;
 		const target = timelineDropTargetAt(event);
@@ -127,10 +128,10 @@ export function useTimelineProjectBinDnd({
 			}));
 			return;
 		}
-		if (freesound) {
+		if (freesoundSoundId !== null) {
 			const targetTrack = target.trackId ? compatibleMediaTrack(project, target.trackId, 'audio') : null;
-			run(() => controller.actions.freesound.importSound({
-				soundId: freesound.soundId,
+			run(() => importFreesoundSound(controller, {
+				soundId: freesoundSoundId,
 				destination: 'timeline',
 				...(targetTrack ? { trackId: targetTrack.id } : {}),
 				timelineStartFrame: target.timelineStartFrame,
@@ -144,7 +145,7 @@ export function useTimelineProjectBinDnd({
 				timelineStartFrame: target.timelineStartFrame,
 			}));
 		}
-	}, [clearProjectBinDragState, controller, mutationsBlocked, project, run, timelineDropTargetAt]);
+	}, [clearProjectBinDragState, controller, importFreesoundSound, mutationsBlocked, project, run, timelineDropTargetAt]);
 
 	useEffect(() => {
 		const finishHtmlDrag = () => clearProjectBinDragState(true);
@@ -153,4 +154,10 @@ export function useTimelineProjectBinDnd({
 	}, [clearProjectBinDragState]);
 
 	return { onTimelineDragOver, onTimelineDragLeave, onTimelineDrop };
+}
+
+export function importFreesoundTimelineDrop(controller, request) {
+	return import('../workspace/freesound-workspace-service.ts').then(({ importFreesoundSound }) => (
+		importFreesoundSound(controller, request)
+	));
 }

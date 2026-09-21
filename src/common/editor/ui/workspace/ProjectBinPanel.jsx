@@ -82,7 +82,7 @@ export default function ProjectBinPanel({ controller, snapshot, copy, locale, fi
 	const mutationBlocked = selectAudioEditorEditBlock(snapshot).blocked;
 	const { dropActive, dropHandlers, resetDropState } = useProjectBinFileDrop({
 		blocked: mutationBlocked,
-		onFiles: (files) => run(() => importFiles(files)), onFreesoundSound: (soundId) => run(() => controller.actions.freesound.importSound({ soundId, destination: 'project-bin' })),
+		onFiles: (files) => run(() => importFiles(files)), onFreesoundSound: (soundId) => run(() => import('./freesound-workspace-service.ts').then(({ importFreesoundSound }) => importFreesoundSound(controller, { soundId, destination: 'project-bin' }))),
 	});
 	const selectedMediaTrack = project?.tracks.find((track) => (
 		track.id === snapshot.selectedTrackId && ['audio', 'video'].includes(track.type)
@@ -182,21 +182,16 @@ export default function ProjectBinPanel({ controller, snapshot, copy, locale, fi
 	});
 	const relinkLinkedVideo = (clipId) => run(async () => {
 		if (mutationBlocked) return;
-		const choice = await fileService.chooseLinkedVideoOriginal();
-		if (!choice) return;
-		const locator = {
-			locatorId: choice.locatorId,
-			locatorRevision: choice.locatorRevision,
-		};
-		const classification = await controller.actions.projectBin.classifyLinkedVideoRelink(clipId, choice.file);
-		if (classification === 'changed-content') {
-			storeRelinkChangedChoice({
-				kind: 'video', clipId, file: choice.file, locator,
-				scope: linkedAudioRelinkProjectRef.current,
-			});
-			return;
-		}
-		await controller.actions.projectBin.relinkLinkedVideo(clipId, choice.file, locator);
+		const relinkScope = linkedAudioRelinkProjectRef.current;
+		if (!relinkScope) return;
+		const { handoffLinkedVideoRelinkChoice } = await import('./linked-video-choice-handoff.ts');
+		await handoffLinkedVideoRelinkChoice(
+			controller, fileService, clipId, relinkScope,
+			(scope) => linkedAudioRelinkProjectRef.current === scope,
+			({ file, locator, apply }) => storeRelinkChangedChoice({
+				kind: 'video', clipId, file, locator, scope: relinkScope, apply,
+			}),
+		);
 	});
 	const cancelRelinkChangedChoice = () => {
 		const declined = takeRelinkChangedChoice();
@@ -222,12 +217,7 @@ export default function ProjectBinPanel({ controller, snapshot, copy, locale, fi
 			}));
 			return;
 		}
-		run(() => controller.actions.projectBin.relinkLinkedVideo(
-			accepted.clipId,
-			accepted.file,
-			accepted.locator,
-			{ allowChangedContent: true },
-		));
+		run(accepted.apply);
 	};
 	const closeItemMenu = () => {
 		linkedAudioRelinkRequestRef.current += 1;

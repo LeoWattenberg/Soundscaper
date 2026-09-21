@@ -304,6 +304,44 @@ test('a changed-content relink requires explicit confirmation before any side ef
 	assert.equal(fixture.publishCount, 0);
 });
 
+test('changed-content linked-video relink cannot retain attribution for different bytes', async () => {
+	const classification = createHarness({
+		missing: false,
+		attributedSourceIds: ['video-solo-source'],
+	});
+	assert.equal(
+		await classification.service.classifyLinkedVideoRelink('bin-solo-video', videoFile()),
+		'exact-content',
+	);
+	await assert.rejects(
+		classification.service.classifyLinkedVideoRelink('bin-solo-video', changedVideoFile()),
+		/import.*new media.*attribution/iu,
+	);
+	assert.deepEqual(classification.order, ['binding', 'binding']);
+
+	const exact = createHarness({
+		missing: false,
+		attributedSourceIds: ['video-solo-source'],
+	});
+	assert.equal(
+		await exact.service.relinkLinkedVideo('bin-solo-video', videoFile(), FIRST_LOCATOR),
+		'video-solo-source',
+	);
+
+	const replacement = createHarness({
+		missing: false,
+		attributedSourceIds: ['video-solo-source'],
+	});
+	await assert.rejects(
+		replacement.service.relinkLinkedVideo('bin-solo-video', changedVideoFile(), FIRST_LOCATOR, {
+			allowChangedContent: true,
+		}),
+		/import.*new media.*attribution/iu,
+	);
+	assert.deepEqual(replacement.order, ['binding', 'release']);
+	assert.deepEqual(replacement.releases, [FIRST_LOCATOR]);
+});
+
 test('an authorized changed-content relink probes the candidate and purges stale derivatives', async () => {
 	const fixture = createHarness({ missing: false });
 	const file = changedVideoFile();

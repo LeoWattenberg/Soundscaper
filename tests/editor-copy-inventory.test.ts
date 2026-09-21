@@ -29,11 +29,13 @@ test('editor inventory preserves legacy identities and isolates independently ow
 	assert.equal(EDITOR_ENGLISH_COPY['ui.macroManager.deleteProgram'], 'Delete program');
 	assert.equal(EDITOR_GERMAN_COPY['ui.macroManager.runProgram'], 'Programm ausführen');
 	assert.equal(EDITOR_ENGLISH_COPY['ui.freesoundAttribution.panel'], 'Freesound');
-	assert.equal(EDITOR_GERMAN_COPY['ui.freesoundAttribution.metadataTab'], 'Quellen');
+	assert.equal(EDITOR_GERMAN_COPY['ui.freesoundAttribution.panel'], 'Freesound');
+	assert.equal(EDITOR_ENGLISH_COPY['ui.freesoundAttribution.metadataTab'], undefined);
 	assert.equal(ENGLISH_COPY.panelFreesound, undefined);
 	assert.equal(ENGLISH_COPY.metadataAttributionTab, undefined);
 	assert.equal(EDITOR_COPY_METADATA['ui.macroManager.runProgram']?.owner, 'macroManager');
-	assert.equal(EDITOR_COPY_METADATA['ui.freesoundAttribution.search']?.owner, 'freesoundAttribution');
+	assert.equal(EDITOR_COPY_METADATA['ui.freesoundAttribution.panel']?.owner, 'freesoundAttribution');
+	assert.equal(EDITOR_COPY_METADATA['ui.freesoundAttribution.search'], undefined);
 	assert.deepEqual(Object.keys(EDITOR_COPY_METADATA), Object.keys(EDITOR_ENGLISH_COPY));
 	for (const [key, source] of Object.entries(EDITOR_ENGLISH_COPY)) {
 		assert.equal(acceptableTranslation(source, source), true, key);
@@ -49,14 +51,16 @@ test('published locale loading and topical resolvers use the same namespaced sou
 			'ui.trackAutomation.addAutomation': ['human', 'Add automation', 'Ajouter une automatisation'],
 			'ui.routing.confirmDelete': ['human', 'Confirm delete', 'Confirmer la suppression'],
 			'ui.soundscaperNative.audioDevices': ['human', 'Audio devices', 'Périphériques audio'],
-			'ui.freesoundAttribution.search': ['human', 'Search', 'Rechercher'],
 		} }),
 	} });
 	assert.equal(resolveMacroManagerCopy('fr', french).runProgram, 'Exécuter le programme');
 	assert.equal(resolveTrackAutomationCopy('fr', french).addAutomation, 'Ajouter une automatisation');
 	assert.equal(resolveSoundscaperRoutingGraphCopy(french).confirmDelete, 'Confirmer la suppression');
 	assert.equal(resolveSoundscaperNativeServicesCopy(french).audioDevices, 'Périphériques audio');
-	assert.equal(freesoundAttributionCopy('fr', french).search, 'Rechercher');
+	assert.equal(freesoundAttributionCopy('fr', {
+		...french,
+		'ui.freesoundAttribution.search': 'Rechercher',
+	}).search, 'Rechercher');
 	assert.equal(resolveMacroManagerCopy('de', await resolveCatalog('de')).runProgram, 'Programm ausführen');
 	assert.deepEqual(currentTranslations({ schemaVersion: 2, locale: 'fr', entries: {
 		'ui.macroManager.runProgram': ['human', 'Run program (old)', 'Ancienne traduction'],

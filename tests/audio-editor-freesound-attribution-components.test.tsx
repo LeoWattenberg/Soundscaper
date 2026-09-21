@@ -13,11 +13,12 @@ import MetadataEditorTabs from '../src/common/editor/ui/MetadataEditorTabs.tsx';
 import FreesoundPanel, {
 	type FreesoundPanelState,
 } from '../src/common/editor/ui/workspace/FreesoundPanel.tsx';
+import ProjectAttributionTab from '../src/common/editor/ui/workspace/ProjectAttributionTab.tsx';
 import {
-	FREESOUND_RESULT_DRAG_MIME_TYPE,
-	decodeFreesoundResultDragPayload,
-	encodeFreesoundResultDragPayload,
-} from '../src/common/editor/ui/workspace/freesound-result-drag.ts';
+	AUDIO_EDITOR_FREESOUND_RESULT_DRAG_TYPE,
+	createFreesoundResultDragPayload,
+	parseFreesoundResultDragPayload,
+} from '../src/common/editor/project-bin-dnd.js';
 import {
 	WORKSPACE_DISCOVERABLE_PANEL_IDS,
 	WORKSPACE_PANEL_IDS,
@@ -105,19 +106,32 @@ test('the optional Freesound surface stays behind the editor lazy-module boundar
 	const source = readFileSync(new URL(
 		'../src/common/editor/ui/workspace/WorkspacePanelContent.jsx', import.meta.url,
 	), 'utf8');
-	assert.match(source, /const FreesoundPanelContainer = SOUNDSCAPER_BUILD\s*\? lazyEditorModule\(\(\) => import\('\.\/FreesoundPanelContainer\.tsx'\)\)/u);
+	assert.match(source, /\.\.\.\(SOUNDSCAPER_BUILD \? \{\s*freesound: lazyEditorModule\(\(\) => import\('\.\/FreesoundPanelContainer\.tsx'\)\)/u);
 	assert.doesNotMatch(source, /^import .*FreesoundPanelContainer/mu);
 });
 
+test('the eager copy inventory owns only the Freesound menu label', () => {
+	const inventory = readFileSync(new URL(
+		'../src/common/i18n/editor-copy-inventory.ts', import.meta.url,
+	), 'utf8');
+	const labels = readFileSync(new URL(
+		'../src/common/i18n/editor-freesound-attribution-inventory-copy.ts', import.meta.url,
+	), 'utf8');
+	assert.match(inventory, /editor-freesound-attribution-inventory-copy\.ts/u);
+	assert.doesNotMatch(inventory, /from ['"]\.\/freesound-attribution-copy\.js['"]/u);
+	assert.match(labels, /panel: 'Freesound'/u);
+	assert.doesNotMatch(labels, /Attribution|Search Freesound|Export CSV/u);
+});
+
 test('Freesound drag payloads contain only their version and sound id', () => {
-	assert.equal(FREESOUND_RESULT_DRAG_MIME_TYPE, 'application/x-soundscaper-freesound-result+json');
-	const encoded = encodeFreesoundResultDragPayload(42);
-	assert.equal(encoded, '{"schemaVersion":1,"soundId":42}');
-	assert.deepEqual(decodeFreesoundResultDragPayload(encoded), { schemaVersion: 1, soundId: 42 });
-	assert.equal(decodeFreesoundResultDragPayload('{"schemaVersion":1,"soundId":42,"name":"leak"}'), null);
-	assert.equal(decodeFreesoundResultDragPayload('{"schemaVersion":2,"soundId":42}'), null);
-	assert.equal(decodeFreesoundResultDragPayload('{"schemaVersion":1,"soundId":0}'), null);
-	assert.equal(decodeFreesoundResultDragPayload('not json'), null);
+	assert.equal(AUDIO_EDITOR_FREESOUND_RESULT_DRAG_TYPE, 'application/x-soundscaper-freesound-result');
+	const encoded = createFreesoundResultDragPayload(42);
+	assert.equal(encoded, '42');
+	assert.equal(parseFreesoundResultDragPayload(encoded), 42);
+	assert.equal(parseFreesoundResultDragPayload('042'), null);
+	assert.equal(parseFreesoundResultDragPayload('42e0'), null);
+	assert.equal(parseFreesoundResultDragPayload('0'), null);
+	assert.equal(parseFreesoundResultDragPayload('not a sound ID'), null);
 });
 
 test('Freesound search results expose filters, one active preview and keyboard actions', () => {
@@ -249,8 +263,8 @@ test('Freesound gestures submit current criteria and expose the minimal drag tra
 		}));
 		assert.equal(dataTransfer.effectAllowed, 'copy');
 		assert.deepEqual(transfers, [[
-			FREESOUND_RESULT_DRAG_MIME_TYPE,
-			'{"schemaVersion":1,"soundId":101}',
+			AUDIO_EDITOR_FREESOUND_RESULT_DRAG_TYPE,
+			'101',
 		]]);
 	} finally {
 		await act(async () => root.unmount());
@@ -264,6 +278,8 @@ const ATTRIBUTION_REPORT: AttributionReportPresentation = Object.freeze({
 		key: 'clip-1:forest',
 		clipName: 'Forest bed',
 		trackName: 'Ambience',
+		sequenceId: 'main',
+		sequenceName: 'Main sequence',
 		useTimeLabel: '00:00:12.500–00:00:30.500',
 		sources: Object.freeze([{
 			key: 'origin-freesound-101',
@@ -273,6 +289,7 @@ const ATTRIBUTION_REPORT: AttributionReportPresentation = Object.freeze({
 			creatorUrl: 'https://freesound.org/people/field-recorder/',
 			licenseName: 'Creative Commons 0',
 			licenseUrl: 'https://creativecommons.org/publicdomain/zero/1.0/',
+			modified: true,
 			metadata: Object.freeze([
 				{ key: 'sample-rate', label: 'Sample rate', value: '48000' },
 				{ key: 'binary-picture', label: 'Picture', value: 'image/jpeg · 12,345 bytes · SHA-256 abc' },
@@ -292,11 +309,14 @@ test('Attribution presents each current clip occurrence and its complete source 
 	assert.match(markup, /timeline or held in the Project Bin/u);
 	assert.match(markup, />Export CSV</u);
 	assert.match(markup, /Forest bed/u);
+	assert.match(markup, /Sequence/u);
+	assert.match(markup, /Main sequence \(main\)/u);
 	assert.match(markup, /Ambience/u);
 	assert.match(markup, /00:00:12\.500–00:00:30\.500/u);
 	assert.match(markup, /Rain in pines\.wav/u);
 	assert.match(markup, /field-recorder/u);
 	assert.match(markup, /Creative Commons 0/u);
+	assert.match(markup, /Modified from imported source/u);
 	assert.match(markup, /Sample rate/u);
 	assert.match(markup, /48000/u);
 	assert.match(markup, /Picture/u);
@@ -321,6 +341,28 @@ test('Attribution lists Project Bin imports without presenting a made-up timelin
 	assert.match(markup, /Project bin/u);
 	assert.doesNotMatch(markup, /Current use/u);
 	assert.doesNotMatch(markup, /00:00:/u);
+});
+
+test('Project attribution contains invalid semantic provenance without exposing its error', () => {
+	const markup = render(<ProjectAttributionTab
+		project={{
+			title: 'Damaged project', sampleRate: 48_000, clips: [], tracks: [], sequences: [],
+			projectBin: { clips: [{ id: 'bin-clip', sourceId: 'source-a', title: 'Imported audio' }] },
+			sources: [{
+				id: 'source-a', kind: 'audio', mimeType: 'audio/wav',
+				provenance: { schemaVersion: 1, classification: 'imported', contributions: [] },
+			}],
+		}}
+		copy={GERMAN_COPY}
+		locale="de"
+		fileService={{ saveFile: () => { throw new Error('CSV must stay disabled'); } }}
+	/>);
+
+	assert.match(markup, /role="alert"/u);
+	assert.match(markup, /Attributionsdetails sind für dieses Projekt nicht verfügbar/u);
+	assert.doesNotMatch(markup, /must carry at least one contribution/u);
+	assert.match(markup, />CSV exportieren</u);
+	assert.match(markup, /disabled=""/u);
 });
 
 test('Attribution export delegates through its presentation callback', async () => {

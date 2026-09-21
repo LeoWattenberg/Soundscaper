@@ -62,6 +62,34 @@ test('Freesound search uses the owned proxy contract', async () => {
 	assert.equal(requests[0]?.credentials, 'omit');
 });
 
+test('Freesound search accepts the proxy maximum and an empty upstream description', async () => {
+	const response = JSON.stringify({ data: {
+		query: 'ambience', page: 1, pageSize: 20, totalCount: 20, totalPages: 1,
+		hasNextPage: false, hasPreviousPage: false,
+		results: Array.from({ length: 20 }, (_, index) => ({
+			...SOUND,
+			id: index + 1,
+			pageUrl: `https://freesound.org/s/${String(index + 1)}/`,
+			description: index === 0 ? '' : 'x'.repeat(65_536),
+			})),
+	} });
+	assert(response.length > 1024 * 1024);
+	assert(response.length <= 2 * 1024 * 1024);
+	const service = createFreesoundImportService({
+		enabled: true,
+		apiBaseUrl: 'https://soundscaper.org',
+		createContributionId: () => 'unused',
+		importFile: async () => undefined,
+		fetch: async () => new Response(response, {
+			headers: { 'Content-Type': 'application/json', 'Content-Length': String(response.length) },
+		}),
+	});
+
+	const page = await service.search({ query: 'ambience' });
+
+	assert.equal(page.results[0]?.description, '');
+});
+
 test('Freesound search and import admit legacy Sampling+ results without adding a filter option', async () => {
 	const legacySound = {
 		...SOUND,
@@ -269,7 +297,6 @@ test('Freesound actions fail closed when the product does not enable them', asyn
 
 	await assert.rejects(service.search({ query: 'rain' }), /unavailable/iu);
 	await assert.rejects(service.importSound({ soundId: 42, destination: 'project-bin' }), /unavailable/iu);
-	assert.throws(() => service.previewUrl(42), /unavailable/iu);
 });
 
 async function rejectOversizedPreviewStream(contentLength: string | null): Promise<Readonly<{

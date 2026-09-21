@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { readRecordingSourceMetadata } from './recording-source-metadata.ts';
-import { createNonImportedSourceProvenance } from '../../../source-provenance.ts';
+import { createNonImportedSourceProvenance } from '../../../source-provenance-root.ts';
 
 import { RECORDING_DISPLAY_ROUTE_LABEL } from '../../../recording-routing.js';
 import type { RecordingPreview } from '../recording-model.ts';

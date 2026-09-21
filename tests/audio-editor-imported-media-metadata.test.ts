@@ -43,12 +43,12 @@ test('import metadata retains normalized and raw text while describing binary va
 		TXXX: { place: 'Platform 4', weather: 'Rain' },
 	});
 	assert.equal(inspected.attachments.length, 2);
-	assert.deepEqual(inspected.attachments.map(({ path, mimeType, name, byteLength }) => ({
-		path, mimeType, name, byteLength,
+	assert.deepEqual(inspected.attachments.map(({ path, kind, mimeType, name, byteLength }) => ({
+		path, kind, mimeType, name, byteLength,
 	})), [{
-		path: 'images[0]', mimeType: 'image/png', name: 'cover.png', byteLength: 4,
+		path: 'images[0]', kind: 'coverFront', mimeType: 'image/png', name: 'cover.png', byteLength: 4,
 	}, {
-		path: 'raw.PRIV', mimeType: 'application/octet-stream', name: undefined, byteLength: 3,
+		path: 'raw.PRIV', kind: undefined, mimeType: 'application/octet-stream', name: undefined, byteLength: 3,
 	}]);
 	assert.match(inspected.attachments[0]?.sha256 ?? '', /^[a-f0-9]{64}$/u);
 	assert.match(inspected.attachments[1]?.sha256 ?? '', /^[a-f0-9]{64}$/u);
@@ -85,6 +85,60 @@ test('metadata bounds binary attachment descriptors without failing the import',
 	});
 	assert.equal(inspected.attachments.length, 256);
 	assert.equal(inspected.warnings.some((warning) => warning.includes('256 attachments')), true);
+});
+
+test('metadata omits an oversized raw attachment before hashing it', async () => {
+	const inspected = await inspectImportedMediaMetadata(new Blob(), {
+		readTags: async () => ({
+			raw: {
+				SAFE: new Uint8Array([1, 2, 3]),
+				OVERSIZED: {
+					data: new Uint8Array(4 * 1024 * 1024 + 1),
+					mimeType: 'application/x-hostile',
+					description: 'Useful descriptor text',
+				},
+			},
+		}),
+	});
+
+	assert.deepEqual(inspected.attachments.map(({ path, byteLength }) => ({ path, byteLength })), [
+		{ path: 'raw.SAFE', byteLength: 3 },
+	]);
+	assert.deepEqual(inspected.metadata.raw, {
+		OVERSIZED: {
+			description: 'Useful descriptor text',
+			mimeType: 'application/x-hostile',
+		},
+		SAFE: { attachmentPath: 'raw.SAFE' },
+	});
+	assert.equal(inspected.warnings.some((warning) => (
+		warning.includes('raw.OVERSIZED')
+		&& warning.includes('4194304 bytes')
+		&& warning.includes('omitted')
+	)), true);
+});
+
+test('metadata applies an aggregate byte budget across image attachments', async () => {
+	const inspected = await inspectImportedMediaMetadata(new Blob(), {
+		readTags: async () => ({
+			images: Array.from({ length: 3 }, (_, index) => ({
+				data: new Uint8Array(3 * 1024 * 1024),
+				mimeType: 'image/png',
+				name: `cover-${String(index)}.png`,
+			})),
+		}),
+	});
+
+	assert.deepEqual(inspected.attachments.map(({ path, name, byteLength }) => ({ path, name, byteLength })), [{
+		path: 'images[0]', name: 'cover-0.png', byteLength: 3 * 1024 * 1024,
+	}, {
+		path: 'images[1]', name: 'cover-1.png', byteLength: 3 * 1024 * 1024,
+	}]);
+	assert.equal(inspected.warnings.some((warning) => (
+		warning.includes('images[2]')
+		&& warning.includes('8388608 bytes')
+		&& warning.includes('omitted')
+	)), true);
 });
 
 test('AIFF text and comments are inspected before audio decoding', async () => {

@@ -6,13 +6,22 @@ import {
 } from '../src/common/editor/controller/track-audio/internal/derived-audio/derived-source-service.ts';
 import type { AudioBufferLike } from '../src/common/editor/controller/source/source-audio.ts';
 import {
+	deriveEffectResultProvenance,
+	deriveSourceProvenanceForIds,
 	deriveSourceProvenance,
 	INCOMPLETE_DERIVED_ATTRIBUTION_WARNING,
 } from '../src/common/editor/source-provenance-derivation.ts';
+import { loadSourceProvenanceDerivation } from '../src/common/editor/source-provenance-derivation-loader.ts';
+import { createNonImportedSourceProvenance } from '../src/common/editor/source-provenance-root.ts';
 import {
 	createImportedSourceProvenance,
-	createNonImportedSourceProvenance,
 } from '../src/common/editor/source-provenance.ts';
+
+test('derived provenance runtime is deferred behind one cached module promise', async () => {
+	const first = loadSourceProvenanceDerivation();
+	assert.equal(loadSourceProvenanceDerivation(), first);
+	assert.equal((await first).deriveSourceProvenance, deriveSourceProvenance);
+});
 
 test('derived provenance merges and deduplicates every imported contribution', () => {
 	const first = importedProvenance('first', 'First.wav');
@@ -48,6 +57,66 @@ test('derived provenance durably warns when known attribution is mixed with an u
 		{ provenance: mixed },
 	]);
 	assert.deepEqual(recombined?.contributions[0]?.warnings, [INCOMPLETE_DERIVED_ATTRIBUTION_WARNING]);
+});
+
+test('render provenance selects only sources that materially overlap an effect target', () => {
+	const sources = [
+		{ id: 'before', provenance: importedProvenance('before', 'Before.wav') },
+		{ id: 'inside', provenance: importedProvenance('inside', 'Inside.wav') },
+		{ id: 'after', provenance: importedProvenance('after', 'After.wav') },
+	];
+	const project = {
+		sources,
+		tracks: [{ id: 'track', clipIds: ['before-clip', 'inside-clip', 'after-clip'] }],
+		clips: [
+			{ id: 'before-clip', sourceId: 'before', timelineStartFrame: 0, durationFrames: 10 },
+			{ id: 'inside-clip', sourceId: 'inside', timelineStartFrame: 10, durationFrames: 10 },
+			{ id: 'after-clip', sourceId: 'after', timelineStartFrame: 20, durationFrames: 10 },
+		],
+	};
+	const target = {
+		track: { id: 'track' }, startFrame: 10, endFrame: 20,
+	};
+
+	assert.deepEqual(deriveEffectResultProvenance(project, target)?.contributions
+		.map(({ id }) => id), ['inside']);
+	assert.deepEqual(deriveSourceProvenanceForIds(sources, ['after', 'before'])?.contributions
+		.map(({ id }) => id), ['before', 'after']);
+});
+
+test('derived provenance is detached, frozen and compares contribution metadata canonically', () => {
+	const first = structuredClone(importedProvenance('tracked', 'Tracked.wav'));
+	const contribution = first.contributions[0]!;
+	(contribution.metadata.raw as Record<string, unknown>).first = 1;
+	(contribution.metadata.raw as Record<string, unknown>).second = 2;
+	const reordered = structuredClone(first);
+	(reordered.contributions[0]!.metadata as { raw: Record<string, unknown> }).raw = { second: 2, first: 1 };
+
+	const derived = deriveSourceProvenance([{ provenance: first }, { provenance: reordered }]);
+	(contribution.metadata.raw as Record<string, unknown>).first = 9;
+
+	assert.equal(derived?.contributions[0]?.metadata.raw.first, 1);
+	assert.equal(Object.isFrozen(derived?.contributions[0]?.metadata.raw), true);
+	assert.throws(() => createNonImportedSourceProvenance('imported' as never), /recorded or generated/iu);
+});
+
+test('derived provenance preserves contribution and warning bounds across merged inputs', () => {
+	assert.throws(() => deriveSourceProvenance(Array.from({ length: 257 }, (_, index) => ({
+		provenance: importedProvenance(`source-${String(index)}`, `${String(index)}.wav`),
+	}))), /cannot exceed 256/iu);
+
+	const warnings = Array.from({ length: 256 }, (_, index) => `warning-${String(index)}`);
+	const first = createImportedSourceProvenance({
+		...importedContribution('same', 'Same.wav'),
+		warnings,
+	});
+	const second = createImportedSourceProvenance({
+		...importedContribution('same', 'Same.wav'),
+		warnings: ['one-more-warning'],
+	});
+	assert.throws(() => deriveSourceProvenance([
+		{ provenance: first }, { provenance: second },
+	]), /cannot exceed 256/iu);
 });
 
 test('derived-source persistence marks a one-input transformation as derived', async () => {
@@ -95,14 +164,18 @@ test('derived-source persistence marks a one-input transformation as derived', a
 });
 
 function importedProvenance(id: string, originalFileName: string) {
-	return createImportedSourceProvenance({
+	return createImportedSourceProvenance(importedContribution(id, originalFileName));
+}
+
+function importedContribution(id: string, originalFileName: string) {
+	return {
 		id,
 		origin: {
 			kind: 'local-file',
 			originalFileName,
 			mimeType: 'audio/wav',
 		},
-	});
+	};
 }
 
 function audioBuffer(channels: readonly Float32Array[]): AudioBufferLike {

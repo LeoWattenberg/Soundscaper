@@ -95,7 +95,6 @@ export interface EditorActionFunctions {
 	readonly exportVideo: ReturnType<typeof createTrackAudioComposition>['export']['exportVideo'];
 	readonly findClip: typeof findClip;
 	readonly findTrack: typeof findTrack;
-	readonly freesoundPreviewUrl: ReturnType<typeof createImportComposition>['freesound']['previewUrl'];
 	readonly flushProject: ReturnType<typeof createDocumentComposition>['mutation']['flushProject'];
 	readonly generateSelectionSilence: ReturnType<typeof createEditComposition>['generateSelectionSilence'];
 	readonly generateSignal: ReturnType<typeof createEditComposition>['generateSignal'];
@@ -112,7 +111,6 @@ export interface EditorActionFunctions {
 	readonly handleTransport: ReturnType<typeof createTransportComposition>['transport']['handleTransport'];
 	readonly hasMissingTimelineSources: ReturnType<typeof createSourceRuntimeComposition>['projectVisual']['hasMissingTimelineSources'];
 	readonly importEffectPresets: ReturnType<typeof createEffectsComposition>['controls']['importEffectPresets'];
-	readonly importFreesoundSound: ReturnType<typeof createImportComposition>['freesound']['importSound'];
 	readonly importFiles: ReturnType<typeof createImportComposition>['importFiles'];
 	readonly importLabelFile: ReturnType<typeof createEditComposition>['labels']['importLabelFile'];
 	readonly importCueFile: ReturnType<typeof createEditComposition>['labels']['importCueFile'];
@@ -187,7 +185,6 @@ export interface EditorActionFunctions {
 	readonly saveEffectPreset: ReturnType<typeof createEffectsComposition>['controls']['saveEffectPreset'];
 	readonly saveNow: ReturnType<typeof createDocumentComposition>['mutation']['saveNow'];
 	readonly saveScape: ReturnType<typeof createNativeProjectService>['saveScape'];
-	readonly searchFreesoundSounds: ReturnType<typeof createImportComposition>['freesound']['search'];
 	readonly scheduleTimedRecording: ReturnType<typeof createRecordingComposition>['timed']['scheduleTimedRecording'];
 	readonly selectAllTracks: ReturnType<typeof createTrackAudioComposition>['selectionView']['selectAllTracks'];
 	readonly selectAtZeroCrossings: ReturnType<typeof createTrackAudioComposition>['selectionView']['selectAtZeroCrossings'];

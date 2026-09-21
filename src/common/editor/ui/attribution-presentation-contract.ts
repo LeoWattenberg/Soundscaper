@@ -9,6 +9,7 @@ export interface AttributionMetadataPresentation {
 export interface AttributionSourcePresentation {
 	readonly key: string;
 	readonly name: string;
+	readonly modified?: boolean;
 	readonly url?: string;
 	readonly creator?: string;
 	readonly creatorUrl?: string;
@@ -21,6 +22,8 @@ export interface AttributionOccurrencePresentation {
 	readonly key: string;
 	readonly clipName: string;
 	readonly trackName: string;
+	readonly sequenceId?: string;
+	readonly sequenceName?: string;
 	readonly useTimeLabel: string;
 	readonly projectBin?: boolean;
 	readonly sources: readonly AttributionSourcePresentation[];

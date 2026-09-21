@@ -18,7 +18,6 @@ import {
 import { normalizeVideoEffects } from './video-effects.js';
 import { validateVideoTrackComposition } from './video-timeline.js';
 import { hasCoreEditingProjectAuthority } from './project-schema-version.ts';
-import { validateSourceProvenance } from './source-provenance.ts';
 
 const SAMPLE_FORMATS = new Set(['int16', 'int24', 'int32', 'float32', 'float64', 'unknown']);
 const DISPLAY_MODES = new Set(['waveform', 'spectrogram', 'multiview', 'half-wave']);
@@ -68,7 +67,7 @@ function validateSource(source: ProjectDataRecord, foundation: boolean): void {
 	projectString(source.storageKey, `source ${String(source.id)}.storageKey`);
 	projectSafeInteger(source.sampleRate, 1, `source ${String(source.id)}.sampleRate`);
 	if (Object.hasOwn(source, 'provenance')) {
-		validateSourceProvenance(source.provenance, `source ${String(source.id)}.provenance`);
+		validateSourceProvenanceEnvelope(source.provenance, `source ${String(source.id)}.provenance`);
 	}
 	if (source.kind === 'audio') {
 		projectSafeInteger(source.frameCount, 1, `source ${String(source.id)}.frameCount`);
@@ -94,6 +93,23 @@ function validateSource(source: ProjectDataRecord, foundation: boolean): void {
 	projectBoolean(source.hasAudio, `source ${String(source.id)}.hasAudio`);
 	optionalString(source.posterStorageKey, `source ${String(source.id)}.posterStorageKey`);
 	optionalString(source.thumbnailStorageKey, `source ${String(source.id)}.thumbnailStorageKey`);
+}
+
+/** Keep project admission structural; attribution consumers perform the deferred semantic validation. */
+function validateSourceProvenanceEnvelope(value: unknown, name: string): void {
+	const input = projectRecord(value, name);
+	const classification = String(input.classification);
+	const contributions = projectArray(input.contributions, `${name}.contributions`);
+	if (
+		input.schemaVersion !== 1
+		|| Object.keys(input).sort().join() !== 'classification,contributions,schemaVersion'
+		|| !['imported', 'derived', 'recorded', 'generated'].includes(classification)
+		|| contributions.length > 256
+		|| (classification === 'imported' && contributions.length === 0)
+		|| (['recorded', 'generated'].includes(classification) && contributions.length !== 0)
+	) {
+		throw new RangeError(`${name}.schemaVersion or structure is invalid.`);
+	}
 }
 
 function validateClip(clip: ProjectDataRecord, inProjectBin: boolean, foundation: boolean): void {

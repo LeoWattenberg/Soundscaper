@@ -34,8 +34,6 @@ export interface ControllerOptions extends ControllerResourceOptions, Controller
 	readonly productVideoExportStrategy?: import('../export/product-video-export-strategy.ts').ProductVideoExportStrategy;
 	readonly productId?: string;
 	readonly product?: Readonly<{ id: string }>;
-	readonly freesoundFetch?: typeof fetch;
-	readonly freesoundApiBaseUrl?: string;
 	readonly locale?: string;
 	readonly headless?: boolean;
 	readonly copy?: Readonly<Record<string, string>>;

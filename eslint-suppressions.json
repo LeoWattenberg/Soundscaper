@@ -448,11 +448,6 @@
       "count": 1
     }
   },
-  "src/common/editor/controller/import/internal/project-import-service.ts": {
-    "preserve-caught-error": {
-      "count": 1
-    }
-  },
   "src/common/editor/controller/import/prepared-project-sources.ts": {
     "preserve-caught-error": {
       "count": 1

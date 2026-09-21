@@ -29,7 +29,6 @@ import type {
 	VideoTrackLeaf,
 } from './project-media-types.ts';
 import { createStableId } from './stable-id.js';
-import { normalizeSourceProvenance } from './source-provenance.ts';
 import {
 	addRationals,
 	beatToSampleFrame,
@@ -87,7 +86,7 @@ export function createAudioSource<const Options extends MediaFactoryInput = Medi
 	return {
 		...clone(options),
 		...createFoundationAudioSource(options),
-		kind: 'audio', ...(Object.hasOwn(options, 'provenance') ? { provenance: normalizeSourceProvenance(options.provenance) } : {}),
+		kind: 'audio',
 	} as MediaFactoryResult<Options, AudioSourceLeaf>;
 }
 
@@ -134,7 +133,7 @@ export function createVideoSource<const Options extends MediaFactoryInput = Medi
 		frameRate,
 		sourceFrameCount,
 		timingAsset,
-		timingDecision, ...(Object.hasOwn(options, 'provenance') ? { provenance: normalizeSourceProvenance(options.provenance) } : {}),
+		timingDecision,
 	};
 	delete result.frameCount;
 	return result as MediaFactoryResult<Options, VideoSourceLeaf>;

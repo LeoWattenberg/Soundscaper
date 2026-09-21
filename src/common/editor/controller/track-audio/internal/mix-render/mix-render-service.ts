@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { publishedCopyFor } from '../../../shared/presentation-localization.ts'; import { findStereoLimitedMultichannelRenderEffects } from '../../../../adm-render-safety.ts'; import { createLocalizedError, setLocalizedStatus } from '../../../../../i18n/presentation-message.ts';
-import { deriveSourceProvenance } from '../../../../source-provenance-derivation.ts';
+import { loadSourceProvenanceDerivation } from '../../../../source-provenance-derivation-loader.ts';
 import type { SourceProvenanceV1 } from '../../../../source-provenance.ts';
 import {
 	hasCoreEditingProjectAuthority,
@@ -152,7 +152,6 @@ interface MixRenderJob {
 	readonly plan: NonNullable<ReturnType<typeof createMixRenderPlan>>;
 	readonly name: string;
 	readonly sourceName: string;
-	readonly provenance?: SourceProvenanceV1;
 }
 
 export function createMixRenderService(
@@ -192,11 +191,14 @@ export function createMixRenderService(
 		try {
 			await dependencies.preflightStorage(outputBytes, 'effect');
 			assertOwned(ownership);
+			const { deriveSourceProvenance } = await loadSourceProvenanceDerivation();
+			assertOwned(ownership);
 			for (const job of jobs) {
+				const provenance = deriveSourceProvenance(job.renderProject.sources);
 				let renderedSource: DerivedSourceRecord;
 				if (job.plan.streamToStorage) {
 					renderedSource = await persistStreamedMixSource(
-						job.renderProject, job.sourceName, job.plan, ownership,
+						job.renderProject, job.sourceName, job.plan, ownership, provenance,
 					);
 				} else {
 					const rendered = await dependencies.renderSnapshot(job.renderProject, {
@@ -214,7 +216,7 @@ export function createMixRenderService(
 						rendered, job.plan.outputChannelCount, job.plan.outputFrames, ownership,
 					);
 					renderedSource = await dependencies.derivedSources.persistRenderedMixSource(
-						normalized, job.sourceName, job.provenance,
+						normalized, job.sourceName, provenance,
 					);
 				}
 				renderedSources.push(renderedSource);
@@ -306,7 +308,6 @@ export function createMixRenderService(
 				name,
 				sourceName: `${name} — ${dependencies.copy.mixRender
 					|| dependencies.copy.mixdownTo || 'Mix and render'}.wav`,
-				provenance: deriveSourceProvenance(renderProject.sources),
 			});
 		});
 	}
@@ -351,9 +352,9 @@ export function createMixRenderService(
 			outputChannelCount: number;
 		}>,
 		ownership: MixOwnership,
+		provenance?: SourceProvenanceV1,
 	): Promise<DerivedSourceRecord> {
 		const sampleRate = project.sampleRate;
-		const provenance = deriveSourceProvenance(project.sources);
 		const sourceId = dependencies.createId('mixed-source');
 		const renderEngine = dependencies.createRenderEngine();
 		let rawWriter: SourceWriter | null = null;

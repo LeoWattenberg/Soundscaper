@@ -3,7 +3,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { auditEditorCopySource, auditEditorCopyTree } from '../scripts/lib/editor-copy-audit.mjs';
-import { EDITOR_ENGLISH_COPY } from '../src/common/i18n/editor-copy-inventory.ts';
+import { EDITOR_COPY_AUDIT_INVENTORY } from '../scripts/lib/editor-copy-audit-inventory.mjs';
 
 test('editor copy audit detects unregistered fallbacks, reads and accessible prose', () => {
 	const issues = auditEditorCopySource('Fixture.tsx', `
@@ -19,8 +19,8 @@ test('editor copy audit detects unregistered fallbacks, reads and accessible pro
 	`, { label: 'Label', 'ui.owner.scoped': 'Scoped' }), []);
 });
 
-test('both editor products expose authored UI copy through the source inventory', async () => {
-	assert.deepEqual(await auditEditorCopyTree('src/common/editor/ui', EDITOR_ENGLISH_COPY), []);
+test('both editor products expose authored UI copy through eager or lazy owned inventories', async () => {
+	assert.deepEqual(await auditEditorCopyTree('src/common/editor/ui', EDITOR_COPY_AUDIT_INVENTORY), []);
 });
 
 test('local dictionaries and conditional JSX prose cannot bypass source ownership', () => {

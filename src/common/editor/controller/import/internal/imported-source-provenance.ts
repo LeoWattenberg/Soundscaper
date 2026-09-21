@@ -34,11 +34,14 @@ export async function prepareImportedSourceProvenance(
 	options: PrepareImportedSourceProvenanceOptions,
 ): Promise<SourceProvenanceV1> {
 	options.signal?.throwIfAborted();
+	const existing = options.existing
+		? normalizeSourceProvenance(options.existing, 'import source provenance')
+		: undefined;
 	const inspected = await (options.inspectMetadata ?? inspectImportedMediaMetadata)(file, {
 		...(options.signal ? { signal: options.signal } : {}),
 	});
 	options.signal?.throwIfAborted();
-	if (options.existing) return enrichExistingProvenance(options.existing, inspected);
+	if (existing) return enrichExistingProvenance(existing, inspected);
 	return createImportedSourceProvenance({
 		id: options.createContributionId(),
 		origin: {

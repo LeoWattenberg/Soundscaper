@@ -32,6 +32,7 @@ export const OLD_BINDING = Object.freeze({
 
 export interface HarnessOptions {
 	readonly missing?: boolean;
+	readonly attributedSourceIds?: readonly string[];
 	readonly editingBlocked?: () => boolean;
 	readonly activate?: ProjectBinLinkedVideoRelinkDependencies['activateVideoSource'];
 	readonly admitCandidate?: ProjectBinLinkedVideoRelinkDependencies['admitChangedContentCandidate'];
@@ -45,7 +46,7 @@ export interface HarnessOptions {
 export function createHarness(options: HarnessOptions = {}) {
 	const lifetime = new EditorControllerLifetime();
 	const projectGeneration = new EditorProjectGeneration();
-	const project = projectFixture();
+	const project = projectFixture(new Set(options.attributedSourceIds ?? []));
 	projectGeneration.activate(project.id);
 	const missingSourceIds = new Set(options.missing === false ? [] : ['video-source']);
 	const order: string[] = [];
@@ -132,26 +133,32 @@ export function createHarness(options: HarnessOptions = {}) {
 	};
 }
 
-function projectFixture() {
+function projectFixture(attributedSourceIds: ReadonlySet<string>) {
+	const source = <Value extends Readonly<{ id: string }>>(value: Value) => Object.freeze({
+		...value,
+		...(attributedSourceIds.has(value.id)
+			? { provenance: Object.freeze({ schemaVersion: 1 }) }
+			: {}),
+	});
 	return Object.freeze({
 		schemaVersion: 9,
 		id: 'project-bin-relink-project',
 		sampleRate: 48_000,
 		sources: Object.freeze([
-			Object.freeze({ id: 'audio-source', kind: 'audio' as const, frameCount: 48_000 }),
-			Object.freeze({
+			source({ id: 'audio-source', kind: 'audio' as const, frameCount: 48_000 }),
+			source({
 				id: 'video-source', kind: 'video' as const, storageKey: 'video-storage',
 				mimeType: 'video/mp4', sampleFrameCount: 48_000, sampleRate: 48_000,
 				width: 1_920, height: 1_080, frameRate: 30,
 				videoCodec: 'h264', audioCodec: null, hasAudio: false,
 			}),
-			Object.freeze({
+			source({
 				id: 'video-solo-source', kind: 'video' as const, storageKey: 'video-solo-storage',
 				mimeType: 'video/mp4', sampleFrameCount: 24_000, sampleRate: 48_000,
 				width: 1_280, height: 720, frameRate: 30,
 				videoCodec: 'h264', audioCodec: null, hasAudio: false,
 			}),
-			Object.freeze({
+			source({
 				id: 'video-audible-source', kind: 'video' as const, storageKey: 'video-audible-storage',
 				mimeType: 'video/mp4', sampleFrameCount: 24_000, sampleRate: 48_000,
 				width: 1_280, height: 720, frameRate: 30,

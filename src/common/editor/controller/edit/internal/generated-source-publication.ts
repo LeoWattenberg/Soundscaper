@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import type { AudioBufferLike } from '../../source/source-audio.ts';
-import { createNonImportedSourceProvenance } from '../../../source-provenance.ts';
+import { createNonImportedSourceProvenance } from '../../../source-provenance-root.ts';
 import type { AudioGeneratorStore, AudioGeneratorWriter } from '../generator-service.ts';
 
 export type GeneratedAudioSource = Readonly<Record<string, unknown>> & Readonly<{

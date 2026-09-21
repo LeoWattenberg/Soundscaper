@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import type { FramescaperCaptureStreamManifestV1 } from '../../../framescaper-capture-session-manifest.ts';
-import { createNonImportedSourceProvenance } from '../../../source-provenance.ts';
+import { createNonImportedSourceProvenance } from '../../../source-provenance-root.ts';
 import type { RawPcmSpoolRecord } from '../../../storage/raw-pcm-spool-repository.ts';
 
 /** Materialize the immutable source descriptor for a canonical capture PCM spool. */

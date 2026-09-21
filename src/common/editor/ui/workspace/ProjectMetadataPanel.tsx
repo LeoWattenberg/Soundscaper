@@ -1,15 +1,13 @@
 import { Suspense, useState } from 'react';
 
-import type {
-	AttributionCsvFileService,
-	AttributionReportPresentation,
-} from '../attribution-presentation-contract.ts';
+import type { AttributionCsvFileService } from '../attribution-presentation-contract.ts';
 import AdmMetadataFields from '../AdmMetadataFields.tsx';
 import BextMetadataFields from '../BextMetadataFields.tsx';
 import MetadataEditorTabs, { type MetadataEditorTab } from '../MetadataEditorTabs.tsx';
 import { createProjectAdmEditorValue } from '../adm-metadata-editor-model.ts';
 import { createBextMetadataEditorValue } from '../bext-metadata-editor-model.ts';
 import { lazyEditorModule } from '../../../offline/lazy-module.tsx';
+import { freesoundAttributionCopy } from '../../../i18n/freesound-attribution-copy.js';
 import { MetadataEditorField } from './LabelManagerRows.jsx';
 
 const ProjectAttributionTab = lazyEditorModule(() => import('./ProjectAttributionTab.tsx'));
@@ -22,8 +20,6 @@ export interface ProjectMetadataPanelProps {
 	readonly onUpdate: (changes: Readonly<Record<string, unknown>>) => void;
 	readonly fileService?: AttributionCsvFileService | null;
 	readonly run?: (operation: () => unknown) => unknown;
-	readonly attributionReport?: AttributionReportPresentation | null;
-	readonly onExportAttributionCsv?: () => void;
 }
 
 function objectValue(value: unknown): Readonly<Record<string, unknown>> {
@@ -40,16 +36,13 @@ export function ProjectMetadataPanel({
 	onUpdate,
 	fileService,
 	run,
-	attributionReport,
-	onExportAttributionCsv,
 }: ProjectMetadataPanelProps) {
 	const [activeTab, setActiveTab] = useState<MetadataEditorTab>('general');
 	const metadata = objectValue(project?.metadata);
 	const tags = objectValue(metadata.tags);
 	const bext = createBextMetadataEditorValue(project);
 	const adm = createProjectAdmEditorValue(project);
-	const attributionTabLabel = copy['ui.freesoundAttribution.metadataTab']
-		|| copy.metadataTab;
+	const attributionTabLabel = freesoundAttributionCopy(locale, copy).metadataTab;
 	const fields = [
 		['title', copy.metadataTitle],
 		['artist', copy.metadataArtist],
@@ -66,6 +59,7 @@ export function ProjectMetadataPanel({
 				showBext
 				showAdm
 				showAttribution
+				attributionLabel={attributionTabLabel}
 				copy={copy}
 				onChange={setActiveTab}
 			/>
@@ -126,8 +120,6 @@ export function ProjectMetadataPanel({
 							locale={locale}
 							fileService={fileService}
 							run={run}
-							report={attributionReport}
-							onExportCsv={onExportAttributionCsv}
 						/>
 					</Suspense>
 				)}

@@ -2,6 +2,8 @@
 
 export const SOURCE_PROVENANCE_SCHEMA_VERSION = 1;
 
+export { createNonImportedSourceProvenance } from './source-provenance-root.ts';
+
 export const SOURCE_PROVENANCE_LIMITS = Object.freeze({
 	maximumContributions: 256,
 	maximumAttachments: 256,
@@ -30,6 +32,7 @@ export interface SourceMetadataV1 {
 
 export interface SourceMetadataAttachmentV1 {
 	readonly path: string;
+	readonly kind?: string;
 	readonly name?: string;
 	readonly mimeType?: string;
 	readonly description?: string;
@@ -93,16 +96,6 @@ export function createImportedSourceProvenance(contribution: unknown): SourcePro
 		schemaVersion: SOURCE_PROVENANCE_SCHEMA_VERSION,
 		classification: 'imported',
 		contributions: [contribution],
-	});
-}
-
-export function createNonImportedSourceProvenance(
-	classification: 'recorded' | 'generated',
-): SourceProvenanceV1 {
-	return normalizeSourceProvenance({
-		schemaVersion: SOURCE_PROVENANCE_SCHEMA_VERSION,
-		classification,
-		contributions: [],
 	});
 }
 
@@ -203,7 +196,15 @@ export function mergeSourceProvenance(
 
 function canonicalContributionWithoutWarnings(contribution: SourceAttributionContributionV1): string {
 	const { warnings: _warnings, ...value } = contribution;
-	return JSON.stringify(value);
+	return canonicalJson(value);
+}
+
+function canonicalJson(value: unknown): string {
+	if (Array.isArray(value)) return `[${value.map(canonicalJson).join(',')}]`;
+	if (!value || typeof value !== 'object') return JSON.stringify(value);
+	return `{${Object.entries(value).sort(([left], [right]) => (
+		left < right ? -1 : left > right ? 1 : 0
+	)).map(([key, entry]) => `${JSON.stringify(key)}:${canonicalJson(entry)}`).join(',')}}`;
 }
 
 function normalizeContribution(value: unknown, name: string): SourceAttributionContributionV1 {
@@ -384,12 +385,15 @@ function metadataValue(
 
 function normalizeAttachment(value: unknown, name: string): SourceMetadataAttachmentV1 {
 	const input = closedRecord(value, name, [
-		'path', 'name', 'mimeType', 'description', 'byteLength', 'sha256',
+		'path', 'kind', 'name', 'mimeType', 'description', 'byteLength', 'sha256',
 	]);
 	const digest = boundedString(input.sha256, `${name}.sha256`, 64).toLowerCase();
 	if (!SHA256.test(digest)) throw new TypeError(`${name}.sha256 must be a lowercase SHA-256 digest.`);
 	return Object.freeze({
 		path: boundedString(input.path, `${name}.path`, 1_024),
+		...(Object.hasOwn(input, 'kind') ? {
+			kind: boundedString(input.kind, `${name}.kind`, SOURCE_PROVENANCE_LIMITS.maximumKeyCodeUnits),
+		} : {}),
 		...(Object.hasOwn(input, 'name') ? {
 			name: boundedString(input.name, `${name}.name`, SOURCE_PROVENANCE_LIMITS.maximumStringCodeUnits),
 		} : {}),
@@ -425,8 +429,10 @@ function dataRecord(value: unknown, name: string): DataRecord {
 	if (prototype !== Object.prototype && prototype !== null) {
 		throw new TypeError(`${name} must be a plain JSON-compatible object.`);
 	}
-	for (const [key, descriptor] of Object.entries(Object.getOwnPropertyDescriptors(value))) {
-		if (!descriptor.enumerable || !Object.hasOwn(descriptor, 'value')) {
+	for (const key of Reflect.ownKeys(value)) {
+		if (typeof key !== 'string') throw new TypeError(`${name} must not contain symbol keys.`);
+		const descriptor = Object.getOwnPropertyDescriptor(value, key);
+		if (!descriptor?.enumerable || !Object.hasOwn(descriptor, 'value')) {
 			throw new TypeError(`${name}.${key} must be an enumerable data property.`);
 		}
 	}
@@ -435,8 +441,14 @@ function dataRecord(value: unknown, name: string): DataRecord {
 
 function denseArray(value: unknown, name: string): readonly unknown[] {
 	if (!Array.isArray(value)) throw new TypeError(`${name} must be an array.`);
+	if (Reflect.ownKeys(value).length !== value.length + 1) {
+		throw new TypeError(`${name} must contain only dense indexed data.`);
+	}
 	for (let index = 0; index < value.length; index += 1) {
-		if (!Object.hasOwn(value, index)) throw new TypeError(`${name} must be dense.`);
+		const descriptor = Object.getOwnPropertyDescriptor(value, String(index));
+		if (!descriptor?.enumerable || !Object.hasOwn(descriptor, 'value')) {
+			throw new TypeError(`${name} must contain enumerable dense data properties.`);
+		}
 	}
 	return value;
 }

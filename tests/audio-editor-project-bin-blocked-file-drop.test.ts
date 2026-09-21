@@ -94,7 +94,7 @@ test('an unblocked Project Bin accepts a strict Freesound result drag', async ()
 	try {
 		const drag = dragEvent({
 			types: [AUDIO_EDITOR_FREESOUND_RESULT_DRAG_TYPE],
-			data: '{"schemaVersion":1,"soundId":42}',
+			data: '42',
 		});
 		await bin.deliver('onDragOver', drag);
 		assert.equal(drag.defaultPrevented, true);

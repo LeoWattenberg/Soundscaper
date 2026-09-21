@@ -1,9 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import {
-	normalizeSourceProvenance,
-	type SourceProvenanceV1,
-} from '../../../source-provenance.ts';
+import type { SourceProvenanceV1 } from '../../../source-provenance.ts';
 
 type ImportOptionsRecord = Record<string, unknown>;
 
@@ -64,51 +61,12 @@ export function normalizeProjectImportOptions(
 			? { trackIndex: candidate.trackIndex } : {}),
 		...normalizeLinkedOriginalImportLocator(candidate),
 		...(candidate.sourceProvenance == null ? {} : {
-			sourceProvenance: normalizeSourceProvenance(
-				candidate.sourceProvenance,
-				'import options.sourceProvenance',
-			),
+			// The import's already-deferred attribution admission validates and
+			// canonicalizes this value before any project mutation.
+			sourceProvenance: candidate.sourceProvenance as SourceProvenanceV1,
 		}),
 		...(candidate.signal instanceof AbortSignal ? { signal: candidate.signal } : {}),
 	}, timelineStartExplicit);
-}
-
-export async function normalizeProjectImportOptionsForUse(
-	value: unknown,
-	timelineFramesFinite: string,
-	releaseLocator: (reference: LinkedOriginalImportLocatorReference) => PromiseLike<unknown> | unknown,
-): Promise<Readonly<NormalizedProjectImportOptions>> {
-	try {
-		if (isNormalizedProjectImportOptions(value)) {
-			normalizeLinkedOriginalImportLocator(optionRecord(value));
-			return value;
-		}
-		return normalizeProjectImportOptions(value, timelineFramesFinite);
-	} catch (error) {
-		const locatorReferences = linkedOriginalLocatorReferencesFromImportOptions(value);
-		if (locatorReferences.length) {
-			const cleanupErrors: unknown[] = [];
-			try {
-				for (const reference of locatorReferences) {
-					try {
-						await releaseLocator(reference);
-					} catch (cleanupError) {
-						cleanupErrors.push(cleanupError);
-					}
-				}
-			} catch (cleanupError) {
-				cleanupErrors.push(cleanupError);
-			}
-			if (cleanupErrors.length) {
-				throw new AggregateError(
-					[error, ...cleanupErrors],
-					'Import option validation and linked-original locator cleanup both failed.',
-					{ cause: error },
-				);
-			}
-		}
-		throw error;
-	}
 }
 
 export function freezeProjectImportOptions(
@@ -137,7 +95,7 @@ export function normalizeProjectImportTimelineStartFrame(
 	return rounded;
 }
 
-function normalizeLinkedOriginalImportLocator(candidate: ImportOptionsRecord): ImportOptionsRecord {
+export function normalizeLinkedOriginalImportLocator(candidate: ImportOptionsRecord): ImportOptionsRecord {
 	const audio = normalizeLinkedImportLocator(candidate, 'audio');
 	const video = normalizeLinkedImportLocator(candidate, 'video');
 	if (audio && video) {
@@ -169,7 +127,7 @@ export function linkedOriginalLocatorReferenceFromImportOptions(
 	return references.length === 1 ? references[0] ?? null : null;
 }
 
-function linkedOriginalLocatorReferencesFromImportOptions(
+export function linkedOriginalLocatorReferencesFromImportOptions(
 	value: unknown,
 ): readonly Readonly<LinkedOriginalImportLocatorReference>[] {
 	return [
@@ -223,11 +181,11 @@ function opaqueLocatorToken(value: unknown): value is string {
 	return typeof value === 'string' && OPAQUE_LINKED_ORIGINAL_LOCATOR_PATTERN.test(value);
 }
 
-function isNormalizedProjectImportOptions(value: unknown): value is Readonly<NormalizedProjectImportOptions> {
+export function isNormalizedProjectImportOptions(value: unknown): value is Readonly<NormalizedProjectImportOptions> {
 	return Boolean(value && typeof value === 'object' && NORMALIZED_PROJECT_IMPORT_OPTIONS.has(value));
 }
 
-function optionRecord(value: unknown): ImportOptionsRecord {
+export function optionRecord(value: unknown): ImportOptionsRecord {
 	return value && typeof value === 'object' ? value as ImportOptionsRecord : {};
 }
 

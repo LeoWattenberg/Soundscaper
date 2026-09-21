@@ -45,13 +45,16 @@ const FRAMESCAPER_BUILD = typeof __SCAPE_PRODUCT__ === 'undefined'
 	|| __SCAPE_PRODUCT__ === 'framescaper';
 const SOUNDSCAPER_BUILD = typeof __SCAPE_PRODUCT__ === 'undefined'
 	|| __SCAPE_PRODUCT__ === 'soundscaper';
-const FreesoundPanelContainer = SOUNDSCAPER_BUILD
-	? lazyEditorModule(() => import('./FreesoundPanelContainer.tsx')) : null;
-const ProjectMetadataPanel = lazyEditorModule(() => import('./ProjectMetadataPanel.tsx'));
-const RecordingSetupPanel = FRAMESCAPER_BUILD
-	? lazyEditorModule(() => import('./RecordingSetupPanel.tsx')) : null;
-const WebVcrPanel = FRAMESCAPER_BUILD
-	? lazyEditorModule(() => import('./WebVcrPanel.tsx')) : null;
+const DEFERRED_WORKSPACE_PANELS = Object.freeze({
+	metadata: lazyEditorModule(() => import('./ProjectMetadataPanel.tsx')),
+	...(FRAMESCAPER_BUILD ? {
+		'recording-setup': lazyEditorModule(() => import('./RecordingSetupPanel.tsx')),
+		'web-vcr': lazyEditorModule(() => import('./WebVcrPanel.tsx')),
+	} : {}),
+	...(SOUNDSCAPER_BUILD ? {
+		freesound: lazyEditorModule(() => import('./FreesoundPanelContainer.tsx')),
+	} : {}),
+});
 
 function LazyInspectorFallback({ copy }) {
 	return <div className="audio-editor-timeline-loading" role="status" aria-live="polite">{copy.loading}</div>;
@@ -77,11 +80,33 @@ export default function WorkspacePanelContent({
 	onRoutingParameterGesture = /** @type {import('./soundscaper-routing-graph-gesture.ts').SoundscaperRoutingParameterGestureHandler | undefined} */ (undefined),
 	effectsPanelTarget,
 	onEffectWindowChange,
-	attributionReport = null,
-	onExportAttributionCsv = undefined,
 	blocked,
 }) {
 	const project = snapshot.project;
+	const DeferredWorkspacePanel = Object.hasOwn(DEFERRED_WORKSPACE_PANELS, panelId)
+		? DEFERRED_WORKSPACE_PANELS[panelId]
+		: null;
+	if (DeferredWorkspacePanel) {
+		return (
+			<React.Suspense fallback={<LazyInspectorFallback copy={copy} />}>
+				<DeferredWorkspacePanel
+					controller={controller}
+					snapshot={snapshot}
+					copy={copy}
+					locale={locale}
+					fileService={fileService}
+					run={run}
+					blocked={blocked}
+					panelActive={panelActive}
+					project={project}
+					disabled={panelId === 'freesound'
+						? Boolean(snapshot.readOnly || blocked)
+						: snapshot.readOnly}
+					onUpdate={(changes) => run(() => controller.actions.metadata.update(changes))}
+				/>
+			</React.Suspense>
+		);
+	}
 	if (panelId === 'project-bin') {
 		return (
 			<ProjectBinPanel
@@ -107,40 +132,6 @@ export default function WorkspacePanelContent({
 				run={run}
 				blocked={blocked}
 			/>
-		);
-	}
-	if (FRAMESCAPER_BUILD && panelId === 'recording-setup') {
-		return (
-			<React.Suspense fallback={<LazyInspectorFallback copy={copy} />}>
-				<RecordingSetupPanel
-					controller={controller}
-					snapshot={snapshot}
-					copy={copy}
-					locale={locale}
-					run={run}
-					blocked={blocked}
-				/>
-			</React.Suspense>
-		);
-	}
-	if (FRAMESCAPER_BUILD && panelId === 'web-vcr') {
-		return (
-			<React.Suspense fallback={<LazyInspectorFallback copy={copy} />}>
-				<WebVcrPanel controller={controller} snapshot={snapshot} copy={copy} run={run} blocked={blocked} />
-			</React.Suspense>
-		);
-	}
-	if (SOUNDSCAPER_BUILD && panelId === 'freesound' && FreesoundPanelContainer) {
-		return (
-			<React.Suspense fallback={<LazyInspectorFallback copy={copy} />}>
-				<FreesoundPanelContainer
-					controller={controller}
-					snapshot={snapshot}
-					copy={copy}
-					panelActive={panelActive}
-					disabled={Boolean(snapshot.readOnly || blocked)}
-				/>
-			</React.Suspense>
 		);
 	}
 	const analysisMode = Object.entries(ANALYSIS_MODE_PANEL_IDS)
@@ -233,23 +224,6 @@ export default function WorkspacePanelContent({
 				locale={locale}
 				run={run}
 			/>
-		);
-	}
-	if (panelId === 'metadata') {
-		return (
-			<React.Suspense fallback={<LazyInspectorFallback copy={copy} />}>
-				<ProjectMetadataPanel
-					project={project}
-					copy={copy}
-					locale={locale}
-					disabled={snapshot.readOnly}
-					onUpdate={(changes) => run(() => controller.actions.metadata.update(changes))}
-					fileService={fileService}
-					run={run}
-					attributionReport={attributionReport}
-					onExportAttributionCsv={onExportAttributionCsv}
-				/>
-			</React.Suspense>
 		);
 	}
 	if (panelId === 'effects') {

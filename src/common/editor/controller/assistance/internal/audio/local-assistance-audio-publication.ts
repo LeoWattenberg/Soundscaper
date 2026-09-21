@@ -18,10 +18,8 @@ import {
 	createAudioSource,
 	createAudioTrack,
 } from '../../../../project-media-factory.ts';
-import {
-	deriveSourceProvenance,
-	type SourceProvenanceCarrier,
-} from '../../../../source-provenance-derivation.ts';
+import type { SourceProvenanceCarrier } from '../../../../source-provenance-derivation.ts';
+import { loadSourceProvenanceDerivation } from '../../../../source-provenance-derivation-loader.ts';
 import { streamWavBlobPcm } from '../../../../wav-import.js';
 import {
 	assertLocalAssistanceAudioResultCurrent,
@@ -31,6 +29,8 @@ import {
 	type LocalAssistanceAudioReviewedOutput,
 	type NormalizedLocalAssistanceAudioResult,
 } from './local-assistance-audio-result-custody.ts';
+
+type DeriveSourceProvenance = typeof import('../../../../source-provenance-derivation.ts')['deriveSourceProvenance'];
 
 type Awaitable<Value> = PromiseLike<Value> | Value;
 type DataRecord = Readonly<Record<string, unknown>>;
@@ -132,7 +132,12 @@ export function createLocalAssistanceAudioPublicationAcceptance(
 		await dependencies.preflightStorage(rawPcmBytes, 'effect');
 		assertLocalAssistanceAudioResultCurrent(value, result);
 		assertAuthorityCurrent(dependencies, result, initial);
-		const plans = createPublicationPlans(dependencies, result, initial);
+		const { deriveSourceProvenance } = await loadSourceProvenanceDerivation();
+		assertLocalAssistanceAudioResultCurrent(value, result);
+		assertAuthorityCurrent(dependencies, result, initial);
+		const plans = createPublicationPlans(
+			dependencies, result, initial, deriveSourceProvenance,
+		);
 		const publishedIds: string[] = [];
 		try {
 			for (const plan of plans) {
@@ -158,6 +163,7 @@ function createPublicationPlans(
 	dependencies: LocalAssistanceAudioPublicationDependencies,
 	result: NormalizedLocalAssistanceAudioResult,
 	authority: NormalizedAuthority,
+	deriveSourceProvenance: DeriveSourceProvenance,
 ): readonly PublicationPlan[] {
 	const provenance = deriveSourceProvenance([
 		authority.source as SourceProvenanceCarrier,

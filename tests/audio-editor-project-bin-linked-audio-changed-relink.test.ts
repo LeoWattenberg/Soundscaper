@@ -8,6 +8,7 @@ import {
 	changedAudioFile,
 	createHarness,
 	FIRST_LOCATOR,
+	projectFixture,
 } from './helpers/project-bin-audio-relink-harness.ts';
 
 test('linked-audio relink classification distinguishes exact and changed content', async () => {
@@ -45,6 +46,36 @@ test('changed-content linked-audio relink requires explicit confirmation before 
 	assert.deepEqual(fixture.order, ['binding', 'release']);
 	assert.deepEqual(fixture.releases, [{ kind: 'audio', ...FIRST_LOCATOR }]);
 	assert.equal(fixture.publishCount, 0);
+});
+
+test('changed-content linked-audio relink cannot retain attribution for different bytes', async () => {
+	const project = attributedProject();
+	const classification = createHarness({ missing: false, project });
+	assert.equal(
+		await classification.service.classifyLinkedAudioRelink('bin-audio', audioFile()),
+		'exact-content',
+	);
+	await assert.rejects(
+		classification.service.classifyLinkedAudioRelink('bin-audio', changedAudioFile()),
+		/import.*new media.*attribution/iu,
+	);
+	assert.deepEqual(classification.order, ['binding', 'binding']);
+
+	const exact = createHarness({ missing: false, project });
+	assert.equal(
+		await exact.service.relinkLinkedAudio('bin-audio', audioFile(), FIRST_LOCATOR),
+		'audio-source',
+	);
+
+	const replacement = createHarness({ missing: false, project });
+	await assert.rejects(
+		replacement.service.relinkLinkedAudio('bin-audio', changedAudioFile(), FIRST_LOCATOR, {
+			allowChangedContent: true,
+		}),
+		/import.*new media.*attribution/iu,
+	);
+	assert.deepEqual(replacement.order, ['binding', 'release']);
+	assert.deepEqual(replacement.releases, [{ kind: 'audio', ...FIRST_LOCATOR }]);
 });
 
 test('authorized changed-content linked-audio relink probes before quiescence and publishes its admission', async () => {
@@ -98,3 +129,13 @@ test('linked-audio classification requires the exact UI project target', async (
 	);
 	assert.deepEqual(fixture.order, []);
 });
+
+function attributedProject(): ReturnType<typeof projectFixture> {
+	const project = projectFixture();
+	return Object.freeze({
+		...project,
+		sources: Object.freeze(project.sources.map((source) => source.id === 'audio-source'
+			? Object.freeze({ ...source, provenance: Object.freeze({ schemaVersion: 1 }) })
+			: source)),
+	}) as ReturnType<typeof projectFixture>;
+}
