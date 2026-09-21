@@ -25,7 +25,8 @@ test('the main-only SDF1 adapter drives the real Linux target-native helper', {
 			'-std=c++20', '-O2', '-Wall', '-Wextra', '-Werror', '-pthread',
 			join(REPOSITORY, 'native/common/sha256.cpp'),
 			join(SOURCE, 'delivery_fs_main.cpp'), join(SOURCE, 'delivery_fs_protocol.cpp'),
-			join(SOURCE, 'delivery_fs_sha256.cpp'), join(SOURCE, 'delivery_fs_linux.cpp'),
+			join(SOURCE, 'delivery_fs_sha256.cpp'), join(SOURCE, 'delivery_fs_posix.cpp'),
+			join(SOURCE, 'delivery_fs_linux.cpp'),
 			'-o', executable,
 		], { cwd: REPOSITORY, encoding: 'utf8' });
 		assert.equal(compilation.status, 0, compilation.stderr || compilation.stdout);

@@ -5,11 +5,11 @@
 #endif
 
 #include "delivery_fs_platform.hpp"
+#include "delivery_fs_posix.hpp"
 #include "delivery_fs_sha256.hpp"
 
 #include <algorithm>
 #include <cerrno>
-#include <cstring>
 #include <fcntl.h>
 #include <memory>
 #include <span>
@@ -21,70 +21,8 @@
 namespace soundscaper::delivery_fs {
 namespace {
 
-class owned_fd final {
-public:
-	explicit owned_fd(int value = -1) noexcept : value_(value) {}
-	~owned_fd() { reset(); }
-	owned_fd(const owned_fd&) = delete;
-	owned_fd& operator=(const owned_fd&) = delete;
-	owned_fd(owned_fd&& other) noexcept : value_(other.release()) {}
-	owned_fd& operator=(owned_fd&& other) noexcept {
-		if (this != &other) reset(other.release());
-		return *this;
-	}
-	int get() const noexcept { return value_; }
-	int release() noexcept { const auto output = value_; value_ = -1; return output; }
-	void reset(int value = -1) noexcept {
-		if (value_ >= 0) while (::close(value_) < 0 && errno == EINTR) {}
-		value_ = value;
-	}
-private:
-	int value_;
-};
-
-root_identity directory_identity(const struct stat& details) {
-	const auto volume = "device:" + hex_value(static_cast<std::uint64_t>(details.st_dev));
-	return {volume, volume + ":inode:" + hex_value(static_cast<std::uint64_t>(details.st_ino))};
-}
-
-file_identity regular_file_identity(const struct stat& details) {
-	return {"device:" + hex_value(static_cast<std::uint64_t>(details.st_dev)),
-		"inode:" + hex_value(static_cast<std::uint64_t>(details.st_ino))};
-}
-
-bool same(const root_identity& left, const root_identity& right) {
-	return left.volume_identity == right.volume_identity
-		&& left.directory_identity == right.directory_identity;
-}
-
-bool same(const file_identity& left, const file_identity& right) {
-	return left.volume_identity == right.volume_identity
-		&& left.file_identity_value == right.file_identity_value;
-}
-
 bool unsupported(int value) {
 	return value == EOPNOTSUPP || value == ENOTSUP || value == EINVAL || value == EISDIR;
-}
-
-[[noreturn]] void fail_errno(const char* code, const char* phase, bool retryable = false) {
-	const auto saved = errno;
-	throw protocol_error(code, phase, retryable, std::strerror(saved));
-}
-
-owned_fd open_authenticated_root(const std::string& path, const root_identity& expected) {
-	owned_fd root(::open(path.c_str(), O_RDONLY | O_DIRECTORY | O_CLOEXEC | O_NOFOLLOW));
-	if (root.get() < 0) fail_errno("destination-unavailable", "root-open", true);
-	struct stat details {};
-	if (::fstat(root.get(), &details) < 0) fail_errno("destination-unavailable", "root-stat", true);
-	if (!S_ISDIR(details.st_mode)) {
-		throw protocol_error("destination-unavailable", "root-stat", false,
-			"The authorized delivery root is not a directory.");
-	}
-	if (!same(directory_identity(details), expected)) {
-		throw protocol_error("destination-identity-mismatch", "root-stat", false,
-			"The opened delivery root is not the authorized physical directory.");
-	}
-	return root;
 }
 
 recovery_result inspect_relative_file(int root, const std::string& name) {
@@ -128,7 +66,8 @@ recovery_result inspect_relative_file(int root, const std::string& name) {
 class linux_session final : public platform_session {
 public:
 	explicit linux_session(const init_request& request)
-		: root_fd_(open_authenticated_root(request.root_path, request.expected_root_identity)),
+		: root_fd_(open_authenticated_root(request.root_path, request.expected_root_identity,
+			root_non_directory_error::destination_unavailable)),
 		root_identity_(request.expected_root_identity), final_name_(request.final_name),
 		staging_reference_("linux-otmpfile-v1:" + request.session_id) {
 		const auto descriptor = ::openat(root_fd_.get(), ".", O_TMPFILE | O_RDWR | O_CLOEXEC, 0600);
@@ -265,13 +204,15 @@ std::unique_ptr<platform_session> create_platform_session(const init_request& re
 }
 
 recovery_result recover_platform_session(const recovery_request& request) {
-	auto root = open_authenticated_root(request.root_path, request.expected_root_identity);
+	auto root = open_authenticated_root(request.root_path, request.expected_root_identity,
+		root_non_directory_error::destination_unavailable);
 	(void)root;
 	return {.status = "missing", .byte_length = 0, .sha256 = {}, .identity = std::nullopt};
 }
 
 recovery_result inspect_platform_final(const final_inspection_request& request) {
-	auto root = open_authenticated_root(request.root_path, request.expected_root_identity);
+	auto root = open_authenticated_root(request.root_path, request.expected_root_identity,
+		root_non_directory_error::destination_unavailable);
 	return inspect_relative_file(root.get(), request.final_name);
 }
 

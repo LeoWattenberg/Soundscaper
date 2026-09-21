@@ -1,13 +1,13 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 #include "delivery_fs_platform.hpp"
+#include "delivery_fs_posix.hpp"
 #include "delivery_fs_sha256.hpp"
 
 #import <Foundation/Foundation.h>
 
 #include <algorithm>
 #include <cerrno>
-#include <cstring>
 #include <fcntl.h>
 #include <memory>
 #include <span>
@@ -19,65 +19,7 @@
 namespace soundscaper::delivery_fs {
 namespace {
 
-class owned_fd final {
-public:
-	explicit owned_fd(int value = -1) noexcept : value_(value) {}
-	~owned_fd() { reset(); }
-	owned_fd(const owned_fd&) = delete;
-	owned_fd& operator=(const owned_fd&) = delete;
-	owned_fd(owned_fd&& other) noexcept : value_(other.release()) {}
-	owned_fd& operator=(owned_fd&& other) noexcept {
-		if (this != &other) reset(other.release());
-		return *this;
-	}
-	int get() const noexcept { return value_; }
-	int release() noexcept { const auto output = value_; value_ = -1; return output; }
-	void reset(int value = -1) noexcept {
-		if (value_ >= 0) while (::close(value_) < 0 && errno == EINTR) {}
-		value_ = value;
-	}
-private:
-	int value_;
-};
-
-root_identity directory_identity(const struct stat& details) {
-	const auto volume = "device:" + hex_value(static_cast<std::uint64_t>(details.st_dev));
-	return {volume, volume + ":inode:" + hex_value(static_cast<std::uint64_t>(details.st_ino))};
-}
-
-file_identity regular_file_identity(const struct stat& details) {
-	return {"device:" + hex_value(static_cast<std::uint64_t>(details.st_dev)),
-		"inode:" + hex_value(static_cast<std::uint64_t>(details.st_ino))};
-}
-
-bool same(const root_identity& left, const root_identity& right) {
-	return left.volume_identity == right.volume_identity
-		&& left.directory_identity == right.directory_identity;
-}
-
-bool same(const file_identity& left, const file_identity& right) {
-	return left.volume_identity == right.volume_identity
-		&& left.file_identity_value == right.file_identity_value;
-}
-
 bool unsupported(int value) { return value == ENOTSUP || value == EINVAL || value == EXDEV; }
-
-[[noreturn]] void fail_errno(const char* code, const char* phase, bool retryable = false) {
-	const auto saved = errno;
-	throw protocol_error(code, phase, retryable, std::strerror(saved));
-}
-
-owned_fd open_authenticated_root(const std::string& path, const root_identity& expected) {
-	owned_fd root(::open(path.c_str(), O_RDONLY | O_DIRECTORY | O_CLOEXEC | O_NOFOLLOW));
-	if (root.get() < 0) fail_errno("destination-unavailable", "root-open", true);
-	struct stat details {};
-	if (::fstat(root.get(), &details) < 0) fail_errno("destination-unavailable", "root-stat", true);
-	if (!S_ISDIR(details.st_mode) || !same(directory_identity(details), expected)) {
-		throw protocol_error("destination-identity-mismatch", "root-stat", false,
-			"The opened delivery root is not the authorized physical directory.");
-	}
-	return root;
-}
 
 std::string replacement_directory(const std::string& root_path) {
 	@autoreleasepool {
@@ -161,7 +103,8 @@ std::string digest_fd(int descriptor, std::uint64_t size) {
 class macos_session final : public platform_session {
 public:
 	explicit macos_session(const init_request& request)
-		: root_(open_authenticated_root(request.root_path, request.expected_root_identity)),
+		: root_(open_authenticated_root(request.root_path, request.expected_root_identity,
+			root_non_directory_error::identity_mismatch)),
 		root_identity_(request.expected_root_identity), final_name_(request.final_name),
 		replacement_path_(replacement_directory(request.root_path)),
 		stage_name_(".soundscaper-delivery-" + request.session_id + ".native-stage") {
@@ -349,7 +292,8 @@ std::unique_ptr<platform_session> create_platform_session(const init_request& re
 }
 
 recovery_result recover_platform_session(const recovery_request& request) {
-	auto root = open_authenticated_root(request.root_path, request.expected_root_identity);
+	auto root = open_authenticated_root(request.root_path, request.expected_root_identity,
+		root_non_directory_error::identity_mismatch);
 	const auto stage_path = decode_reference(request.staging_reference);
 	const auto separator = stage_path.find_last_of('/');
 	if (separator == std::string::npos || separator == 0 || separator + 1 == stage_path.size()) {
@@ -417,7 +361,8 @@ recovery_result recover_platform_session(const recovery_request& request) {
 }
 
 recovery_result inspect_platform_final(const final_inspection_request& request) {
-	auto root = open_authenticated_root(request.root_path, request.expected_root_identity);
+	auto root = open_authenticated_root(request.root_path, request.expected_root_identity,
+		root_non_directory_error::identity_mismatch);
 	owned_fd file(::openat(root.get(), request.final_name.c_str(), O_RDONLY | O_CLOEXEC | O_NOFOLLOW));
 	if (file.get() < 0) {
 		if (errno == ENOENT) return {.status = "missing", .byte_length = 0, .sha256 = {}, .identity = std::nullopt};

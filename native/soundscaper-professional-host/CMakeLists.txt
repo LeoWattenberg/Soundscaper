@@ -396,11 +396,13 @@ set(SOUNDSCAPER_DELIVERY_FS_SOURCES
 	${CMAKE_CURRENT_SOURCE_DIR}/../common/sha256.cpp
 )
 if(APPLE)
-	list(APPEND SOUNDSCAPER_DELIVERY_FS_SOURCES src/delivery_fs_macos.mm)
+	list(APPEND SOUNDSCAPER_DELIVERY_FS_SOURCES
+		src/delivery_fs_posix.cpp src/delivery_fs_macos.mm)
 elseif(WIN32)
 	list(APPEND SOUNDSCAPER_DELIVERY_FS_SOURCES src/delivery_fs_windows.cpp)
 else()
-	list(APPEND SOUNDSCAPER_DELIVERY_FS_SOURCES src/delivery_fs_linux.cpp)
+	list(APPEND SOUNDSCAPER_DELIVERY_FS_SOURCES
+		src/delivery_fs_posix.cpp src/delivery_fs_linux.cpp)
 endif()
 add_executable(soundscaper_delivery_fs ${SOUNDSCAPER_DELIVERY_FS_SOURCES})
 target_compile_features(soundscaper_delivery_fs PRIVATE cxx_std_20)

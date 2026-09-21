@@ -33,6 +33,7 @@ before(async () => {
 		join(SOURCE_ROOT, 'delivery_fs_main.cpp'),
 		join(SOURCE_ROOT, 'delivery_fs_protocol.cpp'),
 		join(SOURCE_ROOT, 'delivery_fs_sha256.cpp'),
+		join(SOURCE_ROOT, 'delivery_fs_posix.cpp'),
 		join(SOURCE_ROOT, 'delivery_fs_linux.cpp'),
 		'-o', executable,
 	], { cwd: ROOT, encoding: 'utf8' });
@@ -44,10 +45,12 @@ after(async () => {
 });
 
 test('the target-native delivery helper source admits only handle-anchored publication primitives', async () => {
-	const [cmake, protocol, main, linux, windows, macos, manifest] = await Promise.all([
+	const [cmake, protocol, main, posixHeader, posix, linux, windows, macos, manifest] = await Promise.all([
 		readFile(join(ROOT, 'native/soundscaper-professional-host/CMakeLists.txt'), 'utf8'),
 		readFile(join(SOURCE_ROOT, 'delivery_fs_protocol.hpp'), 'utf8'),
 		readFile(join(SOURCE_ROOT, 'delivery_fs_main.cpp'), 'utf8'),
+		readFile(join(SOURCE_ROOT, 'delivery_fs_posix.hpp'), 'utf8'),
+		readFile(join(SOURCE_ROOT, 'delivery_fs_posix.cpp'), 'utf8'),
 		readFile(join(SOURCE_ROOT, 'delivery_fs_linux.cpp'), 'utf8'),
 		readFile(join(SOURCE_ROOT, 'delivery_fs_windows.cpp'), 'utf8'),
 		readFile(join(SOURCE_ROOT, 'delivery_fs_macos.mm'), 'utf8'),
@@ -55,11 +58,21 @@ test('the target-native delivery helper source admits only handle-anchored publi
 	]);
 	assert.match(cmake, /add_executable\(soundscaper_delivery_fs/u);
 	assert.match(cmake, /install\(TARGETS soundscaper_delivery_fs RUNTIME DESTINATION \.\)/u);
+	assert.match(cmake, /src\/delivery_fs_posix\.cpp/u);
 	assert.match(protocol, /SDF1/u);
-	for (const source of [main, linux, windows, macos]) {
+	for (const source of [main, posix, linux, windows, macos]) {
 		assert.doesNotMatch(source, /std::array<std::byte, 1024U \* 1024U>/u,
 			'delivery authentication scratch space must not consume the Windows process stack reserve');
 	}
+	for (const authority of ['class owned_fd final', 'root_identity directory_identity',
+		'file_identity regular_file_identity', 'bool same\\(', 'void fail_errno\\(',
+		'owned_fd open_authenticated_root']) assert.match(`${posixHeader}\n${posix}`, new RegExp(authority, 'u'));
+	for (const platform of [linux, macos]) {
+		assert.match(platform, /#include "delivery_fs_posix\.hpp"/u);
+		assert.doesNotMatch(platform, /class owned_fd final|root_identity directory_identity|file_identity regular_file_identity|bool same\(|void fail_errno\(|owned_fd open_authenticated_root/u);
+	}
+	assert.match(linux, /root_non_directory_error::destination_unavailable/u);
+	assert.match(macos, /root_non_directory_error::identity_mismatch/u);
 	for (const opcode of ['init = 0x01', 'data = 0x02', 'seal = 0x03', 'publish = 0x04',
 		'abort = 0x05', 'patch_prefix = 0x06', 'recover = 0x07', 'inspect_final = 0x08']) {
 		assert.match(protocol, new RegExp(opcode, 'u'));
@@ -190,6 +203,19 @@ test('linux SDF1 refuses destination swaps and existing final names without a mu
 	}));
 	assert.equal(parseJson(await mismatch.next(), RESPONSE.error).code, 'destination-identity-mismatch');
 	assert.notEqual(await mismatch.exit, 0);
+
+	const nonDirectoryPath = join(temporary, 'not-a-delivery-root');
+	await writeFile(nonDirectoryPath, 'not a directory', { flag: 'wx' });
+	const nonDirectory = runHelper();
+	await nonDirectory.send(REQUEST.init, json({
+		schemaVersion: 1, sessionId: '34'.repeat(24), rootPath: nonDirectoryPath, finalName: 'mix.wav',
+		expectedRootIdentity: await rootIdentity(nonDirectoryPath),
+		limits: { maxBytes: 4, maxChunkBytes: 4, finalPrefixByteLength: 0 },
+	}));
+	const nonDirectoryError = parseJson(await nonDirectory.next(), RESPONSE.error);
+	assert.equal(nonDirectoryError.code, 'destination-unavailable');
+	assert.equal(nonDirectoryError.phase, 'root-open');
+	assert.notEqual(await nonDirectory.exit, 0);
 
 	await writeFile(join(root, 'mix.wav'), 'foreign', { flag: 'wx' });
 	const conflict = runHelper();
