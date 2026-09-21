@@ -470,6 +470,8 @@
 		,
 		{ "path": "src/framescaper/delivery-native-report-validation-v1.ts", "kind": "persisted-contract", "justification": "delivery-native-report-validation-v1.ts is a persisted domain-component or render-contract revision independent of product schema." }
 		,
+		{ "path": "src/framescaper/delivery-native-target-execution-v1.ts", "kind": "persisted-contract", "justification": "delivery-native-target-execution-v1.ts validates the V1 native delivery report target identity independently of product schema." }
+		,
 		{ "path": "src/framescaper/editor-session-clipboard-v11-controller.ts", "kind": "ipc-contract", "justification": "editor-session-clipboard-v11-controller.ts is a clipboard wire-format revision exchanged independently of project schema." }
 		,
 		{ "path": "src/framescaper/editor-session-clipboard-v11-selection.ts", "kind": "ipc-contract", "justification": "editor-session-clipboard-v11-selection.ts is a clipboard wire-format revision exchanged independently of project schema." }
