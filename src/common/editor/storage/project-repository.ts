@@ -104,47 +104,21 @@ export class ProjectRepository implements ProjectRepositoryPort {
 	}
 
 	async createIfAbsent(project: ProjectDocument): Promise<ProjectDocument | null> {
-		const creationFence = createProjectCreationFence();
-		const { snapshot, revisionRecord } = projectPublication(project, creationFence);
-		const database = await this.#port.database();
-		if (!database) {
-			const memory = this.#port.memory;
-			if (memory.projects.has(snapshot.id)
-				|| memory.revisions.has(revisionRecord.key)
-				|| memoryHasProjectRevision(memory.revisions, snapshot.id)) {
-				return null;
-			}
-			const mutations: MemoryMutation[] = [
-				setMemoryMutation(memory.projects, snapshot.id, snapshot),
-				setMemoryMutation(memory.revisions, revisionRecord.key, revisionRecord),
-			];
-			applyMemoryMutations(mutations);
-			return this.#rememberCreation(snapshot, creationFence);
-		}
-
-		const created = await transact(database, ['projects', 'revisions'], 'readwrite', async ({
-			projects,
-			revisions,
-		}) => {
-			const [current, currentRevision, revisionCount] = await Promise.all([
-				request(projects.get(snapshot.id)),
-				request(revisions.get(revisionRecord.key)),
-				request(revisions.index('projectId').count(snapshot.id)),
-			]);
-			if (current !== undefined || currentRevision !== undefined || revisionCount > 0) return false;
-			await Promise.all([
-				request(projects.put(snapshot)),
-				request(revisions.put(revisionRecord)),
-			]);
-			return true;
-		});
-		return created ? this.#rememberCreation(snapshot, creationFence) : null;
+		return this.#createIfAbsent(project, false);
 	}
 
 	/** Atomically create an imported project and publish only its referenced staged sources. */
 	async createForScapeImportIfAbsent(project: ProjectDocument): Promise<ProjectDocument | null> {
+		return this.#createIfAbsent(project, true);
+	}
+
+	async #createIfAbsent(
+		project: ProjectDocument,
+		publishStagedSources: boolean,
+	): Promise<ProjectDocument | null> {
 		const creationFence = createProjectCreationFence();
 		const { snapshot, revisionRecord } = projectPublication(project, creationFence);
+		const sourceIds = publishStagedSources ? collectProjectStorageKeys(snapshot) : [];
 		const database = await this.#port.database();
 		if (!database) {
 			const memory = this.#port.memory;
@@ -154,7 +128,7 @@ export class ProjectRepository implements ProjectRepositoryPort {
 				setMemoryMutation(memory.projects, snapshot.id, snapshot),
 				setMemoryMutation(memory.revisions, revisionRecord.key, revisionRecord),
 			];
-			for (const sourceId of collectProjectStorageKeys(snapshot)) {
+			for (const sourceId of sourceIds) {
 				const source = asRecord(memory.sources.get(sourceId));
 				if (source?.pendingProjectUntil) mutations.push(setMemoryMutation(memory.sources, sourceId, publishSource(source)));
 				const media = asRecord(memory.mediaAssets.get(sourceId));
@@ -163,7 +137,10 @@ export class ProjectRepository implements ProjectRepositoryPort {
 			applyMemoryMutations(mutations);
 			return this.#rememberCreation(snapshot, creationFence);
 		}
-		const created = await transact(database, ['projects', 'revisions', 'sources', 'mediaAssets'], 'readwrite', async (stores) => {
+		const storeNames = publishStagedSources
+			? ['projects', 'revisions', 'sources', 'mediaAssets']
+			: ['projects', 'revisions'];
+		const created = await transact(database, storeNames, 'readwrite', async (stores) => {
 			const { projects, revisions, sources, mediaAssets } = stores;
 			const [current, currentRevision, revisionCount] = await Promise.all([
 				request(projects.get(snapshot.id)), request(revisions.get(revisionRecord.key)),
@@ -171,7 +148,7 @@ export class ProjectRepository implements ProjectRepositoryPort {
 			]);
 			if (current !== undefined || currentRevision !== undefined || revisionCount > 0) return false;
 			await Promise.all([request(projects.put(snapshot)), request(revisions.put(revisionRecord))]);
-			for (const sourceId of collectProjectStorageKeys(snapshot)) {
+			for (const sourceId of sourceIds) {
 				const source = asRecord(await request(sources.get(sourceId)));
 				if (source?.pendingProjectUntil) await request(sources.put(publishSource(source)));
 				const media = asRecord(await request(mediaAssets.get(sourceId)));

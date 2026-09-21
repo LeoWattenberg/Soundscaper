@@ -259,31 +259,17 @@ export class VideoProxyClaimStagingRepository {
 	}
 
 	async #renew(state: ClaimState): Promise<void> {
-		state.claim = await transact(
-			state.database,
-			['mediaAssets', MEDIA_ASSET_STAGING_STORE_NAME],
-			'readwrite',
-			async ({ mediaAssets, mediaAssetStaging }) => {
-				const [row, stored] = await Promise.all([
-					request(mediaAssets.get(state.input.bodyKey)),
-					request(mediaAssetStaging.get(state.claim.key)),
-				]);
-				assertVideoProxyClaimedRowCurrent(row, state.input, state.claim.rowIdentity);
-				assertCurrentClaim(stored, state.claim);
-				const now = safeVideoProxyClaimNow(this.#now());
-				if (state.claim.expiresAt <= now) throw new Error('The video proxy claim generation expired.');
-				const renewed = normalizeVideoProxyClaimRecord({
-					...state.claim,
-					updatedAt: Math.max(state.claim.updatedAt, now),
-					expiresAt: videoProxyClaimExpiry(now),
-				});
-				await request(mediaAssetStaging.put(renewed));
-				return renewed;
-			},
-		);
+		state.claim = await this.#transitionClaim(state, null);
 	}
 
 	async #markVerified(state: ClaimState): Promise<Readonly<VideoProxyClaimRecord>> {
+		return this.#transitionClaim(state, 'verified');
+	}
+
+	async #transitionClaim(
+		state: ClaimState,
+		status: VideoProxyClaimRecord['status'] | null,
+	): Promise<Readonly<VideoProxyClaimRecord>> {
 		return transact(
 			state.database,
 			['mediaAssets', MEDIA_ASSET_STAGING_STORE_NAME],
@@ -297,14 +283,14 @@ export class VideoProxyClaimStagingRepository {
 				assertCurrentClaim(stored, state.claim);
 				const now = safeVideoProxyClaimNow(this.#now());
 				if (state.claim.expiresAt <= now) throw new Error('The video proxy claim generation expired.');
-				const verified = normalizeVideoProxyClaimRecord({
+				const next = normalizeVideoProxyClaimRecord({
 					...state.claim,
-					status: 'verified',
+					...(status === null ? {} : { status }),
 					updatedAt: Math.max(state.claim.updatedAt, now),
 					expiresAt: videoProxyClaimExpiry(now),
 				});
-				await request(mediaAssetStaging.put(verified));
-				return verified;
+				await request(mediaAssetStaging.put(next));
+				return next;
 			},
 		);
 	}
