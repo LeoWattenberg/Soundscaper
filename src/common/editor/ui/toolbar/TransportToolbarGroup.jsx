@@ -112,7 +112,7 @@ export default function TransportToolbarGroup({
 						snapshot={snapshot}
 						controller={controller}
 						run={run}
-					locale={locale}
+						locale={locale}
 						onOpenTimedRecording={onOpenTimedRecording}
 						onOpenTakeCycleRecovery={onOpenTakeCycleRecovery}
 						onClose={close}
