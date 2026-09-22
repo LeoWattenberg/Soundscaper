@@ -19,7 +19,8 @@ const SoundscaperMasteringSequenceDialog = SOUNDSCAPER_BUILD
 	? lazyEditorModule(() => import('../dialogs/SoundscaperMasteringSequenceDialog.tsx')) : null;
 const WorkspaceOnboardingDialog = SOUNDSCAPER_BUILD
 	? lazyEditorModule(() => import('../dialogs/WorkspaceOnboardingDialog.tsx')) : null;
-const DesktopMcpDialog = SOUNDSCAPER_BUILD
+const DesktopMcpDialog = typeof __SCAPE_DESKTOP_RENDERER__ !== 'undefined'
+	&& __SCAPE_DESKTOP_RENDERER__
 	? lazyEditorModule(() => import('../dialogs/DesktopMcpDialog.tsx')) : null;
 const ClipPropertiesDialog = lazyEditorModule(() => import('../inspector/ClipPropertiesDialog.jsx'));
 const VideoCompositionDialog = lazyEditorModule(() => import('../inspector/VideoCompositionDialog.tsx'));

@@ -131,6 +131,7 @@ export default defineConfig({
 	define: {
 		__SCAPE_PRODUCT__: JSON.stringify(productId),
 		__SCAPE_VERSION__: JSON.stringify(applicationVersion),
+		__SCAPE_DESKTOP_RENDERER__: JSON.stringify(productId === 'soundscaper' && desktopCodecComposition),
 	},
 	worker: {
 		format: 'es',

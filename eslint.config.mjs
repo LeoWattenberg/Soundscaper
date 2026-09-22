@@ -14,6 +14,7 @@ const runtimeGlobals = {
 	...globals.serviceworker,
 	...globals.worker,
 	__SCAPE_PRODUCT__: 'readonly',
+	__SCAPE_DESKTOP_RENDERER__: 'readonly',
 };
 
 export default tseslint.config(

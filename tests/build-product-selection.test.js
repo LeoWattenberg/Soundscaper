@@ -17,6 +17,12 @@ test('SCAPE_PRODUCT names the product the web build emits', async () => {
 	assert.equal(config.define.__SCAPE_PRODUCT__, JSON.stringify('framescaper'));
 });
 
+test('MCP renderer modules belong only to Soundscaper desktop builds', async () => {
+	assert.equal((await loadViteConfig(undefined, 'mcp-web')).define.__SCAPE_DESKTOP_RENDERER__, 'false');
+	assert.equal((await loadViteConfig(undefined, 'mcp-soundscaper-desktop', true)).define.__SCAPE_DESKTOP_RENDERER__, 'true');
+	assert.equal((await loadViteConfig('framescaper', 'mcp-framescaper-desktop', true)).define.__SCAPE_DESKTOP_RENDERER__, 'false');
+});
+
 test('an unrecognized SCAPE_PRODUCT fails the build instead of building Soundscaper', async () => {
 	for (const [index, product] of ['lightscaper', 'Framescaper', 'framescaper ', 'true'].entries()) {
 		await assert.rejects(
@@ -43,15 +49,20 @@ test('the built product reaches the startup-graph budget plugin', async () => {
 	);
 });
 
-async function loadViteConfig(product, cacheKey) {
+async function loadViteConfig(product, cacheKey, desktop = false) {
 	const previous = process.env.SCAPE_PRODUCT;
+	const previousDesktop = process.env.SCAPE_DESKTOP_CODEC_RUNTIME;
 	if (product === undefined) delete process.env.SCAPE_PRODUCT;
 	else process.env.SCAPE_PRODUCT = product;
+	if (desktop) process.env.SCAPE_DESKTOP_CODEC_RUNTIME = 'main-process';
+	else delete process.env.SCAPE_DESKTOP_CODEC_RUNTIME;
 	try {
 		return (await import(`../vite.config.mjs?built=${cacheKey}`)).default;
 	} finally {
 		if (previous === undefined) delete process.env.SCAPE_PRODUCT;
 		else process.env.SCAPE_PRODUCT = previous;
+		if (previousDesktop === undefined) delete process.env.SCAPE_DESKTOP_CODEC_RUNTIME;
+		else process.env.SCAPE_DESKTOP_CODEC_RUNTIME = previousDesktop;
 	}
 }
 
