@@ -170,7 +170,7 @@ test('approved graph ceilings remain hard limits', () => {
 	assert.deepEqual(STARTUP_GRAPH_BUDGETS.framescaper, {
 		requests: 84,
 		rawBytes: 7_000_000,
-		brotliBytes: 1_665_000,
+		brotliBytes: 1_670_000,
 	});
 });
 
@@ -185,6 +185,7 @@ test('the ceilings are read from the maintained budget configuration with their 
 	}
 	assert.match(configuration.framescaper.reasons.rawBytes, /Raised from 6_700_000 by the project owner\./u);
 	assert.match(configuration.framescaper.reasons.brotliBytes, /raised from 1_600_000 for the same reason/u);
+	assert.match(configuration.framescaper.reasons.brotliBytes, /desktop renderer.*1_664_759/u);
 	assert.match(configuration.framescaper.reasons.requests, /Requests raised from 80 by the same reasoning\./u);
 	assert.deepEqual(STARTUP_GRAPH_BUDGET_REASONS.framescaper, configuration.framescaper.reasons);
 });
