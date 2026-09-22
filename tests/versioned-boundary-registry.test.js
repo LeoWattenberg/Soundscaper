@@ -1,8 +1,9 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import assert from 'node:assert/strict';
+import { execFileSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
-import { readFile, readdir } from 'node:fs/promises';
+import { readFile } from 'node:fs/promises';
 import { extname, join, relative, sep } from 'node:path';
 import test from 'node:test';
 import { DESKTOP_EXPECTED_RUNTIME_FILES } from '../scripts/lib/desktop-project-library-runtime.mjs';
@@ -112,17 +113,10 @@ function resolveRepositoryImport(importer, specifier) {
 }
 
 async function productionFiles() {
-	const result = [];
-	for (const root of SCAN_ROOTS) await walk(join(ROOT, root), result);
-	return result.sort();
-}
-
-async function walk(directory, result) {
-	for (const entry of await readdir(directory, { withFileTypes: true })) {
-		const path = join(directory, entry.name);
-		const repositoryPath = relative(ROOT, path).split(sep).join('/');
-		if (entry.isDirectory()) {
-			if (entry.name !== 'tests') await walk(path, result);
-		} else if (entry.isFile()) result.push(repositoryPath);
-	}
+	// Include new source files before they are staged, but not ignored local tools.
+	const output = execFileSync('git', [
+		'ls-files', '-z', '--cached', '--others', '--exclude-standard', '--', ...SCAN_ROOTS,
+	], { cwd: ROOT, encoding: 'utf8' });
+	return output.split('\0').filter((path) => path && !path.split('/').includes('tests')
+		&& existsSync(join(ROOT, path))).sort();
 }
