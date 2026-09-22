@@ -1,6 +1,6 @@
 ---
-title: "Mixa le tracce in una nuova traccia e conserva gli originali"
-description: "Rende un mix di più tracce su una nuova traccia, mantenendo le sorgenti nel progetto."
+title: "Mescola più tracce in una nuova traccia mantenendo le originali"
+description: "Esegui il rendering di una mescola di diverse tracce su una nuova traccia mentre le fonti rimangono nel progetto."
 editUrl: false
 sidebar:
   order: 9
@@ -8,47 +8,47 @@ head:
   - tag: script
     attrs:
       type: "application/ld+json"
-    content: "{\"@context\":\"https://schema.org\",\"@type\":\"HowTo\",\"name\":\"Mix tracks into a new track and keep the originals\",\"description\":\"Render a mix of several tracks onto a new track while the sources stay in the project.\",\"tool\":[{\"@type\":\"HowToTool\",\"name\":\"Soundscaper\"}],\"step\":[{\"@type\":\"HowToStep\",\"position\":1,\"name\":\"Open Soundscaper. A new, empty project is ready as soon as the editor loads.\",\"text\":\"Open Soundscaper. A new, empty project is ready as soon as the editor loads.\"},{\"@type\":\"HowToStep\",\"position\":2,\"name\":\"Choose File → Import audio and pick the first track to mix. The file lands as a clip on its own track.\",\"text\":\"Choose File → Import audio and pick the first track to mix. The file lands as a clip on its own track.\"},{\"@type\":\"HowToStep\",\"position\":3,\"name\":\"Choose File → Import audio and pick the second track to mix. The file lands as a clip on its own track.\",\"text\":\"Choose File → Import audio and pick the second track to mix. The file lands as a clip on its own track.\"},{\"@type\":\"HowToStep\",\"position\":4,\"name\":\"Click the name bar of the first clip, then hold Shift and click the name bar of the second clip, so both are selected.\",\"text\":\"Click the name bar of the first clip, then hold Shift and click the name bar of the second clip, so both are selected. Every track with a selected clip goes into the mix.\"},{\"@type\":\"HowToStep\",\"position\":5,\"name\":\"Choose Tracks → Mix & Render. In the Mix & Render dialog, leave Mix down and Render effects checked, turn off Replace originals, choose Stereo for Mix down to, then press Mix & Render.\",\"text\":\"Choose Tracks → Mix & Render. In the Mix & Render dialog, leave Mix down and Render effects checked, turn off Replace originals, choose Stereo for Mix down to, then press Mix & Render.\"},{\"@type\":\"HowToStep\",\"position\":6,\"name\":\"A new track under the originals holds a clip named Mix, and the original clips are still where they were.\",\"text\":\"A new track under the originals holds a clip named Mix, and the original clips are still where they were. Three clips: the two you started with and the mix.\"}]}"
+    content: "{\"@context\":\"https://schema.org\",\"@type\":\"HowTo\",\"name\":\"Mix tracks into a new track and keep the originals\",\"description\":\"Render a mix of several tracks onto a new track while the sources stay in the project.\",\"tool\":[{\"@type\":\"HowToTool\",\"name\":\"Soundscaper\"}],\"step\":[{\"@type\":\"HowToStep\",\"position\":1,\"name\":\"Open Soundscaper. A new, empty project is ready as soon as the editor loads.\",\"text\":\"Open Soundscaper. A new, empty project is ready as soon as the editor loads.\"},{\"@type\":\"HowToStep\",\"position\":2,\"name\":\"Choose File → Import and pick the first track to mix. It lands as a clip on its own track.\",\"text\":\"Choose File → Import and pick the first track to mix. It lands as a clip on its own track.\"},{\"@type\":\"HowToStep\",\"position\":3,\"name\":\"Choose File → Import and pick the second track to mix. It lands as a clip on its own track.\",\"text\":\"Choose File → Import and pick the second track to mix. It lands as a clip on its own track.\"},{\"@type\":\"HowToStep\",\"position\":4,\"name\":\"Click the name bar of the first clip, then hold Shift and click the name bar of the second clip, so both are selected.\",\"text\":\"Click the name bar of the first clip, then hold Shift and click the name bar of the second clip, so both are selected. Every track with a selected clip goes into the mix.\"},{\"@type\":\"HowToStep\",\"position\":5,\"name\":\"Choose Tracks → Mix & Render. In the Mix & Render dialog, leave Mix down and Render effects checked, turn off Replace originals, choose Stereo for Mix down to, then press Mix & Render.\",\"text\":\"Choose Tracks → Mix & Render. In the Mix & Render dialog, leave Mix down and Render effects checked, turn off Replace originals, choose Stereo for Mix down to, then press Mix & Render.\"},{\"@type\":\"HowToStep\",\"position\":6,\"name\":\"A new track under the originals holds a clip named Mix, and the original clips are still where they were.\",\"text\":\"A new track under the originals holds a clip named Mix, and the original clips are still where they were. Three clips: the two you started with and the mix.\"}]}"
 ---
-<!-- docs-ai-provenance: {"factPacketSha256":"2509e4de7079761304d0dcefb76634478608a4a61925bbbe411587b9afb883cb","model":"qwen3.8:latest","modelDigest":"22130167c4c20e20c7b71454612966ca8e8171e9b3cc8ab6ce8aa6cbfec79643","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"2509e4de7079761304d0dcefb76634478608a4a61925bbbe411587b9afb883cb","targetLocale":"it"} -->
+<!-- docs-ai-provenance: {"factPacketSha256":"04ea60929a4ea39e8f423889db1d214a0b0b91877e92306a9f74812476d14098","model":"aya-expanse:32b","modelDigest":"1603440383bd5504dc7afd01c0407b425b988dde650a8dc1a737433baa3cd432","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"04ea60929a4ea39e8f423889db1d214a0b0b91877e92306a9f74812476d14098","targetLocale":"it"} -->
 
 <!-- Generated by `node scripts/docs-reference.mjs`. Do not edit. -->
 
-Mixare le tracce verso il basso di solito le sostituisce, il che va bene per un mix finale, ma non quando potresti ancora voler regolare le parti. Disattivando Sostituisci originali nella finestra di dialogo Mix & Render, il mix viene renderizzato — inclusi guadagni, panoramizzazione ed effetti in tempo reale — su una nuova traccia e tutte le tracce sorgenti restano dove si trovavano, in modo da poter confrontare, continuare a modificare, oppure silenziare le sorgenti e procedere con il mix stereo. Audacity 3 offriva questa funzione come Mix and Render to New Track; Audacity 4 non ha alcun comando corrispondente.
+La miscelazione delle tracce di solito le sostituisce, il che va bene per un letto finito ma non quando si desidera ancora regolare le parti. La disattivazione di Sostituisci originali nel dialogo Miscela e Rendering rende la miscela - inclusi guadagni, panoramiche ed effetti in tempo reale - su una nuova traccia e lascia ogni traccia sorgente dove si trovava, in modo da poter confrontare, continuare a modificare o disattivare le sorgenti e procedere con la miscela stereo. Audacity 3 offriva questo come Miscela e Rendering su Nuova Traccia; Audacity 4 non ha tale comando.
 
-:::note[Proviene da Audacity?]
-Questa è la funzione di Audacity **Tracce → Mix → Mix and Render to New Track (Audacity 3; Audacity 4 non ha Mix and Render)**. I nomi seguenti sono quelli di Soundscaper, che a volte differiscono.
+:::note[Proveniente da Audacity?]
+Questa è la **Miscela e Rendering** di Audacity (in Audacity 3; Audacity 4 non ha la funzione di Miscela e Rendering). I nomi riportati di seguito sono propri di Soundscaper, che a volte differiscono.
 :::
 
 ## Passaggi
 
-1. Apri Soundscaper. Un nuovo progetto vuoto è pronto non appena l'editor viene caricato.
-2. Scegli **File → Importa audio** e seleziona la prima traccia da mixare. Il file viene posizionato come clip su una propria traccia.
-3. Scegli **File → Importa audio** e seleziona la seconda traccia da mixare. Il file viene posizionato come clip su una propria traccia.
-4. Fai clic sulla barra del nome della prima clip, quindi tieni premuto Shift e fai clic sulla barra del nome della seconda clip, in modo che entrambe siano selezionate. Ogni traccia con una clip selezionata entra nel mix.
-5. Scegli **Tracce → Mix & Render**. Nella finestra di dialogo **Mix & Render**, lascia spuntate **Mix down** e **Render effects**, disattiva **Replace originals**, scegli **Stereo** per **Mix down to**, quindi premi **Mix & Render**.
-6. Una nuova traccia sotto le originali contiene una clip denominata **Mix**, e le clip originali sono ancora dove si trovavano.
-   *Dovresti vedere:* Tre clip: le due con cui hai iniziato e il mix.
+1. Apri Soundscaper. Un nuovo progetto vuoto è pronto non appena viene caricato l'editor.
+2. Scegli **File → Importa** e seleziona la prima traccia da miscelare. Atterra come clip sulla sua traccia.
+3. Scegli **File → Importa** e seleziona la seconda traccia da miscelare. Atterra come clip sulla sua traccia.
+4. Fai clic sulla barra del nome del primo clip, quindi tieni premuto Shift e fai clic sulla barra del nome del secondo clip, in modo che entrambi siano selezionati. Ogni traccia con un clip selezionato entra nella miscela.
+5. Scegli **Tracce → Miscela & Rendering**. Nel dialogo **Miscela & Rendering**, lascia selezionati **Miscela giù** e **Rendering effetti**, disattiva **Sostituisci originali**, scegli **Stereo** per **Miscela giù a**, quindi premi **Miscela & Rendering**.
+6. Una nuova traccia sotto le originali contiene un clip denominato **Miscela**, e i clip originali sono ancora dove si trovavano.
+   *Dovresti vedere:* Tre clip: quelle con cui hai iniziato e la miscela.
 
 ## Suggerimenti
 
-- Silenzia le tracce sorgenti per ascoltare il mix da solo; altrimenti entrambe vengono riprodotte.
-- Per sostituire le sorgenti con il mix, lascia attivo **Replace originals**: [Mixa più tracce in una](/guides/tracks-and-export/mix-tracks-into-one/).
+- Disattiva le tracce sorgente per ascoltare la miscela da sola; altrimenti, entrambe vengono riprodotte.
+- Per sostituire le sorgenti con la miscela, lascia attiva l'opzione **Sostituisci originali**: [Miscela più tracce in una](/guides/tracks-and-export/mix-tracks-into-one/).
 
 ## Guide correlate
 
-Altre guide su [tracce ed export](/guides/tracks-and-export/):
+Più guide su [tracce ed esportazione](/guides/tracks-and-export/):
 
-- [Mixa più tracce in una](/guides/tracks-and-export/mix-tracks-into-one/) — Renderizza le tracce selezionate in un'unica traccia.
-- [Dividi una traccia stereo in due tracce mono](/guides/tracks-and-export/split-stereo-into-mono-tracks/) — Separa i canali sinistro e destro in modo che ciascuno possa essere modificato singolarmente.
-- [Genera un tono di test](/guides/tracks-and-export/generate-a-test-tone/) — Crea un'onda sinusoidale di frequenza e lunghezza impostate da zero.
+- [Miscela più tracce in una](/guides/tracks-and-export/mix-tracks-into-one/) — Renderizza le tracce selezionate in una singola traccia.
+- [Dividi una traccia stereo in due tracce mono](/guides/tracks-and-export/split-stereo-into-mono-tracks/) — Separa i canali sinistro e destro in modo che possano essere modificati separatamente.
+- [Genera un tono di prova](/guides/tracks-and-export/generate-a-test-tone/) — Crea un'onda sinusoidale di una frequenza e lunghezza specifiche dal nulla.
 - [Esporta un MP3](/guides/tracks-and-export/export-an-mp3/) — Renderizza il progetto in un file MP3 per la condivisione o la pubblicazione.
 - [Esporta un WAV](/guides/tracks-and-export/export-a-wav/) — Renderizza il progetto in un file WAV non compresso.
-- [Silenzia e metti in solo le tracce](/guides/tracks-and-export/mute-and-solo-tracks/) — Silenzia una traccia, o ascolta una traccia da sola, mentre lavori su un mix.
-- [Aggiungi una traccia vuota](/guides/tracks-and-export/add-an-empty-track/) — Crea una nuova traccia su cui registrare o su cui incollare.
-- [Silenzia tutte le tracce in una volta](/guides/tracks-and-export/mute-every-track-at-once/) — Silenzia l'intero progetto in un solo passaggio, quindi ripristinalo.
-- [Bilancia le tracce nel mixer](/guides/tracks-and-export/balance-tracks-in-the-mixer/) — Apri una console di mixaggio con una striscia di canale per traccia per impostare livelli e panoramizzazione affiancati.
+- [Disattiva e metti in sola lettura le tracce](/guides/tracks-and-export/mute-and-solo-tracks/) — Silenzia una traccia o ascolta una traccia da sola mentre lavori a una miscela.
+- [Aggiungi una traccia vuota](/guides/tracks-and-export/add-an-empty-track/) — Crea una nuova traccia per registrare o incollare.
+- [Disattiva tutte le tracce contemporaneamente](/guides/tracks-and-export/mute-every-track-at-once/) — Silenzia l'intero progetto in un solo passaggio, quindi riportalo indietro.
+- [Bilancia le tracce nel mixer](/guides/tracks-and-export/balance-tracks-in-the-mixer/) — Apri una console di miscelazione con una striscia di canale per traccia per impostare livelli e panoramiche fianco a fianco.
 
 ## Informazioni su questa guida
 
-La procedura in questa pagina — ogni voce di menu, finestra di dialogo, campo e pulsante, e il risultato che produce — viene riprodotta su ogni build di Soundscaper dalla suite del browser (`tests/browser/soundscaper-guides.spec.js`). Se una di queste non corrisponde più all'editor, la build fallisce finché la guida non viene corretta. I valori suggeriti sono punti di partenza che l'editor è dimostrato accettare; se siano adatti alla tua registrazione è una decisione che spetta alle tue orecchie.
+La procedura in questa pagina - ogni voce di menu, dialogo, campo e pulsante, e il risultato che produce - viene riprodotta per ogni build di Soundscaper dal browser suite (`tests/browser/soundscaper-guides.spec.js`). Se una qualsiasi di esse smette di corrispondere all'editor, il build fallisce fino a quando la guida non viene corretta. I valori suggeriti sono punti di partenza che l'editor è dimostrato accettare; se siano adatti alla tua registrazione è una decisione per le tue orecchie.

@@ -8,22 +8,22 @@ head:
   - tag: script
     attrs:
       type: "application/ld+json"
-    content: "{\"@context\":\"https://schema.org\",\"@type\":\"HowTo\",\"name\":\"Undo and redo\",\"description\":\"Step back through your edits and forward again.\",\"tool\":[{\"@type\":\"HowToTool\",\"name\":\"Soundscaper\"}],\"step\":[{\"@type\":\"HowToStep\",\"position\":1,\"name\":\"Open Soundscaper. A new, empty project is ready as soon as the editor loads.\",\"text\":\"Open Soundscaper. A new, empty project is ready as soon as the editor loads.\"},{\"@type\":\"HowToStep\",\"position\":2,\"name\":\"Choose File → Import audio and pick any recording. The file lands as a clip on its own track.\",\"text\":\"Choose File → Import audio and pick any recording. The file lands as a clip on its own track.\"},{\"@type\":\"HowToStep\",\"position\":3,\"name\":\"Press the Split tool button in the toolbar.\",\"text\":\"Press the Split tool button in the toolbar.\"},{\"@type\":\"HowToStep\",\"position\":4,\"name\":\"Click the waveform anywhere in the clip to put the cursor there.\",\"text\":\"Click the waveform anywhere in the clip to put the cursor there. A split is a good edit to practise on because you can see it.\"},{\"@type\":\"HowToStep\",\"position\":5,\"name\":\"Press the Split tool button in the toolbar.\",\"text\":\"Press the Split tool button in the toolbar. Back to the normal pointer.\"},{\"@type\":\"HowToStep\",\"position\":6,\"name\":\"The project now shows 2 clips.\",\"text\":\"The project now shows 2 clips.\"},{\"@type\":\"HowToStep\",\"position\":7,\"name\":\"Press the Undo button in the toolbar.\",\"text\":\"Press the Undo button in the toolbar. The toolbar button and Edit → Undo do the same thing.\"},{\"@type\":\"HowToStep\",\"position\":8,\"name\":\"The project now shows 1 clip.\",\"text\":\"The project now shows 1 clip. The split is gone and the clip is whole again.\"},{\"@type\":\"HowToStep\",\"position\":9,\"name\":\"Press the Redo button in the toolbar.\",\"text\":\"Press the Redo button in the toolbar.\"},{\"@type\":\"HowToStep\",\"position\":10,\"name\":\"The project now shows 2 clips.\",\"text\":\"The project now shows 2 clips. The split is back.\"}]}"
+    content: "{\"@context\":\"https://schema.org\",\"@type\":\"HowTo\",\"name\":\"Undo and redo\",\"description\":\"Step back through your edits and forward again.\",\"tool\":[{\"@type\":\"HowToTool\",\"name\":\"Soundscaper\"}],\"step\":[{\"@type\":\"HowToStep\",\"position\":1,\"name\":\"Open Soundscaper. A new, empty project is ready as soon as the editor loads.\",\"text\":\"Open Soundscaper. A new, empty project is ready as soon as the editor loads.\"},{\"@type\":\"HowToStep\",\"position\":2,\"name\":\"Choose File → Import and pick any recording. It lands as a clip on its own track.\",\"text\":\"Choose File → Import and pick any recording. It lands as a clip on its own track.\"},{\"@type\":\"HowToStep\",\"position\":3,\"name\":\"Press the Split tool button in the toolbar.\",\"text\":\"Press the Split tool button in the toolbar.\"},{\"@type\":\"HowToStep\",\"position\":4,\"name\":\"Click the waveform anywhere in the clip to put the cursor there.\",\"text\":\"Click the waveform anywhere in the clip to put the cursor there. A split is a good edit to practise on because you can see it.\"},{\"@type\":\"HowToStep\",\"position\":5,\"name\":\"Press the Split tool button in the toolbar.\",\"text\":\"Press the Split tool button in the toolbar. Back to the normal pointer.\"},{\"@type\":\"HowToStep\",\"position\":6,\"name\":\"The project now shows 2 clips.\",\"text\":\"The project now shows 2 clips.\"},{\"@type\":\"HowToStep\",\"position\":7,\"name\":\"Press the Undo button in the toolbar.\",\"text\":\"Press the Undo button in the toolbar. The toolbar button and Edit → Undo do the same thing.\"},{\"@type\":\"HowToStep\",\"position\":8,\"name\":\"The project now shows 1 clip.\",\"text\":\"The project now shows 1 clip. The split is gone and the clip is whole again.\"},{\"@type\":\"HowToStep\",\"position\":9,\"name\":\"Press the Redo button in the toolbar.\",\"text\":\"Press the Redo button in the toolbar.\"},{\"@type\":\"HowToStep\",\"position\":10,\"name\":\"The project now shows 2 clips.\",\"text\":\"The project now shows 2 clips. The split is back.\"}]}"
 ---
-<!-- docs-ai-provenance: {"factPacketSha256":"d977a5c97426e241bb079fda77dc648a1ba846e2331811c3fbc259c0931454c8","model":"aya-expanse:32b","modelDigest":"1603440383bd5504dc7afd01c0407b425b988dde650a8dc1a737433baa3cd432","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"d977a5c97426e241bb079fda77dc648a1ba846e2331811c3fbc259c0931454c8","targetLocale":"it"} -->
+<!-- docs-ai-provenance: {"factPacketSha256":"6d9cdb24c5f9df66cd50e9fa913ee28512b2d5b050122058a661b1576e0580ea","model":"aya-expanse:32b","modelDigest":"1603440383bd5504dc7afd01c0407b425b988dde650a8dc1a737433baa3cd432","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"6d9cdb24c5f9df66cd50e9fa913ee28512b2d5b050122058a661b1576e0580ea","targetLocale":"it"} -->
 
 <!-- Generated by `node scripts/docs-reference.mjs`. Do not edit. -->
 
-Ogni modifica ed effetto viene aggiunto alla cronologia del progetto, quindi nulla di ciò che provi è un rischio. Il comando **Annulla** torna indietro di un passo alla volta — un effetto, un taglio, uno spostamento — e **Ripeti** lo ripristina. La cronologia sopravvive al salvataggio e alla riapertura del progetto.
+Ogni modifica ed effetto viene aggiunto alla cronologia del progetto, quindi nulla di ciò che provi è un rischio. **Annulla** fa fare un passo indietro, eliminando una modifica alla volta — un effetto, un taglio, uno spostamento — e **Ripristina** la rimette. La cronologia sopravvive al salvataggio e alla riapertura del progetto.
 
 :::note[Proveniente da Audacity?]
-Questo è l'equivalente di **Modifica → Annulla** e **Modifica → Ripeti (Ctrl+Z, Ctrl+Y)** di Audacity. I nomi riportati di seguito sono propri di Soundscaper e a volte differiscono.
+Questa è la funzione **Modifica → Annulla** e **Modifica → Ripristina (Ctrl+Z, Ctrl+Y)** di Audacity. I nomi qui sotto sono propri di Soundscaper, che a volte differiscono.
 :::
 
 ## Passaggi
 
 1. Apri Soundscaper. Un nuovo progetto vuoto è pronto non appena viene caricato l'editor.
-2. Scegli **File → Importa audio** e seleziona qualsiasi registrazione. Il file viene posizionato come clip sulla propria traccia.
+2. Scegli **File → Importa** e seleziona qualsiasi registrazione. Viene posizionata come clip sulla sua traccia.
 3. Premi il pulsante **Strumento di divisione** nella barra degli strumenti.
 4. Fai clic sulla forma d'onda in qualsiasi punto della clip per posizionare il cursore. Una divisione è una buona modifica da praticare perché puoi vederla.
 5. Premi nuovamente il pulsante **Strumento di divisione** nella barra degli strumenti. Torni al puntatore normale.
@@ -31,34 +31,34 @@ Questo è l'equivalente di **Modifica → Annulla** e **Modifica → Ripeti (Ctr
 7. Premi il pulsante **Annulla** nella barra degli strumenti. Il pulsante della barra degli strumenti e **Modifica → Annulla** fanno la stessa cosa.
 8. Il progetto ora mostra 1 clip.
    *Dovresti vedere:* La divisione è scomparsa e la clip è di nuovo intera.
-9. Premi il pulsante **Ripeti** nella barra degli strumenti.
+9. Premi il pulsante **Ripristina** nella barra degli strumenti.
 10. Il progetto ora mostra 2 clip.
    *Dovresti vedere:* La divisione è tornata.
 
 ## Suggerimenti
 
 - **Visualizza → Pannelli → Cronologia** elenca ogni passaggio e fare clic su uno di essi ti porta direttamente a quel punto.
-- **Annulla** copre le modifiche al progetto, non gli esportati; un file che hai già salvato rimane invariato.
+- Annulla copre le modifiche al progetto, non gli esportati; un file che hai già salvato rimane invariato.
 
 ## Guide correlate
 
 Altre guide [modifica](/guides/editing/):
 
-- [Taglia un errore da una registrazione](/guides/editing/cut-out-a-mistake/) — Seleziona un errore, rimuovilo e chiudi il gap in modo che la registrazione continui.
+- [Taglia un errore da una registrazione](/guides/editing/cut-out-a-mistake/) — Seleziona uno scivolamento, rimuovilo e chiudi il gap in modo che la registrazione continui.
 - [Dividi una clip in due](/guides/editing/split-a-clip-at-the-cursor/) — Taglia una clip in un punto in modo che ogni parte possa essere spostata o trattata separatamente.
 - [Mantieni solo la parte desiderata](/guides/editing/keep-only-a-selection/) — Ritaglia tutto ciò che si trova al di fuori di una selezione in un unico passaggio.
-- [Ripeti una sezione](/guides/editing/repeat-a-section/) — Ripeti una selezione un numero specifico di volte per renderla più lunga.
-- [Riproduci una registrazione al contrario](/guides/editing/reverse-audio/) — Inverte una selezione in modo che venga riprodotta dall'inizio alla fine.
-- [Segna punti in una registrazione](/guides/editing/add-markers/) — Aggiungi marcatori denominati sulla timeline in modo da poter trovare nuovamente i punti in seguito.
+- [Ripeti una sezione](/guides/editing/repeat-a-section/) — Ripeti una selezione un numero di volte impostato per renderla più lunga.
+- [Riproduci una registrazione al contrario](/guides/editing/reverse-audio/) — Inverte una selezione in modo che venga riprodotta dalla fine all'inizio.
+- [Segna punti in una registrazione](/guides/editing/add-markers/) — Lascia dei marcatori nominati sulla timeline in modo da poter trovare nuovamente i punti in seguito.
 - [Copia e incolla una sezione](/guides/editing/copy-and-paste-a-section/) — Copia un passaggio e incollalo altrove sulla traccia.
-- [Duplica una selezione su una nuova traccia](/guides/editing/duplicate-a-selection-to-a-new-track/) — Copia un passaggio sulla propria traccia in modo da poterlo elaborare separatamente.
+- [Duplica una selezione su una nuova traccia](/guides/editing/duplicate-a-selection-to-a-new-track/) — Copia un passaggio sulla sua traccia in modo da poterlo elaborare separatamente.
 - [Aggiungi silenzio dopo una clip](/guides/editing/add-silence-after-a-clip/) — Genera un gap di lunghezza esatta al cursore.
-- [Allinea clip una dietro l'altra](/guides/editing/line-up-clips-end-to-end/) — Posiziona due clip su tracce diverse in modo che una segua l'altra.
+- [Allinea le clip una dietro l'altra](/guides/editing/line-up-clips-end-to-end/) — Posiziona due clip su tracce diverse una contro l'altra in modo che una segua l'altra.
 - [Ingrandisci per modifiche precise](/guides/editing/zoom-in-for-precise-edits/) — Avvicinati abbastanza alla forma d'onda da tagliare su un battito o tra le parole.
 - [Riproduci una sezione in loop mentre ti eserciti](/guides/editing/loop-a-section-while-you-practise/) — Riproduci un passaggio selezionato più e più volte.
 - [Sposta una clip lungo la timeline](/guides/editing/move-a-clip-along-the-timeline/) — Trascina una clip in un momento diverso sulla sua traccia.
-- [Ascolta più velocemente o più lentamente senza modificare la registrazione](/guides/editing/listen-at-a-different-speed/) — Rallenta un passaggio per trascriverlo o velocizza una ripresa lunga per rivederla, lasciando intatto il progetto.
+- [Ascolta più velocemente o più lentamente senza modificare la registrazione](/guides/editing/listen-at-a-different-speed/) — Rallenta un passaggio per trascriverlo o accelera una ripresa lunga per rivederla, lasciando intatto il progetto.
 
 ## Informazioni su questa guida
 
-La procedura in questa pagina — ogni voce di menu, dialogo, campo e pulsante, e il risultato che produce — viene riprodotta su ogni versione di Soundscaper dal browser suite (`tests/browser/soundscaper-guides.spec.js`). Se qualcosa smette di corrispondere all'editor, la versione fallisce fino a quando la guida non viene corretta. I valori suggeriti sono punti di partenza che l'editor ha dimostrato di accettare; se siano adatti alla tua registrazione è una questione da lasciare alle tue orecchie.
+La procedura in questa pagina — ogni voce di menu, dialogo, campo e pulsante, e il risultato che produce — viene riprodotta su ogni build di Soundscaper dal browser suite (`tests/browser/soundscaper-guides.spec.js`). Se qualcosa smette di corrispondere all'editor, il build fallisce fino a quando la guida non viene corretta. I valori suggeriti sono punti di partenza che l'editor ha dimostrato di accettare; se si adattano alla tua registrazione è una questione da decidere con le tue orecchie.

@@ -1,6 +1,6 @@
 ---
 title: "Sfumatura in e sfumatura out"
-description: "Inizia un clip dal silenzio e terminalo con una sfumatura invece di tagliarlo bruscamente."
+description: "Inizia un clip dal silenzio e terminalo in modo fluido invece di tagliarlo."
 editUrl: false
 sidebar:
   order: 5
@@ -8,28 +8,28 @@ head:
   - tag: script
     attrs:
       type: "application/ld+json"
-    content: "{\"@context\":\"https://schema.org\",\"@type\":\"HowTo\",\"name\":\"Fade in and fade out\",\"description\":\"Start a clip from silence and end it smoothly instead of cutting off.\",\"tool\":[{\"@type\":\"HowToTool\",\"name\":\"Soundscaper\"}],\"step\":[{\"@type\":\"HowToStep\",\"position\":1,\"name\":\"Open Soundscaper. A new, empty project is ready as soon as the editor loads.\",\"text\":\"Open Soundscaper. A new, empty project is ready as soon as the editor loads.\"},{\"@type\":\"HowToStep\",\"position\":2,\"name\":\"Choose File → Import audio and pick the recording that starts or stops too hard. The file lands as a clip on its own track.\",\"text\":\"Choose File → Import audio and pick the recording that starts or stops too hard. The file lands as a clip on its own track.\"},{\"@type\":\"HowToStep\",\"position\":3,\"name\":\"Drag in the ruler above the clip to select as much of the start as you want the fade to last.\",\"text\":\"Drag in the ruler above the clip to select as much of the start as you want the fade to last.\"},{\"@type\":\"HowToStep\",\"position\":4,\"name\":\"Choose Effect → Fading → Fade In. The effect applies to the selection straight away.\",\"text\":\"Choose Effect → Fading → Fade In. The effect applies to the selection straight away.\"},{\"@type\":\"HowToStep\",\"position\":5,\"name\":\"Drag in the ruler above the clip to select the same amount at the end.\",\"text\":\"Drag in the ruler above the clip to select the same amount at the end.\"},{\"@type\":\"HowToStep\",\"position\":6,\"name\":\"Choose Effect → Fading → Fade Out. The effect applies to the selection straight away.\",\"text\":\"Choose Effect → Fading → Fade Out. The effect applies to the selection straight away.\"},{\"@type\":\"HowToStep\",\"position\":7,\"name\":\"Press Play to listen, then Stop.\",\"text\":\"Press Play to listen, then Stop. The recording swells in and dies away instead of starting and stopping hard.\"}]}"
+    content: "{\"@context\":\"https://schema.org\",\"@type\":\"HowTo\",\"name\":\"Fade in and fade out\",\"description\":\"Start a clip from silence and end it smoothly instead of cutting off.\",\"tool\":[{\"@type\":\"HowToTool\",\"name\":\"Soundscaper\"}],\"step\":[{\"@type\":\"HowToStep\",\"position\":1,\"name\":\"Open Soundscaper. A new, empty project is ready as soon as the editor loads.\",\"text\":\"Open Soundscaper. A new, empty project is ready as soon as the editor loads.\"},{\"@type\":\"HowToStep\",\"position\":2,\"name\":\"Choose File → Import and pick the recording that starts or stops too hard. It lands as a clip on its own track.\",\"text\":\"Choose File → Import and pick the recording that starts or stops too hard. It lands as a clip on its own track.\"},{\"@type\":\"HowToStep\",\"position\":3,\"name\":\"Drag in the ruler above the clip to select as much of the start as you want the fade to last.\",\"text\":\"Drag in the ruler above the clip to select as much of the start as you want the fade to last.\"},{\"@type\":\"HowToStep\",\"position\":4,\"name\":\"Choose Effect → Fading → Fade In. The effect applies to the selection straight away.\",\"text\":\"Choose Effect → Fading → Fade In. The effect applies to the selection straight away.\"},{\"@type\":\"HowToStep\",\"position\":5,\"name\":\"Drag in the ruler above the clip to select the same amount at the end.\",\"text\":\"Drag in the ruler above the clip to select the same amount at the end.\"},{\"@type\":\"HowToStep\",\"position\":6,\"name\":\"Choose Effect → Fading → Fade Out. The effect applies to the selection straight away.\",\"text\":\"Choose Effect → Fading → Fade Out. The effect applies to the selection straight away.\"},{\"@type\":\"HowToStep\",\"position\":7,\"name\":\"Press Play to listen, then Stop.\",\"text\":\"Press Play to listen, then Stop. The recording swells in and dies away instead of starting and stopping hard.\"}]}"
 ---
-<!-- docs-ai-provenance: {"factPacketSha256":"e8598595815502e051036875f30c4266c32181fc523c976c99b3ac430d99f0e9","model":"aya-expanse:32b","modelDigest":"1603440383bd5504dc7afd01c0407b425b988dde650a8dc1a737433baa3cd432","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"e8598595815502e051036875f30c4266c32181fc523c976c99b3ac430d99f0e9","targetLocale":"it"} -->
+<!-- docs-ai-provenance: {"factPacketSha256":"dd587cefa66ffc1928b495d6acc075f6717d569220d474268488433a141ea60a","model":"aya-expanse:32b","modelDigest":"1603440383bd5504dc7afd01c0407b425b988dde650a8dc1a737433baa3cd432","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"dd587cefa66ffc1928b495d6acc075f6717d569220d474268488433a141ea60a","targetLocale":"it"} -->
 
 <!-- Generated by `node scripts/docs-reference.mjs`. Do not edit. -->
 
-Un fade è il modo più semplice per evitare un click all'inizio di un clip o un arresto brusco alla fine. Fade In aumenta gradualmente il volume della selezione partendo dal silenzio; Fade Out lo diminuisce gradualmente. La durata della selezione corrisponde alla lunghezza del fade.
+Un fade è il modo più semplice per evitare un click all'inizio di un clip o un arresto brusco alla fine. Fade In aumenta gradualmente il volume della selezione partendo dal silenzio, mentre Fade Out lo diminuisce gradualmente. La durata della selezione corrisponde alla lunghezza del fade.
 
 :::note[Proveniente da Audacity?]
-Questo è l'effetto **Effetto → Fading → Fade In e Fade Out** di Audacity. I nomi riportati di seguito sono propri di Soundscaper, che a volte differiscono.
+Questo è l'effetto **Effetto → Fade → Fade In e Fade Out** di Audacity. I nomi utilizzati qui sono specifici di Soundscaper e a volte differiscono.
 :::
 
 ## Passaggi
 
 1. Apri Soundscaper. Un nuovo progetto vuoto è pronto non appena viene caricato l'editor.
-2. Scegli **File → Importa audio** e seleziona la registrazione che inizia o si interrompe in modo troppo brusco. Il file viene posizionato come clip sulla propria traccia.
-3. Trascina sulla riga di misura sopra il clip per selezionare la quantità di inizio che desideri che duri il fade.
-4. Scegli **Effetto → Fading → Fade In**. L'effetto viene applicato alla selezione immediatamente.
-5. Trascina sulla riga di misura sopra il clip per selezionare la stessa quantità alla fine.
-6. Scegli **Effetto → Fading → Fade Out**. L'effetto viene applicato alla selezione immediatamente.
+2. Scegli **File → Importa** e seleziona la registrazione che inizia o termina in modo troppo brusco. Verrà inserita come clip nella sua traccia.
+3. Trascina sulla regola sopra il clip per selezionare la porzione iniziale che desideri che il fade copra.
+4. Scegli **Effetto → Fade → Fade In**. L'effetto viene applicato immediatamente alla selezione.
+5. Trascina sulla regola sopra il clip per selezionare la stessa quantità alla fine.
+6. Scegli **Effetto → Fade → Fade Out**. L'effetto viene applicato immediatamente alla selezione.
 7. Premi **Riproduci** per ascoltare, quindi **Ferma**.
-   *Dovresti vedere:* La registrazione si espande e svanisce invece di iniziare e fermarsi in modo brusco.
+   *Dovresti vedere:* La registrazione aumenta gradualmente e svanisce invece di iniziare e terminare in modo brusco.
 
 ## Suggerimenti
 
@@ -38,20 +38,20 @@ Questo è l'effetto **Effetto → Fading → Fade In e Fade Out** di Audacity. I
 
 ## Guide correlate
 
-Altre guide su [volume e dinamiche](/guides/volume/):
+Altre guide su [volume e dinamica](/guides/volume/):
 
-- [Rendi più forte una registrazione tranquilla](/guides/volume/make-a-recording-louder/) — Aumenta il livello di una registrazione di un numero fisso di decibel utilizzando Amplifica.
-- [Normalizza le cime a un livello impostato](/guides/volume/normalize-peaks/) — Porta il punto più forte di una registrazione a un livello esatto al di sotto del livello massimo.
+- [Rendere più forte una registrazione tranquilla](/guides/volume/make-a-recording-louder/) — Aumenta il livello di una registrazione di un numero fisso di decibel utilizzando Amplifica.
+- [Normalizza le cuspidi a un livello impostato](/guides/volume/normalize-peaks/) — Porta il punto più forte di una registrazione a un livello esatto al di sotto del livello massimo.
 - [Normalizza la potenza sonora per un podcast](/guides/volume/normalize-loudness-for-podcasts/) — Adatta la potenza percepita di un episodio al livello previsto dalle piattaforme di streaming.
-- [Uniforma il volume con un compressore](/guides/volume/even-out-volume-with-a-compressor/) — Riduci il divario tra momenti forti e deboli in modo che il discorso sia più facile da seguire.
-- [Domare le cime con un limitatore](/guides/volume/tame-peaks-with-a-limiter/) — Impedisci ai momenti più forti di superare un limite senza influenzare il resto.
+- [Livella il volume con un compressore](/guides/volume/even-out-volume-with-a-compressor/) — Riduci il divario tra momenti forti e deboli in modo che il discorso sia più facile da seguire.
+- [Domare le cuspidi con un limitatore](/guides/volume/tame-peaks-with-a-limiter/) — Impedisci ai momenti più forti di superare un limite senza influenzare il resto.
 - [Riduci la musica sotto una voce](/guides/volume/duck-music-under-a-voice/) — Abbassa automaticamente la musica di sottofondo ogni volta che una traccia vocale sta parlando.
-- [Uniforma il volume con il compressore classico](/guides/volume/even-out-volume-with-the-legacy-compressor/) — Usa il compressore originale di Audacity 3, con il suo rumore di fondo e il guadagno di compensazione, su una registrazione.
+- [Livella il volume con il compressore classico](/guides/volume/even-out-volume-with-the-legacy-compressor/) — Utilizza il compressore originale di Audacity 3, con il suo rumore di fondo e il guadagno di compensazione, su una registrazione.
 
-## Riferimento
+## Riferimenti
 
-- [Ogni parametro degli effetti utilizzati qui, con il suo valore predefinito e intervallo, è presente nel riferimento degli effetti audio.](/reference/generated/audio-effects/#parameters)
+- [Ogni parametro degli effetti utilizzati qui, con il suo valore predefinito e l'intervallo, è disponibile nel riferimento degli effetti audio.](/reference/generated/audio-effects/#parameters)
 
 ## Informazioni su questa guida
 
-La procedura descritta in questa pagina — ogni voce di menu, dialogo, campo e pulsante, e il risultato che produce — viene riprodotta per ogni build di Soundscaper dal browser suite (`tests/browser/soundscaper-guides.spec.js`). Se qualsiasi parte di essa smette di corrispondere all'editor, la build fallisce fino a quando la guida non viene corretta. I valori suggeriti sono punti di partenza che l'editor ha dimostrato di accettare; se sono adatti alla tua registrazione è una decisione per le tue orecchie.
+La procedura descritta in questa pagina — ogni voce di menu, dialogo, campo e pulsante, e il risultato che produce — viene riprodotta su ogni build di Soundscaper dal browser suite (`tests/browser/soundscaper-guides.spec.js`). Se qualsiasi parte di essa smette di corrispondere all'editor, il build fallisce fino a quando la guida non viene corretta. I valori suggeriti sono punti di partenza che l'editor è stato testato per accettare; se sono adatti alla tua registrazione è una decisione per le tue orecchie.
