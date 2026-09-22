@@ -4,64 +4,102 @@ description: "Organizza le clip, bilancia le tracce, applica effetti e crea un f
 sidebar:
   order: 4
 ---
-<!-- docs-ai-provenance: {"factPacketSha256":"d4b354ffb5d6a4d35fcb20ac6bb1e0191746badd98ca8f5b476a286e068a3c26","model":"qwen3.8:latest","modelDigest":"22130167c4c20e20c7b71454612966ca8e8171e9b3cc8ab6ce8aa6cbfec79643","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"d4b354ffb5d6a4d35fcb20ac6bb1e0191746badd98ca8f5b476a286e068a3c26","targetLocale":"it"} -->
+<!-- docs-ai-provenance: {"factPacketSha256":"eaa07736d9143de912e22bd2c5d4a8db4f1553c1052d247826240cda8c6af620","model":"gpt-5.6-luna","modelDigest":"manual","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"eaa07736d9143de912e22bd2c5d4a8db4f1553c1052d247826240cda8c6af620","targetLocale":"it"} -->
 
 ## Organizza le clip
 
-Seleziona le clip o un intervallo di tempo prima di scegliere un comando di modifica. Split crea un confine di modifica sulla testina di riproduzione. Le varianti Gap-preserving e ripple determinano se il materiale successivo rimane in posizione o si sposta per chiudere la regione rimossa.
+Seleziona le clip o un intervallo temporale prima di scegliere un comando di modifica. Split crea un
+confine di modifica in corrispondenza del cursore di riproduzione. Le varianti che preservano gli
+spazi e quelle ripple determinano se il materiale successivo resta al suo posto o si sposta per
+chiudere la regione rimossa.
 
-Utilizza cartelle di traccia, gruppi di clip e Project Bin per mantenere organizzati i progetti più grandi.
+Usa le cartelle delle tracce, i gruppi di clip e il Project Bin per tenere organizzati i progetti
+più grandi.
 
-### Regola i dissolvenzi delle clip {#clip-fades}
+### Regola le dissolvenze delle clip {#clip-fades}
 
-Seleziona una clip audio per visualizzare piccoli manici triangolari lungo la parte superiore della sua forma d'onda, direttamente sotto l'intestazione della clip.
-Trascina il triangolo sinistro verso l'interno per un fade-in, o il triangolo destro verso l'interno per un fade-out. La forma d'onda cambia durante il trascinamento e l'area sopra la curva del dissolvenzo diventa più scura. I triangoli seguono i confini del dissolvenzo; trascinando uno di essi verso il suo angolo originale, si rimuove quel dissolvenzo. Viene modificata solo la clip trascinata, anche quando sono selezionate più clip.
+Seleziona una clip audio per visualizzare piccoli manici triangolari lungo la parte superiore della
+forma d'onda, subito sotto l'intestazione della clip.
+Trascina il triangolo sinistro verso l'interno per creare una dissolvenza in entrata, oppure quello
+destro verso l'interno per una dissolvenza in uscita. La forma d'onda cambia mentre trascini e l'area
+sopra la curva della dissolvenza diventa più scura. I triangoli seguono i limiti della dissolvenza;
+riportandone uno al proprio angolo rimuovi quella dissolvenza. Anche quando sono selezionate più clip,
+cambia solo la clip che trascini.
 
-I manici scompaiono quando si deseleziona la clip, ma la forma d'onda dissolta e la sfumatura rimangono. Questi dissolvenzi preservano l'audio originale e restano regolabili dopo il salvataggio e la riapertura del progetto. Rilascia per confermare un dissolvenzo, oppure premi **Escape** durante il trascinamento per annullare. **Annulla** inverte un trascinamento completo. La riproduzione e l'esportazione utilizzano le impostazioni del dissolvenzo confermate.
+Quando deselezioni la clip, i manici scompaiono, ma restano la forma d'onda sfumata e l'ombreggiatura.
+Queste dissolvenze conservano l'audio originale e restano regolabili dopo il salvataggio e la
+riapertura del progetto. Rilascia per confermare una dissolvenza, oppure premi **Escape** mentre
+trascini per annullarla. **Undo** annulla un trascinamento completo. La riproduzione e l'esportazione
+usano le impostazioni confermate della dissolvenza.
 
-Con una clip selezionata e focalizzata, premi **Tab** per raggiungere i suoi manici di dissolvenzo. I tasti freccia regolano la durata di 10 millisecondi, oppure di 100 millisecondi con **Shift**. **Home** rimuove il dissolvenzo; **End** lo estende su tutta la clip.
-Per l'immissione numerica, scegli **Modifica → Clip audio → Proprietà clip** e
-usa **Dissolvenza**.
+Con una clip selezionata e attiva, premi **Tab** per raggiungere i suoi manici di dissolvenza. I tasti
+freccia regolano la durata di 10 millisecondi, oppure di 100 millisecondi con **Shift**. **Home**
+rimuove la dissolvenza; **End** la estende sull'intera clip. Per inserire un valore numerico, scegli
+**Edit → Audio clips → Clip properties** e usa **Fading**.
 
-## Crea il mix
+## Costruisci il mix
 
-Utilizza i controlli di guadagno di traccia, pan, mute e solo per bilanciare il progetto. Il pannello Mixer espone lo stesso stato del progetto in un layout orientato al mix. Gli effetti in tempo reale restano regolabili; le operazioni distruttive o renderizzate creano modifiche al progetto che possono essere annullate mentre la cronologia è disponibile.
+Usa i controlli di guadagno della traccia, pan, mute e solo per bilanciare il progetto. Il pannello
+Mixer mostra lo stesso stato del progetto in una disposizione orientata al mix. Gli effetti in tempo
+reale restano regolabili; le operazioni distruttive o renderizzate creano modifiche al progetto che
+possono essere annullate finché la cronologia è disponibile.
 
-Utilizza il misuratore di riproduzione e l'analisi della loudness per ispezionare il risultato. Evita di considerare un target del misuratore come sostituto dell'ascolto dell'esportazione completa.
+Usa il misuratore di riproduzione e l'analisi della loudness per controllare il risultato. Non trattare
+il valore obiettivo del misuratore come un sostituto dell'ascolto dell'esportazione completa.
 
-### Riduci la sibilanza {#reduce-sibilance}
+### Riduci le sibilanti {#reduce-sibilance}
 
-Scegli **Effetto → Rimozione e riparazione del rumore → De-esser**. Imposta **Frequenza** vicino alla parte aspra della voce, quindi abbassa **Soglia** finché i sibilanti non si ammorbidiscono.
-**Riduzione massima** limita il taglio; inizia intorno a 6–9 dB. Un **Attack** più breve
-rileva l'inizio di una consonante, mentre **Release** controlla la velocità con cui le
-alte frequenze si riprendono. Viene ridotta solo la banda superiore.
+Scegli **Effect → Noise removal and repair → De-esser**. Imposta **Frequency** vicino alla parte
+aspra della voce, poi abbassa **Threshold** finché le sibilanti non si attenuano. **Maximum reduction**
+limita il taglio: inizia intorno a 6–9 dB. Un **Attack** più breve cattura l'inizio di una consonante,
+mentre **Release** controlla la rapidità con cui si riprendono le alte frequenze. Viene ridotta solo la
+banda superiore.
 
 ### Comprimi bande di frequenza separate {#multiband-compression}
 
-Scegli **Effetto → Volume e compressione → Compressore multibanda**. I due
-crossover dividono il segnale in bande basse, medie e alte. Ogni banda ha la
-sua soglia, rapporto e guadagno di uscita. Un rapporto di 1 lascia invariata la dinamica di quella banda. Attack e release si applicano a tutte e tre le bande. I crossover hanno
-pendenze dolci e sovrapposte di 6 dB/ottava; con tutti i rapporti a 1 e i guadagni delle bande a
-0 dB, il segnale originale passa invariato.
+Scegli **Effect → Volume and compression → Multiband compressor**. I due crossover dividono il
+segnale nelle bande bassa, media e alta. Ogni banda ha la propria soglia, il proprio rapporto e il
+proprio guadagno di uscita. Un rapporto pari a 1 lascia inalterata la dinamica di quella banda.
+Attack e release si applicano a tutte e tre le bande. I crossover hanno pendenze dolci e sovrapposte
+di 6 dB per ottava; con tutti i rapporti a 1 e i guadagni delle bande a 0 dB, il segnale originale
+passa senza variazioni.
 
-Entrambi gli effetti collegano i propri canali per preservare l'equilibrio stereo e sono anche
-disponibili negli rack di effetti di traccia e master. Le impostazioni del rack vengono salvate con il
-progetto e possono essere regolate durante la riproduzione. **Applica alla selezione** renderizza l'
-effetto nell'audio selezionato e supporta Annulla. L'automazione della timeline non
-è disponibile per questi due effetti.
+Entrambi gli effetti collegano i canali per conservare l'equilibrio stereo e sono disponibili anche
+nei rack degli effetti della traccia e del master. Le impostazioni dei rack vengono salvate con il
+progetto e possono essere regolate durante la riproduzione. **Apply to selection** esegue il rendering
+dell'effetto sull'audio selezionato e supporta **Undo**. Per questi due effetti non è disponibile
+l'automazione della timeline.
+
+### Usa effetti LADSPA e analizzatori Vamp {#native-audio-plugins}
+
+L'app desktop può cercare plug-in di terze parti solo dopo che hai autorizzato un formato e una delle
+sue cartelle in **Effect → Plugin Manager**. La scansione non è mai automatica. Autorizza ogni
+installazione trovata prima di usarla e installa solo plug-in di cui ti fidi: i plug-in nativi
+eseguono codice eseguibile anche se Soundscaper li ospita in processi helper supervisionati.
+
+Gli effetti LADSPA sono disponibili su Linux. Dopo averli abilitati nel gestore, aprine uno da
+**Effect → Audio Plugins**. Soundscaper costruisce i controlli a partire dalle porte LADSPA, perché
+questo formato non ha un'interfaccia del produttore. I valori dei controlli e lo stato attivo o
+bypassato dell'effetto vengono salvati con il progetto.
+
+I plug-in Vamp analizzano l'audio senza modificarlo. Dopo aver abilitato un'installazione Vamp,
+seleziona una traccia audio per analizzarla, oppure non selezionare alcuna traccia audio per
+analizzare il mix master. Una selezione temporale limita l'analisi; altrimenti Soundscaper usa
+l'intero progetto. Scegli **Analyze → Vamp Plugins**, seleziona l'output dell'analizzatore e le sue
+impostazioni, quindi eseguilo. Soundscaper aggiunge i timestamp restituiti come nuova traccia di
+etichette solo dopo che l'analisi completa è riuscita, quindi annullare o modificare il progetto non
+può lasciare etichette parziali.
 
 ## Esporta
 
-Scegli **File → Esporta audio** per una consegna mixata o **Esporta audio selezionato**
-quando solo una selezione deve essere renderizzata. Soundscaper può anche esportare stampe ed
-etichette.
+Scegli **File → Export audio** per una consegna con il mix oppure **Export selected audio** quando
+deve essere renderizzata solo una selezione. Soundscaper può esportare anche stem ed etichette.
 
-I formati compressi utilizzano il runtime FFmpeg. I formati esatti e la disponibilità
-condizionale sono elencati nel [riferimento ai formati generato](/reference/).
+I formati compressi usano il runtime FFmpeg. I formati esatti e la disponibilità condizionata sono
+elencati nel [riferimento ai formati generato](/reference/).
 
-Riproduci il file esportato in un'altra applicazione prima di consegnarlo o eliminare
-il materiale sorgente.
+Riproduci il file esportato in un'altra applicazione prima di consegnarlo o eliminare il materiale
+sorgente.
 
-Per il lavoro su immagini — composizione di una sequenza, effetti video e una
-consegna MP4 o WebM — passa il progetto a [Framescaper](/framescaper/) e consulta
-[esporta video](/framescaper/video-export/).
+Per lavori con immagini — composizione di una sequenza, effetti video e una consegna MP4 o WebM —
+affida il progetto a [Framescaper](/framescaper/) e consulta [esporta video](/framescaper/video-export/).

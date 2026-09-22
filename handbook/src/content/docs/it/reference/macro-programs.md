@@ -4,7 +4,7 @@ description: "L'API JavaScript su cui viene eseguito un programma macro, i limit
 sidebar:
   order: 7
 ---
-<!-- docs-ai-provenance: {"factPacketSha256":"bfeb48e77dc0013cc1f43bd584ae92a7196983e349631c0b75bfbca2ba0c542a","model":"qwen3.8:latest","modelDigest":"22130167c4c20e20c7b71454612966ca8e8171e9b3cc8ab6ce8aa6cbfec79643","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"bfeb48e77dc0013cc1f43bd584ae92a7196983e349631c0b75bfbca2ba0c542a","targetLocale":"it"} -->
+<!-- docs-ai-provenance: {"factPacketSha256":"375c684211bdec9dbd3614c197bda423e24858a568ad5ae3c06ab06d7db2522f","model":"gpt-5.6-luna","modelDigest":"manual","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"375c684211bdec9dbd3614c197bda423e24858a568ad5ae3c06ab06d7db2522f","targetLocale":"it"} -->
 
 Un programma macro è una macro scritta in JavaScript anziché come un elenco di passaggi.
 Viene eseguito all'interno dell'editor contro una piccola API denominata `sound`, che consente di leggere
@@ -17,9 +17,11 @@ I programmi sono una funzione di Soundscaper. Framescaper non dispone di un gest
 ## Dove risiedono i programmi
 
 Scegliere **Strumenti → Gestore macro**. La finestra di dialogo elenca le macro a elenco di passaggi e, sotto
-**Programmi**, i programmi salvati. **Nuovo programma** ne crea uno e il
-pannello dei dettagli mostra il **Nome programma**, il testo del **Programma** e un pulsante **Esegui
-programma**. Il testo viene salvato durante la digitazione; non esiste un passaggio di salvataggio separato.
+**Programmi**, i programmi salvati. Premi **+ (Nuovo programma)** nell'intestazione Programmi per crearne
+uno. La stessa barra delle azioni offre **Importa programma**, **Esporta programma** ed **Elimina
+programma** per il programma selezionato. Il pannello dei dettagli mostra il **Nome programma**, il testo
+del **Programma** e un pulsante **Esegui programma**. Il testo viene salvato durante la digitazione; non
+esiste un passaggio di salvataggio separato.
 
 Un programma viene salvato insieme alle impostazioni dell'editor, non all'interno di un progetto, quindi è
 disponibile in ogni progetto aperto in questo editor. Utilizzare **Esporta programma** e
@@ -89,8 +91,8 @@ il messaggio dell'errore, dove il numero di riga è la riga del programma che ha
 
 Un effetto applicato da un programma viene eseguito sull'intervallo di tempo corrente nella
 traccia focalizzata, che è la traccia la cui intestazione è stata cliccata per ultima o il cui clip
-è stato selezionato per ultimo. Quando non c'è una selezione di tempo ma un clip è selezionato, l'
-effetto copre quel clip. Le chiamate di selezione di un programma modificano l'intervallo di tempo e
+è stato selezionato per ultimo. Quando non c'è una selezione di tempo ma un clip è selezionato, l'effetto
+copre quel clip. Le chiamate di selezione di un programma modificano l'intervallo di tempo e
 l'insieme delle tracce selezionate, ma non quale traccia ha il focus, quindi un'esecuzione elabora
 una sola traccia. Se nulla è focalizzato o la selezione è vuota, l'esecuzione fallisce con
 lo stesso messaggio fornito dal menu Effetto.
@@ -132,7 +134,7 @@ dell'esecuzione.
 
 `sound.project.snapshot()` restituisce `{ sampleRate, tracks, selection }`, con
 `tracks` e `selection` come le due chiamate riportate di seguito li restituiscono. `sampleRate` è la
-tasso di campionamento del progetto in hertz, che è l'unità in cui viene misurato ogni conteggio di frame in questa pagina.
+frequenza di campionamento del progetto in hertz, che è l'unità in cui viene misurato ogni conteggio di frame in questa pagina.
 
 `sound.project.tracks()` restituisce un array di tracce in ordine di timeline:
 
@@ -331,8 +333,7 @@ non possono essere applicati da un programma.
 | Change Tempo | `audacity-change-tempo` | `tempoPercent: 0` |
 | Classic Filters | `audacity-classic-filters` | `family: 'butterworth'`, `direction: 'lowpass'`, `order: 1`, `cutoffHz: 1000`, `passbandRippleDb: 1`, `stopbandAttenuationDb: 30` |
 | Click Removal | `audacity-click-removal` | `threshold: 200`, `maximumWidth: 20` |
-| Compressor | `compressor` | `threshold: -24`, `knee: 30`, `ratio: 4`, `attack: 0.003`, `release: 0.25`, `makeupGain: 0` |
-| Compressor (Audacity) | `audacity-compressor` | `thresholdDb: -10`, `makeupGainDb: 0`, `kneeWidthDb: 5`, `ratio: 10`, `lookaheadMs: 1`, `attackMs: 30`, `releaseMs: 150` |
+| Compressore | `audacity-compressor` | `thresholdDb: -10`, `makeupGainDb: 0`, `kneeWidthDb: 5`, `ratio: 10`, `lookaheadMs: 1`, `attackMs: 30`, `releaseMs: 150` |
 | Delay | `delay` | `time: 0.25`, `feedback: 0.3`, `mix: 0.2` |
 | Distortion | `audacity-distortion` | `mode: 'hard-clipping'`, `dcBlock: false`, `thresholdDb: -6`, `noiseFloorDb: -70`, `parameter1: 50`, `parameter2: 50`, `repeats: 1` |
 | Echo | `audacity-echo` | `delaySeconds: 1`, `decay: 0.5` |
@@ -345,8 +346,7 @@ non possono essere applicati da un programma.
 | High-pass filter | `highpass` | `frequency: 80`, `q: 0.707` |
 | Invert | `audacity-invert` | nessuno |
 | Legacy Compressor | `audacity-legacy-compressor` | `thresholdDb: -12`, `noiseFloorDb: -40`, `ratio: 2`, `attackSeconds: 0.2`, `releaseSeconds: 1`, `normalize: true`, `usePeak: false` |
-| Limiter | `limiter` | `ceiling: -1`, `lookahead: 0.005`, `release: 0.1` |
-| Limiter (Audacity) | `audacity-limiter` | `thresholdDb: -5`, `makeupTargetDb: -1`, `kneeWidthDb: 2`, `lookaheadMs: 1`, `releaseMs: 20` |
+| Limiter | `audacity-limiter` | `thresholdDb: -5`, `makeupTargetDb: -1`, `kneeWidthDb: 2`, `lookaheadMs: 1`, `releaseMs: 20` |
 | Loudness Normalization | `audacity-loudness-normalization` | `mode: 'lufs'`, `targetLufs: -23`, `targetRmsDb: -20`, `stereoIndependent: false`, `dualMono: true` |
 | Low-pass filter | `lowpass` | `frequency: 18000`, `q: 0.707` |
 | Noise Reduction | `audacity-noise-reduction` | `reductionDb: 6`, `sensitivity: 6`, `frequencySmoothingBands: 6`, `output: 'reduce'` |
@@ -364,7 +364,7 @@ non possono essere applicati da un programma.
 | Utility Gain (Reviewed) | `reviewed-utility-gain` | `gain: 1` |
 | Wahwah | `audacity-wahwah` | `frequency: 1.5`, `phaseDegrees: 0`, `depthPercent: 70`, `resonance: 2.5`, `frequencyOffsetPercent: 30`, `outputGainDb: -6` |
 
-Due effects necessitano di qualcosa che un programma non può fornire. Noise Reduction richiede un profilo del rumore acquisito nella finestra di dialogo dell'effetto stesso, e Auto Duck richiede una traccia di controllo sotto quella focalizzata.
+Due effetti necessitano di qualcosa che un programma non può fornire. Noise Reduction richiede un profilo del rumore acquisito nella finestra di dialogo dell'effetto stesso, e Auto Duck richiede una traccia di controllo sotto quella focalizzata.
 
 ## Comandi che un programma può eseguire {#commands-a-program-can-run}
 
