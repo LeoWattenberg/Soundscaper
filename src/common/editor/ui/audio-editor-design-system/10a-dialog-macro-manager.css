@@ -37,7 +37,7 @@
 .audio-editor-macro-manager__library-header h3 {
 	margin: 0;
 	color: var(--muted);
-	font-size: 11px;
+	font-size: var(--editor-font-size, 12px);
 	font-weight: 600;
 	letter-spacing: 0.02em;
 	text-transform: uppercase;
@@ -68,7 +68,7 @@
 	border: 0;
 	border-radius: 4px;
 	cursor: pointer;
-	font-size: 12px;
+	font-size: var(--editor-font-size, 12px);
 	text-align: left;
 	text-overflow: ellipsis;
 	white-space: nowrap;
@@ -161,7 +161,7 @@
 	border: 0;
 	border-top: 1px dashed var(--line);
 	cursor: pointer;
-	font-size: 12px;
+	font-size: var(--editor-font-size, 12px);
 	text-align: left;
 }
 
@@ -212,7 +212,7 @@
 	background: var(--bg);
 	border: 1px solid var(--line);
 	border-radius: 5px;
-	font-size: 11px;
+	font-size: var(--editor-font-size, 12px);
 }
 
 .audio-editor-macro-manager__message--error {
@@ -243,7 +243,7 @@
 	border: 1px solid var(--line);
 	border-radius: 5px;
 	font-family: var(--mono, ui-monospace, SFMono-Regular, Menlo, Consolas, monospace);
-	font-size: 12px;
+	font-size: var(--editor-font-size, 12px);
 	line-height: 1.45;
 	tab-size: 2;
 	resize: vertical;
@@ -262,7 +262,7 @@
 	border: 1px solid var(--line);
 	border-radius: 5px;
 	font-family: var(--mono, ui-monospace, SFMono-Regular, Menlo, Consolas, monospace);
-	font-size: 11px;
+	font-size: var(--editor-font-size, 12px);
 }
 
 .audio-editor-macro-script__log:empty {
@@ -294,7 +294,7 @@
 .audio-editor-macro-script__review h4 {
 	margin: 0 0 6px;
 	color: var(--danger);
-	font-size: 12px;
+	font-size: var(--editor-font-size, 12px);
 }
 
 .audio-editor-macro-script__review-acknowledge {
@@ -302,7 +302,7 @@
 	align-items: center;
 	gap: 8px;
 	margin-top: 8px;
-	font-size: 11px;
+	font-size: var(--editor-font-size, 12px);
 	cursor: pointer;
 }
 
@@ -343,5 +343,5 @@
 
 .audio-editor-macro-manager__program-untrusted {
 	color: var(--danger);
-	font-size: 10px;
+	font-size: var(--editor-font-size, 12px);
 }

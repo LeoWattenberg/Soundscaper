@@ -35,7 +35,7 @@
 	display: grid;
 	gap: 3px;
 	min-width: 88px;
-	font-size: 11px;
+	font-size: var(--editor-font-size, 12px);
 }
 
 .kw-audio-editor__musical-map-editor section,
@@ -50,7 +50,7 @@
 	margin: 0;
 	padding: 0;
 	border: 0;
-	font-size: 11px;
+	font-size: var(--editor-font-size, 12px);
 }
 
 .kw-audio-editor__musical-map-event {
@@ -65,7 +65,7 @@
 	max-width: 132px;
 	overflow: hidden;
 	color: var(--muted);
-	font: 10px ui-monospace, monospace;
+	font: var(--editor-font-size, 12px) ui-monospace, monospace;
 	text-overflow: ellipsis;
 	white-space: nowrap;
 }

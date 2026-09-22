@@ -17,7 +17,7 @@
 
 .kw-framescaper-capture legend {
 	padding: 0 5px;
-	font-size: 11px;
+	font-size: var(--editor-font-size, 12px);
 	font-weight: 700;
 }
 
@@ -28,7 +28,7 @@
 	background: color-mix(in srgb, var(--control) 78%, transparent);
 	border-inline-start: 3px solid var(--accent);
 	gap: 3px;
-	font-size: 11px;
+	font-size: var(--editor-font-size, 12px);
 }
 
 .kw-framescaper-capture__status span,
@@ -36,7 +36,7 @@
 .kw-framescaper-capture__preview p {
 	margin: 0;
 	color: var(--text);
-	font-size: 10px;
+	font-size: var(--editor-font-size, 12px);
 	line-height: 1.4;
 }
 
@@ -66,7 +66,7 @@
 	min-height: 30px;
 	align-items: center;
 	gap: 7px;
-	font-size: 11px;
+	font-size: var(--editor-font-size, 12px);
 	font-weight: 600;
 }
 
@@ -109,12 +109,12 @@
 	justify-content: space-between;
 	padding-top: 8px;
 	gap: 8px;
-	font-size: 11px;
+	font-size: var(--editor-font-size, 12px);
 }
 
 .kw-framescaper-capture__preview header span {
 	color: var(--text);
-	font-size: 9px;
+	font-size: var(--editor-font-size, 12px);
 }
 
 .kw-framescaper-capture__preview video,
@@ -131,7 +131,7 @@
 	place-items: center;
 	padding: 8px;
 	color: var(--text);
-	font-size: 10px;
+	font-size: var(--editor-font-size, 12px);
 	text-align: center;
 }
 
@@ -173,7 +173,7 @@
 	grid-template-columns: 1fr auto;
 	align-items: center;
 	gap: 5px 8px;
-	font-size: 11px;
+	font-size: var(--editor-font-size, 12px);
 }
 
 .kw-framescaper-capture__select select {
@@ -207,7 +207,7 @@
 .kw-framescaper-capture__session table {
 	width: 100%;
 	border-collapse: collapse;
-	font-size: 10px;
+	font-size: var(--editor-font-size, 12px);
 }
 
 .kw-framescaper-capture__session th,

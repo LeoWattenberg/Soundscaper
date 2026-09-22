@@ -138,7 +138,7 @@ body[data-editor-skin]:not([data-editor-skin='default']) .tooltip__arrow path {
 
 .editor-skin-preferences h4 {
 	margin: 0 0 12px;
-	font-size: 14px;
+	font-size: var(--editor-font-size, 12px);
 }
 
 .editor-skin-carousel {

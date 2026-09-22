@@ -151,7 +151,7 @@
 
 .kw-local-assistance__deferred {
 	color: var(--muted);
-	font-size: 0.875rem;
+	font-size: var(--editor-font-size, 12px);
 }
 
 .kw-local-assistance__highlight-proposals {

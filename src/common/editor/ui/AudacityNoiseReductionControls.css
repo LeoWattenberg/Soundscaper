@@ -4,13 +4,13 @@
 	border: 1px solid var(--line);
 	border-radius: 4px;
 	background: var(--audacity-effect-secondary, var(--surface-alt));
-	font-size: 12px;
+	font-size: var(--editor-font-size, 12px);
 	line-height: 1.5;
 }
 
 .audio-editor-audacity-noise__reduction > h3 {
 	margin: 0 0 16px;
-	font-size: 12px;
+	font-size: var(--editor-font-size, 12px);
 	font-weight: 600;
 }
 
@@ -39,7 +39,7 @@
 	display: flex;
 	align-items: center;
 	gap: 8px;
-	font-size: 12px;
+	font-size: var(--editor-font-size, 12px);
 	line-height: 20px;
 	cursor: pointer;
 }

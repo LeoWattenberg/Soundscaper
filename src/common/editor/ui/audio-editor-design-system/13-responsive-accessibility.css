@@ -1,3 +1,8 @@
+#kw-audio-editor-design-system .label-marker__label-text {
+	font-size: var(--editor-font-size, 12px);
+	line-height: var(--editor-font-size, 12px);
+}
+
 @media (max-width: 520px) {
 	#kw-audio-editor-design-system {
 		height: min(790px, calc(100dvh - 6px));
@@ -138,11 +143,11 @@
 	}
 
 	.audio-editor-empty-state strong {
-		font-size: 12px;
+		font-size: var(--editor-font-size, 12px);
 	}
 
 	.audio-editor-empty-state p {
-		font-size: 10px;
+		font-size: var(--editor-font-size, 12px);
 	}
 
 	.audio-editor-track-controls .track-control-panel__main {

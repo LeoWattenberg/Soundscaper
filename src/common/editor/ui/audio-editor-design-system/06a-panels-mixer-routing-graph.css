@@ -228,7 +228,7 @@
 .kw-routing-graph__node-kind,
 .kw-routing-graph__node-main > span:last-child {
 	color: var(--text);
-	font-size: 10px;
+	font-size: var(--editor-font-size, 12px);
 	letter-spacing: 0.04em;
 	text-transform: uppercase;
 }
@@ -294,7 +294,7 @@
 	background: var(--stage-raised);
 	border: 2px dotted var(--accent);
 	border-radius: 4px;
-	font-size: 8px;
+	font-size: var(--editor-font-size, 12px);
 	font-weight: 700;
 	line-height: 16px;
 	pointer-events: none;
@@ -324,7 +324,7 @@
 
 .kw-routing-graph__inspector h3 {
 	margin: 0 0 6px;
-	font-size: 14px;
+	font-size: var(--editor-font-size, 12px);
 }
 
 .kw-routing-graph__inspector p {
@@ -350,7 +350,7 @@
 	display: grid;
 	gap: 3px;
 	color: var(--text);
-	font-size: 11px;
+	font-size: var(--editor-font-size, 12px);
 }
 
 .kw-routing-graph__inspector label:has(input[type='checkbox']) {
@@ -388,7 +388,7 @@
 	border-radius: 4px;
 	background: var(--panel);
 	box-shadow: var(--shadow);
-	font-size: 11px;
+	font-size: var(--editor-font-size, 12px);
 	color: var(--muted);
 }
 

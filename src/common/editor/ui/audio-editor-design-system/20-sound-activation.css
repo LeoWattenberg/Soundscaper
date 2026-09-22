@@ -14,7 +14,7 @@
 
 .kw-audio-editor-sound-activation > p {
 	color: var(--text);
-	font-size: 11px;
+	font-size: var(--editor-font-size, 12px);
 	line-height: 1.45;
 }
 
@@ -23,7 +23,7 @@
 	min-height: 36px;
 	align-items: center;
 	gap: 9px;
-	font-size: 12px;
+	font-size: var(--editor-font-size, 12px);
 	font-weight: 700;
 }
 
@@ -53,7 +53,7 @@
 	align-items: baseline;
 	justify-content: space-between;
 	gap: 12px;
-	font-size: 11px;
+	font-size: var(--editor-font-size, 12px);
 }
 
 .kw-audio-editor-sound-activation__control output {

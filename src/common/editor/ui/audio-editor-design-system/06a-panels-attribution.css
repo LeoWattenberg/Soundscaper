@@ -40,12 +40,12 @@
 }
 
 .kw-audio-editor__attribution h3 {
-	font-size: 13px;
+	font-size: var(--editor-font-size, 12px);
 }
 
 .kw-audio-editor__attribution h4 {
 	color: var(--muted);
-	font-size: 11px;
+	font-size: var(--editor-font-size, 12px);
 	text-transform: uppercase;
 }
 
@@ -83,7 +83,7 @@
 
 .kw-audio-editor__attribution-modified {
 	color: var(--muted);
-	font-size: 11px;
+	font-size: var(--editor-font-size, 12px);
 	font-weight: 700;
 }
 

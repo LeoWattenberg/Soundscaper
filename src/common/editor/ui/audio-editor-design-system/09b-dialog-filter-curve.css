@@ -11,7 +11,7 @@
 .audio-editor-filter-curve__instructions {
 	margin: 0;
 	color: var(--muted);
-	font-size: 11px;
+	font-size: var(--editor-font-size, 12px);
 	line-height: 1.5;
 }
 
@@ -27,7 +27,7 @@
 
 .audio-editor-filter-curve svg text {
 	fill: var(--muted);
-	font-size: 11px;
+	font-size: var(--editor-font-size, 12px);
 }
 
 .audio-editor-filter-curve__border,
@@ -78,7 +78,7 @@
 	display: flex;
 	flex-wrap: wrap;
 	gap: 16px;
-	font-size: 11px;
+	font-size: var(--editor-font-size, 12px);
 }
 
 .audio-editor-filter-curve__legend span::before {
@@ -103,7 +103,7 @@
 .audio-editor-filter-curve details {
 	min-width: 0;
 	color: var(--muted);
-	font-size: 11px;
+	font-size: var(--editor-font-size, 12px);
 }
 
 .audio-editor-filter-curve summary {

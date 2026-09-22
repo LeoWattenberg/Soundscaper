@@ -43,7 +43,7 @@
 
 .audio-editor-workspace-onboarding__option-description,
 .audio-editor-workspace-onboarding__hint {
-	font-size: 12px;
+	font-size: var(--editor-font-size, 12px);
 	color: var(--muted, inherit);
 }
 

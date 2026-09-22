@@ -46,7 +46,7 @@
 	background: var(--control);
 	color: var(--text);
 	font: inherit;
-	font-size: 12px;
+	font-size: var(--editor-font-size, 12px);
 	line-height: 16px;
 	white-space: nowrap;
 	cursor: pointer;

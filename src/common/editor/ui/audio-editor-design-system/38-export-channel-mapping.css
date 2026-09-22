@@ -11,7 +11,7 @@
 	align-items: center;
 	gap: 12px;
 	color: var(--text);
-	font-size: 11px;
+	font-size: var(--editor-font-size, 12px);
 	font-weight: 500;
 	/* The editor's generic field label is a small-caps panel heading; here it
 		names a control beside it, as every other export field's label does. */
@@ -30,7 +30,7 @@
 	width: 100%;
 	border-collapse: collapse;
 	color: var(--text);
-	font-size: 11px;
+	font-size: var(--editor-font-size, 12px);
 }
 
 .audio-editor-channel-mapping__grid :is(th, td) {
@@ -46,7 +46,7 @@
 	z-index: 1;
 	color: var(--muted);
 	background: var(--bg);
-	font-size: 10px;
+	font-size: var(--editor-font-size, 12px);
 	font-weight: 750;
 }
 

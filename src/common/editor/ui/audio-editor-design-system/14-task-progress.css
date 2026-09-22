@@ -51,7 +51,7 @@
 .kw-audio-editor__task-progress output {
 	min-width: 3ch;
 	color: var(--muted);
-	font-size: 10px;
+	font-size: var(--editor-font-size, 12px);
 	font-variant-numeric: tabular-nums;
 	line-height: 1;
 	text-align: right;
@@ -61,7 +61,7 @@
 	max-width: 45%;
 	overflow: hidden;
 	color: var(--muted);
-	font-size: 10px;
+	font-size: var(--editor-font-size, 12px);
 	text-overflow: ellipsis;
 	white-space: nowrap;
 }
@@ -72,7 +72,7 @@
 	background: transparent;
 	border-radius: 3px;
 	color: var(--text);
-	font-size: 10px;
+	font-size: var(--editor-font-size, 12px);
 	cursor: pointer;
 }
 

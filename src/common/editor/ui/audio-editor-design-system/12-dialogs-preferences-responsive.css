@@ -55,7 +55,7 @@
 
 .kw-audio-editor-generator__timing-summary :is(dt, dd) {
 	margin: 0;
-	font-size: 10px;
+	font-size: var(--editor-font-size, 12px);
 }
 
 .kw-audio-editor-generator__timing-summary dt {
@@ -73,6 +73,7 @@
 	width: min(900px, calc(100vw - 32px));
 	max-height: min(86dvh, 820px);
 	flex-direction: column;
+	font-size: var(--editor-font-size, 12px);
 }
 
 .kw-audio-editor-preferences__body {
@@ -134,7 +135,7 @@
 .kw-audio-editor-preferences__note {
 	margin: 0;
 	color: var(--muted);
-	font-size: 11px;
+	font-size: var(--editor-font-size, 12px);
 }
 
 .kw-audio-editor-preferences__editing :is(.kw-audio-editor-preferences__note, .kw-audio-editor-preferences__field > span) {
@@ -198,7 +199,7 @@
 	min-width: 0;
 	gap: 5px;
 	color: var(--muted);
-	font-size: 10px;
+	font-size: var(--editor-font-size, 12px);
 	font-weight: 700;
 }
 
@@ -316,7 +317,7 @@
 	color: var(--muted);
 	background: var(--control);
 	border-bottom: 1px solid var(--line);
-	font-size: 9px;
+	font-size: var(--editor-font-size, 12px);
 	font-weight: 750;
 	text-transform: uppercase;
 	letter-spacing: 0.04em;
@@ -328,7 +329,7 @@
 	border: 1px solid var(--line);
 	border-bottom: 0;
 	border-radius: 4px 4px 0 0;
-	font-size: 9px;
+	font-size: var(--editor-font-size, 12px);
 	font-weight: 750;
 	text-transform: uppercase;
 }
@@ -345,7 +346,7 @@
 .kw-audio-editor-preferences__shortcut-command {
 	min-width: 0;
 	color: var(--muted);
-	font-size: 10px;
+	font-size: var(--editor-font-size, 12px);
 	font-weight: 700;
 	overflow-wrap: anywhere;
 }
@@ -382,7 +383,6 @@
 	border: 1px solid var(--line);
 	border-radius: 3px;
 	cursor: pointer;
-	font-size: 10px;
 	line-height: 1;
 }
 
@@ -390,7 +390,7 @@
 	width: 22px;
 	height: 22px;
 	padding: 0;
-	font-size: 12px;
+	font-size: var(--editor-font-size, 12px);
 }
 
 :is(.kw-audio-editor-preferences__shortcut-remove, .kw-audio-editor-preferences__shortcut-add):hover:not(:disabled) {

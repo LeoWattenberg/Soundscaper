@@ -27,7 +27,7 @@
 [data-local-model-manager] .kw-local-model-manager__maintenance h3,
 [data-local-model-manager] .kw-local-model-manager__notices h3 {
 	margin: 0;
-	font-size: 13px;
+	font-size: var(--editor-font-size, 12px);
 }
 
 [data-local-model-manager] .kw-local-model-manager__maintenance-actions,
@@ -87,7 +87,7 @@
 [data-local-model-manager] dt,
 [data-local-model-manager] .kw-local-model-manager__progress label {
 	color: var(--muted);
-	font-size: 12px;
+	font-size: var(--editor-font-size, 12px);
 }
 
 [data-local-model-manager] dl {

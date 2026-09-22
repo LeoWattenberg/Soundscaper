@@ -24,7 +24,7 @@
 
 .audio-editor-audacity-port__heading {
 	margin: 0 0 16px;
-	font-size: 12px;
+	font-size: var(--editor-font-size, 12px);
 	font-weight: 600;
 }
 
@@ -38,7 +38,7 @@
 }
 
 .audio-editor-audacity-port .audio-editor-effect-number > span:first-child {
-	font-size: 12px;
+	font-size: var(--editor-font-size, 12px);
 	font-weight: 400;
 	text-transform: none;
 	letter-spacing: 0;
@@ -189,7 +189,7 @@
 
 .audio-editor-audacity-pitch__estimate {
 	margin: 0;
-	font-size: 12px;
+	font-size: var(--editor-font-size, 12px);
 }
 
 .audio-editor-audacity-pitch__pair {
@@ -312,7 +312,7 @@
 	border: 1px solid var(--line);
 	border-radius: 4px;
 	background: var(--audacity-effect-secondary, var(--surface-alt));
-	font-size: 12px;
+	font-size: var(--editor-font-size, 12px);
 	line-height: 1.5;
 }
 
@@ -322,7 +322,7 @@
 
 .audio-editor-audacity-layout--audacity-noise-reduction .audio-editor-audacity-layout__context-card--profile h3 {
 	margin: 0 0 16px;
-	font-size: 12px;
+	font-size: var(--editor-font-size, 12px);
 	font-weight: 600;
 }
 

@@ -64,7 +64,7 @@
 	border: 0;
 	border-radius: 4px;
 	font: inherit;
-	font-size: 11px;
+	font-size: var(--editor-font-size, 12px);
 	font-weight: 700;
 	line-height: 1.2;
 	cursor: pointer;
@@ -228,7 +228,7 @@
 
 .kw-audio-editor__mixer-routing thead th {
 	color: var(--muted);
-	font-size: 10px;
+	font-size: var(--editor-font-size, 12px);
 	text-transform: uppercase;
 }
 
@@ -257,7 +257,7 @@
 	width: 66px;
 	min-width: 0;
 	padding-inline: 3px;
-	font-size: 10px;
+	font-size: var(--editor-font-size, 12px);
 }
 
 .kw-audio-editor__mixer-send-knob .knob {
@@ -479,7 +479,7 @@
 .audio-editor-output-name-editor .text-input__field {
 	height: 24px;
 	padding-inline: 6px;
-	font-size: 11px;
+	font-size: var(--editor-font-size, 12px);
 	font-weight: 700;
 }
 

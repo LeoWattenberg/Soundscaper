@@ -99,7 +99,7 @@
 	background: color-mix(in srgb, var(--stage-raised) 92%, transparent);
 	border: 1px solid var(--stage-line);
 	border-radius: 3px;
-	font-size: 10px;
+	font-size: var(--editor-font-size, 12px);
 	font-weight: 800;
 	cursor: pointer;
 }
@@ -150,7 +150,7 @@
 	display: block;
 	overflow: hidden;
 	padding: 4px 7px;
-	font-size: 10px;
+	font-size: var(--editor-font-size, 12px);
 	font-weight: 700;
 	line-height: 17px;
 	text-overflow: ellipsis;
@@ -255,7 +255,7 @@
 
 .audio-editor-timeline-annotation-panel__header small {
 	color: var(--text);
-	font-size: 10px;
+	font-size: var(--editor-font-size, 12px);
 }
 
 .audio-editor-timeline-annotation-panel__actions,
@@ -341,7 +341,7 @@
 	display: grid;
 	gap: 3px;
 	color: var(--stage-text);
-	font-size: 10px;
+	font-size: var(--editor-font-size, 12px);
 }
 
 .audio-editor-timeline-annotation-list__editor :is(input, select) {
@@ -359,7 +359,7 @@
 	margin: 0;
 	padding: 7px 10px;
 	color: var(--text);
-	font-size: 11px;
+	font-size: var(--editor-font-size, 12px);
 }
 
 .audio-editor-timeline-annotation-panel__empty {

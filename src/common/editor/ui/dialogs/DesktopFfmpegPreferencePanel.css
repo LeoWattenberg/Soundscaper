@@ -11,7 +11,7 @@
 
 .kw-audio-editor-external-ffmpeg > small {
 	color: var(--muted);
-	font-size: 10px;
+	font-size: var(--editor-font-size, 12px);
 	line-height: 1.45;
 }
 
@@ -19,7 +19,7 @@
 	display: grid;
 	gap: 5px;
 	color: var(--muted);
-	font-size: 10px;
+	font-size: var(--editor-font-size, 12px);
 	font-weight: 700;
 }
 

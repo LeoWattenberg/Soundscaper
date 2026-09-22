@@ -30,7 +30,7 @@
 	border: 0;
 	background: transparent;
 	color: var(--text);
-	font: 400 12px/16px 'Inter', sans-serif;
+	font: 400 var(--editor-font-size, 12px)/16px 'Inter', sans-serif;
 	text-align: start;
 	cursor: pointer;
 }

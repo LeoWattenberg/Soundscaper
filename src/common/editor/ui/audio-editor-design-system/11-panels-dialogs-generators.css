@@ -11,7 +11,7 @@
 .audio-editor-analysis-grid span {
 	overflow: hidden;
 	color: var(--muted);
-	font-size: 8px;
+	font-size: var(--editor-font-size, 12px);
 	font-weight: 750;
 	text-overflow: ellipsis;
 	text-transform: uppercase;
@@ -20,7 +20,7 @@
 
 .audio-editor-analysis-grid strong {
 	overflow: hidden;
-	font: 750 11px/1.25 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+	font: 750 var(--editor-font-size, 12px)/1.25 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 	font-variant-numeric: tabular-nums;
 	text-overflow: ellipsis;
 	white-space: nowrap;
@@ -40,7 +40,7 @@
 
 .audio-editor-analysis-visuals figcaption {
 	color: var(--muted);
-	font-size: 10px;
+	font-size: var(--editor-font-size, 12px);
 	font-weight: 750;
 	letter-spacing: 0.04em;
 	text-transform: uppercase;
@@ -99,10 +99,19 @@
 	border: 1px solid var(--line);
 	border-radius: 9px;
 	box-shadow: 0 24px 80px rgba(0, 0, 0, 0.38);
+	font-size: var(--editor-font-size, 12px);
 }
 
 .kw-audio-editor-dialog:focus {
 	outline: none;
+}
+
+.kw-audio-editor-dialog .dialog-header__title {
+	font-size: var(--editor-font-size, 12px);
+}
+
+.kw-audio-editor-dialog :where(input, select, textarea) {
+	font-size: var(--editor-font-size, 12px);
 }
 
 .kw-audio-editor-dialog__body {
@@ -118,7 +127,7 @@
 .kw-audio-editor-dialog__body > p {
 	margin: 0 0 14px;
 	color: var(--muted);
-	font-size: 12px;
+	font-size: var(--editor-font-size, 12px);
 	line-height: 1.5;
 }
 
@@ -148,7 +157,7 @@
 :where(.kw-audio-editor-dialog) legend {
 	padding: 0;
 	color: var(--text);
-	font-size: 12px;
+	font-size: var(--editor-font-size, 12px);
 	font-weight: 600;
 }
 
@@ -164,7 +173,7 @@
 .kw-audio-editor-timed-recording__start > span,
 .kw-audio-editor-timed-recording__end > legend {
 	color: var(--text);
-	font-size: 12px;
+	font-size: var(--editor-font-size, 12px);
 	font-weight: 600;
 }
 
@@ -238,12 +247,12 @@
 
 .kw-audio-editor-compatibility-counts dt {
 	color: var(--muted);
-	font-size: 10px;
+	font-size: var(--editor-font-size, 12px);
 }
 
 .kw-audio-editor-compatibility-counts dd {
 	margin: 3px 0 0;
-	font-size: 16px;
+	font-size: var(--editor-font-size, 12px);
 	font-weight: 700;
 }
 
@@ -304,14 +313,14 @@
 
 .kw-audio-editor-project-list small {
 	color: var(--text);
-	font-size: 9px;
+	font-size: var(--editor-font-size, 12px);
 }
 
 .kw-audio-editor-dialog__field {
 	display: grid;
 	gap: 6px;
 	color: var(--muted);
-	font-size: 10px;
+	font-size: var(--editor-font-size, 12px);
 	font-weight: 700;
 }
 
@@ -349,7 +358,7 @@
 	background: var(--bg);
 	border: 1px solid var(--line);
 	border-radius: 5px;
-	font: 12px/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+	font: var(--editor-font-size, 12px)/1.5 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 	tab-size: 2;
 }
 
@@ -366,7 +375,7 @@
 .kw-audio-editor__nyquist-controls legend {
 	padding: 0 6px;
 	color: var(--muted);
-	font-size: 11px;
+	font-size: var(--editor-font-size, 12px);
 	font-weight: 750;
 }
 
@@ -374,7 +383,7 @@
 	grid-column: 1 / -1;
 	margin: 0;
 	color: var(--muted);
-	font-size: 11px;
+	font-size: var(--editor-font-size, 12px);
 }
 
 .kw-audio-editor__nyquist-debug {
@@ -383,7 +392,7 @@
 	gap: 7px;
 	margin-top: 14px;
 	color: var(--muted);
-	font-size: 11px;
+	font-size: var(--editor-font-size, 12px);
 }
 
 .kw-audio-editor__nyquist-output {
@@ -400,7 +409,7 @@
 	max-height: 180px;
 	margin: 0;
 	overflow: auto;
-	font: 11px/1.45 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+	font: var(--editor-font-size, 12px)/1.45 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 	white-space: pre-wrap;
 }
 

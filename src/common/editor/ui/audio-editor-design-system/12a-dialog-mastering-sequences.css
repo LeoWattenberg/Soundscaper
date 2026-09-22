@@ -16,7 +16,7 @@
 	[data-soundscaper-mastering-sequence-editor] legend {
 	padding: 0;
 	color: var(--text);
-	font-size: 14px;
+	font-size: var(--editor-font-size, 12px);
 	font-weight: 600;
 }
 
@@ -100,7 +100,7 @@
 	background: var(--control);
 	border: 1px solid var(--line);
 	border-radius: 5px;
-	font: 12px/1.45 var(--monospace, ui-monospace, "SF Mono", Menlo, Consolas, monospace);
+	font: var(--editor-font-size, 12px)/1.45 var(--monospace, ui-monospace, "SF Mono", Menlo, Consolas, monospace);
 }
 
 @media (max-width: 640px) {

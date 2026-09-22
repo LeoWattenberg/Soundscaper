@@ -6,7 +6,7 @@
 	border: 1px solid color-mix(in srgb, var(--line) 70%, transparent);
 	border-radius: 3px;
 	font: inherit;
-	font-size: 10px;
+	font-size: var(--editor-font-size, 12px);
 	white-space: nowrap;
 }
 
@@ -62,7 +62,7 @@
 .kw-audio-editor__search-group-label {
 	padding: 4px 7px 3px;
 	color: color-mix(in srgb, var(--text) 55%, var(--muted));
-	font-size: 10px;
+	font-size: var(--editor-font-size, 12px);
 	font-weight: 700;
 	letter-spacing: 0.04em;
 	line-height: 1.2;
@@ -106,14 +106,14 @@
 }
 
 .kw-audio-editor__search-option-label {
-	font-size: 12px;
+	font-size: var(--editor-font-size, 12px);
 	font-weight: 600;
 	line-height: 1.25;
 }
 
 .kw-audio-editor__search-option-detail {
 	color: color-mix(in srgb, var(--text) 55%, var(--muted));
-	font-size: 10px;
+	font-size: var(--editor-font-size, 12px);
 	line-height: 1.25;
 }
 
@@ -183,7 +183,7 @@
 	grid-column: 1 / -1;
 	margin-bottom: 8px;
 	color: var(--muted);
-	font-size: 12px;
+	font-size: var(--editor-font-size, 12px);
 }
 
 .audio-editor-track-color-picker__swatch {
@@ -379,7 +379,7 @@
 	min-width: 76px;
 	gap: 2px;
 	color: var(--text);
-	font-size: 9px;
+	font-size: var(--editor-font-size, 12px);
 	font-weight: 700;
 }
 

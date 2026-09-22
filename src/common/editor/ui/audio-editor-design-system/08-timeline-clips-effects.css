@@ -110,7 +110,7 @@
 .audio-editor-track-adapters [data-track-name] .text-input__field {
 	height: 24px;
 	padding-inline: 6px;
-	font-size: 11px;
+	font-size: var(--editor-font-size, 12px);
 	font-weight: 700;
 }
 
@@ -164,14 +164,14 @@
 	background: var(--control);
 	border: 1px solid var(--line);
 	border-radius: 4px;
-	font: 650 9px/1.15 Inter, sans-serif;
+	font: 650 var(--editor-font-size, 12px)/1.15 Inter, sans-serif;
 	text-overflow: ellipsis;
 }
 
 .kw-recording-input-selectors--track select {
 	height: 20px;
 	padding-block: 1px;
-	font-size: 8px;
+	font-size: var(--editor-font-size, 12px);
 }
 
 .kw-recording-input-selectors select:focus-visible {
@@ -444,13 +444,13 @@
 }
 
 .audio-editor-empty-state strong {
-	font-size: 15px;
+	font-size: var(--editor-font-size, 12px);
 }
 
 .audio-editor-empty-state p {
 	margin: 0;
 	color: var(--muted);
-	font-size: 12px;
+	font-size: var(--editor-font-size, 12px);
 	line-height: 1.45;
 }
 
@@ -483,7 +483,7 @@
 .audio-editor-clip-properties__card h3 {
 	margin: 0;
 	color: var(--text);
-	font-size: 11px;
+	font-size: var(--editor-font-size, 12px);
 	font-weight: 750;
 }
 
@@ -521,7 +521,7 @@
 	max-width: 56ch;
 	margin: 5px 0 0;
 	color: var(--muted);
-	font-size: 10px;
+	font-size: var(--editor-font-size, 12px);
 	line-height: 1.4;
 }
 

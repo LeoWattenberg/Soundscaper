@@ -76,7 +76,7 @@
 	border: 2px solid rgb(255 255 255 / 72%);
 	border-radius: 50%;
 	box-shadow: 0 2px 9px rgb(0 0 0 / 45%), 0 0 0 0 rgb(255 210 74 / 0%);
-	font: 750 10px/1 Inter, sans-serif;
+	font: 750 var(--editor-font-size, 12px)/1 Inter, sans-serif;
 	cursor: grab;
 	touch-action: none;
 }

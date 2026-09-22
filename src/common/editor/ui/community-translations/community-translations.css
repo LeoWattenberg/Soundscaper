@@ -13,7 +13,7 @@
 	background: var(--panel, #eee);
 	color: var(--text, #222);
 	box-shadow: 0 8px 32px #0005;
-	font: 13px/1.45 system-ui, sans-serif;
+	font: var(--editor-font-size, 12px)/1.45 system-ui, sans-serif;
 }
 
 .community-translations[data-side="left"] { left: 16px; right: auto; }
@@ -26,7 +26,7 @@
 	gap: 8px;
 }
 
-.community-translations h2 { margin: 0; font-size: 18px; }
+.community-translations h2 { margin: 0; font-size: var(--editor-font-size, 12px); }
 .community-translations label { display: grid; gap: 4px; margin-block: 10px; }
 .community-translations input,
 .community-translations textarea,

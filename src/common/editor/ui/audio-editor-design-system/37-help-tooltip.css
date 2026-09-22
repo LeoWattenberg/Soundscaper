@@ -17,7 +17,7 @@
 	background: var(--control);
 	border: 1px solid var(--line);
 	border-radius: 50%;
-	font: 700 11px/1 Inter, sans-serif;
+	font: 700 var(--editor-font-size, 12px)/1 Inter, sans-serif;
 	cursor: help;
 }
 
@@ -48,7 +48,7 @@
 
 .audio-editor-help-tooltip .flyout__content {
 	padding: 7px 9px;
-	font: 400 12px/1.35 Inter, sans-serif;
+	font: 400 var(--editor-font-size, 12px)/1.35 Inter, sans-serif;
 	white-space: normal;
 }
 

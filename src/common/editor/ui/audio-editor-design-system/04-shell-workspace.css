@@ -21,7 +21,7 @@
 	display: grid;
 	gap: 12px;
 	padding: 12px;
-	font-size: 12px;
+	font-size: var(--editor-font-size, 12px);
 }
 
 .kw-audio-editor__playback-meter-settings-row {
@@ -108,7 +108,7 @@
 .kw-audio-editor__ebu-dashboard header span {
 	padding: 2px 6px;
 	color: var(--muted);
-	font-size: 10px;
+	font-size: var(--editor-font-size, 12px);
 	font-weight: 700;
 	text-transform: uppercase;
 	background: var(--control);
@@ -138,13 +138,13 @@
 .kw-audio-editor__ebu-values span {
 	overflow: hidden;
 	color: var(--muted);
-	font-size: 9px;
+	font-size: var(--editor-font-size, 12px);
 	text-overflow: ellipsis;
 	white-space: nowrap;
 }
 
 .kw-audio-editor__ebu-values strong {
-	font-size: 12px;
+	font-size: var(--editor-font-size, 12px);
 	font-variant-numeric: tabular-nums;
 }
 
@@ -155,7 +155,7 @@
 .kw-audio-editor__ebu-dashboard p {
 	margin: 0;
 	color: var(--muted);
-	font-size: 10px;
+	font-size: var(--editor-font-size, 12px);
 }
 
 .kw-audio-editor__ebu-actions {
@@ -323,7 +323,7 @@
 	background: var(--danger-bg);
 	border: 1px solid var(--danger-line);
 	border-radius: 6px;
-	font-size: 12px;
+	font-size: var(--editor-font-size, 12px);
 	line-height: 1.4;
 	overflow-wrap: anywhere;
 }

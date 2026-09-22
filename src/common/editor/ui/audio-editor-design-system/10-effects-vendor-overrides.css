@@ -19,7 +19,7 @@
 	display: flex;
 	justify-content: space-between;
 	color: color-mix(in srgb, var(--muted) 90%, transparent);
-	font-size: 9px;
+	font-size: var(--editor-font-size, 12px);
 	pointer-events: none;
 }
 
@@ -36,7 +36,7 @@
 	align-items: center;
 	gap: 6px;
 	color: var(--muted);
-	font-size: 10px;
+	font-size: var(--editor-font-size, 12px);
 }
 
 .audio-editor-parametric-eq__toolbar label:first-of-type {
@@ -60,7 +60,7 @@
 	gap: 5px;
 	min-width: 0;
 	color: var(--muted);
-	font-size: 9px;
+	font-size: var(--editor-font-size, 12px);
 	font-weight: 650;
 }
 
@@ -181,7 +181,7 @@
 	background: var(--bg);
 	border: 1px dashed var(--line);
 	border-radius: 5px;
-	font-size: 11px;
+	font-size: var(--editor-font-size, 12px);
 	text-align: center;
 }
 
@@ -374,7 +374,7 @@
 	padding: 6px 8px;
 	color: inherit;
 	font: inherit;
-	font-size: 11px;
+	font-size: var(--editor-font-size, 12px);
 	font-weight: 600;
 	text-align: left;
 	background: transparent;

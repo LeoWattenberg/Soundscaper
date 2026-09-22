@@ -87,7 +87,7 @@
 .audio-editor-label-export-dialog__tracks legend {
 	padding: 0 0 10px;
 	color: var(--text);
-	font-size: 11px;
+	font-size: var(--editor-font-size, 12px);
 	font-weight: 700;
 }
 
@@ -111,7 +111,7 @@
 .audio-editor-export-section h3 {
 	margin: 0 0 2px;
 	color: var(--text);
-	font-size: 12px;
+	font-size: var(--editor-font-size, 12px);
 	font-weight: 750;
 }
 
@@ -122,7 +122,7 @@
 	align-items: center;
 	gap: 12px;
 	color: var(--text);
-	font-size: 11px;
+	font-size: var(--editor-font-size, 12px);
 	font-weight: 500;
 	letter-spacing: 0;
 	text-transform: none;
@@ -169,7 +169,7 @@
 	display: block;
 	margin-top: 5px;
 	color: var(--muted);
-	font-size: 10px;
+	font-size: var(--editor-font-size, 12px);
 	line-height: 1.35;
 }
 
@@ -180,7 +180,7 @@
 .audio-editor-export-details summary {
 	cursor: pointer;
 	color: var(--text);
-	font-size: 11px;
+	font-size: var(--editor-font-size, 12px);
 	font-weight: 700;
 }
 
@@ -211,14 +211,14 @@
 	min-height: 30px;
 	color: var(--muted);
 	background: var(--bg);
-	font-size: 10px;
+	font-size: var(--editor-font-size, 12px);
 	font-weight: 750;
 }
 
 .audio-editor-metadata-table__row {
 	min-height: 38px;
 	border-top: 1px solid var(--line);
-	font-size: 11px;
+	font-size: var(--editor-font-size, 12px);
 }
 
 :is(.audio-editor-metadata-table__header, .audio-editor-metadata-table__row) > span {
@@ -240,7 +240,7 @@
 .audio-editor-export-progress output {
 	min-width: 34px;
 	color: var(--muted);
-	font: 700 10px/1 ui-monospace, monospace;
+	font: 700 var(--editor-font-size, 12px)/1 ui-monospace, monospace;
 	text-align: right;
 }
 
@@ -254,7 +254,7 @@
 	background: var(--accent-soft);
 	border: 1px solid color-mix(in srgb, var(--accent) 62%, var(--line));
 	border-radius: 5px;
-	font-size: 11px;
+	font-size: var(--editor-font-size, 12px);
 	font-weight: 750;
 	text-align: center;
 	text-decoration: none;

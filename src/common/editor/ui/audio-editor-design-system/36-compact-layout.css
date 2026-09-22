@@ -35,7 +35,7 @@
 }
 
 #kw-audio-editor-design-system[data-layout='compact'] .kw-audio-editor__compact-bar .application-header__app-name {
-	font-size: 13px;
+	font-size: var(--editor-font-size, 12px);
 	line-height: 16px;
 }
 
@@ -170,7 +170,7 @@
 	height: 40px;
 	justify-content: flex-start;
 	padding: 0 16px;
-	font-size: 14px;
+	font-size: var(--editor-font-size, 12px);
 }
 
 #kw-audio-editor-design-system[data-layout='compact'] .kw-audio-editor__chrome-drawer-panel .application-header__menu-item--open {

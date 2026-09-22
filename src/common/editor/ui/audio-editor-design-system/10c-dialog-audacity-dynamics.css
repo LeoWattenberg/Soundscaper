@@ -7,7 +7,7 @@
 	--audacity-effect-accent: #9569ff;
 	background: var(--audacity-effect-bg);
 	font-family: Inter, sans-serif;
-	font-size: 12px;
+	font-size: var(--editor-font-size, 12px);
 }
 
 html[data-theme='dark'] .kw-audio-editor-dialog:has(.audio-editor-audacity-port, [data-audacity-dynamics-layout]) {
@@ -28,7 +28,7 @@ html[data-theme='dark'] .kw-audio-editor-dialog:has(.audio-editor-audacity-port,
 	min-height: 30px;
 	height: 30px;
 	padding-block: 0;
-	font-size: 12px;
+	font-size: var(--editor-font-size, 12px);
 	font-weight: 400;
 }
 
@@ -85,7 +85,7 @@ html[data-theme='dark'] .kw-audio-editor-dialog:has(.audio-editor-audacity-port,
 
 .kw-audio-editor-dialog:has(.audio-editor-audacity-port, [data-audacity-dynamics-layout]) :is(.audio-editor-field, .audio-editor-effect-number) {
 	color: var(--text);
-	font-size: 12px;
+	font-size: var(--editor-font-size, 12px);
 	font-weight: 400;
 	letter-spacing: normal;
 	text-transform: none;
@@ -93,7 +93,7 @@ html[data-theme='dark'] .kw-audio-editor-dialog:has(.audio-editor-audacity-port,
 
 .kw-audio-editor-dialog:has(.audio-editor-audacity-port, [data-audacity-dynamics-layout]) :is(.text-input__field, .dropdown__trigger) {
 	min-height: 30px;
-	font-size: 12px;
+	font-size: var(--editor-font-size, 12px);
 	font-weight: 400;
 }
 
@@ -128,7 +128,7 @@ html[data-theme='dark'] .kw-audio-editor-dialog:has(.audio-editor-audacity-port,
 	top: 50%;
 	transform: translateY(-50%);
 	color: var(--text);
-	font-size: 12px;
+	font-size: var(--editor-font-size, 12px);
 	font-weight: 400;
 	pointer-events: none;
 	text-transform: none;
@@ -299,7 +299,7 @@ html[data-theme='dark'] .kw-audio-editor-dialog:has(.audio-editor-audacity-port,
 .audio-editor-audacity-dynamics__history-ticks {
 	display: flex;
 	justify-content: space-between;
-	font-size: 12px;
+	font-size: var(--editor-font-size, 12px);
 }
 
 .audio-editor-audacity-dynamics__y-ticks,
@@ -320,7 +320,7 @@ html[data-theme='dark'] .kw-audio-editor-dialog:has(.audio-editor-audacity-port,
 	align-items: center;
 	gap: 16px;
 	height: 40px;
-	font-size: 12px;
+	font-size: var(--editor-font-size, 12px);
 }
 
 .audio-editor-audacity-dynamics__history {

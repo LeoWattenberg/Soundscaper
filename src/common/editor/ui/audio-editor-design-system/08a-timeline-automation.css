@@ -34,7 +34,7 @@
 	background: var(--control);
 	border: 1px solid var(--line);
 	border-radius: 4px;
-	font: 650 8px/1.15 Inter, sans-serif;
+	font: 650 var(--editor-font-size, 12px)/1.15 Inter, sans-serif;
 	text-overflow: ellipsis;
 }
 
@@ -150,7 +150,7 @@
 	background: transparent;
 	border: 0;
 	border-radius: 3px;
-	font: 600 10px/1.1 Inter, sans-serif;
+	font: 600 var(--editor-font-size, 12px)/1.1 Inter, sans-serif;
 	text-align: left;
 	cursor: pointer;
 }
