@@ -10,7 +10,7 @@ import { audacityEffectDialogWidth, isAudacityNyquistPort } from '../audacity-po
 import { useAudacityEffectOptions } from './audacity-effect-options.ts';
 import { selectAudioEditorEditBlock } from '../edit-blocking.ts';
 import EffectPresetBar from './EffectPresetBar.jsx';
-import EffectParameterEditor from './EffectParameterEditor.jsx';
+import LazyEffectParameterEditor from './LazyEffectParameterEditor.jsx';
 import EffectPicker from './EffectPicker.jsx';
 import { createAudacityRealtimeEffectShortcutHandler } from './audacity-realtime-effect-shortcut.ts';
 import { nativeRackEffectCommit, supportsLiveRackEffectGesture } from './live-rack-effect-gesture.ts';
@@ -460,7 +460,7 @@ export function AudioEditorEffectsOverlay({
 					)}
 				>
 					<section className="audio-editor-effect-settings">
-						<EffectParameterEditor
+						<LazyEffectParameterEditor
 							advancedSettings={advancedSettings}
 							effect={effect}
 							copy={copy}
