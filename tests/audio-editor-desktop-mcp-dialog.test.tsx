@@ -4,7 +4,9 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import React, { act } from 'react';
 
-import { ENGLISH_COPY, GERMAN_COPY } from '../src/common/i18n/catalogs.js';
+import { ENGLISH_COPY } from '../src/common/i18n/catalogs.js';
+import { EDITOR_ENGLISH_COPY, EDITOR_GERMAN_COPY } from '../src/common/i18n/editor-copy-inventory.ts';
+import { resolveDesktopMcpCopy } from '../src/common/editor/ui/desktop-mcp-copy.ts';
 import DesktopMcpDialog from '../src/common/editor/ui/dialogs/DesktopMcpDialog.tsx';
 import { installReactTestDom, reactProps, type ReactTestElement } from './helpers/react-test-dom.ts';
 
@@ -55,9 +57,10 @@ test('desktop MCP dialog reads status and starts and stops its session', async (
 });
 
 test('desktop MCP connection copy has German source text', () => {
-	assert.equal(ENGLISH_COPY.desktopMcpConnection, 'MCP connection');
-	assert.equal(GERMAN_COPY.desktopMcpConnection, 'MCP-Verbindung');
-	assert.match(GERMAN_COPY.desktopMcpDisclosure, /ohne.*Bestätigung/iu);
+	assert.equal(ENGLISH_COPY.desktopMcpConnection, undefined);
+	assert.equal(EDITOR_ENGLISH_COPY['ui.desktopMcp.connection'], 'MCP connection');
+	assert.equal(EDITOR_GERMAN_COPY['ui.desktopMcp.connection'], 'MCP-Verbindung');
+	assert.match(resolveDesktopMcpCopy(EDITOR_GERMAN_COPY).disclosure, /ohne.*Bestätigung/iu);
 });
 
 async function press(root: ReactTestElement, label: string) {

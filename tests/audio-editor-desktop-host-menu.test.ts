@@ -132,6 +132,9 @@ test('Soundscaper desktop keeps MCP under Tools > Desktop services', () => {
 	assert.equal(opened, 1);
 	const framescaper = createDesktopHostMenuItems({ ...input, productId: 'framescaper' });
 	assert.equal(organizeNativePreferences([{ id: 'tools', items: framescaper.tools as never }])[0]?.items?.length, 0);
+	const german = createDesktopHostMenuItems({ ...input, productId: 'soundscaper',
+		copy: { ...copy(), 'ui.desktopMcp.connection': 'MCP-Verbindung' } });
+	assert.equal(german.tools[0]?.items?.at(-1)?.label, 'MCP-Verbindung…');
 });
 
 test('development menu shortcut labels follow the desktop platform', () => {

@@ -5,6 +5,7 @@ import { Button } from '@soundscaper/design-system/Button';
 import { DialogFooter } from '@soundscaper/design-system/Footer';
 
 import AudioEditorDialogShell from '../AudioEditorDialogShell.tsx';
+import { resolveDesktopMcpCopy } from '../desktop-mcp-copy.ts';
 import './DesktopMcpDialog.css';
 
 export interface DesktopMcpStatus {
@@ -27,6 +28,7 @@ export default function DesktopMcpDialog({ copy, fileService, onClose }: {
 	readonly fileService: DesktopMcpFileService;
 	readonly onClose: () => void;
 }) {
+	const mcpCopy = resolveDesktopMcpCopy(copy);
 	const [status, setStatus] = useState<DesktopMcpStatus | null>(null);
 	const [phase, setPhase] = useState<Phase>('loading');
 	const [error, setError] = useState<string | null>(null);
@@ -68,14 +70,14 @@ export default function DesktopMcpDialog({ copy, fileService, onClose }: {
 	const copyValue = async (value: string): Promise<void> => {
 		try {
 			await globalThis.navigator.clipboard.writeText(value);
-			setCopyFeedback(copy.desktopMcpCopied ?? 'Copied to clipboard.');
+			setCopyFeedback(mcpCopy.copied);
 		} catch {
-			setCopyFeedback(copy.desktopMcpCopyFailed ?? 'Could not copy to clipboard.');
+			setCopyFeedback(mcpCopy.copyFailed);
 		}
 	};
 
 	return <AudioEditorDialogShell
-		title={copy.desktopMcpConnection ?? 'MCP connection'}
+		title={mcpCopy.connection}
 		onClose={onClose}
 		width={620}
 		initialFocus="dialog"
@@ -83,32 +85,32 @@ export default function DesktopMcpDialog({ copy, fileService, onClose }: {
 		footer={<DialogFooter className="audio-editor-dialog-footer" rightContent={<Button
 			variant="primary" onClick={onClose}>{copy.close ?? 'Close'}</Button>} />}
 	>
-		<p>{copy.desktopMcpDisclosure ?? 'Connected local clients can read project metadata and edit the open project without confirmation for each edit. Share this token only with a client you trust.'}</p>
-		<p>{copy.desktopMcpAuthorization ?? 'Connect to the endpoint with an Authorization: Bearer <token> header.'}</p>
-		<p>{copy.desktopMcpCloseKeepsRunning ?? 'Closing this dialog keeps MCP running until you stop it or quit Soundscaper.'}</p>
+		<p>{mcpCopy.disclosure}</p>
+		<p>{mcpCopy.authorization}</p>
+		<p>{mcpCopy.closeKeepsRunning}</p>
 		<p role="status" aria-live="polite">{phase === 'loading'
-			? copy.desktopMcpLoading ?? 'Reading MCP connection status…'
+			? mcpCopy.loading
 			: status?.enabled
-				? copy.desktopMcpEnabled ?? 'MCP is running for this session.'
-				: copy.desktopMcpDisabled ?? 'MCP is off for this session.'}</p>
+				? mcpCopy.enabled
+				: mcpCopy.disabled}</p>
 		{error && <p role="alert">{error}</p>}
 		{status?.enabled && status.url && status.token && <div className="kw-desktop-mcp__credentials">
-			<label>{copy.desktopMcpEndpoint ?? 'Endpoint'}
-				<input readOnly value={status.url} aria-label={copy.desktopMcpEndpoint ?? 'Endpoint'} />
+			<label>{mcpCopy.endpoint}
+				<input readOnly value={status.url} aria-label={mcpCopy.endpoint} />
 			</label>
 			<Button variant="secondary" onClick={() => { void copyValue(status.url!); }}>
-				{copy.desktopMcpCopyEndpoint ?? 'Copy endpoint'}
+				{mcpCopy.copyEndpoint}
 			</Button>
-			<label>{copy.desktopMcpToken ?? 'Session token'}
-				<input readOnly value={status.token} aria-label={copy.desktopMcpToken ?? 'Session token'} />
+			<label>{mcpCopy.token}
+				<input readOnly value={status.token} aria-label={mcpCopy.token} />
 			</label>
 			<Button variant="secondary" onClick={() => { void copyValue(status.token!); }}>
-				{copy.desktopMcpCopyToken ?? 'Copy token'}
+				{mcpCopy.copyToken}
 			</Button>
 		</div>}
 		{copyFeedback && <p role="status" aria-live="polite">{copyFeedback}</p>}
 		<Button variant="secondary" disabled={phase !== 'ready'} onClick={() => { void toggle(); }}>
-			{status?.enabled ? copy.desktopMcpStop ?? 'Stop MCP' : copy.desktopMcpStart ?? 'Start MCP'}
+			{status?.enabled ? mcpCopy.stop : mcpCopy.start}
 		</Button>
 	</AudioEditorDialogShell>;
 }
