@@ -218,6 +218,7 @@ export const EDITOR_ACTION_FUNCTION_NAMES = [
 	'splitAtFrame',
 	'splitStereoTrack',
 	'startRecording',
+	'startSoundActivatedRecording',
 	'startRecordingOnNewTrack',
 	'startTakeCycleRecording',
 	'stopProjectBinPreview',

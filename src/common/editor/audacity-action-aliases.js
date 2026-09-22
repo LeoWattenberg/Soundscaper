@@ -60,7 +60,6 @@ export const AUDACITY_ACTION_ALIASES = deepFreeze({
 	stop: 'action://playback/stop',
 	'lead-in-time': 'action://record/lead-in-recording',
 	'timer-record': 'set-up-timed-recording',
-	'sound-activated': 'toggle-sound-activated-recording',
 	'audio-track': 'new-stereo-track',
 	'label-track': 'new-label-track',
 	'midi-track': 'local://midi-track',

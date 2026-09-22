@@ -69,7 +69,7 @@ export interface RecordingSessionMutableState {
 	readonly disposed: boolean;
 	readonly projectBinPreview: unknown | null;
 	recorder: RecordingControllerLike | null;
-	recordingKind: 'ordinary' | 'take-cycle' | null;
+	recordingKind: 'ordinary' | 'sound-activated' | 'take-cycle' | null;
 	recordingStarting: boolean;
 	recordingStartGeneration: number;
 	recordingStartPromise: Promise<void> | null;
@@ -102,7 +102,7 @@ export interface RecordingSessionMutableState {
 
 export interface RecordingFinalizationSnapshot {
 	readonly recorder: RecordingControllerLike;
-	readonly kind: 'ordinary' | 'take-cycle';
+	readonly kind: 'ordinary' | 'sound-activated' | 'take-cycle';
 	readonly entries: readonly unknown[] | null;
 	readonly writer: unknown | null;
 	readonly sourceId: string | null;
@@ -150,6 +150,8 @@ export interface RecordingSessionServiceRuntime {
 	readonly publishTelemetrySnapshot?: () => void;
 	readonly syncRecordingPoolSnapshot?: () => void;
 	readonly resetSoundActivationSources?: () => boolean;
+	readonly setSoundActivationCaptureEnabled?: (enabled: boolean) => void;
+	readonly canStartSoundActivatedRecording?: () => boolean;
 	readonly handleError?: (error: unknown) => void;
 }
 
@@ -279,11 +281,7 @@ export function createRoutedRecordingController(
 	}
 }
 
-/**
- * Own the concurrency and terminal cleanup around controller-supplied capture
- * and commit operations. Browser capture and project mutation remain ports, so
- * neither can accidentally bypass the shared start/finalize promise guards.
- */
+/** Coordinate capture and commit with shared start/finalize promise guards. */
 export function createRecordingSessionService(runtime: RecordingSessionServiceRuntime) {
 	const { state } = runtime;
 	const publishDocumentSnapshot = runtime.publishDocumentSnapshot || (() => {});
@@ -317,25 +315,28 @@ export function createRecordingSessionService(runtime: RecordingSessionServiceRu
 		return Object.freeze({ generation, projectId, assertCurrent });
 	}
 
-	function startRecording(options: RecordingStartOptions = {}): Promise<void> | undefined {
+	function startRecording(options: RecordingStartOptions = {}, soundActivated = false): Promise<void> | undefined {
+		if (soundActivated && runtime.canStartSoundActivatedRecording?.() === false) return undefined;
 		const timedStart = isTimedStart(options);
 		if (startBlocked() || (!timedStart && (state.timedRecordingPreparing || state.timedRecording))) {
 			return undefined;
 		}
 		if (state.projectBinPreview) void runtime.stopProjectBinPreview?.();
+		runtime.setSoundActivationCaptureEnabled?.(soundActivated);
 		const scope = createStartScope();
-		state.recordingKind = 'ordinary';
+		state.recordingKind = soundActivated ? 'sound-activated' : 'ordinary';
 		const operation = invokeAsPromise(() => runtime.beginRecording(options, scope));
 		const tracked = operation.finally(() => {
 			if (state.recordingStartPromise === tracked) {
 				state.recordingStartPromise = null;
-				if (!state.recorder) state.recordingKind = null;
+				if (!state.recorder) { state.recordingKind = null; runtime.setSoundActivationCaptureEnabled?.(false); }
 				publishDocumentSnapshot();
 			}
 		});
 		state.recordingStartPromise = tracked;
 		return tracked;
 	}
+	function startSoundActivatedRecording(options: RecordingStartOptions = {}) { return startRecording(options, true); }
 
 	function startTakeCycleRecording(): Promise<void> | undefined {
 		if (!runtime.beginTakeCycleRecording || startBlocked()
@@ -442,6 +443,7 @@ export function createRecordingSessionService(runtime: RecordingSessionServiceRu
 		state.recordingCleanup = null;
 		state.recorder = null;
 		state.recordingKind = null;
+		runtime.setSoundActivationCaptureEnabled?.(false);
 		state.recordingEntries = null;
 		state.recordingWriter = null;
 		state.recordingStream = null;
@@ -535,6 +537,7 @@ export function createRecordingSessionService(runtime: RecordingSessionServiceRu
 		cancelRecordingStart,
 		finalizeRecording,
 		startRecording,
+		startSoundActivatedRecording,
 		startRecordingOnNewTrack,
 		startTakeCycleRecording,
 		stopRecording,

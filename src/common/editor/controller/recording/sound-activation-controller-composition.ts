@@ -24,6 +24,7 @@ export function createControllerSoundActivationPolicy(
 ) {
 	return createSoundActivationPolicyService({
 		state,
+		captureEnabledByDefault: false,
 		getPreferences: () => state.preferences.recording.soundActivation,
 		updatePreferences,
 		publish,
