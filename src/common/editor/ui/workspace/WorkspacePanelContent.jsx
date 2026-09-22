@@ -9,6 +9,7 @@ import SourceMonitorPanel from './SourceMonitorPanel.jsx';
 import TimelineAnnotationWorkspacePanel from './TimelineAnnotationWorkspacePanel.tsx';
 import VideoPreviewPanel from './VideoPreviewPanel.jsx';
 import { ANALYSIS_MODE_PANEL_IDS, historyCommandLabel } from './workspace-panel-model.ts';
+import { consumeEffectsFocusSuppression, hasEffectsFocusSuppression } from './workspace-preset-focus.js';
 import { lazyEditorModule } from '../../../offline/lazy-module.tsx';
 
 const AnalysisPanel = lazyEditorModule(() => import('../inspector/AnalysisPanel.jsx'));
@@ -25,20 +26,22 @@ export function effectsPanelAutoFocusOnMount(previousHost, nextHost) {
 	return previousHost === null || previousHost === nextHost;
 }
 
-function useEffectsPanelAutoFocus(host) {
-	const [autoFocus] = useState(() => effectsPanelAutoFocusOnMount(effectsPanelHost, host));
+function useEffectsPanelAutoFocus(host, controller) {
+	const [autoFocus] = useState(() => !hasEffectsFocusSuppression(controller)
+		&& effectsPanelAutoFocusOnMount(effectsPanelHost, host));
 	useEffect(() => {
+		consumeEffectsFocusSuppression(controller);
 		effectsPanelHost = host;
 		return () => {
 			if (effectsPanelHost === host) effectsPanelHost = null;
 		};
-	}, [host]);
+	}, [host, controller]);
 	return autoFocus;
 }
 
-function DockedEffectsPanel({ host, panelActive = true, ...props }) {
-	const autoFocusOnOpen = useEffectsPanelAutoFocus(host);
-	return <AudioEditorEffectsOverlay autoFocusOnOpen={panelActive && autoFocusOnOpen} {...props} />;
+function DockedEffectsPanel({ host, panelActive = true, controller, ...props }) {
+	const autoFocusOnOpen = useEffectsPanelAutoFocus(host, controller);
+	return <AudioEditorEffectsOverlay autoFocusOnOpen={panelActive && autoFocusOnOpen} controller={controller} {...props} />;
 }
 const AudioEditorEffectsOverlay = lazyEditorModule(() => import('../inspector/AudioEditorEffectsOverlay.jsx'));
 const FRAMESCAPER_BUILD = typeof __SCAPE_PRODUCT__ === 'undefined'

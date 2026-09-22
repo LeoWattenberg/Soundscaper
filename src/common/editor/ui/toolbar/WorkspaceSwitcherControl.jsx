@@ -8,6 +8,7 @@ import { Icon } from '@soundscaper/design-system/Icon';
 
 import { useMenuTriggerDismissal } from '../use-menu-trigger-dismissal.ts';
 import { workspaceSwitcherOptions } from '../workspace/workspace-switcher-options.ts';
+import { clearEffectsFocusSuppression, suppressEffectsFocusForPreset } from '../workspace/workspace-preset-focus.js';
 
 // Audacity's main toolbar row ends in a "Workspace: <name>" dropdown. The
 // vendored Button drops ARIA props, so the trigger is a native button wearing
@@ -26,13 +27,24 @@ export default function WorkspaceSwitcherControl({ copy, snapshot, controller, r
 	// letting it fall to the body.
 	const choose = (workspaceId) => {
 		const trigger = triggerRef.current;
-		const bar = trigger?.closest('[role="toolbar"]');
+		const editor = trigger?.closest('[data-audio-editor]');
 		const ownerDocument = trigger?.ownerDocument;
+		// A preset can mount the lazy Effects rack, whose open-time focus would
+		// otherwise take focus from this menu after the action bar restores it.
+		suppressEffectsFocusForPreset(controller);
 		run(() => controller.actions.preferences.setWorkspace(workspaceId));
 		requestAnimationFrame(() => {
-			if (!ownerDocument || ownerDocument.activeElement !== ownerDocument.body) return;
-			const fallback = trigger?.isConnected ? trigger : bar?.querySelector('button:not([disabled])');
-			fallback?.focus();
+			clearEffectsFocusSuppression(controller);
+			if (!ownerDocument) return;
+			const active = ownerDocument.activeElement;
+			if (active?.isConnected
+				&& active !== ownerDocument.body
+				&& active !== ownerDocument.documentElement
+				&& !active.closest('.kw-audio-editor__workspace-switcher-menu')) return;
+			const fallback = trigger?.isConnected
+				? trigger
+				: editor?.querySelector('[data-action-bar] button:not([disabled])');
+			fallback?.focus({ preventScroll: true });
 		});
 	};
 	const toggle = (event) => {

@@ -5,6 +5,12 @@ import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 
 import { effectsPanelAutoFocusOnMount } from '../src/common/editor/ui/workspace/WorkspacePanelContent.jsx';
+import {
+	clearEffectsFocusSuppression,
+	consumeEffectsFocusSuppression,
+	hasEffectsFocusSuppression,
+	suppressEffectsFocusForPreset,
+} from '../src/common/editor/ui/workspace/workspace-preset-focus.js';
 
 const source = (path: string) => readFile(new URL(`../${path}`, import.meta.url), 'utf8');
 
@@ -13,6 +19,20 @@ test('a docked effects rack claims focus on a fresh open but not when it follows
 	assert.equal(effectsPanelAutoFocusOnMount('right', 'right'), true, 'the same host re-rendering');
 	assert.equal(effectsPanelAutoFocusOnMount('right', 'left'), false, 'moved to another dock');
 	assert.equal(effectsPanelAutoFocusOnMount('left', 'floating'), false, 'floated from a dock');
+});
+
+test('workspace preset focus suppression applies to one rack mount in one editor', () => {
+	const first = {};
+	const second = {};
+	suppressEffectsFocusForPreset(first);
+	assert.equal(hasEffectsFocusSuppression(first), true);
+	assert.equal(consumeEffectsFocusSuppression(second), false);
+	assert.equal(consumeEffectsFocusSuppression(first), true);
+	assert.equal(hasEffectsFocusSuppression(first), false);
+	assert.equal(consumeEffectsFocusSuppression(first), false);
+	suppressEffectsFocusForPreset(first);
+	clearEffectsFocusSuppression(first);
+	assert.equal(consumeEffectsFocusSuppression(first), false);
 });
 
 test('the autofocus opt-out reaches the vendored panel from every docked host', async () => {
