@@ -268,6 +268,74 @@ test('partitioned live equalizers reproduce centered one-shot FIR output after d
 	}
 });
 
+test('partitioned live equalizer reuses channel scratch after its first partition', () => {
+	const processor = createAudacityLiveProcessor('audacity-filter-curve-eq', SAMPLE_RATE, {
+		filterLength: 257,
+		points: [{ frequency: 20, gain: 6 }, { frequency: 20_000, gain: -6 }],
+	});
+	const input = [signal(128), signal(128).map((sample) => -sample)];
+	const output = input.map(() => new Float32Array(128));
+	processor.process(input, output);
+	const float32 = Object.getOwnPropertyDescriptor(globalThis, 'Float32Array');
+	const float64 = Object.getOwnPropertyDescriptor(globalThis, 'Float64Array');
+	assert.ok(float32 && float64);
+	let causalAllocations = 0;
+	let float64Allocations = 0;
+	Object.defineProperty(globalThis, 'Float32Array', { ...float32,
+		value: new Proxy(Float32Array, { construct(target, argumentsList) {
+			if (argumentsList[0] === 128) causalAllocations += 1;
+			return Reflect.construct(target, argumentsList);
+		} }) });
+	Object.defineProperty(globalThis, 'Float64Array', { ...float64,
+		value: new Proxy(Float64Array, { construct(target, argumentsList) {
+			float64Allocations += 1;
+			return Reflect.construct(target, argumentsList);
+		} }) });
+	try {
+		processor.process(input, output);
+	} finally {
+		Object.defineProperty(globalThis, 'Float32Array', float32);
+		Object.defineProperty(globalThis, 'Float64Array', float64);
+	}
+	assert.equal(float64Allocations, 0);
+	assert.equal(causalAllocations, 0);
+});
+
+test('partitioned live equalizer scratch remains independent across stereo, reset, and reconfigure', () => {
+	const firstParams = {
+		filterLength: 257,
+		points: [{ frequency: 20, gain: 6 }, { frequency: 20_000, gain: -6 }],
+	};
+	const secondParams = {
+		filterLength: 511,
+		points: [{ frequency: 20, gain: -3 }, { frequency: 20_000, gain: 4 }],
+	};
+	const stereo = [signal(2_000), signal(2_000).map((sample, frame) => frame % 11 === 0 ? -sample : sample * 0.4)];
+	const processor = createAudacityLiveProcessor('audacity-filter-curve-eq', SAMPLE_RATE, firstParams);
+	const padded = stereo.map((channel) => {
+		const result = new Float32Array(channel.length + processor.latencyFrames + processor.tailFrames + 256);
+		result.set(channel);
+		return result;
+	});
+	const rendered = processStream(processor, padded, { blockSizes: [128] });
+	for (let channel = 0; channel < stereo.length; channel += 1) {
+		const actual = rendered[channel].slice(processor.latencyFrames, processor.latencyFrames + stereo[channel].length);
+		const expected = applyAudacityEffect('audacity-filter-curve-eq', [stereo[channel]], SAMPLE_RATE, firstParams)[0];
+		assert.ok(maximumDifference(actual, expected) <= 3e-7, `stereo channel ${channel}`);
+	}
+	processStream(processor, stereo, { blockSizes: [128] });
+	processor.reset();
+	assert.deepEqual(
+		processStream(processor, stereo, { blockSizes: [128] }),
+		processStream(createAudacityLiveProcessor('audacity-filter-curve-eq', SAMPLE_RATE, firstParams), stereo, { blockSizes: [128] }),
+	);
+	processor.updateParams(secondParams);
+	assert.deepEqual(
+		processStream(processor, stereo, { blockSizes: [128] }),
+		processStream(createAudacityLiveProcessor('audacity-filter-curve-eq', SAMPLE_RATE, secondParams), stereo, { blockSizes: [128] }),
+	);
+});
+
 test('live Noise Reduction accepts persisted profiles and is exact away from finite-stream edges', () => {
 	const sampleRate = 8_000;
 	const noise = Float32Array.from({ length: 4_096 }, (_, frame) => (

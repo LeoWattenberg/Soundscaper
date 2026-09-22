@@ -126,6 +126,11 @@ function createPartitionState(partitionCount, partitionSize, discard) {
 	return {
 		input: new Float64Array(partitionSize),
 		inputFill: 0,
+		inputReal: new Float64Array(fftSize),
+		inputImaginary: new Float64Array(fftSize),
+		outputReal: new Float64Array(fftSize),
+		outputImaginary: new Float64Array(fftSize),
+		causal: new Float32Array(partitionSize),
 		overlap: new Float64Array(partitionSize),
 		historyReal: Array.from({ length: partitionCount }, () => new Float64Array(fftSize)),
 		historyImaginary: Array.from({ length: partitionCount }, () => new Float64Array(fftSize)),
@@ -138,15 +143,19 @@ function createPartitionState(partitionCount, partitionSize, discard) {
 
 function processConvolutionPartition(state, kernelPartitions, partitionSize) {
 	const fftSize = partitionSize * 2;
-	const inputReal = new Float64Array(fftSize);
-	const inputImaginary = new Float64Array(fftSize);
+	const inputReal = state.inputReal;
+	const inputImaginary = state.inputImaginary;
+	inputReal.fill(0);
+	inputImaginary.fill(0);
 	inputReal.set(state.input);
 	fft(inputReal, inputImaginary, false);
 	state.historyIndex = (state.historyIndex + 1) % kernelPartitions.length;
 	state.historyReal[state.historyIndex].set(inputReal);
 	state.historyImaginary[state.historyIndex].set(inputImaginary);
-	const outputReal = new Float64Array(fftSize);
-	const outputImaginary = new Float64Array(fftSize);
+	const outputReal = state.outputReal;
+	const outputImaginary = state.outputImaginary;
+	outputReal.fill(0);
+	outputImaginary.fill(0);
 	for (let partition = 0; partition < kernelPartitions.length; partition += 1) {
 		const historyIndex = (state.historyIndex - partition + kernelPartitions.length) % kernelPartitions.length;
 		const xr = state.historyReal[historyIndex];
@@ -159,7 +168,7 @@ function processConvolutionPartition(state, kernelPartitions, partitionSize) {
 		}
 	}
 	fft(outputReal, outputImaginary, true);
-	const causal = new Float32Array(partitionSize);
+	const causal = state.causal;
 	for (let frame = 0; frame < partitionSize; frame += 1) {
 		causal[frame] = outputReal[frame] + state.overlap[frame];
 		state.overlap[frame] = outputReal[frame + partitionSize];
