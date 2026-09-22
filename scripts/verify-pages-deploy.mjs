@@ -3,6 +3,10 @@
 
 import { writeFile } from 'node:fs/promises';
 
+import {
+	shouldVerifyLiveFreesoundSearch,
+	verifyPublishedFreesoundSearch,
+} from './lib/freesound-deploy-smoke.mjs';
 import { verifyPublishedPagesArtifactIdentity } from './lib/pages-deploy-artifact-binding.mjs';
 import { verifyPublishedPagesCachePolicy } from './lib/pages-deploy-preflight.mjs';
 import { webBuildRouting } from './lib/product-web-routing.mjs';
@@ -33,6 +37,18 @@ try {
 		`Verified ${String(pages.verifiedRouteCount)} deployed ${routing.productId} routes on ${origin}`
 		+ ` (immutable-asset rule sampled on ${pages.assetPath}).`,
 	);
+	if (shouldVerifyLiveFreesoundSearch(routing.productId)) {
+		const freesound = await verifyPublishedFreesoundSearch({ origin }, {
+			onRetry: ({ attempt, error, intervalMs }) => console.log(
+				`Attempt ${String(attempt)} did not complete a live Freesound search (${error.message});`
+				+ ` waiting ${String(intervalMs / 1_000)}s before retrying.`,
+			),
+		});
+		console.log(
+			`Verified a populated live Freesound search on ${freesound.origin}`
+			+ ` (${String(freesound.resultCount)} results; first sound ${String(freesound.firstResultId)}).`,
+		);
+	}
 	if (identity && evidencePath) {
 		await writeFile(evidencePath, `${JSON.stringify({
 			...identity,
