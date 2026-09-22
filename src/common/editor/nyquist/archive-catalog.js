@@ -5,6 +5,9 @@ import { NYQUIST_ARCHIVE_ID } from './archive-store.js';
 export const NYQUIST_ARCHIVE_BASE_URL = 'https://assets.soundscaper.org/plugins/nyquist/audacityteam.org/ed168a19631ec48d0029dfb5c17d16c339a174c1/';
 const MANIFEST_SHA256 = '9b646177cfe178c2d0a03cdda53ae0bbdb7b82f91a1c7594fb7d779e8c45e655';
 const MANIFEST_BYTES = 138_341;
+const METADATA_SHA256 = '78bb422d1349367afff10eee7c6a413edf0de7fffc71131f2e4dd2eeab7ee480';
+const METADATA_BYTES = 36_845;
+export const NYQUIST_ARCHIVE_METADATA_URL = `${NYQUIST_ARCHIVE_BASE_URL}catalog-metadata-${METADATA_SHA256.slice(0, 12)}.json`;
 const MAX_ARCHIVE_FILE_BYTES = 512 * 1024;
 
 async function digest(bytes) {
@@ -71,11 +74,40 @@ export async function parseNyquistArchiveManifest(bytes, expectedSha256 = MANIFE
 	return manifest;
 }
 
+/** The catalog page copy is separately pinned so the preserved source manifest stays immutable. */
+export async function parseNyquistArchiveMetadata(bytes, manifest, expectedSha256 = METADATA_SHA256) {
+	if (bytes.byteLength > 128 * 1024 || await digest(bytes) !== expectedSha256) {
+		throw new Error('Nyquist archive metadata digest mismatch.');
+	}
+	const metadata = JSON.parse(new TextDecoder('utf-8', { fatal: true }).decode(bytes));
+	if (metadata.schemaVersion !== 1 || metadata.archiveId !== manifest.archiveId
+		|| metadata.upstream?.revision !== manifest.upstream?.revision
+		|| !Array.isArray(metadata.entries) || metadata.entries.length !== manifest.artifacts.length) {
+		throw new Error('Invalid Nyquist archive metadata.');
+	}
+	const artifacts = manifest.artifacts.map((artifact, index) => {
+		const entry = metadata.entries[index];
+		if (entry?.fileName !== artifact.fileName
+			|| typeof entry.title !== 'string' || !entry.title.trim() || entry.title.length > 160
+			|| typeof entry.description !== 'string' || !entry.description.trim() || entry.description.length > 700
+			|| !artifact.sourcePages.includes(entry.sourcePage)) {
+			throw new Error('Nyquist archive metadata file order or entry is invalid.');
+		}
+		return { ...artifact, title: entry.title, description: entry.description, sourcePage: entry.sourcePage };
+	});
+	return { ...manifest, artifacts };
+}
+
 export async function fetchNyquistArchiveManifest({ fetchImpl = globalThis.fetch, signal } = {}) {
-	const response = await fetchImpl(`${NYQUIST_ARCHIVE_BASE_URL}manifest.json`, { signal });
+	const [response, metadataResponse] = await Promise.all([
+		fetchImpl(`${NYQUIST_ARCHIVE_BASE_URL}manifest.json`, { signal }),
+		fetchImpl(NYQUIST_ARCHIVE_METADATA_URL, { signal }),
+	]);
 	const bytes = await boundedResponseBytes(response, MANIFEST_BYTES);
 	if (bytes.byteLength !== MANIFEST_BYTES) throw new Error('Nyquist archive manifest length mismatch.');
-	return parseNyquistArchiveManifest(bytes);
+	const metadataBytes = await boundedResponseBytes(metadataResponse, METADATA_BYTES);
+	if (metadataBytes.byteLength !== METADATA_BYTES) throw new Error('Nyquist archive metadata length mismatch.');
+	return parseNyquistArchiveMetadata(metadataBytes, await parseNyquistArchiveManifest(bytes));
 }
 
 export async function installNyquistArchivePlugin(store, artifact, { fetchImpl = globalThis.fetch, signal } = {}) {
@@ -91,5 +123,7 @@ export async function installNyquistArchivePlugin(store, artifact, { fetchImpl =
 		fileName: artifact.fileName,
 		archiveId: NYQUIST_ARCHIVE_ID,
 		source,
+		catalogTitle: artifact.title,
+		catalogDescription: artifact.description,
 	});
 }

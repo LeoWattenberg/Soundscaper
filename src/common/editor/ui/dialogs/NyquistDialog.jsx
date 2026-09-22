@@ -146,6 +146,7 @@ function NyquistRunnerDialog({ controller, snapshot, copy, target, run, onClose 
 				</>}
 			/>}
 		>
+					{plugin?.archiveId && plugin.description && <p>{plugin.description}</p>}
 					<p className="kw-audio-editor__nyquist-sandbox">{copy.nyquistSandboxNotice}</p>
 					{prompt && <>
 						<label className="kw-audio-editor-dialog__field">

@@ -24,15 +24,22 @@ export default function NyquistGetEffectsDialog({ copy, onClose }) {
 	useEffect(() => {
 		const request = new AbortController();
 		requestRef.current = request;
-		void fetchNyquistArchiveManifest({ signal: request.signal }).then(setManifest).catch((reason) => {
+		void fetchNyquistArchiveManifest({ signal: request.signal }).then((catalog) => {
+			nyquistArchiveStore.updateCatalogMetadata(catalog.artifacts);
+			setInstalled(nyquistArchiveStore.list());
+			setManifest(catalog);
+		}).catch((reason) => {
 			if (!request.signal.aborted) setError(reason instanceof Error ? reason.message : String(reason));
 		});
 		return () => requestRef.current?.abort();
 	}, []);
 
-	const filtered = useMemo(() => manifest?.artifacts.filter((artifact) => (
-		artifact.fileName.toLocaleLowerCase().includes(query.trim().toLocaleLowerCase())
-	)) ?? [], [manifest, query]);
+	const filtered = useMemo(() => {
+		const needle = query.trim().toLocaleLowerCase();
+		return manifest?.artifacts.filter((artifact) => (
+			[artifact.title, artifact.description, artifact.fileName].some((value) => value.toLocaleLowerCase().includes(needle))
+		)).sort((left, right) => left.title.localeCompare(right.title)) ?? [];
+	}, [manifest, query]);
 	const installedIds = useMemo(() => new Set(installed.map((plugin) => plugin.id)), [installed]);
 	const close = () => {
 		requestRef.current?.abort();
@@ -82,13 +89,17 @@ export default function NyquistGetEffectsDialog({ copy, onClose }) {
 				<ul style={{ listStyle: 'none', margin: 0, padding: 0 }}>
 					{filtered.map((artifact) => {
 						const id = `nyquist:archive:${artifact.fileName}`;
-						const plugin = installed.find((candidate) => candidate.id === id);
-						return <li key={artifact.fileName} style={{ display: 'flex', alignItems: 'center', gap: 12, justifyContent: 'space-between', padding: '8px 0' }}>
-							<span>{plugin?.name || artifact.fileName}</span>
+						return <li key={artifact.fileName} style={{ display: 'flex', alignItems: 'center', gap: 16, justifyContent: 'space-between', padding: '10px 0' }}>
+							<div style={{ minWidth: 0, flex: 1 }}>
+								<strong>{artifact.title}</strong>
+								<p style={{ margin: '4px 0 0' }}>{artifact.description}</p>
+							</div>
 							{installedIds.has(id)
-								? <Button variant="secondary" disabled={Boolean(busy)} onClick={() => remove(id)}>{archiveCopy.removeEffect}</Button>
+								? <Button variant="secondary" disabled={Boolean(busy)} onClick={() => remove(id)}>
+									{archiveCopy.removeEffect}<span className="kw-audio-editor-sr-only"> {artifact.title}</span>
+								</Button>
 								: <Button variant="secondary" disabled={Boolean(busy)} onClick={() => { void install(artifact); }}>
-									{busy === artifact.fileName ? copy.loading : archiveCopy.installEffect}
+									{busy === artifact.fileName ? copy.loading : archiveCopy.installEffect}<span className="kw-audio-editor-sr-only"> {artifact.title}</span>
 								</Button>}
 						</li>;
 					})}

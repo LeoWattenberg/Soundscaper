@@ -1,0 +1,701 @@
+{
+	"schemaVersion": 1,
+	"archiveId": "audacityteam-nyquist-plugins-ed168a19631ec48d0029dfb5c17d16c339a174c1",
+	"upstream": {
+		"repository": "https://github.com/audacity/audacity-support.git",
+		"revision": "ed168a19631ec48d0029dfb5c17d16c339a174c1"
+	},
+	"catalogUrl": "https://plugins.audacityteam.org/nyquist-plugins",
+	"entries": [
+		{
+			"fileName": "10bandeq.ny",
+			"title": "Ten Band EQ",
+			"description": "An Equalizer (EQ) that can modify one band at a time.",
+			"sourcePage": "https://plugins.audacityteam.org/nyquist-plugins/effect-plugins/filters-and-eq"
+		},
+		{
+			"fileName": "15bandEQ.ny",
+			"title": "Classic EQ",
+			"description": "An Equalizer (EQ) that can modify more than one band at a time.",
+			"sourcePage": "https://plugins.audacityteam.org/nyquist-plugins/effect-plugins/filters-and-eq"
+		},
+		{
+			"fileName": "ACX-Check.ny",
+			"title": "ACX Check",
+			"description": "This analyzer was developed as an aid for audiobook producers. It displays a number of useful statistics about the selected audio, and compares them to the specifications published by ACX (an Amazon.com subsidiary).",
+			"sourcePage": "https://plugins.audacityteam.org/analyzers/analysis-plugins"
+		},
+		{
+			"fileName": "amazon.ny",
+			"title": "Amazon Music, Alexa Loudness Check",
+			"description": "Various streaming platforms and other institutions expect content to have a certain range for peaks, RMS, LUFS, noise floor or a combination of the aforementioned. These plugins provide the relevant checks for the platforms in question.",
+			"sourcePage": "https://plugins.audacityteam.org/analyzers/loudness-compliance-checks"
+		},
+		{
+			"fileName": "amplr.ny",
+			"title": "Amplify Left or Right Channel",
+			"description": "Amplify or attenuate a single audio channel (Left or Right) from a stereo track",
+			"sourcePage": "https://plugins.audacityteam.org/nyquist-plugins/effect-plugins/amplify-mix-and-pan-effects"
+		},
+		{
+			"fileName": "apple.ny",
+			"title": "Apple Music Loudness Check",
+			"description": "Various streaming platforms and other institutions expect content to have a certain range for peaks, RMS, LUFS, noise floor or a combination of the aforementioned. These plugins provide the relevant checks for the platforms in question.",
+			"sourcePage": "https://plugins.audacityteam.org/analyzers/loudness-compliance-checks"
+		},
+		{
+			"fileName": "Bandstop.ny",
+			"title": "Band-Stop Filter",
+			"description": "A band-rejection filter that passes most frequencies unaltered, but stops those in a specific range.",
+			"sourcePage": "https://plugins.audacityteam.org/nyquist-plugins/effect-plugins/filters-and-eq"
+		},
+		{
+			"fileName": "BassToCenter.ny",
+			"title": "Bass to Center",
+			"description": "Frequency-selective filter to crossfeed (mix) bass frequencies to center (mono). Requires stereo tracks",
+			"sourcePage": "https://plugins.audacityteam.org/nyquist-plugins/effect-plugins/amplify-mix-and-pan-effects"
+		},
+		{
+			"fileName": "Bbdelay.ny",
+			"title": "Bouncing Ball Delay with Panning",
+			"description": "Combines the Bouncing Ball Delay with a panning effect.",
+			"sourcePage": "https://plugins.audacityteam.org/nyquist-plugins/effect-plugins/delay-and-reverb"
+		},
+		{
+			"fileName": "bbdtone.ny",
+			"title": "Bouncing Ball Delay with Tone Shift",
+			"description": "Combines the Bouncing Ball Delay with Tone Shift plugins.",
+			"sourcePage": "https://plugins.audacityteam.org/nyquist-plugins/effect-plugins/delay-and-reverb"
+		},
+		{
+			"fileName": "bitone2.ny",
+			"title": "Binaural Tones with Surf 2",
+			"description": "A sine tone of one constant frequency is generated in the left channel of a stereo track, and a series of changing tones of slightly different frequencies are generated in the right.",
+			"sourcePage": "https://plugins.audacityteam.org/nyquist-plugins/generator-plugins/special-effect-generators"
+		},
+		{
+			"fileName": "bouncingball.ny",
+			"title": "Bouncing Ball Delay",
+			"description": "A delay plugin where, like a bouncing ball, the bounces get faster and faster.",
+			"sourcePage": "https://plugins.audacityteam.org/nyquist-plugins/effect-plugins/delay-and-reverb"
+		},
+		{
+			"fileName": "buttrfly.ny",
+			"title": "Stereo Butterfly (static)",
+			"description": "The original Stereo Butterfly plugin which can be spread wide (1, full stereo), closed (0, sounding mono), or somewhere in-between",
+			"sourcePage": "https://plugins.audacityteam.org/nyquist-plugins/effect-plugins/amplify-mix-and-pan-effects"
+		},
+		{
+			"fileName": "buttrlfo.ny",
+			"title": "Stereo Butterfly (LFO)",
+			"description": "Second in the Stereo Butterfly series. It takes stereo audio and makes it sound like the left and right channels are switching back and forth with each other.",
+			"sourcePage": "https://plugins.audacityteam.org/nyquist-plugins/effect-plugins/amplify-mix-and-pan-effects"
+		},
+		{
+			"fileName": "buttrramp.ny",
+			"title": "Stereo Butterfly (ramp)",
+			"description": "Third in the series of Stereo Butterfly plugins. As with the previous two, 0 setting sounds like mono, +1 is regular stereo, -1 is left and right channels flipped with each other.",
+			"sourcePage": "https://plugins.audacityteam.org/nyquist-plugins/effect-plugins/amplify-mix-and-pan-effects"
+		},
+		{
+			"fileName": "buzz.ny",
+			"title": "Buzz tone generator",
+			"description": "Generates a nasal-sounding tone composed of the base frequency plus n-1 harmonics.",
+			"sourcePage": "https://plugins.audacityteam.org/nyquist-plugins/generator-plugins/tone-generators"
+		},
+		{
+			"fileName": "Centerpanremover.ny",
+			"title": "Center Pan Remover",
+			"description": "Removes center-panned content in stereo tracks by inverting and making mono",
+			"sourcePage": "https://plugins.audacityteam.org/nyquist-plugins/effect-plugins/amplify-mix-and-pan-effects"
+		},
+		{
+			"fileName": "Changespeedsemitones.ny",
+			"title": "Change Speed by Semitones",
+			"description": "Similar to the Change Speed effect, this effect changes the speed of the selected audio, thus changing both the tempo and pitch.",
+			"sourcePage": "https://plugins.audacityteam.org/nyquist-plugins/effect-plugins/time-pitch-and-tempo"
+		},
+		{
+			"fileName": "Channel-mixer.ny",
+			"title": "Channel Mixer",
+			"description": "A multi-purpose tool that can perform almost any type of channel mixing task on an unsplit stereo track.",
+			"sourcePage": "https://plugins.audacityteam.org/nyquist-plugins/effect-plugins/amplify-mix-and-pan-effects"
+		},
+		{
+			"fileName": "ChebyI.ny",
+			"title": "Chebyshev Type I Filter",
+			"description": "Type I Chebyshev filters can provide a steeper roll-off than Butterworth filters but at the expense of more ripple in the passband.",
+			"sourcePage": "https://plugins.audacityteam.org/nyquist-plugins/effect-plugins/filters-and-eq"
+		},
+		{
+			"fileName": "Chimesdelay3.ny",
+			"title": "Chimes delay",
+			"description": "Adds random delay to your audio, and randomly changes the pitch of each delay if you specify a note list.",
+			"sourcePage": "https://plugins.audacityteam.org/nyquist-plugins/effect-plugins/delay-and-reverb"
+		},
+		{
+			"fileName": "clubplay.ny",
+			"title": "Club Play Loudness Check",
+			"description": "Various streaming platforms and other institutions expect content to have a certain range for peaks, RMS, LUFS, noise floor or a combination of the aforementioned. These plugins provide the relevant checks for the platforms in question.",
+			"sourcePage": "https://plugins.audacityteam.org/analyzers/loudness-compliance-checks"
+		},
+		{
+			"fileName": "comb.ny",
+			"title": "Comb Filter",
+			"description": "The name 'comb' filter comes from how it acts on the audio spectrum it's applied to: it looks like a comb with the teeth pointing up.",
+			"sourcePage": "https://plugins.audacityteam.org/nyquist-plugins/effect-plugins/filters-and-eq"
+		},
+		{
+			"fileName": "Crossfadein.ny",
+			"title": "Cross Fade In",
+			"description": "Cross Fade In applies a \"curved\" fade that is different from the linear Fade in that will result in equal RMS volume throughout the faded section when used in conjunction with the Cross Fade Out effect to perform a crossfade.",
+			"sourcePage": "https://plugins.audacityteam.org/nyquist-plugins/effect-plugins/amplify-mix-and-pan-effects"
+		},
+		{
+			"fileName": "Crossfadeout.ny",
+			"title": "Cross Fade Out",
+			"description": "Cross Fade Out applies a \"curved\" fade that is different from the linear Fade Out. The curve used is one that will result in equal RMS (average) volume throughout the faded section when used in conjunction with the Cross Fade In effect, to perform a crossfade.",
+			"sourcePage": "https://plugins.audacityteam.org/nyquist-plugins/effect-plugins/amplify-mix-and-pan-effects"
+		},
+		{
+			"fileName": "De-hum.ny",
+			"title": "Hum Remover",
+			"description": "A filter for removing the sound of mains hum from recordings.",
+			"sourcePage": "https://plugins.audacityteam.org/nyquist-plugins/effect-plugins/filters-and-eq"
+		},
+		{
+			"fileName": "deezer.ny",
+			"title": "Deezer Loudness Check",
+			"description": "Various streaming platforms and other institutions expect content to have a certain range for peaks, RMS, LUFS, noise floor or a combination of the aforementioned. These plugins provide the relevant checks for the platforms in question.",
+			"sourcePage": "https://plugins.audacityteam.org/analyzers/loudness-compliance-checks"
+		},
+		{
+			"fileName": "Delay-bpm.ny",
+			"title": "Delay BPM with Panning",
+			"description": "Applies a delay effect based on a specified tempo (beats per minute), with optional panning and filtering of the delayed sound.",
+			"sourcePage": "https://plugins.audacityteam.org/nyquist-plugins/effect-plugins/delay-and-reverb"
+		},
+		{
+			"fileName": "delayfli.ny",
+			"title": "Delay with Stereo Flip",
+			"description": "This is a stereo delay effect: with each delay, the stereo channels are flipped from left to right and vice versa.",
+			"sourcePage": "https://plugins.audacityteam.org/nyquist-plugins/effect-plugins/delay-and-reverb"
+		},
+		{
+			"fileName": "delaypit.ny",
+			"title": "Delay with Pitch Change",
+			"description": "A delay plugin except, each delay is pitch shifted.",
+			"sourcePage": "https://plugins.audacityteam.org/nyquist-plugins/effect-plugins/delay-and-reverb"
+		},
+		{
+			"fileName": "delayreb.ny",
+			"title": "Reverse Bouncing Ball Delay",
+			"description": "The fastest bounces come first, gradually slowing down - reverse of the Bouncing Ball Delay effect.",
+			"sourcePage": "https://plugins.audacityteam.org/nyquist-plugins/effect-plugins/delay-and-reverb"
+		},
+		{
+			"fileName": "Desk-eq.ny",
+			"title": "Desk EQ",
+			"description": "This equalizer is modelled on the EQ section of the Allen & Heath GL series mixing desk.",
+			"sourcePage": "https://plugins.audacityteam.org/nyquist-plugins/effect-plugins/filters-and-eq"
+		},
+		{
+			"fileName": "Dtmf.ny",
+			"title": "DTMF Tones",
+			"description": "Touch Tones (also known as DTMF or Dual Tone Multi Frequency Tones) are the tones made by key pads on telephones. Each tone is comprised of two separate tones at different pitch, hence \"dual tone\".",
+			"sourcePage": "https://plugins.audacityteam.org/nyquist-plugins/generator-plugins/tone-generators"
+		},
+		{
+			"fileName": "dtmfrand.ny",
+			"title": "DTMF Tones (random)",
+			"description": "Touch Tones (also known as DTMF or Dual Tone Multi Frequency Tones) are the tones made by key pads on telephones. Each tone is comprised of two separate tones at different pitch, hence \"dual tone\".",
+			"sourcePage": "https://plugins.audacityteam.org/nyquist-plugins/generator-plugins/tone-generators"
+		},
+		{
+			"fileName": "dualtapedecks.ny",
+			"title": "Dual Tape Decks",
+			"description": "Simulates two tape decks playing identical tapes, but out of synchronization with each other.",
+			"sourcePage": "https://plugins.audacityteam.org/nyquist-plugins/effect-plugins/modulation-effects"
+		},
+		{
+			"fileName": "Enhancer.ny",
+			"title": "Harmonic Enhancer",
+			"description": "Adds high frequency harmonics to brighten very dull recordings that don't respond to Equalization.",
+			"sourcePage": "https://plugins.audacityteam.org/nyquist-plugins/effect-plugins/distortion-effects"
+		},
+		{
+			"fileName": "eqcustom.ny",
+			"title": "Customizable EQ",
+			"description": "Customizable single-band equalizer.",
+			"sourcePage": "https://plugins.audacityteam.org/nyquist-plugins/effect-plugins/filters-and-eq"
+		},
+		{
+			"fileName": "Equasplit.ny",
+			"title": "Regular Interval Audio Splitter",
+			"description": "Splits audio into desired number of segments by inserting silences of specified duration (up to 10.0 seconds).",
+			"sourcePage": "https://plugins.audacityteam.org/nyquist-plugins/effect-plugins/time-pitch-and-tempo"
+		},
+		{
+			"fileName": "extract.ny",
+			"title": "Extract Audio",
+			"description": "Extracts audio from a selected area without using a mouse or cursor keys.",
+			"sourcePage": "https://plugins.audacityteam.org/nyquist-plugins/effect-plugins/time-pitch-and-tempo"
+		},
+		{
+			"fileName": "fade-io.ny",
+			"title": "Fade In and Out",
+			"description": "Define the length of fade-in and fade-out selections without using a mouse or cursor keys.",
+			"sourcePage": "https://plugins.audacityteam.org/nyquist-plugins/effect-plugins/amplify-mix-and-pan-effects"
+		},
+		{
+			"fileName": "Firex.ny",
+			"title": "Fire and Explosion sounds",
+			"description": "Emulates a Korg MS-10 synthesizer patch.",
+			"sourcePage": "https://plugins.audacityteam.org/nyquist-plugins/generator-plugins/instrument-sound-generators"
+		},
+		{
+			"fileName": "Flangerl.ny",
+			"title": "Flanger (linear)",
+			"description": "Unlike a regular flanger (which cycles up and down repeatedly), this plugin creates a single high-frequency flange, and you can set the position of that high-frequency point, anywhere between the start and end of the selection and beyond.",
+			"sourcePage": "https://plugins.audacityteam.org/nyquist-plugins/effect-plugins/modulation-effects"
+		},
+		{
+			"fileName": "generate.ny",
+			"title": "Nyquist Generate Prompt",
+			"description": "Nyquist Generate Prompt makes it easy for Nyquist developers to test their code for \"Generate\" plugins in one step.",
+			"sourcePage": "https://plugins.audacityteam.org/nyquist-plugins/generator-plugins/generator-utilities"
+		},
+		{
+			"fileName": "harmonicnoise.ny",
+			"title": "Harmonic Noise",
+			"description": "Generates approximately harmonic tones by mixing narrow bands of noise",
+			"sourcePage": "https://plugins.audacityteam.org/nyquist-plugins/generator-plugins/noise-generators"
+		},
+		{
+			"fileName": "highpass2.ny",
+			"title": "High Pass Filter with Q",
+			"description": "A high pass filter with Q, or resonance.",
+			"sourcePage": "https://plugins.audacityteam.org/nyquist-plugins/effect-plugins/filters-and-eq"
+		},
+		{
+			"fileName": "hpdelay.ny",
+			"title": "Delay with High-Pass Filter",
+			"description": "Applies a high-pass filter to a delay so that with each subsequent delay, the filter's cut-off frequency is increased.",
+			"sourcePage": "https://plugins.audacityteam.org/nyquist-plugins/effect-plugins/delay-and-reverb"
+		},
+		{
+			"fileName": "hplfo.ny",
+			"title": "High Pass Filter (LFO)",
+			"description": "A high pass filter with a low frequency oscillator (LFO).",
+			"sourcePage": "https://plugins.audacityteam.org/nyquist-plugins/effect-plugins/filters-and-eq"
+		},
+		{
+			"fileName": "HQ-Tone.ny",
+			"title": "HQ-Tone",
+			"description": "HQ-Tone is a high quality (no alias) tone generator. This plugin is typically faster than Audacity's built-in \"Square - no alias\" generator, particularly for low frequencies, and provides more waveform choices.",
+			"sourcePage": "https://plugins.audacityteam.org/nyquist-plugins/generator-plugins/tone-generators"
+		},
+		{
+			"fileName": "hyperexp.ny",
+			"title": "Hyperexp",
+			"description": "The Hyperexp effect is a type of compression.",
+			"sourcePage": "https://plugins.audacityteam.org/nyquist-plugins/effect-plugins/dynamics-processing"
+		},
+		{
+			"fileName": "Insertsilence.ny",
+			"title": "Insert Silence",
+			"description": "This effect inserts silence at the start of the audio selection.",
+			"sourcePage": "https://plugins.audacityteam.org/nyquist-plugins/effect-plugins/time-pitch-and-tempo"
+		},
+		{
+			"fileName": "Isomod.ny",
+			"title": "Isochronic modulator",
+			"description": "A variable tremolo plugin customized with controls for length and fade in/out speed of each pulse.",
+			"sourcePage": "https://plugins.audacityteam.org/nyquist-plugins/effect-plugins/modulation-effects"
+		},
+		{
+			"fileName": "klstrbas.ny",
+			"title": "KLSTRBAS",
+			"description": "KLSTRBAS (for \"cluster bass\") generates dense sounds by combining several waveforms with a fixed frequency ratio between them.",
+			"sourcePage": "https://plugins.audacityteam.org/nyquist-plugins/generator-plugins/instrument-sound-generators"
+		},
+		{
+			"fileName": "LevelSpeech.ny",
+			"title": "Level Speech",
+			"description": "This effect is designed to mitigate problems in speech recordings where there are very large variations in the loudness / amplitude of the recorded voice or voices.",
+			"sourcePage": "https://plugins.audacityteam.org/nyquist-plugins/effect-plugins/dynamics-processing"
+		},
+		{
+			"fileName": "lfohp.ny",
+			"title": "High Pass Filter (LFO) - Alternative version",
+			"description": "An alternative high-pass filter whose low-frequency oscillator sweeps the cutoff frequency.",
+			"sourcePage": "https://plugins.audacityteam.org/nyquist-plugins/effect-plugins/filters-and-eq"
+		},
+		{
+			"fileName": "lfolp.ny",
+			"title": "Low Pass Filter (LFO) - Alternative version",
+			"description": "An alternative low-pass filter whose low-frequency oscillator sweeps the cutoff frequency.",
+			"sourcePage": "https://plugins.audacityteam.org/nyquist-plugins/effect-plugins/filters-and-eq"
+		},
+		{
+			"fileName": "limiter.ny",
+			"title": "Limiter (Audacity <3.6)",
+			"description": "Use the Limiter effect to pass signals below a specified input level unaffected or gently reduced, while preventing the peaks of stronger signals from exceeding this threshold. Mastering engineers often use limiting combined with make-up gain to increase the perceived loudness of an audio recording during the audio mastering process.",
+			"sourcePage": "https://plugins.audacityteam.org/nyquist-plugins/effect-plugins/dynamics-processing"
+		},
+		{
+			"fileName": "Limiter.ny",
+			"title": "Limiter (legacy)",
+			"description": "A \"lookahead\" dynamic range limiter to compress peaks that extend beyond the set threshold value.",
+			"sourcePage": "https://plugins.audacityteam.org/nyquist-plugins/effect-plugins/dynamics-processing"
+		},
+		{
+			"fileName": "Limiter2.ny",
+			"title": "Limiter (2)",
+			"description": "The same as Limiter except that the make up gain control is a multi-choice selection rather than a slider.",
+			"sourcePage": "https://plugins.audacityteam.org/nyquist-plugins/effect-plugins/dynamics-processing"
+		},
+		{
+			"fileName": "lowpass2.ny",
+			"title": "Low Pass Filter with Q",
+			"description": "A low pass filter with Q, or resonance.",
+			"sourcePage": "https://plugins.audacityteam.org/nyquist-plugins/effect-plugins/filters-and-eq"
+		},
+		{
+			"fileName": "lpdelay.ny",
+			"title": "Delay with Low-Pass Filter",
+			"description": "Applies a low-pass filter to a delay so that with each subsequent delay, the filter's cut-off frequency is reduced.",
+			"sourcePage": "https://plugins.audacityteam.org/nyquist-plugins/effect-plugins/delay-and-reverb"
+		},
+		{
+			"fileName": "lplfo.ny",
+			"title": "Low Pass Filter (LFO)",
+			"description": "A low pass filter with a low frequency oscillator (LFO).",
+			"sourcePage": "https://plugins.audacityteam.org/nyquist-plugins/effect-plugins/filters-and-eq"
+		},
+		{
+			"fileName": "multibandeq.ny",
+			"title": "Multiband EQ",
+			"description": "A multiband equalizer.",
+			"sourcePage": "https://plugins.audacityteam.org/nyquist-plugins/effect-plugins/filters-and-eq"
+		},
+		{
+			"fileName": "Mutron.ny",
+			"title": "Mutron",
+			"description": "Loosely based on the Mutron stomp box from the late 70's. Basically it is a filter controlled by an envelope follower.",
+			"sourcePage": "https://plugins.audacityteam.org/nyquist-plugins/effect-plugins/filters-and-eq"
+		},
+		{
+			"fileName": "netflix.ny",
+			"title": "Netflix Loudness Check",
+			"description": "Various streaming platforms and other institutions expect content to have a certain range for peaks, RMS, LUFS, noise floor or a combination of the aforementioned. These plugins provide the relevant checks for the platforms in question.",
+			"sourcePage": "https://plugins.audacityteam.org/analyzers/loudness-compliance-checks"
+		},
+		{
+			"fileName": "Noiseband.ny",
+			"title": "Narrowband Noise",
+			"description": "Narrowband Noise generates noise within a specified frequency range by ring-modulating a sine wave with low-pass filtered noise. The effect is like band-pass filtered noise.",
+			"sourcePage": "https://plugins.audacityteam.org/nyquist-plugins/generator-plugins/noise-generators"
+		},
+		{
+			"fileName": "Noisegate.ny",
+			"title": "Noise Gate",
+			"description": "Noise Gates may be used to cut the level of noise between sections of a recording.",
+			"sourcePage": "https://plugins.audacityteam.org/nyquist-plugins/effect-plugins/dynamics-processing"
+		},
+		{
+			"fileName": "notch.ny",
+			"title": "Notch Filter",
+			"description": "A notch filter cuts out a \"notch\" in the spectrum of your audio.",
+			"sourcePage": "https://plugins.audacityteam.org/nyquist-plugins/effect-plugins/filters-and-eq"
+		},
+		{
+			"fileName": "pan.ny",
+			"title": "Panning",
+			"description": "This plugin will statically pan your stereo audio anywhere between left and right channels.",
+			"sourcePage": "https://plugins.audacityteam.org/nyquist-plugins/effect-plugins/amplify-mix-and-pan-effects"
+		},
+		{
+			"fileName": "panlfo2a.ny",
+			"title": "Panning (LFO)",
+			"description": "Panning is controlled by a low frequency oscillator",
+			"sourcePage": "https://plugins.audacityteam.org/nyquist-plugins/effect-plugins/amplify-mix-and-pan-effects"
+		},
+		{
+			"fileName": "Panramp.ny",
+			"title": "Ramp Panning",
+			"description": "Evenly pan your stereo audio, starting at one point in the stereo field and ending at another.",
+			"sourcePage": "https://plugins.audacityteam.org/nyquist-plugins/effect-plugins/amplify-mix-and-pan-effects"
+		},
+		{
+			"fileName": "Panrand.ny",
+			"title": "Panning (random)",
+			"description": "Randomly pans stereo audio from one side of the stereo field to the other",
+			"sourcePage": "https://plugins.audacityteam.org/nyquist-plugins/effect-plugins/amplify-mix-and-pan-effects"
+		},
+		{
+			"fileName": "Parametric.ny",
+			"title": "Parametric EQ",
+			"description": "A parametric equalizer is a variable equalizer effect which provides control of three parameters: amplitude, center frequency and bandwidth.",
+			"sourcePage": "https://plugins.audacityteam.org/nyquist-plugins/effect-plugins/filters-and-eq"
+		},
+		{
+			"fileName": "Peakfinder-rft.ny",
+			"title": "Peak Finder rft",
+			"description": "Either places a single label at the first instance of a peak volume, or multiple labels at all the instances of that peak.",
+			"sourcePage": "https://plugins.audacityteam.org/analyzers/analysis-plugins"
+		},
+		{
+			"fileName": "Pitch-detect.ny",
+			"title": "Pitch Detect",
+			"description": "This plugin attempts to detect and display the musical pitch and frequency of the selected note. In most cases the default settings will work best. The other options are provided to handle special cases such as analyzing synthetic signals that are outside of the usual musical range.",
+			"sourcePage": "https://plugins.audacityteam.org/analyzers/analysis-plugins"
+		},
+		{
+			"fileName": "Pluck-hz.ny",
+			"title": "Pluck (Hz)",
+			"description": "Pluck generates a synthesized pluck tone with abrupt or gradual fade-out.",
+			"sourcePage": "https://plugins.audacityteam.org/nyquist-plugins/generator-plugins/instrument-sound-generators"
+		},
+		{
+			"fileName": "PodCheck.ny",
+			"title": "Podcasts Loudness Check",
+			"description": "Various streaming platforms and other institutions expect content to have a certain range for peaks, RMS, LUFS, noise floor or a combination of the aforementioned. These plugins provide the relevant checks for the platforms in question.",
+			"sourcePage": "https://plugins.audacityteam.org/analyzers/loudness-compliance-checks"
+		},
+		{
+			"fileName": "Popmute.ny",
+			"title": "Pop Mute",
+			"description": "The effect is like an \"upside-down\" Noise Gate. Whereas a Noise Gate attenuates sounds that are below a specified threshold level, Pop Mute attenuates sounds that are above a specified threshold level.",
+			"sourcePage": "https://plugins.audacityteam.org/nyquist-plugins/effect-plugins/dynamics-processing"
+		},
+		{
+			"fileName": "Pseudostereo.ny",
+			"title": "Pseudo-Stereo",
+			"description": "Creates an artificial stereo effect that can be useful for giving some \"depth\" to mono recordings.",
+			"sourcePage": "https://plugins.audacityteam.org/nyquist-plugins/effect-plugins/amplify-mix-and-pan-effects"
+		},
+		{
+			"fileName": "pwm.ny",
+			"title": "PWM",
+			"description": "Generates a modulated pulse tone.",
+			"sourcePage": "https://plugins.audacityteam.org/nyquist-plugins/generator-plugins/tone-generators"
+		},
+		{
+			"fileName": "Randomamp.ny",
+			"title": "Random Amplitude Modulation",
+			"description": "Similar to Random Panning, this time playing around with the volume knob.",
+			"sourcePage": "https://plugins.audacityteam.org/nyquist-plugins/effect-plugins/modulation-effects"
+		},
+		{
+			"fileName": "randomlp.ny",
+			"title": "Random Low Pass Filter",
+			"description": "Like someone is playing around with the cut-off frequency knob of your low pass filter.",
+			"sourcePage": "https://plugins.audacityteam.org/nyquist-plugins/effect-plugins/filters-and-eq"
+		},
+		{
+			"fileName": "randompitch.ny",
+			"title": "Random Pitch Modulation",
+			"description": "Randomly modulates the pitch of your audio.",
+			"sourcePage": "https://plugins.audacityteam.org/nyquist-plugins/effect-plugins/modulation-effects"
+		},
+		{
+			"fileName": "rbbdtone.ny",
+			"title": "Reverse Bouncing Ball Delay with Tone Shift",
+			"description": "The fastest bounces come first - reverse of the Bouncing Ball Delay, and each bounce is tone shifted.",
+			"sourcePage": "https://plugins.audacityteam.org/nyquist-plugins/effect-plugins/delay-and-reverb"
+		},
+		{
+			"fileName": "rbell.ny",
+			"title": "Risset Bell",
+			"description": "Simulates a realistic bell tone based on the pioneering work of Jean Claude Risset.",
+			"sourcePage": "https://plugins.audacityteam.org/nyquist-plugins/generator-plugins/instrument-sound-generators"
+		},
+		{
+			"fileName": "Repair_channel.ny",
+			"title": "Repair Channel",
+			"description": "For repairing damage to one channel of a stereo track by overwriting the damaged region with audio from the other channel",
+			"sourcePage": "https://plugins.audacityteam.org/nyquist-plugins/effect-plugins/amplify-mix-and-pan-effects"
+		},
+		{
+			"fileName": "Resonant.ny",
+			"title": "Resonant Filter",
+			"description": "A filter with low pass, high pass and band pass options with a \"resonance\" control.",
+			"sourcePage": "https://plugins.audacityteam.org/nyquist-plugins/effect-plugins/filters-and-eq"
+		},
+		{
+			"fileName": "RFT-Limiter-II.ny",
+			"title": "Broadcast Limiter II",
+			"description": "Gives you the possibility to overdrive an audio track without introducing ugly digital distortion noise.",
+			"sourcePage": "https://plugins.audacityteam.org/nyquist-plugins/effect-plugins/dynamics-processing"
+		},
+		{
+			"fileName": "RFT-Limiter-III.ny",
+			"title": "Broadcast Limiter III",
+			"description": "Similar to Broadcast Limiter II with an added Exciter",
+			"sourcePage": "https://plugins.audacityteam.org/nyquist-plugins/effect-plugins/dynamics-processing"
+		},
+		{
+			"fileName": "Ringmod.ny",
+			"title": "Ring Modulator",
+			"description": "A ring modulator is a tremolo effect, but instead of using an LFO to amplitude modulate audio, an audio signal is used.",
+			"sourcePage": "https://plugins.audacityteam.org/nyquist-plugins/effect-plugins/modulation-effects"
+		},
+		{
+			"fileName": "rndtone.ny",
+			"title": "Rndtone",
+			"description": "Generates random sine waves.",
+			"sourcePage": "https://plugins.audacityteam.org/nyquist-plugins/generator-plugins/sequence-generators"
+		},
+		{
+			"fileName": "seq2.ny",
+			"title": "Audio Selection Sequencer 2",
+			"description": "You can turn any short piece of imported, recorded or generated audio into a (repeated) sequence of notes based on chosen tempo, beats per sequence and semitone values. Any sound can be used.",
+			"sourcePage": "https://plugins.audacityteam.org/nyquist-plugins/effect-plugins/sequencer-effects"
+		},
+		{
+			"fileName": "Shelf.ny",
+			"title": "Shelf Filter",
+			"description": "A shelf filter with options for high shelf, low shelf or mid-band.",
+			"sourcePage": "https://plugins.audacityteam.org/nyquist-plugins/effect-plugins/filters-and-eq"
+		},
+		{
+			"fileName": "Slide-speed.ny",
+			"title": "Sliding Speed Change",
+			"description": "A speed change effect in which the initial and final speed may be set independently.",
+			"sourcePage": "https://plugins.audacityteam.org/nyquist-plugins/effect-plugins/time-pitch-and-tempo"
+		},
+		{
+			"fileName": "sony.ny",
+			"title": "Sony related Loudness Check",
+			"description": "Various streaming platforms and other institutions expect content to have a certain range for peaks, RMS, LUFS, noise floor or a combination of the aforementioned. These plugins provide the relevant checks for the platforms in question.",
+			"sourcePage": "https://plugins.audacityteam.org/analyzers/loudness-compliance-checks"
+		},
+		{
+			"fileName": "soundcloud.ny",
+			"title": "Soundcloud Loudness Check",
+			"description": "Various streaming platforms and other institutions expect content to have a certain range for peaks, RMS, LUFS, noise floor or a combination of the aforementioned. These plugins provide the relevant checks for the platforms in question.",
+			"sourcePage": "https://plugins.audacityteam.org/analyzers/loudness-compliance-checks"
+		},
+		{
+			"fileName": "spotify-loud.ny",
+			"title": "Spotify Loudness Check (loud preset)",
+			"description": "Various streaming platforms and other institutions expect content to have a certain range for peaks, RMS, LUFS, noise floor or a combination of the aforementioned. These plugins provide the relevant checks for the platforms in question.",
+			"sourcePage": "https://plugins.audacityteam.org/analyzers/loudness-compliance-checks"
+		},
+		{
+			"fileName": "spotify.ny",
+			"title": "Spotify Loudness Check",
+			"description": "Various streaming platforms and other institutions expect content to have a certain range for peaks, RMS, LUFS, noise floor or a combination of the aforementioned. These plugins provide the relevant checks for the platforms in question.",
+			"sourcePage": "https://plugins.audacityteam.org/analyzers/loudness-compliance-checks"
+		},
+		{
+			"fileName": "sq1.ny",
+			"title": "SQ1 Generator Sequencer",
+			"description": "Algorithmic generator sequencer number 1.",
+			"sourcePage": "https://plugins.audacityteam.org/nyquist-plugins/generator-plugins/sequence-generators"
+		},
+		{
+			"fileName": "surf-lfo.ny",
+			"title": "Surf-LFO",
+			"description": "An LFO surf generator.",
+			"sourcePage": "https://plugins.audacityteam.org/nyquist-plugins/generator-plugins/special-effect-generators"
+		},
+		{
+			"fileName": "surf-oxy.ny",
+			"title": "Surf-Oxy",
+			"description": "A surf generator inspired by Jean-Michel Jarre's album Oxygene.",
+			"sourcePage": "https://plugins.audacityteam.org/nyquist-plugins/generator-plugins/special-effect-generators"
+		},
+		{
+			"fileName": "Tapesat.ny",
+			"title": "Tape Saturation Limiter",
+			"description": "A tape saturation simulation effect.",
+			"sourcePage": "https://plugins.audacityteam.org/nyquist-plugins/effect-plugins/distortion-effects"
+		},
+		{
+			"fileName": "tempo.ny",
+			"title": "Tempo Change",
+			"description": "This plugin allows you to change tempo making it faster or slower",
+			"sourcePage": "https://plugins.audacityteam.org/nyquist-plugins/effect-plugins/time-pitch-and-tempo"
+		},
+		{
+			"fileName": "TextEnvelope.ny",
+			"title": "Text Envelope",
+			"description": "Provides an alternative to the \"Envelope Tool\" that is accessible for visually impaired and other users that do not use pointing devices",
+			"sourcePage": "https://plugins.audacityteam.org/nyquist-plugins/effect-plugins/dynamics-processing"
+		},
+		{
+			"fileName": "tidal.ny",
+			"title": "Tidal Loudness Check",
+			"description": "Various streaming platforms and other institutions expect content to have a certain range for peaks, RMS, LUFS, noise floor or a combination of the aforementioned. These plugins provide the relevant checks for the platforms in question.",
+			"sourcePage": "https://plugins.audacityteam.org/analyzers/loudness-compliance-checks"
+		},
+		{
+			"fileName": "timeshif.ny",
+			"title": "Time Shifter",
+			"description": "A plugin for performing the same task as the Time Shift Tool in Audacity, without using a mouse.",
+			"sourcePage": "https://plugins.audacityteam.org/nyquist-plugins/effect-plugins/time-pitch-and-tempo"
+		},
+		{
+			"fileName": "tonedelay.ny",
+			"title": "Delay with Tone Shift",
+			"description": "Similar to pitchshift.ny except you can define in semitones how much each delay is to be pitch shifted.",
+			"sourcePage": "https://plugins.audacityteam.org/nyquist-plugins/effect-plugins/delay-and-reverb"
+		},
+		{
+			"fileName": "TrimExtend.ny",
+			"title": "Trim / Extend",
+			"description": "This plugin can trim audio from the start and/or end of a track (or track selection), or pad the start and/or end with silence, or any combination of the two.",
+			"sourcePage": "https://plugins.audacityteam.org/nyquist-plugins/effect-plugins/time-pitch-and-tempo"
+		},
+		{
+			"fileName": "TrimSilence.ny",
+			"title": "Trim Silence",
+			"description": "This plugin is for trimming excess silence from the start and/or end of tracks or audio clips.",
+			"sourcePage": "https://plugins.audacityteam.org/nyquist-plugins/effect-plugins/time-pitch-and-tempo"
+		},
+		{
+			"fileName": "tuning.ny",
+			"title": "Tuning fork",
+			"description": "A software tuning fork, with a table giving C notes and their equivalent MIDI note numbers near the top of the screen.",
+			"sourcePage": "https://plugins.audacityteam.org/nyquist-plugins/generator-plugins/generator-utilities"
+		},
+		{
+			"fileName": "turntablewarp-ms.ny",
+			"title": "Turntable Warping MS",
+			"description": "Simulates unplugging and plugging in a turntable while it's powered, and related effects such as speeding it up before unplugging it",
+			"sourcePage": "https://plugins.audacityteam.org/nyquist-plugins/effect-plugins/time-pitch-and-tempo"
+		},
+		{
+			"fileName": "Vari-tremolo.ny",
+			"title": "Variable Tremolo",
+			"description": "This plugin produces a \"Tremolo\" effect in which the frequency and depth of the tremolo varies from an initial setting to a final setting.",
+			"sourcePage": "https://plugins.audacityteam.org/nyquist-plugins/effect-plugins/modulation-effects"
+		},
+		{
+			"fileName": "Vibrato.ny",
+			"title": "Vibrato",
+			"description": "This effect applies vibrato (a regular pulsating change of pitch) to the selected audio.",
+			"sourcePage": "https://plugins.audacityteam.org/nyquist-plugins/effect-plugins/modulation-effects"
+		},
+		{
+			"fileName": "vocalrediso.ny",
+			"title": "Vocal reduction and isolation",
+			"description": "This is the vocal reduction and isolation effect that was included in Audacity prior version 3.5.",
+			"sourcePage": "https://plugins.audacityteam.org/nyquist-plugins/effect-plugins/filters-and-eq"
+		},
+		{
+			"fileName": "widener.ny",
+			"title": "Stereo Widener",
+			"description": "Gives the illusion of widening stereo audio. The effect produces different results depending on whether you are listening to the audio through speakers or headphones, and the distance stereo speakers are apart.",
+			"sourcePage": "https://plugins.audacityteam.org/nyquist-plugins/effect-plugins/amplify-mix-and-pan-effects"
+		},
+		{
+			"fileName": "youtube.ny",
+			"title": "YouTube Loudness Check",
+			"description": "Various streaming platforms and other institutions expect content to have a certain range for peaks, RMS, LUFS, noise floor or a combination of the aforementioned. These plugins provide the relevant checks for the platforms in question.",
+			"sourcePage": "https://plugins.audacityteam.org/analyzers/loudness-compliance-checks"
+		}
+	]
+}

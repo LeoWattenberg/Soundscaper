@@ -30,6 +30,10 @@ function parsedInstalledPlugin(record) {
 			|| parsed.controls.some((control) => !['number', 'choice', 'string', 'text'].includes(control.kind))) return null;
 		return Object.freeze({
 			...parsed,
+			name: typeof record.catalogTitle === 'string' && record.catalogTitle.trim() && record.catalogTitle.length <= 160
+				? record.catalogTitle : parsed.name,
+			description: typeof record.catalogDescription === 'string' && record.catalogDescription.length <= 700
+				? record.catalogDescription : '',
 			id: record.id,
 			fileName: record.fileName,
 			category: parsed.role === 'process' ? 'legacy' : parsed.role,
@@ -76,6 +80,20 @@ export function createNyquistArchiveStore(storage) {
 			storage?.setItem(STORAGE_KEY, JSON.stringify(next));
 			records = next;
 			plugins = plugins.filter((plugin) => plugin.id !== id);
+			announceInstalledChange();
+		},
+		updateCatalogMetadata(artifacts) {
+			const metadata = new Map(artifacts.map((artifact) => [artifact.fileName, artifact]));
+			const next = records.map((record) => {
+				const artifact = metadata.get(record.fileName);
+				return artifact && (record.catalogTitle !== artifact.title || record.catalogDescription !== artifact.description)
+					? { ...record, catalogTitle: artifact.title, catalogDescription: artifact.description, name: artifact.title }
+					: record;
+			});
+			if (next.every((record, index) => record === records[index])) return;
+			storage?.setItem(STORAGE_KEY, JSON.stringify(next));
+			records = next;
+			plugins = records.map(parsedInstalledPlugin);
 			announceInstalledChange();
 		},
 	};

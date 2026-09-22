@@ -1,0 +1,22 @@
+{
+	"schemaVersion": 1,
+	"publishedAt": "2026-09-22T10:39:53Z",
+	"purpose": "Catalog display metadata companion to the immutable Nyquist source archive; the original manifest and plugin objects were not changed.",
+	"source": {
+		"repository": "https://github.com/audacity/audacity-support.git",
+		"revision": "ed168a19631ec48d0029dfb5c17d16c339a174c1",
+		"generator": "scripts/nyquist-archive-metadata.mjs",
+		"localPath": "evidence/nyquist-plugin-publication/catalog-metadata-ed168a19631ec48d0029dfb5c17d16c339a174c1.json"
+	},
+	"publication": {
+		"bucket": "soundscaper-assets",
+		"jurisdiction": "eu",
+		"objectKey": "plugins/nyquist/audacityteam.org/ed168a19631ec48d0029dfb5c17d16c339a174c1/catalog-metadata-78bb422d1349.json",
+		"url": "https://assets.soundscaper.org/plugins/nyquist/audacityteam.org/ed168a19631ec48d0029dfb5c17d16c339a174c1/catalog-metadata-78bb422d1349.json",
+		"contentType": "application/json; charset=utf-8",
+		"cacheControl": "public, max-age=31536000, immutable",
+		"byteLength": 36845,
+		"sha256": "78bb422d1349367afff10eee7c6a413edf0de7fffc71131f2e4dd2eeab7ee480"
+	},
+	"verification": "Public GET returned HTTP 200 with matching byte length and SHA-256 and allowed Origin: https://soundscaper.org."
+}
