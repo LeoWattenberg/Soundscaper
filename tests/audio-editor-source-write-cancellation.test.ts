@@ -263,6 +263,27 @@ test('concurrent derived-source publication keeps one immutable winner and delet
 	assert.deepEqual(fixture.chunkTokens(), [String(winner.sourceToken)]);
 });
 
+test('a rejected derived publication removes both metadata and replacement chunks', async () => {
+	const reason = new Error('derived metadata put failed after publication');
+	const fixture = sourceWriterFixture({
+		onPutMetadata: (record) => {
+			if (record.id === 'derived-source') throw reason;
+		},
+	});
+	fixture.seedBase();
+
+	await assert.rejects(
+		fixture.repository.writeDerived('derived-source', 'base-source', [{
+			index: 0,
+			channels: [Float32Array.of(0.4, -0.4)],
+		}]),
+		(error: unknown) => error === reason,
+	);
+	assert.equal(fixture.metadata.has('derived-source'), false);
+	assert.equal(fixture.metadata.has('base-source'), true);
+	assert.deepEqual(fixture.chunkTokens(), []);
+});
+
 test('base deletion fences a derived source whose replacement payload is still staging', async () => {
 	const enteredChunkWrite = deferred<void>();
 	const releaseChunkWrite = deferred<void>();
