@@ -21,6 +21,11 @@
 	border-bottom: 1px solid var(--line);
 }
 
+.kw-audio-editor__freesound-search > .button {
+	align-self: stretch;
+	height: auto;
+}
+
 .kw-audio-editor__freesound-query input,
 .kw-audio-editor__freesound-filters select {
 	width: 100%;

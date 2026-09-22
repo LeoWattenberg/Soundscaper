@@ -92,8 +92,20 @@ test.describe('Freesound discovery and attribution', () => {
 		await freesoundItem.press('Enter');
 		await expect(freesoundPanel).toBeVisible();
 
-		await freesoundPanel.getByRole('searchbox', { name: 'Search Freesound', exact: true }).fill('harbor');
-		await freesoundPanel.getByRole('button', { name: 'Search', exact: true }).click();
+		const searchbox = freesoundPanel.getByRole('searchbox', { name: 'Search Freesound', exact: true });
+		const searchButton = freesoundPanel.getByRole('button', { name: 'Search', exact: true });
+		const [searchboxBounds, searchButtonBounds] = await Promise.all([
+			searchbox.boundingBox(), searchButton.boundingBox(),
+		]);
+		expect(searchboxBounds).not.toBeNull();
+		expect(searchButtonBounds).not.toBeNull();
+		expect(Math.abs(searchButtonBounds.y - searchboxBounds.y)).toBeLessThanOrEqual(1);
+		expect(Math.abs(
+			(searchButtonBounds.y + searchButtonBounds.height) - (searchboxBounds.y + searchboxBounds.height),
+		)).toBeLessThanOrEqual(1);
+
+		await searchbox.fill('harbor');
+		await searchButton.click();
 		const results = freesoundPanel.getByRole('list', { name: 'Freesound results', exact: true });
 		await expect(results).toBeVisible();
 		await expect(freesoundPanel.getByText('1 sounds', { exact: true })).toBeVisible();
