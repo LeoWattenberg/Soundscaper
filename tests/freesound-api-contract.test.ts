@@ -21,7 +21,7 @@ function soundFixture(overrides: Record<string, unknown> = {}): Record<string, u
 		category: 'Sound effects',
 		subcategory: 'Weather',
 		created: '2026-04-16T20:07:11.145',
-		license: 'Attribution',
+		license: 'http://creativecommons.org/licenses/by/4.0/',
 		gen_ai_preference: 'no-additional-preferences',
 		type: 'ogg',
 		channels: 2,
@@ -58,6 +58,30 @@ test('normalizes each supported Freesound license to a stable owned contract', (
 	});
 });
 
+test('normalizes Freesound deed URLs while preserving the attribution license version', () => {
+	for (const [deed, code, name, canonical] of [
+		['http://creativecommons.org/publicdomain/zero/1.0/', 'cc0', 'Creative Commons 0', 'https://creativecommons.org/publicdomain/zero/1.0/'],
+		['http://creativecommons.org/licenses/by/3.0/', 'cc-by', 'Attribution 3.0', 'https://creativecommons.org/licenses/by/3.0/'],
+		['https://creativecommons.org/licenses/by/4.0/', 'cc-by', 'Attribution 4.0', 'https://creativecommons.org/licenses/by/4.0/'],
+		['http://creativecommons.org/licenses/by-nc/3.0/', 'cc-by-nc', 'Attribution NonCommercial 3.0', 'https://creativecommons.org/licenses/by-nc/3.0/'],
+		['https://creativecommons.org/licenses/by-nc/4.0/', 'cc-by-nc', 'Attribution NonCommercial 4.0', 'https://creativecommons.org/licenses/by-nc/4.0/'],
+		['http://creativecommons.org/licenses/sampling+/1.0/', 'sampling-plus', 'Sampling+ 1.0', 'https://creativecommons.org/licenses/sampling+/1.0/'],
+	] as const) {
+		const license = normalizeFreesoundLicense(deed);
+		assert.equal(license.code, code);
+		assert.equal(license.name, name);
+		assert.equal(license.url, canonical);
+	}
+	assert.throws(
+		() => normalizeFreesoundLicense('https://creativecommons.org/licenses/by/4.0/?redirect=evil'),
+		/unsupported license/u,
+	);
+	assert.throws(
+		() => normalizeFreesoundLicense('https://attacker.example/licenses/by/4.0/'),
+		/unsupported license/u,
+	);
+});
+
 test('normalizes a sound without exposing the upstream preview URL', () => {
 	const normalized = normalizeFreesoundSound(soundFixture());
 
@@ -74,7 +98,7 @@ test('normalizes a sound without exposing the upstream preview URL', () => {
 		category: 'Sound effects',
 		subcategory: 'Weather',
 		createdAt: '2026-04-16T20:07:11.145',
-		license: normalizeFreesoundLicense('Attribution'),
+		license: normalizeFreesoundLicense('http://creativecommons.org/licenses/by/4.0/'),
 		generativeAiPreference: 'no-additional-preferences',
 		explicit: false,
 		durationSeconds: 12.25,

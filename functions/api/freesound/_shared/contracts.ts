@@ -99,6 +99,16 @@ const LICENSES: Readonly<Record<string, FreesoundLicense>> = Object.freeze({
 	}),
 });
 
+// Freesound's API serializes license.deed_url, including HTTP and historical 3.0 deeds.
+const LICENSE_DEEDS: Readonly<Record<string, Readonly<{ base: string; version?: string }>>> = Object.freeze({
+	'https://creativecommons.org/publicdomain/zero/1.0/': { base: 'creative commons 0' },
+	'https://creativecommons.org/licenses/by/3.0/': { base: 'attribution', version: '3.0' },
+	'https://creativecommons.org/licenses/by/4.0/': { base: 'attribution', version: '4.0' },
+	'https://creativecommons.org/licenses/by-nc/3.0/': { base: 'attribution noncommercial', version: '3.0' },
+	'https://creativecommons.org/licenses/by-nc/4.0/': { base: 'attribution noncommercial', version: '4.0' },
+	'https://creativecommons.org/licenses/sampling+/1.0/': { base: 'sampling+' },
+});
+
 const ORIGINAL_FORMATS = new Set(['wav', 'aif', 'aiff', 'ogg', 'mp3', 'm4a', 'flac']);
 const PREVIEW_HOST = 'cdn.freesound.org';
 const MAX_SAFE_API_INTEGER = Number.MAX_SAFE_INTEGER;
@@ -106,8 +116,16 @@ const MAX_SAFE_API_INTEGER = Number.MAX_SAFE_INTEGER;
 export function normalizeFreesoundLicense(value: unknown): FreesoundLicense {
 	const label = boundedString(value, 'license', 80).trim().replace(/\s+/gu, ' ').toLocaleLowerCase('en-US');
 	const license = LICENSES[label];
-	if (license === undefined) throw new FreesoundContractError(`Freesound returned an unsupported license: ${label}.`);
-	return license;
+	if (license !== undefined) return license;
+	const canonical = label.replace(/^http:/u, 'https:');
+	const deed = LICENSE_DEEDS[canonical];
+	const base = deed === undefined ? undefined : LICENSES[deed.base];
+	if (base === undefined) throw new FreesoundContractError(`Freesound returned an unsupported license: ${label}.`);
+	return {
+		...base,
+		name: deed?.version === undefined ? base.name : `${base.name} ${deed.version}`,
+		url: canonical,
+	};
 }
 
 export function normalizeFreesoundSound(value: unknown): NormalizedFreesoundSound {

@@ -74,7 +74,10 @@ The current Freesound resource documentation lists CC0, Attribution, and
 Attribution NonCommercial. Freesound's current FAQ also says legacy Sampling+
 sounds remain. The proxy accepts those results so one legacy entry cannot reject
 an entire `all` search page, requires attribution, links the retired Sampling+
-1.0 deed, and conservatively marks commercial use as unavailable.
+1.0 deed, and conservatively marks commercial use as unavailable. Freesound's
+sound serializer returns a Creative Commons deed URL for `license`, including
+older HTTP and 3.0 deeds. The proxy maps only known deed URLs to HTTPS links and
+keeps the license version in attribution.
 
 The bounded implementation controls and remaining preview-stream risks are
 recorded in the

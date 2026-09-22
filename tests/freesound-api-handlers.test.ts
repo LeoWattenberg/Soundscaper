@@ -22,7 +22,7 @@ function soundFixture(overrides: Record<string, unknown> = {}): Record<string, u
 		category: null,
 		subcategory: null,
 		created: '2026-04-16T20:07:11.145',
-		license: 'Attribution NonCommercial',
+		license: 'http://creativecommons.org/licenses/by-nc/4.0/',
 		gen_ai_preference: null,
 		type: 'ogg',
 		channels: 2,
@@ -194,12 +194,32 @@ test('sound detail returns the same owned data envelope as search', async () => 
 	const response = await handleFreesoundSoundRequest(context(
 		new Request('https://soundscaper.org/api/freesound/sounds/123456'),
 		{ id: '123456' },
-	), { fetchImpl: async () => jsonResponse(soundFixture()) });
+	), { fetchImpl: async () => jsonResponse(soundFixture({
+		license: 'http://creativecommons.org/licenses/by/3.0/',
+	})) });
 
 	assert.equal(response.status, 200);
-	const payload = await response.json() as { data: { id: number; preview: { available: boolean } } };
+	const payload = await response.json() as { data: {
+		id: number; preview: { available: boolean }; license: { code: string; url: string };
+	} };
 	assert.equal(payload.data.id, 123456);
 	assert.equal(payload.data.preview.available, true);
+	assert.equal(payload.data.license.code, 'cc-by');
+	assert.equal(payload.data.license.url, 'https://creativecommons.org/licenses/by/3.0/');
+});
+
+test('search accepts the deed URLs returned by Freesound sound records', async () => {
+	const response = await handleFreesoundSearchRequest(context(
+		new Request('https://soundscaper.org/api/freesound/search?q=rain'),
+	), { fetchImpl: async () => jsonResponse({
+		count: 1,
+		results: [soundFixture({ license: 'http://creativecommons.org/licenses/by-nc/4.0/' })],
+	}) });
+
+	assert.equal(response.status, 200);
+	const payload = await response.json() as { data: { results: Array<{ license: { code: string; url: string } }> } };
+	assert.equal(payload.data.results[0]?.license.code, 'cc-by-nc');
+	assert.equal(payload.data.results[0]?.license.url, 'https://creativecommons.org/licenses/by-nc/4.0/');
 });
 
 test('all-license search does not fail a page containing a legacy Sampling+ sound', async () => {
