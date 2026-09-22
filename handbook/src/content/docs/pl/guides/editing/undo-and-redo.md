@@ -8,27 +8,27 @@ head:
   - tag: script
     attrs:
       type: "application/ld+json"
-    content: "{\"@context\":\"https://schema.org\",\"@type\":\"HowTo\",\"name\":\"Undo and redo\",\"description\":\"Step back through your edits and forward again.\",\"tool\":[{\"@type\":\"HowToTool\",\"name\":\"Soundscaper\"}],\"step\":[{\"@type\":\"HowToStep\",\"position\":1,\"name\":\"Open Soundscaper. A new, empty project is ready as soon as the editor loads.\",\"text\":\"Open Soundscaper. A new, empty project is ready as soon as the editor loads.\"},{\"@type\":\"HowToStep\",\"position\":2,\"name\":\"Choose File → Import audio and pick any recording. The file lands as a clip on its own track.\",\"text\":\"Choose File → Import audio and pick any recording. The file lands as a clip on its own track.\"},{\"@type\":\"HowToStep\",\"position\":3,\"name\":\"Press the Split tool button in the toolbar.\",\"text\":\"Press the Split tool button in the toolbar.\"},{\"@type\":\"HowToStep\",\"position\":4,\"name\":\"Click the waveform anywhere in the clip to put the cursor there.\",\"text\":\"Click the waveform anywhere in the clip to put the cursor there. A split is a good edit to practise on because you can see it.\"},{\"@type\":\"HowToStep\",\"position\":5,\"name\":\"Press the Split tool button in the toolbar.\",\"text\":\"Press the Split tool button in the toolbar. Back to the normal pointer.\"},{\"@type\":\"HowToStep\",\"position\":6,\"name\":\"The project now shows 2 clips.\",\"text\":\"The project now shows 2 clips.\"},{\"@type\":\"HowToStep\",\"position\":7,\"name\":\"Press the Undo button in the toolbar.\",\"text\":\"Press the Undo button in the toolbar. The toolbar button and Edit → Undo do the same thing.\"},{\"@type\":\"HowToStep\",\"position\":8,\"name\":\"The project now shows 1 clip.\",\"text\":\"The project now shows 1 clip. The split is gone and the clip is whole again.\"},{\"@type\":\"HowToStep\",\"position\":9,\"name\":\"Press the Redo button in the toolbar.\",\"text\":\"Press the Redo button in the toolbar.\"},{\"@type\":\"HowToStep\",\"position\":10,\"name\":\"The project now shows 2 clips.\",\"text\":\"The project now shows 2 clips. The split is back.\"}]}"
+    content: "{\"@context\":\"https://schema.org\",\"@type\":\"HowTo\",\"name\":\"Undo and redo\",\"description\":\"Step back through your edits and forward again.\",\"tool\":[{\"@type\":\"HowToTool\",\"name\":\"Soundscaper\"}],\"step\":[{\"@type\":\"HowToStep\",\"position\":1,\"name\":\"Open Soundscaper. A new, empty project is ready as soon as the editor loads.\",\"text\":\"Open Soundscaper. A new, empty project is ready as soon as the editor loads.\"},{\"@type\":\"HowToStep\",\"position\":2,\"name\":\"Choose File → Import and pick any recording. It lands as a clip on its own track.\",\"text\":\"Choose File → Import and pick any recording. It lands as a clip on its own track.\"},{\"@type\":\"HowToStep\",\"position\":3,\"name\":\"Press the Split tool button in the toolbar.\",\"text\":\"Press the Split tool button in the toolbar.\"},{\"@type\":\"HowToStep\",\"position\":4,\"name\":\"Click the waveform anywhere in the clip to put the cursor there.\",\"text\":\"Click the waveform anywhere in the clip to put the cursor there. A split is a good edit to practise on because you can see it.\"},{\"@type\":\"HowToStep\",\"position\":5,\"name\":\"Press the Split tool button in the toolbar.\",\"text\":\"Press the Split tool button in the toolbar. Back to the normal pointer.\"},{\"@type\":\"HowToStep\",\"position\":6,\"name\":\"The project now shows 2 clips.\",\"text\":\"The project now shows 2 clips.\"},{\"@type\":\"HowToStep\",\"position\":7,\"name\":\"Press the Undo button in the toolbar.\",\"text\":\"Press the Undo button in the toolbar. The toolbar button and Edit → Undo do the same thing.\"},{\"@type\":\"HowToStep\",\"position\":8,\"name\":\"The project now shows 1 clip.\",\"text\":\"The project now shows 1 clip. The split is gone and the clip is whole again.\"},{\"@type\":\"HowToStep\",\"position\":9,\"name\":\"Press the Redo button in the toolbar.\",\"text\":\"Press the Redo button in the toolbar.\"},{\"@type\":\"HowToStep\",\"position\":10,\"name\":\"The project now shows 2 clips.\",\"text\":\"The project now shows 2 clips. The split is back.\"}]}"
 ---
-<!-- docs-ai-provenance: {"factPacketSha256":"d977a5c97426e241bb079fda77dc648a1ba846e2331811c3fbc259c0931454c8","model":"aya-expanse:32b","modelDigest":"1603440383bd5504dc7afd01c0407b425b988dde650a8dc1a737433baa3cd432","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"d977a5c97426e241bb079fda77dc648a1ba846e2331811c3fbc259c0931454c8","targetLocale":"pl"} -->
+<!-- docs-ai-provenance: {"factPacketSha256":"6d9cdb24c5f9df66cd50e9fa913ee28512b2d5b050122058a661b1576e0580ea","model":"aya-expanse:32b","modelDigest":"1603440383bd5504dc7afd01c0407b425b988dde650a8dc1a737433baa3cd432","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"6d9cdb24c5f9df66cd50e9fa913ee28512b2d5b050122058a661b1576e0580ea","targetLocale":"pl"} -->
 
 <!-- Generated by `node scripts/docs-reference.mjs`. Do not edit. -->
 
-Każda edycja i efekt są zapisywane w historii projektu, więc nic, co wypróbujesz, nie stanowi ryzyka. Cofnij kroki cofa się o jeden zmianę naraz - efekt, cięcie, ruch - a Ponów przywraca go. Historia przetrwa zapisanie i ponowne otwarcie projektu.
+Każda edycja i efekt są zapisywane w historii projektu, więc nic, co wypróbujesz, nie stanowi ryzyka. Kroki cofania cofają zmiany po jednej - efekt, cięcie, ruch - a ponowne wykonanie przywracają je. Historia przetrwa zapisanie i ponowne otwarcie projektu.
 
-:::note[Przychodzisz z Audacity?]
-To jest **Edycja → Cofnij** i **Edycja → Ponów (Ctrl+Z, Ctrl+Y)** w Audacity. Nazwy poniżej są własne dla Soundscaper, które czasami się różnią.
+:::note[Przychodząc z Audacity?]
+To jest **Edycja → Cofnij i Edycja → Ponów (Ctrl+Z, Ctrl+Y)** w Audacity. Nazwy poniżej są własne dla Soundscaper, które czasami się różnią.
 :::
 
 ## Kroki
 
 1. Otwórz Soundscaper. Nowy, pusty projekt jest gotowy natychmiast po załadowaniu edytora.
-2. Wybierz **Plik → Zaimportuj audio** i wybierz dowolny nagranie. Plik ląduje jako klip na własnej ścieżce.
+2. Wybierz **Plik → Importuj** i wybierz dowolny nagranie. Ląduje jako klip na własnej ścieżce.
 3. Naciśnij przycisk **Narzędzie podziału** na pasku narzędzi.
 4. Kliknij falę gdziekolwiek w klipie, aby umieścić kursor w tym miejscu. Podział jest dobrą edycją do ćwiczenia, ponieważ można go zobaczyć.
 5. Naciśnij przycisk **Narzędzie podziału** na pasku narzędzi. Powrót do normalnego wskaźnika.
 6. Projekt teraz pokazuje 2 klipy.
-7. Naciśnij przycisk **Cofnij** na pasku narzędzi. Przycisk na pasku narzędzi i **Edycja → Cofnij** robią to samo.
+7. Naciśnij przycisk **Cofnij** na pasku narzędzi. Przycisk na pasku narzędzi i **Edycja → Cofnij** wykonują to samo.
 8. Projekt teraz pokazuje 1 klip.
    *Powinieneś zobaczyć:* Podział zniknął, a klip jest ponownie cały.
 9. Naciśnij przycisk **Ponów** na pasku narzędzi.
@@ -37,27 +37,27 @@ To jest **Edycja → Cofnij** i **Edycja → Ponów (Ctrl+Z, Ctrl+Y)** w Audacit
 
 ## Porady
 
-- **Widok → Panele → Historia** wyświetla każdy krok, a kliknięcie jednego pozwala na bezpośredni skok do niego.
-- Cofnij obejmuje edycje projektu, a nie eksporty; plik, który już zapisałeś, pozostaje taki sam.
+- **Widok → Panele → Historia** wyświetla każdy krok, a kliknięcie jednego z nich przenosi bezpośrednio do niego.
+- Cofanie dotyczy edycji projektu, a nie eksportów; plik, który już zapisałeś, pozostaje taki sam.
 
 ## Powiązane przewodniki
 
-Więcej [edytowanie](/guides/editing/) przewodników:
+Więcej przewodników [edycji](/guides/editing/):
 
-- [Wycięcie błędu z nagrania](/guides/editing/cut-out-a-mistake/) — Wybierz ślizg, usuń go i zamknij lukę, aby nagranie płynęło dalej.
+- [Wycięcie błędu z nagrania](/guides/editing/cut-out-a-mistake/) — Wybierz ślizg, usuń go i zamknij lukę, aby nagranie płynnie kontynuowało.
 - [Podziel klip na dwa](/guides/editing/split-a-clip-at-the-cursor/) — Przeciąć klip w określonym miejscu, tak aby każda część mogła być poruszana lub traktowana osobno.
 - [Zachowaj tylko część, którą chcesz](/guides/editing/keep-only-a-selection/) — Przytnij wszystko poza wyborem w jednym kroku.
-- [Powtórz sekcję](/guides/editing/repeat-a-section/) — Pętla wybranej części określone razy, aby ją wydłużyć.
+- [Powtórz sekcję](/guides/editing/repeat-a-section/) — Pętla wybranego obszaru określone razy, aby go wydłużyć.
 - [Odtwórz nagranie do tyłu](/guides/editing/reverse-audio/) — Odwróć wybór, tak aby był odtwarzany od końca do początku.
-- [Zaznacz miejsca w nagraniu](/guides/editing/add-markers/) — Upuść naznaczone znaczniki na linii czasu, aby móc później znaleźć punkty.
+- [Zaznacz miejsca w nagraniu](/guides/editing/add-markers/) — Upuść naznaczone znaczniki na linii czasu, abyś mógł później znaleźć punkty.
 - [Kopiuj i wklej sekcję](/guides/editing/copy-and-paste-a-section/) — Skopiuj fragment i wklej go gdzie indziej na ścieżce.
 - [Zdubluj wybór na nową ścieżkę](/guides/editing/duplicate-a-selection-to-a-new-track/) — Skopiuj fragment na własną ścieżkę, aby można go było przetworzyć osobno.
 - [Dodaj ciszę po klipie](/guides/editing/add-silence-after-a-clip/) — Wygeneruj lukę o dokładnej długości w miejscu kursora.
 - [Ustaw klipy koniec w koniec](/guides/editing/line-up-clips-end-to-end/) — Ustaw dwa klipy na różnych ścieżkach przeciwko sobie, tak aby jeden następował po drugim.
-- [Przybliż dla precyzyjnych edycji](/guides/editing/zoom-in-for-precise-edits/) — Zbliż się na tyle do fali, aby ciąć na bicie lub między słowami.
-- [Pętla sekcji podczas ćwiczenia](/guides/editing/loop-a-section-while-you-practise/) — Odtwarzaj wybraną część wielokrotnie.
+- [Przybliż do precyzyjnych edycji](/guides/editing/zoom-in-for-precise-edits/) — Zbliż się do fali, aby ciąć na bicie lub między słowami.
+- [Pętla sekcji podczas ćwiczeń](/guides/editing/loop-a-section-while-you-practise/) — Odtwarzaj wybrany fragment wielokrotnie.
 - [Przesuń klip wzdłuż linii czasu](/guides/editing/move-a-clip-along-the-timeline/) — Przeciągnij klip do innego czasu na jego ścieżce.
-- [Słuchaj szybciej lub wolniej bez zmieniania nagrania](/guides/editing/listen-at-a-different-speed/) — Spowolnij fragment, aby go transkrybować lub przyspiesz długi fragment do przeglądu, pozostawiając projekt nietknięty.
+- [Słuchaj szybciej lub wolniej bez zmiany nagrania](/guides/editing/listen-at-a-different-speed/) — Spowolnij fragment, aby go transkrybować lub przyspiesz długi take do przeglądu, pozostawiając projekt nienaruszony.
 
 ## O tym przewodniku
 
