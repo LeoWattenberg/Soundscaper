@@ -333,7 +333,10 @@ export function createRecordingComposition(dependencies: RecordingCompositionDep
 		syncRecordingPoolSnapshot,
 		resetSoundActivationSources: soundActivation.resetSources,
 		setSoundActivationCaptureEnabled: soundActivation.setCaptureEnabled,
-		canStartSoundActivatedRecording: () => !activeSelectionOf(requireProject()),
+		canStartSoundActivatedRecording: () => {
+			const project = dependencies.getProject();
+			return Boolean(project && !activeSelectionOf(project));
+		},
 		handleError: dependencies.handleError,
 	});
 
