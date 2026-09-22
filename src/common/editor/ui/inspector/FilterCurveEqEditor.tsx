@@ -1,4 +1,5 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
+import './FilterCurveEqEditor.css';
 import { useEffect, useId, useMemo, useRef, useState, type KeyboardEvent, type PointerEvent } from 'react';
 import { Button } from '@soundscaper/design-system/Button';
 import { canonicalCopyValue } from '../../../i18n/canonical-extras.js';
