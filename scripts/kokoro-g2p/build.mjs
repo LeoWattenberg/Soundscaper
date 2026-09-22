@@ -37,10 +37,19 @@ export function kokoroG2pBuildPlan({ targetId, platform = process.platform, arch
 		|| (targetId !== `${host}-${arch}` && !(targetId === 'win-arm64' && arch === 'x64'))) {
 		throw new Error(`Kokoro G2P requires its native package runner or Windows ARM64 x64 emulation: ${targetId}.`);
 	}
+	const emulatesWindowsX64 = platform === 'win32' && targetId === 'win-arm64';
 	return {
 		targetId,
 		executable: platform === 'win32' ? 'kokoro-g2p.exe' : 'kokoro-g2p',
-		pythonArchitecture: platform === 'win32' && targetId === 'win-arm64' ? 'x64' : arch,
+		pythonArchitecture: emulatesWindowsX64 ? 'x64' : arch,
+		uv: {
+			python: emulatesWindowsX64 ? 'cpython-3.12-windows-x86_64-none' : '3.12',
+			syncArguments: [
+				'sync', '--locked', '--no-dev',
+				...(emulatesWindowsX64
+					? ['--python-platform', 'x86_64-pc-windows-msvc'] : []),
+			],
+		},
 	};
 }
 
@@ -104,12 +113,11 @@ export async function buildKokoroG2pBundle({
 		const environment = {
 			...process.env,
 			UV_PROJECT_ENVIRONMENT: join(cacheRoot, 'venv', targetId),
-			UV_PYTHON: targetId === 'win-arm64'
-				? 'cpython-3.12-windows-x86_64-none' : '3.12',
+			UV_PYTHON: plan.uv.python,
 			HF_HUB_OFFLINE: '1', TRANSFORMERS_OFFLINE: '1', PYTHONHASHSEED: '0',
 			SOURCE_DATE_EPOCH: '1787225940', TZ: 'UTC',
 		};
-		await command('uv', ['sync', '--locked', '--no-dev'], PROJECT, environment);
+		await command('uv', plan.uv.syncArguments, PROJECT, environment);
 		const delimiter = platform === 'win32' ? ';' : ':';
 		const args = [
 			'run', '--no-sync', 'pyinstaller', '--noconfirm', '--clean', '--onedir',

@@ -5,7 +5,7 @@
 	"buildEntrypoint": "scripts/kokoro-g2p/build.mjs",
 	"dependencyLock": {
 		"path": "scripts/kokoro-g2p/uv.lock",
-		"sha256": "e65474d07e7855dc4be909cb71fc4ea639add26b1d44155c4e8b34bbd9fa1561"
+		"sha256": "920e8ef082397f7587d118e63a864faeaaee4926e087421bf7935b0807f641a9"
 	},
 	"upstreamNotices": {
 		"path": "scripts/kokoro-g2p/notices/sources.json",

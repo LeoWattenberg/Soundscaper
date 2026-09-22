@@ -1,11 +1,13 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import assert from 'node:assert/strict';
+import { execFile } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { mkdtemp, mkdir, readFile, rm, symlink, writeFile } from 'node:fs/promises';
+import { copyFile, mkdtemp, mkdir, readFile, rm, symlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
 import { test } from 'node:test';
+import { promisify } from 'node:util';
 import { createPackage } from '@electron/asar';
 import { verifyPackagedKokoroG2pRuntime } from '../scripts/desktop-after-pack.mjs';
 import { verifyStagedKokoroG2pRuntime } from '../scripts/desktop-before-pack.mjs';
@@ -21,11 +23,69 @@ import {
 	normalizeKokoroG2pEmptyFiles,
 } from '../scripts/kokoro-g2p/build.mjs';
 
+const runFile = promisify(execFile);
+
+test('the Kokoro G2P dependency lock matches its reviewed candidate pin', async () => {
+	const [candidate, lock] = await Promise.all([
+		readFile(new URL('../config/assistance-kokoro-g2p-build-candidate.json', import.meta.url), 'utf8')
+			.then(JSON.parse),
+		readFile(new URL('../scripts/kokoro-g2p/uv.lock', import.meta.url)),
+	]);
+	assert.equal(createHash('sha256').update(lock).digest('hex'), candidate.dependencyLock.sha256);
+});
+
+test('a Windows checkout preserves the digest-pinned Kokoro bytes', async (context) => {
+	const root = await mkdtemp(join(tmpdir(), 'soundscaper-kokoro-notice-checkout-'));
+	context.after(() => rm(root, { recursive: true, force: true }));
+	const path = 'scripts/kokoro-g2p/notices/espeak-ng-COPYING';
+	const lockPath = 'scripts/kokoro-g2p/uv.lock';
+	const [notice, candidate] = await Promise.all([
+		readFile(new URL('../scripts/kokoro-g2p/notices/sources.json', import.meta.url), 'utf8')
+			.then(JSON.parse).then(({ notices }) => notices.find((entry) => entry.path === 'espeak-ng-COPYING')),
+		readFile(new URL('../config/assistance-kokoro-g2p-build-candidate.json', import.meta.url), 'utf8')
+			.then(JSON.parse),
+	]);
+	assert(notice);
+	await mkdir(dirname(join(root, path)), { recursive: true });
+	await copyFile(new URL('../.gitattributes', import.meta.url), join(root, '.gitattributes'));
+	await Promise.all([path, lockPath].map((name) => copyFile(new URL(`../${name}`, import.meta.url), join(root, name))));
+	const git = async (args) => runFile('git', [
+		'-c', 'core.autocrlf=true', '-c', 'core.eol=crlf', '-c', 'core.attributesFile=', ...args,
+	], { cwd: root, windowsHide: true });
+	await git(['init', '--quiet']);
+	await git(['add', '--', '.gitattributes', path, lockPath]);
+	await Promise.all([path, lockPath].map((name) => rm(join(root, name))));
+	await git(['checkout-index', '--force', '--', path, lockPath]);
+	const [bytes, lock] = await Promise.all([path, lockPath].map((name) => readFile(join(root, name))));
+	assert.equal(bytes.byteLength, notice.byteLength);
+	assert.equal(createHash('sha256').update(bytes).digest('hex'), notice.sha256);
+	assert.equal(createHash('sha256').update(lock).digest('hex'), candidate.dependencyLock.sha256);
+});
+
 test('build plan requires a native runner or Windows ARM64 x64 emulation', () => {
-	assert.equal(kokoroG2pBuildPlan({ targetId: 'linux-x64', platform: 'linux', arch: 'x64' }).executable,
-		'kokoro-g2p');
-	assert.equal(kokoroG2pBuildPlan({ targetId: 'win-arm64', platform: 'win32', arch: 'x64' }).pythonArchitecture,
-		'x64');
+	for (const [targetId, platform, arch, executable] of [
+		['mac-arm64', 'darwin', 'arm64', 'kokoro-g2p'],
+		['linux-x64', 'linux', 'x64', 'kokoro-g2p'],
+		['linux-arm64', 'linux', 'arm64', 'kokoro-g2p'],
+		['win-x64', 'win32', 'x64', 'kokoro-g2p.exe'],
+	]) {
+		const nativePlan = kokoroG2pBuildPlan({ targetId, platform, arch });
+		assert.equal(nativePlan.executable, executable);
+		assert.deepEqual(nativePlan.uv, {
+			python: '3.12',
+			syncArguments: ['sync', '--locked', '--no-dev'],
+		});
+	}
+	for (const arch of ['arm64', 'x64']) {
+		const emulatedPlan = kokoroG2pBuildPlan({ targetId: 'win-arm64', platform: 'win32', arch });
+		assert.equal(emulatedPlan.pythonArchitecture, 'x64');
+		assert.deepEqual(emulatedPlan.uv, {
+			python: 'cpython-3.12-windows-x86_64-none',
+			syncArguments: [
+				'sync', '--locked', '--no-dev', '--python-platform', 'x86_64-pc-windows-msvc',
+			],
+		});
+	}
 	assert.throws(() => kokoroG2pBuildPlan({ targetId: 'linux-arm64', platform: 'linux', arch: 'x64' }), /native/u);
 });
 

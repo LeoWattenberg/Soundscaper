@@ -55,5 +55,7 @@ patches/**/*.patch text eol=lf
 # including upstream CRLF endings and intentional Markdown trailing spaces.
 /LICENSES/local-models/** -text whitespace=-blank-at-eol
 /evidence/** -text
+/scripts/kokoro-g2p/uv.lock text eol=lf
+/scripts/kokoro-g2p/notices/** -text
 /scripts/models/** text eol=lf
 /config/milestone-7-model-*.json text eol=lf
