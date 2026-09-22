@@ -126,6 +126,18 @@ test('renderer poll is bounded and refuses alerts or dialogs instead of acceptin
 	);
 });
 
+test('renderer waits for the temporary Project bin busy toast and still refuses other alerts', async () => {
+	const opening = rendererDocumentFixture(PLAN, { ready: true, busyAlertPolls: 1 });
+	assert.deepEqual(await runScapeOpenRendererSmoke(opening.scope, PLAN), rendererResult());
+	assert.equal(opening.polls, 1, 'a busy toast cannot be counted as a clean success UI');
+
+	const unexpected = rendererDocumentFixture(PLAN, { ready: true, busyAlertPolls: 1, alertCount: 1 });
+	await assert.rejects(
+		() => runScapeOpenRendererSmoke(unexpected.scope, PLAN),
+		/alert|dialog/iu,
+	);
+});
+
 test('native range descriptor validation proves authority but returns only a pathless summary', () => {
 	const descriptor = projectDescriptor();
 	assert.deepEqual(validateScapeOpenProjectDescriptor(descriptor, PLAN), {
@@ -264,7 +276,7 @@ function smokeResult() {
 	};
 }
 
-function rendererDocumentFixture(plan, { alertCount = 0, dialogCount = 0, ready = false } = {}) {
+function rendererDocumentFixture(plan, { alertCount = 0, busyAlertPolls = 0, dialogCount = 0, ready = false } = {}) {
 	let currentReady = ready;
 	let polls = 0;
 	const attribute = (values, textContent = '') => ({
@@ -303,7 +315,13 @@ function rendererDocumentFixture(plan, { alertCount = 0, dialogCount = 0, ready 
 				if (selector === '[data-audio-editor][data-audio-editor-bound="true"]') {
 					return currentReady ? [root] : [];
 				}
-				if (selector === '[role="alert"], [role="alertdialog"]') return Array(alertCount).fill({});
+				if (selector === '[role="alert"], [role="alertdialog"]') {
+					const busyAlert = {
+						getAttribute: (name) => name === 'role' ? 'alert' : null,
+						closest: (query) => query === '[data-project-bin-toast] [data-editor-toast="project-bin-busy"]' ? {} : null,
+					};
+					return [...(polls < busyAlertPolls ? [busyAlert] : []), ...Array(alertCount).fill({})];
+				}
 				if (selector === '[role="dialog"], [role="alertdialog"]') return Array(dialogCount).fill({});
 				return [];
 			},
