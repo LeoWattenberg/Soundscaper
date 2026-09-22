@@ -17,7 +17,7 @@ export default function SkinPreferences({ controller, copy, run, savedSkin }: {
 	const [saving, setSaving] = useState(false);
 	const [error, setError] = usePresentationFeedback(copy);
 	const effective = skin.preview ?? normalizeSkin(savedSkin);
-	const name = (id: SkinId) => id === 'default' ? copy.skinDefault : SKINS[id].name;
+	const name = (id: SkinId) => id === 'default' ? copy.skinDefault : id === 'high-contrast' ? copy.highContrastTheme : SKINS[id].name;
 	const select = (id: SkinId) => {
 		setSaving(true);
 		setError('');

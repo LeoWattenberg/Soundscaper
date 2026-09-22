@@ -7,14 +7,15 @@ import type { SkinId } from '../../skin-preferences.ts';
 import { resolveSkinTheme } from './skin-themes.ts';
 
 /** Audacity's theme sample: inset window, text card and neutral/accent buttons. */
-export function appearancePreview(skin: SkinId, mode: 'light' | 'dark', highContrast = false): string {
-	const theme = resolveSkinTheme(skin, mode, highContrast);
-	const background = theme.background.surface.default;
-	const panel = theme.background.surface.elevated;
-	const stroke = theme.border.default;
-	const text = theme.foreground.text.primary;
-	const button = theme.background.control.button.secondary.idle;
-	const accent = theme.accent.primary;
+export function appearancePreview(skin: SkinId, mode: 'light' | 'dark'): string {
+	const theme = resolveSkinTheme(skin, mode);
+	const contrast = skin === 'high-contrast';
+	const background = contrast ? mode === 'dark' ? '#000' : '#fff' : theme.background.surface.default;
+	const panel = contrast ? background : theme.background.surface.elevated;
+	const stroke = contrast ? mode === 'dark' ? '#fff' : '#000' : theme.border.default;
+	const text = contrast ? stroke : theme.foreground.text.primary;
+	const button = contrast ? background : theme.background.control.button.secondary.idle;
+	const accent = contrast ? stroke : theme.accent.primary;
 	const svg = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 88 64" fill="none">
 <rect width="88" height="64" rx="2" fill="${background}"/>
 <path d="M12 8H88V62Q88 64 86 64H12Z" fill="${panel}" stroke="${stroke}"/>

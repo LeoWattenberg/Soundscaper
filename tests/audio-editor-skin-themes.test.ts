@@ -6,15 +6,15 @@ import { SKIN_IDS } from '../src/common/editor/skin-preferences.ts';
 import { resolveSkinTheme } from '../src/common/editor/ui/skins/skin-themes.ts';
 import { wcagContrastRatio } from '../src/common/editor/ui/theme-contrast.ts';
 
-test('Default and high contrast use the original theme objects without mutation', () => {
+test('Default and high contrast skins use the original theme objects without mutation', () => {
 	const before = JSON.stringify([lightTheme, darkTheme]);
 	for (const mode of ['light', 'dark'] as const) {
 		const original = mode === 'dark' ? darkTheme : lightTheme;
 		assert.equal(resolveSkinTheme('default', mode), original);
 		for (const skin of SKIN_IDS) {
 			resolveSkinTheme(skin, mode);
-			assert.equal(resolveSkinTheme(skin, mode, true), original);
 		}
+		assert.equal(resolveSkinTheme('high-contrast', mode), original);
 	}
 	assert.equal(JSON.stringify([lightTheme, darkTheme]), before);
 });

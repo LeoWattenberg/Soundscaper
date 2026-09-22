@@ -198,31 +198,9 @@
 	margin-top: 0;
 }
 
-#kw-audio-editor-design-system:is([data-editor-theme='high-contrast-light'], [data-editor-theme='high-contrast-dark']) {
-	--accent: currentColor;
-	--line: currentColor;
+#kw-audio-editor-design-system[data-editor-skin='high-contrast'] {
 	--focus-ring-size: 3px;
 	box-shadow: none;
-}
-
-#kw-audio-editor-design-system[data-editor-theme='high-contrast-light'] {
-	--bg: #fff;
-	--panel: #fff;
-	--control: #fff;
-	--text: #000;
-	--muted: #222;
-	--stage: #000;
-	--stage-raised: #111;
-}
-
-#kw-audio-editor-design-system[data-editor-theme='high-contrast-dark'] {
-	--bg: #000;
-	--panel: #000;
-	--control: #000;
-	--text: #fff;
-	--muted: #eee;
-	--stage: #000;
-	--stage-raised: #000;
 }
 
 #kw-audio-editor-design-system *,

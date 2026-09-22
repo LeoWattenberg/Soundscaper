@@ -79,7 +79,7 @@ export function useAudioEditorTelemetrySelector(controller, selector, isEqual = 
 // a second palette.
 export function useAudioEditorThemeVariables() {
 	const { theme } = useTheme();
-	const { mode } = useEditorSkin();
+	const { mode, skin } = useEditorSkin();
 
 	return useMemo(() => ({
 		'--accent': theme.accent.primary,
@@ -126,8 +126,19 @@ export function useAudioEditorThemeVariables() {
 		// every dialog footer light regardless of theme.
 		'--background-surface-bg-surface-primary-idle': theme.background.surface.default,
 		'--stroke-main-stroke-primary': theme.border.default,
+		...(skin === 'high-contrast' ? {
+			'--accent': mode === 'dark' ? '#ffffff' : '#000000',
+			'--line': mode === 'dark' ? '#ffffff' : '#000000',
+			'--bg': mode === 'dark' ? '#000000' : '#ffffff',
+			'--panel': mode === 'dark' ? '#000000' : '#ffffff',
+			'--control': mode === 'dark' ? '#000000' : '#ffffff',
+			'--text': mode === 'dark' ? '#ffffff' : '#000000',
+			'--muted': mode === 'dark' ? '#eeeeee' : '#222222',
+			'--stage': '#000000',
+			'--stage-raised': mode === 'dark' ? '#000000' : '#111111',
+		} : {}),
 		colorScheme: mode,
-	}), [theme, mode]);
+	}), [theme, mode, skin]);
 }
 
 // Button.css swaps the primary fill for :hover and for :active but paints the

@@ -165,7 +165,7 @@ export default function AudioEditorWorkspaceView({ model }) {
 			data-clip-count={project?.clips.length || 0}
 			data-timeline-view={snapshot.timeline?.view || 'waveform'}
 			data-editor-theme={preferences?.appearance?.theme || 'system'}
-			data-editor-skin={skin.decoration}
+			data-editor-skin={skin.skin}
 			data-clip-style={preferences?.appearance?.clipStyle || 'colorful'}
 			data-workspace-preset={preferences?.workspace?.activeId || 'modern'}
 			data-edit-block-reason={editBlock.reason || undefined}

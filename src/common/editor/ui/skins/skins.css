@@ -85,24 +85,24 @@ html[data-theme='dark'] [data-editor-skin='techno'] {
 	--editor-skin-text: #e1f4ff;
 }
 
-#kw-audio-editor-design-system[data-editor-skin]:not([data-editor-skin='default']),
-body[data-editor-skin]:not([data-editor-skin='default']) :is(.dropdown__menu, .tooltip__content) {
+#kw-audio-editor-design-system[data-editor-skin]:not([data-editor-skin='default'], [data-editor-skin='high-contrast']),
+body[data-editor-skin]:not([data-editor-skin='default'], [data-editor-skin='high-contrast']) :is(.dropdown__menu, .tooltip__content) {
 	font-family: var(--editor-skin-font);
 }
 
 /* Override component text families explicitly; icon glyphs retain MusescoreIcon. */
-#kw-audio-editor-design-system[data-editor-skin]:not([data-editor-skin='default']) :is(
+#kw-audio-editor-design-system[data-editor-skin]:not([data-editor-skin='default'], [data-editor-skin='high-contrast']) :is(
 	button:not(.toggle-tool-button), input, select, textarea, .menu, .context-menu, .dropdown__trigger,
 	.kw-audio-editor__application-header, .dialog-header,
 	.clip-header__name, .clip-header__name-input, .clip-header__badge-value,
 	.preference-panel, .dialog, .dialog-side-nav
 ),
-body[data-editor-skin]:not([data-editor-skin='default']) :is(.dropdown__option, .tooltip__content) {
+body[data-editor-skin]:not([data-editor-skin='default'], [data-editor-skin='high-contrast']) :is(.dropdown__option, .tooltip__content) {
 	font-family: var(--editor-skin-font);
 }
 
-.audio-editor-effect-preset-menu-layer[data-editor-skin]:not([data-editor-skin='default']) .context-menu,
-#kw-audio-editor-design-system[data-editor-skin]:not([data-editor-skin='default']) :is(
+.audio-editor-effect-preset-menu-layer[data-editor-skin]:not([data-editor-skin='default'], [data-editor-skin='high-contrast']) .context-menu,
+#kw-audio-editor-design-system[data-editor-skin]:not([data-editor-skin='default'], [data-editor-skin='high-contrast']) :is(
 	.button, .dropdown__trigger, .audio-editor-dialog, .context-menu
 ) {
 	border-radius: var(--editor-skin-radius);
@@ -110,7 +110,7 @@ body[data-editor-skin]:not([data-editor-skin='default']) :is(.dropdown__option, 
 }
 
 /* Art lives behind empty timeline space and header chrome, never over waveforms. */
-#kw-audio-editor-design-system[data-editor-skin]:not([data-editor-skin='default']) :is(
+#kw-audio-editor-design-system[data-editor-skin]:not([data-editor-skin='default'], [data-editor-skin='high-contrast']) :is(
 	.audio-editor-timeline-scroll, .kw-audio-editor__application-header
 ) {
 	background-image: var(--editor-skin-art);
@@ -119,19 +119,19 @@ body[data-editor-skin]:not([data-editor-skin='default']) :is(.dropdown__option, 
 	background-size: 960px 600px;
 }
 
-#kw-audio-editor-design-system[data-editor-skin]:not([data-editor-skin='default']) .audio-editor-timeline-scroll {
+#kw-audio-editor-design-system[data-editor-skin]:not([data-editor-skin='default'], [data-editor-skin='high-contrast']) .audio-editor-timeline-scroll {
 	background-image: linear-gradient(to right, var(--stage-raised) 0 var(--track-panel-width, 0px),
 		var(--stage-line) var(--track-panel-width, 0px) calc(var(--track-panel-width, 0px) + 1px), transparent 0), var(--editor-skin-art);
 	background-size: auto, 960px 600px;
 }
 
-body[data-editor-skin]:not([data-editor-skin='default']) .tooltip__content {
+body[data-editor-skin]:not([data-editor-skin='default'], [data-editor-skin='high-contrast']) .tooltip__content {
 	background: var(--editor-skin-surface);
 	color: var(--editor-skin-text);
 	border-color: var(--editor-skin-accent);
 }
 
-body[data-editor-skin]:not([data-editor-skin='default']) .tooltip__arrow path {
+body[data-editor-skin]:not([data-editor-skin='default'], [data-editor-skin='high-contrast']) .tooltip__arrow path {
 	fill: var(--editor-skin-surface);
 	stroke: var(--editor-skin-accent);
 }
@@ -238,14 +238,14 @@ body[data-editor-skin]:not([data-editor-skin='default']) .tooltip__arrow path {
 
 /* The default light ruler sits on a pale panel. Its inline canvas-text tokens
    need dark values on the labels themselves to override the inherited ones. */
-html[data-theme='light'] #kw-audio-editor-design-system[data-editor-skin='default']:not([data-editor-theme^='high-contrast']) .audio-editor-vertical-ruler .vertical-ruler__label {
+html[data-theme='light'] #kw-audio-editor-design-system[data-editor-skin='default'] .audio-editor-vertical-ruler .vertical-ruler__label {
 	--ruler-text-primary: var(--text);
 	--ruler-text-secondary: var(--text);
 }
 
 /* Ruler labels use the canvas foreground, so their backdrop must stay dark and
    opaque even when a light panel or a bright clip scrolls underneath. */
-#kw-audio-editor-design-system[data-editor-skin]:not([data-editor-skin='default']) .audio-editor-vertical-ruler {
+#kw-audio-editor-design-system[data-editor-skin]:not([data-editor-skin='default'], [data-editor-skin='high-contrast']) .audio-editor-vertical-ruler {
 	background: var(--stage);
 }
 

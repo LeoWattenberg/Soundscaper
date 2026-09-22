@@ -22,7 +22,7 @@ for (const product of ['soundscaper', 'framescaper']) test.describe(`${product} 
 		await techno.press('Home');
 		await expect(dialog.getByRole('button', { name: 'Default', exact: true })).toBeFocused();
 		await page.keyboard.press('ArrowRight');
-		await expect(dialog.getByRole('button', { name: 'Sakura', exact: true })).toBeFocused();
+		await expect(dialog.getByRole('button', { name: 'High-contrast theme', exact: true })).toBeFocused();
 		await page.keyboard.press('End');
 		await expect(techno).toBeFocused();
 		await page.keyboard.press('Enter');
@@ -36,6 +36,6 @@ for (const product of ['soundscaper', 'framescaper']) test.describe(`${product} 
 		await choices.first().evaluate((button) => { button.closest('.editor-skin-carousel').dir = 'rtl'; });
 		await choices.first().focus();
 		await page.keyboard.press('ArrowLeft');
-		await expect(dialog.getByRole('button', { name: 'Sakura', exact: true })).toBeFocused();
+		await expect(dialog.getByRole('button', { name: 'High-contrast theme', exact: true })).toBeFocused();
 	});
 });

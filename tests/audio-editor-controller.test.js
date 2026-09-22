@@ -66,8 +66,8 @@ test('headless audio editor exposes cached snapshots, subscriptions, and frame-a
 	assert.equal(controller.getSnapshot().preferences.workspace.panels['project-bin'].visible, false);
 	await controller.actions.preferences.togglePanel('labels');
 	assert.equal(controller.getSnapshot().preferences.workspace.panels.labels.visible, true);
-	await controller.actions.preferences.setTheme('high-contrast-dark');
-	assert.equal(store.settings.get('audio-editor-preferences-v1').appearance.theme, 'high-contrast-dark');
+	await controller.actions.preferences.setTheme('dark');
+	assert.equal(store.settings.get('audio-editor-preferences-v1').appearance.theme, 'dark');
 	assert.throws(
 		() => controller.actions.preferences.setShortcut('split', 'Ctrl+S'),
 		/Shortcut Ctrl\+S is already assigned to file-save/,

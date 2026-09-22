@@ -48,10 +48,8 @@ test('a system appearance still follows the system when nothing was chosen', () 
 	assert.equal(resolveWorkspaceAppearanceTheme('system', 'soundscaper', scope() as never), 'light');
 });
 
-test('an explicit appearance overrides both, high contrast included', () => {
+test('an explicit light or dark appearance overrides both', () => {
 	const stored = scope({ stored: { soundscaper_theme: 'dark' }, prefersDark: true });
 	assert.equal(resolveWorkspaceAppearanceTheme('light', 'soundscaper', stored as never), 'light');
-	assert.equal(resolveWorkspaceAppearanceTheme('high-contrast-light', 'soundscaper', stored as never), 'light');
 	assert.equal(resolveWorkspaceAppearanceTheme('dark', 'soundscaper', scope() as never), 'dark');
-	assert.equal(resolveWorkspaceAppearanceTheme('high-contrast-dark', 'soundscaper', scope() as never), 'dark');
 });

@@ -19,7 +19,7 @@ for (const product of ['soundscaper', 'framescaper']) {
 			const workspace = await editor.getAttribute('data-workspace-preset');
 			const dialog = await appearance(page, editor);
 			const previews = dialog.locator('img');
-			await expect(previews).toHaveCount(8);
+			await expect(previews).toHaveCount(9);
 			for (const preview of await previews.all()) {
 				await expect.poll(() => preview.evaluate((image) => image.complete && image.naturalWidth > 0)).toBe(true);
 				await expect(preview).toHaveCSS('object-fit', 'contain');
@@ -83,10 +83,14 @@ for (const product of ['soundscaper', 'framescaper']) {
 			const dialog = await appearance(page, editor);
 			for (const mode of ['Light', 'Dark']) {
 				await dialog.getByRole('radio', { name: mode, exact: true }).click();
-				for (const name of ['Default', 'Sakura', 'Lilac', 'Techno']) {
+				for (const name of ['Default', 'High-contrast theme', 'Sakura', 'Lilac', 'Techno']) {
 					await dialog.getByRole('button', { name, exact: true }).click();
 					await expect(dialog.getByRole('button', { name, exact: true })).toBeEnabled();
-					await expect(editor).toHaveAttribute('data-editor-skin', name.toLowerCase());
+					await expect(editor).toHaveAttribute('data-editor-skin', name === 'High-contrast theme' ? 'high-contrast' : name.toLowerCase());
+					if (name === 'High-contrast theme') {
+						await expect(editor).toHaveCSS('--bg', mode === 'Dark' ? '#000000' : '#ffffff');
+						await expect(editor).toHaveCSS('--text', mode === 'Dark' ? '#ffffff' : '#000000');
+					}
 					await expect(editor).toHaveAttribute('data-workspace-preset', workspace);
 					await assertNoSeriousAxeViolations(page, '.editor-skin-preferences');
 					await page.evaluate(() => document.fonts.ready);
@@ -97,10 +101,15 @@ for (const product of ['soundscaper', 'framescaper']) {
 					await appearance(page, editor);
 				}
 			}
-			await dialog.getByRole('checkbox', { name: /high.contrast/iu }).check();
+			await expect(dialog.getByRole('checkbox', { name: /high.contrast/iu })).toHaveCount(0);
+			await dialog.getByRole('button', { name: 'High-contrast theme', exact: true }).click();
+			await expect(editor).toHaveAttribute('data-editor-skin', 'high-contrast');
+			await expect(editor).toHaveAttribute('data-editor-theme', 'dark');
+			await dialog.getByRole('radio', { name: 'Light', exact: true }).click();
+			await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
+			await expect(editor).toHaveAttribute('data-editor-skin', 'high-contrast');
+			await dialog.getByRole('button', { name: 'Default', exact: true }).click();
 			await expect(editor).toHaveAttribute('data-editor-skin', 'default');
-			await dialog.getByRole('checkbox', { name: /high.contrast/iu }).uncheck();
-			await expect(editor).toHaveAttribute('data-editor-skin', 'techno');
 		});
 	});
 }

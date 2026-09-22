@@ -77,7 +77,7 @@ for (const product of ['soundscaper', 'framescaper']) {
 					await expect(checkbox).toHaveCSS('border-width', '0px');
 					await checkbox.hover();
 					await expect(checkbox).toHaveCSS('border-width', '0px');
-					// Space tests the real checkbox keyboard path without the high-contrast override.
+					// Space tests the real checkbox keyboard path.
 					await page.keyboard.press('Tab');
 					await checkbox.focus();
 					await page.keyboard.press('Space');
@@ -160,9 +160,9 @@ for (const product of ['soundscaper', 'framescaper']) {
 			await appearance(page, editor);
 			await page.emulateMedia({ reducedMotion: 'reduce' });
 			expect(await label.evaluate((node) => Number.parseFloat(getComputedStyle(node).transitionDuration))).toBeLessThanOrEqual(0.001);
-			await dialog.getByRole('checkbox', { name: /high.contrast/iu }).check();
+			await dialog.getByRole('button', { name: 'High-contrast theme', exact: true }).click();
 			await expect(label).toHaveCSS('transform', 'none');
-			await dialog.getByRole('checkbox', { name: /high.contrast/iu }).uncheck();
+			await dialog.getByRole('button', { name: 'Sakura', exact: true }).click();
 			await expect(label).not.toHaveCSS('transform', 'none');
 		});
 	});

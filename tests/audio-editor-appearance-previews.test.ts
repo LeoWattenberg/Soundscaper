@@ -13,8 +13,11 @@ for (const skin of ['default', 'sakura', 'lilac', 'techno'] as const) {
 		assert.ok(svg.includes('viewBox="0 0 88 64"'));
 	});
 }
-test('high contrast samples use high contrast colors independently of the skin', () => {
+test('the high contrast skin previews black and white in both modes', () => {
 	for (const mode of ['light', 'dark'] as const) {
-		assert.equal(appearancePreview('sakura', mode, true), appearancePreview('default', mode, true));
+		const svg = decodeURIComponent(appearancePreview('high-contrast', mode).split(',')[1]!);
+		assert.ok(svg.includes('fill="#000"'));
+		assert.ok(svg.includes('fill="#fff"'));
+		assert.notEqual(appearancePreview('high-contrast', mode), appearancePreview('default', mode));
 	}
 });

@@ -6,8 +6,6 @@ export const AUDIO_EDITOR_THEMES = Object.freeze([
 	'system',
 	'light',
 	'dark',
-	'high-contrast-light',
-	'high-contrast-dark',
 ]);
 export const AUDIO_EDITOR_CLIP_STYLES = Object.freeze(['classic', 'colorful']);
 export const AUDIO_EDITOR_LAYOUTS = Object.freeze(['auto', 'compact', 'desktop']);
@@ -33,9 +31,10 @@ export interface AppearancePreferences {
 }
 
 export function normalizeAppearancePreferences(options?: Record<string, unknown>): AppearancePreferences {
+	const legacyContrast = options?.theme === 'high-contrast-light' || options?.theme === 'high-contrast-dark';
 	return {
-		skin: normalizeSkin(options?.skin),
-		theme: oneOf(options?.theme ?? 'system', THEME_SET, 'appearance.theme'),
+		skin: legacyContrast ? 'high-contrast' : normalizeSkin(options?.skin),
+		theme: oneOf(legacyContrast ? options.theme === 'high-contrast-dark' ? 'dark' : 'light' : options?.theme ?? 'system', THEME_SET, 'appearance.theme'),
 		clipStyle: oneOf(options?.clipStyle ?? 'colorful', CLIP_STYLE_SET, 'appearance.clipStyle'),
 		// 'auto' follows the viewport width; the explicit values force the
 		// compact (drawer) or desktop chrome regardless of window size.

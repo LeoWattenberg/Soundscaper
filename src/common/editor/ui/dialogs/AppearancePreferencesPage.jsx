@@ -11,9 +11,8 @@ import SkinPreferences from '../skins/SkinPreferences.tsx';
 
 export default function AppearancePreferencesPage({ controller, preferences, copy, run }) {
 	const { skin } = useEditorSkin();
-	const preview = (kind) => appearancePreview(skin, kind.includes('dark') ? 'dark' : 'light', kind.startsWith('high-contrast'));
+	const preview = (kind) => appearancePreview(skin, kind);
 	const appearanceTheme = preferences.appearance.theme;
-	const highContrastTheme = appearanceTheme.startsWith('high-contrast');
 	const darkAppearanceTheme = appearanceTheme.endsWith('dark');
 	const setAppearanceTheme = (theme) => run(() => controller.actions.preferences.setTheme(theme));
 	const renderedThemeIsDark = () => darkAppearanceTheme
@@ -22,27 +21,27 @@ export default function AppearancePreferencesPage({ controller, preferences, cop
 		<div className="kw-audio-editor-preferences__appearance">
 			<SkinPreferences controller={controller} copy={copy} run={run} savedSkin={preferences.appearance.skin} />
 			<Separator />
-			<PreferencePanel title={highContrastTheme ? copy.highContrastTheme : copy.theme}>
+			<PreferencePanel title={copy.theme}>
 				<div className="kw-audio-editor-preferences__thumbnails">
 					<PreferenceChoice
 						selectLabel={copy.selectPreference}
-						src={preview(highContrastTheme ? 'high-contrast-light' : 'light')}
-						alt={highContrastTheme ? copy.themeHighContrastLight : copy.themeLight}
-						label={highContrastTheme ? copy.themeHighContrastLight : copy.themeLight}
-						checked={appearanceTheme === (highContrastTheme ? 'high-contrast-light' : 'light')}
-						onChange={(checked) => checked && setAppearanceTheme(highContrastTheme ? 'high-contrast-light' : 'light')}
+						src={preview('light')}
+						alt={copy.themeLight}
+						label={copy.themeLight}
+						checked={appearanceTheme === 'light'}
+						onChange={(checked) => checked && setAppearanceTheme('light')}
 						name="audio-editor-theme"
-						value={highContrastTheme ? 'high-contrast-light' : 'light'}
+						value="light"
 					/>
 					<PreferenceChoice
 						selectLabel={copy.selectPreference}
-						src={preview(highContrastTheme ? 'high-contrast-dark' : 'dark')}
-						alt={highContrastTheme ? copy.themeHighContrastDark : copy.themeDark}
-						label={highContrastTheme ? copy.themeHighContrastDark : copy.themeDark}
-						checked={appearanceTheme === (highContrastTheme ? 'high-contrast-dark' : 'dark')}
-						onChange={(checked) => checked && setAppearanceTheme(highContrastTheme ? 'high-contrast-dark' : 'dark')}
+						src={preview('dark')}
+						alt={copy.themeDark}
+						label={copy.themeDark}
+						checked={appearanceTheme === 'dark'}
+						onChange={(checked) => checked && setAppearanceTheme('dark')}
 						name="audio-editor-theme"
-						value={highContrastTheme ? 'high-contrast-dark' : 'dark'}
+						value="dark"
 					/>
 				</div>
 				<div className="kw-audio-editor-preferences__appearance-checks">
@@ -50,13 +49,6 @@ export default function AppearancePreferencesPage({ controller, preferences, cop
 						label={copy.followSystemTheme}
 						checked={appearanceTheme === 'system'}
 						onChange={(checked) => setAppearanceTheme(checked ? 'system' : renderedThemeIsDark() ? 'dark' : 'light')}
-					/>
-					<PreferenceCheckbox
-						label={copy.enableHighContrast}
-						checked={highContrastTheme}
-						onChange={(checked) => setAppearanceTheme(checked
-							? renderedThemeIsDark() ? 'high-contrast-dark' : 'high-contrast-light'
-							: renderedThemeIsDark() ? 'dark' : 'light')}
 					/>
 				</div>
 			</PreferencePanel>

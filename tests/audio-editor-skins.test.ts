@@ -32,6 +32,18 @@ test('old and unknown skin preferences normalize without discarding other settin
 	}
 });
 
+test('saved high contrast themes become the high contrast skin and retain their light or dark mode', () => {
+	for (const mode of ['light', 'dark']) {
+		const preferences = createAudioEditorPreferencesV1({ appearance: { skin: 'sakura', theme: `high-contrast-${mode}` } });
+		assert.equal(preferences.appearance.skin, 'high-contrast');
+		assert.equal(preferences.appearance.theme, mode);
+	}
+	const preferences = createAudioEditorPreferencesV1();
+	const selected = updateAudioEditorPreferencesV1(preferences, { appearance: { skin: 'high-contrast' } });
+	assert.equal(selected.appearance.skin, 'high-contrast');
+	assert.equal(selected.appearance.theme, 'system');
+});
+
 test('skin choices and workspace layouts are independent', () => {
 	const original = createAudioEditorPreferencesV1();
 	for (const skin of SKIN_IDS) {

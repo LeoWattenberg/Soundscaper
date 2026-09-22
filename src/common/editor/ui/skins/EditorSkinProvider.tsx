@@ -38,9 +38,8 @@ export function EditorSkinProvider({ controller, mode, children }: {
 	const runtime = useMemo(() => createSkinPreview(controller && typeof window !== 'undefined' ? window : undefined), [controller]);
 	const preview = useSyncExternalStore(runtime.subscribe, runtime.getSnapshot, noPreview);
 	const skin = preview ?? normalizeSkin(appearance?.skin);
-	const highContrast = appearance?.theme?.startsWith('high-contrast') === true;
-	const decoration = highContrast ? 'default' : skin;
-	const theme = resolveSkinTheme(skin, mode, highContrast);
+	const decoration = skin === 'high-contrast' ? 'default' : skin;
+	const theme = resolveSkinTheme(skin, mode);
 	const value = useMemo(() => ({ skin, decoration, mode, preview, end: runtime.end, adopt: runtime.adopt }), [skin, decoration, mode, preview, runtime]);
 	useEffect(() => {
 		if (!controller) return;

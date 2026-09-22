@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-export const SKIN_IDS = ['default', 'sakura', 'lilac', 'techno'] as const;
+export const SKIN_IDS = ['default', 'high-contrast', 'sakura', 'lilac', 'techno'] as const;
 export type SkinId = typeof SKIN_IDS[number];
 
 export function isSkinId(value: unknown): value is SkinId {

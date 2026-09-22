@@ -21,7 +21,7 @@ interface SkinDefinition {
 	light: Palette;
 	dark: Palette;
 }
-export const SKINS: Record<Exclude<SkinId, 'default'>, SkinDefinition> = {
+export const SKINS: Record<Exclude<SkinId, 'default' | 'high-contrast'>, SkinDefinition> = {
 	sakura: {
 		name: 'Sakura', font: '"Nunito Sans", ui-rounded, system-ui, sans-serif',
 		light: { background: '#fff5f5', panel: '#f5dfe8', control: '#fffafb', text: '#38202f', muted: '#694653', line: '#9e647b', accent: '#ac316a', stage: '#382230' },
@@ -58,9 +58,9 @@ function mapColors<Value>(value: Value, replacements: ReadonlyMap<string, string
 
 const cache = new Map<string, ThemeTokens>();
 
-export function resolveSkinTheme(skin: SkinId, mode: SkinMode, highContrast = false): ThemeTokens {
+export function resolveSkinTheme(skin: SkinId, mode: SkinMode): ThemeTokens {
 	const base = mode === 'dark' ? darkTheme : lightTheme;
-	if (skin === 'default' || highContrast) return base;
+	if (skin === 'default' || skin === 'high-contrast') return base;
 	const key = `${skin}/${mode}`;
 	const cached = cache.get(key);
 	if (cached) return cached;
