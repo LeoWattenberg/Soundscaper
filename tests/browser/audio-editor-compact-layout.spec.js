@@ -173,7 +173,7 @@ test.describe('compact layout', () => {
 
 	test('the site introduction starts folded at every width and opens from its own toggle', async ({ page }) => {
 		await page.setViewportSize(PHONE_PORTRAIT);
-		const editor = await bootEditor(page, '/en/');
+		const editor = await bootEditor(page, '/en/', { defaultWorkspace: true });
 		await waitForResponsiveEditorLayout(editor);
 		const intro = page.locator('.website-tool-intro');
 		const body = intro.locator('.website-tool-intro-body');
@@ -190,7 +190,7 @@ test.describe('compact layout', () => {
 		// product — only the prose below it waits to be asked for.
 		await page.setViewportSize({ width: 1280, height: 800 });
 		await waitForResponsiveEditorLayout(editor);
-		await waitForResponsiveEditorLayout(await bootEditor(page, '/en/'));
+		await waitForResponsiveEditorLayout(await bootEditor(page, '/en/', { defaultWorkspace: true }));
 		await expect(intro).toHaveAttribute('data-expanded', 'false');
 		await expect(body).toBeHidden();
 		await expect(intro.locator('h1')).toBeVisible();
