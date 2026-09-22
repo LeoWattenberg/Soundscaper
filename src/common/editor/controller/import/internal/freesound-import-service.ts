@@ -54,6 +54,10 @@ export interface FreesoundSound {
 		readonly quality: 'high';
 		readonly approximateBitrateKbps: number;
 	}>;
+	readonly waveform: Readonly<{
+		readonly available: boolean;
+		readonly url: string | null;
+	}>;
 }
 
 export interface FreesoundSearchPage {
@@ -297,6 +301,7 @@ function normalizeSound(value: unknown): FreesoundSound {
 	const statistics = requiredRecord(dataValue(record, 'statistics'), 'Freesound statistics');
 	const preview = requiredRecord(dataValue(record, 'preview'), 'Freesound preview');
 	const id = requiredPositiveInteger(dataValue(record, 'id'), 'sound id');
+	const waveform = normalizeWaveform(dataValue(record, 'waveform'), id);
 	const pageUrl = requiredHttpsUrl(dataValue(record, 'pageUrl'), 'sound URL', 'freesound.org');
 	const creatorPageUrl = requiredHttpsUrl(dataValue(creator, 'pageUrl'), 'creator URL', 'freesound.org');
 	const licenseCode = normalizeEnum(
@@ -352,7 +357,29 @@ function normalizeSound(value: unknown): FreesoundSound {
 				dataValue(preview, 'approximateBitrateKbps'), 'preview bitrate',
 			),
 		}),
+		waveform,
 	});
+}
+
+function normalizeWaveform(value: unknown, soundId: number): FreesoundSound['waveform'] {
+	if (value === undefined) return Object.freeze({ available: false, url: null });
+	const waveform = requiredRecord(value, 'Freesound waveform');
+	const available = requiredBoolean(dataValue(waveform, 'available'), 'waveform available');
+	const urlValue = dataValue(waveform, 'url');
+	if (!available) {
+		if (urlValue !== null) throw new TypeError('Invalid Freesound waveform URL.');
+		return Object.freeze({ available: false, url: null });
+	}
+	const url = requiredString(urlValue, 'Freesound waveform URL', 2_048);
+	let parsed: URL;
+	try { parsed = new URL(url, 'https://soundscaper.org'); }
+	catch (error) { throw new TypeError('Invalid Freesound waveform URL.', { cause: error }); }
+	if (!url.startsWith('/') || url.startsWith('//') || url.includes('\\') || parsed.hash
+		|| url !== parsed.pathname + parsed.search
+		|| parsed.pathname !== `/api/freesound/sounds/${String(soundId)}/waveform`) {
+		throw new TypeError('Invalid Freesound waveform URL.');
+	}
+	return Object.freeze({ available: true, url: parsed.pathname + parsed.search });
 }
 
 function normalizeSoundId(value: unknown): number {

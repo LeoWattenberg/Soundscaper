@@ -37,6 +37,7 @@ export interface FreesoundResultPresentation {
 	readonly licenseUrl: string;
 	readonly durationLabel: string;
 	readonly previewAvailable?: boolean;
+	readonly waveformUrl?: string | null;
 	readonly actionPending?: boolean;
 }
 
@@ -228,14 +229,8 @@ export function FreesoundPanel({
 											: result.username}
 									</span>
 									<span className="kw-audio-editor__freesound-result-duration">{result.durationLabel}</span>
-									<a className="kw-audio-editor__freesound-result-license" href={result.licenseUrl}
-										aria-label={result.licenseName} target="_blank" rel="noreferrer">
-										{result.licenseCode === 'sampling-plus'
-											? <span aria-hidden="true">{copy.licenseSamplingPlus}</span>
-											: <img src={LICENSE_BADGES[result.licenseCode]} alt="" />}
-									</a>
 								</div>
-								<div className="kw-audio-editor__freesound-result-actions">
+								<div className="kw-audio-editor__freesound-result-preview">
 									<button
 										type="button"
 										className="kw-audio-editor__freesound-preview-button"
@@ -247,6 +242,17 @@ export function FreesoundPanel({
 									>
 										<Icon name={playing ? 'pause' : 'play'} size={16} />
 									</button>
+									<span className="kw-audio-editor__freesound-waveform">
+										{result.waveformUrl && <img src={result.waveformUrl} alt="" loading="lazy" />}
+									</span>
+								</div>
+								<div className="kw-audio-editor__freesound-result-actions">
+									<a className="kw-audio-editor__freesound-result-license" href={result.licenseUrl}
+										aria-label={result.licenseName} target="_blank" rel="noreferrer">
+										{result.licenseCode === 'sampling-plus'
+											? <span aria-hidden="true">{copy.licenseSamplingPlus}</span>
+											: <img src={LICENSE_BADGES[result.licenseCode]} alt="" />}
+									</a>
 									<Button
 										size="small"
 										disabled={mutationDisabled}

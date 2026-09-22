@@ -141,7 +141,7 @@ export function securityHeaders({
 			`script-src ${scriptSources.join(' ')}`,
 			"style-src 'self' 'unsafe-inline'",
 			"font-src 'self' data:",
-			"img-src 'self' data: blob:",
+			`img-src 'self' data: blob:${remoteMediaSources}`,
 			`media-src 'self' blob:${remoteMediaSources}`,
 			"worker-src 'self' blob:",
 			`connect-src 'self' blob:${remoteMediaSources}`,

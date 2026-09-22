@@ -58,6 +58,10 @@ const SOUND = Object.freeze({
 		quality: 'high',
 		approximateBitrateKbps: 192,
 	}),
+	waveform: Object.freeze({
+		available: true,
+		url: '/api/freesound/sounds/314159/waveform?asset=789&source=cdn',
+	}),
 });
 
 const PREVIEW_FRAME_COUNT = 38_400;
@@ -99,20 +103,55 @@ test.describe('Freesound discovery and attribution', () => {
 			.toHaveAttribute('href', SOUND.creator.pageUrl);
 		await expect(result.getByRole('link', { name: SOUND.license.name, exact: true }))
 			.toHaveAttribute('href', SOUND.license.url);
+		const waveform = result.locator('.kw-audio-editor__freesound-waveform img');
+		await expect(waveform).toHaveAttribute('src',
+			new RegExp(`/api/freesound/sounds/${String(SOUND.id)}/waveform\\?asset=789&source=cdn$`, 'u'));
+		await expect.poll(() => waveform.evaluate((image) => image.complete && image.naturalWidth > 0))
+			.toBe(true);
 		const resultLayout = await result.evaluate((element) => {
 			const name = element.querySelector('.kw-audio-editor__freesound-result-name');
 			const metadata = element.querySelector('.kw-audio-editor__freesound-result-meta');
+			const previewRow = element.querySelector('.kw-audio-editor__freesound-result-preview');
+			const playButton = previewRow.querySelector('.kw-audio-editor__freesound-preview-button');
+			const waveformContainer = previewRow.querySelector('.kw-audio-editor__freesound-waveform');
+			const actions = element.querySelector('.kw-audio-editor__freesound-result-actions');
+			const license = actions.querySelector('.kw-audio-editor__freesound-result-license');
+			const insertButton = [...actions.querySelectorAll('button')].find((button) =>
+				button.textContent.includes('Insert at playhead'));
+			const binButton = [...actions.querySelectorAll('button')].find((button) =>
+				button.textContent.includes('Add to Project Bin'));
+			const previewBounds = previewRow.getBoundingClientRect();
+			const playBounds = playButton.getBoundingClientRect();
+			const waveformBounds = waveformContainer.getBoundingClientRect();
+			const actionsBounds = actions.getBoundingClientRect();
+			const licenseBounds = license.getBoundingClientRect();
 			return {
 				resultOverflow: element.scrollWidth > element.clientWidth,
 				metadataOverflow: metadata.scrollWidth > metadata.clientWidth,
 				nameTruncated: name.scrollWidth > name.clientWidth,
 				metadataHeight: metadata.getBoundingClientRect().height,
+				playLeftOfWaveform: playBounds.right <= waveformBounds.left,
+				playAndWaveformShareRow: playBounds.top < waveformBounds.bottom
+					&& waveformBounds.top < playBounds.bottom,
+				actionsBelowWaveform: actionsBounds.top >= previewBounds.bottom - 1,
+				licenseSharesInsertRow: licenseBounds.top < insertButton.getBoundingClientRect().bottom
+					&& insertButton.getBoundingClientRect().top < licenseBounds.bottom,
+				licenseBeforeInsertButtons: license.compareDocumentPosition(insertButton)
+					=== Node.DOCUMENT_POSITION_FOLLOWING,
+				insertBeforeBin: insertButton.compareDocumentPosition(binButton)
+					=== Node.DOCUMENT_POSITION_FOLLOWING,
 			};
 		});
 		expect(resultLayout).toMatchObject({
 			resultOverflow: false,
 			metadataOverflow: false,
 			nameTruncated: true,
+			playLeftOfWaveform: true,
+			playAndWaveformShareRow: true,
+			actionsBelowWaveform: true,
+			licenseSharesInsertRow: true,
+			licenseBeforeInsertButtons: true,
+			insertBeforeBin: true,
 		});
 		expect(resultLayout.metadataHeight).toBeLessThan(25);
 		expect(requests[0]).toMatchObject({
@@ -331,6 +370,14 @@ async function mockFreesoundApi(page) {
 				contentType: 'audio/ogg',
 				headers: { 'Content-Length': String(preview.byteLength) },
 				body: Buffer.from(preview),
+			});
+			return;
+		}
+		if (url.pathname === `/api/freesound/sounds/${String(SOUND.id)}/waveform`) {
+			await route.fulfill({
+				status: 200,
+				contentType: 'image/png',
+				body: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9u90bm0AAAAASUVORK5CYII=', 'base64'),
 			});
 			return;
 		}

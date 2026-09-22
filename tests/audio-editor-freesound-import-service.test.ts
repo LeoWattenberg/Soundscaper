@@ -31,6 +31,7 @@ const SOUND = Object.freeze({
 	},
 	statistics: { downloads: 42, averageRating: 4.75, ratingCount: 8 },
 	preview: { available: true, format: 'ogg', quality: 'high', approximateBitrateKbps: 192 },
+	waveform: { available: true, url: '/api/freesound/sounds/42/waveform?asset=789&source=cdn' },
 });
 
 test('Freesound search uses the owned proxy contract', async () => {
@@ -52,6 +53,7 @@ test('Freesound search uses the owned proxy contract', async () => {
 	const page = await service.search({ query: 'rain', page: 2, license: 'cc-by', sort: 'newest' });
 
 	assert.equal(page.results[0]?.id, 42);
+	assert.deepEqual(page.results[0]?.waveform, SOUND.waveform);
 	assert.equal(requests.length, 1);
 	const url = new URL(requests[0]!.url);
 	assert.equal(url.pathname, '/api/freesound/search');
@@ -62,6 +64,36 @@ test('Freesound search uses the owned proxy contract', async () => {
 	assert.equal(requests[0]?.credentials, 'omit');
 });
 
+test('Freesound search treats an absent waveform as unavailable and rejects malformed availability', async () => {
+	let waveform: unknown = undefined;
+	const service = createFreesoundImportService({
+		enabled: true,
+		apiBaseUrl: 'https://soundscaper.org',
+		createContributionId: () => 'unused',
+		importFile: async () => undefined,
+		fetch: async () => Response.json({ data: {
+			query: 'rain', page: 1, pageSize: 20, totalCount: 1, totalPages: 1,
+			hasNextPage: false, hasPreviousPage: false,
+			results: [{ ...SOUND, waveform }],
+		} }),
+	});
+
+	const page = await service.search({ query: 'rain' });
+	assert.deepEqual(page.results[0]?.waveform, { available: false, url: null });
+
+	waveform = { available: 'yes' };
+	await assert.rejects(service.search({ query: 'rain' }), /waveform available/iu);
+
+	waveform = { available: true, url: 'https://cdn.freesound.org/api/freesound/sounds/42/waveform' };
+	await assert.rejects(service.search({ query: 'rain' }), /waveform URL/iu);
+
+	waveform = { available: true, url: '/api/freesound/sounds/41/waveform?asset=789&source=cdn' };
+	await assert.rejects(service.search({ query: 'rain' }), /waveform URL/iu);
+
+	waveform = { available: false, url: SOUND.waveform.url };
+	await assert.rejects(service.search({ query: 'rain' }), /waveform URL/iu);
+});
+
 test('Freesound search accepts the proxy maximum and an empty upstream description', async () => {
 	const response = JSON.stringify({ data: {
 		query: 'ambience', page: 1, pageSize: 20, totalCount: 20, totalPages: 1,
@@ -70,6 +102,7 @@ test('Freesound search accepts the proxy maximum and an empty upstream descripti
 			...SOUND,
 			id: index + 1,
 			pageUrl: `https://freesound.org/s/${String(index + 1)}/`,
+			waveform: { available: false, url: null },
 			description: index === 0 ? '' : 'x'.repeat(65_536),
 			})),
 	} });

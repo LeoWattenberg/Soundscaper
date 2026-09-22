@@ -8,6 +8,7 @@ import React, { act } from 'react';
 import {
 	FreesoundPanelContainer,
 	freesoundPreviewUrl,
+	freesoundWaveformUrl,
 } from '../src/common/editor/ui/workspace/FreesoundPanelContainer.tsx';
 import { ENGLISH_COPY } from '../src/common/i18n/catalogs.js';
 import { installReactTestDom, reactProps } from './helpers/react-test-dom.ts';
@@ -65,6 +66,21 @@ test('Freesound previews use the hosting web origin and the public proxy in the 
 		'https://soundscaper.org/api/freesound/sounds/42/preview',
 	);
 	assert.throws(() => freesoundPreviewUrl(0), /valid Freesound sound ID/iu);
+});
+
+test('Freesound waveforms use the hosting web origin and the public proxy in the packaged app', () => {
+	const waveformPath = '/api/freesound/sounds/42/waveform?asset=789&source=cdn';
+	assert.equal(
+		freesoundWaveformUrl(42, waveformPath, { protocol: 'https:', origin: 'https://feature.soundscaper.pages.dev' }),
+		`https://feature.soundscaper.pages.dev${waveformPath}`,
+	);
+	assert.equal(
+		freesoundWaveformUrl(42, waveformPath, { protocol: 'soundscaper-app:', origin: 'null' }),
+		`https://soundscaper.org${waveformPath}`,
+	);
+	assert.throws(() => freesoundWaveformUrl(0, waveformPath), /valid Freesound sound ID/iu);
+	assert.throws(() => freesoundWaveformUrl(42, 'https://example.org/waveform.png'), /valid Freesound waveform path/iu);
+	assert.throws(() => freesoundWaveformUrl(42, '/api/freesound/sounds/43/waveform?asset=789'), /valid Freesound waveform path/iu);
 });
 
 test('Freesound preview pauses, resumes, and stops when its grouped panel becomes inactive', async () => {

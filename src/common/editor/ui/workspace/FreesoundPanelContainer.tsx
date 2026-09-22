@@ -12,6 +12,9 @@ import {
 	freesoundWorkspaceActions,
 	type FreesoundWorkspaceController,
 } from './freesound-workspace-service.ts';
+import { freesoundPreviewUrl, freesoundWaveformUrl } from './freesound-media-url.ts';
+
+export { freesoundPreviewUrl, freesoundWaveformUrl } from './freesound-media-url.ts';
 
 interface FreesoundSound {
 	readonly id: number;
@@ -25,6 +28,7 @@ interface FreesoundSound {
 	}>;
 	readonly durationSeconds: number;
 	readonly preview: Readonly<{ readonly available: boolean }>;
+	readonly waveform: Readonly<{ readonly available: boolean; readonly url: string | null }>;
 }
 
 interface FreesoundPanelController extends FreesoundWorkspaceController {
@@ -184,17 +188,6 @@ export function FreesoundPanelContainer({
 	/>;
 }
 
-export function freesoundPreviewUrl(
-	soundId: number,
-	location: Readonly<Pick<Location, 'origin' | 'protocol'>> | undefined = globalThis.location,
-): string {
-	if (!Number.isSafeInteger(soundId) || soundId <= 0) throw new TypeError('A valid Freesound sound ID is required.');
-	const baseUrl = location && ['http:', 'https:'].includes(location.protocol)
-		? location.origin
-		: 'https://soundscaper.org';
-	return new URL(`/api/freesound/sounds/${String(soundId)}/preview`, baseUrl).href;
-}
-
 export function toFreesoundPanelResult(sound: FreesoundSound): FreesoundResultPresentation {
 	return Object.freeze({
 		soundId: sound.id,
@@ -207,6 +200,8 @@ export function toFreesoundPanelResult(sound: FreesoundSound): FreesoundResultPr
 		licenseUrl: sound.license.url,
 		durationLabel: durationLabel(sound.durationSeconds),
 		previewAvailable: sound.preview.available,
+		waveformUrl: sound.waveform.available && sound.waveform.url
+			? freesoundWaveformUrl(sound.id, sound.waveform.url) : null,
 	});
 }
 
