@@ -16,17 +16,11 @@ import {
 	readFirstLaunchSetup,
 	type FirstLaunchSetupStorage,
 } from '../src/common/editor/ui/first-launch-setup.ts';
-import {
-	shouldOfferWorkspaceOnboarding,
-	useWorkspaceOnboardingSurface,
-	type WorkspaceOnboardingSurfaceOptions,
-} from '../src/common/editor/ui/use-workspace-onboarding-surface.ts';
 import { ENGLISH_COPY } from '../src/common/i18n/catalogs.js';
 import { sourceLineCount } from '../scripts/lib/source-line-count.mjs';
 import { installReactTestDom, reactProps } from './helpers/react-test-dom.ts';
 
 const ROOT = new URL('../', import.meta.url);
-const PENDING_RECOVERY = Object.freeze({ recoveryToken: 'take-cycle-open-recovery-v1:test' });
 
 test('first-launch setup reads only a completed record and tolerates unusable storage', () => {
 	assert.equal(firstLaunchSetupStorageKey('soundscaper'), FIRST_LAUNCH_SETUP_STORAGE_KEY);
@@ -84,7 +78,7 @@ test('the onboarding dialog offers two one-click cards and no confirmation contr
 	assert.match(markup, /id="workspace-onboarding-question"[^>]*>What UI layout \(workspace\) do you want\?</u);
 	assert.match(markup, /role="group"[^>]*aria-label="Select workspace layout"/u);
 	assert.match(markup, /Closely matches the layout of Audacity 4/u);
-	assert.match(markup, /vertical rulers and side meters/u);
+	assert.match(markup, /vertical rulers, side meters and effects on the left/u);
 	assert.match(markup, /You can change between these layouts at any time from View &gt; Workspace/u);
 	assert.match(markup, /role="status" aria-live="polite" aria-atomic="true"/u);
 	assert.doesNotMatch(markup, /type="radio"/u, 'the cards are the choice, not radios inside it');
@@ -180,85 +174,7 @@ test('closing the shell also records the current workspace and reports apply fai
 	}
 });
 
-test('the onboarding offer needs a ready Soundscaper session with nothing else in front', () => {
-	const ready = {
-		productId: 'soundscaper',
-		phase: 'ready',
-		initialSurface: null,
-		takeCycleRecovery: null,
-		activeSurface: null,
-		setupComplete: false,
-	};
-	assert.equal(shouldOfferWorkspaceOnboarding(ready), true);
-	for (const [label, update] of [
-		['framescaper', { productId: 'framescaper' }],
-		['booting', { phase: 'booting' }],
-		['error', { phase: 'error' }],
-		['flag set', { setupComplete: true }],
-		['initial surface', { initialSurface: 'privacy-policy' }],
-		['pending recovery', { takeCycleRecovery: PENDING_RECOVERY }],
-		['another surface', { activeSurface: 'export' }],
-	] as const) {
-		assert.equal(shouldOfferWorkspaceOnboarding({ ...ready, ...update }), false, label);
-	}
-});
-
-test('the onboarding hook offers the surface once per session and after recovery clears', async () => {
-	const base: Omit<WorkspaceOnboardingSurfaceOptions, 'setActiveSurface'> = {
-		productId: 'soundscaper',
-		phase: 'ready',
-		initialSurface: null,
-		takeCycleRecovery: null,
-		activeSurface: null,
-		storage: memoryStorage(),
-	};
-	const offered = await mountProbe(base);
-	try {
-		assert.deepEqual(offered.calls, ['workspace-onboarding']);
-		await offered.rerender({ ...base, activeSurface: 'workspace-onboarding' });
-		await offered.rerender({ ...base, activeSurface: null });
-		assert.deepEqual(offered.calls, ['workspace-onboarding'], 'closing the dialog does not re-offer it');
-	} finally {
-		await offered.unmount();
-	}
-
-	for (const [label, update] of [
-		['framescaper', { productId: 'framescaper' }],
-		['booting', { phase: 'booting' }],
-		['flag set', { storage: memoryStorage({ [FIRST_LAUNCH_SETUP_STORAGE_KEY]: firstLaunchSetupSeedValue() }) }],
-		['initial surface', { initialSurface: 'privacy-policy' }],
-		['pending recovery', { takeCycleRecovery: PENDING_RECOVERY }],
-		['another surface', { activeSurface: 'export' }],
-	] as const) {
-		const probe = await mountProbe({ ...base, ...update });
-		try {
-			assert.deepEqual(probe.calls, [], label);
-		} finally {
-			await probe.unmount();
-		}
-	}
-
-	const recovering = await mountProbe({
-		...base, takeCycleRecovery: PENDING_RECOVERY, activeSurface: 'take-cycle-recovery',
-	});
-	try {
-		assert.deepEqual(recovering.calls, []);
-		await recovering.rerender({ ...base, takeCycleRecovery: null, activeSurface: null });
-		assert.deepEqual(recovering.calls, ['workspace-onboarding'], 'a settled recovery lets the offer through');
-	} finally {
-		await recovering.unmount();
-	}
-
-	const booting = await mountProbe({ ...base, phase: 'booting' });
-	try {
-		await booting.rerender({ ...base, phase: 'ready' });
-		assert.deepEqual(booting.calls, ['workspace-onboarding'], 'readiness arriving later still offers once');
-	} finally {
-		await booting.unmount();
-	}
-});
-
-test('the workspace shell, overlays and menu runtime wire the onboarding surface', async () => {
+test('the workspace shell leaves the chooser in the menu without opening it automatically', async () => {
 	const [workspace, overlays, runtime, viewMenu, dialog, css, manifest] = await Promise.all([
 		source('src/common/editor/ui/workspace/AudioEditorWorkspace.jsx'),
 		source('src/common/editor/ui/workspace/AudioEditorWorkspaceOverlays.jsx'),
@@ -268,7 +184,7 @@ test('the workspace shell, overlays and menu runtime wire the onboarding surface
 		source('src/common/editor/ui/audio-editor-design-system/33-workspace-onboarding.css'),
 		source('src/common/editor/ui/audio-editor-design-system.css'),
 	]);
-	assert.match(workspace, /useWorkspaceOnboardingSurface\(\{/u);
+	assert.doesNotMatch(workspace, /useWorkspaceOnboardingSurface/u);
 	assert.match(workspace, /useTakeCycleRecoverySurface\(productId, snapshot\.takeCycleRecovery\)/u);
 	assert.ok(sourceLineCount(workspace) <= 600, 'the workspace shell stays within its ceiling');
 	assert.match(overlays, /import\('\.\.\/dialogs\/WorkspaceOnboardingDialog\.tsx'\)/u);
@@ -328,28 +244,6 @@ async function mountDom() {
 			actGlobal.IS_REACT_ACT_ENVIRONMENT = priorAct;
 			dom.restore();
 		},
-	};
-}
-
-type ProbeOptions = Omit<WorkspaceOnboardingSurfaceOptions, 'setActiveSurface'>;
-
-function Probe({ options, calls }: Readonly<{ options: ProbeOptions; calls: string[] }>) {
-	useWorkspaceOnboardingSurface({
-		...options,
-		setActiveSurface: (surface: string | null) => { calls.push(String(surface)); },
-	});
-	return null;
-}
-
-async function mountProbe(options: ProbeOptions) {
-	const mounted = await mountDom();
-	const calls: string[] = [];
-	const render = (next: ProbeOptions) => act(async () => mounted.root.render(<Probe options={next} calls={calls} />));
-	await render(options);
-	return {
-		calls,
-		rerender: render,
-		unmount: () => mounted.unmount(),
 	};
 }
 

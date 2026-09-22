@@ -3,7 +3,7 @@
 import { expect, test, createWavFixture, readFile } from './audio-editor-test-fixtures.js';
 import { encodeDedicatedAudioPcm } from '../../src/common/editor/browser-dedicated-audio-codec.ts';
 import {
-	bootEditor, chooseFileAction, collectClientErrors, registerAudioEditorHooks,
+	bootEditor, chooseFileAction, chooseNestedCommandAction, collectClientErrors, registerAudioEditorHooks,
 	sourcePeakChannels, waitForEditor, clipByName,
 } from './audio-editor-test-helpers.js';
 
@@ -132,6 +132,7 @@ test.describe('audio file import formats', () => {
 	registerAudioEditorHooks();
 	test('File > Import and Project Bin advertise maintained audio suffixes and import .wave aliases', async ({ page }) => {
 		const editor = await bootEditor(page, '/embed/en/');
+		await chooseNestedCommandAction(page, editor, 'View', ['Panels', 'Project bin']);
 		const requiredExtensions = [
 			'.aac', '.aif', '.aiff', '.bw64', '.flac', '.m4a', '.mp2', '.mp3',
 			'.oga', '.ogg', '.opus', '.rf64', '.wav', '.wave', '.wavpack', '.wv',
@@ -163,6 +164,7 @@ test.describe('audio file import formats', () => {
 
 	test('File > Import bypasses a visible Project bin and creates one track per file', async ({ page }) => {
 		const editor = await bootEditor(page, '/embed/en/');
+		await chooseNestedCommandAction(page, editor, 'View', ['Panels', 'Project bin']);
 		await expect(editor.locator('[data-workspace-panel="project-bin"]')).toBeVisible();
 		const choosingFile = page.waitForEvent('filechooser');
 		await chooseFileAction(page, editor, 'Import');

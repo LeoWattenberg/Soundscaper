@@ -31,7 +31,7 @@ import {
 	useSoundscaperNativeServicesMenuRefresh,
 } from './workspace-application-menu-runtime.js';
 import { usePrivacyPolicySurface } from '../use-privacy-policy-surface.ts';
-import { useTakeCycleRecoverySurface } from '../use-take-cycle-recovery-surface.ts'; import { useWorkspaceOnboardingSurface } from '../use-workspace-onboarding-surface.ts';
+import { useTakeCycleRecoverySurface } from '../use-take-cycle-recovery-surface.ts';
 import { supportsDisplayAudioCapture } from '../../recording-display-input.ts';
 import { partitionWorkspaceFiles } from './workspace-file-routing.js';
 import { openWorkspaceProjectFile } from './open-workspace-project-file.ts';
@@ -59,7 +59,7 @@ export default function AudioEditorWorkspace({
 	const parityRuntime = useControllerOwnedActionRuntime(controller, productId, locale);
 	const snapshot = useAudioEditorSnapshot(controller);
 	const [activeSurface, setActiveSurface] = useTakeCycleRecoverySurface(productId, snapshot.takeCycleRecovery);
-	usePrivacyPolicySurface(productId, initialSurface, setActiveSurface); useWorkspaceOnboardingSurface({ productId, phase: snapshot.phase, initialSurface, takeCycleRecovery: snapshot.takeCycleRecovery, activeSurface, setActiveSurface });
+	usePrivacyPolicySurface(productId, initialSurface, setActiveSurface);
 	const [effectsPanelTarget, setEffectsPanelTarget] = useState(null);
 	const [effectWindow, setEffectWindow] = useState(null);
 	const [macroDraft, setMacroDraft] = useState(null);

@@ -26,7 +26,7 @@ A workspace is a saved arrangement of the panels and toolbars around the timelin
 
 | Panel | Panel ID | Default dock | Classic | Music | Soundscaper | Audacity | Video editor |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| Project bin | `project-bin` | Left | Hidden | Visible | Visible | Hidden | Visible |
+| Project bin | `project-bin` | Left | Hidden | Visible | Hidden | Hidden | Visible |
 | Video preview | `video-preview` | Floating | Hidden | Visible | Visible | Visible | Visible |
 | Source monitor | `source-monitor` | Floating | Hidden | Hidden | Hidden | Hidden | Visible |
 | History | `history` | Right | Hidden | Hidden | Hidden | Hidden | Hidden |
@@ -34,7 +34,7 @@ A workspace is a saved arrangement of the panels and toolbars around the timelin
 | Markers | `markers` | Right | Hidden | Hidden | Hidden | Hidden | Hidden |
 | Metadata | `metadata` | Right | Hidden | Hidden | Hidden | Hidden | Hidden |
 | Freesound | `freesound` | Right | Hidden | Hidden | Hidden | Hidden | Hidden |
-| Effects | `effects` | Right | Hidden | Visible | Hidden | Hidden | Hidden |
+| Effects | `effects` | Left | Visible | Visible | Visible | Visible | Visible |
 | Mixer | `mixer` | Bottom | Hidden | Visible | Hidden | Hidden | Hidden |
 | Analysis | `analysis` | Right | Hidden | Hidden | Hidden | Hidden | Hidden |
 | Plot spectrum | `spectrum` | Right | Hidden | Hidden | Hidden | Hidden | Hidden |

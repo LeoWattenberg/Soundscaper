@@ -16,7 +16,6 @@ import {
 	clipByName,
 	closeDialog,
 	closeEffectsPanel,
-	closeWorkspacePanel,
 	collectClientErrors,
 	commitInput,
 	disableNativeSavePicker,
@@ -187,13 +186,13 @@ import {
 	test('opens effects in a full-width dock and keeps effect settings open when the dock closes', async ({ page }) => {
 		const errors = collectClientErrors(page);
 		const editor = await bootEditor(page, '/embed/en/');
-		if (await editor.locator('[data-workspace-panel="project-bin"]').isVisible()) await closeWorkspacePanel(editor, 'project-bin');
 		const effectsPanel = await openEffectsForTrack(editor, 0);
 		const rack = effectsPanel.locator('[data-effect-rack]');
 		const packagePanel = rack.locator('.effects-panel');
+		await expect(editor.locator('[data-panel-dock="left"] [data-workspace-panel="effects"]')).toBeVisible();
+		await dockWorkspacePanel(editor, 'effects', 'right');
 		const sideDock = editor.locator('[data-panel-dock="right"]:has([data-workspace-panel="effects"])');
 		const resizeHandle = sideDock.locator('[data-workspace-dock-resize-handle="right"]');
-
 		await expect(editor.locator('[data-effects-overlay]')).toHaveCount(0);
 		await expect(effectsPanel.locator('.kw-audio-editor__workspace-panel-header').getByText('Effects', { exact: true })).toBeVisible();
 		await expect(packagePanel.locator('.effects-panel__header, .effects-panel-header')).toBeHidden();

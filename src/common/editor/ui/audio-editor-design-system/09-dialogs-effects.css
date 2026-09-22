@@ -232,6 +232,10 @@
 	line-height: 1.45;
 }
 
+[data-workspace-panel="effects"] .audio-editor-panel-hint {
+	color: var(--text);
+}
+
 .audio-editor-field-error {
 	margin: 0;
 	padding: 8px 10px;
@@ -287,6 +291,7 @@
 
 .audio-editor-master-gain > span {
 	grid-column: 1 / -1;
+	color: var(--text);
 	overflow: hidden;
 	text-overflow: ellipsis;
 	white-space: nowrap;

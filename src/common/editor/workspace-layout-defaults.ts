@@ -89,7 +89,7 @@ const AUDACITY_VIEW_DEFAULTS: WorkspaceViewDefaults = Object.freeze({
 });
 
 export const DEFAULT_PANELS = Object.freeze({
-	'project-bin': Object.freeze({ visible: true, dock: 'left', order: 0, size: 380 }),
+	'project-bin': Object.freeze({ visible: false, dock: 'left', order: 0, size: 380 }),
 	'video-preview': Object.freeze({ visible: true, dock: 'floating', order: 0, size: 560 }),
 	// The source monitor belongs to editing from a bin, so it is offered where
 	// that is the work and stays available but hidden everywhere else.
@@ -97,7 +97,7 @@ export const DEFAULT_PANELS = Object.freeze({
 	history: Object.freeze({ visible: false, dock: 'right', order: 0, size: 320 }),
 	labels: Object.freeze({ visible: false, dock: 'right', order: 1, size: 320 }),
 	metadata: Object.freeze({ visible: false, dock: 'right', order: 2, size: 320 }),
-	effects: Object.freeze({ visible: false, dock: 'right', order: 3, size: 360 }),
+	effects: Object.freeze({ visible: true, dock: 'left', order: 0, size: 360 }),
 	mixer: Object.freeze({ visible: false, dock: 'bottom', order: 4, size: 460 }),
 	markers: Object.freeze({ visible: false, dock: 'right', order: 5, size: 360 }),
 	analysis: Object.freeze({ visible: false, dock: 'right', order: 6, size: 380 }),
@@ -144,7 +144,7 @@ export const AUDIO_EDITOR_WORKSPACE_PRESETS = Object.freeze({
 			history: Object.freeze({ visible: false, dock: 'left', order: 0, size: 300 }),
 			labels: Object.freeze({ visible: false, dock: 'right', order: 1, size: 320 }),
 			metadata: Object.freeze({ visible: false, dock: 'right', order: 2, size: 320 }),
-			effects: Object.freeze({ visible: false, dock: 'right', order: 3, size: 360 }),
+			effects: Object.freeze({ visible: true, dock: 'left', order: 0, size: 360 }),
 			mixer: Object.freeze({ visible: false, dock: 'bottom', order: 4, size: 460 }),
 			markers: Object.freeze({ visible: false, dock: 'right', order: 5, size: 360 }),
 		}),
@@ -159,7 +159,8 @@ export const AUDIO_EDITOR_WORKSPACE_PRESETS = Object.freeze({
 		toolbarButtons: DEFAULT_TOOLBAR_BUTTONS,
 		panels: Object.freeze({
 			...DEFAULT_PANELS,
-			effects: Object.freeze({ visible: true, dock: 'right', order: 0, size: 360 }),
+			'project-bin': Object.freeze({ visible: true, dock: 'left', order: 0, size: 380 }),
+			effects: Object.freeze({ visible: true, dock: 'left', order: 1, size: 360 }),
 			mixer: Object.freeze({ visible: true, dock: 'bottom', order: 0, size: 460 }),
 		}),
 	}),
@@ -184,6 +185,7 @@ export const AUDIO_EDITOR_WORKSPACE_PRESETS = Object.freeze({
 		panels: Object.freeze({
 			...DEFAULT_PANELS,
 			'project-bin': Object.freeze({ visible: true, dock: 'left', order: 0, size: 380 }),
+			effects: Object.freeze({ visible: true, dock: 'left', order: 1, size: 360 }),
 			'video-preview': Object.freeze({ visible: true, dock: 'right', order: 0, size: 560 }),
 			'source-monitor': Object.freeze({ visible: true, dock: 'right', order: 1, size: 460 }),
 		}),
