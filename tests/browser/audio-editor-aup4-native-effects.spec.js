@@ -13,6 +13,7 @@ import {
 	closeAup4CompatibilityReport,
 	closeDialog,
 	closeEffectsPanel,
+	closeWorkspacePanel,
 	collectClientErrors,
 	commitInput,
 	openEffectsForTrack,
@@ -86,6 +87,7 @@ test.describe('native AUP4 effect settings', () => {
 		await expect(report).toBeVisible();
 		await expect(report).not.toContainText('Missing:');
 		await closeAup4CompatibilityReport(report);
+		await closeWorkspacePanel(editor, 'project-bin');
 
 		let panel = await openEffectsForTrack(editor, 0);
 		await expect(panel.getByRole('group', { name: /^Missing:/ })).toHaveCount(0);
