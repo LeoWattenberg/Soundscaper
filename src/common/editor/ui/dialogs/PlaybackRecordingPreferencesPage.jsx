@@ -6,21 +6,17 @@ import { Separator } from '@soundscaper/design-system/Separator';
 
 import EditorHelpTooltip from '../EditorHelpTooltip.tsx';
 import PreferenceCheckbox from '../EditorPreferenceCheckbox.tsx';
-import SoundActivationPreferences from '../SoundActivationPreferences.tsx';
 import PreferenceDropdownField from './PreferenceDropdownField.jsx';
 
 /**
  * Audacity's Playback/Recording preferences page. Audacity lists the page but
  * ships no content for it yet, so it collects what this editor already had:
- * the play-at-speed pitch behaviour, and the recording settings that used to
- * sit under Editing, sound-activated recording included.
+ * the play-at-speed pitch behaviour, and the recording input retention setting.
  */
 export default function PlaybackRecordingPreferencesPage({
 	controller,
 	snapshot,
 	copy,
-	locale,
-	productId,
 	run,
 }) {
 	const preferences = snapshot.preferences;
@@ -60,15 +56,6 @@ export default function PlaybackRecordingPreferencesPage({
 						<span id={keepInputsOpenDescriptionId} className="kw-audio-editor-sr-only">{copy.recordingKeepInputsOpenDescription}</span>
 					</span>
 				</div>
-				{snapshot.recordingInputs?.soundActivation && <SoundActivationPreferences
-					productId={productId}
-					locale={locale}
-					readOnly={Boolean(snapshot.readOnly)}
-					soundActivation={snapshot.recordingInputs.soundActivation}
-					copy={copy}
-					controller={controller}
-					run={run}
-				/>}
 			</PreferencePanel>
 		</>
 	);

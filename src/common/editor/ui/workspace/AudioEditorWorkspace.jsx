@@ -65,7 +65,6 @@ export default function AudioEditorWorkspace({
 	const [macroDraft, setMacroDraft] = useState(null);
 	const [dialog, setDialog] = useState(null);
 	const [dialogValue, setDialogValue] = useState('');
-	const [dialogSourceKey, setDialogSourceKey] = useState('global');
 	const [isFullscreen, setIsFullscreen] = useState(false);
 	const [showArmControls, setShowArmControls] = useState(false);
 	const [generatorType, setGeneratorType] = useState('tone');
@@ -206,11 +205,6 @@ export default function AudioEditorWorkspace({
 		setDialogValue(createTimedRecordingDialogValue(startTimeMs, snapshot.scheduledRecording?.endTimeMs));
 		setDialog('timed-recording');
 	}, [snapshot.scheduledRecording?.endTimeMs, snapshot.scheduledRecording?.startTimeMs]);
-	const openRecordingOffset = useCallback(() => {
-		setDialogValue(String(snapshot.monitor?.latencyOffsetMs ?? 0));
-		setDialogSourceKey('global');
-		setDialog('recording-offset');
-	}, [snapshot.monitor?.latencyOffsetMs]);
 	const openProjects = useCallback(() => {
 		setDialog('projects');
 		run(() => controller.actions.project.list());
@@ -361,7 +355,6 @@ export default function AudioEditorWorkspace({
 		controller,
 		importInputRef,
 		openExternal,
-		openRecordingOffset,
 		openSurface,
 		openTimedRecording,
 		openTrackRate,
@@ -400,7 +393,6 @@ export default function AudioEditorWorkspace({
 		openExternal,
 		openGenerator,
 		openProjects,
-		openRecordingOffset,
 		openSelectionEffect,
 		openSpectralSelection,
 		openSurface,
@@ -460,7 +452,7 @@ export default function AudioEditorWorkspace({
 	const toolbarProps = {
 		actionRuntime: parityRuntime.actions, automationToolEnabled, blocked, capabilities, controller, copy, durationFrames, locale,
 		editItems, executeEdit, isCompact: isCompact || compactLayout, onGripperMouseDown: handleToolbarGripperMouseDown, onJumpToEnd: jumpToEnd,
-		onJumpToStart: jumpToStart, onOpenRecordingOffset: openRecordingOffset, onOpenSpectralSelection: openSpectralSelection,
+		onJumpToStart: jumpToStart, onOpenSpectralSelection: openSpectralSelection,
 		onOpenTakeCycleRecovery: () => openSurface('take-cycle-recovery'), onOpenTimedRecording: openTimedRecording,
 		onPlaybackMeterSettingsChange: setPlaybackMeterSettings, onRecordingMeterSettingsChange: setRecordingMeterSettings,
 		onToggleAutomationTool: toggleAutomationTool, onToggleSplitTool: toggleSplitTool, playbackMeterSettings, recordLabel, recordingMeterSettings, run, snapshot,
@@ -482,7 +474,6 @@ export default function AudioEditorWorkspace({
 		controller,
 		copy,
 		dialog,
-		dialogSourceKey,
 		dialogTrackId,
 		dialogValue,
 		displayAudioSupported,
@@ -533,7 +524,6 @@ export default function AudioEditorWorkspace({
 		selectedMediaPreparation,
 		setActiveSurface,
 		setDialog,
-		setDialogSourceKey,
 		setDialogValue,
 		setDraggedWorkspacePanelId,
 		setEditorOverlayTarget,
