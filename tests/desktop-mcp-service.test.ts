@@ -62,6 +62,10 @@ test('desktop MCP exposes four tools and forwards validated reads and commands',
 	} });
 	const connection = await service.start();
 	try {
+		const initialized = await callMcp(connection, 0, 'initialize', {
+			protocolVersion: '2025-06-18', capabilities: {}, clientInfo: { name: 'Soundscaper test', version: '1' },
+		});
+		assert.equal((initialized.result as { serverInfo: { name: string } }).serverInfo.name, 'soundscaper-desktop');
 		const listed = await callMcp(connection, 1, 'tools/list', {});
 		assert.deepEqual((listed.result as { tools: Array<{ name: string }> }).tools.map((tool) => tool.name), [
 			'get_active_project', 'read_project_document', 'list_editor_commands', 'execute_editor_command',
