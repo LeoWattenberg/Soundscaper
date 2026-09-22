@@ -124,7 +124,8 @@ export function createDesktopHostMenuItems(input: DesktopHostMenuInput | null): 
 			checkedItem('desktop-discover-native-effects', input.copy.discoverNativeEffects,
 				input.snapshot.nativeEffectDiscoveryEnabled,
 				apply('set-native-effect-discovery-enabled', !input.snapshot.nativeEffectDiscoveryEnabled)),
-			...(input.productId === 'soundscaper' && input.openMcpConnection ? [
+			...((typeof __SCAPE_DESKTOP_RENDERER__ === 'undefined' || __SCAPE_DESKTOP_RENDERER__)
+				&& input.productId === 'soundscaper' && input.openMcpConnection ? [
 				item('desktop-mcp-connection', `${input.copy['ui.desktopMcp.connection'] ?? 'MCP connection'}…`, input.openMcpConnection),
 			] : []),
 		])]),

@@ -137,6 +137,24 @@ test('Soundscaper desktop keeps MCP under Tools > Desktop services', () => {
 	assert.equal(german.tools[0]?.items?.at(-1)?.label, 'MCP-Verbindung…');
 });
 
+test('a browser renderer build omits the desktop MCP menu row', () => {
+	const key = '__SCAPE_DESKTOP_RENDERER__';
+	const previous = Object.getOwnPropertyDescriptor(globalThis, key);
+	Object.defineProperty(globalThis, key, { configurable: true, value: false });
+	try {
+		const menus = createDesktopHostMenuItems({
+			copy: copy(), development: false, productId: 'soundscaper', productName: 'Soundscaper',
+			snapshot: snapshot(), applyNativeTierControl: () => undefined,
+			runWindowAction: () => undefined, checkForUpdates: () => undefined,
+			openExternal: () => undefined, openMcpConnection: () => undefined,
+		});
+		assert.equal(menus.tools[0]?.items?.some(({ id }) => id === 'desktop-mcp-connection'), false);
+	} finally {
+		if (previous) Object.defineProperty(globalThis, key, previous);
+		else Reflect.deleteProperty(globalThis, key);
+	}
+});
+
 test('development menu shortcut labels follow the desktop platform', () => {
 	const menusForPlatform = (platform: string) => createDesktopHostMenuItems({
 		copy: copy(), development: true, platform, productId: 'soundscaper', productName: 'Soundscaper', snapshot: snapshot(),
