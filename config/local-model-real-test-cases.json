@@ -2,6 +2,18 @@
 	"schemaVersion": 1,
 	"cases": [
 		{
+			"id": "kokoro-speech-generation",
+			"modelIds": ["kokoro-82m-v1.0"],
+			"operation": "text-to-speech", "fixtureId": "tts-script", "validation": "synthesized-audio",
+			"documentation": {
+				"modelTitles": { "kokoro-82m-v1.0": "Kokoro 82M v1.0 text to speech" },
+				"summary": "Generate a spoken clip from a script using a selected language and voice.",
+				"menu": "Generate → Text to Speech",
+				"steps": ["Enter a script, then choose one of the published language and voice pairs.", "Install the Kokoro model through Model Manager when the complete offline speech runtime is available.", "Generate and listen to a preview, then add it on a new track or regenerate the selected generated clip."],
+				"limitations": ["The model has a catalog entry, but the authenticated offline Kokoro grapheme-to-phoneme helper is not yet built or wired into desktop inference. Generation currently fails closed even after the weights are installed.", "Generated pronunciation and delivery can vary by language and voice. The eventual real test requires a non-silent 24 kHz mono WAV from the selected voice; it cannot establish naturalness or pronunciation quality."]
+			}
+		},
+		{
 			"id": "wav2vec2-word-alignment",
 			"modelIds": ["wav2vec2-base-960h"],
 			"operation": "word-alignment", "fixtureId": "aligned-speech-16khz", "validation": "word-alignment",

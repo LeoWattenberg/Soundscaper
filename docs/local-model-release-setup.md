@@ -46,6 +46,14 @@ catalog-inclusion authority. Generated model guides reflect the checked-in
 catalog state; all published entries now include Windows ARM64 where their
 package-generated runtime closure is available.
 
+Kokoro v1.0 is a separate 56-artifact identity mirror. Its catalog entry,
+licensing row, offline notices, upstream source pins, and retained public
+readback are checked with `npm run audit:kokoro-model-release`. Run
+`node scripts/models/verify-kokoro-model-release.mjs --verify-public` to repeat
+HEAD, byte-range, CORS, and full SHA-256 checks against all 56 live CDN files.
+The model files are published; the offline G2P helper remains unprovisioned, so
+speech generation is unavailable until that runtime is packaged and verified.
+
 The nightly-with-tests real-model phase remains the executable check for actual
 installation, Electron IPC, inference, and output validation on a particular
 package. A package's verified runtime closure establishes runtime availability;

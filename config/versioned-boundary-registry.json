@@ -162,6 +162,8 @@
 		,
 		{ "path": "src/common/editor/assistance/internal/radix-two-fft-v1.ts", "kind": "persisted-contract", "justification": "radix-two-fft-v1.ts is a persisted assistance signal-processing contract revision shared by reviewed model adapters." }
 		,
+		{ "path": "src/common/editor/assistance/kokoro-voices-v1.ts", "kind": "upstream-contract", "justification": "Kokoro v1.0 publishes a fixed language and voice inventory that binds persisted speech script choices." }
+		,
 		{ "path": "src/common/editor/assistance/nomic-tokenizer-v1.ts", "kind": "persisted-contract", "justification": "nomic-tokenizer-v1.ts is a persisted assistance asset, workflow, model-adapter, or result format revision." }
 		,
 		{ "path": "src/common/editor/assistance/owned-audio-cut-transform-registry-v1.ts", "kind": "persisted-contract", "justification": "owned-audio-cut-transform-registry-v1.ts is a persisted assistance asset, workflow, model-adapter, or result format revision." }
@@ -225,6 +227,10 @@
 		{ "path": "src/common/editor/assistance/transnetv2-onnx-adapter-v1.ts", "kind": "persisted-contract", "justification": "transnetv2-onnx-adapter-v1.ts is a persisted assistance asset, workflow, model-adapter, or result format revision." }
 		,
 		{ "path": "src/common/editor/assistance/transnetv2-postprocess-v1.ts", "kind": "persisted-contract", "justification": "transnetv2-postprocess-v1.ts is a persisted assistance asset, workflow, model-adapter, or result format revision." }
+		,
+		{ "path": "src/common/editor/assistance/tts-script-body-publication-v1.ts", "kind": "persisted-contract", "justification": "Canonical speech script bodies and their source bindings are durable project asset format version 1." }
+		,
+		{ "path": "src/common/editor/assistance/tts-script-scape-asset-extension-v1.ts", "kind": "persisted-contract", "justification": "Speech script body packing and unpacking is the portable project asset format version 1." }
 		,
 		{ "path": "src/common/editor/assistance/visual-frame-pack-set-v1.ts", "kind": "persisted-contract", "justification": "visual-frame-pack-set-v1.ts is a persisted assistance asset, workflow, model-adapter, or result format revision." }
 		,

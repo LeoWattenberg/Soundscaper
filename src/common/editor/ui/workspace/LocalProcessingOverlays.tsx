@@ -4,12 +4,14 @@ import { lazyEditorModule } from '../../../offline/lazy-module.tsx';
 import { assistanceDialogRequest } from '../assistance-task-catalog.ts';
 import { resolveLocalModelManagerBridge } from '../local-model-manager-bridge.ts';
 import type { LocalAssistanceSelectedMediaPreparationPort } from '../../assistance/local-assistance-preparation.ts';
+import type { TextToSpeechProjectPort } from '../dialogs/text-to-speech-port-runtime.ts';
 
 const LocalModelManagerDialog = lazyEditorModule(() => import('../dialogs/LocalModelManagerDialog.tsx'));
 const LocalAssistanceDialog = lazyEditorModule(() => import('../dialogs/LocalAssistanceDialogSurface.tsx'));
+const TextToSpeechDialog = lazyEditorModule(() => import('../dialogs/TextToSpeechDialogSurface.tsx'));
 
 export default function LocalProcessingOverlays({ activeSurface, fileService, capabilities, snapshot,
-	copy, locale, selectedMediaPreparation, setActiveSurface,
+	copy, locale, selectedMediaPreparation, textToSpeechProjectPort, setActiveSurface,
 }: {
 	readonly activeSurface: string | null;
 	readonly fileService: { readonly isDesktop: boolean; readonly bridge?: unknown };
@@ -18,6 +20,7 @@ export default function LocalProcessingOverlays({ activeSurface, fileService, ca
 	readonly copy: Readonly<Record<string, string>>;
 	readonly locale: string;
 	readonly selectedMediaPreparation: LocalAssistanceSelectedMediaPreparationPort | null;
+	readonly textToSpeechProjectPort?: TextToSpeechProjectPort | null;
 	readonly setActiveSurface: (surface: string | null) => void;
 }) {
 	if (!fileService.isDesktop) return null;
@@ -33,5 +36,9 @@ export default function LocalProcessingOverlays({ activeSurface, fileService, ca
 				bridgeScope={fileService.bridge} preparation={selectedMediaPreparation}
 				copy={copy} locale={locale} onClose={close} />
 		</div>}
+		{activeSurface === 'text-to-speech' && capabilities.assistanceAssets &&
+			<div data-editor-surface="text-to-speech"><TextToSpeechDialog
+				bridgeScope={fileService.bridge} projectPort={textToSpeechProjectPort ?? null}
+				copy={copy} locale={locale} onClose={close} /></div>}
 	</Suspense>;
 }

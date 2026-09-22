@@ -53,7 +53,7 @@ export interface FramescaperDesktopExactBodyDescriptor {
 		| 'framescaper-still' | 'framescaper-freeze-render'
 		| 'framescaper-cube-lut' | 'framescaper-motion-analysis'
 		| 'image-sequence-inventory' | 'image-sequence-source-pack'
-		| 'assistance-transcript';
+		| 'assistance-transcript' | 'assistance-tts-script';
 	readonly encoding: string;
 	readonly bindingId?: string;
 	readonly sourceId: string;
@@ -266,6 +266,7 @@ export function framescaperDesktopExactMediaPath(
 		: body.kind === 'video-proxy' ? '.proxy'
 			: body.kind === 'video-timing' ? '.scti'
 				: body.kind === 'assistance-transcript' ? '.transcript.json'
+					: body.kind === 'assistance-tts-script' ? '.tts-script.json'
 				: body.kind === 'framescaper-cube-lut' ? '.cube'
 					: body.kind === 'framescaper-motion-analysis' ? '.json'
 						: body.kind === 'image-sequence-inventory' ? '.inventory.json'

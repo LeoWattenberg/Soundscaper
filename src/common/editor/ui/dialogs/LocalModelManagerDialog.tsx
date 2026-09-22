@@ -417,6 +417,9 @@ function formatBytes(value: number | null, locale: string, unavailable: string):
 }
 
 function modelPurpose(copy: Copy, value: string): string {
+	if (value === 'text-to-speech' && copy['ui.textToSpeech.modelPurpose']) {
+		return copy['ui.textToSpeech.modelPurpose']!;
+	}
 	if (copy[`assistanceModelPurpose.${value}`]) return copy[`assistanceModelPurpose.${value}`]!;
 	return value.replaceAll('-', ' ').replace(/^./u, (first) => first.toLocaleUpperCase());
 }

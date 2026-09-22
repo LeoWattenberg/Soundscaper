@@ -27,7 +27,7 @@ const CUT_FIXTURE = Object.freeze({
 // that order from the vocabulary itself is the assertion: a second hand-written
 // copy only records when someone last remembered to extend it, and adding
 // dereverberation to the vocabulary broke this spec for exactly that reason.
-const ADVANCED_OPERATIONS = ASSISTANCE_OPERATIONS;
+const ADVANCED_OPERATIONS = ASSISTANCE_OPERATIONS.filter((operation) => operation !== 'text-to-speech');
 
 test.describe('menu-only Local Assistance workflows', () => {
 	registerAudioEditorHooks();

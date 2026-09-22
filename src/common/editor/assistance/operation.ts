@@ -18,6 +18,7 @@ export const ASSISTANCE_OPERATIONS = Object.freeze([
 	'subject-detection',
 	'saliency-detection',
 	'editorial-generation',
+	'text-to-speech',
 ] as const);
 
 export type AssistanceOperation = typeof ASSISTANCE_OPERATIONS[number];

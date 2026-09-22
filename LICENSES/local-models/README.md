@@ -9,6 +9,10 @@ GPL-3.0.txt is the complete standard GNU license text for anvuew's `gpl-3.0`
 declaration. The unmodified pinned dereverb model card retains that declaration;
 the converter's MIT notice is retained separately. Hugging Face documents
 [model-card metadata as its supported license declaration](https://huggingface.co/docs/hub/repositories-licenses).
+The two unmodified Kokoro model cards retain the originating model's training
+provenance and attributions and the selected ONNX export's Apache-2.0 declaration.
+The Kokoro G2P helper and its dependency closure are not included in the model
+files and remain unprovisioned.
 
 Desktop packaging copies this directory into its offline licenses inventory.
 Model-specific attribution, weight/code distinctions, artifact modifications,
@@ -29,6 +33,8 @@ the dry training corpus and base-checkpoint lineage remain unknown.
 | [dereverb-room-MODEL-CARD.md](dereverb-room-MODEL-CARD.md) | [Source](https://huggingface.co/anvuew/dereverb_room/raw/0b85f5b80b7f779b2dfe80f33a1b35b38af9376d/README.md) | 949 | `7c12fe33b3e22930edf1765940c16a919ee182b4d633c4106ba5dd298974a66a` |
 | [dereverb-room-converter-LICENSE.txt](dereverb-room-converter-LICENSE.txt) | [Source](https://raw.githubusercontent.com/ZFTurbo/MSS_ONNX_TensorRT/43d939e7671d8ff6cf1922f98c2f2e4b56908e47/LICENSE) | 1081 | `3282dc057695ef5b9a64909a7092ca40b2c292c232580fc6ace6e5d665cc0207` |
 | [GPL-3.0.txt](GPL-3.0.txt) | [Source](https://www.gnu.org/licenses/gpl-3.0.txt) | 35149 | `3972dc9744f6499f0f9b2dbf76696f2ae7ad8af9b23dde66d6af86c9dfb36986` |
+| [kokoro-82m-v1.0-ONNX-MODEL-CARD.md](kokoro-82m-v1.0-ONNX-MODEL-CARD.md) | [Source](https://huggingface.co/onnx-community/Kokoro-82M-v1.0-ONNX/blob/1939ad2a8e416c0acfeecc08a694d14ef25f2231/README.md) | 10627 | `b8fd888b4782f4d4ae85e2f1587cafd727037f4f138f72429ef1bd5908c0e9d8` |
+| [kokoro-82m-v1.0-UPSTREAM-MODEL-CARD.md](kokoro-82m-v1.0-UPSTREAM-MODEL-CARD.md) | [Source](https://huggingface.co/hexgrad/Kokoro-82M/blob/f3ff3571791e39611d31c381e3a41a3af07b4987/README.md) | 6348 | `91dcabced89db6f109b8786642f50402d3ee87450e8189589b6f85520e7f4d78` |
 
 Dereverb's [complete corresponding-source archive](https://assets.soundscaper.org/models/dereverb-room/1.0.0/corresponding-source.tar.gz)
 contains the preferred checkpoint/configuration, both converters, frozen

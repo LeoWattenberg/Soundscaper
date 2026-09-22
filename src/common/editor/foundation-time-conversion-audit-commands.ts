@@ -13,6 +13,12 @@ import type { FoundationTimeConversionSite } from './foundation-time-conversion-
  */
 export const FOUNDATION_TIME_CONVERSION_COMMAND_SITES: readonly FoundationTimeConversionSite[] = deepFreezeAuditSites([
 	{
+		id: 'tts-regeneration-duration',
+		file: 'src/common/editor/commands/clip-tts-regeneration-runtime.js',
+		behavior: 'A regenerated speech source resolves its sample count to the project rate with the shared nearest-point policy before retaining the clip placement.',
+		conversions: [{ helper: 'scaleSampleFrame', policies: ['point'] }],
+	},
+	{
 		id: 'canonical-video-transform-placement',
 		file: 'src/common/editor/commands/canonical-video-transform-placement.ts',
 		behavior: 'A frame-canonical transform verifies its absolute sequence-frame placement against the resolved sample aliases serialized beside it before command reconciliation preserves that authority.',

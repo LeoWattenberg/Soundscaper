@@ -27,6 +27,10 @@ import {
 	createAssistanceOnnxDereverbWorkerAdapterV1,
 } from './assistance-onnx-dereverb-worker.ts';
 import {
+	createAssistanceOnnxKokoroWorkerAdapterV1,
+	type KokoroOfflinePhonemizerV1,
+} from './assistance-onnx-kokoro-worker.ts';
+import {
 	createAssistanceOnnxEnhancementSeparationWorkerAdapterV1,
 } from './assistance-onnx-enhancement-separation-worker.ts';
 import {
@@ -89,6 +93,7 @@ export interface AssistanceOnnxRuntimeModuleV1 {
 
 export interface AssistanceOnnxRuntimeWorkerAdapterOptionsV1 {
 	readonly loadRuntime?: (entrypoint: string) => PromiseLike<AssistanceOnnxRuntimeModuleV1>;
+	readonly phonemizeKokoro?: KokoroOfflinePhonemizerV1;
 }
 
 const TRANSNET_INPUT_NAMES = Object.freeze(['frames']);
@@ -110,11 +115,17 @@ export function createAssistanceOnnxRuntimeWorkerAdapterV1(
 	if (options.loadRuntime !== undefined && typeof options.loadRuntime !== 'function') {
 		throw new TypeError('The ONNX Runtime module loader is invalid.');
 	}
+	if (options.phonemizeKokoro !== undefined && typeof options.phonemizeKokoro !== 'function') {
+		throw new TypeError('The offline Kokoro phonemizer port is invalid.');
+	}
 	const loadRuntime = options.loadRuntime ?? loadOnnxRuntime;
 	const executeAudio = createAssistanceOnnxAudioRuntimeWorkerAdapterV1(loadRuntime);
 	const executeEnhancementSeparation =
 		createAssistanceOnnxEnhancementSeparationWorkerAdapterV1(loadRuntime);
 	const executeDereverb = createAssistanceOnnxDereverbWorkerAdapterV1(loadRuntime);
+	const executeKokoro = createAssistanceOnnxKokoroWorkerAdapterV1(
+		loadRuntime, options.phonemizeKokoro,
+	);
 	const executeTextEmbedding = createAssistanceOnnxTextEmbeddingWorkerAdapterV1(loadRuntime);
 	const executeWordAlignment = createAssistanceOnnxWordAlignmentWorkerAdapterV1(loadRuntime);
 	const executeSiglip2 = createAssistanceOnnxSiglip2WorkerAdapterV1(loadRuntime);
@@ -128,6 +139,7 @@ export function createAssistanceOnnxRuntimeWorkerAdapterV1(
 			return executeEnhancementSeparation(context);
 		}
 		if (context.grant.task === 'dereverberation') return executeDereverb(context);
+		if (context.grant.task === 'text-to-speech') return executeKokoro(context);
 		if (context.grant.task === 'shot-detection') return executeTransNetV2(context, loadRuntime);
 		if (context.grant.task === 'audio-tagging' || context.grant.task === 'beat-tracking') {
 			return executeAudio(context);

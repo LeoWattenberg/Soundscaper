@@ -26,6 +26,7 @@ const FIXTURES = Object.freeze({
 	'rhythmic-music-22050hz': 'Sixteen seconds of reproducible synthesized percussion and changing tones at 22.05 kHz, with a regular beat.',
 	'visual-shot-frames': 'A 120-frame sequence at 30 frames per second switching from the NASA astronaut portrait to the CC0 cat photograph halfway through, prepared at the model’s 48 × 27 raster size.',
 	'editorial-candidates': 'Two fixed highlight candidates about restoring and comparing a recording, supplied through the production editorial-plan builder with all text fields requested.',
+	'tts-script': 'A short nonempty English script with one American English voice and a bounded speech rate, submitted as authenticated UTF-8 text.',
 });
 const VALIDATION = Object.freeze({
 	'voice-activity': 'Speech regions must be nonempty and have valid, ordered boundaries inside the input audio.',
@@ -42,6 +43,7 @@ const VALIDATION = Object.freeze({
 	'beat-grid': 'Beat positions must be nonempty, ordered, and inside the audio; tempo data must be finite and positive.',
 	'shot-boundaries': 'Model-derived shot boundaries must be nonempty, ordered, and inside the supplied source-frame range.',
 	'editorial-proposal': 'Strict JSON must contain every authorized candidate exactly once and readable titles, hooks, and explanations with valid chapter text. The production reviewer rejects unsafe or foreign content.',
+	'synthesized-audio': 'The selected Kokoro voice must produce non-silent, bounded, 24 kHz mono PCM audio in a valid WAV container. The test requires a complete offline G2P runtime and cannot be satisfied by an unavailable-adapter response or substitute model.',
 });
 const PLATFORM_NAMES = Object.freeze({
 	'darwin-arm64': 'macOS arm64', 'darwin-x64': 'macOS x64',
@@ -76,12 +78,20 @@ export function localModelRuntimeAvailability(entry, { nativeRuntime, onnxRuntim
 		const target = platform.replace(/^darwin-/u, 'mac-').replace(/^win32-/u, 'win-');
 		return targets.includes(target);
 	});
+	if (entry.task === 'text-to-speech') {
+		// ONNX binaries exist, but the separately authenticated offline G2P port is not provisioned.
+		return { familyId, version, availablePlatforms: [], missingPlatforms: [...entry.platforms],
+			blockedBy: 'kokoro-offline-g2p-unprovisioned' };
+	}
 	return { familyId, version,
 		availablePlatforms, missingPlatforms: entry.platforms.filter((platform) => !availablePlatforms.includes(platform)) };
 }
 
 function runtimeNotice(availability, published = true) {
-	const { familyId, version, availablePlatforms, missingPlatforms } = availability;
+	const { familyId, version, availablePlatforms, missingPlatforms, blockedBy } = availability;
+	if (blockedBy === 'kokoro-offline-g2p-unprovisioned') {
+		return `Desktop builds package the ${familyId} ${version} engine, but the authenticated offline Kokoro G2P helper is not built or wired for any supported target. Installing model weights cannot enable speech generation yet. The required real-model test fails closed until the helper and its data are packaged and verified.`;
+	}
 	if (availablePlatforms.length === 0) {
 		return `**The required native engine is not yet packaged.** The desktop build has no ${familyId} ${version} target for this model. Downloading weights does not enable processing. The required real-model test reports a failure until the model and verified native package are supplied.`;
 	}
@@ -130,7 +140,7 @@ function modelPage(entry, cases, runtimeSources) {
 			+ (entry.modelId === 'dereverb-room' ? ' Its upstream GPL-3.0 declaration, license text, and source notices are recorded.' : ''), ''] : []),
 		runtimeNotice(availability, published), '',
 		'## Use this model {#use-this-model}', '',
-		blocked ? `${published ? 'The model is admitted in the catalog, but no packaged runtime is available on its declared platforms.' : 'Once the model is admitted in the catalog and its native runtime is available,'} The intended workflow is **${documentation.menu}**. The steps below describe that workflow; processing cannot currently complete.`
+		blocked ? `${published ? 'The model is admitted in the catalog, but its complete offline runtime is unavailable on the declared platforms.' : 'Once the model is admitted in the catalog and its native runtime is available,'} The intended workflow is **${documentation.menu}**. The steps below describe that workflow; processing cannot currently complete.`
 			: `Open **${documentation.menu}** on a platform with the required native runtime. Local assistance runs in the desktop editor.`, '',
 		...documentation.steps.map((step, index) => `${String(index + 1)}. ${step}`), '',
 		...(pairedIds.length ? ['This operation also requires '
@@ -145,7 +155,9 @@ function modelPage(entry, cases, runtimeSources) {
 		table(['Artifact', 'Approximate download size'], artifacts), '',
 		'## What the packaged test checks {#what-the-packaged-test-checks}', '',
 		...checks,
-		'The nightly-with-tests package downloads real model artifacts and requests inference through the packaged runtime. A required model missing from the catalog fails its case. Missing native engines fail on catalog-supported platforms. These costly checks run separately from the normal browser suite. A passing run confirms basic model execution and usable output structure; it does not establish perceptual quality or accuracy on your recording.', '',
+		entry.task === 'text-to-speech'
+			? 'The nightly-with-tests package downloads real model artifacts and requests inference through the packaged runtime. The required offline G2P helper is currently absent, so this case must fail closed until that runtime is provisioned. These costly checks run separately from the normal browser suite. A passing future run will confirm basic speech generation, not pronunciation or perceptual quality.'
+			: 'The nightly-with-tests package downloads real model artifacts and requests inference through the packaged runtime. A required model missing from the catalog fails its case. Missing native engines fail on catalog-supported platforms. These costly checks run separately from the normal browser suite. A passing run confirms basic model execution and usable output structure; it does not establish perceptual quality or accuracy on your recording.', '',
 		'## Review the result {#review-the-result}', '',
 		...documentation.limitations.map((limitation) => `- ${limitation}`), '',
 		'[Model test coverage and limitations](/reference/local-models/) · [Local processing guide](/help/local-processing/)',
@@ -167,20 +179,21 @@ function indexPage(catalog, cases, runtimeSources) {
 		`[${modelTitle(entry.modelId, cases)}](/reference/local-models/${entry.modelId}/)`,
 		entry.task.replaceAll('-', ' '),
 		entry.pendingPublication ? 'Catalog publication pending' : availability.get(entry.modelId).availablePlatforms.length === 0
-				? 'Native engine pending' : 'Packaged; see supported platforms',
+				? availability.get(entry.modelId).blockedBy === 'kokoro-offline-g2p-unprovisioned'
+					? 'Offline G2P helper pending' : 'Native engine pending' : 'Packaged; see supported platforms',
 		cases.filter(({ modelIds }) => modelIds.includes(entry.modelId)).map(({ id }) => `\`${id}\``).join(', '),
 	]);
 	return page('Local model guides and real execution tests',
 		'Check the availability, intended workflow, and required real execution test of every published and planned local model.', [
 		'These guides describe the published catalog and the additional models required by the nightly tests. Desktop packages include native inference engines; Model Manager separately downloads and verifies weights admitted by the digest-pinned catalog. A prepared runtime and a required test do not grant model publication authority.', '',
-		...(pending.length ? [`**Native runtime packaging is incomplete: ${String(pending.length)} required models in ${String(pendingCases.length)} cases have no packaged native engine.** Their tests fail until the selected target package supplies the engine.`, '']
+		...(pending.length ? [`**Local runtime packaging is incomplete: ${String(pending.length)} required ${pending.length === 1 ? 'model' : 'models'} in ${String(pendingCases.length)} ${pendingCases.length === 1 ? 'case' : 'cases'} ${pending.length === 1 ? 'lacks' : 'lack'} a required packaged component.** Their tests fail until the selected target package supplies the complete runtime.`, '']
 			: ['All published models have a packaged native engine on supported desktop targets. Install their weights and use the task menus or Tools → Advanced Local Processing. This build capability does not claim that every platform has passed the real-model tests.', '']),
 		...(candidates.length ? [`**${String(candidates.length)} additional models await catalog publication.** Their individual guides and real inference cases are prepared, but Model Manager cannot install them yet. A full nightly run reports missing required catalog entries as failures. Room dereverberation's GPL-3.0 declaration, license text, and source notices are recorded.`, ''] : []),
 		table(['Model guide', 'Purpose', 'Packaged runtime support', 'Packaged execution case'], rows), '',
 		WINDOWS_REQUIREMENT, '',
 		'## Test scope {#test-scope}', '',
 		`The required suite covers ${String(catalog.entries.length)} model identities in ${String(cases.length)} execution cases: ${String(published.length)} published models and ${String(candidates.length)} publication candidates. Speaker diarization uses a segmentation model and an embedding model together. Subject detection uses face and object models together. SigLIP2 testing exercises its image and text networks. Each Beat This variant has a separate case.`, '',
-		'The ordinary browser tests check the interface with a simulated desktop backend. The nightly-with-tests Electron package separately downloads verified model files and requests real inference. Missing native engines are reported as failures on catalog-supported platforms. Expensive model runs are excluded from the normal browser suite. Read the report from a particular package run for its actual results; these pages describe the required checks, not a claim that every build or machine has passed.', '',
+		'The ordinary browser tests check the interface with a simulated desktop backend. The nightly-with-tests Electron package separately downloads verified model files and requests real inference. Missing required runtime components are reported as failures on catalog-supported platforms. Expensive model runs are excluded from the normal browser suite. Read the report from a particular package run for its actual results; these pages describe the required checks, not a claim that every build or machine has passed.', '',
 		`The published model artifacts total approximately **${downloadSize(published.reduce((total, entry) => total + entry.artifacts.reduce((size, artifact) => size + artifact.byteLength, 0), 0))}** before ${candidates.length ? 'candidate models, ' : ''}runtime files, fixtures, temporary space, and test output.${candidates.length ? ' Candidate sizes remain provisional until authenticated artifacts are published.' : ''} Qwen alone adds about **2.33 GiB** and requires at least **16 GiB total system memory**. Allow at least **12 GiB free memory** for the full planned run; individual operations enforce their own reservations. Models run sequentially.`, '',
 		'Audio checks reject silence, non-finite samples, and output identical to the input. Text checks require meaningful nonempty result fields. Embedding, detection, and timing checks validate their appropriate numerical structure. Exact sample values, spelling, and rankings are not used as golden outputs.', '',
 		'Passing these checks proves basic operation on a small fixture. It does not prove accurate transcription, correct object labels, lossless denoising, or subjective quality. Review results on your own media before applying them.', '',

@@ -39,18 +39,27 @@ export interface AssistanceSpeechRecognitionSettingsV1 {
 	readonly language: 'auto' | 'en';
 }
 
+export interface AssistanceTextToSpeechSettingsV1 {
+	readonly settingsVersion: 1;
+	readonly language: 'a' | 'b' | 'e' | 'f' | 'h' | 'i' | 'j' | 'p' | 'z';
+	readonly voice: string;
+	readonly speed: number;
+}
+
 export type AssistanceOperationRequest = {
 	readonly [Operation in AssistanceOperation]: Readonly<{
 		contractVersion: typeof ASSISTANCE_OPERATION_CONTRACT_VERSION;
 		jobId: string;
 		operation: Operation;
-		selectionFence: AssistanceSelectionFence;
+		selectionFence: Operation extends 'text-to-speech' ? null : AssistanceSelectionFence;
 		models: readonly AssistanceOperationModelBinding[];
 		inputs: readonly AssistanceStagedInputClaim[];
 		outputs: readonly AssistanceOutputReservation[];
 	} & (Operation extends 'speech-recognition'
 		? { readonly settings?: AssistanceSpeechRecognitionSettingsV1 }
-		: { readonly settings?: never })>;
+		: Operation extends 'text-to-speech'
+			? { readonly settings: AssistanceTextToSpeechSettingsV1 }
+			: { readonly settings?: never })>;
 }[AssistanceOperation];
 
 export interface AssistanceOperationModelBinding {
@@ -113,6 +122,8 @@ const REQUEST_KEYS = Object.freeze([
 ]);
 const REQUEST_WITH_SETTINGS_KEYS = Object.freeze([...REQUEST_KEYS, 'settings']);
 const SPEECH_RECOGNITION_SETTINGS_KEYS = Object.freeze(['settingsVersion', 'language']);
+const TEXT_TO_SPEECH_SETTINGS_KEYS = Object.freeze(['settingsVersion', 'language', 'voice', 'speed']);
+const TEXT_TO_SPEECH_LANGUAGES = new Set(['a', 'b', 'e', 'f', 'h', 'i', 'j', 'p', 'z']);
 const RESULT_KEYS = Object.freeze(['contractVersion', 'jobId', 'operation', 'outputs']);
 const PROGRESS_KEYS = Object.freeze([
 	'contractVersion', 'jobId', 'operation', 'sequence', 'phase', 'completed', 'total',
@@ -132,7 +143,9 @@ export function validateAssistanceOperationRequest(value: unknown): AssistanceOp
 	const operation = normalizeAssistanceOperation(record.operation);
 	const settings = validateOperationSettings(operation, record.settings, hasSettings);
 	const jobId = opaqueJobId(record.jobId);
-	const selectionFence = validateAssistanceSelectionFence(record.selectionFence);
+	const selectionFence = operation === 'text-to-speech'
+		? sourceFreeFence(record.selectionFence)
+		: validateAssistanceSelectionFence(record.selectionFence);
 	const models = validateModels(record.models, operation);
 	const inputs = validateArray(record.inputs, MAXIMUM_CLAIMS, 'input claims')
 		.map((claim) => validateAssistanceStagedInputClaim(claim));
@@ -169,8 +182,28 @@ function validateOperationSettings(
 	operation: AssistanceOperation,
 	value: unknown,
 	present: boolean,
-): AssistanceSpeechRecognitionSettingsV1 | undefined {
-	if (!present) return undefined;
+): AssistanceSpeechRecognitionSettingsV1 | AssistanceTextToSpeechSettingsV1 | undefined {
+	if (!present) {
+		if (operation === 'text-to-speech') throw new TypeError('Text-to-speech settings are required.');
+		return undefined;
+	}
+	if (operation === 'text-to-speech') {
+		const record = exactRecord(value, TEXT_TO_SPEECH_SETTINGS_KEYS, 'Text-to-speech settings');
+		if (record.settingsVersion !== 1) throw new TypeError('The text-to-speech settings version is unsupported.');
+		if (!TEXT_TO_SPEECH_LANGUAGES.has(record.language as string)) {
+			throw new TypeError('The text-to-speech language is unsupported.');
+		}
+		if (typeof record.voice !== 'string' || !/^[abefhijpz][fm]_[a-z\d_]{1,40}$/u.test(record.voice)
+			|| record.voice[0] !== record.language) {
+			throw new TypeError('The text-to-speech voice does not match its language.');
+		}
+		if (typeof record.speed !== 'number' || !Number.isFinite(record.speed)
+			|| record.speed < 0.5 || record.speed > 2) {
+			throw new TypeError('The text-to-speech speed is outside 0.5–2.0.');
+		}
+		return Object.freeze({ settingsVersion: 1, language: record.language,
+			voice: record.voice, speed: record.speed }) as AssistanceTextToSpeechSettingsV1;
+	}
 	if (operation !== 'speech-recognition') {
 		throw new TypeError(`The ${operation} operation does not admit language settings.`);
 	}
@@ -183,6 +216,11 @@ function validateOperationSettings(
 		throw new TypeError('The speech-recognition language is unsupported.');
 	}
 	return Object.freeze({ settingsVersion: 1, language: record.language });
+}
+
+function sourceFreeFence(value: unknown): null {
+	if (value !== null) throw new TypeError('Text-to-speech requires a null source-free selection fence.');
+	return null;
 }
 
 export function validateAssistanceOperationResult(

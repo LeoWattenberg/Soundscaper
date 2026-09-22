@@ -35,6 +35,7 @@ import { SOURCE_STATUS_COPY_BY_LOCALE } from './editor-source-status-copy.ts';
 import { FREESOUND_ATTRIBUTION_INVENTORY_COPY_BY_LOCALE } from './editor-freesound-attribution-inventory-copy.ts';
 import { DESKTOP_MCP_COPY_BY_LOCALE } from './editor-desktop-mcp-copy.ts';
 import { NYQUIST_ARCHIVE_COPY_BY_LOCALE } from './editor-nyquist-archive-copy.ts';
+import { TEXT_TO_SPEECH_COPY_BY_LOCALE } from './editor-text-to-speech-copy.ts';
 
 export interface EditorCopyOwner {
 	readonly owner: string;
@@ -106,6 +107,7 @@ const inventory = buildEditorCopyInventory(ENGLISH_COPY, GERMAN_COPY, [
 	...((typeof __SCAPE_DESKTOP_RENDERER__ === 'undefined' || __SCAPE_DESKTOP_RENDERER__)
 		? [{ owner: 'desktopMcp', ...DESKTOP_MCP_COPY_BY_LOCALE! }] : []),
 	{ owner: 'localAssistance', en: LOCAL_ASSISTANCE_ADDITIONAL_COPY },
+	{ owner: 'textToSpeech', ...TEXT_TO_SPEECH_COPY_BY_LOCALE },
 	{ owner: 'framescaperFinishing', en: FRAMESCAPER_FINISHING_ADDITIONAL_COPY, de: FRAMESCAPER_FINISHING_ADDITIONAL_GERMAN_COPY },
 	{ owner: 'framescaperVisualInspector', en: FRAMESCAPER_VISUAL_INSPECTOR_ADDITIONAL_COPY },
 	{ owner: 'videoProxy', en: VIDEO_PROXY_ADDITIONAL_COPY },

@@ -330,6 +330,14 @@ test('assistance reference orders required operations and separates the optional
 	assert.match(rendered, /\| `tiger-dnr` \| Source separation \| 1\.0\.0 \| Reproducibly derived from pinned upstream inputs \| 4 GiB \| Linux x64 \|/u);
 });
 
+test('assistance reference gives text-to-speech its reviewed operation label', () => {
+	const rendered = renderAssistanceReference({
+		...assistanceInput,
+		operations: ['text-to-speech'],
+	});
+	assert.match(rendered, /\| Text to speech \| `text-to-speech` \| Generate > Text to Speech… \|/u);
+});
+
 test('assistance reference refuses a workflow or distribution it has no reviewed wording for', () => {
 	assert.throws(
 		() => renderAssistanceReference({ ...assistanceInput, guidedWorkflowIds: ['summarise-everything'] }),

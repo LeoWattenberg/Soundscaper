@@ -3,6 +3,7 @@
 const OUTPUTS = Object.freeze({
 	'voice-activity-detection': [['voice-activity', 'application/json']],
 	'speech-recognition': [['transcript', 'application/json']],
+	'text-to-speech': [['synthesized-audio', 'audio/wav']],
 	'speaker-diarization': [['speaker-turns', 'application/json']],
 	'speech-enhancement': [['enhanced-audio', 'audio/wav']],
 	dereverberation: [['enhanced-audio', 'audio/wav']],
@@ -21,7 +22,8 @@ const OUTPUTS = Object.freeze({
 
 export function modelOutputReservations(operation) {
 	if (!Object.hasOwn(OUTPUTS, operation)) throw new TypeError(`Unknown model operation: ${operation}`);
-	return OUTPUTS[operation].map(([role, mediaType]) => ({ role, mediaType, maximumByteLength: 32 * 1024 * 1024 }));
+	const maximumByteLength = (operation === 'text-to-speech' ? 128 : 32) * 1024 * 1024;
+	return OUTPUTS[operation].map(([role, mediaType]) => ({ role, mediaType, maximumByteLength }));
 }
 
 export async function executeModelOperation(page, request) {
@@ -52,7 +54,9 @@ export async function executeModelOperation(page, request) {
 			for (const output of value.outputs) outputs.push(await bridge.reserveOutput({ jobId, ...output }));
 			const started = performance.now();
 			const outcome = await bridge.run({ contractVersion: 1, jobId, operation: value.operation,
-				selectionFence: value.selectionFence, models, inputs, outputs });
+				selectionFence: value.selectionFence,
+				...(value.operation === 'text-to-speech' ? { settings: value.settings } : {}),
+				models, inputs, outputs });
 			const elapsedMs = performance.now() - started;
 			if (outcome.outcome !== 'completed') return { outcome, elapsedMs, progress, models, outputs: [] };
 			if (outcome.result.outputs.length !== outputs.length) throw new Error('Model output count differs from its reservations.');

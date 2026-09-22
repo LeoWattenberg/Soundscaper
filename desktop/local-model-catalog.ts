@@ -36,6 +36,7 @@ export const LOCAL_MODEL_TASKS = Object.freeze([
 	'text-embedding',
 	'shot-detection',
 	'editorial-generation',
+	'text-to-speech',
 ] as const);
 
 export type LocalModelTask = (typeof LOCAL_MODEL_TASKS)[number];

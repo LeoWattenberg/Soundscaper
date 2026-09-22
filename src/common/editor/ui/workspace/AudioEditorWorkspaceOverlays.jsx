@@ -515,7 +515,9 @@ export default function AudioEditorWorkspaceOverlays({ model }) {
 			)}
 			<LocalProcessingOverlays activeSurface={activeSurface} fileService={fileService}
 				capabilities={capabilities} snapshot={snapshot} copy={copy} locale={locale}
-				selectedMediaPreparation={selectedMediaPreparation} setActiveSurface={setActiveSurface} />
+				selectedMediaPreparation={selectedMediaPreparation}
+				textToSpeechProjectPort={controller?.textToSpeechProjectPort ?? null}
+				setActiveSurface={setActiveSurface} />
 
 			{dialog && dialog !== 'project-compatibility' && (
 				<EditorDialog

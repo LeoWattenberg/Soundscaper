@@ -374,7 +374,7 @@ function projectBundle(value: unknown): ProjectBundle {
 		project: Object.freeze({ projectRevision: Number(project.projectRevision), sha256: project.sha256 }),
 		document: raw.document,
 		bodies: Object.freeze(raw.bodies
-			.filter((body) => (body as Record<string, unknown> | null)?.kind !== 'assistance-transcript')
+			.filter((body) => !['assistance-transcript', 'assistance-tts-script'].includes(String((body as Record<string, unknown> | null)?.kind)))
 			.map(projectBody)),
 	});
 }

@@ -60,6 +60,8 @@ const EXPECTED = Object.freeze([
 	row('subject-detection', ['frame-pack'], [['frame-pack']], ['subject-tracks']),
 	row('saliency-detection', ['frame-pack'], [['frame-pack']], ['saliency-map']),
 	row('editorial-generation', ['editorial-context'], [['editorial-context']], ['editorial-proposal']),
+	row('text-to-speech', ['text'], [['text']], ['synthesized-audio'],
+		[['text']], [], [['text']]),
 ] satisfies readonly ExpectedOperationMediaContract[]);
 
 const JOB_ID = 'a'.repeat(40);
@@ -171,7 +173,10 @@ function desktopRequest(
 		contractVersion: 1,
 		jobId: JOB_ID,
 		operation: entry.operation,
-		selectionFence: SELECTION_FENCE,
+		selectionFence: entry.operation === 'text-to-speech' ? null : SELECTION_FENCE,
+		...(entry.operation === 'text-to-speech' ? { settings: {
+			settingsVersion: 1, language: 'a', voice: 'af_heart', speed: 1,
+		} } : {}),
 		models: [model(operationIndex)],
 		inputs: route.map((role, index) => ({
 			claimVersion: 1,
@@ -237,7 +242,10 @@ function rendererRequest(
 		contractVersion: 1,
 		jobId: JOB_ID,
 		operation: entry.operation,
-		selectionFence: SELECTION_FENCE,
+		selectionFence: entry.operation === 'text-to-speech' ? null : SELECTION_FENCE,
+		...(entry.operation === 'text-to-speech' ? { settings: {
+			settingsVersion: 1, language: 'a', voice: 'af_heart', speed: 1,
+		} } : {}),
 		models: [model(operationIndex)],
 		inputs: route.map((role, index) => ({
 			claimVersion: 1,

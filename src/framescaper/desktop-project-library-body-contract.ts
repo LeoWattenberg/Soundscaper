@@ -4,7 +4,9 @@ import { SCAPE_ARCHIVE_LIMITS } from '../common/editor/scape-archive-envelope.ts
 import {
 	ASSISTANCE_ASSET_REFERENCE_LIMITS_V1,
 	ASSISTANCE_TRANSCRIPT_BODY_MIME_TYPE_V1,
-	type AssistanceTranscriptAssetReferenceV1,
+	ASSISTANCE_TTS_SCRIPT_BODY_MIME_TYPE_V1,
+	ASSISTANCE_TTS_SCRIPT_STORAGE_KEY_PREFIX_V1,
+	type AssistanceAssetReferenceV1,
 } from '../common/editor/assistance/assistance-asset-reference-v1.ts';
 import type { VideoTimingAssetReference } from '../common/editor/video-timing-asset.ts';
 import {
@@ -23,12 +25,15 @@ import {
 
 export const FRAMESCAPER_DESKTOP_ASSISTANCE_BODY_KIND = 'assistance-transcript' as const;
 export const FRAMESCAPER_DESKTOP_ASSISTANCE_BODY_ENCODING = 'assistance-transcript-v1' as const;
+export const FRAMESCAPER_DESKTOP_TTS_SCRIPT_BODY_KIND = 'assistance-tts-script' as const;
+export const FRAMESCAPER_DESKTOP_TTS_SCRIPT_BODY_ENCODING = 'canonical-json-v1' as const;
 
 export const FRAMESCAPER_DESKTOP_EXTENSION_BODY_KINDS = Object.freeze([
 	'framescaper-still', 'framescaper-freeze-render',
 	'framescaper-cube-lut', 'framescaper-motion-analysis',
 	'image-sequence-inventory', 'image-sequence-source-pack',
 	FRAMESCAPER_DESKTOP_ASSISTANCE_BODY_KIND,
+	FRAMESCAPER_DESKTOP_TTS_SCRIPT_BODY_KIND,
 ] as const);
 
 export type FramescaperDesktopExtensionBodyKind =
@@ -50,9 +55,12 @@ export interface FramescaperDesktopBodyDescriptor {
 
 export interface FramescaperDesktopAssistanceBodyDescriptor
 	extends FramescaperDesktopBodyDescriptor {
-	readonly kind: typeof FRAMESCAPER_DESKTOP_ASSISTANCE_BODY_KIND;
-	readonly encoding: typeof FRAMESCAPER_DESKTOP_ASSISTANCE_BODY_ENCODING;
-	readonly mimeType: typeof ASSISTANCE_TRANSCRIPT_BODY_MIME_TYPE_V1;
+	readonly kind: typeof FRAMESCAPER_DESKTOP_ASSISTANCE_BODY_KIND
+		| typeof FRAMESCAPER_DESKTOP_TTS_SCRIPT_BODY_KIND;
+	readonly encoding: typeof FRAMESCAPER_DESKTOP_ASSISTANCE_BODY_ENCODING
+		| typeof FRAMESCAPER_DESKTOP_TTS_SCRIPT_BODY_ENCODING;
+	readonly mimeType: typeof ASSISTANCE_TRANSCRIPT_BODY_MIME_TYPE_V1
+		| typeof ASSISTANCE_TTS_SCRIPT_BODY_MIME_TYPE_V1;
 }
 
 export interface FramescaperDesktopAssistanceBodyReference {
@@ -92,7 +100,8 @@ export function validateFramescaperDesktopBodyDescriptor(
 	value: unknown,
 ): Readonly<FramescaperDesktopBodyDescriptor> {
 	const kind = own(value as object, 'kind');
-	if (kind === FRAMESCAPER_DESKTOP_ASSISTANCE_BODY_KIND) {
+	if (kind === FRAMESCAPER_DESKTOP_ASSISTANCE_BODY_KIND
+		|| kind === FRAMESCAPER_DESKTOP_TTS_SCRIPT_BODY_KIND) {
 		return validateAssistanceBodyDescriptor(value);
 	}
 	const record = closedRecord(value, kind === 'video-proxy' ? PROXY_FIELDS : BODY_FIELDS,
@@ -179,10 +188,13 @@ export function collectFramescaperDesktopAssistanceBodyReferences(
 	project: FramescaperProject,
 ): readonly Readonly<FramescaperDesktopAssistanceBodyReference>[] {
 	const references = new Map<string, Readonly<FramescaperDesktopAssistanceBodyReference>>();
-	for (const asset of project.assistanceAssets as readonly AssistanceTranscriptAssetReferenceV1[]) {
+	for (const asset of project.assistanceAssets as readonly AssistanceAssetReferenceV1[]) {
+		const isScript = asset.kind === 'tts-script-v1';
 		const descriptor = Object.freeze({
-			kind: FRAMESCAPER_DESKTOP_ASSISTANCE_BODY_KIND,
-			encoding: FRAMESCAPER_DESKTOP_ASSISTANCE_BODY_ENCODING,
+			kind: isScript ? FRAMESCAPER_DESKTOP_TTS_SCRIPT_BODY_KIND
+				: FRAMESCAPER_DESKTOP_ASSISTANCE_BODY_KIND,
+			encoding: isScript ? FRAMESCAPER_DESKTOP_TTS_SCRIPT_BODY_ENCODING
+				: FRAMESCAPER_DESKTOP_ASSISTANCE_BODY_ENCODING,
 			sourceId: asset.body.storageKey,
 			storageKey: asset.body.storageKey,
 			mimeType: asset.body.mimeType,
@@ -198,7 +210,7 @@ export function collectFramescaperDesktopAssistanceBodyReferences(
 		}
 		references.set(descriptor.storageKey, Object.freeze({
 			descriptor,
-			name: `assistance:transcript:${asset.id}`,
+			name: `assistance:${isScript ? 'tts-script' : 'transcript'}:${asset.id}`,
 		}));
 	}
 	return Object.freeze([...references.values()]);
@@ -259,7 +271,8 @@ function assistanceExtensionReference(
 		byteLength: descriptor.byteLength,
 		sha256: descriptor.sha256,
 		maximumBytes: ASSISTANCE_ASSET_REFERENCE_LIMITS_V1.maximumBodyBytes,
-		name: `assistance:transcript:${descriptor.storageKey}`,
+		name: `assistance:${descriptor.kind === FRAMESCAPER_DESKTOP_TTS_SCRIPT_BODY_KIND
+			? 'tts-script' : 'transcript'}:${descriptor.storageKey}`,
 		timing: null,
 	});
 }
@@ -289,6 +302,7 @@ function assertKindEncoding(kind: FramescaperDesktopBodyKind, encoding: string):
 		'image-sequence-inventory': 'framescaper-image-sequence-inventory-v1',
 		'image-sequence-source-pack': 'framescaper-image-sequence-source-pack-v1',
 		'assistance-transcript': FRAMESCAPER_DESKTOP_ASSISTANCE_BODY_ENCODING,
+		'assistance-tts-script': FRAMESCAPER_DESKTOP_TTS_SCRIPT_BODY_ENCODING,
 	});
 	if (encoding !== expected[kind]) throw new TypeError(`baseline desktop ${kind} encoding is unsupported.`);
 }
@@ -320,28 +334,41 @@ function assertRoleBound(value: FramescaperDesktopBodyDescriptor): void {
 			|| value.byteLength > ASSISTANCE_ASSET_REFERENCE_LIMITS_V1.maximumBodyBytes)) {
 		throw new RangeError('Framescaper desktop transcript body exceeds its role bound.');
 	}
+	if (value.kind === FRAMESCAPER_DESKTOP_TTS_SCRIPT_BODY_KIND
+		&& (value.mimeType !== ASSISTANCE_TTS_SCRIPT_BODY_MIME_TYPE_V1
+			|| value.byteLength > ASSISTANCE_ASSET_REFERENCE_LIMITS_V1.maximumBodyBytes)) {
+		throw new RangeError('Framescaper desktop TTS script body exceeds its role bound.');
+	}
 }
 
 function validateAssistanceBodyDescriptor(
 	value: unknown,
 ): Readonly<FramescaperDesktopAssistanceBodyDescriptor> {
 	const row = closedRecord(value, BODY_FIELDS, 'Framescaper desktop transcript body');
-	const sha256 = digest(row.sha256, 'transcript body');
-	const storageKey = text(row.storageKey, 'transcript storage key');
+	const isScript = row.kind === FRAMESCAPER_DESKTOP_TTS_SCRIPT_BODY_KIND;
+	const kind = isScript ? FRAMESCAPER_DESKTOP_TTS_SCRIPT_BODY_KIND
+		: FRAMESCAPER_DESKTOP_ASSISTANCE_BODY_KIND;
+	const encoding = isScript ? FRAMESCAPER_DESKTOP_TTS_SCRIPT_BODY_ENCODING
+		: FRAMESCAPER_DESKTOP_ASSISTANCE_BODY_ENCODING;
+	const mimeType = isScript ? ASSISTANCE_TTS_SCRIPT_BODY_MIME_TYPE_V1
+		: ASSISTANCE_TRANSCRIPT_BODY_MIME_TYPE_V1;
+	const sha256 = digest(row.sha256, 'assistance body');
+	const storageKey = text(row.storageKey, 'assistance storage key');
 	const byteLength = bodyLength(row.byteLength);
-	if (row.encoding !== FRAMESCAPER_DESKTOP_ASSISTANCE_BODY_ENCODING
-		|| row.mimeType !== ASSISTANCE_TRANSCRIPT_BODY_MIME_TYPE_V1
-		|| storageKey !== `assistance-transcript-sha256:${sha256}`
+	if (row.kind !== kind || row.encoding !== encoding || row.mimeType !== mimeType
+		|| storageKey !== `${isScript ? ASSISTANCE_TTS_SCRIPT_STORAGE_KEY_PREFIX_V1
+			: 'assistance-transcript-sha256:'}${sha256}`
 		|| row.sourceId !== storageKey
 		|| byteLength > ASSISTANCE_ASSET_REFERENCE_LIMITS_V1.maximumBodyBytes) {
-		throw new TypeError('The Framescaper desktop transcript descriptor is invalid.');
+		throw new TypeError(isScript
+			? 'The Framescaper desktop TTS script descriptor is invalid.'
+			: 'The Framescaper desktop transcript descriptor is invalid.');
 	}
 	return Object.freeze({
-		kind: FRAMESCAPER_DESKTOP_ASSISTANCE_BODY_KIND,
-		encoding: FRAMESCAPER_DESKTOP_ASSISTANCE_BODY_ENCODING,
+		kind, encoding,
 		sourceId: storageKey,
 		storageKey,
-		mimeType: ASSISTANCE_TRANSCRIPT_BODY_MIME_TYPE_V1,
+		mimeType,
 		byteLength,
 		sha256,
 	});

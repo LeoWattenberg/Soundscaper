@@ -8,8 +8,11 @@ These expensive checks use `playwright.nightly-local-assistance.config.mjs` and
 in the normal Node suite validate the case manifest, output checks, package
 integration, and generated documentation without downloading models.
 
-Desktop packaging supplies native-engine inputs for all 21 published models. ONNX
-Runtime 1.29.0 is staged from the integrity-verified official npm packages with
+Desktop packaging supplies native-engine inputs for the 21 previously published
+models. Kokoro's ONNX engine is staged, but its offline G2P helper is not yet
+packaged, so speech generation remains unavailable.
+
+ONNX Runtime 1.29.0 is staged from the integrity-verified official npm packages with
 target-specific file hashes in `config/assistance-onnx-runtime-payloads.json`.
 Whisper v1.9.3 is built from pinned source on the package runner; its executable,
 license, and build provenance are recorded in the package's authenticated runtime
@@ -20,7 +23,7 @@ Node-API wrapper using `config/assistance-sherpa-win-arm64-build.json` and the
 recipe's verified native libraries. Each generated model guide lists the exact
 platform intersection between the model catalog and native packaging support.
 
-The required suite now includes **19 cases covering 21 published model identities**.
+The required suite now includes **20 cases covering 22 published model identities**.
 The catalog admits the eight additional models with exact entry and artifact
 SHA-256 pins: wav2vec2 alignment, TIGER, room dereverberation, PANNs, both Beat
 This variants, TransNetV2, and Qwen3. Their catalog-task register marks
@@ -41,10 +44,11 @@ out of JSON output. These changes have input, output, and patch hashes in the
 build receipt. Qwen's production worker still validates strict JSON and candidate
 authority. Packaging the engine does not itself publish the model weights.
 
-All 21 published models are admitted on Windows ARM64 now that the package
-generates and authenticates its Sherpa and ONNX runtime closures. Their cases run
-on Windows ARM64 instead of reporting catalog platform skips. The committed
-catalog keeps its exact artifact pins, and the package-specific nightly report
+All 22 published models are admitted on Windows ARM64. The existing Sherpa and
+ONNX runtime closures are generated and authenticated by the package. Kokoro's
+offline G2P runtime is unavailable on all five targets, so its new required case
+fails until that helper is built, authenticated, and connected. The committed
+catalog keeps exact artifact pins, and the package-specific nightly report
 records whether inference actually passed on that build and machine.
 
 The source runtime-family register describes package-generated targets.
@@ -64,7 +68,7 @@ platform; retain the report from the actual package run.
   matching the desktop app: **x64** for the x64 package or **ARM64** for the ARM64
   package. ONNX and Sherpa require these runtime libraries; model downloads do
   not include them. Using the distributed app does not require Visual Studio.
-- Allow approximately **5.32 GiB** for the 21 published model downloads, plus
+- Allow approximately **5.65 GiB** for the 22 published model downloads, plus
   packaged runtimes, installation working space, fixtures, and reports. Model
   files come from the public catalog URLs; no model-service account, API key,
   download token, or other secret is required. Qwen alone accounts for about
@@ -77,13 +81,15 @@ platform; retain the report from the actual package run.
   graphical session. The tests use hidden windows and a loopback debugger.
 
 The dedicated configuration runs one worker, without retries, with a 30-minute
-timeout per case. Nineteen cases cover 21 required identities: speaker diarization
+timeout per case. Twenty cases cover 22 required identities: speaker diarization
 and subject detection each execute a pair, and SigLIP2's frame case executes both
 its vision network and text network. Both Beat This variants run independently.
 Word alignment supplies speech and a known transcript; separation expects three
 stems; dereverberation supplies reflected speech; tagging supplies speech;
 beat tracking supplies synthesized rhythmic music; TransNetV2 receives a visual
-cut; Qwen receives two existing editorial candidates. See the
+cut; Qwen receives two existing editorial candidates; Kokoro receives a fixed
+text script and must produce audible speech once its offline G2P helper is
+available. See the
 [case manifest](../config/local-model-real-test-cases.json) and
 [fixture provenance](../tests/electron/local-assistance-models/fixtures/README.md).
 

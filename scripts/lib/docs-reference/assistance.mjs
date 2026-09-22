@@ -41,6 +41,7 @@ const TASK_LABELS = Object.freeze({
 	'speaker-segmentation': 'Speaker segmentation',
 	'speaker-embedding': 'Speaker embedding',
 	'speech-enhancement': 'Speech enhancement',
+	'text-to-speech': 'Text to speech',
 	dereverberation: 'Dereverberation',
 	'source-separation': 'Source separation',
 	'audio-tagging': 'Audio tagging',
@@ -144,7 +145,11 @@ export function renderAssistanceReference({
 			id: operation,
 		}))
 		.sort((left, right) => compareText(left.label, right.label))
-		.map((operation) => [operation.label, `\`${operation.id}\``, `\`advanced:${operation.id}\``]);
+		.map((operation) => [
+			operation.label,
+			`\`${operation.id}\``,
+			operation.id === 'text-to-speech' ? 'Generate > Text to Speech…' : `\`advanced:${operation.id}\``,
+		]);
 
 	const body = [
 		`Local assistance is available in ${productSentence(enabledProducts)}. Models are stored in a directory you choose on your own filesystem, and every run happens on your device; nothing about your media is sent anywhere.`,
@@ -160,7 +165,7 @@ export function renderAssistanceReference({
 		'',
 		'## Operations',
 		'',
-		'Each operation has the advanced entry below for use without a surrounding workflow. Execution requires its model and a compatible packaged native engine; an entry alone does not establish current availability.',
+		'Each operation has the menu entry below for use without a surrounding workflow. Execution requires its model and a compatible packaged native engine; an entry alone does not establish current availability.',
 		'',
 		table(['Operation', 'Operation ID', 'Run on its own as'], operationRows),
 		'',

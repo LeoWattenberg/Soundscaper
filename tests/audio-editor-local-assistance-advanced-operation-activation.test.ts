@@ -24,10 +24,12 @@ import { createLocalAssistanceAdvancedWorkflowSessionStore } from
 const JOB_ID = '9a'.repeat(20);
 const SOURCE_SHA256 = '7b'.repeat(32);
 const MAXIMUM_OUTPUT_BYTES = 64 * 1024 * 1024;
+const ADVANCED_OPERATIONS = ASSISTANCE_OPERATIONS.filter(
+	(operation): operation is Exclude<AssistanceOperation, 'text-to-speech'> => operation !== 'text-to-speech');
 
 test('every one of the 16 Advanced primitives stages one closed valid workflow recipe', async () => {
-	assert.equal(OPERATION_FIXTURES.size, ASSISTANCE_OPERATIONS.length);
-	for (const operation of ASSISTANCE_OPERATIONS) {
+	assert.equal(OPERATION_FIXTURES.size, ADVANCED_OPERATIONS.length);
+	for (const operation of ADVANCED_OPERATIONS) {
 		const fixture = OPERATION_FIXTURES.get(operation)!;
 		let ordinal = 0;
 		const events: string[] = [];
@@ -73,7 +75,7 @@ test('every one of the 16 Advanced primitives stages one closed valid workflow r
 });
 
 test('Advanced UI selection enables every inventoried primitive with its exact installed model roles', async () => {
-	const models = ASSISTANCE_OPERATIONS.flatMap((operation) => {
+	const models = ADVANCED_OPERATIONS.flatMap((operation) => {
 		const fixture = OPERATION_FIXTURES.get(operation)!;
 		return fixture.models.map((task, index) => model(task, index + 1));
 	}).filter((candidate, index, values) => values.findIndex(({ modelId }) => (
@@ -87,18 +89,18 @@ test('Advanced UI selection enables every inventoried primitive with its exact i
 		bridge: { models: async () => models, workflow } as never,
 		preparation: { listSelectedMedia: async () => ({ sources: [
 			{ sourceId: 'audio-source', label: 'Audio', mediaKind: 'audio',
-				operations: ASSISTANCE_OPERATIONS.filter((operation) => (
+				operations: ADVANCED_OPERATIONS.filter((operation) => (
 					OPERATION_FIXTURES.get(operation)!.mediaKind === 'audio'
 				)) },
 			{ sourceId: 'video-source', label: 'Video', mediaKind: 'video',
-				operations: ASSISTANCE_OPERATIONS.filter((operation) => (
+				operations: ADVANCED_OPERATIONS.filter((operation) => (
 					OPERATION_FIXTURES.get(operation)!.mediaKind === 'video'
 				)) },
 		] }), prepareSelectedMedia: async () => null,
 		prepareAdvancedWorkflow: async () => null } as never,
 	});
 	await store.load();
-	for (const operation of ASSISTANCE_OPERATIONS) {
+	for (const operation of ADVANCED_OPERATIONS) {
 		const sourceId = OPERATION_FIXTURES.get(operation)!.mediaKind === 'audio'
 			? 'audio-source' : 'video-source';
 		store.selectSource(sourceId);

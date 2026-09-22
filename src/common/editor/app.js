@@ -101,10 +101,9 @@ import { createControllerOwnedStateComposition } from './controller/composition/
 import { createTransportComposition } from './controller/transport/transport-composition.ts';
 import { createProjectAdminService } from './controller/document/project-admin-service.ts';
 import { bindProjectAdministrationActions } from './controller/document/project-admin-action-binding.ts';
-import { createEditComposition } from './controller/edit/edit-composition.ts';
+import { createEditComposition } from './controller/edit/edit-composition.ts'; import { createLazyTextToSpeechProjectPort } from './controller/assistance/lazy-text-to-speech-project-port.ts';
 import { createImportComposition } from './controller/import/import-composition.ts';
 import { createSourceRuntimeComposition } from './controller/source/source-runtime-composition.ts';
-
 import { calculateAudioEditorMetronomeSchedule } from './controller/transport/transport-model.ts';
 
 export { calculateAudioEditorMetronomeSchedule } from './controller/transport/transport-model.ts';
@@ -642,6 +641,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		prepareCommittedTimePitchCaches: bindings.prepareCommittedTimePitchCaches,
 	});
 
+	const textToSpeechProjectPort = createLazyTextToSpeechProjectPort({ getProject: () => documentState.project, getSelectedClipId: () => state.selectedClipId, getPlayheadFrame: () => state.positionFrame, createId: createStableId, commit: bindings.commit, preflightStorage: bindings.preflightStorage, store });
 	return {
 		ready,
 		get project() { return state.history?.present ?? null; },
@@ -660,7 +660,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		getTelemetrySnapshot: bindings.getTelemetrySnapshot, subscribeTelemetry: telemetryChannel.subscribe,
 		getLocalDiagnosticsSnapshot: state.localDiagnostics.snapshot, recordLocalDiagnosticError: state.localDiagnostics.record,
 		getClipVisualData: bindings.getClipVisualData,
-		getProjectBinClipVisualData: bindings.getProjectBinClipVisualData, selectedMediaPreparation: effects.audio.selectedMediaPreparation,
+		getProjectBinClipVisualData: bindings.getProjectBinClipVisualData, selectedMediaPreparation: effects.audio.selectedMediaPreparation, textToSpeechProjectPort,
 		actions, presentationLocalization: localization.port,
 		dispose: () => { disposeLocalization(); return disposeResources(); },
 	};

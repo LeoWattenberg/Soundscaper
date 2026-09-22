@@ -9,6 +9,7 @@ import {
 	replaceRenderedClips,
 	updateClip,
 } from './clip-basic-runtime.js';
+import { regenerateTtsClip } from './clip-tts-regeneration-runtime.js';
 import {
 	groupClips,
 	joinClips,
@@ -41,6 +42,7 @@ export function createClipRangeClipboardRuntimeHandlers() {
 		'clip/remove-many': (project, command) => removeClips(project, command.clipIds, command.rippleMode),
 		'clip/update': (project, command) => updateClip(project, command.clipId, command.changes),
 		'clip/replace-source': (project, command) => replaceClipSource(project, command.clipId, command.sourceId),
+		'clip/regenerate-tts': (project, command) => regenerateTtsClip(project, command.clipId, command.sourceId),
 		'clip/render-replace-many': replaceRenderedClips,
 		'clip/move': moveClip,
 		'clip/transform-many': transformClips,

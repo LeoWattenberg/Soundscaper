@@ -92,6 +92,7 @@ export const AUDIO_EDITOR_COMMAND_TYPES = [
 	'clip/remove-many',
 	'clip/update',
 	'clip/replace-source',
+	'clip/regenerate-tts',
 	'clip/render-replace-many',
 	'clip/move',
 	'clip/transform-many',
@@ -292,6 +293,7 @@ type LegacyNonBatchAudioEditorCommandPayloads = {
 	readonly 'clip/remove-many': { readonly clipIds: readonly string[]; readonly rippleMode?: ClipRippleMode };
 	readonly 'clip/update': { readonly clipId: string; readonly changes: CommandObject };
 	readonly 'clip/replace-source': { readonly clipId: string; readonly sourceId: string };
+	readonly 'clip/regenerate-tts': { readonly clipId: string; readonly sourceId: string };
 	readonly 'clip/render-replace-many': {
 		readonly entries: readonly Readonly<{ clipId: string; source: CommandObject }>[];
 		readonly rippleMode?: 'none' | 'track';

@@ -25,6 +25,7 @@ import {
 	createAssistanceTranscriptBodyReferenceV1,
 	normalizeAssistanceAssetReferencesV1,
 	validateAssistanceAssetSourceBindingsV1,
+	type AssistanceAssetReferenceV1,
 	type AssistanceTranscriptAssetReferenceV1,
 	type AssistanceTranscriptBodyReferenceV1,
 } from './assistance-asset-reference-v1.ts';
@@ -175,13 +176,13 @@ async function stageImportAssets(
 		const targetSourceId = currentAssets[0]!.sourceId;
 		const material = reboundMaterial(transcript, archiveBytes, currentAssets, targetSourceId);
 		await stageBody(material, request);
-		for (const asset of currentAssets) nextById.set(asset.id, createAssistanceAssetReferenceV1({
+		for (const asset of currentAssets) nextById.set(asset.id, createTranscriptReference({
 			...asset,
 			body: material.reference,
 		}));
 	}
 	request.project.assistanceAssets = normalizeAssistanceAssetReferencesV1(
-		current.assets.map(({ id }) => nextById.get(id)!),
+		current.allAssets.map((asset) => nextById.get(asset.id) ?? asset),
 	);
 }
 
@@ -278,7 +279,7 @@ function reboundMaterial(
 		byteLength: bytes.byteLength,
 		sha256,
 	});
-	const reboundAssets = assets.map((asset) => createAssistanceAssetReferenceV1({
+	const reboundAssets = assets.map((asset) => createTranscriptReference({
 		...asset,
 		body: reference,
 	}));
@@ -411,13 +412,16 @@ function authenticateTranscriptBody(
 
 function projectAssets(project: unknown): Readonly<{
 	readonly assets: readonly Readonly<AssistanceTranscriptAssetReferenceV1>[];
+	readonly allAssets: readonly Readonly<AssistanceAssetReferenceV1>[];
 	readonly sampleRate: number;
 }> {
 	const record = dataRecord(project, 'assistance transcript project');
-	const assets = normalizeAssistanceAssetReferencesV1(record.assistanceAssets);
-	validateAssistanceAssetSourceBindingsV1(assets, record.sources);
+	const allAssets = normalizeAssistanceAssetReferencesV1(record.assistanceAssets);
+	validateAssistanceAssetSourceBindingsV1(allAssets, record.sources);
+	const assets = Object.freeze(allAssets.filter((asset): asset is AssistanceTranscriptAssetReferenceV1 =>
+		asset.kind === 'transcript-v1'));
 	const sampleRate = positiveInteger(record.sampleRate, 'project sample rate');
-	return Object.freeze({ assets, sampleRate });
+	return Object.freeze({ assets, allAssets, sampleRate });
 }
 
 function bodyGroups(
@@ -449,7 +453,8 @@ function plannedAuthority(asset: PlannedScapeExportAsset): Readonly<{
 	readonly sampleRate: number;
 }> {
 	const source = asset.source as Readonly<Record<string, unknown>>;
-	const references = normalizeAssistanceAssetReferencesV1(source.assistanceReferences);
+	const references = normalizeAssistanceAssetReferencesV1(source.assistanceReferences).filter(
+		(reference): reference is AssistanceTranscriptAssetReferenceV1 => reference.kind === 'transcript-v1');
 	const sampleRate = positiveInteger(source.projectSampleRate, 'planned transcript sample rate');
 	const groups = bodyGroups(references);
 	if (groups.length !== 1) throw new Error('A planned transcript body lost its single-body authority.');
@@ -469,7 +474,7 @@ function reboundAsset(
 	sourceIdMap: ReadonlyMap<string, string>,
 ): Readonly<AssistanceTranscriptAssetReferenceV1> {
 	if (!currentValue) throw new Error(`Rebound assistance asset ${original.id} is missing.`);
-	const current = createAssistanceAssetReferenceV1(currentValue);
+	const current = createTranscriptReference(currentValue);
 	const expectedSourceId = sourceIdMap.get(original.sourceId) ?? original.sourceId;
 	if (current.sourceId !== expectedSourceId
 		|| !sameBodyReference(current.body, original.body)
@@ -493,13 +498,10 @@ function sameReferenceApartFromRebind(
 }
 
 // Body grouping reorders equal-body references, so identity is compared by ID.
-function sameAssetCollection(
-	left: readonly Readonly<AssistanceTranscriptAssetReferenceV1>[],
-	right: readonly Readonly<AssistanceTranscriptAssetReferenceV1>[],
-): boolean {
+function sameAssetCollection(left: readonly Readonly<AssistanceTranscriptAssetReferenceV1>[],
+	right: readonly Readonly<AssistanceTranscriptAssetReferenceV1>[]): boolean {
 	const byId = new Map(left.map((asset) => [asset.id, JSON.stringify(asset)]));
-	return left.length === right.length
-		&& right.every((asset) => byId.get(asset.id) === JSON.stringify(asset));
+	return left.length === right.length && right.every((asset) => byId.get(asset.id) === JSON.stringify(asset));
 }
 
 function assertStoredMetadata(
@@ -545,32 +547,30 @@ function importValidation(value: unknown): AssistanceTranscriptScapeValidationV1
 	return value as AssistanceTranscriptScapeValidationV1;
 }
 
-function sameBodyReference(
-	left: Readonly<AssistanceTranscriptBodyReferenceV1>,
-	right: Readonly<AssistanceTranscriptBodyReferenceV1>,
-): boolean {
+function sameBodyReference(left: Readonly<AssistanceTranscriptBodyReferenceV1>,
+	right: Readonly<AssistanceTranscriptBodyReferenceV1>): boolean {
 	return left.storageKey === right.storageKey && left.mimeType === right.mimeType
 		&& left.byteLength === right.byteLength && left.sha256 === right.sha256;
 }
 
+function createTranscriptReference(value: AssistanceTranscriptAssetReferenceV1): Readonly<AssistanceTranscriptAssetReferenceV1> {
+	const reference = createAssistanceAssetReferenceV1(value);
+	if (reference.kind !== 'transcript-v1') throw new TypeError('An assistance transcript reference changed kind.');
+	return reference;
+}
+
 function sameBytes(left: Uint8Array, right: Uint8Array): boolean {
 	if (left.byteLength !== right.byteLength) return false;
-	for (let index = 0; index < left.byteLength; index += 1) {
-		if (left[index] !== right[index]) return false;
-	}
+	for (let index = 0; index < left.byteLength; index += 1) if (left[index] !== right[index]) return false;
 	return true;
 }
 
 function dataRecord(value: unknown, name: string): Record<string, unknown> {
-	if (!value || typeof value !== 'object' || Array.isArray(value)) {
-		throw new TypeError(`${name} must be an object.`);
-	}
+	if (!value || typeof value !== 'object' || Array.isArray(value)) throw new TypeError(`${name} must be an object.`);
 	return value as Record<string, unknown>;
 }
 
 function positiveInteger(value: unknown, name: string): number {
-	if (!Number.isSafeInteger(value) || Number(value) < 1) {
-		throw new RangeError(`${name} must be a positive safe integer.`);
-	}
+	if (!Number.isSafeInteger(value) || Number(value) < 1) throw new RangeError(`${name} must be a positive safe integer.`);
 	return Number(value);
 }

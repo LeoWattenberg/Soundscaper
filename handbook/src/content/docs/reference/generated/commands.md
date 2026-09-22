@@ -476,6 +476,7 @@ Product availability follows each product profile’s command filters and each l
 | Support | `local://support` | — | Help | Soundscaper, Framescaper | Soundscaper local |
 | Swap stereo channels | `track-swap-channels` | — | Track context | Soundscaper, Framescaper | Audacity |
 | Switch camera | `multicamera-switch` | — | Tracks > Multicamera | Framescaper | Soundscaper local |
+| Text to Speech… | `text-to-speech` | — | Generate | Soundscaper, Framescaper | Soundscaper local |
 | Time signature | `playback-time-signature` | — | Transport toolbar | Soundscaper, Framescaper | Audacity |
 | Toggle Developer Tools | `desktop-toggle-dev-tools` | — | View | Soundscaper, Framescaper | Soundscaper local |
 | Toggle spectral view | `action://trackedit/global-view-spectrogram` | — | View; Tools toolbar | Soundscaper, Framescaper | Audacity |

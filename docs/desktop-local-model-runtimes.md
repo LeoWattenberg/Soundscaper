@@ -1,7 +1,7 @@
 # Building the desktop local-model runtimes
 
-Users install model weights from **Tools → Model Manager** and run them through
-the existing Local Assistance menus. The desktop application includes the
+Users install model weights from **Tools → Model Manager** and access operations
+through their menus. The desktop application includes the
 engines; users do not need Node.js, Python, CMake, or an inference server.
 Windows installations also need the Microsoft Visual C++ Redistributable for
 their architecture (x64 or ARM64), required by the native ONNX libraries. Use
@@ -38,7 +38,7 @@ No model weights are bundled or downloaded during ordinary application builds.
 | Engine | Models |
 | --- | --- |
 | Sherpa ONNX 1.13.5 | Silero VAD, both Parakeet models, Pyannote segmentation and ERes2Net speaker embeddings |
-| ONNX Runtime Node 1.29.0 | DeepFilterNet3, YuNet, D-FINE, U²-Net-P, PP-OCRv4, Nomic, SigLIP2, wav2vec2, TIGER-DnR, PANNs CNN10, both Beat This checkpoints, TransNetV2 and Dereverb Room |
+| ONNX Runtime Node 1.29.0 | DeepFilterNet3, YuNet, D-FINE, U²-Net-P, PP-OCRv4, Nomic, SigLIP2, wav2vec2, TIGER-DnR, PANNs CNN10, both Beat This checkpoints, TransNetV2, Dereverb Room and Kokoro |
 | whisper.cpp v1.9.3 | Whisper large-v3 turbo GGML |
 | llama.cpp b10509 | Qwen3 4B Q4_K_M |
 
@@ -62,10 +62,14 @@ Sherpa JavaScript package and official ARM64 libraries. The package receipt
 records the source, compiler and resulting file hashes. Other platforms retain
 the existing upstream Sherpa package inventories.
 
-The current digest-pinned model catalog admits all 21 models on Windows ARM64
+The current digest-pinned model catalog admits all 22 models on Windows ARM64
 as well as macOS ARM64, Linux x64/ARM64 and Windows x64. Catalog admission
 and package-runtime authentication remain independent checks; building an
 engine does not override either one.
+
+Kokoro's ONNX inference engine is staged, but its offline G2P helper is not
+packaged or connected yet. Installing the model files therefore does not enable
+speech synthesis on any target.
 
 ## Package integrity
 
@@ -98,6 +102,8 @@ signed application archive.
 The normal Node suite checks provisioning, integrity failures and model-output
 validators without downloading weights. The computationally intensive suite is
 separate: [real model nightly tests](local-model-nightly-tests.md) downloads and
-executes every published model through the desktop bridge. It checks useful,
+attempts every published model through the desktop bridge. Kokoro's required
+case currently fails because its offline G2P runtime is unavailable. The suite
+checks useful,
 nonempty outputs; audio must be finite, audible and different from its input.
 These checks establish execution, not recognition or restoration quality.

@@ -32,6 +32,31 @@ test('real speech checks accept varying words but reject empty or out-of-range r
 	assert.equal(validateModelOutput('speaker-turns', json({ sampleRate: 16_000, turns: [{ speakerId: 0, startSample: 0, sampleCount: 16_000 }] }), speech).turns, 1);
 });
 
+test('real Kokoro output requires an audible canonical 24 kHz mono PCM16 WAV', () => {
+	const input = { bytes: Buffer.from('Hello from Soundscaper.'), role: 'text' };
+	const voiced = Int16Array.from({ length: 24_000 }, (_, index) =>
+		Math.round(Math.sin(index * 2 * Math.PI * 220 / 24_000) * 10_000));
+	const wave = pcm16Wave(voiced, 24_000);
+	const result = validateModelOutput('synthesized-audio', wave, input);
+	assert.equal(result.sampleRate, 24_000);
+	assert.equal(result.frames, voiced.length);
+	assert.ok(result.rms > 0.1);
+	assert.throws(() => validateModelOutput('synthesized-audio', pcm16Wave(new Int16Array(24_000), 24_000), input), /silent/u);
+	assert.throws(() => validateModelOutput('synthesized-audio', pcm16Wave(voiced, 16_000), input), /24,?000/u);
+	assert.throws(() => validateModelOutput('synthesized-audio', wave.subarray(0, 44), input), /WAV|data/u);
+});
+
+function pcm16Wave(samples, sampleRate) {
+	const bytes = Buffer.alloc(44 + samples.length * 2);
+	bytes.write('RIFF', 0); bytes.writeUInt32LE(bytes.length - 8, 4); bytes.write('WAVEfmt ', 8);
+	bytes.writeUInt32LE(16, 16); bytes.writeUInt16LE(1, 20); bytes.writeUInt16LE(1, 22);
+	bytes.writeUInt32LE(sampleRate, 24); bytes.writeUInt32LE(sampleRate * 2, 28);
+	bytes.writeUInt16LE(2, 32); bytes.writeUInt16LE(16, 34);
+	bytes.write('data', 36); bytes.writeUInt32LE(samples.length * 2, 40);
+	for (const [index, sample] of samples.entries()) bytes.writeInt16LE(sample, 44 + index * 2);
+	return bytes;
+}
+
 test('visual checks reject empty detections and stale frame authority', () => {
 	const authority = { width: 512, height: 512, timescale: 30, frames: [{ sourceFrame: 0, presentationTick: '0' }] };
 	const input = { ...speech, authority };

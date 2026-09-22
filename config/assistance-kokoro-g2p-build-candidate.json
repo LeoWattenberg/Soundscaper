@@ -1,0 +1,30 @@
+{
+	"schemaVersion": 1,
+	"status": "source-only-unprovisioned",
+	"entrypointSource": "desktop/assistance-kokoro-g2p-helper.py",
+	"targetIds": ["mac-arm64", "linux-x64", "linux-arm64", "win-x64", "win-arm64"],
+	"runtimePlan": {
+		"kind": "frozen-offline-subprocess",
+		"builder": "PyInstaller on each target with a locked Python dependency closure",
+		"winArm64Fallback": "win-x64 frozen helper under Windows 11 ARM x64 process emulation; never load x64 dependencies into the ARM64 Node worker"
+	},
+	"sourceRevisions": {
+		"kokoro": "dfb907a02bba8152ca444717ca5d78747ccb4bec",
+		"misaki": "fba1236595f2d2bf21d414ba6e57d25256afada3"
+	},
+	"requiredOfflineClosure": [
+		"CPython and all imported shared libraries",
+		"Kokoro 0.9.4 and Misaki 0.9.4 Python sources",
+		"PyTorch and Transformers imported by the publisher pipeline even with model=False",
+		"spaCy en_core_web_sm and Misaki English lexicon data",
+		"eSpeak NG library and data with phonemizer-fork and espeakng-loader",
+		"Fugashi, Unidic, jaconv, mojimoji and pyopenjtalk for Japanese",
+		"jieba, pypinyin, pypinyin-dict and cn2an for Mandarin"
+	],
+	"publicationBlockedBy": [
+		"Locked, hash-pinned per-target Python build environment and complete notices",
+		"Frozen executable plus dependency/data file hashes for each target",
+		"Authenticated spawn integration with the ONNX assistance worker",
+		"Per-target offline text-to-WAV canaries for all nine language variants"
+	]
+}

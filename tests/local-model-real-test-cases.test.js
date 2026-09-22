@@ -23,8 +23,15 @@ const runtimeSources = { nativeRuntime, onnxRuntime, sherpaArm64Build,
 	llamaBuild: { version: LLAMA_RUNTIME_VERSION, targets: LLAMA_RUNTIME_BUILD_TARGETS } };
 test('real model cases cover every published and explicitly required candidate model', () => {
 	const cases = validateLocalModelRealTestCases(manifest, catalog, options);
-	assert.equal(cases.length, 19);
-	assert.equal(new Set(cases.flatMap(({ modelIds }) => modelIds)).size, 21);
+	assert.equal(cases.length, 20);
+	assert.equal(new Set(cases.flatMap(({ modelIds }) => modelIds)).size, 22);
+	const speech = cases.find(({ operation }) => operation === 'text-to-speech');
+	assert.ok(speech);
+	assert.deepEqual({
+		fixtureId: speech.fixtureId,
+		validation: speech.validation,
+		modelIds: speech.modelIds,
+	}, { fixtureId: 'tts-script', validation: 'synthesized-audio', modelIds: ['kokoro-82m-v1.0'] });
 	assert.deepEqual(cases.find(({ operation }) => operation === 'speaker-diarization').modelIds,
 		['pyannote-segmentation-3.0', 'speech-3d-speaker-eres2net']);
 	assert.deepEqual(cases.find(({ operation }) => operation === 'subject-detection').modelIds,
@@ -56,7 +63,7 @@ test('real model cases reject duplicates, foreign models, and a mismatched fixtu
 
 test('every model handbook page stays derived from its real test and catalog', async () => {
 	const result = await generateLocalModelTestDocuments(root, { write: false });
-	assert.equal(result.documentCount, 22);
+	assert.equal(result.documentCount, 23);
 	assert.deepEqual(result.stale, []);
 });
 
@@ -64,6 +71,7 @@ test('every published model has packaged runtime support reflected in its guide'
 	const availability = catalog.entries.map((entry) => ({ entry,
 		...localModelRuntimeAvailability(entry, runtimeSources) }));
 	for (const { entry, availablePlatforms, familyId } of availability) {
+		if (entry.modelId === 'kokoro-82m-v1.0') continue;
 		assert.ok(availablePlatforms.includes('linux-x64'), `${entry.modelId} must be usable on Linux x64.`);
 		const page = await readFile(resolve(root,
 			`handbook/src/content/docs/reference/local-models/${entry.modelId}.md`), 'utf8');
@@ -88,9 +96,27 @@ test('every real model case is admitted on all five supported desktop targets', 
 		const availability = localModelRuntimeAvailability(entry, runtimeSources);
 		for (const platform of ['darwin-arm64', 'linux-arm64', 'linux-x64', 'win32-arm64', 'win32-x64']) {
 			assert.ok(entry.platforms.includes(platform), `${id}: ${modelId} must not be skipped on ${platform}.`);
+			if (modelId === 'kokoro-82m-v1.0') {
+				assert.ok(availability.missingPlatforms.includes(platform), `${id}: offline G2P must fail closed on ${platform}.`);
+				continue;
+			}
 			assert.ok(availability.availablePlatforms.includes(platform), `${id}: ${modelId} must have native packaging support on ${platform}.`);
 		}
 	}
+});
+
+test('Kokoro documentation and runtime status disclose the missing offline G2P closure', async () => {
+	const entry = catalog.entries.find(({ modelId }) => modelId === 'kokoro-82m-v1.0');
+	assert.ok(entry);
+	const availability = localModelRuntimeAvailability(entry, runtimeSources);
+	assert.equal(availability.blockedBy, 'kokoro-offline-g2p-unprovisioned');
+	assert.deepEqual(availability.availablePlatforms, []);
+	assert.deepEqual(availability.missingPlatforms, entry.platforms);
+	const page = await readFile(resolve(root,
+		'handbook/src/content/docs/reference/local-models/kokoro-82m-v1.0.md'), 'utf8');
+	assert.match(page, /offline Kokoro G2P helper is not built or wired/u);
+	assert.match(page, /processing cannot currently complete/u);
+	assert.doesNotMatch(page, /Install this model.s weights through Model Manager, then run its task locally/u);
 });
 
 test('published former candidates retain required test coverage and exact task metadata', () => {
@@ -128,7 +154,8 @@ test('Windows ARM64 catalog admission requires its package-generated native runt
 		{ ...runtimeSources, sherpaArm64Build: undefined }).missingPlatforms.includes('win32-arm64'));
 	const nightly = await readFile(resolve(root, 'docs/local-model-nightly-tests.md'), 'utf8');
 	assert.doesNotMatch(nightly, /Windows ARM64 catalog approval.*pending|separate reviewed platform update/iu);
-	assert.match(nightly, /All 21 published models.*Windows ARM64/isu);
+	assert.match(nightly, /22 published model identities/iu);
+	assert.match(nightly, /Kokoro.*G2P.*unavailable/isu);
 });
 
 test('native availability follows packaged file inventories and build recipes', () => {

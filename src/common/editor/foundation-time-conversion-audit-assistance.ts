@@ -30,6 +30,12 @@ const ASSISTANCE_SITES: readonly FoundationTimeConversionSite[] = [
 		conversions: [{ helper: 'scaleSampleFrame', policies: ['point'] }],
 	},
 	{
+		id: 'local-text-to-speech-project-duration',
+		file: 'src/common/editor/controller/assistance/local-assistance-text-to-speech-project-service.ts',
+		behavior: 'Generated speech resolves its complete 24 kHz source length to the nearest project-rate frame count when placing a new track.',
+		conversions: [{ helper: 'scaleSampleFrame', policies: ['point'] }],
+	},
+	{
 		id: 'local-assistance-beat-conversion',
 		file: 'src/common/editor/controller/assistance/internal/local-assistance-beat-acceptance.ts',
 		behavior: 'Reviewed beats point-resolve the selected source extent at the model rate and place each accepted downbeat on the nearest project frame, because a beat marks an instant rather than a span.',
@@ -80,4 +86,3 @@ const ASSISTANCE_SITES: readonly FoundationTimeConversionSite[] = [
 ];
 
 export const FOUNDATION_TIME_CONVERSION_ASSISTANCE_SITES = deepFreezeAuditSites(ASSISTANCE_SITES);
-

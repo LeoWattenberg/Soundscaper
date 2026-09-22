@@ -12,6 +12,7 @@ export const CLIP_RANGE_CLIPBOARD_COMMAND_TYPES = [
 	'clip/remove-many',
 	'clip/update',
 	'clip/replace-source',
+	'clip/regenerate-tts',
 	'clip/render-replace-many',
 	'clip/move',
 	'clip/transform-many',

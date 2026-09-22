@@ -37,3 +37,12 @@ test('editorial fixture binds generated text to known candidates without grantin
 	assert.equal(plan.authorizedCandidateIds.length, 2);
 	assert.ok(plan.evidence.every((entry) => entry.transcriptExcerpt || entry.visualSummary));
 });
+
+test('text-to-speech fixture has exact UTF-8 script and a matching English voice', async () => {
+	const input = await prepareModelInput('tts-script');
+	assert.equal(input.role, 'text');
+	assert.equal(input.mediaType, 'text/plain');
+	assert.equal(input.bytes.toString('utf8'), 'Hello from Soundscaper. This is a local speech test.');
+	assert.deepEqual(input.settings, { settingsVersion: 1, language: 'a', voice: 'af_heart', speed: 1 });
+	assert.equal(input.frameCount, 1);
+});

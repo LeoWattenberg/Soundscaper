@@ -2,6 +2,8 @@
 
 import { createAssistanceTranscriptScapeProjectAssetExtensionV1 } from
 	'../common/editor/assistance/transcript-scape-asset-extension-v1.ts';
+import { createAssistanceTtsScriptScapeProjectAssetExtensionV1 } from
+	'../common/editor/assistance/tts-script-scape-asset-extension-v1.ts';
 import { composeScapeProjectAssetExtensions } from
 	'../common/editor/scape-project-asset-extension-composition.ts';
 import type { ScapeProjectAssetExtension } from '../common/editor/scape-project-asset-extension.ts';
@@ -12,5 +14,6 @@ export function createSoundscaperScapeProjectAssetExtension(): Readonly<ScapePro
 	return composeScapeProjectAssetExtensions([
 		createSoundscaperNativePluginStateScapeExtension(),
 		createAssistanceTranscriptScapeProjectAssetExtensionV1(),
+		createAssistanceTtsScriptScapeProjectAssetExtensionV1(),
 	]);
 }

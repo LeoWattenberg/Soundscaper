@@ -182,7 +182,7 @@ test('recipe and model digests are derived from the selected closed graph and ex
 		/recipe version/iu);
 });
 
-test('workflow IDs close every guided recipe and one advanced recipe per primitive operation', () => {
+test('workflow IDs close every guided recipe and one advanced recipe per workflow operation', () => {
 	assert.deepEqual(ASSISTANCE_GUIDED_WORKFLOW_IDS, [
 		'transcribe-captions',
 		'clean-filler-silence',
@@ -199,12 +199,12 @@ test('workflow IDs close every guided recipe and one advanced recipe per primiti
 		'make-highlights',
 		'generate-editorial-text',
 	]);
-	assert.equal(ADVANCED_ASSISTANCE_WORKFLOW_IDS.length, ASSISTANCE_OPERATIONS.length);
+	const workflowOperations = ASSISTANCE_OPERATIONS.filter((operation) => operation !== 'text-to-speech');
 	assert.deepEqual(
 		ADVANCED_ASSISTANCE_WORKFLOW_IDS,
-		ASSISTANCE_OPERATIONS.map((operation) => `advanced:${operation}`),
+		workflowOperations.map((operation) => `advanced:${operation}`),
 	);
-	assert.equal(ASSISTANCE_WORKFLOW_IDS.length, ASSISTANCE_GUIDED_WORKFLOW_IDS.length + 16);
+	assert.equal(ASSISTANCE_WORKFLOW_IDS.length, ASSISTANCE_GUIDED_WORKFLOW_IDS.length + workflowOperations.length);
 	assert.equal(normalizeAssistanceWorkflowId('mark-cuts'), 'mark-cuts');
 	assert.throws(() => normalizeAssistanceWorkflowId('arbitrary-pipeline'), /workflow/iu);
 	assert.equal(ASSISTANCE_OPERATION_CONTRACT_VERSION, 1, 'operation-v1 remains independently supported');
