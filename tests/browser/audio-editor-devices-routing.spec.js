@@ -6,7 +6,6 @@ import {
 	toneB,
 } from './audio-editor-test-fixtures.js';
 import {
-	addRackEffect,
 	bootEditor,
 	chooseCommandAction,
 	chooseDropdown,
@@ -463,7 +462,14 @@ test.describe('audio editor React/design-system workflows', () => {
 
 		await mixer.locator('.kw-audio-editor__mixer-channel--send .mixer-effect--empty .mixer-effect__dropdown').first().click();
 		const effectsPanel = page.locator('.audio-editor-effects-overlay');
-		await addRackEffect(page, effectsPanel, 'track', 'Reverb');
+		// The dock can be shorter than its rack, so open the picker by keyboard.
+		const rackButton = effectsPanel.locator('[data-effect-rack]')
+			.getByRole('button', { name: 'Effects', exact: true }).first();
+		await rackButton.focus();
+		await rackButton.press('Enter');
+		const picker = page.getByRole('menu', { name: 'Choose an effect', exact: true });
+		await expect(picker).toBeVisible();
+		await picker.getByRole('menuitem', { name: 'Reverb', exact: true }).click();
 		await expect(mixer.locator('.kw-audio-editor__mixer-channel--send .mixer-effect--enabled')).toContainText('Reverb');
 		expect(errors).toEqual([]);
 	});
