@@ -184,7 +184,6 @@ test('critical functional manifest surfaces have semantic menu registry entries'
 		'toggle-loop-region', 'clear-loop-region', 'set-loop-region-to-selection', 'set-loop-region-in-out',
 		'toggle-rms-in-waveform', 'record-on-new-track', 'action://record/pause',
 		'action://record/lead-in-recording', 'set-up-timed-recording',
-		'toggle-sound-activated-recording', 'set-sound-activation-level',
 		'metronome', 'track-resample', 'repeat-last-effect',
 		'online-handbook', 'local://support', 'revert-factory', 'about-audacity',
 	];

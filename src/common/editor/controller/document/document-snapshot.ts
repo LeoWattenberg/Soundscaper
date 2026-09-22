@@ -110,7 +110,7 @@ export interface EditorDocumentSnapshotState {
 	readonly activeTimedRecording: TimedRecordingSnapshot | null;
 	readonly timedRecordingCancelling: boolean;
 	readonly recorder: unknown;
-	readonly recordingKind: 'ordinary' | 'take-cycle' | null;
+	readonly recordingKind: 'ordinary' | 'sound-activated' | 'take-cycle' | null;
 	readonly takeCycleRecovery: TakeCyclePendingOpenRecovery | null;
 	readonly recordingPreview: unknown;
 	readonly recordingPreviews: readonly unknown[];

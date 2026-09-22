@@ -45,12 +45,14 @@ test('record menu admits only an exact Soundscaper routed loop capture', () => {
 		['read only', { readOnly: true }, 'read-only'],
 		['busy', { recordingStarting: true }, 'busy'],
 		['disabled loop', { project: project({ loop: { enabled: false, startFrame: 0, endFrame: 48_000 } }) }, 'loop'],
-		['sound activation', { recordingInputs: inputs({ soundActivationEnabled: true }) }, 'sound-activation'],
 		['locked target', { project: project({ locked: true }) }, 'tracks'],
 		['missing route', { recordingInputs: inputs({ routed: false }) }, 'routing'],
 	] as const) {
 		assert.equal(selectTakeCycleStartAdmission({ ...snapshot, ...update }).reason, reason, label);
 	}
+	assert.deepEqual(selectTakeCycleStartAdmission({
+		...snapshot, recordingInputs: inputs({ soundActivationEnabled: true }),
+	}), { allowed: true, reason: null });
 	assert.deepEqual(createTakeCycleRecordingMenuItems({
 		snapshot: { ...snapshot, productId: 'framescaper' }, copy: ENGLISH_COPY,
 		start: () => undefined, openRecovery: () => undefined,
@@ -107,7 +109,7 @@ test('workspace auto-offers each authority once and keeps recovery menu-only', a
 	const [workspace, toolbar, transport, overlays, hook, css] = await Promise.all([
 		readFile(new URL('../src/common/editor/ui/workspace/AudioEditorWorkspace.jsx', import.meta.url), 'utf8'),
 		readFile(new URL('../src/common/editor/ui/toolbar/EditorToolToolbar.jsx', import.meta.url), 'utf8'),
-		readFile(new URL('../src/common/editor/ui/toolbar/AudioEditorTransportControls.jsx', import.meta.url), 'utf8'),
+		readFile(new URL('../src/common/editor/ui/toolbar/RecordFlyout.jsx', import.meta.url), 'utf8'),
 		readFile(new URL('../src/common/editor/ui/workspace/AudioEditorWorkspaceOverlays.jsx', import.meta.url), 'utf8'),
 		readFile(new URL('../src/common/editor/ui/use-take-cycle-recovery-surface.ts', import.meta.url), 'utf8'),
 		readFile(new URL('../src/common/editor/ui/audio-editor-design-system/28-take-cycle-recovery.css', import.meta.url), 'utf8'),
@@ -126,18 +128,15 @@ test('workspace auto-offers each authority once and keeps recovery menu-only', a
 
 test('pending recovery visibly blocks ordinary recording mutations and cycle pause', async () => {
 	const [transport, toolbar] = await Promise.all([
-		readFile(new URL('../src/common/editor/ui/toolbar/AudioEditorTransportControls.jsx', import.meta.url), 'utf8'),
+		readFile(new URL('../src/common/editor/ui/toolbar/RecordFlyout.jsx', import.meta.url), 'utf8'),
 		readFile(new URL('../src/common/editor/ui/toolbar/TransportToolbarGroup.jsx', import.meta.url), 'utf8'),
 	]);
 	assert.match(transport, /const recoveryBlocked = Boolean\(snapshot\.takeCycleRecovery\)/u);
-	assert.match(transport, /const ordinaryRecording = snapshot\.recordingKind !== 'take-cycle'/u);
-	assert.match(transport, /disabled: !snapshot\.recording \|\| !ordinaryRecording/u);
 	assert.match(transport, /const recordingInputBlocked = recoveryBlocked \|\| snapshot\.recording/u);
-	assert.match(transport, /label: copy\.monitor,[\s\S]{0,100}disabled: recoveryBlocked/u);
-	assert.match(transport, /label: copy\.recordingOffset, disabled: recoveryBlocked/u);
-	assert.match(transport, /label: copy\.timedRecording,[\s\S]{0,100}disabled: recoveryBlocked/u);
-	assert.match(transport, /label: copy\.soundActivatedRecording,[\s\S]{0,120}disabled: recoveryBlocked/u);
-	assert.match(transport, /label: copy\.soundActivationLevel,[\s\S]{0,100}disabled: recoveryBlocked/u);
+	assert.match(transport, /disabled=\{recoveryBlocked \|\| snapshot\.recordingStarting\}/u);
+	assert.match(transport, /disabled=\{actionBlocked\}/u);
+	assert.match(transport, /disabled=\{!soundActivation \|\| recoveryBlocked\}/u);
+	assert.doesNotMatch(transport, /recordingOffset|refreshInputs|releaseInputs/u);
 	assert.match(toolbar, /disabled=\{Boolean\(snapshot\.takeCycleRecovery\) \|\| snapshot\.readOnly/u);
 });
 

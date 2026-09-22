@@ -94,7 +94,6 @@ test('every Audacity action has a roadmap disposition with actionable ownership'
 	);
 	for (const id of [
 		'insert', 'project-properties',
-		'toggle-sound-activated-recording', 'set-sound-activation-level',
 		'menu-selection-spectral', 'toggle-spectral-selection', 'spectral-brush',
 		'select-previous-clip', 'select-next-clip', 'skip-to-selection-start',
 		'skip-to-selection-end', 'local://select-no-tracks',
@@ -135,69 +134,24 @@ test('upstream disabled and TODO actions stay explicit, inert, and user-explaina
 	}
 });
 
-test('sound activation parity actions expose real handlers and guarded enablement', () => {
-	const toggle = audacityActionDefinition('toggle-sound-activated-recording');
-	assert.equal(toggle.status, AUDACITY_ACTION_STATUS.IMPLEMENTED);
-	assert.equal(toggle.handler, 'recording.toggleSoundActivation');
-	assert.equal(toggle.enableWhen, 'sound-activation-preferences-mutable');
-	assert.equal(toggle.shortcut, null);
-	const level = audacityActionDefinition('set-sound-activation-level');
-	assert.equal(level.status, AUDACITY_ACTION_STATUS.IMPLEMENTED);
-	assert.equal(level.handler, 'recording.openSoundActivation');
-	assert.equal(level.enableWhen, 'sound-activation-preferences-available');
-
-	const context = {
-		snapshot: {
-			productId: 'soundscaper',
-			project: { tracks: [], clips: [] },
-			readOnly: false,
-			recordingInputs: { soundActivation: {
-				preferences: { enabled: false, thresholdDb: -40, hysteresisDb: 6, holdMilliseconds: 250 },
-				preferenceMutationBlocked: false,
-				preferenceMutationBlockReason: null,
-				sources: [],
-			} },
-		},
-	};
-	assert.equal(evaluateAudacityActionEnablement(toggle.id, context), true);
-	assert.equal(evaluateAudacityActionEnablement(level.id, context), true);
-	const pending = structuredClone(context);
-	pending.snapshot.recordingInputs.soundActivation.preferenceMutationBlocked = true;
-	pending.snapshot.recordingInputs.soundActivation.preferenceMutationBlockReason = 'preference-update';
-	assert.equal(evaluateAudacityActionEnablement(toggle.id, pending), false);
-	assert.equal(evaluateAudacityActionEnablement(level.id, pending), true);
-	const readOnly = structuredClone(context);
-	readOnly.snapshot.readOnly = true;
-	assert.equal(evaluateAudacityActionEnablement(toggle.id, readOnly), false);
-	assert.equal(evaluateAudacityActionEnablement(level.id, readOnly), true);
-	const framescaper = structuredClone(context);
-	framescaper.snapshot.productId = 'framescaper';
-	assert.equal(evaluateAudacityActionEnablement(toggle.id, framescaper), false);
-	assert.equal(evaluateAudacityActionEnablement(level.id, framescaper), false);
-
-	const actionRuntime = {
-		recording: {
-			toggleSoundActivation: () => true,
-			openSoundActivation: () => true,
-		},
-	};
+test('legacy sound activation commands are excluded from menus and shortcuts', () => {
+	for (const id of ['toggle-sound-activated-recording', 'set-sound-activation-level']) {
+		const definition = audacityActionDefinition(id);
+		assert.equal(definition.status, AUDACITY_ACTION_STATUS.EXCLUDED);
+		assert.equal(definition.handler, null);
+		assert.equal(definition.shortcut, null);
+		assert.equal(definition.roadmapDisposition, AUDACITY_ACTION_ROADMAP_DISPOSITION.JUSTIFIED_EXCLUDED);
+	}
 	const [record] = applyAudacityParityToMenus([{
-		id: 'record',
-		label: 'Record',
-		items: [
-			{ id: toggle.id, label: 'stale toggle label' },
-			{ id: level.id, label: 'stale level label' },
+		id: 'record', label: 'Record', items: [
+			{ id: 'toggle-sound-activated-recording', label: 'Old toggle' },
+			{ id: 'set-sound-activation-level', label: 'Old level' },
 		],
-	}], { actionRuntime, actionContext: context });
-	assert.deepEqual(record.items.map(({ label, disabled }) => [label, disabled]), [
-		['Sound-activated recording', undefined],
-		['Sound activation level', undefined],
-	]);
-	assert.strictEqual(record.items[0].onClick, actionRuntime.recording.toggleSoundActivation);
-	assert.strictEqual(record.items[1].onClick, actionRuntime.recording.openSoundActivation);
-	const commands = new Map(collectAudacityShortcutCommands([record]).map((command) => [command.id, command]));
-	assert.equal(commands.get(toggle.id).disabled, false);
-	assert.equal(commands.get(level.id).disabled, false);
+	}], { actionRuntime: { recording: {} }, actionContext: { snapshot: {} } });
+	assert.deepEqual(record.items, []);
+	assert.deepEqual(collectAudacityShortcutCommands([record]).filter(({ id }) => (
+		id === 'toggle-sound-activated-recording' || id === 'set-sound-activation-level'
+	)), []);
 });
 
 test('spectral selection and brush actions are native, state-guarded menu workflows', () => {

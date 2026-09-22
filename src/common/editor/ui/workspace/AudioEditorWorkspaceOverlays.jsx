@@ -69,7 +69,6 @@ export default function AudioEditorWorkspaceOverlays({ model }) {
 		copy,
 		dialog,
 		displayAudioSupported,
-		dialogSourceKey,
 		dialogTrackId,
 		dialogValue,
 		effectWindow,
@@ -87,7 +86,6 @@ export default function AudioEditorWorkspaceOverlays({ model }) {
 		scapeOpenDecision,
 		setActiveSurface,
 		setDialog,
-		setDialogSourceKey,
 		setDialogValue,
 		setEffectWindow,
 		setMacroDraft,
@@ -525,8 +523,6 @@ export default function AudioEditorWorkspaceOverlays({ model }) {
 					type={dialog}
 					value={dialogValue}
 					onValueChange={setDialogValue}
-					sourceKey={dialogSourceKey}
-					onSourceKeyChange={setDialogSourceKey}
 					trackId={dialogTrackId}
 					controller={controller}
 					snapshot={snapshot}

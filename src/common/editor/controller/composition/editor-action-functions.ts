@@ -243,6 +243,7 @@ export interface EditorActionFunctions {
 	readonly splitAtFrame: ReturnType<typeof createEditComposition>['clipboard']['splitAtFrame'];
 	readonly splitStereoTrack: ReturnType<typeof createTrackAudioComposition>['splitStereoTrack'];
 	readonly startRecording: ReturnType<typeof createRecordingComposition>['session']['startRecording'];
+	readonly startSoundActivatedRecording: ReturnType<typeof createRecordingComposition>['session']['startSoundActivatedRecording'];
 	readonly startRecordingOnNewTrack: ReturnType<typeof createRecordingComposition>['session']['startRecordingOnNewTrack'];
 	readonly startTakeCycleRecording: ReturnType<typeof createRecordingComposition>['session']['startTakeCycleRecording'];
 	readonly stopProjectBinPreview: ReturnType<typeof createImportComposition>['projectBin']['stopProjectBinPreview'];

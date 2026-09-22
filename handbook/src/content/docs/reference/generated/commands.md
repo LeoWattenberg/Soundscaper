@@ -444,8 +444,6 @@ Product availability follows each product profile’s command filters and each l
 | Solo/Unsolo Focused Track | `track-solo` | Shift+S | Track context | Soundscaper, Framescaper | Audacity |
 | Sort by name | `sort-by-name` | — | Tracks > Sort tracks | Soundscaper, Framescaper | Audacity |
 | Sort by time | `sort-by-time` | — | Tracks > Sort tracks | Soundscaper, Framescaper | Audacity |
-| Sound activation level | `set-sound-activation-level` | — | Record | Soundscaper | Audacity |
-| Sound-activated recording | `toggle-sound-activated-recording` | — | Record | Soundscaper | Audacity |
 | Soundscaper | `workspace-modern` | — | View > Workspace | Soundscaper | Soundscaper local |
 | Soundscaper Help | `desktop-product-help-soundscaper` | — | Help | Soundscaper | Soundscaper local |
 | Source monitor | `panel-source-monitor` | — | View > Panels | Soundscaper, Framescaper | Soundscaper local |

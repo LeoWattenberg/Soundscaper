@@ -10,7 +10,6 @@ export type TakeCycleStartBlockReason =
 	| 'read-only'
 	| 'busy'
 	| 'loop'
-	| 'sound-activation'
 	| 'tracks'
 	| 'routing';
 
@@ -44,8 +43,6 @@ export function selectTakeCycleStartAdmission(snapshot: DataRecord): Readonly<Ta
 		|| !nonNegativeSafeInteger(loop.endFrame)
 		|| Number(loop.endFrame) <= Number(loop.startFrame)) return blocked('loop');
 	const inputs = dataRecord(snapshot.recordingInputs);
-	const activation = dataRecord(dataRecord(inputs?.soundActivation)?.preferences);
-	if (activation?.enabled === true) return blocked('sound-activation');
 	const tracks = dataRecords(project.tracks);
 	const armed = tracks.filter(({ type, armed }) => type === 'audio' && armed === true);
 	if (!armed.length || armed.some(({ locked }) => locked === true)) return blocked('tracks');

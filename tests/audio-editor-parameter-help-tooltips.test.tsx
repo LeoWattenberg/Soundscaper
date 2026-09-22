@@ -7,7 +7,7 @@ import React, { act } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 
 import EditorHelpTooltip from '../src/common/editor/ui/EditorHelpTooltip.tsx';
-import SoundActivationPreferences from '../src/common/editor/ui/SoundActivationPreferences.tsx';
+import SoundActivationSettings from '../src/common/editor/ui/SoundActivationSettings.tsx';
 import PlaybackRecordingPreferencesPage from '../src/common/editor/ui/dialogs/PlaybackRecordingPreferencesPage.jsx';
 import { SelectionEffectsDialog } from '../src/common/editor/ui/inspector/SelectionEffectsDialog.jsx';
 import { ENGLISH_COPY } from '../src/common/i18n/catalogs.js';
@@ -47,7 +47,7 @@ test('the selection effect dialog carries no standing prose beside its parameter
 // A slider explains itself through its own help affordance, so the description
 // stays reachable without occupying a line under every control.
 test('sound activation parameters describe themselves through help tooltips', async () => {
-	const mounted = await mount(<SoundActivationPreferences
+	const mounted = await mount(<SoundActivationSettings
 		productId="soundscaper"
 		locale="en"
 		readOnly={false}
@@ -60,7 +60,6 @@ test('sound activation parameters describe themselves through help tooltips', as
 		const container = mounted.dom.container;
 		assert.equal(container.querySelectorAll('small').length, 0);
 		for (const [hook, description] of [
-			['sound-activation', ENGLISH_COPY.soundActivationDescription],
 			['sound-activation-threshold', ENGLISH_COPY.soundActivationThresholdDescription],
 			['sound-activation-hysteresis', ENGLISH_COPY.soundActivationHysteresisDescription],
 			['sound-activation-hold', ENGLISH_COPY.soundActivationHoldDescription],
@@ -89,8 +88,6 @@ test('the keep-inputs-open preference keeps its description outside the tooltip'
 		controller={recordingPreferencesController()}
 		snapshot={recordingPreferencesSnapshot()}
 		copy={ENGLISH_COPY}
-		locale="en"
-		productId="soundscaper"
 		run={(operation: () => unknown) => operation()}
 	/>);
 

@@ -2,7 +2,7 @@
 	"schemaVersion": 2,
 	"locale": "tr",
 	"provenance": {
-		"machine": {"model":"gpt-5","modelDigest":"sha256:bade7a363793e89b04a33dcd9d5f8d3e961a8b5da21f97275e2dabe2eada320c","promptVersion":"i18n-machine-v1"},
+		"machine": {"model":"codex","modelDigest":"sha256:c8a26bd3984b1efb4463534cbd3690b85d47c2fd212d5442ae7d275e49105603","promptVersion":"i18n-machine-v1"},
 		"audacity": {"repository":"audacity/audacity","headSha":"de2e43dc13474ba712ade5ea8e47550eba0e8bfb","runId":35327911264,"artifactId":10539339149,"workflowUrl":"https://github.com/audacity/audacity/actions/runs/35327911264","archiveName":"Audacity_locale_262610911.zip","archiveSha256":"13b1ff11c39a677c711a1d29738a394aaca7a200533927aab3f45bbd76c1ff8e","archiveByteLength":15413913,"licenseSpdx":"GPL-3.0-only","upstreamProjectUrl":"https://github.com/audacity/audacity","upstreamLicenseUrl":"https://github.com/audacity/audacity/blob/de2e43dc13474ba712ade5ea8e47550eba0e8bfb/LICENSE.txt","modificationNotice":"Soundscaper converts reviewed Audacity Qt TS messages to per-locale JSON catalogs, excludes unsafe or inapplicable entries, adapts reviewed placeholders and mnemonics, and removes ellipsis punctuation.","mappingVersion":3,"mappingSha256":"f4cf0434f47eaa9434d079a1623b9d9501e9c8da0d83f0c73344f7765113b57c"}
 	},
 	"entries": {
@@ -1443,6 +1443,7 @@
 		"layoutCompact": ["machine","Compact (menus and track headers in drawers)","Kompakt (menüler ve iz başlıkları çekmecelerde)"],
 		"layoutDesktop": ["machine","Desktop","Masaüstü"],
 		"leadInTime": ["machine","Enable lead-in time","Giriş süresini etkinleştir"],
+		"leadInTimeOption": ["machine","Lead-in time","Giriş süresi"],
 		"leftAtPlayback": ["machine","Left at playback position","Oynatma konumunda sol"],
 		"leftChannel": ["machine","Left","Sol"],
 		"legacyEffects": ["machine","Legacy effects","Eski etkiler"],
@@ -1985,6 +1986,7 @@
 		"recordLevel": ["machine","Record level","Kayıt düzeyi"],
 		"recordMenu": ["machine","Record","Kayıt"],
 		"recordNewTrack": ["machine","Record new track","Yeni ize kaydet"],
+		"recordToNewTrack": ["machine","Record to new track","Yeni bir ize kaydet"],
 		"recording": ["machine","Recording","Kayıt yapılıyor"],
 		"recordingAllowInputs": ["machine","Enable microphones","Mikrofonları etkinleştir"],
 		"recordingAssignInput": ["machine","Assign an input to at least one armed track before recording.","Kaydetmeden önce en az bir kayda hazır ize giriş atayın."],
@@ -2463,6 +2465,7 @@
 		"timeSignature": ["machine","Time signature","Ölçü birimi"],
 		"timecode": ["audacity","Timecode","Zaman kodu"],
 		"timedRecording": ["machine","Set up timed recording","Zamanlı kaydı ayarla"],
+		"timedRecordingAction": ["machine","Timed recording","Zamanlı kayıt"],
 		"timedRecordingAssignedInputsUnavailable": ["machine","Every assigned recording input must remain available for timer recording.","Zamanlayıcılı kayıt için atanmış tüm kayıt girişleri kullanılabilir durumda kalmalıdır."],
 		"timedRecordingCancel": ["machine","Cancel scheduled recording","Zamanlanmış kaydı iptal et"],
 		"timedRecordingCancelled": ["machine","Scheduled recording cancelled.","Zamanlanmış kayıt iptal edildi."],

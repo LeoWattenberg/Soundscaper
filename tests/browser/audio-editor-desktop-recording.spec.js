@@ -75,7 +75,7 @@ test.describe('desktop audio recording', () => {
 		await expect(setup.getByRole('button', { name: 'Choose a different display source', exact: true })).toBeVisible();
 		await setup.getByRole('radio', { name: 'Stereo', exact: true }).check();
 		await page.keyboard.press('Escape');
-		const record = editor.getByRole('button', { name: 'Record onto the active track', exact: true });
+		const record = editor.locator('[data-transport="record"] .kw-audio-editor__split-button-main button');
 		await record.click();
 		await expect(record).toHaveAttribute('aria-pressed', 'true');
 		await expect.poll(async () => Number(await editor.getByRole('meter', { name: 'Input level', exact: true })
@@ -109,7 +109,7 @@ test.describe('desktop audio recording', () => {
 		await setup.getByRole('combobox', { name: 'Microphone', exact: true }).selectOption('display');
 		await setup.getByRole('radio', { name: 'Stereo', exact: true }).check();
 		await page.keyboard.press('Escape');
-		const record = editor.getByRole('button', { name: 'Record onto the active track', exact: true });
+		const record = editor.locator('[data-transport="record"] .kw-audio-editor__split-button-main button');
 		await record.click();
 		await expect(record).toHaveAttribute('aria-pressed', 'true');
 		expect(await page.evaluate(() => window.__desktopFocusBehavior)).toBe('no-focus-change');
@@ -131,7 +131,7 @@ test.describe('desktop audio recording', () => {
 			await page.keyboard.press('Escape');
 			await page.evaluate((next) => { window.__desktopCaptureOutcome = next; }, outcome);
 			const statusHeight = (await editor.locator('[data-selection-toolbar]').boundingBox()).height;
-			const record = editor.getByRole('button', { name: 'Record onto the active track', exact: true });
+			const record = editor.locator('[data-transport="record"] .kw-audio-editor__split-button-main button');
 			await record.click();
 			await expect(editor.locator('[data-editor-toast="workspace-error"]')
 				.getByText(outcome === 'failure'

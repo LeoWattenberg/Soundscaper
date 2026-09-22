@@ -199,7 +199,7 @@ export interface EditorSnapshot {
 	readonly selectedAnnotationId: EditorId | null;
 	readonly timelineAnnotations: readonly RuntimeTimelineAnnotationProjection[];
 	readonly recordingInputs: EditorRecordingInputSnapshot;
-	readonly recordingKind: 'ordinary' | 'take-cycle' | null;
+	readonly recordingKind: 'ordinary' | 'sound-activated' | 'take-cycle' | null;
 	readonly takeCycleRecovery: TakeCyclePendingOpenRecovery | null;
 	readonly capture: Readonly<FramescaperCaptureSessionSnapshot> | null;
 	readonly webVcr: Readonly<FramescaperWebVcrUiSnapshot> | null;

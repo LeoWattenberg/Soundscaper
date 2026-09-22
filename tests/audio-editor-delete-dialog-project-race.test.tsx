@@ -31,7 +31,6 @@ test('delete confirmation cannot target a project activated after the prompt ope
 		type="delete"
 		value=""
 		onValueChange={() => undefined}
-		onSourceKeyChange={() => undefined}
 		trackId={null}
 		controller={controller}
 		snapshot={{ project: { id: projectId }, recordingInputs: {} }}
@@ -91,7 +90,6 @@ test('a mutation dialog stays open when the shared runner reports a synchronous 
 			type="rename"
 			value="New project name"
 			onValueChange={() => undefined}
-			onSourceKeyChange={() => undefined}
 			trackId={null}
 			controller={controller}
 			snapshot={{ project: { id: 'project-a' }, recordingInputs: {} }}
@@ -151,7 +149,6 @@ test('the track-rate dialog waits for async action success before closing', asyn
 			type="track-rate"
 			value="96000"
 			onValueChange={() => undefined}
-			onSourceKeyChange={() => undefined}
 			trackId="track-a"
 			controller={controller}
 			snapshot={{ project: { id: 'project-a' }, recordingInputs: {} }}

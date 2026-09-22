@@ -100,7 +100,6 @@ async function mountedResampleDialog() {
 				type: 'resample',
 				value,
 				onValueChange: () => undefined,
-				onSourceKeyChange: () => undefined,
 				trackId: 'track-a',
 				controller,
 				snapshot: { project: { id: 'project-a' }, selectedTrackId: 'track-a', recordingInputs: {} },

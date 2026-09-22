@@ -53,8 +53,6 @@ const plannedActionMilestones: Readonly<Record<string, string>> = Object.freeze(
 	'toggle-spectral-selection': '3',
 	'skip-to-selection-start': '3',
 	'skip-to-selection-end': '3',
-	'toggle-sound-activated-recording': '3',
-	'set-sound-activation-level': '3',
 	'menu-align': '3',
 	'align-end-to-end': '3',
 	'align-together': '3',

@@ -1,7 +1,6 @@
 import { expect, test } from './audio-editor-test-fixtures.js';
 import {
 	bootEditor,
-	getMenuItem,
 	registerAudioEditorHooks,
 } from './audio-editor-test-helpers.js';
 
@@ -62,31 +61,34 @@ test.describe('audio editor timed recording', () => {
 		await page.addInitScript(() => {
 			globalThis.__timedInputRequests = 0;
 			globalThis.__timedInputTrackStopped = false;
-			let readyState = 'live';
-			const track = new EventTarget();
-			Object.defineProperties(track, {
-				kind: { value: 'audio' },
-				readyState: { get: () => readyState },
-				getSettings: { value: () => ({ channelCount: 1, sampleRate: 48_000 }) },
-				stop: { value: () => {
-					if (readyState === 'ended') return;
-					readyState = 'ended';
-					globalThis.__timedInputTrackStopped = true;
-					track.dispatchEvent(new Event('ended'));
-				} },
-			});
-			const stream = {
-				getAudioTracks: () => [track],
-				getTracks: () => [track],
-			};
 			Object.defineProperty(navigator, 'mediaDevices', {
 				configurable: true,
 				value: {
 					enumerateDevices: async () => [],
 					getUserMedia: () => {
 						globalThis.__timedInputRequests += 1;
+						const context = new AudioContext();
+						const destination = context.createMediaStreamDestination();
+						const oscillator = context.createOscillator();
+						oscillator.connect(destination);
+						oscillator.start();
+						void context.resume().catch(() => undefined);
+						const [track] = destination.stream.getAudioTracks();
+						const nativeStop = track.stop.bind(track);
+						const nativeGetSettings = track.getSettings.bind(track);
+						Object.defineProperties(track, {
+							getSettings: { configurable: true, value: () => ({ ...nativeGetSettings(),
+								channelCount: destination.channelCount, sampleRate: context.sampleRate }) },
+							stop: { configurable: true, value: () => {
+								if (track.readyState === 'ended') return;
+								globalThis.__timedInputTrackStopped = true;
+								nativeStop();
+								oscillator.stop();
+								void context.close().catch(() => undefined);
+							} },
+						});
 						return new Promise((resolve) => {
-							globalThis.__resolveTimedInput = () => resolve(stream);
+							globalThis.__resolveTimedInput = () => resolve(destination.stream);
 						});
 					},
 				},
@@ -94,10 +96,8 @@ test.describe('audio editor timed recording', () => {
 		});
 		const editor = await bootEditor(page, '/embed/en/');
 		await editor.getByRole('button', { name: 'Record options', exact: true }).click();
-		await getMenuItem(
-			page.getByRole('menu', { name: 'Record options', exact: true }),
-			'Set up timed recording',
-		).click();
+		await page.getByRole('dialog', { name: 'Record options', exact: true })
+			.getByRole('button', { name: 'Timed recording', exact: true }).click();
 		const dialog = page.getByRole('dialog', { name: 'Set up timed recording', exact: true });
 		await expect(dialog).toBeVisible();
 		await expect(dialog).not.toContainText('opens the recording input immediately');
@@ -135,10 +135,15 @@ test.describe('audio editor timed recording', () => {
 		await expect(durationInput.locator('[data-timecode-direct-entry="true"]')).toBeDisabled();
 		await dialog.getByRole('button', { name: 'Schedule recording', exact: true }).click();
 		await expect.poll(() => page.evaluate(() => globalThis.__timedInputRequests)).toBe(1);
-		await dialog.getByRole('button', { name: 'Cancel', exact: true }).click();
+		await page.evaluate(() => globalThis.__resolveTimedInput());
+		await expect(dialog).toBeHidden();
+		await editor.getByRole('button', { name: 'Record options', exact: true }).click();
+		await page.getByRole('dialog', { name: 'Record options', exact: true })
+			.getByRole('button', { name: 'Timed recording', exact: true }).click();
+		await expect(dialog).toBeVisible();
+		await dialog.getByRole('button', { name: 'Cancel scheduled recording', exact: true }).click();
 		await expect(dialog).toBeHidden();
 		await expect(editor.locator('[data-status]')).toContainText('Scheduled recording cancelled');
-		await page.evaluate(() => globalThis.__resolveTimedInput());
 		await expect.poll(() => page.evaluate(() => globalThis.__timedInputTrackStopped)).toBe(true);
 		await expect(editor.locator('[data-transport="record"] .kw-audio-editor__split-button-main button')).toHaveAttribute('aria-pressed', 'false');
 	});

@@ -6,7 +6,6 @@ import { NumberStepper } from '@soundscaper/design-system/NumberStepper';
 import { TextInput } from '@soundscaper/design-system/TextInput';
 
 import AudioEditorDialogShell from '../AudioEditorDialogShell.tsx';
-import AudioEditorTimeCodeInput from '../AudioEditorTimeCodeInput.tsx';
 import TimedRecordingDialogFields from './TimedRecordingDialogFields.tsx';
 import { runAwaitedAudioEditorOperation } from '../workspace/audio-editor-workspace-runner.ts';
 import { formatDate } from '../workspace-runtime.js';
@@ -23,13 +22,12 @@ import {
 	formatDeliveryReportSummary,
 	deliveryReportItems,
 	parseTrackSampleRate,
-	recordingOffsetSources,
 	TRACK_RATE_DIALOG_INVALID_RATE,
 	TRACK_RATE_DIALOG_MISSING_TRACK,
 } from './editor-dialog-model.js';
 import { timedRecordingDialogRange } from './timed-recording-dialog-model.ts';
 
-export default function EditorDialog({ type, value, onValueChange, sourceKey = 'global', onSourceKeyChange, trackId, controller, snapshot, copy, aboutLabel, locale, run, showArmControls = false, onClose }) {
+export default function EditorDialog({ type, value, onValueChange, trackId, controller, snapshot, copy, aboutLabel, locale, run, showArmControls = false, onClose }) {
 	const cancelTimedRecordingOnClose = useRef(false);
 	const projectIdAtOpen = useRef(snapshot.project?.id ?? null);
 	cancelTimedRecordingOnClose.current = type === 'timed-recording' && snapshot.recordingScheduling;
@@ -47,7 +45,6 @@ export default function EditorDialog({ type, value, onValueChange, sourceKey = '
 		rename: copy.renameProject,
 		'track-rename': copy.trackName,
 		'timed-recording': copy.timedRecording,
-		'recording-offset': copy.recordingOffset,
 		'track-rate': copy.sampleRate,
 		resample: copy.resample,
 		'aup4-compatibility': copy.aup4CompatibilityReport,
@@ -56,7 +53,6 @@ export default function EditorDialog({ type, value, onValueChange, sourceKey = '
 		'revert-factory': copy.revertFactorySettings,
 		clear: copy.clearData,
 	}[type] || copy.deleteTitle;
-	const offsetSources = recordingOffsetSources(snapshot, copy);
 	// Every dialog here confirms through the shared footer, which the shell
 	// renders as a sibling of the body rather than inside it. A submit button
 	// in the footer is therefore outside its form, so each confirm path is a
@@ -99,9 +95,6 @@ export default function EditorDialog({ type, value, onValueChange, sourceKey = '
 			(scheduled) => Boolean(scheduled),
 		);
 	};
-	const submitRecordingOffset = () => runThenClose(() => sourceKey === 'global'
-		? controller.actions.recording.setLatencyOffset(value)
-		: controller.actions.recording.setSourceOffset(sourceKey, value));
 	// The rate field is free text the controller would normalize to the editor
 	// default and resample to, so an entry it cannot parse refuses here instead.
 	const trackSampleRate = parseTrackSampleRate(value);
@@ -152,7 +145,6 @@ export default function EditorDialog({ type, value, onValueChange, sourceKey = '
 				Boolean(snapshot.scheduledRecording) || !timedRecordingReady(),
 			)}
 		</>;
-		if (type === 'recording-offset') return <>{dismiss()}{confirm(copy.save, submitRecordingOffset)}</>;
 		if (type === 'resample') return <>{dismiss()}{confirm(copy.resample, submitResample, trackSampleRate === null)}</>;
 		if (type === 'track-rate') return <>{dismiss()}{confirm(copy.save, submitTrackRate, trackSampleRate === null)}</>;
 		if (type === 'about') return confirm(copy.close, onClose);
@@ -223,28 +215,6 @@ export default function EditorDialog({ type, value, onValueChange, sourceKey = '
 						<TimedRecordingDialogFields value={value} onValueChange={onValueChange}
 							onSubmit={submitTimedRecording} scheduledRecording={snapshot.scheduledRecording}
 							copy={copy} locale={locale} />
-					)}
-					{type === 'recording-offset' && (
-						<form onSubmit={(event) => { event.preventDefault(); submitRecordingOffset(); }}>
-							<label className="kw-audio-editor-dialog__field">
-								<span>{copy.recordingOffsetSource}</span>
-								<select value={sourceKey} onChange={(event) => {
-									const nextSourceKey = event.currentTarget.value;
-									onSourceKeyChange?.(nextSourceKey);
-									onValueChange(String(nextSourceKey === 'global'
-										? snapshot.monitor?.latencyOffsetMs ?? 0
-										: snapshot.recordingInputs?.offsets?.[nextSourceKey] ?? 0));
-								}}>
-									{offsetSources.map((source) => <option key={source.key} value={source.key}>{source.label}</option>)}
-								</select>
-							</label>
-							<label className="kw-audio-editor-dialog__field">
-								<span>{copy.latencyOffset}</span>
-								<AudioEditorTimeCodeInput label={copy.latencyOffset}
-									value={Number(value)} unit="milliseconds" minimum={-500} maximum={500}
-									onChange={(next) => onValueChange(String(next))} />
-							</label>
-						</form>
 					)}
 					{type === 'resample' && (
 						<form onSubmit={(event) => { event.preventDefault(); submitResample(); }}>

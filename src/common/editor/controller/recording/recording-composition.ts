@@ -258,7 +258,7 @@ export function createRecordingComposition(dependencies: RecordingCompositionDep
 		findAudioSource: (project, mediaId) => findSource(project, mediaId),
 		trackName: (project, trackId) => findTrack(project, trackId)?.name || publishedCopyFor(copy).recordingLabel,
 		getRoutes: () => state.recordingRouting.routes,
-		soundActivationEnabled: () => soundActivation.getSnapshot().preferences.enabled,
+		soundActivationEnabled: () => state.recordingKind === 'sound-activated',
 		recordingRouteSourceKey,
 		createId: createStableId,
 		createRecordingName: (name) => `${name} ${new Date().toLocaleTimeString(locale)}`,
@@ -334,6 +334,11 @@ export function createRecordingComposition(dependencies: RecordingCompositionDep
 		publishTelemetrySnapshot: dependencies.publishTelemetrySnapshot,
 		syncRecordingPoolSnapshot,
 		resetSoundActivationSources: soundActivation.resetSources,
+		setSoundActivationCaptureEnabled: soundActivation.setCaptureEnabled,
+		canStartSoundActivatedRecording: () => {
+			const project = dependencies.getProject();
+			return Boolean(project && !activeSelectionOf(project));
+		},
 		handleError: dependencies.handleError,
 	});
 

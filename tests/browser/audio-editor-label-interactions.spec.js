@@ -143,7 +143,7 @@ test.describe('label interactions during recording', () => {
 		// Keep the selected recording interval longer than this test's 30-second budget.
 		await importFiles(editor, [halfMinuteTone]);
 		await chooseCommandAction(page, editor, 'Select', 'Select all');
-		const record = editor.getByRole('button', { name: 'Record onto the active track', exact: true });
+		const record = editor.locator('[data-transport="record"] .kw-audio-editor__split-button-main button');
 		await record.click();
 		await expect(record).toHaveAttribute('aria-pressed', 'true');
 		const playhead = editor.getByRole('slider', { name: 'Playhead' });

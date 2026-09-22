@@ -27,8 +27,6 @@ export const AUDIO_EDITOR_APPLICATION_MENU_ACTION_IDS = Object.freeze({
 	pauseRecording: 'action://record/pause',
 	leadInRecording: 'action://record/lead-in-recording',
 	setUpTimedRecording: 'set-up-timed-recording',
-	toggleSoundActivatedRecording: 'toggle-sound-activated-recording',
-	setSoundActivationLevel: 'set-sound-activation-level',
 	metronome: 'metronome',
 	trackResample: 'resample',
 	repeatLastEffect: 'repeat-effect',

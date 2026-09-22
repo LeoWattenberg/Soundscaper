@@ -47,7 +47,7 @@ test.describe('packaged Soundscaper display audio', () => {
 			await setup.getByRole('radio', { name: 'Stereo', exact: true }).check();
 			await page.keyboard.press('Escape');
 
-			const record = editor.getByRole('button', { name: 'Record onto the active track', exact: true });
+			const record = editor.locator('[data-transport="record"] .kw-audio-editor__split-button-main button');
 			await record.click();
 			await expect(record).toHaveAttribute('aria-pressed', 'true');
 			await expect.poll(async () => Number(await editor

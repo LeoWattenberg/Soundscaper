@@ -59,7 +59,7 @@ export function createControllerBindings<RenderEngine extends ClipTimePitchRende
 	const { updateRecordingDeviceRows } = deferControllerMethods(() => services.recording().routing, ['updateRecordingDeviceRows']);
 	const { addVideoClipEffect, updateVideoClipEffect, toggleVideoClipEffect, bypassVideoClipEffect, previewVideoEffectGesture, commitVideoEffectGesture } = deferControllerMethods(() => services.clips().videoEffect, ['addVideoClipEffect', 'updateVideoClipEffect', 'toggleVideoClipEffect', 'bypassVideoClipEffect', 'previewVideoEffectGesture', 'commitVideoEffectGesture']);
 	const { cancelTimedRecording } = deferControllerMethods(() => services.recording().timed, ['cancelTimedRecording']);
-	const { startRecording } = deferControllerMethods(() => services.recording().session, ['startRecording']);
+	const { startRecording, startSoundActivatedRecording } = deferControllerMethods(() => services.recording().session, ['startRecording', 'startSoundActivatedRecording']);
 	const { setVisibleTrackHeights, resizeTrackHeight } = deferControllerMethods(() => services.viewStateService(), ['setVisibleTrackHeights', 'resizeTrackHeight']);
 	const { newProject } = deferAsyncControllerMethods(() => services.projectSwitchService(), ['newProject']);
 	const { releaseProjectLock } = deferAsyncControllerMethods(() => services.projectLockService(), ['releaseProjectLock']);
@@ -128,7 +128,7 @@ export function createControllerBindings<RenderEngine extends ClipTimePitchRende
 		sampleEditingAvailable, setSampleEditMode, applySamplePencil, smoothSelectedSamples,
 		updateRecordingDeviceRows, addVideoClipEffect, updateVideoClipEffect, toggleVideoClipEffect,
 		bypassVideoClipEffect, previewVideoEffectGesture, commitVideoEffectGesture, cancelTimedRecording,
-		startRecording, setVisibleTrackHeights, resizeTrackHeight, newProject,
+		startRecording, startSoundActivatedRecording, setVisibleTrackHeights, resizeTrackHeight, newProject,
 		releaseProjectLock, requestWaveformPcmWindow, activateStoredSource, loadRecordingRouting,
 		refreshRecordingInputs, refreshAudioDevices, startRecordingOnNewTrack, scheduleTimedRecording,
 		stopProjectBinPreview, bootstrap, openProject, claimProjectLock,

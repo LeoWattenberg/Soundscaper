@@ -2,7 +2,7 @@
 	"schemaVersion": 2,
 	"locale": "id",
 	"provenance": {
-		"machine": {"model":"gpt-5","modelDigest":"sha256:eaa2688e062057fb59f8576da8968f88eb915d50249bb6f9ce4376621fac36ad","promptVersion":"i18n-machine-v1"},
+		"machine": {"model":"codex","modelDigest":"sha256:974084873a24428f69c92473ebd73a32cdcb2b49094aeecce4dd72186e339dc9","promptVersion":"i18n-machine-v1"},
 		"audacity": {"repository":"audacity/audacity","headSha":"de2e43dc13474ba712ade5ea8e47550eba0e8bfb","runId":35327911264,"artifactId":10539339149,"workflowUrl":"https://github.com/audacity/audacity/actions/runs/35327911264","archiveName":"Audacity_locale_262610911.zip","archiveSha256":"13b1ff11c39a677c711a1d29738a394aaca7a200533927aab3f45bbd76c1ff8e","archiveByteLength":15413913,"licenseSpdx":"GPL-3.0-only","upstreamProjectUrl":"https://github.com/audacity/audacity","upstreamLicenseUrl":"https://github.com/audacity/audacity/blob/de2e43dc13474ba712ade5ea8e47550eba0e8bfb/LICENSE.txt","modificationNotice":"Soundscaper converts reviewed Audacity Qt TS messages to per-locale JSON catalogs, excludes unsafe or inapplicable entries, adapts reviewed placeholders and mnemonics, and removes ellipsis punctuation.","mappingVersion":3,"mappingSha256":"f4cf0434f47eaa9434d079a1623b9d9501e9c8da0d83f0c73344f7765113b57c"}
 	},
 	"entries": {
@@ -1443,6 +1443,7 @@
 		"layoutCompact": ["machine","Compact (menus and track headers in drawers)","Ringkas (menu dan header trek dalam laci)"],
 		"layoutDesktop": ["machine","Desktop","Desktop"],
 		"leadInTime": ["machine","Enable lead-in time","Aktifkan waktu ancang-ancang"],
+		"leadInTimeOption": ["machine","Lead-in time","Waktu ancang-ancang"],
 		"leftAtPlayback": ["machine","Left at playback position","Kiri pada posisi pemutaran"],
 		"leftChannel": ["machine","Left","Kiri"],
 		"legacyEffects": ["machine","Legacy effects","Efek lama"],
@@ -1985,6 +1986,7 @@
 		"recordLevel": ["machine","Record level","Level rekam"],
 		"recordMenu": ["machine","Record","Rekam"],
 		"recordNewTrack": ["machine","Record new track","Rekam trek baru"],
+		"recordToNewTrack": ["machine","Record to new track","Rekam ke trek baru"],
 		"recording": ["machine","Recording","Merekam"],
 		"recordingAllowInputs": ["machine","Enable microphones","Aktifkan mikrofon"],
 		"recordingAssignInput": ["machine","Assign an input to at least one armed track before recording.","Tetapkan input ke setidaknya satu trek yang disiagakan sebelum merekam."],
@@ -2463,6 +2465,7 @@
 		"timeSignature": ["machine","Time signature","Tanda birama"],
 		"timecode": ["audacity","Timecode","Kode Waktu"],
 		"timedRecording": ["machine","Set up timed recording","Siapkan rekaman terjadwal"],
+		"timedRecordingAction": ["machine","Timed recording","Rekaman terjadwal"],
 		"timedRecordingAssignedInputsUnavailable": ["machine","Every assigned recording input must remain available for timer recording.","Setiap input rekaman yang ditetapkan harus tetap tersedia untuk rekaman terjadwal."],
 		"timedRecordingCancel": ["machine","Cancel scheduled recording","Batalkan rekaman terjadwal"],
 		"timedRecordingCancelled": ["machine","Scheduled recording cancelled.","Rekaman terjadwal dibatalkan."],

@@ -35,6 +35,7 @@ export interface AudioEditorSplitButtonProps {
 	readonly active?: boolean;
 	readonly recording?: boolean;
 	readonly state?: TransportButtonProps['state'];
+	readonly flyoutRole?: 'menu' | 'dialog';
 	readonly onClick?: () => void;
 	readonly children?: ReactNode | ((controls: Readonly<{ close: () => void }>) => ReactNode);
 }
@@ -66,6 +67,7 @@ export default function AudioEditorSplitButton({
 	active,
 	recording,
 	state,
+	flyoutRole = 'menu',
 	onClick,
 	children,
 }: AudioEditorSplitButtonProps) {
@@ -135,7 +137,7 @@ export default function AudioEditorSplitButton({
 				closeOnOutsideClick
 				closeOnEscape
 				ariaLabel={optionsAriaLabel}
-				role="menu"
+				role={flyoutRole}
 				className="kw-audio-editor__split-button-flyout"
 			>
 				{typeof children === 'function' ? children({ close: closeFlyout }) : children}
