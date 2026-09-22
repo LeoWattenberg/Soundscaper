@@ -16,6 +16,8 @@ const ENTRIES = Object.freeze([
 	['effectSortByName', 'Sort by effect name', 'Nach Effektnamen sortieren'],
 	['editingEffectBehavior', 'Effect behavior', 'Effektverhalten'],
 	['editingApplyEffectsToAllAudio', 'Apply effects to all audio when no selection is made', 'Effekte auf das gesamte Audiomaterial anwenden, wenn keine Auswahl getroffen wurde'],
+	['editingClipBehavior', 'Clip behavior', 'Clip-Verhalten'],
+	['editingApplyMicrofadesToNewClips', 'Apply 2 ms fades to new clips', 'Auf neue Clips 2-ms-Fades anwenden'],
 	['editingDeleteBehavior', 'Choose behavior when deleting a portion of a clip', 'Verhalten beim Löschen eines Teils eines Clips wählen'],
 	['editingLeaveGap', 'Leave gap', 'Lücke lassen'],
 	['editingCloseGapRipple', 'Close gap (ripple)', 'Lücke schließen (Ripple)'],

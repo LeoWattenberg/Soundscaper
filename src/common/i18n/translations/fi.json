@@ -2,7 +2,7 @@
 	"schemaVersion": 2,
 	"locale": "fi",
 	"provenance": {
-		"machine": {"model":"codex","modelDigest":"sha256:4a2bd315d924191264d2d3412526d1250b7d7c24e4c4e1d561ba038e1cede9b7","promptVersion":"i18n-machine-v1"},
+		"machine": {"model":"gpt-5","modelDigest":"sha256:34bb88511b2974276a5d7c1962046cade22c3dc1749d5b85471404a8c5988f78","promptVersion":"i18n-machine-v1"},
 		"audacity": {"repository":"audacity/audacity","headSha":"de2e43dc13474ba712ade5ea8e47550eba0e8bfb","runId":35327911264,"artifactId":10539339149,"workflowUrl":"https://github.com/audacity/audacity/actions/runs/35327911264","archiveName":"Audacity_locale_262610911.zip","archiveSha256":"13b1ff11c39a677c711a1d29738a394aaca7a200533927aab3f45bbd76c1ff8e","archiveByteLength":15413913,"licenseSpdx":"GPL-3.0-only","upstreamProjectUrl":"https://github.com/audacity/audacity","upstreamLicenseUrl":"https://github.com/audacity/audacity/blob/de2e43dc13474ba712ade5ea8e47550eba0e8bfb/LICENSE.txt","modificationNotice":"Soundscaper converts reviewed Audacity Qt TS messages to per-locale JSON catalogs, excludes unsafe or inapplicable entries, adapts reviewed placeholders and mnemonics, and removes ellipsis punctuation.","mappingVersion":3,"mappingSha256":"f4cf0434f47eaa9434d079a1623b9d9501e9c8da0d83f0c73344f7765113b57c"}
 	},
 	"entries": {
@@ -687,11 +687,13 @@
 		"editingAlwaysConvertToMono": ["audacity","Always convert to mono without prompt","Muunna aina monoksi ilman kehotetta"],
 		"editingAlwaysPasteAsNewClip": ["audacity","Always paste audio as a new clip","Liitä ääni aina uutena leikkeenä"],
 		"editingApplyEffectsToAllAudio": ["audacity","Apply effects to all audio when no selection is made","Käytä tehosteita kaikkiin ääniin, kun valintaa ei ole tehty"],
+		"editingApplyMicrofadesToNewClips": ["machine","Apply 2 ms fades to new clips","Lisää uusiin leikkeisiin 2 ms:n häivytykset"],
 		"editingAsymmetricAlways": ["audacity","Always","Aina"],
 		"editingAsymmetricNever": ["audacity","Never","Ei koskaan"],
 		"editingAsymmetricStereoHeights": ["audacity","Asymmetric stereo heights","Epäsymmetriset stereokorkeudet"],
 		"editingAsymmetricStereoHeightsDescription": ["audacity","Dragging on the center line may adjust the height of the channel:","Keskiviivaa vetämällä voidaan säätää kanavan korkeutta:"],
 		"editingAsymmetricWorkspace": ["audacity","Depending on workspace","Työtilasta riippuen"],
+		"editingClipBehavior": ["machine","Clip behavior","Leikkeiden toiminta"],
 		"editingCloseGapAllTracks": ["audacity","All clips on all tracks move back to fill the gap","Kaikkien raitojen kaikki leikkeet siirtyvät taaksepäin täyttääkseen aukon"],
 		"editingCloseGapBehavior": ["audacity","When closing the gap, do the following","Kun suljet rakoa, tee seuraavaa"],
 		"editingCloseGapClip": ["audacity","The selected clip moves back to fill the gap","Valittu leike siirtyy taaksepäin täyttääkseen aukon"],
@@ -2242,7 +2244,6 @@
 		"signatureEvent": ["machine","Time signature event","Tahtilajitapahtuma"],
 		"signatureEvents": ["machine","Time signature events","Tahtilajitapahtumat"],
 		"silenceAudio": ["machine","Silence audio","Korvaa ääni hiljaisuudella"],
-		"silenceFinder": ["machine","Silence finder","Hiljaisuuden etsin"],
 		"silenceGenerator": ["machine","Silence","Hiljaisuus"],
 		"skin": ["machine","Skin","Ulkoasu"],
 		"skinCarousel": ["machine","carousel","karuselli"],
@@ -2306,7 +2307,6 @@
 		"soundActivationStatusEnabled": ["machine","Sound-activated recording is on.","Äänellä aktivoitu nauhoitus on päällä."],
 		"soundActivationThreshold": ["machine","Activation threshold","Aktivointikynnys"],
 		"soundActivationThresholdDescription": ["machine","Capture begins at or above this input level.","Nauhoitus alkaa tällä tulotasolla tai sen yläpuolella."],
-		"soundFinder": ["machine","Sound finder","Äänen etsin"],
 		"sourceAlpha": ["machine","Alpha channel","Alfakanava"],
 		"sourceAudioCodec": ["machine","Audio codec","Äänikoodekki"],
 		"sourceAudioStreams": ["machine","Audio streams","Äänivirrat"],

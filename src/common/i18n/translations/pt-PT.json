@@ -2,7 +2,7 @@
 	"schemaVersion": 2,
 	"locale": "pt-PT",
 	"provenance": {
-		"machine": {"model":"codex","modelDigest":"sha256:52d655e1a68044997c8e9ae2cd00e3bd2c04186b59ba2696c8529e447f46bfec","promptVersion":"i18n-machine-v1"},
+		"machine": {"model":"gpt-5","modelDigest":"sha256:12ef8199569041bcd4422a78c1a9becad858a28a64c1cb695ac95866da4719ab","promptVersion":"i18n-machine-v1"},
 		"audacity": {"repository":"audacity/audacity","headSha":"de2e43dc13474ba712ade5ea8e47550eba0e8bfb","runId":35327911264,"artifactId":10539339149,"workflowUrl":"https://github.com/audacity/audacity/actions/runs/35327911264","archiveName":"Audacity_locale_262610911.zip","archiveSha256":"13b1ff11c39a677c711a1d29738a394aaca7a200533927aab3f45bbd76c1ff8e","archiveByteLength":15413913,"licenseSpdx":"GPL-3.0-only","upstreamProjectUrl":"https://github.com/audacity/audacity","upstreamLicenseUrl":"https://github.com/audacity/audacity/blob/de2e43dc13474ba712ade5ea8e47550eba0e8bfb/LICENSE.txt","modificationNotice":"Soundscaper converts reviewed Audacity Qt TS messages to per-locale JSON catalogs, excludes unsafe or inapplicable entries, adapts reviewed placeholders and mnemonics, and removes ellipsis punctuation.","mappingVersion":3,"mappingSha256":"f4cf0434f47eaa9434d079a1623b9d9501e9c8da0d83f0c73344f7765113b57c"}
 	},
 	"entries": {
@@ -687,11 +687,13 @@
 		"editingAlwaysConvertToMono": ["machine","Always convert to mono without prompt","Converter sempre para mono sem pedir confirmação"],
 		"editingAlwaysPasteAsNewClip": ["machine","Always paste audio as a new clip","Colar sempre o áudio como um novo clipe"],
 		"editingApplyEffectsToAllAudio": ["machine","Apply effects to all audio when no selection is made","Aplicar efeitos a todo o áudio quando não existe uma seleção"],
+		"editingApplyMicrofadesToNewClips": ["machine","Apply 2 ms fades to new clips","Aplicar fades de 2 ms a novos clips"],
 		"editingAsymmetricAlways": ["machine","Always","Sempre"],
 		"editingAsymmetricNever": ["machine","Never","Nunca"],
 		"editingAsymmetricStereoHeights": ["machine","Asymmetric stereo heights","Alturas assimétricas dos canais estéreo"],
 		"editingAsymmetricStereoHeightsDescription": ["machine","Dragging on the center line may adjust the height of the channel:","Arrastar a linha central pode ajustar a altura do canal:"],
 		"editingAsymmetricWorkspace": ["machine","Depending on workspace","Consoante o espaço de trabalho"],
+		"editingClipBehavior": ["machine","Clip behavior","Comportamento dos clips"],
 		"editingCloseGapAllTracks": ["machine","All clips on all tracks move back to fill the gap","Todos os clipes de todas as faixas recuam para preencher o intervalo"],
 		"editingCloseGapBehavior": ["machine","When closing the gap, do the following","Ao fechar o intervalo, fazer o seguinte"],
 		"editingCloseGapClip": ["machine","The selected clip moves back to fill the gap","O clipe selecionado recua para preencher o intervalo"],
@@ -2242,7 +2244,6 @@
 		"signatureEvent": ["machine","Time signature event","Evento de fórmula de compasso"],
 		"signatureEvents": ["machine","Time signature events","Eventos de fórmula de compasso"],
 		"silenceAudio": ["machine","Silence audio","Silenciar áudio"],
-		"silenceFinder": ["machine","Silence finder","Localizador de silêncio"],
 		"silenceGenerator": ["machine","Silence","Silêncio"],
 		"skin": ["machine","Skin","Aparência"],
 		"skinCarousel": ["machine","carousel","carrossel"],
@@ -2306,7 +2307,6 @@
 		"soundActivationStatusEnabled": ["machine","Sound-activated recording is on.","A gravação ativada por som está ativada."],
 		"soundActivationThreshold": ["machine","Activation threshold","Limiar de ativação"],
 		"soundActivationThresholdDescription": ["machine","Capture begins at or above this input level.","A captura começa neste nível de entrada ou acima dele."],
-		"soundFinder": ["machine","Sound finder","Localizador de som"],
 		"sourceAlpha": ["machine","Alpha channel","Canal alfa"],
 		"sourceAudioCodec": ["machine","Audio codec","Codec de áudio"],
 		"sourceAudioStreams": ["machine","Audio streams","Fluxos de áudio"],

@@ -208,6 +208,7 @@ export function createDocumentComposition(dependencies: DocumentCompositionDepen
 		synchronizeAnnotationFocus: () => timelineAnnotation.synchronizeFocus(false),
 		getPlaybackState: () => engine.getState().state,
 		getPlayheadFrame: () => engine.getPositionFrames(),
+		getMicrofadeNewClips: dependencies.getMicrofadeNewClips,
 		seekPlayhead: (frame) => engine.seek(frame),
 		projectHasTimePitchClips: (project) => sources.timePitchCaches.projectHasTimePitchClips(project),
 		beginPlaybackCachePreparation: (project) => sources.timePitchCaches.beginPlaybackCachePreparation(project),

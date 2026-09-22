@@ -71,6 +71,7 @@ export interface AudioEditorEditingPreferences {
 	readonly snapToZeroCrossings: boolean;
 	readonly zoomPrecision: number;
 	readonly applyEffectsToAllAudio: boolean;
+	readonly applyMicrofadesToNewClips: boolean;
 	readonly deleteBehavior: AudioEditorDeleteBehavior;
 	readonly closeGapBehavior: AudioEditorCloseGapBehavior;
 	readonly pasteBehavior: AudioEditorPasteBehavior;
@@ -89,6 +90,7 @@ export const DEFAULT_AUDIO_EDITOR_EDITING_PREFERENCES = Object.freeze({
 	snapToZeroCrossings: false,
 	zoomPrecision: AUDIO_EDITOR_DEFAULT_ZOOM_PRECISION,
 	applyEffectsToAllAudio: true,
+	applyMicrofadesToNewClips: true,
 	deleteBehavior: 'not-set',
 	closeGapBehavior: 'clip',
 	pasteBehavior: 'overlap',
@@ -175,6 +177,7 @@ export function normalizeAudioEditorEditingPreferences(value?: unknown): AudioEd
 		snapToZeroCrossings: booleanPreference(editing.snapToZeroCrossings, false, 'editing.snapToZeroCrossings'),
 		zoomPrecision: zoomPrecisionPreference(editing.zoomPrecision),
 		applyEffectsToAllAudio: booleanPreference(editing.applyEffectsToAllAudio, true, 'editing.applyEffectsToAllAudio'),
+		applyMicrofadesToNewClips: booleanPreference(editing.applyMicrofadesToNewClips, true, 'editing.applyMicrofadesToNewClips'),
 		deleteBehavior: enumPreference(editing.deleteBehavior, 'not-set', AUDIO_EDITOR_DELETE_BEHAVIORS, 'editing.deleteBehavior'),
 		closeGapBehavior: enumPreference(editing.closeGapBehavior, 'clip', AUDIO_EDITOR_CLOSE_GAP_BEHAVIORS, 'editing.closeGapBehavior'),
 		pasteBehavior: enumPreference(editing.pasteBehavior, 'overlap', AUDIO_EDITOR_PASTE_BEHAVIORS, 'editing.pasteBehavior'),

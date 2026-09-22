@@ -136,6 +136,7 @@ export interface DocumentCompositionDependencies {
 	readonly projectDurationFrames: (project: DocumentProject) => number;
 	readonly editorTimelineDurationFrames: (project: DocumentProject, sampleRate: number) => number;
 	readonly projectSampleRate: () => number;
+	readonly getMicrofadeNewClips: () => boolean;
 	readonly persistSetting: (key: string, value: unknown) => Promise<unknown>;
 	readonly preflightStorage: (bytes: number, category: 'project') => Promise<unknown>;
 	readonly garbageCollectSources: () => Promise<unknown>;

@@ -3,6 +3,7 @@ import { createRiffBextChunk, normalizeBextMetadata } from '../../src/common/edi
 import { expect, test } from './audio-editor-test-fixtures.js';
 import {
 	bootEditor,
+	chooseCommandAction,
 	chooseDropdown,
 	collectClientErrors,
 	openExportDialog,
@@ -51,6 +52,11 @@ test.describe('direct pristine BW64 passthrough publication', () => {
 		});
 		const editor = await bootEditor(page, '/embed/en/');
 		expect(await page.evaluate(() => navigator.userAgentData?.mobile)).toBe(true);
+		await chooseCommandAction(page, editor, 'Edit', 'Preferences');
+		const preferences = page.getByRole('dialog', { name: 'Editor preferences', exact: true });
+		await preferences.getByRole('tab', { name: /Editing$/u }).click();
+		await preferences.getByRole('checkbox', { name: 'Apply 2 ms fades to new clips' }).uncheck();
+		await preferences.getByRole('button', { name: 'Close', exact: true }).last().click();
 		const source = createPristineBw64Fixture();
 		await importLazyBw64(page, editor, source);
 		expect(FLOAT_PLAN_BYTES).toBe(96 * 1024 ** 2 + 384 * 1024);

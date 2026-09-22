@@ -2,7 +2,7 @@
 	"schemaVersion": 2,
 	"locale": "he",
 	"provenance": {
-		"machine": {"model":"codex","modelDigest":"sha256:a6b54c3c227c811ecd5faa551755f3e198dc381dd645644e1e41d83d0b9a3224","promptVersion":"i18n-machine-v1"},
+		"machine": {"model":"gpt-5","modelDigest":"sha256:e6fdd05f11de60768e1310b0364158f1d088343516f46198978a68888f6d76d3","promptVersion":"i18n-machine-v1"},
 		"audacity": {"repository":"audacity/audacity","headSha":"de2e43dc13474ba712ade5ea8e47550eba0e8bfb","runId":35327911264,"artifactId":10539339149,"workflowUrl":"https://github.com/audacity/audacity/actions/runs/35327911264","archiveName":"Audacity_locale_262610911.zip","archiveSha256":"13b1ff11c39a677c711a1d29738a394aaca7a200533927aab3f45bbd76c1ff8e","archiveByteLength":15413913,"licenseSpdx":"GPL-3.0-only","upstreamProjectUrl":"https://github.com/audacity/audacity","upstreamLicenseUrl":"https://github.com/audacity/audacity/blob/de2e43dc13474ba712ade5ea8e47550eba0e8bfb/LICENSE.txt","modificationNotice":"Soundscaper converts reviewed Audacity Qt TS messages to per-locale JSON catalogs, excludes unsafe or inapplicable entries, adapts reviewed placeholders and mnemonics, and removes ellipsis punctuation.","mappingVersion":3,"mappingSha256":"f4cf0434f47eaa9434d079a1623b9d9501e9c8da0d83f0c73344f7765113b57c"}
 	},
 	"entries": {
@@ -687,11 +687,13 @@
 		"editingAlwaysConvertToMono": ["machine","Always convert to mono without prompt","להמיר תמיד למונו ללא בקשת אישור"],
 		"editingAlwaysPasteAsNewClip": ["machine","Always paste audio as a new clip","תמיד להדביק שמע כקליפ חדש"],
 		"editingApplyEffectsToAllAudio": ["machine","Apply effects to all audio when no selection is made","החלת אפקטים על כל השמע כאשר לא נבחר דבר"],
+		"editingApplyMicrofadesToNewClips": ["machine","Apply 2 ms fades to new clips","החל דהייה של 2 מילישניות על קליפים חדשים"],
 		"editingAsymmetricAlways": ["machine","Always","תמיד"],
 		"editingAsymmetricNever": ["machine","Never","לעולם לא"],
 		"editingAsymmetricStereoHeights": ["machine","Asymmetric stereo heights","גבהים אסימטריים של ערוצי סטריאו"],
 		"editingAsymmetricStereoHeightsDescription": ["machine","Dragging on the center line may adjust the height of the channel:","גרירת קו האמצע עשויה לשנות את גובה הערוץ:"],
 		"editingAsymmetricWorkspace": ["machine","Depending on workspace","בהתאם לסביבת העבודה"],
+		"editingClipBehavior": ["machine","Clip behavior","התנהגות קליפים"],
 		"editingCloseGapAllTracks": ["machine","All clips on all tracks move back to fill the gap","כל הקליפים בכל הרצועות נעים לאחור כדי למלא את הפער"],
 		"editingCloseGapBehavior": ["machine","When closing the gap, do the following","בעת סגירת הפער, יש לבצע את הפעולה הבאה"],
 		"editingCloseGapClip": ["machine","The selected clip moves back to fill the gap","הקליפ שנבחר נע לאחור כדי למלא את הפער"],
@@ -2242,7 +2244,6 @@
 		"signatureEvent": ["machine","Time signature event","אירוע משקל"],
 		"signatureEvents": ["machine","Time signature events","אירועי משקל"],
 		"silenceAudio": ["machine","Silence audio","השתקת שמע"],
-		"silenceFinder": ["machine","Silence finder","מאתר שקט"],
 		"silenceGenerator": ["machine","Silence","שקט"],
 		"skin": ["machine","Skin","עיצוב"],
 		"skinCarousel": ["machine","carousel","קרוסלה"],
@@ -2306,7 +2307,6 @@
 		"soundActivationStatusEnabled": ["machine","Sound-activated recording is on.","ההקלטה המופעלת קול פעילה."],
 		"soundActivationThreshold": ["machine","Activation threshold","סף הפעלה"],
 		"soundActivationThresholdDescription": ["machine","Capture begins at or above this input level.","הלכידה מתחילה ברמת קלט זו ומעלה."],
-		"soundFinder": ["machine","Sound finder","מאתר קול"],
 		"sourceAlpha": ["machine","Alpha channel","ערוץ אלפא"],
 		"sourceAudioCodec": ["machine","Audio codec","קודק שמע"],
 		"sourceAudioStreams": ["machine","Audio streams","זרמי שמע"],

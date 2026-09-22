@@ -270,7 +270,9 @@ export function createRecordingComposition(dependencies: RecordingCompositionDep
 		// The selected product runtime owns validation and commands; durable
 		// publication preserves its document family and schema.
 		applyProjectCommand: (project, command, options) => (
-			dependencies.projectRuntime.applyCommand(project, command, options)
+			dependencies.projectRuntime.applyCommand(project, command, {
+				...options, microfadeNewClips: dependencies.getMicrofadeNewClips(),
+			})
 		),
 		validateProject: (project) => { dependencies.projectRuntime.cloneProject(project); },
 		publishProject: () => { dependencies.retention.retainLiveClipIds(); dependencies.publishProjectState(); },

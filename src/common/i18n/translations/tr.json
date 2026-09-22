@@ -2,7 +2,7 @@
 	"schemaVersion": 2,
 	"locale": "tr",
 	"provenance": {
-		"machine": {"model":"codex","modelDigest":"sha256:f6c84f23c9fbbe1aeff79ee7e7888f6a920a3fcccd492c59a87c7025f2fc2f4a","promptVersion":"i18n-machine-v1"},
+		"machine": {"model":"gpt-5","modelDigest":"sha256:bade7a363793e89b04a33dcd9d5f8d3e961a8b5da21f97275e2dabe2eada320c","promptVersion":"i18n-machine-v1"},
 		"audacity": {"repository":"audacity/audacity","headSha":"de2e43dc13474ba712ade5ea8e47550eba0e8bfb","runId":35327911264,"artifactId":10539339149,"workflowUrl":"https://github.com/audacity/audacity/actions/runs/35327911264","archiveName":"Audacity_locale_262610911.zip","archiveSha256":"13b1ff11c39a677c711a1d29738a394aaca7a200533927aab3f45bbd76c1ff8e","archiveByteLength":15413913,"licenseSpdx":"GPL-3.0-only","upstreamProjectUrl":"https://github.com/audacity/audacity","upstreamLicenseUrl":"https://github.com/audacity/audacity/blob/de2e43dc13474ba712ade5ea8e47550eba0e8bfb/LICENSE.txt","modificationNotice":"Soundscaper converts reviewed Audacity Qt TS messages to per-locale JSON catalogs, excludes unsafe or inapplicable entries, adapts reviewed placeholders and mnemonics, and removes ellipsis punctuation.","mappingVersion":3,"mappingSha256":"f4cf0434f47eaa9434d079a1623b9d9501e9c8da0d83f0c73344f7765113b57c"}
 	},
 	"entries": {
@@ -687,11 +687,13 @@
 		"editingAlwaysConvertToMono": ["audacity","Always convert to mono without prompt","Her zaman sormadan tek kanala dönüştür"],
 		"editingAlwaysPasteAsNewClip": ["audacity","Always paste audio as a new clip","Ses her zaman yeni parça olarak yapıştırılsın"],
 		"editingApplyEffectsToAllAudio": ["audacity","Apply effects to all audio when no selection is made","Bir seçim yapılmadığında etkiler tüm sese uygulansın"],
+		"editingApplyMicrofadesToNewClips": ["machine","Apply 2 ms fades to new clips","Yeni kliplere 2 mslik yumuşatma uygula"],
 		"editingAsymmetricAlways": ["audacity","Always","Her zaman"],
 		"editingAsymmetricNever": ["audacity","Never","Asla"],
 		"editingAsymmetricStereoHeights": ["audacity","Asymmetric stereo heights","Asimetrik çift kanal yükseklikleri"],
 		"editingAsymmetricStereoHeightsDescription": ["audacity","Dragging on the center line may adjust the height of the channel:","Merkez çizgide sürüklemek kanalın yüksekliğini ayarlayabilir:"],
 		"editingAsymmetricWorkspace": ["audacity","Depending on workspace","Çalışma alanına göre"],
+		"editingClipBehavior": ["machine","Clip behavior","Klip davranışı"],
 		"editingCloseGapAllTracks": ["audacity","All clips on all tracks move back to fill the gap","Tüm izlerdeki tüm parçalar boşluğu doldurmak için geriye taşınsın"],
 		"editingCloseGapBehavior": ["audacity","When closing the gap, do the following","Boşluk kapatılırken şu yapılsın"],
 		"editingCloseGapClip": ["audacity","The selected clip moves back to fill the gap","Seçilmiş parça boşluğu doldurmak için geriye taşınsın"],
@@ -2242,7 +2244,6 @@
 		"signatureEvent": ["machine","Time signature event","Zaman imzası olayı"],
 		"signatureEvents": ["machine","Time signature events","Zaman imzası olayları"],
 		"silenceAudio": ["machine","Silence audio","Sesi sustur"],
-		"silenceFinder": ["machine","Silence finder","Sessizlik bulucu"],
 		"silenceGenerator": ["machine","Silence","Sessizlik"],
 		"skin": ["machine","Skin","Görünüm"],
 		"skinCarousel": ["machine","carousel","döngüsel galeri"],
@@ -2306,7 +2307,6 @@
 		"soundActivationStatusEnabled": ["machine","Sound-activated recording is on.","Ses etkinleştirmeli kayıt açık."],
 		"soundActivationThreshold": ["machine","Activation threshold","Etkinleştirme eşiği"],
 		"soundActivationThresholdDescription": ["machine","Capture begins at or above this input level.","Yakalama, bu giriş düzeyinde veya üzerinde başlar."],
-		"soundFinder": ["machine","Sound finder","Ses bulucu"],
 		"sourceAlpha": ["machine","Alpha channel","Alfa kanalı"],
 		"sourceAudioCodec": ["machine","Audio codec","Ses kodeği"],
 		"sourceAudioStreams": ["machine","Audio streams","Ses akışları"],

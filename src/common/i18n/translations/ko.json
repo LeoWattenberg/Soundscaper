@@ -2,7 +2,7 @@
 	"schemaVersion": 2,
 	"locale": "ko",
 	"provenance": {
-		"machine": {"model":"codex","modelDigest":"sha256:874adc45358bb302fe2475dcb5ae50fc432a17654df128d7e2df4509d15b4d69","promptVersion":"i18n-machine-v1"},
+		"machine": {"model":"gpt-5","modelDigest":"sha256:ee0b7b927ec6e080708075404da664f38846252f578f81042eb1aaf15b238d1c","promptVersion":"i18n-machine-v1"},
 		"audacity": {"repository":"audacity/audacity","headSha":"de2e43dc13474ba712ade5ea8e47550eba0e8bfb","runId":35327911264,"artifactId":10539339149,"workflowUrl":"https://github.com/audacity/audacity/actions/runs/35327911264","archiveName":"Audacity_locale_262610911.zip","archiveSha256":"13b1ff11c39a677c711a1d29738a394aaca7a200533927aab3f45bbd76c1ff8e","archiveByteLength":15413913,"licenseSpdx":"GPL-3.0-only","upstreamProjectUrl":"https://github.com/audacity/audacity","upstreamLicenseUrl":"https://github.com/audacity/audacity/blob/de2e43dc13474ba712ade5ea8e47550eba0e8bfb/LICENSE.txt","modificationNotice":"Soundscaper converts reviewed Audacity Qt TS messages to per-locale JSON catalogs, excludes unsafe or inapplicable entries, adapts reviewed placeholders and mnemonics, and removes ellipsis punctuation.","mappingVersion":3,"mappingSha256":"f4cf0434f47eaa9434d079a1623b9d9501e9c8da0d83f0c73344f7765113b57c"}
 	},
 	"entries": {
@@ -687,11 +687,13 @@
 		"editingAlwaysConvertToMono": ["audacity","Always convert to mono without prompt","묻지 않고 항상 모노로 변환"],
 		"editingAlwaysPasteAsNewClip": ["audacity","Always paste audio as a new clip","오디오를 항상 새 클립으로 붙여넣기"],
 		"editingApplyEffectsToAllAudio": ["audacity","Apply effects to all audio when no selection is made","선택한 항목이 없으면 모든 오디오에 이펙트 적용"],
+		"editingApplyMicrofadesToNewClips": ["machine","Apply 2 ms fades to new clips","새 클립에 2 ms 페이드 적용"],
 		"editingAsymmetricAlways": ["audacity","Always","항상"],
 		"editingAsymmetricNever": ["audacity","Never","안 함"],
 		"editingAsymmetricStereoHeights": ["audacity","Asymmetric stereo heights","비대칭 스테레오 높이"],
 		"editingAsymmetricStereoHeightsDescription": ["audacity","Dragging on the center line may adjust the height of the channel:","중앙선을 드래그하면 채널 높이가 조정될 수 있음:"],
 		"editingAsymmetricWorkspace": ["audacity","Depending on workspace","워크스페이스에 따라"],
+		"editingClipBehavior": ["machine","Clip behavior","클립 동작"],
 		"editingCloseGapAllTracks": ["audacity","All clips on all tracks move back to fill the gap","모든 트랙의 모든 클립이 뒤로 이동하여 간격을 채웁니다."],
 		"editingCloseGapBehavior": ["audacity","When closing the gap, do the following","간격을 닫을 때 다음을 수행"],
 		"editingCloseGapClip": ["audacity","The selected clip moves back to fill the gap","선택한 클립이 뒤로 이동하여 간격을 채웁니다."],
@@ -2242,7 +2244,6 @@
 		"signatureEvent": ["machine","Time signature event","박자표 이벤트"],
 		"signatureEvents": ["machine","Time signature events","박자표 이벤트"],
 		"silenceAudio": ["machine","Silence audio","오디오를 무음으로 대체"],
-		"silenceFinder": ["machine","Silence finder","무음 찾기"],
 		"silenceGenerator": ["machine","Silence","무음"],
 		"skin": ["machine","Skin","스킨"],
 		"skinCarousel": ["machine","carousel","캐러셀"],
@@ -2306,7 +2307,6 @@
 		"soundActivationStatusEnabled": ["machine","Sound-activated recording is on.","사운드 활성화 녹음이 켜져 있습니다."],
 		"soundActivationThreshold": ["machine","Activation threshold","활성화 임계값"],
 		"soundActivationThresholdDescription": ["machine","Capture begins at or above this input level.","입력이 이 레벨 이상일 때 캡처가 시작됩니다."],
-		"soundFinder": ["machine","Sound finder","사운드 찾기"],
 		"sourceAlpha": ["machine","Alpha channel","알파 채널"],
 		"sourceAudioCodec": ["machine","Audio codec","오디오 코덱"],
 		"sourceAudioStreams": ["machine","Audio streams","오디오 스트림"],

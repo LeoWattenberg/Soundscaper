@@ -32,6 +32,7 @@ const EXACT_DEFAULTS = {
 	snapToZeroCrossings: false,
 	zoomPrecision: 6,
 	applyEffectsToAllAudio: true,
+	applyMicrofadesToNewClips: true,
 	deleteBehavior: 'not-set',
 	closeGapBehavior: 'clip',
 	pasteBehavior: 'overlap',
@@ -100,6 +101,7 @@ test('editing booleans and workspace identities are validated strictly', () => {
 	for (const field of [
 		'snapToZeroCrossings',
 		'applyEffectsToAllAudio',
+		'applyMicrofadesToNewClips',
 		'alwaysPasteAsNewClip',
 		'alwaysConvertToMono',
 	] as const) {

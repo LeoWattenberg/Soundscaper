@@ -2,7 +2,7 @@
 	"schemaVersion": 2,
 	"locale": "gl",
 	"provenance": {
-		"machine": {"model":"codex","modelDigest":"sha256:ed036642d7f330f7c5527967de7b83ad09ff448dfd18087bdc5c21042c160f47","promptVersion":"i18n-machine-v1"},
+		"machine": {"model":"gpt-5","modelDigest":"sha256:f9e4716bafc9b1f87abb62795b0a34419af527205e790dbc9d70f1f139e4d3d7","promptVersion":"i18n-machine-v1"},
 		"audacity": {"repository":"audacity/audacity","headSha":"de2e43dc13474ba712ade5ea8e47550eba0e8bfb","runId":35327911264,"artifactId":10539339149,"workflowUrl":"https://github.com/audacity/audacity/actions/runs/35327911264","archiveName":"Audacity_locale_262610911.zip","archiveSha256":"13b1ff11c39a677c711a1d29738a394aaca7a200533927aab3f45bbd76c1ff8e","archiveByteLength":15413913,"licenseSpdx":"GPL-3.0-only","upstreamProjectUrl":"https://github.com/audacity/audacity","upstreamLicenseUrl":"https://github.com/audacity/audacity/blob/de2e43dc13474ba712ade5ea8e47550eba0e8bfb/LICENSE.txt","modificationNotice":"Soundscaper converts reviewed Audacity Qt TS messages to per-locale JSON catalogs, excludes unsafe or inapplicable entries, adapts reviewed placeholders and mnemonics, and removes ellipsis punctuation.","mappingVersion":3,"mappingSha256":"f4cf0434f47eaa9434d079a1623b9d9501e9c8da0d83f0c73344f7765113b57c"}
 	},
 	"entries": {
@@ -687,11 +687,13 @@
 		"editingAlwaysConvertToMono": ["audacity","Always convert to mono without prompt","Converter sempre a mono sen comando"],
 		"editingAlwaysPasteAsNewClip": ["audacity","Always paste audio as a new clip","Pegar sempre o son como clip novo"],
 		"editingApplyEffectsToAllAudio": ["audacity","Apply effects to all audio when no selection is made","Aplicar efectos a todo o son cando non se fai ningunha selección"],
+		"editingApplyMicrofadesToNewClips": ["machine","Apply 2 ms fades to new clips","Aplicar fundidos de 2 ms aos novos clips"],
 		"editingAsymmetricAlways": ["audacity","Always","Sempre"],
 		"editingAsymmetricNever": ["audacity","Never","Nunca"],
 		"editingAsymmetricStereoHeights": ["audacity","Asymmetric stereo heights","Alturas estéreo asimétricas"],
 		"editingAsymmetricStereoHeightsDescription": ["audacity","Dragging on the center line may adjust the height of the channel:","Arrastrar pola liña central pode axustar a altura da canle:"],
 		"editingAsymmetricWorkspace": ["audacity","Depending on workspace","Dependendo do espazo de traballo"],
+		"editingClipBehavior": ["machine","Clip behavior","Comportamento dos clips"],
 		"editingCloseGapAllTracks": ["audacity","All clips on all tracks move back to fill the gap","Todos os clips de todas as pistas retroceden para encher o oco"],
 		"editingCloseGapBehavior": ["audacity","When closing the gap, do the following","Ao pechar a brecha, faga o seguinte"],
 		"editingCloseGapClip": ["audacity","The selected clip moves back to fill the gap","O clip seleccionado móvese cara atrás para encher o oco"],
@@ -2242,7 +2244,6 @@
 		"signatureEvent": ["machine","Time signature event","Evento de compás"],
 		"signatureEvents": ["machine","Time signature events","Eventos de compás"],
 		"silenceAudio": ["machine","Silence audio","Silenciar audio"],
-		"silenceFinder": ["machine","Silence finder","Buscador de silencios"],
 		"silenceGenerator": ["machine","Silence","Silencio"],
 		"skin": ["machine","Skin","Aparencia"],
 		"skinCarousel": ["machine","carousel","carrusel"],
@@ -2306,7 +2307,6 @@
 		"soundActivationStatusEnabled": ["machine","Sound-activated recording is on.","A gravación activada por son está activada."],
 		"soundActivationThreshold": ["machine","Activation threshold","Limiar de activación"],
 		"soundActivationThresholdDescription": ["machine","Capture begins at or above this input level.","A captura comeza neste nivel de entrada ou por riba del."],
-		"soundFinder": ["machine","Sound finder","Buscador de sons"],
 		"sourceAlpha": ["machine","Alpha channel","Canle alfa"],
 		"sourceAudioCodec": ["machine","Audio codec","Códec de audio"],
 		"sourceAudioStreams": ["machine","Audio streams","Fluxos de audio"],

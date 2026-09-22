@@ -8,6 +8,7 @@ import { reconcileProjectOwnedFeatureRequirements } from '../../src/common/edito
 import {
 	addRackEffect,
 	bootEditor,
+	chooseCommandAction,
 	chooseNestedCommandAction,
 	chooseFileAction,
 	closeDialog,
@@ -75,6 +76,11 @@ test.describe('Soundscaper exact timing and freeze workflows', () => {
 		await disableOpfsForRawPcmEvidence(page);
 		const clientErrors = collectClientErrors(page);
 		const editor = await bootEditor(page, '/embed/en/');
+		await chooseCommandAction(page, editor, 'Edit', 'Preferences');
+		const preferences = page.getByRole('dialog', { name: 'Editor preferences', exact: true });
+		await preferences.getByRole('tab', { name: /Editing$/u }).click();
+		await preferences.getByRole('checkbox', { name: 'Apply 2 ms fades to new clips' }).uncheck();
+		await preferences.getByRole('button', { name: 'Close', exact: true }).last().click();
 		await importFiles(editor, [freezeImpulse]);
 		const track = editor.locator('[data-track-row]').last();
 		await track.locator('[data-track-header]').click();

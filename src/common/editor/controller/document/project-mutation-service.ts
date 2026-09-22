@@ -71,6 +71,7 @@ interface ProjectSavePort {
 /** What a command is told about the moment it runs. */
 export interface EditorCommandMoment {
 	readonly playheadFrame?: number;
+	readonly microfadeNewClips?: boolean;
 }
 
 export interface CommitSelection {
@@ -138,6 +139,7 @@ export interface ProjectMutationServiceDependencies<
 	 * simply keeps no position.
 	 */
 	readonly getPlayheadFrame?: () => number | null | undefined;
+	readonly getMicrofadeNewClips?: () => boolean;
 	/** Move the transport's playhead, answering where it actually landed. */
 	readonly seekPlayhead?: (frame: number) => number | null | undefined;
 	readonly projectHasTimePitchClips: (project: Project) => boolean;
@@ -385,9 +387,11 @@ export function createProjectMutationService<
 	 * a transport reading.
 	 */
 	function commandMoment(): EditorCommandMoment {
+		const moment: EditorCommandMoment = dependencies.getMicrofadeNewClips
+			? { microfadeNewClips: dependencies.getMicrofadeNewClips() } : {};
 		const frame = dependencies.getPlayheadFrame?.();
-		if (typeof frame !== 'number' || !Number.isFinite(frame) || frame < 0) return {};
-		return { playheadFrame: Math.round(frame) };
+		if (typeof frame !== 'number' || !Number.isFinite(frame) || frame < 0) return moment;
+		return { ...moment, playheadFrame: Math.round(frame) };
 	}
 
 	function assertWritable(): void {
