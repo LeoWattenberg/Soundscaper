@@ -293,7 +293,9 @@ export function useTimelinePointerFinish({
 		const cancelWithEscape = (event) => {
 			if (event.key !== 'Escape') return;
 			const session = pointerSession.current;
-			if (session?.kind === 'selection' || (session?.kind === 'move' && !session.slipSlideMode)) {
+			if (session?.projectBinDrop) {
+				cancelPointerSession();
+			} else if (session?.kind === 'selection' || (session?.kind === 'move' && !session.slipSlideMode)) {
 				session.snapDisabled = true;
 				session.boundarySnapped = false;
 				setBoundarySnapGuideFrames([]);

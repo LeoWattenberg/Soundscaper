@@ -479,6 +479,7 @@ test.describe('audio editor React/design-system workflows', () => {
 		await page.mouse.move(dropX, dropY, { steps: 8 });
 		await expect(projectBin).toHaveAttribute('data-drop-active', 'true');
 		await page.keyboard.press('Escape');
+		await expect(projectBin).not.toHaveAttribute('data-drop-active', 'true');
 		await page.mouse.up();
 		await expect(projectBin).not.toHaveAttribute('data-drop-active', 'true');
 		await expect(editor).toHaveAttribute('data-clip-count', '2');
