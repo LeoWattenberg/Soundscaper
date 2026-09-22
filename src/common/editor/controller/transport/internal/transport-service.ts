@@ -43,6 +43,7 @@ export function createEditorTransportService<Project extends TransportProject = 
 		stopProjectBinPreview, stopRecording, throwIfAborted,
 	} = runtime;
 	let metronomeSchedulerGeneration = 0;
+	let foregroundPlayPreparation: symbol | null = null;
 
 	function requireProject(): Project {
 		const project = getProject();
@@ -192,13 +193,19 @@ export function createEditorTransportService<Project extends TransportProject = 
 				cancelPlaybackCachePreparation();
 				return engine.pause();
 			}
-			if (runtime.playbackCachePreparationPending()) {
+			if (foregroundPlayPreparation !== null && runtime.playbackCachePreparationPending()) {
 				cancelPlaybackCachePreparation();
 				return;
 			}
 			const snapshot = requireProject();
 			if (action === 'play-selection' && !activeSelection()) throw createLocalizedError(Error, copy, 'timeSelectionRequired');
-			await beginPlaybackCachePreparation(snapshot);
+			const preparation = Symbol('foreground-play-preparation');
+			foregroundPlayPreparation = preparation;
+			try {
+				await beginPlaybackCachePreparation(snapshot);
+			} finally {
+				if (foregroundPlayPreparation === preparation) foregroundPlayPreparation = null;
+			}
 			if (snapshot !== getProject()) return;
 			if (action === 'play-selection') bindPlaybackToSelection();
 			else engine.setPlayRange?.(null);

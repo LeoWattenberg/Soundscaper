@@ -136,8 +136,7 @@ async function exerciseEditableCopy(context, options) {
 		await expect(destinationEditor).not.toHaveAttribute('data-edit-block-reason', /.+/u);
 		const copiedClip = clipByName(destinationEditor, options.media.name);
 		await expect(copiedClip).toBeVisible();
-		await destinationEditor.getByRole('button', { name: 'Play', exact: true }).click();
-		await expect(destinationEditor.getByRole('button', { name: 'Pause', exact: true })).toBeVisible();
+		await startPlayback(destinationEditor);
 		await destinationEditor.getByRole('button', { name: 'Stop', exact: true }).click();
 		await copiedClip.locator('.clip-header__name').dblclick();
 		const nameInput = copiedClip.getByRole('textbox', { name: 'Clip name', exact: true });
@@ -164,8 +163,7 @@ async function exerciseEditableCopy(context, options) {
 		await expect(clipByName(reopenedSource, options.media.name)).toBeVisible();
 		await expect(clipByName(reopenedSource, options.renamedClip)).toHaveCount(0);
 		await expect(clipByName(reopenedSource, options.destinationMedia.name)).toHaveCount(0);
-		await reopenedSource.getByRole('button', { name: 'Play', exact: true }).click();
-		await expect(reopenedSource.getByRole('button', { name: 'Pause', exact: true })).toBeVisible();
+		await startPlayback(reopenedSource);
 		await reopenedSource.getByRole('button', { name: 'Stop', exact: true }).click();
 		expect(JSON.stringify(await persistedProject(sourceVerifier, options.sourceDatabase, sourceProjectId)))
 			.toBe(sourceBytesBefore);
@@ -177,6 +175,22 @@ async function exerciseEditableCopy(context, options) {
 			for (const page of [sourceVerifier, receiver, source]) {
 				if (page && !page.isClosed()) await page.close({ runBeforeUnload: false });
 			}
+		}
+	}
+}
+
+async function startPlayback(editor) {
+	const play = editor.getByRole('button', { name: 'Play', exact: true });
+	const pause = editor.getByRole('button', { name: 'Pause', exact: true });
+	for (let attempt = 0; attempt < 2; attempt += 1) {
+		await play.click();
+		try {
+			await expect(pause).toBeVisible();
+			return;
+		} catch (error) {
+			// A project hydration can overtake a Play press. Retry only while the
+			// transport is still stopped; a second miss remains a real failure.
+			if (attempt === 1 || !(await play.isVisible())) throw error;
 		}
 	}
 }

@@ -135,10 +135,15 @@ test('transport dispatch coordinates preview, playback, seeking, stop, loop, and
 	fixture.setPlaybackState({ state: 'playing' });
 	assert.equal(await fixture.service.handleTransport('play'), 'paused');
 	fixture.setPlaybackState({ state: 'stopped' });
-	fixture.state.playbackCacheAbort = new AbortController();
-	assert.equal(await fixture.service.handleTransport('play'), undefined);
-	assert.equal(fixture.state.playbackCacheAbort, null);
+	const hydration = new AbortController();
+	fixture.state.playbackCacheAbort = hydration;
+	fixture.setBeginPreparation(async () => {
+		hydration.abort();
+		fixture.state.playbackCacheAbort = null;
+	});
 	assert.equal(await fixture.service.handleTransport('play'), 'played');
+	assert.equal(hydration.signal.aborted, true);
+	assert.equal(fixture.state.playbackCacheAbort, null);
 
 	assert.equal(await fixture.service.handleTransport('jump-start'), 0);
 	assert.equal(await fixture.service.handleTransport('jump-end'), 1_200);

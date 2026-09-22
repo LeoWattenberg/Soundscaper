@@ -55,6 +55,27 @@ test('play cancels a foreground cache preparation that the previous press is sti
 	await assert.rejects(pending, { name: 'AbortError' });
 });
 
+test('play supersedes a foreground cache preparation started by project hydration', async () => {
+	let preparations = 0;
+	const harness = createPlaybackHarness({
+		resolveForPlayback: (signal) => {
+			if (++preparations > 1) return Promise.resolve(cacheEntry('ready'));
+			return new Promise<ClipTimePitchCacheEntry>((_resolve, reject) => {
+				signal?.addEventListener('abort', () => {
+					reject(Object.assign(new Error('Aborted'), { name: 'AbortError' }));
+				});
+			});
+		},
+	});
+	const hydration = harness.beginPlaybackCachePreparation();
+	await Promise.resolve();
+	assert.equal(harness.state.playbackCacheAbort !== null, true);
+
+	assert.equal(await harness.transport.handleTransport('play'), 'played');
+	await assert.rejects(hydration, { name: 'AbortError' });
+	assert.equal(harness.calls.plays, 1);
+});
+
 function createPlaybackHarness(options: Readonly<{
 	resolveForPlayback(signal: AbortSignal | null | undefined): Promise<ClipTimePitchCacheEntry>;
 }>) {
@@ -129,6 +150,7 @@ function createPlaybackHarness(options: Readonly<{
 		resolveSignals,
 		state,
 		transport: createEditorTransportService(runtime),
+		beginPlaybackCachePreparation: () => timePitch.beginPlaybackCachePreparation(project),
 		setPlaybackState(value: string) { playbackState = value; },
 	};
 }
