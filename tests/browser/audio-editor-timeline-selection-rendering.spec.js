@@ -1,4 +1,4 @@
-import { expect, test, toneA, toneB } from './audio-editor-test-fixtures.js';
+import { expect, longTone, test, toneA, toneB } from './audio-editor-test-fixtures.js';
 import {
 	bootEditor,
 	chooseNestedCommandAction,
@@ -7,6 +7,8 @@ import {
 	collectClientErrors,
 	importFiles,
 	registerAudioEditorHooks,
+	seekOnRuler,
+	showToolbarButton,
 } from './audio-editor-test-helpers.js';
 
 async function dragRulerSelection(page, editor) {
@@ -25,6 +27,48 @@ async function dragRulerSelection(page, editor) {
 
 test.describe('Soundscaper timeline selection rendering', () => {
 	registerAudioEditorHooks();
+
+	test('selection repaints intersecting waveforms without repainting another clip', async ({ page }) => {
+		const editor = await bootEditor(page, '/embed/en/');
+		await showToolbarButton(page, editor, 'Split at playhead');
+		await importFiles(editor, [longTone]);
+		await seekOnRuler(page, editor, 180);
+		await editor.getByRole('button', { name: 'Split at playhead' }).click();
+		const clips = editor.locator('[data-track-row]').nth(1).locator('[data-clip-id]');
+		await expect(clips).toHaveCount(2);
+		const firstCanvas = clips.nth(0).locator('canvas.clip-body__waveform');
+		const secondCanvas = clips.nth(1).locator('canvas.clip-body__waveform');
+		await expect(firstCanvas).toHaveAttribute('data-waveform-owner', 'audacity');
+		await expect(secondCanvas).toHaveAttribute('data-waveform-owner', 'audacity');
+		await page.evaluate(() => {
+			const clearRect = CanvasRenderingContext2D.prototype.clearRect;
+			CanvasRenderingContext2D.prototype.clearRect = function (...args) {
+				if (this.canvas.matches('canvas.clip-body__waveform')) {
+					this.canvas.__selectionAuditDraws = (this.canvas.__selectionAuditDraws || 0) + 1;
+				}
+				return clearRect.apply(this, args);
+			};
+		});
+		const firstImage = await firstCanvas.evaluate((canvas) => canvas.toDataURL());
+		const secondImage = await secondCanvas.evaluate((canvas) => canvas.toDataURL());
+		const firstBox = await clips.nth(0).boundingBox();
+		const secondBox = await clips.nth(1).boundingBox();
+		expect(firstBox).not.toBeNull();
+		expect(secondBox).not.toBeNull();
+		const y = firstBox.y + firstBox.height * 0.55;
+		await page.mouse.move(firstBox.x + firstBox.width * 0.25, y);
+		await page.mouse.down();
+		await page.mouse.move(firstBox.x + firstBox.width * 0.75, y, { steps: 5 });
+		await expect.poll(() => firstCanvas.evaluate((canvas) => canvas.toDataURL())).not.toBe(firstImage);
+		expect(await secondCanvas.evaluate((canvas) => canvas.__selectionAuditDraws || 0)).toBe(0);
+		await page.mouse.move(secondBox.x + Math.min(70, secondBox.width * 0.5), y, { steps: 5 });
+		await expect.poll(() => secondCanvas.evaluate((canvas) => canvas.toDataURL())).not.toBe(secondImage);
+		await page.mouse.move(firstBox.x + firstBox.width * 0.75, y, { steps: 5 });
+		await expect.poll(() => secondCanvas.evaluate((canvas) => canvas.toDataURL())).toBe(secondImage);
+		await page.mouse.up();
+		await page.mouse.click(firstBox.x + firstBox.width * 0.25, y);
+		await expect.poll(() => firstCanvas.evaluate((canvas) => canvas.toDataURL())).toBe(firstImage);
+	});
 
 	for (const entry of ['Ctrl+A', 'Select menu']) {
 		test(`${entry} selects the full audio on every track`, async ({ page }) => {

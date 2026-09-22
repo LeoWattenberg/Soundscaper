@@ -78,8 +78,6 @@ export function AudacityWaveformCanvases({
 				spectrogramRevision,
 				themeDrawKey,
 				editorRoot?.dataset.editorTheme || '',
-				timeSelection?.startTime ?? '',
-				timeSelection?.endTime ?? '',
 			].join('|');
 			for (const clipElement of root.querySelectorAll('[data-clip-id]')) {
 				const clip = clipById.get(String(clipElement.dataset.clipId));
@@ -92,7 +90,9 @@ export function AudacityWaveformCanvases({
 					continue;
 				}
 				const bounds = canvas.getBoundingClientRect();
-				const canvasDrawKey = audacityCanvasDrawKey(canvas, clip, drawKey, bounds);
+				const selection = clipSelectionPixels(clip, timeSelection, pixelsPerSecond, bounds.width);
+				const clipDrawKey = `${drawKey}|${selection.start}|${selection.end}`;
+				const canvasDrawKey = audacityCanvasDrawKey(canvas, clip, clipDrawKey, bounds);
 				if (canvas.__kwWaveformPlan === clip.audacityWaveform && canvas.__kwWaveformDrawKey === canvasDrawKey) continue;
 				try {
 					const drawn = drawAudacityClipCanvas(canvas, clip, {
@@ -108,7 +108,7 @@ export function AudacityWaveformCanvases({
 					});
 					if (drawn) {
 						canvas.__kwWaveformPlan = clip.audacityWaveform;
-						canvas.__kwWaveformDrawKey = audacityCanvasDrawKey(canvas, clip, drawKey, bounds);
+						canvas.__kwWaveformDrawKey = audacityCanvasDrawKey(canvas, clip, clipDrawKey, bounds);
 						canvas.__kwWaveformState = 'audacity';
 						delete canvas.dataset.waveformError;
 					}
