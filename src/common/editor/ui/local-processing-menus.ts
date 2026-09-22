@@ -22,10 +22,12 @@ export function organizeNativePreferences(menus: readonly AssistanceMenuEntry[])
 			for (const candidate of candidates) {
 				const section = sectionFor(candidate.id ?? '');
 				if (section) preferences.push({ ...candidate, section });
-				else if (desktopServices) retainedServices.push(candidate);
+				else if ((typeof __SCAPE_DESKTOP_RENDERER__ === 'undefined' || __SCAPE_DESKTOP_RENDERER__)
+					&& desktopServices) retainedServices.push(candidate);
 				else items.push(candidate);
 			}
-			if (retainedServices.length) items.push({ ...item, items: retainedServices });
+			if ((typeof __SCAPE_DESKTOP_RENDERER__ === 'undefined' || __SCAPE_DESKTOP_RENDERER__)
+				&& retainedServices.length) items.push({ ...item, items: retainedServices });
 		}
 		return { ...menu, items, nativePreferences: preferences };
 	});

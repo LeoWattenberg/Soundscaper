@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-export const DESKTOP_MCP_COPY_BY_LOCALE = Object.freeze({
+export const DESKTOP_MCP_COPY_BY_LOCALE = (typeof __SCAPE_DESKTOP_RENDERER__ === 'undefined'
+	|| __SCAPE_DESKTOP_RENDERER__) ? Object.freeze({
 	en: Object.freeze({
 		connection: 'MCP connection',
 		disclosure: 'Connected local clients can read project metadata and edit the open project without confirmation for each edit. Share this token only with a client you trust.',
@@ -35,4 +36,4 @@ export const DESKTOP_MCP_COPY_BY_LOCALE = Object.freeze({
 		copied: 'In die Zwischenablage kopiert.',
 		copyFailed: 'Kopieren in die Zwischenablage fehlgeschlagen.',
 	}),
-});
+}) : null;

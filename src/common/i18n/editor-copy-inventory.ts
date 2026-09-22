@@ -102,7 +102,8 @@ const inventory = buildEditorCopyInventory(ENGLISH_COPY, GERMAN_COPY, [
 	{ owner: 'mastering', en: SOUNDSCAPER_MASTERING_SEQUENCE_COPY },
 	{ owner: 'routing', en: SOUNDSCAPER_ROUTING_GRAPH_COPY },
 	{ owner: 'communityTranslations', ...COMMUNITY_TRANSLATIONS_COPY_BY_LOCALE },
-	{ owner: 'desktopMcp', ...DESKTOP_MCP_COPY_BY_LOCALE },
+	...((typeof __SCAPE_DESKTOP_RENDERER__ === 'undefined' || __SCAPE_DESKTOP_RENDERER__)
+		? [{ owner: 'desktopMcp', ...DESKTOP_MCP_COPY_BY_LOCALE! }] : []),
 	{ owner: 'localAssistance', en: LOCAL_ASSISTANCE_ADDITIONAL_COPY },
 	{ owner: 'framescaperFinishing', en: FRAMESCAPER_FINISHING_ADDITIONAL_COPY, de: FRAMESCAPER_FINISHING_ADDITIONAL_GERMAN_COPY },
 	{ owner: 'framescaperVisualInspector', en: FRAMESCAPER_VISUAL_INSPECTOR_ADDITIONAL_COPY },

@@ -108,7 +108,8 @@ export default function AudioEditorWorkspaceOverlays({ model }) {
 	// layer; the workspace behind it stays.
 	return <React.Suspense fallback={<LazyInspectorFallback copy={copy} />}>
 		<EditorSurfaceBoundary copy={copy} surface="dialogs" resetKey={snapshot.project}>
-			{productId === 'soundscaper' && fileService.isDesktop && activeSurface === 'desktop-mcp'
+			{(typeof __SCAPE_DESKTOP_RENDERER__ === 'undefined' || __SCAPE_DESKTOP_RENDERER__)
+				&& productId === 'soundscaper' && fileService.isDesktop && activeSurface === 'desktop-mcp'
 				&& DesktopMcpDialog && typeof fileService.readMcpStatus === 'function'
 				&& typeof fileService.startMcp === 'function' && typeof fileService.stopMcp === 'function' && (
 				<div data-editor-surface="desktop-mcp">
