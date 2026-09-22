@@ -14,6 +14,7 @@ import {
 	describeAssessment,
 	describeMaintainedFileGrowth,
 	FAILING_STATUSES,
+	growthWarningThresholdFor,
 	loadMaintainabilityConfig,
 	planMaintainabilityTightening,
 	tightenMaintainabilityConfig,
@@ -39,9 +40,6 @@ const currentLineCounts = new Map();
 const tightenedAllow = new Map();
 const tightenedWarningBand = new Map();
 
-const effectiveWarningThreshold = baseline
-	? Math.min(config.warnLines, baseline.config.warnLines)
-	: config.warnLines;
 const baselineLineCounts = new Map();
 
 for (const path of files) {
@@ -49,14 +47,14 @@ for (const path of files) {
 	observed.add(repositoryPath);
 	const lines = sourceLineCount(readFileSync(path, 'utf8'));
 	currentLineCounts.set(repositoryPath, lines);
-	if (baseline && lines >= effectiveWarningThreshold) {
+	if (baseline && lines >= growthWarningThresholdFor(repositoryPath, config, baseline.config)) {
 		const previousPath = baseline.previousPathByCurrent.get(repositoryPath) ?? repositoryPath;
 		const baselineLines = readBaselineLineCount(baseline.revision, previousPath, baselineLineCounts);
 		const growth = describeMaintainedFileGrowth(
 			repositoryPath,
 			lines,
 			baselineLines,
-			effectiveWarningThreshold,
+				growthWarningThresholdFor(repositoryPath, config, baseline.config),
 		);
 		if (growth) findings.push(growth);
 	}
@@ -117,7 +115,7 @@ if (tighten && !findings.length && tighteningCount) {
 
 if (findings.length) throw new Error(`Maintainability size guard failed:\n${findings.join('\n')}`);
 
-console.log(`Checked ${files.length} maintained source files (${config.defaultMaxLines} lines; ${config.browserSpecMaxLines} for browser specs).`);
+console.log(`Checked ${files.length} maintained source files (${config.defaultMaxLines} lines, warning at ${config.warnLines}; browser specs ${config.browserSpecMaxLines}, warning at ${config.browserSpecWarnLines ?? config.warnLines}).`);
 if (warnings.length && listWarnings) {
 	console.log(`${warnings.length} growth-frozen file(s) in the warning band:`);
 	for (const warning of warnings) console.log(`  ${warning}`);
@@ -146,7 +144,7 @@ function loadMaintainabilityBaseline() {
 	const previous = JSON.parse(serialized);
 	return {
 		revision,
-		config: previous.schemaVersion === 2 ? validateMaintainabilityConfig(previous) : previous,
+		config: [2, 3].includes(previous.schemaVersion) ? validateMaintainabilityConfig(previous) : previous,
 		previousPathByCurrent: renamedMaintainedPaths(revision),
 	};
 }

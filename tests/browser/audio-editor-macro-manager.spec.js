@@ -27,7 +27,27 @@ async function openManager(page, editor) {
 	return manager;
 }
 
+function macroManagerStyleLoaded(page) {
+	return page.evaluate(() => Array.from(document.styleSheets).some((sheet) => {
+		try {
+			return Array.from(sheet.cssRules).some((rule) =>
+				rule instanceof CSSStyleRule && rule.selectorText.includes('.audio-editor-macro-manager__content'));
+		} catch {
+			return false;
+		}
+	}));
+}
+
 test.describe('macro manager libraries', () => {
+	test('loads its layout styles when the menu opens the dialog', async ({ page }) => {
+		const editor = await bootEditor(page, '/embed/en/');
+		expect(await macroManagerStyleLoaded(page)).toBe(false);
+
+		const manager = await openManager(page, editor);
+		await expect.poll(() => macroManagerStyleLoaded(page)).toBe(true);
+		await expect(manager.locator('.audio-editor-macro-manager__content')).toHaveCSS('display', 'grid');
+	});
+
 	test('Tools > Macros lists the saved macros instead of fixed placeholders', async ({ page }) => {
 		const errors = collectClientErrors(page);
 		const editor = await bootEditor(page, '/embed/en/');

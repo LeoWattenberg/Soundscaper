@@ -60,15 +60,16 @@
   every promise, and do not pass promise callbacks to void-returning APIs.
 - Do not grow files ratcheted in `config/maintainability-allowlist.json`; extract
   a focused module instead. New maintained source files have a 600-line ceiling;
-  browser specs have an 800-line ceiling. At 550 lines a file enters the warning
-  band and becomes growth-frozen at its checked-in size. An unbaselined file may
+  browser specs have an 800-line ceiling. Source files enter the warning band at
+  550 lines and browser specs at 750 lines; each becomes growth-frozen at its
+  checked-in size. An unbaselined file may
   not enter the band, and a baselined file may not grow by even one line.
   The gate compares source lines with `MAINTAINABILITY_BASE_REVISION` in CI and
   `HEAD` in a local working tree, following Git renames.
   `node scripts/check-file-size.mjs --warnings` lists the ratchets, and a PostToolUse
   hook reports the applicable boundary as you edit. Files may shrink freely; run
   `npm run check:size:tighten` to claim recovered lines or remove a ratchet once
-  its file is below 550 lines.
+  its file is below its warning threshold.
 - Production JavaScript chunks have a 500,000-byte ceiling. Preserve the
   semantic chunk groups in `vite.config.mjs`; split module ownership instead of
   weakening the build-output guard.

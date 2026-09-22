@@ -24,12 +24,17 @@ export function loadMaintainabilityConfig(root) {
 /** Validate one parsed maintainability configuration. */
 export function validateMaintainabilityConfig(config) {
 	const positiveInteger = (value) => Number.isSafeInteger(value) && value >= 1;
-	if (config.schemaVersion !== 2
+	if (![2, 3].includes(config.schemaVersion)
 		|| !positiveInteger(config.defaultMaxLines)
 		|| !positiveInteger(config.browserSpecMaxLines)
 		|| !positiveInteger(config.warnLines)
 		|| config.warnLines >= config.defaultMaxLines
 		|| config.warnLines >= config.browserSpecMaxLines
+		|| (config.schemaVersion === 3 && (
+			!positiveInteger(config.browserSpecWarnLines)
+			|| config.browserSpecWarnLines >= config.browserSpecMaxLines
+			|| !String(config.browserSpecWarningReason || '').trim()
+		))
 		|| !config.warningBandRatchets
 		|| typeof config.warningBandRatchets !== 'object'
 		|| Array.isArray(config.warningBandRatchets)
@@ -52,7 +57,7 @@ export function validateMaintainabilityConfig(config) {
 	for (const [repositoryPath, maxLines] of Object.entries(config.warningBandRatchets)) {
 		if (!canonicalRepositoryPath(repositoryPath)
 			|| !positiveInteger(maxLines)
-			|| maxLines < config.warnLines
+			|| maxLines < warningThresholdFor(repositoryPath, config)
 			|| maxLines > ceilingFor(repositoryPath, config)
 			|| Object.hasOwn(config.allow, repositoryPath)) {
 			throw new Error(`Invalid warning-band ratchet for ${repositoryPath}.`);
@@ -78,6 +83,16 @@ export function compareMaintainabilityConfigs(
 	if (config.warnLines > baseline.warnLines) {
 		findings.push(`Maintainability warning threshold increased from ${baseline.warnLines} to ${config.warnLines}.`);
 	}
+	if (config.schemaVersion < baseline.schemaVersion) {
+		findings.push(`Maintainability policy schema regressed from ${baseline.schemaVersion} to ${config.schemaVersion}.`);
+	}
+	if (config.schemaVersion === 3) {
+		const previousBrowserThreshold = baseline.browserSpecWarnLines ?? baseline.warnLines;
+		if (config.browserSpecWarnLines > previousBrowserThreshold
+			&& (baseline.schemaVersion === 3 || config.browserSpecWarnLines !== 750)) {
+			findings.push(`Browser-spec warning threshold increased from ${previousBrowserThreshold} to ${config.browserSpecWarnLines}.`);
+		}
+	}
 	for (const [repositoryPath, exception] of Object.entries(config.allow)) {
 		const previousPath = previousPathByCurrent.get(repositoryPath) ?? repositoryPath;
 		const previous = baseline.allow?.[previousPath];
@@ -87,7 +102,7 @@ export function compareMaintainabilityConfigs(
 			findings.push(`${repositoryPath}: size exception was raised from ${previous.maxLines} to ${exception.maxLines}.`);
 		}
 	}
-	if (baseline.schemaVersion !== 2) {
+	if (baseline.schemaVersion === 1) {
 		for (const [repositoryPath, maxLines] of Object.entries(config.warningBandRatchets)) {
 			if (currentLineCounts.get(repositoryPath) !== maxLines) {
 				findings.push(`${repositoryPath}: initial warning-band ratchet must equal its current line count.`);
@@ -150,7 +165,7 @@ export function tightenMaintainabilityConfig(config, allowTightenings, warningBa
 export function planMaintainabilityTightening(assessment, config) {
 	switch (assessment.status) {
 		case 'exception-obsolete':
-			return assessment.lines >= config.warnLines
+			return assessment.lines >= (assessment.warningThreshold ?? config.warnLines)
 				? { allow: null, warningBand: assessment.lines }
 				: { allow: null };
 		case 'slack':
@@ -169,6 +184,25 @@ export function ceilingFor(repositoryPath, config) {
 	return BROWSER_SPEC_PATTERN.test(repositoryPath) ? config.browserSpecMaxLines : config.defaultMaxLines;
 }
 
+/** The warning band begins near the applicable ceiling. Schema v2 used one shared band. */
+export function warningThresholdFor(repositoryPath, config) {
+	return BROWSER_SPEC_PATTERN.test(repositoryPath) && config.schemaVersion === 3
+		? config.browserSpecWarnLines
+		: config.warnLines;
+}
+
+/** Compare growth at the migrated browser band once, then preserve normal monotonic checks. */
+export function growthWarningThresholdFor(repositoryPath, config, baseline) {
+	const current = warningThresholdFor(repositoryPath, config);
+	const previous = warningThresholdFor(repositoryPath, baseline);
+	if (BROWSER_SPEC_PATTERN.test(repositoryPath)
+		&& baseline.schemaVersion < 3
+		&& config.schemaVersion === 3) {
+		return current;
+	}
+	return Math.min(current, previous);
+}
+
 /**
  * Classify one file against the policy.
  *
@@ -179,6 +213,7 @@ export function ceilingFor(repositoryPath, config) {
  */
 export function assessFile(repositoryPath, lines, config) {
 	const ceiling = ceilingFor(repositoryPath, config);
+	const warningThreshold = warningThresholdFor(repositoryPath, config);
 	const exception = config.allow[repositoryPath];
 	if (exception) {
 		if (!Number.isSafeInteger(exception.maxLines) || !String(exception.reason || '').trim()) {
@@ -193,7 +228,7 @@ export function assessFile(repositoryPath, lines, config) {
 				lines,
 				ceiling,
 				ratchet: exception.maxLines,
-				warningThreshold: config.warnLines,
+				warningThreshold,
 			};
 		}
 		if (lines < exception.maxLines) return { status: 'slack', lines, ceiling, ratchet: exception.maxLines };
@@ -204,13 +239,13 @@ export function assessFile(repositoryPath, lines, config) {
 		if (lines > warningRatchet) {
 			return { status: 'over-warning-ratchet', lines, ceiling, ratchet: warningRatchet };
 		}
-		if (lines < config.warnLines) {
+		if (lines < warningThreshold) {
 			return {
 				status: 'warning-ratchet-obsolete',
 				lines,
 				ceiling,
 				ratchet: warningRatchet,
-				warningThreshold: config.warnLines,
+				warningThreshold,
 			};
 		}
 		if (lines < warningRatchet) {
@@ -219,7 +254,7 @@ export function assessFile(repositoryPath, lines, config) {
 		return { status: 'at-warning-ratchet', lines, ceiling, ratchet: warningRatchet };
 	}
 	if (lines > ceiling) return { status: 'over-ceiling', lines, ceiling, ratchet: null };
-	if (lines >= config.warnLines) {
+	if (lines >= warningThreshold) {
 		return { status: 'unratcheted-warning-band', lines, ceiling, ratchet: null };
 	}
 	return { status: 'ok', lines, ceiling, ratchet: null };

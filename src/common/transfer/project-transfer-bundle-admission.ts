@@ -16,6 +16,14 @@ import {
 	type CrossProductHandoffReportSidecarV1,
 } from './cross-product-handoff-report-sidecar.ts';
 import { TransferManualImportRefusalError } from './transfer-manual-refusal.ts';
+import { admittedProjectTransferId, MAXIMUM_PROJECT_ID_LENGTH } from './project-transfer-record.ts';
+
+export { admittedProjectTransferId, asProjectTransferRecord } from './project-transfer-record.ts';
+export {
+	projectTransferWitnessedHomeStore,
+	witnessProjectTransferWrites,
+	type ProjectTransferWriteWitness,
+} from './project-transfer-write-witness.ts';
 
 /** Mirrors SCAPE_FILE_EXTENSION without importing the archive implementation. */
 export const PROJECT_TRANSFER_ENTRY_EXTENSION = '.scape';
@@ -24,7 +32,6 @@ export const PROJECT_TRANSFER_DEFAULT_MAXIMUM_ENTRIES = 512;
 export const PROJECT_TRANSFER_DEFAULT_MAXIMUM_ENTRY_BYTES = 512 * 1024 * 1024;
 const MAXIMUM_ADMITTED_ENTRIES = 100_000;
 const MAXIMUM_ADMITTED_ENTRY_BYTES = 8 * 1024 * 1024 * 1024;
-const MAXIMUM_PROJECT_ID_LENGTH = 256;
 const MAXIMUM_TITLE_LENGTH = 512;
 const MAXIMUM_FILE_NAME_LENGTH = 255;
 const MAXIMUM_REASON_LENGTH = 512;
@@ -135,86 +142,6 @@ export interface ProjectTransferImportStore {
 	 * rather than removing anything else.
 	 */
 	deleteProjectIfCurrent?(project: unknown): PromiseLike<unknown> | unknown;
-}
-
-/** The create-only seams, in the order the .scape import itself prefers them. */
-const PROJECT_PUBLICATION_SEAMS = ['createScapeProjectIfAbsent', 'createProjectIfAbsent'] as const;
-
-export interface ProjectTransferWriteWitness {
-	/** The store to hand the archive import in place of the real one. */
-	readonly store: ProjectTransferImportStore;
-	/** The exact document the store published for this identity, if any. */
-	created(): unknown;
-}
-
-interface ProjectTransferWriteWitnessState {
-	readonly projectId: string;
-	readonly facades: WeakMap<object, ProjectTransferImportStore>;
-	created: unknown;
-}
-
-const PROJECT_TRANSFER_WRITE_WITNESSES = new WeakMap<object, ProjectTransferWriteWitnessState>();
-
-/**
- * Hand the archive import a facade over the receiving store that remembers the
- * exact document the store published for this identity.
- *
- * Everything is forwarded to the real store, and every method is applied with
- * the real store as its receiver, so a store built on private fields behaves
- * exactly as it would unwrapped. The only addition is that a create-only
- * publication's return value is retained when it carries this project id.
- */
-export function witnessProjectTransferWrites(
-	store: ProjectTransferImportStore,
-	projectId: string,
-): ProjectTransferWriteWitness {
-	const state: ProjectTransferWriteWitnessState = {
-		projectId,
-		facades: new WeakMap(),
-		created: null,
-	};
-	const facade = witnessStore(store as object, state);
-	return Object.freeze({ store: facade, created: () => state.created });
-}
-
-/**
- * Preserve a transfer write witness when archive routing substitutes a family
- * home for the federation the import layer originally wrapped.
- */
-export function projectTransferWitnessedHomeStore(store: unknown, homeStore: unknown): unknown {
-	if (store === null || typeof store !== 'object'
-		|| homeStore === null || typeof homeStore !== 'object') return homeStore;
-	const state = PROJECT_TRANSFER_WRITE_WITNESSES.get(store);
-	return state ? witnessStore(homeStore, state) : homeStore;
-}
-
-function witnessStore(
-	store: object,
-	state: ProjectTransferWriteWitnessState,
-): ProjectTransferImportStore {
-	const existing = state.facades.get(store);
-	if (existing) return existing;
-	const facade = new Proxy(store, {
-		get(target, property) {
-			const value = Reflect.get(target, property, target);
-			if (typeof value !== 'function') return value;
-			const method = value as (...args: unknown[]) => unknown;
-			if (!(PROJECT_PUBLICATION_SEAMS as readonly (string | symbol)[]).includes(property)) {
-				return (...args: unknown[]) => method.apply(target, args);
-			}
-			return async (...args: unknown[]) => {
-				const published = await method.apply(target, args);
-				const identity = asProjectTransferRecord(published).id;
-				if (published && admittedProjectTransferId(identity) === state.projectId) {
-					state.created = published;
-				}
-				return published;
-			};
-		},
-	}) as ProjectTransferImportStore;
-	state.facades.set(store, facade);
-	PROJECT_TRANSFER_WRITE_WITNESSES.set(facade as object, state);
-	return facade;
 }
 
 export interface ProjectTransferExportRequest {
@@ -541,12 +468,6 @@ function admitOptionalText(value: unknown, maximumLength: number, index: number,
 	return value;
 }
 
-export function admittedProjectTransferId(value: unknown): string | null {
-	return typeof value === 'string' && value.length > 0 && value.length <= MAXIMUM_PROJECT_ID_LENGTH
-		? value
-		: null;
-}
-
 export function admittedProjectTransferTitle(value: unknown): string | null {
 	return typeof value === 'string' && value.length > 0 ? value.slice(0, MAXIMUM_TITLE_LENGTH) : null;
 }
@@ -570,10 +491,6 @@ export function projectTransferFileName(title: string, projectId: string): strin
 export function describeProjectTransferError(error: unknown): string {
 	const message = error instanceof Error ? error.message : String(error);
 	return message.slice(0, MAXIMUM_REASON_LENGTH) || 'The .scape transfer step failed without a message.';
-}
-
-export function asProjectTransferRecord(value: unknown): Record<string, unknown> {
-	return value && typeof value === 'object' ? value as Record<string, unknown> : {};
 }
 
 function asRequestRecord(value: unknown, label: string): Record<string, unknown> {

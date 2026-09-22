@@ -1,3 +1,5 @@
+import './AudacityDynamicsEffectLayout.css';
+import './AudacityPortEffectLayout.css';
 import { feedbackFailure, usePresentationFeedback } from '../presentation-feedback.ts';
 import { useEffect, useRef } from 'react';
 import {

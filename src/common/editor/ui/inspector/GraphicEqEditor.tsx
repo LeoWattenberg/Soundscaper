@@ -5,6 +5,7 @@
  * 16f2713979809abe7308b4e1e0d487afeece84f2. Adapted for kw.media in 2026
  * using the Audacity design system's mixer faders and editor automation.
  */
+import './GraphicEqEditor.css';
 import { useEffect, useRef, useState, type PointerEvent } from 'react';
 import { Button } from '@soundscaper/design-system/Button';
 import { MixerFader } from '@soundscaper/design-system/MixerFader';

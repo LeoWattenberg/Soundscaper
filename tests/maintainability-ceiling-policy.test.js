@@ -6,10 +6,12 @@ import test from 'node:test';
 import {
 	assessFile,
 	ceilingFor,
+	warningThresholdFor,
 	compareMaintainabilityConfigs,
 	describeAssessment,
 	describeMaintainedFileGrowth,
 	FAILING_STATUSES,
+	growthWarningThresholdFor,
 	loadMaintainabilityConfig,
 	planMaintainabilityTightening,
 	tightenMaintainabilityConfig,
@@ -18,13 +20,15 @@ import {
 import { headroomAdvice, hookOutput } from '../scripts/hooks/report-maintainability-headroom.mjs';
 
 const config = {
-	schemaVersion: 2,
+	schemaVersion: 3,
 	defaultMaxLines: 600,
 	browserSpecMaxLines: 800,
 	warnLines: 550,
+	browserSpecWarnLines: 750,
+	browserSpecWarningReason: 'Browser specs have an 800-line ceiling; the old shared 550-line warning band froze them 250 lines early.',
 	warningBandRatchets: {
 		'src/crowded.ts': 575,
-		'tests/browser/crowded.spec.js': 694,
+		'tests/browser/crowded.spec.js': 774,
 	},
 	allow: {
 		'src/legacy.js': { maxLines: 900, reason: 'Legacy module awaiting extraction.' },
@@ -33,6 +37,8 @@ const config = {
 
 test('browser specs get their own ceiling', () => {
 	assert.equal(ceilingFor('tests/browser/timeline.spec.js', config), 800);
+	assert.equal(warningThresholdFor('tests/browser/timeline.spec.js', config), 750);
+	assert.equal(warningThresholdFor('src/common/editor/export.js', config), 550);
 	assert.equal(ceilingFor('tests/timeline.test.js', config), 600);
 	assert.equal(ceilingFor('src/common/editor/export.js', config), 600);
 });
@@ -153,6 +159,14 @@ test('schema validation keeps the warning band below both ceilings and validates
 		/Unsupported maintainability allowlist schema/u,
 	);
 	assert.throws(
+		() => validateMaintainabilityConfig({ ...minimal, browserSpecWarnLines: 800 }),
+		/Unsupported maintainability allowlist schema/u,
+	);
+	assert.throws(
+		() => validateMaintainabilityConfig({ ...minimal, browserSpecWarningReason: '' }),
+		/Unsupported maintainability allowlist schema/u,
+	);
+	assert.throws(
 		() => validateMaintainabilityConfig({ ...minimal, allow: { 'src/legacy.js': null } }),
 		/Invalid size exception/u,
 	);
@@ -192,6 +206,9 @@ test('checked-in policy and legacy size exceptions cannot be loosened', () => {
 	const threshold = structuredClone(config);
 	threshold.warnLines = 551;
 	assert.match(compareMaintainabilityConfigs(threshold, config)[0], /warning threshold increased/iu);
+	const browserThreshold = structuredClone(config);
+	browserThreshold.browserSpecWarnLines = 751;
+	assert.match(compareMaintainabilityConfigs(browserThreshold, config)[0], /browser-spec warning threshold increased/iu);
 
 	const ceiling = structuredClone(config);
 	ceiling.browserSpecMaxLines = 801;
@@ -220,7 +237,7 @@ test('schema-v1 bootstrap keeps ceilings and exceptions monotonic and seeds exac
 		new Map(),
 		new Map([
 			['src/crowded.ts', 575],
-			['tests/browser/crowded.spec.js', 694],
+			['tests/browser/crowded.spec.js', 774],
 		]),
 	), []);
 
@@ -253,8 +270,32 @@ test('warning-band source growth is compared to its actual Git-base size', () =>
 });
 
 test('browser specs retain their higher ceiling while growth-freezing their warning baseline', () => {
-	assert.equal(assessFile('tests/browser/crowded.spec.js', 694, config).status, 'at-warning-ratchet');
-	assert.equal(assessFile('tests/browser/crowded.spec.js', 695, config).status, 'over-warning-ratchet');
+	assert.equal(assessFile('tests/browser/new.spec.js', 749, config).status, 'ok');
+	assert.equal(assessFile('tests/browser/new.spec.js', 750, config).status, 'unratcheted-warning-band');
+	assert.equal(assessFile('tests/browser/crowded.spec.js', 774, config).status, 'at-warning-ratchet');
+	assert.equal(assessFile('tests/browser/crowded.spec.js', 775, config).status, 'over-warning-ratchet');
+});
+
+test('one-time browser warning-band migration allows room below 750 while preserving higher ratchets', () => {
+	const previous = {
+		...config,
+		schemaVersion: 2,
+		warningBandRatchets: {
+			'src/crowded.ts': 575,
+			'tests/browser/retired.spec.js': 694,
+			'tests/browser/crowded.spec.js': 774,
+		},
+	};
+	delete previous.browserSpecWarnLines;
+	delete previous.browserSpecWarningReason;
+	assert.deepEqual(compareMaintainabilityConfigs(config, previous), []);
+	assert.equal(growthWarningThresholdFor('tests/browser/retired.spec.js', config, previous), 750);
+	assert.equal(describeMaintainedFileGrowth('tests/browser/retired.spec.js', 695, 694,
+		growthWarningThresholdFor('tests/browser/retired.spec.js', config, previous)), null);
+	assert.equal(growthWarningThresholdFor('src/crowded.ts', config, previous), 550);
+	assert.equal(growthWarningThresholdFor('tests/browser/crowded.spec.js', config, config), 750);
+	const tooLoose = { ...config, browserSpecWarnLines: 751 };
+	assert.match(compareMaintainabilityConfigs(tooLoose, previous)[0], /browser-spec warning threshold/iu);
 });
 
 test('an allowlist entry without a reason is rejected', () => {
@@ -265,6 +306,7 @@ test('an allowlist entry without a reason is rejected', () => {
 test('the checked-in configuration declares a warning band under the ceiling', () => {
 	const live = loadMaintainabilityConfig(new URL('..', import.meta.url).pathname);
 	assert.ok(live.warnLines < live.defaultMaxLines, 'the band must leave room to act in');
+	assert.ok(live.browserSpecWarnLines < live.browserSpecMaxLines);
 	assert.ok(live.warnLines >= 1);
 });
 
