@@ -73,9 +73,10 @@ export async function describeDesktopKokoroG2pBundle({ targetId, bundleRoot }) {
 	const paths = await inventoryPaths(root);
 	const executable = targetId.startsWith('win-') ? 'kokoro-g2p.exe' : 'kokoro-g2p';
 	if (!paths.includes(executable)) throw new Error('Kokoro G2P build bundle is missing its executable.');
-	const files = await Promise.all(paths.map(async (path) => ({
-		path, ...await fileDescriptor(join(root, path)),
-	})));
+	const files = [];
+	for (const path of paths) {
+		files.push({ path, ...await fileDescriptor(join(root, path)) });
+	}
 	const manifest = {
 		schemaVersion: 1, runtimeVersion: KOKORO_G2P_VERSION, targetId,
 		runtimePrefix: KOKORO_G2P_PREFIX, executable, files,

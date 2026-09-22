@@ -136,6 +136,29 @@ test('stages and authenticates an exact target-specific offline G2P closure', as
 	});
 });
 
+test('describes a large G2P bundle within a restricted file descriptor limit', {
+	skip: process.platform === 'win32',
+}, async () => {
+	await fixture(async ({ bundleRoot }) => {
+		await Promise.all(Array.from({ length: 128 }, (_, index) => (
+			writeFile(join(bundleRoot, 'data', `entry-${String(index).padStart(3, '0')}.txt`), `${index}\n`)
+		)));
+		const moduleHref = new URL('../scripts/lib/desktop-kokoro-g2p-runtime.mjs', import.meta.url).href;
+		const program = `
+			import { describeDesktopKokoroG2pBundle } from ${JSON.stringify(moduleHref)};
+			const manifest = await describeDesktopKokoroG2pBundle({
+				targetId: 'linux-x64', bundleRoot: process.argv[1],
+			});
+			process.stdout.write(String(manifest.files.length));
+		`;
+		const { stdout } = await runFile('bash', [
+			'-c', 'ulimit -n 32; exec "$@"', 'kokoro-g2p-descriptor-limit',
+			process.execPath, '--input-type=module', '--eval', program, bundleRoot,
+		], { windowsHide: true });
+		assert.equal(stdout, '132');
+	});
+});
+
 test('rejects extra staged files and a target mismatch', async () => {
 	await fixture(async ({ bundleRoot, runtimeRoot }) => {
 		const { manifest } = await stageDesktopKokoroG2pRuntime({
