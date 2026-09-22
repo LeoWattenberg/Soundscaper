@@ -315,7 +315,8 @@ export function createRecordingSessionService(runtime: RecordingSessionServiceRu
 		return Object.freeze({ generation, projectId, assertCurrent });
 	}
 
-	function startRecording(options: RecordingStartOptions = {}, soundActivated = false): Promise<void> | undefined {
+	function startRecording(options: RecordingStartOptions = {}) { return startRecordingSession(options, false); }
+	function startRecordingSession(options: RecordingStartOptions, soundActivated: boolean): Promise<void> | undefined {
 		if (soundActivated && runtime.canStartSoundActivatedRecording?.() === false) return undefined;
 		const timedStart = isTimedStart(options);
 		if (startBlocked() || (!timedStart && (state.timedRecordingPreparing || state.timedRecording))) {
@@ -336,7 +337,7 @@ export function createRecordingSessionService(runtime: RecordingSessionServiceRu
 		state.recordingStartPromise = tracked;
 		return tracked;
 	}
-	function startSoundActivatedRecording(options: RecordingStartOptions = {}) { return startRecording(options, true); }
+	function startSoundActivatedRecording(options: RecordingStartOptions = {}) { return startRecordingSession(options, true); }
 
 	function startTakeCycleRecording(): Promise<void> | undefined {
 		if (!runtime.beginTakeCycleRecording || startBlocked()
