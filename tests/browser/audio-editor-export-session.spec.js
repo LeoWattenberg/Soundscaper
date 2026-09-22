@@ -576,6 +576,7 @@ test.describe('audio editor React/design-system workflows', () => {
 		]) {
 			await page.setViewportSize({ width: viewport.width, height: viewport.height });
 			await waitForResponsiveEditorLayout(editor);
+			if (viewport.label === 'mobile') await closeWorkspacePanel(editor, 'project-bin');
 			for (const theme of ['light', 'dark']) {
 				await setDocumentTheme(page, theme);
 				await expect(editor).toHaveScreenshot(`audio-editor-${viewport.label}-${theme}.png`, {
