@@ -10,7 +10,7 @@ dependencies = [
     "kokoro==0.9.4",
     "misaki[en,ja,zh]==0.9.4",
     "pyinstaller==6.16.0",
-    "torch==2.8.0",
+    "torch==2.13.0",
     "unidic-lite==1.0.8",
 ]
 
