@@ -17,6 +17,8 @@
 	},
 	"include": [
 		"desktop/application-lifecycle.ts",
+		"desktop/mcp-main-registration.ts",
+		"desktop/mcp-service.ts",
 		"desktop/bounded-regular-file.ts",
 		"desktop/bundled-audio-codec-composite-provider.ts",
 		"desktop/desktop-audio-stream-service.ts",

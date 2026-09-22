@@ -139,7 +139,7 @@ function buildMcpServer(dispatch: DesktopMcpServiceOptions['dispatch']): McpServ
 		}).strict(),
 	}, async (args) => invoke('read_project_document', args));
 	server.registerTool('list_editor_commands', {
-		description: 'List editor command types and their reference definitions.',
+		description: 'List supported editor command type names.',
 		inputSchema: z.object({}).strict(),
 	}, async () => invoke('list_editor_commands', {}));
 	server.registerTool('execute_editor_command', {
@@ -150,8 +150,8 @@ function buildMcpServer(dispatch: DesktopMcpServiceOptions['dispatch']): McpServ
 			command: z.object({ type: z.string().min(1).max(128) }).passthrough(),
 		}).strict(),
 	}, async (args) => invoke('execute_editor_command', args));
-	server.registerResource('editor-command-reference', 'soundscaper://commands', {
-		title: 'Soundscaper editor command reference',
+	server.registerResource('editor-command-types', 'soundscaper://commands', {
+		title: 'Soundscaper editor command type names',
 		mimeType: 'application/json',
 	}, async (uri) => {
 		const value = await dispatch('list_editor_commands', {});

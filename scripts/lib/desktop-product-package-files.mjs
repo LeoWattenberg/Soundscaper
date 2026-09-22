@@ -173,6 +173,34 @@ export function soundscaperMainSource(sourceValue) {
 	].join('\n');
 	source = source.replace("import { registerHostAffordances } from './host-affordances.mjs';\n",
 		`${replacement}import { registerHostAffordances } from './host-affordances.mjs';\n`);
+	source = replaceOnce(source,
+		"import { registerHostAffordances } from './host-affordances.mjs';\n",
+		"import { registerHostAffordances } from './host-affordances.mjs';\nimport { registerDesktopMcpMain } from './project-library-runtime/desktop/mcp-main-registration.js';\n",
+		'Soundscaper MCP main import');
+	source = replaceOnce(source,
+		'let linkedVideoLocators = null, nativeTier = null, nativeServices = null, soundscaperDelivery = null;',
+		'let linkedVideoLocators = null, nativeTier = null, nativeServices = null, soundscaperDelivery = null, desktopMcp = null;',
+		'Soundscaper MCP lifecycle');
+	source = replaceOnce(source,
+		"\t\t{ name: 'desktop codecs', run: () => desktopCodecs?.dispose() },",
+		"\t\t{ name: 'desktop MCP', run: () => desktopMcp?.dispose() },\n\t\t{ name: 'desktop codecs', run: () => desktopCodecs?.dispose() },",
+		'Soundscaper MCP shutdown');
+	source = replaceOnce(source,
+		'cleanup: async () => { rendererReady = false; await rendererOwnershipCleanup.drain(webContents); },',
+		'cleanup: async () => { rendererReady = false; await desktopMcp?.revoke(); await rendererOwnershipCleanup.drain(webContents); },',
+		'Soundscaper MCP renderer recovery');
+	source = replaceOnce(source,
+		'if (revokedOwner) rendererOwnershipCleanup.start(revokedOwner);',
+		'if (revokedOwner) { void desktopMcp?.revoke(); rendererOwnershipCleanup.start(revokedOwner); }',
+		'Soundscaper MCP renderer replacement');
+	source = replaceOnce(source,
+		'function revokeRendererSaveOwner(webContents) {\n\trendererReady = false;',
+		'function revokeRendererSaveOwner(webContents) {\n\trendererReady = false;\n\tvoid desktopMcp?.revoke();',
+		'Soundscaper MCP renderer revocation');
+	source = replaceOnce(source,
+		"\tregisterHostAffordances({ channels: IPC, handle, windowFor: () => mainWindow });",
+		"\tregisterHostAffordances({ channels: IPC, handle, windowFor: () => mainWindow });\n\tdesktopMcp = registerDesktopMcpMain({ handle, on: (channel, listener) => ipcMain.on(channel, listener), off: (channel, listener) => ipcMain.removeListener(channel, listener), removeHandler: (channel) => ipcMain.removeHandler(channel), currentOwner: currentRendererSaveOwner, ownerFor: rendererSaveOwnerFor, isOwnerCurrent: isRendererSaveOwnerCurrent, sendToRenderer });",
+		'Soundscaper MCP IPC registration');
 	source = replaceRange(source,
 		'\tnativeServices = await startFramescaperNativeServicesRegistration({',
 		'\treleaseChecker =',

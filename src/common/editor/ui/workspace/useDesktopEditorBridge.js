@@ -22,6 +22,17 @@ export function useDesktopEditorBridge({
 	const desktopOpenQueueRef = useRef(Promise.resolve());
 	const [maximized, setMaximized] = useState(false);
 	useEffect(() => {
+		if (typeof __SCAPE_DESKTOP_RENDERER__ === 'undefined' || !__SCAPE_DESKTOP_RENDERER__
+			|| !fileService.isDesktop || controller.getSnapshot().productId !== 'soundscaper'
+			|| typeof fileService.onMcpRequest !== 'function') return undefined;
+		let disposed = false;
+		let port = null;
+		void import('../../desktop-mcp-port.ts').then(({ createSoundscaperDesktopMcpPort }) => {
+			if (!disposed) port = createSoundscaperDesktopMcpPort({ controller, fileService });
+		}).catch((error) => { if (!disposed) onError(error); });
+		return () => { disposed = true; port?.dispose(); };
+	}, [controller, fileService, onError]);
+	useEffect(() => {
 		if (!fileService.isDesktop) return undefined;
 		let active = true;
 		const openDescriptor = (descriptor) => {

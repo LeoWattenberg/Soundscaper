@@ -266,6 +266,8 @@ test('Soundscaper staged entry sources have no callable Framescaper product surf
 	const stagedCodec = soundscaperDesktopCodecSource(codec);
 	const stagedConstants = soundscaperConstantsSource(constants);
 	const stagedMain = soundscaperMainSource(main);
+	assert.match(stagedMain, /registerDesktopMcpMain/u);
+	assert.doesNotMatch(main, /registerDesktopMcpMain/u);
 	const stagedNativeTier = soundscaperNativeTierSource(nativeTier);
 	const stagedPreload = soundscaperPreloadSource(preload);
 	const stagedProjectRuntime = soundscaperProjectRuntimeSource(projectRuntime);

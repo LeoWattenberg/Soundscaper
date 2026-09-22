@@ -154,6 +154,8 @@ export const DESKTOP_5B_TRANSITIVE_RUNTIME_FILES = Object.freeze([
 
 /** Leaf modules whose package imports must be closed into the staged runtime. */
 export const DESKTOP_RUNTIME_BUNDLED_LEAF_FILES = Object.freeze([
+	// Stage the MCP SDK with its self-contained validator shim, without bare Ajv codegen imports.
+	'desktop/mcp-service.js',
 	'src/common/editor/assistance/owned-audio-workflow-transforms-v1.js',
 	'src/common/editor/assistance/owned-video-workflow-transforms-v1.js',
 	'src/common/editor/assistance/workflow-settings-v1.js',

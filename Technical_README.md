@@ -147,9 +147,22 @@ The desktop editor and all released languages work offline. Its package contains
 the reviewed dedicated audio codec payloads, Electron's authenticated framework
 codec library, and the current Audacity-derived translations, compiled into
 the renderer bundle. User-configured external FFmpeg remains a desktop-only provider.
-The app's only runtime network request is a throttled GitHub check for a newer
+The app's only outbound runtime network request is a throttled GitHub check for a newer
 release notification.
 It never downloads or installs an update automatically and sends no telemetry.
+
+The Soundscaper desktop app can also open a local MCP connection for external
+clients. Choose **Tools > Desktop services > MCP connection…**, then start the
+listener and give the shown endpoint and session token to a trusted MCP client.
+The client must send `Authorization: Bearer <token>` with each request. The
+listener binds to `127.0.0.1` on a random port and closes when you stop it,
+close the app, or replace the editor window. A new start creates a new token.
+The connection exposes the active project's metadata and the editor's command
+protocol; connected clients can edit or delete project content without a prompt
+for each command. Document reads omit media bytes and opaque extension fields.
+Writes require the active project ID and revision and use the editor's normal
+validation, undo, and autosave path. MCP is off at launch and is unavailable in
+the browser and Framescaper.
 
 Desktop projects remain in the app's autosaved local library. Opening or
 double-clicking an `.aup4` imports a new independent library copy;
