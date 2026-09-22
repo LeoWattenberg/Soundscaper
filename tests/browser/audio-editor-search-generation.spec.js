@@ -204,7 +204,6 @@ test.describe('audio editor React/design-system workflows', () => {
 		await search.press('Escape');
 		await expect(trigger).toBeFocused();
 
-		await chooseNestedCommandAction(page, editor, 'View', ['Panels', 'Project bin']);
 		await expect(projectBinPanel).toBeVisible();
 		await editor.locator('[data-project-bin-input]').setInputFiles([toneA]);
 		let card = projectBinPanel.locator('[data-project-bin-item]').first();

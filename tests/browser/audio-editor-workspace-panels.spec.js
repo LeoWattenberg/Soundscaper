@@ -196,7 +196,6 @@ test.describe('audio editor React/design-system workflows', () => {
 
 	test('keeps Project bin picker cards reusable across reload and File imports on the timeline', async ({ page }) => {
 		const editor = await bootEditor(page, '/embed/en/');
-		await chooseNestedCommandAction(page, editor, 'View', ['Panels', 'Project bin']);
 		const projectBinPanel = editor.locator('[data-workspace-panel="project-bin"]');
 		const projectBin = projectBinPanel.locator('[data-project-bin-drop-target]');
 		await expect(projectBinPanel).toBeVisible();
@@ -236,7 +235,6 @@ test.describe('audio editor React/design-system workflows', () => {
 
 	test('exposes Project bin icon controls, source selection, preview, replacement, and project removal', async ({ page }) => {
 		const editor = await bootEditor(page, '/embed/en/');
-		await chooseNestedCommandAction(page, editor, 'View', ['Panels', 'Project bin']);
 		const projectBin = editor.locator('[data-project-bin-drop-target]');
 		await editor.locator('[data-project-bin-input]').setInputFiles([toneA]);
 		const card = projectBin.locator('[data-project-bin-item]').first();
@@ -465,7 +463,6 @@ test.describe('audio editor React/design-system workflows', () => {
 
 	test('previews reusable bin clips on timeline drag and routes external drops by surface', async ({ page }) => {
 		const editor = await bootEditor(page, '/embed/en/');
-		await chooseNestedCommandAction(page, editor, 'View', ['Panels', 'Project bin']);
 		const projectBin = editor.locator('[data-project-bin-drop-target]');
 		await editor.locator('[data-project-bin-input]').setInputFiles([toneA]);
 		const card = projectBin.locator('[data-project-bin-item]').first();
