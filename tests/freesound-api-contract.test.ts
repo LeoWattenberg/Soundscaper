@@ -11,6 +11,7 @@ import {
 } from '../functions/api/freesound/_shared/contracts.ts';
 
 const previewUrl = 'https://cdn.freesound.org/previews/123/123456_789-hq.ogg';
+const waveformUrl = 'https://cdn.freesound.org/displays/123/123456_789_wave_M.png';
 
 function soundFixture(overrides: Record<string, unknown> = {}): Record<string, unknown> {
 	return {
@@ -32,6 +33,7 @@ function soundFixture(overrides: Record<string, unknown> = {}): Record<string, u
 		md5: '0123456789abcdef0123456789abcdef',
 		is_explicit: false,
 		previews: { 'preview-hq-ogg': previewUrl },
+		images: { waveform_m: waveformUrl },
 		num_downloads: 42,
 		avg_rating: 4.75,
 		num_ratings: 8,
@@ -111,9 +113,34 @@ test('normalizes a sound without exposing the upstream preview URL', () => {
 		},
 		statistics: { downloads: 42, averageRating: 4.75, ratingCount: 8 },
 		preview: { available: true, format: 'ogg', quality: 'high', approximateBitrateKbps: 192 },
+		waveform: {
+			available: true,
+			url: '/api/freesound/sounds/123456/waveform?asset=789&source=cdn',
+		},
 	});
 	assert.equal(normalized.previewUrl.href, previewUrl);
+	assert.equal(normalized.waveformUrl?.href, waveformUrl);
 	assert.doesNotMatch(JSON.stringify(normalized.sound), /cdn\.freesound/u);
+});
+
+test('normalizes an unavailable waveform and rejects untrusted image URLs', () => {
+	const unavailable = normalizeFreesoundSound(soundFixture({ images: {} }));
+	assert.deepEqual(unavailable.sound.waveform, { available: false, url: null });
+	assert.equal(unavailable.waveformUrl, null);
+	const legacy = normalizeFreesoundSound(soundFixture({
+		images: { waveform_m: 'https://freesound.org/data/displays/123/123456_789_wave_M.png' },
+	}));
+	assert.equal(legacy.sound.waveform.url, '/api/freesound/sounds/123456/waveform?asset=789&source=site');
+	for (const url of [
+		'https://attacker.example/displays/123/123456_789_wave_M.png',
+		'https://cdn.freesound.org.evil.example/displays/123/123456_789_wave_M.png',
+		'https://cdn.freesound.org/displays/999/123456_789_wave_M.png',
+		'https://cdn.freesound.org/displays/123/999999_789_wave_M.png',
+		'https://cdn.freesound.org/displays/123/123456_789_spec_M.jpg',
+		'https://cdn.freesound.org/displays/123/123456_789_wave_M.png?redirect=evil',
+	]) {
+		assert.throws(() => normalizeFreesoundSound(soundFixture({ images: { waveform_m: url } })), /waveform URL/u);
+	}
 });
 
 test('rejects malformed sound fields and preview URLs outside the Freesound CDN', () => {

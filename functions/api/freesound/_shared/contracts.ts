@@ -42,12 +42,15 @@ export interface FreesoundSound {
 		quality: 'high';
 		approximateBitrateKbps: 192;
 	}>;
+	readonly waveform: Readonly<{ available: boolean; url: string | null }>;
 }
 
 export interface NormalizedFreesoundSound {
 	readonly sound: FreesoundSound;
 	/** Trusted internal fetch target. This value must never enter a public JSON response. */
 	readonly previewUrl: URL;
+	/** Trusted internal fetch target. This value must never enter a public JSON response. */
+	readonly waveformUrl: URL | null;
 }
 
 export interface FreesoundSearchPage {
@@ -138,6 +141,10 @@ export function normalizeFreesoundSound(value: unknown): NormalizedFreesoundSoun
 	}
 	const previews = record(source.previews, 'sound.previews');
 	const previewUrl = trustedPreviewUrl(previews['preview-hq-ogg']);
+	const images = source.images === undefined || source.images === null ? null : record(source.images, 'sound.images');
+	const waveformUrl = images?.waveform_m === undefined || images.waveform_m === null
+		? null
+		: trustedWaveformUrl(images.waveform_m, id);
 	const md5 = boundedString(source.md5, 'sound.md5', 32).toLocaleLowerCase('en-US');
 	if (!/^[a-f0-9]{32}$/u.test(md5)) throw new FreesoundContractError('Freesound returned an invalid sound.md5.');
 
@@ -181,8 +188,13 @@ export function normalizeFreesoundSound(value: unknown): NormalizedFreesoundSoun
 				quality: 'high',
 				approximateBitrateKbps: 192,
 			},
+			waveform: {
+				available: waveformUrl !== null,
+				url: waveformUrl === null ? null : publicWaveformPath(waveformUrl, id),
+			},
 		},
 		previewUrl,
+		waveformUrl,
 	};
 }
 
@@ -236,6 +248,37 @@ function trustedPreviewUrl(value: unknown): URL {
 		throw new FreesoundContractError('Freesound returned an untrusted preview URL.');
 	}
 	return url;
+}
+
+function trustedWaveformUrl(value: unknown, id: number): URL {
+	const raw = boundedString(value, 'sound waveform URL', 2_048);
+	let url: URL;
+	try {
+		url = new URL(raw);
+	} catch {
+		throw new FreesoundContractError('Freesound returned an invalid waveform URL.');
+	}
+	const prefix = url.hostname === PREVIEW_HOST ? '/displays/' : '/data/displays/';
+	const filename = new RegExp(`^${prefix}${String(Math.floor(id / 1_000))}/${String(id)}_\\d{1,20}_wave_M\\.png$`, 'u');
+	if (
+		url.protocol !== 'https:'
+		|| (url.hostname !== PREVIEW_HOST && url.hostname !== 'freesound.org')
+		|| url.port !== ''
+		|| !filename.test(url.pathname)
+		|| url.username !== ''
+		|| url.password !== ''
+		|| url.search !== ''
+		|| url.hash !== ''
+	) {
+		throw new FreesoundContractError('Freesound returned an untrusted waveform URL.');
+	}
+	return url;
+}
+
+function publicWaveformPath(url: URL, id: number): string {
+	const asset = /_(\d{1,20})_wave_M\.png$/u.exec(url.pathname)?.[1];
+	if (asset === undefined) throw new FreesoundContractError('Freesound returned an invalid waveform URL.');
+	return `/api/freesound/sounds/${String(id)}/waveform?asset=${asset}&source=${url.hostname === PREVIEW_HOST ? 'cdn' : 'site'}`;
 }
 
 function record(value: unknown, label: string): Record<string, unknown> {

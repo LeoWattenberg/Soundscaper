@@ -58,12 +58,13 @@ const API_ORIGIN = 'https://freesound.org';
 const API_FIELDS = [
 	'id', 'name', 'tags', 'description', 'category', 'subcategory', 'created', 'license',
 	'gen_ai_preference', 'type', 'channels', 'filesize', 'duration', 'samplerate', 'username',
-	'md5', 'is_explicit', 'previews', 'num_downloads', 'avg_rating', 'num_ratings',
+	'md5', 'is_explicit', 'previews', 'images', 'num_downloads', 'avg_rating', 'num_ratings',
 ].join(',');
 const PAGE_SIZE = 20;
 const DEFAULT_TIMEOUT_MS = 8_000;
 const MAX_JSON_BYTES = 2 * 1024 * 1024;
 const MAX_PREVIEW_BYTES = 256 * 1024 * 1024;
+const MAX_WAVEFORM_BYTES = 1024 * 1024;
 const DESKTOP_ORIGIN = 'soundscaper-app://bundle';
 const WEB_ORIGIN = 'https://soundscaper.org';
 
@@ -158,6 +159,48 @@ export async function handleFreesoundPreviewRequest(
 			transfer.deadline.dispose();
 			throw error;
 		}
+	}, dependencies);
+}
+
+export async function handleFreesoundWaveformRequest(
+	context: FreesoundFunctionContext,
+	dependencies: FreesoundHandlerDependencies = {},
+): Promise<Response> {
+	return handleEndpoint(context, async (admission, upstream) => {
+		const id = soundId(context.params.id);
+		const query = new URL(context.request.url).searchParams;
+		const asset = query.get('asset');
+		const source = query.get('source');
+		if (query.size !== 2 || asset === null || !/^\d{1,20}$/u.test(asset) || (source !== 'cdn' && source !== 'site')) {
+			throw new HttpError(400, 'invalid_request', 'The Freesound waveform parameters are invalid.');
+		}
+		const mediaUrl = new URL(
+			`${source === 'cdn' ? '/displays' : '/data/displays'}/${String(Math.floor(id / 1_000))}/${String(id)}_${asset}_wave_M.png`,
+			source === 'cdn' ? 'https://cdn.freesound.org' : API_ORIGIN,
+		);
+		return withUpstreamTimeout(context.request.signal, upstream, async (signal) => {
+			const response = await upstream.fetchImpl(mediaUrl, {
+				method: admission.head ? 'HEAD' : 'GET', headers: { Accept: 'image/png' }, redirect: 'manual', signal,
+			});
+			if (response.status !== 200) throw upstreamStatus(response.status, false, response.headers);
+			const contentType = response.headers.get('content-type')?.split(';', 1)[0]?.trim().toLocaleLowerCase('en-US');
+			const length = response.headers.get('content-length');
+			if (contentType !== 'image/png' || (length !== null && (!/^\d+$/u.test(length) || Number(length) > MAX_WAVEFORM_BYTES))) {
+				throw new HttpError(502, 'invalid_upstream_response', 'Freesound returned an invalid waveform.');
+			}
+			const bytes = admission.head ? null : await boundedBody(response, MAX_WAVEFORM_BYTES);
+			if (bytes !== null && (bytes.length < 8 || ![0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]
+				.every((byte, index) => bytes[index] === byte))) {
+				throw new HttpError(502, 'invalid_upstream_response', 'Freesound returned an invalid waveform.');
+			}
+			const headers = responseHeaders(admission.corsOrigin);
+			headers.set('Content-Type', 'image/png');
+			if (bytes !== null) headers.set('Content-Length', String(bytes.length));
+			else if (length !== null) headers.set('Content-Length', length);
+			headers.set('Cache-Control', 'public, max-age=86400, s-maxage=604800, stale-while-revalidate=86400');
+			headers.set('Content-Disposition', `inline; filename="freesound-${String(id)}-waveform.png"`);
+			return new Response(bytes, { status: 200, headers });
+		});
 	}, dependencies);
 }
 
@@ -287,7 +330,7 @@ function upstreamFailure(error: unknown, timedOut: boolean): HttpError {
 	return new HttpError(502, 'upstream_unavailable', 'Freesound is temporarily unavailable.');
 }
 
-async function boundedBody(response: Response, maximumBytes: number): Promise<Uint8Array> {
+async function boundedBody(response: Response, maximumBytes: number): Promise<Uint8Array<ArrayBuffer>> {
 	const declared = response.headers.get('content-length');
 	if (declared !== null && (!/^\d+$/u.test(declared) || Number(declared) > maximumBytes)) {
 		throw new HttpError(502, 'invalid_upstream_response', 'Freesound returned an invalid response.');

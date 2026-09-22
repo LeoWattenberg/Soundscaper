@@ -43,6 +43,16 @@ The handler returns `503` when the local key is absent. Keep only that key in
 key in `wrangler.jsonc`, a plain Pages variable, a Vite variable, or a client
 bundle.
 
+## Waveform images
+
+Search and sound responses include `waveform.available` and, when available,
+`waveform.url`. The URL is an absolute Soundscaper API path; packaged clients
+resolve it against `https://soundscaper.org`. A GET or HEAD to that path fetches
+the medium Freesound waveform PNG directly, without another metadata API call.
+The proxy validates the sound ID and asset identifier, pins the upstream host
+and path, rejects redirects and other media types, and limits the image to 1 MiB.
+Raw Freesound image URLs and the application credential stay out of public JSON.
+
 ## Required Cloudflare controls
 
 Requests are accepted only for the canonical Soundscaper host, Soundscaper Pages
