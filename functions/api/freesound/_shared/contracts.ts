@@ -259,7 +259,8 @@ function trustedWaveformUrl(value: unknown, id: number): URL {
 		throw new FreesoundContractError('Freesound returned an invalid waveform URL.');
 	}
 	const prefix = url.hostname === PREVIEW_HOST ? '/displays/' : '/data/displays/';
-	const filename = new RegExp(`^${prefix}${String(Math.floor(id / 1_000))}/${String(id)}_\\d{1,20}_wave_M\\.png$`, 'u');
+	// `waveform_m` retains Freesound's historical `wave_bw_M` storage basename.
+	const filename = new RegExp(`^${prefix}${String(Math.floor(id / 1_000))}/${String(id)}_\\d{1,20}_wave_bw_M\\.png$`, 'u');
 	if (
 		url.protocol !== 'https:'
 		|| (url.hostname !== PREVIEW_HOST && url.hostname !== 'freesound.org')
@@ -276,7 +277,7 @@ function trustedWaveformUrl(value: unknown, id: number): URL {
 }
 
 function publicWaveformPath(url: URL, id: number): string {
-	const asset = /_(\d{1,20})_wave_M\.png$/u.exec(url.pathname)?.[1];
+	const asset = /_(\d{1,20})_wave_bw_M\.png$/u.exec(url.pathname)?.[1];
 	if (asset === undefined) throw new FreesoundContractError('Freesound returned an invalid waveform URL.');
 	return `/api/freesound/sounds/${String(id)}/waveform?asset=${asset}&source=${url.hostname === PREVIEW_HOST ? 'cdn' : 'site'}`;
 }

@@ -11,7 +11,7 @@ import {
 } from '../functions/api/freesound/_shared/contracts.ts';
 
 const previewUrl = 'https://cdn.freesound.org/previews/123/123456_789-hq.ogg';
-const waveformUrl = 'https://cdn.freesound.org/displays/123/123456_789_wave_M.png';
+const waveformUrl = 'https://cdn.freesound.org/displays/123/123456_789_wave_bw_M.png';
 
 function soundFixture(overrides: Record<string, unknown> = {}): Record<string, unknown> {
 	return {
@@ -128,16 +128,17 @@ test('normalizes an unavailable waveform and rejects untrusted image URLs', () =
 	assert.deepEqual(unavailable.sound.waveform, { available: false, url: null });
 	assert.equal(unavailable.waveformUrl, null);
 	const legacy = normalizeFreesoundSound(soundFixture({
-		images: { waveform_m: 'https://freesound.org/data/displays/123/123456_789_wave_M.png' },
+		images: { waveform_m: 'https://freesound.org/data/displays/123/123456_789_wave_bw_M.png' },
 	}));
 	assert.equal(legacy.sound.waveform.url, '/api/freesound/sounds/123456/waveform?asset=789&source=site');
 	for (const url of [
-		'https://attacker.example/displays/123/123456_789_wave_M.png',
-		'https://cdn.freesound.org.evil.example/displays/123/123456_789_wave_M.png',
-		'https://cdn.freesound.org/displays/999/123456_789_wave_M.png',
-		'https://cdn.freesound.org/displays/123/999999_789_wave_M.png',
+		'https://attacker.example/displays/123/123456_789_wave_bw_M.png',
+		'https://cdn.freesound.org.evil.example/displays/123/123456_789_wave_bw_M.png',
+		'https://cdn.freesound.org/displays/999/123456_789_wave_bw_M.png',
+		'https://cdn.freesound.org/displays/123/999999_789_wave_bw_M.png',
+		'https://cdn.freesound.org/displays/123/123456_789_wave_M.png',
 		'https://cdn.freesound.org/displays/123/123456_789_spec_M.jpg',
-		'https://cdn.freesound.org/displays/123/123456_789_wave_M.png?redirect=evil',
+		'https://cdn.freesound.org/displays/123/123456_789_wave_bw_M.png?redirect=evil',
 	]) {
 		assert.throws(() => normalizeFreesoundSound(soundFixture({ images: { waveform_m: url } })), /waveform URL/u);
 	}

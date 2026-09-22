@@ -9,7 +9,7 @@ import {
 } from '../functions/api/freesound/_shared/handlers.ts';
 
 const API_KEY = 'server-secret-api-key';
-const waveformUrl = 'https://cdn.freesound.org/displays/123/123456_789_wave_M.png';
+const waveformUrl = 'https://cdn.freesound.org/displays/123/123456_789_wave_bw_M.png';
 const image = new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
 
 function context(request: Request, id = '123456'): FreesoundFunctionContext {
@@ -67,7 +67,7 @@ test('waveform maps a legacy Freesound image path to its pinned upstream host', 
 			return new Response(image, { headers: { 'Content-Type': 'image/png' } });
 		},
 	});
-	assert.equal(upstreamUrl, 'https://freesound.org/data/displays/123/123456_789_wave_M.png');
+	assert.equal(upstreamUrl, 'https://freesound.org/data/displays/123/123456_789_wave_bw_M.png');
 	assert.equal(response.status, 200);
 });
 

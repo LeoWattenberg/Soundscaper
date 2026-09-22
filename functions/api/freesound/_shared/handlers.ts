@@ -175,7 +175,7 @@ export async function handleFreesoundWaveformRequest(
 			throw new HttpError(400, 'invalid_request', 'The Freesound waveform parameters are invalid.');
 		}
 		const mediaUrl = new URL(
-			`${source === 'cdn' ? '/displays' : '/data/displays'}/${String(Math.floor(id / 1_000))}/${String(id)}_${asset}_wave_M.png`,
+			`${source === 'cdn' ? '/displays' : '/data/displays'}/${String(Math.floor(id / 1_000))}/${String(id)}_${asset}_wave_bw_M.png`,
 			source === 'cdn' ? 'https://cdn.freesound.org' : API_ORIGIN,
 		);
 		return withUpstreamTimeout(context.request.signal, upstream, async (signal) => {
