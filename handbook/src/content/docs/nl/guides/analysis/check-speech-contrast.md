@@ -8,13 +8,13 @@ head:
   - tag: script
     attrs:
       type: "application/ld+json"
-    content: "{\"@context\":\"https://schema.org\",\"@type\":\"HowTo\",\"name\":\"Check that speech stands out from its background\",\"description\":\"Measure how far a voice sits above the noise behind it, the way accessibility guidelines ask.\",\"tool\":[{\"@type\":\"HowToTool\",\"name\":\"Soundscaper\"}],\"step\":[{\"@type\":\"HowToStep\",\"position\":1,\"name\":\"Open Soundscaper. A new, empty project is ready as soon as the editor loads.\",\"text\":\"Open Soundscaper. A new, empty project is ready as soon as the editor loads.\"},{\"@type\":\"HowToStep\",\"position\":2,\"name\":\"Choose File → Import audio and pick the recording with speech over background noise. The file lands as a clip on its own track.\",\"text\":\"Choose File → Import audio and pick the recording with speech over background noise. The file lands as a clip on its own track.\"},{\"@type\":\"HowToStep\",\"position\":3,\"name\":\"Drag in the ruler above the clip to select a stretch of background with nobody speaking.\",\"text\":\"Drag in the ruler above the clip to select a stretch of background with nobody speaking. The background measurement should contain only the noise the voice has to compete with.\"},{\"@type\":\"HowToStep\",\"position\":4,\"name\":\"Choose Analyze → Contrast. The Contrast panel opens.\",\"text\":\"Choose Analyze → Contrast. The Contrast panel opens.\"},{\"@type\":\"HowToStep\",\"position\":5,\"name\":\"In the Contrast panel, press Measure background. The panel keeps the selection’s level as the background.\",\"text\":\"In the Contrast panel, press Measure background. The panel keeps the selection’s level as the background.\"},{\"@type\":\"HowToStep\",\"position\":6,\"name\":\"Drag in the ruler above the clip to select a passage of speech.\",\"text\":\"Drag in the ruler above the clip to select a passage of speech. Pick ordinary speech rather than the loudest word, since the whole passage is averaged.\"},{\"@type\":\"HowToStep\",\"position\":7,\"name\":\"In the Contrast panel, press Measure foreground. The panel reports the foreground level, the background level and the difference between them.\",\"text\":\"In the Contrast panel, press Measure foreground. The panel reports the foreground level, the background level and the difference between them. The foreground and background levels, their difference in dB, and whether the difference meets the recommended 20 dB.\"}]}"
+    content: "{\"@context\":\"https://schema.org\",\"@type\":\"HowTo\",\"name\":\"Check that speech stands out from its background\",\"description\":\"Measure how far a voice sits above the noise behind it, the way accessibility guidelines ask.\",\"tool\":[{\"@type\":\"HowToTool\",\"name\":\"Soundscaper\"}],\"step\":[{\"@type\":\"HowToStep\",\"position\":1,\"name\":\"Open Soundscaper. A new, empty project is ready as soon as the editor loads.\",\"text\":\"Open Soundscaper. A new, empty project is ready as soon as the editor loads.\"},{\"@type\":\"HowToStep\",\"position\":2,\"name\":\"Choose File → Import and pick the recording with speech over background noise. It lands as a clip on its own track.\",\"text\":\"Choose File → Import and pick the recording with speech over background noise. It lands as a clip on its own track.\"},{\"@type\":\"HowToStep\",\"position\":3,\"name\":\"Drag in the ruler above the clip to select a stretch of background with nobody speaking.\",\"text\":\"Drag in the ruler above the clip to select a stretch of background with nobody speaking. The background measurement should contain only the noise the voice has to compete with.\"},{\"@type\":\"HowToStep\",\"position\":4,\"name\":\"Choose Analyze → Contrast. The Contrast panel opens.\",\"text\":\"Choose Analyze → Contrast. The Contrast panel opens.\"},{\"@type\":\"HowToStep\",\"position\":5,\"name\":\"In the Contrast panel, press Measure background. The panel keeps the selection’s level as the background.\",\"text\":\"In the Contrast panel, press Measure background. The panel keeps the selection’s level as the background.\"},{\"@type\":\"HowToStep\",\"position\":6,\"name\":\"Drag in the ruler above the clip to select a passage of speech.\",\"text\":\"Drag in the ruler above the clip to select a passage of speech. Pick ordinary speech rather than the loudest word, since the whole passage is averaged.\"},{\"@type\":\"HowToStep\",\"position\":7,\"name\":\"In the Contrast panel, press Measure foreground. The panel reports the foreground level, the background level and the difference between them.\",\"text\":\"In the Contrast panel, press Measure foreground. The panel reports the foreground level, the background level and the difference between them. The foreground and background levels, their difference in dB, and whether the difference meets the recommended 20 dB.\"}]}"
 ---
-<!-- docs-ai-provenance: {"factPacketSha256":"8d29b926665c31c888346d023adb621b891435a25617b140144789b7e0b97b97","model":"aya-expanse:32b","modelDigest":"1603440383bd5504dc7afd01c0407b425b988dde650a8dc1a737433baa3cd432","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"8d29b926665c31c888346d023adb621b891435a25617b140144789b7e0b97b97","targetLocale":"nl"} -->
+<!-- docs-ai-provenance: {"factPacketSha256":"2284b517195eb89b164851099b86e83abc4362133f605f353bb07e0bf733b701","model":"aya-expanse:32b","modelDigest":"1603440383bd5504dc7afd01c0407b425b988dde650a8dc1a737433baa3cd432","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"2284b517195eb89b164851099b86e83abc4362133f605f353bb07e0bf733b701","targetLocale":"nl"} -->
 
 <!-- Generated by `node scripts/docs-reference.mjs`. Do not edit. -->
 
-Een stem die slechts een beetje luider is dan de achtergrondlawaai achter hem is moeilijk te volgen, en toegankelijkheidsrichtlijnen geven hier een getal aan: spraak moet minstens 20 dB boven de achtergrond liggen. De Contrast-analysator meet een gedeelte van de achtergrond en een gedeelte van de spraak, geeft het verschil aan en zegt of het aan deze aanbeveling voldoet. Het is de analysator die Audacity 3 aanbiedt voor WCAG-controles, maar Audacity 4 bevat deze niet.
+Een stem die slechts een beetje luider is dan de achtergrondlawaai is moeilijk te volgen, en toegankelijkheidsrichtlijnen geven hier een specifiek getal voor: spraak moet minstens 20 dB boven de achtergrond liggen. De Contrast-analysator meet een gedeelte van de achtergrond en een gedeelte van de spraak, geeft het verschil weer en zegt of het aan deze aanbeveling voldoet. Het is de analysator die Audacity 3 aanbood voor WCAG-controles, maar Audacity 4 bevat deze niet.
 
 :::note[Komt van Audacity?]
 Dit is Audacity's **Analyseer → Contrast (Audacity 3; Audacity 4 heeft geen Contrast-analysator)**. De namen hieronder zijn die van Soundscaper zelf, die soms verschillen.
@@ -23,28 +23,28 @@ Dit is Audacity's **Analyseer → Contrast (Audacity 3; Audacity 4 heeft geen Co
 ## Stappen
 
 1. Open Soundscaper. Een nieuw, leeg project is klaar zodra de editor is geladen.
-2. Kies **Bestand → Importeer audio** en selecteer de opname met spraak over achtergrondruis. Het bestand komt als een clip op zijn eigen spoor terecht.
-3. Sleep in de heerser boven de clip om een gedeelte van de achtergrond te selecteren waarin niemand spreekt. De achtergrondmeting moet alleen de ruis bevatten waarmee de stem moet concurreren.
+2. Kies **Bestand → Importeren** en selecteer de opname met spraak over achtergrondlawaai. Deze wordt als een clip op zijn eigen spoor geplaatst.
+3. Sleep in de regel boven de clip om een gedeelte van de achtergrond te selecteren waarin niemand spreekt. De achtergrondmeting moet alleen het lawaai bevatten waarmee de stem moet concurreren.
 4. Kies **Analyseer → Contrast**. Het **Contrast**-paneel opent.
 5. In het **Contrast**-paneel, druk op **Meet achtergrond**. Het paneel houdt het niveau van de selectie vast als achtergrond.
-6. Sleep in de heerser boven de clip om een passage van spraak te selecteren. Kies voor gewone spraak in plaats van het hardste woord, aangezien de hele passage wordt gemiddeld.
-7. In het **Contrast**-paneel, druk op **Meet voorgrond**. Het paneel rapporteert het voorgrondniveau, het achtergrondniveau en het verschil tussen hen.
-   *Je zou moeten zien:* De voorgrond- en achtergrondniveaus, hun verschil in dB en of het verschil voldoet aan de aanbevolen 20 dB.
+6. Sleep in de regel boven de clip om een passage van spraak te selecteren. Kies voor gewone spraak in plaats van het hardste woord, aangezien de hele passage wordt gemiddeld.
+7. In het **Contrast**-paneel, druk op **Meet voorgrond**. Het paneel rapporteert het voorgrondniveau, het achtergrondniveau en het verschil tussen beide.
+   *Je zou moeten zien:* De voorgrond- en achtergrondniveaus, het verschil tussen hen in dB, en of het verschil voldoet aan de aanbevolen 20 dB.
 
 ## Tips
 
-- Als het verschil tekortschiet, [vermindert u de achtergrondruis](/guides/cleaning-up/remove-background-noise/) of [gelijkmatig de stem met een compressor](/guides/volume/even-out-volume-with-a-compressor/), en meet vervolgens opnieuw.
-- De meting is een RMS-gemiddelde over de selectie, dus een enkele luide lettergreep redt geen rustige opname.
+- Als het verschil tekortschiet, [verlaag het achtergrondlawaai](/guides/cleaning-up/remove-background-noise/) of [egaliseer de stem met een compressor](/guides/volume/even-out-volume-with-a-compressor/), en meet vervolgens opnieuw.
+- De meting is een RMS-gemiddelde over de selectie, dus een enkele luide lettergreep redt geen stille opname.
 
 ## Gerelateerde gidsen
 
 Meer [analyse](/guides/analysis/) gidsen:
 
-- [Verwijder achtergrondruis](/guides/cleaning-up/remove-background-noise/) — Leer Noise Reduction wat het zoemgeluid klinkt, en haal het vervolgens uit de hele opname.
-- [Gelijkmatig volume met een compressor](/guides/volume/even-out-volume-with-a-compressor/) — Verminder de kloof tussen luide en stille momenten zodat spraak gemakkelijker te volgen is.
+- [Verwijder achtergrondlawaai](/guides/cleaning-up/remove-background-noise/) — Leer Noise Reduction wat het zoemgeluid klinkt, en haal het vervolgens uit de hele opname.
+- [Egaliseer volume met een compressor](/guides/volume/even-out-volume-with-a-compressor/) — Verminder het verschil tussen luide en stille momenten zodat spraak gemakkelijker te volgen is.
 - [Meet hoe luid je mix is](/guides/analysis/measure-loudness/) — Lees de geïntegreerde luidheid, bereik en true peak van het project op de manier waarop omroepen dit doen.
-- [Zie welke frequenties een geluid bevat](/guides/analysis/plot-a-spectrum/) — Plot het spectrum van een selectie om zoem, ruis of resonaties te vinden.
-- [Vind waar een opname heeft geknipt](/guides/analysis/find-clipping/) — Vind de plaatsen waar een opname de volledige schaal bereikte en vervormde.
+- [Zie welke frequenties een geluid bevat](/guides/analysis/plot-a-spectrum/) — Plot het spectrum van een selectie om zoem, ruis of resonantie te vinden.
+- [Vind waar een opname heeft geknipt](/guides/analysis/find-clipping/) — Vind de plaatsen waar een opname de maximale schaal heeft bereikt en vervormd is.
 - [Vind de beats in een lus](/guides/analysis/find-the-beats/) — Laat de Beat Finder-analysator elke beat die hij hoort markeren.
 
 ## Referentie
@@ -53,4 +53,4 @@ Meer [analyse](/guides/analysis/) gidsen:
 
 ## Over deze gids
 
-De procedure op deze pagina — elke menu-entry, dialoogvenster, veld en knop, en het resultaat dat het produceert — wordt tegen elke build van Soundscaper uitgevoerd door de browsersuite (`tests/browser/soundscaper-guides.spec.js`). Als een van deze stappen niet meer overeenkomt met de editor, mislukt de build tot de gids is gecorrigeerd. De voorgestelde waarden zijn startpunten die door de editor zijn geaccepteerd; of ze geschikt zijn voor uw opname is aan uw oren om te beslissen.
+De procedure op deze pagina — elke menu-entry, dialoogvenster, veld en knop, en het resultaat dat deze oplevert — wordt bij elke build van Soundscaper herhaald door de browsersuite (`tests/browser/soundscaper-guides.spec.js`). Als een van deze stappen niet meer overeenkomt met de editor, mislukt de build tot de gids is gecorrigeerd. De voorgestelde waarden zijn startpunten die door de editor zijn geaccepteerd; of ze geschikt zijn voor je opname, moet je eigen oren beslissen.
