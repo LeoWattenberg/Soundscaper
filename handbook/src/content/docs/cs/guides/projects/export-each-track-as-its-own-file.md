@@ -16,7 +16,7 @@ head:
 
 Inženýr mixu, editor videa nebo spolupracovník na jiném programu obvykle chce části, nikoli mix. Export kmenů vykreslí každou dráhu do vlastního souboru, všechny stejné délky a zarovnané k začátku projektu, a zabalí je do jednoho archivu.
 
-:::poznámka[Přicházíte z Audacity?]
+:::note[Přicházíte z Audacity?]
 Toto je **Soubor → Export zvuku → Export více, rozdělené podle tratí** v Audacity. Názvy níže jsou vlastní názvy Soundscaperu, které se někdy liší.
 :::
 

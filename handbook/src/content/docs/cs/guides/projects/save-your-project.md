@@ -16,7 +16,7 @@ head:
 
 Projekt je více než jen zvuk: zahrnuje stopy, klipy, efekty, značky a historii. Uložení zachová vše v místní projektové knihovně prohlížeče na tomto počítači, odkud lze projekt znovu otevřít z nabídky Soubor. Soundscaper také automaticky ukládá při práci, takže toto je spíše způsob, jak se ujistit.
 
-:::poznámka[Přecházíte z Audacity?]
+:::note[Přecházíte z Audacity?]
 Toto je **Soubor → Uložit projekt** v Audacity. Názvy níže jsou vlastní názvy Soundscaperu, které se někdy liší.
 :::
 

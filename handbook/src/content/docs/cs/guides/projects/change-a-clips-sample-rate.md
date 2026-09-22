@@ -16,7 +16,7 @@ head:
 
 Klip nahraný při 44,1 kHz se stále správně přehrává v projektu 48 kHz – Soundscaper konvertuje za chodu – ale pro doručení, které musí být v jedné rychlosti, nebo před efektem, který to očekává, můžete klip samotný převést. Resamplování přepočítá každý vzorek na novou rychlost a zachová časování přesně.
 
-:::poznámka[Přecházíte z Audacity?]
+:::note[Přecházíte z Audacity?]
 Toto je **Stopýzy → Resample** v Audacity. Názvy níže jsou vlastní pro Soundscaper, které se někdy liší.
 :::
 

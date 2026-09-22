@@ -16,7 +16,7 @@ head:
 
 Náběh a zeslabení jsou nejjednodušší způsob, jak se vyhnout kliknutí na začátku klipu nebo náhlému zastavení na konci. Náběh zvýší hlasitost výběru z ticha po celou jeho délku; zeslabení ji sníží. Délka výběru je délka přechodu.
 
-:::poznámka[Přechod z Audacity?]
+:::note[Přechod z Audacity?]
 Toto je **Efekt → Náběh a zeslabení → Náběh a zeslabení** v Audacity. Názvy níže jsou vlastní pro Soundscaper, které se někdy liší.
 :::
 

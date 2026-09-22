@@ -16,7 +16,7 @@ head:
 
 A mistura de faixas normalmente as substitui, o que é adequado para uma cama finalizada, mas não quando você ainda pode querer ajustar as partes. Desativar a opção 'Substituir originais' no diálogo Misturar e Renderizar mistura os ganhos, pans e efeitos em tempo real em uma nova faixa e deixa cada faixa de origem onde estava, para que você possa comparar, continuar editando ou silenciar as fontes e continuar com a mistura estéreo. O Audacity 3 oferecia isso como 'Misturar e Renderizar em Nova Faixa'; o Audacity 4 não possui esse comando.
 
-:::nota[Vindo do Audacity?]
+:::note[Vindo do Audacity?]
 Esta é a opção **Faixas → Misturar → Misturar e Renderizar em Nova Faixa (Audacity 3; Audacity 4 não possui Misturar e Renderizar)**. Os nomes abaixo são próprios do Soundscaper, que às vezes diferem.
 :::
 

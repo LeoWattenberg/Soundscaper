@@ -16,7 +16,7 @@ head:
 
 Přednáška, která by se měla stát jedním souborem na téma, strana alba, která potřebuje být rozdělena na skladby, nebo audiokniha s kapitolou na soubor: umístěte značku na začátek každé části a vyexportujte najednou. Každá značka otevírá kapitolu, která trvá do další, a každá kapitola je uložena jako samostatný soubor, pojmenovaný podle značky, uvnitř jednoho archivu. Audacity 3 to dělal pomocí **Export více**; Audacity 4 tuto funkci neobnovil.
 
-:::poznámka[Přecházíte z Audacity?]
+:::note[Přecházíte z Audacity?]
 Toto je **Soubor → Export zvuku → Export více, rozdělené podle popisků (Audacity 3; Audacity 4 nemá Export více)**. Názvy níže jsou vlastní pro Soundscaper, které se někdy liší.
 :::
 

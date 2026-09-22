@@ -16,7 +16,7 @@ head:
 
 Učení se riffu, kontrola bodu střihu, zkoušení nastavení efektu: vše je rychlejší, když se pasáž opakuje bez nutnosti ručního restartování. Nastavte oblast smyčky na výběr a přehrávání zůstane uvnitř ní, dokud smyčku nevypnete.
 
-:::poznámka[Přecházíte z Audacity?]
+:::note[Přecházíte z Audacity?]
 Toto je **Transport → Looping → Set Loop to Selection** v Audacity. Názvy níže jsou vlastní pro Soundscaper, které se někdy liší.
 :::
 

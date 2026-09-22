@@ -16,7 +16,7 @@ head:
 
 Efekt Reverse obrací výběr v čase. Používá se pro zvukový design – obrácené činely, narůstající předoznění – a občas pro kontrolu, zda ocasní ozvěna místnosti něco neskrývá.
 
-:::poznámka[Přecházíte z Audacity?]
+:::note[Přecházíte z Audacity?]
 Toto je **Efekt → Speciální → Obrátit** v Audacity. Názvy níže jsou vlastní pro Soundscaper, které se někdy liší.
 :::
 

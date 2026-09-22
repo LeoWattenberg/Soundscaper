@@ -16,7 +16,7 @@ head:
 
 Omezovač je kompresor s velmi vysokým poměrem: pod prahem nic nedělá a nad ním nic neprochází. Je to nástroj pro zachycení několika náhodných vrcholů před exportem nebo pro zvýšení celkové úrovně mixu bez překročení vrcholů. 
 
-:::poznámka[Přecházíte z Audacity?]
+:::note[Přecházíte z Audacity?]
 Toto je **Efekt → Hlasitost a komprese → Omezovač** v Audacity. Názvy níže jsou vlastní pro Soundscaper, které se někdy liší.
 :::
 
