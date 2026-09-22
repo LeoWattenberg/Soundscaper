@@ -18,7 +18,11 @@ interface FreesoundSound {
 	readonly name: string;
 	readonly creator: Readonly<{ readonly username: string; readonly pageUrl: string }>;
 	readonly pageUrl: string;
-	readonly license: Readonly<{ readonly name: string; readonly url: string }>;
+	readonly license: Readonly<{
+		readonly code: FreesoundResultPresentation['licenseCode'];
+		readonly name: string;
+		readonly url: string;
+	}>;
 	readonly durationSeconds: number;
 	readonly preview: Readonly<{ readonly available: boolean }>;
 }
@@ -37,7 +41,8 @@ interface FreesoundPanelContainerProps {
 
 const INITIAL_STATE: FreesoundPanelState = Object.freeze({
 	query: '', license: 'all', sort: 'relevance', page: 1, pageCount: 0,
-	totalResults: 0, status: 'idle', previewingSoundId: null, results: Object.freeze([]),
+	totalResults: 0, status: 'idle', previewingSoundId: null, previewPaused: false,
+	results: Object.freeze([]),
 });
 
 export function FreesoundPanelContainer({
@@ -66,7 +71,7 @@ export function FreesoundPanelContainer({
 			audio.src = '';
 			audio.load();
 		}
-		setState((current) => ({ ...current, previewingSoundId: null }));
+		setState((current) => ({ ...current, previewingSoundId: null, previewPaused: false }));
 	}, []);
 
 	useEffect(() => {
@@ -104,6 +109,7 @@ export function FreesoundPanelContainer({
 				totalResults: page.totalCount,
 				status: 'ready',
 				previewingSoundId: null,
+				previewPaused: false,
 				results: page.results.map(toFreesoundPanelResult),
 			});
 		}).catch((error: unknown) => {
@@ -123,8 +129,21 @@ export function FreesoundPanelContainer({
 		audio.preload = 'metadata';
 		audio.addEventListener('ended', finish, { once: true });
 		audio.addEventListener('error', finish, { once: true });
-		setState((current) => ({ ...current, previewingSoundId: soundId }));
+		setState((current) => ({ ...current, previewingSoundId: soundId, previewPaused: false }));
 		void audio.play().catch(finish);
+	}, [panelActive, stopPreview]);
+
+	const pausePreview = useCallback(() => {
+		if (!preview.current) return;
+		preview.current.pause();
+		setState((current) => ({ ...current, previewPaused: true }));
+	}, []);
+
+	const resumePreview = useCallback(() => {
+		const audio = preview.current;
+		if (!panelActive || !audio) return;
+		setState((current) => ({ ...current, previewPaused: false }));
+		void audio.play().catch(() => { if (preview.current === audio) stopPreview(); });
 	}, [panelActive, stopPreview]);
 
 	const importSound = useCallback((soundId: number, destination: 'timeline' | 'project-bin') => {
@@ -158,7 +177,8 @@ export function FreesoundPanelContainer({
 		disabled={disabled || pendingSoundId !== null}
 		onSearch={search}
 		onPreview={startPreview}
-		onStopPreview={stopPreview}
+		onPausePreview={pausePreview}
+		onResumePreview={resumePreview}
 		onInsertAtPlayhead={(soundId) => importSound(soundId, 'timeline')}
 		onAddToProjectBin={(soundId) => importSound(soundId, 'project-bin')}
 	/>;
@@ -183,6 +203,7 @@ export function toFreesoundPanelResult(sound: FreesoundSound): FreesoundResultPr
 		userUrl: sound.creator.pageUrl,
 		soundUrl: sound.pageUrl,
 		licenseName: sound.license.name,
+		licenseCode: sound.license.code,
 		licenseUrl: sound.license.url,
 		durationLabel: durationLabel(sound.durationSeconds),
 		previewAvailable: sound.preview.available,

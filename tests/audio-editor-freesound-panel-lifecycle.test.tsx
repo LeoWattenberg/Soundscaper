@@ -67,7 +67,7 @@ test('Freesound previews use the hosting web origin and the public proxy in the 
 	assert.throws(() => freesoundPreviewUrl(0), /valid Freesound sound ID/iu);
 });
 
-test('Freesound preview audio stops when its grouped panel becomes inactive', async () => {
+test('Freesound preview pauses, resumes, and stops when its grouped panel becomes inactive', async () => {
 	const dom = installReactTestDom();
 	const actGlobal = globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean };
 	const priorAct = actGlobal.IS_REACT_ACT_ENVIRONMENT;
@@ -113,15 +113,28 @@ test('Freesound preview audio stops when its grouped panel becomes inactive', as
 			await Promise.resolve();
 		});
 		const previewButton = dom.container.querySelectorAll('button')
-			.find((candidate) => candidate.textContent.startsWith('Preview'));
+			.find((candidate) => candidate.getAttribute('aria-label') === 'Play preview: Rain.ogg');
 		assert.ok(previewButton, 'the search result exposes its preview action');
 		await act(async () => reactProps(previewButton).onClick());
 		assert.equal(audioInstances.length, 1);
 		assert.equal(audioInstances[0]?.playCount, 1);
+		const pauseButton = dom.container.querySelectorAll('button')
+			.find((candidate) => candidate.getAttribute('aria-label') === 'Pause preview: Rain.ogg');
+		assert.ok(pauseButton, 'playing result exposes pause');
+		await act(async () => reactProps(pauseButton).onClick());
+		assert.equal(audioInstances[0]?.pauseCount, 1);
+		assert.notEqual(audioInstances[0]?.src, '');
+		assert.equal(audioInstances[0]?.loadCount, 0);
+		const resumeButton = dom.container.querySelectorAll('button')
+			.find((candidate) => candidate.getAttribute('aria-label') === 'Play preview: Rain.ogg');
+		assert.ok(resumeButton, 'paused result exposes play');
+		await act(async () => reactProps(resumeButton).onClick());
+		assert.equal(audioInstances.length, 1);
+		assert.equal(audioInstances[0]?.playCount, 2);
 
 		await act(async () => root.render(<FreesoundPanelContainer {...props} panelActive={false} />));
 
-		assert.equal(audioInstances[0]?.pauseCount, 1);
+		assert.equal(audioInstances[0]?.pauseCount, 2);
 		assert.equal(audioInstances[0]?.loadCount, 1);
 		assert.equal(audioInstances[0]?.src, '');
 	} finally {

@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { Button } from '@soundscaper/design-system/Button';
+import { Icon } from '@soundscaper/design-system/Icon';
 import { EditorErrorToast } from '../EditorToast.tsx';
 
 import '../audio-editor-design-system/06a-panels-freesound.css';
@@ -10,6 +11,9 @@ import {
 	AUDIO_EDITOR_FREESOUND_RESULT_DRAG_TYPE,
 	createFreesoundResultDragPayload,
 } from '../../project-bin-dnd.js';
+import ccZeroBadge from './assets/cc-zero.svg';
+import ccByBadge from './assets/cc-by.svg';
+import ccByNcBadge from './assets/cc-by-nc.svg';
 
 export type FreesoundLicenseFilter = 'all' | 'cc0' | 'cc-by' | 'cc-by-nc';
 export type FreesoundSort = 'relevance' | 'newest' | 'rating' | 'downloads';
@@ -29,6 +33,7 @@ export interface FreesoundResultPresentation {
 	readonly userUrl?: string;
 	readonly soundUrl: string;
 	readonly licenseName: string;
+	readonly licenseCode: 'cc0' | 'cc-by' | 'cc-by-nc' | 'sampling-plus';
 	readonly licenseUrl: string;
 	readonly durationLabel: string;
 	readonly previewAvailable?: boolean;
@@ -45,6 +50,7 @@ export interface FreesoundPanelState {
 	readonly status: FreesoundPanelStatus;
 	readonly errorMessage?: string;
 	readonly previewingSoundId: number | null;
+	readonly previewPaused: boolean;
 	readonly results: readonly FreesoundResultPresentation[];
 }
 
@@ -54,13 +60,19 @@ export interface FreesoundPanelProps {
 	readonly disabled: boolean;
 	readonly onSearch: (request: FreesoundSearchRequest) => void;
 	readonly onPreview: (soundId: number) => void;
-	readonly onStopPreview: () => void;
+	readonly onPausePreview: () => void;
+	readonly onResumePreview: () => void;
 	readonly onInsertAtPlayhead: (soundId: number) => void;
 	readonly onAddToProjectBin: (soundId: number) => void;
 }
 
 const LICENSE_FILTERS: readonly FreesoundLicenseFilter[] = Object.freeze(['all', 'cc0', 'cc-by', 'cc-by-nc']);
 const SORTS: readonly FreesoundSort[] = Object.freeze(['relevance', 'newest', 'rating', 'downloads']);
+const LICENSE_BADGES: Readonly<Record<Exclude<FreesoundResultPresentation['licenseCode'], 'sampling-plus'>, string>> = Object.freeze({
+	cc0: ccZeroBadge,
+	'cc-by': ccByBadge,
+	'cc-by-nc': ccByNcBadge,
+});
 
 function fill(template: string, replacements: Readonly<Record<string, string | number>>): string {
 	return Object.entries(replacements).reduce(
@@ -93,7 +105,8 @@ export function FreesoundPanel({
 	disabled,
 	onSearch,
 	onPreview,
-	onStopPreview,
+	onPausePreview,
+	onResumePreview,
 	onInsertAtPlayhead,
 	onAddToProjectBin,
 }: FreesoundPanelProps) {
@@ -183,6 +196,8 @@ export function FreesoundPanel({
 				<ul className="kw-audio-editor__freesound-results" aria-label={copy.results}>
 					{state.results.map((result) => {
 						const previewing = state.previewingSoundId === result.soundId;
+						const playing = previewing && !state.previewPaused;
+						const previewLabel = playing ? copy.pausePreview : copy.playPreview;
 						const mutationDisabled = disabled || result.actionPending === true;
 						return (
 							<li
@@ -203,27 +218,35 @@ export function FreesoundPanel({
 									);
 								}}
 							>
-								<div className="kw-audio-editor__freesound-result-heading">
-									<a href={result.soundUrl} target="_blank" rel="noreferrer">{result.name}</a>
-									<span>{result.durationLabel}</span>
+								<div className="kw-audio-editor__freesound-result-meta">
+									<a className="kw-audio-editor__freesound-result-name" href={result.soundUrl}
+										title={result.name} target="_blank" rel="noreferrer">{result.name}</a>
+									<span className="kw-audio-editor__freesound-result-author">
+										{copy.byInline}{' '}
+										{result.userUrl
+											? <a href={result.userUrl} target="_blank" rel="noreferrer">{result.username}</a>
+											: result.username}
+									</span>
+									<span className="kw-audio-editor__freesound-result-duration">{result.durationLabel}</span>
+									<a className="kw-audio-editor__freesound-result-license" href={result.licenseUrl}
+										aria-label={result.licenseName} target="_blank" rel="noreferrer">
+										{result.licenseCode === 'sampling-plus'
+											? <span aria-hidden="true">{copy.licenseSamplingPlus}</span>
+											: <img src={LICENSE_BADGES[result.licenseCode]} alt="" />}
+									</a>
 								</div>
-								<p className="kw-audio-editor__freesound-result-attribution">
-									{copy.byInline}{' '}
-									{result.userUrl
-										? <a href={result.userUrl} target="_blank" rel="noreferrer">{result.username}</a>
-										: result.username}
-									{' · '}
-									<a href={result.licenseUrl} target="_blank" rel="noreferrer">{result.licenseName}</a>
-								</p>
 								<div className="kw-audio-editor__freesound-result-actions">
-									<Button
-										size="small"
+									<button
+										type="button"
+										className="kw-audio-editor__freesound-preview-button"
 										disabled={result.previewAvailable === false}
-										onClick={() => previewing ? onStopPreview() : onPreview(result.soundId)}
+										aria-label={`${previewLabel}: ${result.name}`}
+										title={previewLabel}
+										aria-pressed={playing}
+										onClick={() => playing ? onPausePreview() : previewing ? onResumePreview() : onPreview(result.soundId)}
 									>
-										{previewing ? copy.stopPreview : copy.preview}
-										<span className="kw-audio-editor-sr-only">: {result.name}</span>
-									</Button>
+										<Icon name={playing ? 'pause' : 'play'} size={16} />
+									</button>
 									<Button
 										size="small"
 										disabled={mutationDisabled}

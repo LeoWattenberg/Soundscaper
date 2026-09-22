@@ -54,6 +54,7 @@ const FREESOUND_STATE: FreesoundPanelState = Object.freeze({
 	totalResults: 64,
 	status: 'ready',
 	previewingSoundId: 202,
+	previewPaused: false,
 	results: Object.freeze([
 		Object.freeze({
 			soundId: 101,
@@ -62,6 +63,7 @@ const FREESOUND_STATE: FreesoundPanelState = Object.freeze({
 			userUrl: 'https://freesound.org/people/field-recorder/',
 			soundUrl: 'https://freesound.org/s/101/',
 			licenseName: 'Creative Commons 0',
+			licenseCode: 'cc0',
 			licenseUrl: 'https://creativecommons.org/publicdomain/zero/1.0/',
 			durationLabel: '0:18',
 		}),
@@ -71,6 +73,7 @@ const FREESOUND_STATE: FreesoundPanelState = Object.freeze({
 			username: 'sound-author',
 			soundUrl: 'https://freesound.org/s/202/',
 			licenseName: 'Attribution 4.0',
+			licenseCode: 'cc-by',
 			licenseUrl: 'https://creativecommons.org/licenses/by/4.0/',
 			durationLabel: '1:04',
 		}),
@@ -141,7 +144,8 @@ test('Freesound search results expose filters, one active preview and keyboard a
 		disabled={false}
 		onSearch={() => undefined}
 		onPreview={() => undefined}
-		onStopPreview={() => undefined}
+		onPausePreview={() => undefined}
+		onResumePreview={() => undefined}
 		onInsertAtPlayhead={() => undefined}
 		onAddToProjectBin={() => undefined}
 	/>);
@@ -153,13 +157,78 @@ test('Freesound search results expose filters, one active preview and keyboard a
 	assert.match(markup, /aria-label="Sort by"/u);
 	assert.match(markup, /value="downloads" selected=""/u);
 	assert.equal(markup.match(/draggable="true"/gu)?.length, 2);
-	assert.equal(markup.match(/>Stop preview</gu)?.length, 1);
-	assert.equal(markup.match(/>Preview</gu)?.length, 1);
+	const playButton = markup.match(/<button\b[^>]*aria-label="Play preview: Rain in pines\.wav"[^>]*>[\s\S]*?<\/button>/u)?.[0];
+	const pauseButton = markup.match(/<button\b[^>]*aria-label="Pause preview: Distant storm\.flac"[^>]*>[\s\S]*?<\/button>/u)?.[0];
+	assert.ok(playButton, 'inactive result has an accessible play button');
+	assert.ok(pauseButton, 'active result has an accessible pause button');
+	assert.match(playButton, /class="icon musescore-icon[^"]*"/u);
+	assert.match(pauseButton, /class="icon musescore-icon[^"]*"/u);
+	assert.match(playButton, /\uF446/u);
+	assert.match(pauseButton, /\uF44B/u);
+	assert.doesNotMatch(playButton, />Preview</u);
+	assert.doesNotMatch(pauseButton, />Stop preview</u);
 	assert.equal(markup.match(/>Insert at playhead</gu)?.length, 2);
 	assert.equal(markup.match(/>Add to Project Bin</gu)?.length, 2);
 	assert.match(markup, /Page 2 of 4/u);
 	assert.match(markup, /href="https:\/\/freesound\.org\/s\/101\/"/u);
 	assert.match(markup, /href="https:\/\/creativecommons\.org\/publicdomain\/zero\/1\.0\/"/u);
+	const metadataRows = markup.match(/<div class="kw-audio-editor__freesound-result-meta">[\s\S]*?<\/div>/gu);
+	assert.equal(metadataRows?.length, 2);
+	assert.match(metadataRows[0]!, /Rain in pines\.wav[\s\S]*field-recorder[\s\S]*0:18/u);
+	assert.match(metadataRows[1]!, /Distant storm\.flac[\s\S]*sound-author[\s\S]*1:04/u);
+	const cc0License = markup.match(/<a\b(?=[^>]*href="https:\/\/creativecommons\.org\/publicdomain\/zero\/1\.0\/")(?=[^>]*aria-label="Creative Commons 0")[^>]*>[\s\S]*?<\/a>/u)?.[0];
+	const byLicense = markup.match(/<a\b(?=[^>]*href="https:\/\/creativecommons\.org\/licenses\/by\/4\.0\/")(?=[^>]*aria-label="Attribution 4\.0")[^>]*>[\s\S]*?<\/a>/u)?.[0];
+	assert.ok(cc0License, 'CC0 badge links to the full license version');
+	assert.ok(byLicense, 'CC BY badge links to the full license version');
+	assert.match(cc0License, /<img\b[^>]*alt=""/u);
+	assert.match(byLicense, /<img\b[^>]*alt=""/u);
+	assert.doesNotMatch(cc0License, />Creative Commons 0</u);
+	assert.doesNotMatch(byLicense, />Attribution 4\.0</u);
+});
+
+test('paused Freesound preview returns to the play icon', () => {
+	const markup = render(<FreesoundPanel
+		copy={ENGLISH_COPY}
+		state={{ ...FREESOUND_STATE, previewPaused: true }}
+		disabled={false}
+		onSearch={() => undefined}
+		onPreview={() => undefined}
+		onPausePreview={() => undefined}
+		onResumePreview={() => undefined}
+		onInsertAtPlayhead={() => undefined}
+		onAddToProjectBin={() => undefined}
+	/>);
+	const resumeButton = markup.match(/<button\b[^>]*aria-label="Play preview: Distant storm\.flac"[^>]*>[\s\S]*?<\/button>/u)?.[0];
+	assert.ok(resumeButton, 'paused result offers a play action');
+	assert.match(resumeButton, /\uF446/u);
+	assert.doesNotMatch(resumeButton, /\uF44B/u);
+});
+
+test('Freesound uses a CC BY-NC badge and preserves the Sampling+ license link', () => {
+	const markup = render(<FreesoundPanel
+		copy={ENGLISH_COPY}
+		state={{ ...FREESOUND_STATE, results: [
+			{ ...FREESOUND_STATE.results[0]!, licenseCode: 'cc-by-nc',
+				licenseName: 'Attribution Noncommercial 4.0',
+				licenseUrl: 'https://creativecommons.org/licenses/by-nc/4.0/' },
+			{ ...FREESOUND_STATE.results[1]!, licenseCode: 'sampling-plus',
+				licenseName: 'Sampling+ 1.0',
+				licenseUrl: 'https://creativecommons.org/licenses/sampling+/1.0/' },
+		] }}
+		disabled={false}
+		onSearch={() => undefined}
+		onPreview={() => undefined}
+		onPausePreview={() => undefined}
+		onResumePreview={() => undefined}
+		onInsertAtPlayhead={() => undefined}
+		onAddToProjectBin={() => undefined}
+	/>);
+	const byNcLicense = markup.match(/<a\b(?=[^>]*href="https:\/\/creativecommons\.org\/licenses\/by-nc\/4\.0\/")(?=[^>]*aria-label="Attribution Noncommercial 4\.0")[^>]*>[\s\S]*?<\/a>/u)?.[0];
+	const samplingLicense = markup.match(/<a\b(?=[^>]*href="https:\/\/creativecommons\.org\/licenses\/sampling\+\/1\.0\/")(?=[^>]*aria-label="Sampling\+ 1\.0")[^>]*>[\s\S]*?<\/a>/u)?.[0];
+	assert.ok(byNcLicense);
+	assert.match(byNcLicense, /<img\b[^>]*alt=""/u);
+	assert.ok(samplingLicense);
+	assert.match(samplingLicense, /Sampling\+/u);
 });
 
 test('Freesound loading, errors and empty results are announced', () => {
@@ -169,7 +238,8 @@ test('Freesound loading, errors and empty results are announced', () => {
 		disabled={false}
 		onSearch={() => undefined}
 		onPreview={() => undefined}
-		onStopPreview={() => undefined}
+		onPausePreview={() => undefined}
+		onResumePreview={() => undefined}
 		onInsertAtPlayhead={() => undefined}
 		onAddToProjectBin={() => undefined}
 	/>);
@@ -181,7 +251,8 @@ test('Freesound loading, errors and empty results are announced', () => {
 		disabled={false}
 		onSearch={() => undefined}
 		onPreview={() => undefined}
-		onStopPreview={() => undefined}
+		onPausePreview={() => undefined}
+		onResumePreview={() => undefined}
 		onInsertAtPlayhead={() => undefined}
 		onAddToProjectBin={() => undefined}
 	/>);
@@ -194,7 +265,8 @@ test('Freesound loading, errors and empty results are announced', () => {
 		disabled={false}
 		onSearch={() => undefined}
 		onPreview={() => undefined}
-		onStopPreview={() => undefined}
+		onPausePreview={() => undefined}
+		onResumePreview={() => undefined}
 		onInsertAtPlayhead={() => undefined}
 		onAddToProjectBin={() => undefined}
 	/>);
@@ -214,7 +286,8 @@ test('Freesound search error toast can be dismissed and returns on the next fail
 	const root = createRoot(dom.container as unknown as Element);
 	const props = {
 		copy: ENGLISH_COPY, disabled: false,
-		onSearch: () => undefined, onPreview: () => undefined, onStopPreview: () => undefined,
+		onSearch: () => undefined, onPreview: () => undefined,
+		onPausePreview: () => undefined, onResumePreview: () => undefined,
 		onInsertAtPlayhead: () => undefined, onAddToProjectBin: () => undefined,
 	};
 	try {
@@ -250,7 +323,8 @@ test('Freesound gestures submit current criteria and expose the minimal drag tra
 			disabled={false}
 			onSearch={(request) => calls.push(['search', request])}
 			onPreview={(soundId) => calls.push(['preview', soundId])}
-			onStopPreview={() => calls.push(['stop'])}
+			onPausePreview={() => calls.push(['pause'])}
+			onResumePreview={() => calls.push(['resume'])}
 			onInsertAtPlayhead={(soundId) => calls.push(['insert', soundId])}
 			onAddToProjectBin={(soundId) => calls.push(['bin', soundId])}
 		/>));
@@ -273,16 +347,23 @@ test('Freesound gestures submit current criteria and expose the minimal drag tra
 			assert.ok(match, `Missing ${label} button`);
 			return match;
 		};
+		const previewButton = (label: string): ReactTestElement => {
+			const match = dom.container.querySelectorAll('button').find((candidate) => (
+				candidate.getAttribute('aria-label') === label
+			));
+			assert.ok(match, `Missing ${label} button`);
+			return match;
+		};
 		await act(async () => reactProps(button('Next')).onClick());
 		assert.deepEqual(calls.shift(), ['search', {
 			query: 'ocean waves', license: 'cc0', sort: 'downloads', page: 3,
 		}]);
-		await act(async () => reactProps(button('Preview')).onClick());
-		await act(async () => reactProps(button('Stop preview')).onClick());
+		await act(async () => reactProps(previewButton('Play preview: Rain in pines.wav')).onClick());
+		await act(async () => reactProps(previewButton('Pause preview: Distant storm.flac')).onClick());
 		await act(async () => reactProps(button('Insert at playhead')).onClick());
 		await act(async () => reactProps(button('Add to Project Bin')).onClick());
 		assert.deepEqual(calls.splice(0), [
-			['preview', 101], ['stop'], ['insert', 101], ['bin', 101],
+			['preview', 101], ['pause'], ['insert', 101], ['bin', 101],
 		]);
 
 		const transfers: Array<readonly [string, string]> = [];

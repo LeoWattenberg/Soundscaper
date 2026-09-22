@@ -19,7 +19,7 @@ import {
 
 const SOUND = Object.freeze({
 	id: 314159,
-	name: 'Harbor ambience',
+	name: 'Harbor ambience with gulls, boats, evening wind in the rigging, distant waves, and harbor traffic recorded from the north pier.wav',
 	pageUrl: 'https://freesound.org/s/314159/',
 	creator: Object.freeze({
 		username: 'field-recorder',
@@ -99,6 +99,22 @@ test.describe('Freesound discovery and attribution', () => {
 			.toHaveAttribute('href', SOUND.creator.pageUrl);
 		await expect(result.getByRole('link', { name: SOUND.license.name, exact: true }))
 			.toHaveAttribute('href', SOUND.license.url);
+		const resultLayout = await result.evaluate((element) => {
+			const name = element.querySelector('.kw-audio-editor__freesound-result-name');
+			const metadata = element.querySelector('.kw-audio-editor__freesound-result-meta');
+			return {
+				resultOverflow: element.scrollWidth > element.clientWidth,
+				metadataOverflow: metadata.scrollWidth > metadata.clientWidth,
+				nameTruncated: name.scrollWidth > name.clientWidth,
+				metadataHeight: metadata.getBoundingClientRect().height,
+			};
+		});
+		expect(resultLayout).toMatchObject({
+			resultOverflow: false,
+			metadataOverflow: false,
+			nameTruncated: true,
+		});
+		expect(resultLayout.metadataHeight).toBeLessThan(25);
 		expect(requests[0]).toMatchObject({
 			pathname: '/api/freesound/search',
 			query: 'harbor',
@@ -107,7 +123,7 @@ test.describe('Freesound discovery and attribution', () => {
 			sort: 'relevance',
 		});
 
-		await result.getByRole('button', { name: /^Preview\s*:\s*Harbor ambience$/u }).click();
+		await result.getByRole('button', { name: `Play preview: ${SOUND.name}` }).click();
 		await expect.poll(() => requests.filter(({ pathname }) => (
 			pathname === `/api/freesound/sounds/${String(SOUND.id)}/preview`
 		)).length).toBeGreaterThan(0);
