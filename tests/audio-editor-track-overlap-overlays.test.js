@@ -24,3 +24,15 @@ test('audio crossfade overlays omit contained drop-in clips', () => {
 
 	assert.deepEqual(overlays, []);
 });
+
+test('two millisecond crossfades appear only at sample-level zoom', () => {
+	const clips = [
+		{ id: 'left', isVisible: true, timelineStartFrame: 0, durationFrames: 1_000 },
+		{ id: 'right', isVisible: true, timelineStartFrame: 998, durationFrames: 1_000 },
+	];
+	assert.deepEqual(createCrossfadeOverlays(clips, 0, 100, 1_000), []);
+	assert.equal(createCrossfadeOverlays(clips, 0, 1_000, 1_000).length, 1);
+	assert.equal(createCrossfadeOverlays([
+		clips[0], { ...clips[1], timelineStartFrame: 500 },
+	], 0, 100, 1_000).length, 1);
+});

@@ -85,6 +85,8 @@ test('clip transition gain owns explicit fades and overlapping automatic crossfa
 	assert.equal(evaluateClipEdgeGainAt(25, 30, 10, [], 'out'), 0.5);
 	assert.equal(evaluateClipEdgeGainAt(15, 30, 0, [[5, 15]], 'out'), 0);
 	assert.equal(evaluateClipEdgeGainAt(16, 30, 0, [[5, 15]], 'out'), 1);
+	assert.equal(evaluateClipEdgeGainAt(95, 100, 10, [[90, 100]], 'out'), 0.5);
+	assert.equal(evaluateClipEdgeGainAt(5, 100, 10, [[0, 10]], 'in'), 0.5);
 	assert.equal(evaluateClipTransitionGainAt(15, 30, {
 		fadeInFrames: 20,
 		fadeOutFrames: 20,

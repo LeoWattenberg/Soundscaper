@@ -1,11 +1,14 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { DEFAULT_CLIP_MICROFADE_SECONDS } from '../../clip-microfade.ts';
+
 /** Audacity 3's boundary guide accepts points fewer than four screen pixels away. */
 export const BOUNDARY_SNAP_PIXEL_TOLERANCE = 4;
 const COINCIDENT_SECONDS = 1 / 44_100;
 
 interface BoundaryClip {
 	readonly id: string;
+	readonly kind?: string;
 	readonly timelineStartFrame: number;
 	readonly durationFrames: number;
 }
@@ -41,9 +44,11 @@ interface ClipMoveSnapInput {
 	readonly movingClipIds: readonly string[];
 	readonly rawStartFrame: number;
 	readonly currentTrackId: string | null;
+	readonly destinationTrackId?: string | null;
 	readonly pixelsPerSecond: number;
 	readonly sampleRate: number;
 	readonly preferRightEdge: boolean;
+	readonly microfadeNewClips?: boolean;
 }
 
 interface ClipMoveSnapResult {
@@ -119,10 +124,39 @@ export function resolveClipMoveBoundarySnap(input: ClipMoveSnapInput): ClipMoveS
 	const rightFrame = leftFrame + clip.durationFrames;
 	const left = resolveBoundarySnap({ ...common, frame: leftFrame });
 	const right = resolveBoundarySnap({ ...common, frame: rightFrame });
-	const leftChanged = left.snapped && left.frame !== leftFrame;
-	const rightChanged = right.snapped && right.frame !== rightFrame;
+	const leftOverlap = left.snapped ? microfadeOverlapFrames(input, clip, left.frame, 'left') : 0;
+	const rightOverlap = right.snapped ? microfadeOverlapFrames(input, clip, right.frame, 'right') : 0;
+	const leftChanged = left.snapped && (left.frame !== leftFrame || leftOverlap > 0);
+	const rightChanged = right.snapped && (right.frame !== rightFrame || rightOverlap > 0);
 	const useRight = rightChanged && (!leftChanged || input.preferRightEdge);
-	if (useRight) return { startFrame: leftFrame + right.frame - rightFrame, guideFrame: right.frame };
-	if (leftChanged) return { startFrame: left.frame, guideFrame: left.frame };
+	if (useRight) return { startFrame: leftFrame + right.frame - rightFrame + rightOverlap, guideFrame: right.frame };
+	if (leftChanged) return { startFrame: left.frame - leftOverlap, guideFrame: left.frame };
 	return { startFrame: leftFrame, guideFrame: null };
+}
+
+function microfadeOverlapFrames(
+	input: ClipMoveSnapInput,
+	moving: BoundaryClip,
+	boundary: number,
+	edge: 'left' | 'right',
+): number {
+	if (!input.microfadeNewClips || moving.kind !== 'audio' || input.movingClipIds.length !== 1) return 0;
+	const track = input.project.tracks.find(({ id }) => id === (input.destinationTrackId ?? input.currentTrackId));
+	const clipIds = new Set(track?.clipIds ?? []);
+	const clips = input.project.clips.filter((clip) => clipIds.has(clip.id) && clip.id !== moving.id);
+	const neighbors = clips.filter((clip) => clip.kind === 'audio' && (edge === 'left'
+		? clip.timelineStartFrame + clip.durationFrames === boundary
+		: clip.timelineStartFrame === boundary));
+	if (neighbors.length !== 1) return 0;
+	const neighbor = neighbors[0]!;
+	const overlap = Math.min(
+		Math.max(1, Math.round(input.sampleRate * DEFAULT_CLIP_MICROFADE_SECONDS)),
+		Math.floor(Math.min(moving.durationFrames, neighbor.durationFrames) / 2),
+	);
+	if (overlap < 1) return 0;
+	const start = edge === 'left' ? boundary - overlap : boundary - moving.durationFrames + overlap;
+	const end = start + moving.durationFrames;
+	if (clips.some((clip) => clip.id !== neighbor.id && clip.timelineStartFrame < end
+		&& clip.timelineStartFrame + clip.durationFrames > start)) return 0;
+	return overlap;
 }

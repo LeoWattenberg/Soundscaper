@@ -11,12 +11,12 @@ import {
 const sampleRate = 1_000;
 const pixelsPerSecond = 1_000;
 
-function project(clips: ReadonlyArray<{ id: string; trackId: string; start: number; duration: number }>) {
+function project(clips: ReadonlyArray<{ id: string; trackId: string; start: number; duration: number; kind?: string }>) {
 	return {
 		tracks: [...new Set(clips.map(({ trackId }) => trackId))].map((id) => ({
 			id, clipIds: clips.filter((clip) => clip.trackId === id).map(({ id: clipId }) => clipId),
 		})),
-		clips: clips.map(({ id, start, duration }) => ({ id, timelineStartFrame: start, durationFrames: duration })),
+		clips: clips.map(({ id, start, duration, kind = 'audio' }) => ({ id, kind, timelineStartFrame: start, durationFrames: duration })),
 	};
 }
 
@@ -99,4 +99,45 @@ test('an already aligned clip edge does not displace a nearby moving edge', () =
 		rawStartFrame: 100, currentTrackId: 'lower', pixelsPerSecond, sampleRate,
 		preferRightEdge: true,
 	}), { startFrame: 101, guideFrame: 101 });
+});
+
+test('an audio clip snaps into a two millisecond overlap at either same-track edge', () => {
+	const content = project([
+		{ id: 'moving', trackId: 'audio', start: 20, duration: 100 },
+		{ id: 'anchor', trackId: 'audio', start: 200, duration: 100 },
+	]);
+	const input = { project: content, clipId: 'moving', movingClipIds: ['moving'],
+		currentTrackId: 'audio', destinationTrackId: 'audio', pixelsPerSecond,
+		sampleRate, microfadeNewClips: true };
+	assert.deepEqual(resolveClipMoveBoundarySnap({ ...input, rawStartFrame: 101,
+		preferRightEdge: true }), { startFrame: 102, guideFrame: 200 });
+	assert.deepEqual(resolveClipMoveBoundarySnap({ ...input, rawStartFrame: 301,
+		preferRightEdge: false }), { startFrame: 298, guideFrame: 300 });
+	assert.deepEqual(resolveClipMoveBoundarySnap({ ...input, rawStartFrame: 100,
+		preferRightEdge: true }), { startFrame: 102, guideFrame: 200 });
+	assert.deepEqual(resolveClipMoveBoundarySnap({ ...input, rawStartFrame: 101,
+		preferRightEdge: true, microfadeNewClips: false }), { startFrame: 100, guideFrame: 200 });
+});
+
+test('the microfade overlap requires a single audio clip and an audio neighbor on its destination track', () => {
+	const content = project([
+		{ id: 'moving', trackId: 'audio', start: 20, duration: 100 },
+		{ id: 'anchor', trackId: 'other', start: 200, duration: 100 },
+	]);
+	const input = { project: content, clipId: 'moving', movingClipIds: ['moving'],
+		currentTrackId: 'audio', destinationTrackId: 'audio', pixelsPerSecond,
+		sampleRate, microfadeNewClips: true, rawStartFrame: 101, preferRightEdge: true };
+	assert.deepEqual(resolveClipMoveBoundarySnap(input), { startFrame: 100, guideFrame: 200 });
+	assert.deepEqual(resolveClipMoveBoundarySnap({ ...input, destinationTrackId: 'other' }), {
+		startFrame: 102, guideFrame: 200,
+	});
+	assert.deepEqual(resolveClipMoveBoundarySnap({ ...input, destinationTrackId: 'other',
+		movingClipIds: ['moving', 'another'] }), { startFrame: 100, guideFrame: 200 });
+	const video = project([
+		{ id: 'moving', trackId: 'audio', start: 20, duration: 100 },
+		{ id: 'anchor', trackId: 'audio', start: 200, duration: 100, kind: 'video' },
+	]);
+	assert.deepEqual(resolveClipMoveBoundarySnap({ ...input, project: video }), {
+		startFrame: 100, guideFrame: 200,
+	});
 });

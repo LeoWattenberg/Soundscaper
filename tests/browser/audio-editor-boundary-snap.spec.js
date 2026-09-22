@@ -1,6 +1,7 @@
 import { expect, test, toneA, toneB } from './audio-editor-test-fixtures.js';
 import {
 	bootEditor,
+	chooseCommandAction,
 	clipByName,
 	clipField,
 	closeDialog,
@@ -44,17 +45,18 @@ async function resetMovingClip(page, editor, moving) {
 	await closeDialog(properties);
 }
 
-async function beginNearBoundaryClipDrag(page, anchor, moving) {
+async function beginNearBoundaryClipDrag(page, anchor, moving, targetAnchorTrack = false) {
 	const anchorBox = await anchor.boundingBox();
 	const movingBox = await moving.boundingBox();
 	expect(anchorBox).not.toBeNull();
 	expect(movingBox).not.toBeNull();
 	const x = movingBox.x + 30;
 	const y = movingBox.y + 10;
+	const targetY = targetAnchorTrack ? anchorBox.y + 10 : y;
 	const targetX = x + anchorBox.x - (movingBox.x + movingBox.width) - NEAR_BOUNDARY_PIXELS;
 	await page.mouse.move(x, y);
 	await page.mouse.down();
-	await page.mouse.move(targetX, y, { steps: 6 });
+	await page.mouse.move(targetX, targetY, { steps: 6 });
 	return { anchorBox, targetX, y };
 }
 
@@ -106,6 +108,26 @@ test.describe('Audacity 3 boundary snapping', () => {
 		await editor.getByRole('checkbox', { name: 'Snap', exact: true }).click();
 		await expect(editor.getByRole('checkbox', { name: 'Snap', exact: true }))
 			.toHaveAttribute('aria-checked', 'true');
+		await beginNearBoundaryClipDrag(page, anchor, moving);
+		await expectYellowGuide(editor);
+		await page.mouse.up();
+		expect(await startFrame(page, editor, moving)).toBe(SNAPPED_MOVING_START_FRAME);
+	});
+
+	test('same-track audio edges overlap by 2 ms only while microfades are enabled', async ({ page }) => {
+		const { editor, anchor, moving } = await setupBoundaryClips(page);
+		await beginNearBoundaryClipDrag(page, anchor, moving, true);
+		await expectYellowGuide(editor);
+		await page.mouse.up();
+		expect(await startFrame(page, editor, moving)).toBe(SNAPPED_MOVING_START_FRAME + 96);
+		await expect(editor.locator('[data-automatic-crossfade="true"]')).toHaveCount(0);
+
+		await chooseCommandAction(page, editor, 'Edit', 'Preferences');
+		const preferences = page.getByRole('dialog', { name: 'Editor preferences', exact: true });
+		await preferences.getByRole('tab', { name: /Editing$/u }).click();
+		await preferences.getByRole('checkbox', { name: 'Apply 2 ms fades to new clips' }).uncheck();
+		await preferences.getByRole('button', { name: 'Close', exact: true }).last().click();
+		await resetMovingClip(page, editor, moving);
 		await beginNearBoundaryClipDrag(page, anchor, moving);
 		await expectYellowGuide(editor);
 		await page.mouse.up();

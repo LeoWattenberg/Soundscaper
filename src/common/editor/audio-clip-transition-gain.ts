@@ -49,8 +49,10 @@ export function evaluateClipEdgeGainAt(
 	crossfadeRanges: readonly FrameRange[],
 	edge: ClipFadeEdge,
 ): number {
-	return evaluateLinearClipFadeAt(frame, durationFrames, fadeFrames, edge)
-		* evaluateClipCrossfadeAt(frame, crossfadeRanges, edge);
+	return Math.min(
+		evaluateLinearClipFadeAt(frame, durationFrames, fadeFrames, edge),
+		evaluateClipCrossfadeAt(frame, crossfadeRanges, edge),
+	);
 }
 
 /** Evaluate both clip edges at one local frame without choosing a sampling strategy. */

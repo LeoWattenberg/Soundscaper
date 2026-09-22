@@ -1,5 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { DEFAULT_CLIP_MICROFADE_SECONDS } from '../clip-microfade.ts';
+
 /** Give newly exposed audio edges the same editable fades as the clip controls. */
 interface MicrofadeClip {
 	readonly id: string;
@@ -24,8 +26,6 @@ interface MicrofadeChanges {
 	readonly fadeInFrames?: number;
 	readonly fadeOutFrames?: number;
 }
-
-export const DEFAULT_CLIP_MICROFADE_SECONDS = 0.002;
 
 export function defaultClipMicrofadeChanges(
 	before: MicrofadeProject,

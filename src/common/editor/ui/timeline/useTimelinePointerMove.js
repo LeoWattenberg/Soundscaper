@@ -326,7 +326,9 @@ export function useTimelinePointerMove({
 				: resolveClipMoveBoundarySnap({
 					project, clipId: session.clipId, movingClipIds: session.clipIds,
 					rawStartFrame: rawActiveStartFrame, currentTrackId: session.trackId,
+					destinationTrackId: createsTrack ? NEW_AUDIO_TRACK_DROP_TARGET : requestedTrackId,
 					pixelsPerSecond, sampleRate, preferRightEdge: session.preferRightSnap === true,
+					microfadeNewClips: snapshot.preferences?.editing?.applyMicrofadesToNewClips === true,
 				});
 			const snappedDeltaFrames = Math.max(snap.startFrame - activeStartFrame, -earliestMovingFrame);
 			const createPreviews = (delta) => movingClips.map((clip, index) => {
