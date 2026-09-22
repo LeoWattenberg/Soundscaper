@@ -8,6 +8,7 @@ export const INSTALL_NAVIGATION_COVERAGE_CHECKPOINT = `(() => {
 	function __soundscaperCoverageBeforeUnload() { debugger; }
 	const state = { beforeUnload: __soundscaperCoverageBeforeUnload, installed: true, restorations: [] };
 	const wrappedPrototypes = new Set();
+	const workletsWithModules = new WeakSet();
 	function wrapMethod(prototype, name, createWrapper) {
 		if (prototype === undefined || wrappedPrototypes.has(prototype)) return;
 		const descriptor = Object.getOwnPropertyDescriptor(prototype, name);
@@ -23,10 +24,16 @@ export const INSTALL_NAVIGATION_COVERAGE_CHECKPOINT = `(() => {
 			return Reflect.apply(original, this, args);
 		}
 	));
+	wrapMethod(globalThis.Worklet?.prototype, 'addModule', (original) => (
+		function __soundscaperCoverageAddAudioWorkletModule(...args) {
+			workletsWithModules.add(this);
+			return Reflect.apply(original, this, args);
+		}
+	));
 	for (const constructor of [globalThis.AudioContext, globalThis.webkitAudioContext]) {
 		wrapMethod(constructor?.prototype, 'close', (original) => (
 			function __soundscaperCoverageCloseAudioContext(...args) {
-				debugger;
+				if (workletsWithModules.has(this.audioWorklet)) debugger;
 				return Reflect.apply(original, this, args);
 			}
 		));

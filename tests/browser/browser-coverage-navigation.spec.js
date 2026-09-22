@@ -166,6 +166,30 @@ test('browser-target coverage starts before a dedicated worker executes', async 
 	))).toBe(true);
 });
 
+test('an AudioContext without a worklet closes without pausing capture', async ({ browserName, context, page }) => {
+	test.skip(browserName !== 'chromium', 'V8 precise coverage is Chromium-only.');
+	const session = await context.newCDPSession(page);
+	await session.send('Runtime.enable');
+	await session.send('Page.enable');
+	await session.send('Debugger.enable');
+	const reasons = [];
+	const checkpoints = await installNavigationCoverageCheckpoints({
+		checkpoint: async (reason) => { reasons.push(reason); }, session,
+	});
+	try {
+		await page.evaluate(async () => {
+			const audioContext = new AudioContext();
+			await audioContext.close();
+		});
+		await checkpoints.settle();
+	} finally {
+		await checkpoints.dispose();
+		await session.send('Debugger.disable');
+		await session.detach();
+	}
+	expect(reasons).not.toContain('audio-context-close');
+});
+
 test('worklet coverage drains before an AudioContext closes', async ({ browser, browserName, context, page }) => {
 	test.skip(browserName !== 'chromium', 'V8 precise coverage is Chromium-only.');
 
