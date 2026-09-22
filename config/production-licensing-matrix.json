@@ -119,6 +119,50 @@
 			"evidence": ["package-lock.json", "THIRD_PARTY_LICENSES.md", "src/common/site/fonts.css"]
 		},
 		{
+			"lockPath": "node_modules/@hono/node-server",
+			"name": "@hono/node-server",
+			"version": "1.19.17",
+			"license": "MIT",
+			"direct": false,
+			"role": "desktop-mcp-server-runtime",
+			"artifactSurfaces": ["electron-shell"],
+			"noticeMarker": "`@hono/node-server` 1.19.17",
+			"evidence": ["package-lock.json", "THIRD_PARTY_LICENSES.md", "desktop/mcp-service.ts"]
+		},
+		{
+			"lockPath": "node_modules/@modelcontextprotocol/core",
+			"name": "@modelcontextprotocol/core",
+			"version": "2.0.0",
+			"license": "MIT",
+			"direct": false,
+			"role": "desktop-mcp-server-runtime",
+			"artifactSurfaces": ["electron-shell"],
+			"noticeMarker": "`@modelcontextprotocol/core` 2.0.0",
+			"evidence": ["package-lock.json", "THIRD_PARTY_LICENSES.md", "desktop/mcp-service.ts"]
+		},
+		{
+			"lockPath": "node_modules/@modelcontextprotocol/node",
+			"name": "@modelcontextprotocol/node",
+			"version": "2.0.0",
+			"license": "MIT",
+			"direct": true,
+			"role": "desktop-mcp-server-runtime",
+			"artifactSurfaces": ["electron-shell"],
+			"noticeMarker": "`@modelcontextprotocol/node` 2.0.0",
+			"evidence": ["package-lock.json", "THIRD_PARTY_LICENSES.md", "desktop/mcp-service.ts"]
+		},
+		{
+			"lockPath": "node_modules/@modelcontextprotocol/server",
+			"name": "@modelcontextprotocol/server",
+			"version": "2.0.0",
+			"license": "MIT",
+			"direct": true,
+			"role": "desktop-mcp-server-runtime",
+			"artifactSurfaces": ["electron-shell"],
+			"noticeMarker": "`@modelcontextprotocol/server` 2.0.0",
+			"evidence": ["package-lock.json", "THIRD_PARTY_LICENSES.md", "desktop/mcp-service.ts"]
+		},
+		{
 			"lockPath": "node_modules/@noble/hashes",
 			"name": "@noble/hashes",
 			"version": "2.2.0",
@@ -183,6 +227,17 @@
 			"artifactSurfaces": ["web-pages-bundle", "electron-renderer"],
 			"noticeMarker": "`fflate` 0.8.3",
 			"evidence": ["package-lock.json", "THIRD_PARTY_LICENSES.md"]
+		},
+		{
+			"lockPath": "node_modules/hono",
+			"name": "hono",
+			"version": "4.13.8",
+			"license": "MIT",
+			"direct": false,
+			"role": "desktop-mcp-server-runtime",
+			"artifactSurfaces": ["electron-shell"],
+			"noticeMarker": "`hono` 4.13.8",
+			"evidence": ["package-lock.json", "THIRD_PARTY_LICENSES.md", "desktop/mcp-service.ts"]
 		},
 		{
 			"lockPath": "node_modules/mediabunny",
@@ -304,6 +359,17 @@
 			"artifactSurfaces": ["electron-runtime-assets", "desktop-release-assets"],
 			"noticeMarker": "`sherpa-onnx-win-x64` 1.13.5",
 			"evidence": ["package-lock.json", "THIRD_PARTY_LICENSES.md", "docs/milestone-7-plan.md"]
+		},
+		{
+			"lockPath": "node_modules/zod",
+			"name": "zod",
+			"version": "4.6.5",
+			"license": "MIT",
+			"direct": true,
+			"role": "desktop-mcp-server-runtime",
+			"artifactSurfaces": ["electron-shell"],
+			"noticeMarker": "`zod` 4.6.5",
+			"evidence": ["package-lock.json", "THIRD_PARTY_LICENSES.md", "desktop/mcp-service.ts"]
 		}
 	],
 	"shippedDevelopmentDependencies": [

@@ -23,6 +23,10 @@ const trackedVersions = [
 	'@fontsource/nunito-sans',
 	'@fontsource/jetbrains-mono',
 	'@fontsource/ubuntu',
+	'@hono/node-server',
+	'@modelcontextprotocol/core',
+	'@modelcontextprotocol/node',
+	'@modelcontextprotocol/server',
 	'@noble/hashes',
 	'@playwright/test',
 	'@resvg/resvg-js',
@@ -35,6 +39,7 @@ const trackedVersions = [
 	'electron',
 	'fflate',
 	'gettext-parser',
+	'hono',
 	'mediabunny',
 	'playwright',
 	'playwright-core',
@@ -45,6 +50,7 @@ const trackedVersions = [
 	'sql.js',
 	'wawoff2',
 	'xmlchars',
+	'zod',
 ];
 
 const findings = [];
