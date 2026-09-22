@@ -350,21 +350,23 @@ export async function chooseCommandAction(page, editor, menu, action, options = 
 	await expect(commandMenu).toBeHidden(options);
 }
 export async function chooseNestedCommandAction(page, editor, menu, actions, options = {}) {
-	const commandMenu = await openCommandMenu(page, editor, menu, options);
+	const { clearPointerAfterOpen = false, ...interactionOptions } = options;
+	const commandMenu = await openCommandMenu(page, editor, menu, interactionOptions);
+	if (clearPointerAfterOpen) await page.mouse.move(1, 1);
 	let currentMenu = commandMenu;
 	for (const [index, action] of actions.entries()) {
 		const item = getMenuItem(currentMenu, action);
 		if (index < actions.length - 1) {
-			currentMenu = await openMenuItemSubmenu(page, item, options);
+			currentMenu = await openMenuItemSubmenu(page, item, interactionOptions);
 		} else {
 			let target = item;
 			if (await item.locator(':scope > .context-menu-item-content .context-menu-item-arrow').count()) {
-				const terminalMenu = await openMenuItemSubmenu(page, item, options);
+				const terminalMenu = await openMenuItemSubmenu(page, item, interactionOptions);
 				target = getMenuItem(terminalMenu, action);
 			}
-			await expect(target).toBeEnabled(options);
-			await target.press('Enter', options);
-			await expect(commandMenu).toBeHidden(options);
+			await expect(target).toBeEnabled(interactionOptions);
+			await target.press('Enter', interactionOptions);
+			await expect(commandMenu).toBeHidden(interactionOptions);
 		}
 	}
 }
