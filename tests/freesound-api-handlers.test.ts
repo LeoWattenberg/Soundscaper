@@ -80,6 +80,7 @@ test('search sends the token only to a fixed Freesound endpoint and returns owne
 	assert.equal(upstreamUrl.searchParams.get('sort'), 'created_desc');
 	assert.equal(upstreamUrl.searchParams.get('filter'), 'license:Attribution');
 	assert.equal(upstreamUrl.searchParams.has('token'), false);
+	assert.equal(upstreamRequest.redirect, 'manual');
 	assert.equal(upstreamRequest.headers.get('authorization'), `Token ${API_KEY}`);
 	const body = await response.text();
 	const payload = JSON.parse(body) as { data: { results: Array<{ id: number }> } };
@@ -87,6 +88,44 @@ test('search sends the token only to a fixed Freesound endpoint and returns owne
 	assert.doesNotMatch(body, new RegExp(API_KEY, 'u'));
 	assert.doesNotMatch(body, /cdn\.freesound/u);
 	assert.doesNotMatch(body, /secret-upstream-url/u);
+});
+
+test('default fetch keeps the global receiver required by the Workers runtime', async () => {
+	const originalFetch = globalThis.fetch;
+	let calls = 0;
+	globalThis.fetch = function (input, init) {
+		assert.equal(this, globalThis);
+		calls += 1;
+		assert.equal(new URL(String(input)).origin, 'https://freesound.org');
+		assert.equal(new Headers(init?.headers).get('authorization'), `Token ${API_KEY}`);
+		return Promise.resolve(jsonResponse({ count: 1, results: [soundFixture()] }));
+	};
+	try {
+		const response = await handleFreesoundSearchRequest(context(
+			new Request('https://soundscaper.org/api/freesound/search?q=rain'),
+		));
+		assert.equal(response.status, 200);
+		assert.equal(calls, 1);
+	} finally {
+		globalThis.fetch = originalFetch;
+	}
+});
+
+test('metadata redirects are rejected without following their location', async () => {
+	let calls = 0;
+	const response = await handleFreesoundSearchRequest(context(
+		new Request('https://soundscaper.org/api/freesound/search?q=rain'),
+	), { fetchImpl: async (_input, init) => {
+		calls += 1;
+		assert.equal(init?.redirect, 'manual');
+		return new Response(null, {
+			status: 302,
+			headers: { Location: 'https://attacker.example/collect' },
+		});
+	} });
+	assert.equal(calls, 1);
+	assert.equal(response.status, 502);
+	assert.equal((await response.json() as { error: { code: string } }).error.code, 'upstream_error');
 });
 
 test('request admission fails closed before contacting Freesound', async () => {
@@ -217,7 +256,7 @@ test('preview resolves the trusted CDN URL server-side and streams a single rang
 	assert.equal(requests[1]?.url, previewUrl);
 	assert.equal(requests[1]?.headers.get('authorization'), null);
 	assert.equal(requests[1]?.headers.get('range'), 'bytes=0-3');
-	assert.equal(requests[1]?.redirect, 'error');
+	assert.equal(requests[1]?.redirect, 'manual');
 	assert.equal(response.status, 206);
 	assert.equal(response.headers.get('content-range'), 'bytes 0-3/100');
 	assert.equal(response.headers.get('content-disposition'), 'inline; filename="freesound-123456-preview.ogg"');

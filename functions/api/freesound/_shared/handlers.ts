@@ -134,7 +134,7 @@ export async function handleFreesoundPreviewRequest(
 		const transfer = await timedFetch(context.request.signal, upstream, normalized.previewUrl, {
 			method: admission.head ? 'HEAD' : 'GET',
 			headers,
-			redirect: 'error',
+			redirect: 'manual',
 		});
 		try {
 			const upstreamResponse = transfer.response;
@@ -193,7 +193,9 @@ function dependenciesWithDefaults(
 	if (!Number.isInteger(timeoutMs) || timeoutMs < 1 || timeoutMs > 30_000) {
 		throw new TypeError('The Freesound upstream timeout is invalid.');
 	}
-	return { fetchImpl: dependencies.fetchImpl ?? fetch, timeoutMs, apiKey: secret };
+	// Workers fetch requires its global receiver, even when the request is made through a dependency.
+	const fetchImpl: typeof fetch = dependencies.fetchImpl ?? ((input, init) => globalThis.fetch(input, init));
+	return { fetchImpl, timeoutMs, apiKey: secret };
 }
 
 function apiKey(env: Readonly<Record<string, string | undefined>>): string {
@@ -231,7 +233,7 @@ async function fetchApiJson(
 				Accept: 'application/json',
 				Authorization: `Token ${upstream.apiKey}`,
 			},
-			redirect: 'error',
+			redirect: 'manual',
 			signal,
 		});
 		if (!response.ok) throw upstreamStatus(response.status, notFound, response.headers);
