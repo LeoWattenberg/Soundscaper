@@ -11,6 +11,7 @@ import { createPackage } from '@electron/asar';
 import { assistanceNativeRuntimeStageSummary } from '../desktop/assistance-native-runtime-payload.mjs';
 import { DESKTOP_RENDERER_DYNAMIC_EXCLUSIONS } from '../desktop/renderer-smoke-execution.js';
 import {
+	asarNativeEntryPath,
 	preserveDesktopNightlyProductCoverageEvidence,
 } from '../scripts/lib/desktop-nightly-product-coverage-evidence.mjs';
 
@@ -137,6 +138,27 @@ test('nightly product coverage evidence preserves every executable and renderer 
 		}),
 		/packaged app\.asar\/desktop\/main\.mjs differs/u,
 	);
+});
+
+test('nightly product coverage evidence finds a macOS Contents/Resources archive', async (context) => {
+	const workspace = await mkdtemp(join(tmpdir(), 'soundscaper-nightly-coverage-mac-resources-'));
+	context.after(() => rm(workspace, { recursive: true, force: true }));
+	const fixture = await createCoverageFixture(workspace, {
+		packagedResourcesPath: 'mac-arm64/Soundscaper.app/Contents/Resources',
+	});
+	const manifest = await preserveDesktopNightlyProductCoverageEvidence({
+		buildRoot: fixture.buildRoot,
+		productId: 'soundscaper',
+		productOutput: fixture.productOutput,
+		sourceRevision: REVISION,
+	});
+	assert.match(manifest.packageArchive.sha256, /^[0-9a-f]{64}$/u);
+});
+
+test('nightly product coverage evidence uses native ASAR entry separators', () => {
+	const entry = 'desktop/project-library-runtime/desktop/main.mjs';
+	assert.equal(asarNativeEntryPath(entry, '\\'), 'desktop\\project-library-runtime\\desktop\\main.mjs');
+	assert.equal(asarNativeEntryPath(entry, '/'), entry);
 });
 
 test('nightly product coverage evidence refuses an uninventoried app.asar script', async (context) => {
@@ -303,6 +325,7 @@ test('nightly product coverage evidence refuses a renderer build without maps', 
 interface CoverageFixtureOptions {
 	readonly packagedApplicationExtras?: ReadonlyMap<string, string>;
 	readonly packagedResourceExtras?: ReadonlyMap<string, string>;
+	readonly packagedResourcesPath?: string;
 	readonly productId?: 'soundscaper' | 'framescaper';
 	readonly rendererDocument?: string;
 	readonly runtimeAuthority?: boolean;
@@ -350,7 +373,7 @@ async function createCoverageFixture(workspace: string, options: CoverageFixture
 			assistanceNativeRuntime: assistanceNativeRuntimeStageSummary(nativeManifest, 'linux-x64'),
 		}),
 	}, null, 2)}\n`);
-	const resources = join(productOutput, 'linux-unpacked/resources');
+	const resources = join(productOutput, options.packagedResourcesPath ?? 'linux-unpacked/resources');
 	for (const [name, contents] of files) {
 		if (name.startsWith('renderer/') || name.startsWith('runtime/')) {
 			await write(join(resources, name), contents);

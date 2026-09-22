@@ -87,7 +87,7 @@ export async function preserveDesktopNightlyProductCoverageEvidence({
 	const webAssemblyResources = [];
 	const rendererExecutableResources = [];
 	for (const name of applicationScripts) {
-		const bytes = Buffer.from(extractFile(appAsar, name));
+		const bytes = Buffer.from(extractFile(appAsar, asarNativeEntryPath(name)));
 		await assertSameBytes(join(applicationRoot, name), bytes, `packaged app.asar/${name}`);
 		scripts.push(await preserveFile({
 			artifactPath: `app/${name}`,
@@ -98,7 +98,7 @@ export async function preserveDesktopNightlyProductCoverageEvidence({
 		}));
 	}
 	for (const name of applicationDocuments) {
-		const bytes = Buffer.from(extractFile(appAsar, name));
+		const bytes = Buffer.from(extractFile(appAsar, asarNativeEntryPath(name)));
 		await assertSameBytes(join(applicationRoot, name), bytes, `packaged app.asar/${name}`);
 		htmlResources.push({ artifactPath: `app/${name}`, source: bytes.toString('utf8') });
 		documents.push(await preserveFile({
@@ -227,7 +227,7 @@ function archiveNamesMatching(appAsar, pattern) {
 	const names = [];
 	for (const archivePath of listPackage(appAsar)) {
 		const name = archivePath.replace(/^[/\\]/u, '').replaceAll('\\', '/');
-		const metadata = statFile(appAsar, name);
+		const metadata = statFile(appAsar, asarNativeEntryPath(name));
 		if ('files' in metadata) continue;
 		if ('link' in metadata) {
 			throw new Error(`Desktop nightly coverage app.asar contains an executable link at ${name}.`);
@@ -235,6 +235,11 @@ function archiveNamesMatching(appAsar, pattern) {
 		if (pattern.test(name)) names.push(name);
 	}
 	return names.sort();
+}
+
+/** Keep manifest paths portable while addressing the ASAR API in the host OS syntax. */
+export function asarNativeEntryPath(name, separator = sep) {
+	return name.split('/').join(separator);
 }
 
 async function readStageManifest(buildRoot, productId) {
@@ -271,7 +276,7 @@ function approvedRuntimeScripts({ appAsar, stage }) {
 	}
 	if (stage.assistanceRuntimeFamilies !== undefined) {
 		const name = 'config/assistance-runtime-family-supply-candidates.json';
-		const bytes = Buffer.from(extractFile(appAsar, name));
+		const bytes = Buffer.from(extractFile(appAsar, asarNativeEntryPath(name)));
 		const reference = stage.assistanceRuntimeFamilies;
 		if (!plainRecord(reference) || reference.targetId !== targetId
 			|| !sameFileRecord(reference.manifest, fileRecord(bytes))) {
@@ -320,7 +325,7 @@ function assertApprovedRuntimeScripts(staged, approved) {
 }
 
 function extractedJson(appAsar, name) {
-	return parseJson(Buffer.from(extractFile(appAsar, name)), name);
+	return parseJson(Buffer.from(extractFile(appAsar, asarNativeEntryPath(name))), name);
 }
 
 function parseJson(bytes, name) {
@@ -372,7 +377,7 @@ async function preserveFile({
 
 async function uniquePackagedAppAsar(productOutput) {
 	const candidates = (await walkFiles(productOutput))
-		.filter((name) => /(?:^|\/)resources\/app\.asar$/u.test(name));
+		.filter((name) => /(?:^|\/)resources\/app\.asar$/iu.test(name));
 	if (candidates.length !== 1) {
 		throw new Error('Desktop nightly coverage evidence needs one finished packaged app.asar.');
 	}

@@ -6,6 +6,8 @@ export interface DesktopNightlyProductCoverageFile {
 	readonly sha256: string;
 }
 
+export function asarNativeEntryPath(name: string, separator?: string): string;
+
 export interface DesktopNightlyProductCoverageResourceIdentity {
 	readonly fileCount: number;
 	readonly totalBytes: number;
