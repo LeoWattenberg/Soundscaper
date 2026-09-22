@@ -8,6 +8,7 @@ import type { RestrictToCapability } from '../composition/action-facade-runtime.
 
 export type RecordingActionScope = Pick<EditorActionFunctions,
 	 'startRecording'
+	| 'startSoundActivatedRecording'
 	| 'startRecordingOnNewTrack'
 	| 'startTakeCycleRecording'
 	| 'recoverTakeCycleRecording'
@@ -39,6 +40,7 @@ export function createRecordingActionFacade(
 	const soundActivation = scope.soundActivationPolicyService;
 	return Object.freeze({
 		start: restricted('audioRecording', scope.startRecording),
+		startSoundActivated: restricted('audioRecording', scope.startSoundActivatedRecording),
 		startNewTrack: restricted('audioRecording', scope.startRecordingOnNewTrack),
 		cycle: Object.freeze({
 			start: restricted('takeComp', scope.startTakeCycleRecording),

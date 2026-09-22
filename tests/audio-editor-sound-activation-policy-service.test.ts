@@ -76,6 +76,20 @@ test('settings are converted and frozen once per exact source session', () => {
 	assert.deepEqual(nextSession, { thresholdDb: -18, hysteresisDb: 4, holdFrames: 12_000 });
 });
 
+test('capture activation overrides the stored enabled flag for one session', () => {
+	const fixture = createFixture({ preferences: ENABLED_PREFERENCES });
+	fixture.service.setCaptureEnabled(false);
+	assert.equal(fixture.service.getSettings(DEVICE_SOURCE), null);
+	fixture.service.setCaptureEnabled(true);
+	assert.deepEqual(fixture.service.getSettings(DEVICE_SOURCE), {
+		thresholdDb: -36, hysteresisDb: 4, holdFrames: 6_000,
+	});
+	fixture.service.resetSources();
+	fixture.service.setCaptureEnabled(false);
+	assert.equal(fixture.service.getSettings(DEVICE_SOURCE), null);
+	assert.equal(fixture.service.getSnapshot().preferences.enabled, true);
+});
+
 test('source states remain independent while a shared source key has one canonical row', () => {
 	const fixture = createFixture({ preferences: ENABLED_PREFERENCES });
 	const deviceSettings = fixture.service.getSettings(DEVICE_SOURCE);

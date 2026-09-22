@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+
 import { ToggleToolButton } from '@soundscaper/design-system/ToggleToolButton';
 import { ToolbarButtonGroup } from '@soundscaper/design-system/Toolbar';
 import { TransportButton } from '@soundscaper/design-system/TransportButton';
@@ -15,6 +16,7 @@ import FramescaperCaptureRecordControl, {
 	framescaperCaptureRecordRequired,
 	useFramescaperCaptureRecordVisibility,
 } from './FramescaperCaptureRecordControl.tsx';
+
 
 export const TRANSPORT_BUTTON_IDS = Object.freeze(['play', 'stop', 'record', 'jump-start', 'jump-end', 'loop', 'metronome']);
 // In the compact layout the primary transport stays in the always-visible bar
@@ -53,14 +55,13 @@ export function transportToolbarButtonsVisible(buttons, {
 
 export default function TransportToolbarGroup({
 	buttons = TRANSPORT_BUTTON_IDS,
-	actionRuntime,
 	blocked,
 	capabilities,
 	controller,
 	copy,
+	locale,
 	onJumpToEnd,
 	onJumpToStart,
-	onOpenRecordingOffset,
 	onOpenTakeCycleRecovery,
 	onOpenTimedRecording,
 	recordLabel,
@@ -75,9 +76,14 @@ export default function TransportToolbarGroup({
 	const framescaperCaptureRecordVisible = useFramescaperCaptureRecordVisibility(snapshot);
 	const captureRecordSlotVisible = buttons.includes('record')
 		&& (isToolbarButtonVisible('record') || framescaperCaptureRecordRequired(snapshot.capture));
-	const recordControlLabel = snapshot.readOnly
-		? `${recordLabel} — ${copy.projectReadOnly}`
+	const recordActionLabel = snapshot.recording
+		? snapshot.recordingKind === 'take-cycle'
+			? copy.stopRecording
+			: snapshot.recordingOptions?.paused ? copy.resumeRecording : copy.pauseRecording
 		: recordLabel;
+	const recordControlLabel = snapshot.readOnly
+		? `${recordActionLabel} — ${copy.projectReadOnly}`
+		: recordActionLabel;
 	return (
 		<ToolbarButtonGroup className="kw-audio-editor__transport" gap={2}>
 			{wants('play') && <TelemetryPlayTransportControl
@@ -97,6 +103,7 @@ export default function TransportToolbarGroup({
 					optionsAriaLabel={formatOptionsLabel(copy, copy.recordMenu)}
 					recording={snapshot.recording}
 					pressed={Boolean(snapshot.recording)}
+					flyoutRole="dialog"
 					disabled={Boolean(snapshot.takeCycleRecovery) || snapshot.readOnly || snapshot.importing || snapshot.exporting || snapshot.transportState === 'playing' || snapshot.recordingScheduling || snapshot.scheduledRecording}
 					onClick={toggleRecording}
 				>
@@ -104,11 +111,8 @@ export default function TransportToolbarGroup({
 						copy={copy}
 						snapshot={snapshot}
 						controller={controller}
-						recordLabel={recordLabel}
-						toggleRecording={toggleRecording}
-						actionRuntime={actionRuntime}
 						run={run}
-						onOpenRecordingOffset={onOpenRecordingOffset}
+						locale={locale}
 						onOpenTimedRecording={onOpenTimedRecording}
 						onOpenTakeCycleRecovery={onOpenTakeCycleRecovery}
 						onClose={close}

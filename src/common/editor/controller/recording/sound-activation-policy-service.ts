@@ -36,6 +36,7 @@ export interface SoundActivationPreferencePatch {
 
 export interface SoundActivationPolicyServiceDependencies {
 	readonly state: SoundActivationPolicyRecordingState;
+	readonly captureEnabledByDefault?: boolean;
 	/** Returns the currently committed, globally scoped preference record. */
 	readonly getPreferences: () => unknown;
 	/**
@@ -73,6 +74,7 @@ export interface SoundActivationPolicySnapshot {
 
 export interface SoundActivationPolicyService extends RecordingSoundActivationPort {
 	getSnapshot(): SoundActivationPolicySnapshot;
+	setCaptureEnabled(enabled: boolean): void;
 	setEnabled(value: unknown): Promise<boolean>;
 	setThresholdDb(value: unknown): Promise<boolean>;
 	setHysteresisDb(value: unknown): Promise<boolean>;
@@ -114,11 +116,13 @@ export function createSoundActivationPolicyService(
 	const publish = dependencies.publish ?? (() => {});
 	let preferenceUpdatePending = false;
 	let pendingPreferences: SoundActivationPreferences | null = null;
+	let captureEnabled = dependencies.captureEnabledByDefault ?? null;
 
 	return Object.freeze({
 		getSettings,
 		setState,
 		getSnapshot,
+		setCaptureEnabled: (enabled: boolean) => { captureEnabled = enabled; },
 		setEnabled: (value: unknown) => mutatePreference('enabled', value),
 		setThresholdDb: (value: unknown) => mutatePreference('thresholdDb', value),
 		setHysteresisDb: (value: unknown) => mutatePreference('hysteresisDb', value),
@@ -134,7 +138,9 @@ export function createSoundActivationPolicyService(
 			assertSameSource(existing.source, source);
 			return existing.settings;
 		}
-		const settings = soundActivationSettingsFromPreferences(readPreferences(), source.sampleRate);
+		const preferences = readPreferences();
+		const settings = soundActivationSettingsFromPreferences(captureEnabled === null
+			? preferences : { ...preferences, enabled: captureEnabled }, source.sampleRate);
 		if (settings === null) return null;
 		sessions.set(source.sourceKey, {
 			source,

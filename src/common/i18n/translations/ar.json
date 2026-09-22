@@ -2,7 +2,7 @@
 	"schemaVersion": 2,
 	"locale": "ar",
 	"provenance": {
-		"machine": {"model":"gpt-5","modelDigest":"sha256:28797e601302dfca6322e0d96209a38aee793107e1a30078e805aed0554dfede","promptVersion":"i18n-machine-v1"},
+		"machine": {"model":"aya-expanse:32b","modelDigest":"1603440383bd5504dc7afd01c0407b425b988dde650a8dc1a737433baa3cd432","promptVersion":"i18n-machine-v1"},
 		"audacity": {"repository":"audacity/audacity","headSha":"de2e43dc13474ba712ade5ea8e47550eba0e8bfb","runId":35327911264,"artifactId":10539339149,"workflowUrl":"https://github.com/audacity/audacity/actions/runs/35327911264","archiveName":"Audacity_locale_262610911.zip","archiveSha256":"13b1ff11c39a677c711a1d29738a394aaca7a200533927aab3f45bbd76c1ff8e","archiveByteLength":15413913,"licenseSpdx":"GPL-3.0-only","upstreamProjectUrl":"https://github.com/audacity/audacity","upstreamLicenseUrl":"https://github.com/audacity/audacity/blob/de2e43dc13474ba712ade5ea8e47550eba0e8bfb/LICENSE.txt","modificationNotice":"Soundscaper converts reviewed Audacity Qt TS messages to per-locale JSON catalogs, excludes unsafe or inapplicable entries, adapts reviewed placeholders and mnemonics, and removes ellipsis punctuation.","mappingVersion":3,"mappingSha256":"f4cf0434f47eaa9434d079a1623b9d9501e9c8da0d83f0c73344f7765113b57c"}
 	},
 	"entries": {
@@ -1443,6 +1443,7 @@
 		"layoutCompact": ["machine","Compact (menus and track headers in drawers)","مدمج (القوائم ورؤوس المسارات في الأدراج)"],
 		"layoutDesktop": ["machine","Desktop","سطح المكتب"],
 		"leadInTime": ["machine","Enable lead-in time","تمكين وقت العد التنازلي"],
+		"leadInTimeOption": ["machine","Lead-in time","وقت التمهيد"],
 		"leftAtPlayback": ["machine","Left at playback position","اليسار في موقع التشغيل"],
 		"leftChannel": ["machine","Left","اليسار"],
 		"legacyEffects": ["machine","Legacy effects","التأثيرات القديمة"],
@@ -1985,6 +1986,7 @@
 		"recordLevel": ["machine","Record level","مستوى التسجيل"],
 		"recordMenu": ["machine","Record","تسجيل"],
 		"recordNewTrack": ["machine","Record new track","تسجيل مسار جديد"],
+		"recordToNewTrack": ["machine","Record to new track","تسجيل على مسار جديد"],
 		"recording": ["machine","Recording","تسجيل"],
 		"recordingAllowInputs": ["machine","Enable microphones","تمكين الميكروفونات"],
 		"recordingAssignInput": ["machine","Assign an input to at least one armed track before recording.","قم بتعيين مدخل إلى مسار مسلح واحد على الأقل قبل التسجيل."],
@@ -2463,6 +2465,7 @@
 		"timeSignature": ["machine","Time signature","توقيع الوقت"],
 		"timecode": ["audacity","Timecode","الرمز الزمني"],
 		"timedRecording": ["machine","Set up timed recording","إعداد التسجيل الموقت"],
+		"timedRecordingAction": ["machine","Timed recording","تسجيل زمني"],
 		"timedRecordingAssignedInputsUnavailable": ["machine","Every assigned recording input must remain available for timer recording.","يجب أن يظل كل مدخل تسجيل معين متاحًا للتسجيل الموقت."],
 		"timedRecordingCancel": ["machine","Cancel scheduled recording","إلغاء التسجيل المجدول"],
 		"timedRecordingCancelled": ["machine","Scheduled recording cancelled.","تم إلغاء التسجيل المجدول."],

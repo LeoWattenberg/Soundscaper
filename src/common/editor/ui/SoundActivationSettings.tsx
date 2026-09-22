@@ -14,7 +14,6 @@ import AudioEditorTimeCodeInput from './AudioEditorTimeCodeInput.tsx';
 import EditorHelpTooltip from './EditorHelpTooltip.tsx';
 
 interface SoundActivationActions {
-	setEnabled(value: boolean): unknown;
 	setThresholdDb(value: number): unknown;
 	setHysteresisDb(value: number): unknown;
 	setHoldMilliseconds(value: number): unknown;
@@ -22,8 +21,6 @@ interface SoundActivationActions {
 
 interface SoundActivationPreferencesCopy extends SoundActivationUiCopy {
 	readonly helpMenu: string;
-	readonly soundActivatedRecording: string;
-	readonly soundActivationDescription: string;
 	readonly soundActivationSettings: string;
 	readonly soundActivationThreshold: string;
 	readonly soundActivationThresholdDescription: string;
@@ -33,7 +30,7 @@ interface SoundActivationPreferencesCopy extends SoundActivationUiCopy {
 	readonly soundActivationHoldDescription: string;
 }
 
-interface SoundActivationPreferencesProps {
+interface SoundActivationSettingsProps {
 	readonly productId: string;
 	readonly locale: string;
 	readonly readOnly: boolean;
@@ -47,8 +44,8 @@ interface SoundActivationPreferencesProps {
 	run(operation: () => unknown): unknown;
 }
 
-/** Soundscaper-only preferences over the controller-owned sound activation policy. */
-export default function SoundActivationPreferences({
+/** Settings for the dedicated sound-activated recording action. */
+export default function SoundActivationSettings({
 	productId,
 	locale,
 	readOnly,
@@ -56,22 +53,19 @@ export default function SoundActivationPreferences({
 	copy,
 	controller,
 	run,
-}: SoundActivationPreferencesProps) {
+}: SoundActivationSettingsProps) {
 	const titleId = useId();
-	const descriptionId = useId();
 	const statusId = useId();
 	if (productId !== 'soundscaper') return null;
 	const model = createSoundActivationUiModel(soundActivation, readOnly, locale, copy);
 	const actions = controller.actions.recording.soundActivation;
-	const describedBy = `${descriptionId} ${statusId}`;
 	const update = (operation: () => unknown) => {
 		if (!model.controlsDisabled) void run(operation);
 	};
 	return (
 		<section
 			className="kw-audio-editor-sound-activation"
-			data-sound-activation-preferences
-			data-sound-activation-enabled={model.preferences.enabled}
+			data-sound-activation-settings
 			data-sound-activation-threshold-db={model.preferences.thresholdDb}
 			data-sound-activation-hysteresis-db={model.preferences.hysteresisDb}
 			data-sound-activation-hold-milliseconds={model.preferences.holdMilliseconds}
@@ -80,26 +74,6 @@ export default function SoundActivationPreferences({
 			aria-labelledby={titleId}
 		>
 			<h3 id={titleId}>{copy.soundActivationSettings}</h3>
-			<span id={descriptionId} className="kw-audio-editor-sr-only">{copy.soundActivationDescription}</span>
-			<label className="kw-audio-editor-sound-activation__switch">
-				<input
-					type="checkbox"
-					role="switch"
-					checked={model.preferences.enabled}
-					disabled={model.controlsDisabled}
-					aria-label={copy.soundActivatedRecording}
-					aria-describedby={describedBy}
-					onChange={(event) => update(() => actions.setEnabled(event.currentTarget.checked))}
-				/>
-				<span>{copy.soundActivatedRecording}</span>
-				<EditorHelpTooltip
-					subject={copy.soundActivatedRecording}
-					description={copy.soundActivationDescription}
-					helpLabel={copy.helpMenu}
-					hook="sound-activation"
-					describedBy={descriptionId}
-				/>
-			</label>
 			<fieldset
 				className="kw-audio-editor-sound-activation__controls"
 				aria-label={copy.soundActivationSettings}
@@ -150,7 +124,7 @@ export default function SoundActivationPreferences({
 				role="status"
 				aria-live="polite"
 				aria-atomic="true"
-			>{model.statusMessage}</p>
+			>{model.blockReason ? model.statusMessage : ''}</p>
 		</section>
 	);
 }

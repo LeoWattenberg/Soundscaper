@@ -2,7 +2,7 @@
 	"schemaVersion": 2,
 	"locale": "he",
 	"provenance": {
-		"machine": {"model":"gpt-5","modelDigest":"sha256:e6fdd05f11de60768e1310b0364158f1d088343516f46198978a68888f6d76d3","promptVersion":"i18n-machine-v1"},
+		"machine": {"model":"codex","modelDigest":"sha256:0cbb52a16ac4641c6f2ebc892906e13f9243d3b0ab2601cec966b325c9e9a8d0","promptVersion":"i18n-machine-v1"},
 		"audacity": {"repository":"audacity/audacity","headSha":"de2e43dc13474ba712ade5ea8e47550eba0e8bfb","runId":35327911264,"artifactId":10539339149,"workflowUrl":"https://github.com/audacity/audacity/actions/runs/35327911264","archiveName":"Audacity_locale_262610911.zip","archiveSha256":"13b1ff11c39a677c711a1d29738a394aaca7a200533927aab3f45bbd76c1ff8e","archiveByteLength":15413913,"licenseSpdx":"GPL-3.0-only","upstreamProjectUrl":"https://github.com/audacity/audacity","upstreamLicenseUrl":"https://github.com/audacity/audacity/blob/de2e43dc13474ba712ade5ea8e47550eba0e8bfb/LICENSE.txt","modificationNotice":"Soundscaper converts reviewed Audacity Qt TS messages to per-locale JSON catalogs, excludes unsafe or inapplicable entries, adapts reviewed placeholders and mnemonics, and removes ellipsis punctuation.","mappingVersion":3,"mappingSha256":"f4cf0434f47eaa9434d079a1623b9d9501e9c8da0d83f0c73344f7765113b57c"}
 	},
 	"entries": {
@@ -1443,6 +1443,7 @@
 		"layoutCompact": ["machine","Compact (menus and track headers in drawers)","קומפקטי (תפריטים וכותרות רצועות במגירות)"],
 		"layoutDesktop": ["machine","Desktop","שולחן עבודה"],
 		"leadInTime": ["machine","Enable lead-in time","הפעלת זמן הקדמה"],
+		"leadInTimeOption": ["machine","Lead-in time","זמן הקדמה"],
 		"leftAtPlayback": ["machine","Left at playback position","קצה שמאלי במיקום ההשמעה"],
 		"leftChannel": ["machine","Left","שמאל"],
 		"legacyEffects": ["machine","Legacy effects","אפקטים מיושנים"],
@@ -1985,6 +1986,7 @@
 		"recordLevel": ["machine","Record level","רמת הקלטה"],
 		"recordMenu": ["machine","Record","הקלטה"],
 		"recordNewTrack": ["machine","Record new track","הקלט רצועה חדשה"],
+		"recordToNewTrack": ["machine","Record to new track","הקלט לרצועה חדשה"],
 		"recording": ["machine","Recording","מתבצעת הקלטה"],
 		"recordingAllowInputs": ["machine","Enable microphones","אפשר מיקרופונים"],
 		"recordingAssignInput": ["machine","Assign an input to at least one armed track before recording.","הקצה קלט לפחות לרצועה מופעלת אחת לפני ההקלטה."],
@@ -2463,6 +2465,7 @@
 		"timeSignature": ["machine","Time signature","מידת זמן"],
 		"timecode": ["machine","Timecode","קוד זמן"],
 		"timedRecording": ["machine","Set up timed recording","הגדרת הקלטה מתוזמנת"],
+		"timedRecordingAction": ["machine","Timed recording","הקלטה מתוזמנת"],
 		"timedRecordingAssignedInputsUnavailable": ["machine","Every assigned recording input must remain available for timer recording.","כל קלט הקלטה משויך חייב להישאר זמין להקלטה מתוזמנת."],
 		"timedRecordingCancel": ["machine","Cancel scheduled recording","ביטול הקלטה מתוזמנת"],
 		"timedRecordingCancelled": ["machine","Scheduled recording cancelled.","ההקלטה המתוזמנת בוטלה."],

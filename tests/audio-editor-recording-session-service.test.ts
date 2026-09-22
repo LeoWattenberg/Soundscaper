@@ -24,7 +24,7 @@ test('recording service exposes only controller action entry points', () => {
 		'cancelRecordingStart',
 		'finalizeRecording',
 		'startRecording',
-		'startRecordingOnNewTrack',
+		'startRecordingOnNewTrack', 'startSoundActivatedRecording',
 		'startTakeCycleRecording',
 		'stopRecording',
 		'toggleLeadInRecording',

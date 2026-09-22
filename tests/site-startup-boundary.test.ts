@@ -128,7 +128,7 @@ test('feature CSS is imported only by its owning editor surface', async () => {
 		['06a-panels-attribution.css', 'src/common/editor/ui/AttributionTab.tsx'],
 		['15-adm.css', 'src/common/editor/ui/AdmMetadataFields.tsx'],
 		['18-musical-timeline.css', 'src/common/editor/ui/toolbar/MusicalTimelineControls.jsx'],
-		['20-sound-activation.css', 'src/common/editor/ui/SoundActivationPreferences.tsx'],
+		['20-sound-activation.css', 'src/common/editor/ui/SoundActivationSettings.tsx'],
 		['23-source-monitor.css', 'src/common/editor/ui/workspace/SourceMonitorPanel.jsx'],
 		['25-spectral-brush.css', 'src/common/editor/ui/timeline/SpectralBrushOverlay.jsx'],
 		['26-take-comp.css', 'src/common/editor/ui/dialogs/TakeCompDialog.tsx'],

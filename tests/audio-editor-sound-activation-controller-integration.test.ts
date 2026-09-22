@@ -134,7 +134,7 @@ test('legacy capture freezes policy settings and blocks mutation through active 
 		await actions.setThresholdDb(-32);
 		await actions.setHoldMilliseconds(125);
 		const trackId = firstProjectTrackId(controller);
-		await controller.actions.recording.start({ trackId });
+		await controller.actions.recording.startSoundActivated({ trackId });
 
 		const active = controller.getSnapshot().recordingInputs.soundActivation;
 		assert.equal(active.preferenceMutationBlockReason, 'recording-active');
@@ -163,9 +163,13 @@ test('legacy capture freezes policy settings and blocks mutation through active 
 		finishGate.resolve();
 		await stopping;
 		assert.deepEqual(controller.getSnapshot().recordingInputs.soundActivation.sources, []);
+		await controller.actions.recording.start({ trackId });
+		assert.equal(controller.getSnapshot().recordingKind, 'ordinary');
+		assert.deepEqual(controller.getSnapshot().recordingInputs.soundActivation.sources, []);
+		await controller.actions.recording.stop();
 
 		assert.equal(await actions.setThresholdDb(-18), true);
-		await controller.actions.recording.start({ trackId });
+		await controller.actions.recording.startSoundActivated({ trackId });
 		const nextSettings = controller.getSnapshot().recordingInputs.soundActivation.sources[0].settings;
 		assert.notStrictEqual(nextSettings, frozenSettings);
 		assert.equal(nextSettings.thresholdDb, -18);
@@ -173,7 +177,7 @@ test('legacy capture freezes policy settings and blocks mutation through active 
 		assert.deepEqual(controller.getSnapshot().recordingInputs.soundActivation.sources, []);
 
 		const replacementTrackId = firstProjectTrackId(controller);
-		await controller.actions.recording.start({ trackId: replacementTrackId });
+		await controller.actions.recording.startSoundActivated({ trackId: replacementTrackId });
 		assert.equal(controller.getSnapshot().recordingInputs.soundActivation.sources.length, 1);
 		await controller.dispose();
 		assert.deepEqual(controller.getSnapshot().recordingInputs.soundActivation.sources, []);
@@ -202,7 +206,7 @@ test('sound-activated capture keeps the live and stopped playhead at the compact
 		await actions.setEnabled(true);
 		await actions.setHoldMilliseconds(0);
 		const trackId = firstProjectTrackId(controller);
-		await controller.actions.recording.start({ trackId });
+		await controller.actions.recording.startSoundActivated({ trackId });
 		const recorder = created[0];
 		assert.ok(recorder?.startOptions?.startFrame != null);
 		await recorder.onChunk({
@@ -296,7 +300,7 @@ test('scheduled and routed capture report guarded, isolated source state through
 			kind: 'device', deviceId: 'mic-2', channelStart: 0, channelCount: 1,
 		});
 		created.splice(0);
-		await controller.actions.recording.start();
+		await controller.actions.recording.startSoundActivated();
 		assert.deepEqual(
 			controller.getSnapshot().recordingInputs.soundActivation.sources.map(
 				({ sourceKey, state }: Readonly<{ sourceKey: string; state: string }>) => [sourceKey, state],

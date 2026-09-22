@@ -13,115 +13,145 @@ import {
 test.describe('Soundscaper sound-activated recording', () => {
 	registerAudioEditorHooks();
 
-	test('supports pointer, keyboard, persistence, and forced-colors workflows', async ({ page, browserName }) => {
+	test('keeps its action in Record options and settings in the cog flyout', async ({ page, browserName }) => {
 		const errors = collectClientErrors(page);
 		let editor = await bootEditor(page, '/embed/en/');
-		const recordOptions = editor.getByRole('button', { name: 'Record options', exact: true });
+		await editor.getByRole('button', { name: 'Record options', exact: true }).click();
+		let options = page.getByRole('dialog', { name: 'Record options', exact: true });
+		await expect(options.getByRole('button', { name: 'Sound-activated recording', exact: true })).toBeEnabled();
+		await expect(options.getByRole('button', { name: 'Set activation level' })).toHaveCount(0);
+		await expect(options.getByRole('button', { name: 'Record to new track' })).toBeVisible();
+		await expect(options.getByRole('button', { name: 'Record loop into takes' })).toBeVisible();
+		await expect(options.getByRole('button', { name: 'Timed recording' })).toBeVisible();
+		await expect(options.getByRole('checkbox', { name: 'Lead-in time' })).toBeVisible();
+		await expect(options.getByRole('checkbox', { name: 'Monitor input' })).toBeVisible();
+		await expectRecordFlyoutRows(options);
+		const settingsButton = options.getByRole('button', { name: 'Sound activation', exact: true });
+		await settingsButton.click();
 
-		await recordOptions.click();
-		let recordMenu = page.getByRole('menu', { name: 'Record options', exact: true });
-		const toggle = recordMenu.getByRole('menuitem', { name: 'Sound-activated recording', exact: true });
-		const openSettings = recordMenu.getByRole('menuitem', { name: 'Set activation level', exact: true });
-		await expect(toggle).toBeEnabled();
-		await expect(openSettings).toBeEnabled();
-		await toggle.click();
-
-		await recordOptions.click();
-		recordMenu = page.getByRole('menu', { name: 'Record options', exact: true });
-		await expect(recordMenu.getByRole('menuitem', { name: 'Sound-activated recording', exact: true })).toBeEnabled();
-		await recordMenu.getByRole('menuitem', { name: 'Set activation level', exact: true }).focus();
-		await page.keyboard.press('Enter');
-
-		const preferences = page.getByRole('dialog', { name: 'Editor preferences', exact: true });
-		const panel = preferences.locator('[data-sound-activation-preferences]');
-		const enabled = panel.getByRole('switch', { name: 'Sound-activated recording', exact: true });
+		const settings = page.getByRole('dialog', { name: 'Sound activation', exact: true });
+		const panel = settings.locator('[data-sound-activation-settings]');
 		const threshold = panel.getByRole('slider', { name: 'Activation threshold', exact: true });
 		const hysteresis = panel.getByRole('slider', { name: 'Release hysteresis', exact: true });
 		const hold = panel.locator('[data-sound-activation-hold] input');
 		await expect(panel).toBeVisible();
-		await expect(threshold).toBeFocused();
-		await expect(enabled).toBeChecked();
-		await expect(panel.locator('.kw-audio-editor-sound-activation__status')).toHaveText('Sound-activated recording is on.');
-
-		await enabled.focus();
-		await page.keyboard.press('Space');
-		await expectCommittedPreference(panel, 'data-sound-activation-enabled', 'false');
-		await expect(enabled).not.toBeChecked();
-		await enabled.focus();
-		await page.keyboard.press('Space');
-		await expectCommittedPreference(panel, 'data-sound-activation-enabled', 'true');
-		await expect(enabled).toBeChecked();
-
+		await expect(settingsButton).toBeFocused();
+		await page.keyboard.press('Escape');
+		await expect(settings).toBeHidden();
+		await expect(options).toBeVisible();
+		await settingsButton.click();
+		await expect(settings).toBeVisible();
+		await expect(panel.getByRole('switch')).toHaveCount(0);
 		await threshold.focus();
 		await page.keyboard.press('ArrowRight');
-		await expectCommittedPreference(panel, 'data-sound-activation-threshold-db', '-39');
-		await expect(threshold).toHaveValue('-39');
+		await expectCommittedSetting(panel, 'data-sound-activation-threshold-db', '-39');
 		await hysteresis.focus();
 		await page.keyboard.press('ArrowRight');
-		await expectCommittedPreference(panel, 'data-sound-activation-hysteresis-db', '7');
-		await expect(hysteresis).toHaveValue('7');
+		await expectCommittedSetting(panel, 'data-sound-activation-hysteresis-db', '7');
 		await hold.fill('260');
 		await hold.blur();
-		await expectCommittedPreference(panel, 'data-sound-activation-hold-milliseconds', '260');
-		await expect(hold).toHaveValue('260');
-
-		const thresholdBounds = await threshold.boundingBox();
-		expect(thresholdBounds).not.toBeNull();
-		await page.mouse.click(
-			thresholdBounds.x + thresholdBounds.width * 0.75,
-			thresholdBounds.y + thresholdBounds.height / 2,
-		);
-		await expect.poll(async () => Number(await threshold.inputValue())).toBeGreaterThan(-39);
-		const requestedThreshold = await threshold.inputValue();
-		await expectCommittedPreference(panel, 'data-sound-activation-threshold-db', requestedThreshold);
-		// WebKit commits a pointer-adjusted range's final change on the next
-		// keyboard interaction. Advance once through that public control path so
-		// the value asserted after reload is the browser's final committed value.
+		await expectCommittedSetting(panel, 'data-sound-activation-hold-milliseconds', '260');
 		await threshold.focus();
-		await page.keyboard.press('ArrowLeft');
-		await expect.poll(async () => threshold.inputValue()).not.toBe(requestedThreshold);
-		const persistedThreshold = await threshold.inputValue();
-		await expectCommittedPreference(panel, 'data-sound-activation-threshold-db', persistedThreshold);
+		await page.keyboard.press('Escape');
+		await expect(settings).toBeHidden();
+		await expect(options).toBeVisible();
+		await expect(options.getByRole('button', { name: 'Sound activation', exact: true })).toBeFocused();
+		await options.getByRole('button', { name: 'Sound activation', exact: true }).click();
+		await expect(settings).toBeVisible();
 
-		await assertNoSeriousAxeViolations(page, '[data-sound-activation-preferences]');
+		await assertNoSeriousAxeViolations(page, '[data-sound-activation-settings]');
 		if (browserName === 'chromium') {
 			await page.emulateMedia({ forcedColors: 'active' });
 			await expect(panel).toHaveCSS('forced-color-adjust', 'none');
-			await expect(panel).toHaveCSS('border-top-width', '1px');
 			await page.emulateMedia({ forcedColors: 'none' });
 		}
-
-		await preferences.getByRole('button', { name: 'Close', exact: true }).last().click();
 		await page.reload();
 		editor = await waitForEditor(page);
 		await editor.getByRole('button', { name: 'Record options', exact: true }).click();
-		await page.getByRole('menu', { name: 'Record options', exact: true })
-			.getByRole('menuitem', { name: 'Set activation level', exact: true })
-			.click();
-		const restoredPanel = page.getByRole('dialog', { name: 'Editor preferences', exact: true })
-			.locator('[data-sound-activation-preferences]');
-		await expect(restoredPanel.getByRole('switch', { name: 'Sound-activated recording', exact: true })).toBeChecked();
-		await expect(restoredPanel.getByRole('slider', { name: 'Activation threshold', exact: true })).toHaveValue(persistedThreshold);
-		await expect(restoredPanel.getByRole('slider', { name: 'Release hysteresis', exact: true })).toHaveValue('7');
-		await expect(restoredPanel.locator('[data-sound-activation-hold] input')).toHaveValue('260');
+		options = page.getByRole('dialog', { name: 'Record options', exact: true });
+		await options.getByRole('button', { name: 'Sound activation', exact: true }).click();
+		const restored = page.getByRole('dialog', { name: 'Sound activation', exact: true });
+		await expect(restored.getByRole('slider', { name: 'Activation threshold' })).toHaveValue('-39');
+		await expect(restored.getByRole('slider', { name: 'Release hysteresis' })).toHaveValue('7');
+		await expect(restored.locator('[data-sound-activation-hold] input')).toHaveValue('260');
 		expect(errors).toEqual([]);
 	});
 
-	test('keeps Soundscaper-only controls and commands out of Framescaper', async ({ page }) => {
+	test('starts sound activation from the flyout while R starts ordinary recording', async ({ page }) => {
+		await page.addInitScript(() => {
+			Object.defineProperty(navigator, 'mediaDevices', { configurable: true, value: {
+				enumerateDevices: async () => [{ kind: 'audioinput', deviceId: 'default', groupId: 'fixture', label: 'Fixture microphone' }],
+				getUserMedia: async () => {
+					const context = new AudioContext();
+					const destination = context.createMediaStreamDestination();
+					const oscillator = context.createOscillator();
+					oscillator.connect(destination);
+					oscillator.start();
+					await context.resume();
+					const [track] = destination.stream.getAudioTracks();
+					const getSettings = track.getSettings.bind(track);
+					Object.defineProperty(track, 'getSettings', { configurable: true,
+						value: () => ({ ...getSettings(), channelCount: destination.channelCount, sampleRate: context.sampleRate }) });
+					return destination.stream;
+				},
+			} });
+		});
+		const editor = await bootEditor(page, '/embed/en/');
+		const record = editor.locator('[data-transport="record"] .kw-audio-editor__split-button-main button');
+		await editor.getByRole('button', { name: 'Record options', exact: true }).click();
+		await page.getByRole('dialog', { name: 'Record options', exact: true })
+			.getByRole('button', { name: 'Sound-activated recording', exact: true }).click();
+		await expect(record).toHaveAttribute('aria-pressed', 'true');
+		await editor.getByRole('button', { name: 'Stop', exact: true }).click();
+		await expect(record).toHaveAttribute('aria-pressed', 'false');
+		await page.keyboard.press('r');
+		await expect(record).toHaveAttribute('aria-label', 'Pause recording');
+		await record.click();
+		await expect(record).toHaveAttribute('aria-label', 'Resume recording');
+		await editor.getByRole('button', { name: 'Stop', exact: true }).click();
+		const trackCount = Number(await editor.getAttribute('data-track-count'));
+		await editor.getByRole('button', { name: 'Record options', exact: true }).click();
+		await page.getByRole('dialog', { name: 'Record options', exact: true })
+			.getByRole('button', { name: 'Record to new track', exact: true }).click();
+		await expect(editor).toHaveAttribute('data-track-count', String(trackCount + 1));
+		await expect(record).toHaveAttribute('aria-label', 'Pause recording');
+		await editor.getByRole('button', { name: 'Stop', exact: true }).click();
+	});
+
+	test('keeps Soundscaper-only controls out of Framescaper preferences', async ({ page }) => {
 		const editor = await bootEditor(page, '/framescaper/embed/en/');
 		await expect(editor.getByRole('button', { name: 'Record options', exact: true })).toHaveCount(0);
-
 		await chooseCommandAction(page, editor, 'Edit', 'Preferences');
 		const preferences = page.getByRole('dialog', { name: 'Editor preferences', exact: true });
 		await preferences.getByRole('tab', { name: /Playback\/Recording$/u }).click();
-		await expect(preferences.locator('[data-sound-activation-preferences]')).toHaveCount(0);
-		await preferences.getByRole('tab', { name: /Keyboard shortcuts$/u }).click();
-		await preferences.getByRole('searchbox').fill('sound activation');
-		await expect(preferences.getByText(/Sound-activated recording|Sound activation level/u)).toHaveCount(0);
+		await expect(preferences.locator('[data-sound-activation-settings]')).toHaveCount(0);
 	});
 });
 
-async function expectCommittedPreference(panel, attribute, value) {
+async function expectCommittedSetting(panel, attribute, value) {
 	await expect(panel).toHaveAttribute(attribute, value);
 	await expect(panel).toHaveAttribute('data-sound-activation-pending', 'false');
+}
+
+async function expectRecordFlyoutRows(options) {
+	const rows = [
+		['Record to new track', 'Record loop into takes'],
+		['Timed recording', 'Sound-activated recording'],
+	];
+	let previousY = -Infinity;
+	for (const [leftName, rightName] of rows) {
+		const left = await options.getByRole('button', { name: leftName, exact: true }).boundingBox();
+		const right = await options.getByRole('button', { name: rightName, exact: true }).boundingBox();
+		expect(left).not.toBeNull();
+		expect(right).not.toBeNull();
+		expect(Math.abs(left.y - right.y)).toBeLessThan(2);
+		expect(left.x + left.width).toBeLessThan(right.x);
+		expect(left.y).toBeGreaterThan(previousY);
+		previousY = left.y;
+	}
+	const leadIn = await options.getByRole('checkbox', { name: 'Lead-in time' }).boundingBox();
+	const monitor = await options.getByRole('checkbox', { name: 'Monitor input' }).boundingBox();
+	expect(Math.abs(leadIn.y - monitor.y)).toBeLessThan(2);
+	expect(leadIn.x).toBeLessThan(monitor.x);
+	expect(leadIn.y).toBeGreaterThan(previousY);
 }

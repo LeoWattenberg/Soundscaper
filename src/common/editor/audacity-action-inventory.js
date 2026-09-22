@@ -260,8 +260,8 @@ export const AUDACITY_ACTION_DEFINITIONS = [
 	implemented('action://record/toggle-mic-metering', 'Show microphone metering', ['Meter toolbar'], 'recording.toggleMicMetering', { enableWhen: 'project-opened', source: UPSTREAM.record }),
 	implemented('action://record/toggle-input-monitoring', 'Input monitoring', ['Meter toolbar'], 'recording.toggleInputMonitoring', { enableWhen: 'project-opened', source: UPSTREAM.record }),
 	implemented('set-up-timed-recording', 'Set up timed recording', ['Record'], 'recording.setupTimer', { enableWhen: 'project-writable', source: UPSTREAM.menu }),
-	implemented('toggle-sound-activated-recording', 'Sound-activated recording', ['Record'], 'recording.toggleSoundActivation', { enableWhen: 'sound-activation-preferences-mutable', source: UPSTREAM.menu }),
-	implemented('set-sound-activation-level', 'Sound activation level', ['Record'], 'recording.openSoundActivation', { enableWhen: 'sound-activation-preferences-available', source: UPSTREAM.menu }),
+	excluded('toggle-sound-activated-recording', 'Sound-activated recording', ['Record'], EXCLUDED_REASONS.superseded, { source: UPSTREAM.menu }),
+	excluded('set-sound-activation-level', 'Sound activation level', ['Record'], EXCLUDED_REASONS.superseded, { source: UPSTREAM.menu }),
 	// Tracks and track context actions.
 	implemented('new-mono-track', 'New mono track', ['Tracks'], 'track.addMono', { enableWhen: 'project-writable', source: UPSTREAM.trackEdit }),
 	implemented('new-stereo-track', 'New stereo track', ['Tracks'], 'track.addStereo', { enableWhen: 'project-writable', source: UPSTREAM.trackEdit }),

@@ -2,7 +2,7 @@
 	"schemaVersion": 2,
 	"locale": "pl",
 	"provenance": {
-		"machine": {"model":"gpt-5","modelDigest":"sha256:d3321128b5771efb07ff0159db86de031929bbf907e9efa9bd3656526a93c957","promptVersion":"i18n-machine-v1"},
+		"machine": {"model":"codex","modelDigest":"sha256:8447f373b28da441eaa9a066bea78db161eb757c653fcc186ff101c9bb9468ee","promptVersion":"i18n-machine-v1"},
 		"audacity": {"repository":"audacity/audacity","headSha":"de2e43dc13474ba712ade5ea8e47550eba0e8bfb","runId":35327911264,"artifactId":10539339149,"workflowUrl":"https://github.com/audacity/audacity/actions/runs/35327911264","archiveName":"Audacity_locale_262610911.zip","archiveSha256":"13b1ff11c39a677c711a1d29738a394aaca7a200533927aab3f45bbd76c1ff8e","archiveByteLength":15413913,"licenseSpdx":"GPL-3.0-only","upstreamProjectUrl":"https://github.com/audacity/audacity","upstreamLicenseUrl":"https://github.com/audacity/audacity/blob/de2e43dc13474ba712ade5ea8e47550eba0e8bfb/LICENSE.txt","modificationNotice":"Soundscaper converts reviewed Audacity Qt TS messages to per-locale JSON catalogs, excludes unsafe or inapplicable entries, adapts reviewed placeholders and mnemonics, and removes ellipsis punctuation.","mappingVersion":3,"mappingSha256":"f4cf0434f47eaa9434d079a1623b9d9501e9c8da0d83f0c73344f7765113b57c"}
 	},
 	"entries": {
@@ -1443,6 +1443,7 @@
 		"layoutCompact": ["machine","Compact (menus and track headers in drawers)","Kompaktowy (menu i nagłówki ścieżek w szufladach)"],
 		"layoutDesktop": ["machine","Desktop","Pulpit"],
 		"leadInTime": ["machine","Enable lead-in time","Włącz czas wstępny"],
+		"leadInTimeOption": ["machine","Lead-in time","Czas wstępny"],
 		"leftAtPlayback": ["machine","Left at playback position","Po lewej stronie pozycji odtwarzania"],
 		"leftChannel": ["machine","Left","Lewy"],
 		"legacyEffects": ["machine","Legacy effects","Stare efekty"],
@@ -1985,6 +1986,7 @@
 		"recordLevel": ["machine","Record level","Poziom nagrywania"],
 		"recordMenu": ["machine","Record","Nagrywanie"],
 		"recordNewTrack": ["machine","Record new track","Nagrywaj na nowej ścieżce"],
+		"recordToNewTrack": ["machine","Record to new track","Nagrywaj na nowej ścieżce"],
 		"recording": ["machine","Recording","Nagrywanie"],
 		"recordingAllowInputs": ["machine","Enable microphones","Włącz mikrofony"],
 		"recordingAssignInput": ["machine","Assign an input to at least one armed track before recording.","Przed nagrywaniem przypisz wejście do co najmniej jednej uzbrojonej ścieżki."],
@@ -2463,6 +2465,7 @@
 		"timeSignature": ["machine","Time signature","Podpis czasu"],
 		"timecode": ["audacity","Timecode","Kod czasowy"],
 		"timedRecording": ["machine","Set up timed recording","Skonfiguruj nagranie czasowe"],
+		"timedRecordingAction": ["machine","Timed recording","Nagrywanie czasowe"],
 		"timedRecordingAssignedInputsUnavailable": ["machine","Every assigned recording input must remain available for timer recording.","Każdy przypisany wejście nagrywania musi pozostać dostępny dla nagrywania czasowego."],
 		"timedRecordingCancel": ["machine","Cancel scheduled recording","Anuluj zaplanowane nagranie"],
 		"timedRecordingCancelled": ["machine","Scheduled recording cancelled.","Zaplanowane nagranie anulowane."],

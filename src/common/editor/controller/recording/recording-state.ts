@@ -39,7 +39,7 @@ export interface ControllerRecordingRouting {
  */
 export interface ControllerRecordingState<Routing = ControllerRecordingRouting> {
 	recorder: RecordingControllerLike | null;
-	recordingKind: 'ordinary' | 'take-cycle' | null;
+	recordingKind: 'ordinary' | 'sound-activated' | 'take-cycle' | null;
 	recordingWriter: RecordingSourceWriter | null;
 	recordingStream: RecordingMediaStream | null;
 	recordingStarting: boolean;

@@ -35,11 +35,6 @@ import {
 	workspacePanelLabel,
 } from '../workspace/workspace-panel-model.ts';
 
-const SOUNDSCAPER_ONLY_SHORTCUT_IDS = new Set([
-	'toggle-sound-activated-recording',
-	'set-sound-activation-level',
-]);
-
 export default function WorkspacePreferencesDialog({
 	controller,
 	snapshot,
@@ -65,9 +60,7 @@ export default function WorkspacePreferencesDialog({
 		locale,
 		copy,
 		disabledCommandIds: productProfile(productId).shortcuts.disabledCommandIds,
-	}).filter((command) => (
-		productId === 'soundscaper' || !SOUNDSCAPER_ONLY_SHORTCUT_IDS.has(command.id)
-	)), [copy, locale, menus, productId]);
+	}), [copy, locale, menus, productId]);
 	const shortcutGroups = useMemo(() => groupAudacityShortcutCommands(
 		commands.filter((command) => (
 			`${command.label} ${command.id}`.toLowerCase().includes(shortcutSearch.trim().toLowerCase())
@@ -137,7 +130,7 @@ export default function WorkspacePreferencesDialog({
 			title={copy.preferencesTitle}
 			onClose={onClose}
 			width={900}
-			initialFocus={initialPage === 'sound-activation' ? '[data-sound-activation-threshold]' : 'dialog'}
+			initialFocus="dialog"
 			className="kw-audio-editor-preferences"
 			bodyClassName="kw-audio-editor-preferences__body"
 			footer={<DialogFooter
@@ -188,8 +181,6 @@ export default function WorkspacePreferencesDialog({
 								controller={controller}
 								snapshot={snapshot}
 								copy={copy}
-								locale={locale}
-								productId={productId}
 								run={run}
 							/>
 						)}
@@ -351,6 +342,5 @@ export default function WorkspacePreferencesDialog({
 }
 
 function preferencePage(requestedPage) {
-	const page = workspacePreferencesPage(requestedPage);
-	return page === 'sound-activation' ? 'playback-recording' : page;
+	return workspacePreferencesPage(requestedPage);
 }

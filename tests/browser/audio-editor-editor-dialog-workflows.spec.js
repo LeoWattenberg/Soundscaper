@@ -10,7 +10,6 @@ import {
 	clipByName,
 	collectClientErrors,
 	disableNativeSavePicker,
-	getMenuItem,
 	importFiles,
 	openExportDialog,
 	registerAudioEditorHooks,
@@ -59,32 +58,31 @@ test.describe('shared editor dialog workflows', () => {
 		expect(errors).toEqual([]);
 	});
 
-	test('saves and restores the global recording offset from Record options', async ({ page }) => {
+	test('saves and restores the global recording offset from Audio settings', async ({ page }) => {
 		const errors = collectClientErrors(page);
 		const editor = await bootEditor(page, '/embed/en/');
 		const openRecordingOffset = async () => {
-			await editor.getByRole('button', { name: 'Record options', exact: true }).click();
-			await getMenuItem(
-				page.getByRole('menu', { name: 'Record options', exact: true }),
-				'Recording offset',
-			).click();
-			const dialog = page.getByRole('dialog', { name: 'Recording offset', exact: true });
-			await expect(dialog).toBeVisible();
-			return dialog;
+			await chooseCommandAction(page, editor, 'Edit', 'Preferences');
+			const preferences = page.getByRole('dialog', { name: 'Editor preferences', exact: true });
+			await preferences.getByRole('tab', { name: /Audio settings$/u }).click();
+			await expect(preferences.getByText('Recording offset', { exact: true })).toBeVisible();
+			return preferences;
 		};
 
-		let dialog = await openRecordingOffset();
-		await expect(dialog.getByRole('combobox', { name: 'Recording source', exact: true }))
+		let preferences = await openRecordingOffset();
+		await expect(preferences.getByRole('combobox', { name: 'Recording source', exact: true }))
 			.toHaveValue('global');
-		const directEntry = dialog.locator('[data-timecode-direct-entry="true"]');
-		await directEntry.fill('137');
-		await dialog.getByRole('button', { name: 'Save', exact: true }).click();
-		await expect(dialog).toBeHidden();
+		const offset = preferences.getByRole('spinbutton', { name: 'Recording offset (ms)', exact: true });
+		await offset.fill('137.25');
+		await offset.blur();
+		await expect.poll(() => offset.evaluate((element) => element.checkValidity())).toBe(true);
+		await preferences.getByRole('button', { name: 'Close', exact: true }).last().click();
+		await expect(preferences).toBeHidden();
 
-		dialog = await openRecordingOffset();
-		await expect(dialog.locator('[data-timecode-direct-entry="true"]')).toHaveValue('137');
-		await dialog.getByRole('button', { name: 'Cancel', exact: true }).click();
-		await expect(dialog).toBeHidden();
+		preferences = await openRecordingOffset();
+		await expect(preferences.getByRole('spinbutton', { name: 'Recording offset (ms)', exact: true })).toHaveValue('137.25');
+		await preferences.getByRole('button', { name: 'Close', exact: true }).last().click();
+		await expect(preferences).toBeHidden();
 		expect(errors).toEqual([]);
 	});
 
