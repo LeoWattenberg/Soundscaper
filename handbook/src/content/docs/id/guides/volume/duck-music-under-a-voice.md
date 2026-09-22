@@ -1,5 +1,5 @@
 ---
-title: "Musik Bebek di Bawah Suara"
+title: "Musik bebek di bawah suara"
 description: "Turunkan volume musik latar secara otomatis setiap kali ada trek suara yang berbicara."
 editUrl: false
 sidebar:
@@ -8,49 +8,49 @@ head:
   - tag: script
     attrs:
       type: "application/ld+json"
-    content: "{\"@context\":\"https://schema.org\",\"@type\":\"HowTo\",\"name\":\"Duck music under a voice\",\"description\":\"Turn a music bed down automatically whenever a voice track is speaking.\",\"tool\":[{\"@type\":\"HowToTool\",\"name\":\"Soundscaper\"}],\"step\":[{\"@type\":\"HowToStep\",\"position\":1,\"name\":\"Open Soundscaper. A new, empty project is ready as soon as the editor loads.\",\"text\":\"Open Soundscaper. A new, empty project is ready as soon as the editor loads.\"},{\"@type\":\"HowToStep\",\"position\":2,\"name\":\"Choose File → Import audio and pick the music. The file lands as a clip on its own track.\",\"text\":\"Choose File → Import audio and pick the music. The file lands as a clip on its own track.\"},{\"@type\":\"HowToStep\",\"position\":3,\"name\":\"Choose File → Import audio and pick the voice. The file lands as a clip on its own track.\",\"text\":\"Choose File → Import audio and pick the voice. The file lands as a clip on its own track.\"},{\"@type\":\"HowToStep\",\"position\":4,\"name\":\"Click the name bar of the music clip to select it.\",\"text\":\"Click the name bar of the music clip to select it. The clip you select is the one that gets ducked — the music, not the voice.\"},{\"@type\":\"HowToStep\",\"position\":5,\"name\":\"Choose Effect → Volume and compression → Auto Duck. In the Auto Duck dialog, choose the voice track for Control track and set Duck amount to -12, then press Apply to selection.\",\"text\":\"Choose Effect → Volume and compression → Auto Duck. In the Auto Duck dialog, choose the voice track for Control track and set Duck amount to -12, then press Apply to selection. The control track is the one that triggers the ducking. Twelve decibels down is enough for speech to sit clearly on top.\"},{\"@type\":\"HowToStep\",\"position\":6,\"name\":\"Press Play to listen, then Stop.\",\"text\":\"Press Play to listen, then Stop. The music drops while the other track plays and recovers where it is quiet.\"}]}"
+    content: "{\"@context\":\"https://schema.org\",\"@type\":\"HowTo\",\"name\":\"Duck music under a voice\",\"description\":\"Turn a music bed down automatically whenever a voice track is speaking.\",\"tool\":[{\"@type\":\"HowToTool\",\"name\":\"Soundscaper\"}],\"step\":[{\"@type\":\"HowToStep\",\"position\":1,\"name\":\"Open Soundscaper. A new, empty project is ready as soon as the editor loads.\",\"text\":\"Open Soundscaper. A new, empty project is ready as soon as the editor loads.\"},{\"@type\":\"HowToStep\",\"position\":2,\"name\":\"Choose File → Import and pick the music. It lands as a clip on its own track.\",\"text\":\"Choose File → Import and pick the music. It lands as a clip on its own track.\"},{\"@type\":\"HowToStep\",\"position\":3,\"name\":\"Choose File → Import and pick the voice. It lands as a clip on its own track.\",\"text\":\"Choose File → Import and pick the voice. It lands as a clip on its own track.\"},{\"@type\":\"HowToStep\",\"position\":4,\"name\":\"Click the name bar of the music clip to select it.\",\"text\":\"Click the name bar of the music clip to select it. The clip you select is the one that gets ducked — the music, not the voice.\"},{\"@type\":\"HowToStep\",\"position\":5,\"name\":\"Choose Effect → Volume and compression → Auto Duck. In the Auto Duck dialog, choose the voice track for Control track and set Duck amount to -12, then press Apply to selection.\",\"text\":\"Choose Effect → Volume and compression → Auto Duck. In the Auto Duck dialog, choose the voice track for Control track and set Duck amount to -12, then press Apply to selection. The control track is the one that triggers the ducking. Twelve decibels down is enough for speech to sit clearly on top.\"},{\"@type\":\"HowToStep\",\"position\":6,\"name\":\"Press Play to listen, then Stop.\",\"text\":\"Press Play to listen, then Stop. The music drops while the other track plays and recovers where it is quiet.\"}]}"
 ---
-<!-- docs-ai-provenance: {"factPacketSha256":"29eeeac8471c6886f72ec6f256f4acc11b452190de41307593f4a6a9f07893c5","model":"aya-expanse:32b","modelDigest":"1603440383bd5504dc7afd01c0407b425b988dde650a8dc1a737433baa3cd432","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"29eeeac8471c6886f72ec6f256f4acc11b452190de41307593f4a6a9f07893c5","targetLocale":"id"} -->
+<!-- docs-ai-provenance: {"factPacketSha256":"313de1012af9c28f0b75a03718401297acb22bdfb48e03bde9f0c5daf2dc8299","model":"aya-expanse:32b","modelDigest":"1603440383bd5504dc7afd01c0407b425b988dde650a8dc1a737433baa3cd432","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"313de1012af9c28f0b75a03718401297acb22bdfb48e03bde9f0c5daf2dc8299","targetLocale":"id"} -->
 
 <!-- Generated by `node scripts/docs-reference.mjs`. Do not edit. -->
 
-Podcast dan video menjaga musik tetap berjalan di bawah ucapan dengan menurunkan volumenya setiap kali seseorang berbicara dan mengembalikannya pada celah-celah. Auto Duck melakukan hal ini dari trek kontrol: di mana pun trek kontrol lebih keras dari ambang batas, trek yang dipilih diturunkan, dengan pemudaran di tepi-tepinya.
+Podcast dan video menjaga musik tetap berjalan di bawah ucapan dengan menurunkan volumenya setiap kali seseorang berbicara dan mengembalikannya pada jeda. Auto Duck melakukan ini dari trek kontrol: di mana pun trek kontrol lebih keras dari ambang batas, trek yang dipilih dikecilkan, dengan transisi lembut di tepi-tepinya.
 
 :::note[Berasal dari Audacity?]
-Ini adalah **Effect → Volume and Compression → Auto Duck** Audacity. Nama-nama di bawah ini adalah milik Soundscaper sendiri, yang terkadang berbeda.
+Ini adalah **Efek → Volume dan Kompresi → Auto Duck** Audacity. Nama-nama di bawah ini adalah nama milik Soundscaper, yang terkadang berbeda.
 :::
 
 ## Langkah-langkah
 
-1. Buka Soundscaper. Proyek baru yang kosong siap segera setelah editor dimuat.
-2. Pilih **File → Import audio** dan pilih musik. File mendarat sebagai klip di treknya sendiri.
-3. Pilih **File → Import audio** dan pilih suara. File mendarat sebagai klip di treknya sendiri.
-4. Klik bilah nama klip musik untuk memilihnya. Klip yang Anda pilih adalah klip yang akan 'di-duck' — musik, bukan suara.
-5. Pilih **Effect → Volume and compression → Auto Duck**. Dalam dialog **Auto Duck**, pilih trek suara untuk **Control track** dan atur **Duck amount** ke `-12`, lalu tekan **Apply to selection**. Trek kontrol adalah trek yang memicu 'ducking'. Dua belas desibel ke bawah sudah cukup untuk ucapan agar terdengar jelas di atas musik.
-6. Tekan **Play** untuk mendengarkan, lalu **Stop**.
+1. Buka Soundscaper. Proyek baru dan kosong siap segera setelah editor dimuat.
+2. Pilih **Berkas → Impor** dan pilih musik. Ini mendarat sebagai klip pada treknya sendiri.
+3. Pilih **Berkas → Impor** dan pilih suara. Ini mendarat sebagai klip pada treknya sendiri.
+4. Klik bilah nama klip musik untuk memilihnya. Klip yang Anda pilih adalah klip yang akan 'didedak' - musik, bukan suara.
+5. Pilih **Efek → Volume dan kompresi → Auto Duck**. Pada dialog **Auto Duck**, pilih trek suara untuk **Trek Kontrol** dan atur **Jumlah Didedak** ke `-12`, lalu tekan **Terapkan ke Seleksi**. Trek kontrol adalah trek yang memicu efek 'didedak'. Dua belas desibel ke bawah cukup untuk ucapan agar jelas terdengar di atas musik.
+6. Tekan **Putar** untuk mendengarkan, lalu **Hentikan**.
    *Anda harus melihat:* Musik turun saat trek lain dimainkan dan pulih di tempat yang tenang.
 
 ## Tips
 
-- Perpanjang waktu **Outer fade** jika musik naik turun terlalu cepat di antara kata-kata.
+- Perpanjang waktu **Transisi Luar** jika musik naik turun terlalu cepat di antara kata-kata.
 - Letakkan trek suara di atas musik dalam daftar trek sehingga hubungan mudah dilihat.
 
 ## Panduan Terkait
 
-Lebih banyak panduan [volume dan dinamika](/guides/volume/):
+Lebih banyak panduan tentang [volume dan dinamika](/guides/volume/):
 
-- [Membuat rekaman yang tenang lebih keras](/guides/volume/make-a-recording-louder/) — Naikkan level rekaman dengan jumlah desibel tertentu dengan Amplify.
-- [Normalisasi puncak ke level yang ditetapkan](/guides/volume/normalize-peaks/) — Bawa titik terdengar paling keras dari rekaman ke level yang tepat di bawah skala penuh.
-- [Normalisasi keras untuk podcast](/guides/volume/normalize-loudness-for-podcasts/) — Sesuaikan keras terdengar episode dengan tingkat yang diharapkan oleh platform streaming.
-- [Meratakan volume dengan kompresor](/guides/volume/even-out-volume-with-a-compressor/) — Kurangi selisih antara momen keras dan tenang sehingga ucapan lebih mudah diikuti.
-- [Pudar masuk dan pudar keluar](/guides/volume/fade-in-and-fade-out/) — Mulai klip dari keheningan dan akhiri dengan mulus alih-alih memotong.
-- [Menjinakkan puncak dengan limiter](/guides/volume/tame-peaks-with-a-limiter/) — Hentikan momen terdengar paling keras agar tidak melebihi batas tanpa menyentuh sisanya.
-- [Meratakan volume dengan kompresor klasik](/guides/volume/even-out-volume-with-the-legacy-compressor/) — Gunakan kompresor asli Audacity 3, dengan lantai derau dan gain make-up, pada rekaman.
+- [Membuat Rekaman yang Tenang Menjadi Lebih Keras](/guides/volume/make-a-recording-louder/) — Naikkan level rekaman dengan jumlah desibel tertentu menggunakan Amplify.
+- [Normalisasi Puncak ke Level yang Tetap](/guides/volume/normalize-peaks/) — Bawa titik paling keras dari rekaman ke level yang tepat di bawah skala penuh.
+- [Normalisasi Keras untuk Podcast](/guides/volume/normalize-loudness-for-podcasts/) — Sesuaikan keras terdengar sebuah episode dengan tingkat yang diharapkan oleh platform streaming.
+- [Meratakan Volume dengan Kompresor](/guides/volume/even-out-volume-with-a-compressor/) — Kurangi selisih antara momen keras dan tenang sehingga ucapan lebih mudah diikuti.
+- [Pudar Masuk dan Pudar Keluar](/guides/volume/fade-in-and-fade-out/) — Mulai klip dari keheningan dan akhiri dengan mulus alih-alih memotong.
+- [Menjinakkan Puncak dengan Pembatas](/guides/volume/tame-peaks-with-a-limiter/) — Hentikan momen terdengar paling keras agar tidak melebihi batas tanpa mempengaruhi bagian lainnya.
+- [Meratakan Volume dengan Kompresor Klasik](/guides/volume/even-out-volume-with-the-legacy-compressor/) — Gunakan kompresor asli Audacity 3, dengan lantai derau dan gain penyesuaian, pada rekaman.
 
 ## Referensi
 
-- [Setiap parameter efek yang digunakan di sini, dengan default dan rentangnya, ada di referensi efek audio.](/reference/generated/audio-effects/#parameters)
+- [Setiap parameter efek yang digunakan di sini, beserta nilai default dan rentangannya, ada di referensi efek audio.](/reference/generated/audio-effects/#parameters)
 
-## Tentang panduan ini
+## Tentang Panduan Ini
 
-Prosedur di halaman ini — setiap entri menu, dialog, bidang, dan tombol, serta hasil yang dihasilkannya — diulang terhadap setiap versi Soundscaper oleh suite browser (`tests/browser/soundscaper-guides.spec.js`). Jika salah satunya berhenti sesuai dengan editor, versi gagal sampai panduan diperbaiki. Nilai yang disarankan adalah titik awal yang terbukti diterima oleh editor; apakah mereka cocok dengan rekaman Anda adalah keputusan yang harus diambil oleh telinga Anda.
+Prosedur pada halaman ini - setiap entri menu, dialog, bidang, dan tombol, serta hasil yang dihasilkannya - diulang terhadap setiap versi Soundscaper oleh suite browser (`tests/browser/soundscaper-guides.spec.js`). Jika salah satunya tidak sesuai dengan editor, versi tersebut gagal sampai panduan diperbaiki. Nilai yang disarankan adalah titik awal yang terbukti diterima oleh editor; apakah cocok untuk rekaman Anda adalah keputusan yang harus diambil berdasarkan pendengaran Anda.

@@ -1,40 +1,29 @@
 ---
 title: "Program makro"
-description: "API JavaScript yang dijalankan oleh program makro, batasan yang berlaku, dan file yang memuatnya."
+description: "API JavaScript yang dijalankan program makro, batasan yang dijalankannya, dan berkas yang ditempuhnya."
 sidebar:
   order: 7
 ---
-<!-- docs-ai-provenance: {"factPacketSha256":"bfeb48e77dc0013cc1f43bd584ae92a7196983e349631c0b75bfbca2ba0c542a","model":"qwen3.8:latest","modelDigest":"22130167c4c20e20c7b71454612966ca8e8171e9b3cc8ab6ce8aa6cbfec79643","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"bfeb48e77dc0013cc1f43bd584ae92a7196983e349631c0b75bfbca2ba0c542a","targetLocale":"id"} -->
+<!-- docs-ai-provenance: {"factPacketSha256":"375c684211bdec9dbd3614c197bda423e24858a568ad5ae3c06ab06d7db2522f","model":"aya-expanse:32b","modelDigest":"1603440383bd5504dc7afd01c0407b425b988dde650a8dc1a737433baa3cd432","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"375c684211bdec9dbd3614c197bda423e24858a568ad5ae3c06ab06d7db2522f","targetLocale":"id"} -->
 
-Program makro adalah makro yang ditulis sebagai JavaScript, bukan sebagai daftar langkah.
-Program ini berjalan di dalam editor terhadap API kecil yang disebut `sound`, yang memungkinkannya membaca
-proyek yang terbuka, memindahkan seleksi, dan menerapkan efek serta perintah yang sama yang dapat diterapkan oleh
-makro daftar-langkah. Segala hal lainnya, mulai dari file dan jaringan hingga proyek
-lain Anda, berada di luar jangkauannya.
+Sebuah program makro adalah makro yang ditulis dalam bentuk JavaScript bukan sebagai daftar langkah.
+Ini berjalan di dalam editor melawan API kecil yang disebut `sound`, yang membiarkannya membaca
+proyek yang terbuka, memindahkan pilihan, dan menerapkan efek dan perintah yang sama seperti yang dapat diterapkan oleh makro daftar langkah. Segala sesuatu lainnya, dari berkas dan jaringan hingga proyek Anda yang lain, berada di luar jangkauannya.
 
 Program adalah fitur Soundscaper. Framescaper tidak memiliki manajer makro.
 
-## Di mana program disimpan
+## Dimana program berada
 
-Pilih **Tools → Macro manager**. Dialog ini mencantumkan makro daftar-langkah dan, di bawah
-**Programs**, program yang telah Anda simpan. **New program** membuat satu program, dan panel
-detail menampilkan **Program name**, teks **Program**, dan tombol **Run
-program**. Teks disimpan saat Anda mengetik; tidak ada langkah penyimpanan terpisah.
+Pilih **Alat → Manajer Makro**. Dialog tersebut mencantumkan makro daftar langkah dan, di bawah **Program**, program yang telah Anda simpan. Tekan **+ (Program Baru)** di header Program untuk membuat salah satu. Bar aksi yang sama menawarkan **Impor Program**, **Ekspor Program**, dan **Hapus Program** untuk program yang dipilih. Panel detail menampilkan **Nama Program**, **Program** teks, dan tombol **Jalankan Program**. Teks disimpan saat Anda mengetiknya; tidak ada langkah simpan terpisah.
 
-Program disimpan bersama pengaturan editor, bukan di dalam proyek, sehingga tersedia
-di setiap proyek yang Anda buka di editor ini. Gunakan **Export program** dan
-**Import program** untuk memindahkannya ke mesin lain atau orang lain; lihat
-[Sharing programs](#sharing-programs) untuk apa yang terlibat.
+Program disimpan dengan pengaturan editor, bukan di dalam proyek, jadi tersedia di setiap proyek yang Anda buka di editor ini. Gunakan **Ekspor Program** dan **Impor Program** untuk memindahkannya ke mesin lain atau orang lain; lihat [Berbagi program](#sharing-programs) untuk apa yang terlibat di dalamnya.
 
-Panduan [Apply the same chain of effects every time](/guides/effects/apply-the-same-effects-every-time/)
-mencakup sisi daftar-langkah dari dialog yang sama.
+Panduan [Menerapkan rantai efek yang sama setiap kali](/guides/effects/apply-the-same-effects-every-time/) mencakup sisi daftar langkah dari dialog yang sama.
 
 ## Menulis program
 
-Program adalah badan fungsi `async`, dijalankan dalam mode ketat. Artinya Anda
-dapat `await` di tingkat atas, mendeklarasikan variabel dan fungsi, serta menggunakan setiap
-fitur bahasa biasa. Objek `sound` adalah satu-satunya koneksi program ke
-editor, dan setiap panggilan di atasnya mengembalikan promise.
+Program adalah tubuh dari fungsi `async`, dijalankan dalam mode ketat. Itu berarti Anda
+dapat `await` di tingkat teratas, mendeklarasikan variabel dan fungsi, dan menggunakan setiap fitur bahasa biasa. Objek `sound` adalah satu-satunya koneksi program ke editor, dan setiap panggilan padanya mengembalikan janji.
 
 ```js
 // Normalize everything, then fade the last two seconds.
@@ -44,102 +33,97 @@ await sound.select.time(2, 0, { relativeTo: 'selection-end' });
 await sound.effect('audacity-fade-out');
 ```
 
-Tab menyisipkan dua spasi di bidang program. Tekan Escape lalu Tab untuk keluar
-dari bidang tersebut.
+Tab memasukkan dua spasi di bidang program. Tekan Escape dan kemudian Tab untuk meninggalkan
+bidang.
 
 ### Apa yang dapat digunakan oleh program
 
-Pustaka standar JavaScript yang umum ada: `Object`, `Array`, `Map`,
-`Set`, `Math`, `JSON`, `RegExp`, `Promise`, typed arrays, `Intl`,
+Perpustakaan standar JavaScript biasa ada: `Object`, `Array`, `Map`,
+`Set`, `Math`, `JSON`, `RegExp`, `Promise`, array berurutan, `Intl`,
 `TextEncoder`, `TextDecoder`, `structuredClone` dan `queueMicrotask`. `console`
-juga ada, dan apa pun yang ditulis ke dalamnya akan masuk ke log program.
+juga ada, dan segala sesuatu yang ditulis ke dalamnya berakhir di log program.
 
 ### Apa yang tidak dapat digunakan oleh program
 
-Program berjalan di worker yang kemampuannya telah dihapus sebelum baris pertama dijalankan. Tidak ada satu pun dari berikut ini yang ada di dalam program: `fetch`,
+Program berjalan di dalam worker yang telah kehilangan kemampuannya sebelum baris pertama dijalankan. Tidak ada yang berikut ini ada di dalam program: `fetch`,
 `XMLHttpRequest`, `WebSocket`, `indexedDB`, `caches`, `crypto`, `navigator`,
 `location`, `Worker`, `WebAssembly`, `SharedArrayBuffer`, `Atomics`, `eval`,
-`setTimeout` dan `setInterval`. Membaca salah satu dari mereka menghasilkan `undefined`.
+`setTimeout` dan `setInterval`. Membaca salah satu dari mereka memberikan `undefined`.
 
-Program tidak dapat `import` modul; `import` statis adalah kesalahan sintaks pada
-baris yang memuatnya. Apa pun yang dibutuhkan program harus ada di dalam program.
+Program tidak dapat `import` sebuah modul; sebuah `import` statis adalah kesalahan sintaks pada
+baris yang mengandungnya. Apa pun yang program butuhkan harus ada di dalam program.
 
-Batas keamanan bukan global yang hilang, melainkan editor itu sendiri: ia
-hanya menjawab panggilan yang tercantum di halaman ini dan menolak semua yang lain berdasarkan nama,
-apa pun yang berhasil dikirim oleh program.
+Batas keamanan bukan global yang hilang tetapi editor itu sendiri: ia
+hanya menjawab panggilan yang tercantum di halaman ini dan menolak segala sesuatu yang lain berdasarkan nama, terlepas dari apa yang program berhasil kirimkan.
 
 ## Menjalankan program
 
-Tekan **Run program**. Seluruh eksekusi adalah satu entri dalam riwayat proyek, jadi
-satu **Undo** membatalkan semua yang dilakukan program, berapa pun perubahan yang dibuatnya.
-Jika program melempar kesalahan, dibatalkan, atau melewati batas waktunya, proyek akan
-dikembalikan persis seperti sebelum eksekusi dimulai.
+Tekan **Jalankan program**. Seluruh proses dijalankan sebagai satu entri dalam riwayat proyek, sehingga
+satu **Batalkan** membalikkan segala sesuatu yang dilakukan program, berapa pun perubahan yang dibuat.
+Jika program melempar, atau dibatalkan, atau berjalan melewati batas waktunya, proyek dikembalikan persis seperti sebelum proses dimulai.
 
-**Cancel run** menghentikan program seketika. Program yang telah berjalan selama dua
-menit dihentikan dengan cara yang sama, dengan pesan *The macro ran for longer than
-120 seconds.*
+**Batalkan proses** menghentikan program segera. Program yang telah berjalan selama dua
+menit dihentikan dengan cara yang sama, dengan pesan *Makro berjalan lebih lama dari
+120 detik.*
 
-Setelah eksekusi, panel menampilkan log program, diikuti oleh *Program applied.*
-saat eksekusi selesai. Eksekusi yang gagal menampilkan *The program failed on line N:* dan
-pesan kesalahannya, di mana nomor baris adalah baris program Anda yang
-melempar kesalahan.
+Setelah proses, panel menunjukkan log program, diikuti oleh *Program diterapkan.*
+ketika proses selesai. Proses yang gagal menunjukkan *Program gagal pada baris N:* dan
+pesan kesalahan, di mana nomor baris adalah baris program Anda yang melempar.
 
-### Audio mana yang disentuh oleh efek
+### Audio mana yang disentuh efek
 
-Efek yang diterapkan oleh program berjalan di atas seleksi waktu saat ini pada
-track yang difokuskan, yaitu track yang header-nya terakhir Anda klik atau klipnya
-terakhir Anda pilih. Jika tidak ada seleksi waktu tetapi ada klip yang dipilih, efek
-menutupi klip tersebut. Panggilan seleksi program mengubah rentang waktu dan
-set track yang dipilih, tetapi tidak mengubah track mana yang difokuskan, jadi satu eksekusi memproses
-satu track. Jika tidak ada yang difokuskan atau seleksinya kosong, eksekusi gagal dengan
-pesan yang sama yang diberikan oleh menu Effect.
+Efek yang diterapkan oleh program berjalan pada seleksi waktu saat ini pada
+track yang difokuskan, yang merupakan track yang header terakhir Anda klik atau clip
+yang Anda pilih. Ketika tidak ada seleksi waktu tetapi clip dipilih, efek mencakup clip tersebut. Panggilan seleksi program mengubah rentang waktu dan
+set track yang dipilih, tetapi bukan track mana yang difokuskan, jadi satu proses menangani
+satu track. Jika tidak ada yang difokuskan atau seleksi kosong, proses gagal dengan
+pesan yang sama dengan yang diberikan Menu Efek.
 
 ## API `sound`
 
-Setiap metode di bawah mengembalikan promise kecuali dinyatakan lain. Tunggu setiap panggilan
-sebelum membuat panggilan berikutnya; program yang memulai lebih dari delapan panggilan tanpa
-menunggunya akan ditolak pada panggilan kesembilan.
+Setiap metode di bawah ini mengembalikan janji kecuali jika dinyatakan lain. Tunggu setiap panggilan
+ssebelum membuat yang berikutnya; program yang memulai lebih dari delapan panggilan tanpa
+menunggu mereka memiliki yang kesembilan ditolak.
 
 ### `sound.env`
 
-Objek biasa yang menggambarkan eksekusi.
+Sebuah objek biasa yang menggambarkan proses.
 
-| Field | Arti |
+| Bidang | Arti |
 | --- | --- |
 | `productId` | `"soundscaper"`. |
 | `locale` | Bahasa antarmuka editor, seperti `"en"` atau `"de"`. |
-| `seed` | Benih yang menjadi sumber angka acak eksekusi. Baru untuk setiap eksekusi. |
-| `startedAt` | Waktu jam dinding saat eksekusi dimulai, sebagai string ISO 8601. |
-| `dryRun` | Selalu `false` saat ini. Dipesan. |
+| `seed` | Benih angka acak dari proses. Baru untuk setiap proses. |
+| `startedAt` | Waktu dinding saat proses dimulai, sebagai string ISO 8601. |
+| `dryRun` | Selalu `false` pada saat ini. Disimpan. |
 
 ### `sound.log`
 
 `sound.log.info(...values)`, `sound.log.warn(...values)`,
 `sound.log.error(...values)` dan `sound.log.debug(...values)` menulis satu baris
-masing-masing ke log eksekusi. `console.log`, `console.info`, `console.warn`,
-`console.error` dan `console.debug` melakukan hal yang sama. Nilai yang bukan string ditulis
-sebagai JSON. Metode-metode ini tidak mengembalikan apa pun dan tidak perlu ditunggu.
+ke log proses. `console.log`, `console.info`, `console.warn`,
+`console.error` dan `console.debug` melakukan hal yang sama. Nilai yang bukan string
+written sebagai JSON. Metode ini tidak mengembalikan apa pun dan tidak perlu ditunggu.
 
-Log menyimpan paling banyak 1.000 baris atau 256 KiB, mana pun yang tercapai lebih dulu, dan setiap baris
-dipotong pada 4.096 karakter. Baris di luar itu dibuang dan dihitung; hitungannya
+Log menyimpan paling banyak 1.000 baris atau 256 KiB, yang mana datang pertama, dan setiap baris
+dipotong pada 4.096 karakter. Baris di luar itu dihapus dan dihitung; hitungan
 dilaporkan sebagai peringatan akhir.
 
 ### `sound.project`
 
-Membaca proyek tidak pernah mengubahnya dan tidak dihitung terhadap anggaran perubahan eksekusi.
+Membaca proyek tidak pernah mengubahnya dan tidak menghitung terhadap anggaran
+perubahan proses. `sound.project.snapshot()` mengembalikan `{ sampleRate, tracks, selection }`, dengan
+`tracks` dan `selection` seperti dua panggilan di bawah ini mengembalikan mereka. `sampleRate` adalah
+sample rate proyek dalam hertz, yang apa pun hitungan frame di halaman ini diukur.
 
-`sound.project.snapshot()` mengembalikan `{ sampleRate, tracks, selection }`, dengan
-`tracks` dan `selection` seperti yang dikembalikan oleh dua panggilan di bawah. `sampleRate` adalah
-laju sampel proyek dalam hertz, yang merupakan satuan pengukuran setiap jumlah frame di halaman ini.
-
-`sound.project.tracks()` mengembalikan array track dalam urutan timeline:
+`sound.project.tracks()` mengembalikan array track dalam urutan garis waktu:
 
 ```json
 { "id": "track-…", "name": "Voice", "kind": "audio", "index": 0, "muted": false, "solo": false }
 ```
 
-`sound.project.clips(trackId)` mengembalikan klip pada satu trek, atau pada setiap trek
-ketika `trackId` diabaikan:
+Metode `sound.project.clips(trackId)` mengembalikan klip pada satu trek, atau pada setiap trek
+ketika `trackId` dihilangkan:
 
 ```json
 { "id": "clip-…", "name": "Take 1", "startFrame": 0, "durationFrames": 480000 }
@@ -153,14 +137,14 @@ ketika `trackId` diabaikan:
 
 ### `sound.select`
 
-Setiap panggilan seleksi dihitung sebagai satu perubahan dan mengembalikan seleksi yang dihasilkannya,
-dalam bentuk yang dikembalikan oleh `sound.project.selection()`.
+Setiap panggilan seleksi menghitung sebagai satu perubahan dan mengembalikan seleksi yang dihasilkan,
+dalam bentuk `sound.project.selection()` mengembalikan.
 
 `sound.select.time(start, end, options)` mengatur rentang waktu dalam detik. Ini adalah
-perintah `SelectTime` Audacity, dan `options.relativeTo` memilih dari mana setiap
-sisi diukur. Kedua sisi dapat serendah -100 detik.
+perintah `SelectTime` Audacity, dan `options.relativeTo` memilih di mana setiap
+pinggir diukur dari. Kedua tepi dapat sedekat -100 detik.
 
-| `relativeTo` | Sisi awal | Sisi akhir |
+| `relativeTo` | Pinggir awal | Pinggir akhir |
 | --- | --- | --- |
 | `'project-start'` (default) | `start` detik dari awal proyek | `end` detik dari awal proyek |
 | `'project'` | `start` detik dari awal proyek | `end` detik setelah akhir proyek |
@@ -170,32 +154,31 @@ sisi diukur. Kedua sisi dapat serendah -100 detik.
 | `'selection-end'` | `start` detik sebelum akhir seleksi | `end` detik sebelum akhir seleksi |
 
 Akhir proyek adalah frame terakhir yang dicapai oleh klip mana pun. Trek yang dipilih tetap
-tetap seperti semula.
+semula.
 
 `sound.select.frames(startFrame, endFrame, options)` mengatur rentang waktu dalam
-frame pada laju sampel proyek. `options.trackIds` menamai trek yang akan
-dipilih; jika diabaikan, trek yang sudah dipilih tetap terpilih.
-Rentang dibatasi ke garis waktu dan sisi ditukar jika terbalik.
+frame pada tingkat sampel proyek. `options.trackIds` menyebutkan trek untuk
+memilih; ketika diabaikan, trek yang sudah dipilih tetap dipilih. Rentang tersebut dikunci ke garis waktu dan tepi dipertukarkan jika terbalik.
 
 `sound.select.tracks(options)` adalah perintah `SelectTracks` Audacity. Ini memilih
- trek yang indeksnya (dihitung dari 0) berada dalam rentang dari `options.track`
-(default 0) yang mencakup `options.trackCount` trek (default 1). `options.mode` adalah
+trek yang indeksnya (dihitung dari 0) berada dalam rentang dari `options.track`
+(default 0) mencakup `options.trackCount` trek (default 1). `options.mode` adalah
 `'set'` untuk mengganti seleksi trek, `'add'` untuk memperluasnya, atau `'remove'` untuk
-mengeluarkan trek tersebut darinya. Rentang waktu tetap seperti semula.
+mengambil trek tersebut dari seleksi. Rentang waktu tetap seperti semula.
 
 `sound.select.frequencies(options)` adalah perintah `SelectFrequencies` Audacity.
 Ini mengatur seleksi spektral ke `options.low` dan `options.high` dalam hertz;
-sisi yang Anda abaikan mempertahankan nilai saat ini.
+pinggir yang Anda abaikan mempertahankan nilainya saat ini.
 
 `sound.select.all()` memilih seluruh proyek di setiap trek.
-`sound.select.none()` menghapus seleksi.
+`sound.select.none()` membersihkan seleksi.
 
 ### `sound.effect(type, params)`
 
-Menerapkan satu efek pada seleksi saat ini, di trek yang difokuskan. `type` adalah
+Menerapkan satu efek di atas seleksi saat ini, pada trek yang difokuskan. `type` adalah
 ID efek dari [Efek yang dapat diterapkan program](#effects-a-program-can-apply),
 dan `params` adalah objek parameter efek tersebut. Parameter yang Anda abaikan mengambil
-nilai default efek; nilai diperiksa terhadap rentang dalam
+ilai default efek; nilai-nilai diperiksa terhadap rentang dalam
 [referensi efek audio](/reference/generated/audio-effects/). Menyelesaikan ke
 `null`.
 
@@ -205,7 +188,7 @@ await sound.effect('audacity-amplify', { gainDb: -3 });
 
 ### `sound.effects(steps)`
 
-Menerapkan rangkaian efek pada seleksi saat ini dalam satu kali proses, persis seperti makro daftar langkah dengan langkah-langkah tersebut. Setiap langkah adalah `{ type, params }`, dan rangkaian membutuhkan setidaknya satu langkah. Menyelesaikan menjadi `null`.
+Menerapkan rantai efek atas pilihan saat ini dalam satu kali penelusuran, tepat seperti makro daftar langkah dengan langkah-langkah tersebut. Setiap langkah adalah `{ type, params }`, dan rantai memerlukan setidaknya satu langkah. Menyelesaikan `null`.
 
 ```js
 await sound.effects([
@@ -218,7 +201,9 @@ await sound.effects([
 ### `sound.command(name, params)`
 
 Menjalankan salah satu perintah makro Audacity yang tercantum di bawah
-[Perintah yang dapat dijalankan oleh program](#commands-a-program-can-run). Keempat perintah seleksi mengambil parameter yang dijelaskan di sana; yang lainnya tidak mengambil parameter. Menyelesaikan ke seleksi setelahnya.
+[Perintah yang dapat dijalankan program](#commands-a-program-can-run). Empat perintah pemilihan
+memiliki parameter yang dijelaskan di sana; yang lainnya tidak memiliki. Memecahkan masalah ke
+pemilihan setelahnya.
 
 ```js
 await sound.command('SelectTime', { start: 0, end: 5 });
@@ -227,31 +212,27 @@ await sound.command('Trim');
 
 ### `sound.runSaved(name)`
 
-Menjalankan makro daftar langkah yang disimpan di manajer makro yang sama, berdasarkan nama persisnya,
-termasuk perintah seleksi apa pun yang dikandungnya. Makro yang disimpan tidak dapat menjadi
-program, sehingga program tidak bersarang. Menyelesaikan ke `null`; nama yang tidak dikenal ditolak.
+Menjalankan makro daftar langkah yang disimpan di manajer makro yang sama, dengan nama yang tepat,
+termasuk perintah seleksi yang dimilikinya. Makro yang disimpan tidak dapat sendiri menjadi program, jadi program tidak dapat bersarang. Memecahkan `null`; nama yang tidak diketahui ditolak.
 
-### Waktu dan keacakan
+### Waktu dan acak
 
-Sebuah eksekusi dapat direproduksi: dua eksekusi program yang sama pada proyek yang sama membaca
-yang sama, karena jam dan angka acak bukan milik mesin.
+Sebuah jalannya dapat direproduksi: dua jalannya program yang sama di atas proyek yang sama membaca
+jam yang sama, karena jam dan angka acak bukan dari mesin.
 
 `Date.now()` dan `new Date()` tanpa argumen mengembalikan jam virtual yang
-mulai dari 0 dan maju satu untuk setiap panggilan yang dijawab ke editor, dan
-`ms` untuk setiap `sound.wait(ms)`. `sound.wait` menyelesaikan segera; tidak ada
-cara bagi program untuk jeda untuk waktu nyata, dan tidak diperlukan, karena setiap panggilan
-ke editor selesai sebelum janji (promise)nya diselesaikan.
+mulai dari 0 dan maju satu untuk setiap panggilan ke editor, dan oleh `ms` untuk setiap `sound.wait(ms)`. `sound.wait` langsung terselesaikan; tidak ada
+cara untuk program untuk berhenti untuk waktu nyata, dan tidak diperlukan, karena setiap panggilan
+ke editor selesai sebelum janjinya terselesaikan.
 
-`Math.random()` dan `sound.random()` adalah generator yang sama, ditanam (seeded) dari
-`sound.env.seed`. Catat benih (seed) jika Anda perlu mengetahui urutan mana yang digunakan oleh eksekusi.
+`Math.random()` dan `sound.random()` adalah generator yang sama, bertunas dari
+`sound.env.seed`. Catat benihnya jika Anda perlu tahu urutan mana yang digunakan sebuah jalannya.
 
 ### Memeriksa asumsi Anda
 
-`sound.assert(condition, message)` melempar `message` ketika `condition` adalah palsu.
+`sound.assert(condition, message)` melempar `message` ketika `condition` adalah salah.
 `sound.assertEqual(actual, expected, message)` membandingkan dua nilai sebagai JSON
-dan melempar ketika mereka berbeda, dengan pesan yang menyebutkan kedua nilai jika Anda tidak
-memberikan pesan. Karena kesalahan yang dilempar mengakhiri eksekusi dan membatalkan (rollback) semua yang sebelumnya, asersi
-gagal meninggalkan proyek tidak tersentuh. Tidak ada metode yang mengembalikan janji (promise).
+dan melempar ketika berbeda, dengan pesan yang menyebutkan kedua nilai jika Anda tidak memberikannya. Karena kesalahan yang dilemparkan mengakhiri jalannya dan mengembalikan semua yang ada sebelum, asumsi yang gagal meninggalkan proyek tanpa sentuhan. Tidak ada metode yang kembali janji.
 
 ```js
 const tracks = await sound.project.tracks();
@@ -263,38 +244,38 @@ sound.assertEqual(selection.trackIds.length, tracks.length, 'Select all should c
 
 ## Nilai yang melintasi ke editor
 
-Setiap argumen yang diteruskan oleh program dan setiap nilai yang diterimanya adalah data polos:
-`null`, boolean, angka terbatas, string, serta array dan objek polos dari
-jenis tersebut. `NaN`, `Infinity`, fungsi, instans kelas, array bertipe, dan `Date`
-objek ditolak dengan error, begitu pula nilai apa pun yang lebih besar dari 1 MiB, bersarang lebih
-dari 12 tingkat kedalaman, atau memiliki lebih dari 4.096 entri dalam satu array atau objek.
-Properti `undefined` dibuang.
+Setiap argumen yang dilewatkan program dan setiap nilai yang diterimanya adalah data polos:
+`null`, boolean, angka terbatas, string, dan array serta objek polos dari
+those. `NaN`, `Infinity`, fungsi, instance kelas, array bertipe dan `Date`
+objek ditolak dengan kesalahan, sama seperti nilai apa pun yang lebih besar dari 1 MiB, bersarang lebih
+dalam dari 12 tingkat, atau memegang lebih dari 4.096 entri dalam satu array atau objek. Properti
+`undefined` dihapus.
 
 ## Batasan
 
 | Batasan | Nilai |
 | --- | --- |
 | Panjang program | 256 KiB |
-| Panggilan ke editor per eksekusi | 4.096 |
-| Perubahan pada proyek per eksekusi (pemanggilan seleksi, efek, perintah) | 256 |
+| Panggilan ke editor per jalannya | 4.096 |
+| Perubahan pada proyek per jalannya (panggilan seleksi, efek, perintah) | 256 |
 | Panggilan yang menunggu jawaban sekaligus | 8 |
-| Waktu eksekusi | 120 detik |
-| Satu nilai yang melintasi ke atau dari editor | 1 MiB, 12 tingkat kedalaman, 4.096 entri per array atau objek |
+| Waktu jalannya | 120 detik |
+| Satu nilai yang melintasi ke atau dari editor | 1 MiB, 12 tingkat dalam, 4.096 entri per array atau objek |
 | Log | 1.000 baris atau 256 KiB; 4.096 karakter per baris |
-| Program di pustaka | 128 |
+| Program di perpustakaan | 128 |
 | Nama program | 256 karakter |
-| File program yang diimpor | 1 MiB |
+| Berkas program impor | 1 MiB |
 
 Loop yang memilih setiap klip dan menerapkan satu efek menghabiskan dua perubahan per
-klip, sehingga dapat mencakup 128 klip sebelum anggaran habis.
+klip, jadi itu dapat mencakup 128 klip sebelum anggaran habis.
 
-## Error
+## Kesalahan
 
-Panggilan yang ditolak oleh editor akan menolak promisnya dengan `Error` yang `message`
-menyatakan alasannya: perintah di luar kosakata, efek pada seleksi kosong,
-parameter di luar rentang. Error juga membawa `code`, yang
+Panggilan editor yang ditolak menolak janji dengan `Error` yang `message`
+menjelaskan alasannya: perintah di luar kosakata, efek di atas seleksi kosong,
+parameter di luar jangkauan. Kesalahan juga membawa `code`, yang
 `MACRO_CALL_FAILED` kecuali editor menyediakan yang lebih spesifik. Program
-dapat menangkap ini dan melanjutkan:
+mungkin menangkap ini dan melanjutkan:
 
 ```js
 try {
@@ -304,66 +285,64 @@ try {
 }
 ```
 
-Program tersebut selesai, dan lognya membaca *refused: Unsupported macro command:
+Program tersebut selesai, dan lognya membaca *ditolak: Perintah makro tidak didukung:
 ExportWav.*
 
-Kesalahan yang tidak ditangkap oleh program akan mengakhiri eksekusi, membatalkan proyek, dan ditampilkan di panel dengan baris tempat kesalahan berasal. Program yang tidak dapat dikompilasi dilaporkan dengan cara yang sama sebelum apa pun dijalankan.
+Kesalahan yang tidak ditangkap program akan mengakhiri eksekusi, mengembalikan proyek, dan ditampilkan di panel dengan baris asalnya. Program yang tidak dapat dikompilasi dilaporkan dengan cara yang sama sebelum apa pun dijalankan.
 
-## Efek yang dapat diterapkan oleh program {#effects-a-program-can-apply}
+## Efek yang Dapat Diaplikasikan oleh Program {#effects-a-program-can-apply}
 
-Berikut adalah ID efek yang diterima oleh `sound.effect` dan `sound.effects`, beserta kunci parameter yang diambil oleh masing-masing efek dan nilai defaultnya. Rentang dan satuan terdapat di [referensi efek audio](/reference/generated/audio-effects/). Plug-in Nyquist tidak dapat diterapkan dari program.
+Ini adalah ID efek `sound.effect` dan `sound.effects` yang diterima, bersama dengan kunci parameter masing-masing dan nilai defaultnya. Rentang dan unitnya ada di [referensi efek audio](/reference/generated/audio-effects/). Plugin Nyquist tidak dapat diaplikasikan dari program.
 
-| Efek | ID Efek | Parameter dan nilai default |
+| Efek | ID Efek | Parameter dan Nilai Default |
 | --- | --- | --- |
-| Amplify | `audacity-amplify` | `gainDb: 0`, `allowClipping: false` |
+| Perbesar | `audacity-amplify` | `gainDb: 0`, `allowClipping: false` |
 | Auto Duck | `audacity-auto-duck` | `duckAmountDb: -12`, `innerFadeDown: 0`, `innerFadeUp: 0`, `outerFadeDown: 0.5`, `outerFadeUp: 0.5`, `thresholdDb: -30`, `maximumPause: 1` |
-| Bass and Treble | `audacity-bass-treble` | `bassDb: 0`, `trebleDb: 0`, `volumeDb: 0` |
+| Bass dan Treble | `audacity-bass-treble` | `bassDb: 0`, `trebleDb: 0`, `volumeDb: 0` |
 | Bitcrusher | `bitcrusher` | `bitDepth: 8`, `downsampling: 1`, `dither: 'none'`, `interpolation: 'sample-hold'`, `mix: 100` |
-| Change Pitch | `audacity-change-pitch` | `semitones: 0`, `preserveFormants: true` |
-| Change Speed and Pitch | `audacity-change-speed-pitch` | `speedPercent: 0` |
-| Change Tempo | `audacity-change-tempo` | `tempoPercent: 0` |
-| Classic Filters | `audacity-classic-filters` | `family: 'butterworth'`, `direction: 'lowpass'`, `order: 1`, `cutoffHz: 1000`, `passbandRippleDb: 1`, `stopbandAttenuationDb: 30` |
-| Click Removal | `audacity-click-removal` | `threshold: 200`, `maximumWidth: 20` |
-| Compressor | `compressor` | `threshold: -24`, `knee: 30`, `ratio: 4`, `attack: 0.003`, `release: 0.25`, `makeupGain: 0` |
-| Compressor (Audacity) | `audacity-compressor` | `thresholdDb: -10`, `makeupGainDb: 0`, `kneeWidthDb: 5`, `ratio: 10`, `lookaheadMs: 1`, `attackMs: 30`, `releaseMs: 150` |
+| Ubah Pitch | `audacity-change-pitch` | `semitones: 0`, `preserveFormants: true` |
+| Ubah Kecepatan dan Pitch | `audacity-change-speed-pitch` | `speedPercent: 0` |
+| Ubah Tempo | `audacity-change-tempo` | `tempoPercent: 0` |
+| Filter Klasik | `audacity-classic-filters` | `family: 'butterworth'`, `direction: 'lowpass'`, `order: 1`, `cutoffHz: 1000`, `passbandRippleDb: 1`, `stopbandAttenuationDb: 30` |
+| Penghilang Klik | `audacity-click-removal` | `threshold: 200`, `maximumWidth: 20` |
+| Kompresor | `audacity-compressor` | `thresholdDb: -10`, `makeupGainDb: 0`, `kneeWidthDb: 5`, `ratio: 10`, `lookaheadMs: 1`, `attackMs: 30`, `releaseMs: 150` |
 | Delay | `delay` | `time: 0.25`, `feedback: 0.3`, `mix: 0.2` |
-| Distortion | `audacity-distortion` | `mode: 'hard-clipping'`, `dcBlock: false`, `thresholdDb: -6`, `noiseFloorDb: -70`, `parameter1: 50`, `parameter2: 50`, `repeats: 1` |
+| Distorsi | `audacity-distortion` | `mode: 'hard-clipping'`, `dcBlock: false`, `thresholdDb: -6`, `noiseFloorDb: -70`, `parameter1: 50`, `parameter2: 50`, `repeats: 1` |
 | Echo | `audacity-echo` | `delaySeconds: 1`, `decay: 0.5` |
-| Fade In | `audacity-fade-in` | tidak ada |
-| Fade Out | `audacity-fade-out` | tidak ada |
-| Filter Curve EQ | `audacity-filter-curve-eq` | `points`: array dari `{ frequency, gain }`, default dua titik datar pada 20 Hz dan 20 kHz; `linearFrequencyScale: false`; `filterLength: 8191` |
-| Four-band parametric EQ | `eq` | `outputGain: 0`; `bands`: empat objek `{ id, enabled, type, frequency, gain, q, slope }`, puncak pada 100, 500, 2000, dan 8000 Hz dengan `gain: 0`, `q: 1`, `slope: 12` |
-| Gate | `gate` | `threshold: -50`, `attack: 0.005`, `hold: 0.05`, `release: 0.1`, `rangeDb: -80` |
-| Graphic EQ | `audacity-graphic-eq` | `gains`: 31 gain band dalam dB, semuanya 0; `interpolation: 'bspline'`; `filterLength: 8191` |
-| High-pass filter | `highpass` | `frequency: 80`, `q: 0.707` |
+| Memudar Masuk | `audacity-fade-in` | tidak ada |
+| Memudar Keluar | `audacity-fade-out` | tidak ada |
+| Filter Kurva EQ | `audacity-filter-curve-eq` | `points`: array dari `{ frequency, gain }`, default dua titik datar pada 20 Hz dan 20 kHz; `linearFrequencyScale: false`; `filterLength: 8191` |
+| Empat-band Parametrik EQ | `eq` | `outputGain: 0`; `bands`: empat `{ id, enabled, type, frequency, gain, q, slope }` objek, memuncak pada 100, 500, 2000 dan 8000 Hz dengan `gain: 0`, `q: 1`, `slope: 12` |
+| Gerbang | `gate` | `threshold: -50`, `attack: 0.005`, `hold: 0.05`, `release: 0.1`, `rangeDb: -80` |
+| EQ Grafik | `audacity-graphic-eq` | `gains`: 31 keuntungan band dalam dB, semua 0; `interpolation: 'bspline'`; `filterLength: 8191` |
+| Filter High-pass | `highpass` | `frequency: 80`, `q: 0.707` |
 | Invert | `audacity-invert` | tidak ada |
-| Legacy Compressor | `audacity-legacy-compressor` | `thresholdDb: -12`, `noiseFloorDb: -40`, `ratio: 2`, `attackSeconds: 0.2`, `releaseSeconds: 1`, `normalize: true`, `usePeak: false` |
-| Limiter | `limiter` | `ceiling: -1`, `lookahead: 0.005`, `release: 0.1` |
-| Limiter (Audacity) | `audacity-limiter` | `thresholdDb: -5`, `makeupTargetDb: -1`, `kneeWidthDb: 2`, `lookaheadMs: 1`, `releaseMs: 20` |
-| Loudness Normalization | `audacity-loudness-normalization` | `mode: 'lufs'`, `targetLufs: -23`, `targetRmsDb: -20`, `stereoIndependent: false`, `dualMono: true` |
-| Low-pass filter | `lowpass` | `frequency: 18000`, `q: 0.707` |
-| Noise Reduction | `audacity-noise-reduction` | `reductionDb: 6`, `sensitivity: 6`, `frequencySmoothingBands: 6`, `output: 'reduce'` |
-| Normalize | `audacity-normalize` | `peakDb: -1`, `removeDc: true`, `applyGain: true`, `stereoIndependent: false` |
+| Kompresor Legacy | `audacity-legacy-compressor` | `thresholdDb: -12`, `noiseFloorDb: -40`, `ratio: 2`, `attackSeconds: 0.2`, `releaseSeconds: 1`, `normalize: true`, `usePeak: false` |
+| Pembatas | `audacity-limiter` | `thresholdDb: -5`, `makeupTargetDb: -1`, `kneeWidthDb: 2`, `lookaheadMs: 1`, `releaseMs: 20` |
+| Normalisasi Keras | `audacity-loudness-normalization` | `mode: 'lufs'`, `targetLufs: -23`, `targetRmsDb: -20`, `stereoIndependent: false`, `dualMono: true` |
+| Filter Low-pass | `lowpass` | `frequency: 18000`, `q: 0.707` |
+| Pengurangan Noise | `audacity-noise-reduction` | `reductionDb: 6`, `sensitivity: 6`, `frequencySmoothingBands: 6`, `output: 'reduce'` |
+| Normalisasi | `audacity-normalize` | `peakDb: -1`, `removeDc: true`, `applyGain: true`, `stereoIndependent: false` |
 | Paulstretch | `audacity-paulstretch` | `stretchFactor: 10`, `timeResolution: 0.25` |
 | Phaser | `audacity-phaser` | `stages: 2`, `dryWet: 128`, `frequency: 0.4`, `phaseDegrees: 0`, `depth: 100`, `feedbackPercent: 0`, `outputGainDb: -6` |
-| Remove DC Offset | `audacity-remove-dc-offset` | tidak ada |
-| Repair | `audacity-repair` | tidak ada |
-| Repeat | `audacity-repeat` | `count: 1` |
+| Hapus Offset DC | `audacity-remove-dc-offset` | tidak ada |
+| Perbaikan | `audacity-repair` | tidak ada |
+| Ulangi | `audacity-repeat` | `count: 1` |
 | Reverb | `reverb` | `mix: 0.2`, `decay: 2`, `preDelay: 0.01` |
 | Reverb (Audacity) | `audacity-reverb` | `roomSize: 75`, `preDelay: 10`, `reverberance: 50`, `damping: 50`, `toneLow: 100`, `toneHigh: 100`, `wetGainDb: -6`, `dryGainDb: 0`, `stereoWidth: 100`, `wetOnly: false` |
-| Reverse | `audacity-reverse` | tidak ada |
-| Sliding Stretch | `audacity-sliding-stretch` | `startTempoPercent: 0`, `endTempoPercent: 0`, `startPitchSemitones: 0`, `endPitchSemitones: 0`, `preserveFormants: true` |
-| Truncate Silence | `audacity-truncate-silence` | `thresholdDb: -20`, `action: 'truncate'`, `minimumSilence: 0.5`, `truncateTo: 0.5`, `compressPercent: 50`, `independent: false` |
-| Utility Gain (Reviewed) | `reviewed-utility-gain` | `gain: 1` |
+| Terbalik | `audacity-reverse` | tidak ada |
+| Peregangan Geser | `audacity-sliding-stretch` | `startTempoPercent: 0`, `endTempoPercent: 0`, `startPitchSemitones: 0`, `endPitchSemitones: 0`, `preserveFormants: true` |
+| Memotong Kesunyian | `audacity-truncate-silence` | `thresholdDb: -20`, `action: 'truncate'`, `minimumSilence: 0.5`, `truncateTo: 0.5`, `compressPercent: 50`, `independent: false` |
+| Kenaikan Utilitas (Ditinjau) | `reviewed-utility-gain` | `gain: 1` |
 | Wahwah | `audacity-wahwah` | `frequency: 1.5`, `phaseDegrees: 0`, `depthPercent: 70`, `resonance: 2.5`, `frequencyOffsetPercent: 30`, `outputGainDb: -6` |
 
-Dua efek memerlukan sesuatu yang tidak dapat disediakan oleh program. Noise Reduction memerlukan profil noise yang diambil di dialog efek itu sendiri, dan Auto Duck memerlukan track kontrol di bawah track yang difokuskan.
+Dua efek memerlukan sesuatu yang tidak dapat disediakan oleh program. Pengurangan Noise memerlukan profil noise yang ditangkap dalam dialog efek sendiri, dan Auto Duck memerlukan trek kontrol di bawah trek yang difokuskan.
 
 ## Perintah yang dapat dijalankan program {#commands-a-program-can-run}
 
-`sound.command` menerima nama perintah makro Audacity di bawah. Nama-nama ini sama dengan nama yang dapat dipegang oleh makro daftar langkah, sehingga program dan daftar langkah memiliki jangkauan yang persis sama. Setiap perintah menjalankan aksi editor yang dijelaskan oleh [rujukan perintah](/reference/generated/commands/).
+`sound.command` menerima nama perintah makro Audacity di bawah ini. Mereka adalah nama makro yang sama yang dapat dipegang oleh daftar langkah, sehingga program dan daftar langkah memiliki jangkauan yang tepat sama. Setiap perintah menjalankan tindakan editor yang [referensi perintah](/reference/generated/commands/) menggambarkan.
 
-### Perintah seleksi dengan parameter
+### Perintah Seleksi dengan Parameter
 
 | Perintah | Parameter |
 | --- | --- |
@@ -372,25 +351,25 @@ Dua efek memerlukan sesuatu yang tidak dapat disediakan oleh program. Noise Redu
 | `SelectTracks` | `track`, `trackCount` (0 hingga 100); `mode` dari `'set'`, `'add'` atau `'remove'` |
 | `Select` | Kombinasi apa pun dari tiga set di atas |
 
-Parameter yang Anda tinggalkan akan membiarkan bagian tersebut dari seleksi tetap utuh, yang juga merupakan cara Audacity membacanya.
+Parameter yang Anda tinggalkan akan meninggalkan bagian seleksi tersebut sendiri, yang merupakan cara Audacity membacanya juga.
 
-### Perintah tanpa parameter
+### Perintah Tanpa Parameter
 
-| Grup | Perintah |
+| Kelompok | Perintah |
 | --- | --- |
 | Seleksi | `SelectAll`, `SelectNone`, `SelCursorStoredCursor`, `SelTrackStartToEnd`, `SelCursorToTrackEnd`, `SelPrevClip`, `SelNextClip`, `ZeroCross` |
 | Penyuntingan | `Cut`, `Copy`, `Paste`, `Delete`, `Duplicate`, `Split`, `SplitNew`, `Join`, `Disjoin`, `Trim`, `Silence`, `SplitCut`, `SplitDelete` |
-| Track | `NewMonoTrack`, `NewStereoTrack`, `NewLabelTrack`, `RemoveTracks`, `MixAndRender`, `SortByName`, `SortByTime` |
+| Trek | `NewMonoTrack`, `NewStereoTrack`, `NewLabelTrack`, `RemoveTracks`, `MixAndRender`, `SortByName`, `SortByTime` |
 | Label | `AddLabel` |
 | Analisis | `FindClipping`, `ContrastAnalyser`, `PlotSpectrum`, `RepeatLastEffect` |
 
-### Apa yang sengaja tidak ada
+### Apa yang sengaja hilang
 
-`Undo` dan `Redo` tidak ada karena satu eksekusi sudah merupakan satu entri riwayat dan langkah yang menyusuri riwayat akan mencapai melampaui eksekusi ke penyuntingan Anda sendiri. Perintah transport dan perekaman tidak ada karena program tidak memiliki sesuatu untuk ditunggu dan tidak dapat dibatalkan dari perekaman. Membuka, menyimpan, menutup, mengimpor, mengekspor, dan preferensi tidak ada karena jangkauan program adalah satu proyek yang terbuka saat program dimulai. Perintah yang hanya membuka dialog atau mengubah tampilan tidak ada karena mereka tidak mengubah apa pun di proyek.
+`Undo` dan `Redo` tidak ada karena satu kali menjalankan sudah satu entri sejarah dan langkah yang berjalan melalui sejarah akan melewati menjalankan ke edit Anda sendiri. Perintah transportasi dan perekaman tidak ada karena program tidak ada yang ditunggu dan tidak dapat dikembalikan dari perekaman. Membuka, menyimpan, menutup, mengimpor, mengekspor, dan preferensi tidak ada karena jangkauan program adalah satu proyek yang terbuka saat dimulai. Perintah yang hanya membuka dialog atau mengubah tampilan tidak ada karena mereka tidak mengubah apa pun dalam proyek.
 
 ## Berbagi program {#sharing-programs}
 
-**Ekspor program** menulis program yang dipilih sebagai file `.soundscapemacro`, dan **Impor program** membacanya. File tersebut adalah JSON, bukan file `.js` polos, sehingga tidak ada di komputer penerima yang akan salah mengira itu sebagai sesuatu untuk dijalankan di luar editor:
+**Ekspor program** menulis program yang dipilih sebagai file `.soundscapemacro`, dan **Impor program** membacanya. File ini adalah JSON daripada file `.js` polos, sehingga tidak ada yang akan salah mengartikan file di komputer penerima sebagai sesuatu yang harus dijalankan di luar editor:
 
 ```json
 {
@@ -402,20 +381,13 @@ Parameter yang Anda tinggalkan akan membiarkan bagian tersebut dari seleksi teta
 }
 ```
 
-Impor menyimpan teks dan tidak ada yang lain. Program yang diimpor tidak memiliki tombol **Jalankan
-program**; sebagai gantinya, panel menampilkan program, file asalnya,
-catatan tentang apa yang dapat dilakukan program terhadap proyek yang terbuka, dan kotak centang bertuliskan *Saya telah membaca program ini dan ingin menjalankannya.* Mencentangnya mengaktifkan **Aktifkan program
-ini**, dan hanya setelah itu program dapat dijalankan.
+Mengimpor menyimpan teks dan tidak lebih dari itu. Program yang diimpor tidak memiliki tombol **Jalankan program**; alih-alih, panel menampilkan program, berkas asalnya, catatan tentang apa yang dapat dilakukan program terhadap proyek terbuka, dan kotak centang yang bertuliskan *Saya telah membaca program ini dan ingin menjalankannya.* Centang kotak tersebut akan mengaktifkan **Aktifkan program ini**, dan baru setelah itu program dapat dijalankan.
 
-Izin tersebut berlaku untuk teks persis yang Anda baca. Jika program berubah
-kemudian, baik Anda mengeditnya atau mengimpor salinan yang lebih baru di atasnya, tinjauan
-muncul lagi hingga Anda mengaktifkan teks baru. Program yang Anda tulis sendiri di manajer
-tidak memerlukan tinjauan.
+Izin tersebut berlaku untuk teks yang tepat yang Anda baca. Jika program berubah setelahnya, baik Anda mengeditnya atau mengimpor salinan terbaru di atasnya, tinjauan akan muncul kembali hingga Anda mengaktifkan teks baru. Program yang Anda tulis sendiri di manajer tidak memerlukan tinjauan.
 
 ## Contoh
 
-Fade in setiap klip di trek pertama yang memilikinya. Klik header trek tersebut
-sebelum menjalankan, sehingga efek mendarat di trek yang sedang dibaca program:
+Memudarkan setiap klip pada trek pertama yang memiliki klip. Klik header trek tersebut sebelum dijalankan, sehingga efek diterapkan pada trek yang dibaca program:
 
 ```js
 let target = null;
@@ -459,8 +431,8 @@ await sound.runSaved('Episode finish');
 
 ## Tentang halaman ini
 
-Setiap program di halaman ini, mulai dari potongan kode satu baris hingga contoh yang dikerjakan,
-dijalankan terhadap setiap build Soundscaper oleh suite browser
-(`tests/browser/handbook-macro-program-examples.spec.js`), yang membaca program dari teks halaman ini sendiri. Program yang berhenti menyelesaikan, atau berhenti
-menghasilkan apa yang dikatakan halaman ini, akan gagal dalam build hingga halaman atau
+Setiap program di halaman ini, mulai dari snippet satu baris hingga contoh yang telah dikerjakan,
+jalankan terhadap setiap pembangun Soundscaper oleh suite peramban (`tests/browser/handbook-macro-program-examples.spec.js`), yang membaca
+program dari teks halaman ini sendiri. Program yang berhenti menyelesaikan, atau berhenti
+menghasilkan apa yang dikatakan halaman ini, gagal dalam pembangun hingga halaman atau
 editor diperbaiki.

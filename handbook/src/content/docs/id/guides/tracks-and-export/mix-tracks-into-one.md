@@ -1,6 +1,6 @@
 ---
 title: "Campur beberapa trek menjadi satu"
-description: "Render trek yang dipilih menjadi satu trek tunggal."
+description: "Render trek terpilih ke dalam satu trek tunggal."
 editUrl: false
 sidebar:
   order: 2
@@ -8,48 +8,47 @@ head:
   - tag: script
     attrs:
       type: "application/ld+json"
-    content: "{\"@context\":\"https://schema.org\",\"@type\":\"HowTo\",\"name\":\"Mix several tracks into one\",\"description\":\"Render the selected tracks down to a single track.\",\"tool\":[{\"@type\":\"HowToTool\",\"name\":\"Soundscaper\"}],\"step\":[{\"@type\":\"HowToStep\",\"position\":1,\"name\":\"Open Soundscaper. A new, empty project is ready as soon as the editor loads.\",\"text\":\"Open Soundscaper. A new, empty project is ready as soon as the editor loads.\"},{\"@type\":\"HowToStep\",\"position\":2,\"name\":\"Choose File → Import audio and pick the first part. The file lands as a clip on its own track.\",\"text\":\"Choose File → Import audio and pick the first part. The file lands as a clip on its own track.\"},{\"@type\":\"HowToStep\",\"position\":3,\"name\":\"Choose File → Import audio and pick the second part. The file lands as a clip on its own track.\",\"text\":\"Choose File → Import audio and pick the second part. The file lands as a clip on its own track.\"},{\"@type\":\"HowToStep\",\"position\":4,\"name\":\"Click the name bar of the first clip, then hold Shift and click the name bar of the second clip, so both are selected.\",\"text\":\"Click the name bar of the first clip, then hold Shift and click the name bar of the second clip, so both are selected. Every track with a selected clip goes into the mix.\"},{\"@type\":\"HowToStep\",\"position\":5,\"name\":\"Choose Tracks → Mix & Render. In the Mix & Render dialog, leave Mix down, Render effects and Replace originals checked, choose Stereo for Mix down to, then press Mix & Render.\",\"text\":\"Choose Tracks → Mix & Render. In the Mix & Render dialog, leave Mix down, Render effects and Replace originals checked, choose Stereo for Mix down to, then press Mix & Render.\"},{\"@type\":\"HowToStep\",\"position\":6,\"name\":\"The project now shows a clip named Mix.\",\"text\":\"The project now shows a clip named Mix. One track holds a clip named Mix; the source tracks are gone.\"}]}"
+    content: "{\"@context\":\"https://schema.org\",\"@type\":\"HowTo\",\"name\":\"Mix several tracks into one\",\"description\":\"Render the selected tracks down to a single track.\",\"tool\":[{\"@type\":\"HowToTool\",\"name\":\"Soundscaper\"}],\"step\":[{\"@type\":\"HowToStep\",\"position\":1,\"name\":\"Open Soundscaper. A new, empty project is ready as soon as the editor loads.\",\"text\":\"Open Soundscaper. A new, empty project is ready as soon as the editor loads.\"},{\"@type\":\"HowToStep\",\"position\":2,\"name\":\"Choose File → Import and pick the first part. It lands as a clip on its own track.\",\"text\":\"Choose File → Import and pick the first part. It lands as a clip on its own track.\"},{\"@type\":\"HowToStep\",\"position\":3,\"name\":\"Choose File → Import and pick the second part. It lands as a clip on its own track.\",\"text\":\"Choose File → Import and pick the second part. It lands as a clip on its own track.\"},{\"@type\":\"HowToStep\",\"position\":4,\"name\":\"Click the name bar of the first clip, then hold Shift and click the name bar of the second clip, so both are selected.\",\"text\":\"Click the name bar of the first clip, then hold Shift and click the name bar of the second clip, so both are selected. Every track with a selected clip goes into the mix.\"},{\"@type\":\"HowToStep\",\"position\":5,\"name\":\"Choose Tracks → Mix & Render. In the Mix & Render dialog, leave Mix down, Render effects and Replace originals checked, choose Stereo for Mix down to, then press Mix & Render.\",\"text\":\"Choose Tracks → Mix & Render. In the Mix & Render dialog, leave Mix down, Render effects and Replace originals checked, choose Stereo for Mix down to, then press Mix & Render.\"},{\"@type\":\"HowToStep\",\"position\":6,\"name\":\"The project now shows a clip named Mix.\",\"text\":\"The project now shows a clip named Mix. One track holds a clip named Mix; the source tracks are gone.\"}]}"
 ---
-<!-- docs-ai-provenance: {"factPacketSha256":"a2efb9d82744df50703da530f05fd07938a525026e90a778c97fb783e8fb88c8","model":"qwen3.8:latest","modelDigest":"22130167c4c20e20c7b71454612966ca8e8171e9b3cc8ab6ce8aa6cbfec79643","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"a2efb9d82744df50703da530f05fd07938a525026e90a778c97fb783e8fb88c8","targetLocale":"id"} -->
+<!-- docs-ai-provenance: {"factPacketSha256":"e3e165f69376430cd8ca49fc9f23263e3de5bf9c4af97309624c2faaba94193b","model":"aya-expanse:32b","modelDigest":"1603440383bd5504dc7afd01c0407b425b988dde650a8dc1a737433baa3cd432","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"e3e165f69376430cd8ca49fc9f23263e3de5bf9c4af97309624c2faaba94193b","targetLocale":"id"} -->
 
 <!-- Generated by `node scripts/docs-reference.mjs`. Do not edit. -->
 
-Setelah bed track seimbang, mencampurkannya menjadi satu membuat proyek lebih ringan untuk dikerjakan dan memberi Anda satu klip untuk diekspor atau dibawa ke tempat lain. Campuran ini menggunakan gain, pan, otomasi, dan efek dari setiap track yang dipilih. Mute dan solo diabaikan untuk track yang dipilih selama operasi ini, dan pemrosesan master tetap aktif.
+Setelah sebuah ranjang trek seimbang, mencampurnya ke satu membuatnya lebih ringan untuk bekerja dan memberi Anda klip tunggal untuk diekspor atau dibawa ke tempat lain. Campuran menggunakan gain, pan, otomatisasi, dan efek setiap trek yang dipilih. Bisu dan solo diabaikan untuk trek yang dipilih selama operasi ini, dan pemrosesan master tetap aktif.
 
-:::note[Masuk dari Audacity?]
-Ini adalah **Tracks → Mix → Mix and Render** di Audacity. Nama di bawah ini adalah milik Soundscaper, yang terkadang berbeda.
+:::note[Beralih dari Audacity?]
+Ini adalah **Trek → Campur → Campur dan Render** di Audacity. Nama-nama di bawah ini adalah milik Soundscaper sendiri, yang terkadang berbeda.
 :::
 
 ## Langkah-langkah
 
-1. Buka Soundscaper. Proyek baru yang kosong siap digunakan segera setelah editor dimuat.
-2. Pilih **File → Import audio** dan pilih bagian pertama. File akan muncul sebagai klip di track-nya sendiri.
-3. Pilih **File → Import audio** dan pilih bagian kedua. File akan muncul sebagai klip di track-nya sendiri.
-4. Klik bilah nama klip pertama, lalu tahan Shift dan klik bilah nama klip kedua, sehingga keduanya dipilih. Setiap track dengan klip yang dipilih akan masuk ke dalam campuran.
-5. Pilih **Tracks → Mix & Render**. Di dialog **Mix & Render**, biarkan **Mix down**, **Render effects**, dan **Replace originals** tetap dicentang, pilih **Stereo** untuk **Mix down to**, lalu tekan **Mix & Render**.
-6. Proyek sekarang menampilkan klip bernama **Mix**.
-   *Yang harus Anda lihat:* Satu track memegang klip bernama Mix; track sumber telah hilang.
+1. Buka Soundscaper. Proyek baru dan kosong siap segera setelah editor dimuat.
+2. Pilih **Berkas → Impor** dan pilih bagian pertama. Ini mendarat sebagai klip di treknya sendiri.
+3. Pilih **Berkas → Impor** dan pilih bagian kedua. Ini mendarat sebagai klip di treknya sendiri.
+4. Klik bilah nama klip pertama, lalu tahan Shift dan klik bilah nama klip kedua, sehingga keduanya dipilih. Setiap trek dengan klip yang dipilih masuk ke dalam campuran.
+5. Pilih **Trek → Campur & Render**. Dalam dialog **Campur & Render**, biarkan **Campur**, **Render efek**, dan **Ganti asli** dicentang, pilih **Stereo** untuk **Campur ke**, lalu tekan **Campur & Render**.
+6. Proyek sekarang menampilkan klip bernama **Campuran**.
+   *Anda harus melihat:* Satu trek memegang klip bernama Campuran; trek sumber hilang.
 
 ## Tips
 
-- Pilih **Mono**, **Stereo**, atau tata letak multichannel yang dikonfigurasi proyek di bawah **Mix down to** sebelum merender.
-- **Edit → Undo** akan mengembalikan track asli jika Anda perlu mengubah keseimbangan.
-- Anda tidak harus mencampur untuk mengekspor. **File → Export audio** merender seluruh proyek secara mandiri.
+- Pilih **Mono**, **Stereo**, atau tata letak multichannel yang dikonfigurasi proyek di bawah **Campur ke** sebelum rendering.
+- **Edit → Undo** mengembalikan trek asli jika Anda perlu mengubah keseimbangan.
+- Anda tidak perlu mencampur ke bawah untuk mengekspor. **Berkas → Ekspor audio** merender keseluruhan proyek sendiri.
 
-## Panduan terkait
+## Panduan Terkait
 
-Lebih banyak [tracks and export](/guides/tracks-and-export/) panduan:
+Lebih banyak panduan tentang [trek dan ekspor](/guides/tracks-and-export/):
 
-- [Split a stereo track into two mono tracks](/guides/tracks-and-export/split-stereo-into-mono-tracks/) — Pisahkan kanal kiri dan kanan agar masing-masing dapat diedit secara mandiri.
-- [Generate a test tone](/guides/tracks-and-export/generate-a-test-tone/) — Buat gelombang sinus dengan frekuensi dan panjang tertentu dari nol.
-- [Export an MP3](/guides/tracks-and-export/export-an-mp3/) — Render proyek ke file MP3 untuk dibagikan atau dipublikasikan.
-- [Export a WAV](/guides/tracks-and-export/export-a-wav/) — Render proyek ke file WAV tanpa kompresi.
-- [Mute and solo tracks](/guides/tracks-and-export/mute-and-solo-tracks/) — Bisukan track, atau dengarkan satu track saja, saat Anda mengerjakan campuran.
-- [Add an empty track](/guides/tracks-and-export/add-an-empty-track/) — Buat track baru untuk direkam atau ditempelkan.
-- [Mute every track at once](/guides/tracks-and-export/mute-every-track-at-once/) — Bisukan seluruh proyek dalam satu langkah, lalu kembalikan semuanya.
-- [Mix tracks into a new track and keep the originals](/guides/tracks-and-export/mix-tracks-into-a-new-track/) — Render campuran beberapa track ke track baru sementara sumber tetap ada di proyek.
-- [Balance tracks in the mixer](/guides/tracks-and-export/balance-tracks-in-the-mixer/) — Buka konsol pencampuran dengan strip kanal per track untuk mengatur level dan pan berdampingan.
+- [Membagi trek stereo menjadi dua trek mono](/guides/tracks-and-export/split-stereo-into-mono-tracks/) — Memisahkan saluran kiri dan kanan sehingga masing-masing dapat diedit sendiri.
+- [Hasilkan nada uji](/guides/tracks-and-export/generate-a-test-tone/) — Buat gelombang sinus dengan frekuensi dan panjang tertentu dari nol.
+- [Ekspor MP3](/guides/tracks-and-export/export-an-mp3/) — Render proyek ke file MP3 untuk berbagi atau menerbitkan.
+- [Ekspor WAV](/guides/tracks-and-export/export-a-wav/) — Render proyek ke file WAV yang tidak terkompresi.
+- [Bisukan dan solo trek](/guides/tracks-and-export/mute-and-solo-tracks/) — Mematikan trek, atau mendengarkan satu trek sendiri, saat Anda bekerja pada campuran.
+- [Tambahkan trek kosong](/guides/tracks-and-export/add-an-empty-track/) — Buat trek baru untuk merekam atau untuk menempelkan.
+- [Bisukan setiap trek sekaligus](/guides/tracks-and-export/mute-every-track-at-once/) — Mematikan seluruh proyek dalam satu langkah, lalu kembalikan semuanya.
+- [Campur trek ke trek baru dan simpan asli](/guides/tracks-and-export/mix-tracks-into-a-new-track/) — Render campuran beberapa trek ke trek baru sementara sumber tetap ada di proyek.
+- [Seimbangkan trek di mixer](/guides/tracks-and-export/balance-tracks-in-the-mixer/) — Buka konsol pencampuran dengan strip saluran per trek untuk mengatur tingkat dan pan berdampingan.
 
 ## Tentang panduan ini
-
-Prosedur di halaman ini — setiap entri menu, dialog, bidang, dan tombol, serta hasil yang dihasilkannya — diputar ulang terhadap setiap build Soundscaper oleh suite browser (`tests/browser/soundscaper-guides.spec.js`). Jika salah satunya tidak lagi cocok dengan editor, build akan gagal sampai panduan diperbaiki. Nilai yang disarankan adalah titik awal yang terbukti diterima oleh editor; apakah sesuai dengan rekaman Anda adalah keputusan telinga Anda.
+Prosedur di halaman ini — setiap entri menu, dialog, bidang, dan tombol, serta hasil yang dihasilkannya — diulang terhadap setiap versi Soundscaper oleh suite browser (`tests/browser/soundscaper-guides.spec.js`). Jika salah satunya tidak sesuai dengan editor, versi tersebut gagal sampai panduan diperbaiki. Nilai yang disarankan adalah titik awal yang diterima oleh editor; apakah mereka sesuai dengan rekaman Anda adalah keputusan yang harus diambil oleh telinga Anda.

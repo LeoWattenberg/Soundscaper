@@ -1,6 +1,6 @@
 ---
-title: "Ekspor setiap bab sebagai file terpisah"
-description: "Pecahkan satu rekaman panjang menjadi file-file pada penanda yang telah Anda letakkan."
+title: "Ekspor setiap bab sebagai berkas tersendiri"
+description: "Bagi satu rekaman panjang menjadi berkas pada penanda yang telah Anda tempatkan."
 editUrl: false
 sidebar:
   order: 6
@@ -8,50 +8,51 @@ head:
   - tag: script
     attrs:
       type: "application/ld+json"
-    content: "{\"@context\":\"https://schema.org\",\"@type\":\"HowTo\",\"name\":\"Export each chapter as its own file\",\"description\":\"Split one long recording into files at the markers you have placed.\",\"tool\":[{\"@type\":\"HowToTool\",\"name\":\"Soundscaper\"}],\"step\":[{\"@type\":\"HowToStep\",\"position\":1,\"name\":\"Open Soundscaper. A new, empty project is ready as soon as the editor loads.\",\"text\":\"Open Soundscaper. A new, empty project is ready as soon as the editor loads.\"},{\"@type\":\"HowToStep\",\"position\":2,\"name\":\"Choose File → Import audio and pick the recording to split. The file lands as a clip on its own track.\",\"text\":\"Choose File → Import audio and pick the recording to split. The file lands as a clip on its own track.\"},{\"@type\":\"HowToStep\",\"position\":3,\"name\":\"Choose View → Show markers.\",\"text\":\"Choose View → Show markers. The marker lane is where the chapter starts are shown and named.\"},{\"@type\":\"HowToStep\",\"position\":4,\"name\":\"Press the Jump to project start button in the toolbar.\",\"text\":\"Press the Jump to project start button in the toolbar. The first chapter should begin at the very start, so the first marker goes at zero.\"},{\"@type\":\"HowToStep\",\"position\":5,\"name\":\"With the Markers panel open (View → Panels → Markers shows it), press Add marker at playhead. Press Enter on the new marker, type Part one and press Enter again to name it.\",\"text\":\"With the Markers panel open (View → Panels → Markers shows it), press Add marker at playhead. Press Enter on the new marker, type Part one and press Enter again to name it.\"},{\"@type\":\"HowToStep\",\"position\":6,\"name\":\"Click the waveform where the second part begins to put the cursor there.\",\"text\":\"Click the waveform where the second part begins to put the cursor there.\"},{\"@type\":\"HowToStep\",\"position\":7,\"name\":\"With the Markers panel open (View → Panels → Markers shows it), press Add marker at playhead. Press Enter on the new marker, type Part two and press Enter again to name it.\",\"text\":\"With the Markers panel open (View → Panels → Markers shows it), press Add marker at playhead. Press Enter on the new marker, type Part two and press Enter again to name it.\"},{\"@type\":\"HowToStep\",\"position\":8,\"name\":\"Choose File → Export audio, set Format to MP3, set Output to Chapters (split by markers), and press Export. The file downloads as soon as the render finishes, and its link stays in the dialog.\",\"text\":\"Choose File → Export audio, set Format to MP3, set Output to Chapters (split by markers), and press Export. The file downloads as soon as the render finishes, and its link stays in the dialog. Each chapter becomes an MP3 inside the archive, numbered in order and named after its marker.\"}]}"
+    content: "{\"@context\":\"https://schema.org\",\"@type\":\"HowTo\",\"name\":\"Export each chapter as its own file\",\"description\":\"Split one long recording into files at the markers you have placed.\",\"tool\":[{\"@type\":\"HowToTool\",\"name\":\"Soundscaper\"}],\"step\":[{\"@type\":\"HowToStep\",\"position\":1,\"name\":\"Open Soundscaper. A new, empty project is ready as soon as the editor loads.\",\"text\":\"Open Soundscaper. A new, empty project is ready as soon as the editor loads.\"},{\"@type\":\"HowToStep\",\"position\":2,\"name\":\"Choose File → Import and pick the recording to split. It lands as a clip on its own track.\",\"text\":\"Choose File → Import and pick the recording to split. It lands as a clip on its own track.\"},{\"@type\":\"HowToStep\",\"position\":3,\"name\":\"Choose View → Panels → Project bin.\",\"text\":\"Choose View → Panels → Project bin. The recording is on the timeline now, so hiding the bin leaves room for the Markers panel.\"},{\"@type\":\"HowToStep\",\"position\":4,\"name\":\"Choose View → Show markers.\",\"text\":\"Choose View → Show markers. The marker lane is where the chapter starts are shown and named.\"},{\"@type\":\"HowToStep\",\"position\":5,\"name\":\"Press the Jump to project start button in the toolbar.\",\"text\":\"Press the Jump to project start button in the toolbar. The first chapter should begin at the very start, so the first marker goes at zero.\"},{\"@type\":\"HowToStep\",\"position\":6,\"name\":\"With the Markers panel open (View → Panels → Markers shows it), press Add marker at playhead. Press Enter on the new marker, type Part one and press Enter again to name it.\",\"text\":\"With the Markers panel open (View → Panels → Markers shows it), press Add marker at playhead. Press Enter on the new marker, type Part one and press Enter again to name it.\"},{\"@type\":\"HowToStep\",\"position\":7,\"name\":\"Click the waveform where the second part begins to put the cursor there.\",\"text\":\"Click the waveform where the second part begins to put the cursor there.\"},{\"@type\":\"HowToStep\",\"position\":8,\"name\":\"With the Markers panel open (View → Panels → Markers shows it), press Add marker at playhead. Press Enter on the new marker, type Part two and press Enter again to name it.\",\"text\":\"With the Markers panel open (View → Panels → Markers shows it), press Add marker at playhead. Press Enter on the new marker, type Part two and press Enter again to name it.\"},{\"@type\":\"HowToStep\",\"position\":9,\"name\":\"Choose File → Export audio, set Format to MP3, set Output to Chapters (split by markers), and press Export. The file downloads as soon as the render finishes, and its link stays in the dialog.\",\"text\":\"Choose File → Export audio, set Format to MP3, set Output to Chapters (split by markers), and press Export. The file downloads as soon as the render finishes, and its link stays in the dialog. Each chapter becomes an MP3 inside the archive, numbered in order and named after its marker.\"}]}"
 ---
-<!-- docs-ai-provenance: {"factPacketSha256":"bff231ce5a412139b723774100bc4b0793f5c5b088e471b0f45443684628992e","model":"qwen3.8:latest","modelDigest":"22130167c4c20e20c7b71454612966ca8e8171e9b3cc8ab6ce8aa6cbfec79643","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"bff231ce5a412139b723774100bc4b0793f5c5b088e471b0f45443684628992e","targetLocale":"id"} -->
+<!-- docs-ai-provenance: {"factPacketSha256":"ccddaabe5789d7d02d6276dddb13a1b3323b9b9f10d8ed85a152061a5b472603","model":"aya-expanse:32b","modelDigest":"1603440383bd5504dc7afd01c0407b425b988dde650a8dc1a737433baa3cd432","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"ccddaabe5789d7d02d6276dddb13a1b3323b9b9f10d8ed85a152061a5b472603","targetLocale":"id"} -->
 
 <!-- Generated by `node scripts/docs-reference.mjs`. Do not edit. -->
 
-Sebuah ceramah yang seharusnya menjadi satu file per topik, sisi album yang perlu dipotong menjadi trek, buku audio dengan satu bab per file: letakkan penanda di awal setiap bagian dan ekspor sekali. Setiap penanda membuka bab yang berjalan hingga penanda berikutnya, dan setiap bab ditulis sebagai file tersendiri, dinamai sesuai penandanya, di dalam satu arsip. Audacity 3 melakukan ini dengan Export Multiple; Audacity 4 belum mengembalikannya.
+Sebuah kuliah yang harus menjadi satu berkas per topik, sebuah album sisi yang perlu dipotong menjadi trek, atau buku audio dengan satu bab per berkas: letakkan penanda di awal setiap bagian dan ekspor sekaligus. Setiap penanda membuka sebuah bab yang berjalan hingga penanda berikutnya, dan setiap bab ditulis sebagai berkas tersendiri, dinamai sesuai penandanya, di dalam arsip tunggal. Audacity 3 melakukan ini dengan **Ekspor Berganda**; Audacity 4 belum mengembalikannya.
 
-:::note[Masuk dari Audacity?]
-Ini adalah **File → Export Audio → Export Multiple, split by labels (Audacity 3; Audacity 4 tidak memiliki Export Multiple)** dari Audacity. Nama-nama di bawah ini adalah milik Soundscaper sendiri, yang terkadang berbeda.
+:::note[Beralih dari Audacity?]
+Ini adalah **Berkas → Ekspor Audio → Ekspor Berganda, dibagi berdasarkan label (Audacity 3; Audacity 4 tidak memiliki Ekspor Berganda)**. Nama-nama di bawah ini adalah nama yang dimiliki Soundscaper sendiri, yang terkadang berbeda.
 :::
 
 ## Langkah-langkah
 
-1. Buka Soundscaper. Proyek baru yang kosong siap digunakan segera setelah editor dimuat.
-2. Pilih **File → Import audio** dan pilih rekaman yang akan dipecah. File tersebut akan muncul sebagai klip di treknya sendiri.
-3. Pilih **View → Show markers**. Jalur penanda adalah tempat awal bab ditampilkan dan dinamai.
-4. Tekan tombol **Jump to project start** di bilah alat. Bab pertama harus dimulai dari awal, jadi penanda pertama ditempatkan di nol.
-5. Dengan panel Markers terbuka (**View → Panels → Markers** menampilkannya), tekan **Add marker at playhead**. Tekan Enter pada penanda baru, ketik `Part one` dan tekan Enter lagi untuk menamainya.
-6. Klik pada waveform di tempat bagian kedua dimulai untuk menempatkan kursor di sana.
-7. Dengan panel Markers terbuka (**View → Panels → Markers** menampilkannya), tekan **Add marker at playhead**. Tekan Enter pada penanda baru, ketik `Part two` dan tekan Enter lagi untuk menamainya.
-8. Pilih **File → Export audio**, atur **Format** ke **MP3**, atur **Output** ke **Chapters (split by markers)**, dan tekan **Export**. File akan diunduh segera setelah render selesai, dan tautannya tetap ada di dialog. Setiap bab menjadi MP3 di dalam arsip, bernomor urut dan dinamai sesuai penandanya.
+1. Buka Soundscaper. Proyek baru dan kosong siap digunakan saat editor dimuat.
+2. Pilih **Berkas → Impor** dan pilih rekaman yang ingin dipisahkan. Rekaman tersebut akan berada di klip pada trek tersendiri.
+3. Pilih **Tampilan → Panel → Kotak proyek**. Rekaman sekarang ada di garis waktu, jadi menyembunyikan kotak proyek memberikan ruang untuk panel Penanda.
+4. Pilih **Tampilan → Tampilkan penanda**. Jalur penanda adalah tempat awal bab ditampilkan dan dinamai.
+5. Tekan tombol **Lompat ke awal proyek** di toolbar. Bab pertama harus dimulai dari awal, jadi penanda pertama harus berada di detik ke-0.
+6. Dengan panel Penanda terbuka (**Tampilan → Panel → Penanda**), tekan **Tambahkan penanda pada kepala pemutar**. Tekan Enter pada penanda baru, ketik `Part one` dan tekan Enter lagi untuk menamainya.
+7. Klik gelombang di mana bagian kedua dimulai untuk menempatkan kursor di sana.
+8. Dengan panel Penanda terbuka (**Tampilan → Panel → Penanda**), tekan **Tambahkan penanda pada kepala pemutar**. Tekan Enter pada penanda baru, ketik `Part two` dan tekan Enter lagi untuk menamainya.
+9. Pilih **Berkas → Ekspor audio**, atur **Format** ke **MP3**, atur **Output** ke **Bab (dibagi berdasarkan penanda)**, dan tekan **Ekspor**. Berkas akan diunduh segera setelah render selesai, dan tautannya tetap ada di dialog. Setiap bab menjadi MP3 di dalam arsip, dinomori secara berurutan dan dinamai sesuai penandanya.
 
 ## Tips
 
-- Wilayah bernama mengekspor rentang persis miliknya, jadi gunakan wilayah alih-alih penanda jika bagian-bagian memiliki celah di antaranya.
-- Label pada trek label dipecah dengan cara yang sama: pilih **Chapters (split by labels)** untuk memotong berdasarkan label tersebut alih-alih penanda.
-- Untuk memecah berdasarkan trek alih-alih penanda, lihat [Export each track as its own file](/guides/projects/export-each-track-as-its-own-file/).
+- Sebuah wilayah yang diberi nama mengekspor rentang yang tepat, jadi gunakan wilayah bukan penanda ketika bagian-bagian memiliki celah di antaranya.
+- Label pada trek label membagi dengan cara yang sama: pilih **Bab (dibagi berdasarkan label)** untuk memotong berdasarkan label tersebut daripada penanda.
+- Untuk membagi berdasarkan trek daripada penanda, lihat [Ekspor setiap trek sebagai berkas tersendiri](/guides/projects/export-each-track-as-its-own-file/).
 
-## Panduan terkait
+## Panduan Terkait
 
-Lebih banyak panduan [projects and files](/guides/projects/):
+Lebih banyak panduan [proyek dan berkas](/guides/projects/):
 
-- [Export each track as its own file](/guides/projects/export-each-track-as-its-own-file/) — Render trek secara terpisah, sebagai stem, dalam satu unduhan.
-- [Save your project](/guides/projects/save-your-project/) — Simpan proyek, dengan setiap trek dan edit, di pustaka proyek lokal.
-- [Move a project between computers](/guides/projects/move-a-project-between-computers/) — Ekspor seluruh proyek sebagai satu file, lalu buka file tersebut di tempat lain.
-- [Open an Audacity project](/guides/projects/open-an-audacity-project/) — Bawa proyek .aup3 atau .aup4 yang sudah ada ke Soundscaper dengan treknya tetap utuh.
-- [Change a clip’s sample rate](/guides/projects/change-a-clips-sample-rate/) — Resample klip agar sesuai dengan laju yang digunakan oleh sisa proyek.
+- [Ekspor setiap trek sebagai berkas tersendiri](/guides/projects/export-each-track-as-its-own-file/) — Render trek secara terpisah, sebagai stem, dalam satu unduhan.
+- [Simpan proyek Anda](/guides/projects/save-your-project/) — Simpan proyek, dengan setiap trek dan edit, di perpustakaan proyek lokal.
+- [Pindahkan proyek antara komputer](/guides/projects/move-a-project-between-computers/) — Ekspor proyek keseluruhan sebagai satu berkas, lalu buka berkas tersebut di tempat lain.
+- [Buka proyek Audacity](/guides/projects/open-an-audacity-project/) — Bawa proyek .aup3 atau .aup4 yang ada ke Soundscaper dengan treknya yang utuh.
+- [Ubah tingkat sampel klip](/guides/projects/change-a-clips-sample-rate/) — Resample klip sehingga sesuai dengan tingkat yang digunakan oleh sisa proyek.
 
 ## Referensi
 
-- [The export formats, their containers and channel limits are in the export formats reference.](/reference/generated/formats/)
-- [Every menu command and its keyboard shortcut is in the commands and shortcuts reference.](/reference/generated/commands/)
+- [Format ekspor, kontainer mereka, dan batas saluran mereka ada di referensi format ekspor.](/reference/generated/formats/)
+- [Setiap perintah menu dan pintasan keyboard ada di referensi perintah dan pintasan.](/reference/generated/commands/)
 
 ## Tentang panduan ini
 
-Prosedur di halaman ini — setiap entri menu, dialog, bidang dan tombol, serta hasil yang dihasilkannya — diputar ulang terhadap setiap build Soundscaper oleh suite browser (`tests/browser/soundscaper-guides.spec.js`). Jika salah satunya berhenti cocok dengan editor, build gagal sampai panduan diperbaiki. Nilai yang disarankan adalah titik awal yang terbukti diterima oleh editor; apakah cocok untuk rekaman Anda adalah keputusan telinga Anda.
+Prosedur di halaman ini — setiap entri menu, dialog, bidang, dan tombol, serta hasil yang dihasilkannya — diulang untuk setiap versi Soundscaper oleh suite browser (`tests/browser/soundscaper-guides.spec.js`). Jika salah satunya tidak sesuai dengan editor, versi tersebut akan gagal hingga panduan diperbaiki. Nilai yang disarankan adalah titik awal yang terbukti diterima oleh editor; apakah mereka cocok dengan rekaman Anda adalah keputusan yang harus diambil oleh telinga Anda.

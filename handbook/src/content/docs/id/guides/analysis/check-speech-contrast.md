@@ -8,32 +8,32 @@ head:
   - tag: script
     attrs:
       type: "application/ld+json"
-    content: "{\"@context\":\"https://schema.org\",\"@type\":\"HowTo\",\"name\":\"Check that speech stands out from its background\",\"description\":\"Measure how far a voice sits above the noise behind it, the way accessibility guidelines ask.\",\"tool\":[{\"@type\":\"HowToTool\",\"name\":\"Soundscaper\"}],\"step\":[{\"@type\":\"HowToStep\",\"position\":1,\"name\":\"Open Soundscaper. A new, empty project is ready as soon as the editor loads.\",\"text\":\"Open Soundscaper. A new, empty project is ready as soon as the editor loads.\"},{\"@type\":\"HowToStep\",\"position\":2,\"name\":\"Choose File → Import audio and pick the recording with speech over background noise. The file lands as a clip on its own track.\",\"text\":\"Choose File → Import audio and pick the recording with speech over background noise. The file lands as a clip on its own track.\"},{\"@type\":\"HowToStep\",\"position\":3,\"name\":\"Drag in the ruler above the clip to select a stretch of background with nobody speaking.\",\"text\":\"Drag in the ruler above the clip to select a stretch of background with nobody speaking. The background measurement should contain only the noise the voice has to compete with.\"},{\"@type\":\"HowToStep\",\"position\":4,\"name\":\"Choose Analyze → Contrast. The Contrast panel opens.\",\"text\":\"Choose Analyze → Contrast. The Contrast panel opens.\"},{\"@type\":\"HowToStep\",\"position\":5,\"name\":\"In the Contrast panel, press Measure background. The panel keeps the selection’s level as the background.\",\"text\":\"In the Contrast panel, press Measure background. The panel keeps the selection’s level as the background.\"},{\"@type\":\"HowToStep\",\"position\":6,\"name\":\"Drag in the ruler above the clip to select a passage of speech.\",\"text\":\"Drag in the ruler above the clip to select a passage of speech. Pick ordinary speech rather than the loudest word, since the whole passage is averaged.\"},{\"@type\":\"HowToStep\",\"position\":7,\"name\":\"In the Contrast panel, press Measure foreground. The panel reports the foreground level, the background level and the difference between them.\",\"text\":\"In the Contrast panel, press Measure foreground. The panel reports the foreground level, the background level and the difference between them. The foreground and background levels, their difference in dB, and whether the difference meets the recommended 20 dB.\"}]}"
+    content: "{\"@context\":\"https://schema.org\",\"@type\":\"HowTo\",\"name\":\"Check that speech stands out from its background\",\"description\":\"Measure how far a voice sits above the noise behind it, the way accessibility guidelines ask.\",\"tool\":[{\"@type\":\"HowToTool\",\"name\":\"Soundscaper\"}],\"step\":[{\"@type\":\"HowToStep\",\"position\":1,\"name\":\"Open Soundscaper. A new, empty project is ready as soon as the editor loads.\",\"text\":\"Open Soundscaper. A new, empty project is ready as soon as the editor loads.\"},{\"@type\":\"HowToStep\",\"position\":2,\"name\":\"Choose File → Import and pick the recording with speech over background noise. It lands as a clip on its own track.\",\"text\":\"Choose File → Import and pick the recording with speech over background noise. It lands as a clip on its own track.\"},{\"@type\":\"HowToStep\",\"position\":3,\"name\":\"Drag in the ruler above the clip to select a stretch of background with nobody speaking.\",\"text\":\"Drag in the ruler above the clip to select a stretch of background with nobody speaking. The background measurement should contain only the noise the voice has to compete with.\"},{\"@type\":\"HowToStep\",\"position\":4,\"name\":\"Choose Analyze → Contrast. The Contrast panel opens.\",\"text\":\"Choose Analyze → Contrast. The Contrast panel opens.\"},{\"@type\":\"HowToStep\",\"position\":5,\"name\":\"In the Contrast panel, press Measure background. The panel keeps the selection’s level as the background.\",\"text\":\"In the Contrast panel, press Measure background. The panel keeps the selection’s level as the background.\"},{\"@type\":\"HowToStep\",\"position\":6,\"name\":\"Drag in the ruler above the clip to select a passage of speech.\",\"text\":\"Drag in the ruler above the clip to select a passage of speech. Pick ordinary speech rather than the loudest word, since the whole passage is averaged.\"},{\"@type\":\"HowToStep\",\"position\":7,\"name\":\"In the Contrast panel, press Measure foreground. The panel reports the foreground level, the background level and the difference between them.\",\"text\":\"In the Contrast panel, press Measure foreground. The panel reports the foreground level, the background level and the difference between them. The foreground and background levels, their difference in dB, and whether the difference meets the recommended 20 dB.\"}]}"
 ---
-<!-- docs-ai-provenance: {"factPacketSha256":"8d29b926665c31c888346d023adb621b891435a25617b140144789b7e0b97b97","model":"aya-expanse:32b","modelDigest":"1603440383bd5504dc7afd01c0407b425b988dde650a8dc1a737433baa3cd432","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"8d29b926665c31c888346d023adb621b891435a25617b140144789b7e0b97b97","targetLocale":"id"} -->
+<!-- docs-ai-provenance: {"factPacketSha256":"2284b517195eb89b164851099b86e83abc4362133f605f353bb07e0bf733b701","model":"aya-expanse:32b","modelDigest":"1603440383bd5504dc7afd01c0407b425b988dde650a8dc1a737433baa3cd432","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"2284b517195eb89b164851099b86e83abc4362133f605f353bb07e0bf733b701","targetLocale":"id"} -->
 
 <!-- Generated by `node scripts/docs-reference.mjs`. Do not edit. -->
 
-Suara yang hanya sedikit lebih keras dari ruangan di belakangnya sulit untuk diikuti, dan pedoman aksesibilitas menetapkan angka pada hal ini: suara harus berada setidaknya 20 dB di atas latar belakangnya. Analisis Kontras mengukur rentang latar belakang dan rentang suara, melaporkan perbedaan, dan menyatakan apakah itu memenuhi rekomendasi tersebut. Ini adalah analisis yang ditawarkan Audacity 3 untuk pemeriksaan WCAG, dan Audacity 4 tidak menyertakannya.
+Suara yang hanya sedikit lebih keras dari ruangan di belakangnya sulit untuk diikuti, dan pedoman aksesibilitas menetapkan angka padanya: suara harus berada setidaknya 20 dB di atas latar belakangnya. Analisis Kontras mengukur rentang latar belakang dan rentang suara, melaporkan perbedaan, dan menyatakan apakah itu memenuhi rekomendasi tersebut. Ini adalah analisis yang ditawarkan Audacity 3 untuk pemeriksaan WCAG, dan Audacity 4 tidak memasukkannya.
 
-:::note[Beralih dari Audacity?]
+:::note[Berasal dari Audacity?]
 Ini adalah **Analisis → Kontras (Audacity 3; Audacity 4 tidak memiliki Analisis Kontras)**. Nama-nama di bawah ini adalah nama milik Soundscaper, yang terkadang berbeda.
 :::
 
 ## Langkah-langkah
 
 1. Buka Soundscaper. Proyek baru dan kosong siap segera setelah editor dimuat.
-2. Pilih **Berkas → Impor audio** dan pilih rekaman dengan suara di atas kebisingan latar belakang. File tersebut mendarat sebagai klip di lintasan sendiri.
-3. Seret di penggaris di atas klip untuk memilih rentang latar belakang tanpa ada yang berbicara. Pengukuran latar belakang harus berisi hanya kebisingan yang harus dilawan suara.
-4. Pilih **Analisis → Kontras**. Panel Kontras terbuka.
-5. Di panel Kontras, tekan **Ukur Latar Belakang**. Panel menyimpan tingkat pemilihan sebagai latar belakang.
-6. Seret di penggaris di atas klip untuk memilih bagian suara. Pilih ucapan biasa daripada kata terdengar paling keras, karena seluruh bagian akan dirata-ratakan.
-7. Di panel Kontras, tekan **Ukur Depan**. Panel melaporkan tingkat depan, tingkat latar belakang, dan perbedaan di antara keduanya.
-   *Anda harus melihat:* Tingkat depan dan latar belakang, perbedaan mereka dalam dB, dan apakah perbedaan memenuhi rekomendasi 20 dB.
+2. Pilih **Berkas → Impor** dan pilih rekaman dengan suara di atas kebisingan latar belakang. Rekaman tersebut mendarat sebagai klip di treknya sendiri.
+3. Seret di penggaris di atas klip untuk memilih rentang latar belakang tanpa ada yang berbicara. Pengukuran latar belakang harus berisi hanya kebisingan yang harus diperebutkan suara.
+4. Pilih **Analisis → Kontras**. Panel **Kontras** terbuka.
+5. Di panel **Kontras**, tekan **Ukur Latar Belakang**. Panel menyimpan tingkat pemilihan sebagai latar belakang.
+6. Seret di penggaris di atas klip untuk memilih bagian suara. Pilih ucapan biasa daripada kata paling keras, karena seluruh bagian rata-ratanya.
+7. Di panel **Kontras**, tekan **Ukur Latar Depan**. Panel melaporkan tingkat latar depan, tingkat latar belakang, dan perbedaan di antara keduanya.
+   *Anda harus melihat:* Tingkat latar depan dan latar belakang, perbedaannya dalam dB, dan apakah perbedaan memenuhi rekomendasi 20 dB.
 
 ## Tips
 
-- Jika perbedaan tidak mencukupi, [kurangi kebisingan latar belakang](/guides/cleaning-up/remove-background-noise/) atau [ratakan suara dengan kompresor](/guides/volume/even-out-volume-with-a-compressor/), lalu ukur kembali.
+- Jika perbedaan kurang, [kurangi kebisingan latar belakang](/guides/cleaning-up/remove-background-noise/) atau [ratakan suara dengan kompresor](/guides/volume/even-out-volume-with-a-compressor/), lalu ukur lagi.
 - Pengukuran adalah rata-rata RMS atas pemilihan, jadi satu suku kata keras tidak menyelamatkan rekaman yang tenang.
 
 ## Panduan Terkait
@@ -41,11 +41,11 @@ Ini adalah **Analisis → Kontras (Audacity 3; Audacity 4 tidak memiliki Analisi
 Lebih banyak panduan [analisis](/guides/analysis/):
 
 - [Hapus kebisingan latar belakang](/guides/cleaning-up/remove-background-noise/) — Ajarkan Reduksi Kebisingan apa suara dengung itu, lalu hapus dari seluruh rekaman.
-- [Ratakan volume dengan kompresor](/guides/volume/even-out-volume-with-a-compressor/) — Kurangi selisih antara momen keras dan tenang sehingga ucapan lebih mudah diikuti.
+- [Ratakan volume dengan kompresor](/guides/volume/even-out-volume-with-a-compressor/) — Kurangi celah antara momen keras dan tenang sehingga ucapan lebih mudah diikuti.
 - [Ukur seberapa keras campuran Anda](/guides/analysis/measure-loudness/) — Baca loudness terintegrasi, rentang, dan puncak benar proyek seperti yang dilakukan penyiar.
 - [Lihat frekuensi apa yang terkandung dalam suara](/guides/analysis/plot-a-spectrum/) — Plot spektrum pemilihan untuk menemukan dengung, desisan, atau resonansi.
 - [Temukan di mana rekaman terpotong](/guides/analysis/find-clipping/) — Temukan tempat-tempat di mana rekaman mencapai skala penuh dan terdistorsi.
-- [Temukan ketukan dalam loop](/guides/analysis/find-the-beats/) — Biarkan Analisis Ketukan menandai setiap ketukan yang didengarnya.
+- [Temukan ketukan dalam loop](/guides/analysis/find-the-beats/) — Biarkan Analisis Penemu Ketukan menandai setiap ketukan yang didengarnya.
 
 ## Referensi
 
@@ -53,4 +53,4 @@ Lebih banyak panduan [analisis](/guides/analysis/):
 
 ## Tentang panduan ini
 
-Prosedur di halaman ini — setiap entri menu, dialog, bidang, dan tombol, serta hasil yang dihasilkannya — diulang terhadap setiap build Soundscaper oleh suite browser (`tests/browser/soundscaper-guides.spec.js`). Jika salah satunya tidak sesuai dengan editor, build akan gagal hingga panduan diperbaiki. Nilai yang disarankan adalah titik awal yang diterima oleh editor; apakah mereka cocok dengan rekaman Anda adalah keputusan yang harus diambil oleh telinga Anda.
+Prosedur di halaman ini — setiap entri menu, dialog, bidang, dan tombol, serta hasil yang dihasilkannya — diulang terhadap setiap versi Soundscaper oleh suite browser (`tests/browser/soundscaper-guides.spec.js`). Jika salah satunya berhenti sesuai dengan editor, versi gagal sampai panduan diperbaiki. Nilai yang disarankan adalah titik awal yang diterima oleh editor; apakah mereka cocok dengan rekaman Anda adalah keputusan untuk telinga Anda.
