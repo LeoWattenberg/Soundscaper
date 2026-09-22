@@ -10,6 +10,7 @@ import { PROJECT_FEATURE_AUDIO_EFFECT_TYPES } from '../src/common/editor/project
 import { EFFECT_MENU_GROUPS } from '../src/common/editor/ui/application-menu-model.js';
 import { createNyquistPluginMenuItems } from '../src/common/editor/ui/nyquist-plugin-menu-items.js';
 import { getNyquistPlugin } from '../src/common/editor/nyquist/plugin-registry.js';
+import { createNyquistArchiveStore, NYQUIST_ARCHIVE_ID } from '../src/common/editor/nyquist/archive-store.js';
 import {
 	effectHasEditableSettings, nativeEffectOptionLabel, nativeEffectParameterLabel,
 } from '../src/common/editor/ui/inspector/effect-helpers.ts';
@@ -51,6 +52,36 @@ test('converted bundled processors leave Legacy while their pinned sources remai
 		assert.ok(!legacyIds.includes(id), `${id} should be reached through its regular effect`);
 	}
 	assert.ok(legacyIds.includes('nyquist:adjustable-fade'));
+});
+
+test('an installed archive effect appears in Legacy and can be removed', () => {
+	const values = new Map<string, string>();
+	const storage = {
+		getItem: (key: string) => values.get(key) ?? null,
+		setItem: (key: string, value: string) => { values.set(key, value); },
+	};
+	const store = createNyquistArchiveStore(storage);
+	const id = 'nyquist:archive:Test-Effect.ny';
+	store.install({
+		id, fileName: 'Test-Effect.ny', archiveId: NYQUIST_ARCHIVE_ID,
+		source: '$nyquist plug-in\n$type process\n$name "Test Effect"\n(mult *track* 0.5)',
+	});
+	const opened: string[] = [];
+	const reader = createNyquistPluginMenuItems({
+		editBlocked: false, blocked: false, selectedAudioTrack: {},
+		frequencySelectionActive: true, selectionActive: true, archiveStorage: storage,
+	}, { openNyquist: (pluginId: string) => { opened.push(pluginId); } });
+	const item = reader('legacy').find((candidate: { id: string }) => candidate.id === id);
+	assert.equal(item?.label, 'Test Effect');
+	assert.equal(item?.disabled, false);
+	item?.onClick();
+	assert.deepEqual(opened, [id]);
+	store.remove(id);
+	const afterRemoval = createNyquistPluginMenuItems({
+		editBlocked: false, blocked: false, selectedAudioTrack: {},
+		frequencySelectionActive: true, selectionActive: true, archiveStorage: storage,
+	}, { openNyquist: (pluginId: string) => { opened.push(pluginId); } });
+	assert.ok(!afterRemoval('legacy').some((candidate: { id: string }) => candidate.id === id));
 });
 
 test('regular controls and choices have English and German labels', () => {

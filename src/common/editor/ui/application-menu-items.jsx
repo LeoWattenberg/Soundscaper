@@ -22,12 +22,14 @@ export function renderApplicationMenuItem(item, key, { closeMenu, onActivate = /
 		onActivate?.();
 		return item.onClick(...args);
 	};
+	const labelContent = item.id === 'nyquist-effects'
+		? <span data-nyquist-effect-menu>{item.label}</span> : item.label;
 	const plainLabel = item.disabledReason ? (
 		<span title={item.disabledReason} data-disabled-reason={item.disabledReason}>
-			{item.label}
+			{labelContent}
 			<span className="kw-audio-editor-sr-only"> — {item.disabledReason}</span>
 		</span>
-	) : item.label;
+	) : labelContent;
 	const label = item.checked === undefined ? plainLabel : (
 		<span data-audio-editor-menu-checked={item.checked ? 'true' : 'false'}>{plainLabel}</span>
 	);

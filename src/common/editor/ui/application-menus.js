@@ -29,6 +29,7 @@ import { createCrossProductHandoffMenuItems } from './cross-product-handoff-menu
 import { projectHasTimelineAudio, projectHasTimelineVideo } from './timeline-media-presence.ts';
 import { exportSurfaceMenuLabel } from './export-surface-copy.ts';
 import { createNyquistPluginMenuItems } from './nyquist-plugin-menu-items.js';
+import { resolveNyquistArchiveCopy } from '../../i18n/editor-nyquist-archive-copy.ts';
 import { audioSelectionEffectAppliesToAllAudio } from '../effects.js';
 import { selectAudioEditorLabelEditBlock } from '../label-edit-blocking.ts';
 import { createEffectMacroApplicationMenu } from './macro-application-menu.ts';
@@ -445,7 +446,11 @@ export default function createApplicationMenus({
 				{
 					id: 'nyquist-effects',
 					label: copy.nyquist,
-					items: nyquistItems('legacy'),
+					items: [
+						{ id: 'nyquist-get-effects', label: resolveNyquistArchiveCopy(copy).getEffects, onClick: () => actions.openNyquist('__get-effects__') },
+						divider(),
+						...nyquistItems('legacy'),
+					],
 				},
 				{
 					id: 'spectral-effects',

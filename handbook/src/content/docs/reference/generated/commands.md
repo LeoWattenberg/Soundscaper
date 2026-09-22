@@ -198,6 +198,7 @@ Product availability follows each product profile’s command filters and each l
 | Fullscreen | `fullscreen` | F11 | View | Soundscaper, Framescaper | Audacity |
 | Generate | `framescaper-proxy-generate` | — | Tools > Proxies | Framescaper | Soundscaper local |
 | Generate Editorial Text… | `assistance-task-generate-editorial-text` | — | Generate | Soundscaper, Framescaper | Soundscaper local |
+| Get effects | `nyquist-get-effects` | — | Effect > Nyquist | Soundscaper | Soundscaper local |
 | Grading & Finishing Presets | `framescaper-grading-presets` | — | Effect > Video Finishing | Framescaper | Soundscaper local |
 | Graphic EQ | `audacity-graphic-eq` | — | Effect > EQ and filters | Soundscaper | Soundscaper local |
 | Group clips | `group-clips` | Ctrl+G | Edit > Clip; Clip context | Soundscaper, Framescaper | Audacity |

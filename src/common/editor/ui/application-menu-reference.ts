@@ -148,6 +148,7 @@ const REFERENCE_SEEDS: readonly ReferenceSeed[] = Object.freeze([
 	// Soundscaper native effects and destructive selection effects.
 	['native-effect-manage', 'Plugin Manager', 'Effect', SOUNDSCAPER],
 	['native-effect-use', 'Audio Plugins', 'Effect', SOUNDSCAPER],
+	['nyquist-get-effects', 'Get effects', 'Effect > Nyquist', SOUNDSCAPER],
 	['audacity-amplify', 'Amplify', 'Effect > Volume and compression', SOUNDSCAPER],
 	['audacity-auto-duck', 'Auto Duck', 'Effect > Volume and compression', SOUNDSCAPER],
 	['audacity-compressor', 'Compressor', 'Effect > Volume and compression', SOUNDSCAPER],

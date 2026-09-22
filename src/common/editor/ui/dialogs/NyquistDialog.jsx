@@ -4,11 +4,20 @@ import { Button } from '@soundscaper/design-system/Button';
 import { DialogFooter } from '@soundscaper/design-system/Footer';
 
 import { getNyquistPlugin, loadNyquistPluginSource } from '../../nyquist/plugin-registry.js';
+import { nyquistArchiveStore } from '../../nyquist/archive-store.js';
 import AudioEditorDialogShell from '../AudioEditorDialogShell.tsx';
 import AudioEditorTimeCodeInput from '../AudioEditorTimeCodeInput.tsx';
+import NyquistGetEffectsDialog from './NyquistGetEffectsDialog.jsx';
 
 export default function NyquistDialog({ controller, snapshot, copy, target, run, onClose }) {
-	const plugin = target?.pluginId ? getNyquistPlugin(target.pluginId) : null;
+	if (target?.pluginId === '__get-effects__') return <NyquistGetEffectsDialog copy={copy} onClose={onClose} />;
+	return <NyquistRunnerDialog controller={controller} snapshot={snapshot} copy={copy} target={target} run={run} onClose={onClose} />;
+}
+
+function NyquistRunnerDialog({ controller, snapshot, copy, target, run, onClose }) {
+	const plugin = target?.pluginId
+		? getNyquistPlugin(target.pluginId) || nyquistArchiveStore.list().find((candidate) => candidate.id === target.pluginId)
+		: null;
 	const prompt = !plugin;
 	const targetIdentity = plugin?.id || 'prompt';
 	const submissionRef = useRef(null);
@@ -74,7 +83,10 @@ export default function NyquistDialog({ controller, snapshot, copy, target, run,
 				try {
 					const evaluationSource = prompt
 						? source
-						: await loadNyquistPluginSource(plugin, { signal: submission.signal });
+						: plugin.archiveId
+							? nyquistArchiveStore.source(plugin.id)
+							: await loadNyquistPluginSource(plugin, { signal: submission.signal });
+					if (evaluationSource === null) throw new Error('Installed Nyquist plug-in is no longer available.');
 					if (submission.signal.aborted) return null;
 					if (prompt) storeNyquistPromptSource(source);
 					const request = {

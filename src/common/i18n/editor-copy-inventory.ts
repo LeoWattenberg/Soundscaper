@@ -34,6 +34,7 @@ import { SELECTED_VISUAL_AUTHORING_COPY, SELECTED_VISUAL_AUTHORING_SURFACE_COPY 
 import { SOURCE_STATUS_COPY_BY_LOCALE } from './editor-source-status-copy.ts';
 import { FREESOUND_ATTRIBUTION_INVENTORY_COPY_BY_LOCALE } from './editor-freesound-attribution-inventory-copy.ts';
 import { DESKTOP_MCP_COPY_BY_LOCALE } from './editor-desktop-mcp-copy.ts';
+import { NYQUIST_ARCHIVE_COPY_BY_LOCALE } from './editor-nyquist-archive-copy.ts';
 
 export interface EditorCopyOwner {
 	readonly owner: string;
@@ -127,6 +128,7 @@ const inventory = buildEditorCopyInventory(ENGLISH_COPY, GERMAN_COPY, [
 	{ owner: 'crossProductHandoff', ...CROSS_PRODUCT_HANDOFF_COPY_BY_LOCALE },
 	{ owner: 'importStatus', ...IMPORT_STATUS_COPY_BY_LOCALE },
 	{ owner: 'effectsOverlay', ...EFFECTS_OVERLAY_COPY_BY_LOCALE },
+	{ owner: 'nyquistArchive', ...NYQUIST_ARCHIVE_COPY_BY_LOCALE },
 	{ owner: 'sourceStatus', ...SOURCE_STATUS_COPY_BY_LOCALE },
 	{ owner: 'freesoundAttribution', ...FREESOUND_ATTRIBUTION_INVENTORY_COPY_BY_LOCALE },
 	{ owner: 'selectedVisualAuthoring', en: SELECTED_VISUAL_AUTHORING_COPY },
