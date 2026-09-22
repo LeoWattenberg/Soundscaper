@@ -2,7 +2,7 @@
 	"schemaVersion": 2,
 	"locale": "vi",
 	"provenance": {
-		"machine": {"model":"codex","modelDigest":"sha256:d14a945b930886cf3c30e8fda04ac3fef94b711327be38a0ec1092267b320403","promptVersion":"i18n-machine-v1"},
+		"machine": {"model":"codex","modelDigest":"sha256:f3e7b7959ae87cb58dc6181a098d775c43e0fa16efd0c6dd0eedc17ba74ae612","promptVersion":"i18n-machine-v1"},
 		"audacity": {"repository":"audacity/audacity","headSha":"de2e43dc13474ba712ade5ea8e47550eba0e8bfb","runId":35327911264,"artifactId":10539339149,"workflowUrl":"https://github.com/audacity/audacity/actions/runs/35327911264","archiveName":"Audacity_locale_262610911.zip","archiveSha256":"13b1ff11c39a677c711a1d29738a394aaca7a200533927aab3f45bbd76c1ff8e","archiveByteLength":15413913,"licenseSpdx":"GPL-3.0-only","upstreamProjectUrl":"https://github.com/audacity/audacity","upstreamLicenseUrl":"https://github.com/audacity/audacity/blob/de2e43dc13474ba712ade5ea8e47550eba0e8bfb/LICENSE.txt","modificationNotice":"Soundscaper converts reviewed Audacity Qt TS messages to per-locale JSON catalogs, excludes unsafe or inapplicable entries, adapts reviewed placeholders and mnemonics, and removes ellipsis punctuation.","mappingVersion":3,"mappingSha256":"f4cf0434f47eaa9434d079a1623b9d9501e9c8da0d83f0c73344f7765113b57c"}
 	},
 	"entries": {
@@ -1441,6 +1441,7 @@
 		"layoutCompact": ["machine","Compact (menus and track headers in drawers)","Gọn (menu và tiêu đề track trong ngăn kéo)"],
 		"layoutDesktop": ["machine","Desktop","Máy tính để bàn"],
 		"leadInTime": ["machine","Enable lead-in time","Bật thời gian đếm trước"],
+		"leadInTimeOption": ["machine","Lead-in time","Thời gian đếm trước"],
 		"leftAtPlayback": ["machine","Left at playback position","Trái tại vị trí phát"],
 		"leftChannel": ["machine","Left","Trái"],
 		"legacyEffects": ["machine","Legacy effects","Hiệu ứng cũ"],
@@ -1983,6 +1984,7 @@
 		"recordLevel": ["machine","Record level","Mức ghi âm"],
 		"recordMenu": ["machine","Record","Ghi âm"],
 		"recordNewTrack": ["machine","Record new track","Ghi âm trên track mới"],
+		"recordToNewTrack": ["machine","Record to new track","Ghi âm vào track mới"],
 		"recording": ["machine","Recording","Đang ghi âm"],
 		"recordingAllowInputs": ["machine","Enable microphones","Bật micro"],
 		"recordingAssignInput": ["machine","Assign an input to at least one armed track before recording.","Gán một đầu vào cho ít nhất một track đã bật ghi trước khi ghi âm."],
@@ -2242,7 +2244,6 @@
 		"signatureEvent": ["machine","Time signature event","Sự kiện số chỉ nhịp"],
 		"signatureEvents": ["machine","Time signature events","Các sự kiện số chỉ nhịp"],
 		"silenceAudio": ["machine","Silence audio","Làm im lặng audio"],
-		"silenceFinder": ["machine","Silence finder","Bộ tìm khoảng lặng"],
 		"silenceGenerator": ["machine","Silence","Khoảng lặng"],
 		"skin": ["machine","Skin","Giao diện"],
 		"skinCarousel": ["machine","carousel","băng chuyền"],
@@ -2306,7 +2307,6 @@
 		"soundActivationStatusEnabled": ["machine","Sound-activated recording is on.","Ghi âm kích hoạt bằng âm thanh đang bật."],
 		"soundActivationThreshold": ["machine","Activation threshold","Ngưỡng kích hoạt"],
 		"soundActivationThresholdDescription": ["machine","Capture begins at or above this input level.","Việc ghi bắt đầu khi tín hiệu đầu vào đạt hoặc vượt mức này."],
-		"soundFinder": ["machine","Sound finder","Bộ tìm âm thanh"],
 		"sourceAlpha": ["machine","Alpha channel","Kênh alpha"],
 		"sourceAudioCodec": ["machine","Audio codec","Codec audio"],
 		"sourceAudioStreams": ["machine","Audio streams","Luồng audio"],
@@ -2463,6 +2463,7 @@
 		"timeSignature": ["machine","Time signature","Số chỉ nhịp"],
 		"timecode": ["audacity","Timecode","Mã thời gian"],
 		"timedRecording": ["machine","Set up timed recording","Thiết lập ghi âm hẹn giờ"],
+		"timedRecordingAction": ["machine","Timed recording","Ghi âm hẹn giờ"],
 		"timedRecordingAssignedInputsUnavailable": ["machine","Every assigned recording input must remain available for timer recording.","Mọi đầu vào ghi âm đã gán phải luôn khả dụng để ghi âm hẹn giờ."],
 		"timedRecordingCancel": ["machine","Cancel scheduled recording","Hủy ghi âm đã lên lịch"],
 		"timedRecordingCancelled": ["machine","Scheduled recording cancelled.","Đã hủy ghi âm đã lên lịch."],

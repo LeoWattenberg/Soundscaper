@@ -2,7 +2,7 @@
 	"schemaVersion": 2,
 	"locale": "hy",
 	"provenance": {
-		"machine": {"model":"codex","modelDigest":"sha256:f9e5617b727e3f11cb54fbff2e2c59a12b4f2c750e04442f60114542c2d53a3c","promptVersion":"i18n-machine-v1"},
+		"machine": {"model":"codex","modelDigest":"sha256:c6ac0d4321037b71e9ee19bee9a65284377d8d56194feb47d93196ce05dd6291","promptVersion":"i18n-machine-v1"},
 		"audacity": {"repository":"audacity/audacity","headSha":"de2e43dc13474ba712ade5ea8e47550eba0e8bfb","runId":35327911264,"artifactId":10539339149,"workflowUrl":"https://github.com/audacity/audacity/actions/runs/35327911264","archiveName":"Audacity_locale_262610911.zip","archiveSha256":"13b1ff11c39a677c711a1d29738a394aaca7a200533927aab3f45bbd76c1ff8e","archiveByteLength":15413913,"licenseSpdx":"GPL-3.0-only","upstreamProjectUrl":"https://github.com/audacity/audacity","upstreamLicenseUrl":"https://github.com/audacity/audacity/blob/de2e43dc13474ba712ade5ea8e47550eba0e8bfb/LICENSE.txt","modificationNotice":"Soundscaper converts reviewed Audacity Qt TS messages to per-locale JSON catalogs, excludes unsafe or inapplicable entries, adapts reviewed placeholders and mnemonics, and removes ellipsis punctuation.","mappingVersion":3,"mappingSha256":"f4cf0434f47eaa9434d079a1623b9d9501e9c8da0d83f0c73344f7765113b57c"}
 	},
 	"entries": {
@@ -1441,6 +1441,7 @@
 		"layoutCompact": ["machine","Compact (menus and track headers in drawers)","Կոմպակտ (ցանկերն ու թրեքի գլխամասերը դարակներում)"],
 		"layoutDesktop": ["machine","Desktop","Աշխատասեղան"],
 		"leadInTime": ["machine","Enable lead-in time","Միացնել նախահաշվարկի ժամանակը"],
+		"leadInTimeOption": ["machine","Lead-in time","Նախահաշվարկի ժամանակ"],
 		"leftAtPlayback": ["machine","Left at playback position","Ձախը՝ նվագարկման դիրքում"],
 		"leftChannel": ["machine","Left","Ձախ"],
 		"legacyEffects": ["machine","Legacy effects","Հնացած էֆեկտներ"],
@@ -1983,6 +1984,7 @@
 		"recordLevel": ["machine","Record level","Ձայնագրման մակարդակ"],
 		"recordMenu": ["machine","Record","Ձայնագրել"],
 		"recordNewTrack": ["machine","Record new track","Ձայնագրել նոր թրեք"],
+		"recordToNewTrack": ["machine","Record to new track","Ձայնագրել նոր թրեքի վրա"],
 		"recording": ["machine","Recording","Ձայնագրում"],
 		"recordingAllowInputs": ["machine","Enable microphones","Միացնել խոսափողերը"],
 		"recordingAssignInput": ["machine","Assign an input to at least one armed track before recording.","Ձայնագրելուց առաջ մուտք նշանակեք առնվազն մեկ ակտիվացված թրեքի համար։"],
@@ -2242,7 +2244,6 @@
 		"signatureEvent": ["machine","Time signature event","Տակտաչափի իրադարձություն"],
 		"signatureEvents": ["machine","Time signature events","Տակտաչափի իրադարձություններ"],
 		"silenceAudio": ["machine","Silence audio","Լռեցնել աուդիոն"],
-		"silenceFinder": ["machine","Silence finder","Լռության որոնիչ"],
 		"silenceGenerator": ["machine","Silence","Լռություն"],
 		"skin": ["machine","Skin","Ոճ"],
 		"skinCarousel": ["machine","carousel","կարուսել"],
@@ -2306,7 +2307,6 @@
 		"soundActivationStatusEnabled": ["machine","Sound-activated recording is on.","Ձայնով ակտիվացվող ձայնագրումը միացված է:"],
 		"soundActivationThreshold": ["machine","Activation threshold","Ակտիվացման շեմ"],
 		"soundActivationThresholdDescription": ["machine","Capture begins at or above this input level.","Գրանցումը սկսվում է այս մուտքային մակարդակին հասնելիս կամ բարձր լինելիս:"],
-		"soundFinder": ["machine","Sound finder","Ձայնի որոնիչ"],
 		"sourceAlpha": ["machine","Alpha channel","Ալֆա ալիք"],
 		"sourceAudioCodec": ["machine","Audio codec","Աուդիո կոդեկ"],
 		"sourceAudioStreams": ["machine","Audio streams","Աուդիո հոսքեր"],
@@ -2463,6 +2463,7 @@
 		"timeSignature": ["machine","Time signature","Չափի նշան"],
 		"timecode": ["audacity","Timecode","Ժամային կոդ"],
 		"timedRecording": ["machine","Set up timed recording","Կարգավորել ժամանակացույցով ձայնագրությունը"],
+		"timedRecordingAction": ["machine","Timed recording","Ժամանակացույցով ձայնագրություն"],
 		"timedRecordingAssignedInputsUnavailable": ["machine","Every assigned recording input must remain available for timer recording.","Ժամանակացույցով ձայնագրության համար բոլոր նշանակված մուտքերը պետք է հասանելի մնան։"],
 		"timedRecordingCancel": ["machine","Cancel scheduled recording","Չեղարկել պլանավորված ձայնագրությունը"],
 		"timedRecordingCancelled": ["machine","Scheduled recording cancelled.","Պլանավորված ձայնագրությունը չեղարկվեց։"],

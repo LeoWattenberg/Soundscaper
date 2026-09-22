@@ -2,7 +2,7 @@
 	"schemaVersion": 2,
 	"locale": "ko",
 	"provenance": {
-		"machine": {"model":"codex","modelDigest":"sha256:874adc45358bb302fe2475dcb5ae50fc432a17654df128d7e2df4509d15b4d69","promptVersion":"i18n-machine-v1"},
+		"machine": {"model":"codex","modelDigest":"sha256:dc0fded90c43c726d5f941e473cec75c1e43da190680d1cef1bfeb73538d5b13","promptVersion":"i18n-machine-v1"},
 		"audacity": {"repository":"audacity/audacity","headSha":"de2e43dc13474ba712ade5ea8e47550eba0e8bfb","runId":35327911264,"artifactId":10539339149,"workflowUrl":"https://github.com/audacity/audacity/actions/runs/35327911264","archiveName":"Audacity_locale_262610911.zip","archiveSha256":"13b1ff11c39a677c711a1d29738a394aaca7a200533927aab3f45bbd76c1ff8e","archiveByteLength":15413913,"licenseSpdx":"GPL-3.0-only","upstreamProjectUrl":"https://github.com/audacity/audacity","upstreamLicenseUrl":"https://github.com/audacity/audacity/blob/de2e43dc13474ba712ade5ea8e47550eba0e8bfb/LICENSE.txt","modificationNotice":"Soundscaper converts reviewed Audacity Qt TS messages to per-locale JSON catalogs, excludes unsafe or inapplicable entries, adapts reviewed placeholders and mnemonics, and removes ellipsis punctuation.","mappingVersion":3,"mappingSha256":"f4cf0434f47eaa9434d079a1623b9d9501e9c8da0d83f0c73344f7765113b57c"}
 	},
 	"entries": {
@@ -1441,6 +1441,7 @@
 		"layoutCompact": ["machine","Compact (menus and track headers in drawers)","컴팩트 (메뉴 및 트랙 헤더를 서랍에)"],
 		"layoutDesktop": ["machine","Desktop","데스크톱"],
 		"leadInTime": ["machine","Enable lead-in time","리드인 시간 활성화"],
+		"leadInTimeOption": ["machine","Lead-in time","리드인 시간"],
 		"leftAtPlayback": ["machine","Left at playback position","재생 위치에서 왼쪽"],
 		"leftChannel": ["machine","Left","왼쪽"],
 		"legacyEffects": ["machine","Legacy effects","레거시 이펙트"],
@@ -1983,6 +1984,7 @@
 		"recordLevel": ["machine","Record level","기록 레벨"],
 		"recordMenu": ["machine","Record","기록"],
 		"recordNewTrack": ["machine","Record new track","새로운 트랙에 기록"],
+		"recordToNewTrack": ["machine","Record to new track","새 트랙에 녹음"],
 		"recording": ["machine","Recording","기록 중"],
 		"recordingAllowInputs": ["machine","Enable microphones","마이크 사용 허용"],
 		"recordingAssignInput": ["machine","Assign an input to at least one armed track before recording.","기록 전에 적어도 하나의 무장된 트랙에 입력을 할당하십시오."],
@@ -2242,7 +2244,6 @@
 		"signatureEvent": ["machine","Time signature event","박자표 이벤트"],
 		"signatureEvents": ["machine","Time signature events","박자표 이벤트"],
 		"silenceAudio": ["machine","Silence audio","오디오를 무음으로 대체"],
-		"silenceFinder": ["machine","Silence finder","무음 찾기"],
 		"silenceGenerator": ["machine","Silence","무음"],
 		"skin": ["machine","Skin","스킨"],
 		"skinCarousel": ["machine","carousel","캐러셀"],
@@ -2306,7 +2307,6 @@
 		"soundActivationStatusEnabled": ["machine","Sound-activated recording is on.","사운드 활성화 녹음이 켜져 있습니다."],
 		"soundActivationThreshold": ["machine","Activation threshold","활성화 임계값"],
 		"soundActivationThresholdDescription": ["machine","Capture begins at or above this input level.","입력이 이 레벨 이상일 때 캡처가 시작됩니다."],
-		"soundFinder": ["machine","Sound finder","사운드 찾기"],
 		"sourceAlpha": ["machine","Alpha channel","알파 채널"],
 		"sourceAudioCodec": ["machine","Audio codec","오디오 코덱"],
 		"sourceAudioStreams": ["machine","Audio streams","오디오 스트림"],
@@ -2463,6 +2463,7 @@
 		"timeSignature": ["machine","Time signature","박자표"],
 		"timecode": ["audacity","Timecode","타임코드"],
 		"timedRecording": ["machine","Set up timed recording","시간 기반 녹음 설정"],
+		"timedRecordingAction": ["machine","Timed recording","시간 지정 녹음"],
 		"timedRecordingAssignedInputsUnavailable": ["machine","Every assigned recording input must remain available for timer recording.","시간 기반 녹음을 위해 모든 할당된 녹음 입력이 사용 가능해야 합니다."],
 		"timedRecordingCancel": ["machine","Cancel scheduled recording","예약된 녹음 취소"],
 		"timedRecordingCancelled": ["machine","Scheduled recording cancelled.","예약된 녹음 취소됨."],

@@ -2,7 +2,7 @@
 	"schemaVersion": 2,
 	"locale": "hi",
 	"provenance": {
-		"machine": {"model":"codex","modelDigest":"sha256:7c24ae49730a817c162e7493b2b49387d664e99b4a41529ad3c0c9c6864df447","promptVersion":"i18n-machine-v1"},
+		"machine": {"model":"codex","modelDigest":"sha256:cc5fc8f9cdfa075f2403c66c91b5d88edb45aa4d3f1486d2c6b34bcdc5083a61","promptVersion":"i18n-machine-v1"},
 		"audacity": {"repository":"audacity/audacity","headSha":"de2e43dc13474ba712ade5ea8e47550eba0e8bfb","runId":35327911264,"artifactId":10539339149,"workflowUrl":"https://github.com/audacity/audacity/actions/runs/35327911264","archiveName":"Audacity_locale_262610911.zip","archiveSha256":"13b1ff11c39a677c711a1d29738a394aaca7a200533927aab3f45bbd76c1ff8e","archiveByteLength":15413913,"licenseSpdx":"GPL-3.0-only","upstreamProjectUrl":"https://github.com/audacity/audacity","upstreamLicenseUrl":"https://github.com/audacity/audacity/blob/de2e43dc13474ba712ade5ea8e47550eba0e8bfb/LICENSE.txt","modificationNotice":"Soundscaper converts reviewed Audacity Qt TS messages to per-locale JSON catalogs, excludes unsafe or inapplicable entries, adapts reviewed placeholders and mnemonics, and removes ellipsis punctuation.","mappingVersion":3,"mappingSha256":"f4cf0434f47eaa9434d079a1623b9d9501e9c8da0d83f0c73344f7765113b57c"}
 	},
 	"entries": {
@@ -1441,6 +1441,7 @@
 		"layoutCompact": ["machine","Compact (menus and track headers in drawers)","कॉम्पैक्ट (मेनू और ट्रैक हेडर दराज़ों में)"],
 		"layoutDesktop": ["machine","Desktop","डेस्कटॉप"],
 		"leadInTime": ["machine","Enable lead-in time","लीड-इन समय सक्षम करें"],
+		"leadInTimeOption": ["machine","Lead-in time","लीड-इन समय"],
 		"leftAtPlayback": ["machine","Left at playback position","प्लेबैक स्थिति पर बायां"],
 		"leftChannel": ["machine","Left","बायां"],
 		"legacyEffects": ["machine","Legacy effects","पुराने प्रभाव"],
@@ -1983,6 +1984,7 @@
 		"recordLevel": ["machine","Record level","रिकॉर्ड स्तर"],
 		"recordMenu": ["machine","Record","रिकॉर्ड"],
 		"recordNewTrack": ["machine","Record new track","नए ट्रैक पर रिकॉर्ड करें"],
+		"recordToNewTrack": ["machine","Record to new track","नए ट्रैक पर रिकॉर्ड करें"],
 		"recording": ["machine","Recording","रिकॉर्डिंग जारी है"],
 		"recordingAllowInputs": ["machine","Enable microphones","माइक्रोफ़ोन सक्षम करें"],
 		"recordingAssignInput": ["machine","Assign an input to at least one armed track before recording.","रिकॉर्डिंग से पहले कम से कम एक आर्म्ड ट्रैक को एक इनपुट असाइन करें।"],
@@ -2242,7 +2244,6 @@
 		"signatureEvent": ["machine","Time signature event","टाइम सिग्नेचर इवेंट"],
 		"signatureEvents": ["machine","Time signature events","टाइम सिग्नेचर इवेंट"],
 		"silenceAudio": ["machine","Silence audio","ऑडियो को मौन करें"],
-		"silenceFinder": ["machine","Silence finder","मौन खोजक"],
 		"silenceGenerator": ["machine","Silence","मौन"],
 		"skin": ["machine","Skin","स्किन"],
 		"skinCarousel": ["machine","carousel","कैरोसेल"],
@@ -2306,7 +2307,6 @@
 		"soundActivationStatusEnabled": ["machine","Sound-activated recording is on.","ध्वनि-सक्रिय रिकॉर्डिंग चालू है।"],
 		"soundActivationThreshold": ["machine","Activation threshold","सक्रियण सीमा"],
 		"soundActivationThresholdDescription": ["machine","Capture begins at or above this input level.","इस इनपुट स्तर पर या उससे ऊपर कैप्चर शुरू होता है।"],
-		"soundFinder": ["machine","Sound finder","ध्वनि खोजक"],
 		"sourceAlpha": ["machine","Alpha channel","अल्फा चैनल"],
 		"sourceAudioCodec": ["machine","Audio codec","ऑडियो कोडेक"],
 		"sourceAudioStreams": ["machine","Audio streams","ऑडियो स्ट्रीम"],
@@ -2463,6 +2463,7 @@
 		"timeSignature": ["machine","Time signature","टाइम सिग्नेचर"],
 		"timecode": ["machine","Timecode","टाइमकोड"],
 		"timedRecording": ["machine","Set up timed recording","समयबद्ध रिकॉर्डिंग सेट करें"],
+		"timedRecordingAction": ["machine","Timed recording","समयबद्ध रिकॉर्डिंग"],
 		"timedRecordingAssignedInputsUnavailable": ["machine","Every assigned recording input must remain available for timer recording.","टाइमर रिकॉर्डिंग के लिए हर निर्दिष्ट रिकॉर्डिंग इनपुट उपलब्ध रहना चाहिए।"],
 		"timedRecordingCancel": ["machine","Cancel scheduled recording","निर्धारित रिकॉर्डिंग रद्द करें"],
 		"timedRecordingCancelled": ["machine","Scheduled recording cancelled.","निर्धारित रिकॉर्डिंग रद्द कर दी गई।"],

@@ -2,7 +2,7 @@
 	"schemaVersion": 2,
 	"locale": "uk",
 	"provenance": {
-		"machine": {"model":"codex","modelDigest":"sha256:e75c3d084614ecb183ab6990dc67d571b084999bcd69c065ef8d8d8de5a357cb","promptVersion":"i18n-machine-v1"},
+		"machine": {"model":"codex","modelDigest":"sha256:c65dadd190890e17aca746b59f40e5fcaf2d16f55ce6ded22364994451bf2166","promptVersion":"i18n-machine-v1"},
 		"audacity": {"repository":"audacity/audacity","headSha":"de2e43dc13474ba712ade5ea8e47550eba0e8bfb","runId":35327911264,"artifactId":10539339149,"workflowUrl":"https://github.com/audacity/audacity/actions/runs/35327911264","archiveName":"Audacity_locale_262610911.zip","archiveSha256":"13b1ff11c39a677c711a1d29738a394aaca7a200533927aab3f45bbd76c1ff8e","archiveByteLength":15413913,"licenseSpdx":"GPL-3.0-only","upstreamProjectUrl":"https://github.com/audacity/audacity","upstreamLicenseUrl":"https://github.com/audacity/audacity/blob/de2e43dc13474ba712ade5ea8e47550eba0e8bfb/LICENSE.txt","modificationNotice":"Soundscaper converts reviewed Audacity Qt TS messages to per-locale JSON catalogs, excludes unsafe or inapplicable entries, adapts reviewed placeholders and mnemonics, and removes ellipsis punctuation.","mappingVersion":3,"mappingSha256":"f4cf0434f47eaa9434d079a1623b9d9501e9c8da0d83f0c73344f7765113b57c"}
 	},
 	"entries": {
@@ -1441,6 +1441,7 @@
 		"layoutCompact": ["machine","Compact (menus and track headers in drawers)","Компактний (меню та заголовки доріжок у висувних панелях)"],
 		"layoutDesktop": ["machine","Desktop","Настільний"],
 		"leadInTime": ["machine","Enable lead-in time","Увімкнути час відліку"],
+		"leadInTimeOption": ["machine","Lead-in time","Час відліку"],
 		"leftAtPlayback": ["machine","Left at playback position","Ліва межа на позиції відтворення"],
 		"leftChannel": ["machine","Left","Лівий"],
 		"legacyEffects": ["machine","Legacy effects","Застарілі ефекти"],
@@ -1983,6 +1984,7 @@
 		"recordLevel": ["machine","Record level","Рівень запису"],
 		"recordMenu": ["machine","Record","Запис"],
 		"recordNewTrack": ["machine","Record new track","Записати на нову доріжку"],
+		"recordToNewTrack": ["machine","Record to new track","Записати на нову доріжку"],
 		"recording": ["machine","Recording","Запис"],
 		"recordingAllowInputs": ["machine","Enable microphones","Увімкнути мікрофони"],
 		"recordingAssignInput": ["machine","Assign an input to at least one armed track before recording.","Перш ніж почати запис, призначте вхід принаймні одній доріжці, готовій до запису."],
@@ -2242,7 +2244,6 @@
 		"signatureEvent": ["machine","Time signature event","Подія розміру такту"],
 		"signatureEvents": ["machine","Time signature events","Події розміру такту"],
 		"silenceAudio": ["machine","Silence audio","Замінити звук тишею"],
-		"silenceFinder": ["machine","Silence finder","Пошук тиші"],
 		"silenceGenerator": ["machine","Silence","Тиша"],
 		"skin": ["machine","Skin","Оформлення"],
 		"skinCarousel": ["machine","carousel","карусель"],
@@ -2306,7 +2307,6 @@
 		"soundActivationStatusEnabled": ["machine","Sound-activated recording is on.","Запис, активований звуком, увімкнено."],
 		"soundActivationThreshold": ["machine","Activation threshold","Поріг активації"],
 		"soundActivationThresholdDescription": ["machine","Capture begins at or above this input level.","Запис починається на цьому рівні сигналу або вище."],
-		"soundFinder": ["machine","Sound finder","Пошук звуку"],
 		"sourceAlpha": ["machine","Alpha channel","Альфа-канал"],
 		"sourceAudioCodec": ["machine","Audio codec","Аудіокодек"],
 		"sourceAudioStreams": ["machine","Audio streams","Аудіопотоки"],
@@ -2463,6 +2463,7 @@
 		"timeSignature": ["machine","Time signature","Розмір такту"],
 		"timecode": ["audacity","Timecode","Часова позначка"],
 		"timedRecording": ["machine","Set up timed recording","Налаштувати запис за розкладом"],
+		"timedRecordingAction": ["machine","Timed recording","Запис за розкладом"],
 		"timedRecordingAssignedInputsUnavailable": ["machine","Every assigned recording input must remain available for timer recording.","Для запису за таймером усі призначені входи запису мають залишатися доступними."],
 		"timedRecordingCancel": ["machine","Cancel scheduled recording","Скасувати запланований запис"],
 		"timedRecordingCancelled": ["machine","Scheduled recording cancelled.","Запланований запис скасовано."],

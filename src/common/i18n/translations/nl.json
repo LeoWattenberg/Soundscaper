@@ -2,7 +2,7 @@
 	"schemaVersion": 2,
 	"locale": "nl",
 	"provenance": {
-		"machine": {"model":"codex","modelDigest":"sha256:8b43ccb2855b5309ac44b5595452ef2b2fc833e2e3d359728128b8f81c7d5af1","promptVersion":"i18n-machine-v1"},
+		"machine": {"model":"codex","modelDigest":"sha256:a57b386355d103a3dd18054c9a0b795c335e2a8e4e02eb2b6d1c5889eafe32e7","promptVersion":"i18n-machine-v1"},
 		"audacity": {"repository":"audacity/audacity","headSha":"de2e43dc13474ba712ade5ea8e47550eba0e8bfb","runId":35327911264,"artifactId":10539339149,"workflowUrl":"https://github.com/audacity/audacity/actions/runs/35327911264","archiveName":"Audacity_locale_262610911.zip","archiveSha256":"13b1ff11c39a677c711a1d29738a394aaca7a200533927aab3f45bbd76c1ff8e","archiveByteLength":15413913,"licenseSpdx":"GPL-3.0-only","upstreamProjectUrl":"https://github.com/audacity/audacity","upstreamLicenseUrl":"https://github.com/audacity/audacity/blob/de2e43dc13474ba712ade5ea8e47550eba0e8bfb/LICENSE.txt","modificationNotice":"Soundscaper converts reviewed Audacity Qt TS messages to per-locale JSON catalogs, excludes unsafe or inapplicable entries, adapts reviewed placeholders and mnemonics, and removes ellipsis punctuation.","mappingVersion":3,"mappingSha256":"f4cf0434f47eaa9434d079a1623b9d9501e9c8da0d83f0c73344f7765113b57c"}
 	},
 	"entries": {
@@ -1441,6 +1441,7 @@
 		"layoutCompact": ["machine","Compact (menus and track headers in drawers)","Compact (menu's en trackkoppen in lades)"],
 		"layoutDesktop": ["machine","Desktop","Desktop"],
 		"leadInTime": ["machine","Enable lead-in time","Voorlooptijd inschakelen"],
+		"leadInTimeOption": ["machine","Lead-in time","Voorlooptijd"],
 		"leftAtPlayback": ["machine","Left at playback position","Links op afspeelpositie"],
 		"leftChannel": ["machine","Left","Links"],
 		"legacyEffects": ["machine","Legacy effects","Verouderde effecten"],
@@ -1983,6 +1984,7 @@
 		"recordLevel": ["machine","Record level","Opnameniveau"],
 		"recordMenu": ["machine","Record","Opname"],
 		"recordNewTrack": ["machine","Record new track","Opnemen op nieuwe track"],
+		"recordToNewTrack": ["machine","Record to new track","Opnemen op nieuwe track"],
 		"recording": ["machine","Recording","Opname"],
 		"recordingAllowInputs": ["machine","Enable microphones","Microfoons inschakelen"],
 		"recordingAssignInput": ["machine","Assign an input to at least one armed track before recording.","Wijs voordat je opneemt een ingang toe aan minstens één opnameklare track."],
@@ -2242,7 +2244,6 @@
 		"signatureEvent": ["machine","Time signature event","Tijdsaanduiding-gebeurtenis"],
 		"signatureEvents": ["machine","Time signature events","Tijdsaanduiding-gebeurtenissen"],
 		"silenceAudio": ["machine","Silence audio","Audio dempen"],
-		"silenceFinder": ["machine","Silence finder","Stiltezoeker"],
 		"silenceGenerator": ["machine","Silence","Stilte"],
 		"skin": ["machine","Skin","Uiterlijk"],
 		"skinCarousel": ["machine","carousel","carrousel"],
@@ -2306,7 +2307,6 @@
 		"soundActivationStatusEnabled": ["machine","Sound-activated recording is on.","Geluidsgeactiveerde opname is ingeschakeld."],
 		"soundActivationThreshold": ["machine","Activation threshold","Activeringsdrempel"],
 		"soundActivationThresholdDescription": ["machine","Capture begins at or above this input level.","De opname begint op of boven dit ingangsniveau."],
-		"soundFinder": ["machine","Sound finder","Klankzoeker"],
 		"sourceAlpha": ["machine","Alpha channel","Alfakanaal"],
 		"sourceAudioCodec": ["machine","Audio codec","Audiocodec"],
 		"sourceAudioStreams": ["machine","Audio streams","Audiostreams"],
@@ -2463,6 +2463,7 @@
 		"timeSignature": ["machine","Time signature","Maatsoort"],
 		"timecode": ["audacity","Timecode","Tijdcode"],
 		"timedRecording": ["machine","Set up timed recording","Tijdgestuurde opname instellen"],
+		"timedRecordingAction": ["machine","Timed recording","Tijdgestuurde opname"],
 		"timedRecordingAssignedInputsUnavailable": ["machine","Every assigned recording input must remain available for timer recording.","Alle toegewezen opname-ingangen moeten beschikbaar blijven voor tijdgestuurde opname."],
 		"timedRecordingCancel": ["machine","Cancel scheduled recording","Geplande opname annuleren"],
 		"timedRecordingCancelled": ["machine","Scheduled recording cancelled.","Geplande opname geannuleerd."],

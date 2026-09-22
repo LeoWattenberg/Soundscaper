@@ -2,7 +2,7 @@
 	"schemaVersion": 2,
 	"locale": "ro",
 	"provenance": {
-		"machine": {"model":"codex","modelDigest":"sha256:32160744d12fea5c9f0854cf869a3696133c756469c6befe8486ecd2cd46e177","promptVersion":"i18n-machine-v1"},
+		"machine": {"model":"codex","modelDigest":"sha256:1e7ee52d95bf780c7e806786e9efd738510adef372e9481af9ce5466812485b9","promptVersion":"i18n-machine-v1"},
 		"audacity": {"repository":"audacity/audacity","headSha":"de2e43dc13474ba712ade5ea8e47550eba0e8bfb","runId":35327911264,"artifactId":10539339149,"workflowUrl":"https://github.com/audacity/audacity/actions/runs/35327911264","archiveName":"Audacity_locale_262610911.zip","archiveSha256":"13b1ff11c39a677c711a1d29738a394aaca7a200533927aab3f45bbd76c1ff8e","archiveByteLength":15413913,"licenseSpdx":"GPL-3.0-only","upstreamProjectUrl":"https://github.com/audacity/audacity","upstreamLicenseUrl":"https://github.com/audacity/audacity/blob/de2e43dc13474ba712ade5ea8e47550eba0e8bfb/LICENSE.txt","modificationNotice":"Soundscaper converts reviewed Audacity Qt TS messages to per-locale JSON catalogs, excludes unsafe or inapplicable entries, adapts reviewed placeholders and mnemonics, and removes ellipsis punctuation.","mappingVersion":3,"mappingSha256":"f4cf0434f47eaa9434d079a1623b9d9501e9c8da0d83f0c73344f7765113b57c"}
 	},
 	"entries": {
@@ -1441,6 +1441,7 @@
 		"layoutCompact": ["machine","Compact (menus and track headers in drawers)","Compact (meniuri și capete de pistă în sertare)"],
 		"layoutDesktop": ["machine","Desktop","Desktop"],
 		"leadInTime": ["machine","Enable lead-in time","Activează timpul de introducere"],
+		"leadInTimeOption": ["machine","Lead-in time","Timp de introducere"],
 		"leftAtPlayback": ["machine","Left at playback position","Stânga la poziția de redare"],
 		"leftChannel": ["machine","Left","Stânga"],
 		"legacyEffects": ["machine","Legacy effects","Efecte vechi"],
@@ -1983,6 +1984,7 @@
 		"recordLevel": ["machine","Record level","Nivel de înregistrare"],
 		"recordMenu": ["machine","Record","Înregistrare"],
 		"recordNewTrack": ["machine","Record new track","Înregistrează pe o nouă pistă"],
+		"recordToNewTrack": ["machine","Record to new track","Înregistrează pe o pistă nouă"],
 		"recording": ["machine","Recording","Înregistrare"],
 		"recordingAllowInputs": ["machine","Enable microphones","Activează microfoanele"],
 		"recordingAssignInput": ["machine","Assign an input to at least one armed track before recording.","Atribuie un intrare cel puțin unei piste activate înainte de înregistrare."],
@@ -2242,7 +2244,6 @@
 		"signatureEvent": ["machine","Time signature event","Eveniment semnătură timp"],
 		"signatureEvents": ["machine","Time signature events","Evenimente semnătură timp"],
 		"silenceAudio": ["machine","Silence audio","Silență audio"],
-		"silenceFinder": ["machine","Silence finder","Căutător silență"],
 		"silenceGenerator": ["machine","Silence","Silență"],
 		"skin": ["machine","Skin","Aspect"],
 		"skinCarousel": ["machine","carousel","carusel"],
@@ -2306,7 +2307,6 @@
 		"soundActivationStatusEnabled": ["machine","Sound-activated recording is on.","Înregistrarea activată prin sunet este activată."],
 		"soundActivationThreshold": ["machine","Activation threshold","Prag de activare"],
 		"soundActivationThresholdDescription": ["machine","Capture begins at or above this input level.","Înregistrarea începe la sau peste acest nivel de intrare."],
-		"soundFinder": ["machine","Sound finder","Găsitor de sunet"],
 		"sourceAlpha": ["machine","Alpha channel","Canal alfa"],
 		"sourceAudioCodec": ["machine","Audio codec","Codec audio"],
 		"sourceAudioStreams": ["machine","Audio streams","Fluxuri audio"],
@@ -2463,6 +2463,7 @@
 		"timeSignature": ["machine","Time signature","Semnătură de timp"],
 		"timecode": ["audacity","Timecode","Cod de timp"],
 		"timedRecording": ["machine","Set up timed recording","Configurează înregistrarea temporizată"],
+		"timedRecordingAction": ["machine","Timed recording","Înregistrare temporizată"],
 		"timedRecordingAssignedInputsUnavailable": ["machine","Every assigned recording input must remain available for timer recording.","Fiecare intrare de înregistrare atribuită trebuie să rămână disponibilă pentru înregistrarea temporizată."],
 		"timedRecordingCancel": ["machine","Cancel scheduled recording","Anulează înregistrarea programată"],
 		"timedRecordingCancelled": ["machine","Scheduled recording cancelled.","Înregistrare programată anulată."],

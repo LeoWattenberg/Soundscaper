@@ -2,7 +2,7 @@
 	"schemaVersion": 2,
 	"locale": "zh-CN",
 	"provenance": {
-		"machine": {"model":"codex","modelDigest":"sha256:7e3aabe197cc20b2dbd31b70c8e81b788486596d8bbddbc722a173b18a9671af","promptVersion":"i18n-machine-v1"},
+		"machine": {"model":"codex","modelDigest":"sha256:19d584153393c73174fb2b21ea78edee4c4fbfab04f501ef816cb5abf28a778d","promptVersion":"i18n-machine-v1"},
 		"audacity": {"repository":"audacity/audacity","headSha":"de2e43dc13474ba712ade5ea8e47550eba0e8bfb","runId":35327911264,"artifactId":10539339149,"workflowUrl":"https://github.com/audacity/audacity/actions/runs/35327911264","archiveName":"Audacity_locale_262610911.zip","archiveSha256":"13b1ff11c39a677c711a1d29738a394aaca7a200533927aab3f45bbd76c1ff8e","archiveByteLength":15413913,"licenseSpdx":"GPL-3.0-only","upstreamProjectUrl":"https://github.com/audacity/audacity","upstreamLicenseUrl":"https://github.com/audacity/audacity/blob/de2e43dc13474ba712ade5ea8e47550eba0e8bfb/LICENSE.txt","modificationNotice":"Soundscaper converts reviewed Audacity Qt TS messages to per-locale JSON catalogs, excludes unsafe or inapplicable entries, adapts reviewed placeholders and mnemonics, and removes ellipsis punctuation.","mappingVersion":3,"mappingSha256":"f4cf0434f47eaa9434d079a1623b9d9501e9c8da0d83f0c73344f7765113b57c"}
 	},
 	"entries": {
@@ -1441,6 +1441,7 @@
 		"layoutCompact": ["machine","Compact (menus and track headers in drawers)","紧凑（菜单和音轨头置于抽屉中）"],
 		"layoutDesktop": ["machine","Desktop","桌面"],
 		"leadInTime": ["machine","Enable lead-in time","启用前导时间"],
+		"leadInTimeOption": ["machine","Lead-in time","前导时间"],
 		"leftAtPlayback": ["machine","Left at playback position","左边界置于播放位置"],
 		"leftChannel": ["machine","Left","左"],
 		"legacyEffects": ["machine","Legacy effects","旧版效果器"],
@@ -1983,6 +1984,7 @@
 		"recordLevel": ["machine","Record level","录音电平"],
 		"recordMenu": ["machine","Record","录音"],
 		"recordNewTrack": ["machine","Record new track","录制新音轨"],
+		"recordToNewTrack": ["machine","Record to new track","录制到新音轨"],
 		"recording": ["machine","Recording","正在录音"],
 		"recordingAllowInputs": ["machine","Enable microphones","启用麦克风"],
 		"recordingAssignInput": ["machine","Assign an input to at least one armed track before recording.","请先为至少一条已启用录音的音轨分配输入设备，然后再开始录音。"],
@@ -2242,7 +2244,6 @@
 		"signatureEvent": ["machine","Time signature event","拍号事件"],
 		"signatureEvents": ["machine","Time signature events","拍号事件"],
 		"silenceAudio": ["machine","Silence audio","使音频静音"],
-		"silenceFinder": ["machine","Silence finder","静音查找器"],
 		"silenceGenerator": ["machine","Silence","静音"],
 		"skin": ["machine","Skin","皮肤"],
 		"skinCarousel": ["machine","carousel","轮播"],
@@ -2306,7 +2307,6 @@
 		"soundActivationStatusEnabled": ["machine","Sound-activated recording is on.","声控录音已开启。"],
 		"soundActivationThreshold": ["machine","Activation threshold","激活阈值"],
 		"soundActivationThresholdDescription": ["machine","Capture begins at or above this input level.","当输入电平达到或超过此值时开始录音。"],
-		"soundFinder": ["machine","Sound finder","声音查找器"],
 		"sourceAlpha": ["machine","Alpha channel","Alpha 通道"],
 		"sourceAudioCodec": ["machine","Audio codec","音频编解码器"],
 		"sourceAudioStreams": ["machine","Audio streams","音频流"],
@@ -2463,6 +2463,7 @@
 		"timeSignature": ["machine","Time signature","拍号"],
 		"timecode": ["audacity","Timecode","时间码"],
 		"timedRecording": ["machine","Set up timed recording","设置定时录音"],
+		"timedRecordingAction": ["machine","Timed recording","定时录音"],
 		"timedRecordingAssignedInputsUnavailable": ["machine","Every assigned recording input must remain available for timer recording.","定时录音要求所有已分配的录音输入保持可用。"],
 		"timedRecordingCancel": ["machine","Cancel scheduled recording","取消计划录音"],
 		"timedRecordingCancelled": ["machine","Scheduled recording cancelled.","计划录音已取消。"],

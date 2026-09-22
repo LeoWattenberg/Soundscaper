@@ -2,7 +2,7 @@
 	"schemaVersion": 2,
 	"locale": "fi",
 	"provenance": {
-		"machine": {"model":"codex","modelDigest":"sha256:4a2bd315d924191264d2d3412526d1250b7d7c24e4c4e1d561ba038e1cede9b7","promptVersion":"i18n-machine-v1"},
+		"machine": {"model":"codex","modelDigest":"sha256:e8cce0a3430321bc34598f30802a8d598e194edab592daa09dca104c33ad96c9","promptVersion":"i18n-machine-v1"},
 		"audacity": {"repository":"audacity/audacity","headSha":"de2e43dc13474ba712ade5ea8e47550eba0e8bfb","runId":35327911264,"artifactId":10539339149,"workflowUrl":"https://github.com/audacity/audacity/actions/runs/35327911264","archiveName":"Audacity_locale_262610911.zip","archiveSha256":"13b1ff11c39a677c711a1d29738a394aaca7a200533927aab3f45bbd76c1ff8e","archiveByteLength":15413913,"licenseSpdx":"GPL-3.0-only","upstreamProjectUrl":"https://github.com/audacity/audacity","upstreamLicenseUrl":"https://github.com/audacity/audacity/blob/de2e43dc13474ba712ade5ea8e47550eba0e8bfb/LICENSE.txt","modificationNotice":"Soundscaper converts reviewed Audacity Qt TS messages to per-locale JSON catalogs, excludes unsafe or inapplicable entries, adapts reviewed placeholders and mnemonics, and removes ellipsis punctuation.","mappingVersion":3,"mappingSha256":"f4cf0434f47eaa9434d079a1623b9d9501e9c8da0d83f0c73344f7765113b57c"}
 	},
 	"entries": {
@@ -1441,6 +1441,7 @@
 		"layoutCompact": ["machine","Compact (menus and track headers in drawers)","Kompakti (valikot ja raidan otsikot vetolaatikoissa)"],
 		"layoutDesktop": ["machine","Desktop","Työpöytä"],
 		"leadInTime": ["machine","Enable lead-in time","Ota käyttöön esilaskenta-aika"],
+		"leadInTimeOption": ["machine","Lead-in time","Esilaskenta-aika"],
 		"leftAtPlayback": ["machine","Left at playback position","Vasen reuna toistokohtaan"],
 		"leftChannel": ["machine","Left","Vasen"],
 		"legacyEffects": ["machine","Legacy effects","Vanhat tehosteet"],
@@ -1983,6 +1984,7 @@
 		"recordLevel": ["machine","Record level","Nauhoitustaso"],
 		"recordMenu": ["machine","Record","Nauhoitus"],
 		"recordNewTrack": ["machine","Record new track","Nauhoita uudelle raidalle"],
+		"recordToNewTrack": ["machine","Record to new track","Nauhoita uudelle raidalle"],
 		"recording": ["machine","Recording","Nauhoitus"],
 		"recordingAllowInputs": ["machine","Enable microphones","Ota mikrofonit käyttöön"],
 		"recordingAssignInput": ["machine","Assign an input to at least one armed track before recording.","Määritä tulo vähintään yhdelle tallennukseen valmistellulle raidalle ennen nauhoitusta."],
@@ -2242,7 +2244,6 @@
 		"signatureEvent": ["machine","Time signature event","Tahtilajitapahtuma"],
 		"signatureEvents": ["machine","Time signature events","Tahtilajitapahtumat"],
 		"silenceAudio": ["machine","Silence audio","Korvaa ääni hiljaisuudella"],
-		"silenceFinder": ["machine","Silence finder","Hiljaisuuden etsin"],
 		"silenceGenerator": ["machine","Silence","Hiljaisuus"],
 		"skin": ["machine","Skin","Ulkoasu"],
 		"skinCarousel": ["machine","carousel","karuselli"],
@@ -2306,7 +2307,6 @@
 		"soundActivationStatusEnabled": ["machine","Sound-activated recording is on.","Äänellä aktivoitu nauhoitus on päällä."],
 		"soundActivationThreshold": ["machine","Activation threshold","Aktivointikynnys"],
 		"soundActivationThresholdDescription": ["machine","Capture begins at or above this input level.","Nauhoitus alkaa tällä tulotasolla tai sen yläpuolella."],
-		"soundFinder": ["machine","Sound finder","Äänen etsin"],
 		"sourceAlpha": ["machine","Alpha channel","Alfakanava"],
 		"sourceAudioCodec": ["machine","Audio codec","Äänikoodekki"],
 		"sourceAudioStreams": ["machine","Audio streams","Äänivirrat"],
@@ -2463,6 +2463,7 @@
 		"timeSignature": ["machine","Time signature","Tahtilaji"],
 		"timecode": ["audacity","Timecode","Aikakoodi"],
 		"timedRecording": ["machine","Set up timed recording","Määritä ajastettu nauhoitus"],
+		"timedRecordingAction": ["machine","Timed recording","Ajastettu nauhoitus"],
 		"timedRecordingAssignedInputsUnavailable": ["machine","Every assigned recording input must remain available for timer recording.","Jokaisen määritetyn nauhoitustulon on pysyttävä käytettävissä ajastettua nauhoitusta varten."],
 		"timedRecordingCancel": ["machine","Cancel scheduled recording","Peruuta ajastettu nauhoitus"],
 		"timedRecordingCancelled": ["machine","Scheduled recording cancelled.","Ajastettu nauhoitus peruutettu."],

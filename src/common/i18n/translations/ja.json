@@ -2,7 +2,7 @@
 	"schemaVersion": 2,
 	"locale": "ja",
 	"provenance": {
-		"machine": {"model":"codex","modelDigest":"sha256:f2d7e2a65858aec48d3d9e943d89d1920d918cf49d66ddaa6739e12cd26f8fd9","promptVersion":"i18n-machine-v1"},
+		"machine": {"model":"codex","modelDigest":"sha256:9f29bda33ab067d2857b42abc06d7d65ed8863bacdbfd9ef4e94ea664fc2329e","promptVersion":"i18n-machine-v1"},
 		"audacity": {"repository":"audacity/audacity","headSha":"de2e43dc13474ba712ade5ea8e47550eba0e8bfb","runId":35327911264,"artifactId":10539339149,"workflowUrl":"https://github.com/audacity/audacity/actions/runs/35327911264","archiveName":"Audacity_locale_262610911.zip","archiveSha256":"13b1ff11c39a677c711a1d29738a394aaca7a200533927aab3f45bbd76c1ff8e","archiveByteLength":15413913,"licenseSpdx":"GPL-3.0-only","upstreamProjectUrl":"https://github.com/audacity/audacity","upstreamLicenseUrl":"https://github.com/audacity/audacity/blob/de2e43dc13474ba712ade5ea8e47550eba0e8bfb/LICENSE.txt","modificationNotice":"Soundscaper converts reviewed Audacity Qt TS messages to per-locale JSON catalogs, excludes unsafe or inapplicable entries, adapts reviewed placeholders and mnemonics, and removes ellipsis punctuation.","mappingVersion":3,"mappingSha256":"f4cf0434f47eaa9434d079a1623b9d9501e9c8da0d83f0c73344f7765113b57c"}
 	},
 	"entries": {
@@ -1441,6 +1441,7 @@
 		"layoutCompact": ["machine","Compact (menus and track headers in drawers)","コンパクト (メニューとトラックヘッダーをドロワーに格納)"],
 		"layoutDesktop": ["machine","Desktop","デスクトップ"],
 		"leadInTime": ["machine","Enable lead-in time","カウントイン時間を有効にする"],
+		"leadInTimeOption": ["machine","Lead-in time","カウントイン時間"],
 		"leftAtPlayback": ["machine","Left at playback position","再生位置に左端を合わせる"],
 		"leftChannel": ["machine","Left","左"],
 		"legacyEffects": ["machine","Legacy effects","レガシーエフェクト"],
@@ -1983,6 +1984,7 @@
 		"recordLevel": ["machine","Record level","記録レベル"],
 		"recordMenu": ["machine","Record","記録"],
 		"recordNewTrack": ["machine","Record new track","新しいトラックに記録"],
+		"recordToNewTrack": ["machine","Record to new track","新しいトラックに録音"],
 		"recording": ["machine","Recording","記録中"],
 		"recordingAllowInputs": ["machine","Enable microphones","マイクを有効にする"],
 		"recordingAssignInput": ["machine","Assign an input to at least one armed track before recording.","記録する前に、少なくとも1つの武装したトラックに入力を割り当ててください。"],
@@ -2242,7 +2244,6 @@
 		"signatureEvent": ["machine","Time signature event","拍子記号イベント"],
 		"signatureEvents": ["machine","Time signature events","拍子記号イベント"],
 		"silenceAudio": ["machine","Silence audio","オーディオを沈黙で置き換え"],
-		"silenceFinder": ["machine","Silence finder","沈黙ファインダー"],
 		"silenceGenerator": ["machine","Silence","沈黙"],
 		"skin": ["machine","Skin","スキン"],
 		"skinCarousel": ["machine","carousel","カルーセル"],
@@ -2306,7 +2307,6 @@
 		"soundActivationStatusEnabled": ["machine","Sound-activated recording is on.","サウンドアクティベーション録音はオンです。"],
 		"soundActivationThreshold": ["machine","Activation threshold","アクティベーションしきい値"],
 		"soundActivationThresholdDescription": ["machine","Capture begins at or above this input level.","この入力レベル以上でキャプチャが開始されます。"],
-		"soundFinder": ["machine","Sound finder","サウンドファインダー"],
 		"sourceAlpha": ["machine","Alpha channel","アルファチャンネル"],
 		"sourceAudioCodec": ["machine","Audio codec","オーディオコーデック"],
 		"sourceAudioStreams": ["machine","Audio streams","オーディオストリーム"],
@@ -2463,6 +2463,7 @@
 		"timeSignature": ["machine","Time signature","拍子"],
 		"timecode": ["audacity","Timecode","タイムコード"],
 		"timedRecording": ["machine","Set up timed recording","時間指定録音を設定する"],
+		"timedRecordingAction": ["machine","Timed recording","時間指定録音"],
 		"timedRecordingAssignedInputsUnavailable": ["machine","Every assigned recording input must remain available for timer recording.","時間指定録音には、すべての割り当てられた録音入力が利用可能でなければなりません。"],
 		"timedRecordingCancel": ["machine","Cancel scheduled recording","スケジュールされた録音をキャンセルする"],
 		"timedRecordingCancelled": ["machine","Scheduled recording cancelled.","スケジュールされた録音がキャンセルされました。"],

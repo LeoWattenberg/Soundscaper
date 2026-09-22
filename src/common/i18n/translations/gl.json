@@ -2,7 +2,7 @@
 	"schemaVersion": 2,
 	"locale": "gl",
 	"provenance": {
-		"machine": {"model":"codex","modelDigest":"sha256:ed036642d7f330f7c5527967de7b83ad09ff448dfd18087bdc5c21042c160f47","promptVersion":"i18n-machine-v1"},
+		"machine": {"model":"codex","modelDigest":"sha256:558645246f6c6082311e9f3ab1c37e20a74ac0d3f5a04b2a4692ec2cf91eca33","promptVersion":"i18n-machine-v1"},
 		"audacity": {"repository":"audacity/audacity","headSha":"de2e43dc13474ba712ade5ea8e47550eba0e8bfb","runId":35327911264,"artifactId":10539339149,"workflowUrl":"https://github.com/audacity/audacity/actions/runs/35327911264","archiveName":"Audacity_locale_262610911.zip","archiveSha256":"13b1ff11c39a677c711a1d29738a394aaca7a200533927aab3f45bbd76c1ff8e","archiveByteLength":15413913,"licenseSpdx":"GPL-3.0-only","upstreamProjectUrl":"https://github.com/audacity/audacity","upstreamLicenseUrl":"https://github.com/audacity/audacity/blob/de2e43dc13474ba712ade5ea8e47550eba0e8bfb/LICENSE.txt","modificationNotice":"Soundscaper converts reviewed Audacity Qt TS messages to per-locale JSON catalogs, excludes unsafe or inapplicable entries, adapts reviewed placeholders and mnemonics, and removes ellipsis punctuation.","mappingVersion":3,"mappingSha256":"f4cf0434f47eaa9434d079a1623b9d9501e9c8da0d83f0c73344f7765113b57c"}
 	},
 	"entries": {
@@ -1441,6 +1441,7 @@
 		"layoutCompact": ["machine","Compact (menus and track headers in drawers)","Compacto (menús e cabeceiras de pista en gavetas)"],
 		"layoutDesktop": ["machine","Desktop","Escritorio"],
 		"leadInTime": ["machine","Enable lead-in time","Activar tempo de entrada"],
+		"leadInTimeOption": ["machine","Lead-in time","Tempo de entrada"],
 		"leftAtPlayback": ["machine","Left at playback position","Esquerda na posición de reprodución"],
 		"leftChannel": ["machine","Left","Esquerda"],
 		"legacyEffects": ["machine","Legacy effects","Efectos antigos"],
@@ -1983,6 +1984,7 @@
 		"recordLevel": ["machine","Record level","Nivel de gravación"],
 		"recordMenu": ["machine","Record","Gravar"],
 		"recordNewTrack": ["machine","Record new track","Gravar nova pista"],
+		"recordToNewTrack": ["machine","Record to new track","Gravar nunha nova pista"],
 		"recording": ["machine","Recording","Gravación"],
 		"recordingAllowInputs": ["machine","Enable microphones","Activar micrófonos"],
 		"recordingAssignInput": ["machine","Assign an input to at least one armed track before recording.","Asigna unha entrada a polo menos unha pista activada antes de gravar."],
@@ -2242,7 +2244,6 @@
 		"signatureEvent": ["machine","Time signature event","Evento de compás"],
 		"signatureEvents": ["machine","Time signature events","Eventos de compás"],
 		"silenceAudio": ["machine","Silence audio","Silenciar audio"],
-		"silenceFinder": ["machine","Silence finder","Buscador de silencios"],
 		"silenceGenerator": ["machine","Silence","Silencio"],
 		"skin": ["machine","Skin","Aparencia"],
 		"skinCarousel": ["machine","carousel","carrusel"],
@@ -2306,7 +2307,6 @@
 		"soundActivationStatusEnabled": ["machine","Sound-activated recording is on.","A gravación activada por son está activada."],
 		"soundActivationThreshold": ["machine","Activation threshold","Limiar de activación"],
 		"soundActivationThresholdDescription": ["machine","Capture begins at or above this input level.","A captura comeza neste nivel de entrada ou por riba del."],
-		"soundFinder": ["machine","Sound finder","Buscador de sons"],
 		"sourceAlpha": ["machine","Alpha channel","Canle alfa"],
 		"sourceAudioCodec": ["machine","Audio codec","Códec de audio"],
 		"sourceAudioStreams": ["machine","Audio streams","Fluxos de audio"],
@@ -2463,6 +2463,7 @@
 		"timeSignature": ["machine","Time signature","Indicación de compás"],
 		"timecode": ["audacity","Timecode","Código de tempo"],
 		"timedRecording": ["machine","Set up timed recording","Configurar a gravación programada"],
+		"timedRecordingAction": ["machine","Timed recording","Gravación programada"],
 		"timedRecordingAssignedInputsUnavailable": ["machine","Every assigned recording input must remain available for timer recording.","Todas as entradas de gravación asignadas deben permanecer dispoñibles para a gravación programada."],
 		"timedRecordingCancel": ["machine","Cancel scheduled recording","Cancelar a gravación programada"],
 		"timedRecordingCancelled": ["machine","Scheduled recording cancelled.","Gravación programada cancelada."],
