@@ -4,7 +4,7 @@ description: "واجهة برمجة تطبيقات JavaScript التي يعمل 
 sidebar:
   order: 7
 ---
-<!-- docs-ai-provenance: {"factPacketSha256":"bfeb48e77dc0013cc1f43bd584ae92a7196983e349631c0b75bfbca2ba0c542a","model":"qwen3.8:latest","modelDigest":"22130167c4c20e20c7b71454612966ca8e8171e9b3cc8ab6ce8aa6cbfec79643","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"bfeb48e77dc0013cc1f43bd584ae92a7196983e349631c0b75bfbca2ba0c542a","targetLocale":"ar"} -->
+<!-- docs-ai-provenance: {"factPacketSha256":"375c684211bdec9dbd3614c197bda423e24858a568ad5ae3c06ab06d7db2522f","model":"gpt-5.6-luna","modelDigest":"manual","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"375c684211bdec9dbd3614c197bda423e24858a568ad5ae3c06ab06d7db2522f","targetLocale":"ar"} -->
 
 برنامج الماكرو هو ماكرو مكتوب بلغة JavaScript بدلاً من كونه قائمة خطوات.
 يُنفَّذ داخل المحرر مقابل واجهة برمجة تطبيقات صغيرة تسمى `sound`, مما يتيح له قراءة
@@ -17,9 +17,7 @@ sidebar:
 ## مكان وجود البرامج
 
 اختر **أدوات → مدير الماكرو**. يعرض مربع الحوار ماكرو قائمة الخطوات، وتحت
-**البرامج**، البرامج التي قمت بحفظها. ينشئ **برنامج جديد** برنامجًا، ويعرض
-لوحة التفاصيل **اسم البرنامج**، ونص **البرنامج**، وزر **تشغيل
-البرنامج**. يُحفظ النص أثناء الكتابة؛ لا توجد خطوة حفظ منفصلة.
+**البرامج**، البرامج التي حفظتها. اضغط **+ (برنامج جديد)** في عنوان البرامج لإنشاء برنامج. ويتيح شريط الإجراءات نفسه **استيراد البرنامج** و**تصدير البرنامج** و**حذف البرنامج** المحدد. تعرض لوحة التفاصيل **اسم البرنامج** ونص **البرنامج** وزر **تشغيل البرنامج**. يُحفظ النص أثناء الكتابة؛ ولا توجد خطوة حفظ منفصلة.
 
 يُخزَّن البرنامج مع إعدادات المحرر، وليس داخل مشروع، لذا فهو
 متاح في كل مشروع تفتحه في هذا المحرر. استخدم **تصدير البرنامج** و
@@ -308,41 +306,39 @@ ExportWav.*
 
 | التأثير | معرّف التأثير | المعاملات والقيم الافتراضية |
 | --- | --- | --- |
-| Amplify | `audacity-amplify` | `gainDb: 0`, `allowClipping: false` |
-| Auto Duck | `audacity-auto-duck` | `duckAmountDb: -12`, `innerFadeDown: 0`, `innerFadeUp: 0`, `outerFadeDown: 0.5`, `outerFadeUp: 0.5`, `thresholdDb: -30`, `maximumPause: 1` |
-| Bass and Treble | `audacity-bass-treble` | `bassDb: 0`, `trebleDb: 0`, `volumeDb: 0` |
-| Bitcrusher | `bitcrusher` | `bitDepth: 8`, `downsampling: 1`, `dither: 'none'`, `interpolation: 'sample-hold'`, `mix: 100` |
-| Change Pitch | `audacity-change-pitch` | `semitones: 0`, `preserveFormants: true` |
-| Change Speed and Pitch | `audacity-change-speed-pitch` | `speedPercent: 0` |
-| Change Tempo | `audacity-change-tempo` | `tempoPercent: 0` |
-| Classic Filters | `audacity-classic-filters` | `family: 'butterworth'`, `direction: 'lowpass'`, `order: 1`, `cutoffHz: 1000`, `passbandRippleDb: 1`, `stopbandAttenuationDb: 30` |
-| Click Removal | `audacity-click-removal` | `threshold: 200`, `maximumWidth: 20` |
-| Compressor | `compressor` | `threshold: -24`, `knee: 30`, `ratio: 4`, `attack: 0.003`, `release: 0.25`, `makeupGain: 0` |
-| Compressor (Audacity) | `audacity-compressor` | `thresholdDb: -10`, `makeupGainDb: 0`, `kneeWidthDb: 5`, `ratio: 10`, `lookaheadMs: 1`, `attackMs: 30`, `releaseMs: 150` |
-| Delay | `delay` | `time: 0.25`, `feedback: 0.3`, `mix: 0.2` |
-| Distortion | `audacity-distortion` | `mode: 'hard-clipping'`, `dcBlock: false`, `thresholdDb: -6`, `noiseFloorDb: -70`, `parameter1: 50`, `parameter2: 50`, `repeats: 1` |
-| Echo | `audacity-echo` | `delaySeconds: 1`, `decay: 0.5` |
-| Fade In | `audacity-fade-in` | لا شيء |
-| Fade Out | `audacity-fade-out` | لا شيء |
-| Filter Curve EQ | `audacity-filter-curve-eq` | `points`: مصفوفة من `{ frequency, gain }`, افتراضيًا نقطتان مسطحتان عند 20 هرتز و20 كيلو هرتز؛ `linearFrequencyScale: false`؛ `filterLength: 8191` |
-| Four-band parametric EQ | `eq` | `outputGain: 0`؛ `bands`: أربعة كائنات `{ id, enabled, type, frequency, gain, q, slope }`، تبلغ ذروتها عند 100 و500 و2000 و8000 هرتز مع `gain: 0`, `q: 1`, `slope: 12` |
-| Gate | `gate` | `threshold: -50`, `attack: 0.005`, `hold: 0.05`, `release: 0.1`, `rangeDb: -80` |
-| Graphic EQ | `audacity-graphic-eq` | `gains`: مكاسب 31 نطاقًا بالديسيبل، جميعها 0؛ `interpolation: 'bspline'`؛ `filterLength: 8191` |
-| High-pass filter | `highpass` | `frequency: 80`, `q: 0.707` |
-| Invert | `audacity-invert` | لا شيء |
-| Legacy Compressor | `audacity-legacy-compressor` | `thresholdDb: -12`, `noiseFloorDb: -40`, `ratio: 2`, `attackSeconds: 0.2`, `releaseSeconds: 1`, `normalize: true`, `usePeak: false` |
-| Limiter | `limiter` | `ceiling: -1`, `lookahead: 0.005`, `release: 0.1` |
-| Limiter (Audacity) | `audacity-limiter` | `thresholdDb: -5`, `makeupTargetDb: -1`, `kneeWidthDb: 2`, `lookaheadMs: 1`, `releaseMs: 20` |
-| Loudness Normalization | `audacity-loudness-normalization` | `mode: 'lufs'`, `targetLufs: -23`, `targetRmsDb: -20`, `stereoIndependent: false`, `dualMono: true` |
-| Low-pass filter | `lowpass` | `frequency: 18000`, `q: 0.707` |
-| Noise Reduction | `audacity-noise-reduction` | `reductionDb: 6`, `sensitivity: 6`, `frequencySmoothingBands: 6`, `output: 'reduce'` |
-| Normalize | `audacity-normalize` | `peakDb: -1`, `removeDc: true`, `applyGain: true`, `stereoIndependent: false` |
-| Paulstretch | `audacity-paulstretch` | `stretchFactor: 10`, `timeResolution: 0.25` |
-| Phaser | `audacity-phaser` | `stages: 2`, `dryWet: 128`, `frequency: 0.4`, `phaseDegrees: 0`, `depth: 100`, `feedbackPercent: 0`, `outputGainDb: -6` |
-| Remove DC Offset | `audacity-remove-dc-offset` | لا شيء |
-| Repair | `audacity-repair` | لا شيء |
-| Repeat | `audacity-repeat` | `count: 1` |
-| Reverb | `reverb` | `mix: 0.2`, `decay: 2`, `preDelay: 0.01` |
+| التضخيم | `audacity-amplify` | `gainDb: 0`, `allowClipping: false` |
+| الخفض التلقائي | `audacity-auto-duck` | `duckAmountDb: -12`, `innerFadeDown: 0`, `innerFadeUp: 0`, `outerFadeDown: 0.5`, `outerFadeUp: 0.5`, `thresholdDb: -30`, `maximumPause: 1` |
+| الجهير والحدة | `audacity-bass-treble` | `bassDb: 0`, `trebleDb: 0`, `volumeDb: 0` |
+| تشويه البتات | `bitcrusher` | `bitDepth: 8`, `downsampling: 1`, `dither: 'none'`, `interpolation: 'sample-hold'`, `mix: 100` |
+| تغيير طبقة الصوت | `audacity-change-pitch` | `semitones: 0`, `preserveFormants: true` |
+| تغيير السرعة وطبقة الصوت | `audacity-change-speed-pitch` | `speedPercent: 0` |
+| تغيير الإيقاع | `audacity-change-tempo` | `tempoPercent: 0` |
+| المرشحات الكلاسيكية | `audacity-classic-filters` | `family: 'butterworth'`, `direction: 'lowpass'`, `order: 1`, `cutoffHz: 1000`, `passbandRippleDb: 1`, `stopbandAttenuationDb: 30` |
+| إزالة النقرات | `audacity-click-removal` | `threshold: 200`, `maximumWidth: 20` |
+| الضاغط (Audacity) | `audacity-compressor` | `thresholdDb: -10`, `makeupGainDb: 0`, `kneeWidthDb: 5`, `ratio: 10`, `lookaheadMs: 1`, `attackMs: 30`, `releaseMs: 150` |
+| التأخير | `delay` | `time: 0.25`, `feedback: 0.3`, `mix: 0.2` |
+| التشويه | `audacity-distortion` | `mode: 'hard-clipping'`, `dcBlock: false`, `thresholdDb: -6`, `noiseFloorDb: -70`, `parameter1: 50`, `parameter2: 50`, `repeats: 1` |
+| الصدى | `audacity-echo` | `delaySeconds: 1`, `decay: 0.5` |
+| تلاشي للداخل | `audacity-fade-in` | لا شيء |
+| تلاشي للخارج | `audacity-fade-out` | لا شيء |
+| معادل منحنى المرشح | `audacity-filter-curve-eq` | `points`: مصفوفة من `{ frequency, gain }`, افتراضيًا نقطتان مسطحتان عند 20 هرتز و20 كيلو هرتز؛ `linearFrequencyScale: false`؛ `filterLength: 8191` |
+| معادل بارامتري رباعي النطاقات | `eq` | `outputGain: 0`؛ `bands`: أربعة كائنات `{ id, enabled, type, frequency, gain, q, slope }`، تبلغ ذروتها عند 100 و500 و2000 و8000 هرتز مع `gain: 0`, `q: 1`, `slope: 12` |
+| البوابة | `gate` | `threshold: -50`, `attack: 0.005`, `hold: 0.05`, `release: 0.1`, `rangeDb: -80` |
+| المعادل الرسومي | `audacity-graphic-eq` | `gains`: مكاسب 31 نطاقًا بالديسيبل، جميعها 0؛ `interpolation: 'bspline'`؛ `filterLength: 8191` |
+| مرشح تمرير عالٍ | `highpass` | `frequency: 80`, `q: 0.707` |
+| العكس | `audacity-invert` | لا شيء |
+| الضاغط القديم | `audacity-legacy-compressor` | `thresholdDb: -12`, `noiseFloorDb: -40`, `ratio: 2`, `attackSeconds: 0.2`, `releaseSeconds: 1`, `normalize: true`, `usePeak: false` |
+| المحدِّد (Audacity) | `audacity-limiter` | `thresholdDb: -5`, `makeupTargetDb: -1`, `kneeWidthDb: 2`, `lookaheadMs: 1`, `releaseMs: 20` |
+| تطبيع الجهارة | `audacity-loudness-normalization` | `mode: 'lufs'`, `targetLufs: -23`, `targetRmsDb: -20`, `stereoIndependent: false`, `dualMono: true` |
+| مرشح تمرير منخفض | `lowpass` | `frequency: 18000`, `q: 0.707` |
+| تقليل الضوضاء | `audacity-noise-reduction` | `reductionDb: 6`, `sensitivity: 6`, `frequencySmoothingBands: 6`, `output: 'reduce'` |
+| التطبيع | `audacity-normalize` | `peakDb: -1`, `removeDc: true`, `applyGain: true`, `stereoIndependent: false` |
+| تمديد Paulstretch | `audacity-paulstretch` | `stretchFactor: 10`, `timeResolution: 0.25` |
+| المُحوِّل الطوري | `audacity-phaser` | `stages: 2`, `dryWet: 128`, `frequency: 0.4`, `phaseDegrees: 0`, `depth: 100`, `feedbackPercent: 0`, `outputGainDb: -6` |
+| إزالة إزاحة التيار المستمر | `audacity-remove-dc-offset` | لا شيء |
+| الإصلاح | `audacity-repair` | لا شيء |
+| التكرار | `audacity-repeat` | `count: 1` |
+| الصدى | `reverb` | `mix: 0.2`, `decay: 2`, `preDelay: 0.01` |
 | الصدى (Audacity) | `audacity-reverb` | `roomSize: 75`, `preDelay: 10`, `reverberance: 50`, `damping: 50`, `toneLow: 100`, `toneHigh: 100`, `wetGainDb: -6`, `dryGainDb: 0`, `stereoWidth: 100`, `wetOnly: false` |
 | عكس | `audacity-reverse` | لا شيء |
 | التمدد المنزلق | `audacity-sliding-stretch` | `startTempoPercent: 0`, `endTempoPercent: 0`, `startPitchSemitones: 0`, `endPitchSemitones: 0`, `preserveFormants: true` |

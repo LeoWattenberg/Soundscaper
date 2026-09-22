@@ -8,55 +8,55 @@ head:
   - tag: script
     attrs:
       type: "application/ld+json"
-    content: "{\"@context\":\"https://schema.org\",\"@type\":\"HowTo\",\"name\":\"Your first Soundscaper project\",\"description\":\"Import a recording, listen, split it, fade it out, export a file and save the project.\",\"tool\":[{\"@type\":\"HowToTool\",\"name\":\"Soundscaper\"}],\"step\":[{\"@type\":\"HowToStep\",\"position\":1,\"name\":\"Open Soundscaper. A new, empty project is ready as soon as the editor loads.\",\"text\":\"Open Soundscaper. A new, empty project is ready as soon as the editor loads.\"},{\"@type\":\"HowToStep\",\"position\":2,\"name\":\"Choose File → Import audio and pick guide-music-loop.wav — a two-second stereo loop. The file lands as a clip on its own track.\",\"text\":\"Choose File → Import audio and pick guide-music-loop.wav — a two-second stereo loop. The file lands as a clip on its own track.\"},{\"@type\":\"HowToStep\",\"position\":3,\"name\":\"Press Play to listen, then Stop.\",\"text\":\"Press Play to listen, then Stop. The playhead travels across the clip and the loop plays once.\"},{\"@type\":\"HowToStep\",\"position\":4,\"name\":\"Press the Split tool button in the toolbar.\",\"text\":\"Press the Split tool button in the toolbar. While the split tool is active, a click on a clip cuts it there instead of selecting.\"},{\"@type\":\"HowToStep\",\"position\":5,\"name\":\"Click the waveform halfway through to put the cursor there.\",\"text\":\"Click the waveform halfway through to put the cursor there.\"},{\"@type\":\"HowToStep\",\"position\":6,\"name\":\"Press the Split tool button in the toolbar.\",\"text\":\"Press the Split tool button in the toolbar. Press it again to go back to the ordinary pointer.\"},{\"@type\":\"HowToStep\",\"position\":7,\"name\":\"The project now shows 2 clips.\",\"text\":\"The project now shows 2 clips. Two clips sit end to end where there was one, each with its own name bar.\"},{\"@type\":\"HowToStep\",\"position\":8,\"name\":\"Choose Select → Select all.\",\"text\":\"Choose Select → Select all. An effect applies to whatever is selected. Select all takes the whole project, both clips included.\"},{\"@type\":\"HowToStep\",\"position\":9,\"name\":\"Choose Effect → Fading → Fade Out. The effect applies to the selection straight away.\",\"text\":\"Choose Effect → Fading → Fade Out. The effect applies to the selection straight away. The waveform tapers to nothing by the end of the second clip.\"},{\"@type\":\"HowToStep\",\"position\":10,\"name\":\"Press Play to listen, then Stop.\",\"text\":\"Press Play to listen, then Stop. The loop dies away instead of stopping hard.\"},{\"@type\":\"HowToStep\",\"position\":11,\"name\":\"Choose File → Export audio, set Format to WAV, and press Export. The file downloads as soon as the render finishes, and its link stays in the dialog.\",\"text\":\"Choose File → Export audio, set Format to WAV, and press Export. The file downloads as soon as the render finishes, and its link stays in the dialog. An export renders what you hear into a file for other programs. It does not change the project.\"},{\"@type\":\"HowToStep\",\"position\":12,\"name\":\"Choose File → Save project. The save indicator in the status bar shows the project is saved.\",\"text\":\"Choose File → Save project. The save indicator in the status bar shows the project is saved. The project — clips, edits, history — lives in the browser’s project library on this computer. Saving keeps it there.\"}]}"
+    content: "{\"@context\":\"https://schema.org\",\"@type\":\"HowTo\",\"name\":\"Your first Soundscaper project\",\"description\":\"Import a recording, listen, split it, fade it out, export a file and save the project.\",\"tool\":[{\"@type\":\"HowToTool\",\"name\":\"Soundscaper\"}],\"step\":[{\"@type\":\"HowToStep\",\"position\":1,\"name\":\"Open Soundscaper. A new, empty project is ready as soon as the editor loads.\",\"text\":\"Open Soundscaper. A new, empty project is ready as soon as the editor loads.\"},{\"@type\":\"HowToStep\",\"position\":2,\"name\":\"Choose File → Import and pick guide-music-loop.wav — a two-second stereo loop. It lands as a clip on its own track.\",\"text\":\"Choose File → Import and pick guide-music-loop.wav — a two-second stereo loop. It lands as a clip on its own track.\"},{\"@type\":\"HowToStep\",\"position\":3,\"name\":\"Press Play to listen, then Stop.\",\"text\":\"Press Play to listen, then Stop. The playhead travels across the clip and the loop plays once.\"},{\"@type\":\"HowToStep\",\"position\":4,\"name\":\"Press the Split tool button in the toolbar.\",\"text\":\"Press the Split tool button in the toolbar. While the split tool is active, a click on a clip cuts it there instead of selecting.\"},{\"@type\":\"HowToStep\",\"position\":5,\"name\":\"Click the waveform halfway through to put the cursor there.\",\"text\":\"Click the waveform halfway through to put the cursor there.\"},{\"@type\":\"HowToStep\",\"position\":6,\"name\":\"Press the Split tool button in the toolbar.\",\"text\":\"Press the Split tool button in the toolbar. Press it again to go back to the ordinary pointer.\"},{\"@type\":\"HowToStep\",\"position\":7,\"name\":\"The project now shows 2 clips.\",\"text\":\"The project now shows 2 clips. Two clips sit end to end where there was one, each with its own name bar.\"},{\"@type\":\"HowToStep\",\"position\":8,\"name\":\"Choose Select → Select all.\",\"text\":\"Choose Select → Select all. An effect applies to whatever is selected. Select all takes the whole project, both clips included.\"},{\"@type\":\"HowToStep\",\"position\":9,\"name\":\"Choose Effect → Fading → Fade Out. The effect applies to the selection straight away.\",\"text\":\"Choose Effect → Fading → Fade Out. The effect applies to the selection straight away. The waveform tapers to nothing by the end of the second clip.\"},{\"@type\":\"HowToStep\",\"position\":10,\"name\":\"Press Play to listen, then Stop.\",\"text\":\"Press Play to listen, then Stop. The loop dies away instead of stopping hard.\"},{\"@type\":\"HowToStep\",\"position\":11,\"name\":\"Choose File → Export audio, set Format to WAV, and press Export. The file downloads as soon as the render finishes, and its link stays in the dialog.\",\"text\":\"Choose File → Export audio, set Format to WAV, and press Export. The file downloads as soon as the render finishes, and its link stays in the dialog. An export renders what you hear into a file for other programs. It does not change the project.\"},{\"@type\":\"HowToStep\",\"position\":12,\"name\":\"Choose File → Save project. The save indicator in the status bar shows the project is saved.\",\"text\":\"Choose File → Save project. The save indicator in the status bar shows the project is saved. The project — clips, edits, history — lives in the browser’s project library on this computer. Saving keeps it there.\"}]}"
 ---
-<!-- docs-ai-provenance: {"factPacketSha256":"7eef059af498c947a93b977ace26ddc71710f57064e7ded909bb9970804cbdff","model":"aya-expanse:32b","modelDigest":"1603440383bd5504dc7afd01c0407b425b988dde650a8dc1a737433baa3cd432","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"7eef059af498c947a93b977ace26ddc71710f57064e7ded909bb9970804cbdff","targetLocale":"ar"} -->
+<!-- docs-ai-provenance: {"factPacketSha256":"0c5a1003c9cdd039885e65d1292b4659577150a0de414c2bda50d0f8c7066447","model":"gpt-5.6-luna","modelDigest":"manual","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"0c5a1003c9cdd039885e65d1292b4659577150a0de414c2bda50d0f8c7066447","targetLocale":"ar"} -->
 
 <!-- Generated by `node scripts/docs-reference.mjs`. Do not edit. -->
 
-يرشدك هذا البرنامج التعليمي خلال مرور كامل للمحرر على حلقة موسيقية مدتها ثانيتان: جلب ملف، والاستماع إليه، وتغييره باستخدام تأثير، وتقسيمه إلى نصفين، وتقديم ملف يمكن تشغيله في أي مكان، وحفظ المشروع للعودة إليه. لا يتطلب أي معرفة صوتية؛ إنه جولة في مكان وجود الأشياء.
+يرافقك هذا البرنامج التعليمي في جولة كاملة داخل المحرر باستخدام حلقة موسيقية مدتها ثانيتان: استيراد ملف، والاستماع إليه، وتعديله بتأثير، وتقسيمه إلى مقطعين، وتصـيير ملف يمكن تشغيله في أي مكان، وحفظ المشروع للعودة إليه. لا تحتاج إلى أي معرفة بالصوت؛ إنها جولة تعريفية بمواضع الأدوات.
 
 :::tip[ما تحتاج إليه]
-- تنزيل [`guide-music-loop.wav`](https://assets.soundscaper.org/guides/examples/guide-music-loop.wav) — حلقة ستيريو مدتها ثانيتان.
+- نزّل [`guide-music-loop.wav`](https://assets.soundscaper.org/guides/examples/guide-music-loop.wav) — حلقة ستيريو مدتها ثانيتان.
 
 يعمل كل خطوة أدناه على هذه الملفات بالضبط كما هي، لذا يجب أن يتطابق ما تراه مع ما يقوله البرنامج التعليمي. يعمل Soundscaper في المتصفح؛ لا يلزم تثبيت أي شيء.
 :::
 
 ## ما الذي ستتعلمه
 
-- كيف يصبح الملف مقطعًا على مسار، وكيفية تشغيله.
+- كيف يصبح الملف مقطعًا على مسار وكيف تشغّله.
 - كيفية تقسيم المقطع باستخدام أداة التقسيم.
 - كيفية تحديد الصوت وتطبيق تأثير على التحديد.
 - الفرق بين تصدير ملف وحفظ مشروع.
 
 ## الخطوات
 
-1. افتح Soundscaper. يكون مشروع جديد فارغ جاهز بمجرد تحميل المحرر.
-2. اختر **ملف → استيراد صوتي** وحدد `guide-music-loop.wav` — حلقة ستيريو مدتها ثانيتان. يهبط الملف كمقطع على مساره الخاص.
-3. اضغط على **تشغيل** للاستماع، ثم **إيقاف**.
+1. افتح Soundscaper. يصبح مشروع جديد وفارغ جاهزًا بمجرد تحميل المحرر.
+2. اختر **ملف → استيراد** وحدد `guide-music-loop.wav` — حلقة ستيريو مدتها ثانيتان. يظهر الملف كمقطع على مساره الخاص.
+3. اضغط **تشغيل** للاستماع، ثم **إيقاف**.
    *يجب أن ترى:* يتحرك مؤشر التشغيل عبر المقطع وتُشغل الحلقة مرة واحدة.
-4. اضغط على زر **أداة التقسيم** في شريط الأدوات. أثناء تنشيط أداة التقسيم، يؤدي النقر على مقطع إلى قطعه هناك بدلاً من تحديده.
+4. اضغط زر **أداة التقسيم** في شريط الأدوات. أثناء تفعيل الأداة، يؤدي النقر على مقطع إلى قطعه في ذلك الموضع بدلًا من تحديده.
 5. انقر على الموجة في منتصفها لوضع المؤشر هناك.
-6. اضغط على زر **أداة التقسيم** في شريط الأدوات. اضغط عليه مرة أخرى للعودة إلى المؤشر العادي.
-7. الآن، يظهر المشروع بمقطعين.
-   *يجب أن ترى:* مقطعان يجلسان نهاية إلى نهاية حيث كان هناك واحد، ولكل منهما شريط اسم خاص به.
-8. اختر **تحديد → تحديد الكل**. يطبق التأثير على أي شيء محدد. يحدد تحديد الكل المشروع بأكمله، بما في ذلك كلا المقطعين.
-9. اختر **تأثير → التلاشي → التلاشي للخارج**. يطبق التأثير على التحديد على الفور.
-   *يجب أن ترى:* يضيق الموجة إلى لا شيء بحلول نهاية المقطع الثاني.
-10. اضغط على **تشغيل** للاستماع، ثم **إيقاف**.
-   *يجب أن ترى:* تتلاشى الحلقة بدلاً من التوقف بشكل حاد.
-11. اختر **ملف → تصدير الصوتي**، وحدد **تنسيق** إلى **WAV**، واضغط على **تصدير**. يتم تنزيل الملف بمجرد اكتمال التصيير، ويظل رابطه في الحوار. يصيّر التصدير ما تسمعه في ملف للاستخدام في برامج أخرى. لا يغير المشروع.
-12. اختر **ملف → حفظ المشروع**. يظهر مؤشر الحفظ في شريط الحالة أن المشروع محفوظ. يعيش المشروع - المقاطع، والتعديلات، والتاريخ - في مكتبة المشروع في المتصفح على هذا الكمبيوتر. يحفظ الحفظ المشروع هناك.
+6. اضغط زر **أداة التقسيم** في شريط الأدوات. واضغطه مرة أخرى للعودة إلى المؤشر العادي.
+7. يعرض المشروع الآن مقطعين.
+   *يجب أن ترى:* مقطعان متجاوران حيث كان مقطع واحد، ولكل منهما شريط اسم خاص به.
+8. اختر **تحديد → تحديد الكل**. يُطبَّق التأثير على كل ما هو محدد. يحدد «تحديد الكل» المشروع بأكمله، بما في ذلك المقطعين.
+9. اختر **تأثير → التلاشي → تلاشي للخارج**. يُطبَّق التأثير على التحديد فورًا.
+   *يجب أن ترى:* تتناقص الموجة حتى الصمت عند نهاية المقطع الثاني.
+10. اضغط **تشغيل** للاستماع، ثم **إيقاف**.
+   *يجب أن ترى:* تخفت الحلقة بدلًا من أن تتوقف فجأة.
+11. اختر **ملف → تصدير الصوت**، واضبط **التنسيق** على **WAV**، ثم اضغط **تصدير**. يُنزَّل الملف بمجرد انتهاء التصيير، ويبقى رابطه في مربع الحوار. يحوّل التصدير ما تسمعه إلى ملف لبرامج أخرى؛ ولا يغيّر المشروع.
+12. اختر **ملف → حفظ المشروع**. يوضح مؤشر الحفظ في شريط الحالة أن المشروع محفوظ. يبقى المشروع — بمقاطعه وتعديلاته وسجله — في مكتبة المشاريع بالمتصفح على هذا الكمبيوتر، ويحافظ الحفظ عليه هناك.
 
 ## أين بعد ذلك
 
-- جرب نفس التلاشي والتقسيم على تسجيل خاص بك: [التلاشي في والتلاشي للخارج](/guides/volume/fade-in-and-fade-out/) و [تقسيم مقطع إلى نصفين](/guides/editing/split-a-clip-at-the-cursor/). يوضح دليل التلاشي أيضًا كيفية تلاشي البداية أو النهاية فقط.
+- جرّب التلاشي والتقسيم نفسيهما على تسجيلك: [التلاشي للداخل وللخارج](/guides/volume/fade-in-and-fade-out/) و[تقسيم مقطع إلى نصفين](/guides/editing/split-a-clip-at-the-cursor/). يوضح دليل التلاشي أيضًا كيفية تلاشي البداية أو النهاية فقط.
 - ثم خذ مشروعك إلى مكان آخر: [نقل مشروع بين أجهزة الكمبيوتر](/guides/projects/move-a-project-between-computers/).
 
 ## دروس تعليمية أخرى
 
-[تنظيف تسجيل صوتي](/tutorials/clean-up-a-voice-recording/) — أزل الطنين من التسجيل، وقطع الاهتزاز، واجعله بصوت بودكاست، وصدر ملف MP3.
-[وضع الموسيقى تحت صوت](/tutorials/put-music-under-a-voice/) — طبقة مسارين، وأخفِ أحدهما تلقائيًا تحت الآخر، وامزجهما، وصدرهما.
+[تنظيف تسجيل صوتي](/tutorials/clean-up-a-voice-recording/) — أزل الطنين من التسجيل، واقطع الاهتزاز، واضبطه على جهارة البودكاست، ثم صدّر ملف MP3.
+[وضع الموسيقى تحت صوت](/tutorials/put-music-under-a-voice/) — ضع مسارين، واخفض أحدهما تلقائيًا تحت الآخر، واخلطهما ثم صدّرهما.
 
 ## المرجع
 

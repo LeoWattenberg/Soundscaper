@@ -8,32 +8,32 @@ head:
   - tag: script
     attrs:
       type: "application/ld+json"
-    content: "{\"@context\":\"https://schema.org\",\"@type\":\"HowTo\",\"name\":\"Mix tracks into a new track and keep the originals\",\"description\":\"Render a mix of several tracks onto a new track while the sources stay in the project.\",\"tool\":[{\"@type\":\"HowToTool\",\"name\":\"Soundscaper\"}],\"step\":[{\"@type\":\"HowToStep\",\"position\":1,\"name\":\"Open Soundscaper. A new, empty project is ready as soon as the editor loads.\",\"text\":\"Open Soundscaper. A new, empty project is ready as soon as the editor loads.\"},{\"@type\":\"HowToStep\",\"position\":2,\"name\":\"Choose File → Import audio and pick the first track to mix. The file lands as a clip on its own track.\",\"text\":\"Choose File → Import audio and pick the first track to mix. The file lands as a clip on its own track.\"},{\"@type\":\"HowToStep\",\"position\":3,\"name\":\"Choose File → Import audio and pick the second track to mix. The file lands as a clip on its own track.\",\"text\":\"Choose File → Import audio and pick the second track to mix. The file lands as a clip on its own track.\"},{\"@type\":\"HowToStep\",\"position\":4,\"name\":\"Click the name bar of the first clip, then hold Shift and click the name bar of the second clip, so both are selected.\",\"text\":\"Click the name bar of the first clip, then hold Shift and click the name bar of the second clip, so both are selected. Every track with a selected clip goes into the mix.\"},{\"@type\":\"HowToStep\",\"position\":5,\"name\":\"Choose Tracks → Mix & Render. In the Mix & Render dialog, leave Mix down and Render effects checked, turn off Replace originals, choose Stereo for Mix down to, then press Mix & Render.\",\"text\":\"Choose Tracks → Mix & Render. In the Mix & Render dialog, leave Mix down and Render effects checked, turn off Replace originals, choose Stereo for Mix down to, then press Mix & Render.\"},{\"@type\":\"HowToStep\",\"position\":6,\"name\":\"A new track under the originals holds a clip named Mix, and the original clips are still where they were.\",\"text\":\"A new track under the originals holds a clip named Mix, and the original clips are still where they were. Three clips: the two you started with and the mix.\"}]}"
+    content: "{\"@context\":\"https://schema.org\",\"@type\":\"HowTo\",\"name\":\"Mix tracks into a new track and keep the originals\",\"description\":\"Render a mix of several tracks onto a new track while the sources stay in the project.\",\"tool\":[{\"@type\":\"HowToTool\",\"name\":\"Soundscaper\"}],\"step\":[{\"@type\":\"HowToStep\",\"position\":1,\"name\":\"Open Soundscaper. A new, empty project is ready as soon as the editor loads.\",\"text\":\"Open Soundscaper. A new, empty project is ready as soon as the editor loads.\"},{\"@type\":\"HowToStep\",\"position\":2,\"name\":\"Choose File → Import and pick the first track to mix. It lands as a clip on its own track.\",\"text\":\"Choose File → Import and pick the first track to mix. It lands as a clip on its own track.\"},{\"@type\":\"HowToStep\",\"position\":3,\"name\":\"Choose File → Import and pick the second track to mix. It lands as a clip on its own track.\",\"text\":\"Choose File → Import and pick the second track to mix. It lands as a clip on its own track.\"},{\"@type\":\"HowToStep\",\"position\":4,\"name\":\"Click the name bar of the first clip, then hold Shift and click the name bar of the second clip, so both are selected.\",\"text\":\"Click the name bar of the first clip, then hold Shift and click the name bar of the second clip, so both are selected. Every track with a selected clip goes into the mix.\"},{\"@type\":\"HowToStep\",\"position\":5,\"name\":\"Choose Tracks → Mix & Render. In the Mix & Render dialog, leave Mix down and Render effects checked, turn off Replace originals, choose Stereo for Mix down to, then press Mix & Render.\",\"text\":\"Choose Tracks → Mix & Render. In the Mix & Render dialog, leave Mix down and Render effects checked, turn off Replace originals, choose Stereo for Mix down to, then press Mix & Render.\"},{\"@type\":\"HowToStep\",\"position\":6,\"name\":\"A new track under the originals holds a clip named Mix, and the original clips are still where they were.\",\"text\":\"A new track under the originals holds a clip named Mix, and the original clips are still where they were. Three clips: the two you started with and the mix.\"}]}"
 ---
-<!-- docs-ai-provenance: {"factPacketSha256":"2509e4de7079761304d0dcefb76634478608a4a61925bbbe411587b9afb883cb","model":"qwen3.8:latest","modelDigest":"22130167c4c20e20c7b71454612966ca8e8171e9b3cc8ab6ce8aa6cbfec79643","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"2509e4de7079761304d0dcefb76634478608a4a61925bbbe411587b9afb883cb","targetLocale":"ar"} -->
+<!-- docs-ai-provenance: {"factPacketSha256":"04ea60929a4ea39e8f423889db1d214a0b0b91877e92306a9f74812476d14098","model":"gpt-5.6-luna","modelDigest":"manual","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"04ea60929a4ea39e8f423889db1d214a0b0b91877e92306a9f74812476d14098","targetLocale":"ar"} -->
 
 <!-- Generated by `node scripts/docs-reference.mjs`. Do not edit. -->
 
-عادةً ما يؤدي خلط المسارات إلى الأسفل إلى استبدالها، وهو أمر مناسب لخلطة نهائية، لكنه غير مناسب عندما قد ترغب في تعديل الأجزاء بعد ذلك. يؤدي إيقاف خيار "استبدال الأصلية" في مربع حوار "الخلط والعرض" إلى عرض الخلطة — بما في ذلك المكاسب والتوزيع والتأثيرات الفورية — على مسار جديد، مع بقاء كل مسار مصدر في مكانه، مما يتيح لك المقارنة، أو مواصلة التحرير، أو كتم الأصوات المصدرية والمضي قدمًا مع الخلطة المجسمة. كانت Audacity 3 تقدم هذا الخيار باسم "خلط وعرض على مسار جديد"؛ بينما لا يحتوي Audacity 4 على أي أمر من هذا القبيل.
+عادةً ما يستبدل خلط المسارات المسارات الأصلية، وهو مناسب لمزيج نهائي، لكنه غير مناسب إذا كنت قد ترغب في تعديل الأجزاء لاحقًا. يؤدي إيقاف خيار **استبدال الأصلية** في مربع حوار **الخلط والتصيير** إلى تصيير المزيج — بما في ذلك المكاسب والتحريك والتأثيرات الفورية — على مسار جديد مع إبقاء كل مسار مصدر في مكانه، كي تقارن وتواصل التحرير أو تكتم المصادر وتتابع بالمزيج الستيريو. كانت Audacity 3 تقدم هذا الخيار باسم **الخلط والتصيير إلى مسار جديد**؛ ولا يملك Audacity 4 أي أمر مماثل.
 
 :::note[هل أنت قادم من Audacity؟]
-هذا هو أمر **المسارات → الخلط → خلط وعرض على مسار جديد (Audacity 3؛ Audacity 4 لا يحتوي على خلط وعرض)** في Audacity. الأسماء أدناه هي أسماء Soundscaper الخاصة، والتي قد تختلف أحيانًا.
+هذا هو أمر **المسارات → الخلط → الخلط والتصيير إلى مسار جديد (Audacity 3؛ لا يملك Audacity 4 خلطًا وتصـييرًا)** في Audacity. الأسماء أدناه هي أسماء Soundscaper الخاصة، وقد تختلف أحيانًا.
 :::
 
 ## الخطوات
 
-1. افتح Soundscaper. يكون مشروع جديد فارغ جاهزًا بمجرد تحميل المحرر.
-2. اختر **ملف → استيراد صوت** واختر المسار الأول للخلط. سيظهر الملف كمقطع على مساره الخاص.
-3. اختر **ملف → استيراد صوت** واختر المسار الثاني للخلط. سيظهر الملف كمقطع على مساره الخاص.
-4. انقر على شريط اسم المقطع الأول، ثم اضغط باستمرار على Shift وانقر على شريط اسم المقطع الثاني، بحيث يتم تحديد كلاهما. كل مسار يحتوي على مقطع محدد يدخل في الخلطة.
-5. اختر **المسارات → الخلط والعرض**. في مربع حوار **الخلط والعرض**، اترك **الخلط إلى الأسفل** و**عرض التأثيرات** محددة، وأوقف **استبدال الأصلية**، واختر **مجسم** لـ **الخلط إلى**، ثم اضغط على **الخلط والعرض**.
-6. يحتوي مسار جديد تحت الأصلية على مقطع باسم **Mix**، ولا تزال المقاطع الأصلية في مكانها.
+1. افتح Soundscaper. يصبح مشروع جديد وفارغ جاهزًا بمجرد تحميل المحرر.
+2. اختر **ملف → استيراد** وحدد المسار الأول للخلط. يظهر الملف كمقطع على مساره الخاص.
+3. اختر **ملف → استيراد** وحدد المسار الثاني للخلط. يظهر الملف كمقطع على مساره الخاص.
+4. انقر على شريط اسم المقطع الأول، ثم اضغط باستمرار على Shift وانقر على شريط اسم المقطع الثاني لتحديدهما معًا. يدخل في المزيج كل مسار يحتوي على مقطع محدد.
+5. اختر **المسارات → الخلط والتصيير**. في مربع حوار **الخلط والتصيير**، اترك **الخلط إلى الأسفل** و**تصيير التأثيرات** محددين، وأوقف **استبدال الأصلية**، واختر **ستيريو** في **الخلط إلى**، ثم اضغط **الخلط والتصيير**.
+6. يحتوي مسار جديد أسفل المسارات الأصلية على مقطع اسمه **Mix**، وتبقى المقاطع الأصلية في مواضعها.
    *ما يجب أن تراه:* ثلاثة مقاطع: المقطعان اللذان بدأت بهما والخلطة.
 
 ## نصائح
 
-- قم بكتم المسارات المصدرية لسماع الخلطة بمفردها؛ وإلا فسيتم تشغيل كلاهما.
-- لاستبدال المصادر بالخلطة بدلاً من ذلك، اترك **استبدال الأصلية** مفعلاً: [خلط عدة مسارات في واحد](/guides/tracks-and-export/mix-tracks-into-one/).
+- اكتم المسارات المصدرية لسماع المزيج وحده؛ وإلا فسيُشغَّل المساران معًا.
+- لاستبدال المصادر بالمزيج، اترك **استبدال الأصلية** مفعّلًا: [خلط عدة مسارات في مسار واحد](/guides/tracks-and-export/mix-tracks-into-one/).
 
 ## أدلة ذات صلة
 
@@ -41,10 +41,10 @@ head:
 
 - [خلط عدة مسارات في واحد](/guides/tracks-and-export/mix-tracks-into-one/) — عرض المسارات المحددة إلى مسار واحد.
 - [تقسيم مسار مجسم إلى مساري أحادي](/guides/tracks-and-export/split-stereo-into-mono-tracks/) — فصل القنوات اليسرى واليمنى بحيث يمكن تحرير كل منهما بشكل مستقل.
-- [توليد نغلة اختبار](/guides/tracks-and-export/generate-a-test-tone/) — إنشاء موجة جيبية بتردد وطول محددين من العدم.
+- [توليد نغمة اختبار](/guides/tracks-and-export/generate-a-test-tone/) — إنشاء موجة جيبية بتردد وطول محددين من العدم.
 - [تصدير MP3](/guides/tracks-and-export/export-an-mp3/) — عرض المشروع إلى ملف MP3 للمشاركة أو النشر.
 - [تصدير WAV](/guides/tracks-and-export/export-a-wav/) — عرض المشروع إلى ملف WAV غير مضغوط.
-- [كتم المسارات وعزله](/guides/tracks-and-export/mute-and-solo-tracks/) — إسكات مسار، أو الاستماع إلى مسار واحد بمفرده، أثناء العمل على خلطة.
+- [كتم المسارات وعزلها](/guides/tracks-and-export/mute-and-solo-tracks/) — إسكات مسار، أو الاستماع إلى مسار واحد بمفرده، أثناء العمل على مزيج.
 - [إضافة مسار فارغ](/guides/tracks-and-export/add-an-empty-track/) — إنشاء مسار جديد للتسجيل فيه أو للصق عليه.
 - [كتم كل المسارات دفعة واحدة](/guides/tracks-and-export/mute-every-track-at-once/) — إسكات المشروع بأكمله في خطوة واحدة، ثم إعادته.
 - [موازنة المسارات في الميكسر](/guides/tracks-and-export/balance-tracks-in-the-mixer/) — فتح وحدة تحكم خلط مع شريط قناة لكل مسار لضبط المستويات والتوزيع جنبًا إلى جنب.
