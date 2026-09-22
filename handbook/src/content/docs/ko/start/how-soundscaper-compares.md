@@ -4,7 +4,7 @@ description: "녹음, 편집, 믹싱, 전달 및 교환 측면에서 Soundscaper
 sidebar:
   order: 3
 ---
-<!-- docs-ai-provenance: {"factPacketSha256":"703e76cffbe1464f1283f6c8f45cee52c0d37faae852b7efc163879710a2ddb2","model":"qwen3.8:latest","modelDigest":"22130167c4c20e20c7b71454612966ca8e8171e9b3cc8ab6ce8aa6cbfec79643","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"703e76cffbe1464f1283f6c8f45cee52c0d37faae852b7efc163879710a2ddb2","targetLocale":"ko"} -->
+<!-- docs-ai-provenance: {"model":"gpt-5.6-luna","modelDigest":"manual","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"71097403d87aba03cddc2ccd696ff9a8663268afba3a7bf750fe8d9913de3eba","targetLocale":"ko"} -->
 
 Soundscaper는 Audacity 4를 웹에서 재구현하고 그 위에 프로덕션 레이어를 추가합니다. Adobe Audition은 일반적으로 이 두 제품을 비교하는 데 사용되는 상업용 후반 작업 도구입니다. 이 페이지에서는 세 제품을 모두 비교하여 이미 해당 작업을 수행할 수 있는 도구를 파악할 수 있도록 합니다.
 
@@ -201,4 +201,4 @@ Audacity 4는 단일 패스 편집기입니다. 고정된 빌드에는 버스, s
 
 Audition은 여전히 복원 깊이, Premiere Pro 왕복, 앰비소닉스에서 앞서 있습니다. Soundscaper가 앞서 있는 부분은 몰입형 전달, 프로젝트 처리, 그리고 둘 다 지원하지 않는 하드웨어에서 브라우저로 실행된다는 점입니다.
 
-이미 Audacity를 사용하고 있다면, 프로젝트를 이동하는 방법에 대해 [project files and Audacity interchange](/projects-and-data/project-files/)를 참조하세요.
+이미 Audacity를 사용하고 있다면, 프로젝트를 이동하는 방법에 대해 [프로젝트 파일과 Audacity 교환](/projects-and-data/project-files/)을 참조하세요.
