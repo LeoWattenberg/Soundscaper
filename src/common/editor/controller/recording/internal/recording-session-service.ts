@@ -1,5 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { transitionRoutedRecordingSources } from './routed-recording-transition.ts';
+
 type MaybePromise<T> = T | PromiseLike<T>;
 
 function invokeAsPromise<T>(operation: () => MaybePromise<T>): Promise<T> {
@@ -211,62 +213,9 @@ export function createRoutedRecordingController(
 	};
 
 	function transitionSources(direction: 'pause' | 'resume'): boolean {
-		const previousControllerState = direction === 'pause' ? 'recording' : 'paused';
-		const nextControllerState = direction === 'pause' ? 'paused' : 'recording';
-		const rollbackDirection = direction === 'pause' ? 'resume' : 'pause';
-		const transitioned: RoutedRecordingSourceSession[] = [];
-		let transitionFailure: unknown = null;
-		let rejected = false;
-		let uncertainFailure = false;
-		for (const session of sourceSessions) {
-			if (session.stopped || session.disconnected) continue;
-			try {
-				const result = session.controller[direction]();
-				if (result === false) {
-					rejected = true;
-					transitionFailure = new Error(`A routed recording source rejected ${direction}.`);
-					if (session.controller.state === nextControllerState) transitioned.push(session);
-					else if (session.controller.state !== undefined
-						&& session.controller.state !== previousControllerState) uncertainFailure = true;
-					break;
-				}
-				transitioned.push(session);
-			} catch (error) {
-				transitionFailure = error;
-				if (session.controller.state === nextControllerState) transitioned.push(session);
-				else if (session.controller.state === undefined
-					|| session.controller.state !== previousControllerState) uncertainFailure = true;
-				break;
-			}
-		}
-		if (transitionFailure === null) {
-			controllerState = nextControllerState;
-			return true;
-		}
-
-		const rollbackFailures: unknown[] = [];
-		for (const session of transitioned.reverse()) {
-			try {
-				const result = session.controller[rollbackDirection]();
-				if (result === false || (session.controller.state !== undefined
-					&& session.controller.state !== previousControllerState)) {
-					rollbackFailures.push(new Error(
-						`A routed recording source rejected the ${direction} rollback.`,
-					));
-				}
-			} catch (error) {
-				rollbackFailures.push(error);
-			}
-		}
-		if (uncertainFailure || rollbackFailures.length) {
-			void beginStop();
-			throw new AggregateError(
-				[transitionFailure, ...rollbackFailures],
-				`Routed recording ${direction} rollback failed; capture is stopping.`,
-			);
-		}
-		if (rejected) return false;
-		throw transitionFailure;
+		const transitioned = transitionRoutedRecordingSources(sourceSessions, direction, beginStop);
+		if (transitioned) controllerState = direction === 'pause' ? 'paused' : 'recording';
+		return transitioned;
 	}
 
 	function beginStop(): Promise<void> {
