@@ -45,9 +45,9 @@ export async function openStreamedWavPackImportSession(
 		async *samples(): AsyncGenerator<BrowserContainerAudioSample> {
 			assertCurrent();
 			if (!decoder) {
-				const { createBrowserAudioCodecRuntime } = await import('./browser-audio-codec-runtime.ts');
+				const { createDefaultWavPackGroupDecoder } = await import('./browser-streamed-wavpack-decoder.ts');
 				assertCurrent();
-				const runtime = createBrowserAudioCodecRuntime();
+				const runtime = createDefaultWavPackGroupDecoder();
 				decoder = runtime;
 				disposeDecoder = () => runtime.dispose();
 			}

@@ -135,6 +135,12 @@ export const PRODUCT_STAND_IN_ALIASES = Object.freeze([
 		product: null,
 		desktopCodecRuntime: true,
 	},
+	{
+		find: /^\.\/browser-streamed-wavpack-decoder\.ts$/u,
+		standIn: 'src/common/editor/browser-streamed-wavpack-decoder.desktop.ts',
+		product: null,
+		desktopCodecRuntime: true,
+	},
 ]);
 
 /**

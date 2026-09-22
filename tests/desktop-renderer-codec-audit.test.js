@@ -7,6 +7,7 @@ import { join } from 'node:path';
 import test from 'node:test';
 
 import { auditDesktopRendererCodecComposition } from '../scripts/lib/desktop-renderer-codec-audit.mjs';
+import { productStandInAliasesFor } from '../scripts/lib/product-aliases.mjs';
 
 test('desktop renderer audit rejects every browser FFmpeg runtime seam', async (context) => {
 	const root = await mkdtemp(join(tmpdir(), 'soundscaper-desktop-renderer-codecs-'));
@@ -30,4 +31,21 @@ test('desktop renderer audit rejects every browser FFmpeg runtime seam', async (
 			/browser FFmpeg runtime/iu,
 		);
 	}
+});
+
+test('desktop WavPack import substitutes its browser codec fallback', async () => {
+	const importSpecifier = './browser-streamed-wavpack-decoder.ts';
+	const desktopAliases = productStandInAliasesFor({
+		productId: 'soundscaper', desktopCodecComposition: true,
+	});
+	const browserAliases = productStandInAliasesFor({
+		productId: 'soundscaper', desktopCodecComposition: false,
+	});
+	assert.equal(browserAliases.some(({ find }) => find.test(importSpecifier)), false);
+	const replacement = desktopAliases.find(({ find }) => find.test(importSpecifier));
+	assert.equal(replacement?.standIn, 'src/common/editor/browser-streamed-wavpack-decoder.desktop.ts');
+	const { createDefaultWavPackGroupDecoder } = await import(
+		'../src/common/editor/browser-streamed-wavpack-decoder.desktop.ts'
+	);
+	assert.throws(() => createDefaultWavPackGroupDecoder(), /desktop.*codec/iu);
 });
