@@ -109,6 +109,13 @@ test.describe('Soundscaper sound-activated recording', () => {
 		await record.click();
 		await expect(record).toHaveAttribute('aria-label', 'Resume recording');
 		await editor.getByRole('button', { name: 'Stop', exact: true }).click();
+		const trackCount = Number(await editor.getAttribute('data-track-count'));
+		await editor.getByRole('button', { name: 'Record options', exact: true }).click();
+		await page.getByRole('dialog', { name: 'Record options', exact: true })
+			.getByRole('button', { name: 'Record to new track', exact: true }).click();
+		await expect(editor).toHaveAttribute('data-track-count', String(trackCount + 1));
+		await expect(record).toHaveAttribute('aria-label', 'Pause recording');
+		await editor.getByRole('button', { name: 'Stop', exact: true }).click();
 	});
 
 	test('keeps Soundscaper-only controls out of Framescaper preferences', async ({ page }) => {
