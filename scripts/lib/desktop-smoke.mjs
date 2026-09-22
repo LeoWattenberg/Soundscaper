@@ -60,6 +60,7 @@ export const DESKTOP_SMOKE_EXPECTED_BRIDGE = Object.freeze([
 	'nativeServices',
 	'onAssistanceInstallProgress',
 	'onCloseRequested',
+	'onMcpRequest',
 	'onMenuCommand',
 	'onOpenProject',
 	'onWindowStateChanged',
@@ -72,6 +73,7 @@ export const DESKTOP_SMOKE_EXPECTED_BRIDGE = Object.freeze([
 	'probeHelperAvailability',
 	'pushNativeVampAnalyzerPcm',
 	'readDesktopVideoCodecOutput',
+	'readMcpStatus',
 	'readNativeTierControls',
 	'reconcileAssistanceModels',
 	'reconcileLinkedOriginals',
@@ -84,6 +86,7 @@ export const DESKTOP_SMOKE_EXPECTED_BRIDGE = Object.freeze([
 	'reportNativeAudioSessionLoss',
 	'reportNativeAudioSessionTransfer',
 	'rescanExternalFfmpeg',
+	'respondMcpRequest',
 	'respondToClose',
 	'restoreNativePluginState',
 	'runDesktopAudioCodecOperation', 'runDesktopAudioCodecStreamCommand',
@@ -97,8 +100,10 @@ export const DESKTOP_SMOKE_EXPECTED_BRIDGE = Object.freeze([
 	'setNativePluginConsent',
 	'setNativePluginInstallationAllowed',
 	'signalReady',
+	'startMcp',
 	'startNativeVampAnalyzer',
 	'statDesktopVideoCodecOutput',
+	'stopMcp',
 	'writeChunk',
 	'writeDesktopVideoCodecInput',
 ]);
@@ -129,7 +134,9 @@ export const SOUNDSCAPER_DESKTOP_SMOKE_EXPECTED_BRIDGE = Object.freeze(
 );
 
 export const FRAMESCAPER_DESKTOP_SMOKE_EXPECTED_BRIDGE = Object.freeze([
-	...DESKTOP_SMOKE_EXPECTED_BRIDGE.filter((name) => name !== 'persistentDelivery'),
+	...DESKTOP_SMOKE_EXPECTED_BRIDGE.filter((name) => ![
+		'persistentDelivery', 'onMcpRequest', 'readMcpStatus', 'respondMcpRequest', 'startMcp', 'stopMcp',
+	].includes(name)),
 	'projectLibrary',
 ].sort());
 

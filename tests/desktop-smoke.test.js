@@ -77,6 +77,7 @@ test('desktop smoke pins the complete sorted preload v1 bridge contract', () => 
 		'nativeServices',
 		'onAssistanceInstallProgress',
 		'onCloseRequested',
+		'onMcpRequest',
 		'onMenuCommand',
 		'onOpenProject',
 		'onWindowStateChanged',
@@ -89,6 +90,7 @@ test('desktop smoke pins the complete sorted preload v1 bridge contract', () => 
 		'probeHelperAvailability',
 		'pushNativeVampAnalyzerPcm',
 		'readDesktopVideoCodecOutput',
+		'readMcpStatus',
 		'readNativeTierControls',
 		'reconcileAssistanceModels',
 		'reconcileLinkedOriginals',
@@ -101,6 +103,7 @@ test('desktop smoke pins the complete sorted preload v1 bridge contract', () => 
 		'reportNativeAudioSessionLoss',
 		'reportNativeAudioSessionTransfer',
 		'rescanExternalFfmpeg',
+		'respondMcpRequest',
 		'respondToClose',
 		'restoreNativePluginState',
 		'runDesktopAudioCodecOperation', 'runDesktopAudioCodecStreamCommand',
@@ -114,8 +117,10 @@ test('desktop smoke pins the complete sorted preload v1 bridge contract', () => 
 		'setNativePluginConsent',
 		'setNativePluginInstallationAllowed',
 		'signalReady',
+		'startMcp',
 		'startNativeVampAnalyzer',
 		'statDesktopVideoCodecOutput',
+		'stopMcp',
 		'writeChunk',
 		'writeDesktopVideoCodecInput',
 	]);
@@ -146,7 +151,9 @@ test('desktop smoke bridge inventory equals the sandbox preload surface', async 
 	assert.deepEqual(Object.keys(framescaperBridge).sort(), FRAMESCAPER_DESKTOP_SMOKE_EXPECTED_BRIDGE);
 	assert.equal(Object.hasOwn(framescaperBridge, 'persistentDelivery'), false);
 	assert.deepEqual(FRAMESCAPER_DESKTOP_SMOKE_EXPECTED_BRIDGE, [
-		...DESKTOP_SMOKE_EXPECTED_BRIDGE.filter((name) => name !== 'persistentDelivery'),
+		...DESKTOP_SMOKE_EXPECTED_BRIDGE.filter((name) => ![
+			'persistentDelivery', 'onMcpRequest', 'readMcpStatus', 'respondMcpRequest', 'startMcp', 'stopMcp',
+		].includes(name)),
 		'projectLibrary',
 	].sort());
 });
@@ -196,6 +203,7 @@ test('desktop smoke accepts the exact product-isolated Soundscaper preload surfa
 		'nativePluginAvailability',
 		'onAssistanceInstallProgress',
 		'onCloseRequested',
+		'onMcpRequest',
 		'onMenuCommand',
 		'onOpenProject',
 		'onWindowStateChanged',
@@ -206,6 +214,7 @@ test('desktop smoke accepts the exact product-isolated Soundscaper preload surfa
 		'persistNativePluginState',
 		'persistentDelivery',
 		'pushNativeVampAnalyzerPcm',
+		'readMcpStatus',
 		'readNativeTierControls',
 		'reconcileAssistanceModels',
 		'reconcileLinkedOriginals',
@@ -216,6 +225,7 @@ test('desktop smoke accepts the exact product-isolated Soundscaper preload surfa
 		'reportNativeAudioSessionLoss',
 		'reportNativeAudioSessionTransfer',
 		'rescanExternalFfmpeg',
+		'respondMcpRequest',
 		'respondToClose',
 		'restoreNativePluginState',
 		'runDesktopAudioCodecOperation', 'runDesktopAudioCodecStreamCommand',
@@ -229,7 +239,9 @@ test('desktop smoke accepts the exact product-isolated Soundscaper preload surfa
 		'setNativePluginConsent',
 		'setNativePluginInstallationAllowed',
 		'signalReady',
+		'startMcp',
 		'startNativeVampAnalyzer',
+		'stopMcp',
 		'writeChunk',
 	]);
 	const source = await readFile(resolve(ROOT, 'desktop', 'preload.mjs'), 'utf8');
