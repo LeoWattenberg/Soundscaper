@@ -63,7 +63,8 @@ test.describe('Audacity Graphic EQ fader bank', () => {
 		await page.keyboard.press('Escape'); await page.mouse.up();
 		await expect(dialog).toBeVisible();
 		await expect(dialog.getByRole('slider', { name: '50 Hz', exact: true })).toHaveAttribute('aria-valuenow', '-10');
-		await page.mouse.dblclick(at50.x, at50.y);
+		const resetAt50 = await bandAt(dialog, 50, -10);
+		await page.mouse.dblclick(resetAt50.x, resetAt50.y);
 		await expect(dialog.getByRole('slider', { name: '50 Hz', exact: true })).toHaveAttribute('aria-valuenow', '0');
 		await dialog.getByRole('button', { name: 'Invert', exact: true }).click();
 		await expect(dialog.getByRole('slider', { name: '20 Hz', exact: true })).toHaveAttribute('aria-valuenow', '-10');
