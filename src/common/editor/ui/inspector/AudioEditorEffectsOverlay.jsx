@@ -430,7 +430,7 @@ export function AudioEditorEffectsOverlay({
 						<div className="audio-editor-rack-effect-header">
 							<EffectPresetBar
 								onAdvancedSettings={onAdvancedSettings}
-								copy={copy}
+								copy={copy} aboutEffect={effect}
 								disabled={blocked}
 								resetKey={`${projectIdentity ?? ''}:${effect.id}`}
 								automation={{

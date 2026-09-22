@@ -434,3 +434,30 @@
 	font-size: var(--editor-font-size, 12px);
 	font-weight: 750;
 }
+.audio-editor-effect-about-fields {
+	display: grid;
+	gap: 0;
+	margin: 0;
+}
+
+.audio-editor-effect-about-field {
+	display: grid;
+	grid-template-columns: minmax(120px, 35%) minmax(0, 1fr);
+	gap: 12px;
+	padding: 9px 0;
+	border-bottom: 1px solid var(--line);
+}
+
+.audio-editor-effect-about-field:last-child {
+	border-bottom: 0;
+}
+
+.audio-editor-effect-about-field dt {
+	color: var(--muted);
+}
+
+.audio-editor-effect-about-field dd {
+	min-width: 0;
+	margin: 0;
+	overflow-wrap: anywhere;
+}

@@ -9,7 +9,9 @@ import { takeSelectedFile } from '../file-input-selection.ts';
 import { canonicalCopyValue } from '../../../i18n/canonical-extras.js';
 import { samePresetParams } from './effect-helpers.ts';
 import AudacityEffectHeader from './AudacityEffectHeader.jsx';
+import EffectAboutDialog from './EffectAboutDialog.tsx';
 import EffectPresetMenuPortal from './EffectPresetMenuPortal.tsx';
+import { effectAboutMetadata } from './effect-about-metadata.ts';
 
 /**
  * The preset bar Audacity 4 puts above every effect's controls.
@@ -34,6 +36,7 @@ export default function EffectPresetBar({
 	currentParams = /** @type {null | Record<string, unknown>} */ (null),
 	onDefault = /** @type {null | (() => void)} */ (null),
 	onAdvancedSettings = /** @type {null | (() => void)} */ (null),
+	aboutEffect = /** @type {import('./effect-about-metadata.ts').EffectAboutSubject | string | null} */ (null),
 	onSelect,
 	onSave,
 	onSaveAs,
@@ -49,6 +52,8 @@ export default function EffectPresetBar({
 	const [saveMenu, setSaveMenu] = useState(null);
 	const [optionsMenu, setOptionsMenu] = useState(null);
 	const [saveAsName, setSaveAsName] = useState(null);
+	const [aboutOpen, setAboutOpen] = useState(false);
+	const about = aboutEffect == null ? null : effectAboutMetadata(aboutEffect, copy);
 
 	// An open menu or half-typed preset name belongs to whatever was being
 	// edited when it opened. When that changes underneath — a different project,
@@ -58,6 +63,7 @@ export default function EffectPresetBar({
 		setSaveMenu(null);
 		setOptionsMenu(null);
 		setSaveAsName(null);
+		setAboutOpen(false);
 	}, [resetKey]);
 	const selected = presets.find((preset) => preset.id === selectedId) || null;
 	const canOverwrite = Boolean(selected?.custom) && !disabled;
@@ -115,7 +121,7 @@ export default function EffectPresetBar({
 				canDelete={canOverwrite}
 				onDeletePreset={() => { if (canOverwrite) onDelete(); }}
 				onMoreOptions={(event) => {
-					if (disabled) return;
+					if (disabled && !about) return;
 					setSaveMenu(null);
 					setOptionsMenu(anchor(event));
 				}}
@@ -137,17 +143,24 @@ export default function EffectPresetBar({
 				<ContextMenu isOpen={Boolean(optionsMenu)} onClose={close} x={optionsMenu?.x || 0} y={optionsMenu?.y || 0}>
 					{onAdvancedSettings && <ContextMenuItem
 						label={canonicalCopyValue('effectAdvancedSettings', copy)}
+						disabled={disabled}
 						onClick={() => { close(); onAdvancedSettings(); }}
 					/>}
 					<ContextMenuItem
 						label={copy.importEffectPreset}
+						disabled={disabled}
 						onClick={() => { close(); fileRef.current?.click(); }}
 					/>
 					<ContextMenuItem
 						label={copy.exportEffectPreset}
-						disabled={!selectedId}
+						disabled={disabled || !selectedId}
 						onClick={() => { close(); if (selectedId) onExport(); }}
 					/>
+					{about && <>
+						<ContextMenuItem isDivider />
+						<ContextMenuItem label={canonicalCopyValue('effectAbout', copy)}
+							onClick={() => { close(); setAboutOpen(true); }} />
+					</>}
 				</ContextMenu>
 			</EffectPresetMenuPortal>}
 
@@ -195,6 +208,9 @@ export default function EffectPresetBar({
 					</label>
 				</AudioEditorDialogShell>
 			)}
+			{aboutOpen && about && <EffectPresetMenuPortal target={fileRef.current}>
+				<EffectAboutDialog about={about} copy={copy} onClose={() => setAboutOpen(false)} />
+			</EffectPresetMenuPortal>}
 		</div>
 	);
 }

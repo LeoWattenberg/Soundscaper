@@ -195,10 +195,10 @@ export function SelectionEffectsDialog({ isOpen, controller, snapshot, copy, fil
 			dataAttributes={{ 'data-selection-effects-dialog': '' }}
 			headerSlot={(
 				<EffectPresetBar
-					copy={copy}
+					copy={copy} aboutEffect={selectionType}
 					onAdvancedSettings={onAdvancedSettings}
 					disabled={blocked}
-					resetKey={projectIdentity}
+					resetKey={`${projectIdentity}:${selectionType}`}
 					presets={presetChoices.map(({ id, label, custom }) => ({ id, label, custom }))}
 					selectedId={selectedPresetId}
 					defaultParams={selectionType.startsWith('audacity-') || isAudacityNyquistPort(selectionType) ? selectionEffectDefaults : null}

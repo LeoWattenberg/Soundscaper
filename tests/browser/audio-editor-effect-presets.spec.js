@@ -83,6 +83,40 @@ test.describe('effect presets Audacity ships', () => {
 		expect(errors).toEqual([]);
 	});
 
+	test('opens effect details from both preset overflow menus', async ({ page }) => {
+		const errors = collectClientErrors(page);
+		const editor = await bootEditor(page, '/embed/en/');
+		await importFiles(editor, [toneA]);
+		await page.keyboard.press('Control+k');
+		await editor.locator('[data-editor-search-input]').fill('Reverb');
+		await editor.locator('[data-editor-search-popup] [data-editor-search-key="command:audacity-reverb"]').click();
+		const selection = page.locator('[data-selection-effects-dialog]');
+		await selection.getByRole('button', { name: 'More options', exact: true }).click();
+		await page.getByRole('menuitem', { name: 'About', exact: true }).click();
+		const about = page.locator('[data-effect-about-dialog]');
+		await expect(about).toBeVisible();
+		await expect(about).toContainText('Reverb');
+		await expect(about).toContainText('Plugin format');
+		await expect(about).toContainText('License');
+		await expect(about).toContainText('Category');
+		await closeDialog(about);
+		await expect(selection).toBeVisible();
+		await closeDialog(selection);
+
+		const panel = await openEffectsForTrack(editor, 1);
+		await addRackEffect(page, panel, 'track', 'Noise gate');
+		const rack = page.getByRole('dialog', { name: 'Noise gate', exact: true });
+		await rack.getByRole('button', { name: 'More options', exact: true }).click();
+		await page.getByRole('menuitem', { name: 'About', exact: true }).click();
+		await expect(about).toBeVisible();
+		await expect(about).toContainText('Noise gate');
+		await expect(about).toContainText('Soundscaper');
+		await closeDialog(about);
+		await expect(rack).toBeVisible();
+		await closeDialog(rack);
+		expect(errors).toEqual([]);
+	});
+
 	test('keeps preset menus clickable after dragging an effect dialog and preserves its skin', async ({ page }) => {
 		const errors = collectClientErrors(page);
 		const editor = await bootEditor(page, '/embed/en/?useskin=sakura');

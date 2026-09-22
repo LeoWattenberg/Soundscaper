@@ -61,6 +61,23 @@ test('portalled preset menus keep import, export, Save as and subject cleanup', 
 	}
 });
 
+test('effect About opens a separate details window and closes with its subject', async () => {
+	const fixture = await mountedBar();
+	try {
+		await fixture.open(3);
+		await fixture.choose(ENGLISH_COPY.effectAbout);
+		const about = fixture.body.querySelector('[data-effect-about-dialog]');
+		assert.ok(about);
+		assert.match(about.textContent, /Noise gate/u);
+		assert.match(about.textContent, /Soundscaper/u);
+		assert.equal(fixture.body.querySelector('[role="menu"]'), null);
+		await fixture.render('next-effect');
+		assert.equal(fixture.body.querySelector('[data-effect-about-dialog]'), null);
+	} finally {
+		await fixture.cleanup();
+	}
+});
+
 async function mountedBar() {
 	const dom = installReactTestDom();
 	const body = (globalThis.document as unknown as { body: ReactTestElement }).body;
@@ -76,6 +93,7 @@ async function mountedBar() {
 		await act(async () => root.render(<ThemeProvider theme={resolveSkinTheme('sakura', 'dark')}>
 			<section role="dialog" dir={direction} style={{ transform: 'translate(310px, 137px)' }}>
 				<EffectPresetBar copy={ENGLISH_COPY} presets={[{ id: 'mine', label: 'Mine', custom: true }]}
+					aboutEffect="noise-gate"
 					selectedId="mine" resetKey={resetKey} onSelect={() => undefined}
 					onSave={() => { calls.push('save'); }} onSaveAs={() => undefined}
 					onAdvancedSettings={() => { calls.push('advanced'); }}
