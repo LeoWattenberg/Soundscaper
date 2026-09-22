@@ -4,7 +4,7 @@ description: "Organiza vídeo, compón imaxes e entrega un proxecto de vídeo lo
 sidebar:
   order: 1
 ---
-<!-- docs-ai-provenance: {"model":"gpt-5.6","modelDigest":"manual","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"6193de9a731d010659be03c1372890bf230bb54161c79a2aa1e3ffe4a63c51bd","targetLocale":"gl"} -->
+<!-- docs-ai-provenance: {"model":"gpt-5.6-luna","modelDigest":"manual","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"fe5df8f699907289847a5d9022c094e32168b502a532ebdf7708436a99db38b7","targetLocale":"gl"} -->
 
 Framescaper é a vista do editor compartido centrada no vídeo. Dá prioridade á vista previa do vídeo, ao monitor de orixe, aos efectos de imaxe, á composición, ás secuencias aniñadas e ao traballo multicámara.
 
@@ -23,3 +23,5 @@ Soundscaper xestiona o son: gravación de audio, efectos e análise, mestura e e
 3. Revisa o [comportamento dos ficheiros de proxecto e das copias de seguridade](/projects-and-data/project-files/).
 
 Abre o editor no navegador en [soundscaper.org/framescaper/en](https://soundscaper.org/framescaper/en/).
+
+Para obter asistencia no escritorio, consulta o [procesamento local, modelos e complementos](/help/local-processing/).
