@@ -77,6 +77,12 @@ export function createClipTransformService(
 ): Readonly<ClipTransformService> {
 	return Object.freeze({ moveClips, moveClipsToNewTrack, trimClips, overwriteClips });
 
+	function requestedMoveStartFrame(frame: unknown, originalFrame: number, options: ClipMoveOptions): number {
+		if (options.preserveTime) return originalFrame;
+		const gridFrame = dependencies.snapTimelineFrame(frame);
+		return options.exactFrame ? Math.max(0, Math.round(Number(frame))) : gridFrame;
+	}
+
 	function moveClips(
 		clipId: string | null = dependencies.getSelectedClipId(),
 		trackId?: string | null,
@@ -98,7 +104,7 @@ export function createClipTransformService(
 		if (!clip || !oldTrack || !targetTrack || !Array.isArray(targetTrack.clipIds)) {
 			throw createLocalizedError(Error, dependencies.copy, 'audioClipNotFound');
 		}
-		const requestedStartFrame = options.preserveTime ? clip.timelineStartFrame : dependencies.snapTimelineFrame(timelineStartFrame);
+		const requestedStartFrame = requestedMoveStartFrame(timelineStartFrame, clip.timelineStartFrame, options);
 		const clipIds = collectClipTransformIds(project, clip.id, options);
 		const audioTracks = timelineTracks(project);
 		const oldTrackIndex = audioTracks.findIndex((item) => item.id === oldTrack.id);
@@ -164,7 +170,7 @@ export function createClipTransformService(
 		if (sourceTrackIndices.some((index) => index < 0)) {
 			throw createLocalizedError(Error, dependencies.copy, 'audioClipNotFound');
 		}
-		const requestedStartFrame = options.preserveTime ? clip.timelineStartFrame : dependencies.snapTimelineFrame(timelineStartFrame);
+		const requestedStartFrame = requestedMoveStartFrame(timelineStartFrame, clip.timelineStartFrame, options);
 		const selection = dependencies.activeSelection();
 		const clipSelection = clipMoveSelection(project, clipIds, options);
 		const movesClipSelection = Boolean(clipSelection?.clipIds?.includes(clip.id));

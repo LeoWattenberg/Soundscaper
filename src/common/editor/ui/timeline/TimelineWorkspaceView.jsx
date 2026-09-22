@@ -20,6 +20,7 @@ import { timelineSelectedTrackIds } from './track-selection-scope.ts';
 import { TimelineGridLines } from './TimelineGridLines.jsx';
 import { OutputTrackDock } from './OutputTrackRows.jsx';
 import {
+	BoundarySnapGuides,
 	RulerPlayhead,
 	SplitToolGuideline,
 	TelemetryPlayhead,
@@ -93,6 +94,7 @@ export function TimelineWorkspaceView({
 		projectBinDragPreview,
 		loopPreview,
 		splitToolGuideline,
+		boundarySnapGuideFrames,
 		focusedOutputKey,
 		waveformCacheRef,
 		waveformRulerState,
@@ -419,6 +421,13 @@ export function TimelineWorkspaceView({
 						panelWidth={panelWidth}
 						pixelsPerSecond={pixelsPerSecond}
 						sampleRate={sampleRate}
+					/>
+					<BoundarySnapGuides
+						frames={boundarySnapGuideFrames}
+						panelWidth={panelWidth}
+						pixelsPerSecond={pixelsPerSecond}
+						sampleRate={sampleRate}
+						height={totalTrackHeight}
 					/>
 					<TimelineTrimPreviewGuide
 						sample={clipDragPreview?.guideSample}
