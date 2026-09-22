@@ -1,7 +1,7 @@
 import { useCallback, useEffect } from 'react';
 
 import { secondsToFrames } from '../../design-system-adapters.js';
-import { resolveBoundarySnap } from './boundary-snap.ts';
+import { createBoundarySnapIndex, resolveBoundarySnap } from './boundary-snap.ts';
 import { fadeDurationAtPointer, fadeField } from './clip-fade-geometry.ts';
 import {
 	commitTimelineRateStretchPointer,
@@ -141,9 +141,13 @@ export function useTimelinePointerFinish({
 		}
 		if (session.kind === 'selection') {
 			const rawEndFrame = frameAtClientX(event.clientX, session.lane);
+			if (!session.snapDisabled && session.snapIndex?.project !== project) {
+				session.snapIndex = createBoundarySnapIndex(project);
+			}
 			const endSnap = session.snapDisabled ? { frame: rawEndFrame, snapped: false }
 				: resolveBoundarySnap({
-					project, frame: rawEndFrame, currentTrackId: session.lane.dataset.trackId ?? null,
+					project, index: session.snapIndex, frame: rawEndFrame,
+					currentTrackId: session.lane.dataset.trackId ?? null,
 					pixelsPerSecond, sampleRate, rightEdge: rawEndFrame >= session.startFrame,
 				});
 			const endFrame = endSnap.frame;

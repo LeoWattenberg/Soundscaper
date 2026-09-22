@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import {
+	createBoundarySnapIndex,
 	resolveBoundarySnap,
 	resolveClipMoveBoundarySnap,
 } from '../src/common/editor/ui/timeline/boundary-snap.ts';
@@ -67,6 +68,62 @@ test('moving clips do not offer their own edges as snap targets', () => {
 		pixelsPerSecond, sampleRate, excludedClipIds: ['moving'] }), { frame: 102, snapped: false });
 });
 
+test('a cached snap index preserves ambiguity and excluded moving clips without revisiting the project', () => {
+	const content = project([
+		{ id: 'moving', trackId: 'lower', start: 100, duration: 100 },
+		{ id: 'other', trackId: 'upper', start: 102, duration: 100 },
+		{ id: 'far', trackId: 'third', start: 600, duration: 100 },
+	]);
+	const excludedClipIds = ['moving'];
+	const index = createBoundarySnapIndex(content, excludedClipIds);
+	let reads = 0;
+	const observed = { ...content, get clips() { reads++; return content.clips; } };
+	const observedIndex = createBoundarySnapIndex(observed, excludedClipIds);
+	reads = 0;
+	const input = { project: observed, index: observedIndex, frame: 101,
+		currentTrackId: 'lower', pixelsPerSecond, sampleRate, excludedClipIds };
+	assert.deepEqual(resolveBoundarySnap(input), { frame: 102, snapped: true });
+	assert.deepEqual(resolveBoundarySnap({ ...input, frame: 103 }), { frame: 102, snapped: true });
+	assert.equal(reads, 0, 'repeated indexed lookups should not scan the project');
+	assert.deepEqual(resolveBoundarySnap({ project: content, index, frame: 101,
+		currentTrackId: 'lower', pixelsPerSecond, sampleRate }), { frame: 100, snapped: true },
+	'exclusions from one gesture must not be applied to another');
+});
+
+test('a cached snap index refreshes when the project snapshot changes', () => {
+	const original = project([{ id: 'a', trackId: 'upper', start: 100, duration: 100 }]);
+	const index = createBoundarySnapIndex(original);
+	const updated = project([{ id: 'a', trackId: 'upper', start: 300, duration: 100 }]);
+	assert.deepEqual(resolveBoundarySnap({ project: updated, index, frame: 101,
+		currentTrackId: 'upper', pixelsPerSecond, sampleRate }), { frame: 101, snapped: false });
+	assert.deepEqual(resolveBoundarySnap({ project: updated, index, frame: 301,
+		currentTrackId: 'upper', pixelsPerSecond, sampleRate }), { frame: 300, snapped: true });
+});
+
+test('cached boundary lookup preserves multiple nearby candidates and selected-edge tie breaking', () => {
+	const content = project([
+		{ id: 'a', trackId: 'upper', start: 100, duration: 100 },
+		{ id: 'b', trackId: 'lower', start: 101, duration: 100 },
+		{ id: 'c', trackId: 'third', start: 102, duration: 100 },
+	]);
+	const index = createBoundarySnapIndex(content);
+	const input = { project: content, index, frame: 101, currentTrackId: 'fourth',
+		pixelsPerSecond, sampleRate };
+	assert.deepEqual(resolveBoundarySnap(input), { frame: 101, snapped: false });
+	assert.deepEqual(resolveBoundarySnap({ ...input, currentTrackId: 'lower' }),
+		{ frame: 101, snapped: true });
+	const coincident = project([
+		{ id: 'a', trackId: 'upper', start: 100, duration: 100 },
+		{ id: 'b', trackId: 'lower', start: 101, duration: 100 },
+	]);
+	const coincidentIndex = createBoundarySnapIndex(coincident);
+	const coincidentInput = { project: coincident, index: coincidentIndex, frame: 100,
+		currentTrackId: 'third', pixelsPerSecond: 96_000, sampleRate: 96_000 };
+	assert.deepEqual(resolveBoundarySnap(coincidentInput), { frame: 100, snapped: true });
+	assert.deepEqual(resolveBoundarySnap({ ...coincidentInput, rightEdge: true }),
+		{ frame: 101, snapped: true });
+});
+
 test('label and other non-clip tracks do not interrupt boundary lookup', () => {
 	const content = { ...project([{ id: 'a', trackId: 'audio', start: 100, duration: 100 }]),
 		tracks: [{ id: 'labels' }, { id: 'audio', clipIds: ['a'] }] };
@@ -85,6 +142,13 @@ test('clip move excludes moving clips and chooses the edge closest to pointer-do
 		startFrame: 101, guideFrame: 101,
 	});
 	assert.deepEqual(resolveClipMoveBoundarySnap({ ...input, preferRightEdge: true }), {
+		startFrame: 99, guideFrame: 199,
+	});
+	const index = createBoundarySnapIndex(content, input.movingClipIds);
+	assert.deepEqual(resolveClipMoveBoundarySnap({ ...input, index, preferRightEdge: false }), {
+		startFrame: 101, guideFrame: 101,
+	});
+	assert.deepEqual(resolveClipMoveBoundarySnap({ ...input, index, preferRightEdge: true }), {
 		startFrame: 99, guideFrame: 199,
 	});
 });

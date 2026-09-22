@@ -1,7 +1,7 @@
 import { useCallback } from 'react';
 
 import { collectClipTransformIds, collectClipTrimIds } from '../../commands/clip-basic-runtime.js';
-import { resolveBoundarySnap } from './boundary-snap.ts';
+import { createBoundarySnapIndex, resolveBoundarySnap } from './boundary-snap.ts';
 import { fadeField } from './clip-fade-geometry.ts';
 import {
 	MINIMUM_TRACK_HEIGHT,
@@ -53,13 +53,15 @@ export function useTimelinePointerStart({
 	const { run } = menuActions;
 	const onPointerDown = useCallback((event) => {
 		const beginSelection = (lane, rawStartFrame, trackIds) => {
+			const snapIndex = createBoundarySnapIndex(project);
 			const startSnap = resolveBoundarySnap({
-				project, frame: rawStartFrame, currentTrackId: lane.dataset.trackId ?? null,
+				project, index: snapIndex, frame: rawStartFrame, currentTrackId: lane.dataset.trackId ?? null,
 				pixelsPerSecond, sampleRate,
 			});
 			const startFrame = startSnap.frame;
 			pointerSession.current = {
 				kind: 'selection', startFrame, rawStartFrame, startX: event.clientX, lane,
+				snapIndex,
 				startSnapGuideFrame: startSnap.snapped ? startFrame : null,
 				lastRawEndFrame: rawStartFrame, lastTrackIds: trackIds,
 				snapDisabled: false, boundarySnapped: startSnap.snapped,

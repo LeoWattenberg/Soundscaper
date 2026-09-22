@@ -25,6 +25,7 @@ interface BoundaryProject {
 
 interface SnapInput {
 	readonly project: BoundaryProject;
+	readonly index?: BoundarySnapIndex;
 	readonly frame: number;
 	readonly currentTrackId: string | null;
 	readonly pixelsPerSecond: number;
@@ -40,6 +41,7 @@ interface BoundarySnapResult {
 
 interface ClipMoveSnapInput {
 	readonly project: BoundaryProject;
+	readonly index?: BoundarySnapIndex;
 	readonly clipId: string;
 	readonly movingClipIds: readonly string[];
 	readonly rawStartFrame: number;
@@ -60,6 +62,14 @@ interface SnapPoint {
 	readonly frame: number;
 	readonly trackId: string | null;
 }
+
+export interface BoundarySnapIndex {
+	readonly project: BoundaryProject;
+	readonly excludedClipIds: readonly string[];
+	readonly points: readonly SnapPoint[];
+}
+
+const NO_EXCLUDED_CLIPS: readonly string[] = [];
 
 function pixelPosition(frame: number, pixelsPerSecond: number, sampleRate: number): number {
 	return Math.round(frame * pixelsPerSecond / sampleRate);
@@ -83,6 +93,39 @@ function collectPoints(project: BoundaryProject, excludedClipIds: readonly strin
 	return points.sort((left, right) => left.frame - right.frame);
 }
 
+/** Build once per drag and reuse while the immutable project snapshot is unchanged. */
+export function createBoundarySnapIndex(
+	project: BoundaryProject,
+	excludedClipIds: readonly string[] = NO_EXCLUDED_CLIPS,
+): BoundarySnapIndex {
+	return { project, excludedClipIds, points: collectPoints(project, excludedClipIds) };
+}
+
+function indexFor(
+	project: BoundaryProject,
+	excludedClipIds: readonly string[],
+	index?: BoundarySnapIndex,
+): BoundarySnapIndex {
+	return index?.project === project && index.excludedClipIds === excludedClipIds
+		? index : createBoundarySnapIndex(project, excludedClipIds);
+}
+
+function firstPointAtOrAfterPixel(
+	points: readonly SnapPoint[],
+	pixel: number,
+	pixelsPerSecond: number,
+	sampleRate: number,
+): number {
+	let low = 0;
+	let high = points.length;
+	while (low < high) {
+		const middle = low + Math.floor((high - low) / 2);
+		if (pixelPosition(points[middle]!.frame, pixelsPerSecond, sampleRate) < pixel) low = middle + 1;
+		else high = middle;
+	}
+	return low;
+}
+
 /**
  * Resolve Audacity 3's physical-boundary rule, independently of time-grid snap.
  * Distinct nearby boundaries are intentionally ambiguous unless exactly one is
@@ -95,10 +138,12 @@ export function resolveBoundarySnap(input: SnapInput): BoundarySnapResult {
 		return { frame, snapped: false };
 	}
 	const position = pixelPosition(frame, pixelsPerSecond, sampleRate);
-	const nearby = collectPoints(input.project, input.excludedClipIds ?? []).filter((point) => (
-		Math.abs(pixelPosition(point.frame, pixelsPerSecond, sampleRate) - position)
-			< BOUNDARY_SNAP_PIXEL_TOLERANCE
-	));
+	const points = indexFor(input.project, input.excludedClipIds ?? NO_EXCLUDED_CLIPS, input.index).points;
+	const first = firstPointAtOrAfterPixel(points, position - BOUNDARY_SNAP_PIXEL_TOLERANCE + 1,
+		pixelsPerSecond, sampleRate);
+	const last = firstPointAtOrAfterPixel(points, position + BOUNDARY_SNAP_PIXEL_TOLERANCE,
+		pixelsPerSecond, sampleRate);
+	const nearby = points.slice(first, last);
 	if (nearby.length === 0) return { frame, snapped: false };
 	if (nearby.length === 1) return { frame: nearby[0]!.frame, snapped: true };
 	const onCurrentTrack = nearby.filter(({ trackId }) => trackId === currentTrackId);
@@ -115,6 +160,7 @@ export function resolveClipMoveBoundarySnap(input: ClipMoveSnapInput): ClipMoveS
 	if (!clip) return { startFrame: input.rawStartFrame, guideFrame: null };
 	const common = {
 		project: input.project,
+		index: indexFor(input.project, input.movingClipIds, input.index),
 		currentTrackId: input.currentTrackId,
 		pixelsPerSecond: input.pixelsPerSecond,
 		sampleRate: input.sampleRate,

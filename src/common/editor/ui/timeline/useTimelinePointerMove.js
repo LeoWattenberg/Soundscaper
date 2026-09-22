@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef } from 'react';
 import { CLIP_CONTENT_OFFSET } from '@soundscaper/design-system/constants';
 
 import { secondsToFrames } from '../../design-system-adapters.js';
-import { resolveBoundarySnap, resolveClipMoveBoundarySnap } from './boundary-snap.ts';
+import { createBoundarySnapIndex, resolveBoundarySnap, resolveClipMoveBoundarySnap } from './boundary-snap.ts';
 import { fadeDurationAtPointer, fadeField } from './clip-fade-geometry.ts';
 import { createClipTrimPreview } from './interaction-helpers.js';
 import { compatibleMediaTrack, MINIMUM_TRACK_HEIGHT } from './geometry.ts';
@@ -220,9 +220,13 @@ export function useTimelinePointerMove({
 			event.preventDefault();
 		} else if (session?.kind === 'selection') {
 			const rawEndFrame = frameAtClientX(event.clientX, session.lane);
+			if (!session.snapDisabled && session.snapIndex?.project !== project) {
+				session.snapIndex = createBoundarySnapIndex(project);
+			}
 			const endSnap = session.snapDisabled ? { frame: rawEndFrame, snapped: false }
 				: resolveBoundarySnap({
-					project, frame: rawEndFrame, currentTrackId: session.lane.dataset.trackId ?? null,
+					project, index: session.snapIndex, frame: rawEndFrame,
+					currentTrackId: session.lane.dataset.trackId ?? null,
 					pixelsPerSecond, sampleRate, rightEdge: rawEndFrame >= session.startFrame,
 				});
 			const endFrame = endSnap.frame;
@@ -321,10 +325,14 @@ export function useTimelinePointerMove({
 			const clampedDeltaFrames = Math.max(deltaFrames, -earliestMovingFrame);
 			const activeStartFrame = activeClip?.timelineStartFrame ?? session.original?.timelineStartFrame ?? 0;
 			const rawActiveStartFrame = activeStartFrame + clampedDeltaFrames;
+			if (!session.snapDisabled && !session.moveOptions?.preserveTime
+				&& session.snapIndex?.project !== project) {
+				session.snapIndex = createBoundarySnapIndex(project, session.clipIds);
+			}
 			const snap = session.snapDisabled || session.moveOptions?.preserveTime
 				? { startFrame: rawActiveStartFrame, guideFrame: null }
 				: resolveClipMoveBoundarySnap({
-					project, clipId: session.clipId, movingClipIds: session.clipIds,
+					project, index: session.snapIndex, clipId: session.clipId, movingClipIds: session.clipIds,
 					rawStartFrame: rawActiveStartFrame, currentTrackId: session.trackId,
 					destinationTrackId: createsTrack ? NEW_AUDIO_TRACK_DROP_TARGET : requestedTrackId,
 					pixelsPerSecond, sampleRate, preferRightEdge: session.preferRightSnap === true,
