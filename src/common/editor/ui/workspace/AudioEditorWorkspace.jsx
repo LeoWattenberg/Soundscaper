@@ -185,7 +185,7 @@ export default function AudioEditorWorkspace({
 		parityRuntime.actions.tools.synchronizeDrawTool();
 	}, [parityRuntime, snapshot.sampleEdit?.mode]);
 	const toggleRecording = useCallback(() => {
-		if (snapshot.recording) return run(() => controller.actions.recording.stop());
+		if (snapshot.recording) return run(() => controller.actions.recording.pause());
 		if (snapshot.scheduledRecording || snapshot.recordingScheduling) return undefined;
 		const selectedTrack = project?.tracks.find((track) => track.id === snapshot.selectedTrackId);
 		const pairedAudioTrack = selectedTrack?.type === 'video' && selectedTrack.laneGroupId
@@ -458,7 +458,7 @@ export default function AudioEditorWorkspace({
 		toggleFullscreen,
 	});
 	const toolbarProps = {
-		actionRuntime: parityRuntime.actions, automationToolEnabled, blocked, capabilities, controller, copy, durationFrames,
+		actionRuntime: parityRuntime.actions, automationToolEnabled, blocked, capabilities, controller, copy, durationFrames, locale,
 		editItems, executeEdit, isCompact: isCompact || compactLayout, onGripperMouseDown: handleToolbarGripperMouseDown, onJumpToEnd: jumpToEnd,
 		onJumpToStart: jumpToStart, onOpenRecordingOffset: openRecordingOffset, onOpenSpectralSelection: openSpectralSelection,
 		onOpenTakeCycleRecovery: () => openSurface('take-cycle-recovery'), onOpenTimedRecording: openTimedRecording,
