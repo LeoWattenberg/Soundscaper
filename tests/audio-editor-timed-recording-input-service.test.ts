@@ -406,6 +406,7 @@ function createTimedState(): Mutable<TimedRecordingMutableState<number>> {
 		recordingDiscardRequested: false,
 		recordingReleaseAfterStop: false,
 		timedRecording: null,
+		activeTimedRecording: null,
 		timedRecordingTimer: null,
 		timedRecordingGeneration: 0,
 		timedRecordingPreparing: false,

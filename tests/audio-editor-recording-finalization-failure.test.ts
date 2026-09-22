@@ -78,6 +78,7 @@ function recordingState(
 		recordingStartPromise: null,
 		timedRecordingPreparing: false,
 		timedRecording: null,
+		activeTimedRecording: null,
 		recordingPaused: false,
 		leadInRecording: false,
 		recordingEntries: null,

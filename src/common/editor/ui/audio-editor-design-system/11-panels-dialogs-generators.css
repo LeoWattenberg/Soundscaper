@@ -168,7 +168,7 @@
 	font-weight: 600;
 }
 
-.kw-audio-editor-dialog [data-timed-recording-dialog] .kw-audio-editor-timed-recording__control {
+#kw-audio-editor-design-system .kw-audio-editor-dialog [data-timed-recording-dialog] .kw-audio-editor-timed-recording__control {
 	box-sizing: border-box;
 	width: 100%;
 	height: 38px;

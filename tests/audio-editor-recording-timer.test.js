@@ -48,6 +48,8 @@ test('timer recording opens the input immediately and starts the prepared take o
 		assert.equal(scheduled.endTimeMs, endTimeMs);
 		assert.equal(controller.getSnapshot().scheduledRecording.startTimeMs, startTimeMs);
 		assert.equal(controller.getSnapshot().scheduledRecording.endTimeMs, endTimeMs);
+		assert.equal(controller.getSnapshot().activeTimedRecording, null);
+		assert.equal(controller.getSnapshot().status.message.includes('Recording scheduled'), false);
 		assert.equal(controller.getSnapshot().recording, false);
 		assert.equal(controller.getSnapshot().recordingInputs.hasOpenInputs, true);
 		assert.deepEqual(pool.hardwareRequests, [{ deviceId: 'default', channelCount: 1 }]);
@@ -63,11 +65,13 @@ test('timer recording opens the input immediately and starts the prepared take o
 		now = startTimeMs;
 		await wake();
 		assert.equal(controller.getSnapshot().scheduledRecording, null);
+		assert.deepEqual(controller.getSnapshot().activeTimedRecording, { startTimeMs, endTimeMs });
 		assert.equal(controller.getSnapshot().recording, true);
 		assert.equal(createdControllers.length, 1);
 		assert.equal(pool.hardwareRequests.length, 1, 'the unattended start reuses the already-open input');
 		assert.equal(engine.playCalls, 1, 'the timer callback begins timeline playback at the armed time');
 		await controller.actions.recording.stop();
+		assert.equal(controller.getSnapshot().activeTimedRecording, null);
 	} finally {
 		await controller.dispose();
 	}

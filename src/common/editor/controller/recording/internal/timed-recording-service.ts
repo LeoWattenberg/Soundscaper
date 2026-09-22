@@ -59,6 +59,7 @@ export interface TimedRecordingMutableState<TimerHandle = unknown> {
 	recordingDiscardRequested: boolean;
 	recordingReleaseAfterStop: boolean;
 	timedRecording: TimedRecordingDescriptor | null;
+	activeTimedRecording: TimedRecordingDescriptor | null;
 	timedRecordingTimer: TimerHandle | null;
 	timedRecordingGeneration: number;
 	timedRecordingPreparing: boolean;
@@ -71,7 +72,6 @@ export interface TimedRecordingMessages {
 	readonly endBeforeStart?: string;
 	readonly preparing: string;
 	readonly missed: string;
-	readonly scheduled: (formattedTime: string, formattedEndTime?: string) => string;
 	readonly cancelled: string;
 }
 
@@ -101,7 +101,6 @@ export interface TimedRecordingServiceRuntime<TimerHandle = unknown> {
 	readonly scheduleTimer: (callback: () => unknown, delayMs: number) => TimerHandle;
 	readonly clearTimer: (handle: TimerHandle) => void;
 	readonly messages: TimedRecordingMessages;
-	readonly formatScheduledTime?: (startTimeMs: number) => string;
 	readonly maximumTimerDelayMs?: number;
 	readonly retainInputs?: () => boolean;
 	readonly releaseUnretainedRecordingInputs?: (
@@ -177,6 +176,7 @@ export function createTimedRecordingService<TimerHandle>(
 		const activation = Object.freeze({ recorder: state.recorder, scheduled });
 		activating = activation;
 		state.timedRecording = null;
+		state.activeTimedRecording = scheduled;
 		state.timedRecordingTimer = null;
 		const scope = Object.freeze({
 			assertCurrent(): void {
@@ -190,6 +190,7 @@ export function createTimedRecordingService<TimerHandle>(
 			return true;
 		} catch (error) {
 			if (activating === activation) {
+				state.activeTimedRecording = null;
 				handleError(error);
 				state.recordingDiscardRequested = true;
 				state.timedRecordingCancelling = true;
@@ -237,6 +238,7 @@ export function createTimedRecordingService<TimerHandle>(
 		if (state.timedRecordingTimer !== null) runtime.clearTimer(state.timedRecordingTimer);
 		state.timedRecordingTimer = null;
 		state.timedRecording = null;
+		state.activeTimedRecording = null;
 		state.timedRecordingPreparing = false;
 		activating = null;
 		state.timedRecordingCancelling = hadPreparedRecorder;
@@ -310,13 +312,7 @@ export function createTimedRecordingService<TimerHandle>(
 			if (state.timedRecording !== scheduled) throw abortError();
 			if (!state.recorder) throw createLocalizedError(Error, { [runtime.messages.missed ? 'timedRecordingMissed' : 'timedRecordingPast']: runtime.messages.missed || runtime.messages.past }, runtime.messages.missed ? 'timedRecordingMissed' : 'timedRecordingPast');
 			armTimedRecordingTimer(scheduled);
-			const formatted = runtime.formatScheduledTime?.(startTimeMs)
-				|| new Date(startTimeMs).toLocaleString();
-			const formattedEnd = endTimeMs === undefined ? undefined
-				: runtime.formatScheduledTime?.(endTimeMs) || new Date(endTimeMs).toLocaleString();
-			publishLocalizedStatus(setStatus, runtime.messages.scheduled(formatted, formattedEnd), formattedEnd
-				? { key: 'timedRecordingScheduledRange', parameters: { start: formatted, end: formattedEnd } }
-				: { key: 'timedRecordingScheduled', parameters: { time: formatted } }, 'success');
+			setStatus('');
 			return Object.freeze({
 				startTimeMs,
 				startTime: new Date(startTimeMs).toISOString(),

@@ -86,7 +86,6 @@ test('timed recording prepares input and context in parallel before arming a bou
 		maximumTimerDelayMs: 1_500,
 		setStatus: (message) => { events.push(`status:${message}`); },
 		messages: messages(),
-		formatScheduledTime: (value) => `at-${value}`,
 	});
 
 	const pending = service.scheduleTimedRecording(5_000, { trackId: 'track-1', endTimeMs: 8_000 });
@@ -340,8 +339,10 @@ test('cancelling while scheduled activation awaits invalidates and discards the 
 	now = 5_000;
 	const activating = Promise.resolve(timers[0]!());
 	await settle();
+	assert.equal(state.activeTimedRecording?.startTimeMs, 5_000);
 
 	assert.equal(service.cancelTimedRecording(), true, 'activation remains owned and cancellable');
+	assert.equal(state.activeTimedRecording, null);
 	activationGate.resolve();
 	assert.equal(await activating, null);
 	await settle();
@@ -360,7 +361,6 @@ function messages() {
 		endBeforeStart: 'end must be after the start',
 		preparing: 'preparing',
 		missed: 'missed',
-		scheduled: (time: string) => `scheduled ${time}`,
 		cancelled: 'cancelled',
 	};
 }
@@ -384,6 +384,7 @@ function createState(
 		recordingDiscardRequested: false,
 		recordingReleaseAfterStop: false,
 		timedRecording: null,
+		activeTimedRecording: null,
 		timedRecordingTimer: null,
 		timedRecordingGeneration: 0,
 		timedRecordingPreparing: false,

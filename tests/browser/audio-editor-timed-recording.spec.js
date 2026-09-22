@@ -8,6 +8,56 @@ import {
 test.describe('audio editor timed recording', () => {
 	registerAudioEditorHooks();
 
+	test('keeps a countdown toast through the scheduled and active recording phases', async ({ page }) => {
+		test.setTimeout(40_000);
+		await page.addInitScript(() => {
+			Object.defineProperty(navigator, 'mediaDevices', {
+				configurable: true,
+				value: {
+					enumerateDevices: async () => [],
+					getUserMedia: async () => {
+						const context = new AudioContext({ sampleRate: 48_000 });
+						const source = context.createOscillator();
+						const destination = context.createMediaStreamDestination();
+						source.connect(destination);
+						source.start();
+						await context.resume();
+						globalThis.__timedInputContext = context;
+						return destination.stream;
+					},
+				},
+			});
+		});
+		const editor = await bootEditor(page, '/embed/en/');
+		await editor.getByRole('button', { name: 'Record options', exact: true }).click();
+		await getMenuItem(
+			page.getByRole('menu', { name: 'Record options', exact: true }),
+			'Set up timed recording',
+		).click();
+		const dialog = page.getByRole('dialog', { name: 'Set up timed recording', exact: true });
+		const dateTimes = dialog.locator('input[type="datetime-local"]');
+		const start = new Date(Date.now() + 12_000);
+		const localInputValue = (date) => new Date(date.getTime() - date.getTimezoneOffset() * 60_000)
+			.toISOString().slice(0, 19);
+		await dateTimes.first().fill(localInputValue(start));
+		await dialog.getByRole('radio', { name: 'End date and time', exact: true }).check();
+		await dateTimes.nth(1).fill(localInputValue(new Date(start.getTime() + 8_000)));
+		await dialog.getByRole('button', { name: 'Schedule recording', exact: true }).click();
+		const scheduled = editor.getByRole('region', { name: /Recording is scheduled for/u });
+		await expect(scheduled).toBeVisible();
+		await expect(dialog).toBeHidden();
+		await expect(scheduled.getByRole('timer')).toContainText('Recording start:');
+		await expect(scheduled.getByRole('button', { name: 'Cancel scheduled recording' })).toBeVisible();
+		await expect(editor.locator('[data-status]')).not.toContainText('Recording scheduled');
+		const firstCountdown = await scheduled.getByRole('timer').textContent();
+		await expect.poll(() => scheduled.getByRole('timer').textContent()).not.toBe(firstCountdown);
+		const active = editor.getByRole('region', { name: 'Recording', exact: true });
+		await expect(active).toBeVisible({ timeout: 20_000 });
+		await expect(active.getByRole('timer')).toContainText('Recording end:');
+		await expect(scheduled).toBeHidden();
+		await expect(active).toBeHidden({ timeout: 15_000 });
+	});
+
 	test('offers linked duration and end-date controls in a reachable workflow', async ({ page }) => {
 		await page.addInitScript(() => {
 			globalThis.__timedInputRequests = 0;

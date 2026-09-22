@@ -16,6 +16,7 @@ import EditorToolToolbar from '../toolbar/EditorToolToolbar.jsx';
 import TransportToolbarGroup, { COMPACT_BAR_TRANSPORT_BUTTONS, DRAWER_TRANSPORT_BUTTONS } from '../toolbar/TransportToolbarGroup.jsx';
 import ProjectTabs from './ProjectTabs.jsx';
 import ProjectFeatureCompatibilityNotice from './ProjectFeatureCompatibilityNotice.tsx';
+import TimedRecordingToast from './TimedRecordingToast.tsx';
 import StorageCapacityPanel from './StorageCapacityPanel.tsx';
 import VideoEditorWorkspacePanels from './VideoEditorWorkspacePanels.jsx';
 import WorkspacePanelDock from './WorkspacePanelDock.jsx';
@@ -268,6 +269,11 @@ export default function AudioEditorWorkspaceView({ model }) {
 				<StorageCapacityPanel snapshot={snapshot} locale={locale} copy={copy} controller={controller} run={run} />
 			)}
 			<div className="kw-audio-editor__toasts">
+				{(snapshot.scheduledRecording || snapshot.activeTimedRecording) && <TimedRecordingToast
+					key={snapshot.scheduledRecording?.startTimeMs ?? snapshot.activeTimedRecording?.startTimeMs}
+					scheduled={snapshot.scheduledRecording}
+					active={snapshot.activeTimedRecording} copy={copy} locale={locale}
+					onCancel={() => { run(() => controller.actions.recording.cancelScheduled()); }} />}
 				{localError && <EditorToast
 					id="workspace-error"
 					title={copy.unknownError}

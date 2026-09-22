@@ -14,28 +14,33 @@ export interface EditorToastProps {
 	readonly id: string;
 	readonly title: string;
 	readonly description?: string;
+	readonly timer?: string;
 	readonly type?: 'info' | 'warning' | 'error' | 'success';
 	readonly actions?: readonly EditorToastAction[];
-	readonly dismissLabel: string;
-	readonly onDismiss: () => void;
+	readonly dismissLabel?: string;
+	readonly onDismiss?: () => void;
+	readonly persistent?: boolean;
 }
 
 /** Controlled notifications stay within the editor that owns their state. */
 export default function EditorToast({
-	id, title, description, type = 'info', actions = [], dismissLabel, onDismiss,
+	id, title, description, timer, type = 'info', actions = [], dismissLabel, onDismiss, persistent = false,
 }: EditorToastProps) {
-	const dismissAutomatically = useEffectEvent(onDismiss);
+	const dismissAutomatically = useEffectEvent(() => onDismiss?.());
+	const dismissible = Boolean(onDismiss);
 	useEffect(() => {
+		if (persistent || !dismissible) return;
 		const timeout = setTimeout(() => dismissAutomatically(), 10_000);
 		return () => clearTimeout(timeout);
-	}, [id]);
+	}, [id, persistent, dismissible]);
 
 	return <section className="kw-audio-editor__toast" aria-label={title} data-editor-toast={id}>
 		<Toast id={id} type={type} title={title} description={description} showCloseButton={false} />
-		<Button className="kw-audio-editor__toast-close" onClick={(event) => {
+		{timer && <div className="kw-audio-editor__toast-detail" role="timer" aria-live="off">{timer}</div>}
+		{!persistent && onDismiss && <Button className="kw-audio-editor__toast-close" onClick={(event) => {
 			event?.currentTarget.closest('[data-audio-editor]')?.querySelector<HTMLElement>('[data-chrome-drawer-toggle], [role="menuitem"]')?.focus({ preventScroll: true });
 			onDismiss();
-		}}><span aria-hidden="true">×</span><span className="kw-audio-editor-sr-only">{dismissLabel}</span></Button>
+		}}><span aria-hidden="true">×</span><span className="kw-audio-editor-sr-only">{dismissLabel}</span></Button>}
 		<div className="kw-audio-editor__toast-actions">
 			{actions.map((action) => <Button
 				key={action.label}

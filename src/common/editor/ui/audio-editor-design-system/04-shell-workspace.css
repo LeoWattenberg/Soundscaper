@@ -209,6 +209,15 @@
 	animation: none;
 }
 
+.kw-audio-editor__toast-detail {
+	margin-top: -6px;
+	padding: 0 44px 12px 40px;
+	color: var(--text);
+	font-size: 15px;
+	font-weight: 700;
+	font-variant-numeric: tabular-nums;
+}
+
 .kw-audio-editor__toast-close {
 	position: absolute;
 	top: 8px;

@@ -561,7 +561,7 @@ function createState(
 		recordingStartGeneration: 0,
 		recordingStartPromise: null,
 		timedRecordingPreparing: false,
-		timedRecording: null,
+		timedRecording: null, activeTimedRecording: null,
 		recordingPaused: false,
 		leadInRecording: false,
 		recordingEntries: null,

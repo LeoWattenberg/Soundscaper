@@ -14,6 +14,7 @@ export function stateFixture(
 		transportState: 'stopped', projectBinPreview: null, playAtSpeedRate: 1,
 		playAtSpeedAbort: null, readOnly: false, projectLock: null, importing: false,
 		recordingStarting: false, timedRecordingPreparing: false, timedRecording: null,
+		activeTimedRecording: null,
 		timedRecordingCancelling: false, recorder: null, recordingPreview: null,
 		recordingKind: null, takeCycleRecovery: null,
 		recordingPreviews: [], recordingDevices: [],

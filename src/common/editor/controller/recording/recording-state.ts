@@ -46,6 +46,7 @@ export interface ControllerRecordingState<Routing = ControllerRecordingRouting> 
 	recordingStartGeneration: number;
 	recordingStartPromise: Promise<void> | null;
 	timedRecording: TimedRecordingDescriptor | null;
+	activeTimedRecording: TimedRecordingDescriptor | null;
 	timedRecordingTimer: unknown;
 	timedRecordingGeneration: number;
 	timedRecordingPreparing: boolean;
@@ -113,6 +114,7 @@ export function createControllerRecordingState<Routing = ControllerRecordingRout
 		recordingStartGeneration: 0,
 		recordingStartPromise: null,
 		timedRecording: null,
+		activeTimedRecording: null,
 		timedRecordingTimer: null,
 		timedRecordingGeneration: 0,
 		timedRecordingPreparing: false,

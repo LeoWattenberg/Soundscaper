@@ -107,6 +107,7 @@ export interface EditorDocumentSnapshotState {
 	readonly recordingStarting: boolean;
 	readonly timedRecordingPreparing: boolean;
 	readonly timedRecording: TimedRecordingSnapshot | null;
+	readonly activeTimedRecording: TimedRecordingSnapshot | null;
 	readonly timedRecordingCancelling: boolean;
 	readonly recorder: unknown;
 	readonly recordingKind: 'ordinary' | 'take-cycle' | null;
@@ -273,6 +274,14 @@ export function createEditorDocumentSnapshot<Project extends SnapshotProject>(
 					endTime: new Date(state.timedRecording.options.endTimeMs).toISOString(),
 				} : {}),
 				trackId: state.timedRecording.options.trackId || null,
+			})
+			: null,
+		activeTimedRecording: state.activeTimedRecording
+			? Object.freeze({
+				startTimeMs: state.activeTimedRecording.startTimeMs,
+				...(state.activeTimedRecording.options.endTimeMs !== undefined ? {
+					endTimeMs: state.activeTimedRecording.options.endTimeMs,
+				} : {}),
 			})
 			: null,
 		recording: Boolean(state.recorder && !state.timedRecording && !state.timedRecordingCancelling),

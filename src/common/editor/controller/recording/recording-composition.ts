@@ -385,16 +385,12 @@ export function createRecordingComposition(dependencies: RecordingCompositionDep
 		setStatus: dependencies.setStatus,
 		handleError: dependencies.handleError,
 		abortError,
-		formatScheduledTime: (value) => new Date(value).toLocaleString(locale),
 		messages: {
 			get projectReadOnly() { return copy.projectReadOnly; },
 			get past() { return copy.timedRecordingPast; },
 			get endBeforeStart() { return copy.timedRecordingEndBeforeStart; },
 			get preparing() { return copy.timedRecordingPreparing; },
 			get missed() { return copy.timedRecordingMissed || copy.timedRecordingPast; },
-			scheduled: (time, endTime) => endTime
-				? copy.timedRecordingScheduledRange.replace('{start}', time).replace('{end}', endTime)
-				: copy.timedRecordingScheduled.replace('{time}', time),
 			get cancelled() { return copy.timedRecordingCancelled; },
 		},
 	});

@@ -75,6 +75,7 @@ export interface RecordingSessionMutableState {
 	recordingStartPromise: Promise<void> | null;
 	timedRecordingPreparing: boolean;
 	timedRecording: Readonly<{ generation: number }> | null;
+	activeTimedRecording: Readonly<{ startTimeMs: number; options: Readonly<{ endTimeMs?: number }> }> | null;
 	recordingPaused: boolean;
 	leadInRecording: boolean;
 	recordingEntries: readonly unknown[] | null;
@@ -441,6 +442,7 @@ export function createRecordingSessionService(runtime: RecordingSessionServiceRu
 		}
 		state.recordingCleanup = null;
 		state.recorder = null;
+		state.activeTimedRecording = null;
 		state.recordingKind = null;
 		state.recordingEntries = null;
 		state.recordingWriter = null;

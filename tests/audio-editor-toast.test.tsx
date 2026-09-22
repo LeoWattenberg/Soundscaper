@@ -54,6 +54,21 @@ test('unmounting a toast cancels its automatic dismissal', async (context) => {
 	assert.equal(dismissals, 0);
 });
 
+test('persistent toasts remain visible until their owning state clears', async (context) => {
+	context.mock.timers.enable({ apis: ['setTimeout'] });
+	const fixture = await mountedToast();
+	let dismissals = 0;
+	try {
+		await fixture.render(() => { dismissals += 1; }, true);
+		assert.equal(fixture.dom.find('.kw-audio-editor__toast-close'), null);
+		await act(async () => { context.mock.timers.tick(30_000); });
+		assert.equal(dismissals, 0);
+		assert.ok(fixture.dom.find('[data-editor-toast="compatibility"]'));
+	} finally {
+		await fixture.cleanup();
+	}
+});
+
 async function mountedToast() {
 	const dom = installReactTestDom();
 	const actGlobal = globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean };
@@ -62,8 +77,9 @@ async function mountedToast() {
 	const { createRoot } = await import('react-dom/client');
 	const root = createRoot(dom.container as unknown as Element);
 	return {
-		render: async (onDismiss: () => void) => {
-			await act(async () => root.render(<EditorToast id="compatibility" title="Compatibility" dismissLabel="Close" onDismiss={onDismiss} />));
+		dom,
+		render: async (onDismiss: () => void, persistent = false) => {
+			await act(async () => root.render(<EditorToast id="compatibility" title="Compatibility" dismissLabel="Close" onDismiss={onDismiss} persistent={persistent} />));
 		},
 		cleanup: async () => {
 			await act(async () => root.unmount());
