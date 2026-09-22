@@ -4,11 +4,11 @@ description: "Die JavaScript-API, gegen die ein Makroprogramm ausgeführt wird, 
 sidebar:
   order: 7
 ---
-<!-- docs-ai-provenance: {"factPacketSha256":"bfeb48e77dc0013cc1f43bd584ae92a7196983e349631c0b75bfbca2ba0c542a","model":"qwen3.8:latest","modelDigest":"22130167c4c20e20c7b71454612966ca8e8171e9b3cc8ab6ce8aa6cbfec79643","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"bfeb48e77dc0013cc1f43bd584ae92a7196983e349631c0b75bfbca2ba0c542a","targetLocale":"de"} -->
+<!-- docs-ai-provenance: {"factPacketSha256":"375c684211bdec9dbd3614c197bda423e24858a568ad5ae3c06ab06d7db2522f","model":"gpt-5.6-luna","modelDigest":"manual","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"375c684211bdec9dbd3614c197bda423e24858a568ad5ae3c06ab06d7db2522f","targetLocale":"de"} -->
 
 Ein Makroprogramm ist ein Makro, das als JavaScript geschrieben wird, anstatt als Liste von Schritten.
 Es wird im Editor gegen eine kleine API namens `sound` ausgeführt, die es ermöglicht, das
-gesöffnete Projekt zu lesen, die Auswahl zu verschieben und dieselben Effekte und Befehle anzuwenden, die
+geöffnete Projekt zu lesen, die Auswahl zu verschieben und dieselben Effekte und Befehle anzuwenden, die
 ein Makro mit Schrittliste anwenden kann. Alles andere, von Dateien und dem Netzwerk bis hin zu Ihren
 anderen Projekten, ist außerhalb seiner Reichweite.
 
@@ -17,9 +17,11 @@ Programme sind eine Funktion von Soundscaper. Framescaper hat keinen Makro-Manag
 ## Wo Programme gespeichert werden
 
 Wählen Sie **Werkzeuge → Makro-Manager**. Der Dialog listet Makros mit Schrittliste und unter
-**Programme** die von Ihnen gespeicherten Programme auf. **Neues Programm** erstellt eines, und das
-Detailfeld zeigt den **Programmnamen**, den **Programmtext** und eine **Programm ausführen**
--Schaltfläche. Der Text wird beim Tippen gespeichert; es gibt keinen separaten Speicherschritt.
+**Programme** die von Ihnen gespeicherten Programme auf. Drücken Sie **+ (Neues Programm)** in der
+Kopfzeile von „Programme“, um eines zu erstellen. Die gleiche Aktionsleiste bietet für das ausgewählte
+Programm **Programm importieren**, **Programm exportieren** und **Programm löschen**. Das Detailfeld
+zeigt den **Programmnamen**, den **Programmtext** und eine **Programm ausführen**-Schaltfläche. Der
+Text wird beim Tippen gespeichert; es gibt keinen separaten Speicherschritt.
 
 Ein Programm wird mit den Einstellungen des Editors gespeichert, nicht innerhalb eines Projekts, sodass es
 in jedem Projekt verfügbar ist, das Sie in diesem Editor öffnen. Verwenden Sie **Programm exportieren** und
@@ -77,16 +79,16 @@ genauso wiederhergestellt, wie es vor Beginn des Laufs war.
 **Lauf abbrechen** stoppt ein Programm sofort. Ein Programm, das seit zwei Minuten läuft, wird auf dieselbe Weise gestoppt, mit der Meldung *Die Makro lief länger als
 120 Sekunden.*
 
-Nach dem Lauf zeigt das Pane das Protokoll des Programms, gefolgt von *Programm angewendet.*
+Nach dem Lauf zeigt das Panel das Protokoll des Programms, gefolgt von *Programm angewendet.*
 wenn der Lauf abgeschlossen wurde. Ein fehlgeschlagener Lauf zeigt *Das Programm ist in Zeile N fehlgeschlagen:* und
 die Fehlermeldung an, wobei die Zeilennummer die Zeile Ihres Programms ist, die die Ausnahme geworfen hat.
 
-### Welchen Audio ein Effekt berührt
+### Welches Audio ein Effekt berührt
 
 Ein von einem Programm angewendeter Effekt wird über die aktuelle Zeitmarkierung auf der
 fokussierten Spur ausgeführt, das ist die Spur, deren Kopf Sie zuletzt angeklickt oder deren Clip
 Sie zuletzt ausgewählt haben. Wenn keine Zeitmarkierung, aber ein Clip ausgewählt ist, deckt der
-effekt diesen Clip ab. Die Auswahlaufrufe eines Programms ändern den Zeitbereich und
+Effekt diesen Clip ab. Die Auswahlaufrufe eines Programms ändern den Zeitbereich und
 die Menge der ausgewählten Spuren, aber nicht, welche Spur fokussiert ist, sodass ein Lauf eine Spur verarbeitet. Wenn nichts fokussiert ist oder die Auswahl leer ist, schlägt der Lauf fehl mit
 der gleichen Meldung, die das Effektmenü gibt.
 
@@ -152,7 +154,7 @@ Jeder Auswahlaufruf zählt als eine Änderung und gibt die erzeugte Auswahl zur�
 in der Form, die `sound.project.selection()` zurückgibt.
 
 `sound.select.time(start, end, options)` setzt den Zeitbereich in Sekunden. Es ist
-die `SelectTime`-Befehl von Audacity, und `options.relativeTo` bestimmt, von wo aus jede
+der `SelectTime`-Befehl von Audacity, und `options.relativeTo` bestimmt, von wo aus jede
 Kante gemessen wird. Beide Kanten können so niedrig wie -100 Sekunden sein.
 
 | `relativeTo` | Startkante | Endkante |
@@ -200,9 +202,9 @@ await sound.effect('audacity-amplify', { gainDb: -3 });
 
 ### `sound.effects(steps)`
 
-Wendet eine Kette von Effekten in einem Durchgang auf die aktuelle Auswahl an, genau so wie eine
+Wendet eine Kette von Effekten in einem Durchgang auf die aktuelle Auswahl an, genau so wie ein
 Schrittlisten-Makro mit diesen Schritten. Jeder Schritt ist `{ type, params }`, und die
-Kette benötigt mindestens einen Schritt. Löst auf `null` auf.
+Kette benötigt mindestens einen Schritt. Das Ergebnis ist `null`.
 
 ```js
 await sound.effects([
@@ -214,7 +216,7 @@ await sound.effects([
 
 ### `sound.command(name, params)`
 
-Führt einen der Audacity-Makrokommandos aus, die unter
+Führt einen der Audacity-Makrobefehle aus, die unter
 [Befehle, die ein Programm ausführen kann](#commands-a-program-can-run) aufgelistet sind. Die vier Auswahlbefehle akzeptieren die dort beschriebenen Parameter; die anderen akzeptieren keine. Löst anschließend die Auswahl auf.
 
 ```js
@@ -224,7 +226,7 @@ await sound.command('Trim');
 
 ### `sound.runSaved(name)`
 
-Führt eine in demselben Makro-Manager gespeicherte Schrittlisten-Makro unter ihrem exakten Namen aus, einschließlich aller darin enthaltenen Auswahlbefehle. Ein gespeichertes Makro kann selbst kein Programm sein, daher verschachteln sich Programme nicht. Wird aufgelöst zu `null`; ein unbekannter Name wird abgelehnt.
+Führt ein in demselben Makro-Manager gespeichertes Schrittlisten-Makro unter seinem exakten Namen aus, einschließlich aller darin enthaltenen Auswahlbefehle. Ein gespeichertes Makro kann selbst kein Programm sein, daher verschachteln sich Programme nicht. Das Ergebnis ist `null`; ein unbekannter Name wird abgelehnt.
 
 ### Zeit und Zufall
 
@@ -298,53 +300,51 @@ Ein Fehler, den das Programm nicht abfängt, beendet die Ausführung, rollt das 
 ## Effekte, die ein Programm anwenden kann {#effects-a-program-can-apply}
 
 Dies sind die Effekt-IDs, die `sound.effect` und `sound.effects` akzeptieren, einschließlich der Parameter-Schlüssel, die jeder von ihnen übernimmt, und ihrer Standardwerte. Bereiche und Einheiten finden Sie in der
-[audio effects reference](/reference/generated/audio-effects/). Nyquist-Plug-ins können nicht aus einem Programm heraus angewendet werden.
+[Audioeffekt-Referenz](/reference/generated/audio-effects/). Nyquist-Plug-ins können nicht aus einem Programm heraus angewendet werden.
 
 | Effekt | Effekt-ID | Parameter und Standardwerte |
 | --- | --- | --- |
-| Amplify | `audacity-amplify` | `gainDb: 0`, `allowClipping: false` |
-| Auto Duck | `audacity-auto-duck` | `duckAmountDb: -12`, `innerFadeDown: 0`, `innerFadeUp: 0`, `outerFadeDown: 0.5`, `outerFadeUp: 0.5`, `thresholdDb: -30`, `maximumPause: 1` |
-| Bass and Treble | `audacity-bass-treble` | `bassDb: 0`, `trebleDb: 0`, `volumeDb: 0` |
+| Verstärken | `audacity-amplify` | `gainDb: 0`, `allowClipping: false` |
+| Auto-Ducking | `audacity-auto-duck` | `duckAmountDb: -12`, `innerFadeDown: 0`, `innerFadeUp: 0`, `outerFadeDown: 0.5`, `outerFadeUp: 0.5`, `thresholdDb: -30`, `maximumPause: 1` |
+| Bässe und Höhen | `audacity-bass-treble` | `bassDb: 0`, `trebleDb: 0`, `volumeDb: 0` |
 | Bitcrusher | `bitcrusher` | `bitDepth: 8`, `downsampling: 1`, `dither: 'none'`, `interpolation: 'sample-hold'`, `mix: 100` |
-| Change Pitch | `audacity-change-pitch` | `semitones: 0`, `preserveFormants: true` |
-| Change Speed and Pitch | `audacity-change-speed-pitch` | `speedPercent: 0` |
-| Change Tempo | `audacity-change-tempo` | `tempoPercent: 0` |
-| Classic Filters | `audacity-classic-filters` | `family: 'butterworth'`, `direction: 'lowpass'`, `order: 1`, `cutoffHz: 1000`, `passbandRippleDb: 1`, `stopbandAttenuationDb: 30` |
-| Click Removal | `audacity-click-removal` | `threshold: 200`, `maximumWidth: 20` |
-| Compressor | `compressor` | `threshold: -24`, `knee: 30`, `ratio: 4`, `attack: 0.003`, `release: 0.25`, `makeupGain: 0` |
-| Compressor (Audacity) | `audacity-compressor` | `thresholdDb: -10`, `makeupGainDb: 0`, `kneeWidthDb: 5`, `ratio: 10`, `lookaheadMs: 1`, `attackMs: 30`, `releaseMs: 150` |
-| Delay | `delay` | `time: 0.25`, `feedback: 0.3`, `mix: 0.2` |
-| Distortion | `audacity-distortion` | `mode: 'hard-clipping'`, `dcBlock: false`, `thresholdDb: -6`, `noiseFloorDb: -70`, `parameter1: 50`, `parameter2: 50`, `repeats: 1` |
+| Tonhöhe ändern | `audacity-change-pitch` | `semitones: 0`, `preserveFormants: true` |
+| Geschwindigkeit und Tonhöhe ändern | `audacity-change-speed-pitch` | `speedPercent: 0` |
+| Tempo ändern | `audacity-change-tempo` | `tempoPercent: 0` |
+| Klassische Filter | `audacity-classic-filters` | `family: 'butterworth'`, `direction: 'lowpass'`, `order: 1`, `cutoffHz: 1000`, `passbandRippleDb: 1`, `stopbandAttenuationDb: 30` |
+| Klicks entfernen | `audacity-click-removal` | `threshold: 200`, `maximumWidth: 20` |
+| Kompressor | `audacity-compressor` | `thresholdDb: -10`, `makeupGainDb: 0`, `kneeWidthDb: 5`, `ratio: 10`, `lookaheadMs: 1`, `attackMs: 30`, `releaseMs: 150` |
+| Verzögerung | `delay` | `time: 0.25`, `feedback: 0.3`, `mix: 0.2` |
+| Verzerrung | `audacity-distortion` | `mode: 'hard-clipping'`, `dcBlock: false`, `thresholdDb: -6`, `noiseFloorDb: -70`, `parameter1: 50`, `parameter2: 50`, `repeats: 1` |
 | Echo | `audacity-echo` | `delaySeconds: 1`, `decay: 0.5` |
-| Fade In | `audacity-fade-in` | keine |
-| Fade Out | `audacity-fade-out` | keine |
-| Filter Curve EQ | `audacity-filter-curve-eq` | `points`: ein Array von `{ frequency, gain }`, Standard zwei flache Punkte bei 20 Hz und 20 kHz; `linearFrequencyScale: false`; `filterLength: 8191` |
-| Four-band parametric EQ | `eq` | `outputGain: 0`; `bands`: vier `{ id, enabled, type, frequency, gain, q, slope }`-Objekte, mit Spitzen bei 100, 500, 2000 und 8000 Hz mit `gain: 0`, `q: 1`, `slope: 12` |
+| Einblenden | `audacity-fade-in` | keine |
+| Ausblenden | `audacity-fade-out` | keine |
+| Filterkurven-EQ | `audacity-filter-curve-eq` | `points`: ein Array aus `{ frequency, gain }`, standardmäßig zwei flache Punkte bei 20 Hz und 20 kHz; `linearFrequencyScale: false`; `filterLength: 8191` |
+| Parametrischer Vierband-EQ | `eq` | `outputGain: 0`; `bands`: vier `{ id, enabled, type, frequency, gain, q, slope }`-Objekte mit Spitzen bei 100, 500, 2000 und 8000 Hz sowie `gain: 0`, `q: 1`, `slope: 12` |
 | Gate | `gate` | `threshold: -50`, `attack: 0.005`, `hold: 0.05`, `release: 0.1`, `rangeDb: -80` |
-| Graphic EQ | `audacity-graphic-eq` | `gains`: 31 Band-Gewinne in dB, alle 0; `interpolation: 'bspline'`; `filterLength: 8191` |
-| High-pass filter | `highpass` | `frequency: 80`, `q: 0.707` |
-| Invert | `audacity-invert` | keine |
-| Legacy Compressor | `audacity-legacy-compressor` | `thresholdDb: -12`, `noiseFloorDb: -40`, `ratio: 2`, `attackSeconds: 0.2`, `releaseSeconds: 1`, `normalize: true`, `usePeak: false` |
-| Limiter | `limiter` | `ceiling: -1`, `lookahead: 0.005`, `release: 0.1` |
-| Limiter (Audacity) | `audacity-limiter` | `thresholdDb: -5`, `makeupTargetDb: -1`, `kneeWidthDb: 2`, `lookaheadMs: 1`, `releaseMs: 20` |
-| Loudness Normalization | `audacity-loudness-normalization` | `mode: 'lufs'`, `targetLufs: -23`, `targetRmsDb: -20`, `stereoIndependent: false`, `dualMono: true` |
-| Low-pass filter | `lowpass` | `frequency: 18000`, `q: 0.707` |
-| Noise Reduction | `audacity-noise-reduction` | `reductionDb: 6`, `sensitivity: 6`, `frequencySmoothingBands: 6`, `output: 'reduce'` |
-| Normalize | `audacity-normalize` | `peakDb: -1`, `removeDc: true`, `applyGain: true`, `stereoIndependent: false` |
+| Grafischer EQ | `audacity-graphic-eq` | `gains`: 31 Band-Gewinne in dB, alle 0; `interpolation: 'bspline'`; `filterLength: 8191` |
+| Hochpassfilter | `highpass` | `frequency: 80`, `q: 0.707` |
+| Invertieren | `audacity-invert` | keine |
+| Legacy-Kompressor | `audacity-legacy-compressor` | `thresholdDb: -12`, `noiseFloorDb: -40`, `ratio: 2`, `attackSeconds: 0.2`, `releaseSeconds: 1`, `normalize: true`, `usePeak: false` |
+| Limiter | `audacity-limiter` | `thresholdDb: -5`, `makeupTargetDb: -1`, `kneeWidthDb: 2`, `lookaheadMs: 1`, `releaseMs: 20` |
+| Lautheitsnormalisierung | `audacity-loudness-normalization` | `mode: 'lufs'`, `targetLufs: -23`, `targetRmsDb: -20`, `stereoIndependent: false`, `dualMono: true` |
+| Tiefpassfilter | `lowpass` | `frequency: 18000`, `q: 0.707` |
+| Rauschreduzierung | `audacity-noise-reduction` | `reductionDb: 6`, `sensitivity: 6`, `frequencySmoothingBands: 6`, `output: 'reduce'` |
+| Normalisieren | `audacity-normalize` | `peakDb: -1`, `removeDc: true`, `applyGain: true`, `stereoIndependent: false` |
 | Paulstretch | `audacity-paulstretch` | `stretchFactor: 10`, `timeResolution: 0.25` |
 | Phaser | `audacity-phaser` | `stages: 2`, `dryWet: 128`, `frequency: 0.4`, `phaseDegrees: 0`, `depth: 100`, `feedbackPercent: 0`, `outputGainDb: -6` |
-| Remove DC Offset | `audacity-remove-dc-offset` | keine |
-| Repair | `audacity-repair` | keine |
-| Repeat | `audacity-repeat` | `count: 1` |
-| Reverb | `reverb` | `mix: 0.2`, `decay: 2`, `preDelay: 0.01` |
-| Reverb (Audacity) | `audacity-reverb` | `roomSize: 75`, `preDelay: 10`, `reverberance: 50`, `damping: 50`, `toneLow: 100`, `toneHigh: 100`, `wetGainDb: -6`, `dryGainDb: 0`, `stereoWidth: 100`, `wetOnly: false` |
-| Reverse | `audacity-reverse` | keine |
-| Sliding Stretch | `audacity-sliding-stretch` | `startTempoPercent: 0`, `endTempoPercent: 0`, `startPitchSemitones: 0`, `endPitchSemitones: 0`, `preserveFormants: true` |
-| Truncate Silence | `audacity-truncate-silence` | `thresholdDb: -20`, `action: 'truncate'`, `minimumSilence: 0.5`, `truncateTo: 0.5`, `compressPercent: 50`, `independent: false` |
-| Utility Gain (Reviewed) | `reviewed-utility-gain` | `gain: 1` |
+| DC-Versatz entfernen | `audacity-remove-dc-offset` | keine |
+| Reparieren | `audacity-repair` | keine |
+| Wiederholen | `audacity-repeat` | `count: 1` |
+| Hall | `reverb` | `mix: 0.2`, `decay: 2`, `preDelay: 0.01` |
+| Hall (Audacity) | `audacity-reverb` | `roomSize: 75`, `preDelay: 10`, `reverberance: 50`, `damping: 50`, `toneLow: 100`, `toneHigh: 100`, `wetGainDb: -6`, `dryGainDb: 0`, `stereoWidth: 100`, `wetOnly: false` |
+| Umkehren | `audacity-reverse` | keine |
+| Gleitende Zeitdehnung | `audacity-sliding-stretch` | `startTempoPercent: 0`, `endTempoPercent: 0`, `startPitchSemitones: 0`, `endPitchSemitones: 0`, `preserveFormants: true` |
+| Stille kürzen | `audacity-truncate-silence` | `thresholdDb: -20`, `action: 'truncate'`, `minimumSilence: 0.5`, `truncateTo: 0.5`, `compressPercent: 50`, `independent: false` |
+| Dienstprogramm-Verstärkung (geprüft) | `reviewed-utility-gain` | `gain: 1` |
 | Wahwah | `audacity-wahwah` | `frequency: 1.5`, `phaseDegrees: 0`, `depthPercent: 70`, `resonance: 2.5`, `frequencyOffsetPercent: 30`, `outputGainDb: -6` |
 
-Zwei Effekte benötigen etwas, das ein Programm nicht bereitstellen kann. Noise Reduction benötigt ein Rauschprofil, das im eigenen Dialog des Effekts erfasst wird, und Auto Duck benötigt eine Steuerspur unterhalb der fokussierten Spur.
+Zwei Effekte benötigen etwas, das ein Programm nicht bereitstellen kann. Rauschreduzierung benötigt ein Rauschprofil, das im eigenen Dialog des Effekts erfasst wird, und Auto Duck benötigt eine Steuerspur unterhalb der fokussierten Spur.
 
 ## Befehle, die ein Programm ausführen kann {#commands-a-program-can-run}
 
