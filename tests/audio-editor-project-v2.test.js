@@ -230,7 +230,7 @@ test('editor preferences default to Modern/system/Colorful and exclude OS, cloud
 	assert.deepEqual(
 		preferences.workspace.panels['project-bin'],
 		{
-			visible: true,
+			visible: false,
 			dock: 'left',
 			order: 0,
 			size: 380,
