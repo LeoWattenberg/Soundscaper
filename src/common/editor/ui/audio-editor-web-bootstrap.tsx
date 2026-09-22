@@ -82,6 +82,7 @@ export interface AudioEditorWebRuntimeLifecycle<
 	Controller,
 > {
 	create(presentation: Presentation): Promise<Readonly<AudioEditorWebRuntime<Controller, FileService>>>;
+	createWhenReady(presentation: PromiseLike<Presentation>): Promise<Readonly<AudioEditorWebRuntime<Controller, FileService>>>;
 	assistanceSearchSource(runtime: Readonly<AudioEditorWebRuntime<Controller, FileService>>):
 		AssistanceSearchSource | null;
 	monoConversionConfirmation(runtime: Readonly<AudioEditorWebRuntime<Controller, FileService>>):
@@ -110,9 +111,11 @@ export function createAudioEditorWebRuntimeLifecycle<
 		return attached;
 	};
 
-	const create = async (presentation: Presentation): Promise<Runtime> => {
-		const fileService = options.createFileService();
-		const environment = await options.createEnvironment(fileService);
+	const createWithEnvironment = async (
+		presentation: Presentation,
+		fileService: FileService,
+		environment: Environment,
+	): Promise<Runtime> => {
 		const monoConversionConfirmation = (
 			options.createMonoConversionConfirmation ?? createMonoConversionConfirmation
 		)();
@@ -155,9 +158,36 @@ export function createAudioEditorWebRuntimeLifecycle<
 			throw error;
 		}
 	};
+	const create = async (presentation: Presentation): Promise<Runtime> => {
+		const fileService = options.createFileService();
+		const environment = await options.createEnvironment(fileService);
+		return createWithEnvironment(presentation, fileService, environment);
+	};
+	const createWhenReady = async (presentation: PromiseLike<Presentation>): Promise<Runtime> => {
+		const fileService = options.createFileService();
+		const environmentPromise = Promise.resolve(options.createEnvironment(fileService));
+		let environment: Environment;
+		let resolvedPresentation: Presentation;
+		try {
+			[environment, resolvedPresentation] = await Promise.all([environmentPromise, presentation]);
+		} catch (error) {
+			const opened = await environmentPromise.catch(() => null);
+			if (opened) {
+				try {
+					await opened.close();
+				} catch (cleanupError) {
+					// eslint-disable-next-line preserve-caught-error -- The presentation failure remains the primary cause.
+					throw new AggregateError([error, cleanupError], options.constructionCleanupMessage, { cause: error });
+				}
+			}
+			throw error;
+		}
+		return createWithEnvironment(resolvedPresentation, fileService, environment);
+	};
 
 	return Object.freeze({
 		create,
+		createWhenReady,
 		assistanceSearchSource: (runtime: Runtime) => requireMetadata(runtime).assistanceSearchSource,
 		monoConversionConfirmation: (runtime: Runtime) => requireMetadata(runtime).monoConversionConfirmation,
 		projectForRuntimeConsumers: (runtime: Runtime) => requireMetadata(runtime).projectForRuntimeConsumers,
@@ -246,11 +276,10 @@ export interface AudioEditorWebBootstrapConfiguration<Runtime extends Readonly<{
 		signal: AbortSignal,
 	) => PromiseLike<unknown> | unknown;
 	readonly snapshotLocalizedCopy: (value: unknown) => Readonly<Record<string, unknown>>;
-	readonly reportLocalizedCopyProjectionFailure: boolean;
-	readonly createRuntime: (presentation: Readonly<{
+	readonly createRuntimeWhenReady: (presentation: PromiseLike<Readonly<{
 		readonly locale: string;
 		readonly copy: Readonly<Record<string, unknown>>;
-	}>) => Promise<Runtime>;
+	}>>) => Promise<Runtime>;
 	readonly renderEditor: (value: Readonly<AudioEditorWebBootstrapRenderValue<Runtime>>) => ReactNode;
 	readonly reportRuntimeDisposalFailure: (error: unknown) => void;
 	readonly failureFallback: string;
@@ -271,71 +300,62 @@ export function AudioEditorWebBootstrap<Runtime extends Readonly<{
 		() => configuration.snapshotFallbackCopy(fallbackCopyValue),
 		[configuration, fallbackCopyValue],
 	);
-	const [copy, setCopy] = useState<Readonly<Record<string, unknown>> | null>(
-		() => locale === 'en' ? configuration.bundledEnglishCopy() : null,
-	);
-	const [runtime, setRuntime] = useState<Runtime | null>(null);
-	const [failure, setFailure] = useState<unknown>(null);
+	const attempt = useMemo(() => Object.freeze({ locale }), [locale]);
+	const [ready, setReady] = useState<Readonly<{
+		attempt: typeof attempt;
+		copy: Readonly<Record<string, unknown>>;
+		runtime: Runtime;
+	}> | null>(null);
+	const [failure, setFailure] = useState<Readonly<{ attempt: typeof attempt; error: unknown }> | null>(null);
 
 	useEffect(() => {
-		if (copy) return undefined;
 		const controller = new AbortController();
-		const loaded = Promise.resolve(configuration.loadLocalizedCopy(locale, controller.signal));
-		const publish = (resolved: unknown): void => {
-			if (!controller.signal.aborted) {
-				setCopy(configuration.snapshotLocalizedCopy(resolved));
-			}
-		};
-		const report = (error: unknown): void => {
-			if (!controller.signal.aborted) setFailure(error);
-		};
-		if (configuration.reportLocalizedCopyProjectionFailure) {
-			void loaded.then(publish).catch(report);
-		} else {
-			void loaded.then(publish, report);
-		}
-		return () => { controller.abort(); };
-	}, [configuration, copy, locale]);
-
-	useEffect(() => {
-		if (!copy) return undefined;
 		let active = true;
-		let owned: Runtime | null = null;
+		setReady(null);
 		setFailure(null);
-		void configuration.createRuntime({ locale, copy }).then(
-			(candidate) => {
-				if (!active) {
-					void candidate.dispose().catch(configuration.reportRuntimeDisposalFailure);
-					return;
-				}
-				owned = candidate;
-				setRuntime(candidate);
-			},
-			(error: unknown) => { if (active) setFailure(error); },
+		const copyPromise = Promise.resolve().then(() => locale === 'en'
+			? configuration.bundledEnglishCopy()
+			: configuration.loadLocalizedCopy(locale, controller.signal)).then((value) => locale === 'en'
+				? value as Readonly<Record<string, unknown>>
+				: configuration.snapshotLocalizedCopy(value));
+		const aborted = new Promise<never>((_resolve, reject) => {
+			controller.signal.addEventListener('abort', () => reject(new DOMException('Editor startup cancelled.', 'AbortError')), { once: true });
+		});
+		const activeCopyPromise = Promise.race([copyPromise, aborted]);
+		const runtimePromise = configuration.createRuntimeWhenReady(activeCopyPromise.then((copy) => ({ locale, copy })));
+		void Promise.all([activeCopyPromise, runtimePromise]).then(
+			([copy, runtime]) => { if (active) setReady({ attempt, copy, runtime }); },
+			(error: unknown) => { if (active) setFailure({ attempt, error }); },
 		);
 		return () => {
 			active = false;
-			if (owned) void owned.dispose().catch(configuration.reportRuntimeDisposalFailure);
+			controller.abort();
+			void runtimePromise.then(
+				(runtime) => runtime.dispose().catch(configuration.reportRuntimeDisposalFailure),
+				(error: unknown) => {
+					if (error instanceof AggregateError) configuration.reportRuntimeDisposalFailure(error);
+				},
+			);
 		};
-	}, [configuration, copy, locale]);
+	}, [attempt, configuration, locale]);
 
-	if (failure) {
-		const message = failure instanceof Error ? failure.message : String(failure);
+	if (failure?.attempt === attempt) {
+		const message = failure.error instanceof Error ? failure.error.message : String(failure.error);
 		return <div role="alert">{
 			copyText(fallbackCopy, 'genericError', configuration.failureFallback)
 				.replace('{message}', message)
 		}</div>;
 	}
-	if (!copy || !runtime) {
+	if (!ready || ready.attempt !== attempt) {
 		return <div role="status" aria-live="polite">{
 			copyText(fallbackCopy, 'loading', configuration.loadingFallback)
 		}</div>;
 	}
 	return configuration.renderEditor({
 		locale,
-		copy,
+		copy: ready.copy,
 		...(initialSurface === undefined ? {} : { initialSurface }),
-		runtime,
+		runtime: ready.runtime,
 	});
 }
 

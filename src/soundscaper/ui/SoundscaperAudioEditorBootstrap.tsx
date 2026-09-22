@@ -96,8 +96,9 @@ const BOOTSTRAP_CONFIGURATION: AudioEditorWebBootstrapConfiguration<
 	),
 	loadLocalizedCopy: (locale: string, signal: AbortSignal) => resolveCatalog(locale, { signal }),
 	snapshotLocalizedCopy: (value: unknown) => snapshotCopy(value, 'Soundscaper localized copy'),
-	reportLocalizedCopyProjectionFailure: true,
-	createRuntime: createSoundscaperWebEditorRuntime,
+	createRuntimeWhenReady: (presentation: PromiseLike<SoundscaperWebEditorRuntimePresentation>) => RUNTIME_LIFECYCLE.createWhenReady(
+		Promise.resolve(presentation).then(snapshotPresentation),
+	),
 	renderEditor: ({ locale, copy, initialSurface, runtime }: AudioEditorWebBootstrapRenderValue<
 		Readonly<SoundscaperWebEditorRuntime>
 	>) => (

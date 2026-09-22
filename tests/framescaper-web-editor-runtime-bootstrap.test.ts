@@ -424,3 +424,33 @@ test('a runtime that arrives after unmount is disposed instead of being leaked',
 		dom.restore();
 	}
 });
+
+test('switching locale closes the old startup and a late new startup after unmount', async () => {
+	const tracked = trackedIndexedDB();
+	const dom = installReactTestDom();
+	const restore = installBrowser({ indexedDB: tracked.factory });
+	const actGlobal = globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean };
+	const priorAct = actGlobal.IS_REACT_ACT_ENVIRONMENT;
+	actGlobal.IS_REACT_ACT_ENVIRONMENT = true;
+	const { createRoot } = await import('react-dom/client');
+	const root = createRoot(dom.container as unknown as Element);
+	try {
+		act(() => root.render(React.createElement(FramescaperAudioEditorBootstrap, {
+			locale: 'en', fallbackCopy: {},
+		})));
+		assert.equal(tracked.log.opens, 1);
+		act(() => root.render(React.createElement(FramescaperAudioEditorBootstrap, {
+			locale: 'de', fallbackCopy: {},
+		})));
+		assert.equal(tracked.log.opens, 2, 'German storage opens while its catalog is still loading');
+		act(() => root.unmount());
+		for (let attempt = 0; attempt < 200 && tracked.log.closes < 2; attempt += 1) {
+			await delay(10);
+		}
+		assert.equal(tracked.log.closes, 2, 'both detached startup environments close');
+	} finally {
+		actGlobal.IS_REACT_ACT_ENVIRONMENT = priorAct;
+		restore();
+		dom.restore();
+	}
+});

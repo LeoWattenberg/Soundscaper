@@ -61,10 +61,9 @@ export function buildEditorCopyInventory(
 ) {
 	const en: Record<string, string> = { ...english };
 	const de: Record<string, string> = { ...german };
-	const metadata: Record<string, EditorCopyMetadata> = {};
-	for (const key of Object.keys(en)) metadata[key] = Object.freeze({
-		key, owner: 'editor', source: en[key]!, ...(de[key] === undefined ? {} : { bundledGerman: de[key] }),
-	});
+	const baseKeys = Object.keys(en);
+	const ownedKeys: string[] = [];
+	const ownedOwners: string[] = [];
 	for (const owner of owners) {
 		for (const [localKey, source] of Object.entries(owner.en)) {
 			const alias = owner.aliases?.[localKey];
@@ -79,11 +78,26 @@ export function buildEditorCopyInventory(
 			if (translation !== undefined && !acceptableTranslation(source, translation)) throw new Error(`Invalid German editor copy: ${key}`);
 			en[key] = source;
 			if (translation !== undefined) de[key] = translation;
-			metadata[key] = Object.freeze({ key, owner: owner.owner, source,
-				...(translation === undefined ? {} : { bundledGerman: translation }) });
+			ownedKeys.push(key);
+			ownedOwners.push(owner.owner);
 		}
 	}
-	return Object.freeze({ english: Object.freeze(en), german: Object.freeze(de), metadata: Object.freeze(metadata) });
+	let metadata: Readonly<Record<string, EditorCopyMetadata>> | null = null;
+	const getMetadata = (): Readonly<Record<string, EditorCopyMetadata>> => {
+		if (metadata) return metadata;
+		const entries: Record<string, EditorCopyMetadata> = {};
+		for (const key of baseKeys) entries[key] = Object.freeze({
+			key, owner: 'editor', source: en[key]!, ...(de[key] === undefined ? {} : { bundledGerman: de[key] }),
+		});
+		for (let index = 0; index < ownedKeys.length; index += 1) {
+			const key = ownedKeys[index]!;
+			entries[key] = Object.freeze({ key, owner: ownedOwners[index]!, source: en[key]!,
+				...(de[key] === undefined ? {} : { bundledGerman: de[key] }) });
+		}
+		metadata = Object.freeze(entries);
+		return metadata;
+	};
+	return Object.freeze({ english: Object.freeze(en), german: Object.freeze(de), getMetadata });
 }
 
 const templateEnglish = EFFECT_MACRO_TEMPLATE_COPY_BY_LOCALE.en;
@@ -144,4 +158,7 @@ const inventory = buildEditorCopyInventory(ENGLISH_COPY, GERMAN_COPY, [
 
 export const EDITOR_ENGLISH_COPY = inventory.english as EditorCopy;
 export const EDITOR_GERMAN_COPY = inventory.german as EditorCopy;
-export const EDITOR_COPY_METADATA = inventory.metadata;
+/** Construct review metadata only when the menu-only translation surface loads. */
+export function getEditorCopyMetadata(): Readonly<Record<string, EditorCopyMetadata>> {
+	return inventory.getMetadata();
+}

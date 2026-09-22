@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 
 import { ROUTE_LOCALES, getLocaleDescriptor } from '../../../i18n/locales.js';
 import { COMMUNITY_TRANSLATIONS_COPY_BY_LOCALE } from '../../../i18n/community-translations-copy.ts';
-import { EDITOR_ENGLISH_COPY, EDITOR_COPY_METADATA } from '../../../i18n/editor-copy-inventory.ts';
+import { EDITOR_ENGLISH_COPY, getEditorCopyMetadata } from '../../../i18n/editor-copy-inventory.ts';
 import { isTranslatableMessageKey } from '../../../i18n/translation-scope.ts';
 import { resolveEditorCopyScope } from '../../../i18n/editor-copy-scope.ts';
 import { acceptableTranslation } from '../../../i18n/translation-catalog.js';
@@ -34,6 +34,7 @@ interface CommunityTranslationSurfaceProps {
 }
 
 const translationLocales = ROUTE_LOCALES as readonly { readonly locale: string; readonly nativeName: string }[];
+const EDITOR_COPY_METADATA = getEditorCopyMetadata();
 
 export default function CommunityTranslationSurface({ port, initialLocale, copy: hostCopy, fileService, onClose }: CommunityTranslationSurfaceProps) {
 	const copy = useMemo(() => resolveEditorCopyScope('communityTranslations', COMMUNITY_TRANSLATIONS_COPY_BY_LOCALE.en, hostCopy), [hostCopy]);

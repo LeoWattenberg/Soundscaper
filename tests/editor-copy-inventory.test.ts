@@ -4,10 +4,10 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { ENGLISH_COPY, GERMAN_COPY } from '../src/common/i18n/catalogs.js';
 import {
-	EDITOR_COPY_METADATA,
 	EDITOR_ENGLISH_COPY,
 	EDITOR_GERMAN_COPY,
 	buildEditorCopyInventory,
+	getEditorCopyMetadata,
 } from '../src/common/i18n/editor-copy-inventory.ts';
 import { resolveMacroManagerCopy } from '../src/common/editor/ui/inspector/macro-manager-copy.ts';
 import { resolveTrackAutomationCopy } from '../src/common/editor/ui/timeline/track-automation-copy.ts';
@@ -18,6 +18,7 @@ import { acceptableTranslation, currentTranslations } from '../src/common/i18n/t
 import { resolveCatalog } from '../src/common/i18n/runtime.js';
 
 test('editor inventory preserves legacy identities and isolates independently owned meanings', () => {
+	const metadata = getEditorCopyMetadata();
 	for (const [key, value] of Object.entries(ENGLISH_COPY)) assert.equal(EDITOR_ENGLISH_COPY[key], value, key);
 	for (const [key, value] of Object.entries(GERMAN_COPY)) assert.equal(EDITOR_GERMAN_COPY[key], value, key);
 	assert.equal(EDITOR_ENGLISH_COPY['ui.routing.confirmDelete'], 'Confirm delete');
@@ -33,14 +34,36 @@ test('editor inventory preserves legacy identities and isolates independently ow
 	assert.equal(EDITOR_ENGLISH_COPY['ui.freesoundAttribution.metadataTab'], undefined);
 	assert.equal(ENGLISH_COPY.panelFreesound, undefined);
 	assert.equal(ENGLISH_COPY.metadataAttributionTab, undefined);
-	assert.equal(EDITOR_COPY_METADATA['ui.macroManager.runProgram']?.owner, 'macroManager');
-	assert.equal(EDITOR_COPY_METADATA['ui.freesoundAttribution.panel']?.owner, 'freesoundAttribution');
-	assert.equal(EDITOR_COPY_METADATA['ui.freesoundAttribution.search'], undefined);
-	assert.deepEqual(Object.keys(EDITOR_COPY_METADATA), Object.keys(EDITOR_ENGLISH_COPY));
+	assert.equal(metadata['ui.macroManager.runProgram']?.owner, 'macroManager');
+	assert.equal(metadata['ui.freesoundAttribution.panel']?.owner, 'freesoundAttribution');
+	assert.equal(metadata['ui.freesoundAttribution.search'], undefined);
+	assert.deepEqual(Object.keys(metadata), Object.keys(EDITOR_ENGLISH_COPY));
 	for (const [key, source] of Object.entries(EDITOR_ENGLISH_COPY)) {
 		assert.equal(acceptableTranslation(source, source), true, key);
 		if (EDITOR_GERMAN_COPY[key]) assert.equal(acceptableTranslation(source, EDITOR_GERMAN_COPY[key]), true, key);
 	}
+});
+
+test('translation metadata is built only on demand and retains catalog identities', () => {
+	const english = { plain: 'Plain' };
+	const german = { plain: 'Einfach' };
+	const ownedEnglish = { open: 'Open', shared: 'Plain' };
+	const ownedGerman = { open: 'Öffnen' };
+	const owner = { owner: 'panel', en: ownedEnglish, de: ownedGerman, aliases: { shared: 'plain' } };
+	const inventory = buildEditorCopyInventory(english, german, [owner]);
+	assert.deepEqual(Object.keys(inventory), ['english', 'german', 'getMetadata']);
+	english.plain = 'Changed';
+	german.plain = 'Geändert';
+	ownedEnglish.open = 'Changed';
+	ownedGerman.open = 'Geändert';
+	owner.owner = 'changed';
+	const metadata = inventory.getMetadata();
+	assert.equal(inventory.getMetadata(), metadata);
+	assert.ok(Object.isFrozen(metadata));
+	assert.deepEqual(metadata.plain, { key: 'plain', owner: 'editor', source: 'Plain', bundledGerman: 'Einfach' });
+	assert.deepEqual(metadata['ui.panel.open'], { key: 'ui.panel.open', owner: 'panel', source: 'Open', bundledGerman: 'Öffnen' });
+	assert.equal(metadata['ui.panel.shared'], undefined);
+	assert.equal(getEditorCopyMetadata(), getEditorCopyMetadata());
 });
 
 test('published locale loading and topical resolvers use the same namespaced source reference', async () => {

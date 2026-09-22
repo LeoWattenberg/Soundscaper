@@ -110,7 +110,7 @@ test('route application localizes the initial-load progressbar before the editor
 
 test('selected product bootstraps construct full bundled English copy internally', async () => {
 	const lifecycle = await source('src/common/editor/ui/audio-editor-web-bootstrap.tsx');
-	assert.match(lifecycle, /locale === 'en' \? configuration\.bundledEnglishCopy\(\) : null/u);
+	assert.match(lifecycle, /locale === 'en'\s*\? configuration\.bundledEnglishCopy\(\)/u);
 	for (const path of [
 		'src/soundscaper/ui/SoundscaperAudioEditorBootstrap.tsx',
 		'src/framescaper/ui/FramescaperAudioEditorBootstrap.tsx',

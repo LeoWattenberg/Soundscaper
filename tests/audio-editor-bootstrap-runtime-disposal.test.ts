@@ -9,12 +9,8 @@ test('product bootstraps observe runtime disposal failures on every detached pat
 		'../src/common/editor/ui/audio-editor-web-bootstrap.tsx', import.meta.url,
 	), 'utf8');
 	assert.match(lifecycle,
-		/void candidate\.dispose\(\)\.catch\(configuration\.reportRuntimeDisposalFailure\);/u,
-		'the shared lifecycle must observe disposal after runtime creation loses its owner',
-	);
-	assert.match(lifecycle,
-		/if \(owned\) void owned\.dispose\(\)\.catch\(configuration\.reportRuntimeDisposalFailure\);/u,
-		'the shared lifecycle must observe disposal during effect cleanup',
+		/void runtimePromise\.then\([\s\S]*?runtime\.dispose\(\)\.catch\(configuration\.reportRuntimeDisposalFailure\)/u,
+		'the shared lifecycle must observe disposal when any in-flight runtime loses its owner',
 	);
 	for (const [product, path] of [
 		['Soundscaper', '../src/soundscaper/ui/SoundscaperAudioEditorBootstrap.tsx'],

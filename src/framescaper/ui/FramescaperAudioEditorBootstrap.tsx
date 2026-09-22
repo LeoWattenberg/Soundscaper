@@ -110,8 +110,9 @@ const BOOTSTRAP_CONFIGURATION: AudioEditorWebBootstrapConfiguration<
 	snapshotLocalizedCopy: (value: unknown) => framescaperCopy(snapshotCopy(
 		value, 'Framescaper localized copy',
 	)),
-	reportLocalizedCopyProjectionFailure: false,
-	createRuntime: createFramescaperWebEditorRuntime,
+	createRuntimeWhenReady: (presentation: PromiseLike<FramescaperWebEditorRuntimePresentation>) => RUNTIME_LIFECYCLE.createWhenReady(
+		Promise.resolve(presentation).then(snapshotPresentation),
+	),
 	renderEditor: ({ locale, copy, initialSurface, runtime }: AudioEditorWebBootstrapRenderValue<
 		Readonly<FramescaperWebEditorRuntime>
 	>) => (
