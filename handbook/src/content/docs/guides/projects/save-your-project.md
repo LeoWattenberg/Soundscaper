@@ -3,7 +3,7 @@ title: "Save your project"
 description: "Keep the project, with every track and edit, in the local project library."
 editUrl: false
 sidebar:
-  order: 1
+  order: 2
 head:
   - tag: script
     attrs:
@@ -35,6 +35,7 @@ This is Audacity's **File → Save Project**. The names below are Soundscaper's 
 More [projects and files](/guides/projects/) guides:
 
 - [Move a project between computers](/guides/projects/move-a-project-between-computers/) — Export the whole project as one file, then open that file elsewhere.
+- [Find and add a Freesound sound](/guides/projects/find-and-add-a-freesound-sound/) — Search Freesound from the editor and add a sound to the project timeline.
 - [Open an Audacity project](/guides/projects/open-an-audacity-project/) — Bring an existing .aup3 or .aup4 project into Soundscaper with its tracks intact.
 - [Export each track as its own file](/guides/projects/export-each-track-as-its-own-file/) — Render the tracks separately, as stems, in one download.
 - [Change a clip’s sample rate](/guides/projects/change-a-clips-sample-rate/) — Resample a clip so it matches the rate the rest of the project uses.

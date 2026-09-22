@@ -241,6 +241,21 @@ test('file workflow prose names the application menu commands the browser suite 
 	assert.match(chapters.steps[2].why, /leaves room for the Markers panel/u);
 });
 
+test('the Freesound guide opens the panel, searches, and inserts a result into the project', () => {
+	const guide = SOUNDSCAPER_GUIDES.find((entry) => entry.id === 'find-and-add-a-freesound-sound');
+	assert.ok(guide, 'the Freesound guide is missing');
+	assert.deepEqual(guide.steps.map((entry) => entry.kind), [
+		'open', 'menu', 'freesound-search', 'freesound-insert', 'check',
+	]);
+	assert.deepEqual(guide.steps[1].path, ['View', 'Panels', 'Freesound']);
+	assert.equal(guide.steps[4].clips, 1);
+	const page = pageFor(renderGuides(), guide);
+	assert.match(page, /\*\*View → Panels → Freesound\*\*/u);
+	assert.match(page, /\*\*Search Freesound\*\*.*\*\*Search\*\*/u);
+	assert.match(page, /\*\*Insert at playhead\*\*/u);
+	assert.doesNotMatch(page, /\bHarbor ambience\b|\bharbor\b/u, 'a how-to uses the reader’s sound');
+});
+
 test('the guides cover the Audacity 3 features Audacity 4 left out', () => {
 	// Each of these is an Audacity 3 surface with no counterpart in the Audacity 4
 	// sources the parity inventory is pinned to; the guide has to say so.

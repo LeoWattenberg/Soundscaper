@@ -3,7 +3,7 @@ title: "Export each track as its own file"
 description: "Render the tracks separately, as stems, in one download."
 editUrl: false
 sidebar:
-  order: 4
+  order: 5
 head:
   - tag: script
     attrs:
@@ -35,6 +35,7 @@ This is Audacity's **File → Export Audio → Export multiple, split by tracks*
 
 More [projects and files](/guides/projects/) guides:
 
+- [Find and add a Freesound sound](/guides/projects/find-and-add-a-freesound-sound/) — Search Freesound from the editor and add a sound to the project timeline.
 - [Save your project](/guides/projects/save-your-project/) — Keep the project, with every track and edit, in the local project library.
 - [Move a project between computers](/guides/projects/move-a-project-between-computers/) — Export the whole project as one file, then open that file elsewhere.
 - [Open an Audacity project](/guides/projects/open-an-audacity-project/) — Bring an existing .aup3 or .aup4 project into Soundscaper with its tracks intact.

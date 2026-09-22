@@ -94,6 +94,7 @@ Work with several tracks and render the result to a file.
 
 Save, move, and open projects, including projects made in Audacity.
 
+- [Find and add a Freesound sound](/guides/projects/find-and-add-a-freesound-sound/) — Search Freesound from the editor and add a sound to the project timeline.
 - [Save your project](/guides/projects/save-your-project/) — Keep the project, with every track and edit, in the local project library.
 - [Move a project between computers](/guides/projects/move-a-project-between-computers/) — Export the whole project as one file, then open that file elsewhere.
 - [Open an Audacity project](/guides/projects/open-an-audacity-project/) — Bring an existing .aup3 or .aup4 project into Soundscaper with its tracks intact.

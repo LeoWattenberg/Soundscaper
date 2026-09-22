@@ -3,7 +3,7 @@ title: "Open an Audacity project"
 description: "Bring an existing .aup3 or .aup4 project into Soundscaper with its tracks intact."
 editUrl: false
 sidebar:
-  order: 3
+  order: 4
 head:
   - tag: script
     attrs:
@@ -35,6 +35,7 @@ This is Audacity's **File → Open**. The names below are Soundscaper's own, whi
 
 More [projects and files](/guides/projects/) guides:
 
+- [Find and add a Freesound sound](/guides/projects/find-and-add-a-freesound-sound/) — Search Freesound from the editor and add a sound to the project timeline.
 - [Save your project](/guides/projects/save-your-project/) — Keep the project, with every track and edit, in the local project library.
 - [Move a project between computers](/guides/projects/move-a-project-between-computers/) — Export the whole project as one file, then open that file elsewhere.
 - [Export each track as its own file](/guides/projects/export-each-track-as-its-own-file/) — Render the tracks separately, as stems, in one download.

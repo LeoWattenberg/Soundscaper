@@ -20,12 +20,15 @@
  * so no how-to can turn into an exercise by accident.
  */
 
+import { describeFreesoundStep } from './freesound-steps.mjs';
+export { insertFreesound, searchFreesound } from './freesound-steps.mjs';
+
 const STEP_KINDS = Object.freeze([
 	'open', 'import', 'menu', 'select-range', 'cursor', 'select-clips', 'tool', 'effect',
 	'noise-profile', 'nyquist', 'analyze', 'export', 'save', 'track-menu', 'track-button',
 	'add-track', 'play', 'generate', 'marker', 'check', 'note', 'rack-effect',
 	'open-audacity-project', 'export-project', 'open-project-file', 'resample', 'drag-clip', 'mix-render',
-	'contrast', 'macro', 'play-at-speed',
+	'contrast', 'macro', 'play-at-speed', 'freesound-search', 'freesound-insert',
 ]);
 
 const CONTRAST_ROLES = new Set(['foreground', 'background']);
@@ -446,6 +449,9 @@ export function describeStep(entry, { fixture, facet = 'howto' }) {
 		}
 		case 'menu':
 			return `Choose ${menuPath(entry.path)}.`;
+		case 'freesound-search':
+		case 'freesound-insert':
+			return describeFreesoundStep(entry, facet);
 		case 'mix-render': {
 			const originals = entry.replaceOriginals
 				? `leave ${bold('Mix down')}, ${bold('Render effects')} and ${bold('Replace originals')} checked`

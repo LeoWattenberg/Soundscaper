@@ -1,8 +1,26 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { check, cursor, exportAudio, exportProject, importAudio, marker, menu, open, openAudacityProject, openProjectFile, play, resample, save, tool } from '../steps.mjs';
+import { check, cursor, exportAudio, exportProject, importAudio, insertFreesound, marker, menu, open, openAudacityProject, openProjectFile, play, resample, save, searchFreesound, tool } from '../steps.mjs';
 
 export const PROJECT_GUIDES = Object.freeze([
+	{
+		id: 'find-and-add-a-freesound-sound',
+		title: 'Find and add a Freesound sound',
+		description: 'Search Freesound from the editor and add a sound to the project timeline.',
+		audacity: 'File → Import → Audio after downloading a sound from Freesound',
+		intro: 'The Freesound panel lets you find a sound without leaving Soundscaper. Search for what you need, check the creator and license shown with each result, and insert the sound where you want it on the timeline. Soundscaper imports the high-quality preview as a project clip.',
+		steps: [
+			open(),
+			menu(['View', 'Panels', 'Freesound']),
+			searchFreesound('harbor', { what: 'a word or phrase describing the sound you want' }),
+			insertFreesound('Harbor ambience', { which: 'the result you want' }),
+			check({ clips: 1 }, { see: 'The imported sound on the timeline, ready to edit with the rest of the project.' }),
+		],
+		tips: [
+			'Check the creator and license links beside a result before you use the sound in something you share.',
+			'**Insert at playhead** puts the sound on the timeline. Move the playhead first if you want the clip to start later.',
+		],
+	},
 	{
 		id: 'save-your-project',
 		title: 'Save your project',

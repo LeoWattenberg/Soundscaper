@@ -3,7 +3,7 @@ title: "Move a project between computers"
 description: "Export the whole project as one file, then open that file elsewhere."
 editUrl: false
 sidebar:
-  order: 2
+  order: 3
 head:
   - tag: script
     attrs:
@@ -36,6 +36,7 @@ This is Audacity's **File → Save Project → Backup Project, then File → Ope
 
 More [projects and files](/guides/projects/) guides:
 
+- [Find and add a Freesound sound](/guides/projects/find-and-add-a-freesound-sound/) — Search Freesound from the editor and add a sound to the project timeline.
 - [Save your project](/guides/projects/save-your-project/) — Keep the project, with every track and edit, in the local project library.
 - [Open an Audacity project](/guides/projects/open-an-audacity-project/) — Bring an existing .aup3 or .aup4 project into Soundscaper with its tracks intact.
 - [Export each track as its own file](/guides/projects/export-each-track-as-its-own-file/) — Render the tracks separately, as stems, in one download.

@@ -34,6 +34,7 @@ import {
 	runResample,
 } from './guide-actions.js';
 import { guideFixtureClipName, guideFixtureFile } from './guide-fixtures.js';
+import { runFreesoundInsert, runFreesoundSearch } from './guide-freesound.js';
 import { runContrast, runMacro, runPlayAtSpeed } from './guide-workflows.js';
 import { chooseTrackMenuAction } from './track-menu.js';
 
@@ -286,6 +287,12 @@ async function executeStep(page, state, entry) {
 		case 'menu':
 			if (entry.path.length === 2) await chooseCommandAction(page, state.editor, entry.path[0], entry.path[1]);
 			else await chooseNestedCommandAction(page, state.editor, entry.path[0], entry.path.slice(1));
+			return;
+		case 'freesound-search':
+			await runFreesoundSearch(page, state, entry);
+			return;
+		case 'freesound-insert':
+			await runFreesoundInsert(state, entry);
 			return;
 		case 'mix-render':
 			await runMixRender(page, state, entry);
