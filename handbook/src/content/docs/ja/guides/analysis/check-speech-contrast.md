@@ -1,6 +1,6 @@
 ---
-title: "音声の背景との対比を確認する"
-description: "アクセシビリティガイドラインが求めるように、背景のノイズに対して声がどれだけ上回っているかを測定します。"
+title: "音声が背景からどれだけ際立っているかを確認する"
+description: "アクセシビリティガイドラインが求めるように、音声が背後ノイズのどの程度上にあるかを測定します。"
 editUrl: false
 sidebar:
   order: 5
@@ -8,49 +8,49 @@ head:
   - tag: script
     attrs:
       type: "application/ld+json"
-    content: "{\"@context\":\"https://schema.org\",\"@type\":\"HowTo\",\"name\":\"Check that speech stands out from its background\",\"description\":\"Measure how far a voice sits above the noise behind it, the way accessibility guidelines ask.\",\"tool\":[{\"@type\":\"HowToTool\",\"name\":\"Soundscaper\"}],\"step\":[{\"@type\":\"HowToStep\",\"position\":1,\"name\":\"Open Soundscaper. A new, empty project is ready as soon as the editor loads.\",\"text\":\"Open Soundscaper. A new, empty project is ready as soon as the editor loads.\"},{\"@type\":\"HowToStep\",\"position\":2,\"name\":\"Choose File → Import audio and pick the recording with speech over background noise. The file lands as a clip on its own track.\",\"text\":\"Choose File → Import audio and pick the recording with speech over background noise. The file lands as a clip on its own track.\"},{\"@type\":\"HowToStep\",\"position\":3,\"name\":\"Drag in the ruler above the clip to select a stretch of background with nobody speaking.\",\"text\":\"Drag in the ruler above the clip to select a stretch of background with nobody speaking. The background measurement should contain only the noise the voice has to compete with.\"},{\"@type\":\"HowToStep\",\"position\":4,\"name\":\"Choose Analyze → Contrast. The Contrast panel opens.\",\"text\":\"Choose Analyze → Contrast. The Contrast panel opens.\"},{\"@type\":\"HowToStep\",\"position\":5,\"name\":\"In the Contrast panel, press Measure background. The panel keeps the selection’s level as the background.\",\"text\":\"In the Contrast panel, press Measure background. The panel keeps the selection’s level as the background.\"},{\"@type\":\"HowToStep\",\"position\":6,\"name\":\"Drag in the ruler above the clip to select a passage of speech.\",\"text\":\"Drag in the ruler above the clip to select a passage of speech. Pick ordinary speech rather than the loudest word, since the whole passage is averaged.\"},{\"@type\":\"HowToStep\",\"position\":7,\"name\":\"In the Contrast panel, press Measure foreground. The panel reports the foreground level, the background level and the difference between them.\",\"text\":\"In the Contrast panel, press Measure foreground. The panel reports the foreground level, the background level and the difference between them. The foreground and background levels, their difference in dB, and whether the difference meets the recommended 20 dB.\"}]}"
+    content: "{\"@context\":\"https://schema.org\",\"@type\":\"HowTo\",\"name\":\"Check that speech stands out from its background\",\"description\":\"Measure how far a voice sits above the noise behind it, the way accessibility guidelines ask.\",\"tool\":[{\"@type\":\"HowToTool\",\"name\":\"Soundscaper\"}],\"step\":[{\"@type\":\"HowToStep\",\"position\":1,\"name\":\"Open Soundscaper. A new, empty project is ready as soon as the editor loads.\",\"text\":\"Open Soundscaper. A new, empty project is ready as soon as the editor loads.\"},{\"@type\":\"HowToStep\",\"position\":2,\"name\":\"Choose File → Import and pick the recording with speech over background noise. It lands as a clip on its own track.\",\"text\":\"Choose File → Import and pick the recording with speech over background noise. It lands as a clip on its own track.\"},{\"@type\":\"HowToStep\",\"position\":3,\"name\":\"Drag in the ruler above the clip to select a stretch of background with nobody speaking.\",\"text\":\"Drag in the ruler above the clip to select a stretch of background with nobody speaking. The background measurement should contain only the noise the voice has to compete with.\"},{\"@type\":\"HowToStep\",\"position\":4,\"name\":\"Choose Analyze → Contrast. The Contrast panel opens.\",\"text\":\"Choose Analyze → Contrast. The Contrast panel opens.\"},{\"@type\":\"HowToStep\",\"position\":5,\"name\":\"In the Contrast panel, press Measure background. The panel keeps the selection’s level as the background.\",\"text\":\"In the Contrast panel, press Measure background. The panel keeps the selection’s level as the background.\"},{\"@type\":\"HowToStep\",\"position\":6,\"name\":\"Drag in the ruler above the clip to select a passage of speech.\",\"text\":\"Drag in the ruler above the clip to select a passage of speech. Pick ordinary speech rather than the loudest word, since the whole passage is averaged.\"},{\"@type\":\"HowToStep\",\"position\":7,\"name\":\"In the Contrast panel, press Measure foreground. The panel reports the foreground level, the background level and the difference between them.\",\"text\":\"In the Contrast panel, press Measure foreground. The panel reports the foreground level, the background level and the difference between them. The foreground and background levels, their difference in dB, and whether the difference meets the recommended 20 dB.\"}]}"
 ---
-<!-- docs-ai-provenance: {"factPacketSha256":"8d29b926665c31c888346d023adb621b891435a25617b140144789b7e0b97b97","model":"qwen3.8:latest","modelDigest":"22130167c4c20e20c7b71454612966ca8e8171e9b3cc8ab6ce8aa6cbfec79643","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"8d29b926665c31c888346d023adb621b891435a25617b140144789b7e0b97b97","targetLocale":"ja"} -->
+<!-- docs-ai-provenance: {"factPacketSha256":"2284b517195eb89b164851099b86e83abc4362133f605f353bb07e0bf733b701","model":"aya-expanse:32b","modelDigest":"1603440383bd5504dc7afd01c0407b425b988dde650a8dc1a737433baa3cd432","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"2284b517195eb89b164851099b86e83abc4362133f605f353bb07e0bf733b701","targetLocale":"ja"} -->
 
 <!-- Generated by `node scripts/docs-reference.mjs`. Do not edit. -->
 
-背後の部屋よりもわずかに大きいだけの音声は追従が難しく、アクセシビリティガイドラインではこれに数値を与えています。音声は背景音より少なくとも20 dB高くあるべきです。コントラストアナライザーは、背景音の一部と音声の一部を測定し、その差を報告し、その推奨事項を満たしているかどうかを示します。これはAudacity 3がWCAGチェック用に提供していたアナライザーであり、Audacity 4には含まれていません。
+部屋の背景音よりもわずかに大きな声を追うのは大変な作業であり、アクセシビリティガイドラインでは数値で示されています：音声は背景音より少なくとも20 dB大きくする必要があります。コントラストアナライザーは、背景と音声の区間を測定し、その差を報告し、この推奨値を満たしているかどうかを判断します。これは、WCAGチェックのためにAudacity 3が提供するアナライザーであり、Audacity 4には含まれていません。
 
 :::note[Audacityから移行する場合]
-これはAudacityの**分析 → コントラスト（Audacity 3用。Audacity 4にはコントラストアナライザーはありません）**です。以下の名称はSoundscaper独自のものです。場合によっては異なります。
+これはAudacityの **Analyze → Contrast（Audacity 3；Audacity 4にはコントラストアナライザーはありません）** です。以下の名前はSoundscaper独自のものであるため、場合によっては異なります。
 :::
 
 ## 手順
 
 1. Soundscaperを開きます。エディタが読み込まれた時点で、新しい空のプロジェクトが準備されます。
-2. **ファイル → オーディオのインポート**を選択し、背景ノイズの上に音声がある録音ファイルを選択します。ファイルは独自のトラック上にクリップとして配置されます。
-3. クリップの上にあるルーラーをドラッグして、誰も話していない背景音の一部を選択します。背景音の測定には、音声が競合しなければならないノイズのみを含める必要があります。
-4. **分析 → コントラスト**を選択します。**コントラスト**パネルが開きます。
-5. **コントラスト**パネルで、**背景を測定**を押します。パネルは選択範囲のレベルを背景として保持します。
-6. クリップの上にあるルーラーをドラッグして、音声の一部分を選択します。全体のパスが平均化されるため、最も大きな単語ではなく、通常の音声を拾ってください。
-7. **コントラスト**パネルで、**前景を測定**を押します。パネルは前景レベル、背景レベル、およびそれらの差を報告します。
-   *確認すべきこと:* 前景レベルと背景レベル、dBでのその差、およびその差が推奨される20 dBを満たしているかどうか。
+2. **File → Import** を選択し、背景ノイズのある音声録音を選択します。これは、独自のトラック上のクリップとして配置されます。
+3. クリップの上にある定規をドラッグして、誰も話していない背景の区間を選択します。背景測定には、声が競わなければならないノイズのみが含まれるべきです。
+4. **Analyze → Contrast** を選択します。**Contrast** パネルが開きます。
+5. **Contrast** パネルで、**Measure background** を押します。パネルは、選択した区間のレベルを背景として保持します。
+6. クリップの上にある定規をドラッグして、音声の区間を選択します。全区間の平均が計算されるため、最も大きな単語よりも通常の会話を選びます。
+7. **Contrast** パネルで、**Measure foreground** を押します。パネルは、フォアグラウンドレベル、バックグラウンドレベル、およびそれらの差を報告します。
+   *表示されるはずのもの:* フォアグラウンドレベルとバックグラウンドレベル、それらの差（dB）、および差が推奨される20 dBを満たしているかどうか。
 
 ## ヒント
 
-- 差が不足している場合は、[背景ノイズを低減](/guides/cleaning-up/remove-background-noise/)するか、[コンプレッサーで音声を均一にする](/guides/volume/even-out-volume-with-a-compressor/)と、再度測定してください。
-- 測定は選択範囲に対するRMS平均値であるため、1つの大きな音節が静かなテイクを救うことはありません。
+- 差が足りない場合は、[背景ノイズを減らす](/guides/cleaning-up/remove-background-noise/) または [コンプレッサーで声を均一にする](/guides/volume/even-out-volume-with-a-compressor/) し、再度測定します。
+- 測定は、選択範囲のRMS平均であるため、単一の大きな音節が静かなテイクを救うことはありません。
 
 ## 関連ガイド
 
-その他の[分析](/guides/analysis/)ガイド：
+より多くの[分析](/guides/analysis/) ガイド:
 
-- [背景ノイズを除去](/guides/cleaning-up/remove-background-noise/) — ノイズリダクションにハム音の音声を教えた後、録音全体からそれを除去します。
-- [コンプレッサーで音量を均一にする](/guides/volume/even-out-volume-with-a-compressor/) — 大きな瞬間と静かな瞬間の差を縮小し、音声を追従しやすくします。
-- [ミックスの大きさを測定](/guides/analysis/measure-loudness/) — 放送局のように、プロジェクトの統合ラウドネス、レンジ、真のピークを読み取ります。
-- [音に含まれる周波数を見る](/guides/analysis/plot-a-spectrum/) — 選択範囲のスペクトルをプロットして、ハム、ヒス、または共鳴を見つけます。
-- [録音がクリップした場所を見つける](/guides/analysis/find-clipping/) — 録音がフルスケールに達して歪んだ場所を特定します。
-- [ループのビートを見つける](/guides/analysis/find-the-beats/) — ビートファインダーアナライザーが聞くすべてのビートをマークさせます。
+- [背景ノイズの除去](/guides/cleaning-up/remove-background-noise/) — ノイズリダクションにヒュームの音を教え、録音全体から取り除きます。
+- [コンプレッサーで音量を均一にする](/guides/volume/even-out-volume-with-a-compressor/) — 静かな瞬間と大きな瞬間のギャップを減らし、会話を追いやすくします。
+- [ミックスの音量を測定する](/guides/analysis/measure-loudness/) — 統合ラウドネス、範囲、および真ピークをプロジェクトから読み取り、放送事業者のようにします。
+- [音が含む周波数を確認する](/guides/analysis/plot-a-spectrum/) — 選択範囲のスペクトルをプロットして、ヒューム、ノイズ、または共振を見つけます。
+- [録音がクリップした場所を見つける](/guides/analysis/find-clipping/) — 録音がフルスケールに達し、歪んだ場所を特定します。
+- [ループ内のビートを見つける](/guides/analysis/find-the-beats/) — ビートファインダーアナライザーに、聞こえるすべてのビートをマークさせます。
 
-## 参考
+## 参照
 
-- [すべてのメニューコマンドとそのキーボードショートカットは、コマンドとショートカットの参考資料にあります。](/reference/generated/commands/)
+- [各メニューコマンドとそのキーボードショートカットは、コマンドとショートカットの参照に記載されています。](/reference/generated/commands/)
 
 ## このガイドについて
 
-このページの手順 — すべてのメニュー項目、ダイアログ、フィールド、ボタン、およびそれらが生成する結果 — は、ブラウザスイート（`tests/browser/soundscaper-guides.spec.js`）によってSoundscaperの各ビルドに対して再生されます。エディタと一致しなくなった場合、ガイドが修正されるまでビルドは失敗します。提案される値は、エディタが受け入れることが証明されている出発点です。それらがあなたの録音に適しているかどうかは、あなたの耳で判断してください。
+このページの手順（各メニューエントリ、ダイアログ、フィールド、ボタン、およびそれらが生成する結果）は、ブラウザスイート(`tests/browser/soundscaper-guides.spec.js`)によってSoundscaperの各ビルドに対して再実行されます。手順がエディタと一致しなくなった場合、ビルドは失敗し、ガイドが修正されるまで継続します。提案された値は、エディタが受け入れることが証明された開始ポイントです。それらがあなたの録音に適しているかどうかは、あなたの耳で判断してください。

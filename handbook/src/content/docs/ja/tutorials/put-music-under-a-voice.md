@@ -1,6 +1,6 @@
 ---
-title: "音楽をボイスの下に配置する"
-description: "2つのトラックを重ね、片方を自動的にダッキングし、ミックスダウンしてエクスポートします。"
+title: "音声の下に音楽を配置する"
+description: "2つのトラックをレイヤー化し、片方を自動的に他方の下にダックし、ミックスダウンしてエクスポートします。"
 editUrl: false
 sidebar:
   order: 3
@@ -8,60 +8,60 @@ head:
   - tag: script
     attrs:
       type: "application/ld+json"
-    content: "{\"@context\":\"https://schema.org\",\"@type\":\"HowTo\",\"name\":\"Put music under a voice\",\"description\":\"Layer two tracks, duck one under the other automatically, mix them down and export.\",\"tool\":[{\"@type\":\"HowToTool\",\"name\":\"Soundscaper\"}],\"step\":[{\"@type\":\"HowToStep\",\"position\":1,\"name\":\"Open Soundscaper. A new, empty project is ready as soon as the editor loads.\",\"text\":\"Open Soundscaper. A new, empty project is ready as soon as the editor loads.\"},{\"@type\":\"HowToStep\",\"position\":2,\"name\":\"Choose File → Import audio and pick guide-music-loop.wav — a two-second stereo loop. The file lands as a clip on its own track.\",\"text\":\"Choose File → Import audio and pick guide-music-loop.wav — a two-second stereo loop. The file lands as a clip on its own track.\"},{\"@type\":\"HowToStep\",\"position\":3,\"name\":\"Choose File → Import audio and pick guide-second-loop.wav — a second two-second loop to layer on top. The file lands as a clip on its own track.\",\"text\":\"Choose File → Import audio and pick guide-second-loop.wav — a second two-second loop to layer on top. The file lands as a clip on its own track.\"},{\"@type\":\"HowToStep\",\"position\":4,\"name\":\"Press Play to listen, then Stop.\",\"text\":\"Press Play to listen, then Stop. Both loops play together, each on its own track.\"},{\"@type\":\"HowToStep\",\"position\":5,\"name\":\"Click the name bar of guide-music-loop.wav to select it.\",\"text\":\"Click the name bar of guide-music-loop.wav to select it. The clip you select is the one that gets ducked — the music, not the voice.\"},{\"@type\":\"HowToStep\",\"position\":6,\"name\":\"Choose Effect → Volume and compression → Auto Duck. In the Auto Duck dialog, choose guide-second-loop for Control track and set Duck amount to -12, then press Apply to selection.\",\"text\":\"Choose Effect → Volume and compression → Auto Duck. In the Auto Duck dialog, choose guide-second-loop for Control track and set Duck amount to -12, then press Apply to selection. Wherever the control track is louder than the threshold, the selected track is turned down by the duck amount, with fades at the edges. The music waveform is smaller wherever the voice is playing.\"},{\"@type\":\"HowToStep\",\"position\":7,\"name\":\"Press Play to listen, then Stop.\",\"text\":\"Press Play to listen, then Stop. The music sits under the voice and recovers where the voice is quiet.\"},{\"@type\":\"HowToStep\",\"position\":8,\"name\":\"Click the name bar of guide-music-loop.wav, then hold Shift and click the name bar of guide-second-loop.wav, so both are selected.\",\"text\":\"Click the name bar of guide-music-loop.wav, then hold Shift and click the name bar of guide-second-loop.wav, so both are selected. Every track with a selected clip goes into the mix.\"},{\"@type\":\"HowToStep\",\"position\":9,\"name\":\"Choose Tracks → Mix & Render. In the Mix & Render dialog, leave Mix down, Render effects and Replace originals checked, choose Stereo for Mix down to, then press Mix & Render.\",\"text\":\"Choose Tracks → Mix & Render. In the Mix & Render dialog, leave Mix down, Render effects and Replace originals checked, choose Stereo for Mix down to, then press Mix & Render.\"},{\"@type\":\"HowToStep\",\"position\":10,\"name\":\"The project now shows a clip named Mix.\",\"text\":\"The project now shows a clip named Mix. One track holds a clip named Mix; the two source tracks are gone. Edit → Undo would bring them back.\"},{\"@type\":\"HowToStep\",\"position\":11,\"name\":\"Choose File → Export audio, set Format to MP3, and press Export. The file downloads as soon as the render finishes, and its link stays in the dialog.\",\"text\":\"Choose File → Export audio, set Format to MP3, and press Export. The file downloads as soon as the render finishes, and its link stays in the dialog.\"}]}"
+    content: "{\"@context\":\"https://schema.org\",\"@type\":\"HowTo\",\"name\":\"Put music under a voice\",\"description\":\"Layer two tracks, duck one under the other automatically, mix them down and export.\",\"tool\":[{\"@type\":\"HowToTool\",\"name\":\"Soundscaper\"}],\"step\":[{\"@type\":\"HowToStep\",\"position\":1,\"name\":\"Open Soundscaper. A new, empty project is ready as soon as the editor loads.\",\"text\":\"Open Soundscaper. A new, empty project is ready as soon as the editor loads.\"},{\"@type\":\"HowToStep\",\"position\":2,\"name\":\"Choose File → Import and pick guide-music-loop.wav — a two-second stereo loop. It lands as a clip on its own track.\",\"text\":\"Choose File → Import and pick guide-music-loop.wav — a two-second stereo loop. It lands as a clip on its own track.\"},{\"@type\":\"HowToStep\",\"position\":3,\"name\":\"Choose File → Import and pick guide-second-loop.wav — a second two-second loop to layer on top. It lands as a clip on its own track.\",\"text\":\"Choose File → Import and pick guide-second-loop.wav — a second two-second loop to layer on top. It lands as a clip on its own track.\"},{\"@type\":\"HowToStep\",\"position\":4,\"name\":\"Press Play to listen, then Stop.\",\"text\":\"Press Play to listen, then Stop. Both loops play together, each on its own track.\"},{\"@type\":\"HowToStep\",\"position\":5,\"name\":\"Click the name bar of guide-music-loop.wav to select it.\",\"text\":\"Click the name bar of guide-music-loop.wav to select it. The clip you select is the one that gets ducked — the music, not the voice.\"},{\"@type\":\"HowToStep\",\"position\":6,\"name\":\"Choose Effect → Volume and compression → Auto Duck. In the Auto Duck dialog, choose guide-second-loop for Control track and set Duck amount to -12, then press Apply to selection.\",\"text\":\"Choose Effect → Volume and compression → Auto Duck. In the Auto Duck dialog, choose guide-second-loop for Control track and set Duck amount to -12, then press Apply to selection. Wherever the control track is louder than the threshold, the selected track is turned down by the duck amount, with fades at the edges. The music waveform is smaller wherever the voice is playing.\"},{\"@type\":\"HowToStep\",\"position\":7,\"name\":\"Press Play to listen, then Stop.\",\"text\":\"Press Play to listen, then Stop. The music sits under the voice and recovers where the voice is quiet.\"},{\"@type\":\"HowToStep\",\"position\":8,\"name\":\"Click the name bar of guide-music-loop.wav, then hold Shift and click the name bar of guide-second-loop.wav, so both are selected.\",\"text\":\"Click the name bar of guide-music-loop.wav, then hold Shift and click the name bar of guide-second-loop.wav, so both are selected. Every track with a selected clip goes into the mix.\"},{\"@type\":\"HowToStep\",\"position\":9,\"name\":\"Choose Tracks → Mix & Render. In the Mix & Render dialog, leave Mix down, Render effects and Replace originals checked, choose Stereo for Mix down to, then press Mix & Render.\",\"text\":\"Choose Tracks → Mix & Render. In the Mix & Render dialog, leave Mix down, Render effects and Replace originals checked, choose Stereo for Mix down to, then press Mix & Render.\"},{\"@type\":\"HowToStep\",\"position\":10,\"name\":\"The project now shows a clip named Mix.\",\"text\":\"The project now shows a clip named Mix. One track holds a clip named Mix; the two source tracks are gone. Edit → Undo would bring them back.\"},{\"@type\":\"HowToStep\",\"position\":11,\"name\":\"Choose File → Export audio, set Format to MP3, and press Export. The file downloads as soon as the render finishes, and its link stays in the dialog.\",\"text\":\"Choose File → Export audio, set Format to MP3, and press Export. The file downloads as soon as the render finishes, and its link stays in the dialog.\"}]}"
 ---
-<!-- docs-ai-provenance: {"factPacketSha256":"ba895710369ae2e8ed5e086058bad164406dd4f85818d1b246e0fda99b30e2bb","model":"qwen3.8:latest","modelDigest":"22130167c4c20e20c7b71454612966ca8e8171e9b3cc8ab6ce8aa6cbfec79643","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"ba895710369ae2e8ed5e086058bad164406dd4f85818d1b246e0fda99b30e2bb","targetLocale":"ja"} -->
+<!-- docs-ai-provenance: {"factPacketSha256":"e4981b16b64b467101c91ffa64c89547deeab7140978a77f6e5c8fadef3db7e6","model":"aya-expanse:32b","modelDigest":"1603440383bd5504dc7afd01c0407b425b988dde650a8dc1a737433baa3cd432","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"e4981b16b64b467101c91ffa64c89547deeab7140978a77f6e5c8fadef3db7e6","targetLocale":"ja"} -->
 
 <!-- Generated by `node scripts/docs-reference.mjs`. Do not edit. -->
 
-ポッドキャストのイントロ、動画のナレーション、ラジオのBGM：音楽は、声が話している間は小さくなり、間では元に戻る必要があります。このチュートリアルでは、2つのサンプルループ（1つは声を、もう1つは音楽を表すもの）を使用して、Auto Duckでその関係を構築し、2つのトラックを1つにミックスしてエクスポートする方法を説明します。
+ポッドキャストのイントロ、ビデオのボイスオーバー、ラジオベッド：音楽は声が話すたびにフェードアウトし、隙間ができたら再びフェードインする必要があります。このチュートリアルでは、2つのループ例を使用し、1つは声の代わり、もう1つは音楽の代わりになります。Auto Duckを使用してその関係を築き、2つのトラックを1つにミックスしてエクスポートします。
 
 :::tip[必要なもの]
-- [`guide-music-loop.wav`](https://assets.soundscaper.org/guides/examples/guide-music-loop.wav) をダウンロードします — 2秒間のステレオループ。
-- [`guide-second-loop.wav`](https://assets.soundscaper.org/guides/examples/guide-second-loop.wav) をダウンロードします — 上に重ねるための2秒間のループ。
+- [`guide-music-loop.wav`](https://assets.soundscaper.org/guides/examples/guide-music-loop.wav)をダウンロード — 2秒のステレオループ。
+- [`guide-second-loop.wav`](https://assets.soundscaper.org/guides/examples/guide-second-loop.wav)をダウンロード — 重ね合わせるための2秒のループ。
 
-以下のすべての手順は、これらのファイルをそのまま使用して動作します。そのため、表示される内容はチュートリアルの説明と一致するはずです。Soundscaperはブラウザで動作し、インストールは不要です。
+以下の手順は、これらのファイルそのままに機能し、チュートリアルで説明されているものと一致するはずです。Soundscaperはブラウザで動作するため、インストールは不要です。
 :::
 
 ## 学ぶこと
 
-- 2番目のインポートが独自のトラックに配置される方法。
-- コントロールトラックとは何か、そしてAuto Duckがそれをどのように使用するか。
-- 複数のトラックを1つにミックスダウンする方法。
+- 2番目のインポートは独自のトラックに配置されます。
+- コントロールトラックとは何か、Auto Duckがどのように使用するか。
+- 複数のトラックを1つにミックスする方法。
 
 ## 手順
 
-1. Soundscaperを開きます。エディタが読み込まれた時点で、新しい空のプロジェクトが準備されています。
-2. **ファイル → オーディオのインポート** を選択し、`guide-music-loop.wav` を選択します — 2秒間のステレオループ。ファイルは独自のトラック上のクリップとして配置されます。
-3. **ファイル → オーディオのインポート** を選択し、`guide-second-loop.wav` を選択します — 上に重ねるための2秒間のループ。ファイルは独自のトラック上のクリップとして配置されます。
-4. **再生** を押して聴き、その後 **停止** を押します。
-   *確認事項:* 両方のループが、それぞれ独自のトラック上で同時に再生されます。
-5. `guide-music-loop.wav` の名前バーをクリックして選択します。選択したクリップがダッキングされる対象です — 音楽であり、声ではありません。
-6. **エフェクト → ボリュームと圧縮 → Auto Duck** を選択します。 **Auto Duck** ダイアログで、 **コントロールトラック** に **guide-second-loop** を選択し、 **ダッキング量** を `-12` に設定してから、 **選択範囲に適用** を押します。コントロールトラックがしきい値より大きい場所では、選択されたトラックがダッキング量だけ小さくなり、端にはフェードが適用されます。
-   *確認事項:* 声が再生されている場所では、音楽の波形が小さくなります。
-7. **再生** を押して聴き、その後 **停止** を押します。
-   *確認事項:* 音楽は声の下に位置し、声が静かな場所では元に戻ります。
-8. `guide-music-loop.wav` の名前バーをクリックし、Shiftキーを押しながら `guide-second-loop.wav` の名前バーをクリックして、両方を選択します。選択されたクリップを持つすべてのトラックがミックスに含まれます。
-9. **トラック → ミックス & レンダリング** を選択します。 **ミックス & レンダリング** ダイアログで、 **ミックスダウン**、 **エフェクトのレンダリング**、 **オリジナルの置き換え** にチェックを入れ、 **ミックスダウン先** に **ステレオ** を選択してから、 **ミックス & レンダリング** を押します。
-10. プロジェクトには **Mix** という名前のクリップが表示されます。
-   *確認事項:* 1つのトラックにMixという名前のクリップが含まれ、2つのソーストラックは消えます。編集 → 元に戻すでそれらを復元できます。
-11. **ファイル → オーディオのエクスポート** を選択し、 **形式** を **MP3** に設定して、 **エクスポート** を押します。レンダリングが完了するとすぐにファイルがダウンロードされ、そのリンクはダイアログに残ります。
+1. Soundscaperを開きます。エディタが読み込まれた時点で、新しい空のプロジェクトが準備されます。
+2. **ファイル → インポート**を選択し、`guide-music-loop.wav` — 2秒のステレオループを選択します。独自のトラックにクリップとして配置されます。
+3. **ファイル → インポート**を選択し、`guide-second-loop.wav` — 重ね合わせるための2秒のループを選択します。独自のトラックにクリップとして配置されます。
+4. **再生**を押して聴き、**停止**します。
+   *表示されるはずのもの:* 両方のループがそれぞれのトラックで一緒に再生されます。
+5. `guide-music-loop.wav`の名前バーをクリックして選択します。選択されるクリップは、声ではなく音楽のトラックです。
+6. **エフェクト → ボリュームと圧縮 → Auto Duck**を選択します。**Auto Duck**ダイアログで、**guide-second-loop**を**コントロールトラック**に、**ダック量**を`-12`に設定し、**選択範囲に適用**を押します。コントロールトラックがしきい値より大きいところで、選択されたトラックはダック量だけ下げられ、端にフェードがあります。
+   *表示されるはずのもの:* 音楽の波形は、声が再生されている部分で小さくなります。
+7. **再生**を押して聴き、**停止**します。
+   *表示されるはずのもの:* 音楽は声の下にあり、声が静かな部分で回復します。
+8. `guide-music-loop.wav`の名前バーをクリックし、シフトキーを押しながら`guide-second-loop.wav`の名前バーをクリックして、両方を選択します。選択されたクリップのあるすべてのトラックがミックスされます。
+9. **トラック → ミックス＆レンダリング**を選択します。**ミックス＆レンダリング**ダイアログで、**ミックスダウン**、**レンダリングエフェクト**、**オリジナルを置き換える**をオンにしたまま、**ミックスダウン先**を**ステレオ**に設定し、**ミックス＆レンダリング**を押します。
+10. プロジェクトには**Mix**という名前のクリップが表示されます。
+   *表示されるはずのもの:* 1つのトラックに**Mix**という名前のクリップが含まれ、ソーストラックは削除されます。**編集 → 元に戻す**で元に戻すことができます。
+11. **ファイル → オーディオのエクスポート**を選択し、**フォーマット**を**MP3**に設定して**エクスポート**を押します。レンダリングが完了したらすぐにファイルがダウンロードされ、ダイアログにリンクが残ります。
 
 ## 次のステップ
 
-- 独自の素材で同じ作業を行う：[声を下で音楽をダッキング](/guides/volume/duck-music-under-a-voice/) および [複数のトラックを1つにミックス](/guides/tracks-and-export/mix-tracks-into-one/)。
-- 他の人がミックスできるようにパーツを分離して保持する：[各トラックを個別のファイルとしてエクスポート](/guides/projects/export-each-track-as-its-own-file/)。
+- 自分の素材で同じ作業：[声の下に音楽をダック](/guides/volume/duck-music-under-a-voice/)と[複数のトラックを1つにミックス](/guides/tracks-and-export/mix-tracks-into-one/)。
+- 他の人にミックスしてもらうためにパーツを別々に保つ：[各トラックを個別ファイルとしてエクスポート](/guides/projects/export-each-track-as-its-own-file/)。
 
-## その他のチュートリアル
+## 他のチュートリアル
 
-[最初のSoundscaperプロジェクト](/tutorials/your-first-project/) — 録音をインポートし、聴き、分割し、フェードアウトし、ファイルをエクスポートしてプロジェクトを保存します。
-[ボイス録音をクリーンアップ](/tutorials/clean-up-a-voice-recording/) — テイクからハムノイズを取り除き、ラッブルをカットし、ポッドキャストのラウドネスに合わせてMP3をエクスポートします。
+[初めてのSoundscaperプロジェクト](/tutorials/your-first-project/) — 録音をインポートし、聴き、分割し、フェードアウトさせ、ファイルをエクスポートし、プロジェクトを保存します。
+[声の録音をクリーンアップ](/tutorials/clean-up-a-voice-recording/) — テイクからハムを取り除き、低域をカットし、ポッドキャストの音量に調整してMP3をエクスポートします。
 
-## 参考情報
+## 参照
 
-- [ここで使用されるエフェクトのすべてのパラメータ、そのデフォルト値と範囲は、オーディオエフェクトリファレンスに記載されています。](/reference/generated/audio-effects/#parameters)
-- [エクスポート形式、そのコンテナとチャンネル制限は、エクスポート形式リファレンスに記載されています。](/reference/generated/formats/)
+- [ここで使用されたエフェクトのすべてのパラメータ、デフォルト値、および範囲は、オーディオエフェクトリファレンスにあります。](/reference/generated/audio-effects/#parameters)
+- [エクスポートフォーマット、コンテナ、およびチャネル制限については、エクスポートフォーマットリファレンスをご覧ください。](/reference/generated/formats/)
 
 ## このチュートリアルについて
 
-このチュートリアルは、ブラウザスイート（`tests/browser/soundscaper-tutorials.spec.js`）によって、Soundscaperの各ビルドに対して、これらのファイルを用いてステップバイステップで再生されます。手順が動作しなくなると、チュートリアルが修正されるまでビルドは失敗するため、読んでいる内容はエディタの動作と一致します。
+このチュートリアルは、ブラウザスイート(`tests/browser/soundscaper-tutorials.spec.js`)でSoundscaperの各ビルドに対して、ステップバイステップで再実行され、これらのファイルそのままに使用されます。ステップが動作しなくなった場合は、ビルドが失敗し、チュートリアルが修正されるまで、そのステップは機能しなくなります。そのため、読んでいる内容はエディタが実行する内容と一致します。

@@ -1,6 +1,6 @@
 ---
-title: "背景ノイズの除去"
-description: "ノイズリダクションにハム音の音声を学習させ、録音全体から除去します。"
+title: "バックグラウンドノイズを削除する"
+description: "ノイズリダクションにハム音を教えてから、録音全体からそれを削除します。"
 editUrl: false
 sidebar:
   order: 1
@@ -8,51 +8,51 @@ head:
   - tag: script
     attrs:
       type: "application/ld+json"
-    content: "{\"@context\":\"https://schema.org\",\"@type\":\"HowTo\",\"name\":\"Remove background noise\",\"description\":\"Teach Noise Reduction what the hum sounds like, then take it out of the whole recording.\",\"tool\":[{\"@type\":\"HowToTool\",\"name\":\"Soundscaper\"}],\"step\":[{\"@type\":\"HowToStep\",\"position\":1,\"name\":\"Open Soundscaper. A new, empty project is ready as soon as the editor loads.\",\"text\":\"Open Soundscaper. A new, empty project is ready as soon as the editor loads.\"},{\"@type\":\"HowToStep\",\"position\":2,\"name\":\"Choose File → Import audio and pick the recording you want to clean up. The file lands as a clip on its own track.\",\"text\":\"Choose File → Import audio and pick the recording you want to clean up. The file lands as a clip on its own track.\"},{\"@type\":\"HowToStep\",\"position\":3,\"name\":\"Drag in the ruler above the clip to select a stretch that contains only the noise — usually the lead-in before anyone speaks.\",\"text\":\"Drag in the ruler above the clip to select a stretch that contains only the noise — usually the lead-in before anyone speaks. The profile should contain nothing but the noise you want gone.\"},{\"@type\":\"HowToStep\",\"position\":4,\"name\":\"Choose Effect → Noise removal and repair → Noise Reduction and press Get noise profile. The status line reports that the profile is ready. Press Close to leave the dialog for now.\",\"text\":\"Choose Effect → Noise removal and repair → Noise Reduction and press Get noise profile. The status line reports that the profile is ready. Press Close to leave the dialog for now.\"},{\"@type\":\"HowToStep\",\"position\":5,\"name\":\"Choose Select → Select all.\",\"text\":\"Choose Select → Select all. The profile is kept; now the effect needs to know what to clean.\"},{\"@type\":\"HowToStep\",\"position\":6,\"name\":\"Choose Effect → Noise removal and repair → Noise Reduction. In the Noise Reduction dialog, set Noise reduction to 12, then press Apply to selection.\",\"text\":\"Choose Effect → Noise removal and repair → Noise Reduction. In the Noise Reduction dialog, set Noise reduction to 12, then press Apply to selection. Around 12 dB is a good first try. Higher values remove more noise but start to make voices sound hollow.\"},{\"@type\":\"HowToStep\",\"position\":7,\"name\":\"Press Play to listen, then Stop.\",\"text\":\"Press Play to listen, then Stop. The lead-in is much quieter and the voice is untouched.\"}]}"
+    content: "{\"@context\":\"https://schema.org\",\"@type\":\"HowTo\",\"name\":\"Remove background noise\",\"description\":\"Teach Noise Reduction what the hum sounds like, then take it out of the whole recording.\",\"tool\":[{\"@type\":\"HowToTool\",\"name\":\"Soundscaper\"}],\"step\":[{\"@type\":\"HowToStep\",\"position\":1,\"name\":\"Open Soundscaper. A new, empty project is ready as soon as the editor loads.\",\"text\":\"Open Soundscaper. A new, empty project is ready as soon as the editor loads.\"},{\"@type\":\"HowToStep\",\"position\":2,\"name\":\"Choose File → Import and pick the recording you want to clean up. It lands as a clip on its own track.\",\"text\":\"Choose File → Import and pick the recording you want to clean up. It lands as a clip on its own track.\"},{\"@type\":\"HowToStep\",\"position\":3,\"name\":\"Drag in the ruler above the clip to select a stretch that contains only the noise — usually the lead-in before anyone speaks.\",\"text\":\"Drag in the ruler above the clip to select a stretch that contains only the noise — usually the lead-in before anyone speaks. The profile should contain nothing but the noise you want gone.\"},{\"@type\":\"HowToStep\",\"position\":4,\"name\":\"Choose Effect → Noise removal and repair → Noise Reduction and press Get noise profile. The status line reports that the profile is ready. Press Close to leave the dialog for now.\",\"text\":\"Choose Effect → Noise removal and repair → Noise Reduction and press Get noise profile. The status line reports that the profile is ready. Press Close to leave the dialog for now.\"},{\"@type\":\"HowToStep\",\"position\":5,\"name\":\"Choose Select → Select all.\",\"text\":\"Choose Select → Select all. The profile is kept; now the effect needs to know what to clean.\"},{\"@type\":\"HowToStep\",\"position\":6,\"name\":\"Choose Effect → Noise removal and repair → Noise Reduction. In the Noise Reduction dialog, set Noise reduction to 12, then press Apply to selection.\",\"text\":\"Choose Effect → Noise removal and repair → Noise Reduction. In the Noise Reduction dialog, set Noise reduction to 12, then press Apply to selection. Around 12 dB is a good first try. Higher values remove more noise but start to make voices sound hollow.\"},{\"@type\":\"HowToStep\",\"position\":7,\"name\":\"Press Play to listen, then Stop.\",\"text\":\"Press Play to listen, then Stop. The lead-in is much quieter and the voice is untouched.\"}]}"
 ---
-<!-- docs-ai-provenance: {"factPacketSha256":"c579909f7c6a84651400e72c3ef0d3d7896f553e9f091a0d5dfbda1267ba2bb3","model":"qwen3.8:latest","modelDigest":"22130167c4c20e20c7b71454612966ca8e8171e9b3cc8ab6ce8aa6cbfec79643","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"c579909f7c6a84651400e72c3ef0d3d7896f553e9f091a0d5dfbda1267ba2bb3","targetLocale":"ja"} -->
+<!-- docs-ai-provenance: {"factPacketSha256":"dc5ee5727bc89fa1bf625018b6e955abca6ffe475407123662cfca57d83201a7","model":"aya-expanse:32b","modelDigest":"1603440383bd5504dc7afd01c0407b425b988dde650a8dc1a737433baa3cd432","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"dc5ee5727bc89fa1bf625018b6e955abca6ffe475407123662cfca57d83201a7","targetLocale":"ja"} -->
 
 <!-- Generated by `node scripts/docs-reference.mjs`. Do not edit. -->
 
-ファン、冷蔵庫、電源のハムノイズなどの定常的な背景ノイズは、2回のパスで除去できます。まず、ノイズリダクションにノイズだけの区間を示してプロファイルを作成させ、次にその効果を全体に適用します。この仕組みを機能させるのがプロファイルなので、誰も話していない録音の一部を選択してください。
+安定したバックグラウンドノイズ（ファン、冷蔵庫、電源ハムなど）は、2回実行することで取り除くことができます。まず、ノイズのみを含むセクションをNoise Reductionに表示させ、プロファイルを作成します。次に、その効果をすべてに適用します。プロファイルが重要なので、誰も話していない録音の一部を選択してください。
 
 :::note[Audacityから移行する場合]
-これはAudacityの**エフェクト → ノイズ除去と修復 → ノイズリダクション（2回のパス）**に相当します。以下の名称はSoundscaper独自のものです。場合によっては異なります。
+これは、Audacityの**効果 → ノイズ除去と修復 → ノイズ削減**を2回実行したものです。以下の名前は、Soundscaper独自のものであるため、Audacityのものとは異なる場合があります。
 :::
 
 ## 手順
 
 1. Soundscaperを開きます。エディタが読み込まれた時点で、新しい空のプロジェクトが準備されます。
-2. **ファイル → オーディオのインポート**を選択し、クリーンアップしたい録音ファイルを選択します。ファイルは独自のトラック上にクリップとして配置されます。
-3. クリップの上にあるルーラーをドラッグして、ノイズのみを含む区間を選択します。通常は、誰かが話し始める前のリードイン部分です。プロファイルには、除去したいノイズのみが含まれている必要があります。
-4. **エフェクト → ノイズ除去と修復 → ノイズリダクション**を選択し、**ノイズプロファイルの取得**を押します。ステータスラインにプロファイルの準備が整ったことが報告されます。しばらくダイアログを残すために**閉じる**を押します。
-5. **選択 → すべて選択**を選択します。プロファイルは保持されます。次に、エフェクトが何をクリーンアップすべきかを知る必要があります。
-6. **エフェクト → ノイズ除去と修復 → ノイズリダクション**を選択します。**ノイズリダクション**ダイアログで、**ノイズリダクション**を`12`に設定し、**選択範囲に適用**を押します。約12 dBが最初の試行として適切です。値を高くするとより多くのノイズが除去されますが、声が空洞っぽく聞こえ始めます。
-7. **再生**を押して聞き、次に**停止**を押します。
-   *確認すべきこと:* リードイン部分がかなり静かになり、声には影響が出ていないはずです。
+2. **ファイル → インポート**を選択し、クリーンアップしたい録音を選択します。それは独自のトラック上のクリップとして配置されます。
+3. クリップ上の定規をドラッグして、ノイズのみを含むセクションを選択します。通常、誰も話す前のリードイン部分です。プロファイルには、削除したいノイズのみが含まれている必要があります。
+4. **効果 → ノイズ除去と修復 → ノイズ削減**を選択し、**ノイズプロファイルの取得**をクリックします。ステータス行にプロファイルが準備されたことが表示されます。ダイアログを閉じるために**閉じる**をクリックします。
+5. **選択 → すべてを選択**を選択します。プロファイルは保持され、効果を適用する対象が必要になります。
+6. **効果 → ノイズ除去と修復 → ノイズ削減**を選択します。**ノイズ削減**ダイアログで、**ノイズ削減**を`12`に設定し、**選択範囲に適用**をクリックします。最初の試行として、約12 dBが良いでしょう。より高い値はより多くのノイズを除去しますが、声が空洞のように聞こえるようになります。
+7. **再生**を押して聴き、**停止**を押します。
+   *確認できること:* リードイン部分が大幅に静かになり、声は変化していません。
 
 ## ヒント
 
-- 結果が水っぽく聞こえたり、金属的な音になったりする場合、元に戻して、より低い**ノイズリダクション**値やより低い**感度**を試してください。
-- ノイズリダクションは、録音全体を通じて一定のノイズにのみ有効です。単発の咳やクリック音の場合は、カットするか、代わりにクリック除去を使用してください。
+- 結果が水っぽく聞こえたり、金属音がした場合は、**ノイズ削減**の値を低くするか、**感度**を下げて元に戻します。
+- ノイズ削減は、録音を通して同じままのノイズにのみ効果があります。単一の咳やクリック音は、切り取るか、クリック除去を使用してください。
 
 ## 関連ガイド
 
-[録音のクリーンアップ](/guides/cleaning-up/)に関するその他のガイド：
+さらに[録音のクリーンアップ](/guides/cleaning-up/)ガイド：
 
-- [クリック音とポップ音の除去](/guides/cleaning-up/remove-clicks-and-pops/) — 録音から短い鋭いクリック音を、他の部分に影響を与えずに除去します。
-- [長い間隔の短縮](/guides/cleaning-up/remove-silent-pauses/) — すべての長い無音部分を同じ短い間隔にトリミングすることで、録音をコンパクトにします。
-- [録音の一部を無音にする](/guides/cleaning-up/silence-part-of-a-recording/) — 音声の一部を無音に置き換えつつ、他のすべての要素をその場に保ちます。
-- [低い唸り音の除去](/guides/cleaning-up/remove-low-rumble/) — ハイパスフィルターを使用して、交通機関、風、取り扱いによるサブベースの唸り音をカットします。
-- [DCオフセットの修正](/guides/cleaning-up/fix-dc-offset/) — ゼロラインの上または下に位置する波形を中央に戻します。
-- [ノッチフィルターによる電源ハムノイズの除去](/guides/cleaning-up/remove-mains-hum-with-a-notch-filter/) — 50または60 Hzのハムノイズ、笛の音、リング音などの単一の周波数を、他の部分に影響を与えずにカットします。
-- [ゲートを使用してフレーズ間のノイズを無音にする](/guides/cleaning-up/gate-out-noise-between-phrases/) — 声が通るようにし、誰も話していないときはルームノイズを遮断します。
+- [クリックとポップ音の除去](/guides/cleaning-up/remove-clicks-and-pops/) — 短いクリック音を録音から取り除き、残りの部分には影響を与えません。
+- [長い静止時間の短縮](/guides/cleaning-up/remove-silent-pauses/) — すべての静止時間を同じ短いギャップにトリミングして、録音を締めます。
+- [録音の一部を沈黙させる](/guides/cleaning-up/silence-part-of-a-recording/) — オーディオのセクションを沈黙で置き換えながら、すべてをそのままに保ちます。
+- [低周波ノイズの除去](/guides/cleaning-up/remove-low-rumble/) — 交通、風、ハンドルからのサブベースのゴロゴロ音をハイパスフィルターでカットします。
+- [DCオフセットの修正](/guides/cleaning-up/fix-dc-offset/) — ゼロラインより上または下にある波形を再センターします。
+- [ノッチフィルターを使用してメインハムの除去](/guides/cleaning-up/remove-mains-hum-with-a-notch-filter/) — 50または60 Hzのハム、ホイッスル、リングなどの単一周波数をカットします。
+- [ゲートを使用してフレーズ間のノイズを沈黙させる](/guides/cleaning-up/gate-out-noise-between-phrases/) — 声が通るようにし、誰も話していないときは部屋のノイズを閉じます。
 
-## 参考情報
+## 参照
 
-- [ここで使用されるエフェクトのすべてのパラメータ、そのデフォルト値と範囲は、オーディオエフェクトリファレンスに記載されています。](/reference/generated/audio-effects/#parameters)
-- [すべてのメニューコマンドとそのキーボードショートカットは、コマンドとショートカットのリファレンスに記載されています。](/reference/generated/commands/)
+- [ここで使用されている効果のすべてのパラメータ、デフォルト値、および範囲は、オーディオ効果リファレンスにあります。](/reference/generated/audio-effects/#parameters)
+- [すべてのメニューコマンドとそのキーボードショートカットは、コマンドとショートカトリファレンスにあります。](/reference/generated/commands/)
 
 ## このガイドについて
 
-このページの手順 — すべてのメニュー項目、ダイアログ、フィールド、ボタン、およびそれらが生成する結果 — は、ブラウザスイート（`tests/browser/soundscaper-guides.spec.js`）によってSoundscaperの各ビルドに対して再現されます。エディタと一致しなくなった場合、ガイドが修正されるまでビルドは失敗します。提案されている値は、エディタが受け入れることが証明されている出発点です。それらがあなたの録音に適しているかどうかは、あなたの耳で判断してください。
+このページの手順（すべてのメニュー項目、ダイアログ、フィールド、ボタン、および生成される結果）は、ブラウザスイート(`tests/browser/soundscaper-guides.spec.js`)によってSoundscaperの各ビルドに対して再実行されます。メニューとエディタのいずれかが一致しなくなった場合、ビルドは失敗し、ガイドが修正されるまで継続されます。提案された値は、エディタが受け入れることが証明された開始点です。それらがあなたの録音に適しているかどうかは、あなたの耳で判断してください。

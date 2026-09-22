@@ -4,22 +4,24 @@ description: "ビデオを配置し、画像を合成し、ローカル優先の
 sidebar:
   order: 1
 ---
-<!-- docs-ai-provenance: {"factPacketSha256":"6193de9a731d010659be03c1372890bf230bb54161c79a2aa1e3ffe4a63c51bd","model":"aya-expanse:32b","modelDigest":"1603440383bd5504dc7afd01c0407b425b988dde650a8dc1a737433baa3cd432","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"6193de9a731d010659be03c1372890bf230bb54161c79a2aa1e3ffe4a63c51bd","targetLocale":"ja"} -->
+<!-- docs-ai-provenance: {"factPacketSha256":"fe5df8f699907289847a5d9022c094e32168b502a532ebdf7708436a99db38b7","model":"aya-expanse:32b","modelDigest":"1603440383bd5504dc7afd01c0407b425b988dde650a8dc1a737433baa3cd432","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"fe5df8f699907289847a5d9022c094e32168b502a532ebdf7708436a99db38b7","targetLocale":"ja"} -->
 
-Framescaperは、共有エディターのビデオに焦点を当てたビューです。ビデオプレビュー、ソースモニタリング、ピクチャエフェクト、コンポジティング、ネストされたシーケンス、マルチカメラ作業を重視しています。
+フレームスケーパーとは、共有エディターのビデオに焦点を当てたビューです。ビデオプレビュー、ソースモニタリング、ピクチャエフェクト、コンポジティング、ネストされたシーケンス、マルチカメラ作業を重視しています。
 
-SoundscaperとFramescaperは、互いのプロジェクトファイルを開くことができます：`.sscape`、`.fscape`、および古い`.scape`は両方で動作します。詳細なオーディオ制作と録音にはSoundscaperを使用し、次にプロジェクトをFramescaperに戻して画像作業を行います。
+サウンドスケーパーとフレームスケーパーは、互いのプロジェクトファイルを開くことができます：`.sscape`、`.fscape`、および古い`.scape`は両方で動作します。詳細なオーディオ制作と録音にはサウンドスケーパーを使用し、その後、プロジェクトをフレームスケーパーに返して画像作業を行います。
 
 ## 配置
 
-Framescaperは画像を管理します：ビデオのインポート、ソースモニターおよびビデオプレビュー、画像エフェクト、幾何学およびコンポジティング、ネストされたシーケンス、マルチカメラ作業、ビデオ配信。リンクされた画像およびオーディオレーンは、ここでリンクを解除するまで同期されます。
+フレームスケーパーは画像を管理します：ビデオのインポート、ソースモニターとビデオプレビュー、ピクチャエフェクト、幾何学とコンポジティング、ネストされたシーケンス、マルチカメラ作業、ビデオ配信。ここでリンクされた画像とオーディオのレーンは、それらをアンクリンクするまで同期されます。
 
-Soundscaperはサウンドを管理します：オーディオ録音、エフェクトおよび分析、ミキシング、オーディオ配信。Framescaperは異なるキャプチャワークフローを使用し、Soundscaperのオーディオ録音ツールセットを公開しないため、Soundscaperで録音し、プロジェクトを戻します。ステップバイステップの[ガイド](/guides/)はSoundscaperに対して記述および検証されており、ビデオプロジェクトのオーディオ側もカバーしています。
+サウンドスケーパーはサウンドを管理します：オーディオ録音、エフェクトと分析、ミキシング、オーディオ配信。フレームスケーパーは異なるキャプチャワークフローを使用し、サウンドスケーパーのオーディオ録音ツールセットを公開しないため、サウンドスケーパーで録音し、プロジェクトを戻します。ステップバイステップの[ガイド](/guides/)は、サウンドスケーパーに対して記述および検証されており、ビデオプロジェクトのオーディオ側もカバーしています。
 
 ## 推奨パス
 
-1. [最初のFramescaperプロジェクトを作成する](/framescaper/first-project/)。
+1. [最初のフレームスケーパー プロジェクトを作成する](/framescaper/first-project/)。
 2. [ビデオを準備してエクスポートする](/framescaper/video-export/)。
-3. [プロジェクトファイルとバックアップの動作](/projects-and-data/project-files/)を確認します。
+3. [プロジェクト ファイルとバックアップの動作](/projects-and-data/project-files/)を確認します。
 
-ブラウザエディターを[soundscaper.org/framescaper/en](https://soundscaper.org/framescaper/en/)で開きます。
+ブラウザ エディターを[soundscaper.org/framescaper/en](https://soundscaper.org/framescaper/en/)で開きます。
+
+デスクトップ アシスタンスについては、[ローカル処理、モデル、プラグイン](/help/local-processing/)を参照してください。

@@ -1,6 +1,6 @@
 ---
 title: "フェードインとフェードアウト"
-description: "クリップを無音から開始し、カットオフする代わりに滑らかに終了します。"
+description: "クリップを静音から開始し、カットオフせずにスムーズに終了させる。"
 editUrl: false
 sidebar:
   order: 5
@@ -8,50 +8,50 @@ head:
   - tag: script
     attrs:
       type: "application/ld+json"
-    content: "{\"@context\":\"https://schema.org\",\"@type\":\"HowTo\",\"name\":\"Fade in and fade out\",\"description\":\"Start a clip from silence and end it smoothly instead of cutting off.\",\"tool\":[{\"@type\":\"HowToTool\",\"name\":\"Soundscaper\"}],\"step\":[{\"@type\":\"HowToStep\",\"position\":1,\"name\":\"Open Soundscaper. A new, empty project is ready as soon as the editor loads.\",\"text\":\"Open Soundscaper. A new, empty project is ready as soon as the editor loads.\"},{\"@type\":\"HowToStep\",\"position\":2,\"name\":\"Choose File → Import audio and pick the recording that starts or stops too hard. The file lands as a clip on its own track.\",\"text\":\"Choose File → Import audio and pick the recording that starts or stops too hard. The file lands as a clip on its own track.\"},{\"@type\":\"HowToStep\",\"position\":3,\"name\":\"Drag in the ruler above the clip to select as much of the start as you want the fade to last.\",\"text\":\"Drag in the ruler above the clip to select as much of the start as you want the fade to last.\"},{\"@type\":\"HowToStep\",\"position\":4,\"name\":\"Choose Effect → Fading → Fade In. The effect applies to the selection straight away.\",\"text\":\"Choose Effect → Fading → Fade In. The effect applies to the selection straight away.\"},{\"@type\":\"HowToStep\",\"position\":5,\"name\":\"Drag in the ruler above the clip to select the same amount at the end.\",\"text\":\"Drag in the ruler above the clip to select the same amount at the end.\"},{\"@type\":\"HowToStep\",\"position\":6,\"name\":\"Choose Effect → Fading → Fade Out. The effect applies to the selection straight away.\",\"text\":\"Choose Effect → Fading → Fade Out. The effect applies to the selection straight away.\"},{\"@type\":\"HowToStep\",\"position\":7,\"name\":\"Press Play to listen, then Stop.\",\"text\":\"Press Play to listen, then Stop. The recording swells in and dies away instead of starting and stopping hard.\"}]}"
+    content: "{\"@context\":\"https://schema.org\",\"@type\":\"HowTo\",\"name\":\"Fade in and fade out\",\"description\":\"Start a clip from silence and end it smoothly instead of cutting off.\",\"tool\":[{\"@type\":\"HowToTool\",\"name\":\"Soundscaper\"}],\"step\":[{\"@type\":\"HowToStep\",\"position\":1,\"name\":\"Open Soundscaper. A new, empty project is ready as soon as the editor loads.\",\"text\":\"Open Soundscaper. A new, empty project is ready as soon as the editor loads.\"},{\"@type\":\"HowToStep\",\"position\":2,\"name\":\"Choose File → Import and pick the recording that starts or stops too hard. It lands as a clip on its own track.\",\"text\":\"Choose File → Import and pick the recording that starts or stops too hard. It lands as a clip on its own track.\"},{\"@type\":\"HowToStep\",\"position\":3,\"name\":\"Drag in the ruler above the clip to select as much of the start as you want the fade to last.\",\"text\":\"Drag in the ruler above the clip to select as much of the start as you want the fade to last.\"},{\"@type\":\"HowToStep\",\"position\":4,\"name\":\"Choose Effect → Fading → Fade In. The effect applies to the selection straight away.\",\"text\":\"Choose Effect → Fading → Fade In. The effect applies to the selection straight away.\"},{\"@type\":\"HowToStep\",\"position\":5,\"name\":\"Drag in the ruler above the clip to select the same amount at the end.\",\"text\":\"Drag in the ruler above the clip to select the same amount at the end.\"},{\"@type\":\"HowToStep\",\"position\":6,\"name\":\"Choose Effect → Fading → Fade Out. The effect applies to the selection straight away.\",\"text\":\"Choose Effect → Fading → Fade Out. The effect applies to the selection straight away.\"},{\"@type\":\"HowToStep\",\"position\":7,\"name\":\"Press Play to listen, then Stop.\",\"text\":\"Press Play to listen, then Stop. The recording swells in and dies away instead of starting and stopping hard.\"}]}"
 ---
-<!-- docs-ai-provenance: {"factPacketSha256":"e8598595815502e051036875f30c4266c32181fc523c976c99b3ac430d99f0e9","model":"qwen3.8:latest","modelDigest":"22130167c4c20e20c7b71454612966ca8e8171e9b3cc8ab6ce8aa6cbfec79643","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"e8598595815502e051036875f30c4266c32181fc523c976c99b3ac430d99f0e9","targetLocale":"ja"} -->
+<!-- docs-ai-provenance: {"factPacketSha256":"dd587cefa66ffc1928b495d6acc075f6717d569220d474268488433a141ea60a","model":"aya-expanse:32b","modelDigest":"1603440383bd5504dc7afd01c0407b425b988dde650a8dc1a737433baa3cd432","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"dd587cefa66ffc1928b495d6acc075f6717d569220d474268488433a141ea60a","targetLocale":"ja"} -->
 
 <!-- Generated by `node scripts/docs-reference.mjs`. Do not edit. -->
 
-フェードは、クリップの開始時のクリック音や終了時の急な停止を避ける最も簡単な方法です。フェードインは選択範囲の全長にわたって無音から音量を上げ、フェードアウトは下げます。選択範囲の長さがフェードの長さになります。
+フェードは、クリップの開始時にクリックを避けたり、終了時に急に止まることを防ぐための最も簡単な方法です。フェードインは、選択範囲全体で音量を静音から徐々に上げ、フェードアウトは音量を徐々に下げます。選択範囲の長さがフェードの長さになります。
 
-:::note[Audacityからの移行について]
-これはAudacityの**エフェクト → フェード → フェードインとフェードアウト**です。以下に示す名称はSoundscaper独自のものです。場合によっては異なります。
+:::note[Audacityから移行する場合]
+これはAudacityの**効果 → フェード → フェードインとフェードアウト**です。以下に示す名前はSoundscaper独自のもので、Audacityのものとは異なる場合があります。
 :::
 
 ## 手順
 
 1. Soundscaperを開きます。エディタが読み込まれた時点で、新しい空のプロジェクトが準備されます。
-2. **ファイル → オーディオのインポート**を選択し、開始または停止が abrupt な録音ファイルを選択します。ファイルは独自のトラック上にクリップとして配置されます。
-3. クリップ上部のルーラーをドラッグして、フェードを適用したい開始部分の範囲を選択します。
-4. **エフェクト → フェード → フェードイン**を選択します。エフェクトは即座に選択範囲に適用されます。
-5. クリップ上部のルーラーをドラッグして、終了部分の同じ長さの範囲を選択します。
-6. **エフェクト → フェード → フェードアウト**を選択します。エフェクトは即座に選択範囲に適用されます。
-7. **再生**を押して聴き、その後**停止**を押します。
-   *確認すべき点:* 録音は急な開始や停止ではなく、徐々に音量が上がり、次第に小さくなります。
+2. **ファイル → インポート**を選択し、開始または終了が急すぎる録音を選択します。録音は単独のトラック上にクリップとして配置されます。
+3. クリップの上にあるスケールをドラッグして、フェードさせる開始部分の範囲を選択します。
+4. **効果 → フェード → フェードイン**を選択します。効果は選択範囲にすぐに適用されます。
+5. クリップの上にあるスケールをドラッグして、終了部分でも同じ範囲を選択します。
+6. **効果 → フェード → フェードアウト**を選択します。効果は選択範囲にすぐに適用されます。
+7. **再生**を押して聴き、**停止**を押します。
+   *確認できること:* 録音は急に始まり急に終わるのではなく、徐々に大きくなり小さくなります。
 
-## ヒント
+## 注意点
 
-- フェードは線形です。最後にフェードを速くしたい場合は、より短い範囲を選択してください。
-- フェードは編集操作であるため、**編集 → 元に戻す**で他の操作と同様に取り消すことができます。
+- フェードは線形です。終了部分でのフェードを早くしたい場合は、短い範囲を選択します。
+- フェードは編集なので、**編集 → 元に戻す**で他の編集と同様に元に戻すことができます。
 
 ## 関連ガイド
 
-[音量とダイナミクス](/guides/volume/)に関するその他のガイド：
+より多くの[音量とダイナミクス](/guides/volume/)ガイド:
 
-- [静かな録音を大きくする](/guides/volume/make-a-recording-louder/) — Amplifyを使用して、録音のレベルを固定のデシベル数だけ上げます。
-- [ピークを特定のレベルに正規化する](/guides/volume/normalize-peaks/) — 録音の最も大きな点を、フルスケール以下の正確なレベルに調整します。
-- [ポッドキャスト用にラウドネスを正規化する](/guides/volume/normalize-loudness-for-podcasts/) — エピソードの知覚されるラウドネスを、ストリーミングプラットフォームが期待するレベルに合わせます。
-- [コンプレッサーで音量を均一にする](/guides/volume/even-out-volume-with-a-compressor/) — 大きな音と小さな音の差を縮小し、話し声をより聞きやすくします。
-- [リミッターでピークを抑制する](/guides/volume/tame-peaks-with-a-limiter/) — 他の部分に影響を与えずに、最も大きな音が上限を超えないようにします。
-- [音声の下で音楽をダッキングする](/guides/volume/duck-music-under-a-voice/) — 音声トラックが話している間、自動的に音楽の音量を下げる。
-- [クラシックコンプレッサーで音量を均一にする](/guides/volume/even-out-volume-with-the-legacy-compressor/) — ノイズフロアとメイクアップゲインを備えたAudacity 3のオリジナルコンプレッサーを録音に適用します。
+- [静かな録音を大きくする](/guides/volume/make-a-recording-louder/) — 録音のレベルを固定のデシベル数だけ上げます。
+- [ピークを設定レベルに正規化](/guides/volume/normalize-peaks/) — 録音の最も大きい部分をフルスケール以下の正確なレベルに合わせます。
+- [ポッドキャストの音量を正規化](/guides/volume/normalize-loudness-for-podcasts/) — エピソードの知覚される音量をストリーミングプラットフォームが期待するレベルに合わせます。
+- [コンプレッサーで音量を均一に](/guides/volume/even-out-volume-with-a-compressor/) — 騒々しい部分と静かな部分の差を減らし、会話が聞き取りやすくなります。
+- [リミッターでピークを抑える](/guides/volume/tame-peaks-with-a-limiter/) — 最も大きい瞬間が上限を超えないようにしますが、それ以外の部分には影響しません。
+- [音楽をボイストラックの下にダック](/guides/volume/duck-music-under-a-voice/) — ボイストラックが話している間、自動的に音楽ボリュームを下げます。
+- [クラシックコンプレッサーで音量を均一に](/guides/volume/even-out-volume-with-the-legacy-compressor/) — Audacity 3のオリジナルのコンプレッサーを録音に適用し、ノイズフロアとメイクアップゲインを使用します。
 
-## 参考情報
+## 参照
 
-- [ここで使用されるエフェクトのすべてのパラメータ、そのデフォルト値と範囲は、オーディオエフェクトリファレンスに記載されています。](/reference/generated/audio-effects/#parameters)
+- [ここで使用されている効果のすべてのパラメータ、デフォルト値、および範囲は、オーディオ効果リファレンスに記載されています。](/reference/generated/audio-effects/#parameters)
 
 ## このガイドについて
 
-このページの手順 — すべてのメニュー項目、ダイアログ、フィールド、ボタン、およびそれらが生成する結果 — は、ブラウザスイート（`tests/browser/soundscaper-guides.spec.js`）によってSoundscaperの各ビルドに対して再現されます。エディタと一致しなくなった場合、ガイドが修正されるまでビルドは失敗します。提案されている値は、エディタが受け入れることが証明されている出発点です。それらがあなたの録音に適しているかどうかは、あなたの耳で判断してください。
+このページの手順（すべてのメニュー項目、ダイアログ、フィールド、ボタン、およびそれらが生成する結果）は、ブラウザスイート(`tests/browser/soundscaper-guides.spec.js`)によってSoundscaperの各ビルドに対して再実行されます。手順がエディタと一致しなくなった場合は、ビルドは失敗し、ガイドが修正されるまで継続します。提案される値は、エディタが受け入れることが証明されている開始値であり、録音に適しているかどうかはあなたの耳で判断してください。
