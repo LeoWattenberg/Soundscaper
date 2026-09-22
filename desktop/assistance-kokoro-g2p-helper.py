@@ -55,7 +55,7 @@ def review_request(raw: bytes) -> tuple[str, str, str]:
 
 
 def phonemize(language: str, voice: str, text: str) -> list[str]:
-    # The package build must include the English spaCy model, Unidic, eSpeak
+    # The package build must include the English spaCy model, UniDic Lite, eSpeak
     # NG and the other Misaki data files. Disable network-capable fallbacks.
     os.environ["HF_HUB_OFFLINE"] = "1"
     os.environ["TRANSFORMERS_OFFLINE"] = "1"
@@ -65,6 +65,16 @@ def phonemize(language: str, voice: str, text: str) -> list[str]:
         import spacy
         if not spacy.util.is_package("en_core_web_sm"):
             raise RuntimeError("The frozen English spaCy model is unavailable.")
+
+    if language == "j":
+        import unidic
+        import unidic_lite
+        dictionary = unidic_lite.DICDIR
+        if not isinstance(dictionary, str) or not os.path.isfile(os.path.join(dictionary, "mecabrc")):
+            raise RuntimeError("The frozen Japanese UniDic Lite data is unavailable.")
+        # Fugashi prefers the otherwise empty `unidic` dependency installed by
+        # Misaki; bind it to the dictionary sealed into this frozen helper.
+        unidic.DICDIR = dictionary
 
     from kokoro import KPipeline
 

@@ -87,3 +87,13 @@ test('foreign descriptor identity fails closed before invoking any runner', asyn
 	}), /descriptor|foreign|family/iu);
 	assert.equal(invoked, false);
 });
+
+test('the inference worker forwards its cancellation signal into the authenticated job', async () => {
+	const controller = new AbortController();
+	let received: AbortSignal | undefined;
+	await runAssistanceRuntimeFamilyInferenceWorkerV1({
+		job: job(), signal: controller.signal, post: () => undefined,
+		runJob: async ({ signal }) => { received = signal; return result(); },
+	});
+	assert.equal(received, controller.signal);
+});

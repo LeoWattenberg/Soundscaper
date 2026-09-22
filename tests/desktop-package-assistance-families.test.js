@@ -8,6 +8,7 @@ import test from 'node:test';
 import { createPackage } from '@electron/asar';
 import candidates from '../config/assistance-runtime-family-supply-candidates.json' with { type: 'json' };
 import { stageDesktopAssistanceRuntimeFamilies } from '../scripts/lib/desktop-assistance-runtime-families.mjs';
+import { stageDesktopKokoroG2pRuntime } from '../scripts/lib/desktop-kokoro-g2p-runtime.mjs';
 import { auditExtractedDesktopPackageContent, writeDesktopPackageContentManifest } from '../scripts/lib/desktop-package-content-manifest.mjs';
 import { packageTree } from './helpers/desktop-package-content-fixture.js';
 
@@ -31,11 +32,33 @@ async function fixture(context) {
 	const families = await stageDesktopAssistanceRuntimeFamilies({ targetId: 'linux-x64', runtimeRoot,
 		stageOnnx: () => stage('onnxruntime-node'), stageWhisper: () => stage('whisper-cpp'),
 		stageLlama: () => stage('llama-cpp') });
+	const g2pBundle = join(value.extractedRoot, '..', 'kokoro-g2p-bundle');
+	await mkdir(g2pBundle, { recursive: true });
+	await writeFile(join(g2pBundle, 'kokoro-g2p'), 'frozen helper', { mode: 0o755 });
+	const notice = Buffer.from('fixture license\n');
+	await mkdir(join(g2pBundle, 'licenses/python/example'), { recursive: true });
+	await writeFile(join(g2pBundle, 'licenses/python/example/LICENSE'), notice);
+	await writeFile(join(g2pBundle, 'python-license-inventory.json'), `${JSON.stringify({
+		schemaVersion: 1,
+		packages: [{ name: 'example', version: '1.0.0', notices: [{
+			path: 'licenses/python/example/LICENSE', byteLength: notice.byteLength,
+			sha256: createHash('sha256').update(notice).digest('hex'),
+		}] }],
+	})}\n`);
+	const kokoro = await stageDesktopKokoroG2pRuntime({ targetId: 'linux-x64', bundleRoot: g2pBundle,
+		runtimeRoot });
 	const application = join(value.extractedRoot, '..', 'application');
 	await mkdir(join(application, 'config'), { recursive: true });
 	await writeFile(join(application, families.summary.manifest.path), families.manifestBytes);
+	await writeFile(join(application, 'config/assistance-kokoro-g2p-runtime-manifest.json'), kokoro.manifestBytes);
 	await createPackage(application, join(value.resourcesRoot, 'app.asar'));
 	value.runtimeManifest.assistanceRuntimeFamilies = families.summary;
+	value.runtimeManifest.kokoroG2pRuntime = {
+		...kokoro.summary,
+		manifest: { path: 'config/assistance-kokoro-g2p-runtime-manifest.json',
+			byteLength: kokoro.manifestBytes.byteLength,
+			sha256: createHash('sha256').update(kokoro.manifestBytes).digest('hex') },
+	};
 	const save = () => writeFile(value.runtimeManifestPath, `${JSON.stringify(value.runtimeManifest, null, 2)}\n`);
 	await save();
 	return { ...value, save, runtimeRoot, write: () => writeDesktopPackageContentManifest({
@@ -75,5 +98,19 @@ test('release audit refuses unbound engine manifests and omitted build receipts'
 		else delete value.runtimeManifest.assistanceRuntimeFamilies;
 		await value.save();
 		await assert.rejects(value.write(), /engine.*receipt|manifest.*receipt/iu, mode);
+	}
+});
+
+test('release audit refuses modified or unbound Kokoro G2P files', async (context) => {
+	for (const mode of ['modified', 'extra', 'wrong-manifest', 'missing-receipt']) {
+		const value = await fixture(context);
+		const helper = join(value.runtimeRoot, 'assistance/kokoro-g2p/0.9.4/linux-x64/kokoro-g2p');
+		if (mode === 'modified') await writeFile(helper, 'replaced helper');
+		if (mode === 'extra') await writeFile(join(value.runtimeRoot,
+			'assistance/kokoro-g2p/0.9.4/linux-x64/foreign.txt'), 'foreign helper');
+		if (mode === 'wrong-manifest') value.runtimeManifest.kokoroG2pRuntime.manifest.sha256 = '0'.repeat(64);
+		if (mode === 'missing-receipt') delete value.runtimeManifest.kokoroG2pRuntime;
+		await value.save();
+		await assert.rejects(value.write(), /Kokoro G2P/u, mode);
 	}
 });

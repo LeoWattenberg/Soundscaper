@@ -988,11 +988,22 @@ the reviewed catalog entry. Full retained license texts are in
   declared Apache-2.0. Soundscaper is not affiliated with or endorsed by any of
   the named upstream authors or data providers.
 
-- The separate offline grapheme-to-phoneme helper is not yet distributed.
-  Its intended Kokoro and Misaki 0.9.4 sources declare Apache-2.0, but the
-  helper's complete frozen dependency, data, and notice closure requires a
-  separate target-specific publication review. See
-  [`config/assistance-kokoro-g2p-build-candidate.json`](config/assistance-kokoro-g2p-build-candidate.json).
+- The desktop offline grapheme-to-phoneme helper is built separately for each
+  package target from the locked Python closure in
+  [`scripts/kokoro-g2p/uv.lock`](scripts/kokoro-g2p/uv.lock) and the
+  [frozen build recipe](scripts/kokoro-g2p/build.mjs). Kokoro and Misaki
+  0.9.4 are Apache-2.0. The closure also includes phonemizer-fork 3.3.2 and
+  eSpeak NG under GPL-3.0, num2words 0.5.14 under LGPL terms, and other
+  dependencies under their recorded terms. Each desktop package carries its
+  target-specific `python-license-inventory.json`, installed-wheel notices in
+  `licenses/python/`, pinned upstream notices in `licenses/upstream/`, and
+  `build-provenance.json` beside the frozen executable. The package's
+  `assistance-kokoro-g2p-runtime-manifest.json` authenticates every helper,
+  dependency, data, and notice file before use. The [notice source
+  register](scripts/kokoro-g2p/notices/sources.json) pins upstream texts needed
+  when a wheel omitted them; the lock and build recipe record the corresponding
+  source and version inputs. The ONNX model files listed below remain separate
+  downloads.
 
 The published version 1.0.0 model files are listed below. Each digest identifies
 an upstream source file and the matching product mirror byte. Public HEAD,

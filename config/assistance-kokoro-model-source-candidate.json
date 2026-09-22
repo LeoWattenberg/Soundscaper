@@ -403,11 +403,11 @@
 	},
 	"distributionBlockedBy": [],
 	"activationBlockedBy": [
-		"Offline G2P payload provisioning and five-target canaries"
+		"Five-target packaged G2P and text-to-WAV canaries"
 	],
 	"releaseEvidence": {
-		"catalogEntrySha256": "6c8110ab7e87041be8f74e1cede3a37c869557f65160c2046183dbdfdf681fdb",
+		"catalogEntrySha256": "c3a16565159ff2c76d27a60ca284bf4a021b0fbbf67a6e5f297d8e930212447d",
 		"publicReadbackSha256": "3f9d527849b4419de8df9b21ec093782b611c2cb5b6325527f21364afa897a43",
-		"licensingEvidenceSha256": "8a020ac3fb15dc825f71152b4bbf4194c2bfcdb60df7e8a94289f0b07b4301d6"
+		"licensingEvidenceSha256": "3c006e16b50d6119310780be6226bcabd2ed0e7a4373f247e267436c39765516"
 	}
 }

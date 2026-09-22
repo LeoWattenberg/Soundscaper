@@ -18,6 +18,8 @@ import { listTranslationCatalogLocales, readTranslationCatalog } from './i18n-ai
 import { buildSourceMapsRequested } from './lib/build-source-map-relocation.mjs';
 import { stageDesktopBundledCodecNotices } from './lib/desktop-bundled-codec-notices.mjs';
 import { stageDesktopAssistanceRuntimeFamilies } from './lib/desktop-assistance-runtime-families.mjs';
+import { stageDesktopKokoroG2pRuntime } from './lib/desktop-kokoro-g2p-runtime.mjs';
+import { buildKokoroG2pBundle } from './kokoro-g2p/build.mjs';
 import { stageDesktopAssistanceSpeechRuntime } from './lib/desktop-assistance-speech-runtime.mjs';
 import {
 	prepareDesktopOsAudioCodecNativeRelease,
@@ -166,6 +168,12 @@ async function main() {
 		runtimeRoot: RUNTIME_ROOT,
 		cacheRoot: resolve(ROOT, '.native-build/assistance-runtimes'),
 	});
+	const kokoroG2pBuild = await buildKokoroG2pBundle({ targetId: nativeTarget.id });
+	const kokoroG2pRuntime = await stageDesktopKokoroG2pRuntime({
+		targetId: nativeTarget.id,
+		bundleRoot: kokoroG2pBuild.bundleRoot,
+		runtimeRoot: RUNTIME_ROOT,
+	});
 	const nativeAddons = nativeAddonRelease === null ? null : await stageNativeAddons(nativeAddonRelease);
 	const osAudioCodecNative = osAudioCodecNativeRelease === null
 		? null
@@ -198,6 +206,7 @@ async function main() {
 	const desktopRuntime = await stageApplication(
 		projectPackage, applicationVersion, productMetadata, framescaperNativeHostRelease,
 		compiledDesktopRuntime, assistanceRuntimeFamilies, assistanceSpeechRuntime,
+		kokoroG2pRuntime,
 	);
 
 	const stageManifest = {
@@ -213,6 +222,13 @@ async function main() {
 		assistanceNativeRuntime: assistanceSpeechRuntime.summary,
 		assistanceNativeBuild: assistanceSpeechRuntime.buildReceipt,
 		assistanceRuntimeFamilies: assistanceRuntimeFamilies.summary,
+		kokoroG2pRuntime: {
+			...kokoroG2pRuntime.summary,
+			manifest: descriptorForBytes(
+				'config/assistance-kokoro-g2p-runtime-manifest.json',
+				kokoroG2pRuntime.manifestBytes,
+			),
+		},
 		desktopCodecPolicy: DESKTOP_CODEC_POLICY,
 		desktopNotices,
 		nativeAddons,
@@ -358,6 +374,7 @@ async function buildRenderer() {
 async function stageApplication(
 	projectPackage, applicationVersion, productMetadata, framescaperNativeHostRelease,
 	compiledDesktopRuntime, assistanceRuntimeFamilies, assistanceSpeechRuntime,
+	kokoroG2pRuntime,
 ) {
 	await mkdir(APP_ROOT, { recursive: true });
 	const desktopRuntime = await stageDesktopApplicationSources({
@@ -373,6 +390,8 @@ async function stageApplication(
 	for (const register of desktopProductConfigFiles(PRODUCT_ID, productMetadata)) {
 		const verifiedBytes = register === 'config/assistance-runtime-family-supply-candidates.json'
 			? assistanceRuntimeFamilies.manifestBytes
+			: register === 'config/assistance-kokoro-g2p-runtime-manifest.json'
+				? kokoroG2pRuntime.manifestBytes
 			: register === 'config/assistance-native-runtime-manifest.json'
 				? Buffer.from(`${JSON.stringify(assistanceSpeechRuntime.manifest, null, 2)}\n`)
 			: framescaperNativeHostRelease === null

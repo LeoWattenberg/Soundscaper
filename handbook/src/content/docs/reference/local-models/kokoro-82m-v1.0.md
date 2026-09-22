@@ -10,14 +10,14 @@ Generate a spoken clip from a script using a selected language and voice.
 
 ## Current availability {#current-availability}
 
-Desktop builds package the onnxruntime-node 1.29.0 engine, but the authenticated offline Kokoro G2P helper is not built or wired for any supported target. Installing model weights cannot enable speech generation yet. The required real-model test fails closed until the helper and its data are packaged and verified.
+Desktop target packages generate and authenticate the offline Kokoro G2P helper alongside the onnxruntime-node 1.29.0 engine for macOS arm64, Linux x64, Linux arm64, Windows x64, Windows arm64. Install the model weights through Model Manager, then run speech generation locally. Consult the nightly report for real text-to-WAV results from each package and machine.
 
 ## Use this model {#use-this-model}
 
-The model is admitted in the catalog, but its complete offline runtime is unavailable on the declared platforms. The intended workflow is **Generate → Text to Speech**. The steps below describe that workflow; processing cannot currently complete.
+Open **Generate → Text to Speech** on a platform with the required native runtime. Local assistance runs in the desktop editor.
 
 1. Enter a script, then choose one of the published language and voice pairs.
-2. Install the Kokoro model through Model Manager when the complete offline speech runtime is available.
+2. Install the Kokoro model through Model Manager.
 3. Generate and listen to a preview, then add it on a new track or regenerate the selected generated clip.
 
 ## Download and requirements {#download-and-requirements}
@@ -95,15 +95,15 @@ Tools → Model Manager downloads the published artifacts and verifies their rec
 
 Case: `kokoro-speech-generation`; operation: `text-to-speech`.
 
-Input: A short nonempty English script with one American English voice and a bounded speech rate, submitted as authenticated UTF-8 text.
+Input: Nine short UTF-8 scripts, one for each Kokoro v1.0 language variant, each paired with a published matching voice at speed 1.
 
-The selected Kokoro voice must produce non-silent, bounded, 24 kHz mono PCM audio in a valid WAV container. The test requires a complete offline G2P runtime and cannot be satisfied by an unavailable-adapter response or substitute model.
+Each of the nine selected Kokoro voices must produce non-silent, bounded, 24 kHz mono PCM audio in a valid WAV container. The test requires a complete offline G2P runtime and cannot be satisfied by an unavailable-adapter response or substitute model.
 
-The nightly-with-tests package downloads real model artifacts and requests inference through the packaged runtime. The required offline G2P helper is currently absent, so this case must fail closed until that runtime is provisioned. These costly checks run separately from the normal browser suite. A passing future run will confirm basic speech generation, not pronunciation or perceptual quality.
+The nightly-with-tests package downloads real model artifacts and requests inference through the packaged runtime. Its required case submits one script in each of the nine language variants through the packaged G2P helper and checks the resulting WAVs. A missing or altered helper fails closed. These costly checks run separately from the normal browser suite. A passing package run confirms basic speech generation for those selected voices, not pronunciation or perceptual quality.
 
 ## Review the result {#review-the-result}
 
-- The model has a catalog entry, but the authenticated offline Kokoro grapheme-to-phoneme helper is not yet built or wired into desktop inference. Generation currently fails closed even after the weights are installed.
-- Generated pronunciation and delivery can vary by language and voice. The eventual real test requires a non-silent 24 kHz mono WAV from the selected voice; it cannot establish naturalness or pronunciation quality.
+- The model has a catalog entry, but the authenticated offline Kokoro grapheme-to-phoneme helper must also be packaged for the selected desktop target. A package missing that helper fails closed even after the weights are installed.
+- Generated pronunciation and delivery can vary by language and voice. The packaged test requires a non-silent 24 kHz mono WAV for one selected voice in each of the nine language variants; it does not test all 54 voices or establish naturalness or pronunciation quality.
 
 [Model test coverage and limitations](/reference/local-models/) · [Local processing guide](/help/local-processing/)

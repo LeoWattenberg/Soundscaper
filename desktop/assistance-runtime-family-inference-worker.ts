@@ -3,6 +3,7 @@
 /** Generic worker_threads entry; reviewed model math is mounted only through an injected adapter. */
 
 import { parentPort, workerData } from 'node:worker_threads';
+import { join } from 'node:path';
 
 import {
 	validateAssistanceRuntimeFamilyJobRequestV1,
@@ -22,10 +23,13 @@ import {
 import {
 	createAssistanceOnnxRuntimeWorkerAdapterV1,
 } from './assistance-onnx-runtime-worker.ts';
+import { createAssistanceKokoroOfflinePhonemizerV1 } from './assistance-kokoro-g2p-runtime.ts';
+import { bindAssistanceRuntimeFamilyCancellationV1 } from './assistance-runtime-family-cancellation.ts';
 
 export interface AssistanceRuntimeFamilyInferenceWorkerOptions {
 	readonly job: AssistanceRuntimeFamilyAdmittedJob;
 	readonly post: (message: unknown) => void;
+	readonly signal?: AbortSignal;
 	readonly execute?: AssistanceRuntimeFamilyWorkerJobOptions['execute'];
 	readonly runJob?: (options: AssistanceRuntimeFamilyWorkerJobOptions) => Promise<unknown>;
 }
@@ -42,7 +46,11 @@ export async function runAssistanceRuntimeFamilyInferenceWorkerV1(
 	const request = requestFrom(job);
 	const runJob = options.runJob ?? runAssistanceRuntimeFamilyWorkerJobV1;
 	const execute = options.execute ?? (job.familyId === 'onnxruntime-node'
-		? createAssistanceOnnxRuntimeWorkerAdapterV1()
+		? createAssistanceOnnxRuntimeWorkerAdapterV1({
+			...(job.task === 'text-to-speech' ? {
+				phonemizeKokoro: packagedKokoroPhonemizer(),
+			} : {}),
+		})
 		: unavailableAssistanceRuntimeFamilyWorkerAdapter);
 	let sequence = 0;
 	const send = (message: unknown): void => {
@@ -52,6 +60,7 @@ export async function runAssistanceRuntimeFamilyInferenceWorkerV1(
 		const result = await runJob({
 			job,
 			execute,
+			...(options.signal === undefined ? {} : { signal: options.signal }),
 			onProgress: (value) => {
 				send({
 					protocolVersion: 1, type: 'progress', jobId: request.jobId,
@@ -71,6 +80,17 @@ export async function runAssistanceRuntimeFamilyInferenceWorkerV1(
 			error: serializeAssistanceRuntimeFamilyWireErrorV1(error),
 		});
 	}
+}
+
+function packagedKokoroPhonemizer() {
+	const resourcesPath = (process as typeof process & { readonly resourcesPath?: string })
+		.resourcesPath;
+	if (resourcesPath === undefined) return undefined;
+	return createAssistanceKokoroOfflinePhonemizerV1({
+		manifestPath: join(resourcesPath, 'app.asar', 'config',
+			'assistance-kokoro-g2p-runtime-manifest.json'),
+		runtimeRoot: join(resourcesPath, 'runtime'),
+	});
 }
 
 function validateAdmittedJob(value: AssistanceRuntimeFamilyAdmittedJob): AssistanceRuntimeFamilyAdmittedJob {
@@ -93,8 +113,14 @@ function requestFrom(value: AssistanceRuntimeFamilyAdmittedJob): AssistanceRunti
 
 if (parentPort !== null) {
 	const port = parentPort;
+	const job = workerData as AssistanceRuntimeFamilyAdmittedJob;
+	const cancellation = job.task === 'text-to-speech'
+		? bindAssistanceRuntimeFamilyCancellationV1(port, job.jobId) : null;
 	void runAssistanceRuntimeFamilyInferenceWorkerV1({
-		job: workerData as AssistanceRuntimeFamilyAdmittedJob,
+		job,
 		post: (message) => port.postMessage(message),
-	}).catch(() => { process.exitCode = 1; });
+		...(cancellation === null ? {} : { signal: cancellation.signal }),
+	}).catch(() => { process.exitCode = 1; }).finally(() => {
+		cancellation?.dispose();
+	});
 }

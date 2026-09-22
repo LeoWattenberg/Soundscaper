@@ -67,9 +67,14 @@ as well as macOS ARM64, Linux x64/ARM64 and Windows x64. Catalog admission
 and package-runtime authentication remain independent checks; building an
 engine does not override either one.
 
-Kokoro's ONNX inference engine is staged, but its offline G2P helper is not
-packaged or connected yet. Installing the model files therefore does not enable
-speech synthesis on any target.
+Kokoro's ONNX engine and offline G2P helper have package recipes for all five
+desktop targets. Preparation freezes the pinned Python closure into a helper
+under `runtime/assistance/kokoro-g2p/0.9.4/` and records the exact target file
+inventory in `config/assistance-kokoro-g2p-runtime-manifest.json` inside the
+package. The production worker verifies that inventory before each subprocess
+invocation. End users do not install Python. The packaged nightly nine-language
+text-to-WAV case establishes whether that target build performs speech
+generation; a recipe alone is not a passing inference result.
 
 ## Package integrity
 
@@ -103,7 +108,8 @@ The normal Node suite checks provisioning, integrity failures and model-output
 validators without downloading weights. The computationally intensive suite is
 separate: [real model nightly tests](local-model-nightly-tests.md) downloads and
 attempts every published model through the desktop bridge. Kokoro's required
-case currently fails because its offline G2P runtime is unavailable. The suite
-checks useful,
-nonempty outputs; audio must be finite, audible and different from its input.
-These checks establish execution, not recognition or restoration quality.
+case checks one published voice in each of its nine language variants and fails
+if its G2P helper is missing, altered, or unable to produce a valid WAV. The suite
+checks useful, nonempty outputs; audio must be finite and audible. Audio
+transformation outputs must also differ from their input. These checks establish
+execution, not recognition or restoration quality.

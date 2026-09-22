@@ -2,13 +2,15 @@
 
 import { verifySignedMacPackage } from './lib/desktop-mac-signing-stage.mjs';
 
-import { readFile, readdir } from 'node:fs/promises';
+import { lstat, readFile, readdir } from 'node:fs/promises';
+import { createHash } from 'node:crypto';
 import { fileURLToPath } from 'node:url';
 import { dirname, join, resolve } from 'node:path';
 
 import { flipFuses as flipElectronFuses, FuseVersion, FuseV1Options } from '@electron/fuses';
-import { extractFile } from '@electron/asar';
+import { extractFile, listPackage } from '@electron/asar';
 import { verifyDesktopAssistanceRuntimeFamilyPackage } from './lib/desktop-assistance-runtime-family-verification.mjs';
+import { verifyDesktopKokoroG2pRuntime } from './lib/desktop-kokoro-g2p-runtime.mjs';
 
 import { desktopAssistanceNativeManifest } from './lib/desktop-assistance-speech-runtime.mjs';
 import { verifyAssistanceNativeRuntimePayload } from '../desktop/assistance-native-runtime-payload.mjs';
@@ -55,6 +57,8 @@ export default async function hardenPackagedElectron(context, dependencies = {})
 		?? auditPackagedDesktopCodecPolicy;
 	const verifyAssistance = dependencies.verifyPackagedAssistanceNativeRuntime
 		?? verifyPackagedAssistanceNativeRuntime;
+	const verifyKokoroG2p = dependencies.verifyPackagedKokoroG2pRuntime
+		?? verifyPackagedKokoroG2pRuntime;
 	const verifyNativeAddon = dependencies.verifyPackagedNativeAddonResources
 		?? verifyPackagedNativeAddonResources;
 	const verifyProfessional = dependencies.verifyPackagedSoundscaperProfessionalNativeResources
@@ -74,6 +78,7 @@ export default async function hardenPackagedElectron(context, dependencies = {})
 		verifyElectronFfmpeg(context, dependencies),
 		...(!signed ? [
 			verifyAssistance(context, dependencies),
+			verifyKokoroG2p(context, dependencies),
 			verifyNativeAddon(context, dependencies),
 			verifyProfessional(context, dependencies),
 			verifyNativeHosts(context, dependencies),
@@ -121,6 +126,57 @@ export default async function hardenPackagedElectron(context, dependencies = {})
 		productId: packagingProductId(context),
 		targetId: nativeAddonPayloadTargetForPackagingContext(context),
 	});
+}
+
+export async function verifyPackagedKokoroG2pRuntime(context, dependencies = {}) {
+	const resourcesRoot = context?.packager?.getResourcesDir?.(context.appOutDir);
+	if (typeof resourcesRoot !== 'string' || resourcesRoot.length === 0) {
+		throw new TypeError('Electron packaged resources directory is unavailable.');
+	}
+	const targetId = nativeAddonPayloadTargetForPackagingContext(context);
+	const repositoryRoot = resolve(dependencies.repositoryRoot ?? REPOSITORY_ROOT);
+	const stagePath = dependencies.stageManifestPath
+		?? resolve(repositoryRoot, '.desktop-build/stage-manifest.json');
+	const stageBytes = await readFile(stagePath, 'utf8').catch((error) => {
+		if (error?.code === 'ENOENT') return null;
+		throw error;
+	});
+	const stage = stageBytes === null ? null : JSON.parse(stageBytes);
+	const hasReceipt = stage !== null && Object.hasOwn(stage, 'kokoroG2pRuntime');
+	const asarPath = resolve(resourcesRoot, 'app.asar');
+	const configPath = '/config/assistance-kokoro-g2p-runtime-manifest.json';
+	const hasAsar = await pathExists(asarPath);
+	const hasConfig = hasAsar && listPackage(asarPath).includes(configPath);
+	const hasUnpackedConfig = await pathExists(resolve(resourcesRoot,
+		'app.asar.unpacked/config/assistance-kokoro-g2p-runtime-manifest.json'));
+	const hasRuntime = await pathExists(resolve(resourcesRoot, 'runtime/assistance/kokoro-g2p'));
+	if (!hasReceipt && !hasConfig && !hasUnpackedConfig && !hasRuntime) return null;
+	if (!hasReceipt || !stage.kokoroG2pRuntime) {
+		throw new Error('The packaged Kokoro G2P build receipt is missing or invalid.');
+	}
+	const manifestBytes = extractFile(asarPath, configPath.slice(1));
+	const summary = stage.kokoroG2pRuntime;
+	if (manifestBytes.byteLength > 4 * 1024 * 1024
+		|| summary?.targetId !== targetId
+		|| summary.manifest?.byteLength !== manifestBytes.byteLength
+		|| summary.manifest.sha256 !== createHash('sha256').update(manifestBytes).digest('hex')) {
+		throw new Error('The packaged Kokoro G2P manifest differs from its build receipt.');
+	}
+	return verifyDesktopKokoroG2pRuntime({
+		manifest: JSON.parse(manifestBytes.toString('utf8')),
+		targetId,
+		runtimeRoot: resolve(resourcesRoot, 'runtime'),
+	});
+}
+
+async function pathExists(path) {
+	try {
+		await lstat(path);
+		return true;
+	} catch (error) {
+		if (error?.code === 'ENOENT') return false;
+		throw error;
+	}
 }
 
 export async function verifyPackagedAssistanceNativeRuntime(context, dependencies = {}) {

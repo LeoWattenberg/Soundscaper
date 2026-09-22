@@ -1192,7 +1192,7 @@
 			"minimumMemoryBytes": 8589934592,
 			"licensingEvidence": {
 				"id": "kokoro-82m-v1.0",
-				"sha256": "8a020ac3fb15dc825f71152b4bbf4194c2bfcdb60df7e8a94289f0b07b4301d6"
+				"sha256": "3c006e16b50d6119310780be6226bcabd2ed0e7a4373f247e267436c39765516"
 			},
 			"upstream": {
 				"source": "https://huggingface.co/onnx-community/Kokoro-82M-v1.0-ONNX",
