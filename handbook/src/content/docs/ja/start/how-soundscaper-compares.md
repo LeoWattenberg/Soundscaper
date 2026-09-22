@@ -4,7 +4,7 @@ description: "録音、編集、ミキシング、配信、相互運用の観点
 sidebar:
   order: 3
 ---
-<!-- docs-ai-provenance: {"factPacketSha256":"703e76cffbe1464f1283f6c8f45cee52c0d37faae852b7efc163879710a2ddb2","model":"qwen3.8:latest","modelDigest":"22130167c4c20e20c7b71454612966ca8e8171e9b3cc8ab6ce8aa6cbfec79643","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"703e76cffbe1464f1283f6c8f45cee52c0d37faae852b7efc163879710a2ddb2","targetLocale":"ja"} -->
+<!-- docs-ai-provenance: {"factPacketSha256":"71097403d87aba03cddc2ccd696ff9a8663268afba3a7bf750fe8d9913de3eba","model":"gpt-5.6-luna","modelDigest":"manual","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"71097403d87aba03cddc2ccd696ff9a8663268afba3a7bf750fe8d9913de3eba","targetLocale":"ja"} -->
 
 SoundscaperはAudacity 4をWeb上で再実装し、その上にプロダクションレイヤーを追加しています。Adobe Auditionは、これら2つが通常比較される商業的なポストプロダクションツールです。このページでは、3つすべてを比較し、すでに必要な作業をこなせるツールを特定できるようにしています。
 
@@ -14,8 +14,8 @@ SoundscaperはAudacity 4をWeb上で再実装し、その上にプロダクシ�
 
 **Partial**は3つの異なる状況を含み、注記で該当する状況が示されます。機能は存在するが他のツールより範囲が狭い、機能は存在するがユーザーが提供する必要があるものに依存している、または欠如を回避するための作業を通じてのみアクセス可能である。
 
-行は機能（capability）を記述しており、メニューコマンドではありません。正確なコマンド一覧については[Commands and shortcuts](/reference/generated/commands/)を、各プロダクトが有効にする内容については
-[Product capabilities](/reference/generated/product-capabilities/)を参照してください。
+行は機能を記述しており、メニューコマンドではありません。正確なコマンド一覧については[コマンドとショートカット](/reference/generated/commands/)を、各プロダクトが有効にする内容については
+[製品の機能](/reference/generated/product-capabilities/)を参照してください。
 
 ### これらの主張の出所
 
@@ -103,7 +103,7 @@ SoundscaperはAudacity 4をWeb上で再実装し、その上にプロダクシ�
 | パラメトリックEQ | はい — 自動化可能なバンドを備えた新しいパラメトリックEQ | 部分的 — Filter CurveとGraphic EQ | はい — パラメトリック、グラフィック、FFTフィルター |
 | エフェクトプリセット | はい — 適用、保存、インポート、エクスポート | はい — 適用、保存、インポート、エクスポート | はい |
 | マクロとバッチチェーン | はい — テンプレート付きの保存済みマクロライブラリ | いいえ — ピン留めビルドではMacrosメニューがコメントアウトされている | はい — FavoritesとBatch Process |
-| サードパーティプラグイン形式 | 部分的 — デスクトップでは同意と隔離の下でVST3、CLAP、AU、LV2、ブラウザではなし | はい — VST3、AU、LV2、Nyquist、プラグインマネージャー付き | 部分的 — VST3、macOSではAU、CLAPやLV2なし |
+| サードパーティプラグイン形式 | 部分的 — デスクトップでは同意と隔離の下でVST3、CLAP、AU、LV2、LinuxのLADSPAエフェクト、Vampアナライザーを利用でき、ブラウザでは利用できません | はい — VST3、AU、LV2、Nyquist、プラグインマネージャー付き | 部分的 — VST3、macOSではAU、CLAPやLV2なし |
 | Nyquistスクリプティング | はい — バンドルされたプラグインとNyquistプロンプト | はい — バンドルされたプラグインとNyquistプロンプト | いいえ |
 | サンドボックス化されたエフェクトパッケージ | 部分的 — レビュー済みのWebAssemblyパッケージ、1つが同梱され、外部ものはフェンスされている | いいえ | いいえ |
 | 仮想楽器 | いいえ — 1.0以降 | いいえ | いいえ |
