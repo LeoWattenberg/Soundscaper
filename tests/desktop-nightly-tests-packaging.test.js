@@ -29,6 +29,16 @@ test('nightly-with-tests packaging is isolated, portable, and keeps its payload 
 	assert.deepEqual(config.win.target, ['portable']);
 	assert.equal(config.portable.splashImage, '.desktop-build/icons/nightly-tests-splash.bmp');
 	assert.deepEqual(config.mac.target, ['zip']);
+	assert.equal(config.mac.signIgnore, '/Contents/Resources/nightly-tests/products/');
+	const macSignIgnore = new RegExp(config.mac.signIgnore, 'u');
+	assert.equal(macSignIgnore.test(
+		'/tmp/Soundscaper Nightly Tests.app/Contents/Resources/nightly-tests/products/'
+		+ 'framescaper/mac-arm64/Framescaper.app/Contents/Resources/runtime/assistance/'
+		+ 'kokoro-g2p/0.9.4/mac-arm64/_internal/Python.framework/Python',
+	), true);
+	assert.equal(macSignIgnore.test(
+		'/tmp/Soundscaper Nightly Tests.app/Contents/Resources/nightly-tests/tests/example.js',
+	), false);
 	assert.deepEqual(config.linux.target, ['AppImage']);
 	assert.equal(config.linux.executableName, 'soundscaper-nightly-tests');
 	assert.match(config.artifactName, /nightly-with-tests/u);

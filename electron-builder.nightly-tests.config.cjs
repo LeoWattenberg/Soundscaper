@@ -109,6 +109,10 @@ module.exports = {
 		icon: '.desktop-build/icons/icon.png',
 		identity: '-',
 		hardenedRuntime: false,
+		// The product applications were already sealed before their exact files
+		// entered the nightly payload manifest. Preserve those authenticated bytes
+		// instead of recursively signing the nested application bundles again.
+		signIgnore: '/Contents/Resources/nightly-tests/products/',
 		gatekeeperAssess: false,
 		category: 'public.app-category.developer-tools',
 		target: ['zip'],
