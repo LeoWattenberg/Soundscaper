@@ -15,10 +15,12 @@ const DIALOG_STYLES = new URL('src/common/editor/ui/dialogs/', ROOT);
  * no error anywhere. Every custom property a stylesheet reads therefore has to
  * be one the runtime actually publishes.
  */
-test('dialog stylesheets only read theme tokens the runtime defines', async () => {
+test('dialog stylesheets only read tokens defined by the runtime or editor base', async () => {
 	const runtime = await readFile(DESIGN_SYSTEM_RUNTIME, 'utf8');
 	const defined = new Set([...runtime.matchAll(/'(--[\w-]+)'\s*:/gu)].map(([, name]) => name));
 	assert.ok(defined.size > 10, 'the runtime publishes a token palette');
+	const base = await readFile(new URL('01-tokens-base.css', DESIGN_SYSTEM_STYLES), 'utf8');
+	for (const [, name] of base.matchAll(/^\s*(--[\w-]+)\s*:/gmu)) defined.add(name);
 
 	const missing = [];
 	for (const entry of await readdir(DIALOG_STYLES)) {
