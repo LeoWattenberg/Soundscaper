@@ -51,6 +51,7 @@ export interface DesktopHostMenuItem {
 
 interface DesktopHostCopy {
 	readonly desktopServices: string;
+	readonly desktopMcpConnection?: string;
 	readonly useNativeProbeHelper: string;
 	readonly clearProbeHelperQuarantine: string;
 	readonly useNativeAudioHelper: string;
@@ -74,6 +75,7 @@ export interface DesktopHostMenuInput {
 	runWindowAction(action: DesktopWindowAction): void;
 	checkForUpdates(): void;
 	openExternal(destination: 'help' | 'source'): void;
+	openMcpConnection?(): void;
 }
 
 export interface DesktopHostMenuItems {
@@ -122,6 +124,9 @@ export function createDesktopHostMenuItems(input: DesktopHostMenuInput | null): 
 			checkedItem('desktop-discover-native-effects', input.copy.discoverNativeEffects,
 				input.snapshot.nativeEffectDiscoveryEnabled,
 				apply('set-native-effect-discovery-enabled', !input.snapshot.nativeEffectDiscoveryEnabled)),
+			...(input.productId === 'soundscaper' && input.openMcpConnection ? [
+				item('desktop-mcp-connection', `${input.copy.desktopMcpConnection ?? 'MCP connection'}…`, input.openMcpConnection),
+			] : []),
 		])]),
 		help: Object.freeze([
 			documentedItem('desktop-product-help', `desktop-product-help-${input.productId}`,

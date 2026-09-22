@@ -98,6 +98,11 @@ export function createWorkspaceApplicationMenus({
 		copy,
 		productId,
 		productName: copy.title,
+		openMcpConnection: productId === 'soundscaper'
+			&& typeof fileService.readMcpStatus === 'function'
+			&& typeof fileService.startMcp === 'function'
+			&& typeof fileService.stopMcp === 'function'
+			? () => openSurface('desktop-mcp') : undefined,
 	});
 	const menus = createApplicationMenus({
 			productId,

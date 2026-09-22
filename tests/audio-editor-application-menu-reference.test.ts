@@ -477,6 +477,7 @@ function richDesktopHost(productId: ProductId, productName: string) {
 		runWindowAction: noop,
 		checkForUpdates: noop,
 		openExternal: noop,
+		openMcpConnection: productId === 'soundscaper' ? noop : undefined,
 	});
 }
 

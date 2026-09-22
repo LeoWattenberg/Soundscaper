@@ -19,6 +19,8 @@ const SoundscaperMasteringSequenceDialog = SOUNDSCAPER_BUILD
 	? lazyEditorModule(() => import('../dialogs/SoundscaperMasteringSequenceDialog.tsx')) : null;
 const WorkspaceOnboardingDialog = SOUNDSCAPER_BUILD
 	? lazyEditorModule(() => import('../dialogs/WorkspaceOnboardingDialog.tsx')) : null;
+const DesktopMcpDialog = SOUNDSCAPER_BUILD
+	? lazyEditorModule(() => import('../dialogs/DesktopMcpDialog.tsx')) : null;
 const ClipPropertiesDialog = lazyEditorModule(() => import('../inspector/ClipPropertiesDialog.jsx'));
 const VideoCompositionDialog = lazyEditorModule(() => import('../inspector/VideoCompositionDialog.tsx'));
 const VideoKeyframeDialog = lazyEditorModule(() => import('../inspector/VideoKeyframeDialog.tsx'));
@@ -105,6 +107,14 @@ export default function AudioEditorWorkspaceOverlays({ model }) {
 	// layer; the workspace behind it stays.
 	return <React.Suspense fallback={<LazyInspectorFallback copy={copy} />}>
 		<EditorSurfaceBoundary copy={copy} surface="dialogs" resetKey={snapshot.project}>
+			{productId === 'soundscaper' && fileService.isDesktop && activeSurface === 'desktop-mcp'
+				&& DesktopMcpDialog && typeof fileService.readMcpStatus === 'function'
+				&& typeof fileService.startMcp === 'function' && typeof fileService.stopMcp === 'function' && (
+				<div data-editor-surface="desktop-mcp">
+					<DesktopMcpDialog copy={copy} fileService={fileService}
+						onClose={() => setActiveSurface(null)} />
+				</div>
+			)}
 			{productId === 'soundscaper' && activeSurface === 'mastering-sequences'
 				&& SoundscaperMasteringSequenceDialog && (
 				<div data-editor-surface="mastering-sequences">

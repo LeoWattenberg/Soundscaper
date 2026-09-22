@@ -16,12 +16,16 @@ export function organizeNativePreferences(menus: readonly AssistanceMenuEntry[])
 		if (menu.id !== 'tools') return menu;
 		const items: AssistanceMenuEntry[] = [];
 		for (const item of menu.items ?? []) {
-			const candidates = item.id === 'desktop-services' ? item.items ?? [] : [item];
+			const desktopServices = item.id === 'desktop-services';
+			const retainedServices: AssistanceMenuEntry[] = [];
+			const candidates = desktopServices ? item.items ?? [] : [item];
 			for (const candidate of candidates) {
 				const section = sectionFor(candidate.id ?? '');
 				if (section) preferences.push({ ...candidate, section });
+				else if (desktopServices) retainedServices.push(candidate);
 				else items.push(candidate);
 			}
+			if (retainedServices.length) items.push({ ...item, items: retainedServices });
 		}
 		return { ...menu, items, nativePreferences: preferences };
 	});

@@ -229,6 +229,7 @@ const REFERENCE_SEEDS: readonly ReferenceSeed[] = Object.freeze([
 	['assistance-task-index-transcript', 'Index Transcript…', 'Tools > Search', BOTH],
 	['assistance-task-index-video', 'Index Video…', 'Tools > Search', FRAMESCAPER],
 	['manage-local-models', 'Model Manager…', 'Tools', BOTH],
+	['desktop-mcp-connection', 'MCP connection…', 'Tools > Desktop services', SOUNDSCAPER],
 	['soundscaper-mastering-sequences', 'Mastering sequences', 'Tools', SOUNDSCAPER],
 	['native-audio-device', 'Native audio device', 'Tools > Audio setup', SOUNDSCAPER, 'setting'],
 	['native-audio-preferences', 'Native audio and latency', 'Tools > Audio setup', SOUNDSCAPER, 'setting'],

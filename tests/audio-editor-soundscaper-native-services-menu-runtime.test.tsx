@@ -298,6 +298,35 @@ test('both desktop products gain the shared host controls without mounting the S
 	}
 });
 
+test('the workspace offers MCP only through Soundscaper desktop services', () => {
+	const runtime: DesktopHostMenuRuntime = {
+		development: false,
+		snapshot: {
+			probeHelperEnabled: false, probeHelperQuarantined: false,
+			audioHelperEnabled: false, audioHelperQuarantined: false,
+			nativeEffectDiscoveryEnabled: false,
+		},
+		applyNativeTierControl: () => undefined,
+		runWindowAction: () => undefined,
+		checkForUpdates: () => undefined,
+		openExternal: () => undefined,
+	};
+	for (const productId of ['soundscaper', 'framescaper']) {
+		const opened: string[] = [];
+		const input = workspaceMenuInput(productId, runtime);
+		const menus = createWorkspaceApplicationMenus({ ...input,
+			fileService: { isDesktop: true, readMcpStatus: () => Promise.resolve(null),
+				startMcp: () => Promise.resolve(null), stopMcp: () => Promise.resolve(null) },
+			openSurface: (surface: string) => { opened.push(surface); },
+		}) as readonly MenuItem[];
+		const services = menus.find(({ id }) => id === 'tools')?.items?.find(({ id }) => id === 'desktop-services');
+		assert.equal(services?.items?.find(({ id }) => id === 'desktop-mcp-connection') !== undefined,
+			productId === 'soundscaper');
+		services?.items?.find(({ id }) => id === 'desktop-mcp-connection')?.onClick?.();
+		assert.deepEqual(opened, productId === 'soundscaper' ? ['desktop-mcp'] : []);
+	}
+});
+
 test('the shared support action names the active product', () => {
 	for (const [productId, productName] of [['soundscaper', 'Soundscaper'], ['framescaper', 'Framescaper']]) {
 		let opened = '';

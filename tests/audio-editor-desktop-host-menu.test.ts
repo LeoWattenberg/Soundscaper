@@ -9,6 +9,7 @@ import {
 	DESKTOP_NATIVE_TIER_REFRESH_INTERVAL_MS,
 	type DesktopNativeTierControls,
 } from '../src/common/editor/ui/desktop-host-menu.ts';
+import { organizeNativePreferences } from '../src/common/editor/ui/local-processing-menus.ts';
 
 function snapshot(overrides: Partial<DesktopNativeTierControls> = {}): DesktopNativeTierControls {
 	return Object.freeze({
@@ -108,6 +109,29 @@ test('web has no desktop host rows and packaged desktop hides development comman
 	assert.deepEqual(menus.view, []);
 	assert.equal(menus.tools.length, 1);
 	assert.equal(menus.help.length, 3);
+});
+
+test('Soundscaper desktop keeps MCP under Tools > Desktop services', () => {
+	let opened = 0;
+	const input = {
+		copy: { ...copy(), desktopMcpConnection: 'MCP connection…' },
+		development: false,
+		productName: 'Soundscaper',
+		snapshot: snapshot(),
+		applyNativeTierControl: () => undefined,
+		runWindowAction: () => undefined,
+		checkForUpdates: () => undefined,
+		openExternal: () => undefined,
+		openMcpConnection: () => { opened += 1; },
+	} as const;
+	const soundscaper = createDesktopHostMenuItems({ ...input, productId: 'soundscaper' });
+	const tools = organizeNativePreferences([{ id: 'tools', items: soundscaper.tools as never }]);
+	assert.deepEqual(tools[0]?.items?.map(({ id }) => id), ['desktop-services']);
+	assert.deepEqual(tools[0]?.items?.[0]?.items?.map(({ id }) => id), ['desktop-mcp-connection']);
+	tools[0]?.items?.[0]?.items?.[0]?.onClick?.();
+	assert.equal(opened, 1);
+	const framescaper = createDesktopHostMenuItems({ ...input, productId: 'framescaper' });
+	assert.equal(organizeNativePreferences([{ id: 'tools', items: framescaper.tools as never }])[0]?.items?.length, 0);
 });
 
 test('development menu shortcut labels follow the desktop platform', () => {
