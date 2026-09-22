@@ -89,13 +89,25 @@ async function currentClip(state) {
 // playhead instead. The playhead rests at the clip start, so a selection that
 // begins there is dragged from its far end back to the start.
 async function dragSelection(page, state, from, to) {
-	const { box } = await currentClip(state);
+	const { clip, box } = await currentClip(state);
 	// The upper half of the ruler canvas is the loop band, so press below it.
 	const ruler = state.editor.locator('[data-ruler-interaction] canvas.timeline-ruler').first();
 	await expect(ruler).toBeVisible();
 	const rulerBox = await ruler.boundingBox();
 	expect(rulerBox).not.toBeNull();
-	const x = (fraction) => box.x + 2 + (box.width - 4) * fraction;
+	let clipBox = box;
+	const x = (fraction) => clipBox.x + 2 + (clipBox.width - 4) * fraction;
+	// Zoom can put the requested range past the visible ruler. Scroll it into
+	// view before dragging so the pointer stays over the ruler in every browser.
+	if (Math.min(x(from), x(to)) < rulerBox.x || Math.max(x(from), x(to)) > rulerBox.x + rulerBox.width) {
+		const rangeCenter = (x(from) + x(to)) / 2;
+		const rulerCenter = rulerBox.x + rulerBox.width / 2;
+		await state.editor.locator('.audio-editor-timeline-scroll').evaluate((element, delta) => {
+			element.scrollLeft += delta;
+		}, rangeCenter - rulerCenter);
+		clipBox = await clip.boundingBox();
+		expect(clipBox).not.toBeNull();
+	}
 	const y = rulerBox.y + rulerBox.height * 0.8;
 	const [startX, endX] = from === 0 ? [x(to), x(from)] : [x(from), x(to)];
 	await page.mouse.move(startX, y);
