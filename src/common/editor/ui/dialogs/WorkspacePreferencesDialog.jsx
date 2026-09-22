@@ -35,11 +35,6 @@ import {
 	workspacePanelLabel,
 } from '../workspace/workspace-panel-model.ts';
 
-const SOUNDSCAPER_ONLY_SHORTCUT_IDS = new Set([
-	'toggle-sound-activated-recording',
-	'set-sound-activation-level',
-]);
-
 export default function WorkspacePreferencesDialog({
 	controller,
 	snapshot,
@@ -65,9 +60,7 @@ export default function WorkspacePreferencesDialog({
 		locale,
 		copy,
 		disabledCommandIds: productProfile(productId).shortcuts.disabledCommandIds,
-	}).filter((command) => (
-		productId === 'soundscaper' || !SOUNDSCAPER_ONLY_SHORTCUT_IDS.has(command.id)
-	)), [copy, locale, menus, productId]);
+	}), [copy, locale, menus, productId]);
 	const shortcutGroups = useMemo(() => groupAudacityShortcutCommands(
 		commands.filter((command) => (
 			`${command.label} ${command.id}`.toLowerCase().includes(shortcutSearch.trim().toLowerCase())
