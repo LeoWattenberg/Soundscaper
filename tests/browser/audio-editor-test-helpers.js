@@ -201,6 +201,9 @@ export async function openClipProperties(page, editor, clip) {
 }
 
 export async function openEffectsForTrack(editor, trackIndex) {
+	if (await editor.locator('[data-workspace-panel="project-bin"]').isVisible()) {
+		await closeWorkspacePanel(editor, 'project-bin');
+	}
 	await openTrackHeaderDrawer(editor);
 	await editor.locator('[data-track-row]').nth(trackIndex).getByRole('button', { name: 'Effects', exact: true }).click();
 	const panel = editor.locator('[data-workspace-panel="effects"]');
