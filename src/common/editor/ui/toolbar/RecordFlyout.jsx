@@ -48,6 +48,15 @@ export default function RecordFlyout({
 		if (!rect) return;
 		setSettingsPosition({ x: rect.right, y: rect.top + rect.height / 2 });
 	};
+	const closeSettingsOnEscape = (event) => {
+		if (event.key !== 'Escape' || !settingsPosition) return false;
+		event.preventDefault();
+		event.stopPropagation();
+		event.nativeEvent.stopImmediatePropagation();
+		setSettingsPosition(null);
+		settingsTrigger.current?.focus();
+		return true;
+	};
 	return <div className="kw-audio-editor__record-flyout" data-record-flyout>
 		<div className="kw-audio-editor__record-flyout-grid">
 			<RecordAction label={copy.recordToNewTrack}
@@ -67,6 +76,7 @@ export default function RecordFlyout({
 					aria-label={copy.soundActivationSettings}
 					aria-haspopup="dialog" aria-expanded={Boolean(settingsPosition)}
 					disabled={!soundActivation || recoveryBlocked}
+					onKeyDown={closeSettingsOnEscape}
 					onClick={() => settingsPosition ? setSettingsPosition(null) : openSettings()}>
 					<Icon name="cog" size={16} />
 				</button>
@@ -76,14 +86,7 @@ export default function RecordFlyout({
 					ariaLabel={copy.soundActivationSettings}
 					className="kw-audio-editor__record-activation-settings">
 					<div onKeyDown={(event) => {
-						if (event.key === 'Escape') {
-							event.preventDefault();
-							event.stopPropagation();
-							event.nativeEvent.stopImmediatePropagation();
-							setSettingsPosition(null);
-							settingsTrigger.current?.focus();
-							return;
-						}
+						if (closeSettingsOnEscape(event)) return;
 						if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End'].includes(event.key)) {
 							event.stopPropagation();
 						}

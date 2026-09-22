@@ -26,7 +26,8 @@ test.describe('Soundscaper sound-activated recording', () => {
 		await expect(options.getByRole('checkbox', { name: 'Lead-in time' })).toBeVisible();
 		await expect(options.getByRole('checkbox', { name: 'Monitor input' })).toBeVisible();
 		await expectRecordFlyoutRows(options);
-		await options.getByRole('button', { name: 'Sound activation', exact: true }).click();
+		const settingsButton = options.getByRole('button', { name: 'Sound activation', exact: true });
+		await settingsButton.click();
 
 		const settings = page.getByRole('dialog', { name: 'Sound activation', exact: true });
 		const panel = settings.locator('[data-sound-activation-settings]');
@@ -34,6 +35,12 @@ test.describe('Soundscaper sound-activated recording', () => {
 		const hysteresis = panel.getByRole('slider', { name: 'Release hysteresis', exact: true });
 		const hold = panel.locator('[data-sound-activation-hold] input');
 		await expect(panel).toBeVisible();
+		await expect(settingsButton).toBeFocused();
+		await page.keyboard.press('Escape');
+		await expect(settings).toBeHidden();
+		await expect(options).toBeVisible();
+		await settingsButton.click();
+		await expect(settings).toBeVisible();
 		await expect(panel.getByRole('switch')).toHaveCount(0);
 		await threshold.focus();
 		await page.keyboard.press('ArrowRight');
