@@ -27,6 +27,9 @@ export default function RecordFlyout({
 		|| snapshot.recordingScheduling || snapshot.scheduledRecording;
 	const actionBlocked = snapshot.readOnly || snapshot.importing || snapshot.exporting
 		|| snapshot.transportState === 'playing' || recordingInputBlocked;
+	const timedActionBlocked = snapshot.readOnly || snapshot.importing || snapshot.exporting
+		|| snapshot.transportState === 'playing' || recoveryBlocked || snapshot.recording
+		|| snapshot.recordingStarting || snapshot.recordingScheduling;
 	const soundActivation = snapshot.recordingInputs?.soundActivation;
 	const hasTimeSelection = Boolean(snapshot.selection
 		&& snapshot.selection.endFrame > snapshot.selection.startFrame);
@@ -54,7 +57,7 @@ export default function RecordFlyout({
 				disabled={takeCycleItems[0].disabled}
 				onClick={() => act(takeCycleItems[0].onClick)} /> : <span />}
 			<RecordAction label={copy.timedRecordingAction}
-				disabled={actionBlocked}
+				disabled={timedActionBlocked}
 				onClick={() => act(onOpenTimedRecording)} />
 			{snapshot.productId === 'soundscaper' && soundActivation ? <div className="kw-audio-editor__record-flyout-activation">
 				<RecordAction label={copy.soundActivatedRecording}
@@ -73,6 +76,14 @@ export default function RecordFlyout({
 					ariaLabel={copy.soundActivationSettings}
 					className="kw-audio-editor__record-activation-settings">
 					<div onKeyDown={(event) => {
+						if (event.key === 'Escape') {
+							event.preventDefault();
+							event.stopPropagation();
+							event.nativeEvent.stopImmediatePropagation();
+							setSettingsPosition(null);
+							settingsTrigger.current?.focus();
+							return;
+						}
 						if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', 'Home', 'End'].includes(event.key)) {
 							event.stopPropagation();
 						}

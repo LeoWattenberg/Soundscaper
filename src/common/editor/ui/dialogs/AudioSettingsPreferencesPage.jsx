@@ -51,7 +51,7 @@ export default function AudioSettingsPreferencesPage({ controller, snapshot, cop
 				<div className="kw-audio-editor-preferences__grid">
 					<label className="kw-audio-editor-preferences__field">
 						<span>{copy.recordingOffsetSource}</span>
-						<select value={sourceKey} disabled={Boolean(snapshot.readOnly)} onChange={(event) => setSourceKey(event.currentTarget.value)}>
+						<select value={sourceKey} onChange={(event) => setSourceKey(event.currentTarget.value)}>
 							{recordingOffsetSources(snapshot, copy).map((source) => (
 								<option key={source.key} value={source.key}>{source.label}</option>
 							))}
@@ -59,8 +59,8 @@ export default function AudioSettingsPreferencesPage({ controller, snapshot, cop
 					</label>
 					<label className="kw-audio-editor-preferences__field">
 						<span>{copy.latencyOffset}</span>
-						<input type="number" min="-500" max="500" step="1" value={offsetDraft}
-							disabled={Boolean(snapshot.readOnly)} onChange={(event) => setOffsetDraft(event.currentTarget.value)}
+						<input type="number" min="-500" max="500" step="any" value={offsetDraft}
+							onChange={(event) => setOffsetDraft(event.currentTarget.value)}
 							onBlur={saveOffset} onKeyDown={(event) => { if (event.key === 'Enter') event.currentTarget.blur(); }} />
 					</label>
 				</div>

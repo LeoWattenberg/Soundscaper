@@ -82,10 +82,15 @@ test.describe('audio editor timed recording', () => {
 		await expect(durationInput.locator('[data-timecode-direct-entry="true"]')).toBeDisabled();
 		await dialog.getByRole('button', { name: 'Schedule recording', exact: true }).click();
 		await expect.poll(() => page.evaluate(() => globalThis.__timedInputRequests)).toBe(1);
-		await dialog.getByRole('button', { name: 'Cancel', exact: true }).click();
+		await page.evaluate(() => globalThis.__resolveTimedInput());
+		await expect(dialog).toBeHidden();
+		await editor.getByRole('button', { name: 'Record options', exact: true }).click();
+		await page.getByRole('dialog', { name: 'Record options', exact: true })
+			.getByRole('button', { name: 'Timed recording', exact: true }).click();
+		await expect(dialog).toBeVisible();
+		await dialog.getByRole('button', { name: 'Cancel scheduled recording', exact: true }).click();
 		await expect(dialog).toBeHidden();
 		await expect(editor.locator('[data-status]')).toContainText('Scheduled recording cancelled');
-		await page.evaluate(() => globalThis.__resolveTimedInput());
 		await expect.poll(() => page.evaluate(() => globalThis.__timedInputTrackStopped)).toBe(true);
 		await expect(editor.locator('[data-transport="record"] .kw-audio-editor__split-button-main button')).toHaveAttribute('aria-pressed', 'false');
 	});

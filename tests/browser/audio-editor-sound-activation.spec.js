@@ -42,6 +42,13 @@ test.describe('Soundscaper sound-activated recording', () => {
 		await hold.fill('260');
 		await hold.blur();
 		await expectCommittedSetting(panel, 'data-sound-activation-hold-milliseconds', '260');
+		await threshold.focus();
+		await page.keyboard.press('Escape');
+		await expect(settings).toBeHidden();
+		await expect(options).toBeVisible();
+		await expect(options.getByRole('button', { name: 'Sound activation', exact: true })).toBeFocused();
+		await options.getByRole('button', { name: 'Sound activation', exact: true }).click();
+		await expect(settings).toBeVisible();
 
 		await assertNoSeriousAxeViolations(page, '[data-sound-activation-settings]');
 		if (browserName === 'chromium') {

@@ -73,13 +73,14 @@ test.describe('shared editor dialog workflows', () => {
 		await expect(preferences.getByRole('combobox', { name: 'Recording source', exact: true }))
 			.toHaveValue('global');
 		const offset = preferences.getByRole('spinbutton', { name: 'Recording offset (ms)', exact: true });
-		await offset.fill('137');
+		await offset.fill('137.25');
 		await offset.blur();
+		await expect.poll(() => offset.evaluate((element) => element.checkValidity())).toBe(true);
 		await preferences.getByRole('button', { name: 'Close', exact: true }).last().click();
 		await expect(preferences).toBeHidden();
 
 		preferences = await openRecordingOffset();
-		await expect(preferences.getByRole('spinbutton', { name: 'Recording offset (ms)', exact: true })).toHaveValue('137');
+		await expect(preferences.getByRole('spinbutton', { name: 'Recording offset (ms)', exact: true })).toHaveValue('137.25');
 		await preferences.getByRole('button', { name: 'Close', exact: true }).last().click();
 		await expect(preferences).toBeHidden();
 		expect(errors).toEqual([]);
