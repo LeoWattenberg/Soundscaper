@@ -44,6 +44,9 @@ const RESULT = Object.freeze({
 	preview: Object.freeze({
 		available: true, format: 'ogg', quality: 'high', approximateBitrateKbps: 192,
 	}),
+	waveform: Object.freeze({
+		available: true, url: '/api/freesound/sounds/42/waveform?asset=789&source=cdn',
+	}),
 });
 
 test('the grouped Freesound panel forwards activity state to its preview owner', () => {
@@ -83,7 +86,7 @@ test('Freesound waveforms use the hosting web origin and the public proxy in the
 	assert.throws(() => freesoundWaveformUrl(42, '/api/freesound/sounds/43/waveform?asset=789'), /valid Freesound waveform path/iu);
 });
 
-test('Freesound preview pauses, resumes, and stops when its grouped panel becomes inactive', async () => {
+test('Freesound waveform seeks, starts or resumes preview, and reuses the active audio', async () => {
 	const dom = installReactTestDom();
 	const actGlobal = globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean };
 	const priorAct = actGlobal.IS_REACT_ACT_ENVIRONMENT;
@@ -128,12 +131,23 @@ test('Freesound preview pauses, resumes, and stops when its grouped panel become
 			reactProps(dom.one('form')).onSubmit({ preventDefault() {} });
 			await Promise.resolve();
 		});
-		const previewButton = dom.container.querySelectorAll('button')
-			.find((candidate) => candidate.getAttribute('aria-label') === 'Play preview: Rain.ogg');
-		assert.ok(previewButton, 'the search result exposes its preview action');
-		await act(async () => reactProps(previewButton).onClick());
+		const waveform = dom.one('.kw-audio-editor__freesound-waveform');
+		Object.defineProperty(waveform, 'getBoundingClientRect', {
+			value: () => ({ left: 100, width: 200 }), configurable: true,
+		});
+		await act(async () => reactProps(waveform).onClick({ clientX: 150, currentTarget: waveform }));
 		assert.equal(audioInstances.length, 1);
 		assert.equal(audioInstances[0]?.playCount, 1);
+		assert.equal(audioInstances[0]?.currentTime, 3);
+		audioInstances[0].currentTime = 0;
+		audioInstances[0].emit('loadedmetadata');
+		assert.equal(audioInstances[0]?.currentTime, 3);
+
+		await act(async () => reactProps(waveform).onClick({ clientX: 250, currentTarget: waveform }));
+		assert.equal(audioInstances.length, 1);
+		assert.equal(audioInstances[0]?.playCount, 1);
+		assert.equal(audioInstances[0]?.currentTime, 9);
+
 		const pauseButton = dom.container.querySelectorAll('button')
 			.find((candidate) => candidate.getAttribute('aria-label') === 'Pause preview: Rain.ogg');
 		assert.ok(pauseButton, 'playing result exposes pause');
@@ -141,16 +155,26 @@ test('Freesound preview pauses, resumes, and stops when its grouped panel become
 		assert.equal(audioInstances[0]?.pauseCount, 1);
 		assert.notEqual(audioInstances[0]?.src, '');
 		assert.equal(audioInstances[0]?.loadCount, 0);
+
+		await act(async () => reactProps(waveform).onClick({ clientX: 200, currentTarget: waveform }));
+		assert.equal(audioInstances.length, 1);
+		assert.equal(audioInstances[0]?.currentTime, 6);
+		assert.equal(audioInstances[0]?.playCount, 2);
+
+		const secondPauseButton = dom.container.querySelectorAll('button')
+			.find((candidate) => candidate.getAttribute('aria-label') === 'Pause preview: Rain.ogg');
+		assert.ok(secondPauseButton, 'waveform seek resumes the paused result');
+		await act(async () => reactProps(secondPauseButton).onClick());
 		const resumeButton = dom.container.querySelectorAll('button')
 			.find((candidate) => candidate.getAttribute('aria-label') === 'Play preview: Rain.ogg');
 		assert.ok(resumeButton, 'paused result exposes play');
 		await act(async () => reactProps(resumeButton).onClick());
 		assert.equal(audioInstances.length, 1);
-		assert.equal(audioInstances[0]?.playCount, 2);
+		assert.equal(audioInstances[0]?.playCount, 3);
 
 		await act(async () => root.render(<FreesoundPanelContainer {...props} panelActive={false} />));
 
-		assert.equal(audioInstances[0]?.pauseCount, 2);
+		assert.equal(audioInstances[0]?.pauseCount, 3);
 		assert.equal(audioInstances[0]?.loadCount, 1);
 		assert.equal(audioInstances[0]?.src, '');
 	} finally {
@@ -165,11 +189,16 @@ test('Freesound preview pauses, resumes, and stops when its grouped panel become
 class MockAudio {
 	src: string;
 	preload = '';
+	currentTime = 0;
 	playCount = 0;
 	pauseCount = 0;
 	loadCount = 0;
+	readonly listeners = new Map<string, Array<() => void>>();
 	constructor(source = '') { this.src = source; }
-	addEventListener(): void {}
+	addEventListener(type: string, listener: () => void): void {
+		this.listeners.set(type, [...(this.listeners.get(type) ?? []), listener]);
+	}
+	emit(type: string): void { for (const listener of this.listeners.get(type) ?? []) listener(); }
 	play(): Promise<void> { this.playCount += 1; return Promise.resolve(); }
 	pause(): void { this.pauseCount += 1; }
 	load(): void { this.loadCount += 1; }

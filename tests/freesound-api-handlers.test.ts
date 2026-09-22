@@ -190,57 +190,94 @@ test('sound detail validates its numeric ID and maps upstream not-found response
 	assert.equal(new URL(calledUrl).pathname, '/apiv2/sounds/123456/');
 });
 
-test('sound detail returns the same owned data envelope as search', async () => {
+test('sound detail accepts Freesound WavPack metadata in the owned data envelope', async () => {
 	const response = await handleFreesoundSoundRequest(context(
 		new Request('https://soundscaper.org/api/freesound/sounds/123456'),
 		{ id: '123456' },
 	), { fetchImpl: async () => jsonResponse(soundFixture({
 		license: 'http://creativecommons.org/licenses/by/3.0/',
+		type: 'wv',
 	})) });
 
 	assert.equal(response.status, 200);
 	const payload = await response.json() as { data: {
 		id: number; preview: { available: boolean }; license: { code: string; url: string };
+		originalFile: { format: string };
 	} };
 	assert.equal(payload.data.id, 123456);
 	assert.equal(payload.data.preview.available, true);
+	assert.equal(payload.data.originalFile.format, 'wv');
 	assert.equal(payload.data.license.code, 'cc-by');
 	assert.equal(payload.data.license.url, 'https://creativecommons.org/licenses/by/3.0/');
 });
 
-test('search accepts the deed URLs returned by Freesound sound records', async () => {
+test('search accepts WavPack beside other formats and Freesound deed URLs', async () => {
 	const response = await handleFreesoundSearchRequest(context(
 		new Request('https://soundscaper.org/api/freesound/search?q=rain'),
 	), { fetchImpl: async () => jsonResponse({
-		count: 1,
-		results: [soundFixture({ license: 'http://creativecommons.org/licenses/by-nc/4.0/' })],
-	}) });
-
-	assert.equal(response.status, 200);
-	const payload = await response.json() as { data: { results: Array<{ license: { code: string; url: string } }> } };
-	assert.equal(payload.data.results[0]?.license.code, 'cc-by-nc');
-	assert.equal(payload.data.results[0]?.license.url, 'https://creativecommons.org/licenses/by-nc/4.0/');
-});
-
-test('all-license search does not fail a page containing a legacy Sampling+ sound', async () => {
-	const response = await handleFreesoundSearchRequest(context(
-		new Request('https://soundscaper.org/api/freesound/search?q=legacy&license=all'),
-	), { fetchImpl: async () => jsonResponse({
-		count: 1,
-		results: [soundFixture({ license: 'Sampling+' })],
+		count: 2,
+		results: [
+			soundFixture({ license: 'http://creativecommons.org/licenses/by-nc/4.0/', type: 'wv' }),
+			soundFixture(),
+		],
 	}) });
 
 	assert.equal(response.status, 200);
 	const payload = await response.json() as { data: { results: Array<{
-		license: { code: string; commercialUseAllowed: boolean };
+		license: { code: string; url: string }; originalFile: { format: string };
 	}> } };
-	assert.deepEqual(payload.data.results[0]?.license, {
-		code: 'sampling-plus',
-		name: 'Sampling+ 1.0',
-		url: 'https://creativecommons.org/licenses/sampling+/1.0/',
-		requiresAttribution: true,
-		commercialUseAllowed: false,
-	});
+	assert.deepEqual(payload.data.results.map(({ originalFile }) => originalFile.format), ['wv', 'ogg']);
+	assert.equal(payload.data.results[0]?.license.code, 'cc-by-nc');
+	assert.equal(payload.data.results[0]?.license.url, 'https://creativecommons.org/licenses/by-nc/4.0/');
+});
+
+test('all-license search allowlists displayed licenses and omits legacy Sampling records', async () => {
+	let upstreamUrl: URL | undefined;
+	const response = await handleFreesoundSearchRequest(context(
+		new Request('https://soundscaper.org/api/freesound/search?q=legacy&license=all'),
+	), { fetchImpl: async (input) => {
+		upstreamUrl = new URL(String(input));
+		return jsonResponse({
+			count: 4,
+			results: [
+				soundFixture({ license: 'Attribution' }),
+				soundFixture({ license: 'Sampling' }),
+				soundFixture({ license: 'Sampling+' }),
+				soundFixture({ license: 'https://creativecommons.org/licenses/sampling+/1.0/' }),
+			],
+		});
+	} });
+
+	assert.equal(response.status, 200);
+	assert.equal(
+		upstreamUrl?.searchParams.get('filter'),
+		'license:("Creative Commons 0" OR Attribution OR "Attribution NonCommercial")',
+	);
+	const payload = await response.json() as { data: { results: Array<{ license: { code: string } }> } };
+	assert.deepEqual(payload.data.results.map(({ license }) => license.code), ['cc-by']);
+});
+
+test('sound detail and preview reject Sampling licenses so direct IDs cannot bypass filtering', async () => {
+	for (const license of ['Sampling', 'Sampling+', 'http://creativecommons.org/licenses/sampling/1.0/']) {
+		const fetchImpl = async () => jsonResponse(soundFixture({ license }));
+		const detail = await handleFreesoundSoundRequest(context(
+			new Request('https://soundscaper.org/api/freesound/sounds/123456'),
+			{ id: '123456' },
+		), { fetchImpl });
+		assert.equal(detail.status, 502);
+		assert.equal(
+			(await detail.json() as { error: { code: string } }).error.code,
+			'invalid_upstream_response',
+		);
+		const preview = await handleFreesoundPreviewRequest(context(new Request(
+			'https://soundscaper.org/api/freesound/sounds/123456/preview',
+		), { id: '123456' }), { fetchImpl });
+		assert.equal(preview.status, 502);
+		assert.equal(
+			(await preview.json() as { error: { code: string } }).error.code,
+			'invalid_upstream_response',
+		);
+	}
 });
 
 test('preview resolves the trusted CDN URL server-side and streams a single range', async () => {

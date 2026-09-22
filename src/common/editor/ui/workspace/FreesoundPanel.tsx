@@ -11,9 +11,9 @@ import {
 	AUDIO_EDITOR_FREESOUND_RESULT_DRAG_TYPE,
 	createFreesoundResultDragPayload,
 } from '../../project-bin-dnd.js';
-import ccZeroBadge from './assets/cc-zero.svg';
-import ccByBadge from './assets/cc-by.svg';
-import ccByNcBadge from './assets/cc-by-nc.svg';
+import ccZeroIcon from './assets/cc-zero-icon.svg';
+import ccByIcon from './assets/cc-by-icon.svg';
+import ccNcIcon from './assets/cc-nc-icon.svg';
 
 export type FreesoundLicenseFilter = 'all' | 'cc0' | 'cc-by' | 'cc-by-nc';
 export type FreesoundSort = 'relevance' | 'newest' | 'rating' | 'downloads';
@@ -33,8 +33,9 @@ export interface FreesoundResultPresentation {
 	readonly userUrl?: string;
 	readonly soundUrl: string;
 	readonly licenseName: string;
-	readonly licenseCode: 'cc0' | 'cc-by' | 'cc-by-nc' | 'sampling-plus';
+	readonly licenseCode: 'cc0' | 'cc-by' | 'cc-by-nc';
 	readonly licenseUrl: string;
+	readonly durationSeconds: number;
 	readonly durationLabel: string;
 	readonly previewAvailable?: boolean;
 	readonly waveformUrl?: string | null;
@@ -63,16 +64,17 @@ export interface FreesoundPanelProps {
 	readonly onPreview: (soundId: number) => void;
 	readonly onPausePreview: () => void;
 	readonly onResumePreview: () => void;
+	readonly onSeekPreview: (soundId: number, seconds: number) => void;
 	readonly onInsertAtPlayhead: (soundId: number) => void;
 	readonly onAddToProjectBin: (soundId: number) => void;
 }
 
 const LICENSE_FILTERS: readonly FreesoundLicenseFilter[] = Object.freeze(['all', 'cc0', 'cc-by', 'cc-by-nc']);
 const SORTS: readonly FreesoundSort[] = Object.freeze(['relevance', 'newest', 'rating', 'downloads']);
-const LICENSE_BADGES: Readonly<Record<Exclude<FreesoundResultPresentation['licenseCode'], 'sampling-plus'>, string>> = Object.freeze({
-	cc0: ccZeroBadge,
-	'cc-by': ccByBadge,
-	'cc-by-nc': ccByNcBadge,
+const LICENSE_ICONS: Readonly<Record<FreesoundResultPresentation['licenseCode'], string>> = Object.freeze({
+	cc0: ccZeroIcon,
+	'cc-by': ccByIcon,
+	'cc-by-nc': ccNcIcon,
 });
 
 function fill(template: string, replacements: Readonly<Record<string, string | number>>): string {
@@ -108,6 +110,7 @@ export function FreesoundPanel({
 	onPreview,
 	onPausePreview,
 	onResumePreview,
+	onSeekPreview,
 	onInsertAtPlayhead,
 	onAddToProjectBin,
 }: FreesoundPanelProps) {
@@ -242,16 +245,25 @@ export function FreesoundPanel({
 									>
 										<Icon name={playing ? 'pause' : 'play'} size={16} />
 									</button>
-									<span className="kw-audio-editor__freesound-waveform">
-										{result.waveformUrl && <img src={result.waveformUrl} alt="" loading="lazy" />}
-									</span>
+									{result.waveformUrl ? <button
+										type="button"
+										className="kw-audio-editor__freesound-waveform"
+										disabled={result.previewAvailable === false}
+										aria-label={`${copy.seekPreview}: ${result.name}`}
+										title={copy.seekPreview}
+										onClick={(event) => onSeekPreview(result.soundId, waveformSeekSeconds(
+											event.clientX,
+											event.currentTarget.getBoundingClientRect(),
+											result.durationSeconds,
+										))}
+									>
+										<img src={result.waveformUrl} alt="" loading="lazy" draggable={false} />
+									</button> : <span className="kw-audio-editor__freesound-waveform" />}
 								</div>
 								<div className="kw-audio-editor__freesound-result-actions">
 									<a className="kw-audio-editor__freesound-result-license" href={result.licenseUrl}
 										aria-label={result.licenseName} target="_blank" rel="noreferrer">
-										{result.licenseCode === 'sampling-plus'
-											? <span aria-hidden="true">{copy.licenseSamplingPlus}</span>
-											: <img src={LICENSE_BADGES[result.licenseCode]} alt="" />}
+										<img src={LICENSE_ICONS[result.licenseCode]} alt="" />
 									</a>
 									<Button
 										size="small"
@@ -297,6 +309,16 @@ export function FreesoundPanel({
 			</p>
 		</section>
 	);
+}
+
+function waveformSeekSeconds(
+	clientX: number,
+	bounds: Readonly<Pick<DOMRect, 'left' | 'width'>>,
+	durationSeconds: number,
+): number {
+	if (!Number.isFinite(clientX) || bounds.width <= 0 || durationSeconds <= 0) return 0;
+	const fraction = Math.min(1, Math.max(0, (clientX - bounds.left) / bounds.width));
+	return fraction * durationSeconds;
 }
 
 export default FreesoundPanel;

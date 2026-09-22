@@ -147,8 +147,8 @@
 
 .kw-audio-editor__freesound-result-license img {
 	display: block;
-	width: 80px;
-	height: 15px;
+	width: 18px;
+	height: 18px;
 }
 
 .kw-audio-editor__freesound-result-preview {
@@ -164,9 +164,24 @@
 	min-width: 0;
 	flex: 1;
 	overflow: hidden;
+	padding: 0;
 	background: linear-gradient(#4b5563, #4b5563) center / 100% 1px no-repeat, #1f2937;
 	border: 1px solid #4b5563;
 	border-radius: 3px;
+}
+
+button.kw-audio-editor__freesound-waveform {
+	cursor: pointer;
+}
+
+button.kw-audio-editor__freesound-waveform:focus-visible {
+	outline: 2px solid var(--accent);
+	outline-offset: 1px;
+}
+
+button.kw-audio-editor__freesound-waveform:disabled {
+	opacity: 0.5;
+	cursor: default;
 }
 
 .kw-audio-editor__freesound-waveform img {

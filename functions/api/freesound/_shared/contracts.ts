@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-export type FreesoundLicenseCode = 'cc0' | 'cc-by' | 'cc-by-nc' | 'sampling-plus';
+export type FreesoundLicenseCode = 'cc0' | 'cc-by' | 'cc-by-nc';
 
 export interface FreesoundLicense {
 	readonly code: FreesoundLicenseCode;
@@ -93,13 +93,6 @@ const LICENSES: Readonly<Record<string, FreesoundLicense>> = Object.freeze({
 		requiresAttribution: true,
 		commercialUseAllowed: false,
 	}),
-	'sampling+': Object.freeze({
-		code: 'sampling-plus',
-		name: 'Sampling+ 1.0',
-		url: 'https://creativecommons.org/licenses/sampling+/1.0/',
-		requiresAttribution: true,
-		commercialUseAllowed: false,
-	}),
 });
 
 // Freesound's API serializes license.deed_url, including HTTP and historical 3.0 deeds.
@@ -109,10 +102,16 @@ const LICENSE_DEEDS: Readonly<Record<string, Readonly<{ base: string; version?: 
 	'https://creativecommons.org/licenses/by/4.0/': { base: 'attribution', version: '4.0' },
 	'https://creativecommons.org/licenses/by-nc/3.0/': { base: 'attribution noncommercial', version: '3.0' },
 	'https://creativecommons.org/licenses/by-nc/4.0/': { base: 'attribution noncommercial', version: '4.0' },
-	'https://creativecommons.org/licenses/sampling+/1.0/': { base: 'sampling+' },
 });
 
-const ORIGINAL_FORMATS = new Set(['wav', 'aif', 'aiff', 'ogg', 'mp3', 'm4a', 'flac']);
+const EXCLUDED_SAMPLING_LICENSES = new Set([
+	'sampling',
+	'sampling+',
+	'https://creativecommons.org/licenses/sampling/1.0/',
+	'https://creativecommons.org/licenses/sampling+/1.0/',
+]);
+
+const ORIGINAL_FORMATS = new Set(['wav', 'aif', 'aiff', 'ogg', 'mp3', 'm4a', 'flac', 'wv']);
 const PREVIEW_HOST = 'cdn.freesound.org';
 const MAX_SAFE_API_INTEGER = Number.MAX_SAFE_INTEGER;
 
@@ -210,7 +209,10 @@ export function normalizeFreesoundSearch(
 	if (source.results.length > request.pageSize) {
 		throw new FreesoundContractError('Freesound search results exceed the requested page size.');
 	}
-	const results = source.results.map((result) => normalizeFreesoundSound(result).sound);
+	const results = source.results.flatMap((result) => {
+		const sound = record(result, 'sound');
+		return excludedSamplingLicense(sound.license) ? [] : [normalizeFreesoundSound(sound).sound];
+	});
 	if (results.length > totalCount) {
 		throw new FreesoundContractError('Freesound search results exceed the reported result count.');
 	}
@@ -225,6 +227,12 @@ export function normalizeFreesoundSearch(
 		hasPreviousPage: request.page > 1 && totalCount > 0,
 		results,
 	};
+}
+
+function excludedSamplingLicense(value: unknown): boolean {
+	if (typeof value !== 'string' || value.length > 2_048) return false;
+	const label = value.trim().replace(/\s+/gu, ' ').toLocaleLowerCase('en-US').replace(/^http:/u, 'https:');
+	return EXCLUDED_SAMPLING_LICENSES.has(label);
 }
 
 function trustedPreviewUrl(value: unknown): URL {

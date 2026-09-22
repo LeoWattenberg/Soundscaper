@@ -81,6 +81,24 @@ test.describe('Freesound discovery and attribution', () => {
 	test('previews and drops a result, preserves local metadata, and round-trips attribution', async ({ browser, page }) => {
 		test.setTimeout(90_000);
 		await disableNativeSavePicker(page);
+		await page.addInitScript(() => {
+			globalThis.__freesoundPreviewProbe = { playCount: 0, seekSeconds: [] };
+			const nativePlay = HTMLMediaElement.prototype.play;
+			HTMLMediaElement.prototype.play = function () {
+				globalThis.__freesoundPreviewProbe.playCount += 1;
+				return nativePlay.call(this);
+			};
+			const currentTime = Object.getOwnPropertyDescriptor(HTMLMediaElement.prototype, 'currentTime');
+			if (!currentTime?.get || !currentTime.set || !currentTime.configurable) return;
+			Object.defineProperty(HTMLMediaElement.prototype, 'currentTime', {
+				...currentTime,
+				get() { return currentTime.get.call(this); },
+				set(value) {
+					globalThis.__freesoundPreviewProbe.seekSeconds.push(value);
+					currentTime.set.call(this, value);
+				},
+			});
+		});
 		const requests = await mockFreesoundApi(page);
 		const editor = await bootEditor(page, '/embed/en/');
 		const freesoundPanel = editor.locator('[data-workspace-panel="freesound"]');
@@ -113,8 +131,12 @@ test.describe('Freesound discovery and attribution', () => {
 		await expect(result.getByRole('link', { name: SOUND.name, exact: true })).toHaveAttribute('href', SOUND.pageUrl);
 		await expect(result.getByRole('link', { name: SOUND.creator.username, exact: true }))
 			.toHaveAttribute('href', SOUND.creator.pageUrl);
-		await expect(result.getByRole('link', { name: SOUND.license.name, exact: true }))
-			.toHaveAttribute('href', SOUND.license.url);
+		const licenseLink = result.getByRole('link', { name: SOUND.license.name, exact: true });
+		await expect(licenseLink).toHaveAttribute('href', SOUND.license.url);
+		await expect(licenseLink.locator('img')).toHaveCount(1);
+		await expect(licenseLink.locator('img')).toHaveAttribute(
+			'src', /\/assets\/cc-by-icon-[^/]+\.svg$/u,
+		);
 		const waveform = result.locator('.kw-audio-editor__freesound-waveform img');
 		await expect(waveform).toHaveAttribute('src',
 			new RegExp(`/api/freesound/sounds/${String(SOUND.id)}/waveform\\?asset=789&source=cdn$`, 'u'));
@@ -174,7 +196,22 @@ test.describe('Freesound discovery and attribution', () => {
 			sort: 'relevance',
 		});
 
-		await result.getByRole('button', { name: `Play preview: ${SOUND.name}` }).click();
+		const waveformControl = result.getByRole('button', {
+			name: `Seek and play preview: ${SOUND.name}`,
+		});
+		const waveformBounds = await waveformControl.boundingBox();
+		expect(waveformBounds).not.toBeNull();
+		await waveformControl.click({ position: {
+			x: waveformBounds.width * 0.25,
+			y: waveformBounds.height / 2,
+		} });
+		await expect.poll(() => page.evaluate(() => globalThis.__freesoundPreviewProbe.playCount))
+			.toBeGreaterThan(0);
+		await expect.poll(() => page.evaluate((expectedSeconds) => (
+			globalThis.__freesoundPreviewProbe.seekSeconds
+				.some((seconds) => Math.abs(seconds - expectedSeconds) < 0.02)
+		), SOUND.durationSeconds * 0.25))
+			.toBe(true);
 		await expect.poll(() => requests.filter(({ pathname }) => (
 			pathname === `/api/freesound/sounds/${String(SOUND.id)}/preview`
 		)).length).toBeGreaterThan(0);

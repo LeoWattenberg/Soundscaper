@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import test from 'node:test';
 import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
@@ -20,6 +21,7 @@ const SOUND = {
 	licenseName: 'Creative Commons 0',
 	licenseCode: 'cc0' as const,
 	licenseUrl: 'https://creativecommons.org/publicdomain/zero/1.0/',
+	durationSeconds: 18,
 	durationLabel: '0:18',
 };
 const STATE: FreesoundPanelState = {
@@ -31,6 +33,23 @@ const STATE: FreesoundPanelState = {
 	],
 };
 
+test('Freesound license marks use one standalone Zero, BY, or NC icon', () => {
+	const source = readFileSync(new URL(
+		'../src/common/editor/ui/workspace/FreesoundPanel.tsx', import.meta.url,
+	), 'utf8');
+	for (const [code, binding, asset] of [
+		['cc0', 'ccZeroIcon', 'cc-zero-icon.svg'],
+		["'cc-by'", 'ccByIcon', 'cc-by-icon.svg'],
+		["'cc-by-nc'", 'ccNcIcon', 'cc-nc-icon.svg'],
+	]) {
+		assert.match(source, new RegExp(`import ${binding} from './assets/${asset}'`, 'u'));
+		assert.match(source, new RegExp(`${code}: ${binding}`, 'u'));
+		const svg = readFileSync(new URL(`../src/common/editor/ui/workspace/assets/${asset}`, import.meta.url), 'utf8');
+		assert.match(svg, /<svg\b/u);
+		assert.match(svg, /width="64px" height="64px"/u);
+	}
+});
+
 test('Freesound results place play beside a waveform, with license and insert actions underneath', () => {
 	const markup = renderToStaticMarkup(<FreesoundPanel
 		copy={COPY}
@@ -40,6 +59,7 @@ test('Freesound results place play beside a waveform, with license and insert ac
 		onPreview={() => undefined}
 		onPausePreview={() => undefined}
 		onResumePreview={() => undefined}
+		onSeekPreview={() => undefined}
 		onInsertAtPlayhead={() => undefined}
 		onAddToProjectBin={() => undefined}
 	/>);
@@ -52,7 +72,7 @@ test('Freesound results place play beside a waveform, with license and insert ac
 	)?.[1];
 	assert.ok(previewRow, 'waveform and play button share a preview row');
 	assert.match(previewRow,
-		/<button\b[^>]*aria-label="Play preview: Rain in pines\.wav"[^>]*>[\s\S]*?<\/button>\s*<span class="kw-audio-editor__freesound-waveform">\s*<img\b[^>]*src="[^"]*\/api\/freesound\/sounds\/101\/waveform\?asset=789&amp;source=cdn"[^>]*alt=""/u,
+		/<button\b[^>]*aria-label="Play preview: Rain in pines\.wav"[^>]*>[\s\S]*?<\/button>\s*<button\b[^>]*class="kw-audio-editor__freesound-waveform"[^>]*aria-label="Seek and play preview: Rain in pines\.wav"[^>]*>\s*<img\b[^>]*src="[^"]*\/api\/freesound\/sounds\/101\/waveform\?asset=789&amp;source=cdn"[^>]*alt=""/u,
 	);
 	const actions = firstResult.match(
 		/<div class="kw-audio-editor__freesound-result-actions">([\s\S]*?)<\/div>/u,

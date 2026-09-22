@@ -35,6 +35,14 @@ interface FreesoundPanelController extends FreesoundWorkspaceController {
 	readonly engine?: Readonly<{ getPositionFrames?: () => number }>;
 }
 
+interface ActiveFreesoundPreview {
+	readonly soundId: number;
+	readonly audio: HTMLAudioElement;
+	playing: boolean;
+	metadataLoaded: boolean;
+	pendingSeekSeconds: number | null;
+}
+
 interface FreesoundPanelContainerProps {
 	readonly controller: FreesoundPanelController;
 	readonly snapshot: Readonly<Record<string, unknown>>;
@@ -65,15 +73,15 @@ export function FreesoundPanelContainer({
 	const [pendingSoundId, setPendingSoundId] = useState<number | null>(null);
 	const searchSequence = useRef(0);
 	const searchAbort = useRef<AbortController | null>(null);
-	const preview = useRef<HTMLAudioElement | null>(null);
+	const preview = useRef<ActiveFreesoundPreview | null>(null);
 
 	const stopPreview = useCallback(() => {
-		const audio = preview.current;
+		const active = preview.current;
 		preview.current = null;
-		if (audio) {
-			audio.pause();
-			audio.src = '';
-			audio.load();
+		if (active) {
+			active.audio.pause();
+			active.audio.src = '';
+			active.audio.load();
 		}
 		setState((current) => ({ ...current, previewingSoundId: null, previewPaused: false }));
 	}, []);
@@ -84,11 +92,11 @@ export function FreesoundPanelContainer({
 
 	useEffect(() => () => {
 		searchAbort.current?.abort();
-		const audio = preview.current;
+		const active = preview.current;
 		preview.current = null;
-		if (audio) {
-			audio.pause();
-			audio.src = '';
+		if (active) {
+			active.audio.pause();
+			active.audio.src = '';
 		}
 	}, []);
 
@@ -124,31 +132,57 @@ export function FreesoundPanelContainer({
 		});
 	}, [actions, localizedCopy.searchError, stopPreview]);
 
-	const startPreview = useCallback((soundId: number) => {
+	const startPreview = useCallback((soundId: number, seekSeconds = 0) => {
 		if (!panelActive || typeof Audio !== 'function') return;
 		stopPreview();
 		const audio = new Audio(freesoundPreviewUrl(soundId));
-		preview.current = audio;
-		const finish = () => { if (preview.current === audio) stopPreview(); };
+		const active: ActiveFreesoundPreview = {
+			soundId, audio, playing: true, metadataLoaded: false, pendingSeekSeconds: null,
+		};
+		preview.current = active;
+		const finish = () => { if (preview.current === active) stopPreview(); };
 		audio.preload = 'metadata';
+		audio.addEventListener('loadedmetadata', () => {
+			active.metadataLoaded = true;
+			if (preview.current !== active || active.pendingSeekSeconds === null) return;
+			if (setPreviewTime(audio, active.pendingSeekSeconds)) active.pendingSeekSeconds = null;
+		}, { once: true });
 		audio.addEventListener('ended', finish, { once: true });
 		audio.addEventListener('error', finish, { once: true });
+		if (seekSeconds > 0) seekPreviewTime(active, seekSeconds);
 		setState((current) => ({ ...current, previewingSoundId: soundId, previewPaused: false }));
 		void audio.play().catch(finish);
 	}, [panelActive, stopPreview]);
 
 	const pausePreview = useCallback(() => {
-		if (!preview.current) return;
-		preview.current.pause();
+		const active = preview.current;
+		if (!active) return;
+		active.playing = false;
+		active.audio.pause();
 		setState((current) => ({ ...current, previewPaused: true }));
 	}, []);
 
 	const resumePreview = useCallback(() => {
-		const audio = preview.current;
-		if (!panelActive || !audio) return;
+		const active = preview.current;
+		if (!panelActive || !active) return;
+		active.playing = true;
 		setState((current) => ({ ...current, previewPaused: false }));
-		void audio.play().catch(() => { if (preview.current === audio) stopPreview(); });
+		void active.audio.play().catch(() => { if (preview.current === active) stopPreview(); });
 	}, [panelActive, stopPreview]);
+
+	const seekPreview = useCallback((soundId: number, seconds: number) => {
+		if (!panelActive || typeof Audio !== 'function') return;
+		const active = preview.current;
+		if (active?.soundId !== soundId) {
+			startPreview(soundId, seconds);
+			return;
+		}
+		seekPreviewTime(active, seconds);
+		if (active.playing) return;
+		active.playing = true;
+		setState((current) => ({ ...current, previewPaused: false }));
+		void active.audio.play().catch(() => { if (preview.current === active) stopPreview(); });
+	}, [panelActive, startPreview, stopPreview]);
 
 	const importSound = useCallback((soundId: number, destination: 'timeline' | 'project-bin') => {
 		if (pendingSoundId !== null) return;
@@ -183,6 +217,7 @@ export function FreesoundPanelContainer({
 		onPreview={startPreview}
 		onPausePreview={pausePreview}
 		onResumePreview={resumePreview}
+		onSeekPreview={seekPreview}
 		onInsertAtPlayhead={(soundId) => importSound(soundId, 'timeline')}
 		onAddToProjectBin={(soundId) => importSound(soundId, 'project-bin')}
 	/>;
@@ -198,6 +233,7 @@ export function toFreesoundPanelResult(sound: FreesoundSound): FreesoundResultPr
 		licenseName: sound.license.name,
 		licenseCode: sound.license.code,
 		licenseUrl: sound.license.url,
+		durationSeconds: sound.durationSeconds,
 		durationLabel: durationLabel(sound.durationSeconds),
 		previewAvailable: sound.preview.available,
 		waveformUrl: sound.waveform.available && sound.waveform.url
@@ -234,6 +270,21 @@ function dataRecord(value: unknown): Readonly<Record<string, unknown>> | null {
 
 function errorMessage(error: unknown, fallback: string): string {
 	return error instanceof Error && error.message ? error.message : fallback;
+}
+
+function seekPreviewTime(active: ActiveFreesoundPreview, seconds: number): void {
+	const normalized = Number.isFinite(seconds) ? Math.max(0, seconds) : 0;
+	active.pendingSeekSeconds = normalized;
+	if (setPreviewTime(active.audio, normalized) && active.metadataLoaded) active.pendingSeekSeconds = null;
+}
+
+function setPreviewTime(audio: HTMLAudioElement, seconds: number): boolean {
+	try {
+		audio.currentTime = seconds;
+		return true;
+	} catch {
+		return false;
+	}
 }
 
 export default FreesoundPanelContainer;

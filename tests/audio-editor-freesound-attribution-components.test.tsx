@@ -65,7 +65,9 @@ const FREESOUND_STATE: FreesoundPanelState = Object.freeze({
 			licenseName: 'Creative Commons 0',
 			licenseCode: 'cc0',
 			licenseUrl: 'https://creativecommons.org/publicdomain/zero/1.0/',
+			durationSeconds: 18,
 			durationLabel: '0:18',
+			waveformUrl: 'https://soundscaper.org/api/freesound/sounds/101/waveform?asset=789&source=cdn',
 		}),
 		Object.freeze({
 			soundId: 202,
@@ -75,6 +77,7 @@ const FREESOUND_STATE: FreesoundPanelState = Object.freeze({
 			licenseName: 'Attribution 4.0',
 			licenseCode: 'cc-by',
 			licenseUrl: 'https://creativecommons.org/licenses/by/4.0/',
+			durationSeconds: 64,
 			durationLabel: '1:04',
 		}),
 	]),
@@ -146,6 +149,7 @@ test('Freesound search results expose filters, one active preview and keyboard a
 		onPreview={() => undefined}
 		onPausePreview={() => undefined}
 		onResumePreview={() => undefined}
+		onSeekPreview={() => undefined}
 		onInsertAtPlayhead={() => undefined}
 		onAddToProjectBin={() => undefined}
 	/>);
@@ -195,6 +199,7 @@ test('paused Freesound preview returns to the play icon', () => {
 		onPreview={() => undefined}
 		onPausePreview={() => undefined}
 		onResumePreview={() => undefined}
+		onSeekPreview={() => undefined}
 		onInsertAtPlayhead={() => undefined}
 		onAddToProjectBin={() => undefined}
 	/>);
@@ -204,31 +209,28 @@ test('paused Freesound preview returns to the play icon', () => {
 	assert.doesNotMatch(resumeButton, /\uF44B/u);
 });
 
-test('Freesound uses a CC BY-NC badge and preserves the Sampling+ license link', () => {
+test('Freesound uses the single NC icon for a CC BY-NC license', () => {
 	const markup = render(<FreesoundPanel
 		copy={ENGLISH_COPY}
 		state={{ ...FREESOUND_STATE, results: [
 			{ ...FREESOUND_STATE.results[0]!, licenseCode: 'cc-by-nc',
 				licenseName: 'Attribution Noncommercial 4.0',
 				licenseUrl: 'https://creativecommons.org/licenses/by-nc/4.0/' },
-			{ ...FREESOUND_STATE.results[1]!, licenseCode: 'sampling-plus',
-				licenseName: 'Sampling+ 1.0',
-				licenseUrl: 'https://creativecommons.org/licenses/sampling+/1.0/' },
 		] }}
 		disabled={false}
 		onSearch={() => undefined}
 		onPreview={() => undefined}
 		onPausePreview={() => undefined}
 		onResumePreview={() => undefined}
+		onSeekPreview={() => undefined}
 		onInsertAtPlayhead={() => undefined}
 		onAddToProjectBin={() => undefined}
 	/>);
 	const byNcLicense = markup.match(/<a\b(?=[^>]*href="https:\/\/creativecommons\.org\/licenses\/by-nc\/4\.0\/")(?=[^>]*aria-label="Attribution Noncommercial 4\.0")[^>]*>[\s\S]*?<\/a>/u)?.[0];
-	const samplingLicense = markup.match(/<a\b(?=[^>]*href="https:\/\/creativecommons\.org\/licenses\/sampling\+\/1\.0\/")(?=[^>]*aria-label="Sampling\+ 1\.0")[^>]*>[\s\S]*?<\/a>/u)?.[0];
 	assert.ok(byNcLicense);
+	assert.equal(byNcLicense.match(/<img\b/gu)?.length, 1);
 	assert.match(byNcLicense, /<img\b[^>]*alt=""/u);
-	assert.ok(samplingLicense);
-	assert.match(samplingLicense, /Sampling\+/u);
+	assert.doesNotMatch(byNcLicense, />Attribution Noncommercial/u);
 });
 
 test('Freesound loading, errors and empty results are announced', () => {
@@ -240,6 +242,7 @@ test('Freesound loading, errors and empty results are announced', () => {
 		onPreview={() => undefined}
 		onPausePreview={() => undefined}
 		onResumePreview={() => undefined}
+		onSeekPreview={() => undefined}
 		onInsertAtPlayhead={() => undefined}
 		onAddToProjectBin={() => undefined}
 	/>);
@@ -253,6 +256,7 @@ test('Freesound loading, errors and empty results are announced', () => {
 		onPreview={() => undefined}
 		onPausePreview={() => undefined}
 		onResumePreview={() => undefined}
+		onSeekPreview={() => undefined}
 		onInsertAtPlayhead={() => undefined}
 		onAddToProjectBin={() => undefined}
 	/>);
@@ -267,6 +271,7 @@ test('Freesound loading, errors and empty results are announced', () => {
 		onPreview={() => undefined}
 		onPausePreview={() => undefined}
 		onResumePreview={() => undefined}
+		onSeekPreview={() => undefined}
 		onInsertAtPlayhead={() => undefined}
 		onAddToProjectBin={() => undefined}
 	/>);
@@ -287,7 +292,7 @@ test('Freesound search error toast can be dismissed and returns on the next fail
 	const props = {
 		copy: ENGLISH_COPY, disabled: false,
 		onSearch: () => undefined, onPreview: () => undefined,
-		onPausePreview: () => undefined, onResumePreview: () => undefined,
+		onPausePreview: () => undefined, onResumePreview: () => undefined, onSeekPreview: () => undefined,
 		onInsertAtPlayhead: () => undefined, onAddToProjectBin: () => undefined,
 	};
 	try {
@@ -313,7 +318,7 @@ test('Freesound gestures submit current criteria and expose the minimal drag tra
 	const actGlobal = globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean };
 	const priorAct = actGlobal.IS_REACT_ACT_ENVIRONMENT;
 	actGlobal.IS_REACT_ACT_ENVIRONMENT = true;
-	const calls: Array<readonly [string, unknown?]> = [];
+	const calls: Array<readonly [string, ...unknown[]]> = [];
 	const { createRoot } = await import('react-dom/client');
 	const root = createRoot(dom.container as unknown as Element);
 	try {
@@ -325,6 +330,7 @@ test('Freesound gestures submit current criteria and expose the minimal drag tra
 			onPreview={(soundId) => calls.push(['preview', soundId])}
 			onPausePreview={() => calls.push(['pause'])}
 			onResumePreview={() => calls.push(['resume'])}
+			onSeekPreview={(soundId, seconds) => calls.push(['seek', soundId, seconds])}
 			onInsertAtPlayhead={(soundId) => calls.push(['insert', soundId])}
 			onAddToProjectBin={(soundId) => calls.push(['bin', soundId])}
 		/>));
@@ -360,10 +366,15 @@ test('Freesound gestures submit current criteria and expose the minimal drag tra
 		}]);
 		await act(async () => reactProps(previewButton('Play preview: Rain in pines.wav')).onClick());
 		await act(async () => reactProps(previewButton('Pause preview: Distant storm.flac')).onClick());
+		const waveform = dom.one('.kw-audio-editor__freesound-waveform');
+		await act(async () => reactProps(waveform).onClick({
+			clientX: 125,
+			currentTarget: { getBoundingClientRect: () => ({ left: 100, width: 100 }) },
+		}));
 		await act(async () => reactProps(button('Insert at playhead')).onClick());
 		await act(async () => reactProps(button('Add to Project Bin')).onClick());
 		assert.deepEqual(calls.splice(0), [
-			['preview', 101], ['pause'], ['insert', 101], ['bin', 101],
+			['preview', 101], ['pause'], ['seek', 101, 4.5], ['insert', 101], ['bin', 101],
 		]);
 
 		const transfers: Array<readonly [string, string]> = [];

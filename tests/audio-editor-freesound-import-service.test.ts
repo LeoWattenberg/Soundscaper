@@ -123,7 +123,7 @@ test('Freesound search accepts the proxy maximum and an empty upstream descripti
 	assert.equal(page.results[0]?.description, '');
 });
 
-test('Freesound search and import admit legacy Sampling+ results without adding a filter option', async () => {
+test('Freesound search omits Sampling+ and direct imports reject it', async () => {
 	const legacySound = {
 		...SOUND,
 		license: {
@@ -134,33 +134,28 @@ test('Freesound search and import admit legacy Sampling+ results without adding 
 			commercialUseAllowed: false,
 		},
 	};
-	const imports: Record<string, unknown>[] = [];
+	const requests: string[] = [];
 	const service = createFreesoundImportService({
 		enabled: true,
 		apiBaseUrl: 'https://soundscaper.org',
 		createContributionId: () => 'legacy-contribution',
-		importFile: async (_file, options) => { imports.push(options); },
-		fetch: async (input) => String(input).endsWith('/preview')
-			? new Response(new Uint8Array([0x4f, 0x67, 0x67, 0x53]), {
-				headers: { 'Content-Type': 'audio/ogg' },
-			})
-			: Response.json({ data: String(input).includes('/search') ? {
-				query: 'legacy', page: 1, pageSize: 20, totalCount: 1, totalPages: 1,
-				hasNextPage: false, hasPreviousPage: false, results: [legacySound],
-			} : legacySound }),
+		importFile: async () => assert.fail('Sampling+ must not reach project import'),
+		fetch: async (input) => {
+			requests.push(String(input));
+			return Response.json({ data: String(input).includes('/search') ? {
+				query: 'legacy', page: 1, pageSize: 20, totalCount: 2, totalPages: 1,
+				hasNextPage: false, hasPreviousPage: false, results: [SOUND, legacySound],
+			} : legacySound });
+		},
 	});
 
 	const page = await service.search({ query: 'legacy', license: 'all' });
-	await service.importSound({ soundId: 42, destination: 'project-bin' });
-
-	assert.equal(page.results[0]?.license.code, 'sampling-plus');
-	assert.equal(page.results[0]?.license.commercialUseAllowed, false);
-	const provenance = imports[0]?.sourceProvenance as Readonly<{
-		contributions: readonly Readonly<{ origin: Readonly<{
-			license: Readonly<{ family: string }>;
-		}> }>[];
-	}>;
-	assert.equal(provenance.contributions[0]?.origin.license.family, 'sampling-plus');
+	assert.deepEqual(page.results.map(({ license }) => license.code), ['cc-by']);
+	await assert.rejects(
+		service.importSound({ soundId: 42, destination: 'project-bin' }),
+		/license code/iu,
+	);
+	assert.equal(requests.some((url) => url.endsWith('/preview')), false);
 });
 
 test('Freesound import snapshots attribution and sends a local OGG through normal import', async () => {

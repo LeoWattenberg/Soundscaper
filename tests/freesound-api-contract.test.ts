@@ -41,7 +41,7 @@ function soundFixture(overrides: Record<string, unknown> = {}): Record<string, u
 	};
 }
 
-test('normalizes each supported Freesound license to a stable owned contract', () => {
+test('normalizes each displayed Freesound license to a stable owned contract', () => {
 	assert.deepEqual(normalizeFreesoundLicense('Creative Commons 0'), {
 		code: 'cc0',
 		name: 'Creative Commons 0',
@@ -51,13 +51,8 @@ test('normalizes each supported Freesound license to a stable owned contract', (
 	});
 	assert.equal(normalizeFreesoundLicense('Attribution').code, 'cc-by');
 	assert.equal(normalizeFreesoundLicense('Attribution NonCommercial').code, 'cc-by-nc');
-	assert.deepEqual(normalizeFreesoundLicense('Sampling+'), {
-		code: 'sampling-plus',
-		name: 'Sampling+ 1.0',
-		url: 'https://creativecommons.org/licenses/sampling+/1.0/',
-		requiresAttribution: true,
-		commercialUseAllowed: false,
-	});
+	assert.throws(() => normalizeFreesoundLicense('Sampling'), /unsupported license/u);
+	assert.throws(() => normalizeFreesoundLicense('Sampling+'), /unsupported license/u);
 });
 
 test('normalizes Freesound deed URLs while preserving the attribution license version', () => {
@@ -67,7 +62,6 @@ test('normalizes Freesound deed URLs while preserving the attribution license ve
 		['https://creativecommons.org/licenses/by/4.0/', 'cc-by', 'Attribution 4.0', 'https://creativecommons.org/licenses/by/4.0/'],
 		['http://creativecommons.org/licenses/by-nc/3.0/', 'cc-by-nc', 'Attribution NonCommercial 3.0', 'https://creativecommons.org/licenses/by-nc/3.0/'],
 		['https://creativecommons.org/licenses/by-nc/4.0/', 'cc-by-nc', 'Attribution NonCommercial 4.0', 'https://creativecommons.org/licenses/by-nc/4.0/'],
-		['http://creativecommons.org/licenses/sampling+/1.0/', 'sampling-plus', 'Sampling+ 1.0', 'https://creativecommons.org/licenses/sampling+/1.0/'],
 	] as const) {
 		const license = normalizeFreesoundLicense(deed);
 		assert.equal(license.code, code);
@@ -82,6 +76,12 @@ test('normalizes Freesound deed URLs while preserving the attribution license ve
 		() => normalizeFreesoundLicense('https://attacker.example/licenses/by/4.0/'),
 		/unsupported license/u,
 	);
+	for (const deed of [
+		'http://creativecommons.org/licenses/sampling/1.0/',
+		'https://creativecommons.org/licenses/sampling+/1.0/',
+	]) {
+		assert.throws(() => normalizeFreesoundLicense(deed), /unsupported license/u);
+	}
 });
 
 test('normalizes a sound without exposing the upstream preview URL', () => {
@@ -176,6 +176,21 @@ test('normalizes a bounded search page and derives pagination locally', () => {
 	assert.equal(normalized.hasPreviousPage, false);
 	assert.equal(normalized.results.length, 1);
 	assert.doesNotMatch(JSON.stringify(normalized), /token=must-not-leak/u);
+});
+
+test('search pages omit legacy Sampling and Sampling+ records without hiding allowed sounds', () => {
+	const normalized = normalizeFreesoundSearch({
+		count: 4,
+		results: [
+			soundFixture(),
+			soundFixture({ license: 'Sampling' }),
+			soundFixture({ license: 'Sampling+' }),
+			soundFixture({ license: 'https://creativecommons.org/licenses/sampling+/1.0/' }),
+		],
+	}, { query: 'rain', page: 1, pageSize: 20 });
+
+	assert.equal(normalized.results.length, 1);
+	assert.equal(normalized.results[0]?.license.code, 'cc-by');
 });
 
 test('rejects oversized or structurally invalid search responses', () => {

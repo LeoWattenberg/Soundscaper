@@ -14,7 +14,7 @@ const FREESOUND_PREVIEW_MIME_TYPES: ReadonlySet<string> = new Set([
 
 export type FreesoundLicenseFilter = 'all' | 'cc0' | 'cc-by' | 'cc-by-nc';
 export type FreesoundSearchSort = 'relevance' | 'newest' | 'rating' | 'downloads';
-export type FreesoundLicenseCode = Exclude<FreesoundLicenseFilter, 'all'> | 'sampling-plus';
+export type FreesoundLicenseCode = Exclude<FreesoundLicenseFilter, 'all'>;
 
 export interface FreesoundSound {
 	readonly id: number;
@@ -289,8 +289,15 @@ function normalizeSearchPage(value: unknown): FreesoundSearchPage {
 		totalPages: requiredNonNegativeInteger(dataValue(record, 'totalPages'), 'totalPages'),
 		hasNextPage: requiredBoolean(dataValue(record, 'hasNextPage'), 'hasNextPage'),
 		hasPreviousPage: requiredBoolean(dataValue(record, 'hasPreviousPage'), 'hasPreviousPage'),
-		results: Object.freeze(results.map(normalizeSound)),
+		results: Object.freeze(results.flatMap(normalizeSearchSound)),
 	});
+}
+
+function normalizeSearchSound(value: unknown): FreesoundSound[] {
+	const record = requiredRecord(value, 'Freesound sound');
+	const license = requiredRecord(dataValue(record, 'license'), 'Freesound license');
+	const code = dataValue(license, 'code');
+	return code === 'sampling' || code === 'sampling-plus' ? [] : [normalizeSound(record)];
 }
 
 function normalizeSound(value: unknown): FreesoundSound {
@@ -306,7 +313,7 @@ function normalizeSound(value: unknown): FreesoundSound {
 	const creatorPageUrl = requiredHttpsUrl(dataValue(creator, 'pageUrl'), 'creator URL', 'freesound.org');
 	const licenseCode = normalizeEnum(
 		dataValue(license, 'code'),
-		['cc0', 'cc-by', 'cc-by-nc', 'sampling-plus'],
+		['cc0', 'cc-by', 'cc-by-nc'],
 		'license code',
 	);
 	const licenseUrl = requiredHttpsUrl(dataValue(license, 'url'), 'license URL');

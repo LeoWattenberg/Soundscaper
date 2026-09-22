@@ -76,7 +76,7 @@ const SORTS = Object.freeze({
 });
 
 const LICENSE_FILTERS = Object.freeze({
-	all: null,
+	all: 'license:("Creative Commons 0" OR Attribution OR "Attribution NonCommercial")',
 	cc0: 'license:"Creative Commons 0"',
 	'cc-by': 'license:Attribution',
 	'cc-by-nc': 'license:"Attribution NonCommercial"',
@@ -94,8 +94,7 @@ export async function handleFreesoundSearchRequest(
 		url.searchParams.set('page_size', String(PAGE_SIZE));
 		url.searchParams.set('sort', SORTS[input.sort]);
 		url.searchParams.set('fields', API_FIELDS);
-		const filter = LICENSE_FILTERS[input.license];
-		if (filter !== null) url.searchParams.set('filter', filter);
+		url.searchParams.set('filter', LICENSE_FILTERS[input.license]);
 		const source = await fetchApiJson(context, upstream, url, false);
 		const data = normalizeFreesoundSearch(source, {
 			query: input.query,
