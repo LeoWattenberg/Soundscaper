@@ -451,7 +451,7 @@ test.describe('audio editor React/design-system workflows', () => {
 		await editor.getByRole('button', { name: 'Spectrogram', exact: true }).click();
 		await expect(editor).toHaveAttribute('data-timeline-view', 'spectrogram');
 		await expect(editor.getByRole('button', { name: /^Arm for recording:/ })).toHaveCount(0);
-		const record = editor.getByRole('button', { name: 'Record onto the active track' });
+		const record = editor.locator('[data-transport="record"] .kw-audio-editor__split-button-main button');
 		const recordIcon = record.locator('.transport-button__icon');
 		const playIcon = editor.getByRole('button', { name: 'Play', exact: true }).locator('.transport-button__icon');
 		for (const theme of ['light', 'dark']) {

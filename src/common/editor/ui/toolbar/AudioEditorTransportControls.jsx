@@ -13,15 +13,13 @@ import { iconNameToChar } from '../../audacity-iconcodes.js';
 import { framesToSeconds, secondsToFrames } from '../../design-system-adapters.js';
 import AudioEditorSplitButton from '../AudioEditorSplitButton.tsx';
 import { useAudioEditorTelemetrySelector } from '../DesignSystemRuntime.jsx';
-import { AUDIO_EDITOR_APPLICATION_MENU_ACTION_IDS } from '../application-menu-registry.ts';
 import { formatOptionsLabel } from '../localization-template.ts';
 import { formatPlaybackSpeed } from '../meter-settings.ts';
-import { createTakeCycleRecordingMenuItems } from '../take-cycle-recording-menu.ts';
+export { default as RecordFlyout } from './RecordFlyout.jsx';
 import { AudioDevicesFlyout } from './AudioEditorMeterControls.jsx';
 import EditorTaskProgressBar from './EditorTaskProgressBar.tsx';
 import WorkspaceSwitcherControl from './WorkspaceSwitcherControl.jsx';
 import TransportAuditionMenu from './TransportAuditionMenu.tsx';
-import { transportShortcutDisplayActionId } from '../../transport-shortcut-display.ts';
 
 export function TelemetryPlayTransportControl({ copy, snapshot, blocked, controller, run }) {
 	const transportState = useAudioEditorTelemetrySelector(
@@ -104,133 +102,6 @@ export function PlaySpeedFlyout({ copy, snapshot, blocked, controller, run, clos
 			</label>
 		</div>
 	);
-}
-
-export function RecordFlyout({
-	copy,
-	snapshot,
-	recordLabel,
-	toggleRecording,
-	actionRuntime,
-	controller,
-	run,
-	onOpenRecordingOffset,
-	onOpenTimedRecording,
-	onOpenTakeCycleRecovery = () => undefined,
-	onClose,
-}) {
-	const shortcut = (actionId) => {
-		const bindings = snapshot.preferences?.shortcuts?.[transportShortcutDisplayActionId(actionId)];
-		return bindings?.length ? bindings.join(', ') : undefined;
-	};
-	const recoveryBlocked = Boolean(snapshot.takeCycleRecovery);
-	const ordinaryRecording = snapshot.recordingKind !== 'take-cycle';
-	const recordingInputBlocked = recoveryBlocked || snapshot.recording || snapshot.recordingStarting || snapshot.recordingScheduling || snapshot.scheduledRecording;
-	const soundActivation = snapshot.recordingInputs?.soundActivation;
-	const soundActivationMutationBlocked = snapshot.readOnly
-		|| !soundActivation
-		|| soundActivation.preferenceMutationBlocked;
-	const takeCycleItems = createTakeCycleRecordingMenuItems({
-		snapshot,
-		copy,
-		start: () => run(() => controller.actions.recording.cycle.start()),
-		openRecovery: onOpenTakeCycleRecovery,
-	});
-	const items = [
-		{
-			label: snapshot.recording ? copy.stopRecording : recordLabel,
-			shortcut: shortcut('record-on-current-track'),
-			disabled: recoveryBlocked || snapshot.readOnly || snapshot.importing || snapshot.exporting || snapshot.transportState === 'playing' || snapshot.recordingScheduling || snapshot.scheduledRecording,
-			onClick: toggleRecording,
-		},
-		{
-			id: AUDIO_EDITOR_APPLICATION_MENU_ACTION_IDS.recordOnNewTrack,
-			label: copy.recordNewTrack,
-			shortcut: shortcut(AUDIO_EDITOR_APPLICATION_MENU_ACTION_IDS.recordOnNewTrack),
-			disabled: snapshot.readOnly || recordingInputBlocked,
-			onClick: () => run(() => controller.actions.recording.startNewTrack()),
-		},
-		{
-			label: copy.stop,
-			shortcut: shortcut('action://playback/toggle-play-stop'),
-			onClick: () => run(() => controller.actions.transport.stop()),
-		},
-		{
-			id: AUDIO_EDITOR_APPLICATION_MENU_ACTION_IDS.pauseRecording,
-			label: snapshot.recordingOptions?.paused ? (copy.resumeRecording || copy.record) : copy.pauseRecording,
-			shortcut: shortcut(AUDIO_EDITOR_APPLICATION_MENU_ACTION_IDS.pauseRecording),
-			disabled: !snapshot.recording || !ordinaryRecording,
-			checked: Boolean(snapshot.recordingOptions?.paused),
-			onClick: () => run(() => controller.actions.recording.pause()),
-		},
-		{ divider: true },
-		...takeCycleItems,
-		...(takeCycleItems.length ? [{ divider: true }] : []),
-		{
-			label: snapshot.recordingInputs?.hasOpenInputs ? copy.audioDeviceRefresh : copy.recordingAllowInputs,
-			disabled: recordingInputBlocked,
-			onClick: () => run(() => snapshot.recordingInputs?.hasOpenInputs
-				? controller.actions.recording.refreshInputs()
-				: controller.actions.recording.requestInputAccess()),
-		},
-		...(snapshot.recordingInputs?.hasOpenInputs ? [{
-			label: copy.recordingReleaseInputs,
-			disabled: recordingInputBlocked,
-			onClick: () => run(() => controller.actions.recording.releaseInputs()),
-		}] : []),
-		{ divider: true },
-		{
-			label: copy.monitor,
-			checked: Boolean(snapshot.monitor?.enabled),
-			disabled: recoveryBlocked || snapshot.recordingStarting,
-			onClick: () => run(() => controller.actions.recording.setMonitoring(!snapshot.monitor?.enabled)),
-		},
-		{ label: copy.recordingOffset, disabled: recoveryBlocked, onClick: onOpenRecordingOffset },
-		{
-			id: AUDIO_EDITOR_APPLICATION_MENU_ACTION_IDS.leadInRecording,
-			label: copy.leadInTime,
-			shortcut: shortcut(AUDIO_EDITOR_APPLICATION_MENU_ACTION_IDS.leadInRecording),
-			checked: Boolean(snapshot.recordingOptions?.leadIn),
-			disabled: recordingInputBlocked,
-			onClick: () => run(() => controller.actions.recording.toggleLeadIn()),
-		},
-		{
-			id: AUDIO_EDITOR_APPLICATION_MENU_ACTION_IDS.setUpTimedRecording,
-			label: copy.timedRecording,
-			shortcut: shortcut(AUDIO_EDITOR_APPLICATION_MENU_ACTION_IDS.setUpTimedRecording),
-			disabled: recoveryBlocked || snapshot.readOnly || snapshot.recording || snapshot.recordingStarting || snapshot.recordingScheduling,
-			onClick: onOpenTimedRecording,
-		},
-		...(snapshot.productId === 'soundscaper' ? [{
-			id: AUDIO_EDITOR_APPLICATION_MENU_ACTION_IDS.toggleSoundActivatedRecording,
-			label: copy.soundActivatedRecording,
-			checked: Boolean(soundActivation?.preferences.enabled),
-			disabled: recoveryBlocked || soundActivationMutationBlocked,
-			onClick: () => run(() => actionRuntime.recording.toggleSoundActivation()),
-		}, {
-			id: AUDIO_EDITOR_APPLICATION_MENU_ACTION_IDS.setSoundActivationLevel,
-			label: copy.soundActivationLevel,
-			disabled: recoveryBlocked || !soundActivation,
-			onClick: () => actionRuntime.recording.openSoundActivation(),
-		}] : []),
-	];
-	return <SplitButtonMenuItems items={items} onClose={onClose} />;
-}
-
-function SplitButtonMenuItems({ items, onClose }) {
-	return items.map((item, index) => item.divider
-		? <ContextMenuItem key={`divider-${index}`} isDivider />
-		: <ContextMenuItem
-			key={`${item.label}-${index}`}
-			label={item.label}
-			shortcut={item.shortcut}
-			disabled={item.disabled}
-			checked={item.checked}
-			onClick={item.disabled ? undefined : () => {
-				onClose();
-				item.onClick?.();
-			}}
-		/>);
 }
 
 export function EditorActionBar({

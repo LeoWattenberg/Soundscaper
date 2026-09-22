@@ -34,6 +34,7 @@ export default function EditorToolToolbar({
 	controller,
 	snapshot,
 	copy,
+	locale,
 	isCompact,
 	zoomProject,
 	blocked,
@@ -57,7 +58,6 @@ export default function EditorToolToolbar({
 	splitToolMomentary = false,
 	actionRuntime,
 	onOpenSpectralSelection,
-	onOpenRecordingOffset,
 	onOpenTimedRecording,
 	onOpenTakeCycleRecovery,
 	onJumpToStart,
@@ -152,14 +152,13 @@ export default function EditorToolToolbar({
 				transportButtonsVisible && <WorkspaceToolbarSection key="transport" {...toolbarSectionProps('transport')}>
 				<TransportToolbarGroup
 					buttons={transportButtons}
-					actionRuntime={actionRuntime}
 					blocked={blocked}
 					capabilities={capabilities}
 					controller={controller}
 					copy={copy}
+					locale={locale}
 					onJumpToEnd={onJumpToEnd}
 					onJumpToStart={onJumpToStart}
-					onOpenRecordingOffset={onOpenRecordingOffset}
 					onOpenTakeCycleRecovery={onOpenTakeCycleRecovery}
 					onOpenTimedRecording={onOpenTimedRecording}
 					recordLabel={recordLabel}

@@ -10,7 +10,6 @@ import {
 	chooseCommandAction,
 	chooseNestedCommandAction,
 	collectClientErrors,
-	getMenuItem,
 	importFiles,
 	registerAudioEditorHooks,
 } from './audio-editor-test-helpers.js';
@@ -96,27 +95,25 @@ test.describe('Soundscaper routed take-cycle recording', () => {
 		await dialog.getByRole('button', { name: 'Close', exact: true }).last().click();
 		await expect(dialog).toBeHidden();
 
-		const record = editor.getByRole('button', { name: 'Record onto the active track', exact: true });
+		const record = editor.locator('[data-transport="record"] .kw-audio-editor__split-button-main button');
 		await expect(record).toBeDisabled();
 		const recordOptions = editor.getByRole('button', { name: 'Record options', exact: true });
 		await expect(recordOptions).toBeEnabled();
 		await recordOptions.click();
-		const menu = discardedPage.getByRole('menu', { name: 'Record options', exact: true });
-		await expect(menu.getByRole('menuitem', { name: 'Resolve interrupted take recording', exact: true })).toBeEnabled();
+		const menu = discardedPage.getByRole('dialog', { name: 'Record options', exact: true });
+		await expect(menu.getByRole('button', { name: 'Resolve interrupted take recording', exact: true })).toBeEnabled();
 		for (const label of [
-			'Enable microphones',
-			'Monitor input',
-			'Recording offset',
-			'Enable lead-in time',
-			'Set up timed recording',
+			'Record to new track',
+			'Timed recording',
 			'Sound-activated recording',
 		]) {
-			await expect(getMenuItem(menu, label)).toBeDisabled();
+			await expect(menu.getByRole('button', { name: label, exact: true })).toBeDisabled();
 		}
-		const disabledRecordItems = menu.locator('[role="menuitem"][aria-disabled="true"]');
-		await expect(disabledRecordItems.filter({ hasText: 'Record onto the active track' })).toHaveCount(1);
-		await expect(disabledRecordItems.filter({ hasText: 'Record new track' })).toHaveCount(1);
-		await menu.getByRole('menuitem', { name: 'Resolve interrupted take recording', exact: true }).focus();
+		await expect(menu.getByRole('checkbox', { name: 'Lead-in time' })).toBeDisabled();
+		await expect(menu.getByRole('checkbox', { name: 'Monitor input' })).toBeDisabled();
+		await expect(menu.getByRole('button', { name: 'Sound activation' })).toBeDisabled();
+		await expect(menu.getByRole('button', { name: 'Record loop into takes' })).toBeDisabled();
+		await menu.getByRole('button', { name: 'Resolve interrupted take recording', exact: true }).focus();
 		await discardedPage.keyboard.press('Enter');
 		dialog = discardedPage.getByRole('dialog', { name: 'Interrupted take recording', exact: true });
 		await expect(dialog).toBeVisible();
@@ -169,7 +166,7 @@ test.describe('Soundscaper routed take-cycle recording', () => {
 				}
 			});
 
-			const record = editor.getByRole('button', { name: 'Record onto the active track', exact: true });
+			const record = editor.locator('[data-transport="record"] .kw-audio-editor__split-button-main button');
 			await expect(record).toHaveAttribute('aria-pressed', 'false', { timeout: 30_000 });
 			const errorToast = page.locator('[data-editor-toast="workspace-status-error"]');
 			await expect(errorToast).toBeVisible();
@@ -187,8 +184,8 @@ test.describe('Soundscaper routed take-cycle recording', () => {
 
 async function startTakeCycle(page, editor) {
 	await editor.getByRole('button', { name: 'Record options', exact: true }).click();
-	const menu = page.getByRole('menu', { name: 'Record options', exact: true });
-	const start = menu.getByRole('menuitem', { name: 'Record loop into takes', exact: true });
+	const menu = page.getByRole('dialog', { name: 'Record options', exact: true });
+	const start = menu.getByRole('button', { name: 'Record loop into takes', exact: true });
 	await expect(start).toBeEnabled();
 	await start.focus();
 	await page.keyboard.press('Enter');
@@ -196,12 +193,12 @@ async function startTakeCycle(page, editor) {
 	if (await errorToast.isVisible()) {
 		throw new Error(await errorToast.textContent() ?? 'Cycle recording failed.');
 	}
-	await expect(editor.getByRole('button', { name: 'Record onto the active track', exact: true }))
+	await expect(editor.locator('[data-transport="record"] .kw-audio-editor__split-button-main button'))
 		.toHaveAttribute('aria-pressed', 'true', { timeout: 20_000 });
 }
 
 async function stopTakeCycle(page, editor) {
-	const record = editor.getByRole('button', { name: 'Record onto the active track', exact: true });
+	const record = editor.locator('[data-transport="record"] .kw-audio-editor__split-button-main button');
 	await record.click();
 	await expect(record).toHaveAttribute('aria-pressed', 'false', { timeout: 30_000 });
 	const errorToast = page.locator('[data-editor-toast="workspace-status-error"]');

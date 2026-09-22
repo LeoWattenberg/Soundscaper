@@ -1,7 +1,6 @@
 import { expect, test } from './audio-editor-test-fixtures.js';
 import {
 	bootEditor,
-	getMenuItem,
 	registerAudioEditorHooks,
 } from './audio-editor-test-helpers.js';
 
@@ -44,10 +43,8 @@ test.describe('audio editor timed recording', () => {
 		});
 		const editor = await bootEditor(page, '/embed/en/');
 		await editor.getByRole('button', { name: 'Record options', exact: true }).click();
-		await getMenuItem(
-			page.getByRole('menu', { name: 'Record options', exact: true }),
-			'Set up timed recording',
-		).click();
+		await page.getByRole('dialog', { name: 'Record options', exact: true })
+			.getByRole('button', { name: 'Timed recording', exact: true }).click();
 		const dialog = page.getByRole('dialog', { name: 'Set up timed recording', exact: true });
 		await expect(dialog).toBeVisible();
 		await expect(dialog).not.toContainText('opens the recording input immediately');

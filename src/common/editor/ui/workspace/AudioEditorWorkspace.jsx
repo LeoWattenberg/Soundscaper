@@ -184,7 +184,9 @@ export default function AudioEditorWorkspace({
 		parityRuntime.actions.tools.synchronizeDrawTool();
 	}, [parityRuntime, snapshot.sampleEdit?.mode]);
 	const toggleRecording = useCallback(() => {
-		if (snapshot.recording) return run(() => controller.actions.recording.pause());
+		if (snapshot.recording) return run(() => snapshot.recordingKind === 'take-cycle'
+			? controller.actions.transport.stop()
+			: controller.actions.recording.pause());
 		if (snapshot.scheduledRecording || snapshot.recordingScheduling) return undefined;
 		const selectedTrack = project?.tracks.find((track) => track.id === snapshot.selectedTrackId);
 		const pairedAudioTrack = selectedTrack?.type === 'video' && selectedTrack.laneGroupId
@@ -198,7 +200,7 @@ export default function AudioEditorWorkspace({
 				? selectedTrack.id
 				: pairedAudioTrack?.id || project?.tracks.find((track) => track.type === 'audio')?.id;
 		return run(() => controller.actions.recording.start({ trackId }));
-	}, [controller, project?.tracks, run, showArmControls, snapshot.recording, snapshot.recordingScheduling, snapshot.scheduledRecording, snapshot.selectedTrackId]);
+	}, [controller, project?.tracks, run, showArmControls, snapshot.recording, snapshot.recordingKind, snapshot.recordingScheduling, snapshot.scheduledRecording, snapshot.selectedTrackId]);
 
 	const openTimedRecording = useCallback(() => {
 		const startTimeMs = snapshot.scheduledRecording?.startTimeMs ?? Date.now() + 5 * 60_000;

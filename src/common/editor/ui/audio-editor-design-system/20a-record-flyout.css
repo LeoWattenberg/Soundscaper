@@ -1,0 +1,106 @@
+/* Microphone options use grouped controls instead of a command list. */
+.kw-audio-editor__split-button-flyout:has([data-record-flyout]) {
+	width: min(520px, calc(100vw - 20px));
+}
+
+.kw-audio-editor__record-flyout {
+	padding: 10px;
+	color: var(--text);
+}
+
+.kw-audio-editor__record-flyout-grid {
+	display: grid;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	gap: 8px;
+}
+
+.kw-audio-editor__record-flyout-action,
+.kw-audio-editor__record-flyout-check {
+	display: flex;
+	min-width: 0;
+	min-height: 46px;
+	align-items: center;
+	justify-content: space-between;
+	gap: 8px;
+	padding: 9px 12px;
+	border: 1px solid var(--line);
+	border-radius: 6px;
+	background: var(--toolbar-button-bg);
+	color: var(--text);
+	font: inherit;
+	font-size: 12px;
+	line-height: 1.3;
+	text-align: start;
+}
+
+.kw-audio-editor__record-flyout-action {
+	width: 100%;
+	cursor: pointer;
+}
+
+.kw-audio-editor__record-flyout-action:hover:not(:disabled),
+.kw-audio-editor__record-flyout-check:hover:has(input:not(:disabled)),
+.kw-audio-editor__record-flyout-cog:hover:not(:disabled) {
+	background: var(--toolbar-button-hover);
+}
+
+.kw-audio-editor__record-flyout-action:disabled,
+.kw-audio-editor__record-flyout-check:has(input:disabled),
+.kw-audio-editor__record-flyout-cog:disabled {
+	opacity: 0.5;
+	cursor: not-allowed;
+}
+
+.kw-audio-editor__record-flyout-action:focus-visible,
+.kw-audio-editor__record-flyout-check:focus-within,
+.kw-audio-editor__record-flyout-cog:focus-visible {
+	outline: 2px solid var(--focus-color, var(--accent));
+	outline-offset: 2px;
+}
+
+.kw-audio-editor__record-flyout-activation {
+	display: grid;
+	grid-template-columns: minmax(0, 1fr) 42px;
+	gap: 4px;
+}
+
+.kw-audio-editor__record-flyout-cog {
+	display: grid;
+	place-items: center;
+	border: 1px solid var(--line);
+	border-radius: 6px;
+	background: var(--toolbar-button-bg);
+	color: var(--text);
+	cursor: pointer;
+}
+
+.kw-audio-editor__record-flyout-check {
+	justify-content: flex-start;
+	cursor: pointer;
+}
+
+.kw-audio-editor__record-flyout-check input {
+	flex: none;
+	width: 16px;
+	height: 16px;
+	margin: 0;
+	accent-color: var(--accent);
+}
+
+.kw-audio-editor__record-flyout > .kw-audio-editor__record-flyout-action {
+	margin-top: 8px;
+}
+
+.kw-audio-editor__record-activation-settings {
+	z-index: calc(var(--flyout-z) + 1);
+	width: min(300px, calc(100vw - 20px));
+	padding: 14px;
+	color: var(--text);
+	background: var(--panel);
+}
+
+.kw-audio-editor__record-activation-settings .kw-audio-editor-sound-activation {
+	margin: 0;
+	padding: 0;
+	border: 0;
+}

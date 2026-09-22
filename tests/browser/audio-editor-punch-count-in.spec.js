@@ -3,7 +3,6 @@ import {
 	bootEditor,
 	chooseCommandAction,
 	collectClientErrors,
-	getMenuItem,
 	importFiles,
 	registerAudioEditorHooks,
 } from './audio-editor-test-helpers.js';
@@ -105,14 +104,13 @@ test.describe('Soundscaper punch and count-in recording', () => {
 		expect(originalClips).toHaveLength(1);
 
 		await editor.getByRole('button', { name: 'Record options', exact: true }).click();
-		const leadIn = getMenuItem(
-			page.getByRole('menu', { name: 'Record options', exact: true }),
-			'Enable lead-in time',
-		);
+		const leadIn = page.getByRole('dialog', { name: 'Record options', exact: true })
+			.getByRole('checkbox', { name: 'Lead-in time', exact: true });
 		await expect(leadIn).toBeVisible();
-		await leadIn.click();
+		await leadIn.check();
+		await page.keyboard.press('Escape');
 
-		const record = editor.getByRole('button', { name: 'Record onto the active track', exact: true });
+		const record = editor.locator('[data-transport="record"] .kw-audio-editor__split-button-main button');
 		await record.click();
 		await expect.poll(() => page.evaluate(() => globalThis.__soundscaperRecorderSchedule)).not.toBeNull();
 		const observed = await page.evaluate(() => ({

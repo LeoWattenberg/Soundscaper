@@ -31,7 +31,6 @@ function render(buttons: readonly string[], audioRecording = true, toolbarButton
 	return renderToStaticMarkup(
 		<TransportToolbarGroup
 			buttons={buttons}
-			actionRuntime={{}}
 			blocked={false}
 			capabilities={{ audioRecording }}
 			controller={{
@@ -40,9 +39,9 @@ function render(buttons: readonly string[], audioRecording = true, toolbarButton
 				subscribeTelemetry: () => () => undefined,
 			}}
 			copy={ENGLISH_COPY}
+			locale="en"
 			onJumpToEnd={() => undefined}
 			onJumpToStart={() => undefined}
-			onOpenRecordingOffset={() => undefined}
 			onOpenTakeCycleRecovery={() => undefined}
 			onOpenTimedRecording={() => undefined}
 			recordLabel={ENGLISH_COPY.record}
