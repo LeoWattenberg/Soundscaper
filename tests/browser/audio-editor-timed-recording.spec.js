@@ -11,31 +11,34 @@ test.describe('audio editor timed recording', () => {
 		await page.addInitScript(() => {
 			globalThis.__timedInputRequests = 0;
 			globalThis.__timedInputTrackStopped = false;
-			let readyState = 'live';
-			const track = new EventTarget();
-			Object.defineProperties(track, {
-				kind: { value: 'audio' },
-				readyState: { get: () => readyState },
-				getSettings: { value: () => ({ channelCount: 1, sampleRate: 48_000 }) },
-				stop: { value: () => {
-					if (readyState === 'ended') return;
-					readyState = 'ended';
-					globalThis.__timedInputTrackStopped = true;
-					track.dispatchEvent(new Event('ended'));
-				} },
-			});
-			const stream = {
-				getAudioTracks: () => [track],
-				getTracks: () => [track],
-			};
 			Object.defineProperty(navigator, 'mediaDevices', {
 				configurable: true,
 				value: {
 					enumerateDevices: async () => [],
 					getUserMedia: () => {
 						globalThis.__timedInputRequests += 1;
+						const context = new AudioContext();
+						const destination = context.createMediaStreamDestination();
+						const oscillator = context.createOscillator();
+						oscillator.connect(destination);
+						oscillator.start();
+						void context.resume().catch(() => undefined);
+						const [track] = destination.stream.getAudioTracks();
+						const nativeStop = track.stop.bind(track);
+						const nativeGetSettings = track.getSettings.bind(track);
+						Object.defineProperties(track, {
+							getSettings: { configurable: true, value: () => ({ ...nativeGetSettings(),
+								channelCount: destination.channelCount, sampleRate: context.sampleRate }) },
+							stop: { configurable: true, value: () => {
+								if (track.readyState === 'ended') return;
+								globalThis.__timedInputTrackStopped = true;
+								nativeStop();
+								oscillator.stop();
+								void context.close().catch(() => undefined);
+							} },
+						});
 						return new Promise((resolve) => {
-							globalThis.__resolveTimedInput = () => resolve(stream);
+							globalThis.__resolveTimedInput = () => resolve(destination.stream);
 						});
 					},
 				},
