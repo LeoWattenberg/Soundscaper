@@ -33,9 +33,11 @@ test('the maintainability gate walks nested native source directories', () => {
 	try {
 		mkdirSync(join(directory, 'codec', 'native'), { recursive: true });
 		mkdirSync(join(directory, 'node_modules', 'dependency'), { recursive: true });
+		mkdirSync(join(directory, '.venv', 'dependency'), { recursive: true });
 		mkdirSync(join(directory, 'test-results', 'fixture'), { recursive: true });
 		writeFileSync(join(directory, 'codec', 'native', 'codec.c'), 'int codec(void);\n');
 		writeFileSync(join(directory, 'node_modules', 'dependency', 'ignored.c'), 'int ignored(void);\n');
+		writeFileSync(join(directory, '.venv', 'dependency', 'ignored.h'), 'int ignored(void);\n');
 		writeFileSync(join(directory, 'test-results', 'fixture', 'ignored.cpp'), 'int ignored();\n');
 
 		assert.deepEqual(
