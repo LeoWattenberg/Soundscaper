@@ -57,9 +57,16 @@
 	opacity: .5;
 }
 
-:is(.kw-audio-editor__panel-dock--left, .kw-audio-editor__panel-dock--right) .kw-audio-editor__workspace-panel {
+:is(.kw-audio-editor__panel-dock--left, .kw-audio-editor__panel-dock--right) > .kw-audio-editor__workspace-panel:not(:last-child) {
 	height: var(--workspace-panel-size);
-	resize: vertical;
+	flex: 0 0 auto;
+	resize: none;
+}
+
+:is(.kw-audio-editor__panel-dock--left, .kw-audio-editor__panel-dock--right) > .kw-audio-editor__workspace-panel:last-child {
+	height: auto;
+	flex: 1 1 auto;
+	resize: none;
 }
 
 .kw-audio-editor__panel-dock--bottom .kw-audio-editor__workspace-panel {
@@ -88,8 +95,7 @@
 }
 
 .kw-audio-editor__workspace-dock-resize-handle:hover {
-	color: var(--text);
-	background: color-mix(in srgb, var(--control) 70%, transparent);
+	background: transparent;
 }
 
 .kw-audio-editor__workspace-dock-resize-handle:focus-visible {
@@ -128,7 +134,7 @@
 	border-radius: 7px;
 	box-shadow: var(--shadow);
 	pointer-events: auto;
-	resize: both;
+	resize: none;
 }
 
 .kw-audio-editor__panel-dock--floating .kw-audio-editor__workspace-panel--active,
@@ -198,13 +204,19 @@
 }
 
 .kw-audio-editor__workspace-resize-handle {
+	position: absolute;
+	z-index: 4;
+	right: 0;
+	bottom: 0;
+	width: 16px;
+	height: 16px;
+	border: 0;
+	border-radius: 0;
 	cursor: nwse-resize;
 }
 
 .kw-audio-editor__workspace-resize-handle:hover {
-	color: var(--text);
-	background: var(--control);
-	border-color: var(--line);
+	background: transparent;
 }
 
 .kw-audio-editor__workspace-drag-handle:active {

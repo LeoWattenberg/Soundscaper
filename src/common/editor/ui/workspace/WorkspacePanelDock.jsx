@@ -100,8 +100,19 @@ export default function WorkspacePanelDock({
 	useEffect(() => {
 		const resize = (event) => {
 			const session = resizeSessionRef.current;
-			if (!session || dock === 'floating' || event.pointerId !== session.pointerId) return;
+			if (!session || event.pointerId !== session.pointerId) return;
 			event.preventDefault();
+			if (dock === 'floating') {
+				if (session.resizeWidth) session.element.style.width = `${Math.round(Math.max(
+					session.minimumWidth,
+					Math.min(session.maximumWidth, session.initialWidth + event.clientX - session.startClientX),
+				))}px`;
+				if (session.resizeHeight) session.element.style.height = `${Math.round(Math.max(
+					session.minimumHeight,
+					Math.min(session.maximumHeight, session.initialHeight + event.clientY - session.startClientY),
+				))}px`;
+				return;
+			}
 			const pointerDelta = session.horizontal
 				? event.clientX - session.startClientX
 				: event.clientY - session.startClientY;
@@ -154,7 +165,10 @@ export default function WorkspacePanelDock({
 			const session = resizeSessionRef.current;
 			if (session?.pointerId !== undefined && event?.pointerId !== session.pointerId) return;
 			resizeSessionRef.current = null;
-			if (session?.manual && session.sizeProperty) session.element?.style.removeProperty(session.sizeProperty);
+			if (session?.manual && dock === 'floating' && session.element) {
+				session.element.style.width = `${session.initialWidth}px`;
+				session.element.style.height = `${session.initialHeight}px`;
+			} else if (session?.manual && session.sizeProperty) session.element?.style.removeProperty(session.sizeProperty);
 		};
 		window.addEventListener('pointermove', resize, { passive: false });
 		window.addEventListener('pointerup', finishResize);
@@ -284,32 +298,57 @@ export default function WorkspacePanelDock({
 		const element = event.target.closest?.('[data-workspace-panel-group]');
 		if (!element || event.target.closest?.('[role="menu"]')) return;
 		if (dock === 'bottom') return;
-		const panelGroup = groups.find((group) => group.id === element.dataset.workspacePanelGroup);
-		if (!panelGroup) return;
+		const panelIndex = groups.findIndex((group) => group.id === element.dataset.workspacePanelGroup);
+		if (panelIndex < 0 || (dock !== 'floating' && panelIndex === groups.length - 1)) return;
+		const panelGroup = groups[panelIndex];
 		const bounds = element.getBoundingClientRect();
 		const threshold = 14;
 		const horizontal = dock === 'bottom' || dock === 'floating';
+		const resizeWidth = dock === 'floating' && event.clientX >= bounds.right - threshold;
+		const resizeHeight = dock === 'floating' && event.clientY >= bounds.bottom - threshold;
 		const onResizeEdge = dock === 'floating'
-			? event.clientX >= bounds.right - threshold || event.clientY >= bounds.bottom - threshold
+			? resizeWidth || resizeHeight
 			: horizontal
 				? event.clientX >= bounds.right - threshold
 				: event.clientY >= bounds.bottom - threshold;
 		if (!onResizeEdge) return;
 		const dockBounds = dockRef.current?.getBoundingClientRect();
+		const maximumWidth = dock === 'floating'
+			? Math.max(FLOATING_PANEL_MIN_WIDTH, (dockBounds?.right || bounds.right) - bounds.left)
+			: undefined;
+		const maximumHeight = dock === 'floating'
+			? Math.max(FLOATING_PANEL_MIN_HEIGHT, (dockBounds?.bottom || bounds.bottom) - bounds.top)
+			: undefined;
+		const minimumSize = horizontal ? FLOATING_PANEL_MIN_WIDTH : Math.max(
+			FLOATING_PANEL_MIN_HEIGHT,
+			Number.parseFloat(window.getComputedStyle(element).minHeight) || 0,
+		);
+		const minimumFollowingHeight = dock === 'floating' ? 0 : Array.from(
+			dockRef.current?.querySelectorAll(':scope > [data-workspace-panel-group]') || [],
+		).slice(panelIndex + 1).reduce((total, panel) => total + Math.max(
+			FLOATING_PANEL_MIN_HEIGHT,
+			Number.parseFloat(window.getComputedStyle(panel).minHeight) || 0,
+		), 0);
 		resizeSessionRef.current = {
 			element,
 			horizontal,
 			initialWidth: Math.round(bounds.width),
 			initialHeight: Math.round(bounds.height),
+			resizeWidth,
+			resizeHeight,
+			minimumWidth: FLOATING_PANEL_MIN_WIDTH,
+			minimumHeight: FLOATING_PANEL_MIN_HEIGHT,
+			maximumWidth,
+			maximumHeight,
 			initialSize: Math.round(horizontal ? bounds.width : bounds.height),
 			maximumSize: Math.max(
-				horizontal ? FLOATING_PANEL_MIN_WIDTH : FLOATING_PANEL_MIN_HEIGHT,
+				minimumSize,
 				dock === 'floating'
 					? Number.POSITIVE_INFINITY
-					: Math.round(horizontal ? dockBounds?.width || bounds.width : dockBounds?.height || bounds.height),
+					: Math.round((dockBounds?.height || bounds.height) - minimumFollowingHeight),
 			),
-			minimumSize: horizontal ? FLOATING_PANEL_MIN_WIDTH : FLOATING_PANEL_MIN_HEIGHT,
-			manual: dock !== 'floating',
+			minimumSize,
+			manual: true,
 			panelId: panelGroup.activePanelId,
 			panelIds: panelGroup.entries.map(([panelId]) => panelId),
 			pointerId: event.pointerId,
@@ -317,7 +356,7 @@ export default function WorkspacePanelDock({
 			startClientX: event.clientX,
 			startClientY: event.clientY,
 		};
-		if (dock !== 'floating') event.preventDefault();
+		event.preventDefault();
 	};
 	const beginFloatingMove = (event, panelId) => {
 		if (dock !== 'floating' || event.button !== 0 || resizeSessionRef.current) return;
@@ -438,14 +477,14 @@ export default function WorkspacePanelDock({
 				data-workspace-dock-resize-handle={dock}
 				aria-label={formatResizeLabel(copy, workspaceDockLabel(copy, dock))}
 				onKeyDown={adjustSideDockSize}
-			>↔</button>}
+			/>}
 			{dock === 'bottom' && <button
 				type="button"
 				className="kw-audio-editor__workspace-dock-resize-handle"
 				data-workspace-dock-resize-handle={dock}
 				aria-label={formatResizeLabel(copy, workspaceDockLabel(copy, dock))}
 				onKeyDown={adjustBottomDockSize}
-			>↕</button>}
+			/>}
 			{groups.map((group, groupIndex) => <WorkspacePanelGroup
 				key={group.id}
 				group={group}

@@ -198,7 +198,7 @@ import {
 		await expect(effectsPanel.locator('.kw-audio-editor__workspace-panel-header').getByText('Effects', { exact: true })).toBeVisible();
 		await expect(packagePanel.locator('.effects-panel__header, .effects-panel-header')).toBeHidden();
 		await expect(resizeHandle).toHaveCSS('cursor', 'ew-resize');
-		await expect(resizeHandle).toHaveText('↔');
+		await expect(resizeHandle).toBeEmpty();
 		await expect(resizeHandle).toHaveCSS('writing-mode', 'horizontal-tb');
 		const initialDockBox = await sideDock.boundingBox();
 		expect(initialDockBox).not.toBeNull();
@@ -211,7 +211,7 @@ import {
 		const leftDock = editor.locator('[data-panel-dock="left"]:has([data-workspace-panel="effects"])');
 		const leftResizeHandle = leftDock.locator('[data-workspace-dock-resize-handle="left"]');
 		await expect(leftResizeHandle).toHaveCSS('cursor', 'ew-resize');
-		await expect(leftResizeHandle).toHaveText('↔');
+		await expect(leftResizeHandle).toBeEmpty();
 		await expect(leftResizeHandle).toHaveCSS('writing-mode', 'horizontal-tb');
 		const initialLeftDockBox = await leftDock.boundingBox();
 		expect(initialLeftDockBox).not.toBeNull();

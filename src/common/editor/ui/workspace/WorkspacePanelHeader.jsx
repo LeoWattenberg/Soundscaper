@@ -13,7 +13,7 @@ import { WORKSPACE_DOCK_IDS, workspaceDockLabel } from './workspace-panel-model.
 
 /**
  * The title bar every workspace panel shares: the ⠿ reorder handle, the
- * title, the floating ↘ resize handle and a "…" overflow menu that moves the
+ * title, the floating panel's invisible resize target and a "…" overflow menu that moves the
  * panel between docks or closes it. The menu is portaled to the editor root:
  * the docks are stacking contexts, so a menu rendered inside one would sit
  * under floating effect windows and dialogs, and a click on one of its items
@@ -142,7 +142,7 @@ export default function WorkspacePanelHeader({
 					aria-label={formatResizeLabel(copy, label)}
 					onClick={(event) => event.currentTarget.focus()}
 					onKeyDown={resizeHandle.onKeyDown}
-				>↘</button>}
+				/>}
 				<span data-workspace-panel-menu={menuPanelId}>
 					<button
 						ref={menuButtonRef}
