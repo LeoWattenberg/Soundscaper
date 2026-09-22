@@ -8,9 +8,9 @@ head:
   - tag: script
     attrs:
       type: "application/ld+json"
-    content: "{\"@context\":\"https://schema.org\",\"@type\":\"HowTo\",\"name\":\"Put music under a voice\",\"description\":\"Layer two tracks, duck one under the other automatically, mix them down and export.\",\"tool\":[{\"@type\":\"HowToTool\",\"name\":\"Soundscaper\"}],\"step\":[{\"@type\":\"HowToStep\",\"position\":1,\"name\":\"Open Soundscaper. A new, empty project is ready as soon as the editor loads.\",\"text\":\"Open Soundscaper. A new, empty project is ready as soon as the editor loads.\"},{\"@type\":\"HowToStep\",\"position\":2,\"name\":\"Choose File → Import audio and pick guide-music-loop.wav — a two-second stereo loop. The file lands as a clip on its own track.\",\"text\":\"Choose File → Import audio and pick guide-music-loop.wav — a two-second stereo loop. The file lands as a clip on its own track.\"},{\"@type\":\"HowToStep\",\"position\":3,\"name\":\"Choose File → Import audio and pick guide-second-loop.wav — a second two-second loop to layer on top. The file lands as a clip on its own track.\",\"text\":\"Choose File → Import audio and pick guide-second-loop.wav — a second two-second loop to layer on top. The file lands as a clip on its own track.\"},{\"@type\":\"HowToStep\",\"position\":4,\"name\":\"Press Play to listen, then Stop.\",\"text\":\"Press Play to listen, then Stop. Both loops play together, each on its own track.\"},{\"@type\":\"HowToStep\",\"position\":5,\"name\":\"Click the name bar of guide-music-loop.wav to select it.\",\"text\":\"Click the name bar of guide-music-loop.wav to select it. The clip you select is the one that gets ducked — the music, not the voice.\"},{\"@type\":\"HowToStep\",\"position\":6,\"name\":\"Choose Effect → Volume and compression → Auto Duck. In the Auto Duck dialog, choose guide-second-loop for Control track and set Duck amount to -12, then press Apply to selection.\",\"text\":\"Choose Effect → Volume and compression → Auto Duck. In the Auto Duck dialog, choose guide-second-loop for Control track and set Duck amount to -12, then press Apply to selection. Wherever the control track is louder than the threshold, the selected track is turned down by the duck amount, with fades at the edges. The music waveform is smaller wherever the voice is playing.\"},{\"@type\":\"HowToStep\",\"position\":7,\"name\":\"Press Play to listen, then Stop.\",\"text\":\"Press Play to listen, then Stop. The music sits under the voice and recovers where the voice is quiet.\"},{\"@type\":\"HowToStep\",\"position\":8,\"name\":\"Click the name bar of guide-music-loop.wav, then hold Shift and click the name bar of guide-second-loop.wav, so both are selected.\",\"text\":\"Click the name bar of guide-music-loop.wav, then hold Shift and click the name bar of guide-second-loop.wav, so both are selected. Every track with a selected clip goes into the mix.\"},{\"@type\":\"HowToStep\",\"position\":9,\"name\":\"Choose Tracks → Mix & Render. In the Mix & Render dialog, leave Mix down, Render effects and Replace originals checked, choose Stereo for Mix down to, then press Mix & Render.\",\"text\":\"Choose Tracks → Mix & Render. In the Mix & Render dialog, leave Mix down, Render effects and Replace originals checked, choose Stereo for Mix down to, then press Mix & Render.\"},{\"@type\":\"HowToStep\",\"position\":10,\"name\":\"The project now shows a clip named Mix.\",\"text\":\"The project now shows a clip named Mix. One track holds a clip named Mix; the two source tracks are gone. Edit → Undo would bring them back.\"},{\"@type\":\"HowToStep\",\"position\":11,\"name\":\"Choose File → Export audio, set Format to MP3, and press Export. The file downloads as soon as the render finishes, and its link stays in the dialog.\",\"text\":\"Choose File → Export audio, set Format to MP3, and press Export. The file downloads as soon as the render finishes, and its link stays in the dialog.\"}]}"
+    content: "{\"@context\":\"https://schema.org\",\"@type\":\"HowTo\",\"name\":\"Put music under a voice\",\"description\":\"Layer two tracks, duck one under the other automatically, mix them down and export.\",\"tool\":[{\"@type\":\"HowToTool\",\"name\":\"Soundscaper\"}],\"step\":[{\"@type\":\"HowToStep\",\"position\":1,\"name\":\"Open Soundscaper. A new, empty project is ready as soon as the editor loads.\",\"text\":\"Open Soundscaper. A new, empty project is ready as soon as the editor loads.\"},{\"@type\":\"HowToStep\",\"position\":2,\"name\":\"Choose File → Import and pick guide-music-loop.wav — a two-second stereo loop. It lands as a clip on its own track.\",\"text\":\"Choose File → Import and pick guide-music-loop.wav — a two-second stereo loop. It lands as a clip on its own track.\"},{\"@type\":\"HowToStep\",\"position\":3,\"name\":\"Choose File → Import and pick guide-second-loop.wav — a second two-second loop to layer on top. It lands as a clip on its own track.\",\"text\":\"Choose File → Import and pick guide-second-loop.wav — a second two-second loop to layer on top. It lands as a clip on its own track.\"},{\"@type\":\"HowToStep\",\"position\":4,\"name\":\"Press Play to listen, then Stop.\",\"text\":\"Press Play to listen, then Stop. Both loops play together, each on its own track.\"},{\"@type\":\"HowToStep\",\"position\":5,\"name\":\"Click the name bar of guide-music-loop.wav to select it.\",\"text\":\"Click the name bar of guide-music-loop.wav to select it. The clip you select is the one that gets ducked — the music, not the voice.\"},{\"@type\":\"HowToStep\",\"position\":6,\"name\":\"Choose Effect → Volume and compression → Auto Duck. In the Auto Duck dialog, choose guide-second-loop for Control track and set Duck amount to -12, then press Apply to selection.\",\"text\":\"Choose Effect → Volume and compression → Auto Duck. In the Auto Duck dialog, choose guide-second-loop for Control track and set Duck amount to -12, then press Apply to selection. Wherever the control track is louder than the threshold, the selected track is turned down by the duck amount, with fades at the edges. The music waveform is smaller wherever the voice is playing.\"},{\"@type\":\"HowToStep\",\"position\":7,\"name\":\"Press Play to listen, then Stop.\",\"text\":\"Press Play to listen, then Stop. The music sits under the voice and recovers where the voice is quiet.\"},{\"@type\":\"HowToStep\",\"position\":8,\"name\":\"Click the name bar of guide-music-loop.wav, then hold Shift and click the name bar of guide-second-loop.wav, so both are selected.\",\"text\":\"Click the name bar of guide-music-loop.wav, then hold Shift and click the name bar of guide-second-loop.wav, so both are selected. Every track with a selected clip goes into the mix.\"},{\"@type\":\"HowToStep\",\"position\":9,\"name\":\"Choose Tracks → Mix & Render. In the Mix & Render dialog, leave Mix down, Render effects and Replace originals checked, choose Stereo for Mix down to, then press Mix & Render.\",\"text\":\"Choose Tracks → Mix & Render. In the Mix & Render dialog, leave Mix down, Render effects and Replace originals checked, choose Stereo for Mix down to, then press Mix & Render.\"},{\"@type\":\"HowToStep\",\"position\":10,\"name\":\"The project now shows a clip named Mix.\",\"text\":\"The project now shows a clip named Mix. One track holds a clip named Mix; the two source tracks are gone. Edit → Undo would bring them back.\"},{\"@type\":\"HowToStep\",\"position\":11,\"name\":\"Choose File → Export audio, set Format to MP3, and press Export. The file downloads as soon as the render finishes, and its link stays in the dialog.\",\"text\":\"Choose File → Export audio, set Format to MP3, and press Export. The file downloads as soon as the render finishes, and its link stays in the dialog.\"}]}"
 ---
-<!-- docs-ai-provenance: {"factPacketSha256":"ba895710369ae2e8ed5e086058bad164406dd4f85818d1b246e0fda99b30e2bb","model":"aya-expanse:32b","modelDigest":"1603440383bd5504dc7afd01c0407b425b988dde650a8dc1a737433baa3cd432","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"ba895710369ae2e8ed5e086058bad164406dd4f85818d1b246e0fda99b30e2bb","targetLocale":"ko"} -->
+<!-- docs-ai-provenance: {"factPacketSha256":"e4981b16b64b467101c91ffa64c89547deeab7140978a77f6e5c8fadef3db7e6","model":"aya-expanse:32b","modelDigest":"1603440383bd5504dc7afd01c0407b425b988dde650a8dc1a737433baa3cd432","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"e4981b16b64b467101c91ffa64c89547deeab7140978a77f6e5c8fadef3db7e6","targetLocale":"ko"} -->
 
 <!-- Generated by `node scripts/docs-reference.mjs`. Do not edit. -->
 
@@ -32,36 +32,36 @@ head:
 ## 단계
 
 1. 사운드스케이퍼를 엽니다. 편집기가 로드되면 새로운 빈 프로젝트가 준비됩니다.
-2. **파일 → 오디오 임포트**를 선택하고 `guide-music-loop.wav` - 2초 길이의 스테레오 루프를 선택합니다. 파일은 자체 트랙에 클립으로 놓입니다.
-3. **파일 → 오디오 임포트**를 선택하고 `guide-second-loop.wav` - 겹쳐서 사용할 두 번째 2초 루프를 선택합니다. 파일은 자체 트랙에 클립으로 놓입니다.
+2. **파일 → 임포트**를 선택하고 `guide-music-loop.wav` - 2초 길이의 스테레오 루프를 선택합니다. 자체 트랙에 클립으로 놓입니다.
+3. **파일 → 임포트**를 선택하고 `guide-second-loop.wav` - 겹쳐서 사용할 두 번째 2초 루프를 선택합니다. 자체 트랙에 클립으로 놓입니다.
 4. **재생**을 눌러 들어본 후 **정지**합니다.
    *보여야 할 것:* 두 루프가 각각 자체 트랙에서 함께 재생됩니다.
-5. `guide-music-loop.wav`의 이름 바를 클릭하여 선택합니다. 선택된 클립은 덕킹(ducking)되는 트랙 - 음악, 목소리가 아닙니다.
-6. **효과 → 볼륨 및 압축 → 오토 덕**을 선택합니다. **오토 덕** 대화 상자에서 **제어 트랙**을 **guide-second-loop**로 선택하고 **덕킹 양**을 `-12`로 설정하고 **선택에 적용**을 누릅니다. 제어 트랙의 음량이 임계값보다 높으면 선택된 트랙의 음량이 덕킹 양만큼 줄어들며, 가장자리에 페이드가 적용됩니다.
+5. `guide-music-loop.wav`의 이름 바를 클릭하여 선택합니다. 선택된 클립은 덕(duck)될 트랙 - 음악, 목소리가 아닙니다.
+6. **효과 → 볼륨 및 압축 → 오토 덕**을 선택합니다. **오토 덕** 대화 상자에서 **guide-second-loop**를 **컨트롤 트랙**으로 선택하고 **덕 양**을 `-12`로 설정하고 **선택한 항목에 적용**을 누릅니다. 컨트롤 트랙의 볼륨이 임계값보다 높을 때마다 선택된 트랙의 볼륨이 덕 양만큼 낮아지며, 가장자리에 페이드가 적용됩니다.
    *보여야 할 것:* 음악 웨이브폼은 목소리가 재생되는 부분에서 작아집니다.
 7. **재생**을 눌러 들어본 후 **정지**합니다.
-   *보여야 할 것:* 음악은 목소리가 조용한 곳에서 목소리를 밑에 두고 회복합니다.
+   *보여야 할 것:* 음악은 목소리가 조용한 부분에서 목소리를 밑에 두고 회복합니다.
 8. `guide-music-loop.wav`의 이름 바를 클릭한 후 Shift 키를 누르고 `guide-second-loop.wav`의 이름 바를 클릭하여 둘 다 선택합니다. 선택된 클립이 있는 모든 트랙이 혼합에 포함됩니다.
-9. **트랙 → 혼합 및 렌더링**을 선택합니다. **혼합 및 렌더링** 대화 상자에서 **혼합**, **렌더 효과**, **원본 대체**를 체크하고 **스테레오**를 **혼합으로** 선택한 후 **혼합 및 렌더링**을 누릅니다.
-10. 프로젝트에는 이제 **Mix**라는 이름의 클립이 표시됩니다.
+9. **트랙 → 혼합 및 렌더링**을 선택합니다. **혼합 및 렌더링** 대화 상자에서 **혼합**, **렌더링 효과**, **원본 대체**를 체크하고 **스털레오**를 **혼합**으로 선택한 후 **혼합 및 렌더링**을 누릅니다.
+10. 프로젝트에 **Mix**라는 이름의 클립이 표시됩니다.
    *보여야 할 것:* 하나의 트랙이 **Mix**라는 이름의 클립을 가지고 있고, 두 소스 트랙은 사라졌습니다. **편집 → 되돌리기**를 하면 다시 가져올 수 있습니다.
 11. **파일 → 오디오 내보내기**를 선택하고 **형식**을 **MP3**로 설정한 후 **내보내기**를 누릅니다. 렌더링이 완료되면 파일이 다운로드되고 대화 상자에 링크가 유지됩니다.
 
 ## 다음 단계
 
-- 자신의 자료로 같은 작업: [목소리에 음악을 덕킹하기](/guides/volume/duck-music-under-a-voice/) 및 [여러 트랙을 하나로 혼합하기](/guides/tracks-and-export/mix-tracks-into-one/).
+- 자신의 자료로 같은 작업: [목소리에 음악을 덕(duck)하기](/guides/volume/duck-music-under-a-voice/) 및 [여러 트랙을 하나로 혼합하기](/guides/tracks-and-export/mix-tracks-into-one/).
 - 다른 사람이 혼합할 수 있도록 부분 분리: [각 트랙을 별도의 파일로 내보내기](/guides/projects/export-each-track-as-its-own-file/).
 
 ## 다른 튜토리얼
 
-[첫 번째 사운드스케이퍼 프로젝트](/tutorials/your-first-project/) - 녹음을 임포트하고, 들어보고, 분할하고, 페이드 아웃하고, 파일을 내보내고 프로젝트를 저장합니다.
-[보이스 녹음 정리하기](/tutorials/clean-up-a-voice-recording/) - 테이크에서 웅음을 제거하고, 웅웅거리는 소리를 자르고, 팟캐스트 음량으로 맞춘 다음 MP3로 내보냅니다.
+[첫 번째 사운드스케이퍼 프로젝트](/tutorials/your-first-project/) - 녹음을 임포트하고, 들어보고, 분할하고, 페이드 아웃시키고, 파일을 내보내고 프로젝트를 저장합니다.
+[보이스 녹음 정리하기](/tutorials/clean-up-a-voice-recording/) - 테이크에서 웅음을 제거하고, 웅웅거리는 소리를 자르고, 팟캐스트 볼륨으로 올리고 MP3로 내보냅니다.
 
 ## 참고 자료
 
-- [여기 사용된 효과들의 모든 매개변수, 기본값, 범위는 오디오 효과 참조에 있습니다.](/reference/generated/audio-effects/#parameters)
-- [내보내기 형식, 컨테이너, 채널 제한은 내보내기 형식 참조에 있습니다.](/reference/generated/formats/)
+- [여기 사용된 효과들의 모든 파라미터, 기본값, 범위는 오디오 효과 참고 자료에 있습니다.](/reference/generated/audio-effects/#parameters)
+- [내보내기 형식, 컨테이너, 채널 한계는 내보내기 형식 참고 자료에 있습니다.](/reference/generated/formats/)
 
 ## 이 튜토리얼에 대해
 
-이 튜토리얼은 브라우저 스위트(`tests/browser/soundscaper-tutorials.spec.js`)의 각 사운드스케이퍼 빌드에 대해 단계별로 재현되며, 이 파일들에서 작동합니다. 단계가 작동하지 않으면 빌드가 실패하고 튜토리얼이 수정될 때까지 실패하며, 따라서 읽는 것이 편집기가 하는 것과 동일합니다.
+이 튜토리얼은 브라우저 스위트(`tests/browser/soundscaper-tutorials.spec.js`)의 각 사운드스케이퍼 빌드에 대해 단계별로 재현되며, 이 파일들에서 작동합니다. 단계가 작동하지 않으면 빌드가 실패하고 튜토리얼이 수정될 때까지 실패하며, 따라서 읽는 것이 편집기가 하는 것과 일치합니다.
