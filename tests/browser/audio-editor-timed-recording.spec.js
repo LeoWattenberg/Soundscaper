@@ -29,10 +29,8 @@ test.describe('audio editor timed recording', () => {
 		});
 		const editor = await bootEditor(page, '/embed/en/');
 		await editor.getByRole('button', { name: 'Record options', exact: true }).click();
-		await getMenuItem(
-			page.getByRole('menu', { name: 'Record options', exact: true }),
-			'Set up timed recording',
-		).click();
+		await page.getByRole('dialog', { name: 'Record options', exact: true })
+			.getByRole('button', { name: 'Timed recording', exact: true }).click();
 		const dialog = page.getByRole('dialog', { name: 'Set up timed recording', exact: true });
 		const dateTimes = dialog.locator('input[type="datetime-local"]');
 		const start = new Date(Date.now() + 12_000);
