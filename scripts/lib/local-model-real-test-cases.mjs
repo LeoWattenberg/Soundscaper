@@ -19,6 +19,7 @@ const OPERATIONS = Object.freeze({
 	'beat-tracking': spec(['beat-tracking'], 'rhythmic-music-22050hz', 'beat-grid'),
 	'shot-detection': spec(['shot-detection'], 'visual-shot-frames', 'shot-boundaries'),
 	'editorial-generation': spec(['editorial-generation'], 'editorial-candidates', 'editorial-proposal'),
+	'text-to-speech': spec(['text-to-speech'], 'tts-script', 'synthesized-audio'),
 });
 
 function spec(tasks, fixtureId, validation) {

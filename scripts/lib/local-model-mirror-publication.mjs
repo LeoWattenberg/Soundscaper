@@ -8,9 +8,13 @@
  */
 
 import { createHash } from 'node:crypto';
+import { setTimeout as delay } from 'node:timers/promises';
 
 const SHA256_PATTERN = /^[a-f\d]{64}$/u;
 const PUBLIC_CORS_ORIGIN = 'https://soundscaper.org';
+const TRANSIENT_CONNECTION_ERRORS = new Set([
+	'UND_ERR_CONNECT_TIMEOUT', 'ETIMEDOUT', 'ECONNRESET', 'EAI_AGAIN',
+]);
 
 function assert(condition, message) {
 	if (!condition) throw new Error(message);
@@ -48,10 +52,23 @@ function requestOptions(method, signal, headers = {}) {
 	};
 }
 
+async function fetchWithTransientRetry(fetchImpl, url, options, signal) {
+	for (let attempt = 0; ; attempt += 1) {
+		throwIfAborted(signal);
+		try {
+			return await fetchImpl(url, options);
+		} catch (error) {
+			const code = error instanceof TypeError ? error.cause?.code : undefined;
+			if (attempt >= 2 || !TRANSIENT_CONNECTION_ERRORS.has(code)) throw error;
+			await delay(250 * 2 ** attempt, undefined, { signal });
+		}
+	}
+}
+
 async function verifyHead({ url, artifact, fetchImpl, signal }) {
 	throwIfAborted(signal);
-	const response = await fetchImpl(url,
-		requestOptions('HEAD', signal, { 'Accept-Encoding': 'identity' }));
+	const response = await fetchWithTransientRetry(fetchImpl, url,
+		requestOptions('HEAD', signal, { 'Accept-Encoding': 'identity' }), signal);
 	assertResponse(response, `${url} HEAD`);
 	assert(response.status === 200, `${url} HEAD returned HTTP ${String(response.status)}`);
 	assertCors(response, url, PUBLIC_CORS_ORIGIN, 'HEAD');
@@ -60,14 +77,16 @@ async function verifyHead({ url, artifact, fetchImpl, signal }) {
 
 async function verifyRange({ url, artifact, fetchImpl, signal }) {
 	throwIfAborted(signal);
-	let response = await fetchImpl(url, requestOptions('GET', signal, { Range: 'bytes=0-0' }));
+	let response = await fetchWithTransientRetry(fetchImpl, url,
+		requestOptions('GET', signal, { Range: 'bytes=0-0' }), signal);
 	assertResponse(response, `${url} ranged GET`);
 	if (response.status === 200) {
 		// A cold R2 custom-domain edge can ignore its first range request for a
 		// large object. Cancel that full body; only a proved 206 may pass below.
 		await response.body?.cancel();
 		throwIfAborted(signal);
-		response = await fetchImpl(url, requestOptions('GET', signal, { Range: 'bytes=0-0' }));
+		response = await fetchWithTransientRetry(fetchImpl, url,
+			requestOptions('GET', signal, { Range: 'bytes=0-0' }), signal);
 		assertResponse(response, `${url} retried ranged GET`);
 	}
 	if (response.status !== 206) await response.body?.cancel();
@@ -95,7 +114,8 @@ async function verifyRange({ url, artifact, fetchImpl, signal }) {
 
 async function verifyFullBody({ url, artifact, fetchImpl, signal }) {
 	throwIfAborted(signal);
-	const response = await fetchImpl(url, requestOptions('GET', signal));
+	const response = await fetchWithTransientRetry(fetchImpl, url,
+		requestOptions('GET', signal), signal);
 	assertResponse(response, `${url} GET`);
 	assert(response.status === 200, `${url} returned HTTP ${String(response.status)}`);
 	assertCors(response, url, PUBLIC_CORS_ORIGIN, 'GET');

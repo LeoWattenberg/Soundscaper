@@ -42,7 +42,9 @@ for (const modelCase of validateLocalModelRealTestCases(manifest, catalog, { can
 			};
 			const run = await test.step('Execute the real model through Electron IPC', () => executeModelOperation(electron.page, {
 				operation: modelCase.operation, expectedModels: models.map((model) => ({ modelId: model.modelId,
-					version: model.version, artifactSha256s: model.artifacts.map((artifact) => artifact.sha256).sort() })), selectionFence,
+					version: model.version, artifactSha256s: model.artifacts.map((artifact) => artifact.sha256).sort() })),
+				selectionFence: modelCase.operation === 'text-to-speech' ? null : selectionFence,
+				...(modelCase.operation === 'text-to-speech' ? { settings: input.settings } : {}),
 				inputs: [input, ...(input.additionalInputs ?? [])].map((entry) => ({ base64: entry.bytes.toString('base64'),
 					role: entry.role, mediaType: entry.mediaType, sha256: digest(entry.bytes) })),
 				outputs: modelOutputReservations(modelCase.operation),

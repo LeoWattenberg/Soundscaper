@@ -8,7 +8,7 @@ editUrl: false
 
 These guides describe the published catalog and the additional models required by the nightly tests. Desktop packages include native inference engines; Model Manager separately downloads and verifies weights admitted by the digest-pinned catalog. A prepared runtime and a required test do not grant model publication authority.
 
-All published models have a packaged native engine on supported desktop targets. Install their weights and use the task menus or Tools → Advanced Local Processing. This build capability does not claim that every platform has passed the real-model tests.
+**Local runtime packaging is incomplete: 1 required model in 1 case lacks a required packaged component.** Their tests fail until the selected target package supplies the complete runtime.
 
 | Model guide | Purpose | Packaged runtime support | Packaged execution case |
 | --- | --- | --- | --- |
@@ -33,16 +33,17 @@ All published models have a packaged native engine on supported desktop targets.
 | [TransNetV2 shot detection](/reference/local-models/transnetv2/) | shot detection | Packaged; see supported platforms | `transnet-accurate-shots` |
 | [Qwen3 4B editorial proposals](/reference/local-models/qwen3-4b-q4-k-m/) | editorial generation | Packaged; see supported platforms | `qwen-editorial-proposals` |
 | [Room dereverberation](/reference/local-models/dereverb-room/) | dereverberation | Packaged; see supported platforms | `dereverb-room-speech` |
+| [Kokoro 82M v1.0 text to speech](/reference/local-models/kokoro-82m-v1.0/) | text to speech | Offline G2P helper pending | `kokoro-speech-generation` |
 
 On Windows, install the latest supported [Microsoft Visual C++ v14 Redistributable](https://learn.microsoft.com/en-us/cpp/windows/latest-supported-vc-redist?view=msvc-170) matching the desktop app: **x64** for an x64 build or **ARM64** for an ARM64 build. The native ONNX and Sherpa engines require these libraries; model downloads do not include them. Visual Studio itself is not required to use the app.
 
 ## Test scope {#test-scope}
 
-The required suite covers 21 model identities in 19 execution cases: 21 published models and 0 publication candidates. Speaker diarization uses a segmentation model and an embedding model together. Subject detection uses face and object models together. SigLIP2 testing exercises its image and text networks. Each Beat This variant has a separate case.
+The required suite covers 22 model identities in 20 execution cases: 22 published models and 0 publication candidates. Speaker diarization uses a segmentation model and an embedding model together. Subject detection uses face and object models together. SigLIP2 testing exercises its image and text networks. Each Beat This variant has a separate case.
 
-The ordinary browser tests check the interface with a simulated desktop backend. The nightly-with-tests Electron package separately downloads verified model files and requests real inference. Missing native engines are reported as failures on catalog-supported platforms. Expensive model runs are excluded from the normal browser suite. Read the report from a particular package run for its actual results; these pages describe the required checks, not a claim that every build or machine has passed.
+The ordinary browser tests check the interface with a simulated desktop backend. The nightly-with-tests Electron package separately downloads verified model files and requests real inference. Missing required runtime components are reported as failures on catalog-supported platforms. Expensive model runs are excluded from the normal browser suite. Read the report from a particular package run for its actual results; these pages describe the required checks, not a claim that every build or machine has passed.
 
-The published model artifacts total approximately **5.32 GiB** before runtime files, fixtures, temporary space, and test output. Qwen alone adds about **2.33 GiB** and requires at least **16 GiB total system memory**. Allow at least **12 GiB free memory** for the full planned run; individual operations enforce their own reservations. Models run sequentially.
+The published model artifacts total approximately **5.65 GiB** before runtime files, fixtures, temporary space, and test output. Qwen alone adds about **2.33 GiB** and requires at least **16 GiB total system memory**. Allow at least **12 GiB free memory** for the full planned run; individual operations enforce their own reservations. Models run sequentially.
 
 Audio checks reject silence, non-finite samples, and output identical to the input. Text checks require meaningful nonempty result fields. Embedding, detection, and timing checks validate their appropriate numerical structure. Exact sample values, spelling, and rankings are not used as golden outputs.
 

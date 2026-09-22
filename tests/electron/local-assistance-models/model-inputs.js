@@ -67,6 +67,11 @@ export async function loadSpeechFixture(noisy) {
 }
 
 export async function prepareModelInput(fixtureId, page) {
+	if (fixtureId === 'tts-script') return {
+		bytes: Buffer.from('Hello from Soundscaper. This is a local speech test.', 'utf8'),
+		role: 'text', mediaType: 'text/plain', frameCount: 1,
+		settings: { settingsVersion: 1, language: 'a', voice: 'af_heart', speed: 1 },
+	};
 	if (fixtureId === 'speech-16khz') return loadSpeechFixture(false);
 	if (fixtureId === 'noisy-speech-48khz') return loadSpeechFixture(true);
 	if (fixtureId === 'aligned-speech-16khz') {

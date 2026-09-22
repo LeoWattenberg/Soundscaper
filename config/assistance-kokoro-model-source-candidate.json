@@ -1,6 +1,6 @@
 {
 	"schemaVersion": 1,
-	"status": "upstream-pinned-unmirrored",
+	"status": "published-runtime-pending",
 	"modelId": "kokoro-82m-v1.0",
 	"version": "1.0.0",
 	"onnxSource": {
@@ -401,9 +401,13 @@
 			}
 		]
 	},
-	"distributionBlockedBy": [
-		"Soundscaper mirror publication and immutable mirror digest verification",
-		"Complete local-model licensing and notice evidence",
+	"distributionBlockedBy": [],
+	"activationBlockedBy": [
 		"Offline G2P payload provisioning and five-target canaries"
-	]
+	],
+	"releaseEvidence": {
+		"catalogEntrySha256": "6c8110ab7e87041be8f74e1cede3a37c869557f65160c2046183dbdfdf681fdb",
+		"publicReadbackSha256": "3f9d527849b4419de8df9b21ec093782b611c2cb5b6325527f21364afa897a43",
+		"licensingEvidenceSha256": "8a020ac3fb15dc825f71152b4bbf4194c2bfcdb60df7e8a94289f0b07b4301d6"
+	}
 }

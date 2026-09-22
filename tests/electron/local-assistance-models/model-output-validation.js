@@ -30,6 +30,7 @@ export function validateModelOutput(validation, bytes, input) {
 	assert.ok(bytes.byteLength > 0, 'Inference returned empty output.');
 	assert.notDeepEqual(Buffer.from(bytes), Buffer.from(input.bytes), 'Inference copied the input bytes.');
 	if (validation === 'changed-audio') return changedAudio(bytes, input);
+	if (validation === 'synthesized-audio') return synthesizedAudio(bytes);
 	if (validation === 'embeddings') {
 		const matrix = reviewAssistanceEmbeddingMatrixV1(bytes);
 		const expectedRows = input.role === 'frame-pack' ? input.frameCount + ASSISTANCE_VISUAL_TAG_PROMPTS_V1.length : 1;
@@ -149,4 +150,44 @@ function changedAudio(bytes, input) {
 	assert.ok(rms > 1e-6, 'Processed audio is silent (RMS below -120 dBFS).');
 	assert.ok(changedSamples > 0, 'Processing left the PCM samples identical.');
 	return { frames: output.samples.length, sampleRate: output.sampleRate, rms, changedSamples };
+}
+
+function synthesizedAudio(bytes) {
+	const wave = Buffer.from(bytes);
+	assert.ok(wave.length >= 44 && wave.toString('ascii', 0, 4) === 'RIFF'
+		&& wave.toString('ascii', 8, 16) === 'WAVEfmt '
+		&& wave.toString('ascii', 36, 40) === 'data', 'Speech output must be a canonical PCM WAV.');
+	assert.equal(wave.readUInt32LE(4), wave.length - 8, 'The speech WAV RIFF size is invalid.');
+	assert.equal(wave.readUInt32LE(16), 16, 'The speech WAV fmt chunk is invalid.');
+	assert.equal(wave.readUInt16LE(20), 1, 'Speech output must be PCM16.');
+	assert.equal(wave.readUInt16LE(22), 1, 'Speech output must be mono.');
+	const sampleRate = wave.readUInt32LE(24);
+	assert.equal(sampleRate, 24_000, 'Speech output must be 24,000 Hz.');
+	assert.equal(wave.readUInt32LE(28), sampleRate * 2, 'The speech WAV byte rate is invalid.');
+	assert.equal(wave.readUInt16LE(32), 2, 'The speech WAV block alignment is invalid.');
+	assert.equal(wave.readUInt16LE(34), 16, 'Speech output must be PCM16.');
+	const dataBytes = wave.readUInt32LE(40);
+	assert.equal(dataBytes, wave.length - 44, 'The speech WAV data length is invalid.');
+	assert.equal(dataBytes % 2, 0, 'The speech WAV has a partial sample.');
+	const frames = dataBytes / 2;
+	assert.ok(frames >= sampleRate / 4 && frames <= sampleRate * 30,
+		'The speech WAV duration is outside the fixed-script range.');
+	let sumSquares = 0;
+	let peak = 0;
+	let activeFrames = 0;
+	let minimum = 1;
+	let maximum = -1;
+	for (let index = 0; index < frames; index += 1) {
+		const sample = wave.readInt16LE(44 + index * 2) / 32768;
+		const amplitude = Math.abs(sample);
+		sumSquares += sample * sample;
+		if (amplitude > peak) peak = amplitude;
+		if (amplitude > 0.003) activeFrames += 1;
+		if (sample < minimum) minimum = sample;
+		if (sample > maximum) maximum = sample;
+	}
+	const rms = Math.sqrt(sumSquares / frames);
+	assert.ok(rms > 0.001 && peak > 0.01 && activeFrames > frames / 100 && maximum - minimum > 0.02,
+		'Synthesized speech is silent or contains no meaningful waveform.');
+	return { frames, sampleRate, durationSeconds: frames / sampleRate, rms, peak, activeFrames };
 }

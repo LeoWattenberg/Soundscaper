@@ -1978,6 +1978,24 @@
 			},
 			"provenanceSources": ["https://huggingface.co/anvuew/dereverb_room/tree/0b85f5b80b7f779b2dfe80f33a1b35b38af9376d", "https://huggingface.co/docs/hub/repositories-licenses", "https://github.com/ZFTurbo/MSS_ONNX_TensorRT/tree/43d939e7671d8ff6cf1922f98c2f2e4b56908e47", "https://www.gnu.org/licenses/gpl-3.0.html"],
 			"evidence": ["docs/dereverb-plan.md", "docs/dereverb-bakeoff-evidence.md", "config/milestone-7-model-supply-candidates.json", "LICENSES/local-models/README.md", "LICENSES/local-models/dereverb-room-MODEL-CARD.md", "LICENSES/local-models/GPL-3.0.txt", "LICENSES/local-models/dereverb-room-converter-LICENSE.txt", "THIRD_PARTY_LICENSES.md"]
+		},
+		{
+			"id": "kokoro-82m-v1.0",
+			"purpose": "Offline text-to-speech synthesis using the pinned Kokoro v1.0 ONNX graph and 54 voice-style files.",
+			"runtimeFormat": "onnx",
+			"codeLicense": "Apache-2.0",
+			"weightsLicense": "Apache-2.0",
+			"attributionRequired": false,
+			"distributionStatus": "permitted",
+			"blockedBy": [],
+			"requirements": {
+				"weights-and-code-license-review": { "status": "recorded", "summary": "The pinned ONNX Community model card declares Apache-2.0 for its model files and identifies hexgrad/Kokoro-82M as the base model. Hexgrad's pinned model card declares Apache-2.0 for the original weights. The Kokoro 0.9.4 and Misaki 0.9.4 Python source revisions each carry Apache-2.0, but their frozen dependency closure is a separate unpublished G2P runtime and is not included in this model asset." },
+				"training-data-provenance-record": { "status": "recorded", "summary": "The pinned originating model card describes a few hundred hours of permissive or non-copyrighted audio and IPA phoneme labels, including public-domain, permissively licensed, and some synthetic audio. It names Koniwa tnc under CC BY 3.0 and SIWIS under CC BY 4.0; the card does not publish a complete dataset inventory. The retained offline notice preserves those attributions and this provenance limit." },
+				"model-card-and-use-restrictions": { "status": "recorded", "summary": "Both retained pinned model cards declare Apache-2.0 and state no separate use restriction. The originating card describes the model architecture, training sources, and voice inventory; the ONNX card describes the selected fp32 graph's interface. The desktop notice identifies the upstream model and ONNX conversion, preserves source and attribution links, and does not claim endorsement." },
+				"versioned-download-notices-and-hashes": { "status": "recorded", "summary": "All 56 exact upstream artifacts and their SHA-256 digests are listed in THIRD_PARTY_LICENSES.md and mirrored at immutable versioned product URLs. The publisher completed public HEAD, byte-range, CORS, and full SHA-256 readback for each artifact; the retained receipt is evidence/local-model-publication/kokoro-82m-v1.0.json. The release catalog binds this complete evidence row and every download identity by SHA-256." }
+			},
+			"provenanceSources": ["https://huggingface.co/onnx-community/Kokoro-82M-v1.0-ONNX/tree/1939ad2a8e416c0acfeecc08a694d14ef25f2231", "https://huggingface.co/hexgrad/Kokoro-82M/tree/f3ff3571791e39611d31c381e3a41a3af07b4987", "https://github.com/hexgrad/kokoro/tree/dfb907a02bba8152ca444717ca5d78747ccb4bec", "https://github.com/hexgrad/misaki/tree/fba1236595f2d2bf21d414ba6e57d25256afada3"],
+			"evidence": ["config/assistance-kokoro-model-source-candidate.json", "config/assistance-kokoro-g2p-build-candidate.json", "evidence/local-model-publication/kokoro-82m-v1.0.json", "LICENSES/local-models/README.md", "LICENSES/local-models/Apache-2.0.txt", "LICENSES/local-models/kokoro-82m-v1.0-ONNX-MODEL-CARD.md", "LICENSES/local-models/kokoro-82m-v1.0-UPSTREAM-MODEL-CARD.md", "THIRD_PARTY_LICENSES.md"]
 		}
 	],
 	"refusedLocalModels": [

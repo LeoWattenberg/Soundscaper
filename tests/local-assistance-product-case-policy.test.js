@@ -13,6 +13,7 @@ const SOUNDSCAPER_CASES = Object.freeze([
 	'beat-this-small-beats',
 	'deepfilter-enhancement',
 	'dereverb-room-speech',
+	'kokoro-speech-generation',
 	'nomic-text-embedding',
 	'panns-audio-tags',
 	'parakeet-v2-transcript',

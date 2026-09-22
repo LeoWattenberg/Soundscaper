@@ -82,5 +82,6 @@ Models are published from `https://assets.soundscaper.org/models/` and verified 
 | `parakeet-tdt-0.6b-v3` | Speech recognition | 3.0.0 | Mirrored byte-for-byte from upstream | 4 GiB | Linux arm64; Linux x64; Windows arm64; Windows x64; macOS arm64; macOS x64 |
 | `whisper-large-v3-turbo-ggml` | Speech recognition | 1.0.0 | Mirrored byte-for-byte from upstream | 4 GiB | Linux arm64; Linux x64; Windows arm64; Windows x64; macOS arm64; macOS x64 |
 | `nomic-embed-text-v1.5` | Text embedding | 1.5.0 | Mirrored byte-for-byte from upstream | 4 GiB | Linux arm64; Linux x64; Windows arm64; Windows x64; macOS arm64; macOS x64 |
+| `kokoro-82m-v1.0` | Text to speech | 1.0.0 | Mirrored byte-for-byte from upstream | 8 GiB | Linux arm64; Linux x64; Windows arm64; Windows x64; macOS arm64 |
 | `silero-vad-v6` | Voice activity detection | 6.2.1 | Mirrored byte-for-byte from upstream | 2 GiB | Linux arm64; Linux x64; Windows arm64; Windows x64; macOS arm64; macOS x64 |
 | `wav2vec2-base-960h` | Word alignment | 1.0.0 | Mirrored byte-for-byte from upstream | 4 GiB | Linux arm64; Linux x64; Windows arm64; Windows x64; macOS arm64 |

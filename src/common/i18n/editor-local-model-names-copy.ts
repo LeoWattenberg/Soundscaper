@@ -20,4 +20,5 @@ export const LOCAL_MODEL_NAMES_COPY: Readonly<Record<string, string>> = {
 	'dfine-nano-coco': 'D-FINE Object Detection',
 	'u2netp-saliency': 'U²-Net Saliency',
 	'qwen3-4b-q4-k-m': 'Qwen 3 4B',
+	'kokoro-82m-v1.0': 'Kokoro 82M v1.0',
 };

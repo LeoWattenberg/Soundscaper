@@ -106,13 +106,17 @@ test('Kokoro voice catalogue covers all nine published groups and 54 voices', ()
 	}
 });
 
-test('the unmirrored Kokoro source candidate pins every published voice and never claims installability', async () => {
+test('the published Kokoro source pins every voice and keeps offline G2P activation pending', async () => {
 	const candidate = JSON.parse(await readFile(new URL(
 		'../config/assistance-kokoro-model-source-candidate.json', import.meta.url), 'utf8')) as {
 		status: string;
+		distributionBlockedBy: string[];
+		activationBlockedBy: string[];
 		onnxSource: { artifacts: { fileName: string; sha256: string; byteLength: number }[] };
 	};
-	assert.equal(candidate.status, 'upstream-pinned-unmirrored');
+	assert.equal(candidate.status, 'published-runtime-pending');
+	assert.deepEqual(candidate.distributionBlockedBy, []);
+	assert.ok(candidate.activationBlockedBy.some((reason) => reason.includes('G2P')));
 	const expected = Object.values(KOKORO_VOICES_BY_LANGUAGE).flat().map((voice) => `${voice}.bin`);
 	const actual = candidate.onnxSource.artifacts
 		.filter(({ fileName }) => fileName.endsWith('.bin')).map(({ fileName }) => fileName);

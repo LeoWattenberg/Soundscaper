@@ -42,6 +42,44 @@ test('nightly IPC harness rejects a different installed model before creating a 
 	} finally { harness.restore(); }
 });
 
+test('nightly IPC harness sends source-free Kokoro settings and authenticates one speech WAV claim', async () => {
+	const harness = fixture((outputs) => outputs);
+	try {
+		const settings = { settingsVersion: 1, language: 'a', voice: 'af_heart', speed: 1 };
+		const result = await executeModelOperation(harness.page, {
+			...harness.request, operation: 'text-to-speech', selectionFence: null, settings,
+			inputs: [{ role: 'text', mediaType: 'text/plain', sha256: 'b'.repeat(64), base64: 'SGVsbG8=' }],
+			outputs: modelOutputReservations('text-to-speech'),
+		});
+		assert.equal(harness.runs[0].selectionFence, null);
+		assert.deepEqual(harness.runs[0].settings, settings);
+		assert.deepEqual(harness.runs[0].inputs.map(({ role, mediaType }) => ({ role, mediaType })),
+			[{ role: 'text', mediaType: 'text/plain' }]);
+		assert.deepEqual(harness.runs[0].outputs.map(({ role, mediaType }) => ({ role, mediaType })),
+			[{ role: 'synthesized-audio', mediaType: 'audio/wav' }]);
+		assert.equal(result.outputs.length, 1);
+		assert.equal(harness.released.length, 1);
+	} finally { harness.restore(); }
+});
+
+test('nightly IPC harness preserves missing offline G2P as unavailable with no WAV output', async () => {
+	const harness = fixture((outputs) => outputs);
+	try {
+		globalThis.soundscaperDesktop.v1.localAssistance.run = () => ({
+			outcome: 'unavailable', reason: 'runtime-adapter-unavailable',
+		});
+		const result = await executeModelOperation(harness.page, {
+			...harness.request, operation: 'text-to-speech', selectionFence: null,
+			settings: { settingsVersion: 1, language: 'a', voice: 'af_heart', speed: 1 },
+			inputs: [{ role: 'text', mediaType: 'text/plain', sha256: 'b'.repeat(64), base64: 'SGVsbG8=' }],
+			outputs: modelOutputReservations('text-to-speech'),
+		});
+		assert.deepEqual(result.outcome, { outcome: 'unavailable', reason: 'runtime-adapter-unavailable' });
+		assert.deepEqual(result.outputs, []);
+		assert.equal(harness.released.length, 1);
+	} finally { harness.restore(); }
+});
+
 function fixture(mutate = (outputs) => outputs.toReversed()) {
 	const previous = globalThis.soundscaperDesktop;
 	const runs = [], released = [], jobs = [], reservations = [];
@@ -50,7 +88,7 @@ function fixture(mutate = (outputs) => outputs.toReversed()) {
 		models: () => [model],
 		createJob: () => { jobs.push('job'); return { jobId: 'job' }; },
 		onProgress: () => () => {},
-		stageInput: (input) => ({ role: input.role, claimId: `input-${input.role}` }),
+		stageInput: (input) => ({ role: input.role, mediaType: input.mediaType, claimId: `input-${input.role}` }),
 		reserveOutput: (output) => {
 			const reservation = { ...output, claimId: `output-${reservations.length}` };
 			reservations.push(reservation); return reservation;
