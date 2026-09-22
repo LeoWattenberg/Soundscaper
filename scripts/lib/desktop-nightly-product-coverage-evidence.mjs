@@ -7,6 +7,7 @@ import { extractFile, listPackage, statFile } from '@electron/asar';
 
 import { assistanceNativeRuntimeStageSummary } from '../../desktop/assistance-native-runtime-payload.mjs';
 import { validateAssistanceRuntimeFamilyManifestV1 } from '../../desktop/assistance-runtime-family-manifest.ts';
+import { validateDesktopKokoroG2pManifest } from './desktop-kokoro-g2p-runtime.mjs';
 import { assertE2EHtmlExecutablePolicy } from './e2e-dynamic-code-audit.mjs';
 import {
 	collectPackagedExecutableResourceFiles,
@@ -269,6 +270,29 @@ function approvedRuntimeScripts({ appAsar, stage }) {
 		for (const [name, descriptor] of Object.entries(summary.payload?.files ?? {})) {
 			if (SCRIPT_PATTERN.test(name)) approved.push(Object.freeze({
 				path: `runtime/${summary.payload.root}/${name}`,
+				byteLength: descriptor.byteLength,
+				sha256: descriptor.sha256,
+			}));
+		}
+	}
+	if (stage.kokoroG2pRuntime !== undefined) {
+		const name = 'config/assistance-kokoro-g2p-runtime-manifest.json';
+		const bytes = Buffer.from(extractFile(appAsar, asarNativeEntryPath(name)));
+		const reference = stage.kokoroG2pRuntime;
+		if (!plainRecord(reference) || reference.targetId !== targetId
+			|| reference.manifest?.path !== name
+			|| !sameFileRecord(reference.manifest, fileRecord(bytes))) {
+			throw new Error('Desktop nightly coverage Kokoro G2P runtime differs from its stage authority.');
+		}
+		const manifest = parseJson(bytes, name);
+		validateDesktopKokoroG2pManifest(manifest, targetId);
+		const byteLength = manifest.files.reduce((total, file) => total + file.byteLength, 0);
+		if (reference.fileCount !== manifest.files.length || reference.byteLength !== byteLength) {
+			throw new Error('Desktop nightly coverage Kokoro G2P runtime differs from its stage authority.');
+		}
+		for (const descriptor of manifest.files) {
+			if (SCRIPT_PATTERN.test(descriptor.path)) approved.push(Object.freeze({
+				path: `runtime/${manifest.runtimePrefix}/${targetId}/${descriptor.path}`,
 				byteLength: descriptor.byteLength,
 				sha256: descriptor.sha256,
 			}));

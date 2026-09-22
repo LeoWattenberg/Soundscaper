@@ -25,6 +25,9 @@ const RUNTIME_SCRIPT = [
 	'assistance/sherpa-onnx/1.13.5/node_modules',
 	'sherpa-onnx-node/sherpa-onnx.js',
 ].join('/');
+const KOKORO_RUNTIME_PREFIX = 'assistance/kokoro-g2p/0.9.4/linux-x64';
+const KOKORO_RUNTIME_SCRIPT = `${KOKORO_RUNTIME_PREFIX}/_internal/torch/utils/model_dump/code.js`;
+const KOKORO_EXECUTABLE = `${KOKORO_RUNTIME_PREFIX}/kokoro-g2p`;
 const RENDERER_WASM = 'renderer/assets/sqlite3-fixture.wasm';
 const RUNTIME_WASM = 'runtime/model/engine.wasm';
 const WASM = '\u0000asm\u0001\u0000\u0000\u0000';
@@ -211,6 +214,65 @@ test('nightly product coverage evidence admits the same pinned runtime closure f
 	]);
 });
 
+test('nightly product coverage evidence admits authenticated Kokoro G2P scripts', async (context) => {
+	const workspace = await mkdtemp(join(tmpdir(), 'soundscaper-nightly-coverage-kokoro-'));
+	context.after(() => rm(workspace, { recursive: true, force: true }));
+	const fixture = await createCoverageFixture(workspace, { kokoroRuntimeAuthority: true });
+	const manifest = await preserveDesktopNightlyProductCoverageEvidence({
+		buildRoot: fixture.buildRoot,
+		productId: 'soundscaper',
+		productOutput: fixture.productOutput,
+		sourceRevision: REVISION,
+	});
+	const expectedContents = fixture.files.get(`runtime/${KOKORO_RUNTIME_SCRIPT}`) ?? '';
+	assert.deepEqual(
+		manifest.excludedRuntimeScripts.find(({ path }) => path === `runtime/${KOKORO_RUNTIME_SCRIPT}`),
+		{
+			path: `runtime/${KOKORO_RUNTIME_SCRIPT}`,
+			byteLength: Buffer.byteLength(expectedContents),
+			sha256: createHash('sha256').update(expectedContents).digest('hex'),
+		},
+	);
+});
+
+test('nightly product coverage evidence binds Kokoro G2P scripts to the staged authority',
+	async (context) => {
+		await context.test('stage receipt mismatch', async (childContext) => {
+			const workspace = await mkdtemp(join(tmpdir(), 'soundscaper-nightly-coverage-kokoro-receipt-'));
+			childContext.after(() => rm(workspace, { recursive: true, force: true }));
+			const fixture = await createCoverageFixture(workspace, { kokoroRuntimeAuthority: true });
+			const stagePath = join(fixture.buildRoot, 'stage-manifest.json');
+			const stage = JSON.parse(await readFile(stagePath, 'utf8'));
+			stage.kokoroG2pRuntime.manifest.sha256 = '0'.repeat(64);
+			await writeFile(stagePath, `${JSON.stringify(stage, null, 2)}\n`);
+			await assert.rejects(preserveDesktopNightlyProductCoverageEvidence({
+				buildRoot: fixture.buildRoot,
+				productId: 'soundscaper',
+				productOutput: fixture.productOutput,
+				sourceRevision: REVISION,
+			}), /Kokoro G2P runtime differs from its stage authority/u);
+		});
+
+		await context.test('runtime script substitution', async (childContext) => {
+			const workspace = await mkdtemp(join(tmpdir(), 'soundscaper-nightly-coverage-kokoro-script-'));
+			childContext.after(() => rm(workspace, { recursive: true, force: true }));
+			const fixture = await createCoverageFixture(workspace, { kokoroRuntimeAuthority: true });
+			const substituted = 'globalThis.substituted = true;\n';
+			await writeFile(join(fixture.buildRoot, 'runtime', KOKORO_RUNTIME_SCRIPT), substituted);
+			await writeFile(join(
+				fixture.productOutput,
+				'linux-unpacked/resources/runtime',
+				KOKORO_RUNTIME_SCRIPT,
+			), substituted);
+			await assert.rejects(preserveDesktopNightlyProductCoverageEvidence({
+				buildRoot: fixture.buildRoot,
+				productId: 'soundscaper',
+				productOutput: fixture.productOutput,
+				sourceRevision: REVISION,
+			}), /runtime script differs from its approved authority/u);
+		});
+	});
+
 test('nightly product coverage evidence admits an absent optional runtime without exclusions', async (context) => {
 	const workspace = await mkdtemp(join(tmpdir(), 'soundscaper-nightly-coverage-no-runtime-'));
 	context.after(() => rm(workspace, { recursive: true, force: true }));
@@ -323,6 +385,7 @@ test('nightly product coverage evidence refuses a renderer build without maps', 
 });
 
 interface CoverageFixtureOptions {
+	readonly kokoroRuntimeAuthority?: boolean;
 	readonly packagedApplicationExtras?: ReadonlyMap<string, string>;
 	readonly packagedResourceExtras?: ReadonlyMap<string, string>;
 	readonly packagedResourcesPath?: string;
@@ -340,6 +403,7 @@ async function createCoverageFixture(workspace: string, options: CoverageFixture
 	const runtimeScripts = options.runtimeScripts ?? new Map(runtimeAuthority
 		? [[RUNTIME_SCRIPT, 'module.exports = true;\n']]
 		: []);
+	const kokoroRuntimeAuthority = options.kokoroRuntimeAuthority ?? false;
 	const files = new Map([
 		['app/desktop/main.mjs', `export const main = true;\n${DYNAMIC_EXCLUSIONS}\n`],
 		['app/desktop/preload.cjs', 'module.exports = true;\n'],
@@ -352,6 +416,10 @@ async function createCoverageFixture(workspace: string, options: CoverageFixture
 		['renderer-source-maps/desktop-renderer-smoke.js.map', JSON.stringify({ version: 3, sources: [] })],
 		['renderer-source-maps/editor-abc.js.map', JSON.stringify({ version: 3, sources: [] })],
 		...[...runtimeScripts].map(([name, contents]) => [`runtime/${name}`, contents] as const),
+		...(kokoroRuntimeAuthority ? [
+			[`runtime/${KOKORO_RUNTIME_SCRIPT}`, 'globalThis.modelDump = true;\n'],
+			[`runtime/${KOKORO_EXECUTABLE}`, '#!/bin/sh\n'],
+		] as const : []),
 		[RUNTIME_WASM, WASM],
 	]);
 	const nativeManifest = runtimeAuthority
@@ -363,6 +431,14 @@ async function createCoverageFixture(workspace: string, options: CoverageFixture
 			`${JSON.stringify(nativeManifest, null, 2)}\n`,
 		);
 	}
+	const kokoroManifest = kokoroRuntimeAuthority ? assistanceKokoroG2pManifest(files) : null;
+	const kokoroManifestSource = kokoroManifest === null
+		? null
+		: `${JSON.stringify(kokoroManifest, null, 2)}\n`;
+	if (kokoroManifestSource !== null) {
+		files.set('app/config/assistance-kokoro-g2p-runtime-manifest.json', kokoroManifestSource);
+	}
+	const kokoroManifestBytes = kokoroManifestSource === null ? null : Buffer.from(kokoroManifestSource);
 	for (const [name, contents] of files) await write(join(buildRoot, name), contents);
 	await write(join(buildRoot, 'stage-manifest.json'), `${JSON.stringify({
 		schemaVersion: 1,
@@ -371,6 +447,18 @@ async function createCoverageFixture(workspace: string, options: CoverageFixture
 		target: { platform: 'linux', arch: 'x64' },
 		...(nativeManifest === null ? {} : {
 			assistanceNativeRuntime: assistanceNativeRuntimeStageSummary(nativeManifest, 'linux-x64'),
+		}),
+		...(kokoroManifest === null || kokoroManifestBytes === null ? {} : {
+			kokoroG2pRuntime: {
+				targetId: 'linux-x64',
+				fileCount: kokoroManifest.files.length,
+				byteLength: kokoroManifest.files.reduce((total, file) => total + file.byteLength, 0),
+				manifest: {
+					path: 'config/assistance-kokoro-g2p-runtime-manifest.json',
+					byteLength: kokoroManifestBytes.byteLength,
+					sha256: createHash('sha256').update(kokoroManifestBytes).digest('hex'),
+				},
+			},
 		}),
 	}, null, 2)}\n`);
 	const resources = join(productOutput, options.packagedResourcesPath ?? 'linux-unpacked/resources');
@@ -434,5 +522,26 @@ function assistanceNativeManifest(script: string) {
 			'win-x64': generated('win-x64'),
 			'win-arm64': generated('win-arm64'),
 		},
+	};
+}
+
+function assistanceKokoroG2pManifest(files: ReadonlyMap<string, string>) {
+	const descriptors = [KOKORO_RUNTIME_SCRIPT, KOKORO_EXECUTABLE]
+		.map((path) => {
+			const contents = files.get(`runtime/${path}`) ?? '';
+			return {
+				path: path.slice(KOKORO_RUNTIME_PREFIX.length + 1),
+				byteLength: Buffer.byteLength(contents),
+				sha256: createHash('sha256').update(contents).digest('hex'),
+			};
+		})
+		.sort((left, right) => left.path.localeCompare(right.path, 'en'));
+	return {
+		schemaVersion: 1,
+		runtimeVersion: '0.9.4',
+		targetId: 'linux-x64',
+		runtimePrefix: 'assistance/kokoro-g2p/0.9.4',
+		executable: 'kokoro-g2p',
+		files: descriptors,
 	};
 }
