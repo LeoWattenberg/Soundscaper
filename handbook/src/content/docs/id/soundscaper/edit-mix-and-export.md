@@ -1,10 +1,10 @@
 ---
-title: "Edit, mix, and export"
+title: "Edit, campur, dan ekspor"
 description: "Susun klip, seimbangkan trek, terapkan efek, dan buat file pengiriman."
 sidebar:
   order: 4
 ---
-<!-- docs-ai-provenance: {"factPacketSha256":"d4b354ffb5d6a4d35fcb20ac6bb1e0191746badd98ca8f5b476a286e068a3c26","model":"qwen3.8:latest","modelDigest":"22130167c4c20e20c7b71454612966ca8e8171e9b3cc8ab6ce8aa6cbfec79643","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"d4b354ffb5d6a4d35fcb20ac6bb1e0191746badd98ca8f5b476a286e068a3c26","targetLocale":"id"} -->
+<!-- docs-ai-provenance: {"model":"gpt-5.6-luna","modelDigest":"manual","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"eaa07736d9143de912e22bd2c5d4a8db4f1553c1052d247826240cda8c6af620","targetLocale":"id"} -->
 
 ## Atur klip
 
@@ -39,6 +39,27 @@ Pilih **Effect → Volume and compression → Multiband compressor**. Dua crosso
 
 Kedua efek ini menautkan kanal mereka untuk mempertahankan keseimbangan stereo dan juga tersedia di rak efek trek dan master. Pengaturan rak disimpan dengan proyek dan dapat disesuaikan selama pemutaran. **Apply to selection** merender efek ke audio yang dipilih dan mendukung Undo. Otomasi timeline tidak tersedia untuk kedua efek ini.
 
+### Gunakan efek LADSPA dan penganalisis Vamp {#native-audio-plugins}
+
+Aplikasi desktop hanya dapat memindai plug-in pihak ketiga setelah Anda mengizinkan
+suatu format dan salah satu foldernya di **Efek → Manajer Plug-in**. Pemindaian tidak
+pernah otomatis. Izinkan setiap instalasi yang ditemukan sebelum menggunakannya, dan
+instal hanya plug-in yang Anda percayai: plug-in native menjalankan kode yang dapat
+dieksekusi meskipun Soundscaper menampungnya dalam proses pembantu yang diawasi.
+
+Efek LADSPA tersedia di Linux. Buka efek tersebut dari **Efek → Plug-in Audio**
+setelah mengaktifkannya di manajer. Soundscaper membuat kontrol dari port LADSPA
+karena format ini tidak memiliki antarmuka vendor. Nilai kontrol tersebut serta status
+efek (diaktifkan atau dilewati) disimpan bersama proyek.
+
+Plug-in Vamp menganalisis audio, bukan mengubahnya. Setelah mengaktifkan instalasi Vamp,
+pilih trek audio untuk menganalisis trek itu, atau jangan pilih trek audio apa pun untuk
+menganalisis mix master. Seleksi waktu membatasi analisis; jika tidak, Soundscaper
+menggunakan seluruh proyek. Pilih **Analisis → Plug-in Vamp**, pilih keluaran penganalisis
+dan pengaturannya, lalu jalankan. Soundscaper menambahkan cap waktu yang dikembalikan
+sebagai trek label baru hanya setelah seluruh analisis berhasil, sehingga pembatalan atau
+perubahan proyek tidak meninggalkan label sebagian.
+
 ## Ekspor
 
 Pilih **File → Export audio** untuk pengiriman mix atau **Export selected audio** ketika hanya seleksi yang harus dirender. Soundscaper juga dapat mengekspor stem dan label.
@@ -48,4 +69,4 @@ Format terkompresi menggunakan runtime FFmpeg. Format yang tepat dan ketersediaa
 Putar file yang diekspor di aplikasi lain sebelum mengirimkan atau menghapus materi sumber.
 
 Untuk pekerjaan gambar — menyusun urutan, efek video, dan pengiriman MP4 atau WebM — serahkan proyek ke [Framescaper](/framescaper/) dan lihat
-[export video](/framescaper/video-export/).
+[ekspor video](/framescaper/video-export/).

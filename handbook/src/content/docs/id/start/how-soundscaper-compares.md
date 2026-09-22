@@ -4,7 +4,7 @@ description: "Bandingkan Soundscaper dengan Audacity 4 dan Adobe Audition dalam 
 sidebar:
   order: 3
 ---
-<!-- docs-ai-provenance: {"factPacketSha256":"703e76cffbe1464f1283f6c8f45cee52c0d37faae852b7efc163879710a2ddb2","model":"qwen3.8:latest","modelDigest":"22130167c4c20e20c7b71454612966ca8e8171e9b3cc8ab6ce8aa6cbfec79643","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"703e76cffbe1464f1283f6c8f45cee52c0d37faae852b7efc163879710a2ddb2","targetLocale":"id"} -->
+<!-- docs-ai-provenance: {"model":"gpt-5.6-luna","modelDigest":"manual","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"71097403d87aba03cddc2ccd696ff9a8663268afba3a7bf750fe8d9913de3eba","targetLocale":"id"} -->
 
 Soundscaper mengimplementasikan ulang Audacity 4 di web dan menambahkan lapisan produksi di atasnya. Adobe Audition adalah alat pasca-produksi komersial yang biasanya menjadi acuan perbandingan bagi keduanya. Halaman ini membandingkan ketiganya agar Anda dapat menentukan mana yang sudah dapat melakukan pekerjaan yang Anda miliki.
 
@@ -102,7 +102,7 @@ Baris-baris menggambarkan kemampuan, bukan perintah menu. Untuk inventaris perin
 | EQ parametrik | Ya — EQ parametrik baru dengan band yang dapat diotomasikan | Sebagian — Filter Curve dan Graphic EQ | Ya — filter parametrik, grafik, dan FFT |
 | Preset efek | Ya — terapkan, simpan, impor, ekspor | Ya — terapkan, simpan, impor, ekspor | Ya |
 | Makro dan rantai batch | Ya — pustaka makro tersimpan dengan templat | Tidak — build yang dipatok mengomentari menu Macros | Ya — Favorites dan Batch Process |
-| Format plug-in pihak ketiga | Sebagian — VST3, CLAP, AU, dan LV2 di desktop di balik persetujuan dan containment, tidak ada di browser | Ya — VST3, AU, LV2, dan Nyquist, dengan manajer plug-in | Sebagian — VST3, dan AU di macOS, tidak ada CLAP atau LV2 |
+| Format plug-in pihak ketiga | Sebagian — VST3, CLAP, AU, LV2, serta efek LADSPA Linux dan penganalisis Vamp di desktop dengan persetujuan dan containment; tidak ada di browser | Ya — VST3, AU, LV2, dan Nyquist, dengan manajer plug-in | Sebagian — VST3, dan AU di macOS, tidak ada CLAP atau LV2 |
 | Skrip Nyquist | Ya — plug-in yang dibundel dan prompt Nyquist | Ya — plug-in yang dibundel dan prompt Nyquist | Tidak |
 | Paket efek terisolasi | Sebagian — paket WebAssembly yang ditinjau, satu dikirim dan yang eksternal dibatasi | Tidak | Tidak |
 | Instrumen virtual | Tidak — setelah 1.0 | Tidak | Tidak |

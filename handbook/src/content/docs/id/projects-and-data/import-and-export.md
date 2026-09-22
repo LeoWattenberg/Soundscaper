@@ -4,7 +4,7 @@ description: "Membedakan media sumber, berkas proyek, berkas pertukaran, dan has
 sidebar:
   order: 1
 ---
-<!-- docs-ai-provenance: {"factPacketSha256":"fd6f45277d29c1bf8e2d17b2265b46483362e3c945300ee8420ac6676ca7d878","model":"aya-expanse:32b","modelDigest":"1603440383bd5504dc7afd01c0407b425b988dde650a8dc1a737433baa3cd432","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"fd6f45277d29c1bf8e2d17b2265b46483362e3c945300ee8420ac6676ca7d878","targetLocale":"id"} -->
+<!-- docs-ai-provenance: {"model":"gpt-5.6-luna","modelDigest":"manual","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"feaac1449bd0cf8c68e4a6c1b9805972644cd6e992ca79c8e5415a0b8cb086f9","targetLocale":"id"} -->
 
 Soundscaper menggunakan berbagai jenis file untuk pekerjaan yang berbeda.
 
@@ -16,6 +16,24 @@ produk aktif dan runtime.
 
 Mengimpor media menambahkan sumber yang dimiliki proyek. Ini tidak membuat file asli
 dokument proyek yang dapat diedit.
+
+Impor dan ekspor audio terkompresi mendukung hingga satu jam atau 1 GB
+(1.000.000.000 byte berkas), mana pun yang tercapai lebih dahulu. Berkas stereo
+48 kHz berdurasi satu jam didukung jika masih memenuhi batas berkas tersebut. Pekerjaan
+panjang membaca, menyandikan, dan menyimpan dalam beberapa bagian; ekspor browser
+berukuran besar memerlukan penyimpanan file privat-origin dan ruang kosong yang cukup.
+Impor besar memerlukan penyimpanan lokal persisten untuk audio yang telah didekodekan.
+Format PCM memiliki batasnya sendiri.
+
+Tingkat browser mencakup MP3, MP2, FLAC, WavPack, Opus, dan Ogg Vorbis. Dukungan
+AAC/M4A di browser bergantung pada codec browser. Ekspor streaming desktop mencakup
+keenam format bawaan tersebut, dengan FLAC 24-bit dan WavPack lossless float32.
+Impor desktop bergantung pada ketersediaan dekoder native; MP2 memakai tingkat
+kompatibilitas utilitas yang lebih kecil. AAC desktop dan penyedia kompatibilitas
+memiliki batasnya sendiri.
+
+Pekerjaan aktif menampilkan bilah kemajuan meskipun **Tampilan → Bilah status**
+disembunyikan. Pilih **Batal** di samping bilah untuk menghentikan impor atau ekspor audio.
 
 ## File proyek yang dapat diedit
 
