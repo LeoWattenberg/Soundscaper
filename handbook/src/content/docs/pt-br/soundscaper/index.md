@@ -4,9 +4,9 @@ description: "Grave, edite, misture, analise e exporte áudio multitrack localme
 sidebar:
   order: 1
 ---
-<!-- docs-ai-provenance: {"factPacketSha256":"0f8ff739965b9c2810de02391dacd0c007c3c58c56bb2a7443469795f0d39245","model":"aya-expanse:32b","modelDigest":"1603440383bd5504dc7afd01c0407b425b988dde650a8dc1a737433baa3cd432","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"0f8ff739965b9c2810de02391dacd0c007c3c58c56bb2a7443469795f0d39245","targetLocale":"pt-BR"} -->
+<!-- docs-ai-provenance: {"factPacketSha256":"f817270f3e324e8eda728d34fd6ab03847b617adb5e312cbbe142615c3c4f1a0","model":"aya-expanse:32b","modelDigest":"1603440383bd5504dc7afd01c0407b425b988dde650a8dc1a737433baa3cd432","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"f817270f3e324e8eda728d34fd6ab03847b617adb5e312cbbe142615c3c4f1a0","targetLocale":"pt-BR"} -->
 
-O Soundscaper é o editor focado em áudio. Ele combina um menu e um modelo de edição alinhados ao Audacity com um binário de projeto, arranjo multitrack não destrutivo, gravação, efeitos em tempo real, análise de volume e frequência e intercâmbio de projetos portáteis.
+O Soundscaper é o editor focado em áudio. Ele combina um menu e um modelo de edição alinhados com o Audacity com um binário de projeto, arranjo multitrack não destrutivo, gravação, efeitos em tempo real, análise de volume e frequência e intercâmbio de projetos portáteis.
 
 ## Caminho recomendado
 
@@ -17,3 +17,5 @@ O Soundscaper é o editor focado em áudio. Ele combina um menu e um modelo de e
 5. Escolha um [guia prático](/guides/) para a tarefa que você tem pela frente - remoção de ruído, desvanecimentos, volume, exportação e mais.
 
 Abra o editor do navegador em [soundscaper.org/en](https://soundscaper.org/en/).
+
+Para assistência de desktop, veja [processamento local, modelos e plugins](/help/local-processing/).
