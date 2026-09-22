@@ -21,9 +21,11 @@ test.describe('Soundscaper sound-activated recording', () => {
 		await expect(options.getByRole('button', { name: 'Sound-activated recording', exact: true })).toBeEnabled();
 		await expect(options.getByRole('button', { name: 'Set activation level' })).toHaveCount(0);
 		await expect(options.getByRole('button', { name: 'Record to new track' })).toBeVisible();
+		await expect(options.getByRole('button', { name: 'Record loop into takes' })).toBeVisible();
 		await expect(options.getByRole('button', { name: 'Timed recording' })).toBeVisible();
 		await expect(options.getByRole('checkbox', { name: 'Lead-in time' })).toBeVisible();
 		await expect(options.getByRole('checkbox', { name: 'Monitor input' })).toBeVisible();
+		await expectRecordFlyoutRows(options);
 		await options.getByRole('button', { name: 'Sound activation', exact: true }).click();
 
 		const settings = page.getByRole('dialog', { name: 'Sound activation', exact: true });
@@ -115,4 +117,27 @@ test.describe('Soundscaper sound-activated recording', () => {
 async function expectCommittedSetting(panel, attribute, value) {
 	await expect(panel).toHaveAttribute(attribute, value);
 	await expect(panel).toHaveAttribute('data-sound-activation-pending', 'false');
+}
+
+async function expectRecordFlyoutRows(options) {
+	const rows = [
+		['Record to new track', 'Record loop into takes'],
+		['Timed recording', 'Sound-activated recording'],
+	];
+	let previousY = -Infinity;
+	for (const [leftName, rightName] of rows) {
+		const left = await options.getByRole('button', { name: leftName, exact: true }).boundingBox();
+		const right = await options.getByRole('button', { name: rightName, exact: true }).boundingBox();
+		expect(left).not.toBeNull();
+		expect(right).not.toBeNull();
+		expect(Math.abs(left.y - right.y)).toBeLessThan(2);
+		expect(left.x + left.width).toBeLessThan(right.x);
+		expect(left.y).toBeGreaterThan(previousY);
+		previousY = left.y;
+	}
+	const leadIn = await options.getByRole('checkbox', { name: 'Lead-in time' }).boundingBox();
+	const monitor = await options.getByRole('checkbox', { name: 'Monitor input' }).boundingBox();
+	expect(Math.abs(leadIn.y - monitor.y)).toBeLessThan(2);
+	expect(leadIn.x).toBeLessThan(monitor.x);
+	expect(leadIn.y).toBeGreaterThan(previousY);
 }
