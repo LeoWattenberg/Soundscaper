@@ -535,7 +535,7 @@ test.describe('audio editor React/design-system workflows', () => {
 		await closeChromeDrawer(editor);
 
 		const mobileClip = clipByName(editor, toneA.name);
-		const clipDialog = await openClipProperties(page, editor, mobileClip, { force: true });
+		const clipDialog = await openClipProperties(page, editor, mobileClip);
 		await expectSurfaceWithinViewport(clipDialog, page);
 		await page.keyboard.press('Escape');
 		await expect(clipDialog).toBeHidden();

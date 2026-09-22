@@ -185,7 +185,7 @@ import {
 
 	test('opens effects in a full-width dock and keeps effect settings open when the dock closes', async ({ page }) => {
 		const errors = collectClientErrors(page);
-		const editor = await bootEditor(page, '/embed/en/');
+		const editor = await bootEditor(page, '/embed/en/', { defaultWorkspace: true });
 		const effectsPanel = await openEffectsForTrack(editor, 0);
 		const rack = effectsPanel.locator('[data-effect-rack]');
 		const packagePanel = rack.locator('.effects-panel');

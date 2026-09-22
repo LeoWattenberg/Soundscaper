@@ -528,7 +528,7 @@ test.describe('audio editor React/design-system workflows', () => {
 
 	test('suppresses the default Project bin on compact mobile until explicitly opened', async ({ page }) => {
 		await page.setViewportSize({ width: 390, height: 844 });
-		const editor = await bootEditor(page, '/embed/en/');
+		const editor = await bootEditor(page, '/embed/en/', { defaultWorkspace: true });
 		const projectBinPanel = editor.locator('[data-workspace-panel="project-bin"]');
 		await expect(projectBinPanel).toHaveCount(0);
 		await chooseNestedCommandAction(page, editor, 'View', ['Panels', 'Project bin']);

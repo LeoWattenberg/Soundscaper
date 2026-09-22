@@ -57,12 +57,18 @@ export async function chooseExportProjectFileAction(page, editor) {
  */
 export function registerAudioEditorHooks() {}
 
-export async function bootEditor(page, path) {
+export async function bootEditor(page, path, { defaultWorkspace = false } = {}) {
 	await seedWorkspaceOnboardingComplete(page);
 	await page.goto(resolveBrowserProductTestUrl(path));
 	const editor = await waitForEditor(page);
 	const decline = page.getByRole('button', { name: /^(Decline|Ablehnen)$/ });
 	if (await decline.isVisible()) await decline.click();
+	if (!defaultWorkspace && await editor.getAttribute('data-product') === 'soundscaper') {
+		const effects = editor.locator('[data-workspace-panel="effects"]');
+		if (await effects.isVisible()) await closeWorkspacePanel(editor, 'effects');
+		await chooseNestedCommandAction(page, editor, 'View', ['Panels', 'Project bin']);
+		await expect(editor.locator('[data-workspace-panel="project-bin"]')).toBeVisible();
+	}
 	return editor;
 }
 
@@ -176,18 +182,12 @@ export async function clickClipInterior(page, clip, position = 0.5) {
 	);
 }
 
-export async function openClipProperties(page, editor, clip, clickOptions = {}) {
+export async function openClipProperties(page, editor, clip) {
 	if (clip) {
-		await clip.click({ position: { x: 24, y: 10 }, ...clickOptions });
-		if (clickOptions.force) {
-			await chooseNestedCommandAction(page, editor, 'Edit', ['Audio clips', 'Clip properties']);
-		} else {
-			await clip.getByRole('button', { name: 'Clip menu' }).click();
-			await page.getByRole('menuitem', { name: 'Clip properties', exact: true }).click();
-		}
-	} else {
-		await chooseNestedCommandAction(page, editor, 'Edit', ['Audio clips', 'Clip properties']);
+		await clip.focus();
+		await clip.press('Enter');
 	}
+	await chooseNestedCommandAction(page, editor, 'Edit', ['Audio clips', 'Clip properties']);
 	const dialog = page.getByRole('dialog', { name: 'Clip properties', exact: true });
 	await expect(dialog).toBeVisible();
 	await expect(page.locator('[data-editor-surface="clip"]')).toBeVisible();
