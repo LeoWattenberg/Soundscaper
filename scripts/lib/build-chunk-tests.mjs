@@ -159,13 +159,13 @@ export const EDITOR_EFFECT_PARAMETER_SURFACE_CHUNK_TEST = new RegExp(
 /**
  * Effect rack consumer and the design-system components it alone loads.
  *
- * The rack's realtime-effect shortcut handler belongs here too. Left to its own
- * chunk it lands with the overlay's lazy facade, which re-exports the overlay,
- * so this chunk imports the facade while the facade imports this chunk: on the
- * facade-first order the rack renders against an uninitialised module and the
- * editor dies with "init_AudioEditorEffectsOverlay is not a function".
+ * The rack's realtime-effect shortcut handler and lazy parameter-editor wrapper
+ * belong here too. Left to their own chunks they land with the overlay's lazy
+ * facade, which re-exports the overlay, so this chunk imports the facade while
+ * the facade imports this chunk: on the facade-first order the rack renders
+ * against an uninitialised module.
  */
-export const EDITOR_EFFECT_DIALOG_SHELL_CHUNK_TEST = /(?:^|[\\/])(?:vendor[\\/]audacity-design-system[\\/]components[\\/]src[\\/](?:EffectsPanel[\\/].*|EffectDialog[\\/]EffectHeader\.tsx|SidePanel[\\/].*)|src[\\/]common[\\/]editor[\\/]ui[\\/]audacity-port-layouts\.ts|src[\\/]common[\\/]editor[\\/]ui[\\/]inspector[\\/](?:(?:AudioEditorEffectsOverlay|AudacityEffectHeader)\.jsx|audacity-realtime-effect-shortcut\.ts))$/;
+export const EDITOR_EFFECT_DIALOG_SHELL_CHUNK_TEST = /(?:^|[\\/])(?:vendor[\\/]audacity-design-system[\\/]components[\\/]src[\\/](?:EffectsPanel[\\/].*|EffectDialog[\\/]EffectHeader\.tsx|SidePanel[\\/].*)|src[\\/]common[\\/]editor[\\/]ui[\\/]audacity-port-layouts\.ts|src[\\/]common[\\/]editor[\\/]ui[\\/]inspector[\\/](?:(?:AudioEditorEffectsOverlay|AudacityEffectHeader|LazyEffectParameterEditor)\.jsx|audacity-realtime-effect-shortcut\.ts))$/;
 export const DESIGN_SYSTEM_EDITOR_SHELL_COMPONENT_CHUNK_TEST = /(?:^|[\\/])vendor[\\/]audacity-design-system[\\/]components[\\/]src[\\/](?:AddTrackFlyout|ApplicationHeader|Button|Checkbox|Clip|ClipBody|ClipHeader|CloudProjectIndicator|ContextMenu|ContextMenuItem|DialogHeader|Dropdown|EnvelopeCurve|EnvelopeInteractionLayer|EnvelopeOverlay|EnvelopePoint|Flyout|Footer|GhostButton|Icon|Knob|LabelMarker|LabeledCheckbox|LabeledRadio|MidiClipBody|MixerChannel|MixerEffect|MixerFader|MixerFaderHandle|MixerPanel|NumberStepper|PanKnob|PanelHeader|PlayheadCursor|ProgressBar|Radio|RulerFlyout|SelectionToolbar|Separator|Slider|TextInput|TimeCode|TimelineRuler|TimelineRulerContextMenu|Toast|ToggleButton|ToggleToolButton|ToolButton|Toolbar|Tooltip|Track|TrackControlPanel|TrackMeter|TransportButton|VerticalRuler)[\\/]/;
 // The renderer/main video contract is a shared codec leaf. Reachability places
 // it in the Framescaper bootstrap and makes the desktop codec runtime import

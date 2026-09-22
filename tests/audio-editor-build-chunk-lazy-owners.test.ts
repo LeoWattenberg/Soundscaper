@@ -401,6 +401,7 @@ test('effect dialogs and their design-system shell share one cycle-free lazy own
 	for (const path of [
 		'src/common/editor/ui/inspector/AudioEditorEffectsOverlay.jsx',
 		'src/common/editor/ui/inspector/AudacityEffectHeader.jsx',
+		'src/common/editor/ui/inspector/LazyEffectParameterEditor.jsx',
 		// The rack's shortcut handler ships here rather than in a chunk of its
 		// own: on its own it joins the overlay's lazy facade, and the resulting
 		// two-chunk cycle left the rack calling an uninitialised overlay module.
