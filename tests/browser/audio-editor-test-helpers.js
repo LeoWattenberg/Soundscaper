@@ -69,8 +69,11 @@ export async function bootEditor(page, path, { defaultWorkspace = false } = {}) 
 	if (!defaultWorkspace && englishRoute && await editor.getAttribute('data-product') === 'soundscaper') {
 		const effects = editor.locator('[data-workspace-panel="effects"]');
 		if (await effects.isVisible()) await closeWorkspacePanel(editor, 'effects');
-		await chooseNestedCommandAction(page, editor, 'View', ['Panels', 'Project bin']);
-		await expect(editor.locator('[data-workspace-panel="project-bin"]')).toBeVisible();
+		const projectBin = editor.locator('[data-workspace-panel="project-bin"]');
+		if (!await projectBin.isVisible()) {
+			await chooseNestedCommandAction(page, editor, 'View', ['Panels', 'Project bin']);
+			await expect(projectBin).toBeVisible();
+		}
 	}
 	return editor;
 }
