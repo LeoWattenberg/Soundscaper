@@ -146,21 +146,24 @@ async function measureDecodedAvDrift(page) {
 // because not one of the six registered metrics reads their bytes: positions
 // are structural, A/V drift is measured from separate probe fixtures, and seek,
 // scroll and retained heap are properties of the editor. The seeded editor
-// therefore settles on the missing-source notice rather than `success`. Accept
-// exactly that notice, so any other error still fails the benchmark.
+// therefore settles on the missing-source notice rather than `success`. Errors
+// are shown in a toast, while the status toolbar reports `info`. Accept only
+// that notice, so any other error still fails the benchmark.
 const MISSING_SOURCES_NOTICE = 'Some local audio sources are missing.';
 
 async function waitForSeededEditor(page) {
 	const editor = page.locator('[data-audio-editor]');
 	await expect(editor).toBeVisible({ timeout: 20_000 });
 	await expect(editor).toHaveAttribute('data-audio-editor-bound', 'true', { timeout: 20_000 });
-	const status = editor.locator('[data-status]');
 	await expect.poll(async () => {
-		const state = await status.getAttribute('data-state');
-		if (state !== 'error') return state;
-		return (await status.textContent())?.includes(MISSING_SOURCES_NOTICE) === true
-			? 'missing-sources'
-			: 'error';
+		return editor.evaluate((root, expectedNotice) => {
+			const state = root.querySelector('[data-status]')?.getAttribute('data-state');
+			if (state === 'success') return 'success';
+			const errorToast = root.querySelector('[data-editor-toast="workspace-status-error"]');
+			return errorToast?.textContent?.includes(expectedNotice) === true
+				? 'missing-sources'
+				: state;
+		}, MISSING_SOURCES_NOTICE);
 	}, { timeout: 30_000 }).toMatch(/^(?:success|missing-sources)$/u);
 	return editor;
 }
