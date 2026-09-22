@@ -22,6 +22,7 @@ const EDITING = Object.freeze({
 	snapToZeroCrossings: false,
 	zoomPrecision: 1,
 	applyEffectsToAllAudio: true,
+	applyMicrofadesToNewClips: true,
 	deleteBehavior: 'leave-gap',
 	closeGapBehavior: 'clip',
 	pasteBehavior: 'overlap',
@@ -52,10 +53,11 @@ const ZOOM_LABELS = Object.freeze([
 	'Max Zoom',
 ]);
 
-test('the Audacity 4 editing page has its exact six sections and conditional choices', () => {
+test('the editing page includes the clip default and conditional choices', () => {
 	const defaultMarkup = renderPage();
 	assert.deepEqual(sectionIds(defaultMarkup), [
 		'effect-behavior',
+		'clip-behavior',
 		'delete-behavior',
 		'paste-behavior',
 		'asymmetric-stereo-heights',
@@ -65,6 +67,7 @@ test('the Audacity 4 editing page has its exact six sections and conditional cho
 	for (const text of [
 		'Effect behavior',
 		'Apply effects to all audio when no selection is made',
+		'Apply 2 ms fades to new clips',
 		'Choose behavior when deleting a portion of a clip',
 		'Leave gap',
 		'Close gap (ripple)',
@@ -157,6 +160,7 @@ test('every editing control persists through the preferences action', async () =
 	});
 	try {
 		await clickCheckbox(mounted.dom.container, 'Apply effects to all audio when no selection is made');
+		await clickCheckbox(mounted.dom.container, 'Apply 2 ms fades to new clips');
 		await chooseRadio(mounted.dom.container, 'audio-editor-delete-behavior', 'leave-gap');
 		await chooseRadio(mounted.dom.container, 'audio-editor-close-gap-behavior', 'clip');
 		await chooseRadio(mounted.dom.container, 'audio-editor-paste-behavior', 'overlap');
@@ -179,6 +183,7 @@ test('every editing control persists through the preferences action', async () =
 
 		assert.deepEqual(mounted.updates, [
 			{ editing: { applyEffectsToAllAudio: false } },
+			{ editing: { applyMicrofadesToNewClips: false } },
 			{ editing: { deleteBehavior: 'leave-gap' } },
 			{ editing: { closeGapBehavior: 'clip' } },
 			{ editing: { pasteBehavior: 'overlap' } },

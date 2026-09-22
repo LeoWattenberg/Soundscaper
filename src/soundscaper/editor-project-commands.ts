@@ -8,6 +8,7 @@ import {
 	type AssistanceAssetUpsertCommandV1,
 } from '../common/editor/assistance/assistance-asset-command-v1.ts';
 import { snapshotInertEditorCommand } from '../common/editor/commands/editor-command-snapshot.ts';
+import { withSoundscaperDefaultMicrofades } from './editor-project-default-microfades.ts';
 import type { AudioEditorCommand } from '../common/editor/commands/protocol.ts';
 import { projectForCommandConsumers } from '../common/editor/project-current-runtime.ts';
 import { reconcileProjectOwnedFeatureRequirements } from '../common/editor/project-owned-feature-requirements.ts';
@@ -310,7 +311,9 @@ function applyInheritedCommand(
 	command: AudioEditorCommand,
 	options: SoundscaperProjectCommandOptions,
 ): SoundscaperProject {
-	const applied = applySoundscaperProjectFoundationCommand(project, command, options);
+	const inherited = applySoundscaperProjectFoundationCommand(project, command, options);
+	const applied = options.microfadeNewClips === true
+		? withSoundscaperDefaultMicrofades(project, inherited) : inherited;
 	assertNoNewNativePluginRackBindings(project, applied);
 	assertNoNewSidechainsIntoFrozenRacks(project, applied);
 	const retainedInstanceIds = nativePluginRackInstanceIds(applied);

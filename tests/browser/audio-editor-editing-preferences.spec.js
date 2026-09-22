@@ -15,7 +15,8 @@ test('Audacity audio-editing preferences reveal their dependent choices and pers
 	await preferences.getByRole('tab', { name: /Editing$/u }).click();
 	let editing = preferences.locator('[data-editing-preferences]');
 
-	await expect(editing.locator('[data-editing-preferences-section]')).toHaveCount(6);
+	await expect(editing.locator('[data-editing-preferences-section]')).toHaveCount(7);
+	await expect(editing.getByRole('checkbox', { name: 'Apply 2 ms fades to new clips' })).toBeChecked();
 	await expect(editing.getByRole('checkbox', {
 		name: 'Apply effects to all audio when no selection is made', exact: true,
 	})).toBeChecked();

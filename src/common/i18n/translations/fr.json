@@ -2,7 +2,7 @@
 	"schemaVersion": 2,
 	"locale": "fr",
 	"provenance": {
-		"machine": {"model":"codex","modelDigest":"sha256:676bae687c7ddacef7fda8bc8a4f143d9c4f28f5f750cceb0b7eef7244622af0","promptVersion":"i18n-machine-v1"},
+		"machine": {"model":"gpt-5","modelDigest":"sha256:aceea3807b621fa21f92a03c6f52b5e08fd7404153f27b991e38de39bf09569d","promptVersion":"i18n-machine-v1"},
 		"audacity": {"repository":"audacity/audacity","headSha":"de2e43dc13474ba712ade5ea8e47550eba0e8bfb","runId":35327911264,"artifactId":10539339149,"workflowUrl":"https://github.com/audacity/audacity/actions/runs/35327911264","archiveName":"Audacity_locale_262610911.zip","archiveSha256":"13b1ff11c39a677c711a1d29738a394aaca7a200533927aab3f45bbd76c1ff8e","archiveByteLength":15413913,"licenseSpdx":"GPL-3.0-only","upstreamProjectUrl":"https://github.com/audacity/audacity","upstreamLicenseUrl":"https://github.com/audacity/audacity/blob/de2e43dc13474ba712ade5ea8e47550eba0e8bfb/LICENSE.txt","modificationNotice":"Soundscaper converts reviewed Audacity Qt TS messages to per-locale JSON catalogs, excludes unsafe or inapplicable entries, adapts reviewed placeholders and mnemonics, and removes ellipsis punctuation.","mappingVersion":3,"mappingSha256":"f4cf0434f47eaa9434d079a1623b9d9501e9c8da0d83f0c73344f7765113b57c"}
 	},
 	"entries": {
@@ -687,11 +687,13 @@
 		"editingAlwaysConvertToMono": ["audacity","Always convert to mono without prompt","Toujours convertir en mono sans invite"],
 		"editingAlwaysPasteAsNewClip": ["audacity","Always paste audio as a new clip","Toujours coller l'audio dans un nouveau clip"],
 		"editingApplyEffectsToAllAudio": ["audacity","Apply effects to all audio when no selection is made","Appliquer les effets à tout l'audio lorsqu'aucune sélection n'est effectuée"],
+		"editingApplyMicrofadesToNewClips": ["machine","Apply 2 ms fades to new clips","Appliquer des fondus de 2 ms aux nouveaux clips"],
 		"editingAsymmetricAlways": ["audacity","Always","Toujours"],
 		"editingAsymmetricNever": ["audacity","Never","Jamais"],
 		"editingAsymmetricStereoHeights": ["audacity","Asymmetric stereo heights","Hauteurs stéréo asymétriques"],
 		"editingAsymmetricStereoHeightsDescription": ["audacity","Dragging on the center line may adjust the height of the channel:","En faisant glisser la ligne centrale, il est possible de régler la hauteur du canal :"],
 		"editingAsymmetricWorkspace": ["audacity","Depending on workspace","Selon l'espace de travail"],
+		"editingClipBehavior": ["machine","Clip behavior","Comportement des clips"],
 		"editingCloseGapAllTracks": ["audacity","All clips on all tracks move back to fill the gap","Tous les clips de toutes les pistes se déplacent pour remplir l'espace"],
 		"editingCloseGapBehavior": ["audacity","When closing the gap, do the following","Lors de la réduction de l'espace, faire ce qui suit"],
 		"editingCloseGapClip": ["audacity","The selected clip moves back to fill the gap","Le clip sélectionné se déplace pour remplir l'espace"],
@@ -2242,7 +2244,6 @@
 		"signatureEvent": ["machine","Time signature event","Événement de signature temporelle"],
 		"signatureEvents": ["machine","Time signature events","Événements de signature temporelle"],
 		"silenceAudio": ["machine","Silence audio","Silencer l'audio"],
-		"silenceFinder": ["machine","Silence finder","Rechercheur de silence"],
 		"silenceGenerator": ["machine","Silence","Silence"],
 		"skin": ["machine","Skin","Habillage"],
 		"skinCarousel": ["machine","carousel","carrousel"],
@@ -2306,7 +2307,6 @@
 		"soundActivationStatusEnabled": ["machine","Sound-activated recording is on.","L'enregistrement activé par le son est activé."],
 		"soundActivationThreshold": ["machine","Activation threshold","Seuil d'activation"],
 		"soundActivationThresholdDescription": ["machine","Capture begins at or above this input level.","La capture commence à ce niveau d'entrée ou au-dessus."],
-		"soundFinder": ["machine","Sound finder","Recherche de son"],
 		"sourceAlpha": ["machine","Alpha channel","Canal alpha"],
 		"sourceAudioCodec": ["machine","Audio codec","Codec audio"],
 		"sourceAudioStreams": ["machine","Audio streams","Flux audio"],

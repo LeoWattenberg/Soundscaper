@@ -142,7 +142,7 @@ export interface ControllerProjectRuntime<
 	readonly applyCommand: (
 		project: unknown,
 		command: AudioEditorCommand,
-		options?: Readonly<{ now?: Date | string }>,
+		options?: Readonly<{ now?: Date | string; microfadeNewClips?: boolean }>,
 	) => Project;
 	/**
 	 * Fold everything a macro committed since a depth into one undo entry.
@@ -201,7 +201,7 @@ const DEFAULT_RUNTIME = Object.freeze({
 	}),
 	createHistory: createDefaultControllerHistory,
 	executeCommand: executeEditorCommand,
-	applyCommand: (project: unknown, command: AudioEditorCommand, options?: Readonly<{ now?: Date | string }>) => {
+	applyCommand: (project: unknown, command: AudioEditorCommand, options?: Readonly<{ now?: Date | string; microfadeNewClips?: boolean }>) => {
 		if (!validateAudioEditorProjectV17(project)) throw new TypeError('Expected a current audio editor project.');
 		return applyEditorCommand(project, command, options);
 	},

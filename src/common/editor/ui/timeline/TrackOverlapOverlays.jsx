@@ -1,6 +1,7 @@
 import { CLIP_CONTENT_OFFSET } from '@soundscaper/design-system/constants';
 
 import { findPartialClipOverlaps } from '../../audio-clip-overlap.ts';
+import { DEFAULT_CLIP_MICROFADE_SECONDS } from '../../clip-microfade.ts';
 import { compareCodeUnits } from '../../code-unit-order.ts';
 import { validateVideoTrackComposition } from '../../video-timeline.js';
 
@@ -82,7 +83,10 @@ export function createCrossfadeOverlays(clips, overscanStartFrame, pixelsPerSeco
 			startFrame: (clip) => clip.timelineStartFrame,
 			durationFrames: (clip) => clip.durationFrames,
 		},
-	).map(({ left, right, startFrame, endFrame }) => ({
+	).filter(({ startFrame, endFrame }) => (
+		pixelsPerSecond >= sampleRate
+		|| endFrame - startFrame > Math.max(1, Math.round(sampleRate * DEFAULT_CLIP_MICROFADE_SECONDS))
+	)).map(({ left, right, startFrame, endFrame }) => ({
 		id: `${left.id}:${right.id}:${startFrame}:${endFrame}`,
 		left: CLIP_CONTENT_OFFSET
 			+ (startFrame - overscanStartFrame) / sampleRate * pixelsPerSecond,

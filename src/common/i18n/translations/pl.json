@@ -2,7 +2,7 @@
 	"schemaVersion": 2,
 	"locale": "pl",
 	"provenance": {
-		"machine": {"model":"codex","modelDigest":"sha256:0ded29c166cbd709c6f117d7b1b780a41f7b4ac67bfd32db9850594539f4a9bc","promptVersion":"i18n-machine-v1"},
+		"machine": {"model":"gpt-5","modelDigest":"sha256:d3321128b5771efb07ff0159db86de031929bbf907e9efa9bd3656526a93c957","promptVersion":"i18n-machine-v1"},
 		"audacity": {"repository":"audacity/audacity","headSha":"de2e43dc13474ba712ade5ea8e47550eba0e8bfb","runId":35327911264,"artifactId":10539339149,"workflowUrl":"https://github.com/audacity/audacity/actions/runs/35327911264","archiveName":"Audacity_locale_262610911.zip","archiveSha256":"13b1ff11c39a677c711a1d29738a394aaca7a200533927aab3f45bbd76c1ff8e","archiveByteLength":15413913,"licenseSpdx":"GPL-3.0-only","upstreamProjectUrl":"https://github.com/audacity/audacity","upstreamLicenseUrl":"https://github.com/audacity/audacity/blob/de2e43dc13474ba712ade5ea8e47550eba0e8bfb/LICENSE.txt","modificationNotice":"Soundscaper converts reviewed Audacity Qt TS messages to per-locale JSON catalogs, excludes unsafe or inapplicable entries, adapts reviewed placeholders and mnemonics, and removes ellipsis punctuation.","mappingVersion":3,"mappingSha256":"f4cf0434f47eaa9434d079a1623b9d9501e9c8da0d83f0c73344f7765113b57c"}
 	},
 	"entries": {
@@ -687,11 +687,13 @@
 		"editingAlwaysConvertToMono": ["audacity","Always convert to mono without prompt","Zawsze konwertuj do mono bez podpowiedzi"],
 		"editingAlwaysPasteAsNewClip": ["audacity","Always paste audio as a new clip","Zawsze wklejaj dźwięk jako nowy klip"],
 		"editingApplyEffectsToAllAudio": ["audacity","Apply effects to all audio when no selection is made","Zastosuj efekty do wszystkich dźwięków, jeśli nie dokonano żadnego wyboru"],
+		"editingApplyMicrofadesToNewClips": ["machine","Apply 2 ms fades to new clips","Stosuj zanikanie 2 ms do nowych klipów"],
 		"editingAsymmetricAlways": ["audacity","Always","Zawsze"],
 		"editingAsymmetricNever": ["audacity","Never","Nigdy"],
 		"editingAsymmetricStereoHeights": ["audacity","Asymmetric stereo heights","Asymetryczne wysokości stereo"],
 		"editingAsymmetricStereoHeightsDescription": ["audacity","Dragging on the center line may adjust the height of the channel:","Przeciąganie na linii środkowej może dostosowywać wysokość kanału:"],
 		"editingAsymmetricWorkspace": ["audacity","Depending on workspace","W zależności od obszaru roboczego"],
+		"editingClipBehavior": ["machine","Clip behavior","Zachowanie klipów"],
 		"editingCloseGapAllTracks": ["audacity","All clips on all tracks move back to fill the gap","Wszystkie klipy na wszystkich ścieżkach cofają się, aby wypełnić przerwę"],
 		"editingCloseGapBehavior": ["audacity","When closing the gap, do the following","Podczas zamykania przerwy, zrób następujące czynności"],
 		"editingCloseGapClip": ["audacity","The selected clip moves back to fill the gap","Zaznaczone klipy cofają się, aby wypełnić przerwę"],
@@ -2242,7 +2244,6 @@
 		"signatureEvent": ["machine","Time signature event","Wydarzenie sygnatury czasowej"],
 		"signatureEvents": ["machine","Time signature events","Wydarzenia sygnatury czasowej"],
 		"silenceAudio": ["machine","Silence audio","Wycisz audio"],
-		"silenceFinder": ["machine","Silence finder","Znajdź wyciszenie"],
 		"silenceGenerator": ["machine","Silence","Wyciszenie"],
 		"skin": ["machine","Skin","Skórka"],
 		"skinCarousel": ["machine","carousel","karuzela"],
@@ -2306,7 +2307,6 @@
 		"soundActivationStatusEnabled": ["machine","Sound-activated recording is on.","Nagrywanie aktywowane dźwiękiem jest włączone."],
 		"soundActivationThreshold": ["machine","Activation threshold","Próg aktywacji"],
 		"soundActivationThresholdDescription": ["machine","Capture begins at or above this input level.","Nagrywanie rozpoczyna się przy tym poziomie wejścia lub powyżej."],
-		"soundFinder": ["machine","Sound finder","Znajdź dźwięk"],
 		"sourceAlpha": ["machine","Alpha channel","Kanał alfa"],
 		"sourceAudioCodec": ["machine","Audio codec","Kodek audio"],
 		"sourceAudioStreams": ["machine","Audio streams","Strumienie audio"],

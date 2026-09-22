@@ -2,7 +2,7 @@
 	"schemaVersion": 2,
 	"locale": "zh-CN",
 	"provenance": {
-		"machine": {"model":"codex","modelDigest":"sha256:7e3aabe197cc20b2dbd31b70c8e81b788486596d8bbddbc722a173b18a9671af","promptVersion":"i18n-machine-v1"},
+		"machine": {"model":"gpt-5","modelDigest":"sha256:e26be729025f3acec388939d0a609c45c436a08a3c360c8e0f2dc6758ebdc6b3","promptVersion":"i18n-machine-v1"},
 		"audacity": {"repository":"audacity/audacity","headSha":"de2e43dc13474ba712ade5ea8e47550eba0e8bfb","runId":35327911264,"artifactId":10539339149,"workflowUrl":"https://github.com/audacity/audacity/actions/runs/35327911264","archiveName":"Audacity_locale_262610911.zip","archiveSha256":"13b1ff11c39a677c711a1d29738a394aaca7a200533927aab3f45bbd76c1ff8e","archiveByteLength":15413913,"licenseSpdx":"GPL-3.0-only","upstreamProjectUrl":"https://github.com/audacity/audacity","upstreamLicenseUrl":"https://github.com/audacity/audacity/blob/de2e43dc13474ba712ade5ea8e47550eba0e8bfb/LICENSE.txt","modificationNotice":"Soundscaper converts reviewed Audacity Qt TS messages to per-locale JSON catalogs, excludes unsafe or inapplicable entries, adapts reviewed placeholders and mnemonics, and removes ellipsis punctuation.","mappingVersion":3,"mappingSha256":"f4cf0434f47eaa9434d079a1623b9d9501e9c8da0d83f0c73344f7765113b57c"}
 	},
 	"entries": {
@@ -687,11 +687,13 @@
 		"editingAlwaysConvertToMono": ["audacity","Always convert to mono without prompt","无需提示始终转换为单声道"],
 		"editingAlwaysPasteAsNewClip": ["audacity","Always paste audio as a new clip","始终将音频粘贴为新片段"],
 		"editingApplyEffectsToAllAudio": ["audacity","Apply effects to all audio when no selection is made","未进行任何选择时，对所有音频应用效果"],
+		"editingApplyMicrofadesToNewClips": ["machine","Apply 2 ms fades to new clips","为新片段应用 2 毫秒淡入淡出"],
 		"editingAsymmetricAlways": ["audacity","Always","总是"],
 		"editingAsymmetricNever": ["audacity","Never","从不"],
 		"editingAsymmetricStereoHeights": ["audacity","Asymmetric stereo heights","非对称立体高度"],
 		"editingAsymmetricStereoHeightsDescription": ["audacity","Dragging on the center line may adjust the height of the channel:","拖动中心线可以调整通道高度："],
 		"editingAsymmetricWorkspace": ["audacity","Depending on workspace","根据工作空间而定"],
+		"editingClipBehavior": ["machine","Clip behavior","片段行为"],
 		"editingCloseGapAllTracks": ["audacity","All clips on all tracks move back to fill the gap","所有音轨上的所有片段都向后移动以填补空隙"],
 		"editingCloseGapBehavior": ["audacity","When closing the gap, do the following","关闭间隙时请执行以下操作"],
 		"editingCloseGapClip": ["audacity","The selected clip moves back to fill the gap","选中的片段向后移动以填补空隙"],
@@ -2242,7 +2244,6 @@
 		"signatureEvent": ["machine","Time signature event","拍号事件"],
 		"signatureEvents": ["machine","Time signature events","拍号事件"],
 		"silenceAudio": ["machine","Silence audio","使音频静音"],
-		"silenceFinder": ["machine","Silence finder","静音查找器"],
 		"silenceGenerator": ["machine","Silence","静音"],
 		"skin": ["machine","Skin","皮肤"],
 		"skinCarousel": ["machine","carousel","轮播"],
@@ -2306,7 +2307,6 @@
 		"soundActivationStatusEnabled": ["machine","Sound-activated recording is on.","声控录音已开启。"],
 		"soundActivationThreshold": ["machine","Activation threshold","激活阈值"],
 		"soundActivationThresholdDescription": ["machine","Capture begins at or above this input level.","当输入电平达到或超过此值时开始录音。"],
-		"soundFinder": ["machine","Sound finder","声音查找器"],
 		"sourceAlpha": ["machine","Alpha channel","Alpha 通道"],
 		"sourceAudioCodec": ["machine","Audio codec","音频编解码器"],
 		"sourceAudioStreams": ["machine","Audio streams","音频流"],

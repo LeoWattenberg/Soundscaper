@@ -1,6 +1,7 @@
 import { useCallback, useEffect } from 'react';
 
 import { secondsToFrames } from '../../design-system-adapters.js';
+import { resolveBoundarySnap } from './boundary-snap.ts';
 import { fadeDurationAtPointer, fadeField } from './clip-fade-geometry.ts';
 import {
 	commitTimelineRateStretchPointer,
@@ -39,6 +40,7 @@ export function useTimelinePointerFinish({
 		setTrackResizePreview,
 		setLoopPreview,
 		setSelectionPreview,
+		setBoundarySnapGuideFrames = () => undefined,
 	} = state;
 	const {
 		project,
@@ -64,6 +66,7 @@ export function useTimelinePointerFinish({
 		setClipDragPreview(null);
 		setTrackResizePreview(null);
 		setSelectionPreview(null);
+		setBoundarySnapGuideFrames([]);
 		if (session?.kind === 'track-resize') {
 			if (!cancelled && !pinchSession.current && project && session.height !== session.originalHeight) {
 				run(() => controller.actions.timeline.resizeTrackHeight(
@@ -137,7 +140,13 @@ export function useTimelinePointerFinish({
 			return;
 		}
 		if (session.kind === 'selection') {
-			const endFrame = frameAtClientX(event.clientX, session.lane);
+			const rawEndFrame = frameAtClientX(event.clientX, session.lane);
+			const endSnap = session.snapDisabled ? { frame: rawEndFrame, snapped: false }
+				: resolveBoundarySnap({
+					project, frame: rawEndFrame, currentTrackId: session.lane.dataset.trackId ?? null,
+					pixelsPerSecond, sampleRate, rightEdge: rawEndFrame >= session.startFrame,
+				});
+			const endFrame = endSnap.frame;
 			const draggedTrackIds = timelineSelectionDragTrackIds(session.lane, scrollRef.current, event.clientY);
 			const trackIds = draggedTrackIds ?? project.selection?.trackIds;
 			if ((draggedTrackIds?.length ?? 0) <= 1 && Math.abs(endFrame - session.startFrame) < Math.max(1, secondsToFrames(3 / pixelsPerSecond, { sampleRate }))) {
@@ -147,7 +156,10 @@ export function useTimelinePointerFinish({
 					run(() => controller.actions.transport.playPause());
 				}
 			} else {
-				run(() => controller.actions.timeline.setSelection(session.startFrame, endFrame, trackIds ? { trackIds } : {}));
+				const setSelection = (session.boundarySnapped || endSnap.snapped)
+					? controller.actions.timeline.setExactSelection
+					: controller.actions.timeline.setSelection;
+				run(() => setSelection(session.startFrame, endFrame, trackIds ? { trackIds } : {}));
 			}
 			return;
 		}
@@ -183,20 +195,22 @@ export function useTimelinePointerFinish({
 		const clip = project.clips.find((item) => item.id === session.clipId);
 		if (!clip) return;
 		if (session.kind === 'move') {
+			const moveOptions = session.boundarySnapped
+				? { ...session.moveOptions, exactFrame: true } : session.moveOptions;
 			if (session.projectBinDrop) {
 				run(() => controller.actions.projectBin.moveFromTimeline(clip.id));
 				onRevealProjectBin?.();
 				return;
 			}
 			if (dragPreview?.createTrack) {
-				run(() => controller.actions.clip.moveToNewTrack(clip.id, dragPreview.timelineStartFrame, session.moveOptions));
+				run(() => controller.actions.clip.moveToNewTrack(clip.id, dragPreview.timelineStartFrame, moveOptions));
 				return;
 			}
 			const trackId = dragPreview?.trackId || trackAtClientY(event.clientY, session.trackId);
 			const timelineStartFrame = session.moveOptions?.preserveTime
 				? session.original.timelineStartFrame
 				: dragPreview?.timelineStartFrame ?? Math.max(0, session.original.timelineStartFrame + deltaFrames);
-			run(() => controller.actions.clip.move(clip.id, trackId, timelineStartFrame, session.moveOptions));
+			run(() => controller.actions.clip.move(clip.id, trackId, timelineStartFrame, moveOptions));
 		} else if (session.kind === 'stretch-left') {
 			const change = Math.max(
 				-session.original.timelineStartFrame,
@@ -228,7 +242,7 @@ export function useTimelinePointerFinish({
 				}),
 			});
 		}
-	}, [controller, frameAtClientX, isOverOutputDock, mutationsBlocked, onRevealProjectBin, pixelsPerSecond, project, run, sampleRate, setProjectBinDropActive, snapshot.capabilities?.videoCompositing, snapshot.timeline?.playbackOnRulerClick, splitToolActive, trackAtClientY, transportState]);
+	}, [controller, frameAtClientX, isOverOutputDock, mutationsBlocked, onRevealProjectBin, pixelsPerSecond, project, run, sampleRate, setBoundarySnapGuideFrames, setProjectBinDropActive, snapshot.capabilities?.videoCompositing, snapshot.timeline?.playbackOnRulerClick, splitToolActive, trackAtClientY, transportState]);
 
 	const finishTouch = useCallback((event) => {
 		touchPointers.current.delete(event.pointerId);
@@ -241,11 +255,12 @@ export function useTimelinePointerFinish({
 		setDraggingClipIds(null);
 		setClipDragPreview(null);
 		setSelectionPreview(null);
+		setBoundarySnapGuideFrames([]);
 		setLoopPreview(null);
 		setTrackResizePreview(null);
 		setProjectBinDropActive(false);
 		return true;
-	}, [setProjectBinDropActive]);
+	}, [setBoundarySnapGuideFrames, setProjectBinDropActive]);
 
 	useEffect(() => {
 		const finishOutsideTimeline = (event) => {
@@ -276,13 +291,32 @@ export function useTimelinePointerFinish({
 
 	useEffect(() => {
 		const cancelWithEscape = (event) => {
-			if (event.key !== 'Escape' || !cancelPointerSession()) return;
+			if (event.key !== 'Escape') return;
+			const session = pointerSession.current;
+			if (session?.kind === 'selection' || (session?.kind === 'move' && !session.slipSlideMode)) {
+				session.snapDisabled = true;
+				session.boundarySnapped = false;
+				setBoundarySnapGuideFrames([]);
+				if (session.kind === 'selection') {
+					session.startFrame = session.rawStartFrame ?? session.startFrame;
+					session.startSnapGuideFrame = null;
+					const endFrame = session.lastRawEndFrame ?? session.startFrame;
+					setSelectionPreview({
+						startFrame: Math.min(session.startFrame, endFrame),
+						endFrame: Math.max(session.startFrame, endFrame),
+						...(session.lastTrackIds ? { trackIds: session.lastTrackIds } : {}),
+					});
+				} else if (session.unsnappedPreview) {
+					session.preview = session.unsnappedPreview;
+					setClipDragPreview(session.unsnappedPreview);
+				}
+			} else if (!cancelPointerSession()) return;
 			event.preventDefault();
 			event.stopPropagation();
 		};
 		globalThis.addEventListener('keydown', cancelWithEscape, true);
 		return () => globalThis.removeEventListener('keydown', cancelWithEscape, true);
-	}, [cancelPointerSession]);
+	}, [cancelPointerSession, pointerSession, setBoundarySnapGuideFrames, setClipDragPreview, setSelectionPreview]);
 
 	return { finishPointerSession, finishTouch, cancelPointerSession };
 }

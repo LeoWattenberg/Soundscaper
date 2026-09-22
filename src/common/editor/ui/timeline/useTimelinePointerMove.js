@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef } from 'react';
 import { CLIP_CONTENT_OFFSET } from '@soundscaper/design-system/constants';
 
 import { secondsToFrames } from '../../design-system-adapters.js';
+import { resolveBoundarySnap, resolveClipMoveBoundarySnap } from './boundary-snap.ts';
 import { fadeDurationAtPointer, fadeField } from './clip-fade-geometry.ts';
 import { createClipTrimPreview } from './interaction-helpers.js';
 import { compatibleMediaTrack, MINIMUM_TRACK_HEIGHT } from './geometry.ts';
@@ -35,6 +36,7 @@ export function useTimelinePointerMove({
 		setTrackResizePreview,
 		setLoopPreview,
 		setSelectionPreview,
+		setBoundarySnapGuideFrames = NOOP,
 		setSplitToolGuideline = NOOP,
 	} = state;
 	const {
@@ -217,11 +219,24 @@ export function useTimelinePointerMove({
 			session.points.push({ timelineFrame: point.timelineFrame, value: point.value });
 			event.preventDefault();
 		} else if (session?.kind === 'selection') {
-			const endFrame = frameAtClientX(event.clientX, session.lane);
+			const rawEndFrame = frameAtClientX(event.clientX, session.lane);
+			const endSnap = session.snapDisabled ? { frame: rawEndFrame, snapped: false }
+				: resolveBoundarySnap({
+					project, frame: rawEndFrame, currentTrackId: session.lane.dataset.trackId ?? null,
+					pixelsPerSecond, sampleRate, rightEdge: rawEndFrame >= session.startFrame,
+				});
+			const endFrame = endSnap.frame;
+			const trackIds = timelineSelectionDragTrackIds(session.lane, scrollRef.current, event.clientY);
+			session.lastRawEndFrame = rawEndFrame;
+			session.lastTrackIds = trackIds;
+			session.boundarySnapped = Number.isSafeInteger(session.startSnapGuideFrame) || endSnap.snapped;
+			setBoundarySnapGuideFrames([...new Set([
+				session.startSnapGuideFrame, endSnap.snapped ? endFrame : null,
+			].filter(Number.isSafeInteger))]);
 			setSelectionPreview({
 				startFrame: Math.min(session.startFrame, endFrame),
 				endFrame: Math.max(session.startFrame, endFrame),
-				trackIds: timelineSelectionDragTrackIds(session.lane, scrollRef.current, event.clientY),
+				trackIds,
 			});
 		} else if (session?.kind === 'move') {
 			if (session.slipSlideMode) {
@@ -250,6 +265,7 @@ export function useTimelinePointerMove({
 				session.projectBinDrop = false;
 				session.preview = null;
 				setClipDragPreview(null);
+				setBoundarySnapGuideFrames([]);
 				setProjectBinDropActive(false);
 				event.preventDefault();
 				return;
@@ -258,6 +274,7 @@ export function useTimelinePointerMove({
 				session.projectBinDrop = true;
 				session.preview = null;
 				setClipDragPreview(null);
+				setBoundarySnapGuideFrames([]);
 				setProjectBinDropActive(true);
 				event.preventDefault();
 				return;
@@ -302,17 +319,38 @@ export function useTimelinePointerMove({
 				...(movesSelection ? [selection.startFrame] : []),
 			);
 			const clampedDeltaFrames = Math.max(deltaFrames, -earliestMovingFrame);
-			const previews = movingClips.map((clip, index) => {
+			const activeStartFrame = activeClip?.timelineStartFrame ?? session.original?.timelineStartFrame ?? 0;
+			const rawActiveStartFrame = activeStartFrame + clampedDeltaFrames;
+			const snap = session.snapDisabled || session.moveOptions?.preserveTime
+				? { startFrame: rawActiveStartFrame, guideFrame: null }
+				: resolveClipMoveBoundarySnap({
+					project, clipId: session.clipId, movingClipIds: session.clipIds,
+					rawStartFrame: rawActiveStartFrame, currentTrackId: session.trackId,
+					destinationTrackId: createsTrack ? NEW_AUDIO_TRACK_DROP_TARGET : requestedTrackId,
+					pixelsPerSecond, sampleRate, preferRightEdge: session.preferRightSnap === true,
+					microfadeNewClips: snapshot.preferences?.editing?.applyMicrofadesToNewClips === true,
+				});
+			const snappedDeltaFrames = Math.max(snap.startFrame - activeStartFrame, -earliestMovingFrame);
+			const createPreviews = (delta) => movingClips.map((clip, index) => {
 				const destinationIndex = sourceTrackIndices[index] + trackDelta;
 				return {
 					clipId: clip.id,
 					trackId: mediaTracks[destinationIndex]?.id || `${NEW_AUDIO_TRACK_DROP_TARGET}-${destinationIndex}`,
-					timelineStartFrame: clip.timelineStartFrame + clampedDeltaFrames,
+					timelineStartFrame: clip.timelineStartFrame + delta,
 				};
 			});
+			const previews = createPreviews(snappedDeltaFrames);
 			const activePreview = previews.find((preview) => preview.clipId === session.clipId);
 			const preview = { ...activePreview, createTrack: createsTrack, previews };
+			const rawPreviews = createPreviews(clampedDeltaFrames);
+			session.unsnappedPreview = {
+				...rawPreviews.find(({ clipId }) => clipId === session.clipId),
+				createTrack: createsTrack, previews: rawPreviews,
+			};
 			session.preview = preview;
+			session.boundarySnapped = snap.guideFrame !== null
+				&& snappedDeltaFrames === snap.startFrame - activeStartFrame;
+			setBoundarySnapGuideFrames(session.boundarySnapped ? [snap.guideFrame] : []);
 			setClipDragPreview((current) => (
 				current?.clipId === preview.clipId
 				&& current.trackId === preview.trackId
@@ -392,7 +430,7 @@ export function useTimelinePointerMove({
 				setDraggingClipIds(new Set(preview.previews.map(({ clipId }) => clipId)));
 			}
 		}
-	}, [clearSplitToolGuideline, controller, frameAtClientX, isOverOutputDock, isOverProjectBin, panelWidth, pixelsPerSecond, project, projectIndex, resolveCurrentSplitToolGuideline, run, sampleRate, setDraggingClipIds, setProjectBinDropActive, setSplitToolGuideline, snapshot.capabilities?.videoCompositing, splitToolActive, trackAtClientY]);
+	}, [clearSplitToolGuideline, controller, frameAtClientX, isOverOutputDock, isOverProjectBin, panelWidth, pixelsPerSecond, project, projectIndex, resolveCurrentSplitToolGuideline, run, sampleRate, setBoundarySnapGuideFrames, setDraggingClipIds, setProjectBinDropActive, setSplitToolGuideline, snapshot.capabilities?.videoCompositing, splitToolActive, trackAtClientY]);
 
 	return { onPointerMove, clearSplitToolGuideline };
 }

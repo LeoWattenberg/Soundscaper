@@ -41,6 +41,7 @@ export interface SoundscaperProductionCommandOptions {
 	readonly now?: Date | string;
 	/** Where the playhead sits as this command runs, so undo can put it back. */
 	readonly playheadFrame?: number;
+	readonly microfadeNewClips?: boolean;
 }
 
 export interface SoundscaperProductionHistoryEntry {

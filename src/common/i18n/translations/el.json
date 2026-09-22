@@ -2,7 +2,7 @@
 	"schemaVersion": 2,
 	"locale": "el",
 	"provenance": {
-		"machine": {"model":"codex","modelDigest":"sha256:108ceed63742fa3ad22028f8591551bd1e362b47b5278acd333d879bb88a3c99","promptVersion":"i18n-machine-v1"},
+		"machine": {"model":"gpt-5","modelDigest":"sha256:0dcf7f4ea07fd34e06da785c10dc73a3e7c00c1ba5fdbd70e5af8e5c2495837e","promptVersion":"i18n-machine-v1"},
 		"audacity": {"repository":"audacity/audacity","headSha":"de2e43dc13474ba712ade5ea8e47550eba0e8bfb","runId":35327911264,"artifactId":10539339149,"workflowUrl":"https://github.com/audacity/audacity/actions/runs/35327911264","archiveName":"Audacity_locale_262610911.zip","archiveSha256":"13b1ff11c39a677c711a1d29738a394aaca7a200533927aab3f45bbd76c1ff8e","archiveByteLength":15413913,"licenseSpdx":"GPL-3.0-only","upstreamProjectUrl":"https://github.com/audacity/audacity","upstreamLicenseUrl":"https://github.com/audacity/audacity/blob/de2e43dc13474ba712ade5ea8e47550eba0e8bfb/LICENSE.txt","modificationNotice":"Soundscaper converts reviewed Audacity Qt TS messages to per-locale JSON catalogs, excludes unsafe or inapplicable entries, adapts reviewed placeholders and mnemonics, and removes ellipsis punctuation.","mappingVersion":3,"mappingSha256":"f4cf0434f47eaa9434d079a1623b9d9501e9c8da0d83f0c73344f7765113b57c"}
 	},
 	"entries": {
@@ -687,11 +687,13 @@
 		"editingAlwaysConvertToMono": ["machine","Always convert to mono without prompt","Να γίνεται πάντα μετατροπή σε μονοφωνικό ήχο χωρίς προτροπή"],
 		"editingAlwaysPasteAsNewClip": ["machine","Always paste audio as a new clip","Να γίνεται πάντα επικόλληση ήχου ως νέο κλιπ"],
 		"editingApplyEffectsToAllAudio": ["machine","Apply effects to all audio when no selection is made","Εφαρμογή εφέ σε όλο τον ήχο όταν δεν υπάρχει επιλογή"],
+		"editingApplyMicrofadesToNewClips": ["machine","Apply 2 ms fades to new clips","Εφαρμογή σβησίματος 2 ms σε νέα κλιπ"],
 		"editingAsymmetricAlways": ["machine","Always","Πάντα"],
 		"editingAsymmetricNever": ["machine","Never","Ποτέ"],
 		"editingAsymmetricStereoHeights": ["machine","Asymmetric stereo heights","Ασύμμετρα ύψη στερεοφωνικών καναλιών"],
 		"editingAsymmetricStereoHeightsDescription": ["machine","Dragging on the center line may adjust the height of the channel:","Η μεταφορά της κεντρικής γραμμής μπορεί να προσαρμόσει το ύψος του καναλιού:"],
 		"editingAsymmetricWorkspace": ["machine","Depending on workspace","Ανάλογα με τον χώρο εργασίας"],
+		"editingClipBehavior": ["machine","Clip behavior","Συμπεριφορά κλιπ"],
 		"editingCloseGapAllTracks": ["machine","All clips on all tracks move back to fill the gap","Όλα τα κλιπ σε όλα τα κομμάτια μετακινούνται προς τα πίσω για να καλύψουν το κενό"],
 		"editingCloseGapBehavior": ["machine","When closing the gap, do the following","Κατά το κλείσιμο του κενού, κάντε τα εξής"],
 		"editingCloseGapClip": ["machine","The selected clip moves back to fill the gap","Το επιλεγμένο κλιπ μετακινείται προς τα πίσω για να καλύψει το κενό"],
@@ -2242,7 +2244,6 @@
 		"signatureEvent": ["machine","Time signature event","Συμβάν ένδειξης μέτρου"],
 		"signatureEvents": ["machine","Time signature events","Συμβάντα ένδειξης μέτρου"],
 		"silenceAudio": ["machine","Silence audio","Αντικατάσταση ήχου με σιωπή"],
-		"silenceFinder": ["machine","Silence finder","Ανιχνευτής σιωπής"],
 		"silenceGenerator": ["machine","Silence","Σιωπή"],
 		"skin": ["machine","Skin","Εμφάνιση"],
 		"skinCarousel": ["machine","carousel","καρουζέλ"],
@@ -2306,7 +2307,6 @@
 		"soundActivationStatusEnabled": ["machine","Sound-activated recording is on.","Η εγγραφή με ενεργοποίηση ήχου είναι ενεργοποιημένη."],
 		"soundActivationThreshold": ["machine","Activation threshold","Κατώφλι ενεργοποίησης"],
 		"soundActivationThresholdDescription": ["machine","Capture begins at or above this input level.","Η καταγραφή ξεκινά σε αυτό ή πάνω από αυτό το επίπεδο εισόδου."],
-		"soundFinder": ["machine","Sound finder","Ανιχνευτής ήχου"],
 		"sourceAlpha": ["machine","Alpha channel","Κανάλι άλφα"],
 		"sourceAudioCodec": ["machine","Audio codec","Codec ήχου"],
 		"sourceAudioStreams": ["machine","Audio streams","Ροές ήχου"],

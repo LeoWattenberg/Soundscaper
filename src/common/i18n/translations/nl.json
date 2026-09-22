@@ -2,7 +2,7 @@
 	"schemaVersion": 2,
 	"locale": "nl",
 	"provenance": {
-		"machine": {"model":"codex","modelDigest":"sha256:8b43ccb2855b5309ac44b5595452ef2b2fc833e2e3d359728128b8f81c7d5af1","promptVersion":"i18n-machine-v1"},
+		"machine": {"model":"gpt-5","modelDigest":"sha256:9f6b5c07531ad984cdc9c0345b3dee1aaa126e5412f52246774422a2f3bb184f","promptVersion":"i18n-machine-v1"},
 		"audacity": {"repository":"audacity/audacity","headSha":"de2e43dc13474ba712ade5ea8e47550eba0e8bfb","runId":35327911264,"artifactId":10539339149,"workflowUrl":"https://github.com/audacity/audacity/actions/runs/35327911264","archiveName":"Audacity_locale_262610911.zip","archiveSha256":"13b1ff11c39a677c711a1d29738a394aaca7a200533927aab3f45bbd76c1ff8e","archiveByteLength":15413913,"licenseSpdx":"GPL-3.0-only","upstreamProjectUrl":"https://github.com/audacity/audacity","upstreamLicenseUrl":"https://github.com/audacity/audacity/blob/de2e43dc13474ba712ade5ea8e47550eba0e8bfb/LICENSE.txt","modificationNotice":"Soundscaper converts reviewed Audacity Qt TS messages to per-locale JSON catalogs, excludes unsafe or inapplicable entries, adapts reviewed placeholders and mnemonics, and removes ellipsis punctuation.","mappingVersion":3,"mappingSha256":"f4cf0434f47eaa9434d079a1623b9d9501e9c8da0d83f0c73344f7765113b57c"}
 	},
 	"entries": {
@@ -687,11 +687,13 @@
 		"editingAlwaysConvertToMono": ["audacity","Always convert to mono without prompt","Altijd naar mono converteren zonder vragen"],
 		"editingAlwaysPasteAsNewClip": ["audacity","Always paste audio as a new clip","Audio altijd plakken als een nieuwe clip"],
 		"editingApplyEffectsToAllAudio": ["audacity","Apply effects to all audio when no selection is made","Effecten toepassen op alle audio als er niets is geselecteerd"],
+		"editingApplyMicrofadesToNewClips": ["machine","Apply 2 ms fades to new clips","Pas fades van 2 ms toe op nieuwe clips"],
 		"editingAsymmetricAlways": ["audacity","Always","Altijd"],
 		"editingAsymmetricNever": ["audacity","Never","Nooit"],
 		"editingAsymmetricStereoHeights": ["audacity","Asymmetric stereo heights","Asymmetrische stereohoogtes"],
 		"editingAsymmetricStereoHeightsDescription": ["audacity","Dragging on the center line may adjust the height of the channel:","Slepen op de middellijn kan de hoogte van het kanaal aanpassen:"],
 		"editingAsymmetricWorkspace": ["audacity","Depending on workspace","Afhankelijk van werkruimte"],
+		"editingClipBehavior": ["machine","Clip behavior","Clipgedrag"],
 		"editingCloseGapAllTracks": ["audacity","All clips on all tracks move back to fill the gap","Alle clips op alle tracks worden naar achteren verschoven om de tussenruimte op te vullen"],
 		"editingCloseGapBehavior": ["audacity","When closing the gap, do the following","Ga als volgt te werk om de tussenruimte te dichten"],
 		"editingCloseGapClip": ["audacity","The selected clip moves back to fill the gap","De geselecteerde clip schuift naar achteren om de tussenruimte op te vullen"],
@@ -2242,7 +2244,6 @@
 		"signatureEvent": ["machine","Time signature event","Tijdsaanduiding-gebeurtenis"],
 		"signatureEvents": ["machine","Time signature events","Tijdsaanduiding-gebeurtenissen"],
 		"silenceAudio": ["machine","Silence audio","Audio dempen"],
-		"silenceFinder": ["machine","Silence finder","Stiltezoeker"],
 		"silenceGenerator": ["machine","Silence","Stilte"],
 		"skin": ["machine","Skin","Uiterlijk"],
 		"skinCarousel": ["machine","carousel","carrousel"],
@@ -2306,7 +2307,6 @@
 		"soundActivationStatusEnabled": ["machine","Sound-activated recording is on.","Geluidsgeactiveerde opname is ingeschakeld."],
 		"soundActivationThreshold": ["machine","Activation threshold","Activeringsdrempel"],
 		"soundActivationThresholdDescription": ["machine","Capture begins at or above this input level.","De opname begint op of boven dit ingangsniveau."],
-		"soundFinder": ["machine","Sound finder","Klankzoeker"],
 		"sourceAlpha": ["machine","Alpha channel","Alfakanaal"],
 		"sourceAudioCodec": ["machine","Audio codec","Audiocodec"],
 		"sourceAudioStreams": ["machine","Audio streams","Audiostreams"],

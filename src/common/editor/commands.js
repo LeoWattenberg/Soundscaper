@@ -6,6 +6,7 @@ import {
 	hasCoreEditingProjectAuthority,
 } from './project-schema-version.ts';
 import { createEditorCommandMutationTransaction } from './commands/mutation-transaction.ts';
+import { applyDefaultClipMicrofades } from './commands/default-microfades.ts';
 
 export {
 	collectClipTransformIds,
@@ -96,6 +97,7 @@ export function applyEditorCommand(project, command, options = {}) {
 	const transaction = createEditorCommandMutationTransaction(project, commandProject);
 	const result = /** @type {Project} */ (commitProject(commandProject, (draft) => {
 		transaction.mutate(draft, command);
+		if (options.microfadeNewClips === true) applyDefaultClipMicrofades(commandProject, draft);
 	}, { ...options, persistedBase: project }));
 	transaction.assertPersistedResult(result);
 	return result;

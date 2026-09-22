@@ -48,8 +48,8 @@ export interface SoundscaperProjectCommandOptions {
 	readonly now?: Date | string;
 	/** Where the playhead sits as this command runs, so undo can put it back. */
 	readonly playheadFrame?: number;
+	readonly microfadeNewClips?: boolean;
 }
-
 const PRODUCTION_HANDLERS = createAudioProductionRuntimeHandlers();
 
 /** Snapshot the exhaustive shared protocol before it enters V21 history. */

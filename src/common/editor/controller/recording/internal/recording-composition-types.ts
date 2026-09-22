@@ -111,7 +111,11 @@ export interface RecordingCompositionDependencies {
 	readonly projectGeneration: Pick<EditorProjectGeneration, 'capture' | 'assertCurrent'>;
 	readonly projectRuntime: Readonly<{
 		cloneProject(project: unknown): unknown;
-		applyCommand: NonNullable<TakeCycleAppCompositionDependencies['applyProjectCommand']>;
+		applyCommand: (
+			project: Parameters<NonNullable<TakeCycleAppCompositionDependencies['applyProjectCommand']>>[0],
+			command: Parameters<NonNullable<TakeCycleAppCompositionDependencies['applyProjectCommand']>>[1],
+			options?: Readonly<{ now?: Date | string; microfadeNewClips?: boolean }>,
+		) => ReturnType<NonNullable<TakeCycleAppCompositionDependencies['applyProjectCommand']>>;
 	}>;
 	readonly session: TakeCycleAppCompositionDependencies['session'];
 	readonly store: RecordingCompositionStore;
@@ -135,6 +139,7 @@ export interface RecordingCompositionDependencies {
 	readonly getProject: () => RecordingCompositionProject | null;
 	readonly setProject: (project: TakeCycleProject) => void;
 	readonly projectSampleRate: () => number;
+	readonly getMicrofadeNewClips: () => boolean;
 	readonly assignPreferredInputToTrack: (trackId: string) => boolean;
 	readonly addTrack: (options: Readonly<{ armed: true }>) => string | null | undefined;
 	readonly commit: (

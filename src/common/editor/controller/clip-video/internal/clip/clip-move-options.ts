@@ -6,6 +6,8 @@ export interface ClipMoveOptions {
 	readonly overwrite?: boolean;
 	readonly allOnTrack?: boolean;
 	readonly preserveTime?: boolean;
+	/** Preserve an explicitly aligned physical boundary instead of quantizing it to the time grid. */
+	readonly exactFrame?: boolean;
 	readonly clipIds?: readonly string[];
 }
 

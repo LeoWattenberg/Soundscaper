@@ -21,6 +21,8 @@ interface EditingPreferencesCopy {
 	readonly allTracks: string;
 	readonly editingAlwaysConvertToMono: string;
 	readonly editingApplyEffectsToAllAudio: string;
+	readonly editingClipBehavior: string;
+	readonly editingApplyMicrofadesToNewClips: string;
 	readonly editingAsymmetricAlways: string;
 	readonly editingAsymmetricNever: string;
 	readonly editingAsymmetricStereoHeights: string;
@@ -179,6 +181,16 @@ export default function EditingPreferencesPage({
 						checked={editing.applyEffectsToAllAudio}
 						onChange={(checked) => updateEditing({ applyEffectsToAllAudio: checked })}
 					/>
+				</PreferencePanel>
+			</section>
+			<Separator />
+			<section data-editing-preferences-section="clip-behavior">
+				<PreferencePanel title={copy.editingClipBehavior}>
+					<PreferenceCheckbox
+						label={copy.editingApplyMicrofadesToNewClips}
+							checked={editing.applyMicrofadesToNewClips}
+							onChange={(applyMicrofadesToNewClips) => updateEditing({ applyMicrofadesToNewClips })}
+						/>
 				</PreferencePanel>
 			</section>
 			<Separator />

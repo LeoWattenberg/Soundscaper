@@ -2,7 +2,7 @@
 	"schemaVersion": 2,
 	"locale": "id",
 	"provenance": {
-		"machine": {"model":"codex","modelDigest":"sha256:49b5ccd77a75ae2340f25410090ebb9d6dc2993659a4d1502a87e34a9dab90f4","promptVersion":"i18n-machine-v1"},
+		"machine": {"model":"gpt-5","modelDigest":"sha256:eaa2688e062057fb59f8576da8968f88eb915d50249bb6f9ce4376621fac36ad","promptVersion":"i18n-machine-v1"},
 		"audacity": {"repository":"audacity/audacity","headSha":"de2e43dc13474ba712ade5ea8e47550eba0e8bfb","runId":35327911264,"artifactId":10539339149,"workflowUrl":"https://github.com/audacity/audacity/actions/runs/35327911264","archiveName":"Audacity_locale_262610911.zip","archiveSha256":"13b1ff11c39a677c711a1d29738a394aaca7a200533927aab3f45bbd76c1ff8e","archiveByteLength":15413913,"licenseSpdx":"GPL-3.0-only","upstreamProjectUrl":"https://github.com/audacity/audacity","upstreamLicenseUrl":"https://github.com/audacity/audacity/blob/de2e43dc13474ba712ade5ea8e47550eba0e8bfb/LICENSE.txt","modificationNotice":"Soundscaper converts reviewed Audacity Qt TS messages to per-locale JSON catalogs, excludes unsafe or inapplicable entries, adapts reviewed placeholders and mnemonics, and removes ellipsis punctuation.","mappingVersion":3,"mappingSha256":"f4cf0434f47eaa9434d079a1623b9d9501e9c8da0d83f0c73344f7765113b57c"}
 	},
 	"entries": {
@@ -687,11 +687,13 @@
 		"editingAlwaysConvertToMono": ["audacity","Always convert to mono without prompt","Selalu konversikan ke mono tanpa peringatan"],
 		"editingAlwaysPasteAsNewClip": ["audacity","Always paste audio as a new clip","Selalu tempelkan suara sebagai klip baru"],
 		"editingApplyEffectsToAllAudio": ["audacity","Apply effects to all audio when no selection is made","Terapkan efek ke semua suara saat belum ada pilihan"],
+		"editingApplyMicrofadesToNewClips": ["machine","Apply 2 ms fades to new clips","Terapkan fade 2 ms pada klip baru"],
 		"editingAsymmetricAlways": ["audacity","Always","Selalu"],
 		"editingAsymmetricNever": ["audacity","Never","Jangan pernah"],
 		"editingAsymmetricStereoHeights": ["audacity","Asymmetric stereo heights","Tinggi stereo tidak simetris"],
 		"editingAsymmetricStereoHeightsDescription": ["audacity","Dragging on the center line may adjust the height of the channel:","Seretan di garis tengah dapat mengubah tinggi saluran:"],
 		"editingAsymmetricWorkspace": ["audacity","Depending on workspace","Tergantung ruang kerja"],
+		"editingClipBehavior": ["machine","Clip behavior","Perilaku klip"],
 		"editingCloseGapAllTracks": ["audacity","All clips on all tracks move back to fill the gap","Semua klip di semua trek pindah kembali untuk mengisi ruang kosong"],
 		"editingCloseGapBehavior": ["audacity","When closing the gap, do the following","Saat menutup ruang, lakukan hal berikut"],
 		"editingCloseGapClip": ["audacity","The selected clip moves back to fill the gap","Klip yang terpilih pindah kembali untuk mengisi ruang kosong"],
@@ -2242,7 +2244,6 @@
 		"signatureEvent": ["machine","Time signature event","Peristiwa tanda birama"],
 		"signatureEvents": ["machine","Time signature events","Peristiwa tanda birama"],
 		"silenceAudio": ["machine","Silence audio","Heningkan audio"],
-		"silenceFinder": ["machine","Silence finder","Pencari keheningan"],
 		"silenceGenerator": ["machine","Silence","Keheningan"],
 		"skin": ["machine","Skin","Tampilan"],
 		"skinCarousel": ["machine","carousel","karusel"],
@@ -2306,7 +2307,6 @@
 		"soundActivationStatusEnabled": ["machine","Sound-activated recording is on.","Perekaman aktivasi suara aktif."],
 		"soundActivationThreshold": ["machine","Activation threshold","Ambang aktivasi"],
 		"soundActivationThresholdDescription": ["machine","Capture begins at or above this input level.","Perekaman dimulai pada atau di atas level input ini."],
-		"soundFinder": ["machine","Sound finder","Pencari suara"],
 		"sourceAlpha": ["machine","Alpha channel","Kanal alfa"],
 		"sourceAudioCodec": ["machine","Audio codec","Kodek audio"],
 		"sourceAudioStreams": ["machine","Audio streams","Aliran audio"],

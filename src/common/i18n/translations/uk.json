@@ -2,7 +2,7 @@
 	"schemaVersion": 2,
 	"locale": "uk",
 	"provenance": {
-		"machine": {"model":"codex","modelDigest":"sha256:e75c3d084614ecb183ab6990dc67d571b084999bcd69c065ef8d8d8de5a357cb","promptVersion":"i18n-machine-v1"},
+		"machine": {"model":"gpt-5","modelDigest":"sha256:b2cead567c7d0481c7ad6118b6e21bb75686e28bedcdaad3f0b7e90bc94b22e0","promptVersion":"i18n-machine-v1"},
 		"audacity": {"repository":"audacity/audacity","headSha":"de2e43dc13474ba712ade5ea8e47550eba0e8bfb","runId":35327911264,"artifactId":10539339149,"workflowUrl":"https://github.com/audacity/audacity/actions/runs/35327911264","archiveName":"Audacity_locale_262610911.zip","archiveSha256":"13b1ff11c39a677c711a1d29738a394aaca7a200533927aab3f45bbd76c1ff8e","archiveByteLength":15413913,"licenseSpdx":"GPL-3.0-only","upstreamProjectUrl":"https://github.com/audacity/audacity","upstreamLicenseUrl":"https://github.com/audacity/audacity/blob/de2e43dc13474ba712ade5ea8e47550eba0e8bfb/LICENSE.txt","modificationNotice":"Soundscaper converts reviewed Audacity Qt TS messages to per-locale JSON catalogs, excludes unsafe or inapplicable entries, adapts reviewed placeholders and mnemonics, and removes ellipsis punctuation.","mappingVersion":3,"mappingSha256":"f4cf0434f47eaa9434d079a1623b9d9501e9c8da0d83f0c73344f7765113b57c"}
 	},
 	"entries": {
@@ -687,11 +687,13 @@
 		"editingAlwaysConvertToMono": ["audacity","Always convert to mono without prompt","Завжди перетворювати на моно без запиту"],
 		"editingAlwaysPasteAsNewClip": ["audacity","Always paste audio as a new clip","Завжди вставляти звукові дані як новий кліп"],
 		"editingApplyEffectsToAllAudio": ["audacity","Apply effects to all audio when no selection is made","Застосувати ефекти до усіх звукових даних, якщо нічого не позначено"],
+		"editingApplyMicrofadesToNewClips": ["machine","Apply 2 ms fades to new clips","Застосовувати згасання тривалістю 2 мс до нових кліпів"],
 		"editingAsymmetricAlways": ["audacity","Always","Завжди"],
 		"editingAsymmetricNever": ["audacity","Never","Ніколи"],
 		"editingAsymmetricStereoHeights": ["audacity","Asymmetric stereo heights","Асиметричні висоти стерео"],
 		"editingAsymmetricStereoHeightsDescription": ["audacity","Dragging on the center line may adjust the height of the channel:","Перетягування центральної лінії може коригувати висоту каналу:"],
 		"editingAsymmetricWorkspace": ["audacity","Depending on workspace","Залежно від робочого простору"],
+		"editingClipBehavior": ["machine","Clip behavior","Поведінка кліпів"],
 		"editingCloseGapAllTracks": ["audacity","All clips on all tracks move back to fill the gap","Усі кліпи на усіх доріжках буде пересунуто назад для заповнення прогалини"],
 		"editingCloseGapBehavior": ["audacity","When closing the gap, do the following","При закритті прогалини виконати таку дію"],
 		"editingCloseGapClip": ["audacity","The selected clip moves back to fill the gap","Позначений кліп буде пересунуто назад для заповнення прогалини"],
@@ -2242,7 +2244,6 @@
 		"signatureEvent": ["machine","Time signature event","Подія розміру такту"],
 		"signatureEvents": ["machine","Time signature events","Події розміру такту"],
 		"silenceAudio": ["machine","Silence audio","Замінити звук тишею"],
-		"silenceFinder": ["machine","Silence finder","Пошук тиші"],
 		"silenceGenerator": ["machine","Silence","Тиша"],
 		"skin": ["machine","Skin","Оформлення"],
 		"skinCarousel": ["machine","carousel","карусель"],
@@ -2306,7 +2307,6 @@
 		"soundActivationStatusEnabled": ["machine","Sound-activated recording is on.","Запис, активований звуком, увімкнено."],
 		"soundActivationThreshold": ["machine","Activation threshold","Поріг активації"],
 		"soundActivationThresholdDescription": ["machine","Capture begins at or above this input level.","Запис починається на цьому рівні сигналу або вище."],
-		"soundFinder": ["machine","Sound finder","Пошук звуку"],
 		"sourceAlpha": ["machine","Alpha channel","Альфа-канал"],
 		"sourceAudioCodec": ["machine","Audio codec","Аудіокодек"],
 		"sourceAudioStreams": ["machine","Audio streams","Аудіопотоки"],

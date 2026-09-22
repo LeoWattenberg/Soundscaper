@@ -91,12 +91,12 @@ export interface SoundscaperProjectRuntimeSelection {
 	readonly applyCommand: (
 		project: unknown,
 		command: SoundscaperProjectCommand,
-		options?: Readonly<{ now?: Date | string }>,
+		options?: Readonly<{ now?: Date | string; microfadeNewClips?: boolean }>,
 	) => SoundscaperProject & ControllerRuntimeProject;
 	readonly executeCommand: (
 		history: unknown,
 		command: unknown,
-		options?: Readonly<{ now?: Date | string }>,
+		options?: Readonly<{ now?: Date | string; microfadeNewClips?: boolean }>,
 	) => SoundscaperProjectHistory & ControllerRuntimeHistory;
 	readonly collapseHistory: typeof collapseSoundscaperProjectHistory;
 	readonly rollbackHistory: typeof rollbackSoundscaperProjectHistory;

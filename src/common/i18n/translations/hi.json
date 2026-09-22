@@ -2,7 +2,7 @@
 	"schemaVersion": 2,
 	"locale": "hi",
 	"provenance": {
-		"machine": {"model":"codex","modelDigest":"sha256:7c24ae49730a817c162e7493b2b49387d664e99b4a41529ad3c0c9c6864df447","promptVersion":"i18n-machine-v1"},
+		"machine": {"model":"gpt-5","modelDigest":"sha256:4292d0053e9bec0745dbd577964e04625b86aff1db9c8967b2e47c4f8f5ae5b1","promptVersion":"i18n-machine-v1"},
 		"audacity": {"repository":"audacity/audacity","headSha":"de2e43dc13474ba712ade5ea8e47550eba0e8bfb","runId":35327911264,"artifactId":10539339149,"workflowUrl":"https://github.com/audacity/audacity/actions/runs/35327911264","archiveName":"Audacity_locale_262610911.zip","archiveSha256":"13b1ff11c39a677c711a1d29738a394aaca7a200533927aab3f45bbd76c1ff8e","archiveByteLength":15413913,"licenseSpdx":"GPL-3.0-only","upstreamProjectUrl":"https://github.com/audacity/audacity","upstreamLicenseUrl":"https://github.com/audacity/audacity/blob/de2e43dc13474ba712ade5ea8e47550eba0e8bfb/LICENSE.txt","modificationNotice":"Soundscaper converts reviewed Audacity Qt TS messages to per-locale JSON catalogs, excludes unsafe or inapplicable entries, adapts reviewed placeholders and mnemonics, and removes ellipsis punctuation.","mappingVersion":3,"mappingSha256":"f4cf0434f47eaa9434d079a1623b9d9501e9c8da0d83f0c73344f7765113b57c"}
 	},
 	"entries": {
@@ -687,11 +687,13 @@
 		"editingAlwaysConvertToMono": ["machine","Always convert to mono without prompt","बिना पूछे हमेशा मोनो में बदलें"],
 		"editingAlwaysPasteAsNewClip": ["machine","Always paste audio as a new clip","ऑडियो को हमेशा नई क्लिप के रूप में चिपकाएँ"],
 		"editingApplyEffectsToAllAudio": ["machine","Apply effects to all audio when no selection is made","कोई चयन न होने पर पूरे ऑडियो पर प्रभाव लागू करें"],
+		"editingApplyMicrofadesToNewClips": ["machine","Apply 2 ms fades to new clips","नई क्लिप पर 2 ms के फ़ेड लागू करें"],
 		"editingAsymmetricAlways": ["machine","Always","हमेशा"],
 		"editingAsymmetricNever": ["machine","Never","कभी नहीं"],
 		"editingAsymmetricStereoHeights": ["machine","Asymmetric stereo heights","स्टीरियो चैनलों की असममित ऊँचाइयाँ"],
 		"editingAsymmetricStereoHeightsDescription": ["machine","Dragging on the center line may adjust the height of the channel:","केंद्र रेखा पर खींचने से चैनल की ऊँचाई समायोजित हो सकती है:"],
 		"editingAsymmetricWorkspace": ["machine","Depending on workspace","कार्यक्षेत्र के अनुसार"],
+		"editingClipBehavior": ["machine","Clip behavior","क्लिप का व्यवहार"],
 		"editingCloseGapAllTracks": ["machine","All clips on all tracks move back to fill the gap","गैप भरने के लिए सभी ट्रैक की सभी क्लिप पीछे खिसकती हैं"],
 		"editingCloseGapBehavior": ["machine","When closing the gap, do the following","गैप बंद करते समय यह करें"],
 		"editingCloseGapClip": ["machine","The selected clip moves back to fill the gap","गैप भरने के लिए चयनित क्लिप को पीछे खिसकाया जाता है"],
@@ -2242,7 +2244,6 @@
 		"signatureEvent": ["machine","Time signature event","टाइम सिग्नेचर इवेंट"],
 		"signatureEvents": ["machine","Time signature events","टाइम सिग्नेचर इवेंट"],
 		"silenceAudio": ["machine","Silence audio","ऑडियो को मौन करें"],
-		"silenceFinder": ["machine","Silence finder","मौन खोजक"],
 		"silenceGenerator": ["machine","Silence","मौन"],
 		"skin": ["machine","Skin","स्किन"],
 		"skinCarousel": ["machine","carousel","कैरोसेल"],
@@ -2306,7 +2307,6 @@
 		"soundActivationStatusEnabled": ["machine","Sound-activated recording is on.","ध्वनि-सक्रिय रिकॉर्डिंग चालू है।"],
 		"soundActivationThreshold": ["machine","Activation threshold","सक्रियण सीमा"],
 		"soundActivationThresholdDescription": ["machine","Capture begins at or above this input level.","इस इनपुट स्तर पर या उससे ऊपर कैप्चर शुरू होता है।"],
-		"soundFinder": ["machine","Sound finder","ध्वनि खोजक"],
 		"sourceAlpha": ["machine","Alpha channel","अल्फा चैनल"],
 		"sourceAudioCodec": ["machine","Audio codec","ऑडियो कोडेक"],
 		"sourceAudioStreams": ["machine","Audio streams","ऑडियो स्ट्रीम"],

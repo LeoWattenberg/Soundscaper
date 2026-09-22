@@ -1,0 +1,9 @@
+.audio-editor-boundary-snap-guide {
+	position: absolute;
+	top: 34px;
+	z-index: 57;
+	width: 1px;
+	background: #f5d34f;
+	box-shadow: 0 0 0 1px color-mix(in srgb, var(--stage) 35%, transparent);
+	pointer-events: none;
+}
