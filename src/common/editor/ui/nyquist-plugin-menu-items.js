@@ -49,6 +49,16 @@ export function listInstalledNyquistMenuPlugins(storage = undefined) {
  * Everything but a generator reads the audio the selection names — a drawn time
  * range or the selected clips — and the evaluation refuses outright when the
  * selection resolves to nothing, so the entry withholds itself instead.
+ *
+ * @param {{
+ *   editBlocked: boolean,
+ *   blocked: boolean,
+ *   selectedAudioTrack: unknown,
+ *   frequencySelectionActive: boolean,
+ *   selectionActive: boolean,
+ *   archiveStorage?: { getItem(key: string): string | null },
+ * }} options
+ * @param {{ openNyquist(pluginId: string): void }} actions
  */
 export function createNyquistPluginMenuItems(
 	{ editBlocked, blocked, selectedAudioTrack, frequencySelectionActive, selectionActive, archiveStorage = undefined },
