@@ -377,7 +377,7 @@ async function mockFreesoundApi(page) {
 			await route.fulfill({
 				status: 200,
 				contentType: 'image/png',
-				body: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAusB9u90bm0AAAAASUVORK5CYII=', 'base64'),
+				body: Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR4nGNo+A8AAgIBgG5WixMAAAAASUVORK5CYII=', 'base64'),
 			});
 			return;
 		}
