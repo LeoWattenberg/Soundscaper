@@ -3,7 +3,7 @@
 import { expect, test, toneA } from './audio-editor-test-fixtures.js';
 import {
 	bootEditor, chooseCommandAction, chooseNestedCommandAction, closeDialog,
-	importFiles, registerAudioEditorHooks,
+	importFiles, registerAudioEditorHooks, waitForResponsiveEditorLayout,
 } from './audio-editor-test-helpers.js';
 
 const styleSelectors = [
@@ -33,6 +33,8 @@ function loadedEffectStyles(page) {
 }
 
 async function openSelectionEffect(page, editor, category, name) {
+	// Keep the pointer clear of the compact menu while keyboard navigation opens submenus.
+	await page.mouse.move(1, 1);
 	await chooseNestedCommandAction(page, editor, 'Effect', [category, name]);
 	const dialog = page.getByRole('dialog', { name: 'Apply effect', exact: true });
 	await expect(dialog).toBeVisible();
@@ -67,6 +69,7 @@ test.describe('lazy effect dialog styles', () => {
 		await closeDialog(dialog);
 
 		await page.setViewportSize({ width: 540, height: 800 });
+		await waitForResponsiveEditorLayout(editor);
 		dialog = await openSelectionEffect(page, editor, 'EQ and filters', 'Bass and Treble');
 		await expect(dialog.locator('.audio-editor-audacity-port__body'))
 			.toHaveCSS('grid-template-columns', /^[\d.]+px$/u);

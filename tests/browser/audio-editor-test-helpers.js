@@ -63,7 +63,10 @@ export async function bootEditor(page, path, { defaultWorkspace = false } = {}) 
 	const editor = await waitForEditor(page);
 	const decline = page.getByRole('button', { name: /^(Decline|Ablehnen)$/ });
 	if (await decline.isVisible()) await decline.click();
-	if (!defaultWorkspace && await editor.getAttribute('data-product') === 'soundscaper') {
+	// The English interaction suite uses the pre-default-change panel geometry.
+	// Default-workspace assertions opt out; localized routes keep their menu copy.
+	const englishRoute = /^\/(?:embed\/)?en\/$/u.test(new URL(page.url()).pathname);
+	if (!defaultWorkspace && englishRoute && await editor.getAttribute('data-product') === 'soundscaper') {
 		const effects = editor.locator('[data-workspace-panel="effects"]');
 		if (await effects.isVisible()) await closeWorkspacePanel(editor, 'effects');
 		await chooseNestedCommandAction(page, editor, 'View', ['Panels', 'Project bin']);
