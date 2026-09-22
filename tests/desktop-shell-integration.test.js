@@ -129,9 +129,11 @@ test('sandbox preload exposes only the versioned narrow bridge', async () => {
 		'reconcileAssistanceModels', 'reconcileLinkedOriginals', 'reconcileLinkedVideoOriginals', 'releaseLinkedOriginal', 'releaseLinkedVideoOriginal', 'releaseRead', 'relocateAssistanceModels', 'removeAssistanceModel', 'reportNativeAudioSessionLoss', 'reportNativeAudioSessionTransfer', 'rescanExternalFfmpeg', 'respondToClose', 'restoreNativePluginState', 'runNativePluginOffline', 'scanNativePlugins', 'selectNativePluginInstallation',
 		'collectAssistanceModelGarbage', 'runDesktopAudioCodecOperation', 'runDesktopAudioCodecStreamCommand', 'runWindowAction', 'setLocale', 'setNativeAudioHelperEnabled', 'setNativePluginBypassed', 'setNativePluginConsent', 'setNativePluginInstallationAllowed', 'signalReady', 'startNativeVampAnalyzer', 'statDesktopVideoCodecOutput', 'writeChunk', 'writeDesktopVideoCodecInput',
 		].sort();
-	assert.deepEqual(Object.keys(bridge.v1).sort(), [...baseFields, 'persistentDelivery'].sort());
+	const mcpFields = ['readMcpStatus', 'startMcp', 'stopMcp', 'onMcpRequest', 'respondMcpRequest'];
+	assert.deepEqual(Object.keys(bridge.v1).sort(), [...baseFields, 'persistentDelivery', ...mcpFields].sort());
 	const framescaperBridge = exposed.get('framescaperDesktop');
 	assert.deepEqual(Object.keys(framescaperBridge.v1).sort(), [...baseFields, 'projectLibrary'].sort());
+	for (const name of mcpFields) assert.equal(Object.hasOwn(framescaperBridge.v1, name), false);
 	assert.equal(Object.hasOwn(framescaperBridge.v1, 'persistentDelivery'), false);
 	assert.equal(Object.hasOwn(framescaperBridge.v1, 'v12'), false);
 	assert.equal(Object.isFrozen(framescaperBridge.v1.projectLibrary), true);

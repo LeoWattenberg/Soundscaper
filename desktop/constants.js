@@ -271,6 +271,7 @@ export const IPC = Object.freeze({
 	respondToClose: 'soundscaper:v1:close:respond',
 	openProject: 'soundscaper:v1:event:project-open',
 	menuCommand: 'soundscaper:v1:event:menu-command',
+	mcpStatus: 'soundscaper:v1:mcp:status', mcpStart: 'soundscaper:v1:mcp:start', mcpStop: 'soundscaper:v1:mcp:stop', mcpResponse: 'soundscaper:v1:mcp:response', mcpRequest: 'soundscaper:v1:event:mcp-request',
 	closeRequested: 'soundscaper:v1:event:close-requested',
 	windowStateChanged: 'soundscaper:v1:event:window-state-changed',
 	deliverySelect: 'soundscaper:v1:delivery:root:select',
