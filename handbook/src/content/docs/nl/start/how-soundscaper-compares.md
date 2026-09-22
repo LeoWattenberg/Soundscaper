@@ -4,7 +4,7 @@ description: "Vergelijk Soundscaper met Audacity 4 en Adobe Audition op het gebi
 sidebar:
   order: 3
 ---
-<!-- docs-ai-provenance: {"factPacketSha256":"703e76cffbe1464f1283f6c8f45cee52c0d37faae852b7efc163879710a2ddb2","model":"qwen3.8:latest","modelDigest":"22130167c4c20e20c7b71454612966ca8e8171e9b3cc8ab6ce8aa6cbfec79643","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"703e76cffbe1464f1283f6c8f45cee52c0d37faae852b7efc163879710a2ddb2","targetLocale":"nl"} -->
+<!-- docs-ai-provenance: {"model":"gpt-5.6-luna","modelDigest":"manual","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"71097403d87aba03cddc2ccd696ff9a8663268afba3a7bf750fe8d9913de3eba","targetLocale":"nl"} -->
 
 Soundscaper implementeert Audacity 4 opnieuw op het web en voegt daar een productielayer bovenop toe. Adobe Audition is het commerciële nabewerkingsinstrument waartegen beide meestal worden vergeleken. Deze pagina vergelijkt alle drie, zodat u kunt bepalen welk van de drie al het werk doet dat u heeft.
 
