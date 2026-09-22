@@ -118,11 +118,16 @@ async function editUndoRedo(page) {
 async function recordAndPlay(page) {
 	const editor = await waitForEditor(page);
 	const before = Number(await editor.getAttribute('data-clip-count'));
-	const record = editor.getByRole('button', { name: 'Record onto the active track', exact: true });
+	const record = editor.locator('[data-transport="record"] .kw-audio-editor__split-button-main button');
 	await record.click();
-	await record.waitFor({ state: 'visible' });
+	await waitForAttribute(record, 'aria-label', 'Pause recording', 20_000);
 	await page.waitForTimeout(400);
 	await record.click();
+	await waitForAttribute(record, 'aria-label', 'Resume recording', 20_000);
+	await record.click();
+	await waitForAttribute(record, 'aria-label', 'Pause recording', 20_000);
+	await page.waitForTimeout(400);
+	await editor.getByRole('button', { name: 'Stop', exact: true }).click();
 	await waitForAttributeNumber(editor, 'data-clip-count', (value) => value > before);
 	await editor.getByRole('button', { name: 'Play', exact: true }).click();
 	await page.waitForTimeout(300);
@@ -173,11 +178,11 @@ async function interruptedTakeRecovery(page, restartPage) {
 	await chooseNestedMenu(page, editor, 'Select', ['Loop region', 'Set loop to selection']);
 	await chooseMenu(page, editor, 'Select', 'Select none');
 	await editor.getByRole('button', { name: 'Record options', exact: true }).click();
-	const menu = page.getByRole('menu', { name: 'Record options', exact: true });
-	const start = menu.getByRole('menuitem', { name: 'Record loop into takes', exact: true });
+	const menu = page.getByRole('dialog', { name: 'Record options', exact: true });
+	const start = menu.getByRole('button', { name: 'Record loop into takes', exact: true });
 	await start.waitFor({ state: 'visible' });
 	await start.press('Enter');
-	const record = editor.getByRole('button', { name: 'Record onto the active track', exact: true });
+	const record = editor.locator('[data-transport="record"] .kw-audio-editor__split-button-main button');
 	await waitForAttribute(record, 'aria-pressed', 'true', 20_000);
 	await page.waitForTimeout(500);
 	page = await restartPage({ abrupt: true });
@@ -186,13 +191,13 @@ async function interruptedTakeRecovery(page, restartPage) {
 	await recovery.waitFor({ state: 'visible', timeout: 30_000 });
 	await recovery.getByRole('button', { name: 'Recover takes', exact: true }).click();
 	await recovery.waitFor({ state: 'hidden', timeout: 30_000 });
-	const recoveredRecord = editor.getByRole('button', { name: 'Record onto the active track', exact: true });
+	const recoveredRecord = editor.locator('[data-transport="record"] .kw-audio-editor__split-button-main button');
 	if (!await recoveredRecord.isEnabled()) {
 		throw new Error('Interrupted-take recovery did not restore the recording controls.');
 	}
 	await editor.getByRole('button', { name: 'Record options', exact: true }).click();
-	const recoveredMenu = page.getByRole('menu', { name: 'Record options', exact: true });
-	if (await recoveredMenu.getByRole('menuitem', { name: 'Resolve interrupted take recording', exact: true })
+	const recoveredMenu = page.getByRole('dialog', { name: 'Record options', exact: true });
+	if (await recoveredMenu.getByRole('button', { name: 'Resolve interrupted take recording', exact: true })
 		.isVisible().catch(() => false)) {
 		throw new Error('Interrupted-take recovery left its recovery journal unresolved.');
 	}
