@@ -63,6 +63,14 @@ export function createReplaceClipSourceCommand(clipId: string, sourceId: string)
 	};
 }
 
+export function createRegenerateTtsClipCommand(clipId: string, sourceId: string): CommandFor<'clip/regenerate-tts'> {
+	return {
+		type: 'clip/regenerate-tts',
+		clipId: requireStableCommandId(clipId, 'clip'),
+		sourceId: requireStableCommandId(sourceId, 'source'),
+	};
+}
+
 export function createAddVideoEffectCommand(
 	clipId: string,
 	effectType: string,

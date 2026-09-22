@@ -51,6 +51,7 @@ export const ASSISTANCE_OUTPUT_ROLES = Object.freeze([
 	'highlight-signals',
 	'highlight-candidates',
 	'highlight-proposals',
+	'synthesized-audio',
 ] as const);
 
 export type AssistanceInputRole = (typeof ASSISTANCE_INPUT_ROLES)[number];
@@ -132,6 +133,7 @@ const OUTPUT_MEDIA_TYPES = Object.freeze({
 	'highlight-signals': localAssistanceJsonMediaTypes('highlight-signals'),
 	'highlight-candidates': localAssistanceJsonMediaTypes('highlight-candidates'),
 	'highlight-proposals': localAssistanceJsonMediaTypes('highlight-proposals'),
+	'synthesized-audio': Object.freeze(['audio/wav']),
 } satisfies Readonly<Record<AssistanceOutputRole, readonly string[]>>);
 
 export function validateAssistanceStagedInputClaim(value: unknown): AssistanceStagedInputClaim {

@@ -31,10 +31,15 @@ export const ASSISTANCE_GUIDED_WORKFLOW_IDS = Object.freeze([
 ] as const);
 
 export type AssistanceGuidedWorkflowId = (typeof ASSISTANCE_GUIDED_WORKFLOW_IDS)[number];
-export type AssistanceAdvancedWorkflowId = `advanced:${AssistanceOperation}`;
+type AssistanceAdvancedOperation = Exclude<AssistanceOperation, 'text-to-speech'>;
+export type AssistanceAdvancedWorkflowId = `advanced:${AssistanceAdvancedOperation}`;
+
+const ADVANCED_OPERATIONS = Object.freeze(ASSISTANCE_OPERATIONS.filter(
+	(operation): operation is AssistanceAdvancedOperation => operation !== 'text-to-speech',
+));
 
 export const ADVANCED_ASSISTANCE_WORKFLOW_IDS = Object.freeze(
-	ASSISTANCE_OPERATIONS.map((operation) => `advanced:${operation}` as AssistanceAdvancedWorkflowId),
+	ADVANCED_OPERATIONS.map((operation) => `advanced:${operation}` as AssistanceAdvancedWorkflowId),
 );
 
 export const ASSISTANCE_WORKFLOW_IDS = Object.freeze([
@@ -215,11 +220,11 @@ const ADVANCED_DECLARATIONS = Object.freeze({
 	}),
 	'saliency-detection': advanced(['frame-pack'], ['saliency-map']),
 	'editorial-generation': advanced(['editorial-context'], ['editorial-proposal']),
-} satisfies Readonly<Record<AssistanceOperation, Omit<StageDeclaration,
+} satisfies Readonly<Record<AssistanceAdvancedOperation, Omit<StageDeclaration,
 	'stageId' | 'operation'>>>);
 
 const ADVANCED_GRAPHS = new Map<AssistanceAdvancedWorkflowId, readonly AssistanceWorkflowStageSpec[]>(
-	ASSISTANCE_OPERATIONS.map((operation) => [
+	ADVANCED_OPERATIONS.map((operation) => [
 		`advanced:${operation}` as AssistanceAdvancedWorkflowId,
 		graph([stage({
 			stageId: `run-${operation}`,

@@ -298,6 +298,7 @@ function protectedCommandSubject(
 		case 'clip/remove':
 		case 'clip/update':
 		case 'clip/replace-source':
+		case 'clip/regenerate-tts':
 		case 'clip/move':
 		case 'clip/overwrite':
 		case 'clip/trim':

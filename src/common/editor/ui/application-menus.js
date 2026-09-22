@@ -523,6 +523,6 @@ export default function createApplicationMenus({
 		},
 	];
 	return filterProductMenus(applyAudacityParityToMenus(prepareLocalProcessingMenus(menus, {
-		productId, copy, locale, snapshot, actions, capabilities,
+		productId, copy, locale, snapshot, actions, capabilities, editBlocked,
 	}), { locale, copy, materializeDisabled: true, actionRuntime, shortcuts: preferences?.shortcuts }), capabilities, productId);
 }

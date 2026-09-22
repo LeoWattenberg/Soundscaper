@@ -6,6 +6,7 @@ import test from 'node:test';
 import {
 	ASSISTANCE_ASSET_REFERENCE_LIMITS_V1,
 	ASSISTANCE_TRANSCRIPT_BODY_MIME_TYPE_V1,
+	ASSISTANCE_TTS_SCRIPT_BODY_MIME_TYPE_V1,
 } from '../src/common/editor/assistance/assistance-asset-reference-v1.ts';
 import {
 	createNativeMediaImageSequenceInventoryV25,
@@ -22,6 +23,8 @@ import {
 	validateFramescaperDesktopBodies as validateBodies,
 	validateFramescaperDesktopBodyDescriptor as validateDescriptor,
 	FRAMESCAPER_DESKTOP_ASSISTANCE_BODY_ENCODING as TRANSCRIPT_ENCODING,
+	FRAMESCAPER_DESKTOP_TTS_SCRIPT_BODY_KIND,
+	FRAMESCAPER_DESKTOP_TTS_SCRIPT_BODY_ENCODING,
 	type FramescaperDesktopExtensionBodyReference,
 } from '../src/framescaper/desktop-project-library-body-contract.ts';
 import type { FramescaperProject } from '../src/framescaper/editor-project.ts';
@@ -93,6 +96,24 @@ function transcriptAsset(id: string, body: Data = {}): Data {
 		},
 	};
 }
+
+test('desktop handoff inventories TTS scripts as a separate authenticated body role', () => {
+	const sha256 = 'ef'.repeat(32);
+	const storageKey = `assistance-tts-script-sha256:${sha256}`;
+	const project = projectOf({ assistanceAssets: [{
+		id: 'tts-script-one', kind: 'tts-script-v1',
+		body: { storageKey, mimeType: ASSISTANCE_TTS_SCRIPT_BODY_MIME_TYPE_V1,
+			byteLength: 256, sha256 },
+	}] });
+	const reference = collectTranscripts(project)[0]!;
+	assert.equal(reference.descriptor.kind, FRAMESCAPER_DESKTOP_TTS_SCRIPT_BODY_KIND);
+	assert.equal(reference.descriptor.encoding, FRAMESCAPER_DESKTOP_TTS_SCRIPT_BODY_ENCODING);
+	assert.equal(reference.name, 'assistance:tts-script:tts-script-one');
+	assert.deepEqual(validateDescriptor(reference.descriptor), reference.descriptor);
+	assert.throws(() => validateDescriptor({ ...reference.descriptor,
+		mimeType: ASSISTANCE_TRANSCRIPT_BODY_MIME_TYPE_V1,
+	}), /invalid/u);
+});
 
 /** Stills, a freeze render, a LUT, a motion analysis and one transcript: every extension role. */
 function finishingProject(parts: Data = {}): FramescaperProject {

@@ -164,6 +164,7 @@ test('editorial reranking projects video authority from a linked audio/video hig
 	assert.deepEqual(await runtime(stageExecution(request, () => undefined, 'rerank-editorial')),
 		{ outcome: 'completed' });
 	const validated = validateAssistanceOperationRequest(operationRequest);
+	assert.ok(validated.selectionFence);
 	assert.equal(validated.selectionFence.sourceId, 'source-video');
 	assert.deepEqual(validated.selectionFence.occurrenceIds, ['occurrence-video']);
 });

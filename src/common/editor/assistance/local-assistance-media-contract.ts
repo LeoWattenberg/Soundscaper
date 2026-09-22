@@ -10,6 +10,7 @@ export const LOCAL_ASSISTANCE_OUTPUT_ROLES = Object.freeze([
 	'voice-activity', 'transcript', 'word-alignment', 'speaker-turns', 'enhanced-audio',
 	'separated-audio', 'audio-tags', 'beat-grid', 'embeddings', 'recognized-text',
 	'shot-boundaries', 'subject-tracks', 'saliency-map', 'editorial-proposal',
+	'synthesized-audio',
 ] as const);
 
 export type LocalAssistanceInputRole = typeof LOCAL_ASSISTANCE_INPUT_ROLES[number];
@@ -43,6 +44,7 @@ export const LOCAL_ASSISTANCE_OPERATION_MEDIA_CONTRACT = Object.freeze({
 	'subject-detection': operationMedia(['frame-pack'], [['frame-pack']], ['subject-tracks']),
 	'saliency-detection': operationMedia(['frame-pack'], [['frame-pack']], ['saliency-map']),
 	'editorial-generation': operationMedia(['editorial-context'], [['editorial-context']], ['editorial-proposal']),
+	'text-to-speech': operationMedia(['text'], [['text']], ['synthesized-audio']),
 } satisfies Readonly<Record<AssistanceOperation, LocalAssistanceOperationMediaContract>>);
 
 const BOUNDARY_INPUT_RESTRICTIONS = Object.freeze({
@@ -108,6 +110,7 @@ export const LOCAL_ASSISTANCE_OUTPUT_MEDIA_TYPES = Object.freeze({
 	'subject-tracks': localAssistanceJsonMediaTypes('subject-tracks'),
 	'saliency-map': localAssistanceJsonMediaTypes('saliency-map'),
 	'editorial-proposal': localAssistanceJsonMediaTypes('editorial-proposal'),
+	'synthesized-audio': Object.freeze(['audio/wav']),
 } satisfies Readonly<Record<LocalAssistanceOutputRole, readonly string[]>>);
 
 export function localAssistanceJsonMediaTypes<const Role extends string>(

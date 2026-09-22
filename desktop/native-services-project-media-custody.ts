@@ -88,7 +88,8 @@ export function assertFramescaperNativeProjectMediaPort(value: unknown): void {
 
 function bodies(value: readonly unknown[]): readonly Readonly<FramescaperNativeProjectMediaBody>[] {
 	return Object.freeze(value
-		.filter((body) => (body as Record<string, unknown> | null)?.kind !== 'assistance-transcript')
+		.filter((body) => !['assistance-transcript', 'assistance-tts-script']
+			.includes(String((body as Record<string, unknown> | null)?.kind)))
 		.map(framescaperNativeProjectBody));
 }
 

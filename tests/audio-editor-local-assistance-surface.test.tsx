@@ -212,8 +212,11 @@ test('the focused EN/DE catalog and dialog expose all operations without an impl
 		onRun={() => undefined} onCancel={() => undefined}
 		onReview={() => undefined} onAccept={() => undefined}
 	/>);
-	assert.equal(ASSISTANCE_OPERATIONS.length, 16);
-	for (const operation of ASSISTANCE_OPERATIONS) assert.match(markup, new RegExp(operation, 'u'));
+	assert.equal(ASSISTANCE_OPERATIONS.length, 17);
+	for (const operation of ASSISTANCE_OPERATIONS.filter((candidate) => candidate !== 'text-to-speech')) {
+		assert.match(markup, new RegExp(operation, 'u'));
+	}
+	assert.doesNotMatch(markup, /<option value="text-to-speech"/u);
 	assert.equal(markup.match(/<option value="" disabled=""[^>]*>Choose<\/option>/gu)?.length, 3);
 	assert.doesNotMatch(markup, /I consent to local processing/u);
 	assert.match(markup, /one consent dialog for this exact operation, model, input, and output/u);

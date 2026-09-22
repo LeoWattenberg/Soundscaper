@@ -20,7 +20,7 @@ import { releaseLocalAssistancePreparedAudioWave } from
 import { lazyAssistanceWorkflowBridge } from './local-assistance-lazy-workflow-bridge.ts';
 import { lazyLocalAssistanceSemanticSearchBridge } from
 	'./local-assistance-lazy-semantic-search-bridge.ts';
-import type { LocalAssistanceWorkflowBridge } from './local-assistance-workflow-bridge.ts';
+import type { LocalAssistanceWorkflowBridge } from './local-assistance-workflow-bridge.ts'; import { normalizeTextToSpeechBridgeFields, type TextToSpeechBridgeSettings } from './text-to-speech-bridge-request.ts';
 import {
 	LOCAL_ASSISTANCE_INPUT_MEDIA_TYPES,
 	LOCAL_ASSISTANCE_INPUT_ROLES,
@@ -86,7 +86,8 @@ export interface LocalAssistanceRunRequest {
 	readonly contractVersion: 1;
 	readonly jobId: string;
 	readonly operation: AssistanceOperation;
-	readonly selectionFence: AssistanceSelectionFence;
+	readonly selectionFence: AssistanceSelectionFence | null;
+	readonly settings?: TextToSpeechBridgeSettings;
 	readonly models: readonly Readonly<Pick<LocalAssistanceModel,
 		'modelId' | 'version' | 'artifactSha256s'>>[];
 	readonly inputs: readonly LocalAssistanceInputClaim[];
@@ -302,9 +303,7 @@ export function normalizeProgress(value: unknown): LocalAssistanceProgress {
 }
 
 function normalizeRunRequest(value: unknown): LocalAssistanceRunRequest {
-	const record = exactRecord(value, [
-		'contractVersion', 'jobId', 'operation', 'selectionFence', 'models', 'inputs', 'outputs',
-	], 'operation request');
+	const keys = ['contractVersion', 'jobId', 'operation', 'selectionFence', 'models', 'inputs', 'outputs']; const record = exactRecord(value, Object.hasOwn(value ?? {}, 'settings') ? [...keys, 'settings'] : keys, 'operation request');
 	contract(record);
 	const operation = normalizeAssistanceOperation(record.operation);
 	const expectedJobId = jobId(record.jobId);
@@ -316,8 +315,9 @@ function normalizeRunRequest(value: unknown): LocalAssistanceRunRequest {
 		throw new TypeError('An assistance operation needs exact job-bound input and output claims.');
 	}
 	assertOperationRoles(operation, inputs, outputs);
+	const speech = operation === 'text-to-speech' ? normalizeTextToSpeechBridgeFields(record) : null; if (!speech && Object.hasOwn(record, 'settings')) throw new TypeError('This operation does not admit speech settings.');
 	return Object.freeze({ contractVersion: 1, jobId: expectedJobId, operation,
-		selectionFence: validateAssistanceSelectionFence(record.selectionFence), models,
+		selectionFence: speech ? speech.selectionFence : validateAssistanceSelectionFence(record.selectionFence), ...(speech ? { settings: speech.settings } : {}), models,
 		inputs: Object.freeze(inputs), outputs: Object.freeze(outputs) });
 }
 

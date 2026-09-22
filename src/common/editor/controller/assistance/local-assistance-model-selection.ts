@@ -36,6 +36,7 @@ const MODEL_TASK_SLOTS = Object.freeze({
 	'subject-detection': modelTaskSlots(['face-detection'], ['object-detection']),
 	'saliency-detection': modelTaskSlots(['saliency-detection']),
 	'editorial-generation': modelTaskSlots(['editorial-generation']),
+	'text-to-speech': modelTaskSlots(['text-to-speech']),
 } satisfies Readonly<Record<AssistanceOperation, readonly LocalAssistanceModelTaskSlot[]>>);
 
 const ACCURATE_SHOT_MODEL_TASK_SLOTS = modelTaskSlots([LOCAL_ASSISTANCE_TRANSNET_V2_MODEL_TASK]);

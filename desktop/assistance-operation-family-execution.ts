@@ -51,6 +51,7 @@ const DIRECT_ADDITIONAL_OPERATIONS = new Set<AssistanceOperationRequest['operati
 	'audio-tagging', 'beat-tracking', 'text-embedding', 'image-text-embedding',
 	'optical-character-recognition', 'subject-detection', 'saliency-detection',
 	'editorial-generation',
+	'text-to-speech',
 ]);
 const GIB = 1024 ** 3;
 const WAV2VEC2_BASE_960H_SHA256 =
@@ -112,7 +113,8 @@ export async function executeAssistanceOperationWithRuntimeFamily(
 	if (options.inputPaths.length !== options.request.inputs.length) {
 		throw new TypeError('Runtime-family input paths lost their exact claim geometry.');
 	}
-	const model = await resolveExactModel(options.request, options.models, options.signal);
+	const model = await resolveExactModel(options.request, options.models, options.signal,
+		options.request.operation === 'text-to-speech' ? options.request.settings.voice : undefined);
 	if (model === null) return Object.freeze({ outcome: 'unavailable', reason: 'model-unavailable' });
 	const outputPaths = await Promise.all(options.request.outputs.map((reservation) =>
 		options.registry.resolveOutputReservationPathForMain(
@@ -128,7 +130,10 @@ export async function executeAssistanceOperationWithRuntimeFamily(
 			...(options.request.operation === 'speech-recognition'
 				? { language: options.request.settings?.language ?? 'auto' }
 				: {}),
-			selectionFence: options.request.selectionFence,
+			...(options.request.operation === 'text-to-speech'
+				? { language: options.request.settings.language,
+					voice: options.request.settings.voice, speed: options.request.settings.speed }
+				: { selectionFence: options.request.selectionFence }),
 			inputRoles: Object.freeze(options.request.inputs.map(({ role }) => role)),
 			outputRoles: Object.freeze(options.request.outputs.map(({ role }) => role)),
 		}),
@@ -152,6 +157,7 @@ async function resolveExactModel(
 	request: AssistanceOperationModelSelection,
 	models: AssistanceRuntimeFamilyModelService,
 	signal: AbortSignal,
+	kokoroVoice?: string,
 ): Promise<AssistanceResolvedRuntimeFamilyModel | null> {
 	const subjectBindings = request.operation === 'subject-detection'
 		? exactSubjectBindings(request.models) : null;
@@ -183,6 +189,11 @@ async function resolveExactModel(
 	if (subjectBindings === null && request.operation === 'text-embedding') {
 		assertAssistanceOnnxTextEmbeddingModelBindingV1(request.models[0]!);
 	}
+	if (subjectBindings === null && request.operation === 'text-to-speech'
+		&& (request.models[0]!.modelId !== 'kokoro-82m-v1.0'
+			|| request.models[0]!.version !== '1.0.0')) {
+		throw new TypeError('Text-to-speech requires the exact Kokoro v1.0 model identity.');
+	}
 	if (request.operation === 'subject-detection'
 		|| request.operation === 'image-text-embedding'
 		|| request.operation === 'optical-character-recognition'
@@ -211,7 +222,7 @@ async function resolveExactModel(
 	const view = exactInstalledView(binding, status);
 	if (view === null) return null;
 	const task = taskForSingleModel(request, view.task, binding.modelId);
-	const captures = await resolveModelCaptures(binding, installed, models, signal);
+	const captures = await resolveModelCaptures(binding, installed, models, signal, kokoroVoice);
 	if (captures === null) return null;
 	return Object.freeze({ task, captures });
 }
@@ -397,6 +408,7 @@ async function resolveModelCaptures(
 	installed: InstalledModels,
 	models: AssistanceRuntimeFamilyModelService,
 	signal: AbortSignal,
+	kokoroVoice?: string,
 ): Promise<readonly AssistanceRuntimeFamilyModelCapture[] | null> {
 	const installations = installed.filter((candidate) => candidate.modelId === binding.modelId
 		&& candidate.version === binding.version);
@@ -414,9 +426,18 @@ async function resolveModelCaptures(
 	try { paths = await models.resolveModelPaths(binding.modelId); }
 	catch (error) { if (modelUnavailable(error)) return null; throw error; }
 	signal.throwIfAborted();
-	const captures = installation.artifacts.map((artifact) => {
-		const artifactRole = artifact.fileName.split('.')[0]!;
-		const path = paths[artifactRole];
+	const selectedArtifacts = kokoroVoice === undefined ? installation.artifacts
+		: installation.artifacts.filter(({ fileName }) =>
+			['model.onnx', 'tokenizer.json', `${kokoroVoice}.bin`].includes(fileName));
+	if (kokoroVoice !== undefined && selectedArtifacts.length !== 3) {
+		throw new TypeError('The installed Kokoro model lacks its graph, tokenizer, or selected voice.');
+	}
+	const captures = selectedArtifacts.map((artifact) => {
+		const pathRole = artifact.fileName.split('.')[0]!;
+		const artifactRole = kokoroVoice === undefined ? pathRole
+			: artifact.fileName === 'model.onnx' ? 'network'
+				: artifact.fileName === 'tokenizer.json' ? 'vocabulary' : `voice-${kokoroVoice}`;
+		const path = paths[pathRole];
 		if (typeof path !== 'string' || path === '') {
 			throw new Error(`The runtime-family model artifact role ${artifactRole} has no authenticated path.`);
 		}

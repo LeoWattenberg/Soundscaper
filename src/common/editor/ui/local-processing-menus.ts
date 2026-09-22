@@ -39,13 +39,28 @@ export function prepareLocalProcessingMenus(menus: readonly AssistanceMenuEntry[
 	readonly locale: string;
 	readonly copy: Readonly<Record<string, string | undefined>>;
 	readonly capabilities: { readonly assistanceAssets?: boolean };
+	readonly editBlocked?: boolean;
 	readonly snapshot: { readonly preferences?: { readonly effects?: { readonly menuOrganization?: string } } };
-	readonly actions: { readonly openLocalAssistance?: (request: AssistanceDialogRequest) => unknown };
+	readonly actions: {
+		readonly openLocalAssistance?: (request: AssistanceDialogRequest) => unknown;
+		readonly openTextToSpeech?: () => unknown;
+	};
 }): AssistanceMenuEntry[] {
-	return organizeNativePreferences(mergeAssistanceTaskMenus(menus, {
+	const available = input.capabilities.assistanceAssets === true;
+	const assistanceMenus = mergeAssistanceTaskMenus(menus, {
 		productId: input.productId, copy: input.copy, locale: input.locale,
 		organization: input.snapshot.preferences?.effects?.menuOrganization,
-		available: input.capabilities.assistanceAssets === true && typeof input.actions.openLocalAssistance === 'function',
+		available: available && typeof input.actions.openLocalAssistance === 'function',
 		open: (request) => input.actions.openLocalAssistance?.(request),
-	}));
+	});
+	const textToSpeechMenus = available && typeof input.actions.openTextToSpeech === 'function'
+		? assistanceMenus.map((menu) => menu.id === 'generate' ? {
+			...menu, items: [...(menu.items ?? []), {
+				id: 'text-to-speech', label: `${input.copy['ui.textToSpeech.title'] || 'Text to Speech'}…`,
+				assistanceTask: true,
+				disabled: input.editBlocked === true, onClick: input.actions.openTextToSpeech,
+			}],
+		} : menu)
+		: assistanceMenus;
+	return organizeNativePreferences(textToSpeechMenus);
 }

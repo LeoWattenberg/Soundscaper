@@ -10,6 +10,10 @@ export const ASSISTANCE_TRANSCRIPT_BODY_MIME_TYPE_V1 =
 	'application/vnd.soundscaper.assistance-transcript+json' as const;
 export const ASSISTANCE_TRANSCRIPT_STORAGE_KEY_PREFIX_V1 =
 	'assistance-transcript-sha256:' as const;
+export const ASSISTANCE_TTS_SCRIPT_BODY_MIME_TYPE_V1 =
+	'application/vnd.soundscaper.assistance-tts-script+json' as const;
+export const ASSISTANCE_TTS_SCRIPT_STORAGE_KEY_PREFIX_V1 =
+	'assistance-tts-script-sha256:' as const;
 
 export const ASSISTANCE_ASSET_REFERENCE_LIMITS_V1 = Object.freeze({
 	maximumAssets: 1_024,
@@ -21,6 +25,13 @@ export const ASSISTANCE_ASSET_REFERENCE_LIMITS_V1 = Object.freeze({
 export interface AssistanceTranscriptBodyReferenceV1 {
 	readonly storageKey: string;
 	readonly mimeType: typeof ASSISTANCE_TRANSCRIPT_BODY_MIME_TYPE_V1;
+	readonly byteLength: number;
+	readonly sha256: string;
+}
+
+export interface AssistanceTtsScriptBodyReferenceV1 {
+	readonly storageKey: string;
+	readonly mimeType: typeof ASSISTANCE_TTS_SCRIPT_BODY_MIME_TYPE_V1;
 	readonly byteLength: number;
 	readonly sha256: string;
 }
@@ -42,7 +53,15 @@ export interface AssistanceTranscriptAssetReferenceV1 {
 	readonly body: Readonly<AssistanceTranscriptBodyReferenceV1>;
 }
 
-export type AssistanceAssetReferenceV1 = AssistanceTranscriptAssetReferenceV1;
+export interface AssistanceTtsScriptAssetReferenceV1
+	extends Omit<AssistanceTranscriptAssetReferenceV1, 'kind' | 'body'> {
+	readonly kind: 'tts-script-v1';
+	readonly body: Readonly<AssistanceTtsScriptBodyReferenceV1>;
+}
+
+export type AssistanceAssetReferenceV1 =
+	| AssistanceTranscriptAssetReferenceV1
+	| AssistanceTtsScriptAssetReferenceV1;
 
 const ASSET_FIELDS = Object.freeze([
 	'id', 'kind', 'sourceId', 'sourceSha256', 'sourceStartFrame', 'sourceEndFrame',
@@ -53,6 +72,15 @@ const SHA256 = /^[a-f0-9]{64}$/u;
 
 /** Normalize the only assistance asset shape admitted by the V1 document domain. */
 export function createAssistanceAssetReferenceV1(
+	value: AssistanceTranscriptAssetReferenceV1,
+): Readonly<AssistanceTranscriptAssetReferenceV1>;
+export function createAssistanceAssetReferenceV1(
+	value: AssistanceTtsScriptAssetReferenceV1,
+): Readonly<AssistanceTtsScriptAssetReferenceV1>;
+export function createAssistanceAssetReferenceV1(
+	value: unknown,
+): Readonly<AssistanceAssetReferenceV1>;
+export function createAssistanceAssetReferenceV1(
 	value: unknown,
 ): Readonly<AssistanceAssetReferenceV1> {
 	const record = readClosedDomainRecord(
@@ -61,8 +89,9 @@ export function createAssistanceAssetReferenceV1(
 		ASSET_FIELDS,
 		ASSET_FIELDS,
 	);
-	if (readClosedDomainField(record, 'kind', 'assistance asset reference') !== 'transcript-v1') {
-		throw new RangeError('An assistance asset reference must use the transcript-v1 kind.');
+	const kind = readClosedDomainField(record, 'kind', 'assistance asset reference');
+	if (kind !== 'transcript-v1' && kind !== 'tts-script-v1') {
+		throw new RangeError('An assistance asset reference kind is unsupported.');
 	}
 	const sourceStartFrame = nonNegativeInteger(
 		readClosedDomainField(record, 'sourceStartFrame', 'assistance asset reference'),
@@ -75,12 +104,11 @@ export function createAssistanceAssetReferenceV1(
 	if (sourceEndFrame <= sourceStartFrame) {
 		throw new RangeError('An assistance transcript requires a positive half-open source range.');
 	}
-	return Object.freeze({
+	const common = Object.freeze({
 		id: boundedText(
 			readClosedDomainField(record, 'id', 'assistance asset reference'),
 			'assistance asset ID',
 		),
-		kind: 'transcript-v1',
 		sourceId: boundedText(
 			readClosedDomainField(record, 'sourceId', 'assistance asset reference'),
 			'assistance transcript source ID',
@@ -106,10 +134,45 @@ export function createAssistanceAssetReferenceV1(
 		modelArtifactSha256s: modelArtifactDigests(
 			readClosedDomainField(record, 'modelArtifactSha256s', 'assistance asset reference'),
 		),
-		body: createAssistanceTranscriptBodyReferenceV1(
-			readClosedDomainField(record, 'body', 'assistance asset reference'),
-		),
 	});
+	const body = readClosedDomainField(record, 'body', 'assistance asset reference');
+	if (kind === 'transcript-v1') return Object.freeze({
+		...common, kind, body: createAssistanceTranscriptBodyReferenceV1(body),
+	});
+	if (common.sourceVideoTimingSha256 !== null) {
+		throw new RangeError('A TTS script must bind an audio-only source.');
+	}
+	if (sourceStartFrame !== 0) {
+		throw new RangeError('A TTS script must begin at source frame zero.');
+	}
+	return Object.freeze({
+		...common, kind, body: createAssistanceTtsScriptBodyReferenceV1(body),
+	});
+}
+
+/** Normalize a TTS script body's immutable external-storage identity. */
+export function createAssistanceTtsScriptBodyReferenceV1(
+	value: unknown,
+): Readonly<AssistanceTtsScriptBodyReferenceV1> {
+	const record = readClosedDomainRecord(value, 'assistance TTS script body reference',
+		BODY_FIELDS, BODY_FIELDS);
+	const sha256 = digest(readClosedDomainField(record, 'sha256', 'assistance TTS script body reference'),
+		'assistance TTS script body');
+	const storageKey = `${ASSISTANCE_TTS_SCRIPT_STORAGE_KEY_PREFIX_V1}${sha256}`;
+	if (readClosedDomainField(record, 'storageKey', 'assistance TTS script body reference') !== storageKey) {
+		throw new TypeError('An assistance TTS script body storage key must be derived from its digest.');
+	}
+	if (readClosedDomainField(record, 'mimeType', 'assistance TTS script body reference')
+		!== ASSISTANCE_TTS_SCRIPT_BODY_MIME_TYPE_V1) {
+		throw new RangeError('An assistance TTS script body MIME type is unsupported.');
+	}
+	const byteLength = positiveInteger(readClosedDomainField(record, 'byteLength',
+		'assistance TTS script body reference'), 'assistance TTS script body byte length');
+	if (byteLength > ASSISTANCE_ASSET_REFERENCE_LIMITS_V1.maximumBodyBytes) {
+		throw new RangeError('An assistance TTS script body exceeds its maximum byte length.');
+	}
+	return Object.freeze({ storageKey, mimeType: ASSISTANCE_TTS_SCRIPT_BODY_MIME_TYPE_V1,
+		byteLength, sha256 });
 }
 
 /** Normalize a transcript body's immutable external-storage identity. */
@@ -192,6 +255,9 @@ export function validateAssistanceAssetSourceBindingsV1(
 			throw new RangeError(`Assistance asset ${asset.id} source digest does not match its source.`);
 		}
 		const kind = data(source, 'kind', `source ${asset.sourceId}`);
+		if (asset.kind === 'tts-script-v1' && kind !== 'audio') {
+			throw new RangeError(`Assistance TTS script ${asset.id} requires an audio source.`);
+		}
 		const maximumFrame = kind === 'audio'
 			? positiveInteger(data(source, 'frameCount', `source ${asset.sourceId}`), 'audio source frame count')
 			: kind === 'video'
@@ -200,6 +266,9 @@ export function validateAssistanceAssetSourceBindingsV1(
 		if (maximumFrame === null) throw new RangeError(`Assistance asset ${asset.id} source kind is unsupported.`);
 		if (asset.sourceEndFrame > maximumFrame) {
 			throw new RangeError(`Assistance asset ${asset.id} source range exceeds source bounds.`);
+		}
+		if (asset.kind === 'tts-script-v1' && asset.sourceEndFrame !== maximumFrame) {
+			throw new RangeError(`Assistance TTS script ${asset.id} must bind its full audio source.`);
 		}
 		validateVideoTimingBinding(source, kind, asset);
 	}

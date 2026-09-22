@@ -111,6 +111,7 @@ test('the operation contract closes the complete planned local-assistance vocabu
 		'subject-detection',
 		'saliency-detection',
 		'editorial-generation',
+		'text-to-speech',
 	]);
 	assert.deepEqual(validateAssistanceOperationRequest(request()), request());
 });

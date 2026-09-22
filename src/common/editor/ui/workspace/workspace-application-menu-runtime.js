@@ -134,6 +134,7 @@ export function createWorkspaceApplicationMenus({
 				installApplication: () => run(() => installPrompt.prompt()),
 				openLocalModels: fileService.isDesktop ? () => openSurface('local-models') : undefined,
 				openLocalAssistance: fileService.isDesktop ? (request = { mode: 'advanced' }) => openSurface(assistanceDialogSurface(request)) : undefined,
+				openTextToSpeech: fileService.isDesktop ? () => openSurface('text-to-speech') : undefined,
 				openLocalAssistanceIndexedSearch: fileService.isDesktop && project
 					? openAssistanceSearch : undefined,
 				framescaperCandidateAuthoring: framescaperRuntime.framescaperCandidateAuthoring,

@@ -60,6 +60,7 @@ export {
 	createRemoveTempoEventCommand,
 	createReorderVideoEffectCommand,
 	createReplaceClipSourceCommand,
+	createRegenerateTtsClipCommand,
 	createResizeTimelineAnnotationCommand,
 	createSetTempoMapModeCommand,
 	createSetVideoKeyframesCommand,

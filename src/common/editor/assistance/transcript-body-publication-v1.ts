@@ -159,6 +159,9 @@ export function createAssistanceTranscriptBodyPublicationV1(
 			sha256: bodySha256,
 		},
 	});
+	if (reference.kind !== 'transcript-v1') {
+		throw new TypeError('An assistance transcript publication changed asset kind.');
+	}
 	return Object.freeze({
 		reference,
 		body,

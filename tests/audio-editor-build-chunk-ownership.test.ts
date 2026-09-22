@@ -206,6 +206,8 @@ test('assistance domain modules default to the lazy owner, with a named eager ex
 		'src/common/editor/assistance/shots.ts',
 		'src/common/editor/assistance/transcript-scape-asset-extension-v1.ts',
 		'src/common/editor/assistance/transcript.ts',
+		'src/common/editor/assistance/tts-script-body-publication-v1.ts',
+		'src/common/editor/assistance/tts-script-scape-asset-extension-v1.ts',
 	]);
 	assert.equal(
 		chunkGroupForModulePath('src/common/editor/assistance/local-assistance-semantic-search-bridge.ts'),
