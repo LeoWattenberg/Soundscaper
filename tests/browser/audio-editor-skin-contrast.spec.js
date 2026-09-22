@@ -45,6 +45,18 @@ async function contrast(locator, property = 'color', minimum = 4.5, outside = fa
 	}
 }
 
+test('default light theme keeps vertical ruler numbers readable', async ({ page }) => {
+	registerAudioEditorHooks();
+	const editor = await bootEditor(page, '/embed/en/');
+	await importFiles(editor, [monoTone]);
+	const dialog = await appearance(page, editor);
+	await dialog.getByRole('radio', { name: 'Light', exact: true }).click();
+	await dialog.getByRole('button', { name: 'Close', exact: true }).last().click();
+	await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
+	await expect(editor).toHaveAttribute('data-editor-skin', 'default');
+	await contrast(editor.locator('.audio-editor-vertical-ruler .vertical-ruler__label'));
+});
+
 for (const product of ['soundscaper', 'framescaper']) {
 	test.describe(`${product} skin contrast`, () => {
 		registerAudioEditorHooks();

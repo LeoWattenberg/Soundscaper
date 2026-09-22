@@ -236,6 +236,13 @@ body[data-editor-skin]:not([data-editor-skin='default']) .tooltip__arrow path {
 	}
 }
 
+/* The default light ruler sits on a pale panel. Its inline canvas-text tokens
+   need dark values on the labels themselves to override the inherited ones. */
+html[data-theme='light'] #kw-audio-editor-design-system[data-editor-skin='default']:not([data-editor-theme^='high-contrast']) .audio-editor-vertical-ruler .vertical-ruler__label {
+	--ruler-text-primary: var(--text);
+	--ruler-text-secondary: var(--text);
+}
+
 /* Ruler labels use the canvas foreground, so their backdrop must stay dark and
    opaque even when a light panel or a bright clip scrolls underneath. */
 #kw-audio-editor-design-system[data-editor-skin]:not([data-editor-skin='default']) .audio-editor-vertical-ruler {
