@@ -11,6 +11,7 @@ import {
 	bootEditor,
 	chooseFileAction,
 	clipByName,
+	closeWorkspacePanel,
 	importFiles,
 } from '../audio-editor-test-helpers.js';
 import {
@@ -136,6 +137,9 @@ async function exerciseEditableCopy(context, options) {
 		await expect(destinationEditor).not.toHaveAttribute('data-edit-block-reason', /.+/u);
 		const copiedClip = clipByName(destinationEditor, options.media.name);
 		await expect(copiedClip).toBeVisible();
+		if (await destinationEditor.locator('[data-workspace-panel="project-bin"]').isVisible()) {
+			await closeWorkspacePanel(destinationEditor, 'project-bin');
+		}
 		await startPlayback(destinationEditor);
 		await destinationEditor.getByRole('button', { name: 'Stop', exact: true }).click();
 		await copiedClip.locator('.clip-header__name').dblclick();
