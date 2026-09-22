@@ -256,6 +256,22 @@ export function SplitToolGuideline({ guideline, panelWidth, pixelsPerSecond, sam
 	);
 }
 
+export function BoundarySnapGuides({ frames = [], panelWidth, pixelsPerSecond, sampleRate, height }) {
+	return <>{frames.map((frame) => <div
+		key={frame}
+		className="audio-editor-boundary-snap-guide"
+		data-smart-snap-guide
+		data-smart-snap-frame={frame}
+		aria-hidden="true"
+		style={{
+			left: timelineContentLeft(timelineTrimPreviewGuideLeft(
+				frame, panelWidth, pixelsPerSecond, sampleRate,
+			)),
+			height,
+		}}
+	/>)}</>;
+}
+
 export function TimelineTrimPreviewGuide({
 	sample,
 	panelWidth,

@@ -32,6 +32,7 @@ export function useTimelineInteractionState() {
 	const [clipDragPreview, setClipDragPreview] = useState(null);
 	const [trackResizePreview, setTrackResizePreview] = useState(null);
 	const [splitToolGuideline, setSplitToolGuideline] = useState(null);
+	const [boundarySnapGuideFrames, setBoundarySnapGuideFrames] = useState([]);
 	const [projectBinDragPreview, setProjectBinDragPreview] = useState(null);
 
 	return {
@@ -80,6 +81,8 @@ export function useTimelineInteractionState() {
 		setTrackResizePreview,
 		splitToolGuideline,
 		setSplitToolGuideline,
+		boundarySnapGuideFrames,
+		setBoundarySnapGuideFrames,
 		projectBinDragPreview,
 		setProjectBinDragPreview,
 	};

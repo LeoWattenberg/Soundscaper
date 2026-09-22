@@ -10,6 +10,7 @@
 @import './audio-editor-design-system/06b-selection-status.css';
 @import './audio-editor-design-system/07-timeline-tracks.css';
 @import './audio-editor-design-system/08-timeline-clips-effects.css';
+@import './audio-editor-design-system/08b-boundary-snap-guides.css';
 @import './audio-editor-design-system/08a-clip-fades.css';
 @import './audio-editor-design-system/09-dialogs-effects.css';
 @import './audio-editor-design-system/09a-dialog-parametric-eq.css';
