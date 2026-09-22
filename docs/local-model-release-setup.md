@@ -51,8 +51,11 @@ licensing row, offline notices, upstream source pins, and retained public
 readback are checked with `npm run audit:kokoro-model-release`. Run
 `node scripts/models/verify-kokoro-model-release.mjs --verify-public` to repeat
 HEAD, byte-range, CORS, and full SHA-256 checks against all 56 live CDN files.
-The model files are published; the offline G2P helper remains unprovisioned, so
-speech generation is unavailable until that runtime is packaged and verified.
+The model files are published. Target packages generate the pinned offline G2P
+helper and authenticate its complete file inventory before inference. Actual
+speech generation still requires a passing nine-language text-to-WAV nightly
+case from each packaged target; the recipe does not establish a cross-target
+result by itself.
 
 The nightly-with-tests real-model phase remains the executable check for actual
 installation, Electron IPC, inference, and output validation on a particular

@@ -277,6 +277,10 @@ jobs:
           --desktop-arch=${{ matrix.target.arch }}
           --runner-os=${{ runner.os }}
           --runner-arch=${{ runner.arch }}
+      - name: Set up the locked Kokoro G2P builder
+        uses: astral-sh/setup-uv@eb1897b8dc4b5d5bfe39a428a8f2304605e0983c # v7.0.0
+        with:
+          version: 0.12.5
       - name: Stage the verified application
         run: node scripts/desktop-prepare.mjs
         env:

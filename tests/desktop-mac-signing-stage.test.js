@@ -7,9 +7,21 @@ import { createPackage } from '@electron/asar';
 import assistance from '../config/assistance-native-runtime-manifest.json' with { type: 'json' };
 import familyCandidates from '../config/assistance-runtime-family-supply-candidates.json' with { type: 'json' };
 import { assistanceNativeRuntimeStageSummary } from '../desktop/assistance-native-runtime-payload.mjs';
-import { captureMacSigningInputs, signVerifiedMacStage, verifySignedMacPackage, repinStageDocuments } from '../scripts/lib/desktop-mac-signing-stage.mjs';
+import { captureMacSigningInputs, signVerifiedMacStage, verifySignedMacPackage, repinStageDocuments,
+	signedKokoroG2pSummary } from '../scripts/lib/desktop-mac-signing-stage.mjs';
 import { canonicalSigningJson, rebindSigningPins, signingDigest } from '../scripts/lib/desktop-signing-pins.mjs';
 import { signedAssistanceAuthority } from '../scripts/lib/desktop-signed-assistance-authority.mjs';
+
+test('mac signing refreshes Kokoro G2P closure bytes after Mach-O signing', () => {
+	const manifest = { schemaVersion: 1, runtimeVersion: '0.9.4', targetId: 'mac-arm64',
+		runtimePrefix: 'assistance/kokoro-g2p/0.9.4', executable: 'kokoro-g2p',
+		files: [{ path: 'kokoro-g2p', byteLength: 140, sha256: 'a'.repeat(64) }] };
+	const bytes = Buffer.from(`${JSON.stringify(manifest)}\n`);
+	const summary = signedKokoroG2pSummary({ targetId: 'mac-arm64', fileCount: 1, byteLength: 100 }, bytes);
+	assert.equal(summary.byteLength, 140);
+	assert.equal(summary.manifest.byteLength, bytes.byteLength);
+	assert.equal(summary.manifest.sha256, signingDigest(bytes));
+});
 
 async function fixture(t) {
 	const root = await mkdtemp(join(tmpdir(), 'signing-test-'));
@@ -52,6 +64,9 @@ async function fixture(t) {
 test('native signing preserves source authority and packages exactly the repinned stage', async t => {
 	const f = await fixture(t);
 	await signVerifiedMacStage(f.context, { executeFile: f.executeFile });
+	const signedStageBytes = await readFile(join(f.root, '.desktop-build/stage-manifest.json'));
+	assert.equal(signedStageBytes.toString('utf8'),
+		`${JSON.stringify(JSON.parse(signedStageBytes.toString('utf8')), null, 2)}\n`);
 	const stage = JSON.parse(await readFile(join(f.root, '.desktop-build/stage-manifest.json')));
 	const expected = assistanceNativeRuntimeStageSummary(signedAssistanceAuthority(f.manifest, stage.nativeSigning, 'mac-arm64'), 'mac-arm64');
 	assert.deepEqual(stage.assistanceNativeRuntime, expected);

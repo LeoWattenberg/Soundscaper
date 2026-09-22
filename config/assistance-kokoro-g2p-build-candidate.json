@@ -1,11 +1,22 @@
 {
 	"schemaVersion": 1,
-	"status": "source-only-unprovisioned",
+	"status": "package-generated",
 	"entrypointSource": "desktop/assistance-kokoro-g2p-helper.py",
+	"buildEntrypoint": "scripts/kokoro-g2p/build.mjs",
+	"dependencyLock": {
+		"path": "scripts/kokoro-g2p/uv.lock",
+		"sha256": "a414cb8547b8f9049ac807013b924ae0fc60a2cbc7d7422af362e7af92a859f5"
+	},
+	"upstreamNotices": {
+		"path": "scripts/kokoro-g2p/notices/sources.json",
+		"sha256": "000c308487602a6517e3ee9b3650bf18edbcf6537dea0810357a36f613f21ca9"
+	},
 	"targetIds": ["mac-arm64", "linux-x64", "linux-arm64", "win-x64", "win-arm64"],
 	"runtimePlan": {
 		"kind": "frozen-offline-subprocess",
-		"builder": "PyInstaller on each target with a locked Python dependency closure",
+		"builder": "uv 0.12.5 locked Python 3.12 closure and PyInstaller 6.16.0 on each target package runner",
+		"runtimePrefix": "assistance/kokoro-g2p/0.9.4",
+		"packageManifest": "config/assistance-kokoro-g2p-runtime-manifest.json",
 		"winArm64Fallback": "win-x64 frozen helper under Windows 11 ARM x64 process emulation; never load x64 dependencies into the ARM64 Node worker"
 	},
 	"sourceRevisions": {
@@ -18,13 +29,13 @@
 		"PyTorch and Transformers imported by the publisher pipeline even with model=False",
 		"spaCy en_core_web_sm and Misaki English lexicon data",
 		"eSpeak NG library and data with phonemizer-fork and espeakng-loader",
-		"Fugashi, Unidic, jaconv, mojimoji and pyopenjtalk for Japanese",
+		"Fugashi, Unidic Lite, jaconv, mojimoji, pyopenjtalk and the SHA-256 pinned Open JTalk dictionary for Japanese",
 		"jieba, pypinyin, pypinyin-dict and cn2an for Mandarin"
 	],
-	"publicationBlockedBy": [
-		"Locked, hash-pinned per-target Python build environment and complete notices",
-		"Frozen executable plus dependency/data file hashes for each target",
-		"Authenticated spawn integration with the ONNX assistance worker",
-		"Per-target offline text-to-WAV canaries for all nine language variants"
+	"packageGates": [
+		"Hash-verified source dictionary, lockfile and committed upstream notices",
+		"Frozen executable and every dependency/data file inventoried by SHA-256",
+		"Manifest checked before and after packaging and before each worker spawn",
+		"Nightly packaged text-to-WAV canaries for all nine language variants"
 	]
 }

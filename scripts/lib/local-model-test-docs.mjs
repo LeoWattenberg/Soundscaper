@@ -26,7 +26,7 @@ const FIXTURES = Object.freeze({
 	'rhythmic-music-22050hz': 'Sixteen seconds of reproducible synthesized percussion and changing tones at 22.05 kHz, with a regular beat.',
 	'visual-shot-frames': 'A 120-frame sequence at 30 frames per second switching from the NASA astronaut portrait to the CC0 cat photograph halfway through, prepared at the model’s 48 × 27 raster size.',
 	'editorial-candidates': 'Two fixed highlight candidates about restoring and comparing a recording, supplied through the production editorial-plan builder with all text fields requested.',
-	'tts-script': 'A short nonempty English script with one American English voice and a bounded speech rate, submitted as authenticated UTF-8 text.',
+	'tts-script': 'Nine short UTF-8 scripts, one for each Kokoro v1.0 language variant, each paired with a published matching voice at speed 1.',
 });
 const VALIDATION = Object.freeze({
 	'voice-activity': 'Speech regions must be nonempty and have valid, ordered boundaries inside the input audio.',
@@ -43,7 +43,7 @@ const VALIDATION = Object.freeze({
 	'beat-grid': 'Beat positions must be nonempty, ordered, and inside the audio; tempo data must be finite and positive.',
 	'shot-boundaries': 'Model-derived shot boundaries must be nonempty, ordered, and inside the supplied source-frame range.',
 	'editorial-proposal': 'Strict JSON must contain every authorized candidate exactly once and readable titles, hooks, and explanations with valid chapter text. The production reviewer rejects unsafe or foreign content.',
-	'synthesized-audio': 'The selected Kokoro voice must produce non-silent, bounded, 24 kHz mono PCM audio in a valid WAV container. The test requires a complete offline G2P runtime and cannot be satisfied by an unavailable-adapter response or substitute model.',
+	'synthesized-audio': 'Each of the nine selected Kokoro voices must produce non-silent, bounded, 24 kHz mono PCM audio in a valid WAV container. The test requires a complete offline G2P runtime and cannot be satisfied by an unavailable-adapter response or substitute model.',
 });
 const PLATFORM_NAMES = Object.freeze({
 	'darwin-arm64': 'macOS arm64', 'darwin-x64': 'macOS x64',
@@ -55,7 +55,8 @@ const SHERPA_TASKS = new Set([
 ]);
 
 /** Package staging support, not a claim that a particular machine completed inference. */
-export function localModelRuntimeAvailability(entry, { nativeRuntime, onnxRuntime, whisperBuild, llamaBuild, sherpaArm64Build }) {
+export function localModelRuntimeAvailability(entry, { nativeRuntime, onnxRuntime, whisperBuild, llamaBuild,
+	sherpaArm64Build, kokoroG2pBuild }) {
 	const familyId = entry.task === 'editorial-generation' ? 'llama-cpp' : entry.modelId.startsWith('whisper-') ? 'whisper-cpp'
 		: SHERPA_TASKS.has(entry.task) ? 'sherpa-onnx-node' : 'onnxruntime-node';
 	let version, targets;
@@ -79,21 +80,39 @@ export function localModelRuntimeAvailability(entry, { nativeRuntime, onnxRuntim
 		return targets.includes(target);
 	});
 	if (entry.task === 'text-to-speech') {
-		// ONNX binaries exist, but the separately authenticated offline G2P port is not provisioned.
-		return { familyId, version, availablePlatforms: [], missingPlatforms: [...entry.platforms],
-			blockedBy: 'kokoro-offline-g2p-unprovisioned' };
+		if (kokoroG2pBuild?.status !== 'package-generated'
+			|| !Array.isArray(kokoroG2pBuild.targetIds)
+			|| kokoroG2pBuild.targetIds.length === 0) {
+			return { familyId, version, availablePlatforms: [], missingPlatforms: [...entry.platforms],
+				blockedBy: 'kokoro-offline-g2p-unprovisioned' };
+		}
+		const withG2p = availablePlatforms.filter((platform) => {
+			const target = platform.replace(/^darwin-/u, 'mac-').replace(/^win32-/u, 'win-');
+			return kokoroG2pBuild.targetIds.includes(target);
+		});
+		if (withG2p.length === 0) {
+			return { familyId, version, availablePlatforms: [], missingPlatforms: [...entry.platforms],
+				blockedBy: 'kokoro-offline-g2p-unprovisioned' };
+		}
+		return { familyId, version, availablePlatforms: withG2p,
+			missingPlatforms: entry.platforms.filter((platform) => !withG2p.includes(platform)),
+			offlineG2pRuntime: 'package-generated' };
 	}
 	return { familyId, version,
 		availablePlatforms, missingPlatforms: entry.platforms.filter((platform) => !availablePlatforms.includes(platform)) };
 }
 
 function runtimeNotice(availability, published = true) {
-	const { familyId, version, availablePlatforms, missingPlatforms, blockedBy } = availability;
+	const { familyId, version, availablePlatforms, missingPlatforms, blockedBy, offlineG2pRuntime } = availability;
 	if (blockedBy === 'kokoro-offline-g2p-unprovisioned') {
-		return `Desktop builds package the ${familyId} ${version} engine, but the authenticated offline Kokoro G2P helper is not built or wired for any supported target. Installing model weights cannot enable speech generation yet. The required real-model test fails closed until the helper and its data are packaged and verified.`;
+		return `Desktop builds package the ${familyId} ${version} engine, but the authenticated offline Kokoro G2P helper is not yet packaged for any supported target. The production worker accepts only a verified packaged helper, so installing model weights cannot enable speech generation yet. The required real-model test fails closed until the helper and its data are packaged and verified.`;
 	}
 	if (availablePlatforms.length === 0) {
 		return `**The required native engine is not yet packaged.** The desktop build has no ${familyId} ${version} target for this model. Downloading weights does not enable processing. The required real-model test reports a failure until the model and verified native package are supplied.`;
+	}
+	if (offlineG2pRuntime === 'package-generated') {
+		return `Desktop target packages generate and authenticate the offline Kokoro G2P helper alongside the ${familyId} ${version} engine for ${availablePlatforms.map((platform) => PLATFORM_NAMES[platform]).join(', ')}. ${published ? 'Install the model weights through Model Manager, then run speech generation locally.' : 'Model installation still requires its digest-pinned catalog publication.'} Consult the nightly report for real text-to-WAV results from each package and machine.`
+			+ (missingPlatforms.length ? ` The complete speech runtime is not packaged for ${missingPlatforms.map((platform) => PLATFORM_NAMES[platform]).join(', ')}.` : '');
 	}
 	return `Desktop builds package the required ${familyId} ${version} engine for ${availablePlatforms.map((platform) => PLATFORM_NAMES[platform]).join(', ')}. ${published ? 'Install this model’s weights through Model Manager, then run its task locally.' : 'Model installation still requires its digest-pinned catalog publication.'} These are supported build targets; consult the nightly test report for results on a particular package and machine.`
 		+ (missingPlatforms.length ? ` The desktop build does not package this engine for ${missingPlatforms.map((platform) => PLATFORM_NAMES[platform]).join(', ')} even though model weights are listed for those platforms.` : '');
@@ -156,7 +175,9 @@ function modelPage(entry, cases, runtimeSources) {
 		'## What the packaged test checks {#what-the-packaged-test-checks}', '',
 		...checks,
 		entry.task === 'text-to-speech'
-			? 'The nightly-with-tests package downloads real model artifacts and requests inference through the packaged runtime. The required offline G2P helper is currently absent, so this case must fail closed until that runtime is provisioned. These costly checks run separately from the normal browser suite. A passing future run will confirm basic speech generation, not pronunciation or perceptual quality.'
+			? availability.offlineG2pRuntime === 'package-generated'
+				? 'The nightly-with-tests package downloads real model artifacts and requests inference through the packaged runtime. Its required case submits one script in each of the nine language variants through the packaged G2P helper and checks the resulting WAVs. A missing or altered helper fails closed. These costly checks run separately from the normal browser suite. A passing package run confirms basic speech generation for those selected voices, not pronunciation or perceptual quality.'
+				: 'The nightly-with-tests package downloads real model artifacts and requests inference through the packaged runtime. The required offline G2P helper is currently absent, so this case must fail closed until that runtime is provisioned. These costly checks run separately from the normal browser suite. A passing future run will confirm basic speech generation, not pronunciation or perceptual quality.'
 			: 'The nightly-with-tests package downloads real model artifacts and requests inference through the packaged runtime. A required model missing from the catalog fails its case. Missing native engines fail on catalog-supported platforms. These costly checks run separately from the normal browser suite. A passing run confirms basic model execution and usable output structure; it does not establish perceptual quality or accuracy on your recording.', '',
 		'## Review the result {#review-the-result}', '',
 		...documentation.limitations.map((limitation) => `- ${limitation}`), '',
@@ -205,12 +226,13 @@ function indexPage(catalog, cases, runtimeSources) {
 }
 
 export async function generateLocalModelTestDocuments(repositoryRoot, { write = false } = {}) {
-	const [catalog, manifest, nativeRuntime, onnxRuntime, sherpaArm64Build, catalogTasks] = await Promise.all([
+	const [catalog, manifest, nativeRuntime, onnxRuntime, sherpaArm64Build, kokoroG2pBuild, catalogTasks] = await Promise.all([
 		readFile(resolve(repositoryRoot, 'config/local-model-catalog.json'), 'utf8').then(JSON.parse),
 		readFile(resolve(repositoryRoot, 'config/local-model-real-test-cases.json'), 'utf8').then(JSON.parse),
 		readFile(resolve(repositoryRoot, 'config/assistance-native-runtime-manifest.json'), 'utf8').then(JSON.parse),
 		readFile(resolve(repositoryRoot, 'config/assistance-onnx-runtime-payloads.json'), 'utf8').then(JSON.parse),
 		readFile(resolve(repositoryRoot, 'config/assistance-sherpa-win-arm64-build.json'), 'utf8').then(JSON.parse),
+		readFile(resolve(repositoryRoot, 'config/assistance-kokoro-g2p-build-candidate.json'), 'utf8').then(JSON.parse),
 		readFile(resolve(repositoryRoot, 'config/milestone-7-model-catalog-tasks.json'), 'utf8').then(JSON.parse),
 	]);
 	const cases = validateLocalModelRealTestCases(manifest, catalog, { candidateTasks: catalogTasks.tasks });
@@ -223,7 +245,7 @@ export async function generateLocalModelTestDocuments(repositoryRoot, { write = 
 	}), ...catalogTasks.tasks.filter(({ catalogModelId }) => !publishedIds.has(catalogModelId))
 		.map((task) => ({ ...task, modelId: task.catalogModelId, pendingPublication: true,
 			artifacts: task.artifacts.map((artifact) => ({ ...artifact, fileName: artifact.distributionFileName })) }))];
-	const runtimeSources = { nativeRuntime, onnxRuntime, sherpaArm64Build,
+	const runtimeSources = { nativeRuntime, onnxRuntime, sherpaArm64Build, kokoroG2pBuild,
 		whisperBuild: { version: WHISPER_RUNTIME_VERSION, targets: WHISPER_RUNTIME_BUILD_TARGETS },
 		llamaBuild: { version: LLAMA_RUNTIME_VERSION, targets: LLAMA_RUNTIME_BUILD_TARGETS } };
 	const documents = new Map([['index.md', indexPage({ ...catalog, entries }, cases, runtimeSources)],

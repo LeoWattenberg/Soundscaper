@@ -9,8 +9,8 @@
 				"modelTitles": { "kokoro-82m-v1.0": "Kokoro 82M v1.0 text to speech" },
 				"summary": "Generate a spoken clip from a script using a selected language and voice.",
 				"menu": "Generate → Text to Speech",
-				"steps": ["Enter a script, then choose one of the published language and voice pairs.", "Install the Kokoro model through Model Manager when the complete offline speech runtime is available.", "Generate and listen to a preview, then add it on a new track or regenerate the selected generated clip."],
-				"limitations": ["The model has a catalog entry, but the authenticated offline Kokoro grapheme-to-phoneme helper is not yet built or wired into desktop inference. Generation currently fails closed even after the weights are installed.", "Generated pronunciation and delivery can vary by language and voice. The eventual real test requires a non-silent 24 kHz mono WAV from the selected voice; it cannot establish naturalness or pronunciation quality."]
+				"steps": ["Enter a script, then choose one of the published language and voice pairs.", "Install the Kokoro model through Model Manager.", "Generate and listen to a preview, then add it on a new track or regenerate the selected generated clip."],
+				"limitations": ["The model has a catalog entry, but the authenticated offline Kokoro grapheme-to-phoneme helper must also be packaged for the selected desktop target. A package missing that helper fails closed even after the weights are installed.", "Generated pronunciation and delivery can vary by language and voice. The packaged test requires a non-silent 24 kHz mono WAV for one selected voice in each of the nine language variants; it does not test all 54 voices or establish naturalness or pronunciation quality."]
 			}
 		},
 		{

@@ -18,7 +18,9 @@ const options = { candidateTasks };
 const nativeRuntime = JSON.parse(await readFile(resolve(root, 'config/assistance-native-runtime-manifest.json'), 'utf8'));
 const onnxRuntime = JSON.parse(await readFile(resolve(root, 'config/assistance-onnx-runtime-payloads.json'), 'utf8'));
 const sherpaArm64Build = JSON.parse(await readFile(resolve(root, 'config/assistance-sherpa-win-arm64-build.json'), 'utf8'));
-const runtimeSources = { nativeRuntime, onnxRuntime, sherpaArm64Build,
+const kokoroG2pBuild = JSON.parse(await readFile(resolve(root, 'config/assistance-kokoro-g2p-build-candidate.json'), 'utf8'));
+const kokoroG2pReady = kokoroG2pBuild.status === 'package-generated';
+const runtimeSources = { nativeRuntime, onnxRuntime, sherpaArm64Build, kokoroG2pBuild,
 	whisperBuild: { version: WHISPER_RUNTIME_VERSION, targets: WHISPER_RUNTIME_BUILD_TARGETS },
 	llamaBuild: { version: LLAMA_RUNTIME_VERSION, targets: LLAMA_RUNTIME_BUILD_TARGETS } };
 test('real model cases cover every published and explicitly required candidate model', () => {
@@ -71,11 +73,13 @@ test('every published model has packaged runtime support reflected in its guide'
 	const availability = catalog.entries.map((entry) => ({ entry,
 		...localModelRuntimeAvailability(entry, runtimeSources) }));
 	for (const { entry, availablePlatforms, familyId } of availability) {
-		if (entry.modelId === 'kokoro-82m-v1.0') continue;
+		if (entry.modelId === 'kokoro-82m-v1.0' && !kokoroG2pReady) continue;
 		assert.ok(availablePlatforms.includes('linux-x64'), `${entry.modelId} must be usable on Linux x64.`);
 		const page = await readFile(resolve(root,
 			`handbook/src/content/docs/reference/local-models/${entry.modelId}.md`), 'utf8');
-		assert.match(page, /Desktop builds package the required/u);
+		assert.match(page, entry.modelId === 'kokoro-82m-v1.0'
+			? /target packages generate and authenticate the offline Kokoro G2P helper/u
+			: /Desktop builds package the required/u);
 		assert.doesNotMatch(page, /runtime target closure pending|activation remains blocked/iu);
 		assert.doesNotMatch(page, /Once a compatible native runtime is packaged/u);
 		if (['onnxruntime-node', 'sherpa-onnx-node'].includes(familyId)) {
@@ -96,7 +100,7 @@ test('every real model case is admitted on all five supported desktop targets', 
 		const availability = localModelRuntimeAvailability(entry, runtimeSources);
 		for (const platform of ['darwin-arm64', 'linux-arm64', 'linux-x64', 'win32-arm64', 'win32-x64']) {
 			assert.ok(entry.platforms.includes(platform), `${id}: ${modelId} must not be skipped on ${platform}.`);
-			if (modelId === 'kokoro-82m-v1.0') {
+			if (modelId === 'kokoro-82m-v1.0' && !kokoroG2pReady) {
 				assert.ok(availability.missingPlatforms.includes(platform), `${id}: offline G2P must fail closed on ${platform}.`);
 				continue;
 			}
@@ -105,18 +109,48 @@ test('every real model case is admitted on all five supported desktop targets', 
 	}
 });
 
-test('Kokoro documentation and runtime status disclose the missing offline G2P closure', async () => {
+test('Kokoro documentation follows the verified offline G2P build status', async () => {
 	const entry = catalog.entries.find(({ modelId }) => modelId === 'kokoro-82m-v1.0');
 	assert.ok(entry);
 	const availability = localModelRuntimeAvailability(entry, runtimeSources);
-	assert.equal(availability.blockedBy, 'kokoro-offline-g2p-unprovisioned');
-	assert.deepEqual(availability.availablePlatforms, []);
-	assert.deepEqual(availability.missingPlatforms, entry.platforms);
 	const page = await readFile(resolve(root,
 		'handbook/src/content/docs/reference/local-models/kokoro-82m-v1.0.md'), 'utf8');
-	assert.match(page, /offline Kokoro G2P helper is not built or wired/u);
-	assert.match(page, /processing cannot currently complete/u);
-	assert.doesNotMatch(page, /Install this model.s weights through Model Manager, then run its task locally/u);
+	if (kokoroG2pReady) {
+		assert.equal(availability.blockedBy, undefined);
+		assert.deepEqual(availability.availablePlatforms.toSorted(), entry.platforms.toSorted());
+		assert.deepEqual(availability.missingPlatforms, []);
+		assert.match(page, /target packages generate and authenticate the offline Kokoro G2P helper/u);
+		assert.doesNotMatch(page, /processing cannot currently complete/u);
+		assert.doesNotMatch(page, /G2P helper is currently absent/u);
+		assert.doesNotMatch(page, /when the complete offline speech runtime is available/u);
+		assert.match(page, /nine language variants.*packaged G2P helper/su);
+	} else {
+		assert.equal(availability.blockedBy, 'kokoro-offline-g2p-unprovisioned');
+		assert.deepEqual(availability.availablePlatforms, []);
+		assert.deepEqual(availability.missingPlatforms, entry.platforms);
+		assert.match(page, /offline Kokoro G2P helper is not yet packaged/u);
+		assert.match(page, /processing cannot currently complete/u);
+	}
+});
+
+test('Kokoro runtime support requires its package-generated offline G2P target recipe', () => {
+	const entry = catalog.entries.find(({ modelId }) => modelId === 'kokoro-82m-v1.0');
+	assert.ok(entry);
+	const provisioned = { ...kokoroG2pBuild, status: 'package-generated' };
+	const ready = localModelRuntimeAvailability(entry, { ...runtimeSources, kokoroG2pBuild: provisioned });
+	assert.deepEqual(ready.availablePlatforms.toSorted(), entry.platforms.toSorted());
+	assert.deepEqual(ready.missingPlatforms, []);
+	assert.equal(ready.blockedBy, undefined);
+	const linuxOnly = localModelRuntimeAvailability(entry, { ...runtimeSources,
+		kokoroG2pBuild: { ...provisioned, targetIds: ['linux-x64'] } });
+	assert.deepEqual(linuxOnly.availablePlatforms, ['linux-x64']);
+	assert.ok(linuxOnly.missingPlatforms.includes('win32-arm64'));
+	const missingTargets = localModelRuntimeAvailability(entry, { ...runtimeSources,
+		kokoroG2pBuild: { ...provisioned, targetIds: [] } });
+	assert.equal(missingTargets.blockedBy, 'kokoro-offline-g2p-unprovisioned');
+	const foreignTargets = localModelRuntimeAvailability(entry, { ...runtimeSources,
+		kokoroG2pBuild: { ...provisioned, targetIds: ['foreign-target'] } });
+	assert.equal(foreignTargets.blockedBy, 'kokoro-offline-g2p-unprovisioned');
 });
 
 test('published former candidates retain required test coverage and exact task metadata', () => {
@@ -155,7 +189,8 @@ test('Windows ARM64 catalog admission requires its package-generated native runt
 	const nightly = await readFile(resolve(root, 'docs/local-model-nightly-tests.md'), 'utf8');
 	assert.doesNotMatch(nightly, /Windows ARM64 catalog approval.*pending|separate reviewed platform update/iu);
 	assert.match(nightly, /22 published model identities/iu);
-	assert.match(nightly, /Kokoro.*G2P.*unavailable/isu);
+	assert.match(nightly, kokoroG2pReady
+		? /Kokoro.*G2P.*package-generated/isu : /Kokoro.*G2P.*unavailable/isu);
 });
 
 test('native availability follows packaged file inventories and build recipes', () => {

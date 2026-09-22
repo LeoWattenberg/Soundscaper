@@ -545,6 +545,11 @@ jobs:
           MAC_CERTIFICATE_P12: ${{ secrets.MAC_CERTIFICATE_P12 }}
           MAC_CERTIFICATE_PASSWORD: ${{ secrets.MAC_CERTIFICATE_PASSWORD }}
 
+      - name: Set up the locked Kokoro G2P builder
+        uses: astral-sh/setup-uv@eb1897b8dc4b5d5bfe39a428a8f2304605e0983c # v7.0.0
+        with:
+          version: 0.12.5
+
       - name: Install local-model CPU build tools
         if: runner.os == 'Linux'
         timeout-minutes: 10
@@ -915,6 +920,11 @@ jobs:
         env:
           PLAYWRIGHT_BROWSERS_PATH: '0'
 
+      - name: Set up the locked Kokoro G2P builder
+        uses: astral-sh/setup-uv@eb1897b8dc4b5d5bfe39a428a8f2304605e0983c # v7.0.0
+        with:
+          version: 0.12.5
+
       - name: Package the product runtimes exercised by nightly-with-tests
         run: node scripts/desktop-nightly-tests-products.mjs
         env:
@@ -1103,6 +1113,11 @@ jobs:
           --desktop-arch=${{ matrix.target.arch }}
           --runner-os=${{ runner.os }}
           --runner-arch=${{ runner.arch }}
+
+      - name: Set up the locked Kokoro G2P builder
+        uses: astral-sh/setup-uv@eb1897b8dc4b5d5bfe39a428a8f2304605e0983c # v7.0.0
+        with:
+          version: 0.12.5
 
       - name: Build unpacked Soundscaper v1 and Framescaper v1 products
         shell: bash

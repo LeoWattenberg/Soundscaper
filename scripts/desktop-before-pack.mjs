@@ -1,9 +1,11 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { readFile } from 'node:fs/promises';
+import { lstat, readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { captureMacSigningInputs, signVerifiedMacStage } from './lib/desktop-mac-signing-stage.mjs';
 import { verifyDesktopAssistanceRuntimeFamilyPackage } from './lib/desktop-assistance-runtime-family-verification.mjs';
+import { verifyDesktopKokoroG2pRuntime } from './lib/desktop-kokoro-g2p-runtime.mjs';
+import { createHash } from 'node:crypto';
 
 import { desktopAssistanceNativeManifest } from './lib/desktop-assistance-speech-runtime.mjs';
 import {
@@ -45,6 +47,8 @@ export default async function verifyDesktopRuntimeBeforePack(context = {}, depen
 		?? auditStagedDesktopCodecPolicy;
 	const verifyAssistance = dependencies.verifyStagedAssistanceNativeRuntime
 		?? verifyStagedAssistanceNativeRuntime;
+	const verifyKokoroG2p = dependencies.verifyStagedKokoroG2pRuntime
+		?? verifyStagedKokoroG2pRuntime;
 	const verifyNativeAddon = dependencies.verifyStagedNativeAddonBeforePack ?? verifyStagedNativeAddonBeforePack;
 	const verifyNativeHosts = dependencies.verifyStagedFramescaperNativeHostsBeforePack
 		?? verifyStagedFramescaperNativeHostsBeforePack;
@@ -60,12 +64,54 @@ export default async function verifyDesktopRuntimeBeforePack(context = {}, depen
 		verifyAssistance({
 			repositoryRoot, stageManifestPath, packagedTarget,
 		}),
+		verifyKokoroG2p({ repositoryRoot, stageManifestPath, packagedTarget }),
 		verifyNativeAddon({ repositoryRoot, stageManifestPath, packagedTarget }),
 		verifyProfessional({ repositoryRoot, stageManifestPath, packagedTarget }),
 		verifyNativeHosts({ repositoryRoot, stageManifestPath, packagedTarget }),
 		verifyOsAudioCodec({ repositoryRoot, stageManifestPath, packagedTarget }),
 	]);
 	await signVerifiedMacStage(context);
+}
+
+export async function verifyStagedKokoroG2pRuntime({ repositoryRoot, stageManifestPath, packagedTarget }) {
+	const stageBytes = await readFile(stageManifestPath, 'utf8').catch((error) => {
+		if (error?.code === 'ENOENT') return null;
+		throw error;
+	});
+	const stage = stageBytes === null ? null : JSON.parse(stageBytes);
+	const hasReceipt = stage !== null && Object.hasOwn(stage, 'kokoroG2pRuntime');
+	const configPath = resolve(repositoryRoot,
+		'.desktop-build/app/config/assistance-kokoro-g2p-runtime-manifest.json');
+	const runtimePath = resolve(repositoryRoot, '.desktop-build/runtime/assistance/kokoro-g2p');
+	if (!hasReceipt && !await pathExists(configPath) && !await pathExists(runtimePath)) return null;
+	if (!hasReceipt || !stage.kokoroG2pRuntime) {
+		throw new Error('The staged Kokoro G2P build receipt is missing or invalid.');
+	}
+	assertStagePackageIdentity(stage, packagedTarget);
+	const bytes = await readFile(configPath);
+	const summary = stage.kokoroG2pRuntime;
+	if (bytes.byteLength > 4 * 1024 * 1024
+		|| summary?.targetId !== packagedTarget
+		|| summary.manifest?.path !== 'config/assistance-kokoro-g2p-runtime-manifest.json'
+		|| summary.manifest.byteLength !== bytes.byteLength
+		|| summary.manifest.sha256 !== createHash('sha256').update(bytes).digest('hex')) {
+		throw new Error('The staged Kokoro G2P manifest differs from its build receipt.');
+	}
+	return verifyDesktopKokoroG2pRuntime({
+		manifest: JSON.parse(bytes.toString('utf8')),
+		targetId: packagedTarget,
+		runtimeRoot: resolve(repositoryRoot, '.desktop-build/runtime'),
+	});
+}
+
+async function pathExists(path) {
+	try {
+		await lstat(path);
+		return true;
+	} catch (error) {
+		if (error?.code === 'ENOENT') return false;
+		throw error;
+	}
 }
 
 export async function verifyStagedOsAudioCodecNativeBeforePack({

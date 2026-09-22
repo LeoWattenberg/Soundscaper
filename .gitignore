@@ -14,6 +14,8 @@ coverage/
 /qa-runs/
 .desktop-build/
 .native-build/
+scripts/kokoro-g2p/.venv/
+__pycache__/
 # Packaged Electron output includes unpacked binaries and many target-specific
 # smoke roots. Keep the complete generated release namespace out of history.
 release/*

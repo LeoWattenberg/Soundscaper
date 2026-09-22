@@ -8,7 +8,7 @@ editUrl: false
 
 These guides describe the published catalog and the additional models required by the nightly tests. Desktop packages include native inference engines; Model Manager separately downloads and verifies weights admitted by the digest-pinned catalog. A prepared runtime and a required test do not grant model publication authority.
 
-**Local runtime packaging is incomplete: 1 required model in 1 case lacks a required packaged component.** Their tests fail until the selected target package supplies the complete runtime.
+All published models have a packaged native engine on supported desktop targets. Install their weights and use the task menus or Tools → Advanced Local Processing. This build capability does not claim that every platform has passed the real-model tests.
 
 | Model guide | Purpose | Packaged runtime support | Packaged execution case |
 | --- | --- | --- | --- |
@@ -33,7 +33,7 @@ These guides describe the published catalog and the additional models required b
 | [TransNetV2 shot detection](/reference/local-models/transnetv2/) | shot detection | Packaged; see supported platforms | `transnet-accurate-shots` |
 | [Qwen3 4B editorial proposals](/reference/local-models/qwen3-4b-q4-k-m/) | editorial generation | Packaged; see supported platforms | `qwen-editorial-proposals` |
 | [Room dereverberation](/reference/local-models/dereverb-room/) | dereverberation | Packaged; see supported platforms | `dereverb-room-speech` |
-| [Kokoro 82M v1.0 text to speech](/reference/local-models/kokoro-82m-v1.0/) | text to speech | Offline G2P helper pending | `kokoro-speech-generation` |
+| [Kokoro 82M v1.0 text to speech](/reference/local-models/kokoro-82m-v1.0/) | text to speech | Packaged; see supported platforms | `kokoro-speech-generation` |
 
 On Windows, install the latest supported [Microsoft Visual C++ v14 Redistributable](https://learn.microsoft.com/en-us/cpp/windows/latest-supported-vc-redist?view=msvc-170) matching the desktop app: **x64** for an x64 build or **ARM64** for an ARM64 build. The native ONNX and Sherpa engines require these libraries; model downloads do not include them. Visual Studio itself is not required to use the app.
 

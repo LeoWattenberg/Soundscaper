@@ -8,6 +8,7 @@ import { extractFile, listPackage, statFile } from '@electron/asar';
 import { assistanceNativeRuntimeStageSummary } from '../../desktop/assistance-native-runtime-payload.mjs';
 import { canonicalSigningJson, rebindSigningPins, signingDigest } from './desktop-signing-pins.mjs';
 import { signedAssistanceFamilySummary } from './desktop-signed-assistance-family-summary.mjs';
+import { validateDesktopKokoroG2pManifest } from './desktop-kokoro-g2p-runtime.mjs';
 
 const execute = promisify(execFile);
 const signedStages = new WeakMap();
@@ -100,13 +101,37 @@ export async function signVerifiedMacStage(context, dependencies = {}) {
 		const families = JSON.parse(await readFile(join(root, 'app/config/assistance-runtime-family-supply-candidates.json'), 'utf8'));
 		stage.assistanceRuntimeFamilies = signedAssistanceFamilySummary(stage.assistanceRuntimeFamilies, families);
 	}
+	if (stage.kokoroG2pRuntime !== undefined) {
+		const bytes = await readFile(join(root, 'app/config/assistance-kokoro-g2p-runtime-manifest.json'));
+		stage.kokoroG2pRuntime = signedKokoroG2pSummary(stage.kokoroG2pRuntime, bytes);
+	}
 	stage.nativeSigning = { schemaVersion: 1, teamId: team, files: signingFiles };
-	await writeFile(stagePath, canonicalSigningJson(stage));
+	// The adjacent package-content gate uses the desktop stage's two-space wire.
+	await writeFile(stagePath, `${JSON.stringify(stage, null, 2)}\n`);
 	signedStages.set(context.packager, {
 		runtime: await digestStageFiles(join(root, 'runtime')),
 		app: await digestStageFiles(join(root, 'app')),
 		stage: signingDigest(await readFile(stagePath)), root,
 	});
+}
+
+export function signedKokoroG2pSummary(unsigned, manifestBytes) {
+	const manifest = JSON.parse(manifestBytes.toString('utf8'));
+	if (unsigned?.targetId !== 'mac-arm64' || manifest?.targetId !== unsigned.targetId
+		|| !Array.isArray(manifest.files)) {
+		throw new Error('Signed Kokoro G2P target does not match its build receipt.');
+	}
+	validateDesktopKokoroG2pManifest(manifest, unsigned.targetId);
+	return {
+		targetId: unsigned.targetId,
+		fileCount: manifest.files.length,
+		byteLength: manifest.files.reduce((sum, file) => sum + file.byteLength, 0),
+		manifest: {
+			path: 'config/assistance-kokoro-g2p-runtime-manifest.json',
+			byteLength: manifestBytes.byteLength,
+			sha256: signingDigest(manifestBytes),
+		},
+	};
 }
 
 export async function repinStageDocuments(documents, replacements) {

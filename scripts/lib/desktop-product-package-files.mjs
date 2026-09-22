@@ -5,6 +5,7 @@ const PRODUCT_IDS = Object.freeze(['soundscaper', 'framescaper']);
 const COMMON_CONFIG_FILES = Object.freeze([
 	'config/assistance-native-runtime-manifest.json',
 	'config/assistance-runtime-family-supply-candidates.json',
+	'config/assistance-kokoro-g2p-runtime-manifest.json',
 	'config/local-model-catalog.json',
 	'config/milestone-5-native-source-acquisitions.json',
 	'config/native-addon-payload-manifest.json',

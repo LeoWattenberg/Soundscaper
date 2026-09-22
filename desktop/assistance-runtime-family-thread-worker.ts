@@ -19,6 +19,7 @@ import type { AssistanceRuntimeFamilyInnerWorker } from './assistance-runtime-fa
 export interface AssistanceRuntimeFamilyThreadPort {
 	on(event: string, listener: (...values: unknown[]) => void): this;
 	once(event: string, listener: (...values: unknown[]) => void): this;
+	postMessage?(value: unknown): void;
 	terminate(): Promise<number>;
 }
 
@@ -113,7 +114,7 @@ export function createAssistanceRuntimeFamilyThreadWorkerSpawner(
 				kind: 'error',
 				error: new Error(`The runtime-family thread violated its protocol: ${errorMessage(value)}`),
 			});
-			try { void worker.terminate().catch(() => undefined); }
+			try { termination = stopWorker().catch(() => undefined); }
 			catch { /* The captured protocol error remains authoritative. */ }
 		}
 
@@ -121,9 +122,31 @@ export function createAssistanceRuntimeFamilyThreadWorkerSpawner(
 			if (exited) return Promise.resolve();
 			if (termination) return termination;
 			terminating = true;
-			try { termination = Promise.resolve(worker.terminate()).then(() => undefined); }
+			try { termination = stopWorker(); }
 			catch (error) { termination = Promise.reject(error); }
 			return termination;
+		}
+
+		function stopWorker(): Promise<void> {
+			if (job.task === 'text-to-speech' && typeof worker.postMessage === 'function') {
+				return new Promise<void>((resolveTermination, rejectTermination) => {
+					let settled = false;
+					const settle = (error?: unknown): void => {
+						if (settled) return;
+						settled = true;
+						clearTimeout(timer);
+						if (error) rejectTermination(error);
+						else resolveTermination();
+					};
+					worker.once('exit', () => settle());
+					const timer = setTimeout(() => {
+						void Promise.resolve(worker.terminate()).then(() => settle(), settle);
+					}, 1_500);
+					try { worker.postMessage?.({ type: 'cancel', jobId: job.jobId }); }
+					catch { void Promise.resolve(worker.terminate()).then(() => settle(), settle); }
+				});
+			}
+			return Promise.resolve(worker.terminate()).then(() => undefined);
 		}
 
 		return Object.freeze({ completion, terminate });

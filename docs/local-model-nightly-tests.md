@@ -8,9 +8,11 @@ These expensive checks use `playwright.nightly-local-assistance.config.mjs` and
 in the normal Node suite validate the case manifest, output checks, package
 integration, and generated documentation without downloading models.
 
-Desktop packaging supplies native-engine inputs for the 21 previously published
-models. Kokoro's ONNX engine is staged, but its offline G2P helper is not yet
-packaged, so speech generation remains unavailable.
+Desktop packaging supplies native-engine inputs for all 22 published models.
+Kokoro G2P is package-generated from pinned offline inputs for the selected
+target. Each package inventories its helper and data in an authenticated
+manifest; the package-specific nightly result establishes whether text-to-WAV
+inference passed on that machine.
 
 ONNX Runtime 1.29.0 is staged from the integrity-verified official npm packages with
 target-specific file hashes in `config/assistance-onnx-runtime-payloads.json`.
@@ -45,11 +47,12 @@ build receipt. Qwen's production worker still validates strict JSON and candidat
 authority. Packaging the engine does not itself publish the model weights.
 
 All 22 published models are admitted on Windows ARM64. The existing Sherpa and
-ONNX runtime closures are generated and authenticated by the package. Kokoro's
-offline G2P runtime is unavailable on all five targets, so its new required case
-fails until that helper is built, authenticated, and connected. The committed
-catalog keeps exact artifact pins, and the package-specific nightly report
-records whether inference actually passed on that build and machine.
+ONNX runtime closures are generated and authenticated by the package. The
+Kokoro G2P package-generated recipe covers all five desktop targets. Its
+actual helper closure is built and authenticated during packaging; the required
+nine-language case then checks speech generation. Cross-target packaged
+results remain gated by CI and must be read from each package's nightly report.
+The committed catalog keeps exact artifact pins.
 
 The source runtime-family register describes package-generated targets.
 `desktop-prepare` generates authenticated manifests for the native files
@@ -87,9 +90,16 @@ its vision network and text network. Both Beat This variants run independently.
 Word alignment supplies speech and a known transcript; separation expects three
 stems; dereverberation supplies reflected speech; tagging supplies speech;
 beat tracking supplies synthesized rhythmic music; TransNetV2 receives a visual
-cut; Qwen receives two existing editorial candidates; Kokoro receives a fixed
-text script and must produce audible speech once its offline G2P helper is
-available. See the
+cut; Qwen receives two existing editorial candidates; Kokoro receives fixed
+text scripts and must produce audible speech through its packaged offline G2P
+helper. The Kokoro case installs the model once per product, then submits
+nine short scripts in the corresponding language variants (American and British
+English, Spanish, French, Hindi, Italian, Japanese, Brazilian Portuguese, and
+Mandarin). Each script selects one voice from that language and requires an
+authenticated, non-silent 24 kHz mono PCM16 WAV. The test attaches the WAV and
+script digest, package, model, and output digest evidence for each language;
+any failure fails the case after the remaining languages are attempted. A pass
+does not verify all 54 voices or pronunciation quality. See the
 [case manifest](../config/local-model-real-test-cases.json) and
 [fixture provenance](../tests/electron/local-assistance-models/fixtures/README.md).
 
