@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { AUDIO_EDITOR_COMMAND_TYPES } from './commands/protocol.ts';
+import { AUDIO_EDITOR_COMMAND_TYPES, type AudioEditorCommand } from './commands/protocol.ts';
 import { snapshotInertEditorCommand } from './commands/editor-command-snapshot.ts';
 
 const MAXIMUM_PAGE_BYTES = 64 * 1024;
@@ -9,9 +9,14 @@ const encoder = new TextEncoder();
 
 interface McpProject {
 	readonly id: string;
+	readonly title?: unknown;
+	readonly revision?: unknown;
+	readonly selection?: unknown;
+}
+
+interface CurrentMcpProject extends McpProject {
 	readonly title: string;
 	readonly revision: number;
-	readonly selection: unknown;
 }
 
 interface McpController {
@@ -22,7 +27,7 @@ interface McpController {
 		readonly selectedClipId: string | null;
 		readonly selectedAnnotationId: string | null;
 	};
-	readonly actions: { readonly edit: { readonly commit: (command: unknown) => unknown } };
+	readonly actions: { readonly edit: { readonly commit: (command: AudioEditorCommand) => unknown } };
 }
 
 interface McpRequest { readonly requestId: string; readonly operation: string; readonly args: unknown }
@@ -61,8 +66,7 @@ export function createSoundscaperDesktopMcpPort({
 function executeRequest(controller: McpController, operation: string, argsValue: unknown): unknown {
 	if (operation === 'list_editor_commands') return [...AUDIO_EDITOR_COMMAND_TYPES];
 	const snapshot = controller.getSnapshot();
-	const project = snapshot.project;
-	if (!project) throw new Error('No project is open.');
+	const project = currentProject(snapshot.project);
 	if (operation === 'get_active_project') {
 		return {
 			projectId: project.id, title: project.title, revision: project.revision,
@@ -93,14 +97,24 @@ function executeRequest(controller: McpController, operation: string, argsValue:
 		const command = snapshotInertEditorCommand(args.command);
 		// The controller owns capability policy, project validation, history and autosave.
 		controller.actions.edit.commit(command);
-		const current = controller.getSnapshot().project;
-		if (!current || current.id !== project.id) throw new Error('The active project changed during the command.');
+		const current = currentProject(controller.getSnapshot().project);
+		if (current.id !== project.id) throw new Error('The active project changed during the command.');
 		return { projectId: current.id, revision: current.revision };
 	}
 	throw new Error('Unknown MCP operation.');
 }
 
-function assertCurrentProject(project: McpProject, args: Record<string, unknown>): void {
+function currentProject(project: McpProject | null): CurrentMcpProject {
+	if (!project) throw new Error('No project is open.');
+	if (typeof project.id !== 'string' || !project.id
+		|| typeof project.title !== 'string'
+		|| !Number.isSafeInteger(project.revision) || (project.revision as number) < 0) {
+		throw new TypeError('The active project has invalid MCP metadata.');
+	}
+	return project as CurrentMcpProject;
+}
+
+function assertCurrentProject(project: CurrentMcpProject, args: Record<string, unknown>): void {
 	if (args.projectId !== project.id) throw new Error('The active project changed.');
 	if (nonNegativeInteger(args.expectedRevision, 'expectedRevision') !== project.revision) {
 		throw new Error('The project revision changed.');

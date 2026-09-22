@@ -4,8 +4,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { AUDIO_EDITOR_COMMAND_TYPES } from '../src/common/editor/commands/protocol.ts';
 import { createSoundscaperDesktopMcpPort } from '../src/common/editor/desktop-mcp-port.ts';
-import { createMemoryStore } from './helpers/audio-editor-memory-store-baseline.js';
-import { COPY, createAudioEditorController, createMemoryEngine } from './helpers/audio-editor-controller-harness.js';
+import { COPY, createAudioEditorController, createMemoryEngine, createProjectStore } from './helpers/audio-editor-controller-harness.js';
 
 function fixture(metadataNote = 'safe') {
 	const project = {
@@ -51,6 +50,28 @@ test('desktop MCP describes the active project and authoritative command list', 
 	f.port.dispose();
 });
 
+test('desktop MCP rejects invalid project metadata before publishing it', async () => {
+	let listener: ((request: { requestId: string; operation: string; args: unknown }) => void) | null = null;
+	const responses: Array<{ success: boolean; error?: string }> = [];
+	const port = createSoundscaperDesktopMcpPort({
+		controller: {
+			getSnapshot: () => ({ project: { id: 'project-1', title: null, revision: '2' },
+				readOnly: false, selectedTrackId: null, selectedClipId: null, selectedAnnotationId: null }),
+			actions: { edit: { commit: () => { throw new Error('must not commit'); } } },
+		},
+		fileService: {
+			onMcpRequest: (next) => { listener = next; return () => { listener = null; }; },
+			respondMcpRequest: (response) => { responses.push(response); },
+		},
+	});
+	const send = (operation: string, args: unknown) => listener?.({ requestId: 'invalid-1', operation, args });
+	send('get_active_project', {});
+	await new Promise((resolve) => setImmediate(resolve));
+	assert.equal(responses[0]?.success, false);
+	assert.match(responses[0]?.error ?? '', /invalid MCP metadata/u);
+	port.dispose();
+});
+
 test('desktop MCP metadata paging excludes binary and opaque extensions', async () => {
 	const f = fixture();
 	const first = await f.request('read_project_document', { projectId: 'project-1', expectedRevision: 2 });
@@ -82,8 +103,11 @@ test('desktop MCP pages large Unicode metadata within the byte bound', async () 
 });
 
 test('desktop MCP command uses the live controller commit and undo path', async () => {
+	type Options = NonNullable<Parameters<typeof createAudioEditorController>[1]>;
 	const controller = createAudioEditorController(null, {
-		headless: true, copy: COPY, locale: 'en', store: createMemoryStore(), engine: createMemoryEngine(),
+		headless: true, copy: COPY, locale: 'en',
+		store: createProjectStore({ indexedDB: null, preferOpfs: false }),
+		engine: createMemoryEngine() as unknown as Options['engine'],
 	});
 	await controller.ready;
 	let listener: ((request: { requestId: string; operation: string; args: unknown }) => void) | null = null;
@@ -92,26 +116,29 @@ test('desktop MCP command uses the live controller commit and undo path', async 
 		onMcpRequest: (next) => { listener = next; return () => { listener = null; }; },
 		respondMcpRequest: (response) => { responses.push(response); },
 	} });
+	const send = (requestId: string, operation: string, args: unknown) => listener?.({ requestId, operation, args });
 	try {
 		const before = controller.getSnapshot().project;
 		assert.ok(before);
-		listener?.({ requestId: 'real-1', operation: 'execute_editor_command', args: {
-			projectId: before.id, expectedRevision: before.revision,
+		assert.equal(typeof before.revision, 'number');
+		const beforeRevision = before.revision as number;
+		send('real-1', 'execute_editor_command', {
+			projectId: before.id, expectedRevision: beforeRevision,
 			command: { type: 'project/rename', title: 'MCP rename' },
-		} });
+		});
 		await new Promise((resolve) => setImmediate(resolve));
 		assert.equal(responses[0]?.success, true);
 		assert.equal(controller.getSnapshot().project?.title, 'MCP rename');
-		assert.equal(controller.getSnapshot().project?.revision, before.revision + 1);
+		assert.equal(controller.getSnapshot().project?.revision, beforeRevision + 1);
 		const afterRename = controller.getSnapshot().project;
 		assert.ok(afterRename);
-		listener?.({ requestId: 'real-2', operation: 'execute_editor_command', args: {
+		send('real-2', 'execute_editor_command', {
 			projectId: afterRename.id, expectedRevision: afterRename.revision,
 			command: { type: 'batch', commands: [
 				{ type: 'project/rename', title: 'Should roll back' },
 				{ type: 'track/remove', trackId: 'missing-track' },
 			] },
-		} });
+		});
 		await new Promise((resolve) => setImmediate(resolve));
 		assert.equal(responses[1]?.success, false);
 		assert.equal(controller.getSnapshot().project?.title, 'MCP rename');
