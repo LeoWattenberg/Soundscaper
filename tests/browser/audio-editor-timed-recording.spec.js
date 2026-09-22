@@ -50,13 +50,32 @@ test.describe('audio editor timed recording', () => {
 		).click();
 		const dialog = page.getByRole('dialog', { name: 'Set up timed recording', exact: true });
 		await expect(dialog).toBeVisible();
-		await expect(dialog).toContainText('opens the recording input immediately');
+		await expect(dialog).not.toContainText('opens the recording input immediately');
 		const dateTimes = dialog.locator('input[type="datetime-local"]');
 		await expect(dateTimes).toHaveCount(2);
 		await expect(dateTimes.first()).toHaveValue(/\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2})?/);
 		const duration = dialog.getByRole('radio', { name: 'Duration', exact: true });
 		const endDate = dialog.getByRole('radio', { name: 'End date and time', exact: true });
 		const durationInput = dialog.locator('[data-timecode-input="seconds"]');
+		const headingStyle = async (name) => dialog.getByText(name, { exact: true }).evaluate((element) => {
+			const style = getComputedStyle(element);
+			return [style.fontSize, style.fontWeight, style.color];
+		});
+		await expect(await headingStyle('Recording start')).toEqual(await headingStyle('Recording end'));
+		const controlStyle = async (locator) => locator.evaluate((element) => {
+			const style = getComputedStyle(element);
+			const bounds = element.getBoundingClientRect();
+			return { height: bounds.height, background: style.backgroundColor, border: style.borderColor,
+				radius: style.borderRadius };
+		});
+		await expect(await controlStyle(dateTimes.first())).toEqual(await controlStyle(dateTimes.nth(1)));
+		await expect(await controlStyle(dateTimes.nth(1))).toEqual(await controlStyle(durationInput));
+		const valueStyle = async (locator) => locator.evaluate((element) => {
+			const style = getComputedStyle(element);
+			return [style.backgroundColor, style.color, style.fontSize];
+		});
+		await expect(await valueStyle(durationInput.locator('.timecode-digit').first()))
+			.toEqual(await valueStyle(dateTimes.first()));
 		await expect(duration).toBeChecked();
 		await expect(endDate).not.toBeChecked();
 		await expect(durationInput).toBeVisible();

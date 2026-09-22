@@ -16,6 +16,7 @@ interface AudioEditorTimeCodeInputProps {
 	readonly unit?: AudioEditorTimeUnit;
 	readonly rate?: number;
 	readonly format?: TimeCodeFormat;
+	readonly variant?: 'dark' | 'light';
 	readonly minimum?: number;
 	readonly maximum?: number;
 	readonly disabled?: boolean;
@@ -42,6 +43,7 @@ export default function AudioEditorTimeCodeInput({
 	rate = unit === 'frames' ? DEFAULT_FRAME_RATE : DEFAULT_SAMPLE_RATE,
 	format = unit === 'samples' ? 'samples'
 		: unit === 'frames' ? 'hh:mm:ss+frames' : 'hh:mm:ss+milliseconds',
+	variant = 'dark',
 	minimum = 0,
 	maximum = Number.POSITIVE_INFINITY,
 	disabled = false,
@@ -101,7 +103,7 @@ export default function AudioEditorTimeCodeInput({
 			frameRate={unit === 'frames' ? normalizedRate : DEFAULT_FRAME_RATE}
 			showFormatSelector={showFormatSelector}
 			disabled={disabled}
-			variant="dark"
+			variant={variant}
 			onFormatChange={onFormatChange}
 			onChange={(seconds) => {
 				const magnitude = timeCodeSecondsToEditorValue(seconds, unit, normalizedRate);

@@ -157,6 +157,50 @@
 	gap: 10px;
 }
 
+.kw-audio-editor-timed-recording__start {
+	margin-bottom: 14px;
+}
+
+.kw-audio-editor-timed-recording__start > span,
+.kw-audio-editor-timed-recording__end > legend {
+	color: var(--text);
+	font-size: 12px;
+	font-weight: 600;
+}
+
+.kw-audio-editor-dialog [data-timed-recording-dialog] .kw-audio-editor-timed-recording__control {
+	box-sizing: border-box;
+	width: 100%;
+	height: 38px;
+	min-height: 38px;
+	min-width: 0;
+	padding: 4px 8px;
+	border: 1px solid var(--line);
+	border-radius: 5px;
+	background: var(--control);
+	color: var(--text);
+	font: 700 14px/1.4 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+}
+
+/* TimeCode supplies inline theme variables; match the surrounding field in every editor theme. */
+.kw-audio-editor-timed-recording__control .timecode {
+	--timecode-bg: var(--control) !important;
+	--timecode-text: var(--text) !important;
+	--timecode-hover: color-mix(in srgb, var(--accent) 18%, var(--control)) !important;
+	--timecode-unit-bg: var(--control) !important;
+	--timecode-unit-text: var(--text) !important;
+	--timecode-unit-hover-bg: color-mix(in srgb, var(--accent) 18%, var(--control)) !important;
+	--timecode-unit-hover-text: var(--text) !important;
+}
+
+.kw-audio-editor-timed-recording__control :is(.timecode-digit, .timecode-unit, .timecode__separator) {
+	font-size: 14px;
+}
+
+.kw-audio-editor-timed-recording__control:disabled {
+	opacity: 0.55;
+}
+
 .kw-audio-editor-timed-recording__end-option {
 	display: grid;
 	grid-template-columns: minmax(120px, 0.8fr) minmax(0, 1.2fr);
@@ -168,10 +212,6 @@
 	display: flex;
 	align-items: center;
 	gap: 7px;
-}
-
-.kw-audio-editor-timed-recording__end-option > input[type='datetime-local'] {
-	min-width: 0;
 }
 
 .kw-audio-editor-dialog .audio-editor-clip-properties__card {
