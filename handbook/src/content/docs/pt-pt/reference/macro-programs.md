@@ -4,34 +4,40 @@ description: "A API JavaScript contra a qual um programa de macro é executado, 
 sidebar:
   order: 7
 ---
-<!-- docs-ai-provenance: {"factPacketSha256":"bfeb48e77dc0013cc1f43bd584ae92a7196983e349631c0b75bfbca2ba0c542a","model":"aya-expanse:32b","modelDigest":"1603440383bd5504dc7afd01c0407b425b988dde650a8dc1a737433baa3cd432","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"bfeb48e77dc0013cc1f43bd584ae92a7196983e349631c0b75bfbca2ba0c542a","targetLocale":"pt-PT"} -->
+<!-- docs-ai-provenance: {"factPacketSha256":"375c684211bdec9dbd3614c197bda423e24858a568ad5ae3c06ab06d7db2522f","model":"aya-expanse:32b","modelDigest":"1603440383bd5504dc7afd01c0407b425b988dde650a8dc1a737433baa3cd432","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"375c684211bdec9dbd3614c197bda423e24858a568ad5ae3c06ab06d7db2522f","targetLocale":"pt-PT"} -->
 
-Um programa macro é uma macro escrita em JavaScript em vez de uma lista de passos. 
-Ele executa-se dentro do editor contra uma pequena API chamada `sound`, que permite-lhe ler 
-o projeto aberto, mover a seleção e aplicar os mesmos efeitos e comandos que uma macro de lista de passos pode aplicar. Tudo o resto, desde arquivos e rede até os seus 
-outros projetos, está fora do seu alcance.
+Um programa macro é uma macro escrita em JavaScript em vez de uma lista de passos.
+Ele executa-se dentro do editor contra uma pequena API chamada `sound`, que permite-lhe ler
+o projeto aberto, mover a seleção e aplicar os mesmos efeitos e comandos que uma
+macro de lista de passos pode aplicar. Tudo o resto, desde ficheiros e a rede aos
+sus projetos, está fora do seu alcance.
 
-Programas são uma característica do Soundscaper. O Framescaper não tem um gestor de macros.
+Os programas são uma funcionalidade do Soundscaper. O Framescaper não tem um gestor de macros.
 
 ## Onde os programas vivem
 
-Escolha **Ferramentas → Gestor de Macros**. O diálogo lista macros de lista de passos e, sob 
-**Programas**, os programas que você salvou. **Novo Programa** cria um, e o painel de detalhes mostra o seu **Nome do Programa**, o **Programa** texto e um botão **Executar Programa**. O texto é salvo à medida que você digita; não há um passo de salvamento separado.
+Escolha **Ferramentas → Gestor de macros**. O diálogo lista as macros de lista de passos e, sob
+**Programas**, os programas que salvou. Pressione **+ (Novo programa)** no
+título Programas para criar um. A mesma barra de ações oferece **Importar programa**,
+**Exportar programa** e **Apagar programa** para o programa selecionado. O
+pane de detalhes mostra o **Nome do programa**, o **Programa** texto e um botão
+**Executar programa**. O texto é salvo à medida que digita; não há um passo de
+salva separado.
 
-Um programa é armazenado com as configurações do editor, não dentro de um projeto, então está 
-disponível em todos os projetos que você abrir neste editor. Use **Exportar Programa** e 
-**Importar Programa** para mover um para outra máquina ou outra pessoa; veja 
-[Compartilhando programas](#sharing-programs) para o que isso envolve.
+Um programa é armazenado com as configurações do editor, não dentro de um projeto, por isso está
+disponível em todos os projetos que abrir neste editor. Utilize **Exportar programa** e
+**Importar programa** para mover um para outra máquina ou para outra pessoa; veja
+[Partilhar programas](#sharing-programs) para o que isso envolve.
 
-O guia [Aplicar a mesma cadeia de efeitos todas as vezes](/guides/effects/apply-the-same-effects-every-time/) 
+O guia [Aplicar a mesma cadeia de efeitos todas as vezes](/guides/effects/apply-the-same-effects-every-time/)
 cobre o lado da lista de passos do mesmo diálogo.
 
-## Escrevendo um programa
+## Escrever um programa
 
-Um programa é o corpo de uma função `async`, executada em modo estrito. Isso significa que você 
-pode `await` no nível superior, declarar variáveis e funções e usar todos os 
-recursos comuns da linguagem. O objeto `sound` é a única conexão do programa com 
-o editor, e cada chamada nele retorna uma promessa.
+Um programa é o corpo de uma função `async`, executada em modo estrito. Isso significa que pode
+`await` no nível superior, declarar variáveis e funções e utilizar todas as
+características normais da linguagem. O objeto `sound` é a única ligação do programa ao
+editor, e cada chamada sobre ele retorna uma promessa.
 
 ```js
 // Normalize everything, then fade the last two seconds.
@@ -47,7 +53,7 @@ do campo.
 ### O que um programa pode usar
 
 A biblioteca padrão JavaScript usual está presente: `Object`, `Array`, `Map`,
-`Set`, `Math`, `JSON`, `RegExp`, `Promise`, os arrays digitados, `Intl`,
+`Set`, `Math`, `JSON`, `RegExp`, `Promise`, os arrays tipados, `Intl`,
 `TextEncoder`, `TextDecoder`, `structuredClone` e `queueMicrotask`. `console`
 também está presente, e tudo escrito nele aparece no log do programa.
 
@@ -223,20 +229,20 @@ await sound.command('Trim');
 
 ### `sound.runSaved(name)`
 
-Executa uma macro de lista de passos salva no mesmo gerenciador de macros, pelo seu nome exato,
+Executa uma macro de lista de passos salva no mesmo gestor de macros, pelo seu nome exato,
 incluindo quaisquer comandos de seleção que contenha. Uma macro salva não pode ser ela própria um
-programa, portanto, os programas não se aninham. Resolve para `null`; um nome desconhecido é rejeitado.
+programa, portanto os programas não se aninham. Resolve para `null`; um nome desconhecido é rejeitado.
 
 ### Tempo e aleatoriedade
 
-Uma execução é reprodutível: duas execuções do mesmo programa sobre o mesmo projeto leem
+Uma execução é reprodutível: duas execuções do mesmo programa sobre o mesmo projeto lêem
 o mesmo, porque o relógio e os números aleatórios não são os da máquina.
 
 `Date.now()` e `new Date()` sem argumentos retornam um relógio virtual que
 começa em 0 e avança um para cada chamada respondida para o editor, e por
 `ms` para cada `sound.wait(ms)`. `sound.wait` resolve imediatamente; não há
 forma de um programa pausar para tempo real, e não é necessário, porque cada chamada
-para o editor é concluída antes de sua promessa ser resolvida.
+ao editor completa antes de sua promessa ser resolvida.
 
 `Math.random()` e `sound.random()` são o mesmo gerador, inicializado a partir de
 `sound.env.seed`. Registe a semente se precisar de saber qual sequência uma execução usou.
@@ -245,9 +251,8 @@ para o editor é concluída antes de sua promessa ser resolvida.
 
 `sound.assert(condition, message)` lança `message` quando `condition` é falso.
 `sound.assertEqual(actual, expected, message)` compara os dois valores como JSON
-e lança quando diferem, com uma mensagem que nomeia ambos os valores se não fornecer nenhum.
-Como um erro lançado encerra a execução e reverte tudo antes dela, uma afirmação falhada deixa o
-projeto intocado. Nenhum dos métodos retorna uma promessa.
+e lança quando diferem, com uma mensagem que nomeia ambos os valores se nenhum for fornecido. Como um erro lançado encerra a execução e reverte tudo antes dela, uma
+afirmação falhada deixa o projeto inalterado. Nenhum dos métodos retorna uma promessa.
 
 ```js
 const tracks = await sound.project.tracks();
@@ -305,43 +310,41 @@ ExportWav.*
 
 Um erro que o programa não captura termina a execução, reverte o projeto e é
 mostrado no painel com a linha de onde veio. Um programa que não compila é
-reportado da mesma forma antes de qualquer coisa ser executada.
+reportado da mesma forma antes de qualquer execução.
 
 ## Efeitos que um programa pode aplicar {#effects-a-program-can-apply}
 
-Estes são os IDs de efeitos `sound.effect` e `sound.effects` aceitam, com as
-chaves de parâmetros que cada um aceita e os seus valores predefinidos. Intervalos e unidades estão na
+Estes são os IDs de efeitos `sound.effect` e `sound.effects` que aceitam, com
+as chaves de parâmetros que cada um aceita e os seus valores padrão. Intervalos e unidades estão na
 [referência de efeitos de áudio](/reference/generated/audio-effects/). Os plug-ins Nyquist não podem ser aplicados a partir de um programa.
 
-| Efeito | ID do Efeito | Parâmetros e valores predefinidos |
+| Efeito | ID do Efeito | Parâmetros e valores padrão |
 | --- | --- | --- |
 | Amplificar | `audacity-amplify` | `gainDb: 0`, `allowClipping: false` |
 | Pato Automático | `audacity-auto-duck` | `duckAmountDb: -12`, `innerFadeDown: 0`, `innerFadeUp: 0`, `outerFadeDown: 0.5`, `outerFadeUp: 0.5`, `thresholdDb: -30`, `maximumPause: 1` |
 | Graves e Agudos | `audacity-bass-treble` | `bassDb: 0`, `trebleDb: 0`, `volumeDb: 0` |
-| Triturador de Bits | `bitcrusher` | `bitDepth: 8`, `downsampling: 1`, `dither: 'none'`, `interpolation: 'sample-hold'`, `mix: 100` |
+| Bitcrusher | `bitcrusher` | `bitDepth: 8`, `downsampling: 1`, `dither: 'none'`, `interpolation: 'sample-hold'`, `mix: 100` |
 | Alterar Tom | `audacity-change-pitch` | `semitones: 0`, `preserveFormants: true` |
 | Alterar Velocidade e Tom | `audacity-change-speed-pitch` | `speedPercent: 0` |
 | Alterar Tempo | `audacity-change-tempo` | `tempoPercent: 0` |
 | Filtros Clássicos | `audacity-classic-filters` | `family: 'butterworth'`, `direction: 'lowpass'`, `order: 1`, `cutoffHz: 1000`, `passbandRippleDb: 1`, `stopbandAttenuationDb: 30` |
 | Remoção de Clics | `audacity-click-removal` | `threshold: 200`, `maximumWidth: 20` |
-| Compressor | `compressor` | `threshold: -24`, `knee: 30`, `ratio: 4`, `attack: 0.003`, `release: 0.25`, `makeupGain: 0` |
-| Compressor (Audacity) | `audacity-compressor` | `thresholdDb: -10`, `makeupGainDb: 0`, `kneeWidthDb: 5`, `ratio: 10`, `lookaheadMs: 1`, `attackMs: 30`, `releaseMs: 150` |
+| Compressor | `audacity-compressor` | `thresholdDb: -10`, `makeupGainDb: 0`, `kneeWidthDb: 5`, `ratio: 10`, `lookaheadMs: 1`, `attackMs: 30`, `releaseMs: 150` |
 | Delay | `delay` | `time: 0.25`, `feedback: 0.3`, `mix: 0.2` |
 | Distorção | `audacity-distortion` | `mode: 'hard-clipping'`, `dcBlock: false`, `thresholdDb: -6`, `noiseFloorDb: -70`, `parameter1: 50`, `parameter2: 50`, `repeats: 1` |
 | Eco | `audacity-echo` | `delaySeconds: 1`, `decay: 0.5` |
 | Desvanecer Entrada | `audacity-fade-in` | nenhum |
 | Desvanecer Saída | `audacity-fade-out` | nenhum |
-| Curva de Filtro EQ | `audacity-filter-curve-eq` | `points`: um array de `{ frequency, gain }`, predefinido com dois pontos planos a 20 Hz e 20 kHz; `linearFrequencyScale: false`; `filterLength: 8191` |
-| EQ Paramétrico de Quatro Bandas | `eq` | `outputGain: 0`; `bands`: quatro `{ id, enabled, type, frequency, gain, q, slope }` objetos, com pico a 100, 500, 2000 e 8000 Hz com `gain: 0`, `q: 1`, `slope: 12` |
+| Filtro de Curva EQ | `audacity-filter-curve-eq` | `points`: um array de `{ frequency, gain }`, padrão de dois pontos planos a 20 Hz e 20 kHz; `linearFrequencyScale: false`; `filterLength: 8191` |
+| Quatro bandas de EQ paramétrico | `eq` | `outputGain: 0`; `bands`: quatro `{ id, enabled, type, frequency, gain, q, slope }` objetos, com pico a 100, 500, 2000 e 8000 Hz com `gain: 0`, `q: 1`, `slope: 12` |
 | Porta | `gate` | `threshold: -50`, `attack: 0.005`, `hold: 0.05`, `release: 0.1`, `rangeDb: -80` |
 | EQ Gráfico | `audacity-graphic-eq` | `gains`: 31 ganhos de banda em dB, todos 0; `interpolation: 'bspline'`; `filterLength: 8191` |
-| Filtro de Passa-Alta | `highpass` | `frequency: 80`, `q: 0.707` |
+| Filtro Passa-Alto | `highpass` | `frequency: 80`, `q: 0.707` |
 | Inverter | `audacity-invert` | nenhum |
 | Compressor Legado | `audacity-legacy-compressor` | `thresholdDb: -12`, `noiseFloorDb: -40`, `ratio: 2`, `attackSeconds: 0.2`, `releaseSeconds: 1`, `normalize: true`, `usePeak: false` |
-| Limitador | `limiter` | `ceiling: -1`, `lookahead: 0.005`, `release: 0.1` |
-| Limitador (Audacity) | `audacity-limiter` | `thresholdDb: -5`, `makeupTargetDb: -1`, `kneeWidthDb: 2`, `lookaheadMs: 1`, `releaseMs: 20` |
+| Limitador | `audacity-limiter` | `thresholdDb: -5`, `makeupTargetDb: -1`, `kneeWidthDb: 2`, `lookaheadMs: 1`, `releaseMs: 20` |
 | Normalização de Volume | `audacity-loudness-normalization` | `mode: 'lufs'`, `targetLufs: -23`, `targetRmsDb: -20`, `stereoIndependent: false`, `dualMono: true` |
-| Filtro de Passa-Baixa | `lowpass` | `frequency: 18000`, `q: 0.707` |
+| Filtro Passa-Baixo | `lowpass` | `frequency: 18000`, `q: 0.707` |
 | Redução de Ruído | `audacity-noise-reduction` | `reductionDb: 6`, `sensitivity: 6`, `frequencySmoothingBands: 6`, `output: 'reduce'` |
 | Normalizar | `audacity-normalize` | `peakDb: -1`, `removeDc: true`, `applyGain: true`, `stereoIndependent: false` |
 | Paulstretch | `audacity-paulstretch` | `stretchFactor: 10`, `timeResolution: 0.25` |
@@ -351,20 +354,20 @@ chaves de parâmetros que cada um aceita e os seus valores predefinidos. Interva
 | Repetir | `audacity-repeat` | `count: 1` |
 | Reverb | `reverb` | `mix: 0.2`, `decay: 2`, `preDelay: 0.01` |
 | Reverb (Audacity) | `audacity-reverb` | `roomSize: 75`, `preDelay: 10`, `reverberance: 50`, `damping: 50`, `toneLow: 100`, `toneHigh: 100`, `wetGainDb: -6`, `dryGainDb: 0`, `stereoWidth: 100`, `wetOnly: false` |
-| Reverso | `audacity-reverse` | nenhum |
+| Inverter | `audacity-reverse` | nenhum |
 | Estiramento Deslizante | `audacity-sliding-stretch` | `startTempoPercent: 0`, `endTempoPercent: 0`, `startPitchSemitones: 0`, `endPitchSemitones: 0`, `preserveFormants: true` |
-| Truncamento de Silêncio | `audacity-truncate-silence` | `thresholdDb: -20`, `action: 'truncate'`, `minimumSilence: 0.5`, `truncateTo: 0.5`, `compressPercent: 50`, `independent: false` |
-| Ganho Utilitário (Revisto) | `reviewed-utility-gain` | `gain: 1` |
+| Truncate Silence | `audacity-truncate-silence` | `thresholdDb: -20`, `action: 'truncate'`, `minimumSilence: 0.5`, `truncateTo: 0.5`, `compressPercent: 50`, `independent: false` |
+| Ganho de Utilidade (Revisto) | `reviewed-utility-gain` | `gain: 1` |
 | Wahwah | `audacity-wahwah` | `frequency: 1.5`, `phaseDegrees: 0`, `depthPercent: 70`, `resonance: 2.5`, `frequencyOffsetPercent: 30`, `outputGainDb: -6` |
 
 Dois efeitos necessitam de algo que um programa não pode fornecer. A Redução de Ruído necessita de um
-perfil de ruído capturado no diálogo do efeito, e o Auto Duck necessita de uma faixa de controlo
+padrão de ruído capturado no próprio diálogo do efeito, e o Auto Duck necessita de uma faixa de controlo
 abaixo da faixa focada.
 
 ## Comandos que um programa pode executar {#commands-a-program-can-run}
 
-`sound.command` aceita os nomes de comandos de macro Audacity abaixo. São os
-mesmos nomes que uma lista de passos pode conter, portanto, um programa e uma lista de passos têm exatamente
+`sound.command` aceita os nomes de comandos de macro do Audacity abaixo. São os
+mesmos nomes que uma macro de lista de passos pode conter, portanto, um programa e uma lista de passos têm exatamente
 a mesma abrangência. Cada comando executa a ação do editor que a
 [referência de comandos](/reference/generated/commands/) descreve.
 
@@ -395,16 +398,16 @@ o Audacity também os lê.
 `Undo` e `Redo` estão ausentes porque uma execução já é uma entrada de histórico e
 um passo que percorre o histórico ultrapassaria a execução nas suas próprias edições.
 Comandos de transporte e gravação estão ausentes porque um programa não tem nada
-para esperar e não pode ser revertido de uma gravação. Abrir, salvar, fechar,
+para aguardar e não pode ser revertido de uma gravação. Abrir, salvar, fechar,
 importar, exportar e preferências estão ausentes porque a abrangência de um programa é o
-projeto único que estava aberto quando começou. Comandos que apenas abrem um diálogo ou
+projeto que estava aberto quando começou. Comandos que apenas abrem um diálogo ou
 alteram a visualização estão ausentes porque não alteram nada no projeto.
 
 ## Partilhar programas {#sharing-programs}
 
 **Exportar programa** escreve o programa selecionado como um ficheiro `.soundscapemacro`, e
-**Importar programa** lê um. O ficheiro é JSON em vez de um ficheiro `.js` simples, para que
-nada no computador de destino o confunda com algo a ser executado fora do editor:
+**Importar programa** lê um. O ficheiro é JSON em vez de um simples ficheiro `.js`, portanto,
+nada no computador de destino o confundirá com algo a ser executado fora do editor:
 
 ```json
 {
@@ -418,13 +421,13 @@ nada no computador de destino o confunda com algo a ser executado fora do editor
 
 Importar armazena o texto e nada mais. Um programa importado não tem o botão **Executar
 programa**; em seu lugar, o painel mostra o programa, o arquivo de onde veio,
-a nota sobre o que um programa pode fazer ao projeto aberto e uma caixa de verificação lendo *Eu
-li este programa e quero executá-lo.* Marcá-la permite **Habilitar este
+uma nota sobre o que um programa pode fazer ao projeto aberto e uma caixa de verificação *Li
+este programa e quero executá-lo*. Marcá-la permite **Habilitar este
 programa**, e só então o programa pode ser executado.
 
 Essa permissão é para o texto exato que você leu. Se o programa mudar
 depois, seja por editá-lo ou importar uma cópia mais nova sobre ele, a revisão
-aparece novamente até você habilitar o novo texto. Programas que você escreve no próprio
+aparece novamente até que você habilite o novo texto. Programas que você escreve no próprio
 gerenciador não precisam de revisão.
 
 ## Exemplos
@@ -463,7 +466,7 @@ for (const track of tracks) {
 }
 ```
 
-Executar uma macro de lista de passos guardada apenas quando a seleção for suficientemente longa:
+Execute uma macro de lista de passos salva apenas quando a seleção for longa o suficiente:
 
 ```js
 const { startFrame, endFrame } = await sound.project.selection();
@@ -475,8 +478,8 @@ await sound.runSaved('Episode finish');
 ## Sobre esta página
 
 Cada programa nesta página, desde os fragmentos de uma linha até aos exemplos trabalhados,
- é executado contra cada construção do Soundscaper pelo conjunto de navegadores
+ é executado contra cada construção do Soundscaper pela suite do navegador
 (`tests/browser/handbook-macro-program-examples.spec.js`), que lê
-os programas do próprio texto desta página. Um programa que deixa de completar ou de
-produzir o que esta página diz que produz, falha a construção até que a página ou o
-editor seja corrigido.
+o programas do próprio texto desta página. Um programa que para de completar ou de
+produzir o que esta página diz que produz, falha a construção até que a página ou
+o editor seja corrigido.

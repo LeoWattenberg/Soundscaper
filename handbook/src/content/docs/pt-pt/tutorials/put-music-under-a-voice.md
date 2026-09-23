@@ -8,60 +8,60 @@ head:
   - tag: script
     attrs:
       type: "application/ld+json"
-    content: "{\"@context\":\"https://schema.org\",\"@type\":\"HowTo\",\"name\":\"Put music under a voice\",\"description\":\"Layer two tracks, duck one under the other automatically, mix them down and export.\",\"tool\":[{\"@type\":\"HowToTool\",\"name\":\"Soundscaper\"}],\"step\":[{\"@type\":\"HowToStep\",\"position\":1,\"name\":\"Open Soundscaper. A new, empty project is ready as soon as the editor loads.\",\"text\":\"Open Soundscaper. A new, empty project is ready as soon as the editor loads.\"},{\"@type\":\"HowToStep\",\"position\":2,\"name\":\"Choose File → Import audio and pick guide-music-loop.wav — a two-second stereo loop. The file lands as a clip on its own track.\",\"text\":\"Choose File → Import audio and pick guide-music-loop.wav — a two-second stereo loop. The file lands as a clip on its own track.\"},{\"@type\":\"HowToStep\",\"position\":3,\"name\":\"Choose File → Import audio and pick guide-second-loop.wav — a second two-second loop to layer on top. The file lands as a clip on its own track.\",\"text\":\"Choose File → Import audio and pick guide-second-loop.wav — a second two-second loop to layer on top. The file lands as a clip on its own track.\"},{\"@type\":\"HowToStep\",\"position\":4,\"name\":\"Press Play to listen, then Stop.\",\"text\":\"Press Play to listen, then Stop. Both loops play together, each on its own track.\"},{\"@type\":\"HowToStep\",\"position\":5,\"name\":\"Click the name bar of guide-music-loop.wav to select it.\",\"text\":\"Click the name bar of guide-music-loop.wav to select it. The clip you select is the one that gets ducked — the music, not the voice.\"},{\"@type\":\"HowToStep\",\"position\":6,\"name\":\"Choose Effect → Volume and compression → Auto Duck. In the Auto Duck dialog, choose guide-second-loop for Control track and set Duck amount to -12, then press Apply to selection.\",\"text\":\"Choose Effect → Volume and compression → Auto Duck. In the Auto Duck dialog, choose guide-second-loop for Control track and set Duck amount to -12, then press Apply to selection. Wherever the control track is louder than the threshold, the selected track is turned down by the duck amount, with fades at the edges. The music waveform is smaller wherever the voice is playing.\"},{\"@type\":\"HowToStep\",\"position\":7,\"name\":\"Press Play to listen, then Stop.\",\"text\":\"Press Play to listen, then Stop. The music sits under the voice and recovers where the voice is quiet.\"},{\"@type\":\"HowToStep\",\"position\":8,\"name\":\"Click the name bar of guide-music-loop.wav, then hold Shift and click the name bar of guide-second-loop.wav, so both are selected.\",\"text\":\"Click the name bar of guide-music-loop.wav, then hold Shift and click the name bar of guide-second-loop.wav, so both are selected. Every track with a selected clip goes into the mix.\"},{\"@type\":\"HowToStep\",\"position\":9,\"name\":\"Choose Tracks → Mix & Render. In the Mix & Render dialog, leave Mix down, Render effects and Replace originals checked, choose Stereo for Mix down to, then press Mix & Render.\",\"text\":\"Choose Tracks → Mix & Render. In the Mix & Render dialog, leave Mix down, Render effects and Replace originals checked, choose Stereo for Mix down to, then press Mix & Render.\"},{\"@type\":\"HowToStep\",\"position\":10,\"name\":\"The project now shows a clip named Mix.\",\"text\":\"The project now shows a clip named Mix. One track holds a clip named Mix; the two source tracks are gone. Edit → Undo would bring them back.\"},{\"@type\":\"HowToStep\",\"position\":11,\"name\":\"Choose File → Export audio, set Format to MP3, and press Export. The file downloads as soon as the render finishes, and its link stays in the dialog.\",\"text\":\"Choose File → Export audio, set Format to MP3, and press Export. The file downloads as soon as the render finishes, and its link stays in the dialog.\"}]}"
+    content: "{\"@context\":\"https://schema.org\",\"@type\":\"HowTo\",\"name\":\"Put music under a voice\",\"description\":\"Layer two tracks, duck one under the other automatically, mix them down and export.\",\"tool\":[{\"@type\":\"HowToTool\",\"name\":\"Soundscaper\"}],\"step\":[{\"@type\":\"HowToStep\",\"position\":1,\"name\":\"Open Soundscaper. A new, empty project is ready as soon as the editor loads.\",\"text\":\"Open Soundscaper. A new, empty project is ready as soon as the editor loads.\"},{\"@type\":\"HowToStep\",\"position\":2,\"name\":\"Choose File → Import and pick guide-music-loop.wav — a two-second stereo loop. It lands as a clip on its own track.\",\"text\":\"Choose File → Import and pick guide-music-loop.wav — a two-second stereo loop. It lands as a clip on its own track.\"},{\"@type\":\"HowToStep\",\"position\":3,\"name\":\"Choose File → Import and pick guide-second-loop.wav — a second two-second loop to layer on top. It lands as a clip on its own track.\",\"text\":\"Choose File → Import and pick guide-second-loop.wav — a second two-second loop to layer on top. It lands as a clip on its own track.\"},{\"@type\":\"HowToStep\",\"position\":4,\"name\":\"Press Play to listen, then Stop.\",\"text\":\"Press Play to listen, then Stop. Both loops play together, each on its own track.\"},{\"@type\":\"HowToStep\",\"position\":5,\"name\":\"Click the name bar of guide-music-loop.wav to select it.\",\"text\":\"Click the name bar of guide-music-loop.wav to select it. The clip you select is the one that gets ducked — the music, not the voice.\"},{\"@type\":\"HowToStep\",\"position\":6,\"name\":\"Choose Effect → Volume and compression → Auto Duck. In the Auto Duck dialog, choose guide-second-loop for Control track and set Duck amount to -12, then press Apply to selection.\",\"text\":\"Choose Effect → Volume and compression → Auto Duck. In the Auto Duck dialog, choose guide-second-loop for Control track and set Duck amount to -12, then press Apply to selection. Wherever the control track is louder than the threshold, the selected track is turned down by the duck amount, with fades at the edges. The music waveform is smaller wherever the voice is playing.\"},{\"@type\":\"HowToStep\",\"position\":7,\"name\":\"Press Play to listen, then Stop.\",\"text\":\"Press Play to listen, then Stop. The music sits under the voice and recovers where the voice is quiet.\"},{\"@type\":\"HowToStep\",\"position\":8,\"name\":\"Click the name bar of guide-music-loop.wav, then hold Shift and click the name bar of guide-second-loop.wav, so both are selected.\",\"text\":\"Click the name bar of guide-music-loop.wav, then hold Shift and click the name bar of guide-second-loop.wav, so both are selected. Every track with a selected clip goes into the mix.\"},{\"@type\":\"HowToStep\",\"position\":9,\"name\":\"Choose Tracks → Mix & Render. In the Mix & Render dialog, leave Mix down, Render effects and Replace originals checked, choose Stereo for Mix down to, then press Mix & Render.\",\"text\":\"Choose Tracks → Mix & Render. In the Mix & Render dialog, leave Mix down, Render effects and Replace originals checked, choose Stereo for Mix down to, then press Mix & Render.\"},{\"@type\":\"HowToStep\",\"position\":10,\"name\":\"The project now shows a clip named Mix.\",\"text\":\"The project now shows a clip named Mix. One track holds a clip named Mix; the two source tracks are gone. Edit → Undo would bring them back.\"},{\"@type\":\"HowToStep\",\"position\":11,\"name\":\"Choose File → Export audio, set Format to MP3, and press Export. The file downloads as soon as the render finishes, and its link stays in the dialog.\",\"text\":\"Choose File → Export audio, set Format to MP3, and press Export. The file downloads as soon as the render finishes, and its link stays in the dialog.\"}]}"
 ---
-<!-- docs-ai-provenance: {"factPacketSha256":"ba895710369ae2e8ed5e086058bad164406dd4f85818d1b246e0fda99b30e2bb","model":"aya-expanse:32b","modelDigest":"1603440383bd5504dc7afd01c0407b425b988dde650a8dc1a737433baa3cd432","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"ba895710369ae2e8ed5e086058bad164406dd4f85818d1b246e0fda99b30e2bb","targetLocale":"pt-PT"} -->
+<!-- docs-ai-provenance: {"factPacketSha256":"e4981b16b64b467101c91ffa64c89547deeab7140978a77f6e5c8fadef3db7e6","model":"aya-expanse:32b","modelDigest":"1603440383bd5504dc7afd01c0407b425b988dde650a8dc1a737433baa3cd432","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"e4981b16b64b467101c91ffa64c89547deeab7140978a77f6e5c8fadef3db7e6","targetLocale":"pt-PT"} -->
 
 <!-- Generated by `node scripts/docs-reference.mjs`. Do not edit. -->
 
-Uma introdução de podcast, uma voz sobre vídeo, uma cama de rádio: a música tem que diminuir sempre que a voz fala e voltar nos intervalos. Este tutorial utiliza dois loops de exemplo - um representando a voz, outro a música - para construir essa relação com Auto Duck, e depois mistura as duas faixas em uma única e a exporta.
+Uma introdução de podcast, uma voz off de vídeo, uma cama de rádio: a música tem que diminuir sempre que a voz fala e voltar nos intervalos. Este tutorial utiliza dois loops de exemplo - um representando a voz, outro a música - para construir essa relação com Auto Duck, e depois mistura as duas faixas numa única e a exporta.
 
-:::tip[O que você precisará]
-- Baixe [`guide-music-loop.wav`](https://assets.soundscaper.org/guides/examples/guide-music-loop.wav) — um loop estéreo de dois segundos.
-- Baixe [`guide-second-loop.wav`](https://assets.soundscaper.org/guides/examples/guide-second-loop.wav) — um segundo loop de dois segundos para sobrepor.
+:::tip[O que precisará]
+- Descarregue [`guide-music-loop.wav`](https://assets.soundscaper.org/guides/examples/guide-music-loop.wav) — um loop estéreo de dois segundos.
+- Descarregue [`guide-second-loop.wav`](https://assets.soundscaper.org/guides/examples/guide-second-loop.wav) — um segundo loop de dois segundos para sobrepor.
 
-Cada passo abaixo funciona nestes ficheiros exatamente como estão, então o que você vê deve corresponder ao que o tutorial diz. O Soundscaper funciona no navegador; nada precisa ser instalado.
+Cada passo abaixo funciona nestes ficheiros exatamente como estão, portanto, o que vê deve corresponder ao que o tutorial diz. O Soundscaper funciona no navegador; não é necessário instalar nada.
 :::
 
-## O que você aprenderá
+## O que aprenderá
 
-- Como uma segunda importação cai na sua própria faixa.
-- O que é uma faixa de controle e como o Auto Duck a utiliza.
-- Como misturar várias faixas em uma única.
+- Como um segundo importado cai na sua própria faixa.
+- O que é uma faixa de controlo e como o Auto Duck a utiliza.
+- Como misturar várias faixas numa única.
 
 ## Passos
 
 1. Abra o Soundscaper. Um novo projeto vazio está pronto assim que o editor carrega.
-2. Escolha **Arquivo → Importar áudio** e selecione `guide-music-loop.wav` — um loop estéreo de dois segundos. O arquivo cai como um clipe em sua própria faixa.
-3. Escolha **Arquivo → Importar áudio** e selecione `guide-second-loop.wav` — um segundo loop de dois segundos para sobrepor. O arquivo cai como um clipe em sua própria faixa.
-4. Pressione **Reproduzir** para ouvir, depois **Parar**.
-   *Você deve ver:* Ambos os loops tocam juntos, cada um em sua própria faixa.
-5. Clique na barra de nome de `guide-music-loop.wav` para selecioná-lo. O clipe que você seleciona é o que será abaixado — a música, não a voz.
-6. Escolha **Efeito → Volume e compressão → Auto Duck**. No diálogo **Auto Duck**, escolha **guide-second-loop** para **Faixa de controle** e defina **Quantidade de abaixamento** para `-12`, depois pressione **Aplicar à seleção**. Sempre que a faixa de controle for mais alta que o limite, a faixa selecionada é abaixada pela quantidade de abaixamento, com desvios nas bordas.
-   *Você deve ver:* A forma de onda da música é menor sempre que a voz está tocando.
-7. Pressione **Reproduzir** para ouvir, depois **Parar**.
-   *Você deve ver:* A música fica sob a voz e recupera onde a voz está quieta.
-8. Clique na barra de nome de `guide-music-loop.wav`, depois segure Shift e clique na barra de nome de `guide-second-loop.wav`, de modo que ambos estejam selecionados. Cada faixa com um clipe selecionado entra na mistura.
+2. Escolha **Ficheiro → Importar** e selecione `guide-music-loop.wav` — um loop estéreo de dois segundos. Ele cai como um clipe na sua própria faixa.
+3. Escolha **Ficheiro → Importar** e selecione `guide-second-loop.wav` — um segundo loop de dois segundos para sobrepor. Ele cai como um clipe na sua própria faixa.
+4. Prima **Reproduzir** para ouvir, depois **Parar**.
+   *Deverá ver:* Ambos os loops tocam juntos, cada um na sua própria faixa.
+5. Clique na barra de nome de `guide-music-loop.wav` para o selecionar. O clipe selecionado é o que será abafado — a música, não a voz.
+6. Escolha **Efeito → Volume e compressão → Auto Duck**. No diálogo **Auto Duck**, escolha **guide-second-loop** para **Faixa de controlo** e defina **Quantidade de abafamento** para `-12`, depois pressione **Aplicar à seleção**. Sempre que a faixa de controlo for mais alta do que o limiar, a faixa selecionada é diminuída pela quantidade de abafamento, com desvios nas bordas.
+   *Deverá ver:* A forma de onda da música é menor sempre que a voz está a tocar.
+7. Prima **Reproduzir** para ouvir, depois **Parar**.
+   *Deverá ver:* A música fica por baixo da voz e recupera onde a voz está quieta.
+8. Clique na barra de nome de `guide-music-loop.wav`, depois mantenha pressionada a tecla Shift e clique na barra de nome de `guide-second-loop.wav`, de modo a que ambos estejam selecionados. Cada faixa com um clipe selecionado entra na mistura.
 9. Escolha **Faixas → Misturar & Renderizar**. No diálogo **Misturar & Renderizar**, deixe **Misturar**, **Renderizar efeitos** e **Substituir originais** marcados, escolha **Estéreo** para **Misturar para**, depois pressione **Misturar & Renderizar**.
 10. O projeto agora mostra um clipe nomeado **Mistura**.
-   *Você deve ver:* Uma faixa contém um clipe chamado Mistura; as duas faixas de origem desapareceram. Editar → Desfazer traria-as de volta.
-11. Escolha **Arquivo → Exportar áudio**, defina **Formato** como **MP3** e pressione **Exportar**. O arquivo é baixado assim que o render termina, e seu link permanece no diálogo.
+   *Deverá ver:* Uma faixa contém um clipe nomeado Mistura; as duas faixas de origem desapareceram. **Editar → Desfazer** traria-as de volta.
+11. Escolha **Ficheiro → Exportar áudio**, defina **Formato** para **MP3**, e pressione **Exportar**. O ficheiro é descarregado assim que o renderizar termina, e o seu link permanece no diálogo.
 
 ## Próximos passos
 
-- O mesmo trabalho com o seu próprio material: [Abaixar música sob uma voz](/guides/volume/duck-music-under-a-voice/) e [Misturar várias faixas em uma](/guides/tracks-and-export/mix-tracks-into-one/).
-- Mantenha as partes separadas para alguém misturar: [Exportar cada faixa como um arquivo separado](/guides/projects/export-each-track-as-its-own-file/).
+- O mesmo trabalho com o seu próprio material: [Abafar música por baixo de uma voz](/guides/volume/duck-music-under-a-voice/) e [Misturar várias faixas numa única](/guides/tracks-and-export/mix-tracks-into-one/).
+- Mantenha as partes separadas para que outra pessoa as misture: [Exportar cada faixa como um ficheiro único](/guides/projects/export-each-track-as-its-own-file/).
 
 ## Outros tutoriais
 
-[Seu primeiro projeto Soundscaper](/tutorials/your-first-project/) — Importe uma gravação, ouça-a, divida-a, desvaneça-a, exporte um arquivo e salve o projeto.
-[Limpar uma gravação de voz](/tutorials/clean-up-a-voice-recording/) — Remova o zumbido de uma tomada, corte o ruído, leve-a ao volume de podcast e exporte um MP3.
+[O seu primeiro projeto Soundscaper](/tutorials/your-first-project/) — Importe uma gravação, ouça-a, divida-a, desvaneça-a, exporte um ficheiro e guarde o projeto.
+[Limpar uma gravação de voz](/tutorials/clean-up-a-voice-recording/) — Retire o zumbido de uma tomada, corte o ruído, leve-a ao volume de podcast e exporte um MP3.
 
 ## Referência
 
-- [Todos os parâmetros dos efeitos usados aqui, com seu padrão e intervalo, estão na referência de efeitos de áudio.](/reference/generated/audio-effects/#parameters)
-- [Os formatos de exportação, seus contêineres e limites de canais estão na referência de formatos de exportação.](/reference/generated/formats/)
+- [Cada parâmetro dos efeitos utilizados aqui, com o seu padrão e intervalo, está na referência de efeitos de áudio.](/reference/generated/audio-effects/#parameters)
+- [Os formatos de exportação, os seus contentores e limites de canais estão na referência de formatos de exportação.](/reference/generated/formats/)
 
 ## Sobre este tutorial
 
-Este tutorial é reproduzido, passo a passo e nestes mesmos arquivos, contra cada versão do Soundscaper pelo conjunto de navegadores (`tests/browser/soundscaper-tutorials.spec.js`). Se um passo parar de funcionar, a versão falha até que o tutorial seja corrigido, então o que você lê é o que o editor faz.
+Este tutorial é reproduzido, passo a passo e nestes ficheiros, contra cada construção do Soundscaper pelo conjunto de navegadores (`tests/browser/soundscaper-tutorials.spec.js`). Se um passo deixar de funcionar, a construção falha até que o tutorial seja corrigido, portanto, o que lê é o que o editor faz.
