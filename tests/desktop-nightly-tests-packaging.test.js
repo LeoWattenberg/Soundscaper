@@ -96,6 +96,25 @@ test('nightly-with-tests packaging is isolated, portable, and keeps its payload 
 	assert.equal(config.extraResources.some(({ to }) => to === 'renderer' || to === 'runtime'), false);
 });
 
+test('the Windows ARM64 portable package uses an embedded archive until direct-directory NSIS supports it', () => {
+	const configPath = resolve(ROOT, 'electron-builder.nightly-tests.config.cjs');
+	const originalArch = process.env.SOUNDSCAPER_NIGHTLY_TESTS_PACKAGE_ARCH;
+	try {
+		for (const [arch, useZip] of [['x64', true], ['arm64', false]]) {
+			process.env.SOUNDSCAPER_NIGHTLY_TESTS_PACKAGE_ARCH = arch;
+			delete require.cache[configPath];
+			assert.equal(require(configPath).portable.useZip, useZip, arch);
+		}
+		process.env.SOUNDSCAPER_NIGHTLY_TESTS_PACKAGE_ARCH = 'ia32';
+		delete require.cache[configPath];
+		assert.throws(() => require(configPath), /SOUNDSCAPER_NIGHTLY_TESTS_PACKAGE_ARCH must be x64 or arm64/u);
+	} finally {
+		if (originalArch === undefined) delete process.env.SOUNDSCAPER_NIGHTLY_TESTS_PACKAGE_ARCH;
+		else process.env.SOUNDSCAPER_NIGHTLY_TESTS_PACKAGE_ARCH = originalArch;
+		delete require.cache[configPath];
+	}
+});
+
 test('generated nightly-with-tests packages stay outside version control', async () => {
 	const ignore = await readFile(resolve(ROOT, '.gitignore'), 'utf8');
 	assert.match(ignore, /^release\/\*$/mu);
@@ -289,6 +308,7 @@ test('desktop CI exposes one quality-gated five-target nightly-with-tests artifa
 		testJob,
 		/ci-electron-builder\.sh[\s\\]*--config electron-builder\.nightly-tests\.config\.cjs/u,
 	);
+	assert.match(testJob, /SOUNDSCAPER_NIGHTLY_TESTS_PACKAGE_ARCH: \$\{\{ matrix\.target\.arch \}\}/u);
 	assert.match(testJob, /name: nightly-with-tests-\$\{\{ matrix\.target\.platform \}\}-\$\{\{ matrix\.target\.arch \}\}/u);
 	assert.match(testJob, /release\/desktop-nightly-tests\/\*\.AppImage/u);
 	assert.match(testJob, /release\/desktop-nightly-tests\/\*\.exe/u);

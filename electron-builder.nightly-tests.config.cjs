@@ -1,5 +1,10 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+const nightlyPackageArch = process.env.SOUNDSCAPER_NIGHTLY_TESTS_PACKAGE_ARCH;
+if (nightlyPackageArch !== undefined && nightlyPackageArch !== 'x64' && nightlyPackageArch !== 'arm64') {
+	throw new TypeError('SOUNDSCAPER_NIGHTLY_TESTS_PACKAGE_ARCH must be x64 or arm64.');
+}
+
 /** @type {import('electron-builder').Configuration} */
 module.exports = {
 	appId: 'org.soundscaper.desktop.nightly-tests',
@@ -107,7 +112,10 @@ module.exports = {
 		// Electron Builder embeds the app files directly with this option. Its
 		// default 7z path extracts to a second tree, then CopyFiles can fail
 		// with a misleading "cannot be closed" dialog before Electron starts.
-		useZip: true,
+		// The pinned NSIS direct-directory template lacks an APP_DIR_ARM64-only
+		// branch, so ARM64 uses the 7z archive path. The ARM64 packaged nightly
+		// smoke must exercise that extraction path on its native runner.
+		useZip: nightlyPackageArch !== 'arm64',
 		// A per-launch directory avoids colliding with a previous run's files.
 		unpackDirName: false,
 	},
