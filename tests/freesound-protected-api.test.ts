@@ -354,9 +354,12 @@ test('pending uploads are normalized to the client contract and never cached', a
 			pending_description: ['rain.wav'],
 			pending_processing: [{
 				id: 7, name: 'Rain', tags: ['rain'], description: 'Wet.',
-				created: '2026-09-22T12:00:00Z', license: 'Attribution', processing_state: 'processing',
+				created: '2026-09-22T12:00:00Z', license: 'Attribution', processing_state: 'Processing',
 			}],
-			pending_moderation: [],
+			pending_moderation: [{
+				id: 8, name: 'Thunder', tags: ['storm'], description: 'Loud.',
+				created: '2026-09-22T12:01:00Z', license: 'Creative Commons 0', images: { waveform_m: null },
+			}],
 		})),
 	});
 
@@ -365,9 +368,12 @@ test('pending uploads are normalized to the client contract and never cached', a
 		pendingDescription: ['rain.wav'],
 		pendingProcessing: [{
 			id: 7, name: 'Rain', tags: ['rain'], description: 'Wet.',
-			createdAt: '2026-09-22T12:00:00Z', license: 'Attribution', processingState: 'processing',
+			createdAt: '2026-09-22T12:00:00Z', license: 'Attribution', processingState: 'Processing',
 		}],
-		pendingModeration: [],
+		pendingModeration: [{
+			id: 8, name: 'Thunder', tags: ['storm'], description: 'Loud.',
+			createdAt: '2026-09-22T12:01:00Z', license: 'Creative Commons 0',
+		}],
 	} });
 });
 
