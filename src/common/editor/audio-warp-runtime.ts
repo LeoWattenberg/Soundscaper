@@ -69,6 +69,10 @@ export interface AudioWarpSourceRangeOptions {
 	readonly endFrame: number;
 }
 
+export interface AudioWarpColumnProjectionOptions extends AudioWarpSourceRangeOptions {
+	readonly columnCount: number;
+}
+
 export interface AudioWarpRenderPathOptions {
 	readonly realtimeAcceleration: boolean;
 	readonly exactOfflineAvailable?: boolean;
@@ -140,6 +144,37 @@ export function createAudioWarpRuntimeEvaluator(
 			return evaluateAudioWarpMap(map, audioWarpOuterAtTimelineFrame(project, clip, timelineFrame));
 		},
 	});
+}
+
+/** Return the least source progress made by any equal-width column in a clip window. */
+export function audioWarpMinimumSourceSpanPerColumn(
+	projectValue: AudioWarpRuntimeProject,
+	clipValue: AudioWarpRuntimeClip,
+	options: Readonly<AudioWarpColumnProjectionOptions>,
+): number {
+	const evaluator = createAudioWarpRuntimeEvaluator(projectValue, clipValue);
+	const clipDuration = positiveSafeInteger(clipValue.durationFrames, 'audio warp clip duration');
+	const startFrame = nonNegativeSafeInteger(options?.startFrame, 'audio warp column start');
+	const endFrame = nonNegativeSafeInteger(options?.endFrame, 'audio warp column end');
+	const columnCount = positiveSafeInteger(options?.columnCount, 'audio warp column count');
+	if (endFrame <= startFrame || endFrame > clipDuration) {
+		throw new RangeError('Audio warp column ranges must be positive and remain within the clip extent.');
+	}
+	const timelineStartFrame = safeAdd(
+		safeInteger(clipValue.timelineStartFrame, 'audio warp clip start'),
+		startFrame,
+		'audio warp column start',
+	);
+	const frameCount = endFrame - startFrame;
+	let minimum = Number.POSITIVE_INFINITY;
+	for (let column = 0; column < columnCount; column += 1) {
+		const columnStart = timelineStartFrame + frameCount * column / columnCount;
+		const columnEnd = timelineStartFrame + frameCount * (column + 1) / columnCount;
+		const sourceStart = interpolatedAudioWarpSourceFrame(evaluator, columnStart);
+		const sourceEnd = interpolatedAudioWarpSourceFrame(evaluator, columnEnd);
+		minimum = Math.min(minimum, Math.max(0, sourceEnd - sourceStart));
+	}
+	return minimum;
 }
 
 /**
@@ -353,6 +388,17 @@ function timelineFramesAtOuter(
 
 function rationalNumber(value: Rational): number {
 	return value.num / value.den;
+}
+
+function interpolatedAudioWarpSourceFrame(
+	evaluator: Readonly<AudioWarpRuntimeEvaluator>,
+	timelineFrame: number,
+): number {
+	const lowerFrame = Math.floor(timelineFrame);
+	const lowerSource = rationalNumber(evaluator.sourceAtTimelineFrame(lowerFrame));
+	if (lowerFrame === timelineFrame) return lowerSource;
+	const upperSource = rationalNumber(evaluator.sourceAtTimelineFrame(Math.ceil(timelineFrame)));
+	return lowerSource + (upperSource - lowerSource) * (timelineFrame - lowerFrame);
 }
 
 function positiveSafeInteger(value: unknown, name: string): number {

@@ -22,6 +22,8 @@ import {
 	type SourceLifecycleCopy,
 	type SourceLifecycleServiceRuntime,
 	type SourceLifecycleSource,
+	type SourceLifecycleWaveformPeakRequest,
+	type SourceLifecycleWaveformPeakWindow,
 	type SourceLifecycleWaveformPcmRequest,
 	type SourceLifecycleWaveformPcmWindow,
 } from './source-lifecycle-service.ts';
@@ -35,6 +37,7 @@ import {
 	generateWaveformPeaks,
 	legacyPeakCacheKey,
 	peakCacheKey,
+	readWaveformPeakWindow,
 	readWaveformPcmWindow,
 	waveformPcmWindowContains,
 	waveformPeaksHaveRms,
@@ -135,6 +138,7 @@ export function createSourceRuntimeComposition<RenderEngine extends ClipTimePitc
 		| 'generateStoredWaveformPeaks'
 		| 'generateWaveformPeaks'
 		| 'readStoredAudioBuffer'
+		| 'readWaveformPeakWindow'
 		| 'readWaveformPcmWindow'
 	> = {
 		createStoredChunkProviderCandidate: (source, metadata) => {
@@ -158,7 +162,16 @@ export function createSourceRuntimeComposition<RenderEngine extends ClipTimePitc
 				await provider.readStorageChunk(chunkIndex),
 			),
 		}, range),
+		readWaveformPeakWindow: (provider, range, options) => readWaveformPeakWindow({
+			channelCount: provider.channelCount,
+			chunkFrames: provider.chunkFrames,
+			readStorageChunk: async (chunkIndex) => waveformChunk(
+				await provider.readStorageChunk(chunkIndex),
+			),
+		}, range, { ...options, maximumChannels: 2 }),
 	};
+	const waveformPeakWindows = new Map<string, SourceLifecycleWaveformPeakWindow>();
+	const waveformPeakRequests = new Map<string, SourceLifecycleWaveformPeakRequest>();
 	const waveformPcmWindows = new Map<string, SourceLifecycleWaveformPcmWindow>();
 	const waveformPcmRequests = new Map<string, SourceLifecycleWaveformPcmRequest>();
 	const requireProject = (): SourceRuntimeProject => {
@@ -177,6 +190,7 @@ export function createSourceRuntimeComposition<RenderEngine extends ClipTimePitc
 		missingSourceIds: state.missingSourceIds,
 		sourceBuffers,
 		sourcePeaks,
+		waveformPeakWindows,
 		waveformPcmWindows,
 		store,
 		resolveProductVideoPreviewMedia: dependencies.resolveProductVideoPreviewMedia,
@@ -216,6 +230,8 @@ export function createSourceRuntimeComposition<RenderEngine extends ClipTimePitc
 		allProjectClips: (project) => projectVisual.allProjectClips(project),
 		audioBufferChannels,
 		clipSourceWindowRange,
+		clipWaveformPeakRequests: waveformPeakRequests,
+		clipWaveformPeakWindows: waveformPeakWindows,
 		clipWaveformPcmRequests: waveformPcmRequests,
 		clipWaveformPcmWindows: waveformPcmWindows,
 		copy,
@@ -230,6 +246,7 @@ export function createSourceRuntimeComposition<RenderEngine extends ClipTimePitc
 		peakCacheKey,
 		publishDocumentSnapshot: dependencies.publishDocumentSnapshot,
 		readStoredAudioBuffer: lifecycleAdapters.readStoredAudioBuffer,
+		readWaveformPeakWindow: lifecycleAdapters.readWaveformPeakWindow,
 		readWaveformPcmWindow: lifecycleAdapters.readWaveformPcmWindow,
 		setStatus: dependencies.setStatus,
 		sourceAudioBufferBytes,
@@ -261,6 +278,9 @@ export function createSourceRuntimeComposition<RenderEngine extends ClipTimePitc
 		playbackApply,
 		/** Drop the resident waveform PCM windows and the requests still resolving them. */
 		clearWaveformPcmCaches: () => {
+			for (const request of waveformPeakRequests.values()) request.abort();
+			waveformPeakWindows.clear();
+			waveformPeakRequests.clear();
 			waveformPcmWindows.clear();
 			waveformPcmRequests.clear();
 		},

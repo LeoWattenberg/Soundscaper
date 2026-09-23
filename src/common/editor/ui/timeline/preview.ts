@@ -7,7 +7,7 @@ import {
 import { projectUnwarpedClipSourceRange } from '../../audio-clip-source-projection.ts';
 import { framesToSeconds } from '../../design-system-adapters.js';
 
-const MINIMUM_VISIBLE_CLIP_PIXELS = 48;
+export const MINIMUM_VISIBLE_CLIP_PIXELS = 48;
 const EMPTY_DESIGN_SYSTEM_WAVEFORM = Object.freeze([]);
 
 export type RecordingPeakChannel = readonly number[] | Float32Array;
@@ -58,6 +58,7 @@ export interface RecordingDesignClip {
 }
 
 export interface PcmPreviewWindow {
+	readonly sourceId?: string;
 	readonly channels?: readonly ArrayLike<number>[];
 	readonly startFrame: number;
 	readonly endFrame: number;
@@ -174,6 +175,7 @@ export function pcmWindowCoversProjectedClip(
 		'id' | 'timelineStartFrame' | 'durationFrames' | 'sourceDurationFrames' | 'sourceStartFrame'
 		| 'waveformStartFrame' | 'waveformEndFrame' | 'reversed'
 	> & Readonly<{
+		sourceId?: string;
 		kind?: unknown;
 		anchor?: unknown;
 		warpMap?: unknown;
@@ -181,10 +183,31 @@ export function pcmWindowCoversProjectedClip(
 	project: AudioWarpRuntimeProject | null | undefined = null,
 ): boolean {
 	if (!window?.channels?.length) return false;
+	if (window.sourceId && clip.sourceId && window.sourceId !== clip.sourceId) return false;
 	const range = projectedClipSourceRange(clip, project);
 	if (range === null) return false;
 	return window.startFrame <= Math.floor(range.startFrame)
 		&& window.endFrame >= Math.ceil(range.endFrame);
+}
+
+export function peakWindowCoversProjectedClip(
+	window: Readonly<{
+		sourceId?: string;
+		startFrame: number;
+		endFrame: number;
+		blockSize: number;
+		channels: readonly unknown[];
+	}> | null | undefined,
+	clip: Parameters<typeof pcmWindowCoversProjectedClip>[1],
+	project: AudioWarpRuntimeProject | null | undefined,
+	pixelWidth: number,
+): boolean {
+	if (!window?.channels?.length || !(window.blockSize > 0) || !(pixelWidth > 0)) return false;
+	if (window.sourceId && clip.sourceId && window.sourceId !== clip.sourceId) return false;
+	const range = projectedClipSourceRange(clip, project);
+	if (range === null || window.startFrame > Math.floor(range.startFrame)
+		|| window.endFrame < Math.ceil(range.endFrame)) return false;
+	return window.blockSize * pixelWidth <= range.endFrame - range.startFrame;
 }
 
 export function projectedClipVisibleSourceSamples(

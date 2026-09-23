@@ -6,6 +6,9 @@
  * an earlier build is recomputed rather than drawn.
  */
 export const WAVEFORM_PEAKS_VERSION = 5;
+/** Bound viewport-local analysis independently of caller or display size. */
+export const MAXIMUM_WAVEFORM_PEAK_WINDOW_BUCKETS = 65_536;
+export const MAXIMUM_WAVEFORM_PEAK_WINDOW_CHANNEL_BUCKETS = 131_072;
 
 export const WAVEFORM_PEAK_BLOCK_SIZES: readonly number[] = Object.freeze([
 	8, 16, 32, 64, 256, 1_024, 4_096, 16_384, 65_536,

@@ -125,6 +125,7 @@ export interface PeakPyramidWindowOptions {
 	readonly pixelWidth: number;
 	readonly channelCount?: number;
 	readonly sourceFrameCount?: number;
+	readonly sourceFrameOffset?: number;
 }
 
 export interface SummaryWaveformChannel {

@@ -81,7 +81,7 @@ test('warped summary columns aggregate persisted peak blocks through the exact m
 			feature: 'audio-warp' as const,
 			points: [
 				{ outer: 0, source: 0, mode: 'forward' as const },
-				{ outer: 2, source: 1, mode: 'forward' as const },
+				{ outer: 2, source: 2, mode: 'forward' as const },
 				{ outer: 4, source: 8, mode: 'forward' as const },
 			],
 		},
@@ -100,7 +100,62 @@ test('warped summary columns aggregate persisted peak blocks through the exact m
 		maximum: Float32Array;
 	}>;
 	const rounded = (data: Float32Array) => [...data].map((value) => Math.round(value * 10) / 10);
-	assert.deepEqual(rounded(channel.minimum), [0, 0, 0, 0.4]);
-	assert.deepEqual(rounded(channel.maximum), [0, 0, 0.4, 0.7]);
+	assert.deepEqual(rounded(channel.minimum), [0, 0, 0.1, 0.4]);
+	assert.deepEqual(rounded(channel.maximum), [0, 0.1, 0.4, 0.7]);
 	assert.equal(prepared.rendering?.peakBlockSize, 1);
+});
+
+test('warped peak pyramids select against the narrowest projected CSS column', () => {
+	const project = {
+		sampleRate: 4,
+		tempoMap: {
+			mode: 'musical' as const,
+			events: [{ beat: { num: 0, den: 1 }, bpm: { num: 120, den: 1 } }],
+		},
+	};
+	const clip = {
+		id: 'clip', kind: 'audio', anchor: 'sample', timelineStartFrame: 0,
+		durationFrames: 4, sourceStartFrame: 0, sourceDurationFrames: 8,
+		gain: 1, fadeInFrames: 0, fadeOutFrames: 0,
+		warpMap: {
+			feature: 'audio-warp' as const,
+			points: [
+				{ outer: 0, source: 0, mode: 'forward' as const },
+				{ outer: 2, source: 1, mode: 'forward' as const },
+				{ outer: 4, source: 8, mode: 'forward' as const },
+			],
+		},
+	};
+	const values = Float32Array.from({ length: 8 }, (_, index) => index / 10);
+	const prepared = prepareAudioWarpPeakPyramidWaveformWindow(project, clip, {
+		version: WAVEFORM_PEAKS_VERSION,
+		channelCount: 1,
+		levels: [
+			{
+				blockSize: 1,
+				channels: [{ minimums: values, maximums: values, rms: values }],
+			},
+			{
+				blockSize: 4,
+				channels: [{
+					minimums: Float32Array.of(0, 0.4),
+					maximums: Float32Array.of(0.3, 0.7),
+					rms: Float32Array.of(0.2, 0.6),
+				}],
+			},
+		],
+	}, { startFrame: 0, endFrame: 4, pixelWidth: 2, maxSamples: 8, sourceFrameCount: 8 });
+
+	assert.equal(prepared.rendering?.peakBlockSize, 1,
+		'the four-sample average must not hide the first column\'s one-sample span');
+	assert.throws(() => prepareAudioWarpPeakPyramidWaveformWindow(project, clip, {
+		version: WAVEFORM_PEAKS_VERSION,
+		channelCount: 1,
+		levels: [{
+			blockSize: 1,
+			channels: [{ minimums: values, maximums: values, rms: values }],
+		}],
+	}, { startFrame: 0, endFrame: 4, pixelWidth: 3, maxSamples: 8, sourceFrameCount: 8 }),
+	/one CSS pixel/,
+	'a fractional column in the slow section cannot borrow resolution from its enclosing frames');
 });

@@ -1,8 +1,22 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { MAXIMUM_WAVEFORM_PEAK_WINDOW_BUCKETS } from '../../../waveform-peak-contract.ts';
+
 export interface WaveformPcmWindowRequest {
 	readonly startFrame?: unknown;
 	readonly endFrame?: unknown;
+	readonly pixelWidth?: unknown;
+}
+
+/** Read an optional viewport width used when the raw PCM range exceeds its memory cap. */
+export function resolveWaveformPeakPixelWidth(value: unknown): number | null {
+	if (value === undefined) return null;
+	const pixelWidth = Number(value);
+	if (!Number.isFinite(pixelWidth) || pixelWidth <= 0
+		|| pixelWidth > MAXIMUM_WAVEFORM_PEAK_WINDOW_BUCKETS) {
+		throw new RangeError('A waveform peak window requires a positive finite pixel width.');
+	}
+	return pixelWidth;
 }
 
 export interface WaveformPcmWindowRange {

@@ -21,6 +21,47 @@ import {
 	sourcePeakChannels,
 } from './audio-editor-test-helpers.js';
 
+async function expectPeakPyramidColumnsAtMostOnePixel(waveform) {
+	const resolution = await waveform.evaluate((canvas) => {
+		const plan = canvas.__kwWaveformPlan;
+		const context = canvas.getContext('2d');
+		const pixels = context?.getImageData(0, 0, canvas.width, canvas.height).data;
+		let visible = false;
+		for (let index = 3; pixels && index < pixels.length; index += 4) {
+			if (pixels[index] !== 0) { visible = true; break; }
+		}
+		if (!plan) return { missing: true, visible };
+		const canvasWidth = canvas.getBoundingClientRect().width;
+		const source = canvas.dataset.waveformSource;
+		const widthScale = canvasWidth / plan.pixelWidth;
+		return {
+			missing: false,
+			visible,
+			source,
+			blockSize: plan.peakBlockSize ?? null,
+			pixelsPerSample: plan.pixelsPerSample,
+			pixelWidth: plan.peakBlockSize && source === 'peaks'
+				? plan.peakBlockSize * plan.pixelsPerSample * widthScale
+				: null,
+			plannedWidth: plan.pixelWidth,
+			canvasWidth,
+			mode: canvas.dataset.waveformMode,
+			pending: canvas.dataset.waveformPending ?? null,
+		};
+	});
+	expect(resolution.missing, `waveform state ${JSON.stringify(resolution)}`).toBe(false);
+	expect(resolution.visible, `waveform state ${JSON.stringify(resolution)}`).toBe(true);
+	if (resolution.source === 'interpolated-peaks') {
+		expect(resolution.mode).toBe('connecting-dots');
+		return;
+	}
+	if (resolution.pixelWidth === null) return;
+	expect(
+		resolution.pixelWidth,
+		`peak resolution ${JSON.stringify(resolution)}`,
+	).toBeLessThanOrEqual(1);
+}
+
 test.describe('audio editor React/design-system workflows', () => {
 	registerAudioEditorHooks();
 
@@ -318,6 +359,7 @@ test.describe('audio editor React/design-system workflows', () => {
 		await expect(waveform).toHaveAttribute('data-waveform-renderer', 'audacity');
 		await expect(waveform).toHaveAttribute('data-waveform-mode', 'summary');
 		await expect(waveform).toHaveAttribute('data-waveform-source', 'peaks');
+		await expectPeakPyramidColumnsAtMostOnePixel(waveform);
 
 		const summaryPixels = await waveform.evaluate((canvas) => {
 			const context = canvas.getContext('2d');
@@ -351,6 +393,7 @@ test.describe('audio editor React/design-system workflows', () => {
 		for (let step = 0; step < 12 && sampleMode === 'summary'; step += 1) {
 			await zoomIn.click();
 			sampleMode = await waveform.getAttribute('data-waveform-mode');
+			await expectPeakPyramidColumnsAtMostOnePixel(waveform);
 		}
 		expect(sampleMode).toBe('connecting-dots');
 		await expect(waveform).toHaveAttribute('data-waveform-source', 'pcm');

@@ -5,6 +5,7 @@ import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 
 import { createAnimationFrameCoalescer } from '../src/common/editor/ui/timeline/animation-frame-coalescer.ts';
+import { shouldRetainPendingAudacityCanvas } from '../src/common/editor/ui/timeline/TimelineCanvasRenderer.jsx';
 
 test('animation-frame coalescer keeps one pending draw and cancels it on disposal', () => {
 	let nextId = 1;
@@ -54,4 +55,22 @@ test('waveform canvas drawing observes only the track root and relies on React f
 	assert.doesNotMatch(source, /resizeObserver\?\.observe\(canvas\)/u);
 	assert.doesNotMatch(source, /new MutationObserver/u);
 	assert.doesNotMatch(source, /cancelAnimationFrame\(animationFrame\)/u);
+});
+
+test('a pending waveform retains only plans that remain fine at the live canvas width', () => {
+	const canvas = {
+		clientWidth: 100,
+		__kwWaveformPlan: {
+			mode: 'summary', peakBlockSize: 8, pixelsPerSample: 0.1, pixelWidth: 100,
+		},
+	};
+	assert.equal(shouldRetainPendingAudacityCanvas(canvas, { waveformPending: true }), true);
+	assert.equal(shouldRetainPendingAudacityCanvas({ ...canvas, clientWidth: 126 }, { waveformPending: true }), false);
+	assert.equal(shouldRetainPendingAudacityCanvas({
+		clientWidth: 1_000,
+		__kwWaveformPlan: { mode: 'connecting-dots', pixelsPerSample: 0.5, pixelWidth: 100 },
+	}, { waveformPending: true }), true);
+	assert.equal(shouldRetainPendingAudacityCanvas({}, { waveformPending: true }), false);
+	assert.equal(shouldRetainPendingAudacityCanvas(canvas, {}), false);
+	assert.equal(shouldRetainPendingAudacityCanvas(canvas, null), false);
 });

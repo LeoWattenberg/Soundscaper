@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import {
+	audioWarpMinimumSourceSpanPerColumn,
 	audioWarpMapFingerprint,
 	audioWarpSourceWindowRange,
 	createAudioWarpRenderPathStatus,
@@ -59,6 +60,43 @@ test('sample-anchored warp segments share the exact map evaluator and one-round 
 			playbackRate: 1.5,
 		},
 	]);
+});
+
+test('warped column projection reports the narrowest fractional source span', () => {
+	const project = {
+		sampleRate: 4,
+		tempoMap: {
+			mode: 'musical' as const,
+			events: [{ beat: { num: 0, den: 1 }, bpm: { num: 120, den: 1 } }],
+		},
+	};
+	const clip = {
+		id: 'columns', kind: 'audio', anchor: 'sample', timelineStartFrame: 0,
+		durationFrames: 4, sourceStartFrame: 0, sourceDurationFrames: 8,
+		warpMap: {
+			feature: 'audio-warp' as const,
+			points: [
+				{ outer: 0, source: 0, mode: 'forward' as const },
+				{ outer: 2, source: 1, mode: 'forward' as const },
+				{ outer: 4, source: 8, mode: 'forward' as const },
+			],
+		},
+	};
+	assert.equal(audioWarpMinimumSourceSpanPerColumn(project, clip, {
+		startFrame: 0,
+		endFrame: 4,
+		columnCount: 2,
+	}), 1);
+	assert.ok(Math.abs(audioWarpMinimumSourceSpanPerColumn(project, clip, {
+		startFrame: 0,
+		endFrame: 4,
+		columnCount: 3,
+	}) - 2 / 3) < 1e-12);
+	assert.throws(() => audioWarpMinimumSourceSpanPerColumn(project, clip, {
+		startFrame: 0,
+		endFrame: 4,
+		columnCount: 0,
+	}), /column count/iu);
 });
 
 test('musical warp segments split at held-tempo boundaries without changing source authority', () => {

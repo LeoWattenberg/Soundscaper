@@ -23,6 +23,13 @@ interface WaveformCompatibility {
 	readonly downsampled: true;
 }
 
+export class WaveformPeakResolutionError extends RangeError {
+	constructor() {
+		super('The finest waveform peak level would exceed one CSS pixel; PCM is required.');
+		this.name = 'WaveformPeakResolutionError';
+	}
+}
+
 export interface AudacityWaveformRenderingOptions {
 	readonly sourceStartFrame: number;
 	readonly sourceDurationFrames: number;
@@ -159,27 +166,44 @@ export function validateWaveformPeakLevels(peaks: unknown): ValidatedPeakPyramid
 export function selectWaveformPeakLevel(
 	levels: readonly ValidatedPeakLevel[],
 	sourceSamplesPerPixel: number,
-): ValidatedPeakLevel {
-	const targetBlockSize = Math.max(1, sourceSamplesPerPixel);
-	let selected = levels[0];
+): ValidatedPeakLevel | null {
+	if (!Number.isFinite(sourceSamplesPerPixel) || sourceSamplesPerPixel <= 0) {
+		throw new RangeError('sourceSamplesPerPixel must be positive.');
+	}
+	let selected: ValidatedPeakLevel | null = null;
 	for (const level of levels) {
-		if (level.blockSize > targetBlockSize) break;
+		if (level.blockSize > sourceSamplesPerPixel) break;
 		selected = level;
 	}
 	return selected;
+}
+
+/** Select a persisted peak level only when each bucket occupies at most one CSS pixel. */
+export function waveformPeakLevelForResolution(
+	peaks: unknown,
+	sourceSamplesPerPixel: number,
+): ValidatedPeakLevel | null {
+	return selectWaveformPeakLevel(
+		validateWaveformPeakLevels(peaks).levels,
+		sourceSamplesPerPixel,
+	);
 }
 
 export function aggregateWaveformPeakRange(
 	level: ValidatedPeakChannel,
 	absoluteStart: number,
 	absoluteEnd: number,
+	sourceFrameOffset = 0,
 ): { readonly minimum: number; readonly maximum: number; readonly rms: number } {
-	const startBlock = Math.max(0, Math.floor(absoluteStart / level.blockSize));
+	const relativeStart = absoluteStart - sourceFrameOffset;
+	const relativeEnd = absoluteEnd - sourceFrameOffset;
+	const startBlock = Math.max(0, Math.floor(relativeStart / level.blockSize));
 	const endBlock = Math.min(level.minimums.length, Math.max(
 		startBlock + 1,
-		Math.ceil(absoluteEnd / level.blockSize),
+		Math.ceil(relativeEnd / level.blockSize),
 	));
-	if (startBlock >= level.minimums.length || endBlock <= startBlock) {
+	if (relativeStart < 0 || relativeEnd <= relativeStart
+		|| startBlock >= level.minimums.length || endBlock <= startBlock) {
 		throw new RangeError('The waveform peak pyramid does not cover the requested clip range.');
 	}
 	let minimum = Number.POSITIVE_INFINITY;

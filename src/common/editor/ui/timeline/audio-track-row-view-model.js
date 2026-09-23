@@ -25,6 +25,7 @@ export function createAudioTrackRowClipViewModels({
 	trackColor,
 	waveformCache,
 	draggingClipIds,
+	waveformPendingClipIds,
 	envelopePreviews,
 }) {
 	return clips.map((clip) => clip.isRecordingPreview
@@ -63,6 +64,7 @@ export function createAudioTrackRowClipViewModels({
 					&& clip.waveformPreviewKind !== 'trim'
 					&& clip.waveformPreviewKind !== 'rate-stretch',
 			),
+			waveformPending: waveformPendingClipIds?.has(String(clip.id)) ?? false,
 		})).map((clip) => {
 			const preview = envelopePreviews.get(String(clip.id));
 			return preview ? {

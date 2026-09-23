@@ -56,6 +56,7 @@ export function createProjectVisualService(
 		const source = findSource(project, clip.sourceId);
 		const video = clip.kind === 'video' ? videoVisuals.get(clip.sourceId)?.visual : null;
 		const pcmWindow = dependencies.waveformPcmWindows.get(String(clip.id));
+		const peakWindow = dependencies.waveformPeakWindows?.get(String(clip.id));
 		return Object.freeze({
 			clip,
 			track: findClipTrack(project, clip.id),
@@ -69,6 +70,7 @@ export function createProjectVisualService(
 			thumbnails: video?.thumbnails ?? Object.freeze([]),
 			...(video?.mediaKind ? { mediaKind: video.mediaKind } : {}),
 			...(pcmWindow === undefined ? {} : { pcmWindow }),
+			...(peakWindow === undefined ? {} : { peakWindow }),
 		});
 	}
 

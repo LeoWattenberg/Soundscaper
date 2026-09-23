@@ -1,6 +1,11 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import type { StoredWaveformAnalysisOptions, WaveformPcmRange } from '../waveform-analysis.ts';
+import type {
+	StoredWaveformAnalysisOptions,
+	WaveformPcmRange,
+	WaveformPeakWindow,
+	WaveformPeakWindowOptions,
+} from '../waveform-analysis.ts';
 import type { SourceChunkProviderRegistryPort } from './source-chunk-provider-registration.ts';
 
 type Awaitable<Value> = PromiseLike<Value> | Value;
@@ -101,6 +106,18 @@ export interface SourceLifecycleWaveformPcmRequest extends WaveformPcmRange {
 	readonly promise: Promise<SourceLifecycleWaveformPcmWindow | null>;
 }
 
+export interface SourceLifecycleWaveformPeakWindow extends WaveformPeakWindow {
+	readonly clipId: string;
+	readonly sourceId: string;
+}
+
+export interface SourceLifecycleWaveformPeakRequest extends WaveformPcmRange {
+	readonly sourceId: string;
+	readonly blockSize: number;
+	readonly abort: () => void;
+	readonly promise: Promise<SourceLifecycleWaveformPeakWindow | null>;
+}
+
 export interface SourceLifecycleLoadOptions {
 	readonly excludedAudioSourceIds?: readonly string[];
 	readonly onlyRequiredAudioSources?: boolean;
@@ -133,7 +150,10 @@ export interface SourceLifecycleServiceRuntime<
 		startFrame: number,
 		endFrame: number,
 		sourceFrameCount: number,
+		paddingFrames?: number,
 	) => WaveformPcmRange;
+	readonly clipWaveformPeakRequests?: Map<string, SourceLifecycleWaveformPeakRequest>;
+	readonly clipWaveformPeakWindows?: Map<string, SourceLifecycleWaveformPeakWindow>;
 	readonly clipWaveformPcmRequests: Map<string, SourceLifecycleWaveformPcmRequest>;
 	readonly clipWaveformPcmWindows: Map<string, SourceLifecycleWaveformPcmWindow>;
 	readonly copy: SourceLifecycleCopy;
@@ -161,6 +181,11 @@ export interface SourceLifecycleServiceRuntime<
 		context: unknown,
 	) => Awaitable<Buffer | null>;
 	readonly readWaveformPcmWindow: (provider: Provider, range: WaveformPcmRange) => Awaitable<readonly Float32Array[]>;
+	readonly readWaveformPeakWindow?: (
+		provider: Provider,
+		range: WaveformPcmRange,
+		options: WaveformPeakWindowOptions,
+	) => Awaitable<WaveformPeakWindow>;
 	readonly setStatus: (message: string, state: 'error', localization?: import('../../../../i18n/presentation-message.ts').LocalizedPresentationMessage) => void;
 	readonly sourceAudioBufferBytes: (buffer: Buffer) => number;
 	readonly sourceBuffers: SourceLifecycleBufferCache<Buffer>;

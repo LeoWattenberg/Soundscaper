@@ -3,6 +3,7 @@
 import { fadeEnvelope } from '../../design-system-adapters/validation.ts';
 
 import {
+	audioWarpMinimumSourceSpanPerColumn,
 	createAudioWarpRuntimeEvaluator,
 	type AudioWarpRuntimeClip,
 	type AudioWarpRuntimeProject,
@@ -12,6 +13,7 @@ import {
 	maximumFadeEnvelope,
 	selectWaveformPeakLevel,
 	validateWaveformPeakLevels,
+	WaveformPeakResolutionError,
 	waveformCompatibilityFromSummary,
 	withWaveformRendering,
 } from '../../design-system-adapters/waveform-internals.ts';
@@ -114,6 +116,7 @@ export function prepareAudioWarpPeakPyramidWaveformWindow(
 	const endFrame = localFrame(options.endFrame ?? durationFrames, durationFrames, 'endFrame');
 	if (endFrame < startFrame) throw new RangeError('endFrame must not be before startFrame.');
 	const pixelWidth = positiveFinite(options.pixelWidth, 'pixelWidth');
+	const sourceFrameOffset = nonNegativeSafeInteger(options.sourceFrameOffset ?? 0, 'sourceFrameOffset');
 	const maximumSamples = positiveSafeInteger(
 		Math.floor(options.maxSamples ?? DEFAULT_MAXIMUM_WAVEFORM_SAMPLES),
 		'maxSamples',
@@ -141,9 +144,20 @@ export function prepareAudioWarpPeakPyramidWaveformWindow(
 	const frameCount = endFrame - startFrame;
 	const columnCount = frameCount ? Math.max(1, Math.ceil(pixelWidth)) : 0;
 	const visibleSourceSamples = Math.max(0, sourceEnd - sourceStart);
-	const sourceSamplesPerPixel = visibleSourceSamples / pixelWidth;
 	const pixelsPerSample = visibleSourceSamples ? pixelWidth / visibleSourceSamples : 0;
-	const level = selectWaveformPeakLevel(validated.levels, sourceSamplesPerPixel);
+	const sourceSamplesPerPixel = frameCount
+		? audioWarpMinimumSourceSpanPerColumn(project, clip, {
+			startFrame,
+			endFrame,
+			columnCount,
+		})
+		: 0;
+	const level = frameCount
+		? sourceSamplesPerPixel > 0
+			? selectWaveformPeakLevel(validated.levels, sourceSamplesPerPixel)
+			: null
+		: validated.levels[0];
+	if (!level) throw new WaveformPeakResolutionError();
 	const gain = finiteNumber(clip.gain ?? 1, 'clip.gain');
 	const fadeInFrames = localFrame(clip.fadeInFrames ?? 0, durationFrames, 'clip.fadeInFrames');
 	const fadeOutFrames = localFrame(clip.fadeOutFrames ?? 0, durationFrames, 'clip.fadeOutFrames');
@@ -162,7 +176,12 @@ export function prepareAudioWarpPeakPyramidWaveformWindow(
 			const absoluteEnd = rationalNumber(evaluator.sourceAtTimelineFrame(
 				clip.timelineStartFrame + Math.ceil(localEnd),
 			));
-			const range = aggregateWaveformPeakRange(channel, absoluteStart, absoluteEnd);
+			const range = aggregateWaveformPeakRange(
+				channel,
+				absoluteStart,
+				absoluteEnd,
+				sourceFrameOffset,
+			);
 			const scale = gain * maximumFadeEnvelope(
 				localStart,
 				localEnd,

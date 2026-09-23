@@ -24,6 +24,7 @@ import {
 	prepareAudacityWaveformRendering,
 	selectWaveformPeakLevel,
 	validateWaveformPeakLevels,
+	WaveformPeakResolutionError,
 	waveformCompatibilityFromSummary,
 	withWaveformRendering,
 } from './waveform-internals.ts';
@@ -229,6 +230,7 @@ export function preparePeakPyramidWaveformWindow(
 	const durationFrames = positiveSafeInteger(clip.durationFrames, 'clip.durationFrames');
 	const sourceDurationFrames = positiveSafeInteger(clip.sourceDurationFrames ?? durationFrames, 'clip.sourceDurationFrames');
 	const sourceEndFrame = addFrames(sourceStartFrame, sourceDurationFrames, 'clip source range');
+	const sourceFrameOffset = nonNegativeSafeInteger(options.sourceFrameOffset ?? 0, 'sourceFrameOffset');
 	if (options.sourceFrameCount != null) {
 		const sourceFrameCount = nonNegativeSafeInteger(options.sourceFrameCount, 'sourceFrameCount');
 		if (sourceEndFrame > sourceFrameCount) throw new RangeError('The clip exceeds the supplied source frame count.');
@@ -257,7 +259,8 @@ export function preparePeakPyramidWaveformWindow(
 	const visibleSourceSamples = frameCount * sourceSamplesPerTimelineFrame;
 	const sourceSamplesPerPixel = visibleSourceSamples / pixelWidth;
 	const pixelsPerSample = visibleSourceSamples ? pixelWidth / visibleSourceSamples : 0;
-	const level = selectWaveformPeakLevel(levels, sourceSamplesPerPixel);
+	const level = frameCount ? selectWaveformPeakLevel(levels, sourceSamplesPerPixel) : levels[0];
+	if (!level) throw new WaveformPeakResolutionError();
 	const clipGain = finiteNumber(clip.gain ?? 1, 'clip.gain');
 	const gain = clip.inverted ? -clipGain : clipGain;
 	const fadeInFrames = clampedLocalFrame(clip.fadeInFrames ?? 0, durationFrames, 'clip.fadeInFrames');
@@ -287,7 +290,12 @@ export function preparePeakPyramidWaveformWindow(
 			const absoluteEnd = sourceStartFrame + (reversed
 				? sourceDurationFrames - visualStart
 				: visualEnd);
-			const range = aggregateWaveformPeakRange(channelLevel, absoluteStart, absoluteEnd);
+			const range = aggregateWaveformPeakRange(
+				channelLevel,
+				absoluteStart,
+				absoluteEnd,
+				sourceFrameOffset,
+			);
 			const localStart = visualStart / sourceSamplesPerTimelineFrame;
 			const localEnd = visualEnd / sourceSamplesPerTimelineFrame;
 			const scale = gain * maximumFadeEnvelope(

@@ -6,7 +6,11 @@ import test from 'node:test';
 import React, { useState } from 'react';
 import { renderToString } from 'react-dom/server';
 
-import { useAudioTrackRowViewModel } from '../src/common/editor/ui/timeline/useAudioTrackRowViewModel.js';
+import {
+	timelineWaveformPcmWindowRequestPixelWidth,
+	useAudioTrackRowViewModel,
+} from '../src/common/editor/ui/timeline/useAudioTrackRowViewModel.js';
+import { WAVEFORM_PEAKS_VERSION } from '../src/common/editor/waveform-peak-contract.ts';
 
 const EMPTY_SET = new Set<string>();
 const EMPTY_MAP = new Map<string, never>();
@@ -69,4 +73,53 @@ test('audio row keeps canvas projection inputs stable across exact-scroll rerend
 	assert.equal(observed[0]?.projectedClips, observed[1]?.projectedClips);
 	assert.equal(observed[0]?.projectedSelection, observed[1]?.projectedSelection);
 	assert.equal(observed[0]?.crossfadeOverlays, observed[1]?.crossfadeOverlays);
+});
+
+test('audio rows prefetch a window fine enough for the next fourfold zoom step', () => {
+	const clip = {
+		id: 'clip', timelineStartFrame: 0, durationFrames: 100,
+		sourceStartFrame: 0, sourceDurationFrames: 100,
+		waveformStartFrame: 0, waveformEndFrame: 100,
+	};
+	const peaks = {
+		version: WAVEFORM_PEAKS_VERSION,
+		channelCount: 1,
+		levels: [{
+			blockSize: 8,
+			channels: [{
+				minimums: new Float32Array(13),
+				maximums: new Float32Array(13),
+				rms: new Float32Array(13),
+			}],
+		}],
+	};
+	const visual = { available: true, buffer: null, pcmWindow: null, peaks };
+	assert.equal(timelineWaveformPcmWindowRequestPixelWidth({ visual, clip, project: null, pixelWidth: 2 }), 192);
+	assert.equal(timelineWaveformPcmWindowRequestPixelWidth({
+		visual, clip, project: null, pixelWidth: 4,
+	}), 192);
+	assert.equal(timelineWaveformPcmWindowRequestPixelWidth({
+		visual, clip, project: null, pixelWidth: 20,
+	}), 192);
+	assert.equal(timelineWaveformPcmWindowRequestPixelWidth({
+		visual, clip, project: null, pixelWidth: 20_000,
+	}), 32_768);
+	assert.equal(timelineWaveformPcmWindowRequestPixelWidth({
+		visual, clip, project: null, pixelWidth: 20, displayMode: 'spectrogram',
+	}), null);
+	assert.equal(timelineWaveformPcmWindowRequestPixelWidth({
+		visual, clip, project: null, pixelWidth: 100, displayMode: 'spectrogram',
+	}), undefined, 'spectrogram requests PCM without triggering a peak scan');
+	assert.equal(timelineWaveformPcmWindowRequestPixelWidth({
+		visual: { ...visual, pcmWindow: { channels: [new Float32Array(100)], startFrame: 0, endFrame: 100 } },
+		clip,
+		project: null,
+		pixelWidth: 20,
+	}), null);
+	assert.equal(timelineWaveformPcmWindowRequestPixelWidth({
+		visual: { ...visual, buffer: { numberOfChannels: 1 } },
+		clip,
+		project: null,
+		pixelWidth: 20,
+	}), null);
 });

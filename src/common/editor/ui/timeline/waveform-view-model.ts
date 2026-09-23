@@ -6,11 +6,22 @@ import {
 	preparePeakPyramidWaveformWindow,
 } from '../../design-system-adapters.js';
 import { envelopeFramesToDesignPoints } from '../../automation.js';
-import type { AudioWarpRuntimeProject } from '../../audio-warp-runtime.ts';
+import {
+	audioWarpMinimumSourceSpanPerColumn,
+	type AudioWarpRuntimeProject,
+} from '../../audio-warp-runtime.ts';
 import { audacityWaveformMode } from '../../audacity-waveform-renderer.js';
+import {
+	validateWaveformPeakLevels,
+	waveformPeakLevelForResolution,
+	WaveformPeakResolutionError,
+} from '../../design-system-adapters/waveform-internals.ts';
+import { WAVEFORM_PEAKS_VERSION } from '../../waveform-peak-contract.ts';
 import { createWaveformPreviewCacheKey } from '../waveform-preview-cache.ts';
 import {
+	MINIMUM_VISIBLE_CLIP_PIXELS,
 	pcmWindowCoversProjectedClip,
+	peakWindowCoversProjectedClip,
 	projectedClipVisibleSourceSamples,
 	type PcmPreviewWindow,
 } from './preview.ts';
@@ -19,7 +30,53 @@ import {
 	prepareAudioWarpWaveformWindow,
 } from './audio-warp-waveform.ts';
 
-const MINIMUM_VISIBLE_CLIP_PIXELS = 48;
+function usableWaveformPeakLevel(peaks: unknown, sourceSamplesPerPixel: number) {
+	try {
+		return waveformPeakLevelForResolution(peaks, sourceSamplesPerPixel);
+	} catch {
+		// A stale peak cache must not mask valid PCM or a newly fetched peak window.
+		return null;
+	}
+}
+
+function coarsePeakPreviewWidth(peaks: unknown, sourceSamples: number, displayWidth: number): number | null {
+	try {
+		const finestBlockSize = validateWaveformPeakLevels(peaks).levels[0]?.blockSize;
+		if (!finestBlockSize || !(sourceSamples > 0) || !(displayWidth > 0)) return null;
+		const width = Math.min(displayWidth, sourceSamples / finestBlockSize);
+		return width < displayWidth ? width * (1 - 1e-9) : null;
+	} catch {
+		return null;
+	}
+}
+
+function coarseWarpPeakPreviewWidth(
+	peaks: unknown,
+	project: AudioWarpRuntimeProject,
+	clip: TimelineWaveformClip & Parameters<typeof audioWarpMinimumSourceSpanPerColumn>[1],
+	displayWidth: number,
+): number | null {
+	try {
+		const finestBlockSize = validateWaveformPeakLevels(peaks).levels[0]?.blockSize;
+		if (!finestBlockSize || !(displayWidth > 0)) return null;
+		let columnCount = Math.max(1, Math.ceil(displayWidth));
+		while (true) {
+			const minimumSpan = audioWarpMinimumSourceSpanPerColumn(project, clip, {
+				startFrame: clip.waveformStartFrame,
+				endFrame: clip.waveformEndFrame,
+				columnCount,
+			});
+			if (minimumSpan >= finestBlockSize) {
+				return columnCount < displayWidth ? columnCount * (1 - 1e-9) : null;
+			}
+			if (columnCount === 1) return null;
+			columnCount = Math.max(1, Math.floor(columnCount / 2));
+		}
+	} catch {
+		return null;
+	}
+}
+
 // The clip header writes the pitch badge as semitones rounded to two decimals,
 // so anything finer than half a cent reads as a bare '+0'. A shift that small
 // has to reach the design system as no shift at all, or the badge appears and
@@ -75,10 +132,24 @@ export interface TimelinePcmWindow extends PcmPreviewWindow {
 	readonly channels: readonly Float32Array[];
 }
 
+export interface TimelinePeakWindow {
+	readonly sourceId?: string;
+	readonly startFrame: number;
+	readonly endFrame: number;
+	readonly blockSize: number;
+	readonly channels: readonly Readonly<{
+		minimums: ArrayLike<number>;
+		maximums: ArrayLike<number>;
+		rms: ArrayLike<number>;
+	}>[];
+}
+
 export interface TimelineClipVisualData {
+	readonly available?: boolean;
 	readonly source?: TimelineWaveformSource | null;
 	readonly buffer?: TimelineAudioBuffer | null;
 	readonly pcmWindow?: TimelinePcmWindow | null;
+	readonly peakWindow?: TimelinePeakWindow | null;
 	readonly peaks?: unknown;
 }
 
@@ -105,6 +176,7 @@ export interface TimelineWaveformCacheEntry {
 
 export interface TimelineClipViewModel {
 	readonly id: string;
+	readonly sourceId: string;
 	readonly name: string;
 	readonly start: number;
 	readonly duration: number;
@@ -119,6 +191,7 @@ export interface TimelineClipViewModel {
 	audacityWaveform?: unknown;
 	spectrogramWaveform?: unknown;
 	waveformError?: string;
+	waveformPending?: boolean;
 }
 
 export interface TimelineClipViewModelOptions {
@@ -145,6 +218,7 @@ export interface TimelineClipViewModelOptions {
 	}>;
 	readonly cache?: Map<string, TimelineWaveformCacheEntry> | null;
 	readonly reuseCachedWaveform?: boolean;
+	readonly waveformPending?: boolean;
 }
 
 /** Read a stored shift the way the header badge rounds it, so the two agree. */
@@ -165,6 +239,7 @@ export function createTimelineClipViewModel({
 	rendering,
 	cache = null,
 	reuseCachedWaveform = false,
+	waveformPending = false,
 }: TimelineClipViewModelOptions): TimelineClipViewModel {
 	const { overscanStartFrame, pixelsPerSecond, sampleRate } = geometry;
 	const {
@@ -189,6 +264,7 @@ export function createTimelineClipViewModel({
 	const generatedTitle = sourceName.replace(/\.[^./\\]+$/, '');
 	const output: TimelineClipViewModel = {
 		id: clip.id,
+		sourceId: clip.sourceId,
 		// Imported clips begin with a title derived from the source filename. Keep
 		// showing the original source label until that generated title is renamed.
 		name: title && title !== generatedTitle ? title : sourceName || title || copy.clip,
@@ -222,18 +298,77 @@ export function createTimelineClipViewModel({
 	const isWarped = clip.warpMap != null;
 	const visibleSourceSamples = projectedClipVisibleSourceSamples(clip, project);
 	const pixelWidth = output.duration * pixelsPerSecond;
-	const usePeakPyramid = Boolean(waveformPeaks && visibleSourceSamples > 0
-		&& audacityWaveformMode(pixelWidth / visibleSourceSamples) === 'summary');
-	const waveformSource = usePeakPyramid
-		? waveformPeaks
-		: waveformBuffer || waveformPcmWindow || (isWarped ? null : waveformPeaks);
+	const waveformPeakWindow = allowPeakPyramid
+		&& peakWindowCoversProjectedClip(visual?.peakWindow, clip, project, pixelWidth)
+		? visual?.peakWindow || null
+		: null;
+	const peakWindowPyramid = waveformPeakWindow ? {
+		version: WAVEFORM_PEAKS_VERSION,
+		channelCount: waveformPeakWindow.channels.length,
+		levels: [{ blockSize: waveformPeakWindow.blockSize, channels: waveformPeakWindow.channels }],
+	} : null;
 	const cached = cache?.get(String(clip.id));
-	if (reuseCachedWaveform && cached?.data.audacityWaveform) {
+	const cachedPlan = cached?.data.audacityWaveform as Readonly<{
+		sourceId?: string;
+		startFrame: number;
+		endFrame: number;
+		pixelWidth: number;
+		peakBlockSize?: number;
+	}> | undefined;
+	if (reuseCachedWaveform && cached && cachedPlan && cachedPlan.sourceId === clip.sourceId
+		&& (!cachedPlan.peakBlockSize || (
+			cachedPlan.startFrame === clip.waveformStartFrame
+			&& cachedPlan.endFrame === clip.waveformEndFrame
+			&& pixelWidth <= cachedPlan.pixelWidth
+		))) {
 		Object.assign(output, cached.data);
 		return output;
 	}
-	if (!waveformSource) return output;
 	try {
+		const exactWaveformSource = waveformBuffer || waveformPcmWindow;
+		const sourceSamplesPerPixel = isWarped && !exactWaveformSource
+			&& (waveformPeaks || peakWindowPyramid) && visibleSourceSamples > 0 && pixelWidth > 0
+			? audioWarpMinimumSourceSpanPerColumn(
+				project as AudioWarpRuntimeProject,
+				clip as Parameters<typeof audioWarpMinimumSourceSpanPerColumn>[1],
+				{
+					startFrame: clip.waveformStartFrame,
+					endFrame: clip.waveformEndFrame,
+					columnCount: Math.max(1, Math.ceil(pixelWidth)),
+				},
+			)
+			: visibleSourceSamples / pixelWidth;
+		const peakLevel = waveformPeaks && sourceSamplesPerPixel > 0
+			? usableWaveformPeakLevel(waveformPeaks, sourceSamplesPerPixel)
+			: null;
+		const peakWindowLevel = peakWindowPyramid && sourceSamplesPerPixel > 0
+			? usableWaveformPeakLevel(peakWindowPyramid, sourceSamplesPerPixel)
+			: null;
+		const summaryMode = audacityWaveformMode(pixelWidth / visibleSourceSamples) === 'summary';
+		const usePeakPyramid = Boolean(peakLevel && summaryMode && (!isWarped || !exactWaveformSource));
+		const usePeakWindow = Boolean(!usePeakPyramid && !exactWaveformSource && peakWindowLevel && summaryMode);
+		const previewWidth = waveformPending && !exactWaveformSource
+			&& !usePeakPyramid && !usePeakWindow && waveformPeaks
+			? isWarped
+				? coarseWarpPeakPreviewWidth(
+					waveformPeaks,
+					project as AudioWarpRuntimeProject,
+					clip as TimelineWaveformClip & Parameters<typeof audioWarpMinimumSourceSpanPerColumn>[1],
+					pixelWidth,
+				)
+				: coarsePeakPreviewWidth(waveformPeaks, visibleSourceSamples, pixelWidth)
+			: null;
+		const waveformSource = usePeakPyramid
+			? waveformPeaks
+			: exactWaveformSource || (usePeakWindow ? waveformPeakWindow : previewWidth ? waveformPeaks : null);
+		const waveformPeakSource = usePeakPyramid || previewWidth ? waveformPeaks : peakWindowPyramid;
+		const waveformPeakSourceFrameOffset = usePeakWindow ? waveformPeakWindow?.startFrame ?? 0 : 0;
+		if (!waveformSource) {
+			if ((waveformPending || waveformPeaks || waveformPeakWindow) && visibleSourceSamples > 0) {
+				output.waveformPending = true;
+			}
+			return output;
+		}
 		const cacheSignature = createWaveformPreviewCacheKey({
 			source,
 			clip: { ...clip, sourceDurationFrames },
@@ -252,6 +387,7 @@ export function createTimelineClipViewModel({
 		});
 		if (cached?.source === waveformSource && cached.signature === cacheSignature) {
 			Object.assign(output, cached.data);
+			if (previewWidth) output.waveformPending = true;
 			return output;
 		}
 		const maximumSamples = Math.max(32, Math.min(4096, Math.ceil(pixelWidth) * 2));
@@ -290,31 +426,34 @@ export function createTimelineClipViewModel({
 				? prepareAudioWarpPeakPyramidWaveformWindow(
 					project as unknown as Parameters<typeof prepareAudioWarpPeakPyramidWaveformWindow>[0],
 					clip as Parameters<typeof prepareAudioWarpPeakPyramidWaveformWindow>[1],
-					visual?.peaks,
+					waveformPeakSource,
 					{
 						startFrame: clip.waveformStartFrame,
 						endFrame: clip.waveformEndFrame,
 						maxSamples: maximumSamples,
-						pixelWidth,
+						pixelWidth: previewWidth ?? pixelWidth,
 						channelCount: Math.max(1, Math.min(2, Number(source?.channelCount) || 1)),
 						sourceFrameCount: source?.frameCount,
+						sourceFrameOffset: waveformPeakSourceFrameOffset,
 					},
 				)
 				: preparePeakPyramidWaveformWindow(
-					visual?.peaks as Parameters<typeof preparePeakPyramidWaveformWindow>[0],
+					waveformPeakSource as Parameters<typeof preparePeakPyramidWaveformWindow>[0],
 					clip,
 					{
 						startFrame: clip.waveformStartFrame,
 						endFrame: clip.waveformEndFrame,
 						maxSamples: maximumSamples,
-						pixelWidth,
+						pixelWidth: previewWidth ?? pixelWidth,
 						channelCount: Math.max(1, Math.min(2, Number(source?.channelCount) || 1)),
 						sourceFrameCount: source?.frameCount,
+						sourceFrameOffset: waveformPeakSourceFrameOffset,
 					},
 				)) as unknown as PreparedTimelineWaveform;
 		const waveformData: TimelineWaveformPlanData = {
 			audacityWaveform: {
 				...waveform.rendering,
+				sourceId: clip.sourceId,
 				durationFrames: clip.durationFrames,
 				envelope: clip.envelope || [],
 			},
@@ -328,8 +467,10 @@ export function createTimelineClipViewModel({
 			data: waveformData,
 		});
 		Object.assign(output, waveformData);
+		if (previewWidth) output.waveformPending = true;
 	} catch (error) {
-		output.waveformError = error instanceof Error ? error.message : String(error);
+		if (error instanceof WaveformPeakResolutionError) output.waveformPending = true;
+		else output.waveformError = error instanceof Error ? error.message : String(error);
 	}
 	return output;
 }

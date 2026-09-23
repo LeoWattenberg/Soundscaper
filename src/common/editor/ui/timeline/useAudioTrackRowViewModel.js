@@ -8,14 +8,61 @@ import {
 	rightmostVisibleClip,
 } from '../../design-system-adapters.js';
 import { audacityWaveformMode } from '../../audacity-waveform-renderer.js';
+import { waveformPeakLevelForResolution } from '../../design-system-adapters/waveform-internals.ts';
+import { MAXIMUM_WAVEFORM_PEAK_WINDOW_BUCKETS } from '../../waveform-peak-contract.ts';
 import { createAudioTrackRowClipViewModels } from './audio-track-row-view-model.js';
 import { createCrossfadeOverlays } from './TrackOverlapOverlays.jsx';
 import {
 	pcmWindowCoversProjectedClip,
+	MINIMUM_VISIBLE_CLIP_PIXELS,
 	projectedClipVisibleSourceSamples,
 	recordingPreviewId,
 } from './preview.ts';
 import { useAudioTrackEnvelope } from './useAudioTrackEnvelope.js';
+
+const WAVEFORM_PCM_PREFETCH_BUCKET_PIXELS = 0.25;
+
+function waveformPrefetchPixelWidth(pixelWidth) {
+	const renderedWidth = Math.max(MINIMUM_VISIBLE_CLIP_PIXELS, pixelWidth);
+	return Math.min(
+		MAXIMUM_WAVEFORM_PEAK_WINDOW_BUCKETS,
+		Math.max(
+			renderedWidth,
+			Math.min(
+				renderedWidth / WAVEFORM_PCM_PREFETCH_BUCKET_PIXELS,
+				MAXIMUM_WAVEFORM_PEAK_WINDOW_BUCKETS / 2,
+			),
+		),
+	);
+}
+
+/** Choose a fourfold prefetch width, or PCM only when peaks cannot serve the view. */
+export function timelineWaveformPcmWindowRequestPixelWidth({ visual, clip, project, pixelWidth, displayMode = 'waveform' }) {
+	if (!visual?.available || visual.buffer || pcmWindowCoversProjectedClip(visual.pcmWindow, clip, project)) {
+		return null;
+	}
+	const visibleSourceSamples = projectedClipVisibleSourceSamples(clip, project);
+	if (!(visibleSourceSamples > 0) || !(pixelWidth > 0)) return null;
+	if (displayMode === 'spectrogram') {
+		return audacityWaveformMode(pixelWidth / visibleSourceSamples) === 'summary'
+			? null
+			: undefined;
+	}
+	const requestPixelWidth = waveformPrefetchPixelWidth(pixelWidth);
+	if (clip.warpMap != null) return requestPixelWidth;
+	if (!visual.peaks) return requestPixelWidth;
+	try {
+		return waveformPeakLevelForResolution(
+			visual.peaks,
+			visibleSourceSamples / requestPixelWidth,
+		) === null
+			? requestPixelWidth
+			: null;
+	} catch {
+		// PCM can still draw a source whose persisted peak cache is stale or invalid.
+		return requestPixelWidth;
+	}
+}
 
 /**
  * Retain the expensive audio-row projection while exact scrolling remains
@@ -76,25 +123,32 @@ export function useAudioTrackRowViewModel({
 		sampleRate,
 	});
 
-	useEffect(() => {
-		const requestWindow = controller.actions.timeline.requestWaveformPcmWindow;
-		if (typeof requestWindow !== 'function') return;
+	const waveformWindowRequests = useMemo(() => {
+		const requests = new Map();
 		for (const clip of projection.clips) {
 			if (clip.isRecordingPreview) continue;
 			const visual = controller.getClipVisualData(clip.id)
 				|| controller.getProjectBinClipVisualData?.(clip.projectBinClipId || clip.id);
-			if (!visual?.available || visual.buffer || pcmWindowCoversProjectedClip(visual.pcmWindow, clip, project)) continue;
-			const visibleSourceSamples = projectedClipVisibleSourceSamples(clip, project);
 			const pixelWidth = (clip.waveformEndFrame - clip.waveformStartFrame) / sampleRate * pixelsPerSecond;
-			if (!(visibleSourceSamples > 0) || !(pixelWidth > 0)
-				|| (clip.warpMap == null
-					&& audacityWaveformMode(pixelWidth / visibleSourceSamples) === 'summary')) continue;
+			const requestPixelWidth = timelineWaveformPcmWindowRequestPixelWidth({
+				visual, clip, project, pixelWidth, displayMode,
+			});
+			if (requestPixelWidth === null) continue;
+			requests.set(String(clip.id), { clip, pixelWidth: requestPixelWidth });
+		}
+		return requests;
+	}, [controller, displayMode, pixelsPerSecond, project, projection.clips, sampleRate, viewModelRevision]);
+	useEffect(() => {
+		const requestWindow = controller.actions.timeline.requestWaveformPcmWindow;
+		if (typeof requestWindow !== 'function') return;
+		for (const { clip, pixelWidth } of waveformWindowRequests.values()) {
 			run(() => requestWindow(clip.id, {
 				startFrame: clip.waveformStartFrame,
 				endFrame: clip.waveformEndFrame,
+				...(pixelWidth === undefined ? {} : { pixelWidth }),
 			}));
 		}
-	}, [controller, pixelsPerSecond, project, projection.clips, run, sampleRate]);
+	}, [controller, run, waveformWindowRequests]);
 
 	const windowLeft = framesToSeconds(projection.overscanStartFrame, { sampleRate }) * pixelsPerSecond;
 	const windowFrames = Math.max(1, projection.overscanEndFrame - projection.overscanStartFrame);
@@ -120,6 +174,7 @@ export function useAudioTrackRowViewModel({
 			trackColor: track.color,
 			waveformCache,
 			draggingClipIds,
+			waveformPendingClipIds: displayMode === 'spectrogram' ? null : waveformWindowRequests,
 			envelopePreviews: envelopePreviewRef.current,
 		});
 	}, [
@@ -141,6 +196,7 @@ export function useAudioTrackRowViewModel({
 		sourceLookup,
 		track.color,
 		viewModelRevision,
+		waveformWindowRequests,
 		waveformCache,
 	]);
 

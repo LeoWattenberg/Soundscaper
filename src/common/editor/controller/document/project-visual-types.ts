@@ -136,6 +136,7 @@ export interface ClipVisualData {
 	readonly thumbnails?: readonly VideoThumbnail[];
 	readonly mediaKind?: 'proxy';
 	readonly pcmWindow?: unknown;
+	readonly peakWindow?: unknown;
 	readonly itemClips?: readonly ProjectVisualClip[];
 	readonly videoClip?: ProjectVisualClip;
 }
@@ -156,6 +157,7 @@ export interface ProjectVisualServiceDependencies {
 	readonly missingSourceIds: ReadonlySet<string>;
 	readonly sourceBuffers: ReadonlyMap<string, unknown>;
 	readonly sourcePeaks: ReadonlyMap<string, unknown>;
+	readonly waveformPeakWindows?: ReadonlyMap<string, unknown>;
 	readonly waveformPcmWindows: ReadonlyMap<string, unknown>;
 	readonly store: ProjectVisualStore;
 	resolveProductVideoPreviewMedia?(request: Readonly<ProjectVideoPreviewMediaRequest>):

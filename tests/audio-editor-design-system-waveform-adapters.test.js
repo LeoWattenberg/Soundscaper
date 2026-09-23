@@ -225,6 +225,7 @@ test('peak-pyramid waveform rendering selects the finest bounded viewport level 
 
 	assert.equal(result.rendering.mode, 'summary');
 	assert.equal(result.rendering.peakBlockSize, 16);
+	assert.ok(result.rendering.peakBlockSize * result.rendering.pixelsPerSample <= 1);
 	assert.equal(result.rendering.channels.length, 2);
 	assert.ok(result.rendering.channels[0].rms, 'peak-only summaries retain RMS display data');
 	assert.equal(result.rendering.channels[0].rms.length, result.rendering.channels[0].minimum.length);
@@ -244,14 +245,19 @@ test('peak-pyramid waveform rendering selects the finest bounded viewport level 
 		sourceFrameCount: 128,
 	});
 	assert.equal(coarser.rendering.peakBlockSize, 32);
-	const zoomed = preparePeakPyramidWaveformWindow(peaks, clip({ durationFrames: 128 }), {
+	assert.ok(coarser.rendering.peakBlockSize * coarser.rendering.pixelsPerSample <= 1);
+	assert.throws(() => preparePeakPyramidWaveformWindow(peaks, clip({ durationFrames: 128 }), {
 		pixelWidth: 128,
 		channelCount: 2,
 		sourceFrameCount: 128,
+	}), /PCM/u, 'a peak bucket must never be stretched wider than one CSS pixel');
+	const empty = preparePeakPyramidWaveformWindow(peaks, clip({ durationFrames: 128 }), {
+		startFrame: 128,
+		endFrame: 128,
+		pixelWidth: 1,
 	});
-	assert.equal(zoomed.rendering.peakBlockSize, 8);
-	assert.equal(zoomed.rendering.channels[0].rms, null, 'RMS disappears at sample-level zoom');
-	assert.equal(zoomed.rendering.channels[1].rms, null, 'stereo RMS uses the same zoom cutoff');
+	assert.equal(empty.frameCount, 0);
+	assert.equal(empty.channels[0].length, 0);
 	assert.deepEqual(
 		[...result.rendering.channels[0].minimum].map((value) => Math.round(value * 10) / 10),
 		[-0.1, -0.2, -0.3, -0.4, -0.5, -0.6, -0.7, -0.8],
@@ -299,6 +305,35 @@ test('peak-pyramid waveform rendering maps source offsets, reverse, stretch, gai
 	assert.deepEqual([...result.rendering.channels[0].minimum], [-10, -8]);
 	assert.deepEqual([...result.rendering.channels[0].maximum], [10, 8]);
 	assert.deepEqual([...result.channels[0]], [-10, 10, -8, 8]);
+});
+
+test('peak-pyramid waveform rendering reads a viewport-local peak window', () => {
+	const peaks = {
+		version: WAVEFORM_PEAKS_VERSION,
+		channelCount: 1,
+		levels: [{
+			blockSize: 2,
+			channels: [{
+				minimums: Float32Array.of(-1, -2, -3),
+				maximums: Float32Array.of(1, 2, 3),
+				rms: Float32Array.of(0.5, 1, 1.5),
+			}],
+		}],
+	};
+	const result = preparePeakPyramidWaveformWindow(peaks, clip({
+		sourceStartFrame: 100,
+		durationFrames: 10,
+	}), {
+		startFrame: 2,
+		endFrame: 8,
+		pixelWidth: 3,
+		sourceFrameCount: 110,
+		sourceFrameOffset: 102,
+	});
+
+	assert.equal(result.rendering.peakBlockSize, 2);
+	assert.deepEqual([...result.rendering.channels[0].minimum], [-1, -2, -3]);
+	assert.deepEqual([...result.rendering.channels[0].maximum], [1, 2, 3]);
 });
 
 test('peak-pyramid waveform rendering swaps an inverted clip minimum and maximum', () => {

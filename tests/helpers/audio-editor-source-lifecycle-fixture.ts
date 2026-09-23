@@ -2,12 +2,23 @@
 
 import {
 	createSourceLifecycleService,
+	type SourceLifecycleClip,
 	type SourceLifecycleServiceRuntime,
 	type SourceLifecycleWaveformPcmRequest,
 	type SourceLifecycleWaveformPcmWindow,
 } from '../../src/common/editor/controller/source/source-lifecycle-service.ts';
 
-export function createSourceLifecycleFixture(options: Readonly<{ videoFailure?: Error }> = {}) {
+export function createSourceLifecycleFixture(options: Readonly<{
+	videoFailure?: Error;
+	maximumWaveformFrames?: number;
+	clipSourceWindowRange?: (
+		clip: SourceLifecycleClip,
+		startFrame: number,
+		endFrame: number,
+		sourceFrameCount: number,
+		paddingFrames?: number,
+	) => Readonly<{ startFrame: number; endFrame: number }>;
+}> = {}) {
 	const source = { id: 'source', kind: 'audio', frameCount: 100, storageKey: 'source' };
 	const clip = { id: 'clip', sourceId: source.id, durationFrames: 100 };
 	let project = { id: 'project-a', clips: [clip], sources: [source] };
@@ -34,7 +45,7 @@ export function createSourceLifecycleFixture(options: Readonly<{ videoFailure?: 
 	};
 	const runtime: SourceLifecycleServiceRuntime = {
 		MAXIMUM_WAVEFORM_PCM_WINDOW_ENTRIES: 2,
-		MAXIMUM_WAVEFORM_PCM_WINDOW_FRAMES: 100,
+		MAXIMUM_WAVEFORM_PCM_WINDOW_FRAMES: options.maximumWaveformFrames ?? 100,
 		SHORT_SOURCE_AUDIO_BUFFER_MAX_BYTES: 1_024,
 		activateVideoSource: async (candidate, activationOptions) => {
 			if (options.videoFailure) throw options.videoFailure;
@@ -43,7 +54,8 @@ export function createSourceLifecycleFixture(options: Readonly<{ videoFailure?: 
 		},
 		allProjectClips: (value) => value.clips,
 		audioBufferChannels: () => [],
-		clipSourceWindowRange: (_value, startFrame, endFrame) => ({ startFrame, endFrame }),
+		clipSourceWindowRange: options.clipSourceWindowRange
+			?? ((_value, startFrame, endFrame) => ({ startFrame, endFrame })),
 		clipWaveformPcmRequests,
 		clipWaveformPcmWindows,
 		copy: {},
