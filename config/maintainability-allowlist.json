@@ -205,7 +205,6 @@
 		"tests/audio-editor-local-assistance-guided-result-acceptance.test.ts": 564,
 		"tests/audio-editor-local-assistance-guided.test.tsx": 600,
 		"tests/audio-editor-local-assistance-selected-video.test.ts": 598,
-		"tests/audio-editor-local-model-manager.test.tsx": 578,
 		"tests/audio-editor-native-realtime-transport.test.ts": 592,
 		"tests/audio-editor-native-realtime-worklet.test.js": 597,
 		"tests/audio-editor-owned-source-read-session.test.ts": 594,
