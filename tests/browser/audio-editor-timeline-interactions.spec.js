@@ -249,7 +249,7 @@ test.describe('audio editor React/design-system workflows', () => {
 		expect(errors).toEqual([]);
 	});
 
-	test('keeps clipped waveform data stable for the duration of a move preview', async ({ page }) => {
+	test('updates a clipped waveform to its visible frame range during a move preview', async ({ page }) => {
 		const errors = collectClientErrors(page);
 		await page.setViewportSize({ width: 720, height: 900 });
 		const editor = await bootEditor(page, '/embed/en/');
@@ -262,23 +262,22 @@ test.describe('audio editor React/design-system workflows', () => {
 		expect(clipBox).not.toBeNull();
 		await page.mouse.move(clipBox.x + 28, clipBox.y + 12);
 		await page.mouse.down();
-		await waveform.evaluate((canvas) => new Promise((resolve) => {
-			const waitForPlan = () => {
-				if (canvas.__kwWaveformPlan) {
-					globalThis.__movePreviewWaveformPlan = canvas.__kwWaveformPlan;
-					resolve();
-				} else requestAnimationFrame(waitForPlan);
-			};
-			requestAnimationFrame(waitForPlan);
-		}));
+		await expect.poll(() => waveform.evaluate((canvas) => Boolean(canvas.__kwWaveformPlan))).toBe(true);
+		await waveform.evaluate((canvas) => { globalThis.__movePreviewWaveformPlan = canvas.__kwWaveformPlan; });
 		await page.mouse.move(clipBox.x + 148, clipBox.y + 12, { steps: 8 });
-		await expect.poll(() => waveform.evaluate(
-			(canvas) => canvas.__kwWaveformPlan === globalThis.__movePreviewWaveformPlan,
-		)).toBe(true);
+		await expect.poll(() => waveform.evaluate((canvas) => {
+			const original = globalThis.__movePreviewWaveformPlan;
+			const preview = canvas.__kwWaveformPlan;
+			return Boolean(preview && preview !== original && preview.startFrame === original.startFrame
+				&& preview.endFrame < original.endFrame
+				&& preview.frameCount === preview.endFrame - preview.startFrame);
+		})).toBe(true);
+		const previewEndFrame = await waveform.evaluate((canvas) => canvas.__kwWaveformPlan.endFrame);
 		await page.mouse.up();
-		await expect.poll(() => waveform.evaluate(
-			(canvas) => canvas.__kwWaveformPlan === globalThis.__movePreviewWaveformPlan,
-		)).toBe(false);
+		await expect(clip).toHaveCSS('opacity', '1');
+		await expect.poll(async () => (await clip.boundingBox())?.x || 0).toBeGreaterThan(clipBox.x + 100);
+		await expect.poll(() => waveform.evaluate((canvas) => canvas.__kwWaveformPlan?.endFrame))
+			.toBe(previewEndFrame);
 		expect(errors).toEqual([]);
 	});
 
