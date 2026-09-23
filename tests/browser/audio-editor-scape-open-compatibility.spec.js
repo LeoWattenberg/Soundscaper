@@ -29,7 +29,7 @@ import {
 	registerAudioEditorHooks,
 	stubStorageEstimate,
 } from './audio-editor-test-helpers.js';
-import { createDeterministicAvFixture } from './fixtures/deterministic-av-media.js';
+import { createDeterministicAvFixture, createDeterministicSilentVideoFixture } from './fixtures/deterministic-av-media.js';
 import { inspectProjectCompatibilityReport, openProjectCompatibilityReport } from './helpers/project-compatibility-report.js';
 import {
 	createScapePcmPayload,
@@ -409,7 +409,7 @@ test.describe('Scape open feature decisions', () => {
 		test.setTimeout(120_000);
 		const errors = collectClientErrors(page);
 		const framescaper = await bootEditor(page, '/framescaper/embed/en/');
-		await importFiles(framescaper, [createDeterministicAvFixture('retime-preservation.webm')]);
+		await importFiles(framescaper, [createDeterministicSilentVideoFixture('retime-preservation.webm')]);
 		const exported = await captureScapeArchive(page, framescaper);
 		let expectedCurve;
 		const archive = await promoteFramescaperArchiveToSoundscaper(exported, {
