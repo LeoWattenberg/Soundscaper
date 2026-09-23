@@ -10,7 +10,7 @@ Generate a spoken clip from a script using a selected language and voice.
 
 ## Current availability {#current-availability}
 
-Desktop target packages generate and authenticate the offline Kokoro G2P helper alongside the onnxruntime-node 1.29.0 engine for macOS arm64, Linux x64, Linux arm64, Windows x64, Windows arm64. Install the model weights through Model Manager, then run speech generation locally. Consult the nightly report for real text-to-WAV results from each package and machine.
+Desktop builds can download and authenticate the offline Kokoro G2P helper alongside the onnxruntime-node 1.29.0 engine for macOS arm64, Linux x64, Linux arm64, Windows x64, Windows arm64. Install the model and its required runtimes through Model Manager, then run speech generation locally. Consult the nightly report for real text-to-WAV results from each package and machine.
 
 ## Use this model {#use-this-model}
 
@@ -24,13 +24,13 @@ Open **Generate → Text to Speech** on a platform with the required native runt
 
 Model identity: `kokoro-82m-v1.0`, version **1.0.0**.
 
-Approximate download size: **337.35 MiB**. Minimum system memory: **8 GiB**. This catalog requirement refers to total memory, not currently free memory. Inference also needs sufficient free memory, and installation needs working space; memory is not a speed guarantee.
+Approximate model artifact download size: **337.35 MiB**. The required runtime adds to the first download if it is not already installed. Minimum system memory: **8 GiB**. This catalog requirement refers to total memory, not currently free memory. Inference also needs sufficient free memory, and installation needs working space; memory is not a speed guarantee.
 
-Published platforms: macOS arm64, Linux x64, Linux arm64, Windows x64, Windows arm64. A matching packaged runtime is also required.
+Published platforms: macOS arm64, Linux x64, Linux arm64, Windows x64, Windows arm64. A matching downloadable runtime is also required.
 
-On Windows, install the latest supported [Microsoft Visual C++ v14 Redistributable](https://learn.microsoft.com/en-us/cpp/windows/latest-supported-vc-redist?view=msvc-170) matching the desktop app: **x64** for an x64 build or **ARM64** for an ARM64 build. The native ONNX and Sherpa engines require these libraries; model downloads do not include them. Visual Studio itself is not required to use the app.
+On Windows, install the latest supported [Microsoft Visual C++ v14 Redistributable](https://learn.microsoft.com/en-us/cpp/windows/latest-supported-vc-redist?view=msvc-170) matching the desktop app: **x64** for an x64 build or **ARM64** for an ARM64 build. The native ONNX and Sherpa engines require these libraries; model and runtime downloads do not include them. Visual Studio itself is not required to use the app.
 
-Tools → Model Manager downloads the published artifacts and verifies their recorded SHA-256 digests. Processing uses the installed files locally. Open Storage and verification in Model Manager to inspect notices, repair an installation, or change the storage location.
+Tools → Model Manager downloads the published model artifacts and required runtime on first installation, and verifies their recorded SHA-256 digests. Processing uses the installed files locally. Open Storage and verification in Model Manager to inspect notices, repair an installation, or change the storage location.
 
 | Artifact | Approximate download size |
 | --- | --- |
@@ -91,7 +91,7 @@ Tools → Model Manager downloads the published artifacts and verifies their rec
 | zm_yunxia.bin | 510.00 KiB |
 | zm_yunyang.bin | 510.00 KiB |
 
-## What the packaged test checks {#what-the-packaged-test-checks}
+## What the desktop test checks {#what-the-packaged-test-checks}
 
 Case: `kokoro-speech-generation`; operation: `text-to-speech`.
 
@@ -99,7 +99,7 @@ Input: Nine short UTF-8 scripts, one for each Kokoro v1.0 language variant, each
 
 Each of the nine selected Kokoro voices must produce non-silent, bounded, 24 kHz mono PCM audio in a valid WAV container. The test requires a complete offline G2P runtime and cannot be satisfied by an unavailable-adapter response or substitute model.
 
-The nightly-with-tests package downloads real model artifacts and requests inference through the packaged runtime. Its required case submits one script in each of the nine language variants through the packaged G2P helper and checks the resulting WAVs. A missing or altered helper fails closed. These costly checks run separately from the normal browser suite. A passing package run confirms basic speech generation for those selected voices, not pronunciation or perceptual quality.
+The nightly-with-tests package downloads real model artifacts and verified runtimes before inference. Its required case submits one script in each of the nine language variants through the downloaded G2P helper and checks the resulting WAVs. A missing or altered helper fails closed. These costly checks run separately from the normal browser suite. A passing package run confirms basic speech generation for those selected voices, not pronunciation or perceptual quality.
 
 ## Review the result {#review-the-result}
 

@@ -7,10 +7,12 @@ Local assistance runs on your device in the Soundscaper and Framescaper desktop
 editors. Select media, then choose the task from its menu. The dialog shows the
 selection, the task settings, and whether its models are installed.
 
-Desktop packages include the native processing engines for the published local
-models. Install the model weights through Model Manager, then run the task on
-your selected media. See each model's [guide](/reference/local-models/) for its
-supported platforms, menu entry, and requirements.
+Desktop packages omit the optional native processing engines and model weights.
+Install a model through Model Manager to download its required engine and weights,
+then run the task on your selected media. The first installation needs a network
+connection; later processing runs locally. See each model's
+[guide](/reference/local-models/) for its supported platforms, menu entry, and
+requirements.
 
 ## Find a task {#find-a-task}
 
@@ -45,10 +47,13 @@ Open **Tools → Model Manager**, or use **Manage Models** inside a task. The ta
 link filters the list to compatible model identities; **Show all models** clears
 that restriction. Search by name or task and filter by installation status.
 
-Install models explicitly. Downloads show progress and can be cancelled. Returning
-to a task preserves its settings and refreshes model availability; it does not
-start processing. Expand **Storage and verification** for repair, cleanup,
-storage relocation, license notices, and offline installation from a folder.
+Install models explicitly. The first install also downloads any missing native
+runtime shared by that model. Downloads show progress and can be cancelled.
+Returning to a task preserves its settings and refreshes model availability; it
+does not start processing. Expand **Storage and verification** for repair,
+cleanup, storage relocation, license notices, and offline installation from a
+folder. A model installed from offline files still needs its matching runtime
+before its first use.
 
 See the [individual model guides](/reference/local-models/) for each published
 model's purpose, menu entry, download size, requirements, limitations, and the

@@ -69,7 +69,7 @@ test('every model handbook page stays derived from its real test and catalog', a
 	assert.deepEqual(result.stale, []);
 });
 
-test('every published model has packaged runtime support reflected in its guide', async () => {
+test('every published model has downloadable runtime support reflected in its guide', async () => {
 	const availability = catalog.entries.map((entry) => ({ entry,
 		...localModelRuntimeAvailability(entry, runtimeSources) }));
 	for (const { entry, availablePlatforms, familyId } of availability) {
@@ -78,8 +78,8 @@ test('every published model has packaged runtime support reflected in its guide'
 		const page = await readFile(resolve(root,
 			`handbook/src/content/docs/reference/local-models/${entry.modelId}.md`), 'utf8');
 		assert.match(page, entry.modelId === 'kokoro-82m-v1.0'
-			? /target packages generate and authenticate the offline Kokoro G2P helper/u
-			: /Desktop builds package the required/u);
+			? /download and authenticate the offline Kokoro G2P helper/u
+			: /Desktop builds can download and authenticate the required/u);
 		assert.doesNotMatch(page, /runtime target closure pending|activation remains blocked/iu);
 		assert.doesNotMatch(page, /Once a compatible native runtime is packaged/u);
 		if (['onnxruntime-node', 'sherpa-onnx-node'].includes(familyId)) {
@@ -119,11 +119,11 @@ test('Kokoro documentation follows the verified offline G2P build status', async
 		assert.equal(availability.blockedBy, undefined);
 		assert.deepEqual(availability.availablePlatforms.toSorted(), entry.platforms.toSorted());
 		assert.deepEqual(availability.missingPlatforms, []);
-		assert.match(page, /target packages generate and authenticate the offline Kokoro G2P helper/u);
+		assert.match(page, /download and authenticate the offline Kokoro G2P helper/u);
 		assert.doesNotMatch(page, /processing cannot currently complete/u);
 		assert.doesNotMatch(page, /G2P helper is currently absent/u);
 		assert.doesNotMatch(page, /when the complete offline speech runtime is available/u);
-		assert.match(page, /nine language variants.*packaged G2P helper/su);
+		assert.match(page, /nine language variants.*downloaded G2P helper/su);
 	} else {
 		assert.equal(availability.blockedBy, 'kokoro-offline-g2p-unprovisioned');
 		assert.deepEqual(availability.availablePlatforms, []);
@@ -164,12 +164,12 @@ test('published former candidates retain required test coverage and exact task m
 	assert.equal(catalog.entries.some(({ modelId }) => modelId === 'qwen3-4b-q4-k-m'), true);
 });
 
-test('newly published guides describe their working packaged-engine support', async () => {
+test('newly published guides describe their downloadable engine support', async () => {
 	for (const task of candidateTasks) {
 		const page = await readFile(resolve(root, `handbook/src/content/docs/reference/local-models/${task.catalogModelId}.md`), 'utf8');
 		assert.doesNotMatch(page, /catalog publication is pending|cannot currently install/u);
-		assert.match(page, /Desktop builds package the required/iu);
-		assert.match(page, /Install this model.s weights through Model Manager, then run its task locally/iu);
+		assert.match(page, /Desktop builds can download and authenticate the required/iu);
+		assert.match(page, /Install this model and its required runtime through Model Manager, then run its task locally/iu);
 		assert.doesNotMatch(page, /pending-external|runtime target closure|externally signed/iu);
 		assert.match(page, /consult the nightly test report/iu);
 		if (task.catalogModelId === 'qwen3-4b-q4-k-m') assert.match(page, /llama-cpp b10509/u);

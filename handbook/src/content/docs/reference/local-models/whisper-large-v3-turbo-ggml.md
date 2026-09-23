@@ -10,7 +10,7 @@ Transcribe selected speech locally through the packaged whisper.cpp runtime.
 
 ## Current availability {#current-availability}
 
-Desktop builds package the required whisper-cpp v1.9.3 engine for macOS arm64, Linux arm64, Linux x64, Windows arm64, Windows x64. Install this model’s weights through Model Manager, then run its task locally. These are supported build targets; consult the nightly test report for results on a particular package and machine. The desktop build does not package this engine for macOS x64 even though model weights are listed for those platforms.
+Desktop builds can download and authenticate the required whisper-cpp v1.9.3 engine for macOS arm64, Linux arm64, Linux x64, Windows arm64, Windows x64. Install this model and its required runtime through Model Manager, then run its task locally. These are supported build targets; consult the nightly test report for results on a particular package and machine. The desktop build has no downloadable engine for macOS x64 even though model weights are listed for those platforms.
 
 ## Use this model {#use-this-model}
 
@@ -24,17 +24,17 @@ Open **Analyze → Speech → Transcribe & Captions** on a platform with the req
 
 Model identity: `whisper-large-v3-turbo-ggml`, version **1.0.0**.
 
-Approximate download size: **547.45 MiB**. Minimum system memory: **4 GiB**. This catalog requirement refers to total memory, not currently free memory. Inference also needs sufficient free memory, and installation needs working space; memory is not a speed guarantee.
+Approximate model artifact download size: **547.45 MiB**. The required runtime adds to the first download if it is not already installed. Minimum system memory: **4 GiB**. This catalog requirement refers to total memory, not currently free memory. Inference also needs sufficient free memory, and installation needs working space; memory is not a speed guarantee.
 
-Published platforms: macOS arm64, macOS x64, Linux arm64, Linux x64, Windows arm64, Windows x64. A matching packaged runtime is also required.
+Published platforms: macOS arm64, macOS x64, Linux arm64, Linux x64, Windows arm64, Windows x64. A matching downloadable runtime is also required.
 
-Tools → Model Manager downloads the published artifacts and verifies their recorded SHA-256 digests. Processing uses the installed files locally. Open Storage and verification in Model Manager to inspect notices, repair an installation, or change the storage location.
+Tools → Model Manager downloads the published model artifacts and required runtime on first installation, and verifies their recorded SHA-256 digests. Processing uses the installed files locally. Open Storage and verification in Model Manager to inspect notices, repair an installation, or change the storage location.
 
 | Artifact | Approximate download size |
 | --- | --- |
 | ggml-large-v3-turbo-q5_0.bin | 547.45 MiB |
 
-## What the packaged test checks {#what-the-packaged-test-checks}
+## What the desktop test checks {#what-the-packaged-test-checks}
 
 Case: `whisper-turbo-transcript`; operation: `speech-recognition`.
 
@@ -42,7 +42,7 @@ Input: A public-domain excerpt from John F. Kennedy’s inaugural address, with 
 
 The transcript must contain nonempty text with valid timing inside the input audio. Exact wording is not compared.
 
-The nightly-with-tests package downloads real model artifacts and requests inference through the packaged runtime. A required model missing from the catalog fails its case. Missing native engines fail on catalog-supported platforms. These costly checks run separately from the normal browser suite. A passing run confirms basic model execution and usable output structure; it does not establish perceptual quality or accuracy on your recording.
+The nightly-with-tests package downloads real model artifacts and verified runtimes before inference. A required model missing from the catalog fails its case. Missing native engines fail on catalog-supported platforms. These costly checks run separately from the normal browser suite. A passing run confirms basic model execution and usable output structure; it does not establish perceptual quality or accuracy on your recording.
 
 ## Review the result {#review-the-result}
 

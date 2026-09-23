@@ -10,7 +10,7 @@ Suggest titles, hooks, chapters, and explanations for existing highlight candida
 
 ## Current availability {#current-availability}
 
-Desktop builds package the required llama-cpp b10509 engine for macOS arm64, Linux x64, Linux arm64, Windows x64, Windows arm64. Install this model’s weights through Model Manager, then run its task locally. These are supported build targets; consult the nightly test report for results on a particular package and machine.
+Desktop builds can download and authenticate the required llama-cpp b10509 engine for macOS arm64, Linux x64, Linux arm64, Windows x64, Windows arm64. Install this model and its required runtime through Model Manager, then run its task locally. These are supported build targets; consult the nightly test report for results on a particular package and machine.
 
 ## Use this model {#use-this-model}
 
@@ -24,17 +24,17 @@ Open **Framescaper: Tools → Advanced Local Processing → Editorial generation
 
 Model identity: `qwen3-4b-q4-k-m`, version **1.0.0**.
 
-Approximate download size: **2.33 GiB**. Minimum system memory: **16 GiB**. This catalog requirement refers to total memory, not currently free memory. Inference also needs sufficient free memory, and installation needs working space; memory is not a speed guarantee.
+Approximate model artifact download size: **2.33 GiB**. The required runtime adds to the first download if it is not already installed. Minimum system memory: **16 GiB**. This catalog requirement refers to total memory, not currently free memory. Inference also needs sufficient free memory, and installation needs working space; memory is not a speed guarantee.
 
-Published platforms: macOS arm64, Linux x64, Linux arm64, Windows x64, Windows arm64. A matching packaged runtime is also required.
+Published platforms: macOS arm64, Linux x64, Linux arm64, Windows x64, Windows arm64. A matching downloadable runtime is also required.
 
-Tools → Model Manager downloads the published artifacts and verifies their recorded SHA-256 digests. Processing uses the installed files locally. Open Storage and verification in Model Manager to inspect notices, repair an installation, or change the storage location.
+Tools → Model Manager downloads the published model artifacts and required runtime on first installation, and verifies their recorded SHA-256 digests. Processing uses the installed files locally. Open Storage and verification in Model Manager to inspect notices, repair an installation, or change the storage location.
 
 | Artifact | Approximate download size |
 | --- | --- |
 | model.gguf | 2.33 GiB |
 
-## What the packaged test checks {#what-the-packaged-test-checks}
+## What the desktop test checks {#what-the-packaged-test-checks}
 
 Case: `qwen-editorial-proposals`; operation: `editorial-generation`.
 
@@ -42,7 +42,7 @@ Input: Two fixed highlight candidates about restoring and comparing a recording,
 
 Strict JSON must contain every authorized candidate exactly once and readable titles, hooks, and explanations with valid chapter text. The production reviewer rejects unsafe or foreign content.
 
-The nightly-with-tests package downloads real model artifacts and requests inference through the packaged runtime. A required model missing from the catalog fails its case. Missing native engines fail on catalog-supported platforms. These costly checks run separately from the normal browser suite. A passing run confirms basic model execution and usable output structure; it does not establish perceptual quality or accuracy on your recording.
+The nightly-with-tests package downloads real model artifacts and verified runtimes before inference. A required model missing from the catalog fails its case. Missing native engines fail on catalog-supported platforms. These costly checks run separately from the normal browser suite. A passing run confirms basic model execution and usable output structure; it does not establish perceptual quality or accuracy on your recording.
 
 ## Review the result {#review-the-result}
 

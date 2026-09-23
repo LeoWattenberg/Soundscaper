@@ -10,7 +10,7 @@ Estimate the visually prominent area of sampled frames to help with reframing.
 
 ## Current availability {#current-availability}
 
-Desktop builds package the required onnxruntime-node 1.29.0 engine for macOS arm64, Linux arm64, Linux x64, Windows arm64, Windows x64. Install this model’s weights through Model Manager, then run its task locally. These are supported build targets; consult the nightly test report for results on a particular package and machine. The desktop build does not package this engine for macOS x64 even though model weights are listed for those platforms.
+Desktop builds can download and authenticate the required onnxruntime-node 1.29.0 engine for macOS arm64, Linux arm64, Linux x64, Windows arm64, Windows x64. Install this model and its required runtime through Model Manager, then run its task locally. These are supported build targets; consult the nightly test report for results on a particular package and machine. The desktop build has no downloadable engine for macOS x64 even though model weights are listed for those platforms.
 
 ## Use this model {#use-this-model}
 
@@ -24,19 +24,19 @@ Open **Framescaper: Effect → Video effects → Reframe** on a platform with th
 
 Model identity: `u2netp-saliency`, version **1.0.0**.
 
-Approximate download size: **4.36 MiB**. Minimum system memory: **2 GiB**. This catalog requirement refers to total memory, not currently free memory. Inference also needs sufficient free memory, and installation needs working space; memory is not a speed guarantee.
+Approximate model artifact download size: **4.36 MiB**. The required runtime adds to the first download if it is not already installed. Minimum system memory: **2 GiB**. This catalog requirement refers to total memory, not currently free memory. Inference also needs sufficient free memory, and installation needs working space; memory is not a speed guarantee.
 
-Published platforms: macOS arm64, macOS x64, Linux arm64, Linux x64, Windows arm64, Windows x64. A matching packaged runtime is also required.
+Published platforms: macOS arm64, macOS x64, Linux arm64, Linux x64, Windows arm64, Windows x64. A matching downloadable runtime is also required.
 
-On Windows, install the latest supported [Microsoft Visual C++ v14 Redistributable](https://learn.microsoft.com/en-us/cpp/windows/latest-supported-vc-redist?view=msvc-170) matching the desktop app: **x64** for an x64 build or **ARM64** for an ARM64 build. The native ONNX and Sherpa engines require these libraries; model downloads do not include them. Visual Studio itself is not required to use the app.
+On Windows, install the latest supported [Microsoft Visual C++ v14 Redistributable](https://learn.microsoft.com/en-us/cpp/windows/latest-supported-vc-redist?view=msvc-170) matching the desktop app: **x64** for an x64 build or **ARM64** for an ARM64 build. The native ONNX and Sherpa engines require these libraries; model and runtime downloads do not include them. Visual Studio itself is not required to use the app.
 
-Tools → Model Manager downloads the published artifacts and verifies their recorded SHA-256 digests. Processing uses the installed files locally. Open Storage and verification in Model Manager to inspect notices, repair an installation, or change the storage location.
+Tools → Model Manager downloads the published model artifacts and required runtime on first installation, and verifies their recorded SHA-256 digests. Processing uses the installed files locally. Open Storage and verification in Model Manager to inspect notices, repair an installation, or change the storage location.
 
 | Artifact | Approximate download size |
 | --- | --- |
 | u2netp.onnx | 4.36 MiB |
 
-## What the packaged test checks {#what-the-packaged-test-checks}
+## What the desktop test checks {#what-the-packaged-test-checks}
 
 Case: `saliency-detection`; operation: `saliency-detection`.
 
@@ -44,7 +44,7 @@ Input: Two photographs: the public-domain NASA portrait of astronaut Eileen Coll
 
 Frame results must retain their source timing and contain a finite, bounded saliency point for the subject fixture.
 
-The nightly-with-tests package downloads real model artifacts and requests inference through the packaged runtime. A required model missing from the catalog fails its case. Missing native engines fail on catalog-supported platforms. These costly checks run separately from the normal browser suite. A passing run confirms basic model execution and usable output structure; it does not establish perceptual quality or accuracy on your recording.
+The nightly-with-tests package downloads real model artifacts and verified runtimes before inference. A required model missing from the catalog fails its case. Missing native engines fail on catalog-supported platforms. These costly checks run separately from the normal browser suite. A passing run confirms basic model execution and usable output structure; it does not establish perceptual quality or accuracy on your recording.
 
 ## Review the result {#review-the-result}
 
