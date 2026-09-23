@@ -1,6 +1,6 @@
 ---
 title: "Удаление фонового шума"
-description: "Обучите функцию уменьшения шума тому, как звучит гул, а затем удалите его из всего записи."
+description: "Обучите функцию «Уменьшение шума» распознаванию гула, а затем удалите его со всего записи."
 editUrl: false
 sidebar:
   order: 1
@@ -8,9 +8,9 @@ head:
   - tag: script
     attrs:
       type: "application/ld+json"
-    content: "{\"@context\":\"https://schema.org\",\"@type\":\"HowTo\",\"name\":\"Remove background noise\",\"description\":\"Teach Noise Reduction what the hum sounds like, then take it out of the whole recording.\",\"tool\":[{\"@type\":\"HowToTool\",\"name\":\"Soundscaper\"}],\"step\":[{\"@type\":\"HowToStep\",\"position\":1,\"name\":\"Open Soundscaper. A new, empty project is ready as soon as the editor loads.\",\"text\":\"Open Soundscaper. A new, empty project is ready as soon as the editor loads.\"},{\"@type\":\"HowToStep\",\"position\":2,\"name\":\"Choose File → Import audio and pick the recording you want to clean up. The file lands as a clip on its own track.\",\"text\":\"Choose File → Import audio and pick the recording you want to clean up. The file lands as a clip on its own track.\"},{\"@type\":\"HowToStep\",\"position\":3,\"name\":\"Drag in the ruler above the clip to select a stretch that contains only the noise — usually the lead-in before anyone speaks.\",\"text\":\"Drag in the ruler above the clip to select a stretch that contains only the noise — usually the lead-in before anyone speaks. The profile should contain nothing but the noise you want gone.\"},{\"@type\":\"HowToStep\",\"position\":4,\"name\":\"Choose Effect → Noise removal and repair → Noise Reduction and press Get noise profile. The status line reports that the profile is ready. Press Close to leave the dialog for now.\",\"text\":\"Choose Effect → Noise removal and repair → Noise Reduction and press Get noise profile. The status line reports that the profile is ready. Press Close to leave the dialog for now.\"},{\"@type\":\"HowToStep\",\"position\":5,\"name\":\"Choose Select → Select all.\",\"text\":\"Choose Select → Select all. The profile is kept; now the effect needs to know what to clean.\"},{\"@type\":\"HowToStep\",\"position\":6,\"name\":\"Choose Effect → Noise removal and repair → Noise Reduction. In the Noise Reduction dialog, set Noise reduction to 12, then press Apply to selection.\",\"text\":\"Choose Effect → Noise removal and repair → Noise Reduction. In the Noise Reduction dialog, set Noise reduction to 12, then press Apply to selection. Around 12 dB is a good first try. Higher values remove more noise but start to make voices sound hollow.\"},{\"@type\":\"HowToStep\",\"position\":7,\"name\":\"Press Play to listen, then Stop.\",\"text\":\"Press Play to listen, then Stop. The lead-in is much quieter and the voice is untouched.\"}]}"
+    content: "{\"@context\":\"https://schema.org\",\"@type\":\"HowTo\",\"name\":\"Remove background noise\",\"description\":\"Teach Noise Reduction what the hum sounds like, then take it out of the whole recording.\",\"tool\":[{\"@type\":\"HowToTool\",\"name\":\"Soundscaper\"}],\"step\":[{\"@type\":\"HowToStep\",\"position\":1,\"name\":\"Open Soundscaper. A new, empty project is ready as soon as the editor loads.\",\"text\":\"Open Soundscaper. A new, empty project is ready as soon as the editor loads.\"},{\"@type\":\"HowToStep\",\"position\":2,\"name\":\"Choose File → Import and pick the recording you want to clean up. It lands as a clip on its own track.\",\"text\":\"Choose File → Import and pick the recording you want to clean up. It lands as a clip on its own track.\"},{\"@type\":\"HowToStep\",\"position\":3,\"name\":\"Drag in the ruler above the clip to select a stretch that contains only the noise — usually the lead-in before anyone speaks.\",\"text\":\"Drag in the ruler above the clip to select a stretch that contains only the noise — usually the lead-in before anyone speaks. The profile should contain nothing but the noise you want gone.\"},{\"@type\":\"HowToStep\",\"position\":4,\"name\":\"Choose Effect → Noise removal and repair → Noise Reduction and press Get noise profile. The status line reports that the profile is ready. Press Close to leave the dialog for now.\",\"text\":\"Choose Effect → Noise removal and repair → Noise Reduction and press Get noise profile. The status line reports that the profile is ready. Press Close to leave the dialog for now.\"},{\"@type\":\"HowToStep\",\"position\":5,\"name\":\"Choose Select → Select all.\",\"text\":\"Choose Select → Select all. The profile is kept; now the effect needs to know what to clean.\"},{\"@type\":\"HowToStep\",\"position\":6,\"name\":\"Choose Effect → Noise removal and repair → Noise Reduction. In the Noise Reduction dialog, set Noise reduction to 12, then press Apply to selection.\",\"text\":\"Choose Effect → Noise removal and repair → Noise Reduction. In the Noise Reduction dialog, set Noise reduction to 12, then press Apply to selection. Around 12 dB is a good first try. Higher values remove more noise but start to make voices sound hollow.\"},{\"@type\":\"HowToStep\",\"position\":7,\"name\":\"Press Play to listen, then Stop.\",\"text\":\"Press Play to listen, then Stop. The lead-in is much quieter and the voice is untouched.\"}]}"
 ---
-<!-- docs-ai-provenance: {"factPacketSha256":"c579909f7c6a84651400e72c3ef0d3d7896f553e9f091a0d5dfbda1267ba2bb3","model":"aya-expanse:32b","modelDigest":"1603440383bd5504dc7afd01c0407b425b988dde650a8dc1a737433baa3cd432","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"c579909f7c6a84651400e72c3ef0d3d7896f553e9f091a0d5dfbda1267ba2bb3","targetLocale":"ru"} -->
+<!-- docs-ai-provenance: {"factPacketSha256":"dc5ee5727bc89fa1bf625018b6e955abca6ffe475407123662cfca57d83201a7","model":"aya-expanse:32b","modelDigest":"1603440383bd5504dc7afd01c0407b425b988dde650a8dc1a737433baa3cd432","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"dc5ee5727bc89fa1bf625018b6e955abca6ffe475407123662cfca57d83201a7","targetLocale":"ru"} -->
 
 <!-- Generated by `node scripts/docs-reference.mjs`. Do not edit. -->
 
@@ -23,10 +23,10 @@ head:
 ## Шаги
 
 1. Откройте Soundscaper. Новая пустая проект готов сразу после загрузки редактора.
-2. Выберите **Файл → Импортировать аудио** и выберите запись, которую вы хотите очистить. Файл помещается в виде клипа на отдельную дорожку.
-3. Перетащите линейку над клипом, чтобы выбрать фрагмент, содержащий только шум — обычно ввод перед тем, как кто-то заговорит. Профили должен содержать только шум, который вы хотите удалить.
+2. Выберите **Файл → Импорт** и выберите запись, которую вы хотите очистить. Она помещается в виде клипа на отдельную дорожку.
+3. Перетащите линейку над клипом, чтобы выбрать фрагмент, содержащий только шум — обычно ввод перед тем, как кто-то начнет говорить. В профиле не должно быть ничего, кроме шума, который вы хотите удалить.
 4. Выберите **Эффект → Удаление и восстановление шума → Уменьшение шума** и нажмите **Получить профиль шума**. Статусная строка сообщает, что профиль готов. Нажмите **Закрыть**, чтобы пока покинуть диалоговое окно.
-5. Выберите **Выбрать → Выбрать все**. Профили сохраняется; теперь эффект должен знать, что нужно очистить.
+5. Выберите **Выбрать → Выбрать все**. Профилирование сохраняется; теперь эффект должен знать, что нужно очистить.
 6. Выберите **Эффект → Удаление и восстановление шума → Уменьшение шума**. В диалоговом окне **Уменьшение шума** установите **Уменьшение шума** на `12`, затем нажмите **Применить к выделенному**. Около 12 дБ — хороший первый вариант. Более высокие значения удаляют больше шума, но начинают делать голос пустым.
 7. Нажмите **Воспроизвести**, чтобы послушать, затем **Стоп**.
    *Вы должны увидеть:* Ввод значительно тише, а голос не затронут.
@@ -40,13 +40,13 @@ head:
 
 Больше руководств по [очистке записи](/guides/cleaning-up/):
 
-- [Удаление щелчков и хлопков](/guides/cleaning-up/remove-clicks-and-pops/) — Удалите короткие резкие щелчки из записи без затрагивания остального.
-- [Укоротить длинные паузы](/guides/cleaning-up/remove-silent-pauses/) — Сделайте запись плотнее, обрезав каждую длинную тишину до короткого промежутка.
-- [Заменить часть записи тишиной](/guides/cleaning-up/silence-part-of-a-recording/) — Замените фрагмент аудио тишиной, сохраняя при этом все на своих местах.
+- [Удаление щелчков и хлопков](/guides/cleaning-up/remove-clicks-and-pops/) — Удалите короткие резкие щелчки из записи без воздействия на остальное.
+- [Укоротить длинные паузы](/guides/cleaning-up/remove-silent-pauses/) — Сделайте запись плотнее, обрезав каждую длинную тишину до одного короткого интервала.
+- [Сделать часть записи тихой](/guides/cleaning-up/silence-part-of-a-recording/) — Замените фрагмент аудио тишиной, сохраняя при этом все на своих местах.
 - [Удалить низкочастотный гул](/guides/cleaning-up/remove-low-rumble/) — Удалите суббасовые удары от транспорта, ветра и обработки с помощью высокочастотного фильтра.
 - [Исправить DC-смещение](/guides/cleaning-up/fix-dc-offset/) — Центрируйте форму волны, которая находится выше или ниже нулевой линии.
-- [Удалить гул от электросети с помощью фильтра-пропускания](/guides/cleaning-up/remove-mains-hum-with-a-notch-filter/) — Удалите одну частоту — 50 или 60 Гц гул, свист, звон — не затрагивая остальное.
-- [Замолчать шум между фразами с помощью шума-ворота](/guides/cleaning-up/gate-out-noise-between-phrases/) — Пропустите голос и закройте дверь на шум помещения, когда никто не говорит.
+- [Удалить гул от электросети с помощью фильтра-пропуска](/guides/cleaning-up/remove-mains-hum-with-a-notch-filter/) — Удалите одну частоту — 50 или 60 Гц гул, свист, звон — не затрагивая остальное.
+- [Сделать тихим шум между фразами с помощью шума-ворота](/guides/cleaning-up/gate-out-noise-between-phrases/) — Пропустите голос и закройте дверь на шум помещения, когда никто не говорит.
 
 ## Ссылки
 

@@ -4,7 +4,7 @@ description: "Организуйте видео, создайте компози
 sidebar:
   order: 1
 ---
-<!-- docs-ai-provenance: {"factPacketSha256":"6193de9a731d010659be03c1372890bf230bb54161c79a2aa1e3ffe4a63c51bd","model":"aya-expanse:32b","modelDigest":"1603440383bd5504dc7afd01c0407b425b988dde650a8dc1a737433baa3cd432","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"6193de9a731d010659be03c1372890bf230bb54161c79a2aa1e3ffe4a63c51bd","targetLocale":"ru"} -->
+<!-- docs-ai-provenance: {"factPacketSha256":"fe5df8f699907289847a5d9022c094e32168b502a532ebdf7708436a99db38b7","model":"aya-expanse:32b","modelDigest":"1603440383bd5504dc7afd01c0407b425b988dde650a8dc1a737433baa3cd432","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"fe5df8f699907289847a5d9022c094e32168b502a532ebdf7708436a99db38b7","targetLocale":"ru"} -->
 
 Framescaper — это ориентированный на видео вид общего редактора. Он делает акцент на предварительном просмотре видео, мониторинге источника, эффектах изображения, компоновке, вложенных последовательностях и работе с несколькими камерами.
 
@@ -14,12 +14,14 @@ Soundscaper и Framescaper открывают файлы проектов дру
 
 Framescaper отвечает за изображение: импорт видео, мониторинг источника и предварительный просмотр видео, эффекты изображения, геометрию и компоновку, вложенные последовательности, работу с несколькими камерами и доставку видео. Связанные дорожки изображений и звука остаются синхронизированными здесь до тех пор, пока вы их не разорвете.
 
-Soundscaper отвечает за звук: аудиозапись, эффекты и анализ, микширование и доставку звука. Framescaper использует другой рабочий процесс захвата и не предоставляет набор инструментов записи звука Soundscaper, поэтому записывайте в Soundscaper, а затем верните проект обратно. Пошаговые [руководства](/guides/) написаны и проверены на Soundscaper, и они также охватывают аудиосторону видеопроекта.
+Soundscaper отвечает за звук: запись звука, эффекты и анализ, микширование и доставку звука. Framescaper использует другой рабочий процесс захвата и не предоставляет набор инструментов записи звука Soundscaper, поэтому записывайте в Soundscaper, а затем верните проект обратно. Пошаговые [руководства](/guides/) написаны и проверены на Soundscaper и также охватывают аудиосторону видеопроекта.
 
 ## Рекомендуемый путь
 
 1. [Создайте первый проект Framescaper](/framescaper/first-project/).
 2. [Подготовьте и экспортируйте видео](/framescaper/video-export/).
-3. Ознакомьтесь с [поведением файлов проекта и резервного копирования](/projects-and-data/project-files/).
+3. Обратите внимание на [поведение файлов проекта и резервного копирования](/projects-and-data/project-files/).
 
-Откройте браузер редактора по адресу [soundscaper.org/framescaper/en](https://soundscaper.org/framescaper/en/).
+Откройте браузерный редактор по адресу [soundscaper.org/framescaper/en](https://soundscaper.org/framescaper/en/).
+
+Для помощи на рабочем столе, см. [местную обработку, модели и плагины](/help/local-processing/).

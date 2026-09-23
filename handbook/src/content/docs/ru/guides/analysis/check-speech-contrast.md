@@ -8,9 +8,9 @@ head:
   - tag: script
     attrs:
       type: "application/ld+json"
-    content: "{\"@context\":\"https://schema.org\",\"@type\":\"HowTo\",\"name\":\"Check that speech stands out from its background\",\"description\":\"Measure how far a voice sits above the noise behind it, the way accessibility guidelines ask.\",\"tool\":[{\"@type\":\"HowToTool\",\"name\":\"Soundscaper\"}],\"step\":[{\"@type\":\"HowToStep\",\"position\":1,\"name\":\"Open Soundscaper. A new, empty project is ready as soon as the editor loads.\",\"text\":\"Open Soundscaper. A new, empty project is ready as soon as the editor loads.\"},{\"@type\":\"HowToStep\",\"position\":2,\"name\":\"Choose File → Import audio and pick the recording with speech over background noise. The file lands as a clip on its own track.\",\"text\":\"Choose File → Import audio and pick the recording with speech over background noise. The file lands as a clip on its own track.\"},{\"@type\":\"HowToStep\",\"position\":3,\"name\":\"Drag in the ruler above the clip to select a stretch of background with nobody speaking.\",\"text\":\"Drag in the ruler above the clip to select a stretch of background with nobody speaking. The background measurement should contain only the noise the voice has to compete with.\"},{\"@type\":\"HowToStep\",\"position\":4,\"name\":\"Choose Analyze → Contrast. The Contrast panel opens.\",\"text\":\"Choose Analyze → Contrast. The Contrast panel opens.\"},{\"@type\":\"HowToStep\",\"position\":5,\"name\":\"In the Contrast panel, press Measure background. The panel keeps the selection’s level as the background.\",\"text\":\"In the Contrast panel, press Measure background. The panel keeps the selection’s level as the background.\"},{\"@type\":\"HowToStep\",\"position\":6,\"name\":\"Drag in the ruler above the clip to select a passage of speech.\",\"text\":\"Drag in the ruler above the clip to select a passage of speech. Pick ordinary speech rather than the loudest word, since the whole passage is averaged.\"},{\"@type\":\"HowToStep\",\"position\":7,\"name\":\"In the Contrast panel, press Measure foreground. The panel reports the foreground level, the background level and the difference between them.\",\"text\":\"In the Contrast panel, press Measure foreground. The panel reports the foreground level, the background level and the difference between them. The foreground and background levels, their difference in dB, and whether the difference meets the recommended 20 dB.\"}]}"
+    content: "{\"@context\":\"https://schema.org\",\"@type\":\"HowTo\",\"name\":\"Check that speech stands out from its background\",\"description\":\"Measure how far a voice sits above the noise behind it, the way accessibility guidelines ask.\",\"tool\":[{\"@type\":\"HowToTool\",\"name\":\"Soundscaper\"}],\"step\":[{\"@type\":\"HowToStep\",\"position\":1,\"name\":\"Open Soundscaper. A new, empty project is ready as soon as the editor loads.\",\"text\":\"Open Soundscaper. A new, empty project is ready as soon as the editor loads.\"},{\"@type\":\"HowToStep\",\"position\":2,\"name\":\"Choose File → Import and pick the recording with speech over background noise. It lands as a clip on its own track.\",\"text\":\"Choose File → Import and pick the recording with speech over background noise. It lands as a clip on its own track.\"},{\"@type\":\"HowToStep\",\"position\":3,\"name\":\"Drag in the ruler above the clip to select a stretch of background with nobody speaking.\",\"text\":\"Drag in the ruler above the clip to select a stretch of background with nobody speaking. The background measurement should contain only the noise the voice has to compete with.\"},{\"@type\":\"HowToStep\",\"position\":4,\"name\":\"Choose Analyze → Contrast. The Contrast panel opens.\",\"text\":\"Choose Analyze → Contrast. The Contrast panel opens.\"},{\"@type\":\"HowToStep\",\"position\":5,\"name\":\"In the Contrast panel, press Measure background. The panel keeps the selection’s level as the background.\",\"text\":\"In the Contrast panel, press Measure background. The panel keeps the selection’s level as the background.\"},{\"@type\":\"HowToStep\",\"position\":6,\"name\":\"Drag in the ruler above the clip to select a passage of speech.\",\"text\":\"Drag in the ruler above the clip to select a passage of speech. Pick ordinary speech rather than the loudest word, since the whole passage is averaged.\"},{\"@type\":\"HowToStep\",\"position\":7,\"name\":\"In the Contrast panel, press Measure foreground. The panel reports the foreground level, the background level and the difference between them.\",\"text\":\"In the Contrast panel, press Measure foreground. The panel reports the foreground level, the background level and the difference between them. The foreground and background levels, their difference in dB, and whether the difference meets the recommended 20 dB.\"}]}"
 ---
-<!-- docs-ai-provenance: {"factPacketSha256":"8d29b926665c31c888346d023adb621b891435a25617b140144789b7e0b97b97","model":"aya-expanse:32b","modelDigest":"1603440383bd5504dc7afd01c0407b425b988dde650a8dc1a737433baa3cd432","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"8d29b926665c31c888346d023adb621b891435a25617b140144789b7e0b97b97","targetLocale":"ru"} -->
+<!-- docs-ai-provenance: {"factPacketSha256":"2284b517195eb89b164851099b86e83abc4362133f605f353bb07e0bf733b701","model":"aya-expanse:32b","modelDigest":"1603440383bd5504dc7afd01c0407b425b988dde650a8dc1a737433baa3cd432","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"2284b517195eb89b164851099b86e83abc4362133f605f353bb07e0bf733b701","targetLocale":"ru"} -->
 
 <!-- Generated by `node scripts/docs-reference.mjs`. Do not edit. -->
 
@@ -23,28 +23,28 @@ head:
 ## Шаги
 
 1. Откройте Soundscaper. Новая пустая проектная страница готова сразу после загрузки редактора.
-2. Выберите **Файл → Импортировать аудио** и выберите запись с речью на фоне шума. Файл помещается в виде клипа на отдельную дорожку.
-3. Перетащите линейку над клипом, чтобы выделить фрагмент фона без речи. Измерение фона должно включать только шум, с которым должна конкурировать речь.
+2. Выберите **Файл → Импорт** и выберите запись с речью на фоне шума. Она помещается в виде клипа на отдельную дорожку.
+3. Перетащите линейку над клипом, чтобы выделить фрагмент фона, когда никто не говорит. Измерение фона должно включать только шум, с которым должна конкурировать речь.
 4. Выберите **Анализ → Контраст**. Откроется панель «Контраст».
 5. В панели «Контраст» нажмите **Измерить фон**. Панель запомнит уровень выделенного фрагмента в качестве фона.
 6. Перетащите линейку над клипом, чтобы выделить фрагмент речи. Выберите обычную речь, а не самое громкое слово, так как будет усреднено целое предложение.
 7. В панели «Контраст» нажмите **Измерить передний план**. Панель сообщит уровень переднего плана, уровень фона и разницу между ними.
-   *Вы должны увидеть:* Уровни переднего плана и фона, их разницу в дБ и соответствие ли она рекомендуемым 20 дБ.
+   *Вы должны увидеть:* Уровни переднего плана и фона, их разницу в дБ и то, соответствует ли она рекомендуемому значению 20 дБ.
 
 ## Советы
 
 - Если разница не достигает требуемого значения, [сократите фоновый шум](/guides/cleaning-up/remove-background-noise/) или [выровняйте громкость голоса с помощью компрессора](/guides/volume/even-out-volume-with-a-compressor/), а затем снова измерите.
-- Измерение представляет собой усреднение RMS по выделенному фрагменту, поэтому один громкий слог не спасет тихий фрагмент.
+- Измерение представляет собой усредненное значение RMS по выделенному фрагменту, поэтому один громкий слог не спасет тихий фрагмент.
 
 ## Связанные руководства
 
 Больше [аналитических](/guides/analysis/) руководств:
 
 - [Удаление фонового шума](/guides/cleaning-up/remove-background-noise/) — Обучите функцию «Уменьшение шума» тому, как звучит гул, а затем удалите его из всей записи.
-- [Выравнивание громкости с помощью компрессора](/guides/volume/even-out-volume-with-a-compressor/) — Сократите разницу между громкими и тихими моментами, чтобы речь было легче слышать.
+- [Выравнивание громкости с помощью компрессора](/guides/volume/even-out-volume-with-a-compressor/) — Уменьшите разницу между громкими и тихими моментами, чтобы речь было легче слышать.
 - [Измерение громкости микса](/guides/analysis/measure-loudness/) — Прочитайте интегральную громкость, диапазон и истинный пик проекта так, как это делают вещатели.
-- [Определение частот, содержащихся в звуке](/guides/analysis/plot-a-spectrum/) — Построить спектр выделенного фрагмента, чтобы найти гул, свист или резонансы.
-- [Поиск мест, где запись была искажена](/guides/analysis/find-clipping/) — Найдите места, где запись достигла максимального уровня и была искажена.
+- [Определение частот, содержащихся в звуке](/guides/analysis/plot-a-spectrum/) — Построите спектр выделенного фрагмента, чтобы найти гул, свист или резонансы.
+- [Поиск мест, где запись искажена](/guides/analysis/find-clipping/) — Найдите места, где запись достигла максимального уровня и искажена.
 - [Поиск ударов в петле](/guides/analysis/find-the-beats/) — Позвольте анализатору ударов отмечать каждый удар, который он слышит.
 
 ## Ссылки
@@ -53,4 +53,4 @@ head:
 
 ## Об этом руководстве
 
-Процедура на этой странице — каждая запись в меню, диалоговое окно, поле и кнопка, а также получаемый результат — воспроизводится на каждом сборе Soundscaper с помощью браузерного набора инструментов (`tests/browser/soundscaper-guides.spec.js`). Если любая из них перестает соответствовать редактору, сборка не проходит до тех пор, пока руководство не будет исправлено. Предлагаемые значения являются отправной точкой, которую редактор готов принять; подходит ли они для вашей записи, решают ваши уши.
+Процедура на этой странице — каждый пункт меню, диалоговое окно, поле и кнопка, а также получаемый результат — воспроизводится для каждой сборки Soundscaper браузерным набором инструментов (`tests/browser/soundscaper-guides.spec.js`). Если любая из этих процедур перестает соответствовать редактору, сборка не проходит до тех пор, пока руководство не будет исправлено. Предлагаемые значения являются отправной точкой, которую редактор готов принять; подходит ли это для вашей записи, решают ваши уши.
