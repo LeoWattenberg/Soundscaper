@@ -2,13 +2,14 @@
 
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
-import { access, copyFile, mkdir, mkdtemp, readdir, rm, symlink, writeFile } from 'node:fs/promises';
+import { copyFile, mkdir, mkdtemp, readdir, rm, symlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 
 import { createPackage } from '@electron/asar';
+import { getCurrentFuseWire } from '@electron/fuses';
 
 import hardenDesktopNightlyTests from '../scripts/desktop-nightly-tests-after-pack.mjs';
 
@@ -16,15 +17,21 @@ const ROOT = fileURLToPath(new URL('../', import.meta.url));
 
 /**
  * A restored node_modules cache can contain Electron's package metadata without
- * its platform executable. Electron 43 exposes an explicit installer instead
- * of a postinstall hook, so npm rebuild cannot repair it. Install that runtime
- * before this packaged-runtime regression tries to copy the executable.
+ * its platform executable or contain an unusable one. Electron's installer
+ * checks only that the executable exists, so remove an invalid copy before
+ * asking it to restore the runtime.
  */
 async function ensureElectronDist() {
 	const dist = join(ROOT, 'node_modules/electron/dist');
+	const executable = join(dist, 'electron');
 	try {
-		await access(join(dist, 'electron'));
-	} catch {
+		await getCurrentFuseWire(executable);
+	} catch (error) {
+		if (!(error instanceof Error && (
+			('code' in error && error.code === 'ENOENT')
+			|| error.message.includes('Could not find sentinel')
+		))) throw error;
+		await rm(executable, { force: true });
 		const result = spawnSync(process.execPath, [join(ROOT, 'node_modules/electron/install.js')], {
 			cwd: ROOT,
 			stdio: 'inherit',
@@ -32,7 +39,7 @@ async function ensureElectronDist() {
 		});
 		assert.ifError(result.error);
 		assert.equal(result.status, 0, 'Electron runtime installation failed');
-		await access(join(dist, 'electron'));
+		await getCurrentFuseWire(executable);
 	}
 	return dist;
 }
