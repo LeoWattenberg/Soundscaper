@@ -47,12 +47,19 @@ function previewFixture() {
 	return previewPromise;
 }
 
-async function mockFreesoundApi(page) {
+export async function mockFreesoundApi(page) {
 	const requests = [];
 	const preview = await previewFixture();
 	await page.route('**/api/freesound/**', async (route) => {
 		const url = new URL(route.request().url());
 		requests.push(url);
+		if (url.pathname === '/api/freesound/oauth/session') {
+			await route.fulfill({
+				status: 200, contentType: 'application/json',
+				body: JSON.stringify({ data: { connected: false } }),
+			});
+			return;
+		}
 		if (url.pathname === '/api/freesound/search') {
 			await route.fulfill({
 				status: 200, contentType: 'application/json',
@@ -80,8 +87,9 @@ async function mockFreesoundApi(page) {
 	return requests;
 }
 
-export async function runFreesoundSearch(page, state, entry) {
-	const requests = await mockFreesoundApi(page);
+export async function runFreesoundSearch(state, entry) {
+	const requests = state.freesoundRequests;
+	if (!requests) throw new Error('Set up the Freesound guide API before opening its panel.');
 	const panel = state.editor.locator('[data-workspace-panel="freesound"]');
 	await expect(panel).toBeVisible();
 	await panel.getByRole('searchbox', { name: 'Search Freesound', exact: true }).fill(entry.query);

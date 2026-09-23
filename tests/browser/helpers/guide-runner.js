@@ -34,7 +34,7 @@ import {
 	runResample,
 } from './guide-actions.js';
 import { guideFixtureClipName, guideFixtureFile } from './guide-fixtures.js';
-import { runFreesoundInsert, runFreesoundSearch } from './guide-freesound.js';
+import { mockFreesoundApi, runFreesoundInsert, runFreesoundSearch } from './guide-freesound.js';
 import { runContrast, runMacro, runPlayAtSpeed } from './guide-workflows.js';
 import { chooseTrackMenuAction } from './track-menu.js';
 
@@ -301,7 +301,7 @@ async function executeStep(page, state, entry) {
 			else await chooseNestedCommandAction(page, state.editor, entry.path[0], entry.path.slice(1));
 			return;
 		case 'freesound-search':
-			await runFreesoundSearch(page, state, entry);
+			await runFreesoundSearch(state, entry);
 			return;
 		case 'freesound-insert':
 			await runFreesoundInsert(state, entry);
@@ -411,6 +411,9 @@ export async function runGuide(page, guide) {
 	await disableNativeSavePicker(page);
 	const errors = collectClientErrors(page);
 	const state = { editor: null, clipName: null, fixture: null, projectFile: null };
+	if (guide.steps.some((entry) => entry.kind === 'freesound-search' || entry.kind === 'freesound-insert')) {
+		state.freesoundRequests = await mockFreesoundApi(page);
+	}
 	for (const [index, entry] of guide.steps.entries()) {
 		// Step titles name the example and the exact stretch, the way a tutorial does,
 		// so a failing report says what the suite actually did.
