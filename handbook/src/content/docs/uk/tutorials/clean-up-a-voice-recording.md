@@ -1,0 +1,68 @@
+---
+title: "Очищення голосового запису"
+description: "Приберіть гул, відфільтруйте гуркіт, налаштуйте гучність для подкасту й експортуйте MP3."
+editUrl: false
+sidebar:
+  order: 2
+head:
+  - tag: script
+    attrs:
+      type: "application/ld+json"
+    content: "{\"@context\":\"https://schema.org\",\"@type\":\"HowTo\",\"name\":\"Clean up a voice recording\",\"description\":\"Take the hum out of a take, cut the rumble, bring it to podcast loudness and export an MP3.\",\"tool\":[{\"@type\":\"HowToTool\",\"name\":\"Soundscaper\"}],\"step\":[{\"@type\":\"HowToStep\",\"position\":1,\"name\":\"Open Soundscaper. A new, empty project is ready as soon as the editor loads.\",\"text\":\"Open Soundscaper. A new, empty project is ready as soon as the editor loads.\"},{\"@type\":\"HowToStep\",\"position\":2,\"name\":\"Choose File → Import and pick guide-noisy-take.wav — a short take whose first half second is room noise before the voice starts. It lands as a clip on its own track.\",\"text\":\"Choose File → Import and pick guide-noisy-take.wav — a short take whose first half second is room noise before the voice starts. It lands as a clip on its own track.\"},{\"@type\":\"HowToStep\",\"position\":3,\"name\":\"Press Play to listen, then Stop.\",\"text\":\"Press Play to listen, then Stop. Half a second of hiss, then a steady tone standing in for a voice, with the hiss underneath it.\"},{\"@type\":\"HowToStep\",\"position\":4,\"name\":\"Drag in the ruler above the clip, from the start to the 15% mark, to select the noise-only lead-in.\",\"text\":\"Drag in the ruler above the clip, from the start to the 15% mark, to select the noise-only lead-in. The profile must contain nothing but the noise you want gone — no voice at all.\"},{\"@type\":\"HowToStep\",\"position\":5,\"name\":\"Choose Effect → Noise removal and repair → Noise Reduction and press Get noise profile. The status line reports that the profile is ready. Press Close to leave the dialog for now.\",\"text\":\"Choose Effect → Noise removal and repair → Noise Reduction and press Get noise profile. The status line reports that the profile is ready. Press Close to leave the dialog for now.\"},{\"@type\":\"HowToStep\",\"position\":6,\"name\":\"Choose Select → Select all.\",\"text\":\"Choose Select → Select all. The profile is kept; now the effect needs to know what to clean.\"},{\"@type\":\"HowToStep\",\"position\":7,\"name\":\"Choose Effect → Noise removal and repair → Noise Reduction. In the Noise Reduction dialog, set Noise reduction to 12, then press Apply to selection.\",\"text\":\"Choose Effect → Noise removal and repair → Noise Reduction. In the Noise Reduction dialog, set Noise reduction to 12, then press Apply to selection. Twelve decibels is a good first setting. More removes more noise but makes voices sound hollow. The lead-in is nearly flat and the tone is untouched.\"},{\"@type\":\"HowToStep\",\"position\":8,\"name\":\"Choose Effect → Legacy effects → Classic Filters. In the Classic Filters dialog, choose High-pass for Filter type and set Cutoff frequency to 100, then press Apply to selection.\",\"text\":\"Choose Effect → Legacy effects → Classic Filters. In the Classic Filters dialog, choose High-pass for Filter type and set Cutoff frequency to 100, then press Apply to selection. Everything below 100 Hz — traffic, handling, air conditioning — is rolled off. Speech lives well above it.\"},{\"@type\":\"HowToStep\",\"position\":9,\"name\":\"Choose Effect → Volume and compression → Loudness Normalization. In the Loudness Normalization dialog, set Target loudness to -16, then press Apply to selection.\",\"text\":\"Choose Effect → Volume and compression → Loudness Normalization. In the Loudness Normalization dialog, set Target loudness to -16, then press Apply to selection. −16 LUFS is the common target for stereo podcasts. Loudness measures how loud the whole take feels, not how tall its peaks are. The waveform is taller and the take plays at a comfortable level.\"},{\"@type\":\"HowToStep\",\"position\":10,\"name\":\"Press Play to listen, then Stop.\",\"text\":\"Press Play to listen, then Stop. A clean, level take with a quiet lead-in.\"},{\"@type\":\"HowToStep\",\"position\":11,\"name\":\"Choose File → Export audio, set Format to MP3, and press Export. The file downloads as soon as the render finishes, and its link stays in the dialog.\",\"text\":\"Choose File → Export audio, set Format to MP3, and press Export. The file downloads as soon as the render finishes, and its link stays in the dialog. The file is encoded in the browser; nothing leaves your computer.\"}]}"
+---
+<!-- docs-ai-provenance: {"factPacketSha256":"96727487ae82c7f76b646047856630f73eb756ee7832615587e24e1e6db0b0ee","model":"gpt-6-luna","modelProvider":"codex-subagent","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"96727487ae82c7f76b646047856630f73eb756ee7832615587e24e1e6db0b0ee","targetLocale":"uk"} -->
+
+<!-- Generated by `node scripts/docs-reference.mjs`. Do not edit. -->
+
+Більшість домашніх записів потребує тих самих трьох виправлень: видалення рівномірного фонового шуму, фільтрації низького гуркоту та підняття рівня до стандартного. У цьому посібнику виконуються всі три кроки на трисекундному прикладі: перші пів секунди містять лише кімнатний шум. Наприкінці результат експортується як MP3.
+
+:::tip[Що знадобиться]
+- Завантажте [`guide-noisy-take.wav`](https://assets.soundscaper.org/guides/examples/guide-noisy-take.wav) — короткий запис, у якому перед голосом є пів секунди кімнатного шуму.
+
+Усі наведені нижче кроки виконуються з цими файлами без змін, тож побачене має відповідати інструкціям. Soundscaper працює у браузері; нічого встановлювати не потрібно.
+:::
+
+## Чого ви навчитеся
+
+- Навіщо Noise Reduction потрібен профіль і як його створити.
+- Що видаляє фільтр верхніх частот і як налаштувати його для мовлення.
+- Чим піковий рівень відрізняється від гучності та як досягти цільового рівня гучності.
+- Як експортувати MP3.
+
+## Кроки
+
+1. Відкрийте Soundscaper. Щойно редактор завантажиться, буде готовий новий порожній проєкт.
+2. Виберіть **Файл → Імпорт** і відкрийте `guide-noisy-take.wav` — короткий запис, у якому перед голосом є пів секунди кімнатного шуму. Він з’явиться як кліп на окремій доріжці.
+3. Натисніть **Відтворити**, щоб прослухати, а потім **Зупинити**.
+   *Має з’явитися:* пів секунди шипіння, а далі рівний тон, що імітує голос, із шумом під ним.
+4. Перетягніть курсор по лінійці над кліпом від початку до позначки 15%, щоб виділити вступний фрагмент лише з шумом. Профіль має містити тільки шум, який потрібно прибрати, — без голосу.
+5. Виберіть **Ефект → Видалення шуму й відновлення → Noise Reduction** і натисніть **Get noise profile**. У рядку стану з’явиться повідомлення, що профіль готовий. Натисніть **Close**, щоб поки закрити вікно.
+6. Виберіть **Вибрати → Вибрати все**. Профіль збережено; тепер ефекту треба вказати, що очищати.
+7. Виберіть **Ефект → Видалення шуму й відновлення → Noise Reduction**. У вікні **Noise Reduction** встановіть **Noise reduction** на `12`, а потім натисніть **Apply to selection**. Дванадцять децибел — гарне початкове значення. Сильніше зменшення прибирає більше шуму, але може зробити голос порожнім.
+   *Має з’явитися:* вступний фрагмент майже вирівнявся, а тон не змінився.
+8. Виберіть **Ефект → Застарілі ефекти → Класичні фільтри**. У вікні **Класичні фільтри** виберіть **High-pass** для **Filter type** та встановіть **Cutoff frequency** на `100`, а потім натисніть **Apply to selection**. Фільтр послаблює все нижче 100 Гц — транспортний шум, шум від поводження з мікрофоном і кондиціонера. Мовлення значно вище цієї частоти.
+9. Виберіть **Ефект → Гучність і компресія → Loudness Normalization**. У вікні **Loudness Normalization** встановіть **Target loudness** на `-16`, а потім натисніть **Apply to selection**. −16 LUFS — поширена ціль для стереоподкастів. Гучність описує сприйняття всього запису, а не висоту його піків.
+   *Має з’явитися:* форма хвилі стала вищою, а запис відтворюється на комфортному рівні.
+10. Натисніть **Відтворити**, щоб прослухати, а потім **Зупинити**.
+   *Має з’явитися:* чистий запис рівня гучності з тихим вступом.
+11. Виберіть **Файл → Експорт аудіо**, встановіть **Формат** на **MP3** і натисніть **Експорт**. Файл завантажиться після завершення рендерингу, а посилання на нього залишиться у вікні. Файл кодується у браузері; нічого не надсилається з вашого комп’ютера.
+
+## Що далі
+
+- Застосуйте це до власного запису за допомогою посібників: [Видалення фонового шуму](/guides/cleaning-up/remove-background-noise/), [Видалення низького гуркоту](/guides/cleaning-up/remove-low-rumble/) та [Нормалізація гучності для подкасту](/guides/volume/normalize-loudness-for-podcasts/).
+- Перевірте результат так, як це зробила б платформа: [Вимірювання гучності міксу](/guides/analysis/measure-loudness/).
+
+## Інші навчальні посібники
+
+[Ваш перший проєкт Soundscaper](/tutorials/your-first-project/) — Імпортуйте запис, прослухайте його, розділіть, зробіть згасання, експортуйте файл і збережіть проєкт.
+[Музика під голосом](/tutorials/put-music-under-a-voice/) — Розташуйте доріжки одна над одною, автоматично приглушіть одну під час мовлення, зведіть їх і експортуйте результат.
+
+## Довідка
+
+- [У довіднику аудіоефектів наведено всі параметри використаних ефектів, їхні типові значення та діапазони.](/reference/generated/audio-effects/#parameters)
+- [У довіднику форматів експорту наведено контейнери й обмеження щодо кількості каналів.](/reference/generated/formats/)
+- [У довіднику команд і скорочень наведено команди меню та їхні клавіатурні скорочення.](/reference/generated/commands/)
+
+## Про цей навчальний посібник
+
+Цей посібник, крок за кроком і на цих самих файлах, перевіряється в кожній збірці Soundscaper набором браузерних тестів (`tests/browser/soundscaper-tutorials.spec.js`). Якщо крок перестає працювати, збірка не проходить, доки посібник не буде виправлено. Тож інструкції відповідають роботі редактора.

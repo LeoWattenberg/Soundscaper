@@ -4,7 +4,7 @@ description: "JavaScript API, проти якого працює макропр�
 sidebar:
   order: 7
 ---
-<!-- docs-ai-provenance: {"factPacketSha256":"bfeb48e77dc0013cc1f43bd584ae92a7196983e349631c0b75bfbca2ba0c542a","model":"aya-expanse:32b","modelDigest":"1603440383bd5504dc7afd01c0407b425b988dde650a8dc1a737433baa3cd432","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"bfeb48e77dc0013cc1f43bd584ae92a7196983e349631c0b75bfbca2ba0c542a","targetLocale":"uk"} -->
+<!-- docs-ai-provenance: {"basedOnProvenance":{"model":"aya-expanse:32b","modelDigest":"1603440383bd5504dc7afd01c0407b425b988dde650a8dc1a737433baa3cd432"},"factPacketSha256":"375c684211bdec9dbd3614c197bda423e24858a568ad5ae3c06ab06d7db2522f","model":"gpt-6-luna","modelProvider":"codex-subagent","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"375c684211bdec9dbd3614c197bda423e24858a568ad5ae3c06ab06d7db2522f","targetLocale":"uk"} -->
 
 Макропрограма — це макрос, написаний на JavaScript, а не як список кроків.
 Вона виконується всередині редактора за допомогою невеликого API під назвою `sound`, який дозволяє їй читати
@@ -16,8 +16,7 @@ sidebar:
 ## Місцезнаходження програм
 
 Виберіть **Інструменти → Менеджер макросів**. Діалогове вікно містить список макросів на основі списку кроків та, під
-**Програми**, збережені вами програми. **Нова програма** створює одну, а панель деталей показує **Назва програми**, **Програма** та кнопку **Запустити
-програму**. Текст зберігається під час набору; окремого кроку збереження немає.
+**Програми**, збережені вами програми. Натисніть **+ (Нова програма)** в заголовку «Програми», щоб створити її. На тій самій панелі дій є команди **Імпортувати програму**, **Експортувати програму** та **Видалити програму** для вибраної програми. Панель деталей містить **Назва програми**, текст **Програма** та кнопку **Запустити програму**. Текст зберігається під час набору; окремого кроку збереження немає.
 
 Програма зберігається з налаштуваннями редактора, а не всередині проекту, тому вона доступна для кожного відкритого вами проекту в цьому редакторі. Використовуйте **Експорт програми** та
 **Імпорт програми**, щоб перемістити її на інший комп'ютер або передати іншій особі; див. [Спільне використання програм](#sharing-programs) для інформації про цей процес.
@@ -253,8 +252,7 @@ ExportWav.*
 | Зміна темпу | `audacity-change-tempo` | `tempoPercent: 0` |
 | Класичні фільтри | `audacity-classic-filters` | `family: 'butterworth'`, `direction: 'lowpass'`, `order: 1`, `cutoffHz: 1000`, `passbandRippleDb: 1`, `stopbandAttenuationDb: 30` |
 | Видалення клацань | `audacity-click-removal` | `threshold: 200`, `maximumWidth: 20` |
-| Компресор | `compressor` | `threshold: -24`, `knee: 30`, `ratio: 4`, `attack: 0.003`, `release: 0.25`, `makeupGain: 0` |
-| Компресор (Audacity) | `audacity-compressor` | `thresholdDb: -10`, `makeupGainDb: 0`, `kneeWidthDb: 5`, `ratio: 10`, `lookaheadMs: 1`, `attackMs: 30`, `releaseMs: 150` |
+| Компресор | `audacity-compressor` | `thresholdDb: -10`, `makeupGainDb: 0`, `kneeWidthDb: 5`, `ratio: 10`, `lookaheadMs: 1`, `attackMs: 30`, `releaseMs: 150` |
 | Затримка | `delay` | `time: 0.25`, `feedback: 0.3`, `mix: 0.2` |
 | Дисторсія | `audacity-distortion` | `mode: 'hard-clipping'`, `dcBlock: false`, `thresholdDb: -6`, `noiseFloorDb: -70`, `parameter1: 50`, `parameter2: 50`, `repeats: 1` |
 | Ехо | `audacity-echo` | `delaySeconds: 1`, `decay: 0.5` |
@@ -267,8 +265,7 @@ ExportWav.*
 | Фільтр високих частот | `highpass` | `frequency: 80`, `q: 0.707` |
 | Інверсія | `audacity-invert` | немає |
 | Легасі компресор | `audacity-legacy-compressor` | `thresholdDb: -12`, `noiseFloorDb: -40`, `ratio: 2`, `attackSeconds: 0.2`, `releaseSeconds: 1`, `normalize: true`, `usePeak: false` |
-| Лімітер | `limiter` | `ceiling: -1`, `lookahead: 0.005`, `release: 0.1` |
-| Лімітер (Audacity) | `audacity-limiter` | `thresholdDb: -5`, `makeupTargetDb: -1`, `kneeWidthDb: 2`, `lookaheadMs: 1`, `releaseMs: 20` |
+| Лімітер | `audacity-limiter` | `thresholdDb: -5`, `makeupTargetDb: -1`, `kneeWidthDb: 2`, `lookaheadMs: 1`, `releaseMs: 20` |
 | Нормалізація гучності | `audacity-loudness-normalization` | `mode: 'lufs'`, `targetLufs: -23`, `targetRmsDb: -20`, `stereoIndependent: false`, `dualMono: true` |
 | Фільтр низьких частот | `lowpass` | `frequency: 18000`, `q: 0.707` |
 | Зменшення шуму | `audacity-noise-reduction` | `reductionDb: 6`, `sensitivity: 6`, `frequencySmoothingBands: 6`, `output: 'reduce'` |

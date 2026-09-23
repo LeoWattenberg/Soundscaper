@@ -4,7 +4,7 @@ description: "Порівняйте Soundscaper з Audacity 4 та Adobe Audition
 sidebar:
   order: 3
 ---
-<!-- docs-ai-provenance: {"factPacketSha256":"703e76cffbe1464f1283f6c8f45cee52c0d37faae852b7efc163879710a2ddb2","model":"qwen3.8:latest","modelDigest":"22130167c4c20e20c7b71454612966ca8e8171e9b3cc8ab6ce8aa6cbfec79643","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"703e76cffbe1464f1283f6c8f45cee52c0d37faae852b7efc163879710a2ddb2","targetLocale":"uk"} -->
+<!-- docs-ai-provenance: {"basedOnProvenance":{"model":"qwen3.8:latest","modelDigest":"22130167c4c20e20c7b71454612966ca8e8171e9b3cc8ab6ce8aa6cbfec79643"},"factPacketSha256":"71097403d87aba03cddc2ccd696ff9a8663268afba3a7bf750fe8d9913de3eba","model":"gpt-6-luna","modelProvider":"codex-subagent","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"71097403d87aba03cddc2ccd696ff9a8663268afba3a7bf750fe8d9913de3eba","targetLocale":"uk"} -->
 
 Soundscaper повторно реалізує Audacity 4 у браузері та додає поверх нього шар для виробництва. Adobe Audition — це комерційний інструмент для пост-виробництва, з яким зазвичай порівнюють обидва продукти. На цій сторінці порівнюються всі три, щоб ви могли визначити, який із них уже виконує вашу задачу.
 
@@ -103,7 +103,7 @@ Soundscaper повторно реалізує Audacity 4 у браузері т�
 | Параметричний еквалайзер | Так — новий параметричний еквалайзер з автоматизованими смугами | Частково — Filter Curve та Graphic EQ | Так — параметричні, графічні та FFT-фільтри |
 | Пресети ефектів | Так — застосувати, зберегти, імпортувати, експортувати | Так — застосувати, зберегти, імпортувати, експортувати | Так |
 | Макроси та пакетні ланцюги | Так — збережена бібліотека макросів із шаблонами | Ні — у закріпленій збірці меню Macros закоментовано | Так — Favorites та Batch Process |
-| Формати сторонніх додатків | Частково — VST3, CLAP, AU та LV2 на десктопі за умови згоди та ізоляції, у браузері — відсутні | Так — VST3, AU, LV2 та Nyquist, з менеджером додатків | Частково — VST3, а також AU на macOS, без CLAP чи LV2 |
+| Формати сторонніх додатків | Частково — VST3, CLAP, AU, LV2, а також ефекти Linux LADSPA й аналізатори Vamp у настільній версії за умови згоди та ізоляції; у браузері відсутні | Так — VST3, AU, LV2 та Nyquist, з менеджером додатків | Частково — VST3, а також AU на macOS, без CLAP чи LV2 |
 | Скриптування Nyquist | Так — вбудовані додатки та запит Nyquist | Так — вбудовані додатки та запит Nyquist | Ні |
 | Ізольовані пакети ефектів | Частково — перевірені пакети WebAssembly, один постачається, а зовнішні існують в ізоляції | Ні | Ні |
 | Віртуальні інструменти | Ні — після 1.0 | Ні | Ні |
