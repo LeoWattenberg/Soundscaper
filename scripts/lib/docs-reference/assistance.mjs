@@ -165,7 +165,7 @@ export function renderAssistanceReference({
 		'',
 		'## Operations',
 		'',
-		'Each operation has the menu entry below for use without a surrounding workflow. Execution requires its model and a compatible packaged native engine; an entry alone does not establish current availability.',
+		'Each operation has the menu entry below for use without a surrounding workflow. Execution requires its model and a compatible downloaded native engine; an entry alone does not establish current availability.',
 		'',
 		table(['Operation', 'Operation ID', 'Run on its own as'], operationRows),
 		'',

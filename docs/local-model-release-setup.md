@@ -4,7 +4,8 @@ The eight additional models now have real conversion or native-worker evidence,
 required nightly execution cases, and machine-verified entries in the checked-in
 production catalog. Model Manager may install their SHA-256-pinned artifacts;
 execution remains separately fail-closed on the selected target's authenticated
-runtime closure. Target packages generate and verify that closure, so the
+runtime closure. Target builds generate and verify that closure before R2
+publication, so the
 catalog-task register records both catalog and activation status as `ready`.
 
 All eight artifacts have been uploaded to the versioned product asset server and
@@ -44,22 +45,23 @@ there is no separate review directory or catalog-acceptance step outside the
 checkout. The repository inputs and their exact digests are the complete
 catalog-inclusion authority. Generated model guides reflect the checked-in
 catalog state; all published entries now include Windows ARM64 where their
-package-generated runtime closure is available.
+downloadable runtime closure is available.
 
 Kokoro v1.0 is a separate 56-artifact identity mirror. Its catalog entry,
 licensing row, offline notices, upstream source pins, and retained public
 readback are checked with `npm run audit:kokoro-model-release`. Run
 `node scripts/models/verify-kokoro-model-release.mjs --verify-public` to repeat
 HEAD, byte-range, CORS, and full SHA-256 checks against all 56 live CDN files.
-The model files are published. Target packages generate the pinned offline G2P
-helper and authenticate its complete file inventory before inference. Actual
+The model files are published. Target builds generate the pinned offline G2P
+helper, then publish its authenticated archive to R2. The client checks its
+complete file inventory before inference. Actual
 speech generation still requires a passing nine-language text-to-WAV nightly
 case from each packaged target; the recipe does not establish a cross-target
 result by itself.
 
 The nightly-with-tests real-model phase remains the executable check for actual
 installation, Electron IPC, inference, and output validation on a particular
-package. A package's verified runtime closure establishes runtime availability;
+package. A verified downloaded runtime closure establishes runtime availability;
 direct Linux worker probes and catalog admission do not substitute for that
 package's inference result.
 

@@ -1,37 +1,37 @@
 # Real local-model tests
 
 The nightly-with-tests desktop package runs real model downloads and inference
-after its functional browser tests, browser metrics, and packaged-runtime metrics.
+after its functional browser tests, browser metrics, and runtime metrics.
 These expensive checks use `playwright.nightly-local-assistance.config.mjs` and
 `tests/electron/local-assistance-models/`. They are excluded from `npm test`,
 `npm run test:browser`, and the normal Playwright configuration. Lightweight tests
 in the normal Node suite validate the case manifest, output checks, package
 integration, and generated documentation without downloading models.
 
-Desktop packaging supplies native-engine inputs for all 22 published models.
-Kokoro G2P is package-generated from pinned offline inputs for the selected
-target. Each package inventories its helper and data in an authenticated
-manifest; the package-specific nightly result establishes whether text-to-WAV
-inference passed on that machine.
+Desktop builds prepare native-engine archives for all 22 published models and
+publish them to the same R2 bucket as model weights. Kokoro G2P is built from
+pinned offline inputs for the selected target. Each archive and its expanded
+files are inventoried in an authenticated manifest; the package-specific nightly
+result establishes whether text-to-WAV inference passed on that machine.
 
 ONNX Runtime 1.29.0 is staged from the integrity-verified official npm packages with
 target-specific file hashes in `config/assistance-onnx-runtime-payloads.json`.
 Whisper v1.9.3 is built from pinned source on the package runner; its executable,
 license, and build provenance are recorded in the package's authenticated runtime
-manifest. Both staging paths support Linux x64/arm64, macOS arm64, and Windows
+manifest. Both build paths support Linux x64/arm64, macOS arm64, and Windows
 x64/arm64. The existing Sherpa runtime inventory supplies Silero, Parakeet, and
 Pyannote/ERes2Net on its built targets; Windows ARM64 packaging compiles its
 Node-API wrapper using `config/assistance-sherpa-win-arm64-build.json` and the
 recipe's verified native libraries. Each generated model guide lists the exact
-platform intersection between the model catalog and native packaging support.
+platform intersection between the model catalog and downloadable native support.
 
 The required suite now includes **20 cases covering 22 published model identities**.
 The catalog admits the eight additional models with exact entry and artifact
 SHA-256 pins: wav2vec2 alignment, TIGER, room dereverberation, PANNs, both Beat
 This variants, TransNetV2, and Qwen3. Their catalog-task register marks
-activation `ready` because target packages generate and verify the required
-runtime closures. A required catalog entry or authenticated runtime missing from
-a package **fails its case**;
+activation `ready` because target builds generate and verify the required
+runtime closures. A required catalog entry or downloadable authenticated runtime
+missing for a target **fails its case**;
 defining a case does not authorize a substitute upstream download or bypass any
 artifact or runtime pin.
 Room dereverberation's upstream GPL-3.0 declaration, full license text, and source
@@ -44,23 +44,23 @@ helper, records compiler and license provenance, and applies two exact-source
 compatibility changes: honor disabled thinking and keep a human status trailer
 out of JSON output. These changes have input, output, and patch hashes in the
 build receipt. Qwen's production worker still validates strict JSON and candidate
-authority. Packaging the engine does not itself publish the model weights.
+authority. Publishing the engine does not itself publish the model weights.
 
 All 22 published models are admitted on Windows ARM64. The existing Sherpa and
-ONNX runtime closures are generated and authenticated by the package. The
+ONNX runtime closures are generated and authenticated for publication. The
 Kokoro G2P package-generated recipe covers all five desktop targets. Its
-actual helper closure is built and authenticated during packaging; the required
+actual helper closure is built and authenticated before publication; the required
 nine-language case then checks speech generation. Cross-target packaged
 results remain gated by CI and must be read from each package's nightly report.
 The committed catalog keeps exact artifact pins.
 
-The source runtime-family register describes package-generated targets.
-`desktop-prepare` generates authenticated manifests for the native files
-actually placed in each package's
-runtime directory and includes those manifests in its ASAR. The tests use these
-packaged engines, without substituting development dependencies or simulated
-output. Packaging support is separate from a successful test result on each
-platform; retain the report from the actual package run.
+The source runtime-family register describes supported build targets.
+`desktop-prepare` generates authenticated manifests for the native archives.
+The release workflow uploads and reads back the archives from R2 before desktop
+artifacts are published, and includes their URLs and digests in the app ASAR.
+The tests download these engines without substituting development dependencies
+or simulated output. Build support is separate from a successful test result on
+each platform; retain the report from the actual package run.
 
 ## Requirements
 
@@ -69,10 +69,10 @@ platform; retain the report from the actual package run.
 - On Windows, install the latest supported
   [Microsoft Visual C++ v14 Redistributable](https://learn.microsoft.com/en-us/cpp/windows/latest-supported-vc-redist?view=msvc-170)
   matching the desktop app: **x64** for the x64 package or **ARM64** for the ARM64
-  package. ONNX and Sherpa require these runtime libraries; model downloads do
-  not include them. Using the distributed app does not require Visual Studio.
+  package. ONNX and Sherpa require these runtime libraries; model and runtime
+  downloads do not include them. Using the distributed app does not require Visual Studio.
 - Allow approximately **5.65 GiB** for the 22 published model downloads, plus
-  packaged runtimes, installation working space, fixtures, and reports. Model
+  downloaded runtimes, installation working space, fixtures, and reports. Model
   files come from the public catalog URLs; no model-service account, API key,
   download token, or other secret is required. Qwen alone accounts for about
   **2.33 GiB**. Every cataloged artifact has an exact authenticated byte length.
@@ -91,7 +91,7 @@ Word alignment supplies speech and a known transcript; separation expects three
 stems; dereverberation supplies reflected speech; tagging supplies speech;
 beat tracking supplies synthesized rhythmic music; TransNetV2 receives a visual
 cut; Qwen receives two existing editorial candidates; Kokoro receives fixed
-text scripts and must produce audible speech through its packaged offline G2P
+text scripts and must produce audible speech through its downloaded offline G2P
 helper. The Kokoro case installs the model once per product, then submits
 nine short scripts in the corresponding language variants (American and British
 English, Spanish, French, Hindi, Italian, Japanese, Brazilian Portuguese, and
@@ -191,8 +191,8 @@ run, not evidence that every model passed.
 
 The test launcher opens a dedicated hidden Electron window with an isolated
 temporary user-data directory. It loads the selected product's **production
-preload, assistance registration, and native runtime files from its packaged
-ASAR and runtime directory**. Tests install through the real model manager,
+preload and assistance registration from its packaged ASAR**, then downloads the
+required runtime archives into that profile. Tests install through the real model manager,
 stage inputs through the production renderer-to-main IPC bridge, run real
 inference, read the authenticated output, and verify its digest and size.
 
@@ -255,8 +255,8 @@ are generated from `config/local-model-catalog.json`, the catalog and activation
 evidence in `config/milestone-7-model-catalog-tasks.json`, the same real-test case
 manifest, the Sherpa native inventory and Windows ARM64 build recipe, the ONNX
 payload inventory, and the Whisper and llama stagers' exported versions and build targets.
-These staging sources describe
-packaged capabilities independently of public runtime publication. Edit the
+These build sources describe
+target capabilities independently of public runtime publication. Edit the
 appropriate source and run
 `npm run docs:generate`; do not hand-edit
 the generated pages. `npm run docs:reference:check` and the normal manifest tests
