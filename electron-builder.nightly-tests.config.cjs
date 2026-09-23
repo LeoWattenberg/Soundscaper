@@ -100,10 +100,9 @@ module.exports = {
 	],
 	win: {
 		icon: '.desktop-build/icons/icon.png',
-		target: ['portable'],
-	},
-	portable: {
-		splashImage: '.desktop-build/icons/nightly-tests-splash.bmp',
+		// NSIS portable extracts this multi-gigabyte payload twice and reports
+		// copy failures as an unrelated "cannot be closed" process error.
+		target: ['zip'],
 	},
 	mac: {
 		icon: '.desktop-build/icons/icon.png',

@@ -1042,7 +1042,6 @@ jobs:
           name: nightly-with-tests-${{ matrix.target.platform }}-${{ matrix.target.arch }}
           path: |
             release/desktop-nightly-tests/*.AppImage
-            release/desktop-nightly-tests/*.exe
             release/desktop-nightly-tests/*.zip
           compression-level: 0
           if-no-files-found: error

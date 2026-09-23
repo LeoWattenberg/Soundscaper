@@ -37,7 +37,12 @@ const PRODUCT = Object.freeze({
 });
 const PACKAGED_ENVIRONMENT = Object.freeze({ PATH: '/usr/bin', SOUNDSCAPER_PACKAGED_RUNTIME_GPU_DRIVER_VERSION: '555.42.02', SOUNDSCAPER_PACKAGED_RUNTIME_GPU_DEVICE_ID: '10de:2204', SOUNDSCAPER_PACKAGED_RUNTIME_POWER_MODE: 'maximum-performance-ac', SOUNDSCAPER_PACKAGED_RUNTIME_DISPLAY_MODE: '1920x1080@60Hz-100pct' });
 
-test('nightly test results resolve beside each portable artifact convention', () => {
+test('nightly test results resolve beside each packaged application', () => {
+	assert.equal(resolveDesktopNightlyTestsOutputRoot({
+		platform: 'win32',
+		executablePath: String.raw`D:\Nightly tests\Soundscaper Nightly Tests.exe`,
+		environment: {},
+	}), String.raw`D:\Nightly tests`);
 	assert.equal(resolveDesktopNightlyTestsOutputRoot({
 		platform: 'win32',
 		executablePath: String.raw`C:\Users\tester\AppData\Local\Temp\Soundscaper.exe`,

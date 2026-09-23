@@ -14,7 +14,7 @@ import hardenNightlyTestsElectron from '../scripts/desktop-nightly-tests-after-p
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const require = createRequire(import.meta.url);
 
-test('nightly-with-tests packaging is isolated, portable, and keeps its payload outside ASAR', () => {
+test('nightly-with-tests packaging is isolated, extractable, and keeps its payload outside ASAR', () => {
 	const configPath = resolve(ROOT, 'electron-builder.nightly-tests.config.cjs');
 	delete require.cache[configPath];
 	const config = require(configPath);
@@ -26,8 +26,8 @@ test('nightly-with-tests packaging is isolated, portable, and keeps its payload 
 	assert.equal(config.compression, 'normal');
 	assert.equal(config.asar, true);
 	assert.equal(config.afterPack, './scripts/desktop-nightly-tests-after-pack.mjs');
-	assert.deepEqual(config.win.target, ['portable']);
-	assert.equal(config.portable.splashImage, '.desktop-build/icons/nightly-tests-splash.bmp');
+	assert.deepEqual(config.win.target, ['zip']);
+	assert.equal(config.portable, undefined);
 	assert.deepEqual(config.mac.target, ['zip']);
 	assert.equal(config.mac.signIgnore, '/Contents/Resources/nightly-tests/products/');
 	const macSignIgnore = new RegExp(config.mac.signIgnore, 'u');
@@ -289,7 +289,7 @@ test('desktop CI exposes one quality-gated five-target nightly-with-tests artifa
 	);
 	assert.match(testJob, /name: nightly-with-tests-\$\{\{ matrix\.target\.platform \}\}-\$\{\{ matrix\.target\.arch \}\}/u);
 	assert.match(testJob, /release\/desktop-nightly-tests\/\*\.AppImage/u);
-	assert.match(testJob, /release\/desktop-nightly-tests\/\*\.exe/u);
+	assert.doesNotMatch(testJob, /release\/desktop-nightly-tests\/\*\.exe/u);
 	assert.match(testJob, /release\/desktop-nightly-tests\/\*\.zip/u);
 	assert.match(testJob, /compression-level: 0/u);
 	assert.doesNotMatch(workflow, /^ {2}project-library-handoff:/mu);
