@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import type { AudioEditorCommand } from '../src/common/editor/commands/protocol.ts';
-import { createProjectViewService } from '../src/common/editor/controller/document/project-view-service.ts';
+import { createProjectViewService, type ProjectTimelineView } from '../src/common/editor/controller/document/project-view-service.ts';
 import { createTrackDuplicationService } from '../src/common/editor/controller/document/internal/track-duplication-service.ts';
 
 test('project view publication clamps timeline geometry and updates dependent state once', () => {
@@ -84,7 +84,7 @@ test('project view setters normalize modes and commit all changed audio tracks a
 		pixelsPerSecond: 120,
 		timelineViewportWidth: 0,
 		timelineWidth: 1,
-		timelineView: 'waveform' as 'waveform' | 'spectrogram' | 'multiview',
+		timelineView: 'waveform' as ProjectTimelineView,
 	};
 	const commands: AudioEditorCommand[] = [];
 	let publishes = 0;
@@ -126,8 +126,24 @@ test('project view setters normalize modes and commit all changed audio tracks a
 			{ type: 'track/update', trackId: 'second', changes: { displayMode: 'multiview' } },
 		],
 	});
-	assert.equal(service.setAllTracksView('half-wave'), project);
+	for (const displayMode of ['half-wave', 'waveform-three-band', 'waveform-rainbow'] as const) {
+		assert.equal(service.setTimelineView(displayMode), displayMode);
+		assert.equal(service.setAllTracksView(displayMode), project);
+		assert.equal(state.timelineView, displayMode);
+		assert.deepEqual(commands.at(-1), {
+			type: 'batch',
+			commands: [
+				{ type: 'track/update', trackId: 'first', changes: { displayMode } },
+				{ type: 'track/update', trackId: 'second', changes: { displayMode } },
+			],
+		});
+	}
+	assert.equal(service.setAllTracksView('unsupported'), project);
 	assert.equal(state.timelineView, 'waveform');
+	assert.deepEqual(commands.at(-1), {
+		type: 'batch',
+		commands: [{ type: 'track/update', trackId: 'second', changes: { displayMode: 'waveform' } }],
+	});
 });
 
 test('project view handles empty, blocked, and already-matching timelines without commands', () => {
@@ -142,7 +158,7 @@ test('project view handles empty, blocked, and already-matching timelines withou
 		pixelsPerSecond: 120,
 		timelineViewportWidth: 0,
 		timelineWidth: 1,
-		timelineView: 'waveform' as 'waveform' | 'spectrogram' | 'multiview',
+		timelineView: 'waveform' as ProjectTimelineView,
 	};
 	const service = createProjectViewService({
 		lifetime: { assertActive: () => undefined },
