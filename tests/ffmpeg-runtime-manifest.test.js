@@ -192,6 +192,14 @@ test('desktop release assembly requires the immutable no-FFmpeg provider policy'
 		assistanceNativeRuntimeManifest,
 		'linux-x64',
 	);
+	const assistanceRuntimeDistribution = {
+		targetId: 'linux-x64',
+		manifest: { path: 'config/assistance-runtime-distribution.json',
+			byteLength: 1024, sha256: 'a'.repeat(64) },
+		signingFiles: [],
+		bundles: ['sherpa-onnx-node', 'onnxruntime-node', 'whisper-cpp', 'llama-cpp', 'kokoro-g2p']
+			.map((familyId) => ({ familyId, sha256: 'b'.repeat(64), byteLength: 128 })),
+	};
 	const manifests = Array.from({ length: 6 }, (_, index) => ({
 		name: `runtime-manifest-${index}.json`,
 		value: {
@@ -220,6 +228,7 @@ test('desktop release assembly requires the immutable no-FFmpeg provider policy'
 			productId: 'soundscaper',
 			target: { platform: 'linux', arch: 'x64' },
 			assistanceNativeRuntime,
+			assistanceRuntimeDistribution,
 			...value,
 		},
 	}];

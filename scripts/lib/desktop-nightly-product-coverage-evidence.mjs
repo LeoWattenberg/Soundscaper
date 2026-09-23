@@ -1,13 +1,15 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { createHash } from 'node:crypto';
-import { mkdir, readFile, readdir, rename, rm, writeFile } from 'node:fs/promises';
+import { lstat, mkdir, readFile, readdir, rename, rm, writeFile } from 'node:fs/promises';
 import { dirname, join, relative, resolve, sep } from 'node:path';
 import { extractFile, listPackage, statFile } from '@electron/asar';
 
 import { assistanceNativeRuntimeStageSummary } from '../../desktop/assistance-native-runtime-payload.mjs';
+import { validateAssistanceRuntimeDistribution } from '../../desktop/assistance-runtime-distribution.ts';
 import { validateAssistanceRuntimeFamilyManifestV1 } from '../../desktop/assistance-runtime-family-manifest.ts';
 import { validateDesktopKokoroG2pManifest } from './desktop-kokoro-g2p-runtime.mjs';
+import { validateDesktopAssistanceRuntimeDistributionSummary } from './desktop-assistance-runtime-distribution-verification.mjs';
 import { assertE2EHtmlExecutablePolicy } from './e2e-dynamic-code-audit.mjs';
 import {
 	collectPackagedExecutableResourceFiles,
@@ -73,6 +75,10 @@ export async function preserveDesktopNightlyProductCoverageEvidence({
 	);
 	const stage = await readStageManifest(build, productId);
 	const excludedRuntimeScripts = approvedRuntimeScripts({ appAsar, stage });
+	if (stage.assistanceRuntimeDistribution !== undefined) {
+		await assertAbsentAssistanceRuntime(join(build, 'runtime/assistance'));
+		await assertAbsentAssistanceRuntime(join(resourcesRoot, 'runtime/assistance'));
+	}
 	const stagedRuntimeResources = (await collectOptionalRuntimeResources(join(build, 'runtime')))
 		.map((file) => Object.freeze({ ...file, path: `runtime/${file.path}` }));
 	const stagedRuntimeScripts = stagedRuntimeResources.filter(({ path }) => SCRIPT_PATTERN.test(path));
@@ -260,6 +266,27 @@ async function readStageManifest(buildRoot, productId) {
 
 function approvedRuntimeScripts({ appAsar, stage }) {
 	const targetId = `${stage.target.platform}-${stage.target.arch}`;
+	if (stage.assistanceRuntimeDistribution !== undefined) {
+		const summary = validateDesktopAssistanceRuntimeDistributionSummary(
+			stage.assistanceRuntimeDistribution, targetId,
+		);
+		const bytes = Buffer.from(extractFile(appAsar,
+			asarNativeEntryPath('config/assistance-runtime-distribution.json')));
+		if (!sameFileRecord(summary.manifest, fileRecord(bytes))) {
+			throw new Error('Desktop nightly coverage assistance runtime distribution differs from its stage authority.');
+		}
+		const distribution = validateAssistanceRuntimeDistribution(
+			parseJson(bytes, 'config/assistance-runtime-distribution.json'), targetId,
+		);
+		if (distribution.bundles.length !== summary.bundles.length
+			|| distribution.bundles.some(({ familyId, archive }, index) =>
+				familyId !== summary.bundles[index].familyId
+				|| archive.sha256 !== summary.bundles[index].sha256
+				|| archive.byteLength !== summary.bundles[index].byteLength)) {
+			throw new Error('Desktop nightly coverage assistance runtime distribution differs from its stage authority.');
+		}
+		return [];
+	}
 	const approved = [];
 	if (stage.assistanceNativeRuntime !== undefined) {
 		const manifest = extractedJson(appAsar, 'config/assistance-native-runtime-manifest.json');
@@ -328,6 +355,16 @@ function approvedRuntimeScripts({ appAsar, stage }) {
 		throw new Error('Desktop nightly coverage runtime authorities repeat an executable script.');
 	}
 	return approved;
+}
+
+async function assertAbsentAssistanceRuntime(path) {
+	const found = await lstat(path).catch((error) => {
+		if (error?.code === 'ENOENT') return null;
+		throw error;
+	});
+	if (found !== null) {
+		throw new Error('Desktop nightly coverage found a preinstalled assistance runtime.');
+	}
 }
 
 function assertApprovedRuntimeScripts(staged, approved) {

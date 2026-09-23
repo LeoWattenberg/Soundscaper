@@ -12,6 +12,7 @@ import {
 import { stageDesktopBundledCodecCorrespondingSource } from './lib/desktop-bundled-codec-corresponding-source.mjs';
 import { desktopAssistanceNativeManifest } from './lib/desktop-assistance-speech-runtime.mjs';
 import { assistanceNativeRuntimeStageSummary } from '../desktop/assistance-native-runtime-payload.mjs';
+import { validateDesktopAssistanceRuntimeDistributionSummary } from './lib/desktop-assistance-runtime-distribution-verification.mjs';
 import { signedAssistanceAuthority } from './lib/desktop-signed-assistance-authority.mjs';
 import {
 	readProductReleaseLines,
@@ -286,6 +287,9 @@ export function validateDesktopRuntimeManifests(
 				desktopAssistanceNativeManifest(manifest.value, targetId), manifest.value.nativeSigning, targetId,
 			), targetId)),
 			`${manifest.name} has invalid assistance native-runtime evidence.`);
+		validateDesktopAssistanceRuntimeDistributionSummary(
+			manifest.value.assistanceRuntimeDistribution, targetId,
+		);
 		validateDesktopNativeAddonSummary(manifest, targetId, {
 			stableSoundscaper: identity?.[1] === 'soundscaper'
 				&& options.stableSoundscaper === true,

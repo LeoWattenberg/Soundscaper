@@ -43,6 +43,14 @@ const DIVERGENT_FRAMESCAPER_PACKAGES = FRAMESCAPER_PACKAGES.map((name) => (
 	name.replace(VERSION, DEFERRED_FRAMESCAPER_VERSION)
 ));
 const SOUNDSCAPER_RUNTIME_MANIFESTS = desktopReleaseRuntimeManifestNames(['soundscaper']);
+const ASSISTANCE_DISTRIBUTION = Object.freeze({
+	targetId: 'linux-x64',
+	manifest: { path: 'config/assistance-runtime-distribution.json',
+		byteLength: 1024, sha256: 'a'.repeat(64) },
+	signingFiles: [],
+	bundles: ['sherpa-onnx-node', 'onnxruntime-node', 'whisper-cpp', 'llama-cpp', 'kokoro-g2p']
+		.map((familyId) => ({ familyId, sha256: 'b'.repeat(64), byteLength: 128 })),
+});
 
 test('target package inventory is the exact shared naming authority', () => {
 	const linux = desktopReleaseTargetPackageInventory('framescaper', 'linux-x64', VERSION);
@@ -189,6 +197,7 @@ test('the stable release channel activates professional-native refusal in the as
 			assistanceNativeRuntime: assistanceNativeRuntimeStageSummary(
 				assistanceNativeRuntimeManifest, 'linux-x64',
 			),
+			assistanceRuntimeDistribution: ASSISTANCE_DISTRIBUTION,
 			nativeAddons: null,
 			soundscaperProfessionalNative: summary,
 			framescaperNativeHosts: null,
@@ -197,6 +206,16 @@ test('the stable release channel activates professional-native refusal in the as
 	assert.doesNotThrow(() => validateDesktopRuntimeManifests(
 		[manifest], ['soundscaper'], undefined, { stableSoundscaper: true },
 	));
+	const noDistribution = structuredClone(manifest);
+	delete noDistribution.value.assistanceRuntimeDistribution;
+	assert.throws(() => validateDesktopRuntimeManifests(
+		[noDistribution], ['soundscaper'], undefined, { stableSoundscaper: true },
+	), /assistance runtime distribution/iu);
+	const incompleteDistribution = structuredClone(manifest);
+	incompleteDistribution.value.assistanceRuntimeDistribution.bundles.pop();
+	assert.throws(() => validateDesktopRuntimeManifests(
+		[incompleteDistribution], ['soundscaper'], undefined, { stableSoundscaper: true },
+	), /assistance runtime distribution/iu);
 	const harness = structuredClone(manifest);
 	harness.value.nativeHarnessPreparation = true;
 	assert.throws(() => validateDesktopRuntimeManifests(
