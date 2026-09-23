@@ -148,8 +148,12 @@ product enables see
 | Phase and correlation meter | Yes | No | Yes — phase meter and analysis |
 | Surround metering | Yes | No | Partial — up to 5.1 |
 | Spectrum plot | Yes — Plot Spectrum | Partial — registered, but the pinned build comments it out of the Analyze menu | Yes — Frequency Analysis |
-| Clipping and RMS in the waveform | Yes — both, toggled per project | Yes — both, toggled per project | Partial — clip indicators, RMS in Amplitude Statistics |
+| Clipping and RMS in the waveform | Yes — project toggles with per-track RMS overrides | Yes — both, toggled per project | Partial — clip indicators, RMS in Amplitude Statistics |
 | Speech-intelligibility contrast | Yes — Contrast analyser | Partial — registered, but the pinned build comments it out of the Analyze menu | No |
+
+In Soundscaper, open a track's **Display** menu to toggle **Half-wave** or
+**Show RMS in waveform**. The default view, 3-band crossover frequencies, and
+spectrogram settings are in **Edit → Preferences → Track display**.
 
 ## Channels and immersive audio
 
