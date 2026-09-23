@@ -1271,9 +1271,13 @@ and quiescent staging cleanup. Catalog-bound Parakeet, Silero, and exact
 Pyannote/ERes2Net remain the active Sherpa routes. The additional ONNX Runtime,
 whisper.cpp, and llama.cpp families implement equivalent isolated grants,
 process/thread protocols, memory admission, quarantine, and termination.
-Package preparation provisions these CPU engines and the Windows ARM64 Sherpa
-addon, records the actual target file identities inside the protected archive,
-and verifies the same closure before native execution.
+Release preparation builds these CPU engines, the Sherpa addon, and the Kokoro
+G2P closure for each supported target. The macOS native bytes are signed.
+The protected archive pins each immutable R2 download and its extracted file
+inventory, while the Electron package carries none of the assistance payloads.
+Model Manager downloads the required runtime when a model is installed; a
+preseeded or previously installed model can fetch it on first use. The complete
+closure is verified again before native execution.
 
 The conditional external-FFmpeg shot adapter is a separate ordinary child
 process, not a Sherpa job. A current main-only executable-pair admission,
@@ -1294,16 +1298,20 @@ long-session bounds. Retained Linux x64 conversions now authenticate TIGER-DnR,
 PANNs Cnn10, both Beat This checkpoints, TransNetV2, and Dereverb Room, with
 exact artifact identities and passing source-framework/ONNX comparisons. The
 conversion evidence directory also retains direct production-worker smoke
-results, separately from packaged Electron tests. Desktop preparation provisions
-pinned ONNX Runtime, whisper.cpp, and llama.cpp CPU engines and the Windows
-ARM64 Sherpa addon; generated target manifests bind the actual packaged files.
-Historical external-supply candidate statuses are not substitutes for those
-generated package identities. Model distribution still requires versioned
-notices, full-digest public read-back, and a digest-pinned catalog; runtime
-execution rechecks the selected model and target closure. Successful fixture
-runs prove only the model, runtime, workload, and target actually exercised. No
-complete five-target packaged privacy/cancellation workload or owner-device
-observation set establishes network-after-install behavior, unselected-media
+results, separately from packaged Electron tests. Release preparation builds
+pinned ONNX Runtime, whisper.cpp, llama.cpp, Sherpa, and Kokoro G2P target
+closures and signs macOS native bytes. A protected ASAR distribution manifest
+binds immutable R2 archive length and SHA-256 plus every extracted file;
+Electron packages omit the native assistance payloads. Historical
+external-supply candidate statuses are not substitutes for those release
+identities. Model and runtime distribution require versioned notices and
+full-digest public read-back; explicit Model Manager installation fetches the
+model and required runtime, and first use of preseeded or previously installed
+weights may fetch a missing runtime. Execution rechecks the selected model and
+target closure. Successful fixture runs prove only the model, runtime, workload,
+and target actually exercised. No complete five-target packaged
+privacy/cancellation workload or owner-device observation set establishes
+network behavior after model and runtime installation, unselected-media
 isolation, cancellation p95, canonical-state loss, or general model correctness.
 Optional owner QA does not grant runtime authority. Missing catalog entry,
 artifact, selected-media, runtime, storage, executable, or consent authority

@@ -83,6 +83,9 @@ The matrix treats these as separate distributions:
   LAME, and TwoLAME WebAssembly audio providers but excluding
   application-supplied FFmpeg/libav, FFmpeg WebAssembly, and unqualified
   WebM/AV1 payloads;
+- versioned, target-specific local-assistance runtime archives downloaded from
+  the same EU R2 bucket as model weights when the user installs or first uses
+  an applicable model; these archives are absent from Electron packages;
 - the Electron shell with embedded Chromium and Node.js, including Electron's
   exact alternate framework libffmpeg for the selected target; and
 - public desktop packages and their release/source archive set.
@@ -496,10 +499,16 @@ receipts, full public SHA-256 read-backs, conversion and parity evidence where
 applicable, and exact catalog entries are now recorded. The catalog binds each
 complete licensing row and exact artifact identity by SHA-256. Catalog presence
 authorizes authenticated download and offline preseed, not native execution.
-Target packages generate the five runtime closures, and execution still fails
-closed unless the selected package authenticates its exact closure. The release
-publisher must complete public HEAD, Range, and full SHA-256 read-back before the
-repository verifier admits any future catalog change.
+Release preparation generates the five target runtime closures and binds each
+immutable archive and extracted file inventory in the protected application
+distribution manifest. The Electron package carries none of those native
+assistance bytes.
+Model Manager installation fetches the matching runtime with the weights;
+first use of preseeded or previously installed weights may fetch a missing
+runtime. Execution still fails closed unless the selected target closure
+authenticates exactly. The release publisher must complete public HEAD, Range,
+and full SHA-256 read-back for both models and required runtimes before a
+package may be released.
 
 Opaque placeholders do not make an unimplemented native feature available, and
 a loader must not accept a missing, changed, wrong-platform, uncontained, or

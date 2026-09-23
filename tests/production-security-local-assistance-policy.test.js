@@ -46,7 +46,9 @@ test('Milestone 7 policy records conditional workflow activation and its machine
 	assert.match(control.summary,
 		/Whisper.*alignment.*enhancement.*TIGER.*PANNs.*Beat This.*TransNetV2.*embedding.*OCR.*reframe.*highlight.*Qwen/isu);
 	assert.match(control.summary,
-		/Retained Linux x64 conversions.*both Beat This checkpoints.*passing source-framework parity.*selected-target.*generated manifests.*exact catalog entry/isu);
+		/Retained Linux x64 conversions.*both Beat This checkpoints.*passing source-framework parity.*selected-target.*immutable R2 archive.*distribution manifest.*packages omit.*Model Manager installation.*first execution.*exact catalog entry/isu);
+	assert.match(control.summary,
+		/EU R2 release gates.*immutable publication.*full-digest public read-back.*model and target runtime archive/isu);
 	assert.match(control.summary,
 		/explicit reviewed acceptance.*content-addressed transcript body.*cleanup.*speaker attribution.*derived audio.*reactions.*beats.*tempo.*shot.*indexes.*reframe.*secondary sequences/isu);
 	assert.match(control.summary,
@@ -94,7 +96,7 @@ test('Milestone 7 policy records conditional workflow activation and its machine
 	assert.match(supplyControl.summary,
 		/stream.*disk.*multipart.*public.*SHA-256 read-back.*machine-verified catalog output.*recorded per artifact.*unit tests.*do not establish remote availability/isu);
 	assert.match(supplyControl.summary,
-		/reviewed wav2vec2.*TIGER.*PANNs.*Beat This.*TransNetV2.*Qwen3.*Dereverb.*complete versioned notices.*immutable public read-back.*catalog tasks recompute.*canonical offered entry.*ready.*target packages generate.*runtime closure.*all five targets/isu);
+		/reviewed wav2vec2.*TIGER.*PANNs.*Beat This.*TransNetV2.*Qwen3.*Dereverb.*complete versioned notices.*immutable public read-back.*catalog tasks recompute.*canonical offered entry.*ready.*all five selected-target runtime closures.*no assistance native payloads/isu);
 	for (const path of [
 		'config/milestone-7-model-catalog-tasks.json',
 		'scripts/models/milestone-7-model-catalog-tasks.mjs',
@@ -103,7 +105,7 @@ test('Milestone 7 policy records conditional workflow activation and its machine
 		evidencePath === path), path);
 	assert.ok(diagnosticsRisk);
 	assert.match(diagnosticsRisk.exposure,
-		/Retained Linux x64 conversions.*TIGER.*both Beat This checkpoints.*passing source-framework\/ONNX comparisons.*direct production-worker smoke.*Windows ARM64.*generated target manifests/isu);
+		/Retained Linux x64 conversions.*TIGER.*both Beat This checkpoints.*passing source-framework\/ONNX comparisons.*direct production-worker smoke.*target closures.*ASAR distribution manifest.*packages omit.*Model Manager installation.*first use/isu);
 	assert.match(diagnosticsRisk.exposure,
 		/do not create an operating-system sandbox.*No complete five-target.*Optional owner QA does not grant runtime authority/isu);
 	assert.match(diagnosticsRisk.requiredControl,
