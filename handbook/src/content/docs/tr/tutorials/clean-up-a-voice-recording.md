@@ -1,0 +1,68 @@
+---
+title: "Konuşma kaydını temizle"
+description: "Kayıttaki uğultuyu ve dip gürültüsünü giderin, podcast gürlüğüne getirin ve MP3 olarak dışa aktarın."
+editUrl: false
+sidebar:
+  order: 2
+head:
+  - tag: script
+    attrs:
+      type: "application/ld+json"
+    content: "{\"@context\":\"https://schema.org\",\"@type\":\"HowTo\",\"name\":\"Clean up a voice recording\",\"description\":\"Take the hum out of a take, cut the rumble, bring it to podcast loudness and export an MP3.\",\"tool\":[{\"@type\":\"HowToTool\",\"name\":\"Soundscaper\"}],\"step\":[{\"@type\":\"HowToStep\",\"position\":1,\"name\":\"Open Soundscaper. A new, empty project is ready as soon as the editor loads.\",\"text\":\"Open Soundscaper. A new, empty project is ready as soon as the editor loads.\"},{\"@type\":\"HowToStep\",\"position\":2,\"name\":\"Choose File → Import and pick guide-noisy-take.wav — a short take whose first half second is room noise before the voice starts. It lands as a clip on its own track.\",\"text\":\"Choose File → Import and pick guide-noisy-take.wav — a short take whose first half second is room noise before the voice starts. It lands as a clip on its own track.\"},{\"@type\":\"HowToStep\",\"position\":3,\"name\":\"Press Play to listen, then Stop.\",\"text\":\"Press Play to listen, then Stop. Half a second of hiss, then a steady tone standing in for a voice, with the hiss underneath it.\"},{\"@type\":\"HowToStep\",\"position\":4,\"name\":\"Drag in the ruler above the clip, from the start to the 15% mark, to select the noise-only lead-in.\",\"text\":\"Drag in the ruler above the clip, from the start to the 15% mark, to select the noise-only lead-in. The profile must contain nothing but the noise you want gone — no voice at all.\"},{\"@type\":\"HowToStep\",\"position\":5,\"name\":\"Choose Effect → Noise removal and repair → Noise Reduction and press Get noise profile. The status line reports that the profile is ready. Press Close to leave the dialog for now.\",\"text\":\"Choose Effect → Noise removal and repair → Noise Reduction and press Get noise profile. The status line reports that the profile is ready. Press Close to leave the dialog for now.\"},{\"@type\":\"HowToStep\",\"position\":6,\"name\":\"Choose Select → Select all.\",\"text\":\"Choose Select → Select all. The profile is kept; now the effect needs to know what to clean.\"},{\"@type\":\"HowToStep\",\"position\":7,\"name\":\"Choose Effect → Noise removal and repair → Noise Reduction. In the Noise Reduction dialog, set Noise reduction to 12, then press Apply to selection.\",\"text\":\"Choose Effect → Noise removal and repair → Noise Reduction. In the Noise Reduction dialog, set Noise reduction to 12, then press Apply to selection. Twelve decibels is a good first setting. More removes more noise but makes voices sound hollow. The lead-in is nearly flat and the tone is untouched.\"},{\"@type\":\"HowToStep\",\"position\":8,\"name\":\"Choose Effect → Legacy effects → Classic Filters. In the Classic Filters dialog, choose High-pass for Filter type and set Cutoff frequency to 100, then press Apply to selection.\",\"text\":\"Choose Effect → Legacy effects → Classic Filters. In the Classic Filters dialog, choose High-pass for Filter type and set Cutoff frequency to 100, then press Apply to selection. Everything below 100 Hz — traffic, handling, air conditioning — is rolled off. Speech lives well above it.\"},{\"@type\":\"HowToStep\",\"position\":9,\"name\":\"Choose Effect → Volume and compression → Loudness Normalization. In the Loudness Normalization dialog, set Target loudness to -16, then press Apply to selection.\",\"text\":\"Choose Effect → Volume and compression → Loudness Normalization. In the Loudness Normalization dialog, set Target loudness to -16, then press Apply to selection. −16 LUFS is the common target for stereo podcasts. Loudness measures how loud the whole take feels, not how tall its peaks are. The waveform is taller and the take plays at a comfortable level.\"},{\"@type\":\"HowToStep\",\"position\":10,\"name\":\"Press Play to listen, then Stop.\",\"text\":\"Press Play to listen, then Stop. A clean, level take with a quiet lead-in.\"},{\"@type\":\"HowToStep\",\"position\":11,\"name\":\"Choose File → Export audio, set Format to MP3, and press Export. The file downloads as soon as the render finishes, and its link stays in the dialog.\",\"text\":\"Choose File → Export audio, set Format to MP3, and press Export. The file downloads as soon as the render finishes, and its link stays in the dialog. The file is encoded in the browser; nothing leaves your computer.\"}]}"
+---
+<!-- docs-ai-provenance: {"factPacketSha256":"96727487ae82c7f76b646047856630f73eb756ee7832615587e24e1e6db0b0ee","model":"gpt-6-astra","modelProvider":"codex-session","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"96727487ae82c7f76b646047856630f73eb756ee7832615587e24e1e6db0b0ee","targetLocale":"tr"} -->
+
+<!-- Generated by `node scripts/docs-reference.mjs`. Do not edit. -->
+
+Evde yapılan kayıtların çoğunda üç işlem gerekir: sabit arka plan gürültüsünü gidermek, alçak frekanslı uğultuyu süzmek ve düzeyi bir hedefe çıkarmak. Bu öğretici, ilk yarım saniyesinde yalnızca oda gürültüsü bulunan üç saniyelik bir örnek üzerinde üçünü de yapar ve sonucu MP3 olarak dışa aktarır.
+
+:::tip[Gereken dosya]
+- [`guide-noisy-take.wav`](https://assets.soundscaper.org/guides/examples/guide-noisy-take.wav) dosyasını indirin. Başındaki yarım saniye, konuşmadan önceki oda gürültüsüdür.
+
+Aşağıdaki adımlar dosyada olduğu gibi uygulanabilir; gördükleriniz öğreticide anlatılanlarla eşleşmelidir. Soundscaper tarayıcıda çalışır, kurulum gerekmez.
+:::
+
+## Öğrenecekleriniz
+
+- Gürültü Azaltma işleminin neden bir örneğe ihtiyaç duyduğunu ve bu örneği nasıl alacağınızı.
+- Yüksek geçiren filtrenin neyi giderdiğini ve konuşma için nasıl ayarlanacağını.
+- Tepe düzeyi ile algılanan gürlük arasındaki farkı ve gürlük hedefine nasıl ulaşacağınızı.
+- MP3 dosyasını nasıl dışa aktaracağınızı.
+
+## Adımlar
+
+1. Soundscaper’ı açın. Editör yüklenince yeni ve boş bir proje hazırdır.
+2. **Dosya → İçe Aktar** komutunu seçip `guide-noisy-take.wav` dosyasını açın. Dosyanın ilk yarım saniyesinde yalnızca oda gürültüsü vardır; ardından konuşmayı temsil eden ses gelir. Kayıt kendi pistinde bir klip olarak görünür.
+3. Dinlemek için **Oynat**, ardından **Durdur** düğmesine basın.
+   *Görmeniz gereken:* Yarım saniyelik tıslama, ardından konuşmayı temsil eden sabit bir ton ve altında aynı tıslama.
+4. Klibin üstündeki zaman cetvelinde başlangıçtan %15 işaretine kadar sürükleyip yalnızca gürültü içeren bölümü seçin. Örnek, gidermek istediğiniz gürültü dışında hiçbir şey, özellikle de konuşma içermemelidir.
+5. **Efekt → Gürültü giderme ve onarım → Gürültü Azaltma** komutunu seçip **Gürültü profili al** düğmesine basın. Durum satırı profilin hazır olduğunu bildirir. Şimdilik iletişim kutusundan çıkmak için **Kapat** düğmesine basın.
+6. **Seç → Tümünü seç** komutunu seçin. Profil saklanır; şimdi temizlenecek bölüm seçilmiştir.
+7. **Efekt → Gürültü giderme ve onarım → Gürültü Azaltma** komutunu yeniden açın. **Gürültü azaltma** değerini `12` yapıp **Seçime uygula** düğmesine basın. On iki desibel iyi bir başlangıçtır. Daha yüksek değerler daha çok gürültü giderir, ama sesi içi boş duyurabilir.
+   *Görmeniz gereken:* Başlangıçtaki gürültü neredeyse düz bir çizgiye iner; ton korunur.
+8. **Efekt → Eski efektler → Klasik Filtreler** komutunu seçin. **Filtre türü** olarak **Yüksek geçiren** seçin, **Kesim frekansı** değerini `100` yapın ve **Seçime uygula** düğmesine basın. Trafik, tutma sesi ve klima gibi 100 Hz altındaki sesler azaltılır; konuşma bu frekansın oldukça üzerindedir.
+9. **Efekt → Ses düzeyi ve sıkıştırma → Gürlük Normalleştirme** komutunu seçin. **Hedef gürlük** değerini `-16` yapıp **Seçime uygula** düğmesine basın. −16 LUFS, stereo podcast için yaygın bir hedeftir. Gürlük, yalnızca en yüksek tepeyi değil, kaydın bütününün ne kadar yüksek algılandığını ölçer.
+   *Görmeniz gereken:* Dalga biçimi büyür ve kayıt rahat bir düzeyde çalınır.
+10. Dinlemek için **Oynat**, ardından **Durdur** düğmesine basın.
+    *Görmeniz gereken:* Sessiz bir başlangıcı olan temiz, dengeli bir kayıt.
+11. **Dosya → Sesi dışa aktar** komutunu seçin, **Biçim** olarak **MP3** seçip **Dışa aktar** düğmesine basın. İşleme bitince dosya indirilir; bağlantısı iletişim kutusunda kalır. Kodlama tarayıcıda yapılır, kayıt bilgisayarınızdan ayrılmaz.
+
+## Sonraki adım
+
+- Kendi kaydınız için [Arka plan gürültüsünü gider](/guides/cleaning-up/remove-background-noise/), [Dip uğultusunu gider](/guides/cleaning-up/remove-low-rumble/) ve [Podcast gürlüğünü normalleştir](/guides/volume/normalize-loudness-for-podcasts/) kılavuzlarına bakın.
+- Sonucu bir platformun yaptığı gibi denetlemek için [Miksin gürlüğünü ölç](/guides/analysis/measure-loudness/) kılavuzunu izleyin.
+
+## Diğer öğreticiler
+
+[İlk Soundscaper projeniz](/tutorials/your-first-project/) — Bir kayıt içe aktarın, dinleyin, ayırın, yumuşak çıkış ekleyin, dosya dışa aktarın ve projeyi kaydedin.
+[Konuşmanın altına müzik yerleştir](/tutorials/put-music-under-a-voice/) — İki pisti katmanlayın, müziği konuşma sırasında otomatik kısın, miksi oluşturun ve dışa aktarın.
+
+## Başvuru
+
+- [Burada kullanılan efektlerin tüm parametreleri, varsayılanları ve aralıkları ses efektleri başvurusunda yer alır.](/reference/generated/audio-effects/#parameters)
+- [Dışa aktarma biçimleri, kapsayıcıları ve kanal sınırları biçim başvurusunda yer alır.](/reference/generated/formats/)
+- [Her menü komutu ve klavye kısayolu, komutlar ve kısayollar başvurusunda yer alır.](/reference/generated/commands/)
+
+## Bu öğretici hakkında
+
+Bu öğretici, her derlemede aynı dosyalar ve adımlarla tarayıcı test paketi (`tests/browser/soundscaper-tutorials.spec.js`) tarafından yeniden uygulanır. Bir adım çalışmazsa öğretici düzeltilene kadar derleme başarısız olur; böylece okuduğunuz işlem editörün yaptığıyla eşleşir.

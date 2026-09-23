@@ -4,7 +4,7 @@ description: "Klipleri düzenle, parçaları dengele, efektler uygula ve teslim 
 sidebar:
   order: 4
 ---
-<!-- docs-ai-provenance: {"factPacketSha256":"d4b354ffb5d6a4d35fcb20ac6bb1e0191746badd98ca8f5b476a286e068a3c26","model":"aya-expanse:32b","modelDigest":"1603440383bd5504dc7afd01c0407b425b988dde650a8dc1a737433baa3cd432","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"d4b354ffb5d6a4d35fcb20ac6bb1e0191746badd98ca8f5b476a286e068a3c26","targetLocale":"tr"} -->
+<!-- docs-ai-provenance: {"basedOnProvenance":{"model":"aya-expanse:32b","modelDigest":"1603440383bd5504dc7afd01c0407b425b988dde650a8dc1a737433baa3cd432"},"factPacketSha256":"eaa07736d9143de912e22bd2c5d4a8db4f1553c1052d247826240cda8c6af620","model":"gpt-6-luna","modelProvider":"codex-subagent","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"eaa07736d9143de912e22bd2c5d4a8db4f1553c1052d247826240cda8c6af620","targetLocale":"tr"} -->
 
 ## Klipleri Düzenle
 
@@ -38,6 +38,14 @@ Sonucu incelemek için çalma ölçerini ve ses analizini kullanın. Metre hedef
 **Etki → Ses seviyesi ve sıkıştırma → Çok bantlı sıkıştırıcı**'yı seçin. İki geçiş, sinyali düşük, orta ve yüksek bantlara böler. Her bant, kendi eşiği, oranını ve çıkış kazancına sahiptir. 1'lik bir oran, o bantın dinamiklerini değiştirmez. Saldırı ve salınım, üç bantın tamamına uygulanır. Geçişler, tüm oranları 1 ve bant kazançları 0 dB olduğunda orijinal sinyalin değişmeden geçtiği, 6 dB/okta eğimli, yumuşak, çakışan eğimlerle nazik bir şekilde ayarlanır.
 
 Her iki etki de stereo dengesini korumak için kanallarını birbirine bağlar ve ayrıca parça ve ana etki raflarında da mevcuttur. Raf ayarları projeyle birlikte kaydedilir ve çalma sırasında ayarlanabilir. **Seçime uygula** etkiyi seçili ses üzerine işler ve **Geri Al**'a destek olur. Zaman çizelgesi otomasyonu bu iki etki için kullanılamaz.
+
+### LADSPA efektlerini ve Vamp çözümleyicilerini kullanın {#native-audio-plugins}
+
+Masaüstü uygulaması, **Etki → Eklenti Yöneticisi**'nde bir biçime ve bu biçimin klasörlerinden birine izin verdikten sonra üçüncü taraf eklentileri tarayabilir. Tarama kendiliğinden başlamaz. Bulunan her kurulumu kullanmadan önce etkinleştirin; yerel eklentiler denetimli yardımcı işlemlerde çalıştırılsa da çalıştırılabilir kod içerir, bu nedenle yalnızca güvendiğiniz eklentileri yükleyin.
+
+LADSPA efektleri Linux'ta kullanılabilir. Yöneticide etkinleştirdikten sonra **Etki → Ses Eklentileri**'nden açın. Bu biçimin sağlayıcı arabirimi olmadığından Soundscaper denetimleri LADSPA bağlantı noktalarından oluşturur. Denetim değerleri ile efektin etkin veya atlanmış durumu projeyle birlikte kaydedilir.
+
+Vamp eklentileri sesi değiştirmek yerine analiz eder. Vamp kurulumunu etkinleştirdikten sonra bir ses parçasını seçerek o parçayı analiz edin; ana miksi analiz etmek için ses parçası seçmeden devam edin. Zaman seçimi varsa analiz bu aralıkla sınırlanır; yoksa Soundscaper projenin tamamını kullanır. **Analiz → Vamp Eklentileri**'ni seçin, çözümleyici çıktısı ile ayarlarını belirleyip çalıştırın. Döndürülen zaman damgaları yeni bir etiket parçası olarak ancak analiz tümüyle başarılı olursa eklenir; böylece iptal etmek veya projeyi değiştirmek yarım kalmış etiketler bırakmaz.
 
 ## Dışa Aktar
 

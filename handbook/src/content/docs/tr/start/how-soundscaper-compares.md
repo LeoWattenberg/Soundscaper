@@ -4,7 +4,7 @@ description: "Kayıt, düzenleme, karıştırma, teslim ve değişim alanlarınd
 sidebar:
   order: 3
 ---
-<!-- docs-ai-provenance: {"factPacketSha256":"703e76cffbe1464f1283f6c8f45cee52c0d37faae852b7efc163879710a2ddb2","model":"qwen3.8:latest","modelDigest":"22130167c4c20e20c7b71454612966ca8e8171e9b3cc8ab6ce8aa6cbfec79643","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"703e76cffbe1464f1283f6c8f45cee52c0d37faae852b7efc163879710a2ddb2","targetLocale":"tr"} -->
+<!-- docs-ai-provenance: {"basedOnProvenance":{"model":"qwen3.8:latest","modelDigest":"22130167c4c20e20c7b71454612966ca8e8171e9b3cc8ab6ce8aa6cbfec79643"},"factPacketSha256":"71097403d87aba03cddc2ccd696ff9a8663268afba3a7bf750fe8d9913de3eba","model":"gpt-6-luna","modelProvider":"codex-subagent","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"71097403d87aba03cddc2ccd696ff9a8663268afba3a7bf750fe8d9913de3eba","targetLocale":"tr"} -->
 
 Soundscaper, Audacity 4'ü web üzerinde yeniden uygular ve bunun üzerine bir üretim katmanı ekler. Adobe Audition, her ikisinin de genellikle kıyaslandığı ticari son işleme aracıdır. Bu sayfa, hangisinin zaten elinizdeki işi yaptığını anlamanız için üçünün tamamını karşılaştırır.
 
@@ -103,7 +103,7 @@ Satırlar menü komutları değil, yetenekleri açıklar. Kesin komut envanteri 
 | Parametrik EQ | Evet — otomatikleştirilebilir bantlara sahip yeni bir parametrik EQ | Kısmen — Filter Curve ve Graphic EQ | Evet — parametrik, grafik ve FFT filtreleri |
 | Efekt ön ayarları | Evet — uygula, kaydet, içe aktar, dışa aktar | Evet — uygula, kaydet, içe aktar, dışa aktar | Evet |
 | Makrolar ve toplu zincirler | Evet — şablonlarla birlikte kayıtlı makro kütüphanesi | Hayır — sabitlenmiş derlemede Makrolar menüsü yorum satırı olarak devre dışı bırakılmış | Evet — Favoriler ve Batch Process |
-| Üçüncü taraf eklenti biçimleri | Kısmen — masaüstünde onay ve yalıtım arkasında VST3, CLAP, AU ve LV2, tarayıcıda yok | Evet — eklenti yöneticisiyle birlikte VST3, AU, LV2 ve Nyquist | Kısmen — VST3 ve macOS'te AU, CLAP veya LV2 yok |
+| Üçüncü taraf eklenti biçimleri | Kısmen — masaüstünde izin ve yalıtım arkasında VST3, CLAP, AU, LV2, Linux LADSPA efektleri ve Vamp çözümleyicileri; tarayıcıda hiçbiri yok | Evet — eklenti yöneticisiyle birlikte VST3, AU, LV2 ve Nyquist | Kısmen — VST3 ve macOS'te AU, CLAP veya LV2 yok |
 | Nyquist betikleme | Evet — paketlenmiş eklentiler ve Nyquist istemi | Evet — paketlenmiş eklentiler ve Nyquist istemi | Hayır |
 | Yalıtılmış efekt paketleri | Kısmen — incelenmiş WebAssembly paketleri, biri gönderiliyor ve dışarıdakiler çitle çevrili | Hayır | Hayır |
 | Sanal enstrümanlar | Hayır — 1.0'dan sonra | Hayır | Hayır |
