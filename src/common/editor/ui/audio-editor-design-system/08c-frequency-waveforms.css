@@ -1,0 +1,45 @@
+/* Keep clip identity in the header; spectral colors need a neutral ground. */
+#kw-audio-editor-design-system {
+	--frequency-body: #f3f4f6;
+	--frequency-selection-body: #e1e4ea;
+	--frequency-sample: #374151;
+	--frequency-selected-sample: #111827;
+	--frequency-rms: #6b7280;
+	--frequency-divider: rgb(55 65 81 / 26%);
+	--frequency-low: #306fa6;
+	--frequency-mid: #218270;
+	--frequency-high: #9d6f24;
+	--frequency-rms-overlay: rgba(0, 0, 0, 0.28);
+}
+
+html[data-theme='dark'] #kw-audio-editor-design-system {
+	--frequency-body: #20252c;
+	--frequency-selection-body: #343b45;
+	--frequency-sample: #d5dae3;
+	--frequency-selected-sample: #ffffff;
+	--frequency-rms: #939fae;
+	--frequency-divider: rgb(213 218 227 / 24%);
+	--frequency-low: #83abe1;
+	--frequency-mid: #58bfa5;
+	--frequency-high: #dcb264;
+	--frequency-rms-overlay: rgba(255, 255, 255, 0.38);
+}
+
+#kw-audio-editor-design-system[data-editor-skin='high-contrast'] {
+	--frequency-body: #ffffff;
+	--frequency-divider: #374151;
+}
+
+html[data-theme='dark'] #kw-audio-editor-design-system[data-editor-skin='high-contrast'] {
+	--frequency-body: #000000;
+	--frequency-selection-body: #242a32;
+	--frequency-divider: #d5dae3;
+}
+
+.audio-editor-track-row:is([data-display-mode='waveform-three-band'], [data-display-mode='waveform-rainbow']) .clip-body {
+	background-color: var(--frequency-body);
+}
+
+.audio-editor-track-row:is([data-display-mode='waveform-three-band'], [data-display-mode='waveform-rainbow']) .clip-body--selected {
+	background-color: var(--frequency-selection-body);
+}

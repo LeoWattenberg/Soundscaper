@@ -52,8 +52,8 @@ async function expectPeakPyramidColumnsAtMostOnePixel(waveform) {
 	});
 	expect(resolution.missing, `waveform state ${JSON.stringify(resolution)}`).toBe(false);
 	expect(resolution.visible, `waveform state ${JSON.stringify(resolution)}`).toBe(true);
-	if (resolution.source === 'interpolated-peaks') {
-		expect(resolution.mode).toBe('connecting-dots');
+	if (resolution.source === 'peak-preview') {
+		expect(resolution.mode).toBe('summary');
 		return;
 	}
 	if (resolution.pixelWidth === null) return;

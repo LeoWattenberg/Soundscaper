@@ -1,11 +1,14 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+export { reprojectPendingFrequencyWaveform } from './frequency-waveform-continuity.ts';
+
 import { drawAudacityWaveformChannel } from '../../audacity-waveform-renderer.js';
 import type { WaveformRendering } from '../../design-system-adapters/types.ts';
 import {
 	frequencyWaveformColor,
 	type FrequencyWaveformProjection,
 } from './frequency-waveform-projection.ts';
+import { frequencyWaveformRmsColor, frequencyWaveformTheme, type FrequencyWaveformTheme } from './frequency-waveform-palette.ts';
 
 export interface FrequencyWaveformChannelDrawingOptions {
 	readonly channel: number;
@@ -25,7 +28,11 @@ export interface ThreeBandWaveformChannelDrawingOptions extends FrequencyWavefor
 
 export interface RainbowWaveformChannelDrawingOptions extends FrequencyWaveformChannelDrawingOptions {
 	readonly showRms?: boolean;
+	readonly theme?: FrequencyWaveformTheme;
 }
+
+const rainbowColorCache = new WeakMap<FrequencyWaveformProjection, Partial<Record<FrequencyWaveformTheme,
+	Readonly<{ colors: readonly string[]; rmsColors: readonly string[] }>>>>();
 
 /** Keep mode-specific palette and dispatch out of the ordinary timeline startup painter. */
 export function drawFrequencyWaveformChannel(
@@ -39,19 +46,28 @@ export function drawFrequencyWaveformChannel(
 ): boolean {
 	if (!projection) return false;
 	if (mode === 'waveform-three-band') {
+		if (rendering.mode !== 'summary') return false;
+		const dark = frequencyWaveformTheme(style) === 'dark';
 		drawThreeBandWaveformChannel(context, projection, {
 			...options,
 			colors: {
-				low: style.getPropertyValue('--frequency-waveform-low').trim() || '#7048c8',
-				mid: style.getPropertyValue('--frequency-waveform-mid').trim() || '#159c68',
-				high: style.getPropertyValue('--frequency-waveform-high').trim() || '#e76f19',
+				low: style.getPropertyValue('--frequency-low').trim() || (dark ? '#83abe1' : '#306fa6'),
+				mid: style.getPropertyValue('--frequency-mid').trim() || (dark ? '#58bfa5' : '#218270'),
+				high: style.getPropertyValue('--frequency-high').trim() || (dark ? '#dcb264' : '#9d6f24'),
 			},
-			opacity: 0.72,
+			opacity: 1,
+		});
+		if (showRms) drawAudacityWaveformChannel(context, rendering, {
+			...options,
+			sampleColor: 'transparent',
+			rmsColor: style.getPropertyValue('--frequency-rms-overlay').trim()
+				|| (dark ? 'rgba(255, 255, 255, 0.38)' : 'rgba(0, 0, 0, 0.28)'),
+			showRms: true,
 		});
 		return true;
 	}
 	if (mode !== 'waveform-rainbow') return false;
-	drawRainbowWaveformChannel(context, rendering, projection, { ...options, showRms });
+	drawRainbowWaveformChannel(context, rendering, projection, { ...options, showRms, theme: frequencyWaveformTheme(style) });
 	return true;
 }
 
@@ -62,7 +78,7 @@ export function drawThreeBandWaveformChannel(
 	options: ThreeBandWaveformChannelDrawingOptions,
 ): void {
 	context.save();
-	context.globalAlpha = finiteOpacity(options.opacity ?? 0.72);
+	context.globalAlpha = finiteOpacity(options.opacity ?? 1);
 	(['low', 'mid', 'high'] as const).forEach((band, index) => {
 		drawAudacityWaveformChannel(context, projection.bands[band], {
 			...options,
@@ -83,12 +99,8 @@ export function drawRainbowWaveformChannel(
 	projection: FrequencyWaveformProjection,
 	options: RainbowWaveformChannelDrawingOptions,
 ): void {
-	const colors = Array.from(projection.centroidHz, (frequency, index) => frequencyWaveformColor(
-		frequency,
-		projection.centroidWeight[index] ?? 0,
-		projection.sampleRate,
-	));
-	const rmsColors = colors.map(lightenRainbowColor);
+	const theme = options.theme ?? 'light';
+	const { colors, rmsColors } = rainbowColors(projection, theme);
 	const colorAt = (x: number) => colors[columnAt(x, options.width, colors.length)] ?? 'rgb(50, 50, 50)';
 	const rmsColorAt = (x: number) => rmsColors[columnAt(x, options.width, rmsColors.length)] ?? 'rgb(128, 128, 128)';
 	drawAudacityWaveformChannel(context, rendering, {
@@ -100,13 +112,19 @@ export function drawRainbowWaveformChannel(
 	if (rendering.mode === 'summary') drawSummaryCenterLine(context, options);
 }
 
-/** Lighten in RGB space: equal channel-difference scaling retains the source hue. */
-function lightenRainbowColor(color: string): string {
-	const channels = /^rgb\((\d+), (\d+), (\d+)\)$/u.exec(color);
-	if (!channels) return color;
-	return `rgb(${channels.slice(1).map((channel) => (
-		Math.round(Number(channel) + (255 - Number(channel)) * 0.38)
-	)).join(', ')})`;
+function rainbowColors(projection: FrequencyWaveformProjection, theme: FrequencyWaveformTheme) {
+	let entry = rainbowColorCache.get(projection);
+	if (!entry) {
+		entry = {};
+		rainbowColorCache.set(projection, entry);
+	}
+	if (!entry[theme]) {
+		const colors = Array.from(projection.centroidHz, (frequency, index) => frequencyWaveformColor(
+			frequency, projection.centroidWeight[index] ?? 0, projection.sampleRate, theme,
+		));
+		entry[theme] = { colors, rmsColors: colors.map((color) => frequencyWaveformRmsColor(color, theme)) };
+	}
+	return entry[theme]!;
 }
 
 function drawSummaryCenterLine(
@@ -128,6 +146,6 @@ function columnAt(x: number, width: number, columnCount: number): number {
 }
 
 function finiteOpacity(value: number): number {
-	if (!Number.isFinite(value)) return 0.72;
+	if (!Number.isFinite(value)) return 1;
 	return Math.max(0, Math.min(1, value));
 }

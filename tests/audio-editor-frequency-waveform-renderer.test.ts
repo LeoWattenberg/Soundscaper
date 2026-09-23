@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import {
+	drawFrequencyWaveformChannel,
 	drawRainbowWaveformChannel,
 	drawThreeBandWaveformChannel,
 } from '../src/common/editor/ui/timeline/frequency-waveform-renderer.ts';
@@ -59,6 +60,36 @@ const drawing = {
 	centerLineColor: '#divider',
 };
 
+const lightStyle = { colorScheme: 'light', getPropertyValue: () => '' } as unknown as CSSStyleDeclaration;
+
+test('three-band yields to ordinary sample rendering at both sample zoom thresholds', () => {
+	for (const mode of ['connecting-dots', 'stem']) {
+		const context = recordingContext();
+		const rendering = { ...summary([1, 1]), mode };
+		const projection = {
+			sampleRate: 48_000, peakBlockSize: 256,
+			bands: { low: summary([1, 1]), mid: summary([1, 1]), high: summary([1, 1]) },
+			centroidHz: Float32Array.of(100, 22_050), centroidWeight: Float32Array.of(1, 1),
+		};
+		assert.equal(drawFrequencyWaveformChannel(context as unknown as CanvasRenderingContext2D,
+			'waveform-three-band', rendering, projection, drawing, lightStyle, true), false);
+		assert.equal(context.fills.length, 0);
+	}
+});
+
+test('three-band RMS uses the full-band summary when enabled', () => {
+	const context = recordingContext();
+	const rendering = summary([1, 1]);
+	const projection = {
+		sampleRate: 48_000, peakBlockSize: 256,
+		bands: { low: rendering, mid: rendering, high: rendering },
+		centroidHz: Float32Array.of(100, 22_050), centroidWeight: Float32Array.of(1, 1),
+	};
+	assert.equal(drawFrequencyWaveformChannel(context as unknown as CanvasRenderingContext2D,
+		'waveform-three-band', rendering, projection, drawing, lightStyle, true), true);
+	assert.ok(context.fills.some(({ color }) => color === 'rgba(0, 0, 0, 0.28)'));
+});
+
 test('three-band renderer overlays low, mid, and high without RMS recoloring', () => {
 	const context = recordingContext();
 	const plan = {
@@ -103,10 +134,10 @@ test('rainbow renderer colors both peak and RMS spans from each centroid column'
 	);
 
 	assert.deepEqual(context.fills.map(({ color }) => color), [
-		'rgb(50, 0, 200)',
-		'rgb(128, 97, 221)',
-		'rgb(255, 70, 0)',
-		'rgb(255, 140, 97)',
+		'rgb(99, 80, 155)',
+		'rgb(71, 58, 112)',
+		'rgb(176, 76, 69)',
+		'rgb(127, 55, 50)',
 	]);
 	assert.notEqual(context.fills[0]?.color, context.fills[1]?.color, 'RMS remains visible inside each peak span');
 	assert.deepEqual(context.strokes, ['#divider']);

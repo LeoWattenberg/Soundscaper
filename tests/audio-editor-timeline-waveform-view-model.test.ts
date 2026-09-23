@@ -501,3 +501,23 @@ function timelineName(title: string, sourceName: string): string {
 		},
 	}).name;
 }
+
+test('retained waveform identity survives viewport changes but invalidates audio edits', () => {
+	const initial = createTimelineClipViewModel(base);
+	const cropped = createTimelineClipViewModel({
+		...base,
+		clip: { ...clip, waveformStartFrame: 20, waveformEndFrame: 80 },
+		geometry: { ...base.geometry, pixelsPerSecond: base.geometry.pixelsPerSecond * 2 },
+	});
+	assert.equal(cropped.waveformIdentity, initial.waveformIdentity);
+	assert.equal(cropped.waveformStartFrame, 20);
+	assert.equal(cropped.waveformEndFrame, 80);
+	for (const changed of [
+		{ ...clip, sourceStartFrame: 20 },
+		{ ...clip, reversed: true },
+		{ ...clip, gain: 0.5 },
+		{ ...clip, envelope: [{ frame: 0, value: 0.5 }] },
+	]) {
+		assert.notEqual(createTimelineClipViewModel({ ...base, clip: changed }).waveformIdentity, initial.waveformIdentity);
+	}
+});

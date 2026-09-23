@@ -57,7 +57,26 @@ export function createWaveformPreviewCacheKey({
 	readonly rendering: WaveformPreviewRenderingKey;
 }): string {
 	return JSON.stringify([
-		'waveform-preview-v2',
+		createWaveformContentKey(source, clip),
+		sourceWindow.startFrame,
+		sourceWindow.endFrame,
+		rendering.showRms,
+		rendering.halfWave,
+		rendering.pixelsPerSecond,
+		rendering.pixelWidth,
+		rendering.reuseSummaryForCompatibility,
+		rendering.provideAudacitySpectrogram,
+		rendering.frequencyWaveformMode ?? null,
+	]);
+}
+
+/** Source and audio edits invalidate retained previews independently of zoom or viewport. */
+export function createWaveformContentKey(
+	source: WaveformSourceIdentity | null | undefined,
+	clip: WaveformClipIdentity,
+): string {
+	return JSON.stringify([
+		'waveform-content-v1',
 		source?.id ?? clip.sourceId ?? '',
 		source?.storageKey ?? '',
 		source?.revision ?? source?.updatedAt ?? source?.committedAt ?? '',
@@ -74,14 +93,5 @@ export function createWaveformPreviewCacheKey({
 		Boolean(clip.inverted),
 		(clip.envelope ?? []).map((point) => [point.frame ?? 0, point.value ?? 1]),
 		clip.warpMap ?? null,
-		sourceWindow.startFrame,
-		sourceWindow.endFrame,
-		rendering.showRms,
-		rendering.halfWave,
-		rendering.pixelsPerSecond,
-		rendering.pixelWidth,
-		rendering.reuseSummaryForCompatibility,
-		rendering.provideAudacitySpectrogram,
-		rendering.frequencyWaveformMode ?? null,
 	]);
 }

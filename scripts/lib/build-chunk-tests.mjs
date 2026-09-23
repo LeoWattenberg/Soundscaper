@@ -82,7 +82,7 @@ export const EDITOR_WEB_BOOTSTRAP_CHUNK_TEST =
 
 /** Source analysis and presentation loaded only after a frequency waveform is selected. */
 export const EDITOR_FREQUENCY_WAVEFORM_CHUNK_TEST =
-	/src[\\/]common[\\/]editor[\\/](?:frequency-waveform-(?:analysis|contract|worker-client|worker-protocol)|controller[\\/]source[\\/]frequency-waveform-(?:runtime-composition|source-service|window-service)|ui[\\/]timeline[\\/]frequency-waveform-(?:projection|renderer))\.ts$/;
+	/src[\\/]common[\\/]editor[\\/](?:frequency-waveform-(?:analysis|contract|worker-client|worker-protocol)|controller[\\/]source[\\/]frequency-waveform-(?:runtime-composition|source-service|window-service)|ui[\\/]timeline[\\/]frequency-waveform-(?:continuity|palette|projection|renderer))\.ts$/;
 
 /** Drafts and file interchange run only after the translation menu opens its surface. */
 export const EDITOR_COMMUNITY_TRANSLATIONS_CHUNK_TEST = /src[\\/]common[\\/](?:i18n[\\/]community-translations(?:-po)?\.ts|editor[\\/](?:controller[\\/]preferences[\\/]translation-drafts\.ts|ui[\\/]community-translations[\\/](?!(?:CommunityTranslationMount\.tsx|community-translation-(?:menu|presentation)\.ts)$)[^\\/]+))$/;

@@ -314,3 +314,22 @@ function createFrequencyWindow(frameCount: number) {
 		},
 	};
 }
+
+test('three-band sample zoom skips frequency projection and keeps exact ordinary samples', () => {
+	let projections = 0;
+	const viewModel = createTimelineClipViewModel({
+		...base,
+		geometry: { ...base.geometry, pixelsPerSecond: 96_000 },
+		rendering: {
+			...base.rendering,
+			frequencyWaveformMode: 'waveform-three-band',
+			frequencyWaveformProjector: (...args) => {
+				projections += 1;
+				return prepareFrequencyWaveformClipProjection(...args);
+			},
+		},
+	});
+	assert.equal(projections, 0);
+	assert.equal((viewModel.audacityWaveform as { mode: string }).mode, 'connecting-dots');
+	assert.equal(viewModel.frequencyWaveform, undefined);
+});

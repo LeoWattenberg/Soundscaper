@@ -16,11 +16,10 @@ import {
 } from '../../pffft-spectrogram.js';
 import { MAXIMUM_WAVEFORM_VERTICAL_ZOOM } from './geometry.ts';
 import { createAnimationFrameCoalescer } from './animation-frame-coalescer.ts';
-import { MINIMUM_VISIBLE_CLIP_PIXELS } from './preview.ts';
+import { isFrequencyWaveformDisplayMode } from '../../track-display-mode.ts';
+import { reprojectPendingWaveform } from './waveform-plan-continuity.ts';
 import { spectrogramCanvasDrawKey } from './spectrogram-canvas-options.ts';
 import { audioEditorStereoChannelGeometry } from './stereo-channel-height-runtime.ts';
-
-const MAXIMUM_INTERPOLATED_PEAK_POINTS = 4_096;
 
 export function AudacityWaveformCanvases({
 	rootRef,
@@ -35,8 +34,8 @@ export function AudacityWaveformCanvases({
 	spectrogramOptions,
 }) {
 	const { theme } = useTheme();
-	const { decoration, mode } = useEditorSkin();
-	const themeDrawKey = `${decoration}|${mode}|${theme.background.canvas.default}|${theme.foreground.text.primary}`;
+	const { skin, decoration, mode } = useEditorSkin();
+	const themeDrawKey = `${skin}|${decoration}|${mode}|${theme.background.canvas.default}|${theme.foreground.text.primary}`;
 	const {
 		scale,
 		minFreq,
@@ -119,39 +118,32 @@ export function AudacityWaveformCanvases({
 				};
 				if (!clip.audacityWaveform) {
 					const oldPlan = canvas.__kwWaveformPlan;
-					if (clip.waveformPending && oldPlan && pendingPlanMatchesClip(
-						oldPlan, clip, renderSpectrogramOptions.sampleRate, pixelsPerSecond,
-					)) {
-						const retain = shouldRetainPendingAudacityCanvas(canvas, clip);
-						if (retain && canvas.__kwWaveformState === 'audacity'
-							&& canvas.__kwWaveformDrawKey === canvasDrawKey) {
-							canvas.dataset.waveformPending = 'true';
-							continue;
-						}
-						if (!retain && canvas.__kwWaveformState === 'interpolated-peaks'
-							&& canvas.__kwWaveformDrawKey === canvasDrawKey) {
-							canvas.dataset.waveformPending = 'true';
-							continue;
-						}
-						const pendingPlan = retain ? oldPlan : interpolatedPeakOutlinePlan(oldPlan);
-						if (pendingPlan) {
-							try {
-								const drawn = drawAudacityClipCanvas(canvas, { ...clip, audacityWaveform: pendingPlan }, drawOptions);
-								if (drawn) {
-									canvas.__kwWaveformPlan = oldPlan;
-									canvas.__kwWaveformDrawKey = audacityCanvasDrawKey(canvas, clip, clipDrawKey, bounds);
-									canvas.__kwWaveformState = retain ? 'audacity' : 'interpolated-peaks';
-									if (!canvas.__kwWaveformPaintedWidth) canvas.__kwWaveformPaintedWidth = bounds.width;
-									if (!retain) canvas.dataset.waveformSource = 'interpolated-peaks';
-									canvas.dataset.waveformPending = 'true';
-									delete canvas.dataset.waveformError;
-									continue;
-								}
-							} catch (error) {
-								canvas.dataset.waveformError = error instanceof Error ? error.message : String(error);
+					if (clip.waveformPending && oldPlan && canvas.__kwWaveformState === 'pending'
+						&& canvas.__kwWaveformDrawKey === canvasDrawKey
+						&& canvas.__kwFrequencyWaveformRenderer === frequencyWaveformRenderer
+						&& canvas.__kwPendingFrequencyWaveform === clip.frequencyWaveform) continue;
+					const pendingPlan = clip.waveformPending && oldPlan
+						? reprojectPendingWaveform(oldPlan, clip, renderSpectrogramOptions.sampleRate, bounds.width)
+						: null;
+					if (pendingPlan) {
+						try {
+							const drawn = drawAudacityClipCanvas(canvas, {
+								...clip,
+								audacityWaveform: pendingPlan,
+								frequencyWaveform: clip.frequencyWaveform || frequencyWaveformRenderer?.reprojectPendingFrequencyWaveform?.(
+									canvas.__kwFrequencyWaveformPlan, pendingPlan,
+								),
+							}, { ...drawOptions, peakPreview: peakPlanNeedsPreview(oldPlan, bounds.width) });
+							if (drawn) {
+								canvas.__kwWaveformDrawKey = audacityCanvasDrawKey(canvas, clip, clipDrawKey, bounds);
+								canvas.__kwWaveformState = 'pending';
+								canvas.__kwFrequencyWaveformRenderer = frequencyWaveformRenderer;
+								canvas.__kwPendingFrequencyWaveform = clip.frequencyWaveform;
+								delete canvas.dataset.waveformError;
 							}
+						} catch (error) {
+							canvas.dataset.waveformError = error instanceof Error ? error.message : String(error);
 						}
-						// A pending read must never erase a previously painted frame.
 						canvas.dataset.waveformPending = 'true';
 						continue;
 					}
@@ -159,24 +151,19 @@ export function AudacityWaveformCanvases({
 					if (clip.waveformError) canvas.dataset.waveformError = clip.waveformError;
 					continue;
 				}
-				const needsOutline = peakPlanNeedsOutline(clip.audacityWaveform, bounds.width);
 				if (audacityCanvasPlansAreCurrent(canvas, clip, canvasDrawKey, frequencyWaveformRenderer)
-					&& canvas.__kwWaveformState === (needsOutline ? 'interpolated-peaks' : 'audacity')) continue;
+					&& canvas.__kwWaveformState === 'audacity') continue;
 				try {
-					const outline = needsOutline
-						? interpolatedPeakOutlinePlan(clip.audacityWaveform)
-						: null;
-					const drawn = drawAudacityClipCanvas(canvas, outline
-						? { ...clip, audacityWaveform: outline }
-						: clip, drawOptions);
+					const drawn = drawAudacityClipCanvas(canvas, clip, {
+						...drawOptions,
+						peakPreview: peakPlanNeedsPreview(clip.audacityWaveform, bounds.width),
+					});
 					if (drawn) {
 						canvas.__kwWaveformPlan = clip.audacityWaveform;
 						canvas.__kwFrequencyWaveformPlan = clip.frequencyWaveform;
 						canvas.__kwFrequencyWaveformRenderer = frequencyWaveformRenderer;
 						canvas.__kwWaveformDrawKey = audacityCanvasDrawKey(canvas, clip, clipDrawKey, bounds);
-						canvas.__kwWaveformState = outline ? 'interpolated-peaks' : 'audacity';
-						canvas.__kwWaveformPaintedWidth = outline ? clip.audacityWaveform.pixelWidth : bounds.width;
-						if (outline) canvas.dataset.waveformSource = 'interpolated-peaks';
+						canvas.__kwWaveformState = 'audacity';
 						delete canvas.dataset.waveformError;
 						if (clip.waveformPending) canvas.dataset.waveformPending = 'true';
 						else delete canvas.dataset.waveformPending;
@@ -211,72 +198,11 @@ export function normalizeAudacityCanvasStyle(canvas) {
 	if (canvas.style.height) canvas.style.removeProperty('height');
 }
 
-export function shouldRetainPendingAudacityCanvas(canvas, clip) {
-	const plan = canvas?.__kwWaveformPlan;
-	if (!clip?.waveformPending || !plan) return false;
-	if (!plan.peakBlockSize) return true;
-	const liveWidth = canvas.getBoundingClientRect?.().width || canvas.clientWidth || plan.pixelWidth;
-	const paintedWidth = canvas.__kwWaveformPaintedWidth;
-	return Number.isFinite(paintedWidth) && paintedWidth > 0 && liveWidth <= paintedWidth;
-}
-
-function pendingPlanMatchesClip(plan, clip, sampleRate, pixelsPerSecond) {
-	if (!Number.isSafeInteger(plan.startFrame) || !Number.isSafeInteger(plan.frameCount)
-		|| !(sampleRate > 0) || !(pixelsPerSecond > 0)) return false;
-	if (plan.sourceId && clip.sourceId && plan.sourceId !== clip.sourceId) return false;
-	const expectedDuration = Math.max(
-		plan.frameCount / sampleRate,
-		MINIMUM_VISIBLE_CLIP_PIXELS / pixelsPerSecond,
-	);
-	const frameTolerance = 0.5 / sampleRate;
-	return Math.abs(clip.trimStart - plan.startFrame / sampleRate) <= frameTolerance
-		&& Math.abs(clip.duration - expectedDuration) <= frameTolerance;
-}
-
-function peakPlanNeedsOutline(plan, liveWidth) {
+function peakPlanNeedsPreview(plan, liveWidth) {
 	if (!plan?.peakBlockSize) return false;
 	const projectedBucketWidth = plan.peakBlockSize * plan.pixelsPerSample
 		* liveWidth / plan.pixelWidth;
 	return liveWidth > plan.pixelWidth || !(projectedBucketWidth <= 1);
-}
-
-function interpolatedPeakOutlinePlan(plan) {
-	if (!plan?.peakBlockSize || !Number.isFinite(plan.pixelWidth) || plan.pixelWidth <= 0
-		|| !Array.isArray(plan.channels) || !plan.channels.length) return null;
-	const columnCount = Math.min(...plan.channels.map((channel) => Math.min(
-		channel.minimum?.length ?? 0,
-		channel.maximum?.length ?? 0,
-	)));
-	const sampleCount = Math.max(2, Math.min(columnCount, MAXIMUM_INTERPOLATED_PEAK_POINTS));
-	const lowerChannels = [];
-	const upperChannels = [];
-	for (const channel of plan.channels) {
-		const lower = new Float32Array(sampleCount);
-		const upper = new Float32Array(sampleCount);
-		for (let point = 0; point < sampleCount; point += 1) {
-			const start = Math.floor(point * columnCount / sampleCount);
-			const end = Math.ceil((point + 1) * columnCount / sampleCount);
-			let minimum = Number.POSITIVE_INFINITY;
-			let maximum = Number.NEGATIVE_INFINITY;
-			for (let column = start; column < end; column += 1) {
-				const lowerValue = Number(channel.minimum[column]);
-				const upperValue = Number(channel.maximum[column]);
-				minimum = Math.min(minimum, Number.isFinite(lowerValue) ? lowerValue : 0);
-				maximum = Math.max(maximum, Number.isFinite(upperValue) ? upperValue : 0);
-			}
-			lower[point] = Number.isFinite(minimum) ? minimum : 0;
-			upper[point] = Number.isFinite(maximum) ? maximum : 0;
-		}
-		lowerChannels.push({ samples: lower, firstSampleX: 0 });
-		upperChannels.push({ samples: upper, firstSampleX: 0 });
-	}
-	return {
-		...plan,
-		mode: 'connecting-dots',
-		pixelsPerSample: plan.pixelWidth / (sampleCount - 1),
-		channels: lowerChannels,
-		pendingPeakUpperChannels: upperChannels,
-	};
 }
 
 export function resetAudacityClipCanvas(canvas) {
@@ -292,8 +218,8 @@ export function resetAudacityClipCanvas(canvas) {
 	delete canvas.__kwWaveformPlan;
 	delete canvas.__kwFrequencyWaveformPlan;
 	delete canvas.__kwFrequencyWaveformRenderer;
+	delete canvas.__kwPendingFrequencyWaveform;
 	delete canvas.__kwWaveformDrawKey;
-	delete canvas.__kwWaveformPaintedWidth;
 	canvas.__kwWaveformState = 'empty';
 	delete canvas.dataset.waveformRenderer;
 	delete canvas.dataset.waveformMode;
@@ -307,8 +233,13 @@ export function audacityCanvasDrawKey(canvas, clip, drawKey, bounds = canvas.get
 	return [
 		drawKey,
 		clip.color || '',
+		clip.sourceId,
+		clip.waveformStartFrame,
+		clip.waveformEndFrame,
 		clip.start,
 		clip.duration,
+		clip.trimStart,
+		clip.waveformIdentity,
 		bounds.width,
 		bounds.height,
 		canvas.width,
@@ -345,11 +276,12 @@ export function drawAudacityClipCanvas(canvas, clip, options) {
 	const body = canvas.closest('.clip-body');
 	const color = body?.dataset.color || 'blue';
 	const style = getComputedStyle(canvas);
-	const baseWaveform = cssColor(style, `--clip-${color}-waveform`, '#172533');
-	const selectedWaveform = cssColor(style, `--clip-${color}-time-selection-waveform`, baseWaveform);
-	const baseRms = cssColor(style, `--clip-${color}-waveform-rms`, baseWaveform);
-	const selectedRms = cssColor(style, `--clip-${color}-time-selection-waveform-rms`, baseRms);
-	const divider = cssColor(style, `--clip-${color}-divider`, 'rgba(0, 0, 0, 0.35)');
+	const frequencyDisplay = isFrequencyWaveformDisplayMode(options.displayMode);
+	const baseWaveform = cssColor(style, frequencyDisplay ? '--frequency-sample' : `--clip-${color}-waveform`, '#172533');
+	const selectedWaveform = cssColor(style, frequencyDisplay ? '--frequency-selected-sample' : `--clip-${color}-time-selection-waveform`, baseWaveform);
+	const baseRms = cssColor(style, frequencyDisplay ? '--frequency-rms' : `--clip-${color}-waveform-rms`, baseWaveform);
+	const selectedRms = cssColor(style, frequencyDisplay ? '--frequency-rms' : `--clip-${color}-time-selection-waveform-rms`, baseRms);
+	const divider = cssColor(style, frequencyDisplay ? '--frequency-divider' : `--clip-${color}-divider`, 'rgba(0, 0, 0, 0.35)');
 	const splitSeparator = cssColor(style, '--split-separator', divider);
 	const selection = clipSelectionPixels(clip, options.timeSelection, options.pixelsPerSecond, width);
 	const splitY = options.displayMode === 'spectrogram'
@@ -360,9 +292,6 @@ export function drawAudacityClipCanvas(canvas, clip, options) {
 	const channelGeometry = channelCount > 1
 		? audioEditorStereoChannelGeometry(waveformHeight, options.channelHeightRatio)
 		: [{ top: 0, height: waveformHeight }];
-	const upperPeakOutline = rendering.pendingPeakUpperChannels
-		? { ...rendering, channels: rendering.pendingPeakUpperChannels }
-		: null;
 	const amplitudeScale = 2 ** Math.max(0, Math.min(MAXIMUM_WAVEFORM_VERTICAL_ZOOM, Number(options.verticalZoom) || 0));
 	const evaluateEnvelope = rendering.envelope?.length
 		? createEnvelopeValueEvaluator(rendering.envelope, rendering.durationFrames)
@@ -400,9 +329,10 @@ export function drawAudacityClipCanvas(canvas, clip, options) {
 		});
 	} else delete canvas.dataset.spectrogramRenderer;
 	if (waveformHeight > 0 && selection.end > selection.start) {
-		context.fillStyle = cssColor(style, `--clip-${color}-time-selection-body`, 'rgba(255, 255, 255, 0.15)');
+		context.fillStyle = cssColor(style, frequencyDisplay ? '--frequency-selection-body' : `--clip-${color}-time-selection-body`, 'rgba(255, 255, 255, 0.15)');
 		context.fillRect(selection.start, splitY, selection.end - selection.start, waveformHeight);
 	}
+	let frequencyPainted = false;
 	for (let channel = 0; waveformHeight > 0 && channel < channelCount; channel += 1) {
 		const channelTop = splitY + channelGeometry[channel].top;
 		const channelHeight = channelGeometry[channel].height;
@@ -425,10 +355,12 @@ export function drawAudacityClipCanvas(canvas, clip, options) {
 			envelopeGain,
 			centerLineColor: divider,
 		};
-		if (!options.frequencyWaveformRenderer?.drawFrequencyWaveformChannel(
+		const channelFrequencyPainted = options.frequencyWaveformRenderer?.drawFrequencyWaveformChannel(
 			context, options.displayMode, rendering, clip.frequencyWaveform,
 			drawingOptions, style, options.showRms,
-		)) {
+		);
+		frequencyPainted ||= Boolean(channelFrequencyPainted);
+		if (!channelFrequencyPainted) {
 			drawAudacityWaveformChannel(context, rendering, {
 				...drawingOptions,
 				sampleColor: waveformColor,
@@ -436,12 +368,6 @@ export function drawAudacityClipCanvas(canvas, clip, options) {
 				showRms: options.showRms,
 			});
 		}
-		if (upperPeakOutline) drawAudacityWaveformChannel(context, upperPeakOutline, {
-			...drawingOptions,
-			sampleColor: waveformColor,
-			rmsColor,
-			showRms: false,
-		});
 		context.restore();
 	}
 	context.strokeStyle = divider;
@@ -457,15 +383,12 @@ export function drawAudacityClipCanvas(canvas, clip, options) {
 	canvas.dataset.waveformRenderer = 'audacity';
 	canvas.dataset.waveformMode = rendering.mode;
 	canvas.dataset.waveformOwner = 'audacity';
-	const frequencyMode = options.frequencyWaveformRenderer && clip.frequencyWaveform
-		&& (options.displayMode === 'waveform-three-band' || options.displayMode === 'waveform-rainbow')
-		? options.displayMode
-		: null;
+	const frequencyMode = frequencyPainted ? options.displayMode : null;
 	if (frequencyMode) canvas.dataset.frequencyWaveformMode = frequencyMode;
 	else delete canvas.dataset.frequencyWaveformMode;
 	canvas.dataset.waveformSource = frequencyMode
 		? 'frequency-analysis'
-		: rendering.peakBlockSize ? 'peaks' : 'pcm';
+		: options.peakPreview ? 'peak-preview' : rendering.peakBlockSize ? 'peaks' : 'pcm';
 	return true;
 }
 

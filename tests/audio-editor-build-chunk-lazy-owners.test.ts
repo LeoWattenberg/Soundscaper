@@ -259,6 +259,8 @@ test('frequency waveform analysis and presentation share one opt-in owner', () =
 		'src/common/editor/controller/source/frequency-waveform-source-service.ts',
 		'src/common/editor/controller/source/frequency-waveform-window-service.ts',
 		'src/common/editor/ui/timeline/frequency-waveform-projection.ts',
+		'src/common/editor/ui/timeline/frequency-waveform-palette.ts',
+		'src/common/editor/ui/timeline/frequency-waveform-continuity.ts',
 		'src/common/editor/ui/timeline/frequency-waveform-renderer.ts',
 	]) {
 		assert.ok(EDITOR_FREQUENCY_WAVEFORM_CHUNK_TEST.test(path), `${path} must be optional frequency waveform code`);

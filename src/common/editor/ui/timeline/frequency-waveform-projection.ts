@@ -8,7 +8,6 @@ import {
 } from '../../audio-warp-runtime.ts';
 import {
 	FREQUENCY_WAVEFORM_SILENCE_WEIGHT,
-	frequencyWaveformCentroidColor,
 	selectFrequencyWaveformLevel,
 	validateFrequencyWaveformAnalysis,
 	validateFrequencyWaveformWindow,
@@ -26,6 +25,7 @@ import {
 	projectedClipVisibleSourceSamples,
 	sourceWindowCoversProjectedClip,
 } from './preview.ts';
+import { frequencyWaveformPaletteColor, type FrequencyWaveformTheme } from './frequency-waveform-palette.ts';
 
 type FrequencyBandName = 'low' | 'mid' | 'high';
 
@@ -318,11 +318,13 @@ function aggregateWindowBandRange(
 	return { minimum, maximum };
 }
 
-/** Map spectral centroid to the log-frequency palette used by Freesound waveforms. */
-export function frequencyWaveformColor(frequencyHz: number, weight: number, sampleRate: number): string {
+/** Map spectral centroid to a balanced log-frequency palette for the active theme. */
+export function frequencyWaveformColor(
+	frequencyHz: number, weight: number, sampleRate: number, theme: FrequencyWaveformTheme = 'light',
+): string {
 	const magnitude = finiteNumber(weight, 'weight');
 	const frequency = finiteNumber(frequencyHz, 'frequencyHz');
-	return frequencyWaveformCentroidColor(frequency * magnitude, magnitude, sampleRate);
+	return frequencyWaveformPaletteColor(frequency, magnitude, sampleRate, theme);
 }
 
 function createSourceRangeProjector(

@@ -9,7 +9,7 @@ import { AudacityWaveformCanvases } from '../src/common/editor/ui/timeline/Timel
 import { resolveSkinTheme } from '../src/common/editor/ui/skins/skin-themes.ts';
 import { installReactTestDom } from './helpers/react-test-dom.ts';
 
-test('pending zoom redraws old peak columns as a fine line until a finer window arrives', async () => {
+test('pending zoom preserves filled waveforms and aligns changed viewport ranges', async () => {
 	const dom = installReactTestDom();
 	const actGlobal = globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean };
 	const priorAct = actGlobal.IS_REACT_ACT_ENVIRONMENT;
@@ -86,6 +86,7 @@ test('pending zoom redraws old peak columns as a fine line until a finer window 
 	const plan = {
 		mode: 'summary',
 		sourceId: 'source-a',
+		waveformIdentity: 'original',
 		pixelWidth: 100,
 		pixelsPerSample: 0.03125,
 		peakBlockSize: 8,
@@ -98,7 +99,7 @@ test('pending zoom redraws old peak columns as a fine line until a finer window 
 			rms: new Float32Array(100).fill(0.25),
 		}],
 	};
-	const clipBase = { id: 'clip', sourceId: 'source-a', start: 0, duration: 1, trimStart: 0, color: 'blue' };
+	const clipBase = { id: 'clip', sourceId: 'source-a', start: 0, duration: 1, trimStart: 0, color: 'blue', waveformIdentity: 'original' };
 	const baseProps = {
 		rootRef: { current: trackRoot },
 		displayMode: 'waveform',
@@ -143,11 +144,11 @@ test('pending zoom redraws old peak columns as a fine line until a finer window 
 		assert.ok(resizeWrites > resizeWritesAfterPaint, 'the backing canvas tracks the new clip width');
 		assert.equal(canvas.width, 400);
 		assert.equal(painted, true);
-		assert.ok(lineSegments > 0, 'the fallback connects peak-column centers');
+		assert.equal(lineSegments, 0, 'pending peak previews never fabricate sample contours');
 		assert.strictEqual(canvas.__kwWaveformPlan, plan);
 		assert.equal(canvas.dataset.waveformPending, 'true');
-		assert.equal(canvas.dataset.waveformSource, 'interpolated-peaks');
-		assert.equal(canvas.dataset.waveformMode, 'connecting-dots');
+		assert.equal(canvas.dataset.waveformSource, 'peak-preview');
+		assert.equal(canvas.dataset.waveformMode, 'summary');
 		const effectivePeakWidth = plan.peakBlockSize * plan.pixelsPerSample
 			* liveWidth / plan.pixelWidth;
 		assert.ok(effectivePeakWidth <= 1, 'the average peak width does not prove warp-local resolution');
@@ -160,7 +161,7 @@ test('pending zoom redraws old peak columns as a fine line until a finer window 
 		liveWidth = 1_600;
 		await render([{ ...clipBase, waveformPending: true }], 1_600);
 		assert.equal(canvas.width, 1_600);
-		assert.equal(canvas.dataset.waveformSource, 'interpolated-peaks');
+		assert.equal(canvas.dataset.waveformSource, 'peak-preview');
 		assert.equal(painted, true);
 
 		const finePlan = {
@@ -187,13 +188,16 @@ test('pending zoom redraws old peak columns as a fine line until a finer window 
 
 		const roundedPlan = { ...plan, pixelWidth: 49, pixelsPerSample: 0.125 };
 		await render([{ ...clipBase, audacityWaveform: roundedPlan }], 50);
-		assert.equal(canvas.dataset.waveformSource, 'interpolated-peaks',
+		assert.equal(canvas.dataset.waveformSource, 'peak-preview',
 			'actual canvas width makes one-pixel nominal peak buckets too wide');
 		assert.equal(painted, true);
 
-		await render([{ ...clipBase, trimStart: 0.1, waveformPending: true }], 50);
+		await render([{ ...clipBase, trimStart: 0.1, duration: 0.9, waveformPending: true }], 50);
+		assert.equal(painted, true, 'zoom changes the visible source range without blanking the canvas');
+		assert.equal(canvas.dataset.waveformPending, 'true');
+		await render([{ ...clipBase, waveformIdentity: 'edited', waveformPending: true }], 50);
 		assert.equal(canvas.__kwWaveformPlan, undefined,
-			'a pending clip with a changed source range cannot reuse the previous plan');
+			'a pending edited clip cannot reuse audio from before the edit');
 		await render([{ ...clipBase, audacityWaveform: plan }], 100);
 		await render([{ ...clipBase, sourceId: 'source-b', waveformPending: true }], 100);
 		assert.equal(canvas.__kwWaveformPlan, undefined,

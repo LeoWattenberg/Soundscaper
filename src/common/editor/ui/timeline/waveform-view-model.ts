@@ -14,7 +14,7 @@ import { audacityWaveformMode } from '../../audacity-waveform-renderer.js';
 import { WaveformPeakResolutionError } from '../../design-system-adapters/waveform-internals.ts';
 import { WAVEFORM_PEAKS_VERSION } from '../../waveform-peak-contract.ts';
 import type { FrequencyWaveformDisplayMode } from '../../track-display-mode.ts';
-import { createWaveformPreviewCacheKey } from '../waveform-preview-cache.ts';
+import { createWaveformContentKey, createWaveformPreviewCacheKey } from '../waveform-preview-cache.ts';
 import {
 	MINIMUM_VISIBLE_CLIP_PIXELS,
 	pcmWindowCoversProjectedClip,
@@ -139,6 +139,9 @@ export interface TimelineClipViewModel {
 	readonly id: string;
 	readonly sourceId: string;
 	readonly name: string;
+	readonly waveformIdentity: string;
+	readonly waveformStartFrame: number;
+	readonly waveformEndFrame: number;
 	readonly start: number;
 	readonly duration: number;
 	readonly selected: boolean;
@@ -236,6 +239,9 @@ export function createTimelineClipViewModel({
 	const output: TimelineClipViewModel = {
 		id: clip.id,
 		sourceId: clip.sourceId,
+		waveformIdentity: JSON.stringify([createWaveformContentKey(source, clip), sampleRate, project?.tempoMap]),
+		waveformStartFrame: clip.waveformStartFrame,
+		waveformEndFrame: clip.waveformEndFrame,
 		// Imported clips begin with a title derived from the source filename. Keep
 		// showing the original source label until that generated title is renamed.
 		name: title && title !== generatedTitle ? title : sourceName || title || copy.clip,
@@ -278,7 +284,9 @@ export function createTimelineClipViewModel({
 		channelCount: waveformPeakWindow.channels.length,
 		levels: [{ blockSize: waveformPeakWindow.blockSize, channels: waveformPeakWindow.channels }],
 	} : null;
-	const frequencyPlan = frequencyWaveformMode && frequencyWaveformProjector
+	const threeBandSamples = frequencyWaveformMode === 'waveform-three-band'
+		&& visibleSourceSamples > 0 && audacityWaveformMode(pixelWidth / visibleSourceSamples) !== 'summary';
+	const frequencyPlan = frequencyWaveformMode && !threeBandSamples && frequencyWaveformProjector
 		? frequencyWaveformProjector(visual, clip, {
 			startFrame: clip.waveformStartFrame,
 			endFrame: clip.waveformEndFrame,
@@ -443,6 +451,7 @@ export function createTimelineClipViewModel({
 			audacityWaveform: {
 				...waveform.rendering,
 				sourceId: clip.sourceId,
+				waveformIdentity: output.waveformIdentity,
 				durationFrames: clip.durationFrames,
 				envelope: clip.envelope || [],
 			},
