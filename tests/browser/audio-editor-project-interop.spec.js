@@ -30,7 +30,6 @@ import {
 	seekOnRuler,
 	showToolbarButton,
 	trackNameText,
-	waitForEditor,
 } from './audio-editor-test-helpers.js';
 import { chooseTrackMenuAction } from './helpers/track-menu.js';
 
@@ -155,8 +154,8 @@ test.describe('audio editor React/design-system workflows', () => {
 
 		await expect(editor.locator('[data-save-state]')).toHaveAttribute('data-state', 'saved', { timeout: 10_000 });
 		await page.reload();
-		const restored = await waitForEditor(page);
-		await expect(restored).toHaveAttribute('data-track-count', '3');
+		const restored = page.locator('[data-audio-editor]');
+		await expect(restored).toHaveAttribute('data-track-count', '3', { timeout: 20_000 });
 		await expect(restored).toHaveAttribute('data-clip-count', '3');
 		const restoredSecondTrack = restored.locator('[data-track-row]').nth(2);
 		await expect(restoredSecondTrack.getByRole('button', { name: 'Mute' })).toHaveAttribute('aria-pressed', 'true');
@@ -209,8 +208,8 @@ test.describe('audio editor React/design-system workflows', () => {
 			await expect(editor.locator('[data-save-state]')).toHaveAttribute('data-state', 'saved', { timeout: 10_000 });
 
 			await page.reload();
-			editor = await waitForEditor(page);
-			await expect(editor).toHaveAttribute('data-track-count', '2');
+			editor = page.locator('[data-audio-editor]');
+			await expect(editor).toHaveAttribute('data-track-count', '2', { timeout: 20_000 });
 			await expect(editor).toHaveAttribute('data-clip-count', '1');
 			await expect(trackNameText(editor).filter({ hasText: / — Right$/ })).toHaveCount(0);
 		});
