@@ -14,10 +14,12 @@ const MANIFEST = JSON.parse(gunzipSync(readFileSync(resolve(ROOT, 'tests/fixture
 
 function cleanMarkdown(value) {
 	return value
-		.replace(/\[([^\]]+)\]\((?:\\.|[^)])*\)/gu, '$1')
-		.replace(/&#x([0-9a-f]+);/giu, (_, hex) => String.fromCodePoint(Number.parseInt(hex, 16)))
-		.replace(/&#(\d+);/gu, (_, decimal) => String.fromCodePoint(Number(decimal)))
-		.replace(/&amp;/gu, '&').replace(/&quot;/gu, '"').replace(/&nbsp;/gu, ' ')
+		.replace(/\[([^\]]+)\]\((?:\\.|[^)\\])*\)/gu, '$1')
+		.replace(/&(?:#[xX]([0-9a-fA-F]+)|#(\d+)|(amp|quot|nbsp));/gu, (_, hex, decimal, named) => {
+			if (hex !== undefined) return String.fromCodePoint(Number.parseInt(hex, 16));
+			if (decimal !== undefined) return String.fromCodePoint(Number(decimal));
+			return named === 'amp' ? '&' : named === 'quot' ? '"' : ' ';
+		})
 		.replace(/<[^>]+>/gu, ' ')
 		.replace(/\\([^\s])/gu, '$1')
 		.replace(/[*_]/gu, '')

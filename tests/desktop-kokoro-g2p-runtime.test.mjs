@@ -152,7 +152,7 @@ test('describes a large G2P bundle within a restricted file descriptor limit', {
 			process.stdout.write(String(manifest.files.length));
 		`;
 		const { stdout } = await runFile('bash', [
-			'-c', 'ulimit -n 32; exec "$@"', 'kokoro-g2p-descriptor-limit',
+			join(import.meta.dirname, 'fixtures/limit-open-files.sh'),
 			process.execPath, '--input-type=module', '--eval', program, bundleRoot,
 		], { windowsHide: true });
 		assert.equal(stdout, '132');

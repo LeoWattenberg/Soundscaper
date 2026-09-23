@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import assert from 'node:assert/strict';
+import { spawnSync } from 'node:child_process';
 import { readFileSync } from 'node:fs';
 import test from 'node:test';
 import { gunzipSync } from 'node:zlib';
@@ -22,6 +23,23 @@ test('catalog extraction removes links with escaped parentheses without leaking 
 	const source = `### Chebyshev Type I Filter\n\nType I filters have more [ripple](http://en.wikipedia.org/wiki/Ripple\\_\\(filters\\)#Frequency-domain\\_ripple) in the passband.\n\n{% file src="../../.gitbook/assets/ChebyI.ny" %}\n`;
 	assert.equal(extractNyquistCatalogRows(source, 'nyquist-plugins/effect-plugins/filters-and-eq.md')[0]?.description,
 		'Type I filters have more ripple in the passband.');
+});
+
+test('catalog extraction decodes each HTML entity only once', () => {
+	const source = `### Entities\n\n&amp;quot; &#38;quot; &amp;#x41; &quot; &#x41;\n\n{% file src="../../.gitbook/assets/example.ny" %}\n`;
+	assert.equal(extractNyquistCatalogRows(source, 'nyquist-plugins/example.md')[0]?.description,
+		'&quot; &quot; &#x41; " A');
+});
+
+test('catalog extraction handles a malformed link with many escaped parentheses promptly', () => {
+	const source = `### Links\n\n[broken](${'\\('.repeat(32)}!\n\n{% file src="../../.gitbook/assets/example.ny" %}\n`;
+	const result = spawnSync(process.execPath, [
+		'--input-type=module', '--eval',
+		"import { extractNyquistCatalogRows } from './scripts/nyquist-archive-metadata.mjs'; extractNyquistCatalogRows(process.argv[1], 'nyquist-plugins/example.md');",
+		source,
+	], { cwd: new URL('../', import.meta.url), encoding: 'utf8', timeout: 2000 });
+	assert.ifError(result.error);
+	assert.equal(result.status, 0, result.stderr);
 });
 
 test('committed catalog metadata covers exactly the pinned archive and names the catalog examples', () => {
