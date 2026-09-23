@@ -4,7 +4,7 @@ description: "Organiza los clips, equilibra las pistas, aplica efectos y crea un
 sidebar:
   order: 4
 ---
-<!-- docs-ai-provenance: {"factPacketSha256":"d4b354ffb5d6a4d35fcb20ac6bb1e0191746badd98ca8f5b476a286e068a3c26","model":"qwen3.8:latest","modelDigest":"22130167c4c20e20c7b71454612966ca8e8171e9b3cc8ab6ce8aa6cbfec79643","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"d4b354ffb5d6a4d35fcb20ac6bb1e0191746badd98ca8f5b476a286e068a3c26","targetLocale":"es"} -->
+<!-- docs-ai-provenance: {"factPacketSha256":"eaa07736d9143de912e22bd2c5d4a8db4f1553c1052d247826240cda8c6af620","model":"gpt-5.6-luna","modelDigest":"manual","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"eaa07736d9143de912e22bd2c5d4a8db4f1553c1052d247826240cda8c6af620","targetLocale":"es"} -->
 
 ## Organizar clips
 
@@ -35,13 +35,22 @@ Elige **Efecto → Eliminación y reparación de ruido → De-esser**. Establece
 
 Elige **Efecto → Volumen y compresión → Compresor multibanda**. Los dos filtros de cruce dividen la señal en bandas bajas, medias y altas. Cada banda tiene su propio umbral, relación y ganancia de salida. Una relación de 1 deja la dinámica de esa banda sin cambios. El ataque y la liberación se aplican a las tres bandas. Los filtros de cruce tienen pendientes suaves y superpuestas de 6 dB/octava; con todas las relaciones en 1 y las ganancias de banda en 0 dB, la señal original pasa sin cambios.
 
-Ambos efectos vinculan sus canales para preservar el equilibrio estéreo y también están disponibles en los racks de efectos de pista y de master. Los ajustes del rack se guardan con el proyecto y se pueden ajustar durante la reproducción. **Aplicar a selección** renderiza el efecto en el audio seleccionado y admite Deshacer. La automatización de línea de tiempo no está disponible para estos dos efectos.
+Ambos efectos vinculan sus canales para conservar el equilibrio estéreo y también están disponibles en los racks de efectos de pista y de la pista maestra. Los ajustes del rack se guardan con el proyecto y se pueden modificar durante la reproducción. **Aplicar a selección** procesa el efecto en el audio seleccionado y admite deshacer. La automatización de la línea de tiempo no está disponible para estos dos efectos.
+
+### Usar efectos LADSPA y analizadores Vamp {#native-audio-plugins}
+
+La aplicación de escritorio puede buscar complementos de terceros solo después de que habilites un formato y una de sus carpetas en **Efecto → Administrador de complementos**. La búsqueda nunca es automática. Habilita cada instalación encontrada antes de usarla e instala solo complementos de confianza: los complementos nativos ejecutan código aunque Soundscaper los aloje en procesos auxiliares supervisados.
+
+Los efectos LADSPA están disponibles en Linux. Después de habilitarlos en el administrador, abre uno desde **Efecto → Complementos de audio**. Soundscaper crea los controles a partir de los puertos LADSPA, ya que este formato no tiene una interfaz de proveedor. Esos valores de control y el estado habilitado o omitido del efecto se guardan con el proyecto.
+
+Los complementos Vamp analizan el audio en vez de modificarlo. Después de habilitar una instalación Vamp, selecciona una pista de audio para analizarla o deja sin seleccionar ninguna pista para analizar la mezcla maestra. Una selección de tiempo limita el análisis; de lo contrario, Soundscaper usa el proyecto completo. Elige **Analizar → Complementos Vamp**, selecciona la salida del analizador y sus ajustes, y ejecútalo. Soundscaper añade las marcas de tiempo devueltas como una nueva pista de etiquetas solo cuando el análisis termina correctamente, para que cancelar o cambiar el proyecto no deje etiquetas parciales.
 
 ## Exportar
 
 Elige **Archivo → Exportar audio** para una entrega mezclada o **Exportar audio seleccionado** cuando solo se deba renderizar una selección. Soundscaper también puede exportar stems y etiquetas.
 
 Los formatos comprimidos usan el tiempo de ejecución FFmpeg. Los formatos exactos y la disponibilidad condicional se enumeran en la [referencia de formatos generada](/reference/).
+
 
 Reproduce el archivo exportado en otra aplicación antes de entregarlo o eliminar el material de origen.
 

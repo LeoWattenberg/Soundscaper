@@ -4,7 +4,7 @@ description: "La API de JavaScript contra la que se ejecuta un programa de macro
 sidebar:
   order: 7
 ---
-<!-- docs-ai-provenance: {"factPacketSha256":"bfeb48e77dc0013cc1f43bd584ae92a7196983e349631c0b75bfbca2ba0c542a","model":"qwen3.8:latest","modelDigest":"22130167c4c20e20c7b71454612966ca8e8171e9b3cc8ab6ce8aa6cbfec79643","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"bfeb48e77dc0013cc1f43bd584ae92a7196983e349631c0b75bfbca2ba0c542a","targetLocale":"es"} -->
+<!-- docs-ai-provenance: {"factPacketSha256":"375c684211bdec9dbd3614c197bda423e24858a568ad5ae3c06ab06d7db2522f","model":"gpt-5.6-luna","modelDigest":"manual","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"375c684211bdec9dbd3614c197bda423e24858a568ad5ae3c06ab06d7db2522f","targetLocale":"es"} -->
 
 Un programa de macro es una macro escrita en JavaScript en lugar de como una lista de pasos.
 Se ejecuta dentro del editor contra una pequeña API llamada `sound`, que le permite leer
@@ -89,7 +89,7 @@ lanzó la excepción.
 ### Qué audio toca un efecto
 
 Un efecto aplicado por un programa se ejecuta sobre la selección de tiempo actual en la
-pista enfocada, que es la pista cuya cabecera hiciste clic por última vez o cuyo clip
+pista enfocada, es decir, aquella en cuya cabecera hiciste clic por última vez o cuyo clip
 seleccionaste por última vez. Cuando no hay una selección de tiempo pero sí un clip seleccionado, el
 efecto cubre ese clip. Las llamadas de selección de un programa cambian el rango de tiempo y
 el conjunto de pistas seleccionadas, pero no qué pista tiene el enfoque, por lo que una ejecución procesa
@@ -331,7 +331,6 @@ Nyquist no se pueden aplicar desde un programa.
 | Cambiar tempo | `audacity-change-tempo` | `tempoPercent: 0` |
 | Filtros clásicos | `audacity-classic-filters` | `family: 'butterworth'`, `direction: 'lowpass'`, `order: 1`, `cutoffHz: 1000`, `passbandRippleDb: 1`, `stopbandAttenuationDb: 30` |
 | Eliminación de clics | `audacity-click-removal` | `threshold: 200`, `maximumWidth: 20` |
-| Compresor | `compressor` | `threshold: -24`, `knee: 30`, `ratio: 4`, `attack: 0.003`, `release: 0.25`, `makeupGain: 0` |
 | Compresor (Audacity) | `audacity-compressor` | `thresholdDb: -10`, `makeupGainDb: 0`, `kneeWidthDb: 5`, `ratio: 10`, `lookaheadMs: 1`, `attackMs: 30`, `releaseMs: 150` |
 | Retardo | `delay` | `time: 0.25`, `feedback: 0.3`, `mix: 0.2` |
 | Distorsión | `audacity-distortion` | `mode: 'hard-clipping'`, `dcBlock: false`, `thresholdDb: -6`, `noiseFloorDb: -70`, `parameter1: 50`, `parameter2: 50`, `repeats: 1` |
@@ -345,7 +344,6 @@ Nyquist no se pueden aplicar desde un programa.
 | Filtro paso alto | `highpass` | `frequency: 80`, `q: 0.707` |
 | Invertir | `audacity-invert` | ninguno |
 | Compresor heredado | `audacity-legacy-compressor` | `thresholdDb: -12`, `noiseFloorDb: -40`, `ratio: 2`, `attackSeconds: 0.2`, `releaseSeconds: 1`, `normalize: true`, `usePeak: false` |
-| Limitador | `limiter` | `ceiling: -1`, `lookahead: 0.005`, `release: 0.1` |
 | Limitador (Audacity) | `audacity-limiter` | `thresholdDb: -5`, `makeupTargetDb: -1`, `kneeWidthDb: 2`, `lookaheadMs: 1`, `releaseMs: 20` |
 | Normalización de sonoridad | `audacity-loudness-normalization` | `mode: 'lufs'`, `targetLufs: -23`, `targetRmsDb: -20`, `stereoIndependent: false`, `dualMono: true` |
 | Filtro paso bajo | `lowpass` | `frequency: 18000`, `q: 0.707` |
@@ -393,7 +391,7 @@ Un parámetro que se omita deja esa parte de la selección intacta, que es cómo
 
 ### Lo que está deliberadamente ausente
 
-`Undo` y `Redo` están ausentes porque una ejecución ya es una entrada del historial y un paso que recorriera el historial alcanzaría más allá de la ejecución hasta las propias ediciones. Los comandos de transporte y grabación están ausentes porque un programa no tiene nada que esperar y no puede deshacerse de una grabación. Abrir, guardar, cerrar, importar, exportar y preferencias están ausentes porque el alcance de un programa es el único proyecto que estaba abierto cuando comenzó. Los comandos que solo abren un diálogo o cambian la vista están ausentes porque no cambian nada en el proyecto.
+`Undo` y `Redo` no están disponibles porque cada ejecución ya es una entrada del historial; recorrerlo desde un programa afectaría también a las ediciones anteriores. Los comandos de transporte y grabación no están disponibles porque un programa no tiene nada que esperar ni puede revertir una grabación. Tampoco están disponibles los comandos para abrir, guardar, cerrar, importar, exportar y cambiar las preferencias, porque un programa solo actúa en el proyecto que estaba abierto al iniciarse. Los comandos que solo abren un diálogo o cambian la vista no están disponibles porque no modifican el proyecto.
 
 ## Compartir programas {#sharing-programs}
 

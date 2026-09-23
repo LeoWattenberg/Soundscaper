@@ -4,7 +4,7 @@ description: "Compare Soundscaper con Audacity 4 y Adobe Audition en grabación,
 sidebar:
   order: 3
 ---
-<!-- docs-ai-provenance: {"factPacketSha256":"703e76cffbe1464f1283f6c8f45cee52c0d37faae852b7efc163879710a2ddb2","model":"qwen3.8:latest","modelDigest":"22130167c4c20e20c7b71454612966ca8e8171e9b3cc8ab6ce8aa6cbfec79643","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"703e76cffbe1464f1283f6c8f45cee52c0d37faae852b7efc163879710a2ddb2","targetLocale":"es"} -->
+<!-- docs-ai-provenance: {"factPacketSha256":"71097403d87aba03cddc2ccd696ff9a8663268afba3a7bf750fe8d9913de3eba","model":"gpt-5.6-luna","modelDigest":"manual","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"71097403d87aba03cddc2ccd696ff9a8663268afba3a7bf750fe8d9913de3eba","targetLocale":"es"} -->
 
 Soundscaper reimplementa Audacity 4 en la web y añade una capa de producción
 sobre ella. Adobe Audition es la herramienta comercial de posproducción contra
@@ -34,8 +34,8 @@ registro de formatos de exportación. Las cargas de destino nativas de escritori
 se generan mediante CI del repositorio o el empaquetado del destino. Un paquete
 habilita una capacidad solo después de poner en cola y verificar el resultado
 exacto coincidente; esas filas indican cuándo aún se requiere una carga.
-- Las filas de **Audacity 4** provienen del inventario de aguas arriba fijado en
-este repositorio, `4.0.0` en el commit `4c177d43`. Una capacidad que aguas arriba
+- Las filas de **Audacity 4** provienen del inventario de referencia fijado en
+este repositorio, `4.0.0` en el commit `4c177d43`. Una capacidad que Audacity
 registra pero deja deshabilitada o comenta fuera del menú se
 registra como tal, y una capacidad sin registro en la compilación fijada se
 informa como no presente en esa compilación, en lugar de como ausente
@@ -78,7 +78,7 @@ para la versión actual. No se verifican contra una compilación en ejecución.
 | Micrófono y audio de escritorio juntos | Sí — integrado | No | Parcial — requiere un dispositivo de bucle del sistema operativo |
 | Grabación programada | Sí | Sí | No |
 | Grabación activada por sonido | Sí — con umbral ajustable | Sí — con umbral ajustable | No |
-| Cuenta previa a la toma | Sí — consciente del mapa de tempo, maneja compás compuesto | Parcial — grabación de entrada | Parcial — pre-rodaje como parte de punch and roll |
+| Cuenta atrás antes de la toma | Sí — tiene en cuenta el mapa de tempo y admite compases compuestos | Parcial — grabación de entrada | Parcial — pre-roll como parte de punch and roll |
 | Grabación punch | Sí — una transacción, captura predeterminada y enrutada | No | Sí — punch and roll |
 | Grabación en bucle en tomas | Sí — un carril por pasada, añadido al mismo grupo | No | Parcial — tomas en un clip, elegidas de una lista |
 | Comping de tomas | Sí — audición, promoción, edición de regiones de comp, aplanado como una edición reversible | No | No — sin editor de comp |
@@ -117,8 +117,8 @@ para la versión actual. No se verifican contra una compilación en ejecución.
 
 | Capacidad | Soundscaper | Audacity 4 | Audition |
 | --- | --- | --- | --- |
-| Suite de efectos integrada | Sí — los 30 efectos de Audacity, los complementos Nyquist incluidos y los efectos de primera parte sin equivalente aguas arriba, como el bitcrusher | Sí — la misma colección integrada de 30 efectos | Sí — alrededor de cincuenta, incluyendo dinámica multibanda |
-| Rack de efectos en tiempo real por pista | Sí — un conjunto en tiempo real más amplio que el aguas arriba | Sí | Sí — dieciséis ranuras por clip, pista y master |
+| Suite de efectos integrada | Sí — los 30 efectos de Audacity, los complementos Nyquist incluidos y los efectos propios sin equivalente en Audacity, como el bitcrusher | Sí — la misma colección integrada de 30 efectos | Sí — alrededor de cincuenta, incluidos los de dinámica multibanda |
+| Rack de efectos en tiempo real por pista | Sí — una selección de efectos en tiempo real más amplia que la de la versión de referencia | Sí | Sí — dieciséis ranuras por clip, pista y pista maestra |
 | EQ paramétrico | Sí — un nuevo EQ paramétrico con bandas automatizables | Parcial — Curva de filtro y EQ gráfico | Sí — filtros paramétricos, gráficos y FFT |
 | Presets de efectos | Sí — aplicar, guardar, importar, exportar | Sí — aplicar, guardar, importar, exportar | Sí |
 | Macros y cadenas por lotes | Sí — biblioteca de macros guardadas con plantillas | No — la compilación fijada comenta el menú Macros | Sí — Favoritos y Procesamiento por lotes |
