@@ -93,6 +93,20 @@ Configuration precedence:
 
 Each output records its operation, prompt version, exact installed model digest, source hash, locale, and fact-packet identity in an HTML comment. Translation localizes the Starlight `title` and `description`, points the page's frontmatter links at its own language, preserves every other frontmatter field, protects code, URLs, link destinations, command IDs, and file extensions, then rejects structural or locale drift before writing.
 
+For translations produced directly by a Codex subagent rather than the local
+Ollama workflow, provenance may identify `modelProvider: "codex-subagent"` and
+the model name while omitting `modelDigest`. Do not invent a digest when the
+session does not expose one. The normal document and locale validators still
+apply; `modelDigest` remains present for Ollama output, whose installed model
+inventory supplies an exact digest. `stampSessionTranslation` in
+`scripts/docs-ai/session-provenance.mjs` stamps and validates a translated
+Markdown draft; its model and provider default to `gpt-6-luna` and
+`codex-subagent` and can be overridden when the session uses another model.
+When an existing translation is revised, `basedOnProvenance` records the model
+identity already present on the draft; `model` names the model that made the
+final revision and passed validation. A previous `modelDigest: "manual"` is
+not carried forward as though it were an exact digest.
+
 Locale drift is what a local model actually produces for a language it is weak in: an English
 answer reported as a success. `scripts/docs-ai/locale.mjs` decides which check applies from the
 locale's own script — a language written in Arabic, Greek, Hebrew, Devanagari, Armenian, Cyrillic,

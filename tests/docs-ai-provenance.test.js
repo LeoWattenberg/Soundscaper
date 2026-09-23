@@ -29,6 +29,25 @@ test('provenance is parseable and records exact model and source identity', () =
 	assert.equal(translationStatus({ source: `${source}\nChanged.`, target: document }).status, 'stale-source');
 });
 
+test('provenance can identify a session model without inventing a digest', () => {
+	const source = '# Source\n';
+	const provenance = createProvenance({
+		operation: 'translate',
+		model: 'gpt-6-luna',
+		modelProvider: 'codex-subagent',
+		promptVersion: 'docs-translate-v1',
+		source,
+		sourceLocale: 'en',
+		targetLocale: 'zh-CN',
+	});
+	const document = embedProvenance('---\ntitle: 标题\n---\n\n# 标题\n', provenance);
+
+	assert.equal(provenance.modelProvider, 'codex-subagent');
+	assert.equal(Object.hasOwn(provenance, 'modelDigest'), false);
+	assert.deepEqual(parseProvenance(document), provenance);
+	assert.equal(translationStatus({ source, target: document }).status, 'current');
+});
+
 test('cache keys include operation, exact digest, prompt version, and source hash', () => {
 	const common = {
 		operation: 'translate',

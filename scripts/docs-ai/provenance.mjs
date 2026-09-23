@@ -23,7 +23,8 @@ export function createProvenance(options) {
 		schemaVersion: 1,
 		operation: options.operation,
 		model: options.model,
-		modelDigest: options.modelDigest,
+		...(options.modelDigest ? { modelDigest: options.modelDigest } : {}),
+		...(options.modelProvider ? { modelProvider: options.modelProvider } : {}),
 		promptVersion: options.promptVersion,
 		sourceSha256: sha256(options.source),
 		sourceLocale: options.sourceLocale,
@@ -31,6 +32,14 @@ export function createProvenance(options) {
 	};
 	if (options.factPacketSha256) provenance.factPacketSha256 = options.factPacketSha256;
 	if (options.usedFactIds) provenance.usedFactIds = [...new Set(options.usedFactIds)].sort();
+	if (options.basedOnProvenance) {
+		const basedOn = options.basedOnProvenance;
+		provenance.basedOnProvenance = {
+			model: basedOn.model,
+			...(basedOn.modelProvider ? { modelProvider: basedOn.modelProvider } : {}),
+			...(basedOn.modelDigest && basedOn.modelDigest !== 'manual' ? { modelDigest: basedOn.modelDigest } : {}),
+		};
+	}
 	return provenance;
 }
 
