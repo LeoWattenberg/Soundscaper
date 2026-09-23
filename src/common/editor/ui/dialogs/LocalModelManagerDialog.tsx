@@ -112,10 +112,12 @@ export function LocalModelManagerDialogView({
 	const cancelling = new Set(snapshot.cancellingModelIds);
 	const globallyBusy = busy.size > 0 || snapshot.maintenanceOperation !== null;
 	const runtimeSummary = snapshot.runtimeAvailable === true
-		? text(copy, 'localModelsRuntimeReady', 'The local inference runtime is available.')
+		? text(copy, 'localModelsRuntimeReady', 'The speech engine is ready.')
 		: snapshot.runtimeAvailable === false
-			? text(copy, 'localModelsRuntimeUnavailable',
-				'The local inference runtime is unavailable.')
+			? snapshot.runtimeReason === 'The optional speech runtime is not installed.'
+				? text(copy, 'localModelsRuntimeNotInstalled',
+					'The speech engine downloads when you install a speech model.')
+				: text(copy, 'localModelsRuntimeUnavailable', 'The speech engine could not load.')
 			: null;
 	return <AudioEditorDialogShell
 		title={text(copy, 'manageLocalModels', 'Model Manager')}
@@ -129,9 +131,9 @@ export function LocalModelManagerDialogView({
 		/>}
 	>
 		<p>{text(copy, 'localModelsDescription',
-			'Optional models download only when you explicitly request them and run locally on this device.')}</p>
+			'Models and required engines download when you install a model. Processing runs locally on this device.')}</p>
 		{runtimeSummary && <section className="kw-local-model-manager__runtime" aria-label={text(
-			copy, 'localModelsRuntime', 'Local inference runtime',
+			copy, 'localModelsRuntime', 'Speech engine',
 		)}>
 			<p role="status" aria-live="polite">{runtimeSummary}</p>
 			{snapshot.runtimeReason && <details><summary>{text(copy, 'assistanceTechnicalDetails', 'Technical details')}</summary>
@@ -238,7 +240,14 @@ function ModelRow({
 				<code>{model.modelId} · {model.version}</code></details>
 		</div>
 		</td><td>{modelPurpose(copy, model.task)}</td>
-		<td title={sizeLabel}>{formatBytes(size, locale, text(copy, 'localModelsSizeUnavailable', 'Unavailable'))}</td>
+		<td title={sizeLabel}>
+			{formatBytes(size, locale, text(copy, 'localModelsSizeUnavailable', 'Unavailable'))}
+			{typeof model.runtimeDownloadBytes === 'number' && model.runtimeDownloadBytes > 0
+				&& <div className="kw-local-model-manager__runtime-size">{text(copy,
+					'localModelsRuntimeDownloadSize', 'Required runtime download')}: {formatBytes(
+						model.runtimeDownloadBytes, locale, '0 B',
+					)}</div>}
+		</td>
 		<td>{availabilityLabel(copy, model.availability)}</td><td>
 		{progress && <div className="kw-local-model-manager__progress">
 			<label htmlFor={`local-model-progress-${model.modelId}`}>{template(

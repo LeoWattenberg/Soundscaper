@@ -14,6 +14,8 @@ export interface LocalModelManagerModel {
 	readonly task: string;
 	readonly availability: LocalModelAvailability;
 	readonly downloadBytes: number | null;
+	/** Remaining compressed runtime bytes needed before this model can run. */
+	readonly runtimeDownloadBytes?: number | null;
 	readonly installedBytes: number | null;
 	readonly attributionRequired: boolean;
 }
@@ -133,6 +135,7 @@ export function normalizeLocalModelManagerModel(value: unknown): LocalModelManag
 		task: boundedText(value.task, 64, 'task'),
 		availability: availability as LocalModelAvailability,
 		downloadBytes: optionalBytes(value.downloadBytes),
+		runtimeDownloadBytes: optionalBytes(value.runtimeDownloadBytes, 'runtime download bytes'),
 		installedBytes: optionalBytes(value.installedBytes),
 		attributionRequired: boolean(value.attributionRequired, 'attribution requirement'),
 	});
@@ -259,8 +262,8 @@ export function localModelByteCount(value: unknown, label = 'byte count'): numbe
 	return bytes(value, label);
 }
 
-function optionalBytes(value: unknown): number | null {
-	return value === null || value === undefined ? null : bytes(value, 'model byte count');
+function optionalBytes(value: unknown, label = 'model byte count'): number | null {
+	return value === null || value === undefined ? null : bytes(value, label);
 }
 
 function bytes(value: unknown, label: string): number {

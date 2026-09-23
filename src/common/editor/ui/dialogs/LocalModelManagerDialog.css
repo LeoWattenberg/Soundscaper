@@ -84,6 +84,7 @@
 }
 
 [data-local-model-manager] .kw-local-model-manager__identity span,
+[data-local-model-manager] .kw-local-model-manager__runtime-size,
 [data-local-model-manager] dt,
 [data-local-model-manager] .kw-local-model-manager__progress label {
 	color: var(--muted);
