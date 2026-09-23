@@ -1,6 +1,6 @@
 ---
 title: "Muzică de fundal atenuată în timpul vocii"
-description: "Ajustați automat volumul muzicii de fundal atunci când există o pistă vocală."
+description: "Atenuarea automată a muzicii de fundal în timpul vorbirii din pista vocală."
 editUrl: false
 sidebar:
   order: 7
@@ -8,31 +8,31 @@ head:
   - tag: script
     attrs:
       type: "application/ld+json"
-    content: "{\"@context\":\"https://schema.org\",\"@type\":\"HowTo\",\"name\":\"Duck music under a voice\",\"description\":\"Turn a music bed down automatically whenever a voice track is speaking.\",\"tool\":[{\"@type\":\"HowToTool\",\"name\":\"Soundscaper\"}],\"step\":[{\"@type\":\"HowToStep\",\"position\":1,\"name\":\"Open Soundscaper. A new, empty project is ready as soon as the editor loads.\",\"text\":\"Open Soundscaper. A new, empty project is ready as soon as the editor loads.\"},{\"@type\":\"HowToStep\",\"position\":2,\"name\":\"Choose File → Import audio and pick the music. The file lands as a clip on its own track.\",\"text\":\"Choose File → Import audio and pick the music. The file lands as a clip on its own track.\"},{\"@type\":\"HowToStep\",\"position\":3,\"name\":\"Choose File → Import audio and pick the voice. The file lands as a clip on its own track.\",\"text\":\"Choose File → Import audio and pick the voice. The file lands as a clip on its own track.\"},{\"@type\":\"HowToStep\",\"position\":4,\"name\":\"Click the name bar of the music clip to select it.\",\"text\":\"Click the name bar of the music clip to select it. The clip you select is the one that gets ducked — the music, not the voice.\"},{\"@type\":\"HowToStep\",\"position\":5,\"name\":\"Choose Effect → Volume and compression → Auto Duck. In the Auto Duck dialog, choose the voice track for Control track and set Duck amount to -12, then press Apply to selection.\",\"text\":\"Choose Effect → Volume and compression → Auto Duck. In the Auto Duck dialog, choose the voice track for Control track and set Duck amount to -12, then press Apply to selection. The control track is the one that triggers the ducking. Twelve decibels down is enough for speech to sit clearly on top.\"},{\"@type\":\"HowToStep\",\"position\":6,\"name\":\"Press Play to listen, then Stop.\",\"text\":\"Press Play to listen, then Stop. The music drops while the other track plays and recovers where it is quiet.\"}]}"
+    content: "{\"@context\":\"https://schema.org\",\"@type\":\"HowTo\",\"name\":\"Duck music under a voice\",\"description\":\"Turn a music bed down automatically whenever a voice track is speaking.\",\"tool\":[{\"@type\":\"HowToTool\",\"name\":\"Soundscaper\"}],\"step\":[{\"@type\":\"HowToStep\",\"position\":1,\"name\":\"Open Soundscaper. A new, empty project is ready as soon as the editor loads.\",\"text\":\"Open Soundscaper. A new, empty project is ready as soon as the editor loads.\"},{\"@type\":\"HowToStep\",\"position\":2,\"name\":\"Choose File → Import and pick the music. It lands as a clip on its own track.\",\"text\":\"Choose File → Import and pick the music. It lands as a clip on its own track.\"},{\"@type\":\"HowToStep\",\"position\":3,\"name\":\"Choose File → Import and pick the voice. It lands as a clip on its own track.\",\"text\":\"Choose File → Import and pick the voice. It lands as a clip on its own track.\"},{\"@type\":\"HowToStep\",\"position\":4,\"name\":\"Click the name bar of the music clip to select it.\",\"text\":\"Click the name bar of the music clip to select it. The clip you select is the one that gets ducked — the music, not the voice.\"},{\"@type\":\"HowToStep\",\"position\":5,\"name\":\"Choose Effect → Volume and compression → Auto Duck. In the Auto Duck dialog, choose the voice track for Control track and set Duck amount to -12, then press Apply to selection.\",\"text\":\"Choose Effect → Volume and compression → Auto Duck. In the Auto Duck dialog, choose the voice track for Control track and set Duck amount to -12, then press Apply to selection. The control track is the one that triggers the ducking. Twelve decibels down is enough for speech to sit clearly on top.\"},{\"@type\":\"HowToStep\",\"position\":6,\"name\":\"Press Play to listen, then Stop.\",\"text\":\"Press Play to listen, then Stop. The music drops while the other track plays and recovers where it is quiet.\"}]}"
 ---
-<!-- docs-ai-provenance: {"factPacketSha256":"29eeeac8471c6886f72ec6f256f4acc11b452190de41307593f4a6a9f07893c5","model":"aya-expanse:32b","modelDigest":"1603440383bd5504dc7afd01c0407b425b988dde650a8dc1a737433baa3cd432","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"29eeeac8471c6886f72ec6f256f4acc11b452190de41307593f4a6a9f07893c5","targetLocale":"ro"} -->
+<!-- docs-ai-provenance: {"factPacketSha256":"313de1012af9c28f0b75a03718401297acb22bdfb48e03bde9f0c5daf2dc8299","model":"aya-expanse:32b","modelDigest":"1603440383bd5504dc7afd01c0407b425b988dde650a8dc1a737433baa3cd432","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"313de1012af9c28f0b75a03718401297acb22bdfb48e03bde9f0c5daf2dc8299","targetLocale":"ro"} -->
 
 <!-- Generated by `node scripts/docs-reference.mjs`. Do not edit. -->
 
-Podcast-urile și videoclipurile mențin muzica în fundal în timpul vorbirii prin scăderea volumului de fiecare dată când cineva vorbește și îl readuc în pauze. Auto Duck face acest lucru dintr-o pistă de control: ori de câte ori pista de control este mai tare decât un prag, pista selectată este redusă, cu estompare la margini.
+Podcast-urile și videoclipurile mențin muzica în fundal în timpul vorbirii prin scăderea ei de fiecare dată când cineva vorbește și o readuc în pauze. Auto Duck face acest lucru dintr-o pistă de control: ori de câte ori pista de control este mai tare decât un prag, pista selectată este redusă, cu estompare la margini.
 
-:::notă[Venind din Audacity?]
+:::note[Venind de la Audacity?]
 Acesta este **Efect → Volum și Compresie → Auto Duck** din Audacity. Numele de mai jos sunt cele proprii ale Soundscaper, care uneori diferă.
 :::
 
 ## Pași
 
 1. Deschideți Soundscaper. Un proiect nou, gol, este gata imediat ce se încarcă editorul.
-2. Alegeți **Fișier → Importă audio** și selectați muzica. Fișierul ajunge ca un clip pe propria sa pistă.
-3. Alegeți **Fișier → Importă audio** și selectați vocea. Fișierul ajunge ca un clip pe propria sa pistă.
-4. Faceți clic pe bara de nume a clipului muzical pentru a-l selecta. Clipul selectat este cel care va fi redus — muzica, nu vocea.
+2. Alegeți **Fișier → Import** și selectați muzica. Aceasta ajunge ca un clip pe propria sa pistă.
+3. Alegeți **Fișier → Import** și selectați vocea. Aceasta ajunge ca un clip pe propria sa pistă.
+4. Faceți clic pe bara de nume a clipului muzical pentru a-l selecta. Clipul pe care îl selectați este cel care va fi redus — muzica, nu vocea.
 5. Alegeți **Efect → Volum și compresie → Auto Duck**. În dialogul **Auto Duck**, alegeți pista vocală pentru **Pistă de control** și setați **Cantitatea de reducere** la `-12`, apoi apăsați **Aplicați la selecție**. Pistă de control este cea care declanșează reducerea. Douăsprezece decibeli în jos sunt suficiente pentru ca vorbirea să se audă clar deasupra muzicii.
 6. Apăsați **Redare** pentru a asculta, apoi **Oprire**.
-   *Ar trebui să vedeți:* Muzica scade în timp ce cealaltă pistă se joacă și se recuperează unde este liniștită.
+   *Ar trebui să vedeți:* Muzica scade în timp ce cealaltă pistă se aude și se recuperează acolo unde este liniște.
 
 ## Sfaturi
 
-- Măriți timpii de **Estompare exterioară** dacă muzica se umflă și scade prea repede între cuvinte.
+- Măriți timpii de **Estompare exterioară** dacă muzica crește și scade prea repede între cuvinte.
 - Puneți pista vocală deasupra muzicii în lista de piste pentru a vedea ușor relația.
 
 ## Ghiduri conexe
@@ -40,16 +40,16 @@ Acesta este **Efect → Volum și Compresie → Auto Duck** din Audacity. Numele
 Mai multe ghiduri despre [volum și dinamică](/guides/volume/):
 
 - [Faceți un înregistrare liniștită mai tare](/guides/volume/make-a-recording-louder/) — Creșteți nivelul unei înregistrări cu un număr fix de decibeli folosind Amplificare.
-- [Normalizați vârfurile la un nivel stabilit](/guides/volume/normalize-peaks/) — Aduceți punctul cel mai tare al unei înregistrări la un nivel exact sub scara completă.
+- [Normalizați vârfurile la un nivel stabilit](/guides/volume/normalize-peaks/) — Aduceți cel mai tare punct al unei înregistrări la un nivel exact sub scara completă.
 - [Normalizați volumul pentru un podcast](/guides/volume/normalize-loudness-for-podcasts/) — Potriviți volumul perceput al unui episod cu nivelul pe care platformele de streaming îl așteaptă.
 - [Neteziți volumul cu un compresor](/guides/volume/even-out-volume-with-a-compressor/) — Reduceți diferența dintre momentele zgomotoase și liniștite, astfel încât vorbirea să fie mai ușor de urmărit.
 - [Estompare în și estompare out](/guides/volume/fade-in-and-fade-out/) — Începeți un clip de la tăcere și terminați-l lin în loc să-l tăiați.
-- [Domoliți vârfurile cu un limitator](/guides/volume/tame-peaks-with-a-limiter/) — Opriți cele mai zgomotoase momente să treacă peste un plafon fără a afecta restul.
+- [Domoliți vârfurile cu un limitator](/guides/volume/tame-peaks-with-a-limiter/) — Opriți cele mai tari momente să depășească un plafon fără a afecta restul.
 - [Neteziți volumul cu compresorul clasic](/guides/volume/even-out-volume-with-the-legacy-compressor/) — Folosiți compresorul original al Audacity 3, cu pragul său de zgomot și câștigul de compensare, pe o înregistrare.
 
 ## Referință
 
-- [Fiecare parametru al efectelor utilizate aici, cu valoarea sa implicită și intervalul, se află în referința efectelor audio.](/reference/generated/audio-effects/#parameters)
+- [Fiecare parametru al efectelor folosite aici, cu valoarea sa implicită și intervalul, se află în referința efectelor audio.](/reference/generated/audio-effects/#parameters)
 
 ## Despre acest ghid
 

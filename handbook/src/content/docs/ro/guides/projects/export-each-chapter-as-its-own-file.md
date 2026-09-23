@@ -3,49 +3,51 @@ title: "Exportați fiecare capitol ca un fișier separat"
 description: "Împărțiți o înregistrare lungă în fișiere la marcajele pe care le-ați plasat."
 editUrl: false
 sidebar:
-  order: 6
+  order: 7
 head:
   - tag: script
     attrs:
       type: "application/ld+json"
-    content: "{\"@context\":\"https://schema.org\",\"@type\":\"HowTo\",\"name\":\"Export each chapter as its own file\",\"description\":\"Split one long recording into files at the markers you have placed.\",\"tool\":[{\"@type\":\"HowToTool\",\"name\":\"Soundscaper\"}],\"step\":[{\"@type\":\"HowToStep\",\"position\":1,\"name\":\"Open Soundscaper. A new, empty project is ready as soon as the editor loads.\",\"text\":\"Open Soundscaper. A new, empty project is ready as soon as the editor loads.\"},{\"@type\":\"HowToStep\",\"position\":2,\"name\":\"Choose File → Import audio and pick the recording to split. The file lands as a clip on its own track.\",\"text\":\"Choose File → Import audio and pick the recording to split. The file lands as a clip on its own track.\"},{\"@type\":\"HowToStep\",\"position\":3,\"name\":\"Choose View → Show markers.\",\"text\":\"Choose View → Show markers. The marker lane is where the chapter starts are shown and named.\"},{\"@type\":\"HowToStep\",\"position\":4,\"name\":\"Press the Jump to project start button in the toolbar.\",\"text\":\"Press the Jump to project start button in the toolbar. The first chapter should begin at the very start, so the first marker goes at zero.\"},{\"@type\":\"HowToStep\",\"position\":5,\"name\":\"With the Markers panel open (View → Panels → Markers shows it), press Add marker at playhead. Press Enter on the new marker, type Part one and press Enter again to name it.\",\"text\":\"With the Markers panel open (View → Panels → Markers shows it), press Add marker at playhead. Press Enter on the new marker, type Part one and press Enter again to name it.\"},{\"@type\":\"HowToStep\",\"position\":6,\"name\":\"Click the waveform where the second part begins to put the cursor there.\",\"text\":\"Click the waveform where the second part begins to put the cursor there.\"},{\"@type\":\"HowToStep\",\"position\":7,\"name\":\"With the Markers panel open (View → Panels → Markers shows it), press Add marker at playhead. Press Enter on the new marker, type Part two and press Enter again to name it.\",\"text\":\"With the Markers panel open (View → Panels → Markers shows it), press Add marker at playhead. Press Enter on the new marker, type Part two and press Enter again to name it.\"},{\"@type\":\"HowToStep\",\"position\":8,\"name\":\"Choose File → Export audio, set Format to MP3, set Output to Chapters (split by markers), and press Export. The file downloads as soon as the render finishes, and its link stays in the dialog.\",\"text\":\"Choose File → Export audio, set Format to MP3, set Output to Chapters (split by markers), and press Export. The file downloads as soon as the render finishes, and its link stays in the dialog. Each chapter becomes an MP3 inside the archive, numbered in order and named after its marker.\"}]}"
+    content: "{\"@context\":\"https://schema.org\",\"@type\":\"HowTo\",\"name\":\"Export each chapter as its own file\",\"description\":\"Split one long recording into files at the markers you have placed.\",\"tool\":[{\"@type\":\"HowToTool\",\"name\":\"Soundscaper\"}],\"step\":[{\"@type\":\"HowToStep\",\"position\":1,\"name\":\"Open Soundscaper. A new, empty project is ready as soon as the editor loads.\",\"text\":\"Open Soundscaper. A new, empty project is ready as soon as the editor loads.\"},{\"@type\":\"HowToStep\",\"position\":2,\"name\":\"Choose File → Import and pick the recording to split. It lands as a clip on its own track.\",\"text\":\"Choose File → Import and pick the recording to split. It lands as a clip on its own track.\"},{\"@type\":\"HowToStep\",\"position\":3,\"name\":\"Choose View → Panels → Project bin.\",\"text\":\"Choose View → Panels → Project bin. The recording is on the timeline now, so hiding the bin leaves room for the Markers panel.\"},{\"@type\":\"HowToStep\",\"position\":4,\"name\":\"Choose View → Show markers.\",\"text\":\"Choose View → Show markers. The marker lane is where the chapter starts are shown and named.\"},{\"@type\":\"HowToStep\",\"position\":5,\"name\":\"Press the Jump to project start button in the toolbar.\",\"text\":\"Press the Jump to project start button in the toolbar. The first chapter should begin at the very start, so the first marker goes at zero.\"},{\"@type\":\"HowToStep\",\"position\":6,\"name\":\"With the Markers panel open (View → Panels → Markers shows it), press Add marker at playhead. Press Enter on the new marker, type Part one and press Enter again to name it.\",\"text\":\"With the Markers panel open (View → Panels → Markers shows it), press Add marker at playhead. Press Enter on the new marker, type Part one and press Enter again to name it.\"},{\"@type\":\"HowToStep\",\"position\":7,\"name\":\"Click the waveform where the second part begins to put the cursor there.\",\"text\":\"Click the waveform where the second part begins to put the cursor there.\"},{\"@type\":\"HowToStep\",\"position\":8,\"name\":\"With the Markers panel open (View → Panels → Markers shows it), press Add marker at playhead. Press Enter on the new marker, type Part two and press Enter again to name it.\",\"text\":\"With the Markers panel open (View → Panels → Markers shows it), press Add marker at playhead. Press Enter on the new marker, type Part two and press Enter again to name it.\"},{\"@type\":\"HowToStep\",\"position\":9,\"name\":\"Choose File → Export audio, set Format to MP3, set Output to Chapters (split by markers), and press Export. The file downloads as soon as the render finishes, and its link stays in the dialog.\",\"text\":\"Choose File → Export audio, set Format to MP3, set Output to Chapters (split by markers), and press Export. The file downloads as soon as the render finishes, and its link stays in the dialog. Each chapter becomes an MP3 inside the archive, numbered in order and named after its marker.\"}]}"
 ---
-<!-- docs-ai-provenance: {"factPacketSha256":"bff231ce5a412139b723774100bc4b0793f5c5b088e471b0f45443684628992e","model":"aya-expanse:32b","modelDigest":"1603440383bd5504dc7afd01c0407b425b988dde650a8dc1a737433baa3cd432","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"bff231ce5a412139b723774100bc4b0793f5c5b088e471b0f45443684628992e","targetLocale":"ro"} -->
+<!-- docs-ai-provenance: {"factPacketSha256":"6847a5eab8eac5d2e111bd343f3b7b0a11921a9dc2596b560a30acea573c072a","model":"aya-expanse:32b","modelDigest":"1603440383bd5504dc7afd01c0407b425b988dde650a8dc1a737433baa3cd432","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"6847a5eab8eac5d2e111bd343f3b7b0a11921a9dc2596b560a30acea573c072a","targetLocale":"ro"} -->
 
 <!-- Generated by `node scripts/docs-reference.mjs`. Do not edit. -->
 
 O prelegere care ar trebui să devină un fișier pe temă, o parte a albumului care necesită tăiere în piese, un audiobook cu un capitol pe fișier: puneți un marcator la începutul fiecărei părți și exportați o singură dată. Fiecare marcator deschide un capitol care rulează până la următorul, iar fiecare capitol este scris ca propriul fișier, numit după marcator, într-un singur arhivă. Audacity 3 a făcut acest lucru cu Export Multiple; Audacity 4 nu l-a readus.
 
 :::note[Venind de la Audacity?]
-Aceasta este **Fișier → Export Audio → Export Multiple, împărțit după etichete (Audacity 3; Audacity 4 nu are Export Multiple)** din Audacity. Numele de mai jos sunt cele proprii ale Soundscaper, care uneori diferă.
+Aceasta este **Fișier → Export Audio → Export Multiple, împărțit după etichete (Audacity 3; Audacity 4 nu are Export Multiple)** din Audacity. Numele de mai jos sunt cele proprii ale Soundscaper, care diferă uneori.
 :::
 
 ## Pași
 
-1. Deschideți Soundscaper. Un proiect nou, gol, este gata imediat ce editorul se încarcă.
-2. Alegeți **Fișier → Import audio** și selectați înregistrarea pe care doriți să o împărțiți. Fișierul ajunge ca un clip pe propria sa pistă.
-3. Alegeți **Vizualizare → Afișează marcatori**. Banda de marcatori este locul unde se afișează și se numesc începuturile capitolelor.
-4. Apăsați butonul **Sari la începutul proiectului** din bara de instrumente. Primul capitol ar trebui să înceapă chiar de la început, deci primul marcator merge la zero.
-5. Cu panoul Marcatori deschis (**Vizualizare → Panouri → Marcatori** îl afișează), apăsați **Adaugă marcator la cap de redare**. Apăsați Enter pe noul marcator, tastați `Part one` și apăsați din nou Enter pentru a-l denumi.
-6. Faceți clic pe forma de undă unde începe a doua parte pentru a pune cursorul acolo.
-7. Cu panoul Marcatori deschis (**Vizualizare → Panouri → Marcatori** îl afișează), apăsați **Adaugă marcator la cap de redare**. Apăsați Enter pe noul marcator, tastați `Part two` și apăsați din nou Enter pentru a-l denumi.
-8. Alegeți **Fișier → Export audio**, setați **Formatul** la **MP3**, setați **Ieșire** la **Capitole (împărțite după marcatori)** și apăsați **Export**. Fișierul se descarcă imediat ce randarea se termină, iar link-ul său rămâne în dialog. Fiecare capitol devine un MP3 în interiorul arhivei, numerotat în ordine și numit după marcatorul său.
+1. Deschideți Soundscaper. Un proiect nou și gol este gata imediat ce se încarcă editorul.
+2. Alegeți **Fișier → Import** și selectați înregistrarea pe care doriți să o împărțiți. Aceasta ajunge ca un clip pe propria sa pistă.
+3. Alegeți **Vizualizare → Panouri → Coș proiect**. Înregistrarea este acum pe linia de timp, deci ascunderea coșului lasă loc pentru panoul Marcatori.
+4. Alegeți **Vizualizare → Arată marcatorii**. Linia marcatorilor este locul unde se afișează și se numesc începuturile capitolelor.
+5. Apăsați butonul **Sari la începutul proiectului** din bara de instrumente. Primul capitol ar trebui să înceapă chiar de la început, deci primul marcator merge la zero.
+6. Cu panoul Marcatori deschis (**Vizualizare → Panouri → Marcatori** îl afișează), apăsați **Adaugă marcator la cap de redare**. Apăsați Enter pe noul marcator, tastați `Part one` și apăsați din nou Enter pentru a-l denumi.
+7. Faceți clic pe forma de undă unde începe a doua parte pentru a pune cursorul acolo.
+8. Cu panoul Marcatori deschis (**Vizualizare → Panouri → Marcatori** îl afișează), apăsați **Adaugă marcator la cap de redare**. Apăsați Enter pe noul marcator, tastați `Part two` și apăsați din nou Enter pentru a-l denumi.
+9. Alegeți **Fișier → Export audio**, setați **Format** la **MP3**, setați **Ieșire** la **Capitole (împărțite după marcatori)** și apăsați **Export**. Fișierul se descarcă imediat ce randarea se termină, iar link-ul său rămâne în dialog. Fiecare capitol devine un MP3 în interiorul arhivei, numerotat în ordine și numit după marcatorul său.
 
 ## Sfaturi
 
-- O regiune numită exportă exact intervalul său propriu, deci utilizați regiuni în loc de marcatori atunci când părțile au spații între ele.
+- O regiune numită exportă exact intervalul său propriu, deci folosiți regiuni în loc de marcatori atunci când părțile au goluri între ele.
 - Etichetele de pe o pistă de etichete se împart în același mod: alegeți **Capitole (împărțite după etichete)** pentru a tăia pe acestea în loc de marcatori.
-- Pentru a împărți după piste în loc de marcatori, vedeți [Exportați fiecare pistă ca fișier separat](/guides/projects/export-each-track-as-its-own-file/).
+- Pentru a împărți după piste în loc de marcatori, vedeți [Exportați fiecare pistă ca fișier propriu](/guides/projects/export-each-track-as-its-own-file/).
 
 ## Ghiduri conexe
 
 Mai multe ghiduri despre [proiecte și fișiere](/guides/projects/):
 
-- [Exportați fiecare pistă ca fișier separat](/guides/projects/export-each-track-as-its-own-file/) — Randarea pistelor separat, ca stemuri, într-o singură descărcare.
+- [Exportați fiecare pistă ca fișier propriu](/guides/projects/export-each-track-as-its-own-file/) — Randarea pistelor separat, ca stemuri, într-o singură descărcare.
+- [Găsiți și adăugați un sunet Freesound](/guides/projects/find-and-add-a-freesound-sound/) — Căutați Freesound din editor și adăugați un sunet pe linia de timp a proiectului.
 - [Salvați proiectul dvs.](/guides/projects/save-your-project/) — Păstrați proiectul, cu fiecare pistă și editare, în biblioteca locală de proiecte.
 - [Mutarea unui proiect între calculatoare](/guides/projects/move-a-project-between-computers/) — Exportați întregul proiect ca un singur fișier, apoi deschideți-l în altă parte.
 - [Deschideți un proiect Audacity](/guides/projects/open-an-audacity-project/) — Introduceți un proiect existent .aup3 sau .aup4 în Soundscaper cu pistele sale intacte.
-- [Schimbați rata de eșantionare a unui clip](/guides/projects/change-a-clips-sample-rate/) — Reeșantionați un clip pentru a se potrivi cu rata pe care restul proiectului o folosește.
+- [Schimbați rata de eșantionare a unui clip](/guides/projects/change-a-clips-sample-rate/) — Resamplați un clip astfel încât să corespundă ratei pe care restul proiectului o folosește.
 
 ## Referință
 
@@ -54,4 +56,4 @@ Mai multe ghiduri despre [proiecte și fișiere](/guides/projects/):
 
 ## Despre acest ghid
 
-Procedura de pe această pagină — fiecare intrare de meniu, dialog, câmp și buton, și rezultatul pe care îl produce — este reluată pentru fiecare versiune a Soundscaper de către suita de browsere (`tests/browser/soundscaper-guides.spec.js`). Dacă oricare dintre acestea nu mai corespunde editorului, versiunea eșuează până la corectarea ghidului. Valorile sugerate sunt puncte de plecare pe care editorul le acceptă, iar dacă se potrivesc sau nu cu înregistrarea dvs. este o chestiune pentru urechile dvs. să decidă.
+Procedura de pe această pagină — fiecare intrare de meniu, dialog, câmp și buton, și rezultatul pe care îl produce — este reluată pentru fiecare versiune a Soundscaper de către suitele de navigare (`tests/browser/soundscaper-guides.spec.js`). Dacă oricare dintre acestea nu mai corespunde editorului, versiunea eșuează până la corectarea ghidului. Valorile sugerate sunt puncte de plecare pe care editorul le-a acceptat deja; dacă acestea vă convin sau nu, depinde de auzul dvs.
