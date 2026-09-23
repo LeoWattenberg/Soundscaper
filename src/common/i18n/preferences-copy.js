@@ -8,6 +8,11 @@
 const ENTRIES = Object.freeze([
 	['preferencesAudioSettings', 'Audio settings', 'Audio-Einstellungen'],
 	['preferencesPlaybackRecording', 'Playback/Recording', 'Wiedergabe/Aufnahme'],
+	['preferencesWaveform', 'Waveform', 'Wellenform'],
+	['waveformVisualization', 'Frequency visualization', 'Frequenzdarstellung'],
+	['waveformVisualizationDescription', 'Choose the crossover frequencies used by 3-band waveforms.', 'Wähle die Trennfrequenzen für 3-Band-Wellenformen.'],
+	['waveformLowMidCrossover', 'Low/mid crossover (Hz)', 'Bass-/Mitten-Trennfrequenz (Hz)'],
+	['waveformMidHighCrossover', 'Mid/high crossover (Hz)', 'Mitten-/Höhen-Trennfrequenz (Hz)'],
 	['programStart', 'Program start', 'Programmstart'],
 	['preferencesEffects', 'Effects', 'Effekte'],
 	['effectOptions', 'Effect options', 'Effektoptionen'],

@@ -1,7 +1,11 @@
 import { compareCodeUnits } from './code-unit-order.ts';
 import { addAup4CompatibilityItem, createAup4CompatibilityReport } from './aup4-profile.js';
 import { reportAup4OwnedFeatureOmissions } from './aup4-feature-omissions.ts';
-import { isAup4AudioTrack, reportOmittedProjectFeatures } from './aup4-omitted-features.js';
+import {
+	aup4WaveformDisplayConversionCode,
+	isAup4AudioTrack,
+	reportOmittedProjectFeatures,
+} from './aup4-omitted-features.js';
 import { flattenAup4MusicalMaps, isCurrentAup4MusicalSnapshot } from './aup4-musical-export.ts';
 import { projectForRuntimeConsumers } from './project-current-runtime.ts';
 import { projectTrackFolderMediaStateV12 } from './track-folder-media-runtime.ts';
@@ -120,7 +124,7 @@ export function createAup4ExportPlan(project) {
 			});
 			normalizedTrack.envelope = [];
 		}
-		if (track.displayMode === 'half-wave') normalizedTrack.displayMode = 'waveform';
+		if (aup4WaveformDisplayConversionCode(track.displayMode)) normalizedTrack.displayMode = 'waveform';
 
 		for (const clip of clips) {
 			const source = sourceById.get(clip.sourceId);

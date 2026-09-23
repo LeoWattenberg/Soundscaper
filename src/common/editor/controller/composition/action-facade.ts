@@ -53,7 +53,7 @@ export function createGroupedEditorActions(scope: EditorActionRuntime) {
 	classifyLinkedAudioRelink, relinkLinkedAudio, canRelinkLinkedVideo, classifyLinkedVideoRelink,
 	relinkLinkedVideo, removeProjectBinClip, removeProjectBinSource, renameProject, renameProjectBinClip,
 	renderClipPitchSpeed, reorderTrack, repeatLastAudacityEffect, requestInputAccess, requestStoragePersistence,
-	requestWaveformPcmWindow, resampleClip, resampleTrack, resetClipPitchSpeed, resetLoudnessMeasurement,
+	requestFrequencyWaveform, requestWaveformPcmWindow, resampleClip, resampleTrack, resetClipPitchSpeed, resetLoudnessMeasurement,
 	resizeTrackHeight, runNyquistEvaluation, saveAup4, saveNow, saveScape, selectAllTracks, selectAtZeroCrossings,
 	selectClip, selectCursorToTrackEnd, selectLeftOfPlaybackPosition, selectProjectBinInstances,
 	selectRightOfPlaybackPosition, selectTrack, selectTrackStartToCursor, selectTrackStartToEnd, sessionTab,
@@ -302,6 +302,13 @@ export function createGroupedEditorActions(scope: EditorActionRuntime) {
 			setVisibleTrackHeights,
 			getClipVisualData,
 			getVisibleClips,
+			requestFrequencyWaveform: (clipId: string, window: Readonly<{
+				startFrame?: number;
+				endFrame?: number;
+			}> = {}) => requestFrequencyWaveform(
+				clipId,
+				{ ...state.preferences?.waveformVisualization, ...window },
+			),
 			requestWaveformPcmWindow,
 		}),
 		timelineAnnotations: createTimelineAnnotationActionFacade({
@@ -369,6 +376,8 @@ export function createGroupedEditorActions(scope: EditorActionRuntime) {
 			setDisplayMode: setTrackDisplayMode,
 			setRate: restricted('audioEffects', setTrackRate),
 			setWaveformView: (trackId: string | null = state.selectedTrackId) => setTrackDisplayMode(trackId, 'waveform'),
+			setThreeBandWaveformView: restricted('audioSpectralEditing', (trackId: string | null = state.selectedTrackId) => setTrackDisplayMode(trackId, 'waveform-three-band')),
+			setRainbowWaveformView: restricted('audioSpectralEditing', (trackId: string | null = state.selectedTrackId) => setTrackDisplayMode(trackId, 'waveform-rainbow')),
 			setSpectrogramView: restricted('audioSpectralEditing', (trackId: string | null = state.selectedTrackId) => setTrackDisplayMode(trackId, 'spectrogram')),
 			setMultiView: restricted('audioSpectralEditing', (trackId: string | null = state.selectedTrackId) => setTrackDisplayMode(trackId, 'multiview')),
 			mixAndRender: restricted('audioEffects', mixAndRenderTracks),

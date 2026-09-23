@@ -296,7 +296,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 	const projectAdminService = createProjectAdminService({
 		cancelPlaybackCachePreparation: bindings.cancelPlaybackCachePreparation,
 		clearScheduledTimer: globalThis.clearTimeout.bind(globalThis),
-		clearWaveformPcmWindows: bindings.clearWaveformPcmWindows,
+		clearWaveformPcmWindows: () => { bindings.clearWaveformPcmWindows(); sources.frequencyWaveforms.clearRuntime(); },
 		clipTimePitchCache, commit: bindings.commit, copy, currentTimeMs, editorHistoryProjects, engine,
 		evictUnreferencedSourceCaches, flushProject: bindings.flushProject, getProject: () => documentState.project, getRecordingRouting: recordingPort.getRouting, handleError: bindings.handleError,
 		liveSessionClipIds: bindings.liveSessionClipIds, liveSessionLinkedOriginalSourceReferences: doc.retention.liveSessionLinkedOriginalSourceReferences, liveSessionSourceIds: bindings.liveSessionSourceIds, newProject: bindings.newProject, openProject: bindings.openProject, persistSetting,
@@ -362,7 +362,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 			restoreProjectSelection: doc.session.restoreProjectSelection,
 			revokeOutputUrl: (url) => URL.revokeObjectURL(url),
 			revokeVideoVisuals: bindings.revokeVideoVisuals,
-			clearWaveformPcmWindows: bindings.clearWaveformPcmWindows,
+			clearWaveformPcmWindows: () => { bindings.clearWaveformPcmWindows(); sources.frequencyWaveforms.clearRuntime(); },
 			loadProjectSources: bindings.loadProjectSources, prepareRequiredProjectSources: sources.sourceLifecycle.prepareRequiredProjectSources,
 			retainLiveClipIds: doc.retention.retainLiveClipIds,
 			evictUnreferencedSourceCaches: () => evictUnreferencedSourceCaches(

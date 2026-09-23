@@ -18,9 +18,9 @@ import {
 import { normalizeVideoEffects } from './video-effects.js';
 import { validateVideoTrackComposition } from './video-timeline.js';
 import { hasCoreEditingProjectAuthority } from './project-schema-version.ts';
+import { isTrackDisplayMode } from './track-display-mode.ts';
 
 const SAMPLE_FORMATS = new Set(['int16', 'int24', 'int32', 'float32', 'float64', 'unknown']);
-const DISPLAY_MODES = new Set(['waveform', 'spectrogram', 'multiview', 'half-wave']);
 
 export interface ProjectMediaCollections {
 	readonly sources: readonly ProjectDataRecord[];
@@ -216,7 +216,7 @@ function validateTrack(
 	projectBoolean(track.mute, `${prefix}.mute`);
 	projectBoolean(track.solo, `${prefix}.solo`);
 	projectBoolean(track.armed, `${prefix}.armed`);
-	if (typeof track.displayMode !== 'string' || !DISPLAY_MODES.has(track.displayMode)) {
+	if (!isTrackDisplayMode(track.displayMode)) {
 		throw new RangeError(`${prefix}.displayMode has an unsupported value.`);
 	}
 	projectString(track.color, `${prefix}.color`);

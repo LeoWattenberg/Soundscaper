@@ -11,12 +11,9 @@ import {
 	type AudioWarpRuntimeProject,
 } from '../../audio-warp-runtime.ts';
 import { audacityWaveformMode } from '../../audacity-waveform-renderer.js';
-import {
-	validateWaveformPeakLevels,
-	waveformPeakLevelForResolution,
-	WaveformPeakResolutionError,
-} from '../../design-system-adapters/waveform-internals.ts';
+import { WaveformPeakResolutionError } from '../../design-system-adapters/waveform-internals.ts';
 import { WAVEFORM_PEAKS_VERSION } from '../../waveform-peak-contract.ts';
+import type { FrequencyWaveformDisplayMode } from '../../track-display-mode.ts';
 import { createWaveformPreviewCacheKey } from '../waveform-preview-cache.ts';
 import {
 	MINIMUM_VISIBLE_CLIP_PIXELS,
@@ -29,53 +26,12 @@ import {
 	prepareAudioWarpPeakPyramidWaveformWindow,
 	prepareAudioWarpWaveformWindow,
 } from './audio-warp-waveform.ts';
-
-function usableWaveformPeakLevel(peaks: unknown, sourceSamplesPerPixel: number) {
-	try {
-		return waveformPeakLevelForResolution(peaks, sourceSamplesPerPixel);
-	} catch {
-		// A stale peak cache must not mask valid PCM or a newly fetched peak window.
-		return null;
-	}
-}
-
-function coarsePeakPreviewWidth(peaks: unknown, sourceSamples: number, displayWidth: number): number | null {
-	try {
-		const finestBlockSize = validateWaveformPeakLevels(peaks).levels[0]?.blockSize;
-		if (!finestBlockSize || !(sourceSamples > 0) || !(displayWidth > 0)) return null;
-		const width = Math.min(displayWidth, sourceSamples / finestBlockSize);
-		return width < displayWidth ? width * (1 - 1e-9) : null;
-	} catch {
-		return null;
-	}
-}
-
-function coarseWarpPeakPreviewWidth(
-	peaks: unknown,
-	project: AudioWarpRuntimeProject,
-	clip: TimelineWaveformClip & Parameters<typeof audioWarpMinimumSourceSpanPerColumn>[1],
-	displayWidth: number,
-): number | null {
-	try {
-		const finestBlockSize = validateWaveformPeakLevels(peaks).levels[0]?.blockSize;
-		if (!finestBlockSize || !(displayWidth > 0)) return null;
-		let columnCount = Math.max(1, Math.ceil(displayWidth));
-		while (true) {
-			const minimumSpan = audioWarpMinimumSourceSpanPerColumn(project, clip, {
-				startFrame: clip.waveformStartFrame,
-				endFrame: clip.waveformEndFrame,
-				columnCount,
-			});
-			if (minimumSpan >= finestBlockSize) {
-				return columnCount < displayWidth ? columnCount * (1 - 1e-9) : null;
-			}
-			if (columnCount === 1) return null;
-			columnCount = Math.max(1, Math.floor(columnCount / 2));
-		}
-	} catch {
-		return null;
-	}
-}
+import type { FrequencyWaveformProjection } from './frequency-waveform-projection.ts';
+import {
+	coarsePeakPreviewWidth,
+	coarseWarpPeakPreviewWidth,
+	usableWaveformPeakLevel,
+} from './waveform-peak-preview.ts';
 
 // The clip header writes the pitch badge as semitones rounded to two decimals,
 // so anything finer than half a cent reads as a bare '+0'. A shift that small
@@ -113,6 +69,7 @@ export interface TimelineWaveformClip {
 	readonly fadeInFrames?: number;
 	readonly fadeOutFrames?: number;
 	readonly reversed?: boolean;
+	readonly inverted?: boolean;
 	readonly pitchCents?: number;
 	readonly kind?: unknown;
 	readonly anchor?: unknown;
@@ -151,6 +108,8 @@ export interface TimelineClipVisualData {
 	readonly pcmWindow?: TimelinePcmWindow | null;
 	readonly peakWindow?: TimelinePeakWindow | null;
 	readonly peaks?: unknown;
+	readonly frequencyAnalysis?: unknown;
+	readonly frequencyWindow?: unknown;
 }
 
 export interface TimelineClipVisualController {
@@ -161,6 +120,7 @@ export interface TimelineClipVisualController {
 export interface TimelineWaveformPlanData {
 	readonly audacityWaveform?: unknown;
 	readonly spectrogramWaveform?: unknown;
+	readonly frequencyWaveform?: FrequencyWaveformProjection;
 }
 
 interface PreparedTimelineWaveform {
@@ -172,6 +132,7 @@ export interface TimelineWaveformCacheEntry {
 	readonly source: unknown;
 	readonly signature: string;
 	readonly data: TimelineWaveformPlanData;
+	readonly frequencySource?: unknown;
 }
 
 export interface TimelineClipViewModel {
@@ -190,6 +151,7 @@ export interface TimelineClipViewModel {
 	readonly waveform: readonly never[];
 	audacityWaveform?: unknown;
 	spectrogramWaveform?: unknown;
+	frequencyWaveform?: FrequencyWaveformProjection;
 	waveformError?: string;
 	waveformPending?: boolean;
 }
@@ -215,6 +177,12 @@ export interface TimelineClipViewModelOptions {
 		reuseSummaryForCompatibility?: boolean;
 		allowPeakPyramid?: boolean;
 		provideAudacitySpectrogram?: boolean;
+		frequencyWaveformMode?: FrequencyWaveformDisplayMode | null;
+		frequencyWaveformProjector?: typeof import('./frequency-waveform-projection.ts').prepareFrequencyWaveformClipProjection;
+		frequencyWaveformPreferences?: Readonly<{
+			lowMidCrossoverHz?: number;
+			midHighCrossoverHz?: number;
+		}> | null;
 	}>;
 	readonly cache?: Map<string, TimelineWaveformCacheEntry> | null;
 	readonly reuseCachedWaveform?: boolean;
@@ -249,6 +217,9 @@ export function createTimelineClipViewModel({
 		reuseSummaryForCompatibility = false,
 		allowPeakPyramid = true,
 		provideAudacitySpectrogram = false,
+		frequencyWaveformMode = null,
+		frequencyWaveformProjector = null,
+		frequencyWaveformPreferences = null,
 	} = rendering;
 	const visual = controller.getClipVisualData(clip.id)
 		|| controller.getProjectBinClipVisualData?.(clip.projectBinClipId || clip.id);
@@ -307,7 +278,19 @@ export function createTimelineClipViewModel({
 		channelCount: waveformPeakWindow.channels.length,
 		levels: [{ blockSize: waveformPeakWindow.blockSize, channels: waveformPeakWindow.channels }],
 	} : null;
+	const frequencyPlan = frequencyWaveformMode && frequencyWaveformProjector
+		? frequencyWaveformProjector(visual, clip, {
+			startFrame: clip.waveformStartFrame,
+			endFrame: clip.waveformEndFrame,
+			pixelWidth,
+			visibleSourceSamples,
+			preferences: frequencyWaveformPreferences,
+			project,
+		}) : null;
+	const frequencySource = frequencyPlan?.source ?? null;
 	const cached = cache?.get(String(clip.id));
+	const cachedFrequencyReady = !frequencyWaveformMode || !frequencySource || !frequencyWaveformProjector
+		|| Boolean(cached?.data.frequencyWaveform);
 	const cachedPlan = cached?.data.audacityWaveform as Readonly<{
 		sourceId?: string;
 		startFrame: number;
@@ -316,6 +299,8 @@ export function createTimelineClipViewModel({
 		peakBlockSize?: number;
 	}> | undefined;
 	if (reuseCachedWaveform && cached && cachedPlan && cachedPlan.sourceId === clip.sourceId
+		&& cachedFrequencyReady
+		&& (!frequencyWaveformMode || cached.frequencySource === frequencySource)
 		&& (!cachedPlan.peakBlockSize || (
 			cachedPlan.startFrame === clip.waveformStartFrame
 			&& cachedPlan.endFrame === clip.waveformEndFrame
@@ -383,9 +368,12 @@ export function createTimelineClipViewModel({
 				pixelWidth,
 				reuseSummaryForCompatibility,
 				provideAudacitySpectrogram,
+				frequencyWaveformMode,
 			},
 		});
-		if (cached?.source === waveformSource && cached.signature === cacheSignature) {
+		if (cached?.source === waveformSource && cached.frequencySource === frequencySource
+			&& cachedFrequencyReady
+			&& cached.signature === cacheSignature) {
 			Object.assign(output, cached.data);
 			if (previewWidth) output.waveformPending = true;
 			return output;
@@ -450,6 +438,7 @@ export function createTimelineClipViewModel({
 						sourceFrameOffset: waveformPeakSourceFrameOffset,
 					},
 				)) as unknown as PreparedTimelineWaveform;
+		const frequencyWaveform: FrequencyWaveformProjection | undefined = frequencyPlan?.projection;
 		const waveformData: TimelineWaveformPlanData = {
 			audacityWaveform: {
 				...waveform.rendering,
@@ -460,9 +449,11 @@ export function createTimelineClipViewModel({
 			...(provideAudacitySpectrogram
 				? { spectrogramWaveform: waveform.channels.map((channel: ArrayLike<number>) => Array.from(channel)) }
 				: {}),
+			...(frequencyWaveform ? { frequencyWaveform } : {}),
 		};
 		cache?.set(String(clip.id), {
 			source: waveformSource,
+			frequencySource,
 			signature: cacheSignature,
 			data: waveformData,
 		});

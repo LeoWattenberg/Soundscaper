@@ -26,6 +26,12 @@ type EffectLibraryState =
 	& Pick<EffectControlsState, 'audacityEffectType' | 'effectPresets'>;
 interface EditorActionState extends ExportActionState {
 	selectedTrackId: string | null;
+	readonly preferences?: Readonly<{
+		readonly waveformVisualization?: Readonly<{
+			readonly lowMidCrossoverHz?: number;
+			readonly midHighCrossoverHz?: number;
+		}>;
+	}>;
 	audacityPreviewSource: EffectControlPreviewSource | Partial<Pick<EngineParametricEqPreview, 'readSpectrum' | 'audition'>> | null;
 	readonly recentProjectIds: readonly string[];
 	readonly projects: readonly Readonly<{ id: string }>[];

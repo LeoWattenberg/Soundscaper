@@ -2,6 +2,7 @@
 
 import type { PersistedAudioEffect } from './persisted-audio-effect-validation.ts';
 import type { SourceProvenanceV1 } from './source-provenance.ts';
+import type { TrackDisplayMode } from './track-display-mode.ts';
 
 import type { BreakpointMap, Rational, RationalRate } from './timeline-time.ts';
 import type { VideoTimingAssetReference } from './video-timing-asset-reference.ts';
@@ -140,7 +141,7 @@ export interface AudioTrackLeaf {
 	readonly mute: boolean;
 	readonly solo: boolean;
 	readonly armed: boolean;
-	readonly displayMode: string;
+	readonly displayMode: TrackDisplayMode;
 	readonly color: string;
 	readonly spectrogram: Readonly<Record<string, unknown>>;
 	readonly envelope: readonly Readonly<{ readonly frame: number; readonly value: number }>[];

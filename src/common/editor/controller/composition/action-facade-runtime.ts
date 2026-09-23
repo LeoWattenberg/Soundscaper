@@ -145,6 +145,7 @@ export const EDITOR_ACTION_FUNCTION_NAMES = [
 	'repeatLastAudacityEffect',
 	'repeatLastGenerator',
 	'reportVideoPreviewPressure',
+	'requestFrequencyWaveform',
 	'requestInputAccess',
 	'requestStoragePersistence',
 	'requestWaveformPcmWindow',

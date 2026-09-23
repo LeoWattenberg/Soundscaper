@@ -165,8 +165,12 @@ export function createTimelineMenuModel({
 				items: [
 					manifestMenuItem(AUDACITY_TRACK_CONTEXT_ACTION_IDS.waveform, copy.waveformView, { checked: menuTrack.displayMode === 'waveform', onClick: () => run(() => controller.actions.track.setWaveformView(menuTrack.id)) }, contextLocale, unavailableReason),
 					...(snapshot.capabilities?.audioSpectralEditing ? [
+						manifestMenuItem(AUDACITY_TRACK_CONTEXT_ACTION_IDS.threeBandWaveform, copy.threeBandWaveformView, { checked: menuTrack.displayMode === 'waveform-three-band', onClick: () => run(() => controller.actions.track.setThreeBandWaveformView(menuTrack.id)) }, contextLocale, unavailableReason),
+						manifestMenuItem(AUDACITY_TRACK_CONTEXT_ACTION_IDS.rainbowWaveform, copy.rainbowWaveformView, { checked: menuTrack.displayMode === 'waveform-rainbow', onClick: () => run(() => controller.actions.track.setRainbowWaveformView(menuTrack.id)) }, contextLocale, unavailableReason),
 						manifestMenuItem(AUDACITY_TRACK_CONTEXT_ACTION_IDS.spectrogram, copy.spectrogramView, { checked: menuTrack.displayMode === 'spectrogram', onClick: () => run(() => controller.actions.track.setSpectrogramView(menuTrack.id)) }, contextLocale, unavailableReason),
 						manifestMenuItem(AUDACITY_TRACK_CONTEXT_ACTION_IDS.multiview, copy.multiview, { checked: menuTrack.displayMode === 'multiview', onClick: () => run(() => controller.actions.track.setMultiView(menuTrack.id)) }, contextLocale, unavailableReason),
+						{ divider: true, label: '' },
+						manifestMenuItem(AUDACITY_TRACK_CONTEXT_ACTION_IDS.waveformSettings, copy.waveformSettings, { onClick: () => onOpenSurface('preferences', { section: 'waveform' }) }, contextLocale, unavailableReason),
 					] : []),
 				].filter(Boolean),
 			},

@@ -136,6 +136,41 @@ test('timeline actions retain the per-project stereo channel height ratio owner'
 	assert.deepEqual(calls, [['stereo', 0.65]]);
 });
 
+test('frequency waveform viewport requests retain crossover preferences through the action facade', async () => {
+	const calls: unknown[][] = [];
+	const base = createActionFacadeRuntime();
+	const runtime = new Proxy(base, {
+		get(target, name, receiver) {
+			if (name === 'state') return {
+				...target.state,
+				preferences: {
+					...target.state.preferences,
+					waveformVisualization: {
+						lowMidCrossoverHz: 300,
+						midHighCrossoverHz: 5_000,
+					},
+				},
+			};
+			if (name === 'requestFrequencyWaveform') return async (...args: unknown[]) => {
+				calls.push(args);
+				return null;
+			};
+			return Reflect.get(target, name, receiver);
+		},
+	});
+
+	await createGroupedEditorActions(runtime).timeline.requestFrequencyWaveform('clip', {
+		startFrame: 120,
+		endFrame: 240,
+	});
+	assert.deepEqual(calls, [['clip', {
+		lowMidCrossoverHz: 300,
+		midHighCrossoverHz: 5_000,
+		startFrame: 120,
+		endFrame: 240,
+	}]]);
+});
+
 test('recording actions expose one capability-guarded sound activation preference group', async () => {
 	const calls: unknown[][] = [];
 	const base = createActionFacadeRuntime();

@@ -1,40 +1,23 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { raceAbortableRead } from '../../abort-race.ts';
-import { localizedErrorMessage, publishLocalizedStatus } from '../../../i18n/presentation-message.ts'; import {
+import { localizedErrorMessage, publishLocalizedStatus } from '../../../i18n/presentation-message.ts';
+import {
 	createPreparedProjectSources,
 	type PreparedProjectSourceEntry,
 	type PreparedRequiredProjectSources,
 } from '../import/prepared-project-sources.ts';
 import { createSourceChunkProviderRegistration } from './internal/source-chunk-provider-registration.ts';
-import { isRetiredSourceReadError } from './source-audio.ts';
+import { createWaveformPcmWindowRequester } from './internal/waveform-pcm-window-service.ts';
 import type {
 	ActivateStoredSourceOptions,
-	SourceLifecycleClip,
 	SourceLifecycleLoadOptions,
 	SourceLifecycleProject,
 	SourceLifecycleServiceRuntime,
 	SourceLifecycleSource,
 	SourceLifecycleWaveformPeakRequest,
 	SourceLifecycleWaveformPeakWindow,
-	SourceLifecycleWaveformPcmRequest,
-	SourceLifecycleWaveformPcmWindow,
 } from './internal/source-lifecycle-types.d.ts';
-import {
-	requireWaveformSourceFrameCount, resolveWaveformPcmWindowRequest,
-	resolveWaveformPeakPixelWidth, type WaveformPcmWindowRequest,
-} from './internal/waveform-pcm-window-request.ts';
-import { requestCachedWaveformPeakWindow } from './internal/waveform-peak-window-cache.ts';
-import {
-	isAudioWarpRuntimeClip,
-	isAudioWarpRuntimeProject,
-} from './internal/waveform-window-warp-validation.ts';
-import {
-	audioWarpMinimumSourceSpanPerColumn,
-	audioWarpSourceWindowRange,
-	type AudioWarpRuntimeClip,
-	type AudioWarpRuntimeProject,
-} from '../../audio-warp-runtime.ts';
 
 export type {
 	PreparedProjectSourceInputs,
@@ -87,19 +70,17 @@ export function createSourceLifecycleService<
 	Metadata = unknown,
 >(runtime: SourceLifecycleServiceRuntime<Buffer, Project, Provider, Peaks, Metadata>) {
 	const {
-		MAXIMUM_WAVEFORM_PCM_WINDOW_ENTRIES, MAXIMUM_WAVEFORM_PCM_WINDOW_FRAMES,
 		SHORT_SOURCE_AUDIO_BUFFER_MAX_BYTES, activateVideoSource, allProjectClips,
-		audioBufferChannels, clipSourceWindowRange,
+		audioBufferChannels,
 		clipWaveformPeakRequests = new Map<string, SourceLifecycleWaveformPeakRequest>(),
 		clipWaveformPeakWindows = new Map<string, SourceLifecycleWaveformPeakWindow>(),
 		clipWaveformPcmRequests, clipWaveformPcmWindows, copy,
 		createStoredChunkProviderCandidate: buildStoredChunkProviderCandidate,
-		engine, findClip,
-		findSource, generateStoredWaveformPeaks, generateWaveformPeaks, getProject,
+		engine, generateStoredWaveformPeaks, generateWaveformPeaks,
 		legacyPeakCacheKey, peakCacheKey,
-		publishDocumentSnapshot, readStoredAudioBuffer, readWaveformPeakWindow, readWaveformPcmWindow,
+		readStoredAudioBuffer,
 		setStatus, sourceAudioBufferBytes, sourceBuffers, sourceChunkProviders,
-		sourcePcmBytes, sourcePeaks, state, store, waveformPcmWindowContains,
+		sourcePcmBytes, sourcePeaks, state, store,
 		waveformPeaksHaveRms,
 	} = runtime;
 
@@ -122,128 +103,7 @@ export function createSourceLifecycleService<
 		return false;
 	}
 
-	async function loadWaveformProvider(projectAtStart: Project, source: SourceLifecycleSource) {
-		const metadata = await store.getSourceMetadata(source.storageKey || source.id);
-		if (getProject() !== projectAtStart) return null;
-		const provider = registerStoredChunkProvider(source, metadata);
-		return provider && getProject() === projectAtStart ? provider : null;
-	}
-
-	async function requestWaveformPcmWindow(
-		clipId: string,
-		options: WaveformPcmWindowRequest = {},
-	): Promise<SourceLifecycleWaveformPcmWindow | SourceLifecycleWaveformPeakWindow | null> {
-		const projectAtStart = getProject();
-		if (!projectAtStart) return null;
-		const clip = findClip(projectAtStart, clipId);
-		const source = clip ? findSource(projectAtStart, clip.sourceId) : null;
-		if (!clip || !source || source.kind === 'video' || source.kind === 'image' || sourceBuffers.has(source.id)) return null;
-		const cacheKey = String(clip.id);
-		const requestedRange = resolveWaveformPcmWindowRequest(options, clip.durationFrames);
-		if (!requestedRange) return null;
-		const { startFrame, endFrame } = requestedRange;
-		const sourceFrameCount = requireWaveformSourceFrameCount(source.frameCount);
-		let range;
-		let peakRange;
-		if (clip.warpMap == null) {
-			range = clipSourceWindowRange(clip, startFrame, endFrame, sourceFrameCount);
-			peakRange = clipSourceWindowRange(clip, startFrame, endFrame, sourceFrameCount, 0);
-		} else {
-			if (!isAudioWarpRuntimeProject(projectAtStart) || !isAudioWarpRuntimeClip(clip)) {
-				throw new TypeError('A warped waveform window requires valid project and audio clip timing.');
-			}
-			range = audioWarpSourceWindowRange(projectAtStart, clip, { startFrame, endFrame, sourceFrameCount });
-			peakRange = audioWarpSourceWindowRange(
-				projectAtStart, clip, { startFrame, endFrame, sourceFrameCount, paddingFrames: 0 },
-			);
-		}
-		if (range.endFrame - range.startFrame > MAXIMUM_WAVEFORM_PCM_WINDOW_FRAMES
-			&& peakRange.endFrame - peakRange.startFrame <= MAXIMUM_WAVEFORM_PCM_WINDOW_FRAMES) range = peakRange;
-		if (range.endFrame - range.startFrame > MAXIMUM_WAVEFORM_PCM_WINDOW_FRAMES) {
-			const pixelWidth = resolveWaveformPeakPixelWidth(options.pixelWidth);
-			if (!pixelWidth || !readWaveformPeakWindow) return null;
-			let maximumBlockSize;
-			if (clip.warpMap != null) {
-				const minimumSpan = audioWarpMinimumSourceSpanPerColumn(
-					projectAtStart as Project & AudioWarpRuntimeProject,
-					clip as SourceLifecycleClip & AudioWarpRuntimeClip,
-					{ startFrame, endFrame, columnCount: Math.max(1, Math.ceil(pixelWidth)) },
-				);
-				maximumBlockSize = Math.floor(minimumSpan);
-			} else {
-				const durationFrames = Math.max(1, Number(clip.durationFrames) || 1);
-				const sourceDurationFrames = Math.max(1, Number(clip.sourceDurationFrames) || durationFrames);
-				maximumBlockSize = Math.floor(
-					(endFrame - startFrame) * sourceDurationFrames / durationFrames / pixelWidth,
-				);
-			}
-			if (maximumBlockSize < 1) return null;
-			return requestCachedWaveformPeakWindow({
-				cacheKey, sourceId: source.id, range: peakRange, pixelWidth, maximumBlockSize,
-				maximumEntries: MAXIMUM_WAVEFORM_PCM_WINDOW_ENTRIES,
-				requests: clipWaveformPeakRequests, windows: clipWaveformPeakWindows,
-				getProvider: async () => sourceChunkProviders.get(source.id)
-					?? await loadWaveformProvider(projectAtStart, source),
-				readWindow: readWaveformPeakWindow,
-				isCurrent: () => getProject() === projectAtStart
-					&& findClip(projectAtStart, clipId)?.sourceId === source.id
-					&& Boolean(findSource(projectAtStart, source.id)),
-				isRetiredError: isRetiredSourceReadError,
-				publish: publishDocumentSnapshot,
-			});
-		}
-		const cached = clipWaveformPcmWindows.get(cacheKey);
-		if (cached && cached.sourceId === source.id && waveformPcmWindowContains(cached, range)) {
-			clipWaveformPcmWindows.delete(cacheKey);
-			clipWaveformPcmWindows.set(cacheKey, cached);
-			return cached;
-		}
-		const pending = clipWaveformPcmRequests.get(cacheKey);
-		if (pending && pending.sourceId === source.id && waveformPcmWindowContains(pending, range)) {
-			return pending.promise;
-		}
-
-		let provider: Provider | null | undefined = sourceChunkProviders.get(source.id);
-		provider ??= await loadWaveformProvider(projectAtStart, source);
-		if (!provider) return null;
-		const request: SourceLifecycleWaveformPcmRequest = {
-			sourceId: source.id,
-			startFrame: range.startFrame,
-			endFrame: range.endFrame,
-			promise: Promise.resolve(readWaveformPcmWindow(provider, range)).then((channels) => {
-				if (clipWaveformPcmRequests.get(cacheKey) !== request) return null;
-				clipWaveformPcmRequests.delete(cacheKey);
-				const currentProject = getProject();
-				if (!currentProject || currentProject !== projectAtStart || !findSource(currentProject, source.id)) return null;
-				const window: SourceLifecycleWaveformPcmWindow = Object.freeze({
-					clipId: cacheKey,
-					sourceId: source.id,
-					startFrame: range.startFrame,
-					endFrame: range.endFrame,
-					channels: Object.freeze(channels),
-				});
-				clipWaveformPcmWindows.delete(cacheKey);
-				clipWaveformPcmWindows.set(cacheKey, window);
-				while (clipWaveformPcmWindows.size > MAXIMUM_WAVEFORM_PCM_WINDOW_ENTRIES) {
-					const oldestKey = clipWaveformPcmWindows.keys().next().value;
-					if (oldestKey === undefined) break;
-					clipWaveformPcmWindows.delete(oldestKey);
-				}
-				publishDocumentSnapshot();
-				return window;
-			}).catch((error: unknown) => {
-				if (clipWaveformPcmRequests.get(cacheKey) === request) clipWaveformPcmRequests.delete(cacheKey);
-				// A window is a speculative cache fill. Losing its provider to routine
-				// retirement is not a fault the user can act on, and reporting it put a
-				// generic error over an export that was still running fine.
-				if (isRetiredSourceReadError(error)) return null;
-				throw error;
-			}),
-		};
-		clipWaveformPcmRequests.set(cacheKey, request);
-		return request.promise;
-	}
-
+	const requestWaveformPcmWindow = createWaveformPcmWindowRequester(runtime, registerStoredChunkProvider);
 	function clearWaveformPcmWindows() {
 		for (const request of clipWaveformPeakRequests.values()) request.abort();
 		clipWaveformPeakWindows.clear();

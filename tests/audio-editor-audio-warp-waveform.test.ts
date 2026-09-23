@@ -159,3 +159,73 @@ test('warped peak pyramids select against the narrowest projected CSS column', (
 	/one CSS pixel/,
 	'a fractional column in the slow section cannot borrow resolution from its enclosing frames');
 });
+
+test('inverted warped PCM waveforms mirror every summary column about zero', () => {
+	const project = {
+		sampleRate: 4,
+		tempoMap: {
+			mode: 'musical' as const,
+			events: [{ beat: { num: 0, den: 1 }, bpm: { num: 120, den: 1 } }],
+		},
+	};
+	const clip = {
+		id: 'clip', kind: 'audio', anchor: 'sample', timelineStartFrame: 0,
+		durationFrames: 4, sourceStartFrame: 0, sourceDurationFrames: 4,
+		gain: 2, inverted: true, fadeInFrames: 0, fadeOutFrames: 0,
+		warpMap: { feature: 'audio-warp' as const, points: [
+			{ outer: 0, source: 0, mode: 'forward' as const },
+			{ outer: 4, source: 4, mode: 'forward' as const },
+		] },
+	};
+	const prepared = prepareAudioWarpWaveformWindow(
+		project,
+		clip,
+		[Float32Array.of(0.25, 0.5, 0.75, 1)],
+		{ startFrame: 0, endFrame: 4, pixelWidth: 4, maxSamples: 8, sourceFrameOffset: 0 },
+	);
+	const channel = prepared.rendering?.channels[0] as Readonly<{
+		minimum: Float32Array;
+		maximum: Float32Array;
+	}>;
+	assert.deepEqual([...channel.minimum], [-0.5, -1, -1.5, -2]);
+	assert.deepEqual([...channel.maximum], [-0.5, -1, -1.5, -2]);
+});
+
+test('inverted warped peak-pyramid waveforms swap and negate extrema', () => {
+	const project = {
+		sampleRate: 4,
+		tempoMap: {
+			mode: 'musical' as const,
+			events: [{ beat: { num: 0, den: 1 }, bpm: { num: 120, den: 1 } }],
+		},
+	};
+	const clip = {
+		id: 'clip', kind: 'audio', anchor: 'sample', timelineStartFrame: 0,
+		durationFrames: 4, sourceStartFrame: 0, sourceDurationFrames: 4,
+		gain: 2, inverted: true, fadeInFrames: 0, fadeOutFrames: 0,
+		warpMap: { feature: 'audio-warp' as const, points: [
+			{ outer: 0, source: 0, mode: 'forward' as const },
+			{ outer: 4, source: 4, mode: 'forward' as const },
+		] },
+	};
+	const prepared = prepareAudioWarpPeakPyramidWaveformWindow(project, clip, {
+		version: WAVEFORM_PEAKS_VERSION,
+		channelCount: 1,
+		levels: [{
+			blockSize: 1,
+			channels: [{
+				minimums: Float32Array.of(0.2, 0.3, 0.4, 0.5),
+				maximums: Float32Array.of(0.6, 0.7, 0.8, 0.9),
+				rms: Float32Array.of(0.4, 0.5, 0.6, 0.7),
+			}],
+		}],
+	}, { startFrame: 0, endFrame: 4, pixelWidth: 1, maxSamples: 2, sourceFrameCount: 4 });
+	const channel = prepared.rendering?.channels[0] as Readonly<{
+		minimum: Float32Array;
+		maximum: Float32Array;
+		rms: Float32Array;
+	}>;
+	assert.deepEqual([...channel.minimum], [...Float32Array.of(-1.8)]);
+	assert.deepEqual([...channel.maximum], [...Float32Array.of(-0.4)]);
+	assert.deepEqual([...channel.rms], [...Float32Array.of(Math.sqrt(0.315) * 2)]);
+});

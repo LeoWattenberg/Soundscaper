@@ -21,6 +21,7 @@ import EffectsPreferencesPage from './EffectsPreferencesPage.jsx';
 import GeneralPreferencesPage from './GeneralPreferencesPage.jsx';
 import PlaybackRecordingPreferencesPage from './PlaybackRecordingPreferencesPage.jsx';
 import PreferenceDropdownField from './PreferenceDropdownField.jsx';
+import WaveformPreferencesPage from './WaveformPreferencesPage.tsx';
 import { ShortcutEditorRow } from './ShortcutEditorRow.tsx';
 import { collectAudacityShortcutCommands } from './workspace-preferences-shortcut-commands.ts';
 import { shortcutCategoryMessageKey } from './workspace-preferences-shortcut-categories.ts';
@@ -50,8 +51,9 @@ export default function WorkspacePreferencesDialog({
 	onClose,
 	productId = 'soundscaper',
 }) {
+	const waveformPreferencesAvailable = snapshot.capabilities?.audioSpectralEditing === true;
 	const sideNavRef = useRef(null);
-	const [selectedPage, setSelectedPage] = useState(preferencePage(initialPage));
+	const [selectedPage, setSelectedPage] = useState(preferencePage(initialPage, waveformPreferencesAvailable));
 	const [shortcutSearch, setShortcutSearch] = useState('');
 	const [shortcutSort, setShortcutSort] = useState(DEFAULT_SHORTCUT_SORT_MODE);
 	const [workspaceName, setWorkspaceName] = useState('');
@@ -77,6 +79,7 @@ export default function WorkspacePreferencesDialog({
 		{ id: 'audio', label: copy.preferencesAudioSettings, icon: iconNameToChar('AUDIO') },
 		{ id: 'playback-recording', label: copy.preferencesPlaybackRecording, icon: iconNameToChar('MICROPHONE') },
 		{ id: 'spectrogram', label: copy.panelSpectrogram, icon: iconNameToChar('SPECTROGRAM') },
+		...(waveformPreferencesAvailable ? [{ id: 'waveform', label: copy.preferencesWaveform, icon: iconNameToChar('WAVEFORM') }] : []),
 		{ id: 'editing', label: copy.preferencesEditing, icon: iconNameToChar('EDIT') },
 		...(fileService?.isDesktop ? [{ id: 'media', label: copy.assistanceMediaPreferences || 'Media', icon: iconNameToChar('SETTINGS_COG') }] : []),
 		{ id: 'effects', label: copy.preferencesEffects, icon: iconNameToChar('WAVEFORM') },
@@ -103,7 +106,7 @@ export default function WorkspacePreferencesDialog({
 		if (next.maximumFrequency <= next.minimumFrequency) return;
 		updateSpectrogram({ [name]: value });
 	};
-	useEffect(() => setSelectedPage(preferencePage(initialPage)), [initialPage]);
+	useEffect(() => setSelectedPage(preferencePage(initialPage, waveformPreferencesAvailable)), [initialPage, waveformPreferencesAvailable]);
 	const handleSideNavKeyDown = (event) => {
 		if (!event.target.closest('[role="tab"]') || !['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
 		event.preventDefault();
@@ -283,6 +286,16 @@ export default function WorkspacePreferencesDialog({
 							</PreferencePanel>
 						)}
 
+						{selectedPage === 'waveform' && waveformPreferencesAvailable && (
+							<WaveformPreferencesPage
+								controller={controller}
+								preferences={preferences}
+								copy={copy}
+								run={run}
+								disabled={snapshot.preferencesReadOnly === true}
+							/>
+						)}
+
 						{selectedPage === 'editing' && (
 							<EditingPreferencesPage
 								controller={controller}
@@ -341,6 +354,7 @@ export default function WorkspacePreferencesDialog({
 	);
 }
 
-function preferencePage(requestedPage) {
-	return workspacePreferencesPage(requestedPage);
+function preferencePage(requestedPage, waveformPreferencesAvailable) {
+	const page = workspacePreferencesPage(requestedPage);
+	return page === 'waveform' && !waveformPreferencesAvailable ? 'general' : page;
 }

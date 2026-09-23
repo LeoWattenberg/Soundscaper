@@ -105,7 +105,7 @@ test('project store bounds durable manifest revisions while retaining recovery h
 	assert.deepEqual((await store.listProjectRevisions('bounded')).map((entry) => entry.revision), [6, 5, 4, 3]);
 });
 
-test('source pruning preserves live history and retained revisions before removing metadata, peaks, and chunks', async () => {
+test('source pruning preserves live history and retained revisions before removing metadata, analyses, and chunks', async () => {
 	const store = createProjectStore({
 		indexedDB: null,
 		preferOpfs: false,
@@ -119,6 +119,7 @@ test('source pruning preserves live history and retained revisions before removi
 		await writer.commit();
 		await store.saveAnalysis(`audio-editor-peaks-v1:${sourceId}`, { levels: [sourceId] });
 		await store.saveAnalysis(`audio-editor-peaks-v2:${sourceId}`, { levels: [sourceId] });
+		await store.saveAnalysis(`audio-editor-frequency-waveform-v1:${sourceId}`, { levels: [sourceId] });
 	}
 	const project = (revision, sourceId, extraSources = []) => ({
 		id: 'retained-project', schemaFamily: 'soundscaper', schemaVersion: 1,
@@ -146,6 +147,7 @@ test('source pruning preserves live history and retained revisions before removi
 	assert.equal(await store.getSourceMetadata('abandoned'), null);
 	assert.equal(await store.loadAnalysis('audio-editor-peaks-v1:abandoned'), null);
 	assert.equal(await store.loadAnalysis('audio-editor-peaks-v2:abandoned'), null);
+	assert.equal(await store.loadAnalysis('audio-editor-frequency-waveform-v1:abandoned'), null);
 	assert.deepEqual((await store.loadProject('retained-project', { revision: 1 })).sources.map((source) => source.id), ['original']);
 
 	await store.saveProject(project(3, 'effect-2'));
@@ -155,6 +157,7 @@ test('source pruning preserves live history and retained revisions before removi
 	assert.equal(await store.getSourceMetadata('original'), null);
 	assert.equal(await store.loadAnalysis('audio-editor-peaks-v1:original'), null);
 	assert.equal(await store.loadAnalysis('audio-editor-peaks-v2:original'), null);
+	assert.equal(await store.loadAnalysis('audio-editor-frequency-waveform-v1:original'), null);
 	await assert.rejects(async () => {
 		for await (const _chunk of store.readSourceChunks('original')) { /* consume */ }
 	}, /could not be found/);

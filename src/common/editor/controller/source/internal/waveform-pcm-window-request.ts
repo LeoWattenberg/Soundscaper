@@ -6,6 +6,19 @@ export interface WaveformPcmWindowRequest {
 	readonly startFrame?: unknown;
 	readonly endFrame?: unknown;
 	readonly pixelWidth?: unknown;
+	/** Extra source-domain context used by consumers with stateful analysis. */
+	readonly sourcePaddingFrames?: unknown;
+	readonly signal?: AbortSignal;
+}
+
+/** Keep speculative context reads inside the same hard bound as their PCM window. */
+export function resolveWaveformPcmSourcePadding(value: unknown, maximumFrames: number): number {
+	if (!Number.isSafeInteger(maximumFrames) || maximumFrames < 0) {
+		throw new RangeError('A waveform PCM window requires a non-negative padding bound.');
+	}
+	const numeric = value === undefined ? 0 : Number(value);
+	const frames = Number.isFinite(numeric) ? Math.round(numeric) : 0;
+	return Math.max(0, Math.min(maximumFrames, frames));
 }
 
 /** Read an optional viewport width used when the raw PCM range exceeds its memory cap. */
@@ -46,6 +59,18 @@ export function requireWaveformSourceFrameCount(value: unknown): number {
 		throw new RangeError('A waveform PCM window requires a non-negative source frame count.');
 	}
 	return value;
+}
+
+export function waveformPcmWindowForVisibleRange<Window extends WaveformPcmWindowRange>(
+	window: Window,
+	visibleRange: WaveformPcmWindowRange,
+): Window & Readonly<{ visibleStartFrame: number; visibleEndFrame: number }> {
+	if ('visibleStartFrame' in window && window.visibleStartFrame === visibleRange.startFrame
+		&& 'visibleEndFrame' in window && window.visibleEndFrame === visibleRange.endFrame) {
+		return window as Window & Readonly<{ visibleStartFrame: number; visibleEndFrame: number }>;
+	}
+	return Object.freeze({ ...window,
+		visibleStartFrame: visibleRange.startFrame, visibleEndFrame: visibleRange.endFrame });
 }
 
 function boundedFrame(value: unknown, fallback: number, durationFrames: number): number {
