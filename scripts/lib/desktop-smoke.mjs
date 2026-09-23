@@ -65,6 +65,7 @@ export const DESKTOP_SMOKE_EXPECTED_BRIDGE = Object.freeze([
 	'onOpenProject',
 	'onWindowStateChanged',
 	'openExternal',
+	'openFreesoundAuthorization',
 	'openNativeAudioSession',
 	'openNativePluginVendorUi',
 	'patchFinalPrefix',
@@ -136,6 +137,7 @@ export const SOUNDSCAPER_DESKTOP_SMOKE_EXPECTED_BRIDGE = Object.freeze(
 export const FRAMESCAPER_DESKTOP_SMOKE_EXPECTED_BRIDGE = Object.freeze([
 	...DESKTOP_SMOKE_EXPECTED_BRIDGE.filter((name) => ![
 		'persistentDelivery', 'onMcpRequest', 'readMcpStatus', 'respondMcpRequest', 'startMcp', 'stopMcp',
+		'openFreesoundAuthorization',
 	].includes(name)),
 	'projectLibrary',
 ].sort());

@@ -1,9 +1,9 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { readRecordingSourceMetadata } from './recording-source-metadata.ts';
-import { createNonImportedSourceProvenance } from '../../../source-provenance-root.ts';
-
-import { RECORDING_DISPLAY_ROUTE_LABEL } from '../../../recording-routing.js';
+import {
+	RECORDING_DISPLAY_ROUTE_LABEL,
+} from '../../../recording-routing.js';
 import type { RecordingPreview } from '../recording-model.ts';
 import type {
 	RecordedAudioSource,
@@ -22,6 +22,7 @@ import {
 	cleanupCommittedRecordingSource,
 	throwRecordingFinalizationFailure,
 } from './recording-finalization-cleanup.ts';
+import { recordedSourceProvenance } from './recording-source-provenance.ts';
 
 function isObject(value: unknown): value is Readonly<Record<string, unknown>> {
 	return Boolean(value) && typeof value === 'object';
@@ -170,7 +171,7 @@ export function createRoutedRecordingFinalization(runtime: RoutedRecordingFinali
 					mimeType: 'audio/wav',
 					frameCount: frames,
 					channelCount: metadata.channelCount || entry.route.channelCount,
-					provenance: createNonImportedSourceProvenance('recorded'),
+					provenance: recordedSourceProvenance(entry.route),
 				});
 				const sourceCommand = runtime.createAddSourceCommand(source);
 				await runtime.activateStoredSource(source, metadata);

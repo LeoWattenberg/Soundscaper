@@ -266,6 +266,7 @@ export const IPC = Object.freeze({
 	windowAction: 'soundscaper:v1:window:action',
 	checkForUpdates: 'soundscaper:v1:updates:check',
 	openExternal: 'soundscaper:v1:external:open',
+	openFreesoundAuthorization: 'soundscaper:v1:freesound:authorize',
 	editText: 'soundscaper:v1:text:edit',
 	rendererReady: 'soundscaper:v1:renderer:ready',
 	respondToClose: 'soundscaper:v1:close:respond',

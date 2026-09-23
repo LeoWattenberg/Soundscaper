@@ -41,6 +41,7 @@ test('desktop runtime compilation emits importable JavaScript with rewritten ext
 	}
 	assert.ok(result.files.includes('src/common/editor/project-hierarchy-document-validation.js'));
 	assert.ok(result.files.includes('src/common/editor/project-effect-tail-v21.js'));
+	assert.ok(result.files.includes('src/common/editor/source-provenance-extensions.js'));
 	assert.ok(result.files.includes('src/common/editor/source-provenance.js'));
 	assert.equal(result.files.includes('src/common/editor/engine/types.js'), false,
 		'type-only engine shapes must not become packaged runtime members');

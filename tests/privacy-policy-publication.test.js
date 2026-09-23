@@ -41,7 +41,7 @@ test('privacy policy locale and product URLs are closed over English and German 
 
 test('English and German dialog content carries equivalent privacy disclosures', () => {
 	const policies = [privacyPolicyContent('en'), privacyPolicyContent('de')];
-	const effectiveDates = ['21 September 2026', '21. September 2026'];
+	const effectiveDates = ['22 September 2026', '22. September 2026'];
 	for (const [index, policy] of policies.entries()) {
 		const prose = [policy.effectiveDate, policy.summary, ...policy.sections.flatMap(
 			({ heading, body }) => [heading, body],
@@ -60,8 +60,10 @@ test('English and German dialog content carries equivalent privacy disclosures',
 		assert.match(prose, /microphone|Mikrofon/iu);
 		assert.match(prose, /camera|Kamera/iu);
 		assert.match(prose, /display|Bildschirm/iu);
+		assert.match(prose, /recording device label|Bezeichnung des Aufnahmegeräts/iu);
+		assert.match(prose, /hardware identifier|Hardwarekennung/iu);
 		assert.match(prose, /local assistance|Lokale Assistenz/iu);
-		assert.match(prose, /no accounts|keine Konten/iu);
+		assert.match(prose, /no Soundscaper or Framescaper accounts|keine Soundscaper- oder Framescaper-Konten/iu);
 		assert.match(prose, /no product analytics|keine Produktanalyse/iu);
 		assert.match(prose, /supervisory authority|Aufsichtsbehörde/iu);
 		assert.equal(policy.effectiveDate, effectiveDates[index]);
@@ -79,9 +81,15 @@ test('English and German dialog content carries equivalent privacy disclosures',
 		assert.match(network, /import/iu);
 		assert.match(network, /byte range|Byte-Bereich/iu);
 		assert.match(network, /Cloudflare.*Soundscaper.*proxy|Cloudflare.*Soundscaper-Proxy/iu);
-		assert.match(network, /server-side credential|serverseitigen Zugangsschlüssel/iu);
+		assert.match(network, /server-side application credential|serverseitigen Anwendungszugang/iu);
 		assert.match(network, /Ogg preview|Ogg-Vorschau/iu);
 		assert.match(network, /not sent|nicht übermittelt/iu);
+		assert.match(network, /OAuth/iu);
+		assert.match(network, /original file|Originaldatei/iu);
+		assert.match(network, /upload|hochladen/iu);
+		assert.match(network, /title|Titel/iu);
+		assert.match(network, /description|Beschreibung/iu);
+		assert.match(network, /license|Lizenz/iu);
 
 		const recipients = policy.sections.find(({ id }) => id === 'recipients')?.body ?? '';
 		assert.match(recipients, /Freesound/iu);
@@ -89,6 +97,11 @@ test('English and German dialog content carries equivalent privacy disclosures',
 		assert.match(recipients, /proxy.*connection data|Verbindungsdaten des Proxys/iu);
 		assert.match(recipients, /own privacy policy|eigen(?:e|en) Datenschutzerklärung/iu);
 		assert.match(recipients, /href="https:\/\/freesound\.org\/help\/privacy\/"/u);
+		assert.match(recipients, /access and refresh tokens|Zugriffs- und Aktualisierungstoken/iu);
+
+		const retention = policy.sections.find(({ id }) => id === 'retention-deletion')?.body ?? '';
+		assert.match(retention, /disconnect|Verbindung trennen/iu);
+		assert.match(retention, /OAuth attempt|OAuth-Versuch/iu);
 	}
 	assert.deepEqual(
 		policies[0].sections.map(({ id }) => id),

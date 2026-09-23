@@ -39,9 +39,8 @@ import { desktopExternalDestination } from '../workspace-runtime.js'; import { c
 import { useTrackHeaderDrawerFlag, useWorkspaceCompactLayout } from './useWorkspaceCompactLayout.js';
 import { createWorkspaceEditItems } from './workspace-edit-items.js';
 import { resolveEditingActionAvailability } from '../../commands/editing-selection-authority.ts';
-import { useCueImportWorkspace } from './cue-import-workspace.tsx';
-const DEFERRED_WEB_VCR_PANEL_ID = 'web-vcr';
-export default function AudioEditorWorkspace({
+import { useCueImportWorkspace } from './cue-import-workspace.tsx'; import { useFreesoundClipUploadCommand } from './freesound-clip-upload-command.ts';
+const DEFERRED_WEB_VCR_PANEL_ID = 'web-vcr'; export default function AudioEditorWorkspace({
 	locale,
 	copy,
 	productId = 'soundscaper',
@@ -327,6 +326,7 @@ export default function AudioEditorWorkspace({
 		() => openWorkspacePanel('project-bin'),
 		[openWorkspacePanel],
 	);
+	const uploadClipToFreesound = useFreesoundClipUploadCommand({ controller, project, missingSourceIds: snapshot.missingSourceIds, onError, openPanel: openWorkspacePanel });
 	useEffect(() => {
 		const binItemId = projectBinSearchReveal?.binItemId;
 		if (!binItemId) return undefined;
@@ -544,7 +544,7 @@ export default function AudioEditorWorkspace({
 		timelineSearchReveal,
 		toggleFullscreen,
 		toggleSplitTool,
-		toggleWorkspacePanel,
+		toggleWorkspacePanel, uploadClipToFreesound,
 		toolbarButtonPreferences,
 		toolbarDock,
 		toolbarDragRef, toolbarProps, trackHeaderDrawer,

@@ -118,6 +118,7 @@ export interface EditorActionFunctions {
 	readonly listAudioEditorEffectPresets: typeof listAudioEditorEffectPresets;
 	readonly listProjects: ReturnType<typeof createProjectAdminService>['listProjects'];
 	readonly makeStereoTrack: ReturnType<typeof createTrackAudioComposition>['makeStereoTrack'];
+	readonly materializeFreesoundUploadClip: ReturnType<typeof createTrackAudioComposition>['materializeFreesoundUploadClip'];
 	readonly mixAndRenderTracks: ReturnType<typeof createTrackAudioComposition>['mixAndRenderTracks'];
 	readonly moveClips: ReturnType<typeof createClipVideoComposition>['clipTransform']['moveClips'];
 	readonly moveClipsToNewTrack: ReturnType<typeof createClipVideoComposition>['clipTransform']['moveClipsToNewTrack'];

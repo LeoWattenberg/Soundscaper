@@ -9,7 +9,7 @@ qualify, attest to, or sign off a release. Historical “qualified” and
 “admitted” wording in retained version narratives means only that a bounded
 technical input or operation passed its named checks.
 
-The model is grounded on 2026-09-21. It must be updated when a trust boundary, supported input, renderer bridge, worker ABI, native executable, plug-in surface, release channel, or long-job lifecycle changes.
+The model is grounded on 2026-09-22. It must be updated when a trust boundary, supported input, renderer bridge, worker ABI, native executable, plug-in surface, release channel, or long-job lifecycle changes.
 
 ## 1.0 project-identity boundary
 
@@ -63,9 +63,9 @@ Documentation, a roadmap entry, or a passing happy-path test is not by itself an
 
 ## Scope, assets, and actors
 
-Protected assets are project and source integrity, user-selected files, local storage capacity, renderer and desktop-process availability, same-origin data, server-held service credentials and quota, release provenance, and the authority of the user's operating-system account.
+Protected assets are project and source integrity, user-selected files, local storage capacity, renderer and desktop-process availability, same-origin data, server-held service and OAuth credentials, opaque user sessions, user-selected upload audio and metadata, third-party quota, release provenance, and the authority of the user's operating-system account.
 
-The attacker may provide a malformed project, archive, audio/video file, metadata block, Nyquist program, or future plug-in; call a public proxy or supply an adversarial third-party response; compromise renderer content; or substitute a dependency or release input. Accidental corruption, interrupted writes, project switches, cancellation, and renderer/process crashes are treated as security-relevant fault cases because they can violate the same integrity and availability invariants.
+The attacker may provide a malformed project, archive, audio/video file, metadata block, Nyquist program, or future plug-in; call a public proxy, steal a session capability, or supply an adversarial third-party response; compromise renderer content; or substitute a dependency or release input. Accidental corruption, interrupted uploads and writes, project switches, cancellation, and renderer/process crashes are treated as security-relevant fault cases because they can violate the same integrity and availability invariants.
 
 The browser, Electron/Chromium runtime, operating system, and hardware are trusted to enforce their documented primitives. Local operating-system compromise is out of scope. A malicious native plug-in is not made safe merely by running in another ordinary user process.
 
@@ -77,7 +77,8 @@ The browser, Electron/Chromium runtime, operating system, and hardware are trust
 | `archive-reader-to-storage` | ZIP entries and admitted family-v1 project records | IndexedDB/OPFS projects and sources | A failed or cancelled import does not publish a project or leave staged sources. |
 | `browser-origin-to-peer-project-store` | Soundscaper or Framescaper transfer origin and manually selected archives | Peer-origin transfer page and its product-family stores | Admit only the configured origin and peer window, a closed bounded handshake, and ordinary family-qualified Scape publication. |
 | `public-client-to-freesound-proxy` | Public browsers, packaged Soundscaper clients, and other network callers | Pages Functions and their server-only Freesound credential | Admit only fixed read routes and bounded inputs, and never expose or forward the credential outside the fixed API origin. |
-| `freesound-upstream-to-proxy` | Freesound API metadata and CDN preview responses | Owned JSON and streamed preview responses | Reject untrusted fetch targets, redirects, open response shapes, disallowed media types, and bodies beyond per-response ceilings. |
+| `authenticated-client-to-freesound-proxy` | Soundscaper web client or packaged main-process proxy holding an opaque session | OAuth/media Functions, D1 token store, and server-held OAuth credentials | Bind exact session transport and origin to closed OAuth, original-download, upload, and publication routes without exposing tokens to the renderer. |
+| `freesound-upstream-to-proxy` | Freesound OAuth/API, original-file, upload, and CDN preview responses | Owned OAuth/media contracts and bounded streams | Reject untrusted fetch targets, redirects, open response shapes, disallowed media types, and bodies beyond per-response ceilings. |
 | `renderer-to-electron-main` | Sandboxed renderer | Electron main process | Only the product-qualified v1 bridge, including bounded pathless linked-video, maintained linked PCM container, and owning-family project-library calls, reaches privileged handlers. |
 | `electron-main-to-filesystem` | Protocol and IPC requests | User-selected files and packaged resources | Renderer code receives capabilities, not ambient paths or arbitrary filesystem access; persisted linked-video and maintained linked PCM container paths remain main-private. |
 | `electron-main-to-shared-project-library` | Soundscaper or Framescaper Electron main-process host | Product-isolated family-v1 appData catalog, project-document tree, and managed-media tree | The family-qualified handshake and current fenced lease must agree before project use; only the current lease may publish state, exact-absent managed bodies receive point-in-time catalog and destination-capacity admission before body work, immutable bodies are complete and digest-bound before catalog publication, and recovery roots remain protected before host exposure. |
@@ -656,8 +657,8 @@ power loss, and cross-tab concurrent reservation remain unqualified.
 ### Freesound API proxy
 
 `freesound-proxy-boundary` is **partial** at the
-`public-client-to-freesound-proxy` and `freesound-upstream-to-proxy`
-boundaries.
+`public-client-to-freesound-proxy`, `authenticated-client-to-freesound-proxy`,
+and `freesound-upstream-to-proxy` boundaries.
 
 <!-- policy-narrative:bounded-freesound-read-proxy -->
 The Pages route map sends only `/api/freesound/*` to Functions. The read-only
@@ -684,12 +685,42 @@ CORS checks constrain deployment and browser response sharing, not client
 authentication.
 <!-- /policy-narrative:bounded-freesound-read-proxy -->
 
+<!-- policy-narrative:bounded-freesound-oauth-media-proxy -->
+The authenticated Pages routes admit only the canonical production, Pages, or
+explicitly enabled loopback host; exact Soundscaper web or packaged-app Origins;
+closed methods, JSON bodies, sound IDs, ranges, media types, filenames, and
+publication metadata; and a cookie or bearer session whose transport matches its
+recorded web or desktop client kind. OAuth start issues separate random state
+and handoff capabilities with ten-minute expiry, stores only their hashes,
+exchanges a state once, fixes the callback and every token/API request to
+https://freesound.org with redirects disabled, and returns browser sessions only
+as Secure HttpOnly SameSite=Strict cookies. D1 stores access, refresh, and
+desktop polling session secrets only as AES-256-GCM ciphertext with
+field-specific authenticated data; rolling 30-day session records store hashes,
+refresh uses a generation-fenced lease, disconnect removes the session and
+orphan grant, and cleanup prunes expired rows. Original downloads pass only
+allowlisted headers and stop at 128 MiB. Uploads require one supported raw audio
+body of exactly 1 through 100,000,000 bytes; the worker verifies declared and
+observed bytes and constructs the sole upstream multipart audio field. Describe
+and pending responses normalize through bounded owned contracts and use no-store
+responses. The packaged client exposes only an exact Freesound authorization URL
+opener and a closed custom-protocol route allowlist; Electron main strips
+renderer credentials, holds the bearer token outside renderer authority, and
+persists it with safeStorage only when the operating-system backend is not Linux
+basic_text or unknown. Backend, UI-contract, and desktop tests cover replay,
+handoff mismatch, token encryption and refresh races, transport confusion, fixed
+upstream targets, body ceilings, metadata validation, token redaction, route
+confinement, and secure-storage fallback.
+<!-- /policy-narrative:bounded-freesound-oauth-media-proxy -->
+
 <!-- policy-narrative:freesound-proxy-deployment-rate-limiting -->
 The repository does not provision or verify a Cloudflare rate-limit rule for
-`/api/freesound/*`. Per-request parsing, response-byte ceilings, and Freesound's
-normalized 429 response do not bound aggregate request volume, concurrent
-preview streams, proxy egress, or shared API-quota consumption. CORS does not
-stop non-browser or same-origin callers.
+`/api/freesound/*`. Per-request parsing, authentication, response-byte ceilings,
+and Freesound's normalized 429 response do not bound aggregate request volume,
+OAuth attempts, token refreshes, concurrent preview or original streams, upload
+bandwidth, proxy egress, or shared API-quota consumption. CORS does not stop
+non-browser or same-origin callers, and a valid user session can still exhaust
+its own or shared quotas.
 <!-- /policy-narrative:freesound-proxy-deployment-rate-limiting -->
 
 <!-- policy-narrative:freesound-preview-stream-lifecycle -->
@@ -701,9 +732,23 @@ remains trusted Freesound CDN content rather than cryptographically
 authenticated media.
 <!-- /policy-narrative:freesound-preview-stream-lifecycle -->
 
+<!-- policy-narrative:freesound-authenticated-media-lifecycle -->
+Authenticated original-download and upload streams have byte ceilings and
+propagate client cancellation, but no proxy-owned idle or total body deadline
+after transfer begins. Original bytes have no end-to-end digest check, and an
+interrupted upload is non-idempotent: retrying after an ambiguous upstream
+outcome can create another pending Freesound upload.
+<!-- /policy-narrative:freesound-authenticated-media-lifecycle -->
+
 ### Electron renderer, IPC, and filesystem capabilities
 
 `electron-renderer-ipc-boundary` is **enforced for the current v1 bridges only**. The window uses sandboxing, context isolation, no Node integration, sender/root-document checks, denied navigation and new-window paths, and a frozen input-validating preload API. Shared-project methods are bounded pathless list, read, bundle, commit, delete, and managed-media transfer operations for the closed canonical-PCM and retained-original-video encodings; main independently sanitizes their values, caps transfer bodies at 64 GiB and chunks at 4 MiB, and permits at most four active uploads and four active reads across the bridge service. Linked-original load requests are closed pathless DTOs with mandatory kind-specific Boolean modes: whole-Blob materialization requires `range: false` for audio or `playback: false` for video, while ranged access requires the corresponding true mode and a non-null exact locator revision. Main and preload independently validate the mode, returned revision, profile-bound descriptor, safe size, canonical URL, and kind-specific MIME/name contract, and they retire a descriptor that cannot be returned safely. Upload capacity remains charged through publication or abort settlement, and service disposal waits for finishing publications. Upload sessions and linked-original reads remain bound to their renderer owner for authorization and revocation. Navigation, renderer loss, and window close revoke the owner, fence new work, abort its uploads, and drain admitted operations and range reads. The external-video addition exposes nine separately validated owner-scoped methods for capabilities, begin, input write, input close, execute, stat, bounded range read, delete, and cancel. It admits opaque operation ids, exact closed plans, and at-most-1-MiB chunks, never renderer-selected paths, executables, or argv; at most two sessions exist globally and one per owner. Navigation, renderer loss, window close, disposal, and shutdown fence new work, cancel and drain the child/session lifecycle, and remove main-private scratch. The desktop local-assistance and additive workflow bridges likewise expose only opaque jobs, aggregate selected-media fences, authenticated slotted claims/reservations, closed operations and workflow graphs, progress, typed unavailable outcomes, and MessagePort byte transfers. Main-private staging, model/runtime/video/executable paths, and project-isolated derivative storage stay outside renderer authority; cancellation and release drain transfers and helper or external-process work before cleanup. No renderer receives a filesystem path. Implemented workflow code creates no authority for a runtime payload or digest-pinned model that has not passed admission.
+
+Soundscaper's Freesound addition exposes only an exact authorization-URL opener
+and a closed custom-protocol proxy. Electron main strips renderer-supplied
+credentials, captures the OAuth session before returning poll JSON, attaches it
+only to allowlisted requests, and keeps it in memory unless `safeStorage`
+reports a secure operating-system backend. Framescaper receives neither method.
 
 `AssistanceWorkflow` v1 binds each guided run to one closed workflow graph,
 aggregate source/range/timing/transcript/settings/model fence, slotted claims,

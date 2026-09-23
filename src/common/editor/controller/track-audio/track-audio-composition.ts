@@ -188,6 +188,26 @@ export function createTrackAudioComposition(dependencies: TrackAudioCompositionD
 		setPersistentExportProgressObserver: dependencies.export.setPersistentExportProgressObserver,
 		verifyProjectFallbackIntegrity,
 	});
+	const materializeFreesoundUploadClip = async (request: Readonly<{
+		projectId: string;
+		clipId: string;
+		signal?: AbortSignal;
+	}>) => {
+		const { createFreesoundClipUploadMaterializer } = await import(
+			'./internal/freesound-clip-upload-materializer.ts'
+		);
+		return await createFreesoundClipUploadMaterializer<TrackAudioCompositionProject>({
+			getProject: requireProject,
+			renderClip: (project, range, signal) => exportService.renderSnapshot(project, {
+				...range,
+				includeTail: false,
+				includeMaster: false,
+				includeTrackPan: false,
+				respectMuteSolo: false,
+				preRollFrames: 0,
+			}, dependencies.sourceBuffers, signal ?? null),
+		}).materialize(request);
+	};
 	const takeComp = createTakeCompControllerComposition({
 		copy,
 		lifetime,
@@ -295,6 +315,7 @@ export function createTrackAudioComposition(dependencies: TrackAudioCompositionD
 		track,
 		trackActions,
 		export: exportService,
+		materializeFreesoundUploadClip,
 		takeComp,
 		audioWarp,
 		mixRender,

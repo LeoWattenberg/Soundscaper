@@ -3,7 +3,11 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { createFreesoundImportService } from '../src/common/editor/controller/import/freesound-import-service.ts';
+import {
+	createFreesoundImportService,
+	FreesoundOriginalTooLargeError,
+} from '../src/common/editor/controller/import/freesound-import-service.ts';
+import { downloadFreesoundImport } from '../src/common/editor/controller/import/internal/freesound-import-download.ts';
 
 const SOUND = Object.freeze({
 	id: 42,
@@ -32,6 +36,20 @@ const SOUND = Object.freeze({
 	statistics: { downloads: 42, averageRating: 4.75, ratingCount: 8 },
 	preview: { available: true, format: 'ogg', quality: 'high', approximateBitrateKbps: 192 },
 	waveform: { available: true, url: '/api/freesound/sounds/42/waveform?asset=789&source=cdn' },
+});
+
+test('an HQ OGG preview keeps its own extension even when the source name ends in WAV', async () => {
+	const download = await downloadFreesoundImport({
+		sound: { ...SOUND, name: 'Rain close.wav' },
+		variant: 'preview-hq-ogg',
+		maximumOriginalBytes: 1_024,
+		maximumPreviewBytes: 1_024,
+		fetch: async () => new Response(Uint8Array.of(79, 103, 103, 83), {
+			headers: { 'Content-Type': 'audio/ogg' },
+		}),
+		url: new URL('https://soundscaper.org/api/freesound/sounds/42/preview'),
+	});
+	assert.equal(download.fileName, 'Rain close.wav.ogg');
 });
 
 test('Freesound search uses the owned proxy contract', async () => {
@@ -228,6 +246,143 @@ test('Freesound import snapshots attribution and sends a local OGG through norma
 		}],
 	});
 	assert.doesNotMatch(JSON.stringify(imports[0]?.options), /cdn\.freesound/u);
+});
+
+test('authenticated Freesound imports use the original file and preserve its safe response filename', async () => {
+	const imports: Array<{ file: File; options: Record<string, unknown> }> = [];
+	const requests: Request[] = [];
+	const service = createFreesoundImportService({
+		enabled: true,
+		authenticated: () => true,
+		apiBaseUrl: 'https://soundscaper.org',
+		createContributionId: () => 'contribution-original',
+		importFile: async (file, options) => { imports.push({ file, options }); },
+		fetch: async (input, init) => {
+			const request = new Request(input, init);
+			requests.push(request);
+			if (request.url.endsWith('/original')) {
+				return new Response(new Uint8Array([0x52, 0x49, 0x46, 0x46]), {
+					headers: {
+						'Content-Type': 'audio/wav',
+						'Content-Length': '4',
+						'Content-Disposition': 'attachment; filename="Field recording.wav"',
+					},
+				});
+			}
+			return Response.json({ data: { ...SOUND, name: 'fallback-name.wav' } });
+		},
+	});
+
+	await service.importSound({ soundId: 42, destination: 'project-bin' });
+
+	assert.deepEqual(requests.map((request) => new URL(request.url).pathname), [
+		'/api/freesound/sounds/42', '/api/freesound/sounds/42/original',
+	]);
+	assert.equal(requests[1]?.credentials, 'include');
+	assert.equal(imports[0]?.file.name, 'Field recording.wav');
+	assert.equal(imports[0]?.file.type, 'audio/wav');
+	const provenance = imports[0]?.options.sourceProvenance as Readonly<{
+		readonly contributions: readonly Readonly<{ readonly origin: Readonly<Record<string, unknown>> }>[];
+	}>;
+	assert.equal(provenance.contributions[0]?.origin.importedVariant, 'original');
+	assert.equal(provenance.contributions[0]?.origin.originalFileName, 'Field recording.wav');
+	assert.equal(provenance.contributions[0]?.origin.mimeType, 'audio/wav');
+});
+
+test('original Freesound imports require authentication and only fall back when explicitly retried', async () => {
+	const requestedPaths: string[] = [];
+	const importedNames: string[] = [];
+	const service = createFreesoundImportService({
+		enabled: true,
+		authenticated: false,
+		apiBaseUrl: 'https://soundscaper.org',
+		maximumOriginalBytes: 4_000,
+		createContributionId: () => 'contribution-42',
+		importFile: async (file) => { importedNames.push(file.name); },
+		fetch: async (input) => {
+			const path = new URL(String(input)).pathname;
+			requestedPaths.push(path);
+			if (path.endsWith('/preview')) {
+				return new Response(new Uint8Array([0x4f, 0x67, 0x67, 0x53]), {
+					headers: { 'Content-Type': 'audio/ogg' },
+				});
+			}
+			return Response.json({ data: SOUND });
+		},
+	});
+
+	await assert.rejects(
+		service.importSound({ soundId: 42, destination: 'project-bin', variant: 'original' }),
+		/authentication/iu,
+	);
+	await assert.rejects(
+		service.importSound({
+			soundId: 42, destination: 'project-bin', variant: 'original',
+		}, () => undefined),
+		/authentication/iu,
+	);
+	await service.importSound({
+		soundId: 42, destination: 'project-bin', variant: 'preview-hq-ogg',
+	});
+
+	assert.deepEqual(requestedPaths, [
+		'/api/freesound/sounds/42', '/api/freesound/sounds/42/preview',
+	]);
+	assert.deepEqual(importedNames, ['Rain close.ogg']);
+});
+
+test('oversized originals expose an explicit preview fallback without downloading or importing', async () => {
+	let originalRequested = false;
+	let imported = false;
+	const service = createFreesoundImportService({
+		enabled: true,
+		authenticated: true,
+		apiBaseUrl: 'https://soundscaper.org',
+		maximumOriginalBytes: 4_000,
+		createContributionId: () => 'contribution-42',
+		importFile: async () => { imported = true; },
+		fetch: async (input) => {
+			if (String(input).endsWith('/original')) originalRequested = true;
+			return Response.json({ data: SOUND });
+		},
+	});
+
+	await assert.rejects(
+		service.importSound({ soundId: 42, destination: 'project-bin' }),
+		(error: unknown) => {
+			assert.ok(error instanceof FreesoundOriginalTooLargeError);
+			assert.equal(error.maximumBytes, 4_000);
+			assert.equal(error.byteLength, 4_096);
+			assert.equal(error.canFallbackToPreview, true);
+			return true;
+		},
+	);
+	assert.equal(originalRequested, false);
+	assert.equal(imported, false);
+});
+
+test('original filenames from content-disposition are sanitized before project import', async () => {
+	let importedName = '';
+	const service = createFreesoundImportService({
+		enabled: true,
+		authenticated: true,
+		apiBaseUrl: 'https://soundscaper.org',
+		createContributionId: () => 'contribution-42',
+		importFile: async (file) => { importedName = file.name; },
+		fetch: async (input) => String(input).endsWith('/original')
+			? new Response(new Uint8Array([1]), { headers: {
+				'Content-Type': 'audio/flac',
+				'Content-Disposition': "attachment; filename*=UTF-8''..%2F..%2Fevil%00.flac",
+			} })
+			: Response.json({ data: { ...SOUND, name: 'safe.flac', originalFile: {
+				...SOUND.originalFile, format: 'flac', byteLength: 1,
+			} } }),
+	});
+
+	await service.importSound({ soundId: 42, destination: 'project-bin' });
+
+	assert.equal(importedName, 'evil-.flac');
+	assert.doesNotMatch(importedName, /[\\/\0]/u);
 });
 
 test('Freesound import admits every OGG MIME forwarded by the owned proxy', async () => {

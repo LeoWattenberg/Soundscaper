@@ -130,10 +130,11 @@ test('sandbox preload exposes only the versioned narrow bridge', async () => {
 		'collectAssistanceModelGarbage', 'runDesktopAudioCodecOperation', 'runDesktopAudioCodecStreamCommand', 'runWindowAction', 'setLocale', 'setNativeAudioHelperEnabled', 'setNativePluginBypassed', 'setNativePluginConsent', 'setNativePluginInstallationAllowed', 'signalReady', 'startNativeVampAnalyzer', 'statDesktopVideoCodecOutput', 'writeChunk', 'writeDesktopVideoCodecInput',
 		].sort();
 	const mcpFields = ['readMcpStatus', 'startMcp', 'stopMcp', 'onMcpRequest', 'respondMcpRequest'];
-	assert.deepEqual(Object.keys(bridge.v1).sort(), [...baseFields, 'persistentDelivery', ...mcpFields].sort());
+	const freesoundFields = ['openFreesoundAuthorization'];
+	assert.deepEqual(Object.keys(bridge.v1).sort(), [...baseFields, 'persistentDelivery', ...mcpFields, ...freesoundFields].sort());
 	const framescaperBridge = exposed.get('framescaperDesktop');
 	assert.deepEqual(Object.keys(framescaperBridge.v1).sort(), [...baseFields, 'projectLibrary'].sort());
-	for (const name of mcpFields) assert.equal(Object.hasOwn(framescaperBridge.v1, name), false);
+	for (const name of [...mcpFields, ...freesoundFields]) assert.equal(Object.hasOwn(framescaperBridge.v1, name), false);
 	assert.equal(Object.hasOwn(framescaperBridge.v1, 'persistentDelivery'), false);
 	assert.equal(Object.hasOwn(framescaperBridge.v1, 'v12'), false);
 	assert.equal(Object.isFrozen(framescaperBridge.v1.projectLibrary), true);
@@ -159,4 +160,8 @@ test('sandbox preload exposes only the versioned narrow bridge', async () => {
 		/save size is too large/iu,
 	);
 	assert.equal(calls.length, 5, 'oversized declarations do not cross IPC');
+	const authorizeUrl = 'https://freesound.org/apiv2/oauth2/authorize/?client_id=x&response_type=code&state=y&redirect_uri=https%3A%2F%2Fsoundscaper.org%2Fapi%2Ffreesound%2Foauth%2Fcallback';
+	await bridge.v1.openFreesoundAuthorization(authorizeUrl);
+	assert.deepEqual(calls[5], { method: 'invoke', channel: 'soundscaper:v1:freesound:authorize', value: authorizeUrl });
+	assert.throws(() => bridge.v1.openFreesoundAuthorization('https://evil.example/'), /authorization URL/u);
 });

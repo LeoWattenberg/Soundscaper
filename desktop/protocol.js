@@ -14,6 +14,7 @@ import {
 	READ_PROFILE_SCAPE_RANGE_V1,
 	RUNTIME_PREFIX,
 } from './constants.js';
+import { FREESOUND_DESKTOP_PREFIX } from './freesound-integration.js';
 import { assertAppUrl, isEditorDocumentUrl } from './validation.js';
 
 const MAX_SCAPE_RANGE_RESPONSE_BYTES = 16 * 1024 ** 2;
@@ -77,7 +78,7 @@ export function registerAppScheme(protocolApi) {
 }
 
 export function createProtocolHandler({
-	productId = 'soundscaper', rendererRoot, runtimeRoot, readCapabilities,
+	productId = 'soundscaper', rendererRoot, runtimeRoot, readCapabilities, freesoundProxy = null,
 }) {
 	if (productId !== 'soundscaper' && productId !== 'framescaper') {
 		throw new TypeError('Desktop protocol product is invalid');
@@ -85,6 +86,10 @@ export function createProtocolHandler({
 	return async (request) => {
 		try {
 			const url = assertAppUrl(request.url);
+			if (url.pathname.startsWith(FREESOUND_DESKTOP_PREFIX)) {
+				if (productId !== 'soundscaper' || typeof freesoundProxy !== 'function') throw new ProtocolError(404, 'Not found');
+				return await freesoundProxy(request, url);
+			}
 			if (request.method !== 'GET' && request.method !== 'HEAD') throw new ProtocolError(405, 'Method not allowed');
 			if (url.pathname.startsWith(READ_CAPABILITY_PREFIX)) {
 				return await serveCapability(request, url, readCapabilities);
