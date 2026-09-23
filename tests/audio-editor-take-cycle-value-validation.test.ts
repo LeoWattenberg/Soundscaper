@@ -44,7 +44,10 @@ test('take-cycle source names keep their existing compatibility contract', () =>
 			name: 'TypeError', message: 'Take cycle source name is invalid.',
 		});
 	}
-	assert.equal(normalizeTakeCycleSourceDescription({
+	const source = normalizeTakeCycleSourceDescription({
 		name: 'e\u0301', sampleRate: 48_000, channelCount: 1, chunkFrames: 256, frameCount: 1,
-	}, 1, 48_000).name, 'e\u0301');
+		recordingDeviceLabel: ' Studio Microphone ',
+	}, 1, 48_000);
+	assert.equal(source.name, 'e\u0301');
+	assert.equal(source.recordingDeviceLabel, 'Studio Microphone');
 });

@@ -26,6 +26,7 @@ export default tseslint.config(
 			'.wrangler/**',
 			'coverage/**',
 			'**/dist/**',
+			'functions/worker-configuration.d.ts',
 			'node_modules/**',
 			'playwright-report/**',
 			'release/**',

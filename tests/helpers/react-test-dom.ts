@@ -142,6 +142,19 @@ export class ReactTestElement extends ReactTestNode {
 	readonly namespaceURI = 'http://www.w3.org/1999/xhtml';
 	readonly style = new ReactTestStyle();
 	readonly attributes = new Map<string, string>();
+	readonly dataset = new Proxy({} as DOMStringMap, {
+		get: (_target, property) => typeof property === 'string'
+			? this.attributes.get(dataAttributeName(property))
+			: undefined,
+		set: (_target, property, value) => {
+			if (typeof property !== 'string') return false;
+			this.attributes.set(dataAttributeName(property), String(value));
+			return true;
+		},
+		deleteProperty: (_target, property) => typeof property === 'string'
+			? this.attributes.delete(dataAttributeName(property))
+			: false,
+	});
 	value = '';
 	checked = false;
 	disabled = false;
@@ -196,6 +209,10 @@ export class ReactTestElement extends ReactTestNode {
 		const attributes = [...this.attributes].map(([name, value]) => ` ${name}="${value}"`).join('');
 		return `<${this.tagName.toLowerCase()}${attributes}>`;
 	}
+}
+
+function dataAttributeName(property: string): string {
+	return `data-${property.replace(/[A-Z]/gu, (character) => `-${character.toLowerCase()}`)}`;
 }
 
 class ReactTestStyle {

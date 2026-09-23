@@ -10,7 +10,7 @@ import {
 	ipcMain,
 	Menu,
 	protocol,
-	session,
+	safeStorage, session,
 	shell, utilityProcess,
 } from 'electron/main';
 import {
@@ -44,7 +44,7 @@ import {
 } from './file-associations.js';
 import { registerSelectedReadCapability } from './read-selection-service.js';
 import { registerFileCapabilityIpc } from './main-file-capability-ipc.mjs';
-import { createProtocolHandler, registerAppScheme } from './protocol.js';
+import { createProtocolHandler, registerAppScheme } from './protocol.js'; import { createDesktopFreesoundIntegration } from './freesound-integration.js';
 import { createDesktopSmokeProbe } from './desktop-smoke.js';
 import { createDesktopNightlyTestsWindow } from './nightly-tests-window.mjs';
 import { createSoakDebugDialog } from './soak-debug-dialog.mjs'; import { collectSoakDebugProcessMetrics, createSoakDebugMainCoverageCheckpoint, soakDebugProcessMetricsEnabled, SOAK_DEBUG_FLAG } from './soak-debug-process-metrics.mjs';
@@ -82,7 +82,7 @@ let rendererReady = false;
 let pendingClose = null;
 let projectLibraryRuntime = null, projectLibraryStartup = null, projectLibraryIpc = null;
 let linkedVideoLocators = null, nativeTier = null, nativeServices = null, soundscaperDelivery = null;
-let captureSecurity = null, assistance = null, assistanceSemanticSearch = null, externalFfmpegPreferences = null, desktopCodecs = null;
+let captureSecurity = null, assistance = null, assistanceSemanticSearch = null, externalFfmpegPreferences = null, desktopCodecs = null, freesound = null;
 let allowNextClose = false;
 let applicationIsQuitting = false;
 const rendererOwnershipCleanup = new DesktopRendererOwnershipCleanup({
@@ -214,13 +214,13 @@ async function startApplication() {
 		...createFramescaperNativeServicesElectronPorts(settings, (error) => console.error('Framescaper native service failed:', cleanError(error))),
 	});
 	releaseChecker = new ReleaseChecker({ currentVersion: app.getVersion(), settings, tagPrefix: UPDATE_TAG_PREFIX });
-
+	freesound = await createDesktopFreesoundIntegration({ appOrigin: APP_ORIGIN, apiOrigin: 'https://soundscaper.org', channels: IPC, filePath: resolve(app.getPath('userData'), 'freesound-session.json'), handle, platform: process.platform, productId: PRODUCT_ID, safeStorage, shell });
 	const desktopSession = session.fromPartition(SESSION_PARTITION);
 	await desktopSession.protocol.handle(APP_SCHEME, createProtocolHandler({
 		productId: PRODUCT_ID,
 		rendererRoot: resources.renderer,
 		runtimeRoot: resources.runtime,
-		readCapabilities,
+		readCapabilities, freesoundProxy: freesound.proxy,
 	}));
 	if (applicationShutdown.requested) return;
 	await registerIpcHandlers(desktopSession);

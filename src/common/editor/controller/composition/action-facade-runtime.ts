@@ -93,6 +93,7 @@ export const EDITOR_ACTION_FUNCTION_NAMES = [
 	'listAudioEditorEffectPresets',
 	'listProjects',
 	'makeStereoTrack',
+	'materializeFreesoundUploadClip',
 	'mixAndRenderTracks',
 	'moveClips',
 	'moveClipsToNewTrack',

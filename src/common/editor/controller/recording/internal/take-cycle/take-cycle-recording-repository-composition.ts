@@ -47,6 +47,7 @@ export interface TakeCycleLaneTarget {
 }
 export interface TakeCycleSourceDescription {
 	readonly name: string;
+	readonly recordingDeviceLabel?: string;
 	readonly sampleRate: number;
 	readonly channelCount: number;
 	readonly chunkFrames: number;
@@ -424,7 +425,9 @@ function projectCommand(
 			originalSampleRate: description.sampleRate,
 			sampleFormat: 'float32',
 			chunkFrames: description.chunkFrames,
-			provenance: createNonImportedSourceProvenance('recorded'),
+			provenance: createNonImportedSourceProvenance('recorded', {
+				recordingDeviceLabel: description.recordingDeviceLabel,
+			}),
 		})),
 	}));
 	const takes = operation.plan.passes.map((pass, index) => ({

@@ -130,6 +130,39 @@ test('source provenance copies, merges and deduplicates contributions without lo
 	]), /conflicting contribution/iu);
 });
 
+test('recording device provenance keeps labels without hardware identifiers and propagates through derivation', () => {
+	const microphone = createNonImportedSourceProvenance('recorded', {
+		recordingDeviceLabel: ' Studio Microphone ',
+	});
+	const second = createNonImportedSourceProvenance('recorded', {
+		recordingDeviceLabel: 'USB Interface',
+	});
+
+	assert.deepEqual(microphone, {
+		schemaVersion: 1,
+		classification: 'recorded',
+		contributions: [],
+		extensions: {
+			soundscaper: {
+				schemaVersion: 1,
+				recordingDeviceLabels: ['Studio Microphone'],
+			},
+		},
+	});
+	assert.deepEqual(deriveSourceProvenance([
+		{ provenance: microphone },
+		{ provenance: second },
+		{ provenance: microphone },
+	])?.extensions?.soundscaper.recordingDeviceLabels, [
+		'Studio Microphone', 'USB Interface',
+	]);
+	assert.doesNotMatch(JSON.stringify(microphone), /deviceId|hardware/iu);
+	assert.throws(() => normalizeSourceProvenance({
+		...microphone,
+		extensions: { soundscaper: { schemaVersion: 2, recordingDeviceLabels: [] } },
+	}), /extensions\.soundscaper\.schemaVersion/iu);
+});
+
 test('semantic provenance validation enforces metadata bounds and rejects hidden state', () => {
 	const atLimit = structuredClone(createImportedSourceProvenance(LOCAL_CONTRIBUTION));
 	mutableMetadata(atLimit).normalized = { values: Array.from({ length: 8_188 }, () => null) };

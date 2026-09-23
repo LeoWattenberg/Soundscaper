@@ -17,6 +17,7 @@ import {
 } from './linked-audio-choice-handoff.ts';
 import { projectBinColorName, projectBinItems } from './project-bin-model.ts';
 import { lazyEditorModule } from '../../../offline/lazy-module.tsx';
+import { queueFreesoundClipUploadCommand } from './freesound-clip-upload-command.ts';
 
 const AUDIO_EDITOR_AUDIO_FILE_ACCEPT = 'audio/*,video/mp4,video/webm,.aac,.aif,.aiff,.bw64,.flac,.m4a,.m4v,.mp2,.mp3,.mp4,.oga,.ogg,.opus,.rf64,.wav,.wave,.wavpack,.webm,.wv';
 const FRAMESCAPER_BUILD = typeof __SCAPE_PRODUCT__ === 'undefined'
@@ -95,6 +96,7 @@ export default function ProjectBinPanel({ controller, snapshot, copy, locale, fi
 		? items.find((item) => item.id === itemMenu.itemId) || null
 		: null;
 	const menuAudioClip = menuItem?.clips.find((clip) => clip.kind !== 'video') || null;
+	const menuUploadClip = menuItem?.clips.find((clip) => clip.kind === 'audio') || null;
 	const menuAudioRelinkEligible = Boolean(menuAudioClip
 		&& itemMenu?.audioClipId === menuAudioClip.id
 		&& itemMenu.linkedAudioRelinkEligible);
@@ -408,6 +410,16 @@ export default function ProjectBinPanel({ controller, snapshot, copy, locale, fi
 				))}
 			</ContextMenuItem>
 			<ContextMenuItem isDivider />
+			{snapshot.productId === 'soundscaper' && menuUploadClip && <ContextMenuItem
+				label={copy.uploadClipToFreesound}
+				disabled={mutationBlocked || !sourceById.has(menuUploadClip.sourceId)
+					|| missingSourceIds.has(menuUploadClip.sourceId)}
+				onClick={() => queueFreesoundClipUploadCommand({ controller, project,
+					missingSourceIds: snapshot.missingSourceIds,
+					openPanel: () => run(() => controller.actions.preferences.setPanelVisibility('freesound', true)),
+					onError: (error) => run(() => { throw error; }) }, menuUploadClip.id)}
+				onClose={closeItemMenu}
+			/>}
 			<ContextMenuItem
 				label={copy.projectBinRemoveFromBin}
 				disabled={mutationBlocked}

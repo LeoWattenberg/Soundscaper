@@ -43,7 +43,7 @@ export function createGroupedEditorActions(scope: EditorActionRuntime) {
 	generateSignal, repeatLastGenerator, getClipVisualData, getProjectBinClipVisualData, getVisibleClips,
 	handleClipAction, handleEdit, handleExportAction, handlePlayAtSpeed, handleTransport,
 	hasMissingTimelineSources, importFiles, importLabelFile, importCueFile, inspectScape, listProjects, makeStereoTrack,
-	mixAndRenderTracks, moveClips, moveClipsToNewTrack, moveClipsToProjectBin, moveTrack, newProject,
+	materializeFreesoundUploadClip, mixAndRenderTracks, moveClips, moveClipsToNewTrack, moveClipsToProjectBin, moveTrack, newProject,
 	normalizePlaybackFrame, openAudacityProject, openAup4, openProject, openScape, openScapeFile, overwriteClips,
 	openDawproject, saveDawproject, pasteEffectStack, pauseLoudnessMeasurement, placeProjectBinClip,
 	playPauseProjectBinClip, prepareProjectBinReplacement, prepareProjectHandoff,
@@ -427,6 +427,7 @@ export function createGroupedEditorActions(scope: EditorActionRuntime) {
 			invert: restricted('audioEffects', (clipId: string) => handleClipAction('invert', clipId)),
 			normalizePeak: restricted('audioEffects', (clipId: string) => handleClipAction('normalize-peak', clipId)),
 			normalizeLoudness: restricted('audioEffects', (clipId: string) => handleClipAction('normalize-lufs', clipId)),
+			materializeFreesoundUpload: materializeFreesoundUploadClip,
 		}),
 		effects: Object.freeze({
 			add: restricted('audioEffects', addEffect),

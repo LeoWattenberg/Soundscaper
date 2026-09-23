@@ -186,6 +186,120 @@ test('Freesound waveform seeks, starts or resumes preview, and reuses the active
 	}
 });
 
+test('connected original imports over 128 MiB require confirmation before the exact HQ preview retry', async () => {
+	const dom = installReactTestDom();
+	const actGlobal = globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean };
+	const priorAct = actGlobal.IS_REACT_ACT_ENVIRONMENT;
+	const priorFetch = globalThis.fetch;
+	actGlobal.IS_REACT_ACT_ENVIRONMENT = true;
+	const publicPaths: string[] = [];
+	const authenticatedPaths: string[] = [];
+	const imports: Array<{ file: File; options: Readonly<Record<string, unknown>> }> = [];
+	const oversized = {
+		...RESULT,
+		originalFile: { ...RESULT.originalFile, byteLength: 128 * 1024 * 1024 + 1 },
+	};
+	globalThis.fetch = async (input) => {
+		const url = new URL(String(input), 'https://soundscaper.org');
+		publicPaths.push(url.pathname);
+		if (url.pathname.endsWith('/preview')) {
+			return new Response(Uint8Array.of(0x4f, 0x67, 0x67, 0x53), {
+				headers: { 'Content-Type': 'audio/ogg', 'Content-Length': '4' },
+			});
+		}
+		if (url.pathname.endsWith('/search')) {
+			return Response.json({ data: {
+				query: 'rain', page: 1, pageSize: 20, totalCount: 1, totalPages: 1,
+				hasNextPage: false, hasPreviousPage: false, results: [oversized],
+			} });
+		}
+		return Response.json({ data: oversized });
+	};
+	const transport = {
+		request: async (path: string) => {
+			authenticatedPaths.push(path);
+			if (path.endsWith('/oauth/session')) {
+				return Response.json({ data: { connected: true, user: { id: 5, username: 'uploader' } } });
+			}
+			if (path.endsWith('/uploads/pending')) {
+				return Response.json({ data: {
+					pendingDescription: [], pendingProcessing: [], pendingModeration: [],
+				} });
+			}
+			throw new Error(`Unexpected authenticated path: ${path}`);
+		},
+		openAuthorization: () => undefined,
+	};
+	const projectToken = Object.freeze({ projectId: 'project-a', generation: 1 });
+	const controller = {
+		actions: { project: {
+			importFiles: async ([file]: File[], options: Readonly<Record<string, unknown>> = {}) => {
+				imports.push({ file: file!, options });
+			},
+		} },
+		getSnapshot: () => ({
+			productId: 'soundscaper', readOnly: false, importing: false,
+			project: { id: 'project-a' },
+		}),
+		captureProjectGeneration: () => projectToken,
+		assertProjectGeneration: () => undefined,
+	};
+	const { createRoot } = await import('react-dom/client');
+	const root = createRoot(dom.container as unknown as Element);
+	const flush = async () => {
+		await act(async () => { await new Promise<void>((resolve) => setTimeout(resolve, 0)); });
+	};
+	const button = (prefix: string) => dom.container.querySelectorAll('button')
+		.find((candidate) => candidate.textContent?.startsWith(prefix));
+	try {
+		await act(async () => root.render(<FreesoundPanelContainer
+			controller={controller}
+			snapshot={{
+				locale: 'en', selectedTrackId: 'track-a',
+				project: { id: 'project-a', tracks: [{ id: 'track-a', type: 'audio' }] },
+			}}
+			copy={ENGLISH_COPY}
+			freesoundTransport={transport}
+		/>));
+		await flush();
+		assert.ok(dom.container.textContent?.includes('Connected as uploader'));
+		const searchInput = dom.container.querySelectorAll('input').find(({ type }) => type === 'search');
+		assert.ok(searchInput);
+		await act(async () => reactProps(searchInput).onChange({ currentTarget: { value: 'rain' } }));
+		await act(async () => reactProps(dom.one('form')).onSubmit({ preventDefault() {} }));
+		await flush();
+
+		for (const [label, destination] of [
+			['Insert at playhead', 'timeline'],
+			['Add to Project Bin', 'project-bin'],
+		] as const) {
+			const importButton = button(label);
+			assert.ok(importButton);
+			await act(async () => reactProps(importButton).onClick());
+			await flush();
+			assert.ok(dom.find('[data-freesound-original-fallback-dialog="true"]'));
+			assert.equal(imports.length, destination === 'timeline' ? 0 : 1,
+				'oversized original is never retried without confirmation');
+			const confirm = button('Import HQ preview');
+			assert.ok(confirm);
+			await act(async () => reactProps(confirm).onClick());
+			await flush();
+			await flush();
+			assert.equal(imports.at(-1)?.options.destination, destination);
+			assert.equal(imports.at(-1)?.file.type, 'audio/ogg');
+		}
+
+		assert.equal(authenticatedPaths.some((path) => path.endsWith('/original')), false);
+		assert.equal(publicPaths.filter((path) => path.endsWith('/preview')).length, 2);
+		assert.equal(imports.length, 2);
+	} finally {
+		await act(async () => root.unmount());
+		globalThis.fetch = priorFetch;
+		actGlobal.IS_REACT_ACT_ENVIRONMENT = priorAct;
+		dom.restore();
+	}
+});
+
 class MockAudio {
 	src: string;
 	preload = '';

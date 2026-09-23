@@ -87,6 +87,21 @@ test('repository composition delegates product-owned command and validation auth
 	assert.ok(validationCount >= 3, `expected repeated product validation, received ${String(validationCount)}`);
 });
 
+test('repository composition carries the take capture device label into source provenance', async () => {
+	const fixture = await compositionFixture();
+	const composition = createComposition(fixture, {
+		describeSource: () => ({ ...sourceDescription(), recordingDeviceLabel: 'Studio Microphone' }),
+	});
+	const result = await composition.finalize(request());
+	assert.equal(result.lanes[0]?.status, 'committed');
+
+	const persisted = await fixture.projects.load('project-cycle') as AudioEditorProjectV17;
+	const source = persisted.sources.find(({ id }) => id === 'media-a');
+	assert.deepEqual(source?.provenance?.extensions?.soundscaper.recordingDeviceLabels, [
+		'Studio Microphone',
+	]);
+});
+
 test('two complete passes publish as deterministic independently auditionable lanes', async () => {
 	const fixture = await compositionFixture();
 	const evidence = pcmEvidence([FIRST, SECOND]);

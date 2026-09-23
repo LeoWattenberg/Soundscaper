@@ -82,6 +82,7 @@ test('desktop smoke pins the complete sorted preload v1 bridge contract', () => 
 		'onOpenProject',
 		'onWindowStateChanged',
 		'openExternal',
+		'openFreesoundAuthorization',
 		'openNativeAudioSession',
 		'openNativePluginVendorUi',
 		'patchFinalPrefix',
@@ -153,6 +154,7 @@ test('desktop smoke bridge inventory equals the sandbox preload surface', async 
 	assert.deepEqual(FRAMESCAPER_DESKTOP_SMOKE_EXPECTED_BRIDGE, [
 		...DESKTOP_SMOKE_EXPECTED_BRIDGE.filter((name) => ![
 			'persistentDelivery', 'onMcpRequest', 'readMcpStatus', 'respondMcpRequest', 'startMcp', 'stopMcp',
+			'openFreesoundAuthorization',
 		].includes(name)),
 		'projectLibrary',
 	].sort());
@@ -208,6 +210,7 @@ test('desktop smoke accepts the exact product-isolated Soundscaper preload surfa
 		'onOpenProject',
 		'onWindowStateChanged',
 		'openExternal',
+		'openFreesoundAuthorization',
 		'openNativeAudioSession',
 		'openNativePluginVendorUi',
 		'patchFinalPrefix',

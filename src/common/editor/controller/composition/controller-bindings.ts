@@ -54,6 +54,7 @@ export function createControllerBindings<RenderEngine extends ClipTimePitchRende
 	const { moveClipsToProjectBin, placeProjectBinClip, applyProjectBinReplacement } = deferControllerMethods(() => services.imports().projectBin, ['moveClipsToProjectBin', 'placeProjectBinClip', 'applyProjectBinReplacement']);
 	const { addLabel } = deferControllerMethods(() => services.tracks().track, ['addLabel']);
 	const { selectClip, setSelection, selectLeftOfPlaybackPosition, selectRightOfPlaybackPosition, setSnapSettings, snapTimelineFrame } = deferControllerMethods(() => services.tracks().selectionView, ['selectClip', 'setSelection', 'selectLeftOfPlaybackPosition', 'selectRightOfPlaybackPosition', 'setSnapSettings', 'snapTimelineFrame']);
+	const { materializeFreesoundUploadClip } = deferAsyncControllerMethods(() => services.tracks(), ['materializeFreesoundUploadClip']);
 	const { sampleEditingAvailable, setSampleEditMode } = deferControllerMethods(() => services.clips().sampleEdit, ['sampleEditingAvailable', 'setSampleEditMode']);
 	const { applySamplePencil, smoothSelectedSamples } = deferControllerMethods(() => services.clips(), ['applySamplePencil', 'smoothSelectedSamples']);
 	const { updateRecordingDeviceRows } = deferControllerMethods(() => services.recording().routing, ['updateRecordingDeviceRows']);
@@ -145,7 +146,7 @@ export function createControllerBindings<RenderEngine extends ClipTimePitchRende
 		dismissAup4CompatibilitySummary,
 		cacheSourceBuffer, clearWaveformPcmWindows, renameProjectBinClip, removeProjectBinClip,
 		setProjectBinClipColor, projectBinInstanceCount, selectProjectBinInstances, removeProjectBinSource,
-		mixAndRenderTracks, resampleTrack, resampleClip, swapTrackChannels,
+		mixAndRenderTracks, materializeFreesoundUploadClip, resampleTrack, resampleClip, swapTrackChannels,
 		splitStereoTrack, makeStereoTrack, splitAtFrame, selectTrack,
 		selectAllTracks, selectTrackStartToCursor, selectCursorToTrackEnd, selectTrackStartToEnd,
 		selectedTracksTimeRange, toggleRmsWaveform, toggleVerticalRulers, toggleScrollViewToPlayhead,

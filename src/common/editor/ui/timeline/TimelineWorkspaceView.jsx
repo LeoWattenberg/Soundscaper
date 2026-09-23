@@ -31,6 +31,7 @@ import {
 import { TimelinePlaybackProjection } from './TimelinePlaybackProjection.tsx';
 import { ContainerAddTrackFlyout } from './TimelineFlyouts.jsx';
 import { TimelineMenus } from './TimelineMenus.jsx';
+import { useTimelineClipUploadDrag } from './useTimelineClipUploadDrag.ts';
 
 export function TimelineWorkspaceView({
 	controller,
@@ -162,6 +163,11 @@ export function TimelineWorkspaceView({
 	const { createAnnotation, status: annotationCreateStatus } = useTimelineAnnotationCreateFeedback({
 		controller, copy, locale, sampleRate, run,
 	});
+	const timelineClipUploadDrag = useTimelineClipUploadDrag({
+		project,
+		rootRef: timelinePanelRef,
+		viewportRevision: `${String(renderViewportStartFrame)}:${String(viewportDurationFrames)}`,
+	});
 
 	// Only selected tracks shade their selected range, so the highlight names
 	// the tracks the next edit would act on rather than the whole timeline.
@@ -231,6 +237,8 @@ export function TimelineWorkspaceView({
 					finishPointerSession(event, !mouseCancellation);
 				}}
 				onContextMenu={onClipContextMenu}
+				onDragStart={timelineClipUploadDrag.onDragStart}
+				onDragEnd={timelineClipUploadDrag.onDragEnd}
 				onDragOver={onTimelineDragOver}
 				onDragLeave={onTimelineDragLeave}
 				onDrop={onTimelineDrop}

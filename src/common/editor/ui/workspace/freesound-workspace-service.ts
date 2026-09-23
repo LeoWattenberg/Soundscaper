@@ -20,6 +20,13 @@ export interface FreesoundWorkspaceController {
 		readonly project: Readonly<{
 			importFiles(files: File[], options?: Readonly<Record<string, unknown>>): Promise<unknown> | unknown;
 		}>;
+		readonly clip?: Readonly<{
+			materializeFreesoundUpload?: (request: Readonly<{
+				projectId: string;
+				clipId: string;
+				signal?: AbortSignal;
+			}>) => Promise<import('./freesound-upload-queue.ts').FreesoundMaterializedClip>;
+		}>;
 	}>;
 	readonly getSnapshot: () => FreesoundWorkspaceSnapshot;
 	readonly captureProjectGeneration: (projectId?: string | null) => EditorProjectToken;
@@ -28,14 +35,22 @@ export interface FreesoundWorkspaceController {
 
 export type FreesoundWorkspaceRuntime = Readonly<Pick<
 	FreesoundImportServiceRuntime,
-	'apiBaseUrl' | 'fetch' | 'maximumPreviewBytes'
->>;
+	'apiBaseUrl' | 'fetch' | 'maximumPreviewBytes' | 'maximumOriginalBytes'
+>> & Readonly<{
+	authenticated?: () => boolean;
+	authenticatedRequest?: (path: string, init?: RequestInit) => Promise<Response>;
+}>;
+
+type MutableFreesoundWorkspaceRuntime = {
+	-readonly [Key in keyof FreesoundWorkspaceRuntime]: FreesoundWorkspaceRuntime[Key];
+};
 
 const activeImports = new WeakMap<FreesoundWorkspaceController, EditorProjectToken>();
 const services = new WeakMap<
 	FreesoundWorkspaceController,
 	ReturnType<typeof createFreesoundWorkspaceActions>
 >();
+const serviceRuntimes = new WeakMap<FreesoundWorkspaceController, MutableFreesoundWorkspaceRuntime>();
 
 /** Build the Freesound port only after an optional workspace surface asks for it. */
 export function createFreesoundWorkspaceActions(
@@ -45,6 +60,15 @@ export function createFreesoundWorkspaceActions(
 	const service = createFreesoundImportService({
 		enabled: controller.getSnapshot().productId === 'soundscaper',
 		...runtime,
+		authenticated: () => runtime.authenticated?.() === true,
+		fetchOriginal: (input, init) => {
+			const url = input instanceof URL ? input : new URL(String(input));
+			if (runtime.authenticatedRequest) {
+				return runtime.authenticatedRequest(`${url.pathname}${url.search}`, init);
+			}
+			const request = runtime.fetch ?? globalThis.fetch.bind(globalThis);
+			return request(input, init);
+		},
 		createContributionId: () => createStableId('attribution'),
 		importFile: async (file, options, assertProjectCurrent) => {
 			assertProjectCurrent?.();
@@ -92,11 +116,19 @@ export function createFreesoundWorkspaceActions(
 	});
 }
 
-export function freesoundWorkspaceActions(controller: FreesoundWorkspaceController) {
+export function freesoundWorkspaceActions(
+	controller: FreesoundWorkspaceController,
+	runtime: FreesoundWorkspaceRuntime = {},
+) {
 	let actions = services.get(controller);
+	let configured = serviceRuntimes.get(controller);
 	if (!actions) {
-		actions = createFreesoundWorkspaceActions(controller);
+		configured = { ...runtime };
+		actions = createFreesoundWorkspaceActions(controller, configured);
 		services.set(controller, actions);
+		serviceRuntimes.set(controller, configured);
+	} else if (configured) {
+		Object.assign(configured, runtime);
 	}
 	return actions;
 }
