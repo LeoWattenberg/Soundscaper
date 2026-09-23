@@ -4,7 +4,7 @@ description: "So sánh Soundscaper với Audacity 4 và Adobe Audition về ghi 
 sidebar:
   order: 3
 ---
-<!-- docs-ai-provenance: {"factPacketSha256":"703e76cffbe1464f1283f6c8f45cee52c0d37faae852b7efc163879710a2ddb2","model":"qwen3.8:latest","modelDigest":"22130167c4c20e20c7b71454612966ca8e8171e9b3cc8ab6ce8aa6cbfec79643","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"703e76cffbe1464f1283f6c8f45cee52c0d37faae852b7efc163879710a2ddb2","targetLocale":"vi"} -->
+<!-- docs-ai-provenance: {"basedOnProvenance":{"model":"qwen3.8:latest","modelDigest":"22130167c4c20e20c7b71454612966ca8e8171e9b3cc8ab6ce8aa6cbfec79643"},"factPacketSha256":"71097403d87aba03cddc2ccd696ff9a8663268afba3a7bf750fe8d9913de3eba","model":"gpt-6-astra","modelProvider":"codex-session","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"71097403d87aba03cddc2ccd696ff9a8663268afba3a7bf750fe8d9913de3eba","targetLocale":"vi"} -->
 
 Soundscaper triển khai lại Audacity 4 trên web và thêm một lớp sản xuất phía trên. Adobe Audition là công cụ hậu kỳ thương mại mà cả hai thường được so sánh. Trang này so sánh cả ba để bạn có thể xác định công cụ nào đã thực hiện được công việc bạn cần.
 
@@ -102,7 +102,7 @@ Các hàng mô tả các khả năng, không phải các lệnh menu. Để bi�
 | EQ tham số | Có — EQ tham số mới với các dải có thể tự động hóa | Một phần — Filter Curve và Graphic EQ | Có — bộ lọc tham số, đồ họa và FFT |
 | Preset hiệu ứng | Có — áp dụng, lưu, nhập, xuất | Có — áp dụng, lưu, nhập, xuất | Có |
 | Macro và chuỗi hàng loạt | Có — thư viện macro đã lưu với các mẫu | Không — bản dựng cố định đã chú thích tắt menu Macros | Có — Favorites và Batch Process |
-| Định dạng plug-in bên thứ ba | Một phần — VST3, CLAP, AU và LV2 trên desktop sau sự đồng ý và cách ly, không có trong trình duyệt | Có — VST3, AU, LV2 và Nyquist, với trình quản lý plug-in | Một phần — VST3 và AU trên macOS, không có CLAP hoặc LV2 |
+| Định dạng plug-in bên thứ ba | Một phần — VST3, CLAP, AU, LV2 và hiệu ứng LADSPA trên Linux cùng bộ phân tích Vamp trên desktop sau sự đồng ý và cách ly; không có trong trình duyệt | Có — VST3, AU, LV2 và Nyquist, với trình quản lý plug-in | Một phần — VST3 và AU trên macOS, không có CLAP hoặc LV2 |
 | Lập trình Nyquist | Có — plug-in được đóng gói và prompt Nyquist | Có — plug-in được đóng gói và prompt Nyquist | Không |
 | Gói hiệu ứng được cách ly | Một phần — các gói WebAssembly đã được xem xét, một gói được phát hành và các gói bên ngoài bị rào chắn | Không | Không |
 | Nhạc cụ ảo | Không — sau 1.0 | Không | Không |
