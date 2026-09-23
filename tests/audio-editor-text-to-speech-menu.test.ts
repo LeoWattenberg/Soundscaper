@@ -24,16 +24,16 @@ test('desktop Generate menu opens Text to Speech in both products without select
 	}
 });
 
-test('speech copy stays localized in German and falls back to English elsewhere', async () => {
+test('speech copy uses German and falls back to English for unsupported locales', async () => {
 	const english = await resolveCatalog('en') as Readonly<Record<string, string>>;
 	const german = await resolveCatalog('de') as Readonly<Record<string, string>>;
-	const french = await resolveCatalog('fr') as Readonly<Record<string, string>>;
+	const unsupported = await resolveCatalog('zz') as Readonly<Record<string, string>>;
 	assert.equal(english['ui.textToSpeech.title'], 'Text to Speech');
 	assert.equal(german['ui.textToSpeech.title'], 'Text zu Sprache');
 	assert.equal(english['ui.textToSpeech.modelPurpose'], 'Speech synthesis');
 	assert.equal(german['ui.textToSpeech.modelPurpose'], 'Sprachsynthese');
-	assert.equal(french['ui.textToSpeech.title'], english['ui.textToSpeech.title']);
-	assert.equal(french['ui.textToSpeech.modelPurpose'], english['ui.textToSpeech.modelPurpose']);
+	assert.equal(unsupported['ui.textToSpeech.title'], english['ui.textToSpeech.title']);
+	assert.equal(unsupported['ui.textToSpeech.modelPurpose'], english['ui.textToSpeech.modelPurpose']);
 });
 
 test('Text to Speech stays absent in web builds and disabled during blocked editing', () => {
