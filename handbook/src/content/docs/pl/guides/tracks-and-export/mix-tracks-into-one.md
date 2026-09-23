@@ -1,6 +1,6 @@
 ---
-title: "Zmieszaj kilka ścieżek w jedną"
-description: "Zredukuj wybrane ścieżki do pojedynczej ścieżki."
+title: "Zmiksuj kilka ścieżek w jedną"
+description: "Wyrenderuj zaznaczone ścieżki do jednej ścieżki."
 editUrl: false
 sidebar:
   order: 2
@@ -8,48 +8,48 @@ head:
   - tag: script
     attrs:
       type: "application/ld+json"
-    content: "{\"@context\":\"https://schema.org\",\"@type\":\"HowTo\",\"name\":\"Mix several tracks into one\",\"description\":\"Render the selected tracks down to a single track.\",\"tool\":[{\"@type\":\"HowToTool\",\"name\":\"Soundscaper\"}],\"step\":[{\"@type\":\"HowToStep\",\"position\":1,\"name\":\"Open Soundscaper. A new, empty project is ready as soon as the editor loads.\",\"text\":\"Open Soundscaper. A new, empty project is ready as soon as the editor loads.\"},{\"@type\":\"HowToStep\",\"position\":2,\"name\":\"Choose File → Import audio and pick the first part. The file lands as a clip on its own track.\",\"text\":\"Choose File → Import audio and pick the first part. The file lands as a clip on its own track.\"},{\"@type\":\"HowToStep\",\"position\":3,\"name\":\"Choose File → Import audio and pick the second part. The file lands as a clip on its own track.\",\"text\":\"Choose File → Import audio and pick the second part. The file lands as a clip on its own track.\"},{\"@type\":\"HowToStep\",\"position\":4,\"name\":\"Click the name bar of the first clip, then hold Shift and click the name bar of the second clip, so both are selected.\",\"text\":\"Click the name bar of the first clip, then hold Shift and click the name bar of the second clip, so both are selected. Every track with a selected clip goes into the mix.\"},{\"@type\":\"HowToStep\",\"position\":5,\"name\":\"Choose Tracks → Mix & Render. In the Mix & Render dialog, leave Mix down, Render effects and Replace originals checked, choose Stereo for Mix down to, then press Mix & Render.\",\"text\":\"Choose Tracks → Mix & Render. In the Mix & Render dialog, leave Mix down, Render effects and Replace originals checked, choose Stereo for Mix down to, then press Mix & Render.\"},{\"@type\":\"HowToStep\",\"position\":6,\"name\":\"The project now shows a clip named Mix.\",\"text\":\"The project now shows a clip named Mix. One track holds a clip named Mix; the source tracks are gone.\"}]}"
+    content: "{\"@context\":\"https://schema.org\",\"@type\":\"HowTo\",\"name\":\"Mix several tracks into one\",\"description\":\"Render the selected tracks down to a single track.\",\"tool\":[{\"@type\":\"HowToTool\",\"name\":\"Soundscaper\"}],\"step\":[{\"@type\":\"HowToStep\",\"position\":1,\"name\":\"Open Soundscaper. A new, empty project is ready as soon as the editor loads.\",\"text\":\"Open Soundscaper. A new, empty project is ready as soon as the editor loads.\"},{\"@type\":\"HowToStep\",\"position\":2,\"name\":\"Choose File → Import and pick the first part. It lands as a clip on its own track.\",\"text\":\"Choose File → Import and pick the first part. It lands as a clip on its own track.\"},{\"@type\":\"HowToStep\",\"position\":3,\"name\":\"Choose File → Import and pick the second part. It lands as a clip on its own track.\",\"text\":\"Choose File → Import and pick the second part. It lands as a clip on its own track.\"},{\"@type\":\"HowToStep\",\"position\":4,\"name\":\"Click the name bar of the first clip, then hold Shift and click the name bar of the second clip, so both are selected.\",\"text\":\"Click the name bar of the first clip, then hold Shift and click the name bar of the second clip, so both are selected. Every track with a selected clip goes into the mix.\"},{\"@type\":\"HowToStep\",\"position\":5,\"name\":\"Choose Tracks → Mix & Render. In the Mix & Render dialog, leave Mix down, Render effects and Replace originals checked, choose Stereo for Mix down to, then press Mix & Render.\",\"text\":\"Choose Tracks → Mix & Render. In the Mix & Render dialog, leave Mix down, Render effects and Replace originals checked, choose Stereo for Mix down to, then press Mix & Render.\"},{\"@type\":\"HowToStep\",\"position\":6,\"name\":\"The project now shows a clip named Mix.\",\"text\":\"The project now shows a clip named Mix. One track holds a clip named Mix; the source tracks are gone.\"}]}"
 ---
-<!-- docs-ai-provenance: {"factPacketSha256":"a2efb9d82744df50703da530f05fd07938a525026e90a778c97fb783e8fb88c8","model":"aya-expanse:32b","modelDigest":"1603440383bd5504dc7afd01c0407b425b988dde650a8dc1a737433baa3cd432","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"a2efb9d82744df50703da530f05fd07938a525026e90a778c97fb783e8fb88c8","targetLocale":"pl"} -->
+<!-- docs-ai-provenance: {"factPacketSha256":"e3e165f69376430cd8ca49fc9f23263e3de5bf9c4af97309624c2faaba94193b","model":"gpt-5.6-luna","modelDigest":"manual","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"e3e165f69376430cd8ca49fc9f23263e3de5bf9c4af97309624c2faaba94193b","targetLocale":"pl"} -->
 
 <!-- Generated by `node scripts/docs-reference.mjs`. Do not edit. -->
 
-Gdy ścieżki są zbalansowane, ich zmiksowanie do jednej czyni projekt lżejszym w obsłudze i daje Ci pojedynczy klip do eksportu lub przeniesienia gdzie indziej. Miks wykorzystuje zysk, panoramę, automatyzację i efekty każdej wybranej ścieżki. Cisza i solo są ignorowane dla wybranych ścieżek podczas tej operacji, a przetwarzanie master pozostaje aktywne.
+Gdy ścieżki są już zrównoważone, zmiksowanie ich do jednej ułatwia dalszą pracę z projektem i daje pojedynczy klip, który można wyeksportować lub przenieść do innego programu. Miks uwzględnia wzmocnienie, panoramę, automatyzację i efekty każdej zaznaczonej ścieżki. Podczas tej operacji ustawienia wyciszenia i solo zaznaczonych ścieżek są ignorowane, a przetwarzanie na szynie głównej pozostaje aktywne.
 
 :::note[Przechodzisz z Audacity?]
-To jest **Ścieżki → Miks → Miks i Render** z Audacity. Nazwy poniżej są własne dla Soundscaper, które czasami się różnią.
+Odpowiada to poleceniu **Ścieżki → Mieszanie → Mieszanie i renderowanie** w Audacity. Poniższe nazwy pochodzą z Soundscaper i czasem się różnią.
 :::
 
 ## Kroki
 
-1. Otwórz Soundscaper. Nowy, pusty projekt jest gotowy natychmiast po załadowaniu edytora.
-2. Wybierz **Plik → Zaimportuj audio** i wybierz pierwszą część. Plik ląduje jako klip na własnej ścieżce.
-3. Wybierz **Plik → Zaimportuj audio** i wybierz drugą część. Plik ląduje jako klip na własnej ścieżce.
-4. Kliknij pasek nazwy pierwszego klipu, a następnie przytrzymaj Shift i kliknij pasek nazwy drugiego klipu, aby oba zostały wybrane. Każda ścieżka z wybranym klipem wchodzi w skład miksu.
-5. Wybierz **Ścieżki → Miks & Render**. W oknie dialogowym **Miks & Render** pozostaw zaznaczone **Miksuj**, **Renderuj efekty** i **Zastąp oryginały**, wybierz **Stereo** dla **Miksuj do**, a następnie naciśnij **Miks & Render**.
-6. Projekt teraz pokazuje klip o nazwie **Miks**.
-   *Powinieneś zobaczyć:* Jedna ścieżka zawiera klip o nazwie Mix; źródłowe ścieżki zniknęły.
+1. Otwórz Soundscaper. Po załadowaniu edytora dostępny jest nowy, pusty projekt.
+2. Wybierz **Plik → Importuj** i wskaż pierwszą część. Zostanie dodana jako klip na osobnej ścieżce.
+3. Wybierz **Plik → Importuj** i wskaż drugą część. Zostanie dodana jako klip na osobnej ścieżce.
+4. Kliknij pasek nazwy pierwszego klipu, a następnie przytrzymaj Shift i kliknij pasek nazwy drugiego, aby zaznaczyć oba. Miks obejmuje każdą ścieżkę, na której zaznaczono klip.
+5. Wybierz **Ścieżki → Mieszanie i renderowanie**. W oknie **Mieszanie i renderowanie** pozostaw zaznaczone opcje **Mieszanie**, **Renderuj efekty** i **Zastąp oryginały**, wybierz **Stereo** w polu **Mieszanie do**, a następnie naciśnij **Mieszanie i renderowanie**.
+6. W projekcie pojawi się klip o nazwie **Mieszanka**.
+   *Powinno być widać:* Jedna ścieżka zawiera klip **Mieszanka**; ścieżki źródłowe zostały usunięte.
 
 ## Porady
 
-- Wybierz **Mono**, **Stereo** lub skonfigurowany w projekcie układ wielokanałowy pod **Miksuj do** przed renderowaniem.
-- **Edycja → Cofnij** przywraca oryginalne ścieżki, jeśli musisz zmienić balans.
-- Nie musisz miksiować, aby eksportować. **Plik → Eksportuj audio** renderuje cały projekt samodzielnie.
+- Przed renderowaniem wybierz w polu **Mieszanie do** opcję **Mono**, **Stereo** lub wielokanałowy układ skonfigurowany w projekcie.
+- Polecenie **Edycja → Cofnij** przywróci oryginalne ścieżki, jeśli zechcesz zmienić balans.
+- Nie musisz miksować ścieżek, aby eksportować projekt. Polecenie **Plik → Eksportuj nagranie** renderuje cały projekt.
 
 ## Powiązane przewodniki
 
-Więcej przewodników dotyczących [ścieżek i eksportu](/guides/tracks-and-export/):
+Więcej poradników z kategorii [ścieżki i eksport](/guides/tracks-and-export/):
 
-- [Podziel ścieżkę stereo na dwie ścieżki mono](/guides/tracks-and-export/split-stereo-into-mono-tracks/) — Rozdziel lewy i prawy kanał, aby każdy mógł być edytowany osobno.
-- [Wygeneruj ton testowy](/guides/tracks-and-export/generate-a-test-tone/) — Utwórz falę sinusoidalną o określonej częstotliwości i długości z niczego.
-- [Eksportuj MP3](/guides/tracks-and-export/export-an-mp3/) — Renderuj projekt do pliku MP3 do udostępniania lub publikowania.
-- [Eksportuj WAV](/guides/tracks-and-export/export-a-wav/) — Renderuj projekt do niekompresowanego pliku WAV.
-- [Cisza i solo ścieżek](/guides/tracks-and-export/mute-and-solo-tracks/) — Wycisz ścieżkę lub słuchaj jednej ścieżki samodzielnie, podczas pracy nad miksem.
-- [Dodaj pustą ścieżkę](/guides/tracks-and-export/add-an-empty-track/) — Utwórz nową ścieżkę do nagrania lub wklejenia.
-- [Wycisz wszystkie ścieżki naraz](/guides/tracks-and-export/mute-every-track-at-once/) — Wycisz cały projekt w jednym kroku, a następnie przywróć wszystko.
-- [Miksuj ścieżki na nową ścieżkę i zachowaj oryginały](/guides/tracks-and-export/mix-tracks-into-a-new-track/) — Renderuj miksu kilku ścieżek na nową ścieżkę, podczas gdy źródła pozostają w projekcie.
-- [Zbalansuj ścieżki w mikserze](/guides/tracks-and-export/balance-tracks-in-the-mixer/) — Otwórz konsolę miksującą z pasmem kanału na ścieżkę, aby ustawić poziomy i panoramę obok siebie.
+- [Podziel ścieżkę stereo na dwie ścieżki mono](/guides/tracks-and-export/split-stereo-into-mono-tracks/) — Rozdziel kanały lewy i prawy, aby edytować je niezależnie.
+- [Wygeneruj ton testowy](/guides/tracks-and-export/generate-a-test-tone/) — Utwórz sinusoidę o zadanej częstotliwości i długości.
+- [Eksportuj MP3](/guides/tracks-and-export/export-an-mp3/) — Wyrenderuj projekt do pliku MP3, aby go udostępnić lub opublikować.
+- [Eksportuj WAV](/guides/tracks-and-export/export-a-wav/) — Wyrenderuj projekt do nieskompresowanego pliku WAV.
+- [Wyciszaj i odsłuchuj solo ścieżki](/guides/tracks-and-export/mute-and-solo-tracks/) — Wycisz ścieżkę lub odsłuchuj ją osobno podczas pracy nad miksem.
+- [Dodaj pustą ścieżkę](/guides/tracks-and-export/add-an-empty-track/) — Utwórz nową ścieżkę do nagrywania lub wklejania dźwięku.
+- [Wycisz wszystkie ścieżki naraz](/guides/tracks-and-export/mute-every-track-at-once/) — Wycisz cały projekt jednym krokiem, a potem przywróć dźwięk.
+- [Zmiksuj ścieżki do nowej ścieżki i zachowaj oryginały](/guides/tracks-and-export/mix-tracks-into-a-new-track/) — Wyrenderuj miks kilku ścieżek na nowej ścieżce, pozostawiając źródła w projekcie.
+- [Zrównoważ ścieżki w mikserze](/guides/tracks-and-export/balance-tracks-in-the-mixer/) — Otwórz konsolę mikserską z osobnym paskiem kanału dla każdej ścieżki, aby ustawiać poziomy i panoramę obok siebie.
 
 ## O tym przewodniku
 
-Procedura na tej stronie — każda pozycja menu, okno dialogowe, pole i przycisk, a także wynik, który produkuje — jest odtwarzana w każdym budowaniu Soundscaper przez zestaw przeglądarek (`tests/browser/soundscaper-guides.spec.js`). Jeśli cokolwiek z tego przestanie pasować do edytora, budowanie nie powiedzie się, dopóki przewodnik nie zostanie poprawiony. Sugerowane wartości są punktami wyjścia, które edytor jest w stanie zaakceptować; to, czy są one odpowiednie dla Twojego nagrania, Twoje uszy muszą zdecydować.
+Procedura opisana na tej stronie — każde polecenie menu, okno dialogowe, pole i przycisk oraz uzyskiwany wynik — jest odtwarzana w przeglądarce na każdej kompilacji Soundscaper (`tests/browser/soundscaper-guides.spec.js`). Jeśli którykolwiek element przestanie odpowiadać edytorowi, kompilacja zakończy się błędem, dopóki poradnik nie zostanie poprawiony. Sugerowane wartości to ustawienia początkowe, które edytor na pewno przyjmuje; tylko Ty możesz ocenić, czy pasują do Twojego nagrania.

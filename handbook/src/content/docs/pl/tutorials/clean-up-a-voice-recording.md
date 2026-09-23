@@ -1,0 +1,69 @@
+---
+title: "Oczyść nagranie głosu"
+description: "Usuń przydźwięk, odfiltruj dudnienie, ustaw głośność podcastową i wyeksportuj plik MP3."
+editUrl: false
+sidebar:
+  order: 2
+head:
+  - tag: script
+    attrs:
+      type: "application/ld+json"
+    content: "{\"@context\":\"https://schema.org\",\"@type\":\"HowTo\",\"name\":\"Clean up a voice recording\",\"description\":\"Take the hum out of a take, cut the rumble, bring it to podcast loudness and export an MP3.\",\"tool\":[{\"@type\":\"HowToTool\",\"name\":\"Soundscaper\"}],\"step\":[{\"@type\":\"HowToStep\",\"position\":1,\"name\":\"Open Soundscaper. A new, empty project is ready as soon as the editor loads.\",\"text\":\"Open Soundscaper. A new, empty project is ready as soon as the editor loads.\"},{\"@type\":\"HowToStep\",\"position\":2,\"name\":\"Choose File → Import and pick guide-noisy-take.wav — a short take whose first half second is room noise before the voice starts. It lands as a clip on its own track.\",\"text\":\"Choose File → Import and pick guide-noisy-take.wav — a short take whose first half second is room noise before the voice starts. It lands as a clip on its own track.\"},{\"@type\":\"HowToStep\",\"position\":3,\"name\":\"Press Play to listen, then Stop.\",\"text\":\"Press Play to listen, then Stop. Half a second of hiss, then a steady tone standing in for a voice, with the hiss underneath it.\"},{\"@type\":\"HowToStep\",\"position\":4,\"name\":\"Drag in the ruler above the clip, from the start to the 15% mark, to select the noise-only lead-in.\",\"text\":\"Drag in the ruler above the clip, from the start to the 15% mark, to select the noise-only lead-in. The profile must contain nothing but the noise you want gone — no voice at all.\"},{\"@type\":\"HowToStep\",\"position\":5,\"name\":\"Choose Effect → Noise removal and repair → Noise Reduction and press Get noise profile. The status line reports that the profile is ready. Press Close to leave the dialog for now.\",\"text\":\"Choose Effect → Noise removal and repair → Noise Reduction and press Get noise profile. The status line reports that the profile is ready. Press Close to leave the dialog for now.\"},{\"@type\":\"HowToStep\",\"position\":6,\"name\":\"Choose Select → Select all.\",\"text\":\"Choose Select → Select all. The profile is kept; now the effect needs to know what to clean.\"},{\"@type\":\"HowToStep\",\"position\":7,\"name\":\"Choose Effect → Noise removal and repair → Noise Reduction. In the Noise Reduction dialog, set Noise reduction to 12, then press Apply to selection.\",\"text\":\"Choose Effect → Noise removal and repair → Noise Reduction. In the Noise Reduction dialog, set Noise reduction to 12, then press Apply to selection. Twelve decibels is a good first setting. More removes more noise but makes voices sound hollow. The lead-in is nearly flat and the tone is untouched.\"},{\"@type\":\"HowToStep\",\"position\":8,\"name\":\"Choose Effect → Legacy effects → Classic Filters. In the Classic Filters dialog, choose High-pass for Filter type and set Cutoff frequency to 100, then press Apply to selection.\",\"text\":\"Choose Effect → Legacy effects → Classic Filters. In the Classic Filters dialog, choose High-pass for Filter type and set Cutoff frequency to 100, then press Apply to selection. Everything below 100 Hz — traffic, handling, air conditioning — is rolled off. Speech lives well above it.\"},{\"@type\":\"HowToStep\",\"position\":9,\"name\":\"Choose Effect → Volume and compression → Loudness Normalization. In the Loudness Normalization dialog, set Target loudness to -16, then press Apply to selection.\",\"text\":\"Choose Effect → Volume and compression → Loudness Normalization. In the Loudness Normalization dialog, set Target loudness to -16, then press Apply to selection. −16 LUFS is the common target for stereo podcasts. Loudness measures how loud the whole take feels, not how tall its peaks are. The waveform is taller and the take plays at a comfortable level.\"},{\"@type\":\"HowToStep\",\"position\":10,\"name\":\"Press Play to listen, then Stop.\",\"text\":\"Press Play to listen, then Stop. A clean, level take with a quiet lead-in.\"},{\"@type\":\"HowToStep\",\"position\":11,\"name\":\"Choose File → Export audio, set Format to MP3, and press Export. The file downloads as soon as the render finishes, and its link stays in the dialog.\",\"text\":\"Choose File → Export audio, set Format to MP3, and press Export. The file downloads as soon as the render finishes, and its link stays in the dialog. The file is encoded in the browser; nothing leaves your computer.\"}]}"
+---
+
+<!-- docs-ai-provenance: {"factPacketSha256":"96727487ae82c7f76b646047856630f73eb756ee7832615587e24e1e6db0b0ee","model":"gpt-5.6-luna","modelDigest":"manual","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"96727487ae82c7f76b646047856630f73eb756ee7832615587e24e1e6db0b0ee","targetLocale":"pl"} -->
+
+<!-- Generated by `node scripts/docs-reference.mjs`. Do not edit. -->
+
+Większość domowych nagrań wymaga tych samych trzech poprawek: usunięcia stałego szumu tła, odfiltrowania niskiego dudnienia i podniesienia poziomu do standardowej wartości. W tym samouczku wykonasz wszystkie trzy czynności na przykładowym, trzysekundowym nagraniu. Jego pierwsze pół sekundy zawiera wyłącznie szum pomieszczenia. Na koniec wyeksportujesz wynik jako MP3.
+
+:::tip[Co będzie potrzebne]
+- Pobierz [`guide-noisy-take.wav`](https://assets.soundscaper.org/guides/examples/guide-noisy-take.wav) — krótkie nagranie, w którym przed rozpoczęciem głosu przez pierwsze pół sekundy słychać szum pomieszczenia.
+
+Każdy poniższy krok działa dokładnie na tych plikach, więc to, co zobaczysz, powinno odpowiadać opisowi. Soundscaper działa w przeglądarce; nie trzeba niczego instalować.
+:::
+
+## Czego się nauczysz
+
+- Dlaczego Redukcja szumu wymaga profilu i jak go utworzyć.
+- Co usuwa filtr górnoprzepustowy i jak ustawić go dla mowy.
+- Czym różni się poziom szczytowy od głośności i jak osiągnąć jej wartość docelową.
+- Jak wyeksportować plik MP3.
+
+## Kroki
+
+1. Otwórz Soundscaper. Po załadowaniu edytora dostępny jest nowy, pusty projekt.
+2. Wybierz **Plik → Importuj** i wskaż `guide-noisy-take.wav` — krótkie nagranie, w którym przed rozpoczęciem głosu przez pierwsze pół sekundy słychać szum pomieszczenia. Plik zostanie dodany jako klip na osobnej ścieżce.
+3. Naciśnij **Odtwórz**, aby odsłuchać nagranie, a następnie **Zatrzymaj**.
+   *Powinno być słychać:* Pół sekundy szumu, po której następuje jednostajny ton zastępujący głos; pod nim nadal słychać szum.
+4. Przeciągnij wskaźnik na linijce nad klipem od początku do znacznika 15%, aby zaznaczyć początkowy fragment zawierający wyłącznie szum. Profil może zawierać tylko szum, który chcesz usunąć — bez głosu.
+5. Wybierz **Efekt → Usuwanie szumu i naprawa → Redukcja szumu**, a następnie naciśnij **Pobierz profil szumu**. Pasek stanu poinformuje, że profil jest gotowy. Naciśnij **Zamknij**, aby na razie zamknąć okno dialogowe.
+6. Wybierz **Zaznacz → Zaznacz wszystko**. Profil pozostaje zachowany; teraz efekt musi wiedzieć, co ma oczyścić.
+7. Wybierz **Efekt → Usuwanie szumu i naprawa → Redukcja szumu**. W oknie **Redukcja szumu** ustaw wartość **Redukcja szumu** na `12`, a następnie naciśnij **Zastosuj do zaznaczenia**. Dwanaście decybeli to dobry punkt wyjścia. Większa wartość usuwa więcej szumu, ale może sprawić, że głos zabrzmi pusto.
+   *Powinno być widać:* Początkowy fragment jest niemal płaski, a ton pozostaje nietknięty.
+8. Wybierz **Efekt → Efekty klasyczne → Filtry klasyczne**. W oknie **Filtry klasyczne** wybierz **Górnoprzepustowy** w polu **Typ filtra** i ustaw **Częstotliwość odcięcia** na `100`, a następnie naciśnij **Zastosuj do zaznaczenia**. Wszystkie częstotliwości poniżej 100 Hz — ruch uliczny, odgłosy obsługi czy klimatyzacja — zostaną odfiltrowane. Mowa mieści się znacznie wyżej.
+9. Wybierz **Efekt → Głośność i kompresja → Normalizacja głośności**. W oknie **Normalizacja głośności** ustaw **Głośność docelową** na `-16`, a następnie naciśnij **Zastosuj do zaznaczenia**. −16 LUFS to typowy cel dla podcastów stereo. Głośność opisuje, jak głośno odbierane jest całe nagranie, a nie jak wysokie są jego szczyty.
+   *Powinno być widać:* Przebieg fali jest wyższy, a nagranie odtwarza się z komfortowym poziomem.
+10. Naciśnij **Odtwórz**, aby odsłuchać nagranie, a następnie **Zatrzymaj**.
+   *Powinno być słychać:* Oczyszczone, równo brzmiące nagranie z cichym początkiem.
+11. Wybierz **Plik → Eksportuj audio**, ustaw **Format** na **MP3** i naciśnij **Eksportuj**. Plik zostanie pobrany po zakończeniu renderowania, a jego odnośnik pozostanie w oknie dialogowym. Plik jest kodowany w przeglądarce; żadne dane nie opuszczają komputera.
+
+## Co dalej
+
+- Zastosuj te kroki do własnego nagrania, korzystając z poradników: [Usuń szum tła](/guides/cleaning-up/remove-background-noise/), [Usuń niskie dudnienie](/guides/cleaning-up/remove-low-rumble/) i [Znormalizuj głośność podcastu](/guides/volume/normalize-loudness-for-podcasts/).
+- Sprawdź wynik tak, jak zrobiłaby to platforma: [Zmierz głośność miksu](/guides/analysis/measure-loudness/).
+
+## Inne samouczki
+
+[Pierwszy projekt w Soundscaper](/tutorials/your-first-project/) — Zaimportuj nagranie, odsłuchaj je, podziel, dodaj wyciszenie, wyeksportuj plik i zapisz projekt.
+[Umieść muzykę pod głosem](/tutorials/put-music-under-a-voice/) — Ułóż dwie ścieżki, automatycznie ściszaj jedną pod drugą, zmiksuj je i wyeksportuj.
+
+## Dokumentacja
+
+- [Domyślne wartości i zakres każdego użytego efektu znajdziesz w dokumentacji efektów audio.](/reference/generated/audio-effects/#parameters)
+- [Formaty eksportu, ich kontenery i limity kanałów opisano w dokumentacji formatów eksportu.](/reference/generated/formats/)
+- [Wszystkie polecenia menu i odpowiadające im skróty klawiaturowe opisano w dokumentacji poleceń i skrótów.](/reference/generated/commands/)
+
+## O tym samouczku
+
+Samouczek jest odtwarzany krok po kroku na tych plikach podczas kompilacji Soundscaper przez zestaw testów przeglądarkowych (`tests/browser/soundscaper-tutorials.spec.js`). Jeśli któryś krok przestanie działać, kompilacja zakończy się błędem, dopóki samouczek nie zostanie poprawiony — opis odpowiada więc temu, co robi edytor.
