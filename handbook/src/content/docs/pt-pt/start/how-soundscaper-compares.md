@@ -4,7 +4,7 @@ description: "Compare o Soundscaper com o Audacity 4 e o Adobe Audition em grava
 sidebar:
   order: 3
 ---
-<!-- docs-ai-provenance: {"factPacketSha256":"703e76cffbe1464f1283f6c8f45cee52c0d37faae852b7efc163879710a2ddb2","model":"qwen3.8:latest","modelDigest":"22130167c4c20e20c7b71454612966ca8e8171e9b3cc8ab6ce8aa6cbfec79643","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"703e76cffbe1464f1283f6c8f45cee52c0d37faae852b7efc163879710a2ddb2","targetLocale":"pt-PT"} -->
+<!-- docs-ai-provenance: {"basedOnProvenance":{"model":"qwen3.8:latest","modelDigest":"22130167c4c20e20c7b71454612966ca8e8171e9b3cc8ab6ce8aa6cbfec79643"},"factPacketSha256":"71097403d87aba03cddc2ccd696ff9a8663268afba3a7bf750fe8d9913de3eba","model":"gpt-6-luna","modelProvider":"codex-subagent","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"71097403d87aba03cddc2ccd696ff9a8663268afba3a7bf750fe8d9913de3eba","targetLocale":"pt-PT"} -->
 
 O Soundscaper reimplementa o Audacity 4 na web e adiciona uma camada de produção por cima dele. O Adobe Audition é a ferramenta comercial de pós-produção contra a qual ambos são geralmente medidos. Esta página compara os três para que possa determinar qual deles já executa a tarefa que tem.
 
@@ -102,7 +102,7 @@ As linhas descrevem capacidades, não comandos de menu. Para o inventário exato
 | EQ paramétrico | Sim — um novo EQ paramétrico com bandas automatizáveis | Parcial — Filter Curve e Graphic EQ | Sim — filtros paramétricos, gráficos e FFT |
 | Predefinições de efeitos | Sim — aplicar, guardar, importar, exportar | Sim — aplicar, guardar, importar, exportar | Sim |
 | Macros e cadeias em lote | Sim — biblioteca de macros guardada com modelos | Não — a compilação fixada comenta o menu Macros | Sim — Favoritos e Batch Process |
-| Formatos de plug-ins de terceiros | Parcial — VST3, CLAP, AU e LV2 no desktop, sujeitos a consentimento e contenção; nenhum no navegador | Sim — VST3, AU, LV2 e Nyquist, com um gestor de plug-ins | Parcial — VST3 e AU no macOS, sem CLAP ou LV2 |
+| Formatos de plug-ins de terceiros | Parcial — VST3, CLAP, AU, LV2 e efeitos Linux LADSPA, além de analisadores Vamp no ambiente para computador, sujeitos a consentimento e contenção; nenhum no navegador | Sim — VST3, AU, LV2 e Nyquist, com um gestor de plug-ins | Parcial — VST3 e AU no macOS, sem CLAP ou LV2 |
 | Scripting Nyquist | Sim — plug-ins incluídos e o prompt Nyquist | Sim — plug-ins incluídos e o prompt Nyquist | Não |
 | Pacotes de efeitos em sandbox | Parcial — pacotes WebAssembly revistos, um é incluído e os externos estão isolados | Não | Não |
 | Instrumentos virtuais | Não — após a 1.0 | Não | Não |

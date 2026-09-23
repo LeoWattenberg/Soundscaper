@@ -1,0 +1,78 @@
+---
+title: "Limpe uma gravação de voz"
+description: "Remova o zumbido, corte o rumble, ajuste o volume para podcasts e exporte um MP3."
+editUrl: false
+sidebar:
+  order: 2
+head:
+  - tag: script
+    attrs:
+      type: "application/ld+json"
+    content: "{\"@context\":\"https://schema.org\",\"@type\":\"HowTo\",\"name\":\"Clean up a voice recording\",\"description\":\"Take the hum out of a take, cut the rumble, bring it to podcast loudness and export an MP3.\",\"tool\":[{\"@type\":\"HowToTool\",\"name\":\"Soundscaper\"}],\"step\":[{\"@type\":\"HowToStep\",\"position\":1,\"name\":\"Open Soundscaper. A new, empty project is ready as soon as the editor loads.\",\"text\":\"Open Soundscaper. A new, empty project is ready as soon as the editor loads.\"},{\"@type\":\"HowToStep\",\"position\":2,\"name\":\"Choose File → Import and pick guide-noisy-take.wav — a short take whose first half second is room noise before the voice starts. It lands as a clip on its own track.\",\"text\":\"Choose File → Import and pick guide-noisy-take.wav — a short take whose first half second is room noise before the voice starts. It lands as a clip on its own track.\"},{\"@type\":\"HowToStep\",\"position\":3,\"name\":\"Press Play to listen, then Stop.\",\"text\":\"Press Play to listen, then Stop. Half a second of hiss, then a steady tone standing in for a voice, with the hiss underneath it.\"},{\"@type\":\"HowToStep\",\"position\":4,\"name\":\"Drag in the ruler above the clip, from the start to the 15% mark, to select the noise-only lead-in.\",\"text\":\"Drag in the ruler above the clip, from the start to the 15% mark, to select the noise-only lead-in. The profile must contain nothing but the noise you want gone — no voice at all.\"},{\"@type\":\"HowToStep\",\"position\":5,\"name\":\"Choose Effect → Noise removal and repair → Noise Reduction and press Get noise profile. The status line reports that the profile is ready. Press Close to leave the dialog for now.\",\"text\":\"Choose Effect → Noise removal and repair → Noise Reduction and press Get noise profile. The status line reports that the profile is ready. Press Close to leave the dialog for now.\"},{\"@type\":\"HowToStep\",\"position\":6,\"name\":\"Choose Select → Select all.\",\"text\":\"Choose Select → Select all. The profile is kept; now the effect needs to know what to clean.\"},{\"@type\":\"HowToStep\",\"position\":7,\"name\":\"Choose Effect → Noise removal and repair → Noise Reduction. In the Noise Reduction dialog, set Noise reduction to 12, then press Apply to selection.\",\"text\":\"Choose Effect → Noise removal and repair → Noise Reduction. In the Noise Reduction dialog, set Noise reduction to 12, then press Apply to selection. Twelve decibels is a good first setting. More removes more noise but makes voices sound hollow. The lead-in is nearly flat and the tone is untouched.\"},{\"@type\":\"HowToStep\",\"position\":8,\"name\":\"Choose Effect → Legacy effects → Classic Filters. In the Classic Filters dialog, choose High-pass for Filter type and set Cutoff frequency to 100, then press Apply to selection.\",\"text\":\"Choose Effect → Legacy effects → Classic Filters. In the Classic Filters dialog, choose High-pass for Filter type and set Cutoff frequency to 100, then press Apply to selection. Everything below 100 Hz — traffic, handling, air conditioning — is rolled off. Speech lives well above it.\"},{\"@type\":\"HowToStep\",\"position\":9,\"name\":\"Choose Effect → Volume and compression → Loudness Normalization. In the Loudness Normalization dialog, set Target loudness to -16, then press Apply to selection.\",\"text\":\"Choose Effect → Volume and compression → Loudness Normalization. In the Loudness Normalization dialog, set Target loudness to -16, then press Apply to selection. −16 LUFS is the common target for stereo podcasts. Loudness measures how loud the whole take feels, not how tall its peaks are. The waveform is taller and the take plays at a comfortable level.\"},{\"@type\":\"HowToStep\",\"position\":10,\"name\":\"Press Play to listen, then Stop.\",\"text\":\"Press Play to listen, then Stop. A clean, level take with a quiet lead-in.\"},{\"@type\":\"HowToStep\",\"position\":11,\"name\":\"Choose File → Export audio, set Format to MP3, and press Export. The file downloads as soon as the render finishes, and its link stays in the dialog.\",\"text\":\"Choose File → Export audio, set Format to MP3, and press Export. The file downloads as soon as the render finishes, and its link stays in the dialog. The file is encoded in the browser; nothing leaves your computer.\"}]}"
+---
+<!-- docs-ai-provenance: {"factPacketSha256":"96727487ae82c7f76b646047856630f73eb756ee7832615587e24e1e6db0b0ee","model":"gpt-6-luna","modelProvider":"codex-subagent","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"96727487ae82c7f76b646047856630f73eb756ee7832615587e24e1e6db0b0ee","targetLocale":"pt-PT"} -->
+
+<!-- Generated by `node scripts/docs-reference.mjs`. Do not edit. -->
+
+A maioria das gravações feitas em casa precisa das mesmas três correções:
+remover um ruído de fundo constante, filtrar um rumble grave e ajustar o nível
+para um padrão. Neste tutorial, vamos aplicar as três a uma gravação de exemplo
+de três segundos, cujo primeiro meio segundo contém apenas ruído da sala, e
+depois exportar o resultado como MP3.
+
+:::tip[O que vai precisar]
+- Transfira [`guide-noisy-take.wav`](https://assets.soundscaper.org/guides/examples/guide-noisy-take.wav) — uma gravação curta cujo primeiro meio segundo contém ruído da sala antes de começar a voz.
+
+Cada passo abaixo funciona exatamente com estes ficheiros, por isso o que vê
+deverá corresponder ao que o tutorial descreve. O Soundscaper funciona no
+navegador; não é necessário instalar nada.
+:::
+
+## O que vai aprender
+
+- Porque é que a redução de ruído precisa de um perfil e como o criar.
+- O que remove um filtro passa-alto e como o ajustar para a fala.
+- A diferença entre nível de pico e intensidade sonora, e como alcançar um nível pretendido.
+- Como exportar um MP3.
+
+## Passos
+
+1. Abra o Soundscaper. Assim que o editor carregar, fica disponível um projeto novo e vazio.
+2. Escolha **Ficheiro → Importar** e selecione `guide-noisy-take.wav` — uma gravação curta cujo primeiro meio segundo contém ruído da sala antes de começar a voz. É adicionada como um clipe numa faixa própria.
+3. Prima **Reproduzir** para ouvir e, em seguida, **Parar**.
+   *Deverá ver:* Meio segundo de chiado, seguido de um tom contínuo que representa uma voz, com o chiado por baixo.
+4. Arraste na régua por cima do clipe, desde o início até à marca dos 15%, para selecionar o início que só contém ruído. O perfil não deve conter nada além do ruído a remover — nenhuma voz.
+5. Escolha **Efeito → Remoção de ruído e reparação → Redução de ruído** e prima **Obter perfil de ruído**. A linha de estado indica que o perfil está pronto. Prima **Fechar** para sair da caixa de diálogo por agora.
+6. Escolha **Seleção → Selecionar tudo**. O perfil é mantido; agora o efeito precisa de saber o que deve limpar.
+7. Escolha **Efeito → Remoção de ruído e reparação → Redução de ruído**. Na caixa de diálogo **Redução de ruído**, defina **Redução de ruído** como `12` e, em seguida, prima **Aplicar à seleção**. Doze decibéis é um bom valor inicial. Valores mais altos removem mais ruído, mas tornam a voz oca.
+   *Deverá ver:* O início fica quase plano e o tom permanece intacto.
+8. Escolha **Efeito → Efeitos antigos → Filtros clássicos**. Na caixa de diálogo **Filtros clássicos**, escolha **Passa-alto** em **Tipo de filtro** e defina **Frequência de corte** como `100`; em seguida, prima **Aplicar à seleção**. São removidos os sons abaixo de 100 Hz — trânsito, manuseamento, ar condicionado. A fala está bem acima dessa frequência.
+9. Escolha **Efeito → Volume e compressão → Normalização da intensidade sonora**. Na caixa de diálogo **Normalização da intensidade sonora**, defina **Intensidade sonora pretendida** como `-16` e, em seguida, prima **Aplicar à seleção**. −16 LUFS é o valor pretendido habitual para podcasts estéreo. A intensidade sonora mede o volume percebido da gravação toda, não a altura dos picos.
+   *Deverá ver:* A forma de onda fica mais alta e a gravação é reproduzida a um nível confortável.
+10. Prima **Reproduzir** para ouvir e, em seguida, **Parar**.
+    *Deverá ver:* Uma gravação limpa e com nível uniforme, e um início com pouco ruído.
+11. Escolha **Ficheiro → Exportar áudio**, defina **Formato** como **MP3** e prima **Exportar**. O ficheiro é transferido assim que a renderização termina e a ligação continua visível na caixa de diálogo. O ficheiro é codificado no navegador; nada sai do seu computador.
+
+## Próximos passos
+
+- Aplique o processo à sua gravação com os guias: [Remova o ruído de fundo](/guides/cleaning-up/remove-background-noise/), [Remova o rumble grave](/guides/cleaning-up/remove-low-rumble/) e [Normalize a intensidade sonora para um podcast](/guides/volume/normalize-loudness-for-podcasts/).
+- Verifique o resultado como faria uma plataforma: [Meça a intensidade sonora da sua mistura](/guides/analysis/measure-loudness/).
+
+## Outros tutoriais
+
+[O seu primeiro projeto no Soundscaper](/tutorials/your-first-project/) — Importe uma gravação, ouça-a, divida-a, aplique-lhe um fade de saída, exporte um ficheiro e guarde o projeto.
+[Coloque música por baixo de uma voz](/tutorials/put-music-under-a-voice/) — Sobreponha duas faixas, reduza automaticamente o volume de uma durante a fala, misture-as e exporte o resultado.
+
+## Referência
+
+- [Os parâmetros dos efeitos usados aqui, com os respetivos valores predefinidos e intervalos, estão na referência de efeitos de áudio.](/reference/generated/audio-effects/#parameters)
+- [Os formatos de exportação, os respetivos contentores e os limites de canais estão na referência de formatos de exportação.](/reference/generated/formats/)
+- [Consulte a referência de comandos e atalhos para ver todos os comandos de menu e respetivos atalhos de teclado.](/reference/generated/commands/)
+
+## Sobre este tutorial
+
+Este tutorial é reproduzido passo a passo, com estes mesmos ficheiros, em cada
+versão do Soundscaper pela suite de testes do navegador
+(`tests/browser/soundscaper-tutorials.spec.js`). Se um passo deixar de
+funcionar, a compilação falha até o tutorial ser corrigido, para que o que lê
+corresponda ao funcionamento do editor.
