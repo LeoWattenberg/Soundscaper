@@ -135,7 +135,9 @@ export function normalizeLocalModelManagerModel(value: unknown): LocalModelManag
 		task: boundedText(value.task, 64, 'task'),
 		availability: availability as LocalModelAvailability,
 		downloadBytes: optionalBytes(value.downloadBytes),
-		runtimeDownloadBytes: optionalBytes(value.runtimeDownloadBytes, 'runtime download bytes'),
+		...(value.runtimeDownloadBytes === undefined ? {} : {
+			runtimeDownloadBytes: optionalBytes(value.runtimeDownloadBytes, 'runtime download bytes'),
+		}),
 		installedBytes: optionalBytes(value.installedBytes),
 		attributionRequired: boolean(value.attributionRequired, 'attribution requirement'),
 	});

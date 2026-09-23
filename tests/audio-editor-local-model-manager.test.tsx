@@ -28,7 +28,6 @@ const INSTALLABLE_MODEL = Object.freeze({
 	task: 'speech-recognition',
 	availability: 'installable' as const,
 	downloadBytes: 661_190_513,
-	runtimeDownloadBytes: 32_800_000,
 	installedBytes: null,
 	attributionRequired: false,
 });
@@ -36,7 +35,6 @@ const INSTALLABLE_MODEL = Object.freeze({
 const INSTALLED_MODEL = Object.freeze({
 	...INSTALLABLE_MODEL,
 	availability: 'installed' as const,
-	runtimeDownloadBytes: 0,
 	installedBytes: 661_190_513,
 });
 
@@ -154,12 +152,6 @@ test('the local-model bridge admits only the complete pathless desktop contract'
 			...INSTALLABLE_MODEL, attributionRequired: 'sometimes',
 		} as unknown as LocalModelManagerModel])),
 		/attribution requirement/iu,
-	);
-	assert.throws(
-		() => normalizeLocalModelManagerStatus(status([{
-			...INSTALLABLE_MODEL, runtimeDownloadBytes: -1,
-		} as unknown as LocalModelManagerModel])),
-		/runtime download bytes/iu,
 	);
 });
 
@@ -398,8 +390,6 @@ test('the manager view exposes runtime, sizes, correlated progress, and explicit
 	assert.match(markup, /role="status"/u);
 	assert.match(markup, /Native inference runtime is unavailable/u);
 	assert.match(markup, /630\.6 MiB/u);
-	assert.match(markup, /Required runtime download/u);
-	assert.match(markup, /31\.3 MiB/u);
 	assert.match(markup, /encoder\.onnx/u);
 	assert.match(markup, /<progress[^>]*value="100"[^>]*max="1000"/u);
 	assert.match(markup, /Installing/u);
@@ -409,17 +399,6 @@ test('the manager view exposes runtime, sizes, correlated progress, and explicit
 	assert.match(markup, /Relocate model storage/u);
 	assert.match(markup, /Licenses and notices/u);
 	assert.match(markup, /disabled=""/u);
-	const missingRuntimeMarkup = renderToStaticMarkup(<LocalModelManagerDialogView
-		copy={ENGLISH_COPY} locale="en"
-		snapshot={Object.freeze({ ...snapshot,
-			runtimeReason: 'The optional speech runtime is not installed.' })}
-		onClose={() => undefined} onInstall={() => undefined}
-		onInstallPreseeded={() => undefined} onCancelInstall={() => undefined}
-		onRemove={() => undefined} onRetry={() => undefined}
-		onReconcile={() => undefined} onGarbageCollect={() => undefined}
-		onShowNotices={() => undefined} onRelocate={() => undefined}
-	/>);
-	assert.match(missingRuntimeMarkup, /speech engine downloads when you install a speech model/iu);
 	const installedMarkup = renderToStaticMarkup(<LocalModelManagerDialogView
 		copy={ENGLISH_COPY} locale="en"
 		snapshot={Object.freeze({
