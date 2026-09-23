@@ -1,5 +1,17 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import {
+	SOUNDSCAPER_SOURCE_PROVENANCE_EXTENSION_VERSION,
+	normalizeSourceProvenanceExtensions,
+	type SourceProvenanceExtensionsV1,
+} from './source-provenance-extensions.ts';
+
+export {
+	SOUNDSCAPER_SOURCE_PROVENANCE_EXTENSION_VERSION,
+	type SoundscaperSourceProvenanceExtensionV1,
+	type SourceProvenanceExtensionsV1,
+} from './source-provenance-extensions.ts';
+
 export const SOURCE_PROVENANCE_SCHEMA_VERSION = 1;
 
 export { createNonImportedSourceProvenance } from './source-provenance-root.ts';
@@ -60,7 +72,7 @@ export interface FreesoundSourceOriginV1 {
 		readonly name: string;
 		readonly url: string;
 	}>;
-	readonly importedVariant: 'preview-hq-ogg';
+	readonly importedVariant: 'preview-hq-ogg' | 'original';
 	readonly originalFileName?: string;
 	readonly mimeType?: string;
 }
@@ -79,6 +91,7 @@ export interface SourceProvenanceV1 {
 	readonly schemaVersion: typeof SOURCE_PROVENANCE_SCHEMA_VERSION;
 	readonly classification: SourceProvenanceClassification;
 	readonly contributions: readonly SourceAttributionContributionV1[];
+	readonly extensions?: SourceProvenanceExtensionsV1;
 }
 
 type DataRecord = Readonly<Record<string, unknown>>;
@@ -103,7 +116,7 @@ export function normalizeSourceProvenance(
 	value: unknown,
 	name = 'source.provenance',
 ): SourceProvenanceV1 {
-	const input = closedRecord(value, name, ['schemaVersion', 'classification', 'contributions']);
+	const input = closedRecord(value, name, ['schemaVersion', 'classification', 'contributions', 'extensions']);
 	if (input.schemaVersion !== SOURCE_PROVENANCE_SCHEMA_VERSION) {
 		throw new RangeError(`${name}.schemaVersion must be ${String(SOURCE_PROVENANCE_SCHEMA_VERSION)}.`);
 	}
@@ -130,10 +143,14 @@ export function normalizeSourceProvenance(
 		}
 		ids.add(contribution.id);
 	}
+	const extensions = Object.hasOwn(input, 'extensions')
+		? normalizeSourceProvenanceExtensions(input.extensions, `${name}.extensions`)
+		: undefined;
 	return Object.freeze({
 		schemaVersion: SOURCE_PROVENANCE_SCHEMA_VERSION,
 		classification,
 		contributions: Object.freeze(contributions),
+		...(extensions ? { extensions } : {}),
 	});
 }
 
@@ -163,10 +180,17 @@ export function mergeSourceProvenance(
 	values: readonly (SourceProvenanceV1 | null | undefined)[],
 ): SourceProvenanceV1 {
 	const contributions: SourceAttributionContributionV1[] = [];
+	const recordingDeviceLabels: string[] = [];
+	const recordingDeviceLabelSet = new Set<string>();
 	const contributionIndexById = new Map<string, number>();
 	for (const [index, value] of values.entries()) {
 		if (value == null) continue;
 		const provenance = normalizeSourceProvenance(value, `source provenance input[${String(index)}]`);
+		for (const label of provenance.extensions?.soundscaper.recordingDeviceLabels ?? []) {
+			if (recordingDeviceLabelSet.has(label)) continue;
+			recordingDeviceLabelSet.add(label);
+			recordingDeviceLabels.push(label);
+		}
 		for (const contribution of provenance.contributions) {
 			const contributionIndex = contributionIndexById.get(contribution.id);
 			if (contributionIndex === undefined) {
@@ -191,6 +215,14 @@ export function mergeSourceProvenance(
 		schemaVersion: SOURCE_PROVENANCE_SCHEMA_VERSION,
 		classification: 'derived',
 		contributions,
+		...(recordingDeviceLabels.length ? {
+			extensions: {
+				soundscaper: {
+					schemaVersion: SOUNDSCAPER_SOURCE_PROVENANCE_EXTENSION_VERSION,
+					recordingDeviceLabels,
+				},
+			},
+		} : {}),
 	});
 }
 
@@ -268,8 +300,8 @@ function normalizeOrigin(value: unknown, name: string): SourceImportOriginV1 {
 		'kind', 'soundId', 'title', 'soundUrl', 'creator', 'creatorUrl', 'license',
 		'importedVariant', 'originalFileName', 'mimeType',
 	]);
-	if (input.importedVariant !== 'preview-hq-ogg') {
-		throw new RangeError(`${name}.importedVariant must be preview-hq-ogg.`);
+	if (input.importedVariant !== 'preview-hq-ogg' && input.importedVariant !== 'original') {
+		throw new RangeError(`${name}.importedVariant must be preview-hq-ogg or original.`);
 	}
 	const license = closedRecord(input.license, `${name}.license`, ['family', 'name', 'url']);
 	return Object.freeze({
@@ -290,7 +322,7 @@ function normalizeOrigin(value: unknown, name: string): SourceImportOriginV1 {
 			),
 			url: httpsUrl(license.url, `${name}.license.url`),
 		}),
-		importedVariant: 'preview-hq-ogg',
+		importedVariant: input.importedVariant,
 		...(Object.hasOwn(input, 'originalFileName') ? {
 			originalFileName: boundedString(
 				input.originalFileName,

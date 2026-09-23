@@ -153,6 +153,13 @@ test('Freesound and attribution UI stay behind the optional surface boundary', (
 		'src/common/editor/ui/MetadataEditorTabs.tsx',
 		'src/common/editor/ui/workspace/FreesoundPanel.tsx',
 		'src/common/editor/ui/workspace/FreesoundPanelContainer.tsx',
+		'src/common/editor/ui/workspace/FreesoundOriginalFallbackDialog.tsx',
+		'src/common/editor/ui/workspace/FreesoundPublishDialog.tsx',
+		'src/common/editor/ui/workspace/FreesoundUploadArea.tsx',
+		'src/common/editor/ui/workspace/freesound-auth-upload-client.ts',
+		'src/common/editor/ui/workspace/freesound-panel-session.ts',
+		'src/common/editor/ui/workspace/freesound-upload-file-preparation.ts',
+		'src/common/editor/ui/workspace/freesound-upload-queue.ts',
 		'src/common/editor/ui/workspace/ProjectAttributionTab.tsx',
 		'src/common/editor/ui/workspace/ProjectMetadataPanel.tsx',
 		'src/common/editor/ui/workspace/linked-video-choice-handoff.ts',
@@ -160,6 +167,7 @@ test('Freesound and attribution UI stay behind the optional surface boundary', (
 		'src/common/i18n/freesound-attribution-copy.js',
 		'src/common/editor/ui/audio-editor-design-system/06a-panels-attribution.css',
 		'src/common/editor/ui/audio-editor-design-system/06a-panels-freesound.css',
+		'src/common/editor/freesound-upload-metadata.ts',
 	]) assert.equal(chunkGroupForModulePath(path), 'editor-optional-surfaces', path);
 	assert.equal(
 		chunkGroupForModulePath('src/common/i18n/editor-freesound-attribution-inventory-copy.ts'),
@@ -245,6 +253,7 @@ test('moved controller domains preserve their optional chunk owners', () => {
 			'src/common/editor/controller/analysis/internal/vamp-analysis-action.ts',
 		],
 		'editor-optional-export': [
+			'src/common/editor/controller/track-audio/internal/freesound-clip-upload-materializer.ts',
 			'src/common/editor/controller/export/internal/direct/direct-wav-export.ts',
 			'src/common/editor/controller/export/internal/video/video-export-service.ts',
 		],

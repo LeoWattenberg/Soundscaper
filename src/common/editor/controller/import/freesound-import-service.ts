@@ -11,3 +11,7 @@ export {
 	type FreesoundSearchSort,
 	type FreesoundSound,
 } from './internal/freesound-import-service.ts';
+export {
+	FreesoundOriginalTooLargeError,
+	type FreesoundImportVariant,
+} from './internal/freesound-import-download.ts';

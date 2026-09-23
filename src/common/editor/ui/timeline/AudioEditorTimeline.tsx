@@ -35,6 +35,7 @@ interface AudioEditorTimelineProps {
 	readonly onOpenEffects?: (...args: readonly unknown[]) => void;
 	readonly onOpenClipProperties?: (clipId: string) => void;
 	readonly onExportClip?: (clipId: string) => void;
+	readonly onUploadClipToFreesound?: (clipId: string) => void;
 	readonly onRevealProjectBin?: () => void;
 	readonly onToggleArmControls?: () => void;
 	readonly onOpenSurface?: (surface: string) => void;
@@ -64,6 +65,7 @@ export default function AudioEditorTimeline({
 	onOpenEffects,
 	onOpenClipProperties,
 	onExportClip,
+	onUploadClipToFreesound,
 	onRevealProjectBin,
 	onToggleArmControls,
 	onOpenSurface,
@@ -86,6 +88,7 @@ export default function AudioEditorTimeline({
 		onOpenEffects,
 		onOpenClipProperties,
 		onExportClip,
+		onUploadClipToFreesound,
 		onRevealProjectBin,
 		onToggleArmControls,
 		onOpenSurface,

@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 
 import { freesoundAttributionCopy } from '../../../i18n/freesound-attribution-copy.js';
 import FreesoundPanel, {
@@ -13,6 +13,19 @@ import {
 	type FreesoundWorkspaceController,
 } from './freesound-workspace-service.ts';
 import { freesoundPreviewUrl, freesoundWaveformUrl } from './freesound-media-url.ts';
+import {
+	createFreesoundApiClient,
+	createFreesoundClientTransport,
+	type FreesoundClientTransport,
+} from './freesound-auth-upload-client.ts';
+import { freesoundPanelSession } from './freesound-panel-session.ts';
+import type { FreesoundMaterializedClip } from './freesound-upload-queue.ts';
+import { prepareFreesoundUploadFile } from './freesound-upload-file-preparation.ts';
+import FreesoundOriginalFallbackDialog from './FreesoundOriginalFallbackDialog.tsx';
+import {
+	FreesoundOriginalTooLargeError,
+	type FreesoundImportRequest,
+} from '../../controller/import/freesound-import-service.ts';
 
 export { freesoundPreviewUrl, freesoundWaveformUrl } from './freesound-media-url.ts';
 
@@ -49,6 +62,13 @@ interface FreesoundPanelContainerProps {
 	readonly copy: Readonly<Record<string, string>>;
 	readonly disabled?: boolean;
 	readonly panelActive?: boolean;
+	readonly freesoundTransport?: FreesoundClientTransport;
+	readonly materializeClip?: (request: Readonly<{
+		projectId: string;
+		clipId: string;
+		signal?: AbortSignal;
+	}>) => Promise<FreesoundMaterializedClip>;
+	readonly prepareUploadFile?: (file: File, signal?: AbortSignal) => Promise<File>;
 }
 
 const INITIAL_STATE: FreesoundPanelState = Object.freeze({
@@ -63,17 +83,41 @@ export function FreesoundPanelContainer({
 	copy,
 	disabled = false,
 	panelActive = true,
+	freesoundTransport,
+	materializeClip,
+	prepareUploadFile,
 }: FreesoundPanelContainerProps) {
-	const actions = freesoundWorkspaceActions(controller);
+	const clipMaterializer = materializeClip ?? controller.actions.clip?.materializeFreesoundUpload;
+	const transport = useMemo(
+		() => freesoundTransport ?? createFreesoundClientTransport(),
+		[freesoundTransport],
+	);
+	const apiClient = useMemo(() => createFreesoundApiClient(transport), [transport]);
+	const account = useMemo(() => freesoundPanelSession(controller, apiClient, {
+		...(clipMaterializer ? { materializeClip: clipMaterializer } : {}),
+		prepareFile: prepareUploadFile ?? prepareFreesoundUploadFile,
+	}), [apiClient, clipMaterializer, controller, prepareUploadFile]);
+	const accountSnapshot = useSyncExternalStore(account.subscribe, account.getSnapshot, account.getSnapshot);
+	const actions = freesoundWorkspaceActions(controller, {
+		authenticated: () => account.getSnapshot().auth.status === 'connected',
+		authenticatedRequest: async (path, init) => {
+			const response = await transport.request(path, init);
+			if (response.status === 401) account.expireAuthentication();
+			return response;
+		},
+	});
 	const localizedCopy = useMemo(() => Object.freeze({
 		...copy,
 		...freesoundAttributionCopy(snapshot.locale, copy),
 	}), [copy, snapshot.locale]);
 	const [state, setState] = useState<FreesoundPanelState>(INITIAL_STATE);
 	const [pendingSoundId, setPendingSoundId] = useState<number | null>(null);
+	const [fallbackImport, setFallbackImport] = useState<FreesoundImportRequest | null>(null);
 	const searchSequence = useRef(0);
 	const searchAbort = useRef<AbortController | null>(null);
 	const preview = useRef<ActiveFreesoundPreview | null>(null);
+
+	useEffect(() => { void account.initialize(); }, [account]);
 
 	const stopPreview = useCallback(() => {
 		const active = preview.current;
@@ -184,23 +228,32 @@ export function FreesoundPanelContainer({
 		void active.audio.play().catch(() => { if (preview.current === active) stopPreview(); });
 	}, [panelActive, startPreview, stopPreview]);
 
+	const executeImport = useCallback((request: FreesoundImportRequest) => {
+		setPendingSoundId(request.soundId);
+		void actions.importSound(request).catch((error: unknown) => {
+			if (error instanceof FreesoundOriginalTooLargeError && request.variant === 'original') {
+				setFallbackImport(request);
+				return;
+			}
+			setState((current) => ({
+				...current, status: 'error', errorMessage: errorMessage(error, localizedCopy.importError),
+			}));
+		}).finally(() => setPendingSoundId(null));
+	}, [actions, localizedCopy.importError]);
+
 	const importSound = useCallback((soundId: number, destination: 'timeline' | 'project-bin') => {
 		if (pendingSoundId !== null) return;
-		setPendingSoundId(soundId);
-		const request = {
+		const request: FreesoundImportRequest = {
 			soundId,
 			destination,
+			variant: accountSnapshot.auth.status === 'connected' ? 'original' as const : 'preview-hq-ogg' as const,
 			...(destination === 'timeline' ? {
 				timelineStartFrame: currentPlayheadFrame(controller),
 				...selectedAudioTrack(snapshot),
 			} : {}),
 		};
-		void actions.importSound(request).catch((error: unknown) => {
-			setState((current) => ({
-				...current, status: 'error', errorMessage: errorMessage(error, localizedCopy.importError),
-			}));
-		}).finally(() => setPendingSoundId(null));
-	}, [actions, controller, localizedCopy.importError, pendingSoundId, snapshot]);
+		executeImport(request);
+	}, [accountSnapshot.auth.status, controller, executeImport, pendingSoundId, snapshot]);
 
 	const presentationState = useMemo<FreesoundPanelState>(() => ({
 		...state,
@@ -209,7 +262,7 @@ export function FreesoundPanelContainer({
 		})),
 	}), [pendingSoundId, state]);
 
-	return <FreesoundPanel
+	return <><FreesoundPanel
 		copy={localizedCopy}
 		state={presentationState}
 		disabled={disabled || pendingSoundId !== null}
@@ -220,7 +273,30 @@ export function FreesoundPanelContainer({
 		onSeekPreview={seekPreview}
 		onInsertAtPlayhead={(soundId) => importSound(soundId, 'timeline')}
 		onAddToProjectBin={(soundId) => importSound(soundId, 'project-bin')}
-	/>;
+		auth={accountSnapshot.auth}
+		uploadQueue={accountSnapshot.uploadQueue}
+		uploadRevealRevision={accountSnapshot.uploadRevealRevision}
+		onConnect={() => { void account.connect(); }}
+		onDisconnect={() => { void account.disconnect(); }}
+		onUploadFiles={account.enqueueFiles}
+		onUploadProjectClip={(reference) => account.enqueueClip({
+			...reference,
+			clipTitle: projectClipTitle(snapshot, reference.clipId),
+		})}
+		onPublishUpload={account.publish}
+		onRetryUpload={account.retry}
+		onCancelUpload={account.cancel}
+		onRemoveUpload={account.remove}
+	/>
+	{fallbackImport ? <FreesoundOriginalFallbackDialog
+		copy={localizedCopy}
+		onCancel={() => setFallbackImport(null)}
+		onConfirm={() => {
+			const request = fallbackImport;
+			setFallbackImport(null);
+			executeImport({ ...request, variant: 'preview-hq-ogg' });
+		}}
+	/> : null}</>;
 }
 
 export function toFreesoundPanelResult(sound: FreesoundSound): FreesoundResultPresentation {
@@ -266,6 +342,13 @@ function dataRecord(value: unknown): Readonly<Record<string, unknown>> | null {
 	return value && typeof value === 'object' && !Array.isArray(value)
 		? value as Readonly<Record<string, unknown>>
 		: null;
+}
+
+function projectClipTitle(snapshot: Readonly<Record<string, unknown>>, clipId: string): string | undefined {
+	const project = dataRecord(snapshot.project);
+	const clips = Array.isArray(project?.clips) ? project.clips : [];
+	const clip = clips.map(dataRecord).find((candidate) => candidate?.id === clipId);
+	return typeof clip?.title === 'string' && clip.title.trim() ? clip.title : undefined;
 }
 
 function errorMessage(error: unknown, fallback: string): string {

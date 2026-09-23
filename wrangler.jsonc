@@ -2,5 +2,13 @@
 	"$schema": "./node_modules/wrangler/config-schema.json",
 	"name": "soundscaper",
 	"pages_build_output_dir": "./dist",
-	"compatibility_date": "2026-07-14"
+	"compatibility_date": "2026-07-14",
+	"d1_databases": [
+		{
+			"binding": "FREESOUND_OAUTH_DB",
+			"database_name": "soundscaper-freesound-oauth",
+			"preview_database_id": "FREESOUND_OAUTH_DB",
+			"migrations_dir": "migrations/freesound-oauth"
+		}
+	]
 }

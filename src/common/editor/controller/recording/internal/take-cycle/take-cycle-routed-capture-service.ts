@@ -1,4 +1,5 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
+import { RECORDING_DEFAULT_DEVICE_ID } from '../../../../recording-routing.js';
 import type { TakeCycleRecordingOptions } from '../../take-cycle-recording-service.ts';
 import { selectRoutedRecordingChannels } from '../recording-capture-channels.ts';
 import { planRoutedRecordingSources } from '../routed-recording-source-plan.ts';
@@ -58,7 +59,6 @@ export type {
 	TakeCycleRoutedLaneResult,
 	TakeCycleRoutedStartedLane,
 } from './take-cycle-routed-capture-types.ts';
-
 /** Dedicated continuous-loop capture over the existing routed input/controller ports. */
 export function createTakeCycleRoutedCaptureService(
 	runtime: TakeCycleRoutedCaptureRuntime,
@@ -74,7 +74,6 @@ export function createTakeCycleRoutedCaptureService(
 		stop,
 		pause() { throw new Error('Take cycle routed capture cannot be paused.'); },
 	});
-
 	async function start(
 		requestValue: TakeCycleRoutedCaptureStartRequest,
 		scope: RecordingStartScope,
@@ -229,6 +228,7 @@ export function createTakeCycleRoutedCaptureService(
 						trackId: lane.track.id,
 						sequenceId: lane.sequenceId,
 						name: stableTakeCycleRoutedName(runtime.createRecordingName(lane.track.id)),
+						...(lane.route.kind === 'device' && lane.route.deviceId !== RECORDING_DEFAULT_DEVICE_ID && lane.route.deviceLabel ? { recordingDeviceLabel: lane.route.deviceLabel } : {}),
 						sampleRate: project.sampleRate,
 						channelCount: lane.route.channelCount,
 						chunkFrames,

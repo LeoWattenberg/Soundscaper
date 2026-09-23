@@ -100,15 +100,35 @@ function validateSourceProvenanceEnvelope(value: unknown, name: string): void {
 	const input = projectRecord(value, name);
 	const classification = String(input.classification);
 	const contributions = projectArray(input.contributions, `${name}.contributions`);
+	const keys = Object.hasOwn(input, 'extensions')
+		? 'classification,contributions,extensions,schemaVersion'
+		: 'classification,contributions,schemaVersion';
 	if (
 		input.schemaVersion !== 1
-		|| Object.keys(input).sort().join() !== 'classification,contributions,schemaVersion'
+		|| Object.keys(input).sort().join() !== keys
 		|| !['imported', 'derived', 'recorded', 'generated'].includes(classification)
 		|| contributions.length > 256
 		|| (classification === 'imported' && contributions.length === 0)
 		|| (['recorded', 'generated'].includes(classification) && contributions.length !== 0)
 	) {
 		throw new RangeError(`${name}.schemaVersion or structure is invalid.`);
+	}
+	if (Object.hasOwn(input, 'extensions')) {
+		const extensions = projectRecord(input.extensions, `${name}.extensions`);
+		const soundscaper = projectRecord(extensions.soundscaper, `${name}.extensions.soundscaper`);
+		const labels = projectArray(
+			soundscaper.recordingDeviceLabels,
+			`${name}.extensions.soundscaper.recordingDeviceLabels`,
+		);
+		if (Object.keys(extensions).join() !== 'soundscaper'
+			|| Object.keys(soundscaper).sort().join() !== 'recordingDeviceLabels,schemaVersion'
+			|| soundscaper.schemaVersion !== 1 || labels.length > 64) {
+			throw new RangeError(`${name}.extensions structure is invalid.`);
+		}
+		for (const [index, label] of labels.entries()) {
+			const normalized = projectString(label, `${name}.extensions.soundscaper.recordingDeviceLabels[${String(index)}]`);
+			if (!normalized.trim() || normalized.length > 512) throw new RangeError(`${name}.extensions label is invalid.`);
+		}
 	}
 }
 

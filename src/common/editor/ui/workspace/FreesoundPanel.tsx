@@ -11,6 +11,13 @@ import {
 	AUDIO_EDITOR_FREESOUND_RESULT_DRAG_TYPE,
 	createFreesoundResultDragPayload,
 } from '../../project-bin-dnd.js';
+import type { FreesoundUser } from './freesound-auth-upload-client.ts';
+import FreesoundUploadArea from './FreesoundUploadArea.tsx';
+import type {
+	FreesoundClipUploadReference,
+	FreesoundPublishDraft,
+	FreesoundUploadQueueSnapshot,
+} from './freesound-upload-queue.ts';
 import ccZeroIcon from './assets/cc-zero-icon.svg';
 import ccByIcon from './assets/cc-by-icon.svg';
 import ccNcIcon from './assets/cc-nc-icon.svg';
@@ -56,6 +63,12 @@ export interface FreesoundPanelState {
 	readonly results: readonly FreesoundResultPresentation[];
 }
 
+export interface FreesoundPanelAuthState {
+	readonly status: 'loading' | 'disconnected' | 'connecting' | 'connected' | 'error';
+	readonly user?: FreesoundUser;
+	readonly errorMessage?: string;
+}
+
 export interface FreesoundPanelProps {
 	readonly copy: Readonly<Record<string, string>>;
 	readonly state: FreesoundPanelState;
@@ -67,6 +80,17 @@ export interface FreesoundPanelProps {
 	readonly onSeekPreview: (soundId: number, seconds: number) => void;
 	readonly onInsertAtPlayhead: (soundId: number) => void;
 	readonly onAddToProjectBin: (soundId: number) => void;
+	readonly auth?: FreesoundPanelAuthState;
+	readonly uploadQueue?: FreesoundUploadQueueSnapshot;
+	readonly uploadRevealRevision?: number;
+	readonly onConnect?: () => void;
+	readonly onDisconnect?: () => void;
+	readonly onUploadFiles?: (files: readonly File[]) => void;
+	readonly onUploadProjectClip?: (reference: FreesoundClipUploadReference) => void;
+	readonly onPublishUpload?: (id: string, draft: FreesoundPublishDraft) => Promise<void> | void;
+	readonly onRetryUpload?: (id: string) => void;
+	readonly onCancelUpload?: (id: string) => void;
+	readonly onRemoveUpload?: (id: string) => void;
 }
 
 const LICENSE_FILTERS: readonly FreesoundLicenseFilter[] = Object.freeze(['all', 'cc0', 'cc-by', 'cc-by-nc']);
@@ -113,6 +137,17 @@ export function FreesoundPanel({
 	onSeekPreview,
 	onInsertAtPlayhead,
 	onAddToProjectBin,
+	auth,
+	uploadQueue,
+	uploadRevealRevision,
+	onConnect,
+	onDisconnect,
+	onUploadFiles,
+	onUploadProjectClip,
+	onPublishUpload,
+	onRetryUpload,
+	onCancelUpload,
+	onRemoveUpload,
 }: FreesoundPanelProps) {
 	const [query, setQuery] = useState(state.query);
 	useEffect(() => setQuery(state.query), [state.query]);
@@ -182,9 +217,23 @@ export function FreesoundPanel({
 				</div>
 			</form>
 
+			{auth?.status === 'connected' && uploadQueue ? <FreesoundUploadArea
+				copy={copy}
+				disabled={disabled}
+				queue={uploadQueue}
+				revealRevision={uploadRevealRevision}
+				onFiles={onUploadFiles}
+				onProjectClip={onUploadProjectClip}
+				onPublish={onPublishUpload}
+				onRetry={onRetryUpload}
+				onCancel={onCancelUpload}
+				onRemove={onRemoveUpload}
+			/> : null}
+
 			<div className="kw-audio-editor__freesound-status" aria-live="polite">
 				{loading ? <p role="status">{copy.searching}</p> : null}
 				{state.status === 'ready' && state.results.length > 0 ? <p>{resultSummary}</p> : null}
+				{auth?.errorMessage ? <p className="kw-audio-editor__freesound-auth-error">{auth.errorMessage}</p> : null}
 			</div>
 			{state.status === 'error' && <div className="kw-audio-editor__toasts kw-audio-editor__freesound-toasts">
 				<EditorErrorToast key={state.errorMessage || copy.searchError} id="freesound-search-error"
@@ -306,9 +355,43 @@ export function FreesoundPanel({
 			<p className="kw-audio-editor__freesound-credit">
 				{copy.resultsProvidedBy}{' '}
 				<a href="https://freesound.org/" target="_blank" rel="noreferrer">{copy.siteName}</a>
+				{auth ? <>{' · '}<FreesoundAuthAction
+					copy={copy}
+					auth={auth}
+					onConnect={onConnect}
+					onDisconnect={onDisconnect}
+				/></> : null}
 			</p>
 		</section>
 	);
+}
+
+function FreesoundAuthAction({
+	copy,
+	auth,
+	onConnect,
+	onDisconnect,
+}: Readonly<{
+	copy: Readonly<Record<string, string>>;
+	auth: FreesoundPanelAuthState;
+	onConnect?: () => void;
+	onDisconnect?: () => void;
+}>) {
+	if (auth.status === 'connected') return <>
+		<span>{fill(copy.connectedAs, { username: auth.user?.username || copy.freesoundAccount })}</span>{' '}
+		<button type="button" className="kw-audio-editor__freesound-text-action" onClick={onDisconnect}>
+			{copy.disconnectFreesound}
+		</button>
+	</>;
+	if (auth.status === 'loading') return <span>{copy.checkingFreesoundAccount}</span>;
+	return <button
+		type="button"
+		className="kw-audio-editor__freesound-text-action"
+		disabled={auth.status === 'connecting'}
+		onClick={onConnect}
+	>
+		{auth.status === 'connecting' ? copy.connectingFreesound : copy.connectFreesound}
+	</button>;
 }
 
 function waveformSeekSeconds(

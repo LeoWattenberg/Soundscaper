@@ -21,7 +21,15 @@ export function normalizeTakeCycleSourceDescription(
 	if (channelCount > 64) throw new RangeError('Take cycle source channelCount exceeds its limit.');
 	if (chunkFrames > WAVPACK_PCM_MAXIMUM_FRAMES) throw new RangeError('Take cycle source chunkFrames exceeds its limit.');
 	const name = takeCycleStableName(value.name);
-	return Object.freeze({ name, sampleRate, channelCount, chunkFrames, frameCount });
+	const recordingDeviceLabel = value.recordingDeviceLabel?.trim();
+	if (recordingDeviceLabel && recordingDeviceLabel.length > 512) {
+		throw new RangeError('Take cycle recording device label is too long.');
+	}
+	return Object.freeze({
+		name,
+		...(recordingDeviceLabel ? { recordingDeviceLabel } : {}),
+		sampleRate, channelCount, chunkFrames, frameCount,
+	});
 }
 
 function positiveInteger(value: unknown, name: string): number {

@@ -71,6 +71,37 @@ test('protocol handler serves HTML with hashed inline scripts and blocks other m
 	assert.equal(blocked.status, 405);
 });
 
+test('protocol handler delegates only the desktop Freesound namespace to its authenticated proxy', async () => {
+	const seen = [];
+	const handler = createProtocolHandler({
+		rendererRoot: '/unused-renderer',
+		runtimeRoot: '/unused-runtime',
+		readCapabilities: { get: () => null },
+		freesoundProxy: async (request, url) => {
+			seen.push({ method: request.method, pathname: url.pathname });
+			return Response.json({ ok: true });
+		},
+	});
+	const response = await handler(new Request(
+		'soundscaper-app://bundle/_desktop/freesound/api/freesound/oauth/start',
+		{ method: 'POST', body: '{}' },
+	));
+	assert.equal(response.status, 200);
+	assert.deepEqual(seen, [{
+		method: 'POST',
+		pathname: '/_desktop/freesound/api/freesound/oauth/start',
+	}]);
+
+	const framescaperHandler = createProtocolHandler({
+		productId: 'framescaper', rendererRoot: '/unused-renderer', runtimeRoot: '/unused-runtime',
+		readCapabilities: { get: () => null }, freesoundProxy: async () => Response.json({ ok: true }),
+	});
+	assert.equal((await framescaperHandler(new Request(
+		'soundscaper-app://bundle/_desktop/freesound/api/freesound/oauth/start',
+		{ method: 'POST', body: '{}' },
+	))).status, 404);
+});
+
 test('CSP hashes exact inline script bodies and byte ranges are bounded', () => {
 	const html = '<script type="module"> one();\n</script><script src="/app.js"></script><script>two()</script>';
 	assert.equal(inlineScriptHashes(html).length, 2);

@@ -188,7 +188,7 @@ test.describe('Freesound discovery and attribution', () => {
 			insertBeforeBin: true,
 		});
 		expect(resultLayout.metadataHeight).toBeLessThan(25);
-		expect(requests[0]).toMatchObject({
+		expect(requests.find((request) => request.pathname === '/api/freesound/search')).toMatchObject({
 			pathname: '/api/freesound/search',
 			query: 'harbor',
 			page: '1',
@@ -333,6 +333,84 @@ test.describe('Freesound discovery and attribution', () => {
 			await reopenedPage.close({ runBeforeUnload: false });
 		}
 	});
+
+	test('queues authenticated uploads serially and publishes editable metadata', async ({ page }) => {
+		const probe = await mockAuthenticatedFreesoundUploads(page);
+		const editor = await bootEditor(page, '/embed/en/');
+		const panelsMenu = await openNestedCommandMenu(page, editor, 'View', ['Panels']);
+		await getMenuItem(panelsMenu, 'Freesound').press('Enter');
+		const panel = editor.locator('[data-workspace-panel="freesound"]');
+		await expect(panel.getByText('Connected as browser-tester', { exact: true })).toBeVisible();
+		const credit = panel.locator('.kw-audio-editor__freesound-credit');
+		await expect(credit.getByRole('button', { name: 'Disconnect', exact: true })).toBeVisible();
+
+		const uploads = panel.locator('[data-freesound-uploads="true"]');
+		await expect(uploads).toHaveJSProperty('open', false);
+		await uploads.getByText('Uploads', { exact: true }).click();
+		await uploads.locator('input[type="file"]').setInputFiles([
+			{ name: 'first field take.wav', mimeType: 'audio/wav', buffer: Buffer.from('RIFF-first') },
+			{ name: 'second field take.wav', mimeType: 'audio/wav', buffer: Buffer.from('RIFF-second') },
+		]);
+		await expect(uploads.getByRole('button', { name: /^Ready to publish\s*:/u }))
+			.toHaveCount(2, { timeout: 20_000 });
+		expect(probe.maximumConcurrentUploads()).toBe(1);
+		expect(probe.uploadedNames()).toEqual(['first%20field%20take.wav', 'second%20field%20take.wav']);
+
+		await uploads.getByRole('button', { name: /^Ready to publish\s*: first field take\.wav$/u }).click();
+		const dialog = page.locator('[data-freesound-publish-dialog="true"]');
+		await expect(dialog).toBeVisible();
+		await expect(dialog.getByLabel('Title', { exact: true })).toHaveValue('first field take');
+		await expect(dialog.getByRole('combobox', { name: 'License', exact: true })).toHaveValue('cc-by');
+		await dialog.getByLabel('Title', { exact: true }).fill('Harbor wake at dawn');
+		await dialog.getByLabel('Description', { exact: true }).fill('A short field recording from the north pier.');
+		await dialog.getByLabel('Tags', { exact: true }).fill('harbor, wake, dawn');
+		await dialog.getByRole('combobox', { name: 'Category', exact: true }).selectOption('ss-u');
+		await dialog.getByLabel(/I confirm that I have the rights/u).check();
+		await dialog.getByRole('button', { name: 'Publish', exact: true }).click();
+		await expect(dialog).toHaveCount(0);
+		await expect(uploads.getByRole('button', { name: /^Remove\s*: first field take\.wav$/u })).toBeFocused();
+		await expect(uploads.getByText(/Submitted for processing and moderation/u)).toBeVisible();
+		expect(probe.descriptions()).toEqual([expect.objectContaining({
+			title: 'Harbor wake at dawn',
+			description: 'A short field recording from the north pier.',
+			tags: ['harbor', 'wake', 'dawn'],
+			categoryId: 'ss-u',
+			license: 'cc-by',
+		})]);
+
+		await importFiles(editor, [localMetadataWav()]);
+		await expect(editor).toHaveAttribute('data-clip-count', '1', { timeout: 20_000 });
+		await uploads.getByText('Uploads', { exact: true }).click();
+		await expect(uploads).toHaveJSProperty('open', false);
+		const clip = editor.locator('[data-clip-id]').first();
+		await clip.focus();
+		await page.keyboard.press('Shift+F10');
+		const clipMenu = page.locator('.audio-editor-clip-context-menu');
+		await expect(clipMenu).toBeVisible();
+		await clipMenu.getByRole('menuitem', { name: 'Upload clip to Freesound', exact: true }).press('Enter');
+		await expect(uploads).toHaveJSProperty('open', true);
+		await expect(uploads.getByText('Uploads', { exact: true })).toBeFocused();
+		await expect(uploads.getByRole('button', { name: /^Ready to publish\s*:/u }))
+			.toHaveCount(2, { timeout: 20_000 });
+
+		await clip.focus();
+		await page.keyboard.press('Shift+F10');
+		await clipMenu.getByRole('menuitem', { name: 'Move to Project bin', exact: true }).press('Enter');
+		const projectBin = editor.locator('[data-workspace-panel="project-bin"]');
+		await expect(projectBin).toBeVisible();
+		await uploads.getByText('Uploads', { exact: true }).click();
+		await expect(uploads).toHaveJSProperty('open', false);
+		const binCard = projectBin.locator('[data-project-bin-item]').first();
+		await binCard.getByRole('button', { name: /^More file actions:/u }).press('Enter');
+		const binMenu = page.locator('.kw-audio-editor__project-bin-menu');
+		await binMenu.getByRole('menuitem', { name: 'Upload clip to Freesound', exact: true }).press('Enter');
+		await expect(uploads).toHaveJSProperty('open', true);
+		await expect(uploads.getByText('Uploads', { exact: true })).toBeFocused();
+		await expect(uploads.getByRole('button', { name: /^Ready to publish\s*:/u }))
+			.toHaveCount(2, { timeout: 20_000 });
+		expect(probe.uploadedNames()).toHaveLength(3);
+		expect(probe.maximumConcurrentUploads()).toBe(1);
+	});
 });
 
 function localMetadataWav() {
@@ -386,6 +464,12 @@ async function mockFreesoundApi(page) {
 			license: url.searchParams.get('license'),
 			sort: url.searchParams.get('sort'),
 		});
+		if (url.pathname === '/api/freesound/oauth/session') {
+			await route.fulfill({ status: 401, contentType: 'application/json', body: JSON.stringify({
+				error: { code: 'not_authenticated', message: 'No Freesound session.' },
+			}) });
+			return;
+		}
 		if (url.pathname === '/api/freesound/search') {
 			await route.fulfill({
 				status: 200,
@@ -433,6 +517,54 @@ async function mockFreesoundApi(page) {
 		await route.fulfill({ status: 404, contentType: 'application/json', body: '{}' });
 	});
 	return requests;
+}
+
+async function mockAuthenticatedFreesoundUploads(page) {
+	let activeUploads = 0;
+	let maximumConcurrentUploads = 0;
+	const uploadedNames = [];
+	const descriptions = [];
+	await page.route('**/api/freesound/**', async (route) => {
+		const request = route.request();
+		const path = new URL(request.url()).pathname;
+		if (path === '/api/freesound/oauth/session') {
+			await route.fulfill({ contentType: 'application/json', body: JSON.stringify({
+				data: { connected: true, user: { id: 7, username: 'browser-tester' } },
+			}) });
+			return;
+		}
+		if (path === '/api/freesound/uploads/pending') {
+			await route.fulfill({ contentType: 'application/json', body: JSON.stringify({ data: {
+				pendingDescription: [], pendingProcessing: [], pendingModeration: [],
+			} }) });
+			return;
+		}
+		if (path === '/api/freesound/uploads/describe') {
+			descriptions.push(request.postDataJSON());
+			await route.fulfill({ status: 202, contentType: 'application/json', body: JSON.stringify({
+				data: { soundId: 2718, status: 'pending_moderation' },
+			}) });
+			return;
+		}
+		if (path === '/api/freesound/uploads') {
+			activeUploads += 1;
+			maximumConcurrentUploads = Math.max(maximumConcurrentUploads, activeUploads);
+			const name = request.headers()['x-freesound-filename'];
+			uploadedNames.push(name);
+			await new Promise((resolve) => setTimeout(resolve, 50));
+			activeUploads -= 1;
+			await route.fulfill({ status: 201, contentType: 'application/json', body: JSON.stringify({
+				data: { uploadFilename: `remote-${uploadedNames.length}.wav` },
+			}) });
+			return;
+		}
+		await route.fulfill({ status: 404, contentType: 'application/json', body: '{}' });
+	});
+	return Object.freeze({
+		descriptions: () => descriptions,
+		maximumConcurrentUploads: () => maximumConcurrentUploads,
+		uploadedNames: () => uploadedNames,
+	});
 }
 
 function oggPreviewFixture() {

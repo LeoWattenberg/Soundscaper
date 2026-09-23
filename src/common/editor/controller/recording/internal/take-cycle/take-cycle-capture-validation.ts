@@ -43,6 +43,9 @@ export function normalizeTakeCycleCaptureSourceBase(
 	const record = dataRecord(value, 'take cycle source description');
 	const source = {
 		name: stableName(record.name),
+		...(typeof record.recordingDeviceLabel === 'string' && record.recordingDeviceLabel.trim() ? {
+			recordingDeviceLabel: boundedLabel(record.recordingDeviceLabel),
+		} : {}),
 		sampleRate: boundedPositiveInteger(record.sampleRate, 768_000, 'take cycle sampleRate'),
 		channelCount: boundedPositiveInteger(record.channelCount, 64, 'take cycle channelCount'),
 		chunkFrames: boundedPositiveInteger(record.chunkFrames, WAVPACK_PCM_MAXIMUM_FRAMES, 'take cycle chunkFrames'),
@@ -52,6 +55,12 @@ export function normalizeTakeCycleCaptureSourceBase(
 		throw new RangeError('Take cycle capture PCM chunk exceeds its strict memory bound.');
 	}
 	return Object.freeze(source);
+}
+
+function boundedLabel(value: string): string {
+	const label = value.trim();
+	if (label.length > 512) throw new RangeError('Take cycle recording device label is too long.');
+	return label;
 }
 
 function dataRecord(value: unknown, name: string): Readonly<Record<string, unknown>> {

@@ -32,7 +32,9 @@ Soundscaper features:
 ## Privacy
 
 Soundscaper is local-first: projects, recordings, imported media, and media
-processing stay on your device. There is no sync and no account. Limited
+processing stay on your device. There is no sync and no Soundscaper account.
+You can optionally connect an existing Freesound account for original-quality
+imports and uploads. Limited
 network connections deliver the application and optional assets, check for
 desktop updates, or support features you deliberately open. See the
 [privacy policy](https://soundscaper.org/privacy/en/) for the complete details.

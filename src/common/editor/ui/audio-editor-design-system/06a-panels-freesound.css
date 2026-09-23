@@ -236,6 +236,192 @@ button.kw-audio-editor__freesound-waveform:disabled {
 	border-top: 1px solid var(--line);
 }
 
+.kw-audio-editor__freesound-uploads {
+	flex: none;
+	border-bottom: 1px solid var(--line);
+}
+
+.kw-audio-editor__freesound-uploads > summary {
+	padding: 8px 10px;
+	font-weight: 700;
+	cursor: pointer;
+}
+
+.kw-audio-editor__freesound-uploads > summary:focus-visible,
+.kw-audio-editor__freesound-text-action:focus-visible {
+	outline: 2px solid var(--accent);
+	outline-offset: 1px;
+}
+
+.kw-audio-editor__freesound-upload-content {
+	display: grid;
+	max-height: min(360px, 45vh);
+	gap: 8px;
+	overflow: auto;
+	padding: 0 10px 10px;
+}
+
+.kw-audio-editor__freesound-upload-drop {
+	display: grid;
+	min-height: 90px;
+	place-items: center;
+	align-content: center;
+	gap: 6px;
+	padding: 10px;
+	background: color-mix(in srgb, var(--control) 75%, transparent);
+	border: 1px dashed var(--line);
+	border-radius: 5px;
+	text-align: center;
+}
+
+.kw-audio-editor__freesound-upload-drop.is-dragging {
+	background: color-mix(in srgb, var(--accent) 16%, var(--control));
+	border-color: var(--accent);
+}
+
+.kw-audio-editor__freesound-upload-drop p,
+.kw-audio-editor__freesound-upload-empty,
+.kw-audio-editor__freesound-inline-error,
+.kw-audio-editor__freesound-upload-item p,
+.kw-audio-editor__freesound-publish-note {
+	margin: 0;
+}
+
+.kw-audio-editor__freesound-upload-empty {
+	color: var(--muted);
+	text-align: center;
+}
+
+.kw-audio-editor__freesound-inline-error,
+.kw-audio-editor__freesound-auth-error,
+.kw-audio-editor__freesound-upload-item p[role='alert'] {
+	color: var(--error, #dc2626);
+}
+
+.kw-audio-editor__freesound-upload-list {
+	display: grid;
+	gap: 5px;
+	padding: 0;
+	margin: 0;
+	list-style: none;
+}
+
+.kw-audio-editor__freesound-upload-item {
+	display: grid;
+	gap: 5px;
+	padding: 6px;
+	background: var(--control);
+	border: 1px solid var(--line);
+	border-radius: 5px;
+}
+
+.kw-audio-editor__freesound-upload-item > div:first-child {
+	display: flex;
+	min-width: 0;
+	align-items: baseline;
+	justify-content: space-between;
+	gap: 8px;
+}
+
+.kw-audio-editor__freesound-upload-item strong {
+	min-width: 0;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.kw-audio-editor__freesound-upload-item span {
+	color: var(--muted);
+	font-size: var(--editor-font-size, 12px);
+	text-align: right;
+}
+
+.kw-audio-editor__freesound-upload-actions {
+	display: flex;
+	justify-content: flex-end;
+	flex-wrap: wrap;
+	gap: 5px;
+}
+
+.kw-audio-editor__freesound-text-action {
+	padding: 0;
+	color: inherit;
+	background: none;
+	border: 0;
+	font: inherit;
+	text-decoration: underline;
+	cursor: pointer;
+}
+
+.kw-audio-editor__freesound-text-action:disabled {
+	opacity: 0.65;
+	cursor: wait;
+}
+
+.kw-audio-editor__freesound-publish-form {
+	display: grid;
+	gap: 12px;
+}
+
+.kw-audio-editor__freesound-publish-form > label {
+	display: grid;
+	gap: 4px;
+	font-weight: 700;
+}
+
+.kw-audio-editor__freesound-publish-form input,
+.kw-audio-editor__freesound-publish-form textarea,
+.kw-audio-editor__freesound-publish-form select {
+	width: 100%;
+	box-sizing: border-box;
+	padding: 7px 8px;
+	color: var(--text);
+	background: var(--control);
+	border: 1px solid var(--line);
+	border-radius: 4px;
+	font: inherit;
+}
+
+.kw-audio-editor__freesound-publish-form textarea {
+	resize: vertical;
+}
+
+.kw-audio-editor__freesound-publish-form small,
+.kw-audio-editor__freesound-publish-note {
+	color: var(--muted);
+	font-weight: 400;
+}
+
+.kw-audio-editor__freesound-required-attribution {
+	display: grid;
+	gap: 4px;
+	padding: 8px;
+	background: var(--control);
+	border: 1px solid var(--line);
+	border-radius: 4px;
+}
+
+.kw-audio-editor__freesound-required-attribution pre {
+	max-height: 120px;
+	overflow: auto;
+	margin: 0;
+	font: inherit;
+	white-space: pre-wrap;
+}
+
+.kw-audio-editor__freesound-publish-form > .kw-audio-editor__freesound-rights-confirmation {
+	display: flex;
+	align-items: flex-start;
+	grid-template-columns: none;
+	gap: 8px;
+	font-weight: 400;
+}
+
+.kw-audio-editor__freesound-rights-confirmation input {
+	width: auto;
+	margin-top: 2px;
+}
+
 .kw-audio-editor__freesound-credit {
 	padding: 0 10px 8px;
 	margin: 0;

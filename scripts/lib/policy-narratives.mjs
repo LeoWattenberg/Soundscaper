@@ -258,9 +258,20 @@ export const POLICY_NARRATIVE_BINDINGS = Object.freeze([
 		intro: null,
 		wrap: 80,
 	}),
+	Object.freeze({
+		marker: 'bounded-freesound-oauth-media-proxy',
+		register: 'config/production-security-matrix.json',
+		riskId: 'freesound-proxy-boundary',
+		controlId: 'bounded-freesound-oauth-media-proxy',
+		field: 'summary',
+		document: 'docs/production-threat-model.md',
+		intro: null,
+		wrap: 80,
+	}),
 	...[
 		'freesound-proxy-deployment-rate-limiting',
 		'freesound-preview-stream-lifecycle',
+		'freesound-authenticated-media-lifecycle',
 	].map((residualRiskId) => Object.freeze({
 		marker: residualRiskId,
 		register: 'config/production-security-matrix.json',

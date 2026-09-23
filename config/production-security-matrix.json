@@ -1,6 +1,6 @@
 {
 	"schemaVersion": 1,
-	"groundedAt": "2026-09-21",
+	"groundedAt": "2026-09-22",
 	"modelDocument": "docs/production-threat-model.md",
 	"productVersions": {
 		"version": "1.0.0-rc.10",
@@ -1700,13 +1700,59 @@
 			]
 		},
 		{
+			"id": "authenticated-client-to-freesound-proxy",
+			"from": "Soundscaper web client or packaged Soundscaper main-process proxy holding an opaque session capability",
+			"to": "Soundscaper Cloudflare Pages OAuth and media Functions, D1 token store, and server-held OAuth credentials",
+			"data": "OAuth start and polling capabilities, web cookie or desktop bearer session, selected original sound ID and byte range, bounded audio body and filename, and closed publication metadata",
+			"entryPoints": [
+				"functions/api/freesound/oauth/start.ts",
+				"functions/api/freesound/oauth/callback.ts",
+				"functions/api/freesound/oauth/poll.ts",
+				"functions/api/freesound/oauth/session.ts",
+				"functions/api/freesound/sounds/[id]/original.ts",
+				"functions/api/freesound/uploads/index.ts",
+				"functions/api/freesound/uploads/describe.ts",
+				"functions/api/freesound/uploads/pending.ts",
+				"desktop/freesound-integration.js"
+			],
+			"evidence": [
+				{
+					"kind": "implementation",
+					"path": "functions/api/freesound/_shared/oauth-handlers.ts"
+				},
+				{
+					"kind": "implementation",
+					"path": "functions/api/freesound/_shared/protected-handlers.ts"
+				},
+				{
+					"kind": "implementation",
+					"path": "desktop/freesound-integration.js"
+				},
+				{
+					"kind": "test",
+					"path": "tests/freesound-oauth-handlers.test.ts"
+				},
+				{
+					"kind": "test",
+					"path": "tests/freesound-protected-api.test.ts"
+				},
+				{
+					"kind": "test",
+					"path": "tests/desktop-freesound-integration.test.js"
+				}
+			]
+		},
+		{
 			"id": "freesound-upstream-to-proxy",
-			"from": "Freesound API metadata and Freesound CDN preview responses",
-			"to": "Soundscaper's owned JSON contract and streamed preview response",
-			"data": "Third-party JSON, metadata fields, preview locators, response headers, and Ogg preview bytes",
+			"from": "Freesound OAuth/API metadata, original-file responses, upload responses, and Freesound CDN preview responses",
+			"to": "Soundscaper's owned OAuth and media contracts and bounded streamed responses",
+			"data": "Third-party tokens and JSON, metadata fields, preview locators, response headers, original and Ogg preview bytes, and uploaded audio",
 			"entryPoints": [
 				"functions/api/freesound/_shared/contracts.ts",
-				"functions/api/freesound/_shared/handlers.ts"
+				"functions/api/freesound/_shared/handlers.ts",
+				"functions/api/freesound/_shared/oauth-contracts.ts",
+				"functions/api/freesound/_shared/oauth-handlers.ts",
+				"functions/api/freesound/_shared/protected-handlers.ts"
 			],
 			"evidence": [
 				{
@@ -1718,12 +1764,24 @@
 					"path": "functions/api/freesound/_shared/handlers.ts"
 				},
 				{
+					"kind": "implementation",
+					"path": "functions/api/freesound/_shared/oauth-contracts.ts"
+				},
+				{
+					"kind": "implementation",
+					"path": "functions/api/freesound/_shared/protected-handlers.ts"
+				},
+				{
 					"kind": "test",
 					"path": "tests/freesound-api-contract.test.ts"
 				},
 				{
 					"kind": "test",
 					"path": "tests/freesound-api-handlers.test.ts"
+				},
+				{
+					"kind": "test",
+					"path": "tests/freesound-protected-api.test.ts"
 				}
 			]
 		},
@@ -5211,18 +5269,22 @@
 		},
 		{
 			"id": "freesound-proxy-boundary",
-			"title": "The public Freesound proxy leaks its credential, accepts unintended fetch targets, or permits unbounded resource use",
+			"title": "The Freesound proxy leaks service or user credentials, accepts unintended authority or fetch targets, or permits unbounded resource use",
 			"boundaryIds": [
 				"public-client-to-freesound-proxy",
+				"authenticated-client-to-freesound-proxy",
 				"freesound-upstream-to-proxy"
 			],
 			"assets": [
 				"Freesound API credential",
+				"Freesound OAuth client secret and encrypted user grants",
+				"Soundscaper web and desktop session capabilities",
+				"user-selected upload audio and publication metadata",
 				"Soundscaper and Freesound service availability",
 				"proxy egress and API quota",
 				"returned metadata and preview integrity"
 			],
-			"actor": "A public caller, malicious browser origin, or compromised third-party response attempts credential disclosure, server-side request forgery, response smuggling, or resource amplification.",
+			"actor": "A public caller, malicious browser origin, compromised renderer, stolen session capability, or compromised third-party response attempts credential disclosure, confused-deputy access, server-side request forgery, response smuggling, unauthorized publication, or resource amplification.",
 			"impact": "high",
 			"status": "partial",
 			"surfaceDisposition": "conditional",
@@ -5254,16 +5316,59 @@
 						}
 					],
 					"policyAuthority": "family-v1-active"
+				},
+				{
+					"id": "bounded-freesound-oauth-media-proxy",
+					"summary": "The authenticated Pages routes admit only the canonical production, Pages, or explicitly enabled loopback host; exact Soundscaper web or packaged-app Origins; closed methods, JSON bodies, sound IDs, ranges, media types, filenames, and publication metadata; and a cookie or bearer session whose transport matches its recorded web or desktop client kind. OAuth start issues separate random state and handoff capabilities with ten-minute expiry, stores only their hashes, exchanges a state once, fixes the callback and every token/API request to https://freesound.org with redirects disabled, and returns browser sessions only as Secure HttpOnly SameSite=Strict cookies. D1 stores access, refresh, and desktop polling session secrets only as AES-256-GCM ciphertext with field-specific authenticated data; rolling 30-day session records store hashes, refresh uses a generation-fenced lease, disconnect removes the session and orphan grant, and cleanup prunes expired rows. Original downloads pass only allowlisted headers and stop at 128 MiB. Uploads require one supported raw audio body of exactly 1 through 100,000,000 bytes; the worker verifies declared and observed bytes and constructs the sole upstream multipart audio field. Describe and pending responses normalize through bounded owned contracts and use no-store responses. The packaged client exposes only an exact Freesound authorization URL opener and a closed custom-protocol route allowlist; Electron main strips renderer credentials, holds the bearer token outside renderer authority, and persists it with safeStorage only when the operating-system backend is not Linux basic_text or unknown. Backend, UI-contract, and desktop tests cover replay, handoff mismatch, token encryption and refresh races, transport confusion, fixed upstream targets, body ceilings, metadata validation, token redaction, route confinement, and secure-storage fallback.",
+					"evidence": [
+						{
+							"kind": "implementation",
+							"path": "functions/api/freesound/_shared/oauth-handlers.ts"
+						},
+						{
+							"kind": "implementation",
+							"path": "functions/api/freesound/_shared/oauth-repository.ts"
+						},
+						{
+							"kind": "implementation",
+							"path": "functions/api/freesound/_shared/protected-handlers.ts"
+						},
+						{
+							"kind": "implementation",
+							"path": "migrations/freesound-oauth/0001_initial.sql"
+						},
+						{
+							"kind": "implementation",
+							"path": "desktop/freesound-integration.js"
+						},
+						{
+							"kind": "test",
+							"path": "tests/freesound-oauth-crypto.test.ts"
+						},
+						{
+							"kind": "test",
+							"path": "tests/freesound-oauth-handlers.test.ts"
+						},
+						{
+							"kind": "test",
+							"path": "tests/freesound-protected-api.test.ts"
+						},
+						{
+							"kind": "test",
+							"path": "tests/desktop-freesound-integration.test.js"
+						}
+					],
+					"policyAuthority": "family-v1-active"
 				}
 			],
 			"residualRisks": [
 				{
 					"id": "freesound-proxy-deployment-rate-limiting",
-					"exposure": "The repository does not provision or verify a Cloudflare rate-limit rule for `/api/freesound/*`. Per-request parsing, response-byte ceilings, and Freesound's normalized 429 response do not bound aggregate request volume, concurrent preview streams, proxy egress, or shared API-quota consumption. CORS does not stop non-browser or same-origin callers.",
-					"requiredControl": "Provision and retain reviewable production rate-limiting and monitoring for the Freesound namespace, with separate treatment for metadata and range-capable preview traffic and a response plan for sustained upstream 429 or proxy-abuse signals.",
+					"exposure": "The repository does not provision or verify a Cloudflare rate-limit rule for `/api/freesound/*`. Per-request parsing, authentication, response-byte ceilings, and Freesound's normalized 429 response do not bound aggregate request volume, OAuth attempts, token refreshes, concurrent preview or original streams, upload bandwidth, proxy egress, or shared API-quota consumption. CORS does not stop non-browser or same-origin callers, and a valid user session can still exhaust its own or shared quotas.",
+					"requiredControl": "Provision and retain reviewable production rate-limiting and monitoring for the Freesound namespace, with separate treatment for public metadata, OAuth start and poll, original downloads, and authenticated upload and describe traffic, plus a response plan for sustained upstream 429, quota, or proxy-abuse signals.",
 					"ownerMilestone": "1",
 					"acceptanceCriteria": [
-						"Deployment evidence identifies the active production route match, thresholds, actions, and alert ownership; an external probe proves abusive request bursts are limited while ordinary search, detail, HEAD, and single-range preview requests remain usable."
+						"Deployment evidence identifies active production route matches, identity keys, thresholds, actions, and alert ownership; external probes prove abusive public and authenticated request bursts are limited while ordinary search, OAuth, detail, original, upload, describe, HEAD, and single-range requests remain usable."
 					]
 				},
 				{
@@ -5273,6 +5378,15 @@
 					"ownerMilestone": "1",
 					"acceptanceCriteria": [
 						"A stalled or slow preview body is cancelled within a documented lower-only deadline without a late response, client abort drains upstream work, and any future authenticity claim includes a tested mismatch rejection against an authenticated preview digest or signature."
+					]
+				},
+				{
+					"id": "freesound-authenticated-media-lifecycle",
+					"exposure": "Authenticated original-download and upload streams have byte ceilings and propagate client cancellation, but no proxy-owned idle or total body deadline after transfer begins. Original bytes have no end-to-end digest check, and an interrupted upload is non-idempotent: retrying after an ambiguous upstream outcome can create another pending Freesound upload.",
+					"requiredControl": "Before claiming bounded authenticated-media elapsed time or retry-safe upload delivery, enforce and test explicit idle and total deadlines, authenticate original bytes against trusted metadata when available, and reconcile an ambiguous upload result with Freesound before offering a retry.",
+					"ownerMilestone": "1",
+					"acceptanceCriteria": [
+						"Stalled original and upload bodies cancel within documented deadlines and release upstream work, original digest mismatches fail before project publication where Freesound supplies a trusted digest, and a simulated lost upload response cannot create a duplicate pending upload through the ordinary retry action."
 					]
 				}
 			]

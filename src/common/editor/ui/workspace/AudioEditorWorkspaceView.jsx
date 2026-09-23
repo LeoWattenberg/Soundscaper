@@ -110,6 +110,7 @@ export default function AudioEditorWorkspaceView({ model }) {
 		toggleFullscreen,
 		toggleSplitTool,
 		toggleWorkspacePanel,
+		uploadClipToFreesound,
 		toolbarButtonPreferences,
 		toolbarDock,
 		toolbarDragRef,
@@ -377,6 +378,7 @@ export default function AudioEditorWorkspaceView({ model }) {
 							run(() => controller.actions.timeline.setSelection(clip.timelineStartFrame, clip.timelineStartFrame + clip.durationFrames));
 							openSurface('export');
 						}}
+						onUploadClipToFreesound={productId === 'soundscaper' ? uploadClipToFreesound : undefined}
 						onRevealProjectBin={revealProjectBin}
 						onToggleArmControls={() => setShowArmControls((current) => !current)}
 						onOpenSurface={openSurface}

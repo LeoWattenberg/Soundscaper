@@ -58,6 +58,7 @@ export function TimelineMenus({
 		setTrackMenu,
 		setTrackRulerFlyout,
 		onExportClip,
+		onUploadClipToFreesound,
 		onOpenClipProperties,
 		onRevealProjectBin,
 	} = actions;
@@ -365,6 +366,14 @@ export function TimelineMenus({
 					onClick={() => menuClip && onExportClip?.(menuClip.id)}
 					onClose={() => setClipMenu(null)}
 				/>
+				{onUploadClipToFreesound ? <ContextMenuItem
+					label={copy.uploadClipToFreesound}
+					disabled={mutationsBlocked || !menuClip || menuClip.kind !== 'audio'
+						|| !project.sources.some(({ id }) => id === menuClip.sourceId)
+						|| snapshot.missingSourceIds?.includes(menuClip.sourceId)}
+					onClick={() => menuClip && onUploadClipToFreesound(menuClip.id)}
+					onClose={() => setClipMenu(null)}
+				/> : null}
 				<ManifestContextMenuItem
 					actionId={AUDACITY_CLIP_CONTEXT_ACTION_IDS.moveToProjectBin}
 					label={copy.moveToProjectBin || 'Move to Project bin'}
