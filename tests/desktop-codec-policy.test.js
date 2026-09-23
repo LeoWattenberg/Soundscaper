@@ -21,10 +21,11 @@ test('desktop packaging replaces Electron proprietary codecs with its alternate 
 	assert.equal(configuration.downloadAlternateFFmpeg, true);
 });
 
-test('macOS packaging preserves every authenticated pre-signed native runtime payload', () => {
+test('macOS development signing ignores bundled native files but not optional AI paths', () => {
 	const configuration = require('../electron-builder.config.cjs');
 	const professional = require('../config/soundscaper-professional-native-payload-manifest.json');
 	const professionalRoot = `/tmp/Soundscaper.app/Contents/Resources/runtime/${professional.staging.runtimePrefix}`;
+	const assistanceRoot = '/tmp/Soundscaper.app/Contents/Resources/runtime/assistance';
 	assert.equal(typeof configuration.mac.signIgnore, 'string');
 	const ignored = new RegExp(configuration.mac.signIgnore, 'u');
 	for (const path of [
@@ -35,18 +36,22 @@ test('macOS packaging preserves every authenticated pre-signed native runtime pa
 		`${professionalRoot}/mac-arm64/${professional.deliveryFilesystem.payloadName}`,
 		`${professionalRoot}/mac-arm64/${professional.isolation.launcherName}`,
 		`${professionalRoot}/mac-arm64/${professional.isolation.runtimeDirectory}/libowned.dylib`,
-		'/tmp/Soundscaper.app/Contents/Resources/runtime/assistance/sherpa-onnx/1.13.5/node_modules/sherpa-onnx-darwin-arm64/libonnxruntime.dylib',
-		'/tmp/Soundscaper.app/Contents/Resources/runtime/assistance/sherpa-onnx/1.13.5/node_modules/sherpa-onnx-darwin-arm64/libsherpa-onnx-c-api.dylib',
-		'/tmp/Soundscaper.app/Contents/Resources/runtime/assistance/sherpa-onnx/1.13.5/node_modules/sherpa-onnx-darwin-arm64/libsherpa-onnx-cxx-api.dylib',
-		'/tmp/Soundscaper.app/Contents/Resources/runtime/assistance/sherpa-onnx/1.13.5/node_modules/sherpa-onnx-darwin-arm64/sherpa-onnx.node',
 	]) assert.equal(ignored.test(path), true, path);
 	for (const path of [
 		'/tmp/Soundscaper.app/Contents/Resources/runtime/native/soundscaper-os-audio-codec/mac-arm64/other.node',
 		'/tmp/Soundscaper.app/Contents/Resources/runtime/native/mac-arm64/addon.node',
 		`${professionalRoot}/linux-x64/${professional.addon.payloadName}`,
 		'/tmp/Soundscaper.app/Contents/Resources/runtime/native/soundscaper-professional-hostish/mac-arm64/soundscaper_professional.node',
-		'/tmp/Soundscaper.app/Contents/Resources/runtime/assistance/sherpa-onnx/1.13.5/node_modules/sherpa-onnx-darwin-arm64/other.node',
-		'/tmp/Soundscaper.app/Contents/Resources/runtime/assistance/sherpa-onnx/1.13.5/node_modules/sherpa-onnx-node/sherpa-onnx.js',
+		`${assistanceRoot}/sherpa-onnx/1.13.5/node_modules/sherpa-onnx-darwin-arm64/libonnxruntime.dylib`,
+		`${assistanceRoot}/sherpa-onnx/1.13.5/node_modules/sherpa-onnx-darwin-arm64/libsherpa-onnx-c-api.dylib`,
+		`${assistanceRoot}/sherpa-onnx/1.13.5/node_modules/sherpa-onnx-darwin-arm64/libsherpa-onnx-cxx-api.dylib`,
+		`${assistanceRoot}/sherpa-onnx/1.13.5/node_modules/sherpa-onnx-darwin-arm64/sherpa-onnx.node`,
+		`${assistanceRoot}/onnxruntime-node/1.29.0/mac-arm64/node_modules/onnxruntime-node/dist/index.js`,
+		`${assistanceRoot}/whisper-cpp/v1.9.3/mac-arm64/whisper-cli`,
+		`${assistanceRoot}/llama-cpp/b10509/mac-arm64/llama-completion`,
+		`${assistanceRoot}/kokoro-g2p/0.9.4/mac-arm64/kokoro-g2p`,
+		`${assistanceRoot}/sherpa-onnx/1.13.5/node_modules/sherpa-onnx-darwin-arm64/other.node`,
+		`${assistanceRoot}/sherpa-onnx/1.13.5/node_modules/sherpa-onnx-node/sherpa-onnx.js`,
 		'/tmp/Soundscaper.app/Contents/Frameworks/Electron Framework.framework/Electron Framework',
 	]) assert.equal(ignored.test(path), false, path);
 });
