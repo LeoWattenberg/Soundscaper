@@ -98,6 +98,7 @@ for (const product of ['soundscaper', 'framescaper']) {
 					await contrast(button);
 					await page.mouse.move(0, 0);
 					await page.mouse.up();
+					await dialog.getByRole('tab', { name: /Track display$/u }).click();
 					await dialog.getByRole('group', { name: 'Default view', exact: true }).getByRole('button').click();
 					await contrast(page.getByRole('option'));
 					await page.keyboard.press('Escape');
