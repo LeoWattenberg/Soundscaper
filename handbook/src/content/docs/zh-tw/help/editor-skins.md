@@ -1,30 +1,28 @@
 ---
-title: "編輯器外觀"
-description: "選擇一個視覺外觀或透過網址暫時嘗試一個。"
+title: "編輯器外觀主題"
+description: "選擇一種視覺主題，或透過網址暫時試用。"
 ---
-<!-- docs-ai-provenance: {"factPacketSha256":"a1b3a7510549ae51d6a74eb7fa25aa3a1bab8532c46d39e81652ffc6f7062a36","model":"aya-expanse:32b","modelDigest":"1603440383bd5504dc7afd01c0407b425b988dde650a8dc1a737433baa3cd432","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"a1b3a7510549ae51d6a74eb7fa25aa3a1bab8532c46d39e81652ffc6f7062a36","targetLocale":"zh-TW"} -->
+<!-- docs-ai-provenance: {"factPacketSha256":"a1b3a7510549ae51d6a74eb7fa25aa3a1bab8532c46d39e81652ffc6f7062a36","model":"gpt-6-luna","modelProvider":"codex-subagent","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"a1b3a7510549ae51d6a74eb7fa25aa3a1bab8532c46d39e81652ffc6f7062a36","targetLocale":"zh-TW"} -->
 
-皮膚會更改編輯器的顏色、字型、邊框和裝飾背景。
-它們在 Soundscaper 和 Framescaper 中提供。每個產品都會記住自己的選擇。工作區仍然控制面板和工具的排列。
+外觀主題會變更編輯器的色彩、字型、邊框和裝飾背景。Soundscaper 和 Framescaper 都提供外觀主題。每個產品會分別記住自己的選擇。工作區仍會控制面板和工具的排列方式。
 
-## 選擇一個皮膚 {#choose-a-skin}
+## 選擇外觀主題 {#choose-a-skin}
 
-打開 **編輯 → 偏好設定 → 外觀** 並選擇一個皮膚：
+開啟 **Edit → Preferences → Appearance**，然後選擇一種外觀主題：
 
-- **預設** 保持原始的編輯器設計。
-- **櫻花** 結合櫻花、粉紅色強調和圓角字體。
-- **紫丁香** 使用冷紫色和分層的紫羅蘭色質感。
-- **科技** 結合藍色電路圖形和等寬字體。
+- **Default** 保留編輯器的原始設計。
+- **Sakura** 採用櫻花、粉色點綴和圓潤字型。
+- **Lilac** 使用冷紫色和層疊的紫羅蘭紋理。
+- **Techno** 將藍色電路圖案和等寬字型結合。
 
-分別選擇 **明亮**、**黑暗** 或 **遵循系統主題**。每個皮膚都有明亮和黑暗版本。**剪貼風格** 仍然是獨立的選擇；色彩豐富的調色板與每個皮膚協調，同時保持剪貼顏色獨特。
+請另外選擇 **Light**、**Dark** 或 **Follow system theme**。每種外觀主題都有淺色和深色版本。**Clip style** 是獨立的設定；Colorful 色盤會與各種外觀主題搭配，同時讓片段顏色彼此有別。
 
-高對比度優先於皮膚裝飾。關閉高對比度會恢復所選皮膚。更改皮膚不會更改剪貼音頻、專案內容或工作區佈局。
+高對比優先於主題裝飾。關閉高對比後，會還原所選的外觀主題。變更外觀主題不會影響片段音訊、專案內容或工作區版面配置。
 
-## 從連結嘗試皮膚 {#try-a-skin-from-a-link}
+## 透過連結試用外觀主題 {#try-a-skin-from-a-link}
 
-將 `?useskin=sakura` 新增到編輯器 URL 以暫時預覽櫻花。使用
-`default`、`sakura`、`lilac` 或 `techno` 作為值。如果 URL 已經有查詢參數，請附加 `&useskin=sakura`。未知的值會被忽略。
+在編輯器網址中加入 `?useskin=sakura`，即可暫時預覽 Sakura。參數值可使用 `default`、`sakura`、`lilac` 或 `techno`。如果網址已有查詢參數，請改為附加 `&useskin=sakura`。未知的值會遭忽略。
 
-URL 預覽不會取代您儲存的皮膚，即使您更改其他偏好設定。重新載入預覽 URL 會繼續預覽它；造訪沒有參數的 URL 會使用您儲存的選擇。參數不會選擇明亮或黑暗版本。
+網址預覽不會取代已儲存的外觀主題，即使您變更了其他偏好設定也是如此。重新載入預覽網址仍會顯示預覽；造訪不含該參數的網址時，則會使用已儲存的選擇。此參數不會選擇淺色或深色主題。
 
-在 **偏好設定 → 外觀** 中，選擇 **保留此皮膚** 以儲存預覽，或 **結束預覽** 以返回儲存的皮膚。選擇任何皮膚也會儲存該選擇並結束預覽。這些動作僅從當前 URL 中移除皮膚參數，而不重新載入編輯器。
+在 **Preferences → Appearance** 中選擇 **Keep this skin** 可儲存預覽，選擇 **End preview** 可返回已儲存的外觀主題。選擇任何外觀主題也會儲存該選擇並結束預覽。這些動作只會從目前網址移除主題參數，不會重新載入編輯器。

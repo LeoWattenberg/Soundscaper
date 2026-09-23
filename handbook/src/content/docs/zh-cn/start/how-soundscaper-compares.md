@@ -4,7 +4,7 @@ description: "将 Soundscaper 与 Audacity 4 和 Adobe Audition 在录制、编�
 sidebar:
   order: 3
 ---
-<!-- docs-ai-provenance: {"factPacketSha256":"703e76cffbe1464f1283f6c8f45cee52c0d37faae852b7efc163879710a2ddb2","model":"qwen3.8:latest","modelDigest":"22130167c4c20e20c7b71454612966ca8e8171e9b3cc8ab6ce8aa6cbfec79643","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"703e76cffbe1464f1283f6c8f45cee52c0d37faae852b7efc163879710a2ddb2","targetLocale":"zh-CN"} -->
+<!-- docs-ai-provenance: {"basedOnProvenance":{"model":"qwen3.8:latest","modelDigest":"22130167c4c20e20c7b71454612966ca8e8171e9b3cc8ab6ce8aa6cbfec79643"},"factPacketSha256":"71097403d87aba03cddc2ccd696ff9a8663268afba3a7bf750fe8d9913de3eba","model":"gpt-6-luna","modelProvider":"codex-subagent","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"71097403d87aba03cddc2ccd696ff9a8663268afba3a7bf750fe8d9913de3eba","targetLocale":"zh-CN"} -->
 
 Soundscaper 在 Web 上重新实现了 Audacity 4，并在其基础上增加了一层生产功能。Adobe Audition 是通常用来衡量这两款产品的商业后期制作工具。本页对三者进行了比较，以便您判断哪一款已经能够满足您的需求。
 
@@ -103,7 +103,7 @@ Soundscaper 在 Web 上重新实现了 Audacity 4，并在其基础上增加了�
 | 参数均衡器 | 是 — 新的参数均衡器，频段可自动化 | 部分 — 滤波器曲线和图形均衡器 | 是 — 参数、图形和 FFT 滤波器 |
 | 效果预设 | 是 — 应用、保存、导入、导出 | 是 — 应用、保存、导入、导出 | 是 |
 | 宏和批处理链 | 是 — 带有模板的已保存宏库 | 否 — 固定版本注释掉了宏菜单 | 是 — 收藏夹和批处理 |
-| 第三方插件格式 | 部分 — 桌面端在同意和隔离条件下支持 VST3、CLAP、AU 和 LV2，浏览器中不支持 | 是 — VST3、AU、LV2 和 Nyquist，带有插件管理器 | 部分 — VST3，macOS 上支持 AU，不支持 CLAP 或 LV2 |
+| 第三方插件格式 | 部分 — 桌面端在同意和隔离条件下支持 VST3、CLAP、AU、LV2，以及 Linux LADSPA 效果和 Vamp 分析器；浏览器中不支持 | 是 — VST3、AU、LV2 和 Nyquist，带有插件管理器 | 部分 — VST3，macOS 上支持 AU，不支持 CLAP 或 LV2 |
 | Nyquist 脚本 | 是 — 捆绑插件和 Nyquist 提示符 | 是 — 捆绑插件和 Nyquist 提示符 | 否 |
 | 沙盒效果包 | 部分 — 经过审查的 WebAssembly 包，一个已发布，外部包被隔离 | 否 | 否 |
 | 虚拟乐器 | 否 — 1.0 之后 | 否 | 否 |

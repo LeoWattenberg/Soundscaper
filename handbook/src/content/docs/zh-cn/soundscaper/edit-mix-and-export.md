@@ -4,7 +4,7 @@ description: "排列剪辑、平衡轨道、应用效果并创建交付文件。
 sidebar:
   order: 4
 ---
-<!-- docs-ai-provenance: {"factPacketSha256":"d4b354ffb5d6a4d35fcb20ac6bb1e0191746badd98ca8f5b476a286e068a3c26","model":"aya-expanse:32b","modelDigest":"1603440383bd5504dc7afd01c0407b425b988dde650a8dc1a737433baa3cd432","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"d4b354ffb5d6a4d35fcb20ac6bb1e0191746badd98ca8f5b476a286e068a3c26","targetLocale":"zh-CN"} -->
+<!-- docs-ai-provenance: {"basedOnProvenance":{"model":"aya-expanse:32b","modelDigest":"1603440383bd5504dc7afd01c0407b425b988dde650a8dc1a737433baa3cd432"},"factPacketSha256":"eaa07736d9143de912e22bd2c5d4a8db4f1553c1052d247826240cda8c6af620","model":"gpt-6-luna","modelProvider":"codex-subagent","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"eaa07736d9143de912e22bd2c5d4a8db4f1553c1052d247826240cda8c6af620","targetLocale":"zh-CN"} -->
 
 ## 排列剪辑
 
@@ -36,6 +36,14 @@ sidebar:
 选择 **效果 → 音量和压缩 → 多带压缩器**。两个交叉点将信号分为低、中和高三带。每个带都有自己的阈值、比率和输出增益。比率为 1 时，该带的动态保持不变。攻击和释放适用于所有三个带。交叉点具有温和的、重叠的 6 dB/八度斜率；在所有比率为 1 和带增益为 0 dB 时，原始信号保持不变地通过。
 
 这两种效果链接其通道以保持立体声平衡，还可在轨道和母带效果架中提供。架设置与项目一起保存，并在播放期间可调整。**应用到选择** 会将效果渲染到选定的音频并支持 **撤销**。时间线自动化不适用于这两种效果。
+
+### 使用 LADSPA 效果和 Vamp 分析器 {#native-audio-plugins}
+
+桌面应用只有在你于**效果 → 插件管理器**中允许某种格式及其文件夹后，才会扫描第三方插件。扫描不会自动进行。使用前请逐一允许发现的安装包，并且只安装你信任的插件：原生插件会运行可执行代码，即使 Soundscaper 将它们托管在受监督的辅助进程中。
+
+Linux 提供 LADSPA 效果。请先在插件管理器中启用，然后从**效果 → 音频插件**打开。由于 LADSPA 格式没有厂商界面，Soundscaper 会根据 LADSPA 接口端口生成控件。这些控件值以及效果的启用或旁通状态都会随项目保存。
+
+Vamp 插件用于分析音频，不会更改音频。启用 Vamp 插件后，选择一个音频轨道即可分析该轨道；若未选择音频轨道，则分析主混音。时间选区会限制分析范围；否则 Soundscaper 会分析整个项目。选择**分析 → Vamp 插件**，选择分析器输出及其设置，然后运行。只有完整分析成功后，Soundscaper 才会将返回的时间戳添加为新的标签轨道，因此取消操作或更改项目不会留下不完整的标签。
 
 ## 导出
 
