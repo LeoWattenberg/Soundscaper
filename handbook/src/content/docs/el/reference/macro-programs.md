@@ -4,7 +4,7 @@ description: "Το JavaScript API ενάντια στο οποίο εκτελε�
 sidebar:
   order: 7
 ---
-<!-- docs-ai-provenance: {"factPacketSha256":"bfeb48e77dc0013cc1f43bd584ae92a7196983e349631c0b75bfbca2ba0c542a","model":"qwen3.8:latest","modelDigest":"22130167c4c20e20c7b71454612966ca8e8171e9b3cc8ab6ce8aa6cbfec79643","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"bfeb48e77dc0013cc1f43bd584ae92a7196983e349631c0b75bfbca2ba0c542a","targetLocale":"el"} -->
+<!-- docs-ai-provenance: {"model":"gpt-5.6-luna","modelDigest":"manual","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"375c684211bdec9dbd3614c197bda423e24858a568ad5ae3c06ab06d7db2522f","targetLocale":"el"} -->
 
 Ένα πρόγραμμα μακροεντολής είναι μια μακροεντολή γραμμένη ως JavaScript αντί για μια λίστα βημάτων.
 Εκτελείται μέσα στον επεξεργαστή έναντι μιας μικρής API που ονομάζεται `sound`, η οποία του επιτρέπει να διαβάζει
@@ -32,7 +32,7 @@ sidebar:
 ## Γραφή ενός προγράμματος
 
 Ένα πρόγραμμα είναι το σώμα μιας συνάρτησης `async`, που εκτελείται σε αυστηρή λειτουργία. Αυτό σημαίνει ότι
-μπορείτε να `await` στο верхний επίπεδο, να δηλώσετε μεταβλητές και συναρτήσεις και να χρησιμοποιήσετε κάθε
+μπορείτε να χρησιμοποιήσετε `await` στο ανώτατο επίπεδο, να δηλώσετε μεταβλητές και συναρτήσεις και να χρησιμοποιήσετε κάθε
 συνηθισμένο χαρακτηριστικό της γλώσσας. Το αντικείμενο `sound` είναι ο μοναδικός σύνδεσμος του προγράμματος με
 τον επεξεργαστή, και κάθε κλήση σε αυτό επιστρέφει μια υπόσχεση.
 
@@ -71,33 +71,33 @@ await sound.effect('audacity-fade-out');
 
 ## Εκτέλεση ενός προγράμματος
 
-Πατήστε **Run program**. Η ολόκληρη εκτέλεση είναι μία εγγραφή στο ιστορικό του έργου, οπότε
-ένα **Undo** αναιρεί ό,τι έκανε το πρόγραμμα, όσες αλλαγές κι αν έκανε.
+Πατήστε **Εκτέλεση προγράμματος**. Ολόκληρη η εκτέλεση είναι μία εγγραφή στο ιστορικό του έργου, οπότε
+η **Αναίρεση** αναιρεί ό,τι έκανε το πρόγραμμα, όσες αλλαγές κι αν έκανε.
 Αν το πρόγραμμα ρίξει σφάλμα, ή ακυρωθεί, ή εκτελεστεί πέρα από το χρονικό του όριο, το έργο
 επαναφέρεται ακριβώς όπως ήταν πριν ξεκινήσει η εκτέλεση.
 
-Το **Cancel run** σταματά ένα πρόγραμμα αμέσως. Ένα πρόγραμμα που έχει εκτελεστεί για δύο
-λεπτά σταματά με τον ίδιο τρόπο, με το μήνυμα *The macro ran for longer than
-120 seconds.*
+Η **Ακύρωση εκτέλεσης** σταματά ένα πρόγραμμα αμέσως. Ένα πρόγραμμα που έχει εκτελεστεί για δύο
+λεπτά σταματά με τον ίδιο τρόπο, με το μήνυμα *Η μακροεντολή εκτελέστηκε για περισσότερο από
+120 δευτερόλεπτα.*
 
-Μετά την εκτέλεση, το πάνελ εμφανίζει το αρχείο καταγραφής του προγράμματος, ακολουθούμενο από *Program applied.*
-όταν η εκτέλεση ολοκληρωθεί. Μια αποτυχημένη εκτέλεση εμφανίζει *The program failed on line N:* και
-το μήνυμα του σφάλματος, όπου ο αριθμός γραμμής είναι η γραμμή του προγράμματός σας που
-έριξε σφάλμα.
+Μετά την εκτέλεση, το πάνελ εμφανίζει το αρχείο καταγραφής του προγράμματος και, όταν αυτή
+ολοκληρωθεί επιτυχώς, το μήνυμα *Το πρόγραμμα εφαρμόστηκε.* Μια αποτυχημένη εκτέλεση εμφανίζει
+*Το πρόγραμμα απέτυχε στη γραμμή N:* και το μήνυμα του σφάλματος, όπου ο αριθμός είναι η γραμμή
+του προγράμματός σας που προκάλεσε το σφάλμα.
 
-### Ποιο ήχο αγγίζει μια επίδραση
+### Ποιον ήχο επηρεάζει ένα εφέ
 
-Μια επίδραση που εφαρμόζεται από ένα πρόγραμμα εκτελείται πάνω στην τρέχουσα επιλογή χρόνου στο
-εστιασμένο κομμάτι, δηλαδή στο κομμάτι του οποίου τον τίτλο πατήσατε τελευταία ή του οποίου το κλιπ
-επιλέξατε τελευταίο. Όταν δεν υπάρχει επιλογή χρόνου αλλά ένα κλιπ είναι επιλεγμένο, η
-επίδραση καλύπτει αυτό το κλιπ. Οι κλήσεις επιλογής ενός προγράμματος αλλάζουν το χρονικό εύρος και
+Ένα εφέ που εφαρμόζεται από πρόγραμμα εκτελείται στην τρέχουσα χρονική επιλογή του εστιασμένου
+κομματιού, δηλαδή του κομματιού του οποίου πατήσατε τελευταία την κεφαλίδα ή επιλέξατε τελευταία
+ένα κλιπ. Όταν δεν υπάρχει χρονική επιλογή αλλά είναι επιλεγμένο ένα κλιπ, το εφέ καλύπτει αυτό το
+κλιπ. Οι κλήσεις επιλογής ενός προγράμματος αλλάζουν το χρονικό εύρος και
 το σύνολο των επιλεγμένων κομματιών, αλλά όχι ποιο κομμάτι έχει εστίαση, οπότε μία εκτέλεση επεξεργάζεται
 ένα κομμάτι. Αν τίποτα δεν είναι εστιασμένο ή η επιλογή είναι κενή, η εκτέλεση αποτυγχάνει με
-το ίδιο μήνυμα που δίνει το μενού Effect.
+το ίδιο μήνυμα που δίνει το μενού **Εφέ**.
 
 ## Το API `sound`
 
-Κάθε μέθοδος παρακάτω επιστρέφει ένα promise εκτός αν αναφέρεται διαφορετικά. Αναμείνετε κάθε κλήση
+Κάθε μέθοδος παρακάτω επιστρέφει μια υπόσχεση εκτός αν αναφέρεται διαφορετικά. Αναμείνετε κάθε κλήση
 πριν κάνετε την επόμενη· ένα πρόγραμμα που ξεκινά περισσότερες από οκτώ κλήσεις χωρίς
 να τις αναμένει, έχει την ένατη απορριφθείσα.
 
@@ -179,7 +179,7 @@ await sound.effect('audacity-fade-out');
 Το εύρος περιορίζεται στον χρονικό άξονα και οι άκρες ανταλλάσσονται αν είναι αντεστραμμένες.
 
 Το `sound.select.tracks(options)` είναι η εντολή `SelectTracks` του Audacity. Επιλέγει
-τις εγγραφές cuyo índice (μετρημένο από το 0) βρίσκεται στο εύρος από το `options.track`
+τις διαδρομές των οποίων ο δείκτης (μετρημένος από το 0) βρίσκεται στο εύρος από το `options.track`
 (προεπιλογή 0) καλύπτοντας `options.trackCount` εγγραφές (προεπιλογή 1). Το `options.mode` είναι
 `'set'` για να αντικαταστήσει την επιλογή εγγραφών, `'add'` για να την επεκτείνει, ή `'remove'` για
 να αφαιρέσει αυτές τις εγγραφές από αυτήν. Το χρονικό εύρος παραμένει όπως ήταν.
@@ -319,28 +319,26 @@ ExportWav.*
 | --- | --- | --- |
 | Ενίσχυση | `audacity-amplify` | `gainDb: 0`, `allowClipping: false` |
 | Αυτόματο σίγαση | `audacity-auto-duck` | `duckAmountDb: -12`, `innerFadeDown: 0`, `innerFadeUp: 0`, `outerFadeDown: 0.5`, `outerFadeUp: 0.5`, `thresholdDb: -30`, `maximumPause: 1` |
-| Βässe και Ψηλά | `audacity-bass-treble` | `bassDb: 0`, `trebleDb: 0`, `volumeDb: 0` |
+| Μπάσα και πρίμα | `audacity-bass-treble` | `bassDb: 0`, `trebleDb: 0`, `volumeDb: 0` |
 | Bitcrusher | `bitcrusher` | `bitDepth: 8`, `downsampling: 1`, `dither: 'none'`, `interpolation: 'sample-hold'`, `mix: 100` |
 | Αλλαγή ύψους | `audacity-change-pitch` | `semitones: 0`, `preserveFormants: true` |
 | Αλλαγή ταχύτητας και ύψους | `audacity-change-speed-pitch` | `speedPercent: 0` |
 | Αλλαγή ρυθμού | `audacity-change-tempo` | `tempoPercent: 0` |
 | Κλασικά φίλτρα | `audacity-classic-filters` | `family: 'butterworth'`, `direction: 'lowpass'`, `order: 1`, `cutoffHz: 1000`, `passbandRippleDb: 1`, `stopbandAttenuationDb: 30` |
 | Αφαίρεση κλικ | `audacity-click-removal` | `threshold: 200`, `maximumWidth: 20` |
-| Συμπίεση | `compressor` | `threshold: -24`, `knee: 30`, `ratio: 4`, `attack: 0.003`, `release: 0.25`, `makeupGain: 0` |
 | Συμπίεση (Audacity) | `audacity-compressor` | `thresholdDb: -10`, `makeupGainDb: 0`, `kneeWidthDb: 5`, `ratio: 10`, `lookaheadMs: 1`, `attackMs: 30`, `releaseMs: 150` |
 | Καθυστέρηση | `delay` | `time: 0.25`, `feedback: 0.3`, `mix: 0.2` |
 | Παραμόρφωση | `audacity-distortion` | `mode: 'hard-clipping'`, `dcBlock: false`, `thresholdDb: -6`, `noiseFloorDb: -70`, `parameter1: 50`, `parameter2: 50`, `repeats: 1` |
 | Ηχώ | `audacity-echo` | `delaySeconds: 1`, `decay: 0.5` |
-| Εισαγωγή φθίνουσας | `audacity-fade-in` | καμία |
-| Εξαγωγή φθίνουσας | `audacity-fade-out` | καμία |
+| Σταδιακή αύξηση | `audacity-fade-in` | καμία |
+| Σταδιακή εξασθένηση | `audacity-fade-out` | καμία |
 | EQ καμπύλης φίλτρου | `audacity-filter-curve-eq` | `points`: ένας πίνακας `{ frequency, gain }`, προεπιλογή δύο επίπεδα σημεία στα 20 Hz και 20 kHz; `linearFrequencyScale: false`; `filterLength: 8191` |
 | Παραμετρικό EQ τεσσάρων ζωνών | `eq` | `outputGain: 0`; `bands`: τέσσερα αντικείμενα `{ id, enabled, type, frequency, gain, q, slope }`, κορυφώνοντας στα 100, 500, 2000 και 8000 Hz με `gain: 0`, `q: 1`, `slope: 12` |
 | Πύλη | `gate` | `threshold: -50`, `attack: 0.005`, `hold: 0.05`, `release: 0.1`, `rangeDb: -80` |
 | Γραφικό EQ | `audacity-graphic-eq` | `gains`: κέρδη 31 ζωνών σε dB, όλα 0; `interpolation: 'bspline'`; `filterLength: 8191` |
 | Φίλτρο υψηλών συχνοτήτων | `highpass` | `frequency: 80`, `q: 0.707` |
 | Αντιστροφή | `audacity-invert` | καμία |
-| Παλαιός συμπαγής | `audacity-legacy-compressor` | `thresholdDb: -12`, `noiseFloorDb: -40`, `ratio: 2`, `attackSeconds: 0.2`, `releaseSeconds: 1`, `normalize: true`, `usePeak: false` |
-| Περιοριστής | `limiter` | `ceiling: -1`, `lookahead: 0.005`, `release: 0.1` |
+| Κλασικός συμπιεστής | `audacity-legacy-compressor` | `thresholdDb: -12`, `noiseFloorDb: -40`, `ratio: 2`, `attackSeconds: 0.2`, `releaseSeconds: 1`, `normalize: true`, `usePeak: false` |
 | Περιοριστής (Audacity) | `audacity-limiter` | `thresholdDb: -5`, `makeupTargetDb: -1`, `kneeWidthDb: 2`, `lookaheadMs: 1`, `releaseMs: 20` |
 | Κανονικοποίηση έντασης | `audacity-loudness-normalization` | `mode: 'lufs'`, `targetLufs: -23`, `targetRmsDb: -20`, `stereoIndependent: false`, `dualMono: true` |
 | Φίλτρο χαμηλών συχνοτήτων | `lowpass` | `frequency: 18000`, `q: 0.707` |
@@ -352,18 +350,18 @@ ExportWav.*
 | Επιδιόρθωση | `audacity-repair` | καμία |
 | Επανάληψη | `audacity-repeat` | `count: 1` |
 | Ηχώ | `reverb` | `mix: 0.2`, `decay: 2`, `preDelay: 0.01` |
-| Reverb (Audacity) | `audacity-reverb` | `roomSize: 75`, `preDelay: 10`, `reverberance: 50`, `damping: 50`, `toneLow: 100`, `toneHigh: 100`, `wetGainDb: -6`, `dryGainDb: 0`, `stereoWidth: 100`, `wetOnly: false` |
-| Reverse | `audacity-reverse` | none |
-| Sliding Stretch | `audacity-sliding-stretch` | `startTempoPercent: 0`, `endTempoPercent: 0`, `startPitchSemitones: 0`, `endPitchSemitones: 0`, `preserveFormants: true` |
-| Truncate Silence | `audacity-truncate-silence` | `thresholdDb: -20`, `action: 'truncate'`, `minimumSilence: 0.5`, `truncateTo: 0.5`, `compressPercent: 50`, `independent: false` |
-| Utility Gain (Reviewed) | `reviewed-utility-gain` | `gain: 1` |
+| Αντήχηση (Audacity) | `audacity-reverb` | `roomSize: 75`, `preDelay: 10`, `reverberance: 50`, `damping: 50`, `toneLow: 100`, `toneHigh: 100`, `wetGainDb: -6`, `dryGainDb: 0`, `stereoWidth: 100`, `wetOnly: false` |
+| Αντιστροφή | `audacity-reverse` | none |
+| Ολίσθηση τεντώματος | `audacity-sliding-stretch` | `startTempoPercent: 0`, `endTempoPercent: 0`, `startPitchSemitones: 0`, `endPitchSemitones: 0`, `preserveFormants: true` |
+| Περικοπή σιωπής | `audacity-truncate-silence` | `thresholdDb: -20`, `action: 'truncate'`, `minimumSilence: 0.5`, `truncateTo: 0.5`, `compressPercent: 50`, `independent: false` |
+| Βοηθητικό κέρδος (ελεγμένο) | `reviewed-utility-gain` | `gain: 1` |
 | Wahwah | `audacity-wahwah` | `frequency: 1.5`, `phaseDegrees: 0`, `depthPercent: 70`, `resonance: 2.5`, `frequencyOffsetPercent: 30`, `outputGainDb: -6` |
 
 Δύο εφέ απαιτούν κάτι που ένα πρόγραμμα δεν μπορεί να παρέχει. Η Μείωση Θορύβου απαιτεί ένα προφίλ θορύβου που καταγράφεται στον ίδιο τον διαλόγο του εφέ, ενώ το Auto Duck απαιτεί ένα ελεγκτικό κομμάτι κάτω από το εστιασμένο.
 
 ## Εντολές που μπορεί να εκτελέσει ένα πρόγραμμα {#commands-a-program-can-run}
 
-Το `sound.command` αποδέχεται τις παρακάτω ονομασίες εντολών μακροεντολών του Audacity. Είναι τα ίδια ονόματα που μπορεί να περιέχει μια μακροεντολή λίστας βημάτων, οπότε ένα πρόγραμμα και μια λίστα βημάτων έχουν ακριβώς το ίδιο πεδίο δράσης. Κάθε εντολή εκτελεί την ενέργεια του επεξεργαστή που περιγράφεται στην αναφορά εντολών [commands reference](/reference/generated/commands/).
+Το `sound.command` αποδέχεται τις παρακάτω ονομασίες εντολών μακροεντολών του Audacity. Είναι τα ίδια ονόματα που μπορεί να περιέχει μια μακροεντολή λίστας βημάτων, οπότε ένα πρόγραμμα και μια λίστα βημάτων έχουν ακριβώς το ίδιο πεδίο δράσης. Κάθε εντολή εκτελεί την ενέργεια του επεξεργαστή που περιγράφεται στην [αναφορά εντολών](/reference/generated/commands/).
 
 ### Εντολές επιλογής με παραμέτρους
 
@@ -417,8 +415,9 @@ ExportWav.*
 
 ## Παραδείγματα
 
-Αποθόρευση (fade in) κάθε κλιπ στο πρώτο κομμάτι που έχει κάποιο. Κάντε κλικ στο κεφάλαιο
-αυτού του κομματιού πριν την εκτέλεση, ώστε η επίδραση να εφαρμοστεί στο κομμάτι που διαβάζει το πρόγραμμα:
+Εφαρμόστε σταδιακή αύξηση έντασης (fade in) σε κάθε κλιπ του πρώτου κομματιού που περιέχει κλιπ.
+Πατήστε την κεφαλίδα αυτού του κομματιού πριν από την εκτέλεση, ώστε το εφέ να εφαρμοστεί στο
+κομμάτι που διαβάζει το πρόγραμμα:
 
 ```js
 let target = null;

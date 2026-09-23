@@ -8,55 +8,55 @@ head:
   - tag: script
     attrs:
       type: "application/ld+json"
-    content: "{\"@context\":\"https://schema.org\",\"@type\":\"HowTo\",\"name\":\"Your first Soundscaper project\",\"description\":\"Import a recording, listen, split it, fade it out, export a file and save the project.\",\"tool\":[{\"@type\":\"HowToTool\",\"name\":\"Soundscaper\"}],\"step\":[{\"@type\":\"HowToStep\",\"position\":1,\"name\":\"Open Soundscaper. A new, empty project is ready as soon as the editor loads.\",\"text\":\"Open Soundscaper. A new, empty project is ready as soon as the editor loads.\"},{\"@type\":\"HowToStep\",\"position\":2,\"name\":\"Choose File → Import audio and pick guide-music-loop.wav — a two-second stereo loop. The file lands as a clip on its own track.\",\"text\":\"Choose File → Import audio and pick guide-music-loop.wav — a two-second stereo loop. The file lands as a clip on its own track.\"},{\"@type\":\"HowToStep\",\"position\":3,\"name\":\"Press Play to listen, then Stop.\",\"text\":\"Press Play to listen, then Stop. The playhead travels across the clip and the loop plays once.\"},{\"@type\":\"HowToStep\",\"position\":4,\"name\":\"Press the Split tool button in the toolbar.\",\"text\":\"Press the Split tool button in the toolbar. While the split tool is active, a click on a clip cuts it there instead of selecting.\"},{\"@type\":\"HowToStep\",\"position\":5,\"name\":\"Click the waveform halfway through to put the cursor there.\",\"text\":\"Click the waveform halfway through to put the cursor there.\"},{\"@type\":\"HowToStep\",\"position\":6,\"name\":\"Press the Split tool button in the toolbar.\",\"text\":\"Press the Split tool button in the toolbar. Press it again to go back to the ordinary pointer.\"},{\"@type\":\"HowToStep\",\"position\":7,\"name\":\"The project now shows 2 clips.\",\"text\":\"The project now shows 2 clips. Two clips sit end to end where there was one, each with its own name bar.\"},{\"@type\":\"HowToStep\",\"position\":8,\"name\":\"Choose Select → Select all.\",\"text\":\"Choose Select → Select all. An effect applies to whatever is selected. Select all takes the whole project, both clips included.\"},{\"@type\":\"HowToStep\",\"position\":9,\"name\":\"Choose Effect → Fading → Fade Out. The effect applies to the selection straight away.\",\"text\":\"Choose Effect → Fading → Fade Out. The effect applies to the selection straight away. The waveform tapers to nothing by the end of the second clip.\"},{\"@type\":\"HowToStep\",\"position\":10,\"name\":\"Press Play to listen, then Stop.\",\"text\":\"Press Play to listen, then Stop. The loop dies away instead of stopping hard.\"},{\"@type\":\"HowToStep\",\"position\":11,\"name\":\"Choose File → Export audio, set Format to WAV, and press Export. The file downloads as soon as the render finishes, and its link stays in the dialog.\",\"text\":\"Choose File → Export audio, set Format to WAV, and press Export. The file downloads as soon as the render finishes, and its link stays in the dialog. An export renders what you hear into a file for other programs. It does not change the project.\"},{\"@type\":\"HowToStep\",\"position\":12,\"name\":\"Choose File → Save project. The save indicator in the status bar shows the project is saved.\",\"text\":\"Choose File → Save project. The save indicator in the status bar shows the project is saved. The project — clips, edits, history — lives in the browser’s project library on this computer. Saving keeps it there.\"}]}"
+    content: "{\"@context\":\"https://schema.org\",\"@type\":\"HowTo\",\"name\":\"Your first Soundscaper project\",\"description\":\"Import a recording, listen, split it, fade it out, export a file and save the project.\",\"tool\":[{\"@type\":\"HowToTool\",\"name\":\"Soundscaper\"}],\"step\":[{\"@type\":\"HowToStep\",\"position\":1,\"name\":\"Open Soundscaper. A new, empty project is ready as soon as the editor loads.\",\"text\":\"Open Soundscaper. A new, empty project is ready as soon as the editor loads.\"},{\"@type\":\"HowToStep\",\"position\":2,\"name\":\"Choose File → Import and pick guide-music-loop.wav — a two-second stereo loop. It lands as a clip on its own track.\",\"text\":\"Choose File → Import and pick guide-music-loop.wav — a two-second stereo loop. It lands as a clip on its own track.\"},{\"@type\":\"HowToStep\",\"position\":3,\"name\":\"Press Play to listen, then Stop.\",\"text\":\"Press Play to listen, then Stop. The playhead travels across the clip and the loop plays once.\"},{\"@type\":\"HowToStep\",\"position\":4,\"name\":\"Press the Split tool button in the toolbar.\",\"text\":\"Press the Split tool button in the toolbar. While the split tool is active, a click on a clip cuts it there instead of selecting.\"},{\"@type\":\"HowToStep\",\"position\":5,\"name\":\"Click the waveform halfway through to put the cursor there.\",\"text\":\"Click the waveform halfway through to put the cursor there.\"},{\"@type\":\"HowToStep\",\"position\":6,\"name\":\"Press the Split tool button in the toolbar.\",\"text\":\"Press the Split tool button in the toolbar. Press it again to go back to the ordinary pointer.\"},{\"@type\":\"HowToStep\",\"position\":7,\"name\":\"The project now shows 2 clips.\",\"text\":\"The project now shows 2 clips. Two clips sit end to end where there was one, each with its own name bar.\"},{\"@type\":\"HowToStep\",\"position\":8,\"name\":\"Choose Select → Select all.\",\"text\":\"Choose Select → Select all. An effect applies to whatever is selected. Select all takes the whole project, both clips included.\"},{\"@type\":\"HowToStep\",\"position\":9,\"name\":\"Choose Effect → Fading → Fade Out. The effect applies to the selection straight away.\",\"text\":\"Choose Effect → Fading → Fade Out. The effect applies to the selection straight away. The waveform tapers to nothing by the end of the second clip.\"},{\"@type\":\"HowToStep\",\"position\":10,\"name\":\"Press Play to listen, then Stop.\",\"text\":\"Press Play to listen, then Stop. The loop dies away instead of stopping hard.\"},{\"@type\":\"HowToStep\",\"position\":11,\"name\":\"Choose File → Export audio, set Format to WAV, and press Export. The file downloads as soon as the render finishes, and its link stays in the dialog.\",\"text\":\"Choose File → Export audio, set Format to WAV, and press Export. The file downloads as soon as the render finishes, and its link stays in the dialog. An export renders what you hear into a file for other programs. It does not change the project.\"},{\"@type\":\"HowToStep\",\"position\":12,\"name\":\"Choose File → Save project. The save indicator in the status bar shows the project is saved.\",\"text\":\"Choose File → Save project. The save indicator in the status bar shows the project is saved. The project — clips, edits, history — lives in the browser’s project library on this computer. Saving keeps it there.\"}]}"
 ---
-<!-- docs-ai-provenance: {"factPacketSha256":"7eef059af498c947a93b977ace26ddc71710f57064e7ded909bb9970804cbdff","model":"qwen3.8:latest","modelDigest":"22130167c4c20e20c7b71454612966ca8e8171e9b3cc8ab6ce8aa6cbfec79643","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"7eef059af498c947a93b977ace26ddc71710f57064e7ded909bb9970804cbdff","targetLocale":"el"} -->
+<!-- docs-ai-provenance: {"model":"gpt-5.6-luna","modelDigest":"manual","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"0c5a1003c9cdd039885e65d1292b4659577150a0de414c2bda50d0f8c7066447","targetLocale":"el"} -->
 
 <!-- Generated by `node scripts/docs-reference.mjs`. Do not edit. -->
 
-Σε αυτό το σεμινάριο εξετάζουμε ένα πλήρες πέρασμα του επεξεργαστή σε ένα μουσικό loop δύο δευτερολέπτων: την εισαγωγή ενός αρχείου, την ακρόβησή του, την αλλαγή του με μια επίδραση, τη διαίρεσή του στα δύο, την απόδοση (rendering) ενός αρχείου που μπορείτε να αναπαράξετε οπουδήποτε και την αποθήκευση του έργου ώστε να μπορείτε να επιστρέψετε σε αυτό. Κανένα από τα παρακάτω δεν απαιτεί γνώσεις ήχου· πρόκειται για μια περιήγηση στο πού βρίσκονται τα πράγματα.
+Σε αυτό το σεμινάριο θα ακολουθήσετε μια πλήρη διαδικασία επεξεργασίας με έναν μουσικό βρόχο δύο δευτερολέπτων: θα εισαγάγετε και θα ακούσετε ένα αρχείο, θα το επεξεργαστείτε με ένα εφέ, θα το χωρίσετε στα δύο, θα αποδώσετε ένα αρχείο που μπορείτε να αναπαράγετε οπουδήποτε και θα αποθηκεύσετε το έργο για να επιστρέψετε σε αυτό αργότερα. Δεν χρειάζεστε προηγούμενες γνώσεις ήχου· πρόκειται για μια ξενάγηση στις βασικές λειτουργίες.
 
 :::tip[Τι θα χρειαστείτε]
-- Κατεβάστε το [`guide-music-loop.wav`](https://assets.soundscaper.org/guides/examples/guide-music-loop.wav) — ένα στερεοφωνικό loop δύο δευτερολέπτων.
+- Κατεβάστε το [`guide-music-loop.wav`](https://assets.soundscaper.org/guides/examples/guide-music-loop.wav) — έναν στερεοφωνικό βρόχο δύο δευτερολέπτων.
 
 Κάθε βήμα παρακάτω λειτουργεί ακριβώς με αυτά τα αρχεία όπως είναι, οπότε ό,τι βλέπετε πρέπει να ταιριάζει με ό,τι λέει το σεμινάριο. Το Soundscaper εκτελείται στον περιηγητή· δεν χρειάζεται να εγκατασταθεί τίποτα.
 :::
 
 ## Τι θα μάθετε
 
-- Πώς ένα αρχείο γίνεται κλιπ σε μια τροχιά και πώς να το αναπαράξετε.
+- Πώς ένα αρχείο γίνεται κλιπ σε ένα κομμάτι και πώς να το αναπαράγετε.
 - Πώς να χωρίσετε ένα κλιπ με το εργαλείο διαίρεσης.
-- Πώς να επιλέξετε ήχο και να εφαρμόσετε μια επίδραση στην επιλογή.
+- Πώς να επιλέξετε ήχο και να εφαρμόσετε ένα εφέ στην επιλογή.
 - Η διαφορά μεταξύ της εξαγωγής ενός αρχείου και της αποθήκευσης ενός έργου.
 
 ## Βήματα
 
 1. Ανοίξτε το Soundscaper. Ένα νέο, κενό έργο είναι έτοιμο μόλις φορτωθεί ο επεξεργαστής.
-2. Επιλέξτε **Αρχείο → Εισαγωγή ήχου** και επιλέξτε `guide-music-loop.wav` — ένα στερεοφωνικό loop δύο δευτερολέπτων. Το αρχείο τοποθετείται ως κλιπ στη δική του τροχιά.
-3. Πατήστε **Αναπαραγωγή** για να ακούσετε, και στη συνέχεια **Σταμάτημα**.
-   *Πρέπει να δείτε:* Το κεφάλι αναπαραγωγής ταξιδεύει πάνω από το κλιπ και το loop αναπαράγεται μία φορά.
-4. Πατήστε το κουμπί **Εργαλείο διαίρεσης** στη γραμμή εργαλείων. Ενώ το εργαλείο διαίρεσης είναι ενεργό, ένα κλικ σε ένα κλιπ το κόβει εκεί αντί να το επιλέγει.
+2. Επιλέξτε **Αρχείο → Εισαγωγή ήχου** και διαλέξτε το `guide-music-loop.wav` — έναν στερεοφωνικό βρόχο δύο δευτερολέπτων. Προστίθεται ως κλιπ σε δικό του κομμάτι.
+3. Πατήστε **Αναπαραγωγή** για να ακούσετε και, στη συνέχεια, **Διακοπή**.
+   *Θα πρέπει να δείτε:* Η γραμμή αναπαραγωγής περνά πάνω από το κλιπ και ο βρόχος παίζει μία φορά.
+4. Πατήστε το κουμπί **Εργαλείο διαχωρισμού** στη γραμμή εργαλείων. Όταν αυτό το εργαλείο είναι ενεργό, το κλικ σε ένα κλιπ το χωρίζει στο σημείο αυτό αντί να το επιλέγει.
 5. Κάντε κλικ στο κύμα ήχου στο μέσο για να τοποθετήσετε τον δείκτη εκεί.
-6. Πατήστε το κουμπί **Εργαλείο διαίρεσης** στη γραμμή εργαλείων. Πατήστε ξανά για να επιστρέψετε στον συνηθισμένο δείκτη.
+6. Πατήστε ξανά το κουμπί **Εργαλείο διαχωρισμού** στη γραμμή εργαλείων για να επιστρέψετε στον κανονικό δείκτη.
 7. Το έργο δείχνει τώρα 2 κλιπ.
-   *Πρέπει να δείτε:* Δύο κλιπ βρίσκονται το ένα μετά το άλλο εκεί που υπήρχε ένα, καθένα με τη δική του μπάρα ονόματος.
-8. Επιλέξτε **Επιλογή → Επιλογή όλων**. Μια επίδραση εφαρμόζεται σε ό,τι είναι επιλεγμένο. Η επιλογή όλων παίρνει ολόκληρο το έργο, και τα δύο κλιπ συμπεριλαμβανομένων.
-9. Επιλέξτε **Επίδραση → Φαδινγκ → Fade Out**. Η επίδραση εφαρμόζεται στην επιλογή αμέσως.
-   *Πρέπει να δείτε:* Το κύμα ήχου στενεύει στο μηδέν μέχρι το τέλος του δεύτερου κλιπ.
-10. Πατήστε **Αναπαραγωγή** για να ακούσετε, και στη συνέχεια **Σταμάτημα**.
-   *Πρέπει να δείτε:* Το loop σβήνει σταδιακά αντί να σταματήσει απότομα.
-11. Επιλέξτε **Αρχείο → Εξαγωγή ήχου**, ορίστε τη **Μορφή** σε **WAV** και πατήστε **Εξαγωγή**. Το αρχείο κατεβαίνει μόλις ολοκληρωθεί η απόδοση και ο σύνδεσμός του παραμένει στο πλαίσιο διαλόγου. Η εξαγωγή αποδίδει ό,τι ακούτε σε ένα αρχείο για άλλα προγράμματα. Δεν αλλάζει το έργο.
+   *Θα πρέπει να δείτε:* Δύο κλιπ βρίσκονται διαδοχικά εκεί όπου υπήρχε ένα, καθένα με τη δική του γραμμή ονόματος.
+8. Επιλέξτε **Επιλογή → Επιλογή όλων**. Τα εφέ εφαρμόζονται στο επιλεγμένο υλικό. Η εντολή Επιλογή όλων καλύπτει ολόκληρο το έργο, και τα δύο κλιπ.
+9. Επιλέξτε **Εφέ → Σταδιακή εξασθένηση → Σταδιακή μείωση έντασης**. Το εφέ εφαρμόζεται αμέσως στην επιλογή.
+   *Θα πρέπει να δείτε:* Η κυματομορφή μειώνεται σταδιακά μέχρι να μηδενιστεί στο τέλος του δεύτερου κλιπ.
+10. Πατήστε **Αναπαραγωγή** για να ακούσετε και, στη συνέχεια, **Διακοπή**.
+   *Θα πρέπει να δείτε:* Ο βρόχος σβήνει σταδιακά αντί να σταματήσει απότομα.
+11. Επιλέξτε **Αρχείο → Εξαγωγή ήχου**, ορίστε τη **Μορφή** σε **WAV** και πατήστε **Εξαγωγή**. Όταν ολοκληρωθεί η απόδοση, το αρχείο κατεβαίνει και ο σύνδεσμός του παραμένει στο παράθυρο διαλόγου. Η εξαγωγή αποθηκεύει σε αρχείο αυτό που ακούτε, για χρήση σε άλλα προγράμματα. Δεν αλλάζει το έργο.
 12. Επιλέξτε **Αρχείο → Αποθήκευση έργου**. Ο δείκτης αποθήκευσης στη γραμμή κατάστασης δείχνει ότι το έργο αποθηκεύτηκε. Το έργο — κλιπ, επεξεργασίες, ιστορικό — βρίσκεται στη βιβλιοθήκη έργων του περιηγητή σε αυτόν τον υπολογιστή. Η αποθήκευση το διατηρεί εκεί.
 
 ## Πού επόμενο
 
-- Δοκιμάστε το ίδιο fade και διαίρεση σε μια ηχογράφηση δική σας: [Fade in and fade out](/guides/volume/fade-in-and-fade-out/) και [Split a clip in two](/guides/editing/split-a-clip-at-the-cursor/). Ο οδηγός fade δείχνει επίσης πώς να κάνετε fade μόνο στην αρχή ή στο τέλος.
-- Στη συνέχεια μεταφέρετε το έργο σας αλλού: [Move a project between computers](/guides/projects/move-a-project-between-computers/).
+- Δοκιμάστε την ίδια σταδιακή εξασθένηση και διαίρεση σε μια δική σας ηχογράφηση: [Σταδιακή αύξηση και εξασθένηση](/guides/volume/fade-in-and-fade-out/) και [Διαίρεση κλιπ στα δύο](/guides/editing/split-a-clip-at-the-cursor/). Ο οδηγός δείχνει επίσης πώς να εφαρμόσετε εξασθένηση μόνο στην αρχή ή στο τέλος.
+- Στη συνέχεια μεταφέρετε το έργο σας αλλού: [Μετακίνηση έργου μεταξύ υπολογιστών](/guides/projects/move-a-project-between-computers/).
 
 ## Άλλα σεμινάρια
 
-[Clean up a voice recording](/tutorials/clean-up-a-voice-recording/) — Αφαιρέστε τον θόρυβο από μια ηχογράφηση, κόψτε τον βουητό, φέρτε το σε ένταση podcast και εξάγετε ένα MP3.
-[Put music under a voice](/tutorials/put-music-under-a-voice/) — Στρώστε δύο τροχίες, μειώστε τη μία κάτω από την άλλη αυτόματα, αναμίξτε τις και εξάγετε.
+[Καθαρισμός ηχογράφησης φωνής](/tutorials/clean-up-a-voice-recording/) — Αφαιρέστε τον θόρυβο από μια ηχογράφηση, κόψτε τον βουητό, φέρτε την σε ένταση podcast και εξάγετε ένα MP3.
+[Τοποθέτηση μουσικής κάτω από φωνή](/tutorials/put-music-under-a-voice/) — Στρώστε δύο κομμάτια, μειώστε αυτόματα το ένα κάτω από το άλλο, αναμίξτε τα και εξάγετε.
 
 ## Αναφορά
 

@@ -8,46 +8,46 @@ head:
   - tag: script
     attrs:
       type: "application/ld+json"
-    content: "{\"@context\":\"https://schema.org\",\"@type\":\"HowTo\",\"name\":\"Mix tracks into a new track and keep the originals\",\"description\":\"Render a mix of several tracks onto a new track while the sources stay in the project.\",\"tool\":[{\"@type\":\"HowToTool\",\"name\":\"Soundscaper\"}],\"step\":[{\"@type\":\"HowToStep\",\"position\":1,\"name\":\"Open Soundscaper. A new, empty project is ready as soon as the editor loads.\",\"text\":\"Open Soundscaper. A new, empty project is ready as soon as the editor loads.\"},{\"@type\":\"HowToStep\",\"position\":2,\"name\":\"Choose File → Import audio and pick the first track to mix. The file lands as a clip on its own track.\",\"text\":\"Choose File → Import audio and pick the first track to mix. The file lands as a clip on its own track.\"},{\"@type\":\"HowToStep\",\"position\":3,\"name\":\"Choose File → Import audio and pick the second track to mix. The file lands as a clip on its own track.\",\"text\":\"Choose File → Import audio and pick the second track to mix. The file lands as a clip on its own track.\"},{\"@type\":\"HowToStep\",\"position\":4,\"name\":\"Click the name bar of the first clip, then hold Shift and click the name bar of the second clip, so both are selected.\",\"text\":\"Click the name bar of the first clip, then hold Shift and click the name bar of the second clip, so both are selected. Every track with a selected clip goes into the mix.\"},{\"@type\":\"HowToStep\",\"position\":5,\"name\":\"Choose Tracks → Mix & Render. In the Mix & Render dialog, leave Mix down and Render effects checked, turn off Replace originals, choose Stereo for Mix down to, then press Mix & Render.\",\"text\":\"Choose Tracks → Mix & Render. In the Mix & Render dialog, leave Mix down and Render effects checked, turn off Replace originals, choose Stereo for Mix down to, then press Mix & Render.\"},{\"@type\":\"HowToStep\",\"position\":6,\"name\":\"A new track under the originals holds a clip named Mix, and the original clips are still where they were.\",\"text\":\"A new track under the originals holds a clip named Mix, and the original clips are still where they were. Three clips: the two you started with and the mix.\"}]}"
+    content: "{\"@context\":\"https://schema.org\",\"@type\":\"HowTo\",\"name\":\"Mix tracks into a new track and keep the originals\",\"description\":\"Render a mix of several tracks onto a new track while the sources stay in the project.\",\"tool\":[{\"@type\":\"HowToTool\",\"name\":\"Soundscaper\"}],\"step\":[{\"@type\":\"HowToStep\",\"position\":1,\"name\":\"Open Soundscaper. A new, empty project is ready as soon as the editor loads.\",\"text\":\"Open Soundscaper. A new, empty project is ready as soon as the editor loads.\"},{\"@type\":\"HowToStep\",\"position\":2,\"name\":\"Choose File → Import and pick the first track to mix. It lands as a clip on its own track.\",\"text\":\"Choose File → Import and pick the first track to mix. It lands as a clip on its own track.\"},{\"@type\":\"HowToStep\",\"position\":3,\"name\":\"Choose File → Import and pick the second track to mix. It lands as a clip on its own track.\",\"text\":\"Choose File → Import and pick the second track to mix. It lands as a clip on its own track.\"},{\"@type\":\"HowToStep\",\"position\":4,\"name\":\"Click the name bar of the first clip, then hold Shift and click the name bar of the second clip, so both are selected.\",\"text\":\"Click the name bar of the first clip, then hold Shift and click the name bar of the second clip, so both are selected. Every track with a selected clip goes into the mix.\"},{\"@type\":\"HowToStep\",\"position\":5,\"name\":\"Choose Tracks → Mix & Render. In the Mix & Render dialog, leave Mix down and Render effects checked, turn off Replace originals, choose Stereo for Mix down to, then press Mix & Render.\",\"text\":\"Choose Tracks → Mix & Render. In the Mix & Render dialog, leave Mix down and Render effects checked, turn off Replace originals, choose Stereo for Mix down to, then press Mix & Render.\"},{\"@type\":\"HowToStep\",\"position\":6,\"name\":\"A new track under the originals holds a clip named Mix, and the original clips are still where they were.\",\"text\":\"A new track under the originals holds a clip named Mix, and the original clips are still where they were. Three clips: the two you started with and the mix.\"}]}"
 ---
-<!-- docs-ai-provenance: {"factPacketSha256":"2509e4de7079761304d0dcefb76634478608a4a61925bbbe411587b9afb883cb","model":"qwen3.8:latest","modelDigest":"22130167c4c20e20c7b71454612966ca8e8171e9b3cc8ab6ce8aa6cbfec79643","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"2509e4de7079761304d0dcefb76634478608a4a61925bbbe411587b9afb883cb","targetLocale":"el"} -->
+<!-- docs-ai-provenance: {"model":"gpt-5.6-luna","modelDigest":"manual","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"04ea60929a4ea39e8f423889db1d214a0b0b91877e92306a9f74812476d14098","targetLocale":"el"} -->
 
 <!-- Generated by `node scripts/docs-reference.mjs`. Do not edit. -->
 
-Το Mixing tracks down συνήθως αντικαθιστά τα αρχικά κομμάτια, κάτι που είναι αποδεκτό για ένα ολοκληρωμένο bed, αλλά όχι όταν ενδέχεται να θέλετε ακόμα να προσαρμόσετε τα μέρη. Η απενεργοποίηση της επιλογής Replace originals στον διαλόγο Mix & Render αποδίδει το mix — συμπεριλαμβανομένων των κερδών, των panning και των εφέ σε πραγματικό χρόνο — σε ένα νέο κομμάτι και αφήνει κάθε αρχικό κομμάτι στη θέση του, ώστε να μπορείτε να συγκρίνετε, να συνεχίσετε την επεξεργασία ή να σιγαίνετε τις πηγές και να προχωρήσετε με το stereo mix. Το Audacity 3 προσέφερε αυτή τη λειτουργία ως Mix and Render to New Track· το Audacity 4 δεν διαθέτει καμία από αυτές τις εντολές.
+Η μίξη των κομματιών συνήθως αντικαθιστά τα αρχικά κομμάτια, κάτι που είναι αποδεκτό για ένα ολοκληρωμένο υπόστρωμα, αλλά όχι όταν ενδέχεται να θέλετε ακόμα να προσαρμόσετε τα μέρη. Η απενεργοποίηση της επιλογής **Αντικατάσταση πρωτοτύπων** στον διάλογο **Μίξη και απόδοση** αποδίδει τη μίξη — συμπεριλαμβανομένων των κερδών, της πανοραμικής θέσης και των εφέ σε πραγματικό χρόνο — σε ένα νέο κομμάτι και αφήνει κάθε αρχικό κομμάτι στη θέση του, ώστε να μπορείτε να συγκρίνετε, να συνεχίσετε την επεξεργασία ή να σιγάσετε τις πηγές και να προχωρήσετε με τη στερεοφωνική μίξη. Το Audacity 3 προσέφερε αυτή τη λειτουργία ως Μίξη και απόδοση σε νέο κομμάτι· το Audacity 4 δεν διαθέτει καμία από αυτές τις εντολές.
 
 :::note[Ερχόσαστε από το Audacity;]
-Αυτό είναι το **Tracks → Mix → Mix and Render to New Track (Audacity 3· το Audacity 4 δεν έχει Mix and Render)** του Audacity. Οι ονόματα παρακάτω είναι του Soundscaper, τα οποία μερικές φορές διαφέρουν.
+Αυτό είναι το **Κομμάτια → Μίξη → Μίξη και απόδοση σε νέο κομμάτι (Audacity 3· το Audacity 4 δεν έχει Μίξη και απόδοση)** του Audacity. Τα ονόματα παρακάτω είναι του Soundscaper και μερικές φορές διαφέρουν.
 :::
 
 ## Βήματα
 
 1. Ανοίξτε το Soundscaper. Ένα νέο, κενό έργο είναι έτοιμο μόλις φορτώσει ο επεξεργαστής.
-2. Επιλέξτε **File → Import audio** και επιλέξτε το πρώτο κομμάτι για το mix. Το αρχείο τοποθετείται ως κλιπ σε ένα δικό του κομμάτι.
-3. Επιλέξτε **File → Import audio** και επιλέξτε το δεύτερο κομμάτι για το mix. Το αρχείο τοποθετείται ως κλιπ σε ένα δικό του κομμάτι.
-4. Κάντε κλικ στη μπάρα ονόματος του πρώτου κλιπ, στη συνέχεια κρατήστε πατημένο το Shift και κάντε κλικ στη μπάρα ονόματος του δεύτερου κλιπ, ώστε και τα δύο να είναι επιλεγμένα. Κάθε κομμάτι με επιλεγμένο κλιπ συμπεριλαμβάνεται στο mix.
-5. Επιλέξτε **Tracks → Mix & Render**. Στον διάλογο **Mix & Render**, αφήστε επιλεγμένα τα **Mix down** και **Render effects**, απενεργοποιήστε το **Replace originals**, επιλέξτε **Stereo** για το **Mix down to** και στη συνέχεια πατήστε **Mix & Render**.
-6. Ένα νέο κομμάτι κάτω από τα αρχικά περιέχει ένα κλιπ με όνομα **Mix**, και τα αρχικά κλιπ παραμένουν στη θέση τους.
-   *Πρέπει να βλέπετε:* Τρία κλιπ: τα δύο με τα οποία ξεκινήσατε και το mix.
+2. Επιλέξτε **Αρχείο → Εισαγωγή ήχου** και επιλέξτε το πρώτο κομμάτι για τη μίξη. Το αρχείο εμφανίζεται ως κλιπ σε δικό του κομμάτι.
+3. Επιλέξτε **Αρχείο → Εισαγωγή ήχου** και επιλέξτε το δεύτερο κομμάτι για τη μίξη. Το αρχείο εμφανίζεται ως κλιπ σε δικό του κομμάτι.
+4. Κάντε κλικ στη γραμμή ονόματος του πρώτου κλιπ, στη συνέχεια κρατήστε πατημένο το Shift και κάντε κλικ στη γραμμή ονόματος του δεύτερου κλιπ, ώστε και τα δύο να είναι επιλεγμένα. Κάθε κομμάτι με επιλεγμένο κλιπ συμπεριλαμβάνεται στη μίξη.
+5. Επιλέξτε **Κομμάτια → Μίξη και απόδοση**. Στον διάλογο **Μίξη και απόδοση**, αφήστε επιλεγμένα τα **Μίξη προς τα κάτω** και **Απόδοση εφέ**, απενεργοποιήστε το **Αντικατάσταση πρωτοτύπων**, επιλέξτε **Στερεοφωνικό** για το **Μίξη προς** και, στη συνέχεια, πατήστε **Μίξη και απόδοση**.
+6. Ένα νέο κομμάτι κάτω από τα αρχικά περιέχει ένα κλιπ με όνομα **Μίξη**, και τα αρχικά κλιπ παραμένουν στη θέση τους.
+   *Πρέπει να βλέπετε:* Τρία κλιπ: τα δύο με τα οποία ξεκινήσατε και τη μίξη.
 
 ## Συμβουλές
 
 - Σιγάστε τα κομμάτια-πηγή για να ακούσετε το mix μόνο του· αλλιώς και τα δύο παίζουν.
-- Για να αντικαταστήσετε τις πηγές με το mix αντί για αυτό, αφήστε το **Replace originals** ενεργοποιημένο: [Mix several tracks into one](/guides/tracks-and-export/mix-tracks-into-one/).
+- Για να αντικαταστήσετε τις πηγές με τη μίξη, αφήστε ενεργό το **Αντικατάσταση πρωτοτύπων**: [Μίξη πολλών κομματιών σε ένα](/guides/tracks-and-export/mix-tracks-into-one/).
 
 ## Σχετικές οδηγίες
 
-Περισσότερες [tracks and export](/guides/tracks-and-export/) οδηγίες:
+Περισσότεροι οδηγοί [κομματιών και εξαγωγής](/guides/tracks-and-export/):
 
-- [Mix several tracks into one](/guides/tracks-and-export/mix-tracks-into-one/) — Αποδίδει τα επιλεγμένα κομμάτια σε ένα μόνο κομμάτι.
-- [Split a stereo track into two mono tracks](/guides/tracks-and-export/split-stereo-into-mono-tracks/) — Διαχωρίζει τα κανάλια αριστερά και δεξιά ώστε το καθένα να μπορεί να επεξεργαστείται ξεχωριστά.
-- [Generate a test tone](/guides/tracks-and-export/generate-a-test-tone/) — Δημιουργεί ένα ημιτονοειδές κύμα με καθορισμένη συχνότητα και διάρκεια από το μηδέν.
-- [Export an MP3](/guides/tracks-and-export/export-an-mp3/) — Αποδίδει το έργο σε αρχείο MP3 για κοινή χρήση ή δημοσίευση.
-- [Export a WAV](/guides/tracks-and-export/export-a-wav/) — Αποδίδει το έργο σε μη συμπιεσμένο αρχείο WAV.
-- [Mute and solo tracks](/guides/tracks-and-export/mute-and-solo-tracks/) — Σιγάστε ένα κομμάτι ή ακούστε ένα κομμάτι μόνο του, ενώ εργάζεστε σε ένα mix.
-- [Add an empty track](/guides/tracks-and-export/add-an-empty-track/) — Δημιουργήστε ένα νέο κομμάτι για εγγραφή ή για επικόλληση.
-- [Mute every track at once](/guides/tracks-and-export/mute-every-track-at-once/) — Σιγάστε ολόκληρο το έργο σε ένα βήμα και στη συνέχεια επαναφέρετε όλα.
-- [Balance tracks in the mixer](/guides/tracks-and-export/balance-tracks-in-the-mixer/) — Ανοίξτε ένα κονσόλα μίξης με μια λωρίδα καναλιού ανά κομμάτι για να ρυθμίσετε τα επίπεδα και τα panning παράλληλα.
+- [Μίξη πολλών κομματιών σε ένα](/guides/tracks-and-export/mix-tracks-into-one/) — Αποδίδει τα επιλεγμένα κομμάτια σε ένα μόνο κομμάτι.
+- [Διαίρεση στερεοφωνικού κομματιού σε δύο μονοφωνικά](/guides/tracks-and-export/split-stereo-into-mono-tracks/) — Διαχωρίζει τα αριστερά και δεξιά κανάλια ώστε το καθένα να μπορεί να επεξεργαστεί ξεχωριστά.
+- [Δημιουργία δοκιμαστικού τόνου](/guides/tracks-and-export/generate-a-test-tone/) — Δημιουργεί ένα ημιτονοειδές κύμα με καθορισμένη συχνότητα και διάρκεια από το μηδέν.
+- [Εξαγωγή MP3](/guides/tracks-and-export/export-an-mp3/) — Αποδίδει το έργο σε αρχείο MP3 για κοινή χρήση ή δημοσίευση.
+- [Εξαγωγή WAV](/guides/tracks-and-export/export-a-wav/) — Αποδίδει το έργο σε μη συμπιεσμένο αρχείο WAV.
+- [Σίγαση και σόλο κομματιών](/guides/tracks-and-export/mute-and-solo-tracks/) — Σιγήστε ένα κομμάτι ή ακούστε ένα κομμάτι μόνο του, ενώ εργάζεστε σε μια μίξη.
+- [Προσθήκη κενού κομματιού](/guides/tracks-and-export/add-an-empty-track/) — Δημιουργήστε ένα νέο κομμάτι για εγγραφή ή επικόλληση.
+- [Σίγαση όλων των κομματιών ταυτόχρονα](/guides/tracks-and-export/mute-every-track-at-once/) — Σιγήστε ολόκληρο το έργο σε ένα βήμα και στη συνέχεια επαναφέρετε τα πάντα.
+- [Ισορρόπηση κομματιών στον μίκτη](/guides/tracks-and-export/balance-tracks-in-the-mixer/) — Ανοίξτε μια κονσόλα μίξης με μια λωρίδα καναλιού ανά κομμάτι για να ρυθμίσετε τα επίπεδα και την πανοραμική θέση παράλληλα.
 
 ## Σχετικά με αυτήν την οδηγία
 

@@ -3,49 +3,51 @@ title: "Εξαγωγή κάθε κεφαλαίου ως ξεχωριστό αρ�
 description: "Διαχωρίστε μια μακρά ηχογράφηση σε αρχεία στα σημεία που έχετε τοποθετήσει."
 editUrl: false
 sidebar:
-  order: 6
+  order: 7
 head:
   - tag: script
     attrs:
       type: "application/ld+json"
-    content: "{\"@context\":\"https://schema.org\",\"@type\":\"HowTo\",\"name\":\"Export each chapter as its own file\",\"description\":\"Split one long recording into files at the markers you have placed.\",\"tool\":[{\"@type\":\"HowToTool\",\"name\":\"Soundscaper\"}],\"step\":[{\"@type\":\"HowToStep\",\"position\":1,\"name\":\"Open Soundscaper. A new, empty project is ready as soon as the editor loads.\",\"text\":\"Open Soundscaper. A new, empty project is ready as soon as the editor loads.\"},{\"@type\":\"HowToStep\",\"position\":2,\"name\":\"Choose File → Import audio and pick the recording to split. The file lands as a clip on its own track.\",\"text\":\"Choose File → Import audio and pick the recording to split. The file lands as a clip on its own track.\"},{\"@type\":\"HowToStep\",\"position\":3,\"name\":\"Choose View → Show markers.\",\"text\":\"Choose View → Show markers. The marker lane is where the chapter starts are shown and named.\"},{\"@type\":\"HowToStep\",\"position\":4,\"name\":\"Press the Jump to project start button in the toolbar.\",\"text\":\"Press the Jump to project start button in the toolbar. The first chapter should begin at the very start, so the first marker goes at zero.\"},{\"@type\":\"HowToStep\",\"position\":5,\"name\":\"With the Markers panel open (View → Panels → Markers shows it), press Add marker at playhead. Press Enter on the new marker, type Part one and press Enter again to name it.\",\"text\":\"With the Markers panel open (View → Panels → Markers shows it), press Add marker at playhead. Press Enter on the new marker, type Part one and press Enter again to name it.\"},{\"@type\":\"HowToStep\",\"position\":6,\"name\":\"Click the waveform where the second part begins to put the cursor there.\",\"text\":\"Click the waveform where the second part begins to put the cursor there.\"},{\"@type\":\"HowToStep\",\"position\":7,\"name\":\"With the Markers panel open (View → Panels → Markers shows it), press Add marker at playhead. Press Enter on the new marker, type Part two and press Enter again to name it.\",\"text\":\"With the Markers panel open (View → Panels → Markers shows it), press Add marker at playhead. Press Enter on the new marker, type Part two and press Enter again to name it.\"},{\"@type\":\"HowToStep\",\"position\":8,\"name\":\"Choose File → Export audio, set Format to MP3, set Output to Chapters (split by markers), and press Export. The file downloads as soon as the render finishes, and its link stays in the dialog.\",\"text\":\"Choose File → Export audio, set Format to MP3, set Output to Chapters (split by markers), and press Export. The file downloads as soon as the render finishes, and its link stays in the dialog. Each chapter becomes an MP3 inside the archive, numbered in order and named after its marker.\"}]}"
+    content: "{\"@context\":\"https://schema.org\",\"@type\":\"HowTo\",\"name\":\"Export each chapter as its own file\",\"description\":\"Split one long recording into files at the markers you have placed.\",\"tool\":[{\"@type\":\"HowToTool\",\"name\":\"Soundscaper\"}],\"step\":[{\"@type\":\"HowToStep\",\"position\":1,\"name\":\"Open Soundscaper. A new, empty project is ready as soon as the editor loads.\",\"text\":\"Open Soundscaper. A new, empty project is ready as soon as the editor loads.\"},{\"@type\":\"HowToStep\",\"position\":2,\"name\":\"Choose File → Import and pick the recording to split. It lands as a clip on its own track.\",\"text\":\"Choose File → Import and pick the recording to split. It lands as a clip on its own track.\"},{\"@type\":\"HowToStep\",\"position\":3,\"name\":\"Choose View → Panels → Project bin.\",\"text\":\"Choose View → Panels → Project bin. The recording is on the timeline now, so hiding the bin leaves room for the Markers panel.\"},{\"@type\":\"HowToStep\",\"position\":4,\"name\":\"Choose View → Show markers.\",\"text\":\"Choose View → Show markers. The marker lane is where the chapter starts are shown and named.\"},{\"@type\":\"HowToStep\",\"position\":5,\"name\":\"Press the Jump to project start button in the toolbar.\",\"text\":\"Press the Jump to project start button in the toolbar. The first chapter should begin at the very start, so the first marker goes at zero.\"},{\"@type\":\"HowToStep\",\"position\":6,\"name\":\"With the Markers panel open (View → Panels → Markers shows it), press Add marker at playhead. Press Enter on the new marker, type Part one and press Enter again to name it.\",\"text\":\"With the Markers panel open (View → Panels → Markers shows it), press Add marker at playhead. Press Enter on the new marker, type Part one and press Enter again to name it.\"},{\"@type\":\"HowToStep\",\"position\":7,\"name\":\"Click the waveform where the second part begins to put the cursor there.\",\"text\":\"Click the waveform where the second part begins to put the cursor there.\"},{\"@type\":\"HowToStep\",\"position\":8,\"name\":\"With the Markers panel open (View → Panels → Markers shows it), press Add marker at playhead. Press Enter on the new marker, type Part two and press Enter again to name it.\",\"text\":\"With the Markers panel open (View → Panels → Markers shows it), press Add marker at playhead. Press Enter on the new marker, type Part two and press Enter again to name it.\"},{\"@type\":\"HowToStep\",\"position\":9,\"name\":\"Choose File → Export audio, set Format to MP3, set Output to Chapters (split by markers), and press Export. The file downloads as soon as the render finishes, and its link stays in the dialog.\",\"text\":\"Choose File → Export audio, set Format to MP3, set Output to Chapters (split by markers), and press Export. The file downloads as soon as the render finishes, and its link stays in the dialog. Each chapter becomes an MP3 inside the archive, numbered in order and named after its marker.\"}]}"
 ---
-<!-- docs-ai-provenance: {"factPacketSha256":"bff231ce5a412139b723774100bc4b0793f5c5b088e471b0f45443684628992e","model":"qwen3.8:latest","modelDigest":"22130167c4c20e20c7b71454612966ca8e8171e9b3cc8ab6ce8aa6cbfec79643","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"bff231ce5a412139b723774100bc4b0793f5c5b088e471b0f45443684628992e","targetLocale":"el"} -->
+<!-- docs-ai-provenance: {"model":"gpt-5.6-luna","modelDigest":"manual","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"6847a5eab8eac5d2e111bd343f3b7b0a11921a9dc2596b560a30acea573c072a","targetLocale":"el"} -->
 
 <!-- Generated by `node scripts/docs-reference.mjs`. Do not edit. -->
 
-Ένα μάθημα που πρέπει να γίνει ένα αρχείο ανά θέμα, μια πλευρά άλμπουμ που χρειάζεται κοπή σε κομμάτια, ένα audiobook με κεφάλαιο ανά αρχείο: τοποθετήστε έναν δείκτη στην αρχή κάθε μέρους και κάντε εξαγωγή μία φορά. Κάθε δείκτης ανοίγει ένα κεφάλαιο που εκτείνεται μέχρι τον επόμενο, και κάθε κεφάλαιο γράφεται ως το δικό του αρχείο, με ονομασία βάσει του δείκτη, μέσα σε ένα ενιαίο αρχείο. Το Audacity 3 το έκανε αυτό με το Export Multiple; το Audacity 4 δεν το έχει επαναφέρει.
+Ένα μάθημα χωρισμένο σε αρχεία ανά ενότητα, μια πλευρά άλμπουμ που πρέπει να χωριστεί σε κομμάτια ή ένα ηχητικό βιβλίο με ξεχωριστό αρχείο ανά κεφάλαιο: τοποθετήστε έναν δείκτη στην αρχή κάθε μέρους και κάντε μία εξαγωγή. Κάθε δείκτης ορίζει ένα κεφάλαιο μέχρι τον επόμενο. Τα κεφάλαια αποθηκεύονται ως ξεχωριστά αρχεία, με ονόματα από τους δείκτες, μέσα σε ένα ενιαίο αρχείο ZIP. Το Audacity 3 το έκανε με την επιλογή Export Multiple· το Audacity 4 δεν την έχει επαναφέρει.
 
 :::note[Ερχόσαστε από το Audacity;]
-Αυτό είναι το **File → Export Audio → Export Multiple, split by labels (Audacity 3; το Audacity 4 δεν έχει Export Multiple)** του Audacity. Τα ονόματα παρακάτω είναι δικά του Soundscaper, τα οποία μερικές φορές διαφέρουν.
+Αυτή είναι η επιλογή **Αρχείο → Εξαγωγή ήχου → Πολλαπλή εξαγωγή, διαχωρισμός με ετικέτες** του Audacity 3· το Audacity 4 δεν διαθέτει την επιλογή «Πολλαπλή εξαγωγή». Οι ονομασίες παρακάτω είναι του Soundscaper και μερικές φορές διαφέρουν.
 :::
 
 ## Βήματα
 
 1. Ανοίξτε το Soundscaper. Ένα νέο, κενό έργο είναι έτοιμο μόλις φορτωθεί ο επεξεργαστής.
-2. Επιλέξτε **File → Import audio** και επιλέξτε την ηχογράφηση που θα κοπεί. Το αρχείο τοποθετείται ως κλιπ σε δικό του τροχό.
-3. Επιλέξτε **View → Show markers**. Η λωρίδα δεικτών είναι όπου εμφανίζονται και ονομάζονται οι αρχές των κεφαλαίων.
-4. Πατήστε το κουμπί **Jump to project start** στη γραμμή εργαλείων. Το πρώτο κεφάλαιο πρέπει να ξεκινά στην πολύ αρχή, οπότε ο πρώτος δείκτης τοποθετείται στο μηδέν.
-5. Με το πάνελ Markers ανοιχτό (εμφανίζεται με **View → Panels → Markers**), πατήστε **Add marker at playhead**. Πατήστε Enter στον νέο δείκτη, πληκτρολογήστε `Part one` και πατήστε ξανά Enter για να τον ονομάσετε.
-6. Κάντε κλικ στο κύμα όπου ξεκινά το δεύτερο μέρος για να τοποθετήσετε τον δείκτη εκεί.
-7. Με το πάνελ Markers ανοιχτό (εμφανίζεται με **View → Panels → Markers**), πατήστε **Add marker at playhead**. Πατήστε Enter στον νέο δείκτη, πληκτρολογήστε `Part two` και πατήστε ξανά Enter για να τον ονομάσετε.
-8. Επιλέξτε **File → Export audio**, ορίστε το **Format** σε **MP3**, ορίστε το **Output** σε **Chapters (split by markers)** και πατήστε **Export**. Το αρχείο κατεβαίνει μόλις ολοκληρωθεί η απόδοση, και ο σύνδεσμός του παραμένει στο παράθυρο διαλόγου. Κάθε κεφάλαιο γίνεται MP3 μέσα στο αρχείο, αριθμημένο με τη σειρά και με ονομασία βάσει του δείκτη του.
+2. Επιλέξτε **Αρχείο → Εισαγωγή** και διαλέξτε την ηχογράφηση που θέλετε να χωρίσετε. Προστίθεται ως κλιπ σε δικό της κομμάτι.
+3. Επιλέξτε **Προβολή → Πάνελ → Κάδος έργου**. Η ηχογράφηση βρίσκεται πλέον στη χρονογραμμή· μπορείτε να κρύψετε τον κάδο για να ελευθερώσετε χώρο για το πάνελ «Δείκτες».
+4. Επιλέξτε **Προβολή → Εμφάνιση δεικτών**. Οι δείκτες εμφανίζονται σε λωρίδα όπου μπορείτε να ορίσετε και να ονομάσετε την αρχή κάθε κεφαλαίου.
+5. Πατήστε το κουμπί **Μετάβαση στην αρχή του έργου** στη γραμμή εργαλείων. Το πρώτο κεφάλαιο ξεκινά στην αρχή, επομένως τοποθετήστε τον πρώτο δείκτη στο μηδέν.
+6. Με ανοιχτό το πάνελ «Δείκτες» (**Προβολή → Πάνελ → Δείκτες**), πατήστε **Προσθήκη δείκτη στη γραμμή αναπαραγωγής**. Πατήστε Enter για να επεξεργαστείτε τον νέο δείκτη, πληκτρολογήστε `Part one` και πατήστε ξανά Enter για να τον ονομάσετε.
+7. Κάντε κλικ στο κύμα όπου ξεκινά το δεύτερο μέρος για να τοποθετήσετε τον δείκτη εκεί.
+8. Με ανοιχτό το πάνελ «Δείκτες», πατήστε **Προσθήκη δείκτη στη γραμμή αναπαραγωγής**. Πατήστε Enter, πληκτρολογήστε `Part two` και πατήστε ξανά Enter για να ονομάσετε τον δείκτη.
+9. Επιλέξτε **Αρχείο → Εξαγωγή ήχου**, ορίστε τη **Μορφή** σε **MP3**, επιλέξτε **Κεφάλαια (διαχωρισμός με δείκτες)** στην **Έξοδο** και πατήστε **Εξαγωγή**. Όταν ολοκληρωθεί η απόδοση, το αρχείο ZIP κατεβαίνει και ο σύνδεσμός του παραμένει στο παράθυρο διαλόγου. Κάθε κεφάλαιο αποθηκεύεται ως MP3, αριθμημένο στη σειρά και ονομασμένο από τον δείκτη του.
 
 ## Συμβουλές
 
 - Μια ονομασμένη περιοχή εξάγει ακριβώς το δικό της εύρος, οπότε χρησιμοποιήστε περιοχές αντί για δείκτες όταν τα μέρη έχουν κενά μεταξύ τους.
-- Οι ετικέτες σε έναν τροχό ετικετών κόβονται με τον ίδιο τρόπο: επιλέξτε **Chapters (split by labels)** για να κόψετε βάσει αυτών αντί για τους δείκτες.
-- Για να κόψετε βάσει τροχών αντί για δεικτών, δείτε [Export each track as its own file](/guides/projects/export-each-track-as-its-own-file/).
+- Οι ετικέτες σε κομμάτι ετικετών λειτουργούν με τον ίδιο τρόπο: επιλέξτε **Κεφάλαια (διαχωρισμός με ετικέτες)** αντί για διαχωρισμό με δείκτες.
+- Για εξαγωγή με βάση τα κομμάτια αντί για τους δείκτες, δείτε [Εξαγωγή κάθε κομματιού ως ξεχωριστού αρχείου](/guides/projects/export-each-track-as-its-own-file/).
 
 ## Σχετικοί οδηγοί
 
-Περισσότεροι οδηγοί για [projects and files](/guides/projects/):
+Περισσότεροι οδηγοί για [έργα και αρχεία](/guides/projects/):
 
-- [Export each track as its own file](/guides/projects/export-each-track-as-its-own-file/) — Απόδοση των τροχών ξεχωριστά, ως stems, σε μία λήψη.
-- [Save your project](/guides/projects/save-your-project/) — Διατήρηση του έργου, με κάθε τροχό και επεξεργασία, στη τοπική βιβλιοθήκη έργων.
-- [Move a project between computers](/guides/projects/move-a-project-between-computers/) — Εξαγωγή του ολόκληρου έργου ως ένα αρχείο, και στη συνέχεια άνοιγμα αυτού του αρχείου αλλού.
-- [Open an Audacity project](/guides/projects/open-an-audacity-project/) — Εισαγωγή ενός υπάρχοντος έργου .aup3 ή .aup4 στο Soundscaper με τους τροχούς του αλώβιστους.
-- [Change a clip’s sample rate](/guides/projects/change-a-clips-sample-rate/) — Επαναδειγματοληψία ενός κλιπ ώστε να ταιριάζει στον ρυθμό που χρησιμοποιεί το υπόλοιπο έργο.
+- [Εξαγωγή κάθε κομματιού ως ξεχωριστού αρχείου](/guides/projects/export-each-track-as-its-own-file/) — Εξαγωγή κάθε κομματιού ξεχωριστά ως stem σε αρχείο ZIP.
+- [Εύρεση και προσθήκη ήχου από το Freesound](/guides/projects/find-and-add-a-freesound-sound/) — Αναζητήστε στο Freesound από τον επεξεργαστή και προσθέστε έναν ήχο στη χρονογραμμή του έργου.
+- [Αποθήκευση του έργου σας](/guides/projects/save-your-project/) — Διατηρήστε το έργο, τα κομμάτια και τις επεξεργασίες του στην τοπική βιβλιοθήκη έργων.
+- [Μεταφορά έργου μεταξύ υπολογιστών](/guides/projects/move-a-project-between-computers/) — Εξαγάγετε ολόκληρο το έργο σε ένα αρχείο και ανοίξτε το σε άλλον υπολογιστή.
+- [Άνοιγμα έργου Audacity](/guides/projects/open-an-audacity-project/) — Εισαγάγετε στο Soundscaper ένα υπάρχον έργο .aup3 ή .aup4 με τα κομμάτια του ανέπαφα.
+- [Αλλαγή συχνότητας δειγματοληψίας κλιπ](/guides/projects/change-a-clips-sample-rate/) — Αναδειγματοληπτήστε ένα κλιπ ώστε να ταιριάζει στη συχνότητα που χρησιμοποιεί το υπόλοιπο έργο.
 
 ## Αναφορά
 
