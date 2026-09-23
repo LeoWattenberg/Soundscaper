@@ -4,7 +4,7 @@ description: "Comparați Soundscaper cu Audacity 4 și Adobe Audition în ceea c
 sidebar:
   order: 3
 ---
-<!-- docs-ai-provenance: {"factPacketSha256":"703e76cffbe1464f1283f6c8f45cee52c0d37faae852b7efc163879710a2ddb2","model":"qwen3.8:latest","modelDigest":"22130167c4c20e20c7b71454612966ca8e8171e9b3cc8ab6ce8aa6cbfec79643","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"703e76cffbe1464f1283f6c8f45cee52c0d37faae852b7efc163879710a2ddb2","targetLocale":"ro"} -->
+<!-- docs-ai-provenance: {"basedOnProvenance":{"model":"qwen3.8:latest","modelDigest":"22130167c4c20e20c7b71454612966ca8e8171e9b3cc8ab6ce8aa6cbfec79643"},"factPacketSha256":"71097403d87aba03cddc2ccd696ff9a8663268afba3a7bf750fe8d9913de3eba","model":"gpt-6-luna","modelProvider":"codex-subagent","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"71097403d87aba03cddc2ccd696ff9a8663268afba3a7bf750fe8d9913de3eba","targetLocale":"ro"} -->
 
 Soundscaper reimplementează Audacity 4 pe web și adaugă un strat de producție deasupra acestuia. Adobe Audition este instrumentul comercial de post-producție față de care ambele sunt de obicei evaluate. Această pagină compară toate cele trei, astfel încât să puteți determina care dintre ele realizează deja deja sarcina pe care o aveți.
 
@@ -103,7 +103,7 @@ Rândurile descriu capacități, nu comenzi de meniu. Pentru inventarul exact al
 | EQ parametric | Da — un nou EQ parametric cu benzi automatizabile | Parțial — Filter Curve și Graphic EQ | Da — filtre parametrice, grafice și FFT |
 | Preseturi de efecte | Da — aplicare, salvare, import, export | Da — aplicare, salvare, import, export | Da |
 | Macro-uri și lanțuri în lot | Da — bibliotecă de macro-uri salvate cu șabloane | Nu — versiunea fixată comentează meniul Macros | Da — Favorites și Batch Process |
-| Formate de module terțe | Parțial — VST3, CLAP, AU și LV2 pe desktop, cu consimțământ și izolare, niciunul în browser | Da — VST3, AU, LV2 și Nyquist, cu un manager de module | Parțial — VST3 și AU pe macOS, fără CLAP sau LV2 |
+| Formate de module terțe | Parțial — VST3, CLAP, AU și LV2, precum și efecte Linux LADSPA și analizatoare Vamp pe desktop, cu consimțământ și izolare; niciunul în browser | Da — VST3, AU, LV2 și Nyquist, cu un manager de module | Parțial — VST3 și AU pe macOS, fără CLAP sau LV2 |
 | Scriptare Nyquist | Da — module incluse și promptul Nyquist | Da — module incluse și promptul Nyquist | Nu |
 | Pachete de efecte izolate | Parțial — pachete WebAssembly verificate, unul este livrat, iar cele externe sunt izolate | Nu | Nu |
 | Instrumente virtuale | Nu — după 1.0 | Nu | Nu |

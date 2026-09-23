@@ -1,0 +1,68 @@
+---
+title: "Curăță o înregistrare vocală"
+description: "Elimină bâzâitul, taie huruitul, adu înregistrarea la nivelul unui podcast și exportă un MP3."
+editUrl: false
+sidebar:
+  order: 2
+head:
+  - tag: script
+    attrs:
+      type: "application/ld+json"
+    content: "{\"@context\":\"https://schema.org\",\"@type\":\"HowTo\",\"name\":\"Clean up a voice recording\",\"description\":\"Take the hum out of a take, cut the rumble, bring it to podcast loudness and export an MP3.\",\"tool\":[{\"@type\":\"HowToTool\",\"name\":\"Soundscaper\"}],\"step\":[{\"@type\":\"HowToStep\",\"position\":1,\"name\":\"Open Soundscaper. A new, empty project is ready as soon as the editor loads.\",\"text\":\"Open Soundscaper. A new, empty project is ready as soon as the editor loads.\"},{\"@type\":\"HowToStep\",\"position\":2,\"name\":\"Choose File → Import and pick guide-noisy-take.wav — a short take whose first half second is room noise before the voice starts. It lands as a clip on its own track.\",\"text\":\"Choose File → Import and pick guide-noisy-take.wav — a short take whose first half second is room noise before the voice starts. It lands as a clip on its own track.\"},{\"@type\":\"HowToStep\",\"position\":3,\"name\":\"Press Play to listen, then Stop.\",\"text\":\"Press Play to listen, then Stop. Half a second of hiss, then a steady tone standing in for a voice, with the hiss underneath it.\"},{\"@type\":\"HowToStep\",\"position\":4,\"name\":\"Drag in the ruler above the clip, from the start to the 15% mark, to select the noise-only lead-in.\",\"text\":\"Drag in the ruler above the clip, from the start to the 15% mark, to select the noise-only lead-in. The profile must contain nothing but the noise you want gone — no voice at all.\"},{\"@type\":\"HowToStep\",\"position\":5,\"name\":\"Choose Effect → Noise removal and repair → Noise Reduction and press Get noise profile. The status line reports that the profile is ready. Press Close to leave the dialog for now.\",\"text\":\"Choose Effect → Noise removal and repair → Noise Reduction and press Get noise profile. The status line reports that the profile is ready. Press Close to leave the dialog for now.\"},{\"@type\":\"HowToStep\",\"position\":6,\"name\":\"Choose Select → Select all.\",\"text\":\"Choose Select → Select all. The profile is kept; now the effect needs to know what to clean.\"},{\"@type\":\"HowToStep\",\"position\":7,\"name\":\"Choose Effect → Noise removal and repair → Noise Reduction. In the Noise Reduction dialog, set Noise reduction to 12, then press Apply to selection.\",\"text\":\"Choose Effect → Noise removal and repair → Noise Reduction. In the Noise Reduction dialog, set Noise reduction to 12, then press Apply to selection. Twelve decibels is a good first setting. More removes more noise but makes voices sound hollow. The lead-in is nearly flat and the tone is untouched.\"},{\"@type\":\"HowToStep\",\"position\":8,\"name\":\"Choose Effect → Legacy effects → Classic Filters. In the Classic Filters dialog, choose High-pass for Filter type and set Cutoff frequency to 100, then press Apply to selection.\",\"text\":\"Choose Effect → Legacy effects → Classic Filters. In the Classic Filters dialog, choose High-pass for Filter type and set Cutoff frequency to 100, then press Apply to selection. Everything below 100 Hz — traffic, handling, air conditioning — is rolled off. Speech lives well above it.\"},{\"@type\":\"HowToStep\",\"position\":9,\"name\":\"Choose Effect → Volume and compression → Loudness Normalization. In the Loudness Normalization dialog, set Target loudness to -16, then press Apply to selection.\",\"text\":\"Choose Effect → Volume and compression → Loudness Normalization. In the Loudness Normalization dialog, set Target loudness to -16, then press Apply to selection. −16 LUFS is the common target for stereo podcasts. Loudness measures how loud the whole take feels, not how tall its peaks are. The waveform is taller and the take plays at a comfortable level.\"},{\"@type\":\"HowToStep\",\"position\":10,\"name\":\"Press Play to listen, then Stop.\",\"text\":\"Press Play to listen, then Stop. A clean, level take with a quiet lead-in.\"},{\"@type\":\"HowToStep\",\"position\":11,\"name\":\"Choose File → Export audio, set Format to MP3, and press Export. The file downloads as soon as the render finishes, and its link stays in the dialog.\",\"text\":\"Choose File → Export audio, set Format to MP3, and press Export. The file downloads as soon as the render finishes, and its link stays in the dialog. The file is encoded in the browser; nothing leaves your computer.\"}]}"
+---
+<!-- docs-ai-provenance: {"factPacketSha256":"96727487ae82c7f76b646047856630f73eb756ee7832615587e24e1e6db0b0ee","model":"gpt-6-luna","modelProvider":"codex-subagent","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"96727487ae82c7f76b646047856630f73eb756ee7832615587e24e1e6db0b0ee","targetLocale":"ro"} -->
+
+<!-- Generated by `node scripts/docs-reference.mjs`. Do not edit. -->
+
+Majoritatea înregistrărilor făcute acasă au nevoie de aceleași trei reparații: eliminarea unui zgomot de fundal constant, filtrarea huruitului de joasă frecvență și ridicarea nivelului la un standard. Acest tutorial le aplică pe toate trei unei înregistrări demonstrative de trei secunde, al cărei primă jumătate de secundă conține doar zgomotul camerei, apoi exportă rezultatul ca MP3.
+
+:::tip[De ce ai nevoie]
+- Descarcă [`guide-noisy-take.wav`](https://assets.soundscaper.org/guides/examples/guide-noisy-take.wav) — o înregistrare scurtă, cu zgomot de cameră în prima jumătate de secundă înainte să înceapă vocea.
+
+Fiecare pas de mai jos folosește aceste fișiere exact așa cum sunt, astfel încât ceea ce vezi ar trebui să corespundă tutorialului. Soundscaper rulează în browser; nu este nevoie să instalezi nimic.
+:::
+
+## Ce vei învăța
+
+- De ce Noise Reduction are nevoie de un profil și cum îl obții.
+- Ce elimină un filtru trece-sus și unde să-l setezi pentru vorbire.
+- Diferența dintre nivelul de vârf și intensitatea percepută, precum și atingerea unei ținte de intensitate.
+- Cum să exporți un MP3.
+
+## Pași
+
+1. Deschide Soundscaper. Un proiect nou și gol este pregătit imediat ce se încarcă editorul.
+2. Alege **File → Import** și selectează `guide-noisy-take.wav` — o înregistrare scurtă, cu zgomot de cameră în prima jumătate de secundă înainte să înceapă vocea. Aceasta apare ca un clip pe propria pistă.
+3. Apasă **Play** pentru a asculta, apoi **Stop**.
+   *Ar trebui să auzi:* O jumătate de secundă de fâșâit, apoi un ton constant care ține locul vocii, cu fâșâitul pe fundal.
+4. Trage în rigla de deasupra clipului de la început până la marcajul de 15% pentru a selecta introducerea care conține numai zgomot. Profilul nu trebuie să conțină nimic în afară de zgomotul pe care vrei să-l elimini — fără voce.
+5. Alege **Effect → Noise removal and repair → Noise Reduction** și apasă **Get noise profile**. Linia de stare confirmă că profilul este gata. Apasă **Close** pentru a închide dialogul deocamdată.
+6. Alege **Select → Select all**. Profilul este păstrat; acum efectul trebuie să știe ce să curețe.
+7. Alege **Effect → Noise removal and repair → Noise Reduction**. În dialogul **Noise Reduction**, setează **Noise reduction** la `12`, apoi apasă **Apply to selection**. Doisprezece decibeli reprezintă un prim reglaj potrivit. O valoare mai mare elimină mai mult zgomot, dar face vocile să sune înfundat.
+   *Ar trebui să vezi:* Introducerea este aproape plată, iar tonul nu este afectat.
+8. Alege **Effect → Legacy effects → Classic Filters**. În dialogul **Classic Filters**, selectează **High-pass** la **Filter type** și setează **Cutoff frequency** la `100`, apoi apasă **Apply to selection**. Tot ce se află sub 100 Hz — trafic, manipulare, aer condiționat — este atenuat. Vocea se află mult deasupra acestei frecvențe.
+9. Alege **Effect → Volume and compression → Loudness Normalization**. În dialogul **Loudness Normalization**, setează **Target loudness** la `-16`, apoi apasă **Apply to selection**. −16 LUFS este ținta obișnuită pentru podcasturi stereo. Intensitatea percepută măsoară cât de tare pare întreaga înregistrare, nu înălțimea vârfurilor sale.
+   *Ar trebui să vezi:* Forma de undă este mai înaltă, iar înregistrarea se aude la un nivel confortabil.
+10. Apasă **Play** pentru a asculta, apoi **Stop**.
+   *Ar trebui să auzi:* O înregistrare curată, cu nivel uniform și o introducere liniștită.
+11. Alege **File → Export audio**, setează **Format** la **MP3** și apasă **Export**. Fișierul se descarcă imediat ce se termină randarea, iar linkul său rămâne în dialog. Fișierul este codificat în browser; nimic nu părăsește computerul.
+
+## Ce poți face în continuare
+
+- Aplică pașii propriei înregistrări cu ghidurile practice: [Elimină zgomotul de fundal](/guides/cleaning-up/remove-background-noise/), [Elimină huruitul de joasă frecvență](/guides/cleaning-up/remove-low-rumble/) și [Normalizează volumul perceput pentru un podcast](/guides/volume/normalize-loudness-for-podcasts/).
+- Verifică rezultatul așa cum ar face-o o platformă: [Măsoară intensitatea mixului](/guides/analysis/measure-loudness/).
+
+## Alte tutoriale
+
+[Primul tău proiect Soundscaper](/tutorials/your-first-project/) — Importă o înregistrare, ascult-o, împarte-o, aplică fade-out, exportă un fișier și salvează proiectul.
+[Pune muzică sub o voce](/tutorials/put-music-under-a-voice/) — Suprapune două piste, coboară automat una sub cealaltă, mixează-le și exportă rezultatul.
+
+## Referință
+
+- [Referința efectelor audio conține fiecare parametru al efectelor folosite aici, cu valorile implicite și intervalele lor.](/reference/generated/audio-effects/#parameters)
+- [Referința formatelor de export descrie formatele, containerele și limitele de canale.](/reference/generated/formats/)
+- [Referința comenzilor și comenzilor rapide conține toate comenzile din meniu și comenzile rapide asociate.](/reference/generated/commands/)
+
+## Despre acest tutorial
+
+Acest tutorial este reluat pas cu pas, folosind chiar aceste fișiere, în fiecare versiune Soundscaper de către suita de browser (`tests/browser/soundscaper-tutorials.spec.js`). Dacă un pas nu mai funcționează, compilarea eșuează până la corectarea tutorialului, astfel încât ceea ce citești corespunde comportamentului editorului.
