@@ -17,12 +17,13 @@ import { videoTimingProbeMedia } from './fixtures/video-timing-probe-media.js';
 import { resolveBrowserProductTestUrl } from './helpers/browser-product-test-url.js';
 import { FRAMESCAPER_DATABASE_NAME } from './helpers/editor-databases.js';
 
+// Precise browser coverage can stall the bounded realtime audio storage queue.
+const realtimeTest = test.extend({ browserCoverage: false });
 const SOURCE_LABELS = Object.freeze({
 	camera: 'Camera',
 	microphone: 'Microphone',
 	display: 'Screen',
 });
-
 const REQUIRED_SOURCE_COMBINATIONS = Object.freeze([
 	Object.freeze({ roles: ['camera'], calls: ['user'], tracks: 1 }),
 	Object.freeze({ roles: ['microphone'], calls: ['user'], tracks: 1 }),
@@ -31,7 +32,6 @@ const REQUIRED_SOURCE_COMBINATIONS = Object.freeze([
 	Object.freeze({ roles: ['display', 'microphone'], calls: ['display', 'user'], tracks: 2, systemAudio: false }),
 	Object.freeze({ roles: ['camera', 'display', 'microphone'], calls: ['display', 'user'], tracks: 4, systemAudio: true }),
 ]);
-
 test.describe('Framescaper v1 recoverable capture', () => {
 	test.describe.configure({ mode: 'default' });
 	registerAudioEditorHooks();
@@ -159,7 +159,7 @@ test.describe('Framescaper v1 recoverable capture', () => {
 		expect(finalState.stopCalls).toBe(finalState.createdTracks);
 	});
 
-	test('records, pauses, resumes, imports once, and reopens ordinary media', async ({ page }) => {
+	realtimeTest('records, pauses, resumes, imports once, and reopens ordinary media', async ({ page }) => {
 		test.setTimeout(120_000);
 		await installCaptureHarness(page);
 		let editor = await bootEditor(page, '/framescaper/en/');
