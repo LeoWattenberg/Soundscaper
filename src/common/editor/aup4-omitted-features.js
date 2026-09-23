@@ -2,6 +2,16 @@
 
 import { addAup4CompatibilityItem } from './aup4-profile.js';
 
+const WAVEFORM_DISPLAY_CONVERSION_CODES = Object.freeze({
+	'half-wave': 'HALF_WAVE_DISPLAY_CONVERTED',
+	'waveform-three-band': 'THREE_BAND_WAVEFORM_DISPLAY_CONVERTED',
+	'waveform-rainbow': 'RAINBOW_WAVEFORM_DISPLAY_CONVERTED',
+});
+
+export function aup4WaveformDisplayConversionCode(displayMode) {
+	return WAVEFORM_DISPLAY_CONVERSION_CODES[displayMode] || null;
+}
+
 /**
  * What an AUP4 save leaves behind, and how it says so.
  *
@@ -175,8 +185,9 @@ export function reportOmittedProjectFeatures(project, normalizedProject, report)
 			});
 			normalizedProject.tracks[index].armed = false;
 		}
-		if (track.displayMode === 'half-wave') addAup4CompatibilityItem(report, {
-			code: 'HALF_WAVE_DISPLAY_CONVERTED',
+		const displayConversionCode = aup4WaveformDisplayConversionCode(track.displayMode);
+		if (displayConversionCode) addAup4CompatibilityItem(report, {
+			code: displayConversionCode,
 			severity: 'info',
 			disposition: 'converted',
 			scope: { kind: 'track', trackId: track.id },

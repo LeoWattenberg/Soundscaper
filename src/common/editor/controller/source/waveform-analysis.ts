@@ -48,10 +48,17 @@ export interface WaveformPcmRange {
 	readonly endFrame: number;
 }
 
+export interface WaveformPcmReadOptions {
+	readonly signal?: AbortSignal;
+}
+
 export interface WaveformPcmProvider {
 	readonly channelCount: number;
 	readonly chunkFrames: number;
-	readStorageChunk(chunkIndex: number): Promise<WaveformChunkValue | Float32Array[]> | WaveformChunkValue | Float32Array[];
+	readStorageChunk(
+		chunkIndex: number,
+		context?: WaveformPcmReadOptions,
+	): Promise<WaveformChunkValue | Float32Array[]> | WaveformChunkValue | Float32Array[];
 }
 
 export interface WaveformPeakChannel {
@@ -111,7 +118,9 @@ export function waveformPcmWindowContains(
 export async function readWaveformPcmWindow(
 	provider: WaveformPcmProvider,
 	range: WaveformPcmRange,
+	options: WaveformPcmReadOptions = {},
 ): Promise<Float32Array[]> {
+	throwIfAborted(options.signal);
 	const output = Array.from(
 		{ length: provider.channelCount },
 		() => new Float32Array(range.endFrame - range.startFrame),
@@ -120,7 +129,11 @@ export async function readWaveformPcmWindow(
 	const lastChunk = Math.max(firstChunk, Math.ceil(range.endFrame / provider.chunkFrames) - 1);
 	let outputOffset = 0;
 	for (let chunkIndex = firstChunk; chunkIndex <= lastChunk; chunkIndex += 1) {
-		const value = await provider.readStorageChunk(chunkIndex);
+		throwIfAborted(options.signal);
+		const value = await (options.signal
+			? provider.readStorageChunk(chunkIndex, { signal: options.signal })
+			: provider.readStorageChunk(chunkIndex));
+		throwIfAborted(options.signal);
 		const channels = Array.isArray(value) ? value : value.channels;
 		const chunkStart = chunkIndex * provider.chunkFrames;
 		const from = Math.max(range.startFrame, chunkStart) - chunkStart;

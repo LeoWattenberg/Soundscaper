@@ -169,6 +169,7 @@ export interface EditorActionFunctions {
 	readonly repeatLastAudacityEffect: ReturnType<typeof createEffectsComposition>['repeatLastAudacityEffect'];
 	readonly repeatLastGenerator: ReturnType<typeof createEditComposition>['repeatLastGenerator'];
 	readonly reportVideoPreviewPressure: (...args: Parameters<FramescaperVideoProxyActionRuntime['reportPreviewPressure']>) => ReturnType<FramescaperVideoProxyActionRuntime['reportPreviewPressure']> | undefined;
+	readonly requestFrequencyWaveform: ReturnType<typeof createSourceRuntimeComposition>['frequencyWaveforms']['requestFrequencyWaveform'];
 	readonly requestInputAccess: ReturnType<typeof createRecordingComposition>['routing']['requestInputAccess'];
 	readonly requestStoragePersistence: ReturnType<typeof createControllerStorageCapacityService>['requestStoragePersistence'];
 	readonly requestWaveformPcmWindow: ReturnType<typeof createSourceRuntimeComposition>['sourceLifecycle']['requestWaveformPcmWindow'];

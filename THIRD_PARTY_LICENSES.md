@@ -69,6 +69,29 @@ The cited Audacity files are GPL-2.0-or-later. GPL-3.0-only is selected for the 
 
 The implementation was translated from C++ to JavaScript, adapted from Audacity's cached bitmap and painter infrastructure to browser canvas rendering, and integrated into Soundscaper on 2026-07-16. The distributed JavaScript source is the preferred form for modification.
 
+## Freesound-derived rainbow waveform coloring
+
+The spectral-centroid analysis and rainbow color mapping in
+`src/common/editor/frequency-waveform-analysis.ts` and
+`src/common/editor/frequency-waveform-contract.ts` adapt Freesound's
+`processing.py` waveform thumbnailer at exact commit
+`ef5e42938c9ca4aace39d9d04b65752d161321e8`:
+
+- source: <https://github.com/endolith/freesound-thumbnailer/blob/ef5e42938c9ca4aace39d9d04b65752d161321e8/processing.py>
+- Copyright (C) 2008 MUSIC TECHNOLOGY GROUP (MTG), UNIVERSITAT POMPEU FABRA
+- author: Bram de Jong
+- upstream license: AGPL-3.0-or-later; AGPL version 3 is selected for this
+  modified adaptation and its terms are bundled in [`LICENSE`](LICENSE)
+
+The browser adaptation uses a centered Hann-window FFT, omits the first two
+frequency bins, accumulates magnitude-weighted spectral centroids, maps the
+result logarithmically from 100 Hz to 22,050 Hz through the retained four-color
+palette, and paints silence dark gray. It replaces the upstream image and audio
+toolkit pipeline with typed arrays, worker-side streaming analysis, cached
+multiresolution summaries, and canvas rendering. It was integrated into
+Soundscaper on 2026-09-23. The distributed TypeScript source is the preferred
+form for modification.
+
 ## Audacity 4 parity and native AUP4 profile
 
 The action-parity manifest, native AUP4 codec/profile implementation, compatibility fixtures, and StaffPad selection are pinned to Audacity commit `4c177d436e48c1d20f231eada44035593cb26292`:

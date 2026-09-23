@@ -56,7 +56,17 @@ export function AudacityWaveformCanvases({
 	}), [fftWindowSize, gainDb, maxFreq, minFreq, rangeDb, sampleRate, scale, windowType]);
 	const spectrogramDrawKey = spectrogramCanvasDrawKey(renderSpectrogramOptions);
 	const [spectrogramRevision, setSpectrogramRevision] = useState(pffftSpectrogramRevision);
+	const [frequencyWaveformRenderer, setFrequencyWaveformRenderer] = useState(null);
 	useEffect(() => subscribePffftSpectrogram(setSpectrogramRevision), []);
+	useEffect(() => {
+		if ((displayMode !== 'waveform-three-band' && displayMode !== 'waveform-rainbow')
+			|| frequencyWaveformRenderer) return undefined;
+		let active = true;
+		void import('./frequency-waveform-renderer.ts').then((module) => {
+			if (active) setFrequencyWaveformRenderer(module);
+		}).catch(() => {});
+		return () => { active = false; };
+	}, [displayMode, frequencyWaveformRenderer]);
 	useEffect(() => {
 		if (displayMode !== 'spectrogram' && displayMode !== 'multiview') return;
 		preparePffftSpectrogram(renderSpectrogramOptions.fftWindowSize).catch(() => {});
@@ -93,7 +103,9 @@ export function AudacityWaveformCanvases({
 				const selection = clipSelectionPixels(clip, timeSelection, pixelsPerSecond, bounds.width);
 				const clipDrawKey = `${drawKey}|${selection.start}|${selection.end}`;
 				const canvasDrawKey = audacityCanvasDrawKey(canvas, clip, clipDrawKey, bounds);
-				if (canvas.__kwWaveformPlan === clip.audacityWaveform && canvas.__kwWaveformDrawKey === canvasDrawKey) continue;
+				if (audacityCanvasPlansAreCurrent(
+					canvas, clip, canvasDrawKey, frequencyWaveformRenderer,
+				)) continue;
 				try {
 					const drawn = drawAudacityClipCanvas(canvas, clip, {
 						displayMode,
@@ -103,11 +115,14 @@ export function AudacityWaveformCanvases({
 						halfWave,
 						verticalZoom,
 						channelHeightRatio,
+						frequencyWaveformRenderer,
 						spectrogramOptions: renderSpectrogramOptions,
 						bounds,
 					});
 					if (drawn) {
 						canvas.__kwWaveformPlan = clip.audacityWaveform;
+						canvas.__kwFrequencyWaveformPlan = clip.frequencyWaveform;
+						canvas.__kwFrequencyWaveformRenderer = frequencyWaveformRenderer;
 						canvas.__kwWaveformDrawKey = audacityCanvasDrawKey(canvas, clip, clipDrawKey, bounds);
 						canvas.__kwWaveformState = 'audacity';
 						delete canvas.dataset.waveformError;
@@ -133,7 +148,7 @@ export function AudacityWaveformCanvases({
 			resizeObserver?.disconnect();
 			scheduler.dispose();
 		};
-	}, [channelHeightRatio, clips, displayMode, halfWave, pixelsPerSecond, renderSpectrogramOptions, rootRef, showRms, spectrogramDrawKey, spectrogramRevision, themeDrawKey, timeSelection, verticalZoom]);
+	}, [channelHeightRatio, clips, displayMode, frequencyWaveformRenderer, halfWave, pixelsPerSecond, renderSpectrogramOptions, rootRef, showRms, spectrogramDrawKey, spectrogramRevision, themeDrawKey, timeSelection, verticalZoom]);
 	return null;
 }
 
@@ -152,6 +167,8 @@ export function resetAudacityClipCanvas(canvas) {
 		context.restore();
 	}
 	delete canvas.__kwWaveformPlan;
+	delete canvas.__kwFrequencyWaveformPlan;
+	delete canvas.__kwFrequencyWaveformRenderer;
 	delete canvas.__kwWaveformDrawKey;
 	canvas.__kwWaveformState = 'empty';
 	delete canvas.dataset.waveformRenderer;
@@ -159,6 +176,7 @@ export function resetAudacityClipCanvas(canvas) {
 	delete canvas.dataset.waveformOwner;
 	delete canvas.dataset.waveformSource;
 	delete canvas.dataset.spectrogramRenderer;
+	delete canvas.dataset.frequencyWaveformMode;
 }
 
 export function audacityCanvasDrawKey(canvas, clip, drawKey, bounds = canvas.getBoundingClientRect()) {
@@ -173,6 +191,13 @@ export function audacityCanvasDrawKey(canvas, clip, drawKey, bounds = canvas.get
 		canvas.height,
 		window.devicePixelRatio || 1,
 	].join('|');
+}
+
+export function audacityCanvasPlansAreCurrent(canvas, clip, canvasDrawKey, frequencyWaveformRenderer) {
+	return canvas.__kwWaveformPlan === clip.audacityWaveform
+		&& canvas.__kwFrequencyWaveformPlan === clip.frequencyWaveform
+		&& canvas.__kwFrequencyWaveformRenderer === frequencyWaveformRenderer
+		&& canvas.__kwWaveformDrawKey === canvasDrawKey;
 }
 
 export function drawAudacityClipCanvas(canvas, clip, options) {
@@ -263,7 +288,7 @@ export function drawAudacityClipCanvas(canvas, clip, options) {
 		context.beginPath();
 		context.rect(0, channelTop, width, channelHeight);
 		context.clip();
-		drawAudacityWaveformChannel(context, rendering, {
+		const drawingOptions = {
 			channel,
 			width,
 			pixelRatioX,
@@ -271,11 +296,33 @@ export function drawAudacityClipCanvas(canvas, clip, options) {
 			maxAmplitude: geometry.maxAmplitude * amplitudeScale,
 			halfWave: options.halfWave,
 			envelopeGain,
-			sampleColor: waveformColor,
-			rmsColor,
 			centerLineColor: divider,
-			showRms: options.showRms,
-		});
+		};
+		if (options.displayMode === 'waveform-three-band' && clip.frequencyWaveform
+			&& options.frequencyWaveformRenderer) {
+			options.frequencyWaveformRenderer.drawThreeBandWaveformChannel(context, clip.frequencyWaveform, {
+				...drawingOptions,
+				colors: {
+					low: cssColor(style, '--frequency-waveform-low', '#7048c8'),
+					mid: cssColor(style, '--frequency-waveform-mid', '#159c68'),
+					high: cssColor(style, '--frequency-waveform-high', '#e76f19'),
+				},
+				opacity: 0.72,
+			});
+		} else if (options.displayMode === 'waveform-rainbow' && clip.frequencyWaveform
+			&& options.frequencyWaveformRenderer) {
+			options.frequencyWaveformRenderer.drawRainbowWaveformChannel(context, rendering, clip.frequencyWaveform, {
+				...drawingOptions,
+				showRms: options.showRms,
+			});
+		} else {
+			drawAudacityWaveformChannel(context, rendering, {
+				...drawingOptions,
+				sampleColor: waveformColor,
+				rmsColor,
+				showRms: options.showRms,
+			});
+		}
 		context.restore();
 	}
 	context.strokeStyle = divider;
@@ -291,7 +338,15 @@ export function drawAudacityClipCanvas(canvas, clip, options) {
 	canvas.dataset.waveformRenderer = 'audacity';
 	canvas.dataset.waveformMode = rendering.mode;
 	canvas.dataset.waveformOwner = 'audacity';
-	canvas.dataset.waveformSource = rendering.peakBlockSize ? 'peaks' : 'pcm';
+	const frequencyMode = options.frequencyWaveformRenderer && clip.frequencyWaveform
+		&& (options.displayMode === 'waveform-three-band' || options.displayMode === 'waveform-rainbow')
+		? options.displayMode
+		: null;
+	if (frequencyMode) canvas.dataset.frequencyWaveformMode = frequencyMode;
+	else delete canvas.dataset.frequencyWaveformMode;
+	canvas.dataset.waveformSource = frequencyMode
+		? 'frequency-analysis'
+		: rendering.peakBlockSize ? 'peaks' : 'pcm';
 	return true;
 }
 

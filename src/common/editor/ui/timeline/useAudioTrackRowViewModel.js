@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
 import {
 	framesToSeconds,
@@ -8,6 +8,8 @@ import {
 	rightmostVisibleClip,
 } from '../../design-system-adapters.js';
 import { audacityWaveformMode } from '../../audacity-waveform-renderer.js';
+import { frequencyWaveformNeedsWindow } from '../../frequency-waveform-resolution.ts';
+import { isFrequencyWaveformDisplayMode } from '../../track-display-mode.ts';
 import { createAudioTrackRowClipViewModels } from './audio-track-row-view-model.js';
 import { createCrossfadeOverlays } from './TrackOverlapOverlays.jsx';
 import {
@@ -16,6 +18,7 @@ import {
 	recordingPreviewId,
 } from './preview.ts';
 import { useAudioTrackEnvelope } from './useAudioTrackEnvelope.js';
+import { MINIMUM_VISIBLE_CLIP_PIXELS } from './waveform-view-model.ts';
 
 /**
  * Retain the expensive audio-row projection while exact scrolling remains
@@ -75,6 +78,16 @@ export function useAudioTrackRowViewModel({
 		projectionClips: projection.clips,
 		sampleRate,
 	});
+	const [frequencyWaveformProjector, setFrequencyWaveformProjector] = useState(null);
+
+	useEffect(() => {
+		if (!isFrequencyWaveformDisplayMode(displayMode) || frequencyWaveformProjector) return undefined;
+		let active = true;
+		void import('./frequency-waveform-projection.ts').then((module) => {
+			if (active) setFrequencyWaveformProjector(() => module.prepareFrequencyWaveformProjection);
+		}).catch(() => {});
+		return () => { active = false; };
+	}, [displayMode, frequencyWaveformProjector]);
 
 	useEffect(() => {
 		const requestWindow = controller.actions.timeline.requestWaveformPcmWindow;
@@ -95,6 +108,41 @@ export function useAudioTrackRowViewModel({
 			}));
 		}
 	}, [controller, pixelsPerSecond, project, projection.clips, run, sampleRate]);
+
+	useEffect(() => {
+		if (!isFrequencyWaveformDisplayMode(displayMode)) return;
+		const requestAnalysis = controller.actions.timeline.requestFrequencyWaveform;
+		if (typeof requestAnalysis !== 'function') return;
+		for (const clip of projection.clips) {
+			if (clip.isRecordingPreview) continue;
+			const visual = controller.getClipVisualData(clip.id)
+				|| controller.getProjectBinClipVisualData?.(clip.projectBinClipId || clip.id);
+			if (!visual?.available) continue;
+			const visibleSourceSamples = projectedClipVisibleSourceSamples(clip, project);
+			const pixelWidth = Math.max(
+				MINIMUM_VISIBLE_CLIP_PIXELS,
+				(clip.waveformEndFrame - clip.waveformStartFrame) / sampleRate * pixelsPerSecond,
+			);
+			const requestWindow = visibleSourceSamples > 0 && pixelWidth > 0
+				&& frequencyWaveformNeedsWindow(
+					visibleSourceSamples / pixelWidth,
+					visual.frequencyAnalysis,
+				);
+			run(() => requestAnalysis(clip.id, requestWindow ? {
+				startFrame: clip.waveformStartFrame,
+				endFrame: clip.waveformEndFrame,
+			} : undefined));
+		}
+	}, [
+		controller,
+		displayMode,
+		pixelsPerSecond,
+		project,
+		projection.clips,
+		run,
+		sampleRate,
+		viewModelRevision,
+	]);
 
 	const windowLeft = framesToSeconds(projection.overscanStartFrame, { sampleRate }) * pixelsPerSecond;
 	const windowFrames = Math.max(1, projection.overscanEndFrame - projection.overscanStartFrame);
@@ -121,6 +169,8 @@ export function useAudioTrackRowViewModel({
 			waveformCache,
 			draggingClipIds,
 			envelopePreviews: envelopePreviewRef.current,
+			frequencyWaveformProjector,
+			frequencyWaveformPreferences: viewModelRevision?.preferences?.waveformVisualization,
 		});
 	}, [
 		controller,
@@ -129,6 +179,7 @@ export function useAudioTrackRowViewModel({
 		draggingClipIds,
 		envelopePreviewRef,
 		envelopePreviewRevision,
+		frequencyWaveformProjector,
 		pixelsPerSecond,
 		project,
 		projection.clips,

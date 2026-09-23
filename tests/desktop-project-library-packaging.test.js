@@ -45,6 +45,7 @@ test('desktop runtime compilation emits importable JavaScript with rewritten ext
 	assert.equal(result.files.includes('src/common/editor/engine/types.js'), false,
 		'type-only engine shapes must not become packaged runtime members');
 	assert.ok(result.files.includes('src/common/editor/track-folder-v12.js'));
+	assert.ok(result.files.includes('src/common/editor/track-display-mode.js'));
 	assert.ok(result.files.includes('src/common/editor/track-hierarchy-v12.js'));
 	assert.ok(result.files.includes('src/common/editor/timeline-annotation.js'));
 	assert.ok(result.files.includes('desktop/assistance-float32-mono-wave-file-reader.js'));

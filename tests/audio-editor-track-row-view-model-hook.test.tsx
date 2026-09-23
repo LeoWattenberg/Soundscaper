@@ -3,10 +3,11 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import React, { useState } from 'react';
+import React, { act, useState } from 'react';
 import { renderToString } from 'react-dom/server';
 
 import { useAudioTrackRowViewModel } from '../src/common/editor/ui/timeline/useAudioTrackRowViewModel.js';
+import { installReactTestDom } from './helpers/react-test-dom.ts';
 
 const EMPTY_SET = new Set<string>();
 const EMPTY_MAP = new Map<string, never>();
@@ -70,3 +71,133 @@ test('audio row keeps canvas projection inputs stable across exact-scroll rerend
 	assert.equal(observed[0]?.projectedSelection, observed[1]?.projectedSelection);
 	assert.equal(observed[0]?.crossfadeOverlays, observed[1]?.crossfadeOverlays);
 });
+
+test('frequency mode requests bounded data at moderate summary zoom before analysis exists', async () => {
+	const requests = await frequencyRequestsAtSummaryZoom({
+		sourceFrameCount: 25_600,
+		clipFrameCount: 25_600,
+		pixelsPerSecond: 480,
+	});
+
+	assert.deepEqual(requests, [['clip', { startFrame: 0, endFrame: 25_600 }]]);
+});
+
+test('frequency requests use the same minimum clip width as rendering', async () => {
+	const requests = await frequencyRequestsAtSummaryZoom({
+		sourceFrameCount: 100,
+		clipFrameCount: 100,
+		pixelsPerSecond: 120,
+	});
+
+	assert.deepEqual(requests, [['clip', { startFrame: 0, endFrame: 100 }]]);
+});
+
+test('adaptive analysis resolution upgrades a moderate summary request to a bounded window', async () => {
+	const requests = await frequencyRequestsAtSummaryZoom({
+		sourceFrameCount: 40_000_000,
+		clipFrameCount: 30_000,
+		pixelsPerSecond: 160,
+		resolvedBlockSize: 512,
+	});
+
+	assert.deepEqual(requests, [
+		['clip', undefined],
+		['clip', { startFrame: 0, endFrame: 30_000 }],
+	]);
+});
+
+async function frequencyRequestsAtSummaryZoom(options: Readonly<{
+	sourceFrameCount: number;
+	clipFrameCount: number;
+	pixelsPerSecond: number;
+	resolvedBlockSize?: number;
+}>) {
+	const dom = installReactTestDom();
+	const { createRoot } = await import('react-dom/client');
+	const source = {
+		id: 'source', frameCount: options.sourceFrameCount, channelCount: 1, sampleRate: 48_000,
+	};
+	const clip = {
+		id: 'clip', sourceId: source.id, title: 'Clip', timelineStartFrame: 0,
+		sourceStartFrame: 0, sourceDurationFrames: options.clipFrameCount,
+		durationFrames: options.clipFrameCount, envelope: [],
+	};
+	const project = {
+		id: 'project', sampleRate: 48_000, clips: [clip], sources: [source],
+		tracks: [{ ...TRACK, clipIds: [clip.id] }],
+	};
+	const preferences = Object.freeze({ lowMidCrossoverHz: 250, midHighCrossoverHz: 4_000 });
+	const revisions = [1, 2].map((revision) => Object.freeze({
+		revision,
+		preferences: Object.freeze({ waveformVisualization: preferences }),
+	}));
+	const trackClips = Object.freeze([clip]);
+	const clipLookup = new Map([[clip.id, clip]]);
+	const sourceLookup = new Map([[source.id, source]]);
+	const waveformCache = new Map();
+	const runOperation = (operation: () => unknown) => operation();
+	const requests: unknown[][] = [];
+	let frequencyAnalysis: unknown = null;
+	const controller = {
+		actions: {
+			clip: { update() {} },
+			timeline: {
+				requestFrequencyWaveform: (...args: unknown[]) => { requests.push(args); return null; },
+			},
+		},
+		getClipVisualData: () => ({
+			source, available: true, buffer: null, pcmWindow: null, peaks: null, frequencyAnalysis,
+		}),
+		getProjectBinClipVisualData: () => null,
+	};
+	function Harness({ revision }: Readonly<{ revision: number }>) {
+		useAudioTrackRowViewModel({
+			controller,
+			project,
+			track: project.tracks[0],
+			trackClips,
+			clipLookup,
+			sourceLookup,
+			trackWindowRef: TRACK_WINDOW_REF,
+			renderViewportStartFrame: 0,
+			viewportDurationFrames: options.clipFrameCount,
+			viewModelRevision: revisions[revision - 1],
+			pixelsPerSecond: options.pixelsPerSecond,
+			sampleRate: 48_000,
+			selection: null,
+			selectedClipId: null,
+			selectedClipIdSet: EMPTY_SET,
+			displayMode: 'waveform-rainbow',
+			showRms: false,
+			recordingPreview: null,
+			clipDragPreview: null,
+			projectBinDragPreview: null,
+			waveformCache,
+			draggingClipIds: EMPTY_SET,
+			copy: { ...COPY, clip: 'Clip' },
+			run: runOperation,
+			blocked: false,
+			automationToolEnabled: false,
+		});
+		return null;
+	}
+	const root = createRoot(dom.container as unknown as Element);
+	const actGlobal = globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean };
+	const priorAct = actGlobal.IS_REACT_ACT_ENVIRONMENT;
+	actGlobal.IS_REACT_ACT_ENVIRONMENT = true;
+	try {
+		await act(async () => { root.render(<Harness revision={1} />); });
+		if (options.resolvedBlockSize !== undefined) {
+			frequencyAnalysis = {
+				crossovers: { lowMidHz: 250, midHighHz: 4_000 },
+				levels: [{ blockSize: options.resolvedBlockSize }],
+			};
+			await act(async () => { root.render(<Harness revision={2} />); });
+		}
+		return requests;
+	} finally {
+		await act(async () => root.unmount());
+		actGlobal.IS_REACT_ACT_ENVIRONMENT = priorAct;
+		dom.restore();
+	}
+}

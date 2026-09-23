@@ -184,6 +184,8 @@
 		"shared/task-progress.ts",
 		"shared/transient-render-feature-projection.ts",
 		"source/clip-time-pitch-service.ts",
+		"source/frequency-waveform-source-service.ts",
+		"source/frequency-waveform-window-service.ts",
 		"source/playback-project-service.ts",
 		"source/source-audio.ts",
 		"source/source-chunk-provider-registry.ts",

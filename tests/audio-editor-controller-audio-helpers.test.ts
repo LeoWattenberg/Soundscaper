@@ -125,6 +125,22 @@ test('waveform helpers map source windows and compute validated peak pyramids', 
 	}, { startFrame: 2, endFrame: 7 });
 	assert.deepEqual(Array.from(window[0] ?? []), [2, 3, 4, 5, 6]);
 
+	const controller = new AbortController();
+	let readSignal: AbortSignal | undefined;
+	const canceledWindow = readWaveformPcmWindow({
+		channelCount: 1,
+		chunkFrames: 4,
+		readStorageChunk: (_chunkIndex, context) => {
+			readSignal = context?.signal;
+			return new Promise((_resolve, reject) => {
+				context?.signal?.addEventListener('abort', () => reject(context.signal?.reason), { once: true });
+			});
+		},
+	}, { startFrame: 0, endFrame: 4 }, { signal: controller.signal });
+	controller.abort(new DOMException('Window superseded.', 'AbortError'));
+	await assert.rejects(canceledWindow, { name: 'AbortError' });
+	assert.equal(readSignal, controller.signal);
+
 	const channels = [Float32Array.of(-1, -0.5, 0, 0.5, 1, 0.5, 0, -0.5)];
 	const peaks = generateWaveformPeaksFallback(channels);
 	assert.equal(waveformPeaksHaveRms(peaks, { frameCount: 8, channelCount: 1 }), true);

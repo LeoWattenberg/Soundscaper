@@ -7,11 +7,16 @@ import {
 	type SourceLifecycleWaveformPcmWindow,
 } from '../../src/common/editor/controller/source/source-lifecycle-service.ts';
 
-export function createSourceLifecycleFixture(options: Readonly<{ videoFailure?: Error }> = {}) {
+export function createSourceLifecycleFixture(options: Readonly<{
+	reuseContainedWaveformRequests?: boolean;
+	videoFailure?: Error;
+}> = {}) {
 	const source = { id: 'source', kind: 'audio', frameCount: 100, storageKey: 'source' };
 	const clip = { id: 'clip', sourceId: source.id, durationFrames: 100 };
 	let project = { id: 'project-a', clips: [clip], sources: [source] };
 	let resolveRead: (channels: Float32Array[]) => void = () => undefined;
+	let waveformPcmReads = 0;
+	const waveformPcmReadSignals: Array<AbortSignal | undefined> = [];
 	let publishes = 0;
 	const clipWaveformPcmRequests = new Map<string, SourceLifecycleWaveformPcmRequest>();
 	const clipWaveformPcmWindows = new Map<string, SourceLifecycleWaveformPcmWindow>();
@@ -42,7 +47,9 @@ export function createSourceLifecycleFixture(options: Readonly<{ videoFailure?: 
 			activatedVideoSignals.push(activationOptions?.signal);
 		},
 		allProjectClips: (value) => value.clips,
-		audioBufferChannels: () => [],
+		audioBufferChannels: (value) => (
+			(value as Readonly<{ channels?: readonly Float32Array[] }>).channels ?? []
+		),
 		clipSourceWindowRange: (_value, startFrame, endFrame) => ({ startFrame, endFrame }),
 		clipWaveformPcmRequests,
 		clipWaveformPcmWindows,
@@ -58,7 +65,16 @@ export function createSourceLifecycleFixture(options: Readonly<{ videoFailure?: 
 		peakCacheKey: (id) => `peak:${id}`,
 		publishDocumentSnapshot: () => { publishes += 1; },
 		readStoredAudioBuffer: async () => null,
-		readWaveformPcmWindow: () => new Promise<Float32Array[]>((resolve) => { resolveRead = resolve; }),
+		readWaveformPcmWindow: (_provider, _range, readOptions) => {
+			waveformPcmReads += 1;
+			waveformPcmReadSignals.push(readOptions?.signal);
+			return new Promise<Float32Array[]>((resolve, reject) => {
+				resolveRead = resolve;
+				readOptions?.signal?.addEventListener('abort', () => reject(
+					readOptions.signal?.reason,
+				), { once: true });
+			});
+		},
 		setStatus: () => undefined,
 		sourceAudioBufferBytes: (value) => Number((value as Readonly<{ byteLength?: unknown }>).byteLength),
 		sourceBuffers,
@@ -72,7 +88,12 @@ export function createSourceLifecycleFixture(options: Readonly<{ videoFailure?: 
 			saveAnalysis: async () => undefined,
 			deleteAnalysis: async (key: string) => { deletedAnalyses.push(key); },
 		},
-		waveformPcmWindowContains: () => false,
+		waveformPcmWindowContains: (window, range) => Boolean(
+			options.reuseContainedWaveformRequests
+				&& window
+				&& window.startFrame <= range.startFrame
+				&& window.endFrame >= range.endFrame,
+		),
 		waveformPeaksHaveRms: () => true,
 	};
 	return {
@@ -89,6 +110,8 @@ export function createSourceLifecycleFixture(options: Readonly<{ videoFailure?: 
 		clipWaveformPcmRequests,
 		clipWaveformPcmWindows,
 		publishes: () => publishes,
+		waveformPcmReads: () => waveformPcmReads,
+		waveformPcmReadSignals,
 		replaceProject() {
 			project = { ...project, id: 'project-b' };
 		},

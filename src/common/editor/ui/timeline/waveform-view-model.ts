@@ -8,18 +8,22 @@ import {
 import { envelopeFramesToDesignPoints } from '../../automation.js';
 import type { AudioWarpRuntimeProject } from '../../audio-warp-runtime.ts';
 import { audacityWaveformMode } from '../../audacity-waveform-renderer.js';
+import { frequencyWaveformNeedsWindow } from '../../frequency-waveform-resolution.ts';
+import type { FrequencyWaveformDisplayMode } from '../../track-display-mode.ts';
 import { createWaveformPreviewCacheKey } from '../waveform-preview-cache.ts';
 import {
 	pcmWindowCoversProjectedClip,
 	projectedClipVisibleSourceSamples,
+	sourceWindowCoversProjectedClip,
 	type PcmPreviewWindow,
 } from './preview.ts';
 import {
 	prepareAudioWarpPeakPyramidWaveformWindow,
 	prepareAudioWarpWaveformWindow,
 } from './audio-warp-waveform.ts';
+import type { FrequencyWaveformProjection } from './frequency-waveform-projection.ts';
 
-const MINIMUM_VISIBLE_CLIP_PIXELS = 48;
+export const MINIMUM_VISIBLE_CLIP_PIXELS = 48;
 // The clip header writes the pitch badge as semitones rounded to two decimals,
 // so anything finer than half a cent reads as a bare '+0'. A shift that small
 // has to reach the design system as no shift at all, or the badge appears and
@@ -56,6 +60,7 @@ export interface TimelineWaveformClip {
 	readonly fadeInFrames?: number;
 	readonly fadeOutFrames?: number;
 	readonly reversed?: boolean;
+	readonly inverted?: boolean;
 	readonly pitchCents?: number;
 	readonly kind?: unknown;
 	readonly anchor?: unknown;
@@ -80,6 +85,8 @@ export interface TimelineClipVisualData {
 	readonly buffer?: TimelineAudioBuffer | null;
 	readonly pcmWindow?: TimelinePcmWindow | null;
 	readonly peaks?: unknown;
+	readonly frequencyAnalysis?: unknown;
+	readonly frequencyWindow?: unknown;
 }
 
 export interface TimelineClipVisualController {
@@ -90,6 +97,7 @@ export interface TimelineClipVisualController {
 export interface TimelineWaveformPlanData {
 	readonly audacityWaveform?: unknown;
 	readonly spectrogramWaveform?: unknown;
+	readonly frequencyWaveform?: FrequencyWaveformProjection;
 }
 
 interface PreparedTimelineWaveform {
@@ -101,6 +109,7 @@ export interface TimelineWaveformCacheEntry {
 	readonly source: unknown;
 	readonly signature: string;
 	readonly data: TimelineWaveformPlanData;
+	readonly frequencySource?: unknown;
 }
 
 export interface TimelineClipViewModel {
@@ -118,6 +127,7 @@ export interface TimelineClipViewModel {
 	readonly waveform: readonly never[];
 	audacityWaveform?: unknown;
 	spectrogramWaveform?: unknown;
+	frequencyWaveform?: FrequencyWaveformProjection;
 	waveformError?: string;
 }
 
@@ -142,6 +152,12 @@ export interface TimelineClipViewModelOptions {
 		reuseSummaryForCompatibility?: boolean;
 		allowPeakPyramid?: boolean;
 		provideAudacitySpectrogram?: boolean;
+		frequencyWaveformMode?: FrequencyWaveformDisplayMode | null;
+		frequencyWaveformProjector?: typeof import('./frequency-waveform-projection.ts').prepareFrequencyWaveformProjection;
+		frequencyWaveformPreferences?: Readonly<{
+			lowMidCrossoverHz?: number;
+			midHighCrossoverHz?: number;
+		}> | null;
 	}>;
 	readonly cache?: Map<string, TimelineWaveformCacheEntry> | null;
 	readonly reuseCachedWaveform?: boolean;
@@ -174,6 +190,9 @@ export function createTimelineClipViewModel({
 		reuseSummaryForCompatibility = false,
 		allowPeakPyramid = true,
 		provideAudacitySpectrogram = false,
+		frequencyWaveformMode = null,
+		frequencyWaveformProjector = null,
+		frequencyWaveformPreferences = null,
 	} = rendering;
 	const visual = controller.getClipVisualData(clip.id)
 		|| controller.getProjectBinClipVisualData?.(clip.projectBinClipId || clip.id);
@@ -222,13 +241,41 @@ export function createTimelineClipViewModel({
 	const isWarped = clip.warpMap != null;
 	const visibleSourceSamples = projectedClipVisibleSourceSamples(clip, project);
 	const pixelWidth = output.duration * pixelsPerSecond;
+	const highResolution = visibleSourceSamples > 0
+		&& audacityWaveformMode(pixelWidth / visibleSourceSamples) !== 'summary';
+	const matchingFrequencyAnalysis = frequencySourceMatchesPreferences(
+		visual?.frequencyAnalysis,
+		frequencyWaveformPreferences,
+	) ? visual?.frequencyAnalysis : null;
+	const matchingFrequencyWindow = frequencySourceMatchesPreferences(
+		visual?.frequencyWindow,
+		frequencyWaveformPreferences,
+	) ? visual?.frequencyWindow : null;
+	const frequencyWindowPreferred = frequencyWaveformMode != null
+		&& visibleSourceSamples > 0
+		&& pixelWidth > 0
+		&& frequencyWaveformNeedsWindow(
+			visibleSourceSamples / pixelWidth,
+			visual?.frequencyAnalysis,
+		);
+	const frequencyWindow = frequencyWindowPreferred && frequencyWindowCoversClip(
+		matchingFrequencyWindow,
+		clip,
+		project,
+	) ? matchingFrequencyWindow : null;
+	const frequencySource = frequencyWaveformMode
+		? frequencyWindow || matchingFrequencyAnalysis
+		: null;
 	const usePeakPyramid = Boolean(waveformPeaks && visibleSourceSamples > 0
-		&& audacityWaveformMode(pixelWidth / visibleSourceSamples) === 'summary');
+		&& !highResolution);
 	const waveformSource = usePeakPyramid
 		? waveformPeaks
 		: waveformBuffer || waveformPcmWindow || (isWarped ? null : waveformPeaks);
 	const cached = cache?.get(String(clip.id));
-	if (reuseCachedWaveform && cached?.data.audacityWaveform) {
+	const cachedFrequencyReady = !frequencyWaveformMode || !frequencySource || !frequencyWaveformProjector
+		|| Boolean(cached?.data.frequencyWaveform);
+	if (reuseCachedWaveform && cached?.data.audacityWaveform && cachedFrequencyReady
+		&& (!frequencyWaveformMode || cached.frequencySource === frequencySource)) {
 		Object.assign(output, cached.data);
 		return output;
 	}
@@ -248,9 +295,12 @@ export function createTimelineClipViewModel({
 				pixelWidth,
 				reuseSummaryForCompatibility,
 				provideAudacitySpectrogram,
+				frequencyWaveformMode,
 			},
 		});
-		if (cached?.source === waveformSource && cached.signature === cacheSignature) {
+		if (cached?.source === waveformSource && cached.frequencySource === frequencySource
+			&& cachedFrequencyReady
+			&& cached.signature === cacheSignature) {
 			Object.assign(output, cached.data);
 			return output;
 		}
@@ -312,6 +362,21 @@ export function createTimelineClipViewModel({
 						sourceFrameCount: source?.frameCount,
 					},
 				)) as unknown as PreparedTimelineWaveform;
+		let frequencyWaveform: FrequencyWaveformProjection | undefined;
+		if (frequencyWaveformMode && frequencySource && frequencyWaveformProjector) {
+			try {
+				frequencyWaveform = frequencyWaveformProjector(frequencySource, clip, {
+					startFrame: clip.waveformStartFrame,
+					endFrame: clip.waveformEndFrame,
+					pixelWidth,
+					project,
+				});
+			} catch {
+				// A missing, stale, or malformed optional analysis must never hide the
+				// ordinary waveform while the controller refreshes its derivative.
+				frequencyWaveform = undefined;
+			}
+		}
 		const waveformData: TimelineWaveformPlanData = {
 			audacityWaveform: {
 				...waveform.rendering,
@@ -321,9 +386,11 @@ export function createTimelineClipViewModel({
 			...(provideAudacitySpectrogram
 				? { spectrogramWaveform: waveform.channels.map((channel: ArrayLike<number>) => Array.from(channel)) }
 				: {}),
+			...(frequencyWaveform ? { frequencyWaveform } : {}),
 		};
 		cache?.set(String(clip.id), {
 			source: waveformSource,
+			frequencySource,
 			signature: cacheSignature,
 			data: waveformData,
 		});
@@ -332,4 +399,34 @@ export function createTimelineClipViewModel({
 		output.waveformError = error instanceof Error ? error.message : String(error);
 	}
 	return output;
+}
+
+function frequencyWindowCoversClip(
+	value: unknown,
+	clip: TimelineWaveformClip,
+	project: (AudioWarpRuntimeProject & Readonly<Record<string, unknown>>) | null,
+): boolean {
+	if (!value || typeof value !== 'object'
+		|| !('startFrame' in value) || !('frameCount' in value)) return false;
+	const startFrame = Number(value.startFrame);
+	const frameCount = Number(value.frameCount);
+	return Number.isSafeInteger(startFrame) && Number.isSafeInteger(frameCount) && frameCount > 0
+		&& sourceWindowCoversProjectedClip({
+			startFrame,
+			endFrame: startFrame + frameCount,
+		}, clip, project);
+}
+
+function frequencySourceMatchesPreferences(
+	value: unknown,
+	preferences: Readonly<{
+		lowMidCrossoverHz?: number;
+		midHighCrossoverHz?: number;
+	}> | null,
+): boolean {
+	if (!value || typeof value !== 'object' || !('crossovers' in value)
+		|| !value.crossovers || typeof value.crossovers !== 'object') return false;
+	const crossovers = value.crossovers as Readonly<Record<string, unknown>>;
+	return crossovers.lowMidHz === Number(preferences?.lowMidCrossoverHz ?? 250)
+		&& crossovers.midHighHz === Number(preferences?.midHighCrossoverHz ?? 4_000);
 }

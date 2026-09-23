@@ -1,6 +1,10 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import type { StoredWaveformAnalysisOptions, WaveformPcmRange } from '../waveform-analysis.ts';
+import type {
+	StoredWaveformAnalysisOptions,
+	WaveformPcmRange,
+	WaveformPcmReadOptions,
+} from '../waveform-analysis.ts';
 import type { SourceChunkProviderRegistryPort } from './source-chunk-provider-registration.ts';
 
 type Awaitable<Value> = PromiseLike<Value> | Value;
@@ -94,10 +98,14 @@ export interface SourceLifecycleWaveformPcmWindow extends WaveformPcmRange {
 	readonly clipId: string;
 	readonly sourceId: string;
 	readonly channels: readonly Float32Array[];
+	/** Unpadded source range requested by the caller, when analysis context was requested. */
+	readonly visibleStartFrame?: number;
+	readonly visibleEndFrame?: number;
 }
 
 export interface SourceLifecycleWaveformPcmRequest extends WaveformPcmRange {
 	readonly sourceId: string;
+	readonly signal?: AbortSignal;
 	readonly promise: Promise<SourceLifecycleWaveformPcmWindow | null>;
 }
 
@@ -160,7 +168,11 @@ export interface SourceLifecycleServiceRuntime<
 		source: SourceLifecycleSource,
 		context: unknown,
 	) => Awaitable<Buffer | null>;
-	readonly readWaveformPcmWindow: (provider: Provider, range: WaveformPcmRange) => Awaitable<readonly Float32Array[]>;
+	readonly readWaveformPcmWindow: (
+		provider: Provider,
+		range: WaveformPcmRange,
+		options?: WaveformPcmReadOptions,
+	) => Awaitable<readonly Float32Array[]>;
 	readonly setStatus: (message: string, state: 'error', localization?: import('../../../../i18n/presentation-message.ts').LocalizedPresentationMessage) => void;
 	readonly sourceAudioBufferBytes: (buffer: Buffer) => number;
 	readonly sourceBuffers: SourceLifecycleBufferCache<Buffer>;

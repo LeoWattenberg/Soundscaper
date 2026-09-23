@@ -19,7 +19,11 @@ import type {
 	SourceLifecycleWaveformPcmWindow,
 } from './internal/source-lifecycle-types.d.ts';
 import {
-	requireWaveformSourceFrameCount, resolveWaveformPcmWindowRequest, type WaveformPcmWindowRequest,
+	requireWaveformSourceFrameCount,
+	resolveWaveformPcmSourcePadding,
+	resolveWaveformPcmWindowRequest,
+	waveformPcmWindowForVisibleRange,
+	type WaveformPcmWindowRequest,
 } from './internal/waveform-pcm-window-request.ts';
 import {
 	audioWarpSourceWindowRange,
@@ -136,20 +140,20 @@ export function createSourceLifecycleService<
 		if (!projectAtStart) return null;
 		const clip = findClip(projectAtStart, clipId);
 		const source = clip ? findSource(projectAtStart, clip.sourceId) : null;
-		if (!clip || !source || source.kind === 'video' || source.kind === 'image' || sourceBuffers.has(source.id)) return null;
+		if (!clip || !source || source.kind === 'video' || source.kind === 'image') return null;
 		const cacheKey = String(clip.id);
 		const requestedRange = resolveWaveformPcmWindowRequest(options, clip.durationFrames);
 		if (!requestedRange) return null;
 		const { startFrame, endFrame } = requestedRange;
 		const sourceFrameCount = requireWaveformSourceFrameCount(source.frameCount);
-		let range;
+		let visibleRange;
 		if (clip.warpMap == null) {
-			range = clipSourceWindowRange(clip, startFrame, endFrame, sourceFrameCount);
+			visibleRange = clipSourceWindowRange(clip, startFrame, endFrame, sourceFrameCount);
 		} else {
 			if (!isAudioWarpRuntimeProject(projectAtStart) || !isAudioWarpRuntimeClip(clip)) {
 				throw new TypeError('A warped waveform window requires valid project and audio clip timing.');
 			}
-			range = audioWarpSourceWindowRange(
+			visibleRange = audioWarpSourceWindowRange(
 				projectAtStart,
 				clip,
 				{
@@ -159,15 +163,52 @@ export function createSourceLifecycleService<
 				},
 			);
 		}
+		const sourcePaddingFrames = resolveWaveformPcmSourcePadding(
+			options.sourcePaddingFrames,
+			MAXIMUM_WAVEFORM_PCM_WINDOW_FRAMES,
+		);
+		const windowForCaller = (window: SourceLifecycleWaveformPcmWindow) => sourcePaddingFrames > 0
+			? waveformPcmWindowForVisibleRange(window, visibleRange)
+			: window;
+		const range = {
+			startFrame: Math.max(0, visibleRange.startFrame - sourcePaddingFrames),
+			endFrame: Math.min(sourceFrameCount, visibleRange.endFrame + sourcePaddingFrames),
+		};
 		if (range.endFrame - range.startFrame > MAXIMUM_WAVEFORM_PCM_WINDOW_FRAMES) return null;
 		const cached = clipWaveformPcmWindows.get(cacheKey);
 		if (cached && waveformPcmWindowContains(cached, range)) {
 			clipWaveformPcmWindows.delete(cacheKey);
 			clipWaveformPcmWindows.set(cacheKey, cached);
-			return cached;
+			return windowForCaller(cached);
 		}
 		const pending = clipWaveformPcmRequests.get(cacheKey);
-		if (pending && waveformPcmWindowContains(pending, range)) return pending.promise;
+		if (pending?.signal?.aborted) clipWaveformPcmRequests.delete(cacheKey);
+		else if (pending && (!pending.signal || pending.signal === options.signal)
+			&& waveformPcmWindowContains(pending, range)) {
+			return raceAbortableRead(() => pending.promise, options.signal).then((window) => window
+				? windowForCaller(window)
+				: null);
+		}
+
+		const buffer = sourceBuffers.get(source.id);
+		if (buffer) {
+			const bufferChannels = audioBufferChannels(buffer);
+			if (bufferChannels.length) {
+				const channels = bufferChannels.map((channel) => (
+					channel.slice(range.startFrame, range.endFrame)
+				));
+				const window: SourceLifecycleWaveformPcmWindow = Object.freeze({
+					clipId: cacheKey,
+					sourceId: source.id,
+					startFrame: range.startFrame,
+					endFrame: range.endFrame,
+					channels: Object.freeze(channels),
+				});
+				retainWaveformPcmWindow(cacheKey, window);
+				publishDocumentSnapshot();
+				return windowForCaller(window);
+			}
+		}
 
 		let provider: Provider | null | undefined = sourceChunkProviders.get(source.id);
 		if (!provider) {
@@ -178,9 +219,10 @@ export function createSourceLifecycleService<
 		if (!provider || getProject() !== projectAtStart) return null;
 		const request: SourceLifecycleWaveformPcmRequest = {
 			sourceId: source.id,
+			signal: options.signal,
 			startFrame: range.startFrame,
 			endFrame: range.endFrame,
-			promise: Promise.resolve(readWaveformPcmWindow(provider, range)).then((channels) => {
+			promise: Promise.resolve(readWaveformPcmWindow(provider, range, { signal: options.signal })).then((channels) => {
 				if (clipWaveformPcmRequests.get(cacheKey) !== request) return null;
 				clipWaveformPcmRequests.delete(cacheKey);
 				const currentProject = getProject();
@@ -192,15 +234,9 @@ export function createSourceLifecycleService<
 					endFrame: range.endFrame,
 					channels: Object.freeze(channels),
 				});
-				clipWaveformPcmWindows.delete(cacheKey);
-				clipWaveformPcmWindows.set(cacheKey, window);
-				while (clipWaveformPcmWindows.size > MAXIMUM_WAVEFORM_PCM_WINDOW_ENTRIES) {
-					const oldestKey = clipWaveformPcmWindows.keys().next().value;
-					if (oldestKey === undefined) break;
-					clipWaveformPcmWindows.delete(oldestKey);
-				}
+				retainWaveformPcmWindow(cacheKey, window);
 				publishDocumentSnapshot();
-				return window;
+				return windowForCaller(window);
 			}).catch((error: unknown) => {
 				if (clipWaveformPcmRequests.get(cacheKey) === request) clipWaveformPcmRequests.delete(cacheKey);
 				// A window is a speculative cache fill. Losing its provider to routine
@@ -212,6 +248,16 @@ export function createSourceLifecycleService<
 		};
 		clipWaveformPcmRequests.set(cacheKey, request);
 		return request.promise;
+	}
+
+	function retainWaveformPcmWindow(cacheKey: string, window: SourceLifecycleWaveformPcmWindow): void {
+		clipWaveformPcmWindows.delete(cacheKey);
+		clipWaveformPcmWindows.set(cacheKey, window);
+		while (clipWaveformPcmWindows.size > MAXIMUM_WAVEFORM_PCM_WINDOW_ENTRIES) {
+			const oldestKey = clipWaveformPcmWindows.keys().next().value;
+			if (oldestKey === undefined) break;
+			clipWaveformPcmWindows.delete(oldestKey);
+		}
 	}
 
 	function clearWaveformPcmWindows() {

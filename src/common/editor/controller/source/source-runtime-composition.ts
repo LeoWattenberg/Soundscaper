@@ -4,6 +4,16 @@ import { findClip, findSource } from '../../project.js'; import { setLocalizedSt
 import { createClipTimePitchCacheService, type ClipTimePitchRenderEngine } from './clip-time-pitch-service.ts';
 import { createPlaybackProjectApplyService } from './playback-project-service.ts';
 import { createProjectVisualService } from '../document/project-visual-service.ts';
+import type {
+	createFrequencyWaveformSourceService,
+	FrequencyWaveformRequestOptions as FrequencyWaveformAnalysisRequestOptions,
+	FrequencyWaveformRuntimeEntry,
+} from './frequency-waveform-source-service.ts';
+import type {
+	createFrequencyWaveformWindowService,
+	FrequencyWaveformRuntimeWindowEntry,
+	FrequencyWaveformWindowRequestOptions,
+} from './frequency-waveform-window-service.ts';
 import {
 	SHORT_SOURCE_AUDIO_BUFFER_MAX_BYTES,
 	audioBufferChannels,
@@ -53,6 +63,8 @@ export type {
 /** How many waveform PCM windows stay resident, and how many frames each may span. */
 const MAXIMUM_WAVEFORM_PCM_WINDOW_FRAMES = 262_144;
 const MAXIMUM_WAVEFORM_PCM_WINDOW_ENTRIES = 32;
+// Keep the optional analysis contract lazy; this mirrors FREQUENCY_WAVEFORM_CACHE_PREFIX.
+const FREQUENCY_WAVEFORM_CACHE_PREFIX = 'audio-editor-frequency-waveform-v1:';
 
 type PlaybackApply = ReturnType<typeof createPlaybackProjectApplyService<SourceRuntimeProject, AudioBuffer>>;
 type StoredChunkProvider = ReturnType<typeof createStoredChunkProvider>;
@@ -61,6 +73,14 @@ type SourceLifecycleRuntime = SourceLifecycleServiceRuntime<
 	SourceRuntimeProject,
 	StoredChunkProvider
 >;
+type FrequencyWaveformService = ReturnType<
+	typeof createFrequencyWaveformSourceService<SourceRuntimeProject, AudioBuffer>
+>;
+type FrequencyWaveformWindowService = ReturnType<
+	typeof createFrequencyWaveformWindowService<SourceRuntimeProject>
+>;
+type FrequencyWaveformRuntimeRequestOptions = FrequencyWaveformAnalysisRequestOptions
+	& FrequencyWaveformWindowRequestOptions;
 
 function requireStoredAudioSource(source: SourceLifecycleSource) {
 	if (!isStoredAudioSource(source)) {
@@ -151,16 +171,19 @@ export function createSourceRuntimeComposition<RenderEngine extends ClipTimePitc
 		readStoredAudioBuffer: (_store, source, context) => (
 			readStoredAudioBuffer<AudioBuffer>(store, source, audioBufferContext(context))
 		),
-		readWaveformPcmWindow: (provider, range) => readWaveformPcmWindow({
+		readWaveformPcmWindow: (provider, range, options) => readWaveformPcmWindow({
 			channelCount: provider.channelCount,
 			chunkFrames: provider.chunkFrames,
-			readStorageChunk: async (chunkIndex) => waveformChunk(
-				await provider.readStorageChunk(chunkIndex),
+			readStorageChunk: async (chunkIndex, context) => waveformChunk(
+				await provider.readStorageChunk(chunkIndex, context?.signal ? { signal: context.signal } : {}),
 			),
-		}, range),
+		}, range, options),
 	};
 	const waveformPcmWindows = new Map<string, SourceLifecycleWaveformPcmWindow>();
 	const waveformPcmRequests = new Map<string, SourceLifecycleWaveformPcmRequest>();
+	const sourceFrequencyAnalyses = new Map<string, FrequencyWaveformRuntimeEntry>();
+	const sourceFrequencyWindows = new Map<string, FrequencyWaveformRuntimeWindowEntry>();
+	const persistentFrequencyWaveformCacheBypass = new Set<string>();
 	const requireProject = (): SourceRuntimeProject => {
 		const project = dependencies.getProject();
 		if (!project) throw new Error('The source runtime requires an open project.');
@@ -178,6 +201,8 @@ export function createSourceRuntimeComposition<RenderEngine extends ClipTimePitc
 		sourceBuffers,
 		sourcePeaks,
 		waveformPcmWindows,
+		sourceFrequencyAnalyses,
+		sourceFrequencyWindows,
 		store,
 		resolveProductVideoPreviewMedia: dependencies.resolveProductVideoPreviewMedia,
 		projectDurationFrames: dependencies.projectDurationFrames,
@@ -208,7 +233,7 @@ export function createSourceRuntimeComposition<RenderEngine extends ClipTimePitc
 		getPlaybackState: () => engine.getState().state,
 		handleError: dependencies.handleError,
 	});
-	const sourceLifecycle = createSourceLifecycleService<AudioBuffer, SourceRuntimeProject, StoredChunkProvider>({
+	const baseSourceLifecycle = createSourceLifecycleService<AudioBuffer, SourceRuntimeProject, StoredChunkProvider>({
 		MAXIMUM_WAVEFORM_PCM_WINDOW_ENTRIES,
 		MAXIMUM_WAVEFORM_PCM_WINDOW_FRAMES,
 		SHORT_SOURCE_AUDIO_BUFFER_MAX_BYTES,
@@ -242,6 +267,155 @@ export function createSourceRuntimeComposition<RenderEngine extends ClipTimePitc
 		waveformPcmWindowContains,
 		waveformPeaksHaveRms,
 	});
+	let frequencyWaveformService: FrequencyWaveformService | null = null;
+	let frequencyWaveformServicePromise: Promise<FrequencyWaveformService> | null = null;
+	let frequencyWaveformWindowService: FrequencyWaveformWindowService | null = null;
+	let frequencyWaveformWindowServicePromise: Promise<FrequencyWaveformWindowService> | null = null;
+	let frequencyWaveformRuntimeGeneration = 0;
+	const loadFrequencyWaveformService = (): Promise<FrequencyWaveformService> => {
+		if (frequencyWaveformService) return Promise.resolve(frequencyWaveformService);
+		if (frequencyWaveformServicePromise) return frequencyWaveformServicePromise;
+		const promise = import('./frequency-waveform-source-service.ts')
+			.then(({ createFrequencyWaveformSourceService }) => {
+				frequencyWaveformService = createFrequencyWaveformSourceService<SourceRuntimeProject, AudioBuffer>({
+					findClip,
+					findSource,
+					getProject: dependencies.getProject,
+					sourceBuffers,
+					sourceFrequencyAnalyses,
+					persistentCacheBypassSourceIds: persistentFrequencyWaveformCacheBypass,
+					store,
+					generateFromBuffer: async (buffer, source, crossovers, signal) => {
+						const { generateFrequencyWaveformAnalysisInWorker } = await import(
+							'../../frequency-waveform-worker-client.ts'
+						);
+						return generateFrequencyWaveformAnalysisInWorker(
+							audioBufferChannels(buffer),
+							source.sampleRate,
+							{ crossovers, signal },
+						);
+					},
+					generateFromStore: async (_analysisStore, source, crossovers, signal) => {
+						const { generateStoredFrequencyWaveformAnalysis } = await import(
+							'../../frequency-waveform-worker-client.ts'
+						);
+						return generateStoredFrequencyWaveformAnalysis(store, source, { crossovers, signal });
+					},
+					publishDocumentSnapshot: dependencies.publishDocumentSnapshot,
+				});
+				return frequencyWaveformService;
+			}).catch((error: unknown) => {
+				if (frequencyWaveformServicePromise === promise) frequencyWaveformServicePromise = null;
+				throw error;
+			});
+		frequencyWaveformServicePromise = promise;
+		return promise;
+	};
+	const loadFrequencyWaveformWindowService = (): Promise<FrequencyWaveformWindowService> => {
+		if (frequencyWaveformWindowService) return Promise.resolve(frequencyWaveformWindowService);
+		if (frequencyWaveformWindowServicePromise) return frequencyWaveformWindowServicePromise;
+		const promise = import('./frequency-waveform-window-service.ts')
+			.then(({ createFrequencyWaveformWindowService }) => {
+				frequencyWaveformWindowService = createFrequencyWaveformWindowService<SourceRuntimeProject>({
+					findClip,
+					findSource,
+					getProject: dependencies.getProject,
+					sourceFrequencyWindows,
+					requestPcmWindow: baseSourceLifecycle.requestWaveformPcmWindow,
+					generateWindow: async (channels, sampleRate, options) => {
+						const { generateFrequencyWaveformWindowInWorker } = await import(
+							'../../frequency-waveform-worker-client.ts'
+						);
+						return generateFrequencyWaveformWindowInWorker(channels, sampleRate, options);
+					},
+					publishDocumentSnapshot: dependencies.publishDocumentSnapshot,
+				});
+				return frequencyWaveformWindowService;
+			}).catch((error: unknown) => {
+				if (frequencyWaveformWindowServicePromise === promise) {
+					frequencyWaveformWindowServicePromise = null;
+				}
+				throw error;
+			});
+		frequencyWaveformWindowServicePromise = promise;
+		return promise;
+	};
+	const frequencyWaveforms = Object.freeze({
+		requestFrequencyWaveform: async (
+			clipId: string,
+			options: FrequencyWaveformRuntimeRequestOptions = {},
+		) => {
+			const generation = frequencyWaveformRuntimeGeneration;
+			try {
+				const requestsWindow = options.startFrame !== undefined || options.endFrame !== undefined;
+				if (!requestsWindow) {
+					const service = await loadFrequencyWaveformService();
+					if (generation !== frequencyWaveformRuntimeGeneration) return null;
+					return service.requestFrequencyWaveform(clipId, options);
+				}
+				const windowService = await loadFrequencyWaveformWindowService();
+				if (generation !== frequencyWaveformRuntimeGeneration) return null;
+				const window = await windowService.requestFrequencyWaveformWindow(clipId, options);
+				if (window || generation !== frequencyWaveformRuntimeGeneration) return window;
+				const sourceService = await loadFrequencyWaveformService();
+				if (generation !== frequencyWaveformRuntimeGeneration) return null;
+				return sourceService.requestFrequencyWaveform(clipId, options);
+			} catch {
+				return null;
+			}
+		},
+		invalidateSource: async (sourceId: string): Promise<void> => {
+			const removedAnalysis = sourceFrequencyAnalyses.delete(sourceId);
+			let removedWindow = false;
+			for (const [clipId, entry] of sourceFrequencyWindows) {
+				if (entry.sourceId !== sourceId) continue;
+				sourceFrequencyWindows.delete(clipId);
+				removedWindow = true;
+			}
+			if (removedAnalysis || removedWindow) dependencies.publishDocumentSnapshot();
+			const deletePersistedAnalysis = async (): Promise<void> => {
+				persistentFrequencyWaveformCacheBypass.add(sourceId);
+				if (!store.deleteAnalysis) return;
+				await store.deleteAnalysis(`${FREQUENCY_WAVEFORM_CACHE_PREFIX}${sourceId}`);
+				persistentFrequencyWaveformCacheBypass.delete(sourceId);
+			};
+			const residentWindowService = frequencyWaveformWindowService;
+			const residentAnalysisService = frequencyWaveformService;
+			const windowInvalidation = residentWindowService
+				? Promise.resolve().then(() => residentWindowService.invalidateSource(sourceId))
+				: frequencyWaveformWindowServicePromise
+					? frequencyWaveformWindowServicePromise.then((service) => service.invalidateSource(sourceId))
+					: Promise.resolve();
+			const analysisInvalidation = residentAnalysisService
+				? Promise.resolve().then(() => residentAnalysisService.invalidateSource(sourceId))
+				: frequencyWaveformServicePromise
+					? frequencyWaveformServicePromise.then((service) => service.invalidateSource(sourceId))
+					: deletePersistedAnalysis();
+			const [analysisResult] = await Promise.allSettled([
+				analysisInvalidation,
+				windowInvalidation,
+			]);
+			if (analysisResult.status === 'rejected') {
+				await deletePersistedAnalysis().catch(() => undefined);
+			}
+		},
+		clearRuntime: (): void => {
+			frequencyWaveformRuntimeGeneration += 1;
+			sourceFrequencyAnalyses.clear();
+			sourceFrequencyWindows.clear();
+			frequencyWaveformService?.clearRuntime();
+			frequencyWaveformWindowService?.clearRuntime();
+		},
+	});
+	const sourceLifecycle = Object.freeze({
+		...baseSourceLifecycle,
+		invalidateSourceRuntime: async (sourceId: string): Promise<void> => {
+			await Promise.all([
+				baseSourceLifecycle.invalidateSourceRuntime(sourceId),
+				frequencyWaveforms.invalidateSource(sourceId),
+			]);
+		},
+	});
 	playbackApply = createPlaybackProjectApplyService<SourceRuntimeProject, AudioBuffer>({
 		lifetime,
 		projectForPlayback: dependencies.playbackProjects.projectForPlayback,
@@ -258,11 +432,13 @@ export function createSourceRuntimeComposition<RenderEngine extends ClipTimePitc
 		projectVisual,
 		timePitchCaches,
 		sourceLifecycle,
+		frequencyWaveforms,
 		playbackApply,
-		/** Drop the resident waveform PCM windows and the requests still resolving them. */
+		/** Drop the resident waveform caches and requests still resolving them. */
 		clearWaveformPcmCaches: () => {
 			waveformPcmWindows.clear();
 			waveformPcmRequests.clear();
+			frequencyWaveforms.clearRuntime();
 		},
 	});
 }

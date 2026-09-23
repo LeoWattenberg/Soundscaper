@@ -29,6 +29,7 @@ export interface AudioWarpWaveformClip extends AudioWarpRuntimeClip {
 	readonly gain?: number;
 	readonly fadeInFrames?: number;
 	readonly fadeOutFrames?: number;
+	readonly inverted?: boolean;
 }
 
 export interface AudioWarpWaveformOptions {
@@ -144,7 +145,8 @@ export function prepareAudioWarpPeakPyramidWaveformWindow(
 	const sourceSamplesPerPixel = visibleSourceSamples / pixelWidth;
 	const pixelsPerSample = visibleSourceSamples ? pixelWidth / visibleSourceSamples : 0;
 	const level = selectWaveformPeakLevel(validated.levels, sourceSamplesPerPixel);
-	const gain = finiteNumber(clip.gain ?? 1, 'clip.gain');
+	const clipGain = finiteNumber(clip.gain ?? 1, 'clip.gain');
+	const gain = clip.inverted ? -clipGain : clipGain;
 	const fadeInFrames = localFrame(clip.fadeInFrames ?? 0, durationFrames, 'clip.fadeInFrames');
 	const fadeOutFrames = localFrame(clip.fadeOutFrames ?? 0, durationFrames, 'clip.fadeOutFrames');
 	const channels: SummaryWaveformChannel[] = Array.from({ length: channelCount }, (_, channelIndex) => {
@@ -217,7 +219,8 @@ function renderChannel(
 	const minimum = new Float32Array(columnCount);
 	const maximum = new Float32Array(columnCount);
 	const rms = new Float32Array(columnCount);
-	const gain = finiteNumber(clip.gain ?? 1, 'clip.gain');
+	const clipGain = finiteNumber(clip.gain ?? 1, 'clip.gain');
+	const gain = clip.inverted ? -clipGain : clipGain;
 	const fadeInFrames = localFrame(clip.fadeInFrames ?? 0, clip.durationFrames, 'clip.fadeInFrames');
 	const fadeOutFrames = localFrame(clip.fadeOutFrames ?? 0, clip.durationFrames, 'clip.fadeOutFrames');
 	for (let columnIndex = 0; columnIndex < columnCount; columnIndex += 1) {

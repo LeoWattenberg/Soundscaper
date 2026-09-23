@@ -20,7 +20,11 @@ import {
 import type { TransientAnalysisCacheRepository } from './transient-analysis-cache-repository.ts';
 import { normalizePcmChunkFrames } from './pcm-chunk-geometry.ts';
 
-const WAVEFORM_PEAK_CACHE_PREFIXES = Object.freeze(['audio-editor-peaks-v1:', 'audio-editor-peaks-v2:']);
+const SOURCE_ANALYSIS_CACHE_PREFIXES = Object.freeze([
+	'audio-editor-peaks-v1:',
+	'audio-editor-peaks-v2:',
+	'audio-editor-frequency-waveform-v1:',
+]);
 
 export interface SourceRepositoryOptions {
 	readonly records: SourceRecordRepository;
@@ -150,7 +154,7 @@ export class SourceRepository {
 		// Cache payloads are disposable. Their cleanup can be retried and must
 		// never change the already-committed authoritative source deletion.
 		await this.#options.transientAnalysisCache?.purge().catch(() => undefined);
-		for (const prefix of WAVEFORM_PEAK_CACHE_PREFIXES) {
+		for (const prefix of SOURCE_ANALYSIS_CACHE_PREFIXES) {
 			await this.#options.analysis.delete(`${prefix}${sourceId}`);
 		}
 	}

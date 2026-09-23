@@ -31,6 +31,7 @@ import {
 	EDITOR_EFFECT_DIALOG_SHELL_CHUNK_TEST,
 	EDITOR_EFFECT_PARAMETER_SURFACE_CHUNK_TEST,
 	EDITOR_FFMPEG_RUNTIME_CHUNK_TEST,
+	EDITOR_FREQUENCY_WAVEFORM_CHUNK_TEST,
 	EDITOR_IMPORT_ADMISSION_CHUNK_TEST,
 	EDITOR_OPTIONAL_ASSISTANCE_CHUNK_TEST,
 	EDITOR_OPTIONAL_CAPTURE_CHUNK_TEST,
@@ -64,6 +65,7 @@ export {
 	EDITOR_EFFECT_DIALOG_SHELL_CHUNK_TEST,
 	EDITOR_EFFECT_PARAMETER_SURFACE_CHUNK_TEST,
 	EDITOR_FFMPEG_RUNTIME_CHUNK_TEST,
+	EDITOR_FREQUENCY_WAVEFORM_CHUNK_TEST,
 	EDITOR_IMPORT_ADMISSION_CHUNK_TEST,
 	EDITOR_SOURCE_ACTIVATION_CHUNK_TEST,
 	EDITOR_OPTIONAL_ARCHIVE_CHUNK_TEST,
@@ -100,6 +102,16 @@ export const chunkGroups = [
 		// product bootstrap the current build selected.
 		name: 'editor-web-bootstrap',
 		test: EDITOR_WEB_BOOTSTRAP_CHUNK_TEST,
+		priority: 99,
+		minSize: 0,
+		maxSize: 400_000,
+		includeDependenciesRecursively: false,
+	},
+	{
+		// Frequency analysis, projection, and painting begin only after a track opts
+		// into 3-band or rainbow display. Keep that complete slice out of the shell.
+		name: 'editor-frequency-waveform',
+		test: EDITOR_FREQUENCY_WAVEFORM_CHUNK_TEST,
 		priority: 99,
 		minSize: 0,
 		maxSize: 400_000,

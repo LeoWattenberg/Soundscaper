@@ -21,6 +21,7 @@ interface WaveformClipIdentity {
 	readonly fadeInFrames?: number;
 	readonly fadeOutFrames?: number;
 	readonly reversed?: boolean;
+	readonly inverted?: boolean;
 	readonly envelope?: readonly Readonly<{ frame?: number; value?: number }>[];
 	readonly warpMap?: unknown;
 }
@@ -37,6 +38,7 @@ export interface WaveformPreviewRenderingKey {
 	readonly pixelWidth: number;
 	readonly reuseSummaryForCompatibility: boolean;
 	readonly provideAudacitySpectrogram: boolean;
+	readonly frequencyWaveformMode?: string | null;
 }
 
 /**
@@ -69,6 +71,7 @@ export function createWaveformPreviewCacheKey({
 		clip.fadeInFrames ?? 0,
 		clip.fadeOutFrames ?? 0,
 		Boolean(clip.reversed),
+		Boolean(clip.inverted),
 		(clip.envelope ?? []).map((point) => [point.frame ?? 0, point.value ?? 1]),
 		clip.warpMap ?? null,
 		sourceWindow.startFrame,
@@ -79,5 +82,6 @@ export function createWaveformPreviewCacheKey({
 		rendering.pixelWidth,
 		rendering.reuseSummaryForCompatibility,
 		rendering.provideAudacitySpectrogram,
+		rendering.frequencyWaveformMode ?? null,
 	]);
 }

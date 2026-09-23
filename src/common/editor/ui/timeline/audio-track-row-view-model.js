@@ -26,6 +26,8 @@ export function createAudioTrackRowClipViewModels({
 	waveformCache,
 	draggingClipIds,
 	envelopePreviews,
+	frequencyWaveformProjector,
+	frequencyWaveformPreferences,
 }) {
 	return clips.map((clip) => clip.isRecordingPreview
 		? toDesignRecordingPreview(
@@ -56,6 +58,11 @@ export function createAudioTrackRowClipViewModels({
 				reuseSummaryForCompatibility: displayMode === 'waveform' || displayMode === 'half-wave',
 				allowPeakPyramid: displayMode !== 'spectrogram',
 				provideAudacitySpectrogram: displayMode === 'spectrogram' || displayMode === 'multiview',
+				frequencyWaveformMode: displayMode === 'waveform-three-band' || displayMode === 'waveform-rainbow'
+					? displayMode
+					: null,
+				frequencyWaveformProjector,
+				frequencyWaveformPreferences,
 			},
 			cache: waveformCache,
 			reuseCachedWaveform: Boolean(

@@ -138,6 +138,27 @@
 	font-size: var(--editor-font-size, 12px);
 }
 
+.kw-audio-editor-preferences__waveform {
+	display: grid;
+	gap: 12px;
+}
+
+.kw-audio-editor-preferences__waveform p {
+	margin: 0;
+	color: var(--muted);
+}
+
+.kw-audio-editor-preferences__waveform label {
+	display: grid;
+	grid-template-columns: minmax(160px, 1fr) minmax(90px, 140px);
+	align-items: center;
+	gap: 12px;
+}
+
+.kw-audio-editor-preferences__waveform input {
+	width: 100%;
+}
+
 .kw-audio-editor-preferences__editing :is(.kw-audio-editor-preferences__note, .kw-audio-editor-preferences__field > span) {
 	color: var(--text);
 }
