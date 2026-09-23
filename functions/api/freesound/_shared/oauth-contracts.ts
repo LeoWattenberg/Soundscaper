@@ -117,7 +117,7 @@ export function normalizeTokenPair(value: unknown): FreesoundTokenPair {
 export function normalizeOAuthUser(value: unknown): FreesoundOAuthUser {
 	const source = record(value, 'user response');
 	return {
-		id: integer(source.id, 'user response.id', 1, Number.MAX_SAFE_INTEGER),
+		id: integer(source.unique_id, 'user response.unique_id', 1, Number.MAX_SAFE_INTEGER),
 		username: boundedString(source.username, 'user response.username', 128),
 	};
 }

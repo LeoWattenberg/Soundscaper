@@ -78,7 +78,7 @@ function oauthFetch(
 		}
 		if (url.pathname === '/apiv2/me/') {
 			assert.equal(request.headers.get('authorization'), `Bearer ${accessToken}`);
-			return jsonResponse({ id: 42, username: 'field-recordist' });
+			return jsonResponse({ unique_id: 42, username: 'field-recordist' });
 		}
 		throw new Error(`Unexpected upstream request: ${url.pathname}`);
 	};
