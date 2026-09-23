@@ -5,6 +5,7 @@ import { resolve } from 'node:path';
 import { captureMacSigningInputs, signVerifiedMacStage } from './lib/desktop-mac-signing-stage.mjs';
 import { verifyDesktopAssistanceRuntimeFamilyPackage } from './lib/desktop-assistance-runtime-family-verification.mjs';
 import { verifyDesktopKokoroG2pRuntime } from './lib/desktop-kokoro-g2p-runtime.mjs';
+import { verifyStagedAssistanceRuntimeDistribution } from './lib/desktop-assistance-runtime-distribution-verification.mjs';
 import { createHash } from 'node:crypto';
 
 import { desktopAssistanceNativeManifest } from './lib/desktop-assistance-speech-runtime.mjs';
@@ -79,6 +80,7 @@ export async function verifyStagedKokoroG2pRuntime({ repositoryRoot, stageManife
 		throw error;
 	});
 	const stage = stageBytes === null ? null : JSON.parse(stageBytes);
+	if (stage?.assistanceRuntimeDistribution) return null;
 	const hasReceipt = stage !== null && Object.hasOwn(stage, 'kokoroG2pRuntime');
 	const configPath = resolve(repositoryRoot,
 		'.desktop-build/app/config/assistance-kokoro-g2p-runtime-manifest.json');
@@ -160,6 +162,9 @@ export async function verifyStagedAssistanceNativeRuntime({
 	packagedTarget,
 }) {
 	const stage = JSON.parse(await readFile(stageManifestPath, 'utf8'));
+	if (stage.assistanceRuntimeDistribution) {
+		return verifyStagedAssistanceRuntimeDistribution({ repositoryRoot, stageManifestPath, packagedTarget });
+	}
 	const manifest = desktopAssistanceNativeManifest(stage, packagedTarget);
 	const expected = assistanceNativeRuntimeStageSummary(
 		manifest,

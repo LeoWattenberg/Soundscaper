@@ -289,9 +289,8 @@ async function assertRuntimePayloadClosure(runtime, files, dependencies, resourc
 		runtime, professional, target: nativeTarget, requireFile, expectedByPrefix,
 	}, dependencies.professionalNativeNoticeAuthorities);
 
-	assertAssistanceNativeRuntimeClosure({
-		assistance: runtime.assistanceNativeRuntime, target: nativeTarget, requireFile,
-	});
+	assertAssistanceNativeRuntimeClosure({ assistance: runtime.assistanceNativeRuntime,
+		target: nativeTarget, requireFile, distribution: runtime.assistanceRuntimeDistribution });
 	if (runtime.productId === 'framescaper') {
 		const hosts = runtime.framescaperNativeHosts;
 		if (!plainRecord(hosts) || hosts.target !== native.target) {

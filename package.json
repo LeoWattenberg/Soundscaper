@@ -107,6 +107,7 @@
 		"test:desktop": "node --import tsx --import ./scripts/node-style-asset-loader.mjs --test tests/desktop-*.test.js tests/desktop-*.test.ts tests/audio-editor-file-service.test.js",
 		"desktop:icons": "node scripts/desktop-icons.mjs",
 		"desktop:prepare": "node scripts/desktop-prepare.mjs",
+		"desktop:publish:assistance-runtimes": "node scripts/publish-assistance-runtime-assets.mjs --publish",
 		"desktop:prepare:framescaper": "SCAPE_PRODUCT=framescaper node scripts/desktop-prepare.mjs",
 		"desktop:nightly-tests:prepare": "node scripts/desktop-nightly-tests-prepare.mjs",
 		"desktop:nightly-tests:products": "node scripts/desktop-nightly-tests-products.mjs",

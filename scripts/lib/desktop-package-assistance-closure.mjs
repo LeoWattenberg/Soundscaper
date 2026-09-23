@@ -12,10 +12,11 @@ import { ASSISTANCE_TARGET_STATUSES } from '../../desktop/assistance-native-runt
  * package compiles and verifies the addon before staging. The set has one owner
  * so the two gates cannot drift apart.
  */
-export function assertAssistanceNativeRuntimeClosure({ assistance, target, requireFile }) {
+export function assertAssistanceNativeRuntimeClosure({ assistance, target, requireFile, distribution }) {
 	if (!plainRecord(assistance) || assistance.target !== target) {
 		throw new Error('The desktop runtime manifest has no exact assistance payload authority.');
 	}
+	if (distribution) return;
 	if (assistance.status !== 'built') {
 		if (!ASSISTANCE_TARGET_STATUSES.includes(assistance.status) || assistance.payload !== null) {
 			throw new Error('The desktop runtime manifest has invalid assistance target state.');

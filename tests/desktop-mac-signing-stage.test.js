@@ -11,6 +11,8 @@ import { captureMacSigningInputs, signVerifiedMacStage, verifySignedMacPackage, 
 	signedKokoroG2pSummary } from '../scripts/lib/desktop-mac-signing-stage.mjs';
 import { canonicalSigningJson, rebindSigningPins, signingDigest } from '../scripts/lib/desktop-signing-pins.mjs';
 import { signedAssistanceAuthority } from '../scripts/lib/desktop-signed-assistance-authority.mjs';
+import { validateDesktopRuntimeManifests } from '../scripts/desktop-release-assets.mjs';
+import { DESKTOP_CODEC_POLICY } from '../scripts/lib/desktop-codec-policy.mjs';
 
 test('mac signing refreshes Kokoro G2P closure bytes after Mach-O signing', () => {
 	const manifest = { schemaVersion: 1, runtimeVersion: '0.9.4', targetId: 'mac-arm64',
@@ -77,6 +79,82 @@ test('native signing preserves source authority and packages exactly the repinne
 	assert.equal(await verifySignedMacPackage(f.context), true);
 	await writeFile(join(f.resources, 'runtime', f.relativePath), 'tampered');
 	await assert.rejects(verifySignedMacPackage(f.context), /changed after signing/);
+});
+
+test('mac release accepts the separately signed and archived Sherpa receipt', async t => {
+	const root = await mkdtemp(join(tmpdir(), 'assistance-release-signing-'));
+	t.after(() => rm(root, { recursive: true, force: true }));
+	const saved = { ...process.env };
+	Object.assign(process.env, { SCAPE_MAC_SIGNING: 'true', CSC_NAME: 'Developer ID Application: Test (ABCDEFGHIJ)',
+		CSC_KEYCHAIN: '/temporary/keychain', APPLE_TEAM_ID: 'ABCDEFGHIJ' });
+	t.after(() => { process.env = saved; });
+	const build = join(root, '.desktop-build');
+	const app = join(build, 'app');
+	await mkdir(join(app, 'config'), { recursive: true });
+	await mkdir(join(build, 'runtime'), { recursive: true });
+	const native = structuredClone(assistance);
+	const packageName = native.targets['mac-arm64'].package.name;
+	const fileName = Object.keys(native.targets['mac-arm64'].package.files).find(name => name.endsWith('.node'));
+	const original = native.targets['mac-arm64'].package.files[fileName];
+	const signed = { byteLength: original.byteLength + 9, sha256: 'd'.repeat(64) };
+	native.targets['mac-arm64'].package.files[fileName] = signed;
+	const signedPath = `${native.runtimePrefix}/node_modules/${packageName}/${fileName}`;
+	const signingFiles = [{ path: signedPath, original, signed }];
+	const familyIds = ['onnxruntime-node', 'whisper-cpp', 'llama-cpp'];
+	const families = { manifests: Object.fromEntries(familyIds.map(familyId => [familyId, {
+		runtimeVersion: '1.0.0', runtimePrefix: `assistance/${familyId}/1.0.0`,
+		targets: [{ id: 'mac-arm64', status: 'authenticated', files: [{ path: 'engine', byteLength: 1,
+			sha256: 'a'.repeat(64), executable: familyId !== 'onnxruntime-node' }] }],
+	}])) };
+	const kokoro = { runtimeVersion: '0.9.4', runtimePrefix: 'assistance/kokoro-g2p/0.9.4', targetId: 'mac-arm64',
+		executable: 'kokoro-g2p', files: [{ path: 'kokoro-g2p', byteLength: 1, sha256: 'a'.repeat(64) }] };
+	const bundles = ['sherpa-onnx-node', ...familyIds, 'kokoro-g2p'].map(familyId => {
+		const runtimeVersion = familyId === 'sherpa-onnx-node' ? native.version
+			: familyId === 'kokoro-g2p' ? kokoro.runtimeVersion : '1.0.0';
+		const runtimePrefix = familyId === 'sherpa-onnx-node' ? native.runtimePrefix
+			: `assistance/${familyId}/${runtimeVersion}`;
+		const files = familyId === 'sherpa-onnx-node'
+			? [native.commonPackage, native.targets['mac-arm64'].package].flatMap(descriptor =>
+				Object.entries(descriptor.files).map(([name, file]) => ({
+					path: `node_modules/${descriptor.name}/${name}`, ...file, executable: false })))
+			: [{ path: familyId === 'kokoro-g2p' ? 'kokoro-g2p' : 'engine', byteLength: 1,
+				sha256: 'a'.repeat(64), executable: familyId !== 'onnxruntime-node' }];
+		return { familyId, runtimeVersion, runtimePrefix,
+			installPath: familyId === 'sherpa-onnx-node' ? runtimePrefix : `${runtimePrefix}/mac-arm64`,
+			archive: { url: `https://assets.soundscaper.org/runtime/assistance/${familyId}/${runtimeVersion}/mac-arm64/${'b'.repeat(64)}.tar.gz`,
+				sha256: 'b'.repeat(64), byteLength: 64 }, files };
+	});
+	const distributionBytes = Buffer.from(`${JSON.stringify({ schemaVersion: 1, targetId: 'mac-arm64', bundles })}\n`);
+	const receipt = { targetId: 'mac-arm64', signingFiles,
+		manifest: { path: 'config/assistance-runtime-distribution.json',
+			byteLength: distributionBytes.length, sha256: signingDigest(distributionBytes) },
+		bundles: bundles.map(bundle => ({ familyId: bundle.familyId,
+			sha256: bundle.archive.sha256, byteLength: bundle.archive.byteLength })) };
+	for (const [name, value] of [
+		['assistance-native-runtime-manifest.json', native],
+		['assistance-runtime-family-supply-candidates.json', families],
+		['assistance-kokoro-g2p-runtime-manifest.json', kokoro],
+	]) await writeFile(join(app, 'config', name), canonicalSigningJson(value));
+	await writeFile(join(app, 'config/assistance-runtime-distribution.json'), distributionBytes);
+	await writeFile(join(app, 'package.json'), JSON.stringify({ name: 'test' }));
+	const stagePath = join(build, 'stage-manifest.json');
+	await writeFile(stagePath, canonicalSigningJson({ target: { platform: 'mac', arch: 'arm64' },
+		assistanceNativeRuntime: assistanceNativeRuntimeStageSummary(native, 'mac-arm64'),
+		assistanceRuntimeDistribution: receipt }));
+	const context = { electronPlatformName: 'darwin', appOutDir: join(root, 'output'),
+		packager: { projectDir: root, getResourcesDir: () => join(root, 'output/Resources') } };
+	await captureMacSigningInputs(context);
+	await signVerifiedMacStage(context, { executeFile: async () => {
+		throw new Error('The assistance archive was signed before packaging.');
+	} });
+	const stage = JSON.parse(await readFile(stagePath));
+	assert.deepEqual(stage.nativeSigning.files, signingFiles);
+	const release = { name: 'runtime-manifest-soundscaper-mac-arm64.json', value: {
+		...stage, productId: 'soundscaper', desktopCodecPolicy: DESKTOP_CODEC_POLICY,
+		nativeAddons: { target: 'mac-arm64', targetSource: 'declared', status: 'ci-generated',
+			payload: null, buildResult: null, blockedBy: null },
+		framescaperNativeHosts: null } };
+	assert.doesNotThrow(() => validateDesktopRuntimeManifests([release], ['soundscaper']));
 });
 
 test('signing refuses a signer that changes executable contents', async t => {

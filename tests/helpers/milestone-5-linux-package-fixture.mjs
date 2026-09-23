@@ -6,9 +6,10 @@ import {
 	chmod, cp, mkdir, mkdtemp, readFile, rm, symlink, writeFile,
 } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { dirname, join, resolve } from 'node:path';
+import { dirname, join } from 'node:path';
 import { promisify } from 'node:util';
 
+import { createPackage } from '@electron/asar';
 import appImageUtil from 'app-builder-lib/out/targets/appimage/appImageUtil.js';
 
 import assistanceNativeRuntimeManifest from '../../config/assistance-native-runtime-manifest.json' with { type: 'json' };
@@ -31,7 +32,6 @@ import {
 } from '../../scripts/lib/soundscaper-professional-native-payload.mjs';
 
 const executeFile = promisify(execFile);
-const PROJECT_ROOT = resolve(import.meta.dirname, '../..');
 const TARGET_ID = 'linux-x64';
 // Audacity's reviewed strings are compiled into the renderer bundle inside
 // app.asar, so the package stages no translation tree; the runtime manifest
@@ -64,8 +64,13 @@ export async function createSoundscaperLinuxPackageFixture({
 	const professionalRelease = await verifySoundscaperProfessionalNativePayload({
 		repositoryRoot,
 		target: TARGET_ID,
-		targetSource: 'declared',
+		 targetSource: 'declared',
 	});
+	const applicationRoot = join(workRoot, 'tree/opt/Soundscaper');
+	const resourcesRoot = join(applicationRoot, 'resources');
+	const assistanceRuntimeDistribution = await stageAssistanceDistributionFixture(
+		workRoot, resourcesRoot,
+	);
 	const runtimeManifest = {
 		schemaVersion: 1,
 		productId: 'soundscaper',
@@ -77,6 +82,7 @@ export async function createSoundscaperLinuxPackageFixture({
 			assistanceNativeRuntimeManifest,
 			TARGET_ID,
 		),
+		assistanceRuntimeDistribution,
 		desktopCodecPolicy: DESKTOP_CODEC_POLICY,
 		desktopNotices: {
 			professionalNative: typedUnavailableSoundscaperProfessionalNativeNotices(TARGET_ID),
@@ -91,9 +97,6 @@ export async function createSoundscaperLinuxPackageFixture({
 	const runtimeManifestPath = join(packageRoot, manifestName);
 	await writeJson(runtimeManifestPath, runtimeManifest);
 
-	const applicationRoot = join(workRoot, 'tree/opt/Soundscaper');
-	const resourcesRoot = join(applicationRoot, 'resources');
-	await writeBytes(join(resourcesRoot, 'app.asar'), Buffer.from('authenticated fixture application'));
 	const nativeRoot = join(resourcesRoot, `runtime/native/${TARGET_ID}`);
 	await writeBytes(
 		join(nativeRoot, releaseNativeManifestName(nativeRelease)),
@@ -106,7 +109,6 @@ export async function createSoundscaperLinuxPackageFixture({
 		release: professionalRelease,
 		outputRoot: professionalNativePayloadOutputRoot(join(resourcesRoot, 'runtime'), professionalRelease),
 	});
-	await stageAssistanceFiles(resourcesRoot, runtimeManifest.assistanceNativeRuntime);
 	const executable = linuxExecutableHeader();
 	await writeBytes(join(applicationRoot, 'soundscaper'), executable);
 	await chmod(join(applicationRoot, 'soundscaper'), 0o755);
@@ -215,15 +217,49 @@ function linuxSharedLibraryHeader() {
 	return bytes;
 }
 
-async function stageAssistanceFiles(resourcesRoot, summary) {
-	for (const [name, expected] of Object.entries(summary.payload.files)) {
-		const source = join(PROJECT_ROOT, 'node_modules', name.slice('node_modules/'.length));
-		const bytes = await readFile(source);
-		if (bytes.byteLength !== expected.byteLength || sha256(bytes) !== expected.sha256) {
-			throw new Error(`The assistance package fixture source ${name} is not authenticated.`);
-		}
-		await writeBytes(join(resourcesRoot, `runtime/${summary.payload.root}/${name}`), bytes);
-	}
+async function stageAssistanceDistributionFixture(workRoot, resourcesRoot) {
+	const engine = { path: 'engine', byteLength: 6, sha256: 'a'.repeat(64), executable: true };
+	const familyIds = ['onnxruntime-node', 'whisper-cpp', 'llama-cpp'];
+	const family = { manifests: Object.fromEntries(familyIds.map((familyId) => [familyId, {
+		runtimeVersion: '1.0.0', runtimePrefix: `assistance/${familyId}/1.0.0`,
+		targets: [{ id: TARGET_ID, status: 'authenticated', files: [engine] }],
+	}])) };
+	const kokoro = { runtimeVersion: '0.9.4', runtimePrefix: 'assistance/kokoro-g2p/0.9.4',
+		targetId: TARGET_ID, executable: 'engine', files: [{ path: engine.path,
+			byteLength: engine.byteLength, sha256: engine.sha256 }] };
+	const native = assistanceNativeRuntimeManifest;
+	const sherpaFiles = [native.commonPackage, native.targets[TARGET_ID].package]
+		.flatMap((descriptor) => Object.entries(descriptor.files).map(([name, file]) => ({
+			path: `node_modules/${descriptor.name}/${name}`, ...file, executable: false,
+		})));
+	const bundles = ['sherpa-onnx-node', ...familyIds, 'kokoro-g2p'].map((familyId) => {
+		const runtimeVersion = familyId === 'sherpa-onnx-node' ? native.version
+			: familyId === 'kokoro-g2p' ? kokoro.runtimeVersion : '1.0.0';
+		const runtimePrefix = familyId === 'sherpa-onnx-node' ? native.runtimePrefix
+			: `assistance/${familyId}/${runtimeVersion}`;
+		const archive = { byteLength: 42, sha256: 'b'.repeat(64) };
+		return { familyId, runtimeVersion, runtimePrefix,
+			installPath: familyId === 'sherpa-onnx-node'
+				? runtimePrefix : `${runtimePrefix}/${TARGET_ID}`,
+			archive: { ...archive,
+				url: `https://assets.soundscaper.org/runtime/assistance/${familyId}/${runtimeVersion}/${TARGET_ID}/${archive.sha256}.tar.gz` },
+			files: familyId === 'sherpa-onnx-node' ? sherpaFiles : [engine] };
+	});
+	const app = join(workRoot, 'assistance-fixture-app');
+	const configs = {
+		'assistance-native-runtime-manifest.json': native,
+		'assistance-runtime-family-supply-candidates.json': family,
+		'assistance-kokoro-g2p-runtime-manifest.json': kokoro,
+		'assistance-runtime-distribution.json': { schemaVersion: 1, targetId: TARGET_ID, bundles },
+	};
+	for (const [name, value] of Object.entries(configs)) await writeJson(join(app, 'config', name), value);
+	await mkdir(resourcesRoot, { recursive: true });
+	await createPackage(app, join(resourcesRoot, 'app.asar'));
+	const manifestBytes = await readFile(join(app, 'config/assistance-runtime-distribution.json'));
+	return { targetId: TARGET_ID, signingFiles: [],
+		manifest: { path: 'config/assistance-runtime-distribution.json', ...descriptor(manifestBytes) },
+		bundles: bundles.map(({ familyId, archive }) => ({ familyId,
+			byteLength: archive.byteLength, sha256: archive.sha256 })) };
 }
 
 async function buildAppImage(treeRoot, outputPath, workRoot) {

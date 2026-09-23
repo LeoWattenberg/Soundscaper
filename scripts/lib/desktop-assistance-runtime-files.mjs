@@ -4,6 +4,10 @@
 export const DESKTOP_ASSISTANCE_RUNTIME_FILES = Object.freeze([
 	'desktop/assistance-cleanup-barrier.js',
 	'desktop/assistance-runtime-family-cancellation.js',
+	'desktop/assistance-runtime-distribution.js',
+	'desktop/assistance-runtime-archive.js',
+	'desktop/assistance-runtime-installer.js',
+	'desktop/assistance-runtime-model-supply.js',
 	'desktop/assistance-kokoro-g2p-runtime.js',
 	'desktop/assistance-authenticated-source-snapshot.js',
 	'desktop/assistance-data-claims.js',

@@ -8,6 +8,7 @@ import { extractFile, listPackage, statFile } from '@electron/asar';
 import { assistanceNativeRuntimeStageSummary } from '../../desktop/assistance-native-runtime-payload.mjs';
 import { canonicalSigningJson, rebindSigningPins, signingDigest } from './desktop-signing-pins.mjs';
 import { signedAssistanceFamilySummary } from './desktop-signed-assistance-family-summary.mjs';
+import { validateDesktopAssistanceRuntimeDistribution } from './desktop-assistance-runtime-distribution-verification.mjs';
 import { validateDesktopKokoroG2pManifest } from './desktop-kokoro-g2p-runtime.mjs';
 
 const execute = promisify(execFile);
@@ -105,7 +106,23 @@ export async function signVerifiedMacStage(context, dependencies = {}) {
 		const bytes = await readFile(join(root, 'app/config/assistance-kokoro-g2p-runtime-manifest.json'));
 		stage.kokoroG2pRuntime = signedKokoroG2pSummary(stage.kokoroG2pRuntime, bytes);
 	}
-	stage.nativeSigning = { schemaVersion: 1, teamId: team, files: signingFiles };
+	if (stage.assistanceRuntimeDistribution) {
+		validateDesktopAssistanceRuntimeDistribution({
+			manifestBytes: await readFile(join(root, 'app/config/assistance-runtime-distribution.json')),
+			receipt: stage.assistanceRuntimeDistribution,
+			targetId: `mac-${stage.target.arch}`,
+			nativeManifestBytes: await readFile(join(root, 'app/config/assistance-native-runtime-manifest.json')),
+			familyManifestBytes: await readFile(join(root, 'app/config/assistance-runtime-family-supply-candidates.json')),
+			kokoroManifestBytes: await readFile(join(root, 'app/config/assistance-kokoro-g2p-runtime-manifest.json')),
+		});
+	}
+	const assistanceSigning = stage.assistanceRuntimeDistribution?.signingFiles ?? [];
+	if (!Array.isArray(assistanceSigning)
+		|| new Set([...signingFiles, ...assistanceSigning].map(({ path }) => path)).size
+			!== signingFiles.length + assistanceSigning.length) {
+		throw new Error('Mac assistance signing receipt has duplicate or invalid paths.');
+	}
+	stage.nativeSigning = { schemaVersion: 1, teamId: team, files: [...signingFiles, ...assistanceSigning] };
 	// The adjacent package-content gate uses the desktop stage's two-space wire.
 	await writeFile(stagePath, `${JSON.stringify(stage, null, 2)}\n`);
 	signedStages.set(context.packager, {

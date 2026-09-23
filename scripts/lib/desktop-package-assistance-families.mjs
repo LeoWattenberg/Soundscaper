@@ -4,6 +4,7 @@ import { join } from 'node:path';
 import { createHash } from 'node:crypto';
 import { extractFile } from '@electron/asar';
 import { verifyDesktopAssistanceRuntimeFamilyPackage } from './desktop-assistance-runtime-family-verification.mjs';
+import { verifyPackagedAssistanceRuntimeDistribution } from './desktop-assistance-runtime-distribution-verification.mjs';
 import {
 	KOKORO_G2P_PREFIX,
 	validateDesktopKokoroG2pManifest,
@@ -14,6 +15,14 @@ const MANIFEST_PATH = 'config/assistance-runtime-family-supply-candidates.json';
 
 /** Bind release-audit resources to the native authority inside their actual ASAR. */
 export async function assertDesktopPackageAssistanceFamilies({ resourcesRoot, runtime, files }) {
+	if (runtime.assistanceRuntimeDistribution) {
+		if (files.some(({ path }) => path.startsWith('runtime/assistance/')
+			|| path.startsWith('app.asar.unpacked/runtime/assistance/'))) {
+			throw new Error('The installed desktop package contains preinstalled Local Assistance engines.');
+		}
+		return verifyPackagedAssistanceRuntimeDistribution({ resourcesRoot, stage: runtime,
+			targetId: `${runtime.target.platform}-${runtime.target.arch}` });
+	}
 	assertDesktopPackageKokoroG2p({ resourcesRoot, runtime, files });
 	const engineFiles = files.filter(({ path }) => FAMILIES.some((family) =>
 		path.startsWith(`runtime/assistance/${family}/`)));

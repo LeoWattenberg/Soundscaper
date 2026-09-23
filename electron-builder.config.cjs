@@ -1,5 +1,4 @@
 // @ts-check
-const assistanceNativeRuntimeManifest = require('./config/assistance-native-runtime-manifest.json');
 const professionalNativePayloadManifest = require('./config/soundscaper-professional-native-payload-manifest.json');
 const productReleaseLines = require('./config/product-release-lines.json');
 
@@ -19,20 +18,11 @@ const macEntitlements = framescaper
 // These payloads are sealed before their exact digests enter the stage
 // manifest. The release signing hook repins its verified stage before ASAR
 // assembly; electron-builder must not sign those runtime bytes a second time.
-const macAssistancePackage = assistanceNativeRuntimeManifest.targets['mac-arm64'].package;
-const macAssistanceNativeFiles = Object.keys(macAssistancePackage.files)
-	.filter((name) => name.endsWith('.dylib') || name.endsWith('.node'))
-	.map(regexEscape)
-	.join('|');
 const macPreAuthenticatedRuntimePayload = [
 	'/Contents/Resources/runtime/(?:',
 	'native/soundscaper-os-audio-codec/mac-arm64/soundscaper_os_audio_codec\\.node',
 	'|',
 	`${regexEscape(professionalNativePayloadManifest.staging.runtimePrefix)}/mac-arm64(?:/.*)?`,
-	'|',
-	`${regexEscape(assistanceNativeRuntimeManifest.runtimePrefix)}/node_modules/`,
-	`${regexEscape(macAssistancePackage.name)}/(?:${macAssistanceNativeFiles})`,
-	'|assistance/(?:onnxruntime-node/1\\.29\\.0|whisper-cpp/v1\\.9\\.3|llama-cpp/b10509|kokoro-g2p/0\\.9\\.4)/mac-arm64/.*',
 	')$',
 ].join('');
 
@@ -105,9 +95,6 @@ module.exports = {
 	],
 	win: {
 		...signing.win,
-		// The signed application archive authenticates this exact CPU executable.
-		// Copy-time signing would change its bytes after the inventory is sealed.
-		signExts: ['!whisper-cli.exe', '!kokoro-g2p.exe'],
 		icon: '.desktop-build/icons/icon.png',
 		target: ['nsis', 'zip'],
 	},

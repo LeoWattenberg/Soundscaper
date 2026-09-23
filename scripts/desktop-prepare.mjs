@@ -18,6 +18,7 @@ import { listTranslationCatalogLocales, readTranslationCatalog } from './i18n-ai
 import { buildSourceMapsRequested } from './lib/build-source-map-relocation.mjs';
 import { stageDesktopBundledCodecNotices } from './lib/desktop-bundled-codec-notices.mjs';
 import { stageDesktopAssistanceRuntimeFamilies } from './lib/desktop-assistance-runtime-families.mjs';
+import { stageDesktopAssistanceRuntimeDistribution } from './lib/desktop-assistance-runtime-distribution.mjs';
 import { stageDesktopKokoroG2pRuntime } from './lib/desktop-kokoro-g2p-runtime.mjs';
 import { buildKokoroG2pBundle } from './kokoro-g2p/build.mjs';
 import { stageDesktopAssistanceSpeechRuntime } from './lib/desktop-assistance-speech-runtime.mjs';
@@ -156,24 +157,35 @@ async function main() {
 		repositoryRoot: ROOT,
 		outputRoot: DESKTOP_RUNTIME_ROOT,
 	});
-	const assistanceSpeechRuntime = await stageDesktopAssistanceSpeechRuntime({
+	let assistanceSpeechRuntime = await stageDesktopAssistanceSpeechRuntime({
 		repositoryRoot: ROOT,
 		targetId: nativeTarget.id,
 		nodeModulesRoot: resolve(ROOT, 'node_modules'),
 		runtimeRoot: RUNTIME_ROOT,
 		cacheRoot: resolve(ROOT, '.native-build/assistance-runtimes'),
 	});
-	const assistanceRuntimeFamilies = await stageDesktopAssistanceRuntimeFamilies({
+	let assistanceRuntimeFamilies = await stageDesktopAssistanceRuntimeFamilies({
 		targetId: nativeTarget.id,
 		runtimeRoot: RUNTIME_ROOT,
 		cacheRoot: resolve(ROOT, '.native-build/assistance-runtimes'),
 	});
 	const kokoroG2pBuild = await buildKokoroG2pBundle({ targetId: nativeTarget.id });
-	const kokoroG2pRuntime = await stageDesktopKokoroG2pRuntime({
+	let kokoroG2pRuntime = await stageDesktopKokoroG2pRuntime({
 		targetId: nativeTarget.id,
 		bundleRoot: kokoroG2pBuild.bundleRoot,
 		runtimeRoot: RUNTIME_ROOT,
 	});
+	const assistanceDistribution = await stageDesktopAssistanceRuntimeDistribution({
+		targetId: nativeTarget.id,
+		runtimeRoot: RUNTIME_ROOT,
+		archiveRoot: resolve(BUILD_ROOT, 'assistance-distribution'),
+		assistanceSpeechRuntime,
+		assistanceRuntimeFamilies,
+		kokoroG2pRuntime,
+	});
+	assistanceSpeechRuntime = assistanceDistribution.speech;
+	assistanceRuntimeFamilies = assistanceDistribution.families;
+	kokoroG2pRuntime = assistanceDistribution.kokoro;
 	const nativeAddons = nativeAddonRelease === null ? null : await stageNativeAddons(nativeAddonRelease);
 	const osAudioCodecNative = osAudioCodecNativeRelease === null
 		? null
@@ -206,7 +218,7 @@ async function main() {
 	const desktopRuntime = await stageApplication(
 		projectPackage, applicationVersion, productMetadata, framescaperNativeHostRelease,
 		compiledDesktopRuntime, assistanceRuntimeFamilies, assistanceSpeechRuntime,
-		kokoroG2pRuntime,
+		kokoroG2pRuntime, assistanceDistribution,
 	);
 
 	const stageManifest = {
@@ -222,6 +234,7 @@ async function main() {
 		assistanceNativeRuntime: assistanceSpeechRuntime.summary,
 		assistanceNativeBuild: assistanceSpeechRuntime.buildReceipt,
 		assistanceRuntimeFamilies: assistanceRuntimeFamilies.summary,
+		assistanceRuntimeDistribution: assistanceDistribution.summary,
 		kokoroG2pRuntime: {
 			...kokoroG2pRuntime.summary,
 			manifest: descriptorForBytes(
@@ -374,7 +387,7 @@ async function buildRenderer() {
 async function stageApplication(
 	projectPackage, applicationVersion, productMetadata, framescaperNativeHostRelease,
 	compiledDesktopRuntime, assistanceRuntimeFamilies, assistanceSpeechRuntime,
-	kokoroG2pRuntime,
+	kokoroG2pRuntime, assistanceDistribution,
 ) {
 	await mkdir(APP_ROOT, { recursive: true });
 	const desktopRuntime = await stageDesktopApplicationSources({
@@ -394,6 +407,8 @@ async function stageApplication(
 				? kokoroG2pRuntime.manifestBytes
 			: register === 'config/assistance-native-runtime-manifest.json'
 				? Buffer.from(`${JSON.stringify(assistanceSpeechRuntime.manifest, null, 2)}\n`)
+			: register === 'config/assistance-runtime-distribution.json'
+				? assistanceDistribution.manifestBytes
 			: framescaperNativeHostRelease === null
 			? null
 			: register === 'config/framescaper-media-host-payload-manifest.json'

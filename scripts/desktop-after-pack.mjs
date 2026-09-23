@@ -11,6 +11,7 @@ import { flipFuses as flipElectronFuses, FuseVersion, FuseV1Options } from '@ele
 import { extractFile, listPackage } from '@electron/asar';
 import { verifyDesktopAssistanceRuntimeFamilyPackage } from './lib/desktop-assistance-runtime-family-verification.mjs';
 import { verifyDesktopKokoroG2pRuntime } from './lib/desktop-kokoro-g2p-runtime.mjs';
+import { verifyPackagedAssistanceRuntimeDistribution } from './lib/desktop-assistance-runtime-distribution-verification.mjs';
 
 import { desktopAssistanceNativeManifest } from './lib/desktop-assistance-speech-runtime.mjs';
 import { verifyAssistanceNativeRuntimePayload } from '../desktop/assistance-native-runtime-payload.mjs';
@@ -142,6 +143,7 @@ export async function verifyPackagedKokoroG2pRuntime(context, dependencies = {})
 		throw error;
 	});
 	const stage = stageBytes === null ? null : JSON.parse(stageBytes);
+	if (stage?.assistanceRuntimeDistribution) return null;
 	const hasReceipt = stage !== null && Object.hasOwn(stage, 'kokoroG2pRuntime');
 	const asarPath = resolve(resourcesRoot, 'app.asar');
 	const configPath = '/config/assistance-kokoro-g2p-runtime-manifest.json';
@@ -189,6 +191,9 @@ export async function verifyPackagedAssistanceNativeRuntime(context, dependencie
 		const repositoryRoot = resolve(dependencies.repositoryRoot ?? REPOSITORY_ROOT);
 		const stage = JSON.parse(await readFile(dependencies.stageManifestPath
 			?? resolve(repositoryRoot, '.desktop-build/stage-manifest.json'), 'utf8'));
+		if (stage.assistanceRuntimeDistribution) {
+			return verifyPackagedAssistanceRuntimeDistribution({ resourcesRoot, stage, targetId });
+		}
 		const manifest = dependencies.assistanceNativeRuntimeManifest ?? desktopAssistanceNativeManifest(stage, targetId);
 		const packagedManifest = JSON.parse(extractFile(resolve(resourcesRoot, 'app.asar'),
 			'config/assistance-native-runtime-manifest.json').toString('utf8'));

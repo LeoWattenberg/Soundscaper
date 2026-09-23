@@ -40,6 +40,11 @@ export async function packageDesktopNightlyTestProducts({
 			CSC_IDENTITY_AUTO_DISCOVERY: 'false',
 		};
 		await run(process.execPath, [resolve(repositoryRoot, 'scripts/desktop-prepare.mjs')], { cwd: repositoryRoot, environment });
+		if (process.env.SOUNDSCAPER_PUBLISH_ASSISTANCE_RUNTIMES === 'true') {
+			await run(process.execPath, [
+				resolve(repositoryRoot, 'scripts/publish-assistance-runtime-assets.mjs'), '--publish',
+			], { cwd: repositoryRoot, environment });
+		}
 		await run(process.execPath, [
 			resolve(repositoryRoot, 'node_modules/electron-builder/out/cli/cli.js'),
 			'--config', resolve(repositoryRoot, 'electron-builder.config.cjs'),

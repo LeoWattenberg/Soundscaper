@@ -567,6 +567,13 @@ jobs:
           SOUNDSCAPER_DESKTOP_TARGET_ARCH: ${{ matrix.target.arch }}
           SOUNDSCAPER_SOURCE_REVISION: ${{ github.sha }}
 
+      - name: Publish and verify optional AI runtimes
+        run: npm run desktop:publish:assistance-runtimes
+        env:
+          R2_MODELS_ACCESS_KEY_ID: ${{ secrets.R2_MODELS_ACCESS_KEY_ID }}
+          R2_MODELS_SECRET_ACCESS_KEY: ${{ secrets.R2_MODELS_SECRET_ACCESS_KEY }}
+          R2_MODELS_ENDPOINT: ${{ vars.R2_MODELS_ENDPOINT || secrets.R2_MODELS_ENDPOINT }}
+
       - name: Package ${{ matrix.product }} ${{ matrix.target.platform }} ${{ matrix.target.arch }}
         run: >-
           bash scripts/ci-electron-builder.sh
@@ -927,6 +934,10 @@ jobs:
           SOUNDSCAPER_DESKTOP_TARGET_PLATFORM: ${{ matrix.target.platform }}
           SOUNDSCAPER_DESKTOP_TARGET_ARCH: ${{ matrix.target.arch }}
           SOUNDSCAPER_SOURCE_REVISION: ${{ github.event.workflow_run.head_sha || github.sha }}
+          SOUNDSCAPER_PUBLISH_ASSISTANCE_RUNTIMES: 'true'
+          R2_MODELS_ACCESS_KEY_ID: ${{ secrets.R2_MODELS_ACCESS_KEY_ID }}
+          R2_MODELS_SECRET_ACCESS_KEY: ${{ secrets.R2_MODELS_SECRET_ACCESS_KEY }}
+          R2_MODELS_ENDPOINT: ${{ vars.R2_MODELS_ENDPOINT || secrets.R2_MODELS_ENDPOINT }}
 
       - name: Preserve the nested Chromium sandboxes
         if: runner.os == 'Linux'
