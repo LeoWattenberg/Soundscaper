@@ -25,7 +25,6 @@ test('the diagnostic host requires explicit model mode, an isolated profile, and
 	const options = { argv: ARGV, environment: ENVIRONMENT, platform: 'linux', arch: 'x64' };
 	const plan = resolveNightlyAssistanceHostPlan(options);
 	assert.equal(plan.productApp, '/opt/products/soundscaper.asar');
-	assert.equal(plan.runtimeRoot, '/opt/products/soundscaper/linux-unpacked/resources/runtime');
 	assert.equal(plan.preload, '/opt/products/soundscaper.asar/desktop/preload.mjs');
 	assert.equal(plan.profile, '/tmp/model-profile');
 	assert.equal(plan.modelCache, '/tmp/model-cache');
@@ -47,6 +46,7 @@ test('the diagnostic document scheme is registered before Electron becomes ready
 test('the isolated host uses production registration and preload with guarded real IPC', async (context) => {
 	let window;
 	let registration;
+	let profilePath;
 	let windowOptions;
 	let documentHandler;
 	let loadedUrl;
@@ -67,7 +67,8 @@ test('the isolated host uses production registration and preload with guarded re
 		async loadURL(url) { loadedUrl = url; mainFrame.url = url; }
 	}
 	const hosted = await startNightlyAssistanceHost({
-		app: { setPath: () => undefined, whenReady: async () => undefined }, BrowserWindow: Window,
+		app: { setPath: (name, value) => { assert.equal(name, 'userData'); profilePath = value; },
+			whenReady: async () => undefined }, BrowserWindow: Window,
 		ipcMain: { handle: (channel, listener) => handlers.set(channel, listener),
 			on: () => undefined, removeHandler: () => { removed += 1; }, removeListener: () => undefined },
 		session: { defaultSession: { protocol: {
@@ -83,6 +84,7 @@ test('the isolated host uses production registration and preload with guarded re
 		} }),
 	});
 	assert.equal(windowOptions.webPreferences.preload, hosted.plan.preload);
+	assert.equal(profilePath, '/tmp/model-profile');
 	assert.equal(loadedUrl, NIGHTLY_ASSISTANCE_DOCUMENT_URL);
 	const documentResponse = await documentHandler({ method: 'GET', url: NIGHTLY_ASSISTANCE_DOCUMENT_URL });
 	assert.equal(documentResponse.status, 200);
@@ -93,7 +95,7 @@ test('the isolated host uses production registration and preload with guarded re
 	assert.deepEqual(verifiedFiles, [hosted.plan.preload], 'Electron can access archive entries, not the empty archive root');
 	for (const key of ['contextIsolation', 'sandbox', 'webSecurity']) assert.equal(windowOptions.webPreferences[key], true);
 	assert.equal(windowOptions.webPreferences.nodeIntegration, false);
-	assert.equal(registration.runtimeRoot, hosted.plan.runtimeRoot);
+	assert.equal(registration.runtimeRoot, undefined);
 	assert.equal(registration.settings.snapshot().modelsDirectory, '/tmp/model-cache');
 	const operationError = new Error('The runtime-family model failed authentication.');
 	registration.onOperationError(operationError);

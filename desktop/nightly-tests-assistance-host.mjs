@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { access, mkdir, readFile } from 'node:fs/promises';
-import { dirname, isAbsolute, join, resolve } from 'node:path';
+import { isAbsolute, join, resolve } from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { takeCoverage } from 'node:v8';
 
@@ -35,17 +35,15 @@ export function resolveNightlyAssistanceHostPlan({ argv, environment, platform =
 	const modelCache = absolute(environment.SOUNDSCAPER_LOCAL_ASSISTANCE_MODEL_CACHE, 'Nightly assistance model cache');
 	const productId = environment.SOUNDSCAPER_LOCAL_ASSISTANCE_PRODUCT_ID;
 	const productRoot = absolute(environment.SOUNDSCAPER_PACKAGED_PRODUCT_ROOT, 'Packaged product root');
-	const executable = resolvePackagedProductExecutable({
+	resolvePackagedProductExecutable({
 		productRoot,
 		productId, platform, arch,
 	});
-	const resources = platform === 'darwin'
-		? resolve(dirname(executable), '../Resources') : join(dirname(executable), 'resources');
 	// electron-builder can only embed integrity metadata for an ASAR at the
 	// root of a directory-valued extraResource. The product packager places this
 	// host-only copy there while the product executable keeps its original ASAR.
 	const productApp = join(productRoot, `${productId}.asar`);
-	return Object.freeze({ productId, profile, modelCache, productApp, runtimeRoot: join(resources, 'runtime'),
+	return Object.freeze({ productId, profile, modelCache, productApp,
 		preload: join(productApp, 'desktop/preload.mjs'),
 		document: join(import.meta.dirname, 'nightly-tests-assistance.html') });
 }
@@ -105,7 +103,7 @@ export async function startNightlyAssistanceHost({ app, BrowserWindow, ipcMain, 
 	window.webContents.session.setPermissionRequestHandler((_contents, _permission, callback) => callback(false));
 	let modelsDirectory = plan.modelCache;
 	const assistance = registerAssistance({
-		channels: IPC, handle, on, app, runtimeRoot: plan.runtimeRoot,
+		channels: IPC, handle, on, app,
 		onOperationError: (error) => console.error('Local assistance operation failed:', error),
 		sendToRenderer: (channel, payload) => {
 			if (!window.isDestroyed()) window.webContents.send(channel, payload);
