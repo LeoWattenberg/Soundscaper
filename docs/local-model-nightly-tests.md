@@ -105,15 +105,14 @@ does not verify all 54 voices or pronunciation quality. See the
 
 ## Run the distributed package
 
-Extract the Windows nightly-with-tests ZIP to a writable directory with a short
-path (for example, `C:\SoundscaperNightlyTests`), then run
-`Soundscaper Nightly Tests.exe` from the extracted directory. On macOS, extract
-the ZIP and open the app; on Linux, run the AppImage. The local-model phase starts
-automatically; no environment setup is needed. An ordinary launch opens a small
-progress window before the tests start and keeps the active test phase visible.
-Once Electron starts, a `soundscaper-nightly-tests-startup-<suffix>/startup.log`
-beside the launcher records loading and failures, even if no test report
-directory can be created.
+Extract the GitHub Actions artifact ZIP, then launch the Windows `.exe`, macOS
+app, or Linux AppImage inside it. The local-model phase starts automatically; no
+environment setup is needed. An ordinary launch opens a small progress window
+before the tests start and keeps the active test phase visible. The Windows
+portable launcher first shows an extraction splash; the test window opens after
+its bundled tools are unpacked. Once Electron starts, a
+`soundscaper-nightly-tests-startup-<suffix>/startup.log` beside the launcher
+records loading and failures, even if no test report directory can be created.
 Startup errors wait for acknowledgement and display this log path. An unwritable
 launcher directory puts the startup log in the system temporary directory.
 When launched from a terminal, the application also immediately prints a

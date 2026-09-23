@@ -100,9 +100,16 @@ module.exports = {
 	],
 	win: {
 		icon: '.desktop-build/icons/icon.png',
-		// NSIS portable extracts this multi-gigabyte payload twice and reports
-		// copy failures as an unrelated "cannot be closed" process error.
-		target: ['zip'],
+		target: ['portable'],
+	},
+	portable: {
+		splashImage: '.desktop-build/icons/nightly-tests-splash.bmp',
+		// Electron Builder embeds the app files directly with this option. Its
+		// default 7z path extracts to a second tree, then CopyFiles can fail
+		// with a misleading "cannot be closed" dialog before Electron starts.
+		useZip: true,
+		// A per-launch directory avoids colliding with a previous run's files.
+		unpackDirName: false,
 	},
 	mac: {
 		icon: '.desktop-build/icons/icon.png',
