@@ -112,9 +112,9 @@ test('the isolated host uses production registration and preload with guarded re
 	assert.equal(protocolRemoved, 1);
 });
 
-test('production assistance keeps its real runtime root as the default and no test consent branch', async () => {
+test('production assistance uses a writable user-data runtime root and no test consent branch', async () => {
 	const source = await readFile(new URL('../desktop/assistance-registration.mjs', import.meta.url), 'utf8');
-	assert.match(source, /runtimeRoot = join\(process\.resourcesPath, 'runtime'\)/u);
+	assert.match(source, /runtimeRoot = join\(app\.getPath\('userData'\), 'runtime'\)/u);
 	assert.match(source, /onError: onOperationError/u);
 	assert.doesNotMatch(source, /SOUNDSCAPER_LOCAL_ASSISTANCE_REAL_MODELS|nightly-assistance-host/u);
 });
