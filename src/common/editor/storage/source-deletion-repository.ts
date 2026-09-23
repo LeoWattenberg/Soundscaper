@@ -13,7 +13,11 @@ import {
 } from './source-dependency-query.ts';
 import { deletePairedVideoDerivativeRecords } from './video-derivative-repository.ts';
 
-const WAVEFORM_PEAK_CACHE_PREFIXES = Object.freeze(['audio-editor-peaks-v1:', 'audio-editor-peaks-v2:']);
+const SOURCE_ANALYSIS_CACHE_PREFIXES = Object.freeze([
+	'audio-editor-peaks-v1:',
+	'audio-editor-peaks-v2:',
+	'audio-editor-frequency-waveform-v1:',
+]);
 
 export type SourceStorageDeletionResult =
 	| { readonly status: 'retained'; readonly dependentSourceId: string }
@@ -51,7 +55,7 @@ export class SourceDeletionRepository {
 			}
 			const [mediaAssetValue, ...waveformValues] = await Promise.all([
 				request(stores.mediaAssets.get(sourceId)),
-				...WAVEFORM_PEAK_CACHE_PREFIXES.map((prefix) => (
+				...SOURCE_ANALYSIS_CACHE_PREFIXES.map((prefix) => (
 					request(stores.analysis.get(`${prefix}${sourceId}`))
 				)),
 			]);
@@ -66,7 +70,7 @@ export class SourceDeletionRepository {
 			if (mediaAsset) stores.mediaAssets.delete(sourceId);
 			for (const [index, value] of waveformValues.entries()) {
 				if (value !== undefined) {
-					stores.analysis.delete(`${WAVEFORM_PEAK_CACHE_PREFIXES[index]}${sourceId}`);
+					stores.analysis.delete(`${SOURCE_ANALYSIS_CACHE_PREFIXES[index]}${sourceId}`);
 				}
 			}
 			return {
@@ -100,7 +104,7 @@ export class SourceDeletionRepository {
 			}
 		}
 		if (mediaAsset) memory.mediaAssets.delete(sourceId);
-		for (const prefix of WAVEFORM_PEAK_CACHE_PREFIXES) {
+		for (const prefix of SOURCE_ANALYSIS_CACHE_PREFIXES) {
 			memory.analysis.delete(`${prefix}${sourceId}`);
 		}
 		for (const derivative of derivatives) {

@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
 import {
 	framesToSeconds,
@@ -10,6 +10,7 @@ import {
 import { audacityWaveformMode } from '../../audacity-waveform-renderer.js';
 import { waveformPeakLevelForResolution } from '../../design-system-adapters/waveform-internals.ts';
 import { MAXIMUM_WAVEFORM_PEAK_WINDOW_BUCKETS } from '../../waveform-peak-contract.ts';
+import { isFrequencyWaveformDisplayMode } from '../../track-display-mode.ts';
 import { createAudioTrackRowClipViewModels } from './audio-track-row-view-model.js';
 import { createCrossfadeOverlays } from './TrackOverlapOverlays.jsx';
 import {
@@ -122,6 +123,16 @@ export function useAudioTrackRowViewModel({
 		projectionClips: projection.clips,
 		sampleRate,
 	});
+	const [frequencyWaveformModule, setFrequencyWaveformModule] = useState(null);
+
+	useEffect(() => {
+		if (!isFrequencyWaveformDisplayMode(displayMode) || frequencyWaveformModule) return undefined;
+		let active = true;
+		void import('./frequency-waveform-projection.ts').then((module) => {
+			if (active) setFrequencyWaveformModule(module);
+		}).catch(() => {});
+		return () => { active = false; };
+	}, [displayMode, frequencyWaveformModule]);
 
 	const waveformWindowRequests = useMemo(() => {
 		const requests = new Map();
@@ -150,6 +161,23 @@ export function useAudioTrackRowViewModel({
 		}
 	}, [controller, run, waveformWindowRequests]);
 
+	useEffect(() => {
+		if (!isFrequencyWaveformDisplayMode(displayMode) || !frequencyWaveformModule) return;
+		frequencyWaveformModule.requestVisibleFrequencyWaveforms({
+			controller, clips: projection.clips, project, pixelsPerSecond, sampleRate, run,
+		});
+	}, [
+		controller,
+		displayMode,
+		frequencyWaveformModule,
+		pixelsPerSecond,
+		project,
+		projection.clips,
+		run,
+		sampleRate,
+		viewModelRevision,
+	]);
+
 	const windowLeft = framesToSeconds(projection.overscanStartFrame, { sampleRate }) * pixelsPerSecond;
 	const windowFrames = Math.max(1, projection.overscanEndFrame - projection.overscanStartFrame);
 	const windowWidth = Math.max(1, framesToSeconds(windowFrames, { sampleRate }) * pixelsPerSecond);
@@ -176,6 +204,8 @@ export function useAudioTrackRowViewModel({
 			draggingClipIds,
 			waveformPendingClipIds: displayMode === 'spectrogram' ? null : waveformWindowRequests,
 			envelopePreviews: envelopePreviewRef.current,
+			frequencyWaveformProjector: frequencyWaveformModule?.prepareFrequencyWaveformClipProjection,
+			frequencyWaveformPreferences: viewModelRevision?.preferences?.waveformVisualization,
 		});
 	}, [
 		controller,
@@ -184,6 +214,7 @@ export function useAudioTrackRowViewModel({
 		draggingClipIds,
 		envelopePreviewRef,
 		envelopePreviewRevision,
+		frequencyWaveformModule,
 		pixelsPerSecond,
 		project,
 		projection.clips,

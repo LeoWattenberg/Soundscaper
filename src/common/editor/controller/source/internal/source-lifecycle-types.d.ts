@@ -5,6 +5,7 @@ import type {
 	WaveformPcmRange,
 	WaveformPeakWindow,
 	WaveformPeakWindowOptions,
+	WaveformPcmReadOptions,
 } from '../waveform-analysis.ts';
 import type { SourceChunkProviderRegistryPort } from './source-chunk-provider-registration.ts';
 
@@ -99,10 +100,14 @@ export interface SourceLifecycleWaveformPcmWindow extends WaveformPcmRange {
 	readonly clipId: string;
 	readonly sourceId: string;
 	readonly channels: readonly Float32Array[];
+	/** Unpadded source range requested by the caller, when analysis context was requested. */
+	readonly visibleStartFrame?: number;
+	readonly visibleEndFrame?: number;
 }
 
 export interface SourceLifecycleWaveformPcmRequest extends WaveformPcmRange {
 	readonly sourceId: string;
+	readonly signal?: AbortSignal;
 	readonly promise: Promise<SourceLifecycleWaveformPcmWindow | null>;
 }
 
@@ -180,7 +185,11 @@ export interface SourceLifecycleServiceRuntime<
 		source: SourceLifecycleSource,
 		context: unknown,
 	) => Awaitable<Buffer | null>;
-	readonly readWaveformPcmWindow: (provider: Provider, range: WaveformPcmRange) => Awaitable<readonly Float32Array[]>;
+	readonly readWaveformPcmWindow: (
+		provider: Provider,
+		range: WaveformPcmRange,
+		options?: WaveformPcmReadOptions,
+	) => Awaitable<readonly Float32Array[]>;
 	readonly readWaveformPeakWindow?: (
 		provider: Provider,
 		range: WaveformPcmRange,

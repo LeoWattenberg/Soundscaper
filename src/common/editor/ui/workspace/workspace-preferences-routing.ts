@@ -11,6 +11,7 @@ const PREFERENCE_PAGES = new Set([
 	'workspace',
 	'shortcuts',
 	'spectrogram',
+	'waveform',
 ]);
 
 /**

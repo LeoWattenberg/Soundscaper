@@ -20,6 +20,7 @@ import {
 	registerAudioEditorHooks,
 	sourcePeakChannels,
 } from './audio-editor-test-helpers.js';
+import { chooseTrackMenuAction } from './helpers/track-menu.js';
 
 async function expectPeakPyramidColumnsAtMostOnePixel(waveform) {
 	const resolution = await waveform.evaluate((canvas) => {
@@ -523,6 +524,26 @@ test.describe('audio editor React/design-system workflows', () => {
 			delete globalThis.__multiviewOriginalClearRect;
 			delete globalThis.__multiviewWaveformClears;
 		});
+		expect(errors).toEqual([]);
+	});
+
+	test('renders 3-band and rainbow frequency waveforms from Track Display', async ({ page }) => {
+		const errors = collectClientErrors(page);
+		const editor = await bootEditor(page, '/embed/en/');
+		await importFiles(editor, [toneA]);
+		const clip = clipByName(editor, toneA.name);
+		const track = clip.locator('xpath=ancestor::div[@data-track-row]');
+		const waveform = clip.locator('canvas.clip-body__waveform');
+
+		await chooseTrackMenuAction(page, editor, track, ['Display', '3-band waveform']);
+		await expect(track).toHaveAttribute('data-display-mode', 'waveform-three-band');
+		await expect(waveform).toHaveAttribute('data-frequency-waveform-mode', 'waveform-three-band');
+		await expect(waveform).toHaveAttribute('data-waveform-source', 'frequency-analysis');
+
+		await chooseTrackMenuAction(page, editor, track, ['Display', 'Rainbow waveform']);
+		await expect(track).toHaveAttribute('data-display-mode', 'waveform-rainbow');
+		await expect(waveform).toHaveAttribute('data-frequency-waveform-mode', 'waveform-rainbow');
+		await expect(waveform).toHaveAttribute('data-waveform-source', 'frequency-analysis');
 		expect(errors).toEqual([]);
 	});
 

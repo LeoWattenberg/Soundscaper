@@ -65,6 +65,7 @@ export function createControllerBindings<RenderEngine extends ClipTimePitchRende
 	const { newProject } = deferAsyncControllerMethods(() => services.projectSwitchService(), ['newProject']);
 	const { releaseProjectLock } = deferAsyncControllerMethods(() => services.projectLockService(), ['releaseProjectLock']);
 	const { requestWaveformPcmWindow, activateStoredSource } = deferAsyncControllerMethods(() => services.sources().sourceLifecycle, ['requestWaveformPcmWindow', 'activateStoredSource']);
+	const { requestFrequencyWaveform } = deferAsyncControllerMethods(() => services.sources().frequencyWaveforms, ['requestFrequencyWaveform']);
 	const { loadRecordingRouting, refreshRecordingInputs, refreshAudioDevices } = deferAsyncControllerMethods(() => services.recording().routing, ['loadRecordingRouting', 'refreshRecordingInputs', 'refreshAudioDevices']);
 	const { startRecordingOnNewTrack } = deferAsyncControllerMethods(() => services.recording().session, ['startRecordingOnNewTrack']);
 	const { scheduleTimedRecording } = deferAsyncControllerMethods(() => services.recording().timed, ['scheduleTimedRecording']);
@@ -130,7 +131,7 @@ export function createControllerBindings<RenderEngine extends ClipTimePitchRende
 		updateRecordingDeviceRows, addVideoClipEffect, updateVideoClipEffect, toggleVideoClipEffect,
 		bypassVideoClipEffect, previewVideoEffectGesture, commitVideoEffectGesture, cancelTimedRecording,
 		startRecording, startSoundActivatedRecording, setVisibleTrackHeights, resizeTrackHeight, newProject,
-		releaseProjectLock, requestWaveformPcmWindow, activateStoredSource, loadRecordingRouting,
+		releaseProjectLock, requestWaveformPcmWindow, requestFrequencyWaveform, activateStoredSource, loadRecordingRouting,
 		refreshRecordingInputs, refreshAudioDevices, startRecordingOnNewTrack, scheduleTimedRecording,
 		stopProjectBinPreview, bootstrap, openProject, claimProjectLock,
 		loadProjectSources, listProjects, clearRecentProjects, renameProject,

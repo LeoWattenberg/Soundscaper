@@ -21,6 +21,9 @@ export interface ProjectVisualSource {
 	readonly id: string;
 	readonly kind?: string;
 	readonly storageKey?: string;
+	readonly frameCount?: number;
+	readonly channelCount?: number;
+	readonly sampleRate?: number;
 	readonly contentSha256?: string;
 	readonly timingAsset?: unknown;
 	/** Video sources also carry the timing decision, proxy attachment and frame rate the preview resolvers read. */
@@ -130,6 +133,8 @@ export interface ClipVisualData {
 	readonly source: ProjectVisualSource | null;
 	readonly buffer: unknown;
 	readonly peaks: unknown;
+	readonly frequencyAnalysis?: unknown;
+	readonly frequencyWindow?: unknown;
 	readonly available: boolean;
 	readonly mediaUrl?: string | null;
 	readonly posterUrl?: string | null;
@@ -159,6 +164,8 @@ export interface ProjectVisualServiceDependencies {
 	readonly sourcePeaks: ReadonlyMap<string, unknown>;
 	readonly waveformPeakWindows?: ReadonlyMap<string, unknown>;
 	readonly waveformPcmWindows: ReadonlyMap<string, unknown>;
+	readonly sourceFrequencyAnalyses?: ReadonlyMap<string, unknown>;
+	readonly sourceFrequencyWindows?: ReadonlyMap<string, unknown>;
 	readonly store: ProjectVisualStore;
 	resolveProductVideoPreviewMedia?(request: Readonly<ProjectVideoPreviewMediaRequest>):
 		Promise<Readonly<ProjectVideoPreviewMedia> | null>;

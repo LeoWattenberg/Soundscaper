@@ -39,6 +39,7 @@ import {
 	normalizeAudioEditorShortcut,
 } from './audio-editor-shortcut-normalization.ts';
 import { clone, finiteInRange, integer, nonEmptyString, oneOf } from './preferences-validators.js';
+import { normalizeWaveformVisualizationPreferences } from './waveform-visualization-preferences.ts';
 import {
 	BUILT_IN_WORKSPACE_SET,
 	normalizeCustomWorkspaces,
@@ -169,6 +170,7 @@ const FORBIDDEN_TOP_LEVEL_KEYS = new Set([
  * @property {{showMasterTrack: boolean, showMarkers: boolean}} view
  * @property {{activeId: string, custom: Object[], toolbars: Record<string, {visible: boolean, order: number}>, toolbarButtons: Record<string, boolean>, panels: Record<string, AudioEditorPanelStateV1>}} workspace
  * @property {Object} spectrogram
+ * @property {import('./waveform-visualization-preferences.ts').WaveformVisualizationPreferences} waveformVisualization
  * @property {{detectTempo: boolean}} import
  * @property {{retainInputs: boolean, soundActivation: import('./sound-activation-preferences.ts').SoundActivationPreferences}} recording
  * @property {{playAtSpeedMode: 'naive'|'staffpad'}} playback
@@ -215,6 +217,7 @@ function mergePreferences(preferences, patch = {}) {
 			panels: { ...preferences.workspace?.panels, ...patch.workspace?.panels },
 		},
 		spectrogram: { ...preferences.spectrogram, ...patch.spectrogram },
+		waveformVisualization: { ...preferences.waveformVisualization, ...patch.waveformVisualization },
 		import: { ...preferences.import, ...patch.import },
 		recording: { ...preferences.recording, ...patch.recording },
 		playback: { ...preferences.playback, ...patch.playback },
@@ -293,6 +296,7 @@ export function createAudioEditorPreferencesV1(options = {}) {
 			gain: finiteInRange(options.spectrogram?.gain ?? 20, -120, 120, 'spectrogram.gain'),
 			range: finiteInRange(options.spectrogram?.range ?? 80, 1, 240, 'spectrogram.range'),
 		},
+		waveformVisualization: normalizeWaveformVisualizationPreferences(options.waveformVisualization),
 		import: {
 			detectTempo: options.import?.detectTempo !== false,
 		},
@@ -480,6 +484,7 @@ export function validateAudioEditorPreferencesV1(preferences) {
 		}
 		oneOf(preferences.effects.menuOrganization, EFFECT_MENU_ORGANIZATION_SET, 'effects.menuOrganization');
 	}
+	if (preferences.waveformVisualization !== undefined) normalizeWaveformVisualizationPreferences(preferences.waveformVisualization);
 	if (preferences.startup !== undefined) {
 		if (!preferences.startup || typeof preferences.startup !== 'object' || Array.isArray(preferences.startup)) {
 			throw new TypeError('preferences.startup must be an object.');
@@ -511,6 +516,7 @@ export function loadAudioEditorPreferencesV1(value) {
 			// Documents saved before the layout preference existed carry an
 			// appearance section without it; normalization supplies the default.
 			appearance: normalized.appearance,
+			waveformVisualization: normalized.waveformVisualization,
 			view: normalized.view,
 			workspace: {
 				...clone(value.workspace),

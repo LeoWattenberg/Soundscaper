@@ -63,6 +63,7 @@ test('a pending waveform retains only plans that remain fine at the live canvas 
 		__kwWaveformPlan: {
 			mode: 'summary', peakBlockSize: 8, pixelsPerSample: 0.1, pixelWidth: 100,
 		},
+		__kwWaveformPaintedWidth: 100,
 	};
 	assert.equal(shouldRetainPendingAudacityCanvas(canvas, { waveformPending: true }), true);
 	assert.equal(shouldRetainPendingAudacityCanvas({ ...canvas, clientWidth: 126 }, { waveformPending: true }), false);

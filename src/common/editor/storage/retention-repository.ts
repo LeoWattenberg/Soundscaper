@@ -38,7 +38,11 @@ import type { SourceWriteMaintenance } from './source-write-lifecycle.ts';
 import type { TransientAnalysisCacheRepository } from './transient-analysis-cache-repository.ts';
 import type { AssistanceDerivativeRepositoryPort } from './deferred-assistance-derivative-repository.ts';
 
-const WAVEFORM_PEAK_CACHE_PREFIXES = Object.freeze(['audio-editor-peaks-v1:', 'audio-editor-peaks-v2:']);
+const SOURCE_ANALYSIS_CACHE_PREFIXES = Object.freeze([
+	'audio-editor-peaks-v1:',
+	'audio-editor-peaks-v2:',
+	'audio-editor-frequency-waveform-v1:',
+]);
 
 interface PruneOptions {
 	readonly protectedProjects?: readonly unknown[];
@@ -336,7 +340,7 @@ export class RetentionRepository {
 		for (const derivative of derivatives) {
 			if (typeof derivative.key === 'string') memory.videoDerivatives.delete(derivative.key);
 		}
-		for (const prefix of WAVEFORM_PEAK_CACHE_PREFIXES) memory.analysis.delete(`${prefix}${sourceId}`);
+		for (const prefix of SOURCE_ANALYSIS_CACHE_PREFIXES) memory.analysis.delete(`${prefix}${sourceId}`);
 		for (const [key, value] of memory.sourceChunks) {
 			const chunk = asRecord(value);
 			if (source?.sourceToken && chunk?.sourceToken === source.sourceToken) memory.sourceChunks.delete(key);
@@ -412,7 +416,7 @@ export class RetentionRepository {
 					videoDerivatives.delete(key);
 					derivativeCacheEntries.delete(key);
 				}
-				for (const prefix of WAVEFORM_PEAK_CACHE_PREFIXES) analysis.delete(`${prefix}${sourceId}`);
+				for (const prefix of SOURCE_ANALYSIS_CACHE_PREFIXES) analysis.delete(`${prefix}${sourceId}`);
 			}
 			for (const project of projectUpdates) projects.put(project);
 			for (const revision of revisionUpdates) revisions.put(revision);

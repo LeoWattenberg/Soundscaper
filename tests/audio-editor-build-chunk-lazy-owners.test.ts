@@ -9,6 +9,7 @@ import {
 	chunkGroups,
 	EDITOR_EFFECT_DIALOG_SHELL_CHUNK_TEST,
 	EDITOR_EFFECT_PARAMETER_SURFACE_CHUNK_TEST,
+	EDITOR_FREQUENCY_WAVEFORM_CHUNK_TEST,
 	EDITOR_OPTIONAL_ARCHIVE_CHUNK_TEST,
 	EDITOR_OPTIONAL_ASSISTANCE_CHUNK_TEST,
 	EDITOR_OPTIONAL_CAPTURE_CHUNK_TEST,
@@ -246,6 +247,55 @@ test('PFFFT has an isolated lazy runtime owner', () => {
 	assert.ok(group);
 	assert.equal(group.includeDependenciesRecursively, false);
 	assert.equal(group.minSize, 0);
+});
+
+test('frequency waveform analysis and presentation share one opt-in owner', () => {
+	for (const path of [
+		'src/common/editor/frequency-waveform-analysis.ts',
+		'src/common/editor/frequency-waveform-contract.ts',
+		'src/common/editor/frequency-waveform-worker-client.ts',
+		'src/common/editor/frequency-waveform-worker-protocol.ts',
+		'src/common/editor/controller/source/frequency-waveform-runtime-composition.ts',
+		'src/common/editor/controller/source/frequency-waveform-source-service.ts',
+		'src/common/editor/controller/source/frequency-waveform-window-service.ts',
+		'src/common/editor/ui/timeline/frequency-waveform-projection.ts',
+		'src/common/editor/ui/timeline/frequency-waveform-renderer.ts',
+	]) {
+		assert.ok(EDITOR_FREQUENCY_WAVEFORM_CHUNK_TEST.test(path), `${path} must be optional frequency waveform code`);
+		assert.equal(chunkGroupForModulePath(path), 'editor-frequency-waveform');
+	}
+	const group = chunkGroups.find((candidate) => candidate.name === 'editor-frequency-waveform');
+	assert.ok(group);
+	assert.equal(group.includeDependenciesRecursively, false);
+	assert.equal(group.minSize, 0);
+	const rowHook = readFileSync(
+		new URL('../src/common/editor/ui/timeline/useAudioTrackRowViewModel.js', import.meta.url),
+		'utf8',
+	);
+	const canvas = readFileSync(
+		new URL('../src/common/editor/ui/timeline/TimelineCanvasRenderer.jsx', import.meta.url),
+		'utf8',
+	);
+	const sourceRuntime = readFileSync(
+		new URL('../src/common/editor/controller/source/source-runtime-composition.ts', import.meta.url),
+		'utf8',
+	);
+	const frequencyRuntime = readFileSync(
+		new URL('../src/common/editor/controller/source/frequency-waveform-runtime-composition.ts', import.meta.url),
+		'utf8',
+	);
+	assert.match(sourceRuntime, /import\('\.\/frequency-waveform-runtime-composition\.ts'\)/u);
+	const invalidation = frequencyRuntime.match(
+		/invalidateSource: async \(sourceId: string\)[\s\S]+?(?=\n\t\tclearRuntime:)/u,
+	)?.[0];
+	assert.ok(invalidation);
+	assert.doesNotMatch(invalidation, /loadFrequencyWaveformService\(/u);
+	assert.match(invalidation, /frequencyWaveformServicePromise/u);
+	assert.match(invalidation, /frequencyWaveformWindowServicePromise/u);
+	assert.match(invalidation, /persistentFrequencyWaveformCacheBypass\.add/u);
+	assert.match(invalidation, /store\.deleteAnalysis/u);
+	assert.match(rowHook, /import\('\.\/frequency-waveform-projection\.ts'\)/u);
+	assert.match(canvas, /import\('\.\/frequency-waveform-renderer\.ts'\)/u);
 });
 
 test('selection effects have an isolated lazy runtime owner', () => {

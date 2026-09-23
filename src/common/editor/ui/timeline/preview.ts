@@ -184,6 +184,15 @@ export function pcmWindowCoversProjectedClip(
 ): boolean {
 	if (!window?.channels?.length) return false;
 	if (window.sourceId && clip.sourceId && window.sourceId !== clip.sourceId) return false;
+	return sourceWindowCoversProjectedClip(window, clip, project);
+}
+
+export function sourceWindowCoversProjectedClip(
+	window: Pick<PcmPreviewWindow, 'startFrame' | 'endFrame'> | null | undefined,
+	clip: Parameters<typeof pcmWindowCoversProjectedClip>[1],
+	project: AudioWarpRuntimeProject | null | undefined = null,
+): boolean {
+	if (!window || !Number.isFinite(window.startFrame) || !Number.isFinite(window.endFrame)) return false;
 	const range = projectedClipSourceRange(clip, project);
 	if (range === null) return false;
 	return window.startFrame <= Math.floor(range.startFrame)

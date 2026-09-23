@@ -2,6 +2,7 @@
 
 import { normalizeEffect } from './effects.js';
 import { createStableId } from './stable-id.js';
+import { AUDIO_EDITOR_TRACK_DISPLAY_MODES } from './track-display-mode.ts';
 
 export const AUDIO_EDITOR_PROJECT_DEFAULT_SAMPLE_RATE = 48_000;
 export const AUDIO_EDITOR_PROJECT_DEFAULT_MASTER_CHANNELS = 2;
@@ -16,12 +17,7 @@ export const AUDIO_EDITOR_SAMPLE_FORMATS = Object.freeze([
 	'float64',
 	'unknown',
 ]);
-export const AUDIO_EDITOR_DISPLAY_MODES = Object.freeze([
-	'waveform',
-	'spectrogram',
-	'multiview',
-	'half-wave',
-]);
+export const AUDIO_EDITOR_DISPLAY_MODES = AUDIO_EDITOR_TRACK_DISPLAY_MODES;
 export const AUDIO_EDITOR_TRACK_COLORS = Object.freeze([
 	'blue',
 	'violet',

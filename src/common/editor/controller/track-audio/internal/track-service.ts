@@ -2,6 +2,11 @@
 
 import { createLocalizedError } from '../../../../i18n/presentation-message.ts'; import type { RecordingRoute, RecordingRouting } from '../../../recording-routing.js'; import { publishedCopyFor } from '../../shared/presentation-localization.ts';
 import { hasCoreEditingProjectAuthority } from '../../../project-schema-version.ts';
+import {
+	isTrackDisplayMode,
+	timelineViewForTrackDisplayMode,
+	type TimelineDisplayMode,
+} from '../../../track-display-mode.ts';
 
 import {
 	createAddLabelCommand,
@@ -21,8 +26,6 @@ import {
 } from '../track-domain-types.ts';
 
 export type TrackMoveDirection = 'up' | 'down' | 'top' | 'bottom';
-export type TrackDisplayMode = 'waveform' | 'spectrogram' | 'multiview' | 'half-wave';
-
 interface TrackCopy {
 	readonly track: string;
 	readonly labels: string;
@@ -111,7 +114,7 @@ export interface EditorTrackServiceDependencies {
 	getPositionFrames(): number;
 	getTransportState?(): string;
 	snapTimelineFrame(frame: number): number;
-	setTimelineView(displayMode: TrackDisplayMode): void;
+	setTimelineView(displayMode: TimelineDisplayMode): void;
 	resampleTrack?(trackId?: string | null, requestedSampleRate?: unknown): Promise<string | null>;
 }
 
@@ -303,7 +306,7 @@ export function createEditorTrackService(
 		const track = findControllerTrack(project, trackId);
 		if (!track || track.type !== 'audio') throw createLocalizedError(Error, dependencies.copy, 'audioTrackRequired');
 		if (!isTrackDisplayMode(displayMode)) throw createLocalizedError(RangeError, dependencies.copy, 'unknownTrackDisplay');
-		dependencies.setTimelineView(displayMode);
+		dependencies.setTimelineView(timelineViewForTrackDisplayMode(displayMode));
 		return dependencies.commit({ type: 'track/update', trackId: track.id, changes: { displayMode } }, { selectTrackId: track.id });
 	}
 
@@ -375,8 +378,4 @@ function labelTrackFrom(project: ControllerProject, focused: ControllerTrack | n
 	const start = focused ? project.tracks.indexOf(focused) : 0;
 	const below = labelTracks.find((track) => project.tracks.indexOf(track) >= start);
 	return below ?? labelTracks.at(-1) ?? null;
-}
-
-function isTrackDisplayMode(value: string): value is TrackDisplayMode {
-	return value === 'waveform' || value === 'spectrogram' || value === 'multiview' || value === 'half-wave';
 }
