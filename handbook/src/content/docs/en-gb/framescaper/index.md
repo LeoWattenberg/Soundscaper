@@ -4,7 +4,7 @@ description: "Arrange video, composite picture, and deliver a local-first video 
 sidebar:
   order: 1
 ---
-<!-- docs-ai-provenance: {"factPacketSha256":"6193de9a731d010659be03c1372890bf230bb54161c79a2aa1e3ffe4a63c51bd","model":"qwen3.8:latest","modelDigest":"22130167c4c20e20c7b71454612966ca8e8171e9b3cc8ab6ce8aa6cbfec79643","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"6193de9a731d010659be03c1372890bf230bb54161c79a2aa1e3ffe4a63c51bd","targetLocale":"en-GB"} -->
+<!-- docs-ai-provenance: {"factPacketSha256":"fe5df8f699907289847a5d9022c094e32168b502a532ebdf7708436a99db38b7","model":"gpt-5.6-luna","modelDigest":"manual","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"fe5df8f699907289847a5d9022c094e32168b502a532ebdf7708436a99db38b7","targetLocale":"en-GB"} -->
 
 Framescaper is the video-focused view of the shared editor. It emphasises video
 preview, source monitoring, picture effects, compositing, nested sequences, and
@@ -32,7 +32,9 @@ against Soundscaper, and cover the audio side of a video project too.
 
 1. [Create a first Framescaper project](/framescaper/first-project/).
 2. [Prepare and export video](/framescaper/video-export/).
-3. Review [project-file and backup behavior](/projects-and-data/project-files/).
+3. Review [project-file and backup behaviour](/projects-and-data/project-files/).
 
 Open the browser editor at
 [soundscaper.org/framescaper/en](https://soundscaper.org/framescaper/en/).
+
+For desktop assistance, see [local processing, models, and plugins](/help/local-processing/).

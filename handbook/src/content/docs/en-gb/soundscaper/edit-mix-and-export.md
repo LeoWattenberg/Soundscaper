@@ -4,7 +4,7 @@ description: "Arrange clips, balance tracks, apply effects, and create a deliver
 sidebar:
   order: 4
 ---
-<!-- docs-ai-provenance: {"factPacketSha256":"d4b354ffb5d6a4d35fcb20ac6bb1e0191746badd98ca8f5b476a286e068a3c26","model":"qwen3.8:latest","modelDigest":"22130167c4c20e20c7b71454612966ca8e8171e9b3cc8ab6ce8aa6cbfec79643","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"d4b354ffb5d6a4d35fcb20ac6bb1e0191746badd98ca8f5b476a286e068a3c26","targetLocale":"en-GB"} -->
+<!-- docs-ai-provenance: {"factPacketSha256":"eaa07736d9143de912e22bd2c5d4a8db4f1553c1052d247826240cda8c6af620","model":"gpt-5.6-luna","modelDigest":"manual","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"eaa07736d9143de912e22bd2c5d4a8db4f1553c1052d247826240cda8c6af620","targetLocale":"en-GB"} -->
 
 ## Arrange clips
 
@@ -69,6 +69,28 @@ available in track and master effect racks. Rack settings are saved with the
 project and can be adjusted during playback. **Apply to selection** renders the
 effect into the selected audio and supports Undo. Timeline automation is not
 available for these two effects.
+
+### Use LADSPA effects and Vamp analysers {#native-audio-plugins}
+
+The desktop app can scan third-party plug-ins only after you allow a format and
+one of its folders in **Effect → Plugin Manager**. Scanning is never automatic.
+Allow each discovered installation before using it, and install only plug-ins
+you trust: native plug-ins run executable code even though Soundscaper hosts
+them in supervised helper processes.
+
+LADSPA effects are available on Linux. Open one from **Effect → Audio Plugins**
+after enabling it in the manager. Soundscaper builds controls from the LADSPA
+ports because this format has no vendor interface. Those control values and the
+effect's enabled or bypassed state are saved with the project.
+
+Vamp plug-ins analyse audio instead of changing it. After enabling a Vamp
+installation, select an audio track to analyse that track, or leave no audio
+track selected to analyse the master mix. A time selection limits the analysis;
+otherwise Soundscaper uses the complete project. Choose **Analyze → Vamp
+Plugins**, select the analyser output and its settings, then run it. Soundscaper
+adds the returned timestamps as a new label track only after the complete
+analysis succeeds, so cancelling or changing the project cannot leave partial
+labels behind.
 
 ## Export
 

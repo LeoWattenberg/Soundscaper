@@ -4,7 +4,7 @@ description: "The JavaScript API a macro program runs against, the limits it run
 sidebar:
   order: 7
 ---
-<!-- docs-ai-provenance: {"factPacketSha256":"bfeb48e77dc0013cc1f43bd584ae92a7196983e349631c0b75bfbca2ba0c542a","model":"qwen3.8:latest","modelDigest":"22130167c4c20e20c7b71454612966ca8e8171e9b3cc8ab6ce8aa6cbfec79643","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"bfeb48e77dc0013cc1f43bd584ae92a7196983e349631c0b75bfbca2ba0c542a","targetLocale":"en-GB"} -->
+<!-- docs-ai-provenance: {"factPacketSha256":"375c684211bdec9dbd3614c197bda423e24858a568ad5ae3c06ab06d7db2522f","model":"gpt-5.6-luna","modelDigest":"manual","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"375c684211bdec9dbd3614c197bda423e24858a568ad5ae3c06ab06d7db2522f","targetLocale":"en-GB"} -->
 
 A macro program is a macro written as JavaScript instead of as a list of steps.
 It runs inside the editor against a small API called `sound`, which lets it read
@@ -16,8 +16,10 @@ Programs are a Soundscaper feature. Framescaper has no macro manager.
 
 ## Where programs live
 
-Choose **Tools → Macro manager**. The dialog lists step-list macros and, under
-**Programs**, the programs you have saved. **New program** creates one, and the
+Choose **Tools → Macro manager**. The dialogue lists step-list macros and, under
+**Programs**, the programs you have saved. Press **+ (New program)** in the
+Programs header to create one. The same action bar offers **Import program**,
+**Export program**, and **Delete program** for the selected program. The
 detail pane shows its **Program name**, the **Program** text, and a **Run
 program** button. The text is saved as you type; there is no separate save step.
 
@@ -27,7 +29,7 @@ available in every project you open in this editor. Use **Export program** and
 [Sharing programs](#sharing-programs) for what that involves.
 
 The [Apply the same chain of effects every time](/guides/effects/apply-the-same-effects-every-time/)
-guide covers the step-list side of the same dialog.
+guide covers the step-list side of the same dialogue.
 
 ## Writing a program
 
@@ -336,8 +338,7 @@ plug-ins cannot be applied from a program.
 | Change Tempo | `audacity-change-tempo` | `tempoPercent: 0` |
 | Classic Filters | `audacity-classic-filters` | `family: 'butterworth'`, `direction: 'lowpass'`, `order: 1`, `cutoffHz: 1000`, `passbandRippleDb: 1`, `stopbandAttenuationDb: 30` |
 | Click Removal | `audacity-click-removal` | `threshold: 200`, `maximumWidth: 20` |
-| Compressor | `compressor` | `threshold: -24`, `knee: 30`, `ratio: 4`, `attack: 0.003`, `release: 0.25`, `makeupGain: 0` |
-| Compressor (Audacity) | `audacity-compressor` | `thresholdDb: -10`, `makeupGainDb: 0`, `kneeWidthDb: 5`, `ratio: 10`, `lookaheadMs: 1`, `attackMs: 30`, `releaseMs: 150` |
+| Compressor | `audacity-compressor` | `thresholdDb: -10`, `makeupGainDb: 0`, `kneeWidthDb: 5`, `ratio: 10`, `lookaheadMs: 1`, `attackMs: 30`, `releaseMs: 150` |
 | Delay | `delay` | `time: 0.25`, `feedback: 0.3`, `mix: 0.2` |
 | Distortion | `audacity-distortion` | `mode: 'hard-clipping'`, `dcBlock: false`, `thresholdDb: -6`, `noiseFloorDb: -70`, `parameter1: 50`, `parameter2: 50`, `repeats: 1` |
 | Echo | `audacity-echo` | `delaySeconds: 1`, `decay: 0.5` |
@@ -350,12 +351,11 @@ plug-ins cannot be applied from a program.
 | High-pass filter | `highpass` | `frequency: 80`, `q: 0.707` |
 | Invert | `audacity-invert` | none |
 | Legacy Compressor | `audacity-legacy-compressor` | `thresholdDb: -12`, `noiseFloorDb: -40`, `ratio: 2`, `attackSeconds: 0.2`, `releaseSeconds: 1`, `normalize: true`, `usePeak: false` |
-| Limiter | `limiter` | `ceiling: -1`, `lookahead: 0.005`, `release: 0.1` |
-| Limiter (Audacity) | `audacity-limiter` | `thresholdDb: -5`, `makeupTargetDb: -1`, `kneeWidthDb: 2`, `lookaheadMs: 1`, `releaseMs: 20` |
-| Loudness Normalization | `audacity-loudness-normalization` | `mode: 'lufs'`, `targetLufs: -23`, `targetRmsDb: -20`, `stereoIndependent: false`, `dualMono: true` |
+| Limiter | `audacity-limiter` | `thresholdDb: -5`, `makeupTargetDb: -1`, `kneeWidthDb: 2`, `lookaheadMs: 1`, `releaseMs: 20` |
+| Loudness Normalisation | `audacity-loudness-normalization` | `mode: 'lufs'`, `targetLufs: -23`, `targetRmsDb: -20`, `stereoIndependent: false`, `dualMono: true` |
 | Low-pass filter | `lowpass` | `frequency: 18000`, `q: 0.707` |
 | Noise Reduction | `audacity-noise-reduction` | `reductionDb: 6`, `sensitivity: 6`, `frequencySmoothingBands: 6`, `output: 'reduce'` |
-| Normalize | `audacity-normalize` | `peakDb: -1`, `removeDc: true`, `applyGain: true`, `stereoIndependent: false` |
+| Normalise | `audacity-normalize` | `peakDb: -1`, `removeDc: true`, `applyGain: true`, `stereoIndependent: false` |
 | Paulstretch | `audacity-paulstretch` | `stretchFactor: 10`, `timeResolution: 0.25` |
 | Phaser | `audacity-phaser` | `stages: 2`, `dryWet: 128`, `frequency: 0.4`, `phaseDegrees: 0`, `depth: 100`, `feedbackPercent: 0`, `outputGainDb: -6` |
 | Remove DC Offset | `audacity-remove-dc-offset` | none |
@@ -370,7 +370,7 @@ plug-ins cannot be applied from a program.
 | Wahwah | `audacity-wahwah` | `frequency: 1.5`, `phaseDegrees: 0`, `depthPercent: 70`, `resonance: 2.5`, `frequencyOffsetPercent: 30`, `outputGainDb: -6` |
 
 Two effects need something a program cannot supply. Noise Reduction needs a
-noise profile captured in the effect's own dialog, and Auto Duck needs a control
+noise profile captured in the effect's own dialogue, and Auto Duck needs a control
 track below the focused one.
 
 ## Commands a program can run {#commands-a-program-can-run}
@@ -409,7 +409,7 @@ step that walked the history would reach past the run into your own edits.
 Transport and recording commands are absent because a program has nothing to
 wait for and cannot be rolled back out of a recording. Opening, saving, closing,
 importing, exporting and preferences are absent because a program's reach is the
-one project that was open when it started. Commands that only open a dialog or
+one project that was open when it started. Commands that only open a dialogue or
 change the view are absent because they change nothing in the project.
 
 ## Sharing programs {#sharing-programs}

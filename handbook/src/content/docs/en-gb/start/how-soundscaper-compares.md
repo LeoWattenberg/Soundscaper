@@ -4,7 +4,7 @@ description: "Compare Soundscaper with Audacity 4 and Adobe Audition across reco
 sidebar:
   order: 3
 ---
-<!-- docs-ai-provenance: {"factPacketSha256":"703e76cffbe1464f1283f6c8f45cee52c0d37faae852b7efc163879710a2ddb2","model":"qwen3.8:latest","modelDigest":"22130167c4c20e20c7b71454612966ca8e8171e9b3cc8ab6ce8aa6cbfec79643","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"703e76cffbe1464f1283f6c8f45cee52c0d37faae852b7efc163879710a2ddb2","targetLocale":"en-GB"} -->
+<!-- docs-ai-provenance: {"factPacketSha256":"71097403d87aba03cddc2ccd696ff9a8663268afba3a7bf750fe8d9913de3eba","model":"gpt-5.6-luna","modelDigest":"manual","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"71097403d87aba03cddc2ccd696ff9a8663268afba3a7bf750fe8d9913de3eba","targetLocale":"en-GB"} -->
 
 Soundscaper re-implements Audacity 4 on the web and adds a production layer on
 top of it. Adobe Audition is the commercial post-production tool both are
@@ -119,8 +119,8 @@ product enables see
 | Real-time effect rack per track | Yes — a wider real-time set than upstream | Yes | Yes — sixteen slots per clip, track, and master |
 | Parametric EQ | Yes — a new parametric EQ with automatable bands | Partial — Filter Curve and Graphic EQ | Yes — parametric, graphic, and FFT filters |
 | Effect presets | Yes — apply, save, import, export | Yes — apply, save, import, export | Yes |
-| Macros and batch chains | Yes — saved macro library with templates | No — the pinned build comments the Macros menu out | Yes — Favorites and Batch Process |
-| Third-party plug-in formats | Partial — VST3, CLAP, AU, and LV2 on desktop behind consent and containment, none in the browser | Yes — VST3, AU, LV2, and Nyquist, with a plug-in manager | Partial — VST3, and AU on macOS, no CLAP or LV2 |
+| Macros and batch chains | Yes — saved macro library with templates | No — the pinned build comments the Macros menu out | Yes — Favourites and Batch Process |
+| Third-party plug-in formats | Partial — VST3, CLAP, AU, LV2, and Linux LADSPA effects plus Vamp analysers on desktop behind consent and containment; none in the browser | Yes — VST3, AU, LV2, and Nyquist, with a plug-in manager | Partial — VST3, and AU on macOS, no CLAP or LV2 |
 | Nyquist scripting | Yes — bundled plug-ins and the Nyquist prompt | Yes — bundled plug-ins and the Nyquist prompt | No |
 | Sandboxed effect packages | Partial — reviewed WebAssembly packages, one ships and external ones are fenced | No | No |
 | Virtual instruments | No — after 1.0 | No | No |
