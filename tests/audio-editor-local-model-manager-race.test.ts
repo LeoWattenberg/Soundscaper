@@ -3,22 +3,22 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import type { LocalModelManagerBridge } from '../src/common/editor/ui/local-model-manager-bridge.ts';
+import type { LocalModelManagerBridge, LocalModelManagerModel } from '../src/common/editor/ui/local-model-manager-bridge.ts';
 import { createLocalModelManagerStore } from '../src/common/editor/ui/local-model-manager-store.ts';
 
 const SPEECH_MODEL = Object.freeze({
 	modelId: 'parakeet-tdt-0.6b-v2', version: '2.0.0', task: 'speech-recognition' as const,
 	availability: 'installable' as const, downloadBytes: 661_190_513,
-	installedBytes: null, attributionRequired: false,
-});
+	runtimeDownloadBytes: null, installedBytes: null, attributionRequired: false,
+} satisfies LocalModelManagerModel);
 const VAD_MODEL = Object.freeze({
 	modelId: 'silero-vad-v5', version: '5.1.2', task: 'voice-activity-detection' as const,
 	availability: 'installable' as const, downloadBytes: 2_327_752,
-	installedBytes: null, attributionRequired: false,
-});
+	runtimeDownloadBytes: null, installedBytes: null, attributionRequired: false,
+} satisfies LocalModelManagerModel);
 const INSTALLED_VAD_MODEL = Object.freeze({
 	...VAD_MODEL, availability: 'installed' as const, installedBytes: VAD_MODEL.downloadBytes,
-});
+} satisfies LocalModelManagerModel);
 
 test('a concurrent install success cannot erase another model failure', async () => {
 	const speechInstall = deferred<unknown>();
