@@ -1,10 +1,10 @@
 ---
-title: "Звукорежиссёр"
+title: "Soundscaper"
 description: "Записывайте, редактируйте, смешивайте, анализируйте и экспортируйте многотрековое аудио локально."
 sidebar:
   order: 1
 ---
-<!-- docs-ai-provenance: {"factPacketSha256":"0f8ff739965b9c2810de02391dacd0c007c3c58c56bb2a7443469795f0d39245","model":"aya-expanse:32b","modelDigest":"1603440383bd5504dc7afd01c0407b425b988dde650a8dc1a737433baa3cd432","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"0f8ff739965b9c2810de02391dacd0c007c3c58c56bb2a7443469795f0d39245","targetLocale":"ru"} -->
+<!-- docs-ai-provenance: {"basedOnProvenance":{"model":"aya-expanse:32b","modelDigest":"1603440383bd5504dc7afd01c0407b425b988dde650a8dc1a737433baa3cd432"},"factPacketSha256":"f817270f3e324e8eda728d34fd6ab03847b617adb5e312cbbe142615c3c4f1a0","model":"gpt-6-astra","modelProvider":"codex-session","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"f817270f3e324e8eda728d34fd6ab03847b617adb5e312cbbe142615c3c4f1a0","targetLocale":"ru"} -->
 
 Soundscaper — это редактор с аудиоориентацией. Он сочетает в себе меню и модель редактирования, совместимые с Audacity, с проектной корзиной, недеструктивной многодорожечной аранжировкой, записью, эффектом в реальном времени, анализом громкости и частоты, а также переносимым обменом проектами.
 
@@ -17,3 +17,5 @@ Soundscaper — это редактор с аудиоориентацией. О�
 5. Выберите [руководство по эксплуатации](/guides/) для решения вашей задачи — удаление шума, плавные переходы, громкость, экспорт и т.д.
 
 Откройте браузерный редактор по адресу [soundscaper.org/en](https://soundscaper.org/en/).
+
+Для вспомогательных возможностей настольной версии см. раздел [Локальная обработка, модели и плагины](/help/local-processing/).
