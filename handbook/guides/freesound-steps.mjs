@@ -32,5 +32,5 @@ export function describeFreesoundStep(entry, facet) {
 		return `In the **Freesound** panel, type ${query} into **Search Freesound**, then press **Search**. Matching sounds appear in **Freesound results**.`;
 	}
 	const result = facet === 'howto' ? entry.which : `**${entry.name}**`;
-	return `In **Freesound results**, press **Insert at playhead** beside ${result}. The sound appears as a clip at the playhead.`;
+	return `In **Freesound results**, press **Add to project** beside ${result}. The sound appears as a clip at the playhead.`;
 }

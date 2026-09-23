@@ -13,9 +13,9 @@ import {
 const MAXIMUM_JSON_BYTES = 2 * 1024 * 1024;
 const FREESOUND_SOUND_ID_PATTERN = /^[1-9][0-9]{0,15}$/u;
 
-export type FreesoundLicenseFilter = 'all' | 'cc0' | 'cc-by' | 'cc-by-nc';
+export type FreesoundLicenseFilter = 'all' | 'commercial' | 'cc0' | 'cc-by' | 'cc-by-nc';
 export type FreesoundSearchSort = 'relevance' | 'newest' | 'rating' | 'downloads';
-export type FreesoundLicenseCode = Exclude<FreesoundLicenseFilter, 'all'>;
+export type FreesoundLicenseCode = 'cc0' | 'cc-by' | 'cc-by-nc';
 
 export interface FreesoundSound {
 	readonly id: number;
@@ -136,7 +136,7 @@ export function createFreesoundImportService(runtime: FreesoundImportServiceRunt
 		requireEnabled();
 		const query = boundedString(request.query, 'Freesound query', 200);
 		const page = request.page === undefined ? 1 : positiveInteger(request.page);
-		const license = normalizeEnum(request.license ?? 'all', ['all', 'cc0', 'cc-by', 'cc-by-nc'], 'license');
+		const license = normalizeEnum(request.license ?? 'all', ['all', 'commercial', 'cc0', 'cc-by', 'cc-by-nc'], 'license');
 		const sort = normalizeEnum(request.sort ?? 'relevance', ['relevance', 'newest', 'rating', 'downloads'], 'sort');
 		const url = new URL('/api/freesound/search', apiBaseUrl);
 		url.searchParams.set('q', query);

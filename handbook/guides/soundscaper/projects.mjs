@@ -18,7 +18,7 @@ export const PROJECT_GUIDES = Object.freeze([
 		],
 		tips: [
 			'Check the creator and license links beside a result before you use the sound in something you share.',
-			'**Insert at playhead** puts the sound on the timeline. Move the playhead first if you want the clip to start later.',
+			'**Add to project** puts the sound on the timeline. Move the playhead first if you want the clip to start later.',
 		],
 	},
 	{

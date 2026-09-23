@@ -61,6 +61,7 @@ interface FreesoundPanelContainerProps {
 	readonly snapshot: Readonly<Record<string, unknown>>;
 	readonly copy: Readonly<Record<string, string>>;
 	readonly disabled?: boolean;
+	readonly projectBinVisible?: boolean;
 	readonly panelActive?: boolean;
 	readonly freesoundTransport?: FreesoundClientTransport;
 	readonly materializeClip?: (request: Readonly<{
@@ -82,6 +83,7 @@ export function FreesoundPanelContainer({
 	snapshot,
 	copy,
 	disabled = false,
+	projectBinVisible = true,
 	panelActive = true,
 	freesoundTransport,
 	materializeClip,
@@ -266,6 +268,7 @@ export function FreesoundPanelContainer({
 		copy={localizedCopy}
 		state={presentationState}
 		disabled={disabled || pendingSoundId !== null}
+		projectBinVisible={projectBinVisible}
 		onSearch={search}
 		onPreview={startPreview}
 		onPausePreview={pausePreview}

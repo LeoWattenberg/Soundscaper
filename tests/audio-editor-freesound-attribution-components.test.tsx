@@ -171,7 +171,7 @@ test('Freesound search results expose filters, one active preview and keyboard a
 	assert.match(pauseButton, /\uF44B/u);
 	assert.doesNotMatch(playButton, />Preview</u);
 	assert.doesNotMatch(pauseButton, />Stop preview</u);
-	assert.equal(markup.match(/>Insert at playhead</gu)?.length, 2);
+	assert.equal(markup.match(/>Add to project</gu)?.length, 2);
 	assert.equal(markup.match(/>Add to Project Bin</gu)?.length, 2);
 	assert.match(markup, /Page 2 of 4/u);
 	assert.match(markup, /href="https:\/\/freesound\.org\/s\/101\/"/u);
@@ -343,9 +343,9 @@ test('Freesound gestures submit current criteria and expose the minimal drag tra
 		}]);
 
 		const selects = dom.container.querySelectorAll('select');
-		await act(async () => reactProps(selects[0]!).onChange({ currentTarget: { value: 'cc-by' } }));
+		await act(async () => reactProps(selects[0]!).onChange({ currentTarget: { value: 'commercial' } }));
 		assert.deepEqual(calls.shift(), ['search', {
-			query: 'ocean waves', license: 'cc-by', sort: 'downloads', page: 1,
+			query: 'ocean waves', license: 'commercial', sort: 'downloads', page: 1,
 		}]);
 
 		const button = (label: string): ReactTestElement => {
@@ -371,7 +371,7 @@ test('Freesound gestures submit current criteria and expose the minimal drag tra
 			clientX: 125,
 			currentTarget: { getBoundingClientRect: () => ({ left: 100, width: 100 }) },
 		}));
-		await act(async () => reactProps(button('Insert at playhead')).onClick());
+		await act(async () => reactProps(button('Add to project')).onClick());
 		await act(async () => reactProps(button('Add to Project Bin')).onClick());
 		assert.deepEqual(calls.splice(0), [
 			['preview', 101], ['pause'], ['seek', 101, 4.5], ['insert', 101], ['bin', 101],

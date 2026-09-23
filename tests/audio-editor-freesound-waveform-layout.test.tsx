@@ -79,7 +79,7 @@ test('Freesound results place play beside a waveform, with license and insert ac
 	)?.[1];
 	assert.ok(actions, 'license and insert buttons share an action row');
 	assert.match(actions,
-		/<a\b[^>]*class="kw-audio-editor__freesound-result-license"[\s\S]*?<\/a>[\s\S]*?>Insert at playhead[\s\S]*?>Add to Project Bin/u,
+		/<a\b[^>]*class="kw-audio-editor__freesound-result-license"[\s\S]*?<\/a>[\s\S]*?>Add to project[\s\S]*?>Add to Project Bin/u,
 	);
 	assert.ok(firstResult.indexOf('kw-audio-editor__freesound-result-preview')
 		< firstResult.indexOf('kw-audio-editor__freesound-result-actions'));

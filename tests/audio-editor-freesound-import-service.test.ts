@@ -68,7 +68,7 @@ test('Freesound search uses the owned proxy contract', async () => {
 		},
 	});
 
-	const page = await service.search({ query: 'rain', page: 2, license: 'cc-by', sort: 'newest' });
+	const page = await service.search({ query: 'rain', page: 2, license: 'commercial', sort: 'newest' });
 
 	assert.equal(page.results[0]?.id, 42);
 	assert.deepEqual(page.results[0]?.waveform, SOUND.waveform);
@@ -77,7 +77,7 @@ test('Freesound search uses the owned proxy contract', async () => {
 	assert.equal(url.pathname, '/api/freesound/search');
 	assert.equal(url.searchParams.get('q'), 'rain');
 	assert.equal(url.searchParams.get('page'), '2');
-	assert.equal(url.searchParams.get('license'), 'cc-by');
+	assert.equal(url.searchParams.get('license'), 'commercial');
 	assert.equal(url.searchParams.get('sort'), 'newest');
 	assert.equal(requests[0]?.credentials, 'omit');
 });

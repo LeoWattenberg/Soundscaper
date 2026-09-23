@@ -68,6 +68,8 @@ test('a connected account gains a collapsed upload drop area with queue status',
 	/>);
 	assert.match(markup, /Connected as field-recorder/u);
 	assert.match(markup, /<details[^>]*data-freesound-uploads="true"(?![^>]*\bopen)/u);
+	assert.match(markup, /<summary>Upload to Freesound<\/summary>/u);
+	assert.ok(markup.indexOf('kw-audio-editor__freesound-credit') < markup.indexOf('data-freesound-uploads'));
 	assert.match(markup, /Drop clips or audio files here/u);
 	assert.match(markup, /Ready to publish/u);
 	assert.match(markup, /role="status" aria-live="polite"/u);

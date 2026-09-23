@@ -510,6 +510,7 @@ export default function WorkspacePanelDock({
 					effectsPanelTarget,
 					onEffectWindowChange,
 					blocked,
+					projectBinVisible: availablePanels.some(([id]) => id === 'project-bin'),
 				}}
 				floatingBounds={floatingBounds}
 				activeFloatingPanelId={activeFloatingPanelId}

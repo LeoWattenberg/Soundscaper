@@ -62,7 +62,7 @@ test('search sends the token only to a fixed Freesound endpoint and returns owne
 		return jsonResponse({ count: 21, next: 'secret-upstream-url', previous: null, results: [soundFixture()] });
 	};
 	const request = new Request(
-		'https://soundscaper.org/api/freesound/search?q=rain&page=2&license=cc-by&sort=newest',
+		'https://soundscaper.org/api/freesound/search?q=rain&page=2&license=commercial&sort=newest',
 		{ headers: { Origin: 'soundscaper-app://bundle' } },
 	);
 	const response = await handleFreesoundSearchRequest(context(request), { fetchImpl });
@@ -78,7 +78,7 @@ test('search sends the token only to a fixed Freesound endpoint and returns owne
 	assert.equal(upstreamUrl.searchParams.get('page'), '2');
 	assert.equal(upstreamUrl.searchParams.get('page_size'), '20');
 	assert.equal(upstreamUrl.searchParams.get('sort'), 'created_desc');
-	assert.equal(upstreamUrl.searchParams.get('filter'), 'license:Attribution');
+	assert.equal(upstreamUrl.searchParams.get('filter'), 'license:("Creative Commons 0" OR Attribution)');
 	assert.equal(upstreamUrl.searchParams.has('token'), false);
 	assert.equal(upstreamRequest.redirect, 'manual');
 	assert.equal(upstreamRequest.headers.get('authorization'), `Token ${API_KEY}`);

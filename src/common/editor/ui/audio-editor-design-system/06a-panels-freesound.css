@@ -238,7 +238,7 @@ button.kw-audio-editor__freesound-waveform:disabled {
 
 .kw-audio-editor__freesound-uploads {
 	flex: none;
-	border-bottom: 1px solid var(--line);
+	border-top: 1px solid var(--line);
 }
 
 .kw-audio-editor__freesound-uploads > summary {

@@ -36,7 +36,7 @@ interface UpstreamDependencies {
 interface SearchInput {
 	readonly query: string;
 	readonly page: number;
-	readonly license: 'all' | 'cc0' | 'cc-by' | 'cc-by-nc';
+	readonly license: 'all' | 'commercial' | 'cc0' | 'cc-by' | 'cc-by-nc';
 	readonly sort: 'relevance' | 'newest' | 'rating' | 'downloads';
 }
 
@@ -77,6 +77,7 @@ const SORTS = Object.freeze({
 
 const LICENSE_FILTERS = Object.freeze({
 	all: 'license:("Creative Commons 0" OR Attribution OR "Attribution NonCommercial")',
+	commercial: 'license:("Creative Commons 0" OR Attribution)',
 	cc0: 'license:"Creative Commons 0"',
 	'cc-by': 'license:Attribution',
 	'cc-by-nc': 'license:"Attribution NonCommercial"',

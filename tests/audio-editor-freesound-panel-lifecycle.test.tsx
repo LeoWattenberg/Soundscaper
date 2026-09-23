@@ -270,7 +270,7 @@ test('connected original imports over 128 MiB require confirmation before the ex
 		await flush();
 
 		for (const [label, destination] of [
-			['Insert at playhead', 'timeline'],
+			['Add to project', 'timeline'],
 			['Add to Project Bin', 'project-bin'],
 		] as const) {
 			const importButton = button(label);

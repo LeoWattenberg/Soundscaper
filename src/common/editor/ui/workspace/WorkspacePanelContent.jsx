@@ -84,6 +84,7 @@ export default function WorkspacePanelContent({
 	effectsPanelTarget,
 	onEffectWindowChange,
 	blocked,
+	projectBinVisible = false,
 }) {
 	const project = snapshot.project;
 	const DeferredWorkspacePanel = Object.hasOwn(DEFERRED_WORKSPACE_PANELS, panelId)
@@ -101,6 +102,7 @@ export default function WorkspacePanelContent({
 					run={run}
 					blocked={blocked}
 					panelActive={panelActive}
+					projectBinVisible={projectBinVisible}
 					project={project}
 					disabled={panelId === 'freesound'
 						? Boolean(snapshot.readOnly || blocked)

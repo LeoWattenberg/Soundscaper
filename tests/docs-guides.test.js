@@ -252,7 +252,7 @@ test('the Freesound guide opens the panel, searches, and inserts a result into t
 	const page = pageFor(renderGuides(), guide);
 	assert.match(page, /\*\*View → Panels → Freesound\*\*/u);
 	assert.match(page, /\*\*Search Freesound\*\*.*\*\*Search\*\*/u);
-	assert.match(page, /\*\*Insert at playhead\*\*/u);
+	assert.match(page, /\*\*Add to project\*\*/u);
 	assert.doesNotMatch(page, /\bHarbor ambience\b|\bharbor\b/u, 'a how-to uses the reader’s sound');
 });
 

@@ -128,6 +128,7 @@ test.describe('Freesound discovery and attribution', () => {
 		await expect(results).toBeVisible();
 		await expect(freesoundPanel.getByText('1 sounds', { exact: true })).toBeVisible();
 		const result = results.getByRole('listitem');
+		await expect(result.getByRole('button', { name: /^Add to Project Bin/u })).toBeVisible();
 		await expect(result.getByRole('link', { name: SOUND.name, exact: true })).toHaveAttribute('href', SOUND.pageUrl);
 		await expect(result.getByRole('link', { name: SOUND.creator.username, exact: true }))
 			.toHaveAttribute('href', SOUND.creator.pageUrl);
@@ -151,7 +152,7 @@ test.describe('Freesound discovery and attribution', () => {
 			const actions = element.querySelector('.kw-audio-editor__freesound-result-actions');
 			const license = actions.querySelector('.kw-audio-editor__freesound-result-license');
 			const insertButton = [...actions.querySelectorAll('button')].find((button) =>
-				button.textContent.includes('Insert at playhead'));
+				button.textContent.includes('Add to project'));
 			const binButton = [...actions.querySelectorAll('button')].find((button) =>
 				button.textContent.includes('Add to Project Bin'));
 			const previewBounds = previewRow.getBoundingClientRect();
@@ -188,6 +189,13 @@ test.describe('Freesound discovery and attribution', () => {
 			insertBeforeBin: true,
 		});
 		expect(resultLayout.metadataHeight).toBeLessThan(25);
+		const hideBinMenu = await openNestedCommandMenu(page, editor, 'View', ['Panels']);
+		await getMenuItem(hideBinMenu, 'Project bin').press('Enter');
+		await expect(result.getByRole('button', { name: /^Add to Project Bin/u })).toHaveCount(0);
+		const showBinMenu = await openNestedCommandMenu(page, editor, 'View', ['Panels']);
+		await getMenuItem(showBinMenu, 'Project bin').press('Enter');
+		await expect(editor.locator('[data-workspace-panel="project-bin"]')).toBeVisible();
+		await expect(result.getByRole('button', { name: /^Add to Project Bin/u })).toBeVisible();
 		expect(requests.find((request) => request.pathname === '/api/freesound/search')).toMatchObject({
 			pathname: '/api/freesound/search',
 			query: 'harbor',
@@ -195,6 +203,14 @@ test.describe('Freesound discovery and attribution', () => {
 			license: 'all',
 			sort: 'relevance',
 		});
+		const licenseFilter = freesoundPanel.getByRole('combobox', { name: 'License', exact: true });
+		await expect(licenseFilter.locator('option')).toHaveText([
+			'All licenses', 'Commercial use', 'No attribution',
+		]);
+		await licenseFilter.selectOption('commercial');
+		await expect.poll(() => requests.at(-1)?.license).toBe('commercial');
+		await licenseFilter.selectOption('all');
+		await expect.poll(() => requests.at(-1)?.license).toBe('all');
 
 		const waveformControl = result.getByRole('button', {
 			name: `Seek and play preview: ${SOUND.name}`,
@@ -346,7 +362,7 @@ test.describe('Freesound discovery and attribution', () => {
 
 		const uploads = panel.locator('[data-freesound-uploads="true"]');
 		await expect(uploads).toHaveJSProperty('open', false);
-		await uploads.getByText('Uploads', { exact: true }).click();
+		await uploads.getByText('Upload to Freesound', { exact: true }).click();
 		await uploads.locator('input[type="file"]').setInputFiles([
 			{ name: 'first field take.wav', mimeType: 'audio/wav', buffer: Buffer.from('RIFF-first') },
 			{ name: 'second field take.wav', mimeType: 'audio/wav', buffer: Buffer.from('RIFF-second') },
@@ -380,7 +396,7 @@ test.describe('Freesound discovery and attribution', () => {
 
 		await importFiles(editor, [localMetadataWav()]);
 		await expect(editor).toHaveAttribute('data-clip-count', '1', { timeout: 20_000 });
-		await uploads.getByText('Uploads', { exact: true }).click();
+		await uploads.getByText('Upload to Freesound', { exact: true }).click();
 		await expect(uploads).toHaveJSProperty('open', false);
 		const clip = editor.locator('[data-clip-id]').first();
 		await clip.focus();
@@ -389,7 +405,7 @@ test.describe('Freesound discovery and attribution', () => {
 		await expect(clipMenu).toBeVisible();
 		await clipMenu.getByRole('menuitem', { name: 'Upload clip to Freesound', exact: true }).press('Enter');
 		await expect(uploads).toHaveJSProperty('open', true);
-		await expect(uploads.getByText('Uploads', { exact: true })).toBeFocused();
+		await expect(uploads.getByText('Upload to Freesound', { exact: true })).toBeFocused();
 		await expect(uploads.getByRole('button', { name: /^Ready to publish\s*:/u }))
 			.toHaveCount(2, { timeout: 20_000 });
 
@@ -398,14 +414,14 @@ test.describe('Freesound discovery and attribution', () => {
 		await clipMenu.getByRole('menuitem', { name: 'Move to Project bin', exact: true }).press('Enter');
 		const projectBin = editor.locator('[data-workspace-panel="project-bin"]');
 		await expect(projectBin).toBeVisible();
-		await uploads.getByText('Uploads', { exact: true }).click();
+		await uploads.getByText('Upload to Freesound', { exact: true }).click();
 		await expect(uploads).toHaveJSProperty('open', false);
 		const binCard = projectBin.locator('[data-project-bin-item]').first();
 		await binCard.getByRole('button', { name: /^More file actions:/u }).press('Enter');
 		const binMenu = page.locator('.kw-audio-editor__project-bin-menu');
 		await binMenu.getByRole('menuitem', { name: 'Upload clip to Freesound', exact: true }).press('Enter');
 		await expect(uploads).toHaveJSProperty('open', true);
-		await expect(uploads.getByText('Uploads', { exact: true })).toBeFocused();
+		await expect(uploads.getByText('Upload to Freesound', { exact: true })).toBeFocused();
 		await expect(uploads.getByRole('button', { name: /^Ready to publish\s*:/u }))
 			.toHaveCount(2, { timeout: 20_000 });
 		expect(probe.uploadedNames()).toHaveLength(3);

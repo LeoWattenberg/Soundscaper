@@ -22,7 +22,7 @@ import ccZeroIcon from './assets/cc-zero-icon.svg';
 import ccByIcon from './assets/cc-by-icon.svg';
 import ccNcIcon from './assets/cc-nc-icon.svg';
 
-export type FreesoundLicenseFilter = 'all' | 'cc0' | 'cc-by' | 'cc-by-nc';
+export type FreesoundLicenseFilter = 'all' | 'commercial' | 'cc0';
 export type FreesoundSort = 'relevance' | 'newest' | 'rating' | 'downloads';
 export type FreesoundPanelStatus = 'idle' | 'loading' | 'ready' | 'error';
 
@@ -73,6 +73,7 @@ export interface FreesoundPanelProps {
 	readonly copy: Readonly<Record<string, string>>;
 	readonly state: FreesoundPanelState;
 	readonly disabled: boolean;
+	readonly projectBinVisible?: boolean;
 	readonly onSearch: (request: FreesoundSearchRequest) => void;
 	readonly onPreview: (soundId: number) => void;
 	readonly onPausePreview: () => void;
@@ -93,7 +94,7 @@ export interface FreesoundPanelProps {
 	readonly onRemoveUpload?: (id: string) => void;
 }
 
-const LICENSE_FILTERS: readonly FreesoundLicenseFilter[] = Object.freeze(['all', 'cc0', 'cc-by', 'cc-by-nc']);
+const LICENSE_FILTERS: readonly FreesoundLicenseFilter[] = Object.freeze(['all', 'commercial', 'cc0']);
 const SORTS: readonly FreesoundSort[] = Object.freeze(['relevance', 'newest', 'rating', 'downloads']);
 const LICENSE_ICONS: Readonly<Record<FreesoundResultPresentation['licenseCode'], string>> = Object.freeze({
 	cc0: ccZeroIcon,
@@ -111,9 +112,8 @@ function fill(template: string, replacements: Readonly<Record<string, string | n
 function licenseLabel(copy: Readonly<Record<string, string>>, license: FreesoundLicenseFilter): string {
 	return {
 		all: copy.licenseAll,
-		cc0: copy.licenseCc0,
-		'cc-by': copy.licenseAttribution,
-		'cc-by-nc': copy.licenseAttributionNoncommercial,
+		commercial: copy.licenseCommercial,
+		cc0: copy.licenseNoAttribution,
 	}[license];
 }
 
@@ -130,6 +130,7 @@ export function FreesoundPanel({
 	copy,
 	state,
 	disabled,
+	projectBinVisible = true,
 	onSearch,
 	onPreview,
 	onPausePreview,
@@ -216,19 +217,6 @@ export function FreesoundPanel({
 					</label>
 				</div>
 			</form>
-
-			{auth?.status === 'connected' && uploadQueue ? <FreesoundUploadArea
-				copy={copy}
-				disabled={disabled}
-				queue={uploadQueue}
-				revealRevision={uploadRevealRevision}
-				onFiles={onUploadFiles}
-				onProjectClip={onUploadProjectClip}
-				onPublish={onPublishUpload}
-				onRetry={onRetryUpload}
-				onCancel={onCancelUpload}
-				onRemove={onRemoveUpload}
-			/> : null}
 
 			<div className="kw-audio-editor__freesound-status" aria-live="polite">
 				{loading ? <p role="status">{copy.searching}</p> : null}
@@ -322,14 +310,14 @@ export function FreesoundPanel({
 										{copy.insertAtPlayhead}
 										<span className="kw-audio-editor-sr-only">: {result.name}</span>
 									</Button>
-									<Button
+									{projectBinVisible ? <Button
 										size="small"
 										disabled={mutationDisabled}
 										onClick={() => onAddToProjectBin(result.soundId)}
 									>
 										{copy.addToProjectBin}
 										<span className="kw-audio-editor-sr-only">: {result.name}</span>
-									</Button>
+									</Button> : null}
 								</div>
 							</li>
 						);
@@ -362,6 +350,18 @@ export function FreesoundPanel({
 					onDisconnect={onDisconnect}
 				/></> : null}
 			</p>
+			{auth?.status === 'connected' && uploadQueue ? <FreesoundUploadArea
+				copy={copy}
+				disabled={disabled}
+				queue={uploadQueue}
+				revealRevision={uploadRevealRevision}
+				onFiles={onUploadFiles}
+				onProjectClip={onUploadProjectClip}
+				onPublish={onPublishUpload}
+				onRetry={onRetryUpload}
+				onCancel={onCancelUpload}
+				onRemove={onRemoveUpload}
+			/> : null}
 		</section>
 	);
 }

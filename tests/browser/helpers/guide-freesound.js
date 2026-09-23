@@ -103,7 +103,7 @@ export async function runFreesoundSearch(state, entry) {
 export async function runFreesoundInsert(state, entry) {
 	if (!state.freesound) throw new Error('Search Freesound before inserting a result.');
 	expect(entry.name).toBe(SOUND.name);
-	await state.freesound.result.getByRole('button', { name: /^Insert at playhead\s*:\s*Harbor ambience$/u }).click();
+	await state.freesound.result.getByRole('button', { name: /^Add to project\s*:\s*Harbor ambience$/u }).click();
 	await expect(state.editor).toHaveAttribute('data-clip-count', '1', { timeout: 30_000 });
 	await expect(state.editor.locator('[data-status]')).toHaveAttribute('data-state', 'success');
 	for (const suffix of ['', '/preview']) {
