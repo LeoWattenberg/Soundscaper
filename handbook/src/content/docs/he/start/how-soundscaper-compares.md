@@ -4,7 +4,7 @@ description: "השוואת Soundscaper עם Audacity 4 ו־Adobe Audition בתח
 sidebar:
   order: 3
 ---
-<!-- docs-ai-provenance: {"factPacketSha256":"703e76cffbe1464f1283f6c8f45cee52c0d37faae852b7efc163879710a2ddb2","model":"qwen3.8:latest","modelDigest":"22130167c4c20e20c7b71454612966ca8e8171e9b3cc8ab6ce8aa6cbfec79643","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"703e76cffbe1464f1283f6c8f45cee52c0d37faae852b7efc163879710a2ddb2","targetLocale":"he"} -->
+<!-- docs-ai-provenance: {"factPacketSha256":"71097403d87aba03cddc2ccd696ff9a8663268afba3a7bf750fe8d9913de3eba","model":"gpt-5.6-luna","modelDigest":"manual","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"71097403d87aba03cddc2ccd696ff9a8663268afba3a7bf750fe8d9913de3eba","targetLocale":"he"} -->
 
 Soundscaper מיישם מחדש את Audacity 4 בדפדפן ומוסיף שכבת ייצור מעליו. Adobe Audition הוא כלי הפוסט-פרודקשן המסחרי שנגדו בדרך כלל מודדים את שניהם. דף זה משווה את שלושתם כדי שתוכלו לקבוע איזה מהם כבר מבצע את המשימה שיש לכם.
 
@@ -103,7 +103,7 @@ Soundscaper מיישם מחדש את Audacity 4 בדפדפן ומוסיף שכב
 | EQ פרמטרי | כן — EQ פרמטרי חדש עם פסים אוטומטיים | חלקי — Filter Curve ו-Graphic EQ | כן — מסננים פרמטריים, גרפיים ו-FFT |
 | קיצורי אפקטים | כן — יישום, שמירה, ייבוא, ייצוא | כן — יישום, שמירה, ייבוא, ייצוא | כן |
 | מקרו ושרשראות batch | כן — ספריית מקרו שמורה עם תבניות | לא — הגרסה הקבועה מתייגת את תפריט Macros כהערה | כן — Favorites ו-Batch Process |
-| פורמטי תוספים של צד שלישי | חלקי — VST3, CLAP, AU ו-LV2 בשולחן העבודה מאחורי הסכמה ובידוד, אין בדפדפן | כן — VST3, AU, LV2 ו-Nyquist, עם מנהל תוספים | חלקי — VST3, ו-AU ב-macOS, אין CLAP או LV2 |
+| פורמטי תוספים של צד שלישי | חלקי — VST3, CLAP, AU, LV2, אפקטי LADSPA ומנתחי Vamp ב-Linux לשולחן העבודה, לאחר הסכמה ובידוד; אין בדפדפן | כן — VST3, AU, LV2 ו-Nyquist, עם מנהל תוספים | חלקי — VST3, ו-AU ב-macOS, אין CLAP או LV2 |
 | תסריטי Nyquist | כן — תוספים מובנים והממשק של Nyquist | כן — תוספים מובנים והממשק של Nyquist | לא |
 | חבילות אפקטים מבודדות | חלקי — חבילות WebAssembly שעברו בדיקה, אחת מוציאה ואחרות מוגדרות | לא | לא |
 | כלי נגינה וירטואליים | לא — לאחר 1.0 | לא | לא |

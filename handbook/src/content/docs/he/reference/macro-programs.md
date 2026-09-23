@@ -4,7 +4,7 @@ description: "ממשק ה־JavaScript API מולו רצה תוכנית מקרו,
 sidebar:
   order: 7
 ---
-<!-- docs-ai-provenance: {"factPacketSha256":"bfeb48e77dc0013cc1f43bd584ae92a7196983e349631c0b75bfbca2ba0c542a","model":"qwen3.8:latest","modelDigest":"22130167c4c20e20c7b71454612966ca8e8171e9b3cc8ab6ce8aa6cbfec79643","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"bfeb48e77dc0013cc1f43bd584ae92a7196983e349631c0b75bfbca2ba0c542a","targetLocale":"he"} -->
+<!-- docs-ai-provenance: {"factPacketSha256":"375c684211bdec9dbd3614c197bda423e24858a568ad5ae3c06ab06d7db2522f","model":"gpt-5.6-luna","modelDigest":"manual","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"375c684211bdec9dbd3614c197bda423e24858a568ad5ae3c06ab06d7db2522f","targetLocale":"he"} -->
 
 תוכנית מקרו היא מקרו שנכתב כ-JavaScript במקום כרשימת שלבים.
 היא מריצה בתוך העורך מול API קטן בשם `sound`, המאפשר לה לקרוא
@@ -189,10 +189,10 @@ await sound.effect('audacity-fade-out');
 ### `sound.effect(type, params)`
 
 מחיל אפקט אחד על הבחירה הנוכחית, במסלול הממוקד. `type` הוא
-מזהה אפקט מ[Effects a program can apply](#effects-a-program-can-apply),
+[מזהה האפקטים שזמינים לתוכניות](#effects-a-program-can-apply),
 ו`params` הוא אובייקט של פרמטרים של האפקט הזה. פרמטרים שאתה משמיט מקבלים
 את ברירות המחדל של האפקט; הערכים נבדקים מול הטווחים ב
-[audio effects reference](/reference/generated/audio-effects/). פותר ל
+[מדריך לאפקטי שמע](/reference/generated/audio-effects/). פותר ל
 `null`.
 
 ```js
@@ -317,7 +317,6 @@ ExportWav.*
 | Change Tempo | `audacity-change-tempo` | `tempoPercent: 0` |
 | Classic Filters | `audacity-classic-filters` | `family: 'butterworth'`, `direction: 'lowpass'`, `order: 1`, `cutoffHz: 1000`, `passbandRippleDb: 1`, `stopbandAttenuationDb: 30` |
 | Click Removal | `audacity-click-removal` | `threshold: 200`, `maximumWidth: 20` |
-| Compressor | `compressor` | `threshold: -24`, `knee: 30`, `ratio: 4`, `attack: 0.003`, `release: 0.25`, `makeupGain: 0` |
 | Compressor (Audacity) | `audacity-compressor` | `thresholdDb: -10`, `makeupGainDb: 0`, `kneeWidthDb: 5`, `ratio: 10`, `lookaheadMs: 1`, `attackMs: 30`, `releaseMs: 150` |
 | Delay | `delay` | `time: 0.25`, `feedback: 0.3`, `mix: 0.2` |
 | Distortion | `audacity-distortion` | `mode: 'hard-clipping'`, `dcBlock: false`, `thresholdDb: -6`, `noiseFloorDb: -70`, `parameter1: 50`, `parameter2: 50`, `repeats: 1` |
@@ -331,7 +330,6 @@ ExportWav.*
 | High-pass filter | `highpass` | `frequency: 80`, `q: 0.707` |
 | Invert | `audacity-invert` | אין |
 | Legacy Compressor | `audacity-legacy-compressor` | `thresholdDb: -12`, `noiseFloorDb: -40`, `ratio: 2`, `attackSeconds: 0.2`, `releaseSeconds: 1`, `normalize: true`, `usePeak: false` |
-| Limiter | `limiter` | `ceiling: -1`, `lookahead: 0.005`, `release: 0.1` |
 | Limiter (Audacity) | `audacity-limiter` | `thresholdDb: -5`, `makeupTargetDb: -1`, `kneeWidthDb: 2`, `lookaheadMs: 1`, `releaseMs: 20` |
 | Loudness Normalization | `audacity-loudness-normalization` | `mode: 'lufs'`, `targetLufs: -23`, `targetRmsDb: -20`, `stereoIndependent: false`, `dualMono: true` |
 | Low-pass filter | `lowpass` | `frequency: 18000`, `q: 0.707` |
