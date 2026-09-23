@@ -53,9 +53,10 @@ readback are checked with `npm run audit:kokoro-model-release`. Run
 `node scripts/models/verify-kokoro-model-release.mjs --verify-public` to repeat
 HEAD, byte-range, CORS, and full SHA-256 checks against all 56 live CDN files.
 The model files are published. Target builds generate the pinned offline G2P
-helper, then publish its authenticated archive to R2. The client checks its
-complete file inventory before inference. Actual
-speech generation still requires a passing nine-language text-to-WAV nightly
+helper alongside the other four CPU engine archives, then publish all five
+authenticated archives to R2. The client checks each required runtime's
+complete file inventory before inference. Actual speech generation still
+requires a passing nine-language text-to-WAV nightly
 case from each packaged target; the recipe does not establish a cross-target
 result by itself.
 
@@ -74,6 +75,27 @@ must address the bucket's EU jurisdiction. Load the ignored environment file
 with Node's `--env-file=.env` when using local release tooling. These credentials
 authorize asset storage, not catalog changes. Desktop users do not need these
 secrets to download an admitted model.
+
+## Desktop runtime archive publication
+
+On each desktop target runner, prepare the application and publish its five
+target-specific archives before building a release package:
+
+```console
+npm run desktop:prepare
+npm run desktop:publish:assistance-runtimes
+```
+
+The second command uses the same `R2_MODELS_*` credentials and EU
+`soundscaper-assets` bucket as the model publisher. It uploads immutable
+content-addressed `.tar.gz` objects under
+`https://assets.soundscaper.org/runtime/assistance/`, then requires public
+HEAD, byte-range, CORS and full SHA-256 readback of every archive. The generated
+`config/assistance-runtime-distribution.json` in the staged application pins
+each archive and its exact extracted file inventory; packaging seals that
+manifest in `app.asar`. Release workflows run publication between
+preparation and Electron packaging. The installer contains the pinned manifest,
+while users download only the engines their selected models require.
 
 For large R2 objects, a cold CDN edge can return a full `200` response to its
 first range request. Publication verification cancels that body and retries
