@@ -481,7 +481,7 @@ export function collectClientErrors(page) {
 	page.on('requestfailed', (request) => {
 		const reason = request.failure()?.errorText || 'request failed';
 		// Navigation may abort dependencies that are still loading.
-		if (/^(?:NS_BINDING_ABORTED|net::ERR_ABORTED)$/u.test(reason)) return;
+		if (/^(?:NS_BINDING_ABORTED|net::ERR_ABORTED|Load request cancelled)$/u.test(reason)) return;
 		if (isBrowserDependency(request)) reportRequest(request, reason);
 	});
 	page.on('response', (response) => {
