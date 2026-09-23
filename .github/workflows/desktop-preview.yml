@@ -161,19 +161,15 @@ jobs:
     needs: quality
     strategy:
       fail-fast: false
-      # Soundscaper and Framescaper own their own source trees and everything they
-      # share lives under src/common, so the suite splits three ways along a line
-      # that already exists. A runner has four cores and the suite no longer fits
-      # in them: measured per test file, the shared shard carries 56% of the work,
-      # Framescaper 37% (its native and OpenFX tests are slow out of proportion to
-      # their count) and Soundscaper 6%, so the longest job is roughly half the
-      # half-hour the one job took.
+      # Product ownership separates Framescaper and Soundscaper tests; the
+      # shared tests run in two stable filename-hash partitions. The coverage
+      # job checks the union after all four shards upload their profiles.
       #
       # These wait on `quality` on purpose. The browser jobs are the pipeline's
       # long pole either way, so the shards lose nothing by starting after lint
-      # and typecheck, and a red lint no longer burns three runners.
+      # and typecheck, and a red lint does not burn the test runners.
       matrix:
-        shard: [common, framescaper, soundscaper]
+        shard: [common-1, common-2, framescaper, soundscaper]
     runs-on: ubuntu-24.04
     timeout-minutes: 45
     steps:

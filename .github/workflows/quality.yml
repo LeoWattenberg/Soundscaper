@@ -363,24 +363,15 @@ jobs:
 
   tests:
     name: Tests / ${{ matrix.shard }}
-    needs: [build, lint, typecheck, audits]
+    needs: build
     strategy:
       fail-fast: false
-      # Soundscaper and Framescaper own their own source trees and everything they
-      # share lives under src/common, so the suite splits three ways along a line
-      # that already exists. A runner has four cores and the suite no longer fits
-      # in them: measured per test file, the shared shard carries 56% of the work,
-      # Framescaper 37% (its native and OpenFX tests are slow out of proportion to
-      # their count) and Soundscaper 6%, so the longest job is roughly half the
-      # half-hour the one job took.
-      #
-      # These wait on the whole gate on purpose. The browser jobs are the
-      # pipeline's long pole either way, so the shards lose nothing by starting
-      # after lint and typecheck, and a red lint no longer burns three runners.
-      # Waiting costs about ninety seconds now that the gate is sharded, where it
-      # used to cost seven and a half minutes.
+      # Product ownership still separates Framescaper and Soundscaper tests.
+      # The shared tests run in two stable filename-hash partitions, so a
+      # four-core runner no longer carries the whole shared suite by itself.
+      # Coverage is checked only after all four shards upload their profiles.
       matrix:
-        shard: [common, framescaper, soundscaper]
+        shard: [common-1, common-2, framescaper, soundscaper]
     runs-on: ubuntu-24.04
     timeout-minutes: 45
     steps:
@@ -469,7 +460,7 @@ jobs:
     # as what the Node shards ran. It costs nothing on the critical path —
     # `deploy` already waits on both — only the moment the Coverage status
     # settles, which now trails the slowest browser shard.
-    needs: [tests, native-platform-compile, browser]
+    needs: [tests, native-platform-compile, browser, lint, typecheck, audits]
     runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
@@ -503,19 +494,16 @@ jobs:
         run: npm run coverage:check
 
   browser:
-    name: Browser / ${{ matrix.project }} ${{ matrix.shard }}/3
-    needs: [build, lint, typecheck, audits]
+    name: Browser / ${{ matrix.project }} ${{ matrix.shard }}/4
+    needs: build
     strategy:
       fail-fast: false
-      # Playwright ran one runner per engine with two workers on four cores, and
-      # the engines are the pipeline's long pole by a wide margin: WebKit alone
-      # took 29 minutes while the slowest Node shard took 17. Splitting each
-      # engine three ways puts the pole back on the `common` Node shard, which
-      # is where it belongs — a fourth shard would buy nothing because that
-      # shard would still be waiting on `common`.
+      # Trial a fourth partition for each engine now that the shared Node suite
+      # also runs in two jobs. Each Playwright project still runs every test
+      # exactly once; Chromium uploads one distinct coverage artifact per shard.
       matrix:
         project: [chromium, webkit]
-        shard: [1, 2, 3]
+        shard: [1, 2, 3, 4]
     runs-on: ubuntu-24.04
     container:
       image: mcr.microsoft.com/playwright:v1.62.1-noble@sha256:dcc5531e97840b9b5e794f2814476b21571c5124a3fca2267d73041f56e7580e
@@ -584,7 +572,7 @@ jobs:
           path: .wrangler/browser-products/framescaper-source-maps
 
       - name: Run browser workflows against the existing build
-        run: npm run test:browser:built -- --project=${{ matrix.project }} --shard=${{ matrix.shard }}/3
+        run: npm run test:browser:built -- --project=${{ matrix.project }} --shard=${{ matrix.shard }}/4
         env:
           # Chromium is the only engine whose V8 coverage Playwright can read, so
           # it is the only one that records. Every other project runs exactly as
@@ -630,14 +618,13 @@ jobs:
           retention-days: 7
 
   firefox:
-    name: Browser / firefox ${{ matrix.shard }}/3
-    needs: [build, lint, typecheck, audits]
+    name: Browser / firefox ${{ matrix.shard }}/4
+    needs: build
     strategy:
       fail-fast: false
-      # Sharded the same three ways as the containerized engines above; see the
-      # `browser` job for why three.
+      # Sharded the same four ways as the containerized engines above.
       matrix:
-        shard: [1, 2, 3]
+        shard: [1, 2, 3, 4]
     runs-on: ubuntu-24.04
     timeout-minutes: 45
     steps:
@@ -708,7 +695,7 @@ jobs:
           path: .wrangler/browser-products/framescaper-source-maps
 
       - name: Run Firefox workflows against the existing build
-        run: npm run test:browser:built -- --project=firefox --shard=${{ matrix.shard }}/3
+        run: npm run test:browser:built -- --project=firefox --shard=${{ matrix.shard }}/4
 
       - name: Upload Firefox diagnostics
         if: always()
@@ -725,7 +712,7 @@ jobs:
   deploy:
     name: Deploy
     # Every gate, not just the fast ones: the Node shards feed `coverage`, and
-    # the three browser jobs are the only proof the built site actually runs.
+    # the browser matrices are the proof the built site actually runs.
     # Cloudflare's own git integration builds on push with no knowledge of any
     # of this, so it must be turned off in both projects or it will race us.
     needs: [coverage, browser, firefox, native-platform-compile]

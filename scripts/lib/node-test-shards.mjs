@@ -1,15 +1,17 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { createHash } from 'node:crypto';
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 import { basename, dirname, resolve } from 'node:path';
 
 // Soundscaper and Framescaper own `src/<product>/`, `desktop/<product>-*` and
 // `native/<product>-*`; everything both products share lives under `src/common`.
-// A Node test therefore belongs to a product shard when it reaches into that
-// product's own tree, and to the shared `common` shard otherwise. A test that
-// reaches into both products is a cross-product test and belongs to `common`
-// too: neither product owns it, and it has to keep passing for both.
-export const NODE_TEST_SHARD_IDS = Object.freeze(['common', 'framescaper', 'soundscaper']);
+// A Node test therefore belongs to a product when it reaches into that
+// product's own tree, and to `common` otherwise. A test that reaches into both
+// products is cross-product work and belongs to `common` too. The common owner
+// runs as two execution shards to keep one runner from carrying all shared tests.
+const NODE_TEST_OWNER_IDS = Object.freeze(['common', 'framescaper', 'soundscaper']);
+export const NODE_TEST_SHARD_IDS = Object.freeze(['common-1', 'common-2', 'framescaper', 'soundscaper']);
 
 const TEST_FILE_PATTERN = /\.test\.(?:[cm]?[jt]s|[jt]sx)$/u;
 const RELATIVE_SPECIFIER = /(?:from|import|require)\s*\(?\s*['"](\.[^'"]*)['"]/gu;
@@ -48,15 +50,26 @@ export function classifyNodeTestFile(repositoryRoot, testFile) {
 }
 
 export function classifyNodeTestFiles(repositoryRoot, testFiles = listNodeTestFiles(repositoryRoot)) {
+	const owners = new Map(NODE_TEST_OWNER_IDS.map((owner) => [owner, []]));
+	for (const testFile of testFiles) owners.get(classifyNodeTestFile(repositoryRoot, testFile)).push(testFile);
+	return owners;
+}
+
+export function partitionNodeTestFiles(repositoryRoot, testFiles = listNodeTestFiles(repositoryRoot)) {
 	const shards = new Map(NODE_TEST_SHARD_IDS.map((shard) => [shard, []]));
-	for (const testFile of testFiles) shards.get(classifyNodeTestFile(repositoryRoot, testFile)).push(testFile);
+	for (const [owner, files] of classifyNodeTestFiles(repositoryRoot, testFiles)) {
+		for (const file of files) {
+			const shard = owner === 'common' ? commonShardFor(file) : owner;
+			shards.get(shard).push(file);
+		}
+	}
 	return shards;
 }
 
 export function selectNodeTestFiles(repositoryRoot, { shard = null } = {}) {
 	return shard === null
 		? listNodeTestFiles(repositoryRoot)
-		: (classifyNodeTestFiles(repositoryRoot).get(shard) ?? []);
+		: (partitionNodeTestFiles(repositoryRoot).get(shard) ?? []);
 }
 
 export function parseNodeTestSelection(argv) {
@@ -74,6 +87,13 @@ export function parseNodeTestSelection(argv) {
 
 export function describeNodeTestSelection({ shard }) {
 	return shard === null ? 'every shard' : `the ${shard} shard`;
+}
+
+// The basename keeps the assignment stable across checkout paths and unrelated
+// additions. Both shared partitions receive roughly half the current suite.
+function commonShardFor(testFile) {
+	const firstByte = createHash('sha256').update(basename(testFile)).digest()[0];
+	return `common-${1 + (firstByte & 1)}`;
 }
 
 function localTestClosure(repositoryRoot, testFile) {

@@ -11,17 +11,17 @@ import { expandNpmScript, extractJob, npmScriptsRunBy, readWorkflow } from './he
 // `npm run check` is the canonical gate. Neither workflow runs it as one
 // command, and they do not divide it the same way, so each declares the jobs
 // that have to add back up to it. Quality shards the static checks so the jobs
-// behind them start about ninety seconds in rather than seven and a half
-// minutes in; the nightly runs them as one job because nothing waits on it in a
-// hurry and its release scope has to be resolved there anyway.
+// behind them can start once the build artifact exists; the nightly runs them
+// as one job because nothing waits on it in a hurry and its release scope has
+// to be resolved there anyway.
 const WORKFLOWS = new Map([
 	['quality.yml', { staticJobs: ['build', 'lint', 'typecheck', 'audits'], buildJob: 'build', historyJobs: ['audits'] }],
 	['desktop-preview.yml', { staticJobs: ['quality'], buildJob: 'quality', historyJobs: ['quality'] }],
 ]);
 
 // `test:coverage` runs the whole suite in one process and checks the thresholds
-// on the way out. Split up, that is one shard per product plus the job that
-// checks the thresholds over the union of what the shards recorded.
+// on the way out. Split up, that is one shard per product, two for common
+// ownership, and a job that checks the union of what all shards recorded.
 const SHARDED_EQUIVALENT = new Map([['test:coverage', ['test:shard', 'coverage:check']]]);
 
 test('quality only cancels superseded pull-request runs', async () => {
@@ -80,7 +80,7 @@ test('quality shards lint across the shards the lint runner defines', async () =
 	}
 });
 
-test('quality runs its static checks in parallel and gates everything behind all of them', async () => {
+test('quality starts browser and Node checks after build and keeps static checks in the final gate', async () => {
 	const workflow = await readWorkflow('quality.yml');
 	const { staticJobs } = WORKFLOWS.get('quality.yml');
 	const gate = `needs: [${staticJobs.join(', ')}]`;
@@ -89,9 +89,21 @@ test('quality runs its static checks in parallel and gates everything behind all
 		assert.doesNotMatch(extractJob(workflow, jobName), /^\s+needs:/mu,
 			`${jobName} may not wait on another static check, or the gate is serial again`);
 	}
-	for (const jobName of ['native-platform-compile', 'tests', 'browser', 'firefox']) {
-		assert.ok(extractJob(workflow, jobName).includes(gate),
-			`${jobName} must wait on the whole static gate, so a red check cannot burn its runners`);
+	assert.ok(extractJob(workflow, 'native-platform-compile').includes(gate),
+		'native compiles retain their complete static prerequisite');
+	for (const jobName of ['tests', 'browser', 'firefox']) {
+		assert.match(extractJob(workflow, jobName), /^\s+needs: build$/mu,
+			`${jobName} must start once the verified build is ready`);
+	}
+	const coverage = extractJob(workflow, 'coverage');
+	for (const jobName of ['tests', 'native-platform-compile', 'browser', 'lint', 'typecheck', 'audits']) {
+		assert.match(coverage, new RegExp(`^\\s+needs: \\[[^\\]\\n]*\\b${jobName}\\b[^\\]\\n]*\\]$`, 'mu'),
+			`coverage must wait for ${jobName} before reporting the union`);
+	}
+	const deploy = extractJob(workflow, 'deploy');
+	for (const jobName of ['coverage', 'browser', 'firefox', 'native-platform-compile']) {
+		assert.match(deploy, new RegExp(`^\\s+needs: \\[[^\\]\\n]*\\b${jobName}\\b[^\\]\\n]*\\]$`, 'mu'),
+			`deployment must wait for ${jobName}`);
 	}
 });
 
@@ -127,7 +139,7 @@ for (const [workflowName, { staticJobs, buildJob, historyJobs }] of WORKFLOWS) {
 		}
 	});
 
-	test(`${workflowName} shards the Node suite by product and gates it on the merged coverage`, async () => {
+	test(`${workflowName} shards the Node suite by owner and gates it on the merged coverage`, async () => {
 		const workflow = await readWorkflow(workflowName);
 		const tests = extractJob(workflow, 'tests');
 		const coverage = extractJob(workflow, 'coverage');

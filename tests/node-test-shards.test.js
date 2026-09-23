@@ -38,6 +38,21 @@ test('every Node test file belongs to exactly one shard', () => {
 	assert.equal(new Set(sharded).size, sharded.length, 'no test file may run in two shards');
 });
 
+test('the common execution shards partition every shared test without changing ownership', () => {
+	const common = classifyNodeTestFiles(ROOT).get('common');
+	const first = selectNodeTestFiles(ROOT, { shard: 'common-1' });
+	const second = selectNodeTestFiles(ROOT, { shard: 'common-2' });
+	assert.deepEqual([...first, ...second].sort(), common);
+	assert.equal(new Set([...first, ...second]).size, common.length);
+	assert.ok(first.length > common.length * 0.4, 'the first shard must carry a meaningful share');
+	assert.ok(second.length > common.length * 0.4, 'the second shard must carry a meaningful share');
+	assert.notEqual(
+		first.some((file) => basename(file) === 'production-direct-wav-security.test.js'),
+		first.some((file) => basename(file) === 'audio-editor-standard-vocoder-tail.test.ts'),
+		'the two measured expensive tests should run on different runners',
+	);
+});
+
 test('no Node test hides in a subdirectory where no shard would find it', async () => {
 	// Discovery reads tests/ itself, while tsconfig.tests.json includes
 	// tests/**/*.test.ts. A nested test would therefore typecheck, look maintained,
@@ -116,6 +131,7 @@ test('the shard selection CLI accepts the shard ids and refuses anything else', 
 	for (const shard of NODE_TEST_SHARD_IDS) {
 		assert.deepEqual(parseNodeTestSelection([`--shard=${shard}`]), { shard });
 	}
+	assert.throws(() => parseNodeTestSelection(['--shard=common']), /Unknown test shard/u);
 	assert.throws(() => parseNodeTestSelection(['--shard=everything']), /Unknown test shard/u);
 	assert.throws(() => parseNodeTestSelection(['--stripe=1/4']), /Unknown test selection argument/u);
 });
@@ -147,3 +163,9 @@ for (const workflowName of SHARDED_WORKFLOWS) {
 		);
 	});
 }
+
+test('the tagged stable workflow also runs every execution shard once', async () => {
+	const job = extractJob(await readWorkflow('soundscaper-stable-1.yml'), 'tests');
+	const shards = [...job.matchAll(/^\s+- shard: ([\w-]+)$/gmu)].map((match) => match[1]);
+	assert.deepEqual(shards.sort(), [...NODE_TEST_SHARD_IDS].sort());
+});

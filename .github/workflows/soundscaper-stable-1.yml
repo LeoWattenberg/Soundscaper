@@ -65,7 +65,8 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - shard: common
+          - shard: common-1
+          - shard: common-2
           - shard: framescaper
           - shard: soundscaper
     runs-on: ubuntu-24.04

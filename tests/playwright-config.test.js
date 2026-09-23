@@ -9,18 +9,18 @@ import { extractJob } from './helpers/workflow-jobs.js';
 
 const ROOT = resolve(import.meta.dirname, '..');
 
-// Both workflows build the site once and verify it with the same browser jobs,
-// but quality.yml shards its static checks so those jobs start about ninety
-// seconds in rather than seven and a half minutes in. That moves the build into
-// its own job and turns the gate the browser jobs wait on into a list, so each
-// workflow says which job publishes the build and what its gate edge reads.
+// Both workflows build the site once and verify it with the same browser jobs.
+// Quality's browser jobs start as soon as the build is available; its final
+// coverage gate still waits for the other static checks. Each workflow names
+// the build publisher, browser prerequisite, and browser shard count here.
 const SITE_WORKFLOWS = new Map([
 	['quality.yml', {
 		staticJobs: ['build', 'lint', 'typecheck', 'audits'],
 		buildJob: 'build',
-		gate: 'needs: [build, lint, typecheck, audits]',
+		gate: 'needs: build',
+		browserShardCount: 4,
 	}],
-	['desktop-preview.yml', { staticJobs: ['quality'], buildJob: 'quality', gate: 'needs: quality' }],
+	['desktop-preview.yml', { staticJobs: ['quality'], buildJob: 'quality', gate: 'needs: quality', browserShardCount: 3 }],
 ]);
 
 test('Playwright allows CI to pass when a retry succeeds', async () => {
@@ -229,7 +229,7 @@ test('Firefox CI audio helpers configure a null sink/source and reject a stalled
 	assert.match(clockProbe, /did not advance/u);
 });
 
-function assertBrowserCoverage(workflow, label, { staticJobs, gate }) {
+function assertBrowserCoverage(workflow, label, { staticJobs, gate, browserShardCount }) {
 	const browserJob = extractJob(workflow, 'browser');
 	const firefoxJob = extractJob(workflow, 'firefox');
 
@@ -238,12 +238,12 @@ function assertBrowserCoverage(workflow, label, { staticJobs, gate }) {
 			`${label} ${jobName} must not share a browser budget`);
 	}
 	assert.ok(browserJob.includes('name: Browser / ${{ matrix.project }}'));
-	assert.ok(browserJob.includes(gate), `${label} browser must wait on the whole gate`);
+	assert.ok(browserJob.includes(gate), `${label} browser must wait for the verified build`);
 	assert.match(browserJob, /matrix:\n\s+project: \[chromium, webkit\]/u);
 	assert.match(browserJob, /container:\n\s+image: mcr\.microsoft\.com\/playwright:v1\.62\.1-noble@sha256:dcc5531e97840b9b5e794f2814476b21571c5124a3fca2267d73041f56e7580e\n\s+options: --user 1001/u);
 	assert.match(browserJob, /npm install --global --prefix "\$HOME\/\.local" npm@12\.0\.1/u);
 	assert.match(browserJob, /name: verified-site-build/u);
-	assertEngineIsSharded(browserJob, `${label} browser`, 'npm run test:browser:built -- --project=${{ matrix.project }}');
+	assertEngineIsSharded(browserJob, `${label} browser`, 'npm run test:browser:built -- --project=${{ matrix.project }}', browserShardCount);
 
 	// The handbook suite has its own Playwright config, so `--shard` cannot
 	// divide it alongside the site suite. It has to be pinned to one leg of the
@@ -255,7 +255,7 @@ function assertBrowserCoverage(workflow, label, { staticJobs, gate }) {
 	assert.match(handbookLegs[0].groups.condition, /matrix\.shard == 1/u, `${label} must not run the handbook suite once per shard`);
 
 	assert.match(firefoxJob, /name: Browser \/ firefox/u);
-	assert.ok(firefoxJob.includes(gate), `${label} firefox must wait on the whole gate`);
+	assert.ok(firefoxJob.includes(gate), `${label} firefox must wait for the verified build`);
 	assert.match(firefoxJob, /runs-on: ubuntu-24\.04/u);
 	assert.doesNotMatch(firefoxJob, /^\s+container:/mu);
 	assert.match(firefoxJob, /playwright install --with-deps firefox/u);
@@ -263,7 +263,7 @@ function assertBrowserCoverage(workflow, label, { staticJobs, gate }) {
 	assert.match(firefoxJob, /scripts\/ci-firefox-pulseaudio\.sh/u);
 	assert.match(firefoxJob, /node scripts\/ci-firefox-audio-clock\.mjs/u);
 	assert.match(firefoxJob, /name: verified-site-build/u);
-	assertEngineIsSharded(firefoxJob, `${label} firefox`, 'npm run test:browser:built -- --project=firefox');
+	assertEngineIsSharded(firefoxJob, `${label} firefox`, 'npm run test:browser:built -- --project=firefox', browserShardCount);
 	assert.ok(
 		firefoxJob.indexOf('ci-firefox-audio-clock.mjs')
 			< firefoxJob.indexOf('test:browser:built -- --project=firefox'),
@@ -280,11 +280,12 @@ function assertBrowserCoverage(workflow, label, { staticJobs, gate }) {
  * leg it is, or a red check cannot be read; and the diagnostics artifact name
  * has to carry the shard, or the legs collide on upload.
  */
-function assertEngineIsSharded(job, label, runCommand) {
+function assertEngineIsSharded(job, label, runCommand, expectedShardCount) {
 	const axis = job.match(/^\s+shard: \[(?<legs>[^\]]+)\]$/mu);
 	assert.ok(axis, `${label} must shard Playwright across runners`);
 	const legs = axis.groups.legs.split(',').map((leg) => leg.trim());
-	assert.deepEqual(legs, ['1', '2', '3'], `${label} shard ids must be 1..N`);
+	assert.deepEqual(legs, Array.from({ length: expectedShardCount }, (_, index) => String(index + 1)),
+		`${label} shard ids must be 1..N`);
 
 	const total = legs.length;
 	assert.ok(

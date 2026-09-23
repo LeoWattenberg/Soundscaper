@@ -134,7 +134,7 @@ test('the merged coverage gate refuses to score a shard that never reported', ()
 	const root = makeWorkspace();
 	const shards = join(root, 'shards');
 	mkdirSync(shards);
-	writeFileSync(join(shards, 'common.json'), '{"result":[]}');
+	writeFileSync(join(shards, 'common-1.json'), '{"result":[]}');
 
 	const outcome = spawnSync(process.execPath, [
 		resolve(REPOSITORY_ROOT, 'scripts/check-shard-coverage.mjs'),
@@ -142,7 +142,7 @@ test('the merged coverage gate refuses to score a shard that never reported', ()
 	], { cwd: REPOSITORY_ROOT, encoding: 'utf8' });
 
 	assert.equal(outcome.status, 1, 'a missing shard must fail the gate rather than score what did arrive');
-	assert.match(outcome.stderr, /missing usable coverage for: framescaper, soundscaper/u);
+	assert.match(outcome.stderr, /missing usable coverage for: common-2, framescaper, soundscaper/u);
 });
 
 // A Chromium shard records the bundled chunk the page actually ran, not the
