@@ -3,6 +3,7 @@ import { ContextMenuItem } from '@soundscaper/design-system/ContextMenuItem';
 import { RulerFlyout } from '@soundscaper/design-system/RulerFlyout';
 import { TimelineRulerContextMenu } from '@soundscaper/design-system/TimelineRulerContextMenu';
 
+import { resolveTrackWaveformOptions } from '../../track-display-mode.ts';
 import { AUDACITY_CLIP_CONTEXT_ACTION_IDS } from '../../audacity-context-menu.js';
 import { AUDIO_EDITOR_TRACK_COLORS } from '../../project-audio-factory.js';
 import {
@@ -135,12 +136,11 @@ export function TimelineMenus({
 				onRulerFormatChange={(format) => {
 					if (rulerFlyoutTrack) updateWaveformRuler(rulerFlyoutTrack.id, { format: normalizeWaveformRulerFormat(format) });
 				}}
-				halfWave={rulerFlyoutTrack?.displayMode === 'half-wave'}
+				halfWave={resolveTrackWaveformOptions(rulerFlyoutTrack, snapshot.timeline?.view).halfWave}
 				onHalfWaveChange={(enabled) => {
 					if (!rulerFlyoutTrack || mutationsBlocked) return;
-					run(() => controller.actions.track.setDisplayMode(
-						rulerFlyoutTrack.id,
-						enabled ? 'half-wave' : 'waveform',
+					run(() => controller.actions.track.update(
+						rulerFlyoutTrack.id, { halfWave: enabled },
 					));
 				}}
 				spectrogramScale={normalizeSpectrogramScale(rulerFlyoutTrack?.spectrogram?.scale)}

@@ -142,6 +142,8 @@ export interface AudioTrackLeaf {
 	readonly solo: boolean;
 	readonly armed: boolean;
 	readonly displayMode: TrackDisplayMode;
+	readonly halfWave?: boolean;
+	readonly showRms?: boolean;
 	readonly color: string;
 	readonly spectrogram: Readonly<Record<string, unknown>>;
 	readonly envelope: readonly Readonly<{ readonly frame: number; readonly value: number }>[];

@@ -219,6 +219,8 @@ function validateTrack(
 	if (!isTrackDisplayMode(track.displayMode)) {
 		throw new RangeError(`${prefix}.displayMode has an unsupported value.`);
 	}
+	if (track.halfWave !== undefined) projectBoolean(track.halfWave, `${prefix}.halfWave`);
+	if (track.showRms !== undefined) projectBoolean(track.showRms, `${prefix}.showRms`);
 	projectString(track.color, `${prefix}.color`);
 	validateSpectrogram(track.spectrogram, sampleRate, `${prefix}.spectrogram`);
 	validateStripEnvelope(track, prefix, stripEnvelopeAuthority);

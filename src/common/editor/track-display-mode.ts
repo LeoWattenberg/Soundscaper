@@ -30,3 +30,25 @@ export function isFrequencyWaveformDisplayMode(value: unknown): value is Frequen
 export function timelineViewForTrackDisplayMode(value: TrackDisplayMode): TimelineDisplayMode {
 	return value === 'spectrogram' || value === 'multiview' ? value : 'waveform';
 }
+
+interface TrackWaveformOptions {
+	readonly displayMode?: string;
+	readonly halfWave?: boolean;
+	readonly showRms?: boolean;
+}
+
+/** Optional track flags preserve legacy half-wave documents and global RMS defaults. */
+export function resolveTrackWaveformOptions(
+	track: TrackWaveformOptions | null | undefined,
+	timelineView: unknown = 'waveform',
+	globalShowRms = false,
+): Readonly<{ displayMode: TrackDisplayMode; halfWave: boolean; showRms: boolean }> {
+	const displayMode = isTrackDisplayMode(track?.displayMode) && track.displayMode !== 'waveform'
+		? track.displayMode
+		: isTrackDisplayMode(timelineView) ? timelineView : 'waveform';
+	return {
+		displayMode,
+		halfWave: track?.halfWave ?? displayMode === 'half-wave',
+		showRms: track?.showRms ?? globalShowRms,
+	};
+}

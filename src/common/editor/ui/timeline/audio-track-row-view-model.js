@@ -19,6 +19,7 @@ export function createAudioTrackRowClipViewModels({
 	sampleRate,
 	copy,
 	displayMode,
+	halfWave = displayMode === 'half-wave',
 	project,
 	selectedClipIds,
 	showRms,
@@ -54,7 +55,7 @@ export function createAudioTrackRowClipViewModels({
 			copy,
 			rendering: {
 				showRms,
-				halfWave: displayMode === 'half-wave',
+				halfWave,
 				color: resolveAudioEditorColor(clip.color, resolveAudioEditorColor(trackColor)),
 				reuseSummaryForCompatibility: displayMode === 'waveform' || displayMode === 'half-wave',
 				allowPeakPyramid: displayMode !== 'spectrogram',

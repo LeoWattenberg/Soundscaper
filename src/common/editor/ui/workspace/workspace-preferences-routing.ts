@@ -10,8 +10,7 @@ const PREFERENCE_PAGES = new Set([
 	'media',
 	'workspace',
 	'shortcuts',
-	'spectrogram',
-	'waveform',
+	'track-display',
 ]);
 
 /**
@@ -22,6 +21,7 @@ export function workspacePreferencesPage(requestedSection: unknown): string {
 	if (typeof requestedSection === 'string' && PREFERENCE_PAGES.has(requestedSection)) {
 		return requestedSection;
 	}
+	if (requestedSection === 'waveform' || requestedSection === 'spectrogram') return 'track-display';
 	if (requestedSection === 'snap') return 'editing';
 	if (requestedSection === 'panels') return 'workspace';
 	return 'general';

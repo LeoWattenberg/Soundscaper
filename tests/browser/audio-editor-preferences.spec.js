@@ -52,14 +52,17 @@ test('browser Preferences opens General without the desktop-only FFmpeg location
 	await expect(preferences.locator('[data-external-ffmpeg-preference="true"]')).toHaveCount(0);
 });
 
-test('Track Display opens Waveform settings', async ({ page }) => {
+test('Track Display opens the combined waveform and spectrogram settings', async ({ page }) => {
 	const editor = await bootEditor(page, '/embed/en/');
 	const track = editor.locator('[data-track-row]').first();
-	await chooseTrackMenuAction(page, editor, track, ['Display', 'Waveform settings']);
+	await chooseTrackMenuAction(page, editor, track, ['Display', 'Track display']);
 
 	const preferences = page.getByRole('dialog', { name: 'Editor preferences', exact: true });
-	const waveform = preferences.getByRole('tab', { name: /Waveform$/u });
+	const waveform = preferences.getByRole('tab', { name: /Track display$/u });
 	await expect(waveform).toHaveAttribute('aria-selected', 'true');
+	await expect(preferences.getByRole('tab', { name: /^(Waveform|Spectrogram)$/u })).toHaveCount(0);
+	await expect(preferences.locator('[data-spectrogram-settings]')).toBeVisible();
+	await expect(preferences.getByRole('group', { name: 'Default view', exact: true })).toBeVisible();
 	const settings = preferences.locator('[data-waveform-visualization-settings]');
 	await expect(settings.getByRole('spinbutton', { name: 'Low/mid crossover (Hz)', exact: true }))
 		.toHaveValue('250');

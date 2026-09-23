@@ -15,24 +15,27 @@ import { ENGLISH_COPY } from '../src/common/i18n/catalogs.js';
 // The .jsx modules compile against the global React the browser build provides.
 (globalThis as unknown as { React: unknown }).React = React;
 
-test('the appearance preferences page shows the stored default view in a labelled field', () => {
+test('the track display preferences page shows the stored default view in a labelled field', () => {
 	const labels: Record<string, string> = {
 		waveform: ENGLISH_COPY.waveformView,
 		spectrogram: ENGLISH_COPY.spectrogramView,
 		multiview: ENGLISH_COPY.multiview,
+		'half-wave': ENGLISH_COPY.halfWave,
+		'waveform-three-band': ENGLISH_COPY.threeBandWaveformView,
+		'waveform-rainbow': ENGLISH_COPY.rainbowWaveformView,
 	};
 	for (const defaultView of AUDIO_EDITOR_DEFAULT_VIEWS) {
 		const preferences = createAudioEditorPreferencesV1({ appearance: { defaultView } });
 		const markup = renderToStaticMarkup(
 			<WorkspacePreferencesDialog
 				controller={{ actions: { preferences: {} } }}
-				snapshot={{ preferences }}
+				snapshot={{ preferences, capabilities: { audioSpectralEditing: true } }}
 				copy={ENGLISH_COPY}
 				locale="en"
 				fileService={{ isDesktop: false }}
 				menus={[]}
 				run={() => undefined}
-				initialPage="appearance"
+				initialPage="track-display"
 				onTogglePanel={() => undefined}
 				onClose={() => undefined}
 			/>,

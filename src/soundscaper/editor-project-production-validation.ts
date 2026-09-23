@@ -80,7 +80,7 @@ export interface SoundscaperProductionValidationRevision {
 
 const AUDIO_TRACK_FIELDS = new Set([
 	'id', 'type', 'name', 'gain', 'pan', 'mute', 'solo', 'armed', 'displayMode', 'color',
-	'spectrogram', 'effectsActive', 'effects', 'clipIds', 'collapsed', 'height',
+	'halfWave', 'showRms', 'spectrogram', 'effectsActive', 'effects', 'clipIds', 'collapsed', 'height',
 	'opaqueExtensions', 'laneGroupId', 'locked', 'audioFreeze',
 ])
 const VIDEO_TRACK_FIELDS = new Set([

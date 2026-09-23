@@ -53,6 +53,8 @@ const ALLOWED_TRACK_FIELDS = new Set([
 	'armed',
 	'hidden',
 	'displayMode',
+	'halfWave',
+	'showRms',
 	'color',
 	'spectrogram',
 	'envelope',

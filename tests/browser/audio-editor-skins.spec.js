@@ -57,6 +57,7 @@ for (const product of ['soundscaper', 'framescaper']) {
 			const editor = await bootEditor(page, `${path}?useskin=techno`);
 			const dialog = await appearance(page, editor);
 			await expect(dialog.getByRole('button', { name: 'Techno', exact: true })).toHaveCSS('font-family', /JetBrains Mono/u);
+			await dialog.getByRole('tab', { name: /Track display$/u }).click();
 			await dialog.getByRole('group', { name: 'Default view', exact: true }).getByRole('button').click();
 			const option = page.getByRole('option', { name: 'Waveform', exact: true });
 			await expect(option).toBeVisible();
@@ -67,6 +68,7 @@ for (const product of ['soundscaper', 'framescaper']) {
 				window.dispatchEvent(new PopStateEvent('popstate'));
 			});
 			await expect(editor).toHaveAttribute('data-editor-skin', 'lilac');
+			await dialog.getByRole('tab', { name: /Appearance$/u }).click();
 			await dialog.getByRole('button', { name: 'Default', exact: true }).focus();
 			await page.keyboard.press('Enter');
 			await expect(editor).toHaveAttribute('data-editor-skin', 'default');

@@ -7,7 +7,7 @@ import { renderAmplitudeRulers, renderFrequencyRulers } from './track-row-helper
 import { frequencyRulerWheelRange, verticalRulerWheelZoom } from './vertical-ruler-gesture.ts';
 
 export function AudioTrackRuler({
-	track, displayMode, bodyTop, bodyHeight, width, channelCount, channelHeightRatio,
+	track, displayMode, halfWave = displayMode === 'half-wave', bodyTop, bodyHeight, width, channelCount, channelHeightRatio,
 	sampleRate, spectrogramScale, waveformRulerFormat, waveformZoom, disabled, copy,
 	tabIndex, onOpenRulerFlyout, onKeyDown, onWaveformZoom, onFrequencyRange,
 }) {
@@ -41,7 +41,7 @@ export function AudioTrackRuler({
 		}
 	});
 	const amplitudeRulers = (height) => renderAmplitudeRulers(
-		channelCount, height, width, displayMode, waveformRulerFormat, waveformZoom, channelHeightRatio,
+		channelCount, height, width, halfWave ? 'half-wave' : 'waveform', waveformRulerFormat, waveformZoom, channelHeightRatio,
 	);
 	const frequencyRulers = (height) => renderFrequencyRulers(
 		channelCount, height, width, minimumFrequency, maximumFrequency, spectrogramScale, channelHeightRatio,

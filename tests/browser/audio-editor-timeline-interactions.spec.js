@@ -386,7 +386,7 @@ test.describe('audio editor React/design-system workflows', () => {
 		await rulerFlyout.getByRole('button', { name: 'Zoom in', exact: true }).click();
 		await expect(verticalRuler).toHaveAttribute('data-ruler-zoom', '1');
 		await rulerFlyout.getByText('Half wave', { exact: true }).click();
-		await expect(importedTrack).toHaveAttribute('data-display-mode', 'half-wave');
+		await expect(importedTrack).toHaveAttribute('data-display-mode', 'waveform');
 		const halfWaveBody = importedTrack.locator('.clip-body[data-half-wave="true"]');
 		await expect(halfWaveBody).toHaveCount(1);
 		await expect(halfWaveBody).toHaveCSS('mask-image', 'none');
@@ -683,7 +683,7 @@ test.describe('audio editor React/design-system workflows', () => {
 
 		await chooseCommandAction(page, editor, 'Edit', 'Preferences');
 		const preferences = page.getByRole('dialog', { name: 'Editor preferences', exact: true });
-		await preferences.getByRole('tab', { name: /Spectrogram$/ }).click();
+		await preferences.getByRole('tab', { name: /Track display$/ }).click();
 		const settings = preferences.locator('[data-spectrogram-settings]');
 		await expect(settings).toBeVisible();
 		const targetTrackId = await settings.getAttribute('data-spectrogram-target');

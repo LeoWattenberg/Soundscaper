@@ -23,7 +23,7 @@ test('editor preferences use one text size across every page', async ({ page }) 
 	await expect(editing.getByRole('group', { name: 'Ripple editing', exact: true }).locator('.dropdown__text')).toHaveCSS('font-size', FONT_SIZE);
 	await expect(editing.locator('.kw-audio-editor-preferences__note').first()).toHaveCSS('font-size', FONT_SIZE);
 
-	const spectrogramTab = preferences.getByRole('tab', { name: /Spectrogram$/u });
+	const spectrogramTab = preferences.getByRole('tab', { name: /Track display$/u });
 	await expect(spectrogramTab).toHaveCSS('font-size', FONT_SIZE);
 	await spectrogramTab.click();
 	const spectrogram = preferences.locator('[data-spectrogram-settings]');

@@ -1,9 +1,10 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { isTrackDisplayMode, type TrackDisplayMode } from '../../track-display-mode.ts';
 import type { AudioEditorCommand } from '../../commands/protocol.ts';
 import { AUDIO_EDITOR_MIN_PIXELS_PER_SECOND } from '../../timeline-zoom-limits.ts';
 
-export type ProjectTimelineView = 'waveform' | 'spectrogram' | 'multiview';
+export type ProjectTimelineView = TrackDisplayMode;
 
 export interface ProjectViewTrack {
 	readonly id: string;
@@ -93,18 +94,14 @@ export function createProjectViewService<
 
 	function setTimelineView(view: unknown): ProjectTimelineView {
 		dependencies.lifetime.assertActive();
-		dependencies.state.timelineView = view === 'spectrogram' || view === 'multiview'
-			? view
-			: 'waveform';
+		dependencies.state.timelineView = isTrackDisplayMode(view) ? view : 'waveform';
 		dependencies.publishDocumentSnapshot();
 		return dependencies.state.timelineView;
 	}
 
 	function setAllTracksView(view: unknown): Project | ProjectTimelineView | null | unknown {
 		dependencies.lifetime.assertActive();
-		const displayMode: ProjectTimelineView = view === 'spectrogram' || view === 'multiview'
-			? view
-			: 'waveform';
+		const displayMode: ProjectTimelineView = isTrackDisplayMode(view) ? view : 'waveform';
 		const project = dependencies.getProject();
 		if (!project) return setTimelineView(displayMode);
 		if (dependencies.editingBlocked()) return null;

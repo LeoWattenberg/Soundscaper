@@ -103,7 +103,7 @@ test('track display commands persist special modes while mapping the global time
 	const project = createAudioEditorProjectV17({
 		id: 'frequency-waveform-display-project',
 		now: '2026-09-22T00:00:00.000Z',
-		tracks: [createAudioTrack({ id: 'audio-track' })],
+		tracks: [createAudioTrack({ id: 'audio-track', halfWave: false })],
 	}) as unknown as ControllerProject;
 	const commands: AudioEditorCommand[] = [];
 	const timelineViews: string[] = [];
@@ -141,4 +141,8 @@ test('track display commands persist special modes while mapping the global time
 	assert.deepEqual(commands.map((command) => (
 		command.type === 'track/update' ? command.changes.displayMode : null
 	)), ['waveform-three-band', 'waveform-rainbow']);
+	service.setTrackDisplayMode('audio-track', 'half-wave');
+	const halfWaveCommand = commands.at(-1);
+	assert.ok(halfWaveCommand?.type === 'track/update');
+	assert.equal(halfWaveCommand.changes.halfWave, true, 'legacy half-wave actions enable a previously unchecked option');
 });

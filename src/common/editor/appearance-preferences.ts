@@ -1,4 +1,5 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
+import { AUDIO_EDITOR_TRACK_DISPLAY_MODES, type TrackDisplayMode } from './track-display-mode.ts';
 import { oneOf } from './preferences-validators.js';
 import { normalizeSkin, type SkinId } from './skin-preferences.ts';
 
@@ -9,13 +10,8 @@ export const AUDIO_EDITOR_THEMES = Object.freeze([
 ]);
 export const AUDIO_EDITOR_CLIP_STYLES = Object.freeze(['classic', 'colorful']);
 export const AUDIO_EDITOR_LAYOUTS = Object.freeze(['auto', 'compact', 'desktop']);
-/**
- * Audacity's "Default View Mode": the display a track gets when nothing has
- * given it one of its own. Upstream also offers waveform in decibels; this
- * editor draws waveforms on a linear scale only, so it offers the three
- * displays its timeline can actually render.
- */
-export const AUDIO_EDITOR_DEFAULT_VIEWS = Object.freeze(['waveform', 'spectrogram', 'multiview']);
+/** Default display for tracks that have no individual display override. */
+export const AUDIO_EDITOR_DEFAULT_VIEWS = AUDIO_EDITOR_TRACK_DISPLAY_MODES;
 
 const THEME_SET = new Set(AUDIO_EDITOR_THEMES);
 const CLIP_STYLE_SET = new Set(AUDIO_EDITOR_CLIP_STYLES);
@@ -27,7 +23,7 @@ export interface AppearancePreferences {
 	theme: string;
 	clipStyle: 'classic' | 'colorful';
 	layout: 'auto' | 'compact' | 'desktop';
-	defaultView: 'waveform' | 'spectrogram' | 'multiview';
+	defaultView: TrackDisplayMode;
 }
 
 export function normalizeAppearancePreferences(options?: Record<string, unknown>): AppearancePreferences {

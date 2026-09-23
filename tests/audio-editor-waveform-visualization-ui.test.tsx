@@ -31,7 +31,7 @@ interface MenuItem {
 	readonly onClick?: () => unknown;
 }
 
-test('frequency waveform entries are capability-gated and route settings to the waveform page', async () => {
+test('frequency waveform entries are capability-gated and route settings to track display', async () => {
 	const { createTimelineMenuModel } = await import(
 		'../src/common/editor/ui/timeline/timeline-menu-model.js'
 	) as unknown as {
@@ -53,6 +53,12 @@ test('frequency waveform entries are capability-gated and route settings to the 
 		'action://trackedit/track-view-multi',
 		'local://waveform-visualization-settings',
 	]);
+	const halfWave = requiredItem(display.items, 'track-half-wave');
+	const rms = requiredItem(display.items, 'track-show-rms');
+	assert.equal(halfWave.checked, false);
+	assert.equal(rms.checked, false);
+	halfWave.onClick?.();
+	rms.onClick?.();
 	const threeBand = requiredAction(display.items, 'local://track-view-waveform-three-band');
 	const rainbow = requiredAction(display.items, 'local://track-view-waveform-rainbow');
 	const settings = requiredAction(display.items, 'local://waveform-visualization-settings');
@@ -61,10 +67,12 @@ test('frequency waveform entries are capability-gated and route settings to the 
 	rainbow.onClick?.();
 	settings.onClick?.();
 	assert.deepEqual(actionCalls, [
+		['update', 'audio-track', { halfWave: true }],
+		['update', 'audio-track', { showRms: true }],
 		['setThreeBandWaveformView', 'audio-track'],
 		['setRainbowWaveformView', 'audio-track'],
 	]);
-	assert.deepEqual(surfaceCalls, [['preferences', { section: 'waveform' }]]);
+	assert.deepEqual(surfaceCalls, [['preferences', { section: 'track-display' }]]);
 
 	const incapable = createTimelineMenuModel(menuInput(
 		{ audioSpectralEditing: false },
@@ -74,11 +82,12 @@ test('frequency waveform entries are capability-gated and route settings to the 
 	const incapableDisplay = requiredItem(incapable.trackMenuItems, 'track-display');
 	assert.deepEqual(incapableDisplay.items?.map(actionId).filter(Boolean), [
 		'action://trackedit/track-view-waveform',
+		'local://waveform-visualization-settings',
 	]);
 });
 
 test('the waveform preferences page is routable, localized, and hidden without spectral capability', () => {
-	assert.equal(workspacePreferencesPage('waveform'), 'waveform');
+	assert.equal(workspacePreferencesPage('waveform'), 'track-display');
 	const preferences = createAudioEditorPreferencesV1();
 	const markup = renderToStaticMarkup(<WorkspacePreferencesDialog
 		controller={{ actions: { preferences: { update: () => undefined } } }}
@@ -92,6 +101,10 @@ test('the waveform preferences page is routable, localized, and hidden without s
 		onTogglePanel={() => undefined}
 		onClose={() => undefined}
 	/>);
+	assert.match(markup, /Track display/u);
+	assert.match(markup, /Default view/u);
+	assert.match(markup, /data-spectrogram-settings/u);
+	assert.doesNotMatch(markup, /aria-controls="dialog-panel-(?:spectrogram|waveform)"/u);
 	assert.match(markup, /data-waveform-visualization-settings="true"/u);
 	assert.match(markup, /Low\/mid crossover \(Hz\)/u);
 	assert.match(markup, /value="250"/u);
@@ -162,7 +175,7 @@ function menuInput(
 		controller: { actions: { track: {
 			setThreeBandWaveformView: (trackId: string) => actionCalls.push(['setThreeBandWaveformView', trackId]),
 			setRainbowWaveformView: (trackId: string) => actionCalls.push(['setRainbowWaveformView', trackId]),
-			update: () => undefined,
+			update: (trackId: string, changes: unknown) => actionCalls.push(['update', trackId, changes]),
 		} } },
 		snapshot: { capabilities },
 		locale: 'en',

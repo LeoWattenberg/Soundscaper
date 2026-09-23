@@ -35,15 +35,15 @@ const COPY = Object.freeze({
 	unknownError: 'Unknown error',
 });
 
-test('the default view preference accepts the three timeline displays and defaults older documents to waveform', () => {
-	assert.deepEqual([...AUDIO_EDITOR_DEFAULT_VIEWS], ['waveform', 'spectrogram', 'multiview']);
+test('the default view preference accepts every track display and defaults older documents to waveform', () => {
+	assert.deepEqual([...AUDIO_EDITOR_DEFAULT_VIEWS], ['waveform', 'spectrogram', 'multiview', 'half-wave', 'waveform-three-band', 'waveform-rainbow']);
 	for (const defaultView of AUDIO_EDITOR_DEFAULT_VIEWS) {
 		assert.equal(
 			createAudioEditorPreferencesV1({ appearance: { defaultView } }).appearance.defaultView,
 			defaultView,
 		);
 	}
-	assert.throws(() => createAudioEditorPreferencesV1({ appearance: { defaultView: 'half-wave' } }), RangeError);
+	assert.throws(() => createAudioEditorPreferencesV1({ appearance: { defaultView: 'unknown' } }), RangeError);
 	const saved = createAudioEditorPreferencesV1({ appearance: { defaultView: 'spectrogram' } });
 	delete saved.appearance.defaultView;
 	assert.equal(loadAudioEditorPreferencesV1(saved).preferences.appearance.defaultView, 'waveform');
@@ -95,9 +95,16 @@ test('changing the default view preference retunes the running session and is pe
 			'spectrogram',
 		);
 
+		for (const display of ['half-wave', 'waveform-three-band', 'waveform-rainbow']) {
+			await controller.actions.preferences.setDefaultView(display);
+			assert.equal(controller.getSnapshot().timeline.view, display);
+		}
+
 		// A rejected value must leave both the stored preference and the view alone.
-		assert.throws(() => controller.actions.preferences.setDefaultView('half-wave'), RangeError);
-		assert.equal(controller.getSnapshot().timeline.view, 'spectrogram');
+		assert.throws(() => controller.actions.preferences.setDefaultView('unknown'), RangeError);
+		assert.equal(controller.getSnapshot().timeline.view, 'waveform-rainbow');
+		await controller.actions.track.setWaveformView(controller.getSnapshot().project.tracks[0].id);
+		assert.equal(controller.getSnapshot().timeline.view, 'waveform');
 	} finally {
 		await controller.dispose();
 	}

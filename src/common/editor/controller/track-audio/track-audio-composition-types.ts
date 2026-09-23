@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import type { TrackDisplayMode } from '../../track-display-mode.ts';
 import type { AudioEditorCommand } from '../../commands/protocol.ts';
 import type { EnginePublicApi } from '../../engine/public-api.ts';
 import type { AudioWarpControllerCompositionDependencies } from './internal/audio-warp/audio-warp-composition.ts';
@@ -31,7 +32,7 @@ export type TrackAudioCompositionProject =
 
 export type TrackAudioCompositionState = SelectionViewState & Pick<ControllerTransportState, 'positionFrame' | 'transportState'> & {
 	readonly audacityEffectProcessing: boolean;
-	timelineView: Parameters<EditorTrackServiceDependencies['setTimelineView']>[0];
+	timelineView: TrackDisplayMode;
 };
 
 type TrackAudioCompositionWritableState = Pick<TrackAudioCompositionState,

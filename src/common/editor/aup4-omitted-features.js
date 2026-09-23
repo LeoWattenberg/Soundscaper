@@ -185,6 +185,22 @@ export function reportOmittedProjectFeatures(project, normalizedProject, report)
 			});
 			normalizedProject.tracks[index].armed = false;
 		}
+		if (track.halfWave === true && track.displayMode !== 'half-wave') addAup4CompatibilityItem(report, {
+			code: 'HALF_WAVE_DISPLAY_CONVERTED',
+			severity: 'info',
+			disposition: 'converted',
+			scope: { kind: 'track', trackId: track.id },
+			data: { halfWave: false },
+		});
+		if (track.showRms !== undefined) addAup4CompatibilityItem(report, {
+			code: 'TRACK_RMS_DISPLAY_OMITTED',
+			severity: 'info',
+			disposition: 'omitted',
+			scope: { kind: 'track', trackId: track.id },
+			data: { showRms: track.showRms },
+		});
+		delete normalizedProject.tracks[index].halfWave;
+		delete normalizedProject.tracks[index].showRms;
 		const displayConversionCode = aup4WaveformDisplayConversionCode(track.displayMode);
 		if (displayConversionCode) addAup4CompatibilityItem(report, {
 			code: displayConversionCode,

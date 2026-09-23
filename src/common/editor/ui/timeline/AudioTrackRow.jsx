@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { TrackNew } from '@soundscaper/design-system/Track/TrackNew';
 
+import { resolveTrackWaveformOptions } from '../../track-display-mode.ts';
 import { editorTimelineDurationFrames } from '../../project.js';
 import { TrackControls } from './TrackControls.jsx';
 import { TrackAutomationOverlay } from '../soundscaper-workflow-product-runtime.tsx';
@@ -54,7 +55,7 @@ export function AudioTrackRow({
 	timelineView,
 	asymmetricStereoHeightsAvailable,
 	channelHeightRatio,
-	showRms,
+	showRms: globalShowRms,
 	waveformRulerFormat,
 	waveformZoom,
 	onWaveformZoom,
@@ -95,7 +96,7 @@ export function AudioTrackRow({
 		top: channelBodyTop,
 		height: channelBodyHeight,
 	} = audioEditorClipBodyGeometry(trackHeight);
-	const displayMode = track.displayMode && track.displayMode !== 'waveform' ? track.displayMode : timelineView;
+	const { displayMode, halfWave, showRms } = resolveTrackWaveformOptions(track, timelineView, globalShowRms);
 	const storedChannelHeightRatio = channelHeightRatio ?? 0.5;
 	const displayChannelHeightRatio = audioEditorStereoChannelHeightRatioForDisplay(
 		channelHeightRatioPreview ?? storedChannelHeightRatio,
@@ -130,6 +131,7 @@ export function AudioTrackRow({
 		selectedClipId,
 		selectedClipIdSet,
 		displayMode,
+		halfWave,
 		showRms,
 		recordingPreview,
 		clipDragPreview,
@@ -327,7 +329,7 @@ export function AudioTrackRow({
 						pixelsPerSecond={pixelsPerSecond}
 						timeSelection={selectedTrackId === track.id ? projectedSelection : null}
 						showRms={showRms}
-						halfWave={displayMode === 'half-wave'}
+						halfWave={halfWave}
 						verticalZoom={waveformZoom}
 						channelHeightRatio={displayChannelHeightRatio}
 						spectrogramOptions={spectrogramOptions}
@@ -419,6 +421,7 @@ export function AudioTrackRow({
 				{verticalRulerWidth > 0 && <AudioTrackRuler
 					track={track}
 					displayMode={displayMode}
+					halfWave={halfWave}
 					bodyTop={channelBodyTop}
 					bodyHeight={channelBodyHeight}
 					width={verticalRulerWidth}

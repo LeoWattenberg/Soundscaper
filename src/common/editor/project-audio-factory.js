@@ -307,6 +307,8 @@ export function createAudioTrack(
 		solo: Boolean(options.solo),
 		armed: Boolean(options.armed),
 		displayMode: oneOf(options.displayMode ?? 'waveform', DISPLAY_MODE_SET, 'track.displayMode'),
+		...(options.halfWave === undefined ? {} : { halfWave: Boolean(options.halfWave) }),
+		...(options.showRms === undefined ? {} : { showRms: Boolean(options.showRms) }),
 		color: nonEmptyString(
 			options.color && options.color !== 'auto' ? options.color : AUDIO_EDITOR_TRACK_COLORS[0],
 			'track.color',

@@ -108,7 +108,7 @@ async function openSpectralDialog(page, editor) {
 async function setSpectrogramPreferences(page, editor) {
 	await chooseCommandAction(page, editor, 'Edit', 'Preferences');
 	const preferences = page.getByRole('dialog', { name: 'Editor preferences', exact: true });
-	await preferences.getByRole('tab', { name: /Spectrogram$/u }).click();
+	await preferences.getByRole('tab', { name: /Track display$/u }).click();
 	const settings = preferences.locator('[data-spectrogram-settings]');
 	await settings.getByLabel('Scale', { exact: true }).selectOption('linear');
 	await settings.getByLabel('Minimum frequency (Hz)', { exact: true }).fill('0');
