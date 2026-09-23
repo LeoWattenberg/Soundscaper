@@ -361,6 +361,27 @@
 	animation: none;
 }
 
+.audio-editor-effect-picker-flyout__search {
+	width: 100%;
+	margin-bottom: 8px;
+	padding: 6px 8px;
+	color: var(--text);
+	font: inherit;
+	background: var(--panel);
+	border: 1px solid var(--line);
+	border-radius: 3px;
+}
+
+.audio-editor-effect-picker-flyout__search:focus-visible {
+	outline: var(--focus-ring-size, 2px) solid var(--accent);
+	outline-offset: 1px;
+}
+
+.audio-editor-effect-picker-flyout__empty {
+	margin: 4px 0;
+	color: var(--muted);
+}
+
 .audio-editor-effect-picker-flyout__grid {
 	display: grid;
 	grid-template-columns: repeat(2, minmax(0, 1fr));

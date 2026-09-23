@@ -80,6 +80,31 @@ import {
 		expect(errors).toEqual([]);
 	});
 
+	test('filters the realtime effect flyout as the user types', async ({ page }) => {
+		const errors = collectClientErrors(page);
+		const editor = await bootEditor(page, '/embed/en/');
+		const effectsPanel = await openEffectsForTrack(editor, 0);
+		await openRackPicker(effectsPanel, 'track');
+
+		const flyout = page.getByRole('group', { name: 'Choose an effect' });
+		const picker = flyout.getByRole('menu', { name: 'Choose an effect' });
+		const search = flyout.getByRole('searchbox', { name: 'Search effects' });
+		await expect(search).toBeFocused();
+		await expect(picker.getByRole('menuitem')).toHaveCount(32);
+		await search.fill('  FEEDBACK DELAY  ');
+		await expect(picker.getByRole('menuitem')).toHaveCount(1);
+		await expect(picker.getByRole('menuitem', { name: 'Feedback delay' })).toBeVisible();
+		await search.fill('no matching effect');
+		await expect(picker.getByRole('menuitem')).toHaveCount(0);
+		await expect(flyout.getByRole('status')).toHaveText('No effects match your search.');
+		await search.fill('');
+		await expect(picker.getByRole('menuitem')).toHaveCount(32);
+		await search.fill('reverb');
+		await picker.getByRole('menuitem', { name: 'Reverb', exact: true }).click();
+		await expect(effectsPanel.locator('[data-effect-rack]').getByRole('group', { name: 'Reverb', exact: true })).toHaveCount(1);
+		expect(errors).toEqual([]);
+	});
+
 	test('renders an Audacity rack effect from the first offline quantum', async ({ page }) => {
 		await disableNativeSavePicker(page);
 		const errors = collectClientErrors(page);

@@ -19,6 +19,13 @@ export default function EffectPicker({
 	const themeVariables = useAudioEditorThemeVariables();
 	const triggerRef = useRef(anchor);
 	const [type, setType] = useState(types[0] || '');
+	const [query, setQuery] = useState('');
+	const matchingTypes = useMemo(() => {
+		const normalizedQuery = query.trim().toLocaleLowerCase();
+		return normalizedQuery
+			? types.filter((value) => safeEffectLabel(value, copy).toLocaleLowerCase().includes(normalizedQuery))
+			: types;
+	}, [copy, query, types]);
 	useEffect(() => {
 		triggerRef.current = anchor;
 	}, [anchor]);
@@ -37,23 +44,36 @@ export default function EffectPicker({
 				closeOnOutsideClick
 				closeOnEscape
 				ariaLabel={copy.chooseEffect}
-				role="menu"
+				role="group"
 				className="audio-editor-effect-picker-flyout"
 				style={{ ...themeVariables, zIndex: 10020, pointerEvents: 'auto' }}
 			>
-				<div className="audio-editor-effect-picker-flyout__grid">
-					{types.map((value) => (
-						<button
-							key={value}
-							type="button"
-							role="menuitem"
-							disabled={disabled}
-							onClick={() => onChoose(value)}
-						>
-							{safeEffectLabel(value, copy)}
-						</button>
-					))}
-				</div>
+				<input
+					type="search"
+					className="audio-editor-effect-picker-flyout__search"
+					aria-label={copy.searchEffects}
+					placeholder={copy.searchEffects}
+					value={query}
+					onChange={(event) => setQuery(event.target.value)}
+				/>
+				{matchingTypes.length > 0 && (
+					<div className="audio-editor-effect-picker-flyout__grid" role="menu" aria-label={copy.chooseEffect}>
+						{matchingTypes.map((value) => (
+							<button
+								key={value}
+								type="button"
+								role="menuitem"
+								disabled={disabled}
+								onClick={() => onChoose(value)}
+							>
+								{safeEffectLabel(value, copy)}
+							</button>
+						))}
+					</div>
+				)}
+				{matchingTypes.length === 0 && (
+					<p className="audio-editor-effect-picker-flyout__empty" role="status">{copy.noMatchingEffects}</p>
+				)}
 			</Flyout>
 		);
 	}
