@@ -4,6 +4,7 @@ import { type CSSProperties, type ReactNode, useLayoutEffect, useState } from 'r
 import { createPortal } from 'react-dom';
 import { useTheme } from '@soundscaper/design-system/ThemeProvider';
 
+import { useAudioEditorThemeVariables } from '../DesignSystemRuntime.jsx';
 import { useEditorSkin } from '../skins/EditorSkinProvider.tsx';
 
 /** Preset menus use viewport coordinates and must escape draggable dialog transforms. */
@@ -13,6 +14,7 @@ export default function EffectPresetMenuPortal({ target, children }: {
 }) {
 	const { theme } = useTheme();
 	const { decoration } = useEditorSkin();
+	const themeVariables = useAudioEditorThemeVariables();
 	const [direction, setDirection] = useState(() => directionFor(target));
 	// The editor's direction can change in the same commit as the preview copy.
 	useLayoutEffect(() => {
@@ -20,6 +22,7 @@ export default function EffectPresetMenuPortal({ target, children }: {
 	}, [target, children]);
 	if (!target) return null;
 	const style = {
+		...themeVariables,
 		display: 'contents',
 		fontFamily: decoration === 'default' ? 'Inter, sans-serif' : 'var(--editor-skin-font)',
 		'--accent': theme.accent.primary,

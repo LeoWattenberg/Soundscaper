@@ -99,6 +99,13 @@ test.describe('effect presets Audacity ships', () => {
 		await expect(about).toContainText('Plugin format');
 		await expect(about).toContainText('License');
 		await expect(about).toContainText('Category');
+		const editorTheme = await editor.evaluate(node => ({
+			panel: getComputedStyle(node).getPropertyValue('--panel').trim(),
+			text: getComputedStyle(node).getPropertyValue('--text').trim(),
+		}));
+		await expect(about).toHaveCSS('--panel', editorTheme.panel);
+		await expect(about).toHaveCSS('--text', editorTheme.text);
+		await expect(about).not.toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
 		await closeDialog(about);
 		await expect(selection).toBeVisible();
 		await closeDialog(selection);
