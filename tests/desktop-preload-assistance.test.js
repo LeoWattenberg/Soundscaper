@@ -14,6 +14,7 @@ const STATUS = Object.freeze({
 		task: 'speech-recognition',
 		availability: 'installable',
 		downloadBytes: 661_190_513,
+		runtimeDownloadBytes: 34_000_000,
 		installedBytes: null,
 		attributionRequired: true,
 	}],
@@ -68,6 +69,9 @@ test('a malformed status from main is refused rather than passed through', async
 
 	const badId = await loadPreload([{ ...STATUS, models: [{ ...STATUS.models[0], modelId: '../escape' }] }]);
 	await assert.rejects(badId.bridge.listAssistanceModels(), /Unsupported assistance model id/u);
+
+	const badRuntimeBytes = await loadPreload([{ ...STATUS, models: [{ ...STATUS.models[0], runtimeDownloadBytes: -1 }] }]);
+	await assert.rejects(badRuntimeBytes.bridge.listAssistanceModels(), /non-negative safe integer/u);
 });
 
 test('removal returns the reclaimed byte count', async () => {

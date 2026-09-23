@@ -35,10 +35,11 @@ export interface AssistanceRuntimeFamilyElectronChild {
 
 export interface AssistanceRuntimeFamilyElectronSpawnOptions {
 	readonly helperPath: string;
+	readonly runtimeRoot?: string;
 	readonly fork: (
 		modulePath: string,
 		args: readonly string[],
-		options: Readonly<{ readonly serviceName: string }>,
+		options: Readonly<{ readonly serviceName: string; readonly env?: NodeJS.ProcessEnv }>,
 	) => AssistanceRuntimeFamilyElectronChild;
 	readonly sampleRss?: (pid: number) => number | null;
 	/** Drops the spawned inference process to background scheduling priority. */
@@ -91,6 +92,9 @@ async function spawnFamily(
 	}
 	const child = inspectChild(options.fork(options.helperPath, [], {
 		serviceName: `soundscaper-assistance-${familyId}`,
+		...(options.runtimeRoot === undefined ? {} : {
+			env: { ...process.env, SOUNDSCAPER_ASSISTANCE_RUNTIME_ROOT: options.runtimeRoot },
+		}),
 	}));
 	const handshakeTimeoutMs = boundedMilliseconds(
 		options.handshakeTimeoutMs, DEFAULT_HANDSHAKE_TIMEOUT_MS, 10_000, 'handshake timeout',
@@ -376,6 +380,9 @@ function validateOptions(options: AssistanceRuntimeFamilyElectronSpawnOptions): 
 	if (!options || typeof options.fork !== 'function' || typeof options.helperPath !== 'string'
 		|| !isAbsolute(options.helperPath) || resolve(options.helperPath) !== options.helperPath
 		|| options.helperPath.includes('\0')
+		|| options.runtimeRoot !== undefined && (typeof options.runtimeRoot !== 'string'
+			|| !isAbsolute(options.runtimeRoot) || resolve(options.runtimeRoot) !== options.runtimeRoot
+			|| options.runtimeRoot.includes('\0'))
 		|| options.sampleRss !== undefined && typeof options.sampleRss !== 'function'
 		|| options.applyBackgroundPriority !== undefined
 			&& typeof options.applyBackgroundPriority !== 'function') {

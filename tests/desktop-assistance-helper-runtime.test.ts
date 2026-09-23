@@ -38,10 +38,13 @@ test('main grants exact digest-bound audio and model artifacts to the speech hel
 		}),
 	)) as Record<string, string>;
 	const requests: unknown[] = [];
+	const lifecycle: string[] = [];
 	const runtime = createAssistanceHelperRuntimeAdapter({
 		mintJobId: () => 'ab'.repeat(20),
+		ensureRuntime: async () => { lifecycle.push('ensure'); },
 		host: {
 			start(request) {
+				lifecycle.push('start');
 				requests.push(request);
 				return { jobId: 'ab'.repeat(20), completed: Promise.resolve(RESULT), cancel: () => Promise.resolve() };
 			},
@@ -58,6 +61,7 @@ test('main grants exact digest-bound audio and model artifacts to the speech hel
 		},
 		language: 'en', threads: 4,
 	}), RESULT);
+	assert.deepEqual(lifecycle, ['ensure', 'start']);
 	const admitted = validateAssistanceJobRequest(requests[0]);
 	assert.equal(admitted.grant.operation, 'recognize');
 	if (admitted.grant.operation !== 'recognize') return;
@@ -202,6 +206,7 @@ test('runtime status is answered by the helper rather than loading sherpa in mai
 	let request: unknown = null;
 	const runtime = createAssistanceHelperRuntimeAdapter({
 		mintJobId: () => 'cd'.repeat(20),
+		ensureRuntime: async () => { throw new Error('Status must not download a runtime.'); },
 		host: {
 			start(value) {
 				request = value;
@@ -223,6 +228,22 @@ test('runtime status is answered by the helper rather than loading sherpa in mai
 	const registration = await readFile(new URL('../desktop/assistance-registration.mjs', import.meta.url), 'utf8');
 	assert.doesNotMatch(registration, /assistance-sherpa-recognizer|createSpeechRuntimeAdapter/u);
 	assert.match(registration, /assistance-helper-process\.js/u);
+});
+
+test('an absent downloadable speech runtime is reported without spawning or downloading', async () => {
+	const runtime = createAssistanceHelperRuntimeAdapter({
+		runtimeInstalled: async () => false,
+		ensureRuntime: async () => { throw new Error('Status must not download.'); },
+		host: {
+			start() { throw new Error('Status must not spawn the missing helper.'); },
+			dispose() {},
+		},
+	});
+	assert.deepEqual(await runtime.status(), {
+		available: false,
+		reason: 'The optional speech runtime is not installed.',
+		moduleId: SPEECH_RUNTIME_MODULE_ID,
+	});
 });
 
 test('a missing or non-file grant is refused before any helper job starts', async (t) => {

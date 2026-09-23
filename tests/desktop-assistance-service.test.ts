@@ -154,6 +154,28 @@ test('installing fetches, verifies, and reports the model as installed', { timeo
 	assert.equal(status.models[0]?.installedBytes, ENCODER.length + TOKENS.length);
 });
 
+test('installing a model fetches its runtime within the cancellable install and reports its size', async (t) => {
+	const calls: string[] = [];
+	const service = await serviceIn(t, {
+		runtimeSupply: {
+			pendingDownloadBytes: async () => 19,
+			ensureForModel: async (modelId: string, _task: string, signal: AbortSignal,
+				onProgress: (progress: { familyId: string; completedBytes: number; totalBytes: number }) => void) => {
+				signal.throwIfAborted();
+				calls.push(modelId);
+				onProgress({ familyId: 'sherpa-onnx-node', completedBytes: 19, totalBytes: 19 });
+			},
+		},
+	});
+	const before = await service.status();
+	assert.equal(before.models[0]?.runtimeDownloadBytes, 19);
+	const progress: string[] = [];
+	const installed = await service.install('silero-vad-v6', ({ fileName }) => progress.push(fileName));
+	assert.deepEqual(calls, ['silero-vad-v6']);
+	assert.equal(installed.runtimeDownloadBytes, 0);
+	assert.equal(progress[0], 'sherpa-onnx-node.tar.gz');
+});
+
 test('capacity is admitted before the first model download request', { timeout: 20_000 }, async (t) => {
 	let fetches = 0;
 	const capacity = new LocalModelCapacity({

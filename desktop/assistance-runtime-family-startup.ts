@@ -28,6 +28,9 @@ export interface AssistanceRuntimeFamilyDesktopStartupOptions {
 	readonly runtimeRoot: string;
 	readonly helperPath: string;
 	readonly manifests?: Readonly<Partial<Record<AssistanceRuntimeFamilyId, unknown>>>;
+	/** First-use archive preparation; never invoked during startup. */
+	readonly ensureRuntime?: (familyId: AssistanceRuntimeFamilyId, signal?: AbortSignal) => Promise<void>;
+	readonly ensureKokoroRuntime?: (signal?: AbortSignal) => Promise<void>;
 	readonly platform?: string;
 	readonly architecture?: string;
 	readonly fork: AssistanceRuntimeFamilyElectronSpawnOptions['fork'];
@@ -40,7 +43,7 @@ export interface AssistanceRuntimeFamilyDesktopStartupOptions {
 
 export interface AssistanceRuntimeFamilyDesktopStartup {
 	readonly operations: AssistanceRuntimeFamilyOperationAdapter;
-	availability(familyId: AssistanceRuntimeFamilyId): Promise<AssistanceRuntimeFamilyAvailability>;
+	availability(familyId: AssistanceRuntimeFamilyId, signal?: AbortSignal): Promise<AssistanceRuntimeFamilyAvailability>;
 	snapshot(familyId: AssistanceRuntimeFamilyId): AssistanceRuntimeFamilySnapshot;
 	dispose(): void;
 	shutdown(): Promise<void>;
@@ -53,11 +56,12 @@ export function createAssistanceRuntimeFamilyDesktopStartup(
 	const manifests = manifestInventory(options.manifests);
 	const availability = async (
 		familyId: AssistanceRuntimeFamilyId,
+		signal?: AbortSignal,
 	): Promise<AssistanceRuntimeFamilyAvailability> => {
 		if (!Object.hasOwn(ASSISTANCE_RUNTIME_FAMILY_DEFINITIONS, familyId)) {
 			throw new TypeError('The runtime-family availability id is invalid.');
 		}
-		return await describeAssistanceRuntimeFamilyAvailability({
+		const check = () => describeAssistanceRuntimeFamilyAvailability({
 			familyId,
 			manifest: manifests[familyId],
 			runtimeRoot: options.runtimeRoot,
@@ -65,9 +69,16 @@ export function createAssistanceRuntimeFamilyDesktopStartup(
 			...(options.platform === undefined ? {} : { platform: options.platform }),
 			...(options.architecture === undefined ? {} : { architecture: options.architecture }),
 		});
+		const current = await check();
+		if (current.status === 'available' || options.ensureRuntime === undefined
+			|| !['payload-missing', 'payload-digest-mismatch'].includes(current.reason)) return current;
+		await options.ensureRuntime(familyId, signal);
+		signal?.throwIfAborted();
+		return check();
 	};
 	const spawns = createAssistanceRuntimeFamilyElectronSpawns({
 		helperPath: options.helperPath,
+		runtimeRoot: options.runtimeRoot,
 		fork: options.fork,
 		...(options.sampleRss === undefined ? {} : { sampleRss: options.sampleRss }),
 		...(options.applyBackgroundPriority === undefined
@@ -81,7 +92,14 @@ export function createAssistanceRuntimeFamilyDesktopStartup(
 		...(options.powerEtiquette === undefined ? {} : { powerEtiquette: options.powerEtiquette }),
 	});
 	return Object.freeze({
-		operations: createAssistanceRuntimeFamilyOperationAdapter({ router }),
+		operations: createAssistanceRuntimeFamilyOperationAdapter({
+			router,
+			...(options.ensureKokoroRuntime === undefined ? {} : {
+				beforeRun: async (request) => {
+					if (request.task === 'text-to-speech') await options.ensureKokoroRuntime?.(request.signal);
+				},
+			}),
+		}),
 		availability,
 		snapshot: router.snapshot,
 		dispose: router.dispose,
@@ -113,6 +131,8 @@ function validateOptions(options: AssistanceRuntimeFamilyDesktopStartupOptions):
 		|| typeof options.fork !== 'function'
 		|| typeof options.totalMemoryBytes !== 'function'
 		|| typeof options.availableMemoryBytes !== 'function'
+		|| options.ensureRuntime !== undefined && typeof options.ensureRuntime !== 'function'
+		|| options.ensureKokoroRuntime !== undefined && typeof options.ensureKokoroRuntime !== 'function'
 		|| options.sampleRss !== undefined && typeof options.sampleRss !== 'function'
 		|| options.applyBackgroundPriority !== undefined
 			&& typeof options.applyBackgroundPriority !== 'function'

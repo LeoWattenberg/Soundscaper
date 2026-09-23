@@ -89,7 +89,8 @@ function packagedKokoroPhonemizer() {
 	return createAssistanceKokoroOfflinePhonemizerV1({
 		manifestPath: join(resourcesPath, 'app.asar', 'config',
 			'assistance-kokoro-g2p-runtime-manifest.json'),
-		runtimeRoot: join(resourcesPath, 'runtime'),
+		runtimeRoot: process.env.SOUNDSCAPER_ASSISTANCE_RUNTIME_ROOT
+			?? join(resourcesPath, 'runtime'),
 	});
 }
 

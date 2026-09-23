@@ -85,6 +85,31 @@ test('package-generated runtime templates cannot spawn before packaging supplies
 	runtime.dispose();
 });
 
+test('first-use family availability forwards job cancellation into runtime preparation', async () => {
+	const controller = new AbortController();
+	let observed: AbortSignal | undefined;
+	const onnx = packageGeneratedManifest('onnxruntime-node');
+	const manifest = { ...onnx, targets: onnx.targets.map((target) => target.id === 'linux-x64'
+		? { id: target.id, status: 'authenticated', entrypoint: 'runtime',
+			files: [{ path: 'runtime', byteLength: 1, sha256: 'a'.repeat(64), executable: false }] }
+		: target) };
+	const runtime = createAssistanceRuntimeFamilyDesktopStartup({
+		runtimeRoot: resolve('fixture-runtime'),
+		helperPath: resolve('fixture-runtime-family-helper.js'),
+		manifests: { 'onnxruntime-node': manifest },
+		platform: 'linux', architecture: 'x64',
+		fork: () => { throw new Error('No runtime should spawn.'); },
+		totalMemoryBytes: () => 32 * GIB,
+		availableMemoryBytes: () => 24 * GIB,
+		ensureRuntime: async (_familyId, signal) => { observed = signal; signal?.throwIfAborted(); },
+	});
+	await runtime.availability('onnxruntime-node', controller.signal);
+	assert.equal(observed, controller.signal);
+	controller.abort();
+	await assert.rejects(runtime.availability('onnxruntime-node', controller.signal), /abort/iu);
+	runtime.dispose();
+});
+
 test('startup refuses foreign manifest keys before exposing operation routing', () => {
 	assert.throws(() => startup({ shell: packageGeneratedManifest('onnxruntime-node') } as never),
 		/manifest.*family|key|inventory/iu);

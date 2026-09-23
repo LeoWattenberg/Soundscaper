@@ -51,6 +51,9 @@ export interface AssistanceSpeechHostPort {
 
 export interface AssistanceHelperRuntimeOptions {
 	readonly host: AssistanceSpeechHostPort;
+	/** Prepares the optional native closure only for an actual inference request. */
+	readonly ensureRuntime?: (signal?: AbortSignal) => Promise<void>;
+	readonly runtimeInstalled?: () => Promise<boolean>;
 	readonly mintJobId?: () => string;
 	/** Narrow stream seam used to keep grant capture independently abortable. */
 	readonly openFileReadStream?: (path: string) => AssistanceFileReadStream;
@@ -72,6 +75,7 @@ export function createAssistanceHelperRuntimeAdapter(
 		grant: AssistanceSpeechJobGrant,
 		runOptions?: AssistanceJobStartOptions,
 	): Promise<unknown> {
+		if (grant.operation !== 'status') await options.ensureRuntime?.(runOptions?.signal);
 		return options.host.start({
 			protocolVersion: ASSISTANCE_JOB_PROTOCOL_VERSION,
 			jobId: mintJobId(),
@@ -82,11 +86,28 @@ export function createAssistanceHelperRuntimeAdapter(
 
 	return Object.freeze({
 		async status(): Promise<SpeechRuntimeStatus> {
+			if (options.runtimeInstalled) {
+				try {
+					if (!await options.runtimeInstalled()) return Object.freeze({ available: false,
+						reason: 'The optional speech runtime is not installed.',
+						moduleId: SPEECH_RUNTIME_MODULE_ID });
+				} catch {
+					return Object.freeze({ available: false,
+						reason: 'The optional speech runtime failed to load.',
+						moduleId: SPEECH_RUNTIME_MODULE_ID });
+				}
+			}
 			const grant = Object.freeze({
 				operation: 'status' as const,
 				moduleId: SPEECH_RUNTIME_MODULE_ID,
 			});
-			return validateAssistanceSpeechJobResult(await run(grant), grant) as SpeechRuntimeStatus;
+			try {
+				return validateAssistanceSpeechJobResult(await run(grant), grant) as SpeechRuntimeStatus;
+			} catch {
+				return Object.freeze({ available: false,
+					reason: 'The optional speech runtime failed to load.',
+					moduleId: SPEECH_RUNTIME_MODULE_ID });
+			}
 		},
 		async recognize(request: SpeechRecognitionRequest): Promise<SpeechRecognitionResult> {
 			const grant = await authorizeRecognition(request, openFileReadStream);

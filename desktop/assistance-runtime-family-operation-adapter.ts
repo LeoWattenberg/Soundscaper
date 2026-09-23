@@ -59,6 +59,7 @@ export interface AssistanceRuntimeFamilyOperationAdapterOptions {
 	readonly router: Readonly<{
 		run(value: unknown, options?: AssistanceRuntimeFamilyRunOptions): Promise<unknown>;
 	}>;
+	readonly beforeRun?: (request: AssistanceRuntimeFamilyOperationRequest) => Promise<void>;
 }
 
 export function runtimeFamilyForAssistanceTask(
@@ -84,6 +85,8 @@ export function createAssistanceRuntimeFamilyOperationAdapter(
 		async run(request: AssistanceRuntimeFamilyOperationRequest) {
 			request.signal?.throwIfAborted();
 			const familyId = runtimeFamilyForAssistanceTask(request.task);
+			await options.beforeRun?.(request);
+			request.signal?.throwIfAborted();
 			const settingsJson = canonicalSettings(request.settings);
 			const grant = await captureAssistanceRuntimeFamilyJobGrantV1({
 				jobId: request.jobId,

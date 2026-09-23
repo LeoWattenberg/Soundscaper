@@ -44,6 +44,7 @@ export interface AssistanceModelView {
 	readonly task: string;
 	readonly availability: LocalModelAvailability;
 	readonly downloadBytes: number;
+	readonly runtimeDownloadBytes?: number;
 	readonly installedBytes: number | null;
 	readonly attributionRequired: boolean;
 }
@@ -110,6 +111,19 @@ export interface AssistanceServiceOptions {
 	readonly totalMemoryBytes?: number;
 	readonly fetchImpl?: typeof fetch;
 	readonly capacity?: LocalModelCapacity;
+	readonly runtimeSupply?: Readonly<{
+		pendingDownloadBytes(modelId: string, task: string): Promise<number>;
+		ensureForModel(
+			modelId: string,
+			task: string,
+			signal: AbortSignal,
+			onProgress: (progress: Readonly<{
+				familyId: string;
+				completedBytes: number;
+				totalBytes: number;
+			}>) => void,
+		): Promise<void>;
+	}>;
 	/** Atomically persists a verified relocation target. */
 	readonly persistModelsDirectory?: (directory: string) => PromiseLike<void> | void;
 }
@@ -119,6 +133,7 @@ function entryView(
 	availability: LocalModelAvailability,
 	installedBytes: number | null,
 	attributionRequired: boolean,
+	runtimeDownloadBytes = 0,
 ): AssistanceModelView {
 	return Object.freeze({
 		modelId: entry.modelId,
@@ -126,6 +141,7 @@ function entryView(
 		task: entry.task,
 		availability,
 		downloadBytes: entry.artifacts.reduce((total, artifact) => total + artifact.byteLength, 0),
+		runtimeDownloadBytes,
 		installedBytes,
 		attributionRequired,
 	});
@@ -263,7 +279,7 @@ export function createAssistanceService(options: AssistanceServiceOptions) {
 		return Object.freeze({
 			runtimeAvailable: runtime.available,
 			runtimeReason,
-			models: Object.freeze(catalog.entries.map((entry) => entryView(
+			models: Object.freeze(await Promise.all(catalog.entries.map(async (entry) => entryView(
 				entry,
 				describeModelAvailability(entry, {
 					platform,
@@ -272,7 +288,8 @@ export function createAssistanceService(options: AssistanceServiceOptions) {
 				}),
 				currentById.get(entry.modelId)?.totalBytes ?? null,
 				attributionById.get(entry.modelId) === true,
-			))),
+				await options.runtimeSupply?.pendingDownloadBytes(entry.modelId, entry.task) ?? 0,
+			)))),
 		});
 	}
 
@@ -289,6 +306,13 @@ export function createAssistanceService(options: AssistanceServiceOptions) {
 		const entry = entryFor(modelId);
 		assertMachineCompatible(entry);
 		return withInstall(entry, signal, async (installSignal) => {
+			installSignal.throwIfAborted();
+			await options.runtimeSupply?.ensureForModel(
+				entry.modelId, entry.task, installSignal,
+				({ familyId, completedBytes, totalBytes }) => onProgress?.(Object.freeze({
+					modelId, fileName: `${familyId}.tar.gz`, completedBytes, totalBytes,
+				})),
+			);
 			installSignal.throwIfAborted();
 			await store.initialize();
 			const plan = await planLocalModelTransfers(store, entry.artifacts);
@@ -357,6 +381,7 @@ export function createAssistanceService(options: AssistanceServiceOptions) {
 			return entryView(
 				entry, 'installed', installed.totalBytes,
 				attributionById.get(entry.modelId) === true,
+				await options.runtimeSupply?.pendingDownloadBytes(entry.modelId, entry.task) ?? 0,
 			);
 		});
 	}

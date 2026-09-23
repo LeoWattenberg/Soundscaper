@@ -103,6 +103,7 @@ function modelView(model: AssistanceModelView): AssistanceModelView {
 		task: model.task,
 		availability: model.availability,
 		downloadBytes: model.downloadBytes,
+		runtimeDownloadBytes: model.runtimeDownloadBytes,
 		installedBytes: model.installedBytes,
 		attributionRequired: model.attributionRequired,
 	});
@@ -154,7 +155,7 @@ export function registerAssistanceIpc(options: AssistanceIpcOptions): void {
 		const id = assertModelId(modelId);
 		return pathlessOperation(() => resolve().install(id, (progress) => {
 			sendToRenderer(channels.assistanceInstallProgress, progress);
-		}), 'The local model could not be installed.');
+		}), 'The local model or its required runtime could not be downloaded or installed.');
 	});
 
 	handle(channels.cancelAssistanceModelInstall, (_event, modelId): Promise<AssistanceInstallCancellation> => {
@@ -213,6 +214,7 @@ export interface AssistanceServiceFactoryOptions {
 	readonly licensingMatrix: unknown;
 	readonly runtime: Parameters<typeof createAssistanceService>[0]['runtime'];
 	readonly totalMemoryBytes: number;
+	readonly runtimeSupply?: Parameters<typeof createAssistanceService>[0]['runtimeSupply'];
 	readonly persistModelsDirectory?: (directory: string) => PromiseLike<void> | void;
 }
 
@@ -237,6 +239,7 @@ export function assistanceServiceFrom(options: AssistanceServiceFactoryOptions):
 		refusedIds: (register.refusedLocalModels ?? []).map(({ id }) => id),
 		runtime: options.runtime,
 		totalMemoryBytes: options.totalMemoryBytes,
+		...(options.runtimeSupply ? { runtimeSupply: options.runtimeSupply } : {}),
 		...(options.persistModelsDirectory
 			? { persistModelsDirectory: options.persistModelsDirectory }
 			: {}),

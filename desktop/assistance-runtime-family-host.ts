@@ -77,6 +77,7 @@ export interface AssistanceRuntimeFamilyRunOptions {
 export interface AssistanceRuntimeFamilyRouterOptions {
 	readonly availability: (
 		familyId: AssistanceRuntimeFamilyId,
+		signal?: AbortSignal,
 	) => Promise<AssistanceRuntimeFamilyAvailability>;
 	readonly spawns: Readonly<Record<AssistanceRuntimeFamilyId, (
 		descriptor: AssistanceRuntimeFamilyDescriptor,
@@ -211,7 +212,7 @@ export function createAssistanceRuntimeFamilyRouter(options: AssistanceRuntimeFa
 		assertMemoryAdmission(request);
 		reservedMemoryBytes += request.maximumRssBytes;
 		try {
-			const process = await ensureProcess(slot, request);
+			const process = await ensureProcess(slot, request, runOptions.signal);
 			if (disposed) throw failure('disposed', request, 'The runtime-family router is disposed.');
 			if (runOptions.signal?.aborted) {
 				throw failure('cancelled', request, 'The runtime-family job was cancelled.');
@@ -302,13 +303,16 @@ export function createAssistanceRuntimeFamilyRouter(options: AssistanceRuntimeFa
 	async function ensureProcess(
 		slot: FamilySlot,
 		request: AssistanceRuntimeFamilyJobRequestV1,
+		signal?: AbortSignal,
 	): Promise<AssistanceRuntimeFamilyProcess> {
 		if (slot.process) return slot.process;
 		if (slot.starting) return slot.starting;
 		const starting = (async () => {
 			let availability: AssistanceRuntimeFamilyAvailability;
-			try { availability = await options.availability(slot.familyId); }
+			try { availability = await options.availability(slot.familyId, signal); }
 			catch (error) {
+				if (signal?.aborted) throw failure('cancelled', request,
+					'The runtime-family job was cancelled during runtime preparation.');
 				throw failure('manifest-invalid', request,
 					`The runtime-family payload could not be resolved: ${errorMessage(error)}`);
 			}

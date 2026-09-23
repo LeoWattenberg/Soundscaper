@@ -50,6 +50,26 @@ test('missing and unsupported payload states remain typed and never spawn', asyn
 	router.dispose();
 });
 
+test('cancelling first-use runtime preparation aborts availability before spawn', async () => {
+	let observed: AbortSignal | undefined;
+	const { router, processes } = harness({
+		availability: async (_familyId, signal) => {
+			observed = signal;
+			return new Promise((_resolve, reject) => {
+				signal?.addEventListener('abort', () => reject(new DOMException('Cancelled.', 'AbortError')),
+					{ once: true });
+			});
+		},
+	});
+	const controller = new AbortController();
+	const result = router.run(request(), { signal: controller.signal });
+	await until(() => observed !== undefined);
+	controller.abort();
+	await assert.rejects(result, typed('cancelled'));
+	assert.equal(processes['onnxruntime-node'].length, 0);
+	router.dispose();
+});
+
 test('memory admission happens before process creation and enforces the Qwen system floor', async () => {
 	const lowAvailable = harness({ availableMemoryBytes: () => GIB });
 	await assert.rejects(lowAvailable.router.run(request()), typed('insufficient-memory'));

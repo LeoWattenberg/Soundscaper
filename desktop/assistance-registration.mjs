@@ -32,6 +32,8 @@ import { ASSISTANCE_OPERATION_IPC_CHANNELS, registerAssistanceOperationIpc } fro
 import { createAssistanceOperationService } from './project-library-runtime/desktop/assistance-operation-service.js';
 import { applyAssistanceBackgroundPriority, normalizeAssistanceThermalState } from './project-library-runtime/desktop/assistance-power-etiquette-v1.js';
 import { createAssistanceRuntimeFamilyDesktopStartup } from './project-library-runtime/desktop/assistance-runtime-family-startup.js';
+import { createAssistanceRuntimeInstaller } from './project-library-runtime/desktop/assistance-runtime-installer.js';
+import { assistanceRuntimeFamiliesForModel } from './project-library-runtime/desktop/assistance-runtime-model-supply.js';
 import { createAssistanceSemanticQueryExecutorV1 } from './project-library-runtime/desktop/assistance-semantic-query-executor.js';
 import { AssistanceWorkflowCustody } from './project-library-runtime/desktop/assistance-workflow-custody.js';
 import { createAssistanceWorkflowExecutor } from './project-library-runtime/desktop/assistance-workflow-executor.js';
@@ -151,9 +153,26 @@ function assistanceBackgroundPriority(pid) {
 export function registerAssistance({
 	channels, handle, on, sendToRenderer, app, settings, dialog, windowFor,
 	externalFfmpegPreferences, onOperationError,
-	runtimeRoot = join(process.resourcesPath, 'runtime'),
 }) {
 	let child = null;
+	const runtimeRoot = join(app.getPath('userData'), 'runtime');
+	const runtimeInstaller = createAssistanceRuntimeInstaller({
+		runtimeRoot,
+		distributionPath: resolve(import.meta.dirname, '..', 'config',
+			'assistance-runtime-distribution.json'),
+	});
+	const runtimeSupply = Object.freeze({
+		pendingDownloadBytes: async (modelId, task) => {
+			const sizes = await Promise.all(assistanceRuntimeFamiliesForModel(modelId, task)
+				.map((familyId) => runtimeInstaller.pendingDownloadBytes(familyId)));
+			return sizes.reduce((total, bytes) => total + bytes, 0);
+		},
+		ensureForModel: async (modelId, task, signal, onProgress) => {
+			for (const familyId of assistanceRuntimeFamiliesForModel(modelId, task)) {
+				await runtimeInstaller.ensure(familyId, signal, onProgress);
+			}
+		},
+	});
 	const targetId = assistanceNativeRuntimeTargetId({ platform: process.platform, arch: process.arch });
 	const host = createAssistanceJobHost({
 		// The executable closure stays outside the asar, so main authenticates every
@@ -198,13 +217,19 @@ export function registerAssistance({
 			return metric ? metric.memory.workingSetSize * 1024 : null;
 		},
 	});
-	const runtime = createAssistanceHelperRuntimeAdapter({ host });
+	const runtime = createAssistanceHelperRuntimeAdapter({
+		host,
+		ensureRuntime: (signal) => runtimeInstaller.ensure('sherpa-onnx-node', signal),
+		runtimeInstalled: () => runtimeInstaller.isInstalled('sherpa-onnx-node'),
+	});
 	const shotDetectionRuntime = createExternalFfmpegAssistanceShotRuntimeAdapter({
 		preferences: externalFfmpegPreferences,
 	});
 	const runtimeFamilies = createAssistanceRuntimeFamilyDesktopStartup({
 		runtimeRoot,
 		manifests: assistanceRuntimeFamilySupply.manifests,
+		ensureRuntime: (familyId, signal) => runtimeInstaller.ensure(familyId, signal),
+		ensureKokoroRuntime: (signal) => runtimeInstaller.ensure('kokoro-g2p', signal),
 		helperPath: join(
 			import.meta.dirname,
 			'project-library-runtime',
@@ -229,6 +254,7 @@ export function registerAssistance({
 			catalog: assistanceCatalog,
 			licensingMatrix,
 			runtime,
+			runtimeSupply,
 			totalMemoryBytes: totalmem(),
 			persistModelsDirectory: (directory) => settings.setModelsDirectory(directory),
 		});

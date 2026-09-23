@@ -121,7 +121,7 @@ test('status projection cannot expose service paths or extra fields', async () =
 			runtimeReason: "dlopen '/private/runtime.node' failed",
 			models: [{
 				modelId: 'silero-vad-v6', version: '6.2.1', task: 'voice-activity-detection',
-				availability: 'installed', downloadBytes: 1, installedBytes: 1,
+				availability: 'installed', downloadBytes: 1, runtimeDownloadBytes: 17, installedBytes: 1,
 				attributionRequired: false, artifactPath: '/private/models/model.onnx',
 			}],
 			privateStorePath: '/private/store',
@@ -132,8 +132,9 @@ test('status projection cannot expose service paths or extra fields', async () =
 	assert.equal(Array.isArray(status.models), true);
 	assert.deepEqual(Object.keys((status.models as Record<string, unknown>[])[0] ?? {}).sort(), [
 		'attributionRequired', 'availability', 'downloadBytes', 'installedBytes',
-		'modelId', 'task', 'version',
+		'modelId', 'runtimeDownloadBytes', 'task', 'version',
 	]);
+	assert.equal((status.models as Record<string, unknown>[])[0]?.runtimeDownloadBytes, 17);
 	assert.doesNotMatch(JSON.stringify(status), /private|path/iu);
 	assert.equal(status.runtimeReason, 'The optional speech runtime failed to load.');
 });
