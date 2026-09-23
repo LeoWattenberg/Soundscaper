@@ -18,7 +18,6 @@ import {
 	commitInput,
 	openEffectsForTrack,
 	registerAudioEditorHooks,
-	waitForEditor,
 } from './audio-editor-test-helpers.js';
 import {
 	audacityXmlChildren,
@@ -112,7 +111,10 @@ test.describe('native AUP4 effect settings', () => {
 		await closeEffectsPanel(panel);
 		await expect(editor.locator('[data-save-state]')).toHaveAttribute('data-state', 'saved', { timeout: 10_000 });
 		await page.reload();
-		editor = await waitForEditor(page);
+		editor = page.locator('[data-audio-editor]');
+		await expect(editor).toHaveAttribute('data-audio-editor-bound', 'true');
+		await expect(editor.getByRole('tab', { name: 'native-effect-settings', exact: true }))
+			.toHaveAttribute('aria-selected', 'true');
 		panel = await openEffectsForTrack(editor, 0);
 		await expect(panel.getByRole('group', { name: /^Missing:/ })).toHaveCount(0);
 		for (const fixture of NATIVE_EFFECTS) {
