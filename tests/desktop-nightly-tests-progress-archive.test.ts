@@ -2,6 +2,7 @@
 
 import assert from 'node:assert/strict';
 import { spawnSync } from 'node:child_process';
+import { closeSync, openSync, readFileSync } from 'node:fs';
 import { copyFile, mkdir, mkdtemp, readdir, rm, symlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
@@ -117,10 +118,24 @@ test('the hardened nightly launcher renders and updates its archived progress pa
 	});
 	const environment = { ...process.env };
 	delete environment.ELECTRON_RUN_AS_NODE;
-	const result = spawnSync(executable, [
-		'--no-sandbox', '--disable-gpu', `--user-data-dir=${join(root, 'profile')}`,
-	], { env: environment, encoding: 'utf8', timeout: 30_000 });
-	assert.ifError(result.error);
-	assert.equal(result.status, 0, result.stderr);
-	assert.match(result.stdout, /NIGHTLY_PROGRESS_ARCHIVE_PASSED/u);
+	// Electron subprocesses may keep inherited pipes open after the launcher exits.
+	const stdoutPath = join(root, 'electron.stdout.log');
+	const stderrPath = join(root, 'electron.stderr.log');
+	const result = (() => {
+		const stdout = openSync(stdoutPath, 'w');
+		try {
+			const stderr = openSync(stderrPath, 'w');
+			try {
+				// The common shard can make a shared CI runner slow to start Electron.
+				return spawnSync(executable, [
+					'--no-sandbox', '--disable-gpu', `--user-data-dir=${join(root, 'profile')}`,
+				], { env: environment, stdio: ['ignore', stdout, stderr], timeout: 90_000 });
+			} finally { closeSync(stderr); }
+		} finally { closeSync(stdout); }
+	})();
+	const stdout = readFileSync(stdoutPath, 'utf8');
+	const stderr = readFileSync(stderrPath, 'utf8');
+	if (result.error) throw new Error(`Electron progress-page process failed: ${result.error.message}\n${stderr}`, { cause: result.error });
+	assert.equal(result.status, 0, stderr);
+	assert.match(stdout, /NIGHTLY_PROGRESS_ARCHIVE_PASSED/u);
 });
