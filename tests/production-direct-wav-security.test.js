@@ -275,91 +275,91 @@ test('direct PCM security controls stay limited to WAV, AIFF, BWF, and admitted 
 test('direct PCM documentation records admitted BW64 byte, buffering, rollback, and acceptance limits', async () => {
 	const matrix = JSON.parse(await readFile(matrixUrl, 'utf8'));
 	const documentation = await readFile(new URL(`../${matrix.modelDocument}`, import.meta.url), 'utf8');
-	assert.match(
+	assertOrderedMatch(
 		documentation,
 		/one exact WAV, AIFF, BWF, or BW64 mix.*`realtime-stream`.*WAV.*65 GiB.*AIFF.*4,294,967,303.*32-bit FORM.*4,294,967,302.*BWF.*`audio\/wav`.*`\.wav`.*positive safe-integer.*65 GiB.*Authored BW64.*format and container.*`bw64`.*65 GiB.*admission ceiling.*not.*scale.*direct File System Access or Electron.*shared PCM route.*16,384-frame chunks.*pending count.*32 MiB.*Realtime progress.*selection-only upmix.*resamples.*before duplicating.*at-most-4-MiB.*serially awaits.*Exact desktop `audio-pcm-mix`.*4 MiB.*generic exact-size.*project.*one MiB/isu,
 	);
-	assert.match(
+	assertOrderedMatch(
 		documentation,
 		/Direct PCM adapters request suspension at one accepted chunk.*hard crossover reserve.*Realtime publication waits for every streamed clip to settle.*fails closed with the first stable source-underrun identity before commit.*interactive playback retains silence-on-underrun/isu,
 	);
-	assert.match(
+	assertOrderedMatch(
 		documentation,
 		/Classic WAV admission requires.*positive safe-integer sample rate.*4,294,967,295.*1–32 channels.*nonnegative safe-integer frame count.*non-array object metadata.*marker array.*null-or-object iXML.*CART exactly null.*canonical.*`sampleFormat`.*`bitDepth`.*`floatingPoint`.*`int16`.*16.*false.*`int20`.*20.*false.*`int24`.*24.*false.*`float32`.*32.*true.*explicit container.*BEXT.*ADM.*`preDataChunks`.*`trailingChunks`.*before target selection.*`inspectWavLayout`.*automatic container selection.*same sample rate.*channel count.*frame count.*encoding.*metadata.*markers.*iXML.*Only RIFF or RF64.*exact agreement.*Odd PCM RIFF data.*word-padded.*largest constructible RIFF.*4,294,967,302 bytes.*next mono int16 frame.*RF64.*4,294,967,340 bytes.*69,793,218,560-byte.*65 GiB.*rejecting the next frame.*not WAV scale, package, heap, or RSS qualification/isu,
 	);
-	assert.match(
+	assertOrderedMatch(
 		documentation,
 		/AIFF.*Direct admission requires.*explicit valid sample rate.*1–32 channels.*zero through 4,294,967,295 output frames.*non-array object metadata.*canonical.*`sampleFormat`.*`bitDepth`.*`floatingPoint`.*`int16`.*16.*false.*`int24`.*24.*false.*`int32`.*32.*false.*`float32`.*32.*true.*`inspectAiffLayout`.*same layout-affecting encoder options.*AIFF for integer PCM.*AIFF-C for float32.*exact byte count.*plan.*Malformed or stale fields and layouts reject before target selection.*4,294,967,303-byte theoretical maximum.*odd and unconstructible.*layout-only witness.*allocates no PCM or output bytes.*4,294,967,302-byte layout.*next mono int16 frame/isu,
 	);
-	assert.match(
+	assertOrderedMatch(
 		documentation,
 		/integer AIFF.*AIFF-C float.*odd PCM padding.*trailing ID3 metadata.*same encoder geometry.*BWF.*plan and encoding.*canonical normalized version-2 BEXT.*int16.*int20.*int24.*container.*ADM.*`preDataChunks`.*`trailingChunks`.*BW64.*opaque chunks.*rich standard BWF metadata.*markers.*iXML.*CART.*exact geometry.*Authored BW64.*normalized ADM.*mono.*stereo.*5\.1.*identity preserve mapping.*CHNA before PCM.*AXML after PCM.*byte-identical.*`measureLoudness: true`.*fails closed.*before target, preflight, or render.*bounded two-pass.*unimplemented.*no measured-loudness.*planned.*encoder-finalized.*destination-written.*committed-result.*four-way agreement.*without a final renderer `Blob`.*BW64 passthrough outside the exact current-import contract.*legacy opaque-only metadata.*other PCM.*compressed audio.*video.*stems.*existing paths.*non-cancellable commit boundary.*ownership.*lost during commit.*committed result.*stale success UI.*post-publication integrity failure.*not.*rollback/isu,
 	);
-	assert.match(
+	assertOrderedMatch(
 		documentation,
 		/BWF.*Admission requires.*explicit valid sample rate.*1–32 channels.*nonnegative safe-integer frame count.*object metadata.*marker array.*null-or-object iXML and CART.*automatic RIFF\/RF64 layout.*`inspectWavLayout`.*same encoder options used by streaming.*sample rate.*channel count.*frame count.*integer precision.*BEXT.*metadata.*markers.*iXML.*CART.*rejects malformed fields.*planned-byte mismatch.*before target selection.*layout-only witness.*allocates no PCM or output bytes.*exact constructible 69,793,218,560-byte.*65 GiB.*RF64 boundary.*rejecting the next frame.*admission ceiling.*not BWF scale, heap, or RSS qualification/isu,
 	);
-	assert.match(
+	assertOrderedMatch(
 		documentation,
 		/pristine-passthrough BW64 route.*current BW64 importer.*pristine planner.*valid warning-free ADM.*unchanged neutral full-range source path.*import revision.*nonempty complete `riffChunkSequence`.*aggregate complete nonstructural RIFF bytes.*headers and alignment bytes.*16 MiB.*1–32 channels.*int16.*int20.*int24.*non-float PCM.*exact rate, channel, frame, and precision geometry.*zero tail and dither.*full range.*identity preserve mappings.*CHNA-derived channel order.*exact compacted pre\/post bytes, order, and placement.*`plan\.adm`.*top-level plan.*`inspectWavLayout`.*65 GiB/isu,
 	);
-	assert.match(
+	assertOrderedMatch(
 		documentation,
 		/preserved BEXT.*only from the sequence.*without one.*same canonical normalized version-2 BEXT.*Preserved cue\/adtl.*iXML.*CART.*ID3.*LIST\/INFO.*suppress.*collisions reject.*Legacy `opaqueRiffChunks`-only.*incomplete capture.*invalid or warning-bearing.*stale or edited projects.*sequence drift.*mapping or geometry drift.*loudness measurement.*before target selection.*byte-exact claim.*preserved nonstructural chunks only.*structural BW64 and PCM bytes are rebuilt.*not whole-file bit identity.*broad third-party BW64 qualification/isu,
 	);
-	assert.match(
+	assertOrderedMatch(
 		documentation,
 		/Focused\s+Node AIFF evidence.*four cases.*exact FORM and metadata geometry.*all four canonical encoding tuples.*malformed and stale layout refusal.*before target selection.*4,294,967,302-byte constructible boundary.*next-frame refusal.*without PCM or output allocation.*realtime direct publication.*picker cancellation.*mid-stream rollback.*Focused Node BWF.*five cases.*Focused Node authored BW64.*six cases.*closed admission.*canonical.*CHNA.*AXML.*loudness.*four-way.*cancellation.*Seven focused pristine-passthrough BW64.*real current-import-to-planner.*preserved and generated BEXT.*nonstructural chunk bytes\/order\/placement and publication.*closed admission.*modeled-metadata collision refusal.*stale or edited planning refusal.*loudness fail-closed.*398 test files/isu,
 	);
-	assert.match(
+	assertOrderedMatch(
 		documentation,
 		/Focused 12-case Node WAV evidence covers exact classic RIFF\/RF64 admission and encoder geometry.*all four canonical encoding tuples.*rich metadata.*markers.*iXML.*correct odd PCM RIFF padding.*malformed or stale route refusal before target selection.*exact RIFF-to-RF64 and 65 GiB boundaries.*without PCM or output allocation.*realtime publication.*bounded writes and queueing.*Blob fallback.*cancellation.*four-way byte accounting.*cleanup.*commit ownership/isu,
 	);
-	assert.match(
+	assertOrderedMatch(
 		documentation,
 		/Chromium and Firefox WAV, AIFF, BWF, and BW64.*ten aggregate format\/engine cases.*injected File System Access.*pristine-passthrough case.*5\.1.*48 kHz.*16-bit BW64.*4,210,688 frames.*101,056,512-byte.*2 KiB prefix.*4 KiB suffix.*JUNK padding.*BEXT v2.*CHNA.*before PCM.*PEAK padding.*AXML.*after PCM.*Visible realtime progress.*close, commit, and publication.*without Object URL or browser-download fallback.*second export cancels.*one abort without close, commit, or publication.*at most 4 MiB.*serial.*1\.7 and 1\.8 minutes.*not arbitrary third-party.*legacy opaque-only BW64.*edited projects.*whole-file bit identity.*WebKit.*unqualified/isu,
 	);
-	assert.match(
+	assertOrderedMatch(
 		documentation,
 		/385 MiB.*403,701,804-byte RIFF.*SHA-256.*planner.*controller.*16-packet.*32-channel.*32 MiB.*resampler.*WAV.*193 16,384-frame packets.*half-sized final packet.*at most 16 pending packets.*98 destination writes.*header.*4,194,304-byte maximum.*41,943,384-byte.*64 MiB.*zero.*payload\s+retention.*first coalesced 4 MiB PCM destination write.*browser heap.*process RSS.*unqualified/isu,
 	);
-	assert.match(
+	assertOrderedMatch(
 		documentation,
 		/Packaged Soundscaper Linux x64 completion acceptance covers WAV, integer AIFF, BWF, and first-party authored BW64.*Electron 43.*48 kHz.*two-channel.*792,000 frames.*791,999-frame.*6,335,992.*384 kHz.*16 channels.*405,503,488-byte.*384 MiB.*202,751,788 bytes.*202,751,798-byte.*AIFF/isu,
 	);
-	assert.match(
+	assertOrderedMatch(
 		documentation,
 		/RIFF\/WAV.*verifier streams through EOF.*reads no larger than one MiB.*31 bytes.*95,039,880.*zero mismatches.*tolerant non-silence.*positive\/negative.*zero-crossing.*peak.*mean.*RMS/isu,
 	);
-	assert.match(
+	assertOrderedMatch(
 		documentation,
 		/exact AIFF option.*16-bit PCM.*canonical `\.aiff`.*combined `WAV and AIFF audio mix` filter.*`wav`.*`aif`.*`aiff`.*regular non-symbolic file.*stable identity and size.*FORM\/AIFF.*18-byte COMM.*16-channel.*6,335,992-frame.*16-bit.*384-kHz.*80-bit-rate.*202,751,752-byte SSND.*zero offset and block size.*202,751,744 bytes.*big-endian PCM.*byte 54.*no pad or trailing bytes.*10-byte partial-frame carry.*95,039,880.*zero mismatches.*diagnostic.*not pinned/isu,
 	);
-	assert.match(
+	assertOrderedMatch(
 		documentation,
 		/exact BWF option.*16-bit PCM.*restores.*custom 16-channel mapping.*384 kHz.*canonical `\.wav` suggestion.*combined `WAV and AIFF audio mix` filter.*202,752,510-byte.*RIFF\/WAVE.*regular non-symbolic file.*stable identity and size.*reads no larger than one MiB.*689-byte bext.*one-byte pad.*40-byte extensible fmt.*16 channels.*384 kHz.*202,751,744-byte data.*PCM.*byte 766.*no data pad or trailing bytes.*31-byte partial-frame carry.*95,039,880.*zero mismatches/isu,
 	);
-	assert.match(
+	assertOrderedMatch(
 		documentation,
 		/BEXT.*Soundscaper packaged BWF smoke.*Soundscaper.*PACKAGED-BWF-0001.*2026-07-30.*12:34:56.*TimeReference.*6,000.*48,000.*version 2.*deterministic nonempty 64-byte UMID.*128 lowercase hexadecimal digits.*64 payload bytes.*exactly.*loudness sentinels.*CodingHistory.*48,000.*384,000.*SHA-256.*diagnostic.*not pinned/isu,
 	);
-	assert.match(
+	assertOrderedMatch(
 		documentation,
 		/separate first-party authored BW64 fixture.*44-second.*six-channel.*2,112,000-frame.*48 kHz.*16,896,000 frames.*384 kHz.*signed 16-bit PCM.*405,504,000-byte.*402,653,184-byte.*202,755,508 bytes.*one MiB.*BW64\/ds64\/BEXT\/fmt\/CHNA\/data\/AXML.*202,752,000-byte PCM.*canonical 5\.1.*84,480,000 channel comparisons.*zero mismatches.*16,894,241 nonzero frames.*19,359 crossings.*peak 9,830.*RMS 6,950\.862/isu,
 	);
-	assert.match(
+	assertOrderedMatch(
 		documentation,
 		/33,554,476-byte staging file.*no larger than 65,536 bytes.*RIFF geometry.*nonzero payload.*removal.*unpublished destination.*staging file/isu,
 	);
-	assert.match(
+	assertOrderedMatch(
 		documentation,
 		/No browser download was visible after the packaged sequence.*CI runs.*Soundscaper Linux x64.*bypasses.*native OS picker/isu,
 	);
-	assert.match(
+	assertOrderedMatch(
 		documentation,
 		/385 MiB Node witness remains WAV-only.*Packaged completion evidence covers WAV, integer AIFF, BWF, and first-party authored BW64.*fixture scales.*packaged cancellation and staging-cleanup evidence remains WAV-only.*BWF and BW64 have no packaged 65 GiB scale qualification.*Packaged BWF completion.*no packaged visible-progress, cancellation, rollback, staging-cleanup, or commit-race qualification.*Packaged authored BW64 completion.*no packaged visible-progress, cancellation, rollback, staging-cleanup, or commit-race qualification.*passthrough or third-party interoperability.*Packaged AIFF.*no native-picker, visible-progress, cancellation, rollback, staging-cleanup, commit-race, heap, RSS.*4,294,967,302-byte.*other-platform qualification.*does not directly observe exact-size session negotiation.*four-MiB.*quota.*durability.*crash.*power-loss.*Windows.*macOS.*ARM.*installers.*Framescaper.*other formats.*Electron upgrades.*injected-File-System-Access direct-WAV.*non-cancellable close.*commit admission.*Chromium and Firefox.*Start-export state.*exactly one complete destination publication.*zero aborts.*no stale success status.*output link.*Object URL.*browser download.*classic-WAV commit race.*AIFF.*BWF.*BW64.*WebKit.*native-picker.*actual-device.*reference-scale.*packaged.*crash.*power-loss.*durability.*unqualified/isu,
 	);
-	assert.match(
+	assertOrderedMatch(
 		documentation,
 		/desktop-write-path-capabilities.*Generic exact-size output.*project-only maximum-bounded output.*one-MiB chunks.*`audio-pcm-mix` sessions alone.*four-MiB chunks/isu,
 	);
@@ -372,4 +372,17 @@ function findControl(matrix, riskId, controlId) {
 	const control = risk.currentControls.find(({ id }) => id === controlId);
 	assert.ok(control, `${riskId}/${controlId}`);
 	return control;
+}
+
+// Every documentation pattern is an ordered sequence of fragments joined by
+// `.*`. Searching one fragment at a time avoids backtracking across the full
+// threat model when a fragment is absent or repeated.
+function assertOrderedMatch(actual, pattern) {
+	let offset = 0;
+	for (const fragment of pattern.source.split('.*')) {
+		if (!fragment) continue;
+		const match = new RegExp(fragment, pattern.flags).exec(actual.slice(offset));
+		assert.ok(match, `Expected ${fragment} after character ${offset} for ${pattern}`);
+		offset += match.index + match[0].length;
+	}
 }

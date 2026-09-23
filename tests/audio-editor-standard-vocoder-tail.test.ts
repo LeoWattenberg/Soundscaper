@@ -47,16 +47,30 @@ test('vocoder tail estimates include actual silent release through high-band and
 		const tailFrames = effectTailFrames(effect, sampleRate);
 		assert.equal(tailFrames, Math.ceil(standardVocoderTailSeconds(params, sampleRate) * sampleRate));
 		assert.ok(tailFrames > 0, 'automatic tails must not cut the vocoder at the source end');
-		const frames = sampleRate + tailFrames + Math.round(sampleRate * .2);
-		const input = Array.from({ length: channelCount }, () => new Float32Array(frames));
+		const input = Array.from({ length: channelCount }, () => new Float32Array(sampleRate));
 		for (let frame = 0; frame < sampleRate; frame += 1) {
 			for (const channel of input) channel[frame] = .8 * Math.sin(2 * Math.PI * frequency * frame / sampleRate);
 		}
-		const output = input.map(() => new Float32Array(frames));
-		createVocoderProcessor({ sampleRate, channelCount, params }).processBlock(input, output, frames);
-		const vocoded = output[channelCount - 1];
-		assert.ok(rms(vocoded, sampleRate, sampleRate + 800) > .001, 'release is audible after the source stops');
-		assert.ok(vocoded.subarray(sampleRate + tailFrames).every(sample => Number.isFinite(sample) && Math.abs(sample) < .0001),
+		const output = input.map(() => new Float32Array(sampleRate));
+		const processor = createVocoderProcessor({ sampleRate, channelCount, params });
+		processor.processBlock(input, output, sampleRate);
+		const silentInput = input.map(() => new Float32Array(sampleRate));
+		let releaseFrames = 0;
+		let quietSeconds = 0;
+		// The estimate deliberately exceeds the audible release by a large margin.
+		// Stop after three full seconds below one tenth of the -80 dB threshold.
+		while (releaseFrames < tailFrames + 3 * sampleRate && quietSeconds < 3) {
+			processor.processBlock(silentInput, output, sampleRate);
+			const vocoded = output[channelCount - 1];
+			if (releaseFrames === 0) {
+				assert.ok(rms(vocoded, 0, 800) > .001, 'release is audible after the source stops');
+			}
+			quietSeconds = vocoded.every(sample => Number.isFinite(sample) && Math.abs(sample) < .00001)
+				? quietSeconds + 1 : 0;
+			releaseFrames += sampleRate;
+		}
+		assert.equal(quietSeconds, 3, 'the release reaches sustained silence');
+		assert.ok(releaseFrames - 3 * sampleRate < tailFrames,
 			'the conservative estimate extends beyond the audible release');
 	}
 });
