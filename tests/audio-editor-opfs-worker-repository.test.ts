@@ -28,6 +28,7 @@ class MemorySyncWorker implements OpfsSyncStoragePort {
 	readonly files = new Map<string, Uint8Array>();
 	readonly calls: WorkerCall[] = [];
 	closed = 0;
+	failReads = false;
 
 	async initialize(_directory: FileSystemDirectoryHandle): Promise<boolean> {
 		this.calls.push({ type: 'initialize' });
@@ -40,6 +41,7 @@ class MemorySyncWorker implements OpfsSyncStoragePort {
 		range: Readonly<{ offset: number; length: number }>,
 	): Promise<OpfsSyncReadResult> {
 		this.calls.push({ type: 'read', operationId, path, length: range.length });
+		if (this.failReads) throw new Error('OPFS worker read failed');
 		const bytes = this.#file(path);
 		if (range.offset + range.length > bytes.byteLength) throw new RangeError('past EOF');
 		return { size: bytes.byteLength, bytes: bytes.slice(range.offset, range.offset + range.length) };
@@ -91,6 +93,24 @@ class MemorySyncWorker implements OpfsSyncStoragePort {
 		return bytes;
 	}
 }
+
+test('OPFS worker read failure falls back to the durable async file', async () => {
+	const worker = new MemorySyncWorker();
+	worker.files.set('source', Uint8Array.from([1, 2, 3, 4]));
+	const directory = {
+		async getFileHandle(path: string) {
+			return { async getFile() { return new Blob([exactBuffer(worker.files.get(path)!)]); } };
+		},
+	} as unknown as FileSystemDirectoryHandle;
+	const bridge = new OpfsSyncRepositoryBridge({ client: worker });
+	const readable = await bridge.readable(directory, 'canonical-pcm-chunk-read', 'source');
+	assert.ok(readable);
+	worker.failReads = true;
+	assert.deepEqual(new Uint8Array(await readable.slice(1, 3).arrayBuffer()), Uint8Array.from([2, 3]));
+	assert.equal(await bridge.readable(directory, 'canonical-pcm-chunk-read', 'source'), null);
+	worker.files.set('source', Uint8Array.from([1, 2, 3]));
+	await assert.rejects(readable.arrayBuffer(), /changed during a bounded read/u);
+});
 
 function workerOnlyRoot(): FileSystemDirectoryHandle {
 	const directory = {

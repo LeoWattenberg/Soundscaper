@@ -51,10 +51,10 @@ export class OpfsSyncRepositoryBridge {
 		if (!await this.available(directory)) return null;
 		try {
 			const initial = await this.#client!.read(operationId, path, { offset: 0, length: 0 }, signal);
-			return new OpfsSyncReadableBlob(this.#client!, operationId, path, initial.size, 0, initial.size, signal);
-		} catch (error) {
-			if (!this.#workerIsAvailable()) return null;
-			throw error;
+			return new OpfsSyncReadableBlob(this.#client!, directory, operationId, path, initial.size, 0, initial.size, signal);
+		} catch {
+			throwIfAborted(signal);
+			return null;
 		}
 	}
 
@@ -147,6 +147,7 @@ class OpfsSyncReadableBlob implements BlobLike {
 
 	constructor(
 		readonly client: OpfsSyncStoragePort,
+		readonly directory: FileSystemDirectoryHandle,
 		readonly operationId: OpfsSyncOperationId,
 		readonly path: string,
 		readonly fileSize: number,
@@ -160,6 +161,7 @@ class OpfsSyncReadableBlob implements BlobLike {
 		const end = Math.max(start, sliceIndex(endValue, this.size));
 		return new OpfsSyncReadableBlob(
 			this.client,
+			this.directory,
 			this.operationId,
 			this.path,
 			this.fileSize,
@@ -172,18 +174,29 @@ class OpfsSyncReadableBlob implements BlobLike {
 	withoutSignal(): BlobLike {
 		if (!this.signal) return this;
 		return new OpfsSyncReadableBlob(
-			this.client, this.operationId, this.path, this.fileSize, this.start, this.size,
+			this.client, this.directory, this.operationId, this.path, this.fileSize, this.start, this.size,
 		);
 	}
 
 	async arrayBuffer(): Promise<ArrayBuffer> {
 		throwIfAborted(this.signal);
-		const result = await this.client.read(
-			this.operationId,
-			this.path,
-			{ offset: this.start, length: this.size },
-			this.signal,
-		);
+		let result;
+		try {
+			result = await this.client.read(
+				this.operationId,
+				this.path,
+				{ offset: this.start, length: this.size },
+				this.signal,
+			);
+		} catch {
+			throwIfAborted(this.signal);
+			const file = await (await this.directory.getFileHandle(this.path)).getFile();
+			throwIfAborted(this.signal);
+			if (file.size !== this.fileSize) throw new Error('The OPFS file changed during a bounded read.');
+			const bytes = await file.slice(this.start, this.start + this.size).arrayBuffer();
+			throwIfAborted(this.signal);
+			return bytes;
+		}
 		if (result.size !== this.fileSize) throw new Error('The OPFS file changed during a bounded read.');
 		return exactBuffer(result.bytes);
 	}
