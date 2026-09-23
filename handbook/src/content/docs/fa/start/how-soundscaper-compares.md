@@ -4,7 +4,7 @@ description: "Soundscaper را با Audacity 4 و Adobe Audition در زمینه
 sidebar:
   order: 3
 ---
-<!-- docs-ai-provenance: {"factPacketSha256":"703e76cffbe1464f1283f6c8f45cee52c0d37faae852b7efc163879710a2ddb2","model":"qwen3.8:latest","modelDigest":"22130167c4c20e20c7b71454612966ca8e8171e9b3cc8ab6ce8aa6cbfec79643","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"703e76cffbe1464f1283f6c8f45cee52c0d37faae852b7efc163879710a2ddb2","targetLocale":"fa"} -->
+<!-- docs-ai-provenance: {"factPacketSha256":"71097403d87aba03cddc2ccd696ff9a8663268afba3a7bf750fe8d9913de3eba","model":"gpt-5.6-luna","modelDigest":"manual","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"71097403d87aba03cddc2ccd696ff9a8663268afba3a7bf750fe8d9913de3eba","targetLocale":"fa"} -->
 
 Soundscaper Audacity 4 را در وب پیاده‌سازی مجدد می‌کند و یک لایه تولید را بر روی آن اضافه می‌کند. Adobe Audition ابزار تجاری پس‌تولید است که معمولاً هر دو را با آن مقایسه می‌کنند. این صفحه هر سه را مقایسه می‌کند تا بتوانید تشخیص دهید کدام‌یک از قبل کاری که دارید را انجام می‌دهد.
 
