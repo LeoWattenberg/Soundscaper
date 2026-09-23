@@ -100,7 +100,7 @@ for (const product of ['soundscaper', 'framescaper']) {
 					await page.mouse.up();
 					await dialog.getByRole('tab', { name: /Track display$/u }).click();
 					await dialog.getByRole('group', { name: 'Default view', exact: true }).getByRole('button').click();
-					await contrast(page.getByRole('option'));
+					await contrast(page.getByRole('listbox', { name: 'Default view', exact: true }).getByRole('option'));
 					await page.keyboard.press('Escape');
 					await button.click();
 					const labels = editor.locator('.audio-editor-vertical-ruler .vertical-ruler__label');
