@@ -52,7 +52,8 @@ export async function handleFreesoundOriginalRequest(
 		const id = soundId(context.params.id);
 		const { accessToken, authorized } = await accessTokenForSession(context, dependencies);
 		const range = byteRange(context.request.headers.get('range'));
-		const headers = new Headers({ Accept: 'audio/*, application/ogg, application/octet-stream' });
+		// Freesound's API negotiates a JSON renderer before its download view returns audio.
+		const headers = new Headers({ Accept: '*/*' });
 		headers.set('Authorization', `Bearer ${accessToken}`);
 		if (range !== null) headers.set('Range', range);
 		const response = await protectedFetch(

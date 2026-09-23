@@ -127,6 +127,7 @@ test('authenticated original download streams the owned response without exposin
 	assert(upstream);
 	assert.equal(new URL(upstream.url).pathname, '/apiv2/sounds/123/download/');
 	assert.equal(new Headers(upstream.init?.headers).get('authorization'), 'Bearer access-token');
+	assert.equal(new Headers(upstream.init?.headers).get('accept'), '*/*');
 	const serialized = response.clone();
 	assert.deepEqual(new Uint8Array(await response.arrayBuffer()), Uint8Array.of(1, 2, 3, 4));
 	assert.equal(response.headers.get('content-disposition'), 'attachment; filename="rain.wav"');
