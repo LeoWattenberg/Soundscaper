@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { useMemo } from 'react';
-import { resolveLocalModelManagerBridge } from '../local-model-manager-bridge.ts';
+import { resolveLocalModelManagerBridge } from '../local-model-manager-availability.ts';
 import { createTextToSpeechPort, type TextToSpeechProjectPort } from './text-to-speech-port-runtime.ts';
 import TextToSpeechDialog from './TextToSpeechDialog.tsx';
 

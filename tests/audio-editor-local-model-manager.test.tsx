@@ -5,10 +5,10 @@ import test from 'node:test';
 import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 
+import { resolveLocalModelManagerBridge } from '../src/common/editor/ui/local-model-manager-availability.ts';
 import { ENGLISH_COPY } from '../src/common/i18n/catalogs.js';
 import {
 	normalizeLocalModelManagerStatus,
-	resolveLocalModelManagerBridge,
 	type LocalModelManagerBridge,
 	type LocalModelManagerModel,
 } from '../src/common/editor/ui/local-model-manager-bridge.ts';

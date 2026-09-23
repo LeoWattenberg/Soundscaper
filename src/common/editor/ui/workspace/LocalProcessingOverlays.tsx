@@ -2,7 +2,7 @@
 import { Suspense } from 'react';
 import { lazyEditorModule } from '../../../offline/lazy-module.tsx';
 import { assistanceDialogRequest } from '../assistance-task-catalog.ts';
-import { resolveLocalModelManagerBridge } from '../local-model-manager-bridge.ts';
+import { resolveLocalModelManagerBridge } from '../local-model-manager-availability.ts';
 import type { LocalAssistanceSelectedMediaPreparationPort } from '../../assistance/local-assistance-preparation.ts';
 import type { TextToSpeechProjectPort } from '../dialogs/text-to-speech-port-runtime.ts';
 

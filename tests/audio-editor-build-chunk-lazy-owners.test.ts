@@ -503,3 +503,18 @@ test('Framescaper session clipboard modules stay in one product-owned ready chun
 	assert.ok(group);
 	assert.equal(group.includeDependenciesRecursively, false);
 });
+
+test('optional model-manager validation stays behind its desktop dialog', () => {
+	assert.equal(
+		chunkGroupForModulePath('src/common/editor/ui/local-model-manager-bridge.ts'),
+		'editor-optional-surfaces',
+	);
+	assert.notEqual(
+		chunkGroupForModulePath('src/common/editor/ui/local-model-manager-availability.ts'),
+		'editor-optional-surfaces',
+	);
+	const overlay = readFileSync(new URL(
+		'../src/common/editor/ui/workspace/LocalProcessingOverlays.tsx', import.meta.url,
+	), 'utf8');
+	assert.doesNotMatch(overlay, /^import\s+(?!type\b)[^\n]*local-model-manager-bridge\.ts'/mu);
+});

@@ -3,7 +3,7 @@
 import { useMemo } from 'react';
 
 import LocalAssistanceDialog, { type LocalAssistanceDialogProps } from './LocalAssistanceDialog.tsx';
-import { resolveLocalModelManagerBridge } from '../local-model-manager-bridge.ts';
+import { resolveLocalModelManagerBridge } from '../local-model-manager-availability.ts';
 import { resolveLocalAssistanceBridge } from '../../assistance/local-assistance-bridge.ts';
 
 export interface LocalAssistanceDialogSurfaceProps

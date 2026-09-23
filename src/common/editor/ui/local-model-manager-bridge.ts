@@ -89,20 +89,6 @@ export interface LocalModelManagerBridge {
 
 const MODEL_ID_PATTERN = /^[a-z\d][a-z\d.-]{0,62}[a-z\d]$/u;
 const AVAILABILITIES = new Set<string>(LOCAL_MODEL_AVAILABILITIES);
-const REQUIRED_METHODS = Object.freeze([
-	'listAssistanceModels', 'installAssistanceModel', 'cancelAssistanceModelInstall',
-	'installPreseededAssistanceModel', 'reconcileAssistanceModels',
-	'collectAssistanceModelGarbage', 'listAssistanceModelNotices',
-	'relocateAssistanceModels', 'removeAssistanceModel',
-	'onAssistanceInstallProgress',
-] as const);
-
-export function resolveLocalModelManagerBridge(value: unknown): LocalModelManagerBridge | null {
-	if (!isRecord(value)) return null;
-	if (REQUIRED_METHODS.some((method) => typeof value[method] !== 'function')) return null;
-	return value as unknown as LocalModelManagerBridge;
-}
-
 export function normalizeLocalModelManagerStatus(value: unknown): LocalModelManagerStatus {
 	if (!isRecord(value) || !Array.isArray(value.models)) {
 		throw new TypeError('The desktop returned a malformed local-model status.');
