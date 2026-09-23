@@ -11,27 +11,27 @@ editUrl: false
 
 ## 当前可用性 {#current-availability}
 
-桌面构建包含所需的 onnxruntime-node 1.29.0 引擎，适用于 macOS arm64, Linux arm64, Linux x64, Windows arm64, Windows x64. 通过 Model Manager 安装此模型的权重，然后在本地运行其任务。 这些是受支持的构建目标；特定软件包和设备的结果请参阅夜间测试报告。 The desktop build does not package this 引擎，适用于 macOS x64 even though model weights are listed for those platforms.
+桌面构建包含所需的 onnxruntime-node 1.29.0 引擎，适用于 macOS arm64, Linux arm64, Linux x64, Windows arm64, Windows x64。通过“模型管理器”安装此模型的权重，然后在本地运行其任务。 这些是受支持的构建目标；特定软件包和设备的结果请参阅夜间测试报告。 虽然模型权重列表包含 macOS x64，但桌面版本不为该平台打包此引擎。
 
 ## 使用此模型 {#use-this-model}
 
-在具备所需原生运行时的平台上打开 **Framescaper: Tools → Search → Index Video, or Tools → Advanced Local Processing → Optical character recognition**。本地辅助功能在桌面编辑器中运行。
+在具备所需原生运行时的平台上打开 **Framescaper：工具 → 搜索 → 索引视频，或 工具 → 高级本地处理 → 光学字符识别**。本地辅助功能在桌面编辑器中运行。
 
 1. 选择包含清晰屏幕文字的视频。
-2. 通过 Manage Models 安装 PP-OCRv4 mobile。它是 Index Video 的可选步骤；该任务也使用 SigLIP2。
+2. 通过“管理模型”安装 PP-OCRv4 mobile。它是 索引视频 的可选步骤；该任务也使用 SigLIP2。
 3. 在本地运行，接受结果前检查识别文字及其所在帧。
 
 ## 下载与要求 {#download-and-requirements}
 
 模型标识： `ppocr-v4-mobile`，版本 **4.0.0**.
 
-预计下载大小： **15.46 MiB**. 最低系统内存： **2 GiB**. 此目录要求指总内存，而非当前可用内存。推理还需要足够的空闲内存，安装也需要工作空间；内存大小并不保证处理速度。
+预计下载大小： **15.46 MiB**. 最低系统内存： **2 GiB**。此目录要求指总内存，而非当前可用内存。推理还需要足够的空闲内存，安装也需要工作空间；内存大小并不保证处理速度。
 
-发布平台： macOS arm64, macOS x64, Linux arm64, Linux x64, Windows arm64, Windows x64. 还必须有匹配的打包运行时。
+发布平台： macOS arm64, macOS x64, Linux arm64, Linux x64, Windows arm64, Windows x64。还必须有匹配的打包运行时。
 
 在 Windows 上，请安装与桌面应用匹配的最新受支持 [Microsoft Visual C++ v14 Redistributable](https://learn.microsoft.com/en-us/cpp/windows/latest-supported-vc-redist?view=msvc-170)：x64 构建使用 **x64**，ARM64 构建使用 **ARM64**。原生 ONNX 和 Sherpa 引擎需要这些库；模型下载内容不包含它们。使用本应用无需安装 Visual Studio。
 
-Tools → Model Manager 会下载已发布的文件并验证记录的 SHA-256 摘要。处理过程在本地使用已安装文件。打开 Model Manager 中的 Storage and verification，可查看声明、修复安装或更改存储位置。
+“工具 → 模型管理器”会下载已发布的文件并验证记录的 SHA-256 摘要。处理过程在本地使用已安装文件。打开“模型管理器”中的“存储与验证”，可查看声明、修复安装或更改存储位置。
 
 | 文件 | 预计下载大小 |
 | --- | --- |
@@ -42,13 +42,13 @@ Tools → Model Manager 会下载已发布的文件并验证记录的 SHA-256 �
 
 ## 软件包测试检查的内容 {#what-the-packaged-test-checks}
 
-测试用例： `ppocr-recognized-text`；操作： `optical-character-recognition`.
+测试用例： `ppocr-recognized-text`；操作： `optical-character-recognition`。
 
 输入：带有高对比度文字“LOCAL MODEL TEST”的视频帧，并明确指定源帧时间。
 
 文字区域必须包含非空识别文字、有效的源帧时间、有限的置信度分数，以及位于画面内的边界框。
 
-nightly-with-tests 软件包会下载真实模型文件，并通过打包的运行时请求推理。目录中缺少所需模型会使相应测试失败；受支持平台缺少原生引擎也会失败。这些耗时检查独立于常规浏览器测试。通过测试只能确认模型基本运行且输出结构可用，不能证明它在您录音上的感知质量或准确率。
+夜间测试-with-tests 软件包会下载真实模型文件，并通过打包的运行时请求推理。目录中缺少所需模型会使相应测试失败；受支持平台缺少原生引擎也会失败。这些耗时检查独立于常规浏览器测试。通过测试只能确认模型基本运行且输出结构可用，不能证明它在您录音上的感知质量或准确率。
 
 ## 检查结果 {#review-the-result}
 

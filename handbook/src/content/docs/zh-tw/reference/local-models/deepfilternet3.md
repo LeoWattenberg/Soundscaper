@@ -11,15 +11,15 @@ editUrl: false
 
 ## 當前可用性 {#current-availability}
 
-桌面版本為以下平台打包了所需的 onnxruntime-node 1.29.0 引擎：macOS arm64, Linux arm64, Linux x64, Windows arm64, Windows x64。請通過模型管理器安裝此模型的權重，然後在本地運行相應任務。這些是受支持的構建目標；特定軟件包和設備的結果請查看 nightly 測試報告。 The desktop build does not package this engine for macOS x64 even though model weights are listed for those platforms.
+桌面版本為以下平台打包了所需的 onnxruntime-node 1.29.0 引擎：macOS arm64, Linux arm64, Linux x64, Windows arm64, Windows x64。請通過模型管理器安裝此模型的權重，然後在本地運行相應任務。這些是受支持的構建目標；特定軟件包和設備的結果請查看 夜間測試報告。 儘管模型權重列出了 macOS x64，桌面版本並未為該平台打包此引擎。
 
 ## 使用此模型 {#use-this-model}
 
-打開 **Effect → Noise removal and repair → Enhance Dialogue**，並確保平台具備所需的原生運行時。 本地輔助功能在桌面編輯器中運行。
+在具備所需原生運行時的平台上，打開**效果 → 降噪與修復 → 增強對話**。本地輔助處理在桌面編輯器中運行。
 
-1. Select the dialogue you want to enhance.
-2. Install DeepFilterNet3 through Manage Models and choose Run locally.
-3. Audition the proposed result against the original before applying it. Undo restores an accepted project edit.
+1. 選擇要增強的對話音頻。
+2. 通過“管理模型”安裝 DeepFilterNet3，然後選擇“在本地運行”。
+3. 應用前請試聽處理結果並與原始音頻比較。接受並應用到項目後，可用“撤銷”還原編輯。
 
 ## 下載與要求 {#download-and-requirements}
 
@@ -43,11 +43,11 @@ editUrl: false
 
 用例： `deepfilter-enhancement`；操作： `speech-enhancement`.
 
-輸入： A public-domain excerpt from John F. Kennedy’s inaugural address resampled to mono 48 kHz, with added reproducible hiss.
+輸入：約翰·F·肯尼迪就職演說的公有領域片段，重採樣為 48 kHz 單聲道，並加入可復現的嘶聲。
 
-解碼後的音頻必須包含有限採樣值、保持預期的音頻形狀、與輸入採樣值不同，並具有非零的可聽信號。僅文件頭不同不算作變化。
+解碼後的音頻必須包含有限採樣值、保持預期的音頻結構、與輸入採樣值不同，並具有非零可聽信號。僅文件頭不同不算作變化。
 
-帶測試的 nightly 軟件包會下載真實模型文件，並通過打包運行時執行推理。目錄中缺少必需模型時，該測試用例會失敗；目錄支持的平台缺少原生引擎時也會失敗。這些耗時檢查與常規瀏覽器測試套件分開運行。測試通過只能確認模型能夠基本運行並產生可用的輸出結構，不能證明感知質量，也不能證明在你的錄音上準確。
+帶測試的夜間軟件包會下載真實模型文件，並通過打包運行時執行推理。目錄中缺少必需模型時，相應用例會失敗；目錄支持的平台若缺少原生引擎，也會失敗。這些耗時檢查與常規瀏覽器測試套件分開運行。測試通過只能確認模型能夠基本運行並產生可用的輸出結構，不能證明感知質量，也不能證明模型在你的錄音上準確。
 
 ## 檢查結果 {#review-the-result}
 

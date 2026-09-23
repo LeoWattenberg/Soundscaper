@@ -11,27 +11,27 @@ editUrl: false
 
 ## 当前可用性 {#current-availability}
 
-桌面构建包含所需的 onnxruntime-node 1.29.0 引擎，适用于 macOS arm64, Linux x64, Linux arm64, Windows x64, Windows arm64. 通过 Model Manager 安装此模型的权重，然后在本地运行其任务。 这些是受支持的构建目标；特定软件包和设备的结果请参阅夜间测试报告。
+桌面构建包含所需的 onnxruntime-node 1.29.0 引擎，适用于 macOS arm64, Linux x64, Linux arm64, Windows x64, Windows arm64。通过“模型管理器”安装此模型的权重，然后在本地运行其任务。 这些是受支持的构建目标；特定软件包和设备的结果请参阅夜间测试报告。
 
 ## 使用此模型 {#use-this-model}
 
-在具备所需原生运行时的平台上打开 **Tools → Advanced Local Processing → Audio tagging**。本地辅助功能在桌面编辑器中运行。
+在具备所需原生运行时的平台上打开 **工具 → 高级本地处理 → 音频标注**。本地辅助功能在桌面编辑器中运行。
 
 1. 选择要分析的音频。
-2. 通过 Model Manager 安装 PANNs，然后运行音频标注。
+2. 通过“模型管理器”安装 PANNs，然后运行音频标注。
 3. 接受标记或用于搜索之前，检查建议的标签及其时间范围。
 
 ## 下载与要求 {#download-and-requirements}
 
-模型标识： `panns-cnn10`，版本 **1.0.0**.
+模型标识： `panns-cnn10`，版本 **1.0.0**。
 
-预计下载大小： **24.05 MiB**. 最低系统内存： **2 GiB**. 此目录要求指总内存，而非当前可用内存。推理还需要足够的空闲内存，安装也需要工作空间；内存大小并不保证处理速度。
+预计下载大小： **24.05 MiB**. 最低系统内存： **2 GiB**。此目录要求指总内存，而非当前可用内存。推理还需要足够的空闲内存，安装也需要工作空间；内存大小并不保证处理速度。
 
-发布平台： macOS arm64, Linux x64, Linux arm64, Windows x64, Windows arm64. 还必须有匹配的打包运行时。
+发布平台： macOS arm64, Linux x64, Linux arm64, Windows x64, Windows arm64。还必须有匹配的打包运行时。
 
 在 Windows 上，请安装与桌面应用匹配的最新受支持 [Microsoft Visual C++ v14 Redistributable](https://learn.microsoft.com/en-us/cpp/windows/latest-supported-vc-redist?view=msvc-170)：x64 构建使用 **x64**，ARM64 构建使用 **ARM64**。原生 ONNX 和 Sherpa 引擎需要这些库；模型下载内容不包含它们。使用本应用无需安装 Visual Studio。
 
-Tools → Model Manager 会下载已发布的文件并验证记录的 SHA-256 摘要。处理过程在本地使用已安装文件。打开 Model Manager 中的 Storage and verification，可查看声明、修复安装或更改存储位置。
+“工具 → 模型管理器”会下载已发布的文件并验证记录的 SHA-256 摘要。处理过程在本地使用已安装文件。打开“模型管理器”中的“存储与验证”，可查看声明、修复安装或更改存储位置。
 
 | 文件 | 预计下载大小 |
 | --- | --- |
@@ -39,13 +39,13 @@ Tools → Model Manager 会下载已发布的文件并验证记录的 SHA-256 �
 
 ## 软件包测试检查的内容 {#what-the-packaged-test-checks}
 
-测试用例： `panns-audio-tags`；操作： `audio-tagging`.
+测试用例： `panns-audio-tags`；操作： `audio-tagging`。
 
 输入：将肯尼迪的演讲重新采样为单声道 32 kHz，交由真实的事件分类网络处理。
 
 标签必须使用可读且受支持的名称、有限且有界的置信度分数，以及有效的音频时间信息。
 
-nightly-with-tests 软件包会下载真实模型文件，并通过打包的运行时请求推理。目录中缺少所需模型会使相应测试失败；受支持平台缺少原生引擎也会失败。这些耗时检查独立于常规浏览器测试。通过测试只能确认模型基本运行且输出结构可用，不能证明它在您录音上的感知质量或准确率。
+夜间测试-with-tests 软件包会下载真实模型文件，并通过打包的运行时请求推理。目录中缺少所需模型会使相应测试失败；受支持平台缺少原生引擎也会失败。这些耗时检查独立于常规浏览器测试。通过测试只能确认模型基本运行且输出结构可用，不能证明它在您录音上的感知质量或准确率。
 
 ## 检查结果 {#review-the-result}
 

@@ -11,15 +11,15 @@ editUrl: false
 
 ## 当前可用性 {#current-availability}
 
-桌面版本为以下平台打包了所需的 onnxruntime-node 1.29.0 引擎：macOS arm64, Linux x64, Linux arm64, Windows x64, Windows arm64。请通过模型管理器安装此模型的权重，然后在本地运行相应任务。这些是受支持的构建目标；特定软件包和设备的结果请查看 nightly 测试报告。
+桌面版本为以下平台打包了所需的 onnxruntime-node 1.29.0 引擎：macOS arm64, Linux x64, Linux arm64, Windows x64, Windows arm64。请通过模型管理器安装此模型的权重，然后在本地运行相应任务。这些是受支持的构建目标；特定软件包和设备的结果请查看 夜间测试报告。
 
 ## 使用此模型 {#use-this-model}
 
-打开 **Tools → Advanced Local Processing → Beat tracking**，并确保平台具备所需的原生运行时。 本地辅助功能在桌面编辑器中运行。
+在具备所需原生运行时的平台上，打开**工具 → 高级本地处理 → 节拍跟踪**。本地辅助处理在桌面编辑器中运行。
 
-1. Select a passage of rhythmic music.
-2. Install Beat This small through Model Manager and select that exact model for beat tracking.
-3. Listen to the proposed beat grid before accepting beat markers or a tempo proposal.
+1. 选择一段有节奏的音乐。
+2. 通过模型管理器安装 Beat This small，并在节拍跟踪时选择此准确模型。
+3. 接受节拍标记或速度建议前，先试听建议的节拍网格。
 
 ## 下载与要求 {#download-and-requirements}
 
@@ -41,11 +41,11 @@ editUrl: false
 
 用例： `beat-this-small-beats`；操作： `beat-tracking`.
 
-输入： Sixteen seconds of reproducible synthesized percussion and changing tones at 22.05 kHz, with a regular beat.
+输入：一段 16 秒的可复现合成打击乐与变化音调，采样率为 22.05 kHz，节拍规则。
 
 节拍位置必须非空、按顺序排列且位于音频范围内；速度数据必须是有限正数。
 
-带测试的 nightly 软件包会下载真实模型文件，并通过打包运行时执行推理。目录中缺少必需模型时，该测试用例会失败；目录支持的平台缺少原生引擎时也会失败。这些耗时检查与常规浏览器测试套件分开运行。测试通过只能确认模型能够基本运行并产生可用的输出结构，不能证明感知质量，也不能证明在你的录音上准确。
+带测试的夜间软件包会下载真实模型文件，并通过打包运行时执行推理。目录中缺少必需模型时，相应用例会失败；目录支持的平台若缺少原生引擎，也会失败。这些耗时检查与常规浏览器测试套件分开运行。测试通过只能确认模型能够基本运行并产生可用的输出结构，不能证明感知质量，也不能证明模型在你的录音上准确。
 
 ## 检查结果 {#review-the-result}
 

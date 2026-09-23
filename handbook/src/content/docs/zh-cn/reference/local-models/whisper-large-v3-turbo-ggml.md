@@ -11,25 +11,25 @@ editUrl: false
 
 ## 当前可用性 {#current-availability}
 
-桌面构建包含所需的 whisper-cpp v1.9.3 引擎，适用于 macOS arm64, Linux arm64, Linux x64, Windows arm64, Windows x64. 通过 Model Manager 安装此模型的权重，然后在本地运行其任务。 这些是受支持的构建目标；特定软件包和设备的结果请参阅夜间测试报告。 The desktop build does not package this 引擎，适用于 macOS x64 even though model weights are listed for those platforms.
+桌面构建包含所需的 whisper-cpp v1.9.3 引擎，适用于 macOS arm64, Linux arm64, Linux x64, Windows arm64, Windows x64。通过“模型管理器”安装此模型的权重，然后在本地运行其任务。 这些是受支持的构建目标；特定软件包和设备的结果请参阅夜间测试报告。 虽然模型权重列表包含 macOS x64，但桌面版本不为该平台打包此引擎。
 
 ## 使用此模型 {#use-this-model}
 
-在具备所需原生运行时的平台上打开 **Analyze → Speech → Transcribe & Captions**。本地辅助功能在桌面编辑器中运行。
+在具备所需原生运行时的平台上打开 **分析 → 语音 → 转录与字幕**。本地辅助功能在桌面编辑器中运行。
 
-1. 选择语音，并通过 Manage Models 安装 Whisper large-v3 turbo。
-2. 如需明确选择 Whisper，请在 Tools → Advanced Local Processing 中选择此语音识别模型。
+1. 选择语音，并通过“管理模型”安装 Whisper large-v3 turbo。
+2. 如需明确选择 Whisper，请在“工具 → 高级本地处理”中选择此语音识别模型。
 3. 在本地运行，接受前检查文字和片段边界。
 
 ## 下载与要求 {#download-and-requirements}
 
-模型标识： `whisper-large-v3-turbo-ggml`，版本 **1.0.0**.
+模型标识： `whisper-large-v3-turbo-ggml`，版本 **1.0.0**。
 
-预计下载大小： **547.45 MiB**. 最低系统内存： **4 GiB**. 此目录要求指总内存，而非当前可用内存。推理还需要足够的空闲内存，安装也需要工作空间；内存大小并不保证处理速度。
+预计下载大小： **547.45 MiB**. 最低系统内存： **4 GiB**。此目录要求指总内存，而非当前可用内存。推理还需要足够的空闲内存，安装也需要工作空间；内存大小并不保证处理速度。
 
-发布平台： macOS arm64, macOS x64, Linux arm64, Linux x64, Windows arm64, Windows x64. 还必须有匹配的打包运行时。
+发布平台： macOS arm64, macOS x64, Linux arm64, Linux x64, Windows arm64, Windows x64。还必须有匹配的打包运行时。
 
-Tools → Model Manager 会下载已发布的文件并验证记录的 SHA-256 摘要。处理过程在本地使用已安装文件。打开 Model Manager 中的 Storage and verification，可查看声明、修复安装或更改存储位置。
+“工具 → 模型管理器”会下载已发布的文件并验证记录的 SHA-256 摘要。处理过程在本地使用已安装文件。打开“模型管理器”中的“存储与验证”，可查看声明、修复安装或更改存储位置。
 
 | 文件 | 预计下载大小 |
 | --- | --- |
@@ -37,13 +37,13 @@ Tools → Model Manager 会下载已发布的文件并验证记录的 SHA-256 �
 
 ## 软件包测试检查的内容 {#what-the-packaged-test-checks}
 
-测试用例： `whisper-turbo-transcript`；操作： `speech-recognition`.
+测试用例： `whisper-turbo-transcript`；操作： `speech-recognition`。
 
 输入：公共领域的约翰·F·肯尼迪就职演说片段，首尾各添加一秒静音，制成 16 kHz 单声道音频。
 
 转录必须包含非空文字，时间信息须落在输入音频内且有效。测试不比较具体措辞。
 
-nightly-with-tests 软件包会下载真实模型文件，并通过打包的运行时请求推理。目录中缺少所需模型会使相应测试失败；受支持平台缺少原生引擎也会失败。这些耗时检查独立于常规浏览器测试。通过测试只能确认模型基本运行且输出结构可用，不能证明它在您录音上的感知质量或准确率。
+夜间测试-with-tests 软件包会下载真实模型文件，并通过打包的运行时请求推理。目录中缺少所需模型会使相应测试失败；受支持平台缺少原生引擎也会失败。这些耗时检查独立于常规浏览器测试。通过测试只能确认模型基本运行且输出结构可用，不能证明它在您录音上的感知质量或准确率。
 
 ## 检查结果 {#review-the-result}
 

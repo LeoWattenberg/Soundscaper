@@ -11,15 +11,15 @@ editUrl: false
 
 ## 當前可用性 {#current-availability}
 
-桌面版本為以下平台打包了所需的 onnxruntime-node 1.29.0 引擎：macOS arm64, Linux x64, Linux arm64, Windows x64, Windows arm64。請通過模型管理器安裝此模型的權重，然後在本地運行相應任務。這些是受支持的構建目標；特定軟件包和設備的結果請查看 nightly 測試報告。
+桌面版本為以下平台打包了所需的 onnxruntime-node 1.29.0 引擎：macOS arm64, Linux x64, Linux arm64, Windows x64, Windows arm64。請通過模型管理器安裝此模型的權重，然後在本地運行相應任務。這些是受支持的構建目標；特定軟件包和設備的結果請查看 夜間測試報告。
 
 ## 使用此模型 {#use-this-model}
 
-打開 **Tools → Advanced Local Processing → Beat tracking**，並確保平台具備所需的原生運行時。 本地輔助功能在桌面編輯器中運行。
+在具備所需原生運行時的平台上，打開**工具 → 高級本地處理 → 節拍跟蹤**。本地輔助處理在桌面編輯器中運行。
 
-1. Select music with a clear rhythmic passage.
-2. Install Beat This final through Model Manager and choose its exact model identity.
-3. Review the proposed beats and tempo against the music before accepting them.
+1. 選擇節奏清晰的音樂片段。
+2. 通過模型管理器安裝 Beat This final，並選擇對應的準確模型標識。
+3. 接受建議前，將建議的節拍和速度與音樂進行對照檢查。
 
 ## 下載與要求 {#download-and-requirements}
 
@@ -41,15 +41,15 @@ editUrl: false
 
 用例： `beat-this-final-beats`；操作： `beat-tracking`.
 
-輸入： Sixteen seconds of reproducible synthesized percussion and changing tones at 22.05 kHz, with a regular beat.
+輸入：一段 16 秒的可復現合成打擊樂與變化音調，採樣率為 22.05 kHz，節拍規則。
 
 節拍位置必須非空、按順序排列且位於音頻範圍內；速度數據必須是有限正數。
 
-帶測試的 nightly 軟件包會下載真實模型文件，並通過打包運行時執行推理。目錄中缺少必需模型時，該測試用例會失敗；目錄支持的平台缺少原生引擎時也會失敗。這些耗時檢查與常規瀏覽器測試套件分開運行。測試通過只能確認模型能夠基本運行並產生可用的輸出結構，不能證明感知質量，也不能證明在你的錄音上準確。
+帶測試的夜間軟件包會下載真實模型文件，並通過打包運行時執行推理。目錄中缺少必需模型時，相應用例會失敗；目錄支持的平台若缺少原生引擎，也會失敗。這些耗時檢查與常規瀏覽器測試套件分開運行。測試通過只能確認模型能夠基本運行並產生可用的輸出結構，不能證明感知質量，也不能證明模型在你的錄音上準確。
 
 ## 檢查結果 {#review-the-result}
 
 - 更大的模型需要更多內存，也不能保證改善每一段錄音。
-- This model has its own real inference case. Its test cannot be satisfied by running the smaller model instead.
+- 此模型有独立的真实推理用例，运行较小模型不能代替此测试。
 
 [模型測試覆蓋範圍與限制](/reference/local-models/) · [本地處理指南](/help/local-processing/)

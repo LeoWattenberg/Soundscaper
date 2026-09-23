@@ -1,5 +1,5 @@
 ---
-title: "Qwen3 4B editorial proposals"
+title: "Qwen3 4B 編輯文案建議"
 description: "為已有的精彩片段候選項建議標題、開場語、章節和說明。"
 editUrl: false
 ---
@@ -11,25 +11,25 @@ editUrl: false
 
 ## 當前可用性 {#current-availability}
 
-桌面構建包含所需的 llama-cpp b10509 引擎，適用於 macOS arm64, Linux x64, Linux arm64, Windows x64, Windows arm64. 通過 Model Manager 安裝此模型的權重，然後在本地運行其任務。 這些是受支持的構建目標；特定軟件包和設備的結果請參閱夜間測試報告。
+桌面構建包含所需的 llama-cpp b10509 引擎，適用於 macOS arm64, Linux x64, Linux arm64, Windows x64, Windows arm64。通過“模型管理器”安裝此模型的權重，然後在本地運行其任務。 這些是受支持的構建目標；特定軟件包和設備的結果請參閱夜間測試報告。
 
 ## 使用此模型 {#use-this-model}
 
-在具備所需原生運行時的平台上打開 **Framescaper: Tools → Advanced Local Processing → Editorial generation**。本地輔助功能在桌面編輯器中運行。
+在具備所需原生運行時的平台上打開 **Framescaper：工具 → 高級本地處理 → 編輯文案生成**。本地輔助功能在桌面編輯器中運行。
 
 1. 準備並檢查所選媒體中的精彩片段候選項。
-2. 通過 Model Manager 安裝 Qwen，並選擇啓用編輯文案生成。
+2. 通過“模型管理器”安裝 Qwen，並選擇啓用編輯文案生成。
 3. 接受前檢查每條文字建議。只有獲授權的候選項標識及請求的文字字段可用於結果。
 
 ## 下載與要求 {#download-and-requirements}
 
-模型標識： `qwen3-4b-q4-k-m`，版本 **1.0.0**.
+模型標識： `qwen3-4b-q4-k-m`，版本 **1.0.0**。
 
-預計下載大小： **2.33 GiB**. 最低系統內存： **16 GiB**. 此目錄要求指總內存，而非當前可用內存。推理還需要足夠的空閒內存，安裝也需要工作空間；內存大小並不保證處理速度。
+預計下載大小： **2.33 GiB**. 最低系統內存： **16 GiB**。此目錄要求指總內存，而非當前可用內存。推理還需要足夠的空閒內存，安裝也需要工作空間；內存大小並不保證處理速度。
 
-發佈平台： macOS arm64, Linux x64, Linux arm64, Windows x64, Windows arm64. 還必須有匹配的打包運行時。
+發佈平台： macOS arm64, Linux x64, Linux arm64, Windows x64, Windows arm64。還必須有匹配的打包運行時。
 
-Tools → Model Manager 會下載已發佈的文件並驗證記錄的 SHA-256 摘要。處理過程在本地使用已安裝文件。打開 Model Manager 中的 Storage and verification，可查看聲明、修復安裝或更改存儲位置。
+“工具 → 模型管理器”會下載已發佈的文件並驗證記錄的 SHA-256 摘要。處理過程在本地使用已安裝文件。打開“模型管理器”中的“存儲與驗證”，可查看聲明、修復安裝或更改存儲位置。
 
 | 文件 | 預計下載大小 |
 | --- | --- |
@@ -37,13 +37,13 @@ Tools → Model Manager 會下載已發佈的文件並驗證記錄的 SHA-256 �
 
 ## 軟件包測試檢查的內容 {#what-the-packaged-test-checks}
 
-測試用例： `qwen-editorial-proposals`；操作： `editorial-generation`.
+測試用例： `qwen-editorial-proposals`；操作： `editorial-generation`。
 
 輸入：兩個固定的精彩片段候選項，內容涉及修復和比較錄音；通過正式的編輯方案生成器提交，並請求所有文字字段。
 
 嚴格格式的 JSON 必須恰好包含每個獲授權候選項一次，並提供可讀的標題、開場語、說明和有效章節文字。正式審核器會拒絕不安全或外來內容。
 
-nightly-with-tests 軟件包會下載真實模型文件，並通過打包的運行時請求推理。目錄中缺少所需模型會使相應測試失敗；受支持平台缺少原生引擎也會失敗。這些耗時檢查獨立於常規瀏覽器測試。通過測試只能確認模型基本運行且輸出結構可用，不能證明它在您錄音上的感知質量或準確率。
+夜间测试-with-tests 軟件包會下載真實模型文件，並通過打包的運行時請求推理。目錄中缺少所需模型會使相應測試失敗；受支持平台缺少原生引擎也會失敗。這些耗時檢查獨立於常規瀏覽器測試。通過測試只能確認模型基本運行且輸出結構可用，不能證明它在您錄音上的感知質量或準確率。
 
 ## 檢查結果 {#review-the-result}
 

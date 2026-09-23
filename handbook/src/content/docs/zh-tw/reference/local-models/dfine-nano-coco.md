@@ -13,17 +13,17 @@ D-FINE 會檢測物體類別及其位置。主體檢測操作會將這些結果�
 
 ## 當前可用性 {#current-availability}
 
-桌面版本為以下平台打包了所需的 onnxruntime-node 1.29.0 引擎：macOS arm64, Linux arm64, Linux x64, Windows arm64, Windows x64。請通過模型管理器安裝此模型的權重，然後在本地運行相應任務。這些是受支持的構建目標；特定軟件包和設備的結果請查看 nightly 測試報告。 The desktop build does not package this engine for macOS x64 even though model weights are listed for those platforms.
+桌面版本為以下平台打包了所需的 onnxruntime-node 1.29.0 引擎：macOS arm64, Linux arm64, Linux x64, Windows arm64, Windows x64。請通過模型管理器安裝此模型的權重，然後在本地運行相應任務。這些是受支持的構建目標；特定軟件包和設備的結果請查看 夜間測試報告。 儘管模型權重列出了 macOS x64，桌面版本並未為該平台打包此引擎。
 
 ## 使用此模型 {#use-this-model}
 
-打開 **Framescaper: Effect → Video effects → Reframe**，並確保平台具備所需的原生運行時。 本地輔助功能在桌面編輯器中運行。
+在具備所需原生運行時的平台上，打開 **Framescaper：效果 → 視頻效果 → 重新取景**。本地輔助處理在桌面編輯器中運行。
 
-1. Select a video clip in Framescaper.
-2. Install both YuNet and D-FINE for subject detection. The guided Reframe task also uses U²-Net-P saliency detection.
-3. Run locally and review the proposed crop. Tools → Advanced Local Processing can run subject detection on its own.
+1. 在 Framescaper 中選擇一個視頻片段。
+2. 安裝 YuNet 和 D-FINE 以進行主體檢測。“重新取景”引導任務還會使用 U²-Net-P 顯著性檢測。
+3. 在本地運行並檢查建議的裁剪區域。也可通過“工具 → 高級本地處理”單獨運行主體檢測。
 
-This operation also requires [YuNet face detection](/reference/local-models/yunet-face-detection-2026may/).
+此操作還需要 [YuNet 人臉檢測](/reference/local-models/yunet-face-detection-2026may/)。
 
 ## 下載與要求 {#download-and-requirements}
 
@@ -47,11 +47,11 @@ This operation also requires [YuNet face detection](/reference/local-models/yune
 
 用例： `subject-detection`；操作： `subject-detection`.
 
-輸入： Two photographs: the public-domain NASA portrait of astronaut Eileen Collins and the CC0 Chelsea cat photograph. Each is fitted into a separate frame with explicit source-frame timing, giving the detectors a human face and a clear object.
+輸入：兩張照片：NASA 公有領域的宇航員艾琳·柯林斯肖像，以及採用 CC0 許可的 Chelsea 貓照片。兩張照片分別放入單獨畫面，並明確指定源幀時間，使檢測器分別看到人臉和清晰物體。
 
-人臉和物體檢測結果必須具有有效的源幀時間、有限的置信度分數和邊界內的檢測框。主體測試樣本必須由兩個模型都檢測出結果。
+人臉和物體檢測結果必須具有有效的源幀時間、有限的置信度分數以及未超出範圍的檢測框。主體測試樣本必須由兩個模型都檢測出結果。
 
-帶測試的 nightly 軟件包會下載真實模型文件，並通過打包運行時執行推理。目錄中缺少必需模型時，該測試用例會失敗；目錄支持的平台缺少原生引擎時也會失敗。這些耗時檢查與常規瀏覽器測試套件分開運行。測試通過只能確認模型能夠基本運行並產生可用的輸出結構，不能證明感知質量，也不能證明在你的錄音上準確。
+帶測試的夜間軟件包會下載真實模型文件，並通過打包運行時執行推理。目錄中缺少必需模型時，相應用例會失敗；目錄支持的平台若缺少原生引擎，也會失敗。這些耗時檢查與常規瀏覽器測試套件分開運行。測試通過只能確認模型能夠基本運行並產生可用的輸出結構，不能證明感知質量，也不能證明模型在你的錄音上準確。
 
 ## 檢查結果 {#review-the-result}
 

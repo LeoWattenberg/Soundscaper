@@ -11,15 +11,15 @@ editUrl: false
 
 ## 當前可用性 {#current-availability}
 
-Desktop target packages generate and authenticate the offline Kokoro G2P helper alongside the onnxruntime-node 1.29.0 engine for macOS arm64, Linux x64, Linux arm64, Windows x64, Windows arm64. Install the model weights through Model Manager, then run speech generation locally. Consult the nightly report for real text-to-WAV results from each package and machine.
+桌面目標軟件包會生成並驗證離線 Kokoro G2P 輔助程序，並為 macOS arm64、Linux x64、Linux arm64、Windows x64 和 Windows arm64 打包 onnxruntime-node 1.29.0 引擎。通過模型管理器安裝模型權重後，即可在本地生成語音。各軟件包和設備的真實文本轉 WAV 結果請查閱夜間測試報告。
 
 ## 使用此模型 {#use-this-model}
 
-打開 **Generate → Text to Speech**，並確保平台具備所需的原生運行時。 本地輔助功能在桌面編輯器中運行。
+在具備所需原生運行時的平台上，打開**生成 → 文本轉語音**。本地輔助處理在桌面編輯器中運行。
 
-1. Enter a script, then choose one of the published language and voice pairs.
-2. Install the Kokoro model through Model Manager.
-3. Generate and listen to a preview, then add it on a new track or regenerate the selected generated clip.
+1. 輸入腳本，然後選擇已發佈的語言與語音組合。
+2. 通過模型管理器安裝 Kokoro 模型。
+3. 生成並試聽預覽，然後將其添加到新軌道，或重新生成已選中的生成片段。
 
 ## 下載與要求 {#download-and-requirements}
 
@@ -100,7 +100,7 @@ Desktop target packages generate and authenticate the offline Kokoro G2P helper 
 
 所選的九種 Kokoro 語音都必須在有效 WAV 容器中生成非靜音、長度受限的 24 kHz 單聲道 PCM 音頻。測試要求完整的離線 G2P 運行時，不能用適配器不可用的響應或替代模型通過。
 
-帶測試的 nightly 軟件包會下載真實模型文件，並通過打包運行時執行推理。其必需用例會通過打包的 G2P 輔助程序，提交九種語言變體各自的一段腳本，並檢查生成的 WAV。若輔助程序缺失或被修改，測試將安全失敗。這些耗時檢查與常規瀏覽器測試套件分開運行。測試通過只能確認所選語音能夠基本生成語音，不能證明發音或聽感質量。
+帶測試的 夜間測試軟件包會下載真實模型文件，並通過打包運行時執行推理。其必需用例會通過打包的 G2P 輔助程序，提交九種語言變體各自的一段腳本，並檢查生成的 WAV。若輔助程序缺失或被修改，測試將安全失敗。這些耗時檢查與常規瀏覽器測試套件分開運行。測試通過只能確認所選語音能夠基本生成語音，不能證明發音或聽感質量。
 
 ## 檢查結果 {#review-the-result}
 

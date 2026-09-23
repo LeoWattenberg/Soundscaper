@@ -1,5 +1,5 @@
 ---
-title: "TransNetV2 shot detection"
+title: "TransNetV2 镜头检测"
 description: "使用准确的本地模型路径查找视频镜头切换。"
 editUrl: false
 ---
@@ -11,27 +11,27 @@ editUrl: false
 
 ## 当前可用性 {#current-availability}
 
-桌面构建包含所需的 onnxruntime-node 1.29.0 引擎，适用于 macOS arm64, Linux x64, Linux arm64, Windows x64, Windows arm64. 通过 Model Manager 安装此模型的权重，然后在本地运行其任务。 这些是受支持的构建目标；特定软件包和设备的结果请参阅夜间测试报告。
+桌面构建包含所需的 onnxruntime-node 1.29.0 引擎，适用于 macOS arm64, Linux x64, Linux arm64, Windows x64, Windows arm64。通过“模型管理器”安装此模型的权重，然后在本地运行其任务。 这些是受支持的构建目标；特定软件包和设备的结果请参阅夜间测试报告。
 
 ## 使用此模型 {#use-this-model}
 
-在具备所需原生运行时的平台上打开 **Framescaper: Tools → Advanced Local Processing → Shot detection**。本地辅助功能在桌面编辑器中运行。
+在具备所需原生运行时的平台上打开 **Framescaper：工具 → 高级本地处理 → 镜头检测**。本地辅助功能在桌面编辑器中运行。
 
 1. 在 Framescaper 中选择视频。
-2. 通过 Model Manager 安装 TransNetV2，并选择基于模型的镜头检测。
+2. 通过“模型管理器”安装 TransNetV2，并选择基于模型的镜头检测。
 3. 添加注释或规划剪辑之前，检查建议的镜头边界。
 
 ## 下载与要求 {#download-and-requirements}
 
-模型标识： `transnetv2`，版本 **1.0.0**.
+模型标识： `transnetv2`，版本 **1.0.0**。
 
-预计下载大小： **29.81 MiB**. 最低系统内存： **2 GiB**. 此目录要求指总内存，而非当前可用内存。推理还需要足够的空闲内存，安装也需要工作空间；内存大小并不保证处理速度。
+预计下载大小： **29.81 MiB**. 最低系统内存： **2 GiB**。此目录要求指总内存，而非当前可用内存。推理还需要足够的空闲内存，安装也需要工作空间；内存大小并不保证处理速度。
 
-发布平台： macOS arm64, Linux x64, Linux arm64, Windows x64, Windows arm64. 还必须有匹配的打包运行时。
+发布平台： macOS arm64, Linux x64, Linux arm64, Windows x64, Windows arm64。还必须有匹配的打包运行时。
 
 在 Windows 上，请安装与桌面应用匹配的最新受支持 [Microsoft Visual C++ v14 Redistributable](https://learn.microsoft.com/en-us/cpp/windows/latest-supported-vc-redist?view=msvc-170)：x64 构建使用 **x64**，ARM64 构建使用 **ARM64**。原生 ONNX 和 Sherpa 引擎需要这些库；模型下载内容不包含它们。使用本应用无需安装 Visual Studio。
 
-Tools → Model Manager 会下载已发布的文件并验证记录的 SHA-256 摘要。处理过程在本地使用已安装文件。打开 Model Manager 中的 Storage and verification，可查看声明、修复安装或更改存储位置。
+“工具 → 模型管理器”会下载已发布的文件并验证记录的 SHA-256 摘要。处理过程在本地使用已安装文件。打开“模型管理器”中的“存储与验证”，可查看声明、修复安装或更改存储位置。
 
 | 文件 | 预计下载大小 |
 | --- | --- |
@@ -39,13 +39,13 @@ Tools → Model Manager 会下载已发布的文件并验证记录的 SHA-256 �
 
 ## 软件包测试检查的内容 {#what-the-packaged-test-checks}
 
-测试用例： `transnet-accurate-shots`；操作： `shot-detection`.
+测试用例： `transnet-accurate-shots`；操作： `shot-detection`。
 
 输入：一段 120 帧、每秒 30 帧的视频序列，中点从 NASA 宇航员肖像切换到 CC0 猫照片，并调整为模型要求的 48 × 27 像素。
 
 模型生成的镜头边界必须非空、按顺序排列，并位于提供的源帧范围内。
 
-nightly-with-tests 软件包会下载真实模型文件，并通过打包的运行时请求推理。目录中缺少所需模型会使相应测试失败；受支持平台缺少原生引擎也会失败。这些耗时检查独立于常规浏览器测试。通过测试只能确认模型基本运行且输出结构可用，不能证明它在您录音上的感知质量或准确率。
+夜间测试-with-tests 软件包会下载真实模型文件，并通过打包的运行时请求推理。目录中缺少所需模型会使相应测试失败；受支持平台缺少原生引擎也会失败。这些耗时检查独立于常规浏览器测试。通过测试只能确认模型基本运行且输出结构可用，不能证明它在您录音上的感知质量或准确率。
 
 ## 检查结果 {#review-the-result}
 

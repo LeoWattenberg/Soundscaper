@@ -11,15 +11,15 @@ editUrl: false
 
 ## 當前可用性 {#current-availability}
 
-桌面版本為以下平台打包了所需的 onnxruntime-node 1.29.0 引擎：macOS arm64, Linux x64, Linux arm64, Windows x64, Windows arm64。請通過模型管理器安裝此模型的權重，然後在本地運行相應任務。這些是受支持的構建目標；特定軟件包和設備的結果請查看 nightly 測試報告。
+桌面版本為以下平台打包了所需的 onnxruntime-node 1.29.0 引擎：macOS arm64, Linux x64, Linux arm64, Windows x64, Windows arm64。請通過模型管理器安裝此模型的權重，然後在本地運行相應任務。這些是受支持的構建目標；特定軟件包和設備的結果請查看 夜間測試報告。
 
 ## 使用此模型 {#use-this-model}
 
-打開 **Tools → Advanced Local Processing → Dereverberation**，並確保平台具備所需的原生運行時。 本地輔助功能在桌面編輯器中運行。
+在具備所需原生運行時的平台上，打開**工具 → 高級本地處理 → 去混響**。本地輔助處理在桌面編輯器中運行。
 
-1. Select speech affected by room reflections.
-2. Install the model through Model Manager and run dereverberation.
-3. Compare the result with the original and accept it only if the speech sounds better.
+1. 選擇受房間反射聲影響的語音。
+2. 通過模型管理器安裝此模型並運行去混響。
+3. 將處理結果與原始音頻比較；只有語音聽感改善時才接受。
 
 ## 下載與要求 {#download-and-requirements}
 
@@ -41,11 +41,11 @@ editUrl: false
 
 用例： `dereverb-room-speech`；操作： `dereverberation`.
 
-輸入： The Kennedy speech resampled to 44.1 kHz with four reproducible delayed reflections.
+輸入：肯尼迪演說重採樣為 44.1 kHz，並疊加四個可復現的延遲反射聲。
 
-解碼後的音頻必須包含有限採樣值、保持預期的音頻形狀、與輸入採樣值不同，並具有非零的可聽信號。僅文件頭不同不算作變化。
+解碼後的音頻必須包含有限採樣值、保持預期的音頻結構、與輸入採樣值不同，並具有非零可聽信號。僅文件頭不同不算作變化。
 
-帶測試的 nightly 軟件包會下載真實模型文件，並通過打包運行時執行推理。目錄中缺少必需模型時，該測試用例會失敗；目錄支持的平台缺少原生引擎時也會失敗。這些耗時檢查與常規瀏覽器測試套件分開運行。測試通過只能確認模型能夠基本運行並產生可用的輸出結構，不能證明感知質量，也不能證明在你的錄音上準確。
+帶測試的夜間軟件包會下載真實模型文件，並通過打包運行時執行推理。目錄中缺少必需模型時，相應用例會失敗；目錄支持的平台若缺少原生引擎，也會失敗。這些耗時檢查與常規瀏覽器測試套件分開運行。測試通過只能確認模型能夠基本運行並產生可用的輸出結構，不能證明感知質量，也不能證明模型在你的錄音上準確。
 
 ## 檢查結果 {#review-the-result}
 

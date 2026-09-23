@@ -11,27 +11,27 @@ editUrl: false
 
 ## 當前可用性 {#current-availability}
 
-桌面構建包含所需的 sherpa-onnx-node 1.13.5 引擎，適用於 macOS arm64, Linux arm64, Linux x64, Windows arm64, Windows x64. 通過 Model Manager 安裝此模型的權重，然後在本地運行其任務。 這些是受支持的構建目標；特定軟件包和設備的結果請參閱夜間測試報告。 The desktop build does not package this 引擎，適用於 macOS x64 even though model weights are listed for those platforms.
+桌面構建包含所需的 sherpa-onnx-node 1.13.5 引擎，適用於 macOS arm64, Linux arm64, Linux x64, Windows arm64, Windows x64。通過“模型管理器”安裝此模型的權重，然後在本地運行其任務。 這些是受支持的構建目標；特定軟件包和設備的結果請參閱夜間測試報告。 雖然模型權重列表包含 macOS x64，但桌面版本不為該平台打包此引擎。
 
 ## 使用此模型 {#use-this-model}
 
-在具備所需原生運行時的平台上打開 **Analyze → Speech → Transcribe & Captions**。本地輔助功能在桌面編輯器中運行。
+在具備所需原生運行時的平台上打開 **分析 → 語音 → 轉錄與字幕**。本地輔助功能在桌面編輯器中運行。
 
 1. 選擇包含語音的區域。
-2. 通過 Manage Models 安裝 Parakeet v3。比較模型時，在 Tools → Advanced Local Processing 中選擇其準確的模型標識。
+2. 通過“管理模型”安裝 Parakeet v3。比較模型時，在“工具 → 高級本地處理”中選擇其準確的模型標識。
 3. 在本地運行，應用前檢查建議的轉錄。
 
 ## 下載與要求 {#download-and-requirements}
 
 模型標識： `parakeet-tdt-0.6b-v3`，版本 **3.0.0**.
 
-預計下載大小： **639.42 MiB**. 最低系統內存： **4 GiB**. 此目錄要求指總內存，而非當前可用內存。推理還需要足夠的空閒內存，安裝也需要工作空間；內存大小並不保證處理速度。
+預計下載大小： **639.42 MiB**. 最低系統內存： **4 GiB**。此目錄要求指總內存，而非當前可用內存。推理還需要足夠的空閒內存，安裝也需要工作空間；內存大小並不保證處理速度。
 
-發佈平台： macOS arm64, macOS x64, Linux arm64, Linux x64, Windows arm64, Windows x64. 還必須有匹配的打包運行時。
+發佈平台： macOS arm64, macOS x64, Linux arm64, Linux x64, Windows arm64, Windows x64。還必須有匹配的打包運行時。
 
 在 Windows 上，請安裝與桌面應用匹配的最新受支持 [Microsoft Visual C++ v14 Redistributable](https://learn.microsoft.com/en-us/cpp/windows/latest-supported-vc-redist?view=msvc-170)：x64 構建使用 **x64**，ARM64 構建使用 **ARM64**。原生 ONNX 和 Sherpa 引擎需要這些庫；模型下載內容不包含它們。使用本應用無需安裝 Visual Studio。
 
-Tools → Model Manager 會下載已發佈的文件並驗證記錄的 SHA-256 摘要。處理過程在本地使用已安裝文件。打開 Model Manager 中的 Storage and verification，可查看聲明、修復安裝或更改存儲位置。
+“工具 → 模型管理器”會下載已發佈的文件並驗證記錄的 SHA-256 摘要。處理過程在本地使用已安裝文件。打開“模型管理器”中的“存儲與驗證”，可查看聲明、修復安裝或更改存儲位置。
 
 | 文件 | 預計下載大小 |
 | --- | --- |
@@ -42,13 +42,13 @@ Tools → Model Manager 會下載已發佈的文件並驗證記錄的 SHA-256 �
 
 ## 軟件包測試檢查的內容 {#what-the-packaged-test-checks}
 
-測試用例： `parakeet-v3-transcript`；操作： `speech-recognition`.
+測試用例： `parakeet-v3-transcript`；操作： `speech-recognition`。
 
 輸入：公共領域的約翰·F·肯尼迪就職演說片段，首尾各添加一秒靜音，製成 16 kHz 單聲道音頻。
 
 轉錄必須包含非空文字，時間信息須落在輸入音頻內且有效。測試不比較具體措辭。
 
-nightly-with-tests 軟件包會下載真實模型文件，並通過打包的運行時請求推理。目錄中缺少所需模型會使相應測試失敗；受支持平台缺少原生引擎也會失敗。這些耗時檢查獨立於常規瀏覽器測試。通過測試只能確認模型基本運行且輸出結構可用，不能證明它在您錄音上的感知質量或準確率。
+夜间测试-with-tests 軟件包會下載真實模型文件，並通過打包的運行時請求推理。目錄中缺少所需模型會使相應測試失敗；受支持平台缺少原生引擎也會失敗。這些耗時檢查獨立於常規瀏覽器測試。通過測試只能確認模型基本運行且輸出結構可用，不能證明它在您錄音上的感知質量或準確率。
 
 ## 檢查結果 {#review-the-result}
 

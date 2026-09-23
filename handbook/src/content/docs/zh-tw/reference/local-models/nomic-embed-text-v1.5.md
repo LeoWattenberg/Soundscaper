@@ -11,15 +11,15 @@ editUrl: false
 
 ## 當前可用性 {#current-availability}
 
-桌面版本為以下平台打包了所需的 onnxruntime-node 1.29.0 引擎：macOS arm64, Linux arm64, Linux x64, Windows arm64, Windows x64。請通過模型管理器安裝此模型的權重，然後在本地運行相應任務。這些是受支持的構建目標；特定軟件包和設備的結果請查看 nightly 測試報告。 The desktop build does not package this engine for macOS x64 even though model weights are listed for those platforms.
+桌面版本為以下平台打包了所需的 onnxruntime-node 1.29.0 引擎：macOS arm64, Linux arm64, Linux x64, Windows arm64, Windows x64。請通過模型管理器安裝此模型的權重，然後在本地運行相應任務。這些是受支持的構建目標；特定軟件包和設備的結果請查看 夜間測試報告。 儘管模型權重列出了 macOS x64，桌面版本並未為該平台打包此引擎。
 
 ## 使用此模型 {#use-this-model}
 
-打開 **Tools → Search → Index Transcript, then Tools → Search → Indexed Search**，並確保平台具備所需的原生運行時。 本地輔助功能在桌面編輯器中運行。
+在具備所需原生運行時的平台上，依次打開**工具 → 搜索 → 索引轉錄文本**和**工具 → 搜索 → 已索引搜索**。本地輔助處理在桌面編輯器中運行。
 
-1. Create or import a transcript, then install Nomic Embed Text through Manage Models.
-2. Run Index Transcript to prepare the text for semantic search.
-3. Use Indexed Search and review the matched passages in context. Advanced Local Processing also exposes the embedding operation.
+1. 創建或導入轉錄文本，然後通過“管理模型”安裝 Nomic Embed Text。
+2. 運行“索引轉錄文本”，為語義搜索準備文本。
+3. 使用“已索引搜索”並結合上下文檢查匹配片段。“高級本地處理”中也提供嵌入操作。
 
 ## 下載與要求 {#download-and-requirements}
 
@@ -45,11 +45,11 @@ editUrl: false
 
 用例： `nomic-text-embedding`；操作： `text-embedding`.
 
-輸入： A short nonempty text passage supplied to the real tokenizer and embedding network.
+輸入：一段簡短且非空的文本，輸入真實的分詞器和嵌入網絡。
 
 嵌入向量必須具有預期維度，並包含有限、非零且非恆定的值。
 
-帶測試的 nightly 軟件包會下載真實模型文件，並通過打包運行時執行推理。目錄中缺少必需模型時，該測試用例會失敗；目錄支持的平台缺少原生引擎時也會失敗。這些耗時檢查與常規瀏覽器測試套件分開運行。測試通過只能確認模型能夠基本運行並產生可用的輸出結構，不能證明感知質量，也不能證明在你的錄音上準確。
+帶測試的夜間軟件包會下載真實模型文件，並通過打包運行時執行推理。目錄中缺少必需模型時，相應用例會失敗；目錄支持的平台若缺少原生引擎，也會失敗。這些耗時檢查與常規瀏覽器測試套件分開運行。測試通過只能確認模型能夠基本運行並產生可用的輸出結構，不能證明感知質量，也不能證明模型在你的錄音上準確。
 
 ## 檢查結果 {#review-the-result}
 

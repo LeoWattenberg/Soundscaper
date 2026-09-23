@@ -1,6 +1,6 @@
 ---
-title: "Macro programs"
-description: "The JavaScript API a macro program runs against, the limits it runs under, and the file it travels in."
+title: "宏程序"
+description: "宏程序可调用的 JavaScript API、运行限制以及程序文件格式。"
 sidebar:
   order: 7
 ---
@@ -47,10 +47,7 @@ await sound.effect('audacity-fade-out');
 
 ### 程序可以使用的内容
 
-程序可以使用常见的 JavaScript 标准库：`Object`, `Array`, `Map`,
-`Set`, `Math`, `JSON`, `RegExp`, `Promise`, the typed arrays, `Intl`,
-`TextEncoder`, `TextDecoder`, `structuredClone` and `queueMicrotask`。同时提供 `console`
-，写入其中的所有内容都会显示在程序日志中。
+程序可以使用常见的 JavaScript 标准库，包括 `Object`、`Array`、`Map`、`Set`、`Math`、`JSON`、`RegExp`、`Promise`、类型化数组、`Intl`、`TextEncoder`、`TextDecoder`、`structuredClone` 和 `queueMicrotask`。此外还提供 `console`，写入其中的所有内容都会显示在程序日志中。
 
 ### 程序无法使用的内容
 
@@ -58,25 +55,20 @@ await sound.effect('audacity-fade-out');
 `fetch`,
 `XMLHttpRequest`, `WebSocket`, `indexedDB`, `caches`, `crypto`, `navigator`,
 `location`, `Worker`, `WebAssembly`, `SharedArrayBuffer`, `Atomics`, `eval`,
-`setTimeout` and `setInterval`。读取其中任一项都会得到 `undefined`。
+`setTimeout` 和 `setInterval`。读取其中任一项都会得到 `undefined`。
 
 程序无法 `import` 模块；静态 `import` 会在所在行触发语法错误。程序所需的一切都必须直接写在程序中。
 
 
-安全边界并非缺少的全局对象，而是编辑器本身：编辑器只响应本页列出的调用，并会按名称拒绝程序尝试发送的其他任何内容。
-编辑器只响应本页列出的调用，并会按名称拒绝程序发送的所有其他内容。
+安全边界并非缺少的全局对象，而是编辑器本身：无论程序发送什么内容，编辑器都只响应本页列出的调用，并会按名称拒绝其余所有内容。
 
 ## 运行程序
 
-按**运行程序**。整个运行过程在项目历史记录中只算一项，因此一次**撤销**即可撤回程序所做的所有更改，无论更改多少。如果程序抛出错误、被取消或超过时限，项目都会恢复到运行开始前的状态。
-一次**撤销**即可撤回程序所做的所有更改，无论更改多少。如果程序抛出错误、被取消或超过时限，项目会精确恢复到运行开始前的状态。
+按**运行程序**。整个运行过程在项目历史记录中只算一项，因此一次**撤销**即可撤回程序所做的所有更改，无论更改多少。如果程序抛出错误、被取消或超过时限，项目都会精确恢复到运行开始前的状态。
 
-**取消运行**会立即停止程序。运行超过两分钟的程序也会以相同方式停止，并显示消息
-分钟的程序也会以相同方式停止，并显示消息 *宏运行时间超过 120 秒。*
+**取消运行**会立即停止程序。程序运行超过两分钟后也会以相同方式停止，并显示消息 *宏运行时间超过 120 秒。*
 
-运行结束后，窗格会显示程序日志；成功完成时，后面会出现 *程序已应用。*
-when the run completed. A failed run shows *The program failed on line N:* and
-错误消息，其中行号是程序抛出错误所在的行。
+运行结束后，窗格会显示程序日志；成功完成时，后面会出现 *程序已应用。* 运行失败时会显示 *程序在第 N 行失败：* 以及错误消息，其中行号是程序抛出错误所在的行。
 
 ### 效果会处理哪些音频
 
@@ -84,9 +76,7 @@ when the run completed. A failed run shows *The program failed on line N:* and
 
 ## `sound` API
 
-除非另有说明，以下每个方法都会返回 promise。请等待每次调用完成后再进行下一次调用；程序若连续发起超过八次调用而未等待，第九次调用将被拒绝。
-before making the next; a program that starts more than eight calls without
-awaiting them has the ninth refused.
+除非另有说明，以下每个方法都会返回 promise。请等待每次调用完成后再开始下一次调用；若程序连续发起超过八次调用而未等待，第九次调用将被拒绝。
 
 ### `sound.env`
 
@@ -95,27 +85,22 @@ awaiting them has the ninth refused.
 | 字段 | 含义 |
 | --- | --- |
 | `productId` | `"soundscaper"`. |
-| `locale` | 编辑器的界面语言，例如 `"en"` or `"de"`. |
+| `locale` | 编辑器的界面语言，例如 `"en"` 或 `"de"`。 |
 | `seed` | 本次运行随机数所用的种子。每次运行都会生成新种子。 |
 | `startedAt` | 本次运行开始时的实际时间，格式为 ISO 8601 字符串。 |
 | `dryRun` | 目前始终为 `false`。预留字段。 |
 
 ### `sound.log`
 
-`sound.log.info(...values)`, `sound.log.warn(...values)`,
-`sound.log.error(...values)` and `sound.log.debug(...values)` write one line
-都会在运行日志中写入一行。`console.log`、`console.info`、`console.warn`、`console.error` 和 `console.debug` 也会执行相同操作。非字符串值会写为 JSON。这些方法不返回值，也无需等待。
+`sound.log.info(...values)`、`sound.log.warn(...values)`、`sound.log.error(...values)` 和 `sound.log.debug(...values)` 都会在运行日志中各写入一行。`console.log`、`console.info`、`console.warn`、`console.error` 和 `console.debug` 也会执行相同操作。非字符串值会写为 JSON。这些方法不返回值，也无需等待。
 
-日志最多可保存 1,000 行或 256 KiB, whichever comes first, and each line
-每行最多 4,096 个字符。超出限制的行会被丢弃并计数，最终会以警告报告丢弃数量。
+日志最多保存 1,000 行或 256 KiB，以先达到者为准；每行最多 4,096 个字符。超出限制的行会被丢弃并计数，最终会以警告报告丢弃数量。
 
 ### `sound.project`
 
 读取项目不会更改项目，也不计入本次运行的更改额度。
 
-`sound.project.snapshot()` 返回 `{ sampleRate, tracks, selection }`, with
-`tracks` and `selection` as the two calls below return them. `sampleRate` is the
-是项目的采样率，单位为赫兹；本页所有帧数都以此为基准。
+`sound.project.snapshot()` 返回 `{ sampleRate, tracks, selection }`；其中 `tracks` 和 `selection` 的结构分别与下面两个调用的返回值相同。`sampleRate` 是项目的采样率，单位为赫兹；本页所有帧数都以此为基准。
 
 `sound.project.tracks()` 按时间线顺序返回轨道数组：
 
@@ -144,7 +129,7 @@ awaiting them has the ninth refused.
 
 | `relativeTo` | 起始边缘 | 结束边缘 |
 | --- | --- | --- |
-| `'project-start'` (default) | `start` 距项目开头的秒数 | `end` 距项目开头的秒数 |
+| `'project-start'`（默认） | `start` 距项目开头的秒数 | `end` 距项目开头的秒数 |
 | `'project'` | `start` 距项目开头的秒数 | `end` 超过项目结尾的秒数 |
 | `'project-end'` | `start` 距项目结尾之前的秒数 | `end` 距项目结尾之前的秒数 |
 | `'selection-start'` | `start` 距选区起点之后的秒数 | `end` 距选区起点之后的秒数 |
@@ -194,7 +179,7 @@ await sound.command('Trim');
 
 按准确名称运行保存在同一宏管理器中的步骤列表宏，包括其中的任何选区命令。已保存的宏不能是另一个程序，因此程序不会嵌套。该方法解析为 `null`；名称未知时会拒绝运行。
 
-### Time and randomness
+### 时间与随机数
 
 一次运行具有可复现性：同一程序在同一项目上运行两次会得到相同结果，因为时钟和随机数不依赖计算机本身。
 
@@ -202,11 +187,9 @@ await sound.command('Trim');
 
 `Math.random()` 和 `sound.random()` 使用同一随机数生成器，种子来自 `sound.env.seed`。如果需要确认本次运行使用了哪组随机序列，请在日志中记录种子。
 
-### Checking your assumptions
+### 检查假设
 
-`sound.assert(condition, message)` throws `message` when `condition` is false.
-`sound.assertEqual(actual, expected, message)` compares the two values as JSON
-如果两者不同，则会抛出错误；若提供了消息，错误会列出这两个值。由于抛出的错误会终止运行并回滚此前所有操作，断言失败时项目不会改变。这两个方法都不返回 promise。
+`sound.assert(condition, message)` 会在 `message` 所对应的 `condition` 不成立时抛出错误。`sound.assertEqual(actual, expected, message)` 会将两个值作为 JSON 进行比较；如果两者不同则会抛出错误。若提供了消息，错误会列出这两个值。由于错误会终止运行并回滚此前的所有操作，断言失败时项目不会改变。这两个方法都不返回 promise。
 
 ```js
 const tracks = await sound.project.tracks();
@@ -224,16 +207,16 @@ sound.assertEqual(selection.trackIds.length, tracks.length, 'Select all should c
 
 | 限制项 | 上限 |
 | --- | --- |
-| Program length | 256 KiB |
-| Calls to the editor per run | 4,096 |
-| Changes to the project per run (selection calls, effects, commands) | 256 |
-| Calls waiting for an answer at once | 8 |
-| Run time | 120 seconds |
-| One value crossing to or from the editor | 1 MiB, 12 levels deep, 4,096 entries per array or object |
-| Log | 1,000 行或 256 KiB; 4,096 characters per line |
-| Programs in the library | 128 |
-| Program name | 256 characters |
-| Imported program file | 1 MiB |
+| 程序长度 | 256 KiB |
+| 每次运行对编辑器的调用次数 | 4,096 |
+| 每次运行对项目的更改次数（选区调用、效果、命令） | 256 |
+| 同时等待响应的调用数 | 8 |
+| 运行时间 | 120 秒 |
+| 与编辑器交互的单个值 | 1 MiB、嵌套 12 层；每个数组或对象最多 4,096 个条目 |
+| 日志 | 1,000 行或 256 KiB；每行最多 4,096 个字符 |
+| 程序库中的程序数 | 128 |
+| 程序名称 | 256 个字符 |
+| 导入的程序文件 | 1 MiB |
 
 循环选中每个片段并应用一个效果，每个片段会消耗两次项目更改额度，因此额度用尽前最多可处理 128 个片段。
 
@@ -257,47 +240,47 @@ try {
 
 以下列出 `sound.effect` 和 `sound.effects` 接受的效果 ID、各效果的参数键及默认值。取值范围和单位请参阅[音频效果参考](/reference/generated/audio-effects/)。程序无法应用 Nyquist 插件。
 
-| Effect | Effect ID | Parameters and defaults |
+| 效果 | 效果 ID | 参数与默认值 |
 | --- | --- | --- |
-| Amplify | `audacity-amplify` | `gainDb: 0`, `allowClipping: false` |
-| Auto Duck | `audacity-auto-duck` | `duckAmountDb: -12`, `innerFadeDown: 0`, `innerFadeUp: 0`, `outerFadeDown: 0.5`, `outerFadeUp: 0.5`, `thresholdDb: -30`, `maximumPause: 1` |
-| Bass and Treble | `audacity-bass-treble` | `bassDb: 0`, `trebleDb: 0`, `volumeDb: 0` |
+| 放大 | `audacity-amplify` | `gainDb: 0`, `allowClipping: false` |
+| 自动闪避 | `audacity-auto-duck` | `duckAmountDb: -12`, `innerFadeDown: 0`, `innerFadeUp: 0`, `outerFadeDown: 0.5`, `outerFadeUp: 0.5`, `thresholdDb: -30`, `maximumPause: 1` |
+| 低音与高音 | `audacity-bass-treble` | `bassDb: 0`, `trebleDb: 0`, `volumeDb: 0` |
 | Bitcrusher | `bitcrusher` | `bitDepth: 8`, `downsampling: 1`, `dither: 'none'`, `interpolation: 'sample-hold'`, `mix: 100` |
-| Change Pitch | `audacity-change-pitch` | `semitones: 0`, `preserveFormants: true` |
-| Change Speed and Pitch | `audacity-change-speed-pitch` | `speedPercent: 0` |
-| Change Tempo | `audacity-change-tempo` | `tempoPercent: 0` |
-| Classic Filters | `audacity-classic-filters` | `family: 'butterworth'`, `direction: 'lowpass'`, `order: 1`, `cutoffHz: 1000`, `passbandRippleDb: 1`, `stopbandAttenuationDb: 30` |
-| Click Removal | `audacity-click-removal` | `threshold: 200`, `maximumWidth: 20` |
-| Compressor | `audacity-compressor` | `thresholdDb: -10`, `makeupGainDb: 0`, `kneeWidthDb: 5`, `ratio: 10`, `lookaheadMs: 1`, `attackMs: 30`, `releaseMs: 150` |
-| Delay | `delay` | `time: 0.25`, `feedback: 0.3`, `mix: 0.2` |
-| Distortion | `audacity-distortion` | `mode: 'hard-clipping'`, `dcBlock: false`, `thresholdDb: -6`, `noiseFloorDb: -70`, `parameter1: 50`, `parameter2: 50`, `repeats: 1` |
-| Echo | `audacity-echo` | `delaySeconds: 1`, `decay: 0.5` |
-| Fade In | `audacity-fade-in` | none |
-| Fade Out | `audacity-fade-out` | none |
-| Filter Curve EQ | `audacity-filter-curve-eq` | `points`: an array of `{ frequency, gain }`, default two flat points at 20 Hz and 20 kHz; `linearFrequencyScale: false`; `filterLength: 8191` |
-| Four-band parametric EQ | `eq` | `outputGain: 0`; `bands`: four `{ id, enabled, type, frequency, gain, q, slope }` objects, peaking at 100, 500, 2000 and 8000 Hz with `gain: 0`, `q: 1`, `slope: 12` |
-| Gate | `gate` | `threshold: -50`, `attack: 0.005`, `hold: 0.05`, `release: 0.1`, `rangeDb: -80` |
-| Graphic EQ | `audacity-graphic-eq` | `gains`: 31 band gains in dB, all 0; `interpolation: 'bspline'`; `filterLength: 8191` |
-| High-pass filter | `highpass` | `frequency: 80`, `q: 0.707` |
-| Invert | `audacity-invert` | none |
-| Legacy Compressor | `audacity-legacy-compressor` | `thresholdDb: -12`, `noiseFloorDb: -40`, `ratio: 2`, `attackSeconds: 0.2`, `releaseSeconds: 1`, `normalize: true`, `usePeak: false` |
-| Limiter | `audacity-limiter` | `thresholdDb: -5`, `makeupTargetDb: -1`, `kneeWidthDb: 2`, `lookaheadMs: 1`, `releaseMs: 20` |
-| Loudness Normalization | `audacity-loudness-normalization` | `mode: 'lufs'`, `targetLufs: -23`, `targetRmsDb: -20`, `stereoIndependent: false`, `dualMono: true` |
-| Low-pass filter | `lowpass` | `frequency: 18000`, `q: 0.707` |
-| Noise Reduction | `audacity-noise-reduction` | `reductionDb: 6`, `sensitivity: 6`, `frequencySmoothingBands: 6`, `output: 'reduce'` |
-| Normalize | `audacity-normalize` | `peakDb: -1`, `removeDc: true`, `applyGain: true`, `stereoIndependent: false` |
-| Paulstretch | `audacity-paulstretch` | `stretchFactor: 10`, `timeResolution: 0.25` |
-| Phaser | `audacity-phaser` | `stages: 2`, `dryWet: 128`, `frequency: 0.4`, `phaseDegrees: 0`, `depth: 100`, `feedbackPercent: 0`, `outputGainDb: -6` |
-| Remove DC Offset | `audacity-remove-dc-offset` | none |
-| Repair | `audacity-repair` | none |
-| Repeat | `audacity-repeat` | `count: 1` |
-| Reverb | `reverb` | `mix: 0.2`, `decay: 2`, `preDelay: 0.01` |
-| Reverb (Audacity) | `audacity-reverb` | `roomSize: 75`, `preDelay: 10`, `reverberance: 50`, `damping: 50`, `toneLow: 100`, `toneHigh: 100`, `wetGainDb: -6`, `dryGainDb: 0`, `stereoWidth: 100`, `wetOnly: false` |
-| Reverse | `audacity-reverse` | none |
-| Sliding Stretch | `audacity-sliding-stretch` | `startTempoPercent: 0`, `endTempoPercent: 0`, `startPitchSemitones: 0`, `endPitchSemitones: 0`, `preserveFormants: true` |
-| Truncate Silence | `audacity-truncate-silence` | `thresholdDb: -20`, `action: 'truncate'`, `minimumSilence: 0.5`, `truncateTo: 0.5`, `compressPercent: 50`, `independent: false` |
-| Utility Gain (Reviewed) | `reviewed-utility-gain` | `gain: 1` |
-| Wahwah | `audacity-wahwah` | `frequency: 1.5`, `phaseDegrees: 0`, `depthPercent: 70`, `resonance: 2.5`, `frequencyOffsetPercent: 30`, `outputGainDb: -6` |
+| 更改音高 | `audacity-change-pitch` | `semitones: 0`, `preserveFormants: true` |
+| 更改速度和音高 | `audacity-change-speed-pitch` | `speedPercent: 0` |
+| 更改速度 | `audacity-change-tempo` | `tempoPercent: 0` |
+| 经典滤波器 | `audacity-classic-filters` | `family: 'butterworth'`, `direction: 'lowpass'`, `order: 1`, `cutoffHz: 1000`, `passbandRippleDb: 1`, `stopbandAttenuationDb: 30` |
+| 咔嗒声移除 | `audacity-click-removal` | `threshold: 200`, `maximumWidth: 20` |
+| 压缩器 | `audacity-compressor` | `thresholdDb: -10`, `makeupGainDb: 0`, `kneeWidthDb: 5`, `ratio: 10`, `lookaheadMs: 1`, `attackMs: 30`, `releaseMs: 150` |
+| 延迟 | `delay` | `time: 0.25`, `feedback: 0.3`, `mix: 0.2` |
+| 失真 | `audacity-distortion` | `mode: 'hard-clipping'`, `dcBlock: false`, `thresholdDb: -6`, `noiseFloorDb: -70`, `parameter1: 50`, `parameter2: 50`, `repeats: 1` |
+| 回声 | `audacity-echo` | `delaySeconds: 1`, `decay: 0.5` |
+| 淡入 | `audacity-fade-in` | 无 |
+| 淡出 | `audacity-fade-out` | 无 |
+| 滤波曲线均衡器 | `audacity-filter-curve-eq` | `points`：由 `{ frequency, gain }` 组成的数组，默认包含位于 20 Hz 和 20 kHz 的两个平直点；`linearFrequencyScale: false`；`filterLength: 8191` |
+| 四段参数均衡器 | `eq` | `outputGain: 0`；`bands`：四个 `{ id, enabled, type, frequency, gain, q, slope }` 对象，中心频率分别为 100、500、2000 和 8000 Hz，且 `gain: 0`、`q: 1`、`slope: 12` |
+| 门限 | `gate` | `threshold: -50`, `attack: 0.005`, `hold: 0.05`, `release: 0.1`, `rangeDb: -80` |
+| 图示均衡器 | `audacity-graphic-eq` | `gains`：31 个频段增益（dB），全部为 0；`interpolation: 'bspline'`; `filterLength: 8191` |
+| 高通滤波器 | `highpass` | `frequency: 80`, `q: 0.707` |
+| 反相 | `audacity-invert` | 无 |
+| 旧版压缩器 | `audacity-legacy-compressor` | `thresholdDb: -12`, `noiseFloorDb: -40`, `ratio: 2`, `attackSeconds: 0.2`, `releaseSeconds: 1`, `normalize: true`, `usePeak: false` |
+| 限幅器 | `audacity-limiter` | `thresholdDb: -5`, `makeupTargetDb: -1`, `kneeWidthDb: 2`, `lookaheadMs: 1`, `releaseMs: 20` |
+| 响度标准化 | `audacity-loudness-normalization` | `mode: 'lufs'`, `targetLufs: -23`, `targetRmsDb: -20`, `stereoIndependent: false`, `dualMono: true` |
+| 低通滤波器 | `lowpass` | `frequency: 18000`, `q: 0.707` |
+| 降噪 | `audacity-noise-reduction` | `reductionDb: 6`, `sensitivity: 6`, `frequencySmoothingBands: 6`, `output: 'reduce'` |
+| 标准化 | `audacity-normalize` | `peakDb: -1`, `removeDc: true`, `applyGain: true`, `stereoIndependent: false` |
+| Paulstretch 拉伸 | `audacity-paulstretch` | `stretchFactor: 10`, `timeResolution: 0.25` |
+| 移相器 | `audacity-phaser` | `stages: 2`, `dryWet: 128`, `frequency: 0.4`, `phaseDegrees: 0`, `depth: 100`, `feedbackPercent: 0`, `outputGainDb: -6` |
+| 移除直流偏移 | `audacity-remove-dc-offset` | 无 |
+| 修复 | `audacity-repair` | 无 |
+| 重复 | `audacity-repeat` | `count: 1` |
+| 混响 | `reverb` | `mix: 0.2`, `decay: 2`, `preDelay: 0.01` |
+| 混响（Audacity） | `audacity-reverb` | `roomSize: 75`, `preDelay: 10`, `reverberance: 50`, `damping: 50`, `toneLow: 100`, `toneHigh: 100`, `wetGainDb: -6`, `dryGainDb: 0`, `stereoWidth: 100`, `wetOnly: false` |
+| 反转 | `audacity-reverse` | 无 |
+| 渐变拉伸 | `audacity-sliding-stretch` | `startTempoPercent: 0`, `endTempoPercent: 0`, `startPitchSemitones: 0`, `endPitchSemitones: 0`, `preserveFormants: true` |
+| 截断静音 | `audacity-truncate-silence` | `thresholdDb: -20`, `action: 'truncate'`, `minimumSilence: 0.5`, `truncateTo: 0.5`, `compressPercent: 50`, `independent: false` |
+| 实用增益（已审查） | `reviewed-utility-gain` | `gain: 1` |
+| 哇音 | `audacity-wahwah` | `frequency: 1.5`, `phaseDegrees: 0`, `depthPercent: 70`, `resonance: 2.5`, `frequencyOffsetPercent: 30`, `outputGainDb: -6` |
 
 有两个效果需要程序无法提供的内容。“降噪”需要在效果自己的对话框中采集噪声样本；“自动闪避”则需要焦点轨道下方存在控制轨道。
 
@@ -309,10 +292,10 @@ try {
 
 | 命令 | 参数 |
 | --- | --- |
-| `SelectTime` | `start`, `end` in seconds; `relativeTo` as for `sound.select.time` |
-| `SelectFrequencies` | `low`, `high` in hertz |
-| `SelectTracks` | `track`, `trackCount` (0 to 100); `mode` of `'set'`, `'add'` or `'remove'` |
-| `Select` | Any combination of the three sets above |
+| `SelectTime` | `start`、`end`（秒）；`relativeTo` 与 `sound.select.time` 相同 |
+| `SelectFrequencies` | `low`、`high`（赫兹） |
+| `SelectTracks` | `track`、`trackCount`（0 到 100）；`mode` 可为 `'set'`、`'add'` 或 `'remove'` |
+| `Select` | 可组合使用上述三组参数 |
 
 省略某项参数会使选区的相应部分保持不变；Audacity 对这些参数的处理方式也是如此。
 
@@ -320,11 +303,11 @@ try {
 
 | 分组 | 命令 |
 | --- | --- |
-| Selection | `SelectAll`, `SelectNone`, `SelCursorStoredCursor`, `SelTrackStartToEnd`, `SelCursorToTrackEnd`, `SelPrevClip`, `SelNextClip`, `ZeroCross` |
-| Editing | `Cut`, `Copy`, `Paste`, `Delete`, `Duplicate`, `Split`, `SplitNew`, `Join`, `Disjoin`, `Trim`, `Silence`, `SplitCut`, `SplitDelete` |
-| Tracks | `NewMonoTrack`, `NewStereoTrack`, `NewLabelTrack`, `RemoveTracks`, `MixAndRender`, `SortByName`, `SortByTime` |
-| Labels | `AddLabel` |
-| Analysis | `FindClipping`, `ContrastAnalyser`, `PlotSpectrum`, `RepeatLastEffect` |
+| 选区 | `SelectAll`, `SelectNone`, `SelCursorStoredCursor`, `SelTrackStartToEnd`, `SelCursorToTrackEnd`, `SelPrevClip`, `SelNextClip`, `ZeroCross` |
+| 编辑 | `Cut`, `Copy`, `Paste`, `Delete`, `Duplicate`, `Split`, `SplitNew`, `Join`, `Disjoin`, `Trim`, `Silence`, `SplitCut`, `SplitDelete` |
+| 轨道 | `NewMonoTrack`, `NewStereoTrack`, `NewLabelTrack`, `RemoveTracks`, `MixAndRender`, `SortByName`, `SortByTime` |
+| 标签 | `AddLabel` |
+| 分析 | `FindClipping`, `ContrastAnalyser`, `PlotSpectrum`, `RepeatLastEffect` |
 
 ### 有意不提供的命令
 
@@ -332,10 +315,7 @@ try {
 
 ## 分享程序 {#sharing-programs}
 
-**Export program** writes the selected program as a `.soundscapemacro` file, and
-**Import program** reads one. The file is JSON rather than a bare `.js` file, so
-nothing on the receiving computer will mistake it for something to run outside
-the editor:
+**导出程序**会将选中的程序写入 `.soundscapemacro` 文件，**导入程序**会读取该文件。该文件采用 JSON 格式，而非单独的 `.js` 文件，因此接收方的计算机不会误将其当作编辑器之外可运行的脚本：
 
 ```json
 {

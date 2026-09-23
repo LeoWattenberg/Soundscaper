@@ -13,14 +13,14 @@ Pyannote 提供说话者分离运行时使用的语音分段。ERes2Net 提供�
 
 ## 当前可用性 {#current-availability}
 
-桌面构建包含所需的 sherpa-onnx-node 1.13.5 引擎，适用于 macOS arm64, Linux arm64, Linux x64, Windows arm64, Windows x64. 通过 Model Manager 安装此模型的权重，然后在本地运行其任务。 这些是受支持的构建目标；特定软件包和设备的结果请参阅夜间测试报告。 The desktop build does not package this 引擎，适用于 macOS x64 even though model weights are listed for those platforms.
+桌面构建包含所需的 sherpa-onnx-node 1.13.5 引擎，适用于 macOS arm64, Linux arm64, Linux x64, Windows arm64, Windows x64。通过“模型管理器”安装此模型的权重，然后在本地运行其任务。 这些是受支持的构建目标；特定软件包和设备的结果请参阅夜间测试报告。 虽然模型权重列表包含 macOS x64，但桌面版本不为该平台打包此引擎。
 
 ## 使用此模型 {#use-this-model}
 
-在具备所需原生运行时的平台上打开 **Analyze → Speech → Identify Speakers**。本地辅助功能在桌面编辑器中运行。
+在具备所需原生运行时的平台上打开 **分析 → 语音 → 识别说话者**。本地辅助功能在桌面编辑器中运行。
 
 1. 选择要分析的对话。
-2. 通过 Manage Models 安装 Pyannote segmentation 和 ERes2Net speaker embedding；该操作需要两者配合。
+2. 通过“管理模型”安装 Pyannote segmentation 和 ERes2Net speaker embedding；该操作需要两者配合。
 3. 在本地运行，检查建议的说话者轮换，并应用所需结果。
 
 此操作还需要 [ERes2Net speaker embedding](/reference/local-models/speech-3d-speaker-eres2net/).
@@ -29,13 +29,13 @@ Pyannote 提供说话者分离运行时使用的语音分段。ERes2Net 提供�
 
 模型标识： `pyannote-segmentation-3.0`，版本 **3.0.0**.
 
-预计下载大小： **5.72 MiB**. 最低系统内存： **2 GiB**. 此目录要求指总内存，而非当前可用内存。推理还需要足够的空闲内存，安装也需要工作空间；内存大小并不保证处理速度。
+预计下载大小： **5.72 MiB**. 最低系统内存： **2 GiB**。此目录要求指总内存，而非当前可用内存。推理还需要足够的空闲内存，安装也需要工作空间；内存大小并不保证处理速度。
 
-发布平台： macOS arm64, macOS x64, Linux arm64, Linux x64, Windows arm64, Windows x64. 还必须有匹配的打包运行时。
+发布平台： macOS arm64, macOS x64, Linux arm64, Linux x64, Windows arm64, Windows x64。还必须有匹配的打包运行时。
 
 在 Windows 上，请安装与桌面应用匹配的最新受支持 [Microsoft Visual C++ v14 Redistributable](https://learn.microsoft.com/en-us/cpp/windows/latest-supported-vc-redist?view=msvc-170)：x64 构建使用 **x64**，ARM64 构建使用 **ARM64**。原生 ONNX 和 Sherpa 引擎需要这些库；模型下载内容不包含它们。使用本应用无需安装 Visual Studio。
 
-Tools → Model Manager 会下载已发布的文件并验证记录的 SHA-256 摘要。处理过程在本地使用已安装文件。打开 Model Manager 中的 Storage and verification，可查看声明、修复安装或更改存储位置。
+“工具 → 模型管理器”会下载已发布的文件并验证记录的 SHA-256 摘要。处理过程在本地使用已安装文件。打开“模型管理器”中的“存储与验证”，可查看声明、修复安装或更改存储位置。
 
 | 文件 | 预计下载大小 |
 | --- | --- |
@@ -44,13 +44,13 @@ Tools → Model Manager 会下载已发布的文件并验证记录的 SHA-256 �
 
 ## 软件包测试检查的内容 {#what-the-packaged-test-checks}
 
-测试用例： `speaker-diarization`；操作： `speaker-diarization`.
+测试用例： `speaker-diarization`；操作： `speaker-diarization`。
 
 输入：公共领域的约翰·F·肯尼迪就职演说片段，首尾各添加一秒静音，制成 16 kHz 单声道音频。
 
 结果必须包含说话者轮换、有效的说话者 ID，以及落在输入音频内的时间。测试不规定确切的说话者人数。
 
-nightly-with-tests 软件包会下载真实模型文件，并通过打包的运行时请求推理。目录中缺少所需模型会使相应测试失败；受支持平台缺少原生引擎也会失败。这些耗时检查独立于常规浏览器测试。通过测试只能确认模型基本运行且输出结构可用，不能证明它在您录音上的感知质量或准确率。
+夜间测试-with-tests 软件包会下载真实模型文件，并通过打包的运行时请求推理。目录中缺少所需模型会使相应测试失败；受支持平台缺少原生引擎也会失败。这些耗时检查独立于常规浏览器测试。通过测试只能确认模型基本运行且输出结构可用，不能证明它在您录音上的感知质量或准确率。
 
 ## 检查结果 {#review-the-result}
 

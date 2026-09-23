@@ -13,29 +13,29 @@ YuNet 檢測人臉及其位置。主體檢測操作將這些結果與 D-FINE 的
 
 ## 當前可用性 {#current-availability}
 
-桌面構建包含所需的 onnxruntime-node 1.29.0 引擎，適用於 macOS arm64, Linux arm64, Linux x64, Windows arm64, Windows x64. 通過 Model Manager 安裝此模型的權重，然後在本地運行其任務。 這些是受支持的構建目標；特定軟件包和設備的結果請參閱夜間測試報告。 The desktop build does not package this 引擎，適用於 macOS x64 even though model weights are listed for those platforms.
+桌面構建包含所需的 onnxruntime-node 1.29.0 引擎，適用於 macOS arm64, Linux arm64, Linux x64, Windows arm64, Windows x64。通過“模型管理器”安裝此模型的權重，然後在本地運行其任務。 這些是受支持的構建目標；特定軟件包和設備的結果請參閱夜間測試報告。 雖然模型權重列表包含 macOS x64，但桌面版本不為該平台打包此引擎。
 
 ## 使用此模型 {#use-this-model}
 
-在具備所需原生運行時的平台上打開 **Framescaper: Effect → Video effects → Reframe**。本地輔助功能在桌面編輯器中運行。
+在具備所需原生運行時的平台上打開 **Framescaper：效果 → 視頻效果 → 重新構圖**。本地輔助功能在桌面編輯器中運行。
 
 1. 在 Framescaper 中選擇一個視頻片段。
-2. 安裝 YuNet 和 D-FINE 進行主體檢測。引導式 Reframe 任務還使用 U²-Net-P 顯著性檢測。
-3. 在本地運行並檢查建議的裁切。Tools → Advanced Local Processing 可單獨運行主體檢測。
+2. 安裝 YuNet 和 D-FINE 進行主體檢測。引導式 重新構圖 任務還使用 U²-Net-P 顯著性檢測。
+3. 在本地運行並檢查建議的裁切。“工具 → 高級本地處理”可單獨運行主體檢測。
 
-此操作還需要 [D-FINE Nano object detection](/reference/local-models/dfine-nano-coco/).
+此操作還需要 [D-FINE Nano 目標檢測](/reference/local-models/dfine-nano-coco/)。
 
 ## 下載與要求 {#download-and-requirements}
 
-模型標識： `yunet-face-detection-2026may`，版本 **2026.5.0**.
+模型標識： `yunet-face-detection-2026may`，版本 **2026.5.0**。
 
-預計下載大小： **224.35 KiB**. 最低系統內存： **2 GiB**. 此目錄要求指總內存，而非當前可用內存。推理還需要足夠的空閒內存，安裝也需要工作空間；內存大小並不保證處理速度。
+預計下載大小： **224.35 KiB**. 最低系統內存： **2 GiB**。此目錄要求指總內存，而非當前可用內存。推理還需要足夠的空閒內存，安裝也需要工作空間；內存大小並不保證處理速度。
 
-發佈平台： macOS arm64, macOS x64, Linux arm64, Linux x64, Windows arm64, Windows x64. 還必須有匹配的打包運行時。
+發佈平台： macOS arm64, macOS x64, Linux arm64, Linux x64, Windows arm64, Windows x64。還必須有匹配的打包運行時。
 
 在 Windows 上，請安裝與桌面應用匹配的最新受支持 [Microsoft Visual C++ v14 Redistributable](https://learn.microsoft.com/en-us/cpp/windows/latest-supported-vc-redist?view=msvc-170)：x64 構建使用 **x64**，ARM64 構建使用 **ARM64**。原生 ONNX 和 Sherpa 引擎需要這些庫；模型下載內容不包含它們。使用本應用無需安裝 Visual Studio。
 
-Tools → Model Manager 會下載已發佈的文件並驗證記錄的 SHA-256 摘要。處理過程在本地使用已安裝文件。打開 Model Manager 中的 Storage and verification，可查看聲明、修復安裝或更改存儲位置。
+“工具 → 模型管理器”會下載已發佈的文件並驗證記錄的 SHA-256 摘要。處理過程在本地使用已安裝文件。打開“模型管理器”中的“存儲與驗證”，可查看聲明、修復安裝或更改存儲位置。
 
 | 文件 | 預計下載大小 |
 | --- | --- |
@@ -43,13 +43,13 @@ Tools → Model Manager 會下載已發佈的文件並驗證記錄的 SHA-256 �
 
 ## 軟件包測試檢查的內容 {#what-the-packaged-test-checks}
 
-測試用例： `subject-detection`；操作： `subject-detection`.
+測試用例： `subject-detection`；操作： `subject-detection`。
 
 輸入：兩張照片——公共領域的 NASA 宇航員艾琳·柯林斯肖像和 CC0 許可的切爾西貓照片。每張照片分別置於一幀並指定明確的源幀時間，讓檢測器看到人臉和清晰的物體。
 
 人臉和物體結果必須具有有效的源幀時間、數值有限的置信度分數，以及位於畫面內的邊界框。主體測試素材必須讓兩種模型都產生檢測結果。
 
-nightly-with-tests 軟件包會下載真實模型文件，並通過打包的運行時請求推理。目錄中缺少所需模型會使相應測試失敗；受支持平台缺少原生引擎也會失敗。這些耗時檢查獨立於常規瀏覽器測試。通過測試只能確認模型基本運行且輸出結構可用，不能證明它在您錄音上的感知質量或準確率。
+夜间测试-with-tests 軟件包會下載真實模型文件，並通過打包的運行時請求推理。目錄中缺少所需模型會使相應測試失敗；受支持平台缺少原生引擎也會失敗。這些耗時檢查獨立於常規瀏覽器測試。通過測試只能確認模型基本運行且輸出結構可用，不能證明它在您錄音上的感知質量或準確率。
 
 ## 檢查結果 {#review-the-result}
 
