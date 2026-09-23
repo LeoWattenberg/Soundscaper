@@ -24,9 +24,8 @@ production redirect URI in Freesound. `FREESOUND_OAUTH_REDIRECT_URI` may pin
 that same URI explicitly. The only other admitted form is the exact loopback
 callback while `FREESOUND_LOCAL_DEVELOPMENT=1` is enabled.
 
-Create the production D1 database, add its generated `database_id` to the
-`FREESOUND_OAUTH_DB` entry in `wrangler.jsonc`, and bind it to the Pages project.
-The checked-in configuration leaves that account-specific ID unset. Apply its
+The production D1 database ID is configured in the `FREESOUND_OAUTH_DB` entry
+in `wrangler.jsonc`. Bind that database to the Pages project and apply its
 migration, then add each credential under
 **Workers & Pages → soundscaper → Settings → Variables and Secrets** as an
 encrypted secret. Typical Wrangler commands are:
