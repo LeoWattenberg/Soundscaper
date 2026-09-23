@@ -41,7 +41,7 @@ test('privacy policy locale and product URLs are closed over English and German 
 
 test('English and German dialog content carries equivalent privacy disclosures', () => {
 	const policies = [privacyPolicyContent('en'), privacyPolicyContent('de')];
-	const effectiveDates = ['22 September 2026', '22. September 2026'];
+	const effectiveDates = ['24 September 2026', '24. September 2026'];
 	for (const [index, policy] of policies.entries()) {
 		const prose = [policy.effectiveDate, policy.summary, ...policy.sections.flatMap(
 			({ heading, body }) => [heading, body],
@@ -71,6 +71,8 @@ test('English and German dialog content carries equivalent privacy disclosures',
 
 		const network = policy.sections.find(({ id }) => id === 'network')?.body ?? '';
 		assert.match(network, /Freesound/iu);
+		assert.match(network, /only if you use the Freesound feature|nur statt, wenn Sie die Freesound-Funktion.*nutzen/iu);
+		assert.match(network, /does not happen just because you open either editor|nicht schon beim Öffnen eines der beiden Editoren/iu);
 		assert.match(network, /search terms|Suchbegriffe/iu);
 		assert.match(network, /result page|Ergebnisseite/iu);
 		assert.match(network, /license filter|Lizenzfilter/iu);
@@ -98,10 +100,16 @@ test('English and German dialog content carries equivalent privacy disclosures',
 		assert.match(recipients, /own privacy policy|eigen(?:e|en) Datenschutzerklärung/iu);
 		assert.match(recipients, /href="https:\/\/freesound\.org\/help\/privacy\/"/u);
 		assert.match(recipients, /access and refresh tokens|Zugriffs- und Aktualisierungstoken/iu);
+		assert.match(recipients, /Freesound user ID and username|Freesound-Benutzer-ID und Benutzernamen/iu);
+
+		const lawfulBases = policy.sections.find(({ id }) => id === 'lawful-bases')?.body ?? '';
+		assert.match(lawfulBases, /optional Freesound feature|optionale Freesound-Funktion/iu);
+		assert.match(lawfulBases, /legitimate interest.*Freesound|berechtigten Interesse.*Freesound/iu);
 
 		const retention = policy.sections.find(({ id }) => id === 'retention-deletion')?.body ?? '';
 		assert.match(retention, /disconnect|Verbindung trennen/iu);
 		assert.match(retention, /OAuth attempt|OAuth-Versuch/iu);
+		assert.match(retention, /user ID and username|Benutzer-ID und Benutzernamen/iu);
 	}
 	assert.deepEqual(
 		policies[0].sections.map(({ id }) => id),
