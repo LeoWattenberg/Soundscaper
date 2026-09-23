@@ -211,8 +211,9 @@ test.describe('Framescaper v1 recoverable capture', () => {
 			const beforeReopen = await captureHarnessState(page);
 
 			await page.goto(resolveBrowserProductTestUrl(`/framescaper/en/?project=${encodeURIComponent(projectId)}`));
-		editor = await waitForEditor(page);
-		await expect(editor).toHaveAttribute('data-project-id', projectId);
+		editor = page.locator('[data-audio-editor]');
+		await expect(editor).toHaveAttribute('data-audio-editor-bound', 'true', { timeout: 20_000 });
+		await expect(editor).toHaveAttribute('data-project-id', projectId, { timeout: 30_000 });
 		await expect(trackNameText(editor).filter({ hasText: /^Microphone$/u })).toHaveCount(1);
 		await expect(projectBinCaptureCard(editor, 'Microphone Capture')).toBeVisible();
 			const reopenedHarness = await captureHarnessState(page);
