@@ -1,10 +1,12 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { readFileSync } from 'node:fs';
 import { unzipSync, strFromU8 } from 'fflate';
 
 import { captionLabels, expect, longTone, test } from './audio-editor-test-fixtures.js';
 import { bootEditor, chooseCommandAction, clipByName, downloadBytes, importFiles } from './audio-editor-test-helpers.js';
 import { COMMUNITY_TRANSLATIONS_COPY_BY_LOCALE } from '../../src/common/i18n/community-translations-copy.ts';
+import { resolveCatalog } from '../../src/common/i18n/runtime.js';
 
 const en = COMMUNITY_TRANSLATIONS_COPY_BY_LOCALE.en;
 const de = COMMUNITY_TRANSLATIONS_COPY_BY_LOCALE.de;
@@ -179,7 +181,10 @@ test('RTL target preview restores the route presentation on close', async ({ pag
 	await expect(surface.getByRole('textbox', { name: en.source, exact: true })).toBeVisible();
 	await surface.getByRole('checkbox', { name: en.preview, exact: true }).check();
 	await expect(editor).toHaveCSS('direction', 'rtl');
-	await surface.getByRole('button', { name: en.close, exact: true }).click();
+	const arabicCatalog = JSON.parse(readFileSync(new URL('../../src/common/i18n/translations/ar.json', import.meta.url), 'utf8'));
+	const arabic = await resolveCatalog('ar', { translationLoaders: { ar: async () => arabicCatalog } });
+	const previewSurface = page.getByRole('dialog', { name: arabic['ui.communityTranslations.title'], exact: true });
+	await previewSurface.getByRole('button', { name: arabic['ui.communityTranslations.close'], exact: true }).click();
 	await expect(editor).toHaveCSS('direction', 'ltr');
 	await expect(editor.getByRole('button', { name: 'Play', exact: true })).toBeVisible();
 });
