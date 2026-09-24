@@ -194,8 +194,8 @@ export function createProjectSwitchService<
 		let initialPublicationConflict = false;
 		// The session call's successful return is the activation authority boundary.
 		let targetSessionActivated = false;
-		let activeLock: ProjectLifecycleLock | null = null;
-		let switchFailure: unknown | typeof NO_PROJECT_SWITCH_FAILURE = NO_PROJECT_SWITCH_FAILURE;
+		let activeLock: ProjectLifecycleLock | null = null, switchFailure: unknown | typeof NO_PROJECT_SWITCH_FAILURE = NO_PROJECT_SWITCH_FAILURE;
+		const previousProject = runtime.getProject();
 		try {
 			// Cancellation is a registry query, not an inventory: everything the
 			// open project owns carries the project scope, so a subsystem joins
@@ -214,7 +214,6 @@ export function createProjectSwitchService<
 			runtime.cancelPlayAtSpeedPreparation();
 			await guard(runtime.stopRecording().catch(() => undefined));
 			runtime.persistActiveSessionUiState();
-			const previousProject = runtime.getProject();
 			if (!options.skipFlush && previousProject && previousProject.id !== projectId && !runtime.state.readOnly && !openRecovery.blocked) {
 				await guard(runtime.saveNow());
 			}
@@ -507,6 +506,7 @@ export function createProjectSwitchService<
 					);
 				}
 			}
+			if (!targetSessionActivated && !lifetimeDisposed() && previousProject && previousProject.id === runtime.getProject()?.id) await cleanup(() => runtime.projectGeneration.activate(previousProject.id), 'Project switching and origin ownership restoration both failed.');
 			switchFailure = failure;
 			throw failure;
 		} finally {
