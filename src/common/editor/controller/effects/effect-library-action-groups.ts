@@ -34,7 +34,7 @@ export type EffectLibraryActionScope = Pick<EditorActionFunctions,
 	| 'timelineDurationFrames'
 	| 'setExactSelection'
 	| 'beginMacroTransaction'
-> & Pick<EditorActionResources, 'effectLibraryState' | 'copy' | 'productId' | 'locale' | 'onMacroScriptLog' | 'macroScriptStartedAt'> & {
+> & Pick<EditorActionResources, 'effectLibraryState' | 'copy' | 'productId' | 'locale' | 'onMacroScriptLog' | 'macroScriptStartedAt' | 'startMacroScriptTask'> & {
 	readonly getEditorActions?: () => Readonly<Record<string, unknown>> | null;
 };
 
@@ -118,11 +118,12 @@ export function createEffectMacroActions(
 		listSavedMacros: () => library.list(),
 		beginMacroTransaction: scope.beginMacroTransaction,
 	});
-	let sandbox: Sandbox | null = null;
+	const sandboxes = new Set<Sandbox>();
 	const group = Object.freeze({
 		run: restricted('audioMacros', program.runMacroProgram),
 		cancel: restricted('audioMacros', (() => {
-			sandbox?.cancelMacroSandbox();
+			scriptHost.cancelMacroScript();
+			for (const sandbox of sandboxes) sandbox.cancelMacroSandbox();
 			return program.cancelMacroProgram();
 		})),
 		runScript: restricted('audioMacros', (async (request: unknown) => {
@@ -131,30 +132,52 @@ export function createEffectMacroActions(
 			// so reading an unreviewed program out of the list and passing its text
 			// straight here is not a way around it.
 			if (scripts.blocked(source)) throw new Error('MACRO_SCRIPT_NOT_TRUSTED');
-			// The sandbox is loaded on demand: it is only reachable from the macro
-			// manager, and its worker prelude has no business in the startup graph.
-			const { createBrowserMacroSandbox } = await import('../../macro-script/browser-sandbox.ts');
-			return scriptHost.runMacroScript({
-				name,
-				run: async (dispatch) => {
-					sandbox = createBrowserMacroSandbox({ dispatch, onLog: scope.onMacroScriptLog });
-					try {
-						return await sandbox.runMacroSandbox({
-							runId: scope.createStableId('macro-run'),
-							source,
-							env: {
-								productId: String(scope.productId ?? 'soundscaper'),
-								locale: String(scope.locale ?? 'en'),
-								seed: scope.createStableId('macro-seed'),
-								startedAt: scope.macroScriptStartedAt?.() ?? '',
-								dryRun: false,
-							},
-						});
-					} finally {
-						sandbox = null;
-					}
-				},
-			});
+			const task = scope.startMacroScriptTask();
+			let runSandbox: Sandbox | null = null;
+			const cancel = () => {
+				scriptHost.cancelMacroScript();
+				runSandbox?.cancelMacroSandbox();
+				scope.cancelEffectMacro();
+			};
+			task.signal.addEventListener('abort', cancel, { once: true });
+			try {
+				return await scriptHost.runMacroScript({
+					name,
+					run: async (dispatch, signal) => {
+						// Open the transaction before lazy loading so a project switch or
+						// dialog close during that await still cancels the run it owns.
+						const { createBrowserMacroSandbox } = await import('../../macro-script/browser-sandbox.ts')
+							.catch((error: unknown) => {
+								signal.throwIfAborted();
+								throw error;
+							});
+						task.assertCurrent();
+						signal.throwIfAborted();
+						const sandbox = createBrowserMacroSandbox({ dispatch, onLog: scope.onMacroScriptLog });
+						runSandbox = sandbox;
+						sandboxes.add(sandbox);
+						try {
+							return await sandbox.runMacroSandbox({
+								runId: scope.createStableId('macro-run'),
+								source,
+								env: {
+									productId: String(scope.productId ?? 'soundscaper'),
+									locale: String(scope.locale ?? 'en'),
+									seed: scope.createStableId('macro-seed'),
+									startedAt: scope.macroScriptStartedAt?.() ?? '',
+									dryRun: false,
+								},
+							});
+						} finally {
+							sandboxes.delete(sandbox);
+							runSandbox = null;
+						}
+					},
+				});
+			} finally {
+				task.signal.removeEventListener('abort', cancel);
+				task.finish();
+			}
 		})),
 		scripts: Object.freeze({
 			list: restricted('audioMacros', () => scripts.list()),

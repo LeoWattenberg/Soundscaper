@@ -41,14 +41,33 @@ function commit(history: SharedHistory, name: string): SharedHistory {
 	return executeEditorCommand(history, { type: 'track/add', track: { name } }) as unknown as SharedHistory;
 }
 
-function historyWith(names: readonly string[]): SharedHistory {
+function historyWith(names: readonly string[], limit = LIMIT): SharedHistory {
 	let history = createEditorHistory(
 		createCurrentAudioEditorProject({ id: 'macro-bounded-project', title: 'Macro bounded' }),
-		{ limit: LIMIT },
+		{ limit },
 	) as unknown as SharedHistory;
 	for (const name of names) history = commit(history, name);
 	return history;
 }
+
+test('a macro longer than the undo limit keeps its opening checkpoint for Undo and rollback', () => {
+	const before = historyWith(['user-a', 'user-b'], 200);
+	const depth = macroDepth(before);
+	const opening = trackNames(before);
+	let edited = before;
+	for (let index = 0; index < 210; index += 1) edited = commit(edited, `macro-${index}`);
+	assert.equal(edited.undoStack.length, 200);
+
+	const collapsed = collapseEditorHistory(
+		edited, depth, { type: 'macro/run', name: 'Long macro' }, before,
+	) as unknown as SharedHistory;
+	assert.equal(collapsed.undoStack.length, before.undoStack.length + 1);
+	assert.deepEqual(trackNames(undoEditorCommand(collapsed) as unknown as SharedHistory), opening);
+
+	const rolled = rollbackEditorHistory(edited, depth, {}, before) as unknown as SharedHistory;
+	assert.deepEqual(trackNames(rolled), opening);
+	assert.equal(rolled.undoStack.length, before.undoStack.length);
+});
 
 test('a macro that opens on a full undo stack still collapses to one entry', () => {
 	const before = historyWith(['user-a', 'user-b', 'user-c', 'user-d']);

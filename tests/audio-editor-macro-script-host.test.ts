@@ -5,10 +5,11 @@ import test from 'node:test';
 
 import { createMacroScriptHost } from '../src/common/editor/controller/effects/internal/macro/macro-script-host.ts';
 
-function createHarness() {
+function createHarness(effectGate?: Promise<unknown>) {
 	const events: string[] = [];
 	let settled: string | null = null;
-	const project = {
+	let project = {
+		id: 'project-a',
 		durationFrames: 1_000,
 		tracks: [
 			{ id: 'track-a', name: 'Voice', type: 'audio', clipIds: ['clip-a'] },
@@ -22,6 +23,7 @@ function createHarness() {
 		projectSampleRate: () => 100,
 		runEffectMacro: async ({ name, effects }) => {
 			events.push(`effects:${name}:${effects.map((step) => String(step.type)).join('+')}`);
+			await effectGate;
 			return true;
 		},
 		runMacroCommand: (step) => {
@@ -43,11 +45,20 @@ function createHarness() {
 			],
 		}],
 		beginMacroTransaction: () => Object.freeze({
+			assertCurrent: () => {
+				if (project.id !== 'project-a') throw Object.assign(
+					new Error('The active editor project changed before the operation completed.'),
+					{ name: 'AbortError', code: 'PROJECT_CHANGED' },
+				);
+			},
 			commit: () => { settled = 'commit'; },
 			rollback: () => { settled = 'rollback'; },
 		}),
 	});
-	return { events, host, project, settled: () => settled, dispatch: host.createDispatch() };
+	return {
+		events, host, project, settled: () => settled, dispatch: host.createDispatch(),
+		switchProject: () => { project = { ...project, id: 'project-b' }; },
+	};
 }
 
 test('a program can read the project without changing it', async () => {
@@ -141,4 +152,55 @@ test('a whole program is one history entry, and a thrown program is none', async
 		},
 	}), /the program threw/u);
 	assert.equal(failed.settled(), 'rollback');
+});
+
+test('a running program refuses reads and edits after its project changes', async () => {
+	const harness = createHarness();
+	await assert.rejects(() => harness.host.runMacroScript({
+		name: 'Old project',
+		run: async (dispatch) => {
+			await dispatch('select.all', []);
+			harness.switchProject();
+			for (const method of ['project.tracks', 'select.none', 'effect.apply']) {
+				await assert.rejects(
+					() => dispatch(method, method === 'effect.apply' ? ['audacity-invert'] : []),
+					(error: Error & { code?: string }) => error.code === 'PROJECT_CHANGED',
+				);
+			}
+		},
+	}), (error: Error & { code?: string }) => error.code === 'PROJECT_CHANGED');
+	assert.deepEqual(harness.events, ['selection:0-1000:["track-a","track-b"]'],
+		'no command reaches the switched-in project');
+});
+
+test('cancelling a running program prevents a later dispatch', async () => {
+	const harness = createHarness();
+	await assert.rejects(() => harness.host.runMacroScript({
+		name: 'Closed dialog',
+		run: async (dispatch) => {
+			harness.host.cancelMacroScript();
+			await dispatch('select.none', []);
+		},
+	}), (error: Error) => error.name === 'AbortError');
+	assert.deepEqual(harness.events, []);
+	assert.equal(harness.settled(), 'rollback');
+});
+
+test('cancellation drains an effect dispatch before rolling its transaction back', async () => {
+	let releaseEffect!: () => void;
+	const effectGate = new Promise<void>((resolve) => { releaseEffect = resolve; });
+	const harness = createHarness(effectGate);
+	const run = harness.host.runMacroScript({
+		name: 'Effect in flight',
+		run: async (dispatch) => {
+			void dispatch('effect.apply', ['audacity-invert']).catch(() => undefined);
+			harness.host.cancelMacroScript();
+			throw new DOMException('The macro was cancelled.', 'AbortError');
+		},
+	});
+	await Promise.resolve();
+	assert.equal(harness.settled(), null, 'rollback waits for the in-flight edit');
+	releaseEffect();
+	await assert.rejects(run, (error: Error) => error.name === 'AbortError');
+	assert.equal(harness.settled(), 'rollback');
 });

@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { macroScriptIsRunnable } from '../../macro-script-library.ts';
 import MacroScriptEditor from './MacroScriptEditor.jsx';
@@ -24,6 +24,9 @@ export default function MacroScriptPanel({ controller, copy, script, blocked, on
 	// would leave a silent program indistinguishable from one nobody started.
 	const [completed, setCompleted] = useState(false);
 	const runRef = useRef(null);
+	useEffect(() => () => {
+		if (runRef.current) controller.actions.macros.cancel();
+	}, [controller]);
 
 	const run = useCallback(async () => {
 		if (runRef.current) return;

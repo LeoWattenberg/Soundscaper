@@ -4,7 +4,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import {
-	EditorProjectGeneration,
+	EditorControllerLifetime, EditorProjectGeneration,
 	type EditorProjectToken,
 } from '../src/common/editor/controller/shared/lifecycle.ts';
 import {
@@ -77,6 +77,14 @@ test('a macro still settles into the project it opened against', () => {
 	assert.throws(() => transaction.rollback(), /settles exactly once/u);
 });
 
+test('a disposed controller cannot roll back a pending macro into its old project', () => {
+	const fixture = fenceFixture();
+	const transaction = fixture.service.beginMacroTransaction();
+	fixture.dispose();
+	assert.throws(() => transaction.rollback(), /disposed/u);
+	assert.deepEqual(fixture.events, [], 'disposal leaves history and project untouched');
+});
+
 function projectFixture(id: string): FenceProject {
 	return {
 		id,
@@ -95,6 +103,7 @@ function historyFixture(project: FenceProject, entries: number): FenceHistory {
 
 function fenceFixture() {
 	const generation = new EditorProjectGeneration();
+	const lifetime = new EditorControllerLifetime();
 	const events: string[] = [];
 	let project = projectFixture('project-a');
 	let history = historyFixture(project, 5);
@@ -109,7 +118,7 @@ function fenceFixture() {
 		recordingRouteHealth: {} as Record<string, string>,
 	};
 	const service = createProjectMutationService<FenceProject, FenceHistory, EditorProjectToken>({
-		lifetime: { capture: () => ({ generation: 1 }), assertActive: () => undefined },
+		lifetime,
 		state,
 		productName: 'Test editor',
 		capabilities: {
@@ -162,6 +171,7 @@ function fenceFixture() {
 		service,
 		events,
 		currentHistory: () => history,
+		dispose: () => { lifetime.beginDisposal(); },
 		/** What a project switch does to the one history slot the controller owns. */
 		switchProject(id: string, entries: number): FenceHistory {
 			project = projectFixture(id);

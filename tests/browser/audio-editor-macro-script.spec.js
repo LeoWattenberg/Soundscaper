@@ -12,8 +12,8 @@ import {
 registerAudioEditorHooks();
 
 async function openProgramEditor(page, editor, source) {
-	await chooseCommandAction(page, editor, 'Tools', 'Macros palette');
-	const manager = page.getByRole('dialog', { name: 'Macros palette', exact: true });
+	await chooseCommandAction(page, editor, 'Tools', 'Macro manager');
+	const manager = page.getByRole('dialog', { name: 'Macro manager', exact: true });
 	await expect(manager).toBeVisible();
 	await manager.locator('[data-macro-programs]').getByRole('button', { name: 'New program', exact: true }).click();
 	const program = manager.locator('[data-macro-script-source]');

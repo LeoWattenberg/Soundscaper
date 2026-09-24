@@ -81,12 +81,12 @@ export function redoEditorCommand(history, options = {}) {
  * as it stood before the macro began — which is exactly what undo restores,
  * because undo restores a whole snapshot rather than inverting commands.
  *
- * The depth is where the macro started, counted in commits rather than slots, so
- * a macro that pushes the entries below it off the bounded stack still names the
- * entry it opened with. The correction lives in the shared mechanics.
+ * The transaction passes its opening history as a checkpoint. That retains the
+ * undo state even after more steps than the bounded stack can hold; depth alone
+ * serves callers that do not have a checkpoint.
  */
-export function collapseEditorHistory(history, depth, command) {
-	return merged(history, collapseEditorProjectHistory(history, depth, command, AUDIO_EDITOR_REVISION));
+export function collapseEditorHistory(history, depth, command, checkpoint) {
+	return merged(history, collapseEditorProjectHistory(history, depth, command, AUDIO_EDITOR_REVISION, checkpoint));
 }
 
 /**
@@ -97,8 +97,8 @@ export function collapseEditorHistory(history, depth, command) {
  * fresh revision the way undo does, so anything holding a revision sees the
  * change rather than silently keeping stale state.
  */
-export function rollbackEditorHistory(history, depth, options = {}) {
-	return merged(history, rollbackEditorProjectHistory(history, depth, AUDIO_EDITOR_REVISION, options));
+export function rollbackEditorHistory(history, depth, options = {}, checkpoint) {
+	return merged(history, rollbackEditorProjectHistory(history, depth, AUDIO_EDITOR_REVISION, options, checkpoint));
 }
 
 export function clearEditorHistory(history) {

@@ -240,16 +240,38 @@ export function redoEditorProjectCommand<Command, Options extends EditorHistoryC
  * A macro is one action to the person who ran it, so it has to be one undo. Its
  * steps commit normally — an effect step writes audio asynchronously and only
  * then knows what it produced — and the range they added is replaced here by a
- * single entry holding the project as it stood before the macro began. That is
- * exactly what undo restores, because undo restores a whole snapshot.
+ * single entry holding the project as it stood before the macro began. The
+ * opening checkpoint retains that project and its prior undo stack even when
+ * the macro's own steps exceed the bounded live stack.
  */
 export function collapseEditorProjectHistory<Command, Options extends EditorHistoryCommandOptions>(
 	history: unknown,
 	depth: number,
 	command: unknown,
 	revision: Revision<Command, Options>,
+	checkpoint?: State<Command>,
 ): State<Command> {
 	const valid = admitCommandTarget(history, revision);
+	if (checkpoint) {
+		const opened = openingCheckpoint(valid, depth, checkpoint, revision);
+		if (historyDepth(valid, revision) <= depth) return valid;
+		const pushed = [
+			...opened.undoStack,
+			entryOf(
+				revision.cloneProject(opened.present), revision.snapshotCommand(command),
+				playheadPosition(opened.playheadFrame, revision), revision,
+			),
+		];
+		const undoStack = pushed.slice(-valid.limit);
+		return settle(revision, {
+			limit: valid.limit,
+			present: valid.present,
+			undoStack,
+			redoStack: [],
+			dropped: droppedCount(opened.dropped, revision) + (pushed.length - undoStack.length),
+			playheadFrame: playheadPosition(valid.playheadFrame, revision),
+		});
+	}
 	const undoDepth = boundedDepth(valid, depth, revision);
 	if (valid.undoStack.length <= undoDepth) return valid;
 	const opening = valid.undoStack[undoDepth]!;
@@ -275,12 +297,47 @@ export function rollbackEditorProjectHistory<Command, Options extends EditorHist
 	depth: number,
 	revision: Revision<Command, Options>,
 	options: Options,
+	checkpoint?: State<Command>,
 ): State<Command> {
 	const valid = admitCommandTarget(history, revision);
+	if (checkpoint) {
+		const opened = openingCheckpoint(valid, depth, checkpoint, revision);
+		if (historyDepth(valid, revision) <= depth) return valid;
+		return restore(valid, {
+			project: opened.present,
+			playheadFrame: playheadPosition(opened.playheadFrame, revision),
+		}, opened.undoStack, opened.redoStack, revision, options,
+			droppedCount(opened.dropped, revision));
+	}
 	const undoDepth = boundedDepth(valid, depth, revision);
 	if (valid.undoStack.length <= undoDepth) return valid;
 	const opening = valid.undoStack[undoDepth]!;
 	return restore(valid, opening, valid.undoStack.slice(0, undoDepth), [], revision, options);
+}
+
+/** Keep the transaction's opening state separate from the bounded live stack. */
+function openingCheckpoint<Command, Options extends EditorHistoryCommandOptions>(
+	history: State<Command>,
+	depth: number,
+	checkpoint: State<Command>,
+	revision: Revision<Command, Options>,
+): State<Command> {
+	const opened = admitCommandTarget(checkpoint, revision);
+	if (!Number.isInteger(depth) || depth < 0) {
+		throw new RangeError('A history depth must be a non-negative integer.');
+	}
+	if (historyDepth(opened, revision) !== depth
+		|| String(opened.present.id) !== String(history.present.id)
+		|| opened.limit !== history.limit) {
+		throw new RangeError('A macro checkpoint must belong to the history it opened.');
+	}
+	return opened;
+}
+
+function historyDepth<Command, Options extends EditorHistoryCommandOptions>(
+	history: State<Command>, revision: Revision<Command, Options>,
+): number {
+	return droppedCount(history.dropped, revision) + history.undoStack.length;
 }
 
 /**
@@ -308,7 +365,7 @@ function boundedDepth<Command, Options extends EditorHistoryCommandOptions>(
 
 function restore<Command, Options extends EditorHistoryCommandOptions>(
 	history: State<Command>,
-	entry: Entry<Command>,
+	entry: Pick<Entry<Command>, 'project' | 'playheadFrame'>,
 	undoStack: readonly Entry<Command>[],
 	redoStack: readonly Entry<Command>[],
 	revision: Revision<Command, Options>,

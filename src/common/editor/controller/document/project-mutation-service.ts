@@ -114,9 +114,11 @@ export interface ProjectMutationServiceDependencies<
 	 * by the `audioMacros` capability long before a transaction could be opened.
 	 */
 	readonly collapseEditorHistory?: (
-		history: History, depth: number, command: MacroTransactionMetadata,
+		history: History, depth: number, command: MacroTransactionMetadata, checkpoint?: History,
 	) => History;
-	readonly rollbackEditorHistory?: (history: History, depth: number) => History;
+	readonly rollbackEditorHistory?: (
+		history: History, depth: number, options?: Readonly<Record<string, unknown>>, checkpoint?: History,
+	) => History;
 	readonly retention: ProjectRetentionPort<History>;
 	readonly publisher: ProjectPublisherPort;
 	readonly saves: ProjectSavePort;
@@ -163,6 +165,8 @@ export interface ProjectMutationServiceDependencies<
 export interface MacroTransaction<Project> {
 	/** Where in the undo stack the macro began. */
 	readonly depth: number;
+	/** Refuse each command after the owning project or controller changes. */
+	assertCurrent(): void;
 	commit(command: MacroTransactionMetadata): Project;
 	rollback(): Project;
 }
@@ -235,6 +239,7 @@ export function createProjectMutationService<
 		}
 		const opened = requireHistory();
 		const openedProject = dependencies.captureProject(requireProject().id);
+		const openedLifetime = dependencies.lifetime.capture();
 		const depth = (opened.dropped ?? 0) + (opened.undoStack?.length ?? 0);
 		openMacroTransactions += 1;
 		let settled = false;
@@ -250,6 +255,7 @@ export function createProjectMutationService<
 			// settlement too: both macro callers roll back in the catch that a
 			// refused commit lands in, and that rollback has to be refused for the
 			// same reason rather than reported as an internal double settlement.
+			dependencies.lifetime.assertActive(openedLifetime);
 			dependencies.assertProject(openedProject);
 			if (reentered) throw new Error('A macro transaction settles exactly once.');
 			const nextHistory = next(requireHistory());
@@ -261,8 +267,13 @@ export function createProjectMutationService<
 		};
 		return Object.freeze({
 			depth,
-			commit: (command: MacroTransactionMetadata) => settle((history) => collapse(history, depth, command)),
-			rollback: () => settle((history) => rollback(history, depth)),
+			assertCurrent: () => {
+				dependencies.lifetime.assertActive(openedLifetime);
+				dependencies.assertProject(openedProject);
+				if (settled) throw new Error('A macro transaction has already settled.');
+			},
+			commit: (command: MacroTransactionMetadata) => settle((history) => collapse(history, depth, command, opened)),
+			rollback: () => settle((history) => rollback(history, depth, {}, opened)),
 		});
 	}
 

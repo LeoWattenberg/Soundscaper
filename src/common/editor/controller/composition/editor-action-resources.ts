@@ -19,6 +19,7 @@ import type { MacroScriptLibraryServiceRuntime } from '../effects/macro-script-l
 import type { EffectControlsState } from '../effects/effect-controls-service.ts';
 import type { TrimMediaFfmpegHost } from '../document/trim-media-service.ts';
 import type { ExportActionState } from '../export/export-action-group.ts';
+import type { EditorTaskScope } from '../shared/lifecycle.ts';
 
 type EffectLibraryState =
 	& EffectMacroLibraryServiceRuntime['state']
@@ -79,5 +80,6 @@ export interface EditorActionResources {
 	readonly productId?: string;
 	readonly locale?: string;
 	readonly macroScriptStartedAt?: () => string;
+	readonly startMacroScriptTask: () => EditorTaskScope;
 	readonly onMacroScriptLog?: (entry: Readonly<{ level: 'info' | 'warn' | 'error'; text: string; at: number }>) => void;
 }

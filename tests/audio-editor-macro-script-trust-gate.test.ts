@@ -10,6 +10,9 @@ import {
 import { createEffectMacroLibrary } from '../src/common/editor/effect-macro-library.js';
 import { createMacroScriptLibrary } from '../src/common/editor/macro-script-library.ts';
 import { serializeMacroScriptEnvelope } from '../src/common/editor/macro-script-envelope.ts';
+import {
+	EDITOR_PROJECT_TASK_SCOPE, EditorControllerLifetime, type EditorTaskScope,
+} from '../src/common/editor/controller/shared/lifecycle.ts';
 
 interface MacroScriptRecord {
 	readonly id: string;
@@ -35,8 +38,16 @@ interface MacroScriptActions {
 	readonly runScript: (script: Readonly<{ name: string; source: string }>) => Promise<unknown>;
 }
 
-function createMacroActions(): MacroScriptActions {
+function createMacroActions(options: Readonly<{
+	startMacroScriptTask?: () => EditorTaskScope;
+	beginMacroTransaction?: () => Readonly<{
+		assertCurrent(): void;
+		commit(): void;
+		rollback(): void;
+	}>;
+}> = {}): MacroScriptActions {
 	let minted = 0;
+	const lifetime = new EditorControllerLifetime();
 	const state = {
 		effectMacros: createEffectMacroLibrary(),
 		macroScripts: createMacroScriptLibrary(),
@@ -52,7 +63,13 @@ function createMacroActions(): MacroScriptActions {
 		projectSampleRate: () => 48_000,
 		timelineDurationFrames: () => 0,
 		setExactSelection: () => undefined,
-		beginMacroTransaction: () => ({ commit: () => undefined, rollback: () => undefined }),
+		beginMacroTransaction: options.beginMacroTransaction ?? (() => ({
+			assertCurrent: () => undefined, commit: () => undefined, rollback: () => undefined,
+		})),
+		startMacroScriptTask: options.startMacroScriptTask ?? (() => lifetime.startTask(
+			'macro-script', { scope: EDITOR_PROJECT_TASK_SCOPE },
+		)),
+		cancelEffectMacro: () => false,
 	} as unknown as EffectLibraryActionScope,
 	(_capability, action) => action,
 	) as unknown as MacroScriptActions;
@@ -78,6 +95,23 @@ test('a program nobody has reviewed does not run, however it reaches the runner'
 	// and it is what lifts the gate.
 	macros.scripts.trust(imported.id);
 	assert.equal(macros.scripts.blocked('await sound.select.all();'), false);
+});
+
+test('a project lifecycle cancellation stops a script during sandbox loading', async () => {
+	const lifetime = new EditorControllerLifetime();
+	let rolledBack = false;
+	const macros = createMacroActions({
+		startMacroScriptTask: () => lifetime.startTask('macro-script', { scope: EDITOR_PROJECT_TASK_SCOPE }),
+		beginMacroTransaction: () => ({
+			assertCurrent: () => undefined,
+			commit: () => { throw new Error('A cancelled script must not commit.'); },
+			rollback: () => { rolledBack = true; },
+		}),
+	});
+	const run = macros.runScript({ name: 'Old project', source: 'await sound.select.none();' });
+	lifetime.cancelScope(EDITOR_PROJECT_TASK_SCOPE);
+	await assert.rejects(run, (error: Error) => error.name === 'AbortError');
+	assert.equal(rolledBack, true);
 });
 
 test('importing a program never runs it and never grants it anything', () => {

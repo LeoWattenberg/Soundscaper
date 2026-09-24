@@ -38,6 +38,7 @@ export interface MacroScriptHostRuntime {
 		id: string; name: string; effects: readonly Readonly<Record<string, unknown>>[];
 	}>[];
 	readonly beginMacroTransaction: () => Readonly<{
+		assertCurrent(): void;
 		commit(command: MacroTransactionMetadata): unknown;
 		rollback(): unknown;
 	}>;
@@ -45,13 +46,22 @@ export interface MacroScriptHostRuntime {
 
 export interface MacroScriptRunRequest {
 	readonly name: string;
-	readonly run: (dispatch: MacroScriptDispatch) => Promise<unknown>;
+	readonly run: (dispatch: MacroScriptDispatch, signal: AbortSignal) => Promise<unknown>;
 }
 
 export type MacroScriptDispatch = (method: string, args: readonly MacroValue[]) => Promise<MacroValue>;
 
 export function createMacroScriptHost(runtime: MacroScriptHostRuntime) {
-	return Object.freeze({ runMacroScript, createDispatch });
+	const active = new Set<AbortController>();
+	return Object.freeze({ runMacroScript, cancelMacroScript, createDispatch });
+
+	function cancelMacroScript(): boolean {
+		if (!active.size) return false;
+		for (const controller of active) {
+			controller.abort(new DOMException('The macro was cancelled.', 'AbortError'));
+		}
+		return true;
+	}
 
 	/**
 	 * Run a program under one history entry.
@@ -62,21 +72,53 @@ export function createMacroScriptHost(runtime: MacroScriptHostRuntime) {
 	 */
 	async function runMacroScript(request: MacroScriptRunRequest): Promise<unknown> {
 		const transaction = runtime.beginMacroTransaction();
+		const controller = new AbortController();
+		active.add(controller);
+		const pending = new Set<Promise<MacroValue>>();
+		const assertCurrent = () => {
+			transaction.assertCurrent();
+			controller.signal.throwIfAborted();
+		};
 		let mutations = 0;
+		const dispatch = createDispatch(() => { mutations += 1; }, assertCurrent);
+		const trackedDispatch: MacroScriptDispatch = (method, args) => {
+			const work = dispatch(method, args);
+			pending.add(work);
+			void work.then(() => pending.delete(work), () => pending.delete(work));
+			return work;
+		};
+		const drain = async (): Promise<void> => {
+			while (pending.size) {
+				await Promise.allSettled([...pending]);
+			}
+		};
 		try {
-			const result = await request.run(createDispatch(() => { mutations += 1; }));
+			const result = await request.run(trackedDispatch, controller.signal);
+			await drain();
+			assertCurrent();
 			transaction.commit({ type: 'macro/run', name: request.name, stepCount: mutations });
 			return result;
 		} catch (error) {
+			try { await drain(); } catch { /* Preserve the run's failure. */ }
 			transaction.rollback();
 			throw error;
+		} finally {
+			active.delete(controller);
 		}
 	}
 
-	function createDispatch(onMutation: () => void = () => undefined): MacroScriptDispatch {
+	function createDispatch(
+		onMutation: () => void = () => undefined,
+		assertCurrent: () => void = () => undefined,
+	): MacroScriptDispatch {
 		return async (method, args) => {
+			assertCurrent();
 			const handler = READERS[method];
-			if (handler) return handler(runtime, args);
+			if (handler) {
+				const value = await handler(runtime, args, assertCurrent);
+				assertCurrent();
+				return value;
+			}
 			const mutator = MUTATORS[method];
 			if (!mutator) {
 				throw Object.assign(
@@ -85,13 +127,15 @@ export function createMacroScriptHost(runtime: MacroScriptHostRuntime) {
 				);
 			}
 			onMutation();
-			return mutator(runtime, args);
+			const value = await mutator(runtime, args, assertCurrent);
+			assertCurrent();
+			return value;
 		};
 	}
 }
 
 type Handler = (
-	runtime: MacroScriptHostRuntime, args: readonly MacroValue[],
+	runtime: MacroScriptHostRuntime, args: readonly MacroValue[], assertCurrent: () => void,
 ) => MacroValue | Promise<MacroValue>;
 
 const READERS: Readonly<Record<string, Handler>> = Object.freeze({
@@ -165,15 +209,17 @@ const MUTATORS: Readonly<Record<string, Handler>> = Object.freeze({
 		await runtime.runEffectMacro({ name: steps[0]!.type, effects: steps });
 		return null;
 	},
-	'macro.runSaved': async (runtime, args) => {
+	'macro.runSaved': async (runtime, args, assertCurrent) => {
 		const name = String(args[0] ?? '').trim();
 		const saved = runtime.listSavedMacros().find((macro) => macro.name === name);
 		if (!saved) throw new ReferenceError(`There is no saved macro called ${JSON.stringify(name)}.`);
 		// A saved macro may itself hold commands, so it goes back through the same
 		// split a step list takes rather than being handed over as effects.
 		for (const run of splitRuns(saved.effects)) {
+			assertCurrent();
 			if (run.command) runtime.runMacroCommand(run.command);
 			else await runtime.runEffectMacro({ name: saved.name, effects: run.effects });
+			assertCurrent();
 		}
 		return null;
 	},

@@ -51,7 +51,7 @@ import { createEbuR128MeterNode } from './ebu-r128-node.js';
 import { acquireProjectLock } from './project-lock.js';
 import { EDITOR_ENGLISH_COPY } from '../i18n/editor-copy-inventory.ts';
 import { normalizeBcp47Locale } from '../i18n/locale.js';
-import { EditorControllerLifetime, EditorProjectGeneration, isEditorDisposedError } from './controller/shared/lifecycle.ts';
+import { EDITOR_PROJECT_TASK_SCOPE, EditorControllerLifetime, EditorProjectGeneration, isEditorDisposedError } from './controller/shared/lifecycle.ts';
 import { deferredArchiveRuntime } from './controller/document/deferred-archive-runtime.ts';
 import { connectControllerNativeRenderInput } from './controller/composition/native-render-input-composition.ts';
 import { createAnalysisComposition } from './controller/analysis/analysis-composition.ts'; import { resolveProductCompositionDecision } from './controller/composition/product-composition-policy.ts';
@@ -583,7 +583,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		openScapeFile, openDawproject: (file) => taskProgress.run('project-io', copy.importing, () => nativeProjectService.openDawproject(file), undefined, { key: "importing" }), saveDawproject: (saveOptions) => taskProgress.run('project-io', copy.dawprojectSaving, () => nativeProjectService.saveDawproject(saveOptions), undefined, { key: "dawprojectSaving" }),
 		pauseLoudnessMeasurement,
 		prepareProjectHandoff, assertProjectHandoffAllowed, prepareAudacityEffectFromController: effects.execution.prepareAudacityEffectFromController, previewAudacityEffectFromController: effects.execution.previewAudacityEffectFromController,
-		product, productId: product.id, locale: options.locale, macroScriptStartedAt: () => new Date().toISOString(), getProject: () => documentState.project, projectSampleRate, beginMacroTransaction: () => doc.mutation.beginMacroTransaction(), timelineDurationFrames: () => projectDurationFrames(documentState.project),
+		product, productId: product.id, locale: options.locale, macroScriptStartedAt: () => new Date().toISOString(), startMacroScriptTask: () => lifetime.startTask('macro-script', { scope: EDITOR_PROJECT_TASK_SCOPE }), getProject: () => documentState.project, projectSampleRate, beginMacroTransaction: () => doc.mutation.beginMacroTransaction(), timelineDurationFrames: () => projectDurationFrames(documentState.project),
 		releaseVideoSourceVisual: bindings.revokeVideoVisual, reloadVideoSourceVisual, reportVideoPreviewPressure: options.reportProductVideoPreviewPressure || (() => undefined), canRelinkLinkedAudio: imports.projectBin.canRelinkLinkedAudio, classifyLinkedAudioRelink: imports.projectBin.classifyLinkedAudioRelink, relinkLinkedAudio: imports.projectBin.relinkLinkedAudio, canRelinkLinkedVideo: imports.projectBin.canRelinkLinkedVideo, classifyLinkedVideoRelink: imports.projectBin.classifyLinkedVideoRelink, relinkLinkedVideo: imports.projectBin.relinkLinkedVideo,
 		reorderTrack,
 		requestStoragePersistence: storageCapacityService.requestStoragePersistence,
