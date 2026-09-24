@@ -29,23 +29,45 @@ export default function WorkspaceSwitcherControl({ copy, snapshot, controller, r
 		const trigger = triggerRef.current;
 		const editor = trigger?.closest('[data-audio-editor]');
 		const ownerDocument = trigger?.ownerDocument;
+		const focusActionBar = () => {
+			const fallback = trigger?.isConnected
+				? trigger
+				: editor?.querySelector('[data-action-bar] button:not([disabled])');
+			fallback?.focus({ preventScroll: true });
+		};
 		// A preset can mount the lazy Effects rack, whose open-time focus would
 		// otherwise take focus from this menu after the action bar restores it.
 		suppressEffectsFocusForPreset(controller);
 		run(() => controller.actions.preferences.setWorkspace(workspaceId));
-		requestAnimationFrame(() => {
+		if (controller.getSnapshot().preferences?.workspace?.panels?.effects?.visible && ownerDocument) {
+			let focusGuardTimeout;
+			function removeFocusGuard() {
+				ownerDocument.removeEventListener('focusin', restoreAfterEffectsFocus, true);
+				ownerDocument.removeEventListener('pointerdown', removeFocusGuard, true);
+				ownerDocument.removeEventListener('keydown', removeFocusGuard, true);
+				clearTimeout(focusGuardTimeout);
+			}
+			function restoreAfterEffectsFocus(event) {
+				if (!event.target?.closest?.('[data-workspace-panel="effects"]')) return;
+				removeFocusGuard();
+				focusActionBar();
+			}
+			ownerDocument.addEventListener('focusin', restoreAfterEffectsFocus, true);
+			ownerDocument.addEventListener('pointerdown', removeFocusGuard, true);
+			ownerDocument.addEventListener('keydown', removeFocusGuard, true);
+			focusGuardTimeout = setTimeout(removeFocusGuard, 2000);
+		}
+		const restoreFocus = () => {
 			clearEffectsFocusSuppression(controller);
 			if (!ownerDocument) return;
 			const active = ownerDocument.activeElement;
 			if (active?.isConnected
 				&& active !== ownerDocument.body
 				&& active !== ownerDocument.documentElement
-				&& !active.closest('.kw-audio-editor__workspace-switcher-menu')) return;
-			const fallback = trigger?.isConnected
-				? trigger
-				: editor?.querySelector('[data-action-bar] button:not([disabled])');
-			fallback?.focus({ preventScroll: true });
-		});
+				&& !active.closest('.kw-audio-editor__workspace-switcher-menu, [data-workspace-panel="effects"]')) return;
+			focusActionBar();
+		};
+		requestAnimationFrame(restoreFocus);
 	};
 	const toggle = (event) => {
 		if (consumeTriggerDismissal()) return;
