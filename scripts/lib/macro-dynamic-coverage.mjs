@@ -153,7 +153,7 @@ function staticPreludeImportUrl(source) {
 function macroFixedSourceMap({ attestation, coverageUrl, fixedSource, source }) {
 	const mappings = Array.from({ length: sourceLineLengths(source).length }, () => '');
 	const closeLine = lineAt(source, attestation.programEnd + 1);
-	const fixedLines = fixedSource.split('\n');
+	const fixedLines = fixedSource.split(/\r?\n/u);
 	const originalLines = [
 		lineNamed(fixedLines, 'const __macroMain = async (_sound) => {'),
 		lineNamed(fixedLines, '\t"use strict";'),

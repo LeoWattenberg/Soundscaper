@@ -1,7 +1,9 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import assert from 'node:assert/strict';
-import { resolve } from 'node:path';
+import { mkdirSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { dirname, join, resolve } from 'node:path';
 import test from 'node:test';
 
 import v8ToIstanbul from 'v8-to-istanbul';
@@ -103,6 +105,33 @@ test('macro dynamic coverage maps fixed lines and leaves only the author span un
 		assert.notEqual(generatedMappings[line], '', `fixed generated line ${String(line + 1)} is mapped`);
 	}
 	assert.equal(generatedMappings[closeLine + 3], '', 'the sourceURL directive is not executable source');
+});
+
+test('macro dynamic coverage maps fixed lines from a Windows CRLF checkout', () => {
+	const repositoryRoot = mkdtempSync(join(tmpdir(), 'soundscaper-macro-coverage-'));
+	try {
+		const fixedPath = join(repositoryRoot, MACRO_FIXED_COVERAGE_SOURCE_PATH);
+		const fixedSource = readFileSync(resolve(REPOSITORY_ROOT, MACRO_FIXED_COVERAGE_SOURCE_PATH), 'utf8')
+			.replace(/\r?\n/gu, '\r\n');
+		mkdirSync(dirname(fixedPath), { recursive: true });
+		writeFileSync(fixedPath, fixedSource);
+
+		const source = buildMacroSandboxModule(PRELUDE, PROGRAM);
+		const resolved = macroDynamicCoverageScript({
+			repositoryRoot,
+			source,
+			url: finalSourceURL(source),
+		});
+		assert.ok(resolved);
+		assert.equal(resolved.sourceMap.sourcesContent[0], fixedSource,
+			'the source map retains the checkout bytes it maps');
+		for (const line of [0, 1, 4, 5, 6]) {
+			assert.notEqual(resolved.sourceMap.mappings.split(';')[line], '',
+				`fixed generated line ${String(line + 1)} is mapped`);
+		}
+	} finally {
+		rmSync(repositoryRoot, { recursive: true, force: true });
+	}
 });
 
 test('the synthetic map counts the fixed wrapper without counting an uncovered author span', async () => {
