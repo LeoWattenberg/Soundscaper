@@ -110,10 +110,7 @@ export class AudioEditorProjectStore {
 		this.linkedVideoOriginalLifecycle = this.linkedOriginalStoreService.linkedVideoOriginalLifecycle;
 	}
 
-	async ready() {
-		await this.#database();
-		return this;
-	}
+	async ready() { await (this.retentionRepository.ensureSession?.() ?? this.#database()); return this; }
 
 	getStatus() {
 		return Object.freeze({
@@ -521,6 +518,7 @@ export class AudioEditorProjectStore {
 			const database = this.databasePromise
 				? await this.databasePromise.catch(() => null)
 				: null;
+			try { await this.retentionRepository.releaseSession?.(database); } catch (error) { closeErrors.push(error); }
 			if (database) database.onversionchange = null;
 			database?.close();
 			this.databasePromise = null;

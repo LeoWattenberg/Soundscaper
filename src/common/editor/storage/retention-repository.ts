@@ -32,6 +32,7 @@ import type { RawPcmSpoolRepository } from './raw-pcm-spool-repository.ts';
 import type { EncodedCaptureSpoolRepository } from './encoded-capture-spool-repository.ts';
 import type { OpfsPreferredEncodedCaptureChunkPort } from './opfs-preferred-encoded-capture-chunk-port.ts';
 import type { StorageRepositoryPort } from './repository-port.ts';
+import type { RetentionSessionGuard } from './retention-session-guard.ts';
 import type { SourceRecordRepository } from './source-record-repository.ts';
 import type { SourceRepository } from './source-repository.ts';
 import type { SourceWriteMaintenance } from './source-write-lifecycle.ts';
@@ -60,6 +61,7 @@ export interface PruneResult {
 
 export interface RetentionRepositoryOptions {
 	readonly port: StorageRepositoryPort;
+	readonly sessionGuard?: RetentionSessionGuard;
 	readonly sourceRecords: SourceRecordRepository;
 	readonly sources: SourceRepository;
 	readonly media: MediaRepository;
@@ -78,6 +80,14 @@ export class RetentionRepository {
 
 	constructor(options: RetentionRepositoryOptions) {
 		this.#options = options;
+	}
+
+	async ensureSession(): Promise<void> {
+		await this.#options.port.database();
+	}
+
+	async releaseSession(database: IDBDatabase | null): Promise<void> {
+		await this.#options.sessionGuard?.release(database);
 	}
 
 	prune(options: PruneOptions = {}): Promise<PruneResult> {
@@ -213,6 +223,8 @@ export class RetentionRepository {
 					LINKED_VIDEO_ORIGINAL_STORE_NAME,
 					LINKED_ORIGINAL_PROVISIONAL_ROOT_STORE_NAME,
 				], 'readwrite', async (stores) => {
+					const retainedSessions = this.#options.sessionGuard
+						? await this.#options.sessionGuard.retainedSessionRecords(stores.settings) : [];
 					const storedSourcesRequest = request(stores.sources.getAll()) as Promise<StorageRecord[]>;
 					const storedMediaAssetsRequest = request(stores.mediaAssets.getAll()) as Promise<StorageRecord[]>;
 					const storedDerivativeEntriesRequest = request(
@@ -228,6 +240,7 @@ export class RetentionRepository {
 					for (const [storeName, store] of Object.entries(stores)) {
 						if (storeName !== MEDIA_ASSET_STAGING_STORE_NAME) store.clear();
 					}
+					for (const retainedSession of retainedSessions) stores.settings.put(retainedSession);
 				});
 			}
 			onLocalCommit();
@@ -259,6 +272,7 @@ export class RetentionRepository {
 		const deferredSourceIds: string[] = [];
 		let nextEligibleAt: number | null = null;
 		const database = await this.#options.port.database();
+		if (database) await this.#options.sessionGuard?.reclaimStoppedSessions(database);
 
 		if (!database) {
 			this.#collectMemoryRoots(protectedIds);
@@ -360,7 +374,7 @@ export class RetentionRepository {
 		},
 	): Promise<{ removedSources: StorageRecord[]; removedBinaryRecords: StorageRecord[]; removedSourceIds: string[] }> {
 		return transact(database, [
-			'projects', 'revisions', 'analysis', 'sources', 'sourceChunks', 'mediaAssets',
+			'projects', 'revisions', 'settings', 'analysis', 'sources', 'sourceChunks', 'mediaAssets',
 			VIDEO_DERIVATIVE_STORE_NAME, DERIVATIVE_CACHE_ENTRY_STORE_NAME,
 		], 'readwrite', async (stores) => {
 			const {
@@ -387,6 +401,9 @@ export class RetentionRepository {
 			const storedVideoDerivatives = (await request(derivativeCacheEntries.getAll())) as StorageRecord[];
 			protectSourceDependencies(state.protectedIds, storedSources);
 			const candidates = sourceStorageCandidates(storedSources, storedMediaAssets, storedVideoDerivatives);
+			if (await this.#options.sessionGuard?.hasOtherOrLostSession(stores.settings)) {
+				for (const sourceId of candidates.keys()) state.protectedIds.add(sourceId);
+			}
 			const removedSources: StorageRecord[] = [];
 			const removedBinaryRecords: StorageRecord[] = [];
 			const removedSourceIds: string[] = [];

@@ -35,6 +35,7 @@ import { ProjectCompareAndSwapRepository } from './project-compare-and-swap-repo
 import { ProjectRepository, type ProjectRepositoryPort } from './project-repository.ts';
 import { RawPcmSpoolRepository } from './raw-pcm-spool-repository.ts';
 import { RetentionRepository } from './retention-repository.ts';
+import { RetentionSessionGuard } from './retention-session-guard.ts';
 import type { StorageRepositoryPort } from './repository-port.ts';
 import { SourceReadRepository } from './source-read-repository.ts';
 import { SourceDeletionRepository } from './source-deletion-repository.ts';
@@ -115,9 +116,11 @@ export type StorageRepositoryFactory = (
 
 /** Compose storage domains once while keeping their backend port narrow. */
 export function createStorageRepositories(
-	port: StorageRepositoryPort,
+	rawPort: StorageRepositoryPort,
 	options: StorageRepositoryOptions,
 ): StorageRepositories {
+	const sessionGuard = new RetentionSessionGuard(rawPort);
+	const port = sessionGuard.port();
 	const opfs = new OpfsRepository({
 		preferOpfs: options.preferOpfs,
 		storageManager: options.storageManager,
@@ -218,7 +221,7 @@ export function createStorageRepositories(
 		opfs,
 		pcm,
 		retention: new RetentionRepository({
-			port, sourceRecords, sources, media, opfs, rawPcmSpools,
+			port, sessionGuard, sourceRecords, sources, media, opfs, rawPcmSpools,
 			encodedCaptureSpools, encodedCaptureChunks, transientAnalysisCache, assistanceDerivatives,
 		}),
 		rawPcmSpools,

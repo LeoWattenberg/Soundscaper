@@ -2,6 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 
 import { createProjectStore } from '../src/common/editor/storage.js';
+import { createInstrumentedIndexedDB } from './helpers/instrumented-indexeddb.js';
 
 test('memory storage reports that it is ephemeral and close is terminal', async () => {
 	const store = createProjectStore({
@@ -129,29 +130,23 @@ test('a blocked open rejects and closes a late successful connection', async () 
 
 test('versionchange closes the connection and prevents implicit reopening', async () => {
 	let openCalls = 0;
-	let database;
+	const backing = createInstrumentedIndexedDB();
 	const indexedDB = {
-		open() {
+		open(...args) {
 			openCalls += 1;
-			const request = {};
-			database = {
-				objectStoreNames: { contains() { return true; } },
-				closeCalls: 0,
-				close() { this.closeCalls += 1; },
-			};
-			queueMicrotask(() => {
-				request.result = database;
-				request.onsuccess();
-			});
-			return request;
+			return backing.open(...args);
 		},
 	};
 	const store = createProjectStore({ indexedDB, preferOpfs: false, databaseName: 'storage-status-versionchange' });
 
 	await store.ready();
+	const database = await store.databasePromise;
+	let closeCalls = 0;
+	const close = database.close.bind(database);
+	database.close = () => { closeCalls += 1; close(); };
 	assert.equal(store.getStatus().state, 'indexeddb');
 	database.onversionchange();
-	assert.equal(database.closeCalls, 1);
+	assert.equal(closeCalls, 1);
 	assert.equal(store.getStatus().state, 'version-stale');
 	await assert.rejects(() => store.loadSetting('no-reopen'), { code: 'STORE_VERSION_STALE' });
 	assert.equal(openCalls, 1);
