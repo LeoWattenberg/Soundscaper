@@ -37,6 +37,9 @@ export const enginePlaybackFailureMethods = {
 		if (error && typeof error === 'object' && 'name' in error && error.name === 'AbortError') return;
 		this[ENGINE_HALT_GRAPH]();
 		this.masterLoudnessMeter?.setRunning(false);
+		// Let automation discard its active capture before the final stopped state,
+		// which otherwise looks like a user-requested stop and commits a partial lane.
+		this[ENGINE_SET_STATE]('failed');
 		this[ENGINE_SET_STATE](this.project ? 'stopped' : 'empty');
 		for (const listener of this.playbackErrorListeners) {
 			try { listener(error); }

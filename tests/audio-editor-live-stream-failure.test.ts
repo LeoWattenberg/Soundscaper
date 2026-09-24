@@ -5,6 +5,9 @@ import test from 'node:test';
 import { createAudioEditorEngine } from '../src/common/editor/engine.js';
 import { startLiveChunkWindow } from '../src/common/editor/engine/clip-scheduler-live-chunks.ts';
 import type { EngineRuntimeHost } from '../src/common/editor/engine/runtime-types.ts';
+import { createAudioTrack } from '../src/common/editor/project-media-factory.ts';
+import { createSoundscaperAutomationControllerBinding } from '../src/soundscaper/editor-automation-controller.ts';
+import { createSoundscaperProject } from '../src/soundscaper/editor-project.ts';
 import { MockAudioContext, MockNode } from './helpers/mock-audio-context.js';
 
 test('a streamed clip failure after priming stops playback and reports its cause', async () => {
@@ -25,6 +28,43 @@ test('a streamed clip failure after priming stops playback and reports its cause
 		assert.equal(graph?.sources.size, 0);
 		assert.deepEqual(errors, [failure]);
 	} finally {
+		await fixture.engine.dispose();
+	}
+});
+
+test('a stream failure discards in-progress Soundscaper write automation', async () => {
+	const fixture = createFixture([0]);
+	const project = createSoundscaperProject({
+		id: 'automation-stream-failure', title: 'Automation stream failure', now: '2026-09-24T00:00:00.000Z',
+		tracks: [createAudioTrack({ id: 'voice', name: 'Voice', clipIds: [] })],
+		sequences: [{ id: 'main-sequence', trackIds: ['voice'] }], primarySequenceId: 'main-sequence',
+		automationLanes: [{
+			id: 'voice-gain',
+			address: { kind: 'strip', strip: { kind: 'track', id: 'voice' }, parameterId: 'gain' },
+			timebase: 'absolute-samples',
+			points: [{ id: 'start', position: 0, value: 0.5 }, { id: 'end', position: 48_000, value: 0.5 }],
+			segments: [{ kind: 'linear' }],
+		}],
+	});
+	let commits = 0;
+	const binding = createSoundscaperAutomationControllerBinding({
+		project,
+		engine: fixture.engine,
+		actions: { edit: { commit: () => { commits += 1; return project; } } },
+		getSnapshot: () => ({ transportState: fixture.engine.getState().state }),
+		subscribe: () => () => undefined,
+	});
+	try {
+		binding.actions.setMode('write', 'voice-gain');
+		await fixture.engine.playAt(0, 0);
+		assert.equal(binding.actions.getSnapshot().active, true);
+		fixture.streams.handles[0]!.fail(new Error('PCM read failed during automation write'));
+		await nextTurn();
+		assert.equal(fixture.engine.getState().state, 'stopped');
+		assert.equal(commits, 0, 'failed playback must not author a partial automation lane');
+		assert.equal(binding.actions.getSnapshot().mode, 'read');
+	} finally {
+		binding.dispose();
 		await fixture.engine.dispose();
 	}
 });
