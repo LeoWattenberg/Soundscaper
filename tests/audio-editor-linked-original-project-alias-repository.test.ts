@@ -57,6 +57,33 @@ for (const backend of ['memory', 'indexeddb'] as const) {
 		}
 		assert.equal(await fixture.bindings.get(DESTINATION_PROJECT_ID, stale.id), null);
 	});
+
+	test(`${backend} pastes one linked source into a destination with other existing bindings`, async (context) => {
+		const fixture = await createFixture(context, backend);
+		const pasted = audioSource('pasted-source');
+		const existing = audioSource('existing-source');
+		await seedBinding(fixture, pasted, 'pasted_locator_00000001', 'pasted_revision_0000001');
+		const prior = await seedBinding(
+			fixture, existing, 'existing_locator_000001', 'existing_revision_00001', DESTINATION_PROJECT_ID,
+		);
+
+		await assert.rejects(
+			fixture.aliases.copyReachableAliases(SOURCE_PROJECT_ID, DESTINATION_PROJECT_ID, [pasted]),
+			/destination already contains a binding/iu,
+		);
+		const aliases = await fixture.aliases.copyReachableAliases(
+			SOURCE_PROJECT_ID, DESTINATION_PROJECT_ID, [pasted], { allowExistingDestination: true },
+		);
+
+		assert.deepEqual(aliases.map(({ sourceId }) => sourceId), [pasted.id]);
+		assert.deepEqual(await fixture.bindings.get(DESTINATION_PROJECT_ID, existing.id), prior);
+		await assert.rejects(
+			fixture.aliases.copyReachableAliases(
+				SOURCE_PROJECT_ID, DESTINATION_PROJECT_ID, [pasted], { allowExistingDestination: true },
+			),
+			/destination key is already occupied/iu,
+		);
+	});
 }
 
 test('same opaque locator identity remains independent across media kinds', async (context) => {

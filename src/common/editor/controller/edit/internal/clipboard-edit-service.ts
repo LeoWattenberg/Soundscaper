@@ -103,7 +103,7 @@ export interface ClipboardSessionPort {
 		descriptor: AudioEditorClipboard,
 		options: Readonly<{ originProjectId: string }>,
 	): Readonly<{ clipboard: SessionClipboard }>;
-	clipboardForProject(projectId: string): SessionClipboard | null;
+	clipboardForProject(projectId: string): (SessionClipboard & Readonly<{ originProjectId?: string }>) | null;
 }
 
 interface CommitSelection {

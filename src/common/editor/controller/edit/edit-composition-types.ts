@@ -19,6 +19,7 @@ import type {
 	PasteMonoConfirmationDecision,
 	PasteMonoDerivedSourcesPort,
 } from './paste-mono-conversion-service.ts';
+import type { PasteLinkedSourceAliasStore } from './internal/paste-linked-source-aliases.ts';
 
 /** The document identity the label and generator services read. */
 export type EditCompositionProject =
@@ -79,7 +80,7 @@ export interface EditCompositionDependencies<History extends ControllerRuntimeHi
 	readonly composition: Readonly<{ readonly generators: boolean }>;
 	readonly absentSubsystem: AbsentSubsystemContext;
 	readonly session: ClipboardEditServiceDependencies['session'];
-	readonly store: AudioGeneratorServiceDependencies['store'];
+	readonly store: AudioGeneratorServiceDependencies['store'] & PasteLinkedSourceAliasStore;
 	readonly engine: Pick<EnginePublicApi, 'getAudioContext' | 'getPositionFrames'>;
 	readonly sourceBuffers:
 		& ClipboardEditServiceDependencies['sourceBuffers']

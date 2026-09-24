@@ -266,12 +266,12 @@ export class AudioEditorProjectStore {
 		this.#assertOpen();
 		return this.linkedOriginalStoreService.getBinding(projectId, sourceId);
 	}
-
+	copyLinkedOriginalSourceAliases(originProjectId, projectId, sources) { this.#assertOpen(); return this.linkedOriginalStoreService.run(() => this.linkedOriginalProjectAliasRepository.copyReachableAliases(originProjectId, projectId, sources, { allowExistingDestination: true })); }
+	rollbackLinkedOriginalSourceAliases(aliases) { this.#assertOpen(); return this.linkedOriginalStoreService.run(() => this.linkedOriginalProjectAliasRepository.rollbackAliases(aliases)); }
 	async unlinkLinkedAudioOriginal(projectId, sourceId, expectedBindingToken) {
 		this.#assertOpen();
 		return this.linkedOriginalStoreService.unlinkAudio(projectId, sourceId, expectedBindingToken);
 	}
-
 	async releaseLinkedOriginalLocator(reference) {
 		this.#assertOpen();
 		return this.linkedOriginalStoreService.releaseOriginal(reference);

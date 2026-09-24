@@ -26,6 +26,7 @@ import { generateWaveformPeaks, peakCacheKey } from '../source/waveform-analysis
 import { EDITOR_PROJECT_TASK_SCOPE } from '../shared/lifecycle.ts';
 import { commitMonoConvertingPasteCommand } from './paste-mono-conversion-service.ts';
 import { commitPasteIntoExistingClipCommand } from './paste-existing-clip-service.ts';
+import { commitPasteWithLinkedSourceAliases } from './internal/paste-linked-source-aliases.ts';
 
 export type {
 	EditCommandProject,
@@ -123,6 +124,7 @@ export function createEditComposition<History extends ControllerRuntimeHistory>(
 	);
 	const commitPreparedPaste = (command: Parameters<typeof commitMonoConvertingPasteCommand>[0]['command']) => {
 		const project = dependencies.getCommandProject();
+		const originProjectId = dependencies.session.clipboardForProject(project.id)?.originProjectId;
 		const token = projectGeneration.capture(project.id);
 		const revision = project.revision;
 		const task = lifetime.startTask('edit-paste', { scope: EDITOR_PROJECT_TASK_SCOPE });
@@ -141,7 +143,14 @@ export function createEditComposition<History extends ControllerRuntimeHistory>(
 				derivedSources: dependencies.derivedSources,
 				preflightStorage: dependencies.preflightStorage,
 				assertCurrent,
-				commit: dependencies.commit,
+				commit: (prepared) => commitPasteWithLinkedSourceAliases({
+					command: prepared,
+					originProjectId,
+					projectId: project.id,
+					store: dependencies.store,
+					assertCurrent,
+					commit: dependencies.commit,
+				}),
 			})
 		);
 		try {

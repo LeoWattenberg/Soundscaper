@@ -97,6 +97,7 @@ export class LinkedOriginalProjectAliasRepository {
 		sourceProjectIdValue: string,
 		destinationProjectIdValue: string,
 		sourcesValue: readonly LinkedOriginalSource[],
+		options: Readonly<{ allowExistingDestination?: boolean }> = {},
 	): Promise<readonly LinkedOriginalBinding[]> {
 		const sourceProjectId = projectId(sourceProjectIdValue);
 		const destinationProjectId = projectId(destinationProjectIdValue);
@@ -123,7 +124,7 @@ export class LinkedOriginalProjectAliasRepository {
 					this.#maximumInventoryReferences,
 					this.#managedKinds,
 			);
-			const aliases = this.#planAliases(inventory, sourceProjectId, destinationProjectId, sources);
+			const aliases = this.#planAliases(inventory, sourceProjectId, destinationProjectId, sources, options);
 			const publications = this.#publications(aliases);
 			assertLinkedOriginalProvisionalRootCapacity(
 				rootInventory,
@@ -154,7 +155,7 @@ export class LinkedOriginalProjectAliasRepository {
 				this.#maximumInventoryReferences,
 				this.#managedKinds,
 			);
-			const aliases = this.#planAliases(inventory, sourceProjectId, destinationProjectId, sources);
+			const aliases = this.#planAliases(inventory, sourceProjectId, destinationProjectId, sources, options);
 			const publications = this.#publications(aliases);
 			assertLinkedOriginalProvisionalRootCapacity(
 				rootInventory,
@@ -230,8 +231,10 @@ export class LinkedOriginalProjectAliasRepository {
 		sourceProjectId: string,
 		destinationProjectId: string,
 		sources: ProjectOriginalSources,
+		options: Readonly<{ allowExistingDestination?: boolean }>,
 	): readonly LinkedOriginalBinding[] {
-		if (inventory.bindings.some(({ projectId: owner }) => owner === destinationProjectId)) {
+		if (!options.allowExistingDestination
+			&& inventory.bindings.some(({ projectId: owner }) => owner === destinationProjectId)) {
 			throw new Error('The linked original alias destination already contains a binding.');
 		}
 		const projectBindings = inventory.bindings
