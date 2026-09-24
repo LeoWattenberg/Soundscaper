@@ -86,3 +86,38 @@ test('Freesound results place play beside a waveform, with license and insert ac
 	const secondResult = markup.slice(markup.indexOf('data-freesound-sound-id="202"'));
 	assert.doesNotMatch(secondResult, /\/api\/freesound\/sounds\/202\/waveform/u);
 });
+
+test('Freesound action glyphs and preview position are shown on the waveform', () => {
+	const markup = renderToStaticMarkup(<FreesoundPanel
+		copy={COPY}
+		state={{ ...STATE, previewingSoundId: 101, previewPositionSeconds: 4.5 }}
+		disabled={false}
+		onSearch={() => undefined}
+		onPreview={() => undefined}
+		onPausePreview={() => undefined}
+		onResumePreview={() => undefined}
+		onSeekPreview={() => undefined}
+		onInsertAtPlayhead={() => undefined}
+		onAddToProjectBin={() => undefined}
+	/>);
+	const active = markup.slice(markup.indexOf('data-freesound-sound-id="101"'), markup.indexOf('data-freesound-sound-id="202"'));
+	const inactive = markup.slice(markup.indexOf('data-freesound-sound-id="202"'));
+	assert.match(active, /class="kw-audio-editor__freesound-preview-playhead"[^>]*style="left:25%"/u);
+	assert.doesNotMatch(inactive, /kw-audio-editor__freesound-preview-playhead/u);
+	assert.match(active, /\uF3B0[\s\S]*?>Add to project/u);
+	assert.match(active, /\uF3AF[\s\S]*?>Add to Project Bin/u);
+	const withoutWaveform = renderToStaticMarkup(<FreesoundPanel
+		copy={COPY}
+		state={{ ...STATE, previewingSoundId: 202, previewPositionSeconds: 9 }}
+		disabled={false}
+		onSearch={() => undefined}
+		onPreview={() => undefined}
+		onPausePreview={() => undefined}
+		onResumePreview={() => undefined}
+		onSeekPreview={() => undefined}
+		onInsertAtPlayhead={() => undefined}
+		onAddToProjectBin={() => undefined}
+	/>);
+	assert.match(withoutWaveform.slice(withoutWaveform.indexOf('data-freesound-sound-id="202"')),
+		/kw-audio-editor__freesound-waveform[^>]*>[\s\S]*?class="kw-audio-editor__freesound-preview-playhead"/u);
+});

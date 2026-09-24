@@ -117,7 +117,7 @@ test('the toolbar hosts the snap control between the time display and the meters
 		readFile(new URL('workspace-shortcuts.ts', UI), 'utf8'),
 		readFile(new URL('audio-editor-design-system/34-toolbar-snap-workspace.css', UI), 'utf8'),
 	]);
-	assert.match(toolbar, /\{ id: 'time-display', label: copy\.timecode, icon: 'playhead' \},\n\s*\{ id: 'snap', label: copy\.snap, icon: iconNameToChar\('MAGNET'\) \}/u);
+	assert.match(toolbar, /\{ id: 'time-display', label: copy\.timecode, icon: iconNameToChar\('CLOCK'\) \},\n\s*\{ id: 'snap', label: copy\.snap, icon: iconNameToChar\('MAGNET'\) \}/u);
 	assert.match(toolbar, /isToolbarButtonVisible\('snap'\) && <SnapToolbarControl/u);
 	const timecodeAt = toolbar.indexOf('<TelemetryTimeCode');
 	const sequenceAt = toolbar.indexOf('<SequenceTimingControls');

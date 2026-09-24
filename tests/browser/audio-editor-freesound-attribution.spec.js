@@ -104,6 +104,12 @@ test.describe('Freesound discovery and attribution', () => {
 		const freesoundPanel = editor.locator('[data-workspace-panel="freesound"]');
 
 		await expect(freesoundPanel).toHaveCount(0);
+		const sfxButton = editor.locator('[data-action="sfx"]').getByRole('button', { name: 'SFX', exact: true });
+		await expect(sfxButton).toBeVisible();
+		await sfxButton.click();
+		await expect(freesoundPanel).toBeVisible();
+		await sfxButton.click();
+		await expect(freesoundPanel).toHaveCount(0);
 		const panelsMenu = await openNestedCommandMenu(page, editor, 'View', ['Panels']);
 		const freesoundItem = getMenuItem(panelsMenu, 'Freesound');
 		await expect(freesoundItem).toBeVisible();

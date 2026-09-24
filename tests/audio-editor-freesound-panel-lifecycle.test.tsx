@@ -139,6 +139,7 @@ test('Freesound waveform seeks, starts or resumes preview, and reuses the active
 		assert.equal(audioInstances.length, 1);
 		assert.equal(audioInstances[0]?.playCount, 1);
 		assert.equal(audioInstances[0]?.currentTime, 3);
+		assert.equal(previewLineLeft(), '25%');
 		audioInstances[0].currentTime = 0;
 		audioInstances[0].emit('loadedmetadata');
 		assert.equal(audioInstances[0]?.currentTime, 3);
@@ -147,6 +148,10 @@ test('Freesound waveform seeks, starts or resumes preview, and reuses the active
 		assert.equal(audioInstances.length, 1);
 		assert.equal(audioInstances[0]?.playCount, 1);
 		assert.equal(audioInstances[0]?.currentTime, 9);
+		assert.equal(previewLineLeft(), '75%');
+		audioInstances[0].currentTime = 10;
+		await act(async () => audioInstances[0]?.emit('timeupdate'));
+		assert.equal(previewLineLeft(), `${100 * 10 / 12}%`);
 
 		const pauseButton = dom.container.querySelectorAll('button')
 			.find((candidate) => candidate.getAttribute('aria-label') === 'Pause preview: Rain.ogg');
@@ -173,6 +178,7 @@ test('Freesound waveform seeks, starts or resumes preview, and reuses the active
 		assert.equal(audioInstances[0]?.playCount, 3);
 
 		await act(async () => root.render(<FreesoundPanelContainer {...props} panelActive={false} />));
+		assert.equal(dom.find('.kw-audio-editor__freesound-preview-playhead'), null);
 
 		assert.equal(audioInstances[0]?.pauseCount, 3);
 		assert.equal(audioInstances[0]?.loadCount, 1);
@@ -183,6 +189,9 @@ test('Freesound waveform seeks, starts or resumes preview, and reuses the active
 		globalThis.fetch = priorFetch;
 		actGlobal.IS_REACT_ACT_ENVIRONMENT = priorAct;
 		dom.restore();
+	}
+	function previewLineLeft(): string | undefined {
+		return (dom.one('.kw-audio-editor__freesound-preview-playhead').style as unknown as { left?: string }).left;
 	}
 });
 
@@ -250,7 +259,7 @@ test('connected original imports over 128 MiB require confirmation before the ex
 		await act(async () => { await new Promise<void>((resolve) => setTimeout(resolve, 0)); });
 	};
 	const button = (prefix: string) => dom.container.querySelectorAll('button')
-		.find((candidate) => candidate.textContent?.startsWith(prefix));
+		.find((candidate) => candidate.querySelector('.button__text')?.textContent.startsWith(prefix));
 	try {
 		await act(async () => root.render(<FreesoundPanelContainer
 			controller={controller}

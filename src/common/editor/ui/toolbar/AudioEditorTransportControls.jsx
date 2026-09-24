@@ -116,11 +116,14 @@ export function EditorActionBar({
 	onSaveAup4,
 	onExportAudio,
 	onToggleMixer,
+	showFreesound = false,
+	onToggleFreesound = () => undefined,
 	displayAudioSupported = true,
 }) {
 	const canUndo = snapshot.history?.canUndo;
 	const canRedo = snapshot.history?.canRedo;
 	const mixerVisible = Boolean(snapshot.preferences?.workspace?.panels?.mixer?.visible);
+	const freesoundVisible = Boolean(snapshot.preferences?.workspace?.panels?.freesound?.visible);
 	return (
 		<div className="kw-audio-editor__action-bar" data-action-bar role="toolbar" aria-label={copy.actionBar}>
 			<div className="kw-audio-editor__action-bar-center">
@@ -156,6 +159,17 @@ export function EditorActionBar({
 						{copy.panelMixer}
 					</Button>
 				</span>
+				{showFreesound && <span className="kw-audio-editor__action-bar-toggle" data-action="sfx">
+					<Button
+						variant={freesoundVisible ? 'primary' : 'secondary'}
+						size="small"
+						className={`kw-audio-editor__action-bar-button${freesoundVisible ? ' kw-audio-editor__action-bar-button--active' : ''}`}
+						icon={<span aria-hidden="true">{iconNameToChar('WAVEFORM')}</span>}
+						onClick={onToggleFreesound}
+					>
+						{copy.sfx}
+					</Button>
+				</span>}
 				<ActionBarAudioDevicesButton
 					copy={copy}
 					snapshot={snapshot}
@@ -266,7 +280,7 @@ export function TelemetryTimeCode({
 	recording,
 	run,
 }) {
-	const [format, setFormat] = useState('hh:mm:ss');
+	const [format, setFormat] = useState('hh:mm:ss+hundredths');
 	const positionFrame = useAudioEditorTelemetrySelector(
 		controller,
 		(telemetry) => telemetry.positionFrame || 0,

@@ -127,8 +127,7 @@ export default function AudioEditorWorkspaceView({ model }) {
 		rootRef: editorRef,
 	});
 	const aup4Counts = aup4Compatibility?.report?.counts;
-	// In the compact layout the action bar and the tool toolbar live in the
-	// chrome drawer; the primary transport moves into the compact bar.
+	// Compact layout moves both toolbars into the drawer and transport into the compact bar.
 	const editorToolbar = <EditorToolToolbar
 		{...toolbarProps}
 		splitToolMomentary={splitToolShortcut.momentaryEnabled}
@@ -139,7 +138,7 @@ export default function AudioEditorWorkspaceView({ model }) {
 			copy={copy}
 			snapshot={snapshot}
 			controller={controller}
-			showAup4={productId === 'soundscaper'}
+			showAup4={productId === 'soundscaper'} showFreesound={productId === 'soundscaper'}
 			run={run}
 			displayAudioSupported={displayAudioSupported}
 			editBlocked={editBlocked}
@@ -148,6 +147,7 @@ export default function AudioEditorWorkspaceView({ model }) {
 			onSaveAup4={() => run(() => controller.actions.project.saveAup4({ saveCopy: snapshot.readOnly }))}
 			onExportAudio={() => openSurface('export')}
 			onToggleMixer={() => run(() => controller.actions.preferences.togglePanel('mixer'))}
+			onToggleFreesound={() => toggleWorkspacePanel('freesound')}
 		/>
 	);
 	return (

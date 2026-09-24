@@ -60,6 +60,7 @@ export interface FreesoundPanelState {
 	readonly errorMessage?: string;
 	readonly previewingSoundId: number | null;
 	readonly previewPaused: boolean;
+	readonly previewPositionSeconds?: number;
 	readonly results: readonly FreesoundResultPresentation[];
 }
 
@@ -238,6 +239,11 @@ export function FreesoundPanel({
 					{state.results.map((result) => {
 						const previewing = state.previewingSoundId === result.soundId;
 						const playing = previewing && !state.previewPaused;
+						const positionPercent = result.durationSeconds > 0
+							? Math.min(100, Math.max(0, 100 * (state.previewPositionSeconds ?? 0) / result.durationSeconds))
+							: 0;
+						const previewPlayhead = previewing ? <span className="kw-audio-editor__freesound-preview-playhead"
+							aria-hidden="true" style={{ left: `${positionPercent}%` }} /> : null;
 						const previewLabel = playing ? copy.pausePreview : copy.playPreview;
 						const mutationDisabled = disabled || result.actionPending === true;
 						return (
@@ -293,7 +299,8 @@ export function FreesoundPanel({
 										))}
 									>
 										<img src={result.waveformUrl} alt="" loading="lazy" draggable={false} />
-									</button> : <span className="kw-audio-editor__freesound-waveform" />}
+										{previewPlayhead}
+									</button> : <span className="kw-audio-editor__freesound-waveform">{previewPlayhead}</span>}
 								</div>
 								<div className="kw-audio-editor__freesound-result-actions">
 									<a className="kw-audio-editor__freesound-result-license" href={result.licenseUrl}
@@ -302,6 +309,7 @@ export function FreesoundPanel({
 									</a>
 									<Button
 										size="small"
+										icon={<span aria-hidden="true">{'\uF3B0'}</span>}
 										disabled={mutationDisabled}
 										onClick={() => onInsertAtPlayhead(result.soundId)}
 									>
@@ -310,6 +318,7 @@ export function FreesoundPanel({
 									</Button>
 									{projectBinVisible ? <Button
 										size="small"
+										icon={<span aria-hidden="true">{'\uF3AF'}</span>}
 										disabled={mutationDisabled}
 										onClick={() => onAddToProjectBin(result.soundId)}
 									>

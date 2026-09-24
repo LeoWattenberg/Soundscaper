@@ -349,7 +349,9 @@ test('Freesound gestures submit current criteria and expose the minimal drag tra
 		}]);
 
 		const button = (label: string): ReactTestElement => {
-			const match = dom.container.querySelectorAll('button').find((candidate) => candidate.textContent.startsWith(label));
+			const match = dom.container.querySelectorAll('button').find((candidate) => (
+				(candidate.querySelector('.button__text')?.textContent ?? candidate.textContent).startsWith(label)
+			));
 			assert.ok(match, `Missing ${label} button`);
 			return match;
 		};

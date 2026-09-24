@@ -159,6 +159,7 @@
 }
 
 .kw-audio-editor__freesound-waveform {
+	position: relative;
 	display: block;
 	height: 34px;
 	min-width: 0;
@@ -189,6 +190,17 @@ button.kw-audio-editor__freesound-waveform:disabled {
 	width: 100%;
 	height: 100%;
 	object-fit: fill;
+}
+
+.kw-audio-editor__freesound-preview-playhead {
+	position: absolute;
+	z-index: 1;
+	top: 0;
+	bottom: 0;
+	width: 2px;
+	background: #f8c849;
+	box-shadow: 0 0 1px #111;
+	pointer-events: none;
 }
 
 .kw-audio-editor__freesound-result-actions {

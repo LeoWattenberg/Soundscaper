@@ -11,7 +11,7 @@ import TransportToolbarGroup, {
 	TRANSPORT_BUTTON_IDS,
 	transportToolbarButtonsVisible,
 } from '../src/common/editor/ui/toolbar/TransportToolbarGroup.jsx';
-import { AccessibleTimeCode, PlaySpeedFlyout } from '../src/common/editor/ui/toolbar/AudioEditorTransportControls.jsx';
+import { AccessibleTimeCode, PlaySpeedFlyout, TelemetryTimeCode } from '../src/common/editor/ui/toolbar/AudioEditorTransportControls.jsx';
 import { ENGLISH_COPY, GERMAN_COPY } from '../src/common/i18n/catalogs.js';
 import { ThemeProvider } from '../vendor/audacity-design-system/components/src/ThemeProvider/ThemeProvider.tsx';
 
@@ -139,4 +139,21 @@ test('the playhead format control receives its localized label declaratively', (
 		ariaLabel="Wiedergabeposition: Format" value={0} showFormatSelector
 	/>);
 	assert.match(markup, /aria-label="Wiedergabeposition: Format"/u);
+});
+
+test('the playhead displays hours, minutes, seconds, and hundredths by default', () => {
+	const markup = renderToStaticMarkup(<TelemetryTimeCode
+		controller={{
+			getTelemetrySnapshot: () => ({ positionFrame: 0 }),
+			subscribeTelemetry: () => () => undefined,
+		}}
+		copy={ENGLISH_COPY}
+		project={{ sampleRate: 48_000 }}
+		durationFrames={48_000}
+		isCompact={false}
+		recording={false}
+		run={() => undefined}
+	/>);
+	assert.match(markup, /class="timecode__separator">\.<\/span>/u);
+	assert.equal((markup.match(/class="timecode-digit /gu) || []).length, 8);
 });

@@ -75,6 +75,7 @@ interface FreesoundPanelContainerProps {
 const INITIAL_STATE: FreesoundPanelState = Object.freeze({
 	query: '', license: 'all', sort: 'relevance', page: 1, pageCount: 0,
 	totalResults: 0, status: 'idle', previewingSoundId: null, previewPaused: false,
+	previewPositionSeconds: 0,
 	results: Object.freeze([]),
 });
 
@@ -129,7 +130,7 @@ export function FreesoundPanelContainer({
 			active.audio.src = '';
 			active.audio.load();
 		}
-		setState((current) => ({ ...current, previewingSoundId: null, previewPaused: false }));
+		setState((current) => ({ ...current, previewingSoundId: null, previewPaused: false, previewPositionSeconds: 0 }));
 	}, []);
 
 	useEffect(() => {
@@ -168,6 +169,7 @@ export function FreesoundPanelContainer({
 				status: 'ready',
 				previewingSoundId: null,
 				previewPaused: false,
+				previewPositionSeconds: 0,
 				results: page.results.map(toFreesoundPanelResult),
 			});
 		}).catch((error: unknown) => {
@@ -195,8 +197,16 @@ export function FreesoundPanelContainer({
 		}, { once: true });
 		audio.addEventListener('ended', finish, { once: true });
 		audio.addEventListener('error', finish, { once: true });
+		audio.addEventListener('timeupdate', () => {
+			if (preview.current !== active) return;
+			const position = audio.currentTime;
+			if (Number.isFinite(position)) {
+				setState((current) => ({ ...current, previewPositionSeconds: position }));
+			}
+		});
 		if (seekSeconds > 0) seekPreviewTime(active, seekSeconds);
-		setState((current) => ({ ...current, previewingSoundId: soundId, previewPaused: false }));
+		setState((current) => ({ ...current, previewingSoundId: soundId, previewPaused: false,
+			previewPositionSeconds: seekSeconds }));
 		void audio.play().catch(finish);
 	}, [panelActive, stopPreview]);
 
@@ -224,6 +234,7 @@ export function FreesoundPanelContainer({
 			return;
 		}
 		seekPreviewTime(active, seconds);
+		setState((current) => ({ ...current, previewPositionSeconds: seconds }));
 		if (active.playing) return;
 		active.playing = true;
 		setState((current) => ({ ...current, previewPaused: false }));
