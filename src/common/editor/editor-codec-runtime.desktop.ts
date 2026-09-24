@@ -5,9 +5,9 @@ import {
 	createDesktopAudioCodecRuntime,
 	type DesktopAudioCodecRendererBridge,
 } from './desktop-audio-codec-runtime.ts';
-import {
+import type {
 	createDesktopVideoCodecOperationRunner,
-	type DesktopVideoCodecRendererBridge,
+	DesktopVideoCodecRendererBridge,
 } from './desktop-video-codec-runtime.ts';
 
 export class DesktopCodecRuntimeUnavailableError extends Error {
@@ -34,7 +34,13 @@ export function createEditorCodecRuntime(options: unknown = {}) {
 	const base = audioBridge === null ? unavailableRuntime() : createDesktopAudioCodecRuntime(audioBridge);
 	const videoBridge = desktopVideoCodecBridge(options);
 	if (videoBridge === null) return base;
-	const runVideoKeyframeEncoderOperation = createDesktopVideoCodecOperationRunner(videoBridge);
+	// Video encoding starts only from an opted-in export operation. Keep its
+	// renderer adapter out of the editor's product-ready startup graph.
+	const runVideoKeyframeEncoderOperation: ReturnType<typeof createDesktopVideoCodecOperationRunner> =
+		async (operation, options) => {
+			const { createDesktopVideoCodecOperationRunner } = await import('./desktop-video-codec-runtime.ts');
+			return createDesktopVideoCodecOperationRunner(videoBridge)(operation, options);
+		};
 	const runtime = Object.freeze({
 		...base,
 		async load() { await base.load(); return runtime; },

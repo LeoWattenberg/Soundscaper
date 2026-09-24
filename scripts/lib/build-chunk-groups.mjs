@@ -89,6 +89,16 @@ export {
 /** @type {import('rolldown').CodeSplittingGroup[]} */
 export const chunkGroups = [
 	{
+		// Main-process video encoding is requested only by an export operation.
+		// Keep its renderer adapter with that dynamic entry instead of the editor.
+		name: 'editor-desktop-video-codec-runtime',
+		test: /src[\\/]common[\\/]editor[\\/]desktop-video-codec-runtime\.ts$/,
+		priority: 101,
+		minSize: 0,
+		maxSize: 400_000,
+		includeDependenciesRecursively: false,
+	},
+	{
 		// Startup opens the export directory for abandoned-file recovery, while
 		// the OPFS walker itself loads only after project storage is ready.
 		name: 'editor-temporary-export-recovery',
