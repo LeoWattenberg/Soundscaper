@@ -5,6 +5,7 @@ import test from 'node:test';
 
 import { AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION } from '../src/common/editor/project-schema-version.ts';
 import { createAudioEditorSessionController } from '../src/common/editor/session.js';
+import { collectHistoryLinkedOriginalSourceReferences } from '../src/common/editor/session-retention-views.ts';
 
 function project(id: string, title: string, clipId: string) {
 	return {
@@ -66,6 +67,83 @@ test('session retention roots include history clips, project bin clips and assis
 	const retained = session.getHistoryRetentionRoots();
 	assert.equal(retained.clipIds.has('first-clip'), true);
 	assert.equal(retained.assistanceSourceIds.has('first-clip-assistance-source'), true);
+});
+
+test('session projects linked-original and storage roots without detaching undo histories', () => {
+	const initial = {
+		...project('first', 'Initial', 'timeline-clip'),
+		clips: [{ id: 'timeline-clip', sourceId: 'timeline-source', kind: 'audio' }],
+		projectBin: { clips: [{ id: 'bin-clip', sourceId: 'bin-source', kind: 'video' }] },
+		sources: [
+			{ id: 'timeline-source', kind: 'audio', storageKey: 'timeline-storage' },
+			{ id: 'bin-source', kind: 'video', storageKey: 'bin-storage' },
+			{ id: 'take-source', kind: 'audio', storageKey: 'take-storage' },
+			{ id: 'assistance-source', kind: 'audio', storageKey: 'assistance-storage' },
+		],
+		takeGroups: [{ takes: [{ sourceId: 'take-source' }] }],
+		assistanceAssets: [{ sourceId: 'assistance-source', body: { storageKey: 'assistance-body' } }],
+	};
+	const prior = {
+		...initial,
+		clips: [{ id: 'prior-clip', sourceId: 'prior-source', kind: 'audio' }],
+		projectBin: { clips: [] },
+		sources: [{ id: 'prior-source', kind: 'audio', storageKey: 'prior-storage' }],
+		takeGroups: [], assistanceAssets: [],
+	};
+	const session = createAudioEditorSessionController({ projects: [initial] });
+	session.updateProjectHistory(initial.id, {
+		limit: 200, present: initial,
+		undoStack: [{ project: prior, command: { type: 'project/rename' } }], redoStack: [],
+	}, { returnHistory: false, adoptImmutableHistory: true });
+	const nativeClone = globalThis.structuredClone;
+	let historyClones = 0;
+	globalThis.structuredClone = (value, options) => {
+		if (value && typeof value === 'object' && 'undoStack' in value && 'present' in value) historyClones += 1;
+		return nativeClone(value, options);
+	};
+	try {
+		const references = session.getHistoryLinkedOriginalSourceReferences();
+		assert.deepEqual(references, [
+			{ kind: 'audio', sourceId: 'assistance-source' },
+			{ kind: 'audio', sourceId: 'prior-source' },
+			{ kind: 'audio', sourceId: 'take-source' },
+			{ kind: 'audio', sourceId: 'timeline-source' },
+			{ kind: 'video', sourceId: 'bin-source' },
+		]);
+		assert.equal(Object.isFrozen(references), true);
+		assert.equal(references.every(Object.isFrozen), true);
+		const storageKeys = session.getHistoryStorageKeys();
+		assert.deepEqual([...storageKeys].sort(), [
+			'assistance-body', 'assistance-storage', 'bin-storage', 'prior-storage',
+			'take-storage', 'timeline-storage',
+		]);
+		(storageKeys as Set<string>).clear();
+		assert.equal(session.getHistoryStorageKeys().has('timeline-storage'), true);
+		assert.equal(historyClones, 0);
+	} finally {
+		globalThis.structuredClone = nativeClone;
+	}
+});
+
+test('session storage roots retain Framescaper content-addressed asset bodies', () => {
+	const digest = 'a'.repeat(64);
+	const motionKey = `motion-sha256:${digest}`;
+	const framescaper = {
+		...project('frames', 'Frames', 'frame-clip'),
+		schemaFamily: 'framescaper', schemaVersion: 1,
+		clips: [], sources: [], projectBin: { clips: [] }, assistanceAssets: [],
+		videoMotionAnalyses: [{ storageKey: motionKey, sha256: digest, byteLength: 12 }],
+		videoVisualPresentations: [], videoFinishingPresets: [],
+	};
+	const session = createAudioEditorSessionController({ projects: [framescaper] });
+	assert.deepEqual([...session.getHistoryStorageKeys()], [motionKey]);
+});
+
+test('linked-original roots ignore malformed project bin clips as the project visual reader does', () => {
+	const malformed = { ...project('first', 'Initial', 'clip'), projectBin: { clips: {} }, assistanceAssets: [] };
+	assert.deepEqual(collectHistoryLinkedOriginalSourceReferences([{ present: malformed }]), [
+		{ kind: 'audio', sourceId: 'clip-source' },
+	]);
 });
 
 test('explicit immutable history adoption shares hardened entries but keeps public snapshots detached', () => {

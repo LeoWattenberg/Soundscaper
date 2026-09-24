@@ -20,6 +20,7 @@ import type {
 	RetentionProject,
 } from './internal/project/project-retention-service.ts';
 import type { AudioEditorCommand } from '../../commands/protocol.ts';
+import type { ProjectLinkedOriginalSourceReference } from '../../storage/project-publication-options.ts';
 import type { ControllerProjectRuntime, ControllerRuntimeHistory, ControllerRuntimeProject } from './project-runtime.ts';
 import type {
 	ProjectSaveServiceDependencies,
@@ -85,6 +86,8 @@ export interface DocumentSessionPort {
 		readonly clipIds: ReadonlySet<string>;
 		readonly assistanceSourceIds: ReadonlySet<string>;
 	}>;
+	getHistoryLinkedOriginalSourceReferences(): readonly ProjectLinkedOriginalSourceReference[];
+	getHistoryStorageKeys(): ReadonlySet<string>;
 }
 
 export type DocumentCompositionState =

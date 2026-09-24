@@ -90,6 +90,7 @@ export interface ProjectRetentionServiceDependencies<
 		readonly clipIds: ReadonlySet<string>;
 		readonly assistanceSourceIds: ReadonlySet<string>;
 	}>;
+	readonly getSessionLinkedOriginalSourceReferences?: () => readonly ProjectLinkedOriginalSourceReference[];
 	readonly editorHistoryProjects: (history: History) => readonly Project[];
 	readonly allProjectClips: (project: Project) => readonly RetentionClip[];
 	readonly clipCache: ClipRetentionCache;
@@ -205,33 +206,39 @@ export function createProjectRetentionService<
 			const reference = Object.freeze({ kind, sourceId });
 			references.set(`${kind}:${sourceId}`, reference);
 		};
-		for (const tab of dependencies.getSessionTabs()) {
-			for (const project of dependencies.editorHistoryProjects(tab.history)) {
-				const sourceById = new Map((project.sources || []).map((source) => [source.id, source]));
-				const sourceKind = (sourceId: string): 'audio' | 'video' | null => {
-					const kind = sourceById.get(sourceId)?.kind;
-					return kind === undefined || kind === 'audio' ? 'audio' : kind === 'video' ? 'video' : null;
-				};
-				for (const clip of dependencies.allProjectClips(project)) {
-					if (!clip.sourceId) continue;
-					const kind = linkedOriginalKind(clip.kind)
-						?? (clip.kind === undefined ? sourceKind(clip.sourceId) : null);
-					if (kind) add(kind, clip.sourceId);
-				}
-				for (const requirement of project.featureRequirements?.requirements || []) {
-					const fallback = requirement.fallback;
-					if (!fallback?.sourceId) continue;
-					const kind = linkedOriginalKind(fallback.kind)
-						?? (fallback.kind === undefined ? sourceKind(fallback.sourceId) : null);
-					if (kind) add(kind, fallback.sourceId);
-				}
-				for (const sourceId of collectTakeGroupSourceIds(project)) {
-					const kind = sourceKind(sourceId);
-					if (kind) add(kind, sourceId);
-				}
-				for (const sourceId of assistanceSourceIds(project)) {
-					const kind = sourceKind(sourceId);
-					if (kind) add(kind, sourceId);
+		if (dependencies.getSessionLinkedOriginalSourceReferences) {
+			for (const reference of dependencies.getSessionLinkedOriginalSourceReferences()) {
+				add(reference.kind, reference.sourceId);
+			}
+		} else {
+			for (const tab of dependencies.getSessionTabs()) {
+				for (const project of dependencies.editorHistoryProjects(tab.history)) {
+					const sourceById = new Map((project.sources || []).map((source) => [source.id, source]));
+					const sourceKind = (sourceId: string): 'audio' | 'video' | null => {
+						const kind = sourceById.get(sourceId)?.kind;
+						return kind === undefined || kind === 'audio' ? 'audio' : kind === 'video' ? 'video' : null;
+					};
+					for (const clip of dependencies.allProjectClips(project)) {
+						if (!clip.sourceId) continue;
+						const kind = linkedOriginalKind(clip.kind)
+							?? (clip.kind === undefined ? sourceKind(clip.sourceId) : null);
+						if (kind) add(kind, clip.sourceId);
+					}
+					for (const requirement of project.featureRequirements?.requirements || []) {
+						const fallback = requirement.fallback;
+						if (!fallback?.sourceId) continue;
+						const kind = linkedOriginalKind(fallback.kind)
+							?? (fallback.kind === undefined ? sourceKind(fallback.sourceId) : null);
+						if (kind) add(kind, fallback.sourceId);
+					}
+					for (const sourceId of collectTakeGroupSourceIds(project)) {
+						const kind = sourceKind(sourceId);
+						if (kind) add(kind, sourceId);
+					}
+					for (const sourceId of assistanceSourceIds(project)) {
+						const kind = sourceKind(sourceId);
+						if (kind) add(kind, sourceId);
+					}
 				}
 			}
 		}

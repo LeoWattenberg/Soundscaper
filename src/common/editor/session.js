@@ -3,6 +3,7 @@
 import { freezeProjectFeatureReportMetadata } from './project-feature-report-metadata.ts';
 import { AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION } from './project-schema-version.ts';
 import { collectHistorySourceIds } from './retention.js';
+import { collectHistoryLinkedOriginalSourceReferences, collectHistoryStorageKeys } from './session-retention-views.ts';
 import { createProjectActivationReservations, projectHistoryChangedError } from './session-activation.js';
 import {
 	AUDIO_EDITOR_SESSION_CLIPBOARD_SCHEMA_VERSION,
@@ -434,10 +435,10 @@ export function createAudioEditorSessionController(options = {}) {
 		return countsObject(countsFor(tabs, clipboard));
 	}
 
-	function getHistoryRetentionRoots() {
-		ensureUsable();
-		return collectHistoryRetentionRoots(tabs.map((tab) => tab.history));
-	}
+	function sessionHistories() { ensureUsable(); return tabs.map((tab) => tab.history); }
+	function getHistoryRetentionRoots() { return collectHistoryRetentionRoots(sessionHistories()); }
+	function getHistoryLinkedOriginalSourceReferences() { return collectHistoryLinkedOriginalSourceReferences(sessionHistories()); }
+	function getHistoryStorageKeys() { return collectHistoryStorageKeys(sessionHistories()); }
 
 	function getSnapshot(fresh = false) {
 		if (!fresh && snapshotCache) return snapshotCache;
@@ -534,6 +535,8 @@ export function createAudioEditorSessionController(options = {}) {
 		beginProjectActivation,
 		getSourceReferenceCounts,
 		getHistoryRetentionRoots,
+		getHistoryLinkedOriginalSourceReferences,
+		getHistoryStorageKeys,
 		getSnapshot,
 		serialize,
 		subscribe,

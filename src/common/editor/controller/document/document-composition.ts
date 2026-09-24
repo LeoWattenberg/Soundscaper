@@ -98,6 +98,7 @@ export function createDocumentComposition(dependencies: DocumentCompositionDepen
 		getSourceReferenceCounts: () => session.getSourceReferenceCounts(),
 		getSessionTabs: () => session.getSnapshot().tabs,
 		getSessionRetentionRoots: () => session.getHistoryRetentionRoots(),
+		getSessionLinkedOriginalSourceReferences: () => session.getHistoryLinkedOriginalSourceReferences(),
 		editorHistoryProjects,
 		allProjectClips: (project) => sources.projectVisual.allProjectClips(project),
 		clipCache: dependencies.timePitchCache,

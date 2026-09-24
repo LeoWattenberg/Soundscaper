@@ -116,6 +116,7 @@ export interface ProjectAdminServiceRuntime<
 	scheduleTimer(callback: () => void, delayMs: number): number;
 	readonly sessionController: Readonly<{
 		getSnapshot(): Readonly<{ tabs: readonly AdminSessionTab<Project, History>[] }>;
+		getHistoryStorageKeys?(): ReadonlySet<string>;
 		captureProjectHistory(projectId: string): Readonly<{ token: unknown; history: History }>;
 		beginProjectActivation(projectId: string, options: Readonly<{ expectedHistoryToken: unknown }>): Readonly<{ release(): boolean }>;
 		markProjectSaved(projectId: string): unknown;

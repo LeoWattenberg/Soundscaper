@@ -263,6 +263,35 @@ test('linked-original roots preserve audio and video kinds across histories and 
 	assert.equal(references.every(Object.isFrozen), true);
 });
 
+test('linked-original save roots use scalar session projections without reading detached tabs', () => {
+	const project: TestProject = { id: 'current', clips: [] };
+	const service = createProjectRetentionService<TestProject, TestHistory>({
+		state: {
+			history: { present: project },
+			clipboard: { tracks: [{ clips: [{ sourceId: 'clipboard-source', kind: 'video' }] }] },
+			readOnly: false, recordingSourceId: 'recording-source',
+		},
+		getProject: () => project, setProject: () => undefined, compactHistory: (value) => value,
+		sessionTab: () => ({ dirty: false }), updateProjectHistory: () => undefined,
+		getSourceReferenceCounts: () => ({}),
+		getSessionTabs: () => { throw new Error('detached session history was read'); },
+		getSessionLinkedOriginalSourceReferences: () => [
+			{ kind: 'audio', sourceId: 'history-source' },
+			{ kind: 'video', sourceId: 'history-video' },
+		],
+		editorHistoryProjects: (value) => [value.present], allProjectClips: (value) => value.clips,
+		clipCache: { getProtectedSourceIds: () => [] },
+		sourceBuffers: new Map(), sourcePeaks: new Map(), evictSourceCaches: () => undefined,
+	});
+
+	assert.deepEqual(service.liveSessionLinkedOriginalSourceReferences(), [
+		{ kind: 'audio', sourceId: 'history-source' },
+		{ kind: 'audio', sourceId: 'recording-source' },
+		{ kind: 'video', sourceId: 'clipboard-source' },
+		{ kind: 'video', sourceId: 'history-video' },
+	]);
+});
+
 test('read-only and missing projects never update session history', () => {
 	let updates = 0;
 	const project: TestProject = { id: 'readonly', clips: [] };

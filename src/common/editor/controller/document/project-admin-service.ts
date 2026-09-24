@@ -321,9 +321,10 @@ export function createProjectAdminService<
 			});
 			for (const storageRoot of maintenance.storageRoots) protectedSourceIds.add(storageRoot);
 		}
+		for (const key of sessionController.getHistoryStorageKeys?.() || []) protectedSourceIds.add(key);
 		const result = await store.pruneUnreferencedSources({
 			protectedProjects: [
-				...sessionHistoryProjects(),
+				...(sessionController.getHistoryStorageKeys ? [] : sessionHistoryProjects()),
 				...projectSaveService.pendingSnapshots,
 			],
 			protectedSourceIds,
