@@ -71,8 +71,37 @@ test('a cancelled V23 automation gesture restores its readback too', () => {
 	assert.deepEqual(host.livePreviews.at(-1), [ADDRESS, 0.5]);
 });
 
+test('position ticks reuse a validated target until the document changes', () => {
+	const host = createHost();
+	let validations = 0;
+	const binding = createSoundscaperAutomationControllerBinding(host.host, {
+		validateProject: (project) => {
+			validations += 1;
+			return validateSoundscaperProject(project);
+		},
+	});
+	binding.actions.setMode('write', 'voice-gain');
+	host.startTransport();
+	for (let frame = 1; frame <= 100; frame += 1) host.seek(frame);
+	assert.equal(validations, 1);
+	assert.equal(binding.actions.getSnapshot().active, true);
+
+	host.setReadOnly(true);
+	assert.equal(binding.actions.getSnapshot().mode, 'read');
+	assert.equal(validations, 1);
+	host.setReadOnly(false);
+	binding.actions.setMode('write', 'voice-gain');
+	assert.equal(validations, 1);
+
+	host.replaceProject(projectFixture(true));
+	assert.equal(validations, 2);
+	assert.equal(binding.actions.getSnapshot().mode, 'read');
+	binding.dispose();
+});
+
 function createHost() {
 	let project = projectFixture();
+	let readOnly = false;
 	let positionFrame = 0;
 	let transportState = 'stopped';
 	let commitCount = 0;
@@ -104,7 +133,7 @@ function createHost() {
 			for (const listener of documentListeners) listener();
 			return project;
 		} } },
-		getSnapshot: () => ({ readOnly: false, lockReadOnly: false, transportState }),
+		getSnapshot: () => ({ readOnly, lockReadOnly: false, transportState }),
 		subscribe: (listener: () => void) => {
 			documentListeners.add(listener);
 			return () => documentListeners.delete(listener);
@@ -114,6 +143,14 @@ function createHost() {
 		host,
 		livePreviews,
 		get commitCount() { return commitCount; },
+		setReadOnly(value: boolean) {
+			readOnly = value;
+			for (const listener of documentListeners) listener();
+		},
+		replaceProject(value: ReturnType<typeof projectFixture>) {
+			project = value;
+			for (const listener of documentListeners) listener();
+		},
 		startTransport() {
 			transportState = 'playing';
 			for (const listener of stateListeners) listener();
@@ -125,12 +162,12 @@ function createHost() {
 	};
 }
 
-function projectFixture() {
+function projectFixture(locked = false) {
 	return createSoundscaperProject({
 		id: 'automation-v23-project',
 		title: 'Automation V23 project',
 		now: NOW,
-		tracks: [createAudioTrack({ id: 'voice', name: 'Voice', clipIds: [] })],
+		tracks: [createAudioTrack({ id: 'voice', name: 'Voice', clipIds: [], locked })],
 		sequences: [{ id: 'main-sequence', trackIds: ['voice'] }],
 		primarySequenceId: 'main-sequence',
 		automationLanes: [{

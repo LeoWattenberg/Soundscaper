@@ -82,15 +82,28 @@ export function createSoundscaperAutomationControllerBinding(
 	assertHost(host);
 	const validateProject = options.validateProject ?? validateSoundscaperProject;
 	let disposed = false;
+	let resolvedProject: unknown;
+	let resolvedLaneId: string | null = null;
+	let resolvedTarget: SoundscaperAutomationTarget | null = null;
+	const resolveTarget = (laneId: string): SoundscaperAutomationTarget | null => {
+		const project = host.project;
+		if (project !== resolvedProject || laneId !== resolvedLaneId) {
+			const target = resolveSoundscaperAutomationTarget(project, laneId, validateProject);
+			resolvedProject = project;
+			resolvedLaneId = laneId;
+			resolvedTarget = target;
+		}
+		return resolvedTarget;
+	};
 	const coordinator = createSoundscaperAutomationSession({
 		captureAuthority: () => controllerAuthority(host),
-		resolveTarget: (laneId) => resolveSoundscaperAutomationTarget(host.project, laneId, validateProject),
+		resolveTarget,
 		commit: (command) => host.actions.edit.commit(command),
 		preview: ({ laneId, value }) => {
-			const target = resolveSoundscaperAutomationTarget(host.project, laneId, validateProject);
+			const target = resolveTarget(laneId);
 			if (target) host.engine.previewScheduledParameter?.(target.descriptor.address, value);
 		},
-		restoreReadback: ({ id }) => { restoreAutomationReadbackV21(host, id, validateProject); },
+		restoreReadback: ({ id }) => { restoreAutomationReadbackV21(host, id, resolveTarget); },
 	});
 	const synchronize = (): void => {
 		if (disposed) return;
@@ -166,6 +179,9 @@ export function createSoundscaperAutomationControllerBinding(
 		dispose() {
 			disposed = true;
 			const failures = releaseOwnership();
+			resolvedProject = null;
+			resolvedLaneId = null;
+			resolvedTarget = null;
 			if (failures.length === 1) throw failures[0];
 			if (failures.length > 1) {
 				throw new AggregateError(failures, 'Soundscaper automation controller disposal failed.', {
@@ -186,13 +202,10 @@ function subscriptionRelease(value: unknown, name: string): SubscriptionRelease 
 function restoreAutomationReadbackV21(
 	host: SoundscaperAutomationControllerHost,
 	laneId: string,
-	// The same injected revision authority the resolve and preview ports take:
-	// this runs in the gesture's finally, so a validator that refuses the mounted
-	// document turns every completed gesture into a reported failure.
-	validateProject: (project: unknown) => unknown,
+	resolveTarget: (laneId: string) => SoundscaperAutomationTarget | null,
 ): void {
 	if (!host.engine.previewScheduledParameter) return;
-	const target = resolveSoundscaperAutomationTarget(host.project, laneId, validateProject);
+	const target = resolveTarget(laneId);
 	if (!target) return;
 	const current = controllerAuthority(host);
 	const value = evaluateAutomationLaneAtFrameV21(target.lane, current.positionFrame, {
