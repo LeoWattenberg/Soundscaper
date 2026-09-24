@@ -29,7 +29,7 @@ const PACKAGE_TARGET_PARTS = Object.freeze({
 	'win-arm64': Object.freeze({ platform: 'win', arch: 'arm64' }),
 });
 const NIGHTLY_TARGET_MATRIX_HELPER = 'scripts/lib/desktop-nightly-tests-target-matrix.mjs';
-const NIGHTLY_TARGET_MATRIX_REFERENCE = 'target: ${{ fromJSON(needs.quality.outputs.nightly-tests-targets) }}';
+const NIGHTLY_TARGET_MATRIX_REFERENCE = 'target: ${{ fromJSON(needs.nightly-test-targets.outputs.targets) }}';
 const NIGHTLY_EXPECTED_ALL = Object.freeze([
 	Object.freeze({ runner: 'windows-2025', platform: 'win', arch: 'x64', node_arch: 'x64' }),
 	Object.freeze({ runner: 'windows-11-arm', platform: 'win', arch: 'arm64', node_arch: 'x64' }),
@@ -238,7 +238,8 @@ function auditPackageWorkflowJob(root, producer, job, workflow, findings) {
 
 function auditNightlyTargetMatrix(root, producer, workflow, findings) {
 	const bindings = [
-		'nightly-tests-targets: ${{ steps.nightly-test-targets.outputs.targets }}',
+		'targets: ${{ steps.resolve.outputs.targets }}',
+		'needs: [nightly-test-targets, quality, tests, coverage, browser, firefox]',
 		'NIGHTLY_TEST_TARGETS: ${{ inputs.nightly_tests_targets || \'all\' }}',
 		`from './${NIGHTLY_TARGET_MATRIX_HELPER}'`,
 		'selectDesktopNightlyTestTargets(process.env.NIGHTLY_TEST_TARGETS)',

@@ -199,11 +199,15 @@ test('each site-verifying workflow publishes and consumes a verified Framescaper
 test('desktop verification isolates browser engines and tests packages with every engine', async () => {
 	const workflow = await readFile(new URL('../.github/workflows/desktop-preview.yml', import.meta.url), 'utf8');
 	assertBrowserCoverage(workflow, 'desktop', SITE_WORKFLOWS.get('desktop-preview.yml'));
-	for (const jobName of ['package', 'package-with-tests', 'soundscaper-project-library-lease-matrix']) {
+	for (const jobName of ['package', 'soundscaper-project-library-lease-matrix']) {
 		// Packaging waits on the sharded Node suite and the merged coverage gate too:
 		// a package built off unverified source is worse than no package.
 		assert.match(extractJob(workflow, jobName), /needs: \[quality, tests, coverage, browser, firefox\]/u);
 	}
+	const tested = extractJob(workflow, 'package-with-tests');
+	assert.match(tested, /needs: \[nightly-test-targets, quality, tests, coverage, browser, firefox\]/u);
+	assert.match(tested, /github\.event\.workflow_run\.conclusion == 'success'/u,
+		'automatic tested packages must use the upstream Quality verdict');
 	assert.doesNotMatch(workflow, /^ {2}project-library-handoff:/mu);
 });
 

@@ -195,18 +195,31 @@ test('manual nightly-with-tests target selection preserves all targets and selec
 	assert.throws(() => selectDesktopNightlyTestTargets('linux'), /target selection/u);
 });
 
-test('desktop CI exposes one quality-gated selectable nightly-with-tests artifact matrix', async () => {
+test('desktop CI packages verified main pushes and selected manual nightly-with-tests targets', async () => {
 	const workflow = await readFile(resolve(ROOT, '.github/workflows/desktop-preview.yml'), 'utf8');
 	assert.match(workflow, /workflow_dispatch:\s+inputs:\s+artifact_variant:/u);
 	assert.match(workflow, /nightly_tests_targets:[\s\S]*?default: all[\s\S]*?type: choice\s+options:\s+- all\s+- windows\s+- win-x64/u);
-	// Main pushes use Quality without starting a second native package build.
-	// The tested package runs only when the owner dispatches that variant.
-	assert.doesNotMatch(workflow, /workflow_run/u);
+	// Main pushes follow their existing Quality run, without repeating its gates.
+	assert.match(workflow, /workflow_run:\s+workflows: \[Quality\]\s+types: \[completed\]\s+branches: \[main\]/u);
 	assert.match(workflow, /schedule:\s+(?:#.*\n\s+)*- cron:/u);
 	assert.match(workflow, /push:\s+tags:/u);
 	assert.doesNotMatch(workflow, /push:\s+branches:/u);
 	assert.match(workflow, /artifact_variant:[\s\S]*type: choice[\s\S]*options:\s+- nightly\s+- nightly-with-tests/u);
-	assert.match(workflow, /nightly-tests-targets: \$\{\{ steps\.nightly-test-targets\.outputs\.targets \}\}/u);
+	for (const shared of ['quality', 'tests', 'coverage', 'browser', 'firefox']) {
+		const start = workflow.indexOf(`\n  ${shared}:`);
+		assert.ok(start >= 0, `${shared} is missing`);
+		assert.match(workflow.slice(start, start + 200), /if: github\.event_name != 'workflow_run'/u);
+	}
+	const targetsStart = workflow.indexOf('\n  nightly-test-targets:');
+	const targetsEnd = workflow.indexOf('\n  package-with-tests:', targetsStart);
+	assert.ok(targetsStart >= 0 && targetsEnd > targetsStart);
+	const targetsJob = workflow.slice(targetsStart, targetsEnd);
+	assert.match(targetsJob, /github\.event\.workflow_run\.conclusion == 'success'/u);
+	assert.match(targetsJob, /github\.event\.workflow_run\.event == 'push'/u);
+	assert.match(targetsJob, /github\.event\.workflow_run\.head_repository\.full_name == github\.repository/u);
+	assert.match(targetsJob, /inputs\.artifact_variant == 'nightly-with-tests'/u);
+	assert.match(targetsJob, /ref: \$\{\{ github\.event\.workflow_run\.head_sha \|\| github\.sha \}\}/u);
+	assert.match(targetsJob, /targets: \$\{\{ steps\.resolve\.outputs\.targets \}\}/u);
 	assert.match(workflow, /NIGHTLY_TEST_TARGETS: \$\{\{ inputs\.nightly_tests_targets \|\| 'all' \}\}/u);
 	assert.match(workflow, /selectDesktopNightlyTestTargets\(process\.env\.NIGHTLY_TEST_TARGETS\)/u);
 
@@ -224,32 +237,41 @@ test('desktop CI exposes one quality-gated selectable nightly-with-tests artifac
 		+ String.raw`\s+\|\| \(github\.event_name == 'workflow_dispatch' && inputs\.artifact_variant == 'nightly'\)`,
 		'u',
 	));
-	// The manually selected variant runs only after its own quality gates pass.
+	// A green, same-repository push uses the upstream Quality verdict; a manual
+	// dispatch must pass this workflow's own quality gates.
 	const testGuard = testJob.slice(testJob.indexOf('if: >-'), testJob.indexOf('\n    needs:'));
 	assert.ok(testGuard.startsWith('if: >-'));
+	assert.match(testGuard, /github\.event_name == 'workflow_run'/u);
+	assert.match(testGuard, /github\.event\.workflow_run\.conclusion == 'success'/u);
+	assert.match(testGuard, /github\.event\.workflow_run\.event == 'push'/u);
+	assert.match(testGuard, /github\.event\.workflow_run\.head_repository\.full_name == github\.repository/u);
 	assert.match(testGuard, /github\.event_name == 'workflow_dispatch'/u);
 	assert.match(testGuard, /inputs\.artifact_variant == 'nightly-with-tests'/u);
 	assert.doesNotMatch(testGuard, /github\.event_name == '(?:schedule|push)'/u);
-	assert.match(testJob, /needs: \[quality, tests, coverage, browser, firefox\]/u);
+	assert.match(testJob, /needs: \[nightly-test-targets, quality, tests, coverage, browser, firefox\]/u);
 	for (const gate of ['quality', 'tests', 'coverage', 'browser', 'firefox']) {
 		assert.match(testGuard, new RegExp(`needs\\.${gate}\\.result == 'success'`, 'u'));
 	}
-	// The package and both source manifests must name this manual run's commit.
-	assert.match(testJob, /ref: \$\{\{ github\.sha \}\}/u);
+	assert.match(testGuard, /needs\.nightly-test-targets\.result == 'success'/u);
+	// The package and both source manifests must name the commit Quality verified.
+	const sourceRevision = String.raw`\$\{\{ github\.event\.workflow_run\.head_sha \|\| github\.sha \}\}`;
+	assert.match(testJob, new RegExp(`ref: ${sourceRevision}`, 'u'));
 	assert.match(testJob, new RegExp(
 		String.raw`- name: Package the product runtimes exercised by nightly-with-tests\s+run: node scripts/desktop-nightly-tests-products\.mjs`
 		+ String.raw`\s+env:\s+SOUNDSCAPER_DESKTOP_TARGET_PLATFORM: \$\{\{ matrix\.target\.platform \}\}`
 		+ String.raw`\s+SOUNDSCAPER_DESKTOP_TARGET_ARCH: \$\{\{ matrix\.target\.arch \}\}`
-		+ String.raw`\s+SOUNDSCAPER_SOURCE_REVISION: \$\{\{ github\.sha \}\}`,
+		+ String.raw`\s+SOUNDSCAPER_SOURCE_REVISION: ` + sourceRevision,
 		'u',
 	), 'the exercised product manifests must name the same revision that the job checked out');
 	assert.match(testJob, new RegExp(
 		String.raw`- name: Stage the nightly-with-tests application\s+run: node scripts/desktop-nightly-tests-prepare\.mjs`
-		+ String.raw`\s+env:[\s\S]*?SOUNDSCAPER_SOURCE_REVISION: \$\{\{ github\.sha \}\}`,
+		+ String.raw`\s+env:[\s\S]*?SOUNDSCAPER_SOURCE_REVISION: ` + sourceRevision,
 		'u',
 	), 'the staged manifest must name the same revision that the job checked out');
 	assert.doesNotMatch(testJob, /matrix\.product|product: \[/u);
-	assert.match(testJob, /target: \$\{\{ fromJSON\(needs\.quality\.outputs\.nightly-tests-targets\) \}\}/u);
+	assert.match(testJob, /target: \$\{\{ fromJSON\(needs\.nightly-test-targets\.outputs\.targets\) \}\}/u);
+	assert.match(testJob, /SOUNDSCAPER_PUBLISH_ASSISTANCE_RUNTIMES: \$\{\{ github\.event_name == 'workflow_dispatch' && inputs\.artifact_variant == 'nightly-with-tests' \}\}/u);
+	assert.match(testJob, /SOUNDSCAPER_VERIFY_ASSISTANCE_RUNTIMES: \$\{\{ github\.event_name == 'workflow_run' \}\}/u);
 	assert.doesNotMatch(testJob, /- runner:/u);
 	assert.match(testJob, /node scripts\/desktop-nightly-tests-prepare\.mjs/u);
 	assert.match(testJob, /node scripts\/desktop-nightly-tests-products\.mjs/u);

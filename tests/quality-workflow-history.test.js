@@ -34,21 +34,21 @@ test('quality only cancels superseded pull-request runs', async () => {
 	);
 });
 
-test('desktop preview keeps manual, scheduled, and tagged runs independent', async () => {
+test('desktop preview supersedes only automatic packaging after successful Quality runs', async () => {
 	const workflow = await readWorkflow('desktop-preview.yml');
 	const header = workflow.slice(0, workflow.indexOf('\njobs:\n'));
 
 	assert.match(
 		header,
-		/^ {2}group: desktop-preview-and-nightly-\$\{\{ github\.run_id \}\}$/mu,
-		'each manual, scheduled, or tagged run needs a unique concurrency group',
+		/^ {2}group: desktop-preview-and-nightly-\$\{\{ github\.event_name == 'workflow_run' && 'workflow-run' \|\| github\.run_id \}\}$/mu,
+		'manual, scheduled, and tagged runs need unique groups so automatic runs cannot cancel them',
 	);
 	assert.match(
 		header,
-		/^ {2}cancel-in-progress: false$/mu,
-		'one desktop run must not cancel another',
+		/^ {2}cancel-in-progress: \$\{\{ github\.event_name == 'workflow_run' \}\}$/mu,
+		'only a newer automatic run may cancel automatic packaging',
 	);
-	assert.doesNotMatch(header, /workflow_run/u);
+	assert.match(header, /workflow_run:\s+workflows: \[Quality\]\s+types: \[completed\]\s+branches: \[main\]/u);
 });
 
 test('npm run typecheck still covers every project in the tree', async () => {

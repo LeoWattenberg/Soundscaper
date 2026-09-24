@@ -11,6 +11,12 @@ on:
       - 'soundscaper-v*-rc.*'
       - 'framescaper-v*-beta.*'
       - 'framescaper-v*-rc.*'
+  # Package each verified main commit from its existing Quality run, without
+  # repeating the static, Node, and browser gates in this workflow.
+  workflow_run:
+    workflows: [Quality]
+    types: [completed]
+    branches: [main]
   workflow_dispatch:
     inputs:
       artifact_variant:
@@ -36,11 +42,13 @@ permissions:
   packages: read
 
 concurrency:
-  group: desktop-preview-and-nightly-${{ github.run_id }}
-  cancel-in-progress: false
+  group: desktop-preview-and-nightly-${{ github.event_name == 'workflow_run' && 'workflow-run' || github.run_id }}
+  # A newer verified main commit may replace only an older automatic package.
+  cancel-in-progress: ${{ github.event_name == 'workflow_run' }}
 
 jobs:
   quality:
+    if: github.event_name != 'workflow_run'
     runs-on: ubuntu-24.04
     timeout-minutes: 45
     outputs:
@@ -49,7 +57,6 @@ jobs:
       release-assembler-arguments: ${{ steps.release-scope.outputs.assembler-arguments }}
       package-audit-arguments: ${{ steps.release-scope.outputs.package-audit-arguments }}
       release-channel: ${{ steps.release-scope.outputs.channel }}
-      nightly-tests-targets: ${{ steps.nightly-test-targets.outputs.targets }}
     steps:
       - name: Check out source
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
@@ -81,18 +88,6 @@ jobs:
           + 'assembler-arguments=' + (release ? '--product ' + release.productId : '--suite') + '\n'
           + 'package-audit-arguments=' + (release ? '--product ' + release.productId : '') + '\n'
           + 'channel=' + (release?.channel ?? 'nightly-suite') + '\n');"
-
-      - name: Resolve nightly-with-tests target matrix
-        id: nightly-test-targets
-        env:
-          NIGHTLY_TEST_TARGETS: ${{ inputs.nightly_tests_targets || 'all' }}
-        run: >-
-          node --input-type=module -e
-          "import { appendFileSync } from 'node:fs';
-          import { selectDesktopNightlyTestTargets }
-          from './scripts/lib/desktop-nightly-tests-target-matrix.mjs';
-          appendFileSync(process.env.GITHUB_OUTPUT,
-          'targets=' + JSON.stringify(selectDesktopNightlyTestTargets(process.env.NIGHTLY_TEST_TARGETS)) + '\n');"
 
       - name: Pin npm
         run: npm install --global npm@12.0.1
@@ -169,6 +164,7 @@ jobs:
 
   tests:
     name: Tests / ${{ matrix.shard }}
+    if: github.event_name != 'workflow_run'
     needs: quality
     strategy:
       fail-fast: false
@@ -248,6 +244,7 @@ jobs:
 
   coverage:
     name: Coverage
+    if: github.event_name != 'workflow_run'
     # The Chromium browser shards upload coverage of their own, and the floors
     # are scored over the union of what the site ran and what the Node shards ran.
     needs: [tests, browser]
@@ -285,6 +282,7 @@ jobs:
 
   browser:
     name: Browser / ${{ matrix.project }} ${{ matrix.shard }}/3
+    if: github.event_name != 'workflow_run'
     needs: quality
     strategy:
       fail-fast: false
@@ -392,6 +390,7 @@ jobs:
 
   firefox:
     name: Browser / firefox ${{ matrix.shard }}/3
+    if: github.event_name != 'workflow_run'
     needs: quality
     strategy:
       fail-fast: false
@@ -820,31 +819,76 @@ jobs:
           if-no-files-found: warn
           retention-days: 14
 
+  nightly-test-targets:
+    # Resolve this matrix even when the upstream Quality run already checked
+    # the source and this workflow's own quality job is intentionally skipped.
+    if: >-
+      (github.event_name == 'workflow_run'
+        && github.event.workflow_run.conclusion == 'success'
+        && github.event.workflow_run.event == 'push'
+        && github.event.workflow_run.head_repository.full_name == github.repository)
+      || (github.event_name == 'workflow_dispatch'
+        && inputs.artifact_variant == 'nightly-with-tests')
+    runs-on: ubuntu-24.04
+    outputs:
+      targets: ${{ steps.resolve.outputs.targets }}
+    steps:
+      - name: Check out the tested source revision
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+
+      - name: Set up Node.js
+        uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f # v6.1.0
+        with:
+          node-version-file: .nvmrc
+
+      - name: Resolve nightly-with-tests target matrix
+        id: resolve
+        env:
+          NIGHTLY_TEST_TARGETS: ${{ inputs.nightly_tests_targets || 'all' }}
+        run: |
+          node --input-type=module <<'NODE'
+          import { appendFileSync } from 'node:fs';
+          import { selectDesktopNightlyTestTargets } from './scripts/lib/desktop-nightly-tests-target-matrix.mjs';
+          appendFileSync(process.env.GITHUB_OUTPUT,
+            `targets=${JSON.stringify(selectDesktopNightlyTestTargets(process.env.NIGHTLY_TEST_TARGETS))}\n`);
+          NODE
+
   package-with-tests:
     name: Package nightly-with-tests / ${{ matrix.target.platform }} / ${{ matrix.target.arch }}
-    # The expensive five-target real-model suite runs only when selected by hand.
+    # A verified main push uses its upstream Quality verdict; manual selections
+    # must pass this workflow's own quality, Node, coverage, and browser gates.
     if: >-
       !cancelled()
-      && github.event_name == 'workflow_dispatch'
-      && inputs.artifact_variant == 'nightly-with-tests'
-      && needs.quality.result == 'success'
-      && needs.tests.result == 'success'
-      && needs.coverage.result == 'success'
-      && needs.browser.result == 'success'
-      && needs.firefox.result == 'success'
-    needs: [quality, tests, coverage, browser, firefox]
+      && needs.nightly-test-targets.result == 'success'
+      && (
+        (github.event_name == 'workflow_run'
+          && github.event.workflow_run.conclusion == 'success'
+          && github.event.workflow_run.event == 'push'
+          && github.event.workflow_run.head_repository.full_name == github.repository)
+        || (github.event_name == 'workflow_dispatch'
+          && inputs.artifact_variant == 'nightly-with-tests'
+          && needs.quality.result == 'success'
+          && needs.tests.result == 'success'
+          && needs.coverage.result == 'success'
+          && needs.browser.result == 'success'
+          && needs.firefox.result == 'success')
+      )
+    needs: [nightly-test-targets, quality, tests, coverage, browser, firefox]
     timeout-minutes: 150
     strategy:
       fail-fast: false
       matrix:
-        target: ${{ fromJSON(needs.quality.outputs.nightly-tests-targets) }}
+        target: ${{ fromJSON(needs.nightly-test-targets.outputs.targets) }}
     runs-on: ${{ matrix.target.runner }}
     steps:
       - name: Check out source
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           persist-credentials: false
-          ref: ${{ github.sha }}
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
 
       - name: Set up Node.js
         uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f # v6.1.0
@@ -908,11 +952,12 @@ jobs:
         env:
           SOUNDSCAPER_DESKTOP_TARGET_PLATFORM: ${{ matrix.target.platform }}
           SOUNDSCAPER_DESKTOP_TARGET_ARCH: ${{ matrix.target.arch }}
-          SOUNDSCAPER_SOURCE_REVISION: ${{ github.sha }}
-          SOUNDSCAPER_PUBLISH_ASSISTANCE_RUNTIMES: 'true'
-          R2_MODELS_ACCESS_KEY_ID: ${{ secrets.R2_MODELS_ACCESS_KEY_ID }}
-          R2_MODELS_SECRET_ACCESS_KEY: ${{ secrets.R2_MODELS_SECRET_ACCESS_KEY }}
-          R2_MODELS_ENDPOINT: ${{ vars.R2_MODELS_ENDPOINT || secrets.R2_MODELS_ENDPOINT }}
+          SOUNDSCAPER_SOURCE_REVISION: ${{ github.event.workflow_run.head_sha || github.sha }}
+          SOUNDSCAPER_PUBLISH_ASSISTANCE_RUNTIMES: ${{ github.event_name == 'workflow_dispatch' && inputs.artifact_variant == 'nightly-with-tests' }}
+          SOUNDSCAPER_VERIFY_ASSISTANCE_RUNTIMES: ${{ github.event_name == 'workflow_run' }}
+          R2_MODELS_ACCESS_KEY_ID: ${{ github.event_name == 'workflow_dispatch' && secrets.R2_MODELS_ACCESS_KEY_ID || '' }}
+          R2_MODELS_SECRET_ACCESS_KEY: ${{ github.event_name == 'workflow_dispatch' && secrets.R2_MODELS_SECRET_ACCESS_KEY || '' }}
+          R2_MODELS_ENDPOINT: ${{ github.event_name == 'workflow_dispatch' && (vars.R2_MODELS_ENDPOINT || secrets.R2_MODELS_ENDPOINT) || '' }}
 
       - name: Preserve the nested Chromium sandboxes
         if: runner.os == 'Linux'
@@ -991,7 +1036,7 @@ jobs:
         env:
           SOUNDSCAPER_DESKTOP_TARGET_PLATFORM: ${{ matrix.target.platform }}
           SOUNDSCAPER_DESKTOP_TARGET_ARCH: ${{ matrix.target.arch }}
-          SOUNDSCAPER_SOURCE_REVISION: ${{ github.sha }}
+          SOUNDSCAPER_SOURCE_REVISION: ${{ github.event.workflow_run.head_sha || github.sha }}
 
       # macOS ships a 256-descriptor soft limit, and ad-hoc execution sealing walks
       # the whole embedded Playwright browser matrix. Raise the soft limit to
