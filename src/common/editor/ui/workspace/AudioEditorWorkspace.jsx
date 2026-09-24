@@ -37,6 +37,7 @@ import { partitionWorkspaceFiles } from './workspace-file-routing.js';
 import { openWorkspaceProjectFile } from './open-workspace-project-file.ts';
 import { desktopExternalDestination } from '../workspace-runtime.js'; import { createTimedRecordingDialogValue } from '../dialogs/timed-recording-dialog-model.ts';
 import { useTrackHeaderDrawerFlag, useWorkspaceCompactLayout } from './useWorkspaceCompactLayout.js';
+import { useWorkspaceEffectsPanel } from './useWorkspaceEffectsPanel.js';
 import { createWorkspaceEditItems } from './workspace-edit-items.js';
 import { resolveEditingActionAvailability } from '../../commands/editing-selection-authority.ts';
 import { useCueImportWorkspace } from './cue-import-workspace.tsx'; import { useFreesoundClipUploadCommand } from './freesound-clip-upload-command.ts';
@@ -59,7 +60,6 @@ const DEFERRED_WEB_VCR_PANEL_ID = 'web-vcr'; export default function AudioEditor
 	const snapshot = useAudioEditorSnapshot(controller);
 	const [activeSurface, setActiveSurface] = useTakeCycleRecoverySurface(productId, snapshot.takeCycleRecovery);
 	usePrivacyPolicySurface(productId, initialSurface, setActiveSurface);
-	const [effectsPanelTarget, setEffectsPanelTarget] = useState(null);
 	const [effectWindow, setEffectWindow] = useState(null);
 	const [macroDraft, setMacroDraft] = useState(null);
 	const [dialog, setDialog] = useState(null);
@@ -258,25 +258,10 @@ const DEFERRED_WEB_VCR_PANEL_ID = 'web-vcr'; export default function AudioEditor
 		setActiveSurface(surface);
 	}, [setActiveSurface]);
 	const soundscaperWorkflow = useSoundscaperWorkflowWorkspace({ productId, controller, project, selectedTrackId: snapshot.selectedTrackId, openSurface });
-	const openEffects = useCallback((trackId, _anchorRect = null, scope = 'track', toggle = false) => {
-		if (!trackId && scope !== 'master') return;
-		if (toggle && snapshot.preferences?.workspace?.panels?.effects?.visible) {
-			run(() => controller.actions.preferences.setPanelVisibility('effects', false));
-			return;
-		}
-		setActiveSurface(null);
-		setEffectsPanelTarget({ trackId: scope === 'master' ? null : trackId, scope });
-		run(() => {
-			if (scope === 'track' && trackId !== snapshot.selectedTrackId) controller.actions.timeline.selectTrack(trackId);
-			controller.actions.preferences.setPanelVisibility('effects', true);
-		});
-		requestAnimationFrame(() => {
-			const panel = workspaceRef.current?.querySelector('[data-workspace-panel="effects"]');
-			if (!panel) return;
-			panel.tabIndex = -1;
-			panel.focus({ preventScroll: false });
-		});
-	}, [controller, run, setActiveSurface, snapshot.selectedTrackId, snapshot.preferences?.workspace?.panels?.effects?.visible]);
+	const { effectsPanelTarget, openEffects } = useWorkspaceEffectsPanel({
+		controller, run, setActiveSurface, selectedTrackId: snapshot.selectedTrackId,
+		effectsVisible: snapshot.preferences?.workspace?.panels?.effects?.visible, workspaceRef,
+	});
 	const { statusMessage, statusState, statusError } = workspaceStatusPresentation(snapshot.status, localError, copy.ready);
 	const aup4Compatibility = snapshot.aup4Compatibility;
 	const saveText = snapshot.save?.state === 'saving'
