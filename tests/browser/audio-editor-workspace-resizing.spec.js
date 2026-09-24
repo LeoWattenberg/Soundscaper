@@ -149,7 +149,6 @@ test.describe('workspace panel resizing', () => {
 
 	test('fills a side dock and resizes only the boundary between stacked panels', async ({ page }) => {
 		const editor = await bootEditor(page, '/embed/en/', { defaultWorkspace: true });
-		await closeWorkspacePanel(editor, 'effects');
 		await chooseNestedCommandAction(page, editor, 'View', ['Panels', 'Project bin']);
 		const leftDock = editor.locator('[data-panel-dock="left"]');
 		const projectBin = leftDock.locator('[data-workspace-panel="project-bin"]');

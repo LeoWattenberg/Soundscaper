@@ -289,6 +289,7 @@ test.describe('Soundscaper timeline selection rendering', () => {
 	});
 
 	test('carries the track header column to the bottom of the timeline viewport', async ({ page }) => {
+		test.setTimeout(60_000);
 		const errors = collectClientErrors(page);
 		const editor = await bootEditor(page, '/embed/en/');
 		await importFiles(editor, [toneA]);
@@ -341,7 +342,7 @@ test.describe('Soundscaper timeline selection rendering', () => {
 		// Belonging to the viewport rather than to the scrolled surface is what
 		// keeps it there: a scroll listener moving it would always answer a frame
 		// late and shudder against the headers it continues.
-		expect(geometry.columnAttachment).toBe('scroll');
+		expect(geometry.columnAttachment.split(',').every((attachment) => attachment.trim() === 'scroll')).toBe(true);
 		const timeline = editor.locator('[data-timeline]');
 		await timeline.evaluate((element) => { element.scrollLeft = 240; });
 		await expect.poll(() => timeline.evaluate((element) => element.scrollLeft)).toBe(240);

@@ -17,7 +17,7 @@ test.describe('workspace setup', () => {
 		const editor = await bootUnseededEditor(page, '/en/');
 		await expect(editor).toHaveAttribute('data-workspace-preset', 'modern');
 		await expect(editor.locator('[data-workspace-panel="project-bin"]')).toHaveCount(0);
-		await expect(editor.locator('[data-panel-dock="left"] [data-workspace-panel="effects"]')).toBeVisible();
+		await expect(editor.locator('[data-panel-dock="left"] [data-workspace-panel="effects"]')).toHaveCount(0);
 		await expect(page.getByRole('dialog', { name: 'Getting started', exact: true })).toHaveCount(0);
 		await expect(page.locator('[data-sidebar] [data-workspace-select] option'))
 			.toHaveText(['Soundscaper', 'Audacity', 'Music', 'Classic']);
@@ -38,7 +38,7 @@ test.describe('workspace setup', () => {
 		await expect(editor).toHaveAttribute('data-workspace-preset', 'audacity');
 		await expect(page.locator('[data-sidebar] [data-workspace-select]')).toHaveValue('audacity');
 		await expect(editor.locator('[data-workspace-panel="project-bin"]')).toHaveCount(0);
-		await expect(editor.locator('[data-panel-dock="left"] [data-workspace-panel="effects"]')).toBeVisible();
+		await expect(editor.locator('[data-panel-dock="left"] [data-workspace-panel="effects"]')).toHaveCount(0);
 		await expect(editor.locator('[data-side-playback-meter]')).toBeVisible();
 		await expect(editor.locator('[data-side-recording-meter]')).toHaveCount(0);
 		await expect(editor.locator('[data-snap-control]')).toHaveCount(1);
@@ -52,7 +52,7 @@ test.describe('workspace setup', () => {
 		await expect(page.getByRole('dialog', { name: 'Getting started', exact: true })).toHaveCount(0);
 		await expect(reloaded).toHaveAttribute('data-workspace-preset', 'audacity');
 		await expect(reloaded.locator('[data-workspace-panel="project-bin"]')).toHaveCount(0);
-		await expect(reloaded.locator('[data-panel-dock="left"] [data-workspace-panel="effects"]')).toBeVisible();
+		await expect(reloaded.locator('[data-panel-dock="left"] [data-workspace-panel="effects"]')).toHaveCount(0);
 		await addAudioTrack(page, reloaded);
 		await expect(reloaded.locator('[data-track-row]').first()).toBeVisible();
 		await expect(reloaded.locator('[data-track-ruler]')).toHaveCount(0);

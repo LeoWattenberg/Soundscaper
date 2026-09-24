@@ -165,6 +165,8 @@ test.describe('audio warp and transient workflow', () => {
 		await stubStorageEstimate(page, { usage: 1024 ** 2, quota: 2 * 1024 ** 3 });
 		const editor = await bootEditor(page, '/embed/en/');
 		await openAudioWarpArchive(editor, true);
+		await expect(editor).toHaveAttribute('data-project-id', PROJECT_ID, { timeout: 20_000 });
+		await expect(editor).not.toHaveAttribute('data-edit-block-reason', /.+/u, { timeout: 20_000 });
 		await selectAudioWarpClip(page, editor);
 		const dialog = await openAudioWarpDialog(page, editor);
 		const runtimeStatus = dialog.getByRole('status').filter({ hasText: /^Runtime:/u });
