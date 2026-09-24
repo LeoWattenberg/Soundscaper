@@ -2,6 +2,7 @@
 import { useLayoutEffect, useMemo, useState } from 'react';
 import type { RefObject } from 'react';
 import { createPortal } from 'react-dom';
+import { TrackFadeHandle } from '@soundscaper/design-system/Track/TrackFadeHandle';
 import { fadeDurationAtKey, fadeField, fadeOverlayGeometry } from './clip-fade-geometry.ts';
 import type { ClipFadeEdge, FadeClip } from './clip-fade-geometry.ts';
 
@@ -57,11 +58,9 @@ export function ClipFadeOverlays({ rootRef, clips, channelCounts, channelHeightR
 			<polyline points={geometry.points} vectorEffect="non-scaling-stroke" />
 		</g>;
 		const displayWidth = Math.max(48, Math.round(geometry.width));
-		const handleWidth = Math.min(20, displayWidth / 2);
-		const handleLeft = (x: number): number => Math.max(0, Math.min(displayWidth - handleWidth, x / geometry.width * displayWidth - handleWidth / 2));
-		const inLeft = handleLeft(geometry.fadeInX ?? 0);
-		const outLeft = handleLeft(geometry.fadeOutX ?? geometry.width);
-		const overlap = Math.abs(inLeft - outLeft) < handleWidth;
+		const displayX = (x: number): number => x / geometry.width * displayWidth;
+		const inBoundaryX = displayX(geometry.fadeInX ?? 0);
+		const outBoundaryX = displayX(geometry.fadeOutX ?? geometry.width);
 		return createPortal(<div className="audio-editor-clip-fade">
 			{hasFade && <svg className="audio-editor-clip-fade__shade" viewBox={`0 0 ${geometry.width} 100`}
 				preserveAspectRatio="none" aria-hidden="true">
@@ -78,17 +77,12 @@ export function ClipFadeOverlays({ rootRef, clips, channelCounts, channelHeightR
 				const field = fadeField(edge);
 				const value = clip[field] ?? 0;
 				const label = edge === 'in' ? copy.fadeIn : copy.fadeOut;
-				// Partition intersecting targets so both controls remain reachable.
-				const midpoint = (inLeft + outLeft + handleWidth) / 2;
-				const isLeft = edge === 'in' ? inLeft <= outLeft : outLeft < inLeft;
-				const left = overlap && !isLeft ? midpoint : handleLeft(x);
-				const width = overlap ? (isLeft ? midpoint - left : handleLeft(x) + handleWidth - midpoint) : handleWidth;
-				const markerLeft = Math.max(2, Math.min(Math.max(2, width - 10), x / geometry.width * displayWidth - left - (edge === 'out' ? 8 : 0)));
-				return <button key={edge} type="button" role="slider" tabIndex={-1} className="audio-editor-clip-fade__handle"
+				return <TrackFadeHandle key={edge} edge={edge} boundaryX={displayX(x)}
+					oppositeBoundaryX={edge === 'in' ? outBoundaryX : inBoundaryX} clipWidth={displayWidth}
+					role="slider" tabIndex={-1}
 					data-clip-fade-handle={edge} aria-label={label} title={label}
 					aria-valuemin={0} aria-valuemax={clip.durationFrames / sampleRate} aria-valuenow={value / sampleRate}
 					aria-orientation="horizontal" disabled={blocked}
-					style={{ left, width }}
 					onClick={event => { event.stopPropagation(); }}
 					onDoubleClick={event => { event.stopPropagation(); }}
 					onKeyDown={event => {
@@ -107,11 +101,7 @@ export function ClipFadeOverlays({ rootRef, clips, channelCounts, channelHeightR
 						if (next === null) return;
 						event.preventDefault();
 						if (next !== value) onChange(clip.id, { [field]: next });
-					}}>
-					<svg aria-hidden="true" viewBox="0 0 8 8" style={{ left: markerLeft, right: 'auto' }}>
-						<path d={edge === 'in' ? 'M0 0H8L0 8Z' : 'M0 0H8V8Z'} />
-					</svg>
-				</button>;
+					}} />;
 			})}
 		</div>, target, clip.id);
 	});

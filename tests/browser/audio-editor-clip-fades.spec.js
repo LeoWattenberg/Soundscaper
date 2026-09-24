@@ -59,6 +59,8 @@ test.describe('non-destructive clip fade handles', () => {
 			const fadeOut = clip.getByRole('slider', { name: 'Fade out', exact: true });
 			await expect(fadeIn).toBeVisible();
 			await expect(fadeOut).toBeVisible();
+			await expect(fadeIn).toHaveAttribute('data-fade-handle', 'in');
+			await expect(fadeOut).toHaveAttribute('data-fade-handle', 'out');
 			const clipBounds = await clip.boundingBox();
 			expect((await fadeIn.boundingBox()).y).toBeGreaterThanOrEqual(clipBounds.y + 20);
 			expect((await fadeOut.boundingBox()).y).toBeGreaterThanOrEqual(clipBounds.y + 20);
@@ -152,7 +154,7 @@ test.describe('non-destructive clip fade handles', () => {
 		expect(handleBounds.y + handleBounds.height).toBeLessThan(bounds.y + bounds.height / 2);
 	});
 
-	test('keeps fade marker triangles inside the clip outline at both edges', async ({ page }) => {
+	test('keeps the design-system fade grip squares inside the clip outline at both edges', async ({ page }) => {
 		const editor = await bootEditor(page, '/embed/en/');
 		await importFiles(editor, [toneA]);
 		const clip = clipByName(editor, toneA.name);
@@ -164,8 +166,8 @@ test.describe('non-destructive clip fade handles', () => {
 		await expect(fadeIn).toHaveAttribute('aria-valuenow', '0');
 		await expect(fadeOut).toHaveAttribute('aria-valuenow', '0');
 		const outline = await clip.locator('.clip-display__inner').boundingBox();
-		const incoming = await fadeIn.locator('svg').boundingBox();
-		const outgoing = await fadeOut.locator('svg').boundingBox();
+		const incoming = await fadeIn.locator('svg path').first().boundingBox();
+		const outgoing = await fadeOut.locator('svg path').first().boundingBox();
 		expect(outline).not.toBeNull();
 		expect(incoming).not.toBeNull();
 		expect(outgoing).not.toBeNull();
@@ -227,6 +229,36 @@ test.describe('non-destructive clip fade handles', () => {
 		await page.mouse.up();
 		await expect.poll(async () => Number(await firstFade.getAttribute('aria-valuenow'))).toBeGreaterThan(0.002);
 		await expect(secondFade).toHaveAttribute('aria-valuenow', '0.002');
+	});
+
+	test('both design-system grips remain reachable when fades overlap', async ({ page }) => {
+		const editor = await bootEditor(page, '/embed/en/');
+		await importFiles(editor, [toneA]);
+		const clip = clipByName(editor, toneA.name);
+		await selectClip(clip);
+		const fadeIn = clip.getByRole('slider', { name: 'Fade in', exact: true });
+		const fadeOut = clip.getByRole('slider', { name: 'Fade out', exact: true });
+		await fadeIn.press('Home');
+		await fadeOut.press('Home');
+		for (let step = 0; step < 5; step += 1) {
+			await fadeIn.press('Shift+ArrowRight');
+			await fadeOut.press('Shift+ArrowRight');
+		}
+		await expect(fadeIn).toHaveAttribute('aria-valuenow', '0.5');
+		await expect(fadeOut).toHaveAttribute('aria-valuenow', '0.5');
+		const inBounds = await fadeIn.boundingBox();
+		const outBounds = await fadeOut.boundingBox();
+		expect(inBounds).not.toBeNull();
+		expect(outBounds).not.toBeNull();
+		expect(inBounds.x + inBounds.width <= outBounds.x
+			|| outBounds.x + outBounds.width <= inBounds.x).toBe(true);
+		await beginFadeDrag(page, fadeIn, -10);
+		await page.mouse.up();
+		await expect.poll(async () => Number(await fadeIn.getAttribute('aria-valuenow'))).toBeLessThan(0.5);
+		await expect(fadeOut).toHaveAttribute('aria-valuenow', '0.5');
+		await beginFadeDrag(page, fadeOut, 10);
+		await page.mouse.up();
+		await expect.poll(async () => Number(await fadeOut.getAttribute('aria-valuenow'))).toBeLessThan(0.5);
 	});
 
 	test('handles take precedence over the split tool and an unchanged drag adds no undo entry', async ({ page }) => {

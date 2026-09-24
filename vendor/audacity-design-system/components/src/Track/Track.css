@@ -38,3 +38,31 @@
   display: block;
   cursor: text;
 }
+
+.audacity-track-fade-handle {
+  position: absolute;
+  top: 2px;
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  pointer-events: auto;
+  touch-action: none;
+  cursor: ew-resize;
+}
+
+.audacity-track-fade-handle svg {
+  display: block;
+}
+
+.audacity-track-fade-handle:focus-visible {
+  outline: 1px solid var(--focus-color, #fff);
+  outline-offset: -1px;
+}
+
+.audacity-track-fade-handle:disabled {
+  cursor: default;
+  opacity: 0.5;
+}

@@ -216,6 +216,12 @@ application overrides and source patches against the pin and upstream master.
     submitter in the footer otherwise cannot own the form or activate its validation and
     submit path. Omitting the prop keeps upstream behaviour. Covered by
     `tests/audio-editor-video-composition-ui.test.tsx`. Upstream-PR candidate.
+26. `TrackFadeHandle.tsx` ports the quick-fade grip glyph and placement from newer upstream
+    `TrackNew.tsx` into a focused component. The host supplies the frame-based drag session,
+    keyboard edits, and stereo shading, so the grip forwards those events and remains inside
+    the clip's overlay. It also keeps both grips reachable when this editor's independent
+    fades overlap. Covered by `tests/vendored-design-system-fade-handle.test.tsx` and
+    `tests/browser/audio-editor-clip-fades.spec.js`.
 
 ## Application-side adaptations
 
