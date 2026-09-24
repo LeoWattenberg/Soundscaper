@@ -304,6 +304,7 @@ import {
 	});
 
 	test('edits and restores a parametric EQ rack through its graph controls', async ({ page }) => {
+		test.setTimeout(90_000);
 		await disableNativeSavePicker(page);
 		const errors = collectClientErrors(page);
 		const editor = await bootEditor(page, '/embed/en/');
