@@ -59,6 +59,12 @@ export const FOUNDATION_RATE_CONVERSION_AUDIT_SITES: readonly FoundationTimeConv
 		conversions: [{ helper: 'scaleSampleFrame', policies: ['point'] }],
 	},
 	{
+		id: 'native-plugin-buffer-rate-admission',
+		file: 'src/common/editor/engine/native-plugin-realtime-render.ts',
+		behavior: 'Native plug-in buffer admission changes the requested project extent, including effect tail, into the realtime capture rate under point rounding before allocating PCM.',
+		conversions: [{ helper: 'scaleSampleFrame', policies: ['point'] }],
+	},
+	{
 		id: 'mastering-sequence-output-rate',
 		file: 'src/common/editor/mastering-sequence-delivery.ts',
 		behavior: 'Each authored gap, region extent, and fade changes sample-rate basis independently under point rounding before accumulation, preserving the sequence part boundaries.',
