@@ -45,6 +45,21 @@ test('the nightly payload carries the data file its release-line reader opens at
 		'the nightly-tests extraResources filter must retain the release-line data');
 });
 
+test('the nightly package carries the Nyquist archive fixtures read by its browser smoke test', async () => {
+	const inputs = [
+		'tests/fixtures/nyquist-archive/manifest.json.gz',
+		'tests/fixtures/nyquist-archive/10bandeq.ny.gz',
+		'evidence/nyquist-plugin-publication/catalog-metadata-ed168a19631ec48d0029dfb5c17d16c339a174c1.json',
+	];
+	const filter = await readPackagedPayloadFilter();
+	for (const input of inputs) {
+		assert.ok(isStagedInput(input), `NIGHTLY_TEST_PAYLOAD_INPUTS is missing ${input}`);
+		const packaged = packagedPathOf(input);
+		assert.ok(packaged !== null && filter.some(pattern => matchesGlob(packaged, pattern)),
+			`the nightly-tests extraResources filter drops ${input}`);
+	}
+});
+
 test('the nightly package retains every staged browser source-map input', async () => {
 	const sourceMapInputs = NIGHTLY_TEST_PAYLOAD_INPUTS
 		.filter(({ label }) => label.endsWith('source map input'));
