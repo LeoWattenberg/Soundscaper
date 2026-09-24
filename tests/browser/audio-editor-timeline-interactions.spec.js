@@ -746,9 +746,9 @@ test.describe('audio editor React/design-system workflows', () => {
 		const scroll = editor.locator('.audio-editor-timeline-scroll');
 		const timelineWidth = () => scroll.evaluate((element) => element.scrollWidth);
 
-		// Audacity defaults to six notches per octave. Confirm that default before
-		// switching to the coarsest setting for the first behavioral assertion.
-		await setMouseZoomPrecision(page, editor, 1, { expectCurrent: 6 });
+		// Confirm Soundscaper's two-notch default before switching to the
+		// coarsest setting for the first behavioral assertion.
+		await setMouseZoomPrecision(page, editor, 1, { expectCurrent: 2 });
 		const beforeCoarse = await timelineWidth();
 		await wheelZoomIn(page, scroll);
 		await expect.poll(timelineWidth).toBeGreaterThan(beforeCoarse * 1.8);
