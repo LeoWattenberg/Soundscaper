@@ -30,15 +30,18 @@ export function createProjectImportService(
 	let servicePromise: Promise<ProjectImportServiceRuntime> | null = null;
 	/** Pin the destination before first-use loading yields to a project switch. */
 	const captureDestination = () => {
-		const projectId = runtime.getProject()?.id ?? null;
-		const token = projectId !== null
+		const hasProjectIdentity = typeof runtime.getProject === 'function';
+		const projectId = hasProjectIdentity ? runtime.getProject()?.id ?? null : null;
+		const token = hasProjectIdentity && projectId !== null
 			&& typeof runtime.captureProject === 'function'
 			&& typeof runtime.assertProject === 'function'
 			? runtime.captureProject() : null;
 		return () => {
 			try { if (token !== null) runtime.assertProject(token); }
 			catch (error) { throw new Error('The project changed during audio import.', { cause: error }); }
-			if ((runtime.getProject()?.id ?? null) !== projectId) throw new Error('The project changed during audio import.');
+			if (hasProjectIdentity && (runtime.getProject()?.id ?? null) !== projectId) {
+				throw new Error('The project changed during audio import.');
+			}
 		};
 	};
 	const service = () => {
