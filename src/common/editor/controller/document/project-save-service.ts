@@ -116,6 +116,7 @@ export function createProjectSaveService<Project extends ProjectSaveSnapshot>(
 	const suspendedProjects = new Map<string, ProjectSaveAdmissionGate>();
 	const projectSaveEpochs = new Map<string, number>();
 	const persistedSnapshots = new Map<string, Project>();
+	const queuedSaveCounts = new Map<string, number>();
 	dependencies.beforeUnloadTarget?.addEventListener('beforeunload', warnBeforeUnload, {
 		signal: dependencies.beforeUnloadSignal,
 	});
@@ -145,6 +146,7 @@ export function createProjectSaveService<Project extends ProjectSaveSnapshot>(
 		const project = dependencies.getProject();
 		if (!project || !dependencies.hasHistory()) return;
 		const currentSavePending = scheduledProjectId === project.id
+			|| queuedSaveCounts.has(project.id)
 			|| [...state.pendingSaveSnapshots].some((snapshot) => snapshot.id === project.id);
 		if (!currentSavePending && dependencies.hasUnsavedProjectChanges?.() !== true) return;
 		event.preventDefault();
@@ -316,9 +318,15 @@ export function createProjectSaveService<Project extends ProjectSaveSnapshot>(
 		preparationPurpose: ProjectSnapshotPreparationPurpose,
 		materialize = false,
 	): Promise<unknown> {
+		queuedSaveCounts.set(snapshot.id, (queuedSaveCounts.get(snapshot.id) ?? 0) + 1);
 		const operation = state.saveQueue
 			.catch(() => undefined)
-			.then(() => saveSnapshot(snapshot, generation, projectSaveEpoch, writeFence, preparationPurpose, materialize));
+			.then(() => saveSnapshot(snapshot, generation, projectSaveEpoch, writeFence, preparationPurpose, materialize))
+			.finally(() => {
+				const remaining = (queuedSaveCounts.get(snapshot.id) ?? 1) - 1;
+				if (remaining) queuedSaveCounts.set(snapshot.id, remaining);
+				else queuedSaveCounts.delete(snapshot.id);
+			});
 		state.saveQueue = operation;
 		return operation;
 	}

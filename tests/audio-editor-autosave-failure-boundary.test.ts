@@ -178,6 +178,27 @@ test('beforeunload warns while the current document is waiting for or performing
 	assert.equal(beforeUnload, null);
 });
 
+test('beforeunload covers the gap while an autosave snapshot is being prepared', async () => {
+	let beforeUnload!: (event: BeforeUnloadEvent) => void;
+	let beginPreparation!: () => void;
+	let finishPreparation!: () => void;
+	const preparing = new Promise<void>((resolve) => { beginPreparation = resolve; });
+	const prepared = new Promise<void>((resolve) => { finishPreparation = resolve; });
+	const runtime = fixture({
+		hasUnsavedProjectChanges: () => false,
+		beforeUnloadTarget: { addEventListener: (_type, listener) => { beforeUnload = listener; } },
+		prepareSnapshot: async (snapshot) => { beginPreparation(); await prepared; return snapshot; },
+	});
+	runtime.service.scheduleAutosave();
+	runtime.fire();
+	await preparing;
+	let prevented = false;
+	beforeUnload({ preventDefault: () => { prevented = true; }, returnValue: '' } as BeforeUnloadEvent);
+	assert.equal(prevented, true);
+	finishPreparation();
+	await runtime.service.drain();
+});
+
 test('production save services own independent queues and report status without shared state', async () => {
 	const first = fixture({ state: undefined });
 	const second = fixture({ state: undefined });

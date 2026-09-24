@@ -39,14 +39,24 @@ test.describe('audio editor React/design-system workflows', () => {
 		await expect(saveState).toHaveAttribute('data-state', 'saved');
 
 		await editor.getByRole('button', { name: 'Add track', exact: true }).click();
-		await page.locator('.add-track-flyout').getByRole('menuitem', { name: 'Audio track', exact: true }).click();
-		await expect(saveState).toHaveAttribute('data-state', 'saving');
+		const reloadDialog = page.waitForEvent('dialog', { timeout: 5_000 });
+		const blockedDuringEdit = await page.locator('.add-track-flyout')
+			.getByRole('menuitem', { name: 'Audio track', exact: true }).evaluate((item) => {
+				item.click();
+				const event = new Event('beforeunload', { cancelable: true });
+				window.dispatchEvent(event);
+				window.setTimeout(() => { window.location.reload(); }, 0);
+				return event.defaultPrevented;
+			});
+		expect(blockedDuringEdit).toBe(true);
+		const dialog = await reloadDialog;
+		expect(dialog.type()).toBe('beforeunload');
+		await dialog.dismiss();
 		const blocksUnload = () => page.evaluate(() => {
 			const event = new Event('beforeunload', { cancelable: true });
 			window.dispatchEvent(event);
 			return event.defaultPrevented;
 		});
-		expect(await blocksUnload()).toBe(true);
 
 		await expect(saveState).toHaveAttribute('data-state', 'saved');
 		expect(await blocksUnload()).toBe(false);
