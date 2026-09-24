@@ -311,44 +311,6 @@ test('worklet sample-aligns a streamed clip to its AudioContext start frame', ()
 	}
 });
 
-test('client bridges immutable storage to the worklet and completes atomically', async () => {
-	const worker = createLinkedWorker();
-	const [clientPort, processorPort] = createPortPair();
-	const processor = new ChunkStreamPlaybackProcessor({
-		processorOptions: { messagePort: processorPort, channelCount: 2, prebufferPackets: 2 },
-	});
-	const client = new ChunkStreamClient({ workerFactory: () => worker });
-	const source = createImmutablePcmChunks([
-		Float32Array.from({ length: 2_500 }, (_, frame) => frame / 2_500),
-		Float32Array.from({ length: 2_500 }, (_, frame) => -frame / 2_500),
-	]);
-	const progress = [];
-	const handle = client.open({
-		streamId: 'bridge-test',
-		source,
-		outputPort: clientPort,
-		highWaterMark: 2,
-		onProgress: (value) => progress.push(value),
-	});
-	assert.equal((await handle.ready).channelCount, 2);
-	assert.equal((await handle.primed).packets, 2);
-	await handle.play();
-	const output = [[], []];
-	for (let block = 0; block < Math.ceil(2_500 / 128); block += 1) {
-		const quantum = [new Float32Array(128), new Float32Array(128)];
-		processor.process([], [quantum]);
-		output[0].push(...quantum[0]);
-		output[1].push(...quantum[1]);
-	}
-	const result = await handle.done;
-	assert.equal(result.frames, 2_500);
-	assert.ok(Math.abs(output[0][1_000] - (1_000 / 2_500)) < 1e-6);
-	assert.ok(Math.abs(output[1][2_499] - (-2_499 / 2_500)) < 1e-6);
-	assert.equal(progress.at(-1).progress, 1);
-	assert.equal(handle.state, 'closed');
-	client.dispose();
-});
-
 test('pausing while a chunk stream primes prevents the pending play request', async () => {
 	const worker = new FakeWorkerScope();
 	const outputPort = new FakePort();

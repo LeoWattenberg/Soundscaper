@@ -29,6 +29,8 @@ export interface ProjectSwitchOptions<History> {
 	readonly skipFlush?: boolean;
 	/** Adopt a session history that advanced without changing its stable project ID. */
 	readonly adoptSessionRevision?: boolean;
+	/** Install an externally committed document as fresh history in an open session. */
+	readonly replaceSessionHistory?: boolean;
 	readonly readOnly?: boolean;
 	readonly readOnlyReason?: string | null;
 	readonly history?: History;
@@ -95,6 +97,12 @@ export interface ProjectSwitchSession<
 		requireAbsent?: boolean;
 	}>): Readonly<{ token: unknown; release(): boolean }>;
 	switchProject(projectId: string, options?: Readonly<{ activationToken?: unknown }>): void;
+	installCommittedProjectHistory?(projectId: string, history: History, options: Readonly<{
+		activationToken: unknown;
+		expectedHistoryToken: unknown;
+		readOnly: boolean;
+		dirty: boolean;
+	}>): unknown;
 	openProject(project: Project, options: Readonly<{
 		activationToken?: unknown;
 		history?: History;
@@ -209,7 +217,11 @@ export interface ProjectSwitchServiceRuntime<
 		isCurrentWritable: () => boolean,
 	) => PromiseLike<unknown> | unknown;
 	readonly createProjectIfAbsent?: (project: Project) => PromiseLike<Pick<Project, 'id'> | null> | Pick<Project, 'id'> | null;
+	readonly isProjectAbsent?: (projectId: string) => Promise<boolean>;
 	readonly saveProject: (project: Project) => Promise<unknown>;
+	readonly recordPersistedSnapshot?: (project: Project) => PromiseLike<void> | void;
+	readonly isPersistedSnapshotCurrent?: (projectId: string) => Promise<boolean>;
+	readonly isActivatedProjectCurrent?: (project: Project) => Promise<boolean>;
 	readonly listProjects: () => Promise<readonly unknown[]>;
 	readonly synchronizeMicrophoneMeterTarget: () => void;
 	readonly publishProjectState: () => void;

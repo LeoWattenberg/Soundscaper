@@ -5,10 +5,12 @@ import type {
 	SoundscaperDesktopProjectLibraryCatalogSnapshot,
 	SoundscaperDesktopProjectLibraryDeleteResult,
 } from './soundscaper-project-library-lifecycle-contract.ts';
+import { validateSoundscaperDesktopProjectLibraryDeleteRequest } from './soundscaper-project-library-lifecycle-contract.ts';
 import type {
 	SoundscaperDesktopProjectLibraryLifecycleHost,
 } from './soundscaper-project-library-lifecycle-host.ts';
 import type { SoundscaperDesktopProjectLibraryPublicationHost } from './soundscaper-project-library-publication-host.ts';
+import { DesktopProjectWriteFences } from './project-library-write-fence.ts';
 import type { SoundscaperDesktopProjectLibraryLease } from './soundscaper-project-library-persistence-codecs.ts';
 import {
 	validateSoundscaperDesktopProjectLibraryPublicationAdmission,
@@ -17,12 +19,14 @@ import {
 	validateSoundscaperDesktopProjectLibraryPublicationChunkRequest,
 	validateSoundscaperDesktopProjectLibraryPublicationCompletionRequest,
 	validateSoundscaperDesktopProjectLibraryPublicationResult,
+	validateSoundscaperDesktopProjectWriteFenceCheckRequest,
 	type SoundscaperDesktopProjectLibraryPublicationAdmission,
 	type SoundscaperDesktopProjectLibraryPublicationChunkAcknowledgement,
 } from './soundscaper-project-library-publication-transport.ts';
 import {
 	MAXIMUM_SOUNDSCAPER_TRANSFER_CHUNK_BYTES,
 	validateSoundscaperDesktopProjectLibraryBodyReadRequest,
+	validateSoundscaperDesktopProjectLibraryProjectId,
 	type SoundscaperDesktopProjectLibraryTransferBundle,
 } from './soundscaper-project-library-transfer-contract.ts';
 import {
@@ -36,6 +40,8 @@ export interface SoundscaperDesktopProjectLibraryMainSession {
 	listProjects(): Promise<Readonly<SoundscaperDesktopProjectLibraryCatalogSnapshot>>;
 	readProjectBundle(projectId: string): Promise<Readonly<SoundscaperDesktopProjectLibraryTransferBundle> | null>;
 	readBodyChunk(value: unknown): Promise<Uint8Array>;
+	claimProjectWriteFence(projectId: string): Promise<string>;
+	checkProjectWriteFence(value: unknown): Promise<boolean>;
 	beginPublication(value: unknown): Promise<Readonly<SoundscaperDesktopProjectLibraryPublicationAdmission>>;
 	writePublicationChunk(
 		value: unknown,
@@ -55,6 +61,7 @@ export class SoundscaperDesktopProjectLibraryMainSessionService {
 	#lease: SoundscaperDesktopProjectLibraryLease;
 	readonly #transfer: SoundscaperDesktopProjectLibraryTransferService;
 	readonly #sessions = new Set<MainSession>();
+	readonly #writeFences = new DesktopProjectWriteFences();
 	#active: PublicationUpload | null = null;
 	#lifecycleActive = false;
 	#closed = false;
@@ -121,6 +128,7 @@ export class SoundscaperDesktopProjectLibraryMainSessionService {
 			this.#host,
 			this.#lease,
 			request,
+			this.#writeFences,
 		);
 		this.#active = upload;
 		try {
@@ -135,6 +143,19 @@ export class SoundscaperDesktopProjectLibraryMainSessionService {
 			finally { if (this.#active === upload) this.#active = null; }
 			throw error;
 		}
+	}
+
+	claimProjectWriteFence(session: MainSession, projectIdValue: string): string {
+		this.#assertSession(session);
+		if (this.#lifecycleActive) throw new Error('Soundscaper desktop project lifecycle is busy');
+		return this.#writeFences.claim(validateSoundscaperDesktopProjectLibraryProjectId(projectIdValue));
+	}
+	checkProjectWriteFence(session: MainSession, value: unknown): boolean {
+		this.#assertSession(session);
+		const request = validateSoundscaperDesktopProjectWriteFenceCheckRequest(value);
+		return this.#host.fencedCurrent(
+			this.#writeFences, request.projectId, request.writeFence, request.expectedDocument,
+		);
 	}
 
 	async write(session: MainSession, value: unknown) {
@@ -174,8 +195,12 @@ export class SoundscaperDesktopProjectLibraryMainSessionService {
 
 	delete(session: MainSession, value: unknown) {
 		this.#assertSession(session);
+		const projectId = validateSoundscaperDesktopProjectLibraryDeleteRequest(value).projectId;
 		this.#admitLifecycle();
-		return Promise.resolve().then(() => this.#lifecycle.deleteProject(value)).finally(() => {
+		return Promise.resolve().then(() => this.#lifecycle.deleteProject(value)).then((result) => {
+			this.#writeFences.revoke(projectId);
+			return result;
+		}).finally(() => {
 			this.#lifecycleActive = false;
 		});
 	}
@@ -255,6 +280,13 @@ class MainSession implements SoundscaperDesktopProjectLibraryMainSession {
 		});
 	}
 
+	claimProjectWriteFence(projectId: string): Promise<string> {
+		return this.#admit(() => Promise.resolve(this.#service.claimProjectWriteFence(this, projectId)));
+	}
+	checkProjectWriteFence(value: unknown): Promise<boolean> {
+		return this.#admit(() => Promise.resolve(this.#service.checkProjectWriteFence(this, value)));
+	}
+
 	beginPublication(value: unknown) {
 		return this.#admit(() => this.#service.begin(this, value));
 	}
@@ -316,6 +348,7 @@ class PublicationUpload {
 	readonly #owner: MainSession;
 	readonly #projectId: string;
 	readonly #request: ReturnType<typeof validateSoundscaperDesktopProjectLibraryPublicationBeginRequest>;
+	readonly #writeFences: DesktopProjectWriteFences;
 	readonly #streams: PublicationByteStream[];
 	#bodyIndex = 0;
 	#offset = 0;
@@ -327,12 +360,14 @@ class PublicationUpload {
 		host: SoundscaperDesktopProjectLibraryPublicationHost,
 		lease: SoundscaperDesktopProjectLibraryLease,
 		request: ReturnType<typeof validateSoundscaperDesktopProjectLibraryPublicationBeginRequest>,
+		writeFences: DesktopProjectWriteFences,
 	) {
 		this.id = id;
 		this.#owner = owner;
 		this.#host = host;
 		this.#lease = lease;
 		this.#request = request;
+		this.#writeFences = writeFences;
 		this.#projectId = String((request.project as { readonly id: unknown }).id);
 		this.#streams = request.bodies.map(() => new PublicationByteStream());
 	}
@@ -355,7 +390,11 @@ class PublicationUpload {
 				descriptor,
 				chunks: this.#streams[index]!,
 			})),
-		}, this.#controller.signal);
+		}, this.#controller.signal, this.#request.writeFence === undefined ? undefined : {
+			fences: this.#writeFences,
+			token: this.#request.writeFence,
+			expectedDocument: this.#request.expectedDocument,
+		});
 		void this.#result.catch((error: unknown) => {
 			for (const stream of this.#streams) stream.fail(error);
 		});

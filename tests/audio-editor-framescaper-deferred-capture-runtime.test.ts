@@ -255,6 +255,7 @@ test('the idle snapshot is what the real binding reports before its first gestur
 			},
 			async loadProject() { return activeProject; },
 			async saveProject(value: FramescaperCaptureAppProject) { return value; },
+			async saveProjectIfCurrentWithWriteFence() { throw new Error('publication is not reached'); },
 			async listProjects() { return [activeProject]; },
 		},
 		sessionController: sessionController(() => activeHistory),

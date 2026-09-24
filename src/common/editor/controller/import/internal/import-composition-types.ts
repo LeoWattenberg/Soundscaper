@@ -8,6 +8,7 @@ import type { createFfmpegVideoTimingProbe } from '../../../video-timing-probe.t
 import type { VideoTimingMediaStore } from '../../../video-timing-storage.ts';
 import type { ClipTimePitchRenderStore } from '../../clip-video/clip-time-pitch-render-service.ts';
 import type { ConsolidateMediaStore } from '../../document/consolidate-media-service.ts';
+import type { deferredArchiveRuntime } from '../../document/deferred-archive-runtime.ts';
 import type { DerivedAudioCompositionDependencies } from '../../track-audio/derived-audio-composition.ts';
 import type { createIncrementalPcmImporter } from './incremental-wav-import-service.ts';
 import type { EditorControllerLifetime, EditorProjectGeneration } from '../../shared/lifecycle.ts';
@@ -94,6 +95,7 @@ export type ImportCompositionFfmpeg =
 
 export interface ImportCompositionDependencies {
 	readonly adaptAudacityProject?: (value: unknown) => unknown;
+	readonly archiveRuntime: Pick<typeof deferredArchiveRuntime, 'decodeLegacyAupProject' | 'convertLegacyAupToProject'>;
 	readonly state: ImportCompositionState;
 	readonly copy: ImportCompositionCopy;
 	readonly lifetime: EditorControllerLifetime;

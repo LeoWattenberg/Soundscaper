@@ -16,6 +16,7 @@ import {
 	type TakeCyclePublishedProject,
 } from '../src/common/editor/controller/recording/internal/take-cycle/take-cycle-recording-repository-composition.ts';
 import { EditorControllerLifetime, EditorProjectGeneration } from '../src/common/editor/controller/shared/lifecycle.ts';
+import { createProjectSaveService } from '../src/common/editor/controller/document/project-save-service.ts';
 import type { TakeCycleFinalizationRequest } from '../src/common/editor/controller/recording/take-cycle-recording-service.ts';
 import { createEditorHistory, executeEditorCommand } from '../src/common/editor/history.js';
 import {
@@ -28,6 +29,7 @@ import { serializeScapeProjectDocument } from '../src/common/editor/scape-projec
 import type { TakeCycleRecoveryEnvelope } from '../src/common/editor/take-cycle-recovery-envelope.ts';
 import { createProjectStore } from '../src/common/editor/storage.js';
 import type { ProjectRepositoryPort } from '../src/common/editor/storage/project-repository.ts';
+import type { ProjectDocument } from '../src/common/editor/storage/project-repository.ts';
 import type { RawPcmSpoolRepository } from '../src/common/editor/storage/raw-pcm-spool-repository.ts';
 import type { SourceRepository } from '../src/common/editor/storage/source-repository.ts';
 import { TakeCycleRecoveryEnvelopeRepository } from '../src/common/editor/storage/take-cycle-recovery-envelope-repository.ts';
@@ -66,6 +68,57 @@ test('repository composition publishes receipt-owned PCM and one real V17 histor
 
 	const reopened = await fixture.projects.load('project-cycle');
 	assert.deepEqual(reopened, persisted);
+});
+
+test('take cycle publication refreshes the autosave baseline for the next fenced edit', async () => {
+	const fixture = await compositionFixture();
+	const writeFence = await fixture.store.claimProjectWriteFence(fixture.base.id);
+	let current: ProjectDocument = fixture.base;
+	const saves = createProjectSaveService<ProjectDocument>({
+		getProject: () => current, hasHistory: () => true, isReadOnly: () => false,
+		getWriteFence: () => writeFence, cloneProject: (project) => structuredClone(project),
+		admitProjectPublication: async () => undefined,
+		saveProject: (project) => fixture.store.saveProject(project),
+		saveProjectIfCurrentWithWriteFence: (expected, project, token) => (
+			fixture.store.saveProjectIfCurrentWithWriteFence(expected, project, token)
+		),
+		persistActiveProjectId: async () => undefined,
+		isCurrentProject: (id) => id === fixture.base.id, hasSessionTab: () => true,
+		markProjectSaved: () => undefined, publish: () => undefined,
+		garbageCollect: async () => undefined, refreshStorageUsage: async () => undefined,
+		handleError: (error) => { throw error; },
+	});
+	saves.recordPersistedSnapshot(fixture.base);
+	const composition = createComposition(fixture, {
+		getProjectWriteFence: () => writeFence,
+		saveProjectIfCurrentWithWriteFence: (expected: ProjectDocument, project: ProjectDocument, token: string) => (
+			fixture.store.saveProjectIfCurrentWithWriteFence(expected, project, token)
+		),
+		onDurableProjectPublished: saves.recordPersistedSnapshot,
+	});
+	await composition.finalize(request());
+	const published = await fixture.store.loadProject(fixture.base.id);
+	assert.deepEqual(saves.getPersistedSnapshot(fixture.base.id), published);
+	current = applyEditorCommand(published as AudioEditorProjectV17, {
+		type: 'project/rename', title: 'Edited after take recovery',
+	}, { now: NOW });
+	await saves.flushProject();
+	assert.deepEqual(await fixture.store.loadProject(fixture.base.id), current);
+});
+
+test('a stale take cycle token cannot fall through to unfenced project publication', async () => {
+	const fixture = await compositionFixture();
+	const staleFence = await fixture.store.claimProjectWriteFence(fixture.base.id);
+	await fixture.store.claimProjectWriteFence(fixture.base.id);
+	const composition = createComposition(fixture, {
+		getProjectWriteFence: () => staleFence,
+		saveProjectIfCurrentWithWriteFence: (expected: ProjectDocument, project: ProjectDocument, token: string) => (
+			fixture.store.saveProjectIfCurrentWithWriteFence(expected, project, token)
+		),
+	});
+	const result = await composition.finalize(request());
+	assert.notEqual(result.lanes[0]?.status, 'committed');
+	assert.deepEqual(await fixture.store.loadProject(fixture.base.id), fixture.base);
 });
 
 test('repository composition delegates product-owned command and validation authority', async () => {
@@ -278,6 +331,7 @@ test('an exact-document conflict cannot overwrite a same-revision competing proj
 
 interface Fixture {
 	readonly base: AudioEditorProjectV17;
+	readonly store: ReturnType<typeof createProjectStore>;
 	readonly projects: ProjectRepositoryPort;
 	readonly sources: SourceRepository;
 	readonly rawPcmSpools: RawPcmSpoolRepository;
@@ -313,7 +367,7 @@ async function compositionFixture(): Promise<Fixture> {
 	const generation = new EditorProjectGeneration();
 	generation.activate(base.id);
 	const fixture = {
-		base, projects, sources, rawPcmSpools, recovery, lifetime, generation,
+		base, store, projects, sources, rawPcmSpools, recovery, lifetime, generation,
 		publications: [] as TakeCyclePublishedProject[],
 		stageTokens: [] as string[],
 		history: createEditorHistory(base),

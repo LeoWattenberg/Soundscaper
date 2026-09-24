@@ -22,6 +22,8 @@ export interface ProjectLifecycleLock {
 	readonly projectId: string;
 	readOnly: boolean;
 	readonly method: string;
+	/** Durable publication token claimed after acquiring the browser lock. */
+	writeFence?: string;
 	retryAt?: number | null;
 	available?: Promise<ProjectLifecycleLock | null> | null;
 	readonly lost?: Promise<unknown> | null;

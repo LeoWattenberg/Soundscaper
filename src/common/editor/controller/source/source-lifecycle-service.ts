@@ -6,7 +6,7 @@ import {
 	createPreparedProjectSources,
 	type PreparedProjectSourceEntry,
 	type PreparedRequiredProjectSources,
-} from '../import/prepared-project-sources.ts';
+} from './internal/prepared-project-sources.ts';
 import { createSourceChunkProviderRegistration } from './internal/source-chunk-provider-registration.ts';
 import { createWaveformPcmWindowRequester } from './internal/waveform-pcm-window-service.ts';
 import type {
@@ -22,7 +22,7 @@ import type {
 export type {
 	PreparedProjectSourceInputs,
 	PreparedRequiredProjectSources,
-} from '../import/prepared-project-sources.ts';
+} from './internal/prepared-project-sources.ts';
 export type {
 	ActivateStoredSourceOptions,
 	SourceLifecycleAudioBuffer,

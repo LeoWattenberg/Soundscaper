@@ -221,12 +221,11 @@ export function markSoundscaperDesktopProjectLibraryPublicationMaterialized(
 		if (result.changes !== 1) throw new Error('Soundscaper desktop baseline prepared publication is unavailable');
 	});
 }
-
 export function commitSoundscaperDesktopProjectLibraryPublication(
 	database: DatabaseSync,
 	publication: Readonly<SoundscaperDesktopProjectLibraryPersistedPublication>,
 	lease: SoundscaperDesktopProjectLibraryLease,
-	now: number,
+	now: number, assertFencedCurrent: (() => void) | null = null,
 ): void {
 	transaction(database, () => {
 		const currentLease = assertSoundscaperDesktopProjectLibraryPublicationLease(database, lease, now);
@@ -235,6 +234,7 @@ export function commitSoundscaperDesktopProjectLibraryPublication(
 		if (current.row.revision !== publication.expectedMetadataRevision) {
 			throw new Error('Soundscaper desktop baseline metadata revision changed before publication commit');
 		}
+		assertFencedCurrent?.();
 		const result = database.prepare(`
 			INSERT INTO project_revisions (
 				project_id, project_revision, project_sha256, entry_id, relative_file,

@@ -20,7 +20,6 @@ import {
 	throwIfAborted,
 } from '../shared/app-helpers.ts';
 import { fitAudioBufferToFrames } from './internal/audio-buffer-frame-fit.ts';
-import { deferredArchiveRuntime } from '../document/deferred-archive-runtime.ts';
 import type { ImportCompositionDependencies } from './internal/import-composition-types.ts';
 import { createProjectBinService } from './internal/project-bin/project-bin-service.ts';
 import { createProjectImportService } from './internal/project-import-service.ts';
@@ -78,7 +77,7 @@ export function createImportComposition(dependencies: ImportCompositionDependenc
 		canonicalizeBuffer,
 		commit: dependencies.commit,
 		convertLegacyAupToProject: async (...args) => {
-			const decoded = await deferredArchiveRuntime.convertLegacyAupToProject(...args);
+			const decoded = await dependencies.archiveRuntime.convertLegacyAupToProject(...args);
 			return dependencies.adaptAudacityProject
 				? { ...decoded, project: await dependencies.adaptAudacityProject(decoded.project) }
 				: decoded;
@@ -88,7 +87,7 @@ export function createImportComposition(dependencies: ImportCompositionDependenc
 		createAddSourceCommand,
 		createAddTrackCommand,
 		createStableId,
-		decodeLegacyAupProject: deferredArchiveRuntime.decodeLegacyAupProject,
+		decodeLegacyAupProject: dependencies.archiveRuntime.decodeLegacyAupProject,
 		editingBlocked: dependencies.editingBlocked,
 		engine,
 		ffmpeg,

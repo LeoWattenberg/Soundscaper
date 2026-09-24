@@ -38,11 +38,11 @@ import {
 	prepareScapeExport,
 	serializeScapeExportManifest,
 } from './scape-export-plan.ts';
-import { assertScapeImportStore, ScapeImportTransaction } from './scape-import-transaction.ts';
+import { assertScapeImportStore, beginScapeImportTransaction } from './scape-import-transaction.ts';
 import { preflightScapeImportCapacity } from './scape-import-capacity.ts';
 import { indexScapeProjectAssets, indexScapeProjectTimingAssets } from './scape-project-assets.ts';
 import {
-	loadScapeProjectDocument,
+	admitPublishedScapeProject, loadScapeProjectDocument,
 	resolveScapeCurrentProjectSchemaFamily,
 	resolveScapeCurrentProjectSchemaVersion,
 } from './scape-project-admission.ts';
@@ -238,8 +238,9 @@ export async function importScapeProject(input, store, options = {}) {
 				project.createdAt = new Date().toISOString();
 				project.updatedAt = project.createdAt;
 			}
-			transaction = new ScapeImportTransaction(store, signal);
-			await transaction.captureProject(project.id);
+			transaction = await beginScapeImportTransaction(store, signal, project.id,
+				existingProject && collision === 'replace' ? existingProject : null,
+				options.acquireReplaceProjectWriteAuthority);
 			for (const [storageKey, asset] of timingAssetByStorageKey) {
 				throwIfScapeAborted(signal);
 				const existingTiming = await awaitScapeOperation(store.getMediaAssetMetadata(storageKey), signal);
@@ -470,11 +471,13 @@ export async function importScapeProject(input, store, options = {}) {
 			blob: options.archiveReaderFactory,
 			byteSource: options.archiveByteSourceReaderFactory,
 		});
-		if (transaction) await transaction.publishProject(result.project);
+		if (transaction) { result.project = admitPublishedScapeProject(await transaction.publishProject(result.project), result.project, options); result.publicationCommitted = true; }
 		return result;
 	} catch (error) {
-		if (transaction) return transaction.rollback(error);
+		if (transaction) return await transaction.rollback(error);
 		throw error;
+	} finally {
+		await transaction?.releaseWriteAuthority();
 	}
 }
 

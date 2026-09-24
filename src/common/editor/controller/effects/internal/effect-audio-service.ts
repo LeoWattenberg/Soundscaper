@@ -13,7 +13,7 @@ import type {
 } from './effect-audio-service-types.ts';
 import type { EffectTarget } from '../effect-selection-service.ts';
 import { isCurrentAssertion, type EditorProjectToken, type EditorTaskScope } from '../../shared/lifecycle.ts';
-import { createIsolatedTrackRenderProjectV21 } from '../../track-audio/isolated-track-render-project-v21.ts';
+import { createIsolatedTrackRenderProjectV21 } from '../../shared/isolated-track-render-project-v21.ts';
 import {
 	inheritTrackFolderMediaStateProjectionV12,
 	projectTrackFolderMediaStateV12,

@@ -1,14 +1,10 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import type { AudioEditorCommand, CommandObject } from '../../../../commands/protocol.ts';
-import { createAudioSource } from '../../../../project-media-factory.ts';
-import { createNonImportedSourceProvenance } from '../../../../source-provenance-root.ts';
+import type { AudioEditorCommand } from '../../../../commands/protocol.ts';
 import { validateAudioEditorProjectV17 } from '../../../../project-v17-validation.ts';
 import { applyDefaultTakeCycleProjectCommand, type TakeCycleProjectDocument } from './take-cycle-project-document.ts';
 import { createScapeDigest, digestScapeBytes, scapeHex } from '../../../../scape-archive-media.ts';
 import { parseScapeProjectDocument, serializeScapeProjectDocument } from '../../../../scape-project-document.ts';
-import { createTakeCompDocumentGroupsV17, type TakeCompDocumentGroup } from '../../../../take-comp-document-v17.ts';
-import { normalizeCompRegionId } from '../../../../take-comp-domain.ts';
 import type {
 	TakeCycleProjectPublicationEvidence,
 	TakeCycleRecoveryEnvelope,
@@ -33,6 +29,7 @@ import {
 	type TakeCycleRecoveryRequest,
 	type TakeCycleStageReceiptOperation,
 } from '../../take-cycle-recording-service.ts';
+import { projectCommand } from './take-cycle-project-command.ts';
 import { normalizeTakeCycleSourceDescription } from './take-cycle-source-validation.ts';
 import type { TakeCycleEnvelopeRecoveryPlan } from '../../../../take-cycle-recovery-envelope.ts';
 import {
@@ -66,6 +63,12 @@ export interface TakeCycleRecordingRepositoryDependencies {
 		'load' | 'create' | 'replace' | 'remove'
 	>;
 	readonly projects: Pick<ProjectRepositoryPort, 'load' | 'saveIfCurrent'>;
+	readonly loadCurrentProject?: (projectId: string, signal?: AbortSignal) => Promise<ProjectDocument | null>;
+	readonly saveProjectIfCurrentWithWriteFence?: (
+		expected: ProjectDocument, project: ProjectDocument, writeFence: string,
+	) => Promise<ProjectDocument | null>;
+	readonly getProjectWriteFence?: (projectId: string) => string | null;
+	readonly onDurableProjectPublished?: (project: ProjectDocument) => MaybePromise<void>;
 	readonly sources: Pick<SourceRepository,
 		'createStageReceipt' | 'beginOwnedStage' | 'discardStageIfCurrent'
 		| 'getMetadata' | 'chunks' | 'discardIfCurrent'
@@ -238,13 +241,13 @@ export function createTakeCycleRecordingRepositoryComposition(
 		readonly envelope: TakeCycleRecoveryEnvelope;
 		readonly ownership: { readonly signal: AbortSignal };
 	}): Promise<TakeCycleProjectPublicationEvidence | null> {
-		const project = await dependencies.projects.load(envelope.projectFence.projectId, {
-			signal: ownership.signal,
-		});
+		const project = dependencies.loadCurrentProject
+			? await dependencies.loadCurrentProject(envelope.projectFence.projectId, ownership.signal)
+			: await dependencies.projects.load(envelope.projectFence.projectId, { signal: ownership.signal });
 		if (!project) return null;
 		const evidence = projectEvidence(project);
 		if (sameEvidence(evidence, envelope, 'target')) {
-			await synchronizePublishedProject(project, envelope, 'recovery');
+			await synchronizePublishedProject(await authorizePublishedTarget(project), envelope, 'recovery');
 		}
 		return evidence;
 	}
@@ -287,16 +290,21 @@ export function createTakeCycleRecordingRepositoryComposition(
 		const current = await loadProject(envelope.projectFence.projectId);
 		const currentEvidence = projectEvidence(current);
 		if (sameEvidence(currentEvidence, envelope, 'target')) {
-			await synchronizePublishedProject(current, envelope, reason);
+			await synchronizePublishedProject(await authorizePublishedTarget(current), envelope, reason);
 			return currentEvidence;
 		}
 		if (!sameEvidence(currentEvidence, envelope, 'base')) {
 			throw new Error('Durable project does not match the exact base or target publication fence.');
 		}
+		const fencedSave = dependencies.saveProjectIfCurrentWithWriteFence;
 		const saveIfCurrent = dependencies.projects.saveIfCurrent;
-		if (!saveIfCurrent) throw new Error('Exact project compare-and-swap storage is unavailable.');
-		const saved = await saveIfCurrent.call(dependencies.projects, current, target);
+		if (!fencedSave && !saveIfCurrent) throw new Error('Exact project compare-and-swap storage is unavailable.');
+		const writeFence = fencedSave ? requireWriteFence(current.id) : null;
+		const saved = fencedSave
+			? await fencedSave(current, target, writeFence!)
+			: await saveIfCurrent!.call(dependencies.projects, current, target);
 		if (!saved) {
+			if (fencedSave) throw new Error('Take cycle project publication lost its write authority.');
 			const observed = await loadProject(envelope.projectFence.projectId);
 			const evidence = projectEvidence(observed);
 			if (!sameEvidence(evidence, envelope, 'target')) {
@@ -313,6 +321,21 @@ export function createTakeCycleRecordingRepositoryComposition(
 		return evidence;
 	}
 
+	function requireWriteFence(projectId: string): string {
+		const token = dependencies.getProjectWriteFence?.(projectId);
+		if (!token) throw new Error('Take cycle project publication has no current write authority.');
+		return token;
+	}
+
+	async function authorizePublishedTarget(project: ProjectDocument): Promise<ProjectDocument> {
+		if (!dependencies.saveProjectIfCurrentWithWriteFence) return project;
+		const saved = await dependencies.saveProjectIfCurrentWithWriteFence(
+			project, project, requireWriteFence(project.id),
+		);
+		if (!saved) throw new Error('Take cycle project publication lost its write authority.');
+		return saved;
+	}
+
 	async function synchronizePublishedProject(
 		targetValue: ProjectDocument,
 		envelope: TakeCycleRecoveryEnvelope,
@@ -320,8 +343,9 @@ export function createTakeCycleRecordingRepositoryComposition(
 	): Promise<void> {
 		const targetSha256 = envelope.projectFence.targetSha256;
 		try {
-			if (!dependencies.publishCurrentProject) return;
 			validateProject(targetValue);
+			await dependencies.onDurableProjectPublished?.(targetValue);
+			if (!dependencies.publishCurrentProject) return;
 			const prepared = preparedProjects.get(targetSha256);
 			let base: TakeCycleProjectDocument;
 			let command: AudioEditorCommand | null;
@@ -348,7 +372,9 @@ export function createTakeCycleRecordingRepositoryComposition(
 	}
 
 	async function loadProject(projectId: string, signal?: AbortSignal): Promise<TakeCycleProjectDocument> {
-		const value = await dependencies.projects.load(projectId, signal ? { signal } : {});
+		const value = dependencies.loadCurrentProject
+			? await dependencies.loadCurrentProject(projectId, signal)
+			: await dependencies.projects.load(projectId, signal ? { signal } : {});
 		if (!value) throw new Error(`Take cycle project ${projectId} is not durably available.`);
 		validateProject(value);
 		return value as TakeCycleProjectDocument;
@@ -399,92 +425,6 @@ export function createTakeCycleRecordingRepositoryComposition(
 	}
 }
 
-function projectCommand(
-	base: TakeCycleProjectDocument,
-	operation: TakeCycleProjectPreparationOperation,
-	target: TakeCycleLaneTarget,
-	sources: readonly PreparedSource[],
-	regionIdValue: string,
-): AudioEditorCommand {
-	const track = base.tracks.find(({ id }) => id === target.trackId);
-	const sequence = base.sequences.find(({ id }) => id === target.sequenceId);
-	if (!track || track.type !== 'audio') throw new ReferenceError(`Unknown take cycle audio track: ${target.trackId}.`);
-	if (!sequence || !sequence.trackIds.includes(target.trackId)) {
-		throw new ReferenceError(`Take cycle track ${target.trackId} does not belong to sequence ${target.sequenceId}.`);
-	}
-	const sourceCommands = sources.map(({ publication, description }) => ({
-		type: 'source/add' as const,
-		source: commandObject(createAudioSource({
-			id: publication.mediaId,
-			storageKey: publication.mediaId,
-			name: description.name,
-			mimeType: 'audio/wav',
-			frameCount: description.frameCount,
-			channelCount: description.channelCount,
-			sampleRate: description.sampleRate,
-			originalSampleRate: description.sampleRate,
-			sampleFormat: 'float32',
-			chunkFrames: description.chunkFrames,
-			provenance: createNonImportedSourceProvenance('recorded', {
-				recordingDeviceLabel: description.recordingDeviceLabel,
-			}),
-		})),
-	}));
-	const takes = operation.plan.passes.map((pass, index) => ({
-		id: pass.takeId,
-		laneId: pass.laneId,
-		sourceId: sources[index]!.publication.mediaId,
-		startSample: pass.timelineStartSample,
-		endSample: pass.timelineEndSample,
-		sourceStartSample: 0,
-	}));
-	const existing = createTakeCompDocumentGroupsV17(base.takeGroups, base).find(({ id }) => id === operation.plan.groupId);
-	let group: TakeCompDocumentGroup;
-	let groupCommand: AudioEditorCommand;
-	if (existing) {
-		if (existing.sequenceId !== target.sequenceId || existing.trackId !== target.trackId
-			|| existing.startSample !== operation.plan.loopStartSample
-			|| existing.endSample !== operation.plan.loopEndSample) {
-			throw new Error('Take cycle lane does not match its existing group ownership and extent.');
-		}
-		const repeatedLaneId = operation.plan.laneIds.find((laneId) => (
-			existing.lanes.some(({ id }) => id === laneId)
-		));
-		if (repeatedLaneId) {
-			throw new Error(`Take cycle lane ${repeatedLaneId} already exists.`);
-		}
-		group = {
-			...existing,
-			laneOrder: [...existing.laneOrder, ...operation.plan.laneIds],
-			lanes: [...existing.lanes, ...operation.plan.laneIds.map((id) => ({ id }))],
-			takes: [...existing.takes, ...takes],
-		};
-		groupCommand = {
-			type: 'take-comp/group-update', groupId: existing.id, group: commandObject(group),
-		};
-	} else {
-		const first = takes[0]!;
-		group = {
-			id: operation.plan.groupId,
-			sequenceId: target.sequenceId,
-			trackId: target.trackId,
-			startSample: operation.plan.loopStartSample,
-			endSample: operation.plan.loopEndSample,
-			laneOrder: [...operation.plan.laneIds],
-			lanes: operation.plan.laneIds.map((id) => ({ id })),
-			takes,
-			compRegions: [{
-				id: normalizeCompRegionId(regionIdValue),
-				takeId: first.id,
-				startSample: first.startSample,
-				endSample: first.endSample,
-			}],
-		};
-		groupCommand = { type: 'take-comp/group-add', group: commandObject(group) };
-	}
-	return { type: 'batch', commands: [...sourceCommands, groupCommand] };
-}
-
 function normalizeLaneTarget(value: TakeCycleLaneTarget): TakeCycleLaneTarget {
 	if (!value || typeof value !== 'object' || Array.isArray(value)) {
 		throw new TypeError('Take cycle lane target is required.');
@@ -528,10 +468,6 @@ function sameEvidence(
 
 function documentDigest(document: string): string {
 	return digestScapeBytes(TEXT_ENCODER.encode(document));
-}
-
-function commandObject(value: object): CommandObject {
-	return value as unknown as CommandObject;
 }
 
 function stableId(value: unknown, name: string): string {

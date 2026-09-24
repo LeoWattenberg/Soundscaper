@@ -104,6 +104,32 @@ test('composed selection actions preserve their no-project fallbacks before boot
 	}
 });
 
+test('bootstrap begins after later controller services have been assembled', async () => {
+	const store = createProjectStore({ indexedDB: null, preferOpfs: false });
+	const originalReady = store.ready.bind(store);
+	let laterPortAssembled = false;
+	let assembledWhenStoreOpened = false;
+	Object.defineProperty(store, 'ready', {
+		value: () => {
+			assembledWhenStoreOpened = laterPortAssembled;
+			return originalReady();
+		},
+	});
+	const controller = createController([], store, null, {
+		get createProductVideoRetimeProgramOrdinalBridge() {
+			laterPortAssembled = true;
+			return undefined;
+		},
+	});
+	try {
+		await controller.ready;
+		assert.equal(assembledWhenStoreOpened, true);
+		assert.equal(controller.getSnapshot().phase, 'ready');
+	} finally {
+		await controller.dispose();
+	}
+});
+
 test('real controller accepts one reviewed transcript into storage and one undo step', async () => {
 	const projectRuntime = createSoundscaperProjectRuntimeSelection();
 	const store = projectRuntime.createProjectStore({ indexedDB: null, preferOpfs: false });
@@ -293,10 +319,33 @@ test('composed owner actions retain the lifetime fence without exposing internal
 	} finally { await controller.dispose(); }
 });
 
+test('public project views cannot edit live history and retain revision identity', async () => {
+	const controller = createController([]);
+	try {
+		await controller.ready;
+		const project = controller.project;
+		assert.ok(project);
+		const title = project.title;
+		const revision = project.revision;
+		assert.strictEqual(controller.getSnapshot().project, project);
+		assert.throws(() => { (project as { title: string }).title = 'Bypassed history'; }, TypeError);
+		assert.throws(() => { (project.selection.trackIds as string[]).push('track'); }, TypeError);
+		assert.equal(controller.project?.title, title);
+		assert.equal(controller.project?.revision, revision);
+		assert.strictEqual(controller.project, project);
+		await controller.actions.project.rename('Edited through action');
+		assert.equal(controller.project?.title, 'Edited through action');
+		assert.notStrictEqual(controller.project, project);
+	} finally {
+		await controller.dispose();
+	}
+});
+
 function createController(
 	saves: Array<Readonly<Record<string, unknown>>>,
 	store = createProjectStore({ indexedDB: null, preferOpfs: false }),
 	projectRuntime: ReturnType<typeof createSoundscaperProjectRuntimeSelection> | null = null,
+	additionalOptions: Partial<NonNullable<Parameters<typeof createAudioEditorController>[1]>> = {},
 ) {
 	return createAudioEditorController(null, {
 		headless: true,
@@ -315,6 +364,7 @@ function createController(
 				return { method: 'test', fileName: 'test-output', size: 0 };
 			},
 		},
+		...additionalOptions,
 	});
 }
 

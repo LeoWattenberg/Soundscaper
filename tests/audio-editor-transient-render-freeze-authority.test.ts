@@ -6,7 +6,7 @@ import test from 'node:test';
 import { computeAudioTrackFreezeDigestsV1 } from '../src/common/editor/audio-track-freeze-v21.ts';
 import {
 	createIsolatedTrackRenderProjectV21,
-} from '../src/common/editor/controller/track-audio/isolated-track-render-project-v21.ts';
+} from '../src/common/editor/controller/shared/isolated-track-render-project-v21.ts';
 import { createMixRenderSnapshot } from '../src/common/editor/controller/track-audio/mix-render-model.ts';
 import type { ControllerProject, ControllerTrack } from '../src/common/editor/controller/track-audio/track-domain-types.ts';
 import { PROJECT_FEATURE_CAPABILITY_IDS } from '../src/common/editor/project-feature-capabilities.ts';

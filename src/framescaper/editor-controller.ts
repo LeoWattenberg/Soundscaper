@@ -42,7 +42,7 @@ import type {
 	FramescaperVideoProxyActionRuntime,
 	FramescaperVideoProxyPreviewTrust,
 } from './editor-video-proxy-action-runtime.ts';
-import { createFramescaperVideoProxyPreviewMediaResolverNativeMedia } from
+import { createFramescaperVideoProxyPreviewMediaResolverNativeMedia, sameFramescaperVideoProxyAttachment } from
 	'./editor-video-proxy-preview-media-retime.ts';
 import {
 	bindFramescaperSelectedImageAuthoringControllerTimelineImage,
@@ -182,7 +182,8 @@ export function createFramescaperAudioEditorController(
 		createDetachCommand: createFramescaperVideoProxyDetachCommandFinishing,
 		previewTrust: (sourceId, attachment) => {
 			const entry = proxyTrust.get(sourceId);
-			return entry !== undefined && entry.attachment === attachment ? entry.status : 'unverified';
+			return entry !== undefined && sameFramescaperVideoProxyAttachment(entry.attachment, attachment)
+				? entry.status : 'unverified';
 		},
 	});
 	bindFramescaperInheritedProductRuntimesAssistance({

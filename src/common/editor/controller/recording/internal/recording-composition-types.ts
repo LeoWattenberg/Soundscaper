@@ -119,6 +119,8 @@ export interface RecordingCompositionDependencies {
 	}>;
 	readonly session: TakeCycleAppCompositionDependencies['session'];
 	readonly store: RecordingCompositionStore;
+	readonly getProjectWriteFence?: TakeCycleAppCompositionDependencies['getProjectWriteFence'];
+	readonly recordPersistedSnapshot?: TakeCycleAppCompositionDependencies['recordPersistedSnapshot'];
 	readonly engine: RecordingCompositionEngine;
 	readonly copy: RecordingCompositionCopy;
 	readonly locale: string;

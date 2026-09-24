@@ -16,7 +16,8 @@ import {
 
 const REQUIRED_DELEGATE_METHODS = [
 	'createIfAbsent', 'createForScapeImportIfAbsent', 'save', 'saveIfCurrent',
-	'load', 'list', 'listRevisions', 'delete', 'restore', 'restoreIfCurrent',
+	'claimWriteFence', 'saveIfCurrentAndFenced',
+	'load', 'list', 'listRevisions', 'delete', 'restore', 'restoreIfCurrent', 'restoreIfCurrentAndFenced',
 ] as const
 
 type ProjectRestorationSnapshot = Readonly<{
@@ -63,6 +64,21 @@ export class SoundscaperProjectRepository implements ProjectRepositoryPort {
 		))
 	}
 
+	claimWriteFence(projectId: string): Promise<string> {
+		return this.#delegate.claimWriteFence!(projectId)
+	}
+
+	async saveIfCurrentAndFenced(
+		expectedValue: ProjectDocument,
+		projectValue: ProjectDocument,
+		writeFence: string,
+		postCommit?: ProjectPostCommitMaintenance,
+	): Promise<ProjectDocument | null> {
+		return this.#optionalSnapshot(await this.#delegate.saveIfCurrentAndFenced!(
+			this.#snapshot(expectedValue), this.#snapshot(projectValue), writeFence, postCommit,
+		))
+	}
+
 	async restore(projectId: string, snapshot: ProjectRestorationSnapshot): Promise<void> {
 		await this.#delegate.restore!(projectId, this.#restorationSnapshot(snapshot))
 	}
@@ -76,6 +92,14 @@ export class SoundscaperProjectRepository implements ProjectRepositoryPort {
 			projectId,
 			this.#snapshot(expectedValue),
 			this.#restorationSnapshot(snapshot),
+		)
+	}
+
+	restoreIfCurrentAndFenced(
+		projectId: string, expectedValue: ProjectDocument, snapshot: ProjectRestorationSnapshot, writeFence: string,
+	): Promise<boolean> {
+		return this.#delegate.restoreIfCurrentAndFenced!(
+			projectId, this.#snapshot(expectedValue), this.#restorationSnapshot(snapshot), writeFence,
 		)
 	}
 

@@ -143,6 +143,8 @@ test('renderer neither reloads nor uploads a body retained by main', async (cont
 		listProjects: () => session.listProjects(),
 		readProjectBundle: (projectId: string) => session.readProjectBundle(projectId),
 		readBodyChunk: (request: unknown) => session.readBodyChunk(request),
+		claimProjectWriteFence: (projectId: string) => Promise.resolve(session.claimProjectWriteFence(projectId)),
+		checkProjectWriteFence: (request: unknown) => session.checkProjectWriteFence(request),
 		beginPublication: (request: unknown) => session.beginPublication(request),
 		writePublicationChunk: (request: unknown) => {
 			uploadCount += 1;

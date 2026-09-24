@@ -118,7 +118,7 @@ test('Framescaper fresh SQLite baseline has exact v1 identity and no migration m
 test('Framescaper baseline IPC namespace is unique and complete', () => {
 	const channels = Object.values(FRAMESCAPER_DESKTOP_PROJECT_LIBRARY_MAIN_CHANNELS);
 	assert.equal(new Set(channels).size, channels.length);
-	assert.equal(channels.length, 10);
+	assert.equal(channels.length, 12);
 	assert.equal(channels.every((channel) => channel.startsWith(
 		'framescaper:v1:project-library:',
 	)), true);

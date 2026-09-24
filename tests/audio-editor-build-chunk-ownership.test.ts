@@ -111,6 +111,12 @@ test('no eagerly owned editor module statically imports a lazily owned one', () 
 test('shared Framescaper project helpers retain explicit eager chunk owners', () => {
 	for (const [path, owner] of [
 		['src/framescaper/editor-project-feature-manifest-context.ts', 'framescaper-project-foundations'],
+		['src/framescaper/editor-project-retime-runtime.ts', 'framescaper-project-foundations'],
+		['src/framescaper/editor-project-sequence-runtime.ts', 'framescaper-project-foundations'],
+		['src/framescaper/editor-project-sequence-multicam-playback.ts', 'framescaper-project-foundations'],
+		['src/framescaper/editor-project-sequence-nested-playback.ts', 'framescaper-project-foundations'],
+		['src/framescaper/editor-project-sequence-nested-retime.ts', 'framescaper-project-foundations'],
+		['src/framescaper/editor-project-sequence-nested-sequence.ts', 'framescaper-project-foundations'],
 		['src/framescaper/editor-project-retime-clip-collections.ts', 'framescaper-project-commands'],
 		['src/framescaper/editor-clip-placement-command.ts', 'framescaper-project-commands'],
 	] as const) {

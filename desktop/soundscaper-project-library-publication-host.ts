@@ -3,6 +3,10 @@
 import { randomBytes } from 'node:crypto';
 import { DatabaseSync } from 'node:sqlite';
 
+import type { DesktopProjectWriteFences } from './project-library-write-fence.ts';
+import { soundscaperDesktopProjectLibraryPublicationRefusalCode } from './soundscaper-project-library-publication-contract.ts';
+import { assertSoundscaperDesktopFencedPublication, assertSoundscaperDesktopPublicationPreflight, matchesSoundscaperDesktopFencedCurrent } from './soundscaper-project-library-write-fence.ts';
+
 import {
 	createSoundscaperDesktopProjectLibraryPaths,
 	type SoundscaperDesktopProjectLibraryHandshake,
@@ -129,6 +133,10 @@ export class SoundscaperDesktopProjectLibraryPublicationHost {
 	handshakeState(): SoundscaperDesktopProjectLibraryHandshakeState {
 		return this.#gate.state();
 	}
+	fencedCurrent(fences: DesktopProjectWriteFences, projectId: string, token: string, expected: unknown): boolean {
+		this.#assertOperational();
+		return matchesSoundscaperDesktopFencedCurrent(this.#database, fences, projectId, token, expected);
+	}
 
 	acceptHandshake(value: unknown): Readonly<SoundscaperDesktopProjectLibraryHandshake> {
 		return this.#gate.accept(value);
@@ -152,6 +160,7 @@ export class SoundscaperDesktopProjectLibraryPublicationHost {
 	async publish(
 		value: unknown,
 		signal?: AbortSignal,
+		conditional?: Readonly<{ fences: DesktopProjectWriteFences; token: string; expectedDocument: unknown }>,
 	): Promise<Readonly<SoundscaperDesktopProjectLibraryTransferBundle>> {
 		this.#assertOperational();
 		return this.#exclusive(async () => {
@@ -174,7 +183,9 @@ export class SoundscaperDesktopProjectLibraryPublicationHost {
 				plan.lease,
 				now,
 			);
-			this.#assertPreflight(plan.bundle.project.projectId, plan.bundle.project.projectRevision);
+			assertSoundscaperDesktopPublicationPreflight(
+				this.#database, plan.bundle.project.projectId, plan.bundle.project.projectRevision,
+			);
 			const transactionId = this.#newId();
 			const stages = await stageSoundscaperDesktopProjectLibraryPublication(
 				this.paths,
@@ -222,6 +233,10 @@ export class SoundscaperDesktopProjectLibraryPublicationHost {
 					publication,
 					plan.lease,
 					now,
+					conditional ? () => assertSoundscaperDesktopFencedPublication(
+						this.#database, conditional.fences, projectId, conditional.token,
+						conditional.expectedDocument, plan.expectedProject!.projectRevision,
+					) : null,
 				);
 				committed = true;
 				this.#checkpoint('committed');
@@ -239,7 +254,8 @@ export class SoundscaperDesktopProjectLibraryPublicationHost {
 				await this.reclaimStorage().catch(() => undefined);
 				return plan.bundle;
 			} catch (error) {
-				if (!committed && signal?.aborted === true) {
+				if (!committed && (signal?.aborted === true
+					|| soundscaperDesktopProjectLibraryPublicationRefusalCode(error) === 'write-fence')) {
 					await this.#abandon(transactionId, plan.lease, stages);
 				}
 				throw error;
@@ -418,23 +434,6 @@ export class SoundscaperDesktopProjectLibraryPublicationHost {
 
 	#assertOperational(): void {
 		this.#gate.assertOperational();
-	}
-
-	#assertPreflight(projectId: string, projectRevision: number): void {
-		if (this.#database.prepare(`
-			SELECT 1 AS pending FROM publication_journal
-			WHERE state IN ('prepared', 'materialized', 'committed') LIMIT 1
-		`).get()) throw new Error('Soundscaper desktop baseline publication recovery is required');
-		if (this.#database.prepare(`
-			SELECT 1 AS pending FROM metadata_journal
-			WHERE state IN ('prepared', 'committed') LIMIT 1
-		`).get()) throw new Error('Soundscaper desktop baseline metadata recovery is required before body publication');
-		if (this.#database.prepare(`
-			SELECT 1 AS occupied FROM project_revisions
-			WHERE project_id = ? AND project_revision = ?
-		`).get(projectId, projectRevision)) {
-			throw new Error('Soundscaper desktop baseline next project revision is occupied');
-		}
 	}
 
 	#exclusive<Result>(operation: () => Promise<Result>): Promise<Result> {

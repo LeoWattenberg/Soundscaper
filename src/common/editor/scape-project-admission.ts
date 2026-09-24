@@ -12,6 +12,7 @@ import {
 	parseOpaqueScapeProjectDocument,
 	parseScapeProjectDocument,
 } from './scape-project-document.ts';
+import { sameProjectSnapshot } from './storage/project-snapshot-equality.ts';
 
 type DataRecord = Record<string, unknown>;
 
@@ -75,6 +76,21 @@ export function loadScapeProjectDocument(
 		throw new Error('The Scape project admission owner changed the project identity.');
 	}
 	return Object.freeze({ ...loaded, identity: loadedIdentity });
+}
+
+/** Restore selected-product invariants without changing the committed document. */
+export function admitPublishedScapeProject(
+	published: DataRecord,
+	prepared: DataRecord,
+	options: ScapeProjectAdmissionOptions,
+): DataRecord {
+	if (sameProjectSnapshot(published, prepared)) return prepared;
+	const admitted = options.loadProject?.(published);
+	if (!admitted || admitted.readOnly !== false
+		|| !sameProjectSnapshot(admitted.project, published)) {
+		throw new Error('The committed Scape project could not be admitted unchanged.');
+	}
+	return admitted.project;
 }
 
 export function resolveScapeCurrentProjectSchemaVersion(

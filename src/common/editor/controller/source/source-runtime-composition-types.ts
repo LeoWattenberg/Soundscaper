@@ -9,7 +9,7 @@ import type {
 } from './clip-time-pitch-service.ts';
 import type { EditorControllerLifetime, EditorProjectGeneration } from '../shared/lifecycle.ts';
 import type { PlaybackProjectService } from './playback-project-service.ts';
-import type { ProjectVisualProject, ProjectVisualServiceDependencies } from '../document/project-visual-types.ts';
+import type { ProjectVisualProject, ProjectVisualService, ProjectVisualServiceDependencies } from '../document/project-visual-types.ts';
 import type { bufferFromChannels, createStoredChunkProvider, readStoredAudioBuffer } from './source-audio.ts';
 import type { SourceChunkProviderRegistry } from './source-chunk-provider-registry.ts';
 import type { SourceLifecycleBufferCache } from './internal/source-lifecycle-types.d.ts';
@@ -67,6 +67,7 @@ export interface SourceRuntimeCompositionDependencies<
 	readonly sourceResolver: unknown;
 	readonly createRenderEngine: ClipTimePitchCacheServiceDependencies<RenderEngine>['createRenderEngine'];
 	readonly playbackProjects: Pick<PlaybackProjectService, 'projectForPlayback'>;
+	readonly createProjectVisualService: (dependencies: ProjectVisualServiceDependencies) => Readonly<ProjectVisualService>;
 	readonly resolveProductVideoPreviewMedia?: ProjectVisualServiceDependencies['resolveProductVideoPreviewMedia'];
 	readonly projectDurationFrames: ProjectVisualServiceDependencies['projectDurationFrames'];
 	readonly getProject: () => SourceRuntimeProject | null;

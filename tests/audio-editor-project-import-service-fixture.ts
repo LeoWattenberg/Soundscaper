@@ -258,8 +258,8 @@ export function createFixture() {
 			saveAnalysis: async () => { calls.push('save-analysis'); },
 			deleteAnalysis: undefined as undefined | ((key: string) => Promise<void>),
 			deleteSource: async (sourceId: string) => { deletedSources.push(sourceId); },
-			saveProject: async () => { calls.push('save-project'); },
-			deleteProject: async (projectId: string) => { calls.push(`delete-project:${projectId}`); },
+			createProjectIfAbsent: async (project: Record<string, unknown>) => { calls.push('create-project'); return project; },
+			deleteProjectIfCurrent: async (project: Record<string, unknown>) => { calls.push(`delete-project:${String(project.id)}`); return true; },
 		},
 		streamWavBlobPcm: async (
 			_input: unknown,

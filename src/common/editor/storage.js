@@ -125,10 +125,10 @@ export class AudioEditorProjectStore {
 		});
 	}
 
-	async saveProject(project, options = {}) {
-		return this.linkedOriginalStoreService.saveProject(this, this.projectRepository, project, options);
-	}
+	async saveProject(project, options = {}) { return this.linkedOriginalStoreService.saveProject(this, this.projectRepository, project, options); }
 	saveProjectIfCurrent(expected, project, options = {}) { return saveStoreProjectIfCurrent(this, this.linkedOriginalStoreService, this.projectRepository, expected, project, options); }
+	claimProjectWriteFence(projectId) { const claim = this.projectRepository.claimWriteFence; if (!claim) throw new Error('Project write fencing is unavailable.'); return claim.call(this.projectRepository, projectId); }
+	saveProjectIfCurrentWithWriteFence(expected, project, writeFence, options = {}) { return saveStoreProjectIfCurrent(this, this.linkedOriginalStoreService, this.projectRepository, expected, project, options, writeFence); }
 	createProjectIfAbsent(project, options = {}) { return createStoreProjectIfAbsent(this, this.projectRepository, project, options); }
 	createScapeProjectIfAbsent(project, options = {}) { return createStoreScapeProjectIfAbsent(this, this.projectRepository, project, options); }
 	deleteProjectIfCurrent(project) { return deleteStoreProjectIfCurrent(this.linkedOriginalStoreService, this.projectRepository, project); }
@@ -164,7 +164,7 @@ export class AudioEditorProjectStore {
 	/** Binding-preserving replace-import rollback; see restoreStoreProjectSnapshot. */
 	restoreProjectSnapshot(projectId, snapshot) { return restoreStoreProjectSnapshot(this, this.projectRepository, projectId, snapshot); }
 	restoreProjectSnapshotIfCurrent(projectId, expected, snapshot) { return restoreStoreProjectSnapshotIfCurrent(this.projectRepository, projectId, expected, snapshot); }
-
+	restoreProjectSnapshotIfCurrentWithWriteFence(projectId, expected, snapshot, writeFence) { const restore = this.projectRepository.restoreIfCurrentAndFenced; if (!restore) throw new Error('Fenced project restore is unavailable.'); return restore.call(this.projectRepository, projectId, expected, snapshot, writeFence); }
 	async prepareProjectHandoff(project, { signal } = {}) {
 		void project;
 		void signal;

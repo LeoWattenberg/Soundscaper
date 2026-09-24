@@ -5,12 +5,14 @@ type MaybePromise<Value> = PromiseLike<Value> | Value;
 export interface FramescaperCaptureProjectLock {
 	readonly projectId: string;
 	readonly readOnly: boolean;
+	readonly writeFence?: string;
 	readonly lost?: PromiseLike<unknown> | null;
 	readonly finished?: PromiseLike<unknown> | null;
 	release(): void;
 }
 
 export interface FramescaperCaptureProjectWriteLease {
+	readonly writeFence: string;
 	assertCurrent(): void;
 	release(): Promise<void>;
 }
@@ -62,7 +64,8 @@ export function createFramescaperCaptureProjectWriteAuthority(
 			if (acquired) await releaseLock(acquired);
 			throw new Error(`Framescaper capture could not acquire the write lock for ${projectId}.`);
 		}
-		return createOwnedLease(options, projectId, acquired);
+		try { return createOwnedLease(options, projectId, acquired); }
+		catch (error) { await releaseLock(acquired); throw error; }
 	}
 
 	return Object.freeze({ assertProjectWritable, acquireProjectWriteAuthority });
@@ -75,15 +78,18 @@ function createBorrowedLease(
 ): FramescaperCaptureProjectWriteLease {
 	let released = false;
 	let lost = false;
+	const writeFence = requireWriteFence(lock, projectId);
 	if (lock.lost) void Promise.resolve(lock.lost).then(
 		() => { lost = true; },
 		() => { lost = true; },
 	);
 	return Object.freeze({
+		writeFence,
 		assertCurrent() {
 			assertAdmissionWritable(options, projectId);
 			if (released || lost || options.getActiveProjectId() !== projectId
-				|| options.getActiveReadOnly() || options.getActiveLock() !== lock || lock.readOnly) {
+				|| options.getActiveReadOnly() || options.getActiveLock() !== lock || lock.readOnly
+				|| lock.writeFence !== writeFence) {
 				throw authorityChanged(projectId);
 			}
 		},
@@ -98,14 +104,16 @@ function createOwnedLease(
 ): FramescaperCaptureProjectWriteLease {
 	let released = false;
 	let lost = false;
+	const writeFence = requireWriteFence(lock, projectId);
 	if (lock.lost) void Promise.resolve(lock.lost).then(
 		() => { lost = true; },
 		() => { lost = true; },
 	);
 	return Object.freeze({
+		writeFence,
 		assertCurrent() {
 			assertAdmissionWritable(options, projectId);
-			if (released || lost || lock.readOnly) throw authorityChanged(projectId);
+			if (released || lost || lock.readOnly || lock.writeFence !== writeFence) throw authorityChanged(projectId);
 		},
 		async release() {
 			if (released) return;
@@ -135,6 +143,11 @@ async function releaseLock(lock: FramescaperCaptureProjectLock): Promise<void> {
 
 function authorityChanged(projectId: string): Error {
 	return new Error(`Framescaper capture project write authority changed for ${projectId}.`);
+}
+
+function requireWriteFence(lock: FramescaperCaptureProjectLock, projectId: string): string {
+	if (typeof lock.writeFence !== 'string' || !lock.writeFence) throw authorityChanged(projectId);
+	return lock.writeFence;
 }
 
 function stableId(value: unknown): string {

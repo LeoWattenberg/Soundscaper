@@ -16,7 +16,8 @@ import { assertFramescaperProjectRuntimeProfile } from './editor-project-runtime
 
 const REQUIRED_METHODS = Object.freeze([
 	'createIfAbsent', 'createForScapeImportIfAbsent', 'save', 'saveIfCurrent',
-	'load', 'list', 'listRevisions', 'restore', 'delete',
+	'claimWriteFence', 'saveIfCurrentAndFenced',
+	'load', 'list', 'listRevisions', 'restore', 'restoreIfCurrentAndFenced', 'delete',
 ] as const);
 
 /** Exact-write Framescaper v1 repository with opaque foreign/future custody. */
@@ -69,6 +70,25 @@ export class FramescaperProjectRepository implements ProjectRepositoryPort {
 		}
 		assertSameBodyAttachments(expected, project);
 		return this.#optionalExact(await this.#delegate.saveIfCurrent!(expected, project, postCommit));
+	}
+
+	claimWriteFence(projectId: string): Promise<string> {
+		return this.#delegate.claimWriteFence!(projectId);
+	}
+
+	async saveIfCurrentAndFenced(
+		expectedValue: ProjectDocument,
+		projectValue: ProjectDocument,
+		writeFence: string,
+		postCommit?: ProjectPostCommitMaintenance,
+	): Promise<ProjectDocument | null> {
+		const expected = this.#exact(expectedValue);
+		const project = this.#exact(projectValue);
+		if (expected.id !== project.id) throw new Error('Framescaper compare-and-swap cannot change project identity.');
+		assertSameBodyAttachments(expected, project);
+		return this.#optionalExact(await this.#delegate.saveIfCurrentAndFenced!(
+			expected, project, writeFence, postCommit,
+		));
 	}
 
 	async maintainCurrentProject(
@@ -128,6 +148,22 @@ export class FramescaperProjectRepository implements ProjectRepositoryPort {
 			current: current as ProjectDocument | null,
 			revisions: Object.freeze(revisions),
 		}));
+	}
+
+	restoreIfCurrentAndFenced(projectId: string, expectedValue: ProjectDocument, snapshot: Readonly<{
+		readonly current: ProjectDocument | null;
+		readonly revisions: readonly ProjectRevision[];
+	}>, writeFence: string): Promise<boolean> {
+		const expected = this.#exact(expectedValue);
+		if (expected.id !== projectId) throw new Error('The Framescaper restore expected document changed project identity.');
+		const current = snapshot.current === null ? null : this.#exact(snapshot.current);
+		if (current && current.id !== projectId) throw new Error('The Framescaper restore current document changed project identity.');
+		const revisions = snapshot.revisions.map(({ revision, project }) => {
+			const exact = this.#exact(project);
+			if (exact.id !== projectId || exact.revision !== revision) throw new Error('The Framescaper restore revision changed its document identity.');
+			return { revision, project: exact as ProjectDocument };
+		});
+		return this.#delegate.restoreIfCurrentAndFenced!(projectId, expected, { current, revisions }, writeFence);
 	}
 
 	async deleteIfCurrent(projectValue: ProjectDocument): Promise<boolean> {

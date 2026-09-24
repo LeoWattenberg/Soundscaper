@@ -33,19 +33,24 @@ export async function runDesktopProjectLibraryLeaseRendererSmoke(scope, plan) {
 		return { status: 'conflict', ...observed, reason: 'destination-presence' };
 	}
 	const publicationId = publicationIdFor(scope);
+	const framescaper = plan.productId === 'framescaper';
+	const writeFence = framescaper && bundle !== null ? await api.claimProjectWriteFence(plan.projectId) : null;
 	try {
-		await api.beginPublication({
+		const admission = await api.beginPublication({
 			publicationId,
 			expectedMetadataRevision: catalog.metadataRevision,
 			expectedProject,
+			...(writeFence ? { writeFence, expectedDocument: JSON.parse(bundle.document) } : {}),
 			project: JSON.parse(plan.request.document),
 			bodies: [],
 		});
+		if (admission === null) return { status: 'conflict', ...observed, reason: 'compare-and-swap' };
 	} catch (error) {
 		return refusal(error);
 	}
 	try {
 		const result = await api.finishPublication({ publicationId });
+		if (result === null) return { status: 'conflict', ...observed, reason: 'compare-and-swap' };
 		return {
 			status: 'committed',
 			metadataRevision: result.metadataRevision,

@@ -8,6 +8,8 @@ export const FRAMESCAPER_DESKTOP_PROJECT_LIBRARY_MAIN_CHANNELS = Object.freeze({
 	readProjectBundle: `${ROOT}:bundle`,
 	readBodyChunk: `${ROOT}:bodies:read`,
 	listProjects: `${ROOT}:list`,
+	claimProjectWriteFence: `${ROOT}:write-fence:claim`,
+	checkProjectWriteFence: `${ROOT}:write-fence:check`,
 	deleteProject: `${ROOT}:delete`,
 	duplicateProject: `${ROOT}:duplicate`,
 	beginPublication: `${ROOT}:publication:begin`,

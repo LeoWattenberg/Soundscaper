@@ -32,6 +32,7 @@ test('an authenticated product proxy makes an offline video visual available wit
 			proxyRequests += 1;
 			assert.equal(request.project, project);
 			assert.equal(request.source, source);
+			request.assertCurrent();
 			return Object.freeze({ body: new Blob(['proxy'], { type: 'video/mp4' }), mediaKind: 'proxy' });
 		},
 		projectDurationFrames: () => 10,

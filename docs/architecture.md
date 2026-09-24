@@ -154,18 +154,43 @@ design system, editor engine, storage/model, controller/core, timeline, shell,
 and remaining vendor code. Keep a module in the narrowest owning group and
 verify the resulting dependency DAG before changing those priorities. The build
 fails when any emitted JavaScript chunk exceeds 500,000 bytes; split ownership
-instead of raising that ceiling.
+instead of raising that ceiling. Its startup check also rejects a static import
+path from either product's bootstrap chunk back to itself after chunks are emitted.
 
 Product module substitutions are checked by `npm run typecheck:products`, which
 runs TypeScript over Soundscaper and Framescaper in both browser and desktop
-compositions. Its compiler host reads the same ordered alias table as Vite; this
-checks arguments and results at the actual consumer, including dynamic imports.
+compositions. Its compiler host and Vite resolve substitutions by the imported
+source file's path, so another directory's same-named file cannot be replaced
+accidentally. This checks arguments and results at the actual consumer, including
+dynamic imports.
 Disabled implementations retain their owning module's type contract through
 explicit type-only imports. The ordinary source check still checks the default
 graph, and export-parity tests guard substitution coverage.
+Each browser project environment loads its desktop library bridge only when the
+preload global is present; ordinary browser startup keeps that renderer code out
+of its static graph.
 
 Autosave retains an immutable document generation during its debounce and only
 materializes the snapshot when saving starts. Preparation and persistence share
 one failure boundary. Controller history compaction memoizes immutable past
 snapshots with weak keys; the present is always recomputed because clipboard
-roots can change without a document edit.
+roots can change without a document edit. The public document snapshot and
+controller project getter expose detached, frozen views with stable identity for
+each source revision. A writable project lock claims a durable write token;
+autosave compares that token and the exact stored document in the same IndexedDB
+transaction as publication. Lock recovery stays read-only if the stored document
+changed while write access was unavailable. Desktop project libraries check the
+same expected document and a main-owned writer token at the SQLite commit point;
+an unchanged save checks both in main as well. Internal project publications that
+replace the active revision refresh the autosave baseline before admitting the
+next save.
+Scape replacement imports hold that write authority through their exact-current
+publication and rollback. A same-ID replacement installs the committed document
+as fresh session history; rollback leaves staged assets intact if ownership has
+changed and they may now be referenced by another writer.
+
+Long-source playback sends PCM packets and acknowledgments over a direct
+worker-to-worklet MessageChannel. The main thread still serves storage reads and
+transport control. Live playback prepares streamed clips within a five-second
+lookahead, with at most eight preparations in flight; realtime rendering keeps
+its eager preparation and completion barrier.

@@ -10,6 +10,9 @@ const ROOT = resolve(import.meta.dirname, '..');
 const PUBLICATION_ID = 'ab'.repeat(24);
 const HANDSHAKE_CHANNEL = 'framescaper:v1:project-library:handshake';
 const BEGIN_CHANNEL = 'framescaper:v1:project-library:publication:begin';
+const CLAIM_CHANNEL = 'framescaper:v1:project-library:write-fence:claim';
+const CHECK_CHANNEL = 'framescaper:v1:project-library:write-fence:check';
+const WRITE_FENCE = 'cd'.repeat(24);
 const MAXIMUM_CHUNK_BYTES = 4 * 1024 * 1024;
 const MAXIMUM_BODIES = 5_118;
 
@@ -36,6 +39,7 @@ async function exposedBridges(publicationInvoke = (_channel, value) => Promise.r
 			invoke: (channel, value) => {
 				invocations.push({ channel, value });
 				if (channel === HANDSHAKE_CHANNEL) return Promise.resolve(structuredClone(value));
+				if (channel === CLAIM_CHANNEL) return Promise.resolve(WRITE_FENCE);
 				return publicationInvoke(channel, value);
 			},
 		},
@@ -96,6 +100,43 @@ test('a Framescaper publication with no bodies is still admitted', async () => {
 	assert.equal(admitted.bodyCount, 0);
 	assert.deepEqual(structuredClone(admitted.requiredBodyIndexes), []);
 	assert.deepEqual(structuredClone(invocations.at(-1).value.bodies), []);
+});
+
+test('Framescaper preload validates the main-owned claim and retires refused publications', async () => {
+	const { library, invocations } = await exposedBridges((channel, value) => {
+		if (channel === BEGIN_CHANNEL || channel.endsWith(':publication:finish')) return Promise.resolve(null);
+		return Promise.resolve(value);
+	});
+	assert.equal(await library.claimProjectWriteFence('project-id'), WRITE_FENCE);
+	assert.deepEqual(invocations.at(-1), { channel: CLAIM_CHANNEL, value: 'project-id' });
+	const request = {
+		publicationId: PUBLICATION_ID, expectedMetadataRevision: 0,
+		expectedProject: { projectRevision: 0, projectSha256: 'ab'.repeat(32) },
+		expectedDocument: { id: 'project-id' }, writeFence: WRITE_FENCE,
+		project: {}, bodies: [],
+	};
+	assert.equal(await library.beginPublication(request), null);
+	assert.throws(() => library.abortPublication({ publicationId: PUBLICATION_ID }), /not active/iu);
+	const admitted = await exposedBridges((channel, value) => channel.endsWith(':publication:finish')
+		? Promise.resolve(null)
+		: Promise.resolve({ publicationId: value.publicationId, maximumChunkBytes: MAXIMUM_CHUNK_BYTES,
+			bodyCount: 0, requiredBodyIndexes: [] }));
+	await admitted.library.beginPublication(request);
+	assert.equal(await admitted.library.finishPublication({ publicationId: PUBLICATION_ID }), null);
+	assert.throws(() => admitted.library.abortPublication({ publicationId: PUBLICATION_ID }), /not active/iu);
+});
+
+test('Framescaper preload sends an exact-document no-op check to main', async () => {
+	const { library, invocations } = await exposedBridges((channel) => Promise.resolve(channel === CHECK_CHANNEL));
+	const expectedDocument = { id: 'project-id', revision: 1 };
+	assert.equal(await library.checkProjectWriteFence({
+		projectId: 'project-id', writeFence: WRITE_FENCE, expectedDocument,
+	}), true);
+	assert.equal(invocations.at(-1).channel, CHECK_CHANNEL);
+	assert.deepEqual(structuredClone(invocations.at(-1).value), {
+		projectId: 'project-id', writeFence: WRITE_FENCE, expectedDocument,
+	});
+	assert.notEqual(invocations.at(-1).value.expectedDocument, expectedDocument);
 });
 
 test('the baseline preload admits its full transcript-extended body inventory and refuses one more', async () => {

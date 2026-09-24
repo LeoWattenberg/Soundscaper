@@ -149,7 +149,6 @@
 		"import/freesound-import-service.ts",
 		"import/import-composition.ts",
 		"import/imported-audio-content-identity.ts",
-		"import/prepared-project-sources.ts",
 		"import/project-bin-linked-video-relink-service.ts",
 		"import/project-bin-types.ts",
 		"import/raw-pcm-import.ts",
@@ -176,6 +175,7 @@
 		"shared/absent-subsystem.ts",
 		"shared/app-helpers.ts",
 		"shared/deferred-module-facade.ts",
+		"shared/isolated-track-render-project-v21.ts",
 		"shared/lifecycle.ts",
 		"shared/owned-state.ts",
 		"shared/presentation-localization.ts",
@@ -196,7 +196,6 @@
 		"source/waveform-analysis.ts",
 		"track-audio/audio-warp-action-facade.ts",
 		"track-audio/derived-audio-composition.ts",
-		"track-audio/isolated-track-render-project-v21.ts",
 		"track-audio/mix-render-model.ts",
 		"track-audio/mix-render-options.ts",
 		"track-audio/mix-render-output-layout.ts",
@@ -212,8 +211,7 @@
 	"allowedDependencies": {
 		"analysis": {
 			"runtime": [
-				"shared",
-				"source"
+				"shared"
 			],
 			"typeOnly": []
 		},
@@ -294,8 +292,7 @@
 			"runtime": [
 				"assistance",
 				"shared",
-				"source",
-				"track-audio"
+				"source"
 			],
 			"typeOnly": [
 				"composition",
@@ -313,12 +310,12 @@
 		"import": {
 			"runtime": [
 				"clip-video",
-				"document",
 				"export",
 				"shared",
 				"source"
 			],
 			"typeOnly": [
+				"document",
 				"track-audio"
 			]
 		},
@@ -345,11 +342,10 @@
 		},
 		"source": {
 			"runtime": [
-				"document",
-				"import",
 				"shared"
 			],
 			"typeOnly": [
+				"document",
 				"transport"
 			]
 		},

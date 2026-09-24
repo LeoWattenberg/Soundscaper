@@ -23,7 +23,7 @@ import {
 	type EditorTaskScope,
 } from '../../../shared/lifecycle.ts';
 import type { EffectTarget } from '../../effect-selection-service.ts';
-import { createIsolatedTrackRenderProjectV21 } from '../../../track-audio/isolated-track-render-project-v21.ts';
+import { createIsolatedTrackRenderProjectV21 } from '../../../shared/isolated-track-render-project-v21.ts';
 
 const EFFECT_MACRO_TASK = 'selection-effect-macro';
 

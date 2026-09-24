@@ -3,14 +3,10 @@
 import type { AudioEditorProjectStoreOptions } from '../common/editor/storage/project-store-options.ts';
 import type { ProjectDocument } from '../common/editor/storage/project-repository.ts';
 import { AudioEditorProjectStore } from '../common/editor/storage.js';
-import {
-	connectSoundscaperDesktopProjectLibraryRenderer,
-	type SoundscaperDesktopProjectLibraryRenderer,
-	type SoundscaperDesktopProjectLibraryShadowStore,
+import type {
+	SoundscaperDesktopProjectLibraryRenderer,
+	SoundscaperDesktopProjectLibraryShadowStore,
 } from './desktop-project-library-renderer.ts';
-import {
-	createSoundscaperDesktopProjectStoreAdapter,
-} from './desktop-project-library-store-adapter.ts';
 import {
 	createSoundscaperAudioTrackFreezePlaybackService,
 	type SoundscaperAudioTrackFreezePlaybackService,
@@ -50,19 +46,20 @@ export async function createSoundscaperEditorProjectEnvironment(
 		if (!store.getStatus?.()?.persistent) {
 			throw new Error('Durable storage is required; memory baseline project storage is unsupported.');
 		}
-		const desktopProjectLibrary = await connectSoundscaperDesktopProjectLibraryRenderer(
-			runtime.runtimeProfile,
-			{ store: store as unknown as SoundscaperDesktopProjectLibraryShadowStore },
-		);
+		const desktopProjectLibrary = Object.getOwnPropertyDescriptor(
+			globalThis, 'soundscaperProjectLibraryDesktop',
+		) ? await import('./desktop-project-library-renderer.ts').then(({ connectSoundscaperDesktopProjectLibraryRenderer }) => (
+			connectSoundscaperDesktopProjectLibraryRenderer(
+				runtime.runtimeProfile,
+				{ store: store as unknown as SoundscaperDesktopProjectLibraryShadowStore },
+			)
+		)) : null;
 		const controllerStore = desktopProjectLibrary
-			? createSoundscaperDesktopProjectStoreAdapter(
+			? (await import('./desktop-project-library-store-adapter.ts')).createSoundscaperDesktopProjectStoreAdapter(
 				runtime.runtimeProfile,
 				{ localStore: store, desktopProjectLibrary },
 			)
-			: createSoundscaperDesktopProjectStoreAdapter(
-				runtime.runtimeProfile,
-				{ localStore: store, desktopProjectLibrary: null },
-			);
+			: store;
 		const playback = createSoundscaperAudioTrackFreezePlaybackService(
 			createSoundscaperPlaybackProjectService(),
 			store,

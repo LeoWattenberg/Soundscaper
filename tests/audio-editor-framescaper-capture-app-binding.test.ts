@@ -49,7 +49,8 @@ test('desktop binding without its capture bridge remains available as a truthful
 		isDesktop: true, embedded: false,
 		store: {
 			async loadProject() { return activeProject; },
-			async saveProject(value: FramescaperCaptureAppProject) { return value; },
+			async saveProjectIfCurrentWithWriteFence(_expected: FramescaperCaptureAppProject,
+				value: FramescaperCaptureAppProject) { return value; },
 			async listProjects() { return [activeProject]; },
 		},
 		sessionController: sessionController(() => activeHistory),
@@ -78,13 +79,13 @@ test('desktop binding without its capture bridge remains available as a truthful
 	await binding.dispose();
 });
 
-test('desktop project CAS uses the authoritative public store and propagates indeterminate saves', async () => {
+for (const isDesktop of [false, true]) test(`${isDesktop ? 'desktop' : 'web'} capture CAS rejects a stale write fence without publishing`, async () => {
 	const base = project(4);
 	const target = project(5);
 	let current = base;
 	let localSaves = 0;
 	let publicSaves = 0;
-	let failSave = false;
+	let currentFence = 'lease-1';
 	const store = {
 		projectRepository: {
 			async load() { return current; },
@@ -93,29 +94,30 @@ test('desktop project CAS uses the authoritative public store and propagates ind
 		async loadProject(_projectId: string, options?: Readonly<{ revision?: number }>) {
 			return options?.revision === base.revision ? base : current;
 		},
-		async saveProject(value: FramescaperCaptureAppProject) {
+		async saveProject() { throw new Error('unfenced project publication reached'); },
+		async saveProjectIfCurrentWithWriteFence(expected: FramescaperCaptureAppProject,
+			value: FramescaperCaptureAppProject, token: string) {
 			publicSaves += 1;
-			if (failSave) throw new Error('desktop acknowledgement indeterminate');
+			if (token !== currentFence || JSON.stringify(current) !== JSON.stringify(expected)) return null;
 			current = value;
 			return value;
 		},
 	};
 	const repository = createFramescaperCaptureAppProjectRepository({
-		isDesktop: true, store,
+		isDesktop, store,
 	} as never);
 
-	assert.deepEqual(await repository.saveIfCurrent(base, target), target);
+	assert.deepEqual(await repository.saveIfCurrent(base, target, currentFence), target);
 	assert.equal(publicSaves, 1);
 	assert.equal(localSaves, 0);
-	assert.equal(await repository.saveIfCurrent(base, project(6)), null);
-	assert.equal(publicSaves, 1);
+	assert.equal(await repository.saveIfCurrent(base, project(6), currentFence), null);
+	assert.equal(publicSaves, 2);
 
 	current = base;
-	failSave = true;
-	await assert.rejects(
-		Promise.resolve(repository.saveIfCurrent(base, target)),
-		/acknowledgement indeterminate/iu,
-	);
+	currentFence = 'lease-2';
+	assert.equal(await repository.saveIfCurrent(base, target, 'lease-1'), null);
+	assert.deepEqual(current, base);
+	assert.equal(publicSaves, 3);
 	assert.equal(localSaves, 0);
 });
 
@@ -385,6 +387,8 @@ function sessionController(getHistory: () => FramescaperCaptureAppHistory) {
 
 function captureStore(value: FramescaperCaptureAppProject) {
 	return {
+		async loadProject() { return value; },
+		async saveProjectIfCurrentWithWriteFence() { throw new Error('publication is not reached'); },
 		projectRepository: {
 			async load(_id: string, options?: Readonly<{ revision?: number }>) {
 				return options?.revision === undefined || options.revision === value.revision ? value : null;

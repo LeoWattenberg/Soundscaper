@@ -2,6 +2,8 @@ import {
 	projectProtectedLinkedOriginalSourceReferences,
 	type ProjectLinkedOriginalSourceReference,
 } from '../../storage/project-publication-options.ts';
+import { ProjectCommittedMaintenanceError } from '../../storage/project-committed-maintenance-error.ts';
+import { sameProjectSnapshot } from '../../storage/project-snapshot-equality.ts';
 
 export interface ProjectSaveSnapshot {
 	readonly id: string;
@@ -18,6 +20,13 @@ export type ProjectSnapshotPreparationPurpose = 'project-save' | 'scape-save';
 
 export type ProjectSaveStatus = 'saving' | 'saved' | 'dirty';
 
+export class ProjectSaveConflictError extends Error {
+	constructor() {
+		super('Project save lost its write authority or the stored document changed.');
+		this.name = 'ProjectSaveConflictError';
+	}
+}
+
 export interface ProjectSaveState<Project extends ProjectSaveSnapshot> {
 	autosaveTimer: number;
 	saveGeneration: number;
@@ -32,6 +41,8 @@ export interface ProjectSaveServiceDependencies<Project extends ProjectSaveSnaps
 	readonly hasHistory: () => boolean;
 	readonly hasUnsavedProjectChanges?: () => boolean;
 	readonly isReadOnly: () => boolean;
+	/** The durable token claimed for the current project lock. */
+	readonly getWriteFence?: (projectId: string) => string | null;
 	readonly cloneProject: (project: Project) => Project;
 	readonly prepareSnapshot?: (
 		snapshot: Project,
@@ -44,6 +55,16 @@ export interface ProjectSaveServiceDependencies<Project extends ProjectSaveSnaps
 		readonly admitProjectPublication: (bytes: number) => Promise<unknown>;
 		readonly protectedLinkedOriginalSourceReferences?: readonly ProjectLinkedOriginalSourceReference[];
 	}) => Promise<unknown>;
+	readonly saveProjectIfCurrentWithWriteFence?: (
+		expected: Project,
+		snapshot: Project,
+		writeFence: string,
+		options: {
+			readonly admitProjectPublication: (bytes: number) => Promise<unknown>;
+			readonly protectedLinkedOriginalSourceReferences?: readonly ProjectLinkedOriginalSourceReference[];
+		},
+	) => Promise<Project | null>;
+	readonly onPublicationConflict?: (projectId: string) => void;
 	readonly persistActiveProjectId: (projectId: string) => Promise<unknown>;
 	readonly isCurrentProject: (projectId: string) => boolean;
 	readonly hasSessionTab: (projectId: string) => boolean;
@@ -84,6 +105,7 @@ export function createProjectSaveService<Project extends ProjectSaveSnapshot>(
 	let scheduledProjectId: string | null = null;
 	const suspendedProjects = new Map<string, ProjectSaveAdmissionGate>();
 	const projectSaveEpochs = new Map<string, number>();
+	const persistedSnapshots = new Map<string, Project>();
 
 	return Object.freeze({
 		scheduleAutosave,
@@ -94,12 +116,47 @@ export function createProjectSaveService<Project extends ProjectSaveSnapshot>(
 		suspendProject,
 		resumeProject,
 		retireProjectSaves,
+		recordPersistedSnapshot,
+		recordPersistedSnapshotFromStore,
+		getPersistedSnapshot,
+		forgetPersistedSnapshot: (projectId: string) => { persistedSnapshots.delete(projectId); },
+		isPersistedSnapshotCurrent,
 		cancelScheduled,
 		drain: () => state.saveQueue,
 		get pendingSnapshots(): ReadonlySet<Project> {
 			return state.pendingSaveSnapshots;
 		},
 	});
+
+	/** Called only for a snapshot known to have been published or loaded from storage. */
+	function recordPersistedSnapshot(project: Project): void {
+		persistedSnapshots.set(project.id, structuredClone(project));
+	}
+
+	async function recordPersistedSnapshotFromStore(
+		projectId: string,
+		loadProject: (projectId: string) => Promise<unknown>,
+	): Promise<void> {
+		const project = await loadProject(projectId);
+		if (!project || typeof project !== 'object' || (project as ProjectSaveSnapshot).id !== projectId) {
+			if (project === null && dependencies.isReadOnly()) return;
+			throw new Error('The activated project has no current stored snapshot.');
+		}
+		recordPersistedSnapshot(project as Project);
+	}
+
+	function getPersistedSnapshot(projectId: string): Project | null {
+		const snapshot = persistedSnapshots.get(projectId);
+		return snapshot ? structuredClone(snapshot) : null;
+	}
+
+	async function isPersistedSnapshotCurrent(
+		projectId: string,
+		loadProject: (projectId: string) => Promise<unknown>,
+	): Promise<boolean> {
+		const expected = persistedSnapshots.get(projectId);
+		return Boolean(expected && sameProjectSnapshot(await loadProject(projectId), expected));
+	}
 
 	function scheduleAutosave(): boolean {
 		if (terminal || suspensionCount > 0 || dependencies.isReadOnly()) return false;
@@ -115,12 +172,13 @@ export function createProjectSaveService<Project extends ProjectSaveSnapshot>(
 		// Documents are replaced by commands. Retain this immutable generation;
 		// cloning on every edit would defeat the debounce for large projects.
 		const projectSaveEpoch = currentProjectSaveEpoch(project.id);
+		const writeFence = dependencies.getWriteFence?.(project.id) ?? null;
 		dependencies.publish('saving');
 		scheduledProjectId = project.id;
 		state.autosaveTimer = scheduleTimer(() => {
 			state.autosaveTimer = 0;
 			scheduledProjectId = null;
-			void enqueueSaveSnapshot(project, generation, projectSaveEpoch, 'project-save', true).catch(() => undefined);
+			void enqueueSaveSnapshot(project, generation, projectSaveEpoch, writeFence, 'project-save', true).catch(() => undefined);
 		}, autosaveDelayMs);
 		return true;
 	}
@@ -222,6 +280,7 @@ export function createProjectSaveService<Project extends ProjectSaveSnapshot>(
 			dependencies.cloneProject(project),
 			generation,
 			currentProjectSaveEpoch(project.id),
+			dependencies.getWriteFence?.(project.id) ?? null,
 			preparationPurpose,
 		);
 	}
@@ -230,12 +289,13 @@ export function createProjectSaveService<Project extends ProjectSaveSnapshot>(
 		snapshot: Project,
 		generation: number,
 		projectSaveEpoch: number,
+		writeFence: string | null,
 		preparationPurpose: ProjectSnapshotPreparationPurpose,
 		materialize = false,
 	): Promise<unknown> {
 		const operation = state.saveQueue
 			.catch(() => undefined)
-			.then(() => saveSnapshot(snapshot, generation, projectSaveEpoch, preparationPurpose, materialize));
+			.then(() => saveSnapshot(snapshot, generation, projectSaveEpoch, writeFence, preparationPurpose, materialize));
 		state.saveQueue = operation;
 		return operation;
 	}
@@ -244,17 +304,18 @@ export function createProjectSaveService<Project extends ProjectSaveSnapshot>(
 		snapshotValue: Project,
 		generation: number,
 		projectSaveEpoch: number,
+		writeFence: string | null,
 		preparationPurpose: ProjectSnapshotPreparationPurpose,
 		materialize: boolean,
 	): Promise<void> {
-		if (!ownsProjectSaveEpoch(snapshotValue.id, projectSaveEpoch)) return;
+		if (!ownsProjectSaveEpoch(snapshotValue.id, projectSaveEpoch) || !ownsWriteFence(snapshotValue.id, writeFence)) return;
 		let snapshot = snapshotValue;
 		try {
 			if (materialize) snapshot = dependencies.cloneProject(snapshotValue);
 			snapshot = dependencies.prepareSnapshot
 				? await dependencies.prepareSnapshot(snapshot, preparationPurpose)
 				: snapshot;
-			if (!ownsProjectSaveEpoch(snapshotValue.id, projectSaveEpoch)) return;
+			if (!ownsProjectSaveEpoch(snapshotValue.id, projectSaveEpoch) || !ownsWriteFence(snapshotValue.id, writeFence)) return;
 			if (!snapshot || snapshot.id !== snapshotValue.id) {
 				throw new Error('Project save preparation changed the project identity.');
 			}
@@ -266,26 +327,47 @@ export function createProjectSaveService<Project extends ProjectSaveSnapshot>(
 					],
 				}) ?? undefined
 				: undefined;
-			await dependencies.saveProject(snapshot, {
-				admitProjectPublication: async (bytes) => {
-					if (!ownsProjectSaveEpoch(snapshot.id, projectSaveEpoch)) {
+			const saveOptions = {
+				admitProjectPublication: async (bytes: number) => {
+					if (!ownsProjectSaveEpoch(snapshot.id, projectSaveEpoch) || !ownsWriteFence(snapshot.id, writeFence)) {
 						throw new DOMException('The project save was retired.', 'AbortError');
 					}
 					await dependencies.admitProjectPublication(bytes);
-					if (!ownsProjectSaveEpoch(snapshot.id, projectSaveEpoch)) {
+					if (!ownsProjectSaveEpoch(snapshot.id, projectSaveEpoch) || !ownsWriteFence(snapshot.id, writeFence)) {
 						throw new DOMException('The project save was retired.', 'AbortError');
 					}
 				},
 				...(protectedLinkedOriginalSourceReferences
 					? { protectedLinkedOriginalSourceReferences }
 					: {}),
-			});
+			};
+			if (dependencies.saveProjectIfCurrentWithWriteFence) {
+				const expected = persistedSnapshots.get(snapshot.id);
+				if (!expected || !writeFence) throw new Error('Project save requires a persisted snapshot and write fence.');
+				let maintenanceFailure: ProjectCommittedMaintenanceError | null = null;
+				const saved = await dependencies.saveProjectIfCurrentWithWriteFence(expected, snapshot, writeFence, saveOptions)
+					.catch((error: unknown): Project | null => {
+						if (!(error instanceof ProjectCommittedMaintenanceError)
+							|| error.committedProject.id !== snapshot.id) throw error;
+						maintenanceFailure = error;
+						return error.committedProject as unknown as Project;
+					});
+				if (saved === null) {
+					dependencies.onPublicationConflict?.(snapshot.id);
+					throw new ProjectSaveConflictError();
+				}
+				recordPersistedSnapshot(saved);
+				if (maintenanceFailure) {
+					try { dependencies.handleError(maintenanceFailure); }
+					catch { /* Reporting cannot undo a committed project. */ }
+				}
+			} else await dependencies.saveProject(snapshot, saveOptions);
 			state.pendingSaveSnapshots.delete(snapshot);
-			if (!ownsProjectSaveEpoch(snapshot.id, projectSaveEpoch)) return;
+			if (!ownsProjectSaveEpoch(snapshot.id, projectSaveEpoch) || !ownsWriteFence(snapshot.id, writeFence)) return;
 			if (dependencies.isCurrentProject(snapshot.id)) {
 				await dependencies.persistActiveProjectId(snapshot.id);
 			}
-			if (!ownsProjectSaveEpoch(snapshot.id, projectSaveEpoch)) return;
+			if (!ownsProjectSaveEpoch(snapshot.id, projectSaveEpoch) || !ownsWriteFence(snapshot.id, writeFence)) return;
 			if (dependencies.isCurrentProject(snapshot.id) && generation === state.saveGeneration) {
 				if (dependencies.hasSessionTab(snapshot.id)) dependencies.markProjectSaved(snapshot.id);
 				dependencies.publish('saved');
@@ -302,6 +384,7 @@ export function createProjectSaveService<Project extends ProjectSaveSnapshot>(
 			}
 		} catch (error) {
 			if (!ownsProjectSaveEpoch(snapshotValue.id, projectSaveEpoch)) return;
+			if (!ownsWriteFence(snapshotValue.id, writeFence) && !(error instanceof ProjectSaveConflictError)) return;
 			if (dependencies.isCurrentProject(snapshotValue.id) && generation === state.saveGeneration) {
 				dependencies.publish('dirty');
 			}
@@ -318,6 +401,11 @@ export function createProjectSaveService<Project extends ProjectSaveSnapshot>(
 
 	function ownsProjectSaveEpoch(projectId: string, epoch: number): boolean {
 		return currentProjectSaveEpoch(projectId) === epoch;
+	}
+
+	function ownsWriteFence(projectId: string, writeFence: string | null): boolean {
+		return !dependencies.isReadOnly()
+			&& (!dependencies.getWriteFence || Boolean(writeFence && dependencies.getWriteFence(projectId) === writeFence));
 	}
 }
 

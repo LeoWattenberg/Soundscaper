@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
 	createProjectSaveService,
+	ProjectSaveConflictError,
 	type ProjectSaveServiceDependencies,
 	type ProjectSaveState,
 } from '../src/common/editor/controller/document/project-save-service.ts';
@@ -143,4 +144,82 @@ test('production save services own independent queues and report status without 
 	await first.service.drain();
 	assert.deepEqual(first.publications, ['saving', 'saved']);
 	assert.equal(first.state.saveGeneration, 0, 'the old controller state is not the queue owner');
+});
+
+test('fenced saves compare against the last durable snapshot and drop a queued save after takeover', async () => {
+	let project: Project = { id: 'project', revision: 1 };
+	let persisted: Project = { id: 'project', revision: 0 };
+	let writeFence = 'first-lock';
+	const expectedRevisions: number[] = [];
+	const publications: string[] = [];
+	const service = createProjectSaveService<Project>({
+		getProject: () => project,
+		hasHistory: () => true,
+		isReadOnly: () => false,
+		getWriteFence: () => writeFence,
+		cloneProject: (value) => ({ ...value }),
+		admitProjectPublication: async () => undefined,
+		saveProject: async () => { throw new Error('The ordinary save path must not run.'); },
+		saveProjectIfCurrentWithWriteFence: async (expected, snapshot, fence) => {
+			expectedRevisions.push(expected.revision);
+			if (fence !== writeFence || expected.revision !== persisted.revision) return null;
+			persisted = snapshot;
+			return snapshot;
+		},
+		persistActiveProjectId: async () => undefined,
+		isCurrentProject: () => true,
+		hasSessionTab: () => true,
+		markProjectSaved: () => undefined,
+		publish: (state) => { publications.push(state); },
+		garbageCollect: async () => undefined,
+		refreshStorageUsage: async () => undefined,
+		handleError: () => undefined,
+	});
+	service.recordPersistedSnapshot(persisted);
+	await service.flushProject();
+	project = { id: 'project', revision: 2 };
+	await service.flushProject();
+	assert.deepEqual(expectedRevisions, [0, 1]);
+	assert.equal(persisted.revision, 2);
+
+	project = { id: 'project', revision: 3 };
+	const stale = service.flushProject();
+	writeFence = 'second-lock';
+	await stale;
+	assert.deepEqual(expectedRevisions, [0, 1]);
+	assert.equal(persisted.revision, 2);
+	assert.equal(publications.at(-1), 'saved');
+});
+
+test('a durable publication conflict leaves the project dirty and fails an explicit flush', async () => {
+	let readOnly = false;
+	const publications: string[] = [];
+	const errors: unknown[] = [];
+	const base: Project = { id: 'project', revision: 0 };
+	const edited: Project = { id: 'project', revision: 1 };
+	const service = createProjectSaveService<Project>({
+		getProject: () => edited,
+		hasHistory: () => true,
+		isReadOnly: () => readOnly,
+		getWriteFence: () => 'claimed-lock',
+		cloneProject: (project) => ({ ...project }),
+		admitProjectPublication: async () => undefined,
+		saveProject: async () => { throw new Error('Unconditional save must not run.'); },
+		saveProjectIfCurrentWithWriteFence: async () => null,
+		onPublicationConflict: () => { readOnly = true; },
+		persistActiveProjectId: async () => undefined,
+		isCurrentProject: () => true,
+		hasSessionTab: () => true,
+		markProjectSaved: () => undefined,
+		publish: (state) => { publications.push(state); },
+		garbageCollect: async () => undefined,
+		refreshStorageUsage: async () => undefined,
+		handleError: (error) => { errors.push(error); },
+	});
+	service.recordPersistedSnapshot(base);
+
+	await assert.rejects(service.flushProject()!, ProjectSaveConflictError);
+	assert.equal(readOnly, true);
+	assert.deepEqual(publications, ['dirty']);
+	assert.equal(errors.length, 1);
 });

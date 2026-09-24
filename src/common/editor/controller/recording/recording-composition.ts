@@ -248,6 +248,8 @@ export function createRecordingComposition(dependencies: RecordingCompositionDep
 	const takeCycle = createTakeCycleAppComposition({
 		lifetime: dependencies.lifetime,
 		store,
+		...(dependencies.getProjectWriteFence ? { getProjectWriteFence: dependencies.getProjectWriteFence } : {}),
+		...(dependencies.recordPersistedSnapshot ? { recordPersistedSnapshot: dependencies.recordPersistedSnapshot } : {}),
 		session: dependencies.session,
 		projectGeneration: dependencies.projectGeneration,
 		state,

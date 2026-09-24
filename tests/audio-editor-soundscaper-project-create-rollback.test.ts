@@ -56,14 +56,16 @@ for (const backend of ['memory', 'indexeddb'] as const) {
 			current: await store.loadProject(projectId),
 			revisions: await store.listProjectRevisions(projectId),
 		};
+		const writeFence = await store.claimProjectWriteFence(projectId);
 		const primary = new Error('project persistence failed after its local write');
 		const importStore: unknown = new Proxy(store, {
 			get(target, property, receiver) {
-				if (property === 'saveProjectIfCurrent') return async (
-					expected: Parameters<typeof target.saveProjectIfCurrent>[0],
-					candidate: Parameters<typeof target.saveProjectIfCurrent>[1],
+				if (property === 'saveProjectIfCurrentWithWriteFence') return async (
+					expected: Parameters<typeof target.saveProjectIfCurrentWithWriteFence>[0],
+					candidate: Parameters<typeof target.saveProjectIfCurrentWithWriteFence>[1],
+					token: string,
 				) => {
-					await target.saveProjectIfCurrent(expected, candidate);
+					await target.saveProjectIfCurrentWithWriteFence(expected, candidate, token);
 					throw primary;
 				};
 				const value = Reflect.get(target, property, receiver) as unknown;
@@ -71,8 +73,10 @@ for (const backend of ['memory', 'indexeddb'] as const) {
 			},
 		});
 		assertScapeImportStore(importStore);
-		const transaction = new ScapeImportTransaction(importStore);
-		await transaction.captureProject(projectId);
+		const transaction = new ScapeImportTransaction(importStore, undefined, {
+			writeFence, assertCurrent() {}, release() {},
+		});
+		await transaction.captureProject(projectId, snapshot.current);
 		const replacement = createSoundscaperProject({
 			id: projectId,
 			title: 'Imported replacement',

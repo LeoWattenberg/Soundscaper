@@ -7,7 +7,20 @@ import { createEditorAnalysisVisuals } from './internal/analysis-visuals.ts';
 import { createDeferredAudioAnalysisService } from './internal/deferred-analysis-service.ts';
 import type { EditorProjectGeneration } from '../shared/lifecycle.ts';
 import type { EditorTaskProgressCoordinator } from '../shared/task-progress.ts';
-import { analyzeChannelsInWorker } from '../source/waveform-analysis.ts';
+
+interface AnalysisWorkerCopy {
+	readonly audioAnalysisWorkerFailed: string;
+	readonly audioAnalysisFailed: string;
+}
+
+export type AnalysisWorkerPort = (
+	channels: Float32Array[],
+	sampleRate: number,
+	copy: AnalysisWorkerCopy,
+	chunkFrames: number,
+	signal: AbortSignal,
+	options?: Parameters<AnalysisDependencies['analyzeChannels']>[3],
+) => Promise<unknown>;
 
 type AnalysisProject = AnalysisRenderProject & ReturnType<AnalysisDependencies['getProject']>;
 export type AnalysisCompositionState = AnalysisState & {
@@ -25,7 +38,7 @@ export interface AnalysisCompositionDependencies<Project extends AnalysisProject
 	readonly productName: string;
 	readonly state: AnalysisCompositionState;
 	readonly copy: AnalysisDependencies['copy'] & AnalysisRenderDependencies<Project, Buffers>['copy']
-		& Parameters<typeof analyzeChannelsInWorker>[2];
+		& AnalysisWorkerCopy;
 	readonly lifetime: AnalysisDependencies['lifetime'];
 	readonly projectGeneration: Pick<EditorProjectGeneration, 'capture' | 'assertCurrent'>;
 	readonly getProject: () => Project | null;
@@ -37,8 +50,8 @@ export interface AnalysisCompositionDependencies<Project extends AnalysisProject
 	readonly setStatus: AnalysisDependencies['setStatus'];
 	readonly publish: AnalysisDependencies['publish'];
 	readonly handleError: AnalysisDependencies['handleError'];
-	/** Browser worker transport; hosts may supply their own analysis backend. */
-	readonly analyzeChannels?: typeof analyzeChannelsInWorker;
+	/** Browser worker transport supplied by the application composition root. */
+	readonly analyzeChannels: AnalysisWorkerPort;
 }
 
 /** Own analysis wiring, lazy execution and progress while retaining eager cancellation. */
@@ -46,7 +59,7 @@ export function createAnalysisComposition<Project extends AnalysisProject, Buffe
 	dependencies: AnalysisCompositionDependencies<Project, Buffers>,
 ): AnalysisActions {
 	const { state, copy } = dependencies;
-	const analyzeChannels = dependencies.analyzeChannels ?? analyzeChannelsInWorker;
+	const analyzeChannels = dependencies.analyzeChannels;
 	const requireProject = (): Project => {
 		const project = dependencies.getProject();
 		if (!project) throw new Error('Analysis requires an open project.');

@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import { createPlaybackProjectService } from '../src/common/editor/controller/source/playback-project-service.ts';
+import { publishProjectView } from '../src/common/editor/controller/document/document-snapshot.ts';
 import { acquireVideoExportTimingIndexes } from '../src/common/editor/controller/export/video-export-timing.ts';
 import { buildProjectGraph } from '../src/common/editor/engine/project-graph.ts';
 import {
@@ -93,6 +94,20 @@ test('transient folder media projection preserves inherited audibility on exact 
 	assert.equal(track(projected, 'nested-muted').mute, true);
 	assert.equal(track(projected, 'outside').solo, false);
 	assert.equal(isTrackFolderMediaStateProjectionV12(projected), true);
+});
+
+test('published project views retain trusted folder playback projection state', () => {
+	const project = audioFolderProject({ branch: { solo: true }, muted: { mute: true } });
+	const projected = projectTrackFolderMediaStateV12(project);
+	const published = publishProjectView(projected);
+
+	assert.notStrictEqual(published, projected);
+	assert.strictEqual(publishProjectView(projected), published);
+	assert.equal(isTrackFolderMediaStateProjectionV12(published), true);
+	assert.strictEqual(projectTrackFolderMediaStateV12(published), published);
+	assert.equal(track(published, 'selected').solo, true);
+	assert.throws(() => { (published.tracks as DataRecord[]).push({ id: 'bypass' }); }, TypeError);
+	assert.equal(project.tracks.length, 3);
 });
 
 test('private V12 branding cannot make a numeric-only project traversable', () => {

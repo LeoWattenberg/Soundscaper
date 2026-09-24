@@ -89,3 +89,25 @@ export function exactRecord<const Field extends string>(
 	}
 	return output;
 }
+
+const HANDSHAKE_FIELDS = [
+	'kind', 'version', 'owner', 'schemaFamily', 'schemaVersion',
+	'scapeFormatVersions', 'attachedScapeFormatVersion', 'storageDatabaseName',
+	'desktopLibrarySchemaVersion', 'desktopDatabaseUserVersion', 'desktopLibraryScope',
+] as const;
+
+export function validateFramescaperDesktopHandshake(value: unknown, databaseName: string,
+	identity: Readonly<{ schemaFamily: string; schemaVersion: number; librarySchemaVersion: number;
+		databaseUserVersion: number; scope: readonly string[] }>): void {
+	const handshake = exactRecord(value, HANDSHAKE_FIELDS, 'Framescaper desktop handshake');
+	if (handshake.kind !== 'framescaper-project-library-handshake' || handshake.version !== 1
+		|| handshake.owner !== 'framescaper' || handshake.schemaFamily !== identity.schemaFamily
+		|| handshake.schemaVersion !== identity.schemaVersion || handshake.attachedScapeFormatVersion !== 1
+		|| handshake.storageDatabaseName !== databaseName
+		|| handshake.desktopLibrarySchemaVersion !== identity.librarySchemaVersion
+		|| handshake.desktopDatabaseUserVersion !== identity.databaseUserVersion
+		|| JSON.stringify(handshake.scapeFormatVersions) !== '[1]'
+		|| JSON.stringify(handshake.desktopLibraryScope) !== JSON.stringify(identity.scope)) {
+		throw new TypeError('The Framescaper desktop handshake identity is unsupported.');
+	}
+}

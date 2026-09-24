@@ -1,7 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 import { randomBytes } from 'node:crypto';
-import { chmod, mkdir, readFile } from 'node:fs/promises';
-import { join } from 'node:path';
+import { chmod, mkdir } from 'node:fs/promises';
 import { DatabaseSync } from 'node:sqlite';
 import {
 	framescaperDesktopProjectLibraryExactGenerationMetadataRevision as metadataRevision,
@@ -20,13 +19,13 @@ import {
 import {
 	framescaperDesktopExactConfiguredBodies as configuredBodies,
 	framescaperDesktopExactConfiguredBody as configuredBody,
-	type ExactGenerationProject,
 	type FramescaperDesktopProjectLibraryExactGenerationBodyConfiguration,
 } from './project-library-exact-generation-body-configuration.ts';
 import { DesktopProjectLibrarySessionAdmission } from './project-library-session-admission.ts';
 import {
 	framescaperDesktopProjectLibraryBinary as binary,
 	framescaperDesktopProjectLibraryClosedRecord as closedRecord,
+	framescaperDesktopProjectLibraryDigest as digest,
 	framescaperDesktopProjectLibraryNonNegative as nonNegative,
 	framescaperDesktopProjectLibraryPositive as positive,
 	framescaperDesktopProjectLibraryPublicationId as exactPublicationId,
@@ -35,24 +34,30 @@ import {
 } from './framescaper-project-library-values.ts';
 import {
 	assertFramescaperDesktopExactExpectedProject as assertExpected,
+	assertFramescaperDesktopExactCurrentDocument as assertCurrentDocument,
+	checkFramescaperDesktopExactCurrentWriteFence as checkCurrentWriteFence,
 	framescaperDesktopExactMediaPath as mediaPath,
-	framescaperDesktopExactProjectRow as projectRow,
 	framescaperDesktopExactProjectTimestamp as instant,
 	framescaperDesktopExactStoredExpectedProject as expectedProjectRecord,
+	framescaperDesktopExactGenerationProject as exactGenerationProject,
 	parseFramescaperDesktopExactBodies as parseBodies,
 	persistFramescaperDesktopExactPublication as persistPublication,
+	readFramescaperDesktopExactProjectRow as readRow,
+	readFramescaperDesktopExactProjectBundle as readBundle,
 	validateFramescaperDesktopExactBody as validateBody,
 	type FramescaperDesktopExactBodyDescriptor as BodyDescriptor,
 	type FramescaperDesktopExactPublication as Publication,
-	type FramescaperDesktopExactStoredProjectRow as StoredProjectRow,
 } from './project-library-exact-generation-storage.ts';
 import { ProjectLibraryVerifiedBodyReader } from './project-library-native-body-materialization.ts';
+import { DesktopProjectWriteFences, DesktopProjectWriteFenceConflict } from './project-library-write-fence.ts';
 import { admitExactPublicationBodies as admitPublicationBodies } from
 	'./project-library-exact-generation-publication-bodies.ts';
 const START_FIELDS = ['appDataPath', 'owner', 'handshake'] as const;
 const BEGIN_FIELDS = ['publicationId', 'expectedMetadataRevision', 'expectedProject', 'project', 'bodies'] as const;
+const FENCED_BEGIN_FIELDS = [...BEGIN_FIELDS, 'expectedDocument', 'writeFence'] as const;
 const CHUNK_FIELDS = ['publicationId', 'bodyIndex', 'offset', 'bytes'] as const;
 const COMPLETION_FIELDS = ['publicationId'] as const;
+const CHECK_FENCE_FIELDS = ['projectId', 'writeFence', 'expectedDocument'] as const;
 const DUPLICATE_FIELDS = [
 	'sourceProjectId', 'copyProjectId', 'title', 'timestamp',
 	'expectedMetadataRevision', 'expectedSource',
@@ -80,6 +85,8 @@ export interface FramescaperDesktopProjectLibraryExactGenerationMainSnapshot {
 }
 export interface FramescaperDesktopProjectLibraryExactGenerationMainSession {
 	listProjects(): Promise<unknown>;
+	claimProjectWriteFence(projectId: string): string;
+	checkProjectWriteFence(value: unknown): Promise<boolean>;
 	readProjectBundle(projectId: string): Promise<unknown>;
 	readBodyChunk(value: unknown): Promise<Uint8Array>;
 	beginPublication(value: unknown): Promise<unknown>;
@@ -100,6 +107,7 @@ export class FramescaperDesktopProjectLibraryExactGenerationMain {
 	readonly #paths: Readonly<FramescaperDesktopProjectLibraryExactGenerationPaths>;
 	readonly #lifecycle: FramescaperDesktopProjectLibraryExactGenerationLifecycle | null;
 	readonly #sessions = new Set<ExactGenerationSession>();
+	readonly #writeFences = new DesktopProjectWriteFences();
 	readonly #activeProjects = new Map<ExactGenerationSession, string>();
 	#closed = false;
 	private constructor(
@@ -173,6 +181,7 @@ export class FramescaperDesktopProjectLibraryExactGenerationMain {
 			this.#database,
 			this.#paths,
 			this.#lifecycle,
+			this.#writeFences,
 			(projectId) => {
 				if (projectId === null) this.#activeProjects.delete(session);
 				else this.#activeProjects.set(session, projectId);
@@ -212,7 +221,7 @@ export class FramescaperDesktopProjectLibraryExactGenerationMain {
 			schemaVersion: this.#configuration.schemaVersion,
 			projectId: text(row.project_id, 'project id'),
 			projectRevision: nonNegative(row.project_revision, 'project revision'),
-			projectSha256: digestValue(row.sha256),
+			projectSha256: digest(row.sha256, 'project'),
 			bodies: parseBodies(row.bodies_json, this.#configuration.label, this.#configuration.validateBodyDescriptor ?? validateBody, this.#configuration.maximumBodies),
 		});
 	}
@@ -220,7 +229,7 @@ export class FramescaperDesktopProjectLibraryExactGenerationMain {
 	async readNativeProjectBundle(projectId: string): Promise<unknown> {
 		this.#assertOpen();
 		const session = new ExactGenerationSession(
-			this.#configuration, this.#database, this.#paths, this.#lifecycle,
+			this.#configuration, this.#database, this.#paths, this.#lifecycle, this.#writeFences,
 			() => undefined, () => undefined,
 		);
 		try { return await session.readProjectBundle(projectId); }
@@ -232,7 +241,7 @@ export class FramescaperDesktopProjectLibraryExactGenerationMain {
 		const body = configuredBody(this.#configuration, value);
 		const chunks: Uint8Array[] = [];
 		const session = new ExactGenerationSession(
-			this.#configuration, this.#database, this.#paths, this.#lifecycle,
+			this.#configuration, this.#database, this.#paths, this.#lifecycle, this.#writeFences,
 			() => undefined, () => undefined,
 		);
 		try {
@@ -274,6 +283,7 @@ class ExactGenerationSession implements FramescaperDesktopProjectLibraryExactGen
 	readonly #database: DatabaseSync;
 	readonly #paths: Readonly<FramescaperDesktopProjectLibraryExactGenerationPaths>;
 	readonly #lifecycle: FramescaperDesktopProjectLibraryExactGenerationLifecycle | null;
+	readonly #writeFences: DesktopProjectWriteFences;
 	readonly #onActiveProject: (projectId: string | null) => void;
 	readonly #onClose: () => void;
 	readonly #admission: DesktopProjectLibrarySessionAdmission;
@@ -285,6 +295,7 @@ class ExactGenerationSession implements FramescaperDesktopProjectLibraryExactGen
 		database: DatabaseSync,
 		paths: Readonly<FramescaperDesktopProjectLibraryExactGenerationPaths>,
 		lifecycle: FramescaperDesktopProjectLibraryExactGenerationLifecycle | null,
+		writeFences: DesktopProjectWriteFences,
 		onActiveProject: (projectId: string | null) => void,
 		onClose: () => void,
 	) {
@@ -292,12 +303,25 @@ class ExactGenerationSession implements FramescaperDesktopProjectLibraryExactGen
 		this.#database = database;
 		this.#paths = paths;
 		this.#lifecycle = lifecycle;
+		this.#writeFences = writeFences;
 		this.#onActiveProject = onActiveProject;
 		this.#onClose = onClose;
 		this.#admission = new DesktopProjectLibrarySessionAdmission(configuration.label);
 	}
 
 	get activePublication(): boolean { return this.#publication !== null; }
+	claimProjectWriteFence(projectId: string): string { this.#assertOpen(); return this.#writeFences.claim(projectId); }
+	checkProjectWriteFence(value: unknown): Promise<boolean> {
+		return this.#admit(async () => {
+			const request = closedRecord(value, CHECK_FENCE_FIELDS, `${this.#configuration.label} write fence check`);
+			const projectId = text(request.projectId, 'project id');
+			const expected = structuredClone(request.expectedDocument);
+			this.#configuration.validateProject(expected);
+			if (String(exactGenerationProject(expected, this.#configuration.label).id) !== projectId) throw new TypeError('Framescaper write fence project identity changed.');
+			return checkCurrentWriteFence(this.#database, this.#paths, projectId, expected,
+				() => this.#writeFences.assertCurrent(projectId, request.writeFence as string));
+		});
+	}
 
 	async listProjects(): Promise<unknown> {
 		this.#assertOpen();
@@ -318,9 +342,9 @@ class ExactGenerationSession implements FramescaperDesktopProjectLibraryExactGen
 
 	readProjectBundle(projectId: string): Promise<unknown> {
 		return this.#admit(async () => {
-			const row = this.#row(projectId);
+			const row = readRow(this.#database, projectId);
 			if (!row) return null;
-			const bundle = await this.#bundle(row);
+			const bundle = await readBundle(this.#configuration, this.#database, this.#paths, row, configuredBodies);
 			this.#onActiveProject(projectId);
 			return bundle;
 		});
@@ -343,7 +367,8 @@ class ExactGenerationSession implements FramescaperDesktopProjectLibraryExactGen
 	async beginPublication(value: unknown): Promise<unknown> {
 		this.#assertOpen();
 		if (this.#publication) throw new Error(`${this.#configuration.label} session already owns a publication`);
-		const record = closedRecord(value, BEGIN_FIELDS, `${this.#configuration.label} publication begin`);
+		const fenced = typeof value === 'object' && value !== null && Object.hasOwn(value, 'writeFence');
+		const record = closedRecord(value, fenced ? FENCED_BEGIN_FIELDS : BEGIN_FIELDS, `${this.#configuration.label} publication begin`);
 		const publicationId = exactPublicationId(record.publicationId);
 		const expectedMetadataRevision = nonNegative(record.expectedMetadataRevision, 'metadata revision');
 		if (expectedMetadataRevision !== metadataRevision(this.#database)) {
@@ -353,8 +378,19 @@ class ExactGenerationSession implements FramescaperDesktopProjectLibraryExactGen
 		this.#configuration.validateProject(projectValue);
 		const project = exactGenerationProject(projectValue, this.#configuration.label);
 		const expectedProject = expectedProjectRecord(record.expectedProject, this.#configuration.label);
-		const current = this.#row(String(project.id));
-		assertExpected(current, expectedProject, this.#configuration.label);
+		if (fenced && (record.expectedDocument === null || record.expectedProject === null)) throw new TypeError('Fenced Framescaper publication requires an exact expected document.');
+		const expectedDocument = fenced ? structuredClone(record.expectedDocument) : null;
+		if (expectedDocument !== null) this.#configuration.validateProject(expectedDocument);
+		const writeFence = fenced ? record.writeFence as string : null;
+		try { if (writeFence !== null) this.#writeFences.assertCurrent(String(project.id), writeFence); }
+		catch (error) { if (expectedDocument !== null && error instanceof DesktopProjectWriteFenceConflict) return null; throw error; }
+		const current = readRow(this.#database, String(project.id));
+		try { assertExpected(current, expectedProject, this.#configuration.label); }
+		catch (error) { if (expectedDocument !== null) return null; throw error; }
+		if (expectedDocument !== null) {
+			try { assertCurrentDocument(this.#paths, current, expectedDocument); }
+			catch (error) { if (error instanceof DesktopProjectWriteFenceConflict) return null; throw error; }
+		}
 		if (current && project.revision <= nonNegative(current.project_revision, 'project revision')) {
 			throw new Error(`${this.#configuration.label} publication requires a strictly higher project revision`);
 		}
@@ -366,6 +402,8 @@ class ExactGenerationSession implements FramescaperDesktopProjectLibraryExactGen
 			publicationId,
 			expectedMetadataRevision,
 			expectedProject,
+			expectedDocument,
+			writeFence,
 			project,
 			document,
 			bodies: Object.freeze(bodies),
@@ -410,14 +448,15 @@ class ExactGenerationSession implements FramescaperDesktopProjectLibraryExactGen
 			try {
 				const bundle = await persistPublication(
 					this.#configuration, this.#database, this.#paths, publication, this.#lifecycle,
-					() => this.#assertCurrent(publication.publicationId),
+					() => this.#assertCurrent(publication.publicationId, String(publication.project.id), publication.writeFence),
 				);
 				this.#publication = null;
 				this.#onActiveProject(String(publication.project.id));
 				return bundle;
 			} catch (error) {
 				this.#publication = null;
-				return abortPublicationAfterFailure(this.#lifecycle, publication.publicationId, error, this.#configuration.label);
+				try { return await abortPublicationAfterFailure(this.#lifecycle, publication.publicationId, error, this.#configuration.label); }
+				catch (failure) { if (publication.expectedDocument !== null && failure instanceof DesktopProjectWriteFenceConflict) return null; throw failure; }
 			}
 		});
 	}
@@ -440,7 +479,7 @@ class ExactGenerationSession implements FramescaperDesktopProjectLibraryExactGen
 			throw new Error(`${this.#configuration.label} metadata CAS failed`);
 		}
 		assertExpected(
-			this.#row(projectId),
+			readRow(this.#database, projectId),
 			expectedProjectRecord(record?.expectedProject, this.#configuration.label),
 			this.#configuration.label,
 		);
@@ -451,6 +490,7 @@ class ExactGenerationSession implements FramescaperDesktopProjectLibraryExactGen
 			setMetadataRevision(this.#database, expectedMetadataRevision + 1, this.#configuration.label);
 			this.#database.exec('COMMIT');
 		} catch (error) { this.#database.exec('ROLLBACK'); throw error; }
+		this.#writeFences.revoke(projectId);
 		this.#onActiveProject(null);
 		return Object.freeze({ projectId, metadataRevision: expectedMetadataRevision + 1, deleted: true });
 	}
@@ -461,21 +501,21 @@ class ExactGenerationSession implements FramescaperDesktopProjectLibraryExactGen
 			const request = closedRecord(value, DUPLICATE_FIELDS, `${this.#configuration.label} duplicate request`);
 			const sourceProjectId = text(request.sourceProjectId, 'source project id');
 			const copyProjectId = text(request.copyProjectId, 'copy project id');
-			if (sourceProjectId === copyProjectId || this.#row(copyProjectId)) {
+			if (sourceProjectId === copyProjectId || readRow(this.#database, copyProjectId)) {
 				throw new Error(`${this.#configuration.label} duplicate destination is occupied`);
 			}
 			const expectedMetadataRevision = nonNegative(request.expectedMetadataRevision, 'metadata revision');
 			if (metadataRevision(this.#database) !== expectedMetadataRevision) {
 				throw new Error(`${this.#configuration.label} duplicate metadata changed`);
 			}
-			const sourceRow = this.#row(sourceProjectId);
+			const sourceRow = readRow(this.#database, sourceProjectId);
 			assertExpected(
 				sourceRow,
 				expectedProjectRecord(request.expectedSource, this.#configuration.label),
 				this.#configuration.label,
 			);
 			if (!sourceRow) throw new Error(`${this.#configuration.label} duplicate source is unavailable`);
-			const sourceBundle = await this.#bundle(sourceRow) as Readonly<{
+			const sourceBundle = await readBundle(this.#configuration, this.#database, this.#paths, sourceRow, configuredBodies) as Readonly<{
 				document: string; bodies: readonly Readonly<BodyDescriptor>[];
 			}>;
 			const project = structuredClone(JSON.parse(sourceBundle.document) as Record<string, unknown>);
@@ -499,12 +539,14 @@ class ExactGenerationSession implements FramescaperDesktopProjectLibraryExactGen
 					publicationId,
 					expectedMetadataRevision,
 					expectedProject: null,
+					expectedDocument: null,
+					writeFence: null,
 					project: admitted,
 					document,
 					bodies,
 					chunks: bodies.map(() => []),
 					offsets: bodies.map(({ byteLength }) => byteLength),
-				}, this.#lifecycle, () => this.#assertAdmitted());
+			}, this.#lifecycle, () => this.#assertAdmitted());
 			} catch (error) {
 				return abortPublicationAfterFailure(this.#lifecycle, publicationId, error, this.#configuration.label);
 			}
@@ -534,40 +576,12 @@ class ExactGenerationSession implements FramescaperDesktopProjectLibraryExactGen
 		return this.#publication;
 	}
 
-	#assertCurrent(publicationId: string): void {
+	#assertCurrent(publicationId: string, projectId: string, writeFence: string | null): void {
 		this.#assertAdmitted();
+		if (writeFence !== null) this.#writeFences.assertCurrent(projectId, writeFence);
 		if (this.#publication?.publicationId !== publicationId) {
 			throw new Error(`${this.#configuration.label} publication ownership changed`);
 		}
-	}
-
-	#row(projectIdValue: string): StoredProjectRow | null {
-		const projectId = text(projectIdValue, 'project id');
-		return (this.#database.prepare(`
-			SELECT entry_id, project_id, title, updated_at_ms, project_revision,
-				document_file, byte_length, sha256, bodies_json
-			FROM projects WHERE project_id = ?
-		`).get(projectId) as StoredProjectRow | undefined) ?? null;
-	}
-
-	async #bundle(row: StoredProjectRow): Promise<unknown> {
-		const project = projectRow(
-			row,
-			this.#configuration.schemaFamily ?? 'framescaper',
-			this.#configuration.schemaVersion,
-		);
-		const document = await readFile(join(this.#paths.projectsRoot, text(row.document_file, 'document file')), 'utf8');
-		if (new TextEncoder().encode(document).byteLength !== project.byteLength || sha256(document) !== project.sha256) {
-			throw new Error(`${this.#configuration.label} project document failed integrity validation`);
-		}
-		const parsed = JSON.parse(document) as unknown;
-		this.#configuration.validateProject(parsed);
-		return Object.freeze({
-			metadataRevision: metadataRevision(this.#database),
-			project,
-			document,
-			bodies: configuredBodies(this.#configuration, parsed, project.sha256, JSON.parse(text(row.bodies_json, 'body inventory')) as unknown),
-		});
 	}
 
 	#assertOpen(): void { this.#admission.assertOpen(); this.#assertAdmitted(); }
@@ -578,23 +592,4 @@ class ExactGenerationSession implements FramescaperDesktopProjectLibraryExactGen
 	}
 
 	#assertAdmitted(): void { this.#lifecycle?.assertCanUse(); }
-}
-
-function exactGenerationProject(value: unknown, label: string): ExactGenerationProject {
-	if (!value || typeof value !== 'object' || Array.isArray(value)) {
-		throw new TypeError(`${label} project must be a record`);
-	}
-	const project = value as Record<string, unknown>;
-	text(project.id, 'project id');
-	text(project.title, 'project title');
-	nonNegative(project.revision, 'project revision');
-	instant(project.updatedAt, 'updatedAt', label);
-	return project as ExactGenerationProject;
-}
-
-function digestValue(value: unknown): string {
-	if (typeof value !== 'string' || !/^[a-f0-9]{64}$/u.test(value)) {
-		throw new TypeError('An exact-generation project digest is invalid');
-	}
-	return value;
 }

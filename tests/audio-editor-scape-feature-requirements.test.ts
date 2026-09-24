@@ -74,6 +74,7 @@ test('the current feature requirements retain their compatibility semantics thro
 	assert.deepEqual(imported.project.featureRequirements, project.featureRequirements);
 	assert.equal(Object.isFrozen(imported.project.featureRequirements), true);
 	assert.equal(Object.isFrozen(imported.project.featureRequirements.requirements), true);
+	assert.deepEqual(imported.project, await targetStore.loadProject(imported.project.id));
 	assert.deepEqual(
 		evaluateProjectFeatureRequirements(imported.project.featureRequirements, availability),
 		evaluateProjectFeatureRequirements(project.featureRequirements, availability),
@@ -249,6 +250,7 @@ test('Scape copy import admits collisions against destination IDs and remaps ren
 	assert.equal(copiedFallback?.sha256, FALLBACK_DIGEST);
 	assert.equal(copiedFallback?.role, 'project-audio-mix-v1');
 	assert.equal(Object.isFrozen(copied.project.featureRequirements), true);
+	assert.deepEqual(copied.project, await targetStore.loadProject(copied.project.id));
 	assert.ok(await targetStore.getSourceMetadata(FALLBACK_SOURCE_ID));
 	assert.ok(await targetStore.getSourceMetadata(copiedSourceId));
 	assert.deepEqual(await storedSamples(targetStore, FALLBACK_SOURCE_ID), [1, 1, 1, 1]);

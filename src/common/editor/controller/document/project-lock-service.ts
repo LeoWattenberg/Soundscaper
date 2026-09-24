@@ -5,6 +5,7 @@ import type {
 	ProjectLifecycleTabMetadata,
 	ProjectReadOnlyUpdate,
 } from './project-lifecycle-types.ts'; import { setLocalizedStatus } from '../../../i18n/presentation-message.ts';
+import type { ScapeReplaceWriteAuthority } from '../../scape-import-transaction.ts';
 import { publishProjectReadOnlyStatus } from './project-read-only-status.ts';
 import { PROJECT_BIN_LINKED_VIDEO_RELINK_TASK } from '../import/project-bin-linked-video-relink-service.ts';
 import { TAKE_CYCLE_RECORDING_TASK } from '../recording/take-cycle-recording-service.ts';
@@ -27,6 +28,7 @@ export interface ProjectLockServiceRuntime {
 	) => Promise<ProjectLifecycleLock>;
 	readonly setProjectReadOnly: (projectId: string, update: ProjectReadOnlyUpdate) => void;
 	readonly publishProjectState: () => void;
+	readonly isPersistedSnapshotCurrent?: (projectId: string) => Promise<boolean>;
 	readonly setStatus: (message: string, state: 'error' | 'success', localization?: import('../../../i18n/presentation-message.ts').LocalizedPresentationMessage) => void;
 	readonly handleError: (error: unknown) => void;
 	readonly invalidateRecordingAuthority?: (reason: unknown) => PromiseLike<unknown> | unknown;
@@ -40,6 +42,89 @@ export interface ProjectLockServiceRuntime {
 	readonly currentTimeMs?: () => number;
 	readonly scheduleTimer?: (callback: () => void, delayMs: number) => number;
 	readonly clearTimer?: (timer: number) => void;
+}
+
+/** Attach the durable token before a physical lock can enter the writable controller state. */
+export async function claimProjectLockWriteFence(
+	lock: ProjectLifecycleLock,
+	claim: (projectId: string) => Promise<string>,
+): Promise<ProjectLifecycleLock> {
+	if (lock.readOnly) {
+		if (lock.available) lock.available = lock.available.then(async (available) => available
+			? await claimProjectLockWriteFence(available, claim) : null);
+		return lock;
+	}
+	let lost = false;
+	void lock.lost?.then(
+		() => { lost = true; lock.readOnly = true; lock.writeFence = undefined; },
+		() => { lost = true; lock.readOnly = true; lock.writeFence = undefined; },
+	);
+	try {
+		const writeFence = await claim(lock.projectId);
+		if (lost || lock.readOnly) throw new DOMException('Project write access was lost during its claim.', 'AbortError');
+		lock.writeFence = writeFence;
+		return lock;
+	} catch (error) {
+		lock.release();
+		await Promise.resolve(lock.finished).catch(() => undefined);
+		throw error;
+	}
+}
+
+export function createFencedProjectLockAcquisition(
+	acquire: ProjectLockServiceRuntime['acquireProjectLock'],
+	store: Readonly<{ claimProjectWriteFence?: (projectId: string) => Promise<string> }>,
+): ProjectLockServiceRuntime['acquireProjectLock'] {
+	return async (projectId, options) => {
+		const lock = await acquire(projectId, options);
+		return store.claimProjectWriteFence
+			? claimProjectLockWriteFence(lock, (id) => store.claimProjectWriteFence!(id)) : lock;
+	};
+}
+
+interface ScapeReplaceLockOptions {
+	getActiveProjectId(): string | null;
+	getActiveReadOnly(): boolean;
+	getActiveLock(): ProjectLifecycleLock | null;
+	acquireProjectLock(projectId: string): Promise<ProjectLifecycleLock>;
+}
+
+/** Hold the physical project lock and its durable write token across replacement. */
+export function createScapeReplaceWriteAuthority(options: ScapeReplaceLockOptions) {
+	return async (projectId: string): Promise<ScapeReplaceWriteAuthority> => {
+		const active = options.getActiveProjectId() === projectId;
+		const lock = active ? options.getActiveLock() : await options.acquireProjectLock(projectId);
+		const owned = !active;
+		if (!lock || lock.projectId !== projectId || lock.readOnly || active && options.getActiveReadOnly()
+			|| typeof lock.writeFence !== 'string' || !lock.writeFence) {
+			if (owned && lock) await releaseScapeReplaceLock(lock);
+			throw new Error(`Scape replace could not acquire write authority for ${projectId}.`);
+		}
+		const writeFence = lock.writeFence;
+		let released = false;
+		let lost = false;
+		if (lock.lost) void lock.lost.then(() => { lost = true; }, () => { lost = true; });
+		return Object.freeze({
+			writeFence,
+			assertCurrent() {
+				if (released || lost || lock.readOnly || lock.writeFence !== writeFence
+					|| active && (options.getActiveProjectId() !== projectId || options.getActiveReadOnly()
+						|| options.getActiveLock() !== lock)) {
+					throw new Error(`Scape replace lost write authority for ${projectId}.`);
+				}
+			},
+			async release() {
+				if (released) return;
+				released = true;
+				if (owned) await releaseScapeReplaceLock(lock);
+			},
+		});
+	};
+}
+
+async function releaseScapeReplaceLock(lock: ProjectLifecycleLock): Promise<void> {
+	try { lock.release(); }
+	finally { await Promise.resolve(lock.finished).catch(() => undefined); }
 }
 
 /**
@@ -87,7 +172,10 @@ export function createProjectLockService(runtime: ProjectLockServiceRuntime) {
 					lock.retryAt = currentTimeMs() + 1_000;
 					scheduleProjectLockRecovery(projectId, lock);
 				}
-			}).catch((error: unknown) => handleProjectLockRecoveryError(projectId, lock, error));
+			}).catch((error: unknown) => {
+				lock.available = null;
+				handleProjectLockRecoveryError(projectId, lock, error);
+			});
 			return;
 		}
 		const now = currentTimeMs();
@@ -140,6 +228,7 @@ export function createProjectLockService(runtime: ProjectLockServiceRuntime) {
 			return false;
 		}
 		watchProjectLockLoss(projectId, nextLock);
+		if (runtime.isPersistedSnapshotCurrent && !await mayResumeWritable(projectId, nextLock)) return false;
 		runtime.state.readOnly = false;
 		runtime.setProjectReadOnly(projectId, {
 			readOnly: false,
@@ -177,6 +266,7 @@ export function createProjectLockService(runtime: ProjectLockServiceRuntime) {
 			return;
 		}
 		watchProjectLockLoss(projectId, nextLock);
+		if (runtime.isPersistedSnapshotCurrent && !await mayResumeWritable(projectId, nextLock)) return;
 
 		const metadata = runtime.getProjectMetadata(projectId);
 		const intrinsicReadOnly = Boolean(metadata.intrinsicReadOnly);
@@ -204,6 +294,23 @@ export function createProjectLockService(runtime: ProjectLockServiceRuntime) {
 		if (!ownsLock(projectId, lock)) return;
 		scheduleProjectLockRecovery(projectId, lock);
 		runtime.handleError(error);
+	}
+
+	async function mayResumeWritable(projectId: string, lock: ProjectLifecycleLock): Promise<boolean> {
+		let current = false;
+		try { current = await runtime.isPersistedSnapshotCurrent?.(projectId) ?? true; }
+		catch (error) { runtime.handleError(error); }
+		if (current) {
+			return ownsLock(projectId, lock) && !lock.readOnly;
+		}
+		if (!ownsLock(projectId, lock)) return false;
+		enterReadOnly(new DOMException('The stored project changed while write access was unavailable.', 'AbortError'));
+		runtime.setProjectReadOnly(projectId, {
+			readOnly: true, reason: 'project-lock', lockMethod: lock.method,
+		});
+		runtime.publishProjectState();
+		setLocalizedStatus(runtime.setStatus, runtime.copy, 'projectReadOnly', undefined, 'error');
+		return false;
 	}
 
 	function enterReadOnly(reason: unknown): void {

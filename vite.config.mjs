@@ -11,7 +11,7 @@ import {
 	emitDesktopRendererProductPublicAssets,
 	enforceDesktopRendererProductIsolation,
 } from './scripts/lib/desktop-renderer-product-isolation.mjs';
-import { productResolveAliases } from './scripts/lib/product-aliases.mjs';
+import { productResolveAliases, productSubstitutionPlugin } from './scripts/lib/product-aliases.mjs';
 import {
 	readProductReleaseLinesSync,
 	resolveProductApplicationVersion,
@@ -102,6 +102,9 @@ export default defineConfig({
 	preview: { headers: authoredWildcardResponseHeaders() },
 	publicDir: productId === 'soundscaper' && desktopCodecComposition ? false : 'public',
 	plugins: [
+		productSubstitutionPlugin({
+			productId, desktopCodecComposition, repositoryRoot: import.meta.dirname,
+		}),
 		createPffftNodeModuleBrowserShim(),
 		react(),
 		assertDesignSystemCssLayered(),
@@ -113,14 +116,8 @@ export default defineConfig({
 		...(buildSourceMaps ? [relocateBuildSourceMaps()] : []),
 	],
 	resolve: {
-		// File-targeted public aliases plus an app-internal deep component alias.
-		// Public deep subpath imports remain unsupported. The product substitution
-		// rows live in scripts/lib/product-aliases.mjs so the export-parity guard
-		// reads the same table this build resolves through.
-		//
-		// Relative substitutions cannot be represented by tsconfig paths. The
-		// production compiler host resolves this same table for all four builds
-		// during typecheck:products, checking consumers against their real adapters.
+		// Public design-system aliases; product substitutions are resolved above
+		// against the source file the importer actually names.
 		alias: productResolveAliases({
 			productId,
 			desktopCodecComposition,
@@ -135,7 +132,12 @@ export default defineConfig({
 	},
 	worker: {
 		format: 'es',
-		plugins: () => [createPffftNodeModuleBrowserShim()],
+		plugins: () => [
+			productSubstitutionPlugin({
+				productId, desktopCodecComposition, repositoryRoot: import.meta.dirname,
+			}),
+			createPffftNodeModuleBrowserShim(),
+		],
 		rolldownOptions: {
 			output: {
 				codeSplitting: {

@@ -94,6 +94,9 @@ export interface ProjectAdminServiceRuntime<
 		retireProjectSaves(projectId: string): void;
 		drain(): Awaitable<unknown>;
 		readonly pendingSnapshots: Iterable<Project>;
+		getPersistedSnapshot?(projectId: string): Project | null;
+		recordPersistedSnapshot?(project: Project): void;
+		forgetPersistedSnapshot?(projectId: string): void;
 	}>;
 	readonly projectGeneration: Readonly<{ activate(projectId: string): unknown; invalidate(): void }>;
 	readonly projectMaintenanceRuntime?: Readonly<{
@@ -105,6 +108,9 @@ export interface ProjectAdminServiceRuntime<
 	publishDocumentSnapshot(): void;
 	recordingRoutingSettingKey(projectId: string): string;
 	releaseProjectLock(): Awaitable<unknown>;
+	acquireInactiveProjectLock?(projectId: string): Promise<Readonly<{
+		readOnly: boolean; writeFence?: string; release(): void; finished?: PromiseLike<unknown> | null;
+	}>>;
 	revokeVideoVisuals(): Awaitable<unknown>;
 	saveNow(): Awaitable<unknown>;
 	scheduleTimer(callback: () => void, delayMs: number): number;
@@ -130,6 +136,10 @@ export interface ProjectAdminServiceRuntime<
 		saveProject(project: Project, options: Readonly<{
 			protectedLinkedOriginalSourceReferences: readonly ProjectLinkedOriginalSourceReference[];
 		}>): Awaitable<unknown>;
+		saveProjectIfCurrentWithWriteFence?(
+			expected: Project, project: Project, writeFence: string,
+			options: Readonly<{ protectedLinkedOriginalSourceReferences: readonly ProjectLinkedOriginalSourceReference[] }>,
+		): Promise<unknown | null>;
 		duplicateProject(projectId: string, options: Readonly<{ title: string }>): Awaitable<AdminProject>;
 		deleteProject(projectId: string): Awaitable<unknown>;
 		clear(): Awaitable<unknown>;

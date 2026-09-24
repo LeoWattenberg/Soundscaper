@@ -11,6 +11,7 @@ import type { ScapeProjectInput } from '../../scape-project-input.ts';
 import type { ScapeManifest } from '../../scape-archive-envelope.ts';
 import type { ProjectFileExtension } from '../../../project-file-extensions.ts';
 import type { ProjectFlushOptions } from './project-save-service.ts';
+import type { ScapeReplaceWriteAuthority } from '../../scape-import-transaction.ts';
 
 export type NativeAwaitable<Value> = PromiseLike<Value> | Value;
 export type NativeSaveState = 'dirty' | 'saved' | 'saving' | string;
@@ -288,6 +289,9 @@ export interface NativeCompatibilityReport extends Readonly<Record<string, unkno
 export interface ScapeImportResult extends Readonly<Record<string, unknown>> {
 	readonly project: NativeProjectDocument;
 	readonly readOnly: boolean;
+	/** The project publication already committed; late cancellation cannot undo it. */
+	readonly publicationCommitted?: boolean;
+	readonly collision?: string | null;
 	readonly reason?: string | null;
 	readonly manifest: NativeScapeManifest;
 }
@@ -320,10 +324,13 @@ export interface NativeProjectServiceRuntime {
 		readOnly?: boolean;
 		readOnlyReason?: string | null;
 		skipFlush?: boolean;
+		adoptSessionRevision?: boolean;
+		replaceSessionHistory?: boolean;
 		save?: boolean;
 		preserveScapeOpenRequest?: boolean;
 	}>) => PromiseLike<unknown> | unknown;
 	readonly editingBlocked: () => boolean;
+	readonly acquireReplaceProjectWriteAuthority?: (projectId: string) => Promise<ScapeReplaceWriteAuthority>;
 	readonly flushProject: (options?: ProjectFlushOptions) => PromiseLike<unknown> | unknown;
 	readonly hasMissingTimelineSources: (
 		project: NativeProjectDocument,
@@ -365,6 +372,7 @@ export interface NativeProjectServiceRuntime {
 		store: NativeProjectStore,
 		options: Readonly<{
 			collision: string;
+			acquireReplaceProjectWriteAuthority?: (projectId: string) => Promise<ScapeReplaceWriteAuthority>;
 			estimateStorageForPreflight: (
 				requiredBytes: number,
 				operation: 'import',

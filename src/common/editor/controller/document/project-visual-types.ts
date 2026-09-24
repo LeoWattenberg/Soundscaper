@@ -119,6 +119,7 @@ export interface ProjectVideoPreviewMedia {
 export interface ProjectVideoPreviewMediaRequest {
 	readonly project: ProjectVisualProject; readonly source: ProjectVisualSource;
 	readonly sourceTimingIndex: VideoTimingIndex | null; readonly signal?: AbortSignal;
+	readonly assertCurrent: () => void;
 }
 
 export interface VideoVisualRecord {

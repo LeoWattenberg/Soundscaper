@@ -387,7 +387,7 @@ test('structured legacy AUP imports persist PCM chunks, progress, and warnings',
 	const legacyResult = await createProjectImportService(legacy.runtime).importFile(file('session.aup'));
 	assert.equal(legacyResult.notice, 'AUP imported. Warning: converted.');
 	assert.equal(legacy.calls.filter((entry) => entry.startsWith('write:')).length, 1);
-	assert.equal(legacy.calls.includes('save-project'), true);
+	assert.equal(legacy.calls.includes('create-project'), true);
 	assert.equal(legacy.statuses.some(([message]) => message === 'Importing AUP 0%'), true);
 });
 
@@ -401,7 +401,7 @@ test('legacy AUP imports cannot cross projects while decoding or after persisten
 	decodeGate.resolve();
 
 	await assert.rejects(decodeOperation, /project changed during Audacity project import/iu);
-	assert.equal(decoding.calls.includes('save-project'), false);
+	assert.equal(decoding.calls.includes('create-project'), false);
 	assert.equal(decoding.calls.some((entry) => entry.startsWith('switch:')), false);
 	assert.deepEqual(decoding.deletedSources, []);
 
@@ -414,7 +414,7 @@ test('legacy AUP imports cannot cross projects while decoding or after persisten
 	peakGate.resolve();
 
 	await assert.rejects(persistedOperation, /project changed during Audacity project import/iu);
-	assert.equal(persisted.calls.includes('save-project'), false);
+	assert.equal(persisted.calls.includes('create-project'), false);
 	assert.equal(persisted.calls.some((entry) => entry.startsWith('switch:')), false);
 	assert.deepEqual(persisted.deletedSources, ['structured-source']);
 });

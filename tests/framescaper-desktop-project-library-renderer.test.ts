@@ -34,15 +34,14 @@ interface Library {
 
 const API_FIELDS = [
 	'connect', 'handshakeState', 'listProjects', 'readProjectBundle', 'readBodyChunk',
-	'beginPublication', 'writePublicationChunk', 'finishPublication', 'abortPublication',
-	'deleteProject', 'duplicateProject',
+	'beginPublication', 'writePublicationChunk', 'finishPublication', 'abortPublication', 'deleteProject',
+	'duplicateProject', 'claimProjectWriteFence', 'checkProjectWriteFence',
 ] as const;
 const RESTORED = new WeakSet<object>();
 const OPTIONS = Object.freeze({ now: '2026-09-01T11:00:00.000Z' });
 
 test('connecting yields no renderer when the desktop global or its project library is absent', async (context) => {
 	const store = await durableStore(context);
-
 	assert.equal(await connectFramescaperDesktopProjectLibraryRenderer(PROFILE, store), null);
 	installGlobal(context, { configurable: true, enumerable: true, value: Object.freeze({ v1: Object.freeze({}) }) });
 	assert.equal(await connectFramescaperDesktopProjectLibraryRenderer(PROFILE, store), null);
@@ -63,7 +62,6 @@ test('connecting refuses a desktop global that is not a frozen tree of own data 
 		[data(frozenTree(Object.freeze({ ...api, extra: () => undefined }))),
 			/project-library bridge has unsupported fields/u],
 	];
-
 	for (const [descriptor, message] of refusals) {
 		installGlobal(context, descriptor);
 		await assert.rejects(connect, message);
@@ -408,6 +406,8 @@ function createBridge(library: Library, overrides: Readonly<Record<string, Metho
 		listProjects: async () => catalogOf(library),
 		readProjectBundle: async (projectId) => bundleFor(library, String(projectId)),
 		readBodyChunk: async () => new Uint8Array(),
+		claimProjectWriteFence: async () => 'aa'.repeat(24),
+		checkProjectWriteFence: async () => true,
 		beginPublication: async (request) => admissionFor(library, request as Data),
 		writePublicationChunk: async () => undefined,
 		finishPublication: async (request) => bundleFor(library, commit(library, request as Data)),

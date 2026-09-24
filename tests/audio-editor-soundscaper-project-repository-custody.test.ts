@@ -22,6 +22,8 @@ test('repository reads retain future Soundscaper documents as opaque custody', a
 		createForScapeImportIfAbsent: () => Promise.resolve(null),
 		save: (project: ProjectDocument) => Promise.resolve(project),
 		saveIfCurrent: (_expected: ProjectDocument, project: ProjectDocument) => Promise.resolve(project),
+		claimWriteFence: () => Promise.resolve('test-fence'),
+		saveIfCurrentAndFenced: (_expected: ProjectDocument, project: ProjectDocument) => Promise.resolve(project),
 		load: () => Promise.resolve(future),
 		list: () => Promise.resolve([current, future]),
 		listRevisions: () => Promise.resolve([
@@ -31,6 +33,7 @@ test('repository reads retain future Soundscaper documents as opaque custody', a
 		delete: () => Promise.resolve(),
 		restore: () => Promise.resolve(),
 		restoreIfCurrent: () => Promise.resolve(true),
+		restoreIfCurrentAndFenced: () => Promise.resolve(true),
 	});
 
 	assert.deepEqual(await repository.load('future-project'), future);

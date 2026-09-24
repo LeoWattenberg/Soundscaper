@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import {
+	claimProjectLockWriteFence,
 	createProjectLockService,
 	type ProjectLockServiceRuntime,
 } from '../src/common/editor/controller/document/project-lock-service.ts';
@@ -39,7 +40,7 @@ function createLock(
 	};
 }
 
-function createFixture(initialLock: TestLock | null = null) {
+function createFixture(initialLock: TestLock | null = null, isPersistedSnapshotCurrent?: () => Promise<boolean>) {
 	let projectId: string | null = 'project-a';
 	let metadata = {};
 	let acquisition: (projectId: string, force: boolean) => Promise<ProjectLifecycleLock> = async (id) => createLock(id);
@@ -66,6 +67,7 @@ function createFixture(initialLock: TestLock | null = null) {
 		acquireProjectLock: (id, options) => acquisition(id, Boolean(options?.force)),
 		setProjectReadOnly: (id, update) => { updates.push({ projectId: id, ...update }); },
 		publishProjectState: () => { publications.resolve(); },
+		...(isPersistedSnapshotCurrent ? { isPersistedSnapshotCurrent } : {}),
 		setStatus: (message, status) => { statuses.push([message, status]); },
 		handleError: (error) => { errors.push(error); },
 		invalidateRecordingAuthority: async () => { invalidations += 1; },
@@ -183,6 +185,66 @@ test('a successful forced claim publishes writable session ownership', async () 
 		projectId: 'project-a', readOnly: false, reason: null, lockMethod: 'test',
 	});
 	assert.deepEqual(fixture.statuses.at(-1), ['Ready', 'success']);
+});
+
+test('recovery keeps a stale in-memory project read-only after claiming a new lock', async () => {
+	const previous = createLock('project-a', { readOnly: true });
+	const next = createLock('project-a', { writeFence: 'next-writer' });
+	const fixture = createFixture(previous, async () => false);
+
+	await fixture.service.recoverProjectLock('project-a', previous, next);
+
+	assert.equal(fixture.state.projectLock, next);
+	assert.equal(fixture.state.readOnly, true);
+	assert.deepEqual(fixture.updates.at(-1), {
+		projectId: 'project-a', readOnly: true, reason: 'project-lock', lockMethod: 'test',
+	});
+	assert.deepEqual(fixture.statuses.at(-1), ['Read-only', 'error']);
+});
+
+test('a queued physical lock exposes its durable write fence only after the claim completes', async () => {
+	const available = deferred<ProjectLifecycleLock | null>();
+	const claimed = deferred<string>();
+	const pending = createLock('project-a', { readOnly: true, available: available.promise });
+	const writable = createLock('project-a');
+	await claimProjectLockWriteFence(pending, () => claimed.promise);
+	available.resolve(writable);
+	await Promise.resolve();
+	assert.equal(writable.writeFence, undefined);
+	claimed.resolve('durable-token');
+	assert.equal(await pending.available, writable);
+	assert.equal(writable.writeFence, 'durable-token');
+});
+
+test('a physical lock lost during its durable claim never exposes writable authority', async () => {
+	const lost = deferred<void>();
+	const claimed = deferred<string>();
+	const lock = createLock('project-a', { lost: lost.promise });
+	const claim = claimProjectLockWriteFence(lock, () => claimed.promise);
+	lost.resolve();
+	await Promise.resolve();
+	claimed.resolve('stale-token');
+
+	await assert.rejects(claim, /lost during its claim/iu);
+	assert.equal(lock.readOnly, true);
+	assert.equal(lock.writeFence, undefined);
+	assert.equal(lock.releases, 1);
+});
+
+test('a failed queued write-fence claim releases the lock and retries on a timer', async () => {
+	const available = deferred<ProjectLifecycleLock | null>();
+	const pending = createLock('project-a', { readOnly: true, available: available.promise });
+	const writable = createLock('project-a');
+	await claimProjectLockWriteFence(pending, async () => { throw new Error('storage unavailable'); });
+	const fixture = createFixture(pending);
+	fixture.service.scheduleProjectLockRecovery('project-a', pending);
+	available.resolve(writable);
+	await new Promise<void>((resolve) => globalThis.setTimeout(resolve, 0));
+
+	assert.equal(writable.releases, 1);
+	assert.equal(pending.available, null);
+	assert.equal(fixture.timers.size, 1);
+	assert.equal(fixture.errors.length, 1);
 });
 
 test('recovery keeps a competing lock read-only and schedules another attempt', async () => {

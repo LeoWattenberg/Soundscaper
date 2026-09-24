@@ -196,7 +196,7 @@ test('cancellation during the first audio write aborts staging and preserves inv
 	});
 
 	await assertAbort(importScapeProject(archive, targetStore, {
-		collision: 'replace',
+		collision: 'replace', acquireReplaceProjectWriteAuthority: async (id: string) => ({ writeFence: await backingStore.claimProjectWriteFence(id), assertCurrent() {}, release() {} }),
 		signal: controller.signal,
 	}));
 	assert.equal(writes, 1);
@@ -299,7 +299,7 @@ test('cancellation during video publication deletes the provisional asset and pr
 	});
 
 	await assertAbort(importScapeProject(archive, targetStore, {
-		collision: 'replace',
+		collision: 'replace', acquireReplaceProjectWriteAuthority: async (id: string) => ({ writeFence: await backingStore.claimProjectWriteFence(id), assertCurrent() {}, release() {} }),
 		signal: controller.signal,
 	}));
 	assert.equal(mediaWrites, 1);
@@ -321,11 +321,12 @@ test('late cancellation after project CAS is commit-wins', async () => {
 	let replacementWrites = 0;
 	const targetStore = new Proxy(backingStore, {
 		get(target, property, receiver) {
-			if (property === 'saveProjectIfCurrent') return async (
+			if (property === 'saveProjectIfCurrentWithWriteFence') return async (
 				expected: Readonly<{ id: string }>,
 				project: Readonly<{ title?: string }>,
+				writeFence: string,
 			) => {
-				const result = await target.saveProjectIfCurrent(expected, project);
+				const result = await target.saveProjectIfCurrentWithWriteFence(expected, project, writeFence);
 				if (project.title === replacement.title) {
 					replacementWrites += 1;
 					controller.abort(abortReason('cancel after project publication'));
@@ -338,11 +339,12 @@ test('late cancellation after project CAS is commit-wins', async () => {
 	});
 
 	const imported = await importScapeProject(archive, targetStore, {
-		collision: 'replace',
+		collision: 'replace', acquireReplaceProjectWriteAuthority: async (id: string) => ({ writeFence: await backingStore.claimProjectWriteFence(id), assertCurrent() {}, release() {} }),
 		signal: controller.signal,
 	});
 	assert.equal(replacementWrites, 1);
 	assert.equal(controller.signal.aborted, true);
+	assert.equal(imported.publicationCommitted, true);
 	assert.equal(imported.project.title, replacement.title);
 	assert.equal((await backingStore.loadProject(replacement.id))?.title, replacement.title);
 	assert.notDeepEqual(await inventory(backingStore), before);
@@ -539,9 +541,7 @@ async function inventory(store: ReturnType<typeof memoryStore>) {
 	return { projects, revisions, sources, media };
 }
 
-function abortReason(message: string): DOMException {
-	return new DOMException(message, 'AbortError');
-}
+function abortReason(message: string): DOMException { return new DOMException(message, 'AbortError'); }
 
 async function assertAbort(value: PromiseLike<unknown>): Promise<void> {
 	await assert.rejects(Promise.resolve(value), (error: unknown) => (

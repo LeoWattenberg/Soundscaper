@@ -14,8 +14,14 @@ import {
 	chunkChannels,
 	createClipGainChain,
 	createReversedChunkSource,
-	type ClipGainChain,
 } from './clip-scheduler-chunk-sources.ts';
+import {
+	LIVE_STREAM_PREPARE_AHEAD_SECONDS,
+	prepareLiveChunkPlan,
+	prepareLiveChunkPlans,
+	startLiveChunkWindow,
+	type PreparedLiveChunkPlan,
+} from './clip-scheduler-live-chunks.ts';
 import {
 	clipStart,
 	getReversedBuffer,
@@ -34,13 +40,10 @@ import type {
 	EngineChunkSource,
 	EngineProject,
 	EngineSourceResolver,
-	UnknownRecord,
 } from './types.ts';
 import { scheduleProjectAutomationLanesV21 } from './project-automation-scheduler-v21.ts';
 import type { ScheduledParameterRegistry } from './scheduled-parameter-registry.ts';
 import { createOfflineChunkResampleBuffer } from './offline-chunk-resample.ts';
-
-const STREAM_RESAMPLE_RADIUS = 24;
 
 export interface ChunkStreamHandle {
 	readonly ready: Promise<unknown>;
@@ -179,6 +182,7 @@ export async function scheduleProjectClips({
 			: Math.ceil(plan.segmentDuration * plan.playbackRate * plan.sourceSampleRate))
 	), 0);
 	const chunkPlans = plans.filter((plan) => !plan.originalBuffer);
+	let prepareLater: (() => Promise<void>) | null = null;
 	if (mode === 'offline') {
 		for (const plan of chunkPlans) {
 			throwIfAborted(signal);
@@ -203,12 +207,13 @@ export async function scheduleProjectClips({
 		}
 	} else if (chunkPlans.length) {
 		if (!chunkStreamClient) throw longSourceError('The long-source playback worker is unavailable.');
-		streamed.push(...await Promise.all(chunkPlans.map((plan) => {
+		const client = chunkStreamClient;
+		const prepare = (plan: ClipSchedulePlan): Promise<PreparedLiveChunkPlan> => {
 			throwIfAborted(signal);
 			return prepareLiveChunkPlan({
 				plan,
 				context,
-				chunkStreamClient,
+				chunkStreamClient: client,
 				chunkAudioNodeFactory,
 				transportRate,
 				activeSources,
@@ -218,7 +223,26 @@ export async function scheduleProjectClips({
 				streamQueuePackets,
 				streamPrebufferPackets,
 			});
-		})));
+		};
+		const prepareAheadFrames = LIVE_STREAM_PREPARE_AHEAD_SECONDS * sampleRate * transportRate;
+		const immediatePlans = streamQueuePackets === null
+			? chunkPlans.filter((plan) => plan.segmentStart - fromFrame <= prepareAheadFrames)
+			: chunkPlans;
+		streamed.push(...await prepareLiveChunkPlans(immediatePlans, prepare, signal));
+		if (immediatePlans.length < chunkPlans.length) {
+			const immediate = new Set(immediatePlans);
+			const laterPlans = chunkPlans.filter((plan) => !immediate.has(plan));
+			prepareLater = () => startLiveChunkWindow({
+				plans: laterPlans,
+				context,
+				contextStartTime: actualContextStartTime,
+				fromFrame,
+				sampleRate,
+				transportRate,
+				signal,
+				prepare,
+			});
+		}
 	}
 
 	const actualContextStartTime = streamed.length && deferStartUntilPrimed
@@ -260,14 +284,15 @@ export async function scheduleProjectClips({
 	for (const prepared of streamed) {
 		prepared.start(actualContextStartTime, fromFrame, sampleRate, transportRate);
 	}
+	const laterDone = prepareLater?.() ?? Promise.resolve();
 	if (totalChunkFrames && mode === 'offline') {
 		onProgress?.({ frames: totalChunkFrames, totalFrames: totalChunkFrames, progress: 1 });
 	}
 	return {
 		contextStartTime: actualContextStartTime,
-		streamedClips: streamed.length,
+		streamedClips: mode === 'live' ? chunkPlans.length : 0,
 		async waitForStreamedClips(): Promise<void> {
-			await Promise.all(streamed.map((prepared) => prepared.done));
+			await Promise.all([...streamed.map((prepared) => prepared.done), laterDone]);
 		},
 	};
 }
@@ -330,152 +355,6 @@ function scheduleBufferPlan({
 	} catch {
 		// A malformed or out-of-range clip is skipped without stopping the mix.
 		releaseTransientNodes(transientNodes, scheduledNodes);
-	}
-}
-
-interface LiveChunkPlanOptions {
-	readonly plan: ClipSchedulePlan;
-	readonly context: BaseAudioContext;
-	readonly chunkStreamClient: ChunkStreamClientLike;
-	readonly chunkAudioNodeFactory: ChunkAudioNodeFactory;
-	readonly activeSources: Set<AudioScheduledSourceNode>;
-	readonly allNodes: AudioNodeArray;
-	readonly signal: AbortSignal | null;
-	readonly transportRate: number;
-	readonly onStreamUnderrun: ((details: ScheduledChunkStreamUnderrun) => void) | null;
-	readonly streamQueuePackets: number | null;
-	readonly streamPrebufferPackets: number | null;
-}
-
-interface PreparedLiveChunkPlan {
-	readonly done: Promise<unknown>;
-	start(contextStartTime: number, fromFrame: number, sampleRate: number, transportRate: number): void;
-}
-
-async function prepareLiveChunkPlan({
-	plan,
-	context,
-	chunkStreamClient,
-	chunkAudioNodeFactory,
-	activeSources,
-	allNodes,
-	signal,
-	transportRate,
-	onStreamUnderrun,
-	streamQueuePackets,
-	streamPrebufferPackets,
-}: LiveChunkPlanOptions): Promise<PreparedLiveChunkPlan> {
-	if (!plan.chunkSource) throw longSourceError('The long-source clip provider is unavailable.');
-	const transientNodes = getTransientNodes(allNodes);
-	const requestedInputFrames = plan.segmentDuration * plan.playbackRate * plan.sourceSampleRate;
-	const outputFrameCount = Math.round(plan.segmentDuration / transportRate * context.sampleRate);
-	if (!Number.isFinite(plan.offsetFrame) || plan.offsetFrame < 0 || !Number.isFinite(requestedInputFrames)
-		|| requestedInputFrames <= 0 || outputFrameCount <= 0) {
-		throw longSourceError('The long-source clip range is invalid.');
-	}
-	const provider = plan.reversed ? createReversedChunkSource(plan.chunkSource) : plan.chunkSource;
-	if (plan.offsetFrame >= provider.frameCount) throw longSourceError('The long-source clip range is empty.');
-	const roundedStart = Math.round(plan.offsetFrame);
-	const roundedInputFrames = Math.round(requestedInputFrames);
-	const direct = Math.abs(roundedStart - plan.offsetFrame) <= 1e-9
-		&& Math.abs(roundedInputFrames - requestedInputFrames) <= 1e-9
-		&& roundedInputFrames === outputFrameCount;
-	let streamRange: UnknownRecord;
-	if (direct) {
-		const endFrame = Math.min(provider.frameCount, roundedStart + roundedInputFrames);
-		if (endFrame <= roundedStart) throw longSourceError('The long-source clip range is empty.');
-		streamRange = { startFrame: roundedStart, endFrame };
-	} else {
-		const sourceStartFrame = Math.max(0, Math.floor(plan.offsetFrame) - STREAM_RESAMPLE_RADIUS);
-		const sourceEndFrame = Math.min(
-			provider.frameCount,
-			Math.ceil(plan.offsetFrame + requestedInputFrames) + STREAM_RESAMPLE_RADIUS,
-		);
-		if (sourceEndFrame <= sourceStartFrame) throw longSourceError('The long-source clip range is empty.');
-		streamRange = {
-			sourceStartFrame,
-			sourceEndFrame,
-			outputFrameCount,
-			resampleInputFrames: requestedInputFrames,
-			resampleInputOffset: plan.offsetFrame - sourceStartFrame,
-		};
-	}
-	let node: AudioWorkletNode | null = null;
-	let chain: ClipGainChain | null = null;
-	let handle: ChunkStreamHandle | null = null;
-	let sourceControl: AudioScheduledSourceNode | null = null;
-	try {
-		throwIfAborted(signal);
-		node = await chunkAudioNodeFactory(context, {
-			channelCount: provider.channelCount,
-			...(streamQueuePackets === null ? {} : { maxQueuePackets: streamQueuePackets }),
-			...(streamPrebufferPackets === null ? {} : { prebufferPackets: streamPrebufferPackets }),
-		});
-		throwIfAborted(signal);
-		addNode(transientNodes, node);
-		chain = createClipGainChain(context, plan.trackInput, transientNodes);
-		connect(node, chain.input);
-		handle = chunkStreamClient.open({
-			source: provider,
-			...streamRange,
-			outputPort: node.port,
-			signal,
-			...(streamQueuePackets === null ? {} : { highWaterMark: streamQueuePackets }),
-			onUnderrun: onStreamUnderrun ? (details) => onStreamUnderrun({
-				clipId: String(plan.clip.id),
-				sourceId: String(plan.clip.sourceId),
-				...details,
-			}) : null,
-		});
-		void handle.ready.catch(() => undefined);
-		void handle.primed.catch(() => undefined);
-		void handle.done.catch(() => undefined);
-		await handle.primed;
-		throwIfAborted(signal);
-		const activeHandle = handle;
-		const activeNode = node;
-		const activeChain = chain;
-		sourceControl = {
-			stop(): void { activeHandle.cancel(); },
-			disconnect(): void { activeNode.disconnect(); },
-		};
-		activeSources.add(sourceControl);
-		const scheduledNodes = [node, chain.fadeInGain, chain.fadeOutGain, chain.clipGain];
-		const release = (): void => {
-			if (sourceControl) activeSources.delete(sourceControl);
-			releaseTransientNodes(transientNodes, scheduledNodes);
-		};
-		handle.done.then(release, release);
-		return {
-			done: activeHandle.done,
-			start(contextStartTime, fromFrame, sampleRate, activeTransportRate): void {
-				const timelineRate = sampleRate * activeTransportRate;
-				const startTime = contextStartTime + (plan.segmentStart - fromFrame) / timelineRate;
-				scheduleClipGain(
-					activeChain.fadeInGain.gain,
-					activeChain.fadeOutGain.gain,
-					activeChain.clipGain.gain,
-					plan.clip,
-					plan.relativeStart,
-					plan.segmentEnd - clipStart(plan.clip),
-					plan.duration,
-					startTime,
-					timelineRate,
-					plan,
-				);
-				void activeHandle.play({ contextStartFrame: Math.max(0, Math.round(startTime * context.sampleRate)) });
-			},
-		};
-	} catch (error) {
-		if (sourceControl) activeSources.delete(sourceControl);
-		try { handle?.cancel(); } catch { /* The stream may already be cancelled. */ }
-		releaseTransientNodes(transientNodes, [
-			node,
-			chain?.fadeInGain,
-			chain?.fadeOutGain,
-			chain?.clipGain,
-		]);
-		throw error;
 	}
 }
 

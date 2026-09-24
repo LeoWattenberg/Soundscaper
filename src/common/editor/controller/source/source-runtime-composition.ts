@@ -3,7 +3,6 @@
 import { findClip, findSource } from '../../project.js'; import { setLocalizedStatus } from '../../../i18n/presentation-message.ts';
 import { createClipTimePitchCacheService, type ClipTimePitchRenderEngine } from './clip-time-pitch-service.ts';
 import { createPlaybackProjectApplyService } from './playback-project-service.ts';
-import { createProjectVisualService } from '../document/project-visual-service.ts';
 import type {
 	FrequencyWaveformRequestOptions as FrequencyWaveformAnalysisRequestOptions,
 	FrequencyWaveformRuntimeEntry,
@@ -200,7 +199,7 @@ export function createSourceRuntimeComposition<RenderEngine extends ClipTimePitc
 	const assertProject = (token: ReturnType<typeof captureProject>) => dependencies.projectGeneration.assertCurrent(token);
 	let playbackApply: PlaybackApply | null = null;
 
-	const projectVisual = createProjectVisualService({
+	const projectVisual = dependencies.createProjectVisualService({
 		getProject: dependencies.getProject,
 		captureProject,
 		assertProject,

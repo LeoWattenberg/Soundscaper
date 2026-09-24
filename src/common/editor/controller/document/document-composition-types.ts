@@ -71,6 +71,11 @@ export interface DocumentSessionPort {
 	updateProjectMetadata(projectId: string, metadata: Record<string, unknown>): unknown;
 	updateProjectHistory(projectId: string, history: DocumentHistory, options: Readonly<{ dirty: boolean }>): unknown;
 	markProjectSaved(projectId: string): unknown;
+	setProjectReadOnly?(projectId: string, update: Readonly<{
+		readonly readOnly: boolean;
+		readonly reason: string | null;
+		readonly lockMethod: string;
+	}>): unknown;
 	getSourceReferenceCounts(): Readonly<Record<string, number>>;
 }
 
@@ -83,6 +88,7 @@ export type DocumentCompositionState =
 	& {
 		recentProjectIds: string[];
 		saveState: ProjectSaveStatus;
+		projectLock?: Readonly<{ readonly projectId: string; readonly method: string; readonly readOnly: boolean; readonly writeFence?: string }> | null;
 	};
 
 export type DocumentCompositionCopy = Readonly<{
@@ -93,6 +99,10 @@ export type DocumentCompositionCopy = Readonly<{
 export type DocumentCompositionStore = Readonly<{
 	loadSetting(key: string, fallback: unknown): Promise<unknown>;
 	saveProject: ProjectSaveServiceDependencies<DocumentProject>['saveProject'];
+	saveProjectIfCurrentWithWriteFence?: (
+		expected: DocumentProject, project: DocumentProject, writeFence: string,
+		options: Parameters<NonNullable<ProjectSaveServiceDependencies<DocumentProject>['saveProjectIfCurrentWithWriteFence']>>[3],
+	) => Promise<unknown>;
 }>;
 
 export interface DocumentCompositionDependencies {

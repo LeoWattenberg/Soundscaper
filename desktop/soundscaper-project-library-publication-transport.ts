@@ -6,6 +6,7 @@ import {
 import {
 	MAXIMUM_SOUNDSCAPER_TRANSFER_CHUNK_BYTES,
 	validateSoundscaperDesktopProjectLibraryTransferBody,
+	validateSoundscaperDesktopProjectLibraryProjectId,
 	validateSoundscaperDesktopProjectLibraryTransferBundle,
 	type SoundscaperDesktopProjectLibraryTransferBody,
 	type SoundscaperDesktopProjectLibraryTransferBundle,
@@ -22,6 +23,8 @@ export interface SoundscaperDesktopProjectLibraryPublicationBeginRequest {
 	readonly expectedProject: Readonly<SoundscaperDesktopProjectLibraryPublicationExpectedProject> | null;
 	readonly project: unknown;
 	readonly bodies: readonly Readonly<SoundscaperDesktopProjectLibraryTransferBody>[];
+	readonly writeFence?: string;
+	readonly expectedDocument?: unknown;
 }
 
 export interface SoundscaperDesktopProjectLibraryPublicationAdmission {
@@ -47,7 +50,15 @@ export interface SoundscaperDesktopProjectLibraryPublicationCompletionRequest {
 	readonly publicationId: string;
 }
 
+export interface SoundscaperDesktopProjectWriteFenceCheckRequest {
+	readonly projectId: string;
+	readonly writeFence: string;
+	readonly expectedDocument: unknown;
+}
+
 const BEGIN_FIELDS = ['publicationId', 'expectedMetadataRevision', 'expectedProject', 'project', 'bodies'] as const;
+const FENCE_CHECK_FIELDS = ['projectId', 'writeFence', 'expectedDocument'] as const;
+const FENCED_BEGIN_FIELDS = [...BEGIN_FIELDS, 'writeFence', 'expectedDocument'] as const;
 const EXPECTED_FIELDS = ['projectRevision', 'projectSha256'] as const;
 const ADMISSION_FIELDS = ['publicationId', 'maximumChunkBytes', 'bodyCount'] as const;
 const CHUNK_FIELDS = ['publicationId', 'bodyIndex', 'offset', 'bytes'] as const;
@@ -60,7 +71,9 @@ const MAXIMUM_BODY_DESCRIPTORS = 4_094;
 export function validateSoundscaperDesktopProjectLibraryPublicationBeginRequest(
 	value: unknown,
 ): Readonly<SoundscaperDesktopProjectLibraryPublicationBeginRequest> {
-	const record = snapshotClosedRecord(value, BEGIN_FIELDS, 'Soundscaper desktop baseline publication begin');
+	const fenced = typeof value === 'object' && value !== null && Object.hasOwn(value, 'writeFence');
+	const record = snapshotClosedRecord(value, fenced ? FENCED_BEGIN_FIELDS : BEGIN_FIELDS,
+		'Soundscaper desktop baseline publication begin');
 	const document = JSON.stringify(record.project);
 	if (typeof document !== 'string' || document.length === 0) {
 		throw new TypeError('Soundscaper desktop baseline publication project is not JSON serializable');
@@ -68,6 +81,20 @@ export function validateSoundscaperDesktopProjectLibraryPublicationBeginRequest(
 	const project = JSON.parse(document) as unknown;
 	validateSoundscaperDesktopCurrentProject(project);
 	const expectedProject = validateExpectedProject(record.expectedProject);
+	let expectedDocument: unknown;
+	if (fenced) {
+		if (!expectedProject || typeof record.writeFence !== 'string'
+			|| !PUBLICATION_ID.test(record.writeFence)) {
+			throw new TypeError('Soundscaper desktop fenced publication requires a token and expected revision');
+		}
+		const serialized = JSON.stringify(record.expectedDocument);
+		if (typeof serialized !== 'string') throw new TypeError('Soundscaper desktop expected document is invalid');
+		expectedDocument = JSON.parse(serialized) as unknown;
+		validateSoundscaperDesktopCurrentProject(expectedDocument);
+		if (String((expectedDocument as { id: unknown }).id) !== String((project as { id: unknown }).id)) {
+			throw new TypeError('Soundscaper desktop fenced publication changed project identity');
+		}
+	}
 	const bodies = denseArray(
 		record.bodies,
 		'Soundscaper desktop baseline publication body descriptors',
@@ -82,7 +109,26 @@ export function validateSoundscaperDesktopProjectLibraryPublicationBeginRequest(
 		expectedProject,
 		project,
 		bodies: Object.freeze(bodies),
+		...(fenced ? { writeFence: record.writeFence as string, expectedDocument } : {}),
 	});
+}
+
+export function validateSoundscaperDesktopProjectWriteFenceCheckRequest(
+	value: unknown,
+): Readonly<SoundscaperDesktopProjectWriteFenceCheckRequest> {
+	const record = snapshotClosedRecord(value, FENCE_CHECK_FIELDS, 'Soundscaper desktop write fence check');
+	const projectId = validateSoundscaperDesktopProjectLibraryProjectId(record.projectId);
+	if (typeof record.writeFence !== 'string' || !PUBLICATION_ID.test(record.writeFence)) {
+		throw new TypeError('Soundscaper desktop write fence token is invalid');
+	}
+	const serialized = JSON.stringify(record.expectedDocument);
+	if (typeof serialized !== 'string') throw new TypeError('Soundscaper desktop expected document is invalid');
+	const expectedDocument = JSON.parse(serialized) as unknown;
+	validateSoundscaperDesktopCurrentProject(expectedDocument);
+	if (String((expectedDocument as { id: unknown }).id) !== projectId) {
+		throw new TypeError('Soundscaper desktop write fence check changed project identity');
+	}
+	return Object.freeze({ projectId, writeFence: record.writeFence, expectedDocument });
 }
 
 export function validateSoundscaperDesktopProjectLibraryPublicationAdmission(

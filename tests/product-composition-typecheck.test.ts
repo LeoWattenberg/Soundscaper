@@ -26,7 +26,7 @@ test('composed typechecking diagnoses incompatible replacement arguments and ret
 		assert.deepEqual(ts.getPreEmitDiagnostics(baseline), []);
 		const host = createProductCompilerHost(options, {
 			repositoryRoot: root,
-			aliases: [{ find: /^\.\/runtime\.ts$/u, standIn: 'replacement.ts' }],
+			aliases: [{ sourcePaths: ['runtime.ts'], standIn: 'replacement.ts' }],
 		});
 		const composed = ts.createProgram([join(root, 'consumer.ts')], options, host);
 		const codes = ts.getPreEmitDiagnostics(composed).map((diagnostic) => diagnostic.code);

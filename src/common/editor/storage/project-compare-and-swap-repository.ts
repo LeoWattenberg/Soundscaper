@@ -4,7 +4,10 @@ import { collectProjectStorageKeys, compactProjectSourceMetadata } from '../rete
 import { serializeScapeProjectDocument } from '../scape-project-document.ts';
 import { request, transact } from './indexeddb-backend.ts';
 import { publishSource } from './media-records.ts';
+import { ProjectCommittedMaintenanceError } from './project-committed-maintenance-error.ts';
 import { pruneProjectRevisions } from './project-revision-pruning.ts';
+import { restoreProjectSnapshotIfCurrent } from './project-snapshot-restoration-repository.ts';
+import { projectWriteFenceKey } from './project-write-fence-key.ts';
 import type {
 	ProjectDocument,
 	ProjectLoadOptions,
@@ -48,6 +51,19 @@ export class ProjectCompareAndSwapRepository implements ProjectRepositoryPort {
 		return this.#delegate.save(project, postCommit);
 	}
 
+	/** A claim and a fenced publication write the same store, so IndexedDB orders them atomically. */
+	async claimWriteFence(projectId: string): Promise<string> {
+		const key = projectWriteFenceKey(projectId);
+		const token = globalThis.crypto.randomUUID();
+		const record = { key, value: token };
+		const database = await this.#port.database();
+		if (!database) this.#port.memory.settings.set(key, record);
+		else await transact(database, 'settings', 'readwrite', ({ settings }) => {
+			settings.put(record);
+		});
+		return token;
+	}
+
 	restore(projectId: string, snapshot: Readonly<{
 		readonly current: ProjectDocument | null;
 		readonly revisions: readonly Readonly<{
@@ -69,10 +85,39 @@ export class ProjectCompareAndSwapRepository implements ProjectRepositoryPort {
 		return restore.call(this.#delegate, projectId, expected, snapshot);
 	}
 
+	restoreIfCurrentAndFenced(projectId: string, expected: ProjectDocument, snapshot: Readonly<{
+		readonly current: ProjectDocument | null;
+		readonly revisions: readonly ProjectRevision[];
+	}>, writeFence: string): Promise<boolean> {
+		if (typeof writeFence !== 'string' || !writeFence) throw new TypeError('A project write fence token is required.');
+		return restoreProjectSnapshotIfCurrent(this.#port, projectId, expected, snapshot, writeFence);
+	}
+
 	async saveIfCurrent(
 		expectedValue: ProjectDocument,
 		projectValue: ProjectDocument,
 		postCommit?: ProjectPostCommitMaintenance,
+	): Promise<ProjectDocument | null> {
+		return this.#saveIfCurrent(expectedValue, projectValue, postCommit);
+	}
+
+	saveIfCurrentAndFenced(
+		expectedValue: ProjectDocument,
+		projectValue: ProjectDocument,
+		writeFence: string,
+		postCommit?: ProjectPostCommitMaintenance,
+	): Promise<ProjectDocument | null> {
+		if (typeof writeFence !== 'string' || !writeFence) {
+			throw new TypeError('A project write fence token is required.');
+		}
+		return this.#saveIfCurrent(expectedValue, projectValue, postCommit, writeFence);
+	}
+
+	async #saveIfCurrent(
+		expectedValue: ProjectDocument,
+		projectValue: ProjectDocument,
+		postCommit?: ProjectPostCommitMaintenance,
+		writeFence?: string,
 	): Promise<ProjectDocument | null> {
 		if (postCommit !== undefined && typeof postCommit !== 'function') {
 			throw new TypeError('Project post-commit maintenance must be a function.');
@@ -91,12 +136,17 @@ export class ProjectCompareAndSwapRepository implements ProjectRepositoryPort {
 		};
 		const database = await this.#port.database();
 		const published = database
-			? await publishIndexedDb(database, expected, project, revisionRecord)
-			: publishMemory(this.#port, expected, project, revisionRecord);
+			? await publishIndexedDb(database, expected, project, revisionRecord, writeFence)
+			: publishMemory(this.#port, expected, project, revisionRecord, writeFence);
 		if (!published) return null;
-		await pruneProjectRevisions(this.#port, project.id, this.#revisionLimit);
-		await postCommit?.();
-		return clone(project);
+		const committedProject = clone(project);
+		try {
+			await pruneProjectRevisions(this.#port, project.id, this.#revisionLimit);
+			await postCommit?.();
+		} catch (cause) {
+			throw new ProjectCommittedMaintenanceError(committedProject, cause);
+		}
+		return committedProject;
 	}
 
 	maintainCurrentProject(projectId: string, maintenance: ProjectPostCommitMaintenance): Promise<void> {
@@ -137,10 +187,12 @@ async function publishIndexedDb(
 	expected: ProjectDocument,
 	project: ProjectDocument,
 	revisionRecord: ProjectRevisionRecord,
+	writeFence?: string,
 ): Promise<boolean> {
-	return transact(database, ['projects', 'revisions', 'sources', 'mediaAssets'], 'readwrite', async ({
-		projects, revisions, sources, mediaAssets,
+	return transact(database, ['projects', 'revisions', 'sources', 'mediaAssets', 'settings'], 'readwrite', async ({
+		projects, revisions, sources, mediaAssets, settings,
 	}) => {
+		if (writeFence && (await request(settings.get(projectWriteFenceKey(project.id))) as { value?: unknown } | undefined)?.value !== writeFence) return false;
 		const current = await request(projects.get(project.id));
 		if (!sameProject(current, expected)) return false;
 		projects.put(project);
@@ -160,8 +212,10 @@ function publishMemory(
 	expected: ProjectDocument,
 	project: ProjectDocument,
 	revisionRecord: ProjectRevisionRecord,
+	writeFence?: string,
 ): boolean {
 	const { memory } = port;
+	if (writeFence && (memory.settings.get(projectWriteFenceKey(project.id)) as { value?: unknown } | undefined)?.value !== writeFence) return false;
 	if (!sameProject(memory.projects.get(project.id), expected)) return false;
 	const changes: Array<Readonly<{ map: Map<string, unknown>; key: string; value: unknown }>> = [
 		{ map: memory.projects, key: project.id, value: project },

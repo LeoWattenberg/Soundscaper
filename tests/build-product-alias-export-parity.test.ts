@@ -8,6 +8,8 @@ import { fileURLToPath } from 'node:url';
 
 import {
 	PRODUCT_STAND_IN_ALIASES,
+	createProductSubstitutionResolver,
+	productSubstitutionForImport,
 	productStandInAliasesFor,
 } from '../scripts/lib/product-aliases.mjs';
 
@@ -35,6 +37,32 @@ const COMPOSITIONS = [
 	{ productId: 'framescaper', desktopCodecComposition: false },
 	{ productId: 'framescaper', desktopCodecComposition: true },
 ] as const;
+
+test('product substitutions resolve the imported file, not its relative spelling', () => {
+	const composition = { productId: 'soundscaper', desktopCodecComposition: false, repositoryRoot };
+	const owner = resolve(repositoryRoot, 'src/common/editor/ui/workspace/VideoPreviewPanel.jsx');
+	assert.equal(productSubstitutionForImport(
+		'./framescaper-video-proxy-pressure.ts', owner, composition,
+	), resolve(repositoryRoot, 'src/soundscaper/editor-video-preview-product-runtime.ts'));
+	assert.equal(productSubstitutionForImport(
+		'../workspace/framescaper-video-proxy-pressure.ts', owner, composition,
+	), resolve(repositoryRoot, 'src/soundscaper/editor-video-preview-product-runtime.ts'));
+	assert.equal(productSubstitutionForImport(
+		'./framescaper-video-proxy-pressure.ts',
+		resolve(repositoryRoot, 'src/common/editor/ui/other/AnotherPanel.jsx'), composition,
+	), null);
+	assert.equal(productSubstitutionForImport(
+		'../common/editor/ui/workspace/framescaper-video-proxy-pressure.ts',
+		resolve(repositoryRoot, 'src/soundscaper/editor-video-preview-product-runtime.ts'), composition,
+	), null, 'a stand-in may import the original seam for its type contract');
+});
+
+test('a source file cannot select two product stand-ins', () => {
+	const row = PRODUCT_STAND_IN_ALIASES[0]!;
+	assert.throws(() => createProductSubstitutionResolver(repositoryRoot, [
+		row, { ...row, standIn: 'src/soundscaper/other-runtime.ts' },
+	]), /Conflicting product substitutions/u);
+});
 
 test('only desktop Soundscaper substitutes unavailable Framescaper copy owners', () => {
 	const copyModules = [
@@ -146,6 +174,26 @@ const modules: readonly SourceModule[] = sourceFiles(sourceRoot).map((file) => (
 	file,
 	imports: moduleImports(readFileSync(file, 'utf8')),
 }));
+
+test('every documented substitution spelling names its declared source file', () => {
+	const mismatches: string[] = [];
+	for (const row of PRODUCT_STAND_IN_ALIASES) {
+		const declared = new Set(row.sourcePaths.map((path) => resolve(repositoryRoot, path)));
+		for (const path of declared) if (!existsSync(path)) mismatches.push(`missing source ${path}`);
+		const reached = new Set<string>();
+		for (const { file, imports } of modules) {
+			for (const entry of imports) {
+				if (entry.typeOnly || !row.find.test(entry.specifier)) continue;
+				const target = resolve(dirname(file), entry.specifier);
+				if (!declared.has(target)) {
+					mismatches.push(`${relative(repositoryRoot, file)} imports ${entry.specifier}, matching an unrelated source`);
+				} else reached.add(target);
+			}
+		}
+		for (const path of declared) if (!reached.has(path)) mismatches.push(`unused source ${relative(repositoryRoot, path)}`);
+	}
+	assert.deepEqual(mismatches, [], mismatches.join('\n'));
+});
 
 const standInExports = new Map<string, Set<string>>();
 for (const row of PRODUCT_STAND_IN_ALIASES) {

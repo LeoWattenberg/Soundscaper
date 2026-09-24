@@ -125,21 +125,36 @@ export function createNativeProjectService(runtime: NativeProjectServiceRuntime)
 		try {
 			signal.throwIfAborted();
 			beginImport(operation.task);
+			if (options.collision === 'replace' && runtime.getProject() && !runtime.state.readOnly) {
+				await runtime.flushProject();
+				assertOwnership(operation.task, operation.projectToken);
+			}
 			const imported = await runtime.importScapeProject(file, runtime.store, {
-				collision: options.collision || 'copy', estimateStorageForPreflight: (bytes, operation) => runtime.estimateStorageForPreflight(bytes, operation, signal), signal,
+				collision: options.collision || 'copy', acquireReplaceProjectWriteAuthority: runtime.acquireReplaceProjectWriteAuthority,
+				estimateStorageForPreflight: (bytes, operation) => runtime.estimateStorageForPreflight(bytes, operation, signal), signal,
 			});
-			signal.throwIfAborted();
-			assertOwnership(operation.task, operation.projectToken);
+			if (imported.publicationCommitted === true) {
+				// Publication is durable now. Adopt it despite a late cancellation, but
+				// never activate it over a different project opened in the meantime.
+				runtime.projectGeneration.assertCurrent(operation.projectToken);
+			} else {
+				signal.throwIfAborted();
+				assertOwnership(operation.task, operation.projectToken);
+			}
 			futureScapeArchive = imported.readOnly && file instanceof Blob
 				? { projectId: imported.project.id, archive: file, manifest: imported.manifest } : null;
 			await runtime.switchProject(imported.project, {
 				readOnly: imported.readOnly,
 				readOnlyReason: imported.readOnly ? runtime.copy.futureProjectReadOnly : null,
-				skipFlush: false,
+				skipFlush: imported.collision === 'replace',
+				adoptSessionRevision: imported.collision === 'replace',
+				replaceSessionHistory: imported.collision === 'replace',
 				preserveScapeOpenRequest: true,
 			});
-			signal.throwIfAborted();
-			operation.task.assertCurrent();
+			if (imported.publicationCommitted !== true) {
+				signal.throwIfAborted();
+				operation.task.assertCurrent();
+			}
 			runtime.projectGeneration.capture(imported.project.id);
 			setLocalizedStatus(runtime.setStatus, runtime.copy, runtime.state.readOnly ? 'projectReadOnly' : 'projectSaved', undefined, runtime.state.readOnly ? 'error' : 'success');
 			return imported;

@@ -44,7 +44,7 @@ for (const isDesktop of [false, true]) {
 function fixtureStore(load: () => unknown): FramescaperCaptureAppBindingStore {
 	const unused = (): never => { throw new Error('Capture project admission reached an unrelated store port.'); };
 	return {
-		projectRepository: { load, saveIfCurrent: unused }, loadProject: load, saveProject: unused,
+		projectRepository: { load, saveIfCurrent: unused }, loadProject: load, saveProjectIfCurrentWithWriteFence: unused,
 		listProjects: () => [], getMediaAssetMetadata: unused, beginMediaAssetWrite: unused,
 		loadMediaAsset: unused, getSourceMetadata: unused, beginSourceWrite: unused, discardSourceIfCurrent: unused,
 	};

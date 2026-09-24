@@ -124,6 +124,8 @@ test('Framescaper desktop renderer admits the exact preload v1 tuple and catalog
 			bodies: [],
 		}),
 		readBodyChunk: async () => new Uint8Array(),
+		claimProjectWriteFence: async () => { throw new Error('unexpected write-fence claim'); },
+		checkProjectWriteFence: async () => { throw new Error('unexpected write-fence check'); },
 		beginPublication: async () => { throw new Error('unexpected publication'); },
 		writePublicationChunk: async () => { throw new Error('unexpected publication body'); },
 		finishPublication: async () => { throw new Error('unexpected publication finish'); },

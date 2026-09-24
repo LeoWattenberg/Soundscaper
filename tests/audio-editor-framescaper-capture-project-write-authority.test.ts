@@ -49,6 +49,7 @@ test('active-project authority borrows the exact editor lock and detects its los
 		acquireProjectLock: async () => { acquired += 1; return lock('project-a'); },
 	});
 	const lease = await authority.acquireProjectWriteAuthority('project-a');
+	assert.equal(lease.writeFence, activeLock.writeFence);
 	lease.assertCurrent();
 	assert.equal(acquired, 0);
 	lose();
@@ -71,6 +72,7 @@ test('inactive publication owns and releases a fresh lock while detecting asynch
 		acquireProjectLock: async () => acquired,
 	});
 	const lease = await authority.acquireProjectWriteAuthority('project-a');
+	assert.equal(lease.writeFence, acquired.writeFence);
 	lease.assertCurrent();
 	lose();
 	await Promise.resolve();
@@ -91,13 +93,26 @@ test('a contended fresh lock is released and never returned as publication autho
 	assert.equal(acquired.releases, 1);
 });
 
+test('a writable lock without a durable token is released before capture publication', async () => {
+	const acquired = { ...lock('project-a'), writeFence: undefined };
+	let releases = 0;
+	const authority = createFramescaperCaptureProjectWriteAuthority({
+		getProjectAdmission: () => ({ readOnly: false, intrinsicReadOnly: false }),
+		getActiveProjectId: () => 'project-b', getActiveReadOnly: () => false,
+		getActiveLock: () => null,
+		acquireProjectLock: async () => ({ ...acquired, release() { releases += 1; } }),
+	});
+	await assert.rejects(authority.acquireProjectWriteAuthority('project-a'), /write authority changed/iu);
+	assert.equal(releases, 1);
+});
+
 function lock(
 	projectId: string,
 	options: Readonly<{ readOnly?: boolean; lost?: PromiseLike<unknown> }> = {},
 ): FramescaperCaptureProjectLock & { releases: number } {
 	let releases = 0;
 	return {
-		projectId, readOnly: options.readOnly === true, lost: options.lost ?? null,
+		projectId, readOnly: options.readOnly === true, writeFence: `write-fence:${projectId}`, lost: options.lost ?? null,
 		finished: Promise.resolve(),
 		get releases() { return releases; },
 		release() { releases += 1; },

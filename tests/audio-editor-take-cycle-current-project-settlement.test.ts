@@ -70,6 +70,7 @@ test('selection clear settles through the production current-project cycle path 
 			primarySequenceId: 'main-sequence',
 		}) as SettlementProject;
 		await store.projectRepository!.save(base);
+		const writeFence = await store.claimProjectWriteFence(PROJECT_ID);
 		const session = createAudioEditorSessionController();
 		session.openProject(base, { history: createEditorHistory(base), dirty: false });
 		let project = base;
@@ -128,9 +129,13 @@ test('selection clear settles through the production current-project cycle path 
 			hasHistory: () => Boolean(state.history),
 			hasUnsavedProjectChanges: () => Boolean(session.getSnapshot().tabs[0]?.dirty),
 			isReadOnly: () => false,
+			getWriteFence: () => writeFence,
 			cloneProject: (value) => structuredClone(value),
 			admitProjectPublication: async () => undefined,
 			saveProject: (snapshot, options) => store.saveProject(snapshot, options),
+			saveProjectIfCurrentWithWriteFence: async (expected, snapshot, token, options) => (
+				await store.saveProjectIfCurrentWithWriteFence(expected, snapshot, token, options) as SettlementProject | null
+			),
 			persistActiveProjectId: async () => undefined,
 			isCurrentProject: (projectId) => project.id === projectId,
 			hasSessionTab: (projectId) => session.getSnapshot().tabs.some(
@@ -139,8 +144,9 @@ test('selection clear settles through the production current-project cycle path 
 			markProjectSaved: (projectId) => { session.markProjectSaved(projectId); },
 			publish: () => undefined, garbageCollect: async () => undefined,
 			refreshStorageUsage: async () => undefined,
-			handleError: (error) => { throw error; },
+				handleError: (error) => { throw error; },
 		});
+		saves.recordPersistedSnapshot(base);
 		const mutation = createProjectMutationService<
 			SettlementProject, SettlementHistory, number, number
 		>({
@@ -206,6 +212,8 @@ test('selection clear settles through the production current-project cycle path 
 		};
 		const cycle = createTakeCycleAppComposition({
 			lifetime, store, session: session as unknown as TakeCyclePublicationSession, projectGeneration, state,
+			getProjectWriteFence: () => writeFence,
+			recordPersistedSnapshot: (value) => saves.recordPersistedSnapshot(value as SettlementProject),
 			recording: {
 				capturePool: { acquireHardware: async () => stream, acquireDisplay: async () => stream },
 				engine: {

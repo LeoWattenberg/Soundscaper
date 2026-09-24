@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import { createSourceRuntimeComposition } from '../src/common/editor/controller/source/source-runtime-composition.ts';
+import { createProjectVisualService } from '../src/common/editor/controller/document/project-visual-service.ts';
 import {
 	FREQUENCY_WAVEFORM_ANALYSIS_VERSION,
 	FREQUENCY_WAVEFORM_FFT_SIZE,
@@ -36,6 +37,7 @@ test('an oversized bounded request falls back to usable full-source frequency an
 		sourceChunkProviders: new Map(),
 		sourcePeaks: new Map(),
 		playbackProjects: {},
+		createProjectVisualService,
 		getProject: () => project,
 		publishDocumentSnapshot: () => undefined,
 		store: {

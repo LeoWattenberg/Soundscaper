@@ -132,6 +132,13 @@ export function createFixture(
 		switchProject(projectId: string) {
 			events.push(`session-switch:${projectId}`);
 		},
+		installCommittedProjectHistory(projectId: string, history: TestHistory) {
+			const tab = tabs.get(projectId);
+			if (!tab) throw new ReferenceError(`Missing tab for ${projectId}.`);
+			events.push(`install-history:${projectId}`);
+			tabs.set(projectId, { ...tab, history, dirty: false });
+			return { history };
+		},
 		openProject(value: TestProject, options: Parameters<ProjectSwitchServiceRuntime<TestProject, TestHistory>['session']['openProject']>[1]) {
 			events.push(`session-open:${value.id}`);
 			tabs.set(value.id, {

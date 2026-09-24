@@ -47,8 +47,9 @@ test('publication reserves and atomically installs an inactive origin project', 
 		'writable', 'authority:acquire', 'authority:assert', 'writable',
 		'capture', 'reserve', 'load:revision:4', 'authority:assert', 'execute',
 		'load:current', 'authority:assert', 'cas', 'authority:assert',
-		'install', 'saved', 'release', 'authority:release',
+		'persisted', 'install', 'saved', 'release', 'authority:release',
 	]);
+	assert.deepEqual(fixture.persisted, [fixture.target]);
 	assert.equal(fixture.activeMirrors, 0, 'an inactive origin is not mirrored into active editor state');
 });
 
@@ -101,7 +102,17 @@ test('an active exact target retries synchronization without reinstalling histor
 	assert.equal(fixture.events.includes('cas'), false);
 	assert.equal(fixture.events.includes('install'), false);
 	assert.equal(fixture.activeMirrors, 1);
+	assert.deepEqual(fixture.persisted, [fixture.target]);
 	assert.ok(fixture.events.indexOf('sync') < fixture.events.indexOf('release'));
+});
+
+test('a fenced CAS refusal cannot be promoted by an identical target from another writer', async () => {
+	const fixture = publicationFixture({ sameTargetRace: true });
+	const result = await fixture.port.commitAtomic(COMMAND, framescaperCaptureProjectFence(fixture.base));
+	assert.equal(result.status, 'cas-mismatch');
+	assert.deepEqual(fixture.current, fixture.target);
+	assert.deepEqual(fixture.persisted, []);
+	assert.equal(fixture.events.includes('install'), false);
 });
 
 test('a foreign durable current returns a CAS mismatch and releases its reservation', async () => {
@@ -162,6 +173,7 @@ function publicationFixture(options: Readonly<{
 	active?: boolean;
 	authorityDenied?: boolean;
 	loseAuthorityAfterCas?: boolean;
+	sameTargetRace?: boolean;
 	executeError?: Error;
 	reservationReleaseError?: Error;
 	authorityReleaseError?: Error;
@@ -174,6 +186,7 @@ function publicationFixture(options: Readonly<{
 	let history = createHistory(options.sessionTarget ? target : base);
 	let token: object = Object.freeze({});
 	let activeMirrors = 0;
+	const persisted: Project[] = [];
 	let authorityCurrent = true;
 	const port = createFramescaperCaptureProjectPublicationPort<Project, History>({
 		projects: {
@@ -182,8 +195,10 @@ function publicationFixture(options: Readonly<{
 					? 'load:current' : `load:revision:${String(loadOptions.revision)}`);
 				return loadOptions?.revision === 4 ? base : current;
 			},
-			async saveIfCurrent(expected, next) {
+			async saveIfCurrent(expected, next, writeFence) {
 				events.push('cas');
+				assert.equal(writeFence, 'capture-fence');
+				if (options.sameTargetRace) { current = next; return null; }
 				if (JSON.stringify(current) !== JSON.stringify(expected)) return null;
 				current = next;
 				if (options.loseAuthorityAfterCas) authorityCurrent = false;
@@ -198,6 +213,7 @@ function publicationFixture(options: Readonly<{
 			events.push('authority:acquire');
 			if (options.authorityDenied) throw new Error('Capture project write authority is unavailable.');
 			return {
+				writeFence: 'capture-fence',
 				assertCurrent() {
 					events.push('authority:assert');
 					if (!authorityCurrent) throw new Error('Capture project write authority changed.');
@@ -246,9 +262,10 @@ function publicationFixture(options: Readonly<{
 			events.push('sync');
 			activeMirrors += 1;
 		},
+		recordPersistedSnapshot(value) { events.push('persisted'); persisted.push(value); },
 	});
 	return {
-		base, target, events, port,
+		base, target, events, port, persisted,
 		get current() { return current; },
 		get history() { return history; },
 		get activeMirrors() { return activeMirrors; },

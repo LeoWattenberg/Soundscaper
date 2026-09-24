@@ -18,13 +18,14 @@ function fixture(enabled = true) {
 		selectedTrackId: 'track', analysisProcessing: false, lastAnalysisRequest: null,
 		contrastSelections: { foreground: null, background: null },
 	};
-	const renders: unknown[][] = [], saved: unknown[] = [], shown: unknown[] = [], errors: unknown[] = [], labels: string[] = [];
+	const renders: unknown[][] = [], workerCalls: unknown[][] = [], saved: unknown[] = [], shown: unknown[] = [], errors: unknown[] = [], labels: string[] = [];
 	const progress = createEditorTaskProgressCoordinator();
 	const dependencies: AnalysisCompositionDependencies<typeof project, Map<string, unknown>> = {
 		enabled, productName: 'Framescaper', state, copy: ENGLISH_COPY, lifetime, projectGeneration,
 		getProject: () => project, getActiveSelection: () => ({ startFrame: 10, endFrame: 14 }),
 		projectDurationFrames: () => 100, projectSampleRate: () => 48000,
 		cloneProject: structuredClone, hasMissingTimelineSources: () => false, sourceBuffers: new Map(),
+		analyzeChannels: async (...args) => { workerCalls.push(args); return { rmsDbfs: -18 }; },
 		renderSnapshot: async (...args) => {
 			renders.push(args);
 			return { length: 4, sampleRate: 48000, numberOfChannels: 1, getChannelData: () => new Float32Array([0.1, -0.1, 0.2, -0.2]) };
@@ -37,7 +38,7 @@ function fixture(enabled = true) {
 		showAnalysis: (result) => { shown.push(result); },
 		setStatus() {}, publish() {}, handleError: (error) => { errors.push(error); },
 	};
-	return { dependencies, state, renders, saved, shown, errors, labels };
+	return { dependencies, state, renders, workerCalls, saved, shown, errors, labels };
 }
 
 test('analysis composition renders the live selection and publishes progress, results and repeat state', async () => {
@@ -45,6 +46,10 @@ test('analysis composition renders the live selection and publishes progress, re
 	await actions.run('master');
 	assert.deepEqual(f.errors, []);
 	assert.equal(f.renders.length, 1);
+	assert.equal(f.workerCalls.length, 1);
+	assert.equal(f.workerCalls[0]?.[1], 48000);
+	assert.strictEqual(f.workerCalls[0]?.[2], ENGLISH_COPY);
+	assert.equal(f.workerCalls[0]?.[3], 65536);
 	assert.partialDeepStrictEqual(f.renders[0]?.[1], { startFrame: 10, endFrame: 14, includeTail: false, preRollFrames: 10 });
 	assert.equal(f.saved.length, 1);
 	assert.equal(f.shown.length, 1);

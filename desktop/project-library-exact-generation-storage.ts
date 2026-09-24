@@ -1,7 +1,8 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { randomBytes } from 'node:crypto';
-import { mkdir, rename, rm, writeFile } from 'node:fs/promises';
+import { readFileSync } from 'node:fs';
+import { mkdir, readFile, rename, rm, writeFile } from 'node:fs/promises';
 import { join, relative } from 'node:path';
 import type { DatabaseSync } from 'node:sqlite';
 
@@ -17,6 +18,7 @@ import type {
 } from './project-library-exact-generation-lifecycle.ts';
 import type { ExactGenerationProject } from './project-library-exact-generation-body-configuration.ts';
 import type { FramescaperDesktopProjectLibraryExactGenerationConfiguration } from './project-library-exact-generation-main.ts';
+import { assertDesktopExpectedProjectDocument, DesktopProjectWriteFenceConflict } from './project-library-write-fence.ts';
 import {
 	concatenateFramescaperDesktopProjectLibraryChunks as concatenate,
 	framescaperDesktopProjectLibraryClosedRecord as closedRecord,
@@ -67,6 +69,8 @@ export interface FramescaperDesktopExactPublication {
 	readonly publicationId: string;
 	readonly expectedMetadataRevision: number;
 	readonly expectedProject: Readonly<{ projectRevision: number; projectSha256: string }> | null;
+	readonly expectedDocument: unknown | null;
+	readonly writeFence: string | null;
 	readonly project: ExactGenerationProject;
 	readonly document: string;
 	readonly bodies: readonly Readonly<FramescaperDesktopExactBodyDescriptor>[];
@@ -84,6 +88,35 @@ export interface FramescaperDesktopExactStoredProjectRow {
 	readonly byte_length: unknown;
 	readonly sha256: unknown;
 	readonly bodies_json: unknown;
+}
+
+export function readFramescaperDesktopExactProjectRow(database: DatabaseSync, projectId: string): FramescaperDesktopExactStoredProjectRow | null {
+	return (database.prepare(`
+		SELECT entry_id, project_id, title, updated_at_ms, project_revision,
+			document_file, byte_length, sha256, bodies_json
+		FROM projects WHERE project_id = ?
+	`).get(text(projectId, 'project id')) as FramescaperDesktopExactStoredProjectRow | undefined) ?? null;
+}
+
+export async function readFramescaperDesktopExactProjectBundle(
+	configuration: FramescaperDesktopProjectLibraryExactGenerationConfiguration,
+	database: DatabaseSync,
+	paths: Readonly<FramescaperDesktopProjectLibraryExactGenerationPaths>,
+	row: FramescaperDesktopExactStoredProjectRow,
+	configuredBodies: (configuration: FramescaperDesktopProjectLibraryExactGenerationConfiguration,
+		project: unknown, projectSha256: string, value: unknown) => readonly Readonly<FramescaperDesktopExactBodyDescriptor>[],
+): Promise<unknown> {
+	const project = framescaperDesktopExactProjectRow(row, configuration.schemaFamily ?? 'framescaper', configuration.schemaVersion);
+	const document = await readFile(join(paths.projectsRoot, text(row.document_file, 'document file')), 'utf8');
+	if (new TextEncoder().encode(document).byteLength !== project.byteLength || sha256(document) !== project.sha256) {
+		throw new Error(`${configuration.label} project document failed integrity validation`);
+	}
+	const parsed = JSON.parse(document) as unknown;
+	configuration.validateProject(parsed);
+	return Object.freeze({
+		metadataRevision: metadataRevision(database), project, document,
+		bodies: configuredBodies(configuration, parsed, project.sha256, JSON.parse(text(row.bodies_json, 'body inventory')) as unknown),
+	});
 }
 
 export async function persistFramescaperDesktopExactPublication(
@@ -158,6 +191,13 @@ export async function persistFramescaperDesktopExactPublication(
 		try {
 			assertCurrent();
 			lifecycle?.assertCanCommit(database, declaration);
+			if (publication.expectedDocument !== null) {
+				const row = database.prepare(`SELECT project_revision, sha256, document_file FROM projects WHERE project_id = ?`)
+					.get(String(publication.project.id)) as FramescaperDesktopExactStoredProjectRow | undefined;
+				try { assertFramescaperDesktopExactExpectedProject(row ?? null, publication.expectedProject, configuration.label); }
+				catch { throw new DesktopProjectWriteFenceConflict(); }
+				assertFramescaperDesktopExactCurrentDocument(paths, row!, publication.expectedDocument);
+			}
 			if (metadataRevision(database) !== publication.expectedMetadataRevision) {
 				throw new Error(`${configuration.label} metadata changed before publication`);
 			}
@@ -286,6 +326,47 @@ export function assertFramescaperDesktopExactExpectedProject(
 	if (!row || row.project_revision !== expected.projectRevision || row.sha256 !== expected.projectSha256) {
 		throw new Error(`${label} expected project failed compare-and-swap`);
 	}
+}
+
+export function assertFramescaperDesktopExactCurrentDocument(
+	paths: Readonly<FramescaperDesktopProjectLibraryExactGenerationPaths>,
+	row: FramescaperDesktopExactStoredProjectRow | null,
+	expected: unknown,
+): void {
+	if (!row) throw new DesktopProjectWriteFenceConflict();
+	const document = readFileSync(join(paths.projectsRoot, text(row.document_file, 'document file')), 'utf8');
+	assertDesktopExpectedProjectDocument(expected, document);
+}
+
+export function checkFramescaperDesktopExactCurrentWriteFence(
+	database: DatabaseSync,
+	paths: Readonly<FramescaperDesktopProjectLibraryExactGenerationPaths>,
+	projectId: string,
+	expected: unknown,
+	assertFence: () => void,
+): boolean {
+	database.exec('BEGIN IMMEDIATE');
+	try {
+		assertFence();
+		assertFramescaperDesktopExactCurrentDocument(paths,
+			readFramescaperDesktopExactProjectRow(database, projectId), expected);
+		database.exec('COMMIT');
+		return true;
+	} catch (error) {
+		database.exec('ROLLBACK');
+		if (error instanceof DesktopProjectWriteFenceConflict) return false;
+		throw error;
+	}
+}
+
+export function framescaperDesktopExactGenerationProject(value: unknown, label: string): ExactGenerationProject {
+	if (!value || typeof value !== 'object' || Array.isArray(value)) throw new TypeError(`${label} project must be a record`);
+	const project = value as Record<string, unknown>;
+	text(project.id, 'project id');
+	text(project.title, 'project title');
+	nonNegative(project.revision, 'project revision');
+	framescaperDesktopExactProjectTimestamp(project.updatedAt, 'updatedAt', label);
+	return project as ExactGenerationProject;
 }
 
 export function framescaperDesktopExactStoredExpectedProject(

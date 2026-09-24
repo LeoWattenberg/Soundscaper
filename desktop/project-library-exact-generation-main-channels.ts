@@ -5,6 +5,8 @@ export interface FramescaperDesktopProjectLibraryExactGenerationMainChannels {
 	readonly readProjectBundle: string;
 	readonly readBodyChunk: string;
 	readonly listProjects: string;
+	readonly claimProjectWriteFence: string;
+	readonly checkProjectWriteFence: string;
 	readonly deleteProject: string;
 	readonly duplicateProject: string;
 	readonly beginPublication: string;
@@ -25,6 +27,8 @@ export function createFramescaperDesktopProjectLibraryExactGenerationMainChannel
 		readProjectBundle: `${root}:bundle`,
 		readBodyChunk: `${root}:bodies:read`,
 		listProjects: `${root}:list`,
+		claimProjectWriteFence: `${root}:write-fence:claim`,
+		checkProjectWriteFence: `${root}:write-fence:check`,
 		deleteProject: `${root}:delete`,
 		duplicateProject: `${root}:duplicate`,
 		beginPublication: `${root}:publication:begin`,

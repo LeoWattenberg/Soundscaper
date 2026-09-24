@@ -33,8 +33,8 @@ interface ImportedProjectStore {
 	beginSourceWrite(sourceId: unknown, metadata: Readonly<Record<string, unknown>>): Awaitable<ImportedSourceWriter>;
 	saveAnalysis(key: unknown, analysis: unknown): Awaitable<unknown>;
 	deleteSource(sourceId: unknown): Promise<unknown>;
-	saveProject(project: ImportedProject): Awaitable<unknown>;
-	deleteProject(projectId: unknown): Promise<unknown>;
+	createProjectIfAbsent(project: ImportedProject): Promise<ImportedProject | null>;
+	deleteProjectIfCurrent(project: ImportedProject): Promise<boolean>;
 }
 
 export interface PersistDecodedLegacyAupProjectOptions {
@@ -73,7 +73,7 @@ export async function persistDecodedLegacyAupProject({
 	await preflightStorage(totalBytes, 'import');
 	assertCurrent();
 	const persistedSourceIds: unknown[] = [];
-	let projectSaved = false;
+	let createdProject: ImportedProject | null = null;
 	try {
 		for (const sourceAudio of sources) {
 			assertCurrent();
@@ -113,14 +113,14 @@ export async function persistDecodedLegacyAupProject({
 			}
 		}
 		assertCurrent();
-		await store.saveProject(importedProject);
-		projectSaved = true;
+		createdProject = await store.createProjectIfAbsent(importedProject);
+		if (!createdProject) throw new Error('The imported Audacity project ID already exists.');
 		assertCurrent();
 		await switchProject(importedProject, { save: false });
 		return importedProject;
 	} catch (error) {
-		if (projectSaved && getProject()?.id !== importedProject.id) {
-			await store.deleteProject(importedProject.id).catch(() => undefined);
+		if (createdProject && getProject()?.id !== importedProject.id) {
+			await store.deleteProjectIfCurrent(createdProject).catch(() => undefined);
 		}
 		if (getProject()?.id !== importedProject.id) {
 			for (const sourceId of persistedSourceIds) await store.deleteSource(sourceId).catch(() => undefined);

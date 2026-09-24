@@ -6,6 +6,7 @@ import { activateStoredSourceWithProgress } from '../src/common/editor/controlle
 import { generateStoredWaveformPeaksFallback, type StoredWaveformAnalysisOptions } from '../src/common/editor/controller/source/waveform-analysis.ts';
 import type { SourceLifecycleCopy, SourceLifecycleSource } from '../src/common/editor/controller/source/source-lifecycle-service.ts';
 import { createSourceRuntimeComposition, type SourceRuntimeCompositionDependencies } from '../src/common/editor/controller/source/source-runtime-composition.ts';
+import { createProjectVisualService } from '../src/common/editor/controller/document/project-visual-service.ts';
 
 test('the production source composition preserves progress and cancellation through its waveform adapter', async () => {
 	let pulls = 0;
@@ -19,6 +20,7 @@ test('the production source composition preserves progress and cancellation thro
 		sourceBuffers: Object.assign(buffers, { setIfFits: () => false }),
 		sourceChunkProviders: new Map(), sourcePeaks: new Map(),
 		playbackProjects: {},
+		createProjectVisualService,
 		store: {
 			readSourceChunk: async () => { throw new Error('Waveform scan must use the bounded chunk iterator'); },
 			async *readSourceChunks() {

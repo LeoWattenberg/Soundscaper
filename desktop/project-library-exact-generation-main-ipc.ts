@@ -74,6 +74,8 @@ export function registerFramescaperDesktopProjectLibraryExactGenerationMainIpc(
 		register(channels.readProjectBundle, (event, projectId) => connection(event).readProjectBundle(projectId as string));
 		register(channels.readBodyChunk, (event, request) => connection(event).readBodyChunk(request));
 		register(channels.listProjects, (event) => connection(event).listProjects());
+		register(channels.claimProjectWriteFence, (event, projectId) => connection(event).claimProjectWriteFence(projectId as string));
+		register(channels.checkProjectWriteFence, (event, request) => connection(event).checkProjectWriteFence(request));
 		register(channels.deleteProject, (event, request) => connection(event).deleteProject(request));
 		register(channels.duplicateProject, (event, request) => connection(event).duplicateProject(request));
 		register(channels.beginPublication, (event, request) => connection(event).beginPublication(request));

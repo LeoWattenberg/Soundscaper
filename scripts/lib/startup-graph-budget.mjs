@@ -68,6 +68,7 @@ export function normalizeBudgetedProduct(product) {
 export function assertProductionStartupGraphs(bundle, product) {
 	const builtProduct = normalizeBudgetedProduct(product);
 	assertOnlyBuiltProductBootstrapEmitted(bundle, builtProduct);
+	assertProductBootstrapChunkIsAcyclic(bundle, builtProduct);
 	assertFramescaperBootstrapChunkIsAcyclic(bundle);
 	assertFramescaperProjectCommandChunkIsAcyclic(bundle);
 	assertTransferArchiveRuntimeDoesNotReachProductBootstrap(bundle);
@@ -133,6 +134,38 @@ function assertOnlyBuiltProductBootstrapEmitted(bundle, builtProduct) {
 			`${builtProduct} build emitted the ${otherProduct} bootstrap ${otherBootstrap.fileName}; `
 			+ 'select the editor bootstrap from the compile-time product only.',
 		);
+	}
+}
+
+/**
+ * A source-level DAG can become cyclic after chunk ownership and reachability
+ * placement. Reject every static path back into the selected product bootstrap,
+ * including paths longer than the reciprocal pair guarded below.
+ *
+ * @param {Record<string, import('rollup').OutputAsset | import('rollup').OutputChunk>} bundle
+ * @param {keyof typeof PRODUCT_BOOTSTRAPS} product
+ */
+export function assertProductBootstrapChunkIsAcyclic(bundle, product) {
+	const bootstrap = Object.values(bundle).find((output) => output.type === 'chunk'
+		&& chunkOwnsModule(output, PRODUCT_BOOTSTRAPS[product]));
+	if (!bootstrap) return;
+	const visited = new Set();
+	/** @param {string} name @param {string[]} path @returns {string[] | null} */
+	function pathBackToBootstrap(name, path) {
+		if (name === bootstrap.fileName) return [...path, name];
+		if (visited.has(name)) return null;
+		visited.add(name);
+		const chunk = bundle[name];
+		if (chunk?.type !== 'chunk') return null;
+		for (const imported of chunk.imports) {
+			const cycle = pathBackToBootstrap(imported, [...path, name]);
+			if (cycle) return cycle;
+		}
+		return null;
+	}
+	for (const imported of bootstrap.imports) {
+		const cycle = pathBackToBootstrap(imported, [bootstrap.fileName]);
+		if (cycle) throw new Error(`${product} bootstrap has a static import cycle: ${cycle.join(' -> ')}.`);
 	}
 }
 

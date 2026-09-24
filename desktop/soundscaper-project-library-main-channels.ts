@@ -8,6 +8,8 @@ import {
 export const SOUNDSCAPER_DESKTOP_PROJECT_LIBRARY_MAIN_CHANNELS = Object.freeze({
 	...SOUNDSCAPER_DESKTOP_PROJECT_LIBRARY_CHANNELS,
 	listProjects: 'soundscaper:v1:project-library:projects:list',
+	claimProjectWriteFence: 'soundscaper:v1:project-library:projects:claim-write-fence',
+	checkProjectWriteFence: 'soundscaper:v1:project-library:projects:check-write-fence',
 	deleteProject: 'soundscaper:v1:project-library:projects:delete',
 	duplicateProject: 'soundscaper:v1:project-library:projects:duplicate',
 	beginPublication: 'soundscaper:v1:project-library:publication:begin',

@@ -27,6 +27,10 @@ type StableIdPrefix = 'envelope' | 'lane' | 'take' | 'media' | 'journal' | 'comp
 export interface TakeCycleProductionCompositionDependencies {
 	readonly lifetime: Pick<EditorControllerLifetime, 'startTask' | 'cancelTask'>;
 	readonly projects: ProjectRepositoryPort;
+	readonly loadCurrentProject?: TakeCycleRecordingRepositoryDependencies['loadCurrentProject'];
+	readonly saveProjectIfCurrentWithWriteFence?: TakeCycleRecordingRepositoryDependencies['saveProjectIfCurrentWithWriteFence'];
+	readonly getProjectWriteFence?: TakeCycleRecordingRepositoryDependencies['getProjectWriteFence'];
+	readonly onDurableProjectPublished?: TakeCycleRecordingRepositoryDependencies['onDurableProjectPublished'];
 	readonly sources: SourceRepository;
 	readonly rawPcmSpools: RawPcmSpoolRepository;
 	readonly recoveryRepository: TakeCycleRecoveryEnvelopeRepository;
@@ -63,6 +67,10 @@ export function createTakeCycleProductionComposition(
 		lifetime: dependencies.lifetime,
 		recoveryRepository: dependencies.recoveryRepository,
 		projects: dependencies.projects,
+		...(dependencies.loadCurrentProject ? { loadCurrentProject: dependencies.loadCurrentProject } : {}),
+		...(dependencies.saveProjectIfCurrentWithWriteFence ? { saveProjectIfCurrentWithWriteFence: dependencies.saveProjectIfCurrentWithWriteFence } : {}),
+		...(dependencies.getProjectWriteFence ? { getProjectWriteFence: dependencies.getProjectWriteFence } : {}),
+		...(dependencies.onDurableProjectPublished ? { onDurableProjectPublished: dependencies.onDurableProjectPublished } : {}),
 		sources: dependencies.sources,
 		captureProject: dependencies.captureProject,
 		assertProject: dependencies.assertProject,

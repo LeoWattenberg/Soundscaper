@@ -196,6 +196,11 @@ export function createProjectVisualService(
 					project,
 					source,
 					sourceTimingIndex: timing?.index ?? null,
+					assertCurrent: () => {
+						if (!isActivationCurrent(source.id, operation, project, projectToken)) {
+							throw new DOMException('The video preview project changed.', 'AbortError');
+						}
+					},
 					...(options.signal ? { signal: options.signal } : {}),
 				})
 				: null;

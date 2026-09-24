@@ -90,6 +90,8 @@ export interface SoundscaperDesktopRendererBridge {
 	connect(): Promise<unknown>;
 	handshakeState(): unknown;
 	listProjects(): Promise<unknown>;
+	claimProjectWriteFence(projectId: string): Promise<unknown>;
+	checkProjectWriteFence(request: unknown): Promise<unknown>;
 	readProjectBundle(projectId: string): Promise<unknown>;
 	readBodyChunk(request: unknown): Promise<unknown>;
 	beginPublication(request: unknown): Promise<unknown>;
@@ -104,7 +106,7 @@ export interface SoundscaperDesktopRendererBridge {
 
 const GLOBAL_NAME = 'soundscaperProjectLibraryDesktop';
 const API_FIELDS = [
-	'connect', 'handshakeState', 'listProjects', 'readProjectBundle', 'readBodyChunk',
+	'connect', 'handshakeState', 'listProjects', 'claimProjectWriteFence', 'checkProjectWriteFence', 'readProjectBundle', 'readBodyChunk',
 	'beginPublication', 'writePublicationChunk', 'finishPublication', 'abortPublication',
 	'deleteProject', 'duplicateProject', 'persistNativePluginState', 'readNativePluginState',
 ] as const;
@@ -151,6 +153,12 @@ export function resolveSoundscaperDesktopRendererBridge(): SoundscaperDesktopRen
 		connect: () => (api.connect as () => Promise<unknown>).call(apiValue),
 		handshakeState: () => (api.handshakeState as () => unknown).call(apiValue),
 		listProjects: () => (api.listProjects as () => Promise<unknown>).call(apiValue),
+		claimProjectWriteFence: (value: string) => (
+			api.claimProjectWriteFence as (id: string) => Promise<unknown>
+		).call(apiValue, value),
+		checkProjectWriteFence: (value: unknown) => (
+			api.checkProjectWriteFence as (request: unknown) => Promise<unknown>
+		).call(apiValue, value),
 		readProjectBundle: (value: string) => (
 			api.readProjectBundle as (id: string) => Promise<unknown>
 		).call(apiValue, value),

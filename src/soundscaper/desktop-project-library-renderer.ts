@@ -48,6 +48,7 @@ import {
 	reconcileSoundscaperDesktopDeleteIntents,
 	type SoundscaperDesktopDeleteIntentStore,
 } from './desktop-project-library-delete-intents.ts'
+import { abortSignal, allowedRecord, inheritedData, isSoundscaperDesktopWriteFenceRefusal, ownData, signalOptions } from './desktop-project-library-renderer-validation.ts'
 import {
 	validateSoundscaperNativePluginStateBodyIdV1,
 	validateSoundscaperNativePluginStateBodyRecordV1,
@@ -80,11 +81,15 @@ export interface SoundscaperDesktopProjectLibraryShadowStore extends
 
 export interface SoundscaperDesktopProjectLibraryRenderer {
 	listProjects(): Promise<readonly Readonly<SoundscaperDesktopProjectSummary>[]>
+	claimProjectWriteFence(projectId: string): Promise<string>
 	readProject(projectId: string, options?: Readonly<{ signal?: AbortSignal }>): Promise<SoundscaperProject | null>
 	createScapeProjectIfAbsent(project: unknown): Promise<SoundscaperProject | null>
 	publishProject(request: Readonly<{ readonly project: unknown; readonly signal?: AbortSignal }> | unknown):
 		Promise<SoundscaperProject>
 	publishProjectIfCurrent(expected: unknown, project: unknown): Promise<SoundscaperProject | null>
+	publishProjectIfCurrentWithWriteFence(
+		expected: unknown, project: unknown, token: string,
+	): Promise<SoundscaperProject | null>
 	deleteProject(projectId: string): Promise<void>
 	deleteProjectIfCurrent(project: unknown): Promise<boolean>
 	cleanupDeletedProject(projectId: string): Promise<boolean>
@@ -109,7 +114,6 @@ export {
 
 const PUBLICATION_REQUIRED_FIELDS = ['project'] as const
 const PUBLICATION_OPTIONAL_FIELDS = ['signal'] as const
-const SIGNAL_FIELDS = ['signal'] as const
 
 /** Connect the packaged  bridge only to one authenticated durable V21 shadow. */
 export async function connectSoundscaperDesktopProjectLibraryRenderer(
@@ -186,6 +190,13 @@ class Renderer implements SoundscaperDesktopProjectLibraryRenderer {
 	listProjects(): Promise<readonly Readonly<SoundscaperDesktopProjectSummary>[]> {
 		return this.#exclusive(() => this.#catalog.listProjects())
 	}
+	claimProjectWriteFence(projectId: string): Promise<string> {
+		return this.#exclusive(async () => {
+			const token = await this.#bridge.claimProjectWriteFence(validateSoundscaperDesktopProjectId(projectId))
+			if (typeof token !== 'string' || !/^[a-f0-9]{48}$/u.test(token)) throw new TypeError('Invalid desktop write fence')
+			return token
+		})
+	}
 
 	readProject(projectIdValue: string, optionsValue: Readonly<{ signal?: AbortSignal }> = {}) {
 		const projectId = validateSoundscaperDesktopProjectId(projectIdValue)
@@ -218,6 +229,29 @@ class Renderer implements SoundscaperDesktopProjectLibraryRenderer {
 			const current = await this.#readProject(projectId, request.signal)
 			if (current === null || !sameSoundscaperDesktopProject(current, expected)) return null
 			return this.#publishFromWitness(request)
+		})
+	}
+	publishProjectIfCurrentWithWriteFence(
+		expectedValue: unknown, projectValue: unknown, token: string,
+	): Promise<SoundscaperProject | null> {
+		const expected = soundscaperProjectClone(this.#profile, expectedValue)
+		const request = rendererPublicationRequest(this.#profile, { project: projectValue })
+		const projectId = validateSoundscaperDesktopProjectId(String(expected.id))
+		if (String(request.project.id) !== projectId || typeof token !== 'string'
+			|| !/^[a-f0-9]{48}$/u.test(token)) throw new TypeError('Invalid fenced desktop publication')
+		return this.#exclusive(async () => {
+			const current = await this.#readProject(projectId, request.signal)
+			if (current === null || !sameSoundscaperDesktopProject(current, expected)) return null
+			if (sameSoundscaperDesktopProject(current, request.project)) {
+				const valid = await this.#bridge.checkProjectWriteFence({ projectId, writeFence: token, expectedDocument: expected })
+				if (typeof valid !== 'boolean') throw new TypeError('Desktop write fence check changed type')
+				return valid ? current : null
+			}
+			try { return await this.#publishFromWitness({ ...request, writeFence: token, expectedDocument: expected }) }
+			catch (error) {
+				if (isSoundscaperDesktopWriteFenceRefusal(error)) return null
+				throw error
+			}
 		})
 	}
 
@@ -343,6 +377,9 @@ class Renderer implements SoundscaperDesktopProjectLibraryRenderer {
 				expectedProject: request.expectedProject,
 				project: request.project,
 				bodies: planned.bodies,
+				...(request.writeFence ? {
+					writeFence: request.writeFence, expectedDocument: request.expectedDocument,
+				} : {}),
 			}), planned.bodies.length)
 			if (admission.publicationId !== publicationId) {
 				throw new Error('The desktop  publication admission changed its renderer operation id.')
@@ -375,6 +412,7 @@ class Renderer implements SoundscaperDesktopProjectLibraryRenderer {
 					{ cause: error },
 				)
 			}
+			if (isSoundscaperDesktopWriteFenceRefusal(primary)) throw primary
 			const recovered = await this.#catalog.recoverPublication(request, primary)
 			if (recovered === null) throw primary
 			try {
@@ -467,6 +505,8 @@ interface RendererPublication {
 	readonly document: string
 	readonly documentSha256: string
 	readonly signal?: AbortSignal
+	readonly writeFence?: string
+	readonly expectedDocument?: SoundscaperProject
 }
 
 interface NormalizedPublication extends RendererPublication {
@@ -547,53 +587,4 @@ function assertShadowStore(value: unknown): asserts value is SoundscaperDesktopP
 		|| typeof ownData(value, 'databaseName', 'Soundscaper baseline shadow store') !== 'string') {
 		throw new TypeError('The exact Soundscaper baseline shadow lifecycle is required.')
 	}
-}
-
-function signalOptions(value: unknown): AbortSignal | undefined {
-	const raw = allowedRecord(value, [], SIGNAL_FIELDS, 'Soundscaper desktop  read options')
-	return raw.signal === undefined ? undefined : abortSignal(raw.signal)
-}
-
-function abortSignal(value: unknown): AbortSignal {
-	if (!(value instanceof AbortSignal)) throw new TypeError('A Soundscaper desktop  AbortSignal is required.')
-	return value
-}
-
-function allowedRecord<const Required extends string, const Optional extends string>(
-	value: unknown,
-	required: readonly Required[],
-	optional: readonly Optional[],
-	name: string,
-): Record<Required | Optional, unknown> {
-	if (!value || typeof value !== 'object' || Array.isArray(value)
-		|| (Object.getPrototypeOf(value) !== Object.prototype && Object.getPrototypeOf(value) !== null)) {
-		throw new TypeError(`${name} must be a plain record.`)
-	}
-	const allowed = new Set<string>([...required, ...optional])
-	const keys = Reflect.ownKeys(value)
-	if (keys.some((key) => typeof key !== 'string' || !allowed.has(key))) {
-		throw new TypeError(`${name} has unsupported fields.`)
-	}
-	const result = Object.create(null) as Record<Required | Optional, unknown>
-	for (const field of required) result[field] = ownData(value, field, name)
-	for (const field of optional) if (Object.hasOwn(value, field)) result[field] = ownData(value, field, name)
-	return result
-}
-
-function ownData(value: object, field: string, name: string): unknown {
-	const descriptor = Object.getOwnPropertyDescriptor(value, field)
-	if (!descriptor?.enumerable || !Object.hasOwn(descriptor, 'value')) {
-		throw new TypeError(`${name}.${field} must be an own data property.`)
-	}
-	return descriptor.value
-}
-
-function inheritedData(value: object, field: string): unknown {
-	let candidate: object | null = value
-	while (candidate) {
-		const descriptor = Object.getOwnPropertyDescriptor(candidate, field)
-		if (descriptor) return Object.hasOwn(descriptor, 'value') ? descriptor.value : undefined
-		candidate = Object.getPrototypeOf(candidate) as object | null
-	}
-	return undefined
 }

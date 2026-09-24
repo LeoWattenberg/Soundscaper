@@ -55,11 +55,12 @@ test('replace-import rollback preserves linked-original bindings and their locat
 	const primary = new Error('project persistence failed after its local write');
 	const importStore: unknown = new Proxy(store, {
 		get(target, property, receiver) {
-			if (property === 'saveProjectIfCurrent') return async (
-				expected: Parameters<typeof target.saveProjectIfCurrent>[0],
-				project: Parameters<typeof target.saveProjectIfCurrent>[1],
+			if (property === 'saveProjectIfCurrentWithWriteFence') return async (
+				expected: Parameters<typeof target.saveProjectIfCurrentWithWriteFence>[0],
+				project: Parameters<typeof target.saveProjectIfCurrentWithWriteFence>[1],
+				writeFence: string,
 			) => {
-				await target.saveProjectIfCurrent(expected, project);
+				await target.saveProjectIfCurrentWithWriteFence(expected, project, writeFence);
 				throw primary;
 			};
 			const value = Reflect.get(target, property, receiver) as unknown;
@@ -67,7 +68,7 @@ test('replace-import rollback preserves linked-original bindings and their locat
 		},
 	});
 	assertScapeImportStore(importStore);
-	const transaction = new ScapeImportTransaction(importStore);
+	const transaction = new ScapeImportTransaction(importStore, undefined, await replaceAuthority(store, 'p1'));
 	await transaction.captureProject('p1');
 	await assert.rejects(
 		transaction.publishProject({ id: 'p1', revision: 1, title: 'Imported', sources: [] }),
@@ -99,7 +100,7 @@ for (const backend of ['memory', 'indexeddb'] as const) {
 
 		const importStore: unknown = store;
 		assertScapeImportStore(importStore);
-		const transaction = new ScapeImportTransaction(importStore);
+		const transaction = new ScapeImportTransaction(importStore, undefined, await replaceAuthority(store, 'p1'));
 		await transaction.captureProject('p1');
 		await transaction.publishProject({ id: 'p1', revision: 1, title: 'Imported', sources: [] });
 		await concurrentStore.saveProject({
@@ -131,7 +132,7 @@ for (const backend of ['memory', 'indexeddb'] as const) {
 
 		const importStore: unknown = store;
 		assertScapeImportStore(importStore);
-		const transaction = new ScapeImportTransaction(importStore);
+		const transaction = new ScapeImportTransaction(importStore, undefined, await replaceAuthority(store, 'p1'));
 		await transaction.captureProject('p1');
 		await concurrentStore.saveProject({
 			id: 'p1', revision: 1, title: 'Concurrent edit', sources: [],
@@ -236,7 +237,7 @@ for (const [label, current] of [
 		} catch (error) {
 			publicationFailure = error;
 		}
-		assert.match(String(publicationFailure), /requires exact-current/iu);
+		assert.match(String(publicationFailure), /requires (?:exact-current|fenced)/iu);
 		await assert.rejects(transaction.rollback(publicationFailure), (error: unknown) => (
 			error === publicationFailure
 		));
@@ -348,14 +349,14 @@ test('Scape preserves project assets when a concurrent replacement wins publicat
 		async beginSourceWrite() { throw new Error('unused'); },
 		async beginMediaAssetWrite() { throw new Error('unused'); },
 		async saveProject() { throw new Error('ordinary save must not publish replacement'); },
-		async saveProjectIfCurrent() { return null; },
-		async restoreProjectSnapshotIfCurrent() {
+		async saveProjectIfCurrentWithWriteFence() { return null; },
+		async restoreProjectSnapshotIfCurrentWithWriteFence() {
 			throw new Error('a comparison loser did not publish a restorable project');
 		},
 		async deleteProject() { throw new Error('broad delete must not remove a concurrent target'); },
 		async discardSourceIfCurrent(source: StorageRecord) { cleanup.push(`source:${source.id}`); return true; },
 	};
-	const transaction = new ScapeImportTransaction(store);
+	const transaction = new ScapeImportTransaction(store, undefined, fakeReplaceAuthority());
 	await transaction.captureProject(existing.id);
 	transaction.trackProvisionalSource(sourcePublication('shared-audio'));
 	transaction.trackProvisionalMedia(publication('shared-video', cleanup));
@@ -384,22 +385,31 @@ test('Scape routes a captured existing target through exact-current repository u
 		async createProjectIfAbsent() { throw new Error('updates must not use create-only publication'); },
 		async deleteProjectIfCurrent() { throw new Error('unused'); },
 		async saveProject() { throw new Error('replace imports must not use unconditional publication'); },
-		async saveProjectIfCurrent(expected: typeof existing, value: typeof replacement) {
+		async saveProjectIfCurrentWithWriteFence(expected: typeof existing, value: typeof replacement, writeFence: string) {
 			events.push('save-exact');
 			assert.equal(expected, existing);
 			assert.equal(value, replacement);
+			assert.equal(writeFence, 'test-fence');
 			return replacement;
 		},
-		async restoreProjectSnapshotIfCurrent() { throw new Error('completed imports do not roll back'); },
+		async restoreProjectSnapshotIfCurrentWithWriteFence() { throw new Error('completed imports do not roll back'); },
 		async deleteProject() { throw new Error('unused'); },
 		async discardSourceIfCurrent() { return true; },
 	};
-	const transaction = new ScapeImportTransaction(store);
+	const transaction = new ScapeImportTransaction(store, undefined, fakeReplaceAuthority());
 	await transaction.captureProject(existing.id);
 	await transaction.publishProject(replacement);
 	transaction.complete();
 	assert.deepEqual(events, ['save-exact']);
 });
+
+async function replaceAuthority(store: ReturnType<typeof createProjectStore>, projectId: string) {
+	return { writeFence: await store.claimProjectWriteFence(projectId), assertCurrent() {}, release() {} };
+}
+
+function fakeReplaceAuthority() {
+	return { writeFence: 'test-fence', assertCurrent() {}, release() {} };
+}
 
 function publication(
 	sourceId: string,

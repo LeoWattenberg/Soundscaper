@@ -40,7 +40,8 @@ export type SoundscaperDesktopProjectLibraryPublicationCheckpoint =
 export type SoundscaperDesktopProjectLibraryPublicationRefusalCode =
 	| 'compare-and-swap'
 	| 'destination-presence'
-	| 'revision-order';
+	| 'revision-order'
+	| 'write-fence';
 
 export interface SoundscaperDesktopProjectLibraryPublicationBodyInput {
 	readonly descriptor: Readonly<SoundscaperDesktopProjectLibraryTransferBody>;
@@ -87,7 +88,7 @@ const EXPECTED_FIELDS = ['projectRevision', 'projectSha256'] as const;
 const BODY_INPUT_FIELDS = ['descriptor', 'chunks'] as const;
 const MAXIMUM_BODIES = 4_094;
 const DIGEST = /^[a-f0-9]{64}$/u;
-const REFUSAL_CODES = ['compare-and-swap', 'destination-presence', 'revision-order'] as const;
+const REFUSAL_CODES = ['compare-and-swap', 'destination-presence', 'revision-order', 'write-fence'] as const;
 const REFUSAL_MARKER_PREFIX = '[soundscaper-v1-project-library-publication-refusal:';
 const REFUSAL_MARKER = /\[soundscaper-v1-project-library-publication-refusal:([a-z-]+)\]/u;
 

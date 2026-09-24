@@ -88,8 +88,17 @@ test('Framescaper desktop conditional saves publish and compare against main aut
 		const stale = advance(concurrent, 3, 'Stale contender', '2026-08-30T11:03:00.000Z');
 
 		assert.deepEqual(await adapter.createProjectIfAbsent(base), base);
-		assert.deepEqual(await adapter.saveProjectIfCurrent(base, first), first);
+		const oldFence = await adapter.claimProjectWriteFence(PROJECT_ID);
+		const currentFence = await adapter.claimProjectWriteFence(PROJECT_ID);
+		assert.equal(await adapter.saveProjectIfCurrentWithWriteFence(base, first, oldFence), null);
+		assert.deepEqual(await authoritativeProject(session, PROJECT_ID), base);
+		assert.deepEqual(await adapter.saveProjectIfCurrentWithWriteFence(base, first, currentFence), first);
 		assert.deepEqual(await authoritativeProject(session, PROJECT_ID), first);
+		const beforeNoOp = await session.readProjectBundle(PROJECT_ID);
+		assert.deepEqual(await adapter.saveProjectIfCurrentWithWriteFence(first, first, currentFence), first);
+		assert.deepEqual(await session.readProjectBundle(PROJECT_ID), beforeNoOp);
+		await adapter.claimProjectWriteFence(PROJECT_ID);
+		assert.equal(await adapter.saveProjectIfCurrentWithWriteFence(first, first, currentFence), null);
 
 		await publishDirectly(session, concurrent, '22'.repeat(24));
 		assert.equal(await adapter.saveProjectIfCurrent(first, stale), null);
@@ -151,6 +160,8 @@ function framescaperBridge(
 		listProjects: () => session.listProjects(),
 		readProjectBundle: (projectId: string) => session.readProjectBundle(projectId),
 		readBodyChunk: (request: unknown) => session.readBodyChunk(request),
+		claimProjectWriteFence: (projectId: string) => Promise.resolve(session.claimProjectWriteFence(projectId)),
+		checkProjectWriteFence: (request: unknown) => session.checkProjectWriteFence(request),
 		beginPublication: (request: unknown) => session.beginPublication(request),
 		writePublicationChunk: (request: unknown) => session.writePublicationChunk(request),
 		finishPublication: (request: unknown) => session.finishPublication(request),

@@ -156,6 +156,14 @@ export const createFramescaperVideoProxyPreviewMediaResolverNativeMedia =
 export const createFramescaperVideoProxyPreviewMediaResolverTimelineImage =
 	createFramescaperVideoProxyPreviewMediaResolverRetime;
 
+/** Published project views detach attachment objects; compare their verified value binding. */
+export function sameFramescaperVideoProxyAttachment(left: unknown, right: unknown): boolean {
+	try {
+		return JSON.stringify(normalizeVideoProxyAttachmentV18(left))
+			=== JSON.stringify(normalizeVideoProxyAttachmentV18(right));
+	} catch { return false; }
+}
+
 function unavailable(
 	mode: FramescaperVideoProxyModeRetime,
 	reason: FramescaperVideoProxyPreviewUnavailableError['reason'],
@@ -179,7 +187,7 @@ async function verifyProxy(
 	request: Readonly<ProjectVideoPreviewMediaRequest>,
 	attachment: Readonly<VideoProxyAttachmentV18>,
 ): Promise<Blob> {
-	assertCurrent(options, request);
+	assertCurrent(request);
 	const acquire = createFramescaperVideoProxyBodySourceSequence({
 		store: options.bodyStore,
 		getProject: options.getProject,
@@ -201,7 +209,7 @@ async function verifyProxy(
 			originalTiming(request),
 			proxyTiming(request.source, attachment, proxyIndex),
 		);
-		assertCurrent(options, request);
+		assertCurrent(request);
 		for (const lease of leases) lease.assertCurrent();
 		return proxy.body;
 	} finally {
@@ -315,13 +323,10 @@ async function assertBody(
 }
 
 function assertCurrent(
-	options: FramescaperVideoProxyPreviewMediaOptionsRetime,
 	request: Readonly<ProjectVideoPreviewMediaRequest>,
 ): void {
 	throwIfAborted(request.signal);
-	if (options.getProject() !== request.project) {
-		throw new DOMException('The Framescaper proxy preview project changed.', 'AbortError');
-	}
+	request.assertCurrent();
 }
 
 function assertOptions(options: FramescaperVideoProxyPreviewMediaOptionsRetime): void {

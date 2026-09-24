@@ -3,6 +3,7 @@
 import { compactProjectSourceMetadata } from '../retention.js';
 import { deleteByIndex, request, transact } from './indexeddb-backend.ts';
 import { sameProjectSnapshot } from './project-snapshot-equality.ts';
+import { projectWriteFenceKey } from './project-write-fence-key.ts';
 import type { ProjectDocument, ProjectRevision } from './project-repository.ts';
 import {
 	applyMemoryMutations,
@@ -37,8 +38,9 @@ export function restoreProjectSnapshotIfCurrent(
 	projectId: string,
 	expected: ProjectDocument,
 	snapshot: ProjectSnapshotForRestore,
+	writeFence?: string,
 ): Promise<boolean> {
-	return replaceProjectSnapshot(port, projectId, snapshot, canonicalProject(expected));
+	return replaceProjectSnapshot(port, projectId, snapshot, canonicalProject(expected), writeFence);
 }
 
 async function replaceProjectSnapshot(
@@ -46,12 +48,14 @@ async function replaceProjectSnapshot(
 	projectId: string,
 	snapshot: ProjectSnapshotForRestore,
 	expected?: ProjectDocument,
+	writeFence?: string,
 ): Promise<boolean> {
 	const rows = revisionRows(projectId, snapshot.revisions);
 	const current = snapshot.current === null ? null : canonicalProject(snapshot.current);
 	const database = await port.database();
 	if (!database) {
 		const memory = port.memory;
+		if (writeFence && (memory.settings.get(projectWriteFenceKey(projectId)) as { value?: unknown } | undefined)?.value !== writeFence) return false;
 		if (expected && !sameProjectSnapshot(memory.projects.get(projectId), expected)) return false;
 		const mutations: MemoryMutation[] = [deleteMemoryMutation(memory.projects, projectId)];
 		for (const [key, value] of memory.revisions) {
@@ -64,7 +68,8 @@ async function replaceProjectSnapshot(
 		applyMemoryMutations(mutations);
 		return true;
 	}
-	return transact(database, ['projects', 'revisions'], 'readwrite', async ({ projects, revisions }) => {
+	return transact(database, writeFence ? ['projects', 'revisions', 'settings'] : ['projects', 'revisions'], 'readwrite', async ({ projects, revisions, settings }) => {
+		if (writeFence && (await request(settings.get(projectWriteFenceKey(projectId))) as { value?: unknown } | undefined)?.value !== writeFence) return false;
 		if (expected && !sameProjectSnapshot(await request(projects.get(projectId)), expected)) return false;
 		await request(projects.delete(projectId));
 		await deleteByIndex(revisions.index('projectId'), projectId);

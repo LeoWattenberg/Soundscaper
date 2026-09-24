@@ -15,6 +15,7 @@ let nextStreamId = 1;
 export class ChunkStreamClient {
 	constructor(options = {}) {
 		this.workerFactory = options.workerFactory || defaultWorkerFactory;
+		this.messageChannelFactory = options.messageChannelFactory || (() => new MessageChannel());
 		this.worker = null;
 		this.streams = new Map();
 		this.disposed = false;
@@ -61,6 +62,10 @@ export class ChunkStreamClient {
 		);
 		const outputPort = normalizeMessagePort(options.outputPort);
 		const worker = this.#getWorker();
+		const packetChannel = this.messageChannelFactory();
+		if (!packetChannel?.port1 || !packetChannel?.port2) {
+			throw new TypeError('messageChannelFactory must return a MessageChannel.');
+		}
 		const ready = createDeferred();
 		const primed = createDeferred();
 		const done = createDeferred();
@@ -121,6 +126,7 @@ export class ChunkStreamClient {
 				highWaterMark,
 			});
 			outputConfigured = true;
+			outputPort.postMessage({ type: 'attach-packet-port', streamId, port: packetChannel.port1 }, [packetChannel.port1]);
 			worker.postMessage({
 				type: 'open-stream',
 				protocolVersion: AUDIO_EDITOR_CHUNK_STREAM_PROTOCOL_VERSION,
@@ -139,9 +145,12 @@ export class ChunkStreamClient {
 				resample: outputFrameCount != null,
 				packetFrames: AUDIO_EDITOR_TRANSFER_CHUNK_FRAMES,
 				highWaterMark,
-			});
+				packetPort: packetChannel.port2,
+			}, [packetChannel.port2]);
 		} catch (error) {
 			this.#detachStream(stream);
+			try { packetChannel.port1.close?.(); } catch {}
+			try { packetChannel.port2.close?.(); } catch {}
 			try { worker.postMessage({ type: 'cancel-stream', streamId, reason: error.message }); } catch {}
 			if (outputConfigured) {
 				try { outputPort.postMessage({ type: 'cancel-stream', streamId, reason: error.message }); } catch {}
@@ -238,11 +247,6 @@ export class ChunkStreamClient {
 				this.#startIfReady(stream);
 			} else if (message.type === 'need-storage-chunk') {
 				this.#provideStorageChunk(stream, message);
-			} else if (message.type === 'audio-packet') {
-				const transfer = transferListForAudioChannels(message.channels);
-				stream.outputPort.postMessage(message, transfer);
-			} else if (message.type === 'source-ended') {
-				stream.outputPort.postMessage(message);
 			} else if (message.type === 'stream-progress') {
 				stream.onProgress?.({
 					frames: Number(message.frames) || 0,
@@ -289,13 +293,6 @@ export class ChunkStreamClient {
 						contextStartFrame: stream.playContextStartFrame,
 					});
 				}
-			} else if (message.type === 'packet-consumed') {
-				this.worker?.postMessage({
-					type: 'packet-consumed',
-					streamId: stream.id,
-					packetId: message.packetId,
-					status: message.status,
-				});
 			} else if (message.type === 'stream-ended') {
 				stream.workletEnded = true;
 				stream.playing = false;
@@ -379,6 +376,7 @@ export class ChunkStreamClient {
 
 	#completeIfFinished(stream) {
 		if (!stream.workerComplete || !stream.workletEnded || stream.settled) return;
+		try { stream.outputPort.postMessage({ type: 'release-packet-port', streamId: stream.id }); } catch {}
 		this.#detachStream(stream);
 		stream.done.resolve({
 			streamId: stream.id,

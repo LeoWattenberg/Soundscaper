@@ -25,6 +25,7 @@ export class ChunkStreamPlaybackProcessor extends ProcessorBase {
 		super();
 		const settings = options.processorOptions || {};
 		this.messagePort = settings.messagePort || this.port;
+		this.packetPort = null;
 		this.defaultChannelCount = boundedInteger(settings.channelCount ?? 2, 1, 64, 2);
 		this.capacity = boundedInteger(
 			settings.maxQueuePackets ?? AUDIO_EDITOR_STREAM_MAX_QUEUE_PACKETS,
@@ -127,6 +128,7 @@ export class ChunkStreamPlaybackProcessor extends ProcessorBase {
 		try {
 			if (message.type === 'configure-stream') this.#configure(message);
 			else if (!this.streamId || message.streamId !== this.streamId) return;
+			else if (message.type === 'attach-packet-port') this.#attachPacketPort(message.port);
 			else if (message.type === 'audio-packet') this.#enqueue(message);
 			else if (message.type === 'source-ended') this.#markSourceEnded(message);
 			else if (message.type === 'play-stream') {
@@ -134,10 +136,26 @@ export class ChunkStreamPlaybackProcessor extends ProcessorBase {
 				this.playing = true;
 			}
 			else if (message.type === 'pause-stream') this.playing = false;
+			else if (message.type === 'release-packet-port') this.#releasePacketPort();
 			else if (message.type === 'cancel-stream') this.#cancel(message.reason);
 		} catch (error) {
 			this.#fail(error, message?.packetId);
 		}
+	}
+
+	#attachPacketPort(port) {
+		if (!port || typeof port.postMessage !== 'function') throw new TypeError('A packet MessagePort is required.');
+		this.#releasePacketPort();
+		this.packetPort = port;
+		port.onmessage = (event) => this.#handleMessage(event.data || {});
+		port.start?.();
+	}
+
+	#releasePacketPort() {
+		if (!this.packetPort) return;
+		this.packetPort.onmessage = null;
+		this.packetPort.close?.();
+		this.packetPort = null;
 	}
 
 	#configure(message) {
@@ -188,7 +206,7 @@ export class ChunkStreamPlaybackProcessor extends ProcessorBase {
 	#enqueue(message) {
 		if (this.ended || !this.queue) {
 			if (this.streamId && message.packetId != null) {
-				this.#post({
+				this.#postPacket({
 					type: 'packet-consumed',
 					streamId: this.streamId,
 					packetId: message.packetId,
@@ -223,7 +241,7 @@ export class ChunkStreamPlaybackProcessor extends ProcessorBase {
 
 	#acknowledgeCurrent(status) {
 		if (!this.currentPacket) return;
-		this.#post({
+		this.#postPacket({
 			type: 'packet-consumed',
 			streamId: this.streamId,
 			packetId: this.currentPacket.packetId,
@@ -250,7 +268,7 @@ export class ChunkStreamPlaybackProcessor extends ProcessorBase {
 		this.ended = true;
 		this.playing = false;
 		if (this.currentPacket) this.#acknowledgeCurrent('trimmed-at-end');
-		this.queue?.clear((packet) => this.#post({
+		this.queue?.clear((packet) => this.#postPacket({
 			type: 'packet-consumed',
 			streamId: this.streamId,
 			packetId: packet.packetId,
@@ -269,7 +287,7 @@ export class ChunkStreamPlaybackProcessor extends ProcessorBase {
 
 	#fail(error, packetId) {
 		if (packetId != null && this.streamId) {
-			this.#post({ type: 'packet-consumed', streamId: this.streamId, packetId, status: 'rejected' });
+			this.#postPacket({ type: 'packet-consumed', streamId: this.streamId, packetId, status: 'rejected' });
 		}
 		const streamId = this.streamId;
 		this.#clear('error');
@@ -282,7 +300,7 @@ export class ChunkStreamPlaybackProcessor extends ProcessorBase {
 		if (this.currentPacket && this.streamId) this.#acknowledgeCurrent(status);
 		this.queue?.clear((packet) => {
 			if (!this.streamId) return;
-			this.#post({
+			this.#postPacket({
 				type: 'packet-consumed',
 				streamId: this.streamId,
 				packetId: packet.packetId,
@@ -290,6 +308,11 @@ export class ChunkStreamPlaybackProcessor extends ProcessorBase {
 			});
 		});
 		this.queue = null;
+		this.#releasePacketPort();
+	}
+
+	#postPacket(message) {
+		(this.packetPort || this.messagePort).postMessage(message);
 	}
 
 	#post(message) {

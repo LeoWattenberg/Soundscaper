@@ -10,6 +10,7 @@ import {
 } from './editor-audio-track-freeze-currency.ts';
 import { createAudioEditorEngine } from '../common/editor/engine/runtime-class.ts';
 import { createAudioClip } from '../common/editor/project-media-factory.ts';
+import { sameProjectSnapshot } from '../common/editor/storage/project-snapshot-equality.ts';
 import { validateSoundscaperProject, type SoundscaperProject } from './editor-project-validation.ts';
 import {
 	hashFreezeBody, planFreezeRange, renderFreezeBody, stageFreezeSource,
@@ -108,7 +109,9 @@ export function createSoundscaperAudioFreezeActions(
 			assertCurrent(controller, ticket);
 			const result = controller.actions.edit.commit(command);
 			const current = exactCurrentProject(controller, validateProject);
-			if (result !== current) throw new Error('Audio freeze command did not publish the current project.');
+			if (result !== current && !sameProjectSnapshot(result, current)) {
+				throw new Error('Audio freeze command did not publish the current project.');
+			}
 			return current;
 			},
 		},

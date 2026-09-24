@@ -18,8 +18,11 @@ export async function saveStoreProjectIfCurrent(
 	expected: ProjectDocument,
 	project: ProjectDocument,
 	options: unknown = {},
+	writeFence?: string,
 ): Promise<ProjectDocument | null> {
-	const saveIfCurrent = repository.saveIfCurrent;
+	const saveIfCurrent = writeFence === undefined
+		? repository.saveIfCurrent
+		: repository.saveIfCurrentAndFenced;
 	if (typeof saveIfCurrent !== 'function') {
 		throw new Error('Exact-current project publication is unavailable.');
 	}
@@ -30,7 +33,9 @@ export async function saveStoreProjectIfCurrent(
 					candidate: ProjectDocument,
 					postCommit?: ProjectPostCommitMaintenance,
 				): Promise<ProjectDocument> => {
-					const saved = await saveIfCurrent.call(target, expected, candidate, postCommit);
+					const saved = writeFence === undefined
+						? await repository.saveIfCurrent!(expected, candidate, postCommit)
+						: await repository.saveIfCurrentAndFenced!(expected, candidate, writeFence, postCommit);
 					if (saved === null) throw PROJECT_COMPARISON_LOST;
 					return saved;
 				};

@@ -35,8 +35,12 @@ export type FramescaperDesktopProjectStoreAdapter<Store> = Store & Readonly<{
 	createProjectIfAbsent(project: unknown): Promise<FramescaperProject | null>;
 	createScapeProjectIfAbsent(project: unknown): Promise<FramescaperProject | null>;
 	deleteProjectIfCurrent(project: unknown): Promise<boolean>;
+	claimProjectWriteFence(projectId: string): Promise<string>;
 	saveProjectIfCurrent(expected: unknown, project: unknown, options?: unknown): Promise<FramescaperProject | null>;
+	saveProjectIfCurrentWithWriteFence(expected: unknown, project: unknown, token: string,
+		options?: unknown): Promise<FramescaperProject | null>;
 	restoreProjectSnapshotIfCurrent(projectId: string, expected: unknown, snapshot: unknown): Promise<false>;
+	restoreProjectSnapshotIfCurrentWithWriteFence(projectId: string, expected: unknown, snapshot: unknown, token: string): Promise<false>;
 }>;
 
 export function createFramescaperDesktopProjectStoreAdapter<
@@ -87,10 +91,23 @@ function proxyHandler<Store extends FramescaperDesktopProjectStoreLocal>(
 			await admitProjectPublication(localStore, project as unknown as ProjectDocument, options);
 			return renderer.publishProjectIfCurrent(expected, project);
 		},
+		claimProjectWriteFence: (projectId: string) => renderer.claimProjectWriteFence(projectId),
+		saveProjectIfCurrentWithWriteFence: async (
+			expectedValue: unknown, projectValue: unknown, token: string, optionsValue: unknown = {},
+		) => {
+			const options = allowedRecord(optionsValue, SAVE_FIELDS, `${LABEL} save options`);
+			const expected = cloneFramescaperProject(profile, expectedValue);
+			const project = cloneFramescaperProject(profile, projectValue);
+			await admitProjectPublication(localStore, project as unknown as ProjectDocument, options);
+			return renderer.publishProjectIfCurrentWithWriteFence(expected, project, token);
+		},
 		// Desktop main cannot be rewound through its shadow-only repository,
 		// so rollback is conservatively refused.
 		restoreProjectSnapshotIfCurrent: async (
 			_projectId: string, _expected: unknown, _snapshot: unknown,
+		) => false as const,
+		restoreProjectSnapshotIfCurrentWithWriteFence: async (
+			_projectId: string, _expected: unknown, _snapshot: unknown, _token: string,
 		) => false as const,
 		createProjectIfAbsent: async (projectValue: unknown) => {
 			const project = cloneFramescaperProject(profile, projectValue);

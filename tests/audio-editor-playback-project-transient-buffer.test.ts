@@ -6,7 +6,7 @@ import test from 'node:test';
 import { applyCanonicalProjectToPlaybackEngine } from
 	'../src/common/editor/controller/source/playback-project-service.ts';
 import { createPreparedProjectSources } from
-	'../src/common/editor/controller/import/prepared-project-sources.ts';
+	'../src/common/editor/controller/source/internal/prepared-project-sources.ts';
 
 test('track-render fallback reapply forwards uncached native source buffers', async () => {
 	const canonical = Object.freeze({ id: 'track-fallback' });

@@ -6927,7 +6927,7 @@
 						},
 						{
 							"kind": "implementation",
-							"path": "src/common/editor/controller/import/prepared-project-sources.ts"
+							"path": "src/common/editor/controller/source/internal/prepared-project-sources.ts"
 						},
 						{
 							"kind": "implementation",

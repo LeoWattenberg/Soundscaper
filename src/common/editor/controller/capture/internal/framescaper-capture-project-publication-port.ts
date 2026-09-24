@@ -37,6 +37,7 @@ interface CapturePublicationProjectRepository<Project extends CapturePublication
 	saveIfCurrent(
 		expected: Project,
 		project: Project,
+		writeFence: string,
 	): PromiseLike<Project | null> | Project | null;
 }
 
@@ -95,6 +96,7 @@ export interface FramescaperCaptureProjectPublicationOptions<
 	setActiveProject(project: Project): void;
 	setActiveHistory(history: History): void;
 	synchronizeProject(project: Project): PromiseLike<void> | void;
+	recordPersistedSnapshot?(project: Project): PromiseLike<void> | void;
 }
 
 export interface FramescaperCaptureProjectPublicationPort {
@@ -179,16 +181,17 @@ export function createFramescaperCaptureProjectPublicationPort<
 			const durable = await options.projects.load(fence.projectId);
 			authority.assertCurrent();
 			if (!durable) return Object.freeze({ status: 'cas-mismatch' });
+			let persisted = durable;
 			if (sameProject(durable, base)) {
-				const committed = await options.projects.saveIfCurrent(base, target);
-				if (!committed) {
-					const concurrent = await options.projects.load(fence.projectId);
-					if (!sameProject(concurrent, target)) return Object.freeze({ status: 'cas-mismatch' });
-				} else if (!sameProject(committed, target)) {
+				const committed = await options.projects.saveIfCurrent(base, target, authority.writeFence);
+				if (!committed) return Object.freeze({ status: 'cas-mismatch' });
+				if (!sameProject(committed, target)) {
 					throw new Error('Framescaper capture project CAS returned a different target.');
 				}
+				persisted = committed;
 			} else if (!sameProject(durable, target)) return Object.freeze({ status: 'cas-mismatch' });
 			authority.assertCurrent();
+			await options.recordPersistedSnapshot?.(persisted);
 
 			if (!sameProject(captured.history.present, target)) {
 				options.session.installCommittedProjectHistory(fence.projectId, targetHistory, {

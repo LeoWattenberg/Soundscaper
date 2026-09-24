@@ -201,6 +201,8 @@ export const IPC = Object.freeze({
 	framescaperProjectBundle: 'framescaper:v1:project-library:bundle',
 	framescaperProjectBodyRead: 'framescaper:v1:project-library:bodies:read',
 	framescaperProjectList: 'framescaper:v1:project-library:list',
+	framescaperProjectFence: 'framescaper:v1:project-library:write-fence:claim',
+	framescaperProjectFenceCheck: 'framescaper:v1:project-library:write-fence:check',
 	framescaperProjectDelete: 'framescaper:v1:project-library:delete',
 	framescaperProjectDuplicate: 'framescaper:v1:project-library:duplicate',
 	framescaperProjectBegin: 'framescaper:v1:project-library:publication:begin',

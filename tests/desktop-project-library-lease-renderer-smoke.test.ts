@@ -204,6 +204,8 @@ test('the product-neutral renderer smoke publishes through the Framescaper v1 br
 		connect: async () => handshake,
 		listProjects: () => session.listProjects(),
 		readProjectBundle: (projectId: string) => session.readProjectBundle(projectId),
+		claimProjectWriteFence: (projectId: string) => Promise.resolve(session.claimProjectWriteFence(projectId)),
+		checkProjectWriteFence: (request: unknown) => session.checkProjectWriteFence(request),
 		beginPublication: (value: unknown) => session.beginPublication(value),
 		finishPublication: (value: unknown) => session.finishPublication(value),
 		abortPublication: (value: unknown) => session.abortPublication(value),

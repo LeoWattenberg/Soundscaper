@@ -3,7 +3,7 @@
 import { createTakeCompDocumentGroupsV17 } from '../../../../take-comp-document-v17.ts';
 import type { TakeCycleProjectDocument } from './take-cycle-project-document.ts';
 import type { TakeCycleRoutedCaptureProject } from './take-cycle-routed-capture-validation.ts';
-import type { ProjectRepositoryPort } from '../../../../storage/project-repository.ts';
+import type { ProjectDocument, ProjectRepositoryPort } from '../../../../storage/project-repository.ts';
 import type { RawPcmSpoolRepository } from '../../../../storage/raw-pcm-spool-repository.ts';
 import type { SourceRepository } from '../../../../storage/source-repository.ts';
 import type { TakeCycleRecoveryEnvelopeRepository } from '../../../../storage/take-cycle-recovery-envelope-repository.ts';
@@ -35,6 +35,10 @@ interface TakeCycleAppStore {
 	readonly sourceRepository?: SourceRepository;
 	readonly rawPcmSpoolRepository?: RawPcmSpoolRepository;
 	readonly takeCycleRecoveryEnvelopeRepository?: TakeCycleRecoveryEnvelopeRepository;
+	loadProject?(projectId: string, options?: Readonly<{ readonly signal?: AbortSignal }>): Promise<ProjectDocument | null>;
+	saveProjectIfCurrentWithWriteFence?(
+		expected: ProjectDocument, project: ProjectDocument, writeFence: string,
+	): Promise<ProjectDocument | null>;
 	getSourceMetadata(sourceId: string): PromiseLike<unknown> | unknown;
 }
 
@@ -73,6 +77,8 @@ export interface TakeCycleAppCompositionDependencies {
 	createId(prefix: string): string;
 	readonly applyProjectCommand?: TakeCycleProductionCompositionDependencies['applyProjectCommand'];
 	readonly validateProject?: TakeCycleProductionCompositionDependencies['validateProject'];
+	readonly getProjectWriteFence?: TakeCycleProductionCompositionDependencies['getProjectWriteFence'];
+	readonly recordPersistedSnapshot?: TakeCycleProductionCompositionDependencies['onDurableProjectPublished'];
 	createRecordingName(trackName: string): string;
 	preflightRecording(bytes: number): Promise<void>;
 	releaseInputs(): void;
@@ -103,6 +109,10 @@ export function createTakeCycleAppComposition(
 	return createTakeCycleProductionComposition({
 		lifetime: dependencies.lifetime,
 		projects: dependencies.store.projectRepository,
+		...(dependencies.store.loadProject ? { loadCurrentProject: (id: string, signal?: AbortSignal) => dependencies.store.loadProject!(id, signal ? { signal } : {}) } : {}),
+		...(dependencies.store.saveProjectIfCurrentWithWriteFence ? { saveProjectIfCurrentWithWriteFence: (expected: ProjectDocument, project: ProjectDocument, token: string) => dependencies.store.saveProjectIfCurrentWithWriteFence!(expected, project, token) } : {}),
+		...(dependencies.getProjectWriteFence ? { getProjectWriteFence: dependencies.getProjectWriteFence } : {}),
+		...(dependencies.recordPersistedSnapshot ? { onDurableProjectPublished: dependencies.recordPersistedSnapshot } : {}),
 		sources: dependencies.store.sourceRepository,
 		rawPcmSpools: dependencies.store.rawPcmSpoolRepository,
 		recoveryRepository: dependencies.store.takeCycleRecoveryEnvelopeRepository,

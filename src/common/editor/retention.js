@@ -10,6 +10,7 @@ import {
 	isSoundscaperProductionProject,
 } from './project-schema-version.ts';
 import { collectTakeGroupSourceIds } from './take-group-source-references.ts';
+import { videoSourceCharacteristicsAreReported } from './video-source-characteristics.ts';
 
 const MAXIMUM_FRAMESCAPER_PROJECT_ASSET_ROOTS = 16_384;
 const SHA256 = /^[a-f0-9]{64}$/u;
@@ -42,6 +43,7 @@ export function collectProjectSourceIds(project, target = new Set()) {
 	}
 	collectTakeGroupSourceIds(project, target);
 	collectFeatureFallbackSourceIds(project, target);
+	collectReportedSourceCharacteristicsIds(project, target);
 	collectAssistanceAssetSourceIds(project, target);
 	if (isSoundscaperProductionProject(project)) collectAudioTrackFreezeSourceIds(project, target);
 	if (isSelectedFramescaperProjectSchema(project)) {
@@ -51,6 +53,14 @@ export function collectProjectSourceIds(project, target = new Set()) {
 		collectVisualGraphInputSourceIds(project, target);
 	}
 	return target;
+}
+
+/** Reported source metadata owns its media even without a timeline clip. */
+function collectReportedSourceCharacteristicsIds(project, target) {
+	for (const source of Array.isArray(project?.sources) ? project.sources : []) {
+		if (source?.kind === 'video' && typeof source.id === 'string' && source.id
+			&& videoSourceCharacteristicsAreReported(source.characteristics)) target.add(source.id);
+	}
 }
 
 /** Rendered fallbacks own render media that no clip in the document reaches. */

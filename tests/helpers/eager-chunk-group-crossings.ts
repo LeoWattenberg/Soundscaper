@@ -189,15 +189,11 @@ export const REACHABILITY_PLACED_TARGETS: ReadonlyMap<string, string> = new Map(
 		'desktop/bundled-vorbis-stream.ts',
 		'Bundled desktop Vorbis stream parser reached only through `browser-dedicated-audio-codec.ts` inside the dedicated audio worker entry.',
 	],
-	// The six leaves below became visible when the Framescaper command, clipboard and
+	// The leaves below became visible when the Framescaper command, clipboard and
 	// timeline-image groups were classified eager, which is what they are. Each is a shared
 	// leaf of the Framescaper bootstrap's own composition: `FRAMESCAPER_BOOTSTRAP_COMPOSITION_LEAVES`
 	// pins the property that makes their placement safe, so these reasons are measured
 	// rather than asserted.
-	[
-		'src/framescaper/editor-project-retime-runtime.ts',
-		'Retime runtime projection the finishing runtime and the eagerly composed retime export chain share; no dynamic import reaches it.',
-	],
 	[
 		'src/framescaper/editor-project-finishing-source-rebind.ts',
 		'Finishing half of the source rebind the timeline-image rebind extends, reached only from that eagerly composed module.',
@@ -226,7 +222,6 @@ export const REACHABILITY_PLACED_TARGETS: ReadonlyMap<string, string> = new Map(
  * a comment that used to be true.
  */
 export const FRAMESCAPER_BOOTSTRAP_COMPOSITION_LEAVES: readonly string[] = [
-	'src/framescaper/editor-project-retime-runtime.ts',
 	'src/framescaper/editor-project-finishing-source-rebind.ts',
 	'src/framescaper/editor-scape-asset-import-finishing.ts',
 	'src/framescaper/editor-scape-assets-finishing.ts',

@@ -4,12 +4,8 @@ import type { PlaybackProjectService } from '../common/editor/controller/source/
 import type { AudioEditorProjectStoreOptions } from '../common/editor/storage/project-store-options.ts';
 import type { ProjectDocument } from '../common/editor/storage/project-repository.ts';
 import { AudioEditorProjectStore } from '../common/editor/storage.js';
-import {
-	connectFramescaperDesktopProjectLibraryRenderer,
-	type FramescaperDesktopProjectLibraryRenderer,
-} from './desktop-project-library-renderer.ts';
-import { createFramescaperDesktopProjectStoreAdapter } from
-	'./desktop-project-library-store-adapter.ts';
+import type { FramescaperDesktopProjectLibraryRenderer } from
+	'./desktop-project-library-renderer.ts';
 import {
 	FramescaperProjectSequenceClaimCleanupRepository,
 	type FramescaperProjectSequenceClaimCleanupResult,
@@ -78,14 +74,20 @@ export async function createFramescaperEditorProjectEnvironment(
 		if (initialCleanup.status !== 'settled') {
 			throw new Error('Framescaper startup proxy-claim cleanup is indeterminate.');
 		}
-		const desktopProjectLibrary = await connectFramescaperDesktopProjectLibraryRenderer(
-			FRAMESCAPER_PROJECT_RUNTIME_PROFILE,
-			store,
-		);
-		const controllerStore = createFramescaperDesktopProjectStoreAdapter(
-			FRAMESCAPER_PROJECT_RUNTIME_PROFILE,
-			{ localStore: store, desktopProjectLibrary },
-		) as AudioEditorProjectStore;
+		const desktopProjectLibrary = Object.getOwnPropertyDescriptor(
+			globalThis, 'framescaperDesktop',
+		) ? await import('./desktop-project-library-renderer.ts').then(({ connectFramescaperDesktopProjectLibraryRenderer }) => (
+			connectFramescaperDesktopProjectLibraryRenderer(
+				FRAMESCAPER_PROJECT_RUNTIME_PROFILE,
+				store,
+			)
+		)) : null;
+		const controllerStore = desktopProjectLibrary
+			? (await import('./desktop-project-library-store-adapter.ts')).createFramescaperDesktopProjectStoreAdapter(
+				FRAMESCAPER_PROJECT_RUNTIME_PROFILE,
+				{ localStore: store, desktopProjectLibrary },
+			) as AudioEditorProjectStore
+			: store;
 		const videoProxyCleanup = createFramescaperVideoProxyCleanupCoordinatorRetime(
 			store,
 			controllerStore,

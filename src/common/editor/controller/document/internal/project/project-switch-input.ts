@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-function inputId(value: unknown): string | null {
+export function inputId(value: unknown): string | null {
 	if (typeof value !== 'object' || value === null) return null;
 	const descriptor = Object.getOwnPropertyDescriptor(value, 'id');
 	return descriptor && 'value' in descriptor && typeof descriptor.value === 'string'
@@ -22,10 +22,12 @@ export function prepareProjectSwitchHistory<
 	history: History | undefined,
 	createHistory: (input: Input) => History,
 	captureHistory: (id: string) => Capture | null,
+	replaceSessionHistory = false,
 ) {
 	const requestedId = inputId(input);
 	const existingCapture = requestedId === null ? null : captureHistory(requestedId);
-	const activationHistory = existingCapture?.history ?? (history ? structuredClone(history) : createHistory(input));
+	const activationHistory = !replaceSessionHistory && existingCapture
+		? existingCapture.history : history ? structuredClone(history) : createHistory(input);
 	const activationProject: History['present'] = activationHistory.present;
 	const projectId = activationProject.id;
 	if (requestedId !== null && projectId !== requestedId) {

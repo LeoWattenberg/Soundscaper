@@ -15,8 +15,12 @@ import type { SoundActivationPolicySnapshot } from '../recording/sound-activatio
 import type { TakeCyclePendingOpenRecovery } from '../recording/take-cycle-capture-orchestrator.ts';
 import type { FramescaperCaptureSessionSnapshot } from '../capture/framescaper-capture-session-types.ts';
 import type { FramescaperWebVcrUiSnapshot } from '../capture/framescaper-web-vcr-controller-types.ts';
+import { inheritTrackFolderMediaStateProjectionV12 } from '../../track-folder-media-runtime.ts';
 
 const VIDEO_PREVIEW_PROJECTS = new WeakMap<object, object>();
+const PUBLISHED_PROJECTS = new WeakMap<object, object>();
+const PUBLISHED_PREFERENCES = new WeakMap<object, object>();
+const PUBLISHED_PROJECT_LISTS = new WeakMap<object, object>();
 
 interface SnapshotSelection extends Readonly<Record<string, unknown>> {
 	readonly startFrame: number;
@@ -213,11 +217,14 @@ export function createEditorDocumentSnapshot<Project extends SnapshotProject>(
 	const currentTabMetadata = currentProject
 		? runtime.getCurrentTabMetadata(currentProject.id)
 		: {};
-	const videoPreviewProject = resolveVideoPreviewProject(runtime, currentProject);
-	const selection = currentProject?.selection
-		&& currentProject.selection.endFrame > currentProject.selection.startFrame
-		? currentProject.selection
+	const publishedProject = currentProject ? publishProjectView(currentProject) : null;
+	const previewProject = resolveVideoPreviewProject(runtime, currentProject);
+	const videoPreviewProject = previewProject ? publishProjectView(previewProject) : null;
+	const selection = publishedProject?.selection
+		&& publishedProject.selection.endFrame > publishedProject.selection.startFrame
+		? publishedProject.selection
 		: null;
+	const projects = publishStableValue(state.projects, PUBLISHED_PROJECT_LISTS);
 	const history = state.history;
 	return Object.freeze({
 		product: runtime.product,
@@ -227,14 +234,14 @@ export function createEditorDocumentSnapshot<Project extends SnapshotProject>(
 		phase: state.phase,
 		headless: true,
 		locale: runtime.locale,
-		project: currentProject,
+		project: publishedProject,
 		videoPreviewProject,
 		videoNavigation: runtime.getVideoNavigationSnapshot?.() ?? null,
 		capture: runtime.getFramescaperCaptureSnapshot?.() ?? null,
 		webVcr: runtime.getFramescaperWebVcrSnapshot?.() ?? null,
-		projects: state.projects,
+		projects,
 		recentProjects: Object.freeze(state.recentProjectIds
-			.map((projectId) => state.projects.find((candidate) => candidate.id === projectId))
+			.map((projectId) => projects.find((candidate) => candidate.id === projectId))
 			.filter((candidate): candidate is SnapshotProjectSummary => Boolean(candidate))),
 		projectTabs: Object.freeze(runtime.getProjectTabs().map((tab) => Object.freeze({
 			id: tab.projectId,
@@ -242,7 +249,7 @@ export function createEditorDocumentSnapshot<Project extends SnapshotProject>(
 			dirty: tab.dirty,
 			readOnly: tab.readOnly,
 		}))),
-		preferences: state.preferences,
+		preferences: publishStableValue(state.preferences, PUBLISHED_PREFERENCES),
 		preferencesReadOnly: state.preferencesReadOnly,
 		selectedTrackId: state.selectedTrackId,
 		selectedClipId: state.selectedClipId,
@@ -407,10 +414,29 @@ export function createEditorDocumentSnapshot<Project extends SnapshotProject>(
 	});
 }
 
+/** Replacement based state keeps one detached UI identity across unrelated publishes. */
+export function publishProjectView<Project extends object>(project: Project): Project {
+	const published = PUBLISHED_PROJECTS.get(project);
+	if (published) return published as Project;
+	const detached = materializeSnapshotValue(project, new WeakMap<object, object>(), true);
+	const trusted = inheritTrackFolderMediaStateProjectionV12(project, detached);
+	PUBLISHED_PROJECTS.set(project, trusted);
+	return trusted;
+}
+
+function publishStableValue<Value extends object>(value: Value, cache: WeakMap<object, object>): Value {
+	const published = cache.get(value);
+	if (published) return published as Value;
+	const detached = materializeSnapshotValue(value, new WeakMap<object, object>(), true);
+	cache.set(value, detached);
+	return detached;
+}
+
 /** Detach plain snapshot data from recursive read-only state proxies. */
 function materializeSnapshotValue<Value>(
 	value: Value,
 	seen = new WeakMap<object, object>(),
+	strict = false,
 ): Value {
 	if (value === null || typeof value !== 'object') return value;
 	const existing = seen.get(value);
@@ -418,31 +444,48 @@ function materializeSnapshotValue<Value>(
 	if (Array.isArray(value)) {
 		const copy: unknown[] = [];
 		seen.set(value, copy);
-		for (const entry of value) copy.push(materializeSnapshotValue(entry, seen));
+		for (const entry of value) copy.push(materializeSnapshotValue(entry, seen, strict));
 		return Object.freeze(copy) as Value;
 	}
 	if (value instanceof Map) {
 		const copy = new Map<unknown, unknown>();
 		seen.set(value, copy);
 		for (const [key, entry] of value) {
-			copy.set(materializeSnapshotValue(key, seen), materializeSnapshotValue(entry, seen));
+			copy.set(materializeSnapshotValue(key, seen, strict), materializeSnapshotValue(entry, seen, strict));
 		}
+		Object.defineProperties(copy, {
+			set: { value: rejectSnapshotMutation },
+			delete: { value: rejectSnapshotMutation },
+			clear: { value: rejectSnapshotMutation },
+		});
 		return Object.freeze(copy) as Value;
 	}
 	if (value instanceof Set) {
 		const copy = new Set<unknown>();
 		seen.set(value, copy);
-		for (const entry of value) copy.add(materializeSnapshotValue(entry, seen));
+		for (const entry of value) copy.add(materializeSnapshotValue(entry, seen, strict));
+		Object.defineProperties(copy, {
+			add: { value: rejectSnapshotMutation },
+			delete: { value: rejectSnapshotMutation },
+			clear: { value: rejectSnapshotMutation },
+		});
 		return Object.freeze(copy) as Value;
 	}
 	const prototype = Object.getPrototypeOf(value) as object | null;
-	if (prototype !== null && prototype !== Object.prototype) return value;
+	if (prototype !== null && prototype !== Object.prototype) {
+		if (strict) throw new TypeError('A published document contains a mutable non-plain value.');
+		return value;
+	}
 	const copy = Object.create(prototype) as Record<string, unknown>;
 	seen.set(value, copy);
 	for (const key of Object.keys(value)) {
-		copy[key] = materializeSnapshotValue((value as Record<string, unknown>)[key], seen);
+		copy[key] = materializeSnapshotValue((value as Record<string, unknown>)[key], seen, strict);
 	}
 	return Object.freeze(copy) as Value;
+}
+
+function rejectSnapshotMutation(): never {
+	throw new TypeError('Published snapshot collections are read-only.');
 }
 
 function lastSelectionEffectType(value: unknown): string | null {

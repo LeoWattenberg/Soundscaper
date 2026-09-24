@@ -78,6 +78,7 @@ function createFixture(
 			projectGeneration.activate(nextProject.id);
 			switched.push(nextProject.id);
 		},
+		flushProject: async () => undefined,
 		editingBlocked: () => false,
 		importScapeProject,
 		setStatus: (message) => { statuses.push(message); },
@@ -167,6 +168,42 @@ test('Scape open composes caller cancellation with task ownership and suppresses
 	assert.deepEqual(fixture.switched, []);
 	assert.equal(fixture.state.importing, false);
 	assert.equal(fixture.statuses.includes('Project saved.'), false);
+});
+
+test('late cancellation after Scape replacement publication adopts the committed same-ID document', async () => {
+	const caller = new AbortController();
+	const replacement = { ...project('active-project'), title: 'Committed replacement' };
+	const fixture = createFixture(async () => {
+		caller.abort(new DOMException('Cancelled after publication.', 'AbortError'));
+		return {
+			project: replacement, readOnly: false, manifest: {},
+			collision: 'replace', publicationCommitted: true,
+		};
+	});
+
+	const imported = await fixture.service.openScape(nativeFile('replacement.scape'), {
+		collision: 'replace', signal: caller.signal,
+	});
+
+	assert.equal(imported?.project, replacement);
+	assert.deepEqual(fixture.switched, ['active-project']);
+	assert.equal(fixture.statuses.includes('Project saved.'), true);
+});
+
+test('committed Scape replacement does not reactivate over a newer project', async () => {
+	const imported = deferred<ScapeImportResult>();
+	const fixture = createFixture(() => imported.promise);
+	const opening = fixture.service.openScape(nativeFile('replacement.scape'), { collision: 'replace' });
+	fixture.activateProject('new-active-project');
+	imported.resolve({
+		project: { ...project('active-project'), title: 'Committed replacement' },
+		readOnly: false, manifest: {}, collision: 'replace', publicationCommitted: true,
+	});
+
+	await assert.rejects(opening, (error: unknown) => (
+		error instanceof Error && error.name === 'AbortError'
+	));
+	assert.deepEqual(fixture.switched, []);
 });
 
 test('an already-aborted Scape caller rejects before archive import', async () => {

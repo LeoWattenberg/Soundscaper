@@ -1,8 +1,8 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 // @ts-check
 
-import { resolve } from 'node:path';
 import ts from 'typescript';
+import { createProductSubstitutionResolver } from './product-aliases.mjs';
 
 /**
  * Resolve the compiler's actual consumer graph through the same ordered table
@@ -10,17 +10,18 @@ import ts from 'typescript';
  * than just the presence of export names on an otherwise unconsumed adapter.
  *
  * @param {import('typescript').CompilerOptions} options
- * @param {{repositoryRoot: string, aliases: readonly {find: RegExp, standIn: string}[]}} composition
+ * @param {{repositoryRoot: string, aliases: readonly {sourcePaths: readonly string[], standIn: string}[]}} composition
  * @returns {import('typescript').CompilerHost}
  */
 export function createProductCompilerHost(options, { repositoryRoot, aliases }) {
 	const host = ts.createCompilerHost(options);
 	const cache = ts.createModuleResolutionCache(repositoryRoot, host.getCanonicalFileName, options);
+	const resolveSubstitution = createProductSubstitutionResolver(repositoryRoot, aliases);
 	host.resolveModuleNameLiterals = (literals, containingFile, redirectedReference, compilerOptions) => (
 		literals.map((literal) => {
-			const alias = aliases.find((row) => row.find.test(literal.text));
+			const substitution = resolveSubstitution(literal.text, containingFile);
 			return ts.resolveModuleName(
-				alias ? resolve(repositoryRoot, alias.standIn) : literal.text,
+				substitution ?? literal.text,
 				containingFile, compilerOptions, host, cache, redirectedReference,
 			);
 		})

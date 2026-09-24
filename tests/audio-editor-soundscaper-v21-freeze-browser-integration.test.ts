@@ -3,10 +3,10 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import type { AudioTrackFreezeCoordinatorCommandV21 } from '../src/common/editor/audio-track-freeze-coordinator-v21.ts';
+import { publishProjectView } from '../src/common/editor/controller/document/document-snapshot.ts';
 import type { EngineRenderMixOptions } from '../src/common/editor/engine/public-api.ts';
 import {
-	createAudioClip,
-	createAudioSource,
+	createAudioClip, createAudioSource,
 	createAudioTrack,
 } from '../src/common/editor/project-media-factory.ts';
 import type { StorageRecord } from '../src/common/editor/storage/media-records.ts';
@@ -25,7 +25,7 @@ import { createSoundscaperProject, type SoundscaperProject } from '../src/sounds
 
 const NOW = '2026-08-14T12:00:00.000Z';
 
-test('browser freeze actions render, persist, activate, refresh, unfreeze, and commit exact V21 state', async () => {
+test('browser freeze actions accept detached controller snapshots through render, refresh, unfreeze, and commit', async () => {
 	const store = new MemoryFreezeStore();
 	store.seed('pcm:voice', [Float32Array.from({ length: 8 }, (_, index) => index / 8)]);
 	const playback = createSoundscaperAudioTrackFreezePlaybackService(
@@ -39,7 +39,7 @@ test('browser freeze actions render, persist, activate, refresh, unfreeze, and c
 	let current = projectFixture(liveSourceSha256);
 	const renderCalls: Array<Readonly<{ project: Record<string, unknown>; options: EngineRenderMixOptions }>> = [];
 	const controller = {
-		get project() { return current; },
+		get project() { return publishProjectView(current); },
 		actions: {
 			edit: {
 				commit(command: AudioTrackFreezeCoordinatorCommandV21) {

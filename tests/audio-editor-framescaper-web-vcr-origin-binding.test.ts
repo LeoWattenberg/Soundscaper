@@ -42,7 +42,7 @@ test('Web VCR keeps the clicked project and playhead protected across a backgrou
 		setActiveHistory(value: FramescaperCaptureAppHistory) { activeHistory = value; },
 		synchronizeProject() {}, assertProjectWritable() {},
 		async acquireProjectWriteAuthority() {
-			return { assertCurrent() {}, async release() {} };
+			return { writeFence: 'test-fence', assertCurrent() {}, async release() {} };
 		},
 		prepareCaptureStart() {},
 		desktopBridge: desktopBridge(),
@@ -143,6 +143,14 @@ function desktopStore(...projects: readonly FramescaperCaptureAppProject[]) {
 	return {
 		async loadProject(id: string) { return byId.get(id) ?? null; },
 		async saveProject(value: FramescaperCaptureAppProject) { byId.set(value.id, value); return value; },
+		async saveProjectIfCurrentWithWriteFence(
+			expected: FramescaperCaptureAppProject, value: FramescaperCaptureAppProject, token: string,
+		) {
+			assert.equal(token, 'test-fence');
+			if (JSON.stringify(byId.get(expected.id)) !== JSON.stringify(expected)) return null;
+			byId.set(value.id, value);
+			return value;
+		},
 		async listProjects() { return projects; },
 		framescaperCaptureManifestRepository: {
 			async create(value: unknown) { return value; }, async load() { return null; },

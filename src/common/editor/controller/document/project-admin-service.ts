@@ -133,11 +133,29 @@ export function createProjectAdminService<
 				inactiveCloseReservation = sessionController.beginProjectActivation(projectId, {
 					expectedHistoryToken: historyCapture.token,
 				});
-				await store.saveProject(historyCapture.history.present, {
-					protectedLinkedOriginalSourceReferences: Object.freeze([
-						...liveSessionLinkedOriginalSourceReferences(),
-					]),
-				});
+				const saveOptions = { protectedLinkedOriginalSourceReferences: Object.freeze([
+					...liveSessionLinkedOriginalSourceReferences(),
+				]) };
+				if (runtime.acquireInactiveProjectLock && store.saveProjectIfCurrentWithWriteFence) {
+					const lock = await runtime.acquireInactiveProjectLock(projectId);
+					try {
+						const expected = projectSaveService.getPersistedSnapshot?.(projectId);
+						if (lock.readOnly || !lock.writeFence || !expected) {
+							throw createLocalizedError(Error, copy, 'projectReadOnly');
+						}
+						const saved = await store.saveProjectIfCurrentWithWriteFence(
+							expected, historyCapture.history.present, lock.writeFence, saveOptions,
+						);
+						if (saved === null) throw createLocalizedError(Error, copy, 'projectReadOnly');
+						if (!saved || typeof saved !== 'object' || (saved as { id?: unknown }).id !== projectId) {
+							throw new Error('Project storage returned an invalid saved snapshot.');
+						}
+						projectSaveService.recordPersistedSnapshot?.(saved as Project);
+					} finally {
+						lock.release();
+						await Promise.resolve(lock.finished).catch(() => undefined);
+					}
+				} else await store.saveProject(historyCapture.history.present, saveOptions);
 				sessionController.markProjectSaved(projectId);
 			}
 			interlock?.assertCurrent();
@@ -145,6 +163,7 @@ export function createProjectAdminService<
 			inactiveCloseReservation = null;
 			const result = sessionController.closeProject(projectId, { force: true });
 			if (!result.closed) return result;
+			projectSaveService.forgetPersistedSnapshot?.(projectId);
 			if (active) state.projects = Object.freeze(await store.listProjects());
 			clipTimePitchCache.retainClipIds?.(liveSessionClipIds());
 			evictUnreferencedSourceCaches(sourceBuffers, sourcePeaks, liveSessionSourceIds());
@@ -245,6 +264,7 @@ export function createProjectAdminService<
 			try {
 				const result = sessionController.closeProject(id, { force: true });
 				if (result?.closed === false) throw new Error('The deleted project session could not be closed.');
+				projectSaveService.forgetPersistedSnapshot?.(id);
 			} catch (error) {
 				failures.push(error);
 			}
@@ -376,6 +396,7 @@ export function createProjectAdminService<
 			sessionController.clearClipboard();
 			for (const tab of [...sessionController.getSnapshot().tabs]) {
 				sessionController.closeProject(tab.projectId, { force: true });
+				projectSaveService.forgetPersistedSnapshot?.(tab.projectId);
 			}
 			state.selectedAnnotationId = null;
 			await newProject({ skipFlush: true });

@@ -26,6 +26,15 @@ export function installChunkStreamWorker(scope = globalThis) {
 	let nextStorageRequest = 1;
 
 	const post = (message, transfer = []) => scope.postMessage(message, transfer);
+	const postPacket = (stream, message, transfer = []) => (
+		stream.packetPort ? stream.packetPort.postMessage(message, transfer) : post(message, transfer)
+	);
+	const releasePacketPort = (stream) => {
+		if (!stream.packetPort) return;
+		stream.packetPort.onmessage = null;
+		stream.packetPort.close?.();
+		stream.packetPort = null;
+	};
 
 	const fail = (stream, error) => {
 		if (!stream || !streams.has(stream.id)) return;
@@ -34,6 +43,7 @@ export function installChunkStreamWorker(scope = globalThis) {
 		stream.storageChannels = null;
 		stream.pendingOutputChannels = null;
 		stream.inFlight.clear();
+		releasePacketPort(stream);
 		post({ type: 'stream-error', streamId: stream.id, error: serializeChunkStreamError(error) });
 	};
 
@@ -41,6 +51,7 @@ export function installChunkStreamWorker(scope = globalThis) {
 		if (!stream.productionEnded || stream.inFlight.size || stream.cancelled) return;
 		streams.delete(stream.id);
 		stream.storageChannels = null;
+		releasePacketPort(stream);
 		post({ type: 'stream-complete', streamId: stream.id, frames: stream.endFrame - stream.startFrame });
 	};
 
@@ -50,7 +61,7 @@ export function installChunkStreamWorker(scope = globalThis) {
 		stream.storageChannels = null;
 		stream.pendingOutputChannels = null;
 		stream.storageChunkIndex = null;
-		post({
+		postPacket(stream, {
 			type: 'source-ended',
 			streamId: stream.id,
 			endFrame: stream.endFrame,
@@ -65,7 +76,7 @@ export function installChunkStreamWorker(scope = globalThis) {
 		const frameStart = stream.nextFrame;
 		stream.inFlight.add(packetId);
 		stream.nextFrame += frames;
-		post({
+		postPacket(stream, {
 			type: 'audio-packet',
 			streamId: stream.id,
 			packetId,
@@ -256,7 +267,21 @@ export function installChunkStreamWorker(scope = globalThis) {
 			started: false,
 			productionEnded: false,
 			cancelled: false,
+			packetPort: message.packetPort || null,
 		};
+		if (stream.packetPort) {
+			if (typeof stream.packetPort.postMessage !== 'function') {
+				throw createChunkStreamError('INVALID_PACKET_PORT', 'A MessagePort is required for packet delivery.');
+			}
+			stream.packetPort.onmessage = (event) => {
+				const packetMessage = event.data;
+				if (packetMessage?.type !== 'packet-consumed' || packetMessage.streamId !== id) return;
+				if (!stream.inFlight.delete(packetMessage.packetId)) return;
+				completeIfDrained(stream);
+				pump(stream);
+			};
+			stream.packetPort.start?.();
+		}
 		streams.set(id, stream);
 		post({
 			type: 'stream-ready',
@@ -301,6 +326,7 @@ export function installChunkStreamWorker(scope = globalThis) {
 		stream.storageChannels = null;
 		stream.pendingOutputChannels = null;
 		stream.inFlight.clear();
+		releasePacketPort(stream);
 		post({ type: 'stream-cancelled', streamId: stream.id, reason: String(reason || 'cancelled') });
 	};
 
@@ -310,7 +336,18 @@ export function installChunkStreamWorker(scope = globalThis) {
 		let stream = null;
 		try {
 			if (message.type === 'open-stream') {
-				open(message);
+				const prior = streams.get(message.streamId);
+				try { open(message); }
+				catch (error) {
+					const opened = streams.get(message.streamId);
+					if (opened && opened !== prior) {
+						streams.delete(opened.id);
+						try { releasePacketPort(opened); } catch {}
+					} else if (message.packetPort && message.packetPort !== prior?.packetPort) {
+						try { message.packetPort.onmessage = null; message.packetPort.close?.(); } catch {}
+					}
+					throw error;
+				}
 				return;
 			}
 			const id = normalizeStreamId(message.streamId);

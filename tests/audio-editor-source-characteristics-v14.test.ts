@@ -215,6 +215,7 @@ test('a current .scape round trip preserves probed characteristics byte-exactly'
 	const imported = await importBaselineScapeProject(exported.blob, targetStore);
 	assert.equal(imported.readOnly, false);
 	assert.equal(JSON.stringify(imported.project), JSON.stringify(project));
+	assert.equal(JSON.stringify(await targetStore.loadProject(project.id)), JSON.stringify(project));
 	assert.deepEqual(persistedCharacteristics(imported.project), REPORTED);
 	await sourceStore.close();
 	await targetStore.close();

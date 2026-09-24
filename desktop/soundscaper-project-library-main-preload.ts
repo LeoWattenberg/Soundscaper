@@ -24,6 +24,7 @@ import {
 	validateSoundscaperDesktopProjectLibraryPublicationChunkRequest,
 	validateSoundscaperDesktopProjectLibraryPublicationCompletionRequest,
 	validateSoundscaperDesktopProjectLibraryPublicationResult,
+	validateSoundscaperDesktopProjectWriteFenceCheckRequest,
 	type SoundscaperDesktopProjectLibraryPublicationAdmission,
 	type SoundscaperDesktopProjectLibraryPublicationChunkAcknowledgement,
 } from './soundscaper-project-library-publication-transport.ts';
@@ -54,6 +55,8 @@ export interface SoundscaperDesktopProjectLibraryMainPreloadBridge {
 	connect(): Promise<Readonly<SoundscaperDesktopProjectLibraryHandshake>>;
 	handshakeState(): SoundscaperDesktopProjectLibraryMainPreloadHandshakeState;
 	listProjects(): Promise<Readonly<SoundscaperDesktopProjectLibraryCatalogSnapshot>>;
+	claimProjectWriteFence(projectId: string): Promise<string>;
+	checkProjectWriteFence(value: unknown): Promise<boolean>;
 	readProjectBundle(
 		projectId: string,
 	): Promise<Readonly<SoundscaperDesktopProjectLibraryTransferBundle> | null>;
@@ -116,6 +119,22 @@ export function createSoundscaperDesktopProjectLibraryMainPreloadBridge(
 			return validateSoundscaperDesktopProjectLibraryCatalogSnapshot(await invoke(
 				SOUNDSCAPER_DESKTOP_PROJECT_LIBRARY_MAIN_CHANNELS.listProjects,
 			));
+		},
+		async claimProjectWriteFence(projectIdValue: string): Promise<string> {
+			assertOperational();
+			const projectId = validateSoundscaperDesktopProjectLibraryProjectId(projectIdValue);
+			const token = await invoke(SOUNDSCAPER_DESKTOP_PROJECT_LIBRARY_MAIN_CHANNELS.claimProjectWriteFence, projectId);
+			if (typeof token !== 'string' || !/^[a-f0-9]{48}$/u.test(token)) {
+				throw new TypeError('Soundscaper desktop main returned an invalid write fence');
+			}
+			return token;
+		},
+		async checkProjectWriteFence(value: unknown): Promise<boolean> {
+			assertOperational();
+			const request = validateSoundscaperDesktopProjectWriteFenceCheckRequest(value);
+			const result = await invoke(SOUNDSCAPER_DESKTOP_PROJECT_LIBRARY_MAIN_CHANNELS.checkProjectWriteFence, request);
+			if (typeof result !== 'boolean') throw new TypeError('Soundscaper desktop write fence check changed type');
+			return result;
 		},
 		async readProjectBundle(projectIdValue: string) {
 			assertOperational();

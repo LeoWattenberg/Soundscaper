@@ -20,6 +20,7 @@ import {
 	createFramescaperVideoProxyPreviewMediaResolverRetime,
 	createFramescaperVideoProxyPreviewMediaResolverTimelineImage,
 	FramescaperVideoProxyPreviewUnavailableError,
+	sameFramescaperVideoProxyAttachment,
 	type FramescaperVideoProxyPreviewMediaOptionsRetime,
 	type FramescaperVideoProxyPreviewMediaResolverRetime,
 } from '../src/framescaper/editor-video-proxy-preview-media-retime.ts';
@@ -112,6 +113,7 @@ interface HarnessSetup {
 
 interface HarnessState {
 	project: unknown;
+	publishedView: unknown | null;
 	onLoad: ((storageKey: string) => void) | null;
 	pressureCalls: number;
 	readonly loads: string[];
@@ -129,6 +131,7 @@ interface PreviewHarness {
 		source: Data;
 		sourceTimingIndex: VideoTimingIndex | null;
 		signal?: AbortSignal;
+		assertCurrent(): void;
 	};
 	resolve(): ReturnType<FramescaperVideoProxyPreviewMediaResolverRetime>;
 }
@@ -141,7 +144,7 @@ function harness(setup: Partial<HarnessSetup> = {}): PreviewHarness {
 	const stored = setup.bodies ?? bodies();
 	const linked = setup.linked;
 	const state: HarnessState = {
-		project, onLoad: null, pressureCalls: 0,
+		project, publishedView: null, onLoad: null, pressureCalls: 0,
 		loads: [], loadSignals: [], originalLoads: [], originalSignals: [], trust: [], modeIds: [],
 	};
 	const options: FramescaperVideoProxyPreviewMediaOptionsRetime = {
@@ -162,7 +165,7 @@ function harness(setup: Partial<HarnessSetup> = {}): PreviewHarness {
 			},
 			...(linked ? { resolveLinkedVideoOriginal: async () => linked() } : {}),
 		},
-		getProject: () => state.project,
+		getProject: () => state.publishedView ?? state.project,
 		getMode: (sourceId) => {
 			state.modeIds.push(sourceId);
 			return setup.mode ?? 'auto';
@@ -176,6 +179,11 @@ function harness(setup: Partial<HarnessSetup> = {}): PreviewHarness {
 	};
 	const request: PreviewHarness['request'] = {
 		project, source, sourceTimingIndex: setup.sourceTimingIndex ?? null,
+		assertCurrent: () => {
+			if (state.project !== project) {
+				throw new DOMException('The Framescaper proxy preview project changed.', 'AbortError');
+			}
+		},
 		...(setup.signal ? { signal: setup.signal } : {}),
 	};
 	const resolve = createFramescaperVideoProxyPreviewMediaResolverRetime(options);
@@ -208,6 +216,21 @@ test('a verified attachment resolves to a frozen proxy body in forced proxy mode
 	assert.deepEqual(rig.state.originalSignals, [undefined]);
 	assert.deepEqual(rig.state.modeIds, ['source-1']);
 	assert.deepEqual(rig.state.trust, ['unverified', 'verified']);
+});
+
+test('a detached published project view retains the captured live project generation', async () => {
+	const rig = harness({ mode: 'proxy' });
+	rig.state.publishedView = Object.freeze(structuredClone(rig.request.project));
+	assert.notEqual(rig.state.publishedView, rig.request.project);
+	assert.equal((await rig.resolve())?.mediaKind, 'proxy');
+	assert.deepEqual(rig.state.trust, ['unverified', 'verified']);
+});
+
+test('proxy trust follows an exact detached attachment and refuses a changed binding', () => {
+	const current = attachment();
+	assert.equal(sameFramescaperVideoProxyAttachment(current, structuredClone(current)), true);
+	assert.equal(sameFramescaperVideoProxyAttachment(current, attachment({ sha256: 'c'.repeat(64) })), false);
+	assert.equal(sameFramescaperVideoProxyAttachment(current, null), false);
 });
 
 test('auto mode keeps an available original and never reads a proxy body', async () => {

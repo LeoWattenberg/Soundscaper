@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { EDITOR_PROJECT_TASK_SCOPE, type EditorLifetimeToken } from '../shared/lifecycle.ts'; import { publishedCopyFor } from '../shared/presentation-localization.ts'; import { setLocalizedStatus } from '../../../i18n/presentation-message.ts'; import { publishProjectReadOnlyStatus } from './project-read-only-status.ts';
-import { isActiveProjectSwitchInput, prepareProjectSwitchHistory } from './internal/project/project-switch-input.ts';
+import { inputId, isActiveProjectSwitchInput, prepareProjectSwitchHistory } from './internal/project/project-switch-input.ts'; import { verifyProjectSwitchStorageCurrent } from './internal/project/project-switch-storage-currentness.ts';
 import { createPlaybackProjectService } from '../source/playback-project-service.ts';
 import { SCAPE_OPEN_REQUEST_TASK } from './scape-open-request-service.ts';
 import { SCAPE_INSPECTION_TASK } from './internal/scape/scape-inspection-service.ts';
@@ -25,7 +25,6 @@ export type {
 	ProjectSwitchSession,
 	ProjectSwitchState,
 } from './project-switch-service-types.ts';
-
 const NO_PROJECT_SWITCH_FAILURE = Symbol('no-project-switch-failure');
 
 /**
@@ -75,7 +74,9 @@ export function createProjectSwitchService<
 			: loaded.reason === 'proxy-attached'
 				? runtime.copy.projectReadOnly
 				: runtime.copy.futureProjectReadOnly;
-		await switchProject(loaded.project, { readOnly, readOnlyReason });
+		const id = inputId(loaded.project);
+		const save = !readOnly && id !== null && Boolean(runtime.createProjectIfAbsent && await runtime.isProjectAbsent?.(id));
+		await switchProject(loaded.project, { readOnly, readOnlyReason, save });
 	}
 
 	function beginScapeInspectionFence(preserveOpenRequest = false): ScapeInspectionFence {
@@ -139,9 +140,13 @@ export function createProjectSwitchService<
 		if (options.adoptSessionRevision !== true
 			&& isActiveProjectSwitchInput(nextProject, readyProjectId, runtime.getProject()?.id)) return;
 		const guard = <Value>(value: PromiseLike<Value> | Value) => runtime.lifetime.guard(value, token);
+		if (options.replaceSessionHistory && options.adoptSessionRevision !== true) {
+			throw new TypeError('Replacing an open session history requires explicit revision adoption.');
+		}
 		const { projectId, existingCapture, activationHistory, activationProject } = prepareProjectSwitchHistory(
 			nextProject, options.history, runtime.createHistory,
 			(id) => runtime.sessionTab(id) ? runtime.session.captureProjectHistory(id) : null,
+			options.replaceSessionHistory === true,
 		);
 		const fallbackAdmission = await guard(runtime.verifyProjectFallbackIntegrity(activationProject, {
 			signal: runtime.lifetime.signal,
@@ -186,6 +191,7 @@ export function createProjectSwitchService<
 		let providerReplacement: SourceChunkProviderReplacement | null = null;
 		let providerReplacementFinalized = false;
 		let playbackActivationComplete = false;
+		let initialPublicationConflict = false;
 		// The session call's successful return is the activation authority boundary.
 		let targetSessionActivated = false;
 		let activeLock: ProjectLifecycleLock | null = null;
@@ -236,7 +242,7 @@ export function createProjectSwitchService<
 			if (!activeLock) throw new Error('Project activation requires an acquired project lock.');
 			const activationLock = activeLock;
 			runtime.watchProjectLockLoss(projectId, activationLock);
-			const lockReadOnly = Boolean(activationLock.readOnly);
+			const lockReadOnly = activationLock.readOnly || !await guard(verifyProjectSwitchStorageCurrent(runtime, projectId, activationProject, Boolean(existingCapture), options));
 			const existingMetadata = existingCapture ? runtime.sessionTab(projectId)?.metadata || {} : {};
 			const retainStoredReadOnly = existingCapture != null || options.readOnly == null;
 			const declaredReadOnly = retainStoredReadOnly
@@ -253,40 +259,34 @@ export function createProjectSwitchService<
 			const intrinsicReadOnlyReason = declaredReadOnlyReason
 				?? (featureRequirementsReadOnly ? runtime.copy.projectReadOnly : null);
 			runtime.state.readOnly = Boolean(intrinsicReadOnly || lockReadOnly);
+			const featureMetadata = {
+				declaredReadOnly, declaredReadOnlyReason, intrinsicReadOnly, intrinsicReadOnlyReason,
+				featureRequirementsReadOnly, featureRequirementsReport,
+				featureRequirementsAudioEffectPlaybackBypass: playbackAdmission.audioEffectPlaybackBypass,
+				featureRequirementsAudioRenderedFallback: playbackAdmission.audioRenderedFallback,
+				featureRequirementsVideoEffectPlaybackBypass: playbackAdmission.videoEffectPlaybackBypass,
+				featureRequirementsVideoRenderedFallback: playbackAdmission.videoRenderedFallback,
+			};
 			if (existingCapture) {
 				runtime.session.switchProject(projectId, { activationToken: activation.token });
+				targetSessionActivated = true;
+				if (options.replaceSessionHistory) {
+					if (!runtime.session.installCommittedProjectHistory) throw new Error('Session history installation is unavailable.');
+					runtime.session.installCommittedProjectHistory(projectId, activationHistory, {
+						activationToken: activation.token, expectedHistoryToken: existingCapture.token,
+						readOnly: runtime.state.readOnly, dirty: false,
+					});
+				}
 			} else runtime.session.openProject(activationProject, {
 				activationToken: activation.token,
 				history: activationHistory,
 				readOnly: runtime.state.readOnly,
 				readOnlyReason: lockReadOnly ? 'project-lock' : intrinsicReadOnlyReason,
 				lockMethod: activationLock.method,
-				metadata: {
-					declaredReadOnly,
-					declaredReadOnlyReason,
-					intrinsicReadOnly,
-					intrinsicReadOnlyReason,
-					featureRequirementsReadOnly,
-					featureRequirementsReport,
-					featureRequirementsAudioEffectPlaybackBypass: playbackAdmission.audioEffectPlaybackBypass,
-					featureRequirementsAudioRenderedFallback: playbackAdmission.audioRenderedFallback,
-					featureRequirementsVideoEffectPlaybackBypass: playbackAdmission.videoEffectPlaybackBypass,
-					featureRequirementsVideoRenderedFallback: playbackAdmission.videoRenderedFallback,
-				},
+				metadata: featureMetadata,
 			});
 			targetSessionActivated = true;
-			runtime.session.updateProjectMetadata(projectId, {
-				declaredReadOnly,
-				declaredReadOnlyReason,
-				intrinsicReadOnly,
-				intrinsicReadOnlyReason,
-				featureRequirementsReadOnly,
-				featureRequirementsReport,
-				featureRequirementsAudioEffectPlaybackBypass: playbackAdmission.audioEffectPlaybackBypass,
-				featureRequirementsAudioRenderedFallback: playbackAdmission.audioRenderedFallback,
-				featureRequirementsVideoEffectPlaybackBypass: playbackAdmission.videoEffectPlaybackBypass,
-				featureRequirementsVideoRenderedFallback: playbackAdmission.videoRenderedFallback,
-			});
+			runtime.session.updateProjectMetadata(projectId, featureMetadata);
 			runtime.session.setProjectReadOnly(projectId, {
 				readOnly: runtime.state.readOnly,
 				reason: lockReadOnly ? 'project-lock' : intrinsicReadOnlyReason,
@@ -340,19 +340,20 @@ export function createProjectSwitchService<
 			await providerReplacement.commit();
 			runtime.lifetime.assertActive(token);
 			fallbackAdmission.assertCurrent(activeProject);
-			playbackActivationComplete = true;
 			await guard(openRecovery.deferRecordOpened(() => runtime.recordOpenedProject(projectId, guard)));
+			playbackActivationComplete = true;
 			if (options.save && !runtime.state.readOnly) {
 				await guard(openRecovery.deferInitialSave(async () => {
 					const currentProject = runtime.getProject();
 					if (!currentProject || currentProject.id !== projectId) throw new Error('Deferred project save belongs to a stale project.');
 					if (runtime.createProjectIfAbsent) {
 						const created = await guard(runtime.createProjectIfAbsent(currentProject));
-						if (created === null) throw new Error('The project already exists at create-only publication.');
+						if (created === null) { initialPublicationConflict = true; throw new Error('The project already exists at create-only publication.'); }
 					} else await guard(runtime.saveProject(currentProject));
 					runtime.session.markProjectSaved(projectId);
 				}));
 			}
+			if (!existingCapture || options.adoptSessionRevision === true && !lockReadOnly) await guard(runtime.recordPersistedSnapshot?.(activeProject));
 			runtime.state.saveState = runtime.sessionTab(activeProject.id)?.dirty ? 'dirty' : 'saved';
 			runtime.state.projects = Object.freeze(await guard(runtime.listProjects()));
 			runtime.synchronizeMicrophoneMeterTarget();
@@ -392,8 +393,7 @@ export function createProjectSwitchService<
 					return false;
 				}
 			};
-			const failedTarget = targetSessionActivated
-				&& !playbackActivationComplete && readyProjectId !== projectId;
+			const failedTarget = targetSessionActivated && (!playbackActivationComplete || initialPublicationConflict) && readyProjectId !== projectId;
 			const lifetimeDisposed = () => runtime.isDisposedError(error)
 				|| runtime.lifetime.signal.aborted;
 			const canPublishFailedTarget = () => failedTarget && !lifetimeDisposed();
@@ -484,6 +484,7 @@ export function createProjectSwitchService<
 				await cleanup(() => runtime.publishProjectState(),
 					'Project switching and failed-target publication both failed.');
 			}
+			if (initialPublicationConflict) await cleanup(() => runtime.releaseProjectLock(), 'Failed to release lock after create-only collision.');
 			if (lifetimeDisposed()) {
 				await runtime.releaseProjectLock().catch(() => undefined);
 				try {
@@ -538,7 +539,6 @@ export function createProjectSwitchService<
 		runtime.state.analysisProcessing = false;
 		runtime.state.contrastSelections = { foreground: null, background: null };
 	}
-
 	async function discardLock(lock: ProjectLifecycleLock): Promise<void> {
 		lock.release();
 		await Promise.resolve(lock.finished).catch(() => undefined);

@@ -1,7 +1,5 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { mixToMono } from '../../source/waveform-analysis.ts';
-
 export interface EditorAnalysisVisuals {
 	readonly spectrum: Readonly<{
 		readonly samples: Float32Array;
@@ -22,7 +20,7 @@ export function createEditorAnalysisVisuals(
 	const length = channels[0]?.length || 0;
 	const spectrumFrames = Math.min(length, 16_384);
 	const spectrumStart = Math.max(0, Math.floor((length - spectrumFrames) / 2));
-	const spectrum = mixToMono(channels.map((channel) => (
+	const spectrum = mixChannelsToMono(channels.map((channel) => (
 		channel.subarray(spectrumStart, spectrumStart + spectrumFrames)
 	)));
 	const step = Math.max(1, Math.ceil(length / 131_072));
@@ -35,4 +33,13 @@ export function createEditorAnalysisVisuals(
 		spectrum: Object.freeze({ samples: spectrum, sampleRate, startFrame: spectrumStart }),
 		overview: Object.freeze({ samples: overview, sampleRate: sampleRate / step, step }),
 	});
+}
+
+function mixChannelsToMono(channels: readonly Float32Array[]): Float32Array {
+	const length = channels[0]?.length ?? 0;
+	const mono = new Float32Array(length);
+	for (const channel of channels) {
+		for (let index = 0; index < length; index += 1) mono[index] += channel[index]! / channels.length;
+	}
+	return mono;
 }

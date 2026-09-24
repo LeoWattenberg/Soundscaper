@@ -85,6 +85,34 @@ test('Soundscaper desktop conditional saves publish and compare against main aut
 		}), false);
 		assert.deepEqual(await store.loadProject(PROJECT_ID), shadowBeforeRefusedRestore);
 		assert.deepEqual(await authoritativeProject(session, PROJECT_ID), concurrent);
+		const oldFence = await adapter.claimProjectWriteFence(PROJECT_ID);
+		const currentFence = await adapter.claimProjectWriteFence(PROJECT_ID);
+		const fenced = advance(concurrent, 3, 'Fenced', '2026-08-30T10:04:00.000Z');
+		assert.notEqual(oldFence, currentFence);
+		assert.equal(await adapter.saveProjectIfCurrentWithWriteFence(concurrent, concurrent, oldFence), null);
+		assert.deepEqual(await adapter.saveProjectIfCurrentWithWriteFence(
+			concurrent, concurrent, currentFence,
+		), concurrent);
+		assert.equal(await adapter.saveProjectIfCurrentWithWriteFence(concurrent, fenced, oldFence), null,
+			'a newer main claim invalidates a token before any successor save');
+		assert.deepEqual(await authoritativeProject(session, PROJECT_ID), concurrent);
+		assert.deepEqual(await adapter.saveProjectIfCurrentWithWriteFence(concurrent, fenced, currentFence), fenced);
+		assert.deepEqual(await authoritativeProject(session, PROJECT_ID), fenced);
+		const bundle = await session.readProjectBundle(PROJECT_ID);
+		assert.ok(bundle);
+		await assert.rejects(session.beginPublication({
+			publicationId: '22'.repeat(24),
+			expectedMetadataRevision: bundle.metadataRevision,
+			expectedProject: {
+				projectRevision: bundle.project.projectRevision,
+				projectSha256: bundle.project.sha256,
+			},
+			project: advance(fenced, 4, 'Wrong expected', '2026-08-30T10:05:00.000Z'),
+			bodies: [],
+			writeFence: currentFence,
+			expectedDocument: { ...fenced, title: 'Not current' },
+		}), /write-fence/u);
+		assert.deepEqual(await authoritativeProject(session, PROJECT_ID), fenced);
 	} finally {
 		if (priorDesktop) Object.defineProperty(globalThis, 'soundscaperProjectLibraryDesktop', priorDesktop);
 		else Reflect.deleteProperty(globalThis, 'soundscaperProjectLibraryDesktop');
@@ -106,6 +134,8 @@ function soundscaperBridge(
 		connect: async () => handshake,
 		handshakeState: () => 'admitted',
 		listProjects: () => session.listProjects(),
+		claimProjectWriteFence: (projectId: string) => session.claimProjectWriteFence(projectId),
+		checkProjectWriteFence: (request: unknown) => session.checkProjectWriteFence(request),
 		readProjectBundle: (projectId: string) => session.readProjectBundle(projectId),
 		readBodyChunk: (request: unknown) => session.readBodyChunk(request),
 		beginPublication: (request: unknown) => session.beginPublication(request),

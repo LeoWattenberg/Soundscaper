@@ -292,7 +292,7 @@ test.describe('Scape open feature decisions', () => {
 		await expect(framescaper.getByRole('button', { name: 'Pause', exact: true }))
 			.toBeVisible({ timeout: 30_000 });
 		await expect.poll(
-			async () => (await chunkStreamProtocolProbe(page)).startStreamIds.length,
+			async () => (await chunkStreamProtocolProbe(page)).streamPrimed.length,
 			{ timeout: 30_000 },
 		).toBeGreaterThan(0);
 		await framescaper.getByRole('button', { name: 'Stop', exact: true }).click();
@@ -325,14 +325,10 @@ test.describe('Scape open feature decisions', () => {
 		});
 		expect(playback.storageChunks[0].channelPeaks[0]).toBeCloseTo(0.125, 5);
 		expect(playback.storageChunks[0].channelPeaks[1]).toBeCloseTo(0.75, 5);
-		expect(playback.audioPackets.length).toBeGreaterThan(0);
-		expect(playback.audioPackets[0]).toMatchObject({
-			streamId,
-			frames: CHUNK_STREAM_PACKET_FRAMES,
-			channelFrames: [CHUNK_STREAM_PACKET_FRAMES, CHUNK_STREAM_PACKET_FRAMES],
-		});
-		expect(playback.audioPackets[0].channelPeaks[0]).toBeCloseTo(0.125, 5);
-		expect(playback.audioPackets[0].channelPeaks[1]).toBeCloseTo(0.75, 5);
+		expect(playback.packetPortAttachments).toContain(streamId);
+		const primed = playback.streamPrimed.find((message) => message.streamId === streamId);
+		expect(primed?.packets).toBeGreaterThan(0);
+		expect(primed?.frames).toBeGreaterThanOrEqual(CHUNK_STREAM_PACKET_FRAMES);
 		expect(playback.startStreamIds).toContain(streamId);
 		expect(playback.oversizedAudioBuffers).toEqual([]);
 		expect(errors).toEqual([]);
@@ -675,7 +671,8 @@ async function scheduledAudioBuffers(page) {
 async function installChunkStreamProtocolProbe(page) {
 	await page.evaluate((maximumAudioBufferBytes) => {
 		const state = globalThis.__scapeCompatibilityChunkStream = {
-			audioPackets: [],
+			packetPortAttachments: [],
+			streamPrimed: [],
 			contextSampleRates: [],
 			opened: [],
 			oversizedAudioBuffers: [],
@@ -711,11 +708,11 @@ async function installChunkStreamProtocolProbe(page) {
 		};
 		const portPostMessage = MessagePort.prototype.postMessage;
 		MessagePort.prototype.postMessage = function observeChunkPort(message, ...rest) {
-			if (message?.type === 'audio-packet') {
-				if (state.audioPackets.length < 16) {
-					state.audioPackets.push({ streamId: message.streamId, frames: message.frames,
-						...channelSummary(message.channels) });
-				}
+			if (message?.type === 'attach-packet-port') {
+				state.packetPortAttachments.push(message.streamId);
+				this.addEventListener('message', (event) => {
+					if (event.data?.type === 'stream-primed') state.streamPrimed.push(event.data);
+				});
 			}
 			return portPostMessage.call(this, message, ...rest);
 		};

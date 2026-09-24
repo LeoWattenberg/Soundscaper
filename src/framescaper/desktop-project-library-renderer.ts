@@ -25,6 +25,7 @@ import {
 	recordWithOwnData,
 	text,
 	throwIfAborted,
+	validateFramescaperDesktopHandshake,
 } from './desktop-project-library-renderer-validation.ts';
 import { FramescaperDesktopProjectLibraryCommittedError, FramescaperDesktopProjectLibraryIndeterminateError,
 	reconcileFramescaperDesktopProjectLibraryCommit as reconcileCommitted } from
@@ -39,6 +40,7 @@ import {
 	type FramescaperDesktopProjectLibraryShadow,
 } from './desktop-project-library-shadow.ts';
 import { assertFramescaperProjectRuntimeProfile } from './editor-project-runtime-profile.ts';
+import { framescaperDesktopProjectCatalog as catalog } from './desktop-project-library-renderer-catalog.ts';
 import { framescaperProjectStoreAuthority } from './editor-project-store.ts';
 import { cloneFramescaperProject, type FramescaperProject } from './editor-project.ts';
 
@@ -46,20 +48,13 @@ const GLOBAL_NAME = 'framescaperDesktop';
 const API_FIELDS = [
 	'connect', 'handshakeState', 'listProjects', 'readProjectBundle', 'readBodyChunk',
 	'beginPublication', 'writePublicationChunk', 'finishPublication', 'abortPublication',
-	'deleteProject', 'duplicateProject',
-] as const;
-const HANDSHAKE_FIELDS = [
-	'kind', 'version', 'owner', 'schemaFamily', 'schemaVersion',
-	'scapeFormatVersions', 'attachedScapeFormatVersion', 'storageDatabaseName',
-	'desktopLibrarySchemaVersion', 'desktopDatabaseUserVersion', 'desktopLibraryScope',
+	'deleteProject', 'duplicateProject', 'claimProjectWriteFence', 'checkProjectWriteFence',
 ] as const;
 const BUNDLE_FIELDS = ['metadataRevision', 'project', 'document', 'bodies'] as const;
 const ROW_FIELDS = [
 	'id', 'projectId', 'name', 'metadataFile', 'preferredProduct', 'updatedAtMs',
 	'schemaFamily', 'schemaVersion', 'projectRevision', 'byteLength', 'sha256',
 ] as const;
-const CATALOG_FIELDS = ['metadataRevision', 'projects'] as const;
-const SUMMARY_FIELDS = ['id', 'title', 'revision', 'updatedAt'] as const;
 const DIGEST = /^[a-f0-9]{64}$/u;
 const IDENTITY = Object.freeze({
 	librarySchemaVersion: 1,
@@ -74,6 +69,8 @@ interface Bridge extends FramescaperDesktopBodyBridge {
 	connect(): Promise<unknown>;
 	handshakeState(): unknown;
 	listProjects(): Promise<unknown>;
+	claimProjectWriteFence(projectId: string): Promise<string>;
+	checkProjectWriteFence(request: unknown): Promise<boolean>;
 	readProjectBundle(projectId: string): Promise<unknown>;
 	beginPublication(request: unknown): Promise<unknown>;
 	finishPublication(request: unknown): Promise<unknown>;
@@ -118,10 +115,12 @@ interface RendererPublicationRequest {
 
 export interface FramescaperDesktopProjectLibraryRenderer {
 	listProjects(): Promise<readonly Readonly<FramescaperDesktopProjectLibraryProjectSummary>[]>;
+	claimProjectWriteFence(projectId: string): Promise<string>;
 	readProject(projectId: string, options?: Readonly<{ signal?: AbortSignal }>): Promise<FramescaperProject | null>;
 	createScapeProjectIfAbsent(project: unknown): Promise<FramescaperProject | null>;
 	publishProject(request: Readonly<RendererPublicationRequest>): Promise<FramescaperProject>;
 	publishProjectIfCurrent(expected: unknown, project: unknown): Promise<FramescaperProject | null>;
+	publishProjectIfCurrentWithWriteFence(expected: unknown, project: unknown, token: string): Promise<FramescaperProject | null>;
 	deleteProject(projectId: string): Promise<void>;
 	deleteProjectIfCurrent(project: unknown): Promise<boolean>;
 	duplicateProject(sourceProjectId: string, options: Readonly<{
@@ -145,7 +144,7 @@ export async function connectFramescaperDesktopProjectLibraryRenderer(
 	const bridge = resolveBridge();
 	if (!bridge) return null;
 	const handshake = await bridge.connect();
-	validateHandshake(handshake, store.databaseName);
+	validateFramescaperDesktopHandshake(handshake, store.databaseName, IDENTITY);
 	if (bridge.handshakeState() !== 'admitted') {
 		throw new TypeError('The Framescaper desktop bridge did not retain its admitted handshake.');
 	}
@@ -184,6 +183,14 @@ class Renderer implements FramescaperDesktopProjectLibraryRenderer {
 	listProjects(): Promise<readonly Readonly<FramescaperDesktopProjectLibraryProjectSummary>[]> {
 		return this.#exclusive(async () => catalog(await this.#bridge.listProjects()).projects);
 	}
+	claimProjectWriteFence(projectIdValue: string): Promise<string> {
+		const projectId = projectIdValue_(projectIdValue);
+		return this.#exclusive(async () => {
+			const token = await this.#bridge.claimProjectWriteFence(projectId);
+			if (typeof token !== 'string' || !/^[a-f0-9]{48}$/u.test(token)) throw new TypeError('Framescaper desktop write fence claim is invalid.');
+			return token;
+		});
+	}
 
 	readProject(projectIdValue: string, options: Readonly<{ signal?: AbortSignal }> = {}) {
 		const projectId = projectIdValue_(projectIdValue);
@@ -221,6 +228,11 @@ class Renderer implements FramescaperDesktopProjectLibraryRenderer {
 		const expected = cloneFramescaperProject(this.#profile, expectedValue);
 		return this.#publishProject({ project: projectValue }, expected);
 	}
+	publishProjectIfCurrentWithWriteFence(expectedValue: unknown, projectValue: unknown, token: string): Promise<FramescaperProject | null> {
+		const expected = cloneFramescaperProject(this.#profile, expectedValue);
+		if (typeof token !== 'string' || !/^[a-f0-9]{48}$/u.test(token)) throw new TypeError('Invalid Framescaper desktop write fence.');
+		return this.#publishProject({ project: projectValue }, expected, false, token);
+	}
 
 	#publishProject(request: Readonly<RendererPublicationRequest>): Promise<FramescaperProject>;
 	#publishProject(
@@ -230,7 +242,10 @@ class Renderer implements FramescaperDesktopProjectLibraryRenderer {
 		request: Readonly<RendererPublicationRequest>, expected: undefined, requireAbsent: true,
 	): Promise<FramescaperProject | null>;
 	#publishProject(
-		request: Readonly<RendererPublicationRequest>, expected?: FramescaperProject, requireAbsent = false,
+		request: Readonly<RendererPublicationRequest>, expected: FramescaperProject, requireAbsent: false, writeFence: string,
+	): Promise<FramescaperProject | null>;
+	#publishProject(
+		request: Readonly<RendererPublicationRequest>, expected?: FramescaperProject, requireAbsent = false, writeFence?: string,
 	): Promise<FramescaperProject | null> {
 		return this.#exclusive(async () => {
 			const project = cloneFramescaperProject(this.#profile, request.project);
@@ -246,6 +261,11 @@ class Renderer implements FramescaperDesktopProjectLibraryRenderer {
 			const current = currentRaw === null ? null : validateBundle(this.#profile, currentRaw, projectId);
 			if (requireAbsent && current) return null;
 			if (expected && (!current || !sameFramescaperDesktopProject(current.project, expected))) return null;
+			if (writeFence && expected && sameFramescaperDesktopProject(project, expected)) {
+				const accepted = await this.#bridge.checkProjectWriteFence({ projectId, writeFence, expectedDocument: expected });
+				if (typeof accepted !== 'boolean') throw new TypeError('Framescaper desktop write fence check is invalid.');
+				return accepted ? this.#store.shadow.reconcileCommittedProject(current!.project) : null;
+			}
 			if (current && !isStrictlyHigherProjectRevision(project.revision, current.project.revision)) {
 				throw new Error('Framescaper desktop publication requires a strictly higher revision.');
 			}
@@ -262,17 +282,22 @@ class Renderer implements FramescaperDesktopProjectLibraryRenderer {
 			let finished = false;
 			let finishing = false;
 			try {
-				const admission = validateFramescaperDesktopPublicationAdmission(
-					await this.#bridge.beginPublication({
+				const rawAdmission = await this.#bridge.beginPublication({
 					publicationId,
 					expectedMetadataRevision: metadataRevision,
 					expectedProject: current ? {
 						projectRevision: current.project.revision,
 						projectSha256: current.bundle.project.sha256,
 					} : null,
+					...(writeFence ? { expectedDocument: expected, writeFence } : {}),
 					project,
 					bodies: bodyInventory.map(({ descriptor }) => descriptor),
-				}), publicationId, bodyInventory.length);
+				});
+				if (rawAdmission === null) {
+					if (expected || requireAbsent) return null;
+					throw new Error('Framescaper desktop publication lost its write fence.');
+				}
+				const admission = validateFramescaperDesktopPublicationAdmission(rawAdmission, publicationId, bodyInventory.length);
 				admitted = true;
 				const requiredBodyIndexes = new Set(admission.requiredBodyIndexes);
 				const preparedBodies = admission.requiredBodyIndexes.length === 0 ? bodyInventory
@@ -289,6 +314,10 @@ class Renderer implements FramescaperDesktopProjectLibraryRenderer {
 				throwIfAborted(request.signal);
 				finishing = true;
 				const rawResult = await this.#bridge.finishPublication({ publicationId });
+				if (rawResult === null) {
+					if (expected || requireAbsent) return null;
+					throw new Error('Framescaper desktop publication lost its write fence.');
+				}
 				finished = true;
 				const result = validateBundle(this.#profile, rawResult, projectId);
 				if (JSON.stringify(result.project) !== JSON.stringify(project)) {
@@ -433,22 +462,6 @@ function resolveBridge(): Bridge | null {
 	]))) as unknown as Bridge;
 }
 
-function validateHandshake(value: unknown, databaseName: string): void {
-	const handshake = exactRecord(value, HANDSHAKE_FIELDS, 'Framescaper desktop handshake');
-	if (handshake.kind !== 'framescaper-project-library-handshake' || handshake.version !== 1
-		|| handshake.owner !== 'framescaper'
-		|| handshake.schemaFamily !== IDENTITY.schemaFamily
-		|| handshake.schemaVersion !== IDENTITY.schemaVersion
-		|| handshake.attachedScapeFormatVersion !== 1
-		|| handshake.storageDatabaseName !== databaseName
-		|| handshake.desktopLibrarySchemaVersion !== IDENTITY.librarySchemaVersion
-		|| handshake.desktopDatabaseUserVersion !== IDENTITY.databaseUserVersion
-		|| JSON.stringify(handshake.scapeFormatVersions) !== '[1]'
-		|| JSON.stringify(handshake.desktopLibraryScope) !== JSON.stringify(IDENTITY.scope)) {
-		throw new TypeError('The Framescaper desktop handshake identity is unsupported.');
-	}
-}
-
 function validateBundle(
 	profile: EditorProjectRuntimeProfile,
 	value: unknown,
@@ -493,28 +506,6 @@ function projectRow(value: unknown, expectedProjectId: string): Readonly<Project
 		projectRevision: nonNegative(row.projectRevision, 'project revision'),
 		byteLength: positive(row.byteLength, 'project byte length'),
 		sha256: row.sha256,
-	});
-}
-
-function catalog(value: unknown): Readonly<{
-	metadataRevision: number;
-	projects: readonly Readonly<FramescaperDesktopProjectLibraryProjectSummary>[];
-}> {
-	const raw = exactRecord(value, CATALOG_FIELDS, 'Framescaper desktop catalog');
-	if (!Array.isArray(raw.projects) || raw.projects.length > 10_000) {
-		throw new TypeError('The Framescaper desktop catalog is invalid.');
-	}
-	return Object.freeze({
-		metadataRevision: nonNegative(raw.metadataRevision, 'metadata revision'),
-		projects: Object.freeze(raw.projects.map((value) => {
-			const summary = exactRecord(value, SUMMARY_FIELDS, 'Framescaper desktop project summary');
-			return Object.freeze({
-				id: projectIdValue_(summary.id),
-				title: text(summary.title, 'project title'),
-				revision: nonNegative(summary.revision, 'project revision'),
-				updatedAt: instant(summary.updatedAt),
-			});
-		})),
 	});
 }
 

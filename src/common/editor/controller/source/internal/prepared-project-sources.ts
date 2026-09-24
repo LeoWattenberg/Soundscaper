@@ -123,8 +123,8 @@ export function createPreparedProjectSources<Buffer, Provider>(
 			} catch (cleanupError) {
 				throw new AggregateError(
 					[failure, cleanupError],
-					'Required source preparation and cleanup both failed.',
-					{ cause: error },
+						'Required source preparation and cleanup both failed.',
+						{ cause: cleanupError },
 				);
 			}
 			throw failure;

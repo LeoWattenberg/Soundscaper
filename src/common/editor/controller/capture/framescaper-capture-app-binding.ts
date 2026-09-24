@@ -62,6 +62,7 @@ export interface FramescaperCaptureAppProjectRepository {
 	saveIfCurrent(
 		expected: FramescaperCaptureAppProject,
 		project: FramescaperCaptureAppProject,
+		writeFence: string,
 	): PromiseLike<FramescaperCaptureAppProject | null> | FramescaperCaptureAppProject | null;
 }
 
@@ -79,6 +80,9 @@ export interface FramescaperCaptureAppBindingStore extends FramescaperCaptureApp
 	): unknown;
 	saveProject?(
 		project: FramescaperCaptureAppProject,
+	): unknown;
+	saveProjectIfCurrentWithWriteFence?(
+		expected: FramescaperCaptureAppProject, project: FramescaperCaptureAppProject, writeFence: string,
 	): unknown;
 	listProjects(): PromiseLike<readonly Readonly<{ readonly id: string }>[]> |
 		readonly Readonly<{ readonly id: string }>[];
@@ -109,6 +113,7 @@ export interface FramescaperCaptureAppBindingOptions extends PassThroughOptions 
 	setActiveProject(project: FramescaperCaptureAppProject): void;
 	setActiveHistory(history: FramescaperCaptureAppHistory): void;
 	synchronizeProject(project: FramescaperCaptureAppProject): PromiseLike<void> | void;
+	recordPersistedSnapshot?(project: FramescaperCaptureAppProject): PromiseLike<void> | void;
 	assertProjectWritable(projectId: string): void;
 	acquireProjectWriteAuthority(
 		projectId: string,
@@ -137,6 +142,7 @@ export function createFramescaperCaptureAppBinding(
 		setActiveProject: options.setActiveProject,
 		setActiveHistory: options.setActiveHistory,
 		synchronizeProject: options.synchronizeProject,
+		...(options.recordPersistedSnapshot ? { recordPersistedSnapshot: options.recordPersistedSnapshot } : {}),
 	});
 	const startAdmission = createFramescaperCaptureStartAdmissionCoordinator({
 		captureOrigin: () => captureOrigin(options),
@@ -200,44 +206,24 @@ export function createFramescaperCaptureAppProjectRepository(
 	>,
 ): Readonly<FramescaperCaptureAppProjectRepository> {
 	const store = options.store;
-	if (!options.isDesktop) {
-		const repository = store.projectRepository;
-		if (!repository || typeof repository.load !== 'function'
-			|| typeof repository.saveIfCurrent !== 'function') {
-			throw new TypeError('Framescaper web capture requires exact project repository CAS.');
-		}
-		const saveIfCurrent = repository.saveIfCurrent;
-		const adapter: FramescaperCaptureAppProjectRepository = {
-			async load(projectId, loadOptions) {
-				const stored = await repository.load(projectId, loadOptions);
-				return stored === null ? null : routeProject(stored, projectId);
-			},
-			async saveIfCurrent(expected, project) {
-				const saved = await saveIfCurrent.call(repository, expected, project);
-				return saved === null ? null : routeProject(saved, project.id);
-			},
-		};
-		return Object.freeze(adapter);
-	}
-	if (typeof store.loadProject !== 'function' || typeof store.saveProject !== 'function') {
-		throw new TypeError('Framescaper desktop capture requires authoritative project storage.');
+	if (typeof store.loadProject !== 'function'
+		|| typeof store.saveProjectIfCurrentWithWriteFence !== 'function') {
+		throw new TypeError('Framescaper capture requires authoritative fenced project storage.');
 	}
 	const adapter: FramescaperCaptureAppProjectRepository = {
 		async load(projectId, loadOptions) {
 			const stored = await store.loadProject!(projectId, loadOptions);
 			return stored === null ? null : routeProject(stored, projectId);
 		},
-		async saveIfCurrent(expected, project) {
+		async saveIfCurrent(expected, project, writeFence) {
 			if (expected.id !== project.id) {
-				throw new Error('Framescaper desktop capture CAS cannot change project identity.');
+				throw new Error('Framescaper capture CAS cannot change project identity.');
 			}
-			const stored = await store.loadProject!(expected.id);
-			if (stored === null || !sameProject(routeProject(stored, expected.id), expected)) return null;
-			const saved = await store.saveProject!(project);
-			if (!sameProject(saved, project)) {
-				throw new Error('Framescaper desktop capture acknowledgement changed the project target.');
+			if (typeof writeFence !== 'string' || !writeFence) {
+				throw new Error('Framescaper capture has no project write fence.');
 			}
-			return routeProject(saved, project.id);
+			const saved = await store.saveProjectIfCurrentWithWriteFence!(expected, project, writeFence);
+			return saved === null ? null : routeProject(saved, project.id);
 		},
 	};
 	return Object.freeze(adapter);

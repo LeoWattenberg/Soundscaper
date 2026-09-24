@@ -19,6 +19,7 @@ import { isEditorDisposedError, type EditorLifetimeToken, type EditorProjectToke
 import { createProjectMutationService, type MutationTrack } from './project-mutation-service.ts';
 import { createProjectRetentionService } from './internal/project/project-retention-service.ts';
 import { createProjectSaveService } from './project-save-service.ts';
+import { saveFencedProjectSnapshot } from './internal/project/project-fenced-save-adapter.ts';
 import { createProjectSessionService } from './internal/project/project-session-service.ts';
 import { createProjectViewService } from './project-view-service.ts';
 import { createRegularIntervalAnnotationController } from './internal/annotations/regular-interval-annotation-controller.ts';
@@ -112,6 +113,9 @@ export function createDocumentComposition(dependencies: DocumentCompositionDepen
 			return Boolean(project && sessionTab(project.id)?.dirty);
 		},
 		isReadOnly: () => state.readOnly || Boolean(state.takeCycleRecovery || state.takeCycleRecoveryInspecting),
+		...(store.saveProjectIfCurrentWithWriteFence ? { getWriteFence: (projectId: string) =>
+			state.projectLock?.projectId === projectId && !state.projectLock.readOnly
+				? state.projectLock.writeFence ?? null : null } : {}),
 		cloneProject: projectRuntime.cloneProject,
 		prepareSnapshot: dependencies.prepareProjectSnapshot
 			? async (snapshot, purpose) => {
@@ -124,6 +128,23 @@ export function createDocumentComposition(dependencies: DocumentCompositionDepen
 		admitProjectPublication: (bytes) => dependencies.preflightStorage(bytes, 'project'),
 		collectProtectedLinkedOriginalSourceReferences: () => retention.liveSessionLinkedOriginalSourceReferences(),
 		saveProject: (snapshot, saveOptions) => store.saveProject(snapshot, saveOptions),
+		...(store.saveProjectIfCurrentWithWriteFence
+			? { saveProjectIfCurrentWithWriteFence: async (
+				expected: DocumentProject, snapshot: DocumentProject, writeFence: string,
+				saveOptions: Parameters<NonNullable<typeof store.saveProjectIfCurrentWithWriteFence>>[3],
+			) => saveFencedProjectSnapshot(
+				(value, candidate, fence, options) => store.saveProjectIfCurrentWithWriteFence!(value, candidate, fence, options),
+				expected, snapshot, writeFence, saveOptions,
+			) }
+			: {}),
+		onPublicationConflict: (projectId) => {
+			if (dependencies.getProject()?.id !== projectId) return;
+			state.readOnly = true;
+			session.setProjectReadOnly?.(projectId, {
+				readOnly: true, reason: 'project-lock', lockMethod: state.projectLock?.method ?? 'unknown',
+			});
+			dependencies.publishDocumentSnapshot();
+		},
 		persistActiveProjectId: async (projectId) => {
 			await dependencies.persistSetting(dependencies.settingKeys.lastProject, projectId);
 			if (dependencies.product.id === 'soundscaper') await dependencies.persistSetting('last-project-id', projectId);

@@ -14,6 +14,7 @@ import {
 	STARTUP_GRAPH_REPORT_FILE,
 	assertFramescaperBootstrapChunkIsAcyclic,
 	assertFramescaperProjectCommandChunkIsAcyclic,
+	assertProductBootstrapChunkIsAcyclic,
 	assertProductGraphOwnership,
 	assertProductionStartupGraphs,
 	assertTransferArchiveRuntimeDoesNotReachProductBootstrap,
@@ -129,6 +130,26 @@ test('the emitted Framescaper bootstrap cannot reciprocally import its timeline-
 
 	bundle['assets/framescaper-timeline-images.js'].imports = [];
 	assert.doesNotThrow(() => assertFramescaperBootstrapChunkIsAcyclic(bundle));
+});
+
+test('either product bootstrap rejects an emitted import cycle through multiple chunks', () => {
+	for (const product of ['soundscaper', 'framescaper']) {
+		const bundle = fixtureBundle();
+		const bootstrap = addProductBootstrap(bundle, product);
+		bootstrap.imports = ['assets/intermediate.js'];
+		bundle['assets/intermediate.js'] = chunk({
+			fileName: 'assets/intermediate.js', imports: ['assets/deferred.js'], modules: {},
+		});
+		bundle['assets/deferred.js'] = chunk({
+			fileName: 'assets/deferred.js', imports: [bootstrap.fileName], modules: {},
+		});
+		assert.throws(
+			() => assertProductBootstrapChunkIsAcyclic(bundle, product),
+			new RegExp(`${product} bootstrap.*intermediate.*deferred`, 'iu'),
+		);
+		bundle['assets/deferred.js'].imports = [];
+		assert.doesNotThrow(() => assertProductBootstrapChunkIsAcyclic(bundle, product));
+	}
 });
 
 test('the emitted transfer archive runtime cannot statically reach a product bootstrap', () => {

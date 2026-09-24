@@ -72,6 +72,8 @@ export interface ProjectRepositoryPort {
 	createForScapeImportIfAbsent?(project: ProjectDocument): Promise<ProjectDocument | null>;
 	save(project: ProjectDocument, postCommit?: ProjectPostCommitMaintenance): Promise<ProjectDocument>;
 	saveIfCurrent?(expected: ProjectDocument, project: ProjectDocument, postCommit?: ProjectPostCommitMaintenance): Promise<ProjectDocument | null>;
+	claimWriteFence?(projectId: string): Promise<string>;
+	saveIfCurrentAndFenced?(expected: ProjectDocument, project: ProjectDocument, writeFence: string, postCommit?: ProjectPostCommitMaintenance): Promise<ProjectDocument | null>;
 	maintainCurrentProject?(projectId: string, maintenance: ProjectPostCommitMaintenance): Promise<void>;
 	load(projectId: string, options?: ProjectLoadOptions): Promise<ProjectDocument | null>;
 	list(): Promise<ProjectDocument[]>;
@@ -91,6 +93,10 @@ export interface ProjectRepositoryPort {
 		readonly current: ProjectDocument | null;
 		readonly revisions: readonly ProjectRevision[];
 	}>): Promise<boolean>;
+	restoreIfCurrentAndFenced?(projectId: string, expected: ProjectDocument, snapshot: Readonly<{
+		readonly current: ProjectDocument | null;
+		readonly revisions: readonly ProjectRevision[];
+	}>, writeFence: string): Promise<boolean>;
 }
 /** Durable project snapshots and their bounded revision history. */
 export class ProjectRepository implements ProjectRepositoryPort {

@@ -15,7 +15,7 @@ import {
 	projectTrackFolderMediaStateV12,
 } from '../../track-folder-media-runtime.ts';
 import { EDITOR_PROJECT_TASK_SCOPE, type EditorTaskOptions } from '../shared/lifecycle.ts';
-import { createProjectFeatureCompatibilityService } from '../document/project-feature-compatibility-service.ts';
+import { createProjectFeatureCompatibilityService } from '../../project-feature-compatibility-service.ts';
 import type { PreparedRequiredProjectSources } from './source-lifecycle-service.ts';
 
 export interface PlaybackProjectProjection<Project extends object> {

@@ -3,11 +3,13 @@ import test from 'node:test';
 
 import {
 	createEditorDocumentSnapshot,
+	publishProjectView,
 	type EditorDocumentSnapshotState,
 	type SnapshotProject,
 } from '../src/common/editor/controller/document/document-snapshot.ts';
 import { stateFixture } from './helpers/audio-editor-snapshot-state.ts';
 import { createCurrentAudioEditorProject } from '../src/common/editor/project-current.ts';
+import { createEditorHistory } from '../src/common/editor/history.js';
 import { DEFAULT_SOUND_ACTIVATION_PREFERENCES } from '../src/common/editor/sound-activation-preferences.ts';
 import { exposeOwnedFields } from '../src/common/editor/controller/shared/owned-state.ts';
 
@@ -122,7 +124,8 @@ test('document snapshots expose durability, scheduling, history, and compatibili
 		getEffectPresets: () => [{ id: 'preset' }],
 	});
 
-	assert.equal(snapshot.selection, project.selection);
+	assert.deepEqual(snapshot.selection, project.selection);
+	assert.strictEqual(snapshot.selection, snapshot.project?.selection);
 	assert.equal(snapshot.selectedAnnotationId, 'annotation');
 	assert.deepEqual(snapshot.recentProjects, [{ id: 'project' }]);
 	assert.deepEqual(snapshot.projectTabs, [{
@@ -183,12 +186,79 @@ test('document snapshots expose durability, scheduling, history, and compatibili
 		trackId: 'framescaper:rendered-video-fallback:track',
 		clipId: 'framescaper:rendered-video-fallback:clip',
 	});
-	assert.strictEqual(snapshot.videoPreviewProject, videoPreviewProject);
+	assert.deepEqual(snapshot.videoPreviewProject, videoPreviewProject);
+	assert.notStrictEqual(snapshot.videoPreviewProject, videoPreviewProject);
+	assert.throws(() => {
+		(snapshot.videoPreviewProject?.selection as { startFrame: number }).startFrame = 0;
+	}, TypeError);
+	assert.equal(project.selection?.startFrame, 10);
 	assert.deepEqual(snapshot.videoNavigation, { rate: 2, positionFrame: 960 });
 	assert.strictEqual(snapshot.capture, CAPTURE_SNAPSHOT);
 	assert.equal(Object.isFrozen(snapshot), true);
 	assert.equal(Object.isFrozen(snapshot.effects), true);
 	assert.equal(snapshot.effects.lastSelectionType, 'audacity-noise-reduction');
+});
+
+test('published documents and preferences cannot mutate history or controller state', () => {
+	const history = createEditorHistory(createCurrentAudioEditorProject({ now: 1_700_000_000_000 }));
+	const state = stateFixture({
+		history,
+		projects: [{ id: history.present.id, title: history.present.title }],
+		recentProjectIds: [history.present.id],
+	});
+	const runtime = {
+		...documentRuntimeFixture(history.present as unknown as SnapshotProject),
+		state,
+	};
+	const first = createEditorDocumentSnapshot(runtime);
+	const second = createEditorDocumentSnapshot(runtime);
+	const originalRevision = history.present.revision;
+	const originalTitle = history.present.title;
+
+	assert.notStrictEqual(first.project, history.present);
+	assert.strictEqual(first.project, second.project);
+	assert.strictEqual(first.videoPreviewProject, first.project);
+	assert.notStrictEqual(first.preferences, state.preferences);
+	assert.strictEqual(first.preferences, second.preferences);
+	assert.notStrictEqual(first.projects, state.projects);
+	assert.strictEqual(first.projects, second.projects);
+	assert.strictEqual(first.recentProjects[0], first.projects[0]);
+	assert.throws(() => { (first.project as unknown as { title: string }).title = 'Bypassed history'; }, TypeError);
+	assert.throws(() => { (first.project?.selection?.trackIds as string[]).push('new-track'); }, TypeError);
+	assert.throws(() => { (first.preferences.playback as { playAtSpeedMode: string }).playAtSpeedMode = 'resample'; }, TypeError);
+	assert.throws(() => { (first.projects[0] as unknown as { title: string }).title = 'Changed'; }, TypeError);
+	assert.equal(history.present.title, originalTitle);
+	assert.equal(history.present.revision, originalRevision);
+	assert.deepEqual(history.present.selection.trackIds, []);
+	assert.equal(state.preferences.playback?.playAtSpeedMode, 'naive');
+	assert.equal(state.projects[0]?.title, originalTitle);
+});
+
+test('published collections detach from state, reject writes, and remain cloneable', () => {
+	const lookup = new Map([['item', { value: 1 }]]);
+	const tags = new Set(['saved']);
+	const project: SnapshotProject = { id: 'project-with-collections', lookup };
+	const state = stateFixture({
+		preferences: { ...stateFixture().preferences, tags },
+	});
+	const snapshot = createEditorDocumentSnapshot({ ...documentRuntimeFixture(project), state });
+	const publishedLookup = snapshot.project?.lookup as Map<string, { value: number }>;
+	const publishedTags = snapshot.preferences.tags as Set<string>;
+
+	assert.notStrictEqual(publishedLookup, lookup);
+	assert.notStrictEqual(publishedTags, tags);
+	assert.throws(() => publishedLookup.set('other', { value: 2 }), TypeError);
+	assert.throws(() => publishedLookup.delete('item'), TypeError);
+	assert.throws(() => { publishedLookup.get('item')!.value = 2; }, TypeError);
+	assert.throws(() => publishedTags.add('changed'), TypeError);
+	assert.throws(() => publishedTags.clear(), TypeError);
+	assert.deepEqual([...lookup], [['item', { value: 1 }]]);
+	assert.deepEqual([...tags], ['saved']);
+	assert.deepEqual([...structuredClone(publishedLookup)], [['item', { value: 1 }]]);
+});
+
+test('project publication refuses opaque mutable objects instead of exposing them live', () => {
+	assert.throws(() => publishProjectView({ id: 'project', timestamp: new Date() }), /mutable non-plain/u);
 });
 
 test('document snapshots hide collapsed selections and prepared recorders', () => {

@@ -4,6 +4,13 @@ import { aggregateScapeErrors, awaitScapeOperation, throwIfScapeAborted } from '
 import type { ScapeVideoWriter } from './scape-archive-video.ts';
 import type { OwnedMediaAssetPublication } from './storage/media-asset-write-contract.ts';
 import type { StorageRecord } from './storage/media-records.ts';
+import { sameProjectSnapshot } from './storage/project-snapshot-equality.ts';
+
+export interface ScapeReplaceWriteAuthority {
+	readonly writeFence: string;
+	assertCurrent(): void;
+	release(): PromiseLike<void> | void;
+}
 
 interface ScapeProjectDocument {
 	readonly id: string;
@@ -49,6 +56,11 @@ export interface ScapeImportStore {
 		expected: ScapeProjectDocument,
 		project: ScapeProjectDocument,
 	): PromiseLike<ScapeProjectDocument | null>;
+	saveProjectIfCurrentWithWriteFence?(
+		expected: ScapeProjectDocument,
+		project: ScapeProjectDocument,
+		writeFence: string,
+	): PromiseLike<ScapeProjectDocument | null>;
 	deleteProject(projectId: string): PromiseLike<unknown>;
 	discardSourceIfCurrent(source: StorageRecord): PromiseLike<boolean>;
 	/**
@@ -64,6 +76,10 @@ export interface ScapeImportStore {
 		readonly current: ScapeProjectDocument | null;
 		readonly revisions: readonly ScapeProjectRevision[];
 	}>): PromiseLike<boolean>;
+	restoreProjectSnapshotIfCurrentWithWriteFence?(projectId: string, expected: ScapeProjectDocument, snapshot: Readonly<{
+		readonly current: ScapeProjectDocument | null;
+		readonly revisions: readonly ScapeProjectRevision[];
+	}>, writeFence: string): PromiseLike<boolean>;
 }
 
 interface ProjectSnapshot {
@@ -75,6 +91,7 @@ interface ProjectSnapshot {
 export class ScapeImportTransaction {
 	readonly #store: ScapeImportStore;
 	readonly #signal?: AbortSignal;
+	readonly #replaceAuthority?: ScapeReplaceWriteAuthority;
 	readonly #sourcePublications: StorageRecord[] = [];
 	readonly #mediaPublications: OwnedMediaAssetPublication[] = [];
 	#projectId: string | null = null;
@@ -85,9 +102,14 @@ export class ScapeImportTransaction {
 	#projectWriteAttempted = false;
 	#complete = false;
 
-	constructor(store: ScapeImportStore, signal?: AbortSignal) {
+	constructor(store: ScapeImportStore, signal?: AbortSignal, replaceAuthority?: ScapeReplaceWriteAuthority) {
 		this.#store = store;
 		this.#signal = signal;
+		this.#replaceAuthority = replaceAuthority;
+	}
+
+	async releaseWriteAuthority(): Promise<void> {
+		await this.#replaceAuthority?.release();
 	}
 
 	trackProvisionalSource(source: StorageRecord): void {
@@ -111,16 +133,20 @@ export class ScapeImportTransaction {
 		if (!this.#mediaPublications.includes(publication)) this.#mediaPublications.push(publication);
 	}
 
-	async captureProject(projectId: string): Promise<void> {
+	async captureProject(projectId: string, expected?: ScapeProjectDocument | null): Promise<void> {
 		if (this.#projectSnapshot) throw new Error('The Scape target project was already captured.');
 		throwIfScapeAborted(this.#signal);
+		this.#replaceAuthority?.assertCurrent();
 		const current = await awaitScapeOperation(this.#store.loadProject(projectId), this.#signal);
+		if (expected !== undefined && !sameProjectSnapshot(current, expected)) {
+			throw new Error('The Scape target project changed before import acquired write authority.');
+		}
 		const revisions = await awaitScapeOperation(this.#store.listProjectRevisions(projectId), this.#signal);
 		this.#projectId = projectId;
 		this.#projectSnapshot = { current, revisions };
 	}
 
-	async publishProject(project: ScapeProjectDocument): Promise<void> {
+	async publishProject(project: ScapeProjectDocument): Promise<ScapeProjectDocument> {
 		if (this.#projectId !== project.id || !this.#projectSnapshot) {
 			throw new Error('The Scape target project was not captured before publication.');
 		}
@@ -143,17 +169,17 @@ export class ScapeImportTransaction {
 			// Retain the repository's creation-fence token as the committed result.
 			this.#createdProject = created;
 			this.#complete = true;
-			return;
+			return created;
 		}
-		if (typeof this.#store.restoreProjectSnapshotIfCurrent !== 'function') {
-			throw new TypeError('Replace-import publication requires exact-current snapshot rollback.');
+		if (!this.#replaceAuthority || typeof this.#store.saveProjectIfCurrentWithWriteFence !== 'function') {
+			throw new TypeError('Replace-import publication requires fenced project storage.');
 		}
-		if (typeof this.#store.saveProjectIfCurrent !== 'function') {
-			throw new TypeError('Replace-import publication requires exact-current project storage.');
-		}
+		this.#replaceAuthority.assertCurrent();
 		this.#publishedProject = project;
 		this.#projectWriteAttempted = true;
-		const published = await this.#store.saveProjectIfCurrent(capturedProject, project);
+		const published = await this.#store.saveProjectIfCurrentWithWriteFence(
+			capturedProject, project, this.#replaceAuthority.writeFence,
+		);
 		if (published === null) {
 			this.#publishedProject = null;
 			// A competing publisher can adopt this transaction's same-ID staging.
@@ -161,6 +187,7 @@ export class ScapeImportTransaction {
 		}
 		if (isScapeProjectDocument(published, project.id)) this.#publishedProject = published;
 		this.#complete = true;
+		return published;
 	}
 
 	complete(): void {
@@ -171,9 +198,14 @@ export class ScapeImportTransaction {
 		if (this.#complete) throw primary;
 		const cleanupErrors: unknown[] = [];
 		let mayDiscardProjectAssets = true;
+		if (this.#replaceAuthority) {
+			try { this.#replaceAuthority.assertCurrent(); }
+			catch { mayDiscardProjectAssets = false; }
+		}
 		if (this.#projectWriteAttempted && this.#projectId && this.#projectSnapshot) {
 			try {
-				mayDiscardProjectAssets = await this.#restoreProject(this.#projectId, this.#projectSnapshot);
+				mayDiscardProjectAssets = mayDiscardProjectAssets
+					&& await this.#restoreProject(this.#projectId, this.#projectSnapshot);
 			} catch (error) {
 				cleanupErrors.push(error);
 				mayDiscardProjectAssets = false;
@@ -209,18 +241,40 @@ export class ScapeImportTransaction {
 		// without project ownership they must be left for reachability maintenance.
 		if (snapshot.current === null && this.#createOnlyPublicationAttempted) return false;
 		if (this.#publishedProject) {
-			if (typeof this.#store.restoreProjectSnapshotIfCurrent !== 'function') {
-				throw new TypeError('Replace-import rollback lost its exact-current restore capability.');
-			}
+			if (!this.#replaceAuthority || typeof this.#store.restoreProjectSnapshotIfCurrentWithWriteFence !== 'function') return false;
+			try { this.#replaceAuthority.assertCurrent(); } catch { return false; }
 			// The exact atomic restore preserves both linked-original bindings and
 			// any project document a later writer published after the import.
-			return this.#store.restoreProjectSnapshotIfCurrent(
+			return this.#store.restoreProjectSnapshotIfCurrentWithWriteFence(
 				projectId,
 				this.#publishedProject,
 				snapshot,
+				this.#replaceAuthority.writeFence,
 			);
 		}
 		return false;
+	}
+}
+
+/** Acquire before reading the target, and retain the lock until rollback settles. */
+export async function beginScapeImportTransaction(
+	store: ScapeImportStore,
+	signal: AbortSignal | undefined,
+	projectId: string,
+	replacedProject: ScapeProjectDocument | null,
+	acquire?: (projectId: string) => PromiseLike<ScapeReplaceWriteAuthority> | ScapeReplaceWriteAuthority,
+): Promise<ScapeImportTransaction> {
+	if (replacedProject && typeof acquire !== 'function') {
+		throw new Error('Scape replace requires project write authority.');
+	}
+	const authority = replacedProject ? await acquire!(projectId) : undefined;
+	const transaction = new ScapeImportTransaction(store, signal, authority);
+	try {
+		await transaction.captureProject(projectId, replacedProject ?? undefined);
+		return transaction;
+	} catch (error) {
+		await transaction.releaseWriteAuthority();
+		throw error;
 	}
 }
 

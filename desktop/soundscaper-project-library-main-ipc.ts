@@ -77,6 +77,10 @@ export function registerSoundscaperDesktopProjectLibraryMainIpc(
 			(event, request) => connection(event).readBodyChunk(request));
 		register(SOUNDSCAPER_DESKTOP_PROJECT_LIBRARY_MAIN_CHANNELS.listProjects,
 			(event) => connection(event).listProjects());
+		register(SOUNDSCAPER_DESKTOP_PROJECT_LIBRARY_MAIN_CHANNELS.claimProjectWriteFence,
+			(event, projectId) => connection(event).claimProjectWriteFence(projectId as string));
+		register(SOUNDSCAPER_DESKTOP_PROJECT_LIBRARY_MAIN_CHANNELS.checkProjectWriteFence,
+			(event, request) => connection(event).checkProjectWriteFence(request));
 		register(SOUNDSCAPER_DESKTOP_PROJECT_LIBRARY_MAIN_CHANNELS.deleteProject,
 			(event, request) => connection(event).deleteProject(request));
 		register(SOUNDSCAPER_DESKTOP_PROJECT_LIBRARY_MAIN_CHANNELS.duplicateProject,
