@@ -46,6 +46,8 @@ import type {
 } from './recording-transaction-types.ts';
 import { createRoutedRecordingCaptureService } from './internal/routed-recording-capture-service.ts';
 import { createRoutedRecordingFinalization } from './internal/routed-recording-finalization.ts';
+import { createRecordingCheckpointWriter } from './internal/recording-checkpoint-writer.ts';
+import { prepareRecordingPunchSequence } from './internal/recording-punch-sequence.js';
 import { SOURCE_CHUNK_FRAMES, createCoalescingSourceWriter } from '../source/source-audio.ts';
 import { createTakeCycleAppComposition } from './internal/take-cycle/take-cycle-app-composition.ts';
 import { createTakeCycleOpenRecoveryCoordinator } from './take-cycle-open-recovery-app-port.ts';
@@ -160,9 +162,16 @@ export function createRecordingComposition(dependencies: RecordingCompositionDep
 		currentTimeMs: dependencies.currentTimeMs,
 		createStableId,
 		createRecordingName: () => `${publishedCopyFor(copy).recordingLabel} ${new Date().toLocaleTimeString(locale)}`,
-		openSourceWriter: async (sourceId, metadata) => createCoalescingSourceWriter(
-			await store.beginSourceWrite(sourceId, metadata),
-		),
+		openSourceWriter: async (sourceId, metadata) => createRecordingCheckpointWriter({
+			firstSourceId: sourceId,
+			initialWriter: createCoalescingSourceWriter(await store.beginSourceWrite(sourceId, metadata)),
+			metadata,
+			checkpointFrames: Math.round(Number(metadata.sampleRate) * 10),
+			createSourceId: () => createStableId('recording'),
+			openWriter: async (nextSourceId) => createCoalescingSourceWriter(
+				await store.beginSourceWrite(nextSourceId, metadata),
+			),
+		}),
 		createPreview: createRecordingPreview,
 		createPreviewResampler: createStreamingWindowedSincResampler,
 		appendPreview: appendRecordingPreview,
@@ -224,6 +233,7 @@ export function createRecordingComposition(dependencies: RecordingCompositionDep
 		createStableId,
 		createAddSourceCommand,
 		preparePunchCommand,
+		preparePunchSequence: prepareRecordingPunchSequence,
 		activateStoredSource: async (source, metadata) => { await dependencies.activateStoredSource(source, metadata); },
 		commitBatch: (project, commands, selection) => {
 			if (project !== dependencies.getProject()) throw abortError();

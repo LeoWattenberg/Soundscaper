@@ -146,6 +146,9 @@ function createRuntime() {
 		createStableId: () => 'clip-1',
 		createAddSourceCommand: (source) => ({ type: 'add-source', source }),
 		preparePunchCommand: (targetProject, options) => ({ type: 'punch', targetProject, options }),
+		preparePunchSequence: (targetProject, segments) => segments.flatMap(({ source, punch }) => [
+			{ type: 'add-source', source }, { type: 'punch', targetProject, options: punch },
+		]),
 		activateStoredSource: async () => { activateHook?.(); },
 		commitBatch: (targetProject, commands, selection) => {
 			commits.push({ project: targetProject, commands, selection });
@@ -349,7 +352,9 @@ test('legacy finalization handles discard, empty, fatal, and selected punch tran
 		})),
 		failure,
 	);
-	assert.equal(fatal.aborts(), 1);
+	assert.equal(fatal.aborts(), 0);
+	assert.equal(fatal.commits(), 1);
+	assert.equal(fatalFixture.commits.length, 1);
 
 	const selectedFixture = createRuntime();
 	const selected = createWriter();
@@ -458,7 +463,9 @@ test('routed finalization handles discarded, fatal, and empty selections without
 		}),
 		failure,
 	);
-	assert.equal(fatal.aborts(), 1);
+	assert.equal(fatal.aborts(), 0);
+	assert.equal(fatal.commits(), 1);
+	assert.equal(fatalFixture.commits.length, 1);
 
 	const emptyFixture = createRuntime();
 	const empty = createWriter();

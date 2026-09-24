@@ -79,9 +79,23 @@ export interface RecordingSourceMetadata extends Readonly<Record<string, unknown
 
 export interface RecordingSourceWriter {
 	readonly framesWritten: number;
+	readonly checkpoints?: readonly RecordingSourceSegment[];
 	write(channels: readonly Float32Array[]): MaybePromise<unknown>;
 	commit(metadata?: Readonly<Record<string, unknown>>): Promise<unknown>;
 	abort(reason?: unknown): Promise<unknown>;
+	finishRecording?(metadata?: Readonly<Record<string, unknown>>): Promise<RecordingWriterFinish>;
+}
+
+export interface RecordingSourceSegment {
+	readonly sourceId: string;
+	readonly frameStart: number;
+	readonly frameCount: number;
+	readonly metadata: unknown;
+}
+
+export interface RecordingWriterFinish {
+	readonly segments: readonly RecordingSourceSegment[];
+	readonly failure?: unknown;
 }
 
 export interface RecordingCaptureChunk {

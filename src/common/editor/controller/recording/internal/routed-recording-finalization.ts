@@ -8,6 +8,7 @@ import type { RecordingPreview } from '../recording-model.ts';
 import type {
 	RecordedAudioSource,
 	RecordingFinalizationInput,
+	RecordingSegmentPunch,
 	RoutedRecordingFinalizationRuntime,
 	RoutedRecordingFinalizationTransaction,
 } from './recording-finalization-types.ts';
@@ -23,6 +24,7 @@ import {
 	throwRecordingFinalizationFailure,
 } from './recording-finalization-cleanup.ts';
 import { recordedSourceProvenance } from './recording-source-provenance.ts';
+import { finishRecordingSegments } from './recording-finalization-segments.ts';
 import { createSoundActivationTimestampCommands, type RecordingActivationTimestamp } from './sound-activation/sound-activation-timestamp-labels.ts';
 
 function isObject(value: unknown): value is Readonly<Record<string, unknown>> {
@@ -122,32 +124,53 @@ export function createRoutedRecordingFinalization(runtime: RoutedRecordingFinali
 		input: RecordingFinalizationInput & { readonly entries: readonly unknown[] },
 	): Promise<void> {
 		const transaction = snapshotRoutedRecordingFinalization(input);
-		const committedEntries: RoutedRecordingEntry[] = [];
+		const committedSourceIds = new Set<string>();
+		let completionError: unknown = transaction.fatalError;
+		let projectPublished = false;
 		try {
 			const projectScope = runtime.captureProjectScope();
 			projectScope.assertCurrent();
 			runtime.pauseTransport();
-			await runtime.disposeRecorder(transaction.recorder);
+			try {
+				await runtime.disposeRecorder(transaction.recorder);
+			} catch (error) {
+				completionError ??= error;
+			}
 			projectScope.assertCurrent();
 			if (transaction.discardRequested) {
 				for (const entry of transaction.entries) {
 					await entry.writer.abort().catch(() => undefined);
+					for (const checkpoint of entry.writer.checkpoints ?? []) {
+						committedSourceIds.add(checkpoint.sourceId);
+					}
+				}
+				for (const sourceId of committedSourceIds) {
+					await cleanupCommittedRecordingSource({
+						sourceId,
+						deactivateSource: runtime.deactivateSource,
+						deleteAnalysis: runtime.deleteSourceAnalysis,
+						deleteStoredSource: runtime.deleteStoredSource,
+					});
 				}
 				return;
 			}
-			if (transaction.fatalError) throw transaction.fatalError;
 			for (const entry of transaction.entries) {
-				runtime.appendPreview(entry.preview, entry.previewResampler.finish?.());
+				try {
+					runtime.appendPreview(entry.preview, entry.previewResampler.finish?.());
+				} catch (error) {
+					completionError ??= error;
+				}
 			}
 			const projectRate = runtime.projectSampleRate(projectScope.project);
 			const commands: unknown[] = [];
 			const clipIds: string[] = [];
+			let firstPublishedTrackId: string | undefined;
 			const timestampSources = new Set<string>();
 			const timestamps: RecordingActivationTimestamp[] = [];
 			let compactedEndFrame: number | null = null;
 			for (const entry of transaction.entries) {
 				const frames = entry.writer.framesWritten;
-				if (frames <= entry.sourceOffsetFrames) {
+				if (frames <= entry.sourceOffsetFrames && !entry.writer.checkpoints?.length) {
 					await entry.writer.abort();
 					projectScope.assertCurrent();
 					runtime.setRouteHealth(entry.trackId, 'skipped');
@@ -156,60 +179,91 @@ export function createRoutedRecordingFinalization(runtime: RoutedRecordingFinali
 					}
 					continue;
 				}
-				const storedMetadata = await entry.writer.commit({
+				const finished = await finishRecordingSegments(entry.writer, entry.sourceId, {
 					sampleRate: entry.sampleRate,
 					channelCount: entry.route.channelCount,
 				});
-				committedEntries.push(entry);
-				const metadata = readRecordingSourceMetadata(storedMetadata);
+				if (finished.failure && !completionError) completionError = finished.failure;
+				for (const segment of finished.segments) committedSourceIds.add(segment.sourceId);
 				projectScope.assertCurrent();
-				const source: RecordedAudioSource = Object.freeze({
-					sampleRate: entry.sampleRate,
-					originalSampleRate: entry.sampleRate,
-					sampleFormat: 'float32',
-					chunkFrames: runtime.sourceChunkFrames,
-					id: entry.sourceId,
-					storageKey: entry.sourceId,
-					name: metadata.name,
-					mimeType: 'audio/wav',
-					frameCount: frames,
-					channelCount: metadata.channelCount || entry.route.channelCount,
-					provenance: recordedSourceProvenance(entry.route),
-				});
-				const sourceCommand = runtime.createAddSourceCommand(source);
-				await runtime.activateStoredSource(source, metadata);
-				projectScope.assertCurrent();
-				const sourceStartFrame = Math.min(entry.sourceOffsetFrames, Math.max(0, frames - 1));
-				const availableFrames = frames - sourceStartFrame;
-				const availableProjectFrames = Math.max(
-					1,
-					runtime.scaleFrames(availableFrames, entry.sampleRate, projectRate),
-				);
-				const durationFrames = entry.selection
-					? Math.min(
-						availableProjectFrames,
-						entry.selection.endFrame - entry.selection.startFrame,
-					)
-					: availableProjectFrames;
-				if (durationFrames <= 0) continue;
-				const sourceDurationFrames = entry.selection
-					? Math.min(
-						availableFrames,
-						Math.max(1, runtime.scaleFrames(durationFrames, projectRate, entry.sampleRate)),
-					)
-					: availableFrames;
-				const clipId = runtime.createStableId('clip');
-				const clipCommand = runtime.preparePunchCommand(projectScope.project, {
-					trackId: entry.trackId,
-					startFrame: entry.recordingStartFrame,
-					endFrame: entry.recordingStartFrame + durationFrames,
-					sourceId: entry.sourceId,
-					sourceStartFrame,
-					sourceDurationFrames,
-					clipId,
-				});
-				commands.push(sourceCommand, clipCommand);
-				clipIds.push(clipId);
+				const punches: RecordingSegmentPunch[] = [];
+				for (const segment of finished.segments) {
+					const sourceEnd = segment.frameStart + segment.frameCount;
+					const visibleStart = Math.max(segment.frameStart, entry.sourceOffsetFrames);
+					const startFrame = entry.recordingStartFrame + runtime.scaleFrames(
+						visibleStart - entry.sourceOffsetFrames, entry.sampleRate, projectRate,
+					);
+					const endFrame = Math.min(
+						entry.recordingStartFrame + runtime.scaleFrames(
+							Math.max(0, sourceEnd - entry.sourceOffsetFrames), entry.sampleRate, projectRate,
+						),
+						entry.selection
+							? entry.recordingStartFrame + entry.selection.endFrame - entry.selection.startFrame
+							: Infinity,
+					);
+					if (sourceEnd <= visibleStart || endFrame <= startFrame) {
+						const cleanupFailures = await cleanupCommittedRecordingSource({
+							sourceId: segment.sourceId,
+							deactivateSource: runtime.deactivateSource,
+							deleteAnalysis: runtime.deleteSourceAnalysis,
+							deleteStoredSource: runtime.deleteStoredSource,
+						});
+						if (cleanupFailures.length) throwRecordingFinalizationFailure(
+							new Error('Unused recording checkpoint cleanup failed.'), cleanupFailures,
+						);
+						committedSourceIds.delete(segment.sourceId);
+						continue;
+					}
+					const metadata = readRecordingSourceMetadata(segment.metadata);
+					const source: RecordedAudioSource = Object.freeze({
+						sampleRate: entry.sampleRate,
+						originalSampleRate: entry.sampleRate,
+						sampleFormat: 'float32',
+						chunkFrames: runtime.sourceChunkFrames,
+						id: segment.sourceId,
+						storageKey: segment.sourceId,
+						name: metadata.name,
+						mimeType: 'audio/wav',
+						frameCount: segment.frameCount,
+						channelCount: metadata.channelCount || entry.route.channelCount,
+						provenance: recordedSourceProvenance(entry.route),
+					});
+					await runtime.activateStoredSource(source, metadata);
+					projectScope.assertCurrent();
+					const sourceStartFrame = visibleStart - segment.frameStart;
+					const availableFrames = segment.frameCount - sourceStartFrame;
+					const durationFrames = endFrame - startFrame;
+					const sourceDurationFrames = entry.selection
+						? Math.min(availableFrames, Math.max(1, runtime.scaleFrames(
+							durationFrames, projectRate, entry.sampleRate,
+						)))
+						: availableFrames;
+					const clipId = runtime.createStableId('clip');
+					punches.push({ source, punch: {
+						trackId: entry.trackId,
+						startFrame,
+						endFrame,
+						sourceId: segment.sourceId,
+						sourceStartFrame,
+						sourceDurationFrames,
+						clipId,
+					} });
+					clipIds.push(clipId);
+					firstPublishedTrackId ??= entry.trackId;
+					if (entry.preview.timelineMode === 'compacted') {
+						compactedEndFrame = Math.max(compactedEndFrame ?? 0, endFrame);
+					}
+				}
+				if (!punches.length) {
+					runtime.setRouteHealth(entry.trackId, 'skipped');
+					continue;
+				}
+				if (punches.length === 1) {
+					const only = punches[0]!;
+					commands.push(runtime.createAddSourceCommand(only.source), runtime.preparePunchCommand(
+						projectScope.project, only.punch,
+					));
+				} else commands.push(...runtime.preparePunchSequence(projectScope.project, punches));
 				if (!timestampSources.has(entry.sourceKey)) {
 					timestampSources.add(entry.sourceKey);
 					for (const offsetFrames of entry.preview.activationFrameOffsets ?? []) {
@@ -219,9 +273,6 @@ export function createRoutedRecordingFinalization(runtime: RoutedRecordingFinali
 							sampleRate: entry.sampleRate,
 						});
 					}
-				}
-				if (entry.preview.timelineMode === 'compacted') {
-					compactedEndFrame = Math.max(compactedEndFrame ?? 0, entry.recordingStartFrame + durationFrames);
 				}
 			}
 			projectScope.assertCurrent();
@@ -234,20 +285,25 @@ export function createRoutedRecordingFinalization(runtime: RoutedRecordingFinali
 					timestamps,
 				}));
 				runtime.commitBatch(projectScope.project, commands, {
-					selectTrackId: committedEntries[0]?.trackId,
+					selectTrackId: firstPublishedTrackId,
 					selectClipId: clipIds[0],
 				});
-				runtime.setStatusDone();
+				projectPublished = true;
+				if (!completionError) runtime.setStatusDone();
 			}
 			if (compactedEndFrame !== null) runtime.setTransportPosition(compactedEndFrame);
 		} catch (error) {
+			if (projectPublished) throw error;
 			for (const entry of transaction.entries) {
 				await entry.writer.abort().catch(() => undefined);
+				for (const checkpoint of entry.writer.checkpoints ?? []) {
+					committedSourceIds.add(checkpoint.sourceId);
+				}
 			}
 			const cleanupFailures: unknown[] = [];
-			for (const entry of committedEntries) {
+			for (const sourceId of committedSourceIds) {
 				cleanupFailures.push(...await cleanupCommittedRecordingSource({
-					sourceId: entry.sourceId,
+					sourceId,
 					deactivateSource: runtime.deactivateSource,
 					deleteAnalysis: runtime.deleteSourceAnalysis,
 					deleteStoredSource: runtime.deleteStoredSource,
@@ -255,6 +311,7 @@ export function createRoutedRecordingFinalization(runtime: RoutedRecordingFinali
 			}
 			throwRecordingFinalizationFailure(error, cleanupFailures);
 		}
+		if (completionError) throw completionError;
 	}
 
 	return Object.freeze({ finalize });

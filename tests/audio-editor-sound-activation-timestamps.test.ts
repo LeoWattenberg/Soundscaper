@@ -124,6 +124,9 @@ function finalizationFixture() {
 		createStableId: (prefix) => `${prefix}-${++id}`,
 		createAddSourceCommand: (source) => ({ type: 'source/add', source }),
 		preparePunchCommand: (_project, options) => ({ type: 'clip/punch', options }),
+		preparePunchSequence: (_project, segments) => segments.flatMap(({ source, punch }) => [
+			{ type: 'source/add', source }, { type: 'clip/punch', options: punch },
+		]),
 		async activateStoredSource() {},
 		commitBatch: (_project, commands, selection) => { commits.push({ commands, selection }); },
 		setStatusDone() {},

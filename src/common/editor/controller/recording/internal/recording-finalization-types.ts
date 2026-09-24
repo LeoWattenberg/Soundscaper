@@ -47,6 +47,11 @@ export interface RecordingPunchOptions {
 	readonly clipId: string;
 }
 
+export interface RecordingSegmentPunch {
+	readonly source: RecordedAudioSource;
+	readonly punch: RecordingPunchOptions;
+}
+
 export interface RecordingFinalizationCommonRuntime {
 	readonly sourceChunkFrames: number;
 	readonly labelTrackName?: string;
@@ -66,6 +71,10 @@ export interface RecordingFinalizationCommonRuntime {
 		project: RecordingProject,
 		options: RecordingPunchOptions,
 	) => unknown;
+	readonly preparePunchSequence: (
+		project: RecordingProject,
+		segments: readonly RecordingSegmentPunch[],
+	) => readonly unknown[];
 	readonly activateStoredSource: (
 		source: RecordedAudioSource,
 		metadata: RecordingSourceMetadata,
