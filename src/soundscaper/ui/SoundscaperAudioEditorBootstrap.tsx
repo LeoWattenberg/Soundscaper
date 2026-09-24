@@ -2,6 +2,8 @@
 
 import { Suspense } from 'react';
 
+import { EditorStartupProgress } from '../../common/site/EditorStartupProgress.tsx';
+
 import { createAudioEditorFileService } from '../../common/editor/file-service.js';
 import { BoundAudioEditorApp } from '../../common/editor/ui/AudioEditorApp.jsx';
 import { snapshotBootstrapCopyFields } from
@@ -99,12 +101,10 @@ const BOOTSTRAP_CONFIGURATION: AudioEditorWebBootstrapConfiguration<
 	createRuntimeWhenReady: (presentation: PromiseLike<SoundscaperWebEditorRuntimePresentation>) => RUNTIME_LIFECYCLE.createWhenReady(
 		Promise.resolve(presentation).then(snapshotPresentation),
 	),
-	renderEditor: ({ locale, copy, initialSurface, runtime }: AudioEditorWebBootstrapRenderValue<
+	renderEditor: ({ locale, copy, fallbackCopy, initialSurface, runtime }: AudioEditorWebBootstrapRenderValue<
 		Readonly<SoundscaperWebEditorRuntime>
 	>) => (
-		<Suspense fallback={<div role="status" aria-live="polite">{
-			copyText(copy, 'loading', 'Loading project')
-		}</div>}>
+		<Suspense fallback={<EditorStartupProgress copy={fallbackCopy} />}>
 			<BoundAudioEditorApp
 				locale={locale}
 				copy={copy}
@@ -195,8 +195,4 @@ function plainRecord(value: unknown, label: string): Record<string, unknown> {
 		throw new TypeError(`${label} must be a plain record.`);
 	}
 	return value as Record<string, unknown>;
-}
-
-function copyText(value: Readonly<Record<string, unknown>>, field: string, fallback: string): string {
-	return typeof value[field] === 'string' ? value[field] : fallback;
 }

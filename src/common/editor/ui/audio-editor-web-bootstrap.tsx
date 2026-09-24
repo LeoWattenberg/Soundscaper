@@ -4,6 +4,8 @@
 
 import { useEffect, useMemo, useState, type ReactNode } from 'react';
 
+import { EditorStartupProgress } from '../../site/EditorStartupProgress.tsx';
+
 import {
 	createMonoConversionConfirmation,
 	type MonoConversionConfirmation,
@@ -278,6 +280,7 @@ export interface AudioEditorWebBootstrapProps {
 export interface AudioEditorWebBootstrapRenderValue<Runtime> {
 	readonly locale: string;
 	readonly copy: Readonly<Record<string, unknown>>;
+	readonly fallbackCopy: Readonly<Record<string, unknown>>;
 	readonly initialSurface?: string;
 	readonly runtime: Runtime;
 }
@@ -363,13 +366,12 @@ export function AudioEditorWebBootstrap<Runtime extends Readonly<{
 		}</div>;
 	}
 	if (!ready || ready.attempt !== attempt) {
-		return <div role="status" aria-live="polite">{
-			copyText(fallbackCopy, 'loading', configuration.loadingFallback)
-		}</div>;
+		return <EditorStartupProgress copy={fallbackCopy} />;
 	}
 	return configuration.renderEditor({
 		locale,
 		copy: ready.copy,
+		fallbackCopy,
 		...(initialSurface === undefined ? {} : { initialSurface }),
 		runtime: ready.runtime,
 	});

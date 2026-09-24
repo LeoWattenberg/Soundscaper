@@ -6,6 +6,8 @@ import { lazyEditorModule } from '../offline/lazy-module.tsx';
 import BrandSidebar from './BrandSidebar.jsx';
 import StaleBuildDialog from './StaleBuildDialog.jsx';
 import { applyDocumentTheme } from './document-theme.js';
+import { EditorStartupProgress } from './EditorStartupProgress.tsx';
+import { editorStartupProgress } from './editor-startup-progress.ts';
 import { useSiteCopy } from './use-site-copy.js';
 import './site.css';
 
@@ -15,8 +17,10 @@ import './site.css';
 // serve. The final bundle assertion in startup-graph-budget.mjs enforces that
 // output property for both product builds.
 const EditorBootstrap = __SCAPE_PRODUCT__ === 'framescaper'
-	? lazyEditorModule(() => import('../../framescaper/ui/FramescaperAudioEditorBootstrap.tsx'))
-	: lazyEditorModule(() => import('../../soundscaper/ui/SoundscaperAudioEditorBootstrap.tsx'));
+	? lazyEditorModule(() => import('../../framescaper/ui/FramescaperAudioEditorBootstrap.tsx')
+		.then((module) => { editorStartupProgress.markPreparing(); return module; }))
+	: lazyEditorModule(() => import('../../soundscaper/ui/SoundscaperAudioEditorBootstrap.tsx')
+		.then((module) => { editorStartupProgress.markPreparing(); return module; }));
 const PrivacyPolicyRoute = lazyEditorModule(() => import('../editor/ui/PrivacyPolicyRoute.tsx'));
 
 export default function App({ route }) {
@@ -73,7 +77,7 @@ export default function App({ route }) {
 				</section>
 				<section className="website-section website-audio-editor-section website-tool-workspace">
 					<div className="website-container website-audio-editor-container">
-						<Suspense fallback={<div role="status" aria-live="polite">{copy.loading}</div>}>
+						<Suspense fallback={<EditorStartupProgress copy={copy} />}>
 							<EditorBootstrap
 								locale={locale}
 								fallbackCopy={copy}

@@ -360,7 +360,7 @@ test('returning to a locale waits for its new startup rather than showing dispos
 			});
 			assert.equal(dom.one('[data-editor]').textContent, 'German');
 			act(() => root.render(React.createElement(AudioEditorWebBootstrap, { configuration, locale: 'fr', fallbackCopy: {} })));
-			assert.equal(dom.one('[role="status"]').textContent, 'Loading');
+			assert.equal(dom.one('progress').getAttribute('aria-label'), 'Loading editor files');
 			assert.equal(dom.find('[data-editor]'), null);
 			assert.equal(dom.find('[role="alert"]'), null);
 			await act(async () => { secondFrench.resolve({ label: 'New French' }); await delay(0); });

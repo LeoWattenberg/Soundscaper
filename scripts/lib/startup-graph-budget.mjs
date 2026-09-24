@@ -30,6 +30,7 @@ export const STARTUP_GRAPH_BUDGET_REASONS = Object.freeze(Object.fromEntries(
 
 /** The observed graph sizes a build writes beside its bundle. */
 export const STARTUP_GRAPH_REPORT_FILE = '.startup-graph-report.json';
+export const STARTUP_ASSET_INVENTORY_MARKER = '<script type="application/json" data-editor-startup-assets></script>';
 
 /** The metrics a report carries: what a ceiling is set against, and nothing else. */
 export const STARTUP_GRAPH_REPORTED_METRICS = Object.freeze(['requests', 'rawBytes', 'brotliBytes']);
@@ -308,6 +309,32 @@ export function collectStartupGraph(bundle, roots) {
 	});
 }
 
+/** The exact JS/CSS closure used for both the product budget and visible loading progress. */
+export function startupGraphAssetInventory(bundle, product, graph) {
+	return Object.freeze({
+		schemaVersion: 1,
+		productId: normalizeBudgetedProduct(product),
+		assets: Object.freeze([...graph.javascript, ...graph.css]
+			.sort()
+			.map((fileName) => Object.freeze({
+				path: `/${fileName}`,
+				rawBytes: outputBytes(bundle[fileName], fileName).byteLength,
+			}))),
+	});
+}
+
+/** Embed data without an extra startup request. JSON escapes cannot close the data script. */
+export function embedStartupGraphAssetInventory(html, inventory) {
+	if (typeof html !== 'string' || html.split(STARTUP_ASSET_INVENTORY_MARKER).length !== 2) {
+		throw new Error('Editor startup asset inventory marker is missing or duplicated.');
+	}
+	const json = JSON.stringify(inventory).replace(/[<>&]/gu, (character) => (
+		`\\u${character.charCodeAt(0).toString(16).padStart(4, '0')}`
+	));
+	return html.replace(STARTUP_ASSET_INVENTORY_MARKER,
+		`<script type="application/json" data-editor-startup-assets>${json}</script>`);
+}
+
 /**
  * The observed size of each asserted graph, in the shape the tighten step reads.
  *
@@ -407,7 +434,14 @@ export function enforceStartupGraphBudgets(product) {
 		generateBundle: {
 			order: 'post',
 			handler(_options, bundle) {
-				report = startupGraphReport(builtProduct, assertProductionStartupGraphs(bundle, builtProduct));
+				const graphs = assertProductionStartupGraphs(bundle, builtProduct);
+				const document = bundle['index.html'];
+				if (document?.type !== 'asset' || typeof document.source !== 'string') {
+					throw new Error('Editor startup progress requires the built index.html document.');
+				}
+				document.source = embedStartupGraphAssetInventory(document.source,
+					startupGraphAssetInventory(bundle, builtProduct, graphs[builtProduct]));
+				report = startupGraphReport(builtProduct, graphs);
 				for (const line of formatStartupGraphReport(report)) console.log(line);
 			},
 		},

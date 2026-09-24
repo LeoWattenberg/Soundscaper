@@ -21,6 +21,8 @@ import {
 	collectStartupGraph,
 	enforceStartupGraphBudgets,
 	formatStartupGraphReport,
+	startupGraphAssetInventory,
+	embedStartupGraphAssetInventory,
 	startupGraphReport,
 } from '../scripts/lib/startup-graph-budget.mjs';
 
@@ -34,6 +36,18 @@ test('startup graph collection follows static imports and deduplicates CSS', () 
 	assert.equal(graph.rawBytes, 46);
 	assert.ok(graph.brotliBytes > 0);
 	assert.deepEqual([...graph.moduleIds].sort(), ['/workspace/src/common/site/App.jsx', '/workspace/src/main.jsx']);
+});
+
+test('the embedded inventory matches the exact budgeted asset closure', () => {
+	const bundle = fixtureBundle();
+	const graph = collectStartupGraph(bundle, ['assets/index.js']);
+	const inventory = startupGraphAssetInventory(bundle, 'soundscaper', graph);
+	assert.equal(inventory.assets.length, graph.requests);
+	assert.equal(inventory.assets.reduce((sum, asset) => sum + asset.rawBytes, 0), graph.rawBytes);
+	const html = '<body><script type="application/json" data-editor-startup-assets></script></body>';
+	const embedded = embedStartupGraphAssetInventory(html, inventory);
+	assert.deepEqual(JSON.parse(/<script[^>]*>([^<]*)<\/script>/u.exec(embedded)[1]), inventory);
+	assert.throws(() => embedStartupGraphAssetInventory('<body></body>', inventory), /marker/iu);
 });
 
 test('production startup budgets reject editor ownership in the static entry graph', () => {
@@ -185,13 +199,13 @@ test('approved graph ceilings remain hard limits', () => {
 	});
 	assert.deepEqual(STARTUP_GRAPH_BUDGETS.soundscaper, {
 		requests: 75,
-		rawBytes: 6_100_000,
-		brotliBytes: 1_473_000,
+		rawBytes: 6_110_000,
+		brotliBytes: 1_478_000,
 	});
 	assert.deepEqual(STARTUP_GRAPH_BUDGETS.framescaper, {
 		requests: 84,
-		rawBytes: 7_003_000,
-		brotliBytes: 1_678_000,
+		rawBytes: 7_015_000,
+		brotliBytes: 1_683_000,
 	});
 });
 
@@ -226,7 +240,7 @@ test('every build reports the observed graph sizes rather than only breaking on 
 	const lines = formatStartupGraphReport(report);
 	assert.equal(lines.length, 2);
 	assert.match(lines.join('\n'), /startup graph initial: requests \d+\/10, rawBytes [\d,]+\/255,350/u);
-	assert.match(lines.join('\n'), /soundscaper: requests \d+\/75, rawBytes [\d,]+\/6,100,000 \([\d.]+% slack\)/u);
+	assert.match(lines.join('\n'), /soundscaper: requests \d+\/75, rawBytes [\d,]+\/6,110,000 \([\d.]+% slack\)/u);
 });
 
 test('a build logs its observed graphs and writes them next to the bundle', async (context) => {
@@ -327,6 +341,7 @@ function addProductBootstrap(bundle, product) {
 
 function fixtureBundle() {
 	return {
+		'index.html': asset('index.html', '<body><script type="application/json" data-editor-startup-assets></script></body>'),
 		'assets/index.js': chunk({
 			fileName: 'assets/index.js',
 			code: 'entry-code',

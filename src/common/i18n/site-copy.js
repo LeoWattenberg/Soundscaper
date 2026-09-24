@@ -22,6 +22,8 @@ const SITE_COPY_ENTRIES = Object.freeze([
 	['workspaceClassic', 'Classic', 'Klassisch'],
 	['workspaceVideo', 'Video editor', 'Video-Editor'],
 	['loading', 'Loading project', 'Projekt wird geladen'],
+	['loadingEditorFiles', 'Loading editor files', 'Editordateien werden geladen'],
+	['preparingEditor', 'Preparing editor', 'Editor wird vorbereitet'],
 	['genericError', 'The action failed: {message}', 'Die Aktion ist fehlgeschlagen: {message}'],
 	['staleBuildTitle', 'Editor is out of date', 'Editor ist veraltet'],
 	['staleBuildMessage', 'A newer version of the editor has been published, so this function can no longer be loaded. Reload to get the current version. Your project stays saved on this device.', 'Es wurde eine neuere Version des Editors veröffentlicht, deshalb lässt sich diese Funktion nicht mehr laden. Lade neu, um die aktuelle Version zu erhalten. Dein Projekt bleibt auf diesem Gerät gespeichert.'],

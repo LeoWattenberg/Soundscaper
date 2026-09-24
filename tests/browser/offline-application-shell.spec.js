@@ -47,9 +47,19 @@ test('offline-shell-upgrade replaces a prior shell, isolates products, and keeps
 	expect(foreign.shells).toEqual([]);
 	expect(foreign.workers).toEqual(['/service-worker.js']);
 
+	await page.addInitScript(() => {
+		window.editorStartupPercentages = [];
+		new MutationObserver(() => {
+			const value = document.querySelector('[data-editor-startup-progress] progress')
+				?.getAttribute('aria-valuenow');
+			if (value !== null && value !== undefined) window.editorStartupPercentages.push(Number(value));
+		}).observe(document, { subtree: true, childList: true, attributes: true });
+	});
 	await context.setOffline(true);
 	await page.goto('/en/', { waitUntil: 'domcontentloaded' });
 	await expect(page.locator('[data-audio-editor]')).toHaveAttribute('data-audio-editor-bound', 'true', { timeout: 20_000 });
+	const cachedPercentages = await page.evaluate(() => window.editorStartupPercentages);
+	expect(cachedPercentages.some((percent) => percent > 0 && percent < 100)).toBe(true);
 	await expect(page.locator('html')).toHaveAttribute('data-product', 'soundscaper');
 	await expect(page.locator('link[rel="manifest"]')).toHaveAttribute('href', '/manifest-soundscaper.webmanifest');
 
