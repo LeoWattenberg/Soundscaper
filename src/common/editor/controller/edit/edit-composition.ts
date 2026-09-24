@@ -26,7 +26,7 @@ import { generateWaveformPeaks, peakCacheKey } from '../source/waveform-analysis
 import { EDITOR_PROJECT_TASK_SCOPE } from '../shared/lifecycle.ts';
 import { commitMonoConvertingPasteCommand } from './paste-mono-conversion-service.ts';
 import { commitPasteIntoExistingClipCommand } from './paste-existing-clip-service.ts';
-import { commitPasteWithLinkedSourceAliases } from './internal/paste-linked-source-aliases.ts';
+import { discoverPasteCommandTree } from './internal/paste-command-tree.ts';
 
 export type {
 	EditCommandProject,
@@ -143,14 +143,25 @@ export function createEditComposition<History extends ControllerRuntimeHistory>(
 				derivedSources: dependencies.derivedSources,
 				preflightStorage: dependencies.preflightStorage,
 				assertCurrent,
-				commit: (prepared) => commitPasteWithLinkedSourceAliases({
-					command: prepared,
-					originProjectId,
-					projectId: project.id,
-					store: dependencies.store,
-					assertCurrent,
-					commit: dependencies.commit,
-				}),
+				commit: (prepared) => {
+					const transferredMedia = discoverPasteCommandTree(prepared).sourceAdds.some(
+						({ source }) => source.kind === 'audio' || source.kind === 'video',
+					);
+					if (!transferredMedia || !originProjectId || originProjectId === project.id) {
+						assertCurrent();
+						return dependencies.commit(prepared);
+					}
+					return import('./internal/paste-linked-source-aliases.ts').then(({ commitPasteWithLinkedSourceAliases }) => (
+						commitPasteWithLinkedSourceAliases({
+							command: prepared,
+							originProjectId,
+							projectId: project.id,
+							store: dependencies.store,
+							assertCurrent,
+							commit: dependencies.commit,
+						})
+					));
+				},
 			})
 		);
 		try {
