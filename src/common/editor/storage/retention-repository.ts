@@ -84,7 +84,7 @@ export class RetentionRepository {
 
 	async ensureSession(): Promise<void> {
 		await this.#options.port.database();
-		void import('./temporary-export-recovery.ts').then(m => m.recoverAbandonedTemporaryExports()).catch(() => undefined);
+		void import('./temporary-export-recovery.ts').then(m => m.startTemporaryExportRecovery()).catch(() => undefined);
 	}
 
 	async releaseSession(database: IDBDatabase | null): Promise<void> {

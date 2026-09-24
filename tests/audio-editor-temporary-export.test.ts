@@ -8,7 +8,10 @@ import {
 	createTemporaryFileSink,
 	stemProject,
 } from '../src/common/editor/controller/export/temporary-export.ts';
-import { recoverAbandonedTemporaryExports } from '../src/common/editor/storage/temporary-export-recovery.ts';
+import {
+	createTemporaryExportRecoveryLoop,
+	recoverAbandonedTemporaryExports,
+} from '../src/common/editor/storage/temporary-export-recovery.ts';
 import {
 	createAudioClip,
 	createAudioSource,
@@ -87,9 +90,55 @@ test('recovery without Web Locks removes aged files but leaves recent exports fo
 	await withNavigator({
 		storage: { getDirectory: async () => ({ getDirectoryHandle: async () => directory }) },
 	}, async () => {
-		await recoverAbandonedTemporaryExports();
+		const nextEligibleAt = await recoverAbandonedTemporaryExports();
 		assert.deepEqual([...files.keys()], ['active.wav']);
+		assert.ok(nextEligibleAt !== null);
+		assert.ok(nextEligibleAt >= now + 12 * 60 * 60 * 1000 - 1000);
 	});
+});
+
+test('recovery revisits a recent unlocked export after its grace period without another reload', async () => {
+	let now = 1_000;
+	const timers: Array<{ callback: () => void; delay: number }> = [];
+	let scans = 0;
+	const start = createTemporaryExportRecoveryLoop(async () => {
+		scans += 1;
+		return scans === 1 ? 2_000 : null;
+	}, {
+		now: () => now,
+		schedule: (callback, delay) => { timers.push({ callback, delay }); },
+	});
+	const firstScan = start();
+	assert.equal(start(), undefined);
+	await firstScan;
+	assert.equal(scans, 1);
+	assert.equal(timers[0]?.delay, 1_000);
+	now = 2_000;
+	timers.shift()?.callback();
+	await new Promise<void>((resolve) => setImmediate(resolve));
+	assert.equal(scans, 2);
+	assert.deepEqual(timers, []);
+});
+
+test('a transient temporary export scan failure retries during the same session', async () => {
+	let now = 1_000;
+	const timers: Array<{ callback: () => void; delay: number }> = [];
+	let scans = 0;
+	const start = createTemporaryExportRecoveryLoop(async () => {
+		scans += 1;
+		if (scans === 1) throw new Error('OPFS temporarily unavailable');
+		return null;
+	}, {
+		now: () => now,
+		schedule: (callback, delay) => { timers.push({ callback, delay }); },
+	});
+	await start();
+	assert.equal(timers[0]?.delay, 60_000);
+	now += 60_000;
+	timers.shift()?.callback();
+	await new Promise<void>((resolve) => setImmediate(resolve));
+	assert.equal(scans, 2);
+	assert.deepEqual(timers, []);
 });
 
 test('startup recovery skips files still owned by a live export', async () => {
@@ -136,8 +185,9 @@ test('startup recovery skips files still owned by a live export', async () => {
 		await live.close('audio/wav');
 		const liveName = [...files.keys()].find(name => name !== 'old.wav');
 		assert.ok(liveName);
-		await recoverAbandonedTemporaryExports();
+		const nextEligibleAt = await recoverAbandonedTemporaryExports();
 		assert.deepEqual([...files.keys()], [liveName]);
+		assert.ok(nextEligibleAt !== null && nextEligibleAt > Date.now());
 		await live.remove();
 		assert.deepEqual([...files.keys()], []);
 		assert.equal(heldLocks.size, 0);
