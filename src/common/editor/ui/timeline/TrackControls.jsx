@@ -248,8 +248,7 @@ export function TrackControls({
 				onMuteToggle={updateMute}
 				onSoloToggle={() => !blocked && run(() => controller.actions.track.update(track.id, { solo: !track.solo }))}
 				onEffectsClick={() => {
-					if (!selected) run(() => controller.actions.timeline.selectTrack(track.id));
-					onOpenEffects?.(track.id, controlsRef.current?.getBoundingClientRect() || null);
+					onOpenEffects?.(track.id, controlsRef.current?.getBoundingClientRect() || null, 'track', true);
 				}}
 				onMenuClick={(event) => onMenu(event.currentTarget)}
 				onClick={() => !selected && run(() => controller.actions.timeline.selectTrack(track.id))}

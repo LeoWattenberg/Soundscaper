@@ -258,14 +258,16 @@ const DEFERRED_WEB_VCR_PANEL_ID = 'web-vcr'; export default function AudioEditor
 		setActiveSurface(surface);
 	}, [setActiveSurface]);
 	const soundscaperWorkflow = useSoundscaperWorkflowWorkspace({ productId, controller, project, selectedTrackId: snapshot.selectedTrackId, openSurface });
-	const openEffects = useCallback((trackId, _anchorRect = null, scope = 'track') => {
+	const openEffects = useCallback((trackId, _anchorRect = null, scope = 'track', toggle = false) => {
 		if (!trackId && scope !== 'master') return;
+		if (toggle && snapshot.preferences?.workspace?.panels?.effects?.visible) {
+			run(() => controller.actions.preferences.setPanelVisibility('effects', false));
+			return;
+		}
 		setActiveSurface(null);
 		setEffectsPanelTarget({ trackId: scope === 'master' ? null : trackId, scope });
 		run(() => {
-			if (scope === 'track' && trackId !== snapshot.selectedTrackId) {
-				controller.actions.timeline.selectTrack(trackId);
-			}
+			if (scope === 'track' && trackId !== snapshot.selectedTrackId) controller.actions.timeline.selectTrack(trackId);
 			controller.actions.preferences.setPanelVisibility('effects', true);
 		});
 		requestAnimationFrame(() => {
@@ -274,7 +276,7 @@ const DEFERRED_WEB_VCR_PANEL_ID = 'web-vcr'; export default function AudioEditor
 			panel.tabIndex = -1;
 			panel.focus({ preventScroll: false });
 		});
-	}, [controller, run, setActiveSurface, snapshot.selectedTrackId]);
+	}, [controller, run, setActiveSurface, snapshot.selectedTrackId, snapshot.preferences?.workspace?.panels?.effects?.visible]);
 	const { statusMessage, statusState, statusError } = workspaceStatusPresentation(snapshot.status, localError, copy.ready);
 	const aup4Compatibility = snapshot.aup4Compatibility;
 	const saveText = snapshot.save?.state === 'saving'

@@ -97,7 +97,7 @@ export const DEFAULT_PANELS = Object.freeze({
 	history: Object.freeze({ visible: false, dock: 'right', order: 0, size: 320 }),
 	labels: Object.freeze({ visible: false, dock: 'right', order: 1, size: 320 }),
 	metadata: Object.freeze({ visible: false, dock: 'right', order: 2, size: 320 }),
-	effects: Object.freeze({ visible: true, dock: 'left', order: 0, size: 360 }),
+	effects: Object.freeze({ visible: false, dock: 'left', order: 0, size: 360 }),
 	mixer: Object.freeze({ visible: false, dock: 'bottom', order: 4, size: 460 }),
 	markers: Object.freeze({ visible: false, dock: 'right', order: 5, size: 360 }),
 	analysis: Object.freeze({ visible: false, dock: 'right', order: 6, size: 380 }),

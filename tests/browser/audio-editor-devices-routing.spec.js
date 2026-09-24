@@ -464,7 +464,7 @@ test.describe('audio editor React/design-system workflows', () => {
 		const effectsPanel = page.locator('.audio-editor-effects-overlay');
 		// The dock can be shorter than its rack, so open the picker by keyboard.
 		const rackButton = effectsPanel.locator('[data-effect-rack]')
-			.getByRole('button', { name: 'Effects', exact: true }).first();
+			.getByRole('button', { name: 'Add effect', exact: true }).first();
 		await rackButton.focus();
 		await rackButton.press('Enter');
 		const picker = page.getByRole('menu', { name: 'Choose an effect', exact: true });

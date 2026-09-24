@@ -36,7 +36,7 @@ test('workspace presets retain their product-specific layout defaults', () => {
 	assert.equal(preferences.workspace.activeId, 'modern', 'a fresh Soundscaper session starts in its own workspace');
 	assert.equal(preferences.workspace.panels['project-bin'].visible, false);
 	assert.deepEqual(preferences.workspace.panels.effects, {
-		visible: true, dock: 'left', order: 0, size: 360,
+		visible: false, dock: 'left', order: 0, size: 360,
 		x: 96, y: 40, width: 360, height: 440,
 	});
 	const classic = applyAudioEditorWorkspace(preferences, 'classic');
@@ -74,7 +74,7 @@ test('workspace presets retain their product-specific layout defaults', () => {
 	});
 	for (const id of AUDIO_EDITOR_BUILT_IN_WORKSPACES) {
 		const applied = applyAudioEditorWorkspace(preferences, id);
-		assert.equal(applied.workspace.panels.effects.visible, true, id);
+		assert.equal(applied.workspace.panels.effects.visible, !['modern', 'audacity'].includes(id), id);
 		assert.equal(applied.workspace.panels.effects.dock, 'left', id);
 	}
 

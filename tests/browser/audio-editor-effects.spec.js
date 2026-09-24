@@ -34,6 +34,33 @@ import {
 	test.describe('audio editor React/design-system workflows', () => {
 	registerAudioEditorHooks();
 
+	test('the track Effects button opens and closes the initially hidden rack', async ({ page }) => {
+		const editor = await bootEditor(page, '/embed/en/', { defaultWorkspace: true });
+		const panel = editor.locator('[data-workspace-panel="effects"]');
+		const button = editor.locator('[data-track-row]').first().getByRole('button', { name: 'Effects', exact: true });
+		await expect(panel).toBeHidden();
+		await button.click();
+		await expect(panel).toBeVisible();
+		await expect(panel.locator('[data-effect-rack]').getByRole('button', { name: 'Add effect', exact: true })).toHaveCount(2);
+		await button.click();
+		await expect(panel).toBeHidden();
+		await button.click();
+		await expect(panel).toBeVisible();
+		await editor.getByRole('button', { name: 'Add track', exact: true }).click();
+		await page.locator('.add-track-flyout').getByRole('menuitem', { name: 'Audio track', exact: true }).click();
+		const secondButton = editor.locator('[data-track-row]').nth(1).getByRole('button', { name: 'Effects', exact: true });
+		await secondButton.click();
+		await expect(panel).toBeHidden();
+		await button.click();
+		await expect(panel).toBeVisible();
+		await secondButton.click();
+		await expect(panel).toBeHidden();
+		await secondButton.click();
+		await expect(panel).toBeVisible();
+		await secondButton.click();
+		await expect(panel).toBeHidden();
+	});
+
 	test('offers only supported rack effects and persists track and master effects', async ({ page }) => {
 		const errors = collectClientErrors(page);
 		const editor = await bootEditor(page, '/embed/en/');

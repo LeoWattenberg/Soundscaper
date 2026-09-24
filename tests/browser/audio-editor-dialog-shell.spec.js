@@ -207,7 +207,7 @@ test.describe('shared audio editor dialog behavior', () => {
 		await expect(effectsPanel).toBeVisible();
 
 		await effectsPanel.locator('[data-effect-rack]')
-			.getByRole('button', { name: 'Effects', exact: true })
+			.getByRole('button', { name: 'Add effect', exact: true })
 			.first()
 			.click();
 		const picker = page.getByRole('menu', { name: 'Choose an effect', exact: true });
@@ -245,7 +245,7 @@ test.describe('shared audio editor dialog behavior', () => {
 		await track.getByRole('button', { name: 'Effects', exact: true }).click();
 		const effectsPanel = editor.locator('[data-workspace-panel="effects"]');
 		await effectsPanel.locator('[data-effect-rack]')
-			.getByRole('button', { name: 'Effects', exact: true })
+			.getByRole('button', { name: 'Add effect', exact: true })
 			.first()
 			.click();
 		const picker = page.getByRole('menu', { name: 'Choose an effect', exact: true });

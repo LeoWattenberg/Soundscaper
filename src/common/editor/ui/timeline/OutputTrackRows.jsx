@@ -464,6 +464,7 @@ export function OutputTrackControls({
 					scope === 'master' ? null : bus.id,
 					controlsRef.current?.getBoundingClientRect() || null,
 					scope,
+					true,
 				)}
 				onMenuClick={(event) => onMenu(event.currentTarget)}
 				onClick={onFocus}

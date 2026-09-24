@@ -204,7 +204,7 @@ const TrackEffectsSection: React.FC<EffectsTrackSectionProps> = ({
         onToggleAll={onToggleAll}
         onContextMenu={onContextMenu}
         onAddEffect={onAddEffect}
-        addButtonLabel="Effects"
+        addButtonLabel="Add effect"
       />
 
       {/* Effect stack - only show if there are effects */}
@@ -290,7 +290,7 @@ const MasterEffectsSection: React.FC<EffectsMasterSectionProps> = ({
         onToggleAll={onToggleAll}
         onContextMenu={onContextMenu}
         onAddEffect={onAddEffect}
-        addButtonLabel="Effects"
+        addButtonLabel="Add effect"
         isMaster
       />
 

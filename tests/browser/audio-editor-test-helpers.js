@@ -205,8 +205,9 @@ export async function openEffectsForTrack(editor, trackIndex) {
 		await closeWorkspacePanel(editor, 'project-bin');
 	}
 	await openTrackHeaderDrawer(editor);
-	await editor.locator('[data-track-row]').nth(trackIndex).getByRole('button', { name: 'Effects', exact: true }).click();
 	const panel = editor.locator('[data-workspace-panel="effects"]');
+	if (await panel.isVisible()) await closeEffectsPanel(panel);
+	await editor.locator('[data-track-row]').nth(trackIndex).getByRole('button', { name: 'Effects', exact: true }).click();
 	await expect(panel).toBeVisible();
 	await expect(panel.getByRole('region', { name: 'Effects panel', exact: true })).toBeVisible();
 	return panel;
@@ -309,7 +310,7 @@ export async function chooseCustomChannelMapping(page, exportDialog, { outputs, 
 }
 
 export async function openRackPicker(panel, scope) {
-	const buttons = panel.locator('[data-effect-rack]').getByRole('button', { name: 'Effects', exact: true });
+	const buttons = panel.locator('[data-effect-rack]').getByRole('button', { name: 'Add effect', exact: true });
 	await (scope === 'master' ? buttons.last() : buttons.first()).click();
 	await expect(panel.page().getByRole('menu', { name: 'Choose an effect' })).toBeVisible();
 }
