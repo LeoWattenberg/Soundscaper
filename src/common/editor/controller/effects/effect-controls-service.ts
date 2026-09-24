@@ -54,6 +54,7 @@ export interface EffectControlsState {
 	audacityPreviewGeneration: number;
 	audacityControlTrackId: string | null;
 	effectPresets: EffectPresetCollection;
+	effectPresetsReadOnly?: boolean;
 	lastAudacityEffect: LastSelectionEffect | null;
 }
 
@@ -211,7 +212,14 @@ export function createEffectControlsService(runtime: EffectControlsServiceRuntim
 		return resolved;
 	}
 
+	function assertEffectPresetsWritable(): void {
+		if (runtime.state.effectPresetsReadOnly === true) {
+			throw new RangeError('The effect preset library is read-only because its saved data could not be loaded.');
+		}
+	}
+
 	async function commitEffectPresets(next: unknown): Promise<EffectPresetCollection> {
+		assertEffectPresetsWritable();
 		const normalized = (createAudioEditorEffectPresets as (value: unknown) => unknown)(next) as EffectPresetCollection;
 		await runtime.persistSetting('audio-editor-effect-presets-v1', normalized, { policy: 'required' });
 		runtime.state.effectPresets = normalized;
@@ -258,6 +266,7 @@ export function createEffectControlsService(runtime: EffectControlsServiceRuntim
 	async function deleteEffectPreset(presetId: string): Promise<true> {
 		const id = presetId;
 		return await enqueuePresetMutation(async () => {
+			assertEffectPresetsWritable();
 			await commitEffectPresets(deleteAudioEditorEffectPreset(runtime.state.effectPresets, id));
 			return true as const;
 		});

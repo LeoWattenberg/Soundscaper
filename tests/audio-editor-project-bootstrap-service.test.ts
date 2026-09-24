@@ -3,19 +3,12 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { createProjectBootstrapComposition } from '../src/common/editor/controller/document/project-bootstrap-composition.ts';
-import { createOwnedStateAccess } from '../src/common/editor/controller/shared/owned-state.ts';
+import { createFixture, type TestProject } from './helpers/audio-editor-project-bootstrap-fixture.ts';
 
-import {
-	EditorControllerLifetime,
-	isEditorDisposedError,
-} from '../src/common/editor/controller/shared/lifecycle.ts';
-import {
-	createProjectBootstrapService,
-	type ProjectBootstrapServiceRuntime,
-} from '../src/common/editor/controller/document/internal/project/project-bootstrap-service.ts';
 import { DELIVERY_PRESETS_SETTING_KEY } from '../src/common/editor/controller/export/delivery-preset-service.ts';
 import {
 	EFFECT_MACRO_LIBRARY_SETTING_KEY,
+	createEffectMacroLibraryService,
 	createInitialEffectMacroLibrary,
 } from '../src/common/editor/controller/effects/effect-macro-library-service.ts';
 import {
@@ -31,206 +24,6 @@ function deferred<Value>() {
 	let resolve: (value: Value | PromiseLike<Value>) => void = () => undefined;
 	const promise = new Promise<Value>((complete) => { resolve = complete; });
 	return { promise, resolve };
-}
-
-interface TestProject {
-	readonly id: string;
-	readonly tracks: readonly Readonly<{ id: string; type: string }>[];
-}
-
-interface TestPreferences {
-	readonly loaded: boolean;
-}
-
-interface TestPresets {
-	readonly source: unknown;
-}
-
-function createFixture(options: Readonly<{
-	genericReconciliation?: boolean;
-	automaticAudioDeviceEnumeration?: boolean;
-	startupProjectId?: (lastProjectId: string | null) => string | null;
-}> = {}) {
-	const lifetime = new EditorControllerLifetime();
-	const settings = new Map<string, unknown>();
-	let ready: () => PromiseLike<unknown> | unknown = () => Promise.resolve();
-	let reconcileLinkedVideoOriginalLocators: () => PromiseLike<unknown> | unknown = () => undefined;
-	let lastProjectId: string | null = null;
-	let savedProject: TestProject | null = null;
-	let loadProject: (
-		projectId: string,
-		options?: Readonly<{ signal?: AbortSignal }>,
-	) => Promise<TestProject | null> = async () => savedProject;
-	let openProject: (value: TestProject) => Promise<unknown> = async () => undefined;
-	let missingSources = false;
-	let removeDeviceListener: () => void = () => undefined;
-	let deviceListener: (() => void) | null = null;
-	let disposed = false;
-	let recoveryBlocked = false;
-	const deferredRecovery: Array<() => PromiseLike<unknown> | unknown> = [];
-	const events: string[] = [];
-	const statuses: Array<readonly [string, string]> = [];
-	const errors: unknown[] = [];
-	const state = {
-		preferences: { loaded: false },
-		effectPresets: { source: 'initial' } as TestPresets,
-		// Bootstrap hydrates this from the stored collection, so the fixture has
-		// to start with the empty state rather than without the field.
-		deliveryPresets: createDeliveryPresetState(),
-		effectMacros: createInitialEffectMacroLibrary(),
-		macroScripts: createInitialMacroScriptLibrary(),
-		// Bootstrap withholds writes for a library it could not read, so the
-		// fixture starts with the writable state the flag is toggled from.
-		effectMacrosReadOnly: false,
-		macroScriptsReadOnly: false,
-		monitoring: false,
-		microphoneMetering: false,
-		recordingInputGain: 0,
-		latencyOffsetMs: 0,
-		leadInRecording: false,
-		showRms: false,
-		showVerticalRulers: true,
-		scrollViewToPlayhead: true,
-		pinnedPlayhead: false,
-		playbackOnRulerClick: true,
-		metronomeEnabled: false,
-		selectionFollowsLoop: false,
-		preferredInputDeviceId: '',
-		preferredInputChannelCount: 1,
-		preferredOutputDeviceId: '',
-		readOnly: false,
-		takeCycleRecovery: null as unknown,
-		takeCycleRecoveryInspecting: false,
-	};
-	const ownedState = createOwnedStateAccess(state, state);
-	const runtime: ProjectBootstrapServiceRuntime<TestProject, TestPreferences, TestPresets> = {
-		state, effectsState: { setEffectPresets: (value) => { state.effectPresets = value; }, setEffectMacros: (value, readOnly = false) => { state.effectMacros = value; state.effectMacrosReadOnly = readOnly; }, setMacroScripts: (value, readOnly = false) => { state.macroScripts = value; state.macroScriptsReadOnly = readOnly; } },
-		recordingState: ownedState,
-		transportState: ownedState,
-		lifetimeSignal: lifetime.signal,
-		store: {
-			ready: () => ready(),
-			...(options.genericReconciliation === false ? {} : {
-				reconcileLinkedOriginalLocators: () => {
-					events.push('reconcile-linked-originals');
-					return reconcileLinkedVideoOriginalLocators();
-				},
-			}),
-			reconcileLinkedVideoOriginalLocators: () => {
-				events.push('reconcile-linked-video');
-				return reconcileLinkedVideoOriginalLocators();
-			},
-			cleanupTemporaryAssets: () => { events.push('cleanup-assets'); },
-			requestPersistentStorage: () => { events.push('request-persistence'); },
-			async loadSetting(key, fallback) {
-				events.push(`load:${key}`);
-				return settings.has(key) ? settings.get(key) : fallback;
-			},
-			async loadProject(
-				projectId: string,
-				options: Readonly<{ signal?: AbortSignal }> = {},
-			) {
-				events.push(`load-project:${projectId}`);
-				return loadProject(projectId, options);
-			},
-		},
-		engine: {
-			loadProject() {},
-			setOutputDevice: (deviceId) => { events.push(`output:${deviceId}`); },
-		},
-		mediaDevices: {
-			addEventListener(_type, listener) {
-				deviceListener = listener;
-				events.push('listen-devices');
-			},
-			removeEventListener() { events.push('unlisten-devices'); },
-		},
-		automaticAudioDeviceEnumeration: options.automaticAudioDeviceEnumeration,
-		productSettingKey: (key) => `product:${key}`,
-		audioDevicePreferencesSettingKey: 'audio-devices',
-		recordingInputGainDefault: 1,
-		loadPreferences: async (token) => {
-			await lifetime.guard(Promise.resolve(), token);
-			state.preferences = { loaded: true };
-			events.push('load-preferences');
-		},
-		createEffectPresets: (value = 'default') => ({ source: value }),
-		normalizeRecordingInputGain: (value) => Number(value),
-		normalizeLatencyOffset: (value) => Number(value),
-		normalizeAudioDevicePreferences: (value) => {
-			const record = value as Readonly<Record<string, unknown>> | null;
-			return {
-				inputDeviceId: String(record?.inputDeviceId ?? ''),
-				inputChannelCount: Number(record?.inputChannelCount ?? 1),
-				outputDeviceId: String(record?.outputDeviceId ?? ''),
-			};
-		},
-		refreshAudioDevices: async (options) => { events.push(`refresh-devices:${String(options.publish)}`); },
-		setRemoveDeviceChangeListener: (remove) => { removeDeviceListener = remove; },
-		loadRecentProjectState: async () => lastProjectId,
-		...(options.startupProjectId ? { startupProjectId: options.startupProjectId } : {}),
-		openProject: (value) => openProject(value),
-		newProject: async () => { events.push('new-project'); },
-		openRecovery: {
-			deferInitialSave: (operation) => deferRecovery(operation),
-			deferMaintenance: (operation) => deferRecovery(operation),
-		},
-		publishProjectState: () => { events.push('publish'); },
-		saveNow: async () => { events.push('save-now'); },
-		refreshStorageUsage: async () => { events.push('storage-usage'); },
-		hasMissingTimelineSources: () => missingSources,
-		setStatus: (message, status) => { statuses.push([message, status]); },
-		handleError: (error) => { errors.push(error); },
-		isDisposed: () => disposed,
-		isDisposedError: (error) => isEditorDisposedError(error),
-		guard: (value, token) => lifetime.guard(value, token),
-		copy: {
-			webAudioUnsupported: 'Web Audio unavailable',
-			missingSourcesBlocked: 'Missing sources',
-			ready: 'Ready',
-		},
-	};
-	return {
-		runtime,
-		deviceChange() { deviceListener?.(); },
-		errors,
-		events,
-		lifetime,
-		removeDeviceListener: () => removeDeviceListener(),
-		service: createProjectBootstrapService(runtime),
-		settings,
-		state,
-		statuses,
-		setDisposed(value: boolean) { disposed = value; },
-		setLastProject(value: string | null, loaded: TestProject | null) {
-			lastProjectId = value;
-			savedProject = loaded;
-		},
-		setMissingSources(value: boolean) { missingSources = value; },
-		setLoadProject(value: typeof loadProject) { loadProject = value; },
-		setOpenProject(value: typeof openProject) { openProject = value; },
-		setReady(value: typeof ready) { ready = value; },
-		setReconciliation(value: typeof reconcileLinkedVideoOriginalLocators) {
-			reconcileLinkedVideoOriginalLocators = value;
-		},
-		setRecoveryBlocked(value: boolean) {
-			recoveryBlocked = value;
-			state.takeCycleRecovery = value ? {} : null;
-		},
-		async resolveRecovery() {
-			recoveryBlocked = false;
-			state.takeCycleRecovery = null;
-			for (const operation of deferredRecovery.splice(0)) await operation();
-		},
-	};
-
-	async function deferRecovery(
-		operation: () => PromiseLike<unknown> | unknown,
-	): Promise<boolean> {
-		if (!recoveryBlocked) { await operation(); return true; }
-		deferredRecovery.push(operation);
-		return false;
-	}
 }
 
 test('bootstrap hydrates the delivery presets the last session saved', async () => {
@@ -254,7 +47,7 @@ test('bootstrap hydrates the delivery presets the last session saved', async () 
 	);
 });
 
-test('a delivery preset collection this build cannot read leaves a usable session', async () => {
+test('a delivery preset collection this build cannot read leaves a read-only session', async () => {
 	const fixture = createFixture();
 	fixture.settings.set(DELIVERY_PRESETS_SETTING_KEY, { schemaVersion: 99, presets: [] });
 
@@ -262,9 +55,10 @@ test('a delivery preset collection this build cannot read leaves a usable sessio
 
 	assert.deepEqual(fixture.state.deliveryPresets, createDeliveryPresetState(),
 		'an unreadable collection starts empty rather than failing the bootstrap');
+	assert.equal(fixture.state.deliveryPresetsReadOnly, true);
 });
 
-test('the saved macro library hydrates, and an unreadable one starts empty', async () => {
+test('the saved macro library hydrates, and an unreadable one starts read-only', async () => {
 	const fixture = createFixture();
 	fixture.settings.set(EFFECT_MACRO_LIBRARY_SETTING_KEY, {
 		macros: [{ id: 'macro-a', name: 'Restoration', effects: [] }],
@@ -278,8 +72,47 @@ test('the saved macro library hydrates, and an unreadable one starts empty', asy
 	await broken.service.bootstrap(broken.lifetime.capture());
 	assert.deepEqual(broken.state.effectMacros, createInitialEffectMacroLibrary(),
 		'an unreadable library starts empty rather than failing the bootstrap');
-	assert.notEqual(broken.state.effectMacrosReadOnly, true,
-		'a corrupt library may be replaced, so the session stays writable');
+	assert.equal(broken.state.effectMacrosReadOnly, true);
+});
+
+test('failed library reads block writes until bootstrap recovers', async () => {
+	for (const [key, flag] of [
+		['audio-editor-effect-presets-v1', 'effectPresetsReadOnly'],
+		[EFFECT_MACRO_LIBRARY_SETTING_KEY, 'effectMacrosReadOnly'],
+		[MACRO_SCRIPT_LIBRARY_SETTING_KEY, 'macroScriptsReadOnly'],
+		[DELIVERY_PRESETS_SETTING_KEY, 'deliveryPresetsReadOnly'],
+	] as const) {
+		const fixture = createFixture();
+		fixture.failSettingRead(key);
+		await fixture.service.bootstrap(fixture.lifetime.capture());
+		assert.equal(fixture.state[flag], true, key);
+		fixture.recoverSettingRead(key);
+		await fixture.service.bootstrap(fixture.lifetime.capture());
+		assert.equal(fixture.state[flag], false, `${key} after recovery`);
+	}
+});
+
+test('a macro saved before a read failure survives the first later edit', async () => {
+	const fixture = createFixture();
+	const stored = { macros: [{ id: 'saved', name: 'Saved', effects: [] }] };
+	fixture.settings.set(EFFECT_MACRO_LIBRARY_SETTING_KEY, stored);
+	const macros = createEffectMacroLibraryService({
+		state: fixture.state,
+		createId: () => 'new',
+		persistSetting: async (key, value) => { fixture.settings.set(key, value); },
+		publishDocumentSnapshot: () => undefined,
+		handleError: () => undefined,
+	});
+	fixture.failSettingRead(EFFECT_MACRO_LIBRARY_SETTING_KEY);
+	await fixture.service.bootstrap(fixture.lifetime.capture());
+	assert.throws(() => macros.save({ name: 'New', effects: [] }), /read-only/u);
+	assert.strictEqual(fixture.settings.get(EFFECT_MACRO_LIBRARY_SETTING_KEY), stored);
+	fixture.recoverSettingRead(EFFECT_MACRO_LIBRARY_SETTING_KEY);
+	await fixture.service.bootstrap(fixture.lifetime.capture());
+	macros.save({ name: 'New', effects: [] });
+	await macros.flush();
+	const saved = createInitialEffectMacroLibrary(fixture.settings.get(EFFECT_MACRO_LIBRARY_SETTING_KEY));
+	assert.deepEqual(saved.macros.map(({ name }) => name), ['Saved', 'New']);
 });
 
 test('a macro library written by a newer build is kept, not emptied and overwritten', async () => {

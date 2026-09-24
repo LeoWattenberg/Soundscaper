@@ -27,7 +27,7 @@ import {
 export const DELIVERY_PRESETS_SETTING_KEY = 'audio-editor-delivery-presets-v1';
 
 export interface DeliveryPresetServiceRuntime {
-	readonly state: { deliveryPresets?: unknown };
+	readonly state: { deliveryPresets?: unknown; deliveryPresetsReadOnly?: boolean };
 	readonly persistSetting: (
 		key: string,
 		value: unknown,
@@ -51,7 +51,14 @@ export function createDeliveryPresetService(runtime: DeliveryPresetServiceRuntim
 		return result;
 	}
 
+	function assertWritable(): void {
+		if (runtime.state.deliveryPresetsReadOnly === true) {
+			throw new RangeError('The delivery preset library is read-only because its saved data could not be loaded.');
+		}
+	}
+
 	async function commit(next: DeliveryPresetState): Promise<DeliveryPresetState> {
+		assertWritable();
 		const normalized = createDeliveryPresetState(next);
 		await runtime.persistSetting(DELIVERY_PRESETS_SETTING_KEY, normalized, { policy: 'required' });
 		runtime.state.deliveryPresets = normalized;
@@ -96,6 +103,7 @@ export function createDeliveryPresetService(runtime: DeliveryPresetServiceRuntim
 		async delete(presetId: string): Promise<true> {
 			const id = presetId;
 			return await enqueueMutation(async () => {
+				assertWritable();
 				await commit(deleteDeliveryPreset(runtime.state.deliveryPresets, id));
 				return true as const;
 			});

@@ -27,6 +27,7 @@ export type ControllerEffectsState<EffectPresets> = Omit<
 	SharedEffectsCompositionField | 'effectPresets'
 > & {
 	effectPresets: EffectPresets;
+	effectPresetsReadOnly: boolean;
 	effectMacros: EffectMacroLibraryState;
 	effectMacrosReadOnly: boolean;
 	macroScripts: MacroScriptLibraryState;
@@ -49,6 +50,7 @@ export function createControllerEffectsState<EffectPresets>({
 		audacityEffectParams: {},
 		audacityEffectTouchedParams: new Map<string, Set<string>>(),
 		effectPresets,
+		effectPresetsReadOnly: false,
 		effectMacros: createInitialEffectMacroLibrary(),
 		effectMacrosReadOnly: false,
 		macroScripts: createInitialMacroScriptLibrary(),
@@ -89,7 +91,10 @@ export function createControllerEffectsStatePorts<EffectPresets>(
 			},
 		}),
 		bootstrap: Object.freeze({
-			setEffectPresets: (value: EffectPresets) => { state.effectPresets = value; },
+			setEffectPresets: (value: EffectPresets, readOnly = false) => {
+				state.effectPresets = value;
+				state.effectPresetsReadOnly = readOnly;
+			},
 			setEffectMacros: (value: EffectMacroLibraryState, readOnly = false) => {
 				state.effectMacros = value;
 				state.effectMacrosReadOnly = readOnly;

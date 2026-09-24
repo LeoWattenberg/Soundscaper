@@ -68,6 +68,14 @@ test('ahead-schema libraries are never seeded or persisted by Soundscaper bootst
 	assert.equal(fixture.settings.get(EFFECT_MACRO_LIBRARY_SETTING_KEY), future);
 });
 
+test('a failed macro library read does not seed or persist defaults', async () => {
+	const fixture = createFixture({ failRead: true });
+	await fixture.bootstrap();
+	assert.equal(fixture.state.effectMacrosReadOnly, true);
+	assert.deepEqual(fixture.state.effectMacros.macros, []);
+	assert.deepEqual(fixture.writes, []);
+});
+
 test('Framescaper hydrates ordinary macros without Soundscaper defaults or a migration marker', async () => {
 	const fixture = createFixture({ defaults: false });
 	await fixture.bootstrap();
@@ -77,7 +85,9 @@ test('Framescaper hydrates ordinary macros without Soundscaper defaults or a mig
 	assert.deepEqual(fixture.writes, []);
 });
 
-function createFixture({ defaults = true, failWrite = false }: { defaults?: boolean; failWrite?: boolean } = {}) {
+function createFixture({ defaults = true, failWrite = false, failRead = false }: {
+	defaults?: boolean; failWrite?: boolean; failRead?: boolean;
+} = {}) {
 	const lifetime = new EditorControllerLifetime();
 	const settings = new Map<string, unknown>();
 	const writes: [string, EffectMacroLibraryState][] = [];
@@ -108,7 +118,10 @@ function createFixture({ defaults = true, failWrite = false }: { defaults?: bool
 		lifetimeSignal: lifetime.signal,
 		store: {
 			ready: () => undefined, requestPersistentStorage: () => undefined,
-			loadSetting: async (key, fallback) => settings.has(key) ? settings.get(key) : fallback,
+			loadSetting: async (key, fallback) => {
+				if (failRead && key === EFFECT_MACRO_LIBRARY_SETTING_KEY) throw new Error('settings offline');
+				return settings.has(key) ? settings.get(key) : fallback;
+			},
 			loadProject: async () => null,
 		},
 		engine: { loadProject: () => undefined },

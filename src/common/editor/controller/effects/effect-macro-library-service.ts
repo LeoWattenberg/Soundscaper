@@ -27,9 +27,8 @@ export interface EffectMacroLibraryServiceRuntime {
 	readonly state: {
 		effectMacros: EffectMacroLibraryState;
 		/**
-		 * Set when the stored library was written by a newer build. Such a library
-		 * cannot be read here and must not be replaced, so the session keeps it and
-		 * refuses every edit rather than saving this build's shape over it.
+		 * Set when the saved library could not be loaded. The session refuses edits
+		 * rather than saving an empty fallback over stored macros.
 		 */
 		effectMacrosReadOnly?: boolean;
 	};
@@ -74,7 +73,7 @@ export function createEffectMacroLibraryService(runtime: EffectMacroLibraryServi
 
 	function assertWritable(): void {
 		if (isReadOnly()) {
-			throw new RangeError('The macro library is read-only: a newer build wrote it.');
+			throw new RangeError('The macro library is read-only because its saved data could not be loaded.');
 		}
 	}
 

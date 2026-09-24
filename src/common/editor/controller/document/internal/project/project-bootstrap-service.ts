@@ -26,6 +26,7 @@ import type { ControllerTransportState } from '../../../transport/transport-stat
 export interface ProjectBootstrapState<Preferences> {
 	preferences: Preferences;
 	deliveryPresets: DeliveryPresetState;
+	deliveryPresetsReadOnly?: boolean;
 	showRms: boolean;
 	showVerticalRulers: boolean;
 	readOnly: boolean;
@@ -77,7 +78,7 @@ export interface ProjectBootstrapServiceRuntime<
 > {
 	readonly state: ProjectBootstrapState<Preferences>;
 	readonly effectsState: Readonly<{
-		setEffectPresets(value: EffectPresets): void;
+		setEffectPresets(value: EffectPresets, readOnly?: boolean): void;
 		setEffectMacros(value: EffectMacroLibraryState, readOnly?: boolean): void;
 		setMacroScripts(value: MacroScriptLibraryState, readOnly?: boolean): void;
 	}>;
@@ -177,17 +178,13 @@ export function createProjectBootstrapService<
 			runtime.effectsState.setEffectPresets(runtime.createEffectPresets(storedPresets || {}));
 		} catch (error) {
 			if (runtime.isDisposedError(error)) throw error;
-			runtime.effectsState.setEffectPresets(runtime.createEffectPresets());
+			runtime.effectsState.setEffectPresets(runtime.createEffectPresets(), true);
 		}
 		// The saved macro library hydrates the same way, and for the same reason:
 		// a write-only library would let the first save of a session replace every
 		// macro stored before it with the one just edited.
 		//
-		// A library a newer build wrote is a different failure and gets a different
-		// answer. This build cannot read it, but starting empty and then saving
-		// would replace it — so a user who opens a stale build, a rolled-back
-		// deploy, or a desktop app lagging the web app would lose every macro. The
-		// session keeps nothing and refuses to write instead.
+		// A newer schema or failed read cannot be replaced by an empty fallback.
 		try {
 			const storedMacros = await guard(
 				runtime.store.loadSetting(EFFECT_MACRO_LIBRARY_SETTING_KEY, null),
@@ -207,10 +204,7 @@ export function createProjectBootstrapService<
 			}
 		} catch (error) {
 			if (runtime.isDisposedError(error)) throw error;
-			if (runtime.effectMacroDefaults) {
-				const defaults = await guard(import('../../../effects/effect-macro-defaults-service.ts'));
-				runtime.effectsState.setEffectMacros(await guard(defaults.createDefaultEffectMacroLibrary()));
-			} else runtime.effectsState.setEffectMacros(createInitialEffectMacroLibrary());
+			runtime.effectsState.setEffectMacros(createInitialEffectMacroLibrary(), true);
 		}
 		// Saved macro programs hydrate beside the step-list library, under their own
 		// key so an older build simply does not read them.
@@ -225,7 +219,7 @@ export function createProjectBootstrapService<
 			}
 		} catch (error) {
 			if (runtime.isDisposedError(error)) throw error;
-			runtime.effectsState.setMacroScripts(createInitialMacroScriptLibrary());
+			runtime.effectsState.setMacroScripts(createInitialMacroScriptLibrary(), true);
 		}
 		// Delivery presets hydrate the same way effect presets do. Without this the
 		// preset service is write-only: every session starts with an empty
@@ -236,9 +230,11 @@ export function createProjectBootstrapService<
 				runtime.store.loadSetting(DELIVERY_PRESETS_SETTING_KEY, null),
 			);
 			runtime.state.deliveryPresets = createDeliveryPresetState(storedDeliveryPresets || {});
+			runtime.state.deliveryPresetsReadOnly = false;
 		} catch (error) {
 			if (runtime.isDisposedError(error)) throw error;
 			runtime.state.deliveryPresets = createDeliveryPresetState();
+			runtime.state.deliveryPresetsReadOnly = true;
 		}
 		runtime.recordingState.monitoring = Boolean(await guard(runtime.store.loadSetting('input-monitor', false)));
 		runtime.recordingState.microphoneMetering = Boolean(await guard(runtime.store.loadSetting('microphone-metering', false)));

@@ -93,6 +93,7 @@ export function createEditorControllerState<Preferences, RecordingRouting, Effec
 		projectQueue: Promise.resolve(),
 		missingSourceIds: new Set<string>(),
 		deliveryPresets: createDeliveryPresetState(),
+		deliveryPresetsReadOnly: false,
 		videoEffectGestures: new Map(),
 		lastGeneratorRequest: null,
 		phase,

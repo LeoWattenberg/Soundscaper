@@ -82,4 +82,5 @@ export type ControllerWorkspaceState<Preferences, EffectPresets, History = Contr
 	disposed: boolean;
 	mobile: boolean;
 	deliveryPresets: DeliveryPresetState;
+	deliveryPresetsReadOnly: boolean;
 };

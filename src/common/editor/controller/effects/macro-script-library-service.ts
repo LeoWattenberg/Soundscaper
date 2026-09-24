@@ -54,7 +54,7 @@ export function createMacroScriptLibraryService(runtime: MacroScriptLibraryServi
 
 	function assertWritable(): void {
 		if (isReadOnly()) {
-			throw new RangeError('The macro script library is read-only: a newer build wrote it.');
+			throw new RangeError('The macro script library is read-only because its saved data could not be loaded.');
 		}
 	}
 

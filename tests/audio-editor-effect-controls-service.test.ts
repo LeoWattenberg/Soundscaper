@@ -224,6 +224,17 @@ test('a rejected required preset write leaves state unchanged without poisoning 
 	assert.equal(harness.publications, 1);
 });
 
+test('an unreadable preset library refuses every mutation before storage', async () => {
+	const harness = createHarness();
+	harness.state.effectPresetsReadOnly = true;
+	await assert.rejects(() => harness.service.saveEffectPreset('New'), /read-only/u);
+	await assert.rejects(() => harness.service.deleteEffectPreset('preset-1'), /read-only/u);
+	await assert.rejects(() => harness.service.importEffectPresets('Echo:Delay="0.25" Decay="0.4"', { effectType: 'audacity-echo' }), /read-only/u);
+	await assert.rejects(() => harness.service.persistEffectPresets(harness.state.effectPresets), /read-only/u);
+	assert.deepEqual(harness.persistence, []);
+	assert.equal(harness.publications, 0);
+});
+
 test('overlapping preset saves serialize required writes and retain both durable changes', async () => {
 	const firstWrite = deferred();
 	let writeCount = 0;

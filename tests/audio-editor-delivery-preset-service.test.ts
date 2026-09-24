@@ -7,13 +7,13 @@ import {
 	DELIVERY_PRESETS_SETTING_KEY,
 	createDeliveryPresetService,
 } from '../src/common/editor/controller/export/delivery-preset-service.ts';
-import { createDeliveryPresetState } from '../src/common/editor/delivery-preset-store.ts';
+import { createDeliveryPresetState, saveDeliveryPresetToState } from '../src/common/editor/delivery-preset-store.ts';
 
 function harness() {
 	const persisted: Array<[string, unknown]> = [];
 	let published = 0;
 	let ids = 0;
-	const state: { deliveryPresets?: unknown } = {};
+	const state: { deliveryPresets?: unknown; deliveryPresetsReadOnly?: boolean } = {};
 	const service = createDeliveryPresetService({
 		state,
 		persistSetting: (key, value) => { persisted.push([key, value]); },
@@ -140,6 +140,19 @@ test('a failed required write stays invisible and does not poison the mutation q
 	await service.save({ label: 'Retry', kind: 'audio', format: 'wav' });
 	assert.deepEqual(service.list().map(({ label }) => label), ['Retry']);
 	assert.equal(published, 1);
+});
+
+test('an unreadable delivery preset library refuses every mutation before storage', async () => {
+	const { service, state, persisted, published } = harness();
+	state.deliveryPresetsReadOnly = true;
+	const imported = saveDeliveryPresetToState(createDeliveryPresetState(), {
+		label: 'Imported', kind: 'audio', format: 'wav', idFactory: () => 'preset-2',
+	}).state;
+	await assert.rejects(() => service.save({ label: 'New', kind: 'audio', format: 'wav' }), /read-only/u);
+	await assert.rejects(() => service.delete('preset-1'), /read-only/u);
+	await assert.rejects(() => service.import(imported), /read-only/u);
+	assert.deepEqual(persisted, []);
+	assert.equal(published(), 0);
 });
 
 test('overlapping delivery preset saves retain both changes in required storage', async () => {
