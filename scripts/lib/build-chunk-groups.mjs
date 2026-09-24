@@ -89,6 +89,26 @@ export {
 /** @type {import('rolldown').CodeSplittingGroup[]} */
 export const chunkGroups = [
 	{
+		// Startup opens the export directory for abandoned-file recovery, while
+		// the OPFS walker itself loads only after project storage is ready.
+		name: 'editor-temporary-export-recovery',
+		test: /src[\\/]common[\\/]editor[\\/]storage[\\/]temporary-export-recovery\.ts$/,
+		priority: 99,
+		minSize: 0,
+		maxSize: 400_000,
+		includeDependenciesRecursively: false,
+	},
+	{
+		// File sinks load only when an export begins; keep their OPFS lease code
+		// out of the ready editor's static controller graph.
+		name: 'editor-temporary-export-sink',
+		test: /src[\\/]common[\\/]editor[\\/]storage[\\/]temporary-export-sink\.ts$/,
+		priority: 99,
+		minSize: 0,
+		maxSize: 400_000,
+		includeDependenciesRecursively: false,
+	},
+	{
 		// Project validation and storage publish tagged errors without importing the
 		// controller composition or a selected product bootstrap to obtain a helper.
 		name: 'editor-presentation',

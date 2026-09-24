@@ -8,6 +8,7 @@ import {
 	createTemporaryFileSink,
 	stemProject,
 } from '../src/common/editor/controller/export/temporary-export.ts';
+import { recoverAbandonedTemporaryExports } from '../src/common/editor/storage/temporary-export-recovery.ts';
 import {
 	createAudioClip,
 	createAudioSource,
@@ -40,6 +41,108 @@ async function withNavigator<Value>(
 		else Reflect.deleteProperty(globalThis, 'navigator');
 	}
 }
+
+test('startup recovery removes exports left by a previous page without creating an empty directory', async () => {
+	const files = new Map<string, { kind: 'file' }>([
+		['abandoned.wav', { kind: 'file' }],
+		['abandoned.zip', { kind: 'file' }],
+	]);
+	let directoryCreates = 0;
+	const directory = {
+		async *entries(): AsyncGenerator<[string, { kind: 'file' }]> {
+			for (const entry of files) yield entry;
+		},
+		async removeEntry(name: string) { files.delete(name); },
+	};
+	await withNavigator({ locks: {
+		request: async (_name: string, _options: unknown, callback: (lock: object) => Promise<void>) => callback({}),
+	}, storage: {
+		getDirectory: async () => ({
+			getDirectoryHandle: async (_name: string, options?: { create?: boolean }) => {
+				if (options?.create) directoryCreates += 1;
+				return directory;
+			},
+		}),
+	} }, async () => {
+		await recoverAbandonedTemporaryExports();
+		assert.deepEqual([...files.keys()], []);
+		assert.equal(directoryCreates, 0);
+	});
+});
+
+test('recovery without Web Locks removes aged files but leaves recent exports for another tab', async () => {
+	const now = Date.now();
+	const files = new Map([
+		['abandoned.wav', now - 48 * 60 * 60 * 1000],
+		['active.wav', now - 12 * 60 * 60 * 1000],
+	]);
+	const directory = {
+		async *entries(): AsyncGenerator<[string, { kind: 'file'; getFile: () => Promise<{ lastModified: number }> }]> {
+			for (const [name, lastModified] of files) {
+				yield [name, { kind: 'file', getFile: async () => ({ lastModified }) }];
+			}
+		},
+		async removeEntry(name: string) { files.delete(name); },
+	};
+	await withNavigator({
+		storage: { getDirectory: async () => ({ getDirectoryHandle: async () => directory }) },
+	}, async () => {
+		await recoverAbandonedTemporaryExports();
+		assert.deepEqual([...files.keys()], ['active.wav']);
+	});
+});
+
+test('startup recovery skips files still owned by a live export', async () => {
+	const files = new Map<string, Blob>([['old.wav', new Blob([Uint8Array.of(1)])]]);
+	const heldLocks = new Set<string>();
+	const directory = {
+		async *entries(): AsyncGenerator<[string, { kind: 'file' }]> {
+			for (const name of files.keys()) yield [name, { kind: 'file' }];
+		},
+		async getFileHandle(name: string) {
+			files.set(name, new Blob());
+			return {
+				createWritable: async () => ({
+					write: async () => undefined,
+					close: async () => { files.set(name, new Blob([Uint8Array.of(2)])); },
+					abort: async () => undefined,
+				}),
+				getFile: async () => files.get(name)!,
+			};
+		},
+		async removeEntry(name: string) { files.delete(name); },
+	};
+	const locks = {
+		async request<Value>(
+			name: string,
+			optionsOrCallback: { ifAvailable?: boolean } | ((lock: object | null) => Promise<Value>),
+			maybeCallback?: (lock: object | null) => Promise<Value>,
+		): Promise<Value> {
+			const options = typeof optionsOrCallback === 'function' ? {} : optionsOrCallback;
+			const callback = typeof optionsOrCallback === 'function' ? optionsOrCallback : maybeCallback!;
+			if (options.ifAvailable && heldLocks.has(name)) return callback(null);
+			assert.equal(heldLocks.has(name), false);
+			heldLocks.add(name);
+			try { return await callback({}); }
+			finally { heldLocks.delete(name); }
+		},
+	};
+	await withNavigator({
+		storage: { getDirectory: async () => ({ getDirectoryHandle: async () => directory }) }, locks,
+	}, async () => {
+		const live = await createTemporaryFileSink('live.wav', copy);
+		assert.equal(live.persistent, true);
+		await live.write(Uint8Array.of(2));
+		await live.close('audio/wav');
+		const liveName = [...files.keys()].find(name => name !== 'old.wav');
+		assert.ok(liveName);
+		await recoverAbandonedTemporaryExports();
+		assert.deepEqual([...files.keys()], [liveName]);
+		await live.remove();
+		assert.deepEqual([...files.keys()], []);
+		assert.equal(heldLocks.size, 0);
+	});
+});
 
 test('temporary memory sinks copy all buffer view types and reject writes after closing', async () => {
 	await withNavigator({ storage: { getDirectory: async () => { throw new Error('not supported'); } } }, async () => {

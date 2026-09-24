@@ -99,6 +99,24 @@ test('the shared web bootstrap has a dedicated product-entry owner', () => {
 	assert.equal(group.includeDependenciesRecursively, false);
 });
 
+test('temporary export recovery keeps its OPFS walk behind the storage-ready import', () => {
+	const path = 'src/common/editor/storage/temporary-export-recovery.ts';
+	assert.equal(chunkGroupForModulePath(path), 'editor-temporary-export-recovery');
+	const group = chunkGroups.find((candidate) => candidate.name === 'editor-temporary-export-recovery');
+	assert.ok(group);
+	assert.equal(group.minSize, 0);
+	assert.equal(group.includeDependenciesRecursively, false);
+});
+
+test('temporary export sinks load OPFS lease handling only when an export starts', () => {
+	const path = 'src/common/editor/storage/temporary-export-sink.ts';
+	assert.equal(chunkGroupForModulePath(path), 'editor-temporary-export-sink');
+	const group = chunkGroups.find((candidate) => candidate.name === 'editor-temporary-export-sink');
+	assert.ok(group);
+	assert.equal(group.minSize, 0);
+	assert.equal(group.includeDependenciesRecursively, false);
+});
+
 test('no eagerly owned editor module statically imports a lazily owned one', () => {
 	// This is the invariant every per-directory ownership rule exists to serve. A static
 	// import across the boundary makes the importer's chunk depend on the lazy chunk, so the
