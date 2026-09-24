@@ -162,6 +162,7 @@ export class SoundscaperDesktopProjectLibraryPublicationHost {
 		signal?: AbortSignal,
 		conditional?: Readonly<{ fences: DesktopProjectWriteFences; token: string; expectedDocument: unknown }>,
 		reusedBodyIndexes: ReadonlySet<number> = new Set(),
+		linkFile?: typeof import('node:fs/promises').link,
 	): Promise<Readonly<SoundscaperDesktopProjectLibraryTransferBundle>> {
 		this.#assertOperational();
 		return this.#exclusive(async () => {
@@ -194,6 +195,7 @@ export class SoundscaperDesktopProjectLibraryPublicationHost {
 				plan,
 				signal,
 				reusedBodyIndexes,
+				linkFile,
 			);
 			let prepared = false;
 			try {
@@ -215,7 +217,7 @@ export class SoundscaperDesktopProjectLibraryPublicationHost {
 			let committed = false;
 			try {
 				await materializeSoundscaperDesktopProjectLibraryPublication(
-					this.paths.libraryRoot, stages, signal,
+					this.paths.libraryRoot, stages, signal, linkFile,
 				);
 				throwIfAborted(signal);
 				markSoundscaperDesktopProjectLibraryPublicationMaterialized(

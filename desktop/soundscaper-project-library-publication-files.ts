@@ -153,6 +153,7 @@ export async function stageSoundscaperDesktopProjectLibraryPublication(
 	plan: Readonly<SoundscaperDesktopProjectLibraryPublicationPlan>,
 	signal?: AbortSignal,
 	reusedBodyIndexes: ReadonlySet<number> = new Set(),
+	linkFile: typeof link = link,
 ): Promise<readonly Readonly<SoundscaperDesktopProjectLibraryPublicationStage>[]> {
 	throwIfAborted(signal);
 	await ensureScopedRoots(paths);
@@ -184,12 +185,19 @@ export async function stageSoundscaperDesktopProjectLibraryPublication(
 			stages.push(stage);
 			if (reusedBodyIndexes.has(index)) {
 				const finalPath = scopedPath(paths.libraryRoot, stage.finalRelativeFile);
+				const stagePath = scopedPath(paths.libraryRoot, stage.stageRelativeFile);
 				await ensureRealDirectory(resolve(paths.managedMediaRoot, 'freeze'));
 				await ensureRealDirectory(dirname(finalPath));
 				await verifySoundscaperDesktopProjectLibraryFile(finalPath, stage.byteLength, stage.sha256, signal);
-				await link(finalPath, scopedPath(paths.libraryRoot, stage.stageRelativeFile));
-				await verifySoundscaperDesktopProjectLibraryFile(
-					scopedPath(paths.libraryRoot, stage.stageRelativeFile), stage.byteLength, stage.sha256, signal);
+				try {
+					await linkFile(finalPath, stagePath);
+					await verifySoundscaperDesktopProjectLibraryFile(stagePath, stage.byteLength, stage.sha256, signal);
+				} catch (error) {
+					if (!hardLinkUnavailable(error) || await fileExists(stagePath)) throw error;
+					// Recovery can use the verified final file directly when this filesystem
+					// cannot create a second directory entry for the immutable body.
+					await verifySoundscaperDesktopProjectLibraryFile(finalPath, stage.byteLength, stage.sha256, signal);
+				}
 			} else await writeStreamStage(paths.libraryRoot, stage, body.chunks, signal);
 		}
 		return Object.freeze(stages.map((stage) => Object.freeze(stage)));
@@ -203,6 +211,7 @@ export async function materializeSoundscaperDesktopProjectLibraryPublication(
 	libraryRoot: string,
 	stages: readonly Readonly<SoundscaperDesktopProjectLibraryPublicationStage>[],
 	signal?: AbortSignal,
+	linkFile: typeof link = link,
 ): Promise<void> {
 	for (const stage of stages) {
 		throwIfAborted(signal);
@@ -223,9 +232,9 @@ export async function materializeSoundscaperDesktopProjectLibraryPublication(
 			throw new Error(`Soundscaper desktop baseline publication stage is missing: ${stage.stageRelativeFile}`);
 		}
 		try {
-			await link(stagePath, finalPath);
+			await linkFile(stagePath, finalPath);
 		} catch (error) {
-			if (errorCode(error) === 'EXDEV') {
+			if (hardLinkUnavailable(error)) {
 				await copyFile(stagePath, finalPath, fileConstants.COPYFILE_EXCL);
 			} else if (errorCode(error) !== 'EEXIST') throw error;
 		}
@@ -480,6 +489,10 @@ function errorCode(error: unknown): string | null {
 	return error && typeof error === 'object' && 'code' in error && typeof error.code === 'string'
 		? error.code
 		: null;
+}
+
+function hardLinkUnavailable(error: unknown): boolean {
+	return ['EXDEV', 'ENOTSUP', 'EOPNOTSUPP', 'ENOSYS', 'EPERM', 'EMLINK'].includes(errorCode(error) ?? '');
 }
 
 function throwIfAborted(signal?: AbortSignal): void {
