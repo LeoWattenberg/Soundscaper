@@ -63,11 +63,16 @@ export function useTimelinePointerMove({
 	);
 	const splitToolHoverRef = useRef(null);
 	const splitToolGuidelineRef = useRef(null);
+	const hoverSnapIndexRef = useRef(null);
 	const clearSplitToolGuideline = useCallback(() => {
 		splitToolHoverRef.current = null;
 		splitToolGuidelineRef.current = null;
 		setSplitToolGuideline(null);
 	}, [setSplitToolGuideline]);
+	const clearPointerHover = useCallback(() => {
+		clearSplitToolGuideline();
+		setBoundarySnapGuideFrames((current) => current.length ? [] : current);
+	}, [clearSplitToolGuideline, setBoundarySnapGuideFrames]);
 	const resolveCurrentSplitToolGuideline = useCallback(() => {
 		const hover = splitToolHoverRef.current;
 		const runtime = splitToolGuidelineRuntimeRef.current;
@@ -201,6 +206,29 @@ export function useTimelinePointerMove({
 			setSplitToolGuideline((current) => sameSplitToolGuideline(current, guideline)
 				? current
 				: guideline);
+		}
+		if (!session) {
+			const ruler = scrollRef.current?.querySelector('[data-ruler-interaction]');
+			const rulerRect = ruler?.getBoundingClientRect();
+			const overTime = rulerRect && event.clientX >= rulerRect.left && event.clientX < rulerRect.right;
+			const hoverLane = lane || ruler;
+			let guideFrame = null;
+			if (overTime && hoverLane && !splitToolActive) {
+				if (hoverSnapIndexRef.current?.project !== project) {
+					hoverSnapIndexRef.current = createBoundarySnapIndex(project);
+				}
+				const snap = resolveBoundarySnap({
+					project, index: hoverSnapIndexRef.current,
+					frame: frameAtClientX(event.clientX, hoverLane),
+					currentTrackId: lane?.dataset.trackId ?? null,
+					pixelsPerSecond, sampleRate,
+				});
+				if (snap.snapped) guideFrame = snap.frame;
+			}
+			setBoundarySnapGuideFrames((current) => current.length === (guideFrame === null ? 0 : 1)
+				&& (guideFrame === null || current[0] === guideFrame)
+				? current : guideFrame === null ? [] : [guideFrame]);
+			return;
 		}
 		if (session?.kind === 'track-resize') {
 			const delta = (event.clientY - session.startY) * (session.edge === 'top' ? -1 : 1);
@@ -458,7 +486,7 @@ export function useTimelinePointerMove({
 		}
 	}, [clearSplitToolGuideline, controller, frameAtClientX, isOverOutputDock, isOverProjectBin, panelWidth, pixelsPerSecond, project, projectIndex, resolveCurrentSplitToolGuideline, run, sampleRate, setBoundarySnapGuideFrames, setDraggingClipIds, setProjectBinDropActive, setSplitToolGuideline, snapshot.capabilities?.videoCompositing, splitToolActive, trackAtClientY]);
 
-	return { onPointerMove, clearSplitToolGuideline };
+	return { onPointerMove, clearPointerHover };
 }
 
 function sameSplitToolGuideline(left, right) {

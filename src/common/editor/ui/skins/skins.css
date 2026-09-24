@@ -121,8 +121,10 @@ body[data-editor-skin]:not([data-editor-skin='default'], [data-editor-skin='high
 
 #kw-audio-editor-design-system[data-editor-skin]:not([data-editor-skin='default'], [data-editor-skin='high-contrast']) .audio-editor-timeline-scroll {
 	background-image: linear-gradient(to right, var(--stage-raised) 0 var(--track-panel-width, 0px),
-		var(--stage-line) var(--track-panel-width, 0px) calc(var(--track-panel-width, 0px) + 1px), transparent 0), var(--editor-skin-art);
-	background-size: auto, 960px 600px;
+		var(--stage-line) var(--track-panel-width, 0px) calc(var(--track-panel-width, 0px) + 1px), transparent 0),
+		linear-gradient(to right, var(--stage-line) 0 1px, var(--stage-raised) 1px), var(--editor-skin-art);
+	background-position: left top, right top, right bottom;
+	background-size: 100% 100%, var(--vertical-ruler-width, 0px) 100%, 960px 600px;
 }
 
 body[data-editor-skin]:not([data-editor-skin='default'], [data-editor-skin='high-contrast']) .tooltip__content {

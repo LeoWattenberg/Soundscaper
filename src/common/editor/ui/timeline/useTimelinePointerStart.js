@@ -266,11 +266,14 @@ export function useTimelinePointerStart({
 		if (automationToolEnabled && clipTrack?.type === 'audio') return;
 		const clipEditHandle = event.target.closest('.clip-display__handle');
 		let edgeKind = null;
-		if (event.target.closest('.clip-display') && !clipEditHandle) {
-			const clipRect = clipElement.getBoundingClientRect();
+		const clipDisplay = event.target.closest('.clip-display');
+		if (clipDisplay && !clipEditHandle) {
+			const clipRect = clipDisplay.getBoundingClientRect();
 			const distanceFromLeft = event.clientX - clipRect.left;
 			const distanceFromRight = clipRect.right - event.clientX;
-			if (Math.min(distanceFromLeft, distanceFromRight) <= CLIP_TRIM_EDGE_HIT_WIDTH) {
+			const inTrimBand = event.clientY >= clipRect.top
+				&& event.clientY < clipRect.top + clipRect.height / 3;
+			if (inTrimBand && Math.min(distanceFromLeft, distanceFromRight) <= CLIP_TRIM_EDGE_HIT_WIDTH) {
 				edgeKind = distanceFromLeft <= distanceFromRight ? 'trim-left' : 'trim-right';
 			}
 		}

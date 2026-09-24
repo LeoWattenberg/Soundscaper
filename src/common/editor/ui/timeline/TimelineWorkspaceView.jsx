@@ -32,6 +32,7 @@ import { TimelinePlaybackProjection } from './TimelinePlaybackProjection.tsx';
 import { ContainerAddTrackFlyout } from './TimelineFlyouts.jsx';
 import { TimelineMenus } from './TimelineMenus.jsx';
 import { useTimelineClipUploadDrag } from './useTimelineClipUploadDrag.ts';
+import { useTimelinePointerPositionIndicators } from './useTimelinePointerPositionIndicators.js';
 
 export function TimelineWorkspaceView({
 	controller,
@@ -116,7 +117,7 @@ export function TimelineWorkspaceView({
 		onPointerDown,
 		onTrackHeaderDrawerKeyDown,
 		onPointerMove,
-		clearSplitToolGuideline,
+		clearPointerHover,
 		finishPointerSession,
 		finishTouch,
 		onTimelineDragOver,
@@ -149,6 +150,7 @@ export function TimelineWorkspaceView({
 	// tracks, so a tick and its line can never come from different models.
 	const rulerScale = useMemo(() => resolveTimelineRulerScale(project), [project]);
 	const timelinePanelRef = useRef(null);
+	const pointerPosition = useTimelinePointerPositionIndicators(timelinePanelRef, scrollRef);
 	const setTimelinePanelNode = useCallback((node) => {
 		timelinePanelRef.current = node;
 		setTimelineNode(node);
@@ -226,7 +228,8 @@ export function TimelineWorkspaceView({
 				onPointerDownCapture={onPointerDown}
 				onKeyDown={onTrackHeaderDrawerKeyDown}
 				onPointerMove={onPointerMove}
-				onPointerLeave={clearSplitToolGuideline}
+				onPointerMoveCapture={pointerPosition.updatePointerPosition}
+				onPointerLeave={() => { clearPointerHover(); pointerPosition.hidePointerPosition(); }}
 				onPointerUp={(event) => { finishTouch(event); finishPointerSession(event); }}
 				onPointerCancel={(event) => {
 					finishTouch(event);
@@ -335,6 +338,7 @@ export function TimelineWorkspaceView({
 								createAnnotation={createAnnotation}
 							/>}
 							<RulerPlayhead />
+							<div ref={pointerPosition.timeIndicatorRef} className="audio-editor-ruler-pointer-position" data-time-ruler-pointer-position aria-hidden="true" hidden />
 						</div>
 						{verticalRulerWidth > 0 && <div
 							className="audio-editor-ruler-scale-corner"
@@ -480,6 +484,7 @@ export function TimelineWorkspaceView({
 					/>
 				</div>
 			</div>
+			<div ref={pointerPosition.verticalIndicatorRef} className="audio-editor-vertical-ruler-pointer-position" data-vertical-ruler-pointer-position aria-hidden="true" hidden />
 			{showTimelineAnnotations && <span
 				className="kw-audio-editor-sr-only"
 				data-timeline-annotation-create-status

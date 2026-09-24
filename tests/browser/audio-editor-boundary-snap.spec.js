@@ -212,4 +212,17 @@ test.describe('Audacity 3 boundary snapping', () => {
 			return box ? Math.abs(box.x - clipEndX) : Infinity;
 		}).toBeLessThan(1);
 	});
+
+	test('shows the yellow guide while hovering a boundary without dragging', async ({ page }) => {
+		const { editor, anchor } = await setupBoundaryClips(page);
+		const anchorBox = await anchor.boundingBox();
+		const laneBox = await editor.locator('.audio-editor-track-lane[data-track-lane]').first().boundingBox();
+		expect(anchorBox).not.toBeNull();
+		expect(laneBox).not.toBeNull();
+		const y = laneBox.y + laneBox.height / 2;
+		await page.mouse.move(anchorBox.x - NEAR_BOUNDARY_PIXELS, y);
+		await expectYellowGuide(editor);
+		await page.mouse.move(anchorBox.x - 30, y);
+		await expect(editor.locator('[data-smart-snap-guide]')).toHaveCount(0);
+	});
 });

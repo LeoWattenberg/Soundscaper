@@ -1,0 +1,74 @@
+/* The scrollport paints the header and the scale down to the last visible
+   pixel, including the space below all track rows. */
+.audio-editor-timeline-scroll {
+	cursor: text;
+	background-image:
+		linear-gradient(to right, var(--stage-raised) 0 var(--track-panel-width, 0px),
+			var(--stage-line) var(--track-panel-width, 0px) calc(var(--track-panel-width, 0px) + 1px), transparent 0),
+		linear-gradient(to right, var(--stage-line) 0 1px, var(--stage-raised) 1px);
+	background-position: left top, right top;
+	background-size: 100% 100%, var(--vertical-ruler-width, 0px) 100%;
+	background-repeat: no-repeat;
+}
+
+.audio-editor-output-dock {
+	cursor: text;
+}
+
+.audio-editor-ruler-viewport,
+.audio-editor-vertical-ruler {
+	cursor: default;
+}
+
+.audio-editor-vertical-ruler {
+	background: var(--stage-raised);
+}
+
+.audio-editor-ruler-pointer-position,
+.audio-editor-vertical-ruler-pointer-position {
+	position: absolute;
+	width: 1px;
+	background: var(--accent);
+	box-shadow: 0 0 0 1px color-mix(in srgb, var(--stage) 38%, transparent);
+	pointer-events: none;
+}
+
+.audio-editor-ruler-pointer-position {
+	z-index: 3;
+	top: 0;
+	height: 100%;
+}
+
+.audio-editor-vertical-ruler-pointer-position {
+	z-index: 65;
+	left: calc(var(--track-panel-width, 0px) + var(--timeline-viewport-width, 0px));
+	width: var(--vertical-ruler-width, 0px);
+	height: 1px;
+}
+
+.audio-editor-ruler-pointer-position[hidden],
+.audio-editor-vertical-ruler-pointer-position[hidden] {
+	display: none;
+}
+
+/* The edge is a trim target only in the upper third. The rest of an
+   unselected clip remains available for a time selection. */
+.audio-editor-track-window .clip-display::before,
+.audio-editor-track-window .clip-display::after {
+	position: absolute;
+	z-index: 11;
+	top: 0;
+	width: 6px;
+	height: 33.333%;
+	content: '';
+}
+
+.audio-editor-track-window .clip-display::before {
+	left: 0;
+	cursor: url('../../../../../vendor/audacity-design-system/components/src/assets/cursors/ClipTrimLeft.png') 8 10, ew-resize;
+}
+
+.audio-editor-track-window .clip-display::after {
+	right: 0;
+	cursor: url('../../../../../vendor/audacity-design-system/components/src/assets/cursors/ClipTrimRight.png') 8 10, ew-resize;
+}
