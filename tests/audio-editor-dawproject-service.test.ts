@@ -1,9 +1,12 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 
+import { encodeDedicatedAudioPcm } from '../src/common/editor/browser-dedicated-audio-codec.ts';
 import { createNativeProjectService } from '../src/common/editor/controller/document/native-project-service.ts';
+import { createDawprojectAudioPreparer } from '../src/common/editor/controller/import/dawproject-audio-decode.ts';
 import type { NativeProjectDocument } from '../src/common/editor/controller/document/native-project-types.ts';
 import { readDawprojectArchive, writeDawprojectArchive } from '../src/common/editor/dawproject-archive.ts';
 import { parseDawprojectDocument } from '../src/common/editor/dawproject-import.ts';
@@ -14,6 +17,7 @@ import { importSoundscaperAudacityProject } from '../src/soundscaper/editor-auda
 import { validateSoundscaperProject } from '../src/soundscaper/editor-project-validation.ts';
 import { DAWPROJECT_BLOB_EXPORT_BYTE_LIMIT } from '../src/common/editor/controller/import/internal/dawproject/dawproject-export-audio.ts';
 import { DAWPROJECT_IMPORT_WORKING_BYTE_LIMIT } from '../src/common/editor/controller/import/internal/dawproject/dawproject-service.ts';
+import { assertDawprojectCompressedWorkingBudget } from '../src/common/editor/controller/import/internal/dawproject/dawproject-import-compressed.ts';
 
 const SAMPLE_RATE = 48_000;
 const FRAMES = 1_000;
@@ -199,27 +203,146 @@ test('DAWproject import removes staged sources when a later source fails storage
 	assert.deepEqual(fixture.switched, []);
 });
 
-test('DAWproject import rejects decoded codec media above the aggregate working budget before storage admission', async () => {
+test('DAWproject compressed entry reserves decoder scratch before opening the decoder', () => {
+	assert.doesNotThrow(() => assertDawprojectCompressedWorkingBudget(
+		192 * 1024 * 1024, DAWPROJECT_IMPORT_WORKING_BYTE_LIMIT, 'audio/ok.mp3',
+	));
+	assert.throws(() => assertDawprojectCompressedWorkingBudget(
+		192 * 1024 * 1024 + 1, DAWPROJECT_IMPORT_WORKING_BYTE_LIMIT, 'audio/large.mp3',
+	), /import working memory budget/u);
+});
+
+test('DAWproject compressed media preflights before streaming bounded packets into storage', async () => {
 	const archive = await writeDawprojectArchive({
-		projectXml: PROJECT_XML.replace('audio/take.wav', 'audio/large.mp3'),
-		metadataXml: '',
-		files: [{ path: 'audio/large.mp3', blob: new Blob(['compressed audio']) }],
+		projectXml: PROJECT_XML.replace('audio/take.wav', 'audio/take.mp3'),
+		metadataXml: '', files: [{ path: 'audio/take.mp3', blob: new Blob(['compressed audio']) }],
 	});
-	Object.defineProperty(archive, 'name', { value: 'large.dawproject' });
-	const { store, written } = writerCapture();
-	let preflighted = false;
-	const oversizedChannel = { length: DAWPROJECT_IMPORT_WORKING_BYTE_LIMIT / 8 } as Float32Array;
+	Object.defineProperty(archive, 'name', { value: 'compressed.dawproject' });
+	const events: string[] = [];
+	const packets = [new Float32Array(500).fill(0.25), new Float32Array(500).fill(-0.25)];
 	const fixture = createFixture({
-		store,
-		decodeAudioFile: async () => ({ channels: [oversizedChannel, oversizedChannel], sampleRate: SAMPLE_RATE }),
-		preflightStorage: async () => { preflighted = true; },
+		prepareDawprojectAudio: async () => ({
+			descriptor: { container: 'compressed-audio', frameCount: FRAMES,
+				channelCount: 1, sampleRate: SAMPLE_RATE, mimeType: 'audio/mpeg' },
+			async stream({ onChunk }) {
+				events.push('stream');
+				for (const packet of packets) await onChunk([packet]);
+			},
+			dispose: () => { events.push('dispose'); },
+		}),
+		preflightStorage: async () => { events.push('preflight'); },
+		store: {
+			estimateStorage: async () => ({ usage: 0, quota: 1_000_000 }),
+			beginSourceWrite: async () => ({
+				write: async (channels) => { events.push(`write:${channels[0]?.length}`); },
+				commit: async () => { events.push('commit'); },
+				abort: async () => { events.push('abort'); },
+			}),
+			deleteSource: async () => undefined,
+		},
 	});
-	await assert.rejects(
-		createNativeProjectService(fixture.runtime).openDawproject(archive as Blob & { name: string }),
-		/import working memory budget/u,
-	);
-	assert.equal(preflighted, false);
-	assert.deepEqual(written, []);
+	const result = await createNativeProjectService(fixture.runtime).openDawproject(archive as Blob & { name: string });
+	assert.ok(result);
+	assert.deepEqual(events, ['preflight', 'stream', 'write:500', 'write:500', 'commit', 'dispose']);
+	assert.equal(result.project.sources[0]?.frameCount, FRAMES);
+});
+
+test('DAWproject imports embedded MP3 and FLAC through bounded packet decoders', async () => {
+	const originalFetch = globalThis.fetch;
+	globalThis.fetch = async (url) => { assert.ok(url instanceof URL); return new Response(await readFile(url)); };
+	try {
+		for (const entry of [
+			{ format: 'mp3', settings: { bitrateKbps: 192 } },
+			{ format: 'flac', settings: { compressionLevel: 5 } },
+		] as const) {
+			const pcm = Float32Array.from({ length: 4800 * 2 }, (_value, index) => Math.sin(index / 20) / 4);
+			const encoded = await encodeDedicatedAudioPcm({
+				format: entry.format, input: new Uint8Array(pcm.buffer), frameCount: 4800,
+				channelCount: 2, sampleRate: SAMPLE_RATE, settings: entry.settings,
+				maximumOutputBytes: 1024 * 1024,
+			}, { loadPayload: async (_format, url) => new Uint8Array(await readFile(url)) });
+			const path = `audio/take.${entry.format}`;
+			const archive = await writeDawprojectArchive({
+				projectXml: PROJECT_XML.replace('audio/take.wav', path), metadataXml: '',
+				files: [{ path, blob: new Blob([encoded]) }],
+			});
+			Object.defineProperty(archive, 'name', { value: `${entry.format}.dawproject` });
+			const { written, store } = writerCapture();
+			const fixture = createFixture({ store,
+				prepareDawprojectAudio: createDawprojectAudioPreparer({
+					decode: async () => { throw new Error('Unbounded codec fallback was used.'); },
+				}),
+			});
+			const result = await createNativeProjectService(fixture.runtime).openDawproject(archive as Blob & { name: string });
+			assert.ok(result);
+			assert.equal(result.project.sources.length, 1, entry.format);
+			assert.equal(written.reduce((sum, packet) => sum + packet.frames, 0), 4800, entry.format);
+		}
+	} finally { globalThis.fetch = originalFetch; }
+});
+
+test('a compressed decoder failure aborts partial staging and reports undecodable media', async () => {
+	const archive = await writeDawprojectArchive({
+		projectXml: PROJECT_XML.replace('audio/take.wav', 'audio/broken.flac'),
+		metadataXml: '', files: [{ path: 'audio/broken.flac', blob: new Blob(['compressed audio']) }],
+	});
+	Object.defineProperty(archive, 'name', { value: 'broken.dawproject' });
+	const events: string[] = [];
+	const fixture = createFixture({
+		prepareDawprojectAudio: async () => ({
+			descriptor: { container: 'compressed-audio', frameCount: FRAMES,
+				channelCount: 1, sampleRate: SAMPLE_RATE, mimeType: 'audio/flac' },
+			async stream({ onChunk }) {
+				await onChunk([new Float32Array(500)]);
+				throw new Error('Malformed audio packet');
+			},
+			dispose: () => { events.push('dispose'); },
+		}),
+		store: {
+			estimateStorage: async () => ({ usage: 0, quota: 1_000_000 }),
+			beginSourceWrite: async () => ({
+				write: async () => { events.push('write'); },
+				commit: async () => { events.push('commit'); },
+				abort: async () => { events.push('abort'); },
+			}),
+			deleteSource: async () => undefined,
+		},
+	});
+	const result = await createNativeProjectService(fixture.runtime).openDawproject(archive as Blob & { name: string });
+	assert.ok(result);
+	assert.deepEqual(events, ['write', 'abort', 'dispose']);
+	assert.equal(result.project.sources.length, 0);
+	assert.ok((result.report as { items: { code: string }[] }).items.some((item) => item.code === 'dawproject.media-undecodable'));
+});
+
+test('a compressed staging write failure aborts import instead of reporting an omitted source', async () => {
+	const archive = await writeDawprojectArchive({
+		projectXml: PROJECT_XML.replace('audio/take.wav', 'audio/take.mp3'),
+		metadataXml: '', files: [{ path: 'audio/take.mp3', blob: new Blob(['compressed audio']) }],
+	});
+	Object.defineProperty(archive, 'name', { value: 'write-failure.dawproject' });
+	const failure = new Error('disk full');
+	let aborted = false;
+	const fixture = createFixture({
+		prepareDawprojectAudio: async () => ({
+			descriptor: { container: 'compressed-audio', frameCount: FRAMES,
+				channelCount: 1, sampleRate: SAMPLE_RATE, mimeType: 'audio/mpeg' },
+			async stream({ onChunk }) { await onChunk([new Float32Array(FRAMES)]); },
+			dispose: () => undefined,
+		}),
+		store: {
+			estimateStorage: async () => ({ usage: 0, quota: 1_000_000 }),
+			beginSourceWrite: async () => ({
+				write: async () => { throw failure; },
+				commit: async () => undefined,
+				abort: async () => { aborted = true; },
+			}),
+			deleteSource: async () => undefined,
+		},
+	});
+	await assert.rejects(createNativeProjectService(fixture.runtime).openDawproject(archive as Blob & { name: string }),
+		(error: unknown) => error === failure);
+	assert.equal(aborted, true);
 	assert.deepEqual(fixture.switched, []);
 });
 
@@ -230,7 +353,11 @@ test('an archive whose audio cannot be decoded imports the structure and reports
 	});
 	Object.defineProperty(archive, 'name', { value: 'broken.dawproject' });
 	const { written, store } = writerCapture();
-	const fixture = createFixture({ store });
+	const fixture = createFixture({ store,
+		prepareDawprojectAudio: createDawprojectAudioPreparer({
+			decode: async () => { throw new Error('Unbounded codec fallback was used.'); },
+		}),
+	});
 	const service = createNativeProjectService(fixture.runtime);
 	const result = await service.openDawproject(archive as Blob & { name: string });
 	assert.equal(written.length, 0);

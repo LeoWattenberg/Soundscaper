@@ -71,7 +71,7 @@ import {
 import { createMicrophoneMeterService } from './controller/recording/microphone-meter-service.ts'; import { createProjectVisualService } from './controller/document/project-visual-service.ts';
 
 import { createNativeProjectComposition } from './controller/document/native-project-composition.ts';
-import { createDawprojectAudioDecoder } from './controller/import/dawproject-audio-decode.ts';
+import { createDawprojectAudioPreparer } from './controller/import/dawproject-audio-decode.ts';
 
 import { createTakeCycleOpenRecoveryAppPort } from './controller/recording/take-cycle-open-recovery-app-port.ts';
 
@@ -424,7 +424,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		setStatus: bindings.setStatus,
 		publishDocumentSnapshot,
 		sourceBuffers,
-		decodeAudioFile: createDawprojectAudioDecoder({ engine, ffmpeg, copy }), product,
+		prepareDawprojectAudio: createDawprojectAudioPreparer(ffmpeg), product,
 	});
 	const captureComposition = createCaptureComposition(framescaperCaptureRuntime, captureRuntime => ({
 		proxy: {

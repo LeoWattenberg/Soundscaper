@@ -67,7 +67,7 @@ export function createNativeProjectService(runtime: NativeProjectServiceRuntime)
 		failSave, finishImport, finishSave, markDisposed,
 		requireOwnedProject, requireProject,
 	} = createNativeProjectOwnership(runtime);
-	const dawproject = createDeferredDawprojectService(runtime, { beginProjectTask, assertOwnership, beginImport, finishImport, persistDecodedSource, persistSourceChunks, updateNativeProjectProgress, requireProject });
+	const dawproject = createDeferredDawprojectService(runtime, { beginProjectTask, assertOwnership, beginImport, finishImport, persistSourceChunks, updateNativeProjectProgress, requireProject });
 
 	return Object.freeze({
 		dismissAup4CompatibilitySummary,

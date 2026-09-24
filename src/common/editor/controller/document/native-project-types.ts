@@ -7,6 +7,7 @@ import type {
 import type { EditorTaskProgressCoordinator } from '../shared/task-progress.ts';
 import type { LocalizedPresentationMessage } from '../../../i18n/presentation-message.ts';
 import type { BlobLike } from '../../storage/media-records.ts';
+import type { PreparedStreamedAudioImport } from '../../browser-streamed-audio-import.ts';
 import type { ScapeProjectInput } from '../../scape-project-input.ts';
 import type { ScapeManifest } from '../../scape-archive-envelope.ts';
 import type { ProjectFileExtension } from '../../../project-file-extensions.ts';
@@ -409,11 +410,10 @@ export interface NativeProjectServiceRuntime {
 	readonly sourceBuffers: ReadonlyMap<string, NativeAudioBuffer>;
 	readonly sourceChunkFrames: number;
 	readonly scapeMimeType: string;
-	/** Decodes an embedded DAWproject audio file the PCM reader cannot; absent means WAV only. */
-	readonly decodeAudioFile?: (file: Blob, name: string) => Promise<Readonly<{
-		channels: readonly Float32Array[];
-		sampleRate: number;
-	}>>;
+	/** Opens bounded compressed decoding for embedded DAWproject media. */
+	readonly prepareDawprojectAudio?: (
+		file: Blob, name: string, signal: AbortSignal,
+	) => Promise<PreparedStreamedAudioImport>;
 	readonly product?: Readonly<{ name?: string }>;
 	readonly applicationVersion?: string;
 }

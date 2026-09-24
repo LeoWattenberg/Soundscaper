@@ -13,16 +13,16 @@ import { buildDawprojectProject, dawprojectImportedAudioMimeType, type Dawprojec
 import { createCurrentAudioEditorProject } from '../../../../project-current.ts';
 import { AUDIO_EDITOR_PCM_CHUNK_FRAMES } from '../../../../pcm-chunks.js';
 import { admitAudioImportChannelCount } from '../audio-import-channel-admission.ts';
-import { decodeDawprojectAudioEntry } from '../../dawproject-audio-decode.ts';
 import { resolveDeliveredProject } from '../../../export/interchange-export-action.ts';
 import { DAWPROJECT_BLOB_EXPORT_BYTE_LIMIT, dawprojectWavByteLength, dawprojectWavStream } from './dawproject-export-audio.ts';
+import { assertDawprojectCompressedWorkingBudget, stageDawprojectCompressedSource } from './dawproject-import-compressed.ts';
 import { inspectWavBlobPcm } from '../../../../wav-import.js';
 import { createWavBlobPcmChunkReader, type WavBlobPcmChunkReader, type WavPcmDescriptor } from '../../../../wav-pcm-chunk-reader.ts';
 import type { BlobLike } from '../../../../storage/media-records.ts';
+import type { PreparedStreamedAudioImport } from '../../../../browser-streamed-audio-import.ts';
 
 import type { EditorProjectToken, EditorTaskScope } from '../../../shared/lifecycle.ts';
 import type {
-	Aup4DecodedSource,
 	NativeProgress,
 	NativeProjectAudioSource,
 	NativeProjectDocument,
@@ -34,9 +34,8 @@ import type {
 /**
  * DAWproject open and export, composed into the native project service.
  *
- * Open follows the Audacity path exactly: read and decode everything first,
- * build the document, persist the sources, then switch — so a failure at any
- * step leaves the previous project untouched and no orphaned PCM behind.
+ * Open stages each source before building and switching to the project. A
+ * failure leaves the previous project active and rolls back staged PCM.
  * Export follows the interchange path: the report is published before the
  * save dialog, so a cancelled save still leaves the omissions readable.
  *
@@ -55,12 +54,6 @@ export interface DawprojectServiceHelpers {
 	assertOwnership(task: EditorTaskScope, token: EditorProjectToken): void;
 	beginImport(task: EditorTaskScope): void;
 	finishImport(task: EditorTaskScope): void;
-	persistDecodedSource(
-		project: NativeProjectDocument,
-		sourceAudio: Aup4DecodedSource,
-		persistedSourceIds: string[],
-		operation: DawprojectServiceOperation,
-	): Promise<void>;
 	persistSourceChunks(
 		project: NativeProjectDocument,
 		sourceId: string,
@@ -128,50 +121,54 @@ export function createDawprojectService(runtime: NativeProjectServiceRuntime, he
 					throw new RangeError(`DAWproject media ${reference.path} exceeds the import working memory budget.`);
 				}
 				const wav = await inspectPcmWav(blob, signal);
-				const audio = wav ? null : await decodeDawprojectAudioEntry(blob, entryBaseName(reference.path), {
-					decodeAudioFile: runtime.decodeAudioFile ?? null, signal,
-				});
-				assertReady();
-				if (!wav && (!audio || audio.channels.length === 0)) {
-					media.set(reference.path, null);
-					continue;
-				}
-				// The same 1–32 channel admission every other import path enforces: a wider
-				// archive would persist a project the playback graph cannot open.
-				const info = wav ?? {
-					frameCount: audio!.channels[0]!.length,
-					channelCount: audio!.channels.length,
-					sampleRate: audio!.sampleRate,
-				};
-				admitAudioImportChannelCount(info.channelCount);
-				const sourceBytes = info.frameCount * info.channelCount * Float32Array.BYTES_PER_ELEMENT;
-				if (!Number.isSafeInteger(sourceBytes) || (!wav && sourceBytes + blob.size > DAWPROJECT_IMPORT_WORKING_BYTE_LIMIT)) {
-					throw new RangeError(`DAWproject media ${reference.path} exceeds the import working memory budget.`);
-				}
-				const chunkFrames = Math.min(runtime.sourceChunkFrames, AUDIO_EDITOR_PCM_CHUNK_FRAMES);
-				if (wav && blob.size + Math.min(info.frameCount, chunkFrames)
-					* (wav.blockAlign + info.channelCount * Float32Array.BYTES_PER_ELEMENT)
-					> DAWPROJECT_IMPORT_WORKING_BYTE_LIMIT) {
-					throw new RangeError(`DAWproject media ${reference.path} exceeds the import working memory budget.`);
-				}
-				await runtime.preflightStorage(sourceBytes, 'import');
-				assertReady();
-				const sourceId = runtime.createStableId('source');
-				const staged = stagedProjectSource(sourceId, reference.path, info);
-				if (wav) {
-					const reader = createWavBlobPcmChunkReader(blob, { descriptor: wav, chunkFrames });
-					await helpers.persistSourceChunks(staged, sourceId,
-						readWavChunks(reader, signal), persistedSourceIds, operation);
-				} else {
-					await helpers.persistDecodedSource(staged,
-						{ sourceId, channels: audio!.channels }, persistedSourceIds, operation);
-				}
-				assertReady();
-				stagedSourceIds.set(reference.path, sourceId);
-				media.set(reference.path, info);
-				helpers.updateNativeProjectProgress(
-					{ value: (index + 1) / references.length }, runtime.copy.importing, operation.task, operation.projectToken, undefined, { key: 'importing' },
-				);
+				let prepared: PreparedStreamedAudioImport | null = null;
+				try {
+					if (!wav && runtime.prepareDawprojectAudio) {
+						assertDawprojectCompressedWorkingBudget(blob.size, DAWPROJECT_IMPORT_WORKING_BYTE_LIMIT, reference.path);
+						try { prepared = await runtime.prepareDawprojectAudio(blob, entryBaseName(reference.path), signal); }
+						catch (error) {
+							if (error instanceof RangeError) throw error;
+							assertReady();
+						}
+					}
+					assertReady();
+					if (!wav && !prepared) {
+						media.set(reference.path, null);
+						continue;
+					}
+					const info = wav ?? prepared!.descriptor;
+					admitAudioImportChannelCount(info.channelCount);
+					const sourceBytes = info.frameCount * info.channelCount * Float32Array.BYTES_PER_ELEMENT;
+					if (!Number.isSafeInteger(sourceBytes)) {
+						throw new RangeError(`DAWproject media ${reference.path} exceeds the supported source byte count.`);
+					}
+					const chunkFrames = Math.min(runtime.sourceChunkFrames, AUDIO_EDITOR_PCM_CHUNK_FRAMES);
+					if (wav && blob.size + Math.min(info.frameCount, chunkFrames)
+						* (wav.blockAlign + info.channelCount * Float32Array.BYTES_PER_ELEMENT)
+						> DAWPROJECT_IMPORT_WORKING_BYTE_LIMIT) {
+						throw new RangeError(`DAWproject media ${reference.path} exceeds the import working memory budget.`);
+					}
+					await runtime.preflightStorage(sourceBytes, 'import');
+					assertReady();
+					const sourceId = runtime.createStableId('source');
+					const staged = stagedProjectSource(sourceId, reference.path, info);
+					if (wav) {
+						const reader = createWavBlobPcmChunkReader(blob, { descriptor: wav, chunkFrames });
+						await helpers.persistSourceChunks(staged, sourceId,
+							readWavChunks(reader, signal), persistedSourceIds, operation);
+					} else if (!await stageDawprojectCompressedSource(runtime.store, prepared!,
+						staged.sources[0] as NativeProjectAudioSource, chunkFrames, signal,
+						assertReady, persistedSourceIds)) {
+						media.set(reference.path, null);
+						continue;
+					}
+					assertReady();
+					stagedSourceIds.set(reference.path, sourceId);
+					media.set(reference.path, info);
+					helpers.updateNativeProjectProgress(
+						{ value: (index + 1) / references.length }, runtime.copy.importing, operation.task, operation.projectToken, undefined, { key: 'importing' },
+					);
+				} finally { prepared?.dispose(); }
 			}
 			const plan = buildDawprojectProject(document, {
 				fileName: String(file.name), media, stagedSourceIds, createStableId: runtime.createStableId,
