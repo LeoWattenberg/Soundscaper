@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { TrackNew } from '@soundscaper/design-system/Track/TrackNew';
 
 import { resolveTrackWaveformOptions } from '../../track-display-mode.ts';
@@ -143,6 +143,10 @@ export function AudioTrackRow({
 		blocked,
 		automationToolEnabled,
 	});
+	const fadeChannelCounts = useMemo(() => new Map(projectedClips.map(clip => [
+		String(clip.id),
+		clip.audacityWaveform?.channels?.length || clip.channelCount || sourceLookup.get(clip.sourceId)?.channelCount || 1,
+	])), [projectedClips, sourceLookup]);
 	const stereoDividerEnabled = rulerChannelCount === 2
 		&& asymmetricStereoHeightsAvailable
 		&& !blocked;
@@ -350,6 +354,7 @@ export function AudioTrackRow({
 					/>)}
 					<AutomaticCrossfadeOverlays overlays={crossfadeOverlays} />
 					<ClipFadeOverlays rootRef={trackWindowRef} clips={projection.clips}
+						channelCounts={fadeChannelCounts} channelHeightRatio={displayChannelHeightRatio} displayMode={displayMode}
 						selectedIds={selectedClipIdSet.size ? selectedClipIdSet : new Set([selectedClipId])}
 						startFrame={projection.overscanStartFrame} endFrame={projection.overscanEndFrame}
 						pixelsPerSecond={pixelsPerSecond} sampleRate={sampleRate} blocked={blocked} copy={copy}

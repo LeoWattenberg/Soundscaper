@@ -1,5 +1,6 @@
 import { expect, test, toneA, toneB, monoTone } from './audio-editor-test-fixtures.js';
 import { bootEditor, chooseCommandAction, clipByName, collectClientErrors, importFiles, registerAudioEditorHooks, setDocumentTheme, waitForEditor } from './audio-editor-test-helpers.js';
+import { chooseTrackMenuAction } from './helpers/track-menu.js';
 
 async function selectClip(clip) {
 	await clip.focus();
@@ -28,6 +29,20 @@ async function beginFadeDrag(page, handle, delta) {
 
 async function waveformImage(clip) {
 	return clip.locator('canvas.clip-body__waveform').first().evaluate(canvas => canvas.toDataURL());
+}
+
+async function shadedPoints(shade, coordinates) {
+	return shade.evaluate((svg, points) => {
+		const bounds = svg.getBoundingClientRect();
+		const polygons = [...svg.querySelectorAll('polygon')];
+		return points.map(([x, y]) => polygons.some(polygon => {
+			const matrix = polygon.getScreenCTM();
+			if (!matrix) return false;
+			const point = new DOMPoint(bounds.left + x * bounds.width, bounds.top + y * bounds.height)
+				.matrixTransform(matrix.inverse());
+			return polygon.isPointInFill(point);
+		}));
+	}, coordinates);
 }
 
 test.describe('non-destructive clip fade handles', () => {
@@ -74,6 +89,89 @@ test.describe('non-destructive clip fade handles', () => {
 			expect(errors).toEqual([]);
 		});
 	}
+
+	test('shades both stereo channels around their center lines while keeping handles at the top', async ({ page }) => {
+		const editor = await bootEditor(page, '/embed/en/');
+		await importFiles(editor, [toneA]);
+		const clip = clipByName(editor, toneA.name);
+		await selectClip(clip);
+		const fadeIn = clip.getByRole('slider', { name: 'Fade in', exact: true });
+		await fadeIn.press('End');
+		await expect(fadeIn).toHaveAttribute('aria-valuenow', '0.8');
+		const shade = clip.locator('.audio-editor-clip-fade__shade');
+		await expect(shade.locator('polygon')).toHaveCount(2);
+		await expect(shade.locator('polyline')).toHaveCount(2);
+		const painted = await shadedPoints(shade, [0.1, 0.3, 0.5, 0.7, 0.9].map(y => [0.25, y]));
+		expect(painted).toEqual([true, false, false, false, true]);
+		const shadeBounds = await shade.boundingBox();
+		expect(shadeBounds).not.toBeNull();
+		const lineBounds = await shade.locator('polyline').evaluateAll(lines => lines.map(line => {
+			const bounds = line.getBoundingClientRect();
+			return { top: bounds.top, bottom: bounds.bottom };
+		}));
+		const channelDivider = shadeBounds.y + shadeBounds.height / 2;
+		expect(lineBounds[0].bottom).toBeLessThan(channelDivider);
+		expect(lineBounds[1].top).toBeGreaterThan(channelDivider);
+		for (const handle of [fadeIn, clip.getByRole('slider', { name: 'Fade out', exact: true })]) {
+			const bounds = await handle.boundingBox();
+			expect(bounds).not.toBeNull();
+			expect(bounds.y + bounds.height).toBeLessThan(channelDivider);
+		}
+	});
+
+	test('aligns stereo fade shading with both channel pairs in Multi-view', async ({ page }) => {
+		const editor = await bootEditor(page, '/embed/en/');
+		await importFiles(editor, [toneA]);
+		const clip = clipByName(editor, toneA.name);
+		const track = clip.locator('xpath=ancestor::div[@data-track-row]');
+		await chooseTrackMenuAction(page, editor, track, ['Display', 'Multi-view']);
+		await expect(track).toHaveAttribute('data-display-mode', 'multiview');
+		await selectClip(clip);
+		const fadeIn = clip.getByRole('slider', { name: 'Fade in', exact: true });
+		await fadeIn.press('End');
+		await expect(fadeIn).toHaveAttribute('aria-valuenow', '0.8');
+		const shade = clip.locator('.audio-editor-clip-fade__shade');
+		await expect(shade.locator('polygon')).toHaveCount(4);
+		await expect(shade.locator('polyline')).toHaveCount(4);
+		const painted = await shadedPoints(shade, [0.05, 0.15, 0.25, 0.35, 0.45, 0.55, 0.65, 0.75, 0.85, 0.95]
+			.map(y => [0.25, y]));
+		expect(painted).toEqual([true, false, false, false, true, true, false, false, false, true]);
+		const channelCenters = await shade.locator('polyline').evaluateAll(lines => {
+			const bounds = lines[0].ownerSVGElement.getBoundingClientRect();
+			return lines.map(line => {
+				const first = line.points.getItem(0);
+				const screen = new DOMPoint(first.x, first.y).matrixTransform(line.getScreenCTM());
+				return (screen.y - bounds.top) / bounds.height;
+			});
+		});
+		for (const [index, center] of [0.125, 0.375, 0.625, 0.875].entries()) {
+			expect(channelCenters[index]).toBeCloseTo(center, 2);
+		}
+		const bounds = await shade.boundingBox();
+		const handleBounds = await fadeIn.boundingBox();
+		expect(handleBounds.y + handleBounds.height).toBeLessThan(bounds.y + bounds.height / 2);
+	});
+
+	test('keeps fade marker triangles inside the clip outline at both edges', async ({ page }) => {
+		const editor = await bootEditor(page, '/embed/en/');
+		await importFiles(editor, [toneA]);
+		const clip = clipByName(editor, toneA.name);
+		await selectClip(clip);
+		const fadeIn = clip.getByRole('slider', { name: 'Fade in', exact: true });
+		const fadeOut = clip.getByRole('slider', { name: 'Fade out', exact: true });
+		await fadeIn.press('Home');
+		await fadeOut.press('Home');
+		await expect(fadeIn).toHaveAttribute('aria-valuenow', '0');
+		await expect(fadeOut).toHaveAttribute('aria-valuenow', '0');
+		const outline = await clip.locator('.clip-display__inner').boundingBox();
+		const incoming = await fadeIn.locator('svg').boundingBox();
+		const outgoing = await fadeOut.locator('svg').boundingBox();
+		expect(outline).not.toBeNull();
+		expect(incoming).not.toBeNull();
+		expect(outgoing).not.toBeNull();
+		expect(incoming.x).toBeGreaterThanOrEqual(outline.x + 2);
+		expect(outgoing.x + outgoing.width).toBeLessThanOrEqual(outline.x + outline.width - 2);
+	});
 
 	test('Escape and pointer cancellation discard a preview, while keyboard edits persist after reload', async ({ page }) => {
 		const editor = await bootEditor(page, '/embed/en/');

@@ -16,6 +16,9 @@ interface OverlayClip extends FadeClip {
 interface Props {
 	readonly rootRef: RefObject<HTMLDivElement | null>;
 	readonly clips: readonly OverlayClip[];
+	readonly channelCounts: ReadonlyMap<string, number>;
+	readonly channelHeightRatio: number;
+	readonly displayMode: string;
 	readonly selectedIds: ReadonlySet<string>;
 	readonly startFrame: number;
 	readonly endFrame: number;
@@ -27,7 +30,7 @@ interface Props {
 	readonly onTabOut: (id: string) => void;
 }
 
-export function ClipFadeOverlays({ rootRef, clips, selectedIds, startFrame, endFrame, pixelsPerSecond, sampleRate, blocked, copy, onChange, onTabOut }: Props) {
+export function ClipFadeOverlays({ rootRef, clips, channelCounts, channelHeightRatio, displayMode, selectedIds, startFrame, endFrame, pixelsPerSecond, sampleRate, blocked, copy, onChange, onTabOut }: Props) {
 	const [targets, setTargets] = useState<ReadonlyMap<string, HTMLElement>>(new Map());
 	const geometries = useMemo(() => new Map(clips.map(clip => [
 		clip.id, fadeOverlayGeometry(clip, startFrame, endFrame, pixelsPerSecond, sampleRate),
@@ -47,6 +50,12 @@ export function ClipFadeOverlays({ rootRef, clips, selectedIds, startFrame, endF
 		const hasFade = (clip.fadeInFrames ?? 0) > 0 || (clip.fadeOutFrames ?? 0) > 0;
 		const selected = selectedIds.has(clip.id);
 		if (!hasFade && !selected) return null;
+		const stereo = channelCounts.get(clip.id) === 2;
+		const shadePolygon = `0,0 ${geometry.width},0 ${geometry.points.split(' ').reverse().join(' ')}`;
+		const shadeShape = (transform?: string) => <g transform={transform}>
+			<polygon points={shadePolygon} />
+			<polyline points={geometry.points} vectorEffect="non-scaling-stroke" />
+		</g>;
 		const displayWidth = Math.max(48, Math.round(geometry.width));
 		const handleWidth = Math.min(20, displayWidth / 2);
 		const handleLeft = (x: number): number => Math.max(0, Math.min(displayWidth - handleWidth, x / geometry.width * displayWidth - handleWidth / 2));
@@ -56,8 +65,12 @@ export function ClipFadeOverlays({ rootRef, clips, selectedIds, startFrame, endF
 		return createPortal(<div className="audio-editor-clip-fade">
 			{hasFade && <svg className="audio-editor-clip-fade__shade" viewBox={`0 0 ${geometry.width} 100`}
 				preserveAspectRatio="none" aria-hidden="true">
-				<polygon points={`0,0 ${geometry.width},0 ${geometry.points.split(' ').reverse().join(' ')}`} />
-				<polyline points={geometry.points} vectorEffect="non-scaling-stroke" />
+				{stereo ? (displayMode === 'multiview' ? [0, 50] : [0]).map(paneTop => (
+					<g key={paneTop} transform={displayMode === 'multiview' ? `translate(0 ${paneTop}) scale(1 0.5)` : undefined}>
+						{shadeShape(`scale(1 ${channelHeightRatio})`)}
+						{shadeShape(`translate(0 100) scale(1 -${1 - channelHeightRatio})`)}
+					</g>
+				)) : shadeShape()}
 			</svg>}
 			{selected && (['in', 'out'] as const).map((edge: ClipFadeEdge) => {
 				const x = edge === 'in' ? geometry.fadeInX : geometry.fadeOutX;
@@ -70,7 +83,7 @@ export function ClipFadeOverlays({ rootRef, clips, selectedIds, startFrame, endF
 				const isLeft = edge === 'in' ? inLeft <= outLeft : outLeft < inLeft;
 				const left = overlap && !isLeft ? midpoint : handleLeft(x);
 				const width = overlap ? (isLeft ? midpoint - left : handleLeft(x) + handleWidth - midpoint) : handleWidth;
-				const markerLeft = Math.max(0, Math.min(Math.max(0, width - 8), x / geometry.width * displayWidth - left - (edge === 'out' ? 8 : 0)));
+				const markerLeft = Math.max(2, Math.min(Math.max(2, width - 10), x / geometry.width * displayWidth - left - (edge === 'out' ? 8 : 0)));
 				return <button key={edge} type="button" role="slider" tabIndex={-1} className="audio-editor-clip-fade__handle"
 					data-clip-fade-handle={edge} aria-label={label} title={label}
 					aria-valuemin={0} aria-valuemax={clip.durationFrames / sampleRate} aria-valuenow={value / sampleRate}
