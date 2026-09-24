@@ -34,6 +34,14 @@ export interface ProjectSaveState<Project extends ProjectSaveSnapshot> {
 	saveQueue: Promise<unknown>;
 }
 
+interface ProjectBeforeUnloadTarget {
+	addEventListener(
+		type: 'beforeunload',
+		listener: (event: BeforeUnloadEvent) => void,
+		options?: AddEventListenerOptions,
+	): void;
+}
+
 export interface ProjectSaveServiceDependencies<Project extends ProjectSaveSnapshot> {
 	/** Legacy injection for deterministic fixtures; production saves own their state. */
 	readonly state?: ProjectSaveState<Project>;
@@ -77,6 +85,8 @@ export interface ProjectSaveServiceDependencies<Project extends ProjectSaveSnaps
 	readonly scheduleTimer?: (callback: () => void, delayMs: number) => number;
 	readonly clearTimer?: (handle: number) => void;
 	readonly autosaveDelayMs?: number;
+	readonly beforeUnloadTarget?: ProjectBeforeUnloadTarget;
+	readonly beforeUnloadSignal?: AbortSignal;
 }
 
 interface ProjectSaveAdmissionGate {
@@ -106,6 +116,9 @@ export function createProjectSaveService<Project extends ProjectSaveSnapshot>(
 	const suspendedProjects = new Map<string, ProjectSaveAdmissionGate>();
 	const projectSaveEpochs = new Map<string, number>();
 	const persistedSnapshots = new Map<string, Project>();
+	dependencies.beforeUnloadTarget?.addEventListener('beforeunload', warnBeforeUnload, {
+		signal: dependencies.beforeUnloadSignal,
+	});
 
 	return Object.freeze({
 		scheduleAutosave,
@@ -127,6 +140,16 @@ export function createProjectSaveService<Project extends ProjectSaveSnapshot>(
 			return state.pendingSaveSnapshots;
 		},
 	});
+
+	function warnBeforeUnload(event: BeforeUnloadEvent): void {
+		const project = dependencies.getProject();
+		if (!project || !dependencies.hasHistory()) return;
+		const currentSavePending = scheduledProjectId === project.id
+			|| [...state.pendingSaveSnapshots].some((snapshot) => snapshot.id === project.id);
+		if (!currentSavePending && dependencies.hasUnsavedProjectChanges?.() !== true) return;
+		event.preventDefault();
+		event.returnValue = '';
+	}
 
 	/** Called only for a snapshot known to have been published or loaded from storage. */
 	function recordPersistedSnapshot(project: Project): void {

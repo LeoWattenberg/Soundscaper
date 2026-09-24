@@ -133,6 +133,51 @@ test('explicit flush captures its document before subsequent edits and cancels t
 	assert.deepEqual(runtime.writes, [{ id: 'project', revision: 0 }]);
 });
 
+test('beforeunload warns while the current document is waiting for or performing autosave', async () => {
+	let dirty = false;
+	let beforeUnload: ((event: BeforeUnloadEvent) => void) | null = null;
+	let beginSave: () => void = () => undefined;
+	let finishSave: () => void = () => undefined;
+	const saveStarted = new Promise<void>((resolve) => { beginSave = resolve; });
+	const saveFinished = new Promise<void>((resolve) => { finishSave = resolve; });
+	const lifecycle = new AbortController();
+	const runtime = fixture({
+		hasUnsavedProjectChanges: () => dirty,
+		beforeUnloadTarget: {
+			addEventListener: (_type, listener, options) => {
+				beforeUnload = listener;
+				options?.signal?.addEventListener('abort', () => { beforeUnload = null; }, { once: true });
+			},
+		},
+		beforeUnloadSignal: lifecycle.signal,
+		saveProject: async () => { beginSave(); await saveFinished; },
+		markProjectSaved: () => { dirty = false; },
+	});
+	const attemptUnload = () => {
+		let prevented = false;
+		const event = {
+			returnValue: undefined as string | undefined,
+			preventDefault: () => { prevented = true; },
+		} as unknown as BeforeUnloadEvent;
+		beforeUnload?.(event);
+		return { prevented, returnValue: event.returnValue as string | undefined };
+	};
+
+	assert.deepEqual(attemptUnload(), { prevented: false, returnValue: undefined });
+	dirty = true;
+	runtime.setProject({ id: 'project', revision: 1 });
+	runtime.service.scheduleAutosave();
+	assert.deepEqual(attemptUnload(), { prevented: true, returnValue: '' });
+	runtime.fire();
+	await saveStarted;
+	assert.deepEqual(attemptUnload(), { prevented: true, returnValue: '' });
+	finishSave();
+	await runtime.service.drain();
+	assert.deepEqual(attemptUnload(), { prevented: false, returnValue: undefined });
+	lifecycle.abort();
+	assert.equal(beforeUnload, null);
+});
+
 test('production save services own independent queues and report status without shared state', async () => {
 	const first = fixture({ state: undefined });
 	const second = fixture({ state: undefined });

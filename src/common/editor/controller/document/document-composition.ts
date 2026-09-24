@@ -160,6 +160,8 @@ export function createDocumentComposition(dependencies: DocumentCompositionDepen
 		handleError: dependencies.handleError,
 		scheduleTimer: dependencies.scheduleTimer,
 		clearTimer: dependencies.clearTimer,
+		beforeUnloadTarget: typeof window === 'undefined' ? undefined : window,
+		beforeUnloadSignal: lifetime.signal,
 	});
 	const view = createProjectViewService<DocumentProject>({
 		lifetime,

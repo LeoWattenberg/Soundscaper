@@ -33,6 +33,25 @@ test.describe('audio editor React/design-system workflows', () => {
 		await expect(editor.locator('[data-track-row]')).toHaveCount(2);
 	});
 
+	test('guards reload while an added track is still saving', async ({ page }) => {
+		const editor = await bootEditor(page, '/embed/en/');
+		const saveState = editor.locator('[data-save-state]');
+		await expect(saveState).toHaveAttribute('data-state', 'saved');
+
+		await editor.getByRole('button', { name: 'Add track', exact: true }).click();
+		await page.locator('.add-track-flyout').getByRole('menuitem', { name: 'Audio track', exact: true }).click();
+		await expect(saveState).toHaveAttribute('data-state', 'saving');
+		const blocksUnload = () => page.evaluate(() => {
+			const event = new Event('beforeunload', { cancelable: true });
+			window.dispatchEvent(event);
+			return event.defaultPrevented;
+		});
+		expect(await blocksUnload()).toBe(true);
+
+		await expect(saveState).toHaveAttribute('data-state', 'saved');
+		expect(await blocksUnload()).toBe(false);
+	});
+
 	test('reaches the add-track flyout view toggles from the keyboard', async ({ page }) => {
 		const errors = collectClientErrors(page);
 		const editor = await bootEditor(page, '/embed/en/');
