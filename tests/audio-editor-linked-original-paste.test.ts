@@ -7,7 +7,7 @@ import { applyEditorCommand } from '../src/common/editor/commands.js';
 import { createClipboardEditService, type ClipboardEditProject } from '../src/common/editor/controller/edit/internal/clipboard-edit-service.ts';
 import { commitPasteWithLinkedSourceAliases } from '../src/common/editor/controller/edit/internal/paste-linked-source-aliases.ts';
 import { EditorControllerLifetime } from '../src/common/editor/controller/shared/lifecycle.ts';
-import { createCurrentAudioEditorProject } from '../src/common/editor/project-current.ts';
+import { createCurrentAudioEditorProject, validateCurrentAudioEditorProject } from '../src/common/editor/project-current.ts';
 import { createAudioClip, createAudioSource, createAudioTrack } from '../src/common/editor/project-media-factory.ts';
 import { projectForCommand } from '../src/common/editor/project-command-projection.ts';
 import { createAudioEditorSessionClipboard } from '../src/common/editor/session-clipboard-codec.ts';
@@ -179,7 +179,7 @@ test('a paste commit that throws after publication retains the linked alias', as
 		command: { type: 'source/add', source },
 		originProjectId: 'published-A', projectId: destination.id, store,
 		assertCurrent: () => undefined,
-		hasPublishedSources: (sourceIds) => sourceIds.some((id) => destination.sources.some((item) => item.id === id)),
+		getCurrentProject: () => destination,
 		commit: () => {
 			destination = createCurrentAudioEditorProject({
 				id: 'published-B', now: NOW, sampleRate: 48_000,
@@ -190,6 +190,8 @@ test('a paste commit that throws after publication retains the linked alias', as
 		},
 	}), (error: unknown) => error === failure);
 	await store.saveProject(destination);
-	assert.ok((await store.loadProject(destination.id))?.clips.some((item) => item.sourceId === source.id));
+	const loaded = await store.loadProject(destination.id);
+	assert.ok(validateCurrentAudioEditorProject(loaded));
+	assert.ok(loaded.clips.some((item) => item.sourceId === source.id));
 	assert.ok(await store.getLinkedOriginalBinding(destination.id, source.id));
 });
