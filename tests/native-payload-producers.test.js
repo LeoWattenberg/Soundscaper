@@ -94,6 +94,21 @@ test('helper-backed nightly package targets reject a Windows selection that omit
 	} finally { await rm(fixture, { recursive: true, force: true }); }
 });
 
+test('helper-backed nightly package targets reject an x64-only selection that also includes ARM64', async () => {
+	const fixture = await producerFixture();
+	try {
+		const helperPath = join(fixture, 'scripts/lib/desktop-nightly-tests-target-matrix.mjs');
+		const source = await readFile(helperPath, 'utf8');
+		await writeFile(helperPath, source.replace(
+			"if (selection === 'win-x64') return WIN_X64_TARGETS;",
+			"if (selection === 'win-x64') return WINDOWS_TARGETS;",
+		), 'utf8');
+		const audit = auditNativePayloadProducers(fixture);
+		assert.equal(audit.status, 'failed');
+		assert.ok(audit.findings.some((finding) => finding.includes('nightly-with-tests target matrix')));
+	} finally { await rm(fixture, { recursive: true, force: true }); }
+});
+
 async function producerFixture() {
 	const fixture = await mkdtemp(join(tmpdir(), 'soundscaper-native-producers-'));
 	const registerPath = resolve(ROOT, 'config/native-payload-producers.json');

@@ -180,7 +180,7 @@ test('the nightly test launcher delegates to the pure runtime and never opens an
 	assert.doesNotMatch(source, /desktop\/main\.mjs|createMainWindow/u);
 });
 
-test('manual nightly-with-tests target selection preserves all targets and selects both Windows targets', () => {
+test('manual nightly-with-tests target selection preserves all targets and selects Windows subsets', () => {
 	const all = selectDesktopNightlyTestTargets('all');
 	assert.deepEqual(all, [
 		{ runner: 'windows-2025', platform: 'win', arch: 'x64', node_arch: 'x64' },
@@ -190,6 +190,7 @@ test('manual nightly-with-tests target selection preserves all targets and selec
 		{ runner: 'ubuntu-24.04-arm', platform: 'linux', arch: 'arm64', node_arch: 'arm64' },
 	]);
 	assert.deepEqual(selectDesktopNightlyTestTargets('windows'), all.slice(0, 2));
+	assert.deepEqual(selectDesktopNightlyTestTargets('win-x64'), all.slice(0, 1));
 	assert.throws(() => selectDesktopNightlyTestTargets(''), /target selection/u);
 	assert.throws(() => selectDesktopNightlyTestTargets('linux'), /target selection/u);
 });
@@ -197,7 +198,7 @@ test('manual nightly-with-tests target selection preserves all targets and selec
 test('desktop CI exposes one quality-gated selectable nightly-with-tests artifact matrix', async () => {
 	const workflow = await readFile(resolve(ROOT, '.github/workflows/desktop-preview.yml'), 'utf8');
 	assert.match(workflow, /workflow_dispatch:\s+inputs:\s+artifact_variant:/u);
-	assert.match(workflow, /nightly_tests_targets:[\s\S]*?default: all[\s\S]*?type: choice\s+options:\s+- all\s+- windows/u);
+	assert.match(workflow, /nightly_tests_targets:[\s\S]*?default: all[\s\S]*?type: choice\s+options:\s+- all\s+- windows\s+- win-x64/u);
 	// Main pushes use Quality without starting a second native package build.
 	// The tested package runs only when the owner dispatches that variant.
 	assert.doesNotMatch(workflow, /workflow_run/u);

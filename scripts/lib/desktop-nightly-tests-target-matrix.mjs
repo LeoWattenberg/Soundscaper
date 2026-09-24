@@ -9,9 +9,11 @@ const ALL_TARGETS = Object.freeze([
 ]);
 
 const WINDOWS_TARGETS = Object.freeze(ALL_TARGETS.filter(({ platform }) => platform === 'win'));
+const WIN_X64_TARGETS = Object.freeze(WINDOWS_TARGETS.filter(({ arch }) => arch === 'x64'));
 
 export function selectDesktopNightlyTestTargets(selection) {
 	if (selection === 'all') return ALL_TARGETS;
 	if (selection === 'windows') return WINDOWS_TARGETS;
+	if (selection === 'win-x64') return WIN_X64_TARGETS;
 	throw new TypeError(`Unknown nightly-with-tests target selection: ${String(selection)}`);
 }

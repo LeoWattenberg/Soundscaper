@@ -252,9 +252,11 @@ function auditNightlyTargetMatrix(root, producer, workflow, findings) {
 		const { selectDesktopNightlyTestTargets } = require(resolve(root, NIGHTLY_TARGET_MATRIX_HELPER));
 		const all = selectDesktopNightlyTestTargets('all');
 		const windows = selectDesktopNightlyTestTargets('windows');
+		const winX64 = selectDesktopNightlyTestTargets('win-x64');
 		if (JSON.stringify(all) !== JSON.stringify(NIGHTLY_EXPECTED_ALL)
-			|| JSON.stringify(windows) !== JSON.stringify(NIGHTLY_EXPECTED_ALL.slice(0, 2))) {
-			findings.push(`${producer.id} nightly-with-tests target matrix has an incorrect all or Windows selection.`);
+			|| JSON.stringify(windows) !== JSON.stringify(NIGHTLY_EXPECTED_ALL.slice(0, 2))
+			|| JSON.stringify(winX64) !== JSON.stringify(NIGHTLY_EXPECTED_ALL.slice(0, 1))) {
+			findings.push(`${producer.id} nightly-with-tests target matrix has an incorrect all, Windows, or win-x64 selection.`);
 		}
 	} catch (error) {
 		findings.push(`${producer.id} nightly-with-tests target matrix cannot be evaluated: ${message(error)}`);

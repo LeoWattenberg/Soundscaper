@@ -29,6 +29,7 @@ on:
         options:
           - all
           - windows
+          - win-x64
 
 permissions:
   contents: read
