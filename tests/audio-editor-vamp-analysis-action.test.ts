@@ -100,6 +100,127 @@ test('desktop Vamp action renders and streams the exact selected range then retu
 	assert.equal(result.features[0]?.label, 'onset');
 });
 
+test('master frequency analysis renders the mix, rounds its block size, and keeps explicit feature times', async () => {
+	const { bridge, calls, project } = harness();
+	bridge.listNativeVampAnalyzers = async () => rawCatalog().map((row) => ({
+		...row,
+		configuration: { ...row.configuration, inputDomain: 'frequency', preferredBlockSize: 3 },
+	}));
+	const action = createDesktopVampAnalysisAction({
+		bridge: {
+			...bridge,
+			pushNativeVampAnalyzerPcm: async (value: unknown) => {
+				calls.push(['push', value]);
+				return { features: [{ outputId: 'onsets', timestamp: { seconds: 0, nanoseconds: 100_000 },
+					duration: { seconds: 0, nanoseconds: 10_000 }, values: [0.25], label: 'beat' }] };
+			},
+		},
+		engine: {
+			renderTrack: async () => { throw new Error('unexpected track render'); },
+			renderMix: async (options) => {
+				calls.push(['render-mix', options]);
+				return { channels: [new Float32Array(8)] };
+			},
+		},
+		getProject: () => project,
+	});
+	assert.ok(action);
+	const result = await action.analyze({
+		projectId: 'project-1', projectRevision: 5, selectedTrackId: null,
+		request: { ...REQUEST, scope: 'master' },
+	}, new AbortController().signal);
+	assert.equal(calls[0]?.[0], 'render-mix');
+	assert.equal((calls.find(([kind]) => kind === 'configure')?.[1] as { blockSize: number }).blockSize, 4);
+	assert.deepEqual(result.features[0]?.timestamp, { seconds: 0, nanoseconds: 100_000 });
+	assert.deepEqual(result.features[0]?.duration, { seconds: 0, nanoseconds: 10_000 });
+});
+
+test('catalog and project admission reject malformed native metadata before a stream opens', async () => {
+	for (const configuration of [
+		{ inputDomain: 'other' },
+		{ minimumChannels: 3, maximumChannels: 2 },
+	]) {
+		const { action, bridge, calls } = harness();
+		assert.ok(action);
+		bridge.listNativeVampAnalyzers = async () => rawCatalog().map((row) => ({
+			...row, configuration: { ...row.configuration, ...configuration },
+		}));
+		await assert.rejects(action.list(), /Invalid native Vamp/u);
+		assert.deepEqual(calls, []);
+	}
+	const { action, calls } = harness();
+	assert.ok(action);
+	await assert.rejects(action.analyze({
+		projectId: 'project-1', projectRevision: -1, selectedTrackId: 'track-1', request: REQUEST,
+	}, new AbortController().signal), /Invalid Vamp project fence/u);
+	assert.deepEqual(calls, []);
+});
+
+test('Vamp analysis refuses missing track identity and an incompatible rendered channel layout', async () => {
+	const missing = harness();
+	assert.ok(missing.action);
+	await assert.rejects(missing.action.analyze({
+		projectId: 'project-1', projectRevision: 5, selectedTrackId: null, request: REQUEST,
+	}, new AbortController().signal), /requires the selected audio track/u);
+	assert.deepEqual(missing.calls, []);
+	for (const channels of [[], [new Float32Array(7)]]) {
+		const { action, engine, calls } = harness();
+		assert.ok(action);
+		engine.renderTrack = async (trackId, options) => {
+			calls.push(['render-track', { trackId, options }]);
+			return { channels };
+		};
+		await assert.rejects(action.analyze({
+			projectId: 'project-1', projectRevision: 5, selectedTrackId: 'track-1', request: REQUEST,
+		}, new AbortController().signal), /channel count|requested range/iu);
+		assert.deepEqual(calls.map(([kind]) => kind), ['render-track']);
+	}
+});
+
+test('forged native feature timing and values cannot enter the analysis result', async () => {
+	const cases = [
+		{
+			output: { sampleType: 'variable-sample-rate' }, feature: { timestamp: null },
+			error: /variable-rate Vamp feature omitted its timestamp/u,
+		},
+		{
+			output: {}, feature: { timestamp: { seconds: 0, nanoseconds: 1_000_000_000 } },
+			error: /Invalid timestamp nanoseconds/u,
+		},
+		{
+			output: {}, feature: { values: [Number.NaN] },
+			error: /Invalid Native Vamp feature value/u,
+		},
+		{
+			output: {}, feature: { label: '\0' },
+			error: /Invalid Native Vamp feature label/u,
+		},
+	] as const;
+	for (const entry of cases) {
+		const { bridge, engine, project, calls } = harness();
+		const action = createDesktopVampAnalysisAction({
+			bridge: {
+				...bridge,
+				configureNativeVampAnalyzer: async (value: unknown) => {
+					calls.push(['configure', value]);
+					return configuredSession(8, [nativeOutput(entry.output)]);
+				},
+				pushNativeVampAnalyzerPcm: async () => ({
+					features: [{ outputId: 'onsets', timestamp: null, duration: null,
+						values: [0.75], label: 'onset', ...entry.feature }],
+				}),
+			},
+			engine,
+			getProject: () => project,
+		});
+		assert.ok(action);
+		await assert.rejects(action.analyze({
+			projectId: 'project-1', projectRevision: 5, selectedTrackId: 'track-1', request: REQUEST,
+		}, new AbortController().signal), entry.error);
+		assert.ok(calls.some(([kind]) => kind === 'finish'), 'the native session finished before results were admitted');
+	}
+});
+
 test('desktop Vamp action cancels the exact native session on abort or project-fence failure', async () => {
 	const { action, bridge, calls, project } = harness();
 	assert.ok(action);

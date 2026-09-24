@@ -133,6 +133,19 @@ test('a mixed grant is a shared session, and a rewritten request is a contract v
 	}
 });
 
+test('a host port without a grant closes both opened endpoints before reporting failure', async () => {
+	const harness = createHarness({
+		openHook: (direction, port) => Promise.resolve(direction === 'output'
+			? Object.freeze({ ...port, grant: null }) as unknown as typeof port
+			: port),
+	});
+	assert.equal(failure(await harness.session.open(OPEN)).code, 'contract-violation');
+	assert.deepEqual(harness.opens, { input: 1, output: 1 });
+	assert.deepEqual(harness.closes, harness.opens, 'a malformed second grant releases the already admitted input');
+	assert.equal(harness.session.status().state, 'closed');
+	assert.equal(harness.session.calibrationIdentity(), null);
+});
+
 test('an open request is bounded before any device is touched', async () => {
 	const harness = createHarness();
 	for (const malformed of [

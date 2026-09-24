@@ -7,7 +7,7 @@ import { test } from 'node:test';
 import { createAssistanceTtsScriptBodyPublicationV1 } from '../src/common/editor/assistance/tts-script-body-publication-v1.ts';
 import { createTextToSpeechProjectPort } from '../src/common/editor/controller/assistance/local-assistance-text-to-speech-project-service.ts';
 
-function pcm16Wave(samples: readonly number[]): Blob {
+function pcm16Wave(samples: readonly number[], sampleRate = 24_000): Blob {
 	const bytes = new Uint8Array(44 + samples.length * 2);
 	const view = new DataView(bytes.buffer);
 	for (const [offset, value] of [['RIFF', 0], ['WAVE', 8], ['fmt ', 12], ['data', 36]] as const) {
@@ -17,8 +17,8 @@ function pcm16Wave(samples: readonly number[]): Blob {
 	view.setUint32(16, 16, true);
 	view.setUint16(20, 1, true);
 	view.setUint16(22, 1, true);
-	view.setUint32(24, 24_000, true);
-	view.setUint32(28, 48_000, true);
+	view.setUint32(24, sampleRate, true);
+	view.setUint32(28, sampleRate * 2, true);
 	view.setUint16(32, 2, true);
 	view.setUint16(34, 16, true);
 	view.setUint32(40, samples.length * 2, true);
@@ -31,6 +31,12 @@ function pcm16Wave(samples: readonly number[]): Blob {
 function fixture(options: Readonly<{
 	commitFailure?: boolean;
 	sourceCommitFailure?: boolean;
+	reportedFramesWritten?: number;
+	deleteSourceFailure?: Error;
+	bodyDiscardFailure?: Error;
+	preflightChangesProject?: boolean;
+	playheadFrame?: number;
+	bodyWriterMissingOwned?: boolean;
 	existingBodyMetadata?: unknown;
 	existingBodyBytes?: Uint8Array;
 	project?: {
@@ -44,38 +50,48 @@ function fixture(options: Readonly<{
 	const deletedSources: string[] = [];
 	let discarded = 0;
 	let bytesWritten = 0;
+	let bodyAborts = 0;
 	let id = 0;
-	const project = options.project ?? { id: 'project-1', revision: 1, sampleRate: 48_000,
+	let project = options.project ?? { id: 'project-1', revision: 1, sampleRate: 48_000,
 		primarySequenceId: 'sequence-1', sources: [], clips: [], tracks: [], assistanceAssets: [] };
 	const port = createTextToSpeechProjectPort({
 		getProject: () => project, getSelectedClipId: () => options.selectedClipId ?? null,
-		getPlayheadFrame: () => 960,
+	getPlayheadFrame: () => options.playheadFrame ?? 960,
 		createId: (prefix) => `${prefix}-${++id}`,
 		commit: (command) => {
 			if (options.commitFailure) throw new Error('commit refused');
 			commands.push(command);
 		},
-		preflightStorage: async () => undefined,
+		preflightStorage: async () => {
+			if (options.preflightChangesProject) project = { ...project, revision: project.revision + 1 };
+		},
 		store: {
 			beginSourceWrite: async () => ({
+				framesWritten: options.reportedFramesWritten,
 				write: (channels: readonly Float32Array[]) => { bytesWritten += channels[0]!.length * 4; },
 				commit: () => {
 					if (options.sourceCommitFailure) throw new Error('source already exists');
 				}, abort: () => undefined,
 			}),
-			deleteSource: async (sourceId: string) => { deletedSources.push(sourceId); },
+			deleteSource: async (sourceId: string) => {
+				deletedSources.push(sourceId);
+				if (options.deleteSourceFailure) throw options.deleteSourceFailure;
+			},
 			getMediaAssetMetadata: async () => options.existingBodyMetadata ?? null,
 			loadMediaAsset: async () => options.existingBodyBytes ?? null,
 			beginMediaAssetWrite: async () => ({ maximumChunkBytes: 1024,
 				bytesWritten: 0, write: async () => undefined, commit: async () => ({}),
-				abort: async () => undefined,
-				commitOwned: async () => ({ metadata: {}, discardIfCurrent: async () => {
-					discarded += 1; return true;
+				abort: async () => { bodyAborts += 1; },
+				commitOwned: options.bodyWriterMissingOwned ? undefined : async () => ({ metadata: {}, discardIfCurrent: async () => {
+					discarded += 1;
+					if (options.bodyDiscardFailure) throw options.bodyDiscardFailure;
+					return true;
 				} }),
 			}),
 		},
 	});
 	return { port, project, commands, deletedSources, get bytesWritten() { return bytesWritten; },
+		get bodyAborts() { return bodyAborts; },
 		get discarded() { return discarded; } };
 }
 
@@ -107,6 +123,73 @@ test('a rejected project edit rolls back both the persisted audio and private sc
 	await assert.rejects(state.port.accept(REVIEWED), /commit refused/u);
 	assert.equal(state.deletedSources.length, 1);
 	assert.equal(state.discarded, 1);
+});
+
+test('speech publication reports both rollback failures without hiding the refused edit', async () => {
+	const bodyFailure = new Error('body rollback failed');
+	const sourceFailure = new Error('source rollback failed');
+	const state = fixture({
+		commitFailure: true,
+		bodyDiscardFailure: bodyFailure,
+		deleteSourceFailure: sourceFailure,
+	});
+	await state.port.loadInitial();
+
+	await assert.rejects(state.port.accept(REVIEWED), (error: unknown) => {
+		assert.ok(error instanceof AggregateError);
+		assert.match(String(error.cause), /commit refused/u);
+		assert.deepEqual(error.errors.slice(1), [bodyFailure, sourceFailure]);
+		return true;
+	});
+	assert.equal(state.discarded, 1);
+	assert.equal(state.deletedSources.length, 1);
+});
+
+test('speech preflight rejects a changed project before writing any generated source', async () => {
+	const state = fixture({ preflightChangesProject: true });
+	await state.port.loadInitial();
+
+	await assert.rejects(state.port.accept(REVIEWED), /project changed/u);
+	assert.equal(state.bytesWritten, 0);
+	assert.deepEqual(state.commands, []);
+});
+
+test('speech source rejects a writer that reports a different frame count', async () => {
+	const state = fixture({ reportedFramesWritten: 3 });
+	await state.port.loadInitial();
+
+	await assert.rejects(state.port.accept(REVIEWED), /changed its frame count/u);
+	assert.deepEqual(state.deletedSources, []);
+	assert.deepEqual(state.commands, []);
+});
+
+test('speech rejects an invalid playhead before storing generated media', async () => {
+	const state = fixture({ playheadFrame: -1 });
+	await state.port.loadInitial();
+
+	await assert.rejects(state.port.accept(REVIEWED), /playhead is invalid/u);
+	assert.equal(state.bytesWritten, 0);
+	assert.deepEqual(state.commands, []);
+});
+
+test('speech rejects empty audio and valid WAV with the wrong sample rate', async () => {
+	const state = fixture();
+	await state.port.loadInitial();
+	await assert.rejects(state.port.accept({ ...REVIEWED, audio: new Blob() }), /invalid size/u);
+	await assert.rejects(state.port.accept({
+		...REVIEWED,
+		audio: pcm16Wave([0, 100, -100, 0], 48_000),
+	}), /24 kHz mono PCM WAV/u);
+	assert.equal(state.bytesWritten, 0);
+});
+
+test('speech refuses a script writer without owned rollback authority', async () => {
+	const state = fixture({ bodyWriterMissingOwned: true });
+	await state.port.loadInitial();
+	await assert.rejects(state.port.accept(REVIEWED), /lacks owned publication/u);
+	assert.equal(state.bodyAborts, 1);
+	assert.equal(state.deletedSources.length, 1);
+	assert.deepEqual(state.commands, []);
 });
 
 test('a refused if-absent source write never deletes the existing source', async () => {

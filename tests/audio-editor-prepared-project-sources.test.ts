@@ -113,6 +113,66 @@ test('post-apply currentness failure retires the consumer before its candidate',
 	assert.deepEqual(events, ['consumer:apply', 'consumer:retire', 'provider:dispose']);
 });
 
+test('commit applies transient buffers and publishes prepared source ownership together', async () => {
+	const sourceBuffers = new Map([['old', 'old buffer']]);
+	const providers = new Map([['replaced', 'old provider']]);
+	const cached: Array<readonly [string, string]> = [];
+	const ownership = createPreparedProjectSources({
+		prepared: new Map([
+			['replaced', { kind: 'buffer' as const, value: 'new buffer' }],
+			['new', { kind: 'provider' as const, value: 'new provider' }],
+		]),
+		sourceBuffers,
+		sourceChunkProviders: providers,
+		cacheSourceBuffer: (id, value) => { cached.push([id, value]); },
+		throwIfAborted: () => undefined,
+	});
+
+	const result = await ownership.commit((inputs) => {
+		assert.deepEqual([...inputs.sourceBuffers], [
+			['old', 'old buffer'],
+			['temporary', 'temporary buffer'],
+			['replaced', 'new buffer'],
+		]);
+		assert.deepEqual([...inputs.chunkSources], [['new', 'new provider']]);
+		assert.equal(providers.get('replaced'), 'old provider', 'publication waits for apply');
+		return 'applied';
+	}, { transientBuffers: new Map([['temporary', 'temporary buffer']]) });
+
+	assert.equal(result, 'applied');
+	assert.deepEqual(cached, [['replaced', 'new buffer']]);
+	assert.deepEqual([...providers], [['new', 'new provider']]);
+	await assert.rejects(ownership.commit(() => undefined), /already committed/u);
+});
+
+test('failed application reports retirement and provider cleanup failures together', async () => {
+	const applicationFailure = new Error('apply failed');
+	const retirementFailure = new Error('retire failed');
+	const cleanupFailure = new Error('dispose failed');
+	const ownership = createPreparedProjectSources({
+		prepared: new Map([[
+			'source',
+			{ kind: 'provider' as const, value: { dispose: () => { throw cleanupFailure; } } },
+		]]),
+		sourceBuffers: new Map(),
+		sourceChunkProviders: new Map(),
+		cacheSourceBuffer: () => undefined,
+		throwIfAborted: () => undefined,
+	});
+
+	await assert.rejects(ownership.commit(() => { throw applicationFailure; }, {
+		retireApplied: () => { throw retirementFailure; },
+	}), (error: unknown) => {
+		assert.ok(error instanceof AggregateError);
+		assert.equal(error.cause, cleanupFailure);
+		assert.equal(error.errors[1], cleanupFailure);
+		assert.ok(error.errors[0] instanceof AggregateError);
+		assert.deepEqual(error.errors[0].errors, [applicationFailure, retirementFailure]);
+		return true;
+	});
+	await assert.rejects(async () => ownership.discard(), (error: unknown) => error === cleanupFailure);
+});
+
 interface Deferred<Value> {
 	readonly promise: Promise<Value>;
 	resolve(value: Value): void;
