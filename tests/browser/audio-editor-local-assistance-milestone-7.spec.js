@@ -294,12 +294,18 @@ test.describe('Milestone 7 Guided workflow qualification', () => {
 		expect(speechlessStart).toBeGreaterThan(0);
 		await seekVideo(previewVideo, speechlessEnd);
 		const restartedAt = await previewVideo.evaluate(async (video, startSeconds) => {
-			const restart = new Promise((resolve) => {
+			let stopWaiting = () => {};
+			const restart = new Promise((resolve, reject) => {
 				const onSeeking = () => {
 					// Chromium may seek to zero before replaying a video at its end.
 					if (video.currentTime < startSeconds) return;
-					video.removeEventListener('seeking', onSeeking);
+					stopWaiting();
 					resolve(video.currentTime);
+				};
+				const timeout = setTimeout(() => reject(new Error('Highlight playback did not seek to its start.')), 5_000);
+				stopWaiting = () => {
+					clearTimeout(timeout);
+					video.removeEventListener('seeking', onSeeking);
 				};
 				video.addEventListener('seeking', onSeeking);
 			});
@@ -307,6 +313,7 @@ test.describe('Milestone 7 Guided workflow qualification', () => {
 				await video.play();
 				return await restart;
 			} finally {
+				stopWaiting();
 				video.pause();
 			}
 		}, speechlessStart);
