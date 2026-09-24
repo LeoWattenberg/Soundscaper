@@ -24,33 +24,46 @@ export async function packageDesktopNightlyTestProducts({
 	arch = ARCH,
 	run = runCommand,
 	sourceRevision = repositoryRevision(repositoryRoot),
+	environment = process.env,
 } = {}) {
 	if (!['win', 'mac', 'linux'].includes(platform)) throw new TypeError('Nightly product platform is invalid.');
 	if (!['x64', 'arm64'].includes(arch)) throw new TypeError('Nightly product architecture is invalid.');
+	const publishAssistanceRuntimes = environment.SOUNDSCAPER_PUBLISH_ASSISTANCE_RUNTIMES === 'true';
+	const verifyAssistanceRuntimes = environment.SOUNDSCAPER_VERIFY_ASSISTANCE_RUNTIMES === 'true';
+	if (publishAssistanceRuntimes && verifyAssistanceRuntimes) {
+		throw new TypeError('Choose either publication or read-only verification of assistance runtimes.');
+	}
 	await rm(outputRoot, { recursive: true, force: true });
 	await mkdir(outputRoot, { recursive: true });
 	for (const productId of ['soundscaper', 'framescaper']) {
 		const productOutput = resolve(outputRoot, productId);
-		const environment = {
-			...process.env,
+		const commandEnvironment = {
+			...environment,
 			SCAPE_PRODUCT: productId,
 			SCAPE_BUILD_SOURCE_MAPS: '1',
 			SOUNDSCAPER_DESKTOP_TARGET_PLATFORM: platform,
 			SOUNDSCAPER_DESKTOP_TARGET_ARCH: arch,
 			CSC_IDENTITY_AUTO_DISCOVERY: 'false',
 		};
-		await run(process.execPath, [resolve(repositoryRoot, 'scripts/desktop-prepare.mjs')], { cwd: repositoryRoot, environment });
-		if (process.env.SOUNDSCAPER_PUBLISH_ASSISTANCE_RUNTIMES === 'true') {
+		if (verifyAssistanceRuntimes) {
+			for (const name of Object.keys(commandEnvironment)) {
+				if (name.startsWith('R2_MODELS_')) delete commandEnvironment[name];
+			}
+		}
+		await run(process.execPath, [resolve(repositoryRoot, 'scripts/desktop-prepare.mjs')],
+			{ cwd: repositoryRoot, environment: commandEnvironment });
+		if (publishAssistanceRuntimes || verifyAssistanceRuntimes) {
 			await run(process.execPath, [
-				resolve(repositoryRoot, 'scripts/publish-assistance-runtime-assets.mjs'), '--publish',
-			], { cwd: repositoryRoot, environment });
+				resolve(repositoryRoot, 'scripts/publish-assistance-runtime-assets.mjs'),
+				publishAssistanceRuntimes ? '--publish' : '--verify',
+			], { cwd: repositoryRoot, environment: commandEnvironment });
 		}
 		await run(process.execPath, [
 			resolve(repositoryRoot, 'node_modules/electron-builder/out/cli/cli.js'),
 			'--config', resolve(repositoryRoot, 'electron-builder.config.cjs'),
 			`--${platform}`, `--${arch}`, '--dir', '--publish', 'never',
 			`--config.directories.output=${productOutput}`,
-		], { cwd: repositoryRoot, environment });
+		], { cwd: repositoryRoot, environment: commandEnvironment });
 		await copyFile(resolve(repositoryRoot, '.desktop-build/stage-manifest.json'), resolve(productOutput, 'stage-manifest.json'));
 		await preserveDesktopNightlyProductCoverageEvidence({
 			buildRoot: resolve(repositoryRoot, '.desktop-build'),

@@ -7,7 +7,11 @@ import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { test } from 'node:test';
 
-import { publishAssistanceRuntimeBundles } from '../scripts/publish-assistance-runtime-assets.mjs';
+import { verifyMirroredArtifact } from '../scripts/lib/local-model-mirror-publication.mjs';
+import {
+	publishAssistanceRuntimeBundles,
+	verifyAssistanceRuntimeBundles,
+} from '../scripts/publish-assistance-runtime-assets.mjs';
 
 const hash = (bytes) => createHash('sha256').update(bytes).digest('hex');
 
@@ -64,7 +68,30 @@ test('runtime publication uploads immutable R2 keys and reads public bytes back 
 				join(root, bundle.familyId, '1.0.0/linux-x64', `${sha256}.tar.gz`)],
 			['verify', bundle.archive.url],
 		]));
+		const publicChecks = [];
+		const verified = await verifyAssistanceRuntimeBundles({ authority, archivesRoot: root,
+			verify: async (input) => { publicChecks.push(input); return input; } });
+		assert.deepEqual(verified, { targetId: 'linux-x64', verified: families.length });
+		assert.deepEqual(publicChecks, bundles.map(({ archive }) => ({ url: archive.url, artifact: archive })));
+		await assert.rejects(verifyAssistanceRuntimeBundles({ authority, archivesRoot: root,
+			verify: async () => { throw new Error('public archive is absent'); } }), /public archive is absent/u);
+		const wrongBytes = Buffer.from('pinned archivf');
+		await assert.rejects(verifyAssistanceRuntimeBundles({ authority, archivesRoot: root,
+			verify: ({ url, artifact }) => verifyMirroredArtifact({ url, artifact,
+				fetchImpl: async (_url, init) => {
+					const ranged = init.headers.Range === 'bytes=0-0';
+					const body = ranged ? bytes.subarray(0, 1) : wrongBytes;
+					const headers = { 'Access-Control-Allow-Origin': 'https://soundscaper.org',
+						'Access-Control-Expose-Headers': 'Content-Length,Content-Range,ETag',
+						'Content-Length': String(init.method === 'HEAD' ? bytes.length : body.length) };
+					if (ranged) headers['Content-Range'] = `bytes 0-0/${bytes.length}`;
+					return new Response(init.method === 'HEAD' ? null : body,
+						{ status: ranged ? 206 : 200, headers });
+				},
+			}) }), /served.*not the recorded/u);
 		await writeFile(join(root, bundles[0].familyId, '1.0.0/linux-x64', `${sha256}.tar.gz`), 'changed');
+		await assert.rejects(verifyAssistanceRuntimeBundles({ authority, archivesRoot: root,
+			verify: async () => { throw new Error('public verification must not run'); } }), /digest|length/u);
 		await assert.rejects(publishAssistanceRuntimeBundles({ authority, archivesRoot: root,
 			client: { bucket: 'soundscaper-assets', endpoint: new URL('https://example.eu.r2.cloudflarestorage.com') },
 			upload: async () => { throw new Error('upload should not run'); }, verify: async () => {} }),
@@ -72,10 +99,14 @@ test('runtime publication uploads immutable R2 keys and reads public bytes back 
 		const forged = structuredClone(JSON.parse(manifestBytes));
 		forged.bundles[1].files[0].sha256 = 'c'.repeat(64);
 		const forgedBytes = Buffer.from(JSON.stringify(forged));
+		const forgedAuthority = { ...authority, manifestBytes: forgedBytes,
+			receipt: { ...authority.receipt, manifest: { ...authority.receipt.manifest,
+				byteLength: forgedBytes.length, sha256: hash(forgedBytes) } } };
+		await assert.rejects(verifyAssistanceRuntimeBundles({ authority: forgedAuthority, archivesRoot: root,
+			verify: async () => { throw new Error('public verification must not run'); } }),
+		/authenticated source manifest/u);
 		await assert.rejects(publishAssistanceRuntimeBundles({
-			authority: { ...authority, manifestBytes: forgedBytes,
-				receipt: { ...authority.receipt, manifest: { ...authority.receipt.manifest,
-					byteLength: forgedBytes.length, sha256: hash(forgedBytes) } } },
+			authority: forgedAuthority,
 			archivesRoot: root,
 			client: { bucket: 'soundscaper-assets', endpoint: new URL('https://example.eu.r2.cloudflarestorage.com') },
 			upload: async () => { throw new Error('upload should not run'); }, verify: async () => {},

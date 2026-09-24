@@ -334,52 +334,62 @@ test('nightly product staging builds isolated Soundscaper and Framescaper trees'
 		readonly args: readonly string[];
 		readonly productId: string;
 		readonly sourceMaps: string | undefined;
+		readonly r2AccessKey: string | undefined;
 	}> = [];
 	await mkdir(join(root, '.desktop-build'), { recursive: true });
 
+	const run = async (_command: string, args: readonly string[], options: { readonly environment: NodeJS.ProcessEnv }) => {
+		const productId = String(options.environment.SCAPE_PRODUCT);
+		calls.push({
+			args,
+			productId,
+			sourceMaps: options.environment.SCAPE_BUILD_SOURCE_MAPS,
+			r2AccessKey: options.environment.R2_MODELS_ACCESS_KEY_ID,
+		});
+		if (args.some((value) => value.endsWith('desktop-prepare.mjs'))) {
+			await writeFile(join(root, '.desktop-build/stage-manifest.json'), JSON.stringify({
+				productId,
+				schemaVersion: 1,
+				sourceRevision,
+				target: { platform: 'linux', arch: 'x64' },
+			}));
+			await mkdir(join(root, '.desktop-build/app/desktop'), { recursive: true });
+			await mkdir(join(root, '.desktop-build/renderer/assets'), { recursive: true });
+			await mkdir(join(root, '.desktop-build/renderer-source-maps'), { recursive: true });
+			await writeFile(join(root, '.desktop-build/app/desktop/main.mjs'), `${productId} main`);
+			await writeFile(join(root, '.desktop-build/renderer/assets/editor.js'), `${productId} renderer`);
+			await writeFile(join(root, '.desktop-build/renderer-source-maps/editor.js.map'), '{}');
+			return;
+		}
+		if (args.some((value) => value.endsWith('publish-assistance-runtime-assets.mjs'))) return;
+		const outputArgument = args.find((value) => value.startsWith('--config.directories.output='));
+		assert.ok(outputArgument);
+		const productOutput = outputArgument.slice('--config.directories.output='.length);
+		const resources = join(productOutput, 'linux-unpacked', 'resources');
+		await mkdir(join(resources, 'renderer/assets'), { recursive: true });
+		await writeFile(join(productOutput, 'linux-unpacked', productId), 'executable');
+		await writeFile(join(resources, 'renderer/assets/editor.js'), `${productId} renderer`);
+		await createPackage(join(root, '.desktop-build/app'), join(resources, 'app.asar'));
+	};
 	await packageDesktopNightlyTestProducts({
 		repositoryRoot: root,
 		outputRoot,
 		platform: 'linux',
 		arch: 'x64',
 		sourceRevision,
-		run: async (_command: string, args: readonly string[], options: { readonly environment: NodeJS.ProcessEnv }) => {
-			const productId = String(options.environment.SCAPE_PRODUCT);
-			calls.push({
-				args,
-				productId,
-				sourceMaps: options.environment.SCAPE_BUILD_SOURCE_MAPS,
-			});
-			if (args.some((value) => value.endsWith('desktop-prepare.mjs'))) {
-				await writeFile(join(root, '.desktop-build/stage-manifest.json'), JSON.stringify({
-					productId,
-					schemaVersion: 1,
-					sourceRevision,
-					target: { platform: 'linux', arch: 'x64' },
-				}));
-				await mkdir(join(root, '.desktop-build/app/desktop'), { recursive: true });
-				await mkdir(join(root, '.desktop-build/renderer/assets'), { recursive: true });
-				await mkdir(join(root, '.desktop-build/renderer-source-maps'), { recursive: true });
-				await writeFile(join(root, '.desktop-build/app/desktop/main.mjs'), `${productId} main`);
-				await writeFile(join(root, '.desktop-build/renderer/assets/editor.js'), `${productId} renderer`);
-				await writeFile(join(root, '.desktop-build/renderer-source-maps/editor.js.map'), '{}');
-				return;
-			}
-			const outputArgument = args.find((value) => value.startsWith('--config.directories.output='));
-			assert.ok(outputArgument);
-			const productOutput = outputArgument.slice('--config.directories.output='.length);
-			const resources = join(productOutput, 'linux-unpacked', 'resources');
-			await mkdir(join(resources, 'renderer/assets'), { recursive: true });
-			await writeFile(join(productOutput, 'linux-unpacked', productId), 'executable');
-			await writeFile(join(resources, 'renderer/assets/editor.js'), `${productId} renderer`);
-			await createPackage(join(root, '.desktop-build/app'), join(resources, 'app.asar'));
-		},
+		environment: { ...process.env, SOUNDSCAPER_VERIFY_ASSISTANCE_RUNTIMES: 'true',
+			R2_MODELS_ACCESS_KEY_ID: 'must-not-reach-verification' },
+		run,
 	});
 
 	assert.deepEqual(calls.map(({ productId }) => productId), [
-		'soundscaper', 'soundscaper', 'framescaper', 'framescaper',
+		'soundscaper', 'soundscaper', 'soundscaper',
+		'framescaper', 'framescaper', 'framescaper',
 	]);
 	assert.ok(calls.every(({ sourceMaps }) => sourceMaps === '1'));
+	assert.ok(calls.every(({ r2AccessKey }) => r2AccessKey === undefined));
+	assert.deepEqual(calls.filter(({ args }) => args.some((value) => value.endsWith('publish-assistance-runtime-assets.mjs')))
+		.map(({ args }) => args.at(-1)), ['--verify', '--verify']);
 	for (const productId of ['soundscaper', 'framescaper']) {
 		assert.equal(
 			JSON.parse(await readFile(join(outputRoot, productId, 'stage-manifest.json'), 'utf8')).productId,
@@ -399,4 +409,20 @@ test('nightly product staging builds isolated Soundscaper and Framescaper trees'
 			['app.asar/desktop/main.mjs', 'renderer/assets/editor.js'],
 		);
 	}
+	calls.length = 0;
+	await packageDesktopNightlyTestProducts({ repositoryRoot: root, outputRoot, platform: 'linux', arch: 'x64',
+		sourceRevision, environment: { SOUNDSCAPER_PUBLISH_ASSISTANCE_RUNTIMES: 'true' }, run });
+	assert.deepEqual(calls.filter(({ args }) => args.some((value) => value.endsWith('publish-assistance-runtime-assets.mjs')))
+		.map(({ args }) => args.at(-1)), ['--publish', '--publish']);
+	const rejectedCalls: string[] = [];
+	await assert.rejects(packageDesktopNightlyTestProducts({ repositoryRoot: root, outputRoot,
+		platform: 'linux', arch: 'x64', sourceRevision,
+		environment: { SOUNDSCAPER_VERIFY_ASSISTANCE_RUNTIMES: 'true' },
+		run: async (command, args, options) => {
+			rejectedCalls.push(String(args.at(-1)));
+			if (args.at(-1) === '--verify') throw new Error('public runtime archive missing');
+			await run(command, args, options);
+		},
+	}), /public runtime archive missing/u);
+	assert.equal(rejectedCalls.length, 2, 'a failed public verification must stop packaging before electron-builder');
 });

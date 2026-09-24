@@ -56,8 +56,11 @@ The committed catalog keeps exact artifact pins.
 
 The source runtime-family register describes supported build targets.
 `desktop-prepare` generates authenticated manifests for the native archives.
-The release workflow uploads and reads back the archives from R2 before desktop
-artifacts are published, and includes their URLs and digests in the app ASAR.
+Manual nightly-with-tests packaging uploads and reads back the archives from R2.
+Automatic packaging after a verified main push checks that the exact archives
+are already available from R2, without publishing them again. Both paths include
+their URLs and digests in the app ASAR; an unpublished or mismatched archive
+stops automatic packaging.
 The tests download these engines without substituting development dependencies
 or simulated output. Build support is separate from a successful test result on
 each platform; retain the report from the actual package run.
