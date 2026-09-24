@@ -138,6 +138,10 @@ export const REACHABILITY_PLACED_TARGETS: ReadonlyMap<string, string> = new Map(
 		'Site chrome the workspace theme hook reuses so both worlds agree on one stored preference; `src/common/site/App.jsx` reaches it first.',
 	],
 	[
+		'src/common/site/EditorStartupProgress.tsx',
+		'The site entry renders this loading indicator before either product bootstrap downloads, and the editor bootstrap reuses the same site-owned component.',
+	],
+	[
 		'src/common/site/privacy-policy-links.js',
 		'Site route table the editor privacy surface reuses; `src/common/site/privacy-policy.js` is in the initial graph.',
 	],

@@ -77,7 +77,7 @@ export default function App({ route }) {
 				</section>
 				<section className="website-section website-audio-editor-section website-tool-workspace">
 					<div className="website-container website-audio-editor-container">
-						<Suspense fallback={<EditorStartupProgress copy={copy} />}>
+						<Suspense fallback={<EditorStartupProgress copy={copy} locale={locale} />}>
 							<EditorBootstrap
 								locale={locale}
 								fallbackCopy={copy}

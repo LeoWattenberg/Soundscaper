@@ -366,7 +366,7 @@ export function AudioEditorWebBootstrap<Runtime extends Readonly<{
 		}</div>;
 	}
 	if (!ready || ready.attempt !== attempt) {
-		return <EditorStartupProgress copy={fallbackCopy} />;
+		return <EditorStartupProgress copy={fallbackCopy} locale={locale} />;
 	}
 	return configuration.renderEditor({
 		locale,

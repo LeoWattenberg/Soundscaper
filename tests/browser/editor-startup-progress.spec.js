@@ -59,21 +59,24 @@ for (const productId of ['soundscaper', 'framescaper']) {
 	});
 }
 
-test('a retired editor chunk replaces loading progress with the stale-build prompt', async ({ page }) => {
-	await page.route('**/offline-shell.json', (route) => route.fulfill({
-		status: 200,
-		contentType: 'application/json',
-		body: JSON.stringify({
-			schemaVersion: 2,
-			assets: [{ url: '/assets/retired.js', byteLength: 1, sha256: 'a'.repeat(64) }],
-		}),
-	}));
-	await page.route(/\/assets\/SoundscaperAudioEditorBootstrap-[^/]+\.js$/u, (route) => route.fulfill({
-		status: 404,
-		contentType: 'text/html',
-		body: '<!doctype html><title>Not found</title>',
-	}));
-	await page.goto('/en/');
-	await expect(page.getByRole('alertdialog', { name: 'Editor is out of date' })).toBeVisible();
-	await expect(page.locator('[data-editor-startup-progress]')).toHaveCount(0);
-});
+for (const productId of ['soundscaper', 'framescaper']) {
+	test(`${productId} replaces loading progress with the stale-build prompt when an editor chunk is retired`, async ({ page }) => {
+		await page.route('**/offline-shell.json', (route) => route.fulfill({
+			status: 200,
+			contentType: 'application/json',
+			body: JSON.stringify({
+				schemaVersion: 2,
+				assets: [{ url: '/assets/retired.js', byteLength: 1, sha256: 'a'.repeat(64) }],
+			}),
+		}));
+		await page.route(new RegExp(`/assets/${productId === 'framescaper'
+			? 'Framescaper' : 'Soundscaper'}AudioEditorBootstrap-[^/]+\\.js$`, 'u'), (route) => route.fulfill({
+			status: 404,
+			contentType: 'text/html',
+			body: '<!doctype html><title>Not found</title>',
+		}));
+		await page.goto(resolveBrowserProductTestUrl(productId === 'framescaper' ? '/framescaper/en/' : '/en/'));
+		await expect(page.getByRole('alertdialog', { name: 'Editor is out of date' })).toBeVisible();
+		await expect(page.locator('[data-editor-startup-progress]')).toHaveCount(0);
+	});
+}

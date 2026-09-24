@@ -336,20 +336,17 @@ test('a disposal that cannot close its storage rejects once for every caller', a
 	});
 });
 
-test('the bootstrap announces a loading status from its fallback copy until the runtime exists', () => {
-	assert.equal(
-		renderToStaticMarkup(React.createElement(FramescaperAudioEditorBootstrap, {
-			locale: 'de', fallbackCopy: { loading: 'Projekt wird geladen' },
-		})),
-		'<div role="status" aria-live="polite">Projekt wird geladen</div>',
-	);
-	assert.equal(
-		renderToStaticMarkup(React.createElement(FramescaperAudioEditorBootstrap, {
-			locale: 'en', fallbackCopy: {},
-		})),
-		'<div role="status" aria-live="polite">Loading project</div>',
-		'an English bootstrap still waits on its runtime behind the built-in loading text',
-	);
+test('the bootstrap announces localized, indeterminate editor loading until the runtime exists', () => {
+	const german = renderToStaticMarkup(React.createElement(FramescaperAudioEditorBootstrap, {
+		locale: 'de', fallbackCopy: {},
+	}));
+	assert.match(german, /Editordateien werden geladen/u);
+	assert.match(german, /<progress max="100" aria-label="Editordateien werden geladen"><\/progress>/u);
+	const english = renderToStaticMarkup(React.createElement(FramescaperAudioEditorBootstrap, {
+		locale: 'en', fallbackCopy: {},
+	}));
+	assert.match(english, /Loading editor files/u);
+	assert.match(english, /<progress max="100" aria-label="Loading editor files"><\/progress>/u);
 });
 
 test('fallback copy that is not a record of own data fields fails the bootstrap render', () => {

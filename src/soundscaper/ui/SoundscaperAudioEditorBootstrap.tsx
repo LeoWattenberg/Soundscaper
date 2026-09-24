@@ -104,7 +104,7 @@ const BOOTSTRAP_CONFIGURATION: AudioEditorWebBootstrapConfiguration<
 	renderEditor: ({ locale, copy, fallbackCopy, initialSurface, runtime }: AudioEditorWebBootstrapRenderValue<
 		Readonly<SoundscaperWebEditorRuntime>
 	>) => (
-		<Suspense fallback={<EditorStartupProgress copy={fallbackCopy} />}>
+		<Suspense fallback={<EditorStartupProgress copy={fallbackCopy} locale={locale} />}>
 			<BoundAudioEditorApp
 				locale={locale}
 				copy={copy}

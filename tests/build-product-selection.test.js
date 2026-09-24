@@ -3,7 +3,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { PRODUCT_BOOTSTRAPS } from '../scripts/lib/startup-graph-budget.mjs';
+import { PRODUCT_BOOTSTRAPS, STARTUP_ASSET_INVENTORY_MARKER } from '../scripts/lib/startup-graph-budget.mjs';
 
 test('an unset SCAPE_PRODUCT still builds Soundscaper', async () => {
 	const config = await loadViteConfig(undefined, 'unset');
@@ -75,6 +75,11 @@ function budgetPlugin(config) {
 function bundleWithBootstrap(product) {
 	const bootstrapModule = `/workspace${PRODUCT_BOOTSTRAPS[product]}`;
 	return {
+		'index.html': {
+			type: 'asset',
+			fileName: 'index.html',
+			source: `<!doctype html><html><head>${STARTUP_ASSET_INVENTORY_MARKER}</head></html>`,
+		},
 		'assets/index.js': chunk({
 			fileName: 'assets/index.js',
 			code: 'entry-code',

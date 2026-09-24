@@ -7,11 +7,12 @@ import { createEditorStartupProgressStore, editorStartupProgress } from './edito
 
 export interface EditorStartupProgressProps {
 	readonly copy?: Readonly<Record<string, unknown>>;
+	readonly locale?: string;
 	readonly store?: ReturnType<typeof createEditorStartupProgressStore>;
 }
 
 /** The site and both product bootstraps share one measured startup indicator. */
-export function EditorStartupProgress({ copy, store = editorStartupProgress }: EditorStartupProgressProps) {
+export function EditorStartupProgress({ copy, locale, store = editorStartupProgress }: EditorStartupProgressProps) {
 	const snapshot = useSyncExternalStore(
 		store.subscribe,
 		store.getSnapshot,
@@ -20,7 +21,7 @@ export function EditorStartupProgress({ copy, store = editorStartupProgress }: E
 	useEffect(() => {
 		document.documentElement.querySelector('[data-initial-load-progress]')?.remove();
 	}, []);
-	const bundled = bundledSiteCopyForLocale(document.documentElement.lang);
+	const bundled = bundledSiteCopyForLocale(locale ?? (typeof document === 'undefined' ? 'en' : document.documentElement.lang));
 	const loading = siteText(copy, 'loadingEditorFiles', bundled.loadingEditorFiles);
 	const preparing = siteText(copy, 'preparingEditor', bundled.preparingEditor);
 	const hasPercent = snapshot.phase === 'loading' && snapshot.percent !== null;
