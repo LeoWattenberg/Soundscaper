@@ -36,6 +36,7 @@ import {
 	buildProjectGraph,
 } from './project-graph.ts';
 import { playbackOutputDestination } from './playback-output.ts';
+import { observeActiveStreamCompletion, unexpectedActiveStreamAbort } from './playback-stream-failure.ts';
 import { sampleProductionMeterSessionV21 } from './production-meter-runtime-session-v21.ts';
 import { ScheduledParameterRegistry } from './scheduled-parameter-registry.ts';
 import { isCutPreviewActive, releaseCutPreview } from './cut-preview.ts';
@@ -290,6 +291,7 @@ async [ENGINE_SCHEDULE_PLAYBACK](this: EngineRuntimeHost, fromFrame, scheduledTi
 			throw error;
 		}
 		if (this.graph !== graph) return schedule.contextStartTime;
+		observeActiveStreamCompletion(this, graph, schedule.waitForStreamedClips);
 		recordWebCoreStreamPlayback(schedule.streamedClips);
 		scheduledTime = schedule.contextStartTime;
 		this.playbackStartTime = scheduledTime + (this.graph.latencyFrames || 0) / (context.sampleRate || DEFAULT_SAMPLE_RATE);
@@ -391,13 +393,6 @@ async [ENGINE_ENSURE_MASTER_LOUDNESS_METER](context) {
 		}
 	},
 
-[ENGINE_HANDLE_SCHEDULING_ERROR](error) {
-		if (error && typeof error === 'object' && 'name' in error && error.name === 'AbortError') return;
-		this[ENGINE_HALT_GRAPH]();
-		this.masterLoudnessMeter?.setRunning(false);
-		this[ENGINE_SET_STATE](this.project ? 'stopped' : 'empty');
-		globalThis.console?.error?.(error);
-	},
 [ENGINE_START_TICKER]() {
 		this[ENGINE_STOP_TICKER]();
 		this.ticker = globalThis.setInterval(() => {
@@ -464,8 +459,13 @@ async [ENGINE_ENSURE_MASTER_LOUDNESS_METER](context) {
 				chunkAudioNodeFactory: this.chunkAudioNodeFactory,
 				signal: graph.abortController.signal,
 				onStreamUnderrun: recordWebCoreStreamUnderrun,
-			}).then(({ streamedClips }) => recordWebCoreStreamPlayback(streamedClips))
-				.catch((error) => this[ENGINE_HANDLE_SCHEDULING_ERROR](error));
+			}).then((schedule) => {
+				if (this.graph !== graph || graph.abortController.signal.aborted) return;
+				observeActiveStreamCompletion(this, graph, schedule.waitForStreamedClips);
+				recordWebCoreStreamPlayback(schedule.streamedClips);
+			}).catch((error) => {
+				if (this.graph === graph && !graph.abortController.signal.aborted) this[ENGINE_HANDLE_SCHEDULING_ERROR](unexpectedActiveStreamAbort(error));
+			});
 			this.loopScheduleTime += durationSeconds;
 			scheduledIterations += 1;
 		}
@@ -541,7 +541,6 @@ async [ENGINE_ENSURE_MASTER_LOUDNESS_METER](context) {
 	| typeof ENGINE_SCHEDULE_PLAYBACK
 	| typeof ENGINE_GET_CHUNK_STREAM_CLIENT
 	| typeof ENGINE_ENSURE_MASTER_LOUDNESS_METER
-	| typeof ENGINE_HANDLE_SCHEDULING_ERROR
 	| typeof ENGINE_START_TICKER
 	| typeof ENGINE_SCHEDULE_LOOP_AHEAD
 	| typeof ENGINE_STOP_TICKER

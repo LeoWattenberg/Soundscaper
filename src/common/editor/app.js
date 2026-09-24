@@ -313,9 +313,9 @@ export function createAudioEditorController(_root = null, options = {}) {
 		cloneProject: projectRuntime.cloneProject, projectSampleRate: () => projectSampleRate(), sourceBuffers, hasMissingTimelineSources: bindings.hasMissingTimelineSources, analyzeChannels: analyzeChannelsInWorker,
 		renderSnapshot: (...args) => renderSnapshot(...args), showAnalysis: bindings.showAnalysis, setStatus: bindings.setStatus, publish: publishDocumentSnapshot, handleError: bindings.handleError,
 	});
-	const unsubscribeParametricEqErrors = typeof engine.subscribeParametricEqErrors === 'function'
-		? engine.subscribeParametricEqErrors((error) => bindings.handleError(error))
-		: () => {};
+	const unsubscribeParametricEqErrors = typeof engine.subscribeParametricEqErrors === 'function' ? engine.subscribeParametricEqErrors((error) => bindings.handleError(error)) : () => {};
+	const unsubscribePlaybackErrors = typeof engine.subscribePlaybackErrors === 'function'
+		? engine.subscribePlaybackErrors((error) => bindings.handleError(error)) : () => {};
 	const { inspectScape, openScapeFile, scapeInspectionQuiescence } = createScapeProjectFileService({ lifetime, store, openScape: bindings.openScape, productCapabilities: product.capabilities, currentProjectSchemaFamily: product.id, inspectScapeProject: options.scapeProjectRuntime?.inspectScapeProject, scapeInspectionQuiescenceOptions: options.scapeInspectionQuiescenceOptions });
 	const { locking: projectLockService, projects: projectSwitchService } = createProjectLifecycleComposition({
 		locking: {
@@ -614,7 +614,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		removeDeviceChangeListener: () => { removeDeviceChangeListener(); removeDeviceChangeListener = () => {}; },
 		disposeCapture: () => framescaperCapture?.dispose(), disposeCaptureProxy: () => framescaperCaptureProxyScheduler?.dispose?.(),
 		disposeOpenRecovery: () => takeCycleOpenRecovery.dispose(), invalidateProject: () => projectGeneration.invalidate(),
-		disposeVisuals: sources.projectVisual.dispose, unsubscribeEngineErrors: unsubscribeParametricEqErrors,
+		disposeVisuals: sources.projectVisual.dispose, unsubscribeEngineErrors: () => { unsubscribeParametricEqErrors(); unsubscribePlaybackErrors(); },
 		cancelTimedRecording: () => bindings.cancelTimedRecording({ publish: false, status: false }), cancelRecordingStart: bindings.cancelRecordingStart,
 		cancelScheduledSave: doc.saves.cancelScheduled, clearSourceGcTimer: () => globalThis.clearTimeout(state.sourceGcTimer),
 		cancelPlaybackPreparation: bindings.cancelPlaybackCachePreparation, cancelPlayAtSpeedPreparation, stopMetronome,

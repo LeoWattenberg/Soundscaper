@@ -230,6 +230,7 @@ export interface EnginePublicApi {
 	subscribePosition(listener: (frame: number, durationFrames: number) => void): () => boolean | void;
 	subscribeMeters(listener: (meter: EngineMeterSnapshot) => void): () => boolean | void;
 	subscribeState(listener: (state: string) => void): () => boolean | void;
+	subscribePlaybackErrors(listener: (error: unknown) => void): () => boolean | void;
 	subscribeParametricEqErrors(listener: (error: unknown) => void): () => boolean | void;
 	previewScheduledParameter(address: unknown, value: number): boolean;
 	configureRackEffect(scope: EngineEffectScope, targetId: unknown, effectId: string, params: UnknownRecord, options?: EngineEffectMessageOptions): number | false;

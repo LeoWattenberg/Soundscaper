@@ -481,7 +481,7 @@ async [ENGINE_DISPOSE_RESOURCES]() {
 		this.chunkSources.clear();
 		this.positionListeners.clear();
 		this.meterListeners.clear();
-		this.stateListeners.clear();
+		this.stateListeners.clear(); this.playbackErrorListeners.clear();
 		this.parametricEqErrorListeners.clear();
 		this.reversedBuffers = new WeakMap();
 		this.preparedSpeedPlayback = null;

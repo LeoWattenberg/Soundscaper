@@ -137,6 +137,7 @@ export interface EngineRuntimeHost extends EnginePublicApi {
 	positionListeners: Set<(frame: number, durationFrames: number) => void>;
 	meterListeners: Set<(meter: EngineMeterSnapshot) => void>;
 	stateListeners: Set<(state: string) => void>;
+	playbackErrorListeners: Set<(error: unknown) => void>;
 	parametricEqErrorListeners: Set<(error: unknown) => void>;
 	masterLoudnessMeter: EngineLoudnessMeter | null;
 	masterLoudnessMeterChannelCount: number | null;

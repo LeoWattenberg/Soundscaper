@@ -8,6 +8,7 @@ import { installEngineMethodMaps } from './method-installer.ts';
 import { engineRenderingMethods } from './rendering.ts';
 import { engineNativeEffectPdcControlMethods } from './native-effect-pdc-control.ts';
 import { enginePlaybackOutputMethods } from './playback-output.ts';
+import { enginePlaybackFailureMethods } from './playback-stream-failure.ts';
 import {
 	engineTransportAccessors,
 	engineTransportControlMethods,
@@ -51,6 +52,7 @@ export const ENGINE_PUBLIC_METHOD_NAMES = [
 	'subscribePosition',
 	'subscribeMeters',
 	'subscribeState',
+	'subscribePlaybackErrors',
 	'subscribeParametricEqErrors',
 	'previewScheduledParameter',
 	'configureRackEffect',
@@ -76,6 +78,7 @@ export function installEngineRuntimeMethods(target: object): void {
 	installEngineMethodMaps(target, [
 		engineLifecycleMethods,
 		enginePlaybackOutputMethods,
+		enginePlaybackFailureMethods,
 		engineTransportControlMethods,
 		engineCutPreviewMethods,
 		engineTransportAccessors,

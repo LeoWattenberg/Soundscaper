@@ -113,6 +113,7 @@ async renderMixRealtime(this: EngineRuntimeHost, {
 		let parametricEqFailure = null;
 		let failParametricEqRender: ((error: unknown) => void) | null = null;
 		let streamUnderrunFailure: Error | null = null;
+		let streamFailure: Error | null = null;
 		let failStreamedRender: ((error: unknown) => void) | null = null;
 		let waitForStreamedClips = async (): Promise<void> => undefined;
 		let streamedClips = 0;
@@ -223,7 +224,16 @@ async renderMixRealtime(this: EngineRuntimeHost, {
 				type: 'start-capture',
 				startFrame: Math.ceil(startTime * context.sampleRate) + captureLeadFrames,
 			});
-			waitForStreamedClips = scheduled.waitForStreamedClips;
+			const streamCompletion = scheduled.waitForStreamedClips();
+			waitForStreamedClips = () => streamCompletion;
+			void streamCompletion.catch((error: unknown) => {
+				if (graph.abortController.signal.aborted) return;
+				streamFailure ||= error instanceof Error
+					? error
+					: new Error('A streamed audio source failed during rendering.', { cause: error });
+				graph.abortController.abort(streamFailure);
+				failStreamedRender?.(streamFailure);
+			});
 			streamedClips = scheduled.streamedClips;
 		} catch (error) {
 			signal?.removeEventListener('abort', abortGraph);
@@ -232,7 +242,7 @@ async renderMixRealtime(this: EngineRuntimeHost, {
 			try { silent.disconnect(); } catch { /* Already disconnected. */ }
 			if (context.state !== 'closed') await context.close?.();
 			await nativeRuntimes?.dispose();
-			throw streamUnderrunFailure || parametricEqFailure || error;
+			throw streamUnderrunFailure || streamFailure || parametricEqFailure || error;
 		}
 
 		let renderedFrames = 0;
@@ -269,6 +279,7 @@ async renderMixRealtime(this: EngineRuntimeHost, {
 		failStreamedRender = failRender;
 		if (parametricEqFailure) failRender(parametricEqFailure);
 		if (streamUnderrunFailure) failRender(streamUnderrunFailure);
+		if (streamFailure) failRender(streamFailure);
 		sinkQueue = createAsyncPlanarPcmSinkQueue(async (channels: readonly Float32Array[], metadata: EnginePcmChunkMetadata) => {
 			// A requested pause still leaves the audio thread running until it
 			// settles. Keep encoder work behind that barrier so it cannot delay

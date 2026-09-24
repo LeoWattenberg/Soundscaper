@@ -53,9 +53,9 @@ export function startLiveChunkWindow({
 	let next = 0;
 	let completed = 0;
 	let preparing = 0;
-	let firstError: unknown = null;
 	let timer: ReturnType<typeof setTimeout> | null = null;
 	let settled = false;
+	const active = new Set<PreparedLiveChunkPlan>();
 	let resolveDone!: () => void;
 	let rejectDone!: (error: unknown) => void;
 	const done = new Promise<void>((resolve, reject) => { resolveDone = resolve; rejectDone = reject; });
@@ -68,18 +68,21 @@ export function startLiveChunkWindow({
 		if (settled) return;
 		settled = true;
 		cleanup();
+		for (const prepared of active) {
+			try { prepared.cancel(); } catch { /* Preserve the source failure. */ }
+		}
+		active.clear();
 		rejectDone(error);
 	};
 	const onAbort = (): void => fail(signal?.reason ?? new DOMException('Audio scheduling was aborted.', 'AbortError'));
-	const finishOne = (error: unknown = null): void => {
+	const finishOne = (failed: boolean, error?: unknown): void => {
 		if (settled) return;
-		if (error && !firstError) firstError = error;
+		if (failed) { fail(error); return; }
 		completed += 1;
 		if (completed !== upcoming.length) return;
 		settled = true;
 		cleanup();
-		if (firstError) rejectDone(firstError);
-		else resolveDone();
+		resolveDone();
 	};
 	const pump = (): void => {
 		if (settled) return;
@@ -101,20 +104,27 @@ export function startLiveChunkWindow({
 			void Promise.resolve().then(() => prepare(plan)).then((prepared) => {
 				preparing -= 1;
 				if (settled || signal?.aborted) {
-					prepared.cancel();
+					try { prepared.cancel(); } catch { /* The window has already failed. */ }
 					return;
 				}
 				try {
 					prepared.start(contextStartTime, fromFrame, sampleRate, transportRate);
-					void prepared.done.then(() => finishOne(), finishOne);
+					active.add(prepared);
+					void prepared.done.then(() => {
+						active.delete(prepared);
+						finishOne(false);
+					}, (error: unknown) => {
+						active.delete(prepared);
+						finishOne(true, error);
+					});
 				} catch (error) {
-					prepared.cancel();
-					finishOne(error);
+					try { prepared.cancel(); } catch { /* Preserve the scheduling failure. */ }
+					finishOne(true, error);
 				}
 				pump();
 			}, (error: unknown) => {
 				preparing -= 1;
-				finishOne(error);
+				finishOne(true, error);
 				pump();
 			});
 		}

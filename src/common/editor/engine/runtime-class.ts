@@ -20,6 +20,7 @@ export type WebAudioEditorEngine = EnginePublicApi;
 const WebAudioEditorEngineRuntime = class WebAudioEditorEngine {
 	constructor(options: EngineRuntimeOptions = {}) {
 		initializeEngineRuntime(this as unknown as EngineRuntimeHost, options);
+		(this as unknown as EngineRuntimeHost).playbackErrorListeners = new Set();
 	}
 };
 
