@@ -18,7 +18,7 @@ import { mkdir, open, readFile, rename, rm, writeFile } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 
 import { verifyMirroredArtifact } from './local-model-mirror-publication.mjs';
-import { R2Client } from './r2-client.mjs';
+import { isR2JurisdictionHost, R2Client } from './r2-client.mjs';
 
 export { verifyMirroredArtifact } from './local-model-mirror-publication.mjs';
 
@@ -456,7 +456,7 @@ function s3Uploader() {
 		assert(client.bucket === bucket,
 			`R2_MODELS_BUCKET is ${client.bucket}, but the catalog publishes to ${bucket}`);
 		if (jurisdiction) {
-			assert(client.endpoint.hostname.includes(`.${jurisdiction}.r2.cloudflarestorage.com`),
+			assert(isR2JurisdictionHost(client.endpoint.hostname, jurisdiction),
 				`R2_MODELS_ENDPOINT must be the ${jurisdiction} jurisdiction endpoint for this bucket`);
 		}
 		return uploadImmutableR2File({ client, key, file, artifact, contentType, signal });

@@ -105,6 +105,15 @@ export function safeRelativePath(value, label = 'path') {
 	return value;
 }
 
+/** R2 jurisdiction endpoints have exactly one account label before the jurisdiction. */
+export function isR2JurisdictionHost(hostname, jurisdiction) {
+	if (typeof hostname !== 'string' || typeof jurisdiction !== 'string') return false;
+	const labels = hostname.split('.');
+	return labels.length === 5 && /^[a-z0-9]+$/u.test(labels[0])
+		&& labels[1] === jurisdiction && labels[2] === 'r2'
+		&& labels[3] === 'cloudflarestorage' && labels[4] === 'com';
+}
+
 // If-Match uses strong comparison, so a weak validator can never satisfy it.
 // Cloudflare weakens an ETag whenever it compresses a response, which is why
 // every request below asks for identity encoding.

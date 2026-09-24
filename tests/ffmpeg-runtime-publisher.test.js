@@ -181,6 +181,26 @@ test('licensing blocks are descriptive and do not weaken authenticated runtime p
 	assert.equal(result.objectCount, 6);
 });
 
+test('runtime publication rejects a jurisdiction substring in another R2 host', async (context) => {
+	const fixture = await createFixture(context);
+	const release = await verifyFfmpegRuntimeManifest({
+		repositoryRoot: fixture.root,
+		purpose: 'desktop-assembly',
+	});
+	const transport = runtimeTransport();
+	transport.client.endpoint = new globalThis.URL(
+		'https://example.eu.r2.cloudflarestorage.com.attacker.r2.cloudflarestorage.com');
+	let corsCalls = 0;
+	await assert.rejects(() => publishFfmpegRuntime({
+		repositoryRoot: fixture.root,
+		loadRelease: async () => release,
+		client: transport.client,
+		applyCors: async () => { corsCalls += 1; },
+	}), /R2_FFMPEG_ENDPOINT must use the eu jurisdiction endpoint/u);
+	assert.equal(corsCalls, 0);
+	assert.equal(transport.puts.length, 0);
+});
+
 test('immutable metadata drift and purge failure both stop before pointer promotion', async (context) => {
 	const fixture = await createFixture(context);
 	const release = await verifyFfmpegRuntimeManifest({

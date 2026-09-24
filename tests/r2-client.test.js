@@ -3,7 +3,20 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { R2Client } from '../scripts/lib/r2-client.mjs';
+import { isR2JurisdictionHost, R2Client } from '../scripts/lib/r2-client.mjs';
+
+test('R2 jurisdiction hosts require one account label and an exact suffix', () => {
+	assert.equal(isR2JurisdictionHost('example.eu.r2.cloudflarestorage.com', 'eu'), true);
+	for (const hostname of [
+		'example.r2.cloudflarestorage.com',
+		'example.us.r2.cloudflarestorage.com',
+		'example.eu.r2.cloudflarestorage.com.attacker.r2.cloudflarestorage.com',
+		'example.eu.r2.cloudflarestorage.com.attacker.com',
+		'other.example.eu.r2.cloudflarestorage.com',
+	]) {
+		assert.equal(isR2JurisdictionHost(hostname, 'eu'), false, hostname);
+	}
+});
 
 function testClient(fetchImpl, options = {}) {
 	const names = [

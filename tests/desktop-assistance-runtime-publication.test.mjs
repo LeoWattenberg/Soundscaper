@@ -68,6 +68,14 @@ test('runtime publication uploads immutable R2 keys and reads public bytes back 
 				join(root, bundle.familyId, '1.0.0/linux-x64', `${sha256}.tar.gz`)],
 			['verify', bundle.archive.url],
 		]));
+		let misdirectedUploads = 0;
+		await assert.rejects(publishAssistanceRuntimeBundles({ authority, archivesRoot: root,
+			client: { bucket: 'soundscaper-assets', endpoint: new URL(
+				'https://example.eu.r2.cloudflarestorage.com.attacker.r2.cloudflarestorage.com') },
+			upload: async () => { misdirectedUploads += 1; return { status: 0 }; },
+			verify: async () => {},
+		}), /EU soundscaper-assets R2 bucket/u);
+		assert.equal(misdirectedUploads, 0);
 		const publicChecks = [];
 		const verified = await verifyAssistanceRuntimeBundles({ authority, archivesRoot: root,
 			verify: async (input) => { publicChecks.push(input); return input; } });

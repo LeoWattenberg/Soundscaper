@@ -10,7 +10,7 @@ import {
 	snapshotVerifiedFfmpegRuntime,
 	verifyFfmpegRuntimeManifest,
 } from './ffmpeg-runtime-manifest.mjs';
-import { R2Client, strongEntityTag } from './r2-client.mjs';
+import { isR2JurisdictionHost, R2Client, strongEntityTag } from './r2-client.mjs';
 
 const MAXIMUM_POINTER_BYTES = 64 * 1024;
 const PUBLIC_SMOKE_ORIGIN = 'https://soundscaper.org';
@@ -292,7 +292,7 @@ function validateRuntimeClient(client, { bucket, jurisdiction }) {
 	if (client.bucket !== undefined) assert(client.bucket === bucket,
 		`R2_FFMPEG_BUCKET is ${client.bucket}, but the runtime manifest publishes to ${bucket}`);
 	if (jurisdiction && client.endpoint?.hostname) {
-		assert(client.endpoint.hostname.includes(`.${jurisdiction}.r2.cloudflarestorage.com`),
+		assert(isR2JurisdictionHost(client.endpoint.hostname, jurisdiction),
 			`R2_FFMPEG_ENDPOINT must use the ${jurisdiction} jurisdiction endpoint`);
 	}
 }

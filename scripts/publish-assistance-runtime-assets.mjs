@@ -12,7 +12,7 @@ import { pathToFileURL } from 'node:url';
 import { uploadImmutableR2File } from './lib/local-model-mirror.mjs';
 import { verifyMirroredArtifact } from './lib/local-model-mirror-publication.mjs';
 import { validateDesktopAssistanceRuntimeDistribution } from './lib/desktop-assistance-runtime-distribution-verification.mjs';
-import { R2Client } from './lib/r2-client.mjs';
+import { isR2JurisdictionHost, R2Client } from './lib/r2-client.mjs';
 
 const BUCKET = 'soundscaper-assets';
 const BASE_URL = 'https://assets.soundscaper.org/runtime/assistance/';
@@ -70,7 +70,7 @@ export async function publishAssistanceRuntimeBundles({
 }) {
 	const distribution = validatedDistribution(authority);
 	assert(client?.bucket === BUCKET
-		&& client.endpoint?.hostname?.includes('.eu.r2.cloudflarestorage.com'),
+		&& isR2JurisdictionHost(client.endpoint?.hostname, 'eu'),
 		'Assistance runtime publisher requires the EU soundscaper-assets R2 bucket.');
 	let published = 0;
 	for await (const { archive, familyId, file, relative } of authenticatedArchives(distribution, archivesRoot)) {
