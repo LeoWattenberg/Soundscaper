@@ -205,6 +205,88 @@ test('legacy finalization places consecutive checkpoints without a gap', async (
 	]);
 });
 
+test('legacy finalization refuses a checkpoint punch after project ownership changes during preparation', async () => {
+	const first = storedWriter('source-1');
+	const second = storedWriter('source-2');
+	const writer = createRecordingCheckpointWriter({
+		firstSourceId: 'source-1', initialWriter: first.writer,
+		metadata: { sampleRate: 48_000, channelCount: 1 }, checkpointFrames: 4,
+		createSourceId: () => 'source-2', openWriter: async () => second.writer,
+	});
+	await writer.write([new Float32Array(4)]);
+	await writer.write([new Float32Array(3)]);
+	const fixture = routedFixture(writer);
+	const project = fixture.runtime.captureProjectScope().project;
+	let current = true;
+	let preparationStarted: () => void = () => undefined;
+	let finishPreparation: (commands: readonly unknown[]) => void = () => undefined;
+	const started = new Promise<void>((resolve) => { preparationStarted = resolve; });
+	const preparing = new Promise<readonly unknown[]>((resolve) => { finishPreparation = resolve; });
+	const finalization = createLegacyRecordingFinalization({
+		...fixture.runtime,
+		captureProjectScope: () => ({
+			project, projectId: project.id,
+			assertCurrent() { if (!current) throw new DOMException('Project changed.', 'AbortError'); },
+		}),
+		preparePunchSequence: () => { preparationStarted(); return preparing; },
+	}).finalize({
+		...fixture.snapshot, entries: null, writer,
+		sourceId: 'source-1', trackId: 'track-1',
+		resampler: fixture.entry.previewResampler, preview: fixture.entry.preview,
+	});
+	await started;
+	current = false;
+	finishPreparation([]);
+	await assert.rejects(finalization, (error: unknown) => (error as DOMException).name === 'AbortError');
+	assert.deepEqual(fixture.commits, []);
+	assert.deepEqual(fixture.deleted, ['source-1', 'source-2']);
+});
+
+test('routed finalization stops before later entries after project ownership changes during preparation', async () => {
+	const first = storedWriter('source-1');
+	const second = storedWriter('source-2');
+	const writer = createRecordingCheckpointWriter({
+		firstSourceId: 'source-1', initialWriter: first.writer,
+		metadata: { sampleRate: 48_000, channelCount: 1 }, checkpointFrames: 4,
+		createSourceId: () => 'source-2', openWriter: async () => second.writer,
+	});
+	await writer.write([new Float32Array(4)]);
+	await writer.write([new Float32Array(3)]);
+	const fixture = routedFixture(writer);
+	const project = fixture.runtime.captureProjectScope().project;
+	let current = true;
+	let laterFrameReads = 0;
+	const laterWriter: RecordingSourceWriter = {
+		get framesWritten() { laterFrameReads += 1; return 0; },
+		async write() {}, async commit() { return {}; }, async abort() {},
+	};
+	const laterEntry: RoutedRecordingEntry = {
+		...fixture.entry, trackId: 'track-2', sourceId: 'source-3', writer: laterWriter,
+	};
+	let preparationStarted: () => void = () => undefined;
+	let finishPreparation: (commands: readonly unknown[]) => void = () => undefined;
+	const started = new Promise<void>((resolve) => { preparationStarted = resolve; });
+	const preparing = new Promise<readonly unknown[]>((resolve) => { finishPreparation = resolve; });
+	const routeHealth: string[] = [];
+	const finalization = createRoutedRecordingFinalization({
+		...fixture.runtime,
+		captureProjectScope: () => ({
+			project, projectId: project.id,
+			assertCurrent() { if (!current) throw new DOMException('Project changed.', 'AbortError'); },
+		}),
+		preparePunchSequence: () => { preparationStarted(); return preparing; },
+		setRouteHealth: (trackId) => { routeHealth.push(trackId); },
+	}).finalize({ ...fixture.snapshot, entries: [fixture.entry, laterEntry] });
+	await started;
+	const readsBeforeInvalidation = laterFrameReads;
+	current = false;
+	finishPreparation([]);
+	await assert.rejects(finalization, (error: unknown) => (error as DOMException).name === 'AbortError');
+	assert.equal(laterFrameReads, readsBeforeInvalidation);
+	assert.deepEqual(routeHealth, []);
+	assert.deepEqual(fixture.commits, []);
+});
+
 test('published recording sources survive a later status error', async () => {
 	const first = storedWriter('source-1');
 	await first.writer.write([new Float32Array(4)]);

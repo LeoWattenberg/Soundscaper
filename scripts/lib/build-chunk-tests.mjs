@@ -41,7 +41,7 @@ const editorOptionalExportControllerModule = String.raw`(?:export[\\/](?:${contr
  * only deferred delivery consumers and share that export boundary.
  */
 const editorOptionalExportFlatModule = String.raw`(?:audio-export-output|binaural-render|delivery-conformance|delivery-conversion-inventory|delivery-video-conversion-inventory|file-backed-audio-export|loudness-normalization-render|platform-delivery-(?:licensing|presets)|video-burn-in-font|video-delivery-encoder-tier|video-webcodecs-capability)`;
-export const editorOptionalControllerModule = String.raw`(?:analysis[\\/](?:analysis-service|internal[\\/]vamp-analysis-action)|document[\\/]internal[\\/]cross-product-handoff-action|import[\\/]internal[\\/]dawproject[\\/]dawproject-service|${editorOptionalExportControllerModule})`;
+export const editorOptionalControllerModule = String.raw`(?:analysis[\\/](?:analysis-service|internal[\\/]vamp-analysis-action)|document[\\/]internal[\\/]cross-product-handoff-action|import[\\/]internal[\\/]dawproject[\\/]dawproject-service|recording[\\/]internal[\\/]recording-checkpoint-writer|${editorOptionalExportControllerModule})`;
 /**
  * The Framescaper capture and Web VCR implementation, loaded when a capture
  * gesture, a desktop bridge or durable recovery state asks for it.
@@ -120,6 +120,11 @@ export const EDITOR_IMPORT_ADMISSION_CHUNK_TEST = new RegExp(
 /** Stored PCM and waveform activation reached after a source is opened. */
 export const EDITOR_SOURCE_ACTIVATION_CHUNK_TEST = new RegExp(
 	String.raw`${editorPath}controller[\\/]source[\\/]internal[\\/]stored-source-activation\.ts$`,
+);
+
+/** Checkpoint capture and finalization run only after a recording gesture. */
+export const EDITOR_RECORDING_RUNTIME_CHUNK_TEST = new RegExp(
+	String.raw`${editorPath}controller[\\/]recording[\\/]internal[\\/](?:(?:legacy|routed)-recording-finalization\.ts|recording-(?:checkpoint-writer|finalization-cleanup|finalization-segments|source-metadata)\.ts|recording-punch-sequence\.js)$`,
 );
 
 /** Effect and Analyze implementations reached only after their eager action facade runs. */

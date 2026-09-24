@@ -16,8 +16,7 @@ import {
 import { createStreamingWindowedSincResampler } from '../../resample.js';
 import { abortError } from '../shared/app-helpers.ts';
 import { createLegacyRecordingCaptureService } from './internal/legacy-recording-capture-service.ts';
-import { createLegacyRecordingFinalization } from './internal/legacy-recording-finalization.ts';
-import type { RecordingFinalizationCommonRuntime } from './internal/recording-finalization-types.ts';
+import type { RecordingFinalizationCommonRuntime, RoutedRecordingFinalizationRuntime } from './internal/recording-finalization-types.ts';
 import {
 	createRecordingInputCoordinationService,
 	type RecordingInputRoute,
@@ -45,9 +44,6 @@ import type {
 	RecordingSelection,
 } from './recording-transaction-types.ts';
 import { createRoutedRecordingCaptureService } from './internal/routed-recording-capture-service.ts';
-import { createRoutedRecordingFinalization } from './internal/routed-recording-finalization.ts';
-import { createRecordingCheckpointWriter } from './internal/recording-checkpoint-writer.ts';
-import { prepareRecordingPunchSequence } from './internal/recording-punch-sequence.js';
 import { SOURCE_CHUNK_FRAMES, createCoalescingSourceWriter } from '../source/source-audio.ts';
 import { createTakeCycleAppComposition } from './internal/take-cycle/take-cycle-app-composition.ts';
 import { createTakeCycleOpenRecoveryCoordinator } from './take-cycle-open-recovery-app-port.ts';
@@ -162,16 +158,19 @@ export function createRecordingComposition(dependencies: RecordingCompositionDep
 		currentTimeMs: dependencies.currentTimeMs,
 		createStableId,
 		createRecordingName: () => `${publishedCopyFor(copy).recordingLabel} ${new Date().toLocaleTimeString(locale)}`,
-		openSourceWriter: async (sourceId, metadata) => createRecordingCheckpointWriter({
-			firstSourceId: sourceId,
-			initialWriter: createCoalescingSourceWriter(await store.beginSourceWrite(sourceId, metadata)),
-			metadata,
-			checkpointFrames: Math.round(Number(metadata.sampleRate) * 10),
-			createSourceId: () => createStableId('recording'),
-			openWriter: async (nextSourceId) => createCoalescingSourceWriter(
-				await store.beginSourceWrite(nextSourceId, metadata),
-			),
-		}),
+		openSourceWriter: async (sourceId, metadata) => {
+			const { createRecordingCheckpointWriter } = await import('./internal/recording-checkpoint-writer.ts');
+			return createRecordingCheckpointWriter({
+				firstSourceId: sourceId,
+				initialWriter: createCoalescingSourceWriter(await store.beginSourceWrite(sourceId, metadata)),
+				metadata,
+				checkpointFrames: Math.round(Number(metadata.sampleRate) * 10),
+				createSourceId: () => createStableId('recording'),
+				openWriter: async (nextSourceId) => createCoalescingSourceWriter(
+					await store.beginSourceWrite(nextSourceId, metadata),
+				),
+			});
+		},
 		createPreview: createRecordingPreview,
 		createPreviewResampler: createStreamingWindowedSincResampler,
 		appendPreview: appendRecordingPreview,
@@ -233,7 +232,9 @@ export function createRecordingComposition(dependencies: RecordingCompositionDep
 		createStableId,
 		createAddSourceCommand,
 		preparePunchCommand,
-		preparePunchSequence: prepareRecordingPunchSequence,
+		preparePunchSequence: async (project, segments) => (
+			(await import('./internal/recording-punch-sequence.js')).prepareRecordingPunchSequence(project, segments)
+		),
 		activateStoredSource: async (source, metadata) => { await dependencies.activateStoredSource(source, metadata); },
 		commitBatch: (project, commands, selection) => {
 			if (project !== dependencies.getProject()) throw abortError();
@@ -249,12 +250,11 @@ export function createRecordingComposition(dependencies: RecordingCompositionDep
 		},
 		deleteStoredSource: (sourceId) => store.deleteSource(sourceId),
 	};
-	const legacyFinalization = createLegacyRecordingFinalization(finalizationRuntime);
-	const routedFinalization = createRoutedRecordingFinalization({
+	const routedFinalizationRuntime: RoutedRecordingFinalizationRuntime = {
 		...finalizationRuntime,
 		setRouteHealth: (trackId, health) => { state.recordingRouteHealth[trackId] = health; },
 		deleteSourceAnalysis: async (sourceId) => store.deleteAnalysis?.(peakCacheKey(sourceId)),
-	});
+	};
 
 	const takeCycle = createTakeCycleAppComposition({
 		lifetime: dependencies.lifetime,
@@ -334,8 +334,14 @@ export function createRecordingComposition(dependencies: RecordingCompositionDep
 				: routedCapture.capture(options, scope);
 		},
 		beginTakeCycleRecording: takeCycleSession.begin,
-		performLegacyFinalization: legacyFinalization.finalize,
-		performRoutedFinalization: routedFinalization.finalize,
+		performLegacyFinalization: async (input) => (
+			(await import('./internal/legacy-recording-finalization.ts'))
+				.createLegacyRecordingFinalization(finalizationRuntime).finalize(input)
+		),
+		performRoutedFinalization: async (input) => (
+			(await import('./internal/routed-recording-finalization.ts'))
+				.createRoutedRecordingFinalization(routedFinalizationRuntime).finalize(input)
+		),
 		releaseUnretainedRecordingInputs,
 		retainInputs: () => state.preferences.recording.retainInputs,
 		playTransport: () => engine.play(),

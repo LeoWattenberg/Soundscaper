@@ -165,8 +165,12 @@ export function createRoutedRecordingFinalization(runtime: RoutedRecordingFinali
 			const commands: unknown[] = [];
 			const clipIds: string[] = [];
 			let firstPublishedTrackId: string | undefined;
-			const timestampSources = new Set<string>();
-			const timestamps: RecordingActivationTimestamp[] = [];
+			const activationCoverage = new Map<string, {
+				readonly recordingStartFrame: number;
+				readonly sampleRate: number;
+				readonly offsets: readonly number[];
+				readonly spans: Array<Readonly<{ startFrame: number; endFrame: number }>>;
+			}>();
 			let compactedEndFrame: number | null = null;
 			for (const entry of transaction.entries) {
 				const frames = entry.writer.framesWritten;
@@ -187,6 +191,7 @@ export function createRoutedRecordingFinalization(runtime: RoutedRecordingFinali
 				for (const segment of finished.segments) committedSourceIds.add(segment.sourceId);
 				projectScope.assertCurrent();
 				const punches: RecordingSegmentPunch[] = [];
+				const publishedSourceSpans: Array<Readonly<{ startFrame: number; endFrame: number }>> = [];
 				for (const segment of finished.segments) {
 					const sourceEnd = segment.frameStart + segment.frameCount;
 					const visibleStart = Math.max(segment.frameStart, entry.sourceOffsetFrames);
@@ -238,6 +243,10 @@ export function createRoutedRecordingFinalization(runtime: RoutedRecordingFinali
 							durationFrames, projectRate, entry.sampleRate,
 						)))
 						: availableFrames;
+					publishedSourceSpans.push({
+						startFrame: segment.frameStart + sourceStartFrame,
+						endFrame: segment.frameStart + sourceStartFrame + sourceDurationFrames,
+					});
 					const clipId = runtime.createStableId('clip');
 					punches.push({ source, punch: {
 						trackId: entry.trackId,
@@ -263,20 +272,36 @@ export function createRoutedRecordingFinalization(runtime: RoutedRecordingFinali
 					commands.push(runtime.createAddSourceCommand(only.source), runtime.preparePunchCommand(
 						projectScope.project, only.punch,
 					));
-				} else commands.push(...runtime.preparePunchSequence(projectScope.project, punches));
-				if (!timestampSources.has(entry.sourceKey)) {
-					timestampSources.add(entry.sourceKey);
-					for (const offsetFrames of entry.preview.activationFrameOffsets ?? []) {
-						timestamps.push({
-							startFrame: entry.recordingStartFrame,
-							offsetFrames,
-							sampleRate: entry.sampleRate,
-						});
-					}
+				} else {
+					const prepared = await runtime.preparePunchSequence(projectScope.project, punches);
+					projectScope.assertCurrent();
+					commands.push(...prepared);
 				}
+				const coverage = activationCoverage.get(entry.sourceKey);
+				if (coverage) {
+					coverage.spans.push(...publishedSourceSpans);
+				} else activationCoverage.set(entry.sourceKey, {
+					recordingStartFrame: entry.recordingStartFrame,
+					sampleRate: entry.sampleRate,
+					offsets: entry.preview.activationFrameOffsets ?? [],
+					spans: publishedSourceSpans,
+				});
 			}
 			projectScope.assertCurrent();
 			if (commands.length) {
+				const timestamps: RecordingActivationTimestamp[] = [];
+				for (const coverage of activationCoverage.values()) {
+					for (const offsetFrames of coverage.offsets) {
+						if (!coverage.spans.some((span) => (
+							offsetFrames >= span.startFrame && offsetFrames < span.endFrame
+						))) continue;
+						timestamps.push({
+							startFrame: coverage.recordingStartFrame,
+							offsetFrames,
+							sampleRate: coverage.sampleRate,
+						});
+					}
+				}
 				commands.push(...createSoundActivationTimestampCommands({
 					project: projectScope.project,
 					labelTrackName: runtime.labelTrackName ?? 'Labels',

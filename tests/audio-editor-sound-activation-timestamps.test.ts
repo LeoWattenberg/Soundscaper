@@ -204,3 +204,61 @@ test('a source routed to two tracks creates one label per activation', async () 
 		'source/add', 'clip/punch', 'source/add', 'clip/punch', 'track/add', 'label/add', 'label/add',
 	]);
 });
+
+test('legacy recovery omits activation labels outside the visible committed source span', async () => {
+	const fixture = finalizationFixture();
+	const preview = { ...recordingPreview('audio-1'), activationFrameOffsets: [0, 100, 499, 500, 750] };
+	const failure = new Error('late write failed');
+	await assert.rejects(createLegacyRecordingFinalization(fixture.runtime).finalize({
+		...finalizationSnapshot(preview), sourceOffsetFrames: 100, fatalError: failure,
+	}), failure);
+	const labels = fixture.commits[0]?.commands.filter((command) => (
+		(command as Readonly<{ type: string }>).type === 'label/add'
+	)) as Array<Readonly<{ label: Readonly<{ startFrame: number }> }>>;
+	assert.deepEqual(labels.map(({ label }) => label.startFrame), [1_100, 1_499]);
+});
+
+test('routed recovery deduplicates activations within audio saved by either route', async () => {
+	const fixture = finalizationFixture();
+	const sharedOffsets = [0, 250, 500, 750, 900];
+	const entries: RoutedRecordingEntry[] = ['audio-1', 'audio-2'].map((trackId, index) => ({
+		trackId,
+		route: { kind: 'device', deviceId: 'mic', channelStart: index, channelCount: 1 },
+		sourceKey: 'device:mic', sourceId: `source-${index + 1}`,
+		writer: { ...recordingWriter(), framesWritten: index === 0 ? 500 : 800 },
+		previewResampler: { push: (channels) => channels, finish: () => [] },
+		preview: { ...recordingPreview(trackId), activationFrameOffsets: sharedOffsets },
+		sampleRate: 1_000, selection: null, recordingStartFrame: 1_000,
+		sourceOffsetFrames: 0, sourceOffsetProjectFrames: 0,
+	}));
+	const failure = new Error('late write failed');
+	await assert.rejects(createRoutedRecordingFinalization({
+		...fixture.runtime, setRouteHealth() {}, async deleteSourceAnalysis() {},
+	}).finalize({ ...finalizationSnapshot(recordingPreview('audio-1')), entries, fatalError: failure }), failure);
+	const labels = fixture.commits[0]?.commands.filter((command) => (
+		(command as Readonly<{ type: string }>).type === 'label/add'
+	)) as Array<Readonly<{ label: Readonly<{ startFrame: number }> }>>;
+	assert.deepEqual(labels.map(({ label }) => label.startFrame), [1_000, 1_250, 1_500, 1_750]);
+});
+
+test('routed recovery omits activations in a gap between saved spans of one input', async () => {
+	const fixture = finalizationFixture();
+	const sharedOffsets = [100, 550, 750, 950];
+	const entries: RoutedRecordingEntry[] = ['audio-1', 'audio-2'].map((trackId, index) => ({
+		trackId,
+		route: { kind: 'device', deviceId: 'mic', channelStart: index, channelCount: 1 },
+		sourceKey: 'device:mic', sourceId: `source-${index + 1}`,
+		writer: { ...recordingWriter(), framesWritten: index === 0 ? 500 : 1_000 },
+		previewResampler: { push: (channels) => channels, finish: () => [] },
+		preview: { ...recordingPreview(trackId), activationFrameOffsets: sharedOffsets },
+		sampleRate: 1_000, selection: null, recordingStartFrame: 1_000,
+		sourceOffsetFrames: index === 0 ? 0 : 700, sourceOffsetProjectFrames: index === 0 ? 0 : 700,
+	}));
+	await createRoutedRecordingFinalization({
+		...fixture.runtime, setRouteHealth() {}, async deleteSourceAnalysis() {},
+	}).finalize({ ...finalizationSnapshot(recordingPreview('audio-1')), entries });
+	const labels = fixture.commits[0]?.commands.filter((command) => (
+		(command as Readonly<{ type: string }>).type === 'label/add'
+	)) as Array<Readonly<{ label: Readonly<{ startFrame: number }> }>>;
+	assert.deepEqual(labels.map(({ label }) => label.startFrame), [1_100, 1_750, 1_950]);
+});

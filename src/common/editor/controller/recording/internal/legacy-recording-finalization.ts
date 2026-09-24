@@ -134,6 +134,8 @@ export function createLegacyRecordingFinalization(runtime: RecordingFinalization
 			for (const segment of finished.segments) committedSourceIds.add(segment.sourceId);
 			projectScope.assertCurrent();
 			const punches: RecordingSegmentPunch[] = [];
+			let firstPublishedSourceFrame = Infinity;
+			let lastPublishedSourceFrame = 0;
 			for (const segment of finished.segments) {
 				const sourceEnd = segment.frameStart + segment.frameCount;
 				const visibleStart = Math.max(segment.frameStart, transaction.sourceOffsetFrames);
@@ -182,6 +184,10 @@ export function createLegacyRecordingFinalization(runtime: RecordingFinalization
 				const sourceDurationFrames = transaction.selection
 					? Math.min(availableFrames, Math.max(1, runtime.scaleFrames(durationFrames, projectRate, sampleRate)))
 					: availableFrames;
+				firstPublishedSourceFrame = Math.min(firstPublishedSourceFrame, segment.frameStart + sourceStartFrame);
+				lastPublishedSourceFrame = Math.max(
+					lastPublishedSourceFrame, segment.frameStart + sourceStartFrame + sourceDurationFrames,
+				);
 				punches.push({ source, punch: {
 					trackId: transaction.trackId,
 					startFrame,
@@ -198,17 +204,21 @@ export function createLegacyRecordingFinalization(runtime: RecordingFinalization
 					? [runtime.createAddSourceCommand(punches[0]!.source), runtime.preparePunchCommand(
 						projectScope.project, punches[0]!.punch,
 					)]
-					: runtime.preparePunchSequence(projectScope.project, punches);
+					: await runtime.preparePunchSequence(projectScope.project, punches);
+				projectScope.assertCurrent();
 				const labelCommands = createSoundActivationTimestampCommands({
 					project: projectScope.project,
 					labelTrackName: runtime.labelTrackName ?? 'Labels',
 					projectSampleRate: projectRate,
 					createId: runtime.createStableId,
-					timestamps: (transaction.preview?.activationFrameOffsets ?? []).map((offsetFrames) => ({
+					timestamps: (transaction.preview?.activationFrameOffsets ?? [])
+						.filter((offsetFrames) => offsetFrames >= firstPublishedSourceFrame
+							&& offsetFrames < lastPublishedSourceFrame)
+						.map((offsetFrames) => ({
 						startFrame: transaction.startFrame,
 						offsetFrames,
 						sampleRate,
-					})),
+						})),
 				});
 				runtime.commitBatch(projectScope.project, [...commands, ...labelCommands], {
 					selectTrackId: transaction.trackId,

@@ -17,6 +17,7 @@ import {
 	EDITOR_OPTIONAL_EXPORT_CHUNK_TEST,
 	EDITOR_OPTIONAL_SURFACE_CHUNK_TEST,
 	EDITOR_PFFFT_RUNTIME_CHUNK_TEST,
+	EDITOR_RECORDING_RUNTIME_CHUNK_TEST,
 	EDITOR_SELECTION_EFFECTS_RUNTIME_CHUNK_TEST,
 	EDITOR_VAMP_ANALYZER_CHUNK_TEST,
 } from '../scripts/lib/build-chunk-groups.mjs';
@@ -34,6 +35,24 @@ import { flatEditorModules } from './helpers/editor-chunk-module-inventory.ts';
  *
  * `tests/audio-editor-build-chunk-ownership.test.ts` holds the ownership half.
  */
+
+test('recording checkpoints and finalization load after a recording gesture', () => {
+	for (const path of [
+		'src/common/editor/controller/recording/internal/recording-checkpoint-writer.ts',
+		'src/common/editor/controller/recording/internal/recording-punch-sequence.js',
+		'src/common/editor/controller/recording/internal/legacy-recording-finalization.ts',
+		'src/common/editor/controller/recording/internal/routed-recording-finalization.ts',
+	]) {
+		assert.ok(EDITOR_RECORDING_RUNTIME_CHUNK_TEST.test(path), path);
+		assert.equal(chunkGroupForModulePath(path), 'editor-recording-runtime', path);
+	}
+	const composition = readFileSync(new URL('../src/common/editor/controller/recording/recording-composition.ts', import.meta.url), 'utf8');
+	assert.match(composition, /import\('\.\/internal\/recording-checkpoint-writer\.ts'\)/u);
+	assert.match(composition, /import\('\.\/internal\/routed-recording-finalization\.ts'\)/u);
+	const group = chunkGroups.find((candidate) => candidate.name === 'editor-recording-runtime');
+	assert.ok(group);
+	assert.equal(group.includeDependenciesRecursively, false);
+});
 
 test('optional archive code and its ZIP vendor are placed by dynamic reachability', () => {
 	for (const path of [

@@ -74,7 +74,7 @@ export interface RecordingFinalizationCommonRuntime {
 	readonly preparePunchSequence: (
 		project: RecordingProject,
 		segments: readonly RecordingSegmentPunch[],
-	) => readonly unknown[];
+	) => readonly unknown[] | Promise<readonly unknown[]>;
 	readonly activateStoredSource: (
 		source: RecordedAudioSource,
 		metadata: RecordingSourceMetadata,
