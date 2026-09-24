@@ -52,6 +52,8 @@ export interface AssistanceIpcOptions {
 	readonly choosePreseedDirectory: (modelId: string) => PromiseLike<string | null>;
 	/** Native main-process selection of a not-yet-existing relocation target. */
 	readonly chooseRelocationDirectory: () => PromiseLike<string | null>;
+	/** Optional main-process diagnostic sink; errors must not cross the renderer bridge. */
+	readonly onInstallError?: (error: unknown) => void;
 }
 
 export const ASSISTANCE_RELOCATION_CONTRACT_VERSION = 1;
@@ -122,11 +124,14 @@ function statusView(status: AssistanceStatusView): AssistanceStatusView {
 	});
 }
 
-async function pathlessOperation<T>(operation: () => PromiseLike<T>, message: string): Promise<T> {
+async function pathlessOperation<T>(operation: () => PromiseLike<T>, message: string,
+	onError?: (error: unknown) => void): Promise<T> {
 	try {
 		return await operation();
-	} catch {
+	} catch (error) {
+		try { onError?.(error); } catch { /* Diagnostics cannot replace the pathless IPC error. */ }
 		// Native selections and store paths remain main-process-only, including in errors.
+		// eslint-disable-next-line preserve-caught-error -- Renderer replies must not carry private error causes.
 		throw new Error(message);
 	}
 }
@@ -139,6 +144,7 @@ export function registerAssistanceIpc(options: AssistanceIpcOptions): void {
 		createService,
 		choosePreseedDirectory,
 		chooseRelocationDirectory,
+		onInstallError,
 	} = options;
 	let service: AssistanceService | null = null;
 
@@ -155,7 +161,7 @@ export function registerAssistanceIpc(options: AssistanceIpcOptions): void {
 		const id = assertModelId(modelId);
 		return pathlessOperation(() => resolve().install(id, (progress) => {
 			sendToRenderer(channels.assistanceInstallProgress, progress);
-		}), 'The local model or its required runtime could not be downloaded or installed.');
+		}), 'The local model or its required runtime could not be downloaded or installed.', onInstallError);
 	});
 
 	handle(channels.cancelAssistanceModelInstall, (_event, modelId): Promise<AssistanceInstallCancellation> => {

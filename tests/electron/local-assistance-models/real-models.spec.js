@@ -12,6 +12,7 @@ import { validateModelOutputs } from './model-output-validation.js';
 import { executeModelOperation, modelOutputReservations } from './model-operation.js';
 import { localAssistanceCaseRunsInProduct } from './product-case-policy.js';
 import { KOKORO_LANGUAGE_CANARIES } from './kokoro-language-canaries.js';
+import { modelTestCleanupDiagnostic, withModelTestElectron } from './model-test-lifecycle.js';
 
 for (const modelCase of validateLocalModelRealTestCases(manifest, catalog, { candidateTasks: catalogTasks.tasks })) {
 	test(`${modelCase.id}: downloads and executes ${modelCase.modelIds.join(' + ')}`, async ({ browserName: _browserName }, testInfo) => {
@@ -25,7 +26,7 @@ for (const modelCase of validateLocalModelRealTestCases(manifest, catalog, { can
 		const unsupported = models.filter((entry) => !entry.platforms.includes(target));
 		test.skip(unsupported.length > 0, `Catalog does not publish ${unsupported.map((entry) => entry.modelId).join(', ')} on ${target}.`);
 		const electron = await launchModelTestElectron({ testInfo, productId });
-		try {
+		await withModelTestElectron(electron, async () => {
 			const modelDelivery = [];
 			for (const model of models) await test.step(`Download and authenticate ${model.modelId}`, async () => {
 				const { installed, evidence } = await electron.installModel(model);
@@ -72,9 +73,10 @@ for (const modelCase of validateLocalModelRealTestCases(manifest, catalog, { can
 			}
 			const summary = validateModelOutputs(modelCase.validation, outputs, input);
 			await testInfo.attach('validation.json', { body: JSON.stringify(summary, null, 2), contentType: 'application/json' });
-		} finally {
-			await electron.close();
-		}
+		}, async (error) => testInfo.attach('local-model-coverage-cleanup-error.json', {
+			body: JSON.stringify(modelTestCleanupDiagnostic(error), null, 2),
+			contentType: 'application/json',
+		}));
 	});
 }
 

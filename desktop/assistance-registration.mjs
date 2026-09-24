@@ -273,6 +273,7 @@ export function registerAssistance({
 			);
 			return parent === null ? null : join(parent, 'Soundscaper Local Models');
 		},
+		onInstallError: onOperationError,
 		createService,
 	});
 	const staging = new AssistanceStagingRegistry({

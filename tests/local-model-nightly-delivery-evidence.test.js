@@ -12,9 +12,12 @@ import { promisify } from 'node:util';
 
 import { createPackage } from '@electron/asar';
 import electronPath from 'electron';
+import catalog from '../config/local-model-catalog.json' with { type: 'json' };
+import { assistanceRuntimeFamiliesForModel } from '../desktop/assistance-runtime-model-supply.ts';
 
 import {
 	createModelInstallEvidence,
+	expectedRuntimeArchiveFileNames,
 	readNightlyPackageIdentity,
 	verifyCatalogModelDelivery,
 } from './electron/local-assistance-models/model-delivery-evidence.js';
@@ -22,6 +25,7 @@ import {
 const bytes = Buffer.from('nightly model bytes');
 const model = Object.freeze({
 	modelId: 'nightly-model',
+	task: 'voice-activity-detection',
 	version: '1.0.0',
 	artifacts: Object.freeze([Object.freeze({
 		fileName: 'model.onnx',
@@ -89,8 +93,38 @@ test('nightly evidence combines live public delivery with the packaged installer
 			availability: 'installed', installedBytes: bytes.length, elapsedMs: 42,
 			artifactSha256s: [model.artifacts[0].sha256],
 			progress: installation.artifacts,
+			runtimeProgress: [],
 		},
 	});
+});
+
+test('nightly evidence recognizes only the runtime archives required by the model', async () => {
+	const delivery = await verifyCatalogModelDelivery(model, { fetchImpl: publicDelivery([]) });
+	const artifact = { modelId: model.modelId, fileName: 'model.onnx',
+		completedBytes: bytes.length, totalBytes: bytes.length };
+	const runtime = { modelId: model.modelId, fileName: 'sherpa-onnx-node.tar.gz',
+		completedBytes: 120, totalBytes: 120 };
+	const installation = { model: { modelId: model.modelId, version: model.version,
+		availability: 'installed', installedBytes: bytes.length,
+		artifactSha256s: [model.artifacts[0].sha256] }, elapsedMs: 1,
+	artifacts: [runtime, artifact] };
+	const evidence = createModelInstallEvidence({ model, delivery, installation, packageIdentity });
+	assert.deepEqual(evidence.installation.progress, [artifact]);
+	assert.deepEqual(evidence.installation.runtimeProgress, [runtime]);
+	assert.throws(() => createModelInstallEvidence({ model, delivery,
+		installation: { ...installation, artifacts: [{ ...runtime, fileName: 'llama-cpp.tar.gz' }, artifact] },
+		packageIdentity }), /foreign artifact/u);
+	assert.throws(() => createModelInstallEvidence({ model, delivery,
+		installation: { ...installation, artifacts: [{ ...runtime, completedBytes: 119 }, artifact] },
+		packageIdentity }), /finish.*runtime/u);
+});
+
+test('the packaged test runtime archive mapping matches every production model', () => {
+	for (const entry of catalog.entries) {
+		assert.deepEqual(expectedRuntimeArchiveFileNames(entry.modelId, entry.task),
+			assistanceRuntimeFamiliesForModel(entry.modelId, entry.task)
+				.map((familyId) => `${familyId}.tar.gz`));
+	}
 });
 
 test('nightly evidence rejects a public descriptor or installed byte count that differs from the catalog', async () => {

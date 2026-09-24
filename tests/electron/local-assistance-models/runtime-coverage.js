@@ -4,7 +4,7 @@ import { createHash, randomUUID as createRandomUUID } from 'node:crypto';
 import { once } from 'node:events';
 import { lstat, mkdir, readFile, readdir, rename, writeFile } from 'node:fs/promises';
 import { isAbsolute, join, posix, win32 } from 'node:path';
-import { pathToFileURL } from 'node:url';
+import { fileURLToPath, pathToFileURL } from 'node:url';
 
 import { resolvePackagedProductExecutable } from '../../../scripts/lib/desktop-packaged-product-executable.mjs';
 import {
@@ -98,12 +98,11 @@ export async function prepareLocalAssistanceRuntimeCoverage(options, dependencie
 			return withinDeadline(async () => {
 				const pending = [];
 				const rootSession = await context.newCDPSession(page);
-				const aliasPrefix = localAssistanceCoverageFileUrl(productAppAsar.path, configuration.platform);
-				const resourcesPrefix = localAssistanceCoverageFileUrl(executableResources.path, configuration.platform);
 				const target = await startTargetCoverage({
 					authenticateWebAssembly,
 					keepUrl: (url) => typeof url === 'string'
-						&& (url.startsWith(aliasPrefix) || url.startsWith(resourcesPrefix)
+						&& (coverageUrlWithinPath(url, productAppAsar.path, configuration.platform)
+							|| coverageUrlWithinPath(url, executableResources.path, configuration.platform)
 							|| COVERAGE_INSTRUMENTATION.has(url)),
 					page,
 					pending,
@@ -197,11 +196,11 @@ function createCollector({ configuration, evidence, executableResources, fileSys
 				excludedInstrumentation.add(url);
 				delete sources[url];
 			}
-			const preloadUrl = `${localAssistanceCoverageFileUrl(
-				productAppAsar.path, configuration.platform,
-			)}desktop/preload.mjs`;
-			if (!capture.entries.some(({ url }) => url === preloadUrl)
-				|| typeof sources[preloadUrl] !== 'string') {
+			const paths = configuration.platform === 'win32' ? win32 : posix;
+			const preloadPath = paths.join(productAppAsar.path, 'desktop/preload.mjs');
+			if (!capture.entries.some(({ url }) =>
+				coverageUrlMatchesPath(url, preloadPath, configuration.platform)
+					&& typeof sources[url] === 'string')) {
 				throw new Error('Local-assistance coverage recorded no authenticated product preload.');
 			}
 			const profile = {
@@ -386,6 +385,32 @@ export function localAssistanceCoverageFileUrl(path, platform = process.platform
 		|| !paths.isAbsolute(path)) throw new TypeError('Local-assistance file URL needs an absolute platform path.');
 	const url = pathToFileURL(paths.resolve(path), { windows: platform === 'win32' }).href;
 	return url.endsWith('/') ? url : `${url}/`;
+}
+
+export function coverageUrlMatchesPath(url, expected, platform) {
+	const paths = platform === 'win32' ? win32 : posix;
+	const actual = coverageUrlPath(url, platform);
+	return actual !== null && paths.relative(expected, actual) === '';
+}
+
+export function coverageUrlWithinPath(url, root, platform) {
+	const paths = platform === 'win32' ? win32 : posix;
+	const actual = coverageUrlPath(url, platform);
+	if (actual === null) return false;
+	const relative = paths.relative(root, actual);
+	return relative !== '' && relative !== '..' && !relative.startsWith(`..${paths.sep}`)
+		&& !paths.isAbsolute(relative);
+}
+
+function coverageUrlPath(url, platform) {
+	if (typeof url !== 'string') return null;
+	const paths = platform === 'win32' ? win32 : posix;
+	try {
+		if (url.startsWith('file:')) return fileURLToPath(url, { windows: platform === 'win32' });
+		return paths.isAbsolute(url) ? url : null;
+	} catch {
+		return null;
+	}
 }
 
 function sortedRecord(value) {

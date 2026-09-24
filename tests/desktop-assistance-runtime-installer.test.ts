@@ -76,6 +76,33 @@ test('runtime installer downloads once, verifies, and installs only on explicit 
 	assert.equal(fetches, 1);
 });
 
+test('runtime installer accepts the pinned Kokoro directory depth on Windows', async (t) => {
+	const root = await mkdtemp(join(tmpdir(), 'scape-runtime-kokoro-depth-'));
+	t.after(() => rm(root, { recursive: true, force: true }));
+	const path = `${Array.from({ length: 17 }, (_, index) => String.fromCharCode(97 + index)).join('/')}/runtime`;
+	const archive = tar([{ path, bytes: PAYLOAD }]);
+	const pinned = distribution(archive);
+	const bundle = pinned.bundles[0]!;
+	const windowsDistribution = {
+		...pinned, targetId: 'win-x64', bundles: [{
+			...bundle, familyId: 'kokoro-g2p', runtimeVersion: '0.9.4',
+			runtimePrefix: 'assistance/kokoro-g2p/0.9.4',
+			installPath: 'assistance/kokoro-g2p/0.9.4/win-x64',
+			archive: { ...bundle.archive, url: `https://assets.soundscaper.org/runtime/assistance/kokoro-g2p/0.9.4/win-x64/${sha256(archive)}.tar.gz` },
+			files: [{ path, byteLength: PAYLOAD.byteLength, sha256: sha256(PAYLOAD), executable: false }],
+		}],
+	};
+	const installer = createAssistanceRuntimeInstaller({
+		distribution: windowsDistribution, runtimeRoot: join(root, 'runtime'),
+		platform: 'win32', architecture: 'x64',
+		fetchImpl: (async () => ({ status: 200, headers: { get: () => String(archive.byteLength) },
+			body: (async function* () { yield archive; })() })) as unknown as typeof fetch,
+	});
+	await installer.ensure('kokoro-g2p');
+	assert.equal(await installer.isInstalled('kokoro-g2p'), true);
+	assert.deepEqual(await readFile(join(root, 'runtime', windowsDistribution.bundles[0]!.installPath, path)), PAYLOAD);
+});
+
 test('runtime installer refuses an archive whose extracted file differs from its pin', async (t) => {
 	const root = await mkdtemp(join(tmpdir(), 'scape-runtime-invalid-'));
 	t.after(() => rm(root, { recursive: true, force: true }));

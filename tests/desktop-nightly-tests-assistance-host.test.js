@@ -12,6 +12,7 @@ import {
 	NIGHTLY_ASSISTANCE_DOCUMENT_URL, NIGHTLY_ASSISTANCE_HOST_FLAG,
 	NIGHTLY_ASSISTANCE_SCHEME, registerNightlyAssistanceScheme,
 	createNightlyAssistanceHostDisposal, resolveNightlyAssistanceHostPlan, startNightlyAssistanceHost,
+	summarizeNightlyAssistanceError,
 } from '../desktop/nightly-tests-assistance-host.mjs';
 
 const ARGV = [NIGHTLY_ASSISTANCE_HOST_FLAG, '--user-data-dir=/tmp/model-profile',
@@ -41,6 +42,15 @@ test('the diagnostic document scheme is registered before Electron becomes ready
 		scheme: NIGHTLY_ASSISTANCE_SCHEME,
 		privileges: { standard: true, secure: true },
 	}]);
+});
+
+test('the nightly error summary keeps causes while redacting private paths', () => {
+	const failure = new Error('Archive extraction failed.');
+	failure.cause = Object.assign(new Error("ENOENT: missing C:\\Users\\Jane Doe\\private model\\secret.bin; /home/Jane Doe/models/data"), {
+		code: 'ENOENT',
+	});
+	const summary = summarizeNightlyAssistanceError(failure);
+	assert.deepEqual(summary, [{ name: 'Error' }, { name: 'Error', code: 'ENOENT' }]);
 });
 
 test('the isolated host uses production registration and preload with guarded real IPC', async (context) => {
@@ -99,7 +109,7 @@ test('the isolated host uses production registration and preload with guarded re
 	assert.equal(registration.settings.snapshot().modelsDirectory, '/tmp/model-cache');
 	const operationError = new Error('The runtime-family model failed authentication.');
 	registration.onOperationError(operationError);
-	assert.deepEqual(reportedErrors, [['Local assistance operation failed:', operationError]]);
+	assert.deepEqual(reportedErrors, [['Local assistance operation failed:', [{ name: 'Error' }]]]);
 	const invoke = handlers.get('model-test');
 	assert.equal(invoke({ sender: window.webContents, senderFrame: mainFrame }), 'real handler');
 	assert.throws(() => invoke({ sender: {}, senderFrame: mainFrame }), /sender/u);
@@ -118,6 +128,7 @@ test('production assistance uses a writable user-data runtime root and no test c
 	const source = await readFile(new URL('../desktop/assistance-registration.mjs', import.meta.url), 'utf8');
 	assert.match(source, /runtimeRoot = join\(app\.getPath\('userData'\), 'runtime'\)/u);
 	assert.match(source, /onError: onOperationError/u);
+	assert.match(source, /onInstallError: onOperationError/u);
 	assert.doesNotMatch(source, /SOUNDSCAPER_LOCAL_ASSISTANCE_REAL_MODELS|nightly-assistance-host/u);
 });
 

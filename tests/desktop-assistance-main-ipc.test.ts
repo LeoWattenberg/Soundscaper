@@ -64,6 +64,7 @@ const CATALOG = testLocalModelCatalog({
 function harness(service: unknown, pickers: {
 	choosePreseedDirectory?: (modelId: string) => Promise<string | null>;
 	chooseRelocationDirectory?: () => Promise<string | null>;
+	onInstallError?: (error: unknown) => void;
 } = {}) {
 	const handlers = new Map<string, (event: unknown, ...args: unknown[]) => unknown>();
 	const sent: [string, unknown][] = [];
@@ -74,6 +75,7 @@ function harness(service: unknown, pickers: {
 		sendToRenderer: (channel, payload) => sent.push([channel, payload]),
 		choosePreseedDirectory: pickers.choosePreseedDirectory ?? (async () => null),
 		chooseRelocationDirectory: pickers.chooseRelocationDirectory ?? (async () => null),
+		onInstallError: pickers.onInstallError,
 		createService: () => {
 			built += 1;
 			return service as never;
@@ -153,6 +155,19 @@ test('install progress is forwarded to the renderer', async () => {
 		'soundscaper:v1:event:assistance-progress',
 		{ modelId: 'silero-vad-v6', fileName: 'model.onnx', completedBytes: 1, totalBytes: 2 },
 	]]);
+});
+
+test('install errors retain their cause only in the main process', async () => {
+	const cause = new Error('Private profile path C:\\Users\\someone\\model-cache');
+	const reported: unknown[] = [];
+	const { handlers } = harness({ install: async () => { throw cause; } }, {
+		onInstallError: (error) => reported.push(error),
+	});
+	await assert.rejects(handlers.get(CHANNELS.installAssistanceModel)?.(null, 'silero-vad-v6'),
+		(error: unknown) => error instanceof Error
+			&& error.message === 'The local model or its required runtime could not be downloaded or installed.'
+			&& !String(error).includes('C:\\Users'));
+	assert.deepEqual(reported, [cause]);
 });
 
 test('offline installation obtains its directory from main and never from the renderer', async () => {

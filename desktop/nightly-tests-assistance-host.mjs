@@ -12,6 +12,23 @@ export const NIGHTLY_ASSISTANCE_HOST_FLAG = '--soundscaper-nightly-assistance-ho
 export const NIGHTLY_ASSISTANCE_SCHEME = 'soundscaper-nightly-assistance';
 export const NIGHTLY_ASSISTANCE_DOCUMENT_URL = `${NIGHTLY_ASSISTANCE_SCHEME}://host/`;
 
+/** Retain main-process failure causes without writing profile paths into nightly artifacts. */
+export function summarizeNightlyAssistanceError(error) {
+	const summary = [];
+	const seen = new Set();
+	let current = error;
+	while (current !== null && typeof current === 'object' && !seen.has(current) && summary.length < 4) {
+		seen.add(current);
+		const name = typeof current.name === 'string' && /^[A-Za-z][A-Za-z\d]{0,31}$/u.test(current.name)
+			? current.name : 'Error';
+		const code = typeof current.code === 'string' && /^[A-Z][A-Z\d_]{1,31}$/u.test(current.code)
+			? current.code : undefined;
+		summary.push({ name, ...(code === undefined ? {} : { code }) });
+		current = current.cause;
+	}
+	return summary;
+}
+
 export function registerNightlyAssistanceScheme(protocolApi) {
 	if (typeof protocolApi?.registerSchemesAsPrivileged !== 'function') {
 		throw new TypeError('The nightly assistance protocol API is unavailable.');
@@ -104,7 +121,8 @@ export async function startNightlyAssistanceHost({ app, BrowserWindow, ipcMain, 
 	let modelsDirectory = plan.modelCache;
 	const assistance = registerAssistance({
 		channels: IPC, handle, on, app,
-		onOperationError: (error) => console.error('Local assistance operation failed:', error),
+		onOperationError: (error) => console.error('Local assistance operation failed:',
+			summarizeNightlyAssistanceError(error)),
 		sendToRenderer: (channel, payload) => {
 			if (!window.isDestroyed()) window.webContents.send(channel, payload);
 		},

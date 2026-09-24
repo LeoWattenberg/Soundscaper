@@ -17,7 +17,29 @@ const PACKAGE_IDENTITY_FIELDS = Object.freeze([
 	'application', 'applicationVersion', 'productId', 'sourceRevision', 'stageManifest', 'target',
 ]);
 const PACKAGE_FILE_FIELDS = Object.freeze(['byteLength', 'fileName', 'sha256']);
+const SHERPA_TASKS = new Set([
+	'voice-activity-detection', 'speaker-segmentation', 'speaker-embedding',
+]);
+const ONNX_TASKS = new Set([
+	'speech-enhancement', 'face-detection', 'object-detection', 'saliency-detection',
+	'optical-character-recognition', 'text-embedding', 'image-text-embedding',
+	'word-alignment', 'source-separation', 'audio-tagging', 'beat-tracking',
+	'shot-detection', 'dereverberation',
+]);
 const digest = (bytes) => createHash('sha256').update(bytes).digest('hex');
+
+/** Keep the packaged test's runtime progress admission aligned with production's model mapping. */
+export function expectedRuntimeArchiveFileNames(modelId, task) {
+	let families;
+	if (task === 'speech-recognition') {
+		families = [modelId === 'whisper-large-v3-turbo-ggml' ? 'whisper-cpp' : 'sherpa-onnx-node'];
+	} else if (SHERPA_TASKS.has(task)) families = ['sherpa-onnx-node'];
+	else if (task === 'editorial-generation') families = ['llama-cpp'];
+	else if (task === 'text-to-speech') families = ['onnxruntime-node', 'kokoro-g2p'];
+	else if (ONNX_TASKS.has(task)) families = ['onnxruntime-node'];
+	else throw new TypeError(`No reviewed runtime mapping exists for local model ${modelId}.`);
+	return Object.freeze(families.map((familyId) => `${familyId}.tar.gz`));
+}
 
 export async function readNightlyPackageIdentity({ payloadRoot, productRoot, productId, target }) {
 	assert.ok(isAbsolute(payloadRoot), 'The nightly payload root must be absolute.');
@@ -108,23 +130,38 @@ export function createModelInstallEvidence({
 	assert.ok(Number.isFinite(installation.elapsedMs) && installation.elapsedMs >= 0,
 		'The packaged installer elapsed time is invalid.');
 	assert.ok(Array.isArray(installation.artifacts), 'The packaged installer progress is invalid.');
-	const progress = installation.artifacts.map((event) => {
+	const runtimeFileNames = new Set(expectedRuntimeArchiveFileNames(model.modelId, model.task));
+	const progress = [];
+	const runtimeProgress = [];
+	for (const event of installation.artifacts) {
 		const artifact = model.artifacts.find(({ fileName }) => fileName === event?.fileName);
-		assert.ok(artifact && event.modelId === model.modelId,
+		assert.ok((artifact || runtimeFileNames.has(event?.fileName)) && event.modelId === model.modelId,
 			'The packaged installer reported progress for a foreign artifact.');
+		if (!artifact) {
+			assert.ok(Number.isSafeInteger(event.totalBytes) && event.totalBytes > 0
+				&& event.completedBytes === event.totalBytes,
+				'The packaged installer did not finish a required runtime archive transfer.');
+			runtimeProgress.push(Object.freeze({
+				modelId: event.modelId, fileName: event.fileName,
+				completedBytes: event.completedBytes, totalBytes: event.totalBytes,
+			}));
+			continue;
+		}
 		assert.equal(event.totalBytes, artifact.byteLength,
 			'The packaged installer progress differs from the catalog byte count.');
 		assert.equal(event.completedBytes, artifact.byteLength,
 			'The packaged installer did not finish a reported artifact transfer.');
-		return Object.freeze({
+		progress.push(Object.freeze({
 			modelId: event.modelId,
 			fileName: event.fileName,
 			completedBytes: event.completedBytes,
 			totalBytes: event.totalBytes,
-		});
-	});
+		}));
+	}
 	assert.equal(new Set(progress.map(({ fileName }) => fileName)).size, progress.length,
 		'The packaged installer reported duplicate artifact progress.');
+	assert.equal(new Set(runtimeProgress.map(({ fileName }) => fileName)).size, runtimeProgress.length,
+		'The packaged installer reported duplicate runtime progress.');
 	assert.deepEqual(progress.map(({ fileName }) => fileName).toSorted(),
 		model.artifacts.map(({ fileName }) => fileName).toSorted(),
 		'The packaged installer artifact filename set differs from the catalog.');
@@ -145,6 +182,7 @@ export function createModelInstallEvidence({
 			elapsedMs: installation.elapsedMs,
 			artifactSha256s: Object.freeze(artifactSha256s),
 			progress: Object.freeze(progress),
+			runtimeProgress: Object.freeze(runtimeProgress),
 		}),
 	});
 }

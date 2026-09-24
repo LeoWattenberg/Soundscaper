@@ -12,6 +12,8 @@ import {
 	awaitLocalAssistanceProcessExit,
 	completeLocalAssistanceCoverage,
 	localAssistanceCoverageFileUrl,
+	coverageUrlMatchesPath,
+	coverageUrlWithinPath,
 	prepareLocalAssistanceRuntimeCoverage,
 } from './electron/local-assistance-models/runtime-coverage.js';
 import {
@@ -118,6 +120,38 @@ test('local-assistance file URLs preserve platform roots and encode spaces', () 
 		'file:///tmp/Product%20Alias.asar/');
 	assert.equal(localAssistanceCoverageFileUrl('C:\\Nightly Tests\\Soundscaper.asar', 'win32'),
 		'file:///C:/Nightly%20Tests/Soundscaper.asar/');
+	const archive = 'C:\\Nightly Tests\\products\\soundscaper.asar';
+	const preload = `${archive}\\desktop\\preload.mjs`;
+	assert.equal(coverageUrlWithinPath(preload, archive, 'win32'), true);
+	assert.equal(coverageUrlWithinPath(`file:///C:/Nightly%20Tests/products/soundscaper.asar/desktop/preload.mjs`,
+		archive, 'win32'), true);
+	assert.equal(coverageUrlMatchesPath(preload, preload, 'win32'), true);
+	assert.equal(coverageUrlMatchesPath(`file:///C:/Nightly%20Tests/products/soundscaper.asar/desktop/preload.mjs`,
+		preload, 'win32'), true);
+	assert.equal(coverageUrlWithinPath(`${archive}-foreign\\desktop\\preload.mjs`, archive, 'win32'), false);
+});
+
+test('local-assistance collector authenticates a preload reported as an absolute path', async (context) => {
+	const fixture = await coverageFixture(context, 'raw-preload-path');
+	const rawPreload = join(fixture.aliasPath, 'desktop/preload.mjs');
+	const launch = await prepareLocalAssistanceRuntimeCoverage(fixture.options, {
+		startTargetCoverage: async ({ keepUrl }) => {
+			assert.equal(keepUrl(rawPreload), true);
+			assert.equal(keepUrl(`${fixture.aliasPath}-foreign/desktop/preload.mjs`), false);
+			return {
+				reload: async () => undefined, checkpoint: async () => undefined,
+				collect: async () => ({ entries: [v8Entry(rawPreload)],
+					sources: new Map([[rawPreload, fixture.preloadSource]]),
+					pausedTargetCounts: {}, targetCounts: {}, targetTypes: [] }),
+			};
+		},
+	});
+	const collector = await launch.start({
+		context: { newCDPSession: async () => ({}) }, page: {}, mainProcessId: 4312,
+	});
+	await collector.collectBeforeClose();
+	const profile = JSON.parse(await readFile(join(launch.sessionDirectory, 'cdp.json'), 'utf8'));
+	assert.equal(profile.result[0].url, rawPreload);
 });
 
 test('local-assistance session finalization fails closed on mutation, missing main evidence, and stray files', async (context) => {

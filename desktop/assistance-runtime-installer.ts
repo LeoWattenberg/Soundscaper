@@ -68,8 +68,10 @@ async function exactClosure(
 		const metadata = await lstat(root);
 		if (!metadata.isDirectory() || metadata.isSymbolicLink()) return false;
 		const discovered: string[] = [];
+		const maximumDirectoryDepth = bundle.files.reduce((maximum, file) =>
+			Math.max(maximum, file.path.split('/').length - 1), 0);
 		async function walk(directory: string, depth: number): Promise<void> {
-			if (depth > 16) throw new Error('The runtime directory is too deep.');
+			if (depth > maximumDirectoryDepth) throw new Error('The runtime directory is too deep.');
 			for (const item of await readdir(resolve(root, directory), { withFileTypes: true })) {
 				signal?.throwIfAborted();
 				if (item.isSymbolicLink()) throw new Error('The runtime contains a symbolic link.');
