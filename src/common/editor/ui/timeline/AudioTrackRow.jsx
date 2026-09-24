@@ -1,11 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { TrackNew } from '@soundscaper/design-system/Track/TrackNew';
+import { TrackCrossfadeVisual } from '@soundscaper/design-system/Track/TrackCrossfadeVisual';
 
 import { resolveTrackWaveformOptions } from '../../track-display-mode.ts';
 import { editorTimelineDurationFrames } from '../../project.js';
 import { TrackControls } from './TrackControls.jsx';
 import { TrackAutomationOverlay } from '../soundscaper-workflow-product-runtime.tsx';
-import { AutomaticCrossfadeOverlays } from './TrackOverlapOverlays.jsx';
 import { ClipFadeOverlays } from './ClipFadeOverlays.tsx';
 import { AudacityWaveformCanvases } from './TimelineCanvasRenderer.jsx';
 import { SpectralBrushOverlay } from './SpectralBrushOverlay.jsx';
@@ -96,6 +96,7 @@ export function AudioTrackRow({
 		top: channelBodyTop,
 		height: channelBodyHeight,
 	} = audioEditorClipBodyGeometry(trackHeight);
+	const visualSelectedClipIds = selectedClipIdSet.size ? selectedClipIdSet : new Set([selectedClipId]);
 	const { displayMode, halfWave, showRms } = resolveTrackWaveformOptions(track, timelineView, globalShowRms);
 	const storedChannelHeightRatio = channelHeightRatio ?? 0.5;
 	const displayChannelHeightRatio = audioEditorStereoChannelHeightRatioForDisplay(
@@ -352,10 +353,16 @@ export function AudioTrackRow({
 							controller.actions.timeline.setChannelHeightRatio(track.id, ratio)
 						))}
 					/>)}
-					<AutomaticCrossfadeOverlays overlays={crossfadeOverlays} />
+					{crossfadeOverlays.map((overlay) => <TrackCrossfadeVisual key={overlay.id}
+						left={overlay.left} top={channelBodyTop + 1} width={overlay.width}
+						height={Math.max(0, channelBodyHeight - 2)}
+						outgoingPath={overlay.outgoingPath} incomingPath={overlay.incomingPath}
+						outgoingSelected={visualSelectedClipIds.has(overlay.outgoingClipId)}
+						incomingSelected={visualSelectedClipIds.has(overlay.incomingClipId)}
+						label={overlay.label} />)}
 					<ClipFadeOverlays rootRef={trackWindowRef} clips={projection.clips}
 						channelCounts={fadeChannelCounts} channelHeightRatio={displayChannelHeightRatio} displayMode={displayMode}
-						selectedIds={selectedClipIdSet.size ? selectedClipIdSet : new Set([selectedClipId])}
+						selectedIds={visualSelectedClipIds}
 						startFrame={projection.overscanStartFrame} endFrame={projection.overscanEndFrame}
 						pixelsPerSecond={pixelsPerSecond} sampleRate={sampleRate} blocked={blocked} copy={copy}
 						onTabOut={(id) => {

@@ -66,3 +66,31 @@
   cursor: default;
   opacity: 0.5;
 }
+
+/* Keep this wrapper at z-index:auto so curves from one crossfade can paint
+   over the veils of another crossfade in the track's stacking context. */
+.audacity-track-crossfade-visual {
+  position: absolute;
+  pointer-events: none;
+  overflow: hidden;
+}
+
+.audacity-track-crossfade-visual__veil,
+.audacity-track-crossfade-visual__curve {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.audacity-track-crossfade-visual__veil {
+  z-index: 1002;
+}
+
+.audacity-track-crossfade-visual__curve {
+  z-index: 1003;
+}
+
+.audacity-track-crossfade-visual__curve svg {
+  display: block;
+  overflow: visible;
+}

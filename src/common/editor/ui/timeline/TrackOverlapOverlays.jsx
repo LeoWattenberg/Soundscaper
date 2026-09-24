@@ -1,9 +1,10 @@
 import { CLIP_CONTENT_OFFSET } from '@soundscaper/design-system/constants';
 
-import { findPartialClipOverlaps } from '../../audio-clip-overlap.ts';
+import { automaticClipCrossfadeRanges, findPartialClipOverlaps } from '../../audio-clip-overlap.ts';
 import { DEFAULT_CLIP_MICROFADE_SECONDS } from '../../clip-microfade.ts';
 import { compareCodeUnits } from '../../code-unit-order.ts';
 import { validateVideoTrackComposition } from '../../video-timeline.js';
+import { clipCrossfadeCurvePath } from './crossfade-visual-geometry.ts';
 
 export function createVideoOverlapPresentation(
 	clips,
@@ -76,22 +77,32 @@ export function createVideoOverlapPresentation(
 }
 
 export function createCrossfadeOverlays(clips, overscanStartFrame, pixelsPerSecond, sampleRate) {
-	return findPartialClipOverlaps(
-		clips.filter((clip) => !clip.isRecordingPreview && clip.isVisible),
-		{
-			id: (clip) => clip.id,
-			startFrame: (clip) => clip.timelineStartFrame,
-			durationFrames: (clip) => clip.durationFrames,
-		},
-	).filter(({ startFrame, endFrame }) => (
+	const visibleClips = clips.filter((clip) => !clip.isRecordingPreview && clip.isVisible);
+	const accessors = {
+		id: (clip) => clip.id,
+		startFrame: (clip) => clip.timelineStartFrame,
+		durationFrames: (clip) => clip.durationFrames,
+	};
+	const ranges = automaticClipCrossfadeRanges(visibleClips, accessors);
+	return findPartialClipOverlaps(visibleClips, accessors).filter(({ startFrame, endFrame }) => (
 		pixelsPerSecond >= sampleRate
 		|| endFrame - startFrame > Math.max(1, Math.round(sampleRate * DEFAULT_CLIP_MICROFADE_SECONDS))
 	)).map(({ left, right, startFrame, endFrame }) => ({
 		id: `${left.id}:${right.id}:${startFrame}:${endFrame}`,
+		outgoingClipId: String(left.id),
+		incomingClipId: String(right.id),
+		startFrame,
+		endFrame,
 		left: CLIP_CONTENT_OFFSET
 			+ (startFrame - overscanStartFrame) / sampleRate * pixelsPerSecond,
 		width: Math.max(2, (endFrame - startFrame) / sampleRate * pixelsPerSecond),
 		label: `Automatic crossfade between ${left.name || left.id} and ${right.name || right.id}`,
+		outgoingPath: clipCrossfadeCurvePath(left, ranges.get(String(left.id)) ?? {
+			crossfadeInRanges: [], crossfadeOutRanges: [],
+		}, startFrame, endFrame),
+		incomingPath: clipCrossfadeCurvePath(right, ranges.get(String(right.id)) ?? {
+			crossfadeInRanges: [], crossfadeOutRanges: [],
+		}, startFrame, endFrame),
 	}));
 }
 
