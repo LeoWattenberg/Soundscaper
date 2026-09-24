@@ -91,6 +91,7 @@ export class RetentionRepository {
 		const activeStaging = await this.#options.media.activeAssetStaging();
 		const sources = await this.#options.sources.list();
 		const tokens = new Set(sources.map((source) => source.sourceToken).filter(isString));
+		for (const token of activeStaging.mediaChunkTokens) tokens.add(token);
 		for (const spool of await this.#options.rawPcmSpools.listAll()) tokens.add(spool.spoolToken);
 		const encodedCaptureTokens = this.#options.encodedCaptureSpools
 			? await this.#options.encodedCaptureSpools.retainedMediaChunkTokens() : new Set<string>();

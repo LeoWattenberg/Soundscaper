@@ -346,6 +346,9 @@ function sourceWriterFixture(hooks: FixtureHooks) {
 			await hooks.onPutMetadata?.(record);
 			return true;
 		},
+		async publishStagedMetadata(record: StorageRecord, _stage: unknown, ifAbsent: boolean) {
+			return ifAbsent ? this.putMetadataIfAbsent(record) : this.putMetadata(record).then(() => true);
+		},
 		async putDerivedMetadataIfBaseCurrent(record: StorageRecord, expectedBase: StorageRecord) {
 			const currentBase = metadata.get(String(expectedBase.id));
 			if (!sameStoredSourceIdentity(currentBase, expectedBase)) return 'base-changed' as const;
@@ -390,6 +393,10 @@ function sourceWriterFixture(hooks: FixtureHooks) {
 	};
 	const repository = new SourceWriteRepository({
 		records: records as never,
+		staging: { acquire: async () => ({
+			checkpoint: async () => undefined,
+			release: async () => undefined,
+		}) } as never,
 		pcm: {} as never,
 		opfs: { createPcmWriter: async () => null } as never,
 		database: async () => null,

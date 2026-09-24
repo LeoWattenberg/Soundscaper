@@ -9,6 +9,10 @@ import {
 	packPlanarFloat32,
 } from '../wavpack/index.js';
 import { normalizeChannels, type StorageRecord } from './media-records.ts';
+import {
+	MediaAssetStagingRepository,
+	type MediaAssetStagingLease,
+} from './media-asset-staging-repository.ts';
 import { writeDerivedSource } from './derived-source-write.ts';
 import type { OpfsRepository } from './opfs-repository.ts';
 import type { PcmRepository } from './pcm-repository.ts';
@@ -60,10 +64,19 @@ interface AudioBufferLike {
 
 export interface SourceWriteRepositoryOptions {
 	readonly records: SourceRecordRepository;
+	readonly staging: MediaAssetStagingRepository;
 	readonly pcm: PcmRepository;
 	readonly opfs: OpfsRepository;
 	readonly database: () => Promise<IDBDatabase | null>;
 	readonly deleteStoredSource: (source: StorageRecord) => Promise<void>;
+}
+
+/** A create-only source write lost its source identity to another publication. */
+export class SourceAlreadyExistsError extends Error {
+	constructor(sourceId: string) {
+		super(`Source ${sourceId} already exists; if-absent publication was refused.`);
+		this.name = 'SourceAlreadyExistsError';
+	}
 }
 
 /** Atomic source publication and bounded PCM writers. */
@@ -100,8 +113,20 @@ export class SourceWriteRepository {
 			: normalizePcmChunkFrames(metadata.chunkFrames);
 		const database = await this.#options.database();
 		const opfsWriter = await this.#options.opfs.createPcmWriter(token, persistedMetadata);
+		let stage: MediaAssetStagingLease;
+		try {
+			// The random token is the lease owner, distinct from any media asset using sourceId.
+			stage = await this.#options.staging.acquire(token,
+				opfsWriter ? { path: opfsWriter.path } : { mediaChunkToken: token }, database);
+		} catch (error) {
+			await opfsWriter?.abort();
+			throw error;
+		}
 		const persistEncodedChunks = Boolean(opfsWriter || database);
-		if (requirePersistentPcm && !persistEncodedChunks) throw new Error('Large audio imports require IndexedDB or OPFS storage.');
+		if (requirePersistentPcm && !persistEncodedChunks) {
+			await stage.release();
+			throw new Error('Large audio imports require IndexedDB or OPFS storage.');
+		}
 		let chunkIndex = 0;
 		let totalFrames = 0;
 		let channelCount: number | null = null;
@@ -118,8 +143,10 @@ export class SourceWriteRepository {
 		let abortPromise: Promise<void> | null = null;
 		const options = this.#options;
 		const discardPending = async (): Promise<void> => {
-			if (opfsWriter) await opfsWriter.abort();
-			else await options.records.deleteChunks(token);
+			try {
+				if (opfsWriter) await opfsWriter.abort();
+				else await options.records.deleteChunks(token);
+			} finally { await stage.release(); }
 		};
 		const assertWriteOpen = (): void => {
 			if (state !== 'open') throw new Error('The source writer was closed during an active write.');
@@ -163,6 +190,7 @@ export class SourceWriteRepository {
 				let finishWrite!: () => void;
 				activeWrite = new Promise<void>((resolve) => { finishWrite = resolve; });
 				try {
+					await stage.checkpoint();
 					const channels = normalizeChannels(inputChannels);
 					if (!channels.length) return;
 					const frameLength = channels[0].length;
@@ -267,6 +295,7 @@ export class SourceWriteRepository {
 				let previous: StorageRecord | null;
 				let writerStatistics: Record<string, unknown> | null;
 				try {
+					await stage.checkpoint();
 					throwIfAborted(signal);
 					previous = ifAbsent ? null : await options.records.getMetadata(sourceId);
 					throwIfAborted(signal);
@@ -309,11 +338,11 @@ export class SourceWriteRepository {
 				try {
 					throwIfAborted(signal);
 					if (ifAbsent) {
-						if (!await options.records.putMetadataIfAbsent(record)) {
+						if (!await options.records.publishStagedMetadata(record, stage, true)) {
 							definitelyRefused = true;
-							throw new Error(`Source ${sourceId} already exists; if-absent publication was refused.`);
+							throw new SourceAlreadyExistsError(sourceId);
 						}
-					} else await options.records.putMetadata(record);
+					} else await options.records.publishStagedMetadata(record, stage, false);
 				} catch (error) {
 					if (!definitelyRefused) {
 						try {

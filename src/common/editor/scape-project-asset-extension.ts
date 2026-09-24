@@ -6,6 +6,7 @@ import type { ScapeArchiveEntry, ScapeManifest } from './scape-archive-envelope.
 import type { ScapeExpandedByteBudget } from './scape-expanded-byte-budget.ts';
 import type { PlannedScapeExportAsset } from './scape-export-plan.ts';
 import type { ScapeImportStore, ScapeImportTransaction } from './scape-import-transaction.ts';
+import { SourceAlreadyExistsError } from './storage/source-write-repository.ts';
 
 type Awaitable<Value> = PromiseLike<Value> | Value;
 
@@ -78,11 +79,24 @@ export function resolveScapeProjectAssetExtension(value: unknown): ScapeProjectA
 	return Object.freeze(extension);
 }
 
+/** Retry a raced create-only PCM publication with fresh archive source identities. */
+export async function retryScapeImportSourceIdentityCollision<Result>(
+	attempt: (remapAllSources: boolean) => Promise<Result>,
+): Promise<Result> {
+	try {
+		return await attempt(false);
+	} catch (error) {
+		if (!(error instanceof SourceAlreadyExistsError)) throw error;
+		return await attempt(true);
+	}
+}
+
 export async function prepareScapeImportSourceIdentities(
 	project: Record<string, unknown>,
 	store: Pick<ScapeImportStore, 'getMediaAssetMetadata' | 'getSourceMetadata'>,
 	extension: ScapeProjectAssetExtension | null,
 	signal?: AbortSignal,
+	remapAllSources = false,
 ): Promise<ReadonlyMap<string, string>> {
 	const sources = Array.isArray(project.sources) ? project.sources : [];
 	const sourceIdMap = new Map<string, string>();
@@ -102,7 +116,8 @@ export async function prepareScapeImportSourceIdentities(
 			? await awaitScapeOperation(store.getSourceMetadata(sourceId), signal)
 			: role === 'media'
 				? await awaitScapeOperation(store.getMediaAssetMetadata(storageKey), signal) : null;
-		const nextId = occupied ? createStableId(role === 'audio' ? 'source' : `${kind}-source`) : sourceId;
+		const nextId = occupied || remapAllSources
+			? createStableId(role === 'audio' ? 'source' : `${kind}-source`) : sourceId;
 		sourceIdMap.set(sourceId, nextId);
 		source.id = nextId;
 		if (role !== 'none') source.storageKey = nextId;

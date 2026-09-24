@@ -6,12 +6,7 @@ import {
 import { createStableId } from './project.js';
 import { isCurrentProjectSchemaIdentity } from './project-schema-identity.ts';
 import { remapProjectFeatureRequirementSourceIds } from './project-feature-requirements.ts';
-import {
-	aggregateScapeErrors,
-	awaitScapeOperation,
-	awaitScapeReadOperation,
-	throwIfScapeAborted,
-} from './scape-abort.ts';
+import { aggregateScapeErrors, awaitScapeOperation, awaitScapeReadOperation, throwIfScapeAborted } from './scape-abort.ts';
 import {
 	readScapeArchiveEnvelope,
 	SCAPE_FORMAT,
@@ -49,7 +44,7 @@ import {
 import { withScapeProjectInput } from './scape-project-input.ts';
 import { SCAPE_MIME_TYPE } from './scape-project-format.ts';
 import { remapScapeProjectSourceReferences } from './scape-project-source-remap.ts';
-import { prepareScapeImportSourceIdentities, resolveScapeProjectAssetExtension } from './scape-project-asset-extension.ts';
+import { prepareScapeImportSourceIdentities, resolveScapeProjectAssetExtension, retryScapeImportSourceIdentityCollision } from './scape-project-asset-extension.ts';
 import { inspectScapeCanonicalEvidence } from './scape-project-canonical-inspection.ts';
 import { canonicalMediaContentBlob } from './storage/media-content-digest.ts';
 import {
@@ -189,6 +184,11 @@ export async function exportScapeProject(project, store, options = {}) {
 }
 
 export async function importScapeProject(input, store, options = {}) {
+	return retryScapeImportSourceIdentityCollision(
+		(remapAllSources) => importScapeProjectAttempt(input, store, options, remapAllSources));
+}
+
+async function importScapeProjectAttempt(input, store, options, remapAllSources) {
 	const signal = options.signal;
 	const assetExtension = resolveScapeProjectAssetExtension(options.projectAssetExtension);
 	let transaction = null;
@@ -313,7 +313,7 @@ export async function importScapeProject(input, store, options = {}) {
 				}
 			}
 
-			const sourceIdMap = await prepareScapeImportSourceIdentities(project, store, assetExtension, signal);
+			const sourceIdMap = await prepareScapeImportSourceIdentities(project, store, assetExtension, signal, remapAllSources);
 			remapScapeProjectSourceReferences(project, sourceIdMap);
 			if (isCurrentProjectSchemaIdentity(project, resolveScapeCurrentProjectSchemaFamily(options))) {
 				if (options.rebindProjectSourceIdentities !== undefined) {
@@ -443,7 +443,7 @@ export async function importScapeProject(input, store, options = {}) {
 							sourcePublication = await sourceWriter.commit({
 								sampleRate: source.sampleRate,
 								channelCount: source.channelCount,
-							}, { signal });
+							}, { signal, ifAbsent: true });
 						} catch (commitError) {
 							throwIfScapeAborted(signal);
 							throw commitError;

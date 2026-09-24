@@ -104,6 +104,9 @@ test('temporary IndexedDB chunk cleanup enumerates and deletes orphaned records 
 	const interruptedWriter = await store.beginSourceWrite('interrupted', { sampleRate: 48_000, channelCount: 1 });
 	for (let index = 0; index < 19; index += 1) await interruptedWriter.write([Float32Array.of(index)]);
 	assert.equal(indexedDB.recordCount(databaseName, 'sourceChunks'), 19);
+	for (const lease of indexedDB.records(databaseName, 'mediaAssetStaging')) {
+		if (lease.kind === 'lease') indexedDB.seedRecord(databaseName, 'mediaAssetStaging', { ...lease, expiresAt: 0 });
+	}
 
 	await store.cleanupTemporaryAssets({ maximumAgeMs: -1 });
 

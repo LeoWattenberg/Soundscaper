@@ -72,6 +72,10 @@ test('cancellation during source activation retires the source before returning 
 function sourceRepository(database: boolean, opfs: boolean) {
 	return new SourceWriteRepository({
 		database: async () => database ? {} as IDBDatabase : null,
+		staging: { acquire: async () => ({
+			checkpoint: async () => undefined,
+			release: async () => undefined,
+		}) } as never,
 		opfs: { createPcmWriter: async (_token: string, metadata: Record<string, unknown>) => {
 			assert.equal('requirePersistentPcm' in metadata, false);
 			return opfs ? { abort: async () => undefined } : null;
@@ -82,6 +86,10 @@ function sourceRepository(database: boolean, opfs: boolean) {
 			deleteChunks: async () => undefined,
 			getMetadata: async () => null,
 			putMetadata: async (metadata: Record<string, unknown>) => { assert.equal('requirePersistentPcm' in metadata, false); },
+			publishStagedMetadata: async (metadata: Record<string, unknown>) => {
+				assert.equal('requirePersistentPcm' in metadata, false);
+				return true;
+			},
 		} as never,
 		deleteStoredSource: async () => undefined,
 	});

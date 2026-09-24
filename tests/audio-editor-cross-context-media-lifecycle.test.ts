@@ -10,6 +10,84 @@ import { MEDIA_ASSET_STAGING_STORE_NAME } from '../src/common/editor/storage/med
 import { createInstrumentedIndexedDB } from './helpers/instrumented-indexeddb.js';
 
 for (const backend of ['indexeddb', 'opfs'] as const) {
+	test(`${backend} temporary cleanup in another store preserves an active PCM source writer`, async () => {
+		const fixture = await sharedStores(`cross-context-pcm-cleanup-${backend}`, backend);
+		const writer = await fixture.first.beginSourceWrite('live-pcm', {
+			sampleRate: 48_000, channelCount: 1, chunkFrames: 1,
+		});
+		await writer.write([Float32Array.of(0.25)]);
+		if (backend === 'indexeddb') {
+			for (const chunk of fixture.indexedDB.records(fixture.databaseName, 'sourceChunks')) {
+				fixture.indexedDB.seedRecord(fixture.databaseName, 'sourceChunks', { ...chunk, createdAt: 0 });
+			}
+		} else {
+			assert.equal(fixture.files.size, 1);
+		}
+		try {
+			await fixture.second.cleanupTemporaryAssets({ maximumAgeMs: 0 });
+			if (backend === 'indexeddb') {
+				assert.equal(fixture.indexedDB.recordCount(fixture.databaseName, 'sourceChunks'), 1);
+			} else assert.equal(fixture.files.size, 1);
+			await writer.write([Float32Array.of(0.5)]);
+			await writer.commit();
+			const samples: number[] = [];
+			for await (const chunk of fixture.second.readSourceChunks('live-pcm')) {
+				samples.push(chunk.channels[0][0]);
+			}
+			assert.deepEqual(samples, [0.25, 0.5]);
+		} finally {
+			await writer.abort();
+			await closeStores(fixture);
+		}
+	});
+
+	test(`${backend} expired PCM staging is reclaimable and cannot publish after cleanup`, async () => {
+		const fixture = await sharedStores(`cross-context-pcm-expiry-${backend}`, backend);
+		const writer = await fixture.first.beginSourceWrite('expired-pcm', {
+			sampleRate: 48_000, channelCount: 1, chunkFrames: 1,
+		});
+		await writer.write([Float32Array.of(0.25)]);
+		const lease = fixture.indexedDB.records(fixture.databaseName, MEDIA_ASSET_STAGING_STORE_NAME)
+			.find(({ kind, sourceId }) => kind === 'lease' && sourceId === writer.stageReceipt.sourceToken);
+		assert.ok(lease);
+		fixture.indexedDB.seedRecord(fixture.databaseName, MEDIA_ASSET_STAGING_STORE_NAME, {
+			...lease, expiresAt: 0,
+		});
+		if (backend === 'indexeddb') {
+			for (const chunk of fixture.indexedDB.records(fixture.databaseName, 'sourceChunks')) {
+				fixture.indexedDB.seedRecord(fixture.databaseName, 'sourceChunks', { ...chunk, createdAt: 0 });
+			}
+		}
+		try {
+			await fixture.second.cleanupTemporaryAssets({ maximumAgeMs: 0 });
+			assert.equal(fixture.indexedDB.recordCount(fixture.databaseName, 'sourceChunks'), 0);
+			assert.equal(fixture.files.size, 0);
+			await assert.rejects(writer.commit(), /staging lease|storage maintenance|invalidated/iu);
+			assert.equal(await fixture.first.getSourceMetadata('expired-pcm'), null);
+		} finally {
+			await writer.abort();
+			await closeStores(fixture);
+		}
+	});
+
+	test(`${backend} clear in another store fences a PCM source writer from late publication`, async () => {
+		const fixture = await sharedStores(`cross-context-pcm-clear-${backend}`, backend);
+		const writer = await fixture.first.beginSourceWrite('cleared-pcm', {
+			sampleRate: 48_000, channelCount: 1, chunkFrames: 1,
+		});
+		await writer.write([Float32Array.of(0.25)]);
+		try {
+			await fixture.second.clear();
+			assert.equal(fixture.indexedDB.recordCount(fixture.databaseName, 'sourceChunks'), 0);
+			assert.equal(fixture.files.size, 0);
+			await assert.rejects(writer.commit(), /staging lease|storage maintenance|invalidated/iu);
+			assert.equal(await fixture.first.getSourceMetadata('cleared-pcm'), null);
+		} finally {
+			await writer.abort();
+			await closeStores(fixture);
+		}
+	});
+
 	test(`${backend} temporary cleanup in another store preserves a live media writer`, async () => {
 		const fixture = await sharedStores(`cross-context-cleanup-${backend}`, backend);
 		const bytes = backend === 'indexeddb'

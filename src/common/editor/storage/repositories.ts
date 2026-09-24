@@ -24,6 +24,7 @@ import {
 	type LinkedVideoOriginalPort,
 } from './linked-video-original-resolver.ts';
 import { MediaRepository } from './media-repository.ts';
+import { MediaAssetStagingRepository } from './media-asset-staging-repository.ts';
 import { isOpfsPcmStorage, type StorageRecord } from './media-records.ts';
 import type { EncodedCaptureSpoolRepository } from './encoded-capture-spool-repository.ts';
 import type { FramescaperCaptureSessionManifestRepository } from './framescaper-capture-session-manifest-repository.ts';
@@ -129,6 +130,7 @@ export function createStorageRepositories(
 		codecFactory: options.pcmCodecFactory,
 	});
 	const sourceRecords = new SourceRecordRepository(port);
+	const sourceStaging = new MediaAssetStagingRepository(port);
 	const sourceDeletion = new SourceDeletionRepository(port);
 	const analysis = new KeyValueRepository(port, 'analysis');
 	const transientAnalysisCache = new TransientAnalysisCacheRepository(analysis, {
@@ -160,6 +162,7 @@ export function createStorageRepositories(
 	};
 	const writer = new SourceWriteRepository({
 		records: sourceRecords,
+		staging: sourceStaging,
 		pcm,
 		opfs,
 		database: port.database,

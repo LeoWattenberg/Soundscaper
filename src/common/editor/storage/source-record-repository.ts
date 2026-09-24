@@ -11,6 +11,8 @@ import {
 	sameStoredSourceIdentity,
 	type StorageRecord,
 } from './media-records.ts';
+import { MEDIA_ASSET_STAGING_STORE_NAME } from './media-asset-staging-schema.ts';
+import type { MediaAssetStagingLease } from './media-asset-staging-repository.ts';
 import type { StorageRepositoryPort } from './repository-port.ts';
 import {
 	findMemoryDependentSourceId,
@@ -74,6 +76,33 @@ export class SourceRecordRepository {
 		return transact(database, 'sources', 'readwrite', async ({ sources }) => {
 			if (await request(sources.get(record.id as string)) !== undefined) return false;
 			sources.put(record);
+			return true;
+		});
+	}
+
+	/** Publish PCM only while its durable stage is current, consuming the stage atomically. */
+	async publishStagedMetadata(
+		record: StorageRecord,
+		stage: MediaAssetStagingLease,
+		ifAbsent: boolean,
+	): Promise<boolean> {
+		if (!record.id) throw new TypeError('Source metadata requires an id.');
+		const database = await this.#port.database();
+		if (!database) {
+			stage.assertInMemory();
+			if (ifAbsent && this.#port.memory.sources.has(record.id)) return false;
+			const stored = clone(record);
+			stage.completeInMemory();
+			this.#port.memory.sources.set(record.id, stored);
+			return true;
+		}
+		return transact(database, ['sources', MEDIA_ASSET_STAGING_STORE_NAME], 'readwrite', async (stores) => {
+			const sources = stores.sources;
+			const staging = stores[MEDIA_ASSET_STAGING_STORE_NAME];
+			await stage.assertInStore(staging);
+			if (ifAbsent && await request(sources.get(record.id as string)) !== undefined) return false;
+			await request(sources.put(record));
+			await stage.completeInStore(staging);
 			return true;
 		});
 	}
