@@ -244,17 +244,20 @@ test('DAWproject compressed media preflights before streaming bounded packets in
 	const result = await createNativeProjectService(fixture.runtime).openDawproject(archive as Blob & { name: string });
 	assert.ok(result);
 	assert.deepEqual(events, ['preflight', 'stream', 'write:500', 'write:500', 'commit', 'dispose']);
-	assert.equal(result.project.sources[0]?.frameCount, FRAMES);
+	const importedSource = result.project.sources[0];
+	assert.ok(importedSource && 'frameCount' in importedSource);
+	assert.equal(importedSource.frameCount, FRAMES);
 });
 
 test('DAWproject imports embedded MP3 and FLAC through bounded packet decoders', async () => {
 	const originalFetch = globalThis.fetch;
 	globalThis.fetch = async (url) => { assert.ok(url instanceof URL); return new Response(await readFile(url)); };
 	try {
-		for (const entry of [
+		const entries: readonly { format: 'mp3' | 'flac'; settings: Readonly<Record<string, number>> }[] = [
 			{ format: 'mp3', settings: { bitrateKbps: 192 } },
 			{ format: 'flac', settings: { compressionLevel: 5 } },
-		] as const) {
+		];
+		for (const entry of entries) {
 			const pcm = Float32Array.from({ length: 4800 * 2 }, (_value, index) => Math.sin(index / 20) / 4);
 			const encoded = await encodeDedicatedAudioPcm({
 				format: entry.format, input: new Uint8Array(pcm.buffer), frameCount: 4800,
