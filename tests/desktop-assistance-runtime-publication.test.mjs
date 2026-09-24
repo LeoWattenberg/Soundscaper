@@ -9,11 +9,24 @@ import { test } from 'node:test';
 
 import { verifyMirroredArtifact } from '../scripts/lib/local-model-mirror-publication.mjs';
 import {
+	whisperArchiveIdentityLine,
 	publishAssistanceRuntimeBundles,
 	verifyAssistanceRuntimeBundles,
 } from '../scripts/publish-assistance-runtime-assets.mjs';
 
 const hash = (bytes) => createHash('sha256').update(bytes).digest('hex');
+
+test('Windows Whisper archive diagnostics expose executable and provenance digests', () => {
+	const distribution = { targetId: 'win-x64', bundles: [{ familyId: 'whisper-cpp',
+		archive: { sha256: 'a'.repeat(64) }, files: [
+			{ path: 'whisper-cli.exe', sha256: 'b'.repeat(64), executable: true },
+			{ path: 'build-provenance.json', sha256: 'c'.repeat(64), executable: false },
+		] }] };
+	assert.equal(whisperArchiveIdentityLine(distribution),
+		`Whisper archive win-x64: archive=${'a'.repeat(64)} executable=${'b'.repeat(64)} provenance=${'c'.repeat(64)}`);
+	assert.equal(whisperArchiveIdentityLine({ ...distribution, targetId: 'linux-x64' }), null);
+	assert.throws(() => whisperArchiveIdentityLine({ ...distribution, bundles: [] }), /Whisper archive inventory/u);
+});
 
 test('runtime publication uploads immutable R2 keys and reads public bytes back before success', async () => {
 	const root = await mkdtemp(join(tmpdir(), 'assistance-publish-'));

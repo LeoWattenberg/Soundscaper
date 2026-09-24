@@ -48,6 +48,17 @@ export async function createWhisperBuildWorkDirectory({ cacheRoot, targetId, pla
 	return work;
 }
 
+export function whisperCompilerProvenance(compiler, platform) {
+	if (platform !== 'win32' || compiler.id !== 'MSVC') {
+		return { archived: compiler, buildReceipt: compiler };
+	}
+	const version = /^(\d+\.\d+)\.\d+\.\d+$/u.exec(compiler.version)?.[1];
+	if (!version) throw new Error('Whisper MSVC compiler version cannot be normalized.');
+	// GitHub's Windows images can carry adjacent MSVC servicing builds. Keep
+	// that exact build in the stage receipt, outside the immutable archive.
+	return { archived: { ...compiler, version }, buildReceipt: compiler };
+}
+
 /** Build pinned source on the package runner, then bind the actual shipped bytes. */
 export async function stageDesktopWhisperCppRuntime({
 	targetId, runtimeRoot, cacheRoot, platform = process.platform, architecture = process.arch,
@@ -81,11 +92,13 @@ export async function stageDesktopWhisperCppRuntime({
 		await command('cmake', ['--build', build, '--config', 'Release', '--target', 'whisper-cli', '--parallel', '4'], work, environment);
 		const binary = await builtExecutable(build, plan.executable);
 		const compiler = await compilerIdentity(build);
+		const { archived: archivedCompiler, buildReceipt: buildCompiler } = whisperCompilerProvenance(compiler, platform);
 		const notices = await desktopWhisperCppNotices({ sourceRoot: source, platform, compiler });
 		const provenance = {
 			schemaVersion: 1, recipeId: 'whisper-cpp-cpu-package-build-v1', targetId,
 			source: { url: SOURCE_URL, commit: COMMIT, sha256: SOURCE_SHA256 },
-			cmakeVersion, compiler, sourceDateEpoch: Number(environment.SOURCE_DATE_EPOCH), configureArgs: plan.configureArgs,
+			cmakeVersion, compiler: archivedCompiler, sourceDateEpoch: Number(environment.SOURCE_DATE_EPOCH),
+			configureArgs: plan.configureArgs,
 			notices: notices.map(({ path, bytes, sources }) => ({ path, sources,
 				byteLength: bytes.byteLength, sha256: hash(bytes) })),
 			patches: [{ id: 'piped-json-stdout-v1', file: 'examples/cli/cli.cpp',
@@ -122,7 +135,7 @@ export async function stageDesktopWhisperCppRuntime({
 					id, status: 'package-generated', packageBehavior: 'The CPU runtime is compiled and verified by its own target package build.',
 				}),
 			},
-			summary: { familyId: 'whisper-cpp', targetId, runtimeVersion: VERSION, provenance,
+			summary: { familyId: 'whisper-cpp', targetId, runtimeVersion: VERSION, provenance, buildCompiler,
 				files, installedBytes: files.reduce((total, file) => total + file.byteLength, 0) },
 		};
 	} finally {

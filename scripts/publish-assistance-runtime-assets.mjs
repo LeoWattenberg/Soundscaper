@@ -45,6 +45,17 @@ function validatedDistribution(authority) {
 	return distribution;
 }
 
+export function whisperArchiveIdentityLine(distribution) {
+	if (!/^win-(?:x64|arm64)$/u.test(distribution.targetId)) return null;
+	const bundle = distribution.bundles.find(({ familyId }) => familyId === 'whisper-cpp');
+	const executable = bundle?.files.find(({ path }) => path === 'whisper-cli.exe');
+	const provenance = bundle?.files.find(({ path }) => path === 'build-provenance.json');
+	assert(SHA256.test(bundle?.archive?.sha256 ?? '') && SHA256.test(executable?.sha256 ?? '')
+		&& SHA256.test(provenance?.sha256 ?? ''), 'Whisper archive inventory is incomplete.');
+	return `Whisper archive ${distribution.targetId}: archive=${bundle.archive.sha256}`
+		+ ` executable=${executable.sha256} provenance=${provenance.sha256}`;
+}
+
 async function* authenticatedArchives(distribution, archivesRoot) {
 	const seen = new Set();
 	for (const bundle of distribution.bundles) {
@@ -112,6 +123,8 @@ async function main() {
 			'app/config/assistance-runtime-family-supply-candidates.json')),
 		kokoroManifestBytes: await readFile(resolve(stageRoot,
 			'app/config/assistance-kokoro-g2p-runtime-manifest.json')) };
+	const whisperIdentity = whisperArchiveIdentityLine(validatedDistribution(authority));
+	if (whisperIdentity) process.stdout.write(`${whisperIdentity}\n`);
 	const archivesRoot = resolve(stageRoot, 'assistance-distribution');
 	if (process.argv[2] === '--verify') {
 		const result = await verifyAssistanceRuntimeBundles({ authority, archivesRoot });

@@ -8,7 +8,8 @@ import { dirname, join, resolve, sep } from 'node:path';
 import test from 'node:test';
 
 import { createWhisperBuildWorkDirectory, desktopWhisperCppBuildPlan, patchWhisperCppPipedStdout,
-	stageDesktopWhisperCppRuntime, whisperBuildEnvironment } from '../scripts/lib/desktop-assistance-whisper-runtime.mjs';
+	stageDesktopWhisperCppRuntime, whisperBuildEnvironment,
+	whisperCompilerProvenance } from '../scripts/lib/desktop-assistance-whisper-runtime.mjs';
 
 test('Whisper source build cannot inherit the enclosing product Git revision', async (context) => {
 	const cacheRoot = resolve(import.meta.dirname, '../.native-build');
@@ -43,6 +44,26 @@ test('Windows Whisper builds use one exclusive stable source path outside the pr
 	await assert.rejects(createWhisperBuildWorkDirectory(options), { code: 'EEXIST' });
 	await rm(work, { recursive: true, force: true });
 	assert.equal(await createWhisperBuildWorkDirectory(options), work);
+});
+
+test('Windows MSVC patch drift does not change archived Whisper provenance', () => {
+	const earlier = { id: 'MSVC', version: '19.51.36256.0' };
+	const later = { id: 'MSVC', version: '19.51.36257.0' };
+	assert.deepEqual(whisperCompilerProvenance(earlier, 'win32'), {
+		archived: { id: 'MSVC', version: '19.51' }, buildReceipt: earlier,
+	});
+	assert.deepEqual(whisperCompilerProvenance(later, 'win32'), {
+		archived: { id: 'MSVC', version: '19.51' }, buildReceipt: later,
+	});
+	assert.deepEqual(whisperCompilerProvenance(earlier, 'linux'), {
+		archived: earlier, buildReceipt: earlier,
+	});
+	const clang = { id: 'Clang', version: '20.1.8' };
+	assert.deepEqual(whisperCompilerProvenance(clang, 'win32'), {
+		archived: clang, buildReceipt: clang,
+	});
+	assert.throws(() => whisperCompilerProvenance({ id: 'MSVC', version: 'unexpected' }, 'win32'),
+		/Whisper MSVC compiler version/u);
 });
 
 test('Whisper build plans retain CPU-only portable targets and static runtime libraries', () => {
