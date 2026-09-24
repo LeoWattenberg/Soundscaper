@@ -293,12 +293,25 @@ test.describe('Milestone 7 Guided workflow qualification', () => {
 		const speechlessEnd = Number(await preview.getAttribute('data-preview-end-seconds'));
 		expect(speechlessStart).toBeGreaterThan(0);
 		await seekVideo(previewVideo, speechlessEnd);
-		await previewVideo.evaluate(async (video) => {
-			await video.play();
-			video.pause();
-		});
-		await expect.poll(() => previewVideo.evaluate((video) => video.currentTime))
-			.toBeCloseTo(speechlessStart, 2);
+		const restartedAt = await previewVideo.evaluate(async (video, startSeconds) => {
+			const restart = new Promise((resolve) => {
+				const onSeeking = () => {
+					// Chromium may seek to zero before replaying a video at its end.
+					if (video.currentTime < startSeconds) return;
+					video.removeEventListener('seeking', onSeeking);
+					resolve(video.currentTime);
+				};
+				video.addEventListener('seeking', onSeeking);
+			});
+			try {
+				await video.play();
+				return await restart;
+			} finally {
+				video.pause();
+			}
+		}, speechlessStart);
+		expect(restartedAt).toBeCloseTo(speechlessStart, 3);
+		await expect(previewVideo).toHaveJSProperty('paused', true);
 		await seekVideo(previewVideo, speechlessStart - 0.01);
 		await expect.poll(() => previewVideo.evaluate((video) => video.currentTime))
 			.toBeCloseTo(speechlessStart, 2);
