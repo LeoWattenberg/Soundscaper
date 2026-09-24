@@ -92,9 +92,20 @@ test('zoom keeps painted waveforms and switches 3-band to ordinary samples', asy
 				const current = canvas.closest('[data-clip-id]')?.querySelector('canvas.clip-body__waveform');
 				if (current?.width > 4 && current.height > 4) {
 					const context = current.getContext('2d');
-					const row = context.getImageData(0, Math.floor(current.height / 4), current.width, 1).data;
+					// Probe both channel bodies away from their zero lines: a center
+					// line surviving an otherwise blank redraw must not satisfy this.
+					const channelPainted = [0, 1].map((channel) => {
+						const top = Math.floor(current.height * channel / 2);
+						const row = context.getImageData(0, top + Math.floor(current.height / 4) - 3, current.width, 1).data;
+						// The fixture has headroom. Compare its empty top margin too,
+						// so selection shading cannot masquerade as waveform pixels.
+						const background = context.getImageData(0, top + 3, current.width, 1).data;
+						return row.some((alpha, index) => index % 4 === 3 && alpha > 0
+							&& (alpha !== background[index] || row[index - 1] !== background[index - 1]
+								|| row[index - 2] !== background[index - 2] || row[index - 3] !== background[index - 3]));
+					});
 					state.frames++;
-					if (!row.some((value, index) => index % 4 === 3 && value > 0)) state.blankFrames++;
+					if (channelPainted.includes(false)) state.blankFrames++;
 				}
 				requestAnimationFrame(sample);
 			};
