@@ -14,6 +14,8 @@ test.describe('temporary export recovery', () => {
 	test('reload removes an abandoned OPFS export', async ({ page }) => {
 		const errors = collectClientErrors(page);
 		await bootEditor(page, '/embed/en/');
+		test.skip(!await page.evaluate(() => typeof navigator.storage?.getDirectory === 'function'),
+			'This browser does not expose OPFS.');
 		await page.evaluate(async () => {
 			const root = await navigator.storage.getDirectory();
 			const directory = await root.getDirectoryHandle('audio-editor-exports', { create: true });

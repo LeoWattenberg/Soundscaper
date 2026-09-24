@@ -222,7 +222,8 @@ test.describe('regular effects converted from Nyquist', () => {
 		const errors = collectClientErrors(page);
 		const nyquistRequests = collectNyquistRequests(page);
 		let editor = await bootEditor(page, '/embed/en/');
-		const liveTone = createWavFixture({ name: 'standard-live.wav', frequency: 440, duration: 90 });
+		// Keep the source below the 32 MiB playback buffer limit: this test exercises live effects, not streamed PCM.
+		const liveTone = createWavFixture({ name: 'standard-live.wav', frequency: 440, duration: 80 });
 		await importFiles(editor, [liveTone]);
 		let panel = await openEffectsForTrack(editor, 1);
 		for (const effect of effects) {
