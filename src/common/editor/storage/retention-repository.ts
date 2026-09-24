@@ -208,6 +208,7 @@ export class RetentionRepository {
 					if (value !== this.#options.port.memory.mediaAssetStaging) value.clear();
 				}
 			} else {
+				await this.#options.sessionGuard?.reclaimStoppedSessions(database);
 				await transact(database, [
 					'projects',
 					'revisions',
@@ -225,6 +226,9 @@ export class RetentionRepository {
 				], 'readwrite', async (stores) => {
 					const retainedSessions = this.#options.sessionGuard
 						? await this.#options.sessionGuard.retainedSessionRecords(stores.settings) : [];
+					if (retainedSessions.length > 1) {
+						throw new Error('Another editor session still owns local source history.');
+					}
 					const storedSourcesRequest = request(stores.sources.getAll()) as Promise<StorageRecord[]>;
 					const storedMediaAssetsRequest = request(stores.mediaAssets.getAll()) as Promise<StorageRecord[]>;
 					const storedDerivativeEntriesRequest = request(

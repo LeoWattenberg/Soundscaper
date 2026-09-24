@@ -3,6 +3,7 @@
 import { request, transact } from './indexeddb-backend.ts';
 import { createProjectStoreId } from './project-store-defaults.ts';
 import type { StorageRepositoryPort } from './repository-port.ts';
+import { EditorStoreClosedError } from './status.ts';
 
 const SESSION_KEY_PREFIX = 'audio-editor-retention-session-v1:';
 
@@ -18,6 +19,7 @@ export class RetentionSessionGuard {
 	#registration: Promise<void> | null = null;
 	#releaseLock: (() => void) | null = null;
 	#lockRun: Promise<void> | null = null;
+	readonly #admissions = new Set<Promise<IDBDatabase | null>>();
 	#released = false;
 
 	constructor(port: StorageRepositoryPort, locks: LockManager | null = globalThis.navigator?.locks ?? null) {
@@ -29,9 +31,18 @@ export class RetentionSessionGuard {
 		return { memory: this.#port.memory, database: () => this.database() };
 	}
 
-	async database(): Promise<IDBDatabase | null> {
+	database(): Promise<IDBDatabase | null> {
+		const admission = this.#admitDatabase();
+		this.#admissions.add(admission);
+		void admission.finally(() => { this.#admissions.delete(admission); }).catch(() => undefined);
+		return admission;
+	}
+
+	async #admitDatabase(): Promise<IDBDatabase | null> {
+		if (this.#released) throw new EditorStoreClosedError();
 		const database = await this.#port.database();
-		if (!database || this.#released) return database;
+		if (this.#released) throw new EditorStoreClosedError();
+		if (!database) return null;
 		if (!this.#registration) {
 			const registration = (async () => {
 				const webLock = await this.#acquireLock();
@@ -51,12 +62,14 @@ export class RetentionSessionGuard {
 			this.#registration = pending;
 		}
 		await this.#registration;
+		if (this.#released) throw new EditorStoreClosedError();
 		return database;
 	}
 
 	async release(database: IDBDatabase | null): Promise<void> {
 		this.#released = true;
 		try {
+			await Promise.allSettled([...this.#admissions]);
 			if (!this.#registration || !database) return;
 			await this.#registration;
 			await transact(database, 'settings', 'readwrite', async ({ settings }) => {
