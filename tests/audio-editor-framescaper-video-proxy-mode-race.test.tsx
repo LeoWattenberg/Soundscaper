@@ -6,6 +6,7 @@ import test from 'node:test';
 import React, { act } from 'react';
 
 import FramescaperVideoProxyDialog from '../src/common/editor/ui/dialogs/FramescaperVideoProxyDialog.tsx';
+import { CapturedVideoProxyBodyStagingError } from '../src/framescaper/editor-captured-video-proxy-bodies.ts';
 import {
 	bindFramescaperVideoProxyActionRuntime,
 	registerFramescaperVideoProxyActionRuntime,
@@ -55,6 +56,81 @@ test('the video source picker is locked while a proxy operation is pending', asy
 			await Promise.resolve();
 		});
 		assert.equal(dom.elements('select')[0]?.hasAttribute('disabled'), false);
+	} finally {
+		await act(async () => root.unmount());
+		actGlobal.IS_REACT_ACT_ENVIRONMENT = priorAct;
+		dom.restore();
+	}
+});
+
+test('cancelling proxy body staging reports cancellation through its preserved cause', async () => {
+	const dom = installTestDom();
+	const actGlobal = globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean };
+	const priorAct = actGlobal.IS_REACT_ACT_ENVIRONMENT;
+	actGlobal.IS_REACT_ACT_ENVIRONMENT = true;
+	const controller = {};
+	const cancelled = new CapturedVideoProxyBodyStagingError(
+		new DOMException('The captured proxy scheduler was disposed.', 'AbortError'),
+		[],
+	);
+	let failure: unknown = cancelled;
+	bindFramescaperVideoProxyActionRuntime(controller, registerFramescaperVideoProxyActionRuntime({
+		mode: () => 'auto',
+		previewTrust: () => 'unverified',
+		setMode: async () => undefined,
+		pressure: () => null,
+		reportPreviewPressure: async () => undefined,
+		generate: async () => undefined,
+		attachExisting: (_sourceId, _candidate, options) => new Promise<void>((_resolve, reject) => {
+			options?.signal?.addEventListener('abort', () => {
+				reject(failure);
+			}, { once: true });
+		}),
+		detach: async () => undefined,
+		regenerate: async () => undefined,
+		relinkOriginal: async () => 'relinked',
+	}));
+	const { createRoot } = await import('react-dom/client');
+	const root = createRoot(dom.container as unknown as Element);
+	try {
+		await act(async () => root.render(<FramescaperVideoProxyDialog
+			controller={controller}
+			snapshot={{ project: project(), selectedClipId: 'video-clip', missingSourceIds: [] }}
+			editingBlocked={false}
+			copy={{}}
+			fileService={{}}
+			run={(operation) => operation()}
+			onClose={() => undefined}
+		/>));
+		const input = dom.elements('input').find((node) => node.hasAttribute('data-video-proxy-existing-file'));
+		assert.ok(input);
+		await act(async () => {
+			props(input).onChange({ currentTarget: { files: [new File(['proxy'], 'proxy.webm')], value: '' } });
+			await Promise.resolve();
+		});
+		const cancel = dom.elements('button').find((node) => node.hasAttribute('data-video-proxy-cancel'));
+		assert.ok(cancel);
+		await act(async () => {
+			props(cancel).onClick();
+			await Promise.resolve();
+		});
+		assert.match(dom.container.textContent, /Proxy work cancelled\./u);
+		assert.doesNotMatch(dom.container.textContent, /scheduler was disposed/u);
+
+		failure = new AggregateError([cancelled, new Error('Proxy claim cleanup failed.')],
+			'Captured proxy work and cleanup failed.', { cause: cancelled });
+		await act(async () => {
+			props(input).onChange({ currentTarget: { files: [new File(['proxy'], 'proxy.webm')], value: '' } });
+			await Promise.resolve();
+		});
+		const retryCancel = dom.elements('button').find((node) => node.hasAttribute('data-video-proxy-cancel'));
+		assert.ok(retryCancel);
+		await act(async () => {
+			props(retryCancel).onClick();
+			await Promise.resolve();
+		});
+		assert.match(dom.container.textContent, /Proxy claim cleanup failed\./u);
+		assert.doesNotMatch(dom.container.textContent, /Proxy work cancelled\./u);
 	} finally {
 		await act(async () => root.unmount());
 		actGlobal.IS_REACT_ACT_ENVIRONMENT = priorAct;

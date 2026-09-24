@@ -129,7 +129,7 @@ export default function FramescaperVideoProxyDialog({
 					? { key: 'videoProxyExistingAttached' }
 					: { key: 'videoProxyGenerated' });
 		}, (operationError: unknown) => {
-			if ((operationError as Error)?.name === 'AbortError') {
+			if (isProxyCancellation(operationError)) {
 				setStatus({ key: 'videoProxyCancelled' });
 				return;
 			}
@@ -320,6 +320,13 @@ export default function FramescaperVideoProxyDialog({
 
 function previewMode(value: string): FramescaperVideoProxyModeRetime {
 	return value === 'original' || value === 'proxy' ? value : 'auto';
+}
+
+function isProxyCancellation(failure: unknown, depth = 0): boolean {
+	if (!failure || typeof failure !== 'object' || depth > 4) return false;
+	const { name, cause } = failure as Readonly<{ readonly name?: unknown; readonly cause?: unknown }>;
+	return name === 'AbortError'
+		|| (name === 'CapturedVideoProxyBodyStagingError' && isProxyCancellation(cause, depth + 1));
 }
 
 function proxyTrustLabel(
