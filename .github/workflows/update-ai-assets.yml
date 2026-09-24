@@ -1,0 +1,114 @@
+name: Update AI assets
+
+on:
+  workflow_dispatch:
+    inputs:
+      targets:
+        description: Desktop targets whose AI runtime archives should be updated
+        required: true
+        default: all
+        type: choice
+        options:
+          - all
+          - windows
+          - win-x64
+
+permissions:
+  contents: read
+
+concurrency:
+  group: update-ai-assets
+  cancel-in-progress: false
+
+jobs:
+  asset-targets:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-24.04
+    outputs:
+      targets: ${{ steps.resolve.outputs.targets }}
+    steps:
+      - name: Check out source
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+          ref: ${{ github.sha }}
+
+      - name: Set up Node.js
+        uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f # v6.1.0
+        with:
+          node-version-file: .nvmrc
+
+      - name: Resolve AI asset targets
+        id: resolve
+        env:
+          AI_ASSET_TARGETS: ${{ inputs.targets }}
+        run: |
+          node --input-type=module <<'NODE'
+          import { appendFileSync } from 'node:fs';
+          import { selectDesktopNightlyTestTargets } from './scripts/lib/desktop-nightly-tests-target-matrix.mjs';
+          appendFileSync(process.env.GITHUB_OUTPUT,
+            `targets=${JSON.stringify(selectDesktopNightlyTestTargets(process.env.AI_ASSET_TARGETS))}\n`);
+          NODE
+
+  publish:
+    name: Publish AI assets / ${{ matrix.target.platform }} / ${{ matrix.target.arch }}
+    if: github.ref == 'refs/heads/main' && needs.asset-targets.result == 'success'
+    needs: asset-targets
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        target: ${{ fromJSON(needs.asset-targets.outputs.targets) }}
+    runs-on: ${{ matrix.target.runner }}
+    steps:
+      - name: Check out source
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+          ref: ${{ github.sha }}
+
+      - name: Set up Node.js
+        uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f # v6.1.0
+        with:
+          node-version-file: .nvmrc
+          architecture: ${{ matrix.target.node_arch }}
+          cache: npm
+
+      - name: Pin npm
+        run: npm install --global npm@12.0.1
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install local-model CPU build tools
+        if: runner.os == 'Linux'
+        timeout-minutes: 10
+        run: bash scripts/ci-apt-install.sh build-essential cmake
+
+      - name: Build the authenticated target-native OS audio codec host
+        if: matrix.target.platform != 'linux'
+        run: >-
+          node scripts/ci-build-os-audio-codec-host.mjs
+          --desktop-platform=${{ matrix.target.platform }}
+          --desktop-arch=${{ matrix.target.arch }}
+          --runner-os=${{ runner.os }}
+          --runner-arch=${{ runner.arch }}
+
+      - name: Set up the locked Kokoro G2P builder
+        uses: astral-sh/setup-uv@eb1897b8dc4b5d5bfe39a428a8f2304605e0983c # v7.0.0
+        with:
+          version: 0.12.5
+
+      - name: Stage the authenticated AI runtime archives
+        run: node scripts/desktop-prepare.mjs
+        env:
+          SOUNDSCAPER_DESKTOP_TARGET_PLATFORM: ${{ matrix.target.platform }}
+          SOUNDSCAPER_DESKTOP_TARGET_ARCH: ${{ matrix.target.arch }}
+          SOUNDSCAPER_SOURCE_REVISION: ${{ github.sha }}
+
+      - name: Publish and verify the immutable archives
+        run: npm run desktop:publish:assistance-runtimes
+        env:
+          R2_MODELS_ACCESS_KEY_ID: ${{ secrets.R2_MODELS_ACCESS_KEY_ID }}
+          R2_MODELS_SECRET_ACCESS_KEY: ${{ secrets.R2_MODELS_SECRET_ACCESS_KEY }}
+          R2_MODELS_ENDPOINT: ${{ vars.R2_MODELS_ENDPOINT || secrets.R2_MODELS_ENDPOINT }}

@@ -56,11 +56,13 @@ The committed catalog keeps exact artifact pins.
 
 The source runtime-family register describes supported build targets.
 `desktop-prepare` generates authenticated manifests for the native archives.
-Manual nightly-with-tests packaging uploads and reads back the archives from R2.
-Automatic packaging after a verified main push checks that the exact archives
-are already available from R2, without publishing them again. Both paths include
-their URLs and digests in the app ASAR; an unpublished or mismatched archive
-stops automatic packaging.
+Run the manual **Update AI assets** workflow on main to publish the authenticated
+runtime archives for the selected targets and read back their complete public
+responses. Manual nightly-with-tests packaging and automatic packaging after a
+verified main push both verify that the exact archives are available from R2.
+They include the URLs and digests in the app ASAR; an unpublished or mismatched
+archive stops packaging. Update the assets before packaging a revision whose
+generated runtime bytes differ from those already published.
 The tests download these engines without substituting development dependencies
 or simulated output. Build support is separate from a successful test result on
 each platform; retain the report from the actual package run.

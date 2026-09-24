@@ -270,8 +270,8 @@ test('desktop CI packages verified main pushes and selected manual nightly-with-
 	), 'the staged manifest must name the same revision that the job checked out');
 	assert.doesNotMatch(testJob, /matrix\.product|product: \[/u);
 	assert.match(testJob, /target: \$\{\{ fromJSON\(needs\.nightly-test-targets\.outputs\.targets\) \}\}/u);
-	assert.match(testJob, /SOUNDSCAPER_PUBLISH_ASSISTANCE_RUNTIMES: \$\{\{ github\.event_name == 'workflow_dispatch' && inputs\.artifact_variant == 'nightly-with-tests' \}\}/u);
-	assert.match(testJob, /SOUNDSCAPER_VERIFY_ASSISTANCE_RUNTIMES: \$\{\{ github\.event_name == 'workflow_run' \}\}/u);
+	assert.doesNotMatch(testJob, /SOUNDSCAPER_PUBLISH_ASSISTANCE_RUNTIMES|R2_MODELS_ACCESS_KEY_ID/u);
+	assert.match(testJob, /SOUNDSCAPER_VERIFY_ASSISTANCE_RUNTIMES: 'true'/u);
 	assert.doesNotMatch(testJob, /- runner:/u);
 	assert.match(testJob, /node scripts\/desktop-nightly-tests-prepare\.mjs/u);
 	assert.match(testJob, /node scripts\/desktop-nightly-tests-products\.mjs/u);
@@ -343,6 +343,20 @@ test('desktop CI packages verified main pushes and selected manual nightly-with-
 		workflow.slice(nextStart),
 		/soundscaper-project-library-lease-matrix:\s+name: Soundscaper v1 \+ Framescaper v1 packaged lease matrix/iu,
 	);
+});
+
+test('AI asset updates publish verified target archives only from manual main dispatch', async () => {
+	const workflow = await readFile(resolve(ROOT, '.github/workflows/update-ai-assets.yml'), 'utf8');
+	assert.match(workflow, /^name: Update AI assets$/mu);
+	assert.match(workflow, /^ {2}workflow_dispatch:$/mu);
+	assert.doesNotMatch(workflow, /^ {2}(?:push|schedule|workflow_run):$/mu);
+	assert.match(workflow, /github\.ref == 'refs\/heads\/main'/u);
+	assert.match(workflow, /selectDesktopNightlyTestTargets\(process\.env\.AI_ASSET_TARGETS\)/u);
+	assert.match(workflow, /target: \$\{\{ fromJSON\(needs\.asset-targets\.outputs\.targets\) \}\}/u);
+	assert.match(workflow, /node scripts\/desktop-prepare\.mjs/u);
+	assert.match(workflow, /npm run desktop:publish:assistance-runtimes/u);
+	assert.match(workflow, /R2_MODELS_ACCESS_KEY_ID: \$\{\{ secrets\.R2_MODELS_ACCESS_KEY_ID \}\}/u);
+	assert.match(workflow, /R2_MODELS_SECRET_ACCESS_KEY: \$\{\{ secrets\.R2_MODELS_SECRET_ACCESS_KEY \}\}/u);
 });
 
 function packagingContext(appOutDir) {
