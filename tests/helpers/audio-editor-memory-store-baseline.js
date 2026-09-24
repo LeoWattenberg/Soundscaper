@@ -40,6 +40,8 @@ export function createMemoryStore() {
 			return copy;
 		},
 		async deleteProject(projectId) { projects.delete(projectId); },
+		async copyLinkedOriginalSourceAliases() { return []; },
+		async rollbackLinkedOriginalSourceAliases() {},
 		async clear() { projects.clear(); settings.clear(); analysis.clear(); },
 		async loadAnalysis(key) { return analysis.has(key) ? structuredClone(analysis.get(key)) : null; },
 		async saveAnalysis(key, value) { analysis.set(key, structuredClone(value)); },

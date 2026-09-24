@@ -66,7 +66,7 @@ test('live project tabs retain independent history and cross-project clipboard s
 	assert.deepEqual(controller.getSnapshot().projectTabs.map((tab) => tab.id), [firstProjectId, secondProjectId]);
 	assert.equal(controller.getSnapshot().history.hasClipboard, true);
 
-	controller.actions.edit.paste();
+	await controller.actions.edit.paste();
 	let snapshot = controller.getSnapshot();
 	assert.ok(snapshot.project.sources.some((source) => source.id === 'cross-project-source'));
 	assert.ok(snapshot.project.clips.some((clip) => clip.sourceId === 'cross-project-source'));

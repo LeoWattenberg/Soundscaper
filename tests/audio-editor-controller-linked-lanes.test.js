@@ -247,7 +247,7 @@ test('cross-project video paste creates one adjacent paired lane group with fres
 		assert.equal(controller.getSnapshot().history.hasClipboard, true);
 
 		await controller.actions.project.create({ title: 'Video paste target' });
-		controller.actions.edit.paste();
+		await controller.actions.edit.paste();
 		const snapshot = controller.getSnapshot();
 		const mediaTracks = snapshot.project.tracks.filter((track) => track.laneGroupId);
 		assert.deepEqual(mediaTracks.map((track) => track.type), ['video', 'audio']);
