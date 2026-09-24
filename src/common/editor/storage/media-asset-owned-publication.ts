@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { collectProjectStorageKeys } from '../retention.js';
 import { request, transact } from './indexeddb-backend.ts';
 import type { MediaAssetDisposalRepository } from './media-asset-disposal-repository.ts';
 import type { OwnedMediaAssetPublication } from './media-asset-write-contract.ts';
@@ -47,15 +48,39 @@ async function detachIfCurrent(
 	if (!database) {
 		const current = storageRecord(port.memory.mediaAssets.get(sourceId));
 		if (!sameOwnedPayload(current, expected)) return false;
+		if (port.retentionSessionGuard?.hasOtherMemorySession()) {
+			throw new Error(`Media asset ${sourceId} is retained by another open editor session.`);
+		}
+		assertNotDurablyReferenced(sourceId,
+			[...port.memory.projects.values()],
+			[...port.memory.revisions.values()]);
 		port.memory.mediaAssets.delete(sourceId);
 		return true;
 	}
-	return transact(database, 'mediaAssets', 'readwrite', async ({ mediaAssets }) => {
+	await port.retentionSessionGuard?.reclaimStoppedSessions(database);
+	return transact(database, ['projects', 'revisions', 'settings', 'mediaAssets'], 'readwrite', async (stores) => {
+		const { mediaAssets } = stores;
 		const current = storageRecord(await request(mediaAssets.get(sourceId)));
 		if (!sameOwnedPayload(current, expected)) return false;
+		const [projects, revisions, otherSession] = await Promise.all([
+			request(stores.projects.getAll()),
+			request(stores.revisions.getAll()),
+			port.retentionSessionGuard?.hasOtherOrLostSession(stores.settings) ?? false,
+		]);
+		if (otherSession) {
+			throw new Error(`Media asset ${sourceId} is retained by another open editor session.`);
+		}
+		assertNotDurablyReferenced(sourceId, projects, revisions);
 		mediaAssets.delete(sourceId);
 		return true;
 	});
+}
+
+function assertNotDurablyReferenced(sourceId: string, projects: unknown[], revisions: unknown[]): void {
+	const retained = new Set<string>();
+	for (const project of projects) collectProjectStorageKeys(project, retained);
+	for (const revision of revisions) collectProjectStorageKeys(storageRecord(revision)?.project, retained);
+	if (retained.has(sourceId)) throw new Error(`Media asset ${sourceId} is retained by a saved project or revision.`);
 }
 
 function sameOwnedPayload(current: StorageRecord | null, expected: StorageRecord): boolean {

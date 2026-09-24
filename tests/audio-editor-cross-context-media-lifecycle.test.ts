@@ -70,18 +70,24 @@ for (const backend of ['indexeddb', 'opfs'] as const) {
 		}
 	});
 
-	test(`${backend} clear in another store fences a PCM source writer from late publication`, async () => {
+	test(`${backend} clear in another store preserves a live PCM source writer`, async () => {
 		const fixture = await sharedStores(`cross-context-pcm-clear-${backend}`, backend);
 		const writer = await fixture.first.beginSourceWrite('cleared-pcm', {
 			sampleRate: 48_000, channelCount: 1, chunkFrames: 1,
 		});
 		await writer.write([Float32Array.of(0.25)]);
 		try {
+			await assert.rejects(fixture.second.clear(), /another editor session still owns local source history/iu);
+			if (backend === 'indexeddb') {
+				assert.equal(fixture.indexedDB.recordCount(fixture.databaseName, 'sourceChunks'), 1);
+			} else assert.equal(fixture.files.size, 1);
+			await writer.commit();
+			assert.equal((await fixture.second.readSourceChunk('cleared-pcm', 0))?.channels[0]?.[0], 0.25);
+			await fixture.first.close();
 			await fixture.second.clear();
 			assert.equal(fixture.indexedDB.recordCount(fixture.databaseName, 'sourceChunks'), 0);
 			assert.equal(fixture.files.size, 0);
-			await assert.rejects(writer.commit(), /staging lease|storage maintenance|invalidated/iu);
-			assert.equal(await fixture.first.getSourceMetadata('cleared-pcm'), null);
+			assert.equal(await fixture.second.getSourceMetadata('cleared-pcm'), null);
 		} finally {
 			await writer.abort();
 			await closeStores(fixture);
@@ -131,7 +137,7 @@ for (const backend of ['indexeddb', 'opfs'] as const) {
 		}
 	});
 
-	test(`${backend} clear in another store fences a writer from late publication`, async () => {
+	test(`${backend} clear in another store preserves a live media writer`, async () => {
 		const fixture = await sharedStores(`cross-context-clear-${backend}`, backend);
 		const bytes = Uint8Array.of(7, 8, 9);
 		const writer = await fixture.first.beginMediaAssetWrite('fenced-media', {}, {
@@ -141,15 +147,20 @@ for (const backend of ['indexeddb', 'opfs'] as const) {
 		await writer.write(bytes);
 
 		try {
-			await fixture.second.clear();
+			await assert.rejects(fixture.second.clear(), /another editor session still owns local source history/iu);
 			assert.equal(
 				fixture.indexedDB.recordCount(fixture.databaseName, MEDIA_ASSET_STAGING_STORE_NAME),
-				1,
+				2,
 			);
+			if (backend === 'opfs') assert.equal(fixture.files.size, 1);
+			await writer.commit();
+			const loaded = await fixture.second.loadMediaAsset('fenced-media');
+			assert.ok(loaded);
+			assert.deepEqual(new Uint8Array(await loaded.arrayBuffer()), bytes);
+			await fixture.first.close();
+			await fixture.second.clear();
 			assert.equal(fixture.indexedDB.recordCount(fixture.databaseName, 'mediaAssetChunks'), 0);
 			assert.equal(fixture.files.size, 0);
-			await assert.rejects(writer.commit(), /staging lease|storage maintenance|invalidated/iu);
-			assert.equal(await fixture.first.getMediaAssetMetadata('fenced-media'), null);
 			assert.equal(await fixture.second.getMediaAssetMetadata('fenced-media'), null);
 		} finally {
 			await writer.abort();

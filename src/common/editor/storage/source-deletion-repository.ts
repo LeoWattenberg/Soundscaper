@@ -1,12 +1,14 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { collectProjectStorageKeys } from '../retention.js';
 import {
 	DERIVATIVE_CACHE_ENTRY_STORE_NAME,
 	VIDEO_DERIVATIVE_STORE_NAME,
 } from './derivative-cache-entry.ts';
 import { deleteByIndex, request, transact } from './indexeddb-backend.ts';
-import type { StorageRecord } from './media-records.ts';
+import { sameStoredSourceIdentity, type StorageRecord } from './media-records.ts';
 import type { StorageRepositoryPort } from './repository-port.ts';
+import type { RetentionSessionGuard } from './retention-session-guard.ts';
 import {
 	findMemoryDependentSourceId,
 	findStoredDependentSourceId,
@@ -31,15 +33,21 @@ export type SourceStorageDeletionResult =
 /** Atomically detach one source generation and every by-id payload it currently owns. */
 export class SourceDeletionRepository {
 	readonly #port: StorageRepositoryPort;
+	readonly #sessionGuard: RetentionSessionGuard | null;
 
-	constructor(port: StorageRepositoryPort) {
+	constructor(port: StorageRepositoryPort, sessionGuard: RetentionSessionGuard | null = null) {
 		this.#port = port;
+		this.#sessionGuard = sessionGuard;
 	}
 
 	async detachIfUnreferenced(sourceId: string): Promise<SourceStorageDeletionResult> {
 		const database = await this.#port.database();
 		if (!database) return this.#detachMemory(sourceId);
+		await this.#sessionGuard?.reclaimStoppedSessions(database);
 		return transact(database, [
+			'projects',
+			'revisions',
+			'settings',
 			'analysis',
 			'sources',
 			'sourceChunks',
@@ -47,6 +55,13 @@ export class SourceDeletionRepository {
 			VIDEO_DERIVATIVE_STORE_NAME,
 			DERIVATIVE_CACHE_ENTRY_STORE_NAME,
 		], 'readwrite', async (stores) => {
+			const [projects, revisions, otherSession] = await Promise.all([
+				request(stores.projects.getAll()),
+				request(stores.revisions.getAll()),
+				this.#sessionGuard?.hasOtherOrLostSession(stores.settings) ?? false,
+			]);
+			if (otherSession) throw new Error(`Source ${sourceId} is retained by another open editor session.`);
+			assertNotDurablyReferenced(sourceId, projects, revisions);
 			const sources = stores.sources;
 			const source = asStorageRecord(await request(sources.get(sourceId)));
 			if (source) {
@@ -82,8 +97,52 @@ export class SourceDeletionRepository {
 		});
 	}
 
+	/** Detach only the named generation, with the same retention checks as public deletion. */
+	async discardCurrentIfUnreferenced(expected: StorageRecord): Promise<boolean> {
+		if (!expected.id) return false;
+		const sourceId = expected.id;
+		const database = await this.#port.database();
+		if (!database) {
+			const memory = this.#port.memory;
+			if (!sameStoredSourceIdentity(asStorageRecord(memory.sources.get(sourceId)), expected)) return false;
+			if (this.#sessionGuard?.hasOtherMemorySession()) {
+				throw new Error(`Source ${sourceId} is retained by another open editor session.`);
+			}
+			assertNotDurablyReferenced(sourceId, [...memory.projects.values()], [...memory.revisions.values()]);
+			const dependentSourceId = findMemoryDependentSourceId(memory.sources, sourceId);
+			if (dependentSourceId !== null) {
+				throw new Error(`Source ${sourceId} is retained by derived source ${dependentSourceId}.`);
+			}
+			memory.sources.delete(sourceId);
+			return true;
+		}
+		await this.#sessionGuard?.reclaimStoppedSessions(database);
+		return transact(database, ['projects', 'revisions', 'settings', 'sources'], 'readwrite', async (stores) => {
+			const sources = stores.sources;
+			const current = asStorageRecord(await request(sources.get(sourceId)));
+			if (!sameStoredSourceIdentity(current, expected)) return false;
+			const [projects, revisions, otherSession] = await Promise.all([
+				request(stores.projects.getAll()),
+				request(stores.revisions.getAll()),
+				this.#sessionGuard?.hasOtherOrLostSession(stores.settings) ?? false,
+			]);
+			if (otherSession) throw new Error(`Source ${sourceId} is retained by another open editor session.`);
+			assertNotDurablyReferenced(sourceId, projects, revisions);
+			const dependentSourceId = await findStoredDependentSourceId(sources, sourceId);
+			if (dependentSourceId !== null) {
+				throw new Error(`Source ${sourceId} is retained by derived source ${dependentSourceId}.`);
+			}
+			sources.delete(sourceId);
+			return true;
+		});
+	}
+
 	#detachMemory(sourceId: string): SourceStorageDeletionResult {
 		const memory = this.#port.memory;
+		if (this.#sessionGuard?.hasOtherMemorySession()) {
+			throw new Error(`Source ${sourceId} is retained by another open editor session.`);
+		}
+		assertNotDurablyReferenced(sourceId, [...memory.projects.values()], [...memory.revisions.values()]);
 		const source = asStorageRecord(memory.sources.get(sourceId));
 		if (source) {
 			const dependentSourceId = findMemoryDependentSourceId(memory.sources, sourceId);
@@ -117,6 +176,13 @@ export class SourceDeletionRepository {
 			derivatives: Object.freeze(derivatives.map(clone)),
 		};
 	}
+}
+
+function assertNotDurablyReferenced(sourceId: string, projects: unknown[], revisions: unknown[]): void {
+	const retained = new Set<string>();
+	for (const project of projects) collectProjectStorageKeys(project, retained);
+	for (const revision of revisions) collectProjectStorageKeys(asStorageRecord(revision)?.project, retained);
+	if (retained.has(sourceId)) throw new Error(`Source ${sourceId} is retained by a saved project or revision.`);
 }
 
 function asStorageRecord(value: unknown): StorageRecord | null {

@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { isOpfsPcmStorage, type StorageRecord } from './media-records.ts';
+import { isOpfsPcmStorage, sameStoredSourceIdentity, type StorageRecord } from './media-records.ts';
 import type { KeyValueRepository } from './key-value-repository.ts';
 import type { MediaRepository } from './media-repository.ts';
 import type { OpfsRepository } from './opfs-repository.ts';
@@ -24,6 +24,11 @@ const SOURCE_ANALYSIS_CACHE_PREFIXES = Object.freeze([
 	'audio-editor-peaks-v1:',
 	'audio-editor-peaks-v2:',
 	'audio-editor-frequency-waveform-v1:',
+]);
+
+const IMMUTABLE_SOURCE_METADATA_FIELDS = Object.freeze([
+	'channelCount', 'sampleRate', 'frameCount', 'frameLength', 'chunkFrames', 'chunkCount',
+	'overrideChunkCount', 'sourceId', 'cacheKey', 'cacheSchemaVersion', 'algorithmRevision',
 ]);
 
 export interface SourceRepositoryOptions {
@@ -116,6 +121,10 @@ export class SourceRepository {
 	}
 
 	replaceMetadataIfCurrent(expected: StorageRecord, replacement: StorageRecord): Promise<boolean> {
+		if (!sameStoredSourceIdentity(expected, replacement)
+			|| IMMUTABLE_SOURCE_METADATA_FIELDS.some((field) => !Object.is(expected[field], replacement[field]))) {
+			return Promise.resolve(false);
+		}
 		return this.#options.records.compareAndSwapMetadata(expected, replacement);
 	}
 
@@ -190,7 +199,10 @@ export class SourceRepository {
 	}
 
 	async discardIfCurrent(source: StorageRecord): Promise<boolean> {
-		if (!await this.#options.records.deleteMetadataIfCurrent(source)) return false;
+		const discarded = this.#options.deletion
+			? await this.#options.deletion.discardCurrentIfUnreferenced(source)
+			: await this.#options.records.deleteMetadataIfCurrent(source);
+		if (!discarded) return false;
 		await this.deleteStored(source);
 		return true;
 	}

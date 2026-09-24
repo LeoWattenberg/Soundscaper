@@ -30,6 +30,7 @@ import {
 	restoreProjectSnapshotIfCurrent,
 } from './project-snapshot-restoration-repository.ts';
 import type { StorageRepositoryPort } from './repository-port.ts';
+import type { RetentionSessionGuard } from './retention-session-guard.ts';
 import {
 	applyMemoryMutations,
 	asRecord,
@@ -103,10 +104,12 @@ export class ProjectRepository implements ProjectRepositoryPort {
 	readonly #creationFences = new WeakMap<object, string>();
 	readonly #port: StorageRepositoryPort;
 	readonly #revisionLimit: number;
+	readonly #sessionGuard: RetentionSessionGuard | null;
 
-	constructor(port: StorageRepositoryPort, revisionLimit: number) {
+	constructor(port: StorageRepositoryPort, revisionLimit: number, sessionGuard: RetentionSessionGuard | null = null) {
 		this.#port = port;
 		this.#revisionLimit = Math.max(2, Math.floor(revisionLimit));
+		this.#sessionGuard = sessionGuard;
 	}
 
 	async createIfAbsent(project: ProjectDocument): Promise<ProjectDocument | null> {
@@ -281,6 +284,9 @@ export class ProjectRepository implements ProjectRepositoryPort {
 			const memory = this.#port.memory;
 			if (!sameProjectSnapshot(memory.projects.get(snapshot.id), snapshot)
 				|| storedCreationFence(memory.revisions.get(revisionRecord.key)) !== creationFence) return false;
+			if (this.#sessionGuard?.hasOtherMemorySession()) {
+				throw new Error('Another editor session still owns local project history.');
+			}
 			const mutations: MemoryMutation[] = [deleteMemoryMutation(memory.projects, snapshot.id)];
 			for (const [key, value] of memory.revisions) {
 				if (storedProjectId(value) === snapshot.id) {
@@ -291,9 +297,11 @@ export class ProjectRepository implements ProjectRepositoryPort {
 			this.#creationFences.delete(project as object);
 			return true;
 		}
-		const deleted = await transact(database, ['projects', 'revisions'], 'readwrite', async ({
+		await this.#sessionGuard?.reclaimStoppedSessions(database);
+		const deleted = await transact(database, ['projects', 'revisions', 'settings'], 'readwrite', async ({
 			projects,
 			revisions,
+			settings,
 		}) => {
 			const [current, currentRevision] = await Promise.all([
 				request(projects.get(snapshot.id)),
@@ -301,6 +309,7 @@ export class ProjectRepository implements ProjectRepositoryPort {
 			]);
 			if (!sameProjectSnapshot(current, snapshot)
 				|| storedCreationFence(currentRevision) !== creationFence) return false;
+			await this.#assertDeleteAllowed(settings);
 			await Promise.all([
 				request(projects.delete(snapshot.id)),
 				deleteByIndex(revisions.index('projectId'), snapshot.id),
@@ -311,7 +320,9 @@ export class ProjectRepository implements ProjectRepositoryPort {
 		return deleted;
 	}
 
-	deleteExact(project: ProjectDocument): Promise<boolean> { return deleteExactProject(this.#port, project); }
+	deleteExact(project: ProjectDocument): Promise<boolean> {
+		return deleteExactProject(this.#port, project, this.#sessionGuard);
+	}
 
 	#rememberCreation(snapshot: ProjectDocument, creationFence: string): ProjectDocument {
 		const created = clone(snapshot);
@@ -347,6 +358,9 @@ export class ProjectRepository implements ProjectRepositoryPort {
 	async delete(projectId: string): Promise<void> {
 		const database = await this.#port.database();
 		if (!database) {
+			if (this.#sessionGuard?.hasOtherMemorySession()) {
+				throw new Error('Another editor session still owns local project history.');
+			}
 			readMemoryLinkedOriginalProvisionalRootInventory(
 				this.#port.memory.linkedVideoOriginalBindings,
 				this.#port.memory.linkedOriginalProvisionalRoots,
@@ -368,13 +382,16 @@ export class ProjectRepository implements ProjectRepositoryPort {
 			applyMemoryMutations(mutations);
 			return;
 		}
+		await this.#sessionGuard?.reclaimStoppedSessions(database);
 		await transact(database, [
 			'projects',
 			'revisions',
+			'settings',
 			LINKED_VIDEO_ORIGINAL_STORE_NAME,
 			LINKED_ORIGINAL_PROVISIONAL_ROOT_STORE_NAME,
 		], 'readwrite', async (stores) => {
 			const { projects, revisions } = stores;
+			await this.#assertDeleteAllowed(stores.settings);
 			await readStoredLinkedOriginalProvisionalRootInventory(
 				stores[LINKED_VIDEO_ORIGINAL_STORE_NAME],
 				stores[LINKED_ORIGINAL_PROVISIONAL_ROOT_STORE_NAME],
@@ -392,6 +409,12 @@ export class ProjectRepository implements ProjectRepositoryPort {
 				projectId,
 			);
 		});
+	}
+
+	async #assertDeleteAllowed(settings: IDBObjectStore): Promise<void> {
+		if (await this.#sessionGuard?.hasOtherOrLostSession(settings)) {
+			throw new Error('Another editor session still owns local project history.');
+		}
 	}
 
 }

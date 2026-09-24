@@ -36,7 +36,82 @@ for (const backend of ['memory', 'indexeddb', 'opfs'] as const) {
 		assert.equal(files.size, 0);
 		await writer.abort();
 	});
+
+	test(`${backend} discarding a source stage prevents its writer from publishing missing PCM`, async () => {
+		const files = new Map<string, Blob>();
+		const store = createProjectStore({
+			indexedDB: backend === 'memory' ? null : createInstrumentedIndexedDB(),
+			memoryFallback: backend === 'memory',
+			preferOpfs: backend === 'opfs',
+			databaseName: uniqueName(`source-stage-discard-${backend}`),
+			opfsRoot: backend === 'opfs' ? createOpfsDirectory(files) : null,
+		});
+		const receipt = store.sourceRepository.createStageReceipt('discarded-source');
+		const writer = await store.sourceRepository.beginOwnedStage(receipt, {
+			sampleRate: 48_000, channelCount: 1, chunkFrames: 2,
+		});
+		try {
+			await writer.write([Float32Array.of(0.25, 0.5)]);
+			assert.equal(await store.sourceRepository.discardStageIfCurrent(receipt), true);
+			await assert.rejects(writer.commit(), /staging lease|invalidated/iu);
+			assert.equal(await store.getSourceMetadata('discarded-source'), null);
+			assert.equal(store.memory.sourceChunks.size, 0);
+			assert.equal(files.size, 0);
+		} finally {
+			await writer.abort();
+			await store.close();
+		}
+	});
+
+	test(`${backend} a discarded receipt cannot reopen a source stage`, async () => {
+		const store = createProjectStore({
+			indexedDB: backend === 'memory' ? null : createInstrumentedIndexedDB(),
+			memoryFallback: backend === 'memory',
+			preferOpfs: false,
+			databaseName: uniqueName(`source-stage-reopen-${backend}`),
+		});
+		try {
+			const receipt = store.sourceRepository.createStageReceipt('revoked-source');
+			assert.equal(await store.sourceRepository.discardStageIfCurrent(receipt), true);
+			await assert.rejects(
+				store.sourceRepository.beginOwnedStage(receipt, { sampleRate: 48_000 }),
+				/staging lease|invalidated/iu,
+			);
+			assert.equal(await store.getSourceMetadata('revoked-source'), null);
+		} finally {
+			await store.close();
+		}
+	});
 }
+
+test('concurrent source commit and stage discard leave one consistent winner', async () => {
+	const store = createProjectStore({
+		indexedDB: createInstrumentedIndexedDB(), memoryFallback: false, preferOpfs: false,
+		databaseName: uniqueName('source-stage-commit-race'),
+	});
+	try {
+		const receipt = store.sourceRepository.createStageReceipt('racing-source');
+		const writer = await store.sourceRepository.beginOwnedStage(receipt, {
+			sampleRate: 48_000, channelCount: 1, chunkFrames: 2,
+		});
+		await writer.write([Float32Array.of(0.25, 0.5)]);
+		const [commit, discard] = await Promise.allSettled([
+			writer.commit(), store.sourceRepository.discardStageIfCurrent(receipt),
+		]);
+		if (discard.status !== 'fulfilled') throw discard.reason;
+		if (commit.status === 'fulfilled') {
+			assert.equal(discard.value, false);
+			assert.deepEqual(await store.getSourceMetadata('racing-source'), commit.value);
+			assert.equal((await store.readSourceChunk('racing-source', 0))?.channels[0]?.[0], 0.25);
+		} else {
+			assert.match(String(commit.reason), /staging lease|invalidated/iu);
+			assert.equal(discard.value, true);
+			assert.equal(await store.getSourceMetadata('racing-source'), null);
+		}
+	} finally {
+		await store.close();
+	}
+});
 
 test('a stage receipt can never delete committed or replacement source ownership', async () => {
 	const store = createProjectStore({

@@ -258,6 +258,9 @@ test('session release waits for marker registration before removing its marker',
 	let grant: (() => void) | null = null;
 	const locks = {
 		request(name: string, _options: unknown, callback: (lock: Lock) => PromiseLike<void>): Promise<void> {
+			if (!name.startsWith('audio-editor-retention-session-v1:')) {
+				return Promise.resolve(callback({ name, mode: 'exclusive' } as Lock));
+			}
 			return new Promise<void>((resolve, reject) => {
 				grant = () => {
 					void Promise.resolve(callback({ name, mode: 'exclusive' } as Lock)).then(resolve, reject);

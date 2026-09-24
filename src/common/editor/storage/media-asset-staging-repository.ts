@@ -184,6 +184,29 @@ export class MediaAssetStagingRepository {
 	}
 }
 
+/** Consume a source-write receipt so an abandoned writer cannot publish afterward. */
+export function revokeSourceStageInMemory(records: Map<string, unknown>, sourceToken: string): void {
+	for (const [key, value] of records) {
+		if (stagingLease(value)?.sourceId === sourceToken) records.delete(key);
+	}
+	const key = sourceStageRevocationKey(sourceToken);
+	records.set(key, { key, kind: 'source-stage-revocation', sourceId: sourceToken });
+}
+
+/** Called in the same transaction that checks source metadata and deletes its stage chunks. */
+export async function revokeSourceStageInStore(store: IDBObjectStore, sourceToken: string): Promise<void> {
+	for (const value of await request(store.getAll())) {
+		const lease = stagingLease(value);
+		if (lease?.sourceId === sourceToken) await request(store.delete(lease.key));
+	}
+	const key = sourceStageRevocationKey(sourceToken);
+	await request(store.put({ key, kind: 'source-stage-revocation', sourceId: sourceToken }));
+}
+
+function sourceStageRevocationKey(sourceToken: string): string {
+	return `source-stage-revoked:${sourceToken}`;
+}
+
 async function acquireStoreLease(
 	store: IDBObjectStore,
 	sourceId: string,
@@ -191,6 +214,9 @@ async function acquireStoreLease(
 	leaseId: string,
 	now: number,
 ): Promise<MediaAssetStagingLeaseRecord> {
+	if (await request(store.get(sourceStageRevocationKey(sourceId))) !== undefined) {
+		throw new MediaAssetStagingLeaseError();
+	}
 	const state = await storeState(store);
 	for (const value of await request(store.getAll())) {
 		const lease = stagingLease(value);
@@ -214,6 +240,7 @@ function acquireMemoryLease(
 	now: number,
 ): MediaAssetStagingLeaseRecord {
 	const records = port.memory.mediaAssetStaging;
+	if (records.has(sourceStageRevocationKey(sourceId))) throw new MediaAssetStagingLeaseError();
 	const state = memoryState(records);
 	for (const [key, value] of records) {
 		const lease = stagingLease(value);

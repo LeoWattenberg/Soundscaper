@@ -133,7 +133,7 @@ export class ClipTimePitchRenderCacheCoordinator {
 		this.#assertSession(sessionEpoch);
 		const sequence = ++this.requestSequence;
 		this.desiredByClip.set(plan.clipId, { key: plan.finalKey, sequence });
-		const exact = await this.#findCommitted(plan, sessionEpoch);
+		const { entry: exact, replaceExpectedSourceToken } = await this.#findCommitted(plan, sessionEpoch);
 		this.#assertSession(sessionEpoch);
 		throwIfAborted(options.signal);
 		if (exact) {
@@ -147,7 +147,7 @@ export class ClipTimePitchRenderCacheCoordinator {
 			});
 		}
 		const current = this.lastCommittedByClip.get(plan.clipId)?.entry || null;
-		const job = this.#getOrCreateJob(plan, clip, source, options);
+		const job = this.#getOrCreateJob(plan, clip, source, { ...options, replaceExpectedSourceToken });
 		job.interests.set(plan.clipId, Math.max(sequence, job.interests.get(plan.clipId) || 0));
 		const pending = this.#subscribe(job, options.signal);
 		// A stale-playback caller may intentionally ignore the refresh promise.
@@ -309,19 +309,20 @@ export class ClipTimePitchRenderCacheCoordinator {
 		const memoryEntry = this.committedByKey.get(plan.finalKey);
 		if (memoryEntry) {
 			this.#touchResidentChannels(memoryEntry);
-			return memoryEntry;
+			return { entry: memoryEntry, replaceExpectedSourceToken: null };
 		}
 		const metadata = await this.store.getSourceMetadata(plan.cacheSourceId);
 		this.#assertSession(sessionEpoch);
+		if (metadata && (metadata.mimeType !== 'audio/x-kw-staffpad-cache' || metadata.sourceId !== plan.sourceId || !/^audio-editor-time-pitch-v1:[0-9a-f]{64}$/.test(metadata.cacheKey))) throw cacheError('SOURCE_ID_CONFLICT', 'The cache source id is owned by other audio.');
 		if (!metadata || metadata.cacheKey !== plan.finalKey
 			|| metadata.cacheSchemaVersion !== CLIP_TIME_PITCH_CACHE_SCHEMA_VERSION
 			|| metadata.algorithmRevision !== plan.algorithmRevision
 			|| Number(metadata.frameCount ?? metadata.frameLength) !== plan.outputFrames
 			|| Number(metadata.channelCount) !== plan.channelCount
-			|| Number(metadata.sampleRate) !== plan.sampleRate) return null;
+			|| Number(metadata.sampleRate) !== plan.sampleRate) return { entry: null, replaceExpectedSourceToken: metadata?.sourceToken || null };
 		const entry = createCommittedEntry(plan, metadata);
 		this.committedByKey.set(plan.finalKey, entry);
-		return entry;
+		return { entry, replaceExpectedSourceToken: null };
 	}
 
 	#getOrCreateJob(plan, clip, source, options) {
@@ -513,7 +514,7 @@ export class ClipTimePitchRenderCacheCoordinator {
 			const metadata = await writer.commit({
 				frameCount: plan.outputFrames,
 				outputBytes: plan.outputBytes,
-			}, { signal: options.signal });
+			}, { signal: options.signal, ifAbsent: !options.replaceExpectedSourceToken, expectedSourceToken: options.replaceExpectedSourceToken || undefined });
 			throwIfAborted(options.signal);
 			const entry = createCommittedEntry(plan, metadata);
 			this.#retainResidentChannels(entry, channels);
@@ -573,4 +574,3 @@ async function assertQuota(store, plan, chunkFrames, headroomBytes) {
 		});
 	}
 }
-

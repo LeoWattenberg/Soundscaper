@@ -90,6 +90,15 @@ export class RetentionRepository {
 		await this.#options.sessionGuard?.release(database);
 	}
 
+	async withSoleSession<Value>(
+		operation: () => PromiseLike<Value> | Value,
+	): Promise<Readonly<{ admitted: false } | { admitted: true; value: Value }>> {
+		const guard = this.#options.sessionGuard;
+		if (!guard) return { admitted: true, value: await operation() };
+		const database = await this.#options.port.database();
+		return guard.withSoleSession(database, operation);
+	}
+
 	prune(options: PruneOptions = {}): Promise<PruneResult> {
 		const operation = this.#prunePromise.then(() => this.#runPrune(options));
 		this.#prunePromise = operation.catch(() => undefined);
@@ -197,6 +206,9 @@ export class RetentionRepository {
 			const stagedPaths = new Set<string>();
 			const database = await databasePromise;
 			if (!database) {
+				if (this.#options.sessionGuard?.hasOtherMemorySession()) {
+					throw new Error('Another editor session still owns local source history.');
+				}
 				const invalidated = this.#options.media.invalidateAssetStagingMemory();
 				for (const path of invalidated.paths) stagedPaths.add(path);
 				opfsRecords.push(
@@ -287,6 +299,9 @@ export class RetentionRepository {
 				[...this.#options.port.memory.mediaAssets.values()].map(asStorageRecord).filter(isRecord),
 				[...this.#options.port.memory.videoDerivatives.values()].map(asStorageRecord).filter(isRecord),
 			);
+			if (this.#options.sessionGuard?.hasOtherMemorySession()) {
+				for (const sourceId of candidates.keys()) protectedIds.add(sourceId);
+			}
 			for (const [sourceId, candidate] of candidates) {
 				if (protectedIds.has(sourceId)) continue;
 				const eligibleAt = candidateEligibleAt(candidate, maximumAge);

@@ -98,6 +98,31 @@ test('the coordinator deduplicates renders, publishes atomically, and hydrates p
 	reloaded.dispose();
 });
 
+test('a stale deterministic StaffPad cache source is explicitly replaced', async () => {
+	const store = await sourceStore('stale-repair');
+	const source = sourceFixture();
+	const clip = clipFixture();
+	const client = new FakeStaffPadClient();
+	const coordinator = new ClipTimePitchRenderCacheCoordinator({ store, client });
+	try {
+		const plan = await coordinator.plan(clip, source);
+		const staleWriter = await store.beginSourceWrite(plan.cacheSourceId, {
+			sampleRate: plan.sampleRate, channelCount: plan.channelCount, cacheKey: plan.finalKey,
+			mimeType: 'audio/x-kw-staffpad-cache', sourceId: plan.sourceId, cacheSchemaVersion: 0,
+		});
+		await staleWriter.write([Float32Array.of(0)]);
+		const stale = await staleWriter.commit();
+		const repaired = await coordinator.prepareCommittedOutput(clip, source);
+		assert.equal(client.calls.length, 1);
+		assert.equal(repaired.cacheSourceId, plan.cacheSourceId);
+		assert.notEqual(repaired.metadata.sourceToken, stale.sourceToken);
+		assert.equal((await store.getSourceMetadata(plan.cacheSourceId)).cacheKey, plan.finalKey);
+	} finally {
+		await coordinator.dispose();
+		await store.close();
+	}
+});
+
 test('resident planar caches are LRU-bounded while evicted entries stay canonical on disk', async () => {
 	const store = await sourceStore('resident-budget');
 	const source = sourceFixture();

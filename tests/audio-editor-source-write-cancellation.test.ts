@@ -29,7 +29,7 @@ test('source commit cancellation before metadata publication discards staging an
 	};
 
 	await assert.rejects(
-		writer.commit({}, { signal: controller.signal }),
+		writer.commit({}, { signal: controller.signal, ifAbsent: false, expectedSourceToken: 'old-token' }),
 		(error: unknown) => error instanceof Error && error.name === 'AbortError',
 	);
 	await writer.abort();
@@ -48,7 +48,7 @@ test('source commit treats a resolved metadata put as its publication point desp
 		if (record.sourceToken !== 'old-token') controller.abort(abortReason('cancel after source publication'));
 	};
 
-	const committed = await writer.commit({}, { signal: controller.signal });
+	const committed = await writer.commit({}, { signal: controller.signal, ifAbsent: false, expectedSourceToken: 'old-token' });
 	assert.equal(controller.signal.aborted, true);
 	assert.notEqual(committed.sourceToken, 'old-token');
 	assert.deepEqual(fixture.metadata.get('source-a'), committed);
@@ -74,7 +74,7 @@ test('a metadata port that rejects after publication restores prior metadata bef
 	await writer.write([Float32Array.of(0.75, -0.75)]);
 
 	await assert.rejects(
-		writer.commit(),
+		writer.commit({}, { ifAbsent: false, expectedSourceToken: 'old-token' }),
 		(error: unknown) => error instanceof Error && error.name === 'AbortError',
 	);
 	assert.deepEqual(fixture.metadata.get('source-a'), fixture.previous);
@@ -96,7 +96,7 @@ test('publication-error reconciliation cannot overwrite a concurrent metadata re
 	const writer = await fixture.repository.begin('source-a', sourceMetadata());
 	await writer.write([Float32Array.of(0.6, -0.6)]);
 
-	await assert.rejects(writer.commit(), (error: unknown) => error === reason);
+	await assert.rejects(writer.commit({}, { ifAbsent: false, expectedSourceToken: 'old-token' }), (error: unknown) => error === reason);
 	assert.deepEqual(fixture.metadata.get('source-a'), replacement);
 	assert.deepEqual(fixture.chunkTokens(), ['old-token']);
 });
@@ -142,7 +142,7 @@ test('abort cannot race a commit owner into publishing metadata for deleted stag
 	fixture.seedPrevious();
 	const writer = await fixture.repository.begin('source-a', sourceMetadata());
 	await writer.write([Float32Array.of(0.2, -0.2)]);
-	const committing = writer.commit();
+	const committing = writer.commit({}, { ifAbsent: false, expectedSourceToken: 'old-token' });
 	await enteredMetadataRead.promise;
 	await writer.abort();
 	releaseMetadataRead.resolve();
@@ -160,7 +160,7 @@ test('failure to collect an overwritten payload does not turn a published source
 	fixture.seedPrevious();
 	const writer = await fixture.repository.begin('source-a', sourceMetadata());
 	await writer.write([Float32Array.of(0.3, -0.3)]);
-	const committed = await writer.commit();
+	const committed = await writer.commit({}, { ifAbsent: false, expectedSourceToken: 'old-token' });
 
 	assert.deepEqual(fixture.metadata.get('source-a'), committed);
 	assert.ok(fixture.chunkTokens().includes(String(committed.sourceToken)));
@@ -346,8 +346,10 @@ function sourceWriterFixture(hooks: FixtureHooks) {
 			await hooks.onPutMetadata?.(record);
 			return true;
 		},
-		async publishStagedMetadata(record: StorageRecord, _stage: unknown, ifAbsent: boolean) {
-			return ifAbsent ? this.putMetadataIfAbsent(record) : this.putMetadata(record).then(() => true);
+		async publishStagedMetadata(record: StorageRecord, _stage: unknown, ifAbsent: boolean, expectedSourceToken?: string) {
+			if (ifAbsent) return this.putMetadataIfAbsent(record);
+			if (metadata.get(String(record.id))?.sourceToken !== expectedSourceToken) return false;
+			return this.putMetadata(record).then(() => true);
 		},
 		async putDerivedMetadataIfBaseCurrent(record: StorageRecord, expectedBase: StorageRecord) {
 			const currentBase = metadata.get(String(expectedBase.id));

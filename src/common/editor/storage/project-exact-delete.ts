@@ -14,21 +14,27 @@ import {
 import type { ProjectDocument } from './project-repository.ts';
 import { sameProjectSnapshot } from './project-snapshot-equality.ts';
 import type { StorageRepositoryPort } from './repository-port.ts';
+import type { RetentionSessionGuard } from './retention-session-guard.ts';
 
 /** Atomically delete only the exact current project and its local lifecycle rows. */
 export async function deleteExactProject(
 	port: StorageRepositoryPort,
 	project: ProjectDocument,
+	sessionGuard: RetentionSessionGuard | null = null,
 ): Promise<boolean> {
 	const snapshot = compactProjectSourceMetadata(structuredClone(project)) as ProjectDocument;
 	const database = await port.database();
 	if (!database) throw new Error('Exact project deletion requires durable IndexedDB storage.');
+	await sessionGuard?.reclaimStoppedSessions(database);
 	return transact(database, [
-		'projects', 'revisions', LINKED_VIDEO_ORIGINAL_STORE_NAME,
+		'projects', 'revisions', 'settings', LINKED_VIDEO_ORIGINAL_STORE_NAME,
 		LINKED_ORIGINAL_PROVISIONAL_ROOT_STORE_NAME,
 	], 'readwrite', async (stores) => {
 		const current = await request(stores.projects.get(snapshot.id));
 		if (!sameProjectSnapshot(current, snapshot)) return false;
+		if (await sessionGuard?.hasOtherOrLostSession(stores.settings)) {
+			throw new Error('Another editor session still owns local project history.');
+		}
 		await readStoredLinkedOriginalProvisionalRootInventory(
 			stores[LINKED_VIDEO_ORIGINAL_STORE_NAME],
 			stores[LINKED_ORIGINAL_PROVISIONAL_ROOT_STORE_NAME],

@@ -40,7 +40,7 @@ export interface AudioSourceWriter {
 	write(inputChannels: unknown, options?: { readonly signal?: AbortSignal }): Promise<void>;
 	commit(
 		extraMetadata?: Record<string, unknown>,
-		options?: { readonly signal?: AbortSignal; readonly ifAbsent?: boolean },
+		options?: { readonly signal?: AbortSignal; readonly ifAbsent?: boolean; readonly expectedSourceToken?: string },
 	): Promise<StorageRecord>;
 	abort(): Promise<void>;
 }
@@ -76,6 +76,14 @@ export class SourceAlreadyExistsError extends Error {
 	constructor(sourceId: string) {
 		super(`Source ${sourceId} already exists; if-absent publication was refused.`);
 		this.name = 'SourceAlreadyExistsError';
+	}
+}
+
+/** Replacing this source would invalidate a retained or newer generation. */
+export class SourceReplacementRetainedError extends Error {
+	constructor(sourceId: string) {
+		super(`Source ${sourceId} is retained or changed and cannot be replaced in place.`);
+		this.name = 'SourceReplacementRetainedError';
 	}
 }
 
@@ -264,8 +272,10 @@ export class SourceWriteRepository {
 					finishWrite();
 				}
 			},
-			async commit(extraMetadata = {}, { signal, ifAbsent = false } = {}) {
+			async commit(extraMetadata = {}, { signal, ifAbsent = true, expectedSourceToken } = {}) {
 				throwIfAborted(signal);
+				if (!ifAbsent && !expectedSourceToken) throw new TypeError('An expected source generation is required for replacement.');
+				if (ifAbsent && expectedSourceToken) throw new TypeError('A create-only source commit cannot name a replacement generation.');
 				if (state === 'aborting') {
 					await failClosed(new Error('The source writer is closed.'));
 				}
@@ -337,12 +347,12 @@ export class SourceWriteRepository {
 				let definitelyRefused = false;
 				try {
 					throwIfAborted(signal);
-					if (ifAbsent) {
-						if (!await options.records.publishStagedMetadata(record, stage, true)) {
-							definitelyRefused = true;
-							throw new SourceAlreadyExistsError(sourceId);
-						}
-					} else await options.records.publishStagedMetadata(record, stage, false);
+					if (!await options.records.publishStagedMetadata(record, stage, ifAbsent, expectedSourceToken)) {
+						definitelyRefused = true;
+						throw ifAbsent
+							? new SourceAlreadyExistsError(sourceId)
+							: new SourceReplacementRetainedError(sourceId);
+					}
 				} catch (error) {
 					if (!definitelyRefused) {
 						try {
@@ -376,12 +386,8 @@ export class SourceWriteRepository {
 	/** Remove only an unpublished stage carrying this exact random write capability. */
 	async discardStageIfCurrent(receiptValue: unknown): Promise<boolean> {
 		const receipt = normalizeAudioSourceStageReceipt(receiptValue);
-		const current = await this.#options.records.getMetadata(receipt.sourceId);
-		if (current?.sourceToken === receipt.sourceToken) return false;
-		await Promise.all([
-			this.#options.opfs.deletePath(stagePath(receipt.sourceToken)),
-			this.#options.records.deleteChunks(receipt.sourceToken),
-		]);
+		if (!await this.#options.records.discardUnpublishedStage(receipt.sourceId, receipt.sourceToken)) return false;
+		await this.#options.opfs.deletePath(stagePath(receipt.sourceToken));
 		return true;
 	}
 

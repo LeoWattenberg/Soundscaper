@@ -166,10 +166,13 @@ for (const backend of ['memory', 'indexeddb'] as const) {
 			await importedWriter.write([Float32Array.of(0.25, -0.5)]);
 			const imported = await importedWriter.commit();
 			transaction.trackProvisionalSource(imported);
+			if (typeof imported.sourceToken !== 'string') throw new Error('Imported source requires a generation token.');
 
 			const newerWriter = await store.beginSourceWrite('shared-source', sourceMetadata());
 			await newerWriter.write([Float32Array.of(0.75, -0.125)]);
-			const newer = await newerWriter.commit();
+			const newer = await newerWriter.commit({}, {
+				ifAbsent: false, expectedSourceToken: imported.sourceToken,
+			});
 			assert.notEqual(imported.sourceToken, newer.sourceToken);
 
 			const primary = new Error('import lost a later project publication race');

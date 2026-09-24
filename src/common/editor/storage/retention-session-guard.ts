@@ -1,11 +1,28 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { request, transact } from './indexeddb-backend.ts';
+import type { EditorMemoryDatabase } from './memory-backend.ts';
 import { createProjectStoreId } from './project-store-defaults.ts';
 import type { StorageRepositoryPort } from './repository-port.ts';
 import { EditorStoreClosedError } from './status.ts';
 
 const SESSION_KEY_PREFIX = 'audio-editor-retention-session-v1:';
+const SESSION_ADMISSION_LOCK = 'audio-editor-retention-session-admission-v1';
+const memorySessions = new WeakMap<EditorMemoryDatabase, MemorySessionState>();
+
+interface MemorySessionState {
+	readonly owners: Set<string>;
+	tail: Promise<void>;
+}
+
+function memorySessionState(memory: EditorMemoryDatabase): MemorySessionState {
+	let state = memorySessions.get(memory);
+	if (!state) {
+		state = { owners: new Set(), tail: Promise.resolve() };
+		memorySessions.set(memory, state);
+	}
+	return state;
+}
 
 /**
  * An open store may hold undo roots that were never saved as project revisions.
@@ -15,6 +32,7 @@ const SESSION_KEY_PREFIX = 'audio-editor-retention-session-v1:';
 export class RetentionSessionGuard {
 	readonly #port: StorageRepositoryPort;
 	readonly #locks: LockManager | null;
+	readonly #memorySessions: MemorySessionState;
 	readonly #key = `${SESSION_KEY_PREFIX}${createProjectStoreId('owner')}`;
 	#registration: Promise<void> | null = null;
 	#releaseLock: (() => void) | null = null;
@@ -25,10 +43,11 @@ export class RetentionSessionGuard {
 	constructor(port: StorageRepositoryPort, locks: LockManager | null = globalThis.navigator?.locks ?? null) {
 		this.#port = port;
 		this.#locks = locks;
+		this.#memorySessions = memorySessionState(port.memory);
 	}
 
 	port(): StorageRepositoryPort {
-		return { memory: this.#port.memory, database: () => this.database() };
+		return { memory: this.#port.memory, database: () => this.database(), retentionSessionGuard: this };
 	}
 
 	database(): Promise<IDBDatabase | null> {
@@ -42,14 +61,22 @@ export class RetentionSessionGuard {
 		if (this.#released) throw new EditorStoreClosedError();
 		const database = await this.#port.database();
 		if (this.#released) throw new EditorStoreClosedError();
-		if (!database) return null;
+		if (!database) {
+			if (!this.#memorySessions.owners.has(this.#key)) {
+				await this.#withMemoryAdmission(() => { this.#memorySessions.owners.add(this.#key); });
+			}
+			if (this.#released) throw new EditorStoreClosedError();
+			return null;
+		}
 		if (!this.#registration) {
 			const registration = (async () => {
 				const webLock = await this.#acquireLock();
 				try {
-					await transact(database, 'settings', 'readwrite', ({ settings }) => {
+					const register = () => transact(database, 'settings', 'readwrite', ({ settings }) => {
 						settings.put({ key: this.#key, value: { version: 1, owner: this.#key, webLock } });
 					});
+					if (this.#locks) await this.#locks.request(SESSION_ADMISSION_LOCK, { mode: 'exclusive' }, register);
+					else await register();
 				} catch (error) {
 					await this.#releaseHeldLock();
 					throw error;
@@ -77,8 +104,36 @@ export class RetentionSessionGuard {
 				if (isOwnRecord(stored, this.#key)) settings.delete(this.#key);
 			});
 		} finally {
+			if (this.#memorySessions.owners.has(this.#key)) {
+				await this.#withMemoryAdmission(() => { this.#memorySessions.owners.delete(this.#key); });
+			}
 			await this.#releaseHeldLock();
 		}
+	}
+
+	hasOtherMemorySession(): boolean {
+		return this.#released || !this.#memorySessions.owners.has(this.#key)
+			|| this.#memorySessions.owners.size > 1;
+	}
+
+	async withSoleSession<Value>(
+		database: IDBDatabase | null,
+		operation: () => PromiseLike<Value> | Value,
+	): Promise<Readonly<{ admitted: false } | { admitted: true; value: Value }>> {
+		if (!database) return this.#withMemoryAdmission(async () => {
+			if (this.hasOtherMemorySession()) return { admitted: false } as const;
+			return { admitted: true, value: await operation() } as const;
+		});
+		if (!this.#locks) return { admitted: false };
+		return this.#locks.request(SESSION_ADMISSION_LOCK, { mode: 'exclusive' }, async (lock) => {
+			if (!lock) return { admitted: false } as const;
+			await this.reclaimStoppedSessions(database);
+			const other = await transact(database, 'settings', 'readonly', ({ settings }) => (
+				this.hasOtherOrLostSession(settings)
+			));
+			if (other) return { admitted: false } as const;
+			return { admitted: true, value: await operation() } as const;
+		});
 	}
 
 	/** Confirm browser-released owners before the separate atomic prune transaction. */
@@ -147,6 +202,15 @@ export class RetentionSessionGuard {
 		this.#releaseLock = null;
 		await this.#lockRun?.catch(() => undefined);
 		this.#lockRun = null;
+	}
+
+	async #withMemoryAdmission<Value>(operation: () => PromiseLike<Value> | Value): Promise<Value> {
+		const prior = this.#memorySessions.tail;
+		let release!: () => void;
+		this.#memorySessions.tail = new Promise<void>((resolve) => { release = resolve; });
+		await prior;
+		try { return await operation(); }
+		finally { release(); }
 	}
 }
 

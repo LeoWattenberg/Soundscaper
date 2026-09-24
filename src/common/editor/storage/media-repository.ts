@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { collectProjectStorageKeys } from '../retention.js';
 import { request, transact } from './indexeddb-backend.ts';
 import {
 	DERIVATIVE_CACHE_ENTRY_STORE_NAME,
@@ -12,6 +13,7 @@ import {
 import { MediaAssetLoadRepository, type MediaAssetLoadOptions } from './media-asset-load-repository.ts';
 import { MediaAssetLifecycleCoordinator, type MediaAssetMaintenance } from './media-asset-lifecycle-coordinator.ts';
 import { MediaAssetWriteAdmission } from './media-asset-write-admission.ts';
+import { MediaPublicationReconciliationError, sameMediaPayload } from './media-asset-owned-publication.ts';
 import { canonicalMediaContentBlob, digestMediaContent } from './media-content-digest.ts';
 import { freshVerifiedMediaContentDigest } from './media-content-provenance.ts';
 import {
@@ -27,6 +29,7 @@ import {
 } from './media-records.ts';
 import type { OpfsRepository } from './opfs-repository.ts';
 import type { StorageRepositoryPort } from './repository-port.ts';
+import type { RetentionSessionGuard } from './retention-session-guard.ts';
 import {
 	deletePairedVideoDerivativeRecords,
 	VideoDerivativeRepository,
@@ -46,11 +49,13 @@ interface MediaRepositoryOptions {
 		'maximumBytes' | 'maximumEntries' | 'maximumAgeMs'
 	>>;
 	readonly now?: () => number;
+	readonly sessionGuard?: RetentionSessionGuard | null;
 }
 /** Original media containers and replaceable video derivatives. */
 export class MediaRepository {
 	readonly #port: StorageRepositoryPort;
 	readonly #opfs: OpfsRepository;
+	readonly #sessionGuard: RetentionSessionGuard | null;
 	readonly #assetLifecycle = new MediaAssetLifecycleCoordinator();
 	readonly #assetWrites: MediaAssetWriteRepository;
 	readonly #assetLoads: MediaAssetLoadRepository;
@@ -59,6 +64,7 @@ export class MediaRepository {
 	constructor(port: StorageRepositoryPort, opfs: OpfsRepository, options: MediaRepositoryOptions = {}) {
 		this.#port = port;
 		this.#opfs = opfs;
+		this.#sessionGuard = options.sessionGuard ?? null;
 		this.#assetWrites = new MediaAssetWriteRepository(port, opfs, this.#assetLifecycle);
 		this.#assetLoads = new MediaAssetLoadRepository(port, this.#assetWrites, this.#assetLifecycle);
 		this.#derivatives = new VideoDerivativeRepository(port, opfs, options);
@@ -86,6 +92,7 @@ export class MediaRepository {
 		const blob = canonicalMediaContentBlob(input);
 		const admission = new MediaAssetWriteAdmission(this.#assetLifecycle, signal);
 		let storedFile: { path: string } | null = null;
+		let attemptedPublication: StorageRecord | null = null;
 		let published = false;
 		try {
 			const previous = await this.getAssetMetadata(id);
@@ -97,7 +104,7 @@ export class MediaRepository {
 			storedFile = await this.#opfs.writeBlob(`media-${id}`, blob, { signal: admission.signal });
 			if (storedFile) admission.setIdentity({ path: storedFile.path });
 			admission.bindWriterAbort(async () => {
-				if (storedFile && !published) await this.#opfs.deletePath(storedFile.path);
+				if (storedFile && !published && !attemptedPublication) await this.#opfs.deletePath(storedFile.path);
 			});
 			admission.throwIfCancelled();
 			const record: StorageRecord = {
@@ -116,11 +123,33 @@ export class MediaRepository {
 			};
 			const database = await this.#port.database();
 			admission.throwIfCancelled();
+			attemptedPublication = record;
 			await publishImmutableMediaAsset(this.#port, record, database, admission.signal);
 			published = true;
 			admission.complete();
 			return mediaAssetMetadata(record);
 		} catch (error) {
+			if (attemptedPublication) {
+				let current: StorageRecord | null;
+				try { current = await this.assetRecord(id); }
+				catch (reconciliationError) {
+					published = true;
+					admission.complete();
+					throw new MediaPublicationReconciliationError(error, reconciliationError);
+				}
+				if (sameWrittenMediaAsset(current, attemptedPublication)) {
+					published = true;
+					admission.complete();
+					return mediaAssetMetadata(attemptedPublication);
+				}
+				if (storedFile && current?.path === storedFile.path) {
+					published = true;
+					admission.complete();
+					throw new MediaPublicationReconciliationError(
+						error, new Error('The published media path has an unexpected record identity.'),
+					);
+				}
+			}
 			let cleanupError: unknown;
 			try {
 				if (storedFile) await this.#opfs.deletePath(storedFile.path);
@@ -155,6 +184,12 @@ export class MediaRepository {
 		let record: StorageRecord | null;
 		let derivatives: StorageRecord[];
 		if (!database) {
+			if (this.#sessionGuard?.hasOtherMemorySession()) {
+				throw new Error(`Media asset ${id} is retained by another open editor session.`);
+			}
+			assertNotDurablyReferenced(id,
+				[...this.#port.memory.projects.values()],
+				[...this.#port.memory.revisions.values()]);
 			record = clone(asStorageRecord(this.#port.memory.mediaAssets.get(id)));
 			derivatives = [...this.#port.memory.videoDerivatives.values()]
 				.map(asStorageRecord)
@@ -165,11 +200,22 @@ export class MediaRepository {
 				if (typeof derivative.key === 'string') this.#port.memory.videoDerivatives.delete(derivative.key);
 			}
 		} else {
+			await this.#sessionGuard?.reclaimStoppedSessions(database);
 			({ record, derivatives } = await transact(
 				database,
-				['mediaAssets', VIDEO_DERIVATIVE_STORE_NAME, DERIVATIVE_CACHE_ENTRY_STORE_NAME],
+				[
+					'projects', 'revisions', 'settings',
+					'mediaAssets', VIDEO_DERIVATIVE_STORE_NAME, DERIVATIVE_CACHE_ENTRY_STORE_NAME,
+				],
 				'readwrite',
 				async (stores) => {
+					const [projects, revisions, otherSession] = await Promise.all([
+						request(stores.projects.getAll()),
+						request(stores.revisions.getAll()),
+						this.#sessionGuard?.hasOtherOrLostSession(stores.settings) ?? false,
+					]);
+					if (otherSession) throw new Error(`Media asset ${id} is retained by another open editor session.`);
+					assertNotDurablyReferenced(id, projects, revisions);
 					const mediaAssets = stores.mediaAssets;
 					const storedRecord = await request(mediaAssets.get(id)) as StorageRecord | undefined;
 					const storedDerivatives = await deletePairedVideoDerivativeRecords(stores, id);
@@ -277,6 +323,17 @@ async function publishImmutableMediaAsset(
 	if (!created) throw immutableMediaAssetError(sourceId);
 }
 
+function sameWrittenMediaAsset(current: StorageRecord | null, expected: StorageRecord): boolean {
+	return current !== null
+		&& current.sourceId === expected.sourceId
+		&& current.storage === expected.storage
+		&& (expected.storage === 'indexeddb-blob' || sameMediaPayload(current, expected))
+		&& current.size === expected.size
+		&& current.sha256 === expected.sha256
+		&& current.mediaContentDigestVersion === expected.mediaContentDigestVersion
+		&& current.mediaContentToken === expected.mediaContentToken;
+}
+
 function addMediaAssetIfAbsent(store: IDBObjectStore, record: StorageRecord): Promise<boolean> {
 	return new Promise((resolve, reject) => {
 		let insertion: IDBRequest<IDBValidKey>;
@@ -302,6 +359,15 @@ function addMediaAssetIfAbsent(store: IDBObjectStore, record: StorageRecord): Pr
 
 function immutableMediaAssetError(sourceId: string): Error {
 	return new Error(`Immutable media asset ${sourceId} cannot be overwritten.`);
+}
+
+function assertNotDurablyReferenced(sourceId: string, projects: unknown[], revisions: unknown[]): void {
+	const retained = new Set<string>();
+	for (const project of projects) collectProjectStorageKeys(project, retained);
+	for (const revision of revisions) collectProjectStorageKeys(asStorageRecord(revision)?.project, retained);
+	if (retained.has(sourceId)) {
+		throw new Error(`Media asset ${sourceId} is retained by a saved project or revision.`);
+	}
 }
 
 function clone<Value>(value: Value): Value {

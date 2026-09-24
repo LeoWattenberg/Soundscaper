@@ -9,6 +9,9 @@ import type {
 	LinkedOriginalProjectSourceReference,
 } from './linked-original-project-reachability-repository.ts';
 import { linkedOriginalBindingKey } from './linked-original-schema.ts';
+import type { LocalStoreClearAdmission } from './linked-original-clear-admission.ts';
+export { admitLocalStoreClear } from './linked-original-clear-admission.ts';
+export type { LocalStoreClearAdmission, LocalStoreClearOperation, LocalStoreClearPort } from './linked-original-clear-admission.ts';
 import {
 	linkedOriginalTransientBindingReferenceFromBindResult,
 	normalizeLinkedOriginalTransientBindingReference,
@@ -26,25 +29,13 @@ export type LinkedOriginalCleanupError =
 	| LinkedOriginalLocatorCleanupError
 	| LinkedOriginalProjectBindingCleanupError;
 
-export interface LocalStoreClearOperation {
-	readonly localCommit: Promise<boolean>;
-	readonly completion: Promise<void>;
-}
-
-export interface LocalStoreClearAdmission {
-	begin(): LocalStoreClearOperation;
-	cancel(): void;
-}
-
-export interface LocalStoreClearPort {
-	admitClear?(): LocalStoreClearAdmission;
-	beginClear?(): LocalStoreClearOperation;
-	clear(): Promise<void>;
-}
-
 export interface LinkedOriginalLifecycleOptions {
 	readonly onCleanupError?: (error: LinkedOriginalCleanupError) => void;
+	readonly withReleaseAdmission?: LocatorReleaseAdmission;
 }
+
+export type LocatorReleaseAdmission = <Value>(operation: () => PromiseLike<Value> | Value) =>
+	Promise<Readonly<{ admitted: false } | { admitted: true; value: Value }>>;
 
 export interface LinkedOriginalLifecycleBindingPort {
 	listLocatorReferences(): PromiseLike<readonly LinkedOriginalLocatorReference[]>;
@@ -93,6 +84,7 @@ export class LinkedOriginalLifecycleCoordinator {
 	readonly #bindings: LinkedOriginalLifecycleBindingPort | null;
 	readonly #resolver: LinkedOriginalLifecycleResolverPort | null;
 	readonly #onCleanupError: (error: LinkedOriginalCleanupError) => void;
+	readonly #withReleaseAdmission: LocatorReleaseAdmission;
 	readonly #pending = new Map<string, Readonly<{
 		kind: LinkedOriginalLocatorReference['kind'];
 		locatorId: string;
@@ -114,6 +106,8 @@ export class LinkedOriginalLifecycleCoordinator {
 		this.#bindings = bindings;
 		this.#resolver = resolver;
 		this.#onCleanupError = options.onCleanupError ?? reportCleanupError;
+		this.#withReleaseAdmission = options.withReleaseAdmission
+			?? (async (operation) => ({ admitted: true, value: await operation() }));
 	}
 
 	run<Value>(operation: () => PromiseLike<Value> | Value): Promise<Value> {
@@ -262,20 +256,24 @@ export class LinkedOriginalLifecycleCoordinator {
 		reference: LinkedOriginalLocatorReference,
 	): Promise<boolean> {
 		return this.#enqueue(async () => {
-			const admitted = this.#resolver!.validateLocatorReference(reference);
-			if (this.#canRelease()) {
-				const live = await this.#bindings!.listLocatorReferences();
-				if (live.some((candidate) => sameLocatorIdentity(candidate, admitted))) {
-					await this.#drainPending('retry');
+			const referenceToRelease = this.#resolver!.validateLocatorReference(reference);
+			try {
+				const admission = await this.#withReleaseAdmission(async () => {
+					if (this.#canRelease()) {
+						const live = await this.#bindings!.listLocatorReferences();
+						if (live.some((candidate) => sameLocatorIdentity(candidate, referenceToRelease))) return false;
+					}
+					return this.#resolver!.release(referenceToRelease);
+				});
+				if (!admission.admitted) {
+					this.#rememberPossible([referenceToRelease], 'retry');
 					return false;
 				}
-			}
-			try {
-				const released = await this.#resolver!.release(admitted);
+				const released = admission.value;
 				if (released === true || released === false) {
-					const key = locatorReferenceKey(admitted);
+					const key = locatorReferenceKey(referenceToRelease);
 					const pending = this.#pending.get(key);
-					if (pending?.locatorRevision === admitted.locatorRevision) {
+					if (pending?.locatorRevision === referenceToRelease.locatorRevision) {
 						this.#pending.delete(key);
 					}
 				}
@@ -382,13 +380,23 @@ export class LinkedOriginalLifecycleCoordinator {
 			'One or more linked-original cleanup references were invalid.',
 		));
 		if (!admittedPossible.length && !this.#pending.size) return;
-		let live: readonly LinkedOriginalLocatorReference[];
-		try { live = await this.#bindings!.listLocatorReferences(); }
-		catch (cause) {
+		try {
+			const admission = await this.#withReleaseAdmission(async () => {
+				await this.#drainPendingAdmitted(operation, admittedPossible, releaseExclusions);
+			});
+			if (!admission.admitted) this.#rememberPossible(admittedPossible, operation);
+		} catch (cause) {
 			this.#rememberPossible(admittedPossible, operation);
 			this.#report(operation, cause);
-			return;
 		}
+	}
+
+	async #drainPendingAdmitted(
+		operation: LinkedOriginalCleanupOperation,
+		admittedPossible: readonly LinkedOriginalLocatorReference[],
+		releaseExclusions?: ReadonlySet<string>,
+	): Promise<void> {
+		const live = await this.#bindings!.listLocatorReferences();
 		const liveIds = new Set(live.map(locatorReferenceKey));
 		for (const key of liveIds) this.#pending.delete(key);
 		this.#rememberPossible(
@@ -536,28 +544,6 @@ function normalizeProjectBindingPruneResult(
 		durableSourceReferences: Object.freeze(durableSourceReferences),
 		removedLocatorReferences: Object.freeze([...value.removedLocatorReferences]),
 		settledTransientBindings: Object.freeze(settledTransientBindings),
-	});
-}
-
-export function admitLocalStoreClear(port: LocalStoreClearPort): LocalStoreClearAdmission {
-	if (typeof port.admitClear === 'function') return port.admitClear();
-	let pending = true;
-	return Object.freeze({
-		begin(): LocalStoreClearOperation {
-			if (!pending) throw new Error('The local store clear admission is no longer current.');
-			pending = false;
-			return beginLocalStoreClear(port);
-		},
-		cancel(): void { pending = false; },
-	});
-}
-
-function beginLocalStoreClear(port: LocalStoreClearPort): LocalStoreClearOperation {
-	if (typeof port.beginClear === 'function') return port.beginClear();
-	const completion = Promise.resolve().then(() => port.clear());
-	return Object.freeze({
-		localCommit: completion.then(() => true, () => false),
-		completion,
 	});
 }
 

@@ -4,6 +4,7 @@ import type { LinkedAudioOriginalBinding, LinkedOriginalBinding } from './linked
 import {
 	LinkedOriginalLifecycleCoordinator,
 	type LocalStoreClearAdmission,
+	type LocatorReleaseAdmission,
 } from './linked-original-lifecycle-coordinator.ts';
 import type { LinkedOriginalProjectAliasRepository } from './linked-original-project-alias-repository.ts';
 import type { LinkedOriginalProjectReachabilityRepository } from './linked-original-project-reachability-repository.ts';
@@ -55,6 +56,8 @@ import type {
 	LinkedVideoOriginalResolver,
 } from './linked-video-original-resolver.ts';
 import type { CompatibleLinkedVideoOriginalSource } from './linked-video-original-source.ts';
+import type { RelinkLinkedAudioOriginalOptions, RelinkLinkedOriginalOptions, RelinkLinkedVideoOriginalOptions } from './linked-original-relink-options.ts';
+export type { RelinkLinkedAudioOriginalOptions, RelinkLinkedOriginalOptions, RelinkLinkedVideoOriginalOptions } from './linked-original-relink-options.ts';
 import { linkedVideoDerivativeOriginal } from './video-derivative-relationship.ts';
 import type {
 	VideoDerivativeInput,
@@ -62,6 +65,7 @@ import type {
 } from './video-derivative-repository.ts';
 
 export interface LinkedOriginalStoreRepositories {
+	readonly retention?: Readonly<{ withSoleSession: LocatorReleaseAdmission }>;
 	readonly linkedOriginalBindings: LinkedOriginalRepository;
 	readonly linkedOriginalProjectAliases: LinkedOriginalProjectAliasRepository;
 	readonly linkedOriginalProjectReachability: LinkedOriginalProjectReachabilityRepository;
@@ -90,24 +94,6 @@ export interface LinkedOriginalReconciliationInventory {
 		| readonly LinkedOriginalCatalogProjectRevision[];
 }
 
-export interface RelinkLinkedOriginalOptions {
-	readonly expectedBindingToken: string;
-	readonly expectedLocatorRevision: string;
-	readonly expectedSnapshot: unknown;
-	readonly assertCanPublish?: () => void;
-	readonly signal?: AbortSignal;
-}
-
-export interface RelinkLinkedAudioOriginalOptions extends RelinkLinkedOriginalOptions {
-	/** Exact-content relink is the default; changed content requires explicit admission. */
-	readonly admission?: 'exact-content' | 'changed-content';
-}
-
-export interface RelinkLinkedVideoOriginalOptions extends RelinkLinkedOriginalOptions {
-	/** Exact-content relink is the default; changed content requires explicit admission. */
-	readonly admission?: 'exact-content' | 'changed-content';
-}
-
 type ActiveLifecycle = LinkedOriginalLifecycleCoordinator | LinkedVideoOriginalLifecycleCoordinator;
 
 /** Chooses one mixed-media lifecycle while retaining the schema-v1 video facade. */
@@ -122,18 +108,22 @@ export class LinkedOriginalStoreService {
 		options: LinkedOriginalStoreServiceOptions = {},
 	) {
 		this.#repositories = repositories;
+		const releaseOptions = repositories.retention ? {
+			withReleaseAdmission: <Value>(operation: () => PromiseLike<Value> | Value) =>
+				repositories.retention!.withSoleSession(operation),
+		} : {};
 		this.linkedOriginalLifecycle = repositories.linkedOriginals
 			? new LinkedOriginalLifecycleCoordinator(
 				repositories.linkedOriginalBindings,
 				repositories.linkedOriginals,
-				options.onCleanupError ? { onCleanupError: options.onCleanupError } : {},
+				{ ...(options.onCleanupError ? { onCleanupError: options.onCleanupError } : {}), ...releaseOptions },
 			)
 			: null;
 		this.#lifecycle = this.linkedOriginalLifecycle
 			?? new LinkedVideoOriginalLifecycleCoordinator(
 				repositories.linkedVideoOriginalBindings,
 				repositories.linkedVideoOriginals,
-				options.onCleanupError ? { onCleanupError: options.onCleanupError } : {},
+				{ ...(options.onCleanupError ? { onCleanupError: options.onCleanupError } : {}), ...releaseOptions },
 			);
 		this.linkedVideoOriginalLifecycle = this.#lifecycle;
 	}
@@ -213,30 +203,40 @@ export class LinkedOriginalStoreService {
 
 	reconcileOriginalLocators(inventory: LinkedOriginalReconciliationInventory): Promise<boolean> {
 		return this.#lifecycle.run(async () => {
-			const generic = this.#repositories.linkedOriginals;
-			const legacyVideo = this.#repositories.linkedVideoOriginals;
-			const startup = this.#repositories.linkedOriginalStartupReconciliation;
-			if ((!generic && !legacyVideo) || !startup || !await inventory.isDurable()) return false;
-			const catalog = await inventory.projectRevisions();
-			if (generic?.canReconcileLocators()) {
-				const references = await startup.reconcileDurableLocatorReferences(catalog);
-				return references !== null && await generic.reconcileLocatorReferences(references) !== null;
-			}
-			if (!legacyVideo?.canReconcileLocators()) return false;
-			const references = await startup.reconcileDurableVideoLocatorReferences(catalog);
-			return references !== null && await legacyVideo.reconcileLocatorReferences(references) !== null;
+			const reconcile = async () => {
+				const generic = this.#repositories.linkedOriginals;
+				const legacyVideo = this.#repositories.linkedVideoOriginals;
+				const startup = this.#repositories.linkedOriginalStartupReconciliation;
+				if ((!generic && !legacyVideo) || !startup || !await inventory.isDurable()) return false;
+				const catalog = await inventory.projectRevisions();
+				if (generic?.canReconcileLocators()) {
+					const references = await startup.reconcileDurableLocatorReferences(catalog);
+					return references !== null && await generic.reconcileLocatorReferences(references) !== null;
+				}
+				if (!legacyVideo?.canReconcileLocators()) return false;
+				const references = await startup.reconcileDurableVideoLocatorReferences(catalog);
+				return references !== null && await legacyVideo.reconcileLocatorReferences(references) !== null;
+			};
+			const retention = this.#repositories.retention;
+			const admitted = retention ? await retention.withSoleSession(reconcile) : null;
+			return admitted ? admitted.admitted && admitted.value : reconcile();
 		});
 	}
 
 	reconcileVideoLocators(inventory: LinkedOriginalReconciliationInventory): Promise<boolean> {
 		return this.#lifecycle.run(async () => {
-			const resolver = this.#repositories.linkedVideoOriginals;
-			const startup = this.#repositories.linkedOriginalStartupReconciliation;
-			if (!startup || !resolver?.canReconcileLocators() || !await inventory.isDurable()) return false;
-			const references = await startup.reconcileDurableVideoLocatorReferences(
-				await inventory.projectRevisions(),
-			);
-			return references !== null && await resolver.reconcileLocatorReferences(references) !== null;
+			const reconcile = async () => {
+				const resolver = this.#repositories.linkedVideoOriginals;
+				const startup = this.#repositories.linkedOriginalStartupReconciliation;
+				if (!startup || !resolver?.canReconcileLocators() || !await inventory.isDurable()) return false;
+				const references = await startup.reconcileDurableVideoLocatorReferences(
+					await inventory.projectRevisions(),
+				);
+				return references !== null && await resolver.reconcileLocatorReferences(references) !== null;
+			};
+			const retention = this.#repositories.retention;
+			const admitted = retention ? await retention.withSoleSession(reconcile) : null;
+			return admitted ? admitted.admitted && admitted.value : reconcile();
 		});
 	}
 

@@ -8,6 +8,7 @@ import {
 	type LinkedOriginalProjectBindingCleanupOperation,
 	type LinkedOriginalLifecycleBindingPort,
 	type LinkedOriginalLifecycleResolverPort,
+	type LocatorReleaseAdmission,
 	type LocalStoreClearAdmission,
 } from './linked-original-lifecycle-coordinator.ts';
 import type {
@@ -41,6 +42,7 @@ export type LinkedVideoOriginalCleanupError =
 
 export interface LinkedVideoOriginalLifecycleOptions {
 	readonly onCleanupError?: (error: LinkedVideoOriginalCleanupError) => void;
+	readonly withReleaseAdmission?: LocatorReleaseAdmission;
 }
 
 export class LinkedVideoOriginalLocatorCleanupError extends Error {
@@ -88,9 +90,14 @@ export class LinkedVideoOriginalLifecycleCoordinator {
 		this.#coordinator = new LinkedOriginalLifecycleCoordinator(
 			bindings ? bindingAdapter(bindings) : null,
 			resolver ? resolverAdapter(resolver) : null,
-			options.onCleanupError ? {
-				onCleanupError: (error) => { options.onCleanupError!(legacyCleanupError(error)); },
-			} : {},
+			{
+				...(options.onCleanupError ? {
+					onCleanupError: (error: LinkedOriginalLocatorCleanupError | LinkedOriginalProjectBindingCleanupError) => {
+						options.onCleanupError!(legacyCleanupError(error));
+					},
+				} : {}),
+				...(options.withReleaseAdmission ? { withReleaseAdmission: options.withReleaseAdmission } : {}),
+			},
 		);
 	}
 

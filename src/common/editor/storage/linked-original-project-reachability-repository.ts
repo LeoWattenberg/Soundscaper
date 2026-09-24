@@ -146,6 +146,7 @@ export class LinkedOriginalProjectReachabilityRepository {
 		if (!ownedTransientBindings) return null;
 		const database = await this.#port.database();
 		if (!database) {
+			const retainForeignBindings = this.#port.retentionSessionGuard?.hasOtherMemorySession() ?? false;
 			const state = memoryRootState(
 				this.#port.memory,
 				projectId,
@@ -175,16 +176,23 @@ export class LinkedOriginalProjectReachabilityRepository {
 				this.#maximumInventoryReferences,
 				this.#maximumRoots,
 			);
-			applyMemoryLinkedOriginalProjectBindingPrune(bindings, roots, plan);
-			return frozenResult(state.accumulator.durable, plan);
+			const appliedPlan = retainForeignBindings
+				? { ...plan, bindingDeletionKeys: [], removedReferences: new Map() }
+				: plan;
+			applyMemoryLinkedOriginalProjectBindingPrune(bindings, roots, appliedPlan);
+			return frozenResult(state.accumulator.durable, appliedPlan);
 		}
 
+		await this.#port.retentionSessionGuard?.reclaimStoppedSessions(database);
 		return transact(database, [
 			'projects',
 			'revisions',
+			'settings',
 			LINKED_ORIGINAL_STORE_NAME,
 			LINKED_ORIGINAL_PROVISIONAL_ROOT_STORE_NAME,
 		], 'readwrite', async (stores) => {
+			const retainForeignBindings = await this.#port.retentionSessionGuard
+				?.hasOtherOrLostSession(stores.settings) ?? false;
 			const current = await request(stores.projects.get(projectId));
 			const state = currentProjectRootState(
 				current,
@@ -223,10 +231,11 @@ export class LinkedOriginalProjectReachabilityRepository {
 				this.#maximumRoots,
 			);
 			await Promise.all([
-				...plan.bindingDeletionKeys.map((key) => request(bindings.delete(key))),
+				...(retainForeignBindings ? [] : plan.bindingDeletionKeys.map((key) => request(bindings.delete(key)))),
 				...plan.rootDeletionKeys.map((key) => request(roots.delete(key))),
 			]);
-			return frozenResult(state.accumulator.durable, plan);
+			return frozenResult(state.accumulator.durable, retainForeignBindings
+				? { ...plan, removedReferences: new Map() } : plan);
 		});
 	}
 }

@@ -57,6 +57,9 @@ async function replaceProjectSnapshot(
 		const memory = port.memory;
 		if (writeFence && (memory.settings.get(projectWriteFenceKey(projectId)) as { value?: unknown } | undefined)?.value !== writeFence) return false;
 		if (expected && !sameProjectSnapshot(memory.projects.get(projectId), expected)) return false;
+		if (port.retentionSessionGuard?.hasOtherMemorySession()) {
+			throw new Error('Another editor session still owns local project history.');
+		}
 		const mutations: MemoryMutation[] = [deleteMemoryMutation(memory.projects, projectId)];
 		for (const [key, value] of memory.revisions) {
 			if (asRevision(value)?.projectId === projectId) {
@@ -68,9 +71,13 @@ async function replaceProjectSnapshot(
 		applyMemoryMutations(mutations);
 		return true;
 	}
-	return transact(database, writeFence ? ['projects', 'revisions', 'settings'] : ['projects', 'revisions'], 'readwrite', async ({ projects, revisions, settings }) => {
+	await port.retentionSessionGuard?.reclaimStoppedSessions(database);
+	return transact(database, ['projects', 'revisions', 'settings'], 'readwrite', async ({ projects, revisions, settings }) => {
 		if (writeFence && (await request(settings.get(projectWriteFenceKey(projectId))) as { value?: unknown } | undefined)?.value !== writeFence) return false;
 		if (expected && !sameProjectSnapshot(await request(projects.get(projectId)), expected)) return false;
+		if (await port.retentionSessionGuard?.hasOtherOrLostSession(settings)) {
+			throw new Error('Another editor session still owns local project history.');
+		}
 		await request(projects.delete(projectId));
 		await deleteByIndex(revisions.index('projectId'), projectId);
 		for (const row of rows) await request(revisions.put(row));

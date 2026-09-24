@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { collectProjectStorageKeys } from '../retention.js';
 import {
 	deleteByIndex,
 	readCursorPage,
@@ -12,8 +13,13 @@ import {
 	type StorageRecord,
 } from './media-records.ts';
 import { MEDIA_ASSET_STAGING_STORE_NAME } from './media-asset-staging-schema.ts';
-import type { MediaAssetStagingLease } from './media-asset-staging-repository.ts';
+import {
+	revokeSourceStageInMemory,
+	revokeSourceStageInStore,
+	type MediaAssetStagingLease,
+} from './media-asset-staging-repository.ts';
 import type { StorageRepositoryPort } from './repository-port.ts';
+import type { RetentionSessionGuard } from './retention-session-guard.ts';
 import {
 	findMemoryDependentSourceId,
 	findStoredDependentSourceId,
@@ -37,9 +43,11 @@ export type SourceMetadataDeletionResult =
 /** Metadata and chunk records for immutable PCM sources. */
 export class SourceRecordRepository {
 	readonly #port: StorageRepositoryPort;
+	readonly #sessionGuard: RetentionSessionGuard | null;
 
-	constructor(port: StorageRepositoryPort) {
+	constructor(port: StorageRepositoryPort, sessionGuard: RetentionSessionGuard | null = null) {
 		this.#port = port;
+		this.#sessionGuard = sessionGuard;
 	}
 
 	async getMetadata(sourceId: string): Promise<StorageRecord | null> {
@@ -85,24 +93,70 @@ export class SourceRecordRepository {
 		record: StorageRecord,
 		stage: MediaAssetStagingLease,
 		ifAbsent: boolean,
+		expectedSourceToken?: string,
 	): Promise<boolean> {
 		if (!record.id) throw new TypeError('Source metadata requires an id.');
+		if (!ifAbsent && !expectedSourceToken) throw new TypeError('An expected source generation is required for replacement.');
+		const sourceId = record.id;
 		const database = await this.#port.database();
 		if (!database) {
 			stage.assertInMemory();
-			if (ifAbsent && this.#port.memory.sources.has(record.id)) return false;
+			const current = this.#port.memory.sources.get(sourceId) as StorageRecord | undefined;
+			if (ifAbsent ? current !== undefined : !current || current.sourceToken !== expectedSourceToken) return false;
+			if (current && !ifAbsent) {
+				if (this.#sessionGuard?.hasOtherMemorySession()) return false;
+				if (sourceIsDurablyReferenced(
+					sourceId, [...this.#port.memory.projects.values()], [...this.#port.memory.revisions.values()],
+				)) return false;
+				if (findMemoryDependentSourceId(this.#port.memory.sources, sourceId) !== null) return false;
+			}
 			const stored = clone(record);
 			stage.completeInMemory();
-			this.#port.memory.sources.set(record.id, stored);
+			this.#port.memory.sources.set(sourceId, stored);
 			return true;
 		}
-		return transact(database, ['sources', MEDIA_ASSET_STAGING_STORE_NAME], 'readwrite', async (stores) => {
+		if (!ifAbsent) await this.#sessionGuard?.reclaimStoppedSessions(database);
+		const storeNames = ifAbsent
+			? ['sources', MEDIA_ASSET_STAGING_STORE_NAME]
+			: ['projects', 'revisions', 'settings', 'sources', MEDIA_ASSET_STAGING_STORE_NAME];
+		return transact(database, storeNames, 'readwrite', async (stores) => {
 			const sources = stores.sources;
 			const staging = stores[MEDIA_ASSET_STAGING_STORE_NAME];
 			await stage.assertInStore(staging);
-			if (ifAbsent && await request(sources.get(record.id as string)) !== undefined) return false;
+			const current = await request(sources.get(sourceId)) as StorageRecord | undefined;
+			if (ifAbsent ? current !== undefined : !current || current.sourceToken !== expectedSourceToken) return false;
+			if (current && !ifAbsent) {
+				if (await this.#sessionGuard?.hasOtherOrLostSession(stores.settings)) return false;
+				const [projects, revisions] = await Promise.all([
+					request(stores.projects.getAll()), request(stores.revisions.getAll()),
+				]);
+				if (sourceIsDurablyReferenced(sourceId, projects, revisions)) return false;
+				if (await findStoredDependentSourceId(sources, sourceId) !== null) return false;
+			}
 			await request(sources.put(record));
 			await stage.completeInStore(staging);
+			return true;
+		});
+	}
+
+	/** Atomically revoke an unpublished source stage before deleting its PCM. */
+	async discardUnpublishedStage(sourceId: string, sourceToken: string): Promise<boolean> {
+		const database = await this.#port.database();
+		if (!database) {
+			const memory = this.#port.memory;
+			const current = memory.sources.get(sourceId) as StorageRecord | undefined;
+			if (current?.sourceToken === sourceToken) return false;
+			revokeSourceStageInMemory(memory.mediaAssetStaging, sourceToken);
+			for (const [key, value] of memory.sourceChunks) {
+				if (asChunk(value)?.sourceToken === sourceToken) memory.sourceChunks.delete(key);
+			}
+			return true;
+		}
+		return transact(database, ['sources', 'sourceChunks', MEDIA_ASSET_STAGING_STORE_NAME], 'readwrite', async (stores) => {
+			const current = await request(stores.sources.get(sourceId)) as StorageRecord | undefined;
+			if (current?.sourceToken === sourceToken) return false;
+			await revokeSourceStageInStore(stores[MEDIA_ASSET_STAGING_STORE_NAME], sourceToken);
+			await deleteByIndex(stores.sourceChunks.index('sourceToken'), sourceToken);
 			return true;
 		});
 	}
@@ -167,17 +221,40 @@ export class SourceRecordRepository {
 
 	async deleteMetadataIfCurrent(expected: StorageRecord): Promise<boolean> {
 		if (!expected.id) return false;
+		const sourceId = expected.id;
 		const database = await this.#port.database();
 		if (!database) {
-			const current = this.#port.memory.sources.get(expected.id) as StorageRecord | undefined;
+			const memory = this.#port.memory;
+			const current = memory.sources.get(sourceId) as StorageRecord | undefined;
 			if (!sameStoredSourceIdentity(current, expected)) return false;
-			this.#port.memory.sources.delete(expected.id);
+			if (this.#sessionGuard?.hasOtherMemorySession()) {
+				throw new Error(`Source ${sourceId} is retained by another open editor session.`);
+			}
+			if (sourceIsDurablyReferenced(sourceId, [...memory.projects.values()], [...memory.revisions.values()])) {
+				throw new Error(`Source ${sourceId} is retained by a saved project or revision.`);
+			}
+			const dependent = findMemoryDependentSourceId(memory.sources, sourceId);
+			if (dependent !== null) throw new Error(`Source ${sourceId} is retained by derived source ${dependent}.`);
+			memory.sources.delete(sourceId);
 			return true;
 		}
-		return transact(database, 'sources', 'readwrite', async ({ sources }) => {
-			const current = await request(sources.get(expected.id as string)) as StorageRecord | undefined;
+		await this.#sessionGuard?.reclaimStoppedSessions(database);
+		return transact(database, ['projects', 'revisions', 'settings', 'sources'], 'readwrite', async (stores) => {
+			const { sources } = stores;
+			const current = await request(sources.get(sourceId)) as StorageRecord | undefined;
 			if (!sameStoredSourceIdentity(current, expected)) return false;
-			sources.delete(expected.id as string);
+			if (await this.#sessionGuard?.hasOtherOrLostSession(stores.settings)) {
+				throw new Error(`Source ${sourceId} is retained by another open editor session.`);
+			}
+			const [projects, revisions, dependent] = await Promise.all([
+				request(stores.projects.getAll()), request(stores.revisions.getAll()),
+				findStoredDependentSourceId(sources, sourceId),
+			]);
+			if (sourceIsDurablyReferenced(sourceId, projects, revisions)) {
+				throw new Error(`Source ${sourceId} is retained by a saved project or revision.`);
+			}
+			if (dependent !== null) throw new Error(`Source ${sourceId} is retained by derived source ${dependent}.`);
+			sources.delete(sourceId);
 			return true;
 		});
 	}
@@ -296,20 +373,61 @@ export class SourceRecordRepository {
 
 	async compareAndSwapMetadata(expected: StorageRecord, replacement: StorageRecord): Promise<boolean> {
 		if (!expected.id || !replacement.id) return false;
+		if (expected.id !== replacement.id) throw new TypeError('Source metadata cannot change its id.');
+		const sourceId = expected.id;
+		const changesGeneration = !sameStoredSourceIdentity(expected, replacement);
 		const database = await this.#port.database();
 		if (!database) {
-			const current = this.#port.memory.sources.get(expected.id) as StorageRecord | undefined;
+			const memory = this.#port.memory;
+			const current = memory.sources.get(sourceId) as StorageRecord | undefined;
 			if (!sameStoredSourceIdentity(current, expected)) return false;
-			this.#port.memory.sources.set(replacement.id, clone(replacement));
+			if (changesGeneration) {
+				if (this.#sessionGuard?.hasOtherMemorySession()) {
+					throw new Error(`Source ${sourceId} is retained by another open editor session.`);
+				}
+				if (sourceIsDurablyReferenced(sourceId, [...memory.projects.values()], [...memory.revisions.values()])) {
+					throw new Error(`Source ${sourceId} is retained by a saved project or revision.`);
+				}
+				const dependent = findMemoryDependentSourceId(memory.sources, sourceId);
+				if (dependent !== null) throw new Error(`Source ${sourceId} is retained by derived source ${dependent}.`);
+			}
+			memory.sources.set(sourceId, clone(replacement));
 			return true;
 		}
-		return transact(database, 'sources', 'readwrite', async ({ sources }) => {
-			const current = await request(sources.get(expected.id as string)) as StorageRecord | undefined;
+		if (changesGeneration) await this.#sessionGuard?.reclaimStoppedSessions(database);
+		const stores = changesGeneration ? ['projects', 'revisions', 'settings', 'sources'] : ['sources'];
+		return transact(database, stores, 'readwrite', async (transactionStores) => {
+			const { sources } = transactionStores;
+			const current = await request(sources.get(sourceId)) as StorageRecord | undefined;
 			if (!sameStoredSourceIdentity(current, expected)) return false;
+			if (changesGeneration) {
+				if (await this.#sessionGuard?.hasOtherOrLostSession(transactionStores.settings)) {
+					throw new Error(`Source ${sourceId} is retained by another open editor session.`);
+				}
+				const [projects, revisions, dependent] = await Promise.all([
+					request(transactionStores.projects.getAll()), request(transactionStores.revisions.getAll()),
+					findStoredDependentSourceId(sources, sourceId),
+				]);
+				if (sourceIsDurablyReferenced(sourceId, projects, revisions)) {
+					throw new Error(`Source ${sourceId} is retained by a saved project or revision.`);
+				}
+				if (dependent !== null) throw new Error(`Source ${sourceId} is retained by derived source ${dependent}.`);
+			}
 			sources.put(replacement);
 			return true;
 		});
 	}
+}
+
+function sourceIsDurablyReferenced(sourceId: string, projects: unknown[], revisions: unknown[]): boolean {
+	const retained = new Set<string>();
+	for (const project of projects) collectProjectStorageKeys(project, retained);
+	for (const revision of revisions) {
+		const record = revision && typeof revision === 'object'
+			? revision as Readonly<{ project?: unknown }> : null;
+		collectProjectStorageKeys(record?.project, retained);
+	}
+	return retained.has(sourceId);
 }
 
 function deleteChunkTail(index: IDBIndex, token: string, firstIndex: number): Promise<void> {

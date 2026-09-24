@@ -132,9 +132,9 @@ export function createStorageRepositories(
 		codec: options.pcmCodec,
 		codecFactory: options.pcmCodecFactory,
 	});
-	const sourceRecords = new SourceRecordRepository(port);
+	const sourceRecords = new SourceRecordRepository(port, sessionGuard);
 	const sourceStaging = new MediaAssetStagingRepository(port);
-	const sourceDeletion = new SourceDeletionRepository(port);
+	const sourceDeletion = new SourceDeletionRepository(port, sessionGuard);
 	const analysis = new KeyValueRepository(port, 'analysis');
 	const transientAnalysisCache = new TransientAnalysisCacheRepository(analysis, {
 		limits: options.transientAnalysisCacheLimits,
@@ -145,6 +145,7 @@ export function createStorageRepositories(
 	const media = new MediaRepository(port, opfs, {
 		cacheLimits: options.derivativeCacheLimits,
 		now: options.derivativeCacheNow,
+		sessionGuard,
 	});
 	const linkedOriginalBindings = new LinkedOriginalRepository(port);
 	const linkedOriginalProjectAliases = new LinkedOriginalProjectAliasRepository(port);
@@ -199,7 +200,7 @@ export function createStorageRepositories(
 	const encodedCaptureSpools = framescaperCaptureRepositories?.encodedCaptureSpools ?? null;
 	const framescaperCaptureManifests = framescaperCaptureRepositories?.framescaperCaptureManifests ?? null;
 	const takeCycleRecoveryEnvelopes = new TakeCycleRecoveryEnvelopeRepository(analysis);
-	const projects = new ProjectRepository(port, options.revisionLimit);
+	const projects = new ProjectRepository(port, options.revisionLimit, sessionGuard);
 	return Object.freeze({
 		projects: new ProjectCompareAndSwapRepository(projects, port, options.revisionLimit),
 		settings: new KeyValueRepository(port, 'settings'),

@@ -137,12 +137,15 @@ export class LinkedOriginalStartupReconciliationRepository {
 		const catalog = catalogRevisions(catalogValue, this.#maximumCatalogProjects);
 		const database = await this.#port.database();
 		if (!database) return null;
+		await this.#port.retentionSessionGuard?.reclaimStoppedSessions(database);
 		return transact(database, [
 			'projects',
 			'revisions',
+			'settings',
 			LINKED_ORIGINAL_STORE_NAME,
 			LINKED_ORIGINAL_PROVISIONAL_ROOT_STORE_NAME,
 		], 'readwrite', async (stores) => {
+			if (await this.#port.retentionSessionGuard?.hasOtherOrLostSession(stores.settings)) return null;
 			const bindings = stores[LINKED_ORIGINAL_STORE_NAME];
 			const provisionalRoots = stores[LINKED_ORIGINAL_PROVISIONAL_ROOT_STORE_NAME];
 			const rows = await readBoundedLinkedOriginalBindingRows(
