@@ -31,7 +31,7 @@ test('an import replaces the previous completion status before loading its admis
 });
 
 test('first-use file and batch imports keep their invocation project across lazy loading', async () => {
-	for (const batch of [false, true]) {
+	for (const [batch, sameId] of [[false, false], [false, true], [true, false], [true, true]] as const) {
 		const fixture = createFixture();
 		const loaderGate = deferred<void>();
 		const service = createLazyProjectImportService(
@@ -43,7 +43,7 @@ test('first-use file and batch imports keep their invocation project across lazy
 		);
 		const input = file(batch ? 'batch.wav' : 'single.wav');
 		const operation = batch ? service.importFiles([input]) : service.importFile(input);
-		fixture.setProject({ id: 'replacement', tracks: [], sources: [] });
+		fixture.setProject({ id: sameId ? 'current' : 'replacement', tracks: [], sources: [] });
 		loaderGate.resolve();
 
 		await assert.rejects(operation, /project changed/iu);
