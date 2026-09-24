@@ -62,7 +62,7 @@ export async function createRecordingController({
 		numberOfInputs: 1,
 		numberOfOutputs: 1,
 		outputChannelCount: [normalizedChannelCount],
-		processorOptions: { channelCount: normalizedChannelCount, chunkFrames, monitor, inputGain: currentInputGain },
+		processorOptions: { channelCount: normalizedChannelCount, chunkFrames, monitor, inputGain: currentInputGain, maxPendingChunks },
 	};
 	if (discreteChannels) Object.assign(nodeOptions, {
 		channelCount: normalizedChannelCount,
@@ -127,7 +127,7 @@ export async function createRecordingController({
 		const completion = shouldStop
 			? beginStop()
 			: state === 'failed' && writeError
-				? Promise.reject(writeError)
+				? drainWithFailure()
 				: writeQueue;
 		disposing = true;
 		state = 'disposing';
@@ -213,7 +213,7 @@ export async function createRecordingController({
 			return writeError ? Promise.reject(writeError) : writeQueue;
 		}
 		if (disposing) return stopRequest?.promise || Promise.reject(writeError || new Error('The recording controller is being disposed.'));
-		if (state === 'failed') return Promise.reject(writeError || new Error('The recording worklet failed.'));
+		if (state === 'failed') return drainWithFailure();
 		return beginStop();
 	}
 
@@ -252,9 +252,7 @@ export async function createRecordingController({
 			if (pendingChunks > maxPendingChunks) {
 				pendingChunks -= 1;
 				const error = new Error('Recording storage could not keep up with the audio input.');
-				acceptingChunks = false;
-				writeError = error;
-				try { onError?.(error); } catch { /* Error observers cannot block cleanup. */ }
+				failRecording(error);
 				try { node.port.postMessage({ type: 'stop' }); } catch { /* Failure is already recorded. */ }
 				return;
 			}
@@ -263,7 +261,12 @@ export async function createRecordingController({
 				frames: message.frames,
 				channels: (message.channels || []).map((channel) => channel instanceof Float32Array ? channel : new Float32Array(channel)),
 			};
-			writeQueue = writeQueue.then(() => onChunk?.(chunk)).catch((error) => {
+			writeQueue = writeQueue.then(async () => {
+				await onChunk?.(chunk);
+				if (Number.isSafeInteger(message.chunkId) && message.chunkId > 0) {
+					node.port.postMessage({ type: 'chunk-ack', chunkId: message.chunkId });
+				}
+			}).catch((error) => {
 				failRecording(error);
 				try { node.port.postMessage({ type: 'stop' }); } catch { /* Failure is already recorded. */ }
 			}).finally(() => { pendingChunks -= 1; });
@@ -282,6 +285,10 @@ export async function createRecordingController({
 		} else if (message.type === 'resumed' && !disposing) {
 			state = 'recording';
 			notifyState();
+		} else if (message.type === 'error') {
+			const error = new Error(typeof message.message === 'string' ? message.message : 'The recording worklet failed.');
+			if (typeof message.code === 'string') error.code = message.code;
+			failRecording(error);
 		}
 	}
 
@@ -298,7 +305,13 @@ export async function createRecordingController({
 		if (firstFailure) {
 			try { onError?.(writeError); } catch { /* Error observers cannot block cleanup. */ }
 		}
-		settleStop(writeError);
+		if (stopRequest?.timer != null && typeof clearTimeoutFn === 'function') clearTimeoutFn(stopRequest.timer);
+		if (stopRequest) stopRequest.timer = null;
+		void writeQueue.then(() => settleStop(writeError), () => settleStop(writeError));
+	}
+
+	function drainWithFailure() {
+		return writeQueue.then(() => { throw writeError || new Error('The recording worklet failed.'); });
 	}
 
 	function settleStop(error, result) {

@@ -239,6 +239,78 @@ test('recording worklet keeps chunk frame starts contiguous across quantum bound
 	}
 });
 
+test('recording worklet stops at its producer credit bound while main thread is stalled', () => {
+	const processor = new StreamingRecorderProcessor({
+		processorOptions: { channelCount: 2, chunkFrames: 128, maxPendingChunks: 2 },
+	});
+	const messages = [];
+	processor.port.postMessage = (message) => messages.push(message);
+	processor.port.onmessage({ data: { type: 'start', startFrame: 0 } });
+	const input = [new Float32Array(128), new Float32Array(128)];
+	const output = [new Float32Array(128), new Float32Array(128)];
+	processor.process([input], [output]);
+	processor.port.onmessage({ data: { type: 'chunk-ack', chunkId: 1 } });
+	processor.port.onmessage({ data: { type: 'chunk-ack', chunkId: 1 } });
+	for (let index = 0; index < 1_000; index += 1) processor.process([input], [output]);
+	assert.equal(messages.filter((message) => message.type === 'audio-chunk').length, 3);
+	assert.equal(messages.filter((message) => message.type === 'error').length, 1);
+	assert.match(messages.find((message) => message.type === 'error').message, /could not keep up/u);
+	assert.equal(processor.recording, false);
+	assert.equal(processor.pendingChunks.size, 2);
+});
+
+test('recording controller returns producer credit only after a chunk is persisted', async () => {
+	const node = createMockNode();
+	const sent = [];
+	node.port.postMessage = (message) => sent.push(message);
+	const persisted = deferred();
+	const controller = await createRecordingController({
+		context: {
+			destination: createMockNode(), audioWorklet: { async addModule() {} },
+			createMediaStreamSource: () => createMockNode(),
+		},
+		stream: createMockStream([createMockTrack('audio', 1)]),
+		maxPendingChunks: 2,
+		onChunk: () => persisted.promise,
+		nodeFactory: () => node,
+	});
+	node.port.onmessage({ data: { type: 'audio-chunk', chunkId: 7, channels: [new Float32Array(1)], frames: 1 } });
+	await new Promise(setImmediate);
+	assert.deepEqual(sent, []);
+	persisted.resolve();
+	await new Promise(setImmediate);
+	assert.deepEqual(sent, [{ type: 'chunk-ack', chunkId: 7 }]);
+	await controller.detach();
+});
+
+test('worklet failure waits for accepted storage writes before stop rejects', async () => {
+	const node = createMockNode();
+	const persisted = deferred();
+	let writeCompleted = false;
+	const controller = await createRecordingController({
+		context: {
+			destination: createMockNode(), audioWorklet: { async addModule() {} },
+			createMediaStreamSource: () => createMockNode(),
+		},
+		stream: createMockStream([createMockTrack('audio', 1)]),
+		onChunk: async () => { await persisted.promise; writeCompleted = true; },
+		nodeFactory: () => node,
+	});
+	controller.start();
+	node.port.onmessage({ data: { type: 'audio-chunk', chunkId: 1, channels: [new Float32Array(1)], frames: 1 } });
+	await new Promise(setImmediate);
+	node.port.onmessage({ data: { type: 'error', code: 'RECORDING_BACKPRESSURE', message: 'storage stalled' } });
+	const stopped = controller.stop();
+	let settled = false;
+	void stopped.then(() => { settled = true; }, () => { settled = true; });
+	await new Promise(setImmediate);
+	assert.equal(settled, false);
+	persisted.resolve();
+	await assert.rejects(stopped, { code: 'RECORDING_BACKPRESSURE' });
+	assert.equal(writeCompleted, true);
+	await assert.rejects(controller.detach(), { code: 'RECORDING_BACKPRESSURE' });
+});
+
 test('capture pool reuses live inputs, reacquires for more exposed channels, and releases explicitly', async () => {
 	const requestedChannels = [];
 	const hardwareStreams = [];
@@ -347,7 +419,7 @@ test('worklet reaches a scheduled stop without input and controller overrun acco
 	node.port.onmessage({ data: { type: 'audio-chunk', channels: [new Float32Array(1)], frames: 1 } });
 	assert.match(overrun.message, /could not keep up/);
 	assert.equal(controller.pendingChunks, 0);
-	await controller.detach();
+	await assert.rejects(controller.detach(), /could not keep up/u);
 });
 
 test('capture pool discards audio-less display capture and removes externally ended streams', async () => {

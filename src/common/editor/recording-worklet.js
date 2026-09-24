@@ -7,6 +7,7 @@ const MIN_INPUT_GAIN = 0;
 const MAX_INPUT_GAIN = 2;
 const DEFAULT_INPUT_GAIN = 1;
 const MAX_CHANNEL_COUNT = 32;
+const MAX_PENDING_CHUNKS = 32;
 
 /**
  * Copies microphone input into bounded transferable chunks. The main thread is
@@ -18,6 +19,9 @@ export class StreamingRecorderProcessor extends ProcessorBase {
 		const processorOptions = options.processorOptions || {};
 		this.channelCount = clampInteger(processorOptions.channelCount, 1, MAX_CHANNEL_COUNT, 1);
 		this.chunkFrames = clampInteger(processorOptions.chunkFrames, 128, 16384, 4096);
+		this.maxPendingChunks = clampInteger(processorOptions.maxPendingChunks, 0, MAX_PENDING_CHUNKS, MAX_PENDING_CHUNKS);
+		this.pendingChunks = new Set();
+		this.nextChunkId = 1;
 		this.monitor = Boolean(processorOptions.monitor);
 		this.inputGain = clampInputGain(processorOptions.inputGain, DEFAULT_INPUT_GAIN);
 		this.recording = false;
@@ -91,7 +95,7 @@ export class StreamingRecorderProcessor extends ProcessorBase {
 			}
 			this.writeOffset += frames;
 			frameIndex += frames;
-			if (this.writeOffset === this.chunkFrames) this.#flush();
+			if (this.writeOffset === this.chunkFrames && !this.#flush()) return true;
 		}
 		if (globalFrame + blockLength >= this.stopFrame) this.#finish();
 		return true;
@@ -99,7 +103,7 @@ export class StreamingRecorderProcessor extends ProcessorBase {
 
 	#handleMessage(message) {
 		if (message.type === 'start') {
-			this.#flush();
+			if (!this.#flush()) return;
 			this.startFrame = Number.isFinite(message.startFrame) ? Math.max(0, Math.floor(message.startFrame)) : this.nextFrame;
 			this.stopFrame = Number.isFinite(message.stopFrame) ? Math.max(this.startFrame, Math.floor(message.stopFrame)) : Infinity;
 			this.recording = true;
@@ -107,7 +111,7 @@ export class StreamingRecorderProcessor extends ProcessorBase {
 			this.pausedAtFrame = null;
 			this.port.postMessage({ type: 'started', startFrame: this.startFrame, stopFrame: this.stopFrame });
 		} else if (message.type === 'pause' && this.recording && !this.paused) {
-			this.#flush();
+			if (!this.#flush()) return;
 			this.paused = true;
 			this.pausedAtFrame = this.nextFrame;
 			this.port.postMessage({ type: 'paused', frame: this.nextFrame });
@@ -121,6 +125,8 @@ export class StreamingRecorderProcessor extends ProcessorBase {
 			this.#finish();
 		} else if (message.type === 'flush') {
 			this.#flush();
+		} else if (message.type === 'chunk-ack') {
+			if (Number.isSafeInteger(message.chunkId)) this.pendingChunks.delete(message.chunkId);
 		} else if (message.type === 'monitor') {
 			this.monitor = Boolean(message.enabled);
 		} else if (message.type === 'input-gain') {
@@ -135,24 +141,38 @@ export class StreamingRecorderProcessor extends ProcessorBase {
 		this.recording = false;
 		this.paused = false;
 		this.pausedAtFrame = null;
-		this.#flush();
-		this.port.postMessage({ type: 'stopped', frame: this.nextFrame });
+		if (this.#flush()) this.port.postMessage({ type: 'stopped', frame: this.nextFrame });
 	}
 
 	#flush() {
-		if (!this.writeOffset) return;
+		if (!this.writeOffset) return true;
+		if (this.pendingChunks.size >= this.maxPendingChunks) {
+			this.recording = false;
+			this.paused = false;
+			this.writeOffset = 0;
+			this.port.postMessage({
+				type: 'error',
+				code: 'RECORDING_BACKPRESSURE',
+				message: 'Recording storage could not keep up with the audio input.',
+			});
+			return false;
+		}
 		const channels = this.writeOffset === this.chunkFrames
 			? this.buffers
 			: this.buffers.map((buffer) => buffer.slice(0, this.writeOffset));
 		const frames = this.writeOffset;
 		this.buffers = this.#allocateBuffers();
 		this.writeOffset = 0;
+		const chunkId = this.nextChunkId++;
+		this.pendingChunks.add(chunkId);
 		this.port.postMessage({
 			type: 'audio-chunk',
+			chunkId,
 			frameStart: this.chunkStartFrame,
 			frames,
 			channels,
 		}, channels.map((channel) => channel.buffer));
+		return true;
 	}
 
 	#allocateBuffers() {
