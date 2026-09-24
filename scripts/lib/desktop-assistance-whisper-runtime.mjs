@@ -30,6 +30,13 @@ const DISABLED_OPTIONS = [
 	'GGML_AVX', 'GGML_AVX2', 'GGML_FMA', 'GGML_F16C', 'GGML_BMI2', 'GGML_SSE42',
 ];
 
+export function whisperBuildEnvironment(work, environment = process.env) {
+	// The source tar has no .git. Stop CMake's build-info probe from finding
+	// the enclosing Soundscaper checkout and embedding its changing commit.
+	return { ...environment, SOURCE_DATE_EPOCH: '1787225940', TZ: 'UTC', LC_ALL: 'C',
+		GIT_CEILING_DIRECTORIES: work };
+}
+
 /** Build pinned source on the package runner, then bind the actual shipped bytes. */
 export async function stageDesktopWhisperCppRuntime({
 	targetId, runtimeRoot, cacheRoot, platform = process.platform, architecture = process.arch,
@@ -57,7 +64,7 @@ export async function stageDesktopWhisperCppRuntime({
 			const reproducibleFlags = `-ffile-prefix-map=${work}=/usr/src/whisper-build -fno-ident`;
 			configureArgs.push(`-DCMAKE_C_FLAGS=${reproducibleFlags}`, `-DCMAKE_CXX_FLAGS=${reproducibleFlags}`);
 		}
-		const environment = { ...process.env, SOURCE_DATE_EPOCH: '1787225940', TZ: 'UTC', LC_ALL: 'C' };
+		const environment = whisperBuildEnvironment(work);
 		const cmakeVersion = (await command('cmake', ['--version'], work, environment)).stdout.split('\n')[0].trim();
 		await command('cmake', configureArgs, work, environment);
 		await command('cmake', ['--build', build, '--config', 'Release', '--target', 'whisper-cli', '--parallel', '4'], work, environment);

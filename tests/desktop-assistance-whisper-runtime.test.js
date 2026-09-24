@@ -1,12 +1,29 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import assert from 'node:assert/strict';
+import { execFileSync } from 'node:child_process';
 import { mkdtemp, mkdir, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { join, resolve } from 'node:path';
 import test from 'node:test';
 
-import { desktopWhisperCppBuildPlan, patchWhisperCppPipedStdout, stageDesktopWhisperCppRuntime } from '../scripts/lib/desktop-assistance-whisper-runtime.mjs';
+import { desktopWhisperCppBuildPlan, patchWhisperCppPipedStdout, stageDesktopWhisperCppRuntime,
+	whisperBuildEnvironment } from '../scripts/lib/desktop-assistance-whisper-runtime.mjs';
+
+test('Whisper source build cannot inherit the enclosing product Git revision', async (context) => {
+	const cacheRoot = resolve(import.meta.dirname, '../.native-build');
+	await mkdir(cacheRoot, { recursive: true });
+	const work = await mkdtemp(join(cacheRoot, 'whisper-git-ceiling-'));
+	context.after(() => rm(work, { recursive: true, force: true }));
+	const source = join(work, 'source');
+	await mkdir(source);
+	const inherited = { ...process.env, GIT_CEILING_DIRECTORIES: '' };
+	assert.match(execFileSync('git', ['rev-parse', '--short', 'HEAD'], { cwd: source, env: inherited,
+		encoding: 'utf8' }), /^[a-f\d]+\n$/u);
+	const isolated = whisperBuildEnvironment(work, inherited);
+	assert.throws(() => execFileSync('git', ['rev-parse', '--short', 'HEAD'], { cwd: source,
+		env: isolated, stdio: 'pipe' }));
+});
 
 test('Whisper build plans retain CPU-only portable targets and static runtime libraries', () => {
 	for (const [targetId, platform, architecture] of [
