@@ -7,6 +7,13 @@ import {
 	createProjectImportService,
 } from './helpers/project-import-runtime-fixture.ts';
 import {
+	createProjectImportService as createLazyProjectImportService,
+	type ProjectImportRuntime,
+} from '../src/common/editor/controller/import/internal/project-import-service.ts';
+import {
+	createProjectImportServiceRuntime,
+} from '../src/common/editor/controller/import/internal/project-import-service-runtime.ts';
+import {
 	bextMetadata,
 	commandOfType,
 	createFixture,
@@ -21,6 +28,27 @@ test('an import replaces the previous completion status before loading its admis
 	assert.equal(fixture.statuses.at(-1)?.[0], fixture.runtime.copy.importing);
 	await operation;
 	assert.equal(fixture.statuses.at(-1)?.[1], 'success');
+});
+
+test('first-use file and batch imports keep their invocation project across lazy loading', async () => {
+	for (const batch of [false, true]) {
+		const fixture = createFixture();
+		const loaderGate = deferred<void>();
+		const service = createLazyProjectImportService(
+			fixture.runtime as unknown as ProjectImportRuntime,
+			async () => {
+				await loaderGate.promise;
+				return { createProjectImportServiceRuntime };
+			},
+		);
+		const input = file(batch ? 'batch.wav' : 'single.wav');
+		const operation = batch ? service.importFiles([input]) : service.importFile(input);
+		fixture.setProject({ id: 'replacement', tracks: [], sources: [] });
+		loaderGate.resolve();
+
+		await assert.rejects(operation, /project changed/iu);
+		assert.equal(fixture.commands.length, 0);
+	}
 });
 
 test('audio imports support existing tracks, project-bin placement, and decoder fallback', async () => {

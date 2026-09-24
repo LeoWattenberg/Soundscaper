@@ -88,13 +88,14 @@ export function createProjectImportServiceRuntime(runtime: ProjectImportRuntime)
 		releaseLinkedOriginalLocator, validateImportTimelineTrack,
 	});
 	async function importFiles(fileList: RuntimeValue, requestedOptions: RuntimeValue = {},
-		initialStatusHandled = false) {
+		initialStatusHandled = false, assertRequestedProjectCurrent?: () => void) {
+		assertRequestedProjectCurrent?.();
 		const files = [...(fileList || [])];
 		if (!initialStatusHandled && files.length && !editingBlocked()) {
 			setLocalizedStatus(setStatus, copy, 'importing');
 		}
 		const { createImportTaskCancellation } = await loadImportAdmissionExecution();
-		const cancellation = createImportTaskCancellation(await normalizedImportOptionsForUse(requestedOptions));
+		const cancellation = createImportTaskCancellation(await normalizedImportOptionsForUse(requestedOptions)); assertRequestedProjectCurrent?.();
 		const importOptions = cancellation.options;
 		const linkedOriginalLocator = linkedOriginalLocatorReferenceFromImportOptions(importOptions);
 		if (!files.length || editingBlocked()) {
@@ -127,10 +128,17 @@ export function createProjectImportServiceRuntime(runtime: ProjectImportRuntime)
 		if (legacyProject) {
 			setImportFileProgress(legacyProject, completedBytes, totalBytes);
 			try {
+				assertRequestedProjectCurrent?.();
 				const result = await importLegacyAudacityProject(
 					legacyProject,
 					files.filter((file: RuntimeValue) => file !== legacyProject && !isLegacyAupFile(file)),
 				);
+				if (getProject()?.id !== result.project?.id) throw new Error('The project changed during audio import.');
+				const importedProjectToken = captureProject();
+				assertRequestedProjectCurrent = () => {
+					assertProject(importedProjectToken);
+					if (getProject()?.id !== result.project.id) throw new Error('The project changed during audio import.');
+				};
 				if (result?.notice) notices.push({ text: result.notice, localization: result.noticeLocalization });
 				successes += 1;
 			} catch (error) {
@@ -148,7 +156,7 @@ export function createProjectImportServiceRuntime(runtime: ProjectImportRuntime)
 			if (cancellation.signal.aborted) break;
 			setImportFileProgress(file, completedBytes, totalBytes);
 			try {
-				const result = await importFile(file, importFilePlacement(importOptions, audioFileIndex));
+				const result = await importFile(file, importFilePlacement(importOptions, audioFileIndex), assertRequestedProjectCurrent);
 				if (result?.notice) notices.push({ text: result.notice, localization: result.noticeLocalization });
 				successes += 1;
 			} catch (error) {
@@ -396,14 +404,8 @@ export function createProjectImportServiceRuntime(runtime: ProjectImportRuntime)
 				requireChunkStream: true,
 			}, { assertCurrent: assertImportProjectCurrent });
 		}
-		// Every PCM WAV the maintained reader accepted streams straight into the
-		// store. Short ones used to be decoded instead, back when the codec
-		// runtime was the only import path and the streaming reader was a
-		// large-file escape hatch; the size split bought nothing but a skipped
-		// read-back, and it cost the file its identity — `decodeAudioData`
-		// resamples to the output device's rate and folds anything above two
-		// channels to stereo, so the same recording imported as 192 kHz 6-channel
-		// or as 48 kHz stereo depending only on whether it crossed 32 MB.
+		// Stream every PCM WAV: Web Audio decoding resamples to the output rate
+		// and folds channels above stereo, making source identity depend on size.
 		if (wavDescriptor) {
 			return importIncrementalPcm(file, wavDescriptor, wavMetadata.importOptions, wavMetadata,
 				{ requireChunkStream }, { assertCurrent: assertImportProjectCurrent });

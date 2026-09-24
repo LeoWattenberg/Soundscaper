@@ -28,24 +28,45 @@ export function createProjectImportService(
 	loadRuntime: ProjectImportServiceRuntimeLoader = loadProjectImportServiceRuntime,
 ) {
 	let servicePromise: Promise<ProjectImportServiceRuntime> | null = null;
+	/** Pin the destination before first-use loading yields to a project switch. */
+	const captureDestination = () => {
+		const projectId = runtime.getProject()?.id ?? null;
+		const token = projectId ? runtime.captureProject() : null;
+		return () => {
+			try { if (token) runtime.assertProject(token); }
+			catch (error) { throw new Error('The project changed during audio import.', { cause: error }); }
+			if ((runtime.getProject()?.id ?? null) !== projectId) throw new Error('The project changed during audio import.');
+		};
+	};
 	const service = () => {
 		servicePromise ??= loadRuntime().then(({ createProjectImportServiceRuntime: createRuntime }) => (
 			createRuntime(runtime)
 		));
 		return servicePromise;
 	};
-	const importFile: ProjectImportServiceRuntime['importFile'] = async (...args) => (
-		(await service()).importFile(...args)
-	);
+	const importFile: ProjectImportServiceRuntime['importFile'] = async (
+		file, options, assertRequestedProjectCurrent,
+	) => {
+		const assertDestinationCurrent = captureDestination();
+		const loaded = await service();
+		assertDestinationCurrent();
+		return loaded.importFile(file, options, () => {
+			assertDestinationCurrent();
+			assertRequestedProjectCurrent?.();
+		});
+	};
 	const importFiles = async (
 		fileList: ImportFilesArguments[0],
 		requestedOptions?: ImportFilesArguments[1],
 	) => {
 		const files = [...(fileList || [])];
+		const assertDestinationCurrent = files.length ? captureDestination() : null;
 		if (files.length && !runtime.editingBlocked()) {
 			setLocalizedStatus(runtime.setStatus, runtime.copy, 'importing');
 		}
-		return (await service()).importFiles(files, requestedOptions, true);
+		const loaded = await service();
+		assertDestinationCurrent?.();
+		return loaded.importFiles(files, requestedOptions, true, assertDestinationCurrent ?? undefined);
 	};
 	return Object.freeze({
 		importFile,
