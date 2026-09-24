@@ -380,7 +380,12 @@ async function packagedAppAsarFileIdentity(path) {
 	let byteLength = 0;
 	const hash = createHash('sha256');
 	try {
-		for await (const chunk of createReadStream(path)) {
+		// Electron's patched fs treats an ASAR as a virtual directory. The
+		// nightly host cannot validate a nested product ASAR at this path, so
+		// read its archive bytes through Electron's unpatched filesystem.
+		const readArchive = process.versions.electron
+			? (await import('node:original-fs')).createReadStream : createReadStream;
+		for await (const chunk of readArchive(path)) {
 			byteLength += chunk.byteLength;
 			hash.update(chunk);
 		}

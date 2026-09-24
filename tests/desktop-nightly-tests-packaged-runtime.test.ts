@@ -8,12 +8,14 @@ import { dirname, join, resolve } from 'node:path';
 import test from 'node:test';
 import { fileURLToPath } from 'node:url';
 import { createPackage } from '@electron/asar';
+import { DesktopSettingsStore } from '../desktop/settings.js';
 
 import { packageDesktopNightlyTestProducts } from '../scripts/desktop-nightly-tests-products.mjs';
 import {
 	createDesktopNightlyTestsPackagedMetricsPlan,
 	packagedRuntimeChromiumArguments,
 	resolvePackagedProductExecutable,
+	seedDesktopNightlyPackagedLocale,
 } from '../scripts/lib/desktop-nightly-tests-packaged-runtime.mjs';
 import { packagedRuntimeEnvironmentFingerprint } from './browser/helpers/packaged-runtime-environment.js';
 import {
@@ -216,6 +218,14 @@ test('packaged-runtime Chromium arguments admit WebGL on hosted Linux renderers'
 		'--enable-webgl',
 		'--ignore-gpu-blocklist',
 	]);
+});
+
+test('packaged runtime uses English accessible names on a German host', async (context) => {
+	const profile = await mkdtemp(join(tmpdir(), 'soundscaper-packaged-locale-'));
+	context.after(() => rm(profile, { recursive: true, force: true }));
+	await seedDesktopNightlyPackagedLocale(profile);
+	const settings = new DesktopSettingsStore(join(profile, 'desktop-settings.json'));
+	assert.equal((await settings.load(['de-DE', 'de'])).locale, 'en');
 });
 
 test('packaged-runtime tests reuse one Electron process per product worker', async () => {

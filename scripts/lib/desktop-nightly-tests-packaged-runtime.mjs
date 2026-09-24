@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { mkdir } from 'node:fs/promises';
+import { mkdir, writeFile } from 'node:fs/promises';
 import { isAbsolute, join } from 'node:path';
 
 import { writeDesktopNightlyTestsMetricsDiagnostics } from './desktop-nightly-tests-metrics.mjs';
@@ -27,6 +27,11 @@ export function packagedRuntimeChromiumArguments(platform) {
 		'--ignore-gpu-blocklist',
 		...(platform === 'linux' ? ['--enable-unsafe-swiftshader'] : []),
 	]);
+}
+
+export async function seedDesktopNightlyPackagedLocale(profile) {
+	assertAbsolute(profile, 'Packaged runtime profile');
+	await writeFile(join(profile, 'desktop-settings.json'), JSON.stringify({ schemaVersion: 1, locale: 'en' }));
 }
 
 export function createDesktopNightlyTestsPackagedMetricsPlan({

@@ -28,6 +28,8 @@ export function packagedRuntimeChromiumArguments(
 	platform: 'win32' | 'darwin' | 'linux',
 ): readonly string[];
 
+export function seedDesktopNightlyPackagedLocale(profile: string): Promise<void>;
+
 export function resolvePackagedProductExecutable(options: {
 	readonly productRoot: string;
 	readonly productId: string;

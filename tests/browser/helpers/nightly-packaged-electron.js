@@ -12,6 +12,7 @@ import { chromium, expect, test as base } from '@playwright/test';
 import {
 	packagedRuntimeChromiumArguments,
 	resolvePackagedProductExecutable,
+	seedDesktopNightlyPackagedLocale,
 } from '../../../scripts/lib/desktop-nightly-tests-packaged-runtime.mjs';
 import {
 	bypassPackagedRuntimeServiceWorker,
@@ -56,6 +57,7 @@ const packagedTest = base.extend({
 		});
 		await access(executablePath);
 		const profile = await mkdtemp(join(tmpdir(), `${productId}-packaged-metrics-`));
+		await seedDesktopNightlyPackagedLocale(profile);
 		const audioFixtureArguments = await prepareAudioFixture(workerInfo, productId, profile);
 		const port = await reserveLoopbackPort();
 		const coverageLaunch = packagedRuntimeCoverageLaunch(process.env);
