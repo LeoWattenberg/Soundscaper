@@ -139,6 +139,12 @@ export const FOUNDATION_TIME_CONVERSION_COMMAND_SITES: readonly FoundationTimeCo
 		],
 	},
 	{
+		id: 'sound-activation-timestamp-labels',
+		file: 'src/common/editor/controller/recording/internal/sound-activation/sound-activation-timestamp-labels.ts',
+		behavior: 'Each admitted activation offset is point-rounded from capture frames to the project sample grid before placing its label beside the compacted clip.',
+		conversions: [{ helper: 'scaleSampleFrame', policies: ['point'] }],
+	},
+	{
 		id: 'nyquist-active-map-tempo',
 		file: 'src/common/editor/controller/effects/internal/nyquist/nyquist-host-service.ts',
 		behavior: 'Nyquist interchange exactly inverts the evaluation-start sample once, then selects the last authoritative event at or before that beat.',

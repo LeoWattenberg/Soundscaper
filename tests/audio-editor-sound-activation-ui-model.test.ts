@@ -30,6 +30,7 @@ test('sound activation UI model exposes bounded canonical controls and localized
 		thresholdDb: -40,
 		hysteresisDb: 6,
 		holdMilliseconds: 250,
+		addTimestamps: false,
 	});
 	assert.equal(model.controlsDisabled, false);
 	assert.equal(model.blockReason, null);
@@ -76,7 +77,7 @@ test('sound activation UI model rejects contradictory guard state and invalid pr
 	}, false, 'en', COPY), /block reason/iu);
 	assert.throws(() => createSoundActivationUiModel({
 		...policy(),
-		preferences: { enabled: false, thresholdDb: 1, hysteresisDb: 6, holdMilliseconds: 250 },
+		preferences: { enabled: false, thresholdDb: 1, hysteresisDb: 6, holdMilliseconds: 250, addTimestamps: false },
 	}, false, 'en', COPY), /sound activation preferences/iu);
 });
 
@@ -89,6 +90,7 @@ function policy(
 			thresholdDb: -40,
 			hysteresisDb: 6,
 			holdMilliseconds: 250,
+			addTimestamps: false,
 		}),
 		preferenceMutationBlocked: reason !== null,
 		preferenceMutationBlockReason: reason,

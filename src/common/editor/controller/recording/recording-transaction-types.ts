@@ -104,6 +104,7 @@ export interface RecordingSoundActivationSource {
  */
 export interface RecordingSoundActivationPort {
 	getSettings(source: RecordingSoundActivationSource): SoundActivationSettings | null;
+	getAddTimestamps?(source: RecordingSoundActivationSource): boolean;
 	setState(source: RecordingSoundActivationSource, state: SoundActivationGateState): void;
 }
 

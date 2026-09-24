@@ -198,6 +198,7 @@ export function createRecordingComposition(dependencies: RecordingCompositionDep
 
 	const finalizationRuntime: RecordingFinalizationCommonRuntime = {
 		sourceChunkFrames: SOURCE_CHUNK_FRAMES,
+		labelTrackName: publishedCopyFor(copy).labels,
 		captureProjectScope: () => {
 			const captured = dependencies.getProject();
 			if (!captured) throw abortError();

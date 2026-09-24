@@ -64,7 +64,7 @@ test('controller exposes disabled canonical policy and rolls back rejected durab
 		assert.strictEqual(publicRecordingActions.soundActivation, controller.actions.recording.soundActivation);
 		const initial = recordingInputs.soundActivation;
 		assert.deepEqual(initial, {
-			preferences: { enabled: false, thresholdDb: -40, hysteresisDb: 6, holdMilliseconds: 250 },
+			preferences: { enabled: false, addTimestamps: false, thresholdDb: -40, hysteresisDb: 6, holdMilliseconds: 250 },
 			preferenceMutationBlocked: false,
 			preferenceMutationBlockReason: null,
 			sources: [],
@@ -332,7 +332,7 @@ test('scheduled and routed capture report guarded, isolated source state through
 function soundActivationActions(controller: ReturnType<typeof createAudioEditorController>) {
 	const group = controller.actions.recording.soundActivation;
 	if (!group || typeof group !== 'object') throw new TypeError('Sound activation actions are unavailable.');
-	for (const name of ['setEnabled', 'setThresholdDb', 'setHysteresisDb', 'setHoldMilliseconds'] as const) {
+	for (const name of ['setEnabled', 'setThresholdDb', 'setHysteresisDb', 'setHoldMilliseconds', 'setAddTimestamps'] as const) {
 		if (typeof group[name] !== 'function') throw new TypeError(`Missing sound activation action ${name}.`);
 	}
 	return group;

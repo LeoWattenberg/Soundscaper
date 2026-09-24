@@ -19,6 +19,7 @@ import {
 	cleanupCommittedRecordingSource,
 	throwRecordingFinalizationFailure,
 } from './recording-finalization-cleanup.ts';
+import { createSoundActivationTimestampCommands } from './sound-activation/sound-activation-timestamp-labels.ts';
 
 function isObject(value: unknown): value is Readonly<Record<string, unknown>> {
 	return Boolean(value) && typeof value === 'object';
@@ -159,7 +160,18 @@ export function createLegacyRecordingFinalization(runtime: RecordingFinalization
 				clipId,
 			});
 			projectScope.assertCurrent();
-			runtime.commitBatch(projectScope.project, [sourceCommand, clipCommand], {
+			const labelCommands = createSoundActivationTimestampCommands({
+				project: projectScope.project,
+				labelTrackName: runtime.labelTrackName ?? 'Labels',
+				projectSampleRate: projectRate,
+				createId: runtime.createStableId,
+				timestamps: (transaction.preview?.activationFrameOffsets ?? []).map((offsetFrames) => ({
+					startFrame: transaction.startFrame,
+					offsetFrames,
+					sampleRate,
+				})),
+			});
+			runtime.commitBatch(projectScope.project, [sourceCommand, clipCommand, ...labelCommands], {
 				selectTrackId: transaction.trackId,
 				selectClipId: clipId,
 			});

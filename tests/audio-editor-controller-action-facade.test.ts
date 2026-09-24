@@ -181,6 +181,7 @@ test('recording actions expose one capability-guarded sound activation preferenc
 				setThresholdDb: async (...args: unknown[]) => { calls.push(['threshold', ...args]); return true; },
 				setHysteresisDb: async (...args: unknown[]) => { calls.push(['hysteresis', ...args]); return true; },
 				setHoldMilliseconds: async (...args: unknown[]) => { calls.push(['hold', ...args]); return true; },
+				setAddTimestamps: async (...args: unknown[]) => { calls.push(['timestamps', ...args]); return true; },
 			};
 			return Reflect.get(target, name, receiver);
 		},
@@ -194,13 +195,14 @@ test('recording actions expose one capability-guarded sound activation preferenc
 		['setThresholdDb', -24],
 		['setHysteresisDb', 3],
 		['setHoldMilliseconds', 500],
+		['setAddTimestamps', true],
 	] as const) {
 		const action: unknown = (soundActivation as Readonly<Record<string, unknown>>)[name];
 		if (typeof action !== 'function') throw new TypeError(`Missing sound activation action ${name}.`);
 		assert.equal(await action(value), true);
 	}
 	assert.deepEqual(calls, [
-		['enabled', true], ['threshold', -24], ['hysteresis', 3], ['hold', 500],
+		['enabled', true], ['threshold', -24], ['hysteresis', 3], ['hold', 500], ['timestamps', true],
 	]);
 	assert.equal(Object.isFrozen(soundActivation), true);
 
@@ -223,6 +225,7 @@ test('general preference actions cannot bypass sound activation ownership', () =
 	let reverts = 0;
 	const current = {
 		enabled: true,
+		addTimestamps: true,
 		thresholdDb: -24,
 		hysteresisDb: 3,
 		holdMilliseconds: 500,
@@ -241,6 +244,7 @@ test('general preference actions cannot bypass sound activation ownership', () =
 				setThresholdDb: async () => true,
 				setHysteresisDb: async () => true,
 				setHoldMilliseconds: async () => true,
+				setAddTimestamps: async () => true,
 			};
 			return Reflect.get(target, name, receiver);
 		},
@@ -266,6 +270,7 @@ test('general preference actions cannot bypass sound activation ownership', () =
 				getSnapshot: () => ({
 					preferences: {
 						enabled: false,
+						addTimestamps: false,
 						thresholdDb: -40,
 						hysteresisDb: 6,
 						holdMilliseconds: 250,
@@ -291,6 +296,7 @@ test('general preference actions cannot bypass sound activation ownership', () =
 				getSnapshot: () => ({
 					preferences: {
 						enabled: false,
+						addTimestamps: false,
 						thresholdDb: -40,
 						hysteresisDb: 6,
 						holdMilliseconds: 250,

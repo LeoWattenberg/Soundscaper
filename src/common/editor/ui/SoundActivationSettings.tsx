@@ -17,6 +17,7 @@ interface SoundActivationActions {
 	setThresholdDb(value: number): unknown;
 	setHysteresisDb(value: number): unknown;
 	setHoldMilliseconds(value: number): unknown;
+	setAddTimestamps(value: boolean): unknown;
 }
 
 interface SoundActivationPreferencesCopy extends SoundActivationUiCopy {
@@ -28,6 +29,8 @@ interface SoundActivationPreferencesCopy extends SoundActivationUiCopy {
 	readonly soundActivationHysteresisDescription: string;
 	readonly soundActivationHold: string;
 	readonly soundActivationHoldDescription: string;
+	readonly soundActivationAddTimestamps: string;
+	readonly soundActivationAddTimestampsDescription: string;
 }
 
 interface SoundActivationSettingsProps {
@@ -56,6 +59,7 @@ export default function SoundActivationSettings({
 }: SoundActivationSettingsProps) {
 	const titleId = useId();
 	const statusId = useId();
+	const timestampDescriptionId = useId();
 	if (productId !== 'soundscaper') return null;
 	const model = createSoundActivationUiModel(soundActivation, readOnly, locale, copy);
 	const actions = controller.actions.recording.soundActivation;
@@ -69,6 +73,7 @@ export default function SoundActivationSettings({
 			data-sound-activation-threshold-db={model.preferences.thresholdDb}
 			data-sound-activation-hysteresis-db={model.preferences.hysteresisDb}
 			data-sound-activation-hold-milliseconds={model.preferences.holdMilliseconds}
+			data-sound-activation-add-timestamps={model.preferences.addTimestamps}
 			data-sound-activation-pending={model.preferenceUpdatePending}
 			data-sound-activation-block-reason={model.blockReason || undefined}
 			aria-labelledby={titleId}
@@ -117,6 +122,22 @@ export default function SoundActivationSettings({
 					statusId={statusId}
 					onChange={(value) => update(() => actions.setHoldMilliseconds(value))}
 				/>
+				<label className="kw-audio-editor-sound-activation__switch">
+					<input type="checkbox" name="sound-activation-add-timestamps"
+						checked={model.preferences.addTimestamps}
+						disabled={model.controlsDisabled}
+						aria-label={copy.soundActivationAddTimestamps}
+						aria-describedby={`${timestampDescriptionId} ${statusId}`}
+						onChange={(event) => update(() => actions.setAddTimestamps(event.currentTarget.checked))} />
+					<span>{copy.soundActivationAddTimestamps}</span>
+					<EditorHelpTooltip subject={copy.soundActivationAddTimestamps}
+						description={copy.soundActivationAddTimestampsDescription}
+						helpLabel={copy.helpMenu} hook="sound-activation-add-timestamps"
+						describedBy={timestampDescriptionId} />
+					<span id={timestampDescriptionId} className="kw-audio-editor-sr-only">
+						{copy.soundActivationAddTimestampsDescription}
+					</span>
+				</label>
 			</fieldset>
 			<p
 				id={statusId}

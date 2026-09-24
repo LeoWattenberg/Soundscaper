@@ -19,6 +19,7 @@ import {
 export interface SoundActivatedRecordingCaptureSession {
 	readonly enabled: boolean;
 	readonly state: SoundActivationGateState | null;
+	readonly activationFrameOffsets: readonly number[];
 	process(chunk: RecordingCaptureChunk): readonly SoundActivationAudioSegment[];
 	wrapController(controller: RecordingCaptureControllerLike): RecordingCaptureControllerLike;
 	cancel(): boolean;
@@ -44,12 +45,16 @@ export function createSoundActivatedRecordingCaptureSession(
 	const sourceOffsetFrames = normalizeSourceOffsetFrames(options.sourceOffsetFrames);
 	const settings = port ? port.getSettings(source) : null;
 	const gate = settings === null ? null : createSoundActivatedRecordingGate(settings);
+	const addTimestamps = gate !== null && (port?.getAddTimestamps?.(source) ?? false);
+	const activationFrameOffsets: number[] = [];
+	let admittedFrames = 0;
 	let scheduledStartFrame: number | null = null;
 	let expectedNextFrame: number | null = null;
 
 	const session: SoundActivatedRecordingCaptureSession = {
 		get enabled() { return gate !== null; },
 		get state() { return gate?.state ?? null; },
+		activationFrameOffsets,
 		process,
 		wrapController,
 		cancel,
@@ -107,6 +112,14 @@ export function createSoundActivatedRecordingCaptureSession(
 		});
 		const previous = gate.state;
 		const filtered = filterSoundActivatedRecordingChunk(gate, eligibleChunk);
+		const activations = addTimestamps
+			? new Set(filtered.transitions.filter((transition) => transition.type === 'activated')
+				.map((transition) => transition.frame))
+			: null;
+		for (const segment of filtered.segments) {
+			if (activations?.has(segment.frameStart)) activationFrameOffsets.push(admittedFrames);
+			admittedFrames += segment.frames;
+		}
 		expectedNextFrame = chunkEndFrame;
 		publishState(previous);
 		return filtered.segments;

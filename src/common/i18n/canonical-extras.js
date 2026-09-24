@@ -178,6 +178,8 @@ const COPY_ENTRIES = Object.freeze([
 	["soundActivationHysteresisDescription","Capture waits for the input to fall this far below the threshold before the hold begins.","Die Haltezeit beginnt erst, wenn das Eingangssignal so weit unter den Aktivierungspegel fällt."],
 	["soundActivationHold","Hold after silence","Haltezeit nach Stille"],
 	["soundActivationHoldDescription","Keep capturing for this long after the input falls below the release level.","Nach Unterschreiten des Freigabepegels noch so lange weiter aufnehmen."],
+	["soundActivationAddTimestamps","Add timestamps","Zeitstempel hinzufügen"],
+	["soundActivationAddTimestampsDescription","Add a label at the project time of each sound activation.","Bei jeder Pegelaktivierung eine Textmarke an der entsprechenden Projektzeit hinzufügen."],
 	["soundActivationStatusEnabled","Sound-activated recording is on.","Die pegelgesteuerte Aufnahme ist eingeschaltet."],
 	["soundActivationStatusDisabled","Sound-activated recording is off.","Die pegelgesteuerte Aufnahme ist ausgeschaltet."],
 	["soundActivationGuardReadOnly","This project is read-only. Sound-activation settings cannot be changed.","Dieses Projekt ist schreibgeschützt. Die Pegelsteuerung kann nicht geändert werden."],

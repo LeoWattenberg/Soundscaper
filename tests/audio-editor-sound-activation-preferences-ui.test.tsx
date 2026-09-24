@@ -10,13 +10,14 @@ import SoundActivationSettings from '../src/common/editor/ui/SoundActivationSett
 import RecordFlyout from '../src/common/editor/ui/toolbar/RecordFlyout.jsx';
 import type { SoundActivationPolicySnapshot } from '../src/common/editor/controller/recording/sound-activation-policy-service.ts';
 
-test('Soundscaper renders three accessible sound activation settings over the public snapshot', () => {
+test('Soundscaper renders accessible sound activation settings over the public snapshot', () => {
 	const markup = render(false, policy());
 
 	assert.match(markup, /data-sound-activation-settings="true"/u);
 	assert.match(markup, /data-sound-activation-threshold-db="-40"/u);
 	assert.match(markup, /data-sound-activation-hysteresis-db="6"/u);
 	assert.match(markup, /data-sound-activation-hold-milliseconds="250"/u);
+	assert.match(markup, /data-sound-activation-add-timestamps="false"/u);
 	assert.doesNotMatch(markup, /role="switch"/u);
 	assert.match(markup, /type="range"[^>]+data-sound-activation-threshold="true"/u);
 	assert.match(markup, /aria-label="Activation threshold"/u);
@@ -25,6 +26,9 @@ test('Soundscaper renders three accessible sound activation settings over the pu
 	assert.match(markup, /aria-valuetext="6 dB"/u);
 	assert.match(markup, /aria-label="Hold after silence"/u);
 	assert.match(markup, /aria-description="250 ms"/u);
+	assert.match(markup, /type="checkbox"[^>]+name="sound-activation-add-timestamps"/u);
+	assert.match(markup, /Add timestamps/u);
+	assert.match(markup, /Add a label at the project time of each sound activation/u);
 	assert.match(markup, /role="status"[^>]+aria-live="polite"/u);
 	assert.doesNotMatch(markup, /Sound-activated recording is off/u);
 });
@@ -34,7 +38,7 @@ test('guarded sound activation controls are disabled and expose the exact active
 
 	assert.match(markup, /data-sound-activation-block-reason="recording-active"/u);
 	assert.match(markup, /Recording is active/u);
-	assert.equal((markup.match(/ disabled=""/gu) || []).length, 3);
+	assert.equal((markup.match(/ disabled=""/gu) || []).length, 4);
 	assert.match(markup, /aria-disabled="true"/u);
 });
 
@@ -79,6 +83,7 @@ function render(
 			setThresholdDb: action,
 			setHysteresisDb: action,
 			setHoldMilliseconds: action,
+			setAddTimestamps: action,
 		} } } },
 		run: (operation: () => unknown) => operation(),
 	}));
@@ -93,6 +98,7 @@ function policy(
 			thresholdDb: -40,
 			hysteresisDb: 6,
 			holdMilliseconds: 250,
+			addTimestamps: false,
 		}),
 		preferenceMutationBlocked: reason !== null,
 		preferenceMutationBlockReason: reason,

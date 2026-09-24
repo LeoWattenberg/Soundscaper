@@ -30,6 +30,7 @@ const DISPLAY_SOURCE = Object.freeze({
 
 const ENABLED_PREFERENCES: SoundActivationPreferences = Object.freeze({
 	enabled: true,
+	addTimestamps: false,
 	thresholdDb: -36,
 	hysteresisDb: 4,
 	holdMilliseconds: 125,
@@ -90,6 +91,18 @@ test('capture activation overrides the stored enabled flag for one session', () 
 	assert.equal(fixture.service.getSnapshot().preferences.enabled, true);
 });
 
+test('timestamp preference is captured once per input session', () => {
+	const fixture = createFixture({ preferences: { ...ENABLED_PREFERENCES, addTimestamps: true } });
+	fixture.service.getSettings(DEVICE_SOURCE);
+	assert.equal(fixture.service.getAddTimestamps(DEVICE_SOURCE), true);
+	fixture.replacePreferences(ENABLED_PREFERENCES);
+	assert.equal(fixture.service.getAddTimestamps(DEVICE_SOURCE), true);
+	fixture.service.discardSource(DEVICE_SOURCE.sourceKey);
+	assert.equal(fixture.service.getAddTimestamps(DEVICE_SOURCE), false);
+	fixture.service.getSettings(DEVICE_SOURCE);
+	assert.equal(fixture.service.getAddTimestamps(DEVICE_SOURCE), false);
+});
+
 test('source states remain independent while a shared source key has one canonical row', () => {
 	const fixture = createFixture({ preferences: ENABLED_PREFERENCES });
 	const deviceSettings = fixture.service.getSettings(DEVICE_SOURCE);
@@ -136,13 +149,15 @@ test('preference mutations write one complete global record and validate every f
 	assert.equal(await fixture.service.setThresholdDb(-24.5), true);
 	assert.equal(await fixture.service.setHysteresisDb(3.5), true);
 	assert.equal(await fixture.service.setHoldMilliseconds(375), true);
+	assert.equal(await fixture.service.setAddTimestamps(true), true);
 	assert.deepEqual(fixture.preferences(), {
 		enabled: true,
+		addTimestamps: true,
 		thresholdDb: -24.5,
 		hysteresisDb: 3.5,
 		holdMilliseconds: 375,
 	});
-	assert.equal(fixture.updates.length, 4);
+	assert.equal(fixture.updates.length, 5);
 	for (const patch of fixture.updates) {
 		assert.deepEqual(Reflect.ownKeys(patch), ['recording']);
 		assert.deepEqual(Reflect.ownKeys(patch.recording), ['soundActivation']);
@@ -151,10 +166,11 @@ test('preference mutations write one complete global record and validate every f
 		assert.equal(Object.isFrozen(patch.recording.soundActivation), true);
 	}
 	assert.equal(await fixture.service.setHoldMilliseconds(375), false, 'an equal value is a no-op');
-	assert.equal(fixture.updates.length, 4);
+	assert.equal(fixture.updates.length, 5);
 
 	for (const operation of [
 		() => fixture.service.setEnabled(1),
+		() => fixture.service.setAddTimestamps(1),
 		() => fixture.service.setThresholdDb('20'),
 		() => fixture.service.setThresholdDb(-0),
 		() => fixture.service.setHysteresisDb(Number.NaN),
@@ -162,7 +178,7 @@ test('preference mutations write one complete global record and validate every f
 		() => fixture.service.setHoldMilliseconds(1.5),
 		() => fixture.service.setHoldMilliseconds(600_001),
 	]) await assert.rejects(operation(), /sound activation/i);
-	assert.equal(fixture.updates.length, 4);
+	assert.equal(fixture.updates.length, 5);
 });
 
 test('preference mutations no-op throughout recording preparation, scheduling, capture, and finishing', async () => {

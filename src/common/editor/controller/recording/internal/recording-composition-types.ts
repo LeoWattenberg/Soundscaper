@@ -83,6 +83,7 @@ export type RecordingCompositionEngine = RecordingEnginePort & TakeCycleRoutedCa
 }>;
 
 export interface RecordingCompositionCopy {
+	readonly labels: string;
 	readonly armTrackForRecording: string;
 	readonly recordingPreparedInputClosed: string;
 	readonly recording: string;

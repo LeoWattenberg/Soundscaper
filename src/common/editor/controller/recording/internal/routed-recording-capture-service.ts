@@ -274,6 +274,7 @@ export function createRoutedRecordingCaptureService(runtime: RoutedRecordingCapt
 						framesToSkip: persistedSourceOffsetProjectFrames,
 						timelineMode: soundActivation.enabled ? 'compacted' : 'continuous',
 					});
+					preview.activationFrameOffsets = soundActivation.activationFrameOffsets;
 					const entry: RoutedRecordingEntry = Object.freeze({
 						trackId: track.id,
 						route,

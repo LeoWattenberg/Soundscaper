@@ -8,6 +8,7 @@ import {
 
 export interface SoundActivationPreferences {
 	readonly enabled: boolean;
+	readonly addTimestamps: boolean;
 	readonly thresholdDb: number;
 	readonly hysteresisDb: number;
 	readonly holdMilliseconds: number;
@@ -23,6 +24,7 @@ export const SOUND_ACTIVATION_PREFERENCE_LIMITS = Object.freeze({
 
 export const DEFAULT_SOUND_ACTIVATION_PREFERENCES: SoundActivationPreferences = Object.freeze({
 	enabled: false,
+	addTimestamps: false,
 	thresholdDb: -40,
 	hysteresisDb: 6,
 	holdMilliseconds: 250,
@@ -30,6 +32,7 @@ export const DEFAULT_SOUND_ACTIVATION_PREFERENCES: SoundActivationPreferences = 
 
 const PREFERENCE_KEYS = Object.freeze([
 	'enabled',
+	'addTimestamps',
 	'thresholdDb',
 	'hysteresisDb',
 	'holdMilliseconds',
@@ -41,6 +44,9 @@ export function normalizeSoundActivationPreferences(value: unknown): SoundActiva
 	const input = closedPreferenceRecord(value);
 	if (typeof input.enabled !== 'boolean') {
 		throw new TypeError('The sound activation preferences enabled field is invalid.');
+	}
+	if (typeof input.addTimestamps !== 'boolean') {
+		throw new TypeError('The sound activation preferences addTimestamps field is invalid.');
 	}
 	const thresholdDb = boundedCanonicalNumber(
 		input.thresholdDb,
@@ -65,6 +71,7 @@ export function normalizeSoundActivationPreferences(value: unknown): SoundActiva
 	}
 	return Object.freeze({
 		enabled: input.enabled,
+		addTimestamps: input.addTimestamps,
 		thresholdDb,
 		hysteresisDb,
 		holdMilliseconds,
@@ -101,13 +108,19 @@ function closedPreferenceRecord(value: unknown): Record<PreferenceKey, unknown> 
 	}
 	const record = value as Record<PropertyKey, unknown>;
 	const keys = Reflect.ownKeys(record);
-	if (keys.length !== PREFERENCE_KEYS.length || keys.some((key) => (
+	// Older V1 records predate timestamp labels. Preserve their stored settings.
+	if ((keys.length !== PREFERENCE_KEYS.length && keys.length !== PREFERENCE_KEYS.length - 1)
+		|| keys.some((key) => (
 		typeof key !== 'string' || !PREFERENCE_KEYS.includes(key as PreferenceKey)
-	))) {
+	)) || (keys.length === PREFERENCE_KEYS.length - 1 && keys.includes('addTimestamps'))) {
 		throw new TypeError('The sound activation preferences contain an unknown or missing field.');
 	}
 	const snapshot = Object.create(null) as Record<PreferenceKey, unknown>;
 	for (const key of PREFERENCE_KEYS) {
+		if (key === 'addTimestamps' && !Object.hasOwn(record, key)) {
+			snapshot.addTimestamps = false;
+			continue;
+		}
 		const descriptor = Object.getOwnPropertyDescriptor(record, key);
 		if (!descriptor?.enumerable || !('value' in descriptor)) {
 			throw new TypeError(`The sound activation preferences ${key} field must be enumerable data.`);

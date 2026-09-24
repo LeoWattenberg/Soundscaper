@@ -63,6 +63,7 @@ test('sound activation parameters describe themselves through help tooltips', as
 			['sound-activation-threshold', ENGLISH_COPY.soundActivationThresholdDescription],
 			['sound-activation-hysteresis', ENGLISH_COPY.soundActivationHysteresisDescription],
 			['sound-activation-hold', ENGLISH_COPY.soundActivationHoldDescription],
+			['sound-activation-add-timestamps', ENGLISH_COPY.soundActivationAddTimestampsDescription],
 		] as const) {
 			const trigger = container.querySelector(`[data-editor-help="${hook}"]`);
 			assert.ok(trigger, `Missing help trigger ${hook}.`);
@@ -205,6 +206,7 @@ function soundActivationPolicy(): SoundActivationPolicySnapshot {
 			thresholdDb: -40,
 			hysteresisDb: 6,
 			holdMilliseconds: 250,
+			addTimestamps: false,
 		}),
 		preferenceMutationBlocked: false,
 		preferenceMutationBlockReason: null,
@@ -245,6 +247,7 @@ function soundActivationController() {
 					setThresholdDb: () => undefined,
 					setHysteresisDb: () => undefined,
 					setHoldMilliseconds: () => undefined,
+					setAddTimestamps: () => undefined,
 				},
 			},
 		},

@@ -49,6 +49,7 @@ export interface RecordingPunchOptions {
 
 export interface RecordingFinalizationCommonRuntime {
 	readonly sourceChunkFrames: number;
+	readonly labelTrackName?: string;
 	readonly captureProjectScope: () => RecordingProjectTransactionScope;
 	readonly projectSampleRate: (project: RecordingProject) => number;
 	readonly pauseTransport: () => void;

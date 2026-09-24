@@ -70,6 +70,7 @@ export function createRecordingActionFacade(
 			setThresholdDb: restricted('audioRecording', soundActivation.setThresholdDb),
 			setHysteresisDb: restricted('audioRecording', soundActivation.setHysteresisDb),
 			setHoldMilliseconds: restricted('audioRecording', soundActivation.setHoldMilliseconds),
+			setAddTimestamps: restricted('audioRecording', soundActivation.setAddTimestamps),
 		}),
 	});
 }
@@ -122,6 +123,7 @@ function soundActivationPreferencesEqual(
 	right: ReturnType<SoundActivationPolicyService['getSnapshot']>['preferences'],
 ): boolean {
 	return left.enabled === right.enabled
+		&& left.addTimestamps === right.addTimestamps
 		&& left.thresholdDb === right.thresholdDb
 		&& left.hysteresisDb === right.hysteresisDb
 		&& left.holdMilliseconds === right.holdMilliseconds;

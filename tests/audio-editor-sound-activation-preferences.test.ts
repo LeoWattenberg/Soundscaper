@@ -16,6 +16,7 @@ import {
 
 const ENABLED_PREFERENCES = Object.freeze({
 	enabled: true,
+	addTimestamps: false,
 	thresholdDb: -40,
 	hysteresisDb: 6,
 	holdMilliseconds: 250,
@@ -24,6 +25,7 @@ const ENABLED_PREFERENCES = Object.freeze({
 test('sound activation preferences expose immutable canonical defaults', () => {
 	assert.deepEqual(DEFAULT_SOUND_ACTIVATION_PREFERENCES, {
 		enabled: false,
+		addTimestamps: false,
 		thresholdDb: -40,
 		hysteresisDb: 6,
 		holdMilliseconds: 250,
@@ -43,6 +45,8 @@ test('sound activation preferences expose immutable canonical defaults', () => {
 });
 
 test('sound activation preference normalization accepts only a closed plain-data record', () => {
+	const legacy = { enabled: true, thresholdDb: -40, hysteresisDb: 6, holdMilliseconds: 250 };
+	assert.deepEqual(normalizeSoundActivationPreferences(legacy), ENABLED_PREFERENCES);
 	const nullPrototype = Object.assign(Object.create(null) as Record<string, unknown>, ENABLED_PREFERENCES);
 	assert.deepEqual(normalizeSoundActivationPreferences(nullPrototype), ENABLED_PREFERENCES);
 
@@ -74,19 +78,22 @@ test('sound activation preference normalization accepts only a closed plain-data
 test('sound activation preference fields are strictly typed, bounded, and canonical', () => {
 	assert.deepEqual(normalizeSoundActivationPreferences({
 		enabled: false,
+		addTimestamps: false,
 		thresholdDb: -100,
 		hysteresisDb: 0,
 		holdMilliseconds: 0,
-	}), { enabled: false, thresholdDb: -100, hysteresisDb: 0, holdMilliseconds: 0 });
+	}), { enabled: false, addTimestamps: false, thresholdDb: -100, hysteresisDb: 0, holdMilliseconds: 0 });
 	assert.deepEqual(normalizeSoundActivationPreferences({
 		enabled: true,
+		addTimestamps: true,
 		thresholdDb: 0,
 		hysteresisDb: 24,
 		holdMilliseconds: 600_000,
-	}), { enabled: true, thresholdDb: 0, hysteresisDb: 24, holdMilliseconds: 600_000 });
+	}), { enabled: true, addTimestamps: true, thresholdDb: 0, hysteresisDb: 24, holdMilliseconds: 600_000 });
 
 	const invalid = [
 		{ ...ENABLED_PREFERENCES, enabled: 1 },
+		{ ...ENABLED_PREFERENCES, addTimestamps: 1 },
 		{ ...ENABLED_PREFERENCES, thresholdDb: NaN },
 		{ ...ENABLED_PREFERENCES, thresholdDb: Number.NEGATIVE_INFINITY },
 		{ ...ENABLED_PREFERENCES, thresholdDb: -101 },
@@ -146,6 +153,7 @@ test('V1 sound activation preferences survive strict update and load round trips
 		recording: {
 			soundActivation: {
 				enabled: true,
+				addTimestamps: true,
 				thresholdDb: -24.5,
 				hysteresisDb: 3.5,
 				holdMilliseconds: 375,
@@ -156,6 +164,7 @@ test('V1 sound activation preferences survive strict update and load round trips
 		retainInputs: true,
 		soundActivation: {
 			enabled: true,
+			addTimestamps: true,
 			thresholdDb: -24.5,
 			hysteresisDb: 3.5,
 			holdMilliseconds: 375,

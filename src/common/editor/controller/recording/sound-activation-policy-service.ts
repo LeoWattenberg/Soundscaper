@@ -74,11 +74,13 @@ export interface SoundActivationPolicySnapshot {
 
 export interface SoundActivationPolicyService extends RecordingSoundActivationPort {
 	getSnapshot(): SoundActivationPolicySnapshot;
+	getAddTimestamps(source: RecordingSoundActivationSource): boolean;
 	setCaptureEnabled(enabled: boolean): void;
 	setEnabled(value: unknown): Promise<boolean>;
 	setThresholdDb(value: unknown): Promise<boolean>;
 	setHysteresisDb(value: unknown): Promise<boolean>;
 	setHoldMilliseconds(value: unknown): Promise<boolean>;
+	setAddTimestamps(value: unknown): Promise<boolean>;
 	discardSource(sourceKey: unknown): boolean;
 	resetSources(): boolean;
 }
@@ -86,6 +88,7 @@ export interface SoundActivationPolicyService extends RecordingSoundActivationPo
 interface SourceSession {
 	readonly source: RecordingSoundActivationSource;
 	readonly settings: SoundActivationSettings;
+	readonly addTimestamps: boolean;
 	state: SoundActivationGateState;
 }
 
@@ -120,6 +123,7 @@ export function createSoundActivationPolicyService(
 
 	return Object.freeze({
 		getSettings,
+		getAddTimestamps,
 		setState,
 		getSnapshot,
 		setCaptureEnabled: (enabled: boolean) => { captureEnabled = enabled; },
@@ -127,6 +131,7 @@ export function createSoundActivationPolicyService(
 		setThresholdDb: (value: unknown) => mutatePreference('thresholdDb', value),
 		setHysteresisDb: (value: unknown) => mutatePreference('hysteresisDb', value),
 		setHoldMilliseconds: (value: unknown) => mutatePreference('holdMilliseconds', value),
+		setAddTimestamps: (value: unknown) => mutatePreference('addTimestamps', value),
 		discardSource,
 		resetSources,
 	});
@@ -145,10 +150,19 @@ export function createSoundActivationPolicyService(
 		sessions.set(source.sourceKey, {
 			source,
 			settings,
+			addTimestamps: preferences.addTimestamps,
 			state: 'disarmed',
 		});
 		publish();
 		return settings;
+	}
+
+	function getAddTimestamps(sourceValue: RecordingSoundActivationSource): boolean {
+		const source = normalizeSource(sourceValue);
+		const session = sessions.get(source.sourceKey);
+		if (!session) return false;
+		assertSameSource(session.source, source);
+		return session.addTimestamps;
 	}
 
 	function setState(
@@ -340,6 +354,7 @@ function preferencesEqual(
 	right: SoundActivationPreferences,
 ): boolean {
 	return left.enabled === right.enabled
+		&& left.addTimestamps === right.addTimestamps
 		&& left.thresholdDb === right.thresholdDb
 		&& left.hysteresisDb === right.hysteresisDb
 		&& left.holdMilliseconds === right.holdMilliseconds;

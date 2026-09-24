@@ -23,6 +23,7 @@ import {
 	throwRecordingFinalizationFailure,
 } from './recording-finalization-cleanup.ts';
 import { recordedSourceProvenance } from './recording-source-provenance.ts';
+import { createSoundActivationTimestampCommands, type RecordingActivationTimestamp } from './sound-activation/sound-activation-timestamp-labels.ts';
 
 function isObject(value: unknown): value is Readonly<Record<string, unknown>> {
 	return Boolean(value) && typeof value === 'object';
@@ -141,6 +142,8 @@ export function createRoutedRecordingFinalization(runtime: RoutedRecordingFinali
 			const projectRate = runtime.projectSampleRate(projectScope.project);
 			const commands: unknown[] = [];
 			const clipIds: string[] = [];
+			const timestampSources = new Set<string>();
+			const timestamps: RecordingActivationTimestamp[] = [];
 			let compactedEndFrame: number | null = null;
 			for (const entry of transaction.entries) {
 				const frames = entry.writer.framesWritten;
@@ -207,12 +210,29 @@ export function createRoutedRecordingFinalization(runtime: RoutedRecordingFinali
 				});
 				commands.push(sourceCommand, clipCommand);
 				clipIds.push(clipId);
+				if (!timestampSources.has(entry.sourceKey)) {
+					timestampSources.add(entry.sourceKey);
+					for (const offsetFrames of entry.preview.activationFrameOffsets ?? []) {
+						timestamps.push({
+							startFrame: entry.recordingStartFrame,
+							offsetFrames,
+							sampleRate: entry.sampleRate,
+						});
+					}
+				}
 				if (entry.preview.timelineMode === 'compacted') {
 					compactedEndFrame = Math.max(compactedEndFrame ?? 0, entry.recordingStartFrame + durationFrames);
 				}
 			}
 			projectScope.assertCurrent();
 			if (commands.length) {
+				commands.push(...createSoundActivationTimestampCommands({
+					project: projectScope.project,
+					labelTrackName: runtime.labelTrackName ?? 'Labels',
+					projectSampleRate: projectRate,
+					createId: runtime.createStableId,
+					timestamps,
+				}));
 				runtime.commitBatch(projectScope.project, commands, {
 					selectTrackId: committedEntries[0]?.trackId,
 					selectClipId: clipIds[0],
