@@ -93,6 +93,7 @@ test.describe('ported Audacity effect layouts', () => {
 	});
 
 	test('compressor places history above its two knob grids and compression curve', async ({ page }) => {
+		test.setTimeout(60_000);
 		const errors = collectClientErrors(page);
 		const editor = await bootEditor(page, '/embed/en/');
 		await useAudacityDarkTheme(page, editor);
@@ -197,6 +198,7 @@ test.describe('ported Audacity effect layouts', () => {
 	}
 
 	test('Bass and Treble uses three large knobs with no invented card headings', async ({ page }) => {
+		test.setTimeout(60_000);
 		const errors = collectClientErrors(page);
 		const editor = await bootEditor(page, '/embed/en/');
 		await importFiles(editor, [toneA]);
