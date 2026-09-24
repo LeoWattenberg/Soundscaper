@@ -3,7 +3,7 @@
 import { execFile } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { chmod, copyFile, lstat, mkdir, mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promises';
-import { isAbsolute, join, resolve } from 'node:path';
+import { dirname, isAbsolute, join, resolve } from 'node:path';
 import { promisify } from 'node:util';
 import { extract, list } from 'tar';
 import { desktopWhisperCppNotices } from './desktop-assistance-whisper-notices.mjs';
@@ -37,6 +37,17 @@ export function whisperBuildEnvironment(work, environment = process.env) {
 		GIT_CEILING_DIRECTORIES: work };
 }
 
+export async function createWhisperBuildWorkDirectory({ cacheRoot, targetId, platform = process.platform }) {
+	if (platform !== 'win32') return mkdtemp(join(cacheRoot, 'build-'));
+	// MSVC can embed the absolute source path. Use the same path on every
+	// package and asset runner, outside the checkout and its Git history.
+	const checkout = resolve(import.meta.dirname, '../..');
+	const namespace = hash(resolve(cacheRoot)).slice(0, 12);
+	const work = join(dirname(checkout), `.soundscaper-whisper-${namespace}-${targetId}`);
+	await mkdir(work);
+	return work;
+}
+
 /** Build pinned source on the package runner, then bind the actual shipped bytes. */
 export async function stageDesktopWhisperCppRuntime({
 	targetId, runtimeRoot, cacheRoot, platform = process.platform, architecture = process.arch,
@@ -48,7 +59,7 @@ export async function stageDesktopWhisperCppRuntime({
 	const cache = resolve(cacheRoot, 'whisper-cpp', COMMIT);
 	await mkdir(cache, { recursive: true });
 	const archiveBytes = await authenticatedArchive(cache);
-	const work = await mkdtemp(join(cache, 'build-'));
+	const work = await createWhisperBuildWorkDirectory({ cacheRoot: cache, targetId, platform });
 	try {
 		const archive = join(work, 'source.tar.gz');
 		await writeFile(archive, archiveBytes, { flag: 'wx', mode: 0o400 });

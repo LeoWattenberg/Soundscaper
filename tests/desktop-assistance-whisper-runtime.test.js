@@ -4,11 +4,11 @@ import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
 import { mkdtemp, mkdir, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { join, resolve } from 'node:path';
+import { dirname, join, resolve, sep } from 'node:path';
 import test from 'node:test';
 
-import { desktopWhisperCppBuildPlan, patchWhisperCppPipedStdout, stageDesktopWhisperCppRuntime,
-	whisperBuildEnvironment } from '../scripts/lib/desktop-assistance-whisper-runtime.mjs';
+import { createWhisperBuildWorkDirectory, desktopWhisperCppBuildPlan, patchWhisperCppPipedStdout,
+	stageDesktopWhisperCppRuntime, whisperBuildEnvironment } from '../scripts/lib/desktop-assistance-whisper-runtime.mjs';
 
 test('Whisper source build cannot inherit the enclosing product Git revision', async (context) => {
 	const cacheRoot = resolve(import.meta.dirname, '../.native-build');
@@ -23,6 +23,26 @@ test('Whisper source build cannot inherit the enclosing product Git revision', a
 	const isolated = whisperBuildEnvironment(work, inherited);
 	assert.throws(() => execFileSync('git', ['rev-parse', '--short', 'HEAD'], { cwd: source,
 		env: isolated, stdio: 'pipe' }));
+});
+
+test('Windows Whisper builds use one exclusive stable source path outside the product checkout', async (context) => {
+	const cacheRoot = resolve(import.meta.dirname, '../.native-build/assistance-runtimes');
+	const options = { cacheRoot, targetId: 'win-x64', platform: 'win32' };
+	const work = await createWhisperBuildWorkDirectory(options);
+	context.after(() => rm(work, { recursive: true, force: true }));
+	const checkout = resolve(import.meta.dirname, '..');
+	assert.equal(dirname(work), dirname(checkout));
+	assert.ok(!work.startsWith(`${checkout}${sep}`));
+	const source = join(work, 'source');
+	await mkdir(source);
+	const gitEnvironment = { ...process.env, GIT_CEILING_DIRECTORIES: '' };
+	delete gitEnvironment.GIT_DIR;
+	delete gitEnvironment.GIT_WORK_TREE;
+	assert.throws(() => execFileSync('git', ['rev-parse', '--short', 'HEAD'], { cwd: source,
+		env: gitEnvironment, stdio: 'pipe' }));
+	await assert.rejects(createWhisperBuildWorkDirectory(options), { code: 'EEXIST' });
+	await rm(work, { recursive: true, force: true });
+	assert.equal(await createWhisperBuildWorkDirectory(options), work);
 });
 
 test('Whisper build plans retain CPU-only portable targets and static runtime libraries', () => {
