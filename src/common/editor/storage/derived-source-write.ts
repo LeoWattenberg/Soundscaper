@@ -19,10 +19,13 @@ import {
 
 interface DerivedSourceWriteOptions {
 	readonly records: Pick<SourceRecordRepository,
-		'getMetadata' | 'writeChunk' | 'deleteChunks' | 'putDerivedMetadataIfBaseCurrent' | 'deleteMetadataIfCurrent'>;
-	readonly pcm: Pick<PcmRepository, 'encode'>;
+		'getMetadata' | 'chunks' | 'writeChunk' | 'deleteChunks' | 'putDerivedMetadataIfBaseCurrent' | 'deleteMetadataIfCurrent'>;
+	readonly pcm: Pick<PcmRepository, 'encode' | 'decodeRecord'>;
 	readonly database: () => Promise<IDBDatabase | null>;
 }
+
+// Rebase a sparse overlay onto its physical root before reads need a long ancestry walk.
+const MATERIALIZE_AT_DEPENDENCY_COUNT = 16;
 
 export async function writeDerivedSource(
 	options: DerivedSourceWriteOptions,
@@ -40,6 +43,9 @@ export async function writeDerivedSource(
 	const base = await options.records.getMetadata(baseSourceId);
 	if (!base) throw new Error('The immutable base source could not be found.');
 	if (await options.records.getMetadata(sourceId)) throw new Error('Immutable source ids cannot be overwritten.');
+	const dependencies = await sourceDependencies(options.records, base);
+	const materialize = dependencies.length >= MATERIALIZE_AT_DEPENDENCY_COUNT;
+	const physicalBase = dependencies.at(-1) as StorageRecord;
 	const channelCount = positiveInteger(base.channelCount, 64);
 	const frameCount = positiveInteger(base.frameCount ?? base.frameLength, Number.MAX_SAFE_INTEGER);
 	const chunkFrames = normalizePcmChunkFrames(metadata.chunkFrames ?? base.chunkFrames ?? 65_536);
@@ -61,7 +67,9 @@ export async function writeDerivedSource(
 	let wavpackChunkCount = 0;
 	let rawChunkCount = 0;
 	try {
-		for (const chunk of chunks) {
+		const writeChunk = async (
+			chunk: Readonly<{ index: number; frames: number; channels: readonly Float32Array[]; createdAt: number }>,
+		): Promise<void> => {
 			let record: SourceChunkRecord;
 			if (database) {
 				const stored = await options.pcm.encode(packPlanarFloat32(chunk.channels), {
@@ -89,6 +97,36 @@ export async function writeDerivedSource(
 				rawChunkCount += 1;
 			}
 			await options.records.writeChunk(record);
+		};
+		for (const chunk of chunks) await writeChunk(chunk);
+		if (materialize) {
+			for (const owner of dependencies) {
+				if (owner.storage !== 'copy-on-write') break;
+				if (!owner.sourceToken) throw new Error('A derived source has no storage token.');
+				const ownerIndices = new Set<number>();
+				for await (const stored of options.records.chunks(owner.sourceToken)) {
+					const index = nonNegativeInteger(stored.index, -1);
+					if (index < 0 || index >= expectedChunkCount || ownerIndices.has(index)) {
+						throw new Error('A derived source contains an invalid stored replacement chunk index.');
+					}
+					ownerIndices.add(index);
+					if (seenIndices.has(index)) continue;
+					const decoded = await options.pcm.decodeRecord(stored, owner);
+					const expectedFrames = index === expectedChunkCount - 1
+						? frameCount - index * chunkFrames : chunkFrames;
+					if (decoded.frames !== expectedFrames || decoded.channels.length !== channelCount) {
+						throw new Error('A derived source replacement has incompatible PCM geometry.');
+					}
+					await writeChunk({
+						index, frames: expectedFrames, channels: decoded.channels, createdAt: Date.now(),
+					});
+					seenIndices.add(index);
+				}
+				if (owner.overrideChunkCount !== undefined
+					&& Number(owner.overrideChunkCount) !== ownerIndices.size) {
+					throw new Error('A derived source is missing stored replacement chunks.');
+				}
+			}
 		}
 	} catch (error) {
 		await options.records.deleteChunks(token);
@@ -98,14 +136,14 @@ export async function writeDerivedSource(
 		...clone(metadata),
 		id: sourceId,
 		storage: 'copy-on-write',
-		baseSourceId,
+		baseSourceId: materialize ? physicalBase.id : baseSourceId,
 		sourceToken: token,
 		channelCount,
 		frameLength: frameCount,
 		frameCount,
 		chunkFrames,
 		chunkCount: expectedChunkCount,
-		overrideChunkCount: chunks.length,
+		overrideChunkCount: seenIndices.size,
 		sampleRate: metadata.sampleRate ?? base.sampleRate,
 		pcmEncodingVersion: database ? 1 : undefined,
 		...compressionStatistics({ uncompressedBytes, storedBytes, wavpackChunkCount, rawChunkCount }),
@@ -114,7 +152,9 @@ export async function writeDerivedSource(
 	};
 	let definitelyRefused = false;
 	try {
-		const publication = await options.records.putDerivedMetadataIfBaseCurrent(record, base);
+		const publication = await options.records.putDerivedMetadataIfBaseCurrent(
+			record, base, materialize ? dependencies : undefined,
+		);
 		if (publication === 'target-exists') {
 			definitelyRefused = true;
 			throw new Error(`Immutable source ${sourceId} already exists and cannot be overwritten.`);
@@ -133,6 +173,30 @@ export async function writeDerivedSource(
 		throw error;
 	}
 	return clone(record);
+}
+
+async function sourceDependencies(
+	records: Pick<SourceRecordRepository, 'getMetadata'>,
+	base: StorageRecord,
+): Promise<StorageRecord[]> {
+	const dependencies = [base];
+	const seen = new Set<string>();
+	let source = base;
+	while (source.storage === 'copy-on-write') {
+		if (!source.id || seen.has(source.id)) {
+			throw new Error('The immutable source dependency graph contains a cycle.');
+		}
+		seen.add(source.id);
+		if (!source.baseSourceId) throw new Error('A copy-on-write source has no immutable base source.');
+		const parent = await records.getMetadata(source.baseSourceId);
+		if (!parent) throw new Error(`Copy-on-write source dependency ${source.baseSourceId} is missing.`);
+		if (parent.id !== source.baseSourceId) {
+			throw new Error('Owned source metadata does not match its requested identity.');
+		}
+		source = parent;
+		dependencies.push(source);
+	}
+	return dependencies;
 }
 
 function chunkRecord(

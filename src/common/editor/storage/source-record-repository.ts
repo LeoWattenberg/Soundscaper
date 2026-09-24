@@ -164,26 +164,32 @@ export class SourceRecordRepository {
 	async putDerivedMetadataIfBaseCurrent(
 		record: StorageRecord,
 		expectedBase: StorageRecord,
+		expectedDependencies: readonly StorageRecord[] = [expectedBase],
 	): Promise<DerivedSourcePublicationResult> {
-		if (!record.id || !expectedBase.id || record.baseSourceId !== expectedBase.id) {
+		if (!record.id || !expectedBase.id || expectedDependencies[0]?.id !== expectedBase.id
+			|| record.baseSourceId !== expectedDependencies.at(-1)?.id) {
 			throw new TypeError('Derived source metadata requires its expected base source identity.');
 		}
 		const database = await this.#port.database();
 		if (!database) {
 			const target = this.#port.memory.sources.get(record.id) as StorageRecord | undefined;
 			if (target) return 'target-exists';
-			const base = this.#port.memory.sources.get(expectedBase.id) as StorageRecord | undefined;
-			if (!sameStoredSourceIdentity(base, expectedBase)) return 'base-changed';
+			for (const expected of expectedDependencies) {
+				const current = this.#port.memory.sources.get(expected.id as string) as StorageRecord | undefined;
+				if (!sameStoredSourceIdentity(current, expected)) return 'base-changed';
+			}
 			this.#port.memory.sources.set(record.id, clone(record));
 			return 'published';
 		}
 		return transact(database, 'sources', 'readwrite', async ({ sources }) => {
-			const [target, base] = await Promise.all([
+			const [target, ...dependencies] = await Promise.all([
 				request(sources.get(record.id as string)),
-				request(sources.get(expectedBase.id as string)),
+				...expectedDependencies.map((expected) => request(sources.get(expected.id as string))),
 			]);
 			if (target !== undefined) return 'target-exists';
-			if (!sameStoredSourceIdentity(base as StorageRecord | undefined, expectedBase)) return 'base-changed';
+			if (dependencies.some((current, index) => !sameStoredSourceIdentity(
+				current as StorageRecord | undefined, expectedDependencies[index],
+			))) return 'base-changed';
 			sources.put(record);
 			return 'published';
 		});
