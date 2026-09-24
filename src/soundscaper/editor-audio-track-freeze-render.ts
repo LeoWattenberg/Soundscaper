@@ -262,8 +262,8 @@ async function cleanupRenderResources(
 	primary: unknown,
 ): Promise<void> {
 	const settled = await Promise.allSettled([
-		engine.dispose(),
-		...Array.from(providers.values(), (provider) => provider.dispose()),
+		Promise.resolve().then(() => engine.dispose()),
+		...Array.from(providers.values(), (provider) => Promise.resolve().then(() => provider.dispose())),
 	]);
 	const failures = settled.filter((result): result is PromiseRejectedResult => result.status === 'rejected')
 		.map(({ reason }) => reason as unknown);

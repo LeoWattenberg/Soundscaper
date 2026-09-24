@@ -662,7 +662,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		getClipVisualData: bindings.getClipVisualData,
 		getProjectBinClipVisualData: bindings.getProjectBinClipVisualData, selectedMediaPreparation: effects.audio.selectedMediaPreparation, textToSpeechProjectPort,
 		actions, presentationLocalization: localization.port,
-		dispose: () => { disposeLocalization(); return disposeResources(); },
+		beginDisposal: () => { disposeResources.beginDisposal(); publishDocumentSnapshot({ force: true }); }, blockStoreClose: disposeResources.blockStoreClose, canCloseStore: disposeResources.canCloseStore, dispose: () => { disposeLocalization(); return disposeResources(); },
 	};
 
 	function publishDocumentSnapshot({ force = false } = {}) { documentChannel.publish({ force }); }

@@ -46,6 +46,7 @@ test('disposal is reentrant, synchronously closes authority, and flushes before 
 	assert.equal(repeated, pending);
 	assert.equal(f.lifetime.phase, 'disposing');
 	assert.equal(f.state.disposed, true);
+	assert.equal(dispose.canCloseStore(), true);
 	assert.equal(dispose(), pending);
 	await pending;
 	assert.equal(f.lifetime.phase, 'disposed');
@@ -75,8 +76,20 @@ test('failed source readers retain source resources and storage even when they t
 	assert.ok(!f.calls.includes('buffers'));
 	assert.ok(!f.calls.includes('providers'));
 	assert.ok(!f.calls.includes('store'));
+	assert.equal(dispose.canCloseStore(), false);
 	assert.ok(f.calls.includes('waveforms'));
 	assert.equal(f.lifetime.phase, 'disposed');
+});
+
+test('an external product reader can veto source retirement and store close', async () => {
+	const f = fixture();
+	const dispose = createControllerDisposal(f.dependencies);
+	dispose.blockStoreClose();
+	await dispose();
+	assert.equal(dispose.canCloseStore(), false);
+	assert.ok(f.calls.includes('buffers'));
+	assert.ok(f.calls.includes('providers'));
+	assert.ok(!f.calls.includes('store'));
 });
 
 test('both capture producers are awaited after either fails before source retirement', async () => {

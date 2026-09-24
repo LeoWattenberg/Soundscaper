@@ -69,17 +69,31 @@ export interface ControllerDisposalDependencies {
 	readonly closeStore: Cleanup;
 }
 
+export interface ControllerDisposal {
+	(): Promise<void>;
+	beginDisposal(): void;
+	blockStoreClose(): void;
+	canCloseStore(): boolean;
+}
+
 /** Own disposal ordering, failure isolation, and the source-reader retirement barrier. */
-export function createControllerDisposal(d: ControllerDisposalDependencies): () => Promise<void> {
+export function createControllerDisposal(d: ControllerDisposalDependencies): ControllerDisposal {
 	let pending: Promise<void> | undefined;
-	return () => {
+	let sourceRetirementBlocked = false;
+	let storeCloseBlocked = false;
+	const beginDisposal = (): void => {
+		d.lifetime.beginDisposal();
+		d.state.disposed = true;
+		d.state.phase = d.lifetime.phase;
+	};
+	const dispose = (): Promise<void> => {
 		if (pending) return pending;
 		let resolve!: () => void;
 		let reject!: (reason: unknown) => void;
 		const promise = new Promise<void>((onResolve, onReject) => { resolve = onResolve; reject = onReject; });
 		// Publish only after caching the promise: subscribers may reenter dispose.
 		pending = promise;
-		let failed = false, failure: unknown, sourceRetirementBlocked = false;
+		let failed = false, failure: unknown;
 		const record = (error: unknown, fencesSources = false): void => {
 			if (!failed) { failed = true; failure = error; }
 			if (fencesSources) sourceRetirementBlocked = true;
@@ -90,9 +104,7 @@ export function createControllerDisposal(d: ControllerDisposalDependencies): () 
 		const immediate = (operation: Cleanup): void => {
 			try { operation(); } catch (error) { record(error); }
 		};
-		immediate(() => d.lifetime.beginDisposal());
-		d.state.disposed = true;
-		d.state.phase = d.lifetime.phase;
+		immediate(beginDisposal);
 		immediate(d.closeInspections);
 		immediate(d.clearTaskProgress);
 		immediate(d.clearDiagnostics);
@@ -160,7 +172,7 @@ export function createControllerDisposal(d: ControllerDisposalDependencies): () 
 				await cleanup(d.clearSourcePeaks);
 			}
 			await cleanup(d.clearWaveformCaches);
-			if (!sourceRetirementBlocked) await cleanup(d.closeStore);
+			if (!sourceRetirementBlocked && !storeCloseBlocked) await cleanup(d.closeStore);
 			await cleanup(() => d.lifetime.finishDisposal());
 			d.state.phase = d.lifetime.phase;
 			await cleanup(d.publish);
@@ -169,4 +181,9 @@ export function createControllerDisposal(d: ControllerDisposalDependencies): () 
 			if (failed) throw failure;
 		}
 	};
+	return Object.assign(dispose, {
+		beginDisposal,
+		blockStoreClose: () => { storeCloseBlocked = true; },
+		canCloseStore: () => !sourceRetirementBlocked && !storeCloseBlocked,
+	});
 }

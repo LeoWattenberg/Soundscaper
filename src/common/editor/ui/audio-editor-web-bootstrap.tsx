@@ -36,7 +36,9 @@ interface RuntimeEnvironment<Projector> {
 }
 
 interface RuntimeController {
+	beginDisposal?(): void;
 	dispose(): PromiseLike<void> | void;
+	canCloseStore?(): boolean;
 }
 
 interface RuntimeMetadata<Projector> {
@@ -211,29 +213,43 @@ async function disposeRuntimeResources<
 	>,
 ): Promise<void> {
 	let failure: unknown;
+	let failed = false;
 	monoConversionConfirmation.dispose();
 	if (extension !== undefined && options.disposeExtension) {
 		try {
-			await options.disposeExtension(extension);
+			controller.beginDisposal?.();
 		} catch (error) {
 			failure = error;
+			failed = true;
+		}
+		try {
+			await options.disposeExtension(extension);
+		} catch (error) {
+			failure = failed
+				? new AggregateError(
+					[failure, error], options.extensionAndControllerDisposalMessage
+						?? options.controllerAndEnvironmentDisposalMessage,
+				)
+				: error;
+			failed = true;
 		}
 	}
 	try {
 		await controller.dispose();
 	} catch (error) {
-		failure = failure
+		failure = failed
 			? new AggregateError(
 				[failure, error],
 				options.extensionAndControllerDisposalMessage
 					?? options.controllerAndEnvironmentDisposalMessage,
 			)
 			: error;
+		failed = true;
 	}
 	try {
-		await environment.close();
+		if (controller.canCloseStore?.() !== false) await environment.close();
 	} catch (error) {
-		if (failure) {
+		if (failed) {
 			if (options.controllerAndEnvironmentDisposalCause) {
 					throw new AggregateError(
 						[failure, error],
@@ -250,7 +266,7 @@ async function disposeRuntimeResources<
 		}
 		throw error;
 	}
-	if (failure) throw failure;
+	if (failed) throw failure;
 }
 
 export interface AudioEditorWebBootstrapProps {

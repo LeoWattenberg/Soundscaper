@@ -90,6 +90,89 @@ test('the shared web runtime owns attachments and disposes every product resourc
 	);
 });
 
+test('web runtime leaves storage open when a controller cannot retire its readers', async () => {
+	const log: string[] = [];
+	const readerFailure = new Error('reader retirement failed');
+	const lifecycle = createAudioEditorWebRuntimeLifecycle({
+		createFileService: () => ({ isDesktop: false, bridge: null }),
+		createEnvironment: async () => ({
+			runtime: { projectForRuntimeConsumers: () => null },
+			store: { assistanceDerivativeRepository: null },
+			close: async () => { log.push('store closed'); },
+		}),
+		createController: () => ({
+			dispose: async () => { log.push('reader failed'); throw readerFailure; },
+			canCloseStore: () => false,
+		}),
+		createMonoConversionConfirmation: () => confirmation(log),
+		constructionCleanupMessage: 'construction cleanup failed',
+		controllerAndEnvironmentDisposalMessage: 'runtime cleanup failed',
+		controllerAndEnvironmentDisposalCause: true,
+		exactRuntimeMessage: 'exact runtime required',
+	});
+	const runtime = await lifecycle.create(Object.freeze({ locale: 'en' }));
+	await assert.rejects(runtime.dispose(), (error: unknown) => error === readerFailure);
+	assert.deepEqual(log, ['confirmation', 'reader failed']);
+});
+
+test('web runtime fences controller actions while an extension drains', async () => {
+	const events: string[] = [];
+	const extensionDrain = deferred<void>();
+	let fenced = false;
+	const lifecycle = createAudioEditorWebRuntimeLifecycle({
+		createFileService: () => ({ isDesktop: false, bridge: null }),
+		createEnvironment: async () => ({
+			runtime: { projectForRuntimeConsumers: () => null },
+			store: { assistanceDerivativeRepository: null },
+			close: async () => { events.push('environment'); },
+		}),
+		createController: () => ({
+			beginDisposal: () => { fenced = true; events.push('fenced'); },
+			dispose: async () => { events.push('controller'); },
+		}),
+		createExtension: () => ({ dispose: () => extensionDrain.promise }),
+		disposeExtension: (extension) => extension.dispose(),
+		constructionCleanupMessage: 'construction cleanup failed',
+		controllerAndEnvironmentDisposalMessage: 'runtime cleanup failed',
+		controllerAndEnvironmentDisposalCause: true,
+		exactRuntimeMessage: 'exact runtime required',
+	});
+	const runtime = await lifecycle.create(Object.freeze({ locale: 'en' }));
+	const pending = runtime.dispose();
+	assert.equal(fenced, true);
+	assert.deepEqual(events, ['fenced']);
+	extensionDrain.resolve();
+	await pending;
+	assert.deepEqual(events, ['fenced', 'controller', 'environment']);
+});
+
+test('an early fence failure still runs controller cleanup and remains the disposal failure', async () => {
+	const events: string[] = [];
+	const lifecycle = createAudioEditorWebRuntimeLifecycle({
+		createFileService: () => ({ isDesktop: false, bridge: null }),
+		createEnvironment: async () => ({
+			runtime: { projectForRuntimeConsumers: () => null },
+			store: { assistanceDerivativeRepository: null },
+			close: async () => { events.push('environment'); },
+		}),
+		createController: () => ({
+			beginDisposal: () => { events.push('fence'); throw null; },
+			dispose: async () => { events.push('controller'); },
+		}),
+		createExtension: () => ({ dispose: async () => { events.push('extension'); } }),
+		disposeExtension: (extension) => extension.dispose(),
+		constructionCleanupMessage: 'construction cleanup failed',
+		controllerAndEnvironmentDisposalMessage: 'runtime cleanup failed',
+		controllerAndEnvironmentDisposalCause: true,
+		exactRuntimeMessage: 'exact runtime required',
+	});
+	const runtime = await lifecycle.create(Object.freeze({ locale: 'en' }));
+	let rejected = false;
+	await runtime.dispose().catch((error: unknown) => { rejected = true; assert.equal(error, null); });
+	assert.equal(rejected, true);
+	assert.deepEqual(events, ['fence', 'extension', 'controller', 'environment']);
+});
+
 test('construction cleanup preserves the primary failure and exact AggregateError wording', async () => {
 	const primary = new Error('controller construction failed');
 	const cleanup = new Error('environment cleanup failed');

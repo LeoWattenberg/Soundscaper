@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import type { ControllerOptions } from '../common/editor/controller/composition/controller-options.ts';
+import { EditorDisposedError } from '../common/editor/controller/shared/lifecycle.ts';
 import { createAudioEditorController } from '../common/editor/app.js';
 import { importSoundscaperAudacityProject } from './editor-audacity-project-import.ts';
 import {
@@ -141,20 +142,46 @@ function createControllerFacade(
 	nativePlugins: Readonly<SoundscaperNativePluginActions>,
 	persistentDelivery: ReturnType<typeof createSoundscaperPersistentDeliveryControllerComposition>,
 ): SoundscaperAudioEditorController {
-	const actions = decorateActions(delegate.actions, automation, freeze, nativePlugins, persistentDelivery);
+	let disposal: Promise<void> | null = null;
+	let shutdownStarted = false;
+	const assertActive = (): void => { if (shutdownStarted) throw new EditorDisposedError(); };
+	const beginDisposal = (): void => { shutdownStarted = true; delegate.beginDisposal(); };
+	const actions = decorateActions(delegate.actions, automation, freeze, nativePlugins, persistentDelivery, assertActive);
 	const descriptors = Object.getOwnPropertyDescriptors(delegate);
 	const actionsDescriptor = descriptors.actions;
+	const beginDisposalDescriptor = descriptors.beginDisposal;
 	const disposeDescriptor = descriptors.dispose;
 	if (!actionsDescriptor || !Object.hasOwn(actionsDescriptor, 'value')
+		|| !beginDisposalDescriptor || !Object.hasOwn(beginDisposalDescriptor, 'value')
 		|| !disposeDescriptor || !Object.hasOwn(disposeDescriptor, 'value')) {
 		throw new TypeError('The common editor controller has unsupported action or disposal descriptors.');
 	}
-	let disposal: Promise<void> | null = null;
 	descriptors.actions = { ...actionsDescriptor, value: actions };
+	descriptors.beginDisposal = { ...beginDisposalDescriptor, value: beginDisposal };
 	descriptors.dispose = {
 		...disposeDescriptor,
 		value: () => {
-			disposal ??= disposeControllerBindings(delegate, automation, freeze, persistentDelivery);
+			if (disposal === null) {
+				let resolve!: () => void;
+				let reject!: (reason: unknown) => void;
+				disposal = new Promise<void>((onResolve, onReject) => {
+					resolve = onResolve;
+					reject = onReject;
+				});
+				let beginFailed = false;
+				let beginFailure: unknown;
+				try { beginDisposal(); }
+				catch (error) { beginFailed = true; beginFailure = error; }
+				void disposeControllerBindings(delegate, automation, freeze, persistentDelivery).then(
+					() => { if (beginFailed) reject(beginFailure); else resolve(); },
+					(error: unknown) => {
+						if (beginFailed) reject(new AggregateError(
+							[beginFailure, error], 'Soundscaper controller disposal failed.', { cause: beginFailure },
+						));
+						else reject(error);
+					},
+				);
+			}
 			return disposal;
 		},
 	};
@@ -170,6 +197,7 @@ function decorateActions(
 	freeze: Readonly<SoundscaperAudioFreezeActionBinding>,
 	nativePlugins: Readonly<SoundscaperNativePluginActions>,
 	persistentDelivery: ReturnType<typeof createSoundscaperPersistentDeliveryControllerComposition>,
+	assertActive: () => void,
 ): SoundscaperAudioEditorController['actions'] {
 	const actions = actionRecord(actionsValue, 'common editor actions');
 	const descriptors = Object.getOwnPropertyDescriptors(actions);
@@ -177,20 +205,20 @@ function decorateActions(
 		descriptors.project,
 		lifecycleActions(actions.project, [
 			'create', 'open', 'openRecent', 'openById', 'close',
-		], automation.actions.resetProject),
+		], automation.actions.resetProject, assertActive),
 		'project actions',
 	);
 	descriptors.edit = replacementDescriptor(
 		descriptors.edit,
-		lifecycleActions(actions.edit, ['undo', 'redo'], automation.actions.resetProject),
+		lifecycleActions(actions.edit, ['undo', 'redo'], automation.actions.resetProject, assertActive),
 		'edit actions',
 	);
-	descriptors.audioAutomation = immutableDataDescriptor(automation.actions);
-	descriptors.audioFreeze = immutableDataDescriptor(freeze.actions);
-	descriptors.nativePlugins = immutableDataDescriptor(nativePlugins);
+	descriptors.audioAutomation = immutableDataDescriptor(guardProductActions(automation.actions, assertActive, ['getSnapshot']));
+	descriptors.audioFreeze = immutableDataDescriptor(guardProductActions(freeze.actions, assertActive, ['getStatus']));
+	descriptors.nativePlugins = immutableDataDescriptor(guardProductActions(nativePlugins, assertActive));
 	if (persistentDelivery) descriptors.export = replacementDescriptor(
 		descriptors.export,
-		persistentDeliveryExportActions(actions.export, persistentDelivery.queue),
+		persistentDeliveryExportActions(actions.export, persistentDelivery.queue, assertActive),
 		'export actions',
 	);
 	return Object.freeze(Object.create(
@@ -203,6 +231,7 @@ function lifecycleActions(
 	value: unknown,
 	methodNames: readonly string[],
 	reset: () => void,
+	assertActive: () => void,
 ): Readonly<Record<string, unknown>> {
 	const actions = actionRecord(value, 'controller lifecycle actions');
 	const descriptors = Object.getOwnPropertyDescriptors(actions);
@@ -215,6 +244,7 @@ function lifecycleActions(
 		descriptors[name] = {
 			...descriptor,
 			value: (...args: unknown[]) => {
+				assertActive();
 				reset();
 				return Reflect.apply(operation, actions, args);
 			},
@@ -230,9 +260,14 @@ async function disposeControllerBindings(
 	persistentDelivery: ReturnType<typeof createSoundscaperPersistentDeliveryControllerComposition>,
 ): Promise<void> {
 	const failures: unknown[] = [];
-	try { await persistentDelivery?.dispose(); } catch (error) { failures.push(error); }
 	try { automation.dispose(); } catch (error) { failures.push(error); }
-	try { await freeze.dispose(); } catch (error) { failures.push(error); }
+	const freezeCleanup = Promise.resolve().then(() => freeze.dispose()).then(
+		() => null,
+		(error: unknown) => ({ error }),
+	);
+	try { await persistentDelivery?.dispose(); } catch (error) { failures.push(error); delegate.blockStoreClose(); }
+	const freezeFailure = await freezeCleanup;
+	if (freezeFailure) { failures.push(freezeFailure.error); delegate.blockStoreClose(); }
 	try { await delegate.dispose(); } catch (error) { failures.push(error); }
 	if (failures.length === 1) throw failures[0];
 	if (failures.length > 1) {
@@ -242,11 +277,40 @@ async function disposeControllerBindings(
 	}
 }
 
-function persistentDeliveryExportActions(value: unknown, queue: unknown): Readonly<Record<string, unknown>> {
+function persistentDeliveryExportActions(
+	value: unknown,
+	queue: unknown,
+	assertActive: () => void,
+): Readonly<Record<string, unknown>> {
 	const actions = actionRecord(value, 'common export actions');
 	const descriptors = Object.getOwnPropertyDescriptors(actions);
-	descriptors.queue = replacementDescriptor(descriptors.queue, queue, 'delivery queue actions');
+	descriptors.queue = replacementDescriptor(
+		descriptors.queue,
+		guardProductActions(actionRecord(queue, 'delivery queue actions'), assertActive, ['list']),
+		'delivery queue actions',
+	);
 	return Object.freeze(Object.create(Object.getPrototypeOf(actions), descriptors));
+}
+
+function guardProductActions<Actions extends object>(
+	actions: Actions,
+	assertActive: () => void,
+	readMethods: readonly string[] = [],
+): Actions {
+	const descriptors: PropertyDescriptorMap = Object.getOwnPropertyDescriptors(actions);
+	for (const [name, descriptor] of Object.entries(descriptors)) {
+		if (!Object.hasOwn(descriptor, 'value') || typeof descriptor.value !== 'function'
+			|| readMethods.includes(name)) continue;
+		const operation = descriptor.value as (...args: unknown[]) => unknown;
+		descriptors[name] = {
+			...descriptor,
+			value: (...args: unknown[]) => {
+				assertActive();
+				return Reflect.apply(operation, actions, args);
+			},
+		};
+	}
+	return Object.freeze(Object.create(Object.getPrototypeOf(actions), descriptors)) as Actions;
 }
 
 function persistentDeliveryBridge(
