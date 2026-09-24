@@ -1,0 +1,31 @@
+diff --git a/node_modules/builder-util/out/util.js b/node_modules/builder-util/out/util.js
+index b7005a7..096c0b0 100644
+--- a/node_modules/builder-util/out/util.js
++++ b/node_modules/builder-util/out/util.js
+@@ -285,6 +285,8 @@ function spawnAndWrite(command, args, data, options) {
+ function spawnAndWriteWithOutput(command, args, data, options) {
+     const childProcess = doSpawn(command, args, { ...options, stdio: ["pipe", "pipe", "pipe"] });
+     const isDebugEnabled = log_1.debug.enabled;
++    const timeoutMinutes = /(?:^|[\\/])makensis(?:\.exe)?$/i.test(command) &&
++        args.some(arg => arg.startsWith("-XOutFile ") && arg.includes("-nightly-with-tests-")) ? 20 : 4;
+     return new Promise((resolve, reject) => {
+         let stdout = "";
+         let stderr = "";
+@@ -292,7 +294,7 @@ function spawnAndWriteWithOutput(command, args, data, options) {
+         const timeout = setTimeout(() => {
+             timedOut = true;
+             childProcess.kill();
+-        }, 4 * 60 * 1000);
++        }, timeoutMinutes * 60 * 1000);
+         childProcess.on("error", (err) => {
+             clearTimeout(timeout);
+             reject(err);
+@@ -313,7 +315,7 @@ function spawnAndWriteWithOutput(command, args, data, options) {
+         childProcess.once("close", (code) => {
+             clearTimeout(timeout);
+             if (timedOut) {
+-                reject(new Error(`${command} timed out after 4 minutes`));
++                reject(new Error(`${command} timed out after ${timeoutMinutes} minutes`));
+             }
+             else if (code === 0) {
+                 resolve({ stdout, stderr });
