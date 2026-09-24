@@ -39,14 +39,14 @@ test('c8 discovers every maintained JavaScript and TypeScript production source'
 	for (const metric of ['lines', 'branches', 'functions']) assert.equal(config[metric], undefined);
 });
 
-test('the full Node gate records raw coverage before applying the scope-aware checker', () => {
+test('the local Node gate reports fresh coverage while CI checks the complete union', () => {
 	const { scripts } = JSON.parse(readFileSync(resolve(PROJECT_ROOT, 'package.json'), 'utf8'));
 	assert.equal(
 		scripts['test:coverage'],
 		'node scripts/run-node-tests.mjs --coverage-directory=coverage/v8-all '
-		+ '&& node scripts/compact-v8-coverage.mjs coverage/v8-all coverage/all/all.json '
-		+ '&& node scripts/check-coverage.mjs coverage/all',
+		+ '&& node scripts/report-local-node-coverage.mjs coverage/v8-all',
 	);
+	assert.equal(scripts['coverage:check'], 'node scripts/check-shard-coverage.mjs');
 });
 
 test('every maintained production tree has its own coverage scope', () => {

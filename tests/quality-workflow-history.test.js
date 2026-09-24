@@ -19,9 +19,8 @@ const WORKFLOWS = new Map([
 	['desktop-preview.yml', { staticJobs: ['quality'], buildJob: 'quality', historyJobs: ['quality'] }],
 ]);
 
-// `test:coverage` runs the whole suite in one process and checks the thresholds
-// on the way out. Split up, that is one shard per product, two for common
-// ownership, and a job that checks the union of what all shards recorded.
+// `test:coverage` runs the whole Node suite and reports fresh local evidence.
+// CI splits Node by owner and scores the union with its Chromium shards.
 const SHARDED_EQUIVALENT = new Map([['test:coverage', ['test:shard', 'coverage:check']]]);
 
 test('quality only cancels superseded pull-request runs', async () => {
