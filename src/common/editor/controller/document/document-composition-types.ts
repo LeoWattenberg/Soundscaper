@@ -69,7 +69,11 @@ export type DocumentSessionTab = ProjectSessionTab & {
 export interface DocumentSessionPort {
 	getSnapshot(): Readonly<{ readonly tabs: readonly DocumentSessionTab[] }>;
 	updateProjectMetadata(projectId: string, metadata: Record<string, unknown>): unknown;
-	updateProjectHistory(projectId: string, history: DocumentHistory, options: Readonly<{ dirty: boolean }>): unknown;
+	updateProjectHistory(projectId: string, history: DocumentHistory, options: Readonly<{
+		readonly dirty: boolean;
+		readonly returnHistory?: false;
+		readonly adoptImmutableHistory?: true;
+	}>): unknown;
 	markProjectSaved(projectId: string): unknown;
 	setProjectReadOnly?(projectId: string, update: Readonly<{
 		readonly readOnly: boolean;
@@ -77,6 +81,10 @@ export interface DocumentSessionPort {
 		readonly lockMethod: string;
 	}>): unknown;
 	getSourceReferenceCounts(): Readonly<Record<string, number>>;
+	getHistoryRetentionRoots(): Readonly<{
+		readonly clipIds: ReadonlySet<string>;
+		readonly assistanceSourceIds: ReadonlySet<string>;
+	}>;
 }
 
 export type DocumentCompositionState =

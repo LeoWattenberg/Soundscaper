@@ -25,21 +25,21 @@ interface TestHistory extends RetentionHistory<TestProject> {
 	readonly previous?: readonly TestProject[];
 }
 
-test('live history synchronization preserves session dirty state and returns session authority', () => {
+test('live history synchronization preserves dirty state without reading detached session history', () => {
 	const initial: TestProject = { id: 'project', clips: [] };
 	const selected: TestProject = { id: 'project', clips: [{ id: 'selected' }] };
-	const normalized: TestProject = { id: 'project', clips: [{ id: 'session-normalized' }] };
-	let tab: { dirty: boolean; history: TestHistory } | null = {
-		dirty: true, history: { present: initial },
-	};
+	let tab: { dirty: boolean } | null = { dirty: true };
 	let synchronizedDirty: boolean | null = null;
 	const service = createProjectRetentionService<TestProject, TestHistory>({
-		state: { history: tab.history, clipboard: null, readOnly: false, recordingSourceId: null },
+		state: { history: { present: initial }, clipboard: null, readOnly: false, recordingSourceId: null },
 		getProject: () => initial, setProject: () => undefined, compactHistory: (value) => value,
 		sessionTab: () => tab,
 		updateProjectHistory: (_projectId, value, options) => {
 			synchronizedDirty = options.dirty;
-			tab = { dirty: options.dirty, history: { ...value, present: normalized } };
+			assert.equal(options.returnHistory, false);
+			assert.equal(options.adoptImmutableHistory, true);
+			assert.equal(value.present, selected);
+			tab = { dirty: options.dirty };
 		},
 		getSourceReferenceCounts: () => ({}), getSessionTabs: () => [],
 		editorHistoryProjects: (value) => [value.present], allProjectClips: (value) => value.clips,
@@ -47,7 +47,7 @@ test('live history synchronization preserves session dirty state and returns ses
 		evictSourceCaches: () => undefined,
 	});
 
-	assert.equal(service.synchronizeLiveHistory({ present: selected }).present, normalized);
+	assert.equal(service.synchronizeLiveHistory({ present: selected }).present, selected);
 	assert.equal(synchronizedDirty, true);
 	tab = null;
 	assert.throws(
@@ -146,6 +146,29 @@ test('retention roots include every tab history clip and preserve existing dirty
 	assert.deepEqual([...service.liveSessionClipIds()].sort(), ['current-clip', 'other-clip', 'undo-clip']);
 	service.retainLiveClipIds();
 	assert.deepEqual(retained, [['current-clip', 'other-clip', 'undo-clip']]);
+});
+
+test('session retention roots avoid materializing tab histories for cache maintenance', () => {
+	const project: TestProject = { id: 'current', clips: [] };
+	let tabReads = 0;
+	const service = createProjectRetentionService<TestProject, TestHistory>({
+		state: { history: { present: project }, clipboard: null, readOnly: false, recordingSourceId: null },
+		getProject: () => project, setProject: () => undefined, compactHistory: (value) => value,
+		sessionTab: () => ({ dirty: false }), updateProjectHistory: () => undefined,
+		getSourceReferenceCounts: () => ({ 'source-from-session': 1 }),
+		getSessionTabs: () => { tabReads += 1; return []; },
+		getSessionRetentionRoots: () => ({
+			clipIds: new Set(['timeline-clip', 'bin-clip']),
+			assistanceSourceIds: new Set(['assistance-source']),
+		}),
+		editorHistoryProjects: (value) => [value.present], allProjectClips: (value) => value.clips,
+		clipCache: {}, sourceBuffers: new Map(), sourcePeaks: new Map(),
+		evictSourceCaches: () => undefined,
+	});
+
+	assert.deepEqual([...service.liveSessionSourceIds()].sort(), ['assistance-source', 'source-from-session']);
+	assert.deepEqual([...service.liveSessionClipIds()].sort(), ['bin-clip', 'timeline-clip']);
+	assert.equal(tabReads, 0);
 });
 
 test('linked-original roots preserve audio and video kinds across histories and live state', () => {

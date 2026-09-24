@@ -398,7 +398,7 @@ test('history ingestion clones the aggregate once regardless of stack depth and 
 		globalThis.structuredClone = nativeStructuredClone;
 	}
 
-	assert.equal(aggregateCloneCalls, 4);
+	assert.equal(aggregateCloneCalls, 2);
 	history.present.title = 'Mutated caller history';
 	history.undoStack[0].project.title = 'Mutated caller snapshot';
 	result.history.present.title = 'Mutated result';

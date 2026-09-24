@@ -82,10 +82,14 @@ export interface ProjectRetentionServiceDependencies<
 	readonly updateProjectHistory: (
 		projectId: string,
 		history: History,
-		options: Readonly<{ dirty: boolean }>,
+		options: Readonly<{ dirty: boolean; returnHistory?: false; adoptImmutableHistory?: true }>,
 	) => void;
 	readonly getSourceReferenceCounts: () => Readonly<Record<string, number>>;
 	readonly getSessionTabs: () => readonly RetentionSessionHistoryTab<History>[];
+	readonly getSessionRetentionRoots?: () => Readonly<{
+		readonly clipIds: ReadonlySet<string>;
+		readonly assistanceSourceIds: ReadonlySet<string>;
+	}>;
 	readonly editorHistoryProjects: (history: History) => readonly Project[];
 	readonly allProjectClips: (project: Project) => readonly RetentionClip[];
 	readonly clipCache: ClipRetentionCache;
@@ -132,10 +136,10 @@ export function createProjectRetentionService<
 		const projectId = nextHistory.present.id;
 		const tab = dependencies.sessionTab(projectId);
 		if (!tab) throw new Error('The active project session history is unavailable.');
-		dependencies.updateProjectHistory(projectId, nextHistory as unknown as History, { dirty: tab.dirty });
-		const synchronized = dependencies.sessionTab(projectId)?.history;
-		if (!synchronized) throw new Error('The synchronized project session history is unavailable.');
-		return synchronized as unknown as NextHistory;
+		dependencies.updateProjectHistory(projectId, nextHistory as unknown as History, {
+			dirty: tab.dirty, returnHistory: false, adoptImmutableHistory: true,
+		});
+		return nextHistory;
 	}
 
 	function clipboardSourceIds(): ReadonlySet<string> {
@@ -165,6 +169,7 @@ export function createProjectRetentionService<
 			if (tab) {
 				dependencies.updateProjectHistory(project.id, nextHistory, {
 					dirty: dirty == null ? tab.dirty : Boolean(dirty),
+					returnHistory: false, adoptImmutableHistory: true,
 				});
 			}
 		}
@@ -178,9 +183,13 @@ export function createProjectRetentionService<
 
 	function liveSessionSourceIds(): Set<string> {
 		const sourceIds = new Set(Object.keys(dependencies.getSourceReferenceCounts()));
-		for (const tab of dependencies.getSessionTabs()) {
-			for (const project of dependencies.editorHistoryProjects(tab.history)) {
-				for (const sourceId of assistanceSourceIds(project)) sourceIds.add(sourceId);
+		if (dependencies.getSessionRetentionRoots) {
+			for (const sourceId of dependencies.getSessionRetentionRoots().assistanceSourceIds) sourceIds.add(sourceId);
+		} else {
+			for (const tab of dependencies.getSessionTabs()) {
+				for (const project of dependencies.editorHistoryProjects(tab.history)) {
+					for (const sourceId of assistanceSourceIds(project)) sourceIds.add(sourceId);
+				}
 			}
 		}
 		for (const sourceId of transientAudioSourceIds()) sourceIds.add(sourceId);
@@ -249,6 +258,9 @@ export function createProjectRetentionService<
 	}
 
 	function liveSessionClipIds(): Set<string> {
+		if (dependencies.getSessionRetentionRoots) {
+			return new Set(dependencies.getSessionRetentionRoots().clipIds);
+		}
 		const clipIds = new Set<string>();
 		for (const tab of dependencies.getSessionTabs()) {
 			for (const project of dependencies.editorHistoryProjects(tab.history)) {

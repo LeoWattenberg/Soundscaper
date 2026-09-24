@@ -11,7 +11,9 @@ import {
 	normalizeAudioEditorSessionClipboard,
 } from './session-clipboard-codec.ts';
 import {
+	adoptImmutableHistory,
 	clone,
+	collectHistoryRetentionRoots,
 	createHistory,
 	nonEmptyString,
 	normalizeProject,
@@ -109,6 +111,7 @@ export function createAudioEditorSessionController(options = {}) {
 	let disposed = false;
 	let snapshotCache = null;
 	const listeners = new Set();
+	const knownImmutableHistoryNodes = new WeakSet();
 	const currentSchemaVersion = options.currentSchemaVersion === undefined
 		? AUDIO_EDITOR_PROJECT_CURRENT_SCHEMA_VERSION
 		: positiveInteger(options.currentSchemaVersion, 'session current schema version');
@@ -146,8 +149,7 @@ export function createAudioEditorSessionController(options = {}) {
 
 	function publish() {
 		invalidate();
-		const snapshot = getSnapshot();
-		activationReservations.publish(listeners, snapshot);
+		if (listeners.size) activationReservations.publish(listeners, getSnapshot());
 	}
 
 	/** @template {object} Result @param {Map<string, number>} beforeCounts @param {string} reason @param {Result} result */
@@ -238,7 +240,10 @@ export function createAudioEditorSessionController(options = {}) {
 		activationReservations.assertMutable(projectId);
 		const tab = requireWritableTab(projectId);
 		const beforeCounts = countsFor(tabs, clipboard);
-		const nextHistory = createHistory(tab.history.present, history);
+		const nextHistory = updateOptions.adoptImmutableHistory === true
+			? adoptImmutableHistory(tab.history.present, history, knownImmutableHistoryNodes)
+				?? createHistory(tab.history.present, history)
+			: createHistory(tab.history.present, history);
 		if (nextHistory.present.schemaVersion !== tab.history.present.schemaVersion) {
 			throw new RangeError('Project history updates cannot change schema version.');
 		}
@@ -246,7 +251,8 @@ export function createAudioEditorSessionController(options = {}) {
 		tab.historyToken = Object.freeze({});
 		tab.sourceIds = collectHistorySourceIds(nextHistory);
 		tab.dirty = updateOptions.dirty !== false;
-		return finishMutation(beforeCounts, 'history-update', { history: clone(tab.history) });
+		return finishMutation(beforeCounts, 'history-update', updateOptions.returnHistory === false
+			? {} : { history: clone(tab.history) });
 	}
 
 	/** Atomically install an already committed history and its intrinsic read-only tab state. */
@@ -428,31 +434,41 @@ export function createAudioEditorSessionController(options = {}) {
 		return countsObject(countsFor(tabs, clipboard));
 	}
 
-	function getSnapshot() {
-		if (snapshotCache) return snapshotCache;
-		snapshotCache = {
+	function getHistoryRetentionRoots() {
+		ensureUsable();
+		return collectHistoryRetentionRoots(tabs.map((tab) => tab.history));
+	}
+
+	function getSnapshot(fresh = false) {
+		if (!fresh && snapshotCache) return snapshotCache;
+		const snapshot = {
 			schemaVersion: AUDIO_EDITOR_SESSION_SCHEMA_VERSION,
 			activeProjectId,
-			tabs: tabs.map((tab) => ({
-				projectId: tab.projectId,
-				title: tab.history.present.title,
-				revision: tab.history.present.revision,
-				history: clone(tab.history),
-				readOnly: tab.readOnly,
-				readOnlyReason: tab.readOnlyReason,
-				lockMethod: tab.lockMethod,
-				dirty: tab.dirty,
-				metadata: freezeProjectFeatureReportMetadata(clone(tab.metadata)),
-			})),
+			tabs: tabs.map((tab) => {
+				const history = tab.history;
+				let detachedHistory;
+				return {
+					projectId: tab.projectId,
+					title: tab.history.present.title,
+					revision: tab.history.present.revision,
+					get history() { return detachedHistory ??= clone(history); },
+					readOnly: tab.readOnly,
+					readOnlyReason: tab.readOnlyReason,
+					lockMethod: tab.lockMethod,
+					dirty: tab.dirty,
+					metadata: freezeProjectFeatureReportMetadata(clone(tab.metadata)),
+				};
+			}),
 			clipboard: clone(clipboard),
 			sourceReferenceCounts: countsObject(countsFor(tabs, clipboard)),
 			disposed,
 		};
-		return snapshotCache;
+		if (!fresh) snapshotCache = snapshot;
+		return snapshot;
 	}
 
 	function serialize() {
-		return clone(getSnapshot());
+		return clone(getSnapshot(true));
 	}
 
 	function subscribe(listener) {
@@ -517,6 +533,7 @@ export function createAudioEditorSessionController(options = {}) {
 		assertProjectHistoryToken,
 		beginProjectActivation,
 		getSourceReferenceCounts,
+		getHistoryRetentionRoots,
 		getSnapshot,
 		serialize,
 		subscribe,
