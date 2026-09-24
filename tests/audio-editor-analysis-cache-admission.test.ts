@@ -22,6 +22,49 @@ test('valid cached analysis keeps its result and skips rendering', async () => {
 	assert.equal(fixture.saved.length, 0);
 });
 
+test('track analysis renders the track captured for its cache key while selection changes', async () => {
+	let selectedTrackId = 'track-a';
+	let releaseLookup!: () => void;
+	const lookup = new Promise<void>((resolve) => { releaseLookup = resolve; });
+	const renderedTracks: Array<string | null | undefined> = [];
+	const keys: string[] = [];
+	const fixture = createFixture(null);
+	const dependencies = {
+		...fixture.dependencies,
+		getSelectedTrackId: () => selectedTrackId,
+		loadAnalysis: async (key: string) => { keys.push(key); await lookup; return null; },
+		renderAudio: async (_scope: string, _range: unknown, _signal: AbortSignal, trackId?: string | null) => {
+			renderedTracks.push(trackId);
+			return { sampleRate: 48_000, numberOfChannels: 1, length: 4, getChannelData: () => new Float32Array(4) };
+		},
+	} satisfies AnalysisDependencies;
+	const service = createAudioAnalysisService(dependencies);
+	const pending = service.run('track');
+	selectedTrackId = 'track-b';
+	releaseLookup();
+	assert.deepEqual(await pending, { rmsDbfs: -12 });
+	assert.deepEqual(renderedTracks, ['track-a']);
+	assert.match(keys[0]!, /:track:track-a:0:4$/u);
+});
+
+test('analysis does not render or publish a cache entry after the project revision changes', async () => {
+	let revision = 1;
+	let releaseLookup!: () => void;
+	const lookup = new Promise<void>((resolve) => { releaseLookup = resolve; });
+	const fixture = createFixture(null);
+	const service = createAudioAnalysisService({
+		...fixture.dependencies,
+		getProject: () => ({ id: 'analysis-project', revision, clips: [{}] }),
+		loadAnalysis: async () => { await lookup; return null; },
+	});
+	const pending = service.run('track');
+	revision = 2;
+	releaseLookup();
+	assert.equal(await pending, null);
+	assert.equal(fixture.renders(), 0);
+	assert.deepEqual(fixture.saved, []);
+});
+
 function createFixture(cached: unknown) {
 	const lifetime = new EditorControllerLifetime();
 	lifetime.markReady();
@@ -55,5 +98,5 @@ function createFixture(cached: unknown) {
 		handleError(error: unknown) { throw error; },
 	} satisfies AnalysisDependencies;
 	const service = createAudioAnalysisService(dependencies);
-	return { service, saved, renders: () => renders };
+	return { service, dependencies, saved, renders: () => renders };
 }

@@ -55,11 +55,16 @@ function isolateMixer(mixer: AnalysisRenderMixer): AnalysisRenderMixer {
 export function createAnalysisRenderer<Project extends AnalysisRenderProject, Buffers>(
 	dependencies: AnalysisRenderDependencies<Project, Buffers>,
 ) {
-	return async (scope: string, range: AnalysisRange, signal: AbortSignal | null = null): Promise<AnalysisAudioBuffer> => {
+	return async (
+		scope: string,
+		range: AnalysisRange,
+		signal: AbortSignal | null = null,
+		selectedTrackId: string | null = dependencies.getSelectedTrackId(),
+	): Promise<AnalysisAudioBuffer> => {
 		if (dependencies.hasMissingTimelineSources()) throw createLocalizedError(Error, dependencies.copy, 'localSourcesMissing');
 		let snapshot = dependencies.cloneProject(dependencies.getProject());
 		if (scope === 'track') {
-			const selected = snapshot.tracks.find((track) => track.id === dependencies.getSelectedTrackId());
+			const selected = snapshot.tracks.find((track) => track.id === selectedTrackId);
 			if (!selected || selected.type !== 'audio') throw createLocalizedError(Error, dependencies.copy, 'audioTrackRequired');
 			snapshot = { ...snapshot,
 				tracks: snapshot.tracks.map((track) => track.type === 'audio'

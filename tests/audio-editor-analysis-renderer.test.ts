@@ -37,6 +37,14 @@ test('track analysis isolates its render without changing the document or label 
 	}, { startFrame: 600000, endFrame: 650000, includeTail: false, preRollFrames: 480000 }, f.buffers, signal]);
 });
 
+test('track analysis renders an explicitly captured selection', async () => {
+	const f = fixture();
+	await f.render('track', { startFrame: 0, endFrame: 128 }, null, 'music');
+	const snapshot = f.calls[0]?.[0] as typeof f.project;
+	assert.equal(snapshot.tracks[0]?.mute, true);
+	assert.equal(snapshot.tracks[1]?.mute, false);
+});
+
 test('master analysis preserves the mix and bounds pre-roll by the available prefix', async () => {
 	const f = fixture();
 	await f.render('master', { startFrame: 100, endFrame: 1000 });
