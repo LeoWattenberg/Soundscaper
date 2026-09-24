@@ -488,7 +488,7 @@ export default function createApplicationMenus({
 				...createLocalModelManagerMenuItems({ desktopAvailable: typeof actions.openLocalModels === 'function', copy }, { open: actions.openLocalModels }),
 				...productItems.tools,
 				...desktopHost.tools,
-				{ id: 'manage-macros', label: copy.macroManager, disabled: !project, onClick: actions.openMacroManager },
+				{ id: 'manage-macros', label: copy.macrosPalette, disabled: !project, onClick: actions.openMacrosPalette },
 				createEffectMacroApplicationMenu(snapshot.macros?.library || [], {
 					label: copy.macros,
 					editBlocked: editBlocked || !project,

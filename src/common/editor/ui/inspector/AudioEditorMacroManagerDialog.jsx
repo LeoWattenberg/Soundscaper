@@ -377,14 +377,14 @@ export function AudioEditorMacroManagerDialog({
 		<>
 			<AudioEditorDialogShell
 				isOpen={isOpen && !selectedEffect}
-				title={copy.macroManager}
+				title={copy.macrosPalette}
 				onClose={onClose}
-				width={860}
-				className="audio-editor-macro-manager"
-				dataAttributes={{ 'data-macro-manager': '' }}
+				width={880}
+				className="audio-editor-macros-palette"
+				dataAttributes={{ 'data-macros-palette': '' }}
 				footer={(
 					<DialogFooter
-						className="audio-editor-dialog-footer audio-editor-macro-manager__footer"
+						className="audio-editor-dialog-footer audio-editor-macros-palette__footer"
 						rightContent={(
 							<>
 								{isRunning && (
@@ -396,7 +396,7 @@ export function AudioEditorMacroManagerDialog({
 					/>
 				)}
 			>
-				<section className="audio-editor-macro-manager__content">
+				<section className="audio-editor-macros-palette__content">
 					<MacroManagerLibraryList
 						copy={copy}
 						macros={macros}
@@ -426,7 +426,7 @@ export function AudioEditorMacroManagerDialog({
 						onExport={exportMacro}
 						onImport={() => fileInputRef.current?.click()}
 					/>
-					<section className="audio-editor-macro-manager__detail">
+					<section className="audio-editor-macros-palette__detail">
 						{selectedScript ? (
 							<MacroScriptPanel
 								key={selectedScript.id}
@@ -437,7 +437,7 @@ export function AudioEditorMacroManagerDialog({
 								onChange={writeScript}
 							/>
 						) : draft ? <>
-							<label className="audio-editor-field audio-editor-macro-manager__name">
+							<label className="audio-editor-field audio-editor-macros-palette__name">
 								<span>{copy.macroName}</span>
 								<TextInput value={draft.name || ''} onChange={(name) => writeDraft((current) => ({ ...current, name }))} width="100%" />
 							</label>
@@ -462,7 +462,7 @@ export function AudioEditorMacroManagerDialog({
 						</> : <p className="audio-editor-panel-hint" data-macro-unselected>{copy.macroNotSelected}</p>}
 						{!hasRunTarget && <p className="audio-editor-panel-hint">{copy.macroSelectionHint}</p>}
 						{missingEmbeddedNoiseProfile && <p className="audio-editor-panel-hint" data-macro-noise-profile-required>{templateCopy.profileRequired}</p>}
-						{message && <p className={`audio-editor-macro-manager__message audio-editor-macro-manager__message--${messageState}`} role={messageState === 'error' ? 'alert' : 'status'}>{message}</p>}
+						{message && <p className={`audio-editor-macros-palette__message audio-editor-macros-palette__message--${messageState}`} role={messageState === 'error' ? 'alert' : 'status'}>{message}</p>}
 					</section>
 					<input ref={fileInputRef} type="file" accept="text/plain,.txt" hidden data-macro-import-file onChange={(event) => { void importMacro(takeSelectedFile(event.currentTarget)); }} />
 					<input ref={scriptInputRef} type="file" accept={`application/json,${MACRO_SCRIPT_FILE_EXTENSION}`} hidden data-macro-script-import-file onChange={(event) => { void importScript(takeSelectedFile(event.currentTarget)); }} />
@@ -496,7 +496,7 @@ export function AudioEditorMacroManagerDialog({
 								: copy.getNoiseProfile}
 							onChange={(changes) => updateEffect(selectedEffect.id, changes)}
 						/>
-						{message && <p className={`audio-editor-macro-manager__message audio-editor-macro-manager__message--${messageState}`} role={messageState === 'error' ? 'alert' : 'status'}>{message}</p>}
+						{message && <p className={`audio-editor-macros-palette__message audio-editor-macros-palette__message--${messageState}`} role={messageState === 'error' ? 'alert' : 'status'}>{message}</p>}
 					</section>
 				</AudioEditorDialogShell>
 			)}

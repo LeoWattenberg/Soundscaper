@@ -457,11 +457,11 @@ import {
 		const errors = collectClientErrors(page);
 		const editor = await bootEditor(page, '/embed/en/');
 		await importFiles(editor, [toneA]);
-		await chooseCommandAction(page, editor, 'Tools', 'Macro manager');
+		await chooseCommandAction(page, editor, 'Tools', 'Macros palette');
 
-		let manager = page.getByRole('dialog', { name: 'Macro manager', exact: true });
+		let manager = page.getByRole('dialog', { name: 'Macros palette', exact: true });
 		await expect(manager).toBeVisible();
-		await expect(page.locator('[data-editor-surface="macro-manager"]')).toBeVisible();
+		await expect(page.locator('[data-editor-surface="macros-palette"]')).toBeVisible();
 		const library = manager.getByRole('region', { name: 'Macros', exact: true });
 		await expect(library.getByRole('button', { name: 'New macro', exact: true })).toBeVisible();
 		await expect(library.getByRole('button', { name: 'Import macro', exact: true }).locator('.icon[aria-hidden="true"]')).toHaveCount(1);
@@ -469,7 +469,7 @@ import {
 		await expect(library.getByRole('button', { name: 'Delete macro', exact: true })).toBeEnabled();
 		await expect(manager.locator('[data-macro-id]')).toHaveText(['Restoration', 'Fade ends']);
 		await expect(manager.getByLabel('Macro name', { exact: true })).toHaveValue('Restoration');
-		const footer = manager.locator('.audio-editor-macro-manager__footer');
+		const footer = manager.locator('.audio-editor-macros-palette__footer');
 		await expect(footer.getByRole('button', { name: 'Run macro', exact: true })).toBeVisible();
 		await expect(footer.getByRole('button', { name: 'Effects', exact: true })).toHaveCount(0);
 
@@ -483,7 +483,7 @@ import {
 		await steps.locator('[data-macro-add-effect]').click();
 		await expect(page.getByRole('dialog', { name: 'Choose an effect', exact: true })).toHaveCount(0);
 		await page.getByRole('menu', { name: 'Choose an effect' }).getByRole('menuitem', { name: 'Invert', exact: true }).click();
-		manager = page.getByRole('dialog', { name: 'Macro manager', exact: true });
+		manager = page.getByRole('dialog', { name: 'Macros palette', exact: true });
 		await expect(manager.locator('[data-macro-effect-stack]').getByRole('group', { name: 'Invert', exact: true })).toBeVisible();
 		await expect(manager.getByRole('button', { name: 'Disable effect', exact: true })).toHaveCount(0);
 
@@ -519,14 +519,14 @@ import {
 
 		// Reopen once and wait on the controlled value. Repeated reopen/close cycles
 		// can race the pending React publication and hide whether the commit settled.
-		const macros = page.getByRole('dialog', { name: 'Macro manager', exact: true });
+		const macros = page.getByRole('dialog', { name: 'Macros palette', exact: true });
 		await macros.getByRole('group', { name: 'Echo', exact: true })
 			.getByRole('button', { name: 'Select effect', exact: true }).click();
 		const echoCommitted = page.getByRole('dialog', { name: 'Echo', exact: true });
 		await expect(echoCommitted.locator('[data-effect-param="delaySeconds"] input')).toHaveValue('0.75');
 		await closeDialog(echoCommitted);
 
-		manager = page.getByRole('dialog', { name: 'Macro manager', exact: true });
+		manager = page.getByRole('dialog', { name: 'Macros palette', exact: true });
 		// Export serialises the stored macro name, so the rename has to have been
 		// committed; a bare fill() leaves Export writing the imported name.
 		await commitInput(manager.getByLabel('Macro name', { exact: true }), 'Browser chain');
@@ -560,9 +560,9 @@ import {
 		const errors = collectClientErrors(page);
 		const editor = await bootEditor(page, '/embed/en/');
 		await importFiles(editor, [toneA]);
-		await chooseCommandAction(page, editor, 'Tools', 'Macro manager');
+		await chooseCommandAction(page, editor, 'Tools', 'Macros palette');
 
-		const manager = page.getByRole('dialog', { name: 'Macro manager', exact: true });
+		const manager = page.getByRole('dialog', { name: 'Macros palette', exact: true });
 		await manager.getByRole('region', { name: 'Macros', exact: true })
 			.getByRole('button', { name: 'New macro', exact: true }).click();
 		const steps = manager.locator('[data-macro-steps]');
@@ -582,10 +582,10 @@ import {
 		await commitInput(amplify.getByRole('spinbutton', { name: 'Amplification (dB)' }), '-6');
 		await closeDialog(amplify);
 
-		const runButton = page.getByRole('dialog', { name: 'Macro manager', exact: true })
+		const runButton = page.getByRole('dialog', { name: 'Macros palette', exact: true })
 			.getByRole('button', { name: 'Run macro', exact: true });
 		await runButton.click();
-		await expect(page.getByRole('dialog', { name: 'Macro manager', exact: true }).getByRole('status'))
+		await expect(page.getByRole('dialog', { name: 'Macros palette', exact: true }).getByRole('status'))
 			.toHaveText('Macro applied.', { timeout: 20_000 });
 		await expect.poll(async () => (
 			(await effectSourceMetadata(page)).some((source) => source.name.includes('Untitled macro'))

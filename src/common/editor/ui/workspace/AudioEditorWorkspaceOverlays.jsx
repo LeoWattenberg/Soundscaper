@@ -348,8 +348,8 @@ export default function AudioEditorWorkspaceOverlays({ model }) {
 					</React.Suspense>
 				</div>
 			)}
-			{capabilities.audioMacros && activeSurface === 'macro-manager' && (
-				<div data-editor-surface="macro-manager">
+			{capabilities.audioMacros && activeSurface === 'macros-palette' && (
+				<div data-editor-surface="macros-palette">
 					<React.Suspense fallback={<LazyInspectorFallback copy={copy} />}>
 						<AudioEditorMacroManagerDialog
 							isOpen

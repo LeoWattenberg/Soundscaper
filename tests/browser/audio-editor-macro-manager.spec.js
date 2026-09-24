@@ -7,7 +7,6 @@ import {
 	closeDialog,
 	collectClientErrors,
 	commitInput,
-	openNestedCommandMenu,
 	registerAudioEditorHooks,
 	waitForEditor,
 } from './audio-editor-test-helpers.js';
@@ -21,31 +20,34 @@ const FADE_STEPS = [
 ];
 
 async function openManager(page, editor) {
-	await chooseCommandAction(page, editor, 'Tools', 'Macro manager');
-	const manager = page.getByRole('dialog', { name: 'Macro manager', exact: true });
+	await chooseCommandAction(page, editor, 'Tools', 'Macros palette');
+	const manager = page.getByRole('dialog', { name: 'Macros palette', exact: true });
 	await expect(manager).toBeVisible();
+	await expect(manager).toHaveAttribute('data-macros-palette', '');
 	return manager;
 }
 
-function macroManagerStyleLoaded(page) {
+function macrosPaletteStyleLoaded(page) {
 	return page.evaluate(() => Array.from(document.styleSheets).some((sheet) => {
 		try {
 			return Array.from(sheet.cssRules).some((rule) =>
-				rule instanceof CSSStyleRule && rule.selectorText.includes('.audio-editor-macro-manager__content'));
+				rule instanceof CSSStyleRule && rule.selectorText.includes('.audio-editor-macros-palette__content'));
 		} catch {
 			return false;
 		}
 	}));
 }
 
-test.describe('macro manager libraries', () => {
+test.describe('macros palette libraries', () => {
 	test('loads its layout styles when the menu opens the dialog', async ({ page }) => {
 		const editor = await bootEditor(page, '/embed/en/');
-		expect(await macroManagerStyleLoaded(page)).toBe(false);
+		expect(await macrosPaletteStyleLoaded(page)).toBe(false);
 
 		const manager = await openManager(page, editor);
-		await expect.poll(() => macroManagerStyleLoaded(page)).toBe(true);
-		await expect(manager.locator('.audio-editor-macro-manager__content')).toHaveCSS('display', 'grid');
+		await expect.poll(() => macrosPaletteStyleLoaded(page)).toBe(true);
+		await expect(manager.locator('.audio-editor-macros-palette__content')).toHaveCSS('display', 'grid');
+		await expect(manager.locator('.audio-editor-macros-palette__content')).toHaveCSS('grid-template-columns', /^240px /u);
+		await expect(manager.locator('[data-macro-id][aria-current="true"]')).toHaveCSS('min-height', '40px');
 	});
 
 	test('Tools > Macros lists the saved macros instead of fixed placeholders', async ({ page }) => {
@@ -54,7 +56,13 @@ test.describe('macro manager libraries', () => {
 		const manager = await openManager(page, editor);
 		await expect(manager.locator('[data-macro-id]')).toHaveText(['Restoration', 'Fade ends']);
 		await closeDialog(manager);
-		const macros = await openNestedCommandMenu(page, editor, 'Tools', ['Macros']);
+		await editor.getByRole('menubar', { name: 'Application menu' })
+			.getByRole('menuitem', { name: 'Tools', exact: true }).click();
+		const macrosItem = page.getByRole('menu', { name: 'Tools', exact: true })
+			.getByRole('menuitem', { name: /^Macros\s+▸$/u });
+		await macrosItem.press('ArrowRight');
+		const macros = macrosItem.getByRole('menu');
+		await expect(macros).toBeVisible();
 
 		await expect(macros.getByRole('menuitem')).toHaveCount(2);
 		await expect(macros.getByRole('menuitem', { name: /^Restoration(?:\s|—)/u })).toBeDisabled();

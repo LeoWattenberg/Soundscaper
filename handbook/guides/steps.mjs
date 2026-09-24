@@ -104,7 +104,7 @@ export function contrast(role, extras) {
 }
 
 /**
- * Build a macro in the Macro manager from the named effects, in order, and run
+ * Build a macro in the Macros palette from the named effects, in order, and run
  * it on the current selection. Effects are named the way the effect picker
  * lists them and keep their default settings.
  */
@@ -467,7 +467,7 @@ export function describeStep(entry, { fixture, facet = 'howto' }) {
 		}
 		case 'macro': {
 			const chain = listPhrases(entry.effects.map((effect) => bold(effect)));
-			return `Choose ${menuPath(['Tools', 'Macro manager'])} and press ${bold('New macro')}. Type \`${entry.name}\` into ${bold('Macro name')}. Press ${bold('Add effect')} and choose ${chain}, pressing ${bold('Add effect')} again for each one. Press ${bold('Run macro')}; the dialog reports that the macro was applied. Press ${bold('Close')}.`;
+			return `Choose ${menuPath(['Tools', 'Macros palette'])} and press ${bold('New macro')}. Type \`${entry.name}\` into ${bold('Macro name')}. Press ${bold('Add effect')} and choose ${chain}, pressing ${bold('Add effect')} again for each one. Press ${bold('Run macro')}; the dialog reports that the macro was applied. Press ${bold('Close')}.`;
 		}
 		case 'play-at-speed':
 			return `Press ${bold('Play options')} beside the Play button, set ${bold('Playback speed')} to \`${String(entry.rate)}×\`, and press Escape to close the options. The Play button now reads ${bold('Play at speed')}; press it to listen, then press ${bold('Pause play at speed')}.`;

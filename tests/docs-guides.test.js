@@ -212,7 +212,7 @@ test('the workflow steps validate their input and describe the surfaces they dri
 	assert.match(howto(contrast('background')), /^In the \*\*Contrast\*\* panel, press \*\*Measure background\*\*\./u);
 	assert.match(howto(contrast('foreground')), /press \*\*Measure foreground\*\*\. The panel reports the foreground level/u);
 	const chain = howto(macro({ name: 'Finish', effects: ['Normalize', 'Fade Out'] }));
-	assert.match(chain, /\*\*Tools → Macro manager\*\* and press \*\*New macro\*\*\. Type `Finish` into \*\*Macro name\*\*/u);
+	assert.match(chain, /\*\*Tools → Macros palette\*\* and press \*\*New macro\*\*\. Type `Finish` into \*\*Macro name\*\*/u);
 	assert.match(chain, /choose \*\*Normalize\*\* and \*\*Fade Out\*\*/u);
 	assert.match(chain, /\*\*Run macro\*\*/u);
 	assert.match(howto(playAtSpeed(0.75)), /set \*\*Playback speed\*\* to `0\.75×`.*\*\*Play at speed\*\*.*\*\*Pause play at speed\*\*/u);

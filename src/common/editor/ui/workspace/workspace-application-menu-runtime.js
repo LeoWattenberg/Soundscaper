@@ -368,7 +368,7 @@ export function createWorkspaceApplicationMenus({
 				},
 					zeroCross: () => run(() => controller.actions.timeline.zeroCross()),
 				openEffects: () => openEffects(snapshot.selectedTrackId),
-				openMacroManager: () => openSurface('macro-manager'),
+				openMacrosPalette: () => openSurface('macros-palette'),
 				runMacro: (macro) => run(() => controller.actions.macros.run(macro)),
 				openSelectionEffect: (type) => snapshot.effects?.selectionTypes
 					.find((candidate) => candidate.type === type)?.hasSettings === false

@@ -34,8 +34,8 @@ export async function runContrast(state, entry) {
  */
 export async function runMacro(page, state, entry) {
 	const { editor } = state;
-	await chooseCommandAction(page, editor, 'Tools', 'Macro manager');
-	const manager = () => page.getByRole('dialog', { name: 'Macro manager', exact: true });
+	await chooseCommandAction(page, editor, 'Tools', 'Macros palette');
+	const manager = () => page.getByRole('dialog', { name: 'Macros palette', exact: true });
 	await expect(manager()).toBeVisible();
 	await manager().getByRole('region', { name: 'Macros', exact: true }).getByRole('button', { name: 'New macro', exact: true }).click();
 	await commitInput(manager().getByLabel('Macro name', { exact: true }), entry.name);

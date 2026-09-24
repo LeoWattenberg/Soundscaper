@@ -78,7 +78,7 @@ function createHarness(options: Readonly<{
 			effectRackEmpty: 'Rack empty',
 			macroApplied: 'Macro applied',
 			macroEffectsRequired: 'Effects required',
-			macroManager: 'Macro',
+			macrosPalette: 'Macro',
 			macroProcessing: 'Macro processing',
 			macroSelectionRequired: 'Selection required',
 			untitledMacro: 'Untitled Macro',

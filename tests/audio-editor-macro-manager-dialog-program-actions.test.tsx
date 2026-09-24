@@ -20,7 +20,7 @@ test('programs offer the same four header actions as macros with no separate cre
 		await fixture.render(macroSnapshot('project-a'));
 		const programs = fixture.find('[data-macro-programs]');
 		assert.ok(programs);
-		const header = programs.querySelector('.audio-editor-macro-manager__library-header');
+		const header = programs.querySelector('.audio-editor-macros-palette__library-header');
 		assert.ok(header);
 		assert.deepEqual(header.querySelectorAll('button').map((button) => button.getAttribute('aria-label')), [
 			COPY.newProgram, COPY.importProgram, COPY.exportProgram, DELETE_PROGRAM,

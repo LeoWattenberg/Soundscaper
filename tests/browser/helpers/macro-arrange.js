@@ -27,8 +27,8 @@ import { chooseCommandAction } from '../audio-editor-test-helpers.js';
  */
 export async function arrangeWithMacro(page, editor, source, options = {}) {
 	const { timeout = 30_000 } = options;
-	await chooseCommandAction(page, editor, 'Tools', 'Macro manager');
-	const manager = page.getByRole('dialog', { name: 'Macro manager', exact: true });
+	await chooseCommandAction(page, editor, 'Tools', 'Macros palette');
+	const manager = page.getByRole('dialog', { name: 'Macros palette', exact: true });
 	await expect(manager).toBeVisible();
 	await manager.locator('[data-macro-programs]')
 		.getByRole('button', { name: 'New program', exact: true }).click();

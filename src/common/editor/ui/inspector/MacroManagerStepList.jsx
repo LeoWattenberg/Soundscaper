@@ -36,7 +36,7 @@ export default function MacroManagerStepList({
 		containerRef: stackRef,
 		groupId: 'effects-panel',
 		selector: '.effect-slot',
-		ariaLabel: copy.macroManager,
+		ariaLabel: copy.macrosPalette,
 		startTabIndex: 0,
 	});
 	const initTabIndices = stepTabGroup.initTabIndices;
@@ -53,12 +53,12 @@ export default function MacroManagerStepList({
 
 	return (
 		<>
-			<div className="audio-editor-macro-manager__steps" data-macro-steps>
+			<div className="audio-editor-macros-palette__steps" data-macro-steps>
 				<div
 					ref={stackRef}
-					className="audio-editor-macro-manager__stack"
+					className="audio-editor-macros-palette__stack"
 					{...stepTabGroup.containerProps}
-					aria-label={copy.macroManager}
+					aria-label={copy.macrosPalette}
 					onKeyDown={stepTabGroup.onKeyDown}
 					onBlur={stepTabGroup.onBlur}
 					onFocus={stepTabGroup.onFocus}
@@ -68,7 +68,7 @@ export default function MacroManagerStepList({
 					{effects.map((effect, index) => (
 						<EffectSlot
 							key={effect.id}
-							className="audio-editor-macro-manager__effect"
+							className="audio-editor-macros-palette__effect"
 							effectName={stepLabel(effect, copy)}
 							enabled
 							isDragging={draggedIndex === index}
@@ -97,7 +97,7 @@ export default function MacroManagerStepList({
 				{!effects.length && <p className="audio-editor-panel-hint" data-macro-empty>{copy.macroEmptyHint}</p>}
 				<button
 					type="button"
-					className="audio-editor-macro-manager__add-effect"
+					className="audio-editor-macros-palette__add-effect"
 					data-macro-add-effect
 					onClick={(event) => setPicker({ replaceId: null, anchor: event.currentTarget })}
 				>

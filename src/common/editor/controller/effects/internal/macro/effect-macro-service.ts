@@ -85,7 +85,7 @@ interface MacroCopy {
 	readonly noiseProfileMissing: string;
 	readonly macroApplied?: string;
 	readonly macroEffectsRequired?: string;
-	readonly macroManager: string;
+	readonly macrosPalette: string;
 	readonly macroProcessing?: string;
 	readonly macroSelectionRequired?: string;
 	readonly untitledMacro: string;
@@ -202,9 +202,9 @@ export function createEffectMacroService<Buffer = MacroRenderBuffer>(runtime: Ef
 			await runtime.preflightStorage(outputBytes, 'effect');
 			assertOwnership(runtime, ownership);
 			const channels = await runChain(effects, target, project, sampleRate, preRollFrames, ownership);
-			const effectName = String(request.name || publishedCopyFor(runtime.copy).untitledMacro || publishedCopyFor(runtime.copy).macroManager).trim()
+			const effectName = String(request.name || publishedCopyFor(runtime.copy).untitledMacro || publishedCopyFor(runtime.copy).macrosPalette).trim()
 				|| publishedCopyFor(runtime.copy).untitledMacro
-				|| publishedCopyFor(runtime.copy).macroManager;
+				|| publishedCopyFor(runtime.copy).macrosPalette;
 			await runtime.persistAudacityEffectResult(target, null, channels, {
 				assertCurrent: () => assertOwnership(runtime, ownership),
 				effectName,

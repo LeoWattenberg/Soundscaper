@@ -500,7 +500,7 @@ export function createAudacityActionRuntime(controller, options = {}) {
 		},
 		macros: {
 			...controllerActions.macros,
-			openManager: () => openSurface('macro-manager'),
+			openPalette: () => openSurface('macros-palette'),
 		},
 		generators: {
 			...controllerActions.generators,

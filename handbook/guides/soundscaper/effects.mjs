@@ -294,7 +294,7 @@ export const EFFECT_GUIDES = Object.freeze([
 			play(),
 		],
 		tips: [
-			'The macro is saved with the editor, so it is waiting under **Tools → Macro manager** for the next recording.',
+			'The macro is saved with the editor, so it is waiting under **Tools → Macros palette** for the next recording.',
 			'**Export macro** writes the chain as an Audacity macro text file, and **Import macro** reads one, so a routine can move between the two programs.',
 		],
 	},

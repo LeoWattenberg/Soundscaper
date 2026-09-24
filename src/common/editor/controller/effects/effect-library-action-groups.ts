@@ -100,7 +100,7 @@ export function createEffectMacroActions(
 		runMacroCommand: commands.runMacroCommand,
 		beginMacroTransaction: scope.beginMacroTransaction,
 		isRunnableMacroCommand,
-		untitledMacroName: publishedCopyFor(scope.copy).untitledMacro || publishedCopyFor(scope.copy).macroManager || 'Untitled macro',
+		untitledMacroName: publishedCopyFor(scope.copy).untitledMacro || publishedCopyFor(scope.copy).macrosPalette || 'Untitled macro',
 	});
 	const scripts = createMacroScriptLibraryService({
 		state: scope.effectLibraryState,

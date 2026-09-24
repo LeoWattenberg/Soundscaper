@@ -1,9 +1,9 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-/** Copy for the macro manager and the Nyquist prompt that macros can run. */
+/** Copy for the macros palette and the Nyquist prompt that macros can run. */
 export const MACRO_NYQUIST_COPY_BY_LOCALE = Object.freeze({
 	de: Object.freeze({
-			macroManager: 'Makro-Manager',
+			macrosPalette: 'Makropalette',
 			nyquistLanguage: 'Sprache',
 			nyquistLanguageLisp: 'Lisp',
 			nyquistLanguageSal: 'SAL',
@@ -102,7 +102,7 @@ export const MACRO_NYQUIST_COPY_BY_LOCALE = Object.freeze({
 			macroExportFailed: 'Das Makro konnte nicht exportiert werden: {message}',
 	}),
 	en: Object.freeze({
-			macroManager: 'Macro manager',
+			macrosPalette: 'Macros palette',
 			nyquistLanguage: 'Language',
 			nyquistLanguageLisp: 'Lisp',
 			nyquistLanguageSal: 'SAL',

@@ -11,11 +11,11 @@ the open project, move the selection, and apply the same effects and commands a
 step-list macro can apply. Everything else, from files and the network to your
 other projects, is out of its reach.
 
-Programs are a Soundscaper feature. Framescaper has no macro manager.
+Programs are a Soundscaper feature. Framescaper has no macros palette.
 
 ## Where programs live
 
-Choose **Tools → Macro manager**. The dialog lists step-list macros and, under
+Choose **Tools → Macros palette**. The dialog lists step-list macros and, under
 **Programs**, the programs you have saved. Press **+ (New program)** in the
 Programs header to create one. The same action bar offers **Import program**,
 **Export program**, and **Delete program** for the selected program. The
@@ -235,7 +235,7 @@ await sound.command('Trim');
 
 ### `sound.runSaved(name)`
 
-Runs a step-list macro saved in the same macro manager, by its exact name,
+Runs a step-list macro saved in the same macros palette, by its exact name,
 including any selection commands it contains. A saved macro cannot itself be a
 program, so programs do not nest. Resolves to `null`; an unknown name rejects.
 
