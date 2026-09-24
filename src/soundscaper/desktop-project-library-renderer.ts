@@ -15,7 +15,6 @@ import {
 	snapshotSoundscaperDesktopProject,
 	validateSoundscaperDesktopAbort,
 	validateSoundscaperDesktopAcknowledgement,
-	validateSoundscaperDesktopAdmission,
 	validateSoundscaperDesktopBundle,
 	validateSoundscaperDesktopCatalogSnapshot,
 	validateSoundscaperDesktopProjectId,
@@ -48,7 +47,7 @@ import {
 	reconcileSoundscaperDesktopDeleteIntents,
 	type SoundscaperDesktopDeleteIntentStore,
 } from './desktop-project-library-delete-intents.ts'
-import { abortSignal, allowedRecord, inheritedData, isSoundscaperDesktopWriteFenceRefusal, ownData, signalOptions } from './desktop-project-library-renderer-validation.ts'
+import { abortSignal, allowedRecord, inheritedData, isSoundscaperDesktopWriteFenceRefusal, ownData, signalOptions, validateSoundscaperDesktopAdmission } from './desktop-project-library-renderer-validation.ts'
 import {
 	validateSoundscaperNativePluginStateBodyIdV1,
 	validateSoundscaperNativePluginStateBodyRecordV1,
@@ -384,8 +383,8 @@ class Renderer implements SoundscaperDesktopProjectLibraryRenderer {
 			if (admission.publicationId !== publicationId) {
 				throw new Error('The desktop  publication admission changed its renderer operation id.')
 			}
-			for (const [bodyIndex, body] of planned.bodies.entries()) {
-				await this.#uploadBody(publicationId, bodyIndex, body, request.project, request.signal)
+			for (const bodyIndex of admission.requiredBodyIndexes) {
+				await this.#uploadBody(publicationId, bodyIndex, planned.bodies[bodyIndex]!, request.project, request.signal)
 			}
 			throwIfScapeAborted(request.signal)
 			const result = validateSoundscaperDesktopBundle(

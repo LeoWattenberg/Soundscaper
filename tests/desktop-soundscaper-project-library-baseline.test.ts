@@ -33,6 +33,7 @@ import {
 import {
 	MAXIMUM_SOUNDSCAPER_TRANSFER_CHUNK_BYTES,
 } from '../desktop/soundscaper-project-library-transfer-contract.ts'
+import { validateSoundscaperDesktopProjectLibraryPublicationAdmission } from '../desktop/soundscaper-project-library-publication-transport.ts'
 import {
 	acquireSoundscaperDesktopProjectLibraryLeaseWithWait,
 } from '../desktop/soundscaper-project-library-lease-wait.ts'
@@ -46,6 +47,7 @@ import { SoundscaperDesktopProjectLibraryMain } from '../desktop/soundscaper-pro
 import {
 	validateSoundscaperDesktopCatalogSnapshot,
 } from '../src/soundscaper/desktop-project-library-renderer-contract.ts'
+import { validateSoundscaperDesktopAdmission } from '../src/soundscaper/desktop-project-library-renderer-validation.ts'
 import { createSoundscaperProject } from '../src/soundscaper/editor-project.ts'
 import { waitFor } from './helpers/async-test-control.ts'
 
@@ -322,17 +324,33 @@ test('a refused preload publication ID can be retried after IPC or admission fai
 				if (channel === SOUNDSCAPER_DESKTOP_PROJECT_LIBRARY_MAIN_CHANNELS.handshake) return value
 				attempts += 1
 				if (attempts === 1 && failure === 'ipc') throw new Error('publication refused')
-				if (attempts === 1) return { publicationId, maximumChunkBytes: 1, bodyCount: 0 }
+				if (attempts === 1) return { publicationId, maximumChunkBytes: 1, bodyCount: 0, requiredBodyIndexes: [] }
 				return {
 					publicationId,
 					maximumChunkBytes: MAXIMUM_SOUNDSCAPER_TRANSFER_CHUNK_BYTES,
 					bodyCount: 0,
+					requiredBodyIndexes: [],
 				}
 			},
 		})
 		await bridge.connect()
 		await assert.rejects(() => bridge.beginPublication(request))
 		assert.equal((await bridge.beginPublication(request)).publicationId, publicationId, failure)
+	}
+})
+
+test('publication admission requires sorted, dense missing-body indexes at both bridge boundaries', () => {
+	const admission = {
+		publicationId: 'a'.repeat(48), maximumChunkBytes: MAXIMUM_SOUNDSCAPER_TRANSFER_CHUNK_BYTES,
+		bodyCount: 2, requiredBodyIndexes: [0, 1],
+	}
+	assert.deepEqual(validateSoundscaperDesktopProjectLibraryPublicationAdmission(admission, 2)
+		.requiredBodyIndexes, [0, 1])
+	assert.deepEqual(validateSoundscaperDesktopAdmission(admission, 2).requiredBodyIndexes, [0, 1])
+	for (const requiredBodyIndexes of [[1, 0], [0, 0], [2], new Array(1)]) {
+		assert.throws(() => validateSoundscaperDesktopProjectLibraryPublicationAdmission(
+			{ ...admission, requiredBodyIndexes }, 2))
+		assert.throws(() => validateSoundscaperDesktopAdmission({ ...admission, requiredBodyIndexes }, 2))
 	}
 })
 

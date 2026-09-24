@@ -15,12 +15,14 @@ import {
 import { dirname, isAbsolute, relative, resolve, sep } from 'node:path';
 
 import type { SoundscaperDesktopProjectLibraryPaths } from './soundscaper-project-library-contract.ts';
+import { freezeRelativeFileForSoundscaperDesktopLibraryBinding } from './soundscaper-project-library-media-binding.ts';
 import {
 	MAXIMUM_SOUNDSCAPER_TRANSFER_CHUNK_BYTES,
 } from './soundscaper-project-library-transfer-contract.ts';
 import type {
 	SoundscaperDesktopProjectLibraryPublicationPlan,
 } from './soundscaper-project-library-publication-contract.ts';
+import type { SoundscaperDesktopProjectLibraryTransferBody } from './soundscaper-project-library-transfer-contract.ts';
 
 export interface SoundscaperDesktopProjectLibraryPublicationStage {
 	readonly role: 'project' | 'body';
@@ -121,11 +123,36 @@ export class SoundscaperDesktopProjectLibraryFileRangeReader {
 	}
 }
 
+/** Verify immutable files before telling a renderer which bodies to upload. */
+export async function admitSoundscaperDesktopProjectLibraryPublicationBodies(
+	paths: Readonly<SoundscaperDesktopProjectLibraryPaths>,
+	bodies: readonly Readonly<SoundscaperDesktopProjectLibraryTransferBody>[],
+	signal?: AbortSignal,
+): Promise<readonly number[]> {
+	throwIfAborted(signal);
+	await ensureScopedRoots(paths);
+	const required: number[] = [];
+	for (const [index, body] of bodies.entries()) {
+		throwIfAborted(signal);
+		const finalPath = scopedPath(paths.libraryRoot,
+			`media/${freezeRelativeFileForSoundscaperDesktopLibraryBinding(body.bindingId)}`);
+		await ensureRealDirectory(resolve(paths.managedMediaRoot, 'freeze'));
+		await ensureRealDirectory(dirname(finalPath));
+		try { await verifySoundscaperDesktopProjectLibraryFile(finalPath, body.byteLength, body.sha256, signal); }
+		catch (error) {
+			if (errorCode(error) !== 'ENOENT') throw error;
+			required.push(index);
+		}
+	}
+	return Object.freeze(required);
+}
+
 export async function stageSoundscaperDesktopProjectLibraryPublication(
 	paths: Readonly<SoundscaperDesktopProjectLibraryPaths>,
 	transactionId: string,
 	plan: Readonly<SoundscaperDesktopProjectLibraryPublicationPlan>,
 	signal?: AbortSignal,
+	reusedBodyIndexes: ReadonlySet<number> = new Set(),
 ): Promise<readonly Readonly<SoundscaperDesktopProjectLibraryPublicationStage>[]> {
 	throwIfAborted(signal);
 	await ensureScopedRoots(paths);
@@ -155,7 +182,15 @@ export async function stageSoundscaperDesktopProjectLibraryPublication(
 				body.descriptor.sha256,
 			);
 			stages.push(stage);
-			await writeStreamStage(paths.libraryRoot, stage, body.chunks, signal);
+			if (reusedBodyIndexes.has(index)) {
+				const finalPath = scopedPath(paths.libraryRoot, stage.finalRelativeFile);
+				await ensureRealDirectory(resolve(paths.managedMediaRoot, 'freeze'));
+				await ensureRealDirectory(dirname(finalPath));
+				await verifySoundscaperDesktopProjectLibraryFile(finalPath, stage.byteLength, stage.sha256, signal);
+				await link(finalPath, scopedPath(paths.libraryRoot, stage.stageRelativeFile));
+				await verifySoundscaperDesktopProjectLibraryFile(
+					scopedPath(paths.libraryRoot, stage.stageRelativeFile), stage.byteLength, stage.sha256, signal);
+			} else await writeStreamStage(paths.libraryRoot, stage, body.chunks, signal);
 		}
 		return Object.freeze(stages.map((stage) => Object.freeze(stage)));
 	} catch (error) {

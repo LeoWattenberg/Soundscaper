@@ -172,7 +172,7 @@ function installDesktopProjectLibrary() {
 				throw new Error('Desktop publication lost its write fence.');
 			}
 			pending.set(request.publicationId, structuredClone(request.project));
-			return { publicationId: request.publicationId, maximumChunkBytes: 4 * 1024 * 1024, bodyCount: 0 };
+			return { publicationId: request.publicationId, maximumChunkBytes: 4 * 1024 * 1024, bodyCount: 0, requiredBodyIndexes: [] };
 		},
 		writePublicationChunk: async () => { throw new Error('Unexpected freeze body.'); },
 		finishPublication: async ({ publicationId }) => {

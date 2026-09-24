@@ -161,6 +161,7 @@ export class SoundscaperDesktopProjectLibraryPublicationHost {
 		value: unknown,
 		signal?: AbortSignal,
 		conditional?: Readonly<{ fences: DesktopProjectWriteFences; token: string; expectedDocument: unknown }>,
+		reusedBodyIndexes: ReadonlySet<number> = new Set(),
 	): Promise<Readonly<SoundscaperDesktopProjectLibraryTransferBundle>> {
 		this.#assertOperational();
 		return this.#exclusive(async () => {
@@ -192,6 +193,7 @@ export class SoundscaperDesktopProjectLibraryPublicationHost {
 				transactionId,
 				plan,
 				signal,
+				reusedBodyIndexes,
 			);
 			let prepared = false;
 			try {

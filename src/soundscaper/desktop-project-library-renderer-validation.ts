@@ -1,6 +1,36 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { SOUNDSCAPER_DESKTOP_MAXIMUM_CHUNK_BYTES } from './desktop-project-library-renderer-contract.ts';
+
 const SIGNAL_FIELDS = ['signal'] as const;
+
+export function validateSoundscaperDesktopAdmission(value: unknown, bodyCount: number) {
+	const result = allowedRecord(value,
+		['publicationId', 'maximumChunkBytes', 'bodyCount', 'requiredBodyIndexes'], [],
+		'Soundscaper desktop admission');
+	if (typeof result.publicationId !== 'string' || !/^[a-f0-9]{48}$/u.test(result.publicationId)
+		|| result.maximumChunkBytes !== SOUNDSCAPER_DESKTOP_MAXIMUM_CHUNK_BYTES
+		|| result.bodyCount !== bodyCount) throw new Error('The Soundscaper desktop admission changed.');
+	const raw = result.requiredBodyIndexes;
+	if (!Array.isArray(raw) || Object.getPrototypeOf(raw) !== Array.prototype
+		|| raw.length > bodyCount || Reflect.ownKeys(raw).length !== raw.length + 1) {
+		throw new TypeError('The Soundscaper desktop required bodies are invalid.');
+	}
+	const requiredBodyIndexes: number[] = [];
+	for (let position = 0; position < raw.length; position += 1) {
+		const entry = Object.getOwnPropertyDescriptor(raw, String(position));
+		const index: unknown = entry?.value;
+		if (!entry?.enumerable || !Object.hasOwn(entry, 'value')
+			|| typeof index !== 'number' || !Number.isSafeInteger(index) || index < 0 || index >= bodyCount
+			|| position > 0 && index <= requiredBodyIndexes[position - 1]!) {
+			throw new TypeError('The Soundscaper desktop required body indexes changed.');
+		}
+		requiredBodyIndexes.push(index);
+	}
+	return Object.freeze({ publicationId: result.publicationId,
+		maximumChunkBytes: SOUNDSCAPER_DESKTOP_MAXIMUM_CHUNK_BYTES,
+		requiredBodyIndexes: Object.freeze(requiredBodyIndexes) });
+}
 
 export function isSoundscaperDesktopWriteFenceRefusal(error: unknown): boolean {
 	return error instanceof Error

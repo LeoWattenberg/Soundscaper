@@ -10,6 +10,7 @@ import type {
 	SoundscaperDesktopProjectLibraryLifecycleHost,
 } from './soundscaper-project-library-lifecycle-host.ts';
 import type { SoundscaperDesktopProjectLibraryPublicationHost } from './soundscaper-project-library-publication-host.ts';
+import { admitSoundscaperDesktopProjectLibraryPublicationBodies } from './soundscaper-project-library-publication-files.ts';
 import { DesktopProjectWriteFences } from './project-library-write-fence.ts';
 import type { SoundscaperDesktopProjectLibraryLease } from './soundscaper-project-library-persistence-codecs.ts';
 import {
@@ -137,6 +138,7 @@ export class SoundscaperDesktopProjectLibraryMainSessionService {
 				publicationId: upload.id,
 				maximumChunkBytes: MAXIMUM_SOUNDSCAPER_TRANSFER_CHUNK_BYTES,
 				bodyCount: request.bodies.length,
+				requiredBodyIndexes: upload.requiredBodyIndexes,
 			}, request.bodies.length);
 		} catch (error) {
 			try { await upload.abort(error); }
@@ -350,7 +352,8 @@ class PublicationUpload {
 	readonly #request: ReturnType<typeof validateSoundscaperDesktopProjectLibraryPublicationBeginRequest>;
 	readonly #writeFences: DesktopProjectWriteFences;
 	readonly #streams: PublicationByteStream[];
-	#bodyIndex = 0;
+	#requiredBodyIndexes: readonly number[] = [];
+	#requiredPosition = 0;
 	#offset = 0;
 	#result: Promise<Readonly<SoundscaperDesktopProjectLibraryTransferBundle>> | null = null;
 
@@ -375,12 +378,20 @@ class PublicationUpload {
 	belongsTo(session: MainSession): boolean {
 		return this.#owner === session;
 	}
+	get requiredBodyIndexes(): readonly number[] {
+		return this.#requiredBodyIndexes;
+	}
 
 	get readyToFinish(): boolean {
-		return this.#bodyIndex === this.#request.bodies.length && this.#offset === 0;
+		return this.#requiredPosition === this.#requiredBodyIndexes.length && this.#offset === 0;
 	}
 
 	async start(): Promise<void> {
+		this.#requiredBodyIndexes = await admitSoundscaperDesktopProjectLibraryPublicationBodies(
+			this.#host.paths, this.#request.bodies, this.#controller.signal);
+		const required = new Set(this.#requiredBodyIndexes);
+		const reused = new Set(this.#request.bodies.map((_body, index) => index)
+			.filter((index) => !required.has(index)));
 		this.#result = this.#host.publish({
 			lease: this.#lease,
 			expectedMetadataRevision: this.#request.expectedMetadataRevision,
@@ -394,11 +405,11 @@ class PublicationUpload {
 			fences: this.#writeFences,
 			token: this.#request.writeFence,
 			expectedDocument: this.#request.expectedDocument,
-		});
+		}, reused);
 		void this.#result.catch((error: unknown) => {
 			for (const stream of this.#streams) stream.fail(error);
 		});
-		const first = this.#streams[0];
+		const first = this.#streams[this.#requiredBodyIndexes[0]!];
 		if (!first) { await this.#result; return; }
 		await Promise.race([
 			first.waitUntilRead(),
@@ -407,20 +418,21 @@ class PublicationUpload {
 	}
 
 	async write(bodyIndex: number, offset: number, bytes: Uint8Array) {
-		const descriptor = this.#request.bodies[this.#bodyIndex];
-		if (!descriptor || bodyIndex !== this.#bodyIndex || offset !== this.#offset) {
+		const nextIndex = this.#requiredBodyIndexes[this.#requiredPosition];
+		const descriptor = nextIndex === undefined ? undefined : this.#request.bodies[nextIndex];
+		if (!descriptor || bodyIndex !== nextIndex || offset !== this.#offset) {
 			throw new Error('Soundscaper desktop baseline publication chunks must be sequential by body and offset');
 		}
 		if (bytes.byteLength > descriptor.byteLength - this.#offset) {
 			throw new RangeError('Soundscaper desktop baseline publication chunk exceeds its declared body');
 		}
-		await this.#streams[this.#bodyIndex]!.offer(bytes);
+		await this.#streams[bodyIndex]!.offer(bytes);
 		this.#offset += bytes.byteLength;
 		const complete = this.#offset === descriptor.byteLength;
 		const nextOffset = this.#offset;
 		if (complete) {
-			this.#streams[this.#bodyIndex]!.complete();
-			this.#bodyIndex += 1;
+			this.#streams[bodyIndex]!.complete();
+			this.#requiredPosition += 1;
 			this.#offset = 0;
 		}
 		return Object.freeze({ bodyIndex, nextOffset, complete });

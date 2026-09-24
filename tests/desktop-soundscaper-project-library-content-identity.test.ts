@@ -2,6 +2,10 @@
 
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
+import { lstatSync, readdirSync } from 'node:fs';
+import { mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import test from 'node:test';
 
 import {
@@ -10,7 +14,10 @@ import {
 } from '../desktop/soundscaper-project-library-transfer-contract.ts';
 import {
 	createLegacySoundscaperDesktopLibraryFreezeMediaBinding,
+	freezeRelativeFileForSoundscaperDesktopLibraryBinding,
 } from '../desktop/soundscaper-project-library-media-binding.ts';
+import { createSoundscaperDesktopProjectLibraryHandshake, createSoundscaperDesktopProjectLibraryPaths } from '../desktop/soundscaper-project-library-contract.ts';
+import { SoundscaperDesktopProjectLibraryMain } from '../desktop/soundscaper-project-library-main.ts';
 import {
 	createAudioClip,
 	createAudioSource,
@@ -95,9 +102,91 @@ test('content-addressed readers retain compatibility with revision-addressed fre
 	}, String(project.id)).bundle.bodies[0]?.bindingId, legacyBinding.id);
 });
 
-function frozenProject() {
+test('a metadata save negotiates existing frozen PCM without upload or a temporary copy', async (context) => {
+	const root = await mkdtemp(join(tmpdir(), 'soundscaper-reused-freeze-'));
+	context.after(() => rm(root, { recursive: true, force: true }));
+	const bytes = Uint8Array.from({ length: 36 }, (_value, index) => index);
+	const project = frozenProject(createHash('sha256').update(bytes).digest('hex'));
+	const descriptor = createSoundscaperDesktopProjectLibraryTransferBodies(project, documentDigest(project))[0]!;
+	const paths = createSoundscaperDesktopProjectLibraryPaths(root);
+	const mediaPath = join(paths.managedMediaRoot,
+		freezeRelativeFileForSoundscaperDesktopLibraryBinding(descriptor.bindingId));
+	let inspectReusedStage = false;
+	let reusedStageSharesBody = false;
+	const main = await SoundscaperDesktopProjectLibraryMain.start({
+		appDataPath: root,
+		owner: { product: 'soundscaper', processId: 931, instanceId: 'reused-freeze-main' },
+		handshake: createSoundscaperDesktopProjectLibraryHandshake(),
+		onLeaseLost: () => undefined,
+		testControl: {
+			leaseTtlMs: 30_000,
+			renewIntervalMs: 10_000,
+			checkpoint: (phase: string) => {
+				if (!inspectReusedStage || phase !== 'prepared') return;
+				const stage = readdirSync(join(paths.libraryRoot, 'stage'))
+					.find((name) => name.endsWith('-0001.stage'));
+				assert.ok(stage);
+				const staged = lstatSync(join(paths.libraryRoot, 'stage', stage));
+				const existing = lstatSync(mediaPath);
+				reusedStageSharesBody = staged.dev === existing.dev && staged.ino === existing.ino;
+			},
+		},
+	});
+	context.after(() => main.close());
+	const session = main.openSession(createSoundscaperDesktopProjectLibraryHandshake());
+	context.after(() => session.close());
+	const firstId = '1'.repeat(48);
+	const firstAdmission = await session.beginPublication({
+		publicationId: firstId, expectedMetadataRevision: 0, expectedProject: null,
+		project, bodies: [descriptor],
+	});
+	assert.deepEqual(firstAdmission.requiredBodyIndexes, [0]);
+	assert.equal((await session.writePublicationChunk({
+		publicationId: firstId, bodyIndex: 0, offset: 0, bytes,
+	})).complete, true);
+	const first = await session.finishPublication({ publicationId: firstId });
+	inspectReusedStage = true;
+	const renamed = applySoundscaperProjectCommand(project, { type: 'project/rename', title: 'Renamed project' });
+	const secondId = '2'.repeat(48);
+	const secondAdmission = await session.beginPublication({
+		publicationId: secondId, expectedMetadataRevision: first.metadataRevision,
+		expectedProject: { projectRevision: first.project.projectRevision, projectSha256: first.project.sha256 },
+		project: renamed, bodies: createSoundscaperDesktopProjectLibraryTransferBodies(renamed, documentDigest(renamed)),
+	});
+	assert.deepEqual(secondAdmission.requiredBodyIndexes, []);
+	await assert.rejects(session.writePublicationChunk({
+		publicationId: secondId, bodyIndex: 0, offset: 0, bytes,
+	}), /sequential/iu);
+	const second = await session.finishPublication({ publicationId: secondId });
+	assert.equal(second.project.name, 'Renamed project');
+	assert.equal(reusedStageSharesBody, true);
+
+	inspectReusedStage = false;
+	await rm(mediaPath);
+	const third = applySoundscaperProjectCommand(renamed, { type: 'project/rename', title: 'Restored body' });
+	const thirdId = '3'.repeat(48);
+	const thirdAdmission = await session.beginPublication({
+		publicationId: thirdId, expectedMetadataRevision: second.metadataRevision,
+		expectedProject: { projectRevision: second.project.projectRevision, projectSha256: second.project.sha256 },
+		project: third, bodies: createSoundscaperDesktopProjectLibraryTransferBodies(third, documentDigest(third)),
+	});
+	assert.deepEqual(thirdAdmission.requiredBodyIndexes, [0]);
+	await session.writePublicationChunk({ publicationId: thirdId, bodyIndex: 0, offset: 0, bytes });
+	const restored = await session.finishPublication({ publicationId: thirdId });
+	assert.equal(restored.project.name, 'Restored body');
+
+	await writeFile(mediaPath, new Uint8Array(bytes.byteLength));
+	const fourth = applySoundscaperProjectCommand(third, { type: 'project/rename', title: 'Again' });
+	await assert.rejects(session.beginPublication({
+		publicationId: '4'.repeat(48), expectedMetadataRevision: restored.metadataRevision,
+		expectedProject: { projectRevision: restored.project.projectRevision, projectSha256: restored.project.sha256 },
+		project: fourth, bodies: createSoundscaperDesktopProjectLibraryTransferBodies(fourth, documentDigest(fourth)),
+	}), /SHA-256/iu);
+});
+
+function frozenProject(contentSha256 = 'a'.repeat(64)) {
 	const live = audioSource('live-source', 'live-storage', 'b'.repeat(64));
-	const freeze = audioSource('freeze-source', 'freeze-storage', 'a'.repeat(64));
+	const freeze = audioSource('freeze-source', 'freeze-storage', contentSha256);
 	const clip = createAudioClip({
 		id: 'live-clip',
 		sourceId: live.id,

@@ -31,6 +31,7 @@ export interface SoundscaperDesktopProjectLibraryPublicationAdmission {
 	readonly publicationId: string;
 	readonly maximumChunkBytes: number;
 	readonly bodyCount: number;
+	readonly requiredBodyIndexes: readonly number[];
 }
 
 export interface SoundscaperDesktopProjectLibraryPublicationChunkRequest {
@@ -60,7 +61,7 @@ const BEGIN_FIELDS = ['publicationId', 'expectedMetadataRevision', 'expectedProj
 const FENCE_CHECK_FIELDS = ['projectId', 'writeFence', 'expectedDocument'] as const;
 const FENCED_BEGIN_FIELDS = [...BEGIN_FIELDS, 'writeFence', 'expectedDocument'] as const;
 const EXPECTED_FIELDS = ['projectRevision', 'projectSha256'] as const;
-const ADMISSION_FIELDS = ['publicationId', 'maximumChunkBytes', 'bodyCount'] as const;
+const ADMISSION_FIELDS = ['publicationId', 'maximumChunkBytes', 'bodyCount', 'requiredBodyIndexes'] as const;
 const CHUNK_FIELDS = ['publicationId', 'bodyIndex', 'offset', 'bytes'] as const;
 const ACKNOWLEDGEMENT_FIELDS = ['bodyIndex', 'nextOffset', 'complete'] as const;
 const COMPLETION_FIELDS = ['publicationId'] as const;
@@ -143,10 +144,18 @@ export function validateSoundscaperDesktopProjectLibraryPublicationAdmission(
 	if (record.maximumChunkBytes !== MAXIMUM_SOUNDSCAPER_TRANSFER_CHUNK_BYTES) {
 		throw new Error('Soundscaper desktop baseline publication admission chunk bound changed');
 	}
+	const requiredBodyIndexes = denseArray(record.requiredBodyIndexes,
+		'Soundscaper desktop baseline required publication bodies', bodyCount).map((index) =>
+		nonNegativeInteger(index, 'required body index'));
+	if (requiredBodyIndexes.some((index, position) => index >= bodyCount
+		|| position > 0 && index <= requiredBodyIndexes[position - 1]!)) {
+		throw new Error('Soundscaper desktop baseline required publication body indexes changed');
+	}
 	return Object.freeze({
 		publicationId: publicationId(record.publicationId),
 		maximumChunkBytes: MAXIMUM_SOUNDSCAPER_TRANSFER_CHUNK_BYTES,
 		bodyCount,
+		requiredBodyIndexes: Object.freeze(requiredBodyIndexes),
 	});
 }
 

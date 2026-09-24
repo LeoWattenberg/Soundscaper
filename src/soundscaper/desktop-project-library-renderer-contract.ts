@@ -129,7 +129,6 @@ const BODY_FIELDS = [
 const DIGEST = /^[a-f0-9]{64}$/u;
 const BINDING_ID = /^f[a-f0-9]{64}$/u;
 const ENTRY_ID = /^[A-Za-z0-9_-]{8,128}$/u;
-const PUBLICATION_ID = /^[a-f0-9]{48}$/u;
 const MAXIMUM_PROJECT_BYTES = 256 * 1024 * 1024;
 const MAXIMUM_BODIES = 4_094;
 const MAXIMUM_PROJECTS = 10_000;
@@ -358,14 +357,6 @@ export function validateSoundscaperDesktopBodyChunk(value: unknown, length: numb
 		throw new Error('The Soundscaper desktop  body chunk changed its exact length.');
 	}
 	return value.slice();
-}
-
-export function validateSoundscaperDesktopAdmission(value: unknown, bodyCount: number) {
-	const result = exactRecord(value, ['publicationId', 'maximumChunkBytes', 'bodyCount'], 'Soundscaper desktop  admission');
-	if (typeof result.publicationId !== 'string' || !PUBLICATION_ID.test(result.publicationId)
-		|| result.maximumChunkBytes !== SOUNDSCAPER_DESKTOP_MAXIMUM_CHUNK_BYTES
-		|| result.bodyCount !== bodyCount) throw new Error('The Soundscaper desktop  admission changed.');
-	return Object.freeze({ publicationId: result.publicationId, maximumChunkBytes: result.maximumChunkBytes });
 }
 
 export function validateSoundscaperDesktopAcknowledgement(
