@@ -21,6 +21,14 @@ on:
         options:
           - nightly
           - nightly-with-tests
+      nightly_tests_targets:
+        description: Targets for nightly-with-tests (ignored for nightly)
+        required: true
+        default: all
+        type: choice
+        options:
+          - all
+          - windows
 
 permissions:
   contents: read
@@ -40,6 +48,7 @@ jobs:
       release-assembler-arguments: ${{ steps.release-scope.outputs.assembler-arguments }}
       package-audit-arguments: ${{ steps.release-scope.outputs.package-audit-arguments }}
       release-channel: ${{ steps.release-scope.outputs.channel }}
+      nightly-tests-targets: ${{ steps.nightly-test-targets.outputs.targets }}
     steps:
       - name: Check out source
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
@@ -71,6 +80,18 @@ jobs:
           + 'assembler-arguments=' + (release ? '--product ' + release.productId : '--suite') + '\n'
           + 'package-audit-arguments=' + (release ? '--product ' + release.productId : '') + '\n'
           + 'channel=' + (release?.channel ?? 'nightly-suite') + '\n');"
+
+      - name: Resolve nightly-with-tests target matrix
+        id: nightly-test-targets
+        env:
+          NIGHTLY_TEST_TARGETS: ${{ inputs.nightly_tests_targets || 'all' }}
+        run: >-
+          node --input-type=module -e
+          "import { appendFileSync } from 'node:fs';
+          import { selectDesktopNightlyTestTargets }
+          from './scripts/lib/desktop-nightly-tests-target-matrix.mjs';
+          appendFileSync(process.env.GITHUB_OUTPUT,
+          'targets=' + JSON.stringify(selectDesktopNightlyTestTargets(process.env.NIGHTLY_TEST_TARGETS)) + '\n');"
 
       - name: Pin npm
         run: npm install --global npm@12.0.1
@@ -815,27 +836,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        target:
-          - runner: windows-2025
-            platform: win
-            arch: x64
-            node_arch: x64
-          - runner: windows-11-arm
-            platform: win
-            arch: arm64
-            node_arch: x64
-          - runner: macos-15
-            platform: mac
-            arch: arm64
-            node_arch: arm64
-          - runner: ubuntu-22.04
-            platform: linux
-            arch: x64
-            node_arch: x64
-          - runner: ubuntu-24.04-arm
-            platform: linux
-            arch: arm64
-            node_arch: arm64
+        target: ${{ fromJSON(needs.quality.outputs.nightly-tests-targets) }}
     runs-on: ${{ matrix.target.runner }}
     steps:
       - name: Check out source

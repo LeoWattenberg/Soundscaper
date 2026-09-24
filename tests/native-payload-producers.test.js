@@ -46,23 +46,51 @@ test('a broken package-generation import chain cannot satisfy the producer audit
 	} finally { await rm(fixture, { recursive: true, force: true }); }
 });
 
-test('package generation binds every declared target and its platform environment', async () => {
+test('package generation binds helper-backed targets and its platform environment', async () => {
 	const fixture = await producerFixture();
 	try {
 		const workflowPath = join(fixture, '.github/workflows/desktop-preview.yml');
-		const source = await readFile(workflowPath, 'utf8');
-		await writeFile(workflowPath, source
-			.replaceAll(`          - runner: ubuntu-24.04-arm
-            platform: linux
-            arch: arm64`, `          - runner: ubuntu-24.04-arm
-            platform: linux
-            arch: x64`)
+		const workflow = await readFile(workflowPath, 'utf8');
+		await writeFile(workflowPath, workflow
 			.replaceAll('          SOUNDSCAPER_DESKTOP_TARGET_ARCH: ${{ matrix.target.arch }}',
 				'          # target architecture environment removed'), 'utf8');
+		const helperPath = join(fixture, 'scripts/lib/desktop-nightly-tests-target-matrix.mjs');
+		const helper = await readFile(helperPath, 'utf8');
+		await writeFile(helperPath, helper.replace(
+			"runner: 'ubuntu-24.04-arm', platform: 'linux', arch: 'arm64'",
+			"runner: 'ubuntu-24.04-arm', platform: 'linux', arch: 'x64'",
+		), 'utf8');
 		const audit = auditNativePayloadProducers(fixture);
 		assert.equal(audit.status, 'failed');
-		assert.ok(audit.findings.some((finding) => finding.includes('linux-arm64 package row')));
+		assert.ok(audit.findings.some((finding) => finding.includes('nightly-with-tests target matrix')));
 		assert.ok(audit.findings.some((finding) => finding.includes('target architecture')));
+	} finally { await rm(fixture, { recursive: true, force: true }); }
+});
+
+test('helper-backed nightly package targets reject a substituted runner or architecture', async () => {
+	const fixture = await producerFixture();
+	try {
+		const helperPath = join(fixture, 'scripts/lib/desktop-nightly-tests-target-matrix.mjs');
+		const source = await readFile(helperPath, 'utf8');
+		await writeFile(helperPath, source.replace(
+			"runner: 'windows-11-arm', platform: 'win', arch: 'arm64'",
+			"runner: 'windows-2025', platform: 'win', arch: 'x64'",
+		), 'utf8');
+		const audit = auditNativePayloadProducers(fixture);
+		assert.equal(audit.status, 'failed');
+		assert.ok(audit.findings.some((finding) => finding.includes('nightly-with-tests target matrix')));
+	} finally { await rm(fixture, { recursive: true, force: true }); }
+});
+
+test('helper-backed nightly package targets reject a Windows selection that omits Windows', async () => {
+	const fixture = await producerFixture();
+	try {
+		const helperPath = join(fixture, 'scripts/lib/desktop-nightly-tests-target-matrix.mjs');
+		const source = await readFile(helperPath, 'utf8');
+		await writeFile(helperPath, source.replace("platform === 'win'", "platform === 'linux'"), 'utf8');
+		const audit = auditNativePayloadProducers(fixture);
+		assert.equal(audit.status, 'failed');
+		assert.ok(audit.findings.some((finding) => finding.includes('nightly-with-tests target matrix')));
 	} finally { await rm(fixture, { recursive: true, force: true }); }
 });
 
@@ -71,6 +99,7 @@ async function producerFixture() {
 	const registerPath = resolve(ROOT, 'config/native-payload-producers.json');
 	const register = JSON.parse(await readFile(registerPath, 'utf8'));
 	const paths = new Set(['config/native-payload-producers.json']);
+	paths.add('scripts/lib/desktop-nightly-tests-target-matrix.mjs');
 	for (const producer of register.ciProducers) {
 		for (const path of [
 			...producer.manifestPaths, producer.workflowPath, producer.dispatchWorkflowPath,

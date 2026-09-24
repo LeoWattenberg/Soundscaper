@@ -10,6 +10,7 @@ import { createRequire } from 'node:module';
 import { FuseV1Options } from '@electron/fuses';
 
 import hardenNightlyTestsElectron from '../scripts/desktop-nightly-tests-after-pack.mjs';
+import { selectDesktopNightlyTestTargets } from '../scripts/lib/desktop-nightly-tests-target-matrix.mjs';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const require = createRequire(import.meta.url);
@@ -179,9 +180,24 @@ test('the nightly test launcher delegates to the pure runtime and never opens an
 	assert.doesNotMatch(source, /desktop\/main\.mjs|createMainWindow/u);
 });
 
-test('desktop CI exposes one quality-gated five-target nightly-with-tests artifact matrix', async () => {
+test('manual nightly-with-tests target selection preserves all targets and selects both Windows targets', () => {
+	const all = selectDesktopNightlyTestTargets('all');
+	assert.deepEqual(all, [
+		{ runner: 'windows-2025', platform: 'win', arch: 'x64', node_arch: 'x64' },
+		{ runner: 'windows-11-arm', platform: 'win', arch: 'arm64', node_arch: 'x64' },
+		{ runner: 'macos-15', platform: 'mac', arch: 'arm64', node_arch: 'arm64' },
+		{ runner: 'ubuntu-22.04', platform: 'linux', arch: 'x64', node_arch: 'x64' },
+		{ runner: 'ubuntu-24.04-arm', platform: 'linux', arch: 'arm64', node_arch: 'arm64' },
+	]);
+	assert.deepEqual(selectDesktopNightlyTestTargets('windows'), all.slice(0, 2));
+	assert.throws(() => selectDesktopNightlyTestTargets(''), /target selection/u);
+	assert.throws(() => selectDesktopNightlyTestTargets('linux'), /target selection/u);
+});
+
+test('desktop CI exposes one quality-gated selectable nightly-with-tests artifact matrix', async () => {
 	const workflow = await readFile(resolve(ROOT, '.github/workflows/desktop-preview.yml'), 'utf8');
 	assert.match(workflow, /workflow_dispatch:\s+inputs:\s+artifact_variant:/u);
+	assert.match(workflow, /nightly_tests_targets:[\s\S]*?default: all[\s\S]*?type: choice\s+options:\s+- all\s+- windows/u);
 	// Main pushes use Quality without starting a second native package build.
 	// The tested package runs only when the owner dispatches that variant.
 	assert.doesNotMatch(workflow, /workflow_run/u);
@@ -189,6 +205,9 @@ test('desktop CI exposes one quality-gated five-target nightly-with-tests artifa
 	assert.match(workflow, /push:\s+tags:/u);
 	assert.doesNotMatch(workflow, /push:\s+branches:/u);
 	assert.match(workflow, /artifact_variant:[\s\S]*type: choice[\s\S]*options:\s+- nightly\s+- nightly-with-tests/u);
+	assert.match(workflow, /nightly-tests-targets: \$\{\{ steps\.nightly-test-targets\.outputs\.targets \}\}/u);
+	assert.match(workflow, /NIGHTLY_TEST_TARGETS: \$\{\{ inputs\.nightly_tests_targets \|\| 'all' \}\}/u);
+	assert.match(workflow, /selectDesktopNightlyTestTargets\(process\.env\.NIGHTLY_TEST_TARGETS\)/u);
 
 	const normalStart = workflow.indexOf('\n  package:');
 	const testStart = workflow.indexOf('\n  package-with-tests:');
@@ -229,16 +248,8 @@ test('desktop CI exposes one quality-gated five-target nightly-with-tests artifa
 		'u',
 	), 'the staged manifest must name the same revision that the job checked out');
 	assert.doesNotMatch(testJob, /matrix\.product|product: \[/u);
-	assert.equal(testJob.match(/- runner:/gu)?.length, 5);
-	for (const target of [
-		['windows-2025', 'win', 'x64'],
-		['windows-11-arm', 'win', 'arm64'],
-		['macos-15', 'mac', 'arm64'],
-		['ubuntu-22.04', 'linux', 'x64'],
-		['ubuntu-24.04-arm', 'linux', 'arm64'],
-	]) {
-		assert.match(testJob, new RegExp(`runner: ${target[0]}\\s+platform: ${target[1]}\\s+arch: ${target[2]}`, 'u'));
-	}
+	assert.match(testJob, /target: \$\{\{ fromJSON\(needs\.quality\.outputs\.nightly-tests-targets\) \}\}/u);
+	assert.doesNotMatch(testJob, /- runner:/u);
 	assert.match(testJob, /node scripts\/desktop-nightly-tests-prepare\.mjs/u);
 	assert.match(testJob, /node scripts\/desktop-nightly-tests-products\.mjs/u);
 	assert.match(testJob, /npm run build:browser:framescaper/u);

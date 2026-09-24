@@ -1,7 +1,10 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { lstatSync, readFileSync } from 'node:fs';
+import { createRequire } from 'node:module';
 import { basename, resolve } from 'node:path';
+
+const require = createRequire(import.meta.url);
 
 export const NATIVE_PAYLOAD_PRODUCERS_PATH = 'config/native-payload-producers.json';
 
@@ -25,6 +28,15 @@ const PACKAGE_TARGET_PARTS = Object.freeze({
 	'win-x64': Object.freeze({ platform: 'win', arch: 'x64' }),
 	'win-arm64': Object.freeze({ platform: 'win', arch: 'arm64' }),
 });
+const NIGHTLY_TARGET_MATRIX_HELPER = 'scripts/lib/desktop-nightly-tests-target-matrix.mjs';
+const NIGHTLY_TARGET_MATRIX_REFERENCE = 'target: ${{ fromJSON(needs.quality.outputs.nightly-tests-targets) }}';
+const NIGHTLY_EXPECTED_ALL = Object.freeze([
+	Object.freeze({ runner: 'windows-2025', platform: 'win', arch: 'x64', node_arch: 'x64' }),
+	Object.freeze({ runner: 'windows-11-arm', platform: 'win', arch: 'arm64', node_arch: 'x64' }),
+	Object.freeze({ runner: 'macos-15', platform: 'mac', arch: 'arm64', node_arch: 'arm64' }),
+	Object.freeze({ runner: 'ubuntu-22.04', platform: 'linux', arch: 'x64', node_arch: 'x64' }),
+	Object.freeze({ runner: 'ubuntu-24.04-arm', platform: 'linux', arch: 'arm64', node_arch: 'arm64' }),
+]);
 
 export function auditNativePayloadProducers(repositoryRoot) {
 	const root = resolve(repositoryRoot);
@@ -189,7 +201,7 @@ function auditPackageProducer(root, producer, findings) {
 		if (job === null) {
 			findings.push(`${producer.id} workflow does not invoke its registered package command.`);
 		} else {
-			auditPackageWorkflowJob(producer, job, findings);
+			auditPackageWorkflowJob(root, producer, job, workflow, findings);
 		}
 	}
 	for (const [index, path] of producer.pipelinePaths.entries()) {
@@ -202,13 +214,17 @@ function auditPackageProducer(root, producer, findings) {
 	}
 }
 
-function auditPackageWorkflowJob(producer, job, findings) {
-	for (const target of producer.targets) {
-		const { platform, arch } = PACKAGE_TARGET_PARTS[target];
-		const row = new RegExp(
-			`-\\s+runner:[^\\n]+\\n\\s+platform:\\s*${escapePattern(platform)}\\s*\\n`
-			+ `\\s+arch:\\s*${escapePattern(arch)}(?:\\s|$)`, 'u');
-		if (!row.test(job)) findings.push(`${producer.id} workflow omits its ${target} package row.`);
+function auditPackageWorkflowJob(root, producer, job, workflow, findings) {
+	if (job.includes(NIGHTLY_TARGET_MATRIX_REFERENCE)) {
+		auditNightlyTargetMatrix(root, producer, workflow, findings);
+	} else {
+		for (const target of producer.targets) {
+			const { platform, arch } = PACKAGE_TARGET_PARTS[target];
+			const row = new RegExp(
+				`-\\s+runner:[^\\n]+\\n\\s+platform:\\s*${escapePattern(platform)}\\s*\\n`
+				+ `\\s+arch:\\s*${escapePattern(arch)}(?:\\s|$)`, 'u');
+			if (!row.test(job)) findings.push(`${producer.id} workflow omits its ${target} package row.`);
+		}
 	}
 	for (const [name, expression] of [
 		['platform', 'SOUNDSCAPER_DESKTOP_TARGET_PLATFORM: ${{ matrix.target.platform }}'],
@@ -217,6 +233,31 @@ function auditPackageWorkflowJob(producer, job, findings) {
 		if (!job.includes(expression)) {
 			findings.push(`${producer.id} package command does not receive its target ${name}.`);
 		}
+	}
+}
+
+function auditNightlyTargetMatrix(root, producer, workflow, findings) {
+	const bindings = [
+		'nightly-tests-targets: ${{ steps.nightly-test-targets.outputs.targets }}',
+		'NIGHTLY_TEST_TARGETS: ${{ inputs.nightly_tests_targets || \'all\' }}',
+		`from './${NIGHTLY_TARGET_MATRIX_HELPER}'`,
+		'selectDesktopNightlyTestTargets(process.env.NIGHTLY_TEST_TARGETS)',
+	];
+	if (!bindings.every((binding) => workflow.includes(binding))) {
+		findings.push(`${producer.id} nightly-with-tests target matrix is not bound to its selector.`);
+		return;
+	}
+	if (readChecked(root, NIGHTLY_TARGET_MATRIX_HELPER, 'Nightly target matrix helper', findings) === null) return;
+	try {
+		const { selectDesktopNightlyTestTargets } = require(resolve(root, NIGHTLY_TARGET_MATRIX_HELPER));
+		const all = selectDesktopNightlyTestTargets('all');
+		const windows = selectDesktopNightlyTestTargets('windows');
+		if (JSON.stringify(all) !== JSON.stringify(NIGHTLY_EXPECTED_ALL)
+			|| JSON.stringify(windows) !== JSON.stringify(NIGHTLY_EXPECTED_ALL.slice(0, 2))) {
+			findings.push(`${producer.id} nightly-with-tests target matrix has an incorrect all or Windows selection.`);
+		}
+	} catch (error) {
+		findings.push(`${producer.id} nightly-with-tests target matrix cannot be evaluated: ${message(error)}`);
 	}
 }
 
