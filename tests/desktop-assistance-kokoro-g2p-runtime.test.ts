@@ -195,18 +195,22 @@ async function assertThreadStopsG2pChild(
 		}, { onProgress: () => undefined });
 		const completion = assert.rejects(worker.completion, malformedAfterSpawn
 			? /protocol/iu : (error: Error) => error.name === 'AbortError');
-		await waitFor(async () => {
-			try { return Boolean(await readFile(pidPath, 'utf8')); } catch { return false; }
-		}, 'a spawned Kokoro G2P child PID', { turns: 100, delayMs: 20 });
-		const pid = Number(await readFile(pidPath, 'utf8'));
-		assert.ok(Number.isSafeInteger(pid) && pid > 0);
-		await new Promise<void>((resolve) => { setTimeout(resolve, 100); });
+		void completion.catch(() => undefined);
+		let pid: number | null = null;
 		try {
+			// Worker startup and closure authentication contend with the full Node suite.
+			await waitFor(async () => {
+				try { return Boolean(await readFile(pidPath, 'utf8')); } catch { return false; }
+			}, 'a spawned Kokoro G2P child PID', { turns: 500, delayMs: 20 });
+			pid = Number(await readFile(pidPath, 'utf8'));
+			assert.ok(Number.isSafeInteger(pid) && pid > 0);
+			await new Promise<void>((resolve) => { setTimeout(resolve, 100); });
 			if (!malformedAfterSpawn) await worker.terminate();
 			await completion;
 			assert.equal(alive(pid), false, 'G2P child must exit before thread termination resolves');
 		} finally {
-			if (alive(pid)) process.kill(pid, 'SIGKILL');
+			await worker.terminate().catch(() => undefined);
+			if (pid !== null && alive(pid)) process.kill(pid, 'SIGKILL');
 		}
 }
 
