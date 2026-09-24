@@ -81,8 +81,9 @@ test('clip transition gain owns explicit fades and overlapping automatic crossfa
 		assert.equal(evaluateClipCrossfadeAt(frame, crossfadeRanges, 'out'), expected, `frame ${frame}`);
 	}
 
-	assert.equal(evaluateClipEdgeGainAt(5, 30, 10, [], 'in'), 0.5);
-	assert.equal(evaluateClipEdgeGainAt(25, 30, 10, [], 'out'), 0.5);
+	assert.ok(Math.abs(evaluateClipEdgeGainAt(5, 30, 10, [], 'in', 1) - Math.SQRT1_2) < 1e-12);
+	assert.ok(Math.abs(evaluateClipEdgeGainAt(25, 30, 10, [], 'out', 1) - Math.SQRT1_2) < 1e-12);
+	assert.equal(evaluateClipEdgeGainAt(5, 30, 10, [], 'in'), 0.5, 'saved fades without shape stay linear');
 	assert.equal(evaluateClipEdgeGainAt(15, 30, 0, [[5, 15]], 'out'), 0);
 	assert.equal(evaluateClipEdgeGainAt(16, 30, 0, [[5, 15]], 'out'), 1);
 	assert.equal(evaluateClipEdgeGainAt(95, 100, 10, [[90, 100]], 'out'), 0.5);
@@ -90,7 +91,9 @@ test('clip transition gain owns explicit fades and overlapping automatic crossfa
 	assert.equal(evaluateClipTransitionGainAt(15, 30, {
 		fadeInFrames: 20,
 		fadeOutFrames: 20,
+		fadeInShape: 1,
+		fadeOutShape: 1,
 		crossfadeInRanges: [],
 		crossfadeOutRanges: [],
-	}), 0.75 * 0.75);
+	}), Math.sin(3 * Math.PI / 8) ** 2);
 });

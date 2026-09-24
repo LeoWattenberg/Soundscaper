@@ -425,6 +425,7 @@ Product availability follows each product profile’s command filters and each l
 | Shelf filter | `shelf-filter` | — | Effect > EQ and filters | Soundscaper | Soundscaper local |
 | Show RMS in waveform | `toggle-rms-in-waveform` | — | View | Soundscaper, Framescaper | Audacity |
 | Show clipping in waveform | `toggle-clipping-in-waveform` | — | View | Soundscaper, Framescaper | Audacity |
+| Show fade shape handles | `show-fade-shape-handles` | — | View | Soundscaper, Framescaper | Soundscaper local |
 | Show markers | `show-markers` | — | View | Soundscaper, Framescaper | Soundscaper local |
 | Show master track | `show-master-track` | — | View | Soundscaper, Framescaper | Audacity |
 | Show microphone metering | `action://record/toggle-mic-metering` | — | Meter toolbar | Soundscaper | Audacity |

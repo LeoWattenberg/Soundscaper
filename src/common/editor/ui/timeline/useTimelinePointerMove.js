@@ -3,7 +3,7 @@ import { CLIP_CONTENT_OFFSET } from '@soundscaper/design-system/constants';
 
 import { secondsToFrames } from '../../design-system-adapters.js';
 import { createBoundarySnapIndex, resolveBoundarySnap, resolveClipMoveBoundarySnap } from './boundary-snap.ts';
-import { fadeDurationAtPointer, fadeField } from './clip-fade-geometry.ts';
+import { fadeDurationAtPointer, fadeField, fadeShapeAtPointer, fadeShapeField } from './clip-fade-geometry.ts';
 import { createClipTrimPreview } from './interaction-helpers.js';
 import { compatibleMediaTrack, MINIMUM_TRACK_HEIGHT } from './geometry.ts';
 import { NEW_AUDIO_TRACK_DROP_TARGET } from './constants.ts';
@@ -158,7 +158,25 @@ export function useTimelinePointerMove({
 			if (session.pointerId !== event.pointerId) return;
 			const value = fadeDurationAtPointer(session.edge, session.initial, session.startX, event.clientX,
 				session.pixelsPerSecond, sampleRate, session.original.durationFrames);
-			session.preview = { clipId: session.clipId, trackId: session.trackId, [fadeField(session.edge)]: value };
+			session.preview = {
+				clipId: session.clipId,
+				trackId: session.trackId,
+				[fadeField(session.edge)]: value,
+				...(session.initial === 0 && value > 0 && session.original[fadeShapeField(session.edge)] === undefined
+					? { [fadeShapeField(session.edge)]: 1 } : {}),
+			};
+			if (fadePreviewFrame.current === null) fadePreviewFrame.current = requestAnimationFrame(() => {
+				fadePreviewFrame.current = null;
+				if (pointerSession.current === session) setClipDragPreview(session.preview);
+			});
+			event.preventDefault();
+			return;
+		}
+		if (session?.kind === 'fade-shape') {
+			if (session.pointerId !== event.pointerId) return;
+			const value = fadeShapeAtPointer(session.initial, session.startY, event.clientY,
+				session.gainHeight, session.baseGain, session.startGain);
+			session.preview = { clipId: session.clipId, trackId: session.trackId, [fadeShapeField(session.edge)]: value };
 			if (fadePreviewFrame.current === null) fadePreviewFrame.current = requestAnimationFrame(() => {
 				fadePreviewFrame.current = null;
 				if (pointerSession.current === session) setClipDragPreview(session.preview);

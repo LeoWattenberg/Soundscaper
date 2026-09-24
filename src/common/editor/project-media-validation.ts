@@ -164,6 +164,8 @@ function validateClip(clip: ProjectDataRecord, inProjectBin: boolean, foundation
 	if (clip.kind === 'audio') {
 		const fadeIn = projectSafeInteger(clip.fadeInFrames, 0, `${prefix}.fadeInFrames`);
 		const fadeOut = projectSafeInteger(clip.fadeOutFrames, 0, `${prefix}.fadeOutFrames`);
+		if (clip.fadeInShape !== undefined) projectFiniteInRange(clip.fadeInShape, 0.15, 6, `${prefix}.fadeInShape`);
+		if (clip.fadeOutShape !== undefined) projectFiniteInRange(clip.fadeOutShape, 0.15, 6, `${prefix}.fadeOutShape`);
 		if (duration != null && (fadeIn > duration || fadeOut > duration)) throw new RangeError('Clip fades cannot be longer than the clip.');
 		projectFiniteInRange(clip.gain, 0, 16, `${prefix}.gain`);
 		projectBoolean(clip.reversed, `${prefix}.reversed`);

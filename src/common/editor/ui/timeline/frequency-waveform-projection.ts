@@ -37,6 +37,8 @@ export interface FrequencyWaveformProjectionClip {
 	readonly gain?: number;
 	readonly fadeInFrames?: number;
 	readonly fadeOutFrames?: number;
+	readonly fadeInShape?: number;
+	readonly fadeOutShape?: number;
 	readonly reversed?: boolean;
 	readonly inverted?: boolean;
 	readonly warpMap?: unknown;
@@ -216,6 +218,8 @@ export function prepareFrequencyWaveformProjection(
 	const signedGain = finiteNumber(clip.gain ?? 1, 'clip.gain') * (clip.inverted ? -1 : 1);
 	const fadeInFrames = localFrame(clip.fadeInFrames ?? 0, durationFrames, 'clip.fadeInFrames');
 	const fadeOutFrames = localFrame(clip.fadeOutFrames ?? 0, durationFrames, 'clip.fadeOutFrames');
+	const fadeInShape = clip.fadeInShape;
+	const fadeOutShape = clip.fadeOutShape;
 	const centroidHz = new Float32Array(columnCount);
 	const centroidWeight = new Float32Array(columnCount);
 	const bandChannels = Object.fromEntries((['low', 'mid', 'high'] as const).map((band) => [
@@ -237,6 +241,8 @@ export function prepareFrequencyWaveformProjection(
 			durationFrames,
 			fadeInFrames,
 			fadeOutFrames,
+			fadeInShape,
+			fadeOutShape,
 		);
 		const signedScale = signedGain * fade;
 		for (const band of ['low', 'mid', 'high'] as const) {

@@ -34,4 +34,6 @@ test('authored fades lower the displayed crossfade curves as they do the audio',
 	const ranges = rangesFor(authored);
 	assert.match(clipCrossfadeCurvePath(authored[0]!, ranges.get('out')!, 500, 1_000), /50\.00,75\.00/u);
 	assert.match(clipCrossfadeCurvePath(authored[1]!, ranges.get('in')!, 500, 1_000), /50\.00,75\.00/u);
+	const shaped = authored.map(clip => ({ ...clip, fadeInShape: 2, fadeOutShape: 2 }));
+	assert.match(clipCrossfadeCurvePath(shaped[0]!, ranges.get('out')!, 500, 1_000), /50\.00,85\.36/u);
 });

@@ -27,29 +27,26 @@ async function beginFadeDrag(page, handle, delta) {
 	return pointer;
 }
 
-async function waveformImage(clip) {
-	return clip.locator('canvas.clip-body__waveform').first().evaluate(canvas => canvas.toDataURL());
+async function dragShapeDown(page, handle, delta) {
+	const bounds = await handle.boundingBox();
+	expect(bounds).not.toBeNull();
+	const x = bounds.x + bounds.width / 2;
+	const y = bounds.y + bounds.height / 2;
+	await page.mouse.move(x, y);
+	await page.mouse.down();
+	await page.mouse.move(x, y + delta, { steps: 5 });
+	await page.mouse.up();
 }
 
-async function shadedPoints(shade, coordinates) {
-	return shade.evaluate((svg, points) => {
-		const bounds = svg.getBoundingClientRect();
-		const polygons = [...svg.querySelectorAll('polygon')];
-		return points.map(([x, y]) => polygons.some(polygon => {
-			const matrix = polygon.getScreenCTM();
-			if (!matrix) return false;
-			const point = new DOMPoint(bounds.left + x * bounds.width, bounds.top + y * bounds.height)
-				.matrixTransform(matrix.inverse());
-			return polygon.isPointInFill(point);
-		}));
-	}, coordinates);
+async function waveformImage(clip) {
+	return clip.locator('canvas.clip-body__waveform').first().evaluate(canvas => canvas.toDataURL());
 }
 
 test.describe('non-destructive clip fade handles', () => {
 	registerAudioEditorHooks();
 
 	for (const fixture of [monoTone, toneA]) {
-		test(`previews both fades, keeps shading after deselection and undoes one drag (${fixture.name})`, async ({ page }, testInfo) => {
+		test(`previews both fades, keeps curves after deselection and undoes one drag (${fixture.name})`, async ({ page }, testInfo) => {
 			const errors = collectClientErrors(page);
 			const editor = await bootEditor(page, '/embed/en/');
 			await importFiles(editor, [fixture]);
@@ -69,7 +66,7 @@ test.describe('non-destructive clip fade handles', () => {
 			await beginFadeDrag(page, fadeIn, 30);
 			await expect.poll(async () => Number(await fadeIn.getAttribute('aria-valuenow'))).toBeGreaterThan(0.002);
 			await expect.poll(() => waveformImage(clip)).not.toBe(before);
-			await expect(clip.locator('.audio-editor-clip-fade__shade')).toBeVisible();
+			await expect(clip.locator('.audio-editor-clip-fade__curve')).toBeVisible();
 			await page.mouse.up();
 			await expect(clip).toHaveAttribute('aria-label', placement);
 			const incoming = await fadeIn.getAttribute('aria-valuenow');
@@ -87,41 +84,42 @@ test.describe('non-destructive clip fade handles', () => {
 			await expect.poll(async () => Number(await fadeOut.getAttribute('aria-valuenow'))).toBeGreaterThan(0.002);
 			await clip.click({ position: { x: 30, y: 50 } });
 			await expect(clip.getByRole('slider')).toHaveCount(0);
-			await expect(clip.locator('.audio-editor-clip-fade__shade')).toBeVisible();
+			await expect(clip.locator('.audio-editor-clip-fade__curve')).toBeVisible();
+			await expect(clip.locator('.audio-editor-clip-fade__curve polygon')).toHaveCount(0);
 			expect(errors).toEqual([]);
 		});
 	}
 
-	test('shades both stereo channels around their center lines while keeping handles at the top', async ({ page }) => {
+	test('draws the design-system fade path without a filled area', async ({ page }) => {
 		const editor = await bootEditor(page, '/embed/en/');
 		await importFiles(editor, [toneA]);
 		const clip = clipByName(editor, toneA.name);
 		await selectClip(clip);
 		const fadeIn = clip.getByRole('slider', { name: 'Fade in', exact: true });
+		const fadeOut = clip.getByRole('slider', { name: 'Fade out', exact: true });
+		await expect(fadeOut).not.toHaveAttribute('title');
+		await fadeOut.hover();
+		await expect(editor.locator('[data-audio-editor-button-tooltip]')).toHaveText('Fade out');
 		await fadeIn.press('End');
 		await expect(fadeIn).toHaveAttribute('aria-valuenow', '0.8');
-		const shade = clip.locator('.audio-editor-clip-fade__shade');
-		await expect(shade.locator('polygon')).toHaveCount(2);
-		await expect(shade.locator('polyline')).toHaveCount(2);
-		const painted = await shadedPoints(shade, [0.1, 0.3, 0.5, 0.7, 0.9].map(y => [0.25, y]));
-		expect(painted).toEqual([true, false, false, false, true]);
-		const shadeBounds = await shade.boundingBox();
-		expect(shadeBounds).not.toBeNull();
-		const lineBounds = await shade.locator('polyline').evaluateAll(lines => lines.map(line => {
-			const bounds = line.getBoundingClientRect();
-			return { top: bounds.top, bottom: bounds.bottom };
-		}));
-		const channelDivider = shadeBounds.y + shadeBounds.height / 2;
-		expect(lineBounds[0].bottom).toBeLessThan(channelDivider);
-		expect(lineBounds[1].top).toBeGreaterThan(channelDivider);
+		const curves = clip.locator('.audio-editor-clip-fade__curve');
+		await expect(curves.locator('polygon')).toHaveCount(0);
+		await expect(curves.locator('path[data-fade-curve="in"]')).toHaveCount(1);
+		await expect(curves.locator('path[data-fade-curve="in"]')).toHaveAttribute('fill', 'none');
+		const curveBounds = await curves.boundingBox();
+		expect(curveBounds).not.toBeNull();
+		const lineBounds = await curves.locator('path[data-fade-curve="in"]').boundingBox();
+		expect(lineBounds).not.toBeNull();
+		expect(lineBounds.y).toBeGreaterThanOrEqual(curveBounds.y - 4);
+		expect(lineBounds.y + lineBounds.height).toBeGreaterThan(curveBounds.y + curveBounds.height * 0.8);
 		for (const handle of [fadeIn, clip.getByRole('slider', { name: 'Fade out', exact: true })]) {
 			const bounds = await handle.boundingBox();
 			expect(bounds).not.toBeNull();
-			expect(bounds.y + bounds.height).toBeLessThan(channelDivider);
+			expect(bounds.y + bounds.height).toBeLessThan(curveBounds.y + curveBounds.height / 2);
 		}
 	});
 
-	test('aligns stereo fade shading with both channel pairs in Multi-view', async ({ page }) => {
+	test('keeps the fade path continuous in Multi-view', async ({ page }) => {
 		const editor = await bootEditor(page, '/embed/en/');
 		await importFiles(editor, [toneA]);
 		const clip = clipByName(editor, toneA.name);
@@ -132,25 +130,13 @@ test.describe('non-destructive clip fade handles', () => {
 		const fadeIn = clip.getByRole('slider', { name: 'Fade in', exact: true });
 		await fadeIn.press('End');
 		await expect(fadeIn).toHaveAttribute('aria-valuenow', '0.8');
-		const shade = clip.locator('.audio-editor-clip-fade__shade');
-		await expect(shade.locator('polygon')).toHaveCount(4);
-		await expect(shade.locator('polyline')).toHaveCount(4);
-		const painted = await shadedPoints(shade, [0.05, 0.15, 0.25, 0.35, 0.45, 0.55, 0.65, 0.75, 0.85, 0.95]
-			.map(y => [0.25, y]));
-		expect(painted).toEqual([true, false, false, false, true, true, false, false, false, true]);
-		const channelCenters = await shade.locator('polyline').evaluateAll(lines => {
-			const bounds = lines[0].ownerSVGElement.getBoundingClientRect();
-			return lines.map(line => {
-				const first = line.points.getItem(0);
-				const screen = new DOMPoint(first.x, first.y).matrixTransform(line.getScreenCTM());
-				return (screen.y - bounds.top) / bounds.height;
-			});
-		});
-		for (const [index, center] of [0.125, 0.375, 0.625, 0.875].entries()) {
-			expect(channelCenters[index]).toBeCloseTo(center, 2);
-		}
-		const bounds = await shade.boundingBox();
+		const curves = clip.locator('.audio-editor-clip-fade__curve');
+		await expect(curves.locator('polygon')).toHaveCount(0);
+		await expect(curves.locator('path[data-fade-curve="in"]')).toHaveCount(1);
+		const bounds = await curves.boundingBox();
+		const pathBounds = await curves.locator('path[data-fade-curve="in"]').boundingBox();
 		const handleBounds = await fadeIn.boundingBox();
+		expect(pathBounds.y + pathBounds.height).toBeGreaterThan(bounds.y + bounds.height * 0.8);
 		expect(handleBounds.y + handleBounds.height).toBeLessThan(bounds.y + bounds.height / 2);
 	});
 
@@ -173,6 +159,95 @@ test.describe('non-destructive clip fade handles', () => {
 		expect(outgoing).not.toBeNull();
 		expect(incoming.x).toBeGreaterThanOrEqual(outline.x + 2);
 		expect(outgoing.x + outgoing.width).toBeLessThanOrEqual(outline.x + outline.width - 2);
+	});
+
+	test('View opts into shape handles, whose drags change the saved curve without moving its edge', async ({ page }) => {
+		const editor = await bootEditor(page, '/embed/en/');
+		await importFiles(editor, [toneA]);
+		let clip = clipByName(editor, toneA.name);
+		await selectClip(clip);
+		const fadeIn = clip.getByRole('slider', { name: 'Fade in', exact: true });
+		await fadeIn.press('End');
+		await expect(fadeIn).toHaveAttribute('aria-valuenow', '0.8');
+		await expect(clip.locator('[data-clip-fade-shape-handle]')).toHaveCount(0);
+		await chooseCommandAction(page, editor, 'View', 'Show fade shape handles');
+		let shape = clip.getByRole('slider', { name: 'Fade in shape', exact: true });
+		await expect(shape).toBeVisible();
+		await expect(shape).toHaveAttribute('aria-valuenow', '1');
+		await expect(shape).not.toHaveAttribute('title');
+		await clip.focus();
+		await clip.press('Tab');
+		await expect(fadeIn).toBeFocused();
+		await page.keyboard.press('Tab');
+		await expect(shape).toBeFocused();
+		const before = await waveformImage(clip);
+		await dragShapeDown(page, shape, 15);
+		await expect.poll(async () => Number(await shape.getAttribute('aria-valuenow'))).toBeGreaterThan(1);
+		await expect(fadeIn).toHaveAttribute('aria-valuenow', '0.8');
+		await expect.poll(() => waveformImage(clip)).not.toBe(before);
+		await editor.getByRole('button', { name: 'Undo', exact: true }).click();
+		await expect(shape).toHaveAttribute('aria-valuenow', '1');
+		await editor.getByRole('button', { name: 'Redo', exact: true }).click();
+		await expect.poll(async () => Number(await shape.getAttribute('aria-valuenow'))).toBeGreaterThan(1);
+		await expect(editor.locator('[data-save-state]')).toHaveAttribute('data-state', 'saved');
+		await page.reload();
+		const restored = await waitForEditor(page);
+		clip = clipByName(restored, toneA.name);
+		await selectClip(clip);
+		shape = clip.getByRole('slider', { name: 'Fade in shape', exact: true });
+		await expect(shape).toBeVisible();
+		await expect.poll(async () => Number(await shape.getAttribute('aria-valuenow'))).toBeGreaterThan(1);
+		await shape.press('Home');
+		await expect(shape).toHaveAttribute('aria-valuenow', '0.15');
+		await shape.press('End');
+		await expect(shape).toHaveAttribute('aria-valuenow', '6');
+	});
+
+	test('both shape dots remain draggable when the two authored fades overlap', async ({ page }) => {
+		const editor = await bootEditor(page, '/embed/en/');
+		await importFiles(editor, [toneA]);
+		const clip = clipByName(editor, toneA.name);
+		await selectClip(clip);
+		await clip.getByRole('slider', { name: 'Fade in', exact: true }).press('End');
+		await clip.getByRole('slider', { name: 'Fade out', exact: true }).press('End');
+		await chooseCommandAction(page, editor, 'View', 'Show fade shape handles');
+		const incoming = clip.getByRole('slider', { name: 'Fade in shape', exact: true });
+		const outgoing = clip.getByRole('slider', { name: 'Fade out shape', exact: true });
+		const inBounds = await incoming.boundingBox();
+		const outBounds = await outgoing.boundingBox();
+		expect(inBounds).not.toBeNull();
+		expect(outBounds).not.toBeNull();
+		expect(outBounds.x - inBounds.x).toBeGreaterThanOrEqual(16);
+		await dragShapeDown(page, incoming, 10);
+		await expect.poll(async () => Number(await incoming.getAttribute('aria-valuenow'))).toBeGreaterThan(1);
+		await expect(outgoing).toHaveAttribute('aria-valuenow', '1');
+		await dragShapeDown(page, outgoing, 10);
+		await expect.poll(async () => Number(await outgoing.getAttribute('aria-valuenow'))).toBeGreaterThan(1);
+	});
+
+	test('another pointer losing capture does not cancel a fade shape drag', async ({ page }) => {
+		const editor = await bootEditor(page, '/embed/en/');
+		await importFiles(editor, [toneA]);
+		const clip = clipByName(editor, toneA.name);
+		await selectClip(clip);
+		await clip.getByRole('slider', { name: 'Fade in', exact: true }).press('End');
+		await chooseCommandAction(page, editor, 'View', 'Show fade shape handles');
+		const shape = clip.getByRole('slider', { name: 'Fade in shape', exact: true });
+		const bounds = await shape.boundingBox();
+		expect(bounds).not.toBeNull();
+		const x = bounds.x + bounds.width / 2;
+		const y = bounds.y + bounds.height / 2;
+		await page.mouse.move(x, y);
+		await page.mouse.down();
+		await page.mouse.move(x, y + 12, { steps: 4 });
+		await expect.poll(async () => Number(await shape.getAttribute('aria-valuenow'))).toBeGreaterThan(1);
+		await page.evaluate(() => window.dispatchEvent(new PointerEvent('lostpointercapture', {
+			pointerId: 999_999,
+			bubbles: true,
+		})));
+		await expect.poll(async () => Number(await shape.getAttribute('aria-valuenow'))).toBeGreaterThan(1);
+		await page.mouse.up();
+		await expect.poll(async () => Number(await shape.getAttribute('aria-valuenow'))).toBeGreaterThan(1);
 	});
 
 	test('Escape and pointer cancellation discard a preview, while keyboard edits persist after reload', async ({ page }) => {

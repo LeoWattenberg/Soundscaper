@@ -3,7 +3,8 @@ import { useLayoutEffect, useMemo, useState } from 'react';
 import type { RefObject } from 'react';
 import { createPortal } from 'react-dom';
 import { TrackFadeHandle } from '@soundscaper/design-system/Track/TrackFadeHandle';
-import { fadeDurationAtKey, fadeField, fadeOverlayGeometry } from './clip-fade-geometry.ts';
+import { TrackFadeShapeHandle } from '@soundscaper/design-system/Track/TrackFadeShapeHandle';
+import { fadeDurationAtKey, fadeField, fadeOverlayGeometry, fadeShapeAtKey, fadeShapeField, placeFadeShapeHandles } from './clip-fade-geometry.ts';
 import type { ClipFadeEdge, FadeClip } from './clip-fade-geometry.ts';
 
 interface OverlayClip extends FadeClip {
@@ -17,21 +18,34 @@ interface OverlayClip extends FadeClip {
 interface Props {
 	readonly rootRef: RefObject<HTMLDivElement | null>;
 	readonly clips: readonly OverlayClip[];
-	readonly channelCounts: ReadonlyMap<string, number>;
-	readonly channelHeightRatio: number;
-	readonly displayMode: string;
 	readonly selectedIds: ReadonlySet<string>;
 	readonly startFrame: number;
 	readonly endFrame: number;
 	readonly pixelsPerSecond: number;
 	readonly sampleRate: number;
 	readonly blocked: boolean;
-	readonly copy: { readonly fadeIn: string; readonly fadeOut: string };
-	readonly onChange: (id: string, changes: { fadeInFrames?: number; fadeOutFrames?: number }) => void;
+	readonly showFadeShapeHandles: boolean;
+	readonly crossfadedFadeEdges: ReadonlySet<string>;
+	readonly copy: { readonly fadeIn: string; readonly fadeOut: string; readonly fadeInShape: string; readonly fadeOutShape: string; readonly legacyLinearFadeShape: string };
+	readonly onChange: (id: string, changes: { fadeInFrames?: number; fadeOutFrames?: number; fadeInShape?: number; fadeOutShape?: number }) => void;
 	readonly onTabOut: (id: string) => void;
 }
 
-export function ClipFadeOverlays({ rootRef, clips, channelCounts, channelHeightRatio, displayMode, selectedIds, startFrame, endFrame, pixelsPerSecond, sampleRate, blocked, copy, onChange, onTabOut }: Props) {
+function moveFadeFocus(target: HTMLElement, current: HTMLElement, backwards: boolean, clipId: string, onTabOut: (id: string) => void): void {
+	const controls = [
+		target.querySelector<HTMLButtonElement>('[data-clip-fade-handle="in"]'),
+		target.querySelector<HTMLButtonElement>('[data-clip-fade-shape-handle="in"]'),
+		target.querySelector<HTMLButtonElement>('[data-clip-fade-handle="out"]'),
+		target.querySelector<HTMLButtonElement>('[data-clip-fade-shape-handle="out"]'),
+	].filter((control): control is HTMLButtonElement => control !== null && !control.disabled);
+	const index = controls.indexOf(current as HTMLButtonElement);
+	const next = controls[index + (backwards ? -1 : 1)];
+	if (next) next.focus();
+	else if (backwards) target.focus();
+	else onTabOut(clipId);
+}
+
+export function ClipFadeOverlays({ rootRef, clips, selectedIds, startFrame, endFrame, pixelsPerSecond, sampleRate, blocked, showFadeShapeHandles, crossfadedFadeEdges, copy, onChange, onTabOut }: Props) {
 	const [targets, setTargets] = useState<ReadonlyMap<string, HTMLElement>>(new Map());
 	const geometries = useMemo(() => new Map(clips.map(clip => [
 		clip.id, fadeOverlayGeometry(clip, startFrame, endFrame, pixelsPerSecond, sampleRate),
@@ -51,25 +65,20 @@ export function ClipFadeOverlays({ rootRef, clips, channelCounts, channelHeightR
 		const hasFade = (clip.fadeInFrames ?? 0) > 0 || (clip.fadeOutFrames ?? 0) > 0;
 		const selected = selectedIds.has(clip.id);
 		if (!hasFade && !selected) return null;
-		const stereo = channelCounts.get(clip.id) === 2;
-		const shadePolygon = `0,0 ${geometry.width},0 ${geometry.points.split(' ').reverse().join(' ')}`;
-		const shadeShape = (transform?: string) => <g transform={transform}>
-			<polygon points={shadePolygon} />
-			<polyline points={geometry.points} vectorEffect="non-scaling-stroke" />
-		</g>;
 		const displayWidth = Math.max(48, Math.round(geometry.width));
 		const displayX = (x: number): number => x / geometry.width * displayWidth;
 		const inBoundaryX = displayX(geometry.fadeInX ?? 0);
 		const outBoundaryX = displayX(geometry.fadeOutX ?? geometry.width);
+		const shapePositions = selected && showFadeShapeHandles ? placeFadeShapeHandles({
+			...geometry,
+			curves: geometry.curves.filter(curve => !crossfadedFadeEdges.has(`${clip.id}:${curve.edge}`)),
+		}, displayWidth, clip) : [];
 		return createPortal(<div className="audio-editor-clip-fade">
-			{hasFade && <svg className="audio-editor-clip-fade__shade" viewBox={`0 0 ${geometry.width} 100`}
+			{hasFade && <svg className="audio-editor-clip-fade__curve" viewBox={`0 0 ${geometry.width} 100`}
 				preserveAspectRatio="none" aria-hidden="true">
-				{stereo ? (displayMode === 'multiview' ? [0, 50] : [0]).map(paneTop => (
-					<g key={paneTop} transform={displayMode === 'multiview' ? `translate(0 ${paneTop}) scale(1 0.5)` : undefined}>
-						{shadeShape(`scale(1 ${channelHeightRatio})`)}
-						{shadeShape(`translate(0 100) scale(1 -${1 - channelHeightRatio})`)}
-					</g>
-				)) : shadeShape()}
+				{geometry.curves.map(curve => <path key={curve.edge} data-fade-curve={curve.edge}
+					d={curve.path} fill="none" stroke="rgba(0, 0, 0, 0.55)" strokeWidth={1.5}
+					vectorEffect="non-scaling-stroke" />)}
 			</svg>}
 			{selected && (['in', 'out'] as const).map((edge: ClipFadeEdge) => {
 				const x = edge === 'in' ? geometry.fadeInX : geometry.fadeOutX;
@@ -80,7 +89,7 @@ export function ClipFadeOverlays({ rootRef, clips, channelCounts, channelHeightR
 				return <TrackFadeHandle key={edge} edge={edge} boundaryX={displayX(x)}
 					oppositeBoundaryX={edge === 'in' ? outBoundaryX : inBoundaryX} clipWidth={displayWidth}
 					role="slider" tabIndex={-1}
-					data-clip-fade-handle={edge} aria-label={label} title={label}
+					data-clip-fade-handle={edge} aria-label={label}
 					aria-valuemin={0} aria-valuemax={clip.durationFrames / sampleRate} aria-valuenow={value / sampleRate}
 					aria-orientation="horizontal" disabled={blocked}
 					onClick={event => { event.stopPropagation(); }}
@@ -89,15 +98,40 @@ export function ClipFadeOverlays({ rootRef, clips, channelCounts, channelHeightR
 						event.stopPropagation();
 						if (event.key === 'Tab') {
 							event.preventDefault();
-							const nextEdge = edge === 'in' && !event.shiftKey ? 'out' : edge === 'out' && event.shiftKey ? 'in' : null;
-							const next = nextEdge ? target.querySelector<HTMLButtonElement>(`[data-clip-fade-handle="${nextEdge}"]`) : null;
-							if (next) next.focus();
-							else if (event.shiftKey) target.focus();
-							else onTabOut(clip.id);
+							moveFadeFocus(target, event.currentTarget, event.shiftKey, clip.id, onTabOut);
 							return;
 						}
 						if (event.ctrlKey || event.metaKey || event.altKey) return;
 						const next = fadeDurationAtKey(event.key, event.shiftKey, value, sampleRate, clip.durationFrames);
+						if (next === null) return;
+						event.preventDefault();
+						if (next !== value) onChange(clip.id, { [field]: next });
+					}} />;
+			})}
+			{shapePositions.map(position => {
+				const field = fadeShapeField(position.edge);
+				const value = clip[field] ?? 2;
+				return <TrackFadeShapeHandle key={position.edge} edge={position.edge}
+					left={position.left}
+					top={`clamp(0px, calc(${position.topPercent.toFixed(3)}% - 8px), calc(100% - 16px))`}
+					tabIndex={-1} data-clip-fade-shape-handle={position.edge}
+					data-fade-shape-base-gain={position.baseGain}
+					data-fade-shape-start-gain={position.gain}
+					aria-label={position.edge === 'in' ? copy.fadeInShape : copy.fadeOutShape}
+					aria-valuemin={0.15} aria-valuemax={6} aria-valuenow={value}
+					aria-valuetext={clip[field] === undefined ? copy.legacyLinearFadeShape : undefined}
+					aria-orientation="vertical" disabled={blocked}
+					onClick={event => { event.stopPropagation(); }}
+					onDoubleClick={event => { event.stopPropagation(); }}
+					onKeyDown={event => {
+						event.stopPropagation();
+						if (event.key === 'Tab') {
+							event.preventDefault();
+							moveFadeFocus(target, event.currentTarget, event.shiftKey, clip.id, onTabOut);
+							return;
+						}
+						if (event.ctrlKey || event.metaKey || event.altKey) return;
+						const next = fadeShapeAtKey(event.key, event.shiftKey, value);
 						if (next === null) return;
 						event.preventDefault();
 						if (next !== value) onChange(clip.id, { [field]: next });

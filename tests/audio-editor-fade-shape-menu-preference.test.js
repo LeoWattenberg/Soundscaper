@@ -1,0 +1,42 @@
+/* SPDX-License-Identifier: AGPL-3.0-only */
+
+import assert from 'node:assert/strict';
+import test from 'node:test';
+
+import {
+	createAudioEditorPreferencesV1,
+	loadAudioEditorPreferencesV1,
+	updateAudioEditorPreferencesV1,
+} from '../src/common/editor/preferences.js';
+import { createApplicationViewMenu } from '../src/common/editor/ui/application-view-menu.js';
+import { ENGLISH_COPY, GERMAN_COPY } from '../src/common/i18n/catalogs.js';
+
+test('fade shape handles stay hidden by default and preserve the saved View choice', () => {
+	const defaults = createAudioEditorPreferencesV1();
+	assert.equal(defaults.view.showFadeShapeHandles, false);
+	const enabled = updateAudioEditorPreferencesV1(defaults, { view: { showFadeShapeHandles: true } });
+	assert.equal(loadAudioEditorPreferencesV1(enabled).preferences.view.showFadeShapeHandles, true);
+	const legacy = { ...defaults, view: { showMasterTrack: false, showMarkers: false } };
+	assert.equal(loadAudioEditorPreferencesV1(legacy).preferences.view.showFadeShapeHandles, false);
+	assert.throws(() => createAudioEditorPreferencesV1({ view: { showFadeShapeHandles: 'yes' } }), /view\.showFadeShapeHandles/u);
+});
+
+test('the View checkbox exposes the English and German labels and current preference', () => {
+	let toggled = false;
+	const preferences = createAudioEditorPreferencesV1();
+	const menu = (copy, showFadeShapeHandles) => createApplicationViewMenu({
+		capabilities: {}, clipSelectionNavigationMenus: { skip: { id: 'skip' } }, compactLayout: false,
+		copy, desktopHost: { view: [] }, divider: () => ({ id: 'divider' }), editBlocked: false,
+		effectsPanelOpen: false, preferences, productItems: { view: [], mixer: [] }, project: null,
+		projectBinEffectivelyOpen: false, selectedAudioTrack: null, editSelectionActive: false,
+		showArmControls: false, snapshot: { preferences: { view: { showFadeShapeHandles } } }, uiFlags: {},
+	}, { toggleFadeShapeHandles: () => { toggled = true; } });
+	const disabled = menu(ENGLISH_COPY, false).items.find((item) => item.id === 'show-fade-shape-handles');
+	assert.equal(disabled?.label, 'Show fade shape handles');
+	assert.equal(disabled?.checked, false);
+	disabled?.onClick();
+	assert.equal(toggled, true);
+	const enabled = menu(GERMAN_COPY, true).items.find((item) => item.id === 'show-fade-shape-handles');
+	assert.equal(enabled?.label, 'Fadeform-Griffe anzeigen');
+	assert.equal(enabled?.checked, true);
+});

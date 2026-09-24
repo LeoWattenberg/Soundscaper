@@ -31,6 +31,8 @@ export interface AudioWarpWaveformClip extends AudioWarpRuntimeClip {
 	readonly gain?: number;
 	readonly fadeInFrames?: number;
 	readonly fadeOutFrames?: number;
+	readonly fadeInShape?: number;
+	readonly fadeOutShape?: number;
 	readonly inverted?: boolean;
 }
 
@@ -163,6 +165,8 @@ export function prepareAudioWarpPeakPyramidWaveformWindow(
 	const gain = clip.inverted ? -clipGain : clipGain;
 	const fadeInFrames = localFrame(clip.fadeInFrames ?? 0, durationFrames, 'clip.fadeInFrames');
 	const fadeOutFrames = localFrame(clip.fadeOutFrames ?? 0, durationFrames, 'clip.fadeOutFrames');
+	const fadeInShape = clip.fadeInShape;
+	const fadeOutShape = clip.fadeOutShape;
 	const channels: SummaryWaveformChannel[] = Array.from({ length: channelCount }, (_, channelIndex) => {
 		const channel = level.channels[channelIndex];
 		if (!channel) throw new RangeError('The waveform peak pyramid does not contain the requested channel.');
@@ -190,6 +194,8 @@ export function prepareAudioWarpPeakPyramidWaveformWindow(
 				durationFrames,
 				fadeInFrames,
 				fadeOutFrames,
+				fadeInShape,
+				fadeOutShape,
 			);
 			let bucketMinimum = Math.min(range.minimum * scale, range.maximum * scale);
 			let bucketMaximum = Math.max(range.minimum * scale, range.maximum * scale);
@@ -242,6 +248,8 @@ function renderChannel(
 	const gain = clip.inverted ? -clipGain : clipGain;
 	const fadeInFrames = localFrame(clip.fadeInFrames ?? 0, clip.durationFrames, 'clip.fadeInFrames');
 	const fadeOutFrames = localFrame(clip.fadeOutFrames ?? 0, clip.durationFrames, 'clip.fadeOutFrames');
+	const fadeInShape = clip.fadeInShape;
+	const fadeOutShape = clip.fadeOutShape;
 	for (let columnIndex = 0; columnIndex < columnCount; columnIndex += 1) {
 		const localStart = startFrame + frameCount * columnIndex / columnCount;
 		const localEnd = startFrame + frameCount * (columnIndex + 1) / columnCount;
@@ -262,7 +270,8 @@ function renderChannel(
 		for (let sourceFrame = sampleStart; sourceFrame < sampleEnd; sourceFrame += 1) {
 			const position = Math.max(0, Math.min(1, (sourceFrame - sourceStart) / sourceSpan));
 			const timelineFrame = localStart + (localEnd - localStart) * position;
-			const scale = gain * fadeEnvelope(timelineFrame, clip.durationFrames, fadeInFrames, fadeOutFrames);
+			const scale = gain * fadeEnvelope(timelineFrame, clip.durationFrames,
+				fadeInFrames, fadeOutFrames, fadeInShape, fadeOutShape);
 			const value = finiteSample(channel[sourceFrame - sourceFrameOffset]) * scale;
 			low = Math.min(low, value);
 			high = Math.max(high, value);

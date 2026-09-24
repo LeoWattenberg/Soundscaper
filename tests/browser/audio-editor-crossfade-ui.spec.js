@@ -1,6 +1,6 @@
 import { expect, test, toneA, toneB } from './audio-editor-test-fixtures.js';
 import {
-	bootEditor, clipByName, clipField, closeDialog, collectClientErrors,
+	bootEditor, chooseCommandAction, clipByName, clipField, closeDialog, collectClientErrors,
 	importFiles, openClipProperties, registerAudioEditorHooks,
 } from './audio-editor-test-helpers.js';
 
@@ -43,9 +43,9 @@ async function curveMidpointGains(region) {
 test.describe('design-system audio crossfade visuals', () => {
 	registerAudioEditorHooks();
 
-	test('draws one linear crossover and keeps stereo fade shading across an audio overlap', async ({ page }) => {
+	test('draws one linear crossover and keeps authored fade curves across an audio overlap', async ({ page }) => {
 		const errors = collectClientErrors(page);
-		const { outgoing, incoming, track } = await overlapStereoClips(page);
+		const { editor, outgoing, incoming, track } = await overlapStereoClips(page);
 		const region = track.locator('[data-automatic-crossfade="true"]');
 		await expect(region).toHaveCount(1);
 		await expect(region).toHaveAttribute('role', 'img');
@@ -76,19 +76,15 @@ test.describe('design-system audio crossfade visuals', () => {
 		await outgoing.press('Enter');
 		const fadeIn = outgoing.getByRole('slider', { name: 'Fade in', exact: true });
 		await fadeIn.press('End');
-		const shade = outgoing.locator('.audio-editor-clip-fade__shade');
-		await expect(shade.locator('polygon')).toHaveCount(2);
-		const shadedChannels = await shade.evaluate(svg => {
-			const bounds = svg.getBoundingClientRect();
-			return [0.1, 0.9].map(y => [...svg.querySelectorAll('polygon')].some(polygon => {
-				const matrix = polygon.getScreenCTM();
-				if (!matrix) return false;
-				const point = new DOMPoint(bounds.left + bounds.width * 0.25, bounds.top + bounds.height * y)
-					.matrixTransform(matrix.inverse());
-				return polygon.isPointInFill(point);
-			}));
-		});
-		expect(shadedChannels).toEqual([true, true]);
+		const curves = outgoing.locator('.audio-editor-clip-fade__curve');
+		await expect(curves.locator('polygon')).toHaveCount(0);
+		await expect(curves.locator('path[data-fade-curve="in"]')).toHaveCount(1);
+		await chooseCommandAction(page, editor, 'View', 'Show fade shape handles');
+		await expect(outgoing.getByRole('slider', { name: 'Fade in shape', exact: true })).toBeVisible();
+		await expect(outgoing.getByRole('slider', { name: 'Fade out shape', exact: true })).toHaveCount(0);
+		await incoming.focus();
+		await incoming.press('Enter');
+		await expect(incoming.getByRole('slider', { name: 'Fade in shape', exact: true })).toHaveCount(0);
 		await expect(region).toBeVisible();
 		expect(errors).toEqual([]);
 	});

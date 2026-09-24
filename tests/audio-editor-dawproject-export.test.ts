@@ -166,6 +166,19 @@ test('a clip is placed in seconds with its source offset, fades and embedded aud
 	assert.deepEqual(media.map((entry) => entry.kind), ['audio', 'audio']);
 });
 
+test('a shaped fade keeps its duration and reports the curve omitted by DAWproject', () => {
+	const clips = project().clips.map((clip) => clip.id === 'c1'
+		? { ...clip, fadeInShape: 2, fadeOutShape: 0.5 }
+		: clip);
+	const result = exported({ clips });
+	const verse = named(result.document, 'Clip', 'Verse');
+	assert.equal(verse.attributes.fadeInTime, '0.01');
+	assert.equal(verse.attributes.fadeOutTime, '0.02');
+	const omission = result.report.items.find((item) => item.code === 'dawproject.clip-features-omitted'
+		&& item.scope?.id === 'c1');
+	assert.deepEqual(omission?.data.features, ['fadeInShape', 'fadeOutShape']);
+});
+
 test('one source embeds once however many clips play it', () => {
 	const result = exported({
 		clips: [

@@ -43,7 +43,7 @@ export function useAudioTrackRowNavigation({
 			controller.actions.timeline.selectClip(clipId, options)
 		)),
 		routeClipKey: (event) => {
-			const fadeHandle = event.target.querySelector('[data-clip-fade-handle]:not(:disabled)');
+			const fadeHandle = event.target.querySelector('[data-clip-fade-handle]:not(:disabled), [data-clip-fade-shape-handle]:not(:disabled)');
 			if (event.key !== 'Tab' || event.shiftKey || !fadeHandle) return false;
 			event.preventDefault();
 			event.stopPropagation();

@@ -11,6 +11,8 @@ interface MicrofadeClip {
 	readonly durationFrames: number;
 	readonly fadeInFrames?: number;
 	readonly fadeOutFrames?: number;
+	readonly fadeInShape?: number;
+	readonly fadeOutShape?: number;
 }
 
 interface MicrofadeProject {
@@ -25,6 +27,8 @@ interface MicrofadeDraft extends MicrofadeProject {
 interface MicrofadeChanges {
 	readonly fadeInFrames?: number;
 	readonly fadeOutFrames?: number;
+	readonly fadeInShape?: number;
+	readonly fadeOutShape?: number;
 }
 
 export function defaultClipMicrofadeChanges(
@@ -42,9 +46,15 @@ export function defaultClipMicrofadeChanges(
 			|| clip.sourceStartFrame + clip.sourceDurationFrames
 				!== old.sourceStartFrame + old.sourceDurationFrames;
 		const duration = Math.min(frames, Math.floor(clip.durationFrames / 2));
-		const update: { fadeInFrames?: number; fadeOutFrames?: number } = {};
-		if (duration > 0 && exposedStart && (clip.fadeInFrames ?? 0) === 0) update.fadeInFrames = duration;
-		if (duration > 0 && exposedEnd && (clip.fadeOutFrames ?? 0) === 0) update.fadeOutFrames = duration;
+		const update: { fadeInFrames?: number; fadeOutFrames?: number; fadeInShape?: number; fadeOutShape?: number } = {};
+		if (duration > 0 && exposedStart && (clip.fadeInFrames ?? 0) === 0) {
+			update.fadeInFrames = duration;
+			if (clip.fadeInShape === undefined) update.fadeInShape = 1;
+		}
+		if (duration > 0 && exposedEnd && (clip.fadeOutFrames ?? 0) === 0) {
+			update.fadeOutFrames = duration;
+			if (clip.fadeOutShape === undefined) update.fadeOutShape = 1;
+		}
 		if (Object.keys(update).length > 0) changes.set(clip.id, update);
 	}
 	return changes;

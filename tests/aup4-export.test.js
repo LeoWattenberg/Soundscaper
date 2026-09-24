@@ -29,6 +29,8 @@ test('AUP4 export plan renders reverse and excessive gain into an isolated PCM v
 			gain: 8,
 			fadeInFrames: 2,
 			fadeOutFrames: 2,
+			fadeInShape: 1,
+			fadeOutShape: 1,
 			reversed: true,
 		})],
 		tracks: [{
@@ -50,13 +52,12 @@ test('AUP4 export plan renders reverse and excessive gain into an isolated PCM v
 	assert.equal(exportedClip.gain, 1);
 	assert.equal(exportedClip.fadeInFrames, 0);
 	assert.equal(exportedClip.fadeOutFrames, 0);
-	assert.deepEqual(exportedClip.envelope, [
-		{ frame: 0, value: 0 },
-		{ frame: 1, value: 5 / 3 },
-		{ frame: 2, value: 4 },
-		{ frame: 3, value: 7 / 3 },
-		{ frame: 4, value: 0 },
-	]);
+	assert.deepEqual(exportedClip.envelope.map(({ frame }) => frame), [0, 1, 2, 3, 4]);
+	assert.equal(exportedClip.envelope[0].value, 0);
+	assert.ok(Math.abs(exportedClip.envelope[1].value - 5 * Math.SQRT2 / 3) < 1e-12);
+	assert.equal(exportedClip.envelope[2].value, 4);
+	assert.ok(Math.abs(exportedClip.envelope[3].value - 7 * Math.SQRT2 / 3) < 1e-12);
+	assert.equal(exportedClip.envelope[4].value, 0);
 	assert.deepEqual(project, original);
 	assert.equal(plan.compatibilityReport.schemaVersion, 1);
 	assert.equal(plan.compatibilityReport.format, 'aup4');

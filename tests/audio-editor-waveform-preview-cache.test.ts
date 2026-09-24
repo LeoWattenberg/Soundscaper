@@ -41,6 +41,10 @@ test('uncommitted fade previews invalidate the waveform cache without a clip rev
 	const key = createWaveformPreviewCacheKey(base);
 	assert.notEqual(key, createWaveformPreviewCacheKey({ ...base, clip: { ...base.clip, fadeInFrames: 30 } }));
 	assert.notEqual(key, createWaveformPreviewCacheKey({ ...base, clip: { ...base.clip, fadeOutFrames: 50 } }));
+	assert.notEqual(key, createWaveformPreviewCacheKey({ ...base, clip: { ...base.clip, fadeInShape: 2 } }));
+	assert.notEqual(key, createWaveformPreviewCacheKey({ ...base, clip: { ...base.clip, fadeOutShape: 0.5 } }));
+	assert.notEqual(key, createWaveformPreviewCacheKey({ ...base, clip: { ...base.clip, fadeInShape: 1 } }),
+		'new equal-power fades must have a distinct cache key from old linear fades');
 });
 
 test('frequency display mode and polarity participate in the waveform cache key', () => {

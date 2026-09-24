@@ -91,6 +91,7 @@ const REFERENCE_SEEDS: readonly ReferenceSeed[] = Object.freeze([
 	['workspace-onboarding', 'Set up workspace', 'View > Workspace', SOUNDSCAPER],
 	['show-arm-controls', 'Enable multi-track recording', 'View', SOUNDSCAPER, 'setting'],
 	['show-markers', 'Show markers', 'View', BOTH, 'setting'],
+	['show-fade-shape-handles', 'Show fade shape handles', 'View', BOTH, 'setting'],
 	['snap-enabled', 'Snap to grid', 'View > Snapping', BOTH, 'setting'],
 	['snap-triplets', 'Enable triplets', 'View > Snapping', BOTH, 'setting'],
 	['snap-bar', 'Bar', 'View > Snapping > Musical divisions', BOTH, 'setting'],

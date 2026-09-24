@@ -329,6 +329,8 @@ type LegacyNonBatchAudioEditorCommandPayloads = {
 		readonly trimEndFrames?: number;
 		readonly fadeInFrames?: number;
 		readonly fadeOutFrames?: number;
+		readonly fadeInShape?: number;
+		readonly fadeOutShape?: number;
 	};
 	readonly 'clip/split': {
 		readonly clipId: string;

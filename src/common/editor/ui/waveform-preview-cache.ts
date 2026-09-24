@@ -20,6 +20,8 @@ interface WaveformClipIdentity {
 	readonly gain?: number;
 	readonly fadeInFrames?: number;
 	readonly fadeOutFrames?: number;
+	readonly fadeInShape?: number;
+	readonly fadeOutShape?: number;
 	readonly reversed?: boolean;
 	readonly inverted?: boolean;
 	readonly envelope?: readonly Readonly<{ frame?: number; value?: number }>[];
@@ -89,6 +91,8 @@ export function createWaveformContentKey(
 		clip.gain ?? 1,
 		clip.fadeInFrames ?? 0,
 		clip.fadeOutFrames ?? 0,
+		clip.fadeInShape ?? 'legacy-linear',
+		clip.fadeOutShape ?? 'legacy-linear',
 		Boolean(clip.reversed),
 		Boolean(clip.inverted),
 		(clip.envelope ?? []).map((point) => [point.frame ?? 0, point.value ?? 1]),

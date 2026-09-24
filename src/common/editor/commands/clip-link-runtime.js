@@ -348,9 +348,14 @@ function applyClipJoinRun(project, { clips, track }) {
 		sourceDurationFrames: joinedSourceDurationFrames,
 		trimEndFrames: last.trimEndFrames,
 		...(Number.isSafeInteger(last.fadeOutFrames) ? { fadeOutFrames: last.fadeOutFrames } : {}),
+		...(first.kind === 'audio' ? { fadeOutShape: last.fadeOutShape } : {}),
 		envelope: joinClipEnvelopes(clips),
 		id: first.id,
 	});
+	if (first.kind === 'audio' && last.fadeOutShape === undefined) {
+		joined = { ...joined };
+		delete joined.fadeOutShape;
+	}
 	joined = {
 		...joined,
 		...joinVideoKeyframeCarrierSequenceFields(clips, joined, `Joined clip ${first.id}`),

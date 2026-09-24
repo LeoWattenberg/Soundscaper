@@ -129,8 +129,12 @@ export function segmentOfClip(project, clip, segmentStartFrame, segmentEndFrame,
 		? trimAudioWarpClipToTimelineRange(project, clip, segmentStartFrame, segmentEndFrame)
 		: null;
 	const envelope = segmentEnvelope(clip, offsetFrames, durationFrames);
+	const segmentClip = { ...clip };
+	// A cut creates a new edge, so its next fade must not inherit the old edge's shape.
+	if (segmentStartFrame !== clip.timelineStartFrame) delete segmentClip.fadeInShape;
+	if (segmentEndFrame !== clipEndFrame(clip)) delete segmentClip.fadeOutShape;
 	let value = detachVideoKeyframeCarrier(detachVideoCompositionCarrier({
-		...clip,
+		...segmentClip,
 		id,
 		timelineStartFrame,
 		sourceStartFrame: warpSegment ? warpSegment.sourceStartFrame : sourceStartFrame,

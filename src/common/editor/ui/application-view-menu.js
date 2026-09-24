@@ -74,6 +74,7 @@ export function createApplicationViewMenu(context, actions) {
 		// The compact layout keeps the track headers in a drawer; the desktop column has no such state.
 		...(compactLayout ? [{ id: 'local://track-header-drawer', label: copy.trackHeaders, checked: Boolean(uiFlags.trackHeaderDrawer) }] : []),
 			{ id: AUDIO_EDITOR_APPLICATION_MENU_ACTION_IDS.toggleRmsInWaveform, label: copy.showRms, checked: Boolean(snapshot.timeline?.showRms), onClick: actions.toggleRms },
+			{ id: 'show-fade-shape-handles', label: copy.showFadeShapeHandles, checked: Boolean(snapshot.preferences?.view?.showFadeShapeHandles), onClick: actions.toggleFadeShapeHandles },
 			{ id: 'show-rulers', label: copy.showVerticalRulers, checked: snapshot.timeline?.showVerticalRulers !== false, onClick: actions.toggleVerticalRulers },
 			{ id: 'toggle-clipping-in-waveform', label: copy.showClipping, checked: uiFlags.clipping },
 			{ id: 'show-master-track', label: copy.masterTrack, checked: Boolean(snapshot.preferences?.view?.showMasterTrack) },

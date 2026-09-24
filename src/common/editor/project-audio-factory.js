@@ -278,6 +278,8 @@ export function createAudioClip(options = {}) {
 		gain: finiteInRange(options.gain ?? 1, 0, 16, 'clip.gain'),
 		fadeInFrames,
 		fadeOutFrames,
+		...(options.fadeInShape == null ? {} : { fadeInShape: finiteInRange(options.fadeInShape, 0.15, 6, 'clip.fadeInShape') }),
+		...(options.fadeOutShape == null ? {} : { fadeOutShape: finiteInRange(options.fadeOutShape, 0.15, 6, 'clip.fadeOutShape') }),
 		reversed: Boolean(options.reversed),
 		inverted: Boolean(options.inverted),
 		envelope,

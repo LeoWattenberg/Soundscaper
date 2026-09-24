@@ -120,12 +120,13 @@ test('an explicit fade-out still applies over a contained crossfade-out', () => 
 
 	scheduleClipGain(
 		fadeIn.param, fadeOut.param, clipGain.param,
-		clip({ fadeOutFrames: 10 }), 0, 30, 30, 0, 1,
+		clip({ fadeOutFrames: 10, fadeOutShape: 1 }), 0, 30, 30, 0, 1,
 		{ crossfadeOutRanges: [[5, 15]] },
 	);
 
 	assert.equal(scheduledValueAt(fadeOut.calls, 15), 0);
 	assert.ok(Math.abs(scheduledValueAt(fadeOut.calls, 16) - 1) < 1e-9, 'unity resumes after the overlap');
-	assert.ok(Math.abs(scheduledValueAt(fadeOut.calls, 25) - 0.5) < 1e-9, 'the explicit fade-out survives');
+	assert.ok(Math.abs(scheduledValueAt(fadeOut.calls, 25) - Math.SQRT1_2) < 1e-9,
+		'the explicit fade-out survives');
 	assert.equal(scheduledValueAt(fadeOut.calls, 30), 0);
 });

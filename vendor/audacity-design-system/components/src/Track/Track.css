@@ -67,6 +67,41 @@
   opacity: 0.5;
 }
 
+.audacity-track-fade-shape-handle {
+  position: absolute;
+  width: 16px;
+  height: 16px;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: auto;
+  touch-action: none;
+  cursor: ns-resize;
+}
+
+.audacity-track-fade-shape-handle__dot {
+  width: 10px;
+  height: 10px;
+  box-sizing: border-box;
+  border-radius: 50%;
+  background: #fff;
+  border: 1.5px solid rgb(0 0 0 / 60%);
+}
+
+.audacity-track-fade-shape-handle:focus-visible {
+  outline: 1px solid var(--focus-color, #fff);
+  outline-offset: -1px;
+}
+
+.audacity-track-fade-shape-handle:disabled {
+  cursor: default;
+  opacity: 0.5;
+}
+
 /* Keep this wrapper at z-index:auto so curves from one crossfade can paint
    over the veils of another crossfade in the track's stacking context. */
 .audacity-track-crossfade-visual {

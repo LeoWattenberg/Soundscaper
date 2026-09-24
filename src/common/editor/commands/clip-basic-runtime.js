@@ -6,6 +6,7 @@ import {
 	findClip,
 	findClipTrack,
 } from '../project.js';
+import { shapesForNewClipFades } from '../audio-clip-transition-gain.ts';
 import { collectRelatedClipIds } from './editing-selection-authority.ts';
 import { hasCoreEditingProjectAuthority, hasProjectBinMediaAuthority } from '../project-schema-version.ts';
 import {
@@ -109,13 +110,15 @@ export function updateClip(project, clipId, changes = {}) {
 	const allowed = clip.kind === 'video'
 		? new Set(['title', 'groupId', 'color'])
 		: new Set([
-			'gain', 'fadeInFrames', 'fadeOutFrames', 'reversed', 'inverted', 'title', 'envelope',
+			'gain', 'fadeInFrames', 'fadeOutFrames', 'fadeInShape', 'fadeOutShape',
+			'reversed', 'inverted', 'title', 'envelope',
 			'groupId', 'color', 'pitchCents', 'speedRatio', 'preserveFormants',
 			'stretchToTempo', 'renderCacheRevision',
 		]);
 	for (const key of Object.keys(changes)) if (!allowed.has(key)) throw new RangeError(`Clip field cannot be updated: ${key}.`);
 	const updated = normalizeClipForProject(project, {
 		...clip,
+		...shapesForNewClipFades(clip, changes),
 		...changes,
 		...(Object.hasOwn(changes, 'preserveFormants') ? {
 			opaqueExtensions: withoutImportedPitchPreset(clip.opaqueExtensions),
@@ -258,6 +261,10 @@ export function replaceRenderedClips(project, command) {
 					renderCacheRevision: (current.renderCacheRevision || 0) + 1,
 					id: current.id,
 				});
+			if (target) {
+				delete updated.fadeInShape;
+				delete updated.fadeOutShape;
+			}
 			replaceClip(project, updated);
 		}
 	}

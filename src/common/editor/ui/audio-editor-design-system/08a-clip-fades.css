@@ -6,23 +6,13 @@
 	bottom: 2px;
 	z-index: 1003;
 	pointer-events: none;
-	overflow: hidden;
+	overflow: visible;
 }
 
-.audio-editor-clip-fade__shade {
+.audio-editor-clip-fade__curve {
 	position: absolute;
 	top: 0;
 	width: 100%;
 	height: 100%;
 	overflow: hidden;
-}
-
-.audio-editor-clip-fade__shade polygon {
-	fill: rgb(0 0 0 / 28%);
-}
-
-.audio-editor-clip-fade__shade polyline {
-	fill: none;
-	stroke: rgb(255 255 255 / 65%);
-	stroke-width: 1;
 }

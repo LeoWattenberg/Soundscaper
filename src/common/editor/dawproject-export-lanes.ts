@@ -3,6 +3,7 @@
 import { resolveAutomationLanePointFramesV21, type AutomationLaneV21 } from './automation-lane-v21.ts';
 import { compareCodeUnits } from './code-unit-order.ts';
 import { addDeliveryReportItem } from './delivery-report.ts';
+import { reportOmittedClipFeatures } from './dawproject-export-clip-omissions.ts';
 import { interchangeClipTimeEffect } from './interchange-omission-inventory.ts';
 import { barStartBeat } from './musical-grid.ts';
 import { xmlElement, type XmlElement } from './dawproject-xml.ts';
@@ -230,29 +231,6 @@ function buildWarps(
 		content,
 		...points.map((point) => xmlElement('Warp', { time: point.time, contentTime: point.contentTime })),
 	]);
-}
-
-function reportOmittedClipFeatures(
-	clip: DataRecord,
-	clipId: string,
-	stretched: boolean,
-	context: DawprojectExportContext,
-): void {
-	const features: string[] = [];
-	if (finite(clip.gain, 1) !== 1) features.push('gain');
-	if (records(clip.envelope).length > 0) features.push('envelope');
-	if (finite(clip.pitchCents, 0) !== 0) features.push('pitchCents');
-	if (clip.reversed === true) features.push('reversed');
-	if (clip.preserveFormants === true && stretched) features.push('preserveFormants');
-	if (features.length === 0) return;
-	addDeliveryReportItem(context.draft, {
-		code: 'dawproject.clip-features-omitted',
-		disposition: 'omitted',
-		severity: 'warning',
-		scope: { kind: 'clip', id: clipId },
-		data: { features },
-		message: 'A DAWproject clip carries fades and warping but no gain, envelope, pitch shift, reverse, or formant setting; the clip is written without them.',
-	});
 }
 
 function buildVideoClip(clip: DataRecord, context: DawprojectExportContext): XmlElement | null {

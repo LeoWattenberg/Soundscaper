@@ -43,6 +43,8 @@ export interface EngineClip extends Readonly<Record<string, unknown>> {
 	readonly gain?: number;
 	readonly fadeInFrames?: number;
 	readonly fadeOutFrames?: number;
+	readonly fadeInShape?: number;
+	readonly fadeOutShape?: number;
 	readonly envelope?: readonly EngineEnvelopePoint[];
 	readonly warpMap?: unknown;
 }

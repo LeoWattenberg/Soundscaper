@@ -112,10 +112,10 @@ export function scheduleClipGain(
 	const crossfadeInRanges = options.crossfadeInRanges || [];
 	const crossfadeOutRanges = options.crossfadeOutRanges || [];
 	const fadeInAt = (frame: number): number => evaluateClipEdgeGainAt(
-		frame, duration, fadeIn, crossfadeInRanges, 'in',
+		frame, duration, fadeIn, crossfadeInRanges, 'in', clip.fadeInShape,
 	);
 	const fadeOutAt = (frame: number): number => evaluateClipEdgeGainAt(
-		frame, duration, fadeOut, crossfadeOutRanges, 'out',
+		frame, duration, fadeOut, crossfadeOutRanges, 'out', clip.fadeOutShape,
 	);
 	scheduleGainAutomation(fadeInParam, fadeInAt, segmentStart, segmentEnd, startTime, sampleRate, [
 		0, fadeIn, ...crossfadeInRanges.flat(),
@@ -141,13 +141,43 @@ function scheduleGainAutomation(
 	boundaries: readonly number[],
 ): void {
 	setParam(param, evaluate(segmentStart), startTime);
-	const points = [...new Set(boundaries
+	const boundariesWithinSegment = [...new Set(boundaries
 		.filter((frame) => Number.isFinite(frame) && frame > segmentStart && frame < segmentEnd))]
 		.sort((left, right) => left - right);
+	const points: number[] = [];
+	let previous = segmentStart;
+	for (const boundary of [...boundariesWithinSegment, segmentEnd]) {
+		// Linear AudioParam ramps need intermediate points to follow a curved fade.
+		// Sample adaptively, including where an authored fade meets a crossfade.
+		addCurvedGainPoints(evaluate, previous, boundary, points, 0);
+		previous = boundary;
+	}
 	for (const frame of points) {
 		linearRamp(param, evaluate(frame), startTime + (frame - segmentStart) / sampleRate);
 	}
-	if (segmentEnd > segmentStart) {
-		linearRamp(param, evaluate(segmentEnd), startTime + (segmentEnd - segmentStart) / sampleRate);
+}
+
+function addCurvedGainPoints(
+	evaluate: (frame: number) => number,
+	start: number,
+	end: number,
+	points: number[],
+	depth: number,
+): void {
+	if (end <= start) return;
+	const midpoint = (start + end) / 2;
+	const actual = evaluate(midpoint);
+	const linear = (evaluate(start) + evaluate(end)) / 2;
+	if (end - start > 1 && depth < 52 && points.length < 512 && Math.abs(actual - linear) > 0.001) {
+		addCurvedGainPoints(evaluate, start, midpoint, points, depth + 1);
+		addCurvedGainPoints(evaluate, midpoint, end, points, depth + 1);
+		return;
 	}
+	// A sub-frame interval can still straddle an actual audio sample. Schedule
+	// that integer frame exactly, especially where shallow shapes rise sharply.
+	if (end - start <= 1) {
+		const sample = Math.ceil(start);
+		if (sample > start && sample < end) points.push(sample);
+	}
+	points.push(end);
 }

@@ -32,6 +32,8 @@ export function createNativeClipEnvelope(clip, track, automaticCrossfade = {}) {
 	const transitionGain = {
 		fadeInFrames: fadeIn,
 		fadeOutFrames: fadeOut,
+		fadeInShape: clip.fadeInShape,
+		fadeOutShape: clip.fadeOutShape,
 		crossfadeInRanges,
 		crossfadeOutRanges,
 	};

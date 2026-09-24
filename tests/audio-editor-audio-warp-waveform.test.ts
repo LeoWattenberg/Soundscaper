@@ -24,7 +24,7 @@ test('overlapping fades on warped clips match the multiplied playback envelope',
 	const prepared = prepareAudioWarpWaveformWindow(project, clip, [new Float32Array(4).fill(1)],
 		{ startFrame: 0, endFrame: 4, pixelWidth: 4, maxSamples: 4, sourceFrameOffset: 0 });
 	const channel = prepared.rendering?.channels[0] as { maximum: Float32Array };
-	assert.equal(Math.max(...channel.maximum), 0.25);
+	assert.equal(Math.max(...channel.maximum), 0.25, 'old clips without shape retain their linear waveform');
 });
 
 test('warped waveform columns consume the shared source map instead of linear clip stretch', () => {

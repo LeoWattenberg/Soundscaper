@@ -279,6 +279,9 @@ export function createWorkspaceApplicationMenus({
 				toggleSelectionFollowsLoop: () => run(() => controller.actions.transport.toggleSelectionFollowsLoop()),
 				setTimelineView: (view) => run(() => controller.actions.timeline.setView(view)),
 				toggleRms: () => run(() => controller.actions.timeline.toggleRms()),
+				toggleFadeShapeHandles: () => run(() => controller.actions.preferences.update({
+					view: { showFadeShapeHandles: !snapshot.preferences?.view?.showFadeShapeHandles },
+				})),
 				toggleVerticalRulers: () => run(() => controller.actions.timeline.toggleVerticalRulers()),
 				toggleScrollViewToPlayhead: () => run(() => controller.actions.timeline.toggleScrollViewToPlayhead()),
 				togglePinnedPlayhead: () => run(() => controller.actions.timeline.togglePinnedPlayhead()),

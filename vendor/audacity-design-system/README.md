@@ -218,18 +218,23 @@ application overrides and source patches against the pin and upstream master.
     `tests/audio-editor-video-composition-ui.test.tsx`. Upstream-PR candidate.
 26. `TrackFadeHandle.tsx` ports the quick-fade grip glyph and placement from newer upstream
     `TrackNew.tsx` into a focused component. The host supplies the frame-based drag session,
-    keyboard edits, and stereo shading, so the grip forwards those events and remains inside
+    keyboard edits, and the clip curve overlay, so the grip forwards those events and remains inside
     the clip's overlay. It also keeps both grips reachable when this editor's independent
     fades overlap. Covered by `tests/vendored-design-system-fade-handle.test.tsx` and
     `tests/browser/audio-editor-clip-fades.spec.js`.
 27. `TrackCrossfadeVisual.tsx` ports newer upstream's paired white veils and gain curves for
-    automatic crossfades. The host supplies paths computed from its frame-canonical linear
-    playback gain, including authored fades, so the drawing matches the audio. The host keeps
-    its existing overlap geometry and accessibility label. The painted region is inset and
-    clipped within the clip outlines. Covered by
+    automatic crossfades. The host supplies paths computed from its frame-canonical
+    playback gain, including legacy linear and shaped authored fades, so the drawing matches
+    the audio. The host keeps its existing overlap geometry and accessibility label. The
+    painted region is inset and clipped within the clip outlines. Covered by
     `tests/vendored-design-system-crossfade-visual.test.tsx`,
     `tests/audio-editor-crossfade-visual-geometry.test.ts`, and
     `tests/browser/audio-editor-crossfade-ui.spec.js`.
+28. `TrackFadeShapeHandle.tsx` ports the midpoint fade-shape dot from upstream
+    `packages/components/src/Track/TrackNew.tsx` at
+    `4a5bdd07c6e6c400db9fea84b194ac00057623dd` into a focused button. The host supplies
+    its position, shape drag, keyboard edits, and accessible values.
+    Covered by `tests/vendored-design-system-fade-shape-handle.test.tsx`.
 
 ## Application-side adaptations
 

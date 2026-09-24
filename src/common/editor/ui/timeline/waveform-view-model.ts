@@ -68,6 +68,8 @@ export interface TimelineWaveformClip {
 	readonly gain?: number;
 	readonly fadeInFrames?: number;
 	readonly fadeOutFrames?: number;
+	readonly fadeInShape?: number;
+	readonly fadeOutShape?: number;
 	readonly reversed?: boolean;
 	readonly inverted?: boolean;
 	readonly pitchCents?: number;

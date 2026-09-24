@@ -41,6 +41,8 @@ export interface AudacityWaveformRenderingOptions {
 	readonly gain: number;
 	readonly fadeInFrames: number;
 	readonly fadeOutFrames: number;
+	readonly fadeInShape?: number;
+	readonly fadeOutShape?: number;
 	readonly reversed: boolean;
 	readonly sourceFrameOffset: number;
 }
@@ -224,6 +226,8 @@ export function maximumFadeEnvelope(
 	durationFrames: number,
 	fadeInFrames: number,
 	fadeOutFrames: number,
+	fadeInShape?: number,
+	fadeOutShape?: number,
 ): number {
 	const candidates = [
 		startFrame,
@@ -236,8 +240,25 @@ export function maximumFadeEnvelope(
 	for (const frame of candidates) {
 		maximum = Math.max(
 			maximum,
-			fadeEnvelope(frame, durationFrames, fadeInFrames, fadeOutFrames),
+			fadeEnvelope(frame, durationFrames, fadeInFrames, fadeOutFrames, fadeInShape, fadeOutShape),
 		);
+	}
+	// Overlapping shaped fades can peak away from the clip midpoint.
+	const overlapStart = Math.max(startFrame, durationFrames - fadeOutFrames);
+	const overlapEnd = Math.min(endFrame, fadeInFrames);
+	if (fadeInFrames > 0 && fadeOutFrames > 0 && overlapStart < overlapEnd) {
+		let left = overlapStart;
+		let right = overlapEnd;
+		for (let step = 0; step < 24; step += 1) {
+			const third = (right - left) / 3;
+			const first = left + third;
+			const second = right - third;
+			if (fadeEnvelope(first, durationFrames, fadeInFrames, fadeOutFrames, fadeInShape, fadeOutShape)
+				< fadeEnvelope(second, durationFrames, fadeInFrames, fadeOutFrames, fadeInShape, fadeOutShape)) left = first;
+			else right = second;
+		}
+		maximum = Math.max(maximum, fadeEnvelope((left + right) / 2,
+			durationFrames, fadeInFrames, fadeOutFrames, fadeInShape, fadeOutShape));
 	}
 	return maximum;
 }
@@ -264,7 +285,8 @@ export function prepareAudacityWaveformRendering(
 		const timelineFrame = visualOrdinal / sourceSamplesPerTimelineFrame;
 		return (Number.isFinite(sample) ? sample : 0)
 			* options.gain
-			* fadeEnvelope(timelineFrame, options.durationFrames, options.fadeInFrames, options.fadeOutFrames);
+			* fadeEnvelope(timelineFrame, options.durationFrames, options.fadeInFrames, options.fadeOutFrames,
+				options.fadeInShape, options.fadeOutShape);
 	};
 	const common = {
 		mode,

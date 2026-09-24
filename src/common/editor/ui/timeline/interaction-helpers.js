@@ -124,6 +124,8 @@ export function createClipTrimPreview(projectIndex, session, requestedDelta, edg
 			trimEndFrames: Math.max(0, (clip.trimEndFrames || 0) + (trimsSourceStart ? 0 : removedSourceFrames)),
 			fadeInFrames: Math.min(clip.fadeInFrames || 0, durationFrames),
 			fadeOutFrames: Math.min(clip.fadeOutFrames || 0, durationFrames),
+			fadeInShape: clip.fadeInShape,
+			fadeOutShape: clip.fadeOutShape,
 		};
 	});
 	const active = previews.find((preview) => preview.clipId === session.clipId);

@@ -155,9 +155,7 @@ export function createAudioClip<const Options extends MediaFactoryInput = MediaF
 ): MediaFactoryResult<Options, AudioClipLeaf> {
 	const anchor = options.anchor === 'musical' ? 'musical' : 'sample';
 	const musicalExtent = options.musicalExtent === 'beat' ? 'beat' : 'fixedSamples';
-	const musicalStartBeat = anchor === 'musical'
-		? coordinateRational(options.musicalStartBeat ?? 0, 'clip.musicalStartBeat')
-		: null;
+	const musicalStartBeat = anchor === 'musical' ? coordinateRational(options.musicalStartBeat ?? 0, 'clip.musicalStartBeat') : null;
 	const musicalDurationBeats = anchor === 'musical' && musicalExtent === 'beat'
 		? positiveCoordinateRational(options.musicalDurationBeats, 'clip.musicalDurationBeats')
 		: null;
@@ -184,6 +182,8 @@ export function createAudioClip<const Options extends MediaFactoryInput = MediaF
 		musicalDurationBeats,
 		warpMap: normalizeBreakpoint(options.warpMap, 'audio-warp', 'clip.warpMap'),
 	};
+	if (result.fadeInShape == null) delete result.fadeInShape;
+	if (result.fadeOutShape == null) delete result.fadeOutShape;
 	if (anchor === 'musical') delete result.timelineStartFrame;
 	if (anchor === 'musical' && musicalExtent === 'beat') delete result.durationFrames;
 	return result as MediaFactoryResult<Options, AudioClipLeaf>;

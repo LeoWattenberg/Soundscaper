@@ -97,6 +97,8 @@ export function prepareBoundedWaveformWindow(
 	const gain = clip.inverted ? -clipGain : clipGain;
 	const fadeInFrames = clampedLocalFrame(clip.fadeInFrames ?? 0, durationFrames, 'clip.fadeInFrames');
 	const fadeOutFrames = clampedLocalFrame(clip.fadeOutFrames ?? 0, durationFrames, 'clip.fadeOutFrames');
+	const fadeInShape = clip.fadeInShape;
+	const fadeOutShape = clip.fadeOutShape;
 	const transformSample = (channel: number, localFrame: number): number => {
 		const mappedFrame = Math.min(
 			sourceDurationFrames - 1,
@@ -107,7 +109,7 @@ export function prepareBoundedWaveformWindow(
 		const sample = Number(sourceChannels[channel]?.[sourceFrame - sourceFrameOffset]);
 		return (Number.isFinite(sample) ? sample : 0)
 			* gain
-			* fadeEnvelope(localFrame, durationFrames, fadeInFrames, fadeOutFrames);
+			* fadeEnvelope(localFrame, durationFrames, fadeInFrames, fadeOutFrames, fadeInShape, fadeOutShape);
 	};
 	const rendering = pixelWidth == null ? null : prepareAudacityWaveformRendering(sourceChannels, {
 		sourceStartFrame,
@@ -120,6 +122,8 @@ export function prepareBoundedWaveformWindow(
 		gain,
 		fadeInFrames,
 		fadeOutFrames,
+		fadeInShape,
+		fadeOutShape,
 		reversed,
 		sourceFrameOffset,
 	});
@@ -265,6 +269,8 @@ export function preparePeakPyramidWaveformWindow(
 	const gain = clip.inverted ? -clipGain : clipGain;
 	const fadeInFrames = clampedLocalFrame(clip.fadeInFrames ?? 0, durationFrames, 'clip.fadeInFrames');
 	const fadeOutFrames = clampedLocalFrame(clip.fadeOutFrames ?? 0, durationFrames, 'clip.fadeOutFrames');
+	const fadeInShape = clip.fadeInShape;
+	const fadeOutShape = clip.fadeOutShape;
 	const reversed = Boolean(clip.reversed);
 
 	const renderingChannels = Array.from({ length: channelCount }, (_, channel) => {
@@ -304,6 +310,8 @@ export function preparePeakPyramidWaveformWindow(
 				durationFrames,
 				fadeInFrames,
 				fadeOutFrames,
+				fadeInShape,
+				fadeOutShape,
 			);
 			let bucketMinimum = Math.min(range.minimum * scale, range.maximum * scale);
 			let bucketMaximum = Math.max(range.minimum * scale, range.maximum * scale);

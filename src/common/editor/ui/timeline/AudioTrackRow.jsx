@@ -7,6 +7,7 @@ import { editorTimelineDurationFrames } from '../../project.js';
 import { TrackControls } from './TrackControls.jsx';
 import { TrackAutomationOverlay } from '../soundscaper-workflow-product-runtime.tsx';
 import { ClipFadeOverlays } from './ClipFadeOverlays.tsx';
+import { crossfadedClipFadeEdges } from './clip-fade-crossfaded-edges.ts';
 import { AudacityWaveformCanvases } from './TimelineCanvasRenderer.jsx';
 import { SpectralBrushOverlay } from './SpectralBrushOverlay.jsx';
 import { SpectralSelectionOverlay } from './SpectralSelectionOverlay.jsx';
@@ -56,6 +57,7 @@ export function AudioTrackRow({
 	asymmetricStereoHeightsAvailable,
 	channelHeightRatio,
 	showRms: globalShowRms,
+	showFadeShapeHandles,
 	waveformRulerFormat,
 	waveformZoom,
 	onWaveformZoom,
@@ -144,10 +146,7 @@ export function AudioTrackRow({
 		blocked,
 		automationToolEnabled,
 	});
-	const fadeChannelCounts = useMemo(() => new Map(projectedClips.map(clip => [
-		String(clip.id),
-		clip.audacityWaveform?.channels?.length || clip.channelCount || sourceLookup.get(clip.sourceId)?.channelCount || 1,
-	])), [projectedClips, sourceLookup]);
+	const crossfadedFadeEdges = useMemo(() => crossfadedClipFadeEdges(trackClips), [trackClips]);
 	const stereoDividerEnabled = rulerChannelCount === 2
 		&& asymmetricStereoHeightsAvailable
 		&& !blocked;
@@ -361,7 +360,8 @@ export function AudioTrackRow({
 						incomingSelected={visualSelectedClipIds.has(overlay.incomingClipId)}
 						label={overlay.label} />)}
 					<ClipFadeOverlays rootRef={trackWindowRef} clips={projection.clips}
-						channelCounts={fadeChannelCounts} channelHeightRatio={displayChannelHeightRatio} displayMode={displayMode}
+						showFadeShapeHandles={showFadeShapeHandles}
+						crossfadedFadeEdges={crossfadedFadeEdges}
 						selectedIds={visualSelectedClipIds}
 						startFrame={projection.overscanStartFrame} endFrame={projection.overscanEndFrame}
 						pixelsPerSecond={pixelsPerSecond} sampleRate={sampleRate} blocked={blocked} copy={copy}

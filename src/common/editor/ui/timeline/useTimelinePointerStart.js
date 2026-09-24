@@ -2,7 +2,7 @@ import { useCallback } from 'react';
 
 import { collectClipTransformIds, collectClipTrimIds } from '../../commands/clip-basic-runtime.js';
 import { createBoundarySnapIndex, resolveBoundarySnap } from './boundary-snap.ts';
-import { fadeField } from './clip-fade-geometry.ts';
+import { fadeField, fadeShapeField } from './clip-fade-geometry.ts';
 import {
 	MINIMUM_TRACK_HEIGHT,
 	trackOptionalControlsHeight,
@@ -72,9 +72,30 @@ export function useTimelinePointerStart({
 		};
 		if (event.target.closest?.('[data-timeline-annotation-interactive]')) return;
 		if (event.target.closest?.('[data-track-automation-interactive]')) return;
-		if (pointerSession.current?.kind === 'fade') {
+		if (pointerSession.current?.kind === 'fade' || pointerSession.current?.kind === 'fade-shape') {
 			event.preventDefault();
 			event.stopPropagation();
+			return;
+		}
+		const fadeShapeHandle = event.target.closest?.('[data-clip-fade-shape-handle]');
+		if (fadeShapeHandle) {
+			if (event.button !== 0 || mutationsBlocked || pointerSession.current) return;
+			const clipId = fadeShapeHandle.closest('[data-clip-id]')?.dataset.clipId;
+			const clip = project.clips.find(item => item.id === clipId);
+			if (clip?.kind !== 'audio') return;
+			const edge = fadeShapeHandle.dataset.clipFadeShapeHandle;
+			pointerSession.current = {
+				kind: 'fade-shape', edge, clipId, original: { ...clip }, startY: event.clientY,
+				gainHeight: fadeShapeHandle.closest('.audio-editor-clip-fade')?.getBoundingClientRect().height ?? 1,
+				baseGain: Number(fadeShapeHandle.dataset.fadeShapeBaseGain),
+				startGain: Number(fadeShapeHandle.dataset.fadeShapeStartGain),
+				initial: clip[fadeShapeField(edge)] ?? 2, pointerId: event.pointerId,
+				trackId: fadeShapeHandle.closest('[data-track-lane]')?.dataset.trackId,
+			};
+			fadeShapeHandle.focus({ preventScroll: true });
+			event.preventDefault();
+			event.stopPropagation();
+			event.currentTarget.setPointerCapture?.(event.pointerId);
 			return;
 		}
 		const fadeHandle = event.target.closest?.('[data-clip-fade-handle]');

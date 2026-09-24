@@ -8,6 +8,8 @@ export interface CrossfadeVisualClip {
 	readonly durationFrames: number;
 	readonly fadeInFrames?: number;
 	readonly fadeOutFrames?: number;
+	readonly fadeInShape?: number;
+	readonly fadeOutShape?: number;
 }
 
 /** Match the design-system path geometry to Soundscaper's actual clip gain. */
@@ -25,6 +27,8 @@ export function clipCrossfadeCurvePath(
 		const gain = evaluateClipTransitionGainAt(frame - clip.timelineStartFrame, clip.durationFrames, {
 			fadeInFrames: clip.fadeInFrames ?? 0,
 			fadeOutFrames: clip.fadeOutFrames ?? 0,
+			fadeInShape: clip.fadeInShape,
+			fadeOutShape: clip.fadeOutShape,
 			crossfadeInRanges: ranges.crossfadeInRanges,
 			crossfadeOutRanges: ranges.crossfadeOutRanges,
 		});

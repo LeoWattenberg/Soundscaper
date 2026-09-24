@@ -19,6 +19,8 @@ function clip(options = {}) {
 		gain: options.gain ?? 1,
 		fadeInFrames: options.fadeInFrames ?? 0,
 		fadeOutFrames: options.fadeOutFrames ?? 0,
+		...(options.fadeInShape === undefined ? {} : { fadeInShape: options.fadeInShape }),
+		...(options.fadeOutShape === undefined ? {} : { fadeOutShape: options.fadeOutShape }),
 		reversed: options.reversed ?? false,
 	};
 }
@@ -36,17 +38,20 @@ function clip(options = {}) {
  * adapters the same surfaces use.
  */
 
-test('bounded waveform preprocessing applies linear gain and fades without changing source PCM', () => {
+test('bounded waveform preprocessing applies shaped fades without changing source PCM', () => {
 	const source = Float32Array.of(1, 1, 1, 1, 1);
 	const result = prepareBoundedWaveformWindow([source], clip({
 		durationFrames: 5,
 		gain: 2,
 		fadeInFrames: 2,
 		fadeOutFrames: 2,
+		fadeInShape: 1,
+		fadeOutShape: 1,
 	}), { maxSamples: 10 });
 
 	assert.deepEqual([...source], [1, 1, 1, 1, 1]);
-	assert.deepEqual([...result.channels[0]], [0, 1, 2, 2, 1]);
+	assert.deepEqual([...result.channels[0]].map(value => Math.round(value * 1_000) / 1_000),
+		[0, 1.414, 2, 2, 1.414]);
 	assert.deepEqual({ ...result, channels: undefined }, {
 		channels: undefined,
 		startFrame: 0,

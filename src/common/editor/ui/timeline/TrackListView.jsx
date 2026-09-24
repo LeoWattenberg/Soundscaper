@@ -228,6 +228,7 @@ export function TrackListView({
 					asymmetricStereoHeightsAvailable={asymmetricStereoHeightsAvailable}
 					channelHeightRatio={snapshot.timeline?.trackChannelHeightRatios?.[track.id]}
 					showRms={Boolean(snapshot.timeline?.showRms)}
+					showFadeShapeHandles={Boolean(snapshot.preferences?.view?.showFadeShapeHandles)}
 					waveformRulerFormat={normalizeWaveformRulerState(waveformRulerState[track.id]).format}
 					waveformZoom={normalizeWaveformRulerState(waveformRulerState[track.id]).zoom}
 					onWaveformZoom={(zoom) => updateWaveformRuler(track.id, { zoom })}

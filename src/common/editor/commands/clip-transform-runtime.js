@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { compareCodeUnits } from '../code-unit-order.ts';
+import { shapesForNewClipFades } from '../audio-clip-transition-gain.ts';
 import {
 	assertNonOverlappingClips,
 	conformedOverwriteCut,
@@ -201,6 +202,7 @@ function buildClipTransformState(project, transforms) {
 	const allowed = new Set([
 		'timelineStartFrame', 'sourceStartFrame', 'sourceDurationFrames', 'durationFrames',
 		'trimStartFrames', 'trimEndFrames', 'fadeInFrames', 'fadeOutFrames',
+		'fadeInShape', 'fadeOutShape',
 		'envelope', 'pitchCents', 'speedRatio', 'preserveFormants', 'stretchToTempo',
 		'renderCacheRevision',
 	]);
@@ -224,6 +226,7 @@ function buildClipTransformState(project, transforms) {
 		const warpSegment = warpSegmentForExtent(project, clip, changes, timelineStartFrame, durationFrames);
 		let updated = normalizeClipForProject(project, {
 			...clip,
+			...shapesForNewClipFades(clip, changes),
 			...changes,
 			...(warpSegment ? warpSegmentFields(warpSegment) : {}),
 			...(Object.hasOwn(changes, 'preserveFormants') ? {
@@ -283,6 +286,7 @@ export function overwriteClip(project, command) {
 	);
 	let updated = normalizeClipForProject(project, {
 		...clip,
+		...shapesForNewClipFades(clip, command),
 		...requestedChanges,
 		...(warpSegment ? warpSegmentFields(warpSegment) : {}),
 		...(!Object.hasOwn(requestedChanges, 'envelope') && durationFrames !== clip.durationFrames ? {
@@ -411,6 +415,8 @@ export function trimClip(project, command) {
 		envelope: envelopeForTrimmedBounds(clip, timelineStartFrame, durationFrames),
 		...optionalTrimmedFade('fadeInFrames', command, clip, durationFrames),
 		...optionalTrimmedFade('fadeOutFrames', command, clip, durationFrames),
+		...optionalClipShape('fadeInShape', command, clip),
+		...optionalClipShape('fadeOutShape', command, clip),
 		id: clip.id,
 	});
 	updated = finalizeVideoKeyframeSegmentCarrier(
@@ -432,4 +438,9 @@ export function trimClip(project, command) {
 function optionalTrimmedFade(field, command, clip, durationFrames) {
 	const value = command[field] ?? clip[field];
 	return Number.isSafeInteger(value) ? { [field]: Math.min(value, durationFrames) } : {};
+}
+
+function optionalClipShape(field, command, clip) {
+	const value = command[field] ?? clip[field];
+	return value == null ? {} : { [field]: value };
 }

@@ -30,6 +30,8 @@ test('new audio clips receive editable 2 ms fades at the project sample rate', (
 	const created = addClip(project());
 	assert.equal(created.clips[0].fadeInFrames, 96);
 	assert.equal(created.clips[0].fadeOutFrames, 96);
+	assert.equal(created.clips[0].fadeInShape, 1);
+	assert.equal(created.clips[0].fadeOutShape, 1);
 	const changed = applyEditorCommand(created, {
 		type: 'clip/update', clipId: 'clip', changes: { fadeInFrames: 0, fadeOutFrames: 240 },
 	}, { now: NOW, microfadeNewClips: true });
@@ -50,12 +52,18 @@ test('the preference can disable microfades and existing fade lengths stay intac
 });
 
 test('splitting smooths the new edges without replacing the original outer fades', () => {
-	const original = addClip(project(), { fadeInFrames: 480, fadeOutFrames: 240 });
+	const original = addClip(project(), {
+		fadeInFrames: 480, fadeInShape: 2,
+		fadeOutFrames: 240, fadeOutShape: 3,
+	});
 	const split = applyEditorCommand(original, prepareSplitCommand('clip', 12_000, () => 'right') as AudioEditorCommand, {
 		now: NOW, microfadeNewClips: true,
 	});
 	assert.deepEqual(split.clips.map(({ fadeInFrames, fadeOutFrames }) => [fadeInFrames, fadeOutFrames]), [
 		[480, 96], [96, 240],
+	]);
+	assert.deepEqual(split.clips.map(({ fadeInShape, fadeOutShape }) => [fadeInShape, fadeOutShape]), [
+		[2, 1], [1, 3],
 	]);
 });
 

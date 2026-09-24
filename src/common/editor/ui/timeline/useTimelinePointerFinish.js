@@ -2,7 +2,7 @@ import { useCallback, useEffect } from 'react';
 
 import { secondsToFrames } from '../../design-system-adapters.js';
 import { createBoundarySnapIndex, resolveBoundarySnap } from './boundary-snap.ts';
-import { fadeDurationAtPointer, fadeField } from './clip-fade-geometry.ts';
+import { fadeDurationAtPointer, fadeField, fadeShapeAtPointer, fadeShapeField } from './clip-fade-geometry.ts';
 import {
 	commitTimelineRateStretchPointer,
 	usesFrameCanonicalTimelineRateStretch,
@@ -58,7 +58,7 @@ export function useTimelinePointerFinish({
 
 	const finishPointerSession = useCallback((event, cancelled = false) => {
 		const session = pointerSession.current;
-		if (session?.kind === 'fade' && event.pointerId !== session.pointerId) return;
+		if ((session?.kind === 'fade' || session?.kind === 'fade-shape') && event.pointerId !== session.pointerId) return;
 		pointerSession.current = null;
 		setDraggingClipIds(null);
 		setProjectBinDropActive(false);
@@ -100,6 +100,17 @@ export function useTimelinePointerFinish({
 				|| (clip[field] ?? 0) !== session.initial) return;
 			const value = fadeDurationAtPointer(session.edge, session.initial, session.startX, event.clientX,
 				session.pixelsPerSecond, sampleRate, clip.durationFrames);
+			if (value !== session.initial) run(() => controller.actions.clip.update(clip.id, { [field]: value }));
+			return;
+		}
+		if (session.kind === 'fade-shape') {
+			const clip = project.clips.find(item => item.id === session.clipId);
+			const field = fadeShapeField(session.edge);
+			if (!clip || mutationsBlocked || clip.durationFrames !== session.original.durationFrames
+				|| clip.timelineStartFrame !== session.original.timelineStartFrame
+				|| (clip[field] ?? 2) !== session.initial) return;
+			const value = fadeShapeAtPointer(session.initial, session.startY, event.clientY,
+				session.gainHeight, session.baseGain, session.startGain);
 			if (value !== session.initial) run(() => controller.actions.clip.update(clip.id, { [field]: value }));
 			return;
 		}
@@ -281,7 +292,10 @@ export function useTimelinePointerFinish({
 			finishPointerSession(event, !publishMousePencil);
 		};
 		const cancelLostFadeCapture = (event) => {
-			if (pointerSession.current?.kind === 'fade') finishPointerSession(event, true);
+			const session = pointerSession.current;
+			if ((session?.kind === 'fade' || session?.kind === 'fade-shape') && event.pointerId === session.pointerId) {
+				finishPointerSession(event, true);
+			}
 		};
 		globalThis.addEventListener('pointerup', finishOutsideTimeline, true);
 		globalThis.addEventListener('pointercancel', cancelOutsideTimeline, true);
