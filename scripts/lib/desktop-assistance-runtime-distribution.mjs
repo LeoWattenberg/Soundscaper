@@ -126,7 +126,11 @@ export async function prepareAssistanceRuntimeDistributionSources({
 	assert(kokoro.targetId === targetId, 'Kokoro G2P target is invalid.');
 	const kokoroFiles = [];
 	for (const file of kokoro.files) {
-		const refreshed = await refreshedFile(resolve(runtimeRoot, kokoro.runtimePrefix, targetId, file.path), file, signing);
+		// Windows does not expose PE executability through POSIX mode bits.
+		const runtimeFile = file.path === kokoro.executable
+			? { ...file, executable: true } : file;
+		const refreshed = await refreshedFile(resolve(runtimeRoot, kokoro.runtimePrefix, targetId, file.path),
+			runtimeFile, signing);
 		file.byteLength = refreshed.byteLength;
 		file.sha256 = refreshed.sha256;
 		kokoroFiles.push(refreshed);
