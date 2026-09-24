@@ -166,7 +166,10 @@ async function mountedSwitcher(value: ReturnType<typeof snapshot>) {
 	const priorAct = actGlobal.IS_REACT_ACT_ENVIRONMENT;
 	actGlobal.IS_REACT_ACT_ENVIRONMENT = true;
 	const calls: string[] = [];
-	const controller = { actions: { preferences: { setWorkspace: (id: string) => { calls.push(id); } } } };
+	const controller = {
+		getSnapshot: () => value,
+		actions: { preferences: { setWorkspace: (id: string) => { calls.push(id); } } },
+	};
 	const { createRoot } = await import('react-dom/client');
 	const root = createRoot(dom.container as unknown as Element);
 	await act(async () => root.render(<WorkspaceSwitcherControl
