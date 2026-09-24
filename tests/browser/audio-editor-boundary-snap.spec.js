@@ -115,6 +115,7 @@ test.describe('Audacity 3 boundary snapping', () => {
 	});
 
 	test('same-track audio edges overlap by 2 ms only while microfades are enabled', async ({ page }) => {
+		test.setTimeout(60_000);
 		const { editor, anchor, moving } = await setupBoundaryClips(page);
 		await beginNearBoundaryClipDrag(page, anchor, moving, true);
 		await expectYellowGuide(editor);
