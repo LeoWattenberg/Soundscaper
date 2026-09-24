@@ -34,7 +34,7 @@ test('spectral center drag snaps to selected audio and keeps bandwidth; the menu
 	const track = clipByName(editor, spectralTone.name).locator('xpath=ancestor::div[@data-track-row]');
 	await setSpectrogramPreferences(page, editor);
 	await track.getByRole('button', { name: 'Track menu', exact: true }).click();
-	const display = page.locator('.audio-editor-track-menu').getByRole('menuitem', { name: /^Display(?:\s|$)/u });
+	const display = page.locator('.audio-editor-track-menu').getByRole('menuitem', { name: /^Track visualization(?:\s|$)/u });
 	await display.focus();
 	await page.keyboard.press('ArrowRight');
 	await display.getByRole('menu').getByRole('menuitem', { name: 'Spectrogram', exact: true }).click();

@@ -124,7 +124,7 @@ test.describe('non-destructive clip fade handles', () => {
 		await importFiles(editor, [toneA]);
 		const clip = clipByName(editor, toneA.name);
 		const track = clip.locator('xpath=ancestor::div[@data-track-row]');
-		await chooseTrackMenuAction(page, editor, track, ['Display', 'Multi-view']);
+		await chooseTrackMenuAction(page, editor, track, ['Track visualization', 'Multi-view']);
 		await expect(track).toHaveAttribute('data-display-mode', 'multiview');
 		await selectClip(clip);
 		const fadeIn = clip.getByRole('slider', { name: 'Fade in', exact: true });

@@ -52,10 +52,10 @@ test('browser Preferences opens General without the desktop-only FFmpeg location
 	await expect(preferences.locator('[data-external-ffmpeg-preference="true"]')).toHaveCount(0);
 });
 
-test('Track Display opens the combined waveform and spectrogram settings', async ({ page }) => {
+test('Track visualization opens the combined waveform and spectrogram settings', async ({ page }) => {
 	const editor = await bootEditor(page, '/embed/en/');
 	const track = editor.locator('[data-track-row]').first();
-	await chooseTrackMenuAction(page, editor, track, ['Display', 'Track display']);
+	await chooseTrackMenuAction(page, editor, track, ['Track visualization', 'Track display']);
 
 	const preferences = page.getByRole('dialog', { name: 'Editor preferences', exact: true });
 	const waveform = preferences.getByRole('tab', { name: /Track display$/u });

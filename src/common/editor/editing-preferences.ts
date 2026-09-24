@@ -61,7 +61,7 @@ export type AudioEditorPasteInsertBehavior = typeof AUDIO_EDITOR_PASTE_INSERT_BE
 export type AudioEditorAsymmetricStereoHeights = typeof AUDIO_EDITOR_ASYMMETRIC_STEREO_HEIGHTS[number];
 export type AudioEditorZoomTogglePreset = typeof AUDIO_EDITOR_ZOOM_TOGGLE_PRESETS[number];
 
-export const AUDIO_EDITOR_DEFAULT_ZOOM_PRECISION = 6;
+export const AUDIO_EDITOR_DEFAULT_ZOOM_PRECISION = 2;
 export const AUDIO_EDITOR_MINIMUM_ZOOM_PRECISION = 1;
 export const AUDIO_EDITOR_MAXIMUM_ZOOM_PRECISION = 16;
 

@@ -11,7 +11,7 @@ export const TRACK_MENU_TRIGGER = /^(?:Track menu|Track options|Spuroptionen|Spu
 /**
  * Drive a per-track command from the track control panel's overflow menu, which is where
  * track-scoped commands live rather than the application menubar. Pass a nested path to
- * reach a submenu such as Move track or Display.
+ * reach a submenu such as Move track or Track visualization.
  */
 export async function chooseTrackMenuAction(page, editor, trackRow, path) {
 	await (await openTrackMenuPath(page, editor, trackRow, path)).click();

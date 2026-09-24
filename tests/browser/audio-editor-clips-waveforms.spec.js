@@ -478,9 +478,9 @@ test.describe('audio editor React/design-system workflows', () => {
 
 		const track = zoomedClip.locator('xpath=ancestor::div[@data-track-row]');
 		await track.getByRole('button', { name: 'Track menu', exact: true }).click();
-		// The view modes now sit under the track menu's Display submenu.
+		// The view modes now sit under the track menu's Track visualization submenu.
 		const trackMenu = page.locator('.audio-editor-track-menu');
-		const display = trackMenu.getByRole('menuitem', { name: /^Display(?:\s|$)/u });
+		const display = trackMenu.getByRole('menuitem', { name: /^Track visualization(?:\s|$)/u });
 		await display.focus();
 		await page.keyboard.press('ArrowRight');
 		await display.getByRole('menu').getByRole('menuitem', { name: 'Multi-view', exact: true }).click();
@@ -527,7 +527,7 @@ test.describe('audio editor React/design-system workflows', () => {
 		expect(errors).toEqual([]);
 	});
 
-	test('renders 3-band and rainbow frequency waveforms from Track Display', async ({ page }) => {
+	test('renders 3-band and rainbow frequency waveforms from Track visualization', async ({ page }) => {
 		const errors = collectClientErrors(page);
 		const editor = await bootEditor(page, '/embed/en/');
 		await importFiles(editor, [toneA]);
@@ -535,12 +535,12 @@ test.describe('audio editor React/design-system workflows', () => {
 		const track = clip.locator('xpath=ancestor::div[@data-track-row]');
 		const waveform = clip.locator('canvas.clip-body__waveform');
 
-		await chooseTrackMenuAction(page, editor, track, ['Display', '3-band waveform']);
+		await chooseTrackMenuAction(page, editor, track, ['Track visualization', '3-band waveform']);
 		await expect(track).toHaveAttribute('data-display-mode', 'waveform-three-band');
 		await expect(waveform).toHaveAttribute('data-frequency-waveform-mode', 'waveform-three-band');
 		await expect(waveform).toHaveAttribute('data-waveform-source', 'frequency-analysis');
 
-		await chooseTrackMenuAction(page, editor, track, ['Display', 'Rainbow waveform']);
+		await chooseTrackMenuAction(page, editor, track, ['Track visualization', 'Rainbow waveform']);
 		await expect(track).toHaveAttribute('data-display-mode', 'waveform-rainbow');
 		await expect(waveform).toHaveAttribute('data-frequency-waveform-mode', 'waveform-rainbow');
 		await expect(waveform).toHaveAttribute('data-waveform-source', 'frequency-analysis');

@@ -202,7 +202,7 @@ Product availability follows each product profile’s command filters and each l
 | Grading & Finishing Presets | `framescaper-grading-presets` | — | Effect > Video Finishing | Framescaper | Soundscaper local |
 | Graphic EQ | `audacity-graphic-eq` | — | Effect > EQ and filters | Soundscaper | Soundscaper local |
 | Group clips | `group-clips` | Ctrl+G | Edit > Clip; Clip context | Soundscaper, Framescaper | Audacity |
-| Half-wave | `action://projectscene/track-view-half-wave` | — | Track context > Display | Soundscaper, Framescaper | Audacity |
+| Half-wave | `action://projectscene/track-view-half-wave` | — | Track context > Track visualization | Soundscaper, Framescaper | Audacity |
 | High-Pass Filter | `nyquist:highpass` | — | Nyquist | Soundscaper | Audacity |
 | High-pass filter | `highpass-filter` | — | Effect > EQ and filters | Soundscaper | Soundscaper local |
 | History | `toggle-history` | — | View | Soundscaper, Framescaper | Audacity |
@@ -281,7 +281,7 @@ Product availability follows each product profile’s command filters and each l
 | Move track to bottom | `track-move-bottom` | — | Track context | Soundscaper, Framescaper | Audacity |
 | Move track to top | `track-move-top` | — | Track context | Soundscaper, Framescaper | Audacity |
 | Move track up | `track-move-up` | — | Track context | Soundscaper, Framescaper | Audacity |
-| Multi-view | `action://trackedit/track-view-multi` | — | Track context > Display | Soundscaper, Framescaper | Audacity |
+| Multi-view | `action://trackedit/track-view-multi` | — | Track context > Track visualization | Soundscaper, Framescaper | Audacity |
 | Multiband compressor | `multiband-compressor` | — | Effect > Volume and compression | Soundscaper | Soundscaper local |
 | Music | `workspace-music` | — | View > Workspace | Soundscaper | Soundscaper local |
 | Mute Tracks | `mute-tracks` | Ctrl+Alt+U | Tracks > Mute/Unmute | Soundscaper, Framescaper | Audacity |
@@ -460,7 +460,7 @@ Product availability follows each product profile’s command filters and each l
 | Spectral brush | `spectral-brush` | — | Select > Spectral; Tools toolbar | Soundscaper | Audacity |
 | Spectral delete | `spectral-delete` | — | Effect > Spectral | Soundscaper | Audacity |
 | Spectral selection | `toggle-spectral-selection` | Q | Select > Spectral | Soundscaper | Audacity |
-| Spectrogram | `action://trackedit/track-view-spectrogram` | — | Track context > Display | Soundscaper, Framescaper | Audacity |
+| Spectrogram | `action://trackedit/track-view-spectrogram` | — | Track context > Track visualization | Soundscaper, Framescaper | Audacity |
 | Spectrogram settings | `track-spectrogram-settings` | — | Track context > Spectrogram | Soundscaper, Framescaper | Audacity |
 | Split | `split` | Ctrl+I | Edit > Clip; Clip context | Soundscaper, Framescaper | Audacity |
 | Split clips at silences | `disjoin` | Ctrl+Alt+J | Edit > Clip | Soundscaper, Framescaper | Audacity |
@@ -521,7 +521,7 @@ Product availability follows each product profile’s command filters and each l
 | Vocoder | `vocoder` | — | Effect > Distortion and modulation | Soundscaper | Soundscaper local |
 | Wahwah | `audacity-wahwah` | — | Effect > Distortion and modulation | Soundscaper | Soundscaper local |
 | Watch folders | `framescaper-watch-folders` | — | Tools | Framescaper | Soundscaper local |
-| Waveform | `action://trackedit/track-view-waveform` | — | Track context > Display | Soundscaper, Framescaper | Audacity |
+| Waveform | `action://trackedit/track-view-waveform` | — | Track context > Track visualization | Soundscaper, Framescaper | Audacity |
 | Zoom in | `zoom-in` | Ctrl+= | View > Zoom | Soundscaper, Framescaper | Audacity |
 | Zoom normal | `zoom-default` | Ctrl+2 | View > Zoom | Soundscaper, Framescaper | Audacity |
 | Zoom out | `zoom-out` | Ctrl+- | View > Zoom | Soundscaper, Framescaper | Audacity |

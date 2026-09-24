@@ -251,8 +251,7 @@ test('editor preferences default to Modern/system/Colorful and exclude OS, cloud
 	assert.deepEqual(preferences.startup, { mode: 'continue-last-session', projectId: '' });
 	assert.deepEqual(preferences.effects, { menuOrganization: 'default' });
 	assert.equal(preferences.editing.collisionBehavior, 'audacity');
-	// Match Audacity's default wheel-zoom precision.
-	assert.equal(preferences.editing.zoomPrecision, 6);
+	assert.equal(preferences.editing.zoomPrecision, 2);
 	assert.equal(validateAudioEditorPreferencesV1(preferences), true);
 	assert.deepEqual(loadAudioEditorPreferencesV1(preferences), { preferences, readOnly: false, reason: null });
 	const savedWithWebVcrOpen = structuredClone(preferences);
@@ -320,7 +319,7 @@ test('editor preferences default to Modern/system/Colorful and exclude OS, cloud
 	// Preferences saved before Program start existed keep continuing the last
 	// session, which is what those sessions already did.
 	assert.deepEqual(loadedLegacyPreferences.startup, { mode: 'continue-last-session', projectId: '' });
-	assert.equal(loadedLegacyPreferences.editing.zoomPrecision, 6);
+	assert.equal(loadedLegacyPreferences.editing.zoomPrecision, 2);
 	assert.equal(loadedLegacyPreferences.effects.menuOrganization, 'default');
 	assert.deepEqual(
 		Object.keys(loadedLegacyPreferences.workspace.panels.history).sort(),

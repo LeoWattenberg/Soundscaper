@@ -407,6 +407,7 @@ function renderTrackMenuItem(item, index, setTrackMenu) {
 	return <ContextMenuItem
 		key={item.id || `${item.label}-${index}`}
 		label={item.label}
+		icon={item.icon}
 		shortcut={item.shortcut}
 		checked={item.checked}
 		disabled={item.disabled}

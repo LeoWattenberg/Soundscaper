@@ -48,7 +48,7 @@ test('frequency views retain neutral clip bodies across skins, themes, and clip 
 		for (const theme of ['light', 'dark']) {
 			await setDocumentTheme(page, theme);
 			for (const mode of ['3-band waveform', 'Rainbow waveform']) {
-				await chooseTrackMenuAction(page, editor, track, ['Display', mode]);
+				await chooseTrackMenuAction(page, editor, track, ['Track visualization', mode]);
 				await expect(clip.locator('canvas.clip-body__waveform')).toHaveAttribute('data-waveform-source', 'frequency-analysis');
 				const backgrounds = [];
 				for (const color of ['Red', 'Green']) {
@@ -82,7 +82,7 @@ test('zoom keeps painted waveforms and switches 3-band to ordinary samples', asy
 	const zoomIn = editor.getByRole('button', { name: 'Zoom in', exact: true });
 	const zoomOut = editor.getByRole('button', { name: 'Zoom out', exact: true });
 	for (const mode of ['Waveform', '3-band waveform', 'Rainbow waveform']) {
-		await chooseTrackMenuAction(page, editor, track, ['Display', mode]);
+		await chooseTrackMenuAction(page, editor, track, ['Track visualization', mode]);
 		await expect(waveform).toHaveAttribute('data-waveform-renderer', 'audacity');
 		await waveform.evaluate((canvas) => {
 			const state = { running: true, frames: 0, blankFrames: 0 };
@@ -135,17 +135,17 @@ test('track display combines half-wave and RMS with a frequency view', async ({ 
 	await importFiles(editor, [toneA]);
 	const clip = clipByName(editor, toneA.name);
 	const track = clip.locator('xpath=ancestor::div[@data-track-row]');
-	await chooseTrackMenuAction(page, editor, track, ['Display', '3-band waveform']);
-	await chooseTrackMenuAction(page, editor, track, ['Display', 'Half-wave']);
+	await chooseTrackMenuAction(page, editor, track, ['Track visualization', '3-band waveform']);
+	await chooseTrackMenuAction(page, editor, track, ['Track visualization', 'Half-wave']);
 	await expect(track).toHaveAttribute('data-display-mode', 'waveform-three-band');
 	await expect(clip.locator('.clip-body')).toHaveAttribute('data-half-wave', 'true');
 	const waveform = clip.locator('canvas.clip-body__waveform');
 	const withoutRms = await waveform.evaluate(waveformChecksum);
-	await chooseTrackMenuAction(page, editor, track, ['Display', 'Show RMS in waveform']);
+	await chooseTrackMenuAction(page, editor, track, ['Track visualization', 'Show RMS in waveform']);
 	await expect.poll(() => waveform.evaluate(waveformChecksum)).not.toBe(withoutRms);
-	await chooseTrackMenuAction(page, editor, track, ['Display', 'Show RMS in waveform']);
+	await chooseTrackMenuAction(page, editor, track, ['Track visualization', 'Show RMS in waveform']);
 	await expect.poll(() => waveform.evaluate(waveformChecksum)).toBe(withoutRms);
-	await chooseTrackMenuAction(page, editor, track, ['Display', 'Half-wave']);
+	await chooseTrackMenuAction(page, editor, track, ['Track visualization', 'Half-wave']);
 	await expect(clip.locator('.clip-body')).not.toHaveAttribute('data-half-wave');
 	await expect(clip.locator('canvas.clip-body__waveform')).toHaveAttribute('data-frequency-waveform-mode', 'waveform-three-band');
 });

@@ -1,4 +1,7 @@
+import { createElement } from 'react';
+
 import { resolveTrackWaveformOptions } from '../../track-display-mode.ts';
+import { iconNameToChar } from '../../audacity-iconcodes.js';
 import { AUDACITY_TRACK_CONTEXT_ACTION_IDS } from '../../audacity-context-menu.js';
 import { trackSourceChannelCount } from '../application-menu-model.js';
 import {
@@ -13,6 +16,11 @@ import {
 } from './geometry.ts';
 import { manifestMenuItem } from './TimelineOverlayComponents.jsx';
 import { moveMediaTrackBlock } from './timeline-navigation.js';
+
+const trackVisualizationIcon = (name) => createElement('span', {
+	className: 'musescore-icon',
+	'aria-hidden': true,
+}, iconNameToChar(name));
 
 /**
  * Whether an audio-only clip command is available on this clip, in this product.
@@ -165,15 +173,15 @@ export function createTimelineMenuModel({
 			{
 				id: 'track-display', label: copy.trackDisplay,
 				items: [
-					manifestMenuItem(AUDACITY_TRACK_CONTEXT_ACTION_IDS.waveform, copy.waveformView, { checked: ['waveform', 'half-wave'].includes(waveformOptions.displayMode), onClick: () => run(() => controller.actions.track.setWaveformView(menuTrack.id)) }, contextLocale, unavailableReason),
+					manifestMenuItem(AUDACITY_TRACK_CONTEXT_ACTION_IDS.waveform, copy.waveformView, { icon: trackVisualizationIcon('WAVEFORM'), checked: ['waveform', 'half-wave'].includes(waveformOptions.displayMode), onClick: () => run(() => controller.actions.track.setWaveformView(menuTrack.id)) }, contextLocale, unavailableReason),
 					...(snapshot.capabilities?.audioSpectralEditing ? [
 						manifestMenuItem(AUDACITY_TRACK_CONTEXT_ACTION_IDS.threeBandWaveform, copy.threeBandWaveformView, { checked: waveformOptions.displayMode === 'waveform-three-band', onClick: () => run(() => controller.actions.track.setThreeBandWaveformView(menuTrack.id)) }, contextLocale, unavailableReason),
 						manifestMenuItem(AUDACITY_TRACK_CONTEXT_ACTION_IDS.rainbowWaveform, copy.rainbowWaveformView, { checked: waveformOptions.displayMode === 'waveform-rainbow', onClick: () => run(() => controller.actions.track.setRainbowWaveformView(menuTrack.id)) }, contextLocale, unavailableReason),
-						manifestMenuItem(AUDACITY_TRACK_CONTEXT_ACTION_IDS.spectrogram, copy.spectrogramView, { checked: waveformOptions.displayMode === 'spectrogram', onClick: () => run(() => controller.actions.track.setSpectrogramView(menuTrack.id)) }, contextLocale, unavailableReason),
-						manifestMenuItem(AUDACITY_TRACK_CONTEXT_ACTION_IDS.multiview, copy.multiview, { checked: waveformOptions.displayMode === 'multiview', onClick: () => run(() => controller.actions.track.setMultiView(menuTrack.id)) }, contextLocale, unavailableReason),
+						manifestMenuItem(AUDACITY_TRACK_CONTEXT_ACTION_IDS.spectrogram, copy.spectrogramView, { icon: trackVisualizationIcon('SPECTROGRAM'), checked: waveformOptions.displayMode === 'spectrogram', onClick: () => run(() => controller.actions.track.setSpectrogramView(menuTrack.id)) }, contextLocale, unavailableReason),
+						manifestMenuItem(AUDACITY_TRACK_CONTEXT_ACTION_IDS.multiview, copy.multiview, { icon: trackVisualizationIcon('WAVEFORM_MULTIVIEW'), checked: waveformOptions.displayMode === 'multiview', onClick: () => run(() => controller.actions.track.setMultiView(menuTrack.id)) }, contextLocale, unavailableReason),
 					] : []),
 					{ divider: true, label: '' },
-					{ id: 'track-half-wave', label: copy.halfWave, checked: waveformOptions.halfWave,
+					{ id: 'track-half-wave', label: copy.halfWave, icon: trackVisualizationIcon('WAVEFORM_HALFWAVE'), checked: waveformOptions.halfWave,
 						disabled: mutationsBlocked || waveformOptions.displayMode === 'spectrogram',
 						onClick: () => run(() => controller.actions.track.update(menuTrack.id, { halfWave: !waveformOptions.halfWave })) },
 					{ id: 'track-show-rms', label: copy.showRms, checked: waveformOptions.showRms,

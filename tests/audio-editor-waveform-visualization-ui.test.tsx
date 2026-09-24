@@ -7,6 +7,7 @@ import React, { act, type ReactElement } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 
 import { createAudioEditorPreferencesV1 } from '../src/common/editor/preferences.js';
+import { iconNameToChar } from '../src/common/editor/audacity-iconcodes.js';
 import WaveformPreferencesPage from '../src/common/editor/ui/dialogs/WaveformPreferencesPage.tsx';
 import WorkspacePreferencesDialog from '../src/common/editor/ui/dialogs/WorkspacePreferencesDialog.jsx';
 import { workspacePreferencesPage } from '../src/common/editor/ui/workspace/workspace-preferences-routing.ts';
@@ -27,6 +28,7 @@ interface MenuItem {
 	readonly id?: string;
 	readonly label?: ReactElement<MenuActionLabelProps> | string;
 	readonly checked?: boolean;
+	readonly icon?: ReactElement | string;
 	readonly items?: readonly MenuItem[];
 	readonly onClick?: () => unknown;
 }
@@ -45,6 +47,15 @@ test('frequency waveform entries are capability-gated and route settings to trac
 		surfaceCalls,
 	));
 	const display = requiredItem(capable.trackMenuItems, 'track-display');
+	assert.equal(display.label, ENGLISH_COPY.trackDisplay);
+	assert.equal(display.label, 'Track visualization');
+	for (const [action, iconName] of [
+		['action://trackedit/track-view-waveform', 'WAVEFORM'],
+		['action://trackedit/track-view-spectrogram', 'SPECTROGRAM'],
+		['action://trackedit/track-view-multi', 'WAVEFORM_MULTIVIEW'],
+	] as const) {
+		assert.match(renderToStaticMarkup(requiredAction(display.items, action).icon), new RegExp(iconNameToChar(iconName), 'u'));
+	}
 	assert.deepEqual(display.items?.map(actionId).filter(Boolean), [
 		'action://trackedit/track-view-waveform',
 		'local://track-view-waveform-three-band',
@@ -54,6 +65,7 @@ test('frequency waveform entries are capability-gated and route settings to trac
 		'local://waveform-visualization-settings',
 	]);
 	const halfWave = requiredItem(display.items, 'track-half-wave');
+	assert.match(renderToStaticMarkup(halfWave.icon), new RegExp(iconNameToChar('WAVEFORM_HALFWAVE'), 'u'));
 	const rms = requiredItem(display.items, 'track-show-rms');
 	assert.equal(halfWave.checked, false);
 	assert.equal(rms.checked, false);
@@ -179,7 +191,7 @@ function menuInput(
 		} } },
 		snapshot: { capabilities },
 		locale: 'en',
-		copy: new Proxy({}, { get: (_target, property) => String(property) }),
+		copy: ENGLISH_COPY,
 		showArmControls: false,
 		onToggleArmControls: () => undefined,
 		mutationsBlocked: false,

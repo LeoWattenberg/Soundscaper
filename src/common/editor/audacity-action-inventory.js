@@ -286,9 +286,9 @@ export const AUDACITY_ACTION_DEFINITIONS = [
 	legacyMixer('track-gain-dec', 'Decrease Gain on Focused Track', 'editable-focused-audio-track'),
 	legacyMixer('track-mute', 'Mute/Unmute Focused Track', 'editable-focused-media-track'),
 	legacyMixer('track-solo', 'Solo/Unsolo Focused Track', 'editable-focused-media-track'),
-	implemented('action://trackedit/track-view-waveform', 'Waveform', ['Track context > Display'], 'track.setWaveformView', { enableWhen: 'audio-track-selected', source: UPSTREAM.trackEdit }),
-	implemented('action://trackedit/track-view-spectrogram', 'Spectrogram', ['Track context > Display'], 'track.setSpectrogramView', { enableWhen: 'audio-track-selected', source: UPSTREAM.trackEdit }),
-	implemented('action://trackedit/track-view-multi', 'Multi-view', ['Track context > Display'], 'track.setMultiView', { enableWhen: 'audio-track-selected', source: UPSTREAM.trackEdit }),
+	implemented('action://trackedit/track-view-waveform', 'Waveform', ['Track context > Track visualization'], 'track.setWaveformView', { enableWhen: 'audio-track-selected', source: UPSTREAM.trackEdit }),
+	implemented('action://trackedit/track-view-spectrogram', 'Spectrogram', ['Track context > Track visualization'], 'track.setSpectrogramView', { enableWhen: 'audio-track-selected', source: UPSTREAM.trackEdit }),
+	implemented('action://trackedit/track-view-multi', 'Multi-view', ['Track context > Track visualization'], 'track.setMultiView', { enableWhen: 'audio-track-selected', source: UPSTREAM.trackEdit }),
 	// Upstream treats sample rate as a track property. Nothing in the browser
 	// model does: the rate lives on the source a clip references, and one
 	// track's clips may legitimately carry several of them. The commands keep
@@ -304,7 +304,7 @@ export const AUDACITY_ACTION_DEFINITIONS = [
 	// imported Audacity project's format back out to .aup4.
 	excluded('action://trackedit/track/change-format?format=%1', 'Track sample format', ['Track context > Format'], EXCLUDED_REASONS.sampleFormat, { source: UPSTREAM.trackEdit, upstreamAction: 'dynamic ActionQuery format action' }),
 	implemented('track-spectrogram-settings', 'Spectrogram settings', ['Track context > Spectrogram'], 'track.openSpectrogramSettings', { enableWhen: 'audio-track-selected', source: UPSTREAM.spectrogram }),
-	implemented('action://projectscene/track-view-half-wave', 'Half-wave', ['Track context > Display'], 'track.setHalfWaveView', { enableWhen: 'audio-track-selected', source: UPSTREAM.projectScene }),
+	implemented('action://projectscene/track-view-half-wave', 'Half-wave', ['Track context > Track visualization'], 'track.setHalfWaveView', { enableWhen: 'audio-track-selected', source: UPSTREAM.projectScene }),
 	implemented('keep-tracks-synchronised', 'Keep tracks synchronized', ['Tracks'], 'preferences.toggleTrackSynchronization', { enableWhen: 'project-opened', source: UPSTREAM.project }),
 	implemented('track-view-item-move-left', 'Move item left', ['Keyboard navigation'], 'navigation.moveItemLeft', { enableWhen: 'editable-project', source: UPSTREAM.trackEdit }),
 	implemented('track-view-item-move-right', 'Move item right', ['Keyboard navigation'], 'navigation.moveItemRight', { enableWhen: 'editable-project', source: UPSTREAM.trackEdit }),

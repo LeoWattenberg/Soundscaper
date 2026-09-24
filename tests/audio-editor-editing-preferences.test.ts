@@ -30,7 +30,7 @@ const EXACT_DEFAULTS = {
 	rippleMode: 'off',
 	collisionBehavior: 'audacity',
 	snapToZeroCrossings: false,
-	zoomPrecision: 6,
+	zoomPrecision: 2,
 	applyEffectsToAllAudio: true,
 	applyMicrofadesToNewClips: true,
 	deleteBehavior: 'not-set',
@@ -45,7 +45,7 @@ const EXACT_DEFAULTS = {
 	zoomTogglePreset2: 'four-pixels-per-sample',
 };
 
-test('Audacity 4 audio-editing preferences have exact defaults', () => {
+test('audio-editing preferences use Soundscaper defaults', () => {
 	assert.deepEqual(normalizeAudioEditorEditingPreferences(), EXACT_DEFAULTS);
 	assert.deepEqual(createAudioEditorPreferencesV1().editing, EXACT_DEFAULTS);
 
