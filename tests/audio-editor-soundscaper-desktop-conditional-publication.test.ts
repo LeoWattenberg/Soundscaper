@@ -21,7 +21,10 @@ import { createSoundscaperProject } from '../src/soundscaper/editor-project.ts';
 import { SOUNDSCAPER_PROJECT_RUNTIME_PROFILE } from
 	'../src/soundscaper/editor-project-runtime-profile.ts';
 import { createSoundscaperProjectStore } from '../src/soundscaper/editor-project-store.ts';
-import type { SoundscaperProject } from '../src/soundscaper/editor-project-validation.ts';
+import {
+	validateSoundscaperProject,
+	type SoundscaperProject,
+} from '../src/soundscaper/editor-project-validation.ts';
 import { createInstrumentedIndexedDB } from './helpers/instrumented-indexeddb.js';
 
 const PROJECT_ID = 'desktop-conditional-publication';
@@ -113,6 +116,43 @@ test('Soundscaper desktop conditional saves publish and compare against main aut
 			expectedDocument: { ...fenced, title: 'Not current' },
 		}), /write-fence/u);
 		assert.deepEqual(await authoritativeProject(session, PROJECT_ID), fenced);
+
+		const catalog = await adapter.listProjects();
+		assert.ok(catalog.some((project) => project.id === PROJECT_ID && project.title === 'Fenced'));
+		assert.deepEqual(await adapter.loadProject(PROJECT_ID), fenced);
+		assert.deepEqual(await adapter.loadProject(PROJECT_ID, { revision: 0 }), base,
+			'a revision-pinned read stays in the local shadow');
+		await assert.rejects(adapter.loadProject(PROJECT_ID, { revision: -1 }), /revision is invalid/u);
+		await assert.rejects(adapter.loadProject(PROJECT_ID, { signal: 'not a signal' }), /AbortSignal/u);
+		await assert.rejects(adapter.saveProject(fenced, { unexpected: true }), /unsupported fields/u);
+		assert.equal(await adapter.createProjectIfAbsent(base), null,
+			'desktop authority refuses to recreate an occupied project');
+		assert.equal(await adapter.createScapeProjectIfAbsent(base), null);
+		await assert.rejects(adapter.duplicateProject(PROJECT_ID, { id: '' }), /project id is invalid/u);
+
+		const stateBytes = Uint8Array.of(2, 4, 6, 8);
+		const stateDescriptor = await renderer.persistNativePluginState(stateBytes);
+		assert.deepEqual(await adapter.persistNativePluginStateBody(stateBytes, stateDescriptor), stateDescriptor);
+		assert.deepEqual(await adapter.getNativePluginStateBodyMetadata(stateDescriptor.bodyId), {
+			byteLength: stateBytes.byteLength, sha256: stateDescriptor.sha256,
+		});
+		assert.deepEqual(await adapter.loadNativePluginStateBody(stateDescriptor.bodyId), stateBytes);
+
+		const copied = await adapter.duplicateProject(PROJECT_ID, {
+			id: `${PROJECT_ID}-copy`, title: 'Desktop copy',
+		});
+		assert.ok(validateSoundscaperProject(copied));
+		assert.equal(copied.id, `${PROJECT_ID}-copy`);
+		assert.equal(copied.title, 'Desktop copy');
+		assert.deepEqual(await authoritativeProject(session, `${PROJECT_ID}-copy`), copied);
+		assert.equal(await adapter.deleteProjectIfCurrent(advance(copied, 1, 'Changed',
+			'2026-08-30T10:06:00.000Z')), false);
+		assert.deepEqual(await authoritativeProject(session, `${PROJECT_ID}-copy`), copied);
+		assert.equal(await adapter.deleteProjectIfCurrent(copied), true);
+		assert.equal(await session.readProjectBundle(`${PROJECT_ID}-copy`), null);
+		await adapter.deleteProject(PROJECT_ID);
+		assert.equal(await session.readProjectBundle(PROJECT_ID), null);
+		assert.equal(await adapter.loadProject(PROJECT_ID), null);
 	} finally {
 		if (priorDesktop) Object.defineProperty(globalThis, 'soundscaperProjectLibraryDesktop', priorDesktop);
 		else Reflect.deleteProperty(globalThis, 'soundscaperProjectLibraryDesktop');
