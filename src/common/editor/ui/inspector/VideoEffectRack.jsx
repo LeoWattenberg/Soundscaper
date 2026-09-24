@@ -50,9 +50,9 @@ function VideoEffectRow({ effect, clipId, index, count, actions, copy, disabled,
 			<header className="audio-editor-video-effect__header">
 				<DesignCheckbox label={label} checked={effect.enabled !== false} disabled={disabled} onChange={(checked) => onRun(() => actions.toggle(clipId, effect.id, checked))} />
 				<div className="audio-editor-video-effect__actions">
-					<button type="button" disabled={disabled || index === 0} aria-label={`${copy.moveEffectUp}: ${label}`} title={copy.moveEffectUp} onClick={() => onRun(() => actions.reorder(clipId, effect.id, index - 1))}>↑</button>
-					<button type="button" disabled={disabled || index === count - 1} aria-label={`${copy.moveEffectDown}: ${label}`} title={copy.moveEffectDown} onClick={() => onRun(() => actions.reorder(clipId, effect.id, index + 1))}>↓</button>
-					<button type="button" disabled={disabled} aria-label={`${copy.removeEffect}: ${label}`} title={copy.removeEffect} onClick={() => onRun(() => actions.remove(clipId, effect.id))}>×</button>
+					<button type="button" disabled={disabled || index === 0} aria-label={`${copy.moveEffectUp}: ${label}`} onClick={() => onRun(() => actions.reorder(clipId, effect.id, index - 1))}>↑</button>
+					<button type="button" disabled={disabled || index === count - 1} aria-label={`${copy.moveEffectDown}: ${label}`} onClick={() => onRun(() => actions.reorder(clipId, effect.id, index + 1))}>↓</button>
+					<button type="button" disabled={disabled} aria-label={`${copy.removeEffect}: ${label}`} onClick={() => onRun(() => actions.remove(clipId, effect.id))}>×</button>
 				</div>
 			</header>
 			<div className="audio-editor-video-effect__params">

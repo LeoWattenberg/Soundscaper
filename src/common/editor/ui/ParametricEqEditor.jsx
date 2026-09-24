@@ -429,9 +429,8 @@ export function ParametricEqEditor({
 							data-nyquist-limited={nyquistLimited ? 'true' : 'false'}
 							style={{ left: `${left}%`, top: `${top}%` }}
 							disabled={disabled}
-							aria-label={`${copy.bandNumber?.replace('{number}', String(index + 1)) || `Band ${index + 1}`}: ${formatFrequency(band.frequency)}, ${band.gain.toFixed(1)} dB, Q ${band.q.toFixed(2)}`}
+							aria-label={`${copy.bandNumber?.replace('{number}', String(index + 1)) || `Band ${index + 1}`}: ${formatFrequency(band.frequency)}, ${band.gain.toFixed(1)} dB, Q ${band.q.toFixed(2)}${nyquistLimited ? ` (${formatFrequency(effectiveFrequency)} effective at ${sampleRate} Hz)` : ''}`}
 							aria-pressed={band.id === selectedId}
-							title={nyquistLimited ? `${formatFrequency(band.frequency)} (${formatFrequency(effectiveFrequency)} effective at ${sampleRate} Hz)` : undefined}
 							onClick={() => setSelectedId(band.id)}
 							onPointerDown={(event) => beginDrag(event, band)}
 							onPointerMove={moveDrag}

@@ -6,22 +6,22 @@ export default function AudacityEffectHeader({ copy, automationEnabled, ...props
 	useEffect(() => {
 		const root = wrapperRef.current;
 		if (!root) return;
-		const automation = root.querySelector('.effect-header__left button');
+		const automation = root.querySelector('.toggle-button');
 		if (automation && !props.isDestructive) {
 			const label = automationEnabled
 				? copy.disableEffect
 				: copy.enableEffect;
 			automation.setAttribute('aria-label', label);
-			automation.setAttribute('title', label);
+			automation.removeAttribute('title');
 		}
-		const preset = root.querySelector('.effect-header__preset .dropdown__trigger');
+		const preset = root.querySelector('.dropdown__trigger');
 		preset?.setAttribute('aria-label', copy.effectPreset);
 		const actionLabels = [copy.saveEffectPreset, copy.resetEffectPreset, copy.deleteEffectPreset, copy.moreOptions];
-		root.querySelectorAll('.effect-header__right .effect-header__icon-button').forEach((button, index) => {
+		root.querySelectorAll('.effect-header__icon-button').forEach((button, index) => {
 			const label = actionLabels[index];
 			if (!label) return;
 			button.setAttribute('aria-label', label);
-			button.setAttribute('title', label);
+			button.removeAttribute('title');
 		});
 	}, [automationEnabled, copy, props.isDestructive]);
 	return <div ref={wrapperRef}><EffectHeader automationEnabled={automationEnabled} {...props} /></div>;

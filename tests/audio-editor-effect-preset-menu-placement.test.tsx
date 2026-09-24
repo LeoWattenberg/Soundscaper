@@ -78,6 +78,22 @@ test('effect About opens a separate details window and closes with its subject',
 	}
 });
 
+test('effect action buttons retain localized accessible names without native tooltips', async () => {
+	const fixture = await mountedBar();
+	try {
+		const buttons = fixture.dom.container.querySelectorAll('.effect-header__icon-button');
+		assert.deepEqual(buttons.map(button => button.getAttribute('aria-label')), [
+			ENGLISH_COPY.saveEffectPreset,
+			ENGLISH_COPY.resetEffectPreset,
+			ENGLISH_COPY.deleteEffectPreset,
+			ENGLISH_COPY.moreOptions,
+		]);
+		for (const button of buttons) assert.equal(button.getAttribute('title'), null);
+	} finally {
+		await fixture.cleanup();
+	}
+});
+
 async function mountedBar() {
 	const dom = installReactTestDom();
 	const body = (globalThis.document as unknown as { body: ReactTestElement }).body;

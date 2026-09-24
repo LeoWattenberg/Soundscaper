@@ -44,7 +44,7 @@ export default function AudioEditorWindowControls({
 	const maximizeAction = desktopChrome?.maximized ? 'restore' : 'maximize';
 	return (
 		<div className="kw-audio-editor__window-actions">
-			<button type="button" className="kw-audio-editor__fullscreen" aria-label={fullscreenLabel} title={fullscreenLabel} onClick={onFullscreen}>
+			<button type="button" className="kw-audio-editor__fullscreen" aria-label={fullscreenLabel} onClick={onFullscreen}>
 				<svg viewBox="0 0 16 16" aria-hidden="true" focusable="false">
 					<path d="M2.5 6V2.5H6M10 2.5h3.5V6M13.5 10v3.5H10M6 13.5H2.5V10" />
 				</svg>
@@ -54,7 +54,6 @@ export default function AudioEditorWindowControls({
 					type="button"
 					className="application-header__windows-control application-header__windows-control--minimize"
 					aria-label={desktopChrome.labels.minimize}
-					title={desktopChrome.labels.minimize}
 					data-window-control="minimize"
 					onClick={desktopChrome.onMinimize}
 				>
@@ -64,7 +63,6 @@ export default function AudioEditorWindowControls({
 					type="button"
 					className="application-header__windows-control application-header__windows-control--maximize"
 					aria-label={maximizeLabel}
-					title={maximizeLabel}
 					aria-pressed={desktopChrome.maximized}
 					disabled={desktopChrome.fullscreen}
 					data-window-control={maximizeAction}
@@ -78,7 +76,6 @@ export default function AudioEditorWindowControls({
 					type="button"
 					className="application-header__windows-control application-header__windows-control--close"
 					aria-label={desktopChrome.labels.quit}
-					title={desktopChrome.labels.quit}
 					data-window-control="quit"
 					onClick={desktopChrome.onQuit}
 				>

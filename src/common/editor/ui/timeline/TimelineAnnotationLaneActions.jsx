@@ -32,14 +32,14 @@ export function TimelineAnnotationLaneActions({
 			aria-label={copy.timelineAnnotations}
 			aria-describedby={statusId}
 		>
-			<button type="button" aria-label={copy.addTimelineMarker} title={copy.addTimelineMarker}
+			<button type="button" aria-label={copy.addTimelineMarker}
 				disabled={blocked} onClick={() => createAnnotation('marker', focusCreated)}>+M</button>
-			<button type="button" aria-label={copy.addTimelineRegion} title={copy.addTimelineRegion}
+			<button type="button" aria-label={copy.addTimelineRegion}
 				disabled={blocked || !(project.selection?.endFrame > project.selection?.startFrame)}
 				onClick={() => createAnnotation('region', focusCreated)}>+R</button>
-			<button type="button" aria-label={copy.batchTimelineAnnotations} title={copy.batchTimelineAnnotations}
+			<button type="button" aria-label={copy.batchTimelineAnnotations}
 				disabled={blocked || selectedIds.length < 2} onClick={() => batch(true)}>B</button>
-			<button type="button" aria-label={copy.unbatchTimelineAnnotations} title={copy.unbatchTimelineAnnotations}
+			<button type="button" aria-label={copy.unbatchTimelineAnnotations}
 				disabled={blocked || !selectedIds.length} onClick={() => batch(false)}>⇧B</button>
 		</div>
 		<span id={statusId} className="kw-audio-editor-sr-only" role="status" aria-live="polite">{status}</span>

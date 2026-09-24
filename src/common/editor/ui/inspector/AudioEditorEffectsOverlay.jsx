@@ -134,7 +134,7 @@ export function AudioEditorEffectsOverlay({
 	useEffect(() => {
 		for (const button of rackRef.current?.querySelectorAll('.effects-stack-header__menu-button') || []) {
 			button.setAttribute('aria-label', copy.effectStackOptions);
-			button.setAttribute('title', copy.effectStackOptions);
+			button.removeAttribute('title');
 		}
 	}, [copy.effectStackOptions, isOpen, channel?.id]);
 

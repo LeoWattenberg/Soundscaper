@@ -276,7 +276,6 @@ export function FreesoundPanel({
 										className="kw-audio-editor__freesound-preview-button"
 										disabled={result.previewAvailable === false}
 										aria-label={`${previewLabel}: ${result.name}`}
-										title={previewLabel}
 										aria-pressed={playing}
 										onClick={() => playing ? onPausePreview() : previewing ? onResumePreview() : onPreview(result.soundId)}
 									>
@@ -287,7 +286,6 @@ export function FreesoundPanel({
 										className="kw-audio-editor__freesound-waveform"
 										disabled={result.previewAvailable === false}
 										aria-label={`${copy.seekPreview}: ${result.name}`}
-										title={copy.seekPreview}
 										onClick={(event) => onSeekPreview(result.soundId, waveformSeekSeconds(
 											event.clientX,
 											event.currentTarget.getBoundingClientRect(),

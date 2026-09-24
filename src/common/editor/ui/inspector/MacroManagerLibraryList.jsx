@@ -99,7 +99,6 @@ function LibraryAction({ icon, label, disabled = false, onClick }) {
 			className="audio-editor-macros-palette__icon-button"
 			type="button"
 			aria-label={label}
-			title={label}
 			disabled={disabled}
 			onClick={onClick}
 		>

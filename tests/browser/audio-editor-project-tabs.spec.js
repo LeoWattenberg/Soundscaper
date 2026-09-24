@@ -32,7 +32,10 @@ test.describe('project tab close controls', () => {
 		expect(accessibility.violations).toEqual([]);
 		const close = projectTabs.getByRole('button', { name: 'Close project: Saved audio', exact: true });
 		await expect(close).toHaveText('×');
-		await expect(close).toHaveAttribute('title', 'Close project');
+		await expect(close).not.toHaveAttribute('title');
+		await close.hover();
+		await expect(editor.locator('[data-audio-editor-button-tooltip]')).toHaveText('Close project: Saved audio');
+		await page.mouse.move(0, 0);
 		await close.click();
 
 		await expect(projectTabs.getByRole('tab')).toHaveCount(1);

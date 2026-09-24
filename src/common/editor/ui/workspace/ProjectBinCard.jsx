@@ -200,7 +200,6 @@ export default function ProjectBinCard({
 						type="button"
 						className="kw-audio-editor__project-bin-icon-button kw-audio-editor__project-bin-overflow"
 						aria-label={`${copy.projectBinMoreActions}: ${name}`}
-						title={copy.projectBinMoreActions}
 						onClick={onOpenMenu}
 					>
 						<Icon name="menu" size={15} />
@@ -211,7 +210,6 @@ export default function ProjectBinCard({
 						className="kw-audio-editor__project-bin-icon-button"
 						disabled={disabled}
 						aria-label={`${copy.projectBinAddToTimeline}: ${name}`}
-						title={copy.projectBinAddToTimeline}
 						onClick={() => run(() => controller.actions.projectBin.place(clip.id, {
 							...(selectedMediaTrack ? { trackId: selectedMediaTrack.id } : {}),
 						}))}
@@ -224,7 +222,6 @@ export default function ProjectBinCard({
 						data-bin-action="source-monitor"
 						disabled={unavailable}
 						aria-label={`${copy.sourceMonitorOpen}: ${name}`}
-						title={copy.sourceMonitorOpen}
 						onClick={() => run(() => controller.actions.video.sourceMonitor.open(clip.binItemId || clip.id))}
 					>
 						<Icon name="eye" size={15} />
@@ -235,7 +232,6 @@ export default function ProjectBinCard({
 						data-bin-action="insert"
 						disabled={disabled}
 						aria-label={`${copy.editInsert}: ${name}`}
-						title={copy.editInsert}
 						onClick={() => run(() => controller.actions.video.insert({ binItemId: clip.binItemId || clip.id }))}
 					>
 						<Icon name="chevron-right" size={15} />
@@ -246,7 +242,6 @@ export default function ProjectBinCard({
 						data-bin-action="overwrite"
 						disabled={disabled}
 						aria-label={`${copy.editOverwrite}: ${name}`}
-						title={copy.editOverwrite}
 						onClick={() => run(() => controller.actions.video.overwrite({ binItemId: clip.binItemId || clip.id }))}
 					>
 						<Icon name="chevron-down" size={15} />
@@ -256,7 +251,6 @@ export default function ProjectBinCard({
 						className="kw-audio-editor__project-bin-icon-button"
 						disabled={mutationBlocked || instanceCount === 0}
 						aria-label={`${copy.projectBinSelectInstances}: ${name}`}
-						title={copy.projectBinSelectInstances}
 						onClick={() => run(() => controller.actions.projectBin.selectInstances(clip.id))}
 					>
 						<span className="kw-audio-editor__project-bin-ibeam" aria-hidden="true" />
@@ -266,7 +260,6 @@ export default function ProjectBinCard({
 						className="kw-audio-editor__project-bin-icon-button"
 						disabled={unavailable}
 						aria-label={`${previewPlaying ? copy.pause : copy.play}: ${name}`}
-						title={previewPlaying ? copy.pause : copy.play}
 						aria-pressed={previewPlaying}
 						onClick={() => run(() => controller.actions.projectBin.playPause(clip.id))}
 					>

@@ -253,7 +253,9 @@ test.describe('audio editor React/design-system workflows', () => {
 	test('shows localized Flyout tooltips only while an editor button is hovered', async ({ page }) => {
 		const editor = await bootEditor(page, '/embed/en/');
 		const play = editor.getByRole('button', { name: 'Play', exact: true });
+		const fullscreen = editor.getByRole('button', { name: 'Fullscreen', exact: true });
 		const tooltip = editor.locator('.kw-audio-editor__button-tooltip');
+		await expect(editor.locator('button[title]:not([data-tooltip-ignore])')).toHaveCount(0);
 
 		await expect(tooltip).toHaveCount(0);
 		await play.hover();
@@ -264,6 +266,9 @@ test.describe('audio editor React/design-system workflows', () => {
 
 		await editor.locator('[data-action="mixer"] button').hover();
 		await expect(tooltip.locator('[data-audio-editor-button-tooltip]')).toHaveText('Mixer');
+		await fullscreen.hover();
+		await expect(tooltip.locator('[data-audio-editor-button-tooltip]')).toHaveText('Fullscreen');
+		expect(await fullscreen.getAttribute('title')).toBeNull();
 
 		await page.mouse.move(0, 0);
 		await expect(tooltip).toHaveCount(0);

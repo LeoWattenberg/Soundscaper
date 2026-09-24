@@ -59,7 +59,6 @@ export default function ProjectTabs({ projects, activeProjectId, copy, disabled,
 						type="button"
 						className="kw-audio-editor__project-tab-close"
 						aria-label={`${copy.closeProject}: ${project.title}`}
-						title={copy.closeProject}
 						tabIndex={project.id === focusableProjectId ? 0 : -1}
 						disabled={disabled}
 						onClick={(event) => {

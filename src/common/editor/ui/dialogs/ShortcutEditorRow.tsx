@@ -161,7 +161,6 @@ export function ShortcutEditorRow({ command, preferences, controller, copy, run 
 			data-shortcut-action={command.id}
 			data-disabled-reason={command.disabledReason || undefined}
 			aria-disabled={command.disabled ? 'true' : undefined}
-			title={command.disabledReason || undefined}
 		>
 			<span className="kw-audio-editor-preferences__shortcut-command">{command.label}</span>
 			<div className="kw-audio-editor-preferences__shortcut-bindings" role="group" aria-label={command.label} ref={bindingsRef}>
@@ -193,7 +192,6 @@ export function ShortcutEditorRow({ command, preferences, controller, copy, run 
 							className="kw-audio-editor-preferences__shortcut-add"
 							data-shortcut-add="true"
 							disabled={command.disabled}
-							title={copy.shortcutAddBinding}
 							aria-label={`${copy.shortcutAddBinding}: ${command.label}`}
 							onClick={() => setEntries((current) => [...current, ''])}
 						>{'+'}</button>}
