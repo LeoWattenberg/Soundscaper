@@ -163,7 +163,9 @@ test('install errors retain their cause only in the main process', async () => {
 	const { handlers } = harness({ install: async () => { throw cause; } }, {
 		onInstallError: (error) => reported.push(error),
 	});
-	await assert.rejects(handlers.get(CHANNELS.installAssistanceModel)?.(null, 'silero-vad-v6'),
+	const install = handlers.get(CHANNELS.installAssistanceModel);
+	assert.ok(install);
+	await assert.rejects(async () => { await install(null, 'silero-vad-v6'); },
 		(error: unknown) => error instanceof Error
 			&& error.message === 'The local model or its required runtime could not be downloaded or installed.'
 			&& !String(error).includes('C:\\Users'));
