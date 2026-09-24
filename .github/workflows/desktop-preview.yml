@@ -11,12 +11,6 @@ on:
       - 'soundscaper-v*-rc.*'
       - 'framescaper-v*-beta.*'
       - 'framescaper-v*-rc.*'
-  # Main commits are packaged off their Quality run rather than off the push, so
-  # the shared quality, browser and Firefox jobs are never run twice.
-  workflow_run:
-    workflows: [Quality]
-    types: [completed]
-    branches: [main]
   workflow_dispatch:
     inputs:
       artifact_variant:
@@ -33,15 +27,11 @@ permissions:
   packages: read
 
 concurrency:
-  group: desktop-preview-and-nightly-${{ github.event_name == 'workflow_run' && 'workflow-run' || github.run_id }}
-  # Automatic runs triggered by Quality may supersede only each other. Tag,
-  # schedule and dispatch runs use their unique run ID, so automatic packaging
-  # cannot cancel or replace them even when both resolve to the default branch.
-  cancel-in-progress: ${{ github.event_name == 'workflow_run' }}
+  group: desktop-preview-and-nightly-${{ github.run_id }}
+  cancel-in-progress: false
 
 jobs:
   quality:
-    if: github.event_name != 'workflow_run'
     runs-on: ubuntu-24.04
     timeout-minutes: 45
     outputs:
@@ -157,7 +147,6 @@ jobs:
 
   tests:
     name: Tests / ${{ matrix.shard }}
-    if: github.event_name != 'workflow_run'
     needs: quality
     strategy:
       fail-fast: false
@@ -237,7 +226,6 @@ jobs:
 
   coverage:
     name: Coverage
-    if: github.event_name != 'workflow_run'
     # The Chromium browser shards upload coverage of their own, and the floors
     # are scored over the union of what the site ran and what the Node shards ran.
     needs: [tests, browser]
@@ -275,7 +263,6 @@ jobs:
 
   browser:
     name: Browser / ${{ matrix.project }} ${{ matrix.shard }}/3
-    if: github.event_name != 'workflow_run'
     needs: quality
     strategy:
       fail-fast: false
@@ -383,7 +370,6 @@ jobs:
 
   firefox:
     name: Browser / firefox ${{ matrix.shard }}/3
-    if: github.event_name != 'workflow_run'
     needs: quality
     strategy:
       fail-fast: false
@@ -814,27 +800,16 @@ jobs:
 
   package-with-tests:
     name: Package nightly-with-tests / ${{ matrix.target.platform }} / ${{ matrix.target.arch }}
-    # Only a green same-repository Quality push is packaged. This rejects fork
-    # pull requests whose branch is also named `main` despite the branch filter.
+    # The expensive five-target real-model suite runs only when selected by hand.
     if: >-
       !cancelled()
-      && (
-        (
-          github.event_name == 'workflow_run'
-          && github.event.workflow_run.conclusion == 'success'
-          && github.event.workflow_run.event == 'push'
-          && github.event.workflow_run.head_repository.full_name == github.repository
-        )
-        || (
-          github.event_name == 'workflow_dispatch'
-          && inputs.artifact_variant == 'nightly-with-tests'
-          && needs.quality.result == 'success'
-          && needs.tests.result == 'success'
-          && needs.coverage.result == 'success'
-          && needs.browser.result == 'success'
-          && needs.firefox.result == 'success'
-        )
-      )
+      && github.event_name == 'workflow_dispatch'
+      && inputs.artifact_variant == 'nightly-with-tests'
+      && needs.quality.result == 'success'
+      && needs.tests.result == 'success'
+      && needs.coverage.result == 'success'
+      && needs.browser.result == 'success'
+      && needs.firefox.result == 'success'
     needs: [quality, tests, coverage, browser, firefox]
     timeout-minutes: 150
     strategy:
@@ -867,9 +842,7 @@ jobs:
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           persist-credentials: false
-          # A workflow_run checkout defaults to the branch head, which may have
-          # moved on. Package the exact commit the Quality run verified.
-          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+          ref: ${{ github.sha }}
 
       - name: Set up Node.js
         uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f # v6.1.0
@@ -933,7 +906,7 @@ jobs:
         env:
           SOUNDSCAPER_DESKTOP_TARGET_PLATFORM: ${{ matrix.target.platform }}
           SOUNDSCAPER_DESKTOP_TARGET_ARCH: ${{ matrix.target.arch }}
-          SOUNDSCAPER_SOURCE_REVISION: ${{ github.event.workflow_run.head_sha || github.sha }}
+          SOUNDSCAPER_SOURCE_REVISION: ${{ github.sha }}
           SOUNDSCAPER_PUBLISH_ASSISTANCE_RUNTIMES: 'true'
           R2_MODELS_ACCESS_KEY_ID: ${{ secrets.R2_MODELS_ACCESS_KEY_ID }}
           R2_MODELS_SECRET_ACCESS_KEY: ${{ secrets.R2_MODELS_SECRET_ACCESS_KEY }}
@@ -1016,7 +989,7 @@ jobs:
         env:
           SOUNDSCAPER_DESKTOP_TARGET_PLATFORM: ${{ matrix.target.platform }}
           SOUNDSCAPER_DESKTOP_TARGET_ARCH: ${{ matrix.target.arch }}
-          SOUNDSCAPER_SOURCE_REVISION: ${{ github.event.workflow_run.head_sha || github.sha }}
+          SOUNDSCAPER_SOURCE_REVISION: ${{ github.sha }}
 
       # macOS ships a 256-descriptor soft limit, and ad-hoc execution sealing walks
       # the whole embedded Playwright browser matrix. Raise the soft limit to
