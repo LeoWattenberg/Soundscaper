@@ -20,6 +20,8 @@ export interface LinkedSourcePasteRequest {
 	readonly projectId: string;
 	readonly store: PasteLinkedSourceAliasStore | null | undefined;
 	assertCurrent(): void;
+	/** A failed commit may still have published its project before a later callback threw. */
+	hasPublishedSources?(sourceIds: readonly string[]): boolean;
 	commit(command: AudioEditorCommand): PromiseLike<unknown> | unknown;
 }
 
@@ -47,6 +49,14 @@ export function commitPasteWithLinkedSourceAliases(request: LinkedSourcePasteReq
 			request.assertCurrent();
 			return await request.commit(request.command);
 		} catch (error) {
+			let published: boolean;
+			try {
+				published = request.hasPublishedSources?.(aliases.map(({ sourceId }) => sourceId)) ?? false;
+			} catch {
+				// If publication cannot be inspected, retaining the aliases keeps any pasted clip readable.
+				published = true;
+			}
+			if (published) throw error;
 			try { await store.rollbackLinkedOriginalSourceAliases(aliases); }
 			catch (rollbackError) {
 				throw new AggregateError(

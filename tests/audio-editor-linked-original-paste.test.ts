@@ -145,3 +145,51 @@ test('a failed cross-project paste rolls back only its newly copied binding', as
 	assert.equal(await store.getLinkedOriginalBinding('project-B', source.id), null);
 	assert.deepEqual(await store.getLinkedOriginalBinding('project-A', source.id), originBinding);
 });
+
+test('a paste commit that throws after publication retains the linked alias', async (context) => {
+	const store = createProjectStore({
+		indexedDB: null,
+		preferOpfs: false,
+		databaseName: `linked-paste-post-commit-${Date.now()}-${Math.random()}`,
+	});
+	context.after(async () => { await store.close(); });
+	const source = createAudioSource({
+		id: 'published-source', storageKey: 'published-source', mimeType: 'audio/wav',
+		frameCount: 1, channelCount: 1, sampleRate: 48_000, originalSampleRate: 48_000,
+		sampleFormat: 'float32', chunkFrames: 65_536,
+	});
+	await store.linkedOriginalBindingRepository.putIfCurrent({
+		schemaVersion: 2, kind: 'audio', projectId: 'published-A', sourceId: source.id,
+		storageKey: source.storageKey, locatorId: 'locator_published_000001',
+		locatorRevision: 'revision_published_0001', mimeType: source.mimeType,
+		byteLength: 1, sha256: 'b'.repeat(64),
+		sourceShape: {
+			frameCount: source.frameCount, channelCount: source.channelCount,
+			sampleRate: source.sampleRate, originalSampleRate: source.originalSampleRate,
+			sampleFormat: 'float32', chunkFrames: source.chunkFrames,
+		},
+	}, null);
+	let destination = createCurrentAudioEditorProject({ id: 'published-B', now: NOW, sampleRate: 48_000 });
+	const clip = createAudioClip({
+		id: 'published-clip', sourceId: source.id, timelineStartFrame: 0,
+		sourceStartFrame: 0, sourceDurationFrames: 1, durationFrames: 1,
+	});
+	const failure = new Error('publication callback failed');
+	await assert.rejects(async () => commitPasteWithLinkedSourceAliases({
+		command: { type: 'source/add', source },
+		originProjectId: 'published-A', projectId: destination.id, store,
+		assertCurrent: () => undefined,
+		hasPublishedSources: (sourceIds) => sourceIds.some((id) => destination.sources.some((item) => item.id === id)),
+		commit: () => {
+			destination = createCurrentAudioEditorProject({
+				id: 'published-B', now: NOW, sampleRate: 48_000,
+				sources: [source], clips: [clip],
+				tracks: [createAudioTrack({ id: 'published-track', clipIds: [clip.id] }, 48_000)],
+			});
+			throw failure;
+		},
+	}), (error: unknown) => error === failure);
+	await store.saveProject(destination);
+	assert.ok((await store.loadProject(destination.id))?.clips.some((item) => item.sourceId === source.id));
+	assert.ok(await store.getLinkedOriginalBinding(destination.id, source.id));
+});

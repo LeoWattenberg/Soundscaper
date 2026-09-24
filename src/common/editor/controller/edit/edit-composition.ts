@@ -158,6 +158,12 @@ export function createEditComposition<History extends ControllerRuntimeHistory>(
 							projectId: project.id,
 							store: dependencies.store,
 							assertCurrent,
+							hasPublishedSources: (sourceIds) => {
+								const current = dependencies.getCommandProject();
+								return current.id !== project.id || sourceIds.some(
+									(id) => current.sources.some((source) => source.id === id),
+								);
+							},
 							commit: dependencies.commit,
 						})
 					));
