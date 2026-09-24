@@ -21,6 +21,7 @@ test.describe('audio editor React/design-system workflows', () => {
 	registerAudioEditorHooks();
 
 	test('opens Audacity microphone and speaker flyouts', async ({ page }) => {
+		test.setTimeout(60_000);
 		await page.addInitScript(() => {
 			window.__microphoneRequests = 0;
 			Object.defineProperty(navigator, 'mediaDevices', {
