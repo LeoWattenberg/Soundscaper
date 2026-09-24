@@ -53,6 +53,8 @@ export interface DawprojectImportOptions {
 	 */
 	readonly media: ReadonlyMap<string, DawprojectDecodedMediaInfo | null>;
 	readonly createStableId: (prefix: string) => string;
+	/** IDs already committed while each archive entry was decoded. */
+	readonly stagedSourceIds?: ReadonlyMap<string, string>;
 	readonly sampleRate?: number;
 }
 
@@ -125,7 +127,7 @@ export function buildDawprojectProject(document: DawprojectDocument, options: Da
 		}
 		let source = sourceByPath.get(event.path);
 		if (!source) {
-			source = createSource(event, info, build);
+			source = createSource(event, info, build, options.stagedSourceIds?.get(event.path));
 			sourceByPath.set(event.path, source);
 			sources.push(source);
 			media.push({ path: event.path, sourceId: String(source.id) });
@@ -215,8 +217,8 @@ function chooseSampleRate(options: DawprojectImportOptions): number {
 	return chosen;
 }
 
-function createSource(event: DawprojectAudioEvent, info: DawprojectDecodedMediaInfo, build: Build): DataRecord {
-	const id = build.createStableId('source');
+function createSource(event: DawprojectAudioEvent, info: DawprojectDecodedMediaInfo, build: Build, stagedId?: string): DataRecord {
+	const id = stagedId ?? build.createStableId('source');
 	const name = entryBaseName(event.path) || id;
 	addDeliveryReportItem(build.draft, {
 		code: 'dawproject.audio-imported',
@@ -227,7 +229,7 @@ function createSource(event: DawprojectAudioEvent, info: DawprojectDecodedMediaI
 		message: 'The embedded audio file is decoded once and stored as a float32 source at its own sample rate.',
 	});
 	return {
-		id, name, mimeType: mimeTypeFor(name), storageKey: id,
+		id, name, mimeType: dawprojectImportedAudioMimeType(name), storageKey: id,
 		frameCount: info.frameCount, channelCount: info.channelCount,
 		sampleRate: info.sampleRate, originalSampleRate: info.sampleRate,
 		sampleFormat: 'float32',
@@ -384,7 +386,7 @@ function reportOmissions(
 	}
 }
 
-function mimeTypeFor(name: string): string {
+export function dawprojectImportedAudioMimeType(name: string): string {
 	const extension = /\.([a-z0-9]+)$/iu.exec(name)?.[1]?.toLowerCase() ?? '';
 	switch (extension) {
 		case 'aif': case 'aiff': return 'audio/aiff';

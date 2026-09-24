@@ -33,15 +33,17 @@ import { DAWPROJECT_XML_LIMITS } from './dawproject-xml.ts';
  * are inflated, and only the entries the project references are ever read.
  */
 
-export interface DawprojectArchiveFile {
-	readonly path: string;
-	readonly blob: BlobLike;
-}
+export type DawprojectArchiveFile = Readonly<{
+	path: string;
+} & (
+	| { blob: BlobLike; stream?: never }
+	| { blob?: never; stream: ReadableStream<Uint8Array> }
+)>;
 
 export interface DawprojectArchiveInput {
 	readonly projectXml: string;
 	readonly metadataXml: string;
-	readonly files: readonly DawprojectArchiveFile[];
+	readonly files: Iterable<DawprojectArchiveFile> | AsyncIterable<DawprojectArchiveFile>;
 }
 
 export interface DawprojectArchiveOptions {
@@ -79,33 +81,52 @@ export async function writeDawprojectArchive(
 	input: DawprojectArchiveInput,
 	options: DawprojectArchiveOptions = {},
 ): Promise<Blob> {
+	const result = await writeArchive(input, new BlobWriter(DAWPROJECT_MIME_TYPE), options);
+	if (!(result instanceof Blob)) throw new TypeError('The DAWproject archive writer did not produce a Blob.');
+	return result;
+}
+
+/** Write media as it is produced, without retaining the completed archive in memory. */
+export async function writeDawprojectArchiveToStream(
+	input: DawprojectArchiveInput,
+	writable: WritableStream<Uint8Array>,
+	options: DawprojectArchiveOptions = {},
+): Promise<void> {
+	await writeArchive(input, writable, options);
+}
+
+async function writeArchive(
+	input: DawprojectArchiveInput,
+	destination: BlobWriter | WritableStream<Uint8Array>,
+	options: DawprojectArchiveOptions,
+): Promise<unknown> {
 	if (typeof input?.projectXml !== 'string' || !input.projectXml) {
 		throw new TypeError('A DAWproject archive requires project.xml text.');
 	}
 	const signal = options.signal;
 	throwIfAborted(signal);
 	const seen = new Set<string>([DAWPROJECT_PROJECT_ENTRY, DAWPROJECT_METADATA_ENTRY]);
-	for (const file of input.files) {
-		const path = normalizeEntryPath(file.path);
-		if (!path || path.endsWith('/') || path.split('/').includes('..')) {
-			throw new RangeError(`Unsupported DAWproject entry path: ${file.path}.`);
-		}
-		if (seen.has(path)) throw new RangeError(`Duplicate DAWproject entry path: ${path}.`);
-		seen.add(path);
-	}
-	const writer = new ZipWriter(new BlobWriter(DAWPROJECT_MIME_TYPE));
+	const writer = new ZipWriter(destination);
 	try {
 		await writer.add(DAWPROJECT_METADATA_ENTRY, new TextReader(input.metadataXml || ''), { signal });
 		await writer.add(DAWPROJECT_PROJECT_ENTRY, new TextReader(input.projectXml), { signal });
-		for (const file of input.files) {
+		for await (const file of input.files) {
 			throwIfAborted(signal);
-			await writer.add(normalizeEntryPath(file.path), createArchiveMediaReader(file.blob, signal), { level: 0, signal });
+			const path = normalizeEntryPath(file.path);
+			if (!path || path.endsWith('/') || path.split('/').includes('..')) {
+				throw new RangeError(`Unsupported DAWproject entry path: ${file.path}.`);
+			}
+			if (seen.has(path)) throw new RangeError(`Duplicate DAWproject entry path: ${path}.`);
+			seen.add(path);
+			await writer.add(path, file.blob
+				? createArchiveMediaReader(file.blob, signal)
+				: file.stream, { level: 0, signal });
 		}
 	} catch (error) {
 		await writer.close().catch(() => undefined);
 		throw error;
 	}
-	const blob = await writer.close();
+	const blob = await writer.close(undefined, { zip64: true });
 	throwIfAborted(signal);
 	return blob;
 }

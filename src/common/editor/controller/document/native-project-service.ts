@@ -67,7 +67,7 @@ export function createNativeProjectService(runtime: NativeProjectServiceRuntime)
 		failSave, finishImport, finishSave, markDisposed,
 		requireOwnedProject, requireProject,
 	} = createNativeProjectOwnership(runtime);
-	const dawproject = createDeferredDawprojectService(runtime, { beginProjectTask, assertOwnership, beginImport, finishImport, persistDecodedSource, updateNativeProjectProgress, requireProject });
+	const dawproject = createDeferredDawprojectService(runtime, { beginProjectTask, assertOwnership, beginImport, finishImport, persistDecodedSource, persistSourceChunks, updateNativeProjectProgress, requireProject });
 
 	return Object.freeze({
 		dismissAup4CompatibilitySummary,
@@ -426,8 +426,18 @@ export function createNativeProjectService(runtime: NativeProjectServiceRuntime)
 		persistedSourceIds: string[],
 		operation: ProjectTask,
 	): Promise<void> {
-		await persistNativeProjectSource(runtime, project, sourceAudio.sourceId,
-			bufferedNativeSourceChunks(sourceAudio.channels, runtime.sourceChunkFrames), persistedSourceIds,
+		await persistSourceChunks(project, sourceAudio.sourceId,
+			bufferedNativeSourceChunks(sourceAudio.channels, runtime.sourceChunkFrames), persistedSourceIds, operation);
+	}
+
+	async function persistSourceChunks(
+		project: NativeProjectDocument,
+		sourceId: string,
+		chunks: AsyncIterable<readonly Float32Array[]>,
+		persistedSourceIds: string[],
+		operation: ProjectTask,
+	): Promise<void> {
+		await persistNativeProjectSource(runtime, project, sourceId, chunks, persistedSourceIds,
 			() => assertOwnership(operation.task, operation.projectToken));
 	}
 

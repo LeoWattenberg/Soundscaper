@@ -124,6 +124,10 @@ export interface NativeProjectStore {
 		chunkFrames: number;
 	}>): Promise<NativeSourceWriter>;
 	deleteSource(sourceId: string): PromiseLike<unknown> | unknown;
+	/** Ordered bounded PCM packets for large interchange exports. */
+	readSourceChunks?(sourceId: string, options?: Readonly<{ signal?: AbortSignal }>): AsyncIterable<
+		readonly Float32Array[] | Readonly<{ channels: readonly Float32Array[] }>
+	>;
 	/** The immutable original container of a video source, when the store keeps one. */
 	loadMediaAsset?(storageKey: string): Promise<BlobLike | null>;
 }
@@ -178,7 +182,7 @@ export interface NativeProjectFileService {
 		mimeType: string;
 	}>): Promise<unknown>;
 	prepareSave(request: Readonly<{
-		purpose: 'project';
+		purpose: 'project' | 'interchange';
 		suggestedName: string;
 		mimeType: string;
 		target?: unknown;

@@ -1,7 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { readDawprojectArchive, type DawprojectArchive } from '../../../../dawproject-archive.ts'; import { createLocalizedError, setLocalizedStatus, type LocalizedPresentationMessage } from '../../../../../i18n/presentation-message.ts';
-import { writeDawprojectArchive } from '../../../../dawproject-archive.ts';
+import { readDawprojectArchive, type DawprojectArchive, type DawprojectArchiveFile, writeDawprojectArchive, writeDawprojectArchiveToStream } from '../../../../dawproject-archive.ts'; import { createLocalizedError, setLocalizedStatus, type LocalizedPresentationMessage } from '../../../../../i18n/presentation-message.ts';
 import { createDawprojectExport } from '../../../../dawproject-export.ts';
 import {
 	DAWPROJECT_FILE_EXTENSION,
@@ -10,12 +9,15 @@ import {
 	isDawprojectFileName,
 } from '../../../../dawproject-format.ts';
 import { dawprojectMediaReferences, parseDawprojectDocument } from '../../../../dawproject-import.ts';
-import { buildDawprojectProject, type DawprojectDecodedMediaInfo } from '../../../../dawproject-import-project.ts';
+import { buildDawprojectProject, dawprojectImportedAudioMimeType, type DawprojectDecodedMediaInfo } from '../../../../dawproject-import-project.ts';
 import { createCurrentAudioEditorProject } from '../../../../project-current.ts';
-import { encodeWav } from '../../../../wav.js';
+import { AUDIO_EDITOR_PCM_CHUNK_FRAMES } from '../../../../pcm-chunks.js';
 import { admitAudioImportChannelCount } from '../audio-import-channel-admission.ts';
 import { decodeDawprojectAudioEntry } from '../../dawproject-audio-decode.ts';
 import { resolveDeliveredProject } from '../../../export/interchange-export-action.ts';
+import { DAWPROJECT_BLOB_EXPORT_BYTE_LIMIT, dawprojectWavByteLength, dawprojectWavStream } from './dawproject-export-audio.ts';
+import { inspectWavBlobPcm } from '../../../../wav-import.js';
+import { createWavBlobPcmChunkReader, type WavBlobPcmChunkReader, type WavPcmDescriptor } from '../../../../wav-pcm-chunk-reader.ts';
 import type { BlobLike } from '../../../../storage/media-records.ts';
 
 import type { EditorProjectToken, EditorTaskScope } from '../../../shared/lifecycle.ts';
@@ -59,6 +61,13 @@ export interface DawprojectServiceHelpers {
 		persistedSourceIds: string[],
 		operation: DawprojectServiceOperation,
 	): Promise<void>;
+	persistSourceChunks(
+		project: NativeProjectDocument,
+		sourceId: string,
+		chunks: AsyncIterable<readonly Float32Array[]>,
+		persistedSourceIds: string[],
+		operation: DawprojectServiceOperation,
+	): Promise<void>;
 	updateNativeProjectProgress(
 		progress: NativeProgress,
 		prefix: string,
@@ -79,10 +88,8 @@ export interface DawprojectOpenResult extends Readonly<Record<string, unknown>> 
 	readonly report: unknown;
 }
 
-interface DecodedEntry {
-	readonly info: DawprojectDecodedMediaInfo;
-	readonly channels: readonly Float32Array[];
-}
+/** One inflated archive entry plus one PCM packet may be resident during import. */
+export const DAWPROJECT_IMPORT_WORKING_BYTE_LIMIT = 256 * 1024 * 1024;
 
 export function createDawprojectService(runtime: NativeProjectServiceRuntime, helpers: DawprojectServiceHelpers) {
 	return Object.freeze({ openDawproject, saveDawproject });
@@ -107,37 +114,67 @@ export function createDawprojectService(runtime: NativeProjectServiceRuntime, he
 			const document = parseDawprojectDocument(archive.projectXml, archive.metadataXml);
 			const references = dawprojectMediaReferences(document)
 				.filter((reference) => reference.kind === 'audio' && !reference.external);
-			const decoded = new Map<string, DecodedEntry>();
 			const media = new Map<string, DawprojectDecodedMediaInfo | null>();
-			let decodedBytes = 0;
+			const stagedSourceIds = new Map<string, string>();
 			for (const [index, reference] of references.entries()) {
+				const entrySize = archive.entrySize(reference.path);
+				if (entrySize !== null && entrySize > DAWPROJECT_IMPORT_WORKING_BYTE_LIMIT) {
+					throw new RangeError(`DAWproject media ${reference.path} exceeds the import working memory budget.`);
+				}
 				const blob = await archive.readEntry(reference.path);
 				assertReady();
 				if (!blob) continue;
-				const audio = await decodeDawprojectAudioEntry(blob, entryBaseName(reference.path), {
+				if (blob.size > DAWPROJECT_IMPORT_WORKING_BYTE_LIMIT) {
+					throw new RangeError(`DAWproject media ${reference.path} exceeds the import working memory budget.`);
+				}
+				const wav = await inspectPcmWav(blob, signal);
+				const audio = wav ? null : await decodeDawprojectAudioEntry(blob, entryBaseName(reference.path), {
 					decodeAudioFile: runtime.decodeAudioFile ?? null, signal,
 				});
 				assertReady();
-				if (!audio || audio.channels.length === 0) {
+				if (!wav && (!audio || audio.channels.length === 0)) {
 					media.set(reference.path, null);
 					continue;
 				}
 				// The same 1–32 channel admission every other import path enforces: a wider
 				// archive would persist a project the playback graph cannot open.
-				admitAudioImportChannelCount(audio.channels.length);
-				const frameCount = audio.channels[0]!.length;
-				decodedBytes += frameCount * audio.channels.length * Float32Array.BYTES_PER_ELEMENT;
-				const info = { frameCount, channelCount: audio.channels.length, sampleRate: audio.sampleRate };
-				decoded.set(reference.path, { info, channels: audio.channels });
+				const info = wav ?? {
+					frameCount: audio!.channels[0]!.length,
+					channelCount: audio!.channels.length,
+					sampleRate: audio!.sampleRate,
+				};
+				admitAudioImportChannelCount(info.channelCount);
+				const sourceBytes = info.frameCount * info.channelCount * Float32Array.BYTES_PER_ELEMENT;
+				if (!Number.isSafeInteger(sourceBytes) || (!wav && sourceBytes + blob.size > DAWPROJECT_IMPORT_WORKING_BYTE_LIMIT)) {
+					throw new RangeError(`DAWproject media ${reference.path} exceeds the import working memory budget.`);
+				}
+				const chunkFrames = Math.min(runtime.sourceChunkFrames, AUDIO_EDITOR_PCM_CHUNK_FRAMES);
+				if (wav && blob.size + Math.min(info.frameCount, chunkFrames)
+					* (wav.blockAlign + info.channelCount * Float32Array.BYTES_PER_ELEMENT)
+					> DAWPROJECT_IMPORT_WORKING_BYTE_LIMIT) {
+					throw new RangeError(`DAWproject media ${reference.path} exceeds the import working memory budget.`);
+				}
+				await runtime.preflightStorage(sourceBytes, 'import');
+				assertReady();
+				const sourceId = runtime.createStableId('source');
+				const staged = stagedProjectSource(sourceId, reference.path, info);
+				if (wav) {
+					const reader = createWavBlobPcmChunkReader(blob, { descriptor: wav, chunkFrames });
+					await helpers.persistSourceChunks(staged, sourceId,
+						readWavChunks(reader, signal), persistedSourceIds, operation);
+				} else {
+					await helpers.persistDecodedSource(staged,
+						{ sourceId, channels: audio!.channels }, persistedSourceIds, operation);
+				}
+				assertReady();
+				stagedSourceIds.set(reference.path, sourceId);
 				media.set(reference.path, info);
 				helpers.updateNativeProjectProgress(
 					{ value: (index + 1) / references.length }, runtime.copy.importing, operation.task, operation.projectToken, undefined, { key: 'importing' },
 				);
 			}
-			await runtime.preflightStorage(decodedBytes, 'import');
-			assertReady();
 			const plan = buildDawprojectProject(document, {
-				fileName: String(file.name), media, createStableId: runtime.createStableId,
+				fileName: String(file.name), media, stagedSourceIds, createStableId: runtime.createStableId,
 			});
 			const created = createCurrentAudioEditorProject(plan.project as never);
 			// Both interchange readers produce the shared audio document. Apply the
@@ -146,12 +183,9 @@ export function createDawprojectService(runtime: NativeProjectServiceRuntime, he
 				? await runtime.adaptAudacityProject(created)
 				: runtime.loadProject(created).project;
 			assertReady();
-			for (const binding of plan.media) {
-				const entry = decoded.get(binding.path);
-				if (!entry) continue;
-				await helpers.persistDecodedSource(
-					importedProject, { sourceId: binding.sourceId, channels: entry.channels }, persistedSourceIds, operation,
-				);
+			const retainedIds = new Set(plan.media.map((binding) => binding.sourceId));
+			for (const sourceId of persistedSourceIds) {
+				if (!retainedIds.has(sourceId)) await Promise.resolve(runtime.store.deleteSource(sourceId));
 			}
 			await runtime.switchProject(importedProject, { readOnly: false, save: true });
 			activated = true;
@@ -208,29 +242,76 @@ export function createDawprojectService(runtime: NativeProjectServiceRuntime, he
 			// Publish before the save dialog: a cancelled save keeps the report.
 			runtime.state.deliveryReport = exported.report;
 			runtime.publishDocumentSnapshot();
-			const files: { path: string; blob: BlobLike }[] = [];
-			for (const [index, entry] of exported.media.entries()) {
-				assertReady();
-				const source = snapshot.sources.find((candidate) => candidate.id === entry.sourceId);
-				if (!source) continue;
-				files.push({ path: entry.path, blob: await mediaBlob(source, entry.kind) });
-				assertReady();
-				helpers.updateNativeProjectProgress(
-					{ value: (index + 1) / exported.media.length }, saving, operation.task, operation.projectToken, undefined, { key: 'dawprojectSaving', fallback: saving },
-				);
-			}
-			const blob = await writeDawprojectArchive(
-				{ projectXml: exported.projectXml, metadataXml: exported.metadataXml, files },
-				{ signal: operation.task.signal },
-			);
-			assertReady();
-			const saved = await runtime.fileService.saveFile({
-				purpose: 'interchange',
-				suggestedName: options.fileName ? withDawprojectExtension(options.fileName) : exported.fileName,
-				mimeType: DAWPROJECT_MIME_TYPE,
-				blob,
-				signal: operation.task.signal,
+			const fileName = options.fileName ? withDawprojectExtension(options.fileName) : exported.fileName;
+			const prepared = await runtime.fileService.prepareSave({
+				purpose: 'interchange', suggestedName: fileName, mimeType: DAWPROJECT_MIME_TYPE,
+				types: [{ description: 'DAWproject', accept: { [DAWPROJECT_MIME_TYPE]: [DAWPROJECT_FILE_EXTENSION] } }],
+				useFileSystemAccess: true, signal: operation.task.signal,
 			});
+			assertReady();
+			if (prepared.mode === 'cancelled') throw new DOMException('The file save was cancelled.', 'AbortError');
+			const sourceById = new Map(snapshot.sources.map((source) => [source.id, source]));
+			let maximumArchiveBytes = new TextEncoder().encode(exported.projectXml).byteLength
+				+ new TextEncoder().encode(exported.metadataXml).byteLength
+				+ (exported.media.length + 2) * 1024 + 1024 * 1024;
+			for (const entry of exported.media) {
+				const source = sourceById.get(entry.sourceId);
+				if (!source) continue;
+				const bytes = entry.kind === 'audio'
+					? dawprojectWavByteLength(source as NativeProjectAudioSource)
+					: (await mediaBlob(source)).size;
+				maximumArchiveBytes += bytes;
+				if (!Number.isSafeInteger(maximumArchiveBytes)) {
+					throw new RangeError('The DAWproject archive exceeds the supported byte count.');
+				}
+			}
+			assertReady();
+			async function* files(): AsyncGenerator<DawprojectArchiveFile> {
+				for (const [index, entry] of exported.media.entries()) {
+					assertReady();
+					const source = sourceById.get(entry.sourceId);
+					if (!source) continue;
+					yield entry.kind === 'audio'
+						? { path: entry.path, stream: dawprojectWavStream(runtime, source as NativeProjectAudioSource, operation.task.signal) }
+						: { path: entry.path, blob: await mediaBlob(source) };
+					assertReady();
+					helpers.updateNativeProjectProgress(
+						{ value: (index + 1) / exported.media.length }, saving, operation.task, operation.projectToken, undefined, { key: 'dawprojectSaving', fallback: saving },
+					);
+				}
+			}
+			let saved: NativeSavedFile;
+			if (prepared.mode === 'stream') {
+				try {
+					const writable = await prepared.createWritable(maximumArchiveBytes);
+					await writeDawprojectArchiveToStream(
+						{ projectXml: exported.projectXml, metadataXml: exported.metadataXml, files: files() },
+						writable, { signal: operation.task.signal },
+					);
+					assertReady();
+					saved = await prepared.commit();
+				} catch (error) {
+					await prepared.abort(error);
+					throw error;
+				}
+			} else {
+				if (maximumArchiveBytes > DAWPROJECT_BLOB_EXPORT_BYTE_LIMIT) {
+					throw new RangeError('DAWproject export exceeds the browser download memory budget. Choose a file streaming destination.');
+				}
+				await runtime.preflightStorage(maximumArchiveBytes, 'export');
+				assertReady();
+				const blob = await writeDawprojectArchive(
+					{ projectXml: exported.projectXml, metadataXml: exported.metadataXml, files: files() },
+					{ signal: operation.task.signal },
+				);
+				assertReady();
+				saved = await runtime.fileService.saveFile({
+					purpose: 'interchange', suggestedName: fileName, mimeType: DAWPROJECT_MIME_TYPE,
+					blob, target: prepared.target, useFileSystemAccess: false,
+					signal: operation.task.signal,
+				});
+			}
+			if (saved.cancelled) throw new DOMException('The file save was cancelled.', 'AbortError');
 			assertReady();
 			setLocalizedStatus(runtime.setStatus, runtime.copy, 'dawprojectSaved', undefined, 'success', { fallback: 'DAWproject exported.' });
 			runtime.publishDocumentSnapshot();
@@ -240,21 +321,43 @@ export function createDawprojectService(runtime: NativeProjectServiceRuntime, he
 		}
 	}
 
-	async function mediaBlob(source: NativeProjectDocument['sources'][number], kind: 'audio' | 'video'): Promise<BlobLike> {
+	async function mediaBlob(source: NativeProjectDocument['sources'][number]): Promise<BlobLike> {
 		const unavailable = (): Error => createLocalizedError(Error, runtime.copy, 'sourcePcmUnavailable', { source: source.name || source.id });
-		if (kind === 'video') {
-			const blob = await runtime.store.loadMediaAsset?.(source.storageKey ?? source.id);
-			if (!blob) throw unavailable();
-			return blob;
-		}
-		const audio = source as NativeProjectAudioSource;
-		const buffer = runtime.sourceBuffers.get(audio.id);
-		const channels = buffer
-			? Array.from({ length: buffer.numberOfChannels }, (_, channel) => buffer.getChannelData(channel))
-			: await runtime.loadStoredSourceChannels(runtime.store, audio);
-		if (!channels?.length) throw unavailable();
-		const bytes = encodeWav(channels, { sampleRate: audio.sampleRate, float: true }) as Uint8Array<ArrayBuffer>;
-		return new Blob([bytes], { type: 'audio/wav' });
+		const blob = await runtime.store.loadMediaAsset?.(source.storageKey ?? source.id);
+		if (!blob) throw unavailable();
+		return blob;
+	}
+}
+
+async function inspectPcmWav(blob: Blob, signal: AbortSignal): Promise<WavPcmDescriptor | null> {
+	const signature = String.fromCharCode(...new Uint8Array(await blob.slice(0, 4).arrayBuffer()));
+	if (!['RIFF', 'RF64', 'BW64'].includes(signature)) return null;
+	try {
+		return await inspectWavBlobPcm(blob, { signal }) as WavPcmDescriptor;
+	} catch (error) {
+		if (signal.aborted) throw error;
+		// Compressed or unusual WAV formats still belong to the codec fallback.
+		return null;
+	}
+}
+
+function stagedProjectSource(id: string, path: string, info: DawprojectDecodedMediaInfo): NativeProjectDocument {
+	return {
+		id: `staging-${id}`,
+		title: 'DAWproject staging',
+		schemaVersion: 17,
+		sources: [{
+			kind: 'audio', id, storageKey: id, name: entryBaseName(path), mimeType: dawprojectImportedAudioMimeType(path),
+			frameCount: info.frameCount, channelCount: info.channelCount, sampleRate: info.sampleRate,
+		}],
+		clips: [],
+	};
+}
+
+async function* readWavChunks(reader: WavBlobPcmChunkReader, signal: AbortSignal): AsyncGenerator<readonly Float32Array[]> {
+	for (let index = 0; index < reader.chunkCount; index += 1) {
+		signal.throwIfAborted();
+		yield (await reader.readChunk(index, { signal })).channels;
 	}
 }
 
