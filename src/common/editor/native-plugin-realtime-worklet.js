@@ -14,7 +14,7 @@ const ProcessorBase = globalThis.AudioWorkletProcessor || class {
 	constructor() { this.port = { postMessage() {}, onmessage: null, start() {} }; }
 };
 
-/** Fixed-pool, direct MessagePort processor. Missing/faulted hosts are dry bypass. */
+/** Fixed-pool, direct MessagePort processor. Live playback may dry bypass; renders fail closed. */
 export class NativePluginRealtimeProcessor extends ProcessorBase {
 	constructor(options = {}) {
 		super();
@@ -29,6 +29,9 @@ export class NativePluginRealtimeProcessor extends ProcessorBase {
 		this.sequence = 0;
 		this.peer = null;
 		this.bypassed = value.bypassed === true;
+		this.strictRender = value.strictRender === true;
+		this.renderFailed = false;
+		this.renderFailureReason = null;
 		this.pendingBypass = null;
 		this.free = [];
 		this.busy = new Map();
@@ -46,9 +49,15 @@ export class NativePluginRealtimeProcessor extends ProcessorBase {
 		const output = outputs[0] || [];
 		const frames = output[0]?.length || input[0]?.length || 0;
 		if (!frames) return true;
+		if (this.renderFailed) {
+			for (const channel of output) channel.fill(0);
+			return true;
+		}
 		if (input.length !== this.inputChannelCount || output.length !== this.outputChannelCount) {
-			this.#close('topology-mismatch');
-			copy(input, output, frames);
+			if (this.strictRender) this.#failRender('topology-mismatch');
+			else this.#close('topology-mismatch');
+			if (this.strictRender) for (const channel of output) channel.fill(0);
+			else copy(input, output, frames);
 			return true;
 		}
 		const contextFrame = Number(globalThis.currentFrame);
@@ -62,6 +71,11 @@ export class NativePluginRealtimeProcessor extends ProcessorBase {
 			copy(input, output, frames);
 			return true;
 		}
+		if (this.strictRender && !this.peer) {
+			this.#failRender('host-unavailable');
+			for (const channel of output) channel.fill(0);
+			return true;
+		}
 		if (this.frameCount !== frames || this.dry.length !== this.queueCapacity + 1) {
 			this.frameCount = frames;
 			this.dry = Array.from({ length: this.queueCapacity + 1 }, () => planes(this.outputChannelCount, frames));
@@ -73,6 +87,10 @@ export class NativePluginRealtimeProcessor extends ProcessorBase {
 		if (due?.processed) {
 			copy(due.processed.output, output, frames);
 			this.free.push(due.processed);
+		} else if (due && this.strictRender) {
+			this.#failRender('processing-deadline-miss');
+			for (const channel of output) channel.fill(0);
+			return true;
 		} else if (due) copy(due.dry, output, frames);
 		else for (const channel of output) channel.fill(0);
 		if (due) this.timeline.delete(sequence - this.queueCapacity);
@@ -81,7 +99,10 @@ export class NativePluginRealtimeProcessor extends ProcessorBase {
 		this.timeline.set(sequence, { dry, processed: null });
 		if (!this.peer) return true;
 		const slot = this.free.shift() || null;
-		if (!slot) return true;
+		if (!slot) {
+			if (this.strictRender) this.#failRender('processing-pool-exhausted');
+			return true;
+		}
 		if (!slot.input || slot.input[0]?.length !== frames) {
 			slot.input = planes(this.inputChannelCount, frames);
 			slot.output = planes(this.outputChannelCount, frames);
@@ -97,6 +118,14 @@ export class NativePluginRealtimeProcessor extends ProcessorBase {
 	}
 
 	#control(message, ports) {
+		if (message.type === NATIVE_PLUGIN_CONTROL.renderStatus) {
+			const requestId = requestIdValue(message.requestId);
+			if (requestId) this.#post({
+				type: NATIVE_PLUGIN_CONTROL.renderStatusResult, requestId,
+				failed: this.renderFailed, reason: this.renderFailureReason,
+			});
+			return;
+		}
 		if (message.type === NATIVE_PLUGIN_CONTROL.bypass) {
 			if (Number.isSafeInteger(message.atContextFrame) && message.atContextFrame >= 0) {
 				this.pendingBypass = {
@@ -273,11 +302,27 @@ export class NativePluginRealtimeProcessor extends ProcessorBase {
 	}
 
 	#send(message, transfer = []) {
-		try { this.peer?.postMessage(message, transfer); } catch { this.#close('peer-loss'); }
+		try { this.peer?.postMessage(message, transfer); } catch {
+			if (this.strictRender) this.#failRender('peer-loss');
+			else this.#close('peer-loss');
+		}
+	}
+
+	#failRender(reason) {
+		if (this.renderFailed) return;
+		this.renderFailed = true;
+		this.renderFailureReason = reason;
+		const hadPeer = !!this.peer;
+		this.#close(reason);
+		if (!hadPeer) this.#post({ type: NATIVE_PLUGIN_CONTROL.fault, reason });
 	}
 
 	#close(reason) {
 		const peer = this.peer;
+		if (this.strictRender && (reason !== 'replaced' || peer)) {
+			this.renderFailed = true;
+			this.renderFailureReason ||= reason;
+		}
 		this.peer = null;
 		this.#discardTimeline();
 		this.busy.clear();

@@ -59,6 +59,46 @@ test('native plug-in worklet closes instead of silently remapping a changed inpu
 	)), true);
 });
 
+test('strict native render reports a helper deadline miss instead of publishing dry audio', () => {
+	const processor = new NativePluginRealtimeProcessor({ processorOptions: {
+		instanceId: 'render-stall-1', inputChannelCount: 1, outputChannelCount: 1,
+		queueCapacity: 4, strictRender: true,
+	} });
+	const control = [];
+	processor.port.postMessage = (message) => { control.push(message); };
+	const peer = { postMessage() {}, start() {}, close() {} };
+	processor.port.onmessage({
+		data: { type: NATIVE_PLUGIN_CONTROL.attach, generation: 1 }, ports: [peer],
+	});
+	for (let block = 0; block < 4; block += 1) {
+		processor.process([[new Float32Array(128).fill(1)]], [[new Float32Array(128)]]);
+	}
+	const output = new Float32Array(128).fill(99);
+	processor.process([[new Float32Array(128).fill(1)]], [[output]]);
+	assert.equal(output[0], 0);
+	assert.deepEqual(control.filter(({ type }) => type === NATIVE_PLUGIN_CONTROL.fault)
+		.map(({ reason }) => reason), ['processing-deadline-miss']);
+	processor.port.onmessage({ data: {
+		type: 'native-plugin-render-status', requestId: 'status-1',
+	}, ports: [] });
+	assert.deepEqual(control.find(({ type }) => type === 'native-plugin-render-status-result'), {
+		type: 'native-plugin-render-status-result', requestId: 'status-1',
+		failed: true, reason: 'processing-deadline-miss', instanceId: 'render-stall-1',
+	});
+});
+
+test('strict native render reports an unavailable helper on its first block', () => {
+	const processor = new NativePluginRealtimeProcessor({ processorOptions: {
+		instanceId: 'render-missing-1', inputChannelCount: 1, outputChannelCount: 1,
+		queueCapacity: 4, strictRender: true,
+	} });
+	const control = [];
+	processor.port.postMessage = (message) => { control.push(message); };
+	processor.process([[new Float32Array(128).fill(1)]], [[new Float32Array(128)]]);
+	assert.deepEqual(control.filter(({ type }) => type === NATIVE_PLUGIN_CONTROL.fault)
+		.map(({ reason }) => reason), ['host-unavailable']);
+});
+
 test('an immediate bypass instruction supersedes a pending scheduled one', (context) => {
 	const priorFrame = globalThis.currentFrame;
 	context.after(() => { globalThis.currentFrame = priorFrame; });

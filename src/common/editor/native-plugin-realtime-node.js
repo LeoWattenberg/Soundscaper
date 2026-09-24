@@ -47,6 +47,21 @@ export async function prepareNativePluginOfflineRuntimes(context, project, optio
 		.map((state) => [state?.instanceId, state]));
 	const acquired = [];
 	const aliases = new Map();
+	const runtimeIds = new Set();
+	let failure = null;
+	let onFailure = null;
+	const recordFailure = (instanceId, reason) => {
+		if (failure) return;
+		failure = Object.assign(new Error(
+			`The native plug-in render failed: ${String(reason || 'host-lost')}.`,
+		), {
+			name: 'NativePluginRenderError', code: 'NATIVE_PLUGIN_RENDER_FAILURE', instanceId,
+		});
+		onFailure?.(failure);
+	};
+	const unsubscribe = subscribeNativePluginRuntime(({ instanceId, state, reason }) => {
+		if (state === 'host-lost' && runtimeIds.has(instanceId)) recordFailure(instanceId, reason);
+	});
 	let disposed = false;
 	try {
 		for (const instanceId of instanceIds) {
@@ -60,23 +75,52 @@ export async function prepareNativePluginOfflineRuntimes(context, project, optio
 				throw new Error('The native plug-in offline runtime provider returned a malformed session.');
 			}
 			aliases.set(instanceId, runtime.runtimeInstanceId);
+			runtimeIds.add(runtime.runtimeInstanceId);
 			acquired.push(runtime);
 		}
 		offlineAliases.set(context, aliases);
 	} catch (error) {
+		unsubscribe();
 		await Promise.allSettled(acquired.map((runtime) => runtime.dispose()));
 		throw error;
 	}
 	return Object.freeze({
+		onFailure(callback) {
+			onFailure = callback;
+			if (failure) callback(failure);
+		},
+		assertHealthy() { if (failure) throw failure; },
+		async verify() {
+			for (const runtime of acquired) {
+				if (failure) throw failure;
+				let status;
+				try {
+					status = await stateRequest(runtime.runtimeInstanceId, NATIVE_PLUGIN_CONTROL.renderStatus);
+				} catch (error) {
+					recordFailure(runtime.runtimeInstanceId, error instanceof Error ? error.message : 'status-unavailable');
+					throw failure;
+				}
+				if (status.failed !== false || status.reason !== null) {
+					recordFailure(runtime.runtimeInstanceId,
+						status.failed === true ? status.reason : 'invalid-render-status');
+				}
+				if (failure) throw failure;
+			}
+		},
 		async activate() {
 			for (const runtime of acquired) {
+				if (failure) throw failure;
 				await waitForNativePluginRuntime(runtime.runtimeInstanceId);
+				if (failure) throw failure;
 				await loadNativePluginRuntimeState(runtime.runtimeInstanceId, Uint8Array.from(runtime.stateBytes));
+				if (failure) throw failure;
 			}
 		},
 		async dispose() {
 			if (disposed) return;
 			disposed = true;
+			onFailure = null;
+			unsubscribe();
 			offlineAliases.delete(context);
 			await Promise.allSettled(acquired.map(async (runtime) => {
 				try { await runtime.dispose(); }
@@ -182,9 +226,13 @@ export function createNativePluginEffectNode(context, effect, channelCount = 2, 
 				instanceId, inputChannelCount: topology.inputChannels,
 				outputChannelCount: topology.outputChannels,
 				queueCapacity: 4, bypassed: effect.bypassed === true,
+				strictRender: offlineAliases.has(context),
 			},
 		});
 		node.port.onmessage = ({ data = {} } = {}) => receiveControl(instanceId, data);
+		node.onprocessorerror = () => receiveControl(instanceId, {
+			type: NATIVE_PLUGIN_CONTROL.fault, reason: 'processor-error',
+		});
 		node.port.start?.();
 		byInstance.set(instanceId, node);
 		activeNodes.set(instanceId, node);
@@ -288,6 +336,7 @@ export function releaseNativePluginRuntime(instanceId) {
 	forEachNode(instanceId, (node, byInstance) => {
 		node.port.postMessage({ type: NATIVE_PLUGIN_CONTROL.revoke });
 		node.port.onmessage = null;
+		node.onprocessorerror = null;
 		try { node.disconnect(); } catch { /* already disconnected */ }
 		byInstance.delete(instanceId);
 	});
@@ -310,6 +359,7 @@ function receiveControl(instanceId, message) {
 		}
 	} else if (message.type === NATIVE_PLUGIN_CONTROL.state || message.type === NATIVE_PLUGIN_CONTROL.stateLoaded
 		|| message.type === NATIVE_PLUGIN_CONTROL.vendorUi
+		|| message.type === NATIVE_PLUGIN_CONTROL.renderStatusResult
 		|| message.type === NATIVE_PLUGIN_CONTROL.capabilitiesResult
 		|| message.type === NATIVE_PLUGIN_CONTROL.parameters
 		|| message.type === NATIVE_PLUGIN_CONTROL.parameterValue) {
@@ -330,7 +380,7 @@ function receiveControl(instanceId, message) {
 		const error = new Error(`The native plug-in host failed: ${String(message.reason || 'fault')}.`);
 		rejectPending(instanceId, error);
 		rejectAttachment(instanceId, error);
-		notify(instanceId, 0, 'host-lost');
+		notify(instanceId, 0, 'host-lost', String(message.reason || 'fault'));
 	}
 }
 
@@ -386,8 +436,8 @@ function rejectPending(instanceId, error) {
 	}
 }
 
-function notify(instanceId, latencyFrames, state) {
-	for (const listener of listeners) listener(Object.freeze({ instanceId, latencyFrames, state }));
+function notify(instanceId, latencyFrames, state, reason = null) {
+	for (const listener of listeners) listener(Object.freeze({ instanceId, latencyFrames, state, reason }));
 }
 
 // WeakMap is intentionally non-enumerable. Context-local attachment happens in
@@ -415,5 +465,8 @@ async function workletUrl() {
 }
 
 function emptyOfflineRuntimes() {
-	return Object.freeze({ activate: async () => undefined, dispose: async () => undefined });
+	return Object.freeze({
+		onFailure() {}, assertHealthy() {}, verify: async () => undefined,
+		activate: async () => undefined, dispose: async () => undefined,
+	});
 }

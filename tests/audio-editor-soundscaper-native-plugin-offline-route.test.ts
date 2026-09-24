@@ -4,6 +4,8 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import { engineRenderingMethods } from '../src/common/editor/engine/rendering.ts';
+import { renderNativePluginRealtimePcmIfRequired } from '../src/common/editor/engine/native-plugin-realtime-render.ts';
+import { OfflineRenderOutputMemoryLimitError } from '../src/common/editor/engine/offline-render-admission.ts';
 import {
 	acceptNativePluginPortOffer,
 	closeNativePluginRuntimeVendorUi,
@@ -52,6 +54,12 @@ test('offline graph aliases a fresh helper, restores its state, and releases onl
 				if (message.type === 'native-plugin-load-state') queueMicrotask(() => this.port.onmessage?.({
 					data: { type: 'native-plugin-state-loaded', requestId: message.requestId },
 				}));
+				if (message.type === 'native-plugin-render-status') queueMicrotask(() => this.port.onmessage?.({
+					data: {
+						type: 'native-plugin-render-status-result', requestId: message.requestId,
+						failed: false, reason: null,
+					},
+				}));
 			},
 		};
 		disconnect() { messages.push('disconnect'); }
@@ -77,10 +85,115 @@ test('offline graph aliases a fresh helper, restores its state, and releases onl
 	}, [{ postMessage() {}, close() {} }]), true);
 	createNativePluginEffectNode(audioContext, PROJECT.tracks[0].effects[0], 2);
 	await runtimes.activate();
+	await runtimes.verify();
 	assert.equal(messages.some((value) => (value as { type?: string }).type === 'native-plugin-load-state'), true);
 	await runtimes.dispose();
 	assert.equal(disposed, 1);
 	assert.equal(messages.includes('disconnect'), true);
+});
+
+test('an offline native helper fault reaches its owning render session', async (context) => {
+	const original = globalThis.AudioWorkletNode;
+	class FakeNode {
+		readonly port = {
+			onmessage: null as ((event: { data: Record<string, unknown> }) => void) | null,
+			start() {},
+			postMessage: (message: Record<string, unknown>) => {
+				if (message.type === 'native-plugin-attach') queueMicrotask(() => this.port.onmessage?.({
+					data: { type: 'native-plugin-attached', generation: 1 },
+				}));
+				if (message.type === 'native-plugin-load-state') queueMicrotask(() => this.port.onmessage?.({
+					data: { type: 'native-plugin-state-loaded', requestId: message.requestId },
+				}));
+			},
+		};
+		constructor(_context: BaseAudioContext, _name: string, options: { processorOptions: { strictRender?: boolean } }) {
+			assert.equal(options.processorOptions.strictRender, true);
+		}
+		disconnect() {}
+	}
+	globalThis.AudioWorkletNode = FakeNode as unknown as typeof AudioWorkletNode;
+	context.after(() => { globalThis.AudioWorkletNode = original; });
+	const unregister = registerNativePluginOfflineRuntimeProvider(async () => {
+		registerNativePluginRuntimeIdentity('offline-fault-1', 'clap');
+		return Object.freeze({
+			runtimeInstanceId: 'offline-fault-1', stateBytes: new Uint8Array([1, 2, 3]),
+			dispose: async () => undefined,
+		});
+	});
+	context.after(unregister);
+	const audioContext = { sampleRate: 48_000 } as BaseAudioContext;
+	const runtimes = await prepareNativePluginOfflineRuntimes(audioContext, PROJECT, {
+		trackId: 'track-1', includeMaster: false,
+	});
+	try {
+		acceptNativePluginPortOffer({
+			instanceId: 'offline-fault-1', purpose: 'plugin-rpc', transport: 'message-port',
+			portContractVersion: 1, generation: 1, reportedLatencyFrames: 0,
+		}, [{ postMessage() {}, close() {} }]);
+		const activeNode = createNativePluginEffectNode(audioContext, PROJECT.tracks[0].effects[0], 2) as FakeNode;
+		await runtimes.activate();
+		let reported: unknown = null;
+		runtimes.onFailure((error: unknown) => { reported = error; });
+		activeNode.port.onmessage?.({ data: {
+			type: 'native-plugin-fault', reason: 'processing-deadline-miss',
+		} });
+		assert.equal((reported as { code?: string } | null)?.code, 'NATIVE_PLUGIN_RENDER_FAILURE');
+		assert.throws(() => runtimes.assertHealthy(), /processing-deadline-miss/iu);
+	} finally {
+		await runtimes.dispose();
+	}
+});
+
+test('native render status rejects a missed processor fault before accepting capture', async (context) => {
+	const original = globalThis.AudioWorkletNode;
+	class FakeNode {
+		readonly port = {
+			onmessage: null as ((event: { data: Record<string, unknown> }) => void) | null,
+			start() {},
+			postMessage: (message: Record<string, unknown>) => {
+				const replies: Record<string, Record<string, unknown>> = {
+					'native-plugin-attach': { type: 'native-plugin-attached', generation: 1 },
+					'native-plugin-load-state': { type: 'native-plugin-state-loaded', requestId: message.requestId },
+					'native-plugin-render-status': {
+						type: 'native-plugin-render-status-result', requestId: message.requestId,
+						failed: true, reason: 'processing-deadline-miss',
+					},
+				};
+				const reply = replies[String(message.type)];
+				if (reply) queueMicrotask(() => this.port.onmessage?.({ data: reply }));
+			},
+		};
+		disconnect() {}
+	}
+	globalThis.AudioWorkletNode = FakeNode as unknown as typeof AudioWorkletNode;
+	context.after(() => { globalThis.AudioWorkletNode = original; });
+	const unregister = registerNativePluginOfflineRuntimeProvider(async () => {
+		registerNativePluginRuntimeIdentity('offline-status-1', 'clap');
+		return Object.freeze({
+			runtimeInstanceId: 'offline-status-1', stateBytes: new Uint8Array([1, 2, 3]),
+			dispose: async () => undefined,
+		});
+	});
+	context.after(unregister);
+	const audioContext = { sampleRate: 48_000 } as BaseAudioContext;
+	const runtimes = await prepareNativePluginOfflineRuntimes(audioContext, PROJECT, {
+		trackId: 'track-1', includeMaster: false,
+	});
+	try {
+		acceptNativePluginPortOffer({
+			instanceId: 'offline-status-1', purpose: 'plugin-rpc', transport: 'message-port',
+			portContractVersion: 1, generation: 1, reportedLatencyFrames: 0,
+		}, [{ postMessage() {}, close() {} }]);
+		createNativePluginEffectNode(audioContext, PROJECT.tracks[0].effects[0], 2);
+		await runtimes.activate();
+		await assert.rejects(runtimes.verify(), (error: unknown) => (
+			(error as { code?: string }).code === 'NATIVE_PLUGIN_RENDER_FAILURE'
+			&& /processing-deadline-miss/iu.test((error as Error).message)
+		));
+	} finally {
+		await runtimes.dispose();
+	}
 });
 
 test('ordinary renderMix sends an active native rack through bounded realtime PCM capture', async (context) => {
@@ -119,6 +232,59 @@ test('ordinary renderMix sends an active native rack through bounded realtime PC
 	assert.strictEqual(buffer.getChannelData(0), buffer.channels[0], 'the buffer view does not copy the render');
 	assert.throws(() => buffer.getChannelData(2), /no channel 2/iu);
 	assert.equal(calls.length, 1);
+});
+
+test('native buffer rendering rejects oversized Freeze output before realtime rendering begins', async (context) => {
+	const unregister = registerNativePluginOfflineRuntimeProvider(async () => {
+		throw new Error('The helper must not be started for an oversized render.');
+	});
+	context.after(unregister);
+	let realtimeCalls = 0;
+	const host = {
+		project: PROJECT,
+		durationFrames: 16_777_217,
+		sampleRate: 48_000,
+		renderMixRealtime: async () => { realtimeCalls += 1; throw new Error('Realtime rendering began.'); },
+	};
+	await assert.rejects(
+		engineRenderingMethods.renderMix.call(host as never, {
+			trackId: 'track-1', includeMaster: false,
+		}),
+		(error: unknown) => error instanceof OfflineRenderOutputMemoryLimitError
+			&& error.code === 'OFFLINE_RENDER_OUTPUT_MEMORY_LIMIT'
+			&& error.maximumUsefulBinaryBytes === 128 * 1024 * 1024,
+	);
+	assert.equal(realtimeCalls, 0);
+});
+
+test('native buffer admission follows the requested realtime sample rate', async (context) => {
+	const unregister = registerNativePluginOfflineRuntimeProvider(async () => {
+		throw new Error('The delegated render owns its lower runtime seam.');
+	});
+	context.after(unregister);
+	let realtimeCalls = 0;
+	const host = {
+		project: PROJECT,
+		durationFrames: 4,
+		sampleRate: 48_000,
+		async renderMixRealtime(options: Readonly<Record<string, unknown>>) {
+			realtimeCalls += 1;
+			assert.equal(options.sampleRate, 96_000);
+			const write = options.onChunk as (channels: readonly Float32Array[], metadata: Record<string, unknown>) => void;
+			write([new Float32Array(8), new Float32Array(8)], { frameOffset: 0, sampleRate: 96_000 });
+			return { sampleRate: 96_000, channelCount: 2, frameCount: 8, chunkCount: 1 };
+		},
+	};
+	const rendered = await renderNativePluginRealtimePcmIfRequired(host as never, {
+		trackId: 'track-1', includeMaster: false, sampleRate: 96_000,
+	}) as { readonly length: number; readonly sampleRate: number } | null;
+	assert.equal(rendered?.length, 8);
+	assert.equal(rendered?.sampleRate, 96_000);
+	await assert.rejects(renderNativePluginRealtimePcmIfRequired({
+		...host, durationFrames: 20_000_000,
+	} as never, { trackId: 'track-1', includeMaster: false, sampleRate: 96_000 }),
+	(error: unknown) => error instanceof OfflineRenderOutputMemoryLimitError);
+	assert.equal(realtimeCalls, 1);
 });
 
 test('the renderer routes opaque vendor-window controls over the bound helper port', async (context) => {

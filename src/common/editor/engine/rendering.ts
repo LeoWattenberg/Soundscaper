@@ -112,6 +112,8 @@ async renderMixRealtime(this: EngineRuntimeHost, {
 		}
 		let parametricEqFailure = null;
 		let failParametricEqRender: ((error: unknown) => void) | null = null;
+		let nativePluginFailure: Error | null = null;
+		let failNativePluginRender: ((error: unknown) => void) | null = null;
 		let streamUnderrunFailure: Error | null = null;
 		let streamFailure: Error | null = null;
 		let failStreamedRender: ((error: unknown) => void) | null = null;
@@ -129,6 +131,11 @@ async renderMixRealtime(this: EngineRuntimeHost, {
 			await context.audioWorklet.addModule(new URL('../render-capture-worklet.js', import.meta.url));
 			await ensureProjectWorklets(context, this.project);
 			nativeRuntimes = await prepareNativePluginOfflineRuntimes(context, this.project, { trackId, includeMaster });
+			nativeRuntimes.onFailure((error: Error) => {
+				nativePluginFailure ||= error;
+				graph?.abortController?.abort?.(nativePluginFailure);
+				failNativePluginRender?.(nativePluginFailure);
+			});
 			outputFrames = requestedOutputFrames == null
 				? Math.max(1, scaleSampleFrame(
 						toFrame - fromFrame + tailFrames, this.sampleRate, context.sampleRate, 'point',
@@ -176,13 +183,14 @@ async renderMixRealtime(this: EngineRuntimeHost, {
 				},
 			});
 			await nativeRuntimes.activate();
+			nativeRuntimes.assertHealthy();
 		} catch (error) {
 			if (graph) disposeGraph(graph, true);
 			try { capture?.disconnect(); } catch { /* The capture node may not have connected. */ }
 			try { silent?.disconnect(); } catch { /* The silent node may not have connected. */ }
 			if (context.state !== 'closed') await context.close?.();
 			await nativeRuntimes?.dispose();
-			throw parametricEqFailure || error;
+			throw nativePluginFailure || parametricEqFailure || error;
 		}
 		const abortGraph = () => graph.abortController.abort();
 		signal?.addEventListener('abort', abortGraph, { once: true });
@@ -242,7 +250,7 @@ async renderMixRealtime(this: EngineRuntimeHost, {
 			try { silent.disconnect(); } catch { /* Already disconnected. */ }
 			if (context.state !== 'closed') await context.close?.();
 			await nativeRuntimes?.dispose();
-			throw streamUnderrunFailure || streamFailure || parametricEqFailure || error;
+			throw nativePluginFailure || streamUnderrunFailure || streamFailure || parametricEqFailure || error;
 		}
 
 		let renderedFrames = 0;
@@ -276,8 +284,10 @@ async renderMixRealtime(this: EngineRuntimeHost, {
 			rejectDone(failure);
 		};
 		failParametricEqRender = failRender;
+		failNativePluginRender = failRender;
 		failStreamedRender = failRender;
 		if (parametricEqFailure) failRender(parametricEqFailure);
+		if (nativePluginFailure) failRender(nativePluginFailure);
 		if (streamUnderrunFailure) failRender(streamUnderrunFailure);
 		if (streamFailure) failRender(streamFailure);
 		sinkQueue = createAsyncPlanarPcmSinkQueue(async (channels: readonly Float32Array[], metadata: EnginePcmChunkMetadata) => {
@@ -392,6 +402,10 @@ async renderMixRealtime(this: EngineRuntimeHost, {
 			capture.port.start?.();
 			if (!graph.abortController.signal.aborted) await context.resume();
 			await done;
+			// The capture and native processors use different ports. A roundtrip
+			// with every native worklet observes faults that have not yet reached
+			// the host port before the captured PCM is accepted.
+			await nativeRuntimes?.verify();
 			return {
 				sampleRate: context.sampleRate,
 				channelCount: outputChannelCount,
@@ -405,6 +419,7 @@ async renderMixRealtime(this: EngineRuntimeHost, {
 		} finally {
 			terminating = true;
 			failStreamedRender = null;
+			failNativePluginRender = null;
 			const pendingFlowControl = flowControl;
 			signal?.removeEventListener('abort', abort);
 			signal?.removeEventListener('abort', abortGraph);
