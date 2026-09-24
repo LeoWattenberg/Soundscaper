@@ -21,6 +21,9 @@ export function createNumericWorkerRequestBrokerBoundary(broker: WorkerRequestBr
 		has(id: number): boolean {
 			return broker.has(brokerKey(id));
 		},
+		touch(id: number): boolean {
+			return broker.touch(brokerKey(id));
+		},
 		resolve(id: number, result: unknown): boolean {
 			return broker.resolve(brokerKey(id), result);
 		},

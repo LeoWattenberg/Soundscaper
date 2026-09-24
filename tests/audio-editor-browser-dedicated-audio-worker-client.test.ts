@@ -193,19 +193,33 @@ test('dispose rejects both active and queued operations even when termination th
 	await assert.rejects(client.encode(encodeRequest(3)), /disposed/u);
 });
 
-test('dedicated requests do not arm inactivity deadlines', async () => {
+test('only dispatched dedicated requests arm deadlines, and a timeout advances the queue', async () => {
 	const originalSetTimeout = globalThis.setTimeout;
-	globalThis.setTimeout = (() => { throw new Error('An inactivity deadline was armed.'); }) as unknown as typeof setTimeout;
+	const originalClearTimeout = globalThis.clearTimeout;
+	const deadlines: Array<() => void> = [];
+	globalThis.setTimeout = ((callback: () => void) => {
+		deadlines.push(callback);
+		return deadlines.length as unknown as ReturnType<typeof setTimeout>;
+	}) as typeof setTimeout;
+	globalThis.clearTimeout = (() => undefined) as typeof clearTimeout;
 	const harness = workerHarness();
 	const client = createBrowserDedicatedAudioCodecClient({ createWorker: harness.createWorker });
 	try {
-		const result = client.encode(encodeRequest(1));
-		const worker = await harness.nextWorker();
-		worker.succeed(Uint8Array.of(1));
-		assert.deepEqual([...(await result)], [1]);
+		const active = client.encode(encodeRequest(1));
+		const firstWorker = await harness.nextWorker();
+		const queued = client.encode(encodeRequest(2));
+		assert.equal(deadlines.length, 1, 'queued work must not expire before dispatch');
+		deadlines[0]!();
+		await assert.rejects(active, { name: 'TimeoutError' });
+		assert.equal(firstWorker.terminationCount, 1);
+		const replacement = await harness.nextWorker();
+		assert.equal(deadlines.length, 2, 'the next request gets its own deadline');
+		replacement.succeed(Uint8Array.of(2));
+		assert.deepEqual([...(await queued)], [2]);
 	} finally {
 		client.dispose();
 		globalThis.setTimeout = originalSetTimeout;
+		globalThis.clearTimeout = originalClearTimeout;
 	}
 });
 

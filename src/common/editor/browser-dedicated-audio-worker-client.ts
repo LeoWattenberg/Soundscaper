@@ -58,6 +58,9 @@ type Operation = Readonly<{
 	readonly operation: 'decode'; readonly request: DedicatedAudioDecodeRequest;
 }>;
 
+// A single bounded file encode or decode can take longer than a streamed packet.
+const CODEC_REQUEST_TIMEOUT_MS = 10 * 60 * 1_000;
+
 interface QueuedOperation {
 	readonly id: number;
 	readonly operation: Operation;
@@ -67,7 +70,7 @@ export function createBrowserDedicatedAudioCodecClient(
 	options: BrowserDedicatedAudioWorkerClientOptions = {},
 ): BrowserDedicatedAudioWorkerClient {
 	const createWorker = options.createWorker ?? defaultWorker;
-	const requests = new WorkerRequestBroker();
+	const requests = new WorkerRequestBroker({ timeoutMs: CODEC_REQUEST_TIMEOUT_MS });
 	const numericRequests = createNumericWorkerRequestBrokerBoundary(requests);
 	const queued: QueuedOperation[] = [];
 	let worker: WorkerPort | null = null;
@@ -120,6 +123,7 @@ export function createBrowserDedicatedAudioCodecClient(
 			armOnRequest: false,
 			abortError: () => signal?.reason instanceof Error ? signal.reason : abortError(),
 			onAbort: () => cancel(item),
+			onTimeout: () => cancel(item),
 		});
 		if (numericRequests.has(item.id)) {
 			queued.push(item);
@@ -154,7 +158,10 @@ export function createBrowserDedicatedAudioCodecClient(
 						numericRequests.reject(item.id, error);
 					}
 				}
-				if (active === item && numericRequests.has(item.id)) break;
+				if (active === item && numericRequests.has(item.id)) {
+					numericRequests.touch(item.id);
+					break;
+				}
 			}
 		} finally {
 			pumping = false;

@@ -95,20 +95,26 @@ test('an abort raised by the stream worker factory retires the acquired port', a
 	assert.equal(worker.requests.length, 0);
 });
 
-test('stream requests do not arm inactivity deadlines', async () => {
+test('a stalled stream request times out and terminates its worker', async () => {
 	const originalSetTimeout = globalThis.setTimeout;
-	globalThis.setTimeout = (() => { throw new Error('An inactivity deadline was armed.'); }) as unknown as typeof setTimeout;
+	const originalClearTimeout = globalThis.clearTimeout;
+	const deadlines: Array<() => void> = [];
+	globalThis.setTimeout = ((callback: () => void) => {
+		deadlines.push(callback);
+		return deadlines.length as unknown as ReturnType<typeof setTimeout>;
+	}) as typeof setTimeout;
+	globalThis.clearTimeout = (() => undefined) as typeof clearTimeout;
 	const worker = workerFixture();
 	try {
 		const opening = openBrowserAudioEncodeStreamSession(request, { createWorker: () => worker });
-		worker.reply();
-		const session = await opening;
-		const pending = session.write(new Uint8Array(80), 10);
-		worker.reply(Uint8Array.of(1));
-		assert.deepEqual(await pending, Uint8Array.of(1));
-		session.close();
+		assert.equal(worker.requests.length, 1);
+		assert.equal(deadlines.length, 1);
+		deadlines[0]!();
+		await assert.rejects(opening, { name: 'TimeoutError' });
+		assert.equal(worker.terminated, true);
 	} finally {
 		globalThis.setTimeout = originalSetTimeout;
+		globalThis.clearTimeout = originalClearTimeout;
 	}
 });
 

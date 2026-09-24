@@ -90,7 +90,6 @@ export async function openBrowserAudioEncodeStreamSession(
 			try {
 				return await numericRequests.request<Extract<AudioEncodeStreamResponse, { status: 'ok' }>>({
 					id: message.id,
-					armOnRequest: false,
 					post: () => port.postMessage(message, transfer),
 				});
 			} catch (error) {
