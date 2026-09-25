@@ -39,6 +39,7 @@ import {
 	stripKey,
 } from './project-graph-v21-edges.ts';
 import { ScheduledParameterRegistry } from './scheduled-parameter-registry.ts';
+import { registerEdgeParam, registerStripParam, trackMasterGain } from './project-graph-v21-parameters.ts';
 import {
 	createStripMeterAnalyserBankV21,
 	type StripMeterAnalyserBankV21,
@@ -198,7 +199,8 @@ export function buildProjectGraphV21(
 		const vcaFactor = stripVcaFactor(graph, strip.ref, includeMaster);
 		const gain = addNode(nodes, context.createGain());
 		setParam(gain.gain, strip.gain, context.currentTime);
-		registerStripParam(parameterRegistry, strip.ref, 'gain', gain.gain, latencyFrames);
+		const activeStripParameters = includeMaster || strip.scope !== 'master';
+		registerStripParam(parameterRegistry, strip.ref, 'gain', gain.gain, latencyFrames, undefined, activeStripParameters);
 		connect(output, gain);
 		output = gain;
 		const scheduledGain = { param: gain.gain, latencyFrames };
@@ -212,7 +214,7 @@ export function buildProjectGraphV21(
 			&& typeof context.createStereoPanner === 'function') {
 			const panner = addNode(nodes, context.createStereoPanner());
 			setParam(panner.pan, clamp(strip.pan, -1, 1), context.currentTime);
-			registerStripParam(parameterRegistry, strip.ref, 'pan', panner.pan, latencyFrames);
+			registerStripParam(parameterRegistry, strip.ref, 'pan', panner.pan, latencyFrames, undefined, activeStripParameters);
 			connect(output, panner);
 			output = panner;
 			// A stereo panner always emits two channels, so from here on a mono
@@ -233,6 +235,7 @@ export function buildProjectGraphV21(
 			gate.gain,
 			latencyFrames,
 			(value) => respectMuteSolo && soloActive(strip.key) ? 1 - value : respectMuteSolo ? 0 : 1,
+			activeStripParameters,
 		);
 		connect(output, gate);
 		output = gate;
@@ -516,51 +519,6 @@ function stripVcaFactor(graph: MixerGraphV21, ref: StripRef, includeMaster: bool
 		factor *= vca.mute ? 0 : vca.gain;
 	}
 	return factor;
-}
-
-function registerStripParam(
-	registry: ScheduledParameterRegistry,
-	strip: StripRef,
-	parameterId: 'gain' | 'pan' | 'mute',
-	param: AudioParam,
-	latencyFrames: number,
-	transformValue?: (value: number) => number,
-): void {
-	if (!isSchedulableAudioParam(param)) return;
-	registry.registerAudioParam(
-		stripParameterDescriptor({ kind: 'strip', strip, parameterId }, latencyFrames),
-		param,
-		transformValue ? { latencyFrames, transformValue } : { latencyFrames },
-	);
-}
-
-function registerEdgeParam(
-	registry: ScheduledParameterRegistry,
-	edgeId: string,
-	param: AudioParam,
-	latencyFrames: number,
-): void {
-	if (!isSchedulableAudioParam(param)) return;
-	registry.registerAudioParam(
-		stripParameterDescriptor({ kind: 'edge', edgeId, parameterId: 'level' }, latencyFrames),
-		param,
-		{ latencyFrames },
-	);
-}
-
-function trackMasterGain(
-	strips: readonly StripRuntimeV21[],
-	registry: ScheduledParameterRegistry,
-): ScheduledGainParam | null {
-	if (!strips.some(({ key }) => key === 'master')) return null;
-	const target = registry.get({ kind: 'strip', strip: { kind: 'master' }, parameterId: 'gain' });
-	if (!target || target.binding.kind !== 'audio-param') return null;
-	return { param: target.binding.params[0]!.param, latencyFrames: target.latencyFrames };
-}
-
-function isSchedulableAudioParam(param: AudioParam | null | undefined): param is AudioParam {
-	return typeof param?.setValueAtTime === 'function'
-		&& typeof param.linearRampToValueAtTime === 'function';
 }
 
 // Kept local so the V21 branch does not inherit the legacy global DOM alias.

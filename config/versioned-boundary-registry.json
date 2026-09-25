@@ -298,6 +298,8 @@
 		,
 		{ "path": "src/common/editor/engine/project-graph-v21-edges.ts", "kind": "persisted-contract", "justification": "project-graph-v21-edges.ts is a persisted domain-component or render-contract revision independent of product schema." }
 		,
+		{ "path": "src/common/editor/engine/project-graph-v21-parameters.ts", "kind": "persisted-contract", "justification": "project-graph-v21-parameters.ts registers the persisted V21 mixer parameter addresses and their render bindings." }
+		,
 		{ "path": "src/common/editor/engine/project-graph-v21.ts", "kind": "persisted-contract", "justification": "project-graph-v21.ts is a persisted domain-component or render-contract revision independent of product schema." }
 		,
 		{ "path": "src/common/editor/engine/project-path-pdc-plan-v21.ts", "kind": "persisted-contract", "justification": "project-path-pdc-plan-v21.ts is a persisted domain-component or render-contract revision independent of product schema." }
