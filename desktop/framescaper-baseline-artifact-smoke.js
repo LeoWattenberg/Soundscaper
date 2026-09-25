@@ -3,6 +3,8 @@
 const PRELOAD_BRIDGE = Object.freeze([
 	'abortPublication',
 	'beginPublication',
+	'checkProjectWriteFence',
+	'claimProjectWriteFence',
 	'connect',
 	'deleteProject',
 	'duplicateProject',

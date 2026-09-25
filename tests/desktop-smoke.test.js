@@ -474,7 +474,8 @@ function validFramescaperBaselinePayload() {
 		url: 'framescaper-app://bundle/',
 		framescaperBaseline: {
 			preloadBridge: [
-				'abortPublication', 'beginPublication', 'connect', 'deleteProject', 'duplicateProject',
+				'abortPublication', 'beginPublication', 'checkProjectWriteFence',
+				'claimProjectWriteFence', 'connect', 'deleteProject', 'duplicateProject',
 				'finishPublication', 'handshakeState', 'listProjects', 'readBodyChunk', 'readProjectBundle',
 				'writePublicationChunk',
 			],

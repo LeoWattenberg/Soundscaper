@@ -2,8 +2,10 @@
 
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
+import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 import vm from 'node:vm';
+import ts from 'typescript';
 
 import { createDesktopSmokeProbe } from '../desktop/desktop-smoke.js';
 import {
@@ -12,6 +14,23 @@ import {
 import {
 	runFramescaperBaselineArtifactRendererSmoke,
 } from '../desktop/framescaper-baseline-artifact-renderer-smoke.js';
+
+test('Framescaper artifact bridge inventory matches the packaged preload surface', async () => {
+	const source = await readFile(new URL('../desktop/preload.mjs', import.meta.url), 'utf8');
+	const parsed = ts.createSourceFile('preload.mjs', source, ts.ScriptTarget.Latest, true, ts.ScriptKind.JS);
+	const declaration = parsed.statements
+		.filter(ts.isVariableStatement)
+		.flatMap(({ declarationList }) => [...declarationList.declarations])
+		.find(({ name }) => ts.isIdentifier(name) && name.text === 'framescaperProjectLibrary');
+	assert.ok(declaration?.initializer && ts.isCallExpression(declaration.initializer));
+	const api = declaration.initializer.arguments[0];
+	assert.ok(api && ts.isObjectLiteralExpression(api));
+	const keys = api.properties.map((property) => {
+		assert.ok(ts.isPropertyAssignment(property) && ts.isIdentifier(property.name));
+		return property.name.text;
+	}).sort();
+	assert.deepEqual(keys, rendererFixture().expected.framescaperBaseline.preloadBridge);
+});
 
 test('Framescaper artifact renderer witnesses the exact ready UI, baseline preload, handshake, and baseline bundle', async () => {
 	const fixture = rendererFixture();
@@ -120,6 +139,8 @@ function rendererFixture({ omitPreloadMethod = null, uiTitle = 'Untitled project
 	const api = {
 		abortPublication: async () => false,
 		beginPublication: async () => ({}),
+		checkProjectWriteFence: async () => true,
+		claimProjectWriteFence: async () => '0'.repeat(48),
 		connect: async () => { calls.push('connect'); return handshake; },
 		deleteProject: async () => ({}),
 		duplicateProject: async () => ({}),
@@ -198,7 +219,8 @@ function rendererFixture({ omitPreloadMethod = null, uiTitle = 'Untitled project
 			saveOwnerReady: true,
 			framescaperBaseline: {
 				preloadBridge: [
-					'abortPublication', 'beginPublication', 'connect', 'deleteProject', 'duplicateProject',
+					'abortPublication', 'beginPublication', 'checkProjectWriteFence',
+					'claimProjectWriteFence', 'connect', 'deleteProject', 'duplicateProject',
 					'finishPublication', 'handshakeState', 'listProjects', 'readBodyChunk', 'readProjectBundle',
 					'writePublicationChunk',
 				],

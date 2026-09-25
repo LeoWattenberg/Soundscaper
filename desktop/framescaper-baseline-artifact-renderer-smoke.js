@@ -47,7 +47,8 @@ export async function runFramescaperBaselineArtifactRendererSmoke(scope, expecte
 
 	const preload = bridge.projectLibrary;
 	const preloadKeys = Object.keys(exactKeys(preload, [
-		'abortPublication', 'beginPublication', 'connect', 'deleteProject', 'duplicateProject',
+		'abortPublication', 'beginPublication', 'checkProjectWriteFence',
+		'claimProjectWriteFence', 'connect', 'deleteProject', 'duplicateProject',
 		'finishPublication', 'handshakeState', 'listProjects', 'readBodyChunk', 'readProjectBundle',
 		'writePublicationChunk',
 	], 'baseline preload bridge')).sort();
