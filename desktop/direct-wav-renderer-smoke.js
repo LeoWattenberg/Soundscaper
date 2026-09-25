@@ -18,6 +18,7 @@ export async function runDirectWavRendererSmoke(scope, plan) {
 	if (!scope) return Object.freeze({ stageKey, stageWindows });
 	const declaredWindows = new Set(Object.values(stageWindows));
 	const document = scope.document;
+	const exportFailureDetail = (dialog) => String(dialog?.querySelector('[role="alert"]')?.textContent || document.querySelector('[role="alert"]')?.textContent || document.querySelector('[data-status]')?.textContent || document.querySelector('[data-status]')?.title || '').replace(/\s+/gu, ' ').trim().slice(0, 512);
 	const bridge = scope.scapeDesktop?.v1;
 	if (!document || !bridge
 		|| typeof bridge.chooseSaveTarget !== 'function'
@@ -45,7 +46,7 @@ export async function runDirectWavRendererSmoke(scope, plan) {
 			if (Date.now() >= deadline) {
 				// Name what the editor was showing when the stage stalled: the status
 				// line and the export progress tell a starved render from a hang.
-				const status = String(document.querySelector('[data-status]')?.textContent || '').replace(/\s+/gu, ' ').trim().slice(0, 200);
+				const status = String(document.querySelector('[data-status]')?.textContent || document.querySelector('[data-status]')?.title || '').replace(/\s+/gu, ' ').trim().slice(0, 200);
 				const progress = document.querySelector('[data-export-progress]')?.getAttribute('data-export-progress')
 					?? document.querySelector('[role="progressbar"]')?.getAttribute('aria-valuenow')
 					?? null;
@@ -219,7 +220,6 @@ export async function runDirectWavRendererSmoke(scope, plan) {
 		}
 		return new scope.File([bytes], name, { type: 'audio/wav' });
 	};
-
 	const editor = await waitFor(() => {
 		const candidate = document.querySelector('[data-audio-editor]');
 		return candidate?.getAttribute('data-audio-editor-bound') === 'true' ? candidate : null;
@@ -318,7 +318,7 @@ export async function runDirectWavRendererSmoke(scope, plan) {
 		await waitFor(() => dialog.querySelector('[data-export-action="start"] button'), 'completed export', stageWindows.completedExport);
 		const completedStatus = document.querySelector('[data-status]');
 		if (completedStatus?.getAttribute('data-state') !== 'success') {
-			const detail = String(completedStatus?.textContent || '').replace(/\s+/gu, ' ').trim().slice(0, 512);
+			const detail = exportFailureDetail(dialog);
 			throw new Error(`Packaged direct WAV export failed${detail ? `: ${detail}` : ''}`);
 		}
 		completed = true;
@@ -350,7 +350,7 @@ export async function runDirectWavRendererSmoke(scope, plan) {
 		await waitFor(() => dialog.querySelector('[data-export-action="start"] button'), 'completed AIFF export', stageWindows.completedExport);
 		const aiffStatus = document.querySelector('[data-status]');
 		if (aiffStatus?.getAttribute('data-state') !== 'success') {
-			const detail = String(aiffStatus?.textContent || '').replace(/\s+/gu, ' ').trim().slice(0, 512);
+			const detail = exportFailureDetail(dialog);
 			throw new Error(`Packaged direct AIFF export failed${detail ? `: ${detail}` : ''}`);
 		}
 		aiffCompleted = true;
@@ -402,7 +402,7 @@ export async function runDirectWavRendererSmoke(scope, plan) {
 		await waitFor(() => dialog.querySelector('[data-export-action="start"] button'), 'completed BWF export', stageWindows.completedExport);
 		const bwfStatus = document.querySelector('[data-status]');
 		if (bwfStatus?.getAttribute('data-state') !== 'success') {
-			const detail = String(bwfStatus?.textContent || '').replace(/\s+/gu, ' ').trim().slice(0, 512);
+			const detail = exportFailureDetail(dialog);
 			throw new Error(`Packaged direct BWF export failed${detail ? `: ${detail}` : ''}`);
 		}
 		bwfCompleted = true;
@@ -549,7 +549,7 @@ export async function runDirectWavRendererSmoke(scope, plan) {
 		await waitFor(() => dialog.querySelector('[data-export-action="start"] button'), 'completed BW64 export', bw64ExportTimeout);
 		const bw64Status = document.querySelector('[data-status]');
 		if (bw64Status?.getAttribute('data-state') !== 'success') {
-			const detail = String(bw64Status?.textContent || '').replace(/\s+/gu, ' ').trim().slice(0, 512);
+			const detail = exportFailureDetail(dialog);
 			throw new Error(`Packaged direct BW64 export failed${detail ? `: ${detail}` : ''}`);
 		}
 		bw64Completed = true;

@@ -490,6 +490,18 @@ test('renderer smoke reports the editor export failure before starting cancellat
 	assert.equal(scope.document.fixture.cancelledRuns, 0);
 });
 
+test('renderer smoke reports export failure shown only in the hidden status title', async () => {
+	const scope = createRendererScope({ exportFailure: 'The realtime capture clock skipped audio frames.', hiddenStatus: true });
+	const serializedRoutine = Function(`"use strict"; return (${runDirectWavRendererSmoke.toString()});`)();
+	await assert.rejects(serializedRoutine(scope, PLAN), /realtime capture clock skipped audio frames/iu);
+});
+
+test('renderer smoke reports export failure shown only in the export dialog', async () => {
+	const scope = createRendererScope({ exportFailure: 'The realtime capture worklet exhausted its admitted producer credits.', dialogErrorOnly: true });
+	const serializedRoutine = Function(`"use strict"; return (${runDirectWavRendererSmoke.toString()});`)();
+	await assert.rejects(serializedRoutine(scope, PLAN), /exhausted its admitted producer credits/iu);
+});
+
 test('renderer smoke reports an AIFF export failure after preserving the WAV sequence', async () => {
 	const scope = createRendererScope({ aiffExportFailure: 'The direct AIFF write failed.' });
 	const serializedRoutine = Function(`"use strict"; return (${runDirectWavRendererSmoke.toString()});`)();

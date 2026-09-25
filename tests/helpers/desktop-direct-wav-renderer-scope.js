@@ -2,7 +2,7 @@
 
 const SOUNDSCAPER_PRODUCT_ID = 'soundscaper';
 
-export function createRendererScope({ admLayoutDelayMs = 0, aiffExportFailure = '', bwfExportFailure = '', bw64ExportFailure = '', dropEveryBextCommit = '', dropFirstBextCommit = '', exportFailure = '', failOnAdmRouteWait = false, hideFirstExportProgress = false, ignoreBextNativeBlur = false, importFailure = '', incompleteAdmRouteDefaults = false, projectBinVisible = false, waitFailure = '' } = {}) {
+export function createRendererScope({ admLayoutDelayMs = 0, aiffExportFailure = '', bwfExportFailure = '', bw64ExportFailure = '', dialogErrorOnly = false, dropEveryBextCommit = '', dropFirstBextCommit = '', exportFailure = '', failOnAdmRouteWait = false, hiddenStatus = false, hideFirstExportProgress = false, ignoreBextNativeBlur = false, importFailure = '', incompleteAdmRouteDefaults = false, projectBinVisible = false, waitFailure = '' } = {}) {
 	const fixture = {
 		activeOptions: [],
 		adm: {},
@@ -19,6 +19,7 @@ export function createRendererScope({ admLayoutDelayMs = 0, aiffExportFailure = 
 		bextCommitAttempts: {},
 		cancelledRuns: 0,
 		completedRuns: 0,
+		dialogError: '',
 		dialogOpen: false,
 		dialogCloseCount: 0,
 		exporting: false,
@@ -431,7 +432,9 @@ export function createRendererScope({ admLayoutDelayMs = 0, aiffExportFailure = 
 							? bwfExportFailure
 							: fixture.startedRuns === 5 ? bw64ExportFailure : exportFailure;
 					status.attributes['data-state'] = failure ? 'error' : 'success';
-					status.textContent = failure;
+					fixture.dialogError = failure;
+					status.title = dialogErrorOnly ? '' : failure;
+					status.textContent = hiddenStatus || dialogErrorOnly ? '' : failure;
 				}, 5);
 			}
 		},
@@ -473,6 +476,8 @@ export function createRendererScope({ admLayoutDelayMs = 0, aiffExportFailure = 
 	const document = {
 		fixture,
 		querySelector(selector) {
+			if (selector === '[role="alert"]') return fixture.dialogError && dialogErrorOnly
+				? element({ textContent: fixture.dialogError }) : null;
 			if (selector === '[data-audio-editor]') return root;
 			if (selector === '[data-workspace-onboarding-option="modern"]') return fixture.onboardingDismissed ? null : onboardingCard;
 			if (selector === '[data-workspace-panel="project-bin"]') return fixture.projectBinVisible ? projectBin : null;
