@@ -82,6 +82,7 @@ function planAutomationEdits(
 		return removedClipPlan(previous, commanded);
 	}
 	if (command.type === 'clip/render-replace-many') {
+		if (command.rippleMode !== 'track') return emptyPlan();
 		return renderedClipReplacementPlan(previous, commanded, command);
 	}
 	return emptyPlan();

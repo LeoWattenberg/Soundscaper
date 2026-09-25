@@ -80,6 +80,42 @@ test('insert paste opens only target-track automation and carries no strip lanes
 	assert.equal(result.automationLanes.length, project.automationLanes.length);
 });
 
+test('fixed-position rendered replacement leaves later automation at the same frame', () => {
+	const source = createAudioSource({
+		id: 'voice-source', frameCount: 100, channelCount: 1,
+		sampleRate: 48_000, originalSampleRate: 48_000,
+	});
+	const project = createSoundscaperProject({
+		id: 'fixed-replacement', title: 'Fixed replacement', now: NOW,
+		sources: [source],
+		clips: [
+			createAudioClip({ id: 'voice-clip', sourceId: source.id,
+				timelineStartFrame: 10, sourceStartFrame: 0, sourceDurationFrames: 4, durationFrames: 4 }),
+			createAudioClip({ id: 'later-clip', sourceId: source.id,
+				timelineStartFrame: 20, sourceStartFrame: 4, sourceDurationFrames: 4, durationFrames: 4 }),
+		],
+		tracks: [createAudioTrack({ id: 'voice', name: 'Voice', clipIds: ['voice-clip', 'later-clip'] })],
+		sequences: [{ id: 'main-sequence', trackIds: ['voice'] }],
+		primarySequenceId: 'main-sequence',
+		automationLanes: [stripLane('voice-gain', { kind: 'track', id: 'voice' })],
+	});
+	const replacement = {
+		type: 'clip/render-replace-many',
+		entries: [{ clipId: 'voice-clip', source: {
+			id: 'joined-source', name: 'Joined', storageKey: 'joined-source',
+			frameCount: 6, channelCount: 1, sampleRate: 48_000,
+			originalSampleRate: 48_000,
+		} }],
+	} as const;
+	const result = applySoundscaperProjectCommand(project, { ...replacement, rippleMode: 'none' });
+
+	assert.deepEqual(lane(result, 'voice-gain'), lane(project, 'voice-gain'));
+	assert.equal(result.clips.find(({ id }) => id === 'later-clip')?.timelineStartFrame, 20);
+	const rippled = applySoundscaperProjectCommand(project, { ...replacement, rippleMode: 'track' });
+	assert.equal(rippled.clips.find(({ id }) => id === 'later-clip')?.timelineStartFrame, 22);
+	assert.equal(lane(rippled, 'voice-gain').points.at(-1)?.position, 102);
+});
+
 test('input edits preserve frozen authority verbatim so freshness classification can report stale', () => {
 	const digest = 'ab'.repeat(32);
 	const derived = createAudioSource({
