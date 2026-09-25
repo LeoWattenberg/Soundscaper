@@ -263,6 +263,13 @@ test.describe('audio editor React/design-system workflows', () => {
 		await expect(tooltip).toHaveAttribute('role', 'tooltip');
 		await expect(tooltip.locator('[data-audio-editor-button-tooltip]')).toHaveText('Play');
 		await expect(tooltip).not.toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
+		await play.evaluate((button) => {
+			const rect = button.getBoundingClientRect();
+			button.dispatchEvent(new PointerEvent('pointerout', {
+				bubbles: true, clientX: rect.x + rect.width / 2, clientY: rect.y + rect.height / 2,
+			}));
+		});
+		await expect(tooltip.locator('[data-audio-editor-button-tooltip]')).toHaveText('Play');
 
 		await editor.locator('[data-action="mixer"] button').hover();
 		await expect(tooltip.locator('[data-audio-editor-button-tooltip]')).toHaveText('Mixer');

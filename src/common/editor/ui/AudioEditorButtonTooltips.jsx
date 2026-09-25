@@ -43,7 +43,12 @@ export default function AudioEditorButtonTooltips({ rootRef }) {
 		};
 		const onPointerOut = (event) => {
 			const button = editorButton(event.target, root);
-			if (button && !button.contains(event.relatedTarget)) hide(button);
+			if (!button || button.contains(event.relatedTarget)) return;
+			// Firefox can report a null relatedTarget while the pointer still hits
+			// the button after the Flyout appears. Keep that tooltip until it leaves.
+			if (event.relatedTarget === null
+				&& button.contains(root.ownerDocument.elementFromPoint(event.clientX, event.clientY))) return;
+			hide(button);
 		};
 		const onPointerDown = (event) => {
 			const button = editorButton(event.target, root);
