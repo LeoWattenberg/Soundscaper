@@ -375,7 +375,7 @@ test.describe('audio editor React/design-system workflows', () => {
 		await exportDialog.getByRole('button', { name: 'Export', exact: true }).click();
 		const cancel = exportDialog.getByRole('button', { name: 'Cancel export' });
 		await expect(cancel).toBeVisible();
-		const progress = exportDialog.locator('footer [data-export-progress]');
+		const progress = exportDialog.locator('.audio-editor-dialog-footer [data-export-progress]');
 		await expect(progress).toBeVisible();
 		const progressBeforeScroll = await progress.boundingBox();
 		await exportDialog.locator('.kw-audio-editor-dialog__body').evaluate((body) => { body.scrollTop = body.scrollHeight; });

@@ -414,21 +414,18 @@ export function ExportDialog({ isOpen, controller, snapshot, copy, productId, fi
 			className="audio-editor-export-dialog"
 			dataAttributes={{ 'data-export-dialog': '' }}
 			footer={(
-				<footer className="audio-editor-export-dialog__footer">
-					{exporting && <div className="audio-editor-export-progress" data-export-progress aria-live="polite"><ProgressBar value={progress} width="100%" /><output>{progress}%</output></div>}
-					<DialogFooter
-						className="audio-editor-dialog-footer"
-						leftContent={<Button variant="secondary" disabled={exporting || !metadataAvailable} onClick={() => setMetadataOpen(true)}>{copy.metadata}</Button>}
-						rightContent={exporting ? (
-							<span data-export-action="cancel"><Button disabled={!exporting} onClick={() => controller.actions.export.cancel()}>{copy.cancelExport}</Button></span>
-						) : (
-							<>
-								<Button variant="secondary" onClick={requestClose}>{copy.cancel}</Button>
-								<span data-export-action="start"><Button variant="primary" disabled={blocked || admRequired || Boolean(desktopFormatRefusal)} onClick={start}>{copy.startExport}</Button></span>
-							</>
-						)}
-					/>
-				</footer>
+				<DialogFooter
+					className="audio-editor-dialog-footer audio-editor-export-dialog__footer"
+					leftContent={<><Button variant="secondary" disabled={exporting || !metadataAvailable} onClick={() => setMetadataOpen(true)}>{copy.metadata}</Button>{exporting && <div className="audio-editor-export-progress" data-export-progress aria-live="polite"><ProgressBar value={progress} width="100%" /><output>{progress}%</output></div>}</>}
+					rightContent={exporting ? (
+						<span data-export-action="cancel"><Button disabled={!exporting} onClick={() => controller.actions.export.cancel()}>{copy.cancelExport}</Button></span>
+					) : (
+						<>
+							<Button variant="secondary" onClick={requestClose}>{copy.cancel}</Button>
+							<span data-export-action="start"><Button variant="primary" disabled={blocked || admRequired || Boolean(desktopFormatRefusal)} onClick={start}>{copy.startExport}</Button></span>
+						</>
+					)}
+				/>
 			)}
 		>
 			<div className="audio-editor-export-dialog__body">

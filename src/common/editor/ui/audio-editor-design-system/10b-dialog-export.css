@@ -238,17 +238,17 @@
 }
 
 .audio-editor-export-dialog__footer {
-	flex-shrink: 0;
-	background: var(--background-surface-bg-surface-primary-idle, #f8f8f9);
-	border-top: 1px solid var(--stroke-main-stroke-primary, #d4d5d9);
+	column-gap: 8px;
+}
+
+.audio-editor-export-dialog__footer .footer__left-group {
+	flex: 1 1 0;
+	min-width: 0;
 }
 
 .audio-editor-export-dialog__footer .audio-editor-export-progress {
-	padding: 8px 8px 0;
-}
-
-.audio-editor-export-dialog__footer .audio-editor-dialog-footer {
-	border-top: 0;
+	flex: 1 1 120px;
+	min-width: 120px;
 }
 
 .audio-editor-export-progress output {

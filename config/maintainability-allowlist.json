@@ -130,7 +130,7 @@
 		"src/common/editor/ui/audio-editor-design-system/08-timeline-clips-effects.css": 564,
 		"src/common/editor/ui/framescaper-native-image-sequence-source-resolver.ts": 551,
 		"src/common/editor/ui/inspector/AudioEditorEffectsOverlay.jsx": 579,
-		"src/common/editor/ui/inspector/ExportDialog.jsx": 570,
+		"src/common/editor/ui/inspector/ExportDialog.jsx": 566,
 		"src/common/editor/ui/local-assistance-guided-session-store.ts": 592,
 		"src/common/editor/ui/soundscaper-native-renderer-bridge.ts": 599,
 		"src/common/editor/ui/timeline/timeline-annotation-ui-model.ts": 564,
