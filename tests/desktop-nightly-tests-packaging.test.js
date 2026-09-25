@@ -224,11 +224,16 @@ test('desktop CI packages verified main pushes and selected manual nightly-with-
 	assert.match(workflow, /selectDesktopNightlyTestTargets\(process\.env\.NIGHTLY_TEST_TARGETS\)/u);
 
 	const normalStart = workflow.indexOf('\n  package:');
+	const publisherStart = workflow.indexOf('\n  publish-assistance-runtime-handoff:');
 	const testStart = workflow.indexOf('\n  package-with-tests:');
 	const nextStart = workflow.indexOf('\n  soundscaper-project-library-lease-matrix:', testStart);
-	assert.ok(normalStart >= 0 && testStart > normalStart && nextStart > testStart);
-	const normalJob = workflow.slice(normalStart, testStart);
+	assert.ok(normalStart >= 0 && publisherStart > normalStart
+		&& testStart > publisherStart && nextStart > testStart);
+	const normalJob = workflow.slice(normalStart, publisherStart);
+	const publisherJob = workflow.slice(publisherStart, testStart);
 	const testJob = workflow.slice(testStart, nextStart);
+	const publisherGuard = publisherJob.slice(publisherJob.indexOf('if: >-'),
+		publisherJob.indexOf('\n    needs:'));
 
 	// The ordinary package stays on tags, schedules and explicit nightly dispatch.
 	assert.match(normalJob, new RegExp(
@@ -248,13 +253,28 @@ test('desktop CI packages verified main pushes and selected manual nightly-with-
 	assert.match(testGuard, /github\.event_name == 'workflow_dispatch'/u);
 	assert.match(testGuard, /inputs\.artifact_variant == 'nightly-with-tests'/u);
 	assert.doesNotMatch(testGuard, /github\.event_name == '(?:schedule|push)'/u);
-	assert.match(testJob, /needs: \[nightly-test-targets, quality, tests, coverage, browser, firefox\]/u);
+	assert.match(testJob, /needs: \[nightly-test-targets, quality, tests, coverage, browser, firefox, publish-assistance-runtime-handoff\]/u);
 	for (const gate of ['quality', 'tests', 'coverage', 'browser', 'firefox']) {
 		assert.match(testGuard, new RegExp(`needs\\.${gate}\\.result == 'success'`, 'u'));
 	}
 	assert.match(testGuard, /needs\.nightly-test-targets\.result == 'success'/u);
+	assert.match(testGuard, /needs\.publish-assistance-runtime-handoff\.result == 'success'/u);
 	// The package and both source manifests must name the commit Quality verified.
 	const sourceRevision = String.raw`\$\{\{ github\.event\.workflow_run\.head_sha \|\| github\.sha \}\}`;
+	assert.match(publisherJob, /needs: \[nightly-test-targets, quality, tests, coverage, browser, firefox\]/u);
+	assert.match(publisherGuard, /github\.event\.workflow_run\.head_branch == 'main'/u);
+	assert.match(publisherGuard, /github\.event\.workflow_run\.head_repository\.full_name == github\.repository/u);
+	assert.match(publisherGuard, /github\.event\.workflow_run\.conclusion == 'success'/u);
+	assert.match(publisherGuard, /github\.ref == 'refs\/heads\/main'/u);
+	assert.match(publisherGuard, /needs\.quality\.result == 'success'/u);
+	assert.match(publisherJob, /npm run desktop:publish:assistance-runtimes/u);
+	assert.match(publisherJob, /R2_MODELS_ACCESS_KEY_ID: \$\{\{ secrets\.R2_MODELS_ACCESS_KEY_ID \}\}/u);
+	assert.match(publisherJob, /R2_MODELS_SECRET_ACCESS_KEY: \$\{\{ secrets\.R2_MODELS_SECRET_ACCESS_KEY \}\}/u);
+	assert.match(publisherJob, new RegExp(`ref: ${sourceRevision}`, 'u'));
+	assert.match(publisherJob, new RegExp(`SOUNDSCAPER_SOURCE_REVISION: ${sourceRevision}`, 'u'));
+	assert.match(publisherJob, /node scripts\/export-assistance-runtime-handoff\.mjs/u);
+	assert.match(publisherJob, /name: assistance-runtime-handoff-\$\{\{ matrix\.target\.platform \}\}-\$\{\{ matrix\.target\.arch \}\}/u);
+	assert.match(publisherJob, /include-hidden-files: true/u);
 	assert.match(testJob, new RegExp(`ref: ${sourceRevision}`, 'u'));
 	assert.match(testJob, new RegExp(
 		String.raw`- name: Package the product runtimes exercised by nightly-with-tests\s+run: node scripts/desktop-nightly-tests-products\.mjs`
@@ -272,6 +292,8 @@ test('desktop CI packages verified main pushes and selected manual nightly-with-
 	assert.match(testJob, /target: \$\{\{ fromJSON\(needs\.nightly-test-targets\.outputs\.targets\) \}\}/u);
 	assert.doesNotMatch(testJob, /SOUNDSCAPER_PUBLISH_ASSISTANCE_RUNTIMES|R2_MODELS_ACCESS_KEY_ID/u);
 	assert.match(testJob, /SOUNDSCAPER_VERIFY_ASSISTANCE_RUNTIMES: 'true'/u);
+	assert.match(testJob, /Download the published target-native AI runtime handoff/u);
+	assert.match(testJob, /SOUNDSCAPER_ASSISTANCE_RUNTIME_HANDOFF_ROOT: \$\{\{ github\.workspace \}\}\/\.native-build\/assistance-runtime-handoff/u);
 	assert.doesNotMatch(testJob, /- runner:/u);
 	assert.match(testJob, /node scripts\/desktop-nightly-tests-prepare\.mjs/u);
 	assert.match(testJob, /node scripts\/desktop-nightly-tests-products\.mjs/u);

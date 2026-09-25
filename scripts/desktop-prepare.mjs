@@ -19,6 +19,7 @@ import { buildSourceMapsRequested } from './lib/build-source-map-relocation.mjs'
 import { stageDesktopBundledCodecNotices } from './lib/desktop-bundled-codec-notices.mjs';
 import { stageDesktopAssistanceRuntimeFamilies } from './lib/desktop-assistance-runtime-families.mjs';
 import { stageDesktopAssistanceRuntimeDistribution } from './lib/desktop-assistance-runtime-distribution.mjs';
+import { stageDesktopAssistanceRuntimeHandoff } from './lib/desktop-assistance-runtime-handoff.mjs';
 import { stageDesktopKokoroG2pRuntime } from './lib/desktop-kokoro-g2p-runtime.mjs';
 import { buildKokoroG2pBundle } from './kokoro-g2p/build.mjs';
 import { stageDesktopAssistanceSpeechRuntime } from './lib/desktop-assistance-speech-runtime.mjs';
@@ -157,35 +158,48 @@ async function main() {
 		repositoryRoot: ROOT,
 		outputRoot: DESKTOP_RUNTIME_ROOT,
 	});
-	let assistanceSpeechRuntime = await stageDesktopAssistanceSpeechRuntime({
-		repositoryRoot: ROOT,
-		targetId: nativeTarget.id,
-		nodeModulesRoot: resolve(ROOT, 'node_modules'),
-		runtimeRoot: RUNTIME_ROOT,
-		cacheRoot: resolve(ROOT, '.native-build/assistance-runtimes'),
-	});
-	let assistanceRuntimeFamilies = await stageDesktopAssistanceRuntimeFamilies({
-		targetId: nativeTarget.id,
-		runtimeRoot: RUNTIME_ROOT,
-		cacheRoot: resolve(ROOT, '.native-build/assistance-runtimes'),
-	});
-	const kokoroG2pBuild = await buildKokoroG2pBundle({ targetId: nativeTarget.id });
-	let kokoroG2pRuntime = await stageDesktopKokoroG2pRuntime({
-		targetId: nativeTarget.id,
-		bundleRoot: kokoroG2pBuild.bundleRoot,
-		runtimeRoot: RUNTIME_ROOT,
-	});
-	const assistanceDistribution = await stageDesktopAssistanceRuntimeDistribution({
-		targetId: nativeTarget.id,
-		runtimeRoot: RUNTIME_ROOT,
-		archiveRoot: resolve(BUILD_ROOT, 'assistance-distribution'),
-		assistanceSpeechRuntime,
-		assistanceRuntimeFamilies,
-		kokoroG2pRuntime,
-	});
-	assistanceSpeechRuntime = assistanceDistribution.speech;
-	assistanceRuntimeFamilies = assistanceDistribution.families;
-	kokoroG2pRuntime = assistanceDistribution.kokoro;
+	let assistanceSpeechRuntime, assistanceRuntimeFamilies, kokoroG2pRuntime, assistanceDistribution;
+	const handoffRoot = process.env.SOUNDSCAPER_ASSISTANCE_RUNTIME_HANDOFF_ROOT;
+	if (handoffRoot) {
+		const imported = await stageDesktopAssistanceRuntimeHandoff({
+			handoffRoot: resolve(handoffRoot), sourceRevision, targetId: nativeTarget.id,
+			archiveRoot: resolve(BUILD_ROOT, 'assistance-distribution'),
+		});
+		assistanceSpeechRuntime = imported.speech;
+		assistanceRuntimeFamilies = imported.families;
+		kokoroG2pRuntime = imported.kokoro;
+		assistanceDistribution = imported.distribution;
+	} else {
+		assistanceSpeechRuntime = await stageDesktopAssistanceSpeechRuntime({
+			repositoryRoot: ROOT,
+			targetId: nativeTarget.id,
+			nodeModulesRoot: resolve(ROOT, 'node_modules'),
+			runtimeRoot: RUNTIME_ROOT,
+			cacheRoot: resolve(ROOT, '.native-build/assistance-runtimes'),
+		});
+		assistanceRuntimeFamilies = await stageDesktopAssistanceRuntimeFamilies({
+			targetId: nativeTarget.id,
+			runtimeRoot: RUNTIME_ROOT,
+			cacheRoot: resolve(ROOT, '.native-build/assistance-runtimes'),
+		});
+		const kokoroG2pBuild = await buildKokoroG2pBundle({ targetId: nativeTarget.id });
+		kokoroG2pRuntime = await stageDesktopKokoroG2pRuntime({
+			targetId: nativeTarget.id,
+			bundleRoot: kokoroG2pBuild.bundleRoot,
+			runtimeRoot: RUNTIME_ROOT,
+		});
+		assistanceDistribution = await stageDesktopAssistanceRuntimeDistribution({
+			targetId: nativeTarget.id,
+			runtimeRoot: RUNTIME_ROOT,
+			archiveRoot: resolve(BUILD_ROOT, 'assistance-distribution'),
+			assistanceSpeechRuntime,
+			assistanceRuntimeFamilies,
+			kokoroG2pRuntime,
+		});
+		assistanceSpeechRuntime = assistanceDistribution.speech;
+		assistanceRuntimeFamilies = assistanceDistribution.families;
+		kokoroG2pRuntime = assistanceDistribution.kokoro;
+	}
 	const nativeAddons = nativeAddonRelease === null ? null : await stageNativeAddons(nativeAddonRelease);
 	const osAudioCodecNative = osAudioCodecNativeRelease === null
 		? null

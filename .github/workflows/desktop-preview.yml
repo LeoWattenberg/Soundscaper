@@ -856,6 +856,104 @@ jobs:
             `targets=${JSON.stringify(selectDesktopNightlyTestTargets(process.env.NIGHTLY_TEST_TARGETS))}\n`);
           NODE
 
+  publish-assistance-runtime-handoff:
+    name: Publish nightly AI runtimes / ${{ matrix.target.platform }} / ${{ matrix.target.arch }}
+    if: >-
+      !cancelled()
+      && needs.nightly-test-targets.result == 'success'
+      && (
+        (github.event_name == 'workflow_run'
+          && github.event.workflow_run.conclusion == 'success'
+          && github.event.workflow_run.event == 'push'
+          && github.event.workflow_run.head_branch == 'main'
+          && github.event.workflow_run.head_repository.full_name == github.repository)
+        || (github.event_name == 'workflow_dispatch'
+          && github.ref == 'refs/heads/main'
+          && inputs.artifact_variant == 'nightly-with-tests'
+          && needs.quality.result == 'success'
+          && needs.tests.result == 'success'
+          && needs.coverage.result == 'success'
+          && needs.browser.result == 'success'
+          && needs.firefox.result == 'success')
+      )
+    needs: [nightly-test-targets, quality, tests, coverage, browser, firefox]
+    timeout-minutes: 120
+    strategy:
+      fail-fast: false
+      matrix:
+        target: ${{ fromJSON(needs.nightly-test-targets.outputs.targets) }}
+    runs-on: ${{ matrix.target.runner }}
+    steps:
+      - name: Check out the tested source revision
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+          ref: ${{ github.event.workflow_run.head_sha || github.sha }}
+
+      - name: Set up Node.js
+        uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f # v6.1.0
+        with:
+          node-version-file: .nvmrc
+          architecture: ${{ matrix.target.node_arch }}
+          cache: npm
+
+      - name: Pin npm
+        run: npm install --global npm@12.0.1
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Install local-model CPU build tools
+        if: runner.os == 'Linux'
+        timeout-minutes: 10
+        run: bash scripts/ci-apt-install.sh build-essential cmake
+
+      - name: Build the authenticated target-native OS audio codec host
+        if: matrix.target.platform != 'linux'
+        run: >-
+          node scripts/ci-build-os-audio-codec-host.mjs
+          --desktop-platform=${{ matrix.target.platform }}
+          --desktop-arch=${{ matrix.target.arch }}
+          --runner-os=${{ runner.os }}
+          --runner-arch=${{ runner.arch }}
+
+      - name: Set up the locked Kokoro G2P builder
+        uses: astral-sh/setup-uv@eb1897b8dc4b5d5bfe39a428a8f2304605e0983c # v7.0.0
+        with:
+          version: 0.12.5
+
+      - name: Build the target-native AI runtime archives
+        run: node scripts/desktop-prepare.mjs
+        env:
+          SOUNDSCAPER_DESKTOP_TARGET_PLATFORM: ${{ matrix.target.platform }}
+          SOUNDSCAPER_DESKTOP_TARGET_ARCH: ${{ matrix.target.arch }}
+          SOUNDSCAPER_SOURCE_REVISION: ${{ github.event.workflow_run.head_sha || github.sha }}
+
+      - name: Publish and publicly verify the immutable archives
+        run: npm run desktop:publish:assistance-runtimes
+        env:
+          R2_MODELS_ACCESS_KEY_ID: ${{ secrets.R2_MODELS_ACCESS_KEY_ID }}
+          R2_MODELS_SECRET_ACCESS_KEY: ${{ secrets.R2_MODELS_SECRET_ACCESS_KEY }}
+          R2_MODELS_ENDPOINT: ${{ vars.R2_MODELS_ENDPOINT || secrets.R2_MODELS_ENDPOINT }}
+
+      - name: Export the source-bound AI runtime handoff
+        run: node scripts/export-assistance-runtime-handoff.mjs
+        env:
+          SOUNDSCAPER_DESKTOP_TARGET_PLATFORM: ${{ matrix.target.platform }}
+          SOUNDSCAPER_DESKTOP_TARGET_ARCH: ${{ matrix.target.arch }}
+          SOUNDSCAPER_SOURCE_REVISION: ${{ github.event.workflow_run.head_sha || github.sha }}
+          SOUNDSCAPER_ASSISTANCE_RUNTIME_HANDOFF_ROOT: ${{ github.workspace }}/.native-build/assistance-runtime-handoff
+
+      - name: Upload the exact published AI runtime handoff
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: assistance-runtime-handoff-${{ matrix.target.platform }}-${{ matrix.target.arch }}
+          path: .native-build/assistance-runtime-handoff/
+          include-hidden-files: true
+          compression-level: 0
+          if-no-files-found: error
+          retention-days: 14
+
   package-with-tests:
     name: Package nightly-with-tests / ${{ matrix.target.platform }} / ${{ matrix.target.arch }}
     # A verified main push uses its upstream Quality verdict; manual selections
@@ -863,6 +961,7 @@ jobs:
     if: >-
       !cancelled()
       && needs.nightly-test-targets.result == 'success'
+      && needs.publish-assistance-runtime-handoff.result == 'success'
       && (
         (github.event_name == 'workflow_run'
           && github.event.workflow_run.conclusion == 'success'
@@ -876,7 +975,7 @@ jobs:
           && needs.browser.result == 'success'
           && needs.firefox.result == 'success')
       )
-    needs: [nightly-test-targets, quality, tests, coverage, browser, firefox]
+    needs: [nightly-test-targets, quality, tests, coverage, browser, firefox, publish-assistance-runtime-handoff]
     timeout-minutes: 150
     strategy:
       fail-fast: false
@@ -901,6 +1000,12 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
+
+      - name: Download the published target-native AI runtime handoff
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: assistance-runtime-handoff-${{ matrix.target.platform }}-${{ matrix.target.arch }}
+          path: .native-build/assistance-runtime-handoff
 
       - name: Install local-model CPU build tools
         if: runner.os == 'Linux'
@@ -954,6 +1059,7 @@ jobs:
           SOUNDSCAPER_DESKTOP_TARGET_ARCH: ${{ matrix.target.arch }}
           SOUNDSCAPER_SOURCE_REVISION: ${{ github.event.workflow_run.head_sha || github.sha }}
           SOUNDSCAPER_VERIFY_ASSISTANCE_RUNTIMES: 'true'
+          SOUNDSCAPER_ASSISTANCE_RUNTIME_HANDOFF_ROOT: ${{ github.workspace }}/.native-build/assistance-runtime-handoff
 
       - name: Preserve the nested Chromium sandboxes
         if: runner.os == 'Linux'

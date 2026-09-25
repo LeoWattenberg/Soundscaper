@@ -205,7 +205,7 @@ test('desktop verification isolates browser engines and tests packages with ever
 		assert.match(extractJob(workflow, jobName), /needs: \[quality, tests, coverage, browser, firefox\]/u);
 	}
 	const tested = extractJob(workflow, 'package-with-tests');
-	assert.match(tested, /needs: \[nightly-test-targets, quality, tests, coverage, browser, firefox\]/u);
+	assert.match(tested, /needs: \[nightly-test-targets, quality, tests, coverage, browser, firefox, publish-assistance-runtime-handoff\]/u);
 	assert.match(tested, /github\.event\.workflow_run\.conclusion == 'success'/u,
 		'automatic tested packages must use the upstream Quality verdict');
 	assert.doesNotMatch(workflow, /^ {2}project-library-handoff:/mu);
