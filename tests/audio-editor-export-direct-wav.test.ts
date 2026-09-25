@@ -175,14 +175,13 @@ test('exact realtime WAV mixes await coalesced destination writes and publish no
 
 	await writeStarted.promise;
 	assert.deepEqual(fixture.calls, [
-		'temporary:create', 'render:chunk:1', 'render:chunk:2',
+		'render:chunk:1', 'encoder:write:1',
+		'render:chunk:2', 'encoder:write:2',
 		'render:done',
-		'encoder:write:1', 'encoder:write:2', 'temporary:remove',
 	]);
 	assert.equal(destination.commitCalls(), 0);
 	releaseWrite.resolve();
 	const result = await saving;
-
 	assert.deepEqual(destination.admissions, [[plan.outputFileBytesPerRender, 'exact']]);
 	assert.deepEqual(destination.chunks.map((chunk) => chunk.byteLength), [plan.outputFileBytesPerRender - 3, 3]);
 	assert.deepEqual([...destination.chunks[1]], [1, 2, 3]);
@@ -190,9 +189,10 @@ test('exact realtime WAV mixes await coalesced destination writes and publish no
 	assert.equal(destination.abortCalls(), 0);
 	assert.equal(fixture.downloads.length, 0);
 	assert.deepEqual(fixture.preflights, []);
-	assert.equal(fixture.calls.includes('temporary:create'), true);
+	assert.equal(fixture.calls.includes('temporary:create'), false);
 	assert.equal(fixture.renderRequests[0].chunkFrames, DIRECT_PCM_RENDER_CHUNK_FRAMES);
 	assert.equal(fixture.renderRequests[0].maximumPendingChunks, directPcmMaximumPendingChunks(2));
+	assert.equal(fixture.renderRequests[0].suspendForBackpressure, false);
 	assert.deepEqual(fixture.prepareRequests.map((request) => ({
 		purpose: request.purpose,
 		suggestedName: request.suggestedName,

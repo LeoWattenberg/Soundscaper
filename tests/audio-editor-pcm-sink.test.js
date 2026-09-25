@@ -561,7 +561,7 @@ async function withMockRealtimeRenderer(onResume, run, { closeFailure = null, on
 		async resume() {
 			this.resumeCalls += 1;
 			this.state = 'running';
-			await onResume(this);
+			await Promise.resolve().then(() => onResume(this));
 		}
 		async suspend() {
 			this.suspendCalls += 1;

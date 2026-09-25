@@ -10,6 +10,7 @@ import {
 import { createAudioEditorEngine } from '../src/common/editor/engine.js';
 import { scheduleProjectClips } from '../src/common/editor/engine/clip-scheduler.ts';
 import type { WebAudioEditorEngine } from '../src/common/editor/engine/runtime-class.ts';
+import { chunkSource, streamProject } from './helpers/realtime-stream-render-fixture.ts';
 
 interface StreamUnderrunDetails {
 	readonly frame: number;
@@ -168,10 +169,20 @@ test('realtime cancellation is observed while AudioContext resume remains pendin
 		await new Promise((resolve) => setImmediate(resolve));
 		await new Promise((resolve) => setImmediate(resolve));
 		const observedBeforeResume = [...unhandled];
-		context.allowResume.resolve();
-		await assert.rejects(rendering, { name: 'AbortError' });
+		let timeout: ReturnType<typeof setTimeout> | null = null;
+		try {
+			await assert.rejects(Promise.race([
+				rendering,
+				new Promise<never>((_, reject) => {
+					timeout = setTimeout(() => reject(new Error('Render did not settle while resume was pending.')), 1_000);
+				}),
+			]), { name: 'AbortError' });
+		} finally {
+			if (timeout !== null) clearTimeout(timeout);
+		}
 
 		assert.deepEqual(observedBeforeResume, []);
+		assert.equal(context.closeCalls, 1, 'cancellation cleans up before resume settles');
 	} finally {
 		context.allowResume.resolve();
 		process.off('unhandledRejection', onUnhandled);
@@ -304,10 +315,10 @@ test('realtime setup freezes the clock, arms capture from the scheduled start, a
 		const rendering = engine.renderMixRealtime({
 			startFrame: 0, endFrame: 1, outputFrames: 1, onChunk: () => undefined,
 		});
+		void rendering.catch(() => undefined);
 		await streams.opened.promise;
 		await new Promise((resolve) => setImmediate(resolve));
-		assert.equal(context.resumeCalls, 0, 'the audio clock stays suspended until capture acknowledges its start frame');
-		context.capture?.arm();
+		assert.equal(context.resumeCalls, 1, 'the capture worklet can acknowledge only after the audio clock resumes');
 		await context.captureDone.promise;
 		streams.complete();
 		await rendering;
@@ -452,6 +463,7 @@ class MockRealtimeAudioContext {
 			this.onPostCaptureResume?.();
 			return;
 		}
+		if (!this.autoArmCapture) this.capture?.arm();
 		this.capture?.emit({
 			type: 'audio-chunk', frameOffset: 0, frames: 1,
 			channels: [Float32Array.of(0.5)],
@@ -516,29 +528,6 @@ class MockCaptureNode extends MockNode {
 	emit(data: Readonly<Record<string, unknown>>): void {
 		this.port.onmessage?.({ data });
 	}
-}
-
-function chunkSource() {
-	return {
-		channelCount: 1,
-		frameCount: 1,
-		chunkFrames: 1,
-		sampleRate: 48_000,
-		readStorageChunk: async () => [Float32Array.of(0.5)],
-	};
-}
-
-function streamProject() {
-	return {
-		sampleRate: 48_000,
-		masterChannels: 1,
-		tracks: [{ id: 'track-1', type: 'audio', clipIds: ['clip-1'] }],
-		clips: [{
-			id: 'clip-1', sourceId: 'source-1', timelineStartFrame: 0,
-			durationFrames: 1, sourceStartFrame: 0, sourceDurationFrames: 1,
-		}],
-		master: { gain: 1, pan: 0, mute: false, effects: [] },
-	};
 }
 
 function deferred<Value>() {

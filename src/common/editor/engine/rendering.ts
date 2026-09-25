@@ -73,6 +73,7 @@ async renderMixRealtime(this: EngineRuntimeHost, {
 		chunkFrames = 4096,
 		maximumPendingChunks = undefined,
 		backpressureHighWaterChunks = undefined,
+		suspendForBackpressure = true,
 		onChunk,
 		onProgress = null,
 		signal,
@@ -121,6 +122,7 @@ async renderMixRealtime(this: EngineRuntimeHost, {
 		let streamedClips = 0;
 		let outputFrames = 0;
 		let startTime = 0;
+		let captureStartFrame = 0;
 		let captureLeadFrames = 0;
 		let capture = null;
 		let silent = null;
@@ -228,31 +230,7 @@ async renderMixRealtime(this: EngineRuntimeHost, {
 				deferStartUntilPrimed: true,
 			});
 			startTime = scheduled.contextStartTime;
-			const startFrame = Math.ceil(startTime * context.sampleRate) + captureLeadFrames;
-			await new Promise<void>((resolve, reject) => {
-				const onAbort = (): void => fail(createAbortError());
-				const timeout = setTimeout(() => fail(new Error('The realtime capture worklet did not arm.')), 10_000);
-				const cleanup = (): void => {
-					clearTimeout(timeout);
-					graph.abortController.signal.removeEventListener('abort', onAbort);
-					capture.port.onmessage = null;
-					capture.onprocessorerror = null;
-				};
-				const fail = (error: Error): void => { cleanup(); reject(error); };
-				capture.port.onmessage = ({ data = {} }) => {
-					if (data.type !== 'capture-armed') return;
-					cleanup();
-					if (data.startFrame === startFrame) resolve();
-					else reject(new Error('The realtime capture worklet armed at the wrong frame.'));
-				};
-				capture.onprocessorerror = () => fail(new Error('The realtime capture worklet failed while arming.'));
-				graph.abortController.signal.addEventListener('abort', onAbort, { once: true });
-				if (graph.abortController.signal.aborted) onAbort();
-				else {
-					capture.port.start?.();
-					capture.port.postMessage({ type: 'start-capture', startFrame });
-				}
-			});
+			captureStartFrame = Math.ceil(startTime * context.sampleRate) + captureLeadFrames;
 			const streamCompletion = scheduled.waitForStreamedClips();
 			waitForStreamedClips = () => streamCompletion;
 			void streamCompletion.catch((error: unknown) => {
@@ -284,6 +262,8 @@ async renderMixRealtime(this: EngineRuntimeHost, {
 		void done.catch(() => undefined);
 		let doneReceived = false;
 		let terminating = false;
+		let captureArmed = false;
+		let captureArmTimeout: ReturnType<typeof setTimeout> | null = null;
 		interface SinkQueue {
 			readonly failure: unknown;
 			readonly maximumPendingChunks: number;
@@ -333,8 +313,11 @@ async renderMixRealtime(this: EngineRuntimeHost, {
 		const sinkBackpressureHighWaterChunks = sinkAdmission.backpressureHighWaterChunks;
 		let flowControl: Promise<void> | null = null;
 		const requestSinkDrain = () => {
+			// Without suspension, producer credits and the admitted queue remain bounded.
+			// This keeps every captured frame on a continuous audio clock.
 			if (
-				terminating
+				!suspendForBackpressure
+				|| terminating
 				|| flowControl
 				|| doneReceived
 				|| queue.failure
@@ -388,6 +371,18 @@ async renderMixRealtime(this: EngineRuntimeHost, {
 		capture.port.onmessage = ({ data = {} }) => {
 			if (doneReceived || queue.failure) return;
 			try {
+				if (data.type === 'capture-armed') {
+					if (captureArmed || data.startFrame !== captureStartFrame) {
+						throw new Error('The realtime capture worklet armed at the wrong frame.');
+					}
+					captureArmed = true;
+					if (captureArmTimeout !== null) clearTimeout(captureArmTimeout);
+					captureArmTimeout = null;
+					return;
+				}
+				if (!captureArmed && (data.type === 'audio-chunk' || data.type === 'done')) {
+					throw new Error('The realtime capture worklet sent PCM before arming.');
+				}
 				const message = validateRealtimeCaptureMessage(data, {
 					channelCount: outputChannelCount,
 					chunkFrames: sinkAdmission.chunkFrames,
@@ -420,7 +415,16 @@ async renderMixRealtime(this: EngineRuntimeHost, {
 		let renderFailed = false;
 		let renderFailure: unknown;
 		try {
-			if (!graph.abortController.signal.aborted) await context.resume();
+			if (!graph.abortController.signal.aborted) {
+				capture.port.start?.();
+				captureArmTimeout = setTimeout(() => failRender(
+					new Error('The realtime capture worklet did not arm.'),
+				), 10_000);
+				capture.port.postMessage({ type: 'start-capture', startFrame: captureStartFrame });
+				// A blocked resume can remain pending after cancellation or an arm
+				// timeout. Observe completion as well so those failures reach cleanup.
+				await Promise.race([context.resume(), done]);
+			}
 			await done;
 			// The capture and native processors use different ports. A roundtrip
 			// with every native worklet observes faults that have not yet reached
@@ -438,6 +442,7 @@ async renderMixRealtime(this: EngineRuntimeHost, {
 			throw error;
 		} finally {
 			terminating = true;
+			if (captureArmTimeout !== null) clearTimeout(captureArmTimeout);
 			failStreamedRender = null;
 			failNativePluginRender = null;
 			const pendingFlowControl = flowControl;

@@ -335,7 +335,7 @@ test('exact realtime AIFF uses the shared bounded PCM route without Blob fallbac
 	assert.equal(destination.commitCalls(), 1);
 	assert.equal(destination.abortCalls(), 0);
 	assert.deepEqual(fixture.preflights, []);
-	assert.equal(fixture.calls.includes('temporary:create'), true);
+	assert.equal(fixture.calls.includes('temporary:create'), false);
 	assert.deepEqual(fixture.downloads, []);
 	assert.equal(fixture.renderRequests[0].chunkFrames, DIRECT_PCM_RENDER_CHUNK_FRAMES);
 	assert.equal(fixture.renderRequests[0].maximumPendingChunks, directPcmMaximumPendingChunks(2));

@@ -168,6 +168,8 @@ export interface EngineRealtimeRenderOptions extends EngineRenderMixOptions {
 	readonly chunkFrames?: number;
 	readonly maximumPendingChunks?: number;
 	readonly backpressureHighWaterChunks?: number;
+	/** When false, keep the audio clock running; bounded capture and sink paths reject overflow. */
+	readonly suspendForBackpressure?: boolean;
 	readonly onChunk?: EnginePcmChunkSink;
 }
 

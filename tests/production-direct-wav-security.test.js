@@ -157,7 +157,7 @@ test('direct PCM security controls stay limited to WAV, AIFF, BWF, and admitted 
 	);
 	assert.match(
 		exactDirectPcm.summary,
-		/Direct PCM adapters request suspension at one accepted chunk.*hard crossover reserve.*Realtime publication waits for every streamed clip to settle.*fails closed with the first stable source-underrun identity before commit.*interactive playback retains silence-on-underrun/isu,
+		/Direct PCM adapters keep the realtime AudioContext running between chunks.*worklet producer credits.*admitted 32 MiB sink queue each fail closed on overflow before commit.*Realtime publication waits for every streamed clip to settle.*fails closed with the first stable source-underrun identity before commit.*interactive playback retains silence-on-underrun/isu,
 	);
 	assert.match(
 		exactDirectPcm.summary,
@@ -256,7 +256,7 @@ test('direct PCM security controls stay limited to WAV, AIFF, BWF, and admitted 
 	);
 	assert.match(
 		directPcmRollback.summary,
-		/Direct PCM adapters request suspension at one accepted chunk.*hard crossover reserve.*Realtime publication waits for every streamed clip to settle.*fails closed with the first stable source-underrun identity before commit.*interactive playback retains silence-on-underrun/isu,
+		/Direct PCM adapters keep the realtime AudioContext running between chunks.*worklet producer credits.*admitted 32 MiB sink queue each fail closed on overflow before commit.*Realtime publication waits for every streamed clip to settle.*fails closed with the first stable source-underrun identity before commit.*interactive playback retains silence-on-underrun/isu,
 	);
 	assert.match(
 		directPcmRollback.summary,
@@ -281,7 +281,7 @@ test('direct PCM documentation records admitted BW64 byte, buffering, rollback, 
 	);
 	assertOrderedMatch(
 		documentation,
-		/Direct PCM adapters request suspension at one accepted chunk.*hard crossover reserve.*Realtime publication waits for every streamed clip to settle.*fails closed with the first stable source-underrun identity before commit.*interactive playback retains silence-on-underrun/isu,
+		/Direct PCM adapters keep the realtime AudioContext running between chunks.*worklet producer credits.*admitted 32 MiB sink queue each fail closed on overflow before commit.*Realtime publication waits for every streamed clip to settle.*fails closed with the first stable source-underrun identity before commit.*interactive playback retains silence-on-underrun/isu,
 	);
 	assertOrderedMatch(
 		documentation,

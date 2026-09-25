@@ -2,10 +2,6 @@
 
 import assert from 'node:assert/strict';
 import { createHash, type Hash } from 'node:crypto';
-import { openAsBlob } from 'node:fs';
-import { mkdtemp, open, rm } from 'node:fs/promises';
-import { tmpdir } from 'node:os';
-import { join } from 'node:path';
 import { performance } from 'node:perf_hooks';
 import test from 'node:test';
 
@@ -43,7 +39,7 @@ const PACKET_COUNT = Math.ceil(FRAME_COUNT / PACKET_FRAMES);
 const PCM_DESTINATION_WRITE_COUNT = Math.ceil(OUTPUT_PCM_BYTES / DIRECT_PCM_DESTINATION_WRITE_BYTES);
 const PATH_OWNED_BINARY_UPPER_BOUND =
 	MAXIMUM_PENDING_PACKETS * PACKET_BYTES
-	+ 4 * PACKET_BYTES
+	+ 2 * PACKET_BYTES
 	+ DIRECT_PCM_DESTINATION_WRITE_BYTES
 	+ 2 * HEADER_BYTES
 	+ FLOAT64_DITHER_STATE_BYTES;
@@ -169,7 +165,7 @@ test('portable desktop-threshold gate streams an actual 385 MiB WAV through the 
 		packets: PACKET_COUNT,
 	});
 	assert.equal(fixture.preflightCalls(), 0);
-	assert.equal(fixture.temporarySinkCalls(), 1);
+	assert.equal(fixture.temporarySinkCalls(), 0);
 	assert.equal(fixture.downloadCalls(), 0);
 	assert.deepEqual(fixture.errors, []);
 
@@ -184,7 +180,6 @@ test('portable desktop-threshold gate streams an actual 385 MiB WAV through the 
 	assert.equal(cancelled.outputSha256, null);
 	assert.equal(fixture.renderRuns[1].maximumPendingLimit, MAXIMUM_PENDING_PACKETS);
 	assert.equal(fixture.renderRuns[1].maximumPendingPackets, MAXIMUM_PENDING_PACKETS);
-	assert.equal(fixture.temporarySinkCalls(), 2);
 	assert.deepEqual(fixture.errors, []);
 
 	let oversizeTargetCalls = 0;
@@ -283,24 +278,9 @@ function createReferenceFixture(): ReferenceFixture {
 		},
 		createStableId: () => 'reference',
 		createStreamingWindowedSincResampler,
-		createTemporaryFileSink: async () => {
+		createTemporaryFileSink: () => {
 			temporarySinkCalls += 1;
-			const directory = await mkdtemp(join(tmpdir(), 'scape-reference-capture-'));
-			const path = join(directory, 'capture.f32');
-			const file = await open(path, 'w');
-			let closed = false;
-			const close = async () => {
-				if (closed) return;
-				closed = true;
-				await file.close();
-			};
-			return {
-				persistent: true,
-				async write(chunk: Uint8Array) { await file.writeFile(chunk); },
-				async close() { await close(); return openAsBlob(path); },
-				async remove() { await close(); await rm(directory, { recursive: true, force: true }); },
-				async abort() { await close(); await rm(directory, { recursive: true, force: true }); },
-			};
+			throw new Error('The direct reference route must not create a temporary sink.');
 		},
 		createWavStreamEncoder,
 		ffmpeg: { dispose() {} },

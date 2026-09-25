@@ -37,7 +37,7 @@ export function directPcmRenderQueueOptions(
 	return Object.freeze({
 		chunkFrames: DIRECT_PCM_RENDER_CHUNK_FRAMES,
 		maximumPendingChunks: directPcmMaximumPendingChunks(channelCount, containerLabel),
-		// Suspend before the main-thread encoder/resampler can starve a streamed source.
+		// Retained for queue admission; exact direct exports keep the audio clock running.
 		backpressureHighWaterChunks: 1,
 	});
 }

@@ -241,12 +241,11 @@ test('exact authored BW64 streams ds64, BEXT, CHNA, PCM, and AXML in canonical o
 	assert.equal(destination.commitCalls(), 1);
 	assert.equal(destination.abortCalls(), 0);
 	assert.deepEqual(fixture.preflights, []);
-	assert.equal(fixture.calls.includes('temporary:create'), true);
+	assert.equal(fixture.calls.includes('temporary:create'), false);
 	assert.deepEqual(fixture.downloads, []);
 	assert.equal(fixture.renderRequests[0]?.chunkFrames, DIRECT_PCM_RENDER_CHUNK_FRAMES);
 	assert.equal(fixture.renderRequests[0]?.maximumPendingChunks, directPcmMaximumPendingChunks(6, 'BW64'));
-	assert.equal(fixture.renderRequests[0]?.backpressureHighWaterChunks,
-		Math.floor(directPcmMaximumPendingChunks(6, 'BW64') / 2));
+	assert.equal(fixture.renderRequests[0]?.backpressureHighWaterChunks, 1);
 	assert.deepEqual(result, {
 		url: null, fileName: 'direct.wav', mimeType: 'audio/wav',
 		size: layout.byteLength, method: 'file-system-access',
@@ -338,7 +337,7 @@ test('mid-stream direct BW64 cancellation aborts without close, commit, Blob, or
 	assert.equal(destination.closeCalls(), 0);
 	assert.equal(destination.commitCalls(), 0);
 	assert.equal(destination.abortCalls(), 1);
-	assert.equal(fixture.calls.includes('temporary:create'), true);
+	assert.equal(fixture.calls.includes('temporary:create'), false);
 	assert.deepEqual(fixture.downloads, []);
 	assert.equal(fixture.state.exportOutput, null);
 });

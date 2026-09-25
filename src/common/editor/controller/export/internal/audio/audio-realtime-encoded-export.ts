@@ -15,7 +15,6 @@
 import {
 	createRealtimeExportPcmTransform, type RealtimeExportPcmTransform,
 } from '../realtime-export-pcm-transform.ts'; import { createLocalizedError, setLocalizedStatus } from '../../../../../i18n/presentation-message.ts';
-import { encodeRealtimePcmSpoolChunk, readRealtimePcmSpool } from './realtime-pcm-spool.ts';
 import { directPcmContainerLabel } from '../direct/direct-export-dispatch.ts';
 import {
 	createDirectPcmEncoder, directPcmRenderQueueOptions, type DirectPcmDestination,
@@ -64,10 +63,6 @@ export function createRealtimeEncodedAudioExport(runtime: RealtimeEncodedExportR
 	const sink = directDestination
 		? null
 		: await createTemporaryFileSink(`audio-editor-${createStableId('render')}.${nativeAiff ? 'aiff' : 'wav'}`, copy);
-	let captureSink: Awaited<ReturnType<typeof createTemporaryFileSink>> | null = null;
-	let captureChannelCount = 0;
-	let captureFrames = 0;
-	const captureChunkFrames: number[] = [];
 	const outputTransform: { current: RealtimeExportPcmTransform | null } = { current: null };
 	let stagedWrite = Promise.resolve();
 	let renderedSampleRate = renderSampleRate;
@@ -76,14 +71,6 @@ export function createRealtimeEncodedAudioExport(runtime: RealtimeEncodedExportR
 	let ownedOutput: RuntimeValue = null;
 	const failures: unknown[] = [];
 	try {
-		if (directDestination) {
-			captureSink = await createTemporaryFileSink(`audio-editor-${createStableId('capture')}.f32`, copy);
-			const captureBytes = (plan.range.durationFrames + plan.tailFrames)
-				* Number(snapshot.masterChannels || 2) * Float32Array.BYTES_PER_ELEMENT;
-			if (!captureSink.persistent && captureBytes > 96 * 1024 ** 2) {
-				throw createLocalizedError(Error, copy, 'realtimeStorageRequired');
-			}
-		}
 		if (sink && !sink.persistent
 			&& (plan.outputFileBytesPerRender ?? plan.outputBytesPerRender) > 96 * 1024 ** 2) {
 			throw createLocalizedError(Error, copy, 'realtimeStorageRequired');
@@ -124,25 +111,11 @@ export function createRealtimeEncodedAudioExport(runtime: RealtimeEncodedExportR
 				onChunk: (chunk: RuntimeValue) => { stagedWrite = Promise.resolve(sink.write(chunk)); },
 			}));
 		if (encoder) await stagedWrite;
-		const writeConverted = (channels: RuntimeValue) => {
-			outputTransform.current ||= createRealtimeExportPcmTransform({
-				inputChannelCount: channels.length, inputSampleRate: renderedSampleRate,
-				outputChannelCount: plan.channelCount, outputSampleRate: plan.sampleRate,
-				channelMapping: plan.channelMapping, applyChannelMapping: applyMediaChannelMapping,
-				createResampler: createStreamingWindowedSincResampler, optimizeSelectionUpmix: Boolean(directEncoder),
-			});
-			const outputChannels = outputTransform.current.push(channels);
-			if (!outputChannels[0]?.length) return undefined;
-			if (directEncoder) return directEncoder.write(outputChannels);
-			encoder.write(outputChannels);
-			return stagedWrite;
-		};
 		renderEngine = createCacheAwareRenderEngine();
 		if (renderSources.chunkSources === null) renderEngine.loadProject(snapshot, renderSources.sourceMap);
 		else renderEngine.loadProject(snapshot, renderSources.sourceMap, {
 			chunkSources: renderSources.chunkSources,
 		});
-		const queueOptions = directPcmRenderQueueOptions(Number(snapshot.masterChannels || 2), containerLabel);
 		await renderEngine.renderMixRealtime({
 			...renderTarget,
 			startFrame: plan.range.startFrame,
@@ -150,42 +123,27 @@ export function createRealtimeEncodedAudioExport(runtime: RealtimeEncodedExportR
 			includeTail: settings.includeTail ? plan.tailFrames / renderSampleRate : false,
 			sampleRate: renderSampleRate,
 			preRollFrames: Math.min(plan.range.startFrame, renderSampleRate * 10),
-			...queueOptions,
-			backpressureHighWaterChunks: captureSink
-				? Math.max(1, Math.floor(queueOptions.maximumPendingChunks / 2))
-				: queueOptions.backpressureHighWaterChunks,
+			...directPcmRenderQueueOptions(Number(snapshot.masterChannels || 2), containerLabel),
+			// Browser suspend/resume can skip capture quanta. Keep exact direct
+			// exports continuous; bounded capture and sink paths reject overflow.
+			suspendForBackpressure: !directEncoder,
 			...withRenderProgress({}),
 			signal,
 			onChunk: (channels: RuntimeValue, metadata: RuntimeValue = {}) => {
 				renderedSampleRate = metadata.sampleRate || renderedSampleRate;
-				if (!captureSink) return writeConverted(channels);
-				captureChannelCount ||= channels.length;
-				if (captureChannelCount !== channels.length) throw new Error('Realtime PCM capture channel count changed.');
-				captureFrames += channels[0].length;
-				captureChunkFrames.push(channels[0].length);
-				return captureSink.write(encodeRealtimePcmSpoolChunk(channels));
+				outputTransform.current ||= createRealtimeExportPcmTransform({
+					inputChannelCount: channels.length, inputSampleRate: renderedSampleRate,
+					outputChannelCount: plan.channelCount, outputSampleRate: plan.sampleRate,
+					channelMapping: plan.channelMapping, applyChannelMapping: applyMediaChannelMapping,
+					createResampler: createStreamingWindowedSincResampler, optimizeSelectionUpmix: Boolean(directEncoder),
+				});
+				const outputChannels = outputTransform.current.push(channels);
+				if (!outputChannels[0]?.length) return undefined;
+				if (directEncoder) return directEncoder.write(outputChannels);
+				encoder.write(outputChannels);
+				return stagedWrite;
 			},
 		});
-		if (captureSink) {
-			const captured = await captureSink.close('application/octet-stream');
-			if (captured.size !== captureFrames * captureChannelCount * Float32Array.BYTES_PER_ELEMENT) {
-				throw new Error('Realtime PCM capture byte count does not match the rendered frames.');
-			}
-			setLocalizedStatus(setStatus, copy, 'encoding');
-			runtime.taskProgress?.setActivePhase?.(copy.encoding, { ...encodingProgressRange, value: 0 }, { key: 'encoding' });
-			let convertedFrames = 0;
-			for await (const channels of readRealtimePcmSpool(captured, captureChannelCount, captureChunkFrames)) {
-				throwIfAborted(signal);
-				assertDirectCurrent();
-				await writeConverted(channels);
-				throwIfAborted(signal);
-				assertDirectCurrent();
-				convertedFrames += channels[0].length;
-				runtime.taskProgress?.updateActive?.(convertedFrames / captureFrames);
-			}
-			await captureSink.remove();
-			captureSink = null;
-		}
 		if (!outputTransform.current) throw new Error('Realtime export produced no PCM chunks.');
 		const finalChannels = outputTransform.current.finish(plan.outputFrames);
 		if (finalChannels[0]?.length && directEncoder) await directEncoder.write(finalChannels);
@@ -229,9 +187,6 @@ export function createRealtimeEncodedAudioExport(runtime: RealtimeEncodedExportR
 		}
 	} catch (error) {
 		failures.push(error);
-		if (captureSink) {
-			try { await captureSink.abort(); } catch (cleanupError) { failures.push(cleanupError); }
-		}
 		if (sink && !directCompressedHandoff) {
 			try { await sink.abort(); } catch (cleanupError) { failures.push(cleanupError); }
 		}
