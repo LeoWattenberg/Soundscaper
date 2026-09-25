@@ -171,9 +171,9 @@ test.describe('Audacity action runtime browser routes', () => {
 		await expect(workspaceMain).toBeVisible();
 
 		await invokeSearchCommand(page, editor, 'toggle-clipping-in-waveform');
-		await expectViewToggle(page, editor, 'Show clipping in waveform', false);
+		await expectViewToggle(page, editor, 'Clipping in waveform', false);
 		await invokeSearchCommand(page, editor, 'toggle-clipping-in-waveform');
-		await expectViewToggle(page, editor, 'Show clipping in waveform', true);
+		await expectViewToggle(page, editor, 'Clipping in waveform', true);
 		await invokeSearchCommand(page, editor, 'toggle-statusbar');
 		await expectViewToggle(page, editor, 'Status bar', false);
 		await invokeSearchCommand(page, editor, 'toggle-statusbar');

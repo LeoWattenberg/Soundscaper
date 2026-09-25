@@ -184,6 +184,7 @@ Product availability follows each product profile’s command filters and each l
 | External display | `framescaper-external-display` | — | View > External display | Framescaper | Soundscaper local |
 | Fade In | `audacity-fade-in` | — | Effect > Fading | Soundscaper | Soundscaper local |
 | Fade Out | `audacity-fade-out` | — | Effect > Fading | Soundscaper | Soundscaper local |
+| Fade shape handles | `show-fade-shape-handles` | — | View | Soundscaper, Framescaper | Soundscaper local |
 | Filter Curve EQ | `audacity-filter-curve-eq` | — | Effect > EQ and filters | Soundscaper | Soundscaper local |
 | Find clipping | `find-clipping` | — | Analyze | Soundscaper | Audacity |
 | First track | `track-view-first-track` | Ctrl+Home | Keyboard navigation | Soundscaper, Framescaper | Audacity |
@@ -252,6 +253,7 @@ Product availability follows each product profile’s command filters and each l
 | Mark Cuts… | `assistance-task-mark-cuts` | — | Analyze > Video | Framescaper | Soundscaper local |
 | Mark Reactions… | `assistance-task-mark-reactions` | — | Analyze > Speech | Soundscaper, Framescaper | Soundscaper local |
 | Markers | `panel-markers` | — | View > Panels | Soundscaper, Framescaper | Soundscaper local |
+| Markers | `show-markers` | — | View | Soundscaper, Framescaper | Soundscaper local |
 | Mastering sequences | `soundscaper-mastering-sequences` | — | Tools | Soundscaper | Soundscaper local |
 | Measure RMS | `nyquist:rms` | — | Nyquist | Soundscaper | Audacity |
 | Measure loudness | `measure-loudness` | — | Analyze | Soundscaper | Soundscaper local |
@@ -425,8 +427,6 @@ Product availability follows each product profile’s command filters and each l
 | Shelf filter | `shelf-filter` | — | Effect > EQ and filters | Soundscaper | Soundscaper local |
 | Show RMS in waveform | `toggle-rms-in-waveform` | — | View | Soundscaper, Framescaper | Audacity |
 | Show clipping in waveform | `toggle-clipping-in-waveform` | — | View | Soundscaper, Framescaper | Audacity |
-| Show fade shape handles | `show-fade-shape-handles` | — | View | Soundscaper, Framescaper | Soundscaper local |
-| Show markers | `show-markers` | — | View | Soundscaper, Framescaper | Soundscaper local |
 | Show master track | `show-master-track` | — | View | Soundscaper, Framescaper | Audacity |
 | Show microphone metering | `action://record/toggle-mic-metering` | — | Meter toolbar | Soundscaper | Audacity |
 | Show vertical rulers | `toggle-vertical-rulers` | — | View | Soundscaper, Framescaper | Audacity |

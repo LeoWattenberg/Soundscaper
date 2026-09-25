@@ -109,7 +109,7 @@ export const EDITING_GUIDES = Object.freeze([
 		steps: [
 			open(),
 			importAudio('music-loop', { what: 'the recording you want to mark up' }),
-			menu(['View', 'Show markers'], { why: 'This adds a marker lane above the tracks. Markers exist without it, but the lane is where you see and edit them.' }),
+			menu(['View', 'Markers'], { why: 'This adds a marker lane above the tracks. Markers exist without it, but the lane is where you see and edit them.' }),
 			cursor(0.5, { where: 'where the marker should go', why: 'The marker goes where the cursor is.' }),
 			marker('Chorus', { see: 'The marker shows in the lane above the tracks and in the panel’s list, with the name you typed.' }),
 		],

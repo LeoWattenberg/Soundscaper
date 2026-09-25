@@ -79,7 +79,7 @@ test.describe('design-system audio crossfade visuals', () => {
 		const curves = outgoing.locator('.audio-editor-clip-fade__curve');
 		await expect(curves.locator('polygon')).toHaveCount(0);
 		await expect(curves.locator('path[data-fade-curve="in"]')).toHaveCount(1);
-		await chooseCommandAction(page, editor, 'View', 'Show fade shape handles');
+		await chooseCommandAction(page, editor, 'View', 'Fade shape handles');
 		await expect(outgoing.getByRole('slider', { name: 'Fade in shape', exact: true })).toBeVisible();
 		await expect(outgoing.getByRole('slider', { name: 'Fade out shape', exact: true })).toHaveCount(0);
 		await incoming.focus();

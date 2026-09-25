@@ -141,12 +141,12 @@ test.describe('native timeline annotations', () => {
 		await expect(timeline.locator('[data-timeline-annotation-layer]')).toHaveCount(0);
 		await expect(rulerRow).toHaveCSS('height', '34px');
 
-		await chooseCommandAction(page, editor, 'View', 'Show markers');
+		await chooseCommandAction(page, editor, 'View', 'Markers');
 		await expect(timeline).toHaveAttribute('data-show-markers', 'true');
 		await expect(timeline.locator('[data-timeline-annotation-layer]')).toBeVisible();
 		await expect(rulerRow).toHaveCSS('height', '67px');
 
-		await chooseCommandAction(page, editor, 'View', 'Show markers');
+		await chooseCommandAction(page, editor, 'View', 'Markers');
 		await expect(timeline).toHaveAttribute('data-show-markers', 'false');
 		await expect(timeline.locator('[data-timeline-annotation-layer]')).toHaveCount(0);
 		await expect(rulerRow).toHaveCSS('height', '34px');
@@ -258,10 +258,10 @@ test.describe('native timeline annotations', () => {
 		await expect(marker).toHaveAttribute('aria-selected', 'true');
 		await expect(region).toHaveAttribute('aria-selected', 'true');
 		// The View command removes and restores both the controls and their lane.
-		await chooseCommandAction(page, editor, 'View', 'Show markers');
+		await chooseCommandAction(page, editor, 'View', 'Markers');
 		await expect(laneActions).toHaveCount(0);
 		await expect(editor.locator('[data-timeline-annotation-layer]')).toHaveCount(0);
-		await chooseCommandAction(page, editor, 'View', 'Show markers');
+		await chooseCommandAction(page, editor, 'View', 'Markers');
 		await expect(laneActions).toBeVisible();
 
 		const laneStatus = editor.locator('[data-timeline-annotation-create-actions] + [role="status"]');

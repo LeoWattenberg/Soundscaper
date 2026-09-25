@@ -21,7 +21,7 @@ test('fade shape handles stay hidden by default and preserve the saved View choi
 	assert.throws(() => createAudioEditorPreferencesV1({ view: { showFadeShapeHandles: 'yes' } }), /view\.showFadeShapeHandles/u);
 });
 
-test('the View checkbox exposes the English and German labels and current preference', () => {
+test('the View visibility item exposes noun labels and the current preference', () => {
 	let toggled = false;
 	const preferences = createAudioEditorPreferencesV1();
 	const menu = (copy, showFadeShapeHandles) => createApplicationViewMenu({
@@ -32,11 +32,12 @@ test('the View checkbox exposes the English and German labels and current prefer
 		showArmControls: false, snapshot: { preferences: { view: { showFadeShapeHandles } } }, uiFlags: {},
 	}, { toggleFadeShapeHandles: () => { toggled = true; } });
 	const disabled = menu(ENGLISH_COPY, false).items.find((item) => item.id === 'show-fade-shape-handles');
-	assert.equal(disabled?.label, 'Show fade shape handles');
+	assert.equal(disabled?.label, 'Fade shape handles');
 	assert.equal(disabled?.checked, false);
+	assert.equal(disabled?.visibilityToggle, true);
 	disabled?.onClick();
 	assert.equal(toggled, true);
 	const enabled = menu(GERMAN_COPY, true).items.find((item) => item.id === 'show-fade-shape-handles');
-	assert.equal(enabled?.label, 'Fadeform-Griffe anzeigen');
+	assert.equal(enabled?.label, 'Fadeform-Griffe');
 	assert.equal(enabled?.checked, true);
 });

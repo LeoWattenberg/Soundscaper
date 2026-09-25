@@ -123,7 +123,7 @@ test.describe('audio editor React/design-system workflows', () => {
 		const menubar = editor.getByRole('menubar', { name: 'Application menu', exact: true });
 		await menubar.getByRole('menuitem', { name: 'View', exact: true }).click();
 		const viewMenu = page.getByRole('menu', { name: 'View', exact: true });
-		const viewMaster = viewMenu.getByRole('menuitemcheckbox', { name: 'Show master track', exact: true });
+		const viewMaster = viewMenu.getByRole('menuitemcheckbox', { name: 'Master track', exact: true });
 		await expect(viewMaster).toHaveAttribute('aria-checked', 'true');
 		await expect(viewMenu.locator('[role="menuitem"][aria-checked]')).toHaveCount(0);
 		await viewMaster.focus();

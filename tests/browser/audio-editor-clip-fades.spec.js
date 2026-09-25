@@ -170,7 +170,7 @@ test.describe('non-destructive clip fade handles', () => {
 		await fadeIn.press('End');
 		await expect(fadeIn).toHaveAttribute('aria-valuenow', '0.8');
 		await expect(clip.locator('[data-clip-fade-shape-handle]')).toHaveCount(0);
-		await chooseCommandAction(page, editor, 'View', 'Show fade shape handles');
+		await chooseCommandAction(page, editor, 'View', 'Fade shape handles');
 		let shape = clip.getByRole('slider', { name: 'Fade in shape', exact: true });
 		await expect(shape).toBeVisible();
 		await expect(shape).toHaveAttribute('aria-valuenow', '1');
@@ -210,7 +210,7 @@ test.describe('non-destructive clip fade handles', () => {
 		await selectClip(clip);
 		await clip.getByRole('slider', { name: 'Fade in', exact: true }).press('End');
 		await clip.getByRole('slider', { name: 'Fade out', exact: true }).press('End');
-		await chooseCommandAction(page, editor, 'View', 'Show fade shape handles');
+		await chooseCommandAction(page, editor, 'View', 'Fade shape handles');
 		const incoming = clip.getByRole('slider', { name: 'Fade in shape', exact: true });
 		const outgoing = clip.getByRole('slider', { name: 'Fade out shape', exact: true });
 		const inBounds = await incoming.boundingBox();
@@ -231,7 +231,7 @@ test.describe('non-destructive clip fade handles', () => {
 		const clip = clipByName(editor, toneA.name);
 		await selectClip(clip);
 		await clip.getByRole('slider', { name: 'Fade in', exact: true }).press('End');
-		await chooseCommandAction(page, editor, 'View', 'Show fade shape handles');
+		await chooseCommandAction(page, editor, 'View', 'Fade shape handles');
 		const shape = clip.getByRole('slider', { name: 'Fade in shape', exact: true });
 		const bounds = await shape.boundingBox();
 		expect(bounds).not.toBeNull();

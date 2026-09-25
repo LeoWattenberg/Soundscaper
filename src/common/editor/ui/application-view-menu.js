@@ -32,7 +32,7 @@ export function createApplicationViewMenu(context, actions) {
 				id: 'panels',
 				label: copy.panels,
 				items: [
-					{ id: 'toggle-tracks', label: copy.tracksPanel, checked: uiFlags.tracksPanel },
+					{ id: 'toggle-tracks', label: copy.tracksPanel, checked: uiFlags.tracksPanel, visibilityToggle: true },
 					...WORKSPACE_DISCOVERABLE_PANEL_IDS
 						.filter((panelId) => !ANALYZER_PANEL_ID_SET.has(panelId)
 							&& (capabilities.audioEffects || panelId !== 'effects')
@@ -41,8 +41,9 @@ export function createApplicationViewMenu(context, actions) {
 						.map((panelId) => panelId === 'effects'
 						? {
 							id: 'show-effects',
-							label: copy.showEffects,
+							label: copy.effects,
 							checked: effectsPanelOpen,
+							visibilityToggle: true,
 							disabled: !selectedAudioTrack,
 							onClick: actions.openEffects,
 						}
@@ -52,6 +53,7 @@ export function createApplicationViewMenu(context, actions) {
 							checked: panelId === 'project-bin'
 								? projectBinEffectivelyOpen
 								: preferences.workspace.panels[panelId].visible,
+							visibilityToggle: true,
 							onClick: () => actions.togglePanel(panelId),
 						}, productItems))
 						.flat(),
@@ -72,19 +74,20 @@ export function createApplicationViewMenu(context, actions) {
 			},
 			{ id: 'show-arm-controls', label: copy.showArmControls, checked: showArmControls, onClick: actions.toggleArmControls },
 		// The compact layout keeps the track headers in a drawer; the desktop column has no such state.
-		...(compactLayout ? [{ id: 'local://track-header-drawer', label: copy.trackHeaders, checked: Boolean(uiFlags.trackHeaderDrawer) }] : []),
-			{ id: AUDIO_EDITOR_APPLICATION_MENU_ACTION_IDS.toggleRmsInWaveform, label: copy.showRms, checked: Boolean(snapshot.timeline?.showRms), onClick: actions.toggleRms },
-			{ id: 'show-fade-shape-handles', label: copy.showFadeShapeHandles, checked: Boolean(snapshot.preferences?.view?.showFadeShapeHandles), onClick: actions.toggleFadeShapeHandles },
-			{ id: 'show-rulers', label: copy.showVerticalRulers, checked: snapshot.timeline?.showVerticalRulers !== false, onClick: actions.toggleVerticalRulers },
-			{ id: 'toggle-clipping-in-waveform', label: copy.showClipping, checked: uiFlags.clipping },
-			{ id: 'show-master-track', label: copy.masterTrack, checked: Boolean(snapshot.preferences?.view?.showMasterTrack) },
+		...(compactLayout ? [{ id: 'local://track-header-drawer', label: copy.trackHeaders, checked: Boolean(uiFlags.trackHeaderDrawer), visibilityToggle: true }] : []),
+			{ id: AUDIO_EDITOR_APPLICATION_MENU_ACTION_IDS.toggleRmsInWaveform, label: copy.viewRmsInWaveform, preserveLabel: true, checked: Boolean(snapshot.timeline?.showRms), visibilityToggle: true, onClick: actions.toggleRms },
+			{ id: 'show-fade-shape-handles', label: copy.viewFadeShapeHandles, checked: Boolean(snapshot.preferences?.view?.showFadeShapeHandles), visibilityToggle: true, onClick: actions.toggleFadeShapeHandles },
+			{ id: 'show-rulers', label: copy.viewVerticalRulers, preserveLabel: true, checked: snapshot.timeline?.showVerticalRulers !== false, visibilityToggle: true, onClick: actions.toggleVerticalRulers },
+			{ id: 'toggle-clipping-in-waveform', label: copy.viewClippingInWaveform, preserveLabel: true, checked: uiFlags.clipping, visibilityToggle: true },
+			{ id: 'show-master-track', label: copy.viewMasterTrack, preserveLabel: true, checked: Boolean(snapshot.preferences?.view?.showMasterTrack), visibilityToggle: true },
 			...(timelineAnnotationsAvailable(snapshot) ? [{
 				id: 'show-markers',
-				label: copy.showMarkers,
+				label: copy.panelMarkers,
 				checked: Boolean(snapshot.preferences?.view?.showMarkers),
+				visibilityToggle: true,
 				onClick: actions.toggleMarkers,
 			}] : []),
-			{ id: 'toggle-statusbar', label: copy.statusBar, checked: uiFlags.statusbar },
+			{ id: 'toggle-statusbar', label: copy.statusBar, checked: uiFlags.statusbar, visibilityToggle: true },
 			divider(),
 			createSnapMenu(copy, project, editBlocked, actions.setSnap),
 			{

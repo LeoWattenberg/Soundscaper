@@ -13,6 +13,38 @@ import {
 } from './audio-editor-test-helpers.js';
 
 test.describe('application menu action journeys', () => {
+	test('View visibility items use open and closed eyes while recording and snapping retain checks', async ({ page }) => {
+		const editor = await bootEditor(page, '/embed/en/');
+		const viewMenu = await openNestedCommandMenu(page, editor, 'View', []);
+		const eye = (item) => item.locator(':scope > .context-menu-item-content .context-menu-item-icon .musescore-icon');
+
+		const rulers = getMenuItem(viewMenu, 'Vertical rulers');
+		await expect(rulers).toHaveAttribute('aria-checked', 'true');
+		await expect(eye(rulers)).toHaveText('\uEF53');
+		const rms = getMenuItem(viewMenu, 'RMS in waveform');
+		await expect(rms).toHaveAttribute('aria-checked', 'false');
+		await expect(eye(rms)).toHaveText('\uEF54');
+		for (const label of ['Fade shape handles', 'Clipping in waveform', 'Master track', 'Markers', 'Status bar']) {
+			await expect(eye(getMenuItem(viewMenu, label))).toHaveCount(1);
+		}
+		await expect(eye(getMenuItem(viewMenu, 'Enable multi-track recording'))).toHaveCount(0);
+
+		const panels = await openNestedCommandMenu(page, editor, 'View', ['Panels']);
+		for (const label of ['Project bin', 'Video preview', 'Effects']) {
+			await expect(eye(getMenuItem(panels, label))).toHaveCount(1);
+		}
+		const tracks = getMenuItem(panels, 'Tracks panel');
+		await expect(tracks).toHaveAttribute('aria-checked', 'true');
+		await expect(eye(tracks)).toHaveText('\uEF53');
+		await tracks.click();
+		const hiddenTracks = getMenuItem(await openNestedCommandMenu(page, editor, 'View', ['Panels']), 'Tracks panel');
+		await expect(hiddenTracks).toHaveAttribute('aria-checked', 'false');
+		await expect(eye(hiddenTracks)).toHaveText('\uEF54');
+
+		const snapping = await openNestedCommandMenu(page, editor, 'View', ['Snapping']);
+		await expect(eye(getMenuItem(snapping, 'Snap to grid'))).toHaveCount(0);
+	});
+
 	test('routes view, track, and ripple edits through their visible menus', async ({ page }) => {
 		const errors = collectClientErrors(page);
 		const editor = await bootEditor(page, '/embed/en/');
@@ -24,25 +56,25 @@ test.describe('application menu action journeys', () => {
 		await chooseNestedCommandAction(page, editor, 'View', ['Panels', 'Tracks panel']);
 		await expect(editor.locator('[data-track-list]')).toBeVisible();
 
-		await chooseCommandAction(page, editor, 'View', 'Show master track');
+		await chooseCommandAction(page, editor, 'View', 'Master track');
 		await expect(editor.locator('[data-output-track-row][data-output-id="master"]')).toBeVisible();
 		let viewMenu = await openNestedCommandMenu(page, editor, 'View', []);
-		await expect(getMenuItem(viewMenu, 'Show master track')).toHaveAttribute('aria-checked', 'true');
+		await expect(getMenuItem(viewMenu, 'Master track')).toHaveAttribute('aria-checked', 'true');
 		await page.keyboard.press('Escape');
-		await chooseCommandAction(page, editor, 'View', 'Show master track');
+		await chooseCommandAction(page, editor, 'View', 'Master track');
 		await expect(editor.locator('[data-output-track-row][data-output-id="master"]')).toHaveCount(0);
 
-		await chooseCommandAction(page, editor, 'View', 'Show RMS in waveform');
+		await chooseCommandAction(page, editor, 'View', 'RMS in waveform');
 		viewMenu = await openNestedCommandMenu(page, editor, 'View', []);
-		await expect(getMenuItem(viewMenu, 'Show RMS in waveform')).toHaveAttribute('aria-checked', 'true');
+		await expect(getMenuItem(viewMenu, 'RMS in waveform')).toHaveAttribute('aria-checked', 'true');
 		await page.keyboard.press('Escape');
-		await chooseCommandAction(page, editor, 'View', 'Show RMS in waveform');
+		await chooseCommandAction(page, editor, 'View', 'RMS in waveform');
 
-		await chooseCommandAction(page, editor, 'View', 'Show vertical rulers');
+		await chooseCommandAction(page, editor, 'View', 'Vertical rulers');
 		viewMenu = await openNestedCommandMenu(page, editor, 'View', []);
-		await expect(getMenuItem(viewMenu, 'Show vertical rulers')).toHaveAttribute('aria-checked', 'false');
+		await expect(getMenuItem(viewMenu, 'Vertical rulers')).toHaveAttribute('aria-checked', 'false');
 		await page.keyboard.press('Escape');
-		await chooseCommandAction(page, editor, 'View', 'Show vertical rulers');
+		await chooseCommandAction(page, editor, 'View', 'Vertical rulers');
 
 		await chooseNestedCommandAction(page, editor, 'View', ['Zoom', 'Zoom in']);
 		const timelineScroll = editor.locator('.audio-editor-timeline-scroll');

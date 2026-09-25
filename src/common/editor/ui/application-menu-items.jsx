@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { ContextMenuItem } from '@soundscaper/design-system/ContextMenuItem';
+import { iconNameToChar } from '../audacity-iconcodes.js';
 
 export const MENU_ITEM_SELECTOR = '[role="menuitem"], [role="menuitemcheckbox"]';
 export const DIRECT_MENU_ITEM_SELECTOR = ':scope > [role="menuitem"], :scope > [role="menuitemcheckbox"]';
@@ -39,7 +40,10 @@ export function renderApplicationMenuItem(item, key, { closeMenu, onActivate = /
 			label={label}
 			shortcut={item.shortcut}
 			disabled={item.disabled}
-			checked={item.checked}
+			checked={item.visibilityToggle ? undefined : item.checked}
+			icon={item.visibilityToggle ? <span className="musescore-icon" aria-hidden="true">
+				{iconNameToChar(item.checked ? 'EYE_OPEN' : 'EYE_CLOSED')}
+			</span> : undefined}
 			hasSubmenu={Boolean(children?.length)}
 			onClick={activate}
 			onClose={() => closeMenu()}
