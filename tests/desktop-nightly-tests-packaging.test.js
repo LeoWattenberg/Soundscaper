@@ -217,13 +217,13 @@ test('desktop test artifacts build on main pushes and manual target selections w
 	assert.match(workflow, /NIGHTLY_TEST_TARGETS: \$\{\{ inputs\.nightly_tests_targets \|\| 'all' \}\}/u);
 	assert.match(workflow, /selectDesktopNightlyTestTargets\(process\.env\.NIGHTLY_TEST_TARGETS\)/u);
 
-	const publisherStart = workflow.indexOf('\n  verify-assistance-runtime-handoff:');
+	const handoffJobStart = workflow.indexOf('\n  verify-assistance-runtime-handoff:');
 	const testStart = workflow.indexOf('\n  package-with-tests:');
-	assert.ok(publisherStart > 0 && testStart > publisherStart);
-	const publisherJob = workflow.slice(publisherStart, testStart);
+	assert.ok(handoffJobStart > 0 && testStart > handoffJobStart);
+	const handoffJob = workflow.slice(handoffJobStart, testStart);
 	const testJob = workflow.slice(testStart);
-	const publisherGuard = publisherJob.slice(publisherJob.indexOf('if: >-'),
-		publisherJob.indexOf('\n    needs:'));
+	const handoffGuard = handoffJob.slice(handoffJob.indexOf('if: >-'),
+		handoffJob.indexOf('\n    needs:'));
 
 	const testGuard = testJob.slice(testJob.indexOf('if: >-'), testJob.indexOf('\n    needs:'));
 	assert.ok(testGuard.startsWith('if: >-'));
@@ -234,23 +234,20 @@ test('desktop test artifacts build on main pushes and manual target selections w
 	assert.match(testGuard, /needs\.verify-assistance-runtime-handoff\.result == 'success'/u);
 	// The package and both source manifests must name the selected commit.
 	const sourceRevision = String.raw`\$\{\{ github\.sha \}\}`;
-	assert.match(publisherJob, /needs: nightly-test-targets/u);
-	assert.match(publisherGuard, /needs\.nightly-test-targets\.result == 'success'/u);
-	const publicationStart = publisherJob.indexOf('- name: Publish and verify the immutable archives');
-	const handoffStart = publisherJob.indexOf('- name: Export the source-bound AI runtime handoff');
-	assert.ok(publisherJob.indexOf('node scripts/desktop-prepare.mjs') < publicationStart
-		&& publicationStart < handoffStart);
-	const publicationStep = publisherJob.slice(publicationStart, handoffStart);
-	assert.match(publicationStep, /npm run desktop:publish:assistance-runtimes/u);
-	assert.match(publicationStep, /R2_MODELS_ACCESS_KEY_ID: \$\{\{ secrets\.R2_MODELS_ACCESS_KEY_ID \}\}/u);
-	assert.match(publicationStep, /R2_MODELS_SECRET_ACCESS_KEY: \$\{\{ secrets\.R2_MODELS_SECRET_ACCESS_KEY \}\}/u);
-	assert.match(publicationStep, /R2_MODELS_ENDPOINT: \$\{\{ vars\.R2_MODELS_ENDPOINT \|\| secrets\.R2_MODELS_ENDPOINT \}\}/u);
-	assert.doesNotMatch(publisherJob.slice(0, publicationStart) + publisherJob.slice(handoffStart), /R2_MODELS_/u);
-	assert.match(publisherJob, new RegExp(`ref: ${sourceRevision}`, 'u'));
-	assert.match(publisherJob, new RegExp(`SOUNDSCAPER_SOURCE_REVISION: ${sourceRevision}`, 'u'));
-	assert.match(publisherJob, /node scripts\/export-assistance-runtime-handoff\.mjs/u);
-	assert.match(publisherJob, /name: assistance-runtime-handoff-\$\{\{ matrix\.target\.platform \}\}-\$\{\{ matrix\.target\.arch \}\}/u);
-	assert.match(publisherJob, /include-hidden-files: true/u);
+	assert.match(handoffJob, /needs: nightly-test-targets/u);
+	assert.match(handoffGuard, /needs\.nightly-test-targets\.result == 'success'/u);
+	const verificationStart = handoffJob.indexOf('- name: Verify the published immutable archives');
+	const handoffStart = handoffJob.indexOf('- name: Export the source-bound AI runtime handoff');
+	assert.ok(handoffJob.indexOf('node scripts/desktop-prepare.mjs') < verificationStart
+		&& verificationStart < handoffStart);
+	const verificationStep = handoffJob.slice(verificationStart, handoffStart);
+	assert.match(verificationStep, /node scripts\/publish-assistance-runtime-assets\.mjs --verify/u);
+	assert.doesNotMatch(workflow, /npm run desktop:publish:assistance-runtimes|R2_MODELS_/u);
+	assert.match(handoffJob, new RegExp(`ref: ${sourceRevision}`, 'u'));
+	assert.match(handoffJob, new RegExp(`SOUNDSCAPER_SOURCE_REVISION: ${sourceRevision}`, 'u'));
+	assert.match(handoffJob, /node scripts\/export-assistance-runtime-handoff\.mjs/u);
+	assert.match(handoffJob, /name: assistance-runtime-handoff-\$\{\{ matrix\.target\.platform \}\}-\$\{\{ matrix\.target\.arch \}\}/u);
+	assert.match(handoffJob, /include-hidden-files: true/u);
 	assert.match(testJob, new RegExp(`ref: ${sourceRevision}`, 'u'));
 	assert.match(testJob, new RegExp(
 		String.raw`- name: Package the product runtimes exercised by nightly-with-tests\s+run: node scripts/desktop-nightly-tests-products\.mjs`

@@ -95,10 +95,11 @@ as model weights. The manual **Update AI assets** workflow runs
 `npm run desktop:publish:assistance-runtimes` to upload them and require public
 HEAD, byte-range and full SHA-256 readback. Desktop preview builds publish
 Windows archives once per target and pass the authenticated manifest to both
-product package jobs. The internal Desktop test artifact workflow publishes
-and verifies each selected target in a separate handoff job. Its package jobs
-receive only the authenticated manifests and receipts, then download the exact
-public archives. Desktop package workflows verify the staged archives against
+product package jobs. The internal Desktop test artifact workflow verifies
+previously published archives for each selected target in a read-only handoff
+job. Its package jobs receive only the authenticated manifests and receipts,
+then download the exact public archives. Desktop package workflows verify the
+staged archives against
 those published immutable URLs before packaging.
 
 On request, the main process downloads a pinned archive into the user's app

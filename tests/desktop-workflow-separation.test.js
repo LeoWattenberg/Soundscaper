@@ -37,9 +37,9 @@ test('desktop distribution and automated test artifacts have separate workflow e
 		assert.doesNotMatch(tested, new RegExp(`^  ${job}:`, 'mu'));
 	}
 	assert.match(testedHeader, /cancel-in-progress: false/u);
-	const testedPublisher = extractJob(tested, 'verify-assistance-runtime-handoff');
-	assert.match(testedPublisher, /desktop:publish:assistance-runtimes/u);
-	assert.match(testedPublisher, /R2_MODELS_ACCESS_KEY_ID: \$\{\{ secrets\.R2_MODELS_ACCESS_KEY_ID \}\}/u);
+	const testedHandoff = extractJob(tested, 'verify-assistance-runtime-handoff');
+	assert.match(testedHandoff, /publish-assistance-runtime-assets\.mjs --verify/u);
+	assert.doesNotMatch(tested, /desktop:publish:assistance-runtimes|R2_MODELS_/u);
 	assert.doesNotMatch(extractJob(tested, 'package-with-tests'),
 		/desktop:publish:assistance-runtimes|R2_MODELS_/u);
 	const stable = await readWorkflow('soundscaper-stable-1.yml');

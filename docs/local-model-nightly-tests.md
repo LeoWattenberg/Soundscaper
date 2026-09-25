@@ -60,15 +60,15 @@ The source runtime-family register describes supported build targets.
 Run the manual **Update AI assets** workflow on main to publish the authenticated
 runtime archives for the selected targets and read back their complete public
 responses. The separate **Desktop test artifacts (internal)** workflow runs on
-every push to `main` and can also be dispatched manually there. It builds,
-publishes, and publicly verifies the exact archives in a dedicated handoff job.
+every push to `main` and can also be dispatched manually there. It builds and
+publicly verifies the exact archives in a read-only handoff job.
 Its package jobs receive no upload credentials and use the verified source-bound
 handoff. CI uploads the test packages without running their suites; launch a
 package on a real machine for the browser and local-model results.
 The resulting packages include the URLs and digests in the app ASAR; an
 unpublished or mismatched archive stops packaging. Update the assets before
-running a separate release workflow for a revision whose generated runtime
-bytes differ from those already published.
+running a test artifact or release workflow for a revision whose generated
+runtime bytes differ from those already published.
 The tests download these engines without substituting development dependencies
 or simulated output. Build support is separate from a successful test result on
 each platform; retain the report from the actual package run.

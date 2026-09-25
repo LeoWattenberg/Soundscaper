@@ -55,7 +55,7 @@ jobs:
           NODE
 
   verify-assistance-runtime-handoff:
-    name: Publish AI runtimes / ${{ matrix.target.platform }} / ${{ matrix.target.arch }}
+    name: Verify AI runtimes / ${{ matrix.target.platform }} / ${{ matrix.target.arch }}
     if: >-
       !cancelled()
       && needs.nightly-test-targets.result == 'success'
@@ -112,12 +112,8 @@ jobs:
           SOUNDSCAPER_DESKTOP_TARGET_ARCH: ${{ matrix.target.arch }}
           SOUNDSCAPER_SOURCE_REVISION: ${{ github.sha }}
 
-      - name: Publish and verify the immutable archives
-        run: npm run desktop:publish:assistance-runtimes
-        env:
-          R2_MODELS_ACCESS_KEY_ID: ${{ secrets.R2_MODELS_ACCESS_KEY_ID }}
-          R2_MODELS_SECRET_ACCESS_KEY: ${{ secrets.R2_MODELS_SECRET_ACCESS_KEY }}
-          R2_MODELS_ENDPOINT: ${{ vars.R2_MODELS_ENDPOINT || secrets.R2_MODELS_ENDPOINT }}
+      - name: Verify the published immutable archives
+        run: node scripts/publish-assistance-runtime-assets.mjs --verify
 
       - name: Export the source-bound AI runtime handoff
         run: node scripts/export-assistance-runtime-handoff.mjs
