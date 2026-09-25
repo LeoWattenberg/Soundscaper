@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import type { AudioEditorCommand } from '../src/common/editor/commands/protocol.ts';
+import { createAddClipCommand } from '../src/common/editor/commands/factories.ts';
 import {
 	createClipResampleService,
 	resampledClipCommands,
@@ -17,6 +18,7 @@ import type {
 	ControllerTrack,
 	DerivedSourceRecord,
 } from '../src/common/editor/controller/track-audio/track-domain-types.ts';
+import { apply, createFixture } from './helpers/audio-editor-model-harness.js';
 
 function projectFixture(overrides: Partial<ControllerProject> = {}): ControllerProject {
 	return {
@@ -201,6 +203,25 @@ test('resampling one clip repoints only that clip and leaves its source for the 
 	assert.equal(added.clip.sourceDurationFrames, 60);
 	assert.equal(added.clip.trimStartFrames, 4);
 	assert.equal(added.clip.trimEndFrames, 6);
+});
+
+test('resampling one grouped clip keeps its companion and the group in the committed project', async () => {
+	let project = createFixture();
+	const first = createAddClipCommand('track-1', clipFixture('clip', 'source-1', { groupId: 'group-1' }));
+	const companion = createAddClipCommand('track-2', clipFixture('companion', 'source-1', { groupId: 'group-1' }));
+	project = apply(project, first);
+	project = apply(project, companion);
+	const fixture = createResampleFixture(project as unknown as ControllerProject);
+
+	assert.equal(await fixture.service.resampleClip('clip', { sampleRate: 96_000 }), 'clip');
+	const batch = fixture.calls.commits[0]?.command;
+	assert.ok(batch);
+	const result: typeof project = apply(project, batch);
+	assert.deepEqual(result.clips.map(({ id }) => id).sort(), ['clip', 'companion']);
+	assert.equal(result.clips.find(({ id }) => id === 'clip')?.groupId, 'group-1');
+	assert.equal(result.clips.find(({ id }) => id === 'companion')?.groupId, 'group-1');
+	assert.equal(result.clips.find(({ id }) => id === 'companion')?.sourceId, 'source-1');
+	assert.equal(result.clips.find(({ id }) => id === 'clip')?.sourceId, fixture.calls.persisted[0]?.id);
 });
 
 test('the resampled source keeps the original rate and the declared format', async () => {

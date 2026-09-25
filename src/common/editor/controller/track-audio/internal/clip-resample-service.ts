@@ -97,6 +97,10 @@ export function resampledClipCommands(
 		Math.max(0, Math.round((clip.trimEndFrames || 0) * ratio)),
 	);
 	return [
+		// Removal expands group membership; detach only this clip before replacing it.
+		...(typeof clip.groupId === 'string' && clip.groupId
+			? [{ type: 'clip/ungroup' as const, clipIds: [clip.id] }]
+			: []),
 		{ type: 'clip/remove', clipId: clip.id },
 		createAddClipCommand(trackId, {
 			...clip,
