@@ -52,6 +52,6 @@ test('desktop packaging audits ten nightly product targets while tags select one
 	assert.match(aggregateJob, /node scripts\/audit-milestone-5-packages\.mjs[\s\S]*?--package-directory[\s\S]*?--output[\s\S]*?needs\.quality\.outputs\.package-audit-arguments/u);
 	assert.match(aggregateJob, /SOUNDSCAPER_SOURCE_REVISION: \$\{\{ github\.sha \}\}/u);
 	assert.match(aggregateJob, /name: milestone-5-package-audit-summary[\s\S]*?milestone-5-package-audit-summary\.json/u);
-	assert.doesNotMatch(`${packageJob}\n${aggregateJob}`, /handoff|package matrix|evidenceAuthenticated|evidenceSha256/iu);
+	assert.doesNotMatch(`${packageJob}\n${aggregateJob}`, /milestone5:handoff|package matrix|evidenceAuthenticated|evidenceSha256/iu);
 	assert.doesNotMatch(packageJob, /--require-ready/u);
 });

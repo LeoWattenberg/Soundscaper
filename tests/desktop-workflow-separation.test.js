@@ -39,8 +39,11 @@ test('desktop distribution and automated test artifacts have separate workflow e
 	const assetUpdate = await readWorkflow('update-ai-assets.yml');
 	for (const [name, workflow] of [['desktop preview', preview], ['stable release', stable]]) {
 		assert.match(workflow, /publish-assistance-runtime-assets\.mjs --verify/u, `${name} must verify published AI archives`);
-		assert.doesNotMatch(workflow, /desktop:publish:assistance-runtimes|R2_MODELS_ACCESS_KEY_ID/u,
-			`${name} must leave AI runtime publication to Update AI assets`);
 	}
+	assert.match(extractJob(preview, 'publish-windows-assistance-runtime-handoff'),
+		/desktop:publish:assistance-runtimes/u);
+	assert.doesNotMatch(extractJob(preview, 'package'), /R2_MODELS_ACCESS_KEY_ID/u);
+	assert.doesNotMatch(stable, /desktop:publish:assistance-runtimes|R2_MODELS_ACCESS_KEY_ID/u,
+		'stable release must leave AI runtime publication to Update AI assets');
 	assert.match(assetUpdate, /desktop:publish:assistance-runtimes/u);
 });

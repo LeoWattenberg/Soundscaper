@@ -93,8 +93,10 @@ archive. The archives use immutable keys under
 `https://assets.soundscaper.org/runtime/assistance/` in the same EU R2 bucket
 as model weights. The manual **Update AI assets** workflow runs
 `npm run desktop:publish:assistance-runtimes` to upload them and require public
-HEAD, byte-range and full SHA-256 readback. Desktop package workflows verify
-the staged archives against those published immutable URLs before packaging.
+HEAD, byte-range and full SHA-256 readback. Desktop preview builds publish
+Windows archives once per target and pass the authenticated manifest to both
+product package jobs. Desktop package workflows verify the staged archives
+against those published immutable URLs before packaging.
 
 On request, the main process downloads a pinned archive into the user's app
 data directory, checks its compressed digest, extracts only the listed regular

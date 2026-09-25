@@ -203,7 +203,10 @@ test('desktop verification isolates browser engines and tests packages with ever
 	for (const jobName of ['package', 'soundscaper-project-library-lease-matrix']) {
 		// Packaging waits on the sharded Node suite and the merged coverage gate too:
 		// a package built off unverified source is worse than no package.
-		assert.match(extractJob(workflow, jobName), /needs: \[quality, tests, coverage, browser, firefox\]/u);
+		const needs = jobName === 'package'
+			? /needs: \[quality, tests, coverage, browser, firefox, publish-windows-assistance-runtime-handoff\]/u
+			: /needs: \[quality, tests, coverage, browser, firefox\]/u;
+		assert.match(extractJob(workflow, jobName), needs);
 	}
 	const tested = extractJob(await readFile(new URL('../.github/workflows/desktop-nightly-tests.yml', import.meta.url), 'utf8'), 'package-with-tests');
 	assert.match(tested, /needs: \[nightly-test-targets, quality, tests, coverage, browser, firefox, verify-assistance-runtime-handoff\]/u);
