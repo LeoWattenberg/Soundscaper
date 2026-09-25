@@ -31,11 +31,14 @@ const KOKORO_EXECUTABLE = `${KOKORO_RUNTIME_PREFIX}/kokoro-g2p`;
 const RENDERER_WASM = 'renderer/assets/sqlite3-fixture.wasm';
 const RUNTIME_WASM = 'runtime/model/engine.wasm';
 const WASM = '\u0000asm\u0001\u0000\u0000\u0000';
+const STARTUP_JSON_DOCUMENT = '<main></main><script type="application/json" data-editor-startup-assets>{"assets":[]}</script>\n';
 
 test('nightly product coverage evidence preserves every executable and renderer map', async (context) => {
 	const workspace = await mkdtemp(join(tmpdir(), 'soundscaper-nightly-coverage-evidence-'));
 	context.after(() => rm(workspace, { recursive: true, force: true }));
-	const { buildRoot, files, productOutput } = await createCoverageFixture(workspace);
+	const { buildRoot, files, productOutput } = await createCoverageFixture(workspace, {
+		rendererDocument: STARTUP_JSON_DOCUMENT,
+	});
 
 	const manifest = await preserveDesktopNightlyProductCoverageEvidence({
 		buildRoot,

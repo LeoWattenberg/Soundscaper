@@ -295,8 +295,22 @@ function inspectHtmlElement(node, add) {
 		.filter((child) => child.nodeName === '#text')
 		.map((child) => child.value ?? '')
 		.join('');
+	if (src === null && jsonDataScript(attributes, body)) return;
 	if (src === null || body.trim() !== '' || !safeHtmlScriptSource(src)) {
 		add('inline HTML script');
+	}
+}
+
+function jsonDataScript(attributes, body) {
+	if (attributes.find(({ name }) => name === 'type')?.value.trim().toLowerCase() !== 'application/json') {
+		return false;
+	}
+	if (body.trim() === '') return true;
+	try {
+		JSON.parse(body);
+		return true;
+	} catch {
+		return false;
 	}
 }
 

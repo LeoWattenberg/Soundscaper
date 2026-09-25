@@ -116,6 +116,22 @@ test('HTML executable auditing parses attribute boundaries instead of filtering 
 	}]));
 });
 
+test('HTML executable auditing admits JSON data scripts but rejects executable or malformed script bodies', () => {
+	const embedded = '<script type="application/json" data-editor-startup-assets>{"assets":[{"path":"/assets/editor.js"}]}</script>';
+	assert.doesNotThrow(() => assertE2EHtmlExecutablePolicy([{
+		artifactPath: 'renderer/index.html', source: embedded,
+	}]));
+	for (const source of [
+		'<script type="module">globalThis.hidden = true</script>',
+		'<script type="application/json">globalThis.hidden = true</script>',
+		'<script type="application/json">{"safe":true}</script><script>globalThis.hidden = true</script>',
+	]) {
+		assert.throws(() => assertE2EHtmlExecutablePolicy([{
+			artifactPath: 'renderer/index.html', source,
+		}]), /unattested executable-string primitive/u, source);
+	}
+});
+
 test('unused first-party map entries cannot hide generated executable bytes behind vendor mappings', () => {
 	const fixture = makeFixture();
 	const siteRoot = join(fixture.evidenceRoot, 'browser/soundscaper/site');
