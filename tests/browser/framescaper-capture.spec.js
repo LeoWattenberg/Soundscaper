@@ -161,7 +161,7 @@ test.describe('Framescaper v1 recoverable capture', () => {
 
 	realtimeTest('records, pauses, resumes, imports once, and reopens ordinary media', async ({ page }) => {
 		test.setTimeout(120_000);
-		await installCaptureHarness(page);
+		await installCaptureHarness(page, { audioFrameIntervalMs: 500 }); // Leave time for WebKit's capture storage during menu navigation.
 		let editor = await bootEditor(page, '/framescaper/en/');
 		const projectId = await editor.getAttribute('data-project-id');
 		expect(projectId).toBeTruthy();
@@ -523,7 +523,7 @@ async function installCaptureHarness(page, options = {}) {
 	const videoBase64 = videoFixture.file.buffer.toString('base64');
 	const videoMimeType = videoFixture.file.mimeType;
 	await page.addInitScript(({
-		persistentQuota, videoBase64: encodedVideo, videoMimeType: capturedVideoMimeType,
+		persistentQuota, audioFrameIntervalMs, videoBase64: encodedVideo, videoMimeType: capturedVideoMimeType,
 	}) => {
 		const binaryVideo = atob(encodedVideo);
 		const videoBytes = Uint8Array.from(binaryVideo, (value) => value.charCodeAt(0));
@@ -735,7 +735,7 @@ async function installCaptureHarness(page, options = {}) {
 				const sampleRate = settings.sampleRate || 48_000;
 				const channelCount = settings.channelCount || 2;
 				const frames = 4_096;
-				const frameIntervalMs = Math.ceil(frames * 1_000 / sampleRate);
+			const frameIntervalMs = audioFrameIntervalMs ?? Math.ceil(frames * 1_000 / sampleRate);
 				let canceled = false;
 				let frameStart = 0;
 				let pending = null;
@@ -793,5 +793,5 @@ async function installCaptureHarness(page, options = {}) {
 			writable: true,
 			value: FixtureMediaStreamTrackProcessor,
 		});
-	}, { persistentQuota: options.persistentQuota === true, videoBase64, videoMimeType });
+	}, { persistentQuota: options.persistentQuota === true, audioFrameIntervalMs: options.audioFrameIntervalMs, videoBase64, videoMimeType });
 }
