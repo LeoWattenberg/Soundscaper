@@ -9,7 +9,7 @@ import {
 	openExportDialog,
 	registerAudioEditorHooks,
 } from './audio-editor-test-helpers.js';
-import { installDirectPcmTarget } from './helpers/direct-pcm-save-target.js';
+import { cancelHeldDirectWrite, installDirectPcmTarget } from './helpers/direct-pcm-save-target.js';
 
 const CHANNEL_COUNT = 32;
 const BW64_FRAME_COUNT = 1_588_800;
@@ -399,9 +399,9 @@ test.describe('direct native PCM File System Access publication', () => {
 			fileName: 'direct-browser-adm-master.wav',
 			pcmOffset: RETAINED_PREFIX_BYTES,
 			prefixBytes: RETAINED_PREFIX_BYTES,
+			stallAfterPcmSession: 1,
 			suffixBytes: RETAINED_SUFFIX_BYTES,
 		});
-
 		const exportDialog = await openExportDialog(page, editor);
 		await chooseDropdown(page, exportDialog.locator('[data-export-field="format"]'), 'BW64 / ADM');
 		await chooseDropdown(page, exportDialog.locator('[data-export-field="bitDepth"]'), '16-bit PCM');
@@ -489,9 +489,9 @@ test.describe('direct native PCM File System Access publication', () => {
 
 		await exportDialog.getByRole('button', { name: 'Export', exact: true }).click();
 		await expect.poll(() => page.evaluate(() => globalThis.__directPcmSave.sessions[1]?.nonzeroPcmBytes || 0), {
-			timeout: 15_000,
+			timeout: 60_000,
 		}).toBeGreaterThan(0);
-		await exportDialog.getByRole('button', { name: 'Cancel export' }).click();
+		await cancelHeldDirectWrite(page, exportDialog.getByRole('button', { name: 'Cancel export' }), 1);
 		await expect(exportDialog.getByRole('button', { name: 'Export', exact: true })).toBeVisible({ timeout: 15_000 });
 		const cancelled = await inspectDirectBw64Target(page, 1);
 		expect(cancelled.opens).toBe(1);

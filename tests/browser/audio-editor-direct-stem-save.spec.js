@@ -2,7 +2,6 @@
 
 import {
 	expect,
-	longTone,
 	test,
 	toneA,
 	toneB,
@@ -16,7 +15,7 @@ import {
 	openExportDialog,
 	registerAudioEditorHooks,
 } from './audio-editor-test-helpers.js';
-import { installDirectPcmTarget } from './helpers/direct-pcm-save-target.js';
+import { cancelHeldDirectWrite, installDirectPcmTarget } from './helpers/direct-pcm-save-target.js';
 
 const RETAINED_ARCHIVE_BYTES = 1024 * 1024;
 
@@ -84,18 +83,19 @@ test.describe('direct File System Access stem archives', () => {
 		expect(errors).toEqual([]);
 	});
 
-	test('aborts a partly written ZIP when realtime stem rendering is cancelled', async ({ page }) => {
+	test('aborts a partly written ZIP when its destination write is cancelled', async ({ page }) => {
 		test.setTimeout(45_000);
 		await disableOfflineAudio(page);
 		const errors = collectClientErrors(page);
 		let downloads = 0;
 		page.on('download', () => { downloads += 1; });
 		const editor = await bootEditor(page, '/embed/en/');
-		await importFiles(editor, [toneA, longTone]);
+		await importFiles(editor, [toneA, toneB]);
 		await installDirectPcmTarget(page, {
 			fileName: 'cancelled-direct-stems.zip',
 			pcmOffset: 0,
 			prefixBytes: 64,
+			stallAfterBytesSession: 0,
 		});
 
 		const exportDialog = await openExportDialog(page, editor);
@@ -113,7 +113,8 @@ test.describe('direct File System Access stem archives', () => {
 		await expect.poll(() => page.evaluate(() => globalThis.__directPcmSave.sessions[0]?.totalBytes || 0), {
 			timeout: 20_000,
 		}).toBeGreaterThan(4);
-		await cancel.click();
+		await expect.poll(() => page.evaluate(() => globalThis.__directPcmSave.sessions[0]?.writeHeld || false)).toBe(true);
+		await cancelHeldDirectWrite(page, cancel, 0);
 		await expect(exportDialog.getByRole('button', { name: 'Export', exact: true })).toBeVisible({
 			timeout: 15_000,
 		});

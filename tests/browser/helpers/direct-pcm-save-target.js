@@ -7,6 +7,7 @@ export async function installDirectPcmTarget(page, options) {
 			sessions: [],
 		};
 		Object.defineProperty(state, 'commitReleases', { value: [] });
+		Object.defineProperty(state, 'writeReleases', { value: [] });
 		globalThis.__directPcmSave = state;
 		Object.defineProperty(URL, 'createObjectURL', {
 			configurable: true,
@@ -59,6 +60,12 @@ export async function installDirectPcmTarget(page, options) {
 									if (chunk[index] !== 0) session.nonzeroPcmBytes += 1;
 								}
 								session.totalBytes += chunk.byteLength;
+								const pcmReady = sessionIndex === configuration.stallAfterPcmSession && session.nonzeroPcmBytes > 0;
+								const bytesReady = sessionIndex === configuration.stallAfterBytesSession && session.totalBytes > 4;
+								if ((pcmReady || bytesReady) && !session.writeHeld) {
+									session.writeHeld = true;
+									await new Promise((resolve) => { state.writeReleases[sessionIndex] = resolve; });
+								}
 								await Promise.resolve();
 								session.activeWrites -= 1;
 							},
@@ -95,4 +102,17 @@ export async function installDirectPcmTarget(page, options) {
 			session.suffixBytes = retainedBytes + chunk.byteLength;
 		}
 	}, options);
+}
+
+export async function cancelHeldDirectWrite(page, cancelButton, sessionIndex) {
+	try {
+		await cancelButton.click();
+	} finally {
+		await page.evaluate((index) => {
+			const release = globalThis.__directPcmSave.writeReleases?.[index];
+			if (typeof release !== 'function') throw new Error('The destination write was not held.');
+			globalThis.__directPcmSave.writeReleases[index] = null;
+			release();
+		}, sessionIndex);
+	}
 }
