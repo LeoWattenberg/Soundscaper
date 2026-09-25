@@ -5,6 +5,7 @@ import { createHash } from 'node:crypto';
 import { execFileSync } from 'node:child_process';
 import { mkdirSync, readFileSync, rmSync, writeFileSync, existsSync } from 'node:fs';
 import { resolve } from 'node:path';
+import { setTimeout as delay } from 'node:timers/promises';
 
 /**
  * Provision the interchange conformance reference implementations.
@@ -34,6 +35,9 @@ const config = JSON.parse(readFileSync(resolve(root, 'config/interchange-conform
 const target = resolve(root, 'vendor/interchange-conformance');
 const stamp = resolve(target, '.provisioned.json');
 const checkOnly = process.argv.includes('--check');
+const TRANSIENT_CONNECTION_ERRORS = new Set([
+	'UND_ERR_CONNECT_TIMEOUT', 'ETIMEDOUT', 'ECONNRESET', 'EAI_AGAIN',
+]);
 
 /** The stamp records what was installed, so a version bump re-provisions rather than silently reusing. */
 function currentStamp() {
@@ -102,14 +106,27 @@ function expectedStampSafe() {
 	}
 }
 
+/** Retry a temporary PyPI connection failure; release and wheel identities stay pinned below. */
+export async function fetchWithTransientRetry(url, { fetchImpl = fetch, delayImpl = delay } = {}) {
+	for (let attempt = 0; ; attempt += 1) {
+		try {
+			return await fetchImpl(url);
+		} catch (error) {
+			const code = error instanceof TypeError ? error.cause?.code : undefined;
+			if (attempt >= 2 || !TRANSIENT_CONNECTION_ERRORS.has(code)) throw error;
+			await delayImpl(250 * 2 ** attempt);
+		}
+	}
+}
+
 async function download(url) {
-	const response = await fetch(url);
+	const response = await fetchWithTransientRetry(url);
 	if (!response.ok) throw new Error(`Downloading ${url} failed with HTTP ${response.status}.`);
 	return Buffer.from(await response.arrayBuffer());
 }
 
 async function pypiRelease(name, version) {
-	const response = await fetch(`https://pypi.org/pypi/${encodeURIComponent(name)}/${encodeURIComponent(version)}/json`);
+	const response = await fetchWithTransientRetry(`https://pypi.org/pypi/${encodeURIComponent(name)}/${encodeURIComponent(version)}/json`);
 	if (!response.ok) throw new Error(`PyPI has no ${name} ${version} (HTTP ${response.status}).`);
 	return response.json();
 }
