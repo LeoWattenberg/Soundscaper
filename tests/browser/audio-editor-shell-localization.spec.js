@@ -48,7 +48,9 @@ test.describe('audio editor React/design-system workflows', () => {
 		});
 
 		await page.goto('/en/', { waitUntil: 'domcontentloaded' });
-		await expect(page.locator('[role="status"]')).toContainText('Loading project');
+		const startupProgress = page.locator('[data-editor-startup-progress]');
+		await expect(startupProgress).toBeVisible();
+		await expect(startupProgress).toContainText(/Loading editor files|Preparing editor/u);
 		await expect.poll(() => requestedCss).toBe(true);
 		await expect(page.locator('[data-audio-editor]')).toHaveCount(0);
 
