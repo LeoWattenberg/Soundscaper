@@ -182,13 +182,13 @@ test('all OS-capable desktop staging paths build the codec host while Linux rece
 		readFile(join(ROOT, 'scripts/ci-build-os-audio-codec-host.mjs'), 'utf8'),
 	]);
 	assert.equal(workflow.match(/node scripts\/ci-build-os-audio-codec-host\.mjs/gu)?.length, 3);
-	assert.equal(testedWorkflow.match(/node scripts\/ci-build-os-audio-codec-host\.mjs/gu)?.length, 2);
+	assert.equal(testedWorkflow.match(/node scripts\/ci-build-os-audio-codec-host\.mjs/gu)?.length, 1);
 	for (const argument of [
 		'--desktop-platform=${{ matrix.target.platform }}',
 		'--desktop-arch=${{ matrix.target.arch }}',
 		'--runner-os=${{ runner.os }}',
 		'--runner-arch=${{ runner.arch }}',
-	]) assert.equal((workflow + testedWorkflow).match(new RegExp(escapeRegExp(argument), 'gu'))?.length, 5, argument);
+	]) assert.equal((workflow + testedWorkflow).match(new RegExp(escapeRegExp(argument), 'gu'))?.length, 4, argument);
 	const previewPublisherJob = jobSource(workflow, 'publish-windows-assistance-runtime-handoff', 'package');
 	assert.match(previewPublisherJob, /windows-2025[\s\S]*windows-11-arm/u);
 	assert.match(previewPublisherJob, /node scripts\/ci-build-os-audio-codec-host\.mjs/u);
@@ -197,9 +197,6 @@ test('all OS-capable desktop staging paths build the codec host while Linux rece
 		/if: matrix\.product == 'soundscaper' && matrix\.target\.platform != 'linux'[\s\S]*ci-build-os-audio-codec-host/u);
 	const testsJob = jobSource(testedWorkflow, 'package-with-tests', null);
 	assert.match(testsJob,
-		/if: matrix\.target\.platform != 'linux'[\s\S]*ci-build-os-audio-codec-host/u);
-	const publisherJob = jobSource(testedWorkflow, 'verify-assistance-runtime-handoff', 'package-with-tests');
-	assert.match(publisherJob,
 		/if: matrix\.target\.platform != 'linux'[\s\S]*ci-build-os-audio-codec-host/u);
 	const leaseJob = jobSource(workflow, 'soundscaper-project-library-lease-matrix', null);
 	assert.match(leaseJob,

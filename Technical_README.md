@@ -224,8 +224,9 @@ For a self-contained browser test run, see
 A manual run on `main` can package `nightly-with-tests` for selected targets:
 `all`, `windows`, or `win-x64`. CI builds and uploads the packages without
 running their tests. Launch an artifact on a real machine to run the full
-browser tests and write a report. The build verifies existing AI runtime
-archives; publish changed archives through **Update AI assets** first.
+browser tests and write a report. The build reuses pinned, already published
+AI runtimes without compiling them. Publish changed archives through **Update
+AI assets** and refresh the committed test runtime snapshots first.
 Its platform jobs upload artifacts named
 `nightly-with-tests-win-<architecture>`, `nightly-with-tests-mac-<architecture>`, or
 `nightly-with-tests-linux-<architecture>` for Windows x64/ARM64, macOS Apple

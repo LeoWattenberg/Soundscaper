@@ -162,7 +162,9 @@ async function main() {
 	const handoffRoot = process.env.SOUNDSCAPER_ASSISTANCE_RUNTIME_HANDOFF_ROOT;
 	if (handoffRoot) {
 		const imported = await stageDesktopAssistanceRuntimeHandoff({
-			handoffRoot: resolve(handoffRoot), sourceRevision, targetId: nativeTarget.id,
+			handoffRoot: resolve(handoffRoot),
+			sourceRevision: resolveDesktopAssistanceHandoffRevision(sourceRevision),
+			targetId: nativeTarget.id,
 			archiveRoot: resolve(BUILD_ROOT, 'assistance-distribution'),
 			cacheRoot: resolve(ROOT, '.native-build/assistance-runtime-handoff-cache'),
 		});
@@ -283,6 +285,15 @@ export function resolveDesktopSourceRevision(
 	const revision = value?.trim() ?? '';
 	if (revision === '') return null;
 	assert(SOURCE_REVISION.test(revision), 'Desktop source revision must be one Git object ID.');
+	return revision;
+}
+
+export function resolveDesktopAssistanceHandoffRevision(sourceRevision, environment = process.env) {
+	if (environment.SOUNDSCAPER_TEST_RUNTIME_SNAPSHOT === undefined) return sourceRevision;
+	assert(environment.SOUNDSCAPER_TEST_RUNTIME_SNAPSHOT === 'true',
+		'Desktop test runtime snapshot mode must be true when supplied.');
+	const revision = environment.SOUNDSCAPER_TEST_RUNTIME_SNAPSHOT_SOURCE_REVISION;
+	assert(SOURCE_REVISION.test(revision ?? ''), 'Desktop test runtime snapshot requires its pinned source revision.');
 	return revision;
 }
 

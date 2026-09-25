@@ -15,6 +15,19 @@
   `test-results/`, or `node_modules/` content.
 - Keep FFmpeg runtime assets out of the Pages bundle; production assets are
   versioned under `https://assets.soundscaper.org/runtime/ffmpeg/`.
+- Desktop test artifacts reuse the committed snapshots in
+  `config/desktop-test-assistance-runtime-snapshots/`; they do not compile or
+  publish AI runtime archives. At task handoff, state whether the change requires
+  a manual **Update AI assets** run. It does when the generated assistance
+  runtime bytes or target file inventories could change: runtime source pins,
+  recipes, patches, bundled dependencies, archive/signing logic, or target
+  support. UI, browser, test, and documentation changes using the same runtime
+  closure do not require it. Model weight/catalog publication is separate and
+  does not require this runtime update unless an engine closure also changes.
+  After an asset update, download that run's `assistance-runtime-handoff-*`
+  artifacts, run `node scripts/refresh-desktop-test-runtime-snapshots.mjs
+  <downloaded-artifacts-directory>`, and commit the refreshed snapshot register
+  and compressed files. The test artifact build uses those pins until refreshed.
 - Locales other than English and German are served by one committed catalog
   per locale in `src/common/i18n/translations/`, where every entry is tagged
   `machine` (generated), `audacity` (GPL-3.0 strings the weekly sync

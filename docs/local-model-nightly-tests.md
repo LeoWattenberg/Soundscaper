@@ -60,15 +60,17 @@ The source runtime-family register describes supported build targets.
 Run the manual **Update AI assets** workflow on main to publish the authenticated
 runtime archives for the selected targets and read back their complete public
 responses. The separate **Desktop test artifacts (internal)** workflow runs on
-every push to `main` and can also be dispatched manually there. It builds and
-publicly verifies the exact archives in a read-only handoff job.
-Its package jobs receive no upload credentials and use the verified source-bound
-handoff. CI uploads the test packages without running their suites; launch a
+every push to `main` and can also be dispatched manually there. It reuses the
+committed runtime handoff snapshots without compiling or publishing engines.
+Its package jobs receive no upload credentials and download the pinned public
+archives. CI uploads the test packages without running their suites; launch a
 package on a real machine for the browser and local-model results.
 The resulting packages include the URLs and digests in the app ASAR; an
-unpublished or mismatched archive stops packaging. Update the assets before
-running a test artifact or release workflow for a revision whose generated
-runtime bytes differ from those already published.
+unpublished or mismatched archive stops packaging. When runtime inputs change,
+run **Update AI assets**, download its handoff artifacts, and refresh the
+committed snapshots with
+`node scripts/refresh-desktop-test-runtime-snapshots.mjs <downloaded-artifacts-directory>`.
+The regular release workflows continue to build or verify their own runtimes.
 The tests download these engines without substituting development dependencies
 or simulated output. Build support is separate from a successful test result on
 each platform; retain the report from the actual package run.

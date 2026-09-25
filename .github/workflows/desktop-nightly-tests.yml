@@ -54,94 +54,12 @@ jobs:
             `targets=${JSON.stringify(selectDesktopNightlyTestTargets(process.env.NIGHTLY_TEST_TARGETS))}\n`);
           NODE
 
-  verify-assistance-runtime-handoff:
-    name: Verify AI runtimes / ${{ matrix.target.platform }} / ${{ matrix.target.arch }}
-    if: >-
-      !cancelled()
-      && needs.nightly-test-targets.result == 'success'
-    needs: nightly-test-targets
-    timeout-minutes: 120
-    strategy:
-      fail-fast: false
-      matrix:
-        target: ${{ fromJSON(needs.nightly-test-targets.outputs.targets) }}
-    runs-on: ${{ matrix.target.runner }}
-    steps:
-      - name: Check out the source revision
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-        with:
-          persist-credentials: false
-          ref: ${{ github.sha }}
-
-      - name: Set up Node.js
-        uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f # v6.1.0
-        with:
-          node-version-file: .nvmrc
-          architecture: ${{ matrix.target.node_arch }}
-          cache: npm
-
-      - name: Pin npm
-        run: npm install --global npm@12.0.1
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Install local-model CPU build tools
-        if: runner.os == 'Linux'
-        timeout-minutes: 10
-        run: bash scripts/ci-apt-install.sh build-essential cmake
-
-      - name: Build the authenticated target-native OS audio codec host
-        if: matrix.target.platform != 'linux'
-        run: >-
-          node scripts/ci-build-os-audio-codec-host.mjs
-          --desktop-platform=${{ matrix.target.platform }}
-          --desktop-arch=${{ matrix.target.arch }}
-          --runner-os=${{ runner.os }}
-          --runner-arch=${{ runner.arch }}
-
-      - name: Set up the locked Kokoro G2P builder
-        uses: astral-sh/setup-uv@eb1897b8dc4b5d5bfe39a428a8f2304605e0983c # v7.0.0
-        with:
-          version: 0.12.5
-
-      - name: Build the target-native AI runtime archives
-        run: node scripts/desktop-prepare.mjs
-        env:
-          SOUNDSCAPER_DESKTOP_TARGET_PLATFORM: ${{ matrix.target.platform }}
-          SOUNDSCAPER_DESKTOP_TARGET_ARCH: ${{ matrix.target.arch }}
-          SOUNDSCAPER_SOURCE_REVISION: ${{ github.sha }}
-
-      - name: Verify the published immutable archives
-        run: node scripts/publish-assistance-runtime-assets.mjs --verify
-
-      - name: Export the source-bound AI runtime handoff
-        run: node scripts/export-assistance-runtime-handoff.mjs
-        env:
-          SOUNDSCAPER_DESKTOP_TARGET_PLATFORM: ${{ matrix.target.platform }}
-          SOUNDSCAPER_DESKTOP_TARGET_ARCH: ${{ matrix.target.arch }}
-          SOUNDSCAPER_SOURCE_REVISION: ${{ github.sha }}
-          SOUNDSCAPER_ASSISTANCE_RUNTIME_HANDOFF_ROOT: ${{ github.workspace }}/.native-build/assistance-runtime-handoff
-
-      # Transfer only manifests and receipts. The package job reads the five
-      # immutable archives from their authenticated public URLs once per target.
-      - name: Upload the verified AI runtime authority
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: assistance-runtime-handoff-${{ matrix.target.platform }}-${{ matrix.target.arch }}
-          path: .native-build/assistance-runtime-handoff/
-          include-hidden-files: true
-          compression-level: 0
-          if-no-files-found: error
-          retention-days: 14
-
   package-with-tests:
     name: Package nightly-with-tests / ${{ matrix.target.platform }} / ${{ matrix.target.arch }}
     if: >-
       !cancelled()
       && needs.nightly-test-targets.result == 'success'
-      && needs.verify-assistance-runtime-handoff.result == 'success'
-    needs: [nightly-test-targets, verify-assistance-runtime-handoff]
+    needs: nightly-test-targets
     timeout-minutes: 150
     strategy:
       fail-fast: false
@@ -167,16 +85,11 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Download the published target-native AI runtime handoff
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
-        with:
-          name: assistance-runtime-handoff-${{ matrix.target.platform }}-${{ matrix.target.arch }}
-          path: .native-build/assistance-runtime-handoff
-
-      - name: Install local-model CPU build tools
-        if: runner.os == 'Linux'
-        timeout-minutes: 10
-        run: bash scripts/ci-apt-install.sh build-essential cmake
+      - name: Stage the pinned AI runtime handoff
+        run: node scripts/stage-desktop-test-runtime-snapshot.mjs
+        env:
+          SOUNDSCAPER_DESKTOP_TARGET_PLATFORM: ${{ matrix.target.platform }}
+          SOUNDSCAPER_DESKTOP_TARGET_ARCH: ${{ matrix.target.arch }}
 
       - name: Build the authenticated target-native OS audio codec host
         if: matrix.target.platform != 'linux'
@@ -207,11 +120,6 @@ jobs:
         run: npx playwright install --no-shell chromium firefox webkit
         env:
           PLAYWRIGHT_BROWSERS_PATH: '0'
-
-      - name: Set up the locked Kokoro G2P builder
-        uses: astral-sh/setup-uv@eb1897b8dc4b5d5bfe39a428a8f2304605e0983c # v7.0.0
-        with:
-          version: 0.12.5
 
       - name: Package the product runtimes exercised by nightly-with-tests
         run: node scripts/desktop-nightly-tests-products.mjs

@@ -27,9 +27,10 @@ test('desktop distribution and automated test artifacts have separate workflow e
 	assert.match(testedHeader, /push:\s+branches:\s+- main/u);
 	assert.match(testedHeader, /workflow_dispatch:\s+inputs:\s+nightly_tests_targets:/u);
 	assert.doesNotMatch(testedHeader, /workflow_run:|schedule:|push:\s+tags:|artifact_variant:/u);
-	for (const job of ['nightly-test-targets', 'verify-assistance-runtime-handoff', 'package-with-tests']) {
+	for (const job of ['nightly-test-targets', 'package-with-tests']) {
 		assert.ok(extractJob(tested, job).length > 0, `${job} belongs to automated tests`);
 	}
+	assert.doesNotMatch(tested, /^ {2}verify-assistance-runtime-handoff:/mu);
 	for (const job of ['quality', 'tests', 'coverage', 'browser', 'firefox']) {
 		assert.doesNotMatch(tested, new RegExp(`^  ${job}:`, 'mu'));
 	}
@@ -37,9 +38,8 @@ test('desktop distribution and automated test artifacts have separate workflow e
 		assert.doesNotMatch(tested, new RegExp(`^  ${job}:`, 'mu'));
 	}
 	assert.match(testedHeader, /cancel-in-progress: false/u);
-	const testedHandoff = extractJob(tested, 'verify-assistance-runtime-handoff');
-	assert.match(testedHandoff, /publish-assistance-runtime-assets\.mjs --verify/u);
-	assert.doesNotMatch(tested, /desktop:publish:assistance-runtimes|R2_MODELS_/u);
+	assert.match(extractJob(tested, 'package-with-tests'), /stage-desktop-test-runtime-snapshot\.mjs/u);
+	assert.doesNotMatch(tested, /desktop:publish:assistance-runtimes|R2_MODELS_|desktop-prepare\.mjs/u);
 	assert.doesNotMatch(extractJob(tested, 'package-with-tests'),
 		/desktop:publish:assistance-runtimes|R2_MODELS_/u);
 	const stable = await readWorkflow('soundscaper-stable-1.yml');
