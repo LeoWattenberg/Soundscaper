@@ -3,7 +3,7 @@
 import { execFile } from 'node:child_process';
 import { createHash } from 'node:crypto';
 import { chmod, copyFile, lstat, mkdir, mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promises';
-import { isAbsolute, join, resolve } from 'node:path';
+import { dirname, isAbsolute, join, resolve } from 'node:path';
 import { promisify } from 'node:util';
 import { extract, list } from 'tar';
 import { desktopLlamaCppNotices } from './desktop-assistance-llama-notices.mjs';
@@ -53,6 +53,28 @@ export function desktopLlamaCppBuildPlan({ targetId, platform, architecture }) {
 	return { targetId, target: 'llama-completion', executable: platform === 'win32' ? 'llama-completion.exe' : 'llama-completion', configureArgs };
 }
 
+export async function createLlamaBuildWorkDirectory({ cacheRoot, targetId, platform = process.platform }) {
+	if (platform !== 'win32') return mkdtemp(join(cacheRoot, 'build-'));
+	// MSVC can embed the absolute source path. Use one exclusive path per target
+	// outside the checkout, as the Whisper builder does.
+	const checkout = resolve(import.meta.dirname, '../..');
+	const namespace = hash(resolve(cacheRoot)).slice(0, 12);
+	const work = join(dirname(checkout), `.soundscaper-llama-${namespace}-${targetId}`);
+	await mkdir(work);
+	return work;
+}
+
+export function llamaCompilerProvenance(compiler, platform) {
+	if (platform !== 'win32' || compiler.id !== 'MSVC') {
+		return { archived: compiler, buildReceipt: compiler };
+	}
+	const version = /^(\d+\.\d+)\.\d+\.\d+$/u.exec(compiler.version)?.[1];
+	if (!version) throw new Error('Llama MSVC compiler version cannot be normalized.');
+	// Runner servicing changes the patch version; keep the exact build in the
+	// stage receipt without changing the immutable archive for unchanged bytes.
+	return { archived: { ...compiler, version }, buildReceipt: compiler };
+}
+
 /** Compile authenticated CPU source, then bind the actual executable and notices. */
 export async function stageDesktopLlamaCppRuntime({
 	targetId, runtimeRoot, cacheRoot, platform = process.platform, architecture = process.arch,
@@ -62,7 +84,7 @@ export async function stageDesktopLlamaCppRuntime({
 	const cache = resolve(cacheRoot, 'llama-cpp', COMMIT);
 	await mkdir(cache, { recursive: true });
 	const archive = await authenticatedArchive(cache);
-	const work = await mkdtemp(join(cache, 'build-'));
+	const work = await createLlamaBuildWorkDirectory({ cacheRoot: cache, targetId, platform });
 	try {
 		await extractSource(archive, work);
 		const source = join(work, SOURCE_ROOT), build = join(work, 'build');
@@ -82,11 +104,12 @@ export async function stageDesktopLlamaCppRuntime({
 		await command('cmake', ['--build', build, '--config', 'Release', '--target', plan.target, '--parallel', '4'], work, environment);
 		const binary = await builtExecutable(build, plan.executable);
 		const compiler = await compilerIdentity(build);
+		const { archived: archivedCompiler, buildReceipt: buildCompiler } = llamaCompilerProvenance(compiler, platform);
 		const notices = await desktopLlamaCppNotices({ sourceRoot: source, platform, compiler });
 		const provenance = {
 			schemaVersion: 1, recipeId: 'llama-cpp-cpu-package-build-v1', targetId,
 			source: { url: SOURCE_URL, commit: COMMIT, sha256: SOURCE_SHA256, byteLength: SOURCE_BYTES },
-			cmakeVersion, compiler, sourceDateEpoch: Number(SOURCE_DATE_EPOCH), configureArgs: plan.configureArgs,
+			cmakeVersion, compiler: archivedCompiler, sourceDateEpoch: Number(SOURCE_DATE_EPOCH), configureArgs: plan.configureArgs,
 			notices: notices.map(({ path, bytes, sources }) => ({ path, sources, byteLength: bytes.byteLength, sha256: hash(bytes) })),
 			patches: [{ id: 'completion-reasoning-and-json-stdout-v1', file: 'tools/completion/completion.cpp',
 				inputSha256: COMPLETION_SOURCE_SHA256, outputSha256: hash(patchedCompletion),
@@ -119,7 +142,7 @@ export async function stageDesktopLlamaCppRuntime({
 					? { id, status: 'authenticated', entrypoint: plan.executable, files }
 					: { id, status: 'package-generated', packageBehavior: 'The CPU runtime is compiled and verified by its own target package build.' }),
 			},
-			summary: { familyId: 'llama-cpp', targetId, runtimeVersion: LLAMA_RUNTIME_VERSION, provenance,
+			summary: { familyId: 'llama-cpp', targetId, runtimeVersion: LLAMA_RUNTIME_VERSION, provenance, buildCompiler,
 				files, installedBytes: files.reduce((total, file) => total + file.byteLength, 0) },
 		};
 	} finally { await rm(work, { recursive: true, force: true }); }

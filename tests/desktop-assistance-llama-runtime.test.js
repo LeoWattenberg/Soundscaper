@@ -1,12 +1,50 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import assert from 'node:assert/strict';
+import { execFileSync } from 'node:child_process';
 import { mkdtemp, mkdir, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { dirname, join, resolve, sep } from 'node:path';
 import test from 'node:test';
 
-import { desktopLlamaCppBuildPlan, patchLlamaCppCompletion, stageDesktopLlamaCppRuntime } from '../scripts/lib/desktop-assistance-llama-runtime.mjs';
+import { createLlamaBuildWorkDirectory, desktopLlamaCppBuildPlan, llamaCompilerProvenance,
+	patchLlamaCppCompletion, stageDesktopLlamaCppRuntime } from '../scripts/lib/desktop-assistance-llama-runtime.mjs';
+
+test('Windows llama builds use one exclusive stable source path outside the product checkout', async (context) => {
+	const cacheRoot = resolve(import.meta.dirname, '../.native-build/assistance-runtimes');
+	const options = { cacheRoot, targetId: 'win-x64', platform: 'win32' };
+	const work = await createLlamaBuildWorkDirectory(options);
+	context.after(() => rm(work, { recursive: true, force: true }));
+	const checkout = resolve(import.meta.dirname, '..');
+	assert.equal(dirname(work), dirname(checkout));
+	assert.ok(!work.startsWith(`${checkout}${sep}`));
+	const source = join(work, 'source');
+	await mkdir(source);
+	const gitEnvironment = { ...process.env, GIT_CEILING_DIRECTORIES: '' };
+	delete gitEnvironment.GIT_DIR;
+	delete gitEnvironment.GIT_WORK_TREE;
+	assert.throws(() => execFileSync('git', ['rev-parse', '--short', 'HEAD'], { cwd: source,
+		env: gitEnvironment, stdio: 'pipe' }));
+	await assert.rejects(createLlamaBuildWorkDirectory(options), { code: 'EEXIST' });
+	await rm(work, { recursive: true, force: true });
+	assert.equal(await createLlamaBuildWorkDirectory(options), work);
+});
+
+test('Windows MSVC patch drift does not change archived llama provenance', () => {
+	const earlier = { id: 'MSVC', version: '19.51.36256.0' };
+	const later = { id: 'MSVC', version: '19.51.36257.0' };
+	assert.deepEqual(llamaCompilerProvenance(earlier, 'win32'), {
+		archived: { id: 'MSVC', version: '19.51' }, buildReceipt: earlier,
+	});
+	assert.deepEqual(llamaCompilerProvenance(later, 'win32'), {
+		archived: { id: 'MSVC', version: '19.51' }, buildReceipt: later,
+	});
+	assert.deepEqual(llamaCompilerProvenance(earlier, 'linux'), {
+		archived: earlier, buildReceipt: earlier,
+	});
+	assert.throws(() => llamaCompilerProvenance({ id: 'MSVC', version: 'unexpected' }, 'win32'),
+		/Llama MSVC compiler version/u);
+});
 
 test('the completion patch honors disabled reasoning and keeps status text out of JSON stdout', () => {
 	const source = '                inputs.force_pure_content = params.force_pure_content_parser;\n            LOG(" [end of text]\\n");';
