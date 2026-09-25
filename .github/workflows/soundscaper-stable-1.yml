@@ -290,12 +290,8 @@ jobs:
           SOUNDSCAPER_SOURCE_REVISION: ${{ github.sha }}
           SOUNDSCAPER_REQUIRE_OS_AUDIO_CODEC_NATIVE: 'true'
           SOUNDSCAPER_M5_NATIVE_SOURCE_ROOT: ${{ runner.temp }}/soundscaper-professional-native-source-cache
-      - name: Publish and verify optional AI runtimes
-        run: npm run desktop:publish:assistance-runtimes
-        env:
-          R2_MODELS_ACCESS_KEY_ID: ${{ secrets.R2_MODELS_ACCESS_KEY_ID }}
-          R2_MODELS_SECRET_ACCESS_KEY: ${{ secrets.R2_MODELS_SECRET_ACCESS_KEY }}
-          R2_MODELS_ENDPOINT: ${{ vars.R2_MODELS_ENDPOINT || secrets.R2_MODELS_ENDPOINT }}
+      - name: Verify published optional AI runtimes
+        run: node scripts/publish-assistance-runtime-assets.mjs --verify
       - name: Build release packages
         run: >-
           npx electron-builder --config electron-builder.config.cjs

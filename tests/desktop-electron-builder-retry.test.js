@@ -15,7 +15,7 @@ const HELPER_PATH = fileURLToPath(new URL('../scripts/ci-electron-builder.sh', i
 test('desktop package jobs route electron-builder through the transient-download retry helper', async () => {
 	const workflow = await readWorkflow('desktop-preview.yml');
 	const packageJob = extractJob(workflow, 'package');
-	const packageWithTestsJob = extractJob(workflow, 'package-with-tests');
+	const packageWithTestsJob = extractJob(await readWorkflow('desktop-nightly-tests.yml'), 'package-with-tests');
 
 	assert.match(packageJob, /bash scripts\/ci-electron-builder\.sh[\s\S]*--publish never/u);
 	assert.doesNotMatch(packageJob, /\bnpx electron-builder\b/u);

@@ -90,7 +90,7 @@
 			"manifestPath": "config/assistance-native-runtime-manifest.json",
 			"manifestTargetPath": "targets",
 			"targets": ["win-arm64"],
-			"workflowPath": ".github/workflows/desktop-preview.yml",
+			"workflowPath": ".github/workflows/desktop-nightly-tests.yml",
 			"packageCommand": "scripts/desktop-nightly-tests-products.mjs",
 			"pipelinePaths": [
 				"scripts/desktop-nightly-tests-products.mjs",
@@ -104,7 +104,7 @@
 			"manifestPath": "config/assistance-runtime-family-supply-candidates.json",
 			"manifestTargetPath": "manifests.onnxruntime-node.targets",
 			"targets": ["linux-x64", "linux-arm64", "mac-arm64", "win-x64", "win-arm64"],
-			"workflowPath": ".github/workflows/desktop-preview.yml",
+			"workflowPath": ".github/workflows/desktop-nightly-tests.yml",
 			"packageCommand": "scripts/desktop-nightly-tests-products.mjs",
 			"pipelinePaths": [
 				"scripts/desktop-nightly-tests-products.mjs",
@@ -118,7 +118,7 @@
 			"manifestPath": "config/assistance-runtime-family-supply-candidates.json",
 			"manifestTargetPath": "manifests.whisper-cpp.targets",
 			"targets": ["linux-x64", "linux-arm64", "mac-arm64", "win-x64", "win-arm64"],
-			"workflowPath": ".github/workflows/desktop-preview.yml",
+			"workflowPath": ".github/workflows/desktop-nightly-tests.yml",
 			"packageCommand": "scripts/desktop-nightly-tests-products.mjs",
 			"pipelinePaths": [
 				"scripts/desktop-nightly-tests-products.mjs",
@@ -132,7 +132,7 @@
 			"manifestPath": "config/assistance-runtime-family-supply-candidates.json",
 			"manifestTargetPath": "manifests.llama-cpp.targets",
 			"targets": ["linux-x64", "linux-arm64", "mac-arm64", "win-x64", "win-arm64"],
-			"workflowPath": ".github/workflows/desktop-preview.yml",
+			"workflowPath": ".github/workflows/desktop-nightly-tests.yml",
 			"packageCommand": "scripts/desktop-nightly-tests-products.mjs",
 			"pipelinePaths": [
 				"scripts/desktop-nightly-tests-products.mjs",

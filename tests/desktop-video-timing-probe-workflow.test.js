@@ -25,7 +25,7 @@ test('the timing-probe runner leaves teardown margin beyond the application dead
 test('desktop CI runs the packaged timing probe for both products on every maintained target', async () => {
 	const workflow = await readFile(resolve(ROOT, '.github/workflows/desktop-preview.yml'), 'utf8');
 	const packageJobStart = workflow.indexOf('\n  package:');
-	const nextJobStart = workflow.indexOf('\n  package-with-tests:', packageJobStart);
+	const nextJobStart = workflow.indexOf('\n  milestone-5-package-audit-summary:', packageJobStart);
 	const packageJob = workflow.slice(packageJobStart, nextJobStart);
 	const hardenedIndex = packageJob.indexOf('- name: Smoke the hardened packaged application');
 	const timingIndex = packageJob.indexOf('- name: Probe packaged CFR and VFR timing persistence');

@@ -15,8 +15,8 @@
  * failure instead of a skip.
  *
  * That variable therefore has to be set wherever a job builds and then claims
- * the build is verified. Two workflows have such a job, both named `quality`,
- * both running `npm run check:static` (which ends in `npm run build`) and both
+ * the build is verified. The desktop workflows each have such a job, named
+ * `quality`, running `npm run check:static` (which ends in `npm run build`) and
  * uploading `dist/` as `verified-site-build`. The step was added to one of them.
  * A duplicated job that skipped it would publish an unmeasured build under the
  * same artifact name as a measured one - which is the whole reason this file
@@ -38,6 +38,7 @@ const BUILD_REQUIRED = 'SOUNDSCAPER_TRANSFER_BUILD_REQUIRED';
 const BUILDING_WORKFLOWS = [
 	'.github/workflows/quality.yml',
 	'.github/workflows/desktop-preview.yml',
+	'.github/workflows/desktop-nightly-tests.yml',
 ];
 
 test('every job that publishes a verified build measures the built transfer documents', async () => {

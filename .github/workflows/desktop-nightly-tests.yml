@@ -1,36 +1,30 @@
-name: Desktop preview and nightly
+name: Desktop test artifacts (internal)
 
 on:
-  schedule:
-    # Run from the default branch every night at 02:17 UTC. The offset avoids
-    # the heavy load GitHub Actions commonly sees at the top of the hour.
-    - cron: '17 2 * * *'
-  push:
-    tags:
-      - 'soundscaper-v*-beta.*'
-      - 'soundscaper-v*-rc.*'
-      - 'framescaper-v*-beta.*'
-      - 'framescaper-v*-rc.*'
   workflow_dispatch:
+    inputs:
+      nightly_tests_targets:
+        description: Automated test artifact targets
+        required: true
+        default: all
+        type: choice
+        options:
+          - all
+          - windows
+          - win-x64
 
 permissions:
   contents: read
   packages: read
 
 concurrency:
-  group: desktop-preview-and-nightly-${{ github.run_id }}
+  group: desktop-automated-test-artifacts-${{ github.run_id }}
   cancel-in-progress: false
 
 jobs:
   quality:
     runs-on: ubuntu-24.04
     timeout-minutes: 45
-    outputs:
-      release-products: ${{ steps.release-scope.outputs.products }}
-      release-product-pattern: ${{ steps.release-scope.outputs.product-pattern }}
-      release-assembler-arguments: ${{ steps.release-scope.outputs.assembler-arguments }}
-      package-audit-arguments: ${{ steps.release-scope.outputs.package-audit-arguments }}
-      release-channel: ${{ steps.release-scope.outputs.channel }}
     steps:
       - name: Check out source
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
@@ -43,25 +37,6 @@ jobs:
         with:
           node-version-file: .nvmrc
           cache: npm
-
-      - name: Resolve the exact product release scope
-        id: release-scope
-        env:
-          RELEASE_TAG: ${{ github.ref_type == 'tag' && github.ref_name || '' }}
-        run: >-
-          node --input-type=module -e
-          "import { appendFileSync } from 'node:fs';
-          import { readProductReleaseLinesSync, resolveProductReleaseTag }
-          from './scripts/lib/product-release-lines.mjs';
-          const tag = process.env.RELEASE_TAG;
-          const release = tag ? resolveProductReleaseTag(tag, readProductReleaseLinesSync()) : null;
-          const products = release ? [release.productId] : ['soundscaper', 'framescaper'];
-          appendFileSync(process.env.GITHUB_OUTPUT,
-          'products=' + JSON.stringify(products) + '\n'
-          + 'product-pattern=' + (release ? release.productId : '*') + '\n'
-          + 'assembler-arguments=' + (release ? '--product ' + release.productId : '--suite') + '\n'
-          + 'package-audit-arguments=' + (release ? '--product ' + release.productId : '') + '\n'
-          + 'channel=' + (release?.channel ?? 'nightly-suite') + '\n');"
 
       - name: Pin npm
         run: npm install --global npm@12.0.1
@@ -85,9 +60,8 @@ jobs:
       - name: Measure the built transfer documents against the build just made
         # The same step quality.yml runs in its `build` job, for the same
         # reason. This job does what that whole gate does, in one runner rather
-        # than sharded across several - nothing waits on it in a hurry, and the
-        # release scope resolved above has to be an output of it - and it ends by
-        # publishing `verified-site-build`, so a build it uploads without this
+        # than sharded across several. It publishes `verified-site-build`, so a
+        # build it uploads without this
         # step is a build nothing measured, sitting under the artifact name that
         # says otherwise. The `tests` shards below never build, and the
         # three assertions in this file that read `dist/` are the only ones that
@@ -439,295 +413,13 @@ jobs:
           if-no-files-found: ignore
           retention-days: 7
 
-  package:
-    name: Package ${{ matrix.product }} / ${{ matrix.target.platform }} / ${{ matrix.target.arch }}
-    needs: [quality, tests, coverage, browser, firefox]
-    timeout-minutes: 60
-    strategy:
-      fail-fast: false
-      matrix:
-        product: ${{ fromJSON(needs.quality.outputs.release-products) }}
-        target:
-          - runner: windows-2025
-            platform: win
-            arch: x64
-            node_arch: x64
-          - runner: windows-11-arm
-            platform: win
-            arch: arm64
-            node_arch: x64
-          - runner: macos-15
-            platform: mac
-            arch: arm64
-            node_arch: arm64
-          - runner: ubuntu-22.04
-            platform: linux
-            arch: x64
-            node_arch: x64
-          - runner: ubuntu-24.04-arm
-            platform: linux
-            arch: arm64
-            node_arch: arm64
-    runs-on: ${{ matrix.target.runner }}
-    env:
-      SCAPE_PRODUCT: ${{ matrix.product }}
-      SCAPE_MAC_SIGNING: ${{ vars.MAC_SIGNING_ENABLED == 'true' && github.ref_type == 'tag' && 'true' || 'false' }}
-      SCAPE_WIN_SIGNING: ${{ github.ref_type == 'tag' && vars.WINDOWS_SIGNING_MODE || 'none' }}
-      CSC_NAME: ${{ vars.MAC_SIGNING_IDENTITY }}
-      APPLE_TEAM_ID: ${{ vars.APPLE_TEAM_ID }}
-      APPLE_ID: ${{ github.ref_type == 'tag' && matrix.target.platform == 'mac' && vars.MAC_SIGNING_ENABLED == 'true' && secrets.APPLE_ID || '' }}
-      APPLE_APP_SPECIFIC_PASSWORD: ${{ github.ref_type == 'tag' && matrix.target.platform == 'mac' && vars.MAC_SIGNING_ENABLED == 'true' && secrets.APPLE_APP_SPECIFIC_PASSWORD || '' }}
-      WIN_CSC_LINK: ${{ github.ref_type == 'tag' && matrix.target.platform == 'win' && vars.WINDOWS_SIGNING_MODE == 'certificate' && secrets.WIN_CSC_LINK || '' }}
-      WIN_CSC_KEY_PASSWORD: ${{ github.ref_type == 'tag' && matrix.target.platform == 'win' && vars.WINDOWS_SIGNING_MODE == 'certificate' && secrets.WIN_CSC_KEY_PASSWORD || '' }}
-      WINDOWS_PUBLISHER_NAME: ${{ vars.WINDOWS_PUBLISHER_NAME }}
-      AZURE_TENANT_ID: ${{ github.ref_type == 'tag' && matrix.target.platform == 'win' && vars.WINDOWS_SIGNING_MODE == 'azure' && secrets.AZURE_TENANT_ID || '' }}
-      AZURE_CLIENT_ID: ${{ github.ref_type == 'tag' && matrix.target.platform == 'win' && vars.WINDOWS_SIGNING_MODE == 'azure' && secrets.AZURE_CLIENT_ID || '' }}
-      AZURE_CLIENT_SECRET: ${{ github.ref_type == 'tag' && matrix.target.platform == 'win' && vars.WINDOWS_SIGNING_MODE == 'azure' && secrets.AZURE_CLIENT_SECRET || '' }}
-      AZURE_SIGNING_ENDPOINT: ${{ vars.AZURE_SIGNING_ENDPOINT }}
-      AZURE_SIGNING_ACCOUNT: ${{ vars.AZURE_SIGNING_ACCOUNT }}
-      AZURE_SIGNING_PROFILE: ${{ vars.AZURE_SIGNING_PROFILE }}
-    steps:
-      - name: Check out source
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-        with:
-          persist-credentials: false
-          # Package audits bind their checked inputs to the exact source revision.
-          fetch-depth: 0
-
-      - name: Set up Node.js
-        uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f # v6.1.0
-        with:
-          node-version-file: .nvmrc
-          architecture: ${{ matrix.target.node_arch }}
-          cache: npm
-
-      - name: Pin npm
-        run: npm install --global npm@12.0.1
-
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Import the Developer ID signing certificate
-        if: runner.os == 'macOS' && env.SCAPE_MAC_SIGNING == 'true'
-        run: node scripts/desktop-signing-keychain.mjs setup
-        env:
-          MAC_CERTIFICATE_P12: ${{ secrets.MAC_CERTIFICATE_P12 }}
-          MAC_CERTIFICATE_PASSWORD: ${{ secrets.MAC_CERTIFICATE_PASSWORD }}
-
-      - name: Set up the locked Kokoro G2P builder
-        uses: astral-sh/setup-uv@eb1897b8dc4b5d5bfe39a428a8f2304605e0983c # v7.0.0
-        with:
-          version: 0.12.5
-
-      - name: Install local-model CPU build tools
-        if: runner.os == 'Linux'
-        timeout-minutes: 10
-        run: bash scripts/ci-apt-install.sh build-essential cmake
-
-      - name: Build the authenticated target-native OS audio codec host
-        if: matrix.product == 'soundscaper' && matrix.target.platform != 'linux'
-        run: >-
-          node scripts/ci-build-os-audio-codec-host.mjs
-          --desktop-platform=${{ matrix.target.platform }}
-          --desktop-arch=${{ matrix.target.arch }}
-          --runner-os=${{ runner.os }}
-          --runner-arch=${{ runner.arch }}
-
-      - name: Stage the offline renderer and runtimes
-        run: node scripts/desktop-prepare.mjs
-        env:
-          SOUNDSCAPER_DESKTOP_TARGET_PLATFORM: ${{ matrix.target.platform }}
-          SOUNDSCAPER_DESKTOP_TARGET_ARCH: ${{ matrix.target.arch }}
-          SOUNDSCAPER_SOURCE_REVISION: ${{ github.sha }}
-
-      - name: Verify published optional AI runtimes
-        run: node scripts/publish-assistance-runtime-assets.mjs --verify
-
-      - name: Package ${{ matrix.product }} ${{ matrix.target.platform }} ${{ matrix.target.arch }}
-        run: >-
-          bash scripts/ci-electron-builder.sh
-          --config electron-builder.config.cjs
-          --${{ matrix.target.platform }} --${{ matrix.target.arch }} --publish never
-        env:
-          CSC_IDENTITY_AUTO_DISCOVERY: ${{ env.SCAPE_MAC_SIGNING == 'true' && 'true' || 'false' }}
-
-      - name: Install virtual display for Linux smoke
-        if: runner.os == 'Linux'
-        timeout-minutes: 10
-        run: bash scripts/ci-apt-install.sh xvfb
-
-      - name: Configure Chromium sandbox for Linux smoke
-        if: runner.os == 'Linux'
-        shell: bash
-        env:
-          TARGET_ARCH: ${{ matrix.target.arch }}
-        run: |
-          case "$TARGET_ARCH" in
-            x64) sandbox_path="release/desktop/linux-unpacked/chrome-sandbox" ;;
-            arm64) sandbox_path="release/desktop/linux-arm64-unpacked/chrome-sandbox" ;;
-            *) echo "Unsupported Linux smoke architecture: $TARGET_ARCH" >&2; exit 1 ;;
-          esac
-
-          if [[ ! -f "$sandbox_path" || -L "$sandbox_path" ]]; then
-            echo "Expected a regular, non-symlink Chromium sandbox at $sandbox_path" >&2
-            exit 1
-          fi
-
-          sandbox_path="$(realpath --canonicalize-existing "$sandbox_path")"
-          sudo chown root:root -- "$sandbox_path"
-          sudo chmod 4755 -- "$sandbox_path"
-
-          if [[ "$(stat --format='%U:%G %a' "$sandbox_path")" != 'root:root 4755' ]]; then
-            echo "Chromium sandbox permissions were not applied to $sandbox_path" >&2
-            exit 1
-          fi
-
-      - name: Smoke the hardened packaged application
-        run: node scripts/desktop-smoke.mjs
-        env:
-          SOUNDSCAPER_SMOKE_ARCH: ${{ matrix.target.arch }}
-          SOUNDSCAPER_SMOKE_XVFB: ${{ runner.os == 'Linux' && 'true' || 'false' }}
-
-      - name: Probe packaged CFR and VFR timing persistence
-        run: npm run desktop:smoke:timing-probe
-        env:
-          SOUNDSCAPER_SMOKE_ARCH: ${{ matrix.target.arch }}
-          SOUNDSCAPER_SMOKE_XVFB: ${{ runner.os == 'Linux' && 'true' || 'false' }}
-          SOUNDSCAPER_VIDEO_TIMING_PROBE_RESULT: ${{ runner.temp }}/desktop-video-timing-probe-${{ matrix.product }}-${{ matrix.target.platform }}-${{ matrix.target.arch }}.json
-
-      - name: Upload bounded timing-probe diagnostics
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: desktop-video-timing-probe-${{ matrix.product }}-${{ matrix.target.platform }}-${{ matrix.target.arch }}
-          path: ${{ runner.temp }}/desktop-video-timing-probe-${{ matrix.product }}-${{ matrix.target.platform }}-${{ matrix.target.arch }}.json
-          if-no-files-found: error
-          retention-days: 14
-
-      - name: Smoke packaged direct WAV, AIFF, BWF, and BW64 exports
-        if: matrix.product == 'soundscaper' && matrix.target.platform == 'linux' && matrix.target.arch == 'x64'
-        run: npm run desktop:smoke:direct-wav
-        env:
-          SOUNDSCAPER_SMOKE_ARCH: x64
-          SOUNDSCAPER_SMOKE_XVFB: 'true'
-
-      - name: Smoke packaged Soundscaper project open and reopen
-        if: matrix.product == 'soundscaper' && matrix.target.platform == 'linux' && matrix.target.arch == 'x64'
-        run: npm run desktop:smoke:scape-open
-        env:
-          SOUNDSCAPER_SMOKE_ARCH: x64
-          SOUNDSCAPER_SMOKE_XVFB: 'true'
-
-      - name: Retain the verified runtime manifest
-        shell: bash
-        run: |
-          cp .desktop-build/stage-manifest.json "release/desktop/runtime-manifest-${{ matrix.product }}-${{ matrix.target.platform }}-${{ matrix.target.arch }}.json"
-
-      - name: Stage the audited package root
-        run: >-
-          node scripts/stage-milestone-5-package-root.mjs
-          --package-root "release/desktop"
-          --product "${{ matrix.product }}"
-          --target "${{ matrix.target.platform }}-${{ matrix.target.arch }}"
-
-      - name: Audit the Milestone 5 package
-        run: >-
-          node scripts/audit-milestone-5-package.mjs --output
-          "${{ runner.temp }}/milestone-5-package-audit-${{ matrix.product }}-${{ matrix.target.platform }}-${{ matrix.target.arch }}.json"
-          --product "${{ matrix.product }}"
-          --target "${{ matrix.target.platform }}-${{ matrix.target.arch }}"
-          --package-root "release/milestone-5-package"
-        env:
-          SOUNDSCAPER_SOURCE_REVISION: ${{ github.sha }}
-
-      - name: Upload the Milestone 5 package audit
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: milestone-5-package-audit-${{ matrix.product }}-${{ matrix.target.platform }}-${{ matrix.target.arch }}
-          path: ${{ runner.temp }}/milestone-5-package-audit-${{ matrix.product }}-${{ matrix.target.platform }}-${{ matrix.target.arch }}.json
-          if-no-files-found: error
-          retention-days: 14
-
-      - name: Upload ${{ matrix.product }} packages
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: nightly-${{ matrix.product }}-${{ matrix.target.platform }}-${{ matrix.target.arch }}
-          path: |
-            release/desktop/*.AppImage
-            release/desktop/*.deb
-            release/desktop/*.dmg
-            release/desktop/*.exe
-            release/desktop/*.zip
-            release/desktop/*.json
-          if-no-files-found: error
-          retention-days: 14
-
-      - name: Remove the temporary signing keychain
-        if: always() && runner.os == 'macOS' && env.SCAPE_MAC_SIGNING == 'true'
-        run: node scripts/desktop-signing-keychain.mjs cleanup
-
-  milestone-5-package-audit-summary:
-    name: Re-audit the Milestone 5 packages
-    if: always() && needs.package.result == 'success'
-    needs: [quality, package]
+  nightly-test-targets:
+    if: github.ref == 'refs/heads/main'
     runs-on: ubuntu-24.04
-    timeout-minutes: 60
+    outputs:
+      targets: ${{ steps.resolve.outputs.targets }}
     steps:
-      - name: Check out the audited source revision
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
-        with:
-          persist-credentials: false
-          fetch-depth: 0
-          ref: ${{ github.sha }}
-
-      - name: Set up Node.js
-        uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f # v6.1.0
-        with:
-          node-version-file: .nvmrc
-
-      - name: Pin npm
-        run: npm install --global npm@12.0.1
-
-      - name: Install the pinned project dependencies
-        run: npm ci
-
-      - name: Install cross-format package inspectors
-        timeout-minutes: 10
-        run: bash scripts/ci-apt-install.sh p7zip-full squashfs-tools
-
-      - name: Download the selected audited package roots
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
-        with:
-          pattern: nightly-${{ needs.quality.outputs.release-product-pattern }}-*
-          path: ${{ runner.temp }}/milestone-5-packages
-
-      - name: Re-audit and summarize the packages
-        run: >-
-          node scripts/audit-milestone-5-packages.mjs
-          --package-directory "${{ runner.temp }}/milestone-5-packages"
-          --output "${{ runner.temp }}/milestone-5-package-audit-summary.json"
-          ${{ needs.quality.outputs.package-audit-arguments }}
-        env:
-          SOUNDSCAPER_SOURCE_REVISION: ${{ github.sha }}
-
-      - name: Upload the Milestone 5 package-audit summary
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: milestone-5-package-audit-summary
-          path: ${{ runner.temp }}/milestone-5-package-audit-summary.json
-          if-no-files-found: error
-          retention-days: 14
-
-  release-inventory:
-    name: Assemble the release inventory
-    # The selected release scope is exact: a product tag assembles nine packages
-    # and five runtime manifests for that product only; nightlies retain the
-    # independent full-suite rehearsal.
-    if: always() && needs.package.result == 'success'
-    needs: [quality, package]
-    runs-on: ubuntu-24.04
-    timeout-minutes: 45
-    steps:
-      - name: Check out the aggregated source revision
+      - name: Check out the tested source revision
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           persist-credentials: false
@@ -737,70 +429,42 @@ jobs:
         uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f # v6.1.0
         with:
           node-version-file: .nvmrc
-          cache: npm
 
-      - name: Pin npm
-        run: npm install --global npm@12.0.1
+      - name: Resolve nightly-with-tests target matrix
+        id: resolve
+        env:
+          NIGHTLY_TEST_TARGETS: ${{ inputs.nightly_tests_targets || 'all' }}
+        run: |
+          node --input-type=module <<'NODE'
+          import { appendFileSync } from 'node:fs';
+          import { selectDesktopNightlyTestTargets } from './scripts/lib/desktop-nightly-tests-target-matrix.mjs';
+          appendFileSync(process.env.GITHUB_OUTPUT,
+            `targets=${JSON.stringify(selectDesktopNightlyTestTargets(process.env.NIGHTLY_TEST_TARGETS))}\n`);
+          NODE
 
-      - name: Install dependencies
-        run: npm ci
-
-      - name: Collect every packaged target into one release directory
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
-        with:
-          pattern: nightly-${{ needs.quality.outputs.release-product-pattern }}-*
-          path: release/desktop
-          merge-multiple: true
-
-      - name: Assemble the release assets and checksums
-        run: npm run desktop:release-assets -- ${{ needs.quality.outputs.release-assembler-arguments }}
-
-      - name: Upload the assembled release inventory
-        if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: release-inventory
-          path: |
-            release/desktop/SHA256SUMS
-            release/desktop/runtime-manifest-*.json
-            release/desktop/THIRD_PARTY_LICENSES.md
-          if-no-files-found: warn
-          retention-days: 14
-
-  soundscaper-project-library-lease-matrix:
-    name: Soundscaper v1 + Framescaper v1 packaged lease matrix / ${{ matrix.target.platform }} / ${{ matrix.target.arch }}
-    needs: [quality, tests, coverage, browser, firefox]
-    runs-on: ${{ matrix.target.runner }}
-    timeout-minutes: 90
+  verify-assistance-runtime-handoff:
+    name: Verify published AI runtimes / ${{ matrix.target.platform }} / ${{ matrix.target.arch }}
+    if: >-
+      !cancelled()
+      && needs.nightly-test-targets.result == 'success'
+      && needs.quality.result == 'success'
+      && needs.tests.result == 'success'
+      && needs.coverage.result == 'success'
+      && needs.browser.result == 'success'
+      && needs.firefox.result == 'success'
+    needs: [nightly-test-targets, quality, tests, coverage, browser, firefox]
+    timeout-minutes: 120
     strategy:
       fail-fast: false
       matrix:
-        target:
-          - runner: windows-2025
-            platform: win
-            arch: x64
-            node_arch: x64
-          - runner: windows-11-arm
-            platform: win
-            arch: arm64
-            node_arch: x64
-          - runner: macos-15
-            platform: mac
-            arch: arm64
-            node_arch: arm64
-          - runner: ubuntu-22.04
-            platform: linux
-            arch: x64
-            node_arch: x64
-          - runner: ubuntu-24.04-arm
-            platform: linux
-            arch: arm64
-            node_arch: arm64
+        target: ${{ fromJSON(needs.nightly-test-targets.outputs.targets) }}
+    runs-on: ${{ matrix.target.runner }}
     steps:
-      - name: Check out source
+      - name: Check out the tested source revision
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           persist-credentials: false
+          ref: ${{ github.sha }}
 
       - name: Set up Node.js
         uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f # v6.1.0
@@ -834,51 +498,247 @@ jobs:
         with:
           version: 0.12.5
 
-      - name: Build unpacked Soundscaper v1 and Framescaper v1 products
-        shell: bash
-        run: |
-          for product in soundscaper framescaper; do
-            SCAPE_PRODUCT="$product" \
-              SOUNDSCAPER_DESKTOP_TARGET_PLATFORM="${{ matrix.target.platform }}" \
-              SOUNDSCAPER_DESKTOP_TARGET_ARCH="${{ matrix.target.arch }}" \
-              node scripts/desktop-prepare.mjs
-            SCAPE_PRODUCT="$product" CSC_IDENTITY_AUTO_DISCOVERY=false \
-              npx electron-builder --config electron-builder.config.cjs \
-              --config.directories.output="release/desktop-lease-matrix/$product" \
-              --${{ matrix.target.platform }} --${{ matrix.target.arch }} --dir
-          done
+      - name: Build the target-native AI runtime archives
+        run: node scripts/desktop-prepare.mjs
+        env:
+          SOUNDSCAPER_DESKTOP_TARGET_PLATFORM: ${{ matrix.target.platform }}
+          SOUNDSCAPER_DESKTOP_TARGET_ARCH: ${{ matrix.target.arch }}
+          SOUNDSCAPER_SOURCE_REVISION: ${{ github.sha }}
 
-      - name: Install virtual display
-        if: matrix.target.platform == 'linux'
+      - name: Verify the published immutable archives
+        run: node scripts/publish-assistance-runtime-assets.mjs --verify
+
+      - name: Export the source-bound AI runtime handoff
+        run: node scripts/export-assistance-runtime-handoff.mjs
+        env:
+          SOUNDSCAPER_DESKTOP_TARGET_PLATFORM: ${{ matrix.target.platform }}
+          SOUNDSCAPER_DESKTOP_TARGET_ARCH: ${{ matrix.target.arch }}
+          SOUNDSCAPER_SOURCE_REVISION: ${{ github.sha }}
+          SOUNDSCAPER_ASSISTANCE_RUNTIME_HANDOFF_ROOT: ${{ github.workspace }}/.native-build/assistance-runtime-handoff
+
+      # Transfer only manifests and receipts. The package job reads the five
+      # immutable archives from their authenticated public URLs once per target.
+      - name: Upload the verified AI runtime authority
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: assistance-runtime-handoff-${{ matrix.target.platform }}-${{ matrix.target.arch }}
+          path: .native-build/assistance-runtime-handoff/
+          include-hidden-files: true
+          compression-level: 0
+          if-no-files-found: error
+          retention-days: 14
+
+  package-with-tests:
+    name: Package nightly-with-tests / ${{ matrix.target.platform }} / ${{ matrix.target.arch }}
+    # A manual selection must pass this workflow's quality, Node, coverage, and browser gates.
+    if: >-
+      !cancelled()
+      && needs.nightly-test-targets.result == 'success'
+      && needs.verify-assistance-runtime-handoff.result == 'success'
+      && needs.quality.result == 'success'
+      && needs.tests.result == 'success'
+      && needs.coverage.result == 'success'
+      && needs.browser.result == 'success'
+      && needs.firefox.result == 'success'
+    needs: [nightly-test-targets, quality, tests, coverage, browser, firefox, verify-assistance-runtime-handoff]
+    timeout-minutes: 150
+    strategy:
+      fail-fast: false
+      matrix:
+        target: ${{ fromJSON(needs.nightly-test-targets.outputs.targets) }}
+    runs-on: ${{ matrix.target.runner }}
+    steps:
+      - name: Check out source
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+        with:
+          persist-credentials: false
+          ref: ${{ github.sha }}
+
+      - name: Set up Node.js
+        uses: actions/setup-node@395ad3262231945c25e8478fd5baf05154b1d79f # v6.1.0
+        with:
+          node-version-file: .nvmrc
+          architecture: ${{ matrix.target.node_arch }}
+
+      - name: Pin npm
+        run: npm install --global npm@12.0.1
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Download the published target-native AI runtime handoff
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: assistance-runtime-handoff-${{ matrix.target.platform }}-${{ matrix.target.arch }}
+          path: .native-build/assistance-runtime-handoff
+
+      - name: Install local-model CPU build tools
+        if: runner.os == 'Linux'
+        timeout-minutes: 10
+        run: bash scripts/ci-apt-install.sh build-essential cmake
+
+      - name: Build the authenticated target-native OS audio codec host
+        if: matrix.target.platform != 'linux'
+        run: >-
+          node scripts/ci-build-os-audio-codec-host.mjs
+          --desktop-platform=${{ matrix.target.platform }}
+          --desktop-arch=${{ matrix.target.arch }}
+          --runner-os=${{ runner.os }}
+          --runner-arch=${{ runner.arch }}
+
+      - name: Build the browser application
+        run: npm run build
+
+      - name: Build the Framescaper browser application
+        run: npm run build:browser:framescaper
+
+      - name: Prepare the verified browser product sites
+        run: npm run prepare:browser:products
+
+      - name: Build the verified reciprocal browser product sites
+        run: npm run pretest:browser:dual-origin
+
+      - name: Install Linux browser dependencies
+        if: runner.os == 'Linux'
+        run: npx playwright install-deps chromium firefox webkit
+
+      - name: Install virtual display for packaged audio-device browser gate
+        if: matrix.target.platform == 'linux' && matrix.target.arch == 'x64'
         timeout-minutes: 10
         run: bash scripts/ci-apt-install.sh xvfb
 
-      - name: Configure the Chromium sandbox
-        if: matrix.target.platform == 'linux'
+      - name: Install the hermetic browser-engine matrix
+        run: npx playwright install --no-shell chromium firefox webkit
+        env:
+          PLAYWRIGHT_BROWSERS_PATH: '0'
+
+      - name: Set up the locked Kokoro G2P builder
+        uses: astral-sh/setup-uv@eb1897b8dc4b5d5bfe39a428a8f2304605e0983c # v7.0.0
+        with:
+          version: 0.12.5
+
+      - name: Package the product runtimes exercised by nightly-with-tests
+        run: node scripts/desktop-nightly-tests-products.mjs
+        env:
+          SOUNDSCAPER_DESKTOP_TARGET_PLATFORM: ${{ matrix.target.platform }}
+          SOUNDSCAPER_DESKTOP_TARGET_ARCH: ${{ matrix.target.arch }}
+          SOUNDSCAPER_SOURCE_REVISION: ${{ github.sha }}
+          SOUNDSCAPER_VERIFY_ASSISTANCE_RUNTIMES: 'true'
+          SOUNDSCAPER_ASSISTANCE_RUNTIME_HANDOFF_ROOT: ${{ github.workspace }}/.native-build/assistance-runtime-handoff
+
+      - name: Preserve the nested Chromium sandboxes
+        if: runner.os == 'Linux'
         shell: bash
         run: |
-          mapfile -t sandboxes < <(find release/desktop-lease-matrix -type f -name chrome-sandbox -print)
+          mapfile -t sandboxes < <(find release/desktop-nightly-products -type f -name chrome-sandbox -print)
           if [[ "${#sandboxes[@]}" -ne 2 ]]; then
-            echo "Expected two packaged Chromium sandboxes" >&2
+            echo "Expected two packaged Chromium sandboxes; found ${#sandboxes[@]}" >&2
             exit 1
           fi
-          for sandbox_path in "${sandboxes[@]}"; do
-            sudo chown root:root -- "$sandbox_path"
-            sudo chmod 4755 -- "$sandbox_path"
-          done
+          sudo chown root:root -- "${sandboxes[@]}"
+          sudo chmod 4755 -- "${sandboxes[@]}"
 
-      - name: Run fourteen per-product workflows plus paired scope isolation
+      - name: Run packaged Soundscaper audio-device browser gate
+        if: matrix.target.platform == 'linux' && matrix.target.arch == 'x64'
+        timeout-minutes: 10
         shell: bash
-        run: npm run desktop:smoke:project-library-lease-matrix
+        run: |
+          set -euo pipefail
+          soundscaper_server=''
+          framescaper_server=''
+          cleanup() {
+            for server in "$soundscaper_server" "$framescaper_server"; do
+              if [[ -n "$server" ]]; then kill "$server" 2>/dev/null || true; fi
+            done
+            wait "$soundscaper_server" "$framescaper_server" 2>/dev/null || true
+          }
+          trap cleanup EXIT
+          node node_modules/vite/bin/vite.js preview \
+            --outDir .wrangler/browser-products/soundscaper \
+            --host 127.0.0.1 --port 4322 --strictPort --logLevel error \
+            >"$RUNNER_TEMP/packaged-audio-soundscaper-preview.log" 2>&1 &
+          soundscaper_server=$!
+          node node_modules/vite/bin/vite.js preview \
+            --outDir .wrangler/browser-products/framescaper \
+            --host 127.0.0.1 --port 4323 --strictPort --logLevel error \
+            >"$RUNNER_TEMP/packaged-audio-framescaper-preview.log" 2>&1 &
+          framescaper_server=$!
+          for origin in http://127.0.0.1:4322 http://127.0.0.1:4323; do
+            for attempt in {1..120}; do
+              if curl --fail --silent "$origin/en/" >/dev/null; then break; fi
+              if [[ "$attempt" -eq 120 ]]; then
+                cat "$RUNNER_TEMP"/packaged-audio-*-preview.log >&2
+                exit 1
+              fi
+              sleep 1
+            done
+          done
+          xvfb-run --auto-servernum npx playwright test \
+            tests/browser/desktop-packaged-audio-io.spec.js \
+            --config playwright.nightly-packaged-metrics.config.mjs \
+            --project packaged-soundscaper-audio-devices
         env:
-          SOUNDSCAPER_SMOKE_ARCH: ${{ matrix.target.arch }}
-          SOUNDSCAPER_SMOKE_XVFB: ${{ matrix.target.platform == 'linux' && 'true' || 'false' }}
-          SOUNDSCAPER_LEASE_MATRIX_RESULT: ${{ runner.temp }}/soundscaper-v1-framescaper-v1-lease-matrix-${{ matrix.target.platform }}-${{ matrix.target.arch }}.json
+          SOUNDSCAPER_NIGHTLY_TESTS_PAYLOAD_ROOT: ${{ github.workspace }}
+          SOUNDSCAPER_NIGHTLY_TESTS_RUN_ROOT: ${{ runner.temp }}/packaged-audio-device-e2e
+          SOUNDSCAPER_PACKAGED_PRODUCT_ROOT: ${{ github.workspace }}/release/desktop-nightly-products
+          SOUNDSCAPER_PACKAGED_RUNTIME_METRICS: '1'
+          SOUNDSCAPER_PACKAGED_RUNTIME_PLATFORM: linux
+          SOUNDSCAPER_PACKAGED_RUNTIME_ARCH: x64
+          SCAPE_PLAYWRIGHT_PRODUCT_ORIGINS: >-
+            {"soundscaper":"http://127.0.0.1:4322","framescaper":"http://127.0.0.1:4323"}
 
-      - name: Upload bounded lease-matrix result
+      - name: Upload packaged audio-device browser diagnostics
+        if: always() && matrix.target.platform == 'linux' && matrix.target.arch == 'x64'
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: soundscaper-v1-framescaper-v1-lease-matrix-${{ matrix.target.platform }}-${{ matrix.target.arch }}
-          path: ${{ runner.temp }}/soundscaper-v1-framescaper-v1-lease-matrix-${{ matrix.target.platform }}-${{ matrix.target.arch }}.json
+          name: packaged-audio-device-browser-diagnostics-linux-x64
+          path: |
+            ${{ runner.temp }}/packaged-audio-device-e2e/packaged-runtime/
+            ${{ runner.temp }}/packaged-audio-*-preview.log
+          if-no-files-found: ignore
+          retention-days: 7
+
+      - name: Stage the nightly-with-tests application
+        run: node scripts/desktop-nightly-tests-prepare.mjs
+        env:
+          SOUNDSCAPER_DESKTOP_TARGET_PLATFORM: ${{ matrix.target.platform }}
+          SOUNDSCAPER_DESKTOP_TARGET_ARCH: ${{ matrix.target.arch }}
+          SOUNDSCAPER_SOURCE_REVISION: ${{ github.sha }}
+
+      # macOS ships a 256-descriptor soft limit, and ad-hoc execution sealing walks
+      # the whole embedded Playwright browser matrix. Raise the soft limit to
+      # whatever the kernel already allows.
+      - name: Package nightly-with-tests mac ${{ matrix.target.arch }}
+        if: runner.os == 'macOS'
+        shell: bash
+        run: |
+          hard="$(ulimit -Hn)"
+          if [ "$hard" = "unlimited" ]; then ulimit -n 65536; else ulimit -n "$hard"; fi
+          echo "File-descriptor limit for packaging: $(ulimit -n)"
+          bash scripts/ci-electron-builder.sh \
+            --config electron-builder.nightly-tests.config.cjs \
+            --mac --${{ matrix.target.arch }} --publish never
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+
+      - name: Package nightly-with-tests ${{ matrix.target.platform }} ${{ matrix.target.arch }}
+        if: runner.os != 'macOS'
+        run: >-
+          bash scripts/ci-electron-builder.sh
+          --config electron-builder.nightly-tests.config.cjs
+          --${{ matrix.target.platform }} --${{ matrix.target.arch }} --publish never
+        env:
+          CSC_IDENTITY_AUTO_DISCOVERY: 'false'
+          SOUNDSCAPER_NIGHTLY_TESTS_PACKAGE_ARCH: ${{ matrix.target.arch }}
+
+      - name: Upload nightly-with-tests package
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: nightly-with-tests-${{ matrix.target.platform }}-${{ matrix.target.arch }}
+          path: |
+            release/desktop-nightly-tests/*.AppImage
+            release/desktop-nightly-tests/*.exe
+            release/desktop-nightly-tests/*.zip
+          compression-level: 0
           if-no-files-found: error
           retention-days: 14

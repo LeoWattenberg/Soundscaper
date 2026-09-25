@@ -195,81 +195,54 @@ test('manual nightly-with-tests target selection preserves all targets and selec
 	assert.throws(() => selectDesktopNightlyTestTargets('linux'), /target selection/u);
 });
 
-test('desktop CI packages verified main pushes and selected manual nightly-with-tests targets', async () => {
-	const workflow = await readFile(resolve(ROOT, '.github/workflows/desktop-preview.yml'), 'utf8');
-	assert.match(workflow, /workflow_dispatch:\s+inputs:\s+artifact_variant:/u);
+test('manual desktop test packaging verifies published runtimes and selected targets', async () => {
+	const workflow = await readFile(resolve(ROOT, '.github/workflows/desktop-nightly-tests.yml'), 'utf8');
+	assert.match(workflow, /workflow_dispatch:\s+inputs:\s+nightly_tests_targets:/u);
 	assert.match(workflow, /nightly_tests_targets:[\s\S]*?default: all[\s\S]*?type: choice\s+options:\s+- all\s+- windows\s+- win-x64/u);
-	// Main pushes follow their existing Quality run, without repeating its gates.
-	assert.match(workflow, /workflow_run:\s+workflows: \[Quality\]\s+types: \[completed\]\s+branches: \[main\]/u);
-	assert.match(workflow, /schedule:\s+(?:#.*\n\s+)*- cron:/u);
-	assert.match(workflow, /push:\s+tags:/u);
+	assert.doesNotMatch(workflow, /workflow_run:/u);
+	assert.doesNotMatch(workflow, /schedule:\s+(?:#.*\n\s+)*- cron:|push:\s+tags:/u);
 	assert.doesNotMatch(workflow, /push:\s+branches:/u);
-	assert.match(workflow, /artifact_variant:[\s\S]*type: choice[\s\S]*options:\s+- nightly\s+- nightly-with-tests/u);
+	assert.doesNotMatch(workflow, /artifact_variant:/u);
 	for (const shared of ['quality', 'tests', 'coverage', 'browser', 'firefox']) {
 		const start = workflow.indexOf(`\n  ${shared}:`);
 		assert.ok(start >= 0, `${shared} is missing`);
-		assert.match(workflow.slice(start, start + 200), /if: github\.event_name != 'workflow_run'/u);
+		assert.doesNotMatch(workflow.slice(start, start + 200), /if: github\.event_name != 'workflow_run'/u);
 	}
 	const targetsStart = workflow.indexOf('\n  nightly-test-targets:');
 	const targetsEnd = workflow.indexOf('\n  package-with-tests:', targetsStart);
 	assert.ok(targetsStart >= 0 && targetsEnd > targetsStart);
 	const targetsJob = workflow.slice(targetsStart, targetsEnd);
-	assert.match(targetsJob, /github\.event\.workflow_run\.conclusion == 'success'/u);
-	assert.match(targetsJob, /github\.event\.workflow_run\.event == 'push'/u);
-	assert.match(targetsJob, /github\.event\.workflow_run\.head_repository\.full_name == github\.repository/u);
-	assert.match(targetsJob, /inputs\.artifact_variant == 'nightly-with-tests'/u);
-	assert.match(targetsJob, /ref: \$\{\{ github\.event\.workflow_run\.head_sha \|\| github\.sha \}\}/u);
+	assert.match(targetsJob, /if: github\.ref == 'refs\/heads\/main'/u);
+	assert.match(targetsJob, /ref: \$\{\{ github\.sha \}\}/u);
 	assert.match(targetsJob, /targets: \$\{\{ steps\.resolve\.outputs\.targets \}\}/u);
 	assert.match(workflow, /NIGHTLY_TEST_TARGETS: \$\{\{ inputs\.nightly_tests_targets \|\| 'all' \}\}/u);
 	assert.match(workflow, /selectDesktopNightlyTestTargets\(process\.env\.NIGHTLY_TEST_TARGETS\)/u);
 
-	const normalStart = workflow.indexOf('\n  package:');
-	const publisherStart = workflow.indexOf('\n  publish-assistance-runtime-handoff:');
+	const publisherStart = workflow.indexOf('\n  verify-assistance-runtime-handoff:');
 	const testStart = workflow.indexOf('\n  package-with-tests:');
-	const nextStart = workflow.indexOf('\n  soundscaper-project-library-lease-matrix:', testStart);
-	assert.ok(normalStart >= 0 && publisherStart > normalStart
-		&& testStart > publisherStart && nextStart > testStart);
-	const normalJob = workflow.slice(normalStart, publisherStart);
+	assert.ok(publisherStart > 0 && testStart > publisherStart);
 	const publisherJob = workflow.slice(publisherStart, testStart);
-	const testJob = workflow.slice(testStart, nextStart);
+	const testJob = workflow.slice(testStart);
 	const publisherGuard = publisherJob.slice(publisherJob.indexOf('if: >-'),
 		publisherJob.indexOf('\n    needs:'));
 
-	// The ordinary package stays on tags, schedules and explicit nightly dispatch.
-	assert.match(normalJob, new RegExp(
-		String.raw`if: >-\s+\(github\.event_name == 'push' && github\.ref_type == 'tag'\)`
-		+ String.raw`\s+\|\| github\.event_name == 'schedule'`
-		+ String.raw`\s+\|\| \(github\.event_name == 'workflow_dispatch' && inputs\.artifact_variant == 'nightly'\)`,
-		'u',
-	));
-	// A green, same-repository push uses the upstream Quality verdict; a manual
-	// dispatch must pass this workflow's own quality gates.
+	// A manual dispatch must pass this workflow's own quality gates.
 	const testGuard = testJob.slice(testJob.indexOf('if: >-'), testJob.indexOf('\n    needs:'));
 	assert.ok(testGuard.startsWith('if: >-'));
-	assert.match(testGuard, /github\.event_name == 'workflow_run'/u);
-	assert.match(testGuard, /github\.event\.workflow_run\.conclusion == 'success'/u);
-	assert.match(testGuard, /github\.event\.workflow_run\.event == 'push'/u);
-	assert.match(testGuard, /github\.event\.workflow_run\.head_repository\.full_name == github\.repository/u);
-	assert.match(testGuard, /github\.event_name == 'workflow_dispatch'/u);
-	assert.match(testGuard, /inputs\.artifact_variant == 'nightly-with-tests'/u);
-	assert.doesNotMatch(testGuard, /github\.event_name == '(?:schedule|push)'/u);
-	assert.match(testJob, /needs: \[nightly-test-targets, quality, tests, coverage, browser, firefox, publish-assistance-runtime-handoff\]/u);
+	assert.doesNotMatch(testGuard, /github\.event_name|workflow_run/u);
+	assert.doesNotMatch(testGuard, /inputs\.artifact_variant/u);
+	assert.match(testJob, /needs: \[nightly-test-targets, quality, tests, coverage, browser, firefox, verify-assistance-runtime-handoff\]/u);
 	for (const gate of ['quality', 'tests', 'coverage', 'browser', 'firefox']) {
 		assert.match(testGuard, new RegExp(`needs\\.${gate}\\.result == 'success'`, 'u'));
 	}
 	assert.match(testGuard, /needs\.nightly-test-targets\.result == 'success'/u);
-	assert.match(testGuard, /needs\.publish-assistance-runtime-handoff\.result == 'success'/u);
-	// The package and both source manifests must name the commit Quality verified.
-	const sourceRevision = String.raw`\$\{\{ github\.event\.workflow_run\.head_sha \|\| github\.sha \}\}`;
+	assert.match(testGuard, /needs\.verify-assistance-runtime-handoff\.result == 'success'/u);
+	// The package and both source manifests must name the selected commit.
+	const sourceRevision = String.raw`\$\{\{ github\.sha \}\}`;
 	assert.match(publisherJob, /needs: \[nightly-test-targets, quality, tests, coverage, browser, firefox\]/u);
-	assert.match(publisherGuard, /github\.event\.workflow_run\.head_branch == 'main'/u);
-	assert.match(publisherGuard, /github\.event\.workflow_run\.head_repository\.full_name == github\.repository/u);
-	assert.match(publisherGuard, /github\.event\.workflow_run\.conclusion == 'success'/u);
-	assert.match(publisherGuard, /github\.ref == 'refs\/heads\/main'/u);
 	assert.match(publisherGuard, /needs\.quality\.result == 'success'/u);
-	assert.match(publisherJob, /npm run desktop:publish:assistance-runtimes/u);
-	assert.match(publisherJob, /R2_MODELS_ACCESS_KEY_ID: \$\{\{ secrets\.R2_MODELS_ACCESS_KEY_ID \}\}/u);
-	assert.match(publisherJob, /R2_MODELS_SECRET_ACCESS_KEY: \$\{\{ secrets\.R2_MODELS_SECRET_ACCESS_KEY \}\}/u);
+	assert.match(publisherJob, /node scripts\/publish-assistance-runtime-assets\.mjs --verify/u);
+	assert.doesNotMatch(publisherJob, /R2_MODELS_|--publish/u);
 	assert.match(publisherJob, new RegExp(`ref: ${sourceRevision}`, 'u'));
 	assert.match(publisherJob, new RegExp(`SOUNDSCAPER_SOURCE_REVISION: ${sourceRevision}`, 'u'));
 	assert.match(publisherJob, /node scripts\/export-assistance-runtime-handoff\.mjs/u);
@@ -361,10 +334,6 @@ test('desktop CI packages verified main pushes and selected manual nightly-with-
 	assert.match(testJob, /release\/desktop-nightly-tests\/\*\.zip/u);
 	assert.match(testJob, /compression-level: 0/u);
 	assert.doesNotMatch(workflow, /^ {2}project-library-handoff:/mu);
-	assert.match(
-		workflow.slice(nextStart),
-		/soundscaper-project-library-lease-matrix:\s+name: Soundscaper v1 \+ Framescaper v1 packaged lease matrix/iu,
-	);
 });
 
 test('AI asset updates publish verified target archives only from manual main dispatch', async () => {

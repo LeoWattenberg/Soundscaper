@@ -49,7 +49,7 @@ test('a broken package-generation import chain cannot satisfy the producer audit
 test('package generation binds helper-backed targets and its platform environment', async () => {
 	const fixture = await producerFixture();
 	try {
-		const workflowPath = join(fixture, '.github/workflows/desktop-preview.yml');
+		const workflowPath = join(fixture, '.github/workflows/desktop-nightly-tests.yml');
 		const workflow = await readFile(workflowPath, 'utf8');
 		await writeFile(workflowPath, workflow
 			.replaceAll('          SOUNDSCAPER_DESKTOP_TARGET_ARCH: ${{ matrix.target.arch }}',

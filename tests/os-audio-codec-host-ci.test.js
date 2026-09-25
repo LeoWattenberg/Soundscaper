@@ -176,30 +176,32 @@ test('CI refuses to append a handoff beyond the bounded GITHUB_ENV size', async 
 });
 
 test('all OS-capable desktop staging paths build the codec host while Linux receives no payload', async () => {
-	const [workflow, ciEntry] = await Promise.all([
+	const [workflow, testedWorkflow, ciEntry] = await Promise.all([
 		readFile(join(ROOT, '.github/workflows/desktop-preview.yml'), 'utf8'),
+		readFile(join(ROOT, '.github/workflows/desktop-nightly-tests.yml'), 'utf8'),
 		readFile(join(ROOT, 'scripts/ci-build-os-audio-codec-host.mjs'), 'utf8'),
 	]);
-	assert.equal(workflow.match(/node scripts\/ci-build-os-audio-codec-host\.mjs/gu)?.length, 4);
+	assert.equal(workflow.match(/node scripts\/ci-build-os-audio-codec-host\.mjs/gu)?.length, 2);
+	assert.equal(testedWorkflow.match(/node scripts\/ci-build-os-audio-codec-host\.mjs/gu)?.length, 2);
 	for (const argument of [
 		'--desktop-platform=${{ matrix.target.platform }}',
 		'--desktop-arch=${{ matrix.target.arch }}',
 		'--runner-os=${{ runner.os }}',
 		'--runner-arch=${{ runner.arch }}',
-	]) assert.equal(workflow.match(new RegExp(escapeRegExp(argument), 'gu'))?.length, 4, argument);
+	]) assert.equal((workflow + testedWorkflow).match(new RegExp(escapeRegExp(argument), 'gu'))?.length, 4, argument);
 	const packageJob = jobSource(workflow, 'package', 'milestone-5-package-audit-summary');
 	assert.match(packageJob,
 		/if: matrix\.product == 'soundscaper' && matrix\.target\.platform != 'linux'[\s\S]*ci-build-os-audio-codec-host/u);
-	const testsJob = jobSource(workflow, 'package-with-tests', 'soundscaper-project-library-lease-matrix');
+	const testsJob = jobSource(testedWorkflow, 'package-with-tests', null);
 	assert.match(testsJob,
 		/if: matrix\.target\.platform != 'linux'[\s\S]*ci-build-os-audio-codec-host/u);
-	const publisherJob = jobSource(workflow, 'publish-assistance-runtime-handoff', 'package-with-tests');
+	const publisherJob = jobSource(testedWorkflow, 'verify-assistance-runtime-handoff', 'package-with-tests');
 	assert.match(publisherJob,
 		/if: matrix\.target\.platform != 'linux'[\s\S]*ci-build-os-audio-codec-host/u);
 	const leaseJob = jobSource(workflow, 'soundscaper-project-library-lease-matrix', null);
 	assert.match(leaseJob,
 		/if: matrix\.target\.platform != 'linux'[\s\S]*ci-build-os-audio-codec-host/u);
-	assert.doesNotMatch(workflow, /mac-x64|SOUNDSCAPER_OS_AUDIO_CODEC_BUILD_RESULT:\s*[^$\n]/u);
+	assert.doesNotMatch(workflow + testedWorkflow, /mac-x64|SOUNDSCAPER_OS_AUDIO_CODEC_BUILD_RESULT:\s*[^$\n]/u);
 	assert.doesNotMatch(ciEntry, /SIGNING_IDENTITY|certificate|notari/iu);
 });
 

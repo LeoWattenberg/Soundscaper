@@ -58,11 +58,12 @@ The source runtime-family register describes supported build targets.
 `desktop-prepare` generates authenticated manifests for the native archives.
 Run the manual **Update AI assets** workflow on main to publish the authenticated
 runtime archives for the selected targets and read back their complete public
-responses. Manual nightly-with-tests packaging and automatic packaging after a
-verified main push both verify that the exact archives are available from R2.
-They include the URLs and digests in the app ASAR; an unpublished or mismatched
-archive stops packaging. Update the assets before packaging a revision whose
-generated runtime bytes differ from those already published.
+responses. The separate manual **Desktop test artifacts (internal)** workflow
+rebuilds and verifies the exact archives from R2 without upload credentials.
+The resulting packages include the URLs and digests in the app ASAR; an
+unpublished or mismatched archive stops packaging. Update the assets before
+packaging a revision whose generated runtime bytes differ from those already
+published.
 The tests download these engines without substituting development dependencies
 or simulated output. Build support is separate from a successful test result on
 each platform; retain the report from the actual package run.

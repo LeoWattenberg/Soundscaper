@@ -7,9 +7,8 @@ import test from 'node:test';
 test('desktop documentation explains how to run and find nightly-with-tests results', async () => {
 	const documentation = await readFile(new URL('../Technical_README.md', import.meta.url), 'utf8');
 
-	assert.match(documentation, /successful `Quality` run\s+for a push to `main` automatically schedules.*`nightly-with-tests`/isu);
-	assert.match(documentation, /choose\s+`nightly-with-tests`/iu);
-	assert.match(documentation, /manual.*`all`, `windows`, or `win-x64`/isu);
+	assert.match(documentation, /Desktop test artifacts \(internal\).*manually on `main` to package\s+`nightly-with-tests`/isu);
+	assert.match(documentation, /target choices are `all`, `windows`, or `win-x64`/iu);
 	assert.match(documentation, /nightly-with-tests-(?:win|mac|linux)-<architecture>/iu);
 	assert.match(documentation, /visible progress window.*active phase/isu);
 	assert.match(documentation, /splash.*extracts.*before\s+Electron/isu);

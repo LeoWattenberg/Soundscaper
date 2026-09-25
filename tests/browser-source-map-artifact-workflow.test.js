@@ -10,7 +10,7 @@ const SOURCE_MAP_DOWNLOAD_STEPS = Object.freeze([
 ]);
 
 test('every browser engine receives the source maps required to verify both product sites', async () => {
-	for (const workflowName of ['quality.yml', 'desktop-preview.yml']) {
+	for (const workflowName of ['quality.yml', 'desktop-preview.yml', 'desktop-nightly-tests.yml']) {
 		const workflow = await readFile(new URL(`../.github/workflows/${workflowName}`, import.meta.url), 'utf8');
 		for (const stepName of SOURCE_MAP_DOWNLOAD_STEPS) {
 			const escapedName = stepName.replace(/[.*+?^${}()|[\]\\]/gu, '\\$&');
