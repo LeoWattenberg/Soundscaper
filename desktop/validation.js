@@ -19,10 +19,10 @@ const NATIVE_PROJECT_EXTENSION = PROJECT_FILE_EXTENSION.slice(1);
 const FILE_PURPOSES = Object.freeze({
 	project: Object.freeze({
 		// Every product opens every product's projects; only saving is native.
-		extensions: Object.freeze([...PROJECT_EXTENSIONS, 'aup', 'aup3', 'aup4', 'dawproject']),
+		extensions: Object.freeze([...PROJECT_EXTENSIONS, 'aup', 'aup3', 'aup4', 'dawproject', 'sesx']),
 		filters: Object.freeze([{
-			name: 'Scape, Audacity and DAWproject projects',
-			extensions: [...PROJECT_EXTENSIONS, 'aup', 'aup3', 'aup4', 'dawproject'],
+			name: 'Scape, Audacity, DAWproject and Adobe Audition projects',
+			extensions: [...PROJECT_EXTENSIONS, 'aup', 'aup3', 'aup4', 'dawproject', 'sesx'],
 		}]),
 	}),
 	audio: Object.freeze({
@@ -127,6 +127,7 @@ const MIME_TYPES = Object.freeze({
 	'.opus': 'audio/ogg; codecs=opus',
 	'.otio': 'application/json',
 	'.rf64': 'audio/rf64',
+	'.sesx': 'application/xml',
 	'.srt': 'application/x-subrip',
 	'.txt': 'text/plain',
 	'.vtt': 'text/vtt',

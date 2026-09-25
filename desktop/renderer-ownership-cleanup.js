@@ -13,10 +13,11 @@ export class DesktopRendererOwnershipCleanup {
 	#ownership;
 	#projectLibraryIpc;
 	#readCapabilities;
+	#sesxMediaSessions;
 	#reportError;
 	#saves;
 
-	constructor({ linkedVideoLocators, ownership, projectLibraryIpc, readCapabilities, reportError, revokeAssistanceSemanticSearch, revokeCapture, revokeDesktopCodecs, revokeSoundscaperDelivery, revokeNativeServices, revokeNativeTier, saves }) {
+	constructor({ linkedVideoLocators, ownership, projectLibraryIpc, readCapabilities, reportError, revokeAssistanceSemanticSearch, revokeCapture, revokeDesktopCodecs, revokeSoundscaperDelivery, revokeNativeServices, revokeNativeTier, saves, sesxMediaSessions }) {
 		this.#revokeCapture = revokeCapture;
 		this.#revokeAssistanceSemanticSearch = revokeAssistanceSemanticSearch;
 		this.#revokeDesktopCodecs = revokeDesktopCodecs;
@@ -27,6 +28,7 @@ export class DesktopRendererOwnershipCleanup {
 		this.#ownership = ownership;
 		this.#projectLibraryIpc = projectLibraryIpc;
 		this.#readCapabilities = readCapabilities;
+		this.#sesxMediaSessions = sesxMediaSessions;
 		this.#reportError = reportError;
 		this.#saves = saves;
 	}
@@ -64,6 +66,7 @@ export class DesktopRendererOwnershipCleanup {
 			this.#linkedVideoLocators()?.revokeOwner(owner),
 			this.#projectLibraryIpc()?.revokeOwner(owner),
 			this.#readCapabilities.revokeOwner(owner),
+			this.#sesxMediaSessions?.revokeOwner(owner),
 			this.#saves.revokeOwner(owner),
 		]);
 		const failures = results.filter(({ status }) => status === 'rejected').map(({ reason }) => reason);

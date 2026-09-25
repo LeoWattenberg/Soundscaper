@@ -22,7 +22,7 @@ const SAVE_DIALOG_TITLES = new Map([
  */
 export function registerFileCapabilityIpc({
 	channels, desktopSmokeProbe, dialog, handle, opaqueId, ownerFor, pendingOpenProjects,
-	readCapabilities, saves, saveTargets, windowFor,
+	readCapabilities, saves, saveTargets, sesxMediaSessions = null, windowFor,
 }) {
 	async function chooseFiles(event, value) {
 		const owner = ownerFor(event);
@@ -38,10 +38,13 @@ export function registerFileCapabilityIpc({
 		try {
 			for (const filePath of result.filePaths) {
 				if (!acceptsFile(choice.purpose, filePath)) throw new TypeError('The selected file type is not allowed');
-				descriptors.push(await registerSelectedReadCapability(readCapabilities, filePath, { owner, purpose: choice.purpose }));
+				const descriptor = await registerSelectedReadCapability(readCapabilities, filePath, { owner, purpose: choice.purpose });
+				descriptors.push(descriptor);
+				if (choice.purpose === 'project' && /\.sesx$/iu.test(filePath)) await sesxMediaSessions?.registerSelection(descriptor.id, filePath, { owner });
 			}
 			return descriptors;
 		} catch (error) {
+			for (const descriptor of descriptors) sesxMediaSessions?.release(descriptor.id, { owner });
 			await throwAfterReadCapabilityRollback(readCapabilities, descriptors, owner, error);
 		}
 	}
@@ -68,6 +71,17 @@ export function registerFileCapabilityIpc({
 		pendingOpenProjects,
 		readCapabilities.release(opaqueId(id, 64), { owner: ownerFor(event) }),
 	));
+	if (sesxMediaSessions) {
+		handle(channels.sesxResolveMedia, (event, value) => sesxMediaSessions.resolve({
+			owner: ownerFor(event), sessionReadId: opaqueId(value?.sessionReadId, 64),
+			relativePath: value?.relativePath,
+			...(value?.mediaRootId === undefined ? {} : { mediaRootId: opaqueId(value.mediaRootId, 48) }),
+		}));
+		handle(channels.sesxChooseFolder, (event, value) => sesxMediaSessions.chooseFolder({
+			owner: ownerFor(event), sessionReadId: opaqueId(value?.sessionReadId, 64),
+		}));
+		handle(channels.sesxReleaseSession, (event, id) => sesxMediaSessions.release(opaqueId(id, 64), { owner: ownerFor(event) }));
+	}
 	handle(channels.chooseSaveTarget, (event, value) => chooseSaveTarget(event, value));
 	handle(channels.beginWrite, (event, value) => saves.begin({
 		owner: ownerFor(event),
