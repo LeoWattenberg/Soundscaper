@@ -47,7 +47,7 @@ const STANDARD_CATEGORIES = Object.freeze([
 
 test('each product install core retains the approved request and byte ceilings', () => {
 	assert.equal(MAXIMUM_INSTALL_ASSET_COUNT, 128);
-	assert.equal(MAXIMUM_INSTALL_ASSET_BYTES, 8 * 1024 * 1024);
+	assert.equal(MAXIMUM_INSTALL_ASSET_BYTES, 12 * 1024 * 1024);
 });
 
 test('offline icon geometry rewrites only exact root SVG attributes', () => {

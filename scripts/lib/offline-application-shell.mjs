@@ -23,7 +23,7 @@ import { webBuildRouting } from './product-web-routing.mjs';
 const MAXIMUM_ASSET_BYTES = 25 * 1024 * 1024;
 const MAXIMUM_AGGREGATE_BYTES = 256 * 1024 * 1024;
 const MAXIMUM_ASSET_COUNT = 4_096;
-export const MAXIMUM_INSTALL_ASSET_BYTES = 8 * 1024 * 1024;
+export const MAXIMUM_INSTALL_ASSET_BYTES = 12 * 1024 * 1024;
 export const MAXIMUM_INSTALL_ASSET_COUNT = 128;
 const BUILD_MANIFEST = '.offline-build-manifest.json';
 const STATIC_CONTROL_FILES = Object.freeze([

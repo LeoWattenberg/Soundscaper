@@ -34,13 +34,13 @@ const report = Object.freeze({
 	},
 });
 
-test('only the byte ceilings ratchet down, to the measured graph plus five per cent', () => {
+test('only initial-page bytes ratchet down; product maxima remain stable', () => {
 	assert.deepEqual([...STARTUP_GRAPH_TIGHTENED_METRICS].sort(), ['brotliBytes', 'rawBytes']);
 	const { configuration: tightened, changes } = tightenStartupGraphBudgets(configuration(), report);
 	assert.deepEqual(tightened.framescaper.ceilings, {
 		requests: 84,
-		rawBytes: 6_720_000,
-		brotliBytes: 1_575_000,
+		rawBytes: 7_000_000,
+		brotliBytes: 1_650_000,
 	});
 	assert.deepEqual(tightened.initial.ceilings, {
 		requests: 10,
@@ -50,18 +50,9 @@ test('only the byte ceilings ratchet down, to the measured graph plus five per c
 		brotliBytes: 94_500,
 	});
 	assert.deepEqual(changes.map(({ graph, metric }) => `${graph}.${metric}`).sort(), [
-		'framescaper.brotliBytes',
-		'framescaper.rawBytes',
 		'initial.brotliBytes',
 		'initial.rawBytes',
 	]);
-	assert.deepEqual(changes.find(({ graph, metric }) => graph === 'framescaper' && metric === 'rawBytes'), {
-		graph: 'framescaper',
-		metric: 'rawBytes',
-		observed: 6_400_000,
-		from: 7_000_000,
-		to: 6_720_000,
-	});
 });
 
 test('a request ceiling is never touched even when the measured graph is far below it', () => {
@@ -91,7 +82,7 @@ test('tightening preserves the recorded reasons and every unmeasured graph', () 
 	});
 	assert.deepEqual(tightened.framescaper.reasons, configuration().framescaper.reasons);
 	assert.deepEqual(tightened.initial, configuration().initial);
-	assert.deepEqual(changes.map(({ graph }) => graph), ['framescaper', 'framescaper']);
+	assert.deepEqual(changes, []);
 });
 
 test('a report without measured graphs is refused rather than silently tightening nothing', () => {

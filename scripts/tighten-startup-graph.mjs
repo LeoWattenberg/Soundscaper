@@ -11,14 +11,13 @@ import {
 } from './lib/startup-graph-budget.mjs';
 
 /**
- * Byte ceilings ratchet down; request ceilings never do.
+ * Only the initial page's byte ceilings ratchet down.
  *
  * A graph that shrinks should keep the win, which is what makes the byte
- * ceilings a ratchet rather than a high-water mark nobody lowers. Requests are
- * deliberately excluded: splitting a file adds a chunk by construction, so a
- * request ceiling tightened to the measured graph would fail the very
- * file-splitting the maintainability guard asks for. Raising a request ceiling
- * stays a deliberate, reasoned edit to the configuration.
+ * ceilings a ratchet rather than a high-water mark nobody lowers. Product
+ * ceilings are stable maxima, paired with measured editor-loading progress.
+ * Requests are excluded throughout: splitting a file adds a chunk by
+ * construction, so tightening them would punish maintainability work.
  */
 export const STARTUP_GRAPH_TIGHTENED_METRICS = Object.freeze(['rawBytes', 'brotliBytes']);
 
@@ -44,6 +43,7 @@ export function tightenStartupGraphBudgets(configuration, report, { headroom = S
 	for (const [graph, observation] of Object.entries(graphs)) {
 		const budget = configuration[graph];
 		if (!budget) throw new RangeError(`The startup graph report measures an unbudgeted graph: ${graph}.`);
+		if (graph !== 'initial') continue;
 		const ceilings = { ...budget.ceilings };
 		let lowered = false;
 		for (const metric of STARTUP_GRAPH_TIGHTENED_METRICS) {

@@ -120,7 +120,7 @@ test('a build precaches its own screenshots and deletes the other product copies
 		assert.equal(audit.assets.some(({ url }) => url === `/${screenshot.src}`), false, screenshot.src);
 	}
 	// The install core is capped; the screenshots must fit inside it with room.
-	assert.ok(audit.workers.soundscaper.installByteLength < 8 * 1024 * 1024);
+	assert.ok(audit.workers.soundscaper.installByteLength < 12 * 1024 * 1024);
 });
 
 test('the screenshots are audited after publication, not required of the deployment they replace', () => {

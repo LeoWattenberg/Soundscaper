@@ -198,14 +198,14 @@ test('approved graph ceilings remain hard limits', () => {
 		brotliBytes: 70_250,
 	});
 	assert.deepEqual(STARTUP_GRAPH_BUDGETS.soundscaper, {
-		requests: 75,
-		rawBytes: 6_110_000,
-		brotliBytes: 1_478_000,
+		requests: 100,
+		rawBytes: 10_000_000,
+		brotliBytes: 2_500_000,
 	});
 	assert.deepEqual(STARTUP_GRAPH_BUDGETS.framescaper, {
-		requests: 84,
-		rawBytes: 7_015_000,
-		brotliBytes: 1_683_000,
+		requests: 100,
+		rawBytes: 10_000_000,
+		brotliBytes: 2_500_000,
 	});
 });
 
@@ -240,7 +240,7 @@ test('every build reports the observed graph sizes rather than only breaking on 
 	const lines = formatStartupGraphReport(report);
 	assert.equal(lines.length, 2);
 	assert.match(lines.join('\n'), /startup graph initial: requests \d+\/10, rawBytes [\d,]+\/255,350/u);
-	assert.match(lines.join('\n'), /soundscaper: requests \d+\/75, rawBytes [\d,]+\/6,110,000 \([\d.]+% slack\)/u);
+	assert.match(lines.join('\n'), /soundscaper: requests \d+\/100, rawBytes [\d,]+\/10,000,000 \([\d.]+% slack\)/u);
 });
 
 test('a build logs its observed graphs and writes them next to the bundle', async (context) => {

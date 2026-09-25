@@ -76,10 +76,10 @@
 - Startup graph ceilings live in `config/startup-graph-budgets.json`, and every
   build prints its observed requests and bytes per graph and writes them to
   `.startup-graph-report.json` beside the bundle. Run
-  `npm run check:startup-graph:tighten` after a build to claim a graph that
-  shrank; it lowers byte ceilings only, never requests, since splitting adds
-  chunks by construction. Raising a ceiling stays a deliberate edit with its
-  reason recorded in that file.
+  `npm run check:startup-graph:tighten` after a build to claim a smaller
+  initial-page graph; product byte and request ceilings are stable maxima,
+  paired with measured editor-loading progress. Raising a ceiling stays a
+  deliberate edit with its reason recorded in that file.
 - Browser tests live in `tests/browser/` and use `playwright.config.mjs`.
   Playwright runs Chromium headlessly and starts its own loopback preview server
   at `http://127.0.0.1:4322`; no IDE browser, graphical session, or separately
