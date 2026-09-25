@@ -59,11 +59,13 @@ The source runtime-family register describes supported build targets.
 Run the manual **Update AI assets** workflow on main to publish the authenticated
 runtime archives for the selected targets and read back their complete public
 responses. The separate manual **Desktop test artifacts (internal)** workflow
-rebuilds and verifies the exact archives from R2 without upload credentials.
+builds, publishes, and publicly verifies the exact archives in a dedicated
+handoff job. Its package jobs receive no upload credentials and use the verified
+source-bound handoff.
 The resulting packages include the URLs and digests in the app ASAR; an
 unpublished or mismatched archive stops packaging. Update the assets before
-packaging a revision whose generated runtime bytes differ from those already
-published.
+running a separate release workflow for a revision whose generated runtime
+bytes differ from those already published.
 The tests download these engines without substituting development dependencies
 or simulated output. Build support is separate from a successful test result on
 each platform; retain the report from the actual package run.

@@ -195,7 +195,7 @@ test('manual nightly-with-tests target selection preserves all targets and selec
 	assert.throws(() => selectDesktopNightlyTestTargets('linux'), /target selection/u);
 });
 
-test('manual desktop test packaging verifies published runtimes and selected targets', async () => {
+test('manual desktop test packaging publishes and verifies selected runtimes', async () => {
 	const workflow = await readFile(resolve(ROOT, '.github/workflows/desktop-nightly-tests.yml'), 'utf8');
 	assert.match(workflow, /workflow_dispatch:\s+inputs:\s+nightly_tests_targets:/u);
 	assert.match(workflow, /nightly_tests_targets:[\s\S]*?default: all[\s\S]*?type: choice\s+options:\s+- all\s+- windows\s+- win-x64/u);
@@ -241,8 +241,16 @@ test('manual desktop test packaging verifies published runtimes and selected tar
 	const sourceRevision = String.raw`\$\{\{ github\.sha \}\}`;
 	assert.match(publisherJob, /needs: \[nightly-test-targets, quality, tests, coverage, browser, firefox\]/u);
 	assert.match(publisherGuard, /needs\.quality\.result == 'success'/u);
-	assert.match(publisherJob, /node scripts\/publish-assistance-runtime-assets\.mjs --verify/u);
-	assert.doesNotMatch(publisherJob, /R2_MODELS_|--publish/u);
+	const publicationStart = publisherJob.indexOf('- name: Publish and verify the immutable archives');
+	const handoffStart = publisherJob.indexOf('- name: Export the source-bound AI runtime handoff');
+	assert.ok(publisherJob.indexOf('node scripts/desktop-prepare.mjs') < publicationStart
+		&& publicationStart < handoffStart);
+	const publicationStep = publisherJob.slice(publicationStart, handoffStart);
+	assert.match(publicationStep, /npm run desktop:publish:assistance-runtimes/u);
+	assert.match(publicationStep, /R2_MODELS_ACCESS_KEY_ID: \$\{\{ secrets\.R2_MODELS_ACCESS_KEY_ID \}\}/u);
+	assert.match(publicationStep, /R2_MODELS_SECRET_ACCESS_KEY: \$\{\{ secrets\.R2_MODELS_SECRET_ACCESS_KEY \}\}/u);
+	assert.match(publicationStep, /R2_MODELS_ENDPOINT: \$\{\{ vars\.R2_MODELS_ENDPOINT \|\| secrets\.R2_MODELS_ENDPOINT \}\}/u);
+	assert.doesNotMatch(publisherJob.slice(0, publicationStart) + publisherJob.slice(handoffStart), /R2_MODELS_/u);
 	assert.match(publisherJob, new RegExp(`ref: ${sourceRevision}`, 'u'));
 	assert.match(publisherJob, new RegExp(`SOUNDSCAPER_SOURCE_REVISION: ${sourceRevision}`, 'u'));
 	assert.match(publisherJob, /node scripts\/export-assistance-runtime-handoff\.mjs/u);
