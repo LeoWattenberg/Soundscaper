@@ -332,7 +332,7 @@ export function embedStartupGraphAssetInventory(html, inventory) {
 		`\\u${character.charCodeAt(0).toString(16).padStart(4, '0')}`
 	));
 	return html.replace(STARTUP_ASSET_INVENTORY_MARKER,
-		`<script type="application/json" data-editor-startup-assets>${json}</script>`);
+		() => `<script type="application/json" data-editor-startup-assets>${json}</script>`);
 }
 
 /**

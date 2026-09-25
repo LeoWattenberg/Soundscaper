@@ -6,6 +6,7 @@ import { mkdtemp, rm } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
+import { parseFragment } from 'parse5';
 
 import {
 	PRODUCT_BOOTSTRAPS,
@@ -46,8 +47,19 @@ test('the embedded inventory matches the exact budgeted asset closure', () => {
 	assert.equal(inventory.assets.reduce((sum, asset) => sum + asset.rawBytes, 0), graph.rawBytes);
 	const html = '<body><script type="application/json" data-editor-startup-assets></script></body>';
 	const embedded = embedStartupGraphAssetInventory(html, inventory);
-	assert.deepEqual(JSON.parse(/<script[^>]*>([^<]*)<\/script>/u.exec(embedded)[1]), inventory);
+	const script = parseFragment(embedded).childNodes.find((node) => node.tagName === 'script');
+	assert.ok(script);
+	assert.deepEqual(JSON.parse(script.childNodes[0].value), inventory);
 	assert.throws(() => embedStartupGraphAssetInventory('<body></body>', inventory), /marker/iu);
+});
+
+test('embedded inventory preserves HTML and replacement tokens as JSON data', () => {
+	const inventory = { value: "</script><script>alert(1)</script> $' $& $`" };
+	const html = '<body><script type="application/json" data-editor-startup-assets></script><script type="module" src="/src/main.jsx"></script></body>';
+	const embedded = embedStartupGraphAssetInventory(html, inventory);
+	const scripts = parseFragment(embedded).childNodes.filter((node) => node.tagName === 'script');
+	assert.equal(scripts.length, 2);
+	assert.deepEqual(JSON.parse(scripts[0].childNodes[0].value), inventory);
 });
 
 test('production startup budgets reject editor ownership in the static entry graph', () => {
