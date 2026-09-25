@@ -40,6 +40,9 @@ Choose **Cancel** beside the bar to stop an import or audio export.
   and Framescaper.
 - AUP4 is audio-only interchange with Audacity. It is not a full backup of a
   mixed-media Soundscaper project.
+- Adobe Audition SESX (`.sesx`) can be opened in the desktop edition to create
+  a local project from its referenced audio files. Keep the original session
+  and media; SESX export is not available.
 
 See [Project files](/projects-and-data/project-files/) for the consequences of
 each choice.

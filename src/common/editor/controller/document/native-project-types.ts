@@ -98,6 +98,7 @@ export interface NativeProjectCopy {
 	readonly dawprojectOpened?: string;
 	readonly dawprojectSaving?: string;
 	readonly dawprojectSaved?: string;
+	readonly sesxOpened?: string;
 }
 
 export type NativeProjectFile = Blob & Readonly<{ name: string }>;
@@ -175,8 +176,30 @@ export interface NativeProjectFileType {
 	readonly accept: Readonly<Record<string, readonly string[]>>;
 }
 
+export interface NativeSesxReadDescriptor {
+	readonly id: string;
+	readonly name: string;
+	readonly size: number;
+	readonly mimeType: string;
+	readonly readProfile: 'linked-audio-range-v1';
+	readonly url: string;
+	readonly lastModified: number;
+}
+
 export interface NativeProjectFileService {
 	readonly isDesktop: boolean;
+	resolveSesxMedia?(request: Readonly<{
+		sessionReadId: string; relativePath: string; mediaRootId?: string;
+	}>): Promise<Readonly<{ status: 'found'; descriptor: NativeSesxReadDescriptor } | { status: 'missing' | 'ambiguous' | 'scan-limited' }>>;
+	chooseSesxMediaFolder?(request: Readonly<{ sessionReadId: string }>): Promise<Readonly<
+		{ status: 'selected'; mediaRootId: string } | { status: 'cancelled' }
+	>>;
+	withReadDescriptors?<Value>(
+		descriptors: readonly NativeSesxReadDescriptor[],
+		request: Readonly<{ signal?: AbortSignal }>,
+		consume: (files: readonly Blob[]) => PromiseLike<Value> | Value,
+	): Promise<Value>;
+	releaseSesxSession?(sessionReadId: string): Promise<boolean>;
 	chooseSaveTarget(request: Readonly<{
 		purpose: 'aup4';
 		suggestedName: string;

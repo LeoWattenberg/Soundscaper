@@ -97,6 +97,7 @@ export const IPC = Object.freeze({
 	soakDebugCoverageCheckpoint: 'soundscaper:v1:soak-debug:coverage-checkpoint',
 	chooseFiles: 'soundscaper:v1:files:choose',
 	releaseRead: 'soundscaper:v1:files:release',
+	sesxResolveMedia: 'soundscaper:v1:sesx:media:resolve', sesxChooseFolder: 'soundscaper:v1:sesx:folder:choose', sesxReleaseSession: 'soundscaper:v1:sesx:session:release',
 	chooseLinkedVideoOriginal: 'soundscaper:v1:linked-video:choose',
 	loadLinkedVideoOriginal: 'soundscaper:v1:linked-video:load',
 	reconcileLinkedVideoOriginals: 'soundscaper:v1:linked-video:reconcile',

@@ -96,14 +96,17 @@ export class ReadCapabilityStore {
 		return this.#admitPath(filePath, { owner, mimeType, displayName }, READ_PROFILE_MATERIALIZED_V1);
 	}
 
-	registerSelectedAudioRangePath(filePath, { owner } = {}) {
+	registerSelectedAudioRangePath(filePath, { owner, expectedIdentity } = {}) {
 		try {
 			const mimeType = mimeTypeForPath(filePath);
 			const displayName = basename(filePath);
 			if (!/\.(?:aac|aiff?|flac|m4a|mp2|mp3|oga|ogg|opus|rf64|wav|wv)$/iu.test(displayName) || !mimeType.startsWith('audio/')) {
 				throw new TypeError('Selected audio range capabilities require an accepted audio path');
 			}
-			return this.#admitPath(filePath, { owner, mimeType, displayName }, READ_PROFILE_LINKED_AUDIO_RANGE_V1);
+			return this.#admitPath(filePath, {
+				owner, mimeType, displayName,
+				...(expectedIdentity ? { expectedIdentity: normalizeReadCapabilityFileIdentity(expectedIdentity) } : {}),
+			}, READ_PROFILE_LINKED_AUDIO_RANGE_V1);
 		} catch (error) { return Promise.reject(error); }
 	}
 

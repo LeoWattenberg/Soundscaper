@@ -131,6 +131,7 @@ export interface EditorActionFunctions {
 	readonly openAudacityProject: ReturnType<typeof createNativeProjectService>['openAudacityProject'];
 	readonly openAup4: ReturnType<typeof createNativeProjectService>['openAudacityProject'];
 	readonly openDawproject: ReturnType<typeof createNativeProjectService>['openDawproject'];
+	readonly openSesx: ReturnType<typeof createNativeProjectService>['openSesx'];
 	readonly openProject: ReturnType<typeof createProjectSwitchService>['openProject'];
 	readonly openScape: ReturnType<typeof createNativeProjectService>['openScape'];
 	readonly openScapeFile: ReturnType<typeof createScapeProjectFileService>['openScapeFile'];

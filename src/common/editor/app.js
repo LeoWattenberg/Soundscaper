@@ -580,7 +580,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		listAudioEditorEffectPresets,
 		movePanelPreference, activatePanelTabPreference,
 		moveToolbarPreference, moveTrack, normalizePlaybackFrame,
-		openScapeFile, openDawproject: (file) => taskProgress.run('project-io', copy.importing, () => nativeProjectService.openDawproject(file), undefined, { key: "importing" }), saveDawproject: (saveOptions) => taskProgress.run('project-io', copy.dawprojectSaving, () => nativeProjectService.saveDawproject(saveOptions), undefined, { key: "dawprojectSaving" }),
+		openScapeFile, openDawproject: (file) => taskProgress.run('project-io', copy.importing, () => nativeProjectService.openDawproject(file), undefined, { key: "importing" }), openSesx: (file) => taskProgress.run('project-io', copy.importing, () => nativeProjectService.openSesx(file), undefined, { key: "importing" }), saveDawproject: (saveOptions) => taskProgress.run('project-io', copy.dawprojectSaving, () => nativeProjectService.saveDawproject(saveOptions), undefined, { key: "dawprojectSaving" }),
 		pauseLoudnessMeasurement,
 		prepareProjectHandoff, assertProjectHandoffAllowed, prepareAudacityEffectFromController: effects.execution.prepareAudacityEffectFromController, previewAudacityEffectFromController: effects.execution.previewAudacityEffectFromController,
 		product, productId: product.id, locale: options.locale, macroScriptStartedAt: () => new Date().toISOString(), startMacroScriptTask: () => lifetime.startTask('macro-script', { scope: EDITOR_PROJECT_TASK_SCOPE }), getProject: () => documentState.project, projectSampleRate, beginMacroTransaction: () => doc.mutation.beginMacroTransaction(), timelineDurationFrames: () => projectDurationFrames(documentState.project),

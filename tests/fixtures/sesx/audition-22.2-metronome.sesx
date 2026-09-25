@@ -1,0 +1,114 @@
+﻿<?xml version="1.0" encoding="UTF-8" standalone="no" ?>
+<!DOCTYPE sesx>
+<sesx version="1.9">
+  <session appBuild="22.2.0.61" appVersion="22.2" audioChannelType="mono" bitDepth="24" duration="1440000" sampleRate="48000">
+    <tracks>
+      <audioTrack automationLaneOpenState="false" id="10001" index="1" select="true" visible="true">
+        <trackParameters trackHeight="134" trackHue="160" trackMinimized="false">
+          <name>Track 1</name>
+        </trackParameters>
+        <trackAudioParameters audioChannelType="mono" automationMode="1" monitoring="false" recordArmed="false" solo="false" soloSafe="false">
+          <trackOutput outputID="10000" type="trackID" />
+          <trackInput inputID="1" />
+          <component componentGuid="5bf3417d-683e-450c-9ded-24750aee7688" componentID="Audition.Fader" id="trackFader" name="volume" powered="true">
+            <parameter index="0" name="volume" parameterValue="1" />
+            <parameter index="1" name="static gain" parameterValue="1" />
+          </component>
+          <component componentGuid="c1f89500-d52e-4a2a-a3d3-88c8556fbaa1" componentID="Audition.Mute" id="trackMute" name="Mute" powered="true">
+            <parameter index="0" parameterValue="0" />
+            <parameter index="1" name="mute" parameterValue="0" />
+          </component>
+          <component componentGuid="6ea18647-ed0e-47f7-9876-df56a3b7a301" componentID="Audition.StereoPanner" id="trackPan" name="StereoPanner" powered="true">
+            <parameter index="0" name="Pan" parameterValue="0" />
+          </component>
+          <component componentGuid="5a3c506b-7d8b-4ac5-836c-e22c73b5a584" componentID="Audition.EQ" id="trackEQ" name="EQ" powered="false">
+            <parameter index="0" name="Low Shelf Frequency" parameterValue="0.000834028352983295917510986328125" />
+            <parameter index="1" name="Low Shelf Gain" parameterValue="0.5" />
+          </component>
+        </trackAudioParameters>
+        <editParameter parameterIndex="0" slotIndex="4294967280" />
+        <audioClip clipAutoCrossfade="true" crossFadeHeadClipID="-1" crossFadeTailClipID="-1" endPoint="9600" fileID="0" hue="-1" id="0" lockedInTime="false" looped="false" name="Perc_HeadKnock_hi" offline="false" select="false" sourceInPoint="0" sourceOutPoint="9600" startPoint="0" zOrder="3">
+          <component componentGuid="3809fead-08dc-40ed-81fd-d39ed940b618" componentID="Audition.Fader" id="clipGain" name="volume" powered="true">
+            <parameter index="0" name="volume" parameterValue="1" />
+            <parameter index="1" name="static gain" parameterValue="1" />
+          </component>
+          <component componentGuid="9a9da157-02f0-493f-b285-7df131cd83e3" componentID="Audition.Mute" id="clipMute" name="Mute" powered="true">
+            <parameter index="0" parameterValue="0" />
+            <parameter index="1" name="mute" parameterValue="0" />
+          </component>
+          <component id="clipPan" powered="true" />
+          <fadeIn crossFadeLinkType="linkedAsymmetric" endPoint="0" shape="19" startPoint="0" type="log" />
+          <fadeOut crossFadeLinkType="linkedAsymmetric" endPoint="9600" shape="19" startPoint="9600" type="log" />
+          <editParameter parameterIndex="0" slotIndex="4294967280" />
+          <channelMap>
+            <channel index="0" sourceIndex="0" />
+          </channelMap>
+        </audioClip>
+        <audioClip clipAutoCrossfade="true" crossFadeHeadClipID="-1" crossFadeTailClipID="-1" endPoint="19200" fileID="1" hue="-1" id="1" lockedInTime="false" looped="false" name="Perc_HeadKnock_lo" offline="false" select="false" sourceInPoint="0" sourceOutPoint="9600" startPoint="9600" zOrder="5">
+          <component componentGuid="f9dee9fe-7d54-4ebd-a2a9-7df4a2c45820" componentID="Audition.Fader" id="clipGain" name="volume" powered="true">
+            <parameter index="0" name="volume" parameterValue="1" />
+            <parameter index="1" name="static gain" parameterValue="1" />
+          </component>
+          <component componentGuid="b23f8ace-35b9-47c3-a7d9-ebd013ca48fd" componentID="Audition.Mute" id="clipMute" name="Mute" powered="true">
+            <parameter index="0" parameterValue="0" />
+            <parameter index="1" name="mute" parameterValue="0" />
+          </component>
+          <component id="clipPan" powered="true" />
+          <fadeIn crossFadeLinkType="linkedAsymmetric" endPoint="0" shape="19" startPoint="0" type="log" />
+          <fadeOut crossFadeLinkType="linkedAsymmetric" endPoint="9600" shape="19" startPoint="9600" type="log" />
+          <editParameter parameterIndex="0" slotIndex="4294967280" />
+          <channelMap>
+            <channel index="0" sourceIndex="0" />
+          </channelMap>
+        </audioClip>
+      </audioTrack>
+      <audioTrack automationLaneOpenState="false" id="10002" index="2" select="false" visible="true">
+        <trackParameters trackHeight="134" trackHue="267" trackMinimized="false">
+          <name>Track 2</name>
+        </trackParameters>
+        <trackAudioParameters audioChannelType="mono" automationMode="1" monitoring="false" recordArmed="false" solo="false" soloSafe="false">
+          <trackOutput outputID="10000" type="trackID" />
+          <trackInput inputID="1" />
+          <component componentGuid="15fc513d-7131-404c-b90d-bb548739eb37" componentID="Audition.Fader" id="trackFader" name="volume" powered="true">
+            <parameter index="0" name="volume" parameterValue="1" />
+            <parameter index="1" name="static gain" parameterValue="1" />
+          </component>
+          <component componentGuid="4577081a-00f7-42e5-b4e2-c11e0796d315" componentID="Audition.Mute" id="trackMute" name="Mute" powered="true">
+            <parameter index="0" parameterValue="0" />
+            <parameter index="1" name="mute" parameterValue="0" />
+          </component>
+          <component componentGuid="bbfcd277-e0d8-4c72-b629-441516bdc705" componentID="Audition.StereoPanner" id="trackPan" name="StereoPanner" powered="true">
+            <parameter index="0" name="Pan" parameterValue="0" />
+          </component>
+          <component componentGuid="6c955e96-0811-457a-9108-06c36d1efd9f" componentID="Audition.EQ" id="trackEQ" name="EQ" powered="false">
+            <parameter index="0" name="Low Shelf Frequency" parameterValue="0.000834028352983295917510986328125" />
+            <parameter index="1" name="Low Shelf Gain" parameterValue="0.5" />
+          </component>
+        </trackAudioParameters>
+        <editParameter parameterIndex="0" slotIndex="4294967280" />
+        <audioClip clipAutoCrossfade="true" crossFadeHeadClipID="-1" crossFadeTailClipID="-1" endPoint="28800" fileID="2" hue="-1" id="0" lockedInTime="false" looped="false" name="Synth_Block_C_hi" offline="false" select="false" sourceInPoint="0" sourceOutPoint="9600" startPoint="19200" zOrder="0">
+          <component componentGuid="c681af29-4cbe-4b72-89f6-54261b8203d0" componentID="Audition.Fader" id="clipGain" name="volume" powered="true">
+            <parameter index="0" name="volume" parameterValue="1" />
+            <parameter index="1" name="static gain" parameterValue="1" />
+          </component>
+          <component componentGuid="b23d3a0b-f47b-4326-b3f5-11fd5b31e0a5" componentID="Audition.Mute" id="clipMute" name="Mute" powered="true">
+            <parameter index="0" parameterValue="0" />
+            <parameter index="1" name="mute" parameterValue="0" />
+          </component>
+          <component id="clipPan" powered="true" />
+          <fadeIn crossFadeLinkType="linkedAsymmetric" endPoint="0" shape="19" startPoint="0" type="log" />
+          <fadeOut crossFadeLinkType="linkedAsymmetric" endPoint="9600" shape="19" startPoint="9600" type="log" />
+          <editParameter parameterIndex="0" slotIndex="4294967280" />
+          <channelMap>
+            <channel index="0" sourceIndex="0" />
+          </channelMap>
+        </audioClip>
+      </audioTrack>
+    </tracks>
+  </session>
+  <files>
+    <file absolutePath="/Users/eeyurdakul/Desktop/Metronome/Metronome/Imported Files/Perc_HeadKnock_hi.wav" id="0" importerPrivateSettings="Compression:0:0;LargeFileSupport:0:0;SampleType:0:20;" mediaHandler="AmioWav" relativePath="Imported Files/Perc_HeadKnock_hi.wav" />
+    <file absolutePath="/Users/eeyurdakul/Desktop/Metronome/Metronome/Imported Files/Perc_HeadKnock_lo.wav" id="1" importerPrivateSettings="Compression:0:0;LargeFileSupport:0:0;SampleType:0:20;" mediaHandler="AmioWav" relativePath="Imported Files/Perc_HeadKnock_lo.wav" />
+    <file absolutePath="/Users/eeyurdakul/Desktop/Metronome/Metronome/Imported Files/Synth_Block_C_hi.wav" id="2" importerPrivateSettings="Compression:0:0;LargeFileSupport:0:0;SampleType:0:20;" mediaHandler="AmioWav" relativePath="Imported Files/Synth_Block_C_hi.wav" />
+  </files>
+</sesx>

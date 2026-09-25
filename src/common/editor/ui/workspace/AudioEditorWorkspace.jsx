@@ -213,15 +213,15 @@ const DEFERRED_WEB_VCR_PANEL_ID = 'web-vcr'; export default function AudioEditor
 	const openScapeProjectFile = useCallback((file) => (
 		controller.actions.project.openScapeFile(file, requestScapeOpenDecision)
 	), [controller, requestScapeOpenDecision]);
-	const openProjectFile = useCallback((file) => openWorkspaceProjectFile(
+	const openProjectFile = useCallback((file, desktopSesx = false) => openWorkspaceProjectFile(
 		controller, file, openScapeProjectFile, (legacyFile) => {
 			pendingLegacyProjectRef.current = legacyFile;
 			legacyDataInputRef.current?.click();
-		}), [controller, openScapeProjectFile]);
+		}, desktopSesx), [controller, openScapeProjectFile]);
 	const openDesktopProjectDescriptor = useCallback((descriptor) => withDesktopProjectReadDescriptor(
 		fileService,
 		descriptor,
-		{ openMaterialized: openProjectFile, openScape: openScapeProjectFile },
+		{ openMaterialized: (file) => openProjectFile(file, true), openScape: openScapeProjectFile },
 	), [fileService, openProjectFile, openScapeProjectFile]);
 	const importRoutedFiles = useCallback(async (files, importOptions = {}) => {
 		const routed = partitionWorkspaceFiles(files);

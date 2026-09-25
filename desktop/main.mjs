@@ -43,7 +43,7 @@ import {
 	OPENABLE_PROJECT_EXTENSIONS,
 } from './file-associations.js';
 import { registerSelectedReadCapability } from './read-selection-service.js';
-import { registerFileCapabilityIpc } from './main-file-capability-ipc.mjs';
+import { registerFileCapabilityIpc } from './main-file-capability-ipc.mjs'; import { SesxMediaSessionStore } from './sesx-media-session.mjs';
 import { createProtocolHandler, registerAppScheme } from './protocol.js'; import { createDesktopFreesoundIntegration } from './freesound-integration.js';
 import { createDesktopSmokeProbe } from './desktop-smoke.js';
 import { createDesktopNightlyTestsWindow } from './nightly-tests-window.mjs';
@@ -75,7 +75,7 @@ const saveTargets = new SaveTargetStore();
 const saves = new AtomicSaveManager({ targets: saveTargets });
 if (DECLARED_APPLICATION_VERSION !== null && app.getVersion() !== DECLARED_APPLICATION_VERSION) throw new Error('Packaged application version does not match its selected product release line.');
 const rendererSaveOwnership = new RendererSaveOwnership();
-let mainWindow = null;
+let mainWindow = null; const sesxMediaSessions = new SesxMediaSessionStore({ readCapabilities, dialog, windowFor: () => mainWindow });
 let nightlyTestsWindow = null;
 let settings = null, releaseChecker = null;
 let rendererReady = false;
@@ -93,7 +93,7 @@ const rendererOwnershipCleanup = new DesktopRendererOwnershipCleanup({
 	linkedVideoLocators: () => linkedVideoLocators,
 	ownership: rendererSaveOwnership,
 	projectLibraryIpc: () => projectLibraryIpc,
-	readCapabilities,
+	readCapabilities, sesxMediaSessions,
 	reportError: (error) => console.error('Desktop renderer ownership cleanup failed:', cleanError(error)),
 	saves,
 });
@@ -119,7 +119,7 @@ const applicationShutdown = new DesktopApplicationShutdown({
 		{ name: 'linked-video locators', run: () => linkedVideoLocators?.dispose() },
 		{ name: 'native tier', run: () => disposeDesktopNativeTier(nativeTier) },
 		{ name: 'assistance semantic search', run: () => assistanceSemanticSearch?.dispose() }, { name: 'assistance', run: () => assistance?.dispose() },
-		{ name: 'read capabilities', run: () => readCapabilities.dispose() },
+		{ name: 'read capabilities', run: () => readCapabilities.dispose() }, { name: 'SESX media sessions', run: () => sesxMediaSessions.dispose() },
 		{ name: 'save sessions', run: () => saves.dispose() },
 	],
 	exit: exitWithCoverage,
@@ -387,7 +387,7 @@ async function registerIpcHandlers(desktopSession) {
 	if (SOAK_DEBUG_ENABLED) { handle(IPC.soakDebugProcessMetrics, () => collectSoakDebugProcessMetrics(app)); handle(IPC.soakDebugCoverageCheckpoint, checkpointSoakMainCoverage); }
 	registerFileCapabilityIpc({
 		channels: IPC, desktopSmokeProbe, dialog, handle, opaqueId, ownerFor: rendererSaveOwnerFor,
-		pendingOpenProjects, readCapabilities, saves, saveTargets, windowFor: () => mainWindow,
+		pendingOpenProjects, readCapabilities, saves, saveTargets, sesxMediaSessions, windowFor: () => mainWindow,
 	});
 	handle(IPC.setLocale, async (_event, value) => {
 		const locale = validateLocale(value);

@@ -106,6 +106,7 @@ export const EDITOR_ACTION_FUNCTION_NAMES = [
 	'openAudacityProject',
 	'openAup4',
 	'openDawproject',
+	'openSesx',
 	'openProject',
 	'openScape',
 	'openScapeFile',

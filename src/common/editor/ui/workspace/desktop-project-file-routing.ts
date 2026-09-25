@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import type { ScapeArchiveByteSource } from '../../scape-archive-byte-source.ts';
+import { SESX_XML_MAXIMUM_BYTES } from '../../sesx-format.ts';
 import {
 	DESKTOP_READ_PROFILE_MATERIALIZED,
 	DESKTOP_READ_PROFILE_SCAPE_RANGE,
@@ -9,9 +10,11 @@ import {
 type Awaitable<Value> = PromiseLike<Value> | Value;
 
 export interface DesktopProjectReadDescriptor {
+	readonly id?: unknown;
 	readonly readProfile?: unknown;
 	readonly name?: unknown;
 	readonly mimeType?: unknown;
+	readonly size?: unknown;
 }
 
 export interface DesktopProjectReadService<Value> {
@@ -25,6 +28,8 @@ export interface DesktopProjectReadService<Value> {
 		request: Readonly<Record<string, never>>,
 		consume: (source: ScapeArchiveByteSource) => Awaitable<Value>,
 	): PromiseLike<Value>;
+	releaseRead?(id: string): Awaitable<unknown>;
+	releaseSesxSession?(sessionReadId: string): Awaitable<unknown>;
 }
 
 export interface DesktopProjectConsumers<Value> {
@@ -44,18 +49,32 @@ export async function withDesktopProjectReadDescriptor<Value>(
 		|| typeof consumers.openScape !== 'function') {
 		throw new TypeError('Desktop project consumers are required.');
 	}
-	if (descriptor?.readProfile === DESKTOP_READ_PROFILE_SCAPE_RANGE) {
-		return fileService.withScapeReadDescriptor(descriptor, {}, consumers.openScape);
-	}
-	if (descriptor?.readProfile !== DESKTOP_READ_PROFILE_MATERIALIZED) {
-		return fileService.withReadDescriptors([descriptor], {}, () => {
-			throw new TypeError('A supported desktop project read profile is required.');
-		});
-	}
-	return fileService.withReadDescriptors([descriptor], {}, (files) => {
-		if (files.length !== 1 || !(files[0] instanceof Blob)) {
-			throw new Error('The desktop project descriptor did not produce one file.');
+	try {
+		if (descriptor?.readProfile === DESKTOP_READ_PROFILE_SCAPE_RANGE) {
+			return await fileService.withScapeReadDescriptor(descriptor, {}, consumers.openScape);
 		}
-		return consumers.openMaterialized(files[0]);
-	});
+		if (descriptor?.readProfile !== DESKTOP_READ_PROFILE_MATERIALIZED) {
+			return await fileService.withReadDescriptors([descriptor], {}, () => {
+				throw new TypeError('A supported desktop project read profile is required.');
+			});
+		}
+		if (/\.sesx$/iu.test(String(descriptor?.name || ''))
+			&& typeof descriptor.size === 'number' && descriptor.size > SESX_XML_MAXIMUM_BYTES) {
+			if (typeof descriptor.id !== 'string' || typeof fileService.releaseRead !== 'function') {
+				throw new Error('Desktop SESX capability release is unavailable.');
+			}
+			await fileService.releaseRead(descriptor.id);
+			throw new RangeError('The SESX session exceeds the 32 MiB XML limit.');
+		}
+		return await fileService.withReadDescriptors([descriptor], {}, (files) => {
+			if (files.length !== 1 || !(files[0] instanceof Blob)) {
+				throw new Error('The desktop project descriptor did not produce one file.');
+			}
+			return consumers.openMaterialized(files[0]);
+		});
+	} finally {
+		if (/\.sesx$/iu.test(String(descriptor?.name || '')) && typeof descriptor?.id === 'string') {
+			await fileService.releaseSesxSession?.(descriptor.id);
+		}
+	}
 }

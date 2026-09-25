@@ -23,6 +23,7 @@ export async function stageDawprojectCompressedSource(
 	signal: AbortSignal,
 	assertCurrent: () => void,
 	persistedSourceIds: string[],
+	format = 'DAWproject',
 ): Promise<boolean> {
 	const writer = await store.beginSourceWrite(source.id, {
 		name: source.name, mimeType: source.mimeType, sampleRate: source.sampleRate,
@@ -40,7 +41,7 @@ export async function stageDawprojectCompressedSource(
 				if (channels.length !== source.channelCount || count < 1 || count > chunkFrames
 					|| channels.some((channel) => channel.length !== count)
 					|| frames + count > source.frameCount) {
-					throw new Error('A decoded DAWproject audio packet does not match its source.');
+					throw new Error(`A decoded ${format} audio packet does not match its source.`);
 				}
 				try { await writer.write(channels); }
 				catch (error) { storageFailure = true; throw error; }
@@ -48,7 +49,7 @@ export async function stageDawprojectCompressedSource(
 				assertCurrent();
 			},
 		});
-		if (frames !== source.frameCount) throw new Error('Decoded DAWproject audio ended early.');
+		if (frames !== source.frameCount) throw new Error(`Decoded ${format} audio ended early.`);
 		try { await writer.commit({ sampleRate: source.sampleRate, channelCount: source.channelCount }); }
 		catch (error) { storageFailure = true; throw error; }
 		persistedSourceIds.push(source.id);
