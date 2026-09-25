@@ -16,6 +16,29 @@ test('the ordinary project picker advertises legacy and current Audacity project
 	for (const extension of [...ACCEPTED_PROJECT_FILE_EXTENSIONS, '.aup', '.aup3', '.aup4', '.dawproject']) {
 		assert.ok(accepted.has(extension), `File > Open must allow ${extension} files`);
 	}
+	assert.ok(!accepted.has('.sesx'), 'the browser project picker must not offer desktop SESX import');
+});
+
+test('desktop File > Open dispatches SESX after startup; the browser route rejects it', async () => {
+	const file = new File(['<sesx/>'], 'session.SESX');
+	const ready = deferred<void>();
+	const calls: string[] = [];
+	const unexpected = () => assert.fail('only the SESX importer may open the session');
+	const controller = {
+		ready: ready.promise,
+		actions: { project: {
+			openAudacityProject: unexpected,
+			openDawproject: unexpected,
+			openSesx: (input: File) => { assert.equal(input, file); calls.push('sesx'); return 'opened-sesx'; },
+		} },
+	};
+	const opening = openWorkspaceProjectFile(controller, file, unexpected, unexpected, true);
+	await Promise.resolve();
+	assert.deepEqual(calls, []);
+	ready.resolve();
+	assert.equal(await opening, 'opened-sesx');
+	assert.deepEqual(calls, ['sesx']);
+	await assert.rejects(openWorkspaceProjectFile(controller, file, unexpected), /desktop/i);
 });
 
 test('legacy dropped AUP projects stay grouped with AU and AUF blocks for batch import', () => {

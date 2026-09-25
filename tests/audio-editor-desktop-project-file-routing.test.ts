@@ -97,6 +97,43 @@ test('desktop Audacity descriptors retain named whole-file materialization', asy
 	}
 });
 
+test('a SESX media session is retired when project XML materialization fails', async () => {
+	const released: string[] = [];
+	const descriptor = Object.freeze({
+		id: 'a'.repeat(64), readProfile: DESKTOP_READ_PROFILE_MATERIALIZED,
+		name: 'session.sesx', mimeType: 'application/xml', size: 10,
+	});
+	const service = {
+		withScapeReadDescriptor: async () => { throw new Error('unexpected range read'); },
+		withReadDescriptors: async () => { throw new Error('XML read failed'); },
+		releaseSesxSession: async (id: string) => { released.push(id); },
+	};
+	await assert.rejects(withDesktopProjectReadDescriptor(service, descriptor, {
+		openMaterialized: async () => { throw new Error('unexpected consumer'); },
+		openScape: async () => { throw new Error('unexpected Scape consumer'); },
+	}), /XML read failed/u);
+	assert.deepEqual(released, [descriptor.id]);
+});
+
+test('an oversized SESX descriptor is rejected before XML materialization and both grants are retired', async () => {
+	const released: string[] = [];
+	const descriptor = Object.freeze({
+		id: 'a'.repeat(64), readProfile: DESKTOP_READ_PROFILE_MATERIALIZED,
+		name: 'session.sesx', mimeType: 'application/xml', size: 32 * 1024 * 1024 + 1,
+	});
+	const service = {
+		withScapeReadDescriptor: async () => { throw new Error('unexpected range read'); },
+		withReadDescriptors: async () => { throw new Error('XML must not be materialized'); },
+		releaseRead: async (id: string) => { released.push(`read:${id}`); },
+		releaseSesxSession: async (id: string) => { released.push(`session:${id}`); },
+	};
+	await assert.rejects(withDesktopProjectReadDescriptor(service, descriptor, {
+		openMaterialized: async () => { throw new Error('unexpected consumer'); },
+		openScape: async () => { throw new Error('unexpected Scape consumer'); },
+	}), /32 MiB/u);
+	assert.deepEqual(released, [`read:${descriptor.id}`, `session:${descriptor.id}`]);
+});
+
 test('desktop project profile mismatches fail before fetch and release their capability', async () => {
 	const released: string[] = [];
 	let fetchCalls = 0;

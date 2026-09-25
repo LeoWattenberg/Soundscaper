@@ -1,6 +1,6 @@
 ---
 title: Project files
-description: Choose between the local library, Scape project files, AUP4, and rendered backups.
+description: Choose between the local library, Scape project files, AUP4, SESX import, and rendered backups.
 sidebar:
   order: 2
 ---
@@ -38,6 +38,19 @@ Soundscaper-only state.
 AUP4 is audio-only. Video is omitted, and browser preferences, undo history,
 mixer routing, and the browser's project library are not transferred. Do not
 use AUP4 as the sole backup of a Soundscaper or Framescaper project.
+
+## Adobe Audition SESX
+
+In the desktop edition, use **File → Open** to import an Adobe Audition `.sesx`
+session. Keep its referenced audio files in their relative folder structure
+under the session folder, or choose a media folder when prompted. The import
+creates a new local project with the supported
+audio tracks, clips, placement, trims, simple fades, and static mixer settings.
+
+SESX import is one-way. Audition effects, automation, routing, video, markers,
+loops, stretching, linked crossfades, and exact fade curves do not transfer.
+Open **File → Delivery Report** after import to review missing media and other
+omitted content. Keep the original SESX file and media for future work in Audition.
 
 ## Rendered backup
 

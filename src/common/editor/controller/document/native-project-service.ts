@@ -4,6 +4,7 @@ import { isAudioMediaKind } from '../../audio-media-kind.ts'; import { createLoc
 
 import { isProjectFileName } from '../../../project-file-extensions.ts';
 import { createDeferredDawprojectService } from '../import/deferred-dawproject-service.ts';
+import { createDeferredSesxService } from '../import/deferred-sesx-service.ts';
 import { hasCoreEditingProjectAuthority } from '../../project-schema-version.ts';
 import {
 	EDITOR_PROJECT_TASK_SCOPE,
@@ -68,6 +69,7 @@ export function createNativeProjectService(runtime: NativeProjectServiceRuntime)
 		requireOwnedProject, requireProject,
 	} = createNativeProjectOwnership(runtime);
 	const dawproject = createDeferredDawprojectService(runtime, { beginProjectTask, assertOwnership, beginImport, finishImport, persistSourceChunks, updateNativeProjectProgress, requireProject });
+	const sesx = createDeferredSesxService(runtime, { beginProjectTask, assertOwnership, beginImport, finishImport, persistSourceChunks, updateNativeProjectProgress, requireProject });
 
 	return Object.freeze({
 		dismissAup4CompatibilitySummary,
@@ -75,7 +77,7 @@ export function createNativeProjectService(runtime: NativeProjectServiceRuntime)
 		getAup4Client,
 		nativeProjectProgressMessage,
 		openAudacityProject,
-		openAup4, openDawproject: dawproject.openDawproject, saveDawproject: dawproject.saveDawproject,
+		openAup4, openDawproject: dawproject.openDawproject, saveDawproject: dawproject.saveDawproject, openSesx: sesx.openSesx,
 		openScape,
 		rememberAup4CompatibilityReport,
 		saveAup4,
