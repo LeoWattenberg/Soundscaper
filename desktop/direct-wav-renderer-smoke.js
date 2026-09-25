@@ -13,7 +13,6 @@ export async function runDirectWavRendererSmoke(scope, plan) {
 		bw64FixtureImport: 60_000,
 		completedExport: 150_000,
 		completedBw64Export: bw64ExportTimeout,
-		cancellationHold: 5_000,
 	});
 	const stageKey = '__scapeDirectWavSmokeStage';
 	if (!scope) return Object.freeze({ stageKey, stageWindows });
@@ -328,7 +327,8 @@ export async function runDirectWavRendererSmoke(scope, plan) {
 		secondStart.click();
 		await waitFor(() => dialog.querySelector('[data-export-action="cancel"] button'), 'second export start');
 		await waitFor(() => realtimeCount === 2, 'second realtime render');
-		await delay(stageWindows.cancellationHold);
+		await waitFor(() => Number.parseFloat(dialog.querySelector('[data-export-progress] output')?.textContent || '') >= 75,
+			'cancelled export staged PCM', stageWindows.completedExport);
 		const cancel = dialog.querySelector('[data-export-action="cancel"] button');
 		if (!cancel) throw new Error('Packaged direct WAV second export completed before cancellation');
 		cancel.click();

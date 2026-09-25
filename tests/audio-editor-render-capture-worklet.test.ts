@@ -103,9 +103,26 @@ test('realtime capture stays unarmed until scheduling supplies its start frame',
 		assert.equal(processor.process(inputBlock(1), outputBlock(1)), true);
 		assert.deepEqual(messages, []);
 		processor.port.onmessage?.({ data: { type: 'start-capture', startFrame: 128 } });
+		assert.deepEqual(messages, [{ type: 'capture-armed', startFrame: 128 }]);
 		setCurrentFrame(128);
 		assert.equal(processor.process(inputBlock(1), outputBlock(1)), false);
-		assert.deepEqual(messages.map(({ type }) => type), ['audio-chunk', 'done']);
+		assert.deepEqual(messages.map(({ type }) => type), ['capture-armed', 'audio-chunk', 'done']);
+	});
+});
+
+test('realtime capture rejects a skipped render quantum before silently shifting the tail', () => {
+	withCurrentFrame(() => {
+		const processor = new RenderCaptureProcessor({ processorOptions: {
+			startFrame: 0, totalFrames: 256, chunkFrames: 128, channelCount: 1,
+		} });
+		const messages = captureMessages(processor);
+		assert.equal(processor.process(inputBlock(1), outputBlock(1)), true);
+		setCurrentFrame(256);
+		assert.equal(processor.process(inputBlock(1), outputBlock(1)), false);
+		assert.deepEqual(messages.at(-1), {
+			type: 'capture-error', code: 'REALTIME_CAPTURE_CLOCK_GAP',
+		});
+		assert.equal(messages.some(({ type }) => type === 'done'), false);
 	});
 });
 

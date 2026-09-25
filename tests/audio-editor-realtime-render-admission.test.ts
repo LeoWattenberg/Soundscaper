@@ -288,6 +288,12 @@ test('realtime capture validation pins packet sequence and exact completion geom
 		error instanceof Error
 		&& (error as Error & { code?: string }).code === 'REALTIME_CAPTURE_BACKPRESSURE'
 	));
+	assert.throws(() => validateRealtimeCaptureMessage({
+		type: 'capture-error', code: 'REALTIME_CAPTURE_CLOCK_GAP',
+	}, geometry), (error: unknown) => (
+		error instanceof Error
+		&& (error as Error & { code?: string }).code === 'REALTIME_CAPTURE_CLOCK_GAP'
+	));
 });
 
 function deferred(): Readonly<{ promise: Promise<void>; resolve: () => void }> {

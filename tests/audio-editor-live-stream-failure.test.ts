@@ -240,6 +240,12 @@ class MockCaptureNode extends MockNode {
 	onprocessorerror: (() => void) | null = null;
 	constructor(context: MockRealtimeCaptureContext) {
 		super('capture');
+		this.port.postMessage = (message: unknown): void => {
+			if (message && typeof message === 'object' && 'type' in message
+				&& message.type === 'start-capture' && 'startFrame' in message) {
+				queueMicrotask(() => this.emit({ type: 'capture-armed', startFrame: message.startFrame }));
+			}
+		};
 		context.capture = this;
 	}
 	emit(data: Readonly<Record<string, unknown>>): void { this.port.onmessage?.({ data }); }

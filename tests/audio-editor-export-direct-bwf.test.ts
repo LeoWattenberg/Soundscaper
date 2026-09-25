@@ -259,7 +259,7 @@ test('exact realtime BWF forwards BEXT through the WAV encoder and publishes its
 	assert.equal(destination.commitCalls(), 1);
 	assert.equal(destination.abortCalls(), 0);
 	assert.deepEqual(fixture.preflights, []);
-	assert.equal(fixture.calls.includes('temporary:create'), false);
+	assert.equal(fixture.calls.includes('temporary:create'), true);
 	assert.deepEqual(fixture.downloads, []);
 	assert.equal(fixture.renderRequests[0].chunkFrames, DIRECT_PCM_RENDER_CHUNK_FRAMES);
 	assert.equal(fixture.renderRequests[0].maximumPendingChunks, directPcmMaximumPendingChunks(2, 'BWF'));

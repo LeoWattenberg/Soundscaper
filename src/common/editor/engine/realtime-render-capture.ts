@@ -68,10 +68,13 @@ export function validateRealtimeCaptureMessage(
 
 function captureWorkletError(code: unknown): Error {
 	const backpressure = code === 'REALTIME_CAPTURE_BACKPRESSURE';
+	const clockGap = code === 'REALTIME_CAPTURE_CLOCK_GAP';
 	const error = Object.assign(new Error(backpressure
 		? 'The realtime capture worklet exhausted its admitted producer credits.'
-		: 'The realtime capture worklet failed.'), {
-		code: backpressure ? code : 'REALTIME_CAPTURE_FAILURE',
+		: clockGap
+			? 'The realtime capture clock skipped audio frames.'
+			: 'The realtime capture worklet failed.'), {
+		code: backpressure || clockGap ? code : 'REALTIME_CAPTURE_FAILURE',
 	});
 	error.name = 'RealtimeCaptureError';
 	return error;

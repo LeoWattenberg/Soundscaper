@@ -228,9 +228,30 @@ async renderMixRealtime(this: EngineRuntimeHost, {
 				deferStartUntilPrimed: true,
 			});
 			startTime = scheduled.contextStartTime;
-			capture.port.postMessage({
-				type: 'start-capture',
-				startFrame: Math.ceil(startTime * context.sampleRate) + captureLeadFrames,
+			const startFrame = Math.ceil(startTime * context.sampleRate) + captureLeadFrames;
+			await new Promise<void>((resolve, reject) => {
+				const onAbort = (): void => fail(createAbortError());
+				const timeout = setTimeout(() => fail(new Error('The realtime capture worklet did not arm.')), 10_000);
+				const cleanup = (): void => {
+					clearTimeout(timeout);
+					graph.abortController.signal.removeEventListener('abort', onAbort);
+					capture.port.onmessage = null;
+					capture.onprocessorerror = null;
+				};
+				const fail = (error: Error): void => { cleanup(); reject(error); };
+				capture.port.onmessage = ({ data = {} }) => {
+					if (data.type !== 'capture-armed') return;
+					cleanup();
+					if (data.startFrame === startFrame) resolve();
+					else reject(new Error('The realtime capture worklet armed at the wrong frame.'));
+				};
+				capture.onprocessorerror = () => fail(new Error('The realtime capture worklet failed while arming.'));
+				graph.abortController.signal.addEventListener('abort', onAbort, { once: true });
+				if (graph.abortController.signal.aborted) onAbort();
+				else {
+					capture.port.start?.();
+					capture.port.postMessage({ type: 'start-capture', startFrame });
+				}
 			});
 			const streamCompletion = scheduled.waitForStreamedClips();
 			waitForStreamedClips = () => streamCompletion;
@@ -399,7 +420,6 @@ async renderMixRealtime(this: EngineRuntimeHost, {
 		let renderFailed = false;
 		let renderFailure: unknown;
 		try {
-			capture.port.start?.();
 			if (!graph.abortController.signal.aborted) await context.resume();
 			await done;
 			// The capture and native processors use different ports. A roundtrip

@@ -580,7 +580,7 @@ async function withMockRealtimeRenderer(onResume, run, { closeFailure = null, on
 		constructor(context) {
 			super();
 			this.messages = [];
-			this.port = { onmessage: null, start() {}, postMessage: (message) => { this.messages.push(message); } };
+			this.port = { onmessage: null, start() {}, postMessage: (message) => { this.messages.push(message); if (message.type === 'start-capture') queueMicrotask(() => this.port.onmessage?.({ data: { type: 'capture-armed', startFrame: message.startFrame } })); } };
 			this.onprocessorerror = null;
 			context.capture = this;
 		}

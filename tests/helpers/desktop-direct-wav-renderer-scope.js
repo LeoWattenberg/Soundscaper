@@ -66,7 +66,7 @@ export function createRendererScope({ admLayoutDelayMs = 0, aiffExportFailure = 
 		File: FakeFile,
 		setTimeout: (callback, milliseconds) => {
 			if (waitFailure && fixture.routedToProjectBin) throw new Error(waitFailure);
-			if (hideFirstExportProgress && fixture.progressQueries > 0) {
+			if (hideFirstExportProgress && fixture.startedRuns === 1 && fixture.progressQueries > 0) {
 				throw new Error('The smoke waited for transient first-export telemetry.');
 			}
 			if (failOnAdmRouteWait && fixture.admLayout === '5.1' && fixture.admRouteQueries > 0
@@ -409,6 +409,12 @@ export function createRendererScope({ admLayoutDelayMs = 0, aiffExportFailure = 
 			fixture.progress = 0;
 			progressOutput.textContent = '0%';
 			new scope.AudioContext({ sampleRate: 384000 });
+			if (fixture.startedRuns === 2) {
+				setTimeout(() => {
+					fixture.progress = 75;
+					progressOutput.textContent = '75%';
+				}, 1);
+			}
 			if ([1, 3, 4, 5].includes(fixture.startedRuns)) {
 				setTimeout(() => {
 					if (!hideFirstExportProgress || fixture.startedRuns !== 1) {

@@ -391,7 +391,7 @@ test('renderer smoke is self-contained and drives import, completed export, and 
 	assert.equal(scope.document.fixture.cancelledRuns, 1);
 	assert.equal(scope.document.fixture.newProjectCount, 1);
 	assert.equal(scope.document.fixture.dialogCloseCount, 1);
-	assert.equal(scope.document.fixture.progressQueries, 0);
+	assert.ok(scope.document.fixture.progressQueries > 0);
 });
 
 test('renderer smoke accepts authoritative completion without transient first-export telemetry', async () => {
@@ -400,7 +400,7 @@ test('renderer smoke accepts authoritative completion without transient first-ex
 	const result = await serializedRoutine(scope, PLAN);
 	assert.equal(result.completed, true);
 	assert.equal(scope.document.fixture.completedRuns, 4);
-	assert.equal(scope.document.fixture.progressQueries, 0);
+	assert.ok(scope.document.fixture.progressQueries > 0);
 });
 
 test('renderer smoke remounts and retries a BEXT field that did not persist', async () => {

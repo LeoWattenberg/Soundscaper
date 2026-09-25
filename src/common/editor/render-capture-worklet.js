@@ -29,6 +29,7 @@ class RenderCaptureProcessor extends WorkletProcessor {
 			if (data?.type === 'start-capture' && this.startFrame === null
 				&& Number.isFinite(data.startFrame)) {
 				this.startFrame = Math.max(0, Math.floor(data.startFrame));
+				this.port.postMessage({ type: 'capture-armed', startFrame: this.startFrame });
 			}
 			if (data?.type === 'release-chunk' && this.inFlightChunks > 0) {
 				this.inFlightChunks -= 1;
@@ -44,6 +45,12 @@ class RenderCaptureProcessor extends WorkletProcessor {
 		const blockFrames = input[0]?.length || outputs[0]?.[0]?.length || 128;
 		const blockStart = Number.isFinite(globalThis.currentFrame) ? globalThis.currentFrame : 0;
 		if (blockStart + blockFrames <= this.startFrame) return true;
+		if (Number.isFinite(globalThis.currentFrame)
+			&& Math.max(blockStart, this.startFrame) !== this.startFrame + this.capturedFrames) {
+			this.finished = true;
+			this.port.postMessage({ type: 'capture-error', code: 'REALTIME_CAPTURE_CLOCK_GAP' });
+			return false;
+		}
 		const first = Math.max(0, this.startFrame - blockStart);
 		const remaining = this.totalFrames - this.capturedFrames;
 		const last = Math.min(blockFrames, first + remaining);

@@ -288,6 +288,7 @@ test('realtime setup freezes the clock, arms capture from the scheduled start, a
 	const previousAudioWorkletNode = globalThis.AudioWorkletNode;
 	const context = new MockRealtimeAudioContext();
 	context.state = 'running';
+	context.autoArmCapture = false;
 	const streams = new ClockAdvancingChunkStreamClient(context);
 	let engine: WebAudioEditorEngine | null = null;
 	globalThis.AudioContext = function MockAudioContextFactory() { return context; } as unknown as typeof AudioContext;
@@ -303,6 +304,10 @@ test('realtime setup freezes the clock, arms capture from the scheduled start, a
 		const rendering = engine.renderMixRealtime({
 			startFrame: 0, endFrame: 1, outputFrames: 1, onChunk: () => undefined,
 		});
+		await streams.opened.promise;
+		await new Promise((resolve) => setImmediate(resolve));
+		assert.equal(context.resumeCalls, 0, 'the audio clock stays suspended until capture acknowledges its start frame');
+		context.capture?.arm();
 		await context.captureDone.promise;
 		streams.complete();
 		await rendering;
@@ -435,6 +440,7 @@ class MockRealtimeAudioContext {
 	closeCalls = 0;
 	resumeCalls = 0;
 	suspendCalls = 0;
+	autoArmCapture = true;
 	onPostCaptureResume: (() => void) | null = null;
 
 	createGain(): MockNode { return new MockNode(); }
@@ -486,6 +492,7 @@ class MockCaptureNode extends MockNode {
 		start(): void;
 	};
 	onprocessorerror: (() => void) | null = null;
+	private startFrame: number | null = null;
 
 	constructor(
 		context: MockRealtimeAudioContext,
@@ -494,9 +501,17 @@ class MockCaptureNode extends MockNode {
 	) {
 		super();
 		this.options = options;
-		this.port = { onmessage: null, postMessage: (message) => { this.posted.push(message); }, start() {} };
+		this.port = { onmessage: null, postMessage: (message) => {
+			this.posted.push(message);
+			if (message.type === 'start-capture') {
+				this.startFrame = Number(message.startFrame);
+				if (context.autoArmCapture) this.arm();
+			}
+		}, start() {} };
 		context.capture = this;
 	}
+
+	arm(): void { if (this.startFrame !== null) this.emit({ type: 'capture-armed', startFrame: this.startFrame }); }
 
 	emit(data: Readonly<Record<string, unknown>>): void {
 		this.port.onmessage?.({ data });
