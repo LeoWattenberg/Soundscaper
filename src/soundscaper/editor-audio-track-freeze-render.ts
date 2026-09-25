@@ -7,11 +7,13 @@ import {
 	type SoundscaperFreezeTicket,
 } from './editor-audio-track-freeze-currency.ts';
 import { normalizeAutomationLaneV21 } from '../common/editor/automation-lane-v21.ts';
+import { clipNeedsTimePitchRender } from '../common/editor/clip-time-pitch-cache.js';
 import { createStoredChunkProvider, SOURCE_CHUNK_FRAMES } from '../common/editor/controller/source/source-audio.ts';
 import { rackTailFrames } from '../common/editor/effects.js';
 import { audioBufferChannels, type PlanarPcm } from '../common/editor/engine/buffer-math.ts';
 import { compileProjectPathPdcPlanV21 } from '../common/editor/engine/project-path-pdc-plan-v21.ts';
 import type { EnginePublicApi } from '../common/editor/engine/public-api.ts';
+import type { EngineSourceResolver } from '../common/editor/engine/types.ts';
 import { createDefaultMixerGraphV21 } from '../common/editor/mixer-graph-v21.ts';
 import { createAudioSource } from '../common/editor/project-media-factory.ts';
 import { resolveRuntimeProjectProjection } from '../common/editor/runtime-clip-projection.ts';
@@ -32,6 +34,7 @@ export interface FreezeStore extends TransientAnalysisPcmStore {
 }
 
 export interface SoundscaperAudioFreezeRenderEngine {
+	setSourceResolver?(sourceResolver: EngineSourceResolver): unknown;
 	loadProject(
 		project: Parameters<EnginePublicApi['loadProject']>[0],
 		sourceBuffers?: Parameters<EnginePublicApi['loadProject']>[1],
@@ -56,6 +59,11 @@ export interface FreezeStage {
 	readonly descriptor: DataRecord;
 	readonly writer: AudioSourceWriter;
 	authority: StorageRecord | null;
+}
+
+export interface FreezeTimePitchRenderOptions {
+	readonly sourceResolver?: EngineSourceResolver;
+	readonly prepareTimePitchCaches?: (project: DataRecord, signal?: AbortSignal) => Promise<unknown>;
 }
 
 export function planFreezeRange(project: SoundscaperProject, trackId: string) {
@@ -90,6 +98,7 @@ export async function renderFreezeBody(
 		readonly sampleRate: number;
 		readonly signal?: AbortSignal;
 	}>,
+	options: FreezeTimePitchRenderOptions = {},
 ): Promise<Readonly<{ readonly body: FreezeBody; readonly frameCount: number; readonly sampleRate: number; readonly channelCount: number }>> {
 	const ticket: SoundscaperFreezeTicket = Object.freeze({
 		project: request.project,
@@ -121,6 +130,24 @@ export async function renderFreezeBody(
 		const laneEndFrame = request.renderStartFrame + request.renderFrameCount
 			- (track.effectsActive === false ? 0 : rackTailFrames(track.effects, request.sampleRate, 10));
 		const renderProject = freezeRenderProject(runtime, track, clips, sources);
+		if (options.prepareTimePitchCaches) {
+			await options.prepareTimePitchCaches(renderProject, request.signal);
+			throwIfAborted(request.signal);
+			assertCurrentSoundscaperFreezeProject(controller, ticket);
+		}
+		if (options.sourceResolver) {
+			if (!engine.setSourceResolver) throw new TypeError('The freeze renderer cannot resolve time/pitch sources.');
+			engine.setSourceResolver(options.sourceResolver);
+		}
+		for (const clip of clips) {
+			if (clip.warpMap != null || !clipNeedsTimePitchRender(clip)) continue;
+			const resolved = options.sourceResolver?.(clip as never, {
+				project: renderProject as never, sources: new Map(), defaultBuffer: null,
+			});
+			if (!resolved) {
+				throw new Error(`The time/pitch render for clip ${String(clip.id)} is unavailable for freeze.`);
+			}
+		}
 		engine.loadProject(renderProject as never, new Map(), { chunkSources: providers });
 		const rendered = await engine.renderTrack(request.trackId, {
 			startFrame: request.renderStartFrame,

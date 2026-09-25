@@ -57,3 +57,55 @@ test('freeze render retires stored source readers when engine disposal throws sy
 	);
 	assert.deepEqual(events, ['engine-dispose', 'source-reader-released']);
 });
+
+test('freeze prepares a pitched clip and installs its source resolver before rendering', async () => {
+	const source = createAudioSource({
+		id: 'tone-source', storageKey: 'tone-source', contentSha256: '1'.repeat(64),
+		frameCount: 8, channelCount: 1, sampleRate: 48_000,
+		originalSampleRate: 48_000, sampleFormat: 'float32', chunkFrames: 65_536,
+	});
+	const clip = createAudioClip({
+		id: 'tone-clip', sourceId: source.id, timelineStartFrame: 0,
+		sourceStartFrame: 0, sourceDurationFrames: 8, durationFrames: 8,
+		pitchCents: 1_200,
+	});
+	const project = createSoundscaperProject({
+		id: 'pitched-freeze', title: 'Pitched freeze', now: '2026-08-14T12:00:00.000Z',
+		sources: [source], clips: [clip], tracks: [createAudioTrack({
+			id: 'tone', clipIds: [clip.id], effects: [],
+		})],
+		sequences: [{ id: 'main-sequence', trackIds: ['tone'] }],
+		primarySequenceId: 'main-sequence',
+	});
+	const events: string[] = [];
+	const store = {
+		getSourceMetadata: async () => ({ id: source.id, frameCount: 8, channelCount: 1,
+			sampleRate: 48_000, chunkFrames: 65_536 }),
+		readSourceChunk: async () => ({ index: 0, frames: 8, channels: [new Float32Array(8)] }),
+	} as unknown as FreezeStore;
+	let resolver: ((value: unknown) => unknown) | undefined;
+	const engine = {
+		setSourceResolver(value: (clipValue: unknown) => unknown) { events.push('resolver'); resolver = value; },
+		loadProject() { events.push('load'); },
+		async renderTrack() {
+			events.push('render');
+			assert.ok(resolver);
+			assert.ok(resolver(clip));
+			return { channels: [new Float32Array(8)] };
+		},
+		dispose() { events.push('dispose'); },
+	};
+	await renderFreezeBody(store, { project }, () => engine as never, {
+		project, trackId: 'tone', renderStartFrame: 0, renderFrameCount: 8, sampleRate: 48_000,
+	}, {
+		prepareTimePitchCaches: async (renderProject) => {
+			events.push('prepare');
+			assert.equal((renderProject.clips as typeof project.clips)[0]?.pitchCents, 1_200);
+		},
+		sourceResolver: () => ({ buffer: {} as AudioBuffer }),
+	});
+	assert.deepEqual(events, ['prepare', 'resolver', 'load', 'render', 'dispose']);
+	await assert.rejects(renderFreezeBody(store, { project }, () => engine as never, {
+		project, trackId: 'tone', renderStartFrame: 0, renderFrameCount: 8, sampleRate: 48_000,
+	}), /time\/pitch render.*unavailable/iu);
+});

@@ -14,7 +14,8 @@ import { sameProjectSnapshot } from '../common/editor/storage/project-snapshot-e
 import { validateSoundscaperProject, type SoundscaperProject } from './editor-project-validation.ts';
 import {
 	hashFreezeBody, planFreezeRange, renderFreezeBody, stageFreezeSource,
-	type FreezeBody, type FreezeStage, type FreezeStore, type SoundscaperAudioFreezeRenderEngine,
+	type FreezeBody, type FreezeStage, type FreezeStore, type FreezeTimePitchRenderOptions,
+	type SoundscaperAudioFreezeRenderEngine,
 } from './editor-audio-track-freeze-render.ts';
 import {
 	dataArray, dataRecord, exactRecordById, nonNegativeInteger, positiveInteger,
@@ -53,7 +54,7 @@ export interface SoundscaperAudioFreezeActionBinding {
 	readonly dispose: () => Promise<void>;
 }
 
-export interface SoundscaperAudioFreezeActionsOptions {
+export interface SoundscaperAudioFreezeActionsOptions extends FreezeTimePitchRenderOptions {
 	/**
 	 * The document validator for the revision these actions serve. Later
 	 * production revisions inherit this file unchanged, so the revision is a
@@ -121,7 +122,7 @@ export function createSoundscaperAudioFreezeActions(
 			project.id, source, signal,
 		),
 		render: async (request) => renderFreezeBody(
-			environment.store, controller, createRenderEngine, request,
+			environment.store, controller, createRenderEngine, request, options,
 		),
 		hashRenderedBody: ({ body, signal }) => Promise.resolve(hashFreezeBody(body, signal)),
 		stageDerivedSource: async (request) => stageFreezeSource(environment.store, request),

@@ -1,7 +1,10 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { readFile } from 'node:fs/promises';
 import { expect } from '@playwright/test';
-import { test } from './audio-editor-test-fixtures.js';
+import { createWavFixture, test } from './audio-editor-test-fixtures.js';
+import { decodePcmWithWavPack } from '../../src/common/editor/wavpack/operations.js';
+import { loadWavPackWasm } from '../../src/common/editor/wavpack/runtime.js';
 
 import { PROJECT_SCHEMA_VERSION } from '../../src/common/editor/project-schema-version.ts';
 import { reconcileProjectOwnedFeatureRequirements } from '../../src/common/editor/project-owned-feature-requirements.ts';
@@ -220,7 +223,71 @@ test.describe('Soundscaper exact timing and freeze workflows', () => {
 		}
 		expect(clientErrors).toEqual([]);
 	});
+
+	test('freezes an octave-shifted 440 Hz clip at 880 Hz', async ({ page }) => {
+		test.setTimeout(180_000);
+		await disableOpfsForRawPcmEvidence(page);
+		const clientErrors = collectClientErrors(page);
+		const editor = await bootEditor(page, '/embed/en/');
+		const tone = createWavFixture({
+			name: 'freeze-pitched-tone.wav', frequency: 440, duration: 2, channelCount: 1,
+		});
+		await importFiles(editor, [tone]);
+		const track = editor.locator('[data-track-row]').last();
+		await track.locator('[data-track-header]').click();
+		const trackId = await track.getAttribute('data-track-id');
+		const projectId = await editor.getAttribute('data-project-id');
+		expect(trackId).toBeTruthy();
+		expect(projectId).toBeTruthy();
+		const properties = await openClipProperties(page, editor, clipByName(editor, tone.name));
+		await commitInput(properties.getByRole('spinbutton', {
+			name: 'Pitch (semitones, −12 to +12)', exact: true,
+		}), '12');
+		await closeDialog(properties);
+		const effectsPanel = await openEffectsForTrack(editor, 1);
+		await addRackEffect(page, effectsPanel, 'track', 'Feedback delay');
+		const delay = page.getByRole('dialog', { name: 'Feedback delay', exact: true });
+		await commitInput(delay.locator('[data-effect-param="mix"] input'), '0');
+		await closeDialog(delay);
+		await closeEffectsPanel(effectsPanel);
+		await chooseFileAction(page, editor, 'Save project');
+		await expect(editor.locator('[data-save-state]')).toHaveAttribute('data-state', 'saved');
+		await page.reload();
+		await waitForEditor(page);
+		await track.locator('[data-track-header]').click();
+		const history = await openHistoryPanel(page, editor);
+		await freezeSelectedTrack(page, editor, history,
+			await history.locator('[data-history-list] > li').count());
+		await chooseFileAction(page, editor, 'Save project');
+		await expect(editor.locator('[data-save-state]')).toHaveAttribute('data-state', 'saved');
+		const pcm = await readFrozenRawPcm(page, projectId, trackId, {
+			readInput: false, decodeEncoded: true,
+		});
+		const shifted = pcm.channels[0];
+		expect(pcm.source.sampleRate).toBe(FREEZE_SAMPLE_RATE);
+		const window = shifted.slice(FREEZE_SAMPLE_RATE / 2, FREEZE_SAMPLE_RATE);
+		const octaveAmplitude = Math.max(...[876, 878, 880, 882, 884]
+			.map((frequency) => toneAmplitude(window, frequency, FREEZE_SAMPLE_RATE)));
+		const unshiftedAmplitude = toneAmplitude(window, 440, FREEZE_SAMPLE_RATE);
+		expect(octaveAmplitude, JSON.stringify({
+			octaveAmplitude, unshiftedAmplitude,
+			peak: Math.max(...window.map(Math.abs)),
+		})).toBeGreaterThan(0.1);
+		expect(octaveAmplitude).toBeGreaterThan(unshiftedAmplitude * 4);
+		expect(clientErrors).toEqual([]);
+	});
 });
+
+function toneAmplitude(samples, frequency, sampleRate) {
+	let cosine = 0;
+	let sine = 0;
+	for (let frame = 0; frame < samples.length; frame += 1) {
+		const angle = 2 * Math.PI * frequency * frame / sampleRate;
+		cosine += samples[frame] * Math.cos(angle);
+		sine += samples[frame] * Math.sin(angle);
+	}
+	return 2 * Math.hypot(cosine, sine) / samples.length;
+}
 
 function createFreezeImpulse() {
 	const bytesPerSample = 2;
@@ -310,8 +377,10 @@ async function readNativeFreezeObservation(page) {
 	return page.evaluate(() => structuredClone(globalThis.__soundscaperNativeFreezeObservation));
 }
 
-async function readFrozenRawPcm(page, projectId, trackId) {
-	return page.evaluate(async ({ databaseName, requestedProjectId, requestedTrackId }) => {
+async function readFrozenRawPcm(page, projectId, trackId,
+	{ readInput = true, decodeEncoded = false } = {}) {
+	const stored = await page.evaluate(async ({ databaseName, requestedProjectId, requestedTrackId,
+		includeInput, includeEncoded }) => {
 		const database = await new Promise((resolve, reject) => {
 			const request = indexedDB.open(databaseName);
 			request.onerror = () => reject(request.error || new Error(`Could not open ${databaseName}.`));
@@ -350,6 +419,18 @@ async function readFrozenRawPcm(page, projectId, trackId) {
 					`Could not read source chunks for ${sourceId}.`,
 				);
 				chunks.sort((left, right) => left.index - right.index);
+				if (includeEncoded && sourceId === derivedSourceId) {
+					return { storage, chunks: chunks.map((chunk, expectedIndex) => {
+						if (chunk.index !== expectedIndex || !(chunk.payload instanceof ArrayBuffer)) {
+							throw new Error(`Source ${sourceId} chunk ${expectedIndex} is invalid.`);
+						}
+						return {
+							encoding: chunk.encoding, frames: chunk.frames,
+							pcmCrc32: chunk.pcmCrc32,
+							payload: Array.from(new Uint8Array(chunk.payload)),
+						};
+					}) };
+				}
 				const channels = Array.from({ length: storage.channelCount }, () => []);
 				for (const [expectedIndex, chunk] of chunks.entries()) {
 					if (chunk.index !== expectedIndex || chunk.encoding !== 'raw-f32le'
@@ -365,14 +446,15 @@ async function readFrozenRawPcm(page, projectId, trackId) {
 				return { channels, storage };
 			};
 			const [inputPcm, frozenPcm] = await Promise.all([
-				readRawSource(inputClip.sourceId),
+				includeInput ? readRawSource(inputClip.sourceId) : null,
 				readRawSource(derivedSourceId),
 			]);
 			return {
-				channels: frozenPcm.channels,
+				channels: frozenPcm.channels ?? [],
+				encodedChunks: frozenPcm.chunks ?? [],
 				effects: track.effects.map(({ type, params }) => ({ type, params })),
 				freeze: track.audioFreeze,
-				inputChannels: inputPcm.channels,
+				inputChannels: inputPcm?.channels ?? [],
 				source,
 				storage: {
 					storage: frozenPcm.storage.storage,
@@ -388,7 +470,27 @@ async function readFrozenRawPcm(page, projectId, trackId) {
 		databaseName: SOUNDSCAPER_DATABASE_NAME,
 		requestedProjectId: projectId,
 		requestedTrackId: trackId,
+		includeInput: readInput,
+		includeEncoded: decodeEncoded,
 	});
+	if (!decodeEncoded) return stored;
+	const runtime = await loadWavPackWasm(await readFile(
+		new URL('../../src/common/editor/wavpack/wavpack.wasm', import.meta.url),
+	));
+	const channels = Array.from({ length: stored.storage.channelCount }, () => []);
+	for (const chunk of stored.encodedChunks) {
+		const payload = Uint8Array.from(chunk.payload).buffer;
+		const raw = chunk.encoding === 'raw-f32le' ? payload
+			: decodePcmWithWavPack(payload, {
+				frames: chunk.frames, channelCount: channels.length,
+				sampleRate: stored.source.sampleRate, pcmCrc32: chunk.pcmCrc32, runtime,
+			});
+		const samples = new Float32Array(raw);
+		for (const [channelIndex, channel] of channels.entries()) {
+			channel.push(...samples.subarray(channelIndex * chunk.frames, (channelIndex + 1) * chunk.frames));
+		}
+	}
+	return { ...stored, channels };
 }
 
 async function openHistoryPanel(page, editor) {
@@ -401,6 +503,7 @@ async function openHistoryPanel(page, editor) {
 async function freezeSelectedTrack(page, editor, history, historyBefore) {
 	const tracks = await openMenu(page, editor, 'Tracks');
 	const freeze = getMenuItem(tracks, 'Freeze');
+	await expect(freeze).toBeVisible({ timeout: 10_000 });
 	await freeze.focus();
 	await page.keyboard.press('ArrowRight');
 	const freezeMenu = freeze.getByRole('menu');

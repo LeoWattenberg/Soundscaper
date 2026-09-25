@@ -128,6 +128,8 @@ export function createSoundscaperAudioEditorController(
 	const freeze = createSoundscaperAudioFreezeActions(environment, delegate, {
 		validateProject: validateSoundscaperProject,
 		prepareProject: () => quiesce('track-freeze'),
+		prepareTimePitchCaches: (project, signal) => delegate.prepareCommittedTimePitchCaches(project, signal),
+		sourceResolver: delegate.clipTimePitchCache.createEngineSourceResolver(),
 	});
 	productController = createControllerFacade(
 		delegate, automation, freeze, createSoundscaperNativePluginActions(delegate), persistentDelivery,

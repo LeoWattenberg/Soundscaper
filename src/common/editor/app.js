@@ -646,7 +646,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 		ready,
 		get project() { return state.history?.present ? publishProjectView(state.history.present) : null; },
 		get engine() { return engine; },
-		get clipTimePitchCache() { return clipTimePitchCache; },
+		get clipTimePitchCache() { return clipTimePitchCache; }, prepareCommittedTimePitchCaches: bindings.prepareCommittedTimePitchCaches,
 		get sourceBufferCacheStats() {
 			return Object.freeze({
 				byteLength: sourceBuffers.byteLength,
