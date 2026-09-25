@@ -126,7 +126,7 @@ test('concurrent two-track lanes share one generation and finalize through separ
 	]);
 });
 
-test('routed lane isolation activates only committed lanes and releases every settled draft', async () => {
+test('routed lane isolation activates only committed lanes and retains failed drafts', async () => {
 	const storage = storageFixture('memory');
 	const fixture = orchestratorFixture(storage, { failedLaneIds: new Set(['lane-2']) });
 	const result = await fixture.orchestrator.finalize({
@@ -140,8 +140,8 @@ test('routed lane isolation activates only committed lanes and releases every se
 
 	assert.deepEqual(result.lanes.map(({ status }) => status), ['failed', 'committed']);
 	assert.deepEqual(fixture.activated, [{ laneId: 'lane-7', takeId: 'take-8', mediaId: 'media-9' }]);
-	assert.equal(fixture.orchestrator.pendingCaptureCount, 0);
-	assert.deepEqual(await storage.sources.list(), []);
+	assert.equal(fixture.orchestrator.pendingCaptureCount, 1);
+	assert.deepEqual((await storage.rawPcmSpools.list('project-cycle')).map(({ spoolId }) => spoolId), ['envelope-1']);
 });
 
 test('an IndexedDB draft reopens with the same stable IDs and resumes before an envelope existed', async () => {

@@ -288,8 +288,10 @@ export function createTakeCycleCaptureOrchestrator(
 			}, options);
 			const lane = result.lanes[0];
 			if (!lane) throw new Error('Take cycle recovery resume returned no lane result.');
-			for (const binding of lane.committedPasses) await activate(binding, activated, activatedKeys);
-			await removeDraft(draft);
+			if (lane.status === 'committed') {
+				for (const binding of lane.committedPasses) await activate(binding, activated, activatedKeys);
+				await removeDraft(draft);
+			}
 			resumed.push(lane);
 		}
 		return Object.freeze({
@@ -365,6 +367,7 @@ export function createTakeCycleCaptureOrchestrator(
 	}
 
 	async function settleDraft(draft: TakeCycleCaptureDraft, lane: TakeCycleLaneFinalizationResult): Promise<void> {
+		if (lane.status !== 'committed') return;
 		for (const binding of lane.committedPasses) {
 			await dependencies.activateCommittedSource(activatedMedia(binding));
 		}
