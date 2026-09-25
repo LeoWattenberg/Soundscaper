@@ -108,7 +108,8 @@ async function fixture(run) {
 	}
 }
 
-function publicFetch({ archiveRoot, bundles, calls = [], corruptFullBody = false }) {
+function publicFetch({ archiveRoot, bundles, calls = [], corruptFullBody = false,
+	omitFullGetLength = false }) {
 	return async (url, init) => {
 		calls.push([url, init.method, init.headers?.Range ?? null]);
 		const bundle = bundles.find(({ archive }) => archive.url === url);
@@ -121,7 +122,8 @@ function publicFetch({ archiveRoot, bundles, calls = [], corruptFullBody = false
 		return new Response(body, { status: ranged ? 206 : 200, headers: {
 			'Access-Control-Allow-Origin': 'https://soundscaper.org',
 			'Access-Control-Expose-Headers': 'Content-Range',
-			'Content-Length': String(ranged ? 1 : bytes.length),
+			...(!omitFullGetLength || init.method === 'HEAD' || ranged
+				? { 'Content-Length': String(ranged ? 1 : bytes.length) } : {}),
 			...(ranged ? { 'Content-Range': `bytes 0-0/${bytes.length}` } : {}),
 		} });
 	};
@@ -151,6 +153,23 @@ test('publisher handoff imports the exact five target archives without rebuildin
 		await stageDesktopAssistanceRuntimeHandoff({ ...options,
 			archiveRoot: join(handoffRoot, '..', 'second-product-archives'), cacheRoot, fetchImpl });
 		assert.equal(fetchCalls.length, 15, 'the second product reuses authenticated downloads');
+	});
+});
+
+test('handoff accepts a full GET without Content-Length after exact HEAD and Range checks', async () => {
+	await fixture(async ({ buildRoot, handoffRoot, native, archiveRoot, bundles }) => {
+		const options = { buildRoot, handoffRoot, sourceRevision: SOURCE_REVISION,
+			targetId: TARGET_ID, sourceNativeManifest: native };
+		await exportDesktopAssistanceRuntimeHandoff(options);
+		const fetchCalls = [];
+		const imported = await stageDesktopAssistanceRuntimeHandoff({ ...options,
+			archiveRoot: join(handoffRoot, '..', 'package-archives'),
+			cacheRoot: join(handoffRoot, '..', 'download-cache'),
+			fetchImpl: publicFetch({ archiveRoot, bundles, calls: fetchCalls,
+				omitFullGetLength: true }),
+		});
+		assert.equal(imported.distribution.manifest.bundles.length, 5);
+		assert.equal(fetchCalls.length, 15);
 	});
 });
 

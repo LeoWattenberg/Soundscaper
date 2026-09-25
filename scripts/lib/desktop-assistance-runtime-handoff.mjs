@@ -77,7 +77,6 @@ async function downloadPublishedArchive({ file, archive, fetchImpl }) {
 		headers: { Origin: 'https://soundscaper.org' },
 	});
 	assert(response?.status === 200 && response.body
-		&& response.headers.get('content-length') === String(archive.byteLength)
 		&& ['*', 'https://soundscaper.org'].includes(response.headers.get('access-control-allow-origin')),
 		'Published AI runtime archive did not return the exact browser-readable body.');
 	const temporary = `${file}.download-${process.pid}`;
