@@ -9,7 +9,7 @@ import { extractJob } from './helpers/workflow-jobs.js';
 
 const ROOT = resolve(import.meta.dirname, '..');
 
-// Both workflows build the site once and verify it with the same browser jobs.
+// Site-verifying workflows build the site once and verify it with browser jobs.
 // Quality's browser jobs start as soon as the build is available; its final
 // coverage gate still waits for the other static checks. Each workflow names
 // the build publisher, browser prerequisite, and browser shard count here.
@@ -21,7 +21,6 @@ const SITE_WORKFLOWS = new Map([
 		browserShardCount: 4,
 	}],
 	['desktop-preview.yml', { staticJobs: ['quality'], buildJob: 'quality', gate: 'needs: quality', browserShardCount: 3 }],
-	['desktop-nightly-tests.yml', { staticJobs: ['quality'], buildJob: 'quality', gate: 'needs: quality', browserShardCount: 3 }],
 ]);
 
 test('Playwright allows CI to pass when a retry succeeds', async () => {
@@ -163,7 +162,7 @@ test('the dual-origin Playwright harness serves two reciprocal built Pages sites
 });
 
 test('each site-verifying workflow runs the dual-origin proof exactly once', async () => {
-	for (const workflowName of ['quality.yml', 'desktop-preview.yml', 'desktop-nightly-tests.yml']) {
+	for (const workflowName of ['quality.yml', 'desktop-preview.yml']) {
 		const workflow = await readFile(new URL(`../.github/workflows/${workflowName}`, import.meta.url), 'utf8');
 		const browserJob = extractJob(workflow, 'browser');
 		assert.equal(
@@ -208,10 +207,6 @@ test('desktop verification isolates browser engines and tests packages with ever
 			: /needs: \[quality, tests, coverage, browser, firefox\]/u;
 		assert.match(extractJob(workflow, jobName), needs);
 	}
-	const tested = extractJob(await readFile(new URL('../.github/workflows/desktop-nightly-tests.yml', import.meta.url), 'utf8'), 'package-with-tests');
-	assert.match(tested, /needs: \[nightly-test-targets, quality, tests, coverage, browser, firefox, verify-assistance-runtime-handoff\]/u);
-	assert.match(tested, /needs\.quality\.result == 'success'/u,
-		'manual tested packages must pass their own Quality gate');
 	assert.doesNotMatch(workflow, /^ {2}project-library-handoff:/mu);
 });
 

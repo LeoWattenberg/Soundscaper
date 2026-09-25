@@ -24,10 +24,14 @@ test('desktop distribution and automated test artifacts have separate workflow e
 	}
 
 	assert.match(testedHeader, /^name: Desktop test artifacts \(internal\)$/mu);
+	assert.match(testedHeader, /push:\s+branches:\s+- main/u);
 	assert.match(testedHeader, /workflow_dispatch:\s+inputs:\s+nightly_tests_targets:/u);
 	assert.doesNotMatch(testedHeader, /workflow_run:|schedule:|push:\s+tags:|artifact_variant:/u);
 	for (const job of ['nightly-test-targets', 'verify-assistance-runtime-handoff', 'package-with-tests']) {
 		assert.ok(extractJob(tested, job).length > 0, `${job} belongs to automated tests`);
+	}
+	for (const job of ['quality', 'tests', 'coverage', 'browser', 'firefox']) {
+		assert.doesNotMatch(tested, new RegExp(`^  ${job}:`, 'mu'));
 	}
 	for (const job of ['package', 'milestone-5-package-audit-summary', 'release-inventory', 'soundscaper-project-library-lease-matrix']) {
 		assert.doesNotMatch(tested, new RegExp(`^  ${job}:`, 'mu'));

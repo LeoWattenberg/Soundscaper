@@ -11,12 +11,11 @@ import { expandNpmScript, extractJob, npmScriptsRunBy, readWorkflow } from './he
 // `npm run check` is the canonical gate. Neither workflow runs it as one
 // command, and they do not divide it the same way, so each declares the jobs
 // that have to add back up to it. Quality shards the static checks so the jobs
-// behind them can start once the build artifact exists; each desktop workflow
-// runs them as one job. The preview workflow also resolves its release scope there.
+// behind them can start once the build artifact exists; the desktop preview
+// runs them as one job and resolves its release scope there.
 const WORKFLOWS = new Map([
 	['quality.yml', { staticJobs: ['build', 'lint', 'typecheck', 'audits'], buildJob: 'build', historyJobs: ['audits'] }],
 	['desktop-preview.yml', { staticJobs: ['quality'], buildJob: 'quality', historyJobs: ['quality'] }],
-	['desktop-nightly-tests.yml', { staticJobs: ['quality'], buildJob: 'quality', historyJobs: ['quality'] }],
 ]);
 
 // `test:coverage` runs the whole Node suite and reports fresh local evidence.
@@ -42,14 +41,14 @@ test('desktop preview never cancels scheduled, tagged, or manual distribution ru
 	assert.doesNotMatch(header, /workflow_run:/u);
 });
 
-test('manual test artifact packaging cannot be cancelled by another run', async () => {
+test('push and manual test artifact packaging cannot be cancelled by another run', async () => {
 	const workflow = await readWorkflow('desktop-nightly-tests.yml');
 	const header = workflow.slice(0, workflow.indexOf('\njobs:\n'));
 
 	assert.match(
 		header,
-		/^ {2}group: desktop-automated-test-artifacts-\$\{\{ github\.run_id \}\}$/mu,
-		'manual test artifact runs need unique groups',
+		/^ {2}group: desktop-test-artifacts-\$\{\{ github\.run_id \}\}$/mu,
+		'test artifact runs need unique groups',
 	);
 	assert.match(header, /^ {2}cancel-in-progress: false$/mu);
 	assert.doesNotMatch(header, /workflow_run:/u);

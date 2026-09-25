@@ -220,8 +220,11 @@ not relabel a software fallback as hardware evidence.
 
 For a self-contained browser test run, see
 [end-to-end coverage](docs/end-to-end-coverage.md). Start the separate
-**Desktop test artifacts (internal)** workflow manually on `main` to package
-`nightly-with-tests`. The target choices are `all`, `windows`, or `win-x64`.
+**Desktop test artifacts (internal)** workflow runs on every push to `main`.
+A manual run on `main` can package `nightly-with-tests` for selected targets:
+`all`, `windows`, or `win-x64`. CI builds and uploads the packages without
+running their tests. Launch an artifact on a real machine to run the full
+browser tests and write a report.
 Its platform jobs upload artifacts named
 `nightly-with-tests-win-<architecture>`, `nightly-with-tests-mac-<architecture>`, or
 `nightly-with-tests-linux-<architecture>` for Windows x64/ARM64, macOS Apple

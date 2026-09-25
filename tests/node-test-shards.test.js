@@ -18,7 +18,7 @@ import {
 import { extractJob, readWorkflow } from './helpers/workflow-jobs.js';
 
 const ROOT = new URL('../', import.meta.url).pathname.replace(/\/$/u, '');
-const SHARDED_WORKFLOWS = ['quality.yml', 'desktop-preview.yml', 'desktop-nightly-tests.yml'];
+const SHARDED_WORKFLOWS = ['quality.yml', 'desktop-preview.yml'];
 const workspaces = [];
 
 after(() => {

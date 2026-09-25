@@ -195,19 +195,18 @@ test('manual nightly-with-tests target selection preserves all targets and selec
 	assert.throws(() => selectDesktopNightlyTestTargets('linux'), /target selection/u);
 });
 
-test('manual desktop test packaging publishes and verifies selected runtimes', async () => {
+test('desktop test artifacts build on main pushes and manual target selections without running CI tests', async () => {
 	const workflow = await readFile(resolve(ROOT, '.github/workflows/desktop-nightly-tests.yml'), 'utf8');
+	assert.match(workflow, /^ {2}push:\s+branches:\s+- main$/mu);
 	assert.match(workflow, /workflow_dispatch:\s+inputs:\s+nightly_tests_targets:/u);
 	assert.match(workflow, /nightly_tests_targets:[\s\S]*?default: all[\s\S]*?type: choice\s+options:\s+- all\s+- windows\s+- win-x64/u);
 	assert.doesNotMatch(workflow, /workflow_run:/u);
 	assert.doesNotMatch(workflow, /schedule:\s+(?:#.*\n\s+)*- cron:|push:\s+tags:/u);
-	assert.doesNotMatch(workflow, /push:\s+branches:/u);
 	assert.doesNotMatch(workflow, /artifact_variant:/u);
 	for (const shared of ['quality', 'tests', 'coverage', 'browser', 'firefox']) {
-		const start = workflow.indexOf(`\n  ${shared}:`);
-		assert.ok(start >= 0, `${shared} is missing`);
-		assert.doesNotMatch(workflow.slice(start, start + 200), /if: github\.event_name != 'workflow_run'/u);
+		assert.doesNotMatch(workflow, new RegExp(`^  ${shared}:`, 'mu'), `${shared} must not run before packaging`);
 	}
+	assert.doesNotMatch(workflow, /\b(?:npm run (?:check:static|test:|coverage:)|node --import tsx[^\n]* --test|npx playwright test|xvfb-run)\b/u);
 	const targetsStart = workflow.indexOf('\n  nightly-test-targets:');
 	const targetsEnd = workflow.indexOf('\n  package-with-tests:', targetsStart);
 	assert.ok(targetsStart >= 0 && targetsEnd > targetsStart);
@@ -226,21 +225,17 @@ test('manual desktop test packaging publishes and verifies selected runtimes', a
 	const publisherGuard = publisherJob.slice(publisherJob.indexOf('if: >-'),
 		publisherJob.indexOf('\n    needs:'));
 
-	// A manual dispatch must pass this workflow's own quality gates.
 	const testGuard = testJob.slice(testJob.indexOf('if: >-'), testJob.indexOf('\n    needs:'));
 	assert.ok(testGuard.startsWith('if: >-'));
 	assert.doesNotMatch(testGuard, /github\.event_name|workflow_run/u);
 	assert.doesNotMatch(testGuard, /inputs\.artifact_variant/u);
-	assert.match(testJob, /needs: \[nightly-test-targets, quality, tests, coverage, browser, firefox, verify-assistance-runtime-handoff\]/u);
-	for (const gate of ['quality', 'tests', 'coverage', 'browser', 'firefox']) {
-		assert.match(testGuard, new RegExp(`needs\\.${gate}\\.result == 'success'`, 'u'));
-	}
+	assert.match(testJob, /needs: \[nightly-test-targets, verify-assistance-runtime-handoff\]/u);
 	assert.match(testGuard, /needs\.nightly-test-targets\.result == 'success'/u);
 	assert.match(testGuard, /needs\.verify-assistance-runtime-handoff\.result == 'success'/u);
 	// The package and both source manifests must name the selected commit.
 	const sourceRevision = String.raw`\$\{\{ github\.sha \}\}`;
-	assert.match(publisherJob, /needs: \[nightly-test-targets, quality, tests, coverage, browser, firefox\]/u);
-	assert.match(publisherGuard, /needs\.quality\.result == 'success'/u);
+	assert.match(publisherJob, /needs: nightly-test-targets/u);
+	assert.match(publisherGuard, /needs\.nightly-test-targets\.result == 'success'/u);
 	const publicationStart = publisherJob.indexOf('- name: Publish and verify the immutable archives');
 	const handoffStart = publisherJob.indexOf('- name: Export the source-bound AI runtime handoff');
 	assert.ok(publisherJob.indexOf('node scripts/desktop-prepare.mjs') < publicationStart
@@ -295,39 +290,7 @@ test('manual desktop test packaging publishes and verifies selected runtimes', a
 			< testJob.indexOf('node scripts/desktop-nightly-tests-prepare.mjs'),
 		'product runtimes must be packaged before the test runner stages them',
 	);
-	const audioGateStart = testJob.indexOf('\n      - name: Run packaged Soundscaper audio-device browser gate');
-	const audioGateEnd = testJob.indexOf('\n      - name:', audioGateStart + 1);
-	assert.ok(audioGateStart >= 0 && audioGateEnd > audioGateStart, 'the packaged audio-device gate is missing');
-	const audioGate = testJob.slice(audioGateStart, audioGateEnd);
-	assert.ok(
-		testJob.indexOf('sudo chmod 4755 -- "${sandboxes[@]}"') < audioGateStart
-			&& audioGateStart < testJob.indexOf('node scripts/desktop-nightly-tests-prepare.mjs'),
-		'the audio-device gate must exercise the sandboxed packaged product before staging the test-runner package',
-	);
-	assert.match(
-		testJob,
-		/- name: Install virtual display for packaged audio-device browser gate\s+if: matrix\.target\.platform == 'linux' && matrix\.target\.arch == 'x64'[\s\S]*?ci-apt-install\.sh xvfb/u,
-	);
-	assert.match(audioGate, /if: matrix\.target\.platform == 'linux' && matrix\.target\.arch == 'x64'/u);
-	assert.match(audioGate, /timeout-minutes: 10/u);
-	assert.match(audioGate, /xvfb-run --auto-servernum npx playwright test/u);
-	assert.match(audioGate, /vite\.js preview \\\s+--outDir \.wrangler\/browser-products\/soundscaper[\s\S]*?--port 4322/u);
-	assert.match(audioGate, /vite\.js preview \\\s+--outDir \.wrangler\/browser-products\/framescaper[\s\S]*?--port 4323/u);
-	assert.match(audioGate, /tests\/browser\/desktop-packaged-audio-io\.spec\.js/u);
-	assert.doesNotMatch(audioGate, /desktop-packaged-display-audio/u);
-	assert.match(audioGate, /--config playwright\.nightly-packaged-metrics\.config\.mjs/u);
-	assert.match(audioGate, /--project packaged-soundscaper-audio-devices/u);
-	assert.match(audioGate, /SOUNDSCAPER_NIGHTLY_TESTS_PAYLOAD_ROOT: \$\{\{ github\.workspace \}\}/u);
-	assert.match(audioGate, /SOUNDSCAPER_NIGHTLY_TESTS_RUN_ROOT: \$\{\{ runner\.temp \}\}\/packaged-audio-device-e2e/u);
-	assert.match(audioGate, /SOUNDSCAPER_PACKAGED_PRODUCT_ROOT: \$\{\{ github\.workspace \}\}\/release\/desktop-nightly-products/u);
-	assert.match(audioGate, /SOUNDSCAPER_PACKAGED_RUNTIME_METRICS: '1'/u);
-	assert.match(audioGate, /SOUNDSCAPER_PACKAGED_RUNTIME_PLATFORM: linux/u);
-	assert.match(audioGate, /SOUNDSCAPER_PACKAGED_RUNTIME_ARCH: x64/u);
-	assert.match(audioGate, /SCAPE_PLAYWRIGHT_PRODUCT_ORIGINS: >-/u);
-	assert.match(
-		testJob,
-		/- name: Upload packaged audio-device browser diagnostics\s+if: always\(\) && matrix\.target\.platform == 'linux' && matrix\.target\.arch == 'x64'[\s\S]*?packaged-audio-device-e2e\/packaged-runtime\/[\s\S]*?if-no-files-found: ignore/u,
-	);
+	assert.doesNotMatch(testJob, /Run packaged Soundscaper audio-device browser gate|packaged-audio-device-browser-diagnostics/u);
 	assert.match(testJob, /npx playwright install --no-shell chromium firefox webkit/u);
 	assert.doesNotMatch(testJob, /playwright install --only-shell/u);
 	assert.doesNotMatch(testJob, /qualification|admission|readiness signature/iu);

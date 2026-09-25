@@ -50,18 +50,21 @@ All 22 published models are admitted on Windows ARM64. The existing Sherpa and
 ONNX runtime closures are generated and authenticated for publication. The
 Kokoro G2P package-generated recipe covers all five desktop targets. Its
 actual helper closure is built and authenticated before publication; the required
-nine-language case then checks speech generation. Cross-target packaged
-results remain gated by CI and must be read from each package's nightly report.
+nine-language case then checks speech generation. Cross-target test results come
+from running each package on its target machine and must be read from that
+package's nightly report.
 The committed catalog keeps exact artifact pins.
 
 The source runtime-family register describes supported build targets.
 `desktop-prepare` generates authenticated manifests for the native archives.
 Run the manual **Update AI assets** workflow on main to publish the authenticated
 runtime archives for the selected targets and read back their complete public
-responses. The separate manual **Desktop test artifacts (internal)** workflow
-builds, publishes, and publicly verifies the exact archives in a dedicated
-handoff job. Its package jobs receive no upload credentials and use the verified
-source-bound handoff.
+responses. The separate **Desktop test artifacts (internal)** workflow runs on
+every push to `main` and can also be dispatched manually there. It builds,
+publishes, and publicly verifies the exact archives in a dedicated handoff job.
+Its package jobs receive no upload credentials and use the verified source-bound
+handoff. CI uploads the test packages without running their suites; launch a
+package on a real machine for the browser and local-model results.
 The resulting packages include the URLs and digests in the app ASAR; an
 unpublished or mismatched archive stops packaging. Update the assets before
 running a separate release workflow for a revision whose generated runtime

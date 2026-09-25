@@ -239,7 +239,7 @@ function auditPackageWorkflowJob(root, producer, job, workflow, findings) {
 function auditNightlyTargetMatrix(root, producer, workflow, findings) {
 	const bindings = [
 		'targets: ${{ steps.resolve.outputs.targets }}',
-		'needs: [nightly-test-targets, quality, tests, coverage, browser, firefox]',
+		'needs: nightly-test-targets',
 		'NIGHTLY_TEST_TARGETS: ${{ inputs.nightly_tests_targets || \'all\' }}',
 		`from './${NIGHTLY_TARGET_MATRIX_HELPER}'`,
 		'selectDesktopNightlyTestTargets(process.env.NIGHTLY_TEST_TARGETS)',
