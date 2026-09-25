@@ -348,6 +348,7 @@ test.describe('audio editor React/design-system workflows', () => {
 	});
 
 	test('validates export choices and cancels a realtime render', async ({ page }) => {
+		await page.setViewportSize({ width: 700, height: 720 });
 		await disableNativeSavePicker(page);
 		await disableOfflineAudio(page);
 		const errors = collectClientErrors(page);
@@ -374,6 +375,15 @@ test.describe('audio editor React/design-system workflows', () => {
 		await exportDialog.getByRole('button', { name: 'Export', exact: true }).click();
 		const cancel = exportDialog.getByRole('button', { name: 'Cancel export' });
 		await expect(cancel).toBeVisible();
+		const progress = exportDialog.locator('footer [data-export-progress]');
+		await expect(progress).toBeVisible();
+		const progressBeforeScroll = await progress.boundingBox();
+		await exportDialog.locator('.kw-audio-editor-dialog__body').evaluate((body) => { body.scrollTop = body.scrollHeight; });
+		const progressAfterScroll = await progress.boundingBox();
+		expect(progressBeforeScroll).not.toBeNull();
+		expect(progressAfterScroll).not.toBeNull();
+		expect(progressAfterScroll.y).toBeCloseTo(progressBeforeScroll.y, 0);
+		expect(progressAfterScroll.y + progressAfterScroll.height).toBeLessThanOrEqual(720);
 		await page.keyboard.press('Escape');
 		await expect(cancel).toBeVisible();
 		const [dialogBounds, editorBounds] = await Promise.all([exportDialog.boundingBox(), editor.boundingBox()]);

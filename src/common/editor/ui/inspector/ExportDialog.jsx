@@ -414,18 +414,21 @@ export function ExportDialog({ isOpen, controller, snapshot, copy, productId, fi
 			className="audio-editor-export-dialog"
 			dataAttributes={{ 'data-export-dialog': '' }}
 			footer={(
-				<DialogFooter
-					className="audio-editor-dialog-footer"
-					leftContent={<Button variant="secondary" disabled={exporting || !metadataAvailable} onClick={() => setMetadataOpen(true)}>{copy.metadata}</Button>}
-					rightContent={exporting ? (
-						<span data-export-action="cancel"><Button disabled={!exporting} onClick={() => controller.actions.export.cancel()}>{copy.cancelExport}</Button></span>
-					) : (
-						<>
-							<Button variant="secondary" onClick={requestClose}>{copy.cancel}</Button>
-							<span data-export-action="start"><Button variant="primary" disabled={blocked || admRequired || Boolean(desktopFormatRefusal)} onClick={start}>{copy.startExport}</Button></span>
-						</>
-					)}
-				/>
+				<footer className="audio-editor-export-dialog__footer">
+					{exporting && <div className="audio-editor-export-progress" data-export-progress aria-live="polite"><ProgressBar value={progress} width="100%" /><output>{progress}%</output></div>}
+					<DialogFooter
+						className="audio-editor-dialog-footer"
+						leftContent={<Button variant="secondary" disabled={exporting || !metadataAvailable} onClick={() => setMetadataOpen(true)}>{copy.metadata}</Button>}
+						rightContent={exporting ? (
+							<span data-export-action="cancel"><Button disabled={!exporting} onClick={() => controller.actions.export.cancel()}>{copy.cancelExport}</Button></span>
+						) : (
+							<>
+								<Button variant="secondary" onClick={requestClose}>{copy.cancel}</Button>
+								<span data-export-action="start"><Button variant="primary" disabled={blocked || admRequired || Boolean(desktopFormatRefusal)} onClick={start}>{copy.startExport}</Button></span>
+							</>
+						)}
+					/>
+				</footer>
 			)}
 		>
 			<div className="audio-editor-export-dialog__body">
@@ -537,10 +540,6 @@ export function ExportDialog({ isOpen, controller, snapshot, copy, productId, fi
 				)}
 				{desktopCodecNotice && <p className="audio-editor-panel-hint" data-desktop-codec-status>{desktopCodecNotice}</p>}
 				{admRequired && <p className="audio-editor-field-error" role="alert">{copy.bw64AdmRequired}</p>}
-				<div className="audio-editor-export-progress" data-export-progress aria-live="polite" hidden={!exporting}>
-					<ProgressBar value={progress} width="100%" />
-					<output>{progress}%</output>
-				</div>
 				{error && <p className="audio-editor-field-error" role="alert">{error}</p>}
 				<a
 					ref={downloadRef}
