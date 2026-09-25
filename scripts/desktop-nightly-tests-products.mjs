@@ -30,8 +30,12 @@ export async function packageDesktopNightlyTestProducts({
 	if (!['x64', 'arm64'].includes(arch)) throw new TypeError('Nightly product architecture is invalid.');
 	const publishAssistanceRuntimes = environment.SOUNDSCAPER_PUBLISH_ASSISTANCE_RUNTIMES === 'true';
 	const verifyAssistanceRuntimes = environment.SOUNDSCAPER_VERIFY_ASSISTANCE_RUNTIMES === 'true';
+	const handoffRoot = environment.SOUNDSCAPER_ASSISTANCE_RUNTIME_HANDOFF_ROOT;
 	if (publishAssistanceRuntimes && verifyAssistanceRuntimes) {
 		throw new TypeError('Choose either publication or read-only verification of assistance runtimes.');
+	}
+	if (handoffRoot && !verifyAssistanceRuntimes) {
+		throw new TypeError('AI runtime handoff requires read-only public verification.');
 	}
 	await rm(outputRoot, { recursive: true, force: true });
 	await mkdir(outputRoot, { recursive: true });
@@ -52,7 +56,9 @@ export async function packageDesktopNightlyTestProducts({
 		}
 		await run(process.execPath, [resolve(repositoryRoot, 'scripts/desktop-prepare.mjs')],
 			{ cwd: repositoryRoot, environment: commandEnvironment });
-		if (publishAssistanceRuntimes || verifyAssistanceRuntimes) {
+		// Handoff import already checks public HEAD, Range and the full downloaded
+		// archive body, then verifies its tar closure before each product is staged.
+		if (publishAssistanceRuntimes || (verifyAssistanceRuntimes && !handoffRoot)) {
 			await run(process.execPath, [
 				resolve(repositoryRoot, 'scripts/publish-assistance-runtime-assets.mjs'),
 				publishAssistanceRuntimes ? '--publish' : '--verify',

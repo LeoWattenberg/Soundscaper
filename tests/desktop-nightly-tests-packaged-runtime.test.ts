@@ -390,6 +390,17 @@ test('nightly product staging builds isolated Soundscaper and Framescaper trees'
 	assert.ok(calls.every(({ r2AccessKey }) => r2AccessKey === undefined));
 	assert.deepEqual(calls.filter(({ args }) => args.some((value) => value.endsWith('publish-assistance-runtime-assets.mjs')))
 		.map(({ args }) => args.at(-1)), ['--verify', '--verify']);
+	calls.length = 0;
+	await packageDesktopNightlyTestProducts({ repositoryRoot: root, outputRoot, platform: 'linux', arch: 'x64',
+		sourceRevision, environment: { SOUNDSCAPER_VERIFY_ASSISTANCE_RUNTIMES: 'true',
+			SOUNDSCAPER_ASSISTANCE_RUNTIME_HANDOFF_ROOT: join(root, 'published-handoff'),
+			R2_MODELS_ACCESS_KEY_ID: 'must-not-reach-import' }, run });
+	assert.deepEqual(calls.map(({ productId }) => productId), [
+		'soundscaper', 'soundscaper', 'framescaper', 'framescaper',
+	]);
+	assert.ok(calls.every(({ r2AccessKey }) => r2AccessKey === undefined));
+	assert.equal(calls.some(({ args }) => args.some((value) =>
+		value.endsWith('publish-assistance-runtime-assets.mjs'))), false);
 	for (const productId of ['soundscaper', 'framescaper']) {
 		assert.equal(
 			JSON.parse(await readFile(join(outputRoot, productId, 'stage-manifest.json'), 'utf8')).productId,

@@ -1,10 +1,13 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-/** Transfer one published, target-native AI distribution between CI runners. */
+/** Transfer authority for one published, target-native AI distribution. */
 
 import { createHash } from 'node:crypto';
-import { copyFile, lstat, mkdir, readFile, readdir, rm, writeFile } from 'node:fs/promises';
+import { createWriteStream } from 'node:fs';
+import { copyFile, lstat, mkdir, readFile, readdir, rename, rm, writeFile } from 'node:fs/promises';
 import { dirname, join, resolve } from 'node:path';
+import { Readable, Transform } from 'node:stream';
+import { pipeline } from 'node:stream/promises';
 
 import { assistanceNativeRuntimeStageSummary } from '../../desktop/assistance-native-runtime-payload.mjs';
 import { verifyAssistanceRuntimeBundles } from '../publish-assistance-runtime-assets.mjs';
@@ -13,6 +16,7 @@ import { validateDesktopAssistanceRuntimeDistribution } from './desktop-assistan
 import { validateDesktopKokoroG2pManifest } from './desktop-kokoro-g2p-runtime.mjs';
 import { desktopAssistanceNativeManifest } from './desktop-assistance-speech-runtime.mjs';
 import { signedAssistanceFamilySummary } from './desktop-signed-assistance-family-summary.mjs';
+import { verifyMirroredArtifactDelivery } from './local-model-mirror-publication.mjs';
 
 const MANIFESTS = Object.freeze({
 	manifestBytes: 'assistance-runtime-distribution.json',
@@ -65,6 +69,40 @@ function archivePaths(distribution) {
 	});
 }
 
+async function downloadPublishedArchive({ file, archive, fetchImpl }) {
+	await mkdir(dirname(file), { recursive: true });
+	await verifyMirroredArtifactDelivery({ url: archive.url, artifact: archive, fetchImpl });
+	const response = await fetchImpl(archive.url, {
+		method: 'GET', cache: 'no-store', credentials: 'omit', redirect: 'error',
+		headers: { Origin: 'https://soundscaper.org' },
+	});
+	assert(response?.status === 200 && response.body
+		&& response.headers.get('content-length') === String(archive.byteLength)
+		&& ['*', 'https://soundscaper.org'].includes(response.headers.get('access-control-allow-origin')),
+		'Published AI runtime archive did not return the exact browser-readable body.');
+	const temporary = `${file}.download-${process.pid}`;
+	let byteLength = 0;
+	const hash = createHash('sha256');
+	const verify = new Transform({ transform(chunk, _encoding, callback) {
+		byteLength += chunk.length;
+		if (byteLength > archive.byteLength) {
+			callback(new Error('Published AI runtime archive exceeded its pinned length.'));
+			return;
+		}
+		hash.update(chunk);
+		callback(null, chunk);
+	} });
+	try {
+		await pipeline(Readable.fromWeb(response.body), verify,
+			createWriteStream(temporary, { flags: 'wx' }));
+		assert(byteLength === archive.byteLength && hash.digest('hex') === archive.sha256,
+			'Published AI runtime archive digest or length differs from its manifest.');
+		await rename(temporary, file);
+	} finally {
+		await rm(temporary, { force: true });
+	}
+}
+
 function validateReceipts(handoff, authority, sourceNativeManifest) {
 	const { targetId } = handoff;
 	const native = JSON.parse(authority.nativeManifestBytes.toString('utf8'));
@@ -114,7 +152,8 @@ function validateReceipts(handoff, authority, sourceNativeManifest) {
 
 /** Authenticate all local handoff bytes before either packaging product uses them. */
 export async function readDesktopAssistanceRuntimeHandoff({
-	handoffRoot, sourceRevision, targetId, sourceNativeManifest,
+	handoffRoot, sourceRevision, targetId, archivesRoot, download = false,
+	fetchImpl = fetch, sourceNativeManifest,
 }) {
 	assert(REVISION.test(sourceRevision ?? '') && TARGETS.has(targetId),
 		'AI runtime handoff requires an exact source revision and desktop target.');
@@ -129,11 +168,24 @@ export async function readDesktopAssistanceRuntimeHandoff({
 	const distribution = validateDesktopAssistanceRuntimeDistribution(authority);
 	validateReceipts(handoff, authority, sourceNativeManifest);
 	const relativeArchives = archivePaths(distribution);
-	const expectedFiles = ['handoff.json', ...Object.values(MANIFESTS).map((name) => `config/${name}`),
-		...relativeArchives.map((path) => `assistance-distribution/${path}`)].sort();
+	const expectedFiles = ['handoff.json', ...Object.values(MANIFESTS).map((name) => `config/${name}`)].sort();
 	assert(JSON.stringify(await fileInventory(handoffRoot)) === JSON.stringify(expectedFiles),
 		'AI runtime handoff file inventory differs from its authenticated manifest.');
-	const archivesRoot = resolve(handoffRoot, 'assistance-distribution');
+	assert(typeof archivesRoot === 'string' && archivesRoot !== '',
+		'AI runtime handoff requires an archive source or download cache.');
+	if (download) {
+		for (let index = 0; index < relativeArchives.length; index += 1) {
+			const file = resolve(archivesRoot, relativeArchives[index]);
+			const existing = await lstat(file).catch((error) => {
+				if (error.code === 'ENOENT') return null;
+				throw error;
+			});
+			assert(existing === null || (existing.isFile() && !existing.isSymbolicLink()),
+				'AI runtime archive download cache contains a non-regular file.');
+			if (existing === null) await downloadPublishedArchive({ file,
+				archive: distribution.bundles[index].archive, fetchImpl });
+		}
+	}
 	await verifyAssistanceRuntimeBundles({ authority, archivesRoot, verify: async () => {} });
 	for (let index = 0; index < relativeArchives.length; index += 1) {
 		await verifyAssistanceRuntimeArchive(resolve(archivesRoot, relativeArchives[index]),
@@ -163,22 +215,19 @@ export async function exportDesktopAssistanceRuntimeHandoff({
 	for (const name of Object.values(MANIFESTS)) {
 		await copyFile(resolve(buildRoot, 'app/config', name), resolve(handoffRoot, 'config', name));
 	}
-	const distribution = JSON.parse((await readFile(resolve(handoffRoot, 'config', MANIFESTS.manifestBytes))).toString('utf8'));
-	for (const path of archivePaths(distribution)) {
-		const output = resolve(handoffRoot, 'assistance-distribution', path);
-		await mkdir(dirname(output), { recursive: true });
-		await copyFile(resolve(buildRoot, 'assistance-distribution', path), output);
-	}
 	return readDesktopAssistanceRuntimeHandoff({
 		handoffRoot, sourceRevision, targetId, sourceNativeManifest,
+		archivesRoot: resolve(buildRoot, 'assistance-distribution'),
 	});
 }
 
 export async function stageDesktopAssistanceRuntimeHandoff({
-	handoffRoot, sourceRevision, targetId, archiveRoot, sourceNativeManifest,
+	handoffRoot, sourceRevision, targetId, archiveRoot, cacheRoot, sourceNativeManifest,
+	fetchImpl = fetch,
 }) {
 	const verified = await readDesktopAssistanceRuntimeHandoff({
 		handoffRoot, sourceRevision, targetId, sourceNativeManifest,
+		archivesRoot: cacheRoot, download: true, fetchImpl,
 	});
 	for (const path of verified.relativeArchives) {
 		const output = resolve(archiveRoot, path);

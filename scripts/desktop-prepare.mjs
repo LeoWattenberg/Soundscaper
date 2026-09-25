@@ -164,6 +164,7 @@ async function main() {
 		const imported = await stageDesktopAssistanceRuntimeHandoff({
 			handoffRoot: resolve(handoffRoot), sourceRevision, targetId: nativeTarget.id,
 			archiveRoot: resolve(BUILD_ROOT, 'assistance-distribution'),
+			cacheRoot: resolve(ROOT, '.native-build/assistance-runtime-handoff-cache'),
 		});
 		assistanceSpeechRuntime = imported.speech;
 		assistanceRuntimeFamilies = imported.families;

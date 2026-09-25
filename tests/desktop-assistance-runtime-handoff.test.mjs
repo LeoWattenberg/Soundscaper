@@ -2,7 +2,7 @@
 
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
-import { copyFile, mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, readFile, readdir, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { dirname, join } from 'node:path';
 import { test } from 'node:test';
@@ -108,28 +108,69 @@ async function fixture(run) {
 	}
 }
 
+function publicFetch({ archiveRoot, bundles, calls = [], corruptFullBody = false }) {
+	return async (url, init) => {
+		calls.push([url, init.method, init.headers?.Range ?? null]);
+		const bundle = bundles.find(({ archive }) => archive.url === url);
+		assert.ok(bundle);
+		const bytes = await readFile(join(archiveRoot, bundle.familyId, bundle.runtimeVersion,
+			TARGET_ID, `${bundle.archive.sha256}.tar.gz`));
+		const ranged = init.headers?.Range === 'bytes=0-0';
+		const body = init.method === 'HEAD' ? null : ranged ? bytes.subarray(0, 1)
+			: corruptFullBody ? Buffer.from(bytes).fill(0, 0, 1) : bytes;
+		return new Response(body, { status: ranged ? 206 : 200, headers: {
+			'Access-Control-Allow-Origin': 'https://soundscaper.org',
+			'Access-Control-Expose-Headers': 'Content-Range',
+			'Content-Length': String(ranged ? 1 : bytes.length),
+			...(ranged ? { 'Content-Range': `bytes 0-0/${bytes.length}` } : {}),
+		} });
+	};
+}
+
 test('publisher handoff imports the exact five target archives without rebuilding', async () => {
-	await fixture(async ({ buildRoot, handoffRoot, native, bundles }) => {
+	await fixture(async ({ buildRoot, handoffRoot, native, archiveRoot, bundles }) => {
 		const options = { buildRoot, handoffRoot, sourceRevision: SOURCE_REVISION,
 			targetId: TARGET_ID, sourceNativeManifest: native };
 		await exportDesktopAssistanceRuntimeHandoff(options);
+		assert.deepEqual(await readdir(handoffRoot), ['config', 'handoff.json']);
 		const packageRoot = join(handoffRoot, '..', 'package-archives');
-		const imported = await stageDesktopAssistanceRuntimeHandoff({ ...options, archiveRoot: packageRoot });
+		const cacheRoot = join(handoffRoot, '..', 'download-cache');
+		const fetchCalls = [];
+		const fetchImpl = publicFetch({ archiveRoot, bundles, calls: fetchCalls });
+		const imported = await stageDesktopAssistanceRuntimeHandoff({ ...options,
+			archiveRoot: packageRoot, cacheRoot, fetchImpl });
 		assert.equal(imported.distribution.manifest.bundles.length, 5);
 		assert.equal(imported.speech.summary.status, 'built');
+		assert.equal(fetchCalls.length, 15, 'each archive receives one HEAD, Range and full GET');
 		for (const bundle of bundles) {
 			const path = join(packageRoot, bundle.familyId, bundle.runtimeVersion, TARGET_ID,
 				`${bundle.archive.sha256}.tar.gz`);
 			const bytes = await readFile(path);
 			assert.equal(sha256(bytes), bundle.archive.sha256);
 		}
+		await stageDesktopAssistanceRuntimeHandoff({ ...options,
+			archiveRoot: join(handoffRoot, '..', 'second-product-archives'), cacheRoot, fetchImpl });
+		assert.equal(fetchCalls.length, 15, 'the second product reuses authenticated downloads');
+	});
+});
+
+test('handoff refuses a publicly served archive with altered bytes', async () => {
+	await fixture(async ({ buildRoot, handoffRoot, native, archiveRoot, bundles }) => {
+		const options = { buildRoot, handoffRoot, sourceRevision: SOURCE_REVISION,
+			targetId: TARGET_ID, sourceNativeManifest: native };
+		await exportDesktopAssistanceRuntimeHandoff(options);
+		await assert.rejects(stageDesktopAssistanceRuntimeHandoff({ ...options,
+			archiveRoot: join(handoffRoot, '..', 'package-archives'),
+			cacheRoot: join(handoffRoot, '..', 'download-cache'),
+			fetchImpl: publicFetch({ archiveRoot, bundles, corruptFullBody: true }),
+		}), /digest or length/u);
 	});
 });
 
 test('handoff rejects a different commit, target, altered archive, and surplus file', async () => {
-	await fixture(async ({ buildRoot, handoffRoot, native, bundles }) => {
+	await fixture(async ({ buildRoot, handoffRoot, native, archiveRoot, bundles }) => {
 		const options = { buildRoot, handoffRoot, sourceRevision: SOURCE_REVISION,
-			targetId: TARGET_ID, sourceNativeManifest: native };
+			targetId: TARGET_ID, sourceNativeManifest: native, archivesRoot: archiveRoot };
 		await exportDesktopAssistanceRuntimeHandoff(options);
 		await assert.rejects(readDesktopAssistanceRuntimeHandoff({ ...options,
 			sourceRevision: 'b'.repeat(40) }), /source revision or target/u);
@@ -139,13 +180,12 @@ test('handoff rejects a different commit, target, altered archive, and surplus f
 		await assert.rejects(readDesktopAssistanceRuntimeHandoff(options), /file inventory/u);
 		await rm(join(handoffRoot, 'surplus'));
 		const bundle = bundles[2];
-		const archive = join(handoffRoot, 'assistance-distribution', bundle.familyId,
+		const archive = join(archiveRoot, bundle.familyId,
 			bundle.runtimeVersion, TARGET_ID, `${bundle.archive.sha256}.tar.gz`);
 		const original = await readFile(archive);
 		await writeFile(archive, Buffer.concat([original, Buffer.from('tampered')]));
 		await assert.rejects(readDesktopAssistanceRuntimeHandoff(options), /digest|length/u);
-		await copyFile(join(buildRoot, 'assistance-distribution', bundle.familyId,
-			bundle.runtimeVersion, TARGET_ID, `${bundle.archive.sha256}.tar.gz`), archive);
+		await writeFile(archive, original);
 		const handoffPath = join(handoffRoot, 'handoff.json');
 		const handoff = JSON.parse(await readFile(handoffPath, 'utf8'));
 		handoff.assistanceRuntimeFamilies.families[0].byteLength += 1;
