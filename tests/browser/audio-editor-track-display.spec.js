@@ -140,6 +140,8 @@ test('track display combines half-wave and RMS with a frequency view', async ({ 
 	await expect(track).toHaveAttribute('data-display-mode', 'waveform-three-band');
 	await expect(clip.locator('.clip-body')).toHaveAttribute('data-half-wave', 'true');
 	const waveform = clip.locator('canvas.clip-body__waveform');
+	await expect(waveform).toHaveAttribute('data-frequency-waveform-mode', 'waveform-three-band');
+	await expect(waveform).not.toHaveAttribute('data-waveform-pending');
 	const withoutRms = await waveform.evaluate(waveformChecksum);
 	await chooseTrackMenuAction(page, editor, track, ['Track visualization', 'Show RMS in waveform']);
 	await expect.poll(() => waveform.evaluate(waveformChecksum)).not.toBe(withoutRms);

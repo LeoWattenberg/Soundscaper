@@ -26,8 +26,7 @@ async function openTrackMenuPath(page, editor, trackRow, path) {
 	let item = trackMenuItem(menu, steps[0]);
 	for (const step of steps.slice(1)) {
 		await expect(item).toBeEnabled();
-		await item.focus();
-		await page.keyboard.press('ArrowRight');
+		await item.click();
 		menu = item.getByRole('menu');
 		await expect(menu).toBeVisible();
 		item = trackMenuItem(menu, step);
