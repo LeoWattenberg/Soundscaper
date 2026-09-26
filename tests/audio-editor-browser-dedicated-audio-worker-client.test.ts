@@ -6,7 +6,10 @@ import test from 'node:test';
 import {
 	createBrowserDedicatedAudioCodecClient,
 } from '../src/common/editor/browser-dedicated-audio-worker-client.ts';
-import type { DedicatedAudioEncodeRequest } from '../src/common/editor/browser-dedicated-audio-codec.ts';
+import type {
+	DedicatedAudioDecodeRequest,
+	DedicatedAudioEncodeRequest,
+} from '../src/common/editor/browser-dedicated-audio-codec.ts';
 
 for (const failureType of ['error', 'messageerror'] as const) {
 	test(`a late ${failureType} from a replaced worker cannot terminate the current worker`, async () => {
@@ -242,6 +245,79 @@ for (const response of ['malformed', 'wrong-id'] as const) {
 	});
 }
 
+test('decode maps the worker PCM geometry and advances a queued decode after an operation mismatch', async () => {
+	const harness = workerHarness();
+	const client = createBrowserDedicatedAudioCodecClient({ createWorker: harness.createWorker });
+	const first = client.decode(decodeRequest(1));
+	const worker = await harness.nextWorker();
+	const queued = client.decode(decodeRequest(2));
+	assert.equal(worker.requests[0]?.operation, 'decode');
+	worker.respond({
+		id: worker.requests[0]!.id,
+		status: 'ok',
+		operation: 'encode',
+		bytes: Uint8Array.of(99).buffer,
+	});
+	await assert.rejects(first, /confused decode and encode/u);
+	assert.equal(worker.requests[1]?.operation, 'decode');
+	const pcm = Uint8Array.of(0, 0, 0, 0x3f, 0, 0, 0, 0xbf);
+	worker.respond({
+		id: worker.requests[1]!.id,
+		status: 'ok',
+		operation: 'decode',
+		bytes: pcm.buffer,
+		frameCount: 1,
+		channelCount: 2,
+		sampleRate: 48_000,
+	});
+	assert.deepEqual(await queued, {
+		interleaved: pcm,
+		frameCount: 1,
+		channelCount: 2,
+		sampleRate: 48_000,
+	});
+	client.dispose();
+});
+
+test('malformed decode response retires its worker and a queued decode recovers', async () => {
+	const harness = workerHarness();
+	const client = createBrowserDedicatedAudioCodecClient({ createWorker: harness.createWorker });
+	const first = client.decode(decodeRequest(1));
+	const failedWorker = await harness.nextWorker();
+	const queued = client.decode(decodeRequest(2));
+	failedWorker.respond({ id: failedWorker.requests[0]!.id, status: 'ok', operation: 'decode' });
+	await assert.rejects(first, /invalid result/u);
+	assert.equal(failedWorker.terminationCount, 1);
+	const replacement = await harness.nextWorker();
+	replacement.respond({
+		id: replacement.requests[0]!.id,
+		status: 'ok', operation: 'decode', bytes: Uint8Array.of(0, 0, 0, 0).buffer,
+		frameCount: 1, channelCount: 1, sampleRate: 48_000,
+	});
+	assert.equal((await queued).frameCount, 1);
+	client.dispose();
+});
+
+test('cancelling an active decode retires its worker without losing the queued decode', async () => {
+	const harness = workerHarness();
+	const client = createBrowserDedicatedAudioCodecClient({ createWorker: harness.createWorker });
+	const controller = new AbortController();
+	const first = client.decode(decodeRequest(1), { signal: controller.signal });
+	const retiredWorker = await harness.nextWorker();
+	const queued = client.decode(decodeRequest(2));
+	controller.abort();
+	await assert.rejects(first, (error: Error) => error.name === 'AbortError');
+	assert.equal(retiredWorker.terminationCount, 1);
+	const replacement = await harness.nextWorker();
+	replacement.respond({
+		id: replacement.requests[0]!.id,
+		status: 'ok', operation: 'decode', bytes: Uint8Array.of(0, 0, 0, 0).buffer,
+		frameCount: 1, channelCount: 1, sampleRate: 48_000,
+	});
+	assert.equal((await queued).channelCount, 1);
+	client.dispose();
+});
+
 function encodeRequest(marker: number): DedicatedAudioEncodeRequest {
 	return Object.freeze({
 		format: 'mp3' as const,
@@ -250,6 +326,14 @@ function encodeRequest(marker: number): DedicatedAudioEncodeRequest {
 		channelCount: 1,
 		sampleRate: 48_000,
 		settings: Object.freeze({ bitrateKbps: 128 }),
+		maximumOutputBytes: 1_024,
+	});
+}
+
+function decodeRequest(marker: number): DedicatedAudioDecodeRequest {
+	return Object.freeze({
+		format: 'flac' as const,
+		input: Uint8Array.of(0x66, 0x4c, 0x61, 0x43, marker),
 		maximumOutputBytes: 1_024,
 	});
 }

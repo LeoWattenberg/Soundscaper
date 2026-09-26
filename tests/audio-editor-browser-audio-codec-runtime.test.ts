@@ -54,6 +54,46 @@ test('browser audio runtime maps staged WAV PCM into a dedicated file-producing 
 	assert.equal(client.disposed, true);
 });
 
+test('browser audio runtime deinterleaves dedicated decode bytes and rejects inconsistent geometry', async () => {
+	const requests: unknown[] = [];
+	const pcm = new Uint8Array(4 * Float32Array.BYTES_PER_ELEMENT);
+	const view = new DataView(pcm.buffer);
+	for (const [index, sample] of [0.25, -0.25, 0.5, -0.5].entries()) {
+		view.setFloat32(index * Float32Array.BYTES_PER_ELEMENT, sample, true);
+	}
+	let malformed = false;
+	const client: BrowserDedicatedAudioCodecClient = {
+		async encode() { throw new Error('encode was not expected'); },
+		async decode(request) {
+			requests.push(request);
+			return {
+				interleaved: pcm,
+				frameCount: malformed ? 3 : 2,
+				channelCount: 2,
+				sampleRate: 48_000,
+			};
+		},
+		dispose() {},
+	};
+	const runtime = createBrowserAudioCodecRuntime({ codecClient: client, webCodecsAac: false });
+	const compressed = new Blob([Uint8Array.of(0x66, 0x4c, 0x61, 0x43, 0)], { type: 'audio/flac' });
+	try {
+		const decoded = await runtime.decode(compressed);
+		assert.deepEqual(decoded.channels.map((channel) => [...channel]), [[0.25, 0.5], [-0.25, -0.5]]);
+		assert.equal(decoded.frameCount, 2);
+		assert.equal(decoded.sampleRate, 48_000);
+		assert.deepEqual(requests, [{
+			format: 'flac',
+			input: Uint8Array.of(0x66, 0x4c, 0x61, 0x43, 0),
+			maximumOutputBytes: 128 * 1024 * 1024,
+		}]);
+		malformed = true;
+		await assert.rejects(runtime.decode(compressed), /inconsistent PCM geometry/u);
+	} finally {
+		runtime.dispose();
+	}
+});
+
 test('browser audio runtime generates a direct destination from dedicated codec bytes', async () => {
 	const output = Uint8Array.from({ length: 13 }, (_value, index) => index);
 	const client = clientFixture([], output);

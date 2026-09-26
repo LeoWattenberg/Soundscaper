@@ -198,6 +198,28 @@ test.describe('audio file import formats', () => {
 		});
 	}
 
+	test('a failed dedicated FLAC decode leaves the project untouched and the next import succeeds', async ({ page }) => {
+		const editor = await bootEditor(page, '/embed/en/');
+		const initialProjectId = await editor.getAttribute('data-project-id');
+		const choosingBadFile = page.waitForEvent('filechooser');
+		await chooseFileAction(page, editor, 'Import');
+		await (await choosingBadFile).setFiles({
+			name: 'broken-import.flac',
+			mimeType: 'audio/flac',
+			buffer: Buffer.from('fLaCbroken-payload'),
+		});
+		await expect(editor.locator('[data-editor-toast="workspace-status-error"]'))
+			.toContainText('1 failed', { timeout: 20_000 });
+		await expect(editor).toHaveAttribute('data-project-id', initialProjectId);
+		await expect(editor).toHaveAttribute('data-clip-count', '0');
+		await expect(editor.locator('[data-project-bin-item]')).toHaveCount(0);
+
+		const valid = await encodedFixture('flac', 'flac', 'audio/flac');
+		await importThroughFileMenu(page, editor, valid);
+		await expect(clipByName(editor, valid.name)).toBeVisible();
+		await expect(editor).toHaveAttribute('data-clip-count', '1');
+	});
+
 	for (const [label, extension, codec, mimeType] of FORMATS) {
 		test(`${label} imports stereo audio, plays, and survives reload`, async ({ page }) => {
 			test.setTimeout(60000);
