@@ -282,6 +282,8 @@ test.describe('non-destructive clip fade handles', () => {
 		await clip.press('Tab');
 		await expect(fade).toBeFocused();
 		await page.keyboard.press('Tab');
+		await expect(clip.getByRole('slider', { name: 'Fade in shape', exact: true })).toBeFocused();
+		await page.keyboard.press('Tab');
 		await expect(clip.getByRole('slider', { name: 'Fade out', exact: true })).toBeFocused();
 		await beginFadeDrag(page, fade, 25);
 		await expect.poll(async () => Number(await fade.getAttribute('aria-valuenow'))).toBeGreaterThan(0.002);
@@ -381,8 +383,8 @@ test.describe('non-destructive clip fade handles', () => {
 		await importFiles(editor, [toneA]);
 		const first = clipByName(editor, toneA.name);
 		await selectClip(first);
-		await expect(first.getByRole('slider', { name: 'Fade in' })).toHaveAttribute('aria-valuenow', '0.002');
-		await expect(first.getByRole('slider', { name: 'Fade out' })).toHaveAttribute('aria-valuenow', '0.002');
+		await expect(first.getByRole('slider', { name: 'Fade in', exact: true })).toHaveAttribute('aria-valuenow', '0.002');
+		await expect(first.getByRole('slider', { name: 'Fade out', exact: true })).toHaveAttribute('aria-valuenow', '0.002');
 
 		await chooseCommandAction(page, editor, 'Edit', 'Preferences');
 		const preferences = page.getByRole('dialog', { name: 'Editor preferences', exact: true });
@@ -392,7 +394,7 @@ test.describe('non-destructive clip fade handles', () => {
 		await importFiles(editor, [toneB]);
 		const second = clipByName(editor, toneB.name);
 		await selectClip(second);
-		await expect(second.getByRole('slider', { name: 'Fade in' })).toHaveAttribute('aria-valuenow', '0');
-		await expect(second.getByRole('slider', { name: 'Fade out' })).toHaveAttribute('aria-valuenow', '0');
+		await expect(second.getByRole('slider', { name: 'Fade in', exact: true })).toHaveAttribute('aria-valuenow', '0');
+		await expect(second.getByRole('slider', { name: 'Fade out', exact: true })).toHaveAttribute('aria-valuenow', '0');
 	});
 });
