@@ -50,7 +50,7 @@ function registerReviewedDecoder(): void {
 	if (!registered) { registerDecoder(ReviewedAudioImportDecoder); registered = true; }
 }
 
-/** Desktop imports must use native WebCodecs or their main-owned utility codec. */
+/** Clear source preferences before each desktop import; large LayerII may opt back in. */
 export function disableReviewedAudioImportDecoders(): void { enabled.clear(); preferredConfigurations = new WeakMap(); }
 
 class ReviewedAudioImportDecoder extends CustomAudioDecoder {

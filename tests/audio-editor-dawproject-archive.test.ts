@@ -41,6 +41,31 @@ test('an archive round-trips its documents and embedded media byte for byte', as
 	}
 });
 
+test('desktop archive streams embedded media to a temporary disk-backed File and cleans it up', async () => {
+	const media = wavBlob(1_000);
+	const archive = await writeDawprojectArchive({ projectXml: PROJECT_XML, metadataXml: '',
+		files: [{ path: 'audio/take.wav', blob: media }] });
+	const files = new Map<string, ArrayBuffer[]>();
+	const directory = {
+		async getFileHandle(name: string) {
+			files.set(name, []);
+			return { createWritable: async () => new WritableStream<Uint8Array>({
+				write(chunk) { files.get(name)!.push(chunk.slice().buffer as ArrayBuffer); },
+			}), getFile: async () => new File(files.get(name)!, name) };
+		},
+		async removeEntry(name: string) { files.delete(name); },
+	} as unknown as FileSystemDirectoryHandle;
+	const read = await readDawprojectArchive(archive, { temporaryDirectory: directory });
+	const entry = await read.readEntry('audio/take.wav');
+	assert.ok(entry instanceof File);
+	assert.deepEqual(new Uint8Array(await entry.arrayBuffer()), new Uint8Array(await media.arrayBuffer()));
+	assert.equal(files.size, 1);
+	await read.releaseEntry('audio/take.wav');
+	assert.equal(files.size, 0);
+	await read.close();
+	assert.equal(files.size, 0);
+});
+
 test('entry lookups tolerate the path spellings other applications write', async () => {
 	const archive = await writeDawprojectArchive({
 		projectXml: PROJECT_XML, metadataXml: METADATA_XML,

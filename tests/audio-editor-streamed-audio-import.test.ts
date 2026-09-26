@@ -80,6 +80,14 @@ test('oversized original refuses before decoder opening and excessive duration c
 	assert.equal(events.at(-1), 'dispose');
 });
 
+test('desktop compressed import admits a multi-gigabyte eight-hour source without allocating PCM', async () => {
+	class LargeBlob extends Blob { override get size() { return 7 * 1024 ** 3; } }
+	const { session } = fixture([], { duration: 8 * 3600 });
+	const prepared = await prepareStreamedAudioImport(new LargeBlob(), { desktop: true, openSession: async () => session });
+	assert.equal(prepared.descriptor.frameCount, 8 * 3600 * 48_000);
+	prepared.dispose();
+});
+
 test('a storage failure closes decoding and is preserved', async () => {
 	const { events, prepare } = fixture([1, 2, 3, 4]);
 	const prepared = await prepare();

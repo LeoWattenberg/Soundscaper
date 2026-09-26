@@ -28,9 +28,10 @@ interface CommonProps {
 	readonly copy: Readonly<Record<string, string>>;
 	readonly run: (operation: () => unknown) => unknown;
 	readonly onClose: () => void;
+	readonly fileService?: Readonly<{ isDesktop: boolean }>;
 }
 
-export function RawPcmImportDialog({ controller, copy, run, onClose }: CommonProps) {
+export function RawPcmImportDialog({ controller, copy, run, onClose, fileService }: CommonProps) {
 	const [file, setFile] = useState<File | null>(null);
 	const [sampleFormat, setSampleFormat] = useState<RawPcmSampleFormat>('int16');
 	const [byteOrder, setByteOrder] = useState<RawPcmByteOrder>('little');
@@ -50,7 +51,8 @@ export function RawPcmImportDialog({ controller, copy, run, onClose }: CommonPro
 		setImporting(true);
 		run(async () => {
 			try {
-				const wav = await prepareRawPcmWaveFile(file, { sampleFormat, byteOrder, sampleRate, channelCount, offsetBytes });
+				const wav = await prepareRawPcmWaveFile(file, { sampleFormat, byteOrder, sampleRate, channelCount, offsetBytes },
+					{ desktop: fileService?.isDesktop === true });
 				if (!projectIsCurrent()) return;
 				await controller.actions.project.importFiles([wav]);
 				if (!projectIsCurrent()) return;

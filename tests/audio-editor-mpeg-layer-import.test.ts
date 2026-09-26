@@ -108,6 +108,22 @@ test('small desktop LayerII imports use the capped utility port after admission 
 	} finally { globalThis.fetch = originalFetch; }
 });
 
+test('large desktop LayerII imports select bounded packet decoding instead of the 32 MiB utility tier', async () => {
+	const encoded = await encodeDedicatedAudioPcm({ format: 'mp2', input: new Uint8Array(48_000 * 8),
+		frameCount: 48_000, channelCount: 2, sampleRate: 48_000, settings: { bitrateKbps: 192 }, maximumOutputBytes: 1024 * 1024,
+	}, { loadPayload: async (_format, url) => new Uint8Array(await readFile(url)) });
+	const count = Math.ceil((32 * 1024 * 1024 + 1) / encoded.byteLength);
+	const originalFetch = globalThis.fetch;
+	globalThis.fetch = async (url) => new Response(await readFile(url as URL));
+	try {
+		const file = new File(Array.from({ length: count }, () => encoded), 'large.mp2', { type: 'audio/mpeg' });
+		const prepared = await prepareStreamedAudioImport(file, { desktop: true, reviewedFallback: false,
+			desktopCodec: { decode() { throw new Error('Whole-file utility decode was selected'); } } });
+		assert.ok(prepared.descriptor.frameCount > 48_000);
+		prepared.dispose();
+	} finally { disableReviewedAudioImportDecoders(); globalThis.fetch = originalFetch; }
+});
+
 test('desktop LayerII refuses large input, large decoded geometry, and missing utility capability before any decode', () => {
 	const codec = { decode() { throw new Error('No utility decode should start'); } };
 	const geometry = { sampleRate: 48_000, channelCount: 2, durationSeconds: 1, timelineOrigin: 0 };

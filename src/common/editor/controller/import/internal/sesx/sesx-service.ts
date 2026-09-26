@@ -27,8 +27,6 @@ export interface SesxOpenResult extends Readonly<Record<string, unknown>> {
 	readonly report: unknown;
 }
 
-const SESX_COMPRESSED_MAXIMUM_BYTES = 192 * 1024 * 1024;
-
 /** Desktop-only SESX open with a session-scoped media capability and staged PCM. */
 export function createSesxService(runtime: NativeProjectServiceRuntime, helpers: SesxServiceHelpers) {
 	return Object.freeze({ openSesx });
@@ -74,9 +72,6 @@ export function createSesxService(runtime: NativeProjectServiceRuntime, helpers:
 						let prepared: PreparedStreamedAudioImport | null = null;
 						try {
 							if (!wav && runtime.prepareDawprojectAudio) {
-								if (blob.size > SESX_COMPRESSED_MAXIMUM_BYTES) {
-									throw new RangeError(`SESX media ${reference.name} exceeds the compressed import memory budget.`);
-								}
 								try { prepared = await runtime.prepareDawprojectAudio(blob, reference.name, signal); }
 								catch (error) {
 									if (error instanceof RangeError) throw error;

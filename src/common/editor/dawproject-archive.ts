@@ -53,6 +53,7 @@ export interface DawprojectArchiveOptions {
 export interface DawprojectArchiveReadOptions extends DawprojectArchiveOptions {
 	readonly maximumEntries?: number;
 	readonly maximumEntryBytes?: number;
+	readonly temporaryDirectory?: FileSystemDirectoryHandle;
 }
 
 export interface DawprojectArchive {
@@ -62,6 +63,7 @@ export interface DawprojectArchive {
 	/** The entry's bytes, or null when the archive has no such entry. */
 	readEntry(path: string): Promise<Blob | null>;
 	entrySize(path: string): number | null;
+	releaseEntry(path: string): Promise<void>;
 	close(): Promise<void>;
 }
 
@@ -74,7 +76,7 @@ interface ArchiveEntry {
 	readonly filename: string;
 	readonly directory: boolean;
 	readonly uncompressedSize: number;
-	getData?<Value>(writer: TextWriter | BlobWriter, options?: Readonly<{ signal?: AbortSignal }>): Promise<Value>;
+	getData?<Value>(writer: TextWriter | BlobWriter | WritableStream<Uint8Array>, options?: Readonly<{ signal?: AbortSignal }>): Promise<Value>;
 }
 
 export async function writeDawprojectArchive(
@@ -139,6 +141,7 @@ export async function readDawprojectArchive(
 	const signal = options.signal;
 	const maximumEntries = options.maximumEntries ?? DAWPROJECT_ARCHIVE_LIMITS.maximumEntries;
 	const maximumEntryBytes = options.maximumEntryBytes ?? DAWPROJECT_ARCHIVE_LIMITS.maximumEntryBytes;
+	const temporaryDirectory = options.temporaryDirectory;
 	throwIfAborted(signal);
 	const reader = new ZipReader(new BlobReader(input));
 	let entries: ArchiveEntry[];
@@ -181,6 +184,13 @@ export async function readDawprojectArchive(
 		const projectXml = await readText(DAWPROJECT_PROJECT_ENTRY, true);
 		const metadataXml = await readText(DAWPROJECT_METADATA_ENTRY, false);
 		let closed = false;
+		const temporaryNames = new Map<string, Set<string>>();
+		const removeTemporary = async (path: string): Promise<void> => {
+			const key = normalizeEntryPath(path).toLowerCase();
+			const names = temporaryNames.get(key);
+			temporaryNames.delete(key);
+			if (names && temporaryDirectory) await Promise.all([...names].map((name) => temporaryDirectory.removeEntry(name)));
+		};
 		return Object.freeze({
 			projectXml: projectXml ?? '',
 			metadataXml,
@@ -194,12 +204,31 @@ export async function readDawprojectArchive(
 				if (entry.uncompressedSize > maximumEntryBytes) {
 					throw new RangeError(`${path} exceeds the ${String(maximumEntryBytes)}-byte entry limit.`);
 				}
+				if (temporaryDirectory) {
+					const name = crypto.randomUUID();
+					const handle = await temporaryDirectory.getFileHandle(name, { create: true });
+					try {
+						await entry.getData<WritableStream<Uint8Array>>(await handle.createWritable(), { signal });
+						const file = await handle.getFile();
+						if (file.size !== entry.uncompressedSize) throw new Error('DAWproject temporary media has an inexact size.');
+						const key = normalizeEntryPath(path).toLowerCase();
+						if (!temporaryNames.has(key)) temporaryNames.set(key, new Set());
+						temporaryNames.get(key)!.add(name);
+						return file;
+					} catch (error) {
+						await temporaryDirectory.removeEntry(name).catch(() => undefined);
+						throw error;
+					}
+				}
 				return entry.getData<Blob>(new BlobWriter(), { signal });
 			},
+			releaseEntry: removeTemporary,
 			async close(): Promise<void> {
 				if (closed) return;
 				closed = true;
-				await reader.close();
+				const results = await Promise.allSettled([reader.close(), ...[...temporaryNames.keys()].map(removeTemporary)]);
+				const errors = results.flatMap((result) => result.status === 'rejected' ? [result.reason] : []);
+				if (errors.length) throw new AggregateError(errors, 'DAWproject archive cleanup failed.');
 			},
 		});
 	} catch (error) {

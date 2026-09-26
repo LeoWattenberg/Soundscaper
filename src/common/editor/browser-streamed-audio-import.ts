@@ -49,12 +49,16 @@ export async function prepareStreamedAudioImport(
 		signal?: AbortSignal;
 		openSession?: (file: Blob, signal?: AbortSignal) => Promise<StreamedAudioImportSession>;
 		reviewedFallback?: boolean;
+		desktop?: boolean;
 		desktopCodec?: WavPackImportGroupDecoder;
 	}> = {},
 ): Promise<PreparedStreamedAudioImport> {
 	options.signal?.throwIfAborted();
 	if (!(file instanceof Blob)) throw new TypeError('A compressed audio Blob is required.');
-	if (!Number.isSafeInteger(file.size) || file.size < 1 || file.size > LARGE_AUDIO_FILE_BYTES) {
+	if (!Number.isSafeInteger(file.size) || file.size < 1) {
+		throw new RangeError('The compressed audio original has an unsupported byte length.');
+	}
+	if (!options.desktop && file.size > LARGE_AUDIO_FILE_BYTES) {
 		throw new RangeError('The compressed audio original exceeds the 1 GB import limit.');
 	}
 	const session = await awaitImportOperation((options.openSession ?? (async (blob, signal) => {
@@ -75,7 +79,7 @@ export async function prepareStreamedAudioImport(
 	options.signal?.addEventListener('abort', dispose, { once: true });
 	try {
 		options.signal?.throwIfAborted();
-		const descriptor = admittedDescriptor(session, file.type);
+		const descriptor = admittedDescriptor(session, file.type, options.desktop === true);
 		return Object.freeze({
 			descriptor, dispose,
 			async stream(settings: StreamedAudioImportStreamOptions) {
@@ -100,12 +104,14 @@ export async function prepareStreamedAudioImport(
 	}
 }
 
-function admittedDescriptor(session: StreamedAudioImportSession, mimeType: string): StreamedAudioImportDescriptor {
+function admittedDescriptor(session: StreamedAudioImportSession, mimeType: string, desktop: boolean): StreamedAudioImportDescriptor {
 	if (!Number.isSafeInteger(session.sampleRate) || session.sampleRate < 1 || session.sampleRate > 768_000
 		|| !Number.isSafeInteger(session.channelCount) || session.channelCount < 1 || session.channelCount > MAXIMUM_CHANNELS
 		|| !Number.isFinite(session.timelineOrigin)) throw new RangeError('The compressed audio source geometry is unsupported.');
-	if (!Number.isFinite(session.durationSeconds) || session.durationSeconds <= 0
-		|| session.durationSeconds > LARGE_AUDIO_DURATION_SECONDS) {
+	if (!Number.isFinite(session.durationSeconds) || session.durationSeconds <= 0) {
+		throw new RangeError('The compressed audio source has an unsupported duration.');
+	}
+	if (!desktop && session.durationSeconds > LARGE_AUDIO_DURATION_SECONDS) {
 		throw new RangeError('The compressed audio source exceeds the one-hour import duration limit.');
 	}
 	const frameCount = Math.round(session.durationSeconds * session.sampleRate);
@@ -233,6 +239,17 @@ async function openBrowserAudioImportSession(file: Blob, signal?: AbortSignal, r
 			const first = await packets.getFirstPacket();
 			layerII = Boolean(first && first.data[0] === 255 && (first.data[1]! & 224) === 224 && ((first.data[1]! >> 1) & 3) === 2);
 		}
+		const [sampleRate, channelCount, timelineOrigin, endTimestamp] = await Promise.all([
+			track.getSampleRate(), track.getNumberOfChannels(), track.getFirstTimestamp(), track.computeDuration(),
+		]);
+		const streamedLayerII = layerII && !reviewedFallback
+			&& (file.size > 32 * 1024 * 1024 || (endTimestamp - timelineOrigin) * sampleRate * channelCount * 4 > 128 * 1024 * 1024);
+		if (streamedLayerII) {
+			const config = await track.getDecoderConfig();
+			const { preferReviewedMpegLayerIIImportDecoder } = await import('./browser-reviewed-streamed-audio-decoders.ts');
+			if (!config || !preferReviewedMpegLayerIIImportDecoder(config)) throw new Error('The streaming MPEG LayerII decoder does not support this source.');
+			track.getDecoderConfig = () => Promise.resolve(config);
+		}
 		// Native support flags do not prove these codecs can produce PCM. Select the
 		// reviewed bounded decoder before publication, without restarting a stream.
 		if (reviewedFallback && (codec === 'flac' || codec === 'vorbis' || codec === 'mp3')) {
@@ -241,18 +258,15 @@ async function openBrowserAudioImportSession(file: Blob, signal?: AbortSignal, r
 			if (config && preferReviewedAudioImportDecoder(codec, config)) track.getDecoderConfig = () => Promise.resolve(config);
 			else if (layerII) throw new Error('The reviewed MPEG LayerII decoder does not support this source configuration.');
 		}
-		if (!(layerII && !reviewedFallback) && !await track.canDecode()) {
-			if (!reviewedFallback) throw new Error('This desktop browser cannot incrementally decode the compressed audio track.');
+		if (!(layerII && !reviewedFallback && !streamedLayerII) && !await track.canDecode()) {
+			if (!reviewedFallback && !streamedLayerII) throw new Error('This desktop browser cannot incrementally decode the compressed audio track.');
 			const { enableReviewedAudioImportDecoder } = await import('./browser-reviewed-streamed-audio-decoders.ts');
 			enableReviewedAudioImportDecoder(await track.getCodec());
 			if (!await track.canDecode()) throw new Error('This browser cannot incrementally decode the compressed audio track.');
 		}
-		const [sampleRate, channelCount, timelineOrigin, endTimestamp] = await Promise.all([
-			track.getSampleRate(), track.getNumberOfChannels(), track.getFirstTimestamp(), track.computeDuration(),
-		]);
 		let origin = Math.max(0, timelineOrigin);
 		let durationSeconds = endTimestamp - origin;
-		if (layerII && !reviewedFallback) {
+		if (layerII && !reviewedFallback && !streamedLayerII) {
 			const { openDesktopMpegLayerIIImportSession } = await import('./desktop-mpeg-layer-ii-import.ts');
 			input.dispose();
 			return openDesktopMpegLayerIIImportSession(file, { sampleRate, channelCount, timelineOrigin: origin,

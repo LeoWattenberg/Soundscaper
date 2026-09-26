@@ -15,7 +15,7 @@ export async function importStreamedAudioFile(
 	const { prepareStreamedAudioImport } = await import('../../../browser-streamed-audio-import.ts');
 	const desktop = isDesktopMainAudioCodecRuntime(codec);
 	const prepared = await prepareStreamedAudioImport(file, {
-		signal: options.signal, reviewedFallback: !desktop, desktopCodec: desktop ? codec : undefined,
+		signal: options.signal, reviewedFallback: !desktop, desktop, desktopCodec: desktop ? codec : undefined,
 	});
 	try {
 		return await importPcm(file, { ...prepared.descriptor, stream: prepared.stream }, options,

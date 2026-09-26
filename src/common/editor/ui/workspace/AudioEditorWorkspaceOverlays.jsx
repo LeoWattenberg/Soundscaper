@@ -433,7 +433,7 @@ export default function AudioEditorWorkspaceOverlays({ model }) {
 					/>
 				</div>
 			)}
-			{activeSurface === 'raw-pcm-import' && <RawPcmImportDialog controller={controller} copy={copy} run={run} onClose={() => setActiveSurface(null)} />}
+			{activeSurface === 'raw-pcm-import' && <RawPcmImportDialog controller={controller} copy={copy} run={run} fileService={fileService} onClose={() => setActiveSurface(null)} />}
 			{capabilities.timelineAnnotations && activeSurface === 'regular-interval-annotations' && <RegularIntervalAnnotationDialog controller={controller} copy={copy} run={run} onClose={() => setActiveSurface(null)} />}
 			{capabilities.audioEffects && activeSurface === 'nyquist' && (
 				<div data-editor-surface="nyquist">

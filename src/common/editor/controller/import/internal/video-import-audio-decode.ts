@@ -65,6 +65,7 @@ export async function decodeImportedVideoAudio(
 	});
 	let declaredAudioSampleRate: number | null = null;
 	try {
+		if (options.file.size > 32 * 1024 * 1024) throw new RangeError('Use bounded container audio decoding.');
 		const encoded = await options.file.arrayBuffer();
 		declaredAudioSampleRate = options.inspectEncodedSampleRate(encoded);
 		return Object.freeze({

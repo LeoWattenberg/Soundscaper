@@ -39,6 +39,16 @@ test('an already cancelled silent import does not report success', async () => {
 	assert.deepEqual(calls, []);
 });
 
+test('large video audio uses container slices without materializing the encoded file', async () => {
+	const { options, calls, decoded } = fixture(true);
+	options.file = new class extends Blob {
+		override get size() { return 7 * 1024 ** 3; }
+		override arrayBuffer(): Promise<ArrayBuffer> { throw new Error('Whole-file read is forbidden'); }
+	}();
+	assert.equal((await decodeImportedVideoAudio(options)).decodedAudio, decoded);
+	assert.deepEqual(calls, ['container']);
+});
+
 test('an unreported inventory is recovered from the silent MP4 container', async () => {
 	const { options, calls } = fixture();
 	options.file = new Blob([videoRetimePreviewMedia.file.buffer], { type: 'video/mp4' });
