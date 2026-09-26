@@ -8,7 +8,9 @@ import {
 	chooseCommandAction,
 	getMenuItem,
 	openNestedCommandMenu,
+	stubStorageEstimate,
 } from './audio-editor-test-helpers.js';
+import { videoTimingProbeMedia } from './fixtures/video-timing-probe-media.js';
 
 test('Framescaper v1 exposes native work only through menus and retains its watch target', async ({ page }) => {
 	await installNativeServicesFixture(page);
@@ -78,6 +80,67 @@ test('Framescaper v1 exposes native work only through menus and retains its watc
 		},
 	]);
 	await expect(dialog.getByRole('list', { name: 'Watch folders' })).toContainText('Generate');
+});
+
+test('a native watch claim imports one video into the Project Bin and acknowledges its committed revision', async ({ page }) => {
+	test.setTimeout(90_000);
+	const media = videoTimingProbeMedia.find(({ id }) => id === 'cfr-25fps-mp4-v1');
+	const watchedVideo = {
+		name: 'watched-inbox.mp4', mimeType: media.file.mimeType,
+		size: media.file.buffer.byteLength, contentSha256: media.sourceSha256,
+	};
+	await page.route('**/__e2e-watch-file', (route) => route.fulfill({
+		body: media.file.buffer,
+		contentType: watchedVideo.mimeType,
+		headers: { 'Content-Length': String(watchedVideo.size) },
+	}));
+	await stubStorageEstimate(page, { usage: 1024 ** 2, quota: 2 * 1024 ** 3 });
+	await installNativeServicesFixture(page, { watchedVideo });
+	const editor = await bootEditor(page, '/framescaper/embed/en/');
+	const projectId = await editor.getAttribute('data-project-id');
+	await openNativePreferences(page, editor, 'Media', 'Native media and scratch');
+	let dialog = page.locator('[data-framescaper-native-services-dialog="true"]');
+	await dialog.locator('[data-native-service-preference="native-media"]').check();
+	await dialog.locator('button').filter({ hasText: /^Close$/u }).click();
+	const tools = await openNestedCommandMenu(page, editor, 'Tools', []);
+	await getMenuItem(tools, 'Watch folders').click();
+	dialog = page.locator('[data-framescaper-native-services-dialog="true"]');
+	await expect(dialog.getByRole('checkbox', { name: 'Generate proxies', exact: true })).not.toBeChecked();
+	await dialog.getByRole('button', { name: 'Add watch folder', exact: true }).click();
+	await expect.poll(() => page.evaluate(() => globalThis.__framescaperNativeCalls
+		.filter(([kind]) => kind === 'completeWatchImport'))).toHaveLength(1);
+	await dialog.locator('button').filter({ hasText: /^Close$/u }).click();
+	const card = editor.locator('[data-project-bin-item][data-project-bin-media-kind="video"]');
+	await expect(card).toHaveCount(1);
+	await expect(card).toBeVisible();
+	await expect(card).toHaveAttribute('aria-label', 'Project bin: watched-inbox');
+	const sourceId = await card.getAttribute('data-source-id');
+	expect(sourceId).toBeTruthy();
+	const calls = await page.evaluate(() => globalThis.__framescaperNativeCalls);
+	const claim = calls.find(([kind]) => kind === 'offeredWatchImport')[1];
+	const completion = calls.find(([kind]) => kind === 'completeWatchImport')[1];
+	expect(Number.isSafeInteger(claim.projectRevision)).toBe(true);
+	expect(claim).toMatchObject({
+		schemaFamily: 'framescaper', schemaVersion: 1, projectId,
+		claimId: 'de'.repeat(16), name: watchedVideo.name,
+		contentSha256: watchedVideo.contentSha256,
+	});
+	expect(completion).toEqual({
+		schemaFamily: 'framescaper', schemaVersion: 1,
+		claimId: 'de'.repeat(16), projectId, binId: 'project-bin', sourceId,
+		contentSha256: watchedVideo.contentSha256,
+		expectedProjectRevision: claim.projectRevision,
+		committedProjectRevision: claim.projectRevision + 1,
+		success: true,
+	});
+	await expect(editor.locator('[data-save-state]')).toHaveAttribute('data-state', 'saved');
+	const reopened = await bootEditor(page, `/framescaper/embed/en/?project=${encodeURIComponent(projectId)}`);
+	await expect(reopened).toHaveAttribute('data-project-id', projectId);
+	const persisted = reopened.locator('[data-project-bin-item][data-project-bin-media-kind="video"]');
+	await expect(persisted).toHaveCount(1);
+	await expect(persisted).toBeVisible();
+	await expect(persisted).toHaveAttribute('data-source-id', sourceId);
+	await expect(persisted).toHaveAttribute('aria-label', 'Project bin: watched-inbox');
 });
 
 test('a Framescaper bridge cannot surface Framescaper native menus in Soundscaper', async ({ page }) => {
@@ -237,8 +300,8 @@ test('Framescaper v1 runs one cumulative accessible OpenFX Interact workflow wit
 	await expect(effectButton).toBeFocused();
 });
 
-async function installNativeServicesFixture(page) {
-	await page.addInitScript(() => {
+async function installNativeServicesFixture(page, { watchedVideo = null } = {}) {
+	await page.addInitScript((watchedVideo) => {
 		const calls = [];
 		const preferences = {
 			nativeMediaEnabled: false,
@@ -248,6 +311,7 @@ async function installNativeServicesFixture(page) {
 		};
 		let queueState = 'queued';
 		let watchRules = [];
+		let watchClaimed = false;
 		const queueRow = () => ({
 			jobId: '12'.repeat(20), taskKind: 'encoded-export',
 			schemaFamily: 'framescaper', schemaVersion: 1, projectId: 'browser-v28',
@@ -320,6 +384,26 @@ async function installNativeServicesFixture(page) {
 				return true;
 			},
 			reconcileWatch: async () => ({ reconciled: watchRules.length }),
+			claimWatchImport: async (request) => {
+				if (!watchedVideo) return null;
+				calls.push(['claimWatchImport', structuredClone(request)]);
+				if (watchClaimed || !watchRules.some((rule) => rule.projectId === request.projectId)) return null;
+				watchClaimed = true;
+				const claim = {
+					schemaFamily: 'framescaper', schemaVersion: 1,
+					claimId: 'de'.repeat(16), projectId: request.projectId,
+					projectRevision: request.projectRevision, binId: 'project-bin',
+					generateProxies: false, existingSourceId: null, importMode: 'link',
+					locatorId: 'ab'.repeat(32), locatorRevision: 'cd'.repeat(32),
+					...watchedVideo, lastModified: 123,
+				};
+				calls.push(['offeredWatchImport', structuredClone(claim)]);
+				return claim;
+			},
+			completeWatchImport: async (request) => {
+				calls.push(['completeWatchImport', structuredClone(request)]);
+				return true;
+			},
 			listOpenFxPlugins: async () => {
 				calls.push(['listOpenFxPlugins']);
 				return [{
@@ -364,8 +448,27 @@ async function installNativeServicesFixture(page) {
 			configurable: true,
 			enumerable: true,
 			value: Object.freeze({ v1: Object.freeze({
-			getExternalFfmpegStatus: async () => ({ state: 'unconfigured', location: null, version: null, detail: '', canInstall: false, canBrowse: false, canClear: false }),
+				getExternalFfmpegStatus: async () => ({ state: 'unconfigured', location: null, version: null, detail: '', canInstall: false, canBrowse: false, canClear: false }),
 				nativeServices: Object.freeze(nativeServices),
+				...(watchedVideo ? {
+					chooseLinkedVideoOriginal: async () => null,
+					loadLinkedVideoOriginal: async ({ locatorId, expectedRevision, playback }) => {
+						if (playback) return null;
+						return locatorId === 'ab'.repeat(32) && expectedRevision === 'cd'.repeat(32)
+							? {
+								locatorRevision: 'cd'.repeat(32),
+								descriptor: {
+									id: 'ef'.repeat(32), readProfile: 'materialized-v1',
+									url: `${location.origin}/__e2e-watch-file`,
+									name: watchedVideo.name, size: watchedVideo.size,
+									mimeType: watchedVideo.mimeType, lastModified: 123,
+								},
+							}
+							: null;
+					},
+					reconcileLinkedVideoOriginals: async () => 0,
+					releaseLinkedVideoOriginal: async () => true,
+				} : {}),
 				readNativeTierControls: async () => ({
 					probeHelperEnabled: false, probeHelperQuarantined: false,
 					audioHelperEnabled: false, audioHelperQuarantined: false,
@@ -378,5 +481,5 @@ async function installNativeServicesFixture(page) {
 				}),
 			}) }),
 		});
-	});
+	}, watchedVideo);
 }
