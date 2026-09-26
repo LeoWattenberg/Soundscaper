@@ -29,6 +29,8 @@ import { createFramescaperVideoRetimeActionsRetime } from './editor-project-reti
 import { createFramescaperVideoProxyDetachCommandFinishing } from './editor-project-finishing-commands.ts';
 import type { FramescaperProjectCommand } from './editor-project-commands.ts';
 import { framescaperProjectTimelineImageFoundationShapeAssistance } from './editor-project-assistance-foundation.ts';
+import { materializeFramescaperSelectedMulticameraVisualPreviewProject } from
+	'./editor-selected-multicamera-visual-preview-project.ts';
 import { createFramescaperScapeNativeRuntime } from './editor-scape-native.ts';
 import { createFramescaperNativeRenderInputStreamProducer } from
 	'./editor-native-render-input-stream-producer.ts';
@@ -208,8 +210,9 @@ export function createFramescaperAudioEditorController(
 		controller,
 		profile: environment.runtime.profile,
 		store: environment.controllerStore,
-		cloneProject: (_profile, project) => framescaperProjectTimelineImageFoundationShapeAssistance(
-			project,
+		cloneProject: (_profile, project) => materializeFramescaperSelectedMulticameraVisualPreviewProject(
+			environment.runtime.profile,
+			framescaperProjectTimelineImageFoundationShapeAssistance(project),
 		) as never,
 	});
 	return controller;
