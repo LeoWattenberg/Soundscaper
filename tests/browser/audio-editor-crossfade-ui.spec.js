@@ -45,7 +45,7 @@ test.describe('design-system audio crossfade visuals', () => {
 
 	test('draws one linear crossover and keeps authored fade curves across an audio overlap', async ({ page }) => {
 		const errors = collectClientErrors(page);
-		const { editor, outgoing, incoming, track } = await overlapStereoClips(page);
+		const { outgoing, incoming, track } = await overlapStereoClips(page);
 		const region = track.locator('[data-automatic-crossfade="true"]');
 		await expect(region).toHaveCount(1);
 		await expect(region).toHaveAttribute('role', 'img');
