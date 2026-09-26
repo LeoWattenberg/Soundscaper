@@ -580,6 +580,9 @@ test.describe('audio editor React/design-system workflows', () => {
 		await expect(editor.locator('[data-save-state]')).toHaveAttribute('data-state', 'saved', { timeout: 10_000 });
 		await page.evaluate(() => document.fonts.ready);
 		await page.addStyleTag({ content: '*, *::before, *::after { animation: none !important; transition: none !important; caret-color: transparent !important; }' });
+		await page.evaluate(() => {
+			if (document.activeElement instanceof HTMLElement) document.activeElement.blur();
+		});
 
 		for (const viewport of [
 			{ label: 'desktop', width: 1440, height: 1000 },
