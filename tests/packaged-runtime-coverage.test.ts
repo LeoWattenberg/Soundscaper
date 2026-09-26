@@ -189,12 +189,8 @@ test('packaged coverage checkpoints an audio worklet at its first render quantum
 	const { appAsar, executablePath, executableResources } = await packagedAppFixture(context);
 	const productUrl = 'soundscaper-app://bundle/';
 	const workletUrl = 'soundscaper-app://bundle/assets/audio-worklet.js';
-	const page = new FakePage(
-		productUrl,
-		[coverageEntry('11', productUrl, 120)],
-		[coverageEntry('21', workletUrl, 50)],
-		'worklet',
-	);
+	const page = new FakePage(productUrl, [coverageEntry('11', productUrl, 120)],
+		[coverageEntry('21', workletUrl, 50)], 'worklet');
 	const collector = createPackagedRuntimeCoverageCollector({
 		appAsar,
 		architecture: 'x64',
@@ -223,6 +219,7 @@ test('packaged coverage checkpoints an audio worklet at its first render quantum
 	assert.deepEqual(profile['soundscaper-packaged-runtime'].targetCounts, { worklet: 1 });
 	assert.deepEqual(profile['soundscaper-packaged-runtime'].targetTypes, ['worklet']);
 	assert.ok(page.calls.includes('child:Runtime.evaluate'));
+	assert.ok(!page.calls.includes('child:Target.setAutoAttach'), 'audio worklets expose no Target domain');
 	assert.ok(page.calls.includes('child:Profiler.takePreciseCoverage'));
 	assert.ok(page.calls.includes('child:Debugger.resume'));
 });
@@ -475,7 +472,9 @@ class FakeContext {
 					}
 					queueMicrotask(() => {
 						emitter.emit('Target.receivedMessageFromTarget', {
-							message: JSON.stringify({ id: request.id, result }),
+							message: JSON.stringify(request.method === 'Target.setAutoAttach' && page.childType() === 'worklet'
+								? { id: request.id, error: { message: "'Target.setAutoAttach' wasn't found" } }
+								: { id: request.id, result }),
 							sessionId: 'worker-session',
 						});
 						if (request.method === 'Debugger.enable') {

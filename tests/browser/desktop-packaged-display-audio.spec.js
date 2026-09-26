@@ -39,6 +39,10 @@ test.describe('packaged Soundscaper display audio', () => {
 			await openAudioSetup(editor);
 			const setup = editor.getByRole('dialog', { name: 'Audio setup', exact: true });
 			await setup.getByRole('combobox', { name: 'Microphone', exact: true }).selectOption('display');
+			// The native display-capture boundary requires the editor window to own
+			// focus; the nightly runner's progress window can retain foreground focus.
+			await page.bringToFront();
+			await expect.poll(() => page.evaluate(() => document.hasFocus())).toBe(true);
 			await setup.getByRole('button', { name: 'Choose display source', exact: true }).click();
 			await expect(setup.getByRole('button', {
 				name: 'Choose a different display source',

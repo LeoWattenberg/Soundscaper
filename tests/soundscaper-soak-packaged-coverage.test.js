@@ -36,6 +36,10 @@ test('packaged soak coverage reaches only its product processes', () => {
 		ELECTRON_RUN_AS_NODE: '1',
 		NODE_V8_COVERAGE: '/outer/node-coverage',
 		SCAPE_BROWSER_COVERAGE: '1',
+		SCAPE_PLAYWRIGHT_PRODUCT_ORIGINS: JSON.stringify({
+			soundscaper: 'http://127.0.0.1:4101',
+			framescaper: 'http://127.0.0.1:4102',
+		}),
 		SOUNDSCAPER_NIGHTLY_TESTS_RUN_ROOT: runRoot,
 	};
 	assert.deepEqual(createSoundscaperDesktopSoakLaunchEnvironment({
@@ -45,6 +49,7 @@ test('packaged soak coverage reaches only its product processes', () => {
 		coverageDirectory: null,
 		environment: {
 			SCAPE_BROWSER_COVERAGE: '1',
+			SCAPE_PLAYWRIGHT_PRODUCT_ORIGINS: environment.SCAPE_PLAYWRIGHT_PRODUCT_ORIGINS,
 			SOUNDSCAPER_NIGHTLY_TESTS_RUN_ROOT: runRoot,
 		},
 	});
@@ -53,9 +58,11 @@ test('packaged soak coverage reaches only its product processes', () => {
 		environment,
 	}), {
 		coverageDirectory: join(runRoot, 'coverage/v8-packaged'),
+		coverageBaseURL: 'http://127.0.0.1:4101/',
 		environment: {
 			NODE_V8_COVERAGE: join(runRoot, 'coverage/v8-packaged'),
 			SCAPE_BROWSER_COVERAGE: '1',
+			SCAPE_PLAYWRIGHT_PRODUCT_ORIGINS: environment.SCAPE_PLAYWRIGHT_PRODUCT_ORIGINS,
 			SOUNDSCAPER_NIGHTLY_TESTS_RUN_ROOT: runRoot,
 		},
 	});

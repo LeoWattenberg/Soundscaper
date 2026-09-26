@@ -170,8 +170,10 @@ export async function startPackagedRuntimeTargetCoverage({
 		if (type === 'worklet' && startup[4]?.result?.value !== true) {
 			throw new Error('Audio worklet coverage checkpoint instrumentation was not installed.');
 		}
-		attachChildren(session);
-		await session.send('Target.setAutoAttach', AUTO_ATTACH_OPTIONS);
+		if (type !== 'worklet') {
+			attachChildren(session);
+			await session.send('Target.setAutoAttach', AUTO_ATTACH_OPTIONS);
+		}
 		if (ownerPage !== null) {
 			await session.send('Page.enable');
 			recorder.navigationCheckpoints = await installNavigationCoverageCheckpoints({

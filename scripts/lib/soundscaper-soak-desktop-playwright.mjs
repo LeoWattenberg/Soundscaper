@@ -19,6 +19,7 @@ import {
 import {
 	capturePackagedExecutableResourcesBeforeLaunch,
 } from './packaged-executable-resource-identity.mjs';
+import { packagedRuntimeProductBaseURL } from '../../tests/browser/helpers/packaged-runtime-page.js';
 
 const REPOSITORY_ROOT = resolve(import.meta.dirname, '../..');
 
@@ -42,7 +43,10 @@ export function createSoundscaperDesktopSoakLaunchEnvironment({
 	if (launch.coverageDirectory === null) {
 		throw new Error('SCAPE_BROWSER_COVERAGE=1 is required for packaged soak coverage.');
 	}
-	return launch;
+	return Object.freeze({
+		...launch,
+		coverageBaseURL: packagedRuntimeProductBaseURL('soundscaper', environment),
+	});
 }
 
 export async function openSoundscaperDesktopSoakSession(options, dependencies) {
@@ -209,7 +213,7 @@ async function launchDesktopRuntime({
 			coverageCollector = createPackagedRuntimeCoverageCollector({
 				appAsar,
 				architecture: process.arch,
-				baseURL: endpoint,
+				baseURL: launch.coverageBaseURL,
 				context,
 				coverageDirectory: launch.coverageDirectory,
 				executablePath,

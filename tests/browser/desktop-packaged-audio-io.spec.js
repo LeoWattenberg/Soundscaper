@@ -53,25 +53,31 @@ test.describe('packaged Soundscaper audio devices', () => {
 		await page.keyboard.press('Escape');
 
 		const record = editor.locator('[data-transport="record"] .kw-audio-editor__split-button-main button');
-		await record.click();
-		await expect(record).toHaveAttribute('aria-pressed', 'true');
-		await expect.poll(async () => Number(await editor
-			.getByRole('meter', { name: 'Input level', exact: true })
-			.getAttribute('aria-valuenow')), { timeout: 15_000 }).toBeGreaterThan(-50);
-		await editor.getByRole('button', { name: 'Stop', exact: true }).click();
-		await expect(editor).toHaveAttribute('data-clip-count', String(initialClipCount + 1));
+		try {
+			await record.click();
+			await expect(record).toHaveAttribute('aria-pressed', 'true');
+			await expect.poll(async () => Number(await editor
+				.getByRole('meter', { name: 'Input level', exact: true })
+				.getAttribute('aria-valuenow')), { timeout: 15_000 }).toBeGreaterThan(-50);
+			await editor.getByRole('button', { name: 'Stop', exact: true }).click();
+			await expect(editor).toHaveAttribute('data-clip-count', String(initialClipCount + 1));
 
-		await openAudioSetup(editor);
-		const reopened = editor.getByRole('dialog', { name: 'Audio setup', exact: true });
-		await expect(reopened.getByRole('combobox', { name: 'Microphone', exact: true }))
-			.toHaveValue(microphoneId);
-		await expect(reopened.getByRole('combobox', { name: 'Speakers', exact: true }))
-			.toHaveValue(speakerId);
-		await reopened.getByRole('combobox', { name: 'Microphone', exact: true }).selectOption('default');
-		await reopened.getByRole('combobox', { name: 'Speakers', exact: true }).selectOption('');
-		const release = reopened.getByRole('button', { name: 'Disable microphones', exact: true });
-		if (await release.isVisible()) await release.click();
-		await page.keyboard.press('Escape');
+			await openAudioSetup(editor);
+			const reopened = editor.getByRole('dialog', { name: 'Audio setup', exact: true });
+			await expect(reopened.getByRole('combobox', { name: 'Microphone', exact: true }))
+				.toHaveValue(microphoneId);
+			await expect(reopened.getByRole('combobox', { name: 'Speakers', exact: true }))
+				.toHaveValue(speakerId);
+			await reopened.getByRole('combobox', { name: 'Microphone', exact: true }).selectOption('default');
+			await reopened.getByRole('combobox', { name: 'Speakers', exact: true }).selectOption('');
+			const release = reopened.getByRole('button', { name: 'Disable microphones', exact: true });
+			if (await release.isVisible()) await release.click();
+			await page.keyboard.press('Escape');
+		} finally {
+			const stop = editor.getByRole('button', { name: 'Stop', exact: true });
+			if (await stop.isEnabled().catch(() => false)) await stop.click().catch(() => undefined);
+			await releaseOpenInputs(editor);
+		}
 	});
 });
 
@@ -106,4 +112,16 @@ async function optionValue(select, label) {
 	const value = await option.getAttribute('value');
 	expect(value).toBeTruthy();
 	return value;
+}
+
+async function releaseOpenInputs(editor) {
+	let setup = editor.getByRole('dialog', { name: 'Audio setup', exact: true });
+	if (!await setup.isVisible().catch(() => false)) {
+		await editor.getByRole('button', { name: 'Audio setup', exact: true }).click().catch(() => undefined);
+		setup = editor.getByRole('dialog', { name: 'Audio setup', exact: true });
+	}
+	if (!await setup.isVisible().catch(() => false)) return;
+	const release = setup.getByRole('button', { name: 'Disable microphones', exact: true });
+	if (await release.isVisible().catch(() => false)) await release.click().catch(() => undefined);
+	await setup.press('Escape').catch(() => undefined);
 }
