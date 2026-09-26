@@ -34,3 +34,14 @@ for (const rate of [{ num: 30_000, den: 1_001 }, { num: 60_000, den: 1_001 }]) {
 		), 0);
 	});
 }
+
+test('a negative sequence start keeps its signed label at the origin', () => {
+	const view = resolveSequenceTimingView({
+		primarySequenceId: 'main',
+		sequences: [{ id: 'main', name: 'Main', rate: { num: 24, den: 1 }, dropFrame: false,
+			startTimecode: { negative: true, hours: 1, minutes: 0, seconds: 0, frames: 0 } }],
+	});
+	const seconds = sequenceDisplaySecondsAtSample(0, view, sampleRate);
+	assert.equal(seconds, -3_600);
+	assert.equal(sequenceTimeCodeLabelAtDisplaySeconds(seconds, view), '-01:00:00:00');
+});
