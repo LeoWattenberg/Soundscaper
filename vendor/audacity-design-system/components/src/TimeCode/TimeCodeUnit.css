@@ -68,3 +68,16 @@
 .timecode-unit[data-unit="period"] {
   width: auto;
 }
+
+@media (forced-colors: active) {
+  .timecode-unit {
+    forced-color-adjust: none;
+    color: CanvasText;
+    background-color: Canvas;
+  }
+
+  .timecode-unit:hover {
+    color: HighlightText;
+    background-color: Highlight;
+  }
+}

@@ -352,6 +352,15 @@
 	border-radius: 7px;
 }
 
+@media (forced-colors: active) {
+	.audio-editor-timeline-loading {
+		forced-color-adjust: none;
+		color: CanvasText;
+		background: Canvas;
+		border-color: CanvasText;
+	}
+}
+
 .audio-editor-timeline-panel {
 	position: relative;
 	display: flex;

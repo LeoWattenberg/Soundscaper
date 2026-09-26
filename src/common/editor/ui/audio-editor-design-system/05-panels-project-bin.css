@@ -213,6 +213,14 @@
 	color: #d7dce4;
 }
 
+@media (forced-colors: active) {
+	.kw-audio-editor__video-preview-empty {
+		forced-color-adjust: none;
+		color: CanvasText;
+		background: Canvas;
+	}
+}
+
 .kw-audio-editor__video-preview-status {
 	position: absolute;
 	z-index: 100;

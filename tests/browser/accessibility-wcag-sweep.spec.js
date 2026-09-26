@@ -37,7 +37,7 @@ test('the maintained routes match the recorded WCAG 2.2 AA baseline', async ({ p
 	for (const route of ROUTES) {
 		for (const condition of CONDITIONS) {
 			await page.setViewportSize(condition.viewport);
-			await page.emulateMedia(condition.media);
+			await page.emulateMedia({ forcedColors: null, reducedMotion: null, ...condition.media });
 			await bootEditor(page, route.path);
 			await settleFiniteAnimations(page);
 			const results = await new AxeBuilder({ page }).withTags([...WCAG_TAGS]).analyze();
