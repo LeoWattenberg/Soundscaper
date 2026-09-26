@@ -1422,6 +1422,7 @@
 		"invalidTimeValue": ["machine","Invalid time value.","Neplatná hodnota času."],
 		"invert": ["machine","Invert","Invertovat"],
 		"joinClips": ["machine","Join selected clips","Spojit vybrané klipy"],
+		"joinUsLink": ["human","Join us","Přidejte se k nám"],
 		"jumpEnd": ["machine","Jump to project end","Přejít na konec projektu"],
 		"jumpStart": ["machine","Jump to project start","Přejít na začátek projektu"],
 		"keyboardHelp": ["machine","Space: play · R: record · S: split · Delete: remove · Ctrl/Cmd + Z: undo","Mezerník: přehrát · R: nahrávat · S: rozdělit · Delete: odstranit · Ctrl/Cmd + Z: zpět"],

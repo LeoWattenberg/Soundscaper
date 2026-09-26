@@ -1422,6 +1422,7 @@
 		"invalidTimeValue": ["machine","Invalid time value.","Giá trị thời gian không hợp lệ."],
 		"invert": ["machine","Invert","Đảo pha"],
 		"joinClips": ["machine","Join selected clips","Nối các clip đã chọn"],
+		"joinUsLink": ["human","Join us","Tham gia cùng chúng tôi"],
 		"jumpEnd": ["machine","Jump to project end","Nhảy đến cuối dự án"],
 		"jumpStart": ["machine","Jump to project start","Nhảy đến đầu dự án"],
 		"keyboardHelp": ["machine","Space: play · R: record · S: split · Delete: remove · Ctrl/Cmd + Z: undo","Space: phát · R: ghi âm · S: tách · Delete: xoá · Ctrl/Cmd + Z: hoàn tác"],

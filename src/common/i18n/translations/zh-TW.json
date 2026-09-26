@@ -1422,6 +1422,7 @@
 		"invalidTimeValue": ["machine","Invalid time value.","時間數值無效。"],
 		"invert": ["machine","Invert","反相"],
 		"joinClips": ["machine","Join selected clips","接合選取的片段"],
+		"joinUsLink": ["human","Join us","加入我們"],
 		"jumpEnd": ["machine","Jump to project end","跳到專案結尾"],
 		"jumpStart": ["machine","Jump to project start","跳到專案開頭"],
 		"keyboardHelp": ["machine","Space: play · R: record · S: split · Delete: remove · Ctrl/Cmd + Z: undo","空白鍵：播放 · R：錄音 · S：分割 · Delete：移除 · Ctrl/Cmd + Z：復原"],

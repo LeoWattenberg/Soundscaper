@@ -1422,6 +1422,7 @@
 		"invalidTimeValue": ["machine","Invalid time value.","Nilai waktu tidak valid."],
 		"invert": ["machine","Invert","Balikkan"],
 		"joinClips": ["machine","Join selected clips","Gabungkan klip yang dipilih"],
+		"joinUsLink": ["human","Join us","Bergabunglah dengan kami"],
 		"jumpEnd": ["machine","Jump to project end","Lompat ke akhir proyek"],
 		"jumpStart": ["machine","Jump to project start","Lompat ke awal proyek"],
 		"keyboardHelp": ["machine","Space: play · R: record · S: split · Delete: remove · Ctrl/Cmd + Z: undo","Spasi: putar · R: rekam · S: pisah · Delete: hapus · Ctrl/Cmd + Z: urungkan"],

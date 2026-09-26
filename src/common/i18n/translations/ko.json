@@ -1422,6 +1422,7 @@
 		"invalidTimeValue": ["machine","Invalid time value.","유효하지 않은 시간 값"],
 		"invert": ["machine","Invert","반전"],
 		"joinClips": ["machine","Join selected clips","선택한 클립 연결"],
+		"joinUsLink": ["human","Join us","함께해요"],
 		"jumpEnd": ["machine","Jump to project end","프로젝트 끝으로 이동"],
 		"jumpStart": ["machine","Jump to project start","프로젝트 시작으로 이동"],
 		"keyboardHelp": ["machine","Space: play · R: record · S: split · Delete: remove · Ctrl/Cmd + Z: undo","스페이스바: 재생 · R: 녹음 · S: 분할 · 삭제: 제거 · Ctrl/Cmd + Z: 되돌리기"],

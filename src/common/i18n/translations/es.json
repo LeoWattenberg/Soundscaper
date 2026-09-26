@@ -1422,6 +1422,7 @@
 		"invalidTimeValue": ["machine","Invalid time value.","Valor de tiempo inválido."],
 		"invert": ["machine","Invert","Invertir"],
 		"joinClips": ["machine","Join selected clips","Unir clips seleccionados"],
+		"joinUsLink": ["human","Join us","Únete a nosotros"],
 		"jumpEnd": ["machine","Jump to project end","Ir al final del proyecto"],
 		"jumpStart": ["machine","Jump to project start","Ir al inicio del proyecto"],
 		"keyboardHelp": ["machine","Space: play · R: record · S: split · Delete: remove · Ctrl/Cmd + Z: undo","Barra espaciadora: reproducir · R: grabar · S: dividir · Eliminar: eliminar · Ctrl/Cmd + Z: deshacer"],

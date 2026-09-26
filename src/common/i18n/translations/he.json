@@ -1422,6 +1422,7 @@
 		"invalidTimeValue": ["machine","Invalid time value.","ערך זמן לא תקין."],
 		"invert": ["machine","Invert","היפוך"],
 		"joinClips": ["machine","Join selected clips","חיבור הקטעים הנבחרים"],
+		"joinUsLink": ["human","Join us","הצטרפו אלינו"],
 		"jumpEnd": ["machine","Jump to project end","קפיצה לסוף המיזם"],
 		"jumpStart": ["machine","Jump to project start","קפיצה לתחילת המיזם"],
 		"keyboardHelp": ["machine","Space: play · R: record · S: split · Delete: remove · Ctrl/Cmd + Z: undo","Space: השמע · R: הקלט · S: פצל · Delete: הסר · Ctrl/Cmd + Z: ביטול־ביצוע"],

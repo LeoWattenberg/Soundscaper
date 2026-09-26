@@ -1422,6 +1422,7 @@
 		"invalidTimeValue": ["machine","Invalid time value.","Недействительное значение времени."],
 		"invert": ["machine","Invert","Инвертировать"],
 		"joinClips": ["machine","Join selected clips","Соединить выбранные клипы"],
+		"joinUsLink": ["human","Join us","Присоединяйтесь к нам"],
 		"jumpEnd": ["machine","Jump to project end","Перейти к концу проекта"],
 		"jumpStart": ["machine","Jump to project start","Перейти к началу проекта"],
 		"keyboardHelp": ["machine","Space: play · R: record · S: split · Delete: remove · Ctrl/Cmd + Z: undo","Пробел: воспроизведение · R: запись · S: разделить · Удалить: удалить · Ctrl/Cmd + Z: отменить"],

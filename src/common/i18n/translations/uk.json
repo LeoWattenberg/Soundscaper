@@ -1422,6 +1422,7 @@
 		"invalidTimeValue": ["machine","Invalid time value.","Недійсне значення часу."],
 		"invert": ["machine","Invert","Інвертувати"],
 		"joinClips": ["machine","Join selected clips","З’єднати вибрані кліпи"],
+		"joinUsLink": ["human","Join us","Приєднуйтеся до нас"],
 		"jumpEnd": ["machine","Jump to project end","Перейти в кінець проєкту"],
 		"jumpStart": ["machine","Jump to project start","Перейти на початок проєкту"],
 		"keyboardHelp": ["machine","Space: play · R: record · S: split · Delete: remove · Ctrl/Cmd + Z: undo","Пробіл: відтворення · R: запис · S: розділення · Delete: видалення · Ctrl/Cmd + Z: скасування"],

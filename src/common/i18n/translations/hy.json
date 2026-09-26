@@ -1422,6 +1422,7 @@
 		"invalidTimeValue": ["machine","Invalid time value.","Անվավեր ժամանակի արժեք."],
 		"invert": ["machine","Invert","Շրջել"],
 		"joinClips": ["machine","Join selected clips","Միացնել ընտրված կլիպերը"],
+		"joinUsLink": ["human","Join us","Միացեք մեզ"],
 		"jumpEnd": ["machine","Jump to project end","Անցնել նախագծի վերջը"],
 		"jumpStart": ["machine","Jump to project start","Անցնել նախագծի սկիզբը"],
 		"keyboardHelp": ["machine","Space: play · R: record · S: split · Delete: remove · Ctrl/Cmd + Z: undo","Space: նվագարկում · R: ձայնագրում · S: բաժանում · Delete: հեռացում · Ctrl/Cmd + Z: հետարկում"],

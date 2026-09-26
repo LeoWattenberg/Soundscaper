@@ -1422,6 +1422,7 @@
 		"invalidTimeValue": ["machine","Invalid time value.","無効な時間値。"],
 		"invert": ["machine","Invert","反転"],
 		"joinClips": ["machine","Join selected clips","選択したクリップを結合"],
+		"joinUsLink": ["human","Join us","参加しよう"],
 		"jumpEnd": ["machine","Jump to project end","プロジェクトの終わりにジャンプ"],
 		"jumpStart": ["machine","Jump to project start","プロジェクトの始まりにジャンプ"],
 		"keyboardHelp": ["machine","Space: play · R: record · S: split · Delete: remove · Ctrl/Cmd + Z: undo","スペースキー: 再生 · R: 録音 · S: 分割 · 削除: 削除 · Ctrl/Cmd + Z: 元に戻す"],

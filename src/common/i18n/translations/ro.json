@@ -1422,6 +1422,7 @@
 		"invalidTimeValue": ["machine","Invalid time value.","Valoare timp invalidă."],
 		"invert": ["machine","Invert","Inversează"],
 		"joinClips": ["machine","Join selected clips","Unește clipurile selectate"],
+		"joinUsLink": ["human","Join us","Alătură-te nouă"],
 		"jumpEnd": ["machine","Jump to project end","Sare la sfârșitul proiectului"],
 		"jumpStart": ["machine","Jump to project start","Sare la începutul proiectului"],
 		"keyboardHelp": ["machine","Space: play · R: record · S: split · Delete: remove · Ctrl/Cmd + Z: undo","Spațiu: redare · R: înregistrare · S: împărțire · Ștergere: eliminare · Ctrl/Cmd + Z: revenire"],

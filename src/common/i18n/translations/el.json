@@ -1422,6 +1422,7 @@
 		"invalidTimeValue": ["machine","Invalid time value.","Μη έγκυρη τιμή χρόνου."],
 		"invert": ["machine","Invert","Αντιστροφή"],
 		"joinClips": ["machine","Join selected clips","Ένωση επιλεγμένων κλιπ"],
+		"joinUsLink": ["human","Join us","Ελάτε μαζί μας"],
 		"jumpEnd": ["machine","Jump to project end","Μετάβαση στο τέλος του έργου"],
 		"jumpStart": ["machine","Jump to project start","Μετάβαση στην αρχή του έργου"],
 		"keyboardHelp": ["machine","Space: play · R: record · S: split · Delete: remove · Ctrl/Cmd + Z: undo","Space: αναπαραγωγή · R: εγγραφή · S: διαχωρισμός · Delete: αφαίρεση · Ctrl/Cmd + Z: αναίρεση"],

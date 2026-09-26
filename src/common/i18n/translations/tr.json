@@ -1422,6 +1422,7 @@
 		"invalidTimeValue": ["machine","Invalid time value.","Geçersiz zaman değeri."],
 		"invert": ["machine","Invert","Evir"],
 		"joinClips": ["machine","Join selected clips","Seçili klipleri birleştir"],
+		"joinUsLink": ["human","Join us","Bize katılın"],
 		"jumpEnd": ["machine","Jump to project end","Proje sonuna atla"],
 		"jumpStart": ["machine","Jump to project start","Proje başına atla"],
 		"keyboardHelp": ["machine","Space: play · R: record · S: split · Delete: remove · Ctrl/Cmd + Z: undo","Boşluk: oynat · R: kaydet · S: böl · Delete: kaldır · Ctrl/Cmd + Z: geri al"],

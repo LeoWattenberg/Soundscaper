@@ -1422,6 +1422,7 @@
 		"invalidTimeValue": ["machine","Invalid time value.","अमान्य समय मान।"],
 		"invert": ["machine","Invert","उलटें"],
 		"joinClips": ["machine","Join selected clips","चयनित क्लिप जोड़ें"],
+		"joinUsLink": ["human","Join us","हमसे जुड़ें"],
 		"jumpEnd": ["machine","Jump to project end","परियोजना के अंत पर जाएं"],
 		"jumpStart": ["machine","Jump to project start","परियोजना के आरंभ पर जाएं"],
 		"keyboardHelp": ["machine","Space: play · R: record · S: split · Delete: remove · Ctrl/Cmd + Z: undo","स्पेस: बजाएं · R: रिकॉर्ड · S: विभाजित करें · Delete: हटाएं · Ctrl/Cmd + Z: पूर्ववत करें"],

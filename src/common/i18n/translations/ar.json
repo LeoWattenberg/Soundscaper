@@ -1422,6 +1422,7 @@
 		"invalidTimeValue": ["machine","Invalid time value.","قيمة وقت غير صالحة."],
 		"invert": ["machine","Invert","عكس"],
 		"joinClips": ["machine","Join selected clips","ربط المقاطع المحددة"],
+		"joinUsLink": ["human","Join us","انضم إلينا"],
 		"jumpEnd": ["machine","Jump to project end","القفز إلى نهاية المشروع"],
 		"jumpStart": ["machine","Jump to project start","القفز إلى بداية المشروع"],
 		"keyboardHelp": ["machine","Space: play · R: record · S: split · Delete: remove · Ctrl/Cmd + Z: undo","مسافة: تشغيل · R: تسجيل · S: تقسيم · حذف: إزالة · Ctrl/Cmd + Z: التراجع"],

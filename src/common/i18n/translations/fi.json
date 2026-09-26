@@ -1422,6 +1422,7 @@
 		"invalidTimeValue": ["machine","Invalid time value.","Virheellinen aika-arvo."],
 		"invert": ["machine","Invert","Invertoi"],
 		"joinClips": ["machine","Join selected clips","Yhdistä valitut klipit"],
+		"joinUsLink": ["human","Join us","Liity mukaan"],
 		"jumpEnd": ["machine","Jump to project end","Siirry projektin loppuun"],
 		"jumpStart": ["machine","Jump to project start","Siirry projektin alkuun"],
 		"keyboardHelp": ["machine","Space: play · R: record · S: split · Delete: remove · Ctrl/Cmd + Z: undo","Välilyönti: toisto · R: äänitys · S: jako · Delete: poisto · Ctrl/Cmd + Z: kumoa"],

@@ -1422,6 +1422,7 @@
 		"invalidTimeValue": ["machine","Invalid time value.","مقدار زمان نامعتبر است."],
 		"invert": ["machine","Invert","معکوس کردن"],
 		"joinClips": ["machine","Join selected clips","پیوند کلیپ‌های انتخاب‌شده"],
+		"joinUsLink": ["human","Join us","به ما بپیوندید"],
 		"jumpEnd": ["machine","Jump to project end","پرش به پایان پروژه"],
 		"jumpStart": ["machine","Jump to project start","پرش به آغاز پروژه"],
 		"keyboardHelp": ["machine","Space: play · R: record · S: split · Delete: remove · Ctrl/Cmd + Z: undo","Space: پخش · R: ضبط · S: تقسیم · Delete: حذف · Ctrl/Cmd + Z: برگردان"],
