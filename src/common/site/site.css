@@ -148,11 +148,9 @@ html, body { color: var(--website-color-ink); background: var(--website-color-su
 	border-inline-end: 1px solid var(--website-color-line);
 	transition: width 160ms ease, padding 160ms ease;
 }
-.website-brand { display: grid; gap: 8px; color: var(--website-color-ink); text-decoration: none; }
+.website-brand { display: flex; align-items: center; gap: 10px; color: var(--website-color-ink); text-decoration: none; }
 .website-brand img { width: 48px; height: 48px; }
-.website-brand-name { color: var(--website-color-ink); font-size: 1.15rem; font-weight: 700; }
 .website-brand strong { color: var(--website-color-accent-dark); font-size: 1.05rem; letter-spacing: 0.02em; }
-.website-logo-small { display: none; }
 .website-sidebar-collapse {
 	align-self: flex-end;
 	width: 32px;
@@ -169,7 +167,8 @@ html, body { color: var(--website-color-ink); background: var(--website-color-su
 .website-sidebar-collapse:hover { color: var(--website-color-accent-dark); background: var(--website-color-surface-alt); }
 .website-sidebar-content { display: contents; }
 .website-sidebar-nav { display: grid; gap: 4px; margin-top: 34px; }
-.website-sidebar-link { padding: 10px 12px; color: var(--website-color-muted); border-radius: 6px; font-weight: 800; text-decoration: none; }
+.website-sidebar-link { display: flex; align-items: center; gap: 10px; padding: 10px 12px; color: var(--website-color-muted); border-radius: 6px; font-weight: 800; text-decoration: none; }
+.website-sidebar-link img { flex: none; width: 24px; height: 24px; }
 .website-sidebar-link:hover, .website-sidebar-link.website-is-active { color: var(--website-color-accent-dark); background: var(--website-color-surface-alt); }
 .website-sidebar-settings { display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px; margin-top: auto; padding-top: 20px; }
 .website-sidebar-settings h2 { margin: 0 0 2px; color: var(--website-color-muted); font-size: 0.8rem; font-weight: 900; letter-spacing: 0.08em; text-transform: uppercase; }
@@ -215,10 +214,8 @@ html, body { color: var(--website-color-ink); background: var(--website-color-su
 :root[dir='rtl'] .website-theme-toggle[aria-pressed='true'] .website-theme-toggle-thumb { transform: translateX(-16px); }
 .website-site-sidebar[data-collapsed='true'] { width: 72px; padding: 20px 12px; align-items: center; }
 .website-site-sidebar[data-collapsed='true'] .website-brand { align-items: center; }
-.website-site-sidebar[data-collapsed='true'] .website-logo-wide,
-.website-site-sidebar[data-collapsed='true'] .website-brand-name,
 .website-site-sidebar[data-collapsed='true'] .website-brand strong { display: none; }
-.website-site-sidebar[data-collapsed='true'] .website-logo-small { display: block; width: 42px; }
+.website-site-sidebar[data-collapsed='true'] .website-brand img { width: 42px; height: 42px; }
 .website-site-sidebar[data-collapsed='true'] .website-sidebar-collapse { align-self: center; margin-top: 16px; }
 .website-site-sidebar[data-collapsed='true'] .website-sidebar-collapse span { display: block; transform: rotate(180deg); }
 :root[dir='rtl'] .website-site-sidebar[data-collapsed='true'] .website-sidebar-collapse span { transform: rotate(180deg) scaleX(-1); }
@@ -231,10 +228,7 @@ html, body { color: var(--website-color-ink); background: var(--website-color-su
 	.website-site-sidebar[data-collapsed='true'] { width: 100%; padding: 14px 16px; align-items: stretch; }
 	.website-sidebar-collapse { display: none; }
 	.website-site-sidebar[data-collapsed='true'] .website-sidebar-content { display: contents; }
-	.website-brand { grid-template-columns: auto 1fr; align-items: center; }
-	.website-brand .website-logo-wide { display: none !important; }
-	.website-brand .website-brand-name { display: none; }
-	.website-brand .website-logo-small { display: block; width: 42px; }
+	.website-brand img { width: 42px; height: 42px; }
 	.website-sidebar-nav { display: flex; gap: 6px; margin-top: 12px; overflow-x: auto; }
 	.website-sidebar-link { flex: 0 0 auto; }
 	.website-sidebar-settings { margin-top: 12px; padding-top: 0; }

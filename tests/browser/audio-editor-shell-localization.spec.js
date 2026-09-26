@@ -28,8 +28,17 @@ test.describe('audio editor React/design-system workflows', () => {
 		await page.goto('/en/');
 		await expect(page.locator('.website-site-sidebar')).toBeVisible();
 		await expect(page.locator('.website-brand')).toContainText('Soundscaper');
-		await expect(page.locator('.website-logo-wide')).toHaveAttribute('src', '/logo/mindscaper.svg');
+		await expect(page.locator('.website-brand')).not.toContainText('Mindscaper');
+		await expect(page.locator('.website-brand img')).toHaveAttribute('src', '/logo/soundscaper.svg');
+		await expect(page.locator('.website-brand img')).toBeVisible();
+		await expect(page.locator('.website-sidebar-nav img').first()).toHaveAttribute('src', '/logo/soundscaper.svg');
+		await expect(page.locator('.website-sidebar-nav img').last()).toHaveAttribute('src', '/logo/framescaper.svg');
+		await expect(page.locator('.website-sidebar-nav img').first()).toBeVisible();
+		await expect(page.locator('.website-sidebar-nav img').last()).toBeVisible();
+		await expect(page.getByRole('link', { name: 'More Mindscaper tools' })).toHaveCount(0);
 		await expect(page.locator('link[rel="icon"][href="/logo/soundscaper.svg"]')).toHaveCount(1);
+		await page.getByRole('button', { name: 'Collapse navigation' }).click();
+		await expect(page.locator('.website-brand img')).toBeVisible();
 
 		await page.goto('/embed/en/');
 		await expect(page.locator('.website-site-sidebar')).toHaveCount(0);
@@ -88,7 +97,8 @@ test.describe('audio editor React/design-system workflows', () => {
 		await page.goto(resolveBrowserProductTestUrl('/framescaper/en/'));
 		const editor = await waitForEditor(page);
 		await expect(page.locator('link[rel="icon"][href="/logo/framescaper.svg"]')).toHaveCount(1);
-		await expect(page.locator('.website-logo-small')).toHaveAttribute('src', '/logo/framescaper.svg');
+		await expect(page.locator('.website-brand img')).toHaveAttribute('src', '/logo/framescaper.svg');
+		await expect(page.locator('.website-brand img')).toBeVisible();
 		await expect(editor.locator('.kw-audio-editor__application-mark')).toHaveAttribute('src', '/logo/framescaper.svg');
 		const workspaceSelect = page.locator('[data-sidebar] [data-workspace-select]');
 		const settingsSection = page.locator('[data-sidebar] .website-sidebar-settings');

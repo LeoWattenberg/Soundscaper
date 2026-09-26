@@ -203,7 +203,7 @@ test('a Framescaper rail names its own workspace and links across to the other o
 	}
 });
 
-test('the rail uses Mindscaper branding and working parent-site destinations', async () => {
+test('the rail uses each product logo and keeps the parent-site about link', async () => {
 	for (const [productId, locale, parentSite] of [
 		['soundscaper', 'en', 'https://mindscaper.org/'],
 		['framescaper', 'de', 'https://mindscaper.org/de/'],
@@ -212,15 +212,19 @@ test('the rail uses Mindscaper branding and working parent-site destinations', a
 		try {
 			await context.render(productId, locale);
 			const brand = context.dom.one('.website-brand');
-			assert.equal(brand.querySelector('.website-logo-wide')?.getAttribute('src'), '/logo/mindscaper.svg');
-			assert.equal(brand.querySelector('.website-logo-wide')?.getAttribute('alt'), 'Mindscaper');
-			assert.equal(brand.querySelector('.website-brand-name')?.textContent, 'Mindscaper');
-			assert.equal(brand.querySelector('.website-logo-small')?.getAttribute('src'), `/logo/${productId}.svg`);
-			const parentLinks = context.dom.one('.website-sidebar-nav').querySelectorAll('a').slice(2, 4);
-			assert.deepEqual(parentLinks.map((link) => link.getAttribute('href')), [
-				`${parentSite}#projects`,
-				`${parentSite}#mission`,
+			assert.equal(brand.querySelectorAll('img').length, 1);
+			assert.equal(brand.querySelector('img')?.getAttribute('src'), `/logo/${productId}.svg`);
+			assert.equal(brand.querySelector('img')?.getAttribute('alt'), '');
+			assert.equal(brand.textContent, productId === 'soundscaper' ? 'Soundscaper' : 'Framescaper');
+			const links = context.dom.one('.website-sidebar-nav').querySelectorAll('a');
+			const otherProductId = productId === 'soundscaper' ? 'framescaper' : 'soundscaper';
+			assert.deepEqual(links.slice(0, 2).map((link) => link.querySelector('img')?.getAttribute('src')), [
+				`/logo/${productId}.svg`,
+				`/logo/${otherProductId}.svg`,
 			]);
+			assert.deepEqual(links.slice(0, 2).map((link) => link.querySelector('img')?.getAttribute('alt')), ['', '']);
+			assert.equal(links.some((link) => link.getAttribute('href') === `${parentSite}#projects`), false);
+			assert.equal(links[2]?.getAttribute('href'), `${parentSite}#mission`);
 		} finally {
 			await context.close();
 		}
