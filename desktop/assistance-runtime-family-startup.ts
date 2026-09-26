@@ -20,6 +20,7 @@ import {
 } from './assistance-runtime-family-manifest.ts';
 import {
 	createAssistanceRuntimeFamilyOperationAdapter,
+	type AssistanceRuntimeFamilyFailureDiagnostic,
 	type AssistanceRuntimeFamilyOperationAdapter,
 } from './assistance-runtime-family-operation-adapter.ts';
 import type { AssistancePowerEtiquettePort } from './assistance-power-etiquette-v1.ts';
@@ -94,6 +95,11 @@ export function createAssistanceRuntimeFamilyDesktopStartup(
 	return Object.freeze({
 		operations: createAssistanceRuntimeFamilyOperationAdapter({
 			router,
+			...(process.env.SOUNDSCAPER_LOCAL_ASSISTANCE_REAL_MODELS === '1' ? {
+				onRuntimeFailure: (diagnostic: AssistanceRuntimeFamilyFailureDiagnostic) => {
+					console.error(`[local-assistance-runtime-family] ${JSON.stringify(diagnostic)}`);
+				},
+			} : {}),
 			...(options.ensureKokoroRuntime === undefined ? {} : {
 				beforeRun: async (request) => {
 					if (request.task === 'text-to-speech') await options.ensureKokoroRuntime?.(request.signal);

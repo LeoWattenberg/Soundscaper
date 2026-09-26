@@ -143,7 +143,11 @@ async function executeLlamaCppEditorial(
 		env: restrictedEnvironment(files.root),
 	}));
 	context.signal?.throwIfAborted();
-	const reviewed = reviewAssistanceEditorialGenerationOutputV1(plan, stdout);
+	let reviewed: ReturnType<typeof reviewAssistanceEditorialGenerationOutputV1>;
+	try { reviewed = reviewAssistanceEditorialGenerationOutputV1(plan, stdout); }
+	catch (cause) {
+		throw new Error('The llama.cpp editorial output failed closed review.', { cause });
+	}
 	const body = Buffer.from(JSON.stringify(reviewed), 'utf8');
 	if (body.byteLength < 1 || body.byteLength > output.maximumByteLength) {
 		throw new RangeError('The normalized llama.cpp output exceeds its authenticated bound.');
@@ -292,7 +296,10 @@ async function runCli(options: Readonly<{
 			options.signal?.removeEventListener('abort', abort);
 			if (pendingFailure) { reject(pendingFailure); return; }
 			if (code !== 0 || processSignal !== null) {
-				reject(new Error('The authenticated llama.cpp CLI did not complete successfully.'));
+				const exitCode = code !== null && Number.isSafeInteger(code)
+					? String(code) : 'unknown';
+				reject(new Error(`The authenticated llama.cpp CLI did not complete successfully `
+					+ `(exit code ${exitCode}${processSignal === null ? '' : ', terminated by signal'}).`));
 				return;
 			}
 			const result = new Uint8Array(stdoutBytes);

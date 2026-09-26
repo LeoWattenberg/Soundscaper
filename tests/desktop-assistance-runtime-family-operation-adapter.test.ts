@@ -8,6 +8,7 @@ import { join } from 'node:path';
 import test, { type TestContext } from 'node:test';
 
 import {
+	assistanceRuntimeFamilyFailureDiagnostic,
 	createAssistanceRuntimeFamilyOperationAdapter,
 	runtimeFamilyForAssistanceTask,
 } from '../desktop/assistance-runtime-family-operation-adapter.ts';
@@ -134,6 +135,71 @@ test('operation adapter preserves cancellation and maps typed payload/adapter un
 	const controller = new AbortController();
 	controller.abort(new DOMException('stop', 'AbortError'));
 	await assert.rejects(unavailable.run({ ...request, signal: controller.signal }), /stop|abort/iu);
+});
+
+test('runtime-family failure diagnostics contain only closed categories and a safe CLI exit code', () => {
+	const failedCli = new AssistanceRuntimeFamilyError('worker-error', 'llama-cpp',
+		'The authenticated llama.cpp CLI did not complete successfully (exit code 7). '
+			+ 'C:\\Users\\private\\model.gguf', JOB_ID);
+	const diagnostic = assistanceRuntimeFamilyFailureDiagnostic(failedCli, 'editorial-generation');
+	assert.deepEqual(diagnostic, {
+		familyId: 'llama-cpp', task: 'editorial-generation', code: 'worker-error',
+		stage: 'cli-exit', exitCode: 7,
+	});
+	assert.doesNotMatch(JSON.stringify(diagnostic), /private|model\.gguf|Users/u);
+	for (const code of [-1073741819, 3221225477]) {
+		assert.equal(assistanceRuntimeFamilyFailureDiagnostic(
+			new AssistanceRuntimeFamilyError('worker-error', 'llama-cpp',
+				`The authenticated llama.cpp CLI did not complete successfully (exit code ${String(code)}).`, JOB_ID),
+			'editorial-generation').exitCode, code);
+	}
+	assert.equal(assistanceRuntimeFamilyFailureDiagnostic(
+		new AssistanceRuntimeFamilyError('worker-error', 'llama-cpp',
+			'The llama.cpp editorial output failed closed review.', JOB_ID),
+		'editorial-generation').stage, 'output-review');
+	assert.deepEqual(assistanceRuntimeFamilyFailureDiagnostic(
+		new AssistanceRuntimeFamilyError('runtime-exit', 'llama-cpp',
+			'C:\\Users\\private\\runtime', JOB_ID), 'editorial-generation'), {
+		familyId: 'llama-cpp', task: 'editorial-generation', code: 'runtime-exit',
+		stage: 'router', exitCode: null,
+	});
+	assert.deepEqual(assistanceRuntimeFamilyFailureDiagnostic(
+		new AssistanceRuntimeFamilyError('runtime-exit', 'llama-cpp',
+			'llama-cpp exited unexpectedly with code -1073741819.', JOB_ID),
+		'editorial-generation'), {
+		familyId: 'llama-cpp', task: 'editorial-generation', code: 'runtime-exit',
+		stage: 'router', exitCode: -1073741819,
+	});
+	assert.equal(assistanceRuntimeFamilyFailureDiagnostic(
+		new AssistanceRuntimeFamilyError('resource-violation', 'llama-cpp',
+			'The runtime-family process exceeded its admitted resident-set limit.', JOB_ID),
+		'editorial-generation').stage, 'resource-rss');
+});
+
+test('operation adapter reports a safe runtime failure without changing unavailable outcomes', async (t) => {
+	const paths = await files(t);
+	const diagnostics: unknown[] = [];
+	const adapter = createAssistanceRuntimeFamilyOperationAdapter({
+		router: { run: async () => { throw new AssistanceRuntimeFamilyError('worker-error',
+			'onnxruntime-node', `Unexpected failure at ${paths.modelPath}`, JOB_ID); } },
+		onRuntimeFailure: (diagnostic) => { diagnostics.push(diagnostic); },
+	});
+	const outcome = await adapter.run({
+		jobId: JOB_ID, task: 'shot-detection', settings: { schemaVersion: 1 },
+		maximumRssBytes: 1024, maximumDurationMs: 1000,
+		inputs: [{ claim: { claimVersion: 1, claimId: INPUT_ID, jobId: JOB_ID,
+			role: 'video', mediaType: 'video/mp4', byteLength: 5, sha256: digest('input') },
+			path: paths.inputPath }],
+		models: [{ modelId: 'transnetv2', version: '1', artifactRole: 'network',
+			path: paths.modelPath, byteLength: 5, sha256: digest('model') }],
+		outputs: [{ reservation: { claimVersion: 1, claimId: OUTPUT_ID, jobId: JOB_ID,
+			role: 'shot-boundaries', mediaType: 'application/json', maximumByteLength: 10 },
+			path: paths.outputPath }],
+	});
+	assert.deepEqual(outcome, { outcome: 'unavailable', reason: 'runtime-unavailable' });
+	assert.deepEqual(diagnostics, [{ familyId: 'onnxruntime-node', task: 'shot-detection',
+		code: 'worker-error', stage: 'worker', exitCode: null }]);
+	assert.doesNotMatch(JSON.stringify(diagnostics), /model\.onnx|assistance-family-operation/u);
 });
 
 test('operation adapter rejects non-canonical settings before granting filesystem paths', async () => {

@@ -218,6 +218,30 @@ test('the llama.cpp worker derives the closed prompt from deterministic ranked c
 	assert.deepEqual(JSON.parse((await readFile(paths.output)).toString()), VALID_PROPOSAL);
 });
 
+test('a nonzero llama.cpp exit reports signed or unsigned status without stderr paths', async (context) => {
+	const { job, paths } = await fixture(context);
+	for (const code of [7, -1073741819, 3221225477]) {
+		const spawn: AssistanceLlamaCppSpawn = () => {
+			const child = new FakeChild();
+			queueMicrotask(() => {
+				child.stderr.write('failed at C:\\Users\\private\\model.gguf');
+				child.emit('close', code, null);
+			});
+			return child;
+		};
+		const worker = createAssistanceLlamaCppWorkerSpawnerV1({ spawn })(job, {
+			onProgress: () => undefined,
+		});
+		await assert.rejects(worker.completion, (error: unknown) => {
+			assert.ok(error instanceof Error);
+			assert.match(error.message, new RegExp(`exit code ${String(code)}`, 'u'));
+			assert.doesNotMatch(error.message, /private|model\.gguf/u);
+			return true;
+		});
+	}
+	assert.equal((await readFile(paths.output)).byteLength, 0);
+});
+
 test('unsafe editorial text is refused before the reservation is populated', async (context) => {
 	const { job, paths } = await fixture(context);
 	const unsafe = {
@@ -239,7 +263,12 @@ test('unsafe editorial text is refused before the reservation is populated', asy
 	const worker = createAssistanceLlamaCppWorkerSpawnerV1({ spawn })(job, {
 		onProgress: () => undefined,
 	});
-	await assert.rejects(worker.completion, /path|URI|inert|editorial/iu);
+	await assert.rejects(worker.completion, (error: unknown) => {
+		assert.ok(error instanceof Error);
+		assert.equal(error.message, 'The llama.cpp editorial output failed closed review.');
+		assert.doesNotMatch(error.message, /\/tmp|run-this/u);
+		return true;
+	});
 	assert.equal((await readFile(paths.output)).byteLength, 0);
 });
 

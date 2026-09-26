@@ -10,6 +10,7 @@ import {
 } from './assistance-runtime-family-file-grants.ts';
 import {
 	AssistanceRuntimeFamilyError,
+	type AssistanceRuntimeFamilyErrorCode,
 	type AssistanceRuntimeFamilyRunOptions,
 } from './assistance-runtime-family-host.ts';
 import {
@@ -60,6 +61,63 @@ export interface AssistanceRuntimeFamilyOperationAdapterOptions {
 		run(value: unknown, options?: AssistanceRuntimeFamilyRunOptions): Promise<unknown>;
 	}>;
 	readonly beforeRun?: (request: AssistanceRuntimeFamilyOperationRequest) => Promise<void>;
+	readonly onRuntimeFailure?: (diagnostic: AssistanceRuntimeFamilyFailureDiagnostic) => void;
+}
+
+export interface AssistanceRuntimeFamilyFailureDiagnostic {
+	readonly familyId: AssistanceRuntimeFamilyId;
+	readonly task: AssistanceRuntimeFamilyTask;
+	readonly code: AssistanceRuntimeFamilyErrorCode;
+	readonly stage: 'router' | 'cli-start' | 'cli-execute' | 'cli-exit'
+		| 'cli-stdout-bound' | 'cli-stderr-bound' | 'output-review' | 'worker'
+		| 'resource-duration' | 'resource-rss' | 'resource-sample';
+	readonly exitCode: number | null;
+}
+
+/** A closed, pathless failure summary suitable for nightly process logs. */
+export function assistanceRuntimeFamilyFailureDiagnostic(
+	error: AssistanceRuntimeFamilyError,
+	task: AssistanceRuntimeFamilyTask,
+): AssistanceRuntimeFamilyFailureDiagnostic {
+	const message = error.message;
+	let stage: AssistanceRuntimeFamilyFailureDiagnostic['stage'] = 'router';
+	let exitCode: number | null = null;
+	if (error.code === 'runtime-exit') {
+		const match = /exited unexpectedly with code (-?\d+)\./u.exec(message);
+		if (match) {
+			const parsed = Number(match[1]);
+			if (Number.isSafeInteger(parsed)) exitCode = parsed;
+		}
+	} else if (error.code === 'resource-violation') {
+		if (message === 'The runtime-family job exceeded its admitted duration.') {
+			stage = 'resource-duration';
+		} else if (message === 'The runtime-family process exceeded its admitted resident-set limit.') {
+			stage = 'resource-rss';
+		} else if (message === 'The runtime-family process RSS could not be sampled.') {
+			stage = 'resource-sample';
+		}
+	} else if (error.code === 'worker-error') {
+		stage = 'worker';
+		if (message.startsWith('The authenticated llama.cpp CLI could not be started.')) {
+			stage = 'cli-start';
+		} else if (message.startsWith('The authenticated llama.cpp CLI failed to execute.')) {
+			stage = 'cli-execute';
+		} else if (message.startsWith('The authenticated llama.cpp CLI did not complete successfully')) {
+			stage = 'cli-exit';
+			const match = /\(exit code (-?\d+)\)/u.exec(message);
+			if (match) {
+				const parsed = Number(match[1]);
+				if (Number.isSafeInteger(parsed)) exitCode = parsed;
+			}
+		} else if (message.startsWith('The llama.cpp stdout exceeded its authenticated output bound.')) {
+			stage = 'cli-stdout-bound';
+		} else if (message.startsWith('The llama.cpp diagnostic output exceeded its bound.')) {
+			stage = 'cli-stderr-bound';
+		} else if (message === 'The llama.cpp editorial output failed closed review.') {
+			stage = 'output-review';
+		}
+	}
+	return Object.freeze({ familyId: error.familyId, task, code: error.code, stage, exitCode });
 }
 
 export function runtimeFamilyForAssistanceTask(
@@ -80,6 +138,9 @@ export function createAssistanceRuntimeFamilyOperationAdapter(
 ): AssistanceRuntimeFamilyOperationAdapter {
 	if (!options || !options.router || typeof options.router.run !== 'function') {
 		throw new TypeError('The runtime-family operation adapter needs one router.');
+	}
+	if (options.onRuntimeFailure !== undefined && typeof options.onRuntimeFailure !== 'function') {
+		throw new TypeError('The runtime-family failure reporter is invalid.');
 	}
 	return Object.freeze({
 		async run(request: AssistanceRuntimeFamilyOperationRequest) {
@@ -117,6 +178,9 @@ export function createAssistanceRuntimeFamilyOperationAdapter(
 			} catch (error) {
 				request.signal?.throwIfAborted();
 				if (!(error instanceof AssistanceRuntimeFamilyError)) throw error;
+				try {
+					options.onRuntimeFailure?.(assistanceRuntimeFamilyFailureDiagnostic(error, request.task));
+				} catch { /* Diagnostics cannot change an operation outcome. */ }
 				if (error.code === 'cancelled' || error.code === 'cancellation-timeout') throw error;
 				if (error.code === 'worker-error' && /adapter.*unavailable|no reviewed model adapter/iu
 					.test(error.message)) {
