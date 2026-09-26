@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { Button } from '@soundscaper/design-system/Button';
 import { ContextMenuItem } from '@soundscaper/design-system/ContextMenuItem';
@@ -11,6 +11,7 @@ import { TransportButton } from '@soundscaper/design-system/TransportButton';
 
 import { iconNameToChar } from '../../audacity-iconcodes.js';
 import { framesToSeconds, secondsToFrames } from '../../design-system-adapters.js';
+import { resolveSequenceTimingView } from '../../sequence-timing-model.ts';
 import AudioEditorSplitButton from '../AudioEditorSplitButton.tsx';
 import { useAudioEditorTelemetrySelector } from '../DesignSystemRuntime.jsx';
 import { formatOptionsLabel } from '../localization-template.ts';
@@ -20,6 +21,11 @@ import { AudioDevicesFlyout } from './AudioEditorMeterControls.jsx';
 import EditorTaskProgressBar from './EditorTaskProgressBar.tsx';
 import WorkspaceSwitcherControl from './WorkspaceSwitcherControl.jsx';
 import TransportAuditionMenu from './TransportAuditionMenu.tsx';
+import {
+	sequenceDisplaySecondsAtSample,
+	sequenceTimeCodeFormat,
+	sequenceTimeCodeLabelAtDisplaySeconds,
+} from './telemetry-timecode-model.ts';
 
 export function TelemetryPlayTransportControl({ copy, snapshot, blocked, controller, run }) {
 	const transportState = useAudioEditorTelemetrySelector(
@@ -276,28 +282,42 @@ export function TelemetryTimeCode({
 	copy,
 	project,
 	durationFrames,
-	isCompact,
 	recording,
 	run,
 }) {
-	const [format, setFormat] = useState('hh:mm:ss+hundredths');
+	const sequenceView = useMemo(() => project?.sequences?.length
+		? resolveSequenceTimingView(project) : null, [project]);
+	const defaultFormat = sequenceView ? sequenceTimeCodeFormat(sequenceView) : 'hh:mm:ss+hundredths';
+	const [format, setFormat] = useState(defaultFormat);
+	useEffect(() => setFormat(defaultFormat), [defaultFormat]);
 	const positionFrame = useAudioEditorTelemetrySelector(
 		controller,
 		(telemetry) => telemetry.positionFrame || 0,
 	);
-	return <div className="kw-audio-editor__timecode" data-time-display>
+	const sampleRate = project?.sampleRate || 48_000;
+	const frameRate = sequenceView ? sequenceView.rate.num / sequenceView.rate.den : 24;
+	const timeValue = sequenceView
+		? sequenceDisplaySecondsAtSample(positionFrame, sequenceView, sampleRate)
+		: framesToSeconds(positionFrame, { sampleRate });
+	const negative = timeValue < 0;
+	return <div className="kw-audio-editor__timecode" data-time-display data-negative={negative ? 'true' : undefined}>
+		{negative && <span className="kw-audio-editor__timecode-sign">−</span>}
 		<AccessibleTimeCode
 			ariaLabel={`${copy.playhead}: ${copy.format}`}
 			format={format}
 			onFormatChange={setFormat}
-			value={framesToSeconds(positionFrame, { sampleRate: project?.sampleRate })}
-			sampleRate={project?.sampleRate || 48_000}
-			showFormatSelector={!isCompact}
+			value={Math.abs(timeValue)}
+			sampleRate={sampleRate}
+			frameRate={frameRate}
+			showFormatSelector
 			disabled={recording}
-			onChange={(seconds) => run(() => controller.actions.transport.seek(secondsToFrames(seconds, {
-				maximumFrame: durationFrames,
-				sampleRate: project?.sampleRate,
-			})))}
+			onChange={(seconds) => run(() => sequenceView
+				? controller.actions.sequences.seekLabel(sequenceTimeCodeLabelAtDisplaySeconds(
+					negative ? -seconds : seconds, sequenceView,
+				))
+				: controller.actions.transport.seek(secondsToFrames(seconds, {
+					maximumFrame: durationFrames, sampleRate,
+				})))}
 		/>
 	</div>;
 }

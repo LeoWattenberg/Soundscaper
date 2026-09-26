@@ -56,7 +56,13 @@ export function timeCodeFormatOptionsForDomain(
 	frameRate = 24,
 ): readonly TimeCodeFormatOption[] {
 	if (domain === 'frequency') return FREQUENCY_FORMAT_OPTIONS;
+	const rateLabel = Number.isInteger(frameRate) ? String(frameRate)
+		: frameRate.toFixed(3).replace(/\.?0+$/u, '');
 	return TIME_FORMAT_OPTIONS.map((option) => ({
-		...option, label: option.label.replace('24fps', `${frameRate}fps`),
+		...option,
+		label: option.label.replace('24fps', `${rateLabel}fps`).replace(
+			'NTSC drop frames (29.97 fps)',
+			`NTSC drop frames (${Math.abs(frameRate - 60_000 / 1_001) < 0.001 ? '59.94' : '29.97'} fps)`,
+		),
 	}));
 }

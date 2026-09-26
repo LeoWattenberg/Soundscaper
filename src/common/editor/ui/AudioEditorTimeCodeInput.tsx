@@ -50,7 +50,7 @@ export default function AudioEditorTimeCodeInput({
 	name,
 	required = false,
 	className = '',
-	showFormatSelector = false,
+	showFormatSelector = true,
 	onFormatChange,
 	valueText,
 	describedBy,
@@ -58,7 +58,9 @@ export default function AudioEditorTimeCodeInput({
 	directEntryPrecision,
 }: AudioEditorTimeCodeInputProps) {
 	const [draft, setDraft] = useState(value);
+	const [displayFormat, setDisplayFormat] = useState(format);
 	useEffect(() => setDraft(value), [value]);
+	useEffect(() => setDisplayFormat(format), [format]);
 	const normalizedRate = editorTimeRate(unit, rate);
 	const normalizedValue = clampAudioEditorTimeValue(draft, minimum, maximum);
 	const directEntryValue = editorValueInUnit(normalizedValue, unit, directEntryUnit, normalizedRate);
@@ -97,14 +99,17 @@ export default function AudioEditorTimeCodeInput({
 			formatAriaLabel={`${label}: format`}
 			ariaDescribedBy={describedBy}
 			value={timeCodeSecondsFromEditorValue(Math.abs(normalizedValue), unit, normalizedRate)}
-			format={format}
+			format={displayFormat}
 			formatDomain="time"
 			sampleRate={unit === 'samples' ? normalizedRate : DEFAULT_SAMPLE_RATE}
 			frameRate={unit === 'frames' ? normalizedRate : DEFAULT_FRAME_RATE}
 			showFormatSelector={showFormatSelector}
 			disabled={disabled}
 			variant={variant}
-			onFormatChange={onFormatChange}
+			onFormatChange={(nextFormat) => {
+				setDisplayFormat(nextFormat);
+				onFormatChange?.(nextFormat);
+			}}
 			onChange={(seconds) => {
 				const magnitude = timeCodeSecondsToEditorValue(seconds, unit, normalizedRate);
 				const nextValue = clampAudioEditorTimeValue(

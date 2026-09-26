@@ -10,6 +10,11 @@
 	vertical-align: middle;
 }
 
+.audio-editor-timecode-input .timecode {
+	letter-spacing: normal;
+	text-transform: none;
+}
+
 .audio-editor-timecode-input__value {
 	position: absolute;
 	width: 1px;
@@ -38,4 +43,14 @@
 
 .audio-editor-timecode-input__sign:disabled {
 	opacity: 0.45;
+}
+
+.kw-audio-editor__timecode[data-negative='true'] {
+	display: inline-flex;
+	align-items: center;
+}
+
+.kw-audio-editor__timecode-sign {
+	color: var(--text);
+	font-variant-numeric: tabular-nums;
 }

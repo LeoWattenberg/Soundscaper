@@ -189,7 +189,8 @@ export function SelectionToolbar({
             sampleRate={sampleRate}
             frameRate={frameRate}
             onChange={onSelectionStartChange}
-            showFormatSelector={false}
+            onFormatChange={onFormatChange}
+            showFormatSelector={true}
           />
           <TimeCode
             value={endValue}
