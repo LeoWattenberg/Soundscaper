@@ -10,8 +10,20 @@ import { MEDIA_ASSET_STAGING_STORE_NAME } from '../src/common/editor/storage/med
 import { createVideoTimingAssetPublication } from '../src/common/editor/video-timing-asset.ts';
 import { createVideoProxyCandidateObserver } from '../src/common/editor/video-proxy-candidate-observation.ts';
 import {
-	createFramescaperCapturedVideoProxyScheduler,
+	createFramescaperCapturedVideoProxyScheduler as createRuntimeScheduler,
 } from '../src/framescaper/editor-captured-video-proxy-scheduler-runtime.ts';
+import { FramescaperDesktopProjectLibraryIndeterminateError } from
+	'../src/framescaper/desktop-project-library-errors.ts';
+import { createFramescaperDesktopProjectLibraryShadow } from
+	'../src/framescaper/desktop-project-library-shadow.ts';
+import { CapturedVideoProxyDesktopIndeterminateReconciliationError } from
+	'../src/framescaper/editor-captured-video-proxy-desktop-publication.ts';
+import { capturedVideoProxySchedulerDependencies } from
+	'../src/framescaper/editor-captured-video-proxy-scheduler-composition.ts';
+import type { CapturedVideoProxySchedulerDependencies } from
+	'../src/framescaper/editor-captured-video-proxy-scheduler-composition.ts';
+import { createFramescaperCapturedVideoProxyScheduler as createCoreScheduler } from
+	'../src/framescaper/editor-captured-video-proxy-scheduler.ts';
 import {
 	createFramescaperEditorProjectEnvironment,
 	type FramescaperEditorProjectEnvironment,
@@ -101,6 +113,29 @@ async function claims(database: IDBDatabase): Promise<unknown[]> {
 	));
 }
 
+function candidateObserver(onGenerate: () => void = () => undefined) {
+	return createVideoProxyCandidateObserver({
+		generator: {
+			id: 'test-capture-proxy-generator', version: 1,
+			generate: () => {
+				onGenerate();
+				return new Blob([CANDIDATE], { type: 'video/mp4' });
+			},
+		},
+		recipe: { id: 'test-capture-proxy-recipe', version: 1 },
+		probes: [{
+			id: 'test-exact-timing-probe',
+			probe: () => Promise.resolve({ nominalRate: { num: 10, den: 1 }, ...TIMING }),
+		}],
+	});
+}
+
+function deferred(): Readonly<{ promise: Promise<void>; resolve: () => void }> {
+	let resolve!: () => void;
+	const promise = new Promise<void>((value) => { resolve = value; });
+	return { promise, resolve };
+}
+
 test('generated captured proxy cleans both staged bodies after failed project CAS, then survives retry and reopen', async (context) => {
 	const indexedDB = createInstrumentedIndexedDB() as unknown as InstrumentedIndexedDB;
 	const value = await environment(indexedDB, context);
@@ -109,24 +144,8 @@ test('generated captured proxy cleans both staged bodies after failed project CA
 	const database = await authority.port.database();
 	assert.ok(database);
 	let generated = 0;
-	const candidateObserver = createVideoProxyCandidateObserver({
-		generator: {
-			id: 'test-capture-proxy-generator', version: 1,
-			generate: () => {
-				generated += 1;
-				return new Blob([CANDIDATE], { type: 'video/mp4' });
-			},
-		},
-		recipe: { id: 'test-capture-proxy-recipe', version: 1 },
-		probes: [{
-			id: 'test-exact-timing-probe',
-			probe: () => Promise.resolve({
-				nominalRate: { num: 10, den: 1 }, ...TIMING,
-			}),
-		}],
-	});
-	const scheduler = createFramescaperCapturedVideoProxyScheduler(value, session(), {
-		runtime: null, candidateObserver,
+	const scheduler = createRuntimeScheduler(value, session(), {
+		runtime: null, candidateObserver: candidateObserver(() => { generated += 1; }),
 	});
 	context.after(() => scheduler.dispose());
 	const scheduled = {
@@ -166,3 +185,130 @@ test('generated captured proxy cleans both staged bodies after failed project CA
 	);
 	assert.ok(await reopened.store.loadMediaAsset(TIMING_KEY));
 });
+
+for (const [name, mainCommits] of [
+	['committed main target and preserves both proxy bodies', true],
+	['unchanged main predecessor and cleans both proxy bodies', false],
+] as const) {
+	test(`desktop publication loses its acknowledgement; retry finds the ${name}`, { timeout: 20_000 }, async (context) => {
+		const indexedDB = createInstrumentedIndexedDB() as unknown as InstrumentedIndexedDB;
+		const value = await environment(indexedDB, context);
+		const base = await seedCapturedOriginal(value);
+		const authority = framescaperProjectStoreAuthority(PROFILE, value.store);
+		const database = await authority.port.database();
+		assert.ok(database);
+		const shadow = createFramescaperDesktopProjectLibraryShadow(PROFILE, value.store);
+		const retryEntered = deferred();
+		const allowRetry = deferred();
+		const cleanupFinished = deferred();
+		const acknowledgementFailure = new Error('main publication acknowledgement was lost');
+		let mainProject = base;
+		let attemptedTarget: Data | null = null;
+		let failReconciliationRead = false;
+		let retryPending = false;
+		let retryBlocked = false;
+		let publicationCalls = 0;
+		let generationCalls = 0;
+		const cleanup = {
+			result: null as Awaited<ReturnType<typeof value.claimCleanup.cleanupOperation>> | null,
+		};
+		const composed = capturedVideoProxySchedulerDependencies(value, session(), {
+			runtime: null,
+			candidateObserver: candidateObserver(() => { generationCalls += 1; }),
+			maximumReconciliationAttempts: 1,
+		});
+		const dependencies: CapturedVideoProxySchedulerDependencies = {
+			...composed,
+			loadAuthoritativeProject: async (projectId, signal) => {
+				assert.equal(projectId, PROJECT_ID);
+				if (failReconciliationRead) {
+					failReconciliationRead = false;
+					retryPending = true;
+					throw new Error('main read unavailable during acknowledgement recovery');
+				}
+				if (retryPending && !retryBlocked) {
+					retryBlocked = true;
+					retryEntered.resolve();
+					await allowRetry.promise;
+				}
+				return shadow.reconcileCommittedProject(mainProject, signal);
+			},
+			publishDesktopProject: async (project, _signal, beforeFinish) => {
+				publicationCalls += 1;
+				await beforeFinish?.();
+				attemptedTarget = project as Data;
+				if (mainCommits) mainProject = project as Data;
+				failReconciliationRead = true;
+				throw new FramescaperDesktopProjectLibraryIndeterminateError(
+					'publication', PROJECT_ID, acknowledgementFailure,
+				);
+			},
+			claimCleanup: {
+				cleanupOperation: async (operation, scope) => {
+					cleanup.result = await value.claimCleanup.cleanupOperation(operation, scope);
+					cleanupFinished.resolve();
+					return cleanup.result;
+				},
+			},
+		};
+		const scheduler = createCoreScheduler(dependencies);
+		context.after(() => scheduler.dispose());
+		const scheduled = {
+			projectId: PROJECT_ID, sourceId: SOURCE_ID, sessionId: 'capture-session',
+			expectedProjectRevision: Number(base.revision),
+			expectedContentSha256: bytesToHex(sha256(ORIGINAL)),
+		};
+
+		await assert.rejects(scheduler(scheduled), (error: unknown) => {
+			assert.ok(error instanceof CapturedVideoProxyDesktopIndeterminateReconciliationError);
+			assert.deepEqual(error.base, base);
+			assert.equal(error.target.revision, Number(base.revision) + 1);
+			return true;
+		});
+		await retryEntered.promise;
+		assert.equal(generationCalls, 1);
+		assert.equal(publicationCalls, 1);
+		assert.ok(attemptedTarget);
+		assert.deepEqual(mainProject, mainCommits ? attemptedTarget : base);
+		assert.deepEqual(await value.store.loadProject(PROJECT_ID), base);
+		assert.deepEqual(
+			(await claims(database) as Data[]).map(({ bodyKey }) => bodyKey).sort(),
+			[PROXY_KEY, TIMING_KEY].sort(),
+			'an uncertain commit must retain its exact two staged claims',
+		);
+		assert.ok(await mediaRow(database, PROXY_KEY));
+		assert.ok(await mediaRow(database, TIMING_KEY));
+
+		allowRetry.resolve();
+		await cleanupFinished.promise;
+		await scheduler.dispose();
+		const cleanupResult = cleanup.result;
+		assert.ok(cleanupResult);
+		assert.equal(cleanupResult.status, 'settled');
+		assert.equal(publicationCalls, 1, 'reconciliation must not publish a second project');
+		assert.equal(generationCalls, 1, 'reconciliation must not regenerate the proxy');
+		assert.deepEqual(await claims(database), []);
+		assert.deepEqual(await value.store.loadProject(PROJECT_ID), mainCommits ? attemptedTarget : base);
+		if (mainCommits) {
+			assert.equal(cleanupResult.promotedClaimKeys.length, 2);
+			assert.deepEqual(cleanupResult.cleanedBodyKeys, []);
+			const proxyRow = await mediaRow(database, PROXY_KEY);
+			const timingRow = await mediaRow(database, TIMING_KEY);
+			assert.ok(proxyRow);
+			assert.ok(timingRow);
+			assert.equal(Object.hasOwn(proxyRow, 'pendingProjectUntil'), false);
+			assert.equal(Object.hasOwn(timingRow, 'pendingProjectUntil'), false);
+		} else {
+			assert.deepEqual(cleanupResult.promotedClaimKeys, []);
+			assert.deepEqual([...cleanupResult.cleanedBodyKeys].sort(), [PROXY_KEY, TIMING_KEY].sort());
+			assert.equal(await mediaRow(database, PROXY_KEY), undefined);
+			assert.equal(await mediaRow(database, TIMING_KEY), undefined);
+		}
+		assert.ok(await mediaRow(database, SOURCE_ID), 'the captured original remains durable');
+		await value.close();
+		const reopened = await environment(indexedDB, context);
+		assert.deepEqual(await reopened.store.loadProject(PROJECT_ID), mainCommits ? attemptedTarget : base);
+		assert.equal(Boolean(await reopened.store.loadMediaAsset(PROXY_KEY)), mainCommits);
+		assert.equal(Boolean(await reopened.store.loadMediaAsset(TIMING_KEY)), mainCommits);
+	});
+}
