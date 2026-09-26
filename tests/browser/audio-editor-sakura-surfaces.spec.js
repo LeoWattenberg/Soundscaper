@@ -1,6 +1,6 @@
 import { resolveSkinTheme } from '../../src/common/editor/ui/skins/skin-themes.ts';
 import { expect, monoTone, test } from './audio-editor-test-fixtures.js';
-import { bootEditor, chooseCommandAction, chooseNestedCommandAction, importFiles, registerAudioEditorHooks } from './audio-editor-test-helpers.js';
+import { bootEditor, chooseCommandAction, chooseNestedCommandAction, closeWorkspacePanel, importFiles, registerAudioEditorHooks } from './audio-editor-test-helpers.js';
 
 const rgb = (hex) => `rgb(${[1, 3, 5].map((offset) => Number.parseInt(hex.slice(offset, offset + 2), 16)).join(', ')})`;
 for (const product of ['soundscaper', 'framescaper']) {
@@ -48,6 +48,7 @@ for (const product of ['soundscaper', 'framescaper']) {
 				const timing = properties.getByRole('tabpanel', { name: 'Sequence timing', exact: true });
 				await timing.getByRole('checkbox', { name: 'Timecode ruler', exact: true }).check();
 				await expect(editor.locator('[data-ruler] [data-sequence-timecode-ruler]')).toBeVisible();
+				await closeWorkspacePanel(editor, 'metadata');
 			} else {
 				await page.setViewportSize({ width: 2200, height: 1000 });
 				await chooseNestedCommandAction(page, editor, 'View', ['Workspace', 'Music']);

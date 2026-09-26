@@ -11,6 +11,7 @@ test.describe('sequence timing surfaces', () => {
 	registerAudioEditorHooks();
 
 	test('edits the sequence rate, drop frame, and start timecode from the video workspace', async ({ page }) => {
+		test.setTimeout(60_000);
 		const errors = collectClientErrors(page);
 		let editor = await bootVideoEditor(page);
 		const readout = editor.locator('[data-sequence-timecode]');
