@@ -12,6 +12,7 @@ import type {
 } from '../../src/common/editor/controller/recording/recording-transaction-types.ts';
 import type {
 	RecordingCaptureControllerLike,
+	RecordingSessionMutableState,
 	RecordingStartScope,
 } from '../../src/common/editor/controller/recording/internal/recording-session-service.ts';
 import { createRoutedRecordingController } from '../../src/common/editor/controller/recording/internal/recording-session-service.ts';
@@ -67,11 +68,42 @@ function createStream(channelCount = 2): RecordingMediaStream {
 	};
 }
 
-function createState(): Mutable<RecordingCaptureMutableState> {
+export function createEndingRecordingStream(channelCount = 1) {
+	let readyState = 'live';
+	const endedListeners = new Set<() => void>();
+	const track = {
+		get readyState() { return readyState; },
+		getSettings: () => ({ channelCount, latency: 0 }),
+		addEventListener: (_type: 'ended', listener: () => void) => { endedListeners.add(listener); },
+		removeEventListener: (_type: 'ended', listener: () => void) => { endedListeners.delete(listener); },
+	};
+	const stream: RecordingMediaStream = {
+		getAudioTracks: () => [track],
+		getTracks: () => [track],
+		getVideoTracks: () => [track],
+	};
+	return Object.freeze({
+		stream,
+		end() {
+			if (readyState === 'ended') return;
+			readyState = 'ended';
+			for (const listener of [...endedListeners]) listener();
+		},
+	});
+}
+
+function createState(): Mutable<RecordingCaptureMutableState & RecordingSessionMutableState> {
 	return {
 		readOnly: false,
+		disposed: false,
+		projectBinPreview: null,
 		recordingStarting: false,
 		recordingStartGeneration: 1,
+		recordingStartPromise: null,
+		recordingKind: null,
+		timedRecordingPreparing: false,
+		timedRecording: null,
+		activeTimedRecording: null,
 		recorder: null,
 		recordingFatalError: null,
 		recordingDiscardRequested: false,
@@ -90,6 +122,8 @@ function createState(): Mutable<RecordingCaptureMutableState> {
 		recordingResampler: null,
 		recordingSampleRate: null,
 		recordingCleanup: null,
+		recordingFinalizePromise: null,
+		recordingReleaseAfterStop: false,
 		latencyOffsetMs: 0,
 		monitoring: false,
 		recordingInputGain: 1,
@@ -123,7 +157,8 @@ interface RuntimeOptions {
 	) => Promise<RecordingCaptureControllerLike>;
 	readonly selection?: RecordingSelection | null;
 	readonly playAt?: (scheduledTime: number, startFrame: number) => Promise<number | void>;
-	readonly streamIsLive?: () => boolean;
+	readonly reportStoppedOnStop?: boolean;
+	readonly streamIsLive?: RoutedRecordingCaptureRuntime['recordingStreamIsLive'];
 	readonly soundActivationSettings?: SoundActivationSettings | null;
 	readonly streamChannelCount?: number;
 }
@@ -153,6 +188,8 @@ export function createRecordingCaptureFixture(options: RuntimeOptions = {}) {
 		sourceId: string;
 		writes: Float32Array[][];
 		writer: RecordingSourceWriter;
+		commits: () => number;
+		aborts: () => number;
 	}>> = [];
 	const previewSegments: Array<Readonly<{ trackId: string; channels: Float32Array[] }>> = [];
 	const soundActivationStates: Array<Readonly<{
@@ -232,6 +269,8 @@ export function createRecordingCaptureFixture(options: RuntimeOptions = {}) {
 		createRecordingName: () => 'Recording 10:00',
 		openSourceWriter: async (sourceId) => {
 			let framesWritten = 0;
+			let commits = 0;
+			let aborts = 0;
 			const writes: Float32Array[][] = [];
 			const writer: RecordingSourceWriter = {
 				get framesWritten() { return framesWritten; },
@@ -240,10 +279,19 @@ export function createRecordingCaptureFixture(options: RuntimeOptions = {}) {
 					writes.push(copy);
 					framesWritten += copy[0]?.length || 0;
 				},
-				async commit() { return { name: 'Take', channelCount: writes[0]?.length || 1 }; },
-				async abort() {},
+				async commit() {
+					commits += 1;
+					return { name: 'Take', channelCount: writes[0]?.length || 1 };
+				},
+				async abort() { aborts += 1; },
 			};
-			writerRecords.push(Object.freeze({ sourceId, writes, writer }));
+			writerRecords.push(Object.freeze({
+				sourceId,
+				writes,
+				writer,
+				commits: () => commits,
+				aborts: () => aborts,
+			}));
 			return writer;
 		},
 		createPreview: ({ trackId, startFrame, framesToSkip, timelineMode }) => createPreview(
@@ -261,7 +309,10 @@ export function createRecordingCaptureFixture(options: RuntimeOptions = {}) {
 		},
 		scaleFrames: (frames) => frames,
 		streamAudioChannelCount: (mediaStream) => mediaStream.getAudioTracks()[0]?.getSettings?.().channelCount || 1,
-		recordingStreamIsLive: () => options.streamIsLive?.() ?? true,
+		recordingStreamIsLive: (mediaStream, kind) => options.streamIsLive?.(mediaStream, kind)
+			?? (mediaStream.getAudioTracks().some((track) => track.readyState !== 'ended')
+				&& (kind !== 'display'
+					|| Boolean(mediaStream.getVideoTracks?.().some((track) => track.readyState !== 'ended')))),
 		createRecorder: async (factoryOptions) => {
 			recorderCreations += 1;
 			recorderOptions = factoryOptions;
@@ -285,7 +336,10 @@ export function createRecordingCaptureFixture(options: RuntimeOptions = {}) {
 					controllerState = 'recording';
 					return true;
 				},
-				stop: async () => { controllerState = 'stopped'; },
+				stop: async () => {
+					controllerState = 'stopped';
+					if (options.reportStoppedOnStop) factoryOptions.onState('stopped');
+				},
 				dispose: async () => { controllerState = 'disposed'; },
 				setMonitoring: () => {},
 				setInputGain: () => {},
