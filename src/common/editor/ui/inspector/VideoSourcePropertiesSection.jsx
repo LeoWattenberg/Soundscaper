@@ -13,7 +13,7 @@ import { SourcePropertiesPanel } from '../toolbar/SourcePropertiesPanel.jsx';
  *   disabled: boolean,
  * }} props
  */
-export default React.memo(function VideoSourcePropertiesSection({ source, controller, copy, disabled }) {
+function VideoSourcePropertiesSection({ source, controller, copy, disabled }) {
 	return <section className="audio-editor-clip-properties__card audio-editor-clip-properties__card--wide" data-clip-video-source-properties>
 		<h3>{copy.sourceProperties}</h3>
 		<SourcePropertiesPanel
@@ -23,4 +23,6 @@ export default React.memo(function VideoSourcePropertiesSection({ source, contro
 			onReprobe={(sourceId) => controller.actions.video.reprobeSource(sourceId)}
 		/>
 	</section>;
-});
+}
+
+export default React.memo(VideoSourcePropertiesSection);

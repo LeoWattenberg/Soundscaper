@@ -3,7 +3,8 @@
 /** Generic worker_threads entry; reviewed model math is mounted only through an injected adapter. */
 
 import { parentPort, workerData } from 'node:worker_threads';
-import { join } from 'node:path';
+import { basename, dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 import {
 	validateAssistanceRuntimeFamilyJobRequestV1,
@@ -85,13 +86,25 @@ export async function runAssistanceRuntimeFamilyInferenceWorkerV1(
 function packagedKokoroPhonemizer() {
 	const resourcesPath = (process as typeof process & { readonly resourcesPath?: string })
 		.resourcesPath;
-	if (resourcesPath === undefined) return undefined;
+	const manifestPath = packagedKokoroManifestPath(fileURLToPath(import.meta.url));
+	if (resourcesPath === undefined || manifestPath === undefined) return undefined;
 	return createAssistanceKokoroOfflinePhonemizerV1({
-		manifestPath: join(resourcesPath, 'app.asar', 'config',
-			'assistance-kokoro-g2p-runtime-manifest.json'),
+		manifestPath,
 		runtimeRoot: process.env.SOUNDSCAPER_ASSISTANCE_RUNTIME_ROOT
 			?? join(resourcesPath, 'runtime'),
 	});
+}
+
+export function packagedKokoroManifestPath(workerPath: string): string | undefined {
+	let directory = dirname(workerPath);
+	while (true) {
+		if (basename(directory).endsWith('.asar')) {
+			return join(directory, 'config', 'assistance-kokoro-g2p-runtime-manifest.json');
+		}
+		const parent = dirname(directory);
+		if (parent === directory) return undefined;
+		directory = parent;
+	}
 }
 
 function validateAdmittedJob(value: AssistanceRuntimeFamilyAdmittedJob): AssistanceRuntimeFamilyAdmittedJob {

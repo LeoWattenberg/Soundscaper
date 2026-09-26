@@ -42,10 +42,11 @@ for (const product of ['soundscaper', 'framescaper']) {
 			await expectRulerColors(ruler, theme);
 			await page.screenshot({ path: testInfo.outputPath('Sakura-timecodes-ruler-meters.png') });
 			if (product === 'framescaper') {
-				await editor.getByRole('button', { name: 'Sequence timing', exact: true }).click();
-				const timing = page.getByRole('dialog', { name: 'Sequence timing', exact: true });
+				await chooseNestedCommandAction(page, editor, 'File', ['Project management', 'Project properties']);
+				const properties = editor.locator('[data-workspace-panel="metadata"]');
+				await properties.getByRole('tab', { name: 'Sequence timing', exact: true }).click();
+				const timing = properties.getByRole('tabpanel', { name: 'Sequence timing', exact: true });
 				await timing.getByRole('checkbox', { name: 'Timecode ruler', exact: true }).check();
-				await page.keyboard.press('Escape');
 				await expect(editor.locator('[data-sequence-timecode-ruler]')).toBeVisible();
 			} else {
 				await page.setViewportSize({ width: 2200, height: 1000 });

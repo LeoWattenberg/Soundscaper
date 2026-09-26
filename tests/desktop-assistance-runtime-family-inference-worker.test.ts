@@ -4,8 +4,18 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import {
+	packagedKokoroManifestPath,
 	runAssistanceRuntimeFamilyInferenceWorkerV1,
 } from '../desktop/assistance-runtime-family-inference-worker.ts';
+
+test('Kokoro reads the authenticated manifest beside its product worker archive', () => {
+	assert.equal(packagedKokoroManifestPath(
+		'/payload/products/framescaper.asar/desktop/project-library-runtime/desktop/assistance-runtime-family-inference-worker.js',
+	), '/payload/products/framescaper.asar/config/assistance-kokoro-g2p-runtime-manifest.json');
+	assert.equal(packagedKokoroManifestPath(
+		'/product/resources/app.asar/desktop/project-library-runtime/desktop/assistance-runtime-family-inference-worker.js',
+	), '/product/resources/app.asar/config/assistance-kokoro-g2p-runtime-manifest.json');
+});
 
 const JOB_ID = '1'.repeat(40);
 const SHA = '2'.repeat(64);
