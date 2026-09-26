@@ -401,7 +401,16 @@ function soundId(value: string | string[] | undefined): number {
 
 function byteRange(value: string | null): string | null {
 	if (value === null) return null;
-	if (!/^bytes=(?:\d+-\d*|-\d+)$/u.test(value) || value.length > 80) {
+	const match = value.length <= 80 ? /^bytes=(\d*)-(\d*)$/u.exec(value) : null;
+	if (match === null || (match[1] === '' && match[2] === '')) {
+		throw new OAuthHttpError(416, 'invalid_range', 'The original byte range is invalid.');
+	}
+	const start = match[1] === '' ? null : Number(match[1]);
+	const end = match[2] === '' ? null : Number(match[2]);
+	if ((start !== null && !Number.isSafeInteger(start))
+		|| (end !== null && !Number.isSafeInteger(end))
+		|| (start === null && end === 0)
+		|| (start !== null && end !== null && start > end)) {
 		throw new OAuthHttpError(416, 'invalid_range', 'The original byte range is invalid.');
 	}
 	return value;

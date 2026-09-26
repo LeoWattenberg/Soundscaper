@@ -215,6 +215,29 @@ test('partial original downloads enforce the total-file ceiling from strict Cont
 	assert.equal(valid.headers.get('x-freesound-original-bytes'), String(MAX_FREESOUND_ORIGINAL_BYTES));
 });
 
+test('original downloads reject nonsensical byte ranges before contacting Freesound', async () => {
+	const repository = await repositoryWithSession();
+	let upstreamCalls = 0;
+	for (const range of ['bytes=5-4', 'bytes=-0', 'bytes=9007199254740992-', 'bytes=0-9007199254740992']) {
+		const response = await handleFreesoundOriginalRequest(context(new Request(
+			'https://soundscaper.org/api/freesound/sounds/123/original',
+			{ headers: authHeaders({ Range: range }) },
+		), { id: '123' }), {
+			repository,
+			now: () => NOW,
+			fetchImpl: () => {
+				upstreamCalls += 1;
+				return Promise.resolve(new Response(Uint8Array.of(1), {
+					headers: { 'Content-Type': 'audio/wav' },
+				}));
+			},
+		});
+		assert.equal(response.status, 416, range);
+		assert.equal((await response.json() as { error: { code: string } }).error.code, 'invalid_range');
+	}
+	assert.equal(upstreamCalls, 0);
+});
+
 test('raw uploads use a canonical encoded filename and become one server-owned multipart audiofile field', async () => {
 	const repository = await repositoryWithSession();
 	let multipart = '';
