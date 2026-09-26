@@ -282,6 +282,7 @@ export function TelemetryTimeCode({
 	copy,
 	project,
 	durationFrames,
+	isCompact,
 	recording,
 	run,
 }) {
@@ -300,7 +301,8 @@ export function TelemetryTimeCode({
 		? sequenceDisplaySecondsAtSample(positionFrame, sequenceView, sampleRate)
 		: framesToSeconds(positionFrame, { sampleRate });
 	const negative = timeValue < 0;
-	return <div className="kw-audio-editor__timecode" data-time-display data-negative={negative ? 'true' : undefined}>
+	return <div className="kw-audio-editor__timecode" data-time-display
+		data-compact={isCompact ? 'true' : undefined} data-negative={negative ? 'true' : undefined}>
 		{negative && <span className="kw-audio-editor__timecode-sign">−</span>}
 		<AccessibleTimeCode
 			ariaLabel={`${copy.playhead}: ${copy.format}`}

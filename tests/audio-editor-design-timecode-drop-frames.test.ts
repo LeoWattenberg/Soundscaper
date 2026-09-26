@@ -20,7 +20,7 @@ for (const rate of [{ num: 30_000, den: 1_001 }, { num: 60_000, den: 1_001 }]) {
 		assert.equal(format.rate, actualRate);
 		for (const count of [0, 1, 2, 1_800, 3_600, 35_964, 72_000]) {
 			const label = sequenceTimecodeFromFrameCount(count, rate, true);
-			const labelled = ((label.hours * 60 + label.minutes) * 60 + label.seconds)
+			const labelled: number = ((label.hours * 60 + label.minutes) * 60 + label.seconds)
 				* format.nominalRate + label.frames;
 			assert.equal(timeCodeLabelledFrameCount(count, format), labelled);
 			assert.ok(Math.abs(timeCodeFrameSeconds([
