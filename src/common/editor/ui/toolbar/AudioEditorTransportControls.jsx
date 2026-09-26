@@ -283,11 +283,12 @@ export function TelemetryTimeCode({
 	project,
 	durationFrames,
 	isCompact,
+	sequenceTiming = false,
 	recording,
 	run,
 }) {
-	const sequenceView = useMemo(() => project?.sequences?.length
-		? resolveSequenceTimingView(project) : null, [project]);
+	const sequenceView = useMemo(() => sequenceTiming && project?.sequences?.length
+		? resolveSequenceTimingView(project) : null, [project, sequenceTiming]);
 	const defaultFormat = sequenceView ? sequenceTimeCodeFormat(sequenceView) : 'hh:mm:ss+hundredths';
 	const [format, setFormat] = useState(defaultFormat);
 	useEffect(() => setFormat(defaultFormat), [defaultFormat]);

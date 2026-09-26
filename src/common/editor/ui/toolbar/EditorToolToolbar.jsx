@@ -31,6 +31,7 @@ import {
 
 export default function EditorToolToolbar({
 	capabilities,
+	productId,
 	controller,
 	snapshot,
 	copy,
@@ -229,6 +230,7 @@ export default function EditorToolToolbar({
 					project={project}
 					durationFrames={durationFrames}
 					isCompact={isCompact}
+					sequenceTiming={productId === 'framescaper'}
 					recording={snapshot.recording}
 					run={run}
 				/>}
