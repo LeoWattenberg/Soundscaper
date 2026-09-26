@@ -158,7 +158,7 @@ export default function AudioEditorWorkspaceView({ model }) {
 			style={editorThemeVariables}
 			className={`kw-audio-editor ${isCompact ? 'kw-audio-editor--compact' : ''}${isFullscreen ? ' kw-audio-editor--viewport-fullscreen' : ''}`}
 			data-audio-editor
-			data-audio-editor-bound="true"
+			data-audio-editor-bound="true" data-editor-ready={snapshot.ready ? 'true' : 'false'}
 			data-layout={compactLayout ? 'compact' : 'desktop'}
 			data-product={productId}
 			data-project-id={project?.id || ''}

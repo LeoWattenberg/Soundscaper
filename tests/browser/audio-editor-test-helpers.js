@@ -61,6 +61,7 @@ export async function bootEditor(page, path, { defaultWorkspace = false } = {}) 
 	await seedWorkspaceOnboardingComplete(page);
 	await page.goto(resolveBrowserProductTestUrl(path));
 	const editor = await waitForEditor(page);
+	await expect(editor).toHaveAttribute('data-project-id', /.+/u, { timeout: 20_000 });
 	const decline = page.getByRole('button', { name: /^(Decline|Ablehnen)$/ });
 	if (await decline.isVisible()) await decline.click();
 	// The English interaction suite uses the pre-default-change panel geometry.
@@ -82,6 +83,7 @@ export async function waitForEditor(page) {
 	const editor = page.locator('[data-audio-editor]');
 	await expect(editor).toBeVisible({ timeout: 20_000 });
 	await expect(editor).toHaveAttribute('data-audio-editor-bound', 'true', { timeout: 20_000 });
+	await expect(editor).toHaveAttribute('data-editor-ready', 'true', { timeout: 20_000 });
 	await expect(editor.locator('[data-status]')).toHaveAttribute('data-state', /^(?:success|info)$/u, { timeout: 15_000 });
 	return editor;
 }
