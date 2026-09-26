@@ -203,7 +203,7 @@ test('a Framescaper rail names its own workspace and links across to the other o
 	}
 });
 
-test('the rail uses each product logo and links Join us to the parent site', async () => {
+test('the rail uses its own product logo and links Join us to the parent site', async () => {
 	for (const [productId, locale, parentSite] of [
 		['soundscaper', 'en', 'https://mindscaper.org/'],
 		['framescaper', 'de', 'https://mindscaper.org/de/'],
@@ -217,12 +217,9 @@ test('the rail uses each product logo and links Join us to the parent site', asy
 			assert.equal(brand.querySelector('img')?.getAttribute('alt'), '');
 			assert.equal(brand.textContent, productId === 'soundscaper' ? 'Soundscaper' : 'Framescaper');
 			const links = context.dom.one('.website-sidebar-nav').querySelectorAll('a');
-			const otherProductId = productId === 'soundscaper' ? 'framescaper' : 'soundscaper';
-			assert.deepEqual(links.slice(0, 2).map((link) => link.querySelector('img')?.getAttribute('src')), [
-				`/logo/${productId}.svg`,
-				`/logo/${otherProductId}.svg`,
-			]);
-			assert.deepEqual(links.slice(0, 2).map((link) => link.querySelector('img')?.getAttribute('alt')), ['', '']);
+			assert.equal(links[0]?.querySelector('img')?.getAttribute('src'), `/logo/${productId}.svg`);
+			assert.equal(links[0]?.querySelector('img')?.getAttribute('alt'), '');
+			assert.equal(links[1]?.querySelector('img'), null);
 			assert.equal(links.some((link) => link.getAttribute('href') === `${parentSite}#projects`), false);
 			assert.equal(links[2]?.getAttribute('href'), parentSite);
 			assert.equal(links[2]?.textContent, locale === 'de' ? 'Mach mit' : 'Join us');

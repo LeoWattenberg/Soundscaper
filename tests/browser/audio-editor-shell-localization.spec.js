@@ -25,6 +25,7 @@ test.describe('audio editor React/design-system workflows', () => {
 	registerAudioEditorHooks();
 
 	test('uses branded navigation standalone and a chrome-free embed surface', async ({ page }) => {
+		const errors = collectClientErrors(page);
 		await page.goto('/en/');
 		await expect(page.locator('.website-site-sidebar')).toBeVisible();
 		await expect(page.locator('.website-brand')).toContainText('Soundscaper');
@@ -32,9 +33,9 @@ test.describe('audio editor React/design-system workflows', () => {
 		await expect(page.locator('.website-brand img')).toHaveAttribute('src', '/logo/soundscaper.svg');
 		await expect(page.locator('.website-brand img')).toBeVisible();
 		await expect(page.locator('.website-sidebar-nav img').first()).toHaveAttribute('src', '/logo/soundscaper.svg');
-		await expect(page.locator('.website-sidebar-nav img').last()).toHaveAttribute('src', '/logo/framescaper.svg');
+		await expect(page.locator('.website-sidebar-nav img')).toHaveCount(1);
+		await expect(page.getByRole('link', { name: 'Framescaper', exact: true })).toBeVisible();
 		await expect(page.locator('.website-sidebar-nav img').first()).toBeVisible();
-		await expect(page.locator('.website-sidebar-nav img').last()).toBeVisible();
 		await expect(page.getByRole('link', { name: 'More Mindscaper tools' })).toHaveCount(0);
 		await expect(page.locator('link[rel="icon"][href="/logo/soundscaper.svg"]')).toHaveCount(1);
 		await page.getByRole('button', { name: 'Collapse navigation' }).click();
@@ -44,6 +45,7 @@ test.describe('audio editor React/design-system workflows', () => {
 		await expect(page.locator('.website-site-sidebar')).toHaveCount(0);
 		await expect(page.locator('.website-tool-intro')).toBeHidden();
 		await expect(page.locator('[data-audio-editor]')).toHaveAttribute('data-audio-editor-bound', 'true');
+		expect(errors).toEqual([]);
 	});
 
 	test('keeps the editor suspended until its lazy core stylesheet is available', async ({ page }) => {
