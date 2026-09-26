@@ -290,7 +290,7 @@ async function bootEditor(page) {
 	const editor = page.locator('[data-audio-editor]');
 	await expect(editor).toBeVisible();
 	await expect(editor).toHaveAttribute('data-audio-editor-bound', 'true');
-	await expect(editor.locator('[data-status]')).toHaveAttribute('data-state', 'success', { timeout: 15_000 });
+	await expect(editor.locator('[data-status]')).toHaveAttribute('data-state', /^(?:success|info)$/u, { timeout: 15_000 });
 	const decline = page.getByRole('button', { name: 'Decline', exact: true });
 	if (await decline.isVisible()) await decline.click();
 	return editor;

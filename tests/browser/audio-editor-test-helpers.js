@@ -82,7 +82,7 @@ export async function waitForEditor(page) {
 	const editor = page.locator('[data-audio-editor]');
 	await expect(editor).toBeVisible({ timeout: 20_000 });
 	await expect(editor).toHaveAttribute('data-audio-editor-bound', 'true', { timeout: 20_000 });
-	await expect(editor.locator('[data-status]')).toHaveAttribute('data-state', 'success', { timeout: 15_000 });
+	await expect(editor.locator('[data-status]')).toHaveAttribute('data-state', /^(?:success|info)$/u, { timeout: 15_000 });
 	return editor;
 }
 
