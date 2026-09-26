@@ -224,7 +224,7 @@ async function handleEndpoint(
 		return await handler({ corsOrigin, head: context.request.method === 'HEAD' }, upstream);
 	} catch (error) {
 		const failure = publicError(error);
-		return jsonError(failure, corsOrigin);
+		return jsonError(failure, corsOrigin, context.request.method === 'HEAD');
 	}
 }
 
@@ -486,7 +486,7 @@ function json(
 	return new Response(admission.head ? null : JSON.stringify(value), { status, headers });
 }
 
-function jsonError(error: HttpError, corsOrigin: string | null): Response {
+function jsonError(error: HttpError, corsOrigin: string | null, head: boolean): Response {
 	const headers = responseHeaders(corsOrigin);
 	headers.set('Content-Type', 'application/json; charset=utf-8');
 	headers.set('Cache-Control', 'no-store');
@@ -494,7 +494,7 @@ function jsonError(error: HttpError, corsOrigin: string | null): Response {
 		const extra = new Headers(error.responseHeaders);
 		extra.forEach((value, name) => headers.set(name, value));
 	}
-	return new Response(JSON.stringify({ error: { code: error.code, message: error.message } }), {
+	return new Response(head ? null : JSON.stringify({ error: { code: error.code, message: error.message } }), {
 		status: error.status,
 		headers,
 	});

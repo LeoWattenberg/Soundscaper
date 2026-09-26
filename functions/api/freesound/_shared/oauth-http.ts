@@ -61,7 +61,7 @@ export async function handleOAuthEndpoint(
 		if (!['GET', 'HEAD'].includes(context.request.method)) requireMutationOrigin(context.request, corsOrigin);
 		return await handler({ corsOrigin, head: context.request.method === 'HEAD' });
 	} catch (error) {
-		return oauthJsonError(publicOAuthError(error), corsOrigin);
+		return oauthJsonError(publicOAuthError(error), corsOrigin, context.request.method === 'HEAD');
 	}
 }
 
@@ -132,14 +132,14 @@ export function oauthJson(
 	return new Response(admission.head ? null : JSON.stringify(value), { status, headers });
 }
 
-export function oauthJsonError(error: OAuthHttpError, corsOrigin: string | null): Response {
+export function oauthJsonError(error: OAuthHttpError, corsOrigin: string | null, head = false): Response {
 	const headers = oauthResponseHeaders(corsOrigin);
 	headers.set('Content-Type', 'application/json; charset=utf-8');
 	headers.set('Cache-Control', 'no-store');
 	if (error.responseHeaders !== undefined) {
 		new Headers(error.responseHeaders).forEach((value, name) => headers.set(name, value));
 	}
-	return new Response(JSON.stringify({ error: { code: error.code, message: error.message } }), {
+	return new Response(head ? null : JSON.stringify({ error: { code: error.code, message: error.message } }), {
 		status: error.status,
 		headers,
 	});
