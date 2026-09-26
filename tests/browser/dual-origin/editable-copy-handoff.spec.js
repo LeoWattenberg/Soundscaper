@@ -1,5 +1,8 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { createHash } from 'node:crypto';
+import { readFile } from 'node:fs/promises';
+
 import {
 	expect,
 	longTone,
@@ -47,6 +50,110 @@ test('the built product origins exchange independent editable copies in both dir
 		destinationMedia: toneA,
 		renamedClip: 'Soundscaper editable copy',
 	});
+});
+
+test('a blocked editable-copy popup recovers through downloaded archive and report sidecar', async ({ context }) => {
+	const source = await context.newPage();
+	let receiver = null;
+	try {
+		const editor = await bootEditor(source, `${SOUNDSCAPER_ORIGIN}/embed/en/`);
+		await importFiles(editor, [longTone]);
+		await expect(clipByName(editor, longTone.name)).toBeVisible();
+		const sourceProjectId = await editor.getAttribute('data-project-id');
+		expect(sourceProjectId).toBeTruthy();
+		await saveProject(source, editor);
+		const sourceBefore = JSON.stringify(await persistedProject(
+			source, SOUNDSCAPER_DATABASE_NAME, sourceProjectId,
+		));
+		expect(sourceBefore).not.toBe('null');
+
+		await editor.getByRole('menuitem', { name: 'File', exact: true }).click();
+		await source.getByRole('menu', { name: 'File', exact: true })
+			.getByRole('menuitem', { name: /^Edit in Framescaper/u }).click();
+		await expect(source).toHaveURL((url) => (
+			url.origin === SOUNDSCAPER_ORIGIN && url.pathname === '/transfer/send/'
+		));
+		const intent = launchIntent(source.url());
+		await expect(source.locator('input[data-transfer-choice]:checked')).toHaveCount(1);
+		await source.evaluate(() => { window.open = () => null; });
+		const popups = [];
+		source.on('popup', (popup) => { popups.push(popup); });
+		await source.getByRole('button', {
+			name: `Send the ticked projects to ${FRAMESCAPER_ORIGIN}`,
+			exact: true,
+		}).click();
+		await source.getByRole('button', { name: 'Yes, send it', exact: true }).click();
+		await expect(source.getByRole('status')).toContainText('The browser blocked the transfer popup.');
+		expect(popups).toHaveLength(0);
+		expect(JSON.stringify(await persistedProject(source, SOUNDSCAPER_DATABASE_NAME, sourceProjectId)))
+			.toBe(sourceBefore);
+		receiver = await context.newPage();
+		await receiver.goto(`${FRAMESCAPER_ORIGIN}/transfer/receive/`);
+		await expect(receiver.getByRole('heading', {
+			name: 'Receive projects from the other product', exact: true,
+		})).toBeVisible();
+		await expect(receiver.getByLabel('Import downloaded project archives and conversion-report sidecars'))
+			.toBeVisible();
+		const downloads = [];
+		source.on('download', (download) => { downloads.push(download); });
+		await source.getByRole('button', { name: 'Download the ticked archives', exact: true }).click();
+		await expect(source.getByText('Downloaded 1 of 1 projects.', { exact: false })).toBeVisible();
+		await expect.poll(() => downloads.length).toBe(2);
+		const archiveDownload = downloads.find((download) => /\.fscape$/u.test(download.suggestedFilename()));
+		const sidecarDownload = downloads.find((download) => /\.conversion-report\.json$/u.test(download.suggestedFilename()));
+		expect(archiveDownload).toBeTruthy();
+		expect(sidecarDownload).toBeTruthy();
+		const archiveName = archiveDownload.suggestedFilename();
+		const sidecarName = sidecarDownload.suggestedFilename();
+		expect(sidecarName).toBe(`${archiveName}.conversion-report.json`);
+		const archiveBytes = await readFile(await archiveDownload.path());
+		const sidecarBytes = await readFile(await sidecarDownload.path());
+		const sidecar = JSON.parse(sidecarBytes.toString('utf8'));
+		expect(sidecar).toMatchObject({
+			kind: 'cross-product-editable-copy-report-sidecar',
+			entryId: intent.destination.projectId,
+			archiveByteLength: archiveBytes.byteLength,
+			report: {
+				kind: 'cross-product-editable-copy-report',
+				refused: false,
+				source: { projectId: sourceProjectId, schemaFamily: 'soundscaper' },
+				destination: { projectId: intent.destination.projectId, schemaFamily: 'framescaper' },
+			},
+		});
+		expect(sidecar.archiveSha256).toBe(createHash('sha256').update(archiveBytes).digest('hex'));
+		await expect(source.getByRole('listitem').filter({ hasText: sidecarName })).toBeVisible();
+
+		await receiver.getByLabel('Import downloaded project archives and conversion-report sidecars')
+			.setInputFiles([
+				{ name: archiveName, mimeType: 'application/octet-stream', buffer: archiveBytes },
+				{ name: sidecarName, mimeType: 'application/json', buffer: sidecarBytes },
+			]);
+		await expect(receiver.getByText(/Imported 1 of 1 archive\. Conversion ledger: 1 invocation, \d+ classified roots\./u))
+			.toBeVisible();
+		await expect(receiver.getByRole('listitem').filter({ hasText: `${sourceProjectId} /` })
+			.filter({ hasText: /^.+ — copy:/u }).first()).toBeVisible();
+		await expect.poll(
+			() => persistedProject(receiver, FRAMESCAPER_DATABASE_NAME, intent.destination.projectId),
+			{ timeout: 30_000 },
+		).not.toBeNull();
+		expect(await persistedProject(receiver, FRAMESCAPER_DATABASE_NAME, sourceProjectId)).toBeNull();
+		expect(JSON.stringify(await persistedProject(source, SOUNDSCAPER_DATABASE_NAME, sourceProjectId)))
+			.toBe(sourceBefore);
+
+		const destinationEditor = await bootEditor(
+			receiver,
+			`${FRAMESCAPER_ORIGIN}/embed/en/?project=${encodeURIComponent(intent.destination.projectId)}`,
+		);
+		await expect(destinationEditor).toHaveAttribute('data-product', 'framescaper');
+		await expect(destinationEditor).not.toHaveAttribute('data-edit-block-reason', /.+/u);
+		await expect(clipByName(destinationEditor, longTone.name)).toBeVisible();
+	} finally {
+		if (process.env.SCAPE_BROWSER_COVERAGE !== '1') {
+			for (const page of [receiver, source]) {
+				if (page && !page.isClosed()) await page.close({ runBeforeUnload: false });
+			}
+		}
+	}
 });
 
 async function exerciseEditableCopy(context, options) {
