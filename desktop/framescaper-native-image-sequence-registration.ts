@@ -129,9 +129,11 @@ export async function createFramescaperNativeImageSequenceRegistration(
 			const registered = [importIpc, decodeIpc];
 			importIpc = null;
 			decodeIpc = null;
-			const results = await Promise.allSettled([
-				...registered.map((value) => value?.dispose()), decodeAuthority.dispose(),
-			]);
+			const ipcResults = await Promise.allSettled(
+				registered.map((value) => value?.dispose()),
+			);
+			const authorityResults = await Promise.allSettled([decodeAuthority.dispose()]);
+			const results = [...ipcResults, ...authorityResults];
 			const failures = results.filter((value): value is PromiseRejectedResult => value.status === 'rejected')
 				.map(({ reason }) => reason);
 			if (failures.length) throw new AggregateError(failures, 'Framescaper image-sequence disposal failed.');
