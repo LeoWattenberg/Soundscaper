@@ -259,7 +259,11 @@ test.describe('Framescaper v1 exact visual preview', () => {
 		);
 		authoring = page.getByRole('dialog', { name: 'Freeze Selected Video', exact: true });
 		await expect(authoring).toBeVisible(VISUAL_COMMAND_OPTIONS);
-		await authoring.locator('[data-framescaper-authoring-freeze-duration]').fill('24');
+		const freezeDuration = authoring.locator('[data-framescaper-authoring-freeze-duration] .timecode');
+		await freezeDuration.locator('.timecode-digit').first().click();
+		await page.keyboard.type('00000024');
+		await page.keyboard.press('Enter');
+		await expect(authoring.locator('[data-framescaper-authoring-freeze-duration] [data-timecode-direct-entry]')).toHaveValue('24');
 		await authoring.locator('[data-framescaper-authoring-freeze]').click();
 		await expectVisualCommandStatus(authoring, 'Exact playhead freeze created.');
 		await page.keyboard.press('Escape');
