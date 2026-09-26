@@ -7,6 +7,25 @@ import {
 	requestAup4FileHandle,
 	saveAup4Result,
 } from '../src/common/editor/aup4-client.js';
+import { createDesktopSelectedRangeBlob } from '../src/common/editor/desktop-selected-range-blob.ts';
+
+test('AUP4 client sends a selected desktop descriptor instead of cloning an empty virtual Blob', async () => {
+	const worker = new FakeWorker();
+	const client = createAup4Client({ worker });
+	try {
+		const id = 'a'.repeat(64);
+		const descriptor = { id, name: 'large.aup4', size: 7 * 1024 ** 3, lastModified: 0,
+			mimeType: 'application/vnd.audacity.aup4', readProfile: 'selected-range-v1',
+			url: `soundscaper-app://bundle/_desktop/read/selected-range-v1/${id}/large.aup4` };
+		const file = createDesktopSelectedRangeBlob(descriptor, { fetch: async () => { throw new Error('Unexpected byte read'); } });
+		const opening = client.openFile('large', file);
+		const message = worker.messages.at(-1);
+		assert.deepEqual(message.args.desktopRange, descriptor);
+		assert.equal(Object.hasOwn(message.args, 'file'), false);
+		worker.emit({ id: message.id, result: { projectId: 'large' } });
+		assert.deepEqual(await opening, { projectId: 'large' });
+	} finally { client.dispose(); }
+});
 
 test('AUP4 client omits worker operations with no application caller', () => {
 	const client = createAup4Client({ worker: new FakeWorker() });

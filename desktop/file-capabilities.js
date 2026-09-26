@@ -9,6 +9,7 @@ import {
 	READ_PROFILE_LINKED_AUDIO_RANGE_V1,
 	READ_PROFILE_MATERIALIZED_V1,
 	READ_PROFILE_SCAPE_RANGE_V1,
+	READ_PROFILE_SELECTED_RANGE_V1,
 	SCAPE_PROJECT_MIME_TYPE,
 } from './constants.js';
 import {
@@ -17,6 +18,7 @@ import {
 	LinkedOriginalRangeAdmission,
 	safeReadFileSize,
 	ScapeRangeReadAdmission,
+	SelectedRangeReadAdmission,
 } from './read-capability-admission.js';
 import {
 	assertReadCapabilityFileIdentity,
@@ -29,7 +31,7 @@ import {
 	safeReadCapabilityTimestamp,
 } from './read-capability-support.js';
 import { createReadCapabilityRequestLease } from './read-capability-request-lease.js';
-import { mimeTypeForPath } from './validation.js';
+import { acceptsFile, mimeTypeForPath } from './validation.js';
 
 export { throwAfterReadCapabilityRollback } from './read-capability-support.js';
 
@@ -51,6 +53,7 @@ export class ReadCapabilityStore {
 	#revocations = new Set();
 	#retirements = new Map();
 	#scapeRangeAdmission;
+	#selectedRangeAdmission;
 	#ttlMs;
 
 	constructor({
@@ -82,6 +85,7 @@ export class ReadCapabilityStore {
 			maximumCount: maximumScapeRangeCount,
 			maximumBytes: maximumScapeRangeBytes,
 		});
+		this.#selectedRangeAdmission = new SelectedRangeReadAdmission();
 		this.#linkedRangeAdmission = new LinkedOriginalRangeAdmission({
 			maximumCount: maximumLinkedVideoPlaybackCount,
 			maximumBytes: maximumLinkedVideoPlaybackBytes,
@@ -94,6 +98,14 @@ export class ReadCapabilityStore {
 
 	registerMaterializedPath(filePath, { owner, mimeType, displayName } = {}) {
 		return this.#admitPath(filePath, { owner, mimeType, displayName }, READ_PROFILE_MATERIALIZED_V1);
+	}
+
+	registerSelectedRangePath(filePath, { owner, expectedIdentity } = {}) {
+		try {
+			if (!['project', 'audio', 'video', 'media', 'labels', 'lut'].some((purpose) => acceptsFile(purpose, filePath))
+				|| mimeTypeForPath(filePath) === SCAPE_PROJECT_MIME_TYPE) throw new TypeError('Selected range requires an accepted non-Scape path');
+			return this.#admitPath(filePath, { owner, ...(expectedIdentity ? { expectedIdentity: normalizeReadCapabilityFileIdentity(expectedIdentity) } : {}) }, READ_PROFILE_SELECTED_RANGE_V1);
+		} catch (error) { return Promise.reject(error); }
 	}
 
 	registerSelectedAudioRangePath(filePath, { owner, expectedIdentity } = {}) {
@@ -303,7 +315,7 @@ export class ReadCapabilityStore {
 				rangeAdmission,
 				rangeTicket,
 				lastModified: safeReadCapabilityTimestamp(details.mtimeMs),
-				expiresAt: isLinkedOriginalRangeProfile(readProfile)
+				expiresAt: isLinkedOriginalRangeProfile(readProfile) || readProfile === READ_PROFILE_SELECTED_RANGE_V1
 					? null : this.#now() + this.#ttlMs,
 				request: null,
 				retirement: null,
@@ -502,6 +514,7 @@ export class ReadCapabilityStore {
 
 	#rangeAdmission(readProfile) {
 		if (readProfile === READ_PROFILE_SCAPE_RANGE_V1) return this.#scapeRangeAdmission;
+		if (readProfile === READ_PROFILE_SELECTED_RANGE_V1) return this.#selectedRangeAdmission;
 		if (isLinkedOriginalRangeProfile(readProfile)) return this.#linkedRangeAdmission;
 		return null;
 	}

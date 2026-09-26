@@ -20,7 +20,7 @@ export interface DesktopLinkedOriginalRangeRequest {
 	readonly signal?: AbortSignal;
 }
 
-export type DesktopLinkedOriginalRangeKind = 'audio' | 'video';
+export type DesktopLinkedOriginalRangeKind = 'audio' | 'video' | 'selected';
 
 /** Read one exact response without retaining more than the fixed range ceiling. */
 export async function readDesktopLinkedOriginalRange(

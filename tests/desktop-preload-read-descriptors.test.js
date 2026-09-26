@@ -5,9 +5,10 @@ import vm from 'node:vm';
 
 const MATERIALIZED_PROFILE = 'materialized-v1';
 const SCAPE_RANGE_PROFILE = 'scape-range-v1';
+const SELECTED_RANGE_PROFILE = 'selected-range-v1';
 const SCAPE_MIME_TYPE = 'application/vnd.soundscaper.scape+zip';
 const MATERIALIZED_MAXIMUM_BYTES = 512 * 1024 ** 2;
-const SCAPE_RANGE_MAXIMUM_BYTES = 65 * 1024 ** 3;
+const SCAPE_RANGE_MAXIMUM_BYTES = Number.MAX_SAFE_INTEGER;
 const ID = 'a'.repeat(64);
 
 test('preload sanitizes and freezes exact materialized chooser descriptors', async () => {
@@ -24,7 +25,7 @@ test('preload sanitizes and freezes exact materialized chooser descriptors', asy
 	]]);
 });
 
-test('preload admits a canonical 65 GiB Scape range descriptor from OS association', async () => {
+test('preload admits a canonical safe-integer Scape range descriptor from OS association', async () => {
 	const fixture = await loadPreload();
 	const raw = readDescriptor({
 		readProfile: SCAPE_RANGE_PROFILE,
@@ -40,6 +41,15 @@ test('preload admits a canonical 65 GiB Scape range descriptor from OS associati
 	assert.equal(Object.isFrozen(received), true);
 	unsubscribe();
 	assert.equal(fixture.removals.length, 1);
+});
+
+test('preload admits a 7 GiB Audacity selection and rejects a Scape profile downgrade', async () => {
+	const selected = readDescriptor({ readProfile: SELECTED_RANGE_PROFILE, name: 'session.aup4',
+		mimeType: 'application/vnd.audacity.aup4', size: 7 * 1024 ** 3 });
+	const fixture = await loadPreload([[selected], [readDescriptor({ readProfile: SELECTED_RANGE_PROFILE,
+		name: 'project.scape', mimeType: SCAPE_MIME_TYPE })]]);
+	assert.deepEqual({ ...(await fixture.bridge.chooseFiles({ purpose: 'project' }))[0] }, selected);
+	await assert.rejects(() => fixture.bridge.chooseFiles({ purpose: 'project' }), /descriptor/iu);
 });
 
 test('preload admits every accepted project suffix and no disguised one', async () => {
@@ -98,7 +108,7 @@ test('preload rejects missing, oversized, mismatched, and noncanonical read prof
 	for (const _candidate of cases) {
 		await assert.rejects(
 			() => fixture.bridge.chooseFiles({ purpose: 'project' }),
-			/profile|descriptor|capability URL|too large|Scape/iu,
+			/profile|descriptor|capability URL|too large|safe integer|Scape/iu,
 		);
 	}
 });

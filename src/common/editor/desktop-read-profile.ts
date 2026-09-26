@@ -8,14 +8,16 @@ export const DESKTOP_READ_PROFILE_LINKED_AUDIO_RANGE = 'linked-audio-range-v1';
 export const DESKTOP_READ_PROFILE_LINKED_VIDEO_RANGE = 'linked-video-range-v1';
 export const DESKTOP_READ_PROFILE_MATERIALIZED = 'materialized-v1';
 export const DESKTOP_READ_PROFILE_SCAPE_RANGE = 'scape-range-v1';
+export const DESKTOP_READ_PROFILE_SELECTED_RANGE = 'selected-range-v1';
 export const DESKTOP_SCAPE_MIME_TYPE = 'application/vnd.soundscaper.scape+zip';
-export const DESKTOP_SCAPE_READ_HARD_LIMIT_BYTES = 65 * 1024 ** 3;
+export const DESKTOP_SCAPE_READ_HARD_LIMIT_BYTES = Number.MAX_SAFE_INTEGER;
 
 export type DesktopReadProfile =
 	| typeof DESKTOP_READ_PROFILE_LINKED_AUDIO_RANGE
 	| typeof DESKTOP_READ_PROFILE_LINKED_VIDEO_RANGE
 	| typeof DESKTOP_READ_PROFILE_MATERIALIZED
-	| typeof DESKTOP_READ_PROFILE_SCAPE_RANGE;
+	| typeof DESKTOP_READ_PROFILE_SCAPE_RANGE
+	| typeof DESKTOP_READ_PROFILE_SELECTED_RANGE;
 
 export interface DesktopReadProfileDescriptor {
 	readonly readProfile?: unknown;
@@ -28,7 +30,8 @@ export function isDesktopReadProfile(value: unknown): value is DesktopReadProfil
 	return value === DESKTOP_READ_PROFILE_LINKED_AUDIO_RANGE
 		|| value === DESKTOP_READ_PROFILE_LINKED_VIDEO_RANGE
 		|| value === DESKTOP_READ_PROFILE_MATERIALIZED
-		|| value === DESKTOP_READ_PROFILE_SCAPE_RANGE;
+		|| value === DESKTOP_READ_PROFILE_SCAPE_RANGE
+		|| value === DESKTOP_READ_PROFILE_SELECTED_RANGE;
 }
 
 export function assertDesktopLinkedAudioReadProfile(

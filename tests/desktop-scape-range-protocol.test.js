@@ -7,6 +7,7 @@ import test from 'node:test';
 import {
 	READ_PROFILE_MATERIALIZED_V1,
 	READ_PROFILE_SCAPE_RANGE_V1,
+	READ_PROFILE_SELECTED_RANGE_V1,
 	SCAPE_PROJECT_MIME_TYPE,
 } from '../desktop/constants.js';
 import { createProtocolHandler } from '../desktop/protocol.js';
@@ -45,6 +46,9 @@ function capabilityStore({
 			return Readable.from([body]);
 		},
 		async close() {
+			calls.close += 1;
+		},
+		async cancel() {
 			calls.close += 1;
 		},
 		async retire() {
@@ -87,6 +91,19 @@ test('Scape profile serves only one explicit bounded range through an expected-p
 	assert.deepEqual(fixture.calls.stream, [{ start: 1024, end: 1030, autoClose: false }]);
 	assert.equal(await response.text(), 'bounded');
 	assert.equal(fixture.calls.close, 1);
+	assert.equal(fixture.calls.retire, 0);
+});
+
+test('selected desktop video accepts open-ended media ranges without retiring its read grant', async () => {
+	const fixture = capabilityStore({ profile: READ_PROFILE_SELECTED_RANGE_V1, size: 7 * 1024 ** 3, body: Buffer.from('frame') });
+	const response = await handlerFor(fixture.store)(new Request(
+		capabilityUrl(READ_PROFILE_SELECTED_RANGE_V1, fixture.id, 'movie.mp4'),
+		{ headers: { Range: 'bytes=2048-' } },
+	));
+	assert.equal(response.status, 206);
+	assert.equal(response.headers.get('Content-Range'), `bytes 2048-${2048 + 4 * 1024 ** 2 - 1}/${fixture.descriptor.size}`);
+	assert.deepEqual(fixture.calls.stream, [{ start: 2048, end: 2048 + 4 * 1024 ** 2 - 1, autoClose: false }]);
+	await response.body?.cancel();
 	assert.equal(fixture.calls.retire, 0);
 });
 

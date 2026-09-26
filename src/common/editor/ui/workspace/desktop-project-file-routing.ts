@@ -5,6 +5,7 @@ import { SESX_XML_MAXIMUM_BYTES } from '../../sesx-format.ts';
 import {
 	DESKTOP_READ_PROFILE_MATERIALIZED,
 	DESKTOP_READ_PROFILE_SCAPE_RANGE,
+	DESKTOP_READ_PROFILE_SELECTED_RANGE,
 } from '../../desktop-read-profile.ts';
 
 type Awaitable<Value> = PromiseLike<Value> | Value;
@@ -53,7 +54,8 @@ export async function withDesktopProjectReadDescriptor<Value>(
 		if (descriptor?.readProfile === DESKTOP_READ_PROFILE_SCAPE_RANGE) {
 			return await fileService.withScapeReadDescriptor(descriptor, {}, consumers.openScape);
 		}
-		if (descriptor?.readProfile !== DESKTOP_READ_PROFILE_MATERIALIZED) {
+		if (descriptor?.readProfile !== DESKTOP_READ_PROFILE_MATERIALIZED
+			&& descriptor?.readProfile !== DESKTOP_READ_PROFILE_SELECTED_RANGE) {
 			return await fileService.withReadDescriptors([descriptor], {}, () => {
 				throw new TypeError('A supported desktop project read profile is required.');
 			});

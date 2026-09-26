@@ -7,6 +7,7 @@ import { createScapeArchiveByteSource } from '../src/common/editor/scape-archive
 import {
 	DESKTOP_READ_PROFILE_MATERIALIZED,
 	DESKTOP_READ_PROFILE_SCAPE_RANGE,
+	DESKTOP_READ_PROFILE_SELECTED_RANGE,
 } from '../src/common/editor/desktop-read-profile.ts';
 import { createAudioEditorFileService } from '../src/common/editor/file-service.js';
 import { withDesktopProjectReadDescriptor } from '../src/common/editor/ui/workspace/desktop-project-file-routing.ts';
@@ -56,12 +57,13 @@ test('desktop Scape descriptors use the range scope without whole-file materiali
 	assert.deepEqual(calls, ['range', 'consume']);
 });
 
-test('desktop Audacity descriptors retain named whole-file materialization', async () => {
+test('desktop Audacity descriptors retain a named range-backed file through consumption', async () => {
 	for (const name of ['legacy.aup3', 'exchange.AUP4']) {
 		const calls: string[] = [];
 		const descriptor = Object.freeze({
-			readProfile: DESKTOP_READ_PROFILE_MATERIALIZED,
+			readProfile: DESKTOP_READ_PROFILE_SELECTED_RANGE,
 			name,
+			size: 7 * 1024 ** 3,
 		});
 		const file = namedBlob(name);
 		const service = {
@@ -74,7 +76,7 @@ test('desktop Audacity descriptors retain named whole-file materialization', asy
 				_request: Readonly<Record<string, never>>,
 				consume: (files: readonly Blob[]) => Promise<string>,
 			) {
-				calls.push('materialize');
+				calls.push('range-file');
 				assert.deepEqual(received, [descriptor]);
 				return consume([file]);
 			},
@@ -93,7 +95,7 @@ test('desktop Audacity descriptors retain named whole-file materialization', asy
 			},
 		);
 		assert.equal(result, name);
-		assert.deepEqual(calls, ['materialize', 'consume']);
+		assert.deepEqual(calls, ['range-file', 'consume']);
 	}
 });
 

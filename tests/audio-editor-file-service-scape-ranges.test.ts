@@ -19,6 +19,36 @@ import {
 
 const SCAPE_MIME_TYPE = 'application/vnd.soundscaper.scape+zip';
 
+test('a selected 7 GiB Audacity project remains range backed for the whole file-service scope', async () => {
+	const id = 'a'.repeat(64);
+	const size = 7 * 1024 ** 3;
+	const events: string[] = [];
+	const service = createAudioEditorFileService({
+		bridge: { async releaseRead(value: string) { events.push(`release:${value}`); } },
+		fetch: async (_url: string, init: RequestInit) => {
+			const range = new Headers(init.headers).get('Range')!;
+			events.push(range);
+			return new Response(Uint8Array.of(0x53), { status: 206, headers: {
+				'Accept-Ranges': 'bytes', 'Content-Range': `bytes ${size - 1}-${size - 1}/${size}`,
+				'Content-Length': '1', 'Content-Type': 'application/vnd.audacity.aup4',
+			} });
+		},
+	});
+	const descriptor = { id, name: 'large.aup4', size, lastModified: 0,
+		mimeType: 'application/vnd.audacity.aup4', readProfile: 'selected-range-v1',
+		url: `soundscaper-app://bundle/_desktop/read/selected-range-v1/${id}/large.aup4` };
+	let retained: Blob | null = null;
+	await service.withReadDescriptors([descriptor], {}, async ([file]: readonly Blob[]) => {
+		retained = file;
+		assert.equal(file.size, size);
+		assert.deepEqual(new Uint8Array(await file.slice(size - 1).arrayBuffer()), Uint8Array.of(0x53));
+		assert.deepEqual(events, [`bytes=${size - 1}-${size - 1}`]);
+	});
+	assert.deepEqual(events, [`bytes=${size - 1}-${size - 1}`, `release:${id}`]);
+	assert.ok(retained);
+	await assert.rejects(retained.slice(0, 1).arrayBuffer(), /released/u);
+});
+
 test('desktop Scape read scopes retain one capability across serialized range consumers', async () => {
 	const archiveBytes = Uint8Array.of(1, 2, 3, 4);
 	const events: string[] = [];
@@ -232,7 +262,7 @@ test('generic materialization refuses a Scape range profile before fetch and rel
 });
 
 test('desktop Scape descriptor ceilings are independent lower-only seams', () => {
-	assert.equal(DESKTOP_SCAPE_READ_HARD_LIMIT_BYTES, 65 * 1024 ** 3);
+	assert.equal(DESKTOP_SCAPE_READ_HARD_LIMIT_BYTES, Number.MAX_SAFE_INTEGER);
 	assert.throws(
 		() => createAudioEditorFileService({ bridge: {}, scapeReadMaximumBytes: '8' }),
 		/Scape.*hard limit/iu,

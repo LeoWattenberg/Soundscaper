@@ -46,7 +46,9 @@ export async function createAudioEditorVideoFrameExtractor(file, options = {}) {
 		throw new Error('Browser video decoding is unavailable.');
 	}
 	const video = document.createElement('video');
-	const objectUrl = urlApi.createObjectURL(file);
+	const { selectedRangeDescriptorForBlob } = await import('./desktop-selected-range-blob.ts');
+	const selectedRange = selectedRangeDescriptorForBlob(file);
+	const objectUrl = selectedRange?.url || urlApi.createObjectURL(file);
 	let disposed = false;
 	const captureLifetime = new AbortController();
 	video.preload = 'metadata';
@@ -62,7 +64,7 @@ export async function createAudioEditorVideoFrameExtractor(file, options = {}) {
 	} catch (error) {
 		video.removeAttribute?.('src');
 		video.load?.();
-		urlApi.revokeObjectURL?.(objectUrl);
+		if (!selectedRange) urlApi.revokeObjectURL?.(objectUrl);
 		throw error;
 	}
 
@@ -169,7 +171,7 @@ export async function createAudioEditorVideoFrameExtractor(file, options = {}) {
 		video.pause?.();
 		video.removeAttribute?.('src');
 		video.load?.();
-		urlApi.revokeObjectURL?.(objectUrl);
+		if (!selectedRange) urlApi.revokeObjectURL?.(objectUrl);
 	}
 
 	return Object.freeze({ metadata, capture, dispose });

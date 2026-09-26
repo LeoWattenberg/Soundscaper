@@ -70,7 +70,7 @@ test('every project suffix takes the Scape range profile, disguised ones do not'
 		readProfileForSelectedPath('project', '/tmp/session.sscape.zip'),
 		READ_PROFILE_MATERIALIZED_V1,
 	);
-	assert.equal(readProfileForSelectedPath('project', '/tmp/session.aup4'), READ_PROFILE_MATERIALIZED_V1);
+	assert.equal(readProfileForSelectedPath('project', '/tmp/session.aup4'), 'selected-range-v1');
 	assert.equal(readProfileForSelectedPath('media', `/tmp/session${PROJECT_FILE_EXTENSION}`), READ_PROFILE_MATERIALIZED_V1);
 });
 

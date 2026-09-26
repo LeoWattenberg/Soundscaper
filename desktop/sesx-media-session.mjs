@@ -34,7 +34,7 @@ export class SesxMediaSessionStore {
 	#now;
 
 	constructor({ readCapabilities, dialog, windowFor, maxScanEntries = MAX_SCAN_ENTRIES, now = Date.now }) {
-		if (!readCapabilities || typeof readCapabilities.registerSelectedAudioRangePath !== 'function'
+		if (!readCapabilities || typeof readCapabilities.registerSelectedRangePath !== 'function'
 			|| typeof readCapabilities.resolveHelperGrant !== 'function'
 			|| !dialog || typeof dialog.showOpenDialog !== 'function' || typeof windowFor !== 'function') {
 			throw new TypeError('SESX media sessions require desktop read and folder selection ports');
@@ -117,7 +117,7 @@ export class SesxMediaSessionStore {
 		this.#assertCurrent(sessionReadId, session);
 		if (candidate === 'ambiguous' || candidate === 'scan-limited') return Object.freeze({ status: candidate });
 		if (!candidate) return Object.freeze({ status: 'missing' });
-		const descriptor = await this.#readCapabilities.registerSelectedAudioRangePath(candidate.path, {
+		const descriptor = await this.#readCapabilities.registerSelectedRangePath(candidate.path, {
 			owner, expectedIdentity: candidate.identity,
 		});
 		if (this.#sessions.get(sessionReadId) !== session) {

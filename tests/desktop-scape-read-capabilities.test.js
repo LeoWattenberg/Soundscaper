@@ -86,6 +86,20 @@ test('Scape range leases reuse the pinned handle without native stream listeners
 	assert.equal(nativeStreamCalls, 0);
 });
 
+test('selected desktop range admits an Audacity file larger than 65 GiB without materialization', async (context) => {
+	const size = 80 * 1024 ** 3;
+	const store = new ReadCapabilityStore({ openImpl: async () => fakeHandle({ size }) });
+	context.after(async () => { await store.dispose().catch(() => undefined); });
+	const descriptor = await store.registerSelectedRangePath('/tmp/large.aup4', { owner: OWNER_A });
+	assert.equal(descriptor.size, size);
+	assert.equal(descriptor.readProfile, 'selected-range-v1');
+	assert.equal(descriptor.mimeType, 'application/vnd.audacity.aup4');
+	const lease = store.acquireRequest(descriptor.id, descriptor.readProfile);
+	assert.ok(lease);
+	await lease.close();
+	assert.equal(await store.release(descriptor.id, { owner: OWNER_A }), true);
+});
+
 test('Scape range registration derives canonical identity from a terminal .scape path', async (context) => {
 	let openCalls = 0;
 	const store = new ReadCapabilityStore({
@@ -118,7 +132,7 @@ test('read descriptors normalize pre-epoch filesystem timestamps before publicat
 	assert.equal(store.get(descriptor.id)?.lastModified, 0);
 });
 
-test('large Scape ranges have an independent 65 GiB boundary and materialized reads remain at 512 MiB', async (context) => {
+test('large Scape ranges admit safe-integer sizes and materialized reads remain at 512 MiB', async (context) => {
 	const boundaryHandle = fakeHandle({ size: MAX_SCAPE_RANGE_READ_CAPABILITY_BYTES });
 	const rangeExcessHandle = fakeHandle({ size: MAX_SCAPE_RANGE_READ_CAPABILITY_BYTES + 1 });
 	const materializedExcessHandle = fakeHandle({ size: MAX_READ_CAPABILITY_BYTES_PER_OWNER + 1 });
@@ -323,9 +337,9 @@ test('range stream-construction failure releases the global request slot', async
 	await nextLease.close();
 });
 
-test('production Scape range limits are fixed at four capabilities and 65 GiB', () => {
+test('production Scape range limits are fixed at four capabilities and safe-integer bytes', () => {
 	assert.equal(MAX_SCAPE_RANGE_READ_CAPABILITIES, 4);
-	assert.equal(MAX_SCAPE_RANGE_READ_CAPABILITY_BYTES, 65 * 1024 ** 3);
+	assert.equal(MAX_SCAPE_RANGE_READ_CAPABILITY_BYTES, Number.MAX_SAFE_INTEGER);
 	assert.throws(
 		() => new ReadCapabilityStore({ maximumScapeRangeCount: MAX_SCAPE_RANGE_READ_CAPABILITIES + 1 }),
 		/positive|no greater/iu,

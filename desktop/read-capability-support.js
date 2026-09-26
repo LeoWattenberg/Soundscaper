@@ -6,6 +6,7 @@ import {
 	READ_PROFILE_LINKED_AUDIO_RANGE_V1,
 	READ_PROFILE_LINKED_VIDEO_RANGE_V1,
 	READ_PROFILE_SCAPE_RANGE_V1,
+	READ_PROFILE_SELECTED_RANGE_V1,
 } from './constants.js';
 import { createReadCapabilityRangeStream } from './read-capability-range-stream.js';
 
@@ -48,7 +49,7 @@ export function createReadCapabilityStream(entry, options) {
 }
 
 function isNonOwningRangeProfile(value) {
-	return value === READ_PROFILE_SCAPE_RANGE_V1 || isLinkedOriginalRangeProfile(value);
+	return value === READ_PROFILE_SCAPE_RANGE_V1 || value === READ_PROFILE_SELECTED_RANGE_V1 || isLinkedOriginalRangeProfile(value);
 }
 
 export function linkedOriginalRangeProfile(kind, mimeType, displayName) {

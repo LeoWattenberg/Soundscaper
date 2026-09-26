@@ -46,9 +46,9 @@ const CHANNELS = Object.freeze({
 	deliverySelect: 'soundscaper:v1:delivery:root:select', deliveryReauthorize: 'soundscaper:v1:delivery:root:reauthorize', deliveryProjectIdentity: 'soundscaper:v1:delivery:project:identity', deliveryEnqueueBatch: 'soundscaper:v1:delivery:queue:enqueue-batch', deliveryList: 'soundscaper:v1:delivery:queue:list', deliveryEvents: 'soundscaper:v1:delivery:queue:events', deliveryPause: 'soundscaper:v1:delivery:queue:pause', deliveryResume: 'soundscaper:v1:delivery:queue:resume', deliveryReorder: 'soundscaper:v1:delivery:queue:reorder', deliveryCancel: 'soundscaper:v1:delivery:queue:cancel', deliveryRetry: 'soundscaper:v1:delivery:queue:retry', deliveryWorkerPort: 'soundscaper:v1:delivery:worker:port',
 }); const MAX_CHUNK_BYTES = 4 * 1024 * 1024; const FINAL_PREFIX_BYTES = 32;
 const READ_PROFILE_LINKED_AUDIO_RANGE_V1 = 'linked-audio-range-v1'; const READ_PROFILE_LINKED_VIDEO_RANGE_V1 = 'linked-video-range-v1';
-const READ_PROFILE_MATERIALIZED_V1 = 'materialized-v1'; const READ_PROFILE_SCAPE_RANGE_V1 = 'scape-range-v1';
+const READ_PROFILE_MATERIALIZED_V1 = 'materialized-v1'; const READ_PROFILE_SCAPE_RANGE_V1 = 'scape-range-v1'; const READ_PROFILE_SELECTED_RANGE_V1 = 'selected-range-v1';
 const SCAPE_PROJECT_MIME_TYPE = 'application/vnd.soundscaper.scape+zip';
-const MAX_MATERIALIZED_READ_DESCRIPTOR_BYTES = 512 * 1024 ** 2; const MAX_SCAPE_RANGE_READ_DESCRIPTOR_BYTES = 65 * 1024 ** 3; const MAX_DESKTOP_SAVE_BYTES = 65 * 1024 ** 3;
+const MAX_MATERIALIZED_READ_DESCRIPTOR_BYTES = 512 * 1024 ** 2; const MAX_SCAPE_RANGE_READ_DESCRIPTOR_BYTES = Number.MAX_SAFE_INTEGER; const MAX_DESKTOP_SAVE_BYTES = 65 * 1024 ** 3;
 const SHA256 = /^[a-f0-9]{64}$/u;
 const api = Object.freeze({
 	getEnvironment: () => ipcRenderer.invoke(CHANNELS.environment),
@@ -383,7 +383,7 @@ function safeInteger(value) {
 }
 function readDescriptorProfile(value) {
 	const profile = String(value || '');
-	if (![READ_PROFILE_LINKED_AUDIO_RANGE_V1, READ_PROFILE_LINKED_VIDEO_RANGE_V1, READ_PROFILE_MATERIALIZED_V1, READ_PROFILE_SCAPE_RANGE_V1].includes(profile)) {
+	if (![READ_PROFILE_LINKED_AUDIO_RANGE_V1, READ_PROFILE_LINKED_VIDEO_RANGE_V1, READ_PROFILE_MATERIALIZED_V1, READ_PROFILE_SCAPE_RANGE_V1, READ_PROFILE_SELECTED_RANGE_V1].includes(profile)) {
 		throw new TypeError('Invalid read descriptor profile');
 	}
 	return profile;
@@ -411,7 +411,7 @@ function assertReadDescriptorProfile(readProfile, name, mimeType) {
 }
 function readDescriptorSize(value, readProfile) {
 	const size = safeInteger(value);
-	const maximum = readProfile === READ_PROFILE_SCAPE_RANGE_V1
+	const maximum = readProfile === READ_PROFILE_SELECTED_RANGE_V1 ? Number.MAX_SAFE_INTEGER : readProfile === READ_PROFILE_SCAPE_RANGE_V1
 		? MAX_SCAPE_RANGE_READ_DESCRIPTOR_BYTES
 		: readProfile === READ_PROFILE_LINKED_AUDIO_RANGE_V1 ? 1_000_000_000 : MAX_MATERIALIZED_READ_DESCRIPTOR_BYTES;
 	if (size > maximum) throw new RangeError('Read descriptor is too large for its profile');

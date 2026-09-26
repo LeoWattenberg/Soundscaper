@@ -26,16 +26,16 @@ const FILE_PURPOSES = Object.freeze({
 		}]),
 	}),
 	audio: Object.freeze({
-		extensions: Object.freeze(['aac', 'aif', 'aiff', 'flac', 'm4a', 'mp2', 'mp3', 'oga', 'ogg', 'opus', 'rf64', 'wav', 'webm', 'wv']),
-		filters: Object.freeze([{ name: 'Audio', extensions: ['aac', 'aif', 'aiff', 'flac', 'm4a', 'mp2', 'mp3', 'oga', 'ogg', 'opus', 'rf64', 'wav', 'webm', 'wv'] }]),
+		extensions: Object.freeze(['aac', 'aif', 'aiff', 'bw64', 'flac', 'm4a', 'mp2', 'mp3', 'oga', 'ogg', 'opus', 'rf64', 'wav', 'wave', 'wavpack', 'webm', 'wv']),
+		filters: Object.freeze([{ name: 'Audio', extensions: ['aac', 'aif', 'aiff', 'bw64', 'flac', 'm4a', 'mp2', 'mp3', 'oga', 'ogg', 'opus', 'rf64', 'wav', 'wave', 'wavpack', 'webm', 'wv'] }]),
 	}),
 	video: Object.freeze({
 		extensions: Object.freeze(['m4v', 'mp4', 'webm']),
 		filters: Object.freeze([{ name: 'Video', extensions: ['m4v', 'mp4', 'webm'] }]),
 	}),
 	media: Object.freeze({
-		extensions: Object.freeze(['aac', 'aif', 'aiff', 'cue', 'flac', 'm4a', 'm4v', 'mp2', 'mp3', 'mp4', 'oga', 'ogg', 'opus', 'rf64', 'srt', 'txt', 'vtt', 'wav', 'webm', 'wv']),
-		filters: Object.freeze([{ name: 'Audio, video, CUE sheets, and labels', extensions: ['aac', 'aif', 'aiff', 'cue', 'flac', 'm4a', 'm4v', 'mp2', 'mp3', 'mp4', 'oga', 'ogg', 'opus', 'rf64', 'srt', 'txt', 'vtt', 'wav', 'webm', 'wv'] }]),
+		extensions: Object.freeze(['aac', 'aif', 'aiff', 'bw64', 'cue', 'flac', 'm4a', 'm4v', 'mp2', 'mp3', 'mp4', 'oga', 'ogg', 'opus', 'rf64', 'srt', 'txt', 'vtt', 'wav', 'wave', 'wavpack', 'webm', 'wv']),
+		filters: Object.freeze([{ name: 'Audio, video, CUE sheets, and labels', extensions: ['aac', 'aif', 'aiff', 'bw64', 'cue', 'flac', 'm4a', 'm4v', 'mp2', 'mp3', 'mp4', 'oga', 'ogg', 'opus', 'rf64', 'srt', 'txt', 'vtt', 'wav', 'wave', 'wavpack', 'webm', 'wv'] }]),
 	}),
 	labels: Object.freeze({
 		extensions: Object.freeze(['srt', 'txt', 'vtt']),
@@ -132,6 +132,8 @@ const MIME_TYPES = Object.freeze({
 	'.txt': 'text/plain',
 	'.vtt': 'text/vtt',
 	'.wav': 'audio/wav',
+	'.wave': 'audio/wav',
+	'.wavpack': 'audio/wavpack',
 	'.webm': 'video/webm',
 	'.wv': 'audio/x-wavpack',
 });

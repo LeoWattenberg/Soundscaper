@@ -3,7 +3,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { READ_PROFILE_MATERIALIZED_V1 } from '../desktop/constants.js';
+import { READ_PROFILE_SELECTED_RANGE_V1 } from '../desktop/constants.js';
 import { registerSelectedReadCapability } from '../desktop/read-selection-service.js';
 import { acceptsFile, validateFileChoice } from '../desktop/validation.js';
 
@@ -18,12 +18,12 @@ test('normal desktop project selection admits legacy Audacity files', () => {
 	assert.equal(acceptsFile('media', '/projects/session.aup'), false);
 });
 
-test('legacy Audacity selection registers a materialized project capability', async () => {
+test('legacy Audacity selection registers a range project capability', async () => {
 	const owner = Object.freeze({ name: 'renderer-owner' });
 	const calls: Array<Readonly<{ filePath: string; owner: typeof owner }>> = [];
-	const descriptor = Object.freeze({ id: 'legacy-project', readProfile: READ_PROFILE_MATERIALIZED_V1 });
+	const descriptor = Object.freeze({ id: 'legacy-project', readProfile: READ_PROFILE_SELECTED_RANGE_V1 });
 	const store = {
-		registerMaterializedPath(filePath: string, options: { owner: typeof owner }) {
+		registerSelectedRangePath(filePath: string, options: { owner: typeof owner }) {
 			calls.push({ filePath, owner: options.owner });
 			return Promise.resolve(descriptor);
 		},

@@ -6,6 +6,7 @@ import {
 	MAX_LINKED_VIDEO_PLAYBACK_REQUESTS,
 	MAX_SCAPE_RANGE_READ_CAPABILITIES,
 	MAX_SCAPE_RANGE_READ_CAPABILITY_BYTES,
+	MAX_READ_CAPABILITIES_PER_OWNER,
 } from './constants.js';
 
 export class ReadCapabilityAdmissionError extends RangeError {
@@ -140,6 +141,13 @@ export class ScapeRangeReadAdmission extends RangeReadAdmission {
 			label: 'Scape range',
 			maximumActiveRequests: 1,
 		});
+	}
+}
+
+export class SelectedRangeReadAdmission extends RangeReadAdmission {
+	constructor(options = {}) {
+		super({ ...options, hardMaximumCount: MAX_READ_CAPABILITIES_PER_OWNER,
+			hardMaximumBytes: Number.MAX_SAFE_INTEGER, label: 'Selected range', maximumActiveRequests: 4 });
 	}
 }
 

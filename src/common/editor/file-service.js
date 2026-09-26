@@ -159,7 +159,7 @@ export function createAudioEditorFileService(options = {}) {
 			let aggregateBytes = 0;
 			for (const descriptor of descriptors) {
 				if (!isReadDescriptor(descriptor)) throw new TypeError('A valid desktop read descriptor is required.');
-				if (descriptor.readProfile === 'linked-audio-range-v1') continue;
+				if (descriptor.readProfile === 'linked-audio-range-v1' || descriptor.readProfile === 'selected-range-v1') continue;
 				assertDesktopMaterializedReadProfile(descriptor);
 				if (descriptor.size > readMaximumBytes - aggregateBytes) {
 					throw new RangeError('The desktop read aggregate exceeds its admitted maximum.');
@@ -169,17 +169,21 @@ export function createAudioEditorFileService(options = {}) {
 			throwIfAborted(request.signal);
 			const audioRanges = descriptors.some((descriptor) => descriptor.readProfile === 'linked-audio-range-v1')
 				? await import('./desktop-audio-range-blob.ts') : null;
+			const selectedRanges = descriptors.some((descriptor) => descriptor.readProfile === 'selected-range-v1')
+				? await import('./desktop-selected-range-blob.ts') : null;
 			const files = [];
 			for (const descriptor of descriptors) {
 				if (descriptor.readProfile === 'linked-audio-range-v1') {
 					files.push(audioRanges.createDesktopAudioRangeBlob(descriptor, { fetch: fetchFile, signal: request.signal }));
+				} else if (descriptor.readProfile === 'selected-range-v1') {
+					files.push(selectedRanges.createDesktopSelectedRangeBlob(descriptor, { fetch: fetchFile, signal: request.signal }));
 				} else {
 					const blob = await materializeReadDescriptor(descriptor, request.signal);
 					files.push(createNamedFile(blob, descriptor, scope));
 				}
 			}
 			try { return await consume(Object.freeze(files)); }
-			finally { for (const file of files) audioRanges?.retireDesktopAudioRangeBlob(file); }
+			finally { for (const file of files) { audioRanges?.retireDesktopAudioRangeBlob(file); selectedRanges?.retireDesktopSelectedRangeBlob(file); } }
 		});
 	}
 

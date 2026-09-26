@@ -1,6 +1,7 @@
 import { effectiveAup4SaveLimit } from './aup4-profile.js';
 import { WorkerRequestBroker } from './worker-request-broker.ts';
 import { createWorkerRequestId } from './worker-protocol.ts';
+import { selectedRangeDescriptorForBlob } from './desktop-selected-range-blob.ts';
 
 export class Aup4ClientError extends Error {
 	constructor(message, code = 'AUP4_CLIENT_ERROR', options = {}) {
@@ -40,7 +41,8 @@ export class Aup4WorkerClient {
 	initialize(options = {}) { return this.call('initialize', {}, options); }
 	create(projectId, options = {}) { return this.call('create', { projectId }, options); }
 	openFile(projectId, file, options = {}) {
-		return this.call('open-file', { projectId, file, ...deviceOptions(options) }, options);
+		const desktopRange = file instanceof Blob ? selectedRangeDescriptorForBlob(file) : null;
+		return this.call('open-file', { projectId, ...(desktopRange ? { desktopRange } : { file }), ...deviceOptions(options) }, options);
 	}
 	planImport(projectId, options = {}) {
 		return this.call('plan-import', { projectId, title: options.title }, options);

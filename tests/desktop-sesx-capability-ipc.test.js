@@ -39,7 +39,7 @@ test('selected SESX file creates a separate owner-scoped session grant', async (
 		ownerFor: () => owner,
 		pendingOpenProjects: new Map(),
 		readCapabilities: {
-			registerMaterializedPath: async (filePath, options) => { calls.push(['read-register', filePath, options]); return descriptor; },
+			registerSelectedRangePath: async (filePath, options) => { calls.push(['read-register', filePath, options]); return descriptor; },
 			release: async (id, options) => { calls.push(['read-release', id, options]); return true; },
 		},
 		sesxMediaSessions: {

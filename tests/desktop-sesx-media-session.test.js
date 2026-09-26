@@ -32,9 +32,9 @@ async function fixture(context, { maxScanEntries } = {}) {
 				const details = await stat(sessionPath);
 				return { path: sessionPath, size: details.size, identity: { dev: details.dev, ino: details.ino } };
 			},
-			async registerSelectedAudioRangePath(filePath, options) {
+			async registerSelectedRangePath(filePath, options) {
 				granted.push({ filePath, options });
-				return { id: 'c'.repeat(64), name: basename(filePath), readProfile: 'linked-audio-range-v1' };
+				return { id: 'c'.repeat(64), name: basename(filePath), readProfile: 'selected-range-v1' };
 			},
 		},
 		dialog: { async showOpenDialog() { return folderChoice === null

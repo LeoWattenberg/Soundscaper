@@ -13,6 +13,7 @@ import {
 } from './aup4-database.js';
 import { decodeAudacityProjectTree } from './aup4-conversion.js';
 import { Aup4WorkerRequestState } from './aup4-worker-request-state.ts';
+import { createAup4DesktopRangeFile } from './aup4-worker-desktop-range-file.ts';
 import { createAup4SnapshotWrites } from './aup4-worker-snapshot.js';
 import {
 	WORKER_VALIDATION_OPTIONS,
@@ -146,7 +147,7 @@ async function createProject(args, context) {
 
 async function openFile(args, context) {
 	const projectId = normalizeProjectId(args.projectId);
-	const file = args.file;
+	const file = args.desktopRange ? createAup4DesktopRangeFile(args.desktopRange) : args.file;
 	if (!file || typeof file.size !== 'number' || typeof file.slice !== 'function') throw operationError('A File is required to open an Audacity project.', 'INVALID_FILE');
 	const sourceGeneration = /\.aup3$/i.test(String(file.name || '')) ? 'aup3' : /\.aup4$/i.test(String(file.name || '')) ? 'aup4' : null;
 	if (!sourceGeneration) throw operationError('Choose an Audacity project file (.aup3 or .aup4).', 'INVALID_FILE');
