@@ -188,3 +188,28 @@ test('OPFS sync worker client reclaims a writer returned after its open was canc
 	});
 	client.close();
 });
+
+test('OPFS sync worker client removes a staged path when close finished after cancellation', async () => {
+	const worker = new FakeWorker((message) => {
+		if (message.type === 'initialize') return { type: 'result', result: { supported: true } };
+		if (message.type === 'open-writer') return { type: 'result', result: { writerId: 'writer-1' } };
+		if (message.type === 'abort-writer') return { type: 'result', result: { removed: false } };
+		if (message.type === 'remove') return { type: 'result', result: { removed: true } };
+		return null;
+	});
+	const client = new OpfsSyncWorkerClient({ workerFactory: () => worker });
+	await client.initialize({} as FileSystemDirectoryHandle);
+	const writer = await client.openWriter('media-asset-chunk-write', 'staged.blob');
+	const cancellation = new AbortController();
+	const closing = writer.close(cancellation.signal);
+	const closeRequest = worker.posted.at(-1)!;
+	cancellation.abort(new DOMException('Cancelled close.', 'AbortError'));
+	await assert.rejects(closing, { name: 'AbortError' });
+	worker.emit('message', { data: {
+		id: closeRequest.id, type: 'result', result: { size: 0 },
+	} });
+
+	await writer.abort();
+	assert.deepEqual(worker.posted.slice(-2).map(({ type }) => type), ['abort-writer', 'remove']);
+	client.close();
+});

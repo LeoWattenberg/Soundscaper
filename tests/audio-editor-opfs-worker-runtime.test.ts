@@ -198,6 +198,22 @@ test('OPFS worker runtime writes sequential chunks and flushes before close', as
 	);
 });
 
+test('OPFS worker runtime permits cleanup after a close acknowledgement races cancellation', async () => {
+	const fixture = fakeDirectory();
+	const runtime = new OpfsSyncWorkerRuntime({ supportsSyncAccessHandles: () => true });
+	await runtime.handle({ id: 'init', type: 'initialize', directory: fixture.directory });
+	const { writerId } = await runtime.handle({
+		id: 'open', type: 'open-writer', operationId: 'media-asset-chunk-write', path: 'staged.blob',
+	});
+	await runtime.handle({ id: 'close', type: 'close-writer', writerId });
+
+	assert.deepEqual(await runtime.handle({ id: 'abort', type: 'abort-writer', writerId }), {
+		removed: false,
+	});
+	await runtime.handle({ id: 'remove', type: 'remove', path: 'staged.blob' });
+	assert.equal(fixture.files.has('staged.blob'), false);
+});
+
 test('OPFS worker runtime releases a writer whose flush fails', async () => {
 	const fixture = fakeDirectory();
 	const runtime = new OpfsSyncWorkerRuntime({ supportsSyncAccessHandles: () => true });

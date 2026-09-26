@@ -66,6 +66,10 @@ interface WorkerOpenResult {
 	readonly writerId?: unknown;
 }
 
+interface WorkerAbortResult {
+	readonly removed?: unknown;
+}
+
 interface WorkerSnapshotResult {
 	readonly size?: unknown;
 	readonly file?: unknown;
@@ -154,7 +158,10 @@ export class OpfsSyncWorkerClient implements OpfsSyncStoragePort {
 			abort: async (): Promise<void> => {
 				if (state !== 'open') return;
 				state = 'aborted';
-				await this.#request({ type: 'abort-writer', writerId });
+				const result = await this.#request<WorkerAbortResult>({ type: 'abort-writer', writerId });
+				// A cancelled close may have completed in the worker after its caller
+				// received AbortError. The writer is gone, but its staged file remains.
+				if (result?.removed === false) await this.remove(path);
 			},
 		});
 	}

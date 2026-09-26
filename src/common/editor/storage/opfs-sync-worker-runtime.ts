@@ -192,7 +192,11 @@ export class OpfsSyncWorkerRuntime {
 	}
 
 	async #abortWriter(request: WorkerRequest, requestIdValue: string): Promise<Record<string, unknown>> {
-		const writer = this.#writer(request.writerId);
+		const writerId = typeof request.writerId === 'string' ? request.writerId : '';
+		const writer = this.#writers.get(writerId);
+		// A cancelled close can finish in the worker after its caller has already
+		// received AbortError. Cleanup still needs to remove the staged path.
+		if (!writer) return Object.freeze({ removed: false });
 		this.#throwIfCancelled(requestIdValue);
 		this.#writers.delete(writer.id);
 		let closeError: unknown;
