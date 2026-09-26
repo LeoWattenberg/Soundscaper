@@ -35,6 +35,7 @@ test('workspace presets retain their product-specific layout defaults', () => {
 	const preferences = createAudioEditorPreferencesV1();
 	assert.equal(preferences.workspace.activeId, 'modern', 'a fresh Soundscaper session starts in its own workspace');
 	assert.equal(preferences.workspace.panels['project-bin'].visible, false);
+	assert.equal(preferences.workspace.panels['video-preview'].visible, false);
 	assert.deepEqual(preferences.workspace.panels.effects, {
 		visible: false, dock: 'left', order: 0, size: 360,
 		x: 96, y: 40, width: 360, height: 440,

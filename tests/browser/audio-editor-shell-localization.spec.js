@@ -113,7 +113,7 @@ test.describe('audio editor React/design-system workflows', () => {
 		const videoPreview = videoWorkspace.locator('[data-video-workspace-panel="video-preview"]');
 		await expect(projectBin).toBeVisible();
 		await expect(videoPreview).toBeVisible();
-		await expect(videoPreview.locator('[data-video-preview]')).toContainText('Add video to the timeline to see a preview.');
+		await expect(videoPreview.locator('[data-video-preview]')).toContainText('No video');
 
 		const [videoWorkspaceBounds, projectBinBounds, videoPreviewBounds, actionBarBounds, toolbarBounds, workspaceBounds] = await Promise.all([
 			videoWorkspace.boundingBox(),

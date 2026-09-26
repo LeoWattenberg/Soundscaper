@@ -38,6 +38,7 @@ import { openWorkspaceProjectFile } from './open-workspace-project-file.ts';
 import { desktopExternalDestination } from '../workspace-runtime.js'; import { createTimedRecordingDialogValue } from '../dialogs/timed-recording-dialog-model.ts';
 import { useTrackHeaderDrawerFlag, useWorkspaceCompactLayout } from './useWorkspaceCompactLayout.js';
 import { useWorkspaceEffectsPanel } from './useWorkspaceEffectsPanel.js';
+import { useAutoShowVideoPreview } from './useAutoShowVideoPreview.ts';
 import { createWorkspaceEditItems } from './workspace-edit-items.js';
 import { resolveEditingActionAvailability } from '../../commands/editing-selection-authority.ts';
 import { useCueImportWorkspace } from './cue-import-workspace.tsx'; import { useFreesoundClipUploadCommand } from './freesound-clip-upload-command.ts';
@@ -133,6 +134,10 @@ const DEFERRED_WEB_VCR_PANEL_ID = 'web-vcr'; export default function AudioEditor
 		setPlaybackMeterSettings,
 		setRecordingMeterSettings,
 	});
+	const showVideoPreview = useCallback(() => {
+		run(() => controller.actions.preferences.setPanelVisibility('video-preview', true));
+	}, [controller, run]);
+	useAutoShowVideoPreview(project, preferences?.workspace?.panels?.['video-preview']?.visible === true, showVideoPreview, productId === 'soundscaper');
 	const trackHeaderDrawer = useTrackHeaderDrawerFlag(parityRuntime.uiController, uiFlags.trackHeaderDrawer, compactLayout);
 	const automationToolEnabled = Boolean(uiFlags.automationTool);
 	const busyBlock = selectAudioEditorBusyBlock(snapshot);

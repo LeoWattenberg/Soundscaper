@@ -210,7 +210,7 @@
 	max-width: 32ch;
 	padding: 24px;
 	text-align: center;
-	color: var(--text);
+	color: #d7dce4;
 }
 
 .kw-audio-editor__video-preview-status {

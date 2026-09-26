@@ -90,7 +90,7 @@ const AUDACITY_VIEW_DEFAULTS: WorkspaceViewDefaults = Object.freeze({
 
 export const DEFAULT_PANELS = Object.freeze({
 	'project-bin': Object.freeze({ visible: false, dock: 'left', order: 0, size: 380 }),
-	'video-preview': Object.freeze({ visible: true, dock: 'floating', order: 0, size: 560 }),
+	'video-preview': Object.freeze({ visible: false, dock: 'floating', order: 0, size: 560 }),
 	// The source monitor belongs to editing from a bin, so it is offered where
 	// that is the work and stays available but hidden everywhere else.
 	'source-monitor': Object.freeze({ visible: false, dock: 'floating', order: 1, size: 460 }),

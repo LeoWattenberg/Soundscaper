@@ -57,9 +57,6 @@ export default function WorkspacePanelDock({
 			&& !(snapshot.preferences?.workspace?.activeId === 'video-editor'
 				&& (id === 'project-bin' || id === 'video-preview' || id === 'source-monitor'))
 			&& (id !== 'project-bin' || projectBinEffectivelyOpen)
-			&& (id !== 'video-preview' || snapshot.project?.tracks?.some((track) => (
-				track.type === 'video' && track.clipIds?.length
-			)))
 		));
 	const panels = availablePanels
 		.filter(([, panel]) => panel.dock === dock)
