@@ -27,7 +27,7 @@ A workspace is a saved arrangement of the panels and toolbars around the timelin
 | Panel | Panel ID | Default dock | Classic | Music | Soundscaper | Audacity | Video editor |
 | --- | --- | --- | --- | --- | --- | --- | --- |
 | Project bin | `project-bin` | Left | Hidden | Visible | Hidden | Hidden | Visible |
-| Video preview | `video-preview` | Floating | Hidden | Visible | Visible | Visible | Visible |
+| Video preview | `video-preview` | Floating | Hidden | Hidden | Hidden | Hidden | Visible |
 | Source monitor | `source-monitor` | Floating | Hidden | Hidden | Hidden | Hidden | Visible |
 | History | `history` | Right | Hidden | Hidden | Hidden | Hidden | Hidden |
 | Labels | `labels` | Right | Hidden | Hidden | Hidden | Hidden | Hidden |
