@@ -38,7 +38,11 @@ test('guarded sound activation controls are disabled and expose the exact active
 
 	assert.match(markup, /data-sound-activation-block-reason="recording-active"/u);
 	assert.match(markup, /Recording is active/u);
-	assert.equal((markup.match(/ disabled=""/gu) || []).length, 4);
+	assert.match(markup, /<input\b(?=[^>]*data-sound-activation-threshold="true")(?=[^>]*disabled="")[^>]*>/u);
+	assert.match(markup, /<input\b(?=[^>]*data-sound-activation-hysteresis="true")(?=[^>]*disabled="")[^>]*>/u);
+	assert.match(markup, /<input\b(?=[^>]*name="sound-activation-hold")(?=[^>]*disabled="")[^>]*>/u);
+	assert.match(markup, /<button\b(?=[^>]*class="timecode__format-button")(?=[^>]*disabled="")[^>]*>/u);
+	assert.match(markup, /<input\b(?=[^>]*name="sound-activation-add-timestamps")(?=[^>]*disabled="")[^>]*>/u);
 	assert.match(markup, /aria-disabled="true"/u);
 });
 
