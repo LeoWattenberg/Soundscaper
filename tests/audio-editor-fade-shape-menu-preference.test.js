@@ -11,13 +11,15 @@ import {
 import { createApplicationViewMenu } from '../src/common/editor/ui/application-view-menu.js';
 import { ENGLISH_COPY, GERMAN_COPY } from '../src/common/i18n/catalogs.js';
 
-test('fade shape handles stay hidden by default and preserve the saved View choice', () => {
+test('fade shape handles show by default and preserve the saved View choice', () => {
 	const defaults = createAudioEditorPreferencesV1();
-	assert.equal(defaults.view.showFadeShapeHandles, false);
-	const enabled = updateAudioEditorPreferencesV1(defaults, { view: { showFadeShapeHandles: true } });
-	assert.equal(loadAudioEditorPreferencesV1(enabled).preferences.view.showFadeShapeHandles, true);
+	assert.equal(defaults.view.showFadeShapeHandles, true);
+	const hidden = updateAudioEditorPreferencesV1(defaults, { view: { showFadeShapeHandles: false } });
+	assert.equal(loadAudioEditorPreferencesV1(hidden).preferences.view.showFadeShapeHandles, false);
 	const legacy = { ...defaults, view: { showMasterTrack: false, showMarkers: false } };
-	assert.equal(loadAudioEditorPreferencesV1(legacy).preferences.view.showFadeShapeHandles, false);
+	assert.equal(loadAudioEditorPreferencesV1(legacy).preferences.view.showFadeShapeHandles, true);
+	const previouslyHiddenByDefault = { ...defaults, view: { ...legacy.view, showFadeShapeHandles: false } };
+	assert.equal(loadAudioEditorPreferencesV1(previouslyHiddenByDefault).preferences.view.showFadeShapeHandles, true);
 	assert.throws(() => createAudioEditorPreferencesV1({ view: { showFadeShapeHandles: 'yes' } }), /view\.showFadeShapeHandles/u);
 });
 

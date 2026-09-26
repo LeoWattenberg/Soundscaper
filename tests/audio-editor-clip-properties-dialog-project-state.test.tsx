@@ -66,6 +66,28 @@ test('clip property actions cannot reenter while the first action is pending', a
 	}
 });
 
+test('clip properties expose both fade shape sliders and commit their values', async () => {
+	const fixture = await mountedClipPropertiesFixture();
+	try {
+		await fixture.render(project('fade-shapes', 25));
+		for (const [field, expected] of [['fadeInShape', 0.5], ['fadeOutShape', 3]] as const) {
+			const slider = fixture.fadeShapeSlider(field);
+			assert.equal(slider.getAttribute('min'), '0.15');
+			assert.equal(slider.getAttribute('max'), '6');
+			assert.equal(slider.getAttribute('step'), '0.01');
+			assert.equal(slider.value, '2', 'an unshaped legacy fade keeps its linear curve');
+			assert.equal(slider.getAttribute('aria-valuetext'), ENGLISH_COPY.legacyLinearFadeShape);
+			await act(async () => reactProps(slider).onChange({ currentTarget: { value: String(expected) } }));
+		}
+		assert.deepEqual(fixture.updateCalls, [
+			{ clipId: 'shared-clip', changes: { fadeInShape: 0.5 } },
+			{ clipId: 'shared-clip', changes: { fadeOutShape: 3 } },
+		]);
+	} finally {
+		await fixture.cleanup();
+	}
+});
+
 async function mountedClipPropertiesFixture() {
 	const dom = installReactTestDom();
 	const actGlobal = globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean };
@@ -79,11 +101,12 @@ async function mountedClipPropertiesFixture() {
 		clipId: string;
 		completion: Deferred<void>;
 	}>> = [];
+	const updateCalls: Array<{ clipId: string; changes: Record<string, number> }> = [];
 	const controller = {
 		get project() { return currentProject; },
 		actions: {
 			clip: {
-				update: () => undefined,
+				update: (clipId: string, changes: Record<string, number>) => { updateCalls.push({ clipId, changes }); },
 				move: () => undefined,
 				trim: () => undefined,
 				setTimePitch: () => undefined,
@@ -104,6 +127,14 @@ async function mountedClipPropertiesFixture() {
 	const root = createRoot(dom.container as unknown as Element);
 	return {
 		normalizeCalls,
+		updateCalls,
+		fadeShapeSlider: (field: string) => {
+			const wrapper = dom.container.querySelector(`[data-clip-field="${field}"]`);
+			assert.ok(wrapper, `Missing ${field} field.`);
+			const slider = wrapper.querySelector('input');
+			assert.ok(slider, `Missing ${field} slider.`);
+			return slider;
+		},
 		render: async (nextProject: ReturnType<typeof project>) => {
 			currentProject = nextProject;
 			await act(async () => root.render(<ClipPropertiesDialog
@@ -136,7 +167,7 @@ async function mountedClipPropertiesFixture() {
 	};
 }
 
-function project(id: string) {
+function project(id: string, fadeFrames = 0) {
 	const source = createAudioSource({
 		id: 'shared-source', storageKey: `${id}-source`, name: `${id} source`,
 		frameCount: 1_000, channelCount: 1, sampleRate: 48_000,
@@ -145,6 +176,7 @@ function project(id: string) {
 		id: 'shared-clip', sourceId: source.id, title: `${id} clip`,
 		timelineStartFrame: 0, durationFrames: 200,
 		sourceStartFrame: 0, sourceDurationFrames: 200,
+		fadeInFrames: fadeFrames, fadeOutFrames: fadeFrames,
 	});
 	return createSoundscaperProject({
 		id, title: id, now: '2026-08-29T00:00:00.000Z',

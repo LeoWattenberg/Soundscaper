@@ -1,5 +1,5 @@
 import { expect, test, toneA, toneB, monoTone } from './audio-editor-test-fixtures.js';
-import { bootEditor, chooseCommandAction, clipByName, collectClientErrors, importFiles, registerAudioEditorHooks, setDocumentTheme, waitForEditor } from './audio-editor-test-helpers.js';
+import { bootEditor, chooseCommandAction, clipByName, collectClientErrors, importFiles, openClipProperties, registerAudioEditorHooks, setDocumentTheme, waitForEditor } from './audio-editor-test-helpers.js';
 import { chooseTrackMenuAction } from './helpers/track-menu.js';
 
 async function selectClip(clip) {
@@ -161,7 +161,7 @@ test.describe('non-destructive clip fade handles', () => {
 		expect(outgoing.x + outgoing.width).toBeLessThanOrEqual(outline.x + outline.width - 2);
 	});
 
-	test('View opts into shape handles, whose drags change the saved curve without moving its edge', async ({ page }) => {
+	test('shape handles appear with fades, can be hidden in View, and save curve drags', async ({ page }) => {
 		const editor = await bootEditor(page, '/embed/en/');
 		await importFiles(editor, [toneA]);
 		let clip = clipByName(editor, toneA.name);
@@ -169,6 +169,8 @@ test.describe('non-destructive clip fade handles', () => {
 		const fadeIn = clip.getByRole('slider', { name: 'Fade in', exact: true });
 		await fadeIn.press('End');
 		await expect(fadeIn).toHaveAttribute('aria-valuenow', '0.8');
+		await expect(clip.getByRole('slider', { name: 'Fade in shape', exact: true })).toBeVisible();
+		await chooseCommandAction(page, editor, 'View', 'Fade shape handles');
 		await expect(clip.locator('[data-clip-fade-shape-handle]')).toHaveCount(0);
 		await chooseCommandAction(page, editor, 'View', 'Fade shape handles');
 		let shape = clip.getByRole('slider', { name: 'Fade in shape', exact: true });
@@ -203,6 +205,29 @@ test.describe('non-destructive clip fade handles', () => {
 		await expect(shape).toHaveAttribute('aria-valuenow', '6');
 	});
 
+	test('Clip properties edits both fade shapes with sliders', async ({ page }) => {
+		const editor = await bootEditor(page, '/embed/en/');
+		await importFiles(editor, [toneA]);
+		const clip = clipByName(editor, toneA.name);
+		await selectClip(clip);
+		await clip.getByRole('slider', { name: 'Fade in', exact: true }).press('End');
+		await clip.getByRole('slider', { name: 'Fade out', exact: true }).press('End');
+		const dialog = await openClipProperties(page, editor, clip);
+		const incoming = dialog.getByRole('slider', { name: 'Fade in shape', exact: true });
+		const outgoing = dialog.getByRole('slider', { name: 'Fade out shape', exact: true });
+		await expect(incoming).toHaveValue('1');
+		await expect(outgoing).toHaveValue('1');
+		await incoming.focus();
+		await incoming.press('End');
+		await expect(incoming).toHaveValue('6');
+		await outgoing.focus();
+		await outgoing.press('Home');
+		await expect(outgoing).toHaveValue('0.15');
+		await dialog.getByRole('button', { name: 'Done', exact: true }).click();
+		await expect(clip.getByRole('slider', { name: 'Fade in shape', exact: true })).toHaveAttribute('aria-valuenow', '6');
+		await expect(clip.getByRole('slider', { name: 'Fade out shape', exact: true })).toHaveAttribute('aria-valuenow', '0.15');
+	});
+
 	test('both shape dots remain draggable when the two authored fades overlap', async ({ page }) => {
 		const editor = await bootEditor(page, '/embed/en/');
 		await importFiles(editor, [toneA]);
@@ -210,7 +235,6 @@ test.describe('non-destructive clip fade handles', () => {
 		await selectClip(clip);
 		await clip.getByRole('slider', { name: 'Fade in', exact: true }).press('End');
 		await clip.getByRole('slider', { name: 'Fade out', exact: true }).press('End');
-		await chooseCommandAction(page, editor, 'View', 'Fade shape handles');
 		const incoming = clip.getByRole('slider', { name: 'Fade in shape', exact: true });
 		const outgoing = clip.getByRole('slider', { name: 'Fade out shape', exact: true });
 		const inBounds = await incoming.boundingBox();
@@ -231,7 +255,6 @@ test.describe('non-destructive clip fade handles', () => {
 		const clip = clipByName(editor, toneA.name);
 		await selectClip(clip);
 		await clip.getByRole('slider', { name: 'Fade in', exact: true }).press('End');
-		await chooseCommandAction(page, editor, 'View', 'Fade shape handles');
 		const shape = clip.getByRole('slider', { name: 'Fade in shape', exact: true });
 		const bounds = await shape.boundingBox();
 		expect(bounds).not.toBeNull();

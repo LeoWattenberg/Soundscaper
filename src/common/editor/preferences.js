@@ -167,7 +167,7 @@ const FORBIDDEN_TOP_LEVEL_KEYS = new Set([
  * @property {import('./editing-preferences.ts').AudioEditorEditingPreferences} editing
  * @property {Record<string, string[]>} shortcuts
  * @property {import('./appearance-preferences.ts').AppearancePreferences} appearance
- * @property {{showMasterTrack: boolean, showMarkers: boolean, showFadeShapeHandles: boolean}} view
+ * @property {{showMasterTrack: boolean, showMarkers: boolean, showFadeShapeHandles: boolean, fadeShapeHandlesPreferenceVersion: 1}} view
  * @property {{activeId: string, custom: Object[], toolbars: Record<string, {visible: boolean, order: number}>, toolbarButtons: Record<string, boolean>, panels: Record<string, AudioEditorPanelStateV1>}} workspace
  * @property {Object} spectrogram
  * @property {import('./waveform-visualization-preferences.ts').WaveformVisualizationPreferences} waveformVisualization
@@ -261,7 +261,7 @@ export function createAudioEditorPreferencesV1(options = {}) {
 	if (typeof showMasterTrack !== 'boolean') throw new TypeError('view.showMasterTrack must be boolean.');
 	const showMarkers = options.view?.showMarkers ?? false;
 	if (typeof showMarkers !== 'boolean') throw new TypeError('view.showMarkers must be boolean.');
-	const showFadeShapeHandles = options.view?.showFadeShapeHandles ?? false;
+	const showFadeShapeHandles = options.view?.showFadeShapeHandles ?? true;
 	if (typeof showFadeShapeHandles !== 'boolean') throw new TypeError('view.showFadeShapeHandles must be boolean.');
 	const startupProjectId = options.startup?.projectId ?? '';
 	if (typeof startupProjectId !== 'string') throw new TypeError('startup.projectId must be a string.');
@@ -278,7 +278,7 @@ export function createAudioEditorPreferencesV1(options = {}) {
 		editing: normalizeAudioEditorEditingPreferences(options.editing),
 		shortcuts: normalizeShortcuts(options.shortcuts === undefined ? AUDIO_EDITOR_DEFAULT_SHORTCUTS : options.shortcuts),
 		appearance: normalizeAppearancePreferences(options.appearance),
-		view: { showMasterTrack, showMarkers, showFadeShapeHandles },
+		view: { showMasterTrack, showMarkers, showFadeShapeHandles, fadeShapeHandlesPreferenceVersion: 1 },
 		workspace: {
 			activeId,
 			custom,
@@ -462,6 +462,7 @@ export function validateAudioEditorPreferencesV1(preferences) {
 		for (const field of ['showMarkers', 'showFadeShapeHandles']) {
 			if (preferences.view[field] !== undefined && typeof preferences.view[field] !== 'boolean') throw new TypeError(`view.${field} must be boolean.`);
 		}
+		if (preferences.view.fadeShapeHandlesPreferenceVersion !== undefined && preferences.view.fadeShapeHandlesPreferenceVersion !== 1) throw new RangeError('view.fadeShapeHandlesPreferenceVersion must be 1.');
 	}
 	if (preferences.recording !== undefined) {
 		if (!preferences.recording || typeof preferences.recording !== 'object' || Array.isArray(preferences.recording)) {
@@ -503,7 +504,7 @@ export function loadAudioEditorPreferencesV1(value) {
 	const shortcutDefaultsVersion = value.shortcutDefaultsVersion === undefined
 		? 0
 		: integer(value.shortcutDefaultsVersion, 0, 'shortcutDefaultsVersion');
-	const normalized = createAudioEditorPreferencesV1(value);
+	const normalized = createAudioEditorPreferencesV1(value.view?.fadeShapeHandlesPreferenceVersion === 1 ? value : { ...value, view: { ...value.view, showFadeShapeHandles: true } });
 	return {
 		preferences: {
 			...clone(value),

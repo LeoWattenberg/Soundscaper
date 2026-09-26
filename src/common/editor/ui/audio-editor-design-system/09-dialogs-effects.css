@@ -169,6 +169,27 @@
 	text-transform: none;
 }
 
+.audio-editor-clip-fade-shape__row {
+	display: flex;
+	min-width: 0;
+	align-items: center;
+	gap: 9px;
+}
+
+.audio-editor-clip-fade-shape__row .slider {
+	min-width: 80px;
+	flex: 1 1 auto;
+}
+
+.audio-editor-clip-fade-shape__row output {
+	min-width: 38px;
+	color: var(--text);
+	font-weight: 600;
+	letter-spacing: normal;
+	text-align: right;
+	text-transform: none;
+}
+
 .audio-editor-field .text-input__field,
 .audio-editor-field .dropdown__trigger {
 	min-height: 32px;

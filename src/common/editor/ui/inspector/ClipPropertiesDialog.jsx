@@ -6,9 +6,10 @@ import { AUDIO_EDITOR_SAMPLE_RATE, findClip, findClipTrack, findSource } from '.
 import AudioEditorDialogShell from '../AudioEditorDialogShell.tsx';
 import AudioEditorTimeCodeInput from '../AudioEditorTimeCodeInput.tsx';
 import { selectAudioEditorEditBlock } from '../edit-blocking.ts';
-import { ActionHook, CommitField, DesignCheckbox, LabeledDropdown } from './inspector-controls.jsx';
+import { ActionHook, CommitField, DesignCheckbox, LabeledDropdown, SteppedSlider } from './inspector-controls.jsx';
 import ClipResampleDialog from './ClipResampleDialog.jsx';
 import { VideoEffectRack } from './VideoEffectRack.jsx';
+import VideoSourcePropertiesSection from './VideoSourcePropertiesSection.jsx';
 import {
 	clipPitchInUnit,
 	clipPitchUnitFieldLabel,
@@ -106,6 +107,10 @@ function ClipProperties({ controller, snapshot, copy }) {
 				const field = name.startsWith('fadeIn') ? 'fadeInFrames' : 'fadeOutFrames';
 				const frames = Math.min(clip.durationFrames, nonNegativeFrame(rawValue, copy));
 				controller.actions.clip.update(clip.id, { [field]: frames });
+			} else if (name === 'fadeInShape' || name === 'fadeOutShape') {
+				const shape = Number(rawValue);
+				if (!Number.isFinite(shape) || shape < 0.15 || shape > 6) throw new RangeError('Invalid fade shape.');
+				controller.actions.clip.update(clip.id, { [name]: shape });
 			} else if (name === 'pitchCents') {
 				const pitchCents = clipPitchUnitToCents(rawValue, pitchUnit, copy);
 				controller.actions.clip.setTimePitch(clip.id, { pitchCents });
@@ -184,6 +189,7 @@ function ClipProperties({ controller, snapshot, copy }) {
 						</div>
 					)}
 				</section>
+				{isVideoClip && source?.kind === 'video' && <VideoSourcePropertiesSection source={source} controller={controller} copy={copy} disabled={disabled} />}
 				{!isVideoClip && <section className="audio-editor-clip-properties__card">
 					<h3>{copy.fading}</h3>
 					<div className="audio-editor-clip-properties__stack">
@@ -191,9 +197,15 @@ function ClipProperties({ controller, snapshot, copy }) {
 						<ClipTimeCodeField name="fadeInFrame" label={copy.fadeIn} value={clip?.fadeInFrames ?? 0}
 							sampleRate={sampleRate} maximum={clip?.durationFrames ?? 0} disabled={disabled}
 							onCommit={(value) => commitField('fadeInFrame', value)} />
+						<ClipFadeShapeField name="fadeInShape" label={copy.fadeInShape} value={clip?.fadeInShape}
+							fadeFrames={clip?.fadeInFrames ?? 0} legacyLabel={copy.legacyLinearFadeShape}
+							disabled={disabled} onCommit={commitField} />
 						<ClipTimeCodeField name="fadeOutFrame" label={copy.fadeOut} value={clip?.fadeOutFrames ?? 0}
 							sampleRate={sampleRate} maximum={clip?.durationFrames ?? 0} disabled={disabled}
 							onCommit={(value) => commitField('fadeOutFrame', value)} />
+						<ClipFadeShapeField name="fadeOutShape" label={copy.fadeOutShape} value={clip?.fadeOutShape}
+							fadeFrames={clip?.fadeOutFrames ?? 0} legacyLabel={copy.legacyLinearFadeShape}
+							disabled={disabled} onCommit={commitField} />
 					</div>
 				</section>}
 				{!isVideoClip && snapshot.capabilities?.audioEffects && <section className="audio-editor-clip-properties__card">
@@ -259,6 +271,20 @@ function ClipTimeCodeField({ name, label, value, sampleRate, minimum = 0,
 		<AudioEditorTimeCodeInput label={label} value={value} unit="samples" rate={sampleRate}
 			format="hh:mm:ss+milliseconds" minimum={minimum} maximum={maximum}
 			disabled={disabled} onCommit={onCommit} />
+	</label>;
+}
+
+function ClipFadeShapeField({ name, label, value, fadeFrames, legacyLabel, disabled, onCommit }) {
+	const legacy = value === undefined && fadeFrames > 0;
+	const shape = value ?? (legacy ? 2 : 1);
+	return <label className="audio-editor-field" data-clip-field={name}>
+		<span>{label}</span>
+		<div className="audio-editor-clip-fade-shape__row">
+			<SteppedSlider value={shape} min={0.15} max={6} step={0.01}
+				ariaLabel={label} valueText={legacy ? legacyLabel : undefined}
+				disabled={disabled} onChange={(next) => onCommit(name, next)} />
+			<output>{legacy ? legacyLabel : shape.toFixed(2)}</output>
+		</div>
 	</label>;
 }
 
