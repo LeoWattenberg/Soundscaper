@@ -184,6 +184,9 @@ async function installModel(page, model, packageIdentity, testInfo) {
 	});
 	const installation = await page.evaluate(async (id) => {
 		const desktop = globalThis.soundscaperDesktop.v1;
+		const before = await desktop.listAssistanceModels();
+		const previouslyInstalled = before.models.some((entry) => entry.modelId === id
+			&& entry.availability === 'installed');
 		const started = performance.now();
 		const progress = new Map();
 		const unsubscribe = desktop.onAssistanceInstallProgress((event) => {
@@ -197,7 +200,7 @@ async function installModel(page, model, packageIdentity, testInfo) {
 				throw new Error(`The installed model ${id} has no exact full-hash readback.`);
 			}
 			const model = { ...installed, artifactSha256s: authenticated[0].artifactSha256s };
-			return { model, elapsedMs: performance.now() - started,
+			return { model, elapsedMs: performance.now() - started, previouslyInstalled,
 				artifacts: Array.from(progress.values()) };
 		} finally {
 			unsubscribe();

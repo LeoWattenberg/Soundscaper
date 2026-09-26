@@ -129,6 +129,8 @@ export function createModelInstallEvidence({
 		'The packaged installer installed artifact SHA-256s differ from the catalog.');
 	assert.ok(Number.isFinite(installation.elapsedMs) && installation.elapsedMs >= 0,
 		'The packaged installer elapsed time is invalid.');
+	assert.equal(typeof installation.previouslyInstalled, 'boolean',
+		'The packaged installer must report whether the model was already installed.');
 	assert.ok(Array.isArray(installation.artifacts), 'The packaged installer progress is invalid.');
 	const runtimeFileNames = new Set(expectedRuntimeArchiveFileNames(model.modelId, model.task));
 	const progress = [];
@@ -162,9 +164,12 @@ export function createModelInstallEvidence({
 		'The packaged installer reported duplicate artifact progress.');
 	assert.equal(new Set(runtimeProgress.map(({ fileName }) => fileName)).size, runtimeProgress.length,
 		'The packaged installer reported duplicate runtime progress.');
-	assert.deepEqual(progress.map(({ fileName }) => fileName).toSorted(),
-		model.artifacts.map(({ fileName }) => fileName).toSorted(),
-		'The packaged installer artifact filename set differs from the catalog.');
+	const transferredFiles = progress.map(({ fileName }) => fileName).toSorted();
+	const expectedFiles = model.artifacts.map(({ fileName }) => fileName).toSorted();
+	if (!installation.previouslyInstalled || transferredFiles.length > 0) {
+		assert.deepEqual(transferredFiles, expectedFiles,
+			'The packaged installer artifact filename set differs from the catalog.');
+	}
 	return Object.freeze({
 		schemaVersion: 1,
 		kind: 'soundscaper-nightly-local-model-install',
@@ -180,6 +185,7 @@ export function createModelInstallEvidence({
 			availability: 'installed',
 			installedBytes,
 			elapsedMs: installation.elapsedMs,
+			previouslyInstalled: installation.previouslyInstalled,
 			artifactSha256s: Object.freeze(artifactSha256s),
 			progress: Object.freeze(progress),
 			runtimeProgress: Object.freeze(runtimeProgress),

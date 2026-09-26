@@ -71,7 +71,7 @@ test('nightly evidence combines live public delivery with the packaged installer
 	const installation = {
 		model: { modelId: model.modelId, version: model.version, availability: 'installed',
 			installedBytes: bytes.length, artifactSha256s: [model.artifacts[0].sha256] },
-		elapsedMs: 42,
+		elapsedMs: 42, previouslyInstalled: false,
 		artifacts: [{ modelId: model.modelId, fileName: 'model.onnx',
 			completedBytes: bytes.length, totalBytes: bytes.length }],
 	};
@@ -91,11 +91,26 @@ test('nightly evidence combines live public delivery with the packaged installer
 		artifacts: model.artifacts,
 		installation: {
 			availability: 'installed', installedBytes: bytes.length, elapsedMs: 42,
+			previouslyInstalled: false,
 			artifactSha256s: [model.artifacts[0].sha256],
 			progress: installation.artifacts,
 			runtimeProgress: [],
 		},
 	});
+});
+
+test('nightly evidence accepts a previously installed model with exact authenticated readback and no transfer', async () => {
+	const delivery = await verifyCatalogModelDelivery(model, { fetchImpl: publicDelivery([]) });
+	const installation = { model: { modelId: model.modelId, version: model.version,
+		availability: 'installed', installedBytes: bytes.length,
+		artifactSha256s: [model.artifacts[0].sha256] }, elapsedMs: 1,
+		previouslyInstalled: true, artifacts: [] };
+	const evidence = createModelInstallEvidence({ model, delivery, installation, packageIdentity });
+	assert.equal(evidence.installation.previouslyInstalled, true);
+	assert.deepEqual(evidence.installation.progress, []);
+	assert.throws(() => createModelInstallEvidence({ model, delivery,
+		installation: { ...installation, previouslyInstalled: false }, packageIdentity }),
+		/artifact filename set/u);
 });
 
 test('nightly evidence recognizes only the runtime archives required by the model', async () => {
@@ -106,7 +121,7 @@ test('nightly evidence recognizes only the runtime archives required by the mode
 		completedBytes: 120, totalBytes: 120 };
 	const installation = { model: { modelId: model.modelId, version: model.version,
 		availability: 'installed', installedBytes: bytes.length,
-		artifactSha256s: [model.artifacts[0].sha256] }, elapsedMs: 1,
+		artifactSha256s: [model.artifacts[0].sha256] }, elapsedMs: 1, previouslyInstalled: false,
 	artifacts: [runtime, artifact] };
 	const evidence = createModelInstallEvidence({ model, delivery, installation, packageIdentity });
 	assert.deepEqual(evidence.installation.progress, [artifact]);
@@ -131,7 +146,7 @@ test('nightly evidence rejects a public descriptor or installed byte count that 
 	const delivery = await verifyCatalogModelDelivery(model, { fetchImpl: publicDelivery([]) });
 	const installation = { model: { modelId: model.modelId, version: model.version,
 		availability: 'installed', installedBytes: bytes.length,
-		artifactSha256s: [model.artifacts[0].sha256] }, elapsedMs: 1,
+		artifactSha256s: [model.artifacts[0].sha256] }, elapsedMs: 1, previouslyInstalled: false,
 	artifacts: [{ modelId: model.modelId, fileName: 'model.onnx',
 		completedBytes: bytes.length, totalBytes: bytes.length }] };
 	assert.throws(() => createModelInstallEvidence({ model, delivery: [{ ...delivery[0], sha256: 'f'.repeat(64) }],
@@ -147,7 +162,7 @@ test('nightly evidence requires complete artifact progress and authenticated ins
 	const delivery = await verifyCatalogModelDelivery(model, { fetchImpl: publicDelivery([]) });
 	const installation = { model: { modelId: model.modelId, version: model.version,
 		availability: 'installed', installedBytes: bytes.length,
-		artifactSha256s: [model.artifacts[0].sha256] }, elapsedMs: 1,
+		artifactSha256s: [model.artifacts[0].sha256] }, elapsedMs: 1, previouslyInstalled: false,
 	artifacts: [{ modelId: model.modelId, fileName: 'model.onnx',
 		completedBytes: bytes.length, totalBytes: bytes.length }] };
 	assert.throws(() => createModelInstallEvidence({ model, delivery,
