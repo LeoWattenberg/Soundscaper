@@ -3638,7 +3638,7 @@
 		"videoOptionsSection": ["machine","Video options","گزینه‌های ویدیو"],
 		"videoPreviewCompositionUnavailable": ["machine","Video transforms and compositing cannot be rendered right now. Affected clips are hidden in the preview; export still applies the authored result.","در حال حاضر امکان رندر تبدیل‌ها و ترکیب‌بندی ویدیو وجود ندارد. کلیپ‌های تحت‌تأثیر در پیش‌نمایش پنهان می‌شوند؛ خروجی همچنان نتیجهٔ ایجادشده را اعمال می‌کند."],
 		"videoPreviewEffectsUnavailable": ["machine","Video effects cannot be rendered on the GPU right now. The preview is unprocessed; export still applies the effects.","در حال حاضر امکان رندر جلوه‌های ویدیویی روی GPU وجود ندارد. پیش‌نمایش پردازش‌نشده است؛ خروجی همچنان جلوه‌ها را اعمال می‌کند."],
-		"videoPreviewEmpty": ["machine","Add video to the timeline to see a preview.","برای مشاهدهٔ پیش‌نمایش، ویدیو را به خط زمان اضافه کنید."],
+		"videoPreviewEmpty": ["machine","No video","هیچ ویدیویی وجود ندارد"],
 		"videoPreviewKeyframesUnavailable": ["machine","The video keyframe state is invalid. The program preview has been hidden.","وضعیت کی‌فریم ویدیو نامعتبر است. پیش‌نمایش برنامه پنهان شده است."],
 		"videoPreviewUnavailable": ["machine","The local video file is unavailable.","فایل ویدیوی محلی در دسترس نیست."],
 		"videoQuality": ["machine","Quality","کیفیت"],

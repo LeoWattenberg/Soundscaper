@@ -3638,7 +3638,7 @@
 		"videoOptionsSection": ["machine","Video options","비디오 옵션"],
 		"videoPreviewCompositionUnavailable": ["machine","Video transforms and compositing cannot be rendered right now. Affected clips are hidden in the preview; export still applies the authored result.","비디오 변환 및 합성 작업을 현재 렌더링할 수 없습니다. 영향을 받는 클립은 미리 보기에서 숨겨져 있으며, 내보낼 때 작성된 결과가 여전히 적용됩니다."],
 		"videoPreviewEffectsUnavailable": ["machine","Video effects cannot be rendered on the GPU right now. The preview is unprocessed; export still applies the effects.","비디오 효과를 현재 GPU에서 렌더링할 수 없습니다. 미리 보기는 처리되지 않으며, 내보낼 때 효과가 여전히 적용됩니다."],
-		"videoPreviewEmpty": ["machine","Add video to the timeline to see a preview.","미리 보려면 타임라인에 비디오를 추가하세요."],
+		"videoPreviewEmpty": ["machine","No video","비디오 없음"],
 		"videoPreviewKeyframesUnavailable": ["machine","The video keyframe state is invalid. The program preview has been hidden.","비디오 키프레임 상태가 유효하지 않습니다. 프로그램 미리 보기가 숨겨졌습니다."],
 		"videoPreviewUnavailable": ["machine","The local video file is unavailable.","로컬 비디오 파일이 사용 불가합니다."],
 		"videoQuality": ["machine","Quality","품질"],

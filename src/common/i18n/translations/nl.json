@@ -3638,7 +3638,7 @@
 		"videoOptionsSection": ["machine","Video options","Video-opties"],
 		"videoPreviewCompositionUnavailable": ["machine","Video transforms and compositing cannot be rendered right now. Affected clips are hidden in the preview; export still applies the authored result.","Videotransformaties en compositing kunnen op dit moment niet worden weergegeven. Betrokken clips worden verborgen in de voorvertoning; bij export wordt het opgebouwde resultaat nog steeds toegepast."],
 		"videoPreviewEffectsUnavailable": ["machine","Video effects cannot be rendered on the GPU right now. The preview is unprocessed; export still applies the effects.","Videoeffecten kunnen op dit moment niet via de GPU worden weergegeven. De voorvertoning is onbewerkt; bij export worden de effecten nog steeds toegepast."],
-		"videoPreviewEmpty": ["machine","Add video to the timeline to see a preview.","Voeg video toe aan de tijdlijn om een voorvertoning te zien."],
+		"videoPreviewEmpty": ["machine","No video","Geen video"],
 		"videoPreviewKeyframesUnavailable": ["machine","The video keyframe state is invalid. The program preview has been hidden.","De status van de video-keyframes is ongeldig. De programmavoorvertoning is verborgen."],
 		"videoPreviewUnavailable": ["machine","The local video file is unavailable.","Het lokale videobestand is niet beschikbaar."],
 		"videoQuality": ["machine","Quality","Kwaliteit"],

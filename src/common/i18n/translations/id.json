@@ -3638,7 +3638,7 @@
 		"videoOptionsSection": ["machine","Video options","Opsi video"],
 		"videoPreviewCompositionUnavailable": ["machine","Video transforms and compositing cannot be rendered right now. Affected clips are hidden in the preview; export still applies the authored result.","Transformasi video dan pengomposisian tidak dapat dirender saat ini. Klip yang terpengaruh disembunyikan dalam pratinjau; ekspor tetap menerapkan hasil yang telah dibuat."],
 		"videoPreviewEffectsUnavailable": ["machine","Video effects cannot be rendered on the GPU right now. The preview is unprocessed; export still applies the effects.","Efek video tidak dapat dirender pada GPU saat ini. Pratinjau belum diproses; ekspor tetap menerapkan efek tersebut."],
-		"videoPreviewEmpty": ["machine","Add video to the timeline to see a preview.","Tambahkan video ke linimasa untuk melihat pratinjau."],
+		"videoPreviewEmpty": ["machine","No video","Tidak ada video"],
 		"videoPreviewKeyframesUnavailable": ["machine","The video keyframe state is invalid. The program preview has been hidden.","Status keyframe video tidak valid. Pratinjau program telah disembunyikan."],
 		"videoPreviewUnavailable": ["machine","The local video file is unavailable.","Berkas video lokal tidak tersedia."],
 		"videoQuality": ["machine","Quality","Kualitas"],

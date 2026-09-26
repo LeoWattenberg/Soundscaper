@@ -3638,7 +3638,7 @@
 		"videoOptionsSection": ["machine","Video options","Opțiuni video"],
 		"videoPreviewCompositionUnavailable": ["machine","Video transforms and compositing cannot be rendered right now. Affected clips are hidden in the preview; export still applies the authored result.","Transformările video și compoziția nu pot fi redat în acest moment. Clipurile afectate sunt ascunse în previzualizare; exportul aplică în continuare rezultatul creat."],
 		"videoPreviewEffectsUnavailable": ["machine","Video effects cannot be rendered on the GPU right now. The preview is unprocessed; export still applies the effects.","Efectele video nu pot fi redat pe GPU în acest moment. Previzualizarea este neprocesată; exportul aplică în continuare efectele."],
-		"videoPreviewEmpty": ["machine","Add video to the timeline to see a preview.","Adaugă video la linia de timp pentru a vedea o previzualizare."],
+		"videoPreviewEmpty": ["machine","No video","Fără video"],
 		"videoPreviewKeyframesUnavailable": ["machine","The video keyframe state is invalid. The program preview has been hidden.","Starea cadrului cheie video este invalidă. Previzualizarea programului a fost ascunsă."],
 		"videoPreviewUnavailable": ["machine","The local video file is unavailable.","Fișierul video local nu este disponibil."],
 		"videoQuality": ["machine","Quality","Calitate"],

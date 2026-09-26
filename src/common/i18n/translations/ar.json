@@ -3638,7 +3638,7 @@
 		"videoOptionsSection": ["machine","Video options","خيارات الفيديو"],
 		"videoPreviewCompositionUnavailable": ["machine","Video transforms and compositing cannot be rendered right now. Affected clips are hidden in the preview; export still applies the authored result.","لا يمكن عرض تحولات الفيديو والتركيب في الوقت الحالي. يتم إخفاء المقاطع المتأثرة في المعاينة؛ لا يزال التصدير يطبق النتيجة المُنشأة."],
 		"videoPreviewEffectsUnavailable": ["machine","Video effects cannot be rendered on the GPU right now. The preview is unprocessed; export still applies the effects.","لا يمكن عرض تأثيرات الفيديو على وحدة معالجة الرسومات في الوقت الحالي. يتم عرض المعاينة دون معالجة؛ لا يزال التصدير يطبق التأثيرات."],
-		"videoPreviewEmpty": ["machine","Add video to the timeline to see a preview.","أضف فيديو إلى الجدول الزمني لرؤية المعاينة."],
+		"videoPreviewEmpty": ["machine","No video","لا يوجد فيديو"],
 		"videoPreviewKeyframesUnavailable": ["machine","The video keyframe state is invalid. The program preview has been hidden.","حالة إطارات الفيديو الرئيسية غير صالحة. تم إخفاء معاينة البرنامج."],
 		"videoPreviewUnavailable": ["machine","The local video file is unavailable.","ملف الفيديو المحلي غير متوفر."],
 		"videoQuality": ["machine","Quality","الجودة"],

@@ -3638,7 +3638,7 @@
 		"videoOptionsSection": ["machine","Video options","वीडियो विकल्प"],
 		"videoPreviewCompositionUnavailable": ["machine","Video transforms and compositing cannot be rendered right now. Affected clips are hidden in the preview; export still applies the authored result.","वीडियो ट्रांसफ़ॉर्म और कंपोज़िटिंग अभी रेंडर नहीं किए जा सकते। प्रभावित क्लिप्स पूर्वावलोकन में छुपी हैं; निर्यात अभी भी बनाए गए परिणाम को लागू करता है।"],
 		"videoPreviewEffectsUnavailable": ["machine","Video effects cannot be rendered on the GPU right now. The preview is unprocessed; export still applies the effects.","वीडियो प्रभाव अभी GPU पर रेंडर नहीं किए जा सकते। पूर्वावलोकन असंसाधित है; निर्यात अभी भी प्रभावों को लागू करता है।"],
-		"videoPreviewEmpty": ["machine","Add video to the timeline to see a preview.","पूर्वावलोकन देखने के लिए टाइमलाइन में वीडियो जोड़ें।"],
+		"videoPreviewEmpty": ["machine","No video","कोई वीडियो नहीं"],
 		"videoPreviewKeyframesUnavailable": ["machine","The video keyframe state is invalid. The program preview has been hidden.","वीडियो कीफ्रेम स्थिति अमान्य है। प्रोग्राम पूर्वावलोकन छुपा दिया गया है।"],
 		"videoPreviewUnavailable": ["machine","The local video file is unavailable.","स्थानीय वीडियो फ़ाइल उपलब्ध नहीं है।"],
 		"videoQuality": ["machine","Quality","गुणवत्ता"],

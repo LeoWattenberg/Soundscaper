@@ -3638,7 +3638,7 @@
 		"videoOptionsSection": ["machine","Video options","Επιλογές βίντεο"],
 		"videoPreviewCompositionUnavailable": ["machine","Video transforms and compositing cannot be rendered right now. Affected clips are hidden in the preview; export still applies the authored result.","Οι μετασχηματισμοί και η σύνθεση βίντεο δεν είναι δυνατό να αποδοθούν αυτή τη στιγμή. Τα επηρεαζόμενα κλιπ είναι κρυμμένα στην προεπισκόπηση· η εξαγωγή εξακολουθεί να εφαρμόζει το δημιουργημένο αποτέλεσμα."],
 		"videoPreviewEffectsUnavailable": ["machine","Video effects cannot be rendered on the GPU right now. The preview is unprocessed; export still applies the effects.","Τα εφέ βίντεο δεν είναι δυνατό να αποδοθούν στη GPU αυτή τη στιγμή. Η προεπισκόπηση είναι χωρίς επεξεργασία· η εξαγωγή εξακολουθεί να εφαρμόζει τα εφέ."],
-		"videoPreviewEmpty": ["machine","Add video to the timeline to see a preview.","Πρόσθεσε βίντεο στη χρονογραμμή για να δεις προεπισκόπηση."],
+		"videoPreviewEmpty": ["machine","No video","Κανένα βίντεο"],
 		"videoPreviewKeyframesUnavailable": ["machine","The video keyframe state is invalid. The program preview has been hidden.","Η κατάσταση των καρέ-κλειδιών του βίντεο δεν είναι έγκυρη. Η προεπισκόπηση προγράμματος έχει αποκρυφτεί."],
 		"videoPreviewUnavailable": ["machine","The local video file is unavailable.","Το τοπικό αρχείο βίντεο δεν είναι διαθέσιμο."],
 		"videoQuality": ["machine","Quality","Ποιότητα"],

@@ -3638,7 +3638,7 @@
 		"videoOptionsSection": ["machine","Video options","Տեսանյութի ընտրանքներ"],
 		"videoPreviewCompositionUnavailable": ["machine","Video transforms and compositing cannot be rendered right now. Affected clips are hidden in the preview; export still applies the authored result.","Տեսանյութի ձևափոխումները և կոմպոզիտինգը հիմա հնարավոր չէ մշակել։ Ազդակիր կլիպերը թաքցված են նախադիտման մեջ, սակայն արտածման ժամանակ ստեղծված արդյունքը դեռ կկիրառվի։"],
 		"videoPreviewEffectsUnavailable": ["machine","Video effects cannot be rendered on the GPU right now. The preview is unprocessed; export still applies the effects.","Տեսանյութի էֆեկտները հիմա հնարավոր չէ մշակել GPU-ով։ Նախադիտումը չմշակված է, սակայն արտածման ժամանակ էֆեկտները դեռ կկիրառվեն։"],
-		"videoPreviewEmpty": ["machine","Add video to the timeline to see a preview.","Ավելացրեք տեսանյութ ժամանակագծին՝ նախադիտումը տեսնելու համար։"],
+		"videoPreviewEmpty": ["machine","No video","Տեսանյութ չկա"],
 		"videoPreviewKeyframesUnavailable": ["machine","The video keyframe state is invalid. The program preview has been hidden.","Տեսանյութի առանցքային կադրերի վիճակն անվավեր է։ Ծրագրի նախադիտումը թաքցվել է։"],
 		"videoPreviewUnavailable": ["machine","The local video file is unavailable.","Տեղական տեսանյութի ֆայլը հասանելի չէ։"],
 		"videoQuality": ["machine","Quality","Որակ"],

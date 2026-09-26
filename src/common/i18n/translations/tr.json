@@ -3638,7 +3638,7 @@
 		"videoOptionsSection": ["machine","Video options","Video seçenekleri"],
 		"videoPreviewCompositionUnavailable": ["machine","Video transforms and compositing cannot be rendered right now. Affected clips are hidden in the preview; export still applies the authored result.","Video dönüşümleri ve kompozisyonu şu anda oluşturulamıyor. Etkilenen klipler önizlemede gizleniyor; dışa aktarma yine de oluşturulan sonucu uygular."],
 		"videoPreviewEffectsUnavailable": ["machine","Video effects cannot be rendered on the GPU right now. The preview is unprocessed; export still applies the effects.","Video efektleri şu anda GPU üzerinde oluşturulamıyor. Önizleme işlenmemiş durumda; dışa aktarma yine de efektleri uygular."],
-		"videoPreviewEmpty": ["machine","Add video to the timeline to see a preview.","Önizlemeyi görmek için zaman çizelgesine video ekleyin."],
+		"videoPreviewEmpty": ["machine","No video","Video yok"],
 		"videoPreviewKeyframesUnavailable": ["machine","The video keyframe state is invalid. The program preview has been hidden.","Video anahtar kare durumu geçersiz. Program önizlemesi gizlendi."],
 		"videoPreviewUnavailable": ["machine","The local video file is unavailable.","Yerel video dosyası kullanılamıyor."],
 		"videoQuality": ["machine","Quality","Kalite"],

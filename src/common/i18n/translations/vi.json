@@ -3638,7 +3638,7 @@
 		"videoOptionsSection": ["machine","Video options","Tùy chọn video"],
 		"videoPreviewCompositionUnavailable": ["machine","Video transforms and compositing cannot be rendered right now. Affected clips are hidden in the preview; export still applies the authored result.","Không thể dựng hình biến đổi và ghép hình video ngay lúc này. Các clip bị ảnh hưởng sẽ bị ẩn trong bản xem trước; việc xuất vẫn áp dụng kết quả đã tạo."],
 		"videoPreviewEffectsUnavailable": ["machine","Video effects cannot be rendered on the GPU right now. The preview is unprocessed; export still applies the effects.","Không thể dựng hình hiệu ứng video trên GPU ngay lúc này. Bản xem trước chưa qua xử lý; việc xuất vẫn áp dụng các hiệu ứng."],
-		"videoPreviewEmpty": ["machine","Add video to the timeline to see a preview.","Thêm video vào dòng thời gian để xem bản xem trước."],
+		"videoPreviewEmpty": ["machine","No video","Không có video"],
 		"videoPreviewKeyframesUnavailable": ["machine","The video keyframe state is invalid. The program preview has been hidden.","Trạng thái keyframe video không hợp lệ. Bản xem trước chương trình đã bị ẩn."],
 		"videoPreviewUnavailable": ["machine","The local video file is unavailable.","Tệp video cục bộ không khả dụng."],
 		"videoQuality": ["machine","Quality","Chất lượng"],

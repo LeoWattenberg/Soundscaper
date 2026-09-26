@@ -3638,7 +3638,7 @@
 		"videoOptionsSection": ["machine","Video options","Možnosti videa"],
 		"videoPreviewCompositionUnavailable": ["machine","Video transforms and compositing cannot be rendered right now. Affected clips are hidden in the preview; export still applies the authored result.","Transformace videa a skládání teď nelze vykreslit. Dotčené klipy jsou v náhledu skryté; export ale vytvořený výsledek stále použije."],
 		"videoPreviewEffectsUnavailable": ["machine","Video effects cannot be rendered on the GPU right now. The preview is unprocessed; export still applies the effects.","Videoefekty teď nelze vykreslit na GPU. Náhled je nezpracovaný; export ale efekty stále použije."],
-		"videoPreviewEmpty": ["machine","Add video to the timeline to see a preview.","Přidejte video na časovou osu, chcete-li zobrazit náhled."],
+		"videoPreviewEmpty": ["machine","No video","Žádné video"],
 		"videoPreviewKeyframesUnavailable": ["machine","The video keyframe state is invalid. The program preview has been hidden.","Stav klíčových snímků videa je neplatný. Náhled programu byl skryt."],
 		"videoPreviewUnavailable": ["machine","The local video file is unavailable.","Místní soubor s videem není k dispozici."],
 		"videoQuality": ["machine","Quality","Kvalita"],

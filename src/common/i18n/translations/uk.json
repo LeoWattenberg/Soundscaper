@@ -3638,7 +3638,7 @@
 		"videoOptionsSection": ["machine","Video options","Параметри відео"],
 		"videoPreviewCompositionUnavailable": ["machine","Video transforms and compositing cannot be rendered right now. Affected clips are hidden in the preview; export still applies the authored result.","Трансформації відео та композитинг наразі неможливо відобразити. Уражені кліпи приховано в перегляді; експорт усе одно застосує створений результат."],
 		"videoPreviewEffectsUnavailable": ["machine","Video effects cannot be rendered on the GPU right now. The preview is unprocessed; export still applies the effects.","Відеоефекти наразі неможливо обробити на GPU. Перегляд не оброблено; експорт усе одно застосує ефекти."],
-		"videoPreviewEmpty": ["machine","Add video to the timeline to see a preview.","Додайте відео на часову шкалу, щоб побачити перегляд."],
+		"videoPreviewEmpty": ["machine","No video","Відео відсутнє"],
 		"videoPreviewKeyframesUnavailable": ["machine","The video keyframe state is invalid. The program preview has been hidden.","Стан ключових кадрів відео недійсний. Перегляд програми приховано."],
 		"videoPreviewUnavailable": ["machine","The local video file is unavailable.","Локальний відеофайл недоступний."],
 		"videoQuality": ["machine","Quality","Якість"],

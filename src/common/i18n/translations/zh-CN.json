@@ -3638,7 +3638,7 @@
 		"videoOptionsSection": ["machine","Video options","视频选项"],
 		"videoPreviewCompositionUnavailable": ["machine","Video transforms and compositing cannot be rendered right now. Affected clips are hidden in the preview; export still applies the authored result.","视频变换和合成目前无法渲染。受影响的片段将在预览中隐藏；导出时仍会应用已创建的结果。"],
 		"videoPreviewEffectsUnavailable": ["machine","Video effects cannot be rendered on the GPU right now. The preview is unprocessed; export still applies the effects.","视频效果目前无法在 GPU 上渲染。预览画面未经处理；导出时仍会应用这些效果。"],
-		"videoPreviewEmpty": ["machine","Add video to the timeline to see a preview.","将视频添加到时间线以查看预览。"],
+		"videoPreviewEmpty": ["machine","No video","无视频"],
 		"videoPreviewKeyframesUnavailable": ["machine","The video keyframe state is invalid. The program preview has been hidden.","视频关键帧状态无效。节目预览已被隐藏。"],
 		"videoPreviewUnavailable": ["machine","The local video file is unavailable.","本地视频文件不可用。"],
 		"videoQuality": ["machine","Quality","质量"],
