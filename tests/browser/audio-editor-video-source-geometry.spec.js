@@ -6,7 +6,7 @@ import {
 	resolveVideoSourcePresentation,
 } from '../../src/common/editor/video-source-presentation.ts';
 import { videoSourceGeometryMedia } from './fixtures/video-source-geometry-media.js';
-import { chooseNestedCommandAction, openExportDialog } from './audio-editor-test-helpers.js';
+import { openClipProperties, openExportDialog } from './audio-editor-test-helpers.js';
 import { resolveBrowserProductTestUrl } from './helpers/browser-product-test-url.js';
 import { openFramescaperSourcePropertiesFromBin } from './helpers/framescaper-source-properties.js';
 import { FRAMESCAPER_DATABASE_NAME } from './helpers/editor-databases.js';
@@ -83,9 +83,7 @@ test.describe('3B-2b source display geometry qualification', () => {
 		await expect(properties.locator('[data-source-property="Display size"] dd')).toHaveText('144 × 384');
 		await expect(properties.locator('[data-source-note]')).toHaveCount(0);
 		await page.keyboard.press('Escape');
-		await editor.locator('[data-clip-kind="video"]').first().click();
-		await chooseNestedCommandAction(page, editor, 'Edit', ['Audio clips', 'Clip properties']);
-		const clipProperties = page.getByRole('dialog', { name: 'Clip properties', exact: true });
+		const clipProperties = await openClipProperties(page, editor, editor.locator('[data-clip-kind="video"]').first());
 		await expect(clipProperties.locator('[data-clip-video-source-properties] [data-source-property="Display size"] dd'))
 			.toHaveText('144 × 384');
 	});

@@ -85,6 +85,8 @@ test.describe('sequence timing surfaces', () => {
 		const flyout = await openSequenceTiming(page, editor);
 		await flyout.getByRole('combobox', { name: 'Frame rate', exact: true }).selectOption('30000/1001');
 		await flyout.getByRole('checkbox', { name: 'Drop frame', exact: true }).check();
+		await expect(readout).toHaveAttribute('data-sequence-timecode', '00:00:00;00');
+		await editor.getByRole('button', { name: 'Next frame', exact: true }).click();
 		await expect(readout).toHaveAttribute('data-sequence-timecode', '00:00:00;01');
 		expect(errors).toEqual([]);
 	});

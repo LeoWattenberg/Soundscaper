@@ -47,7 +47,7 @@ for (const product of ['soundscaper', 'framescaper']) {
 				await properties.getByRole('tab', { name: 'Sequence timing', exact: true }).click();
 				const timing = properties.getByRole('tabpanel', { name: 'Sequence timing', exact: true });
 				await timing.getByRole('checkbox', { name: 'Timecode ruler', exact: true }).check();
-				await expect(editor.locator('[data-sequence-timecode-ruler]')).toBeVisible();
+				await expect(editor.locator('[data-ruler] [data-sequence-timecode-ruler]')).toBeVisible();
 			} else {
 				await page.setViewportSize({ width: 2200, height: 1000 });
 				await chooseNestedCommandAction(page, editor, 'View', ['Workspace', 'Music']);
