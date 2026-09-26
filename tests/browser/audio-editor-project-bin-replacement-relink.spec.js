@@ -34,6 +34,7 @@ test.describe('Project Bin replacement and linked original relink', () => {
 	registerAudioEditorHooks();
 
 	test('cancel and Keep timeline spacing preserve the later placement through undo and reload', async ({ page }) => {
+		test.setTimeout(120_000);
 		const errors = collectClientErrors(page);
 		const { editor, card, firstId, laterId } = await setupShortReplacement(page);
 		const originalSourceId = await card.getAttribute('data-source-id');

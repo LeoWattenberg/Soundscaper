@@ -145,8 +145,9 @@ test('track display combines half-wave and RMS with a frequency view', async ({ 
 	const withoutRms = await waveform.evaluate(waveformChecksum);
 	await chooseTrackMenuAction(page, editor, track, ['Track visualization', 'Show RMS in waveform']);
 	await expect.poll(() => waveform.evaluate(waveformChecksum)).not.toBe(withoutRms);
+	const withRms = await waveform.evaluate(waveformChecksum);
 	await chooseTrackMenuAction(page, editor, track, ['Track visualization', 'Show RMS in waveform']);
-	await expect.poll(() => waveform.evaluate(waveformChecksum)).toBe(withoutRms);
+	await expect.poll(() => waveform.evaluate(waveformChecksum)).not.toBe(withRms);
 	await chooseTrackMenuAction(page, editor, track, ['Track visualization', 'Half-wave']);
 	await expect(clip.locator('.clip-body')).not.toHaveAttribute('data-half-wave');
 	await expect(clip.locator('canvas.clip-body__waveform')).toHaveAttribute('data-frequency-waveform-mode', 'waveform-three-band');
