@@ -111,4 +111,63 @@ test.describe('macro programs', () => {
 		await expect(failure).toContainText('stop here');
 		await expect(editor).toHaveAttribute('data-clip-count', clipCount ?? '0');
 	});
+
+	test('switching projects while the sandbox chunk loads leaves both projects unedited', async ({ page }) => {
+		test.setTimeout(60_000);
+		let releaseChunk = () => undefined;
+		let chunkRequested = false;
+		const heldChunk = new Promise((resolve) => { releaseChunk = resolve; });
+		await page.route('**/assets/browser-sandbox-*.js', async (route) => {
+			chunkRequested = true;
+			await heldChunk;
+			await route.continue();
+		});
+		const editor = await bootEditor(page, '/embed/en/');
+		await importFiles(editor, [toneA]);
+		await expect(editor.locator('[data-save-state]')).toHaveAttribute('data-state', 'saved');
+		const originId = await editor.getAttribute('data-project-id');
+		const originTracks = await editor.getAttribute('data-track-count');
+		const { manager } = await openProgramEditor(page, editor, [
+			"await sound.command('NewMonoTrack');",
+			"sound.log.info('stale macro ran');",
+		].join('\n'));
+		const log = manager.locator('[data-macro-script-log]');
+
+		try {
+			await manager.getByRole('button', { name: 'Run program', exact: true }).click();
+			await expect.poll(() => chunkRequested).toBe(true);
+			await expect(log).toHaveAttribute('data-outcome', 'running');
+			// The dialog owns pointer focus; this click models the project action
+			// arriving from the host while its lazy import is still outstanding.
+			await editor.getByRole('button', { name: 'New project', exact: true })
+				.evaluate((button) => button.click());
+			await expect(editor).not.toHaveAttribute('data-project-id', originId);
+			const nextId = await editor.getAttribute('data-project-id');
+			const nextTracks = await editor.getAttribute('data-track-count');
+
+			const sandboxResponse = page.waitForResponse((response) =>
+				/browser-sandbox-[^/]+\.js$/u.test(new URL(response.url()).pathname));
+			releaseChunk();
+			await sandboxResponse;
+			await expect(log).toHaveAttribute('data-outcome', /idle|failed/u, { timeout: 15_000 });
+			await expect(log).not.toContainText('stale macro ran');
+			await expect(editor).toHaveAttribute('data-track-count', nextTracks ?? '0');
+			// The command is a real edit once its sandbox is available; undo this
+			// control run so both projects remain in their original state.
+			await manager.getByRole('button', { name: 'Run program', exact: true }).click();
+			await expect(log).toHaveAttribute('data-outcome', 'completed', { timeout: 30_000 });
+			await expect(editor).toHaveAttribute('data-track-count', String(Number(nextTracks) + 1));
+
+			await manager.getByRole('button', { name: 'Close', exact: true }).click();
+			await editor.getByRole('button', { name: 'Undo', exact: true }).click();
+			await expect(editor).toHaveAttribute('data-track-count', nextTracks ?? '0');
+			await editor.getByRole('navigation', { name: 'Project tabs' })
+				.getByRole('tab').first().click();
+			await expect(editor).toHaveAttribute('data-project-id', originId);
+			await expect(editor).toHaveAttribute('data-track-count', originTracks ?? '0');
+			await expect(editor).not.toHaveAttribute('data-project-id', nextId);
+		} finally {
+			releaseChunk();
+		}
+	});
 });
