@@ -1,6 +1,6 @@
 import { expect } from '@playwright/test';
 import { longTone, test } from './audio-editor-test-fixtures.js';
-import { chooseNestedCommandAction, clipByName, getMenuItem, importFiles } from './audio-editor-test-helpers.js';
+import { chooseNestedCommandAction, clipByName, getMenuItem, importFiles, waitForEditor } from './audio-editor-test-helpers.js';
 import { closeWorkspacePanel } from './helpers/workspace-panel-chrome.js';
 
 test.describe('shared audio editor dialog behavior', () => {
@@ -106,9 +106,11 @@ test.describe('shared audio editor dialog behavior', () => {
 		await playback.locator('.timecode-digit').nth(5).click();
 		await page.keyboard.press('1');
 		await page.keyboard.press('Enter');
+		await expect(playback.locator('.timecode-digit')).toHaveText(['0', '0', '0', '0', '0', '1', '0', '0']);
 		await playback.locator('.timecode-digit').nth(7).click();
 		await page.keyboard.press('1');
 		await page.keyboard.press('Enter');
+		await expect(playback.locator('.timecode-digit')).toHaveText(['0', '0', '0', '0', '0', '1', '0', '1']);
 		await chooseTimeCodeFormat(page, playback, 'CD frames', 'CDDA frames (75 fps)');
 		await expect(playback.locator('.timecode-digit')).toHaveText(['7', '6']);
 		await playback.locator('.timecode-digit').last().click();
@@ -287,10 +289,7 @@ test.describe('shared audio editor dialog behavior', () => {
 
 async function bootEditor(page) {
 	await page.goto('/embed/en/');
-	const editor = page.locator('[data-audio-editor]');
-	await expect(editor).toBeVisible();
-	await expect(editor).toHaveAttribute('data-audio-editor-bound', 'true');
-	await expect(editor.locator('[data-status]')).toHaveAttribute('data-state', /^(?:success|info)$/u, { timeout: 15_000 });
+	const editor = await waitForEditor(page);
 	const decline = page.getByRole('button', { name: 'Decline', exact: true });
 	if (await decline.isVisible()) await decline.click();
 	return editor;
