@@ -197,16 +197,18 @@ test('a Framescaper rail names its own workspace and links across to the other o
 		// This build serves Soundscaper, so the peer link is the absolute one.
 		const [active, peer] = context.dom.one('.website-sidebar-nav').querySelectorAll('a');
 		assert.equal(active?.getAttribute('href'), 'https://framescaper.org/en/');
+		assert.equal(active?.textContent, 'Video editor');
 		assert.equal(peer?.getAttribute('href'), '/en/');
+		assert.equal(peer?.textContent, 'Audio editor');
 	} finally {
 		await context.close();
 	}
 });
 
-test('the rail uses its own product logo and links Join us to the parent site', async () => {
-	for (const [productId, locale, parentSite] of [
-		['soundscaper', 'en', 'https://mindscaper.org/'],
-		['framescaper', 'de', 'https://mindscaper.org/de/'],
+test('the rail reserves product names for its brand and gives both editor links their product logos', async () => {
+	for (const [productId, locale, parentSite, editorLabels] of [
+		['soundscaper', 'en', 'https://mindscaper.org/', ['Audio editor', 'Video editor']],
+		['framescaper', 'de', 'https://mindscaper.org/de/', ['Video-Editor', 'Audio-Editor']],
 	] as const) {
 		const context = harness();
 		try {
@@ -219,7 +221,12 @@ test('the rail uses its own product logo and links Join us to the parent site', 
 			const links = context.dom.one('.website-sidebar-nav').querySelectorAll('a');
 			assert.equal(links[0]?.querySelector('img')?.getAttribute('src'), `/logo/${productId}.svg`);
 			assert.equal(links[0]?.querySelector('img')?.getAttribute('alt'), '');
-			assert.equal(links[1]?.querySelector('img'), null);
+			assert.equal(links[0]?.textContent, editorLabels[0]);
+			assert.equal(links[1]?.querySelector('img')?.getAttribute('src'),
+				`/logo/${productId === 'soundscaper' ? 'framescaper' : 'soundscaper'}.svg`);
+			assert.equal(links[1]?.querySelector('img')?.getAttribute('alt'), '');
+			assert.equal(links[1]?.textContent, editorLabels[1]);
+			assert.equal(links.some((link) => /Soundscaper|Framescaper/u.test(link.textContent)), false);
 			assert.equal(links.some((link) => link.getAttribute('href') === `${parentSite}#projects`), false);
 			assert.equal(links[2]?.getAttribute('href'), parentSite);
 			assert.equal(links[2]?.textContent, locale === 'de' ? 'Mach mit' : 'Join us');

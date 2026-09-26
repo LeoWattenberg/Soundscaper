@@ -80,6 +80,9 @@ export default function BrandSidebar({ locale, productId = 'soundscaper' }) {
 	};
 	const workspaces = workspace.workspaces.length ? workspace.workspaces : defaultWorkspaces(productId, copy);
 	const productMark = `/logo/${productId}.svg`;
+	const otherProductMark = `/logo/${otherProduct.id}.svg`;
+	const editorLabel = productId === 'framescaper' ? copy.videoEditor : copy.audioEditor;
+	const otherEditorLabel = otherProduct.id === 'framescaper' ? copy.videoEditor : copy.audioEditor;
 
 	return (
 		<aside className="website-site-sidebar" data-sidebar data-product={productId} data-locale={localeDescriptor.locale} data-collapsed={String(collapsed)} aria-label={copy.label}>
@@ -92,8 +95,8 @@ export default function BrandSidebar({ locale, productId = 'soundscaper' }) {
 			</button>
 			<div className="website-sidebar-content" data-sidebar-content>
 				<nav className="website-sidebar-nav" aria-label={copy.label}>
-						<a className="website-sidebar-link website-is-active" href={productHref(productId, locale)} aria-current="page"><img src={productMark} alt="" width="24" height="24" />{productId === 'framescaper' ? profile.name : copy.editor}</a>
-						<a className="website-sidebar-link" href={productHref(otherProduct.id, locale)}>{otherProduct.name}</a>
+						<a className="website-sidebar-link website-is-active" href={productHref(productId, locale)} aria-current="page"><img src={productMark} alt="" width="24" height="24" />{editorLabel}</a>
+						<a className="website-sidebar-link" href={productHref(otherProduct.id, locale)}><img src={otherProductMark} alt="" width="24" height="24" />{otherEditorLabel}</a>
 						<a className="website-sidebar-link" href={parentSite}>{copy.joinUs}</a>
 						<a className="website-sidebar-link" href={privacyPolicyUrl(productId, locale)} onClick={openPrivacyPolicy}>{copy.legal}</a>
 						<a className="website-sidebar-link" href="https://github.com/LeoWattenberg/Soundscaper/issues/new" target="_blank" rel="noreferrer">{copy.reportIssue}</a>
@@ -147,7 +150,8 @@ function defaultWorkspaces(productId, copy) {
 function sidebarCopy(catalog) {
 	return {
 		label: catalog.sidebarNavigation,
-		editor: catalog.audioEditorLink,
+		audioEditor: catalog.audioEditorLink,
+		videoEditor: catalog.workspaceVideo,
 		joinUs: catalog.joinUsLink,
 		legal: catalog.legalLink,
 		github: catalog.githubProjectLink,

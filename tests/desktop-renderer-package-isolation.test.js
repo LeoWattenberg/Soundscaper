@@ -30,23 +30,23 @@ test('Soundscaper renderer package rejects callable Framescaper and capture modu
 	);
 });
 
-test('Soundscaper renderer package rejects callable Framescaper markers and public assets', () => {
+test('Soundscaper renderer package rejects callable Framescaper markers but retains its peer navigation mark', () => {
 	assert.throws(() => assertDesktopRendererProductIsolation({
 		'assets/index.js': {
 			...chunk('assets/index.js', { '/workspace/src/common/editor/file-service.js': {} }),
 			code: 'globalThis.framescaperDesktop?.v1',
 		},
 	}, 'soundscaper'), /callable Framescaper marker/iu);
-	assert.throws(() => assertDesktopRendererProductIsolation({
+	assert.doesNotThrow(() => assertDesktopRendererProductIsolation({
 		'logo/framescaper.svg': {
 			type: 'asset', fileName: 'logo/framescaper.svg', source: '<svg />',
 		},
-	}, 'soundscaper'), /forbidden asset/iu);
+	}, 'soundscaper'));
 	assert.deepEqual(desktopRendererProductPublicAssetFiles('soundscaper', [
 		'_headers',
 		'logo/mindscaper.svg',
 		'logo/framescaper.svg',
-	]), ['_headers', 'logo/mindscaper.svg']);
+	]), ['_headers', 'logo/mindscaper.svg', 'logo/framescaper.svg']);
 });
 
 test('Soundscaper renderer package permits product-neutral foreign-family custody contracts', () => {

@@ -45,7 +45,9 @@ const PRODUCT_INSTALL_ARTIFACTS = Object.freeze({
 	framescaper: Object.freeze({
 		name: 'Framescaper',
 		description: 'Local-first video effects and compositing editor',
-		logos: Object.freeze(['/logo/framescaper.svg', '/logo/mindscaper.svg']),
+		// Both product marks are shared navigation chrome; only the generated
+		// install artwork below remains product-specific.
+		logos: Object.freeze(['/logo/framescaper.svg', '/logo/soundscaper.svg', '/logo/mindscaper.svg']),
 		source: 'public/logo/framescaper.svg',
 		// Chosen from the standard manifest category vocabulary, which names no
 		// video category; `photo` is the one it files moving-image work under.
@@ -55,17 +57,12 @@ const PRODUCT_INSTALL_ARTIFACTS = Object.freeze({
 	soundscaper: Object.freeze({
 		name: 'Soundscaper',
 		description: 'Local-first multitrack audio editor',
-		logos: Object.freeze(['/logo/soundscaper.svg', '/logo/mindscaper.svg']),
+		logos: Object.freeze(['/logo/soundscaper.svg', '/logo/framescaper.svg', '/logo/mindscaper.svg']),
 		source: 'public/logo/soundscaper.svg',
 		categories: Object.freeze(['music', 'productivity', 'utilities']),
 		media: Object.freeze(['audio']),
 	}),
 });
-const PRODUCT_EXCLUSIVE_PUBLIC_ARTIFACTS = Object.freeze({
-	framescaper: Object.freeze(['logo/framescaper.svg']),
-	soundscaper: Object.freeze([]),
-});
-
 /**
  * Android crops a maskable icon to whatever shape the launcher draws, so the
  * artwork fits inside the central 80%-diameter circle even when the source
@@ -139,7 +136,6 @@ async function removeUnservedProductArtifacts(outputRoot, routing) {
 		if (served.has(productId)) continue;
 		for (const relativePath of [
 			`manifest-${productId}.webmanifest`,
-			...PRODUCT_EXCLUSIVE_PUBLIC_ARTIFACTS[productId],
 			...productIconNames(productId).map((name) => `offline-icons/${name}.png`),
 			...productScreenshotNames(productId)
 				.map((name) => `${INSTALL_SCREENSHOT_DIRECTORY}/${name}.png`),

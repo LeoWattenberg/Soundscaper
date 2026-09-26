@@ -99,6 +99,7 @@ test('offline shell generation inventories exact route URLs and emits installabl
 		soundWorker.installUrls.filter((url) => url.endsWith('.js')),
 		['/assets/application-abc.js', '/assets/shared.js', '/assets/soundscaper-core.js'],
 	);
+	assert.equal(soundWorker.installUrls.includes('/logo/framescaper.svg'), true);
 	assert.equal(soundWorker.installUrls.includes('/assets/optional-dialog.js'), false);
 	for (const optionalAsset of [
 		'/assets/core-font.woff2',
@@ -145,7 +146,7 @@ test('offline shell generation inventories exact route URLs and emits installabl
 	assert.match(await readFile(join(outputRoot, 'service-worker.js'), 'utf8'), new RegExp(soundWorker.releaseId, 'u'));
 	assert.equal(await readFile(join(outputRoot, 'framescaper/service-worker.js'), 'utf8').catch(() => null), null);
 	assert.equal(await readFile(join(outputRoot, 'manifest-framescaper.webmanifest'), 'utf8').catch(() => null), null);
-	assert.equal(await readFile(join(outputRoot, 'logo/framescaper.svg'), 'utf8').catch(() => null), null);
+	assert.equal(await readFile(join(outputRoot, 'logo/framescaper.svg'), 'utf8'), '<svg viewBox="0 0 1 1" />');
 
 	const second = await generateOfflineApplicationShell({ outputRoot, repositoryRoot: resolve('.') });
 	assert.deepEqual(second.releaseIds, first.releaseIds, 'identical output produces identical release IDs');
@@ -397,7 +398,7 @@ test('the maskable artwork of both product marks stays inside the safe circle', 
 	}
 });
 
-test('a single-product build drops the other product icons and publishes its own maskable pair', async (context) => {
+test('a single-product build retains peer navigation marks while dropping peer install icons', async (context) => {
 	const outputRoot = await shellFixture(context);
 	const stale = ['framescaper-192', 'framescaper-maskable-192', 'framescaper-maskable-512'];
 	for (const name of stale) await fixtureFile(outputRoot, `offline-icons/${name}.png`, 'stale');
@@ -405,6 +406,7 @@ test('a single-product build drops the other product icons and publishes its own
 	for (const name of stale) {
 		assert.equal(await readFile(join(outputRoot, `offline-icons/${name}.png`)).catch(() => null), null, name);
 	}
+	assert.equal(await readFile(join(outputRoot, 'logo/framescaper.svg'), 'utf8'), '<svg viewBox="0 0 1 1" />');
 
 	const routing = webBuildRouting({ SCAPE_PRODUCT: 'soundscaper' });
 	const assetPath = '/assets/site-entry-AbCd1234.js';

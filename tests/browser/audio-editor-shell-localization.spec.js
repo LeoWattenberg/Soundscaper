@@ -33,8 +33,13 @@ test.describe('audio editor React/design-system workflows', () => {
 		await expect(page.locator('.website-brand img')).toHaveAttribute('src', '/logo/soundscaper.svg');
 		await expect(page.locator('.website-brand img')).toBeVisible();
 		await expect(page.locator('.website-sidebar-nav img').first()).toHaveAttribute('src', '/logo/soundscaper.svg');
-		await expect(page.locator('.website-sidebar-nav img')).toHaveCount(1);
-		await expect(page.getByRole('link', { name: 'Framescaper', exact: true })).toBeVisible();
+		await expect(page.locator('.website-sidebar-nav img').nth(1)).toHaveAttribute('src', '/logo/framescaper.svg');
+		await expect(page.locator('.website-sidebar-nav img')).toHaveCount(2);
+		await expect.poll(() => page.locator('.website-sidebar-nav img').nth(1)
+			.evaluate((image) => image.complete ? image.naturalWidth : 0)).toBeGreaterThan(0);
+		await expect(page.getByRole('link', { name: 'Audio editor', exact: true })).toBeVisible();
+		await expect(page.getByRole('link', { name: 'Video editor', exact: true })).toBeVisible();
+		await expect(page.getByRole('link', { name: 'Framescaper', exact: true })).toHaveCount(0);
 		await expect(page.locator('.website-sidebar-nav img').first()).toBeVisible();
 		await expect(page.getByRole('link', { name: 'More Mindscaper tools' })).toHaveCount(0);
 		await expect(page.locator('link[rel="icon"][href="/logo/soundscaper.svg"]')).toHaveCount(1);
@@ -101,6 +106,11 @@ test.describe('audio editor React/design-system workflows', () => {
 		await expect(page.locator('link[rel="icon"][href="/logo/framescaper.svg"]')).toHaveCount(1);
 		await expect(page.locator('.website-brand img')).toHaveAttribute('src', '/logo/framescaper.svg');
 		await expect(page.locator('.website-brand img')).toBeVisible();
+		await expect(page.locator('.website-sidebar-nav img').first()).toHaveAttribute('src', '/logo/framescaper.svg');
+		await expect(page.locator('.website-sidebar-nav img').nth(1)).toHaveAttribute('src', '/logo/soundscaper.svg');
+		await expect(page.getByRole('link', { name: 'Video editor', exact: true })).toBeVisible();
+		await expect(page.getByRole('link', { name: 'Audio editor', exact: true })).toBeVisible();
+		await expect(page.getByRole('link', { name: 'Soundscaper', exact: true })).toHaveCount(0);
 		await expect(editor.locator('.kw-audio-editor__application-mark')).toHaveAttribute('src', '/logo/framescaper.svg');
 		const workspaceSelect = page.locator('[data-sidebar] [data-workspace-select]');
 		const settingsSection = page.locator('[data-sidebar] .website-sidebar-settings');

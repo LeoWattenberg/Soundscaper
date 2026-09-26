@@ -58,8 +58,9 @@ export function soundscaperRendererModuleForbidden(moduleIdValue) {
 /** Paths copied from public/ that have no place in a Soundscaper renderer. */
 export function soundscaperRendererAssetForbidden(pathValue) {
 	const path = normalizedOutputPath(pathValue);
-	return path === 'logo/framescaper.svg'
-		|| SOUNDSCAPER_FORBIDDEN_RENDERER_ASSET.test(path);
+	// The peer mark is shared sidebar chrome, not callable Framescaper runtime.
+	if (path === 'logo/framescaper.svg') return false;
+	return SOUNDSCAPER_FORBIDDEN_RENDERER_ASSET.test(path);
 }
 
 /** Select the public tree before Vite emits it; no product file is removed after emission. */
