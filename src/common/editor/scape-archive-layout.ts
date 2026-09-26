@@ -12,6 +12,7 @@ import {
 	type ScapeArchiveLayoutWitness,
 } from './scape-archive-layout-witness.ts';
 import { SCAPE_ARCHIVE_LIMITS } from './scape-archive-envelope.ts';
+import { isDesktopScapeArchiveByteSource } from './desktop-scape-archive-byte-source.ts';
 import { SCAPE_MAXIMUM_CENTRAL_DIRECTORY_BYTES } from './scape-archive-zip-profile.ts';
 
 const LOCAL_SIGNATURE = 0x04034b50;
@@ -43,6 +44,7 @@ interface LayoutContext {
 	readonly source: ScapeArchiveByteSource;
 	readonly signal?: AbortSignal;
 	readonly size: number;
+	readonly maximumExpandedBytes: number;
 	readonly witness?: ScapeArchiveLayoutWitness;
 }
 
@@ -106,7 +108,9 @@ async function validateByteSourceLayout(
 	if (!Number.isSafeInteger(size) || size < END_FIXED_BYTES) {
 		throw new RangeError('The Scape ZIP size is invalid.');
 	}
-	const context: LayoutContext = { source, signal, size, witness };
+	const maximumExpandedBytes = isDesktopScapeArchiveByteSource(source)
+		? Number.MAX_SAFE_INTEGER : SCAPE_ARCHIVE_LIMITS.maximumExpandedBytes;
+	const context: LayoutContext = { source, signal, size, maximumExpandedBytes, witness };
 	const central = await locateCentralDirectory(context);
 	const entries = await readCentralEntries(context, central);
 	const ranges: EntryRange[] = [];
@@ -256,7 +260,7 @@ async function readCentralEntries(
 		}
 		if ((flags & ~SUPPORTED_FLAGS) !== 0) throw new Error('The Scape central record uses unsupported flags.');
 		if (resolved.disk !== 0) throw new Error('The Scape central record references another disk.');
-		if (resolved.uncompressedSize > SCAPE_ARCHIVE_LIMITS.maximumExpandedBytes - expandedBytes) {
+		if (resolved.uncompressedSize > context.maximumExpandedBytes - expandedBytes) {
 			throw new RangeError('The Scape archive exceeds the declared expansion limit.');
 		}
 		expandedBytes += resolved.uncompressedSize;

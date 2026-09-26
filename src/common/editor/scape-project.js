@@ -42,6 +42,7 @@ import {
 	resolveScapeCurrentProjectSchemaVersion,
 } from './scape-project-admission.ts';
 import { withScapeProjectInput } from './scape-project-input.ts';
+import { isDesktopScapeArchiveByteSource } from './desktop-scape-archive-byte-source.ts';
 import { SCAPE_MIME_TYPE } from './scape-project-format.ts';
 import { remapScapeProjectSourceReferences } from './scape-project-source-remap.ts';
 import { prepareScapeImportSourceIdentities, resolveScapeProjectAssetExtension, retryScapeImportSourceIdentityCollision } from './scape-project-asset-extension.ts';
@@ -199,8 +200,7 @@ async function importScapeProjectAttempt(input, store, options, remapAllSources)
 				expandedByteBudget,
 				manifest,
 				projectText,
-			} = await readScapeArchiveEnvelope(entries, options.archiveLimits || {}, signal,
-				assetExtension?.assetKinds);
+			} = await readScapeArchiveEnvelope(entries, options.archiveLimits || {}, signal, assetExtension?.assetKinds, isDesktopScapeArchiveByteSource(input));
 			const audioChunkBudget = new ScapeAudioChunkBudget();
 			const projectBytes = TEXT_ENCODER.encode(projectText);
 			verifyScapeAssetBytes(projectBytes, manifest.project, 'project document');
@@ -501,7 +501,7 @@ export async function inspectScapeProject(input, store = null, options = {}, ret
 	const assetExtension = resolveScapeProjectAssetExtension(options.projectAssetExtension);
 	return withScapeProjectInput(input, signal, async (entries) => {
 		const { manifest, projectText } = await readScapeArchiveEnvelope(entries,
-			options.archiveLimits || {}, signal, assetExtension?.assetKinds);
+			options.archiveLimits || {}, signal, assetExtension?.assetKinds, isDesktopScapeArchiveByteSource(input));
 		verifyScapeAssetBytes(TEXT_ENCODER.encode(projectText), manifest.project, 'project document');
 		throwIfScapeAborted(signal);
 		const loaded = loadScapeProjectDocument(projectText, manifest.project, options);

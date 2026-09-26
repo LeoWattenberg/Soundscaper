@@ -23,6 +23,12 @@ const TYPED_ARRAY_BYTE_LENGTH_GETTER = Object.getOwnPropertyDescriptor(
 export const DESKTOP_SCAPE_RANGE_MAXIMUM_READ_BYTES =
 	PLATFORM_TRANSFER_HARD_LIMITS.mediaChunkBytes;
 
+const desktopSources = new WeakSet<ScapeArchiveByteSource>();
+
+export function isDesktopScapeArchiveByteSource(source: unknown): source is ScapeArchiveByteSource {
+	return typeof source === 'object' && source !== null && desktopSources.has(source as ScapeArchiveByteSource);
+}
+
 export interface DesktopScapeArchiveByteSourceOptions {
 	readonly fetch: DesktopReadFetch;
 }
@@ -60,7 +66,7 @@ export function createDesktopScapeArchiveByteSource(
 		return reason;
 	};
 
-	return createScapeArchiveByteSource({
+	const source = createScapeArchiveByteSource({
 		size: admittedDescriptor.size,
 		maximumReadBytes: DESKTOP_SCAPE_RANGE_MAXIMUM_READ_BYTES,
 		read(request): Promise<Uint8Array> {
@@ -84,6 +90,8 @@ export function createDesktopScapeArchiveByteSource(
 			return visible;
 		},
 	});
+	desktopSources.add(source);
+	return source;
 }
 
 async function readExactDesktopRange(

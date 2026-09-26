@@ -185,7 +185,7 @@ refused for carrying the suffix another product gave it.
 - Save pickers and operating-system associations advertise only the active
   product's suffix plus legacy `.scape`. Neither shipping app claims
   `.liscape`.
-- Every accepted suffix takes the 65 GiB `scape-range-v1` desktop read profile;
+- Every accepted suffix takes the safe-integer `scape-range-v1` desktop read profile;
   none falls back to bounded materialization.
 
 The archive is now the family-qualified format-1 baseline. The

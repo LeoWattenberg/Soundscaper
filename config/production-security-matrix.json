@@ -4500,7 +4500,7 @@
 				},
 				{
 					"id": "cumulative-expanded-byte-limit",
-					"summary": "The envelope rejects central-directory declarations whose safe cumulative uncompressed size exceeds 64 GiB before reading any entry body.",
+					"summary": "The envelope rejects central-directory declarations above 64 GiB on the browser and above the safe-integer range for a desktop range source before reading any entry body.",
 					"evidence": [
 						{
 							"kind": "implementation",
@@ -4515,7 +4515,7 @@
 				},
 				{
 					"id": "cumulative-actual-expanded-byte-limit",
-					"summary": "One shared budget counts bytes actually emitted into the manifest, project, and every extracted asset sink, rejecting cumulative output above 64 GiB before the over-budget chunk is retained or published.",
+					"summary": "One shared budget counts bytes actually emitted into the manifest, project, and every extracted asset sink, rejecting cumulative output above 64 GiB on the browser or above the safe-integer range for a desktop range source before the over-budget chunk is retained or published.",
 					"evidence": [
 						{
 							"kind": "implementation",
@@ -7876,7 +7876,7 @@
 				},
 				{
 					"id": "aggregate-save-capacity-and-disk-admission",
-					"summary": "Main enforces 16 outstanding product-wide targets, 4 pending or live sessions, and 65 GiB per-save and aggregate admitted bytes, covering the canonical 64 GiB expanded `.scape` envelope plus its bounded STORE/ZIP overhead. Global count and byte reservations are taken synchronously before the first await, and production ceilings expose lower-only test seams. A fail-closed bigint `statfs` available-space check completes before staging open. The check is point-in-time admission, not an operating-system reservation; charges release only after no staging was acquired, an acknowledged cleanup, or a completed commit, and a staging cleanup failure leaves them charged. A chunk or final-prefix write that fails with ENOSPC or EDQUOT is a qualified typed refusal: the staged temporary file is discarded, the session's admitted count and bytes release, and the committed target file survives, while a commit-time space failure cleans staging and names the exhausted destination. Other write failures keep the session open for retry or abort.",
+					"summary": "Main enforces 16 outstanding product-wide targets, 4 pending or live sessions, and 65 GiB per-save and aggregate admitted bytes, covering the canonical 64 GiB `.scape` export envelope plus its bounded STORE/ZIP overhead. Larger desktop imports do not gain a larger save-session ceiling. Global count and byte reservations are taken synchronously before the first await, and production ceilings expose lower-only test seams. A fail-closed bigint `statfs` available-space check completes before staging open. The check is point-in-time admission, not an operating-system reservation; charges release only after no staging was acquired, an acknowledged cleanup, or a completed commit, and a staging cleanup failure leaves them charged. A chunk or final-prefix write that fails with ENOSPC or EDQUOT is a qualified typed refusal: the staged temporary file is discarded, the session's admitted count and bytes release, and the committed target file survives, while a commit-time space failure cleans staging and names the exhausted destination. Other write failures keep the session open for retry or abort.",
 					"evidence": [
 						{
 							"kind": "implementation",

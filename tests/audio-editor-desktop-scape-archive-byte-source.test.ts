@@ -6,13 +6,14 @@ import test from 'node:test';
 import {
 	DESKTOP_SCAPE_RANGE_MAXIMUM_READ_BYTES,
 	createDesktopScapeArchiveByteSource,
+	isDesktopScapeArchiveByteSource,
 } from '../src/common/editor/desktop-scape-archive-byte-source.ts';
 import type {
 	DesktopReadFetch,
 	DesktopReadResponse,
 } from '../src/common/editor/desktop-read-materialization.ts';
 import { restoreNormalizedScapeAbortReason } from '../src/common/editor/scape-abort.ts';
-import { readScapeArchiveByteRange } from '../src/common/editor/scape-archive-byte-source.ts';
+import { createScapeArchiveByteSource, readScapeArchiveByteRange } from '../src/common/editor/scape-archive-byte-source.ts';
 
 const DESCRIPTOR = Object.freeze({
 	url: 'soundscaper-app://bundle/_desktop/read/range/session.scape',
@@ -31,6 +32,10 @@ test('desktop .scape sources issue exact bounded 206 requests without release au
 		});
 	};
 	const source = createDesktopScapeArchiveByteSource(DESCRIPTOR, { fetch: fetchRange });
+	assert.equal(isDesktopScapeArchiveByteSource(source), true);
+	assert.equal(isDesktopScapeArchiveByteSource(createScapeArchiveByteSource({
+		size: DESCRIPTOR.size, read: () => new Uint8Array(),
+	})), false);
 
 	assert.deepEqual(Object.keys(source).sort(), ['maximumReadBytes', 'read', 'size']);
 	assert.equal(source.maximumReadBytes, 16 * 1024 * 1024);

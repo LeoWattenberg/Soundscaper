@@ -99,9 +99,10 @@ export async function readScapeArchiveEnvelope(
 	limitOverrides: Partial<ScapeArchiveLimits> = {},
 	signal?: AbortSignal,
 	additionalAssetKinds: readonly string[] = [],
+	desktopImport = false,
 ): Promise<ScapeArchiveEnvelope> {
 	throwIfScapeAborted(signal);
-	const limits = resolveLimits(limitOverrides);
+	const limits = resolveLimits(limitOverrides, desktopImport);
 	const expandedByteBudget = new ScapeExpandedByteBudget(limits.maximumExpandedBytes);
 	const entryByName = indexEntries(entries, limits, signal);
 	const manifestEntry = requiredFileEntry(entryByName, SCAPE_MANIFEST_ENTRY);
@@ -162,17 +163,19 @@ async function validateEntryLayouts(
 	}
 }
 
-function resolveLimits(overrides: Partial<ScapeArchiveLimits>): ScapeArchiveLimits {
+function resolveLimits(overrides: Partial<ScapeArchiveLimits>, desktopImport: boolean): ScapeArchiveLimits {
 	for (const name of Object.keys(overrides)) {
 		if (!Object.hasOwn(SCAPE_ARCHIVE_LIMITS, name)) {
 			throw new TypeError(`Unsupported Scape archive limit: ${name}.`);
 		}
 	}
-	const limits = { ...SCAPE_ARCHIVE_LIMITS, ...overrides };
+	const maximumExpandedBytes = desktopImport
+		? Number.MAX_SAFE_INTEGER : SCAPE_ARCHIVE_LIMITS.maximumExpandedBytes;
+	const limits = { ...SCAPE_ARCHIVE_LIMITS, maximumExpandedBytes, ...overrides };
 	for (const name of Object.keys(SCAPE_ARCHIVE_LIMITS) as (keyof ScapeArchiveLimits)[]) {
 		const value = limits[name];
 		if (!Number.isSafeInteger(value) || value < 1) throw new RangeError(`Invalid Scape ${name} limit.`);
-		if (value > SCAPE_ARCHIVE_LIMITS[name]) {
+		if (value > (name === 'maximumExpandedBytes' ? maximumExpandedBytes : SCAPE_ARCHIVE_LIMITS[name])) {
 			throw new RangeError(`The Scape ${name} limit cannot exceed the hard limit.`);
 		}
 	}

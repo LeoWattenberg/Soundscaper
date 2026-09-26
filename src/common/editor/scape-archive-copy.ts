@@ -19,6 +19,7 @@ import {
 import { parseOpaqueScapeProjectDocument } from './scape-project-document.ts';
 import type { ScapeProjectAssetExtension } from './scape-project-asset-extension.ts';
 import { withScapeProjectInput, type ScapeProjectInput } from './scape-project-input.ts';
+import { isDesktopScapeArchiveByteSource } from './desktop-scape-archive-byte-source.ts';
 
 const TEXT_ENCODER = new TextEncoder();
 
@@ -59,6 +60,7 @@ export async function copyFutureScapeArchive(
 			options.archiveLimits || {},
 			signal,
 			options.projectAssetExtension?.assetKinds,
+			isDesktopScapeArchiveByteSource(input),
 		);
 		verifyScapeAssetBytes(TEXT_ENCODER.encode(projectText), manifest.project, 'project document');
 		return opaqueProjectIdentity(manifest.project, projectText, options.currentProjectSchemaFamily);
