@@ -37,15 +37,13 @@ test('a selected 7 GiB Audacity project remains range backed for the whole file-
 	const descriptor = { id, name: 'large.aup4', size, lastModified: 0,
 		mimeType: 'application/vnd.audacity.aup4', readProfile: 'selected-range-v1',
 		url: `soundscaper-app://bundle/_desktop/read/selected-range-v1/${id}/large.aup4` };
-	let retained: Blob | null = null;
-	await service.withReadDescriptors([descriptor], {}, async ([file]: readonly Blob[]) => {
-		retained = file;
+	const retained: Blob = await service.withReadDescriptors([descriptor], {}, async ([file]: readonly Blob[]) => {
 		assert.equal(file.size, size);
 		assert.deepEqual(new Uint8Array(await file.slice(size - 1).arrayBuffer()), Uint8Array.of(0x53));
 		assert.deepEqual(events, [`bytes=${size - 1}-${size - 1}`]);
+		return file;
 	});
 	assert.deepEqual(events, [`bytes=${size - 1}-${size - 1}`, `release:${id}`]);
-	assert.ok(retained);
 	await assert.rejects(retained.slice(0, 1).arrayBuffer(), /released/u);
 });
 
