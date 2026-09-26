@@ -77,4 +77,61 @@ test.describe('project lock notifications', () => {
 		expect(errors).toEqual([]);
 		expect(secondErrors).toEqual([]);
 	});
+
+	test('a second tab autosave survives takeover while the first tab save is held', async ({ page, context }) => {
+		const firstErrors = collectClientErrors(page);
+		const first = await bootEditor(page, '/embed/en/');
+		await expect(first.locator('[data-save-state]')).toHaveAttribute('data-state', 'saved', { timeout: 10_000 });
+		const projectId = await first.getAttribute('data-project-id');
+		await page.evaluate(() => {
+			const originalEstimate = navigator.storage.estimate.bind(navigator.storage);
+			let releaseEstimate;
+			const held = new Promise((resolve) => { releaseEstimate = resolve; });
+			globalThis.__heldProjectEstimate = {
+				entered: 0,
+				release: () => { releaseEstimate(); },
+			};
+			Object.defineProperty(navigator.storage, 'estimate', {
+				configurable: true,
+				value: async () => {
+					globalThis.__heldProjectEstimate.entered += 1;
+					await held;
+					return originalEstimate();
+				},
+			});
+		});
+
+		try {
+			await chooseNestedCommandAction(page, first, 'Tracks', ['Add new track', 'Audio track']);
+			await expect(first).toHaveAttribute('data-track-count', '2');
+			await expect.poll(() => page.evaluate(() => globalThis.__heldProjectEstimate.entered)).toBeGreaterThan(0);
+
+			const secondPage = await context.newPage();
+			const secondErrors = collectClientErrors(secondPage);
+			await secondPage.goto('/embed/en/');
+			const second = await waitForEditor(secondPage);
+			await expect(second).toHaveAttribute('data-project-id', projectId);
+			await expect(second).toHaveAttribute('data-track-count', '1');
+			await expect(first.getByRole('button', { name: /Record.*read-only/iu }))
+				.toBeDisabled({ timeout: 5_000 });
+			await chooseNestedCommandAction(secondPage, second, 'Tracks', ['Add new track', 'Audio track']);
+			await chooseNestedCommandAction(secondPage, second, 'Tracks', ['Add new track', 'Audio track']);
+			await expect(second).toHaveAttribute('data-track-count', '3');
+			await expect(second.locator('[data-save-state]')).toHaveAttribute('data-state', 'saved', { timeout: 10_000 });
+
+			await page.evaluate(async () => {
+				globalThis.__heldProjectEstimate.release();
+				await new Promise((resolve) => setTimeout(resolve, 0));
+			});
+			await secondPage.reload();
+			const reopened = await waitForEditor(secondPage);
+			await expect(reopened).toHaveAttribute('data-project-id', projectId);
+			await expect(reopened).toHaveAttribute('data-track-count', '3');
+			await expect(reopened.locator('[data-save-state]')).toHaveAttribute('data-state', 'saved');
+			expect(firstErrors).toEqual([]);
+			expect(secondErrors).toEqual([]);
+		} finally {
+			await page.evaluate(() => globalThis.__heldProjectEstimate.release()).catch(() => undefined);
+		}
+	});
 });
