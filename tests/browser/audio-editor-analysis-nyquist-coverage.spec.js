@@ -20,6 +20,11 @@ import {
 	registerAudioEditorHooks,
 } from './audio-editor-test-helpers.js';
 
+const ANALYSIS_FIXTURE_SAMPLE_RATE = 48_000;
+const ANALYSIS_FIXTURE_FRAMES = ANALYSIS_FIXTURE_SAMPLE_RATE * 2;
+const CLIPPING_START_FRAME = 45_000;
+const CLIPPING_FRAME_COUNT = 8;
+
 test.describe('analysis and Nyquist dialog coverage', () => {
 	registerAudioEditorHooks();
 
@@ -41,32 +46,85 @@ test.describe('analysis and Nyquist dialog coverage', () => {
 		await expect(analysis.locator('[data-analysis-scope]')).toHaveAttribute('data-analysis-scope', 'master', {
 			timeout: 20_000,
 		});
-		await exportReport(page, analysis, /analysis\.json$/u);
+		const levelsDownload = await exportReport(page, analysis, /analysis\.json$/u);
+		expectAnalysisDownload(levelsDownload, { mode: 'levels', type: 'levels', scope: 'master' });
+		expect(levelsDownload.project).toMatchObject({ sampleRate: ANALYSIS_FIXTURE_SAMPLE_RATE });
+		expect(levelsDownload.report).toMatchObject({ startFrame: 0, endFrame: ANALYSIS_FIXTURE_FRAMES });
+		expect(levelsDownload.result).toMatchObject({
+			sampleRate: ANALYSIS_FIXTURE_SAMPLE_RATE,
+			channelCount: 2,
+			frameCount: ANALYSIS_FIXTURE_FRAMES,
+			durationSeconds: 2,
+			clippedSamples: 16,
+			clippedFrames: CLIPPING_FRAME_COUNT,
+		});
+		expect(levelsDownload.result.peakDbfs)
+			.toBeCloseTo(20 * Math.log10(0.1) + 24 + 10 * Math.log10(0.5), 4);
 		await closeWorkspacePanel(editor, 'analysis');
 
 		const spectrum = await openAnalysis(page, editor, 'Plot spectrum', 'spectrum');
 		const spectrumReport = spectrum.locator('[data-analysis-report="spectrum"]');
 		await expect(spectrumReport).toBeVisible({ timeout: 20_000 });
 		await expect(spectrumReport).toContainText('Hz');
-		await exportReport(page, spectrum, /analysis\.json$/u);
+		const spectrumDownload = await exportReport(page, spectrum, /analysis\.json$/u);
+		expectAnalysisDownload(spectrumDownload, { mode: 'spectrum', type: 'spectrum', scope: 'track' });
+		expect(spectrumDownload.report).toMatchObject({
+			startFrame: 0,
+			endFrame: ANALYSIS_FIXTURE_FRAMES,
+			sampleRate: ANALYSIS_FIXTURE_SAMPLE_RATE,
+			size: 2_048,
+		});
+		const spectrumBinWidth = spectrumDownload.report.sampleRate / spectrumDownload.report.size;
+		expect(Math.abs(spectrumDownload.report.peak.frequency - 440)).toBeLessThanOrEqual(spectrumBinWidth);
 		await closeWorkspacePanel(editor, 'spectrum');
 
 		const clipping = await openAnalysis(page, editor, 'Find clipping', 'clipping');
 		const clippingReport = clipping.locator('[data-analysis-report="clipping"]');
 		await expect(clippingReport).toBeVisible({ timeout: 20_000 });
 		await expect(clippingReport.getByRole('listitem')).not.toHaveCount(0);
-		await exportReport(page, clipping, /analysis\.json$/u);
+		const clippingDownload = await exportReport(page, clipping, /analysis\.json$/u);
+		expectAnalysisDownload(clippingDownload, { mode: 'clipping', type: 'clipping', scope: 'track' });
+		expect(clippingDownload.report).toMatchObject({
+			startFrame: 0,
+			endFrame: ANALYSIS_FIXTURE_FRAMES,
+			threshold: 1,
+			minimumConsecutiveSamples: 3,
+			regionCount: 1,
+			clippedSamples: 16,
+			regions: [{
+				startFrame: CLIPPING_START_FRAME,
+				endFrame: CLIPPING_START_FRAME + CLIPPING_FRAME_COUNT,
+				frameCount: CLIPPING_FRAME_COUNT,
+				clippedSamples: 16,
+			}],
+		});
 		await closeWorkspacePanel(editor, 'clipping');
 
-		await selectTimelineRange(page, editor, 35, 145);
+		await selectTimelineRange(page, editor, 24, 108);
 		const contrast = await openAnalysis(page, editor, 'Contrast', 'contrast');
 		await contrast.getByRole('button', { name: 'Measure foreground', exact: true }).click();
 		await expect(contrast.locator('[data-analysis-report="contrast"]')).toBeVisible({ timeout: 20_000 });
+		await selectTimelineRange(page, editor, 144, 228);
 		await contrast.getByRole('button', { name: 'Measure background', exact: true }).click();
 		const contrastReport = contrast.locator('[data-analysis-report="contrast"]');
 		await expect(contrastReport).toContainText('Difference', { timeout: 20_000 });
 		await expect(contrastReport.getByRole('status')).toBeVisible();
-		await exportReport(page, contrast, /analysis\.json$/u);
+		const contrastDownload = await exportReport(page, contrast, /analysis\.json$/u);
+		expectAnalysisDownload(contrastDownload, { mode: 'contrast', type: 'contrast' });
+		expect(contrastDownload.report.foreground).toMatchObject({
+			startFrame: 4_800,
+			endFrame: 38_400,
+			scope: 'track',
+		});
+		expect(contrastDownload.report.background).toMatchObject({
+			startFrame: 52_800,
+			endFrame: 86_400,
+			scope: 'track',
+		});
+		expect(contrastDownload.report.differenceDb).toBeCloseTo(20, 2);
+		expect(contrastDownload.report.foreground.rmsDb - contrastDownload.report.background.rmsDb)
+			.toBeCloseTo(contrastDownload.report.differenceDb, 8);
+		expect(contrastDownload.result.rmsDbfs).toBeCloseTo(contrastDownload.report.background.rmsDb, 8);
 		await closeWorkspacePanel(editor, 'contrast');
 
 		expect(errors).toEqual([]);
@@ -132,8 +190,8 @@ test.describe('analysis and Nyquist dialog coverage', () => {
 });
 
 function clippedTone() {
-	const sampleRate = 48_000;
-	const frameCount = 4_800;
+	const sampleRate = ANALYSIS_FIXTURE_SAMPLE_RATE;
+	const frameCount = ANALYSIS_FIXTURE_FRAMES;
 	const buffer = Buffer.alloc(44 + frameCount * 4);
 	buffer.write('RIFF', 0);
 	buffer.writeUInt32LE(buffer.length - 8, 4);
@@ -149,7 +207,10 @@ function clippedTone() {
 	buffer.write('data', 36);
 	buffer.writeUInt32LE(frameCount * 4, 40);
 	for (let frame = 0; frame < frameCount; frame += 1) {
-		const sample = frame < 8 ? 1.25 : Math.sin(2 * Math.PI * 440 * frame / sampleRate) * 0.25;
+		const toneAmplitude = frame < sampleRate ? 0.02 : 0.002;
+		const sample = frame >= CLIPPING_START_FRAME && frame < CLIPPING_START_FRAME + CLIPPING_FRAME_COUNT
+			? 0.1
+			: Math.sin(2 * Math.PI * 440 * frame / sampleRate) * toneAmplitude;
 		buffer.writeFloatLE(sample, 44 + frame * 4);
 	}
 	return { name: 'analysis-clipped.wav', mimeType: 'audio/wav', buffer };
@@ -169,7 +230,12 @@ async function exportReport(page, panel, fileName) {
 	expect(download.suggestedFilename()).toMatch(fileName);
 	const path = await download.path();
 	expect(path).not.toBeNull();
-	expect(JSON.parse(await readFile(path, 'utf8')).schemaVersion).toBe(1);
+	return JSON.parse(await readFile(path, 'utf8'));
+}
+
+function expectAnalysisDownload(download, { mode, type, scope }) {
+	expect(download).toMatchObject({ schemaVersion: 1, mode, report: { type } });
+	if (scope) expect(download.report.scope).toBe(scope);
 }
 
 async function selectTimelineRange(page, editor, start, end) {
