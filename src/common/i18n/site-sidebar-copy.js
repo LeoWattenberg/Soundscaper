@@ -10,7 +10,7 @@ const SITE_SIDEBAR_COPY_ENTRIES = Object.freeze([
 	['sidebarNavigation', 'Soundscaper navigation', 'Soundscaper-Navigation'],
 	['sidebarSettings', 'Settings', 'Einstellungen'],
 	['audioEditorLink', 'Audio editor', 'Audio-Editor'],
-	['audacityGuidesLink', 'About Mindscaper', 'Über Mindscaper'],
+	['joinUsLink', 'Join us', 'Mach mit'],
 	['legalLink', 'Privacy policy', 'Datenschutzerklärung'],
 	['reportIssueLink', 'Report an issue', 'Ein Problem melden'],
 	['githubProjectLink', 'GitHub project', 'GitHub-Projekt'],

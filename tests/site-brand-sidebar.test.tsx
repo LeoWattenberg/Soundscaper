@@ -203,7 +203,7 @@ test('a Framescaper rail names its own workspace and links across to the other o
 	}
 });
 
-test('the rail uses each product logo and keeps the parent-site about link', async () => {
+test('the rail uses each product logo and links Join us to the parent site', async () => {
 	for (const [productId, locale, parentSite] of [
 		['soundscaper', 'en', 'https://mindscaper.org/'],
 		['framescaper', 'de', 'https://mindscaper.org/de/'],
@@ -224,7 +224,8 @@ test('the rail uses each product logo and keeps the parent-site about link', asy
 			]);
 			assert.deepEqual(links.slice(0, 2).map((link) => link.querySelector('img')?.getAttribute('alt')), ['', '']);
 			assert.equal(links.some((link) => link.getAttribute('href') === `${parentSite}#projects`), false);
-			assert.equal(links[2]?.getAttribute('href'), `${parentSite}#mission`);
+			assert.equal(links[2]?.getAttribute('href'), parentSite);
+			assert.equal(links[2]?.textContent, locale === 'de' ? 'Mach mit' : 'Join us');
 		} finally {
 			await context.close();
 		}

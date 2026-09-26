@@ -94,7 +94,7 @@ export default function BrandSidebar({ locale, productId = 'soundscaper' }) {
 				<nav className="website-sidebar-nav" aria-label={copy.label}>
 						<a className="website-sidebar-link website-is-active" href={productHref(productId, locale)} aria-current="page"><img src={productMark} alt="" width="24" height="24" />{productId === 'framescaper' ? profile.name : copy.editor}</a>
 						<a className="website-sidebar-link" href={productHref(otherProduct.id, locale)}><img src={`/logo/${otherProduct.id}.svg`} alt="" width="24" height="24" />{otherProduct.name}</a>
-						<a className="website-sidebar-link" href={`${parentSite}#mission`}>{copy.guides}</a>
+						<a className="website-sidebar-link" href={parentSite}>{copy.joinUs}</a>
 						<a className="website-sidebar-link" href={privacyPolicyUrl(productId, locale)} onClick={openPrivacyPolicy}>{copy.legal}</a>
 						<a className="website-sidebar-link" href="https://github.com/LeoWattenberg/Soundscaper/issues/new" target="_blank" rel="noreferrer">{copy.reportIssue}</a>
 						<a className="website-sidebar-link" href="https://github.com/LeoWattenberg/Soundscaper" target="_blank" rel="noreferrer">{copy.github}</a>
@@ -148,7 +148,7 @@ function sidebarCopy(catalog) {
 	return {
 		label: catalog.sidebarNavigation,
 		editor: catalog.audioEditorLink,
-		guides: catalog.audacityGuidesLink,
+		joinUs: catalog.joinUsLink,
 		legal: catalog.legalLink,
 		github: catalog.githubProjectLink,
 		theme: catalog.themeToggle,
