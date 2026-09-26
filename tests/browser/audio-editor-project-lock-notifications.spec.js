@@ -80,6 +80,14 @@ test.describe('project lock notifications', () => {
 
 	test('a second tab autosave survives takeover while the first tab save is held', async ({ page, context }) => {
 		const firstErrors = collectClientErrors(page);
+		await page.addInitScript(() => {
+			// WebKit lacks this optional API; provide an estimate so its save can pause at the same preflight.
+			if (typeof navigator.storage?.estimate === 'function') return;
+			Object.defineProperty(navigator, 'storage', {
+				configurable: true,
+				value: { estimate: async () => ({ usage: 0, quota: 1_000_000_000 }) },
+			});
+		});
 		const first = await bootEditor(page, '/embed/en/');
 		await expect(first.locator('[data-save-state]')).toHaveAttribute('data-state', 'saved', { timeout: 10_000 });
 		const projectId = await first.getAttribute('data-project-id');
