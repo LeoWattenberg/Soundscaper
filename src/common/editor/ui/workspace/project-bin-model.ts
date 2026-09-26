@@ -111,8 +111,9 @@ export function projectBinTransformBadges(
 
 export function formatProjectBinDuration(durationFrames: number, sampleRate: number, locale: string): string {
 	const seconds = Math.max(0, Number(durationFrames) || 0) / Math.max(1, Number(sampleRate) || 48_000);
-	const wholeMinutes = Math.floor(seconds / 60);
-	const remaining = seconds - wholeMinutes * 60;
+	const roundedSeconds = Math.round(seconds * 10) / 10;
+	const wholeMinutes = Math.floor(roundedSeconds / 60);
+	const remaining = roundedSeconds - wholeMinutes * 60;
 	const number = new Intl.NumberFormat(locale, {
 		minimumIntegerDigits: 2,
 		minimumFractionDigits: remaining < 10 ? 1 : 0,
@@ -217,10 +218,11 @@ export function projectBinPeakRanges(
 		let maximum = -1;
 		const stride = Math.max(1, Math.floor((endFrame - startFrame) / 32));
 		for (let frame = startFrame; frame < endFrame; frame += stride) {
-			let sample = 0;
-			for (const channel of channels) sample += (Number(channel[frame]) || 0) / channels.length;
-			minimum = Math.min(minimum, sample);
-			maximum = Math.max(maximum, sample);
+			for (const channel of channels) {
+				const sample = Number(channel[frame]) || 0;
+				minimum = Math.min(minimum, sample);
+				maximum = Math.max(maximum, sample);
+			}
 		}
 		ranges.push({ minimum, maximum });
 	}
