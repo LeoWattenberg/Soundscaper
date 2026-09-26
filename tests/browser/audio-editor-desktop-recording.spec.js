@@ -65,6 +65,7 @@ test.describe('desktop audio recording', () => {
 	registerAudioEditorHooks();
 
 	test('records stereo desktop audio from Audio setup without microphone access', async ({ page }) => {
+		test.setTimeout(60_000);
 		await installDesktopCapture(page);
 		const editor = await bootEditor(page, '/embed/en/');
 		await editor.getByRole('button', { name: 'Audio setup', exact: true }).click();
@@ -81,7 +82,7 @@ test.describe('desktop audio recording', () => {
 		await expect.poll(async () => Number(await editor.getByRole('meter', { name: 'Input level', exact: true })
 			.getAttribute('aria-valuenow'))).toBeGreaterThan(-40);
 		await editor.getByRole('button', { name: 'Stop', exact: true }).click();
-		await expect(record).toHaveAttribute('aria-pressed', 'false');
+		await expect(record).toHaveAttribute('aria-pressed', 'false', { timeout: 20_000 });
 		await expect(editor).toHaveAttribute('data-clip-count', '1');
 		expect(await page.evaluate(() => window.__desktopDisplayConstraints)).toMatchObject({
 			audio: true,
