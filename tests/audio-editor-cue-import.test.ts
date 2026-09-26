@@ -82,3 +82,10 @@ test('CUE import decodes UTF-8 bytes and enforces its admitted cue limit', () =>
 		(error: unknown) => error instanceof AudioEditorCueImportError && error.code === 'CUE_LIMIT',
 	);
 });
+
+test('CUE import refuses timestamps that exceed safe sample-frame positions', () => {
+	assert.throws(
+		() => parseAudioEditorCueSheet('TRACK 01 AUDIO\n INDEX 01 100000000000:00:00', { sampleRate: 48_000 }),
+		(error: unknown) => error instanceof AudioEditorCueImportError && error.code === 'INVALID_TIMESTAMP',
+	);
+});

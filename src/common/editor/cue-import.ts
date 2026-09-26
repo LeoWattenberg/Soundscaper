@@ -86,7 +86,15 @@ export function parseAudioEditorCueSheet(
 			throw cueError('The CUE sheet exceeds the configured track limit.', 'CUE_LIMIT', { limit: maxCues });
 		}
 		const previous = cues.at(-1);
-		const positionFrame = Math.round(track.index01 * sampleRate / CD_FRAMES_PER_SECOND);
+		const roundedFrame = (BigInt(track.index01) * BigInt(sampleRate)
+			+ BigInt(Math.floor(CD_FRAMES_PER_SECOND / 2))) / BigInt(CD_FRAMES_PER_SECOND);
+		if (roundedFrame > BigInt(Number.MAX_SAFE_INTEGER)) {
+			throw cueError('A CUE timestamp exceeds the safe sample-frame range.', 'INVALID_TIMESTAMP', {
+				line: track.line,
+				track: track.number,
+			});
+		}
+		const positionFrame = Number(roundedFrame);
 		if (previous && positionFrame < previous.positionFrame) {
 			throw cueError('CUE track indexes must be chronological.', 'NON_CHRONOLOGICAL_INDEX', {
 				line: track.line,

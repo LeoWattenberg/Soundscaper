@@ -24,7 +24,11 @@ export async function inspectMp3GaplessGeometry(file: Blob): Promise<Mp3GaplessG
 	if (rateIndex === 3) return null;
 	const sampleRate = [44_100, 48_000, 32_000][rateIndex]! / (version === 3 ? 1 : version === 2 ? 2 : 4);
 	const mono = (header[3]! >> 6) === 3;
-	const xing = 4 + (version === 3 ? mono ? 17 : 32 : mono ? 9 : 17);
+	let xing = 4 + (version === 3 ? mono ? 17 : 32 : mono ? 9 : 17);
+	// Some CRC-protected streams place Xing after the two CRC bytes, while
+	// LAME keeps it at the usual side-info offset even when CRC is present.
+	if (!(header[1]! & 1) && !['Xing', 'Info'].includes(text(header, xing, 4))
+		&& ['Xing', 'Info'].includes(text(header, xing + 2, 4))) xing += 2;
 	if (!['Xing', 'Info'].includes(text(header, xing, 4)) || header.length < xing + 12) return null;
 	const view = new DataView(header.buffer, header.byteOffset, header.byteLength);
 	const flags = view.getUint32(xing + 4);
