@@ -35,7 +35,7 @@ test.describe('audio editor timed recording', () => {
 		const dateTimes = dialog.locator('input[type="datetime-local"]');
 		const start = new Date(Date.now() + 12_000);
 		const localInputValue = (date) => new Date(date.getTime() - date.getTimezoneOffset() * 60_000)
-			.toISOString().slice(0, 19);
+			.toISOString().slice(0, 19).replace(/:00$/, '');
 		await dateTimes.first().fill(localInputValue(start));
 		await dialog.getByRole('radio', { name: 'End date and time', exact: true }).check();
 		await dateTimes.nth(1).fill(localInputValue(new Date(start.getTime() + 8_000)));
