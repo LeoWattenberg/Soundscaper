@@ -280,6 +280,65 @@ test('only clean https URLs are accepted', { timeout: 20_000 }, async (t) => {
 	}
 });
 
+test('a redirect to an insecure model URL is refused before requesting it', async (t) => {
+	const store = await createStore(t);
+	const requested: string[] = [];
+	const fetchImpl = (async (input: URL, init?: RequestInit) => {
+		requested.push(String(input));
+		assert.equal(init?.redirect, 'manual');
+		return new Response(null, {
+			status: 302,
+			headers: { location: 'http://models.invalid/insecure/model.onnx' },
+		});
+	}) as typeof fetch;
+
+	await assert.rejects(downloadLocalModelArtifact({
+		store, artifact: ARTIFACT, url: URL_UNDER_TEST, fetchImpl,
+	}), /must use https/iu);
+	assert.deepEqual(requested, [URL_UNDER_TEST]);
+	assert.equal(await store.hasBlob(ARTIFACT.sha256), false);
+});
+
+test('a secure relative redirect preserves a resumed model request', async (t) => {
+	const store = await createStore(t);
+	await writeFile(await store.partialPath(ARTIFACT.sha256), PAYLOAD.slice(0, 10));
+	const requested: Array<{ url: string; range: string | null; redirect: RequestRedirect | undefined }> = [];
+	const fetchImpl = (async (input: URL, init?: RequestInit) => {
+		requested.push({
+			url: String(input),
+			range: new Headers(init?.headers).get('range'),
+			redirect: init?.redirect,
+		});
+		if (requested.length === 1) {
+			return new Response(null, { status: 302, headers: { location: '../mirror/model.onnx' } });
+		}
+		return new Response(PAYLOAD.slice(10), { status: 206 });
+	}) as typeof fetch;
+
+	const result = await downloadLocalModelArtifact({
+		store, artifact: ARTIFACT, url: URL_UNDER_TEST, fetchImpl,
+	});
+	assert.equal(result.resumedFromBytes, 10);
+	assert.deepEqual(requested, [
+		{ url: URL_UNDER_TEST, range: 'bytes=10-', redirect: 'manual' },
+		{ url: 'https://models.invalid/mirror/model.onnx', range: 'bytes=10-', redirect: 'manual' },
+	]);
+});
+
+test('repeated model redirects stop after a bounded number of requests', async (t) => {
+	const store = await createStore(t);
+	let requests = 0;
+	const fetchImpl = (async () => {
+		requests += 1;
+		return new Response(null, { status: 302, headers: { location: URL_UNDER_TEST } });
+	}) as typeof fetch;
+
+	await assert.rejects(downloadLocalModelArtifact({
+		store, artifact: ARTIFACT, url: URL_UNDER_TEST, fetchImpl,
+	}), /redirect limit/iu);
+	assert.equal(requests, 6);
+});
+
 test('a failing status is reported rather than retried silently', { timeout: 20_000 }, async (t) => {
 	const store = await createStore(t);
 	await assert.rejects(

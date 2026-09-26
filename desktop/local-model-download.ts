@@ -17,6 +17,7 @@ import type { FileLocalModelStore, LocalModelArtifact } from './local-model-stor
 
 /** Refuses a body that claims more than this multiple of the recorded length. */
 const MAX_OVERSHOOT_BYTES = 1024;
+const MAX_REDIRECTS = 5;
 
 export interface LocalModelDownloadProgress {
 	readonly completedBytes: number;
@@ -52,6 +53,30 @@ function assertDownloadUrl(value: string): URL {
 		throw new TypeError('A local model download URL must not carry credentials or a fragment.');
 	}
 	return url;
+}
+
+async function fetchModelResponse(
+	target: URL,
+	headers: Readonly<Record<string, string>>,
+	signal: AbortSignal | undefined,
+	fetchImpl: typeof fetch,
+): Promise<Response> {
+	for (let redirects = 0; ; redirects += 1) {
+		const response = await fetchImpl(target, { headers, signal, redirect: 'manual' });
+		if (![301, 302, 303, 307, 308].includes(response.status)) return response;
+		await response.body?.cancel().catch(() => undefined);
+		if (redirects >= MAX_REDIRECTS) {
+			throw new Error('A local model download exceeded the redirect limit.');
+		}
+		const location = response.headers.get('location');
+		if (location === null) {
+			throw new Error('A local model download redirect has no location.');
+		}
+		let next: URL;
+		try { next = new URL(location, target); }
+		catch (error) { throw new TypeError('A local model download redirect URL is invalid.', { cause: error }); }
+		target = assertDownloadUrl(next.href);
+	}
 }
 
 async function existingPartialBytes(path: string, limit: number): Promise<number> {
@@ -107,7 +132,7 @@ export async function downloadLocalModelArtifact(
 	const headers: Record<string, string> = { accept: 'application/octet-stream' };
 	if (resumedFromBytes > 0) headers.range = `bytes=${resumedFromBytes}-`;
 
-	const response = await fetchImpl(target, { headers, signal, redirect: 'follow' });
+	const response = await fetchModelResponse(target, headers, signal, fetchImpl);
 	if (resumedFromBytes > 0 && response.status === 200) {
 		// The server ignored the range; restart cleanly rather than splicing.
 		await rm(partialPath, { force: true });
