@@ -6,6 +6,7 @@ import {
 	waitForEditor,
 } from './audio-editor-test-helpers.js';
 import { chooseTrackMenuAction } from './helpers/track-menu.js';
+import { seekFramescaperTimecode } from './helpers/framescaper-standard-timecode.js';
 import { createDeterministicAvFixture } from './fixtures/deterministic-av-media.js';
 import { validateVideoTimingAssetBytes } from '../../src/common/editor/video-timing-asset.ts';
 import {
@@ -194,7 +195,7 @@ async function createContiguousMarkedEdits(page, editor, fixture) {
 	await expect(monitor).toHaveAttribute('data-source-monitor-mark-in', '2');
 	await expect(monitor).toHaveAttribute('data-source-monitor-mark-out', String(maximum - 1));
 
-	await setProgramFrame(editor, 0, await persistedSequenceRate(page));
+	await setProgramFrame(page, editor, 0, await persistedSequenceRate(page));
 	await page.locator('[data-bin-action="overwrite"]').first().click();
 	await expect.poll(() => persistedClips(page, 'timeline'), { timeout: 30_000 }).toHaveLength(4);
 	await page.locator('[data-bin-action="insert"]').first().click();
@@ -604,12 +605,9 @@ function sortedTimeline(timing) {
 	return timing;
 }
 
-async function setProgramFrame(editor, sequenceFrame, rate) {
+async function setProgramFrame(page, editor, sequenceFrame, rate) {
 	const timecode = sequenceTimecode(sequenceFrame, rate);
-	const input = editor.getByRole('textbox', { name: 'Timecode', exact: true });
-	await input.fill(timecode);
-	await input.press('Enter');
-	await expect(editor.locator('[data-sequence-timecode]')).toHaveAttribute('data-sequence-timecode', timecode);
+	await seekFramescaperTimecode(page, editor, timecode);
 }
 
 function collectClientErrors(page) {

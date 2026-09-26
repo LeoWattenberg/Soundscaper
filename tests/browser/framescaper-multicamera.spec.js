@@ -24,13 +24,14 @@ test.describe('Framescaper selected-web multicamera workflow', () => {
 		expect(projectId).toBeTruthy();
 
 		if (await editor.locator('[data-workspace-panel="project-bin"]').isVisible()) await closeWorkspacePanel(editor, 'project-bin');
-		await editor.getByRole('button', { name: 'Sequence timing', exact: true }).focus();
-		await page.keyboard.press('Enter');
-		const sequenceTiming = page.getByRole('dialog', { name: 'Sequence timing', exact: true });
+		await chooseNestedCommandAction(page, editor, 'File', ['Project management', 'Project properties']);
+		const metadataPanel = editor.locator('[data-workspace-panel="metadata"]');
+		await metadataPanel.getByRole('tab', { name: 'Sequence timing', exact: true }).click();
+		const sequenceTiming = metadataPanel.getByRole('tabpanel', { name: 'Sequence timing', exact: true });
 		await expect(sequenceTiming).toBeVisible();
 		await sequenceTiming.getByRole('combobox', { name: 'Frame rate', exact: true })
 			.selectOption('25/1');
-		await page.keyboard.press('Escape');
+		await closeWorkspacePanel(editor, 'metadata');
 		await expect(sequenceTiming).toBeHidden();
 		for (const fixture of [
 			cameraFixture('camera-a.mp4'),

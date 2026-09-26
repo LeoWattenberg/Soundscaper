@@ -8,6 +8,7 @@ import ProjectBinPanel from './ProjectBinPanel.jsx';
 import SourceMonitorPanel from './SourceMonitorPanel.jsx';
 import TimelineAnnotationWorkspacePanel from './TimelineAnnotationWorkspacePanel.tsx';
 import VideoPreviewPanel from './VideoPreviewPanel.jsx';
+import { SequenceTimingProjectProperties } from '../toolbar/SequenceTimingControls.jsx';
 import { ANALYSIS_MODE_PANEL_IDS, historyCommandLabel } from './workspace-panel-model.ts';
 import { consumeEffectsFocusSuppression, hasEffectsFocusSuppression } from './workspace-preset-focus.js';
 import { lazyEditorModule } from '../../../offline/lazy-module.tsx';
@@ -104,6 +105,10 @@ export default function WorkspacePanelContent({
 					panelActive={panelActive}
 					projectBinVisible={projectBinVisible}
 					project={project}
+					sequenceEditor={panelId === 'metadata' && productId === 'framescaper' && project?.sequences?.length
+						? <SequenceTimingProjectProperties project={project} snapshot={snapshot}
+							controller={controller} copy={copy} run={run} />
+						: null}
 					disabled={panelId === 'freesound'
 						? Boolean(snapshot.readOnly || blocked)
 						: snapshot.readOnly}

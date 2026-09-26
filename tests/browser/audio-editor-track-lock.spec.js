@@ -7,6 +7,7 @@ import {
 	waitForEditor,
 } from './audio-editor-test-helpers.js';
 import { TRACK_MENU_TRIGGER, chooseTrackMenuAction } from './helpers/track-menu.js';
+import { seekFramescaperTimecode } from './helpers/framescaper-standard-timecode.js';
 import { videoTimingProbeMedia } from './fixtures/video-timing-probe-media.js';
 import { FRAMESCAPER_DATABASE_NAME, SOUNDSCAPER_DATABASE_NAME } from './helpers/editor-databases.js';
 import {
@@ -86,7 +87,7 @@ test.describe('persisted shared track locking', () => {
 		const state = await videoState(page, projectId, FRAMESCAPER_DATABASE_NAME);
 		expect(state).not.toBeNull();
 		expect(state.video.sequenceFrameCount).toBeGreaterThan(2);
-		await setProgramFrame(editor, state.sequence.rate.num, 1);
+		await setProgramFrame(page, editor, state.sequence.rate.num, 1);
 
 		await chooseTrackMenuAction(page, editor, trackRow(editor, state.track.id), 'Lock track');
 		await expectPersistedLock(page, projectId, state.track.id, true, FRAMESCAPER_DATABASE_NAME);
@@ -168,13 +169,9 @@ async function openAudioClipsMenu(page, editor) {
 	return menu;
 }
 
-async function setProgramFrame(editor, rate, sequenceFrame) {
+async function setProgramFrame(page, editor, rate, sequenceFrame) {
 	const timecode = `00:00:00:${String(sequenceFrame).padStart(2, '0')}`;
-	const input = editor.getByRole('textbox', { name: 'Timecode', exact: true });
-	await input.fill(timecode);
-	await input.press('Enter');
-	await expect(editor.locator('[data-sequence-timecode]'))
-		.toHaveAttribute('data-sequence-timecode', timecode);
+	await seekFramescaperTimecode(page, editor, timecode);
 	expect(rate).toBeGreaterThan(sequenceFrame);
 }
 

@@ -3,6 +3,7 @@ import {
 	collectClientErrors,
 	registerAudioEditorHooks,
 	waitForEditor,
+	chooseNestedCommandAction,
 } from './audio-editor-test-helpers.js';
 import { resolveBrowserProductTestUrl } from './helpers/browser-product-test-url.js';
 
@@ -13,10 +14,11 @@ test.describe('sequence timing surfaces', () => {
 		const errors = collectClientErrors(page);
 		let editor = await bootVideoEditor(page);
 		const readout = editor.locator('[data-sequence-timecode]');
-		const timecodeField = editor.getByRole('textbox', { name: 'Timecode', exact: true });
 
 		await expect(readout).toHaveAttribute('data-sequence-timecode', '00:00:00:00');
-		await expect(timecodeField).toHaveValue('00:00:00:00');
+		await expect(editor.locator('[data-time-display] .timecode')).toHaveCount(1);
+		await expect(editor.getByRole('textbox', { name: 'Timecode', exact: true })).toHaveCount(0);
+		await expect(editor.getByRole('button', { name: 'Sequence timing', exact: true })).toHaveCount(0);
 
 		const flyout = await openSequenceTiming(page, editor);
 		const rate = flyout.getByRole('combobox', { name: 'Frame rate', exact: true });
@@ -41,8 +43,7 @@ test.describe('sequence timing surfaces', () => {
 			.toHaveAttribute('data-sequence-start-timecode', '01:00:00;00');
 
 		await flyout.getByRole('checkbox', { name: 'Timecode ruler', exact: true }).check();
-		await page.keyboard.press('Escape');
-		await expect(flyout).toBeHidden();
+		await expect(flyout).toBeVisible();
 
 		const ruler = editor.locator('[data-ruler]');
 		await expect(ruler).toHaveAttribute('data-time-format', 'timecode');
@@ -62,7 +63,10 @@ test.describe('sequence timing surfaces', () => {
 		const errors = collectClientErrors(page);
 		const editor = await bootVideoEditor(page);
 		const readout = editor.locator('[data-sequence-timecode]');
-		const timecodeField = editor.getByRole('textbox', { name: 'Timecode', exact: true });
+		await expect(editor.locator('[data-time-display] .timecode')).toHaveCount(1);
+		await expect(editor.getByRole('textbox', { name: 'Timecode', exact: true })).toHaveCount(0);
+		await expect(editor.locator('[data-sequence-step="previous"] .musescore-icon')).toHaveText('');
+		await expect(editor.locator('[data-sequence-step="next"] .musescore-icon')).toHaveText('');
 
 		await editor.getByRole('button', { name: 'Next frame', exact: true }).click();
 		await expect(readout).toHaveAttribute('data-sequence-timecode', '00:00:00:01');
@@ -78,34 +82,19 @@ test.describe('sequence timing surfaces', () => {
 		await page.keyboard.press('Enter');
 		await expect(readout).toHaveAttribute('data-sequence-timecode', '00:00:00:01');
 
-		await timecodeField.fill('00:00:02:00');
-		await timecodeField.press('Enter');
-		await expect(readout).toHaveAttribute('data-sequence-timecode', '00:00:02:00');
-
 		const flyout = await openSequenceTiming(page, editor);
 		await flyout.getByRole('combobox', { name: 'Frame rate', exact: true }).selectOption('30000/1001');
 		await flyout.getByRole('checkbox', { name: 'Drop frame', exact: true }).check();
-		await page.keyboard.press('Escape');
-		await expect(flyout).toBeHidden();
-
-		await timecodeField.fill('00:01:00;00');
-		await timecodeField.press('Enter');
-		await expect(editor.getByRole('alert')
-			.filter({ hasText: 'Enter a timecode this sequence rate produces' })).toBeVisible();
-		await expect(timecodeField).toHaveAttribute('aria-invalid', 'true');
-
-		await timecodeField.fill('00:00:10;00');
-		await timecodeField.press('Enter');
-		await expect(readout).toHaveAttribute('data-sequence-timecode', '00:00:10;00');
-		await expect(timecodeField).toHaveAttribute('aria-invalid', 'false');
+		await expect(readout).toHaveAttribute('data-sequence-timecode', '00:00:00;01');
 		expect(errors).toEqual([]);
 	});
 });
 
 async function openSequenceTiming(page, editor) {
-	await editor.getByRole('button', { name: 'Sequence timing', exact: true }).focus();
-	await page.keyboard.press('Enter');
-	const flyout = page.getByRole('dialog', { name: 'Sequence timing', exact: true });
+	await chooseNestedCommandAction(page, editor, 'File', ['Project management', 'Project properties']);
+	const panel = editor.locator('[data-workspace-panel="metadata"]');
+	await panel.getByRole('tab', { name: 'Sequence timing', exact: true }).click();
+	const flyout = panel.getByRole('tabpanel', { name: 'Sequence timing', exact: true });
 	await expect(flyout).toBeVisible();
 	return flyout;
 }

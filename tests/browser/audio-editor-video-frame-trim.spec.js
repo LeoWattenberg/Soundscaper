@@ -6,6 +6,7 @@ import {
 	waitForEditor,
 } from './audio-editor-test-helpers.js';
 import { createDeterministicAvFixture } from './fixtures/deterministic-av-media.js';
+import { seekFramescaperTimecode } from './helpers/framescaper-standard-timecode.js';
 import { FRAMESCAPER_DATABASE_NAME } from './helpers/editor-databases.js';
 
 const DATABASE_NAME = FRAMESCAPER_DATABASE_NAME;
@@ -46,7 +47,7 @@ test.describe('Framescaper frame-canonical edge trim integration', () => {
 			Math.floor(initial.video.sequenceFrameCount / 4),
 		);
 		const leftTimecode = sequenceTimecode(leftFrame, initial.sequence.rate.num);
-		await setProgramPlayhead(editor, leftFrame, leftTimecode, initial);
+		await setProgramPlayhead(page, editor, leftFrame, leftTimecode, initial);
 		await activateTrimMenuByKeyboard(page, editor, TRIM_LEFT);
 		await expect(editor.locator('[data-status]')).toContainText(`Trimmed left edge to ${leftTimecode}.`);
 		const left = await expectPersistedVideoRange(page, projectId, leftFrame, initialEnd);
@@ -61,7 +62,7 @@ test.describe('Framescaper frame-canonical edge trim integration', () => {
 		const rightFrame = leftFrame + Math.max(2, Math.floor((initialEnd - leftFrame) * 3 / 4));
 		expect(rightFrame).toBeLessThan(initialEnd);
 		const rightTimecode = sequenceTimecode(rightFrame, initial.sequence.rate.num);
-		await setProgramPlayhead(editor, rightFrame, rightTimecode, initial);
+		await setProgramPlayhead(page, editor, rightFrame, rightTimecode, initial);
 		await activateTrimMenuByKeyboard(page, editor, TRIM_RIGHT);
 		await expect(editor.locator('[data-status]')).toContainText(`Trimmed right edge to ${rightTimecode}.`);
 		const right = await expectPersistedVideoRange(page, projectId, leftFrame, rightFrame);
@@ -126,11 +127,8 @@ async function selectOnlyVideoClip(editor) {
 	await expect(clip.locator('.clip-display')).toHaveClass(/clip-display--selected/u);
 }
 
-async function setProgramPlayhead(editor, sequenceFrame, timecode, timing) {
-	const input = editor.getByRole('textbox', { name: 'Timecode', exact: true });
-	await input.fill(timecode);
-	await input.press('Enter');
-	await expect(editor.locator('[data-sequence-timecode]')).toHaveAttribute('data-sequence-timecode', timecode);
+async function setProgramPlayhead(page, editor, sequenceFrame, timecode, timing) {
+	await seekFramescaperTimecode(page, editor, timecode);
 	const expectedSample = sequenceFrame * timing.sampleRate / timing.sequence.rate.num;
 	await expect(editor.getByRole('slider', { name: 'Playhead', exact: true }))
 		.toHaveAttribute('aria-valuenow', String(expectedSample));

@@ -6,6 +6,7 @@ import React from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 
 import { SourcePropertiesPanel } from '../src/common/editor/ui/toolbar/SourcePropertiesPanel.jsx';
+import VideoSourcePropertiesSection from '../src/common/editor/ui/inspector/VideoSourcePropertiesSection.jsx';
 import { ENGLISH_COPY, GERMAN_COPY } from '../src/common/i18n/catalogs.js';
 
 const PAL = { num: 25, den: 1 };
@@ -101,6 +102,14 @@ test('the re-read action is offered only where a controller can perform it', () 
 	);
 	assert.match(blocked, /Quelle neu einlesen/u);
 	assert.match(blocked, /disabled/u);
+});
+
+test('video clip properties include the source facts and its re-read action', () => {
+	const markup = render(<VideoSourcePropertiesSection source={source()} copy={ENGLISH_COPY}
+		controller={{ actions: { video: { reprobeSource: () => Promise.resolve() } } }} disabled={false} />);
+	assert.match(markup, /data-clip-video-source-properties/u);
+	assert.match(markup, /data-source-properties="video-source"/u);
+	assert.match(markup, /data-source-reprobe="video-source"/u);
 });
 
 test('no clip under the playhead renders an empty panel rather than a guess', () => {

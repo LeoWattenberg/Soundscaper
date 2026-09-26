@@ -9,6 +9,7 @@ import {
 	hasDurableMediaStorageCapability,
 } from './helpers/durable-media-storage-capability.js';
 import { createUnreportedVideoSourceCharacteristicsV25 } from '../../src/common/editor/video-source-professional-characteristics-v25.ts';
+import { openFramescaperSourcePropertiesFromBin } from './helpers/framescaper-source-properties.js';
 
 const DATABASE_NAME = FRAMESCAPER_DATABASE_NAME;
 const CFR = videoTimingProbeMedia.find(({ id }) => id === 'cfr-25fps-mp4-v1');
@@ -121,11 +122,8 @@ async function importFixture(editor, page) {
 }
 
 async function openSourceProperties(editor, page) {
-	await editor.getByRole('button', { name: 'Source properties', exact: true }).focus();
-	await page.keyboard.press('Enter');
-	const properties = page.getByRole('dialog', { name: 'Source properties', exact: true });
-	await expect(properties.locator('[data-source-properties]')).not.toHaveAttribute('data-source-properties', 'empty');
-	return properties;
+	const name = CFR.file.name.replace(/\.[^.]+$/u, '');
+	return openFramescaperSourcePropertiesFromBin(page, editor, name);
 }
 
 /**

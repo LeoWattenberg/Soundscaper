@@ -4,6 +4,7 @@ import { test } from './audio-editor-test-fixtures.js';
 import { validateVideoTimingAssetBytes } from '../../src/common/editor/video-timing-asset.ts';
 import { videoTimingProbeMedia } from './fixtures/video-timing-probe-media.js';
 import { resolveBrowserProductTestUrl } from './helpers/browser-product-test-url.js';
+import { openFramescaperSourcePropertiesFromBin } from './helpers/framescaper-source-properties.js';
 import {
 	FRAMESCAPER_DATABASE_NAME,
 	FRAMESCAPER_OPFS_DIRECTORY_NAME,
@@ -97,9 +98,8 @@ test.describe('WP-0.3 browser timing-probe qualification', () => {
 		await editor.getByRole('button', { name: /^Add to timeline: /u }).first().click();
 		await expect(editor.locator('[data-source-timecode]')).not.toHaveAttribute('data-source-timecode', '');
 		await expect(editor.locator('[data-source-timecode]')).toHaveAttribute('data-source-origin', 'unknown');
-		await editor.getByRole('button', { name: 'Source properties', exact: true }).focus();
-		await page.keyboard.press('Enter');
-		const properties = page.getByRole('dialog', { name: 'Source properties', exact: true });
+		const firstName = videoTimingProbeMedia[0].file.name.replace(/\.[^.]+$/u, '');
+		const properties = await openFramescaperSourcePropertiesFromBin(page, editor, firstName);
 		await expect(properties).toBeVisible();
 		await expect(properties.locator('[data-source-property="Coded size"] dd')).toHaveText('192 × 144');
 		await expect(properties.locator('[data-source-property="Field order"] dd'))

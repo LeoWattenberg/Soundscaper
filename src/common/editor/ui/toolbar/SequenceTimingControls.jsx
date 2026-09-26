@@ -1,8 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import React from 'react';
 
-import { iconNameToChar } from '../../audacity-iconcodes.js';
 import {
 	formatSequenceTimecode,
 	isSequenceDropFrameRate,
@@ -12,12 +11,7 @@ import {
 	resolveSequenceTimingView,
 	sequenceTimecodeLabelAtSample,
 } from '../../sequence-timing-model.ts';
-import {
-	resolveInspectedVideoSource,
-} from '../../source-properties-model.ts';
 import { useAudioEditorTelemetrySelector } from '../DesignSystemRuntime.jsx';
-import { AudacityToolbarFlyoutButton } from './AudioEditorMeterControls.jsx';
-import { SourcePropertiesPanel } from './SourcePropertiesPanel.jsx';
 
 const RATE_PRESETS = Object.freeze([
 	{ id: '24000/1001', label: '23.976', rate: { num: 24_000, den: 1_001 } },
@@ -31,138 +25,73 @@ const RATE_PRESETS = Object.freeze([
 	{ id: '60/1', label: '60', rate: { num: 60, den: 1 } },
 ]);
 
-/** Sequence timing: the playhead timecode, frame stepping, and the rate that defines both. */
+/** Framescaper frame navigation beside the shared time display. */
 export function SequenceTimingControls({ project, snapshot, controller, copy, run }) {
-	const view = useMemo(() => resolveSequenceTimingView(project), [project]);
-	const sampleRate = project.sampleRate;
+	const view = React.useMemo(() => resolveSequenceTimingView(project), [project]);
 	const positionFrame = useAudioEditorTelemetrySelector(
 		controller,
 		(telemetry) => Math.max(0, telemetry.positionFrame || 0),
 	);
-	const disabled = snapshot.readOnly || snapshot.recording;
-	const label = sequenceTimecodeLabelAtSample(view, positionFrame, sampleRate);
+	const label = sequenceTimecodeLabelAtSample(view, positionFrame, project.sampleRate);
 	const sourceReading = controller.actions.video.sourceTimecodeAtSample(positionFrame, view.id);
-	const inspectedSource = useMemo(
-		() => {
-			const source = project.sources?.find((candidate) => candidate.id === sourceReading?.sourceId);
-			return source || resolveInspectedVideoSource(project, positionFrame, view.id);
-		},
-		[project, positionFrame, sourceReading?.sourceId, view.id],
-	);
-	const [invalid, setInvalid] = useState(false);
-	const inputRef = useRef(null);
-	// The field is uncontrolled so a playhead or project update cannot clobber
-	// typing mid-edit; it re-adopts the authoritative label whenever it is idle.
-	useEffect(() => {
-		const input = inputRef.current;
-		if (input && !invalid && document.activeElement !== input) input.value = label;
-	}, [invalid, label]);
-	const commitDraft = (value) => {
-		if (value === label) return setInvalid(false);
-		if (!parsesAt(value, view)) return setInvalid(true);
-		setInvalid(false);
-		run(() => controller.actions.sequences.seekLabel(value));
-	};
-	const step = (frameDelta) => {
-		setInvalid(false);
-		run(() => controller.actions.sequences.stepPlayhead(frameDelta));
-	};
 
-	return <>
-		<div className="kw-audio-editor__sequence-timecode" data-sequence-timecode={label}>
+	return <div
+		className="kw-audio-editor__sequence-timecode"
+		data-sequence-timecode={label}
+		data-source-timecode={sourceReading?.label || ''}
+		data-source-origin={sourceReading?.originReported ? 'probed' : 'unknown'}
+		role="group"
+		aria-label={copy.videoNavigation}
+	>
 			<button
 				type="button"
 				className="kw-audio-editor__sequence-frame-step"
 				data-sequence-step="previous"
 				aria-label={copy.previousFrame}
 				disabled={snapshot.recording}
-				onClick={() => step(-1)}
-			>‹</button>
-			<label className="kw-audio-editor__sequence-timecode-field">
-				<span className="kw-audio-editor__visually-hidden">{copy.sequenceTimecode}</span>
-				<input
-					ref={inputRef}
-					type="text"
-					inputMode="numeric"
-					spellCheck="false"
-					defaultValue={label}
-					aria-label={copy.sequenceTimecode}
-					aria-invalid={invalid ? 'true' : 'false'}
-					aria-describedby={invalid ? 'audio-editor-sequence-timecode-error' : undefined}
-					disabled={snapshot.recording}
-					onBlur={(event) => commitDraft(event.currentTarget.value)}
-					onKeyDown={(event) => {
-						// Arrow keys stay with the toolbar's roving focus; the two
-						// step buttons beside this field own frame stepping.
-						if (event.key === 'Enter') {
-							event.preventDefault();
-							commitDraft(event.currentTarget.value);
-						} else if (event.key === 'Escape') {
-							event.currentTarget.value = label;
-							setInvalid(false);
-						}
-					}}
-				/>
-			</label>
+				onClick={() => run(() => controller.actions.sequences.stepPlayhead(-1))}
+			><span className="musescore-icon" aria-hidden="true"></span></button>
 			<button
 				type="button"
 				className="kw-audio-editor__sequence-frame-step"
 				data-sequence-step="next"
 				aria-label={copy.nextFrame}
 				disabled={snapshot.recording}
-				onClick={() => step(1)}
-			>›</button>
-			{invalid && <p
-				id="audio-editor-sequence-timecode-error"
-				className="kw-audio-editor__sequence-timecode-error"
-				role="alert"
-			>{copy.sequenceTimecodeInvalid}</p>}
-		</div>
-		<div
-			className="kw-audio-editor__source-timecode"
-			data-source-timecode={sourceReading ? sourceReading.label : ''}
-			data-source-origin={sourceReading && sourceReading.originReported ? 'probed' : 'unknown'}
-		>
-			<span className="kw-audio-editor__visually-hidden">{copy.sequenceSourceTimecode}</span>
-			<output aria-label={copy.sequenceSourceTimecode}>{sourceReading ? sourceReading.label : '—'}</output>
-			{sourceReading && !sourceReading.originReported
-				&& <span className="kw-audio-editor__source-timecode-note">{copy.sourceOriginUnknown}</span>}
-		</div>
-		<AudacityToolbarFlyoutButton
-			icon={iconNameToChar('INFO')}
-			ariaLabel={copy.sourceProperties}
-			flyoutClassName="kw-audio-editor__source-properties-flyout"
-			overlayPortal
-		>
-			<SourcePropertiesPanel
-				source={inspectedSource}
-				copy={copy}
-				disabled={disabled}
-				onReprobe={(sourceId) => controller.actions.video.reprobeSource(sourceId)}
-			/>
-		</AudacityToolbarFlyoutButton>
-		<AudacityToolbarFlyoutButton
-			icon={iconNameToChar('VIDEO')}
-			ariaLabel={copy.sequenceTiming}
-			flyoutClassName="kw-audio-editor__sequence-timing-flyout"
-			overlayPortal
-		>
-			<SequenceTimingEditor
-				project={project}
-				view={view}
-				disabled={disabled}
-				controller={controller}
-				copy={copy}
-				run={run}
-			/>
-		</AudacityToolbarFlyoutButton>
-	</>;
+				onClick={() => run(() => controller.actions.sequences.stepPlayhead(1))}
+			><span className="musescore-icon" aria-hidden="true"></span></button>
+	</div>;
+}
+
+/** Sequence properties live in the project properties panel. */
+export function SequenceTimingProjectProperties({ project, snapshot, controller, copy, run }) {
+	const [selectedId, setSelectedId] = React.useState(null);
+	const sequences = project.sequences || [];
+	const activeId = sequences.some(({ id }) => id === selectedId)
+		? selectedId : project.primarySequenceId;
+	const view = React.useMemo(() => resolveSequenceTimingView(project, activeId), [activeId, project]);
+	return <div data-project-sequence-properties>
+		{sequences.length > 1 && <label className="kw-audio-editor__sequence-selector">
+			<span>{copy.sequenceTiming}</span>
+			<select value={activeId} onChange={(event) => setSelectedId(event.currentTarget.value)}>
+				{sequences.map((sequence) => <option key={sequence.id} value={sequence.id}>{sequence.name}</option>)}
+			</select>
+		</label>}
+		<SequenceTimingEditor
+			key={view.id}
+			project={project}
+			view={view}
+			disabled={snapshot.readOnly || snapshot.recording}
+			controller={controller}
+			copy={copy}
+			run={run}
+		/>
+	</div>;
 }
 
 function SequenceTimingEditor({ project, view, disabled, controller, copy, run }) {
 	const rateId = `${String(view.rate.num)}/${String(view.rate.den)}`;
 	const dropFrameAvailable = isSequenceDropFrameRate(view.rate);
-	const [startTimecodeError, setStartTimecodeError] = useState(false);
+	const [startTimecodeError, setStartTimecodeError] = React.useState(false);
 	const update = (changes) => run(() => controller.actions.sequences.update(view.id, changes));
 	const startLabel = formatSequenceTimecode(view.startTimecode, view.rate, view.dropFrame);
 

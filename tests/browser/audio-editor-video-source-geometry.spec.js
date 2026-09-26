@@ -6,8 +6,9 @@ import {
 	resolveVideoSourcePresentation,
 } from '../../src/common/editor/video-source-presentation.ts';
 import { videoSourceGeometryMedia } from './fixtures/video-source-geometry-media.js';
-import { openExportDialog } from './audio-editor-test-helpers.js';
+import { chooseNestedCommandAction, openExportDialog } from './audio-editor-test-helpers.js';
 import { resolveBrowserProductTestUrl } from './helpers/browser-product-test-url.js';
+import { openFramescaperSourcePropertiesFromBin } from './helpers/framescaper-source-properties.js';
 import { FRAMESCAPER_DATABASE_NAME } from './helpers/editor-databases.js';
 import {
 	DURABLE_MEDIA_STORAGE_REQUIRED,
@@ -76,12 +77,17 @@ test.describe('3B-2b source display geometry qualification', () => {
 		// The disclosure stays truthful: an ordinary rotated clip is reconciled,
 		// not reported as geometry the product cannot explain.
 		await addToTimeline(editor, ROTATED_ANAMORPHIC);
-		await editor.getByRole('button', { name: 'Source properties', exact: true }).focus();
-		await page.keyboard.press('Enter');
-		const properties = page.getByRole('dialog', { name: 'Source properties', exact: true });
+		const name = ROTATED_ANAMORPHIC.file.name.replace(/\.[^.]+$/u, '');
+		const properties = await openFramescaperSourcePropertiesFromBin(page, editor, name);
 		await expect(properties.locator('[data-source-property="Coded size"] dd')).toHaveText('192 × 144');
 		await expect(properties.locator('[data-source-property="Display size"] dd')).toHaveText('144 × 384');
 		await expect(properties.locator('[data-source-note]')).toHaveCount(0);
+		await page.keyboard.press('Escape');
+		await editor.locator('[data-clip-kind="video"]').first().click();
+		await chooseNestedCommandAction(page, editor, 'Edit', ['Audio clips', 'Clip properties']);
+		const clipProperties = page.getByRole('dialog', { name: 'Clip properties', exact: true });
+		await expect(clipProperties.locator('[data-clip-video-source-properties] [data-source-property="Display size"] dd'))
+			.toHaveText('144 × 384');
 	});
 
 	test('an anamorphic composed source publishes through the keyed browser export path', async ({

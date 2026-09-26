@@ -7,23 +7,6 @@
 	position: relative;
 }
 
-.kw-audio-editor__sequence-timecode-field input {
-	width: 11ch;
-	padding: 2px 4px;
-	font-family: var(--monospace, ui-monospace, "SF Mono", Menlo, Consolas, monospace);
-	font-variant-numeric: tabular-nums;
-	font-size: var(--editor-font-size, 12px);
-	text-align: center;
-	color: var(--text);
-	background: var(--stage-raised);
-	border: 1px solid var(--line);
-	border-radius: 3px;
-}
-
-.kw-audio-editor__sequence-timecode-field input[aria-invalid='true'] {
-	border-color: var(--danger, #d93025);
-}
-
 .kw-audio-editor__sequence-frame-step {
 	min-width: 20px;
 	padding: 2px 4px;
@@ -54,29 +37,21 @@
 	white-space: nowrap;
 }
 
-.kw-audio-editor__sequence-timecode-error {
-	position: absolute;
-	inset-block-start: 100%;
-	inset-inline-start: 0;
-	margin: 2px 0 0;
-	font-size: var(--editor-font-size, 12px);
-	color: var(--danger, #d93025);
-	white-space: nowrap;
-}
-
-.kw-audio-editor__sequence-timing-flyout {
-	width: min(420px, calc(100vw - 24px));
-	max-height: min(520px, calc(100vh - 32px));
-	overflow: auto;
-}
-
 .kw-audio-editor__sequence-timing-editor {
 	display: grid;
 	gap: 10px;
-	min-width: min(360px, calc(100vw - 48px));
+	min-width: 0;
+	box-sizing: border-box;
 	padding: 12px;
 	color: var(--text);
 	background: var(--panel);
+}
+
+.kw-audio-editor__sequence-selector {
+	display: grid;
+	gap: 3px;
+	padding: 12px 12px 0;
+	font-size: var(--editor-font-size, 12px);
 }
 
 .kw-audio-editor__sequence-timing-editor label {
@@ -108,19 +83,6 @@
 	color: var(--danger, #d93025);
 }
 
-
-.kw-audio-editor__source-timecode {
-	display: flex;
-	align-items: center;
-	gap: 4px;
-	font-variant-numeric: tabular-nums;
-	color: var(--muted);
-}
-
-.kw-audio-editor__source-timecode-note {
-	font-size: var(--editor-font-size, 12px);
-	opacity: 0.8;
-}
 
 .kw-audio-editor__source-properties {
 	display: flex;
@@ -178,7 +140,6 @@
 }
 
 @media (forced-colors: active) {
-	.kw-audio-editor__sequence-timecode-field input,
 	.kw-audio-editor__sequence-frame-step:hover:not(:disabled),
 	.kw-audio-editor__sequence-timing-editor input[type='text'],
 	.kw-audio-editor__sequence-timing-editor select {

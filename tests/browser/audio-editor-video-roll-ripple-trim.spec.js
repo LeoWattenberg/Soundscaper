@@ -6,6 +6,7 @@ import {
 	waitForEditor,
 } from './audio-editor-test-helpers.js';
 import { chooseTrackMenuAction } from './helpers/track-menu.js';
+import { seekFramescaperTimecode } from './helpers/framescaper-standard-timecode.js';
 import { createDeterministicAvFixture } from './fixtures/deterministic-av-media.js';
 import { FRAMESCAPER_DATABASE_NAME } from './helpers/editor-databases.js';
 import { localeCopy } from './helpers/locale-copy.js';
@@ -58,7 +59,7 @@ test.describe('Framescaper frame-canonical roll and ripple trim qualification', 
 
 		for (const [index, row] of MENU_ROWS.entries()) {
 			const boundary = requestedBoundary(active, row.edge, row.delta);
-			await setProgramFrame(editor, baseline, boundary);
+			await setProgramFrame(page, editor, baseline, boundary);
 			await activateClipBoundaryByKeyboard(page, editor, row.label);
 			const expected = applyRollRipple(baseline, active.id, row.mode, row.edge, row.delta);
 			await expectPersistedTimeline(page, projectId, expected);
@@ -131,7 +132,7 @@ test.describe('Framescaper frame-canonical roll and ripple trim qualification', 
 		await selectVideoClip(editor, active.id);
 
 		// Persisted track authority disables every menu route and refuses the pointer route.
-		await setProgramFrame(editor, baseline, active.sequenceStartFrame + 1);
+		await setProgramFrame(page, editor, baseline, active.sequenceStartFrame + 1);
 		await chooseTrackMenuAction(
 			page, editor,
 			editor.locator(`[data-track-row][data-track-id="${active.trackId}"]`),
@@ -197,7 +198,7 @@ async function createContiguousMarkedEdits(page, editor, fixture) {
 	await expect(monitor).toHaveAttribute('data-source-monitor-mark-in', '2');
 	await expect(monitor).toHaveAttribute('data-source-monitor-mark-out', String(maximum - 1));
 
-	await setProgramFrameFromRate(editor, 0, await persistedSequenceRate(page));
+	await setProgramFrameFromRate(page, editor, 0, await persistedSequenceRate(page));
 	await page.locator('[data-bin-action="overwrite"]').first().click();
 	await expect.poll(() => persistedClips(page, 'timeline'), { timeout: 30_000 }).toHaveLength(4);
 	await page.locator('[data-bin-action="insert"]').first().click();
@@ -281,20 +282,16 @@ async function dragTrimHandle(page, editor, timing, clip, edge, targetFrame, mod
 	await expect(editor.locator('[data-roll-ripple-trim-guide]')).toHaveCount(0);
 }
 
-async function setProgramFrame(editor, timing, sequenceFrame) {
-	await setProgramFrameFromRate(editor, sequenceFrame, timing.sequence.rate);
+async function setProgramFrame(page, editor, timing, sequenceFrame) {
+	await setProgramFrameFromRate(page, editor, sequenceFrame, timing.sequence.rate);
 	const expectedSample = sampleAtSequenceFrame(timing, sequenceFrame);
 	await expect(editor.getByRole('slider', { name: 'Abspielposition', exact: true }))
 		.toHaveAttribute('aria-valuenow', String(expectedSample));
 }
 
-async function setProgramFrameFromRate(editor, sequenceFrame, rate) {
+async function setProgramFrameFromRate(page, editor, sequenceFrame, rate) {
 	const timecode = sequenceTimecode(sequenceFrame, rate);
-	const input = editor.getByRole('textbox', { name: 'Timecode', exact: true });
-	await input.fill(timecode);
-	await input.press('Enter');
-	await expect(editor.locator('[data-sequence-timecode]'))
-		.toHaveAttribute('data-sequence-timecode', timecode);
+	await seekFramescaperTimecode(page, editor, timecode);
 }
 
 async function clickHistory(editor, label) {

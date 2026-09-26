@@ -18,6 +18,7 @@ import {
 import { projectBinColorName, projectBinItems } from './project-bin-model.ts';
 import { lazyEditorModule } from '../../../offline/lazy-module.tsx';
 import { queueFreesoundClipUploadCommand } from './freesound-clip-upload-command.ts';
+import { useProjectBinSourceProperties } from './use-project-bin-source-properties.jsx';
 
 const AUDIO_EDITOR_AUDIO_FILE_ACCEPT = 'audio/*,video/mp4,video/webm,.aac,.aif,.aiff,.bw64,.flac,.m4a,.m4v,.mp2,.mp3,.mp4,.oga,.ogg,.opus,.rf64,.wav,.wave,.wavpack,.webm,.wv';
 const FRAMESCAPER_BUILD = typeof __SCAPE_PRODUCT__ === 'undefined'
@@ -82,6 +83,7 @@ export default function ProjectBinPanel({ controller, snapshot, copy, locale, fi
 	const sourceById = new Map((project?.sources || []).map((source) => [source.id, source]));
 	const missingSourceIds = new Set(snapshot.missingSourceIds || []);
 	const mutationBlocked = selectAudioEditorEditBlock(snapshot).blocked;
+	const sourceProperties = useProjectBinSourceProperties({ project, controller, copy, disabled: mutationBlocked });
 	const { dropActive, dropHandlers, resetDropState } = useProjectBinFileDrop({
 		blocked: mutationBlocked,
 		onFiles: (files) => run(() => importFiles(files)), onFreesoundSound: (soundId) => run(() => import('./freesound-workspace-service.ts').then(({ importFreesoundSound }) => importFreesoundSound(controller, { soundId, destination: 'project-bin' }))),
@@ -114,10 +116,7 @@ export default function ProjectBinPanel({ controller, snapshot, copy, locale, fi
 		},
 	})[0] || null : null;
 	const proxyDialogOpen = proxyClipId !== null && proxyProjectIdRef.current === projectId;
-	const closeProxyDialog = () => {
-		proxyProjectIdRef.current = null;
-		setProxyClipId(null);
-	};
+	const closeProxyDialog = () => { proxyProjectIdRef.current = null; setProxyClipId(null); };
 
 	const importFiles = async (files) => {
 		if (mutationBlocked || !files.length) return undefined;
@@ -222,10 +221,7 @@ export default function ProjectBinPanel({ controller, snapshot, copy, locale, fi
 		}
 		run(accepted.apply);
 	};
-	const closeItemMenu = () => {
-		linkedAudioRelinkRequestRef.current += 1;
-		setItemMenu(null);
-	};
+	const closeItemMenu = () => { linkedAudioRelinkRequestRef.current += 1; setItemMenu(null); };
 	const openItemMenu = (event, item) => {
 		const rect = event.currentTarget.getBoundingClientRect();
 		const audioClip = item.clips.find((clip) => clip.kind !== 'video') || null;
@@ -468,7 +464,9 @@ export default function ProjectBinPanel({ controller, snapshot, copy, locale, fi
 					onClose={closeItemMenu}
 				/>
 			)}
+			{sourceProperties.menuItem(menuVideoClip, itemMenu, closeItemMenu)}
 		</ContextMenu>
+		{sourceProperties.flyout}
 		{proxyDialogOpen && (
 			<React.Suspense fallback={<p role="status">{copy.loading}</p>}>
 				<FramescaperVideoProxyDialog

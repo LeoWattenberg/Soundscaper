@@ -1,4 +1,4 @@
-import { Suspense, useState } from 'react';
+import { Suspense, useState, type ReactNode } from 'react';
 
 import type { AttributionCsvFileService } from '../attribution-presentation-contract.ts';
 import AdmMetadataFields from '../AdmMetadataFields.tsx';
@@ -20,6 +20,7 @@ export interface ProjectMetadataPanelProps {
 	readonly onUpdate: (changes: Readonly<Record<string, unknown>>) => void;
 	readonly fileService?: AttributionCsvFileService | null;
 	readonly run?: (operation: () => unknown) => unknown;
+	readonly sequenceEditor?: ReactNode;
 }
 
 function objectValue(value: unknown): Readonly<Record<string, unknown>> {
@@ -36,6 +37,7 @@ export function ProjectMetadataPanel({
 	onUpdate,
 	fileService,
 	run,
+	sequenceEditor,
 }: ProjectMetadataPanelProps) {
 	const [activeTab, setActiveTab] = useState<MetadataEditorTab>('general');
 	const metadata = objectValue(project?.metadata);
@@ -57,6 +59,7 @@ export function ProjectMetadataPanel({
 			<MetadataEditorTabs
 				activeTab={activeTab}
 				showBext
+				showSequence={Boolean(sequenceEditor)}
 				showAdm
 				showAttribution
 				attributionLabel={attributionTabLabel}
@@ -69,7 +72,8 @@ export function ProjectMetadataPanel({
 					? copy.metadataBextTab
 					: activeTab === 'adm'
 						? copy.metadataAdmTab
-						: activeTab === 'attribution' ? attributionTabLabel : copy.metadataGeneralTab}
+						: activeTab === 'attribution' ? attributionTabLabel
+							: activeTab === 'sequence' ? copy.sequenceTiming : copy.metadataGeneralTab}
 				data-metadata-tab={activeTab}
 			>
 				{activeTab === 'general' ? (
@@ -97,6 +101,8 @@ export function ProjectMetadataPanel({
 							/>
 						))}
 					</div>
+				) : activeTab === 'sequence' ? (
+					sequenceEditor
 				) : activeTab === 'bext' ? (
 					<BextMetadataFields
 						value={bext}

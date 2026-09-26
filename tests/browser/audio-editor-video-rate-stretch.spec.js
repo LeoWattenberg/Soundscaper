@@ -6,6 +6,7 @@ import {
 	waitForEditor,
 } from './audio-editor-test-helpers.js';
 import { chooseTrackMenuAction } from './helpers/track-menu.js';
+import { seekFramescaperTimecode } from './helpers/framescaper-standard-timecode.js';
 import { createDeterministicAvFixture } from './fixtures/deterministic-av-media.js';
 import { validateVideoTimingAssetBytes } from '../../src/common/editor/video-timing-asset.ts';
 import {
@@ -63,7 +64,7 @@ test.describe('Framescaper frame-canonical uniform rate-stretch qualification', 
 			{ edge: 'left', id: 'rate-stretch-left-edge-to-playhead', target: leftTarget },
 			{ edge: 'right', id: 'rate-stretch-right-edge-to-playhead', target: rightTarget },
 		]) {
-			await setProgramFrame(editor, baseline.sequence.rate, row.target);
+			await setProgramFrame(page, editor, baseline.sequence.rate, row.target);
 			const boundaries = await openClipBoundariesByKeyboard(page, editor);
 			const item = getMenuItem(boundaries, LABELS[row.edge]);
 			await expect(item).toBeEnabled();
@@ -182,12 +183,9 @@ async function openClipBoundariesByKeyboard(page, editor) {
 	return boundaries;
 }
 
-async function setProgramFrame(editor, rate, frame) {
+async function setProgramFrame(page, editor, rate, frame) {
 	const timecode = sequenceTimecode(frame, rate);
-	const input = editor.getByRole('textbox', { name: 'Timecode', exact: true });
-	await input.fill(timecode);
-	await input.press('Enter');
-	await expect(editor.locator('[data-sequence-timecode]')).toHaveAttribute('data-sequence-timecode', timecode);
+	await seekFramescaperTimecode(page, editor, timecode);
 }
 
 async function dragStretchHandle(page, editor, timing, clip, edge, targetFrame, whileDragging) {

@@ -17,6 +17,7 @@ import { videoTimingProbeMedia } from './fixtures/video-timing-probe-media.js';
 import { resolveBrowserProductTestUrl } from './helpers/browser-product-test-url.js';
 import { FRAMESCAPER_DATABASE_NAME } from './helpers/editor-databases.js';
 import { hasWebGl2Capability } from './helpers/webgl2-capability.js';
+import { seekFramescaperTimecode } from './helpers/framescaper-standard-timecode.js';
 
 const CFR_VIDEO = videoTimingProbeMedia.find(({ id }) => id === 'cfr-25fps-mp4-v1');
 // Sized from measured CI worst cases: a loaded worker renders the editor
@@ -64,7 +65,7 @@ test.describe('Framescaper v1 exact visual preview', () => {
 		let state = await storedVisualState(page, projectId);
 		const firstClipId = state.generatorClipIds[0];
 		expect(firstClipId).toBeTruthy();
-		await selectAndSeekClip(editor, firstClipId, 0.25, state);
+		await selectAndSeekClip(page, editor, firstClipId, 0.25, state);
 		const preview = editor.locator('[data-video-preview]');
 		await expectExactVisualFrame(preview, 1);
 		const originalPixels = await screenshotDigest(editor.locator('[data-video-preview-canvas]'));
@@ -139,7 +140,7 @@ test.describe('Framescaper v1 exact visual preview', () => {
 		state = await storedVisualState(page, projectId);
 		const secondClipId = state.generatorClipIds.find((id) => id !== firstClipId);
 		expect(secondClipId).toBeTruthy();
-		await selectAndSeekClip(editor, secondClipId, 0.25, state);
+		await selectAndSeekClip(page, editor, secondClipId, 0.25, state);
 		await expectExactVisualFrame(preview, 1);
 		const beforePreset = await screenshotDigest(editor.locator('[data-video-preview-canvas]'));
 		await chooseNestedCommandAction(
@@ -156,7 +157,7 @@ test.describe('Framescaper v1 exact visual preview', () => {
 			generatorColorByClip: { [secondClipId]: '#ff0000ff' },
 		});
 		state = await storedVisualState(page, projectId);
-		await selectAndSeekClip(editor, secondClipId, 0.5, state);
+		await selectAndSeekClip(page, editor, secondClipId, 0.5, state);
 		await expectExactVisualFrame(preview, 1);
 		const afterPreset = await screenshotDigest(editor.locator('[data-video-preview-canvas]'));
 		expect(afterPreset).not.toBe(beforePreset);
@@ -174,7 +175,7 @@ test.describe('Framescaper v1 exact visual preview', () => {
 		await expect(editor).toHaveAttribute('data-project-id', projectId, VISUAL_COMMAND_OPTIONS);
 		state = await storedVisualState(page, projectId);
 		expect(state.generatorColorByClip[secondClipId]).toBe('#ff0000ff');
-		await selectAndSeekClip(editor, secondClipId, 0.25, state);
+		await selectAndSeekClip(page, editor, secondClipId, 0.25, state);
 		await expectExactVisualFrame(editor.locator('[data-video-preview]'), 1);
 		await expect.poll(() => screenshotDigest(editor.locator('[data-video-preview-canvas]')), {
 			timeout: VISUAL_READINESS_TIMEOUT,
@@ -267,13 +268,13 @@ test.describe('Framescaper v1 exact visual preview', () => {
 		const state = await storedVisualState(page, projectId);
 		const freezeClipId = state.stillClipIds[0];
 		expect(freezeClipId).toBeTruthy();
-		await selectAndSeekClip(editor, freezeClipId, 0.2, state);
+		await selectAndSeekClip(page, editor, freezeClipId, 0.2, state);
 		await expectExactVisualFrame(preview, 2);
 		await expect(preview).toHaveAttribute(
 			'data-video-preview-active-freeze-node-ids', /video-freeze/u, VISUAL_COMMAND_OPTIONS,
 		);
 		const freezeEarly = await screenshotDigest(editor.locator('[data-video-preview-canvas]'));
-		await selectAndSeekClip(editor, freezeClipId, 0.8, state);
+		await selectAndSeekClip(page, editor, freezeClipId, 0.8, state);
 		await expectExactVisualFrame(preview, 2);
 		const freezeLate = await screenshotDigest(editor.locator('[data-video-preview-canvas]'));
 		expect(freezeLate).toBe(freezeEarly);
@@ -418,19 +419,14 @@ async function openVisualInspector(page, editor) {
 	return dialog;
 }
 
-async function selectAndSeekClip(editor, clipId, fraction, state) {
+async function selectAndSeekClip(page, editor, clipId, fraction, state) {
 	const clip = editor.locator(`[data-clip-id="${clipId}"]`).first();
 	await expect(clip).toBeVisible({ timeout: VISUAL_READINESS_TIMEOUT });
 	const range = state.visualClips.find(({ id }) => id === clipId);
 	expect(range).toBeTruthy();
 	const frame = range.start + Math.min(range.count - 1, Math.max(0, Math.floor(range.count * fraction)));
 	const timecode = sequenceTimecode(frame, state.rate);
-	const input = editor.getByRole('textbox', { name: 'Timecode', exact: true });
-	await input.fill(timecode);
-	await input.press('Enter');
-	await expect(editor.locator('[data-sequence-timecode]')).toHaveAttribute(
-		'data-sequence-timecode', timecode, { timeout: VISUAL_READINESS_TIMEOUT },
-	);
+	await seekFramescaperTimecode(page, editor, timecode);
 	const sample = Math.round(frame * state.rate.den * state.sampleRate / state.rate.num);
 	await expect(editor.locator('[data-video-preview]')).toHaveAttribute(
 		'data-video-preview-evaluated-timeline-sample', String(sample), {

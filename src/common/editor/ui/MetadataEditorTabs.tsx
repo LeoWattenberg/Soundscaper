@@ -1,13 +1,15 @@
 import { useRef } from 'react';
 
-export type MetadataEditorTab = 'general' | 'bext' | 'adm' | 'attribution';
+export type MetadataEditorTab = 'general' | 'sequence' | 'bext' | 'adm' | 'attribution';
 
 interface MetadataEditorTabsProps {
 	readonly activeTab: MetadataEditorTab;
 	readonly showBext: boolean;
+	readonly showSequence?: boolean;
 	readonly showAdm?: boolean;
 	readonly showAttribution?: boolean;
 	readonly attributionLabel?: string;
+	readonly sequenceLabel?: string;
 	readonly copy: Readonly<Record<string, string>>;
 	readonly onChange: (tab: MetadataEditorTab) => void;
 }
@@ -15,15 +17,18 @@ interface MetadataEditorTabsProps {
 export function MetadataEditorTabs({
 	activeTab,
 	showBext,
+	showSequence = false,
 	showAdm = false,
 	showAttribution = false,
 	copy,
 	attributionLabel = copy.metadataTab,
+	sequenceLabel = copy.sequenceTiming,
 	onChange,
 }: MetadataEditorTabsProps) {
 	const tabListRef = useRef<HTMLDivElement>(null);
 	const tabs: readonly Readonly<{ id: MetadataEditorTab; label: string }>[] = [
 		{ id: 'general', label: copy.metadataGeneralTab },
+		...(showSequence ? [{ id: 'sequence' as const, label: sequenceLabel }] : []),
 		...(showBext ? [{ id: 'bext' as const, label: copy.metadataBextTab }] : []),
 		...(showAdm ? [{ id: 'adm' as const, label: copy.metadataAdmTab }] : []),
 		...(showAttribution ? [{ id: 'attribution' as const, label: attributionLabel }] : []),
