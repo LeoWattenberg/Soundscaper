@@ -56,7 +56,11 @@ test.describe('Framescaper selected-web multicamera workflow', () => {
 		await videoClips.first().press('Enter');
 		await expect(videoClips.first().locator('.clip-display')).toHaveClass(/clip-display--selected/u);
 		await seekFramescaperTimecode(page, editor, PREVIEW_TIMECODE);
-		const originalPicture = await previewPictureDigest(editor);
+		const exactPreviewAvailable = await editor.locator('[data-video-preview-canvas]')
+			.evaluate((canvas) => Boolean(canvas.getContext('webgl2')));
+		if (!exactPreviewAvailable) expect(browserName).toBe('firefox');
+		if (!exactPreviewAvailable) await assertPreviewFallback(editor);
+		const originalPicture = exactPreviewAvailable ? await previewPictureDigest(editor) : null;
 
 		await chooseNestedCommandAction(page, editor, 'Tracks', ['Multicamera', 'Create from video sources']);
 		await assertMulticameraMenuAccessibility(page, editor, browserName);
@@ -81,14 +85,17 @@ test.describe('Framescaper selected-web multicamera workflow', () => {
 		});
 		await expect.poll(async () => (await storedMulticamera(page, projectId)).activeMemberId)
 			.not.toBe(initialActiveMemberId);
-		await expect.poll(() => previewPictureDigest(editor), { timeout: 30_000 })
-			.not.toBe(originalPicture);
-		const switchedPicture = await previewPictureDigest(editor);
-		expect((await previewQuadrants(page, editor)).map((channels) => channels.map((value) => value > 150)))
-			.toEqual([
-				[true, false, false], [false, true, false],
-				[false, false, true], [true, true, true],
-			]);
+		let switchedPicture = null;
+		if (exactPreviewAvailable) {
+			await expect.poll(() => previewPictureDigest(editor), { timeout: 30_000 })
+				.not.toBe(originalPicture);
+			switchedPicture = await previewPictureDigest(editor);
+			expect((await previewQuadrants(page, editor)).map((channels) => channels.map((value) => value > 150)))
+				.toEqual([
+					[true, false, false], [false, true, false],
+					[false, false, true], [true, true, true],
+				]);
+		} else await assertPreviewFallback(editor);
 
 		await expect(editor.getByRole('tab', { selected: true })).toBeEnabled();
 		await chooseFileAction(page, editor, 'Save project');
@@ -98,8 +105,10 @@ test.describe('Framescaper selected-web multicamera workflow', () => {
 		await expect(reopened).toHaveAttribute('data-project-id', projectId);
 		await expect.poll(() => storedMulticamera(page, projectId)).toEqual(switched);
 		await seekFramescaperTimecode(page, reopened, PREVIEW_TIMECODE);
-		await expect.poll(() => previewPictureDigest(reopened), { timeout: 30_000 })
-			.toBe(switchedPicture);
+		if (exactPreviewAvailable) {
+			await expect.poll(() => previewPictureDigest(reopened), { timeout: 30_000 })
+				.toBe(switchedPicture);
+		} else await assertPreviewFallback(reopened);
 	});
 });
 
@@ -141,6 +150,15 @@ async function previewPictureDigest(editor) {
 	const canvas = editor.locator('[data-video-preview-canvas]');
 	await expect(canvas).toBeVisible();
 	return createHash('sha256').update(await canvas.screenshot()).digest('hex');
+}
+
+async function assertPreviewFallback(editor) {
+	const preview = editor.locator('[data-video-preview]');
+	await expect(preview).toHaveAttribute('data-video-preview-renderer', 'fallback', { timeout: 30_000 });
+	await expect(preview).toHaveAttribute('data-video-preview-visual-pending', 'false', { timeout: 30_000 });
+	await expect(preview).toHaveAttribute('data-video-preview-visual-error', '', { timeout: 30_000 });
+	await expect(preview.locator('[data-video-preview-renderer-warning]'))
+		.toContainText(/export still applies/i);
 }
 
 async function previewQuadrants(page, editor) {
