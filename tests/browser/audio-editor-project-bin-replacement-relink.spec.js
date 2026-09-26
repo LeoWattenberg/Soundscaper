@@ -16,6 +16,7 @@ import {
 } from './audio-editor-test-helpers.js';
 import { createDeterministicSilentVideoFixture } from './fixtures/deterministic-av-media.js';
 import { FRAMESCAPER_DATABASE_NAME } from './helpers/editor-databases.js';
+import { expectDominantLinkedTone, exportLinkedAudioTone } from './helpers/linked-audio-export-probe.js';
 
 const shorterTone = createWavFixture({ name: 'shorter-project-bin-tone.wav', frequency: 550, duration: 0.4 });
 const originalFrameCount = 38_400;
@@ -96,7 +97,8 @@ test.describe('Project Bin replacement and linked original relink', () => {
 		expect(errors).toEqual([]);
 	});
 
-	test('desktop relink of unattributed audio distinguishes exact bytes, declined changes, and accepted changes', async ({ page }) => {
+	test('desktop relink of unattributed audio renders accepted changes through reload', async ({ page }) => {
+		test.setTimeout(120_000);
 		const errors = collectClientErrors(page);
 		await installLinkedAudioBridge(page);
 		const editor = await bootEditor(page, '/framescaper/embed/en/');
@@ -111,6 +113,9 @@ test.describe('Project Bin replacement and linked original relink', () => {
 		await waitForEditor(page);
 		await expect(card).toBeVisible();
 		await expect.poll(() => linkedAudioLocatorId(page, projectId)).toBe(locatorIds.initial);
+		await card.getByRole('button', { name: /Add to timeline/u }).click();
+		await expect(editor).toHaveAttribute('data-clip-count', '1');
+		expectDominantLinkedTone(await exportLinkedAudioTone(page, editor), 330);
 
 		await chooseRelink(page, card, 'cancel');
 		await expect(page.locator('[data-project-bin-relink-changed-dialog]')).toHaveCount(0);
@@ -139,9 +144,11 @@ test.describe('Project Bin replacement and linked original relink', () => {
 		await expect.poll(() => linkedAudioLocatorId(page, projectId)).toBe(locatorIds.accepted);
 		expect(await releasedLocatorIds(page)).not.toContain(locatorIds.accepted);
 		await expect(editor.locator('[data-save-state]')).toHaveAttribute('data-state', 'saved');
+		expectDominantLinkedTone(await exportLinkedAudioTone(page, editor), 660);
 		await page.reload();
 		await waitForEditor(page);
 		await expect.poll(() => linkedAudioLocatorId(page, projectId)).toBe(locatorIds.accepted);
+		expectDominantLinkedTone(await exportLinkedAudioTone(page, editor), 660);
 		expect(errors).toEqual([]);
 	});
 
@@ -325,7 +332,9 @@ async function installLinkedAudioBridge(page) {
 		});
 	});
 	await page.addInitScript(({ fixtures, ids }) => {
-		const state = { next: 'initial', choices: [], released: [], rangeRequests: [] };
+		const state = { next: 'initial', choices: [], released: [], rangeRequests: [], exports: [] };
+		const writes = new Map();
+		let nextWriteId = 0;
 		const details = {
 			initial: { kind: 'original', locatorId: ids.initial, locatorRevision: 'a'.repeat(64) },
 			exact: { kind: 'original', locatorId: ids.exact, locatorRevision: 'b'.repeat(64) },
@@ -394,6 +403,37 @@ async function installLinkedAudioBridge(page) {
 			reconcileLinkedVideoOriginals: async () => 0,
 			releaseLinkedVideoOriginal: async () => true,
 			releaseRead: async () => true,
+			chooseSaveTarget: async ({ suggestedName }) => ({ id: 'linked-audio-export', name: suggestedName }),
+			beginWrite: async () => {
+				const writeId = `linked-audio-write-${++nextWriteId}`;
+				writes.set(writeId, { chunks: [], length: 0, prefix: null });
+				return { writeId, chunkSize: 1024 * 1024 };
+			},
+			writeChunk: async ({ writeId, offset, bytes }) => {
+				const write = writes.get(writeId);
+				if (!write || offset !== write.length) throw new Error('Linked audio export chunks were out of order.');
+				write.chunks.push(Uint8Array.from(bytes));
+				write.length += bytes.byteLength;
+				return { nextOffset: write.length };
+			},
+			patchFinalPrefix: async ({ writeId, bytes }) => {
+				const write = writes.get(writeId);
+				if (!write) throw new Error('The linked audio export write is missing.');
+				write.prefix = Uint8Array.from(bytes);
+				return { byteLength: write.length };
+			},
+			finishWrite: async (writeId) => {
+				const write = writes.get(writeId);
+				if (!write) throw new Error('The linked audio export write is missing.');
+				const result = new Uint8Array(write.length);
+				let offset = 0;
+				for (const chunk of write.chunks) { result.set(chunk, offset); offset += chunk.byteLength; }
+				if (write.prefix) result.set(write.prefix, 0);
+				state.exports.push(result);
+				writes.delete(writeId);
+				return { byteLength: result.byteLength };
+			},
+			abortWrite: async (writeId) => { writes.delete(writeId); },
 		});
 		Object.defineProperty(globalThis, '__projectBinLinkedAudioFixture', { configurable: true, value: state });
 		Object.defineProperty(globalThis, 'framescaperDesktop', {
