@@ -10,7 +10,6 @@ import {
 	bootEditor,
 	chooseDropdown,
 	collectClientErrors,
-	disableOfflineAudio,
 	importFiles,
 	openExportDialog,
 	registerAudioEditorHooks,
@@ -85,7 +84,6 @@ test.describe('direct File System Access stem archives', () => {
 
 	test('aborts a partly written ZIP when its destination write is cancelled', async ({ page }) => {
 		test.setTimeout(45_000);
-		await disableOfflineAudio(page);
 		const errors = collectClientErrors(page);
 		let downloads = 0;
 		page.on('download', () => { downloads += 1; });
