@@ -17,19 +17,20 @@ the active product and runtime.
 Importing media adds a project-owned source. It does not make the original file
 your editable project document.
 
-Compressed audio imports and exports support up to one hour or 1 GB
-(1,000,000,000 file bytes), whichever limit is reached first. A one-hour
-48 kHz stereo file is supported when it fits that file limit. Long jobs read,
-encode, and save in chunks; large browser exports require origin-private file
-storage and enough free space. Large imports require persistent local storage
-for the decoded audio. PCM formats retain their separate limits.
+Compressed audio exports and browser imports support up to one hour or 1 GB
+(1,000,000,000 file bytes), whichever limit is reached first. Desktop
+file selection and compressed audio import have no fixed file-size or duration
+ceiling below the safe integer range. Long jobs read, encode, and save in
+chunks; large browser exports require origin-private file storage and enough
+free space. Large imports require enough local storage for the decoded audio.
+Format structure, decoder support, and available storage can still limit an
+import.
 
 The browser tier covers MP3, MP2, FLAC, WavPack, Opus, and Ogg Vorbis. Browser
 AAC/M4A support depends on the browser codec. Desktop streaming exports cover
 the six bundled formats, with 24-bit FLAC and float32 lossless WavPack. Desktop
-imports depend on native decoder availability; MP2 uses the smaller utility
-compatibility tier. Desktop AAC and compatibility providers retain their
-separate limits.
+imports depend on decoder availability; large MP2 sources use the packet
+decoder, while smaller MP2 sources use the utility compatibility tier.
 
 An active job shows a progress bar even when **View → Status bar** is hidden.
 Choose **Cancel** beside the bar to stop an import or audio export.
