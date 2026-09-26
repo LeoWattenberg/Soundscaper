@@ -132,6 +132,23 @@ test.describe('macro programs', () => {
 			"sound.log.info('stale macro ran');",
 		].join('\n'));
 		const log = manager.locator('[data-macro-script-log]');
+		await page.evaluate(() => {
+			const staleSuccesses = [];
+			const observer = new MutationObserver(() => {
+				const currentLog = document.querySelector('[data-macro-script-log]');
+				if (currentLog?.getAttribute('data-outcome') === 'completed'
+					|| currentLog?.textContent?.includes('stale macro ran')) {
+					staleSuccesses.push(currentLog?.textContent ?? '');
+				}
+			});
+			observer.observe(document.body, {
+				attributes: true,
+				attributeFilter: ['data-outcome'],
+				childList: true,
+				subtree: true,
+			});
+			globalThis.__macroLoadMonitor = { observer, staleSuccesses };
+		});
 
 		try {
 			await manager.getByRole('button', { name: 'Run program', exact: true }).click();
@@ -148,9 +165,21 @@ test.describe('macro programs', () => {
 			const sandboxResponse = page.waitForResponse((response) =>
 				/browser-sandbox-[^/]+\.js$/u.test(new URL(response.url()).pathname));
 			releaseChunk();
-			await sandboxResponse;
+			const response = await sandboxResponse;
+			await page.evaluate(async (url) => {
+				await import(url);
+				await new Promise((resolve) => {
+					requestAnimationFrame(() => requestAnimationFrame(resolve));
+				});
+			}, response.url());
 			await expect(log).toHaveAttribute('data-outcome', /idle|failed/u, { timeout: 15_000 });
 			await expect(log).not.toContainText('stale macro ran');
+			const staleSuccesses = await page.evaluate(() => {
+				const monitor = globalThis.__macroLoadMonitor;
+				monitor.observer.disconnect();
+				return monitor.staleSuccesses;
+			});
+			expect(staleSuccesses).toEqual([]);
 			await expect(editor).toHaveAttribute('data-track-count', nextTracks ?? '0');
 			// The command is a real edit once its sandbox is available; undo this
 			// control run so both projects remain in their original state.
