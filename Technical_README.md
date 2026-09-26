@@ -3,7 +3,7 @@
 Soundscaper is a local-first multitrack audio and video editor for the browser.
 Projects, recordings, and imported media remain in the browser's
 origin-private storage.
-The application is maintained by [kw.media](https://kw.media) and distributed
+The application is maintained by [Mindscaper](https://mindscaper.org) and distributed
 under AGPL-3.0-only, with third-party components documented in
 [`THIRD_PARTY_LICENSES.md`](THIRD_PARTY_LICENSES.md).
 
@@ -577,7 +577,7 @@ committing it.
 
 ## Embedding and storage migration
 
-kw.media embeds the locale-specific `/embed/` route and delegates microphone,
+An embedding site can use the locale-specific `/embed/` route and delegate microphone,
 display capture, clipboard, and fullscreen permissions to it. The embedding
 iframe must include both `microphone` and `display-capture` in its `allow`
 attribute. Because browser IndexedDB and OPFS

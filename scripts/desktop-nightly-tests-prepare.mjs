@@ -20,7 +20,7 @@ export async function prepareDesktopNightlyTests({
 	const output = resolve(outputRoot ?? resolve(root, '.desktop-build/nightly-tests'));
 	const browsers = resolve(browserSourceRoot ?? resolve(root, 'node_modules/playwright-core/.local-browsers'));
 	await generateDesktopIcon({
-		sourcePath: resolve(root, 'public/logo/logo-klein-schwarz.svg'),
+		sourcePath: resolve(root, 'public/logo/soundscaper.svg'),
 		outputPath: resolve(root, '.desktop-build/icons/icon.png'),
 	});
 	await generateDesktopNightlyTestsSplash({

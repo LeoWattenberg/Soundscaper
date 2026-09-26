@@ -37,13 +37,13 @@
 			"http://127.0.0.1:4321",
 			"http://localhost:4321",
 			"https://framescaper.org",
-			"https://kw.media",
+			"https://mindscaper.org",
 			"https://soundscaper.org"
 		],
 		"cors": {
 			"path": "r2-cors.json",
-			"byteLength": 369,
-			"sha256": "c7dfdd99e932d2e0ab20da63fad6ad253d7ae38e93e1133b5ac18bb675925b6c"
+			"byteLength": 375,
+			"sha256": "7906490624ed4de39e8bb403001512afebaca6f3d2d897c28540664084a93504"
 		},
 		"policy": {
 			"path": "config/ffmpeg-runtime-publication-policy.json",
@@ -115,6 +115,6 @@
 		}
 	},
 	"integrity": {
-		"payloadSha256": "44fcba73d740fec3b74f76f3fb0953309dc29432def8fd267f3aa26232241ae9"
+		"payloadSha256": "d99956500d2ba2c8c26aba7e49c482a9edb321805901fa6369abb47ac52e9716"
 	}
 }

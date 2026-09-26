@@ -25,9 +25,6 @@ import {
 import { useApplicationMenuKeyboard } from './useApplicationMenuKeyboard.js';
 import WorkspaceChromeDrawer from './workspace/WorkspaceChromeDrawer.jsx';
 
-const applicationMarkLightSrc = withBase('/logo/logo-klein-schwarz.svg');
-const applicationMarkDarkSrc = withBase('/logo/logo-klein-weiß.svg');
-
 export default function AudioEditorMenuBar({
 	assistanceSearch = null,
 	appName,
@@ -44,6 +41,7 @@ export default function AudioEditorMenuBar({
 	onSearchActivate,
 	projectTabs,
 	projectName,
+	productId = 'soundscaper',
 	saveState,
 	saveText,
 	searchEntries = [],
@@ -337,8 +335,7 @@ export default function AudioEditorMenuBar({
 					</button>
 				)}
 				<div className="application-header__windows-title">
-					<img className="kw-audio-editor__application-mark kw-audio-editor__application-mark--light" src={applicationMarkLightSrc} alt="" aria-hidden="true" width="16" height="16" />
-					<img className="kw-audio-editor__application-mark kw-audio-editor__application-mark--dark" src={applicationMarkDarkSrc} alt="" aria-hidden="true" width="16" height="16" />
+					<img className="kw-audio-editor__application-mark" src={withBase(`/logo/${productId}.svg`)} alt="" aria-hidden="true" width="16" height="16" />
 					<span className="application-header__app-name">{projectName}{!compact && <> — {appName}</>}</span>
 				</div>
 				{compact ? compactBarSlot : projectTabs}

@@ -39,7 +39,7 @@ export async function createFixture(context) {
 		['THIRD_PARTY_LICENSES.md', '# Fixture notices\n'],
 		['LICENSES/GPL-3.0.txt', 'GPL fixture\n'],
 		['LICENSES/Playwright-winldd-MIT.txt', 'WinLDD MIT fixture\n'],
-		['public/logo/logo-klein-schwarz.svg', '<svg xmlns="http://www.w3.org/2000/svg" width="8" height="4" viewBox="0 0 8 4"><path d="M0 0h8v4H0z"/></svg>\n'],
+		['public/logo/soundscaper.svg', '<svg xmlns="http://www.w3.org/2000/svg" width="8" height="4" viewBox="0 0 8 4"><path d="M0 0h8v4H0z"/></svg>\n'],
 		['playwright.nightly-tests.config.mjs', 'export default {};\n'],
 		['playwright.nightly-metrics.config.mjs', 'export default {};\n'],
 		['playwright.nightly-dual-origin.config.mjs', 'export default {};\n'],

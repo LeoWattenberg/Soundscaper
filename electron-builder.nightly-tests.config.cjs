@@ -139,7 +139,7 @@ module.exports = {
 		category: 'Development',
 		synopsis: 'Portable Soundscaper browser test runner',
 		description: 'Runs the bundled Soundscaper Playwright workflows and writes diagnostics beside the executable.',
-		maintainer: 'kw.media',
+		maintainer: 'Mindscaper',
 		target: ['AppImage'],
 	},
 	publish: null,

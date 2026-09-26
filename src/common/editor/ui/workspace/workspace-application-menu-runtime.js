@@ -397,7 +397,7 @@ export function createWorkspaceApplicationMenus({
 					tutorials: () => openExternal(documentationUrl(productId, 'tutorials', locale)),
 					privacyPolicy: () => openSurface('privacy-policy'),
 					openWorkspaceOnboarding: () => openSurface('workspace-onboarding'),
-					support: () => openExternal(`mailto:team@kw.media?subject=${encodeURIComponent(`${productProfile(productId).name} support`)}`),
+					support: () => openExternal(`mailto:team@mindscaper.org?subject=${encodeURIComponent(`${productProfile(productId).name} support`)}`),
 					revertFactorySettings: () => parityRuntime.actions.help.revertFactorySettings(),
 					toggleStoragePanel: () => parityRuntime.actions.help.toggleStoragePanel(),
 					about: () => setDialog('about'),

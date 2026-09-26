@@ -133,7 +133,7 @@ test.describe('milestone 2 browser storage durability', () => {
 
 		await page.close();
 		const recoveryPage = await context.newPage();
-		await recoveryPage.goto('/logo/logo-klein-schwarz.svg');
+		await recoveryPage.goto('/logo/soundscaper.svg');
 		await recoveryPage.evaluate(async (databaseName) => {
 			await new Promise((resolve, reject) => {
 				const request = indexedDB.deleteDatabase(databaseName);

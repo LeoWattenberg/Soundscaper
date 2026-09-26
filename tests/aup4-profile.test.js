@@ -76,7 +76,7 @@ test('AUP4 project documents round-trip the browser model through typed binary X
 		timeDisplay: { format: 'bar:beat' },
 		selection: { startFrame: 4410, endFrame: 8820, trackIds: ['track-1'] },
 		view: { zoom: 100, horizontalPosition: 2, verticalPosition: 1 },
-		metadata: { title: 'Example', artist: 'kw.media' },
+		metadata: { title: 'Example', artist: 'Mindscaper' },
 		clips: [{
 			id: 'clip-1', sourceId: 'source-1', name: 'Audio', timelineStartFrame: 2205,
 			durationFrames: 4, pitchCents: 100, stretchRatio: 1.25, groupId: 2,

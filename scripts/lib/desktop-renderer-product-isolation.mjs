@@ -58,7 +58,7 @@ export function soundscaperRendererModuleForbidden(moduleIdValue) {
 /** Paths copied from public/ that have no place in a Soundscaper renderer. */
 export function soundscaperRendererAssetForbidden(pathValue) {
 	const path = normalizedOutputPath(pathValue);
-	return path === 'logo/framescaper-icon.svg'
+	return path === 'logo/framescaper.svg'
 		|| SOUNDSCAPER_FORBIDDEN_RENDERER_ASSET.test(path);
 }
 

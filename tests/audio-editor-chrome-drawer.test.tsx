@@ -20,7 +20,7 @@ const menus = [
 	{ id: 'view', label: 'View', items: [] },
 ];
 
-function renderMenuBar(compact: boolean, chromeDrawer: { isOpen: boolean; toggle(): void; close(): void } | null) {
+function renderMenuBar(compact: boolean, chromeDrawer: { isOpen: boolean; toggle(): void; close(): void } | null, productId = 'soundscaper') {
 	return renderToStaticMarkup(
 		<AudioEditorMenuBar
 			appName="Soundscaper"
@@ -36,11 +36,17 @@ function renderMenuBar(compact: boolean, chromeDrawer: { isOpen: boolean; toggle
 			onSearchActivate={() => undefined}
 			projectTabs={<nav data-test-project-tabs="true" />}
 			projectName="Untitled"
+			productId={productId}
 			saveState="saved"
 			saveText={ENGLISH_COPY.projectSaved}
 		/>,
 	);
 }
+
+test('the editor title uses the mark for its product', () => {
+	assert.match(renderMenuBar(false, null), /src="\/logo\/soundscaper.svg"/u);
+	assert.match(renderMenuBar(false, null, 'framescaper'), /src="\/logo\/framescaper.svg"/u);
+});
 
 test('the desktop menubar renders in the header row without a drawer or toggle', () => {
 	const markup = renderMenuBar(false, null);

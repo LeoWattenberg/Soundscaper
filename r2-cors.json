@@ -6,7 +6,7 @@
 					"http://127.0.0.1:4321",
 					"http://localhost:4321",
 					"https://framescaper.org",
-					"https://kw.media",
+					"https://mindscaper.org",
 					"https://soundscaper.org"
 				],
 				"methods": ["GET", "HEAD"],

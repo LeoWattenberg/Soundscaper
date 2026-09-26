@@ -17,7 +17,7 @@ export default function BrandSidebar({ locale, productId = 'soundscaper' }) {
 	const otherProduct = productIdentity(otherProductId(productId));
 	const localeDescriptor = getLocaleDescriptor(locale);
 	if (!localeDescriptor) throw new Error(`Unknown editor locale: ${locale}`);
-	const chromeLocale = localeLanguage(localeDescriptor.locale) === 'de' ? 'de' : 'en';
+	const parentSite = localeLanguage(localeDescriptor.locale) === 'de' ? 'https://mindscaper.org/de/' : 'https://mindscaper.org/';
 	const catalog = useSiteCopy(localeDescriptor.locale);
 	const copy = sidebarCopy(catalog);
 	const [collapsed, setCollapsed] = useState(() => storedCollapsed(productId));
@@ -79,13 +79,14 @@ export default function BrandSidebar({ locale, productId = 'soundscaper' }) {
 		window.dispatchEvent(new CustomEvent(PRIVACY_POLICY_REQUEST_EVENT, { detail: { productId } }));
 	};
 	const workspaces = workspace.workspaces.length ? workspace.workspaces : defaultWorkspaces(productId, copy);
-	const darkTheme = theme === 'dark';
+	const productMark = `/logo/${productId}.svg`;
 
 	return (
 		<aside className="website-site-sidebar" data-sidebar data-product={productId} data-locale={localeDescriptor.locale} data-collapsed={String(collapsed)} aria-label={copy.label}>
 			<a className="website-brand" href={productHref(productId, locale)} aria-label={profile.name}>
-				<img className="website-logo-wide" src={darkTheme ? '/logo/logo-weiß.svg' : '/logo/logo-schwarz.svg'} alt="kw.media" width="230" height="91" />
-				<img className="website-logo-small" src={darkTheme ? '/logo/logo-klein-weiß.svg' : '/logo/logo-klein-schwarz.svg'} alt="" width="48" height="48" />
+				<img className="website-logo-wide" src="/logo/mindscaper.svg" alt="Mindscaper" width="48" height="48" />
+				<span className="website-brand-name">Mindscaper</span>
+				<img className="website-logo-small" src={productMark} alt="" width="48" height="48" />
 				<strong>{profile.name}</strong>
 			</a>
 			<button className="website-sidebar-collapse" type="button" data-sidebar-collapse aria-label={collapsed ? copy.expand : copy.collapse} aria-expanded={String(!collapsed)} onClick={toggleCollapsed}>
@@ -95,8 +96,8 @@ export default function BrandSidebar({ locale, productId = 'soundscaper' }) {
 				<nav className="website-sidebar-nav" aria-label={copy.label}>
 						<a className="website-sidebar-link website-is-active" href={productHref(productId, locale)} aria-current="page">{productId === 'framescaper' ? profile.name : copy.editor}</a>
 						<a className="website-sidebar-link" href={productHref(otherProduct.id, locale)}>{otherProduct.name}</a>
-						<a className="website-sidebar-link" href={`https://kw.media/${chromeLocale}/tools/`}>{copy.tools}</a>
-						<a className="website-sidebar-link" href={`https://kw.media/${chromeLocale}/audacity/`}>{copy.guides}</a>
+						<a className="website-sidebar-link" href={`${parentSite}#projects`}>{copy.tools}</a>
+						<a className="website-sidebar-link" href={`${parentSite}#mission`}>{copy.guides}</a>
 						<a className="website-sidebar-link" href={privacyPolicyUrl(productId, locale)} onClick={openPrivacyPolicy}>{copy.legal}</a>
 						<a className="website-sidebar-link" href="https://github.com/LeoWattenberg/Soundscaper/issues/new" target="_blank" rel="noreferrer">{copy.reportIssue}</a>
 						<a className="website-sidebar-link" href="https://github.com/LeoWattenberg/Soundscaper" target="_blank" rel="noreferrer">{copy.github}</a>

@@ -9,7 +9,7 @@ test.setTimeout(90_000);
 test('offline-shell-upgrade replaces a prior shell, isolates products, and keeps this one usable offline', async ({ browserName, context, page }) => {
 	test.skip(browserName === 'webkit', 'Playwright WebKit cannot reliably reload a service-worker page in offline emulation.');
 	const staleCacheName = `soundscaper-application-shell-v1-${'0'.repeat(64)}`;
-	await page.goto('/logo/logo-klein-schwarz.svg');
+	await page.goto('/logo/soundscaper.svg');
 	await page.evaluate(async (cacheName) => {
 		const cache = await caches.open(cacheName);
 		await cache.put('/', new Response('stale application shell'));

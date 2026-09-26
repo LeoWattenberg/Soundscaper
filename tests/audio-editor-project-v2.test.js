@@ -82,7 +82,7 @@ function richAudioFoundationFixture() {
 		tempo: { bpm: 137.5, timeSignature: { numerator: 7, denominator: 8 }, detected: true },
 		snap: { enabled: true, unit: '1/16-triplet', mode: 'nearest' },
 		timeDisplay: { format: 'samples' },
-		metadata: { title: 'Arbitrary rates', artist: 'kw.media', tags: { ISRC: 'TEST123' } },
+		metadata: { title: 'Arbitrary rates', artist: 'Mindscaper', tags: { ISRC: 'TEST123' } },
 		selection: {
 			startFrame: 960,
 			endFrame: 2_160,

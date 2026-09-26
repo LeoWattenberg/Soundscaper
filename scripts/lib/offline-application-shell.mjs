@@ -45,8 +45,8 @@ const PRODUCT_INSTALL_ARTIFACTS = Object.freeze({
 	framescaper: Object.freeze({
 		name: 'Framescaper',
 		description: 'Local-first video effects and compositing editor',
-		logos: Object.freeze(['/logo/framescaper-icon.svg']),
-		source: 'public/logo/framescaper-icon.svg',
+		logos: Object.freeze(['/logo/framescaper.svg', '/logo/mindscaper.svg']),
+		source: 'public/logo/framescaper.svg',
 		// Chosen from the standard manifest category vocabulary, which names no
 		// video category; `photo` is the one it files moving-image work under.
 		categories: Object.freeze(['photo', 'productivity', 'utilities']),
@@ -55,25 +55,23 @@ const PRODUCT_INSTALL_ARTIFACTS = Object.freeze({
 	soundscaper: Object.freeze({
 		name: 'Soundscaper',
 		description: 'Local-first multitrack audio editor',
-		logos: Object.freeze(['/logo/logo-klein-schwarz.svg', '/logo/logo-klein-weiß.svg']),
-		source: 'public/logo/logo-klein-schwarz.svg',
+		logos: Object.freeze(['/logo/soundscaper.svg', '/logo/mindscaper.svg']),
+		source: 'public/logo/soundscaper.svg',
 		categories: Object.freeze(['music', 'productivity', 'utilities']),
 		media: Object.freeze(['audio']),
 	}),
 });
 const PRODUCT_EXCLUSIVE_PUBLIC_ARTIFACTS = Object.freeze({
-	framescaper: Object.freeze(['logo/framescaper-icon.svg']),
+	framescaper: Object.freeze(['logo/framescaper.svg']),
 	soundscaper: Object.freeze([]),
 });
 
 /**
  * Android crops a maskable icon to whatever shape the launcher draws, so the
- * artwork keeps to the middle 80% and the plate behind it is opaque to the
- * edges. The plate is the light surface for the same reason the manifest's
- * `background_color` is: the Soundscaper mark is solid black and would vanish
- * into a dark one.
+ * artwork fits inside the central 80%-diameter circle even when the source
+ * touches its square corners. The plate matches the light manifest background.
  */
-const MASKABLE_ICON_SAFE_ZONE = 0.8;
+export const MASKABLE_ICON_SAFE_ZONE = 0.55;
 const MASKABLE_ICON_BACKGROUND = '#ffffff';
 
 export async function generateOfflineApplicationShell({ outputRoot, repositoryRoot, environment = process.env }) {

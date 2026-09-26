@@ -36,7 +36,7 @@ test('AUP4 conversion restores stereo audio, clips, metadata, labels, tempo, and
 	const project = createCurrentAudioEditorProject({
 		id: 'project-1', title: 'Fixture', sampleRate: 44_100,
 		tempo: { bpm: 145, timeSignature: { numerator: 7, denominator: 8 } },
-		metadata: { title: 'Native title', artist: 'kw.media' },
+		metadata: { title: 'Native title', artist: 'Mindscaper' },
 		selection: {
 			startFrame: 4410,
 			endFrame: 8820,
@@ -69,7 +69,7 @@ test('AUP4 conversion restores stereo audio, clips, metadata, labels, tempo, and
 	assert.equal(decoded.project.tempo.bpm, 145);
 	assert.deepEqual(decoded.project.tempo.timeSignature, { numerator: 7, denominator: 8 });
 	assert.equal(decoded.project.metadata.title, 'Native title');
-	assert.equal(decoded.project.metadata.artist, 'kw.media');
+	assert.equal(decoded.project.metadata.artist, 'Mindscaper');
 	assert.equal(decoded.project.tracks.filter((track) => track.type === 'audio').length, 1);
 	assert.equal(decoded.project.tracks.filter((track) => track.type === 'label').length, 0);
 	assert.equal(decoded.project.timelineAnnotations.length, 1);

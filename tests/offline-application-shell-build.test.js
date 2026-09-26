@@ -14,6 +14,7 @@ import {
 	generateOfflineApplicationShell,
 	MAXIMUM_INSTALL_ASSET_BYTES,
 	MAXIMUM_INSTALL_ASSET_COUNT,
+	MASKABLE_ICON_SAFE_ZONE,
 } from '../scripts/lib/offline-application-shell.mjs';
 import { pagesCachePolicyDescriptors } from '../scripts/lib/pages-deploy-preflight.mjs';
 import {
@@ -144,7 +145,7 @@ test('offline shell generation inventories exact route URLs and emits installabl
 	assert.match(await readFile(join(outputRoot, 'service-worker.js'), 'utf8'), new RegExp(soundWorker.releaseId, 'u'));
 	assert.equal(await readFile(join(outputRoot, 'framescaper/service-worker.js'), 'utf8').catch(() => null), null);
 	assert.equal(await readFile(join(outputRoot, 'manifest-framescaper.webmanifest'), 'utf8').catch(() => null), null);
-	assert.equal(await readFile(join(outputRoot, 'logo/framescaper-icon.svg'), 'utf8').catch(() => null), null);
+	assert.equal(await readFile(join(outputRoot, 'logo/framescaper.svg'), 'utf8').catch(() => null), null);
 
 	const second = await generateOfflineApplicationShell({ outputRoot, repositoryRoot: resolve('.') });
 	assert.deepEqual(second.releaseIds, first.releaseIds, 'identical output produces identical release IDs');
@@ -374,11 +375,11 @@ test('a maskable icon pads its artwork into the middle 80% over an opaque plate'
 test('the maskable artwork of both product marks stays inside the safe circle', async () => {
 	// Android crops a maskable icon into whatever shape a launcher draws, and the
 	// one region every shape keeps is the circle whose diameter is 80% of the
-	// icon. Padding the artwork into the middle 80% is what puts it there, and
+	// icon. Padding the artwork by the production safe zone puts it there, and
 	// this measures the result rather than trusting the geometry.
 	const size = 512;
-	for (const source of ['public/logo/logo-klein-schwarz.svg', 'public/logo/framescaper-icon.svg']) {
-		const svg = createSquareOfflineIconSvg(await readFile(source, 'utf8'), size, source, { safeZone: 0.8 });
+	for (const source of ['public/logo/soundscaper.svg', 'public/logo/framescaper.svg']) {
+		const svg = createSquareOfflineIconSvg(await readFile(source, 'utf8'), size, source, { safeZone: MASKABLE_ICON_SAFE_ZONE });
 		const { pixels } = new Resvg(svg, {
 			fitTo: { mode: 'width', value: size },
 			font: { loadSystemFonts: false },
@@ -459,9 +460,9 @@ async function shellFixture(context, routes = ['en', 'embed/en']) {
 		...['soundscaper', 'framescaper'].flatMap((productId) => ['wide', 'narrow'].map((formFactor) => (
 			fixtureFile(outputRoot, `install-screenshots/${productId}-${formFactor}.png`, `${productId} ${formFactor}`)
 		))),
-		fixtureFile(outputRoot, 'logo/framescaper-icon.svg', '<svg viewBox="0 0 1 1" />'),
-		fixtureFile(outputRoot, 'logo/logo-klein-schwarz.svg', '<svg viewBox="0 0 1 1" />'),
-		fixtureFile(outputRoot, 'logo/logo-klein-weiß.svg', '<svg viewBox="0 0 1 1" />'),
+		fixtureFile(outputRoot, 'logo/framescaper.svg', '<svg viewBox="0 0 1 1" />'),
+		fixtureFile(outputRoot, 'logo/soundscaper.svg', '<svg viewBox="0 0 1 1" />'),
+		fixtureFile(outputRoot, 'logo/mindscaper.svg', '<svg viewBox="0 0 1 1" />'),
 		fixtureFile(outputRoot, '_headers', 'test headers'),
 		fixtureFile(outputRoot, STARTUP_GRAPH_REPORT_FILE, '{"product":"soundscaper","graphs":{}}'),
 		fixtureFile(outputRoot, '.offline-build-manifest.json', JSON.stringify({

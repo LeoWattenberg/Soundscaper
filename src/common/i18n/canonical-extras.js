@@ -241,7 +241,7 @@ const COPY_ENTRIES = Object.freeze([
 	["spectrogramWindowHamming","Hamming","Hamming"],
 	["spectrogramWindowBlackman","Blackman","Blackman"],
 	["audacityParityRevision","Audacity 4 parity: {revision}","Audacity-4-Parität: {revision}"],
-	["brandAccessibilityLabel","Soundscaper by kw.media","Soundscaper von kw.media"],
+	["brandAccessibilityLabel","Soundscaper by Mindscaper","Soundscaper von Mindscaper"],
 	["addLabel","Add label","Beschriftung hinzufügen"],
 	["clipPitchRange","Clip pitch must be between -1200 and 1200 cents.","Die Clip-Tonhöhe muss zwischen -1200 und 1200 Cent liegen."],
 	["clipPitchRangeSemitones","Clip pitch must be between −12 and +12 semitones.","Die Clip-Tonhöhe muss zwischen −12 und +12 Halbtönen liegen."],

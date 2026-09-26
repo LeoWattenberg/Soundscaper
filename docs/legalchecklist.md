@@ -14,7 +14,7 @@ owner, and date.
 ### Release-wide
 
 - [x] Confirm which legal entity or individual distributes Soundscaper and Framescaper.
--- At the moment, it's kw.media with legal information at https://kw.media/impressum/
+-- The current legal operator and contact are documented at https://mindscaper.org/legal/.
 - [x] Confirm launch territories and channels: Cloudflare web app/assets, direct desktop downloads, package-manager-assisted installs, and any stores.
 -- Global, cloudflare web app and electron downloads. No stores.
 - [x] Approve AGPL-3.0-only as the application license, including network-source obligations and distribution of complete corresponding source.

@@ -514,7 +514,7 @@ export function createAudacityActionRuntime(controller, options = {}) {
 		help: { openDiagnostics: () => openSurface('local-diagnostics'),
 			openTutorials: () => ui.openExternal(documentationUrl(options.productId ?? 'soundscaper', 'tutorials', options.locale)),
 			openManual: () => ui.openExternal(documentationUrl(options.productId ?? 'soundscaper', 'manual', options.locale)),
-			openSupport: () => ui.openExternal('mailto:team@kw.media?subject=Soundscaper%20support'),
+			openSupport: () => ui.openExternal('mailto:team@mindscaper.org?subject=Soundscaper%20support'),
 			revertFactorySettings: () => ui.issue('revert-factory'),
 			toggleStoragePanel: () => ui.toggleFlag('storagePanel'),
 			openAbout: () => ui.issue('open-about'),

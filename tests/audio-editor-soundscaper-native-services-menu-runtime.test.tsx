@@ -334,7 +334,7 @@ test('the shared support action names the active product', () => {
 			...workspaceMenuInput(productId), openExternal: (value: string) => { opened = value; },
 		}) as readonly MenuItem[];
 		flatten(menus).find(({ id }) => id === 'support')?.onClick?.();
-		assert.equal(opened, `mailto:team@kw.media?subject=${productName}%20support`);
+		assert.equal(opened, `mailto:team@mindscaper.org?subject=${productName}%20support`);
 	}
 });
 

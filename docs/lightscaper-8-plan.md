@@ -332,7 +332,7 @@ at pickup, and any packet that later grows one names its filename here first.
   `electron-builder.config.cjs` — Lightscaper is the first build to claim
   `.liscape` — a macOS category, and a Linux executable name, category, and
   synopsis (`electron-builder.config.cjs:82-115`); an icon source beside
-  `public/logo/framescaper-icon.svg`; `lightscaper` in
+  `public/logo/framescaper.svg`; `lightscaper` in
   `DESKTOP_PACKAGED_PRODUCT_IDS` (`scripts/lib/desktop-packaged-products.mjs`,
   landed by L1) with both product-name ternaries
   (`scripts/desktop-release-assets.mjs:111-119`, `:143`) replaced by registry

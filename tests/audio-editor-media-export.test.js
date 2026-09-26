@@ -63,14 +63,14 @@ test('media export settings normalize aliases, arbitrary rates, sample formats, 
 		channelCount: 2,
 		sampleFormat: 'int32',
 		dither: 'triangular-highpass',
-		metadata: { title: 'Six channel mix', artist: 'kw.media' },
+		metadata: { title: 'Six channel mix', artist: 'Mindscaper' },
 	});
 	assert.equal(aiff.format, 'aiff');
 	assert.equal(aiff.sampleRate, 96_000);
 	assert.equal(aiff.sampleFormat, 'int32');
 	assert.equal(aiff.channelMapping.mode, 'stereo');
 	assert.equal(aiff.dither, 'triangular-highpass');
-	assert.deepEqual(aiff.metadata, { title: 'Six channel mix', artist: 'kw.media' });
+	assert.deepEqual(aiff.metadata, { title: 'Six channel mix', artist: 'Mindscaper' });
 
 	const vorbis = normalizeMediaExportSettings('ogg', { quality: 7.5, inputChannelCount: 2 });
 	assert.equal(vorbis.format, 'ogg-vorbis');
@@ -363,7 +363,7 @@ test('AIFF-C float and streaming encoders preserve float headroom without retain
 test('native WAV and AIFF embed normalized UTF-8 metadata in bounded ID3 chunks', () => {
 	const metadata = {
 		title: 'Äther',
-		artist: 'kw.media',
+		artist: 'Mindscaper',
 		album: 'Browser exports',
 		trackNumber: '3',
 		year: '2026',

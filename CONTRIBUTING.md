@@ -48,7 +48,7 @@ the reproducibility audits.
 In either editor, open **Help > Contribute translations**, select a language, search
 for a string or select visible text, and edit it while using the application.
 Drafts stay on your device. Export your changes as a JSON contribution file and
-send it to **team@kw.media** for review; nothing is uploaded automatically.
+send it to **team@mindscaper.org** for review; nothing is uploaded automatically.
 Use the export before clearing browser storage. Importing a contribution file
 restores its original source and baseline; outdated or conflicting edits remain
 available for correction and export, and are excluded from preview.

@@ -7,7 +7,7 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 import { Resvg } from '@resvg/resvg-js';
 
 const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
-const DEFAULT_SOURCE = resolve(ROOT, 'public/logo/logo-klein-schwarz.svg');
+const DEFAULT_SOURCE = resolve(ROOT, 'public/logo/soundscaper.svg');
 const DEFAULT_OUTPUT = resolve(ROOT, '.desktop-build/icons/icon.png');
 
 export async function generateDesktopIcon({

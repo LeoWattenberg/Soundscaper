@@ -272,12 +272,7 @@ function productDocument(html, productId, descriptor) {
 }
 
 function productIcons(productId) {
-	return productId === 'framescaper'
-		? '<link rel="icon" type="image/svg+xml" href="/logo/framescaper-icon.svg" data-product-icon />'
-		: [
-			'<link rel="icon" type="image/svg+xml" href="/logo/logo-klein-schwarz.svg" media="(prefers-color-scheme: light)" data-product-icon />',
-			'<link rel="icon" type="image/svg+xml" href="/logo/logo-klein-weiß.svg" media="(prefers-color-scheme: dark)" data-product-icon />',
-		].join('\n\t\t');
+	return `<link rel="icon" type="image/svg+xml" href="/logo/${productId}.svg" data-product-icon />`;
 }
 
 /**

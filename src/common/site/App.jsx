@@ -141,12 +141,7 @@ function updateProductHead(productId, privacyPolicy) {
 		content: productName,
 		'data-product-install-title': '',
 	});
-	const icons = productId === 'framescaper'
-		? [{ href: '/logo/framescaper-icon.svg' }]
-		: [
-			{ href: '/logo/logo-klein-schwarz.svg', media: '(prefers-color-scheme: light)' },
-			{ href: '/logo/logo-klein-weiß.svg', media: '(prefers-color-scheme: dark)' },
-		];
+	const icons = [{ href: `/logo/${productId}.svg` }];
 	const existing = [...document.querySelectorAll('link[data-product-icon]')];
 	const matches = existing.length === icons.length && icons.every((icon, index) => (
 		existing[index].getAttribute('href') === icon.href

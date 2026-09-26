@@ -139,7 +139,7 @@ module.exports = {
 		description: framescaper
 			? 'Framescaper is a local-first video editor with offline project and media export support.'
 			: 'Soundscaper is a local-first multitrack audio editor with offline project and media export support.',
-		maintainer: 'kw.media',
+		maintainer: 'Mindscaper',
 		target: ['AppImage', 'deb'],
 	},
 	appImage: {

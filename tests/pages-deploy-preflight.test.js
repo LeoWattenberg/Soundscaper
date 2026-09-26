@@ -135,8 +135,6 @@ test('live Pages policy preserves checked-in browser TTLs for stable routes and 
 		'/assets/site-entry-AbCd1234.js',
 		'/embed/en/',
 		'/en/',
-		'/logo/logo-klein-schwarz.svg',
-		'/logo/logo-klein-weiß.svg',
 		'/manifest-soundscaper.webmanifest',
 		'/offline-icons/soundscaper-180.png',
 		'/offline-shell.json',
@@ -282,8 +280,8 @@ test('the zone browser cache TTL excuses no-cache on either product origin, and 
 			'/en/',
 			'/install-screenshots/soundscaper-narrow.png',
 			'/install-screenshots/soundscaper-wide.png',
-			'/logo/logo-klein-schwarz.svg',
-			'/logo/logo-klein-weiß.svg',
+			'/logo/mindscaper.svg',
+			'/logo/soundscaper.svg',
 			'/manifest-soundscaper.webmanifest',
 			'/offline-icons/soundscaper-180.png',
 			'/offline-icons/soundscaper-maskable-192.png',
@@ -300,7 +298,7 @@ test('the zone browser cache TTL excuses no-cache on either product origin, and 
 	// framescaper.org caches the artwork and not the documents, so one live
 	// deployment carries both values at once and still has to pass.
 	const mixed = liveDeployment({ routing: framescaper, assetPath });
-	for (const path of ['/logo/framescaper-icon.svg', '/offline-icons/framescaper-180.png']) {
+	for (const path of ['/logo/framescaper.svg', '/logo/mindscaper.svg', '/offline-icons/framescaper-180.png']) {
 		mixed.served.get(path).cacheControl = ZONE_BROWSER_TTL;
 	}
 	assert.deepEqual(await verifyLivePagesCachePolicy({ routing: framescaper, fetchImpl: mixed.fetchImpl }), {

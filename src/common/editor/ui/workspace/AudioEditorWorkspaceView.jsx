@@ -191,7 +191,7 @@ export default function AudioEditorWorkspaceView({ model }) {
 				compact={compactLayout}
 				compactBarSlot={compactLayout ? <TransportToolbarGroup {...toolbarProps} buttons={COMPACT_BAR_TRANSPORT_BUTTONS} /> : null}
 				drawerSlot={compactLayout ? <>{actionBar}{editorToolbar}</> : null}
-				projectName={project?.title || copy.untitledProject}
+				projectName={project?.title || copy.untitledProject} productId={productId}
 				searchEntries={searchEntries}
 				saveState={snapshot.save?.state || 'saved'}
 				saveText={saveText}

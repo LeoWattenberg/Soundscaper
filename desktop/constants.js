@@ -299,7 +299,7 @@ export const EXTERNAL_DESTINATIONS = Object.freeze({
 	help: 'https://github.com/LeoWattenberg/Soundscaper#readme',
 	manual: 'https://support.audacityteam.org/au4',
 	tutorials: 'https://support.audacityteam.org/au4',
-	support: `mailto:team@kw.media?subject=${APP_NAME}%20support`,
+	support: `mailto:team@mindscaper.org?subject=${APP_NAME}%20support`,
 	source: 'https://github.com/LeoWattenberg/Soundscaper',
 	releases: 'https://github.com/LeoWattenberg/Soundscaper/releases',
 	issues: 'https://github.com/LeoWattenberg/Soundscaper/issues',

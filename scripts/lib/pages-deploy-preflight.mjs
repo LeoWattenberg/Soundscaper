@@ -18,13 +18,10 @@ const AUDIT_CACHE_KEY = 'pages-deploy-audit';
  */
 const PRODUCT_INSTALL_ARTWORK = Object.freeze({
 	soundscaper: Object.freeze([
-		'/logo/logo-klein-schwarz.svg',
-		'/logo/logo-klein-weiß.svg',
 		'/offline-icons/soundscaper-180.png',
 		'/manifest-soundscaper.webmanifest',
 	]),
 	framescaper: Object.freeze([
-		'/logo/framescaper-icon.svg',
 		'/offline-icons/framescaper-180.png',
 		'/manifest-framescaper.webmanifest',
 	]),
@@ -50,12 +47,16 @@ const PRODUCT_INSTALL_ARTWORK = Object.freeze({
  */
 const PRODUCT_PENDING_INSTALL_ARTWORK = Object.freeze({
 	soundscaper: Object.freeze([
+		'/logo/soundscaper.svg',
+		'/logo/mindscaper.svg',
 		'/offline-icons/soundscaper-maskable-192.png',
 		'/offline-icons/soundscaper-maskable-512.png',
 		'/install-screenshots/soundscaper-narrow.png',
 		'/install-screenshots/soundscaper-wide.png',
 	]),
 	framescaper: Object.freeze([
+		'/logo/framescaper.svg',
+		'/logo/mindscaper.svg',
 		'/offline-icons/framescaper-maskable-192.png',
 		'/offline-icons/framescaper-maskable-512.png',
 		'/install-screenshots/framescaper-narrow.png',

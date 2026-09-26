@@ -338,14 +338,6 @@
 	border-radius: 3px;
 }
 
-:root:not([data-theme='dark']) .kw-audio-editor__application-mark--dark {
-	display: none;
-}
-
-:root[data-theme='dark'] .kw-audio-editor__application-mark--light {
-	display: none;
-}
-
 .kw-audio-editor-sr-only {
 	position: absolute;
 	width: 1px;

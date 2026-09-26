@@ -38,15 +38,15 @@ test('Soundscaper renderer package rejects callable Framescaper markers and publ
 		},
 	}, 'soundscaper'), /callable Framescaper marker/iu);
 	assert.throws(() => assertDesktopRendererProductIsolation({
-		'logo/framescaper-icon.svg': {
-			type: 'asset', fileName: 'logo/framescaper-icon.svg', source: '<svg />',
+		'logo/framescaper.svg': {
+			type: 'asset', fileName: 'logo/framescaper.svg', source: '<svg />',
 		},
 	}, 'soundscaper'), /forbidden asset/iu);
 	assert.deepEqual(desktopRendererProductPublicAssetFiles('soundscaper', [
 		'_headers',
-		'logo/logo-schwarz.svg',
-		'logo/framescaper-icon.svg',
-	]), ['_headers', 'logo/logo-schwarz.svg']);
+		'logo/mindscaper.svg',
+		'logo/framescaper.svg',
+	]), ['_headers', 'logo/mindscaper.svg']);
 });
 
 test('Soundscaper renderer package permits product-neutral foreign-family custody contracts', () => {

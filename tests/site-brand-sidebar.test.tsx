@@ -203,6 +203,30 @@ test('a Framescaper rail names its own workspace and links across to the other o
 	}
 });
 
+test('the rail uses Mindscaper branding and working parent-site destinations', async () => {
+	for (const [productId, locale, parentSite] of [
+		['soundscaper', 'en', 'https://mindscaper.org/'],
+		['framescaper', 'de', 'https://mindscaper.org/de/'],
+	] as const) {
+		const context = harness();
+		try {
+			await context.render(productId, locale);
+			const brand = context.dom.one('.website-brand');
+			assert.equal(brand.querySelector('.website-logo-wide')?.getAttribute('src'), '/logo/mindscaper.svg');
+			assert.equal(brand.querySelector('.website-logo-wide')?.getAttribute('alt'), 'Mindscaper');
+			assert.equal(brand.querySelector('.website-brand-name')?.textContent, 'Mindscaper');
+			assert.equal(brand.querySelector('.website-logo-small')?.getAttribute('src'), `/logo/${productId}.svg`);
+			const parentLinks = context.dom.one('.website-sidebar-nav').querySelectorAll('a').slice(2, 4);
+			assert.deepEqual(parentLinks.map((link) => link.getAttribute('href')), [
+				`${parentSite}#projects`,
+				`${parentSite}#mission`,
+			]);
+		} finally {
+			await context.close();
+		}
+	}
+});
+
 test('the announced workspaces replace the presets and a choice is requested by event', async () => {
 	const context = harness();
 	try {

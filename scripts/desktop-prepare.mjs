@@ -229,7 +229,7 @@ async function main() {
 		nativeTarget, productMetadata, soundscaperProfessionalNativeRelease,
 	});
 	await generateDesktopIcon({
-		...(PRODUCT_ID === 'framescaper' ? { sourcePath: resolve(ROOT, 'public/logo/framescaper-icon.svg') } : {}),
+		...(PRODUCT_ID === 'framescaper' ? { sourcePath: resolve(ROOT, 'public/logo/framescaper.svg') } : {}),
 	});
 	await buildRenderer();
 	const desktopRuntime = await stageApplication(
@@ -458,7 +458,7 @@ async function stageApplication(
 		type: 'module',
 		imports: desktopProductRuntimePackageImports(PRODUCT_ID, DESKTOP_RUNTIME_PACKAGE_IMPORTS),
 		license: 'AGPL-3.0-only',
-		author: { name: 'kw.media', url: 'https://kw.media' },
+		author: { name: 'Mindscaper', url: 'https://mindscaper.org' },
 		homepage: `https://${PRODUCT_ID}.org`,
 	});
 	for (const target of Object.values(desktopProductRuntimePackageImports(

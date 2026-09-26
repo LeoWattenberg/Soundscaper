@@ -28,8 +28,8 @@ test.describe('audio editor React/design-system workflows', () => {
 		await page.goto('/en/');
 		await expect(page.locator('.website-site-sidebar')).toBeVisible();
 		await expect(page.locator('.website-brand')).toContainText('Soundscaper');
-		await expect(page.locator('link[rel="icon"][href="/logo/logo-klein-schwarz.svg"]')).toHaveAttribute('media', '(prefers-color-scheme: light)');
-		await expect(page.locator('link[rel="icon"][href="/logo/logo-klein-weiß.svg"]')).toHaveAttribute('media', '(prefers-color-scheme: dark)');
+		await expect(page.locator('.website-logo-wide')).toHaveAttribute('src', '/logo/mindscaper.svg');
+		await expect(page.locator('link[rel="icon"][href="/logo/soundscaper.svg"]')).toHaveCount(1);
 
 		await page.goto('/embed/en/');
 		await expect(page.locator('.website-site-sidebar')).toHaveCount(0);
@@ -87,6 +87,9 @@ test.describe('audio editor React/design-system workflows', () => {
 	test('uses the Framescaper video workspace from the site sidebar', async ({ page }) => {
 		await page.goto(resolveBrowserProductTestUrl('/framescaper/en/'));
 		const editor = await waitForEditor(page);
+		await expect(page.locator('link[rel="icon"][href="/logo/framescaper.svg"]')).toHaveCount(1);
+		await expect(page.locator('.website-logo-small')).toHaveAttribute('src', '/logo/framescaper.svg');
+		await expect(editor.locator('.kw-audio-editor__application-mark')).toHaveAttribute('src', '/logo/framescaper.svg');
 		const workspaceSelect = page.locator('[data-sidebar] [data-workspace-select]');
 		const settingsSection = page.locator('[data-sidebar] .website-sidebar-settings');
 		await expect(workspaceSelect).toBeEnabled();

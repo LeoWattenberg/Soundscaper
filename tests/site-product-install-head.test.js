@@ -66,11 +66,10 @@ test('a document whose head has no application title gains one naming the produc
 	assert.deepEqual(installTitles(document), [
 		{ name: 'apple-mobile-web-app-title', content: 'Soundscaper', 'data-product-install-title': '' },
 	]);
-	// The manifest link, the touch icon, the title meta, and the two product
-	// icons Soundscaper's mark needs one of per colour scheme.
+	// The manifest link, touch icon, title meta, and product favicon.
 	assert.deepEqual(
 		document.head.children.map((node) => node.tagName),
-		['LINK', 'LINK', 'META', 'LINK', 'LINK'],
+		['LINK', 'LINK', 'META', 'LINK'],
 	);
 	assert.equal(document.head.querySelector('meta[data-product-install-title]').tagName, 'META');
 });

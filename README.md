@@ -8,7 +8,7 @@ Scape is the lossless portable project format for both products. Each writes its
 
 ## Why Soundscaper
 
-Soundscaper was created by [Leo Wattenberg](https://leo.wattenberg.dk) from [kw.media](https://kw.media). He previously worked as a designer on Audacity. Previously to this project, Leo attempted to add various features found here to Audacity itself, however, due Audacity's ancient codebase, of which only the UI and UX are getting majorly updated for Audacity 4, he found himself (and the robot) to be increasingly frustrated trying to produce inclusion-worthy features. 
+Soundscaper was created by [Leo Wattenberg](https://leo.wattenberg.dk) from [Mindscaper](https://mindscaper.org). He previously worked as a designer on Audacity. Previously to this project, Leo attempted to add various features found here to Audacity itself, however, due Audacity's ancient codebase, of which only the UI and UX are getting majorly updated for Audacity 4, he found himself (and the robot) to be increasingly frustrated trying to produce inclusion-worthy features.
 
 Soundscaper thus exists to serve three purposes: 
 

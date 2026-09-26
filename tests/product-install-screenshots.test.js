@@ -156,9 +156,9 @@ async function productShell(context, productId) {
 		'assets/application-abc.js': 'export const application = 1;',
 		'assets/soundscaper-core.js': 'export const soundscaper = 1;',
 		'assets/framescaper-core.js': 'export const framescaper = 1;',
-		'logo/framescaper-icon.svg': '<svg viewBox="0 0 1 1" />',
-		'logo/logo-klein-schwarz.svg': '<svg viewBox="0 0 1 1" />',
-		'logo/logo-klein-weiß.svg': '<svg viewBox="0 0 1 1" />',
+		'logo/framescaper.svg': '<svg viewBox="0 0 1 1" />',
+		'logo/soundscaper.svg': '<svg viewBox="0 0 1 1" />',
+		'logo/mindscaper.svg': '<svg viewBox="0 0 1 1" />',
 		'.offline-build-manifest.json': JSON.stringify({
 			'index.html': {
 				file: 'assets/application-abc.js',

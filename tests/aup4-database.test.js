@@ -247,7 +247,7 @@ test('browser AUP4 snapshot survives SQLite export and reopen with sample hashes
 			id: 'browser-project', title: 'Round trip', sampleRate: 48_000,
 			tempo: { bpm: 132, timeSignature: { numerator: 7, denominator: 8 } },
 			selection: { startFrame: 240, endFrame: 720, trackIds: ['track-1'] },
-			metadata: { title: 'Round trip', artist: 'kw.media' },
+			metadata: { title: 'Round trip', artist: 'Mindscaper' },
 			sources: [{ id: 'source-1', frameCount: 6, channelCount: 2, sampleRate: 48_000 }],
 			clips: [{
 				id: 'clip-1', sourceId: 'source-1', title: 'Stretched clip', timelineStartFrame: 480,

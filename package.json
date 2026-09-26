@@ -12,7 +12,7 @@
 		"#desktop-runtime/video-source-characteristics": "./src/common/editor/video-source-characteristics.ts",
 		"#desktop-runtime/video-timing-asset": "./src/common/editor/video-timing-asset.ts"
 	},
-	"author": "kw.media",
+	"author": "Mindscaper",
 	"homepage": "https://soundscaper.org",
 	"repository": {
 		"type": "git",
