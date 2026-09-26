@@ -5,6 +5,7 @@ import { createDeterministicAvFixture } from './fixtures/deterministic-av-media.
 import { FRAMESCAPER_DATABASE_NAME, SOUNDSCAPER_DATABASE_NAME } from './helpers/editor-databases.js';
 import { evaluateWithTransientBrowserRetry } from './helpers/transient-evaluation-retry.js';
 import { localeCopy } from './helpers/locale-copy.js';
+import { setFramescaperNtscSequenceRate } from './helpers/framescaper-standard-timecode.js';
 
 // The workflow reads a Framescaper timeline and, for the legacy fallback, a
 // Soundscaper project it imports at /de/ — each from its own product database.
@@ -17,7 +18,7 @@ test.describe('Framescaper canonical clip-focus trim keyboard routing', () => {
 		test.setTimeout(240_000);
 		await page.setViewportSize({ width: 1_440, height: 1_100 });
 		const editor = await bootEditor(page, '/framescaper/de/');
-		await setNtscSequenceRate(page, editor);
+		await setFramescaperNtscSequenceRate(page, editor);
 		await importAvFixture(editor, 'canonical-keyboard.webm');
 
 		const projectId = await editor.getAttribute('data-project-id');
@@ -169,14 +170,6 @@ async function assertCanonicalKeyboardStep(page, editor, projectId, audioGroup, 
 function directionalDelta(edge, direction) {
 	if (direction === 'outward') return edge === 'left' ? -1 : 1;
 	return edge === 'left' ? 1 : -1;
-}
-
-async function setNtscSequenceRate(page, editor) {
-	await editor.getByRole('button', { name: 'Sequenz-Timing', exact: true }).click();
-	const dialog = page.getByRole('dialog', { name: 'Sequenz-Timing', exact: true });
-	await expect(dialog).toBeVisible();
-	await dialog.getByRole('combobox', { name: 'Bildrate', exact: true }).selectOption('30000/1001');
-	await page.keyboard.press('Escape');
 }
 
 async function importAvFixture(editor, name) {

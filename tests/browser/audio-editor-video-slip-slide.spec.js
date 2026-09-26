@@ -6,7 +6,7 @@ import {
 	waitForEditor,
 } from './audio-editor-test-helpers.js';
 import { chooseTrackMenuAction } from './helpers/track-menu.js';
-import { seekFramescaperTimecode } from './helpers/framescaper-standard-timecode.js';
+import { seekFramescaperTimecode, setFramescaperNtscSequenceRate } from './helpers/framescaper-standard-timecode.js';
 import { createDeterministicAvFixture } from './fixtures/deterministic-av-media.js';
 import { validateVideoTimingAssetBytes } from '../../src/common/editor/video-timing-asset.ts';
 import {
@@ -38,7 +38,7 @@ test.describe('Framescaper frame-canonical slip and slide qualification', () => 
 		const errors = collectClientErrors(page);
 		const fixture = createDeterministicAvFixture('framescaper-slip-slide.webm');
 		const editor = await bootEditor(page, '/framescaper/de/');
-		await setNtscSequenceRate(page, editor);
+		await setFramescaperNtscSequenceRate(page, editor);
 		await createContiguousMarkedEdits(page, editor, fixture);
 
 		const projectId = await editor.getAttribute('data-project-id');
@@ -200,16 +200,6 @@ async function createContiguousMarkedEdits(page, editor, fixture) {
 	await expect.poll(() => persistedClips(page, 'timeline'), { timeout: 30_000 }).toHaveLength(4);
 	await page.locator('[data-bin-action="insert"]').first().click();
 	await expect.poll(() => persistedClips(page, 'timeline'), { timeout: 30_000 }).toHaveLength(6);
-}
-
-async function setNtscSequenceRate(page, editor) {
-	await editor.getByRole('button', { name: 'Sequenz-Timing', exact: true }).click();
-	const dialog = page.getByRole('dialog', { name: 'Sequenz-Timing', exact: true });
-	await expect(dialog).toBeVisible();
-	await dialog.getByRole('combobox', { name: 'Bildrate', exact: true }).selectOption('30000/1001');
-	await expect(dialog.locator('[data-sequence-rate]')).toHaveAttribute('data-sequence-rate', '30000/1001');
-	await page.keyboard.press('Escape');
-	await expect(dialog).toBeHidden();
 }
 
 async function scrubSourceMonitor(page, frame) {

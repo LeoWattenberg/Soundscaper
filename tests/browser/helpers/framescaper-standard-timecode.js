@@ -1,4 +1,16 @@
 import { expect } from '@playwright/test';
+import { chooseNestedCommandAction, closeWorkspacePanel } from '../audio-editor-test-helpers.js';
+
+/** Set the German Framescaper sequence to NTSC through Project properties. */
+export async function setFramescaperNtscSequenceRate(page, editor) {
+	await chooseNestedCommandAction(page, editor, 'Datei', ['Projektverwaltung', 'Metadaten']);
+	const panel = editor.locator('[data-workspace-panel="metadata"]');
+	await panel.getByRole('tab', { name: 'Sequenz-Timing', exact: true }).click();
+	const timing = panel.getByRole('tabpanel', { name: 'Sequenz-Timing', exact: true });
+	await timing.getByRole('combobox', { name: 'Bildrate', exact: true }).selectOption('30000/1001');
+	await expect(timing.locator('[data-sequence-rate]')).toHaveAttribute('data-sequence-rate', '30000/1001');
+	await closeWorkspacePanel(editor, 'metadata');
+}
 
 /** Seek through the one standard transport time display in Framescaper. */
 export async function seekFramescaperTimecode(page, editor, label) {

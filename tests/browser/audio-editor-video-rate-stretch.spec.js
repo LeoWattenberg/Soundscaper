@@ -6,7 +6,7 @@ import {
 	waitForEditor,
 } from './audio-editor-test-helpers.js';
 import { chooseTrackMenuAction } from './helpers/track-menu.js';
-import { seekFramescaperTimecode } from './helpers/framescaper-standard-timecode.js';
+import { seekFramescaperTimecode, setFramescaperNtscSequenceRate } from './helpers/framescaper-standard-timecode.js';
 import { createDeterministicAvFixture } from './fixtures/deterministic-av-media.js';
 import { validateVideoTimingAssetBytes } from '../../src/common/editor/video-timing-asset.ts';
 import {
@@ -29,7 +29,7 @@ test.describe('Framescaper frame-canonical uniform rate-stretch qualification', 
 		await page.setViewportSize({ width: 1_440, height: 1_100 });
 		const errors = collectClientErrors(page);
 		const editor = await bootEditor(page, '/framescaper/de/');
-		await setNtscSequenceRate(page, editor);
+		await setFramescaperNtscSequenceRate(page, editor);
 		await importAvFixture(editor);
 
 		const projectId = await editor.getAttribute('data-project-id');
@@ -150,14 +150,6 @@ async function importAvFixture(editor) {
 	]);
 	await expect(editor.locator('[data-status]')).toHaveAttribute('data-state', 'success', { timeout: 60_000 });
 	await expect.poll(() => persistedClips(editor.page(), 'timeline'), { timeout: 30_000 }).toHaveLength(2);
-}
-
-async function setNtscSequenceRate(page, editor) {
-	await editor.getByRole('button', { name: 'Sequenz-Timing', exact: true }).click();
-	const dialog = page.getByRole('dialog', { name: 'Sequenz-Timing', exact: true });
-	await expect(dialog).toBeVisible();
-	await dialog.getByRole('combobox', { name: 'Bildrate', exact: true }).selectOption('30000/1001');
-	await page.keyboard.press('Escape');
 }
 
 async function selectVideoClip(editor, clipId) {
