@@ -3,7 +3,6 @@
 import type { EditorProjectRuntimeProfile } from '../common/editor/project-runtime-profile.ts';
 import { isStrictlyHigherProjectRevision } from '../common/editor/project-revision-cas.ts';
 import { serializeScapeProjectDocument } from '../common/editor/scape-project-document.ts';
-import { collectProjectStorageKeys } from '../common/editor/retention.js';
 import { request, transact } from '../common/editor/storage/indexeddb-backend.ts';
 import { MEDIA_ASSET_STAGING_STORE_NAME } from '../common/editor/storage/media-asset-staging-schema.ts';
 import { publishSource, type StorageRecord } from '../common/editor/storage/media-records.ts';
@@ -24,6 +23,7 @@ import {
 	cloneFramescaperProjectSequence,
 	type FramescaperProjectSequence,
 } from './editor-project-sequence.ts';
+import { collectFramescaperProjectStorageKeysSequence } from './editor-project-sequence-storage-keys.ts';
 
 export type FramescaperProjectSequenceArchivePublicationMode =
 	| 'create'
@@ -145,7 +145,7 @@ async function publishTransaction(
 				await assertAndPublishBody(mediaAssets, consumed.proxy, attachment);
 				await assertAndPublishBody(mediaAssets, consumed.timing, attachment);
 			}
-			for (const storageKey of collectProjectStorageKeys(publication.project)) {
+			for (const storageKey of collectFramescaperProjectStorageKeysSequence(publication.project)) {
 				const source = record(await request(sources.get(storageKey)));
 				if (source?.pendingProjectUntil) sources.put(publishSource(source as StorageRecord));
 				const media = record(await request(mediaAssets.get(storageKey)));
