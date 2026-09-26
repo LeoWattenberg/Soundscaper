@@ -5,6 +5,8 @@ import { Buffer } from 'node:buffer';
 import { expect, test } from './audio-editor-test-fixtures.js';
 import {
 	bootEditor,
+	chooseDropdown,
+	chooseFileAction,
 	collectClientErrors,
 	stubStorageEstimate,
 } from './audio-editor-test-helpers.js';
@@ -123,6 +125,108 @@ test('desktop-linked video proxy relinks exact and refuses changed attributed or
 	expect(clientErrors).toEqual([]);
 });
 
+test('verified proxy previews an offline linked original but video delivery waits for exact relink', async ({ page }) => {
+	test.setTimeout(120_000);
+	const original = createDeterministicSilentVideoFixture('offline-proxy-original.webm');
+	await stubStorageEstimate(page, { usage: 1024 ** 2, quota: 2 * 1024 ** 3 });
+	await installPersistentStorageStub(page);
+	await installDesktopLinkedVideoFixture(page, { original, changed: original });
+
+	const editor = await bootEditor(page, '/framescaper/embed/en/');
+	await editor.getByRole('button', { name: 'Link video', exact: true }).click();
+	const card = editor.locator('[data-project-bin-item]').first();
+	await expect(card).toBeVisible({ timeout: 30_000 });
+	await card.getByRole('button', { name: /Add to timeline:/u }).click();
+	await expect(editor).toHaveAttribute('data-clip-count', '1');
+	await expect(editor.locator('[data-save-state]')).toHaveAttribute('data-state', 'saved', {
+		timeout: 20_000,
+	});
+	await openProxyDialog(page, card);
+	let dialog = page.getByRole('dialog', { name: 'Video proxies', exact: true });
+	await dialog.getByRole('button', { name: 'Attach existing', exact: true }).click();
+	await expect(proxyFeedback(dialog)).toContainText('Existing proxy validated and attached.', {
+		timeout: 30_000,
+	});
+	await dialog.getByRole('combobox', { name: 'Preview media', exact: true }).selectOption('proxy');
+	await expect(proxyStatus(dialog)).toContainText(
+		'The attached proxy bodies and timing are verified for this session.',
+	);
+	await dialog.getByRole('button', { name: 'Close', exact: true }).click();
+	const previewClip = editor.locator('[data-video-preview-clip]');
+	await expect(previewClip).toHaveCount(1, { timeout: 30_000 });
+	await expect(previewClip).toHaveAttribute('src', /^blob:/u);
+	await expect.poll(() => previewClip.evaluate((video) => video.readyState)).toBeGreaterThan(1);
+
+	await page.evaluate(() => {
+		globalThis.__videoProxyDesktopFixture.offline = true;
+		globalThis.__videoProxyDesktopFixture.loads.length = 0;
+	});
+	await openProxyDialog(page, card);
+	dialog = page.getByRole('dialog', { name: 'Video proxies', exact: true });
+	await dialog.getByRole('combobox', { name: 'Preview media', exact: true }).selectOption('original');
+	await expect(proxyFeedback(dialog)).toContainText('The linked video original is unavailable or changed.');
+	await expect(dialog.getByRole('combobox', { name: 'Preview media', exact: true })).toHaveValue('proxy');
+	await dialog.getByRole('combobox', { name: 'Preview media', exact: true }).selectOption('auto');
+	await expect(proxyFeedback(dialog)).toContainText('Preview mode updated and proxy trust refreshed.');
+	await expect(proxyStatus(dialog)).toContainText(
+		'The attached proxy bodies and timing are verified for this session.',
+	);
+	await dialog.getByRole('button', { name: 'Close', exact: true }).click();
+	await editor.getByRole('button', { name: 'Hide video', exact: true }).click();
+	await expect(previewClip).toHaveCount(0);
+	await editor.getByRole('button', { name: 'Show video', exact: true }).click();
+	await expect(previewClip).toHaveCount(1, { timeout: 30_000 });
+	await expect(previewClip).toHaveAttribute('src', /^blob:/u);
+	await expect.poll(() => previewClip.evaluate((video) => video.readyState)).toBeGreaterThan(1);
+	const offlineLoads = await page.evaluate(() => globalThis.__videoProxyDesktopFixture.loads);
+	expect(offlineLoads).toEqual(expect.arrayContaining([
+		expect.objectContaining({ locatorId: '1'.repeat(64), playback: false }),
+	]));
+
+	await chooseFileAction(page, editor, 'Export video');
+	const exportDialog = page.getByRole('dialog', { name: 'Export video', exact: true });
+	await selectSmallMp4Export(page, exportDialog);
+	const start = exportDialog.locator('[data-export-action="start"]').getByRole('button');
+	await expect(start).toBeEnabled();
+	await start.click();
+	await expect(page.locator('[data-editor-toast="workspace-error"], [data-editor-toast="workspace-status-error"]'))
+		.toContainText(
+			'The linked video original is unavailable or changed.',
+			{ timeout: 30_000 },
+		);
+	await expect(exportDialog.locator('[data-export-download]')).toBeHidden();
+	await expect.poll(() => page.evaluate(() => globalThis.__videoProxyDesktopFixture.saveSessionOpened)).toBe(0);
+	await exportDialog.getByRole('button', { name: 'Cancel', exact: true }).click();
+	await page.locator('[data-editor-toast="workspace-status-error"]')
+		.getByRole('button', { name: 'Close', exact: true }).click();
+
+	await openProxyDialog(page, card);
+	dialog = page.getByRole('dialog', { name: 'Video proxies', exact: true });
+	await selectDesktopLinkedVideoChoice(page, 'exact');
+	await dialog.getByRole('button', { name: 'Relink original', exact: true }).click();
+	await expect(proxyFeedback(dialog)).toContainText('Original video relinked.', { timeout: 30_000 });
+	const exactLoadsBeforeRefresh = await page.evaluate(() => globalThis.__videoProxyDesktopFixture.loads.filter(
+		({ locatorId, playback }) => locatorId === '2'.repeat(64) && playback === false,
+	).length);
+	await dialog.getByRole('combobox', { name: 'Preview media', exact: true }).selectOption('proxy');
+	await expect(proxyFeedback(dialog)).toContainText('Preview mode updated and proxy trust refreshed.');
+	await expect(proxyStatus(dialog)).toContainText(
+		'The attached proxy bodies and timing are verified for this session.',
+	);
+	await dialog.getByRole('button', { name: 'Close', exact: true }).click();
+	await expect.poll(() => page.evaluate(() => globalThis.__videoProxyDesktopFixture.loads.filter(
+		({ locatorId, playback }) => locatorId === '2'.repeat(64) && playback === false,
+	).length)).toBeGreaterThan(exactLoadsBeforeRefresh);
+});
+
+async function selectSmallMp4Export(page, dialog) {
+	await chooseDropdown(page, dialog.getByRole('group', { name: 'Format', exact: true }), 'MP4 video');
+	const canvasSize = dialog.locator('[data-export-field="canvasSize"] input');
+	await canvasSize.nth(0).fill('64');
+	await canvasSize.nth(1).fill('64');
+	await dialog.locator('[data-export-field="canvasFrameRate"] input').fill('1');
+}
+
 async function installPersistentStorageStub(page) {
 	await page.addInitScript(() => {
 		const storage = navigator.storage ?? {};
@@ -155,7 +259,7 @@ async function installDesktopLinkedVideoFixture(page, { original, changed }) {
 	await page.addInitScript((records) => {
 		const filesByKey = Object.fromEntries(records.map((record) => [record.key, record]));
 		const filesByLocator = Object.fromEntries(records.map((record) => [record.locatorId, record]));
-		const state = { choice: '1', choices: 0, loads: [] };
+		const state = { choice: '1', choices: 0, loads: [], offline: false, saveSessionOpened: 0 };
 		const descriptor = (record) => ({
 			id: record.readId,
 			readProfile: 'materialized-v1',
@@ -181,6 +285,7 @@ async function installDesktopLinkedVideoFixture(page, { original, changed }) {
 			loadLinkedVideoOriginal: async (request) => {
 				state.loads.push(structuredClone(request));
 				if (request.playback) return null;
+				if (state.offline && request.locatorId === filesByKey['1'].locatorId) return null;
 				const record = filesByLocator[request.locatorId];
 				if (!record) return null;
 				return { locatorRevision: record.locatorRevision, descriptor: descriptor(record) };
@@ -189,6 +294,17 @@ async function installDesktopLinkedVideoFixture(page, { original, changed }) {
 			releaseLinkedVideoOriginal: async () => true,
 			chooseFiles: async (request) => request.purpose === 'video'
 				? [descriptor(filesByKey['4'])] : [],
+			getDesktopVideoExportCapabilities: async () => ({ schemaVersion: 1, formats: {
+				mp4: { available: true, provider: 'external-ffmpeg', reason: null },
+				webm: { available: true, provider: 'external-ffmpeg', reason: null },
+			} }),
+			chooseSaveTarget: async (request) => ({ id: 'proxy-export-target', name: request.suggestedName }),
+			beginWrite: async () => {
+				state.saveSessionOpened += 1;
+				throw new Error('Video delivery reached encoding without its original.');
+			},
+			writeChunk: async () => { throw new Error('Unexpected video output chunk.'); },
+			finishWrite: async () => { throw new Error('Unexpected video output commit.'); },
 		});
 		Object.defineProperty(globalThis, '__videoProxyDesktopFixture', {
 			configurable: true,
