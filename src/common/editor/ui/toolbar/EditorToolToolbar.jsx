@@ -80,7 +80,8 @@ export default function EditorToolToolbar({
 	const isToolbarButtonVisible = (buttonId) => toolbarButtons?.[buttonId] !== false;
 	const visibleEditItems = editItems.filter((item) => isToolbarButtonVisible(item.action));
 	const showMusicalTiming = snapshot.preferences?.workspace?.activeId === 'music';
-	const showSequenceTiming = Boolean(capabilities.sequenceTiming)
+	const showSequenceTiming = productId === 'framescaper'
+		&& Boolean(capabilities.sequenceTiming)
 		&& snapshot.preferences?.workspace?.activeId === 'video-editor'
 		&& Boolean(project?.sequences?.length);
 	const framescaperCaptureRecordVisible = useFramescaperCaptureRecordVisibility(snapshot);
