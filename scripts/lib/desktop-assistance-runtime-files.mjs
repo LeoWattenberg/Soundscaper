@@ -40,6 +40,7 @@ export const DESKTOP_ASSISTANCE_RUNTIME_FILES = Object.freeze([
 	'desktop/assistance-onnx-worker-common.js',
 	'desktop/assistance-owned-frame-pack-materialization.js',
 	'desktop/assistance-operation-contract.js',
+	'desktop/assistance-operation-consent.js',
 	'desktop/assistance-operation-family-execution.js',
 	'desktop/assistance-operation-main-ipc.js',
 	'desktop/assistance-operation-service.js',

@@ -29,6 +29,7 @@ import { assistanceServiceFrom, registerAssistanceIpc } from './project-library-
 import { createExternalFfmpegAssistanceShotRuntimeAdapter } from './project-library-runtime/desktop/assistance-external-ffmpeg-shot-runtime.js';
 import { createExternalFfmpegAssistanceVideoMaterializer } from './project-library-runtime/desktop/assistance-external-ffmpeg-video-materializer.js';
 import { ASSISTANCE_OPERATION_IPC_CHANNELS, registerAssistanceOperationIpc } from './project-library-runtime/desktop/assistance-operation-main-ipc.js';
+import { assistanceOperationConsentOptions } from './project-library-runtime/desktop/assistance-operation-consent.js';
 import { createAssistanceOperationService } from './project-library-runtime/desktop/assistance-operation-service.js';
 import { applyAssistanceBackgroundPriority, normalizeAssistanceThermalState } from './project-library-runtime/desktop/assistance-power-etiquette-v1.js';
 import { createAssistanceRuntimeFamilyDesktopStartup } from './project-library-runtime/desktop/assistance-runtime-family-startup.js';
@@ -71,22 +72,7 @@ async function chooseDirectory(dialog, window, title) {
 }
 
 async function confirmOperation(dialog, window, request) {
-	const selection = request.selectionFence;
-	const options = {
-		type: 'question',
-		title: 'Local Assistance consent',
-		message: 'Process this exact media selection locally?',
-		detail: [
-			`Operation: ${request.operation}`,
-			`Selected range: ${selection.sourceStartFrame}–${selection.sourceEndFrame} frames`,
-			`Timeline items: ${selection.occurrenceIds.length}`,
-			`Model: ${request.models.map(({ modelId, version }) => `${modelId} ${version}`).join(', ') || 'none'}`,
-		].join('\n'),
-		buttons: ['Run locally', 'Cancel'],
-		defaultId: 1,
-		cancelId: 1,
-		noLink: true,
-	};
+	const options = assistanceOperationConsentOptions(request);
 	const result = await (window
 		? dialog.showMessageBox(window, options)
 		: dialog.showMessageBox(options));

@@ -160,6 +160,7 @@
 		"desktop/assistance-operation-family-execution.ts",
 		"desktop/assistance-operation-main-ipc.ts",
 		"desktop/assistance-operation-service.ts",
+		"desktop/assistance-operation-consent.ts",
 		"desktop/assistance-operation-transfers.ts",
 		"desktop/assistance-semantic-search-main-ipc.ts",
 		"desktop/assistance-runtime-archive.ts",
