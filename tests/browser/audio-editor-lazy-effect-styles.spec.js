@@ -33,8 +33,8 @@ function loadedEffectStyles(page) {
 }
 
 async function openSelectionEffect(page, editor, category, name) {
-	// The Effect menu click moves the pointer; clear it before keyboard navigation.
-	await chooseNestedCommandAction(page, editor, 'Effect', [category, name], { clearPointerAfterOpen: true });
+	// Keep the pointer outside the Effect menu while opening it with the keyboard.
+	await chooseNestedCommandAction(page, editor, 'Effect', [category, name], { openWithKeyboard: true });
 	const dialog = page.getByRole('dialog', { name: 'Apply effect', exact: true });
 	await expect(dialog).toBeVisible();
 	return dialog;

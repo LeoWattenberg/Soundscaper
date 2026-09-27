@@ -72,8 +72,9 @@ export async function bootEditor(page, path, { defaultWorkspace = false } = {}) 
 		if (await effects.isVisible()) await closeWorkspacePanel(editor, 'effects');
 		const projectBin = editor.locator('[data-workspace-panel="project-bin"]');
 		if (!await projectBin.isVisible()) {
+			// Keep the pointer outside the compact View menu while opening it with the keyboard.
 			await chooseNestedCommandAction(page, editor, 'View', ['Panels', 'Project bin'], {
-				clearPointerAfterOpen: true,
+				openWithKeyboard: true,
 			});
 			await expect(projectBin).toBeVisible();
 		}
@@ -355,9 +356,8 @@ export async function chooseCommandAction(page, editor, menu, action, options = 
 	await expect(commandMenu).toBeHidden(options);
 }
 export async function chooseNestedCommandAction(page, editor, menu, actions, options = {}) {
-	const { clearPointerAfterOpen = false, ...interactionOptions } = options;
-	const commandMenu = await openCommandMenu(page, editor, menu, interactionOptions);
-	if (clearPointerAfterOpen) await page.mouse.move(1, 1);
+	const { openWithKeyboard = false, ...interactionOptions } = options;
+	const commandMenu = await openCommandMenu(page, editor, menu, interactionOptions, { openWithKeyboard });
 	let currentMenu = commandMenu;
 	for (const [index, action] of actions.entries()) {
 		const item = getMenuItem(currentMenu, action);
@@ -380,10 +380,13 @@ export async function openNestedCommandMenu(page, editor, menu, actions, options
 	for (const action of actions) currentMenu = await openMenuItemSubmenu(page, getMenuItem(currentMenu, action), options);
 	return currentMenu;
 }
-async function openCommandMenu(page, editor, menu, options) {
+async function openCommandMenu(page, editor, menu, options, { openWithKeyboard = false } = {}) {
 	await openChromeDrawer(editor);
-	await editor.getByRole('menubar', { name: /^(Application menu|Anwendungsmenü)$/ })
-		.getByRole('menuitem', { name: menu, exact: true }).click();
+	if (openWithKeyboard) await page.mouse.move(1, 1);
+	const menuItem = editor.getByRole('menubar', { name: /^(Application menu|Anwendungsmenü)$/ })
+		.getByRole('menuitem', { name: menu, exact: true });
+	if (openWithKeyboard) await menuItem.press('Enter');
+	else await menuItem.click();
 	const commandMenu = page.getByRole('menu', { name: menu, exact: true });
 	await expect(commandMenu).toBeVisible(options);
 	return commandMenu;
