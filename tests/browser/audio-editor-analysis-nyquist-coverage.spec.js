@@ -23,6 +23,21 @@ import {
 test.describe('analysis and Nyquist dialog coverage', () => {
 	registerAudioEditorHooks();
 
+	test('opens the populated delivery report after measuring loudness', async ({ page }) => {
+		const errors = collectClientErrors(page);
+		const editor = await bootEditor(page, '/embed/en/');
+		await importFiles(editor, [createWavFixture({
+			name: 'loudness-measurement.wav', frequency: 440, duration: 0.08, channelCount: 1,
+		})]);
+
+		await chooseCommandAction(page, editor, 'Analyze', 'Measure loudness');
+		const report = page.getByRole('dialog', { name: 'Delivery Report', exact: true });
+		await expect(report).toBeVisible({ timeout: 20_000 });
+		await expect(report.locator('[data-delivery-report]')).toContainText('loudness-measurement');
+		await expect(report.locator('[data-delivery-report]')).toContainText(/was measured\./u);
+		expect(errors).toEqual([]);
+	});
+
 	test('runs, presents, and exports every interactive analysis report', async ({ page }) => {
 		test.setTimeout(120_000);
 		const errors = collectClientErrors(page);
