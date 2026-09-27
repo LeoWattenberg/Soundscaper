@@ -136,13 +136,7 @@ export async function startPackagedRuntimeTargetCoverage({
 			recorder.checkpointTail = recorder.checkpointTail.then(async () => {
 				if (!recorder.active) return;
 				try {
-					const { result } = await session.send('Profiler.takePreciseCoverage');
-					recorder.taken.push(...javaScriptCoverageEntries(
-						result,
-						recorder.cdpState.scriptUrls,
-						recorder.cdpState.webAssemblyScriptUrls,
-						recorder.cdpState.excludedJavaScriptScriptIds,
-					));
+					await takeRecorderCoverage(recorder);
 				} catch (error) {
 					if (recorder.active) throw error;
 				}
@@ -273,13 +267,16 @@ export async function startPackagedRuntimeTargetCoverage({
 }
 
 async function checkpointAndResumeWorklet(recorder) {
-	let checkpointError = null;
-	try { await recorder.checkpoint(); } catch (error) { checkpointError = error; }
-	let resumeError = null;
-	if (recorder.active) {
-		try { await recorder.session.send('Debugger.resume'); }
-		catch (error) { resumeError = error; }
-	}
+	// Do not serialize this behind an ordinary checkpoint: that checkpoint may
+	// itself be waiting for the paused realtime thread. Queue both protocol
+	// commands now so resume can release every profiler request already in flight.
+	const checkpointed = takeRecorderCoverage(recorder).then(() => null, (error) => error);
+	const resumed = recorder.session.send('Debugger.resume').then(() => null, (error) => error);
+	const [checkpointFailure, resumeFailure] = await Promise.all([checkpointed, resumed]);
+	const checkpointError = recorder.active ? checkpointFailure : null;
+	const resumeError = !recorder.active || debuggerAlreadyRunning(resumeFailure)
+		? null
+		: resumeFailure;
 	if (checkpointError !== null && resumeError !== null) {
 		throw new AggregateError(
 			[checkpointError, resumeError],
@@ -288,6 +285,21 @@ async function checkpointAndResumeWorklet(recorder) {
 	}
 	if (checkpointError !== null) throw checkpointError;
 	if (resumeError !== null) throw resumeError;
+}
+
+function takeRecorderCoverage(recorder) {
+	return recorder.session.send('Profiler.takePreciseCoverage').then(({ result }) => {
+		recorder.taken.push(...javaScriptCoverageEntries(
+			result,
+			recorder.cdpState.scriptUrls,
+			recorder.cdpState.webAssemblyScriptUrls,
+			recorder.cdpState.excludedJavaScriptScriptIds,
+		));
+	});
+}
+
+function debuggerAlreadyRunning(error) {
+	return error instanceof Error && error.message === 'Can only perform operation while paused.';
 }
 
 function waitForSessionEvent(session, event, timeoutMs) {
