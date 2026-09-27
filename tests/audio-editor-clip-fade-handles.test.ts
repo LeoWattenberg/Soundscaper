@@ -68,23 +68,35 @@ test('shape dots stay on each fade curve and remain separate when fade lengths o
 	}
 });
 
-test('shape dots align with a minimum-width projected clip', () => {
+test('shape dots align with the rounded rendered clip width', () => {
 	const clip = { timelineStartFrame: 0, durationFrames: 100, fadeInFrames: 100, fadeOutFrames: 0, fadeInShape: 1 };
 	const geometry = fadeOverlayGeometry(clip, 0, 100, 20, 100);
-	const [position] = placeFadeShapeHandles(geometry, 48, clip);
+	const [position] = placeFadeShapeHandles(geometry, Math.round(geometry.width), clip);
 	assert.ok(position);
 	assert.equal(position.edge, 'in');
-	assert.equal(position.left + 8, 24);
+	assert.equal(position.left + 8, 10);
 	assert.ok(Math.abs(position.topPercent - (1 - Math.SQRT1_2) * 100) < 1e-10);
 });
 
-test('a microscopic fade keeps its dot centered on the actual curve midpoint', () => {
-	const clip = { timelineStartFrame: 0, durationFrames: 1000, fadeInFrames: 1, fadeOutFrames: 0 };
-	const geometry = fadeOverlayGeometry(clip, 0, 1000, 100, 1000);
-	const [position] = placeFadeShapeHandles(geometry, 100, clip);
-	assert.ok(position && position.left < 0, 'the hit target may extend beyond the clip edge');
-	assert.ok(Math.abs((position.left + 8) - 0.05) < 1e-10);
+test('shape dots hide below eight rendered pixels and appear at the threshold', () => {
+	const clip = { timelineStartFrame: 0, durationFrames: 1000, fadeInFrames: 100, fadeOutFrames: 0 };
+	const narrow = fadeOverlayGeometry(clip, 0, 1000, 79, 1000);
+	assert.equal(placeFadeShapeHandles(narrow, 79, clip).length, 0);
+	const threshold = fadeOverlayGeometry(clip, 0, 1000, 80, 1000);
+	const [position] = placeFadeShapeHandles(threshold, 80, clip);
+	assert.ok(position);
+	assert.equal(position.left + 8, 4);
 	assert.ok(Math.abs(position.baseGain - Math.SQRT1_2) < 1e-10);
+
+	const sixPixelClip = { timelineStartFrame: 0, durationFrames: 600, fadeInFrames: 600, fadeOutFrames: 0 };
+	const sixPixelGeometry = fadeOverlayGeometry(sixPixelClip, 0, 600, 1, 100);
+	assert.equal(sixPixelGeometry.width, 6);
+	assert.equal(placeFadeShapeHandles(sixPixelGeometry, Math.round(sixPixelGeometry.width), sixPixelClip).length, 0,
+		'an entire fade on a six-pixel rendered clip stays hidden');
+	const eightPixelClip = { timelineStartFrame: 0, durationFrames: 800, fadeInFrames: 800, fadeOutFrames: 0 };
+	const eightPixelGeometry = fadeOverlayGeometry(eightPixelClip, 0, 800, 1, 100);
+	assert.equal(placeFadeShapeHandles(eightPixelGeometry, Math.round(eightPixelGeometry.width), eightPixelClip).length, 1,
+		'an entire fade on an exactly eight-pixel rendered clip remains editable');
 });
 
 test('viewport cropping does not manufacture handles at visible clip edges', () => {

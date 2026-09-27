@@ -150,12 +150,7 @@
 .audio-editor-track-menu.context-menu {
 	position: fixed !important;
 	z-index: var(--flyout-z) !important;
-	max-height: none;
-	overflow: visible;
-}
-
-.audio-editor-track-menu.context-menu:not(:has(.context-menu-item-arrow)) {
-	max-height: var(--audio-editor-track-menu-max-height, none);
+	max-height: var(--audio-editor-track-menu-max-height, min(70dvh, 590px));
 	overflow-y: auto;
 }
 
@@ -163,11 +158,6 @@
 	min-width: 250px;
 	max-height: min(70dvh, 590px);
 	overflow-y: auto;
-}
-
-.audio-editor-track-menu .context-menu-submenu:has(> .context-menu-item > .context-menu-item-content .context-menu-item-arrow) {
-	max-height: none;
-	overflow: visible;
 }
 
 .audio-editor-track-color-picker.context-menu {
@@ -200,11 +190,6 @@
 	outline-offset: 1px;
 }
 
-.kw-audio-editor__application-menu.context-menu:has(.context-menu-item-arrow) {
-	max-height: none;
-	overflow: visible;
-}
-
 .kw-audio-editor__application-menu .context-menu-item {
 	min-width: 258px;
 	/* Keep every scrollable menu row on an explicit surface. Without this,
@@ -233,20 +218,10 @@
 	overflow-y: auto;
 }
 
-/* Keep the growing effect list above its parent row's bottom edge. The
- * bounded viewport makes both ends reachable in a short browser window. */
+/* The generic fixed-submenu placement owns the viewport edge; this list only
+ * needs a slightly shorter scrollport than other application submenus. */
 .kw-audio-editor__application-menu .context-menu-item:has(> .context-menu-item-content [data-nyquist-effect-menu]) > .context-menu-submenu {
-	top: auto;
-	bottom: 0;
 	max-height: min(70dvh, 440px);
-}
-
-/* A scrolling submenu clips any nested menu it owns, presenting that third
- * level as a scrollbar instead of a flyout. Nested menus need an unclipped
- * containing block; leaf submenus retain their viewport-bounded scrolling. */
-.kw-audio-editor__application-menu .context-menu-submenu:has(> .context-menu-item > .context-menu-item-content .context-menu-item-arrow) {
-	max-height: none;
-	overflow: visible;
 }
 
 .context-menu-item-shortcut {

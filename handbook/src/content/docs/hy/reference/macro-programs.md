@@ -4,7 +4,7 @@ description: "JavaScript API-ն, որի նկատմամբ աշխատում է մ�
 sidebar:
   order: 7
 ---
-<!-- docs-ai-provenance: {"factPacketSha256":"375c684211bdec9dbd3614c197bda423e24858a568ad5ae3c06ab06d7db2522f","model":"qwen3.8:latest","modelDigest":"22130167c4c20e20c7b71454612966ca8e8171e9b3cc8ab6ce8aa6cbfec79643","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"375c684211bdec9dbd3614c197bda423e24858a568ad5ae3c06ab06d7db2522f","targetLocale":"hy"} -->
+<!-- docs-ai-provenance: {"basedOnProvenance":{"model":"qwen3.8:latest","modelDigest":"22130167c4c20e20c7b71454612966ca8e8171e9b3cc8ab6ce8aa6cbfec79643"},"factPacketSha256":"20c7fc2552915b97e609945b7d7c30159768baea8ff6775399b67bda15a3b14a","model":"gpt-5","modelProvider":"codex-subagent","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"20c7fc2552915b97e609945b7d7c30159768baea8ff6775399b67bda15a3b14a","targetLocale":"hy"} -->
 
 Մակրո ծրագիրը մակրո է, որը գրված է JavaScript-ով՝ քայլերի ցանկի փոխարեն։
 Այն գործում է խմբագրիչի ներսում՝ փոքրիկ API-ի դեմ, որը կոչվում է `sound`, և թույլ է տալիս կարդալ
@@ -284,7 +284,7 @@ ExportWav.*
 | Մեղմացում | `audacity-fade-in` | չկա |
 | Կորուստ | `audacity-fade-out` | չկա |
 | Ֆիլտրի կորի EQ | `audacity-filter-curve-eq` | `points`: `{ frequency, gain }`-ի զանգված, սկզբնապես երկու հարթ կետ 20 Հց և 20 կՀց; `linearFrequencyScale: false`; `filterLength: 8191` |
-| Եռաբաժան պարամետրիկ EQ | `eq` | `outputGain: 0`; `bands`: չորս `{ id, enabled, type, frequency, gain, q, slope }` օբյեկտ, գագաթները 100, 500, 2000 և 8000 Հց՝ `gain: 0`, `q: 1`, `slope: 12` |
+| Պարամետրիկ հավասարիչ | `eq` | `outputGain: 0`; `bands`: չորս `{ id, enabled, type, frequency, gain, q, slope }` օբյեկտ, գագաթները 100, 500, 2000 և 8000 Հց՝ `gain: 0`, `q: 1`, `slope: 12` |
 | Գեյթ | `gate` | `threshold: -50`, `attack: 0.005`, `hold: 0.05`, `release: 0.1`, `rangeDb: -80` |
 | Գրաֆիկական EQ | `audacity-graphic-eq` | `gains`: 31 բաժանիչի ամպլիտուդներ դեցիբելներով, բոլորը 0; `interpolation: 'bspline'`; `filterLength: 8191` |
 | Բարձր հաճախականության զտիչ | `highpass` | `frequency: 80`, `q: 0.707` |

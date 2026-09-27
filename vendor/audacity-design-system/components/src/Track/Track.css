@@ -129,3 +129,35 @@
   display: block;
   overflow: visible;
 }
+
+.audacity-track-crossfade-handle {
+  position: absolute;
+  width: 16px;
+  height: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  pointer-events: auto;
+  touch-action: none;
+  cursor: ew-resize;
+  z-index: 1004;
+}
+
+.audacity-track-crossfade-handle__dot {
+  width: 10px;
+  height: 10px;
+  box-sizing: border-box;
+  border-radius: 50%;
+  background: #fff;
+  border: 1.5px solid rgb(0 0 0 / 60%);
+}
+
+.audacity-track-crossfade-handle:focus-visible {
+  outline: 1px solid var(--focus-color, #fff);
+  outline-offset: -1px;
+}
+
+.audacity-track-crossfade-handle[aria-disabled='true'] {
+  cursor: default;
+  opacity: 0.5;
+}

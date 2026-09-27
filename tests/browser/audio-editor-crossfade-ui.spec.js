@@ -43,9 +43,9 @@ async function curveMidpointGains(region) {
 test.describe('design-system audio crossfade visuals', () => {
 	registerAudioEditorHooks();
 
-	test('draws one linear crossover and keeps authored fade curves across an audio overlap', async ({ page }) => {
+	test('draws the design-system equal-power crossover and edits it from the shared handle', async ({ page }) => {
 		const errors = collectClientErrors(page);
-		const { outgoing, incoming, track } = await overlapStereoClips(page);
+		const { editor, outgoing, incoming, track } = await overlapStereoClips(page);
 		const region = track.locator('[data-automatic-crossfade="true"]');
 		await expect(region).toHaveCount(1);
 		await expect(region).toHaveAttribute('role', 'img');
@@ -56,9 +56,12 @@ test.describe('design-system audio crossfade visuals', () => {
 		await expect(region.locator('[data-fade-overlay="in"]')).toBeVisible();
 		await expect(region.locator('[data-fade-curve="out"]')).toBeVisible();
 		await expect(region.locator('[data-fade-curve="in"]')).toBeVisible();
+		const handle = track.getByRole('slider', { name: /^Automatic crossfade between .+ and .+$/u });
+		await expect(handle).toBeVisible();
+		await expect(handle).toHaveAttribute('aria-valuenow', '0.5');
 		const gains = await curveMidpointGains(region);
 		expect(gains).toHaveLength(2);
-		for (const gain of gains) expect(gain).toBeCloseTo(0.5, 2);
+		for (const gain of gains) expect(gain).toBeCloseTo(Math.SQRT1_2, 2);
 
 		const [outBounds, inBounds, regionBounds] = await Promise.all([
 			outgoing.boundingBox(), incoming.boundingBox(), region.boundingBox(),
@@ -71,6 +74,15 @@ test.describe('design-system audio crossfade visuals', () => {
 		expect(overlapRight - overlapLeft).toBeGreaterThan(20);
 		expect(Math.abs(regionBounds.x - overlapLeft)).toBeLessThan(2);
 		expect(Math.abs(regionBounds.x + regionBounds.width - overlapRight)).toBeLessThan(2);
+		const handleBounds = await handle.boundingBox();
+		expect(handleBounds).not.toBeNull();
+		await page.mouse.move(handleBounds.x + handleBounds.width / 2, handleBounds.y + handleBounds.height / 2);
+		await page.mouse.down();
+		await page.mouse.move(handleBounds.x + handleBounds.width / 2 + 20, handleBounds.y + handleBounds.height / 2 + 4);
+		await page.mouse.up();
+		await expect(handle).not.toHaveAttribute('aria-valuenow', '0.5');
+		await editor.getByRole('button', { name: 'Undo', exact: true }).click();
+		await expect(handle).toHaveAttribute('aria-valuenow', '0.5');
 
 		await outgoing.focus();
 		await outgoing.press('Enter');
@@ -80,11 +92,31 @@ test.describe('design-system audio crossfade visuals', () => {
 		await expect(curves.locator('polygon')).toHaveCount(0);
 		await expect(curves.locator('path[data-fade-curve="in"]')).toHaveCount(1);
 		await expect(outgoing.getByRole('slider', { name: 'Fade in shape', exact: true })).toBeVisible();
+		await expect(outgoing.getByRole('slider', { name: 'Fade out', exact: true })).toHaveCount(0);
 		await expect(outgoing.getByRole('slider', { name: 'Fade out shape', exact: true })).toHaveCount(0);
 		await incoming.focus();
 		await incoming.press('Enter');
+		await expect(incoming.getByRole('slider', { name: 'Fade in', exact: true })).toHaveCount(0);
 		await expect(incoming.getByRole('slider', { name: 'Fade in shape', exact: true })).toHaveCount(0);
 		await expect(region).toBeVisible();
+
+		const fadeControls = incoming.locator('[data-clip-fade-handle], [data-clip-fade-shape-handle]');
+		const fadeControlCount = await fadeControls.count();
+		expect(fadeControlCount).toBeGreaterThan(0);
+		await expect(track.locator('.audio-editor-track-window [data-crossfade-handle]')).toHaveCount(1);
+		await incoming.press('Tab');
+		for (let index = 0; index < fadeControlCount; index += 1) {
+			await expect(fadeControls.nth(index)).toBeFocused();
+			await page.keyboard.press('Tab');
+		}
+		await expect(handle).toBeFocused();
+		const ruler = track.locator('[data-track-ruler]');
+		await handle.press('Tab');
+		await expect(ruler).toBeFocused();
+		await ruler.press('Shift+Tab');
+		await expect(handle).toBeFocused();
+		await handle.press('Shift+Tab');
+		await expect(fadeControls.last()).toBeFocused();
 		expect(errors).toEqual([]);
 	});
 });

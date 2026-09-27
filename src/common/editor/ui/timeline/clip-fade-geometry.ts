@@ -6,6 +6,7 @@ export { clipFadeGain };
 
 export type ClipFadeEdge = 'in' | 'out';
 const MIDPOINT_BASE_GAIN = Math.cos(Math.PI / 4);
+export const MINIMUM_FADE_SHAPE_HANDLE_WIDTH = 8;
 export const MINIMUM_FADE_SHAPE = 0.15;
 export const MAXIMUM_FADE_SHAPE = 6;
 export interface FadeClip {
@@ -137,7 +138,9 @@ export function fadeOverlayGeometry(
 export function placeFadeShapeHandles(
 	geometry: FadeOverlayGeometry, displayWidth: number, clip: FadeClip,
 ): readonly FadeShapeHandlePosition[] {
-	const available = geometry.curves.filter(curve => curve.midpointX !== null);
+	const available = geometry.curves.filter(curve => curve.midpointX !== null
+		&& (curve.fadeEndX - curve.fadeStartX) / geometry.width * displayWidth
+			>= MINIMUM_FADE_SHAPE_HANDLE_WIDTH);
 	const lefts = new Map(available.map(curve => [
 		curve.edge,
 		curve.midpointX! / geometry.width * displayWidth - 8,

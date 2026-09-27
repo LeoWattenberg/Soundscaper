@@ -75,10 +75,11 @@ test('automatic clip crossfades delegate range normalization to the shared merge
 test('clip transition gain owns explicit fades and overlapping automatic crossfades', () => {
 	const crossfadeRanges = [[5, 15], [10, 20]] as const;
 	const expectedCrossfadeOut = new Map([
-		[4, 1], [5, 1], [10, 0.5], [15, 0], [16, 0.4], [20, 0], [21, 1],
+		[4, 1], [5, 1], [10, Math.SQRT1_2], [15, 0],
+		[16, Math.cos(3 * Math.PI / 10)], [20, 0], [21, 1],
 	]);
 	for (const [frame, expected] of expectedCrossfadeOut) {
-		assert.equal(evaluateClipCrossfadeAt(frame, crossfadeRanges, 'out'), expected, `frame ${frame}`);
+		assert.ok(Math.abs(evaluateClipCrossfadeAt(frame, crossfadeRanges, 'out') - expected) < 1e-12, `frame ${frame}`);
 	}
 
 	assert.ok(Math.abs(evaluateClipEdgeGainAt(5, 30, 10, [], 'in', 1) - Math.SQRT1_2) < 1e-12);
@@ -86,8 +87,13 @@ test('clip transition gain owns explicit fades and overlapping automatic crossfa
 	assert.equal(evaluateClipEdgeGainAt(5, 30, 10, [], 'in'), 0.5, 'saved fades without shape stay linear');
 	assert.equal(evaluateClipEdgeGainAt(15, 30, 0, [[5, 15]], 'out'), 0);
 	assert.equal(evaluateClipEdgeGainAt(16, 30, 0, [[5, 15]], 'out'), 1);
-	assert.equal(evaluateClipEdgeGainAt(95, 100, 10, [[90, 100]], 'out'), 0.5);
-	assert.equal(evaluateClipEdgeGainAt(5, 100, 10, [[0, 10]], 'in'), 0.5);
+	assert.ok(Math.abs(evaluateClipEdgeGainAt(95, 100, 10, [[90, 100]], 'out') - Math.SQRT1_2) < 1e-12);
+	assert.ok(Math.abs(evaluateClipEdgeGainAt(5, 100, 10, [[0, 10]], 'in') - Math.SQRT1_2) < 1e-12);
+	assert.ok(Math.abs(evaluateClipEdgeGainAt(5, 100, 10, [[0, 10]], 'in', 2) - 0.5) < 1e-12);
+	assert.ok(Math.abs(evaluateClipEdgeGainAt(5, 100, 100, [[0, 10]], 'in', 1) - Math.SQRT1_2) < 1e-12,
+		'the overlap ramp consumes an authored fade on the same edge');
+	assert.equal(evaluateClipEdgeGainAt(50, 100, 100, [[0, 10]], 'in', 1), 1,
+		'the consumed authored fade stays suppressed outside the overlap');
 	assert.equal(evaluateClipTransitionGainAt(15, 30, {
 		fadeInFrames: 20,
 		fadeOutFrames: 20,

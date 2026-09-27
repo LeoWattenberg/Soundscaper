@@ -4,7 +4,7 @@ description: "La API de JavaScript contra la que se ejecuta un programa de macro
 sidebar:
   order: 7
 ---
-<!-- docs-ai-provenance: {"factPacketSha256":"375c684211bdec9dbd3614c197bda423e24858a568ad5ae3c06ab06d7db2522f","model":"gpt-5.6-luna","modelDigest":"manual","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"375c684211bdec9dbd3614c197bda423e24858a568ad5ae3c06ab06d7db2522f","targetLocale":"es"} -->
+<!-- docs-ai-provenance: {"basedOnProvenance":{"model":"gpt-5.6-luna"},"factPacketSha256":"20c7fc2552915b97e609945b7d7c30159768baea8ff6775399b67bda15a3b14a","model":"gpt-5","modelProvider":"codex-subagent","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"20c7fc2552915b97e609945b7d7c30159768baea8ff6775399b67bda15a3b14a","targetLocale":"es"} -->
 
 Un programa de macro es una macro escrita en JavaScript en lugar de como una lista de pasos.
 Se ejecuta dentro del editor contra una pequeña API llamada `sound`, que le permite leer
@@ -338,7 +338,7 @@ Nyquist no se pueden aplicar desde un programa.
 | Fundido de entrada | `audacity-fade-in` | ninguno |
 | Fundido de salida | `audacity-fade-out` | ninguno |
 | EQ de curva de filtro | `audacity-filter-curve-eq` | `points`: un arreglo de `{ frequency, gain }`, predeterminado dos puntos planos a 20 Hz y 20 kHz; `linearFrequencyScale: false`; `filterLength: 8191` |
-| EQ paramétrico de cuatro bandas | `eq` | `outputGain: 0`; `bands`: cuatro objetos `{ id, enabled, type, frequency, gain, q, slope }`, con picos en 100, 500, 2000 y 8000 Hz con `gain: 0`, `q: 1`, `slope: 12` |
+| Ecualizador paramétrico | `eq` | `outputGain: 0`; `bands`: cuatro objetos `{ id, enabled, type, frequency, gain, q, slope }`, con picos en 100, 500, 2000 y 8000 Hz con `gain: 0`, `q: 1`, `slope: 12` |
 | Puerta | `gate` | `threshold: -50`, `attack: 0.005`, `hold: 0.05`, `release: 0.1`, `rangeDb: -80` |
 | EQ gráfico | `audacity-graphic-eq` | `gains`: ganancias de 31 bandas en dB, todas 0; `interpolation: 'bspline'`; `filterLength: 8191` |
 | Filtro paso alto | `highpass` | `frequency: 80`, `q: 0.707` |

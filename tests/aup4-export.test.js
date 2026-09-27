@@ -143,10 +143,14 @@ test('AUP4 export splits overlapping clips into lanes and materializes automatic
 	assert.deepEqual(plan.project.clips[0].envelope, [
 		{ frame: 0, value: 1 },
 		{ frame: 3, value: 1 },
+		{ frame: 4, value: 0.8660254037844387 },
+		{ frame: 5, value: 0.5000000000000001 },
 		{ frame: 6, value: 0 },
 	]);
 	assert.deepEqual(plan.project.clips[1].envelope, [
 		{ frame: 0, value: 0 },
+		{ frame: 1, value: 0.49999999999999994 },
+		{ frame: 2, value: 0.8660254037844386 },
 		{ frame: 3, value: 1 },
 		{ frame: 5, value: 1 },
 	]);

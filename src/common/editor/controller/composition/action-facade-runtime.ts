@@ -55,6 +55,7 @@ export const EDITOR_ACTION_FUNCTION_NAMES = [
 	'configureDisplayInput',
 	'continueLoudnessMeasurement',
 	'copyEffectStack',
+	'copyRackEffect',
 	'createStableId',
 	'createWorkspacePreference',
 	'currentAudacityEffectParams',

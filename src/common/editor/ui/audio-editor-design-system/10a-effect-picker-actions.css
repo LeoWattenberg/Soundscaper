@@ -1,0 +1,36 @@
+/* SPDX-License-Identifier: AGPL-3.0-only */
+
+.audio-editor-effect-picker-flyout__actions {
+	display: grid;
+	grid-template-columns: repeat(2, minmax(0, 1fr));
+	gap: 4px;
+	margin-bottom: 8px;
+}
+
+.audio-editor-effect-picker-flyout__actions button {
+	min-height: 32px;
+	padding: 6px 8px;
+	color: inherit;
+	font: inherit;
+	font-size: var(--editor-font-size, 12px);
+	font-weight: 600;
+	background: var(--toolbar-button-hover);
+	border: 1px solid var(--line);
+	border-radius: 3px;
+	cursor: pointer;
+}
+
+.audio-editor-effect-picker-flyout__actions button:hover,
+.audio-editor-effect-picker-flyout__actions button:focus-visible {
+	background: var(--toolbar-button-active);
+}
+
+.audio-editor-effect-picker-flyout__actions button:focus-visible {
+	outline: var(--focus-ring-size, 2px) solid var(--accent);
+	outline-offset: -1px;
+}
+
+.audio-editor-effect-picker-flyout__actions button:disabled {
+	opacity: 0.45;
+	cursor: not-allowed;
+}

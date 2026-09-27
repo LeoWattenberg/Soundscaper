@@ -4,7 +4,7 @@ description: "Die JavaScript-API, gegen die ein Makroprogramm ausgeführt wird, 
 sidebar:
   order: 7
 ---
-<!-- docs-ai-provenance: {"factPacketSha256":"375c684211bdec9dbd3614c197bda423e24858a568ad5ae3c06ab06d7db2522f","model":"gpt-5.6-luna","modelDigest":"manual","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"375c684211bdec9dbd3614c197bda423e24858a568ad5ae3c06ab06d7db2522f","targetLocale":"de"} -->
+<!-- docs-ai-provenance: {"basedOnProvenance":{"model":"gpt-5.6-luna"},"factPacketSha256":"20c7fc2552915b97e609945b7d7c30159768baea8ff6775399b67bda15a3b14a","model":"gpt-5","modelProvider":"codex-subagent","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"20c7fc2552915b97e609945b7d7c30159768baea8ff6775399b67bda15a3b14a","targetLocale":"de"} -->
 
 Ein Makroprogramm ist ein Makro, das als JavaScript geschrieben wird, anstatt als Liste von Schritten.
 Es wird im Editor gegen eine kleine API namens `sound` ausgeführt, die es ermöglicht, das
@@ -320,7 +320,7 @@ Dies sind die Effekt-IDs, die `sound.effect` und `sound.effects` akzeptieren, ei
 | Einblenden | `audacity-fade-in` | keine |
 | Ausblenden | `audacity-fade-out` | keine |
 | Filterkurven-EQ | `audacity-filter-curve-eq` | `points`: ein Array aus `{ frequency, gain }`, standardmäßig zwei flache Punkte bei 20 Hz und 20 kHz; `linearFrequencyScale: false`; `filterLength: 8191` |
-| Parametrischer Vierband-EQ | `eq` | `outputGain: 0`; `bands`: vier `{ id, enabled, type, frequency, gain, q, slope }`-Objekte mit Spitzen bei 100, 500, 2000 und 8000 Hz sowie `gain: 0`, `q: 1`, `slope: 12` |
+| Parametrischer EQ | `eq` | `outputGain: 0`; `bands`: vier `{ id, enabled, type, frequency, gain, q, slope }`-Objekte mit Spitzen bei 100, 500, 2000 und 8000 Hz sowie `gain: 0`, `q: 1`, `slope: 12` |
 | Gate | `gate` | `threshold: -50`, `attack: 0.005`, `hold: 0.05`, `release: 0.1`, `rangeDb: -80` |
 | Grafischer EQ | `audacity-graphic-eq` | `gains`: 31 Band-Gewinne in dB, alle 0; `interpolation: 'bspline'`; `filterLength: 8191` |
 | Hochpassfilter | `highpass` | `frequency: 80`, `q: 0.707` |

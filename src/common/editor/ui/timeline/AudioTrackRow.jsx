@@ -8,6 +8,7 @@ import { TrackControls } from './TrackControls.jsx';
 import { TrackAutomationOverlay } from '../soundscaper-workflow-product-runtime.tsx';
 import { ClipFadeOverlays } from './ClipFadeOverlays.tsx';
 import { crossfadedClipFadeEdges } from './clip-fade-crossfaded-edges.ts';
+import { crossfadeShapesAtKey, crossfadeShapesChanged } from './crossfade-visual-geometry.ts';
 import { AudacityWaveformCanvases } from './TimelineCanvasRenderer.jsx';
 import { SpectralBrushOverlay } from './SpectralBrushOverlay.jsx';
 import { SpectralSelectionOverlay } from './SpectralSelectionOverlay.jsx';
@@ -204,6 +205,56 @@ export function AudioTrackRow({
 		onFocusTrackRuler,
 		onFocusSelectionToolbar,
 	});
+	const currentTrackRow = () => {
+		const referencedRow = trackWindowRef.current?.closest('[data-track-row]');
+		if (referencedRow?.isConnected) return referencedRow;
+		return [...document.querySelectorAll('[data-track-row]')]
+			.find(element => element.dataset.trackId === String(track.id));
+	};
+	const focusCrossfadeHandle = (index) => {
+		const trackRow = currentTrackRow();
+		const handles = Array.from(trackRow?.querySelectorAll(
+			'[data-crossfade-handle]:not([aria-disabled="true"])',
+		) ?? []);
+		return focusFirst(handles[index]);
+	};
+	const focusLastClipFadeControl = () => {
+		const clips = clipGroups(currentTrackRow());
+		const lastClip = clips[clips.length - 1];
+		const controls = [
+			lastClip?.querySelector('[data-clip-fade-handle="in"]:not(:disabled)'),
+			lastClip?.querySelector('[data-clip-fade-shape-handle="in"]:not(:disabled)'),
+			lastClip?.querySelector('[data-clip-fade-handle="out"]:not(:disabled)'),
+			lastClip?.querySelector('[data-clip-fade-shape-handle="out"]:not(:disabled)'),
+		].filter(Boolean);
+		return focusFirst(controls[controls.length - 1]);
+	};
+	const commitCrossfadeKeyboardChange = (overlay, key, fine) => {
+		if (blocked) return;
+		const outgoing = clipLookup.get(overlay.outgoingClipId);
+		const incoming = clipLookup.get(overlay.incomingClipId);
+		if (!outgoing || !incoming) return;
+		const shapes = crossfadeShapesAtKey({
+			key,
+			shiftKey: fine,
+			initialPosition: overlay.intersectionPosition,
+			initialGain: overlay.intersectionGain,
+			width: overlay.width,
+			height: Math.max(1, channelBodyHeight - 2),
+		});
+		if (!shapes || !crossfadeShapesChanged(
+			outgoing.fadeOutShape ?? 1,
+			incoming.fadeInShape ?? 1,
+			shapes,
+		)) return;
+		run(() => controller.actions.edit.commit({
+			type: 'batch',
+			commands: [
+				{ type: 'clip/update', clipId: outgoing.id, changes: { fadeOutShape: shapes.outShape } },
+				{ type: 'clip/update', clipId: incoming.id, changes: { fadeInShape: shapes.inShape } },
+			],
+		}));
+	};
 
 	return (
 		<div
@@ -296,7 +347,9 @@ export function AudioTrackRow({
 						onEnterPanel={focusCurrentPanel}
 						onShiftTabOut={focusBeforeTrack}
 						onContainerEnter={() => run(() => controller.actions.timeline.selectTrack(track.id))}
-						onTabFromLastClip={focusCurrentRuler}
+						onTabFromLastClip={() => {
+							if (!focusCrossfadeHandle(0)) focusCurrentRuler();
+						}}
 						onClipClick={(clipId, shiftKey, metaKey) => {
 							if (!shiftKey && !metaKey) return;
 							run(() => controller.actions.timeline.selectClip(String(clipId), {
@@ -352,13 +405,25 @@ export function AudioTrackRow({
 							controller.actions.timeline.setChannelHeightRatio(track.id, ratio)
 						))}
 					/>)}
-					{crossfadeOverlays.map((overlay) => <TrackCrossfadeVisual key={overlay.id}
+					{crossfadeOverlays.map((overlay, index) => <TrackCrossfadeVisual key={overlay.id}
 						left={overlay.left} top={channelBodyTop + 1} width={overlay.width}
 						height={Math.max(0, channelBodyHeight - 2)}
 						outgoingPath={overlay.outgoingPath} incomingPath={overlay.incomingPath}
+						intersectionPosition={overlay.intersectionPosition}
+						intersectionGain={overlay.intersectionGain}
+						minimumPosition={overlay.minimumPosition} maximumPosition={overlay.maximumPosition}
+						outgoingClipId={overlay.outgoingClipId} incomingClipId={overlay.incomingClipId}
 						outgoingSelected={visualSelectedClipIds.has(overlay.outgoingClipId)}
 						incomingSelected={visualSelectedClipIds.has(overlay.incomingClipId)}
-						label={overlay.label} />)}
+						label={overlay.label} disabled={blocked}
+						onKeyboardAdjust={(key, fine) => commitCrossfadeKeyboardChange(overlay, key, fine)}
+						onTabOut={(backwards) => {
+							if (focusCrossfadeHandle(index + (backwards ? -1 : 1))) return;
+							if (backwards) {
+								if (!focusLastClipFadeControl()) focusBeforeRuler();
+							}
+							else focusCurrentRuler();
+						}} />)}
 					<ClipFadeOverlays rootRef={trackWindowRef} clips={projection.clips}
 						showFadeShapeHandles={showFadeShapeHandles}
 						crossfadedFadeEdges={crossfadedFadeEdges}
@@ -366,10 +431,10 @@ export function AudioTrackRow({
 						startFrame={projection.overscanStartFrame} endFrame={projection.overscanEndFrame}
 						pixelsPerSecond={pixelsPerSecond} sampleRate={sampleRate} blocked={blocked} copy={copy}
 						onTabOut={(id) => {
-							const clips = clipGroups(trackWindowRef.current);
+							const clips = clipGroups(currentTrackRow());
 							const index = clips.findIndex(clip => clip.dataset.clipId === id);
 							if (clips[index + 1]) focusFirst(clips[index + 1]);
-							else onFocusTrackRuler(trackIndex);
+							else if (!focusCrossfadeHandle(0)) onFocusTrackRuler(trackIndex);
 						}}
 						onChange={(id, changes) => run(() => controller.actions.clip.update(id, changes))} />
 					{automationTarget && <TrackAutomationOverlay
@@ -456,7 +521,9 @@ export function AudioTrackRow({
 							onOpenRulerFlyout(displayMode, event);
 						} else if (event.key === 'Tab') {
 							event.preventDefault();
-							if (event.shiftKey) focusBeforeRuler();
+							if (event.shiftKey) {
+								if (!focusCrossfadeHandle(crossfadeOverlays.length - 1)) focusBeforeRuler();
+							}
 							else focusAfterRuler();
 						} else if (event.key === 'ArrowUp' || event.key === 'ArrowDown') {
 							event.preventDefault();

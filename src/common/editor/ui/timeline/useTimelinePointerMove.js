@@ -4,6 +4,8 @@ import { CLIP_CONTENT_OFFSET } from '@soundscaper/design-system/constants';
 import { secondsToFrames } from '../../design-system-adapters.js';
 import { createBoundarySnapIndex, resolveBoundarySnap, resolveClipMoveBoundarySnap } from './boundary-snap.ts';
 import { fadeDurationAtPointer, fadeField, fadeShapeAtPointer, fadeShapeField } from './clip-fade-geometry.ts';
+import { planCrossfadeRoll } from './crossfade-roll-planner.ts';
+import { crossfadeShapesAtPointer } from './crossfade-visual-geometry.ts';
 import { createClipTrimPreview } from './interaction-helpers.js';
 import { compatibleMediaTrack, MINIMUM_TRACK_HEIGHT } from './geometry.ts';
 import { NEW_AUDIO_TRACK_DROP_TARGET } from './constants.ts';
@@ -159,6 +161,36 @@ export function useTimelinePointerMove({
 			return;
 		}
 		const session = pointerSession.current;
+		if (session?.kind === 'crossfade-shape') {
+			if (session.pointerId !== event.pointerId) return;
+			if (session.rollMode) {
+				const requestedDeltaFrames = secondsToFrames(
+					Math.abs(event.clientX - session.startX) / pixelsPerSecond, { sampleRate },
+				) * Math.sign(event.clientX - session.startX);
+				const plan = planCrossfadeRoll({
+					projectIndex, outgoing: session.outgoingOriginal, incoming: session.incomingOriginal,
+					requestedDeltaFrames,
+				});
+				session.preview = plan ? { previews: plan.previews } : null;
+			} else {
+				const shapes = crossfadeShapesAtPointer({
+					initialPosition: session.initialPosition, initialGain: session.initialGain,
+					startX: session.startX, startY: session.startY,
+					clientX: event.clientX, clientY: event.clientY,
+					width: session.width, height: session.height,
+				});
+				session.preview = { previews: [
+					{ clipId: session.outgoingClipId, trackId: session.trackId, fadeOutShape: shapes.outShape },
+					{ clipId: session.incomingClipId, trackId: session.trackId, fadeInShape: shapes.inShape },
+				] };
+			}
+			if (fadePreviewFrame.current === null) fadePreviewFrame.current = requestAnimationFrame(() => {
+				fadePreviewFrame.current = null;
+				if (pointerSession.current === session) setClipDragPreview(session.preview);
+			});
+			event.preventDefault();
+			return;
+		}
 		if (session?.kind === 'fade') {
 			if (session.pointerId !== event.pointerId) return;
 			const value = fadeDurationAtPointer(session.edge, session.initial, session.startX, event.clientX,

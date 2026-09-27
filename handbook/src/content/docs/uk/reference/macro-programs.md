@@ -4,7 +4,7 @@ description: "JavaScript API, проти якого працює макропр�
 sidebar:
   order: 7
 ---
-<!-- docs-ai-provenance: {"basedOnProvenance":{"model":"aya-expanse:32b","modelDigest":"1603440383bd5504dc7afd01c0407b425b988dde650a8dc1a737433baa3cd432"},"factPacketSha256":"375c684211bdec9dbd3614c197bda423e24858a568ad5ae3c06ab06d7db2522f","model":"gpt-6-luna","modelProvider":"codex-subagent","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"375c684211bdec9dbd3614c197bda423e24858a568ad5ae3c06ab06d7db2522f","targetLocale":"uk"} -->
+<!-- docs-ai-provenance: {"basedOnProvenance":{"model":"gpt-6-luna","modelProvider":"codex-subagent"},"factPacketSha256":"20c7fc2552915b97e609945b7d7c30159768baea8ff6775399b67bda15a3b14a","model":"gpt-5","modelProvider":"codex-subagent","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"20c7fc2552915b97e609945b7d7c30159768baea8ff6775399b67bda15a3b14a","targetLocale":"uk"} -->
 
 Макропрограма — це макрос, написаний на JavaScript, а не як список кроків.
 Вона виконується всередині редактора за допомогою невеликого API під назвою `sound`, який дозволяє їй читати
@@ -259,7 +259,7 @@ ExportWav.*
 | Затихання входу | `audacity-fade-in` | немає |
 | Затихання виходу | `audacity-fade-out` | немає |
 | Фільтр кривої EQ | `audacity-filter-curve-eq` | `points`: масив `{ frequency, gain }`, за замовчуванням дві плоскі точки при 20 Гц і 20 кГц; `linearFrequencyScale: false`; `filterLength: 8191` |
-| Чотириполосний параметричний EQ | `eq` | `outputGain: 0`; `bands`: чотири `{ id, enabled, type, frequency, gain, q, slope }` об'єкти, що пікають при 100, 500, 2000 і 8000 Гц з `gain: 0`, `q: 1`, `slope: 12` |
+| Параметричний еквалайзер | `eq` | `outputGain: 0`; `bands`: чотири `{ id, enabled, type, frequency, gain, q, slope }` об'єкти, що пікають при 100, 500, 2000 і 8000 Гц з `gain: 0`, `q: 1`, `slope: 12` |
 | Шлюз | `gate` | `threshold: -50`, `attack: 0.005`, `hold: 0.05`, `release: 0.1`, `rangeDb: -80` |
 | Графічний EQ | `audacity-graphic-eq` | `gains`: 31 збільшення смуги в дБ, всі 0; `interpolation: 'bspline'`; `filterLength: 8191` |
 | Фільтр високих частот | `highpass` | `frequency: 80`, `q: 0.707` |

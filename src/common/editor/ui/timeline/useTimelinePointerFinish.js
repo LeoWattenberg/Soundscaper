@@ -3,6 +3,8 @@ import { useCallback, useEffect } from 'react';
 import { secondsToFrames } from '../../design-system-adapters.js';
 import { createBoundarySnapIndex, resolveBoundarySnap } from './boundary-snap.ts';
 import { fadeDurationAtPointer, fadeField, fadeShapeAtPointer, fadeShapeField } from './clip-fade-geometry.ts';
+import { planCrossfadeRoll } from './crossfade-roll-planner.ts';
+import { crossfadeShapeDragResult } from './crossfade-visual-geometry.ts';
 import {
 	commitTimelineRateStretchPointer,
 	usesFrameCanonicalTimelineRateStretch,
@@ -44,6 +46,7 @@ export function useTimelinePointerFinish({
 	} = state;
 	const {
 		project,
+		projectIndex,
 		pixelsPerSecond,
 		sampleRate,
 		transportState,
@@ -58,7 +61,8 @@ export function useTimelinePointerFinish({
 
 	const finishPointerSession = useCallback((event, cancelled = false) => {
 		const session = pointerSession.current;
-		if ((session?.kind === 'fade' || session?.kind === 'fade-shape') && event.pointerId !== session.pointerId) return;
+		if ((session?.kind === 'fade' || session?.kind === 'fade-shape' || session?.kind === 'crossfade-shape')
+			&& event.pointerId !== session.pointerId) return;
 		pointerSession.current = null;
 		setDraggingClipIds(null);
 		setProjectBinDropActive(false);
@@ -112,6 +116,54 @@ export function useTimelinePointerFinish({
 			const value = fadeShapeAtPointer(session.initial, session.startY, event.clientY,
 				session.gainHeight, session.baseGain, session.startGain);
 			if (value !== session.initial) run(() => controller.actions.clip.update(clip.id, { [field]: value }));
+			return;
+		}
+		if (session.kind === 'crossfade-shape') {
+			const outgoing = project.clips.find(item => String(item.id) === session.outgoingClipId);
+			const incoming = project.clips.find(item => String(item.id) === session.incomingClipId);
+			if (!outgoing || !incoming || mutationsBlocked
+				|| outgoing.durationFrames !== session.outgoingOriginal.durationFrames
+				|| outgoing.timelineStartFrame !== session.outgoingOriginal.timelineStartFrame
+				|| outgoing.sourceStartFrame !== session.outgoingOriginal.sourceStartFrame
+				|| outgoing.sourceDurationFrames !== session.outgoingOriginal.sourceDurationFrames
+				|| incoming.durationFrames !== session.incomingOriginal.durationFrames
+				|| incoming.timelineStartFrame !== session.incomingOriginal.timelineStartFrame
+				|| incoming.sourceStartFrame !== session.incomingOriginal.sourceStartFrame
+				|| incoming.sourceDurationFrames !== session.incomingOriginal.sourceDurationFrames
+				|| (outgoing.fadeOutShape ?? 1) !== session.initialOutShape
+				|| (incoming.fadeInShape ?? 1) !== session.initialInShape) return;
+			if (session.rollMode) {
+				const requestedDeltaFrames = secondsToFrames(
+					Math.abs(event.clientX - session.startX) / pixelsPerSecond, { sampleRate },
+				) * Math.sign(event.clientX - session.startX);
+				const plan = planCrossfadeRoll({
+					projectIndex, outgoing: session.outgoingOriginal, incoming: session.incomingOriginal,
+					requestedDeltaFrames,
+				});
+				if (plan) run(() => controller.actions.edit.commit(plan.command));
+				return;
+			}
+			const shapes = crossfadeShapeDragResult({
+				initialPosition: session.initialPosition,
+				initialGain: session.initialGain,
+				initialOutShape: session.initialOutShape,
+				initialInShape: session.initialInShape,
+				startX: session.startX,
+				startY: session.startY,
+				clientX: event.clientX,
+				clientY: event.clientY,
+				width: session.width,
+				height: session.height,
+			});
+			if (shapes) {
+				run(() => controller.actions.edit.commit({
+					type: 'batch',
+					commands: [
+						{ type: 'clip/update', clipId: outgoing.id, changes: { fadeOutShape: shapes.outShape } },
+						{ type: 'clip/update', clipId: incoming.id, changes: { fadeInShape: shapes.inShape } },
+					],
+				}));
+			}
 			return;
 		}
 		if (session.kind === 'move' && session.slipSlideMode) {
@@ -257,7 +309,7 @@ export function useTimelinePointerFinish({
 				}),
 			});
 		}
-	}, [controller, frameAtClientX, isOverOutputDock, mutationsBlocked, onRevealProjectBin, pixelsPerSecond, project, run, sampleRate, setBoundarySnapGuideFrames, setProjectBinDropActive, snapshot.capabilities?.videoCompositing, snapshot.timeline?.playbackOnRulerClick, splitToolActive, trackAtClientY, transportState]);
+	}, [controller, frameAtClientX, isOverOutputDock, mutationsBlocked, onRevealProjectBin, pixelsPerSecond, project, projectIndex, run, sampleRate, setBoundarySnapGuideFrames, setProjectBinDropActive, snapshot.capabilities?.videoCompositing, snapshot.timeline?.playbackOnRulerClick, splitToolActive, trackAtClientY, transportState]);
 
 	const finishTouch = useCallback((event) => {
 		touchPointers.current.delete(event.pointerId);
@@ -293,7 +345,8 @@ export function useTimelinePointerFinish({
 		};
 		const cancelLostFadeCapture = (event) => {
 			const session = pointerSession.current;
-			if ((session?.kind === 'fade' || session?.kind === 'fade-shape') && event.pointerId === session.pointerId) {
+			if ((session?.kind === 'fade' || session?.kind === 'fade-shape' || session?.kind === 'crossfade-shape')
+				&& event.pointerId === session.pointerId) {
 				finishPointerSession(event, true);
 			}
 		};

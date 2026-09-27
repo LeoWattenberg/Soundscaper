@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { useElementSize } from '../DesignSystemRuntime.jsx';
 
@@ -30,6 +30,12 @@ export function useTimelineInteractionState() {
 	const closeAddTrackFlyout = useCallback(() => setAddTrackFlyout(null), []);
 	const [draggingClipIds, setDraggingClipIds] = useState(null);
 	const [clipDragPreview, setClipDragPreview] = useState(null);
+	useEffect(() => {
+		// A continuous pointer-move update can render after the higher-priority
+		// pointer-up clear. Reconcile that stale preview once the session is over,
+		// so undo and the committed clip state are never masked by drag geometry.
+		if (clipDragPreview && !pointerSession.current) setClipDragPreview(null);
+	}, [clipDragPreview]);
 	const [trackResizePreview, setTrackResizePreview] = useState(null);
 	const [splitToolGuideline, setSplitToolGuideline] = useState(null);
 	const [boundarySnapGuideFrames, setBoundarySnapGuideFrames] = useState([]);

@@ -94,8 +94,14 @@ application overrides and source patches against the pin and upstream master.
    the unmount cleanup (`useEffect(..., [])`) captured: `removeEventListener` never matched, and
    every hover-then-close cycle left a live document `mousemove` listener calling
    `setSubmenuOpen` on an unmounted component. A single tracker fixes the identity for the
-   item's lifetime. Covered by
-   `tests/vendored-design-system-context-menu-safe-triangle.test.ts`. Upstream-PR candidate.
+   item's lifetime. Context menus and submenus also use viewport-bounded scrollports;
+   `context-submenu-position.ts` fixes submenus to the live parent row, flips them at the right
+   edge, and follows ancestor scrolling so nested flyouts escape a scrolling parent's clip.
+   The menu's upstream scale animation is reduced to an opacity fade because a transformed
+   ancestor would otherwise make those fixed flyouts local and clipped during entry. Covered by
+   `tests/vendored-design-system-context-menu-safe-triangle.test.ts`,
+   `tests/context-submenu-position.test.ts`, and
+   `tests/browser/audio-editor-menu-scrolling.spec.js`. Upstream-PR candidate.
 9. `utils/announce.ts` rounds the time to tenths *before* splitting hours and minutes off.
    Upstream splits first and rounds the seconds remainder afterwards, so the remainder can reach
    60 with nothing to carry into — `formatTimeForA11y(59.97)` announced "60 seconds" and
@@ -141,13 +147,16 @@ application overrides and source patches against the pin and upstream master.
     `.dialog-header__windows-glyph`. Covered by
     `tests/vendored-design-system-dialog-header-controls.test.ts`. Upstream-PR candidate.
 16. `EffectSlot.tsx` and `EffectsPanel.tsx` accept a `replaceEffectOptions` prop that replaces
-    `EFFECT_REGISTRY` as the source of the caret menu's swap list. The packaged registry holds
-    three sample effects (Compressor, Limiter, Reverb), so every slot in the realtime rack
-    offered only those three as replacements regardless of what the host actually implements.
-    Upstream took the flat one-click replace list this was built on but not the host-catalogue
-    override, so the prop is still ours; `onChangeEffect` is also still destructured as
-    `_onChangeEffect`, because upstream removed the "Get effects…" item that used it and left the
-    binding unread. Omitting the prop keeps upstream behaviour. Covered by
+    `EFFECT_REGISTRY` as the source of the caret menu's swap list, plus an
+    `onOpenEffectPicker` hook that lets the host bypass that menu and anchor its own picker to
+    the slot's settings button. The packaged registry holds three sample effects (Compressor,
+    Limiter, Reverb), so every slot in the realtime rack originally offered only those three as
+    replacements regardless of what the host actually implements; flattening Soundscaper's
+    full catalogue then made that menu too tall for many viewports. The realtime rack now uses
+    the hook to share its searchable two-column Add Effect picker, while the Macro Manager can
+    still supply its wider registry to the fallback menu. `onChangeEffect` is still destructured
+    as `_onChangeEffect`, because upstream removed the "Get effects…" item that used it and left
+    the binding unread. Omitting both custom props keeps upstream behaviour. Covered by
     `tests/audio-editor-effect-slot-replace-options.test.tsx`. Upstream-PR candidate.
 17. `EffectsPanel.tsx` accepts an `autoFocusOnOpen` prop (default `true`) that gates the
     open-time move of keyboard focus onto the "Add effect" button. The application re-mounts an
@@ -222,11 +231,15 @@ application overrides and source patches against the pin and upstream master.
     the clip's overlay. It also keeps both grips reachable when this editor's independent
     fades overlap. Covered by `tests/vendored-design-system-fade-handle.test.tsx` and
     `tests/browser/audio-editor-clip-fades.spec.js`.
-27. `TrackCrossfadeVisual.tsx` ports newer upstream's paired white veils and gain curves for
-    automatic crossfades. The host supplies paths computed from its frame-canonical
-    playback gain, including legacy linear and shaped authored fades, so the drawing matches
-    the audio. The host keeps its existing overlap geometry and accessibility label. The
-    painted region is inset and clipped within the clip outlines. Covered by
+27. `TrackCrossfadeVisual.tsx` ports current upstream's paired white veils, equal-power gain
+    curves, and shared intersection handle from `TrackNew.tsx` at
+    `4a5bdd07c6e6c400db9fea84b194ac00057623dd`. The host supplies frame-canonical paths and
+    commits the handle's two shape exponents, so the drawing stays in lockstep with playback.
+    As upstream does, an automatic crossfade consumes an authored fade on the same clip edge
+    while retaining that edge's shape exponent, and Alt-drag rolls the two overlap edges together.
+    The local host also makes the shared handle an accessible horizontal keyboard slider. The
+    painted region is inset and clipped within the clip outlines, while the handle remains a
+    track-level sibling. Covered by
     `tests/vendored-design-system-crossfade-visual.test.tsx`,
     `tests/audio-editor-crossfade-visual-geometry.test.ts`, and
     `tests/browser/audio-editor-crossfade-ui.spec.js`.

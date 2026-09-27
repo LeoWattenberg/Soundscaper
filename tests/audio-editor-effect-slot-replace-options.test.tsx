@@ -12,38 +12,37 @@ import { resolveSupportedEffectType, safeEffectLabel } from '../src/common/edito
 
 const ROOT = new URL('../', import.meta.url);
 const EFFECT_SLOT = new URL('vendor/audacity-design-system/components/src/EffectsPanel/EffectSlot.tsx', ROOT);
-// The rack swaps within what it can stream; a macro step may be any effect.
+const EFFECTS_PANEL = new URL('vendor/audacity-design-system/components/src/EffectsPanel/EffectsPanel.tsx', ROOT);
+// A macro step may be any effect, and continues to use the design-system
+// fallback menu; the realtime rack delegates to the searchable host picker.
 const CALL_SITES = [
-	{
-		path: 'src/common/editor/ui/inspector/AudioEditorEffectsOverlay.jsx',
-		registry: 'audioEffectTypes()',
-	},
 	{
 		path: 'src/common/editor/ui/inspector/AudioEditorMacroManagerDialog.jsx',
 		registry: 'macroEffectTypes',
 	},
 ];
 
-// The design-system package ships a three-effect sample registry. Rendering the
-// slot's caret menu from it offered Compressor, Limiter and Reverb as the only
-// replacements for any effect in a rack of forty-odd.
-test('the effect slot takes its swap list from the host when one is supplied', async () => {
-	const source = await readFile(EFFECT_SLOT, 'utf8');
-	const menu = source.slice(source.indexOf('label="Remove effect"'));
+test('the effect slot can delegate its settings button to a searchable host picker', async () => {
+	const [slot, panel, overlay] = await Promise.all([
+		readFile(EFFECT_SLOT, 'utf8'),
+		readFile(EFFECTS_PANEL, 'utf8'),
+		readFile(new URL('src/common/editor/ui/inspector/AudioEditorEffectsOverlay.jsx', ROOT), 'utf8'),
+	]);
 
+	assert.match(slot, /if \(onOpenEffectPicker\)[\s\S]*onOpenEffectPicker\(e\.currentTarget\);[\s\S]*return;/u);
 	assert.match(
-		menu,
-		/\(replaceEffectOptions \?\? Object\.values\(EFFECT_REGISTRY\)\.flat\(\)\)/u,
-		'a supplied list replaces the packaged registry outright rather than extending it',
+		panel,
+		/onOpenEffectPicker=\{onOpenEffectPicker\s*\? \(anchor\) => onOpenEffectPicker\(index, anchor\)\s*: undefined\}/u,
+		'the wrapper must not shadow the design-system fallback when the host omits the hook',
 	);
-	assert.ok(
-		menu.indexOf('label="Remove effect"') < menu.indexOf('onReplaceEffect?.('),
-		'removal stays above the swap list',
-	);
-	assert.match(menu, /<ContextMenuItem isDivider \/>/u, 'a divider separates removal from the swap list');
+	assert.match(overlay, /onOpenEffectPicker: \(index, anchor\) => openPicker/u);
+	assert.match(overlay, /onCopyEffect=\{picker\.replaceId/u);
+	assert.match(overlay, /onRemoveEffect=\{picker\.replaceId/u);
+	assert.match(overlay, /effectTypes=\{pickerEffect\?\.type === 'native-plugin' \? \[\] : null\}/u);
+	assert.match(overlay, /onCopyEffect=\{picker\.replaceId && pickerEffect\?\.type !== 'native-plugin'/u);
 });
 
-test('both effect-slot call sites offer the whole Soundscaper registry', async () => {
+test('the macro effect-slot fallback offers its whole Soundscaper registry', async () => {
 	for (const { path, registry } of CALL_SITES) {
 		const source = await readFile(new URL(path, ROOT), 'utf8');
 		assert.match(

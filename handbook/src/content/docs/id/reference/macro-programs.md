@@ -4,7 +4,7 @@ description: "API JavaScript yang dijalankan program makro, batasan yang dijalan
 sidebar:
   order: 7
 ---
-<!-- docs-ai-provenance: {"factPacketSha256":"375c684211bdec9dbd3614c197bda423e24858a568ad5ae3c06ab06d7db2522f","model":"aya-expanse:32b","modelDigest":"1603440383bd5504dc7afd01c0407b425b988dde650a8dc1a737433baa3cd432","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"375c684211bdec9dbd3614c197bda423e24858a568ad5ae3c06ab06d7db2522f","targetLocale":"id"} -->
+<!-- docs-ai-provenance: {"basedOnProvenance":{"model":"aya-expanse:32b","modelDigest":"1603440383bd5504dc7afd01c0407b425b988dde650a8dc1a737433baa3cd432"},"factPacketSha256":"20c7fc2552915b97e609945b7d7c30159768baea8ff6775399b67bda15a3b14a","model":"gpt-5","modelProvider":"codex-subagent","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"20c7fc2552915b97e609945b7d7c30159768baea8ff6775399b67bda15a3b14a","targetLocale":"id"} -->
 
 Sebuah program makro adalah makro yang ditulis dalam bentuk JavaScript bukan sebagai daftar langkah.
 Ini berjalan di dalam editor melawan API kecil yang disebut `sound`, yang membiarkannya membaca
@@ -312,7 +312,7 @@ Ini adalah ID efek `sound.effect` dan `sound.effects` yang diterima, bersama den
 | Memudar Masuk | `audacity-fade-in` | tidak ada |
 | Memudar Keluar | `audacity-fade-out` | tidak ada |
 | Filter Kurva EQ | `audacity-filter-curve-eq` | `points`: array dari `{ frequency, gain }`, default dua titik datar pada 20 Hz dan 20 kHz; `linearFrequencyScale: false`; `filterLength: 8191` |
-| Empat-band Parametrik EQ | `eq` | `outputGain: 0`; `bands`: empat `{ id, enabled, type, frequency, gain, q, slope }` objek, memuncak pada 100, 500, 2000 dan 8000 Hz dengan `gain: 0`, `q: 1`, `slope: 12` |
+| EQ parametrik | `eq` | `outputGain: 0`; `bands`: empat `{ id, enabled, type, frequency, gain, q, slope }` objek, memuncak pada 100, 500, 2000 dan 8000 Hz dengan `gain: 0`, `q: 1`, `slope: 12` |
 | Gerbang | `gate` | `threshold: -50`, `attack: 0.005`, `hold: 0.05`, `release: 0.1`, `rangeDb: -80` |
 | EQ Grafik | `audacity-graphic-eq` | `gains`: 31 keuntungan band dalam dB, semua 0; `interpolation: 'bspline'`; `filterLength: 8191` |
 | Filter High-pass | `highpass` | `frequency: 80`, `q: 0.707` |

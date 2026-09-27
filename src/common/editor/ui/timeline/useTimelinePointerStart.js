@@ -72,9 +72,39 @@ export function useTimelinePointerStart({
 		};
 		if (event.target.closest?.('[data-timeline-annotation-interactive]')) return;
 		if (event.target.closest?.('[data-track-automation-interactive]')) return;
-		if (pointerSession.current?.kind === 'fade' || pointerSession.current?.kind === 'fade-shape') {
+		if (pointerSession.current?.kind === 'fade' || pointerSession.current?.kind === 'fade-shape'
+			|| pointerSession.current?.kind === 'crossfade-shape') {
 			event.preventDefault();
 			event.stopPropagation();
+			return;
+		}
+		const crossfadeHandle = event.target.closest?.('[data-crossfade-handle]');
+		if (crossfadeHandle) {
+			if (event.button !== 0 || mutationsBlocked || pointerSession.current) return;
+			const outgoingClipId = crossfadeHandle.dataset.outgoingClipId;
+			const incomingClipId = crossfadeHandle.dataset.incomingClipId;
+			const outgoing = project.clips.find(item => String(item.id) === outgoingClipId);
+			const incoming = project.clips.find(item => String(item.id) === incomingClipId);
+			if (outgoing?.kind !== 'audio' || incoming?.kind !== 'audio') return;
+			const initialPosition = Number(crossfadeHandle.dataset.crossfadePosition);
+			const initialGain = Number(crossfadeHandle.dataset.crossfadeGain);
+			const width = Number(crossfadeHandle.dataset.crossfadeWidth);
+			const height = Number(crossfadeHandle.dataset.crossfadeHeight);
+			if (![initialPosition, initialGain, width, height].every(Number.isFinite) || width <= 0 || height <= 0) return;
+			pointerSession.current = {
+				kind: 'crossfade-shape', outgoingClipId, incomingClipId,
+				outgoingOriginal: { ...outgoing }, incomingOriginal: { ...incoming },
+				initialOutShape: outgoing.fadeOutShape ?? 1,
+				initialInShape: incoming.fadeInShape ?? 1,
+				initialPosition, initialGain, width, height,
+				rollMode: event.altKey,
+				startX: event.clientX, startY: event.clientY, pointerId: event.pointerId,
+				trackId: crossfadeHandle.closest('[data-track-lane]')?.dataset.trackId,
+			};
+			crossfadeHandle.focus({ preventScroll: true });
+			event.preventDefault();
+			event.stopPropagation();
+			event.currentTarget.setPointerCapture?.(event.pointerId);
 			return;
 		}
 		const fadeShapeHandle = event.target.closest?.('[data-clip-fade-shape-handle]');

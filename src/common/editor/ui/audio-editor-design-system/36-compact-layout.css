@@ -226,9 +226,9 @@
 
 #kw-audio-editor-design-system[data-layout='compact'] .kw-audio-editor__application-menu .context-menu-submenu {
 	position: fixed;
-	top: 52px;
+	top: 52px !important;
 	right: 8px;
-	left: 8px;
+	left: 8px !important;
 	max-height: calc(100dvh - 64px);
 	overflow-y: auto;
 }

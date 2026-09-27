@@ -4,7 +4,7 @@ description: "ממשק ה־JavaScript API מולו רצה תוכנית מקרו,
 sidebar:
   order: 7
 ---
-<!-- docs-ai-provenance: {"factPacketSha256":"375c684211bdec9dbd3614c197bda423e24858a568ad5ae3c06ab06d7db2522f","model":"gpt-5.6-luna","modelDigest":"manual","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"375c684211bdec9dbd3614c197bda423e24858a568ad5ae3c06ab06d7db2522f","targetLocale":"he"} -->
+<!-- docs-ai-provenance: {"basedOnProvenance":{"model":"gpt-5.6-luna"},"factPacketSha256":"20c7fc2552915b97e609945b7d7c30159768baea8ff6775399b67bda15a3b14a","model":"gpt-5","modelProvider":"codex-subagent","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"20c7fc2552915b97e609945b7d7c30159768baea8ff6775399b67bda15a3b14a","targetLocale":"he"} -->
 
 תוכנית מקרו היא מקרו שנכתב כ-JavaScript במקום כרשימת שלבים.
 היא מריצה בתוך העורך מול API קטן בשם `sound`, המאפשר לה לקרוא
@@ -324,7 +324,7 @@ ExportWav.*
 | Fade In | `audacity-fade-in` | אין |
 | Fade Out | `audacity-fade-out` | אין |
 | Filter Curve EQ | `audacity-filter-curve-eq` | `points`: מערך של `{ frequency, gain }`, ברירת מחדל שתי נקודות שטוחות ב-20 הרץ ו-20 קילוהרץ; `linearFrequencyScale: false`; `filterLength: 8191` |
-| Four-band parametric EQ | `eq` | `outputGain: 0`; `bands`: ארבעה אובייקטים `{ id, enabled, type, frequency, gain, q, slope }`, עם שיא ב-100, 500, 2000 ו-8000 הרץ עם `gain: 0`, `q: 1`, `slope: 12` |
+| אקולייזר פרמטרי | `eq` | `outputGain: 0`; `bands`: ארבעה אובייקטים `{ id, enabled, type, frequency, gain, q, slope }`, עם שיא ב-100, 500, 2000 ו-8000 הרץ עם `gain: 0`, `q: 1`, `slope: 12` |
 | Gate | `gate` | `threshold: -50`, `attack: 0.005`, `hold: 0.05`, `release: 0.1`, `rangeDb: -80` |
 | Graphic EQ | `audacity-graphic-eq` | `gains`: 31 תחומי הגברה בדציבלים, כולם 0; `interpolation: 'bspline'`; `filterLength: 8191` |
 | High-pass filter | `highpass` | `frequency: 80`, `q: 0.707` |

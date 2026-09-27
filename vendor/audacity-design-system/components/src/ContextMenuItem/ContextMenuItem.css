@@ -74,14 +74,17 @@
 }
 
 .context-menu-submenu {
-  position: absolute;
-  left: 100%;
+  position: fixed;
+  left: -10000px;
   top: 0;
   background: var(--context-menu-submenu-bg);
   border: 1px solid var(--context-menu-submenu-border);
   border-radius: 4px;
   box-shadow: var(--context-menu-submenu-shadow);
-  overflow: visible;
+  max-width: calc(100dvw - 20px);
+  max-height: calc(100dvh - 20px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
   z-index: 1000;
   min-width: 180px;
 }

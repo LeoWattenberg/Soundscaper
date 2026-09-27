@@ -146,6 +146,34 @@ test('reporting live effect failures leaves the dynamics reading path intact', a
 	}
 });
 
+test('multiband processor reports share the live dynamics reading path', async () => {
+	const previousAudioWorkletNode = globalThis.AudioWorkletNode;
+	installWorkletNode(PortRecordingWorkletNode);
+	const errors: Readonly<UnknownRecord>[] = [];
+	try {
+		const processor = await liveEffectProcessor(
+			{ id: 'three-bands', type: 'multiband-compressor', enabled: true, params: {} },
+			(error) => { errors.push(error); },
+		);
+		processor.port.onmessage?.(messageEvent({
+			type: 'analysis',
+			effectType: 'multiband-compressor',
+			sequence: 4,
+			frames: 896,
+			seconds: 896 / 48_000,
+			inputPeak: 0.9,
+			outputPeak: 0.4,
+			reductionDb: -8,
+		}));
+		const reading = readDynamicsAnalysisTelemetry(processor as unknown as AudioNode);
+		assert.equal(reading?.effectType, 'multiband-compressor');
+		assert.equal(reading?.sequence, 4);
+		assert.equal(errors.length, 0);
+	} finally {
+		restoreWorkletNode(previousAudioWorkletNode);
+	}
+});
+
 test('a live effect failure during an offline render rejects instead of exporting silence', async () => {
 	const previousAudioWorkletNode = globalThis.AudioWorkletNode;
 	installWorkletNode(MockAudioWorkletNode);

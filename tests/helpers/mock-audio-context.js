@@ -114,7 +114,7 @@ export class MockAudioContext {
 			maxDecibels: -30,
 			smoothingTimeConstant: 0.8,
 			getFloatTimeDomainData(values) { values.fill(0.25); },
-			getFloatFrequencyDomainData(values) { values.fill(-48); },
+			getFloatFrequencyData(values) { values.fill(-48); },
 		});
 		Object.defineProperty(analyser, 'frequencyBinCount', {
 			configurable: true,

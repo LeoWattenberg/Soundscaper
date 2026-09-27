@@ -73,7 +73,7 @@ export interface EffectSpectrumMetadata {
 }
 
 export interface SpectrumAnalyserNode extends AnalyserNode {
-	getFloatFrequencyDomainData?(target: Float32Array): void;
+	getFloatFrequencyData(target: Float32Array): void;
 }
 
 export interface EffectAnalyserEntry {
@@ -270,6 +270,7 @@ export function applyEffect(
 		const processor = addNode(nodes, createBandDynamicsNode(context, audioWorkletNodeConstructor(), type, params, width));
 		connect(input, processor);
 		registerEffectNode(effect, processor, options);
+		if (type === 'multiband-compressor') attachDynamicsAnalysisTelemetry(processor);
 		if (typeof options.onParametricEqError === 'function') {
 			attachEffectProcessorErrorPort(processor, options.onParametricEqError, effectProcessorErrorContext(
 				options, effect.id, { fallbackMessage: 'The dynamics processor failed.',
@@ -432,14 +433,14 @@ export function readParametricEqSpectrumEntry(
 		throw new RangeError('Parametric EQ spectrum source must be input or output.');
 	}
 	const analyser = entry?.[which];
-	if (!entry || !analyser?.getFloatFrequencyDomainData) {
+	if (!entry || typeof analyser?.getFloatFrequencyData !== 'function') {
 		target.fill(Number.NEGATIVE_INFINITY);
 		return null;
 	}
 	if (target.length !== entry.metadata.frequencyBinCount) {
 		throw new RangeError(`Parametric EQ spectrum buffers must contain ${entry.metadata.frequencyBinCount} bins.`);
 	}
-	analyser.getFloatFrequencyDomainData(target);
+	analyser.getFloatFrequencyData(target);
 	return entry.metadata;
 }
 

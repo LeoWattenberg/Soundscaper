@@ -53,18 +53,22 @@ export function evaluateClipCrossfadeAt(
 	frame: number,
 	ranges: readonly FrameRange[],
 	edge: ClipFadeEdge,
+	shape = 1,
 ): number {
 	let gain = 1;
 	for (const [start, end] of ranges) {
 		if (frame < start || frame > end) continue;
 		const progress = end > start ? (frame - start) / (end - start) : 1;
-		const value = edge === 'in' ? progress : 1 - progress;
+		const base = edge === 'in'
+			? progress >= 1 ? 1 : Math.sin(progress * Math.PI / 2)
+			: progress >= 1 ? 0 : Math.cos(progress * Math.PI / 2);
+		const value = base ** shape;
 		gain = Math.min(gain, Math.max(0, Math.min(1, value)));
 	}
 	return gain;
 }
 
-/** Evaluate the authored and automatic fades that share one clip edge. */
+/** A crossfade consumes the authored fade on that edge, matching the design system. */
 export function evaluateClipEdgeGainAt(
 	frame: number,
 	durationFrames: number,
@@ -73,10 +77,8 @@ export function evaluateClipEdgeGainAt(
 	edge: ClipFadeEdge,
 	shape?: number,
 ): number {
-	return Math.min(
-		evaluateClipFadeAt(frame, durationFrames, fadeFrames, edge, shape),
-		evaluateClipCrossfadeAt(frame, crossfadeRanges, edge),
-	);
+	if (crossfadeRanges.length > 0) return evaluateClipCrossfadeAt(frame, crossfadeRanges, edge, shape ?? 1);
+	return evaluateClipFadeAt(frame, durationFrames, fadeFrames, edge, shape);
 }
 
 /** Evaluate both clip edges at one local frame without choosing a sampling strategy. */

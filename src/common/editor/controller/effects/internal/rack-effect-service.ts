@@ -354,6 +354,23 @@ export function createRackEffectService(runtime: RackEffectServiceRuntime) {
 		return state.effectClipboard.map((effect) => structuredClone(effect));
 	}
 
+	function copyRackEffect(
+		scope: string,
+		trackId: string | null,
+		effectId: string,
+	): string | null {
+		if (editingBlocked()) return null;
+		const effects = effectStack(scope, trackId);
+		const index = effects.findIndex((effect) => effect.id === effectId);
+		if (index < 0) throw createLocalizedError(Error, copy, 'rackEffectNotFound');
+		const effect = materializeRackEffect(effects[index]!, scope, trackId);
+		commit(rackCommand('effect/add', rackScope(scope), trackId, {
+			effect: effect as unknown as CommandObject,
+			index: index + 1,
+		}));
+		return effect.id;
+	}
+
 	function pasteEffectStack(
 		scope: string,
 		trackId: string | null = state.selectedTrackId,
@@ -435,6 +452,7 @@ export function createRackEffectService(runtime: RackEffectServiceRuntime) {
 		cancelRackEffectGesture,
 		commitParametricEqGesture,
 		commitRackEffectGesture,
+		copyRackEffect,
 		copyEffectStack,
 		effectGestureKey,
 		effectStack,

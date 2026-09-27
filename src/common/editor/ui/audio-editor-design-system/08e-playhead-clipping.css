@@ -1,0 +1,28 @@
+@property --playhead-track-controls-inset {
+	syntax: '<length>';
+	inherits: false;
+	initial-value: 0px;
+}
+
+.audio-editor-playhead-boundary {
+	--playhead-track-controls-inset: 0px;
+
+	/* The boundary scrolls with project time. Clip its left edge back to the
+	   sticky track-header edge, and extend the right edge by the same amount so
+	   the visible clip remains exactly the timeline viewport. The negative top
+	   inset retains the draggable head that hangs into the ruler. */
+	clip-path: inset(
+		-17px
+		calc(-1 * var(--timeline-scroll-x, 0px))
+		0
+		calc(var(--timeline-scroll-x, 0px) + var(--playhead-track-controls-inset))
+	);
+	/* Only the drawer inset animates. Scroll-driven clip updates stay exact. */
+	transition: --playhead-track-controls-inset 180ms ease;
+}
+
+/* Compact lanes begin at x = 0 and the open track-header drawer floats over
+   them, so its width becomes the playhead's additional left paint boundary. */
+.audio-editor-timeline-panel[data-track-header-drawer='open'] .audio-editor-playhead-boundary {
+	--playhead-track-controls-inset: var(--track-header-width, 268px);
+}

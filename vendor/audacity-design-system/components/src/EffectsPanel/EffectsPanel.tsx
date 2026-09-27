@@ -51,6 +51,10 @@ export interface EffectsTrackSectionProps {
   onReplaceEffect?: (effectIndex: number, effectName: string) => void;
   /** Called when "Change effect…" is picked from a slot's context menu */
   onChangeEffect?: (effectIndex: number, anchor: DOMRect | null) => void;
+  /** Opens a host-owned replacement picker from the slot's settings button. */
+  onOpenEffectPicker?: (effectIndex: number, anchor: HTMLElement) => void;
+  /** Accessible name for the host-owned effect actions trigger. */
+  effectActionsLabel?: string;
   /** Replaces the built-in registry as the source of each slot's swap list,
    *  so a host with its own effect catalogue is not limited to this package's. */
   replaceEffectOptions?: Array<{ id: string; name: string }>;
@@ -85,6 +89,10 @@ export interface EffectsMasterSectionProps {
   onReplaceEffect?: (effectIndex: number, effectName: string) => void;
   /** Called when "Change effect…" is picked from a slot's context menu */
   onChangeEffect?: (effectIndex: number, anchor: DOMRect | null) => void;
+  /** Opens a host-owned replacement picker from the slot's settings button. */
+  onOpenEffectPicker?: (effectIndex: number, anchor: HTMLElement) => void;
+  /** Accessible name for the host-owned effect actions trigger. */
+  effectActionsLabel?: string;
   /** Replaces the built-in registry as the source of each slot's swap list,
    *  so a host with its own effect catalogue is not limited to this package's. */
   replaceEffectOptions?: Array<{ id: string; name: string }>;
@@ -173,6 +181,8 @@ const TrackEffectsSection: React.FC<EffectsTrackSectionProps> = ({
   onRemoveEffect,
   onReplaceEffect,
   onChangeEffect,
+  onOpenEffectPicker,
+  effectActionsLabel,
   replaceEffectOptions,
   purchasedEffects,
   disabledPluginIds,
@@ -224,6 +234,10 @@ const TrackEffectsSection: React.FC<EffectsTrackSectionProps> = ({
               onRemoveEffect={() => onRemoveEffect?.(index)}
               onReplaceEffect={(effectName) => onReplaceEffect?.(index, effectName)}
               onChangeEffect={(anchor) => onChangeEffect?.(index, anchor)}
+              onOpenEffectPicker={onOpenEffectPicker
+                ? (anchor) => onOpenEffectPicker(index, anchor)
+                : undefined}
+              effectActionsLabel={effectActionsLabel}
               replaceEffectOptions={replaceEffectOptions}
               purchasedEffects={purchasedEffects}
               disabledPluginIds={disabledPluginIds}
@@ -259,6 +273,8 @@ const MasterEffectsSection: React.FC<EffectsMasterSectionProps> = ({
   onRemoveEffect,
   onReplaceEffect,
   onChangeEffect,
+  onOpenEffectPicker,
+  effectActionsLabel,
   replaceEffectOptions,
   purchasedEffects,
   disabledPluginIds,
@@ -311,6 +327,10 @@ const MasterEffectsSection: React.FC<EffectsMasterSectionProps> = ({
               onRemoveEffect={() => onRemoveEffect?.(index)}
               onReplaceEffect={(effectName) => onReplaceEffect?.(index, effectName)}
               onChangeEffect={(anchor) => onChangeEffect?.(index, anchor)}
+              onOpenEffectPicker={onOpenEffectPicker
+                ? (anchor) => onOpenEffectPicker(index, anchor)
+                : undefined}
+              effectActionsLabel={effectActionsLabel}
               replaceEffectOptions={replaceEffectOptions}
               purchasedEffects={purchasedEffects}
               disabledPluginIds={disabledPluginIds}

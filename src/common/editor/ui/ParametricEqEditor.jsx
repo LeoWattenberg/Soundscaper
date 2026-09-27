@@ -2,6 +2,7 @@ import { PARAMETRIC_EQ_BAND_COPY } from '../../i18n/editor-parametric-eq-copy.ts
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Button } from '@soundscaper/design-system/Button';
 import { ParametricEqNumericInput } from './ParametricEqNumericInput.jsx';
+import { useParametricEqSpectrum } from './useParametricEqSpectrum.ts';
 import { useNonPassiveWheel } from './useNonPassiveWheel.js';
 import {
 	ParametricEqWasmRuntime,
@@ -52,12 +53,13 @@ export function ParametricEqEditor({
 	const previewFrameRef = useRef(0);
 	const pendingPreviewRef = useRef(null);
 	const graphRef = useRef(null);
-	const inputCanvasRef = useRef(null);
-	const outputCanvasRef = useRef(null);
 	const auditionCallbackRef = useRef(onAudition);
 	const cancelCallbackRef = useRef(onCancel);
 	const responseRuntimeRef = useRef(null);
 	const outputGestureRef = useRef(null);
+	const { inputCanvasRef, outputCanvasRef } = useParametricEqSpectrum({
+		readSpectrum, sampleRate, showInput, showOutput,
+	});
 	auditionCallbackRef.current = onAudition;
 	cancelCallbackRef.current = onCancel;
 	useEffect(() => {
@@ -76,32 +78,6 @@ export function ParametricEqEditor({
 		if (gesture) cancelCallbackRef.current?.(gesture.start);
 		auditionCallbackRef.current?.(null);
 	}, []);
-	useEffect(() => {
-		if (!readSpectrum || (!showInput && !showOutput)) {
-			drawSpectrumCanvas(inputCanvasRef.current, { input: null, output: null, sampleRate });
-			drawSpectrumCanvas(outputCanvasRef.current, { input: null, output: null, sampleRate });
-			return undefined;
-		}
-		const input = new Float32Array(2_048);
-		const output = new Float32Array(2_048);
-		let animationFrame = 0;
-		let previousTime = 0;
-		const draw = (time) => {
-			animationFrame = requestAnimationFrame(draw);
-			if (time - previousTime < 33) return;
-			previousTime = time;
-			const hasInput = showInput && Boolean(readSpectrum('input', input));
-			const hasOutput = showOutput && Boolean(readSpectrum('output', output));
-			drawSpectrumCanvas(inputCanvasRef.current, {
-				input: hasInput ? input : null, output: null, sampleRate,
-			});
-			drawSpectrumCanvas(outputCanvasRef.current, {
-				input: null, output: hasOutput ? output : null, sampleRate,
-			});
-		};
-		animationFrame = requestAnimationFrame(draw);
-		return () => cancelAnimationFrame(animationFrame);
-	}, [readSpectrum, sampleRate, showInput, showOutput]);
 	const effectiveMaximum = Math.max(MIN_FREQUENCY, Math.min(MAX_FREQUENCY, sampleRate * 0.49));
 	const frequencies = useMemo(() => Float64Array.from({ length: 320 }, (_, index) => (
 		MIN_FREQUENCY * (effectiveMaximum / MIN_FREQUENCY) ** (index / 319)
@@ -548,39 +524,6 @@ function frequencyToFraction(frequency, maximum) {
 function gainToGraphY(gain) {
 	return (RESPONSE_MAX_DB - clamp(gain, RESPONSE_MIN_DB, RESPONSE_MAX_DB))
 		/ (RESPONSE_MAX_DB - RESPONSE_MIN_DB) * GRAPH_HEIGHT;
-}
-
-function drawSpectrumCanvas(canvas, { input, output, sampleRate }) {
-	if (!canvas) return;
-	const rect = canvas.getBoundingClientRect();
-	const ratio = Math.min(2, window.devicePixelRatio || 1);
-	const width = Math.max(1, Math.round(rect.width * ratio));
-	const height = Math.max(1, Math.round(rect.height * ratio));
-	if (canvas.width !== width || canvas.height !== height) {
-		canvas.width = width;
-		canvas.height = height;
-	}
-	const context = canvas.getContext('2d');
-	context.clearRect(0, 0, width, height);
-	const draw = (values, fill) => {
-		if (!values) return;
-		context.beginPath();
-		context.moveTo(0, height);
-		for (let pixel = 0; pixel < width; pixel += 2) {
-			const fraction = pixel / Math.max(1, width - 1);
-			const frequency = MIN_FREQUENCY * (Math.min(MAX_FREQUENCY, sampleRate * 0.49) / MIN_FREQUENCY) ** fraction;
-			const bin = Math.min(values.length - 1, Math.round(frequency / (sampleRate / 2) * values.length));
-			const db = Number.isFinite(values[bin]) ? values[bin] : -120;
-			const y = height * (1 - clamp((db + 120) / 120, 0, 1));
-			context.lineTo(pixel, y);
-		}
-		context.lineTo(width, height);
-		context.closePath();
-		context.fillStyle = fill;
-		context.fill();
-	};
-	draw(input, 'rgba(82, 155, 255, 0.18)');
-	draw(output, 'rgba(76, 222, 154, 0.22)');
 }
 
 function formatFrequency(value) {

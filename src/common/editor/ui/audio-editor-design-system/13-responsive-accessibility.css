@@ -114,9 +114,9 @@
 
 	.kw-audio-editor__application-menu .context-menu-submenu {
 		position: fixed;
-		top: 64px;
+		top: 64px !important;
 		right: 10px;
-		left: 10px;
+		left: 10px !important;
 		max-height: calc(100dvh - 74px);
 	}
 

@@ -4,7 +4,7 @@ description: "API JavaScript для макропрограмм, ограниче
 sidebar:
   order: 7
 ---
-<!-- docs-ai-provenance: {"factPacketSha256":"375c684211bdec9dbd3614c197bda423e24858a568ad5ae3c06ab06d7db2522f","model":"gpt-6-astra","modelProvider":"codex-session","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"375c684211bdec9dbd3614c197bda423e24858a568ad5ae3c06ab06d7db2522f","targetLocale":"ru"} -->
+<!-- docs-ai-provenance: {"basedOnProvenance":{"model":"gpt-6-astra","modelProvider":"codex-session"},"factPacketSha256":"20c7fc2552915b97e609945b7d7c30159768baea8ff6775399b67bda15a3b14a","model":"gpt-5","modelProvider":"codex-subagent","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"20c7fc2552915b97e609945b7d7c30159768baea8ff6775399b67bda15a3b14a","targetLocale":"ru"} -->
 
 Макропрограмма — это макрос, написанный на JavaScript, а не в виде списка шагов. Она работает внутри редактора через небольшой API `sound`, который позволяет читать открытый проект, менять выделение и применять те же эффекты и команды, что доступны пошаговому макросу. Файлы, сеть и другие ваши проекты ей недоступны.
 
@@ -239,7 +239,7 @@ try {
 | Фейд-ин | `audacity-fade-in` | нет |
 | Фейд-аут | `audacity-fade-out` | нет |
 | Эквалайзер кривой фильтра | `audacity-filter-curve-eq` | `points`: массив `{ frequency, gain }`, по умолчанию две точки с нулевым усилением на 20 Hz и 20 kHz; `linearFrequencyScale: false`; `filterLength: 8191` |
-| Четырехполосный параметрический эквалайзер | `eq` | `outputGain: 0`; `bands`: четыре `{ id, enabled, type, frequency, gain, q, slope }` объекта с пиками на 100, 500, 2000 и 8000 Hz с `gain: 0`, `q: 1`, `slope: 12` |
+| Параметрический эквалайзер | `eq` | `outputGain: 0`; `bands`: четыре `{ id, enabled, type, frequency, gain, q, slope }` объекта с пиками на 100, 500, 2000 и 8000 Hz с `gain: 0`, `q: 1`, `slope: 12` |
 | Шлюз | `gate` | `threshold: -50`, `attack: 0.005`, `hold: 0.05`, `release: 0.1`, `rangeDb: -80` |
 | Графический эквалайзер | `audacity-graphic-eq` | `gains`: усиление 31 полосы в dB, все значения 0; `interpolation: 'bspline'`; `filterLength: 8191` |
 | Фильтр верхних частот | `highpass` | `frequency: 80`, `q: 0.707` |

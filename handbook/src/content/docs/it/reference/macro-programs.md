@@ -4,7 +4,7 @@ description: "L'API JavaScript su cui viene eseguito un programma macro, i limit
 sidebar:
   order: 7
 ---
-<!-- docs-ai-provenance: {"factPacketSha256":"375c684211bdec9dbd3614c197bda423e24858a568ad5ae3c06ab06d7db2522f","model":"gpt-5.6-luna","modelDigest":"manual","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"375c684211bdec9dbd3614c197bda423e24858a568ad5ae3c06ab06d7db2522f","targetLocale":"it"} -->
+<!-- docs-ai-provenance: {"basedOnProvenance":{"model":"gpt-5.6-luna"},"factPacketSha256":"20c7fc2552915b97e609945b7d7c30159768baea8ff6775399b67bda15a3b14a","model":"gpt-5","modelProvider":"codex-subagent","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"20c7fc2552915b97e609945b7d7c30159768baea8ff6775399b67bda15a3b14a","targetLocale":"it"} -->
 
 Un programma macro è una macro scritta in JavaScript anziché come un elenco di passaggi.
 Viene eseguito all'interno dell'editor contro una piccola API denominata `sound`, che consente di leggere
@@ -340,7 +340,7 @@ non possono essere applicati da un programma.
 | Fade In | `audacity-fade-in` | nessuno |
 | Fade Out | `audacity-fade-out` | nessuno |
 | Filter Curve EQ | `audacity-filter-curve-eq` | `points`: un array di `{ frequency, gain }`, predefinito due punti piatti a 20 Hz e 20 kHz; `linearFrequencyScale: false`; `filterLength: 8191` |
-| Four-band parametric EQ | `eq` | `outputGain: 0`; `bands`: quattro oggetti `{ id, enabled, type, frequency, gain, q, slope }`, con picco a 100, 500, 2000 e 8000 Hz con `gain: 0`, `q: 1`, `slope: 12` |
+| EQ parametrico | `eq` | `outputGain: 0`; `bands`: quattro oggetti `{ id, enabled, type, frequency, gain, q, slope }`, con picco a 100, 500, 2000 e 8000 Hz con `gain: 0`, `q: 1`, `slope: 12` |
 | Gate | `gate` | `threshold: -50`, `attack: 0.005`, `hold: 0.05`, `release: 0.1`, `rangeDb: -80` |
 | Graphic EQ | `audacity-graphic-eq` | `gains`: 31 guadagni di banda in dB, tutti 0; `interpolation: 'bspline'`; `filterLength: 8191` |
 | High-pass filter | `highpass` | `frequency: 80`, `q: 0.707` |

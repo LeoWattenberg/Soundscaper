@@ -60,7 +60,7 @@ export default function EffectParameterEditor({
 	onParametricEqCancel,
 	onParametricEqAudition,
 	readParametricEqSpectrum,
-	readDynamicsAnalysis = null,
+	readDynamicsAnalysis = /** @type {null | (() => object | null)} */ (null),
 	automationRuntime,
 	automationProject,
 	automationStrip,
@@ -262,9 +262,11 @@ export default function EffectParameterEditor({
 					/>
 			);
 		};
+		const Layout = effect.type === 'multiband-compressor'
+			? AudacityDynamicsEffectLayout : AudacityEffectLayout;
 		return (
 			<div className="audio-editor-effect-parameters" data-effect-parameters>
-				<AudacityEffectLayout
+				<Layout
 					key={`${effect.id || 'selection'}:${effect.type}`}
 					effectType={effect.type}
 					definition={nativeDefinition}

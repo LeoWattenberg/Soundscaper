@@ -5,7 +5,9 @@ import {
 	collectClientErrors,
 	commitInput,
 	importFiles,
+	openEffectsForTrack,
 	openParametricEqSelectionEffect,
+	openRackPicker,
 	registerAudioEditorHooks,
 } from './audio-editor-test-helpers.js';
 
@@ -27,6 +29,32 @@ async function pointerDrag(page, locator, delta, { cancel = false, modifier = nu
 
 test.describe('Parametric EQ graph interactions', () => {
 	registerAudioEditorHooks();
+
+	test('paints input and output spectra during realtime rack playback', async ({ page }) => {
+		const errors = collectClientErrors(page);
+		const editor = await bootEditor(page, '/embed/en/');
+		await importFiles(editor, [longTone]);
+		const effectsPanel = await openEffectsForTrack(editor, 1);
+		await openRackPicker(effectsPanel, 'track');
+		const picker = page.getByRole('menu', { name: 'Choose an effect', exact: true });
+		await picker.getByRole('menuitem', { name: 'Parametric EQ', exact: true }).click();
+
+		const eq = page.locator('[data-parametric-eq]');
+		await expect(eq).toBeVisible();
+		await editor.getByRole('button', { name: 'Play', exact: true }).click();
+		const pause = editor.getByRole('button', { name: 'Pause', exact: true });
+		await expect(pause).toBeVisible();
+		for (const source of ['input', 'output']) {
+			const canvas = eq.locator(`.audio-editor-parametric-eq__spectrum--${source}`);
+			await expect.poll(async () => canvas.evaluate((element) => {
+				const context = element.getContext('2d');
+				const pixels = context.getImageData(0, 0, element.width, element.height).data;
+				return pixels.some((value, index) => index % 4 === 3 && value > 0);
+			}), { message: `${source} spectrum should paint during realtime playback` }).toBe(true);
+		}
+		await pause.click();
+		expect(errors).toEqual([]);
+	});
 
 	test('edits bands through graph, keyboard, wheel, inspector, and reset controls', async ({ page }) => {
 		test.setTimeout(60_000);

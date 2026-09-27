@@ -389,7 +389,10 @@ export function createWorkspaceApplicationMenus({
 				openAnalysis: (mode = 'levels') => {
 					openWorkspacePanel(ANALYSIS_MODE_PANEL_IDS[mode] || 'analysis');
 				},
-				measureLoudness: () => run(() => controller.actions.analysis.measureLoudness()),
+				measureLoudness: () => run(async () => {
+					const report = await controller.actions.analysis.measureLoudness();
+					if (report) setDialog('delivery-report');
+				}),
 					openEbuR128: () => openWorkspacePanel('ebu-r128'),
 					setWorkspace: (workspaceId) => run(() => controller.actions.preferences.setWorkspace(workspaceId)),
 					togglePanel: toggleWorkspacePanel,

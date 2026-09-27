@@ -4,7 +4,7 @@ description: "A API JavaScript na qual um programa de macro é executado, os lim
 sidebar:
   order: 7
 ---
-<!-- docs-ai-provenance: {"factPacketSha256":"375c684211bdec9dbd3614c197bda423e24858a568ad5ae3c06ab06d7db2522f","model":"gpt-5.6-luna","modelDigest":"manual","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"375c684211bdec9dbd3614c197bda423e24858a568ad5ae3c06ab06d7db2522f","targetLocale":"pt-BR"} -->
+<!-- docs-ai-provenance: {"basedOnProvenance":{"model":"gpt-5.6-luna"},"factPacketSha256":"20c7fc2552915b97e609945b7d7c30159768baea8ff6775399b67bda15a3b14a","model":"gpt-5","modelProvider":"codex-subagent","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"20c7fc2552915b97e609945b7d7c30159768baea8ff6775399b67bda15a3b14a","targetLocale":"pt-BR"} -->
 
 Um programa de macro é uma macro escrita em JavaScript, e não como uma lista de etapas.
 Ele é executado dentro do editor usando uma pequena API chamada `sound`, que permite ler
@@ -345,7 +345,7 @@ não podem ser aplicados por um programa.
 | Desvanecimento de entrada | `audacity-fade-in` | nenhum |
 | Desvanecimento de saída | `audacity-fade-out` | nenhum |
 | EQ de curva de filtro | `audacity-filter-curve-eq` | `points`: um array de `{ frequency, gain }`, com dois pontos planos padrão em 20 Hz e 20 kHz; `linearFrequencyScale: false`; `filterLength: 8191` |
-| EQ paramétrico de quatro bandas | `eq` | `outputGain: 0`; `bands`: quatro objetos `{ id, enabled, type, frequency, gain, q, slope }`, com picos em 100, 500, 2000 e 8000 Hz e `gain: 0`, `q: 1`, `slope: 12` |
+| EQ paramétrico | `eq` | `outputGain: 0`; `bands`: quatro objetos `{ id, enabled, type, frequency, gain, q, slope }`, com picos em 100, 500, 2000 e 8000 Hz e `gain: 0`, `q: 1`, `slope: 12` |
 | Gate | `gate` | `threshold: -50`, `attack: 0.005`, `hold: 0.05`, `release: 0.1`, `rangeDb: -80` |
 | EQ gráfico | `audacity-graphic-eq` | `gains`: 31 ganhos de banda em dB, todos 0; `interpolation: 'bspline'`; `filterLength: 8191` |
 | Filtro passa-alta | `highpass` | `frequency: 80`, `q: 0.707` |

@@ -194,13 +194,13 @@ test('audio-effect playback bypass renders localized affected-object placeholder
 	assertPlaceholderAttributes(english, 'send-effect', 'send', 'send-a', 'reverb');
 	assertPlaceholderAttributes(english, 'master-effect', 'master', '', 'limiter');
 	assert.match(placeholderMarkup(english, 'track-effect'), /Compressor.*Track.*Dialogue.*Bypassed during editor playback/isu);
-	assert.match(placeholderMarkup(english, 'group-effect'), /Four-band parametric EQ.*Group bus.*Mix Group.*Bypassed during editor playback/isu);
+	assert.match(placeholderMarkup(english, 'group-effect'), /Parametric EQ.*Group bus.*Mix Group.*Bypassed during editor playback/isu);
 	assert.match(placeholderMarkup(english, 'send-effect'), /Reverb.*Send bus.*Reverb Send.*Bypassed during editor playback/isu);
 	assert.match(placeholderMarkup(english, 'master-effect'), /Limiter.*Master.*Bypassed during editor playback/isu);
 	assert.doesNotMatch(english, /<button|<input|<select|<a\b/iu);
 	assert.match(german, /Betroffene Audioeffekte/iu);
 	assert.match(placeholderMarkup(german, 'track-effect'), /Kompressor.*Spur.*Dialogue.*Bei der Wiedergabe im Editor umgangen/isu);
-	assert.match(placeholderMarkup(german, 'group-effect'), /Parametrischer 4-Band-EQ.*Gruppenbus.*Mix Group/isu);
+	assert.match(placeholderMarkup(german, 'group-effect'), /Parametrischer EQ.*Gruppenbus.*Mix Group/isu);
 	assert.match(placeholderMarkup(german, 'send-effect'), /Hall.*Send-Bus.*Reverb Send/isu);
 });
 

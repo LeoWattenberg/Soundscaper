@@ -4,6 +4,11 @@ import { useLayoutEffect, useRef } from 'react';
 
 import { DIRECT_ENABLED_MENU_ITEM_SELECTOR, MENU_ITEM_SELECTOR } from './application-menu-items.jsx';
 
+function focusVisibleMenuItem(item) {
+	item?.focus?.({ preventScroll: true });
+	item?.scrollIntoView?.({ block: 'nearest', inline: 'nearest' });
+}
+
 /**
  * Keyboard and pointer handling for an open application menu. The design
  * system's ContextMenu also listens on `document` in the capture phase, so
@@ -37,7 +42,7 @@ export function useApplicationMenuKeyboard({
 			else nextIndex = currentIndex < 0 ? items.length - 1 : (currentIndex - 1 + items.length) % items.length;
 			event.preventDefault();
 			event.stopImmediatePropagation();
-			items[nextIndex]?.focus?.({ preventScroll: true });
+			focusVisibleMenuItem(items[nextIndex]);
 			return;
 		}
 		const inSubmenu = Boolean(event.target.closest('.context-menu-submenu'));
@@ -61,8 +66,8 @@ export function useApplicationMenuKeyboard({
 		} else if (hasSubmenu && ['ArrowRight', 'Enter'].includes(event.key)) {
 			setTimeout(() => {
 				setTimeout(() => {
-					submenuItem?.querySelector(':scope > .context-menu-submenu')
-						?.querySelector(MENU_ITEM_SELECTOR)?.focus?.({ preventScroll: true });
+					focusVisibleMenuItem(submenuItem?.querySelector(':scope > .context-menu-submenu')
+						?.querySelector(MENU_ITEM_SELECTOR));
 				}, 0);
 			}, 0);
 		} else if (event.key === 'Tab') {
@@ -108,7 +113,7 @@ export function useApplicationMenuKeyboard({
 		// Keep an already-open submenu open so a normal pointer click is stable.
 		event.preventDefault();
 		event.stopPropagation();
-		item.querySelector(':scope > .context-menu-submenu')?.querySelector(MENU_ITEM_SELECTOR)?.focus?.({ preventScroll: true });
+		focusVisibleMenuItem(item.querySelector(':scope > .context-menu-submenu')?.querySelector(MENU_ITEM_SELECTOR));
 	};
 
 	return { onOpenMenuClickCapture };

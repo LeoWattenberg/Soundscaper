@@ -4,8 +4,7 @@ description: "De JavaScript-API waartegen een macroprogramma draait, de beperkin
 sidebar:
   order: 7
 ---
-<!-- docs-ai-provenance: {"model":"gpt-5.6-luna","modelDigest":"manual","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"375c684211bdec9dbd3614c197bda423e24858a568ad5ae3c06ab06d7db2522f","targetLocale":"nl"} -->
-
+<!-- docs-ai-provenance: {"basedOnProvenance":{"model":"gpt-5.6-luna"},"factPacketSha256":"20c7fc2552915b97e609945b7d7c30159768baea8ff6775399b67bda15a3b14a","model":"gpt-5","modelProvider":"codex-subagent","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"20c7fc2552915b97e609945b7d7c30159768baea8ff6775399b67bda15a3b14a","targetLocale":"nl"} -->
 
 Een macroprogramma is een macro die als JavaScript is geschreven in plaats van als een lijst stappen.
 Het draait in de editor tegen een kleine API met de naam `sound`, waarmee het
@@ -362,7 +361,7 @@ Nyquist-plug-ins kunnen niet vanuit een programma worden toegepast.
 | In-faden | `audacity-fade-in` | geen |
 | Uit-faden | `audacity-fade-out` | geen |
 | Filtercurve-EQ | `audacity-filter-curve-eq` | `points`: een array van `{ frequency, gain }`, standaard twee vlakke punten op 20 Hz en 20 kHz; `linearFrequencyScale: false`; `filterLength: 8191` |
-| Parametrische EQ met vier banden | `eq` | `outputGain: 0`; `bands`: vier objecten `{ id, enabled, type, frequency, gain, q, slope }`, met pieken op 100, 500, 2000 en 8000 Hz en `gain: 0`, `q: 1`, `slope: 12` |
+| Parametrische EQ | `eq` | `outputGain: 0`; `bands`: vier objecten `{ id, enabled, type, frequency, gain, q, slope }`, met pieken op 100, 500, 2000 en 8000 Hz en `gain: 0`, `q: 1`, `slope: 12` |
 | Gate | `gate` | `threshold: -50`, `attack: 0.005`, `hold: 0.05`, `release: 0.1`, `rangeDb: -80` |
 | Grafische EQ | `audacity-graphic-eq` | `gains`: 31 bandversterkingen in dB, allemaal 0; `interpolation: 'bspline'`; `filterLength: 8191` |
 | Hoogdoorlaatfilter | `highpass` | `frequency: 80`, `q: 0.707` |

@@ -94,7 +94,7 @@ test('controllers enforce product authoring boundaries while retaining the share
 		'effects.add', 'effects.update', 'effects.beginRackEffectGesture', 'effects.previewRackEffect',
 		'effects.commitRackEffectGesture', 'effects.cancelRackEffectGesture', 'effects.beginParametricEqGesture',
 		'effects.previewParametricEq', 'effects.commitParametricEqGesture', 'effects.cancelParametricEqGesture',
-		'effects.remove', 'effects.reorder', 'effects.copyStack', 'effects.pasteStack', 'effects.setSelectionType',
+		'effects.remove', 'effects.reorder', 'effects.copy', 'effects.copyStack', 'effects.pasteStack', 'effects.setSelectionType',
 		'effects.setSelectionParams', 'effects.setControlTrack', 'effects.captureNoiseProfile',
 		'effects.captureRackNoiseProfile', 'effects.applySelection', 'effects.previewSelection', 'effects.repeatLast',
 		'effects.presets.apply', 'effects.presets.save', 'effects.presets.saveAs', 'effects.presets.delete',

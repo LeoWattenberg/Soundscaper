@@ -191,7 +191,6 @@ Product availability follows each product profile’s command filters and each l
 | Fit height | `fit-height` | Ctrl+Shift+F | View > Zoom | Soundscaper, Framescaper | Audacity |
 | Fit project to width | `zoom-to-fit-project` | Ctrl+F | View > Zoom | Soundscaper, Framescaper | Audacity |
 | Follow track color | `action://trackedit/clip/change-color-auto` | — | Clip context > Color | Soundscaper, Framescaper | Audacity |
-| Four-band parametric EQ | `eq` | — | Effect > EQ and filters | Soundscaper | Soundscaper local |
 | Framescaper Help | `desktop-product-help-framescaper` | — | Help | Framescaper | Soundscaper local |
 | Freesound | `panel-freesound` | — | View > Panels | Soundscaper | Soundscaper local |
 | Freeze Video | `framescaper-freeze-video` | — | Effect | Framescaper | Soundscaper local |
@@ -318,6 +317,7 @@ Product availability follows each product profile’s command filters and each l
 | PAL frames (25 fps) | `snap-video-pal` | — | View > Snapping > Video frames | Soundscaper, Framescaper | Soundscaper local |
 | Pan Left on Focused Track | `track-pan-left` | Alt+Shift+Left | Track context | Soundscaper, Framescaper | Audacity |
 | Pan Right on Focused Track | `track-pan-right` | Alt+Shift+Right | Track context | Soundscaper, Framescaper | Audacity |
+| Parametric EQ | `eq` | — | Effect > EQ and filters | Soundscaper | Soundscaper local |
 | Paste | `action://paste` | Ctrl+V | Edit | Soundscaper, Framescaper | Audacity |
 | Paste | `action://trackedit/paste-overlap` | Ctrl+Alt+V | Edit > Paste | Soundscaper, Framescaper | Audacity |
 | Paste text to new label | `paste-new-label` | — | Edit > Label | Soundscaper, Framescaper | Audacity |

@@ -189,6 +189,53 @@ test('the EQ graph installs a non-passive native wheel listener', async () => {
 	}
 });
 
+test('realtime spectrum sampling survives parent renders with a fresh reader callback', async () => {
+	const fixture = await mountedEq();
+	const frames = new Map<number, FrameRequestCallback>();
+	const cancelled: number[] = [];
+	let nextFrame = 0;
+	const firstReads: string[] = [];
+	const latestReads: string[] = [];
+	Object.defineProperty(globalThis, 'requestAnimationFrame', {
+		configurable: true,
+		value(callback: FrameRequestCallback) {
+			nextFrame += 1;
+			frames.set(nextFrame, callback);
+			return nextFrame;
+		},
+	});
+	Object.defineProperty(globalThis, 'cancelAnimationFrame', {
+		configurable: true,
+		value(handle: number) {
+			cancelled.push(handle);
+			frames.delete(handle);
+		},
+	});
+	try {
+		await fixture.render({}, () => undefined, undefined, undefined, (which) => {
+			firstReads.push(which);
+			return {};
+		});
+		await fixture.render({}, () => undefined, undefined, undefined, (which) => {
+			latestReads.push(which);
+			return {};
+		});
+		assert.deepEqual(cancelled, [], 'a new callback identity must not restart spectrum sampling');
+		const frame = frames.get(1);
+		assert.ok(frame);
+		await act(async () => frame(40));
+		assert.deepEqual(firstReads, []);
+		assert.deepEqual(latestReads, ['input', 'output']);
+		const next = frames.get(2);
+		assert.ok(next, 'spectrum sampling schedules the next animation frame');
+		await act(async () => next(80));
+		assert.deepEqual(latestReads, ['input', 'output', 'input', 'output'],
+			'both spectra are sampled continuously rather than painted once');
+	} finally {
+		await fixture.cleanup();
+	}
+});
+
 async function mountedEq() {
 	const dom = installReactTestDom();
 	const actGlobal = globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean };
@@ -218,6 +265,7 @@ async function mountedEq() {
 			onGestureBegin: () => void,
 			onCommit?: (value: Record<string, unknown>) => void,
 			onCancel?: (value: Record<string, unknown>) => void,
+			readSpectrum?: (which: string, target: Float32Array) => Readonly<Record<string, unknown>>,
 		) => {
 			await act(async () => root.render(<ParametricEqEditor
 				params={{
@@ -233,7 +281,7 @@ async function mountedEq() {
 				onCommit={onCommit}
 				onCancel={onCancel}
 				onAudition={undefined}
-				readSpectrum={undefined}
+				readSpectrum={readSpectrum}
 				parameterAutomation={parameterAutomation}
 			/>));
 		},
