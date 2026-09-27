@@ -45,6 +45,35 @@ test('each threshold controls its own frequency region', () => {
 	}
 });
 
+test('live processing reports matching input, output, and strongest band reduction windows', () => {
+	const processor = createMultibandCompressorProcessor({
+		sampleRate: rate,
+		channelCount: 1,
+		params: {
+			lowThreshold: -48, midThreshold: -48, highThreshold: -48,
+			lowRatio: 20, midRatio: 20, highRatio: 20,
+			attack: 0.0001,
+		},
+	});
+	assert.equal(processor.readAnalysis(), null);
+	const input = [Float32Array.from({ length: 2048 }, () => 0.9)];
+	const output = [new Float32Array(input[0].length)];
+	processor.processBlock(input, output, input[0].length);
+	assert.ok((processor.readAnalysis()?.outputPeak || 0) > 0);
+	processor.processBlock(input, output, input[0].length);
+
+	const analysis = processor.readAnalysis();
+	assert.equal(analysis?.frames, input[0].length);
+	assert.ok((analysis?.inputPeak || 0) > 0.89);
+	assert.ok((analysis?.outputPeak || 1) < 0.5);
+	assert.ok((analysis?.reductionDb || 0) < -12);
+	assert.equal(processor.readAnalysis(), null);
+
+	processor.processBlock(input, output, input[0].length);
+	processor.reset();
+	assert.equal(processor.readAnalysis(), null);
+});
+
 test('streaming, reset and destructive processing agree while channels remain linked', async () => {
 	const left = tone(9000, 8192);
 	const channels = [left, Float32Array.from(left, value => value * 0.25)];

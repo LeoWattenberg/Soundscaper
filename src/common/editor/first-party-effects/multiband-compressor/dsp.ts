@@ -20,6 +20,16 @@ export function createMultibandCompressorProcessor({ sampleRate, channelCount, p
 	const makeup = new Float64Array(3);
 	const targetMakeup = new Float64Array(3);
 	const smoothing = 1 - Math.exp(-1 / (sampleRate * 0.005));
+	let analysisFrames = 0;
+	let analysisInputPeak = 0;
+	let analysisOutputPeak = 0;
+	let analysisMinimumGain = 1;
+	function resetAnalysis(): void {
+		analysisFrames = 0;
+		analysisInputPeak = 0;
+		analysisOutputPeak = 0;
+		analysisMinimumGain = 1;
+	}
 	function updateParams(value: Readonly<Record<string, unknown>>): void {
 		settings = normalizeBandDynamicsParams('multiband-compressor', { ...settings, ...value });
 		lower.configure(settings.lowCrossover); upper.configure(settings.highCrossover);
@@ -32,13 +42,28 @@ export function createMultibandCompressorProcessor({ sampleRate, channelCount, p
 	makeup.set(targetMakeup);
 	return {
 		updateParams,
-		reset() { lower.reset(); upper.reset(); compressors.forEach(compressor => compressor.reset()); makeup.set(targetMakeup); },
+		reset() {
+			lower.reset(); upper.reset(); compressors.forEach(compressor => compressor.reset()); makeup.set(targetMakeup);
+			resetAnalysis();
+		},
+		readAnalysis() {
+			if (!analysisFrames) return null;
+			const analysis = {
+				frames: analysisFrames,
+				inputPeak: analysisInputPeak,
+				outputPeak: analysisOutputPeak,
+				reductionDb: 20 * Math.log10(Math.max(1e-30, analysisMinimumGain)),
+			};
+			resetAnalysis();
+			return analysis;
+		},
 		processBlock(input: readonly Float32Array[], output: readonly Float32Array[], frames: number) {
 			for (let frame = 0; frame < frames; frame += 1) {
 				lower.tick(); upper.tick(); powers.fill(0);
 				for (let channel = 0; channel < channelCount; channel += 1) {
 					const value = input[channel]?.[frame] ?? 0;
 					dry[channel] = Number.isFinite(value) ? value : 0;
+					analysisInputPeak = Math.max(analysisInputPeak, Math.abs(dry[channel]));
 					const low = lower.low(dry[channel], channel);
 					const lowMid = upper.low(dry[channel], channel);
 					bands[0][channel] = low;
@@ -48,7 +73,9 @@ export function createMultibandCompressorProcessor({ sampleRate, channelCount, p
 				}
 				for (let band = 0; band < 3; band += 1) {
 					makeup[band] += smoothing * (targetMakeup[band] - makeup[band]);
-					gains[band] = compressors[band].gain(powers[band]) * makeup[band];
+					const compressionGain = compressors[band].gain(powers[band]);
+					analysisMinimumGain = Math.min(analysisMinimumGain, compressionGain);
+					gains[band] = compressionGain * makeup[band];
 				}
 				for (let channel = 0; channel < output.length; channel += 1) {
 					let value = dry[channel] ?? 0;
@@ -56,8 +83,10 @@ export function createMultibandCompressorProcessor({ sampleRate, channelCount, p
 						for (let band = 0; band < 3; band += 1) value += bands[band][channel] * (gains[band] - 1);
 					}
 					output[channel][frame] = value;
+					analysisOutputPeak = Math.max(analysisOutputPeak, Math.abs(value));
 				}
 			}
+			analysisFrames += frames;
 		},
 	};
 }

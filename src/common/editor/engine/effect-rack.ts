@@ -270,6 +270,7 @@ export function applyEffect(
 		const processor = addNode(nodes, createBandDynamicsNode(context, audioWorkletNodeConstructor(), type, params, width));
 		connect(input, processor);
 		registerEffectNode(effect, processor, options);
+		if (type === 'multiband-compressor') attachDynamicsAnalysisTelemetry(processor);
 		if (typeof options.onParametricEqError === 'function') {
 			attachEffectProcessorErrorPort(processor, options.onParametricEqError, effectProcessorErrorContext(
 				options, effect.id, { fallbackMessage: 'The dynamics processor failed.',
