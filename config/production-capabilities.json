@@ -349,7 +349,7 @@
 			"release": {
 				"softwareStatus": "pre-release",
 				"channel": "candidate",
-				"candidateVersion": "1.0.0-rc.6",
+				"candidateVersion": "1.0.0-rc.7",
 				"stableTarget": null
 			},
 			"applicationFeatures": {
