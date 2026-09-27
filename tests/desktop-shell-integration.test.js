@@ -57,9 +57,9 @@ test('native file filters cover the editor import and export formats', () => {
 	assert.equal(acceptsFile('media', '/tmp/session.AUP3'), false);
 	assert.equal(acceptsFile('audio', '/tmp/take.wv'), true);
 	assert.equal(acceptsFile('audio', '/tmp/large-master.rf64'), true);
-	assert.equal(acceptsFile('media', '/tmp/unsupported-master.BW64'), false);
+	assert.equal(acceptsFile('media', '/tmp/master.BW64'), true);
 	assert.equal(mimeTypeForPath('/tmp/large-master.rf64'), 'audio/rf64');
-	assert.equal(mimeTypeForPath('/tmp/unsupported-master.bw64'), 'audio/bw64');
+	assert.equal(mimeTypeForPath('/tmp/master.bw64'), 'audio/bw64');
 	assert.equal(acceptsFile('media', '/tmp/captions.srt'), true);
 	assert.equal(acceptsFile('media', '/tmp/labels.TXT'), true);
 	assert.equal(acceptsFile('labels', '/tmp/captions.vtt'), true);
