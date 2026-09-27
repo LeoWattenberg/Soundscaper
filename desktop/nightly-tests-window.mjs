@@ -10,9 +10,9 @@ export async function createDesktopNightlyTestsWindow({ argv, BrowserWindow }) {
 	const window = new BrowserWindow({
 		width: 1280,
 		height: 720,
-		// A native-unmapped Electron window drops decoded-video presentation
-		// callbacks even when background throttling is disabled.
-		show: true,
+		// Map the diagnostic window after navigation so Chromium delivers decoded-video
+		// presentation callbacks, but do not activate it over the product window.
+		show: false,
 		webPreferences: {
 			nodeIntegration: false,
 			contextIsolation: true,
@@ -35,6 +35,7 @@ export async function createDesktopNightlyTestsWindow({ argv, BrowserWindow }) {
 	} catch (error) {
 		if (error?.code !== 'ERR_ABORTED') throw error;
 	}
+	window.showInactive();
 	return window;
 }
 

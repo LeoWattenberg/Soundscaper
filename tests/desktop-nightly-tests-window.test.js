@@ -5,8 +5,8 @@ import test from 'node:test';
 
 import { createDesktopNightlyTestsWindow } from '../desktop/nightly-tests-window.mjs';
 
-test('packaged diagnostic window is visible, loopback-only, sandboxed, and bridge-free', async () => {
-	const observations = { options: null, url: null, openHandler: null };
+test('packaged diagnostic window is visible without activation, loopback-only, sandboxed, and bridge-free', async () => {
+	const observations = { options: null, url: null, openHandler: null, events: [] };
 	class FakeWindow {
 		webContents = {
 			setWindowOpenHandler: (handler) => { observations.openHandler = handler; },
@@ -14,7 +14,8 @@ test('packaged diagnostic window is visible, loopback-only, sandboxed, and bridg
 		};
 		constructor(options) { observations.options = options; }
 		on() {}
-		async loadURL(url) { observations.url = url; }
+		async loadURL(url) { observations.url = url; observations.events.push('loaded'); }
+		showInactive() { observations.events.push('shown-inactive'); }
 	}
 
 	const window = await createDesktopNightlyTestsWindow({
@@ -33,7 +34,8 @@ test('packaged diagnostic window is visible, loopback-only, sandboxed, and bridg
 		devTools: false,
 		backgroundThrottling: false,
 	});
-	assert.equal(observations.options.show, true);
+	assert.equal(observations.options.show, false);
+	assert.deepEqual(observations.events, ['loaded', 'shown-inactive']);
 	assert.equal(Object.hasOwn(observations.options.webPreferences, 'preload'), false);
 	assert.deepEqual(observations.openHandler(), { action: 'deny' });
 });
@@ -60,6 +62,7 @@ test('packaged diagnostic window permits the harness to replace its initial navi
 			setWindowOpenHandler: () => undefined,
 			on: () => undefined,
 		};
+		showInactive() {}
 		async loadURL() {
 			throw Object.assign(new Error('navigation replaced'), { code: 'ERR_ABORTED' });
 		}
