@@ -25,7 +25,7 @@ test('the package-audit summary covers every product target without release sema
 	assert.equal(summary.kind, 'milestone-5-package-audit-summary');
 	assert.deepEqual(summary.applicationVersions, {
 		soundscaper: '1.0.0-rc.11',
-		framescaper: '1.0.0-rc.7',
+		framescaper: '1.0.0-rc.8',
 	});
 	assert.equal(Object.hasOwn(summary, 'applicationVersion'), false);
 	assert.equal(summary.auditCount, 10);
@@ -127,7 +127,7 @@ function audit(identity) {
 			targetId: identity.targetId,
 			applicationVersion: identity.productId === 'soundscaper'
 				? '1.0.0-rc.11'
-				: '1.0.0-rc.7',
+				: '1.0.0-rc.8',
 			sourceRevision: REVISION,
 			runtimeManifest: {
 				name: `runtime-manifest-${identity.productId}-${identity.targetId}.json`,
