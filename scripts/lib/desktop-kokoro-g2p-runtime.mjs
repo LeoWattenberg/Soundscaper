@@ -9,6 +9,8 @@ import noticeRegister from '../kokoro-g2p/notices/sources.json' with { type: 'js
 
 export const KOKORO_G2P_VERSION = '0.9.4';
 export const KOKORO_G2P_PREFIX = `assistance/kokoro-g2p/${KOKORO_G2P_VERSION}`;
+// Keep aligned with MAXIMUM_PATH_SEGMENTS in the packaged runtime admission.
+export const KOKORO_G2P_MAXIMUM_PATH_SEGMENTS = 32;
 const TARGETS = new Set(['mac-arm64', 'linux-x64', 'linux-arm64', 'win-x64', 'win-arm64']);
 const SHA256 = /^[a-f\d]{64}$/u;
 const MAXIMUM_FILES = 16_384;
@@ -233,7 +235,10 @@ function assertTarget(targetId) {
 }
 
 function validRelativePath(path) {
-	return typeof path === 'string' && path.length > 0 && path.length <= 512
-		&& !path.includes('\\') && ![...path].some((part) => part.charCodeAt(0) < 32 || part.charCodeAt(0) === 127)
-		&& path.split('/').every((part) => part !== '' && part !== '.' && part !== '..');
+	if (typeof path !== 'string' || path.length === 0 || path.length > 512
+		|| path.includes('\\')
+		|| [...path].some((part) => part.charCodeAt(0) < 32 || part.charCodeAt(0) === 127)) return false;
+	const segments = path.split('/');
+	return segments.length <= KOKORO_G2P_MAXIMUM_PATH_SEGMENTS
+		&& segments.every((part) => part !== '' && part !== '.' && part !== '..');
 }

@@ -52,6 +52,8 @@ const MAXIMUM_FILES = 16_384;
 const MAXIMUM_CLOSURE_BYTES = 4 * 1024 ** 3;
 const MAXIMUM_FILE_BYTES = 2 * 1024 ** 3;
 const MAXIMUM_MANIFEST_BYTES = 4 * 1024 ** 2;
+// Keep aligned with KOKORO_G2P_MAXIMUM_PATH_SEGMENTS in the build validator.
+const MAXIMUM_PATH_SEGMENTS = 32;
 const MAXIMUM_INPUT_BYTES = 64 * 1024;
 const MAXIMUM_OUTPUT_BYTES = 512 * 1024;
 const MAXIMUM_STDERR_BYTES = 8 * 1024;
@@ -186,7 +188,8 @@ async function listFiles(directory: string, path: string, signal?: AbortSignal):
 	const files: string[] = [];
 	for (const entry of entries) {
 		const relativePath = path ? `${path}/${entry.name}` : entry.name;
-		if (relativePath.split('/').length > 16 || !entry.isFile() && !entry.isDirectory()) {
+		if (relativePath.split('/').length > MAXIMUM_PATH_SEGMENTS
+			|| !entry.isFile() && !entry.isDirectory()) {
 			throw new TypeError('The offline Kokoro G2P closure contains a link or irregular entry.');
 		}
 		if (entry.isDirectory()) {
@@ -321,9 +324,14 @@ function reviewResponse(bytes: Uint8Array): readonly string[] {
 }
 
 function payloadPath(value: unknown): string {
-	if (typeof value !== 'string' || !value || value.includes('\\')
+	if (typeof value !== 'string') {
+		throw new TypeError('The offline Kokoro G2P payload path is invalid.');
+	}
+	const segments = value.split('/');
+	if (!value || value.includes('\\')
 		|| value.includes('\0') || value.startsWith('/')
-		|| value.split('/').some((part) => !part || part === '.' || part === '..')
+		|| segments.length > MAXIMUM_PATH_SEGMENTS
+		|| segments.some((part) => !part || part === '.' || part === '..')
 		|| value.length > 512) {
 		throw new TypeError('The offline Kokoro G2P payload path is invalid.');
 	}

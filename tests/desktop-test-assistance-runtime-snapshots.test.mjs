@@ -9,6 +9,10 @@ import { test } from 'node:test';
 
 import { resolveDesktopAssistanceHandoffRevision } from '../scripts/desktop-prepare.mjs';
 import {
+	KOKORO_G2P_MAXIMUM_PATH_SEGMENTS,
+	validateDesktopKokoroG2pManifest,
+} from '../scripts/lib/desktop-kokoro-g2p-runtime.mjs';
+import {
 	createDesktopTestRuntimeSnapshot,
 	DESKTOP_TEST_RUNTIME_TARGETS,
 	stageDesktopTestRuntimeSnapshot,
@@ -90,6 +94,12 @@ test('every committed desktop test target has a valid pinned runtime handoff', a
 				outputRoot: join(output, targetId),
 			});
 			assert.equal(staged.sourceRevision, lock.targets[targetId].sourceRevision);
+			const manifest = JSON.parse(await readFile(join(output, targetId, 'config',
+				'assistance-kokoro-g2p-runtime-manifest.json'), 'utf8'));
+			assert.doesNotThrow(() => validateDesktopKokoroG2pManifest(manifest, targetId));
+			const maximumDepth = Math.max(...manifest.files.map(({ path }) => path.split('/').length));
+			assert.equal(maximumDepth, 18, `${targetId} must exercise the pinned deep license inventory`);
+			assert.ok(maximumDepth <= KOKORO_G2P_MAXIMUM_PATH_SEGMENTS);
 		}
 	} finally {
 		await rm(output, { recursive: true, force: true });

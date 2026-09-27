@@ -14,7 +14,9 @@ import { verifyStagedKokoroG2pRuntime } from '../scripts/desktop-before-pack.mjs
 
 import {
 	describeDesktopKokoroG2pBundle,
+	KOKORO_G2P_MAXIMUM_PATH_SEGMENTS,
 	stageDesktopKokoroG2pRuntime,
+	validateDesktopKokoroG2pManifest,
 	verifyDesktopKokoroG2pRuntime,
 } from '../scripts/lib/desktop-kokoro-g2p-runtime.mjs';
 import {
@@ -134,6 +136,30 @@ test('stages and authenticates an exact target-specific offline G2P closure', as
 			manifest: result.manifest, targetId: 'linux-x64', runtimeRoot,
 		}), /digest|length/u);
 	});
+});
+
+test('manifest validation enforces the runtime path-segment bound', () => {
+	assert.equal(KOKORO_G2P_MAXIMUM_PATH_SEGMENTS, 32);
+	const manifestWithPath = (path) => ({
+		schemaVersion: 1,
+		runtimeVersion: '0.9.4',
+		targetId: 'linux-x64',
+		runtimePrefix: 'assistance/kokoro-g2p/0.9.4',
+		executable: 'kokoro-g2p',
+		files: [path, 'kokoro-g2p'].sort((left, right) => left.localeCompare(right, 'en'))
+			.map((filePath) => ({
+				path: filePath,
+				byteLength: 1,
+				sha256: '0'.repeat(64),
+			})),
+	});
+	const pathAtBound = `${Array(KOKORO_G2P_MAXIMUM_PATH_SEGMENTS - 1).fill('a').join('/')}/file`;
+	assert.equal(pathAtBound.split('/').length, KOKORO_G2P_MAXIMUM_PATH_SEGMENTS);
+	assert.doesNotThrow(() => validateDesktopKokoroG2pManifest(manifestWithPath(pathAtBound), 'linux-x64'));
+	const pathBeyondBound = `a/${pathAtBound}`;
+	assert.equal(pathBeyondBound.split('/').length, KOKORO_G2P_MAXIMUM_PATH_SEGMENTS + 1);
+	assert.throws(() => validateDesktopKokoroG2pManifest(manifestWithPath(pathBeyondBound), 'linux-x64'),
+		/path/iu);
 });
 
 test('describes a large G2P bundle within a restricted file descriptor limit', {

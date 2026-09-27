@@ -66,6 +66,25 @@ test('the Kokoro helper receives bounded JSON and returns admitted phoneme chunk
 	assert.deepEqual(chunks, ['af_hearthello']);
 });
 
+test('the helper admits a regular file at the pinned license inventory depth', async (t) => {
+	const files = await fixture(t, GOOD_PROGRAM);
+	const noticePath = 'licenses/python/torch/a/b/c/d/e/f/g/h/i/j/k/l/m/n/LICENSE';
+	assert.equal(noticePath.split('/').length, 18);
+	const notice = Buffer.from('license\n');
+	const path = join(dirname(files.executable), ...noticePath.split('/'));
+	await mkdir(dirname(path), { recursive: true });
+	await writeFile(path, notice);
+	files.manifest.files.push({
+		path: noticePath,
+		byteLength: notice.byteLength,
+		sha256: createHash('sha256').update(notice).digest('hex'),
+	});
+	files.manifest.files.sort((left, right) => left.path.localeCompare(right.path, 'en'));
+	await writeFile(files.manifestPath, JSON.stringify(files.manifest));
+	assert.deepEqual(await port(files)({ language: 'a', voice: 'af_heart', text: 'hello' }),
+		['af_hearthello']);
+});
+
 test('the helper closure is authenticated before process launch', async (t) => {
 	const files = await fixture(t, GOOD_PROGRAM);
 	await writeFile(files.executable, `${GOOD_PROGRAM}\n// modified`);
