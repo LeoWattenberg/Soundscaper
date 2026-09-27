@@ -72,7 +72,9 @@ export async function bootEditor(page, path, { defaultWorkspace = false } = {}) 
 		if (await effects.isVisible()) await closeWorkspacePanel(editor, 'effects');
 		const projectBin = editor.locator('[data-workspace-panel="project-bin"]');
 		if (!await projectBin.isVisible()) {
-			await chooseNestedCommandAction(page, editor, 'View', ['Panels', 'Project bin']);
+			await chooseNestedCommandAction(page, editor, 'View', ['Panels', 'Project bin'], {
+				clearPointerAfterOpen: true,
+			});
 			await expect(projectBin).toBeVisible();
 		}
 	}
