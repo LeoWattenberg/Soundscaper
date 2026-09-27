@@ -153,9 +153,8 @@ test('desktop soak output names remain unique after the Electron process restart
 function evaluatePreload(source, argv, response, coverageAcknowledgement = true) {
 	let bridge;
 	const invocations = [];
-	vm.runInNewContext(source, {
+	const context = vm.createContext({
 		ArrayBuffer, Object, Promise, RangeError, Reflect, String, TypeError, Uint8Array, URL,
-		process: { argv },
 		structuredClone,
 		window: { addEventListener: () => {}, postMessage: () => {} },
 		require: () => ({
@@ -174,5 +173,7 @@ function evaluatePreload(source, argv, response, coverageAcknowledgement = true)
 			},
 		}),
 	});
+	const runPreload = vm.compileFunction(source, ['process'], { parsingContext: context });
+	runPreload({ argv });
 	return { bridge, invocations };
 }

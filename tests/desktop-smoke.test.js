@@ -131,21 +131,8 @@ test('desktop smoke pins the complete sorted preload v1 bridge contract', () => 
 });
 
 test('desktop smoke bridge inventory equals the sandbox preload surface', async () => {
-	let bridge;
-	let framescaperBridge;
 	const source = await readFile(resolve(ROOT, 'desktop', 'preload.mjs'), 'utf8');
-	vm.runInNewContext(source, {
-		ArrayBuffer, Object, Promise, RangeError, String, TypeError, Uint8Array, URL,
-		require: () => ({
-			contextBridge: {
-				exposeInMainWorld(name, value) {
-					if (name === 'scapeDesktop') bridge = value.v1;
-					if (name === 'framescaperDesktop') framescaperBridge = value.v1;
-				},
-			},
-			ipcRenderer: { invoke: () => Promise.resolve(), send: () => {}, on: () => {}, removeListener: () => {} },
-		}),
-	});
+	const { bridge, framescaperBridge } = evaluatePreload(source);
 	assert.deepEqual(Object.keys(bridge).sort(), DESKTOP_SMOKE_EXPECTED_BRIDGE);
 	assert.deepEqual(Object.keys(bridge.persistentDelivery).sort(), [
 		'cancel', 'currentProjectIdentity', 'enqueueBatch', 'events', 'list', 'pause',
@@ -431,10 +418,10 @@ test('packaged desktop smoke isolates both Chromium and shared library data', as
 	assert.match(source, /productId:\s*PRODUCT_ID/u);
 });
 
-function evaluatePreload(source) {
+function evaluatePreload(source, argv = ['electron']) {
 	let bridge;
 	let framescaperBridge;
-	vm.runInNewContext(source, {
+	const context = vm.createContext({
 		ArrayBuffer, Object, Promise, RangeError, Reflect, String, TypeError, Uint8Array, URL,
 		structuredClone,
 		window: { addEventListener: () => {}, postMessage: () => {} },
@@ -454,6 +441,8 @@ function evaluatePreload(source) {
 			},
 		}),
 	});
+	const runPreload = vm.compileFunction(source, ['process'], { parsingContext: context });
+	runPreload({ argv });
 	return { bridge, framescaperBridge };
 }
 

@@ -1,9 +1,9 @@
 /* Electron sandbox preload: restricted require exposes only Electron; Framescaper shares this contextBridge. */
 const { contextBridge, ipcRenderer } = require('electron');
-const PRELOAD_PRODUCT_ID = (globalThis.process?.argv ?? []).includes('--soundscaper-product=framescaper')
+const PRELOAD_PRODUCT_ID = process.argv.includes('--soundscaper-product=framescaper')
 	? 'framescaper' : 'soundscaper';
 const SOAK_DEBUG_ENABLED = PRELOAD_PRODUCT_ID === 'soundscaper'
-	&& (globalThis.process?.argv ?? []).includes('--soundscaper-soak-debug');
+	&& process.argv.includes('--soundscaper-soak-debug');
 /* Keys main may hold but the renderer may never see, whatever the shape. */ const PLUGIN_PATH_KEYS = new Set(['binaryPath', 'rootPath', 'path', 'absolutePath', 'filePath']);
 const CHANNELS = Object.freeze({
 	environment: 'soundscaper:v1:environment', soakDebugProcessMetrics: 'soundscaper:v1:soak-debug:process-metrics', soakDebugCoverageCheckpoint: 'soundscaper:v1:soak-debug:coverage-checkpoint', chooseFiles: 'soundscaper:v1:files:choose', releaseRead: 'soundscaper:v1:files:release', sesxResolveMedia: 'soundscaper:v1:sesx:media:resolve', sesxChooseFolder: 'soundscaper:v1:sesx:folder:choose', sesxReleaseSession: 'soundscaper:v1:sesx:session:release', chooseLinkedVideoOriginal: 'soundscaper:v1:linked-video:choose', loadLinkedVideoOriginal: 'soundscaper:v1:linked-video:load', reconcileLinkedVideoOriginals: 'soundscaper:v1:linked-video:reconcile', releaseLinkedVideoOriginal: 'soundscaper:v1:linked-video:release', chooseLinkedAudioOriginal: 'soundscaper:v1:linked-audio:choose', loadLinkedAudioOriginal: 'soundscaper:v1:linked-audio:load', reconcileLinkedOriginals: 'soundscaper:v1:linked-original:reconcile', releaseLinkedOriginal: 'soundscaper:v1:linked-original:release', chooseSaveTarget: 'soundscaper:v1:save:choose', beginWrite: 'soundscaper:v1:save:begin', writeChunk: 'soundscaper:v1:save:chunk', patchFinalPrefix: 'soundscaper:v1:save:prefix', finishWrite: 'soundscaper:v1:save:finish', abortWrite: 'soundscaper:v1:save:abort',
