@@ -132,8 +132,8 @@ export const ClipHeader: React.FC<ClipHeaderProps> = ({
     setRenameDraft(name);
     setIsRenaming(true);
   };
-  const commitRename = () => {
-    const next = renameDraft.trim();
+  const commitRename = (rawValue = renameDraft) => {
+    const next = rawValue.trim();
     const commit = renameCommitRef.current ?? onRename;
     if (next && next !== name) commit?.(next);
     renameCommitRef.current = undefined;
@@ -220,13 +220,13 @@ export const ClipHeader: React.FC<ClipHeaderProps> = ({
               e.stopPropagation();
               if (e.key === 'Enter') {
                 e.preventDefault();
-                commitRename();
+                commitRename(e.currentTarget.value);
               } else if (e.key === 'Escape') {
                 e.preventDefault();
                 cancelRename();
               }
             }}
-            onBlur={commitRename}
+            onBlur={(e) => commitRename(e.currentTarget.value)}
             onClick={(e) => e.stopPropagation()}
             onMouseDown={(e) => e.stopPropagation()}
             aria-label="Clip name"

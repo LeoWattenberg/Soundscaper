@@ -50,10 +50,29 @@ test('a rename started while the host allowed it commits through that callback a
 		reactProps(header.input()!).onChange({ target: { value: 'Soundscaper editable copy' } });
 	});
 	await act(async () => {
-		reactProps(header.input()!).onKeyDown(keyEvent('Enter'));
+		const input = header.input();
+		assert.ok(input);
+		reactProps(input).onKeyDown({ ...keyEvent('Enter'), currentTarget: input });
 	});
 	assert.deepEqual(renames, ['Soundscaper editable copy']);
 	assert.equal(finished, 1);
+	assert.equal(header.input(), null, 'the editor closes once the rename is committed');
+	await header.unmount();
+});
+
+test('Enter commits the input value when change and keydown arrive in the same React batch', async () => {
+	const renames: string[] = [];
+	const header = await mount({ onRename: (name: string) => { renames.push(name); }, renameRequestId: 1 });
+	const input = header.input();
+	assert.ok(input, 'the rename request opens the inline editor');
+
+	await act(async () => {
+		input.value = 'Same-batch rename';
+		reactProps(input).onChange({ target: input });
+		reactProps(input).onKeyDown({ ...keyEvent('Enter'), currentTarget: input });
+	});
+
+	assert.deepEqual(renames, ['Same-batch rename']);
 	assert.equal(header.input(), null, 'the editor closes once the rename is committed');
 	await header.unmount();
 });
