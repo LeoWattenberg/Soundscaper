@@ -178,7 +178,7 @@ export function createPackagedRuntimeCoverageCollector(options) {
 				keepUrl,
 			});
 			await serviceWorkerCollector.start();
-			const page = await waitForProductPage(context, metadata.appOrigin);
+			const page = await waitForPackagedRuntimeProductPage(context, metadata.appOrigin);
 			attachPage(page);
 			await settle();
 			context.on('page', onPage);
@@ -304,14 +304,31 @@ async function startRecorder(context, page, authenticateWebAssembly, keepUrl, pe
 	});
 }
 
-async function waitForProductPage(context, appOrigin) {
-	const deadline = Date.now() + START_TIMEOUT_MS;
+/** Discover a product document only after its initial durable save permits navigation. */
+export async function waitForPackagedRuntimeProductPage(
+	context,
+	appOrigin,
+	timeoutMs = START_TIMEOUT_MS,
+) {
+	const deadline = Date.now() + timeoutMs;
 	while (Date.now() < deadline) {
 		const page = context.pages().find((candidate) => candidate.url().startsWith(`${appOrigin}/`));
 		if (page) {
 			try {
 				await page.waitForFunction(
-					() => document.querySelector('[data-audio-editor]')?.getAttribute('data-audio-editor-bound') === 'true',
+					() => {
+						const editor = document.querySelector('[data-audio-editor]');
+						if (editor?.getAttribute('data-audio-editor-bound') !== 'true'
+							|| editor.getAttribute('data-editor-ready') !== 'true'
+							|| editor.querySelector('[data-save-state]')?.getAttribute('data-state') !== 'saved') {
+							return false;
+						}
+						// Saved UI leads queued maintenance; the unload guard is authoritative.
+						// Keep this probe before recorder instrumentation adds its debugger hook.
+						const beforeUnload = new Event('beforeunload', { cancelable: true });
+						globalThis.dispatchEvent(beforeUnload);
+						return !beforeUnload.defaultPrevented;
+					},
 					undefined,
 					{ timeout: Math.max(1, deadline - Date.now()) },
 				);
