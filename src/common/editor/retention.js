@@ -208,7 +208,11 @@ export function collectFramescaperProjectAssetStorageKeys(
 }
 
 /** Resolve durable logical references to the keys used by source/media stores. */
-export function collectProjectStorageKeys(project, target = new Set()) {
+export function collectProjectStorageKeys(
+	project,
+	target = new Set(),
+	{ includeFramescaperAssets = true } = {},
+) {
 	const sources = Array.isArray(project?.sources) ? project.sources : [];
 	const sourceById = new Map(sources.map((source) => [source?.id, source]));
 	for (const sourceId of collectProjectSourceIds(project)) {
@@ -222,7 +226,7 @@ export function collectProjectStorageKeys(project, target = new Set()) {
 		const proxyTimingStorageKey = source?.proxyAttachment?.timingAsset?.storageKey;
 		if (typeof proxyTimingStorageKey === 'string' && proxyTimingStorageKey) target.add(proxyTimingStorageKey);
 	}
-	collectFramescaperProjectAssetStorageKeys(project, target);
+	if (includeFramescaperAssets) collectFramescaperProjectAssetStorageKeys(project, target);
 	for (const asset of Array.isArray(project?.assistanceAssets) ? project.assistanceAssets : []) {
 		const storageKey = asset?.body?.storageKey;
 		if (typeof storageKey === 'string' && storageKey) target.add(storageKey);
