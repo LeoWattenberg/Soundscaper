@@ -3,6 +3,7 @@
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import test from 'node:test';
+import ts from 'typescript';
 
 import {
 	assertDesktopProductPackageIsolation,
@@ -206,6 +207,15 @@ import { createAssistanceOnnxSaliencyWorkerAdapterV1, } from "./assistance-onnx-
 import { createAssistanceOnnxSiglip2WorkerAdapterV1, } from "./assistance-onnx-siglip2-worker.js";
 import { createAssistanceOnnxSubjectWorkerAdapterV1, } from "./assistance-onnx-subject-worker.js";
 const TRANSNET_INPUT_NAMES = Object.freeze(['frames']);
+const TRANSNET_OUTPUT_NAMES = Object.freeze(['single_frame_logits', 'all_frame_logits']);
+const RUNTIME_MODULE_ERRORS = Object.freeze({
+    value: 'The ONNX Runtime module is invalid.',
+    surface: 'The ONNX Runtime module surface is invalid.',
+});
+const RUNTIME_SESSION_ERRORS = Object.freeze({
+    value: 'The ONNX Runtime session is invalid.',
+    surface: 'The ONNX Runtime session surface is invalid.',
+});
 export function createAssistanceOnnxRuntimeWorkerAdapterV1() {
     const executeAudio = createAssistanceOnnxAudioRuntimeWorkerAdapterV1(loadOnnxRuntime);
     const executeEnhancementSeparation = createAssistanceOnnxEnhancementSeparationWorkerAdapterV1(loadOnnxRuntime);
@@ -231,7 +241,9 @@ export function createAssistanceOnnxRuntimeWorkerAdapterV1() {
     };
 }
 async function executeTransNetV2() { return reviewAssistanceFramePackV1(); }
-async function loadOnnxRuntime(entrypoint) { return pathToFileURL(entrypoint); }
+async function loadOnnxRuntime(entrypoint) {
+    return reviewAssistanceOnnxRuntimeModuleV1(pathToFileURL(entrypoint), RUNTIME_MODULE_ERRORS);
+}
 `);
 	for (const task of [
 		'word-alignment', 'speech-enhancement', 'source-separation', 'dereverberation',
@@ -240,6 +252,26 @@ async function loadOnnxRuntime(entrypoint) { return pathToFileURL(entrypoint); }
 	assert.doesNotMatch(onnx,
 		/shot-detection|image-text-embedding|optical-character-recognition|subject-detection|saliency-detection/iu);
 	assert.doesNotMatch(onnx, /assistance-onnx-(?:ocr|saliency|siglip2|subject)-worker/u);
+	assert.match(onnx, /const RUNTIME_MODULE_ERRORS = Object\.freeze/u);
+	assert.match(onnx, /reviewAssistanceOnnxRuntimeModuleV1\([^;]+RUNTIME_MODULE_ERRORS\)/u);
+	assert.doesNotMatch(onnx, /RUNTIME_SESSION_ERRORS/u);
+});
+
+test('Soundscaper emitted ONNX worker retains shared runtime-loader errors', async () => {
+	const source = await readFile(new URL('../desktop/assistance-onnx-runtime-worker.ts', import.meta.url), 'utf8');
+	const emitted = ts.transpileModule(source, {
+		fileName: 'desktop/assistance-onnx-runtime-worker.ts',
+		compilerOptions: {
+			module: ts.ModuleKind.ESNext,
+			target: ts.ScriptTarget.ES2024,
+			rewriteRelativeImportExtensions: true,
+		},
+	}).outputText;
+	const transformed = soundscaperAssistanceOnnxRuntimeWorkerSource(emitted);
+
+	assert.match(transformed, /const RUNTIME_MODULE_ERRORS = Object\.freeze/u);
+	assert.equal(transformed.match(/RUNTIME_MODULE_ERRORS/gu)?.length, 3);
+	assert.doesNotMatch(transformed, /RUNTIME_SESSION_ERRORS/u);
 });
 
 test('Stable Soundscaper excludes the legacy development native-addon fixture', () => {

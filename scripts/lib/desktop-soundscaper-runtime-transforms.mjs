@@ -40,9 +40,12 @@ export function soundscaperAssistanceOnnxRuntimeWorkerSource(sourceValue) {
 			'', dependency + ' import');
 	}
 	source = replaceRange(source, 'const TRANSNET_INPUT_NAMES =',
-		'export function createAssistanceOnnxRuntimeWorkerAdapterV1',
-		'export function createAssistanceOnnxRuntimeWorkerAdapterV1',
+		'const RUNTIME_MODULE_ERRORS =', 'const RUNTIME_MODULE_ERRORS =',
 		'visual ONNX constants');
+	source = replaceRange(source, 'const RUNTIME_SESSION_ERRORS =',
+		'export function createAssistanceOnnxRuntimeWorkerAdapterV1',
+		'export function createAssistanceOnnxRuntimeWorkerAdapterV1',
+		'visual ONNX session errors');
 	for (const adapter of ['Siglip2', 'Ocr', 'Subjects', 'Saliency']) {
 		source = replaceOnce(source,
 			new RegExp(`^    const execute${adapter} = [^\\n]+\\n`, 'mu'),
