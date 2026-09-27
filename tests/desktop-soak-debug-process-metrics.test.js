@@ -63,6 +63,9 @@ test('the sandbox preload exposes soak diagnostics only under the startup flag',
 	const dormant = evaluatePreload(source, ['electron'], response);
 	assert.equal(Object.hasOwn(dormant.bridge, 'readSoakProcessMetrics'), false);
 	assert.equal(Object.hasOwn(dormant.bridge, 'checkpointSoakMainCoverage'), false);
+	const dormantWithoutProcess = evaluatePreload(source, undefined, response);
+	assert.equal(Object.hasOwn(dormantWithoutProcess.bridge, 'readSoakProcessMetrics'), false);
+	assert.equal(Object.hasOwn(dormantWithoutProcess.bridge, 'checkpointSoakMainCoverage'), false);
 	const framescaper = evaluatePreload(source, [
 		'electron', '--soundscaper-product=framescaper', SOAK_DEBUG_FLAG,
 	], response);
@@ -173,7 +176,7 @@ function evaluatePreload(source, argv, response, coverageAcknowledgement = true)
 			},
 		}),
 	});
-	const runPreload = vm.compileFunction(source, ['process'], { parsingContext: context });
-	runPreload({ argv });
+	if (argv === undefined) vm.runInContext(source, context);
+	else vm.compileFunction(source, ['process'], { parsingContext: context })({ argv });
 	return { bridge, invocations };
 }
