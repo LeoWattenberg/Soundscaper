@@ -94,8 +94,14 @@ application overrides and source patches against the pin and upstream master.
    the unmount cleanup (`useEffect(..., [])`) captured: `removeEventListener` never matched, and
    every hover-then-close cycle left a live document `mousemove` listener calling
    `setSubmenuOpen` on an unmounted component. A single tracker fixes the identity for the
-   item's lifetime. Covered by
-   `tests/vendored-design-system-context-menu-safe-triangle.test.ts`. Upstream-PR candidate.
+   item's lifetime. Context menus and submenus also use viewport-bounded scrollports;
+   `context-submenu-position.ts` fixes submenus to the live parent row, flips them at the right
+   edge, and follows ancestor scrolling so nested flyouts escape a scrolling parent's clip.
+   The menu's upstream scale animation is reduced to an opacity fade because a transformed
+   ancestor would otherwise make those fixed flyouts local and clipped during entry. Covered by
+   `tests/vendored-design-system-context-menu-safe-triangle.test.ts`,
+   `tests/context-submenu-position.test.ts`, and
+   `tests/browser/audio-editor-menu-scrolling.spec.js`. Upstream-PR candidate.
 9. `utils/announce.ts` rounds the time to tenths *before* splitting hours and minutes off.
    Upstream splits first and rounds the seconds remainder afterwards, so the remainder can reach
    60 with nothing to carry into — `formatTimeForA11y(59.97)` announced "60 seconds" and

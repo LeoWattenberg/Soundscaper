@@ -1,6 +1,7 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useLayoutEffect } from 'react';
 import { useTheme } from '../ThemeProvider';
 import { Icon } from '../Icon';
+import { contextSubmenuPosition } from './context-submenu-position';
 import './ContextMenuItem.css';
 
 const SAFE_TRIANGLE_TIMEOUT = 300; // safety cap — if pointer stalls in triangle, close anyway.
@@ -213,6 +214,35 @@ export const ContextMenuItem: React.FC<ContextMenuItemProps> = ({
   };
 
   useEffect(() => () => safeTriangle.clear(), [safeTriangle]);
+
+  useLayoutEffect(() => {
+    const item = itemRef.current;
+    const submenu = submenuRef.current;
+    if (!submenuOpen || !item || !submenu) return undefined;
+
+    const position = () => {
+      const anchor = item.getBoundingClientRect();
+      const bounds = submenu.getBoundingClientRect();
+      const next = contextSubmenuPosition(
+        anchor,
+        { height: bounds.height, width: bounds.width },
+        { height: window.innerHeight, width: window.innerWidth },
+      );
+      submenu.style.left = `${next.left}px`;
+      submenu.style.top = `${next.top}px`;
+    };
+    position();
+    const resizeObserver = typeof ResizeObserver === 'undefined' ? null : new ResizeObserver(position);
+    resizeObserver?.observe(item);
+    resizeObserver?.observe(submenu);
+    document.addEventListener('scroll', position, true);
+    window.addEventListener('resize', position);
+    return () => {
+      resizeObserver?.disconnect();
+      document.removeEventListener('scroll', position, true);
+      window.removeEventListener('resize', position);
+    };
+  }, [submenuOpen]);
 
   const style = {
     '--context-menu-item-text': theme.foreground.text.primary,
