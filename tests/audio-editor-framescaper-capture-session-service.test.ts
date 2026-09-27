@@ -27,6 +27,42 @@ test('capture initialization probes complete support without opening a source', 
 	assert.deepEqual(harness.service.snapshot.sources, []);
 });
 
+test('capture initialization keeps preview and start closed through recovery discovery and origin preparation', async () => {
+	const recoveryScanned = deferred<void>();
+	const recoveryOriginPrepared = deferred<void>();
+	const harness = serviceHarness({
+		recovery: recoverySession(),
+		recoveryGate: recoveryScanned.promise,
+		recoveryPreparationGate: recoveryOriginPrepared.promise,
+	});
+	const initialization = harness.service.initialize();
+	await waitForEvent(harness.events, 'recovery-inventory');
+	const availabilityDuringDiscovery = harness.service.snapshot.availability.status;
+	const [previewDuringDiscovery] = await Promise.allSettled([
+		harness.service.actions.requestPreview(['camera']),
+	]);
+	if (harness.service.snapshot.phase === 'previewing') await harness.service.actions.release();
+	assert.throws(() => harness.service.actions.start(), /capture is not armed/iu);
+
+	recoveryScanned.resolve();
+	await waitForEvent(harness.events, 'prepare-recovery:project-a');
+	const availabilityDuringPreparation = harness.service.snapshot.availability.status;
+	const [previewDuringPreparation] = await Promise.allSettled([
+		harness.service.actions.requestPreview(['camera']),
+	]);
+	if (harness.service.snapshot.phase === 'previewing') await harness.service.actions.release();
+	recoveryOriginPrepared.resolve();
+	await initialization;
+	const finalPhase = harness.service.snapshot.phase;
+	if (finalPhase === 'recovery') await harness.service.actions.discard();
+
+	assert.equal(availabilityDuringDiscovery, 'checking');
+	assert.equal(availabilityDuringPreparation, 'checking');
+	assert.equal(previewDuringDiscovery?.status, 'rejected');
+	assert.equal(previewDuringPreparation?.status, 'rejected');
+	assert.equal(finalPhase, 'recovery');
+});
+
 test('desktop source-list authority never chooses a display and grants non-display media too', async () => {
 	const grants: unknown[] = [];
 	let listCount = 0;
@@ -355,6 +391,8 @@ function serviceHarness(options: Readonly<{
 	sealGate?: Promise<void>;
 	discardGate?: Promise<void>;
 	probeGate?: Promise<void>;
+	recoveryGate?: Promise<void>;
+	recoveryPreparationGate?: Promise<void>;
 	finalizeGates?: Readonly<Partial<Record<'live' | 'recovered' | 'import-as-is', Promise<void>>>>;
 }> = {}) {
 	const events: string[] = [];
@@ -374,6 +412,7 @@ function serviceHarness(options: Readonly<{
 		async discard() { events.push('durable:discard'); await options.discardGate; },
 		async findRecovery(projectId) {
 			events.push('recovery-inventory');
+			await options.recoveryGate;
 			return options.recoveries?.[projectId] ?? options.recovery ?? null;
 		},
 	};
@@ -407,7 +446,10 @@ function serviceHarness(options: Readonly<{
 		},
 		displaySelection: options.displaySelection,
 		recoveryProjectIds: options.recoveryProjectIds ? () => options.recoveryProjectIds! : undefined,
-		prepareRecoveryOrigin: async (projectId) => { events.push(`prepare-recovery:${projectId}`); },
+		prepareRecoveryOrigin: async (projectId) => {
+			events.push(`prepare-recovery:${projectId}`);
+			await options.recoveryPreparationGate;
+		},
 		async completeRuntimeProbe(availability) {
 			events.push('runtime-prerequisites');
 			return availability;

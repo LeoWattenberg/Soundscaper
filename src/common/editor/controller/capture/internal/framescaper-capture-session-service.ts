@@ -87,12 +87,12 @@ export function createFramescaperCaptureSessionService<Stream = unknown, Track =
 			availability = createCaptureRuntimeAvailability(
 				await options.completeRuntimeProbe?.(availability) ?? availability,
 			);
-			machine.setRuntimeAvailability(availability);
-			const origin = safeCaptureOrigin();
 			const recovery = await findFramescaperCaptureRecovery(
-				options.durable, origin?.projectFence.projectId ?? null, options.recoveryProjectIds,
+				options.durable, safeCaptureOrigin()?.projectFence.projectId ?? null, options.recoveryProjectIds,
 			);
-			if (recovery) { await options.prepareRecoveryOrigin?.(recovery.projectFence.projectId); restoreRecovery(recovery); }
+			if (recovery) await options.prepareRecoveryOrigin?.(recovery.projectFence.projectId);
+			machine.setRuntimeAvailability(availability);
+			if (recovery) restoreRecovery(recovery);
 			notify();
 		})());
 		return initializePromise;
