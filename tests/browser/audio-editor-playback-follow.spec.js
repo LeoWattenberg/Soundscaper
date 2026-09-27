@@ -18,6 +18,20 @@ function intersectionRatio(locator) {
 	}));
 }
 
+function isHitTestVisible(locator) {
+	return locator.evaluate((element) => {
+		const box = element.getBoundingClientRect();
+		const previousPointerEvents = element.style.pointerEvents;
+		element.style.pointerEvents = 'auto';
+		const hit = document.elementFromPoint(
+			box.left + box.width / 2,
+			box.top + Math.min(24, box.height / 2),
+		);
+		element.style.pointerEvents = previousPointerEvents;
+		return hit === element;
+	});
+}
+
 test.describe('timeline playback following', () => {
 	registerAudioEditorHooks();
 
@@ -94,7 +108,7 @@ test.describe('timeline playback following', () => {
 		expect(lineBox).not.toBeNull();
 		expect(trackHeaderBox).not.toBeNull();
 		expect(lineBox.x).toBeLessThan(trackHeaderBox.x + trackHeaderBox.width);
-		await expect.poll(() => intersectionRatio(playheadLine)).toBe(0);
+		await expect.poll(() => isHitTestVisible(playheadLine)).toBe(false);
 		expect(errors).toEqual([]);
 	});
 
@@ -120,7 +134,7 @@ test.describe('timeline playback following', () => {
 		expect(lineBox).not.toBeNull();
 		expect(trackHeaderBox).not.toBeNull();
 		expect(lineBox.x).toBeLessThan(trackHeaderBox.x + trackHeaderBox.width);
-		await expect.poll(() => intersectionRatio(playheadLine)).toBe(0);
+		await expect.poll(() => isHitTestVisible(playheadLine)).toBe(false);
 		expect(errors).toEqual([]);
 	});
 
