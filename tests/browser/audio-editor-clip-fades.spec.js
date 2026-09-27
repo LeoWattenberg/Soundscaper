@@ -281,8 +281,7 @@ test.describe('non-destructive clip fade handles', () => {
 		let fade = clip.getByRole('slider', { name: 'Fade in', exact: true });
 		await clip.press('Tab');
 		await expect(fade).toBeFocused();
-		await page.keyboard.press('Tab');
-		await expect(clip.getByRole('slider', { name: 'Fade in shape', exact: true })).toBeFocused();
+		await expect(clip.locator('[data-clip-fade-shape-handle]')).toHaveCount(0);
 		await page.keyboard.press('Tab');
 		await expect(clip.getByRole('slider', { name: 'Fade out', exact: true })).toBeFocused();
 		await beginFadeDrag(page, fade, 25);
