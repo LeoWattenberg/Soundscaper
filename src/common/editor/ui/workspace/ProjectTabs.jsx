@@ -4,15 +4,24 @@ export default function ProjectTabs({ projects, activeProjectId, copy, disabled,
 	const tabListRef = useRef(null);
 	const tabListId = useId();
 	const closingProjectRef = useRef(null);
+	const activationFocusRef = useRef(false);
 	useEffect(() => {
 		const closing = closingProjectRef.current;
-		if (!closing || closing.isConnected) return;
+		if (!closing || closing.isConnected || disabled) return;
 		closingProjectRef.current = null;
 		const ownerDocument = closing.ownerDocument;
 		if (ownerDocument.activeElement === ownerDocument.body) {
 			tabListRef.current?.querySelector('[aria-selected="true"]')?.focus({ preventScroll: true });
 		}
-	}, [projects]);
+	}, [disabled, projects]);
+	useEffect(() => {
+		if (disabled || !activationFocusRef.current) return;
+		activationFocusRef.current = false;
+		const activeTab = tabListRef.current?.querySelector('[aria-selected="true"]');
+		if (activeTab?.ownerDocument.activeElement === activeTab.ownerDocument.body) {
+			activeTab.focus({ preventScroll: true });
+		}
+	}, [activeProjectId, disabled]);
 	const unique = [];
 	const tabIds = [];
 	const seen = new Set();
@@ -33,7 +42,10 @@ export default function ProjectTabs({ projects, activeProjectId, copy, disabled,
 		const next = unique[nextIndex];
 		if (!next) return;
 		event.preventDefault();
-		if (nextIndex !== index) onSelect(next.id);
+		if (nextIndex !== index) {
+			activationFocusRef.current = true;
+			onSelect(next.id);
+		}
 		requestAnimationFrame(() => {
 			tabListRef.current?.querySelectorAll('[role="tab"]')[nextIndex]?.focus({ preventScroll: true });
 		});
@@ -52,7 +64,10 @@ export default function ProjectTabs({ projects, activeProjectId, copy, disabled,
 						aria-selected={project.id === activeProjectId}
 						tabIndex={project.id === focusableProjectId ? 0 : -1}
 						disabled={disabled}
-						onClick={() => onSelect(project.id)}
+						onClick={() => {
+							if (project.id !== activeProjectId) activationFocusRef.current = true;
+							onSelect(project.id);
+						}}
 						onKeyDown={(event) => handleTabKeyDown(event, index)}
 					>{project.title}</button>
 					<button
@@ -68,7 +83,10 @@ export default function ProjectTabs({ projects, activeProjectId, copy, disabled,
 					>×</button>
 				</div>)}
 			</div>
-			<button type="button" className="kw-audio-editor__project-tab-new" disabled={disabled} onClick={onNew} aria-label={copy.newProject}>+</button>
+			<button type="button" className="kw-audio-editor__project-tab-new" disabled={disabled} onClick={() => {
+				activationFocusRef.current = true;
+				onNew();
+			}} aria-label={copy.newProject}>+</button>
 		</nav>
 	);
 }

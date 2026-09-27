@@ -95,6 +95,39 @@ test('project tab keyboard navigation wraps and ignores keys that do not select 
 	}
 });
 
+test('keyboard selection restores focus after project activation stops disabling the tabs', async () => {
+	const mounted = await mountTabs();
+	try {
+		const second = mounted.dom.container.querySelectorAll('[role="tab"]')[1];
+		second.focus();
+		await act(async () => {
+			reactProps(second).onKeyDown({ key: 'ArrowRight', preventDefault: () => undefined });
+		});
+		await mounted.render(undefined, 'first', true);
+		second.ownerDocument.activeElement = second.ownerDocument.body;
+		await mounted.render(undefined, 'first', false);
+		assert.equal(second.ownerDocument.activeElement, mounted.dom.one('[aria-selected="true"]'));
+	} finally {
+		await mounted.cleanup();
+	}
+});
+
+test('settled project activation does not steal focus from another control', async () => {
+	const mounted = await mountTabs();
+	try {
+		const second = mounted.dom.container.querySelectorAll('[role="tab"]')[1];
+		await act(async () => {
+			reactProps(second).onKeyDown({ key: 'ArrowRight', preventDefault: () => undefined });
+		});
+		await mounted.render(undefined, 'first', true);
+		mounted.dom.container.focus();
+		await mounted.render(undefined, 'first', false);
+		assert.equal(second.ownerDocument.activeElement, mounted.dom.container);
+	} finally {
+		await mounted.cleanup();
+	}
+});
+
 test('focus returns to the active tab only after the requested tab actually closes', async () => {
 	const mounted = await mountTabs();
 	try {
@@ -105,6 +138,21 @@ test('focus returns to the active tab only after the requested tab actually clos
 		assert.equal(close.ownerDocument.activeElement, close, 'a pending or failed close keeps its focus');
 		close.ownerDocument.activeElement = close.ownerDocument.body;
 		await mounted.render([{ id: 'first', title: 'First project' }], 'first');
+		assert.equal(close.ownerDocument.activeElement, mounted.dom.one('[role="tab"]'));
+	} finally {
+		await mounted.cleanup();
+	}
+});
+
+test('focus returns to the remaining tab after a disabled project close settles', async () => {
+	const mounted = await mountTabs();
+	try {
+		const close = mounted.dom.one('[aria-label="Close project: Second project"]');
+		close.focus();
+		await act(async () => { reactProps(close).onClick({ currentTarget: close }); });
+		await mounted.render([{ id: 'first', title: 'First project' }], 'first', true);
+		close.ownerDocument.activeElement = close.ownerDocument.body;
+		await mounted.render([{ id: 'first', title: 'First project' }], 'first', false);
 		assert.equal(close.ownerDocument.activeElement, mounted.dom.one('[role="tab"]'));
 	} finally {
 		await mounted.cleanup();

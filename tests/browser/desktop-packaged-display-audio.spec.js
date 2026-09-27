@@ -29,6 +29,7 @@ test.describe('packaged Soundscaper display audio', () => {
 			await editor.getByRole('button', { name: 'New project', exact: true }).click();
 		}
 		await expect(editor).not.toHaveAttribute('data-project-id', '');
+		await expect(editor).not.toHaveAttribute('data-project-activation-pending', 'true', { timeout: 30_000 });
 	});
 
 	test('records Windows loopback audio selected through Audio setup', async ({ page }) => {

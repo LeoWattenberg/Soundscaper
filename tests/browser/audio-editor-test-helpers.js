@@ -62,6 +62,7 @@ export async function bootEditor(page, path, { defaultWorkspace = false } = {}) 
 	await page.goto(resolveBrowserProductTestUrl(path));
 	const editor = await waitForEditor(page);
 	await expect(editor).toHaveAttribute('data-project-id', /.+/u, { timeout: 20_000 });
+	await waitForProjectActivation(editor);
 	const decline = page.getByRole('button', { name: /^(Decline|Ablehnen)$/ });
 	if (await decline.isVisible()) await decline.click();
 	// The English interaction suite uses the pre-default-change panel geometry.
@@ -89,6 +90,13 @@ export async function waitForEditor(page) {
 	await expect(editor).toHaveAttribute('data-editor-ready', 'true', { timeout: 20_000 });
 	await expect(editor.locator('[data-status]')).toHaveAttribute('data-state', /^(?:success|info)$/u, { timeout: 15_000 });
 	return editor;
+}
+
+export async function waitForProjectActivation(editor, options = {}) {
+	await expect(editor).not.toHaveAttribute('data-project-activation-pending', 'true', {
+		timeout: 30_000,
+		...options,
+	});
 }
 
 export async function fileDataTransfer(page, files) {
@@ -129,11 +137,12 @@ export async function readDownloadBytes(page, link) {
 }
 
 /** Import onto the timeline with the Project bin closed; `options.copy` selects localized panel copy. */
-export async function importFiles(editor, files, options = { timeout: 20_000 }) {
+export async function importFiles(editor, files, options = {}) {
 	const { copy = null, ...expectation } = options;
+	await waitForProjectActivation(editor, expectation);
 	if (await editor.locator('[data-workspace-panel="project-bin"]').isVisible()) await closeWorkspacePanel(editor, 'project-bin', copy);
 	await editor.locator('[data-import-input]').setInputFiles(files);
-	await expect(editor.locator('[data-status]')).toHaveAttribute('data-state', 'success', expectation);
+	await expect(editor.locator('[data-status]')).toHaveAttribute('data-state', 'success', { timeout: 20_000, ...expectation });
 }
 
 export function trackNameText(editor) {
@@ -381,6 +390,7 @@ export async function openNestedCommandMenu(page, editor, menu, actions, options
 	return currentMenu;
 }
 async function openCommandMenu(page, editor, menu, options, { openWithKeyboard = false } = {}) {
+	await waitForProjectActivation(editor, options);
 	await openChromeDrawer(editor);
 	if (openWithKeyboard) await page.mouse.move(1, 1);
 	const menuItem = editor.getByRole('menubar', { name: /^(Application menu|Anwendungsmenü)$/ })

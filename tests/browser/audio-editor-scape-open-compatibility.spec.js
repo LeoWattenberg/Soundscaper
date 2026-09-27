@@ -28,6 +28,7 @@ import {
 	importFiles,
 	registerAudioEditorHooks,
 	stubStorageEstimate,
+	waitForProjectActivation,
 } from './audio-editor-test-helpers.js';
 import { createDeterministicAvFixture, createDeterministicSilentVideoFixture } from './fixtures/deterministic-av-media.js';
 import { inspectProjectCompatibilityReport, openProjectCompatibilityReport } from './helpers/project-compatibility-report.js';
@@ -45,7 +46,6 @@ const FALLBACK_SAMPLE_RATE = 48_000;
 const SCAPE_AUDIO_CHUNK_FRAMES = 65_536;
 const CHUNK_STREAM_PACKET_FRAMES = 1_024;
 const WEBKIT_AV_IMPORT_DEFERRED = 'Playwright WebKit rejects the IndexedDB Blob write that persists an imported A/V source.';
-
 test.describe('Scape open feature decisions', () => {
 	registerAudioEditorHooks();
 
@@ -85,7 +85,6 @@ test.describe('Scape open feature decisions', () => {
 		await expect(dialog).toBeHidden();
 		await expect(fileMenu).toBeFocused();
 		await expect(editor).toHaveAttribute('data-project-id', originalId);
-
 		await setScapeInput(input, archive);
 		await expect(dialog).toBeVisible();
 		await dialog.getByRole('button', { name: 'Open read-only', exact: true }).click();
@@ -97,16 +96,17 @@ test.describe('Scape open feature decisions', () => {
 		await expect(capacity).toContainText(/(?:Import|Project saving): .+ requested · .+ required free · Ready/u);
 
 		const { notice } = await inspectProjectCompatibilityReport(page, editor);
-
 		const originalTab = editor.getByRole('tab', { name: 'Untitled project', exact: true });
 		await originalTab.focus();
 		await page.keyboard.press('Enter');
 		await expect(editor).toHaveAttribute('data-project-id', originalId);
+		await waitForProjectActivation(editor);
 		await expect(notice).toHaveCount(0);
 		const incomingTab = editor.getByRole('tab', { name: 'Feature decision project', exact: true });
 		await incomingTab.focus();
 		await page.keyboard.press('Enter');
 		await expect(editor).toHaveAttribute('data-project-id', incomingId);
+		await waitForProjectActivation(editor);
 		await expect(editor.locator('[data-project-feature-compatibility-summary]')).toHaveCount(0);
 		await expect(notice).toHaveCount(0);
 		expect(errors).toEqual([]);
@@ -374,14 +374,12 @@ test.describe('Scape open feature decisions', () => {
 		await expect(soundscaper).toHaveAttribute('data-product', 'soundscaper');
 		const originalSoundscaperId = await soundscaper.getAttribute('data-project-id');
 		await setScapeInput(soundscaper.locator('[data-aup4-input]'), archive);
-
 		const decision = page.getByRole('dialog', { name: 'Project features unavailable', exact: true });
 		await expect(decision).toHaveAttribute('data-scape-open-decision', 'compatibility');
 		await expect(decision.getByText('Video effects', { exact: true })).toBeVisible();
 		await decision.getByRole('button', { name: 'Open read-only', exact: true }).click();
 		await expect(soundscaper).toHaveAttribute('data-project-id', incomingId);
 		await expect(soundscaper).toHaveAttribute('data-edit-block-reason', 'read-only');
-
 		await assertAffectedPixelatePlaceholder(page, soundscaper, effectId);
 		const originalTab = soundscaper.getByRole('tab', { name: 'Untitled project', exact: true });
 		await expect(soundscaper.locator('[data-editor-task-progress="import"]'))
@@ -390,12 +388,14 @@ test.describe('Scape open feature decisions', () => {
 		await originalTab.focus();
 		await page.keyboard.press('Enter');
 		await expect(soundscaper).toHaveAttribute('data-project-id', originalSoundscaperId);
+		await waitForProjectActivation(soundscaper);
 		await expect(soundscaper.locator('[data-project-feature-video-effect-placeholders]')).toHaveCount(0);
 		const incomingTab = soundscaper.getByRole('tab', { name: 'Soundscaper v1 video effect', exact: true });
 		await expect(incomingTab).toBeEnabled();
 		await incomingTab.focus();
 		await page.keyboard.press('Enter');
 		await expect(soundscaper).toHaveAttribute('data-project-id', incomingId);
+		await waitForProjectActivation(soundscaper);
 		await assertAffectedPixelatePlaceholder(page, soundscaper, effectId);
 		expect(errors).toEqual([]);
 	});

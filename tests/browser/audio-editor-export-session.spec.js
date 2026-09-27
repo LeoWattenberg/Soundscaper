@@ -39,6 +39,7 @@ import {
 	showToolbarButton,
 	trackNameText,
 	waitForEditor,
+	waitForProjectActivation,
 	waitForResponsiveEditorLayout,
 } from './audio-editor-test-helpers.js';
 
@@ -210,23 +211,28 @@ test.describe('audio editor React/design-system workflows', () => {
 		const second = tabs.nth(1);
 		await expect(first).toHaveAttribute('tabindex', '-1');
 		await expect(second).toHaveAttribute('tabindex', '0');
+		await waitForProjectActivation(editor);
 
 		await second.focus();
 		await page.keyboard.press('ArrowRight');
-		await expect(first).toBeFocused();
 		await expect(first).toHaveAttribute('aria-selected', 'true');
+		await waitForProjectActivation(editor);
+		await expect(first).toBeFocused();
 		await expect(first).toHaveAttribute('tabindex', '0');
 		await expect(second).toHaveAttribute('tabindex', '-1');
 
 		await page.keyboard.press('End');
-		await expect(second).toBeFocused();
 		await expect(second).toHaveAttribute('aria-selected', 'true');
+		await waitForProjectActivation(editor);
+		await expect(second).toBeFocused();
 		await page.keyboard.press('Home');
-		await expect(first).toBeFocused();
 		await expect(first).toHaveAttribute('aria-selected', 'true');
+		await waitForProjectActivation(editor);
+		await expect(first).toBeFocused();
 		await page.keyboard.press('ArrowLeft');
-		await expect(second).toBeFocused();
 		await expect(second).toHaveAttribute('aria-selected', 'true');
+		await waitForProjectActivation(editor);
+		await expect(second).toBeFocused();
 		expect(errors).toEqual([]);
 	});
 

@@ -161,7 +161,7 @@ export default function AudioEditorWorkspaceView({ model }) {
 			data-audio-editor-bound="true" data-editor-ready={snapshot.ready ? 'true' : 'false'}
 			data-layout={compactLayout ? 'compact' : 'desktop'}
 			data-product={productId}
-			data-project-id={project?.id || ''}
+			data-project-id={project?.id || ''} data-project-activation-pending={snapshot.projectActivationPending ? 'true' : undefined}
 			data-track-count={project?.tracks.length || 0}
 			data-clip-count={project?.clips.length || 0}
 			data-timeline-view={snapshot.timeline?.view || 'waveform'}

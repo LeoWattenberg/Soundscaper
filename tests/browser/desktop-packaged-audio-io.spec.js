@@ -91,6 +91,7 @@ async function waitForReadyEditor(page) {
 		await editor.getByRole('button', { name: 'New project', exact: true }).click();
 	}
 	await expect(editor).not.toHaveAttribute('data-project-id', '');
+	await expect(editor).not.toHaveAttribute('data-project-activation-pending', 'true', { timeout: 30_000 });
 }
 
 async function dismissWorkspaceOnboarding(page) {
