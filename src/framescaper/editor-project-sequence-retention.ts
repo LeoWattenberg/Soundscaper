@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import type { EditorProjectRuntimeProfile } from '../common/editor/project-runtime-profile.ts';
+import { collectProjectStorageKeys } from '../common/editor/retention.js';
 import { normalizeVideoProxyCleanupTombstoneRecord } from '../common/editor/storage/video-proxy-cleanup-tombstone.ts';
 import {
 	MAX_VIDEO_PROXY_CLAIMS,
@@ -16,7 +17,6 @@ import {
 	cloneFramescaperProjectSequence,
 	type FramescaperProjectSequence,
 } from './editor-project-sequence.ts';
-import { collectFramescaperProjectStorageKeysSequence } from './editor-project-sequence-storage-keys.ts';
 
 export const FRAMESCAPER_SEQUENCE_RETENTION_LIMITS = Object.freeze({
 	maximumInputs: MAX_VIDEO_PROXY_CLAIMS,
@@ -87,7 +87,7 @@ export function collectFramescaperProjectStorageRootsSequence(
 
 	const roots = new Set<string>();
 	for (const project of projects) {
-		collectFramescaperProjectStorageKeysSequence(project, roots);
+		collectProjectStorageKeys(project, roots, { includeFramescaperAssets: false });
 		assertRootLimit(roots, limits.maximumRoots);
 		for (const source of project.sources) {
 			if (source.kind !== 'video' || source.proxyAttachment === null) continue;
