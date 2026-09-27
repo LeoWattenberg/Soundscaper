@@ -2,7 +2,7 @@
 	"schemaVersion": 2,
 	"locale": "el",
 	"provenance": {
-		"machine": {"model":"parametric-eq-copy-replay","modelDigest":"sha256:21def756d413239d1a8f3f70e060c411e7bf60d9d1572cabc17404766afde3bc","promptVersion":"i18n-machine-v1"},
+		"machine": {"model":"realtime-effect-picker-copy-replay","modelDigest":"sha256:301577e513784545654645dd343fd05dd6d88cbb42770570103b0aa6af7b2106","promptVersion":"i18n-machine-v1"},
 		"audacity": {"repository":"audacity/audacity","headSha":"de2e43dc13474ba712ade5ea8e47550eba0e8bfb","runId":35327911264,"artifactId":10539339149,"workflowUrl":"https://github.com/audacity/audacity/actions/runs/35327911264","archiveName":"Audacity_locale_262610911.zip","archiveSha256":"13b1ff11c39a677c711a1d29738a394aaca7a200533927aab3f45bbd76c1ff8e","archiveByteLength":15413913,"licenseSpdx":"GPL-3.0-only","upstreamProjectUrl":"https://github.com/audacity/audacity","upstreamLicenseUrl":"https://github.com/audacity/audacity/blob/de2e43dc13474ba712ade5ea8e47550eba0e8bfb/LICENSE.txt","modificationNotice":"Soundscaper converts reviewed Audacity Qt TS messages to per-locale JSON catalogs, excludes unsafe or inapplicable entries, adapts reviewed placeholders and mnemonics, and removes ellipsis punctuation.","mappingVersion":3,"mappingSha256":"f4cf0434f47eaa9434d079a1623b9d9501e9c8da0d83f0c73344f7765113b57c"}
 	},
 	"entries": {
@@ -536,6 +536,7 @@
 		"controlTrack": ["machine","Control track","Κομμάτι ελέγχου"],
 		"controlTrackNotFound": ["machine","The control track was not found.","Δεν βρέθηκε το κομμάτι ελέγχου."],
 		"copy": ["audacity","Copy","Αντιγραφή"],
+		"copyEffect": ["machine","Copy effect","Αντιγραφή εφέ"],
 		"copyEffects": ["machine","Copy effects","Αντιγραφή εφέ"],
 		"correlation": ["machine","Correlation","Συσχέτιση"],
 		"createMulticamera": ["machine","Create from video sources","Δημιουργία από πηγές βίντεο"],

@@ -19,19 +19,18 @@ describe('Soundscaper effects patches', () => {
     expect(onContextMenu).toHaveBeenCalledOnce();
   });
 
-  it('shows remove first and installed effects in a flat replacement menu', () => {
-    const { getAllByRole, getByRole, queryByText } = render(
+  it('delegates the settings button to a host-owned effect picker', () => {
+    const onOpenEffectPicker = vi.fn();
+    const { getByRole, queryByRole } = render(
       <ThemeProvider>
-        <EffectSlot effectName="Limiter" purchasedEffects={[{ id: 'paid', name: 'Paid Reverb', vendor: 'Vendor' }]} />
+        <EffectSlot effectName="Limiter" onOpenEffectPicker={onOpenEffectPicker} />
       </ThemeProvider>,
     );
 
-    fireEvent.click(getByRole('button', { name: 'Effect settings' }));
-    const items = getAllByRole('menuitem');
+    const settings = getByRole('button', { name: 'Effect settings' });
+    fireEvent.click(settings);
 
-    expect(items[0]).toHaveTextContent('Remove effect');
-    expect(getByRole('menuitem', { name: 'Compressor' })).toBeInTheDocument();
-    expect(getByRole('menuitem', { name: 'Paid Reverb' })).toBeInTheDocument();
-    expect(queryByText('Get effects…')).not.toBeInTheDocument();
+    expect(onOpenEffectPicker).toHaveBeenCalledWith(settings);
+    expect(queryByRole('menu')).not.toBeInTheDocument();
   });
 });

@@ -34,6 +34,15 @@ export interface EffectSlotProps {
   onShowSettings?: () => void;
 
   /**
+   * Lets a host replace the built-in context menu with its own effect picker.
+   * The settings button is supplied as the flyout anchor.
+   */
+  onOpenEffectPicker?: (anchor: HTMLElement) => void;
+
+  /** Accessible name for the host-owned effect actions trigger. */
+  effectActionsLabel?: string;
+
+  /**
    * Called when remove effect is clicked
    */
   onRemoveEffect?: () => void;
@@ -129,6 +138,8 @@ export const EffectSlot: React.FC<EffectSlotProps> = ({
   onSelectEffect,
   onChangeEffect: _onChangeEffect,
   onShowSettings,
+  onOpenEffectPicker,
+  effectActionsLabel = 'Effect settings',
   onRemoveEffect,
   onReplaceEffect,
   replaceEffectOptions,
@@ -154,6 +165,11 @@ export const EffectSlot: React.FC<EffectSlotProps> = ({
 
   const handleSettingsClick = (e: React.MouseEvent<HTMLButtonElement>) => {
     e.stopPropagation();
+    if (onOpenEffectPicker) {
+      onOpenEffectPicker(e.currentTarget);
+      onShowSettings?.();
+      return;
+    }
     const rect = e.currentTarget.getBoundingClientRect();
     setMenuPosition({ x: rect.right + 4, y: rect.top });
     setMenuOpen(true);
@@ -351,7 +367,7 @@ export const EffectSlot: React.FC<EffectSlotProps> = ({
         <button
           className="effect-slot__settings-button"
           onClick={handleSettingsClick}
-          aria-label="Effect settings"
+          aria-label={effectActionsLabel}
         >
           <Icon name="caret-down" size={16} />
         </button>

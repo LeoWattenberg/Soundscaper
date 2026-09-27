@@ -471,3 +471,44 @@ test('effect stack copy and paste materializes independent effect identities', (
 	harness.setBlocked(true);
 	assert.equal(harness.service.pasteEffectStack('track', 'track-1'), null);
 });
+
+test('copying one rack effect inserts an independent configured clone after its source', () => {
+	const harness = createHarness();
+	const original = harness.project.tracks[0]!.effects![0]!;
+	const source = {
+		...original,
+		context: { routing: 'parallel' },
+		state: { memory: [1, 2, 3] },
+	};
+	harness.setProject({
+		...harness.project,
+		tracks: [{
+			...harness.project.tracks[0]!,
+			effects: [source, harness.project.tracks[0]!.effects![1]!],
+		}],
+	});
+	const copiedId = harness.service.copyRackEffect('track', 'track-1', source.id);
+	const command = harness.commands.at(-1);
+
+	assert.equal(command?.type, 'effect/add');
+	if (command?.type !== 'effect/add') return;
+	assert.equal(command.index, 1);
+	assert.notEqual(command.effect?.id, source.id);
+	assert.equal(copiedId, command.effect?.id);
+	assert.equal(command.effect?.type, source.type);
+	assert.deepEqual(command.effect?.params, source.params);
+	assert.notEqual(command.effect?.params, source.params);
+	assert.deepEqual(command.effect?.context, source.context);
+	assert.notEqual(command.effect?.context, source.context);
+	assert.deepEqual(command.effect?.state, source.state);
+	assert.notEqual(command.effect?.state, source.state);
+
+	harness.setBlocked(true);
+	assert.equal(harness.service.copyRackEffect('track', 'track-1', source.id), null);
+	assert.equal(harness.commands.length, 1);
+	harness.setBlocked(false);
+	assert.throws(
+		() => harness.service.copyRackEffect('track', 'track-1', 'missing-effect'),
+		/Rack effect not found/u,
+	);
+});

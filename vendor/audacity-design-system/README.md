@@ -147,13 +147,16 @@ application overrides and source patches against the pin and upstream master.
     `.dialog-header__windows-glyph`. Covered by
     `tests/vendored-design-system-dialog-header-controls.test.ts`. Upstream-PR candidate.
 16. `EffectSlot.tsx` and `EffectsPanel.tsx` accept a `replaceEffectOptions` prop that replaces
-    `EFFECT_REGISTRY` as the source of the caret menu's swap list. The packaged registry holds
-    three sample effects (Compressor, Limiter, Reverb), so every slot in the realtime rack
-    offered only those three as replacements regardless of what the host actually implements.
-    Upstream took the flat one-click replace list this was built on but not the host-catalogue
-    override, so the prop is still ours; `onChangeEffect` is also still destructured as
-    `_onChangeEffect`, because upstream removed the "Get effects…" item that used it and left the
-    binding unread. Omitting the prop keeps upstream behaviour. Covered by
+    `EFFECT_REGISTRY` as the source of the caret menu's swap list, plus an
+    `onOpenEffectPicker` hook that lets the host bypass that menu and anchor its own picker to
+    the slot's settings button. The packaged registry holds three sample effects (Compressor,
+    Limiter, Reverb), so every slot in the realtime rack originally offered only those three as
+    replacements regardless of what the host actually implements; flattening Soundscaper's
+    full catalogue then made that menu too tall for many viewports. The realtime rack now uses
+    the hook to share its searchable two-column Add Effect picker, while the Macro Manager can
+    still supply its wider registry to the fallback menu. `onChangeEffect` is still destructured
+    as `_onChangeEffect`, because upstream removed the "Get effects…" item that used it and left
+    the binding unread. Omitting both custom props keeps upstream behaviour. Covered by
     `tests/audio-editor-effect-slot-replace-options.test.tsx`. Upstream-PR candidate.
 17. `EffectsPanel.tsx` accepts an `autoFocusOnOpen` prop (default `true`) that gates the
     open-time move of keyboard focus onto the "Add effect" button. The application re-mounts an

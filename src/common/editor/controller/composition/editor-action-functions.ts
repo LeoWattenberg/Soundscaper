@@ -79,6 +79,7 @@ export interface EditorActionFunctions {
 	readonly configureDisplayInput: ReturnType<typeof createRecordingComposition>['routing']['configureDisplayInput'];
 	readonly continueLoudnessMeasurement: ReturnType<typeof createMicrophoneMeterService>['continueLoudnessMeasurement'];
 	readonly copyEffectStack: ReturnType<typeof createEffectsComposition>['rack']['copyEffectStack'];
+	readonly copyRackEffect: ReturnType<typeof createEffectsComposition>['rack']['copyRackEffect'];
 	readonly createStableId: typeof createStableId;
 	readonly createWorkspacePreference: ReturnType<typeof createPreferencesComposition>['actions']['createWorkspacePreference'];
 	readonly currentAudacityEffectParams: ReturnType<typeof createEffectsComposition>['controls']['currentAudacityEffectParams'];

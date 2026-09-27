@@ -36,7 +36,7 @@ export function createGroupedEditorActions(scope: EditorActionRuntime) {
 	cancelProjectBinReplacement, cancelRackEffectGesture, cancelSampleEdit, capabilities,
 	captureRackNoiseProfileFromController, captureSelectedNoiseProfile, claimProjectLock, clearLocalData,
 	clearLoopRegion, clearRecentProjects, closeProjectTab, commit, commitParametricEqGesture,
-	commitRackEffectGesture, configureDisplayInput, continueLoudnessMeasurement, copy, copyEffectStack,
+	commitRackEffectGesture, configureDisplayInput, continueLoudnessMeasurement, copy, copyRackEffect, copyEffectStack,
 	createStableId, deleteProject, disjoinSelectedClip, dismissAup4CompatibilitySummary, duplicateProject,
 	duplicateTrack, engine, framescaperCaptureActions, framescaperWebVcrActions, exportLabels, ffmpeg,
 	fileService, findTrack, persistSetting, publishDocumentSnapshot, flushProject, generateSelectionSilence,
@@ -441,6 +441,7 @@ export function createGroupedEditorActions(scope: EditorActionRuntime) {
 		effects: Object.freeze({
 			add: restricted('audioEffects', addEffect),
 			update: restricted('audioEffects', updateRackEffect),
+			copy: restricted('audioEffects', copyRackEffect),
 			beginRackEffectGesture: restricted('audioEffects', beginRackEffectGesture),
 			previewRackEffect: restricted('audioEffects', previewRackEffect),
 			commitRackEffectGesture: restricted('audioEffects', commitRackEffectGesture),

@@ -2,7 +2,7 @@
 	"schemaVersion": 2,
 	"locale": "it",
 	"provenance": {
-		"machine": {"model":"parametric-eq-copy-replay","modelDigest":"sha256:95338fd1e427884cdb69edfbeb4a8f1f4f24c313729300722cb9b0bcaf345b18","promptVersion":"i18n-machine-v1"},
+		"machine": {"model":"realtime-effect-picker-copy-replay","modelDigest":"sha256:6a605a26464df6c9503849db976116e6f1af54a4ac2eebc81e9e0bae04dad136","promptVersion":"i18n-machine-v1"},
 		"audacity": {"repository":"audacity/audacity","headSha":"de2e43dc13474ba712ade5ea8e47550eba0e8bfb","runId":35327911264,"artifactId":10539339149,"workflowUrl":"https://github.com/audacity/audacity/actions/runs/35327911264","archiveName":"Audacity_locale_262610911.zip","archiveSha256":"13b1ff11c39a677c711a1d29738a394aaca7a200533927aab3f45bbd76c1ff8e","archiveByteLength":15413913,"licenseSpdx":"GPL-3.0-only","upstreamProjectUrl":"https://github.com/audacity/audacity","upstreamLicenseUrl":"https://github.com/audacity/audacity/blob/de2e43dc13474ba712ade5ea8e47550eba0e8bfb/LICENSE.txt","modificationNotice":"Soundscaper converts reviewed Audacity Qt TS messages to per-locale JSON catalogs, excludes unsafe or inapplicable entries, adapts reviewed placeholders and mnemonics, and removes ellipsis punctuation.","mappingVersion":3,"mappingSha256":"f4cf0434f47eaa9434d079a1623b9d9501e9c8da0d83f0c73344f7765113b57c"}
 	},
 	"entries": {
@@ -536,6 +536,7 @@
 		"controlTrack": ["machine","Control track","Traccia di controllo"],
 		"controlTrackNotFound": ["machine","The control track was not found.","La traccia di controllo non è stata trovata."],
 		"copy": ["audacity","Copy","Copia"],
+		"copyEffect": ["machine","Copy effect","Copia effetto"],
 		"copyEffects": ["machine","Copy effects","Copia effetti"],
 		"correlation": ["machine","Correlation","Correlazione"],
 		"createMulticamera": ["machine","Create from video sources","Crea da sorgenti video"],

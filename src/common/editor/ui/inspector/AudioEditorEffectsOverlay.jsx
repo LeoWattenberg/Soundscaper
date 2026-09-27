@@ -1,8 +1,8 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'; import { publishedCopyFor } from '../../controller/shared/presentation-localization.ts'; import { feedbackFailure, usePresentationFeedback } from '../presentation-feedback.ts';
+import { useCallback, useEffect, useRef, useState } from 'react'; import { publishedCopyFor } from '../../controller/shared/presentation-localization.ts'; import { feedbackFailure, usePresentationFeedback } from '../presentation-feedback.ts';
 import { ContextMenu } from '@soundscaper/design-system/ContextMenu';
 import { ContextMenuItem } from '@soundscaper/design-system/ContextMenuItem';
 import { EffectsPanel } from '@soundscaper/design-system/EffectsPanel';
-import { audioEffectTypes, audioSelectionEffectDefaults, createEffect } from '../../effects.js';
+import { audioSelectionEffectDefaults, createEffect } from '../../effects.js';
 import { serializeAudacityEffectMacro } from '../../effect-macros.js';
 import { AUDIO_EDITOR_SAMPLE_RATE, findTrack } from '../../project.js';
 import AudioEditorDialogShell from '../AudioEditorDialogShell.tsx';
@@ -158,16 +158,12 @@ export function AudioEditorEffectsOverlay({
 		});
 	};
 
-	const openPicker = (scope, replaceId = null, event = null) => {
+	const openPicker = (scope, replaceId = null, trigger = null) => {
 		if (blocked || (scope !== 'master' && !channel)) return;
-		setPicker({ scope, replaceId, flyout: !replaceId, anchor: event?.currentTarget || null });
+		const anchor = trigger?.currentTarget || trigger;
+		setPicker({ scope, replaceId, flyout: Boolean(anchor), anchor: anchor || null });
 		setMessage('');
 	};
-
-	const replaceEffectOptions = useMemo(
-		() => audioEffectTypes().map((type) => ({ id: type, name: safeEffectLabel(type, copy) })),
-		[copy],
-	);
 
 	const replaceFromRegistry = (scope, effect, candidate) => {
 		const type = resolveSupportedEffectType(candidate, locale, copy);
@@ -198,6 +194,7 @@ export function AudioEditorEffectsOverlay({
 	};
 
 	const section = (scope, effects, owner) => ({
+		effectActionsLabel: copy.moreOptions,
 		effects: effects.map((effect) => ({
 			id: effect.id,
 			name: safeEffectLabel(effect, copy),
@@ -242,7 +239,7 @@ export function AudioEditorEffectsOverlay({
 			const effect = effects[index];
 			if (!blocked && effect) replaceFromRegistry(scope, effect, candidate);
 		},
-		onChangeEffect: (index) => openPicker(scope, effects[index]?.id || null),
+		onOpenEffectPicker: (index, anchor) => openPicker(scope, effects[index]?.id || null, anchor),
 	});
 
 	const effectRack = selectedEffect?.scope === 'master' ? masterEffects : channelEffects;
@@ -351,7 +348,7 @@ export function AudioEditorEffectsOverlay({
 		setMessage({ key: 'macroExported' });
 		closeStackMenu();
 	});
-
+	const pickerEffect = picker?.replaceId ? (picker.scope === 'master' ? masterEffects : channelEffects).find((candidate) => candidate.id === picker.replaceId) : null;
 	return (
 		<>
 			{renderRack && <div
@@ -373,9 +370,9 @@ export function AudioEditorEffectsOverlay({
 						})}
 						onClose={onClose}
 						trackSection={channel
-							? { trackName: channel.name, replaceEffectOptions, ...section(scope, channelEffects, channel) }
+							? { trackName: channel.name, ...section(scope, channelEffects, channel) }
 							: undefined}
-						masterSection={{ replaceEffectOptions, ...section('master', masterEffects, project?.master) }}
+						masterSection={section('master', masterEffects, project?.master)}
 					/>
 				</div>
 
@@ -547,9 +544,12 @@ export function AudioEditorEffectsOverlay({
 				<EffectPicker
 					copy={copy}
 					disabled={blocked}
+					effectTypes={pickerEffect?.type === 'native-plugin' ? [] : null}
 					flyout={picker.flyout}
 					anchor={picker.anchor}
 					onClose={() => setPicker(null)}
+					onCopyEffect={picker.replaceId && pickerEffect?.type !== 'native-plugin' ? () => run(() => controller.actions.effects.copy(picker.scope, picker.scope === 'master' ? null : targetId, picker.replaceId)) : null}
+					onRemoveEffect={picker.replaceId ? () => run(() => controller.actions.effects.remove(picker.scope, picker.scope === 'master' ? null : targetId, picker.replaceId)) : null}
 					onChoose={(type) => run(async (ownsOperation) => {
 						if (!ownsOperation()) return;
 						if (picker.replaceId) {
