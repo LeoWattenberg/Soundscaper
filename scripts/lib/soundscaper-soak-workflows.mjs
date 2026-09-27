@@ -413,6 +413,9 @@ async function closeProjectBin(editor) {
 async function waitForEditor(page) {
 	const editor = await waitForEditorBound(page);
 	await waitForAttributePresent(editor, 'data-project-id', 30_000);
+	await waitForAttribute(editor, 'data-editor-ready', 'true', 30_000);
+	await waitForAttributeAbsent(editor, 'data-project-activation-pending', 30_000);
+	await waitForStatus(editor);
 	return editor;
 }
 
