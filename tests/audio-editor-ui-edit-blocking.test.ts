@@ -4,12 +4,14 @@ import test from 'node:test';
 import {
 	AUDIO_EDITOR_EDIT_BLOCK_REASONS,
 	selectAudioEditorBusyBlock,
+	selectAudioEditorControllerEditBlock,
 	selectAudioEditorEditBlock,
 	selectAudioEditorProjectHandoffBlock,
 } from '../src/common/editor/ui/edit-blocking.ts';
 
 const cases = [
 	[AUDIO_EDITOR_EDIT_BLOCK_REASONS.READ_ONLY, { readOnly: true }, false],
+	[AUDIO_EDITOR_EDIT_BLOCK_REASONS.PROJECT_ACTIVATION, { projectActivationPending: true }, true],
 	[AUDIO_EDITOR_EDIT_BLOCK_REASONS.TAKE_CYCLE_RECOVERY, { takeCycleRecovery: {} }, true],
 	[AUDIO_EDITOR_EDIT_BLOCK_REASONS.IMPORTING, { importing: true }, true],
 	[AUDIO_EDITOR_EDIT_BLOCK_REASONS.RECORDING_STARTING, { recordingStarting: true }, true],
@@ -70,6 +72,13 @@ test('edit-blocking selectors share a frozen unblocked result for inactive snaps
 	assert.equal(editBlock, busyBlock);
 	assert.ok(Object.isFrozen(editBlock));
 	assert.ok(Object.isFrozen(editBlock.reasons));
+});
+
+test('controller edit blocking projects the project activation fence', () => {
+	assert.equal(
+		selectAudioEditorControllerEditBlock({ projectActivationPending: true }).reason,
+		AUDIO_EDITOR_EDIT_BLOCK_REASONS.PROJECT_ACTIVATION,
+	);
 });
 
 test('project handoff admits only feature-requirement read-only state and still blocks busy work', () => {

@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { EDITOR_PROJECT_TASK_SCOPE, type EditorLifetimeToken } from '../shared/lifecycle.ts'; import { publishedCopyFor } from '../shared/presentation-localization.ts'; import { setLocalizedStatus } from '../../../i18n/presentation-message.ts'; import { publishProjectReadOnlyStatus } from './project-read-only-status.ts';
+import { EDITOR_PROJECT_TASK_SCOPE, type EditorLifetimeToken } from '../shared/lifecycle.ts'; import { publishedCopyFor } from '../shared/presentation-localization.ts'; import { setLocalizedStatus } from '../../../i18n/presentation-message.ts'; import { publishProjectReadOnlyStatus } from './project-read-only-status.ts'; import { createProjectActivationEditFence } from './project-activation-edit-fence.ts';
 import { inputId, isActiveProjectSwitchInput, prepareProjectSwitchHistory } from './internal/project/project-switch-input.ts'; import { verifyProjectSwitchStorageCurrent } from './internal/project/project-switch-storage-currentness.ts';
 import { createPlaybackProjectService } from '../source/playback-project-service.ts';
 import { SCAPE_OPEN_REQUEST_TASK } from './scape-open-request-service.ts';
@@ -39,7 +39,7 @@ export function createProjectSwitchService<
 >(runtime: ProjectSwitchServiceRuntime<Project, History, Buffer, Input>) {
 	const playbackProjects = runtime.playbackProjectService
 		?? createPlaybackProjectService(runtime.productCapabilities), openRecovery = runtime.openRecovery ?? createImmediateTakeCycleOpenRecoveryProjectPort();
-	let pendingProjectSwitches = 0;
+	const activationEditFence = createProjectActivationEditFence(runtime.state, runtime.publishDocumentSnapshot);
 	let readyProjectId = runtime.getProject()?.id ?? null;
 	return Object.freeze({
 		newProject,
@@ -82,8 +82,13 @@ export function createProjectSwitchService<
 	function beginScapeInspectionFence(preserveOpenRequest = false): ScapeInspectionFence {
 		const reason = new DOMException('The editor task was superseded.', 'AbortError');
 		const fence = runtime.scapeInspectionQuiescence.beginFence(reason);
-		if (!preserveOpenRequest) runtime.lifetime.cancelTask(SCAPE_OPEN_REQUEST_TASK, reason);
-		runtime.lifetime.cancelTask(SCAPE_INSPECTION_TASK, reason);
+		try {
+			if (!preserveOpenRequest) runtime.lifetime.cancelTask(SCAPE_OPEN_REQUEST_TASK, reason);
+			runtime.lifetime.cancelTask(SCAPE_INSPECTION_TASK, reason);
+		} catch (error) {
+			try { fence.release(); } catch (cleanupError) { throw projectSwitchCleanupError(error, cleanupError, 'Scape cancellation and activation-fence cleanup both failed.'); }
+			throw error;
+		}
 		return fence;
 	}
 
@@ -93,23 +98,19 @@ export function createProjectSwitchService<
 	): Promise<void> {
 		const token = runtime.lifetime.capture();
 		if (options.adoptSessionRevision !== true
-			&& pendingProjectSwitches === 0 && isActiveProjectSwitchInput(nextProject, readyProjectId, runtime.getProject()?.id)) {
+			&& activationEditFence.pending === 0 && isActiveProjectSwitchInput(nextProject, readyProjectId, runtime.getProject()?.id)) {
 			runtime.lifetime.assertActive(token);
 			return Promise.resolve();
 		}
-		const fence = beginScapeInspectionFence(options.preserveScapeOpenRequest === true);
-		pendingProjectSwitches += 1;
-		const operation = runtime.state.projectQueue.then(async () => {
-			runtime.lifetime.assertActive(token);
-			await fence.wait();
-			runtime.lifetime.assertActive(token);
-			await performProjectSwitchUnderFence(nextProject, options, token);
-		}).finally(() => {
-			pendingProjectSwitches -= 1;
-			fence.release();
-		});
-		runtime.state.projectQueue = operation.catch(() => undefined);
-		return operation;
+		return activationEditFence.enqueue(
+			() => beginScapeInspectionFence(options.preserveScapeOpenRequest === true),
+			async (fence) => {
+				runtime.lifetime.assertActive(token);
+				await fence.wait();
+				runtime.lifetime.assertActive(token);
+				await performProjectSwitchUnderFence(nextProject, options, token);
+			},
+		);
 	}
 
 	async function performProjectSwitch(
@@ -119,17 +120,12 @@ export function createProjectSwitchService<
 	): Promise<void> {
 		runtime.lifetime.assertActive(token);
 		if (options.adoptSessionRevision !== true
-			&& pendingProjectSwitches === 0 && isActiveProjectSwitchInput(nextProject, readyProjectId, runtime.getProject()?.id)) return;
-		const fence = beginScapeInspectionFence();
-		pendingProjectSwitches += 1;
-		try {
+			&& activationEditFence.pending === 0 && isActiveProjectSwitchInput(nextProject, readyProjectId, runtime.getProject()?.id)) return;
+		await activationEditFence.enqueue(beginScapeInspectionFence, async (fence) => {
 			await fence.wait();
 			runtime.lifetime.assertActive(token);
 			await performProjectSwitchUnderFence(nextProject, options, token);
-		} finally {
-			pendingProjectSwitches -= 1;
-			fence.release();
-		}
+		});
 	}
 
 	async function performProjectSwitchUnderFence(

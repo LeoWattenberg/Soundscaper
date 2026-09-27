@@ -25,7 +25,7 @@ test('a macro transaction keeps its opening checkpoint through 210 edits', () =>
 	const generation = new EditorProjectGeneration();
 	generation.activate(opening.id);
 	const state = {
-		readOnly: false,
+		readOnly: false, projectActivationPending: false,
 		history: history as History | null,
 		selectedTrackId: null,
 		selectedClipId: null,

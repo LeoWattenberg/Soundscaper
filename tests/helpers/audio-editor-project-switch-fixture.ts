@@ -66,6 +66,11 @@ export function createFixture(
 	let stopPreview = async (options: Readonly<{ dispose: true }>) => { assert.equal(options.dispose, true); await Promise.resolve(); events.push('stop-preview'); };
 	let disposeRenderEngines = async () => { await Promise.resolve(); events.push('dispose-render-engines'); };
 	let saveNow = async () => { events.push('save-now'); };
+	let publishDocumentSnapshot = () => undefined;
+	let maintainOpenedProject: (projectId: string, isCurrentWritable: () => boolean) => Promise<void> = async (projectId, isCurrentWritable) => {
+		if (isCurrentWritable()) events.push(`maintain-opened:${projectId}`);
+		throw new Error('planned report-only maintenance failure');
+	};
 	let recoveryBlocked = false;
 	const recoveryProjects = new Set<string>();
 	const recoveryDeferred = new Map<string, Array<() => PromiseLike<unknown> | unknown>>();
@@ -76,6 +81,7 @@ export function createFixture(
 	const createdProjects: TestProject[] = [];
 	const revokedUrls: string[] = [];
 	const publishedProjectIds: Array<string | null> = [];
+	const publishedActivationStates: boolean[] = [];
 	const readOnlyUpdates: Array<Readonly<Record<string, unknown>>> = [];
 	const sourceChunkProviders = new SourceChunkProviderRegistry<string, unknown>();
 	const tabs = new Map<string, TestTab>([[oldProject.id, {
@@ -87,6 +93,7 @@ export function createFixture(
 	const initialLock = lock(oldProject.id);
 	const state = {
 		projectQueue: Promise.resolve(),
+		projectActivationPending: false,
 		projectLock: initialLock as ProjectLifecycleLock | null,
 		readOnly: false,
 		history: { present: oldProject },
@@ -267,10 +274,7 @@ export function createFixture(
 			await guard(Promise.resolve());
 			events.push(`record-opened:${projectId}`);
 		},
-		maintainOpenedProject: async (projectId: string, isCurrentWritable: () => boolean) => {
-			if (isCurrentWritable()) events.push(`maintain-opened:${projectId}`);
-			throw new Error('planned report-only maintenance failure');
-		},
+		maintainOpenedProject: (projectId: string, isCurrentWritable: () => boolean) => maintainOpenedProject(projectId, isCurrentWritable),
 		...(options.createOnly ? {
 			createProjectIfAbsent: async (value: TestProject) => {
 				events.push(`create-project:${value.id}`);
@@ -281,7 +285,15 @@ export function createFixture(
 		saveProject: (value: TestProject) => saveProject(value),
 		listProjects: async () => currentProject ? [currentProject] : [],
 		synchronizeMicrophoneMeterTarget: () => { events.push('sync-meter'); },
-		publishProjectState: () => { events.push('publish'); publishedProjectIds.push(currentProject?.id ?? null); },
+		publishDocumentSnapshot: () => {
+			publishedActivationStates.push(state.projectActivationPending);
+			publishDocumentSnapshot();
+		},
+		publishProjectState: () => {
+			events.push('publish');
+			publishedProjectIds.push(currentProject?.id ?? null);
+			publishedActivationStates.push(state.projectActivationPending);
+		},
 		garbageCollectSources: async () => { events.push('gc'); },
 		setStatus: (message: string, status: 'error' | 'success') => { statuses.push([message, status]); },
 		isDisposedError: (error: unknown) => isEditorDisposedError(error),
@@ -295,6 +307,7 @@ export function createFixture(
 		initialLock,
 		lifetime,
 		projectGeneration,
+		publishedActivationStates,
 		publishedProjectIds,
 		scapeInspectionQuiescence,
 		readOnlyUpdates,
@@ -316,6 +329,8 @@ export function createFixture(
 		setSourceChunkProvider: (sourceId: string, provider: unknown) => { sourceChunkProviders.set(sourceId, provider); },
 		setAcquire(value: typeof acquire) { acquire = value; },
 		setLoadSources(value: typeof loadSources) { loadSources = value; },
+		setMaintainOpenedProject(value: typeof maintainOpenedProject) { maintainOpenedProject = value; },
+		setPublishDocumentSnapshot(value: typeof publishDocumentSnapshot) { publishDocumentSnapshot = value; },
 		setStopPreview(value: typeof stopPreview) { stopPreview = value; }, setDisposeRenderEngines(value: typeof disposeRenderEngines) { disposeRenderEngines = value; },
 		setSaveNow(value: typeof saveNow) { saveNow = value; },
 		setSaveProject(value: typeof saveProject) { saveProject = value; },

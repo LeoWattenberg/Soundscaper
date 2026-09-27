@@ -162,7 +162,7 @@ test('legacy track mixer shortcuts distinguish selected media from the focused t
 
 test('legacy mixer mutations honor every canonical editor edit block', () => {
 	for (const blocked of [
-		{ readOnly: true }, { takeCycleRecovery: true }, { importing: true },
+		{ readOnly: true }, { projectActivationPending: true }, { takeCycleRecovery: true }, { importing: true },
 		{ recordingStarting: true }, { recordingScheduling: true }, { scheduledRecording: {} },
 		{ recording: true }, { playbackOptions: { preparing: true } }, { exporting: true },
 		{ processingEffect: true }, { analysisProcessing: true }, { sampleEdit: { processing: true } },

@@ -375,7 +375,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 			recordPersistedSnapshot: (project) => doc.saves.recordPersistedSnapshotFromStore(project.id, (id) => store.loadProject(id)), isPersistedSnapshotCurrent: typeof Reflect.get(store, 'saveProjectIfCurrentWithWriteFence') === 'function' ? (projectId) => doc.saves.isPersistedSnapshotCurrent(projectId, (id) => store.loadProject(id)) : undefined, isActivatedProjectCurrent: typeof Reflect.get(store, 'saveProjectIfCurrentWithWriteFence') === 'function' ? async (project) => sameProjectSnapshot(await store.loadProject(project.id), project) : undefined, isProjectAbsent: async (projectId) => await store.loadProject(projectId) === null,
 			listProjects: () => store.listProjects(),
 			synchronizeMicrophoneMeterTarget: bindings.synchronizeMicrophoneMeterTarget,
-			publishProjectState: bindings.publishProjectState,
+			publishDocumentSnapshot, publishProjectState: bindings.publishProjectState,
 			garbageCollectSources: bindings.garbageCollectSources,
 			setStatus: bindings.setStatus,
 			isDisposedError: isEditorDisposedError,

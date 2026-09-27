@@ -31,6 +31,7 @@ test('controller state initializes deterministic composition-root defaults', () 
 	assert.equal(state.recordingInputGain, 1);
 	assert.equal(state.preferredInputDeviceId, 'default');
 	assert.equal(state.selectedAnnotationId, null);
+	assert.equal(state.projectActivationPending, false);
 	assert.deepEqual(state.deliveryPresets, { schemaVersion: 1, presets: [] });
 });
 

@@ -303,7 +303,7 @@ function createFixture(options: Readonly<{
 	} satisfies SourceLifecycleServiceRuntime);
 
 	const state: ProjectSwitchState<TestProject, TestHistory> = {
-		projectQueue: Promise.resolve(), projectLock: activeLock, readOnly: false,
+		projectQueue: Promise.resolve(), projectActivationPending: false, projectLock: activeLock, readOnly: false,
 		history: { present: active }, selectedTrackId: null, selectedClipId: null,
 		clipboard: null, rackEffectGestures: new Map(), parametricEqGestures: new Map(),
 		videoEffectGestures: new Map(), exportAbort: null, nyquistAbort: null, sampleEditAbort: null,
@@ -411,7 +411,7 @@ function createFixture(options: Readonly<{
 		},
 		recordOpenedProject: async () => undefined, maintainOpenedProject: async () => undefined, saveProject: async () => undefined,
 		listProjects: async () => [], synchronizeMicrophoneMeterTarget: () => undefined,
-		publishProjectState: () => undefined, garbageCollectSources: async () => undefined,
+		publishDocumentSnapshot: () => undefined, publishProjectState: () => undefined, garbageCollectSources: async () => undefined,
 		setStatus: () => undefined, isDisposedError: () => false,
 		clearSourceCaches: async () => {
 			sourceChunkProviders.clear();

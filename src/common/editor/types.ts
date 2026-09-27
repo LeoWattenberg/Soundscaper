@@ -204,6 +204,7 @@ export interface EditorSnapshot {
 	readonly capture: Readonly<FramescaperCaptureSessionSnapshot> | null;
 	readonly webVcr: Readonly<FramescaperWebVcrUiSnapshot> | null;
 	readonly readOnly: boolean;
+	readonly projectActivationPending: boolean;
 	readonly featureRequirementsCompatibility: ProjectFeatureRequirementsReport | null;
 	readonly storage: EditorStoreStatus & Readonly<StorageCapacitySnapshot>;
 	readonly status: Readonly<{ message: string; state: string }>;

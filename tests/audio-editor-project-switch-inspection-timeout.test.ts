@@ -50,12 +50,13 @@ test('a Scape inspection timeout rejects project switching before project work',
 
 	const lifetime = new EditorControllerLifetime();
 	let projectWorkCalls = 0;
-	const state = { projectQueue: Promise.resolve() } as ProjectSwitchState<TestProject, TestHistory>;
+	const state = { projectQueue: Promise.resolve(), projectActivationPending: false } as ProjectSwitchState<TestProject, TestHistory>;
 	const runtime = {
 		state,
 		lifetime,
 		scapeInspectionQuiescence: quiescence,
 		productCapabilities: {},
+		publishDocumentSnapshot: () => undefined,
 		getProject: () => null,
 		projectGeneration: {
 			invalidate() { projectWorkCalls += 1; },

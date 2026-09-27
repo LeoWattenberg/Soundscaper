@@ -203,7 +203,7 @@ test('project switching cancels signal-ignoring playback source readiness before
 		{ projectId: current.id, history: { present: current }, metadata: {} },
 	]]);
 	const state: ProjectSwitchState<TestProject, TestHistory> = {
-		projectQueue: Promise.resolve(),
+		projectQueue: Promise.resolve(), projectActivationPending: false,
 		projectLock: lock(current.id),
 		readOnly: false,
 		history: { present: current },
@@ -325,7 +325,7 @@ test('project switching cancels signal-ignoring playback source readiness before
 		saveProject: async () => undefined,
 		listProjects: async () => currentProject ? [currentProject] : [],
 		synchronizeMicrophoneMeterTarget: () => undefined,
-		publishProjectState: () => undefined,
+		publishDocumentSnapshot: () => undefined, publishProjectState: () => undefined,
 		garbageCollectSources: async () => { events.push('activation:gc'); },
 		setStatus: (message) => { statuses.push(message); },
 		isDisposedError: (error) => isEditorDisposedError(error),

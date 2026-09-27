@@ -190,6 +190,16 @@ test('external edit ownership blocks every command mutation before execution', (
 	assert.equal(executed, 0);
 });
 
+test('project activation blocks command mutation before execution', () => {
+	let executed = 0;
+	const fixture = mutationFixture({
+		executeHistory: (history) => { executed += 1; return history; },
+	});
+	fixture.state.projectActivationPending = true;
+	assert.throws(() => fixture.service.commit({ type: 'project/rename', title: 'Blocked' }), /reserved for activation/iu);
+	assert.equal(executed, 0);
+});
+
 test('disabled audio warp rejects authored clip state before command execution', () => {
 	let executed = 0;
 	const fixture = mutationFixture({
@@ -372,6 +382,7 @@ function mutationFixture(overrides: FixtureOverrides = {}) {
 	let history: TestHistory = { present: project, undo: [] };
 	const state = {
 		readOnly: overrides.readOnly || false,
+		projectActivationPending: false,
 		history,
 		selectedTrackId: overrides.selectedTrackId ?? null,
 		selectedClipId: overrides.selectedClipId ?? null,

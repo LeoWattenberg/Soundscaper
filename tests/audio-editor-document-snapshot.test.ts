@@ -39,6 +39,7 @@ test('document snapshots expose durability, scheduling, history, and compatibili
 	const state = stateFixture({
 		projects: [{ id: 'older' }, { id: 'project' }],
 		recentProjectIds: ['project', 'missing'],
+		projectActivationPending: true,
 		selectedAnnotationId: 'annotation',
 		timedRecording: {
 			startTimeMs: 1_700_000_000_000,
@@ -127,6 +128,7 @@ test('document snapshots expose durability, scheduling, history, and compatibili
 	assert.deepEqual(snapshot.selection, project.selection);
 	assert.strictEqual(snapshot.selection, snapshot.project?.selection);
 	assert.equal(snapshot.selectedAnnotationId, 'annotation');
+	assert.equal(snapshot.projectActivationPending, true);
 	assert.deepEqual(snapshot.recentProjects, [{ id: 'project' }]);
 	assert.deepEqual(snapshot.projectTabs, [{
 		id: 'project', title: 'Project', dirty: true, readOnly: false,

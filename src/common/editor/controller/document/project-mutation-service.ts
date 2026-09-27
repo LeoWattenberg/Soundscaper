@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { createLocalizedError } from '../../../i18n/presentation-message.ts'; import type { MacroTransactionMetadata } from '../effects/macro-transaction-metadata.ts';
+import { createLocalizedError } from '../../../i18n/presentation-message.ts'; import type { MacroTransactionMetadata } from '../effects/macro-transaction-metadata.ts'; import { assertProjectActivationEditAllowed } from './project-activation-edit-fence.ts';
 
 import type { AudioEditorCommand } from '../../commands/protocol.ts';
 import type { ProjectFlushOptions } from './project-save-service.ts';
@@ -40,6 +40,7 @@ export interface ProjectMutationState<
 	History extends MutationHistory<Project>,
 > {
 	readOnly: boolean;
+	projectActivationPending: boolean;
 	takeCycleRecovery?: unknown;
 	takeCycleRecoveryInspecting?: boolean;
 	history: History | null;
@@ -253,9 +254,10 @@ export function createProjectMutationService<
 			// that is open now — and autosave the loss — so the fence is asserted
 			// before anything is read or written. It is asserted ahead of the second
 			// settlement too: both macro callers roll back in the catch that a
-			// refused commit lands in, and that rollback has to be refused for the
-			// same reason rather than reported as an internal double settlement.
-			dependencies.lifetime.assertActive(openedLifetime);
+				// refused commit lands in, and that rollback has to be refused for the
+				// same reason rather than reported as an internal double settlement.
+				assertProjectActivationEditAllowed(dependencies.state);
+				dependencies.lifetime.assertActive(openedLifetime);
 			dependencies.assertProject(openedProject);
 			if (reentered) throw new Error('A macro transaction settles exactly once.');
 			const nextHistory = next(requireHistory());
@@ -406,6 +408,7 @@ export function createProjectMutationService<
 	}
 
 	function assertWritable(): void {
+		assertProjectActivationEditAllowed(dependencies.state);
 		dependencies.assertEditingAllowed();
 		if (dependencies.state.readOnly) throw createLocalizedError(Error, { projectReadOnly: dependencies.projectReadOnlyMessage }, 'projectReadOnly');
 		if (dependencies.state.takeCycleRecovery || dependencies.state.takeCycleRecoveryInspecting) {

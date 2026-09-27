@@ -83,6 +83,7 @@
 		"document/native-project-composition.ts",
 		"document/native-project-service.ts",
 		"document/native-project-types.ts",
+		"document/project-activation-edit-fence.ts",
 		"document/project-admin-action-binding.ts",
 		"document/project-admin-service.ts",
 		"document/project-bootstrap-composition.ts",

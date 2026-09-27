@@ -12,7 +12,7 @@ import { evaluateAudacityActionEnablement } from '../src/common/editor/audacity-
 test('label edits remain available during capture while every other edit blocker remains effective', () => {
 	assert.equal(selectAudioEditorLabelEditBlock({ recording: true }).blocked, false);
 	assert.equal(selectAudioEditorControllerLabelEditBlock({ recorder: {} }).blocked, false);
-	for (const flag of ['readOnly', 'takeCycleRecovery', 'recordingStarting', 'recordingScheduling', 'scheduledRecording', 'importing', 'exporting', 'processingEffect', 'analysisProcessing']) {
+	for (const flag of ['readOnly', 'projectActivationPending', 'takeCycleRecovery', 'recordingStarting', 'recordingScheduling', 'scheduledRecording', 'importing', 'exporting', 'processingEffect', 'analysisProcessing']) {
 		assert.equal(selectAudioEditorLabelEditBlock({ recording: true, [flag]: true }).blocked, true, flag);
 	}
 	assert.equal(selectAudioEditorLabelEditBlock({ recording: true, sampleEdit: { processing: true } }).blocked, true);

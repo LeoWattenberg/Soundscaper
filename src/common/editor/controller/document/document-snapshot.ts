@@ -107,6 +107,7 @@ export interface EditorDocumentSnapshotState {
 	readonly playAtSpeedAbort: unknown;
 	readonly readOnly: boolean;
 	readonly projectLock: Readonly<{ readOnly?: boolean }> | null;
+	readonly projectActivationPending: boolean;
 	readonly importing: boolean;
 	readonly recordingStarting: boolean;
 	readonly timedRecordingPreparing: boolean;
@@ -269,6 +270,7 @@ export function createEditorDocumentSnapshot<Project extends SnapshotProject>(
 		}),
 		readOnly: state.readOnly,
 		lockReadOnly: Boolean(state.projectLock?.readOnly),
+		projectActivationPending: state.projectActivationPending,
 		importing: state.importing,
 		recordingStarting: state.recordingStarting,
 		recordingScheduling: state.timedRecordingPreparing,

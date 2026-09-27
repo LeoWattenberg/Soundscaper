@@ -358,7 +358,7 @@ function createFixture(options: FixtureOptions) {
 		historyTokens.set(options.storedProject.id, {});
 	}
 	const state: ProjectSwitchState<TestProject, TestHistory> = {
-		projectQueue: Promise.resolve(),
+		projectQueue: Promise.resolve(), projectActivationPending: false,
 		projectLock: activeLock,
 		readOnly: false,
 		history: { present: activeProject },
@@ -562,7 +562,7 @@ function createFixture(options: FixtureOptions) {
 		saveProject: async () => undefined,
 		listProjects: async () => [],
 		synchronizeMicrophoneMeterTarget: () => undefined,
-		publishProjectState: () => { effects.push('session:publish'); },
+		publishDocumentSnapshot: () => undefined, publishProjectState: () => { effects.push('session:publish'); },
 		garbageCollectSources: async () => undefined,
 		setStatus: () => undefined,
 		isDisposedError: () => false,

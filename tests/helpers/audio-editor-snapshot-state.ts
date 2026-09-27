@@ -12,7 +12,7 @@ export function stateFixture(
 		preferencesReadOnly: false, selectedTrackId: null, selectedClipId: null,
 		selectedAnnotationId: null,
 		transportState: 'stopped', projectBinPreview: null, playAtSpeedRate: 1,
-		playAtSpeedAbort: null, readOnly: false, projectLock: null, importing: false,
+		playAtSpeedAbort: null, readOnly: false, projectLock: null, projectActivationPending: false, importing: false,
 		recordingStarting: false, timedRecordingPreparing: false, timedRecording: null,
 		activeTimedRecording: null,
 		timedRecordingCancelling: false, recorder: null, recordingPreview: null,

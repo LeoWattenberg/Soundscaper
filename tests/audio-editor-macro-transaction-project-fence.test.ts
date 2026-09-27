@@ -85,6 +85,19 @@ test('a disposed controller cannot roll back a pending macro into its old projec
 	assert.deepEqual(fixture.events, [], 'disposal leaves history and project untouched');
 });
 
+test('a macro cannot settle while project activation owns session history', () => {
+	const fixture = fenceFixture();
+	const transaction = fixture.service.beginMacroTransaction();
+	fixture.setProjectActivationPending(true);
+
+	assert.throws(
+		() => transaction.commit({ type: 'macro/run', name: 'Cleanup', stepCount: 2 }),
+		/reserved for activation/iu,
+	);
+	assert.throws(() => transaction.rollback(), /reserved for activation/iu);
+	assert.deepEqual(fixture.events, []);
+});
+
 function projectFixture(id: string): FenceProject {
 	return {
 		id,
@@ -109,7 +122,7 @@ function fenceFixture() {
 	let history = historyFixture(project, 5);
 	generation.activate(project.id);
 	const state = {
-		readOnly: false,
+		readOnly: false, projectActivationPending: false,
 		history: history as FenceHistory | null,
 		selectedTrackId: null as string | null,
 		selectedClipId: null as string | null,
@@ -172,6 +185,7 @@ function fenceFixture() {
 		events,
 		currentHistory: () => history,
 		dispose: () => { lifetime.beginDisposal(); },
+		setProjectActivationPending: (pending: boolean) => { state.projectActivationPending = pending; },
 		/** What a project switch does to the one history slot the controller owns. */
 		switchProject(id: string, entries: number): FenceHistory {
 			project = projectFixture(id);

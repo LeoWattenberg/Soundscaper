@@ -42,6 +42,7 @@ export type ControllerWorkspaceState<Preferences, EffectPresets, History = Contr
 	outputUrl: string | null;
 	outputCleanup: (() => PromiseLike<unknown> | unknown) | null;
 	projectQueue: Promise<void>;
+	projectActivationPending: boolean;
 	missingSourceIds: Set<string>;
 	videoEffectGestures: VideoEffectServiceRuntime['state']['videoEffectGestures'];
 	lastGeneratorRequest: AudioGeneratorServiceDependencies['state']['lastGeneratorRequest'];

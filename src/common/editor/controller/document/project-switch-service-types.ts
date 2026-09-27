@@ -49,6 +49,7 @@ export interface ProjectSwitchState<
 	History extends ProjectLifecycleHistory<Project>,
 > {
 	projectQueue: Promise<void>;
+	projectActivationPending: boolean;
 	projectLock: ProjectLifecycleLock | null;
 	readOnly: boolean;
 	history: History | null;
@@ -224,6 +225,7 @@ export interface ProjectSwitchServiceRuntime<
 	readonly isActivatedProjectCurrent?: (project: Project) => Promise<boolean>;
 	readonly listProjects: () => Promise<readonly unknown[]>;
 	readonly synchronizeMicrophoneMeterTarget: () => void;
+	readonly publishDocumentSnapshot: () => void;
 	readonly publishProjectState: () => void;
 	readonly garbageCollectSources: () => PromiseLike<unknown> | unknown;
 	readonly setStatus: (message: string, state: 'error' | 'success', localization?: import('../../../i18n/presentation-message.ts').LocalizedPresentationMessage) => void;

@@ -76,7 +76,7 @@ test('selection clear settles through the production current-project cycle path 
 		let project = base;
 		let history = session.getProjectHistory(PROJECT_ID) as unknown as SettlementHistory;
 		const state = {
-			readOnly: false,
+			readOnly: false, projectActivationPending: false,
 			history,
 			selectedTrackId: TRACK_ID,
 			selectedClipId: null,
