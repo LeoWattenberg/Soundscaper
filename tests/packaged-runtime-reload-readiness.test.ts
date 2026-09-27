@@ -21,8 +21,8 @@ test('packaged collector proves reload readiness before recorder instrumentation
 });
 
 test('packaged coverage discovers its product only after the initial save releases beforeunload', async () => {
-	let releaseReadiness = () => undefined;
-	const readiness = new Promise<void>((resolve) => { releaseReadiness = resolve; });
+	let releaseReadiness!: () => void;
+	const readiness = new Promise<void>((resolve) => { releaseReadiness = () => resolve(); });
 	let readinessTimeout = 0;
 	const page = {
 		url: () => 'soundscaper-app://bundle/',
