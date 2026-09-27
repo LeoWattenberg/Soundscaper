@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { expect, test, monoTone, readFile } from './audio-editor-test-fixtures.js';
+import { expect, test, longTone, monoTone, readFile } from './audio-editor-test-fixtures.js';
 import {
 	addRackEffect, bootEditor, chooseCommandAction, chooseNestedCommandAction, closeDialog,
 	collectClientErrors, effectSourceMetadata, importFiles, openEffectsForTrack, registerAudioEditorHooks, waitForEditor,
@@ -85,4 +85,38 @@ test.describe('de-esser and multiband compressor', () => {
 			expect(errors).toEqual([]);
 		});
 	}
+
+	test('multiband compressor reuses the live compressor input and output graph', async ({ page }) => {
+		const errors = collectClientErrors(page);
+		const editor = await bootEditor(page, '/embed/en/');
+		await importFiles(editor, [longTone]);
+		const panel = await openEffectsForTrack(editor, 1);
+		await addRackEffect(page, panel, 'track', 'Multiband compressor');
+		const dialog = page.getByRole('dialog', { name: 'Multiband compressor', exact: true });
+		const history = dialog.getByRole('img', { name: 'Input, output and compression history', exact: true });
+		await expect(history).toBeVisible();
+		for (const label of ['Input', 'Output', 'Compression']) {
+			await expect(dialog.getByRole('checkbox', { name: label, exact: true })).toBeChecked();
+		}
+		await expect(dialog.locator('.audio-editor-audacity-layout__card')).toHaveCount(0);
+		await expect(dialog.locator('[data-multiband-compressor-group="low"]')).toBeVisible();
+
+		await dialog.getByRole('spinbutton', { name: 'Low threshold', exact: true }).fill('-48');
+		await dialog.getByRole('spinbutton', { name: 'Low threshold', exact: true }).press('Tab');
+		await dialog.getByRole('spinbutton', { name: 'Low ratio', exact: true }).fill('20');
+		await dialog.getByRole('spinbutton', { name: 'Low ratio', exact: true }).press('Tab');
+		await editor.getByRole('button', { name: 'Play', exact: true }).click();
+		await expect(editor.getByRole('button', { name: 'Pause', exact: true })).toBeVisible();
+
+		const activity = dialog.locator('[data-dynamics-activity]');
+		await expect(activity.locator('[data-dynamics-activity-input]')).not.toHaveText('—');
+		await expect(activity.locator('[data-dynamics-activity-output]')).not.toHaveText('—');
+		await expect.poll(
+			async () => Number.parseFloat(String(await activity.locator('[data-dynamics-activity-reduction]').textContent())
+				.replace(/[^\d.-]/gu, '')),
+			{ timeout: 10_000 },
+		).toBeLessThan(0);
+		await editor.getByRole('button', { name: 'Pause', exact: true }).click();
+		expect(errors).toEqual([]);
+	});
 });

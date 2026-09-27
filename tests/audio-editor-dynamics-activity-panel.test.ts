@@ -25,6 +25,7 @@ const READING = Object.freeze({
 test('only the dynamics effects that can describe themselves offer an activity panel', () => {
 	assert.equal(supportsDynamicsActivity('audacity-compressor'), true);
 	assert.equal(supportsDynamicsActivity('audacity-limiter'), true);
+	assert.equal(supportsDynamicsActivity('multiband-compressor'), true);
 	// The native rack dynamics are browser DynamicsCompressorNodes and the legacy
 	// compressor runs over a whole selection, so neither can report a reading;
 	// an activity panel that could never fill would read as a fault.
