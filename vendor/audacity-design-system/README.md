@@ -222,11 +222,15 @@ application overrides and source patches against the pin and upstream master.
     the clip's overlay. It also keeps both grips reachable when this editor's independent
     fades overlap. Covered by `tests/vendored-design-system-fade-handle.test.tsx` and
     `tests/browser/audio-editor-clip-fades.spec.js`.
-27. `TrackCrossfadeVisual.tsx` ports newer upstream's paired white veils and gain curves for
-    automatic crossfades. The host supplies paths computed from its frame-canonical
-    playback gain, including legacy linear and shaped authored fades, so the drawing matches
-    the audio. The host keeps its existing overlap geometry and accessibility label. The
-    painted region is inset and clipped within the clip outlines. Covered by
+27. `TrackCrossfadeVisual.tsx` ports current upstream's paired white veils, equal-power gain
+    curves, and shared intersection handle from `TrackNew.tsx` at
+    `4a5bdd07c6e6c400db9fea84b194ac00057623dd`. The host supplies frame-canonical paths and
+    commits the handle's two shape exponents, so the drawing stays in lockstep with playback.
+    As upstream does, an automatic crossfade consumes an authored fade on the same clip edge
+    while retaining that edge's shape exponent, and Alt-drag rolls the two overlap edges together.
+    The local host also makes the shared handle an accessible horizontal keyboard slider. The
+    painted region is inset and clipped within the clip outlines, while the handle remains a
+    track-level sibling. Covered by
     `tests/vendored-design-system-crossfade-visual.test.tsx`,
     `tests/audio-editor-crossfade-visual-geometry.test.ts`, and
     `tests/browser/audio-editor-crossfade-ui.spec.js`.

@@ -64,7 +64,7 @@ test('a crossfade-out contained in a clip returns to unity right after the overl
 
 	assert.equal(scheduledValueAt(fadeOut.calls, 0), 1);
 	assert.equal(scheduledValueAt(fadeOut.calls, 5), 1);
-	assert.ok(Math.abs(scheduledValueAt(fadeOut.calls, 10) - 0.5) < 1e-9, 'the overlap should fade out');
+	assert.ok(Math.abs(scheduledValueAt(fadeOut.calls, 10) - Math.SQRT1_2) < 0.002, 'the overlap should fade out');
 	assert.equal(scheduledValueAt(fadeOut.calls, 15), 0);
 	for (const frame of [16, 17, 20, 25, 29, 30]) {
 		assert.ok(
@@ -86,7 +86,7 @@ test('a crossfade-out running to the clip end still fades to silence at the end'
 	);
 
 	assert.equal(scheduledValueAt(fadeOut.calls, 15), 1);
-	assert.ok(Math.abs(scheduledValueAt(fadeOut.calls, 22.5) - 0.5) < 1e-9, 'the tail should fade out');
+	assert.ok(Math.abs(scheduledValueAt(fadeOut.calls, 22.5) - Math.SQRT1_2) < 0.002, 'the tail should fade out');
 	assert.equal(scheduledValueAt(fadeOut.calls, 30), 0);
 	assert.ok(
 		fadeOut.calls.every(([, , at]) => at <= 30),
@@ -113,7 +113,7 @@ test('two contained crossfade-outs each restore unity gain between them', () => 
 	assert.ok(scheduledValueAt(fadeOut.calls, 35) >= 0.99, 'the tail should play at unity gain');
 });
 
-test('an explicit fade-out still applies over a contained crossfade-out', () => {
+test('a crossfade consumes an explicit fade on the same edge', () => {
 	const fadeIn = new MockParam();
 	const fadeOut = new MockParam();
 	const clipGain = new MockParam();
@@ -126,7 +126,6 @@ test('an explicit fade-out still applies over a contained crossfade-out', () => 
 
 	assert.equal(scheduledValueAt(fadeOut.calls, 15), 0);
 	assert.ok(Math.abs(scheduledValueAt(fadeOut.calls, 16) - 1) < 1e-9, 'unity resumes after the overlap');
-	assert.ok(Math.abs(scheduledValueAt(fadeOut.calls, 25) - Math.SQRT1_2) < 1e-9,
-		'the explicit fade-out survives');
-	assert.equal(scheduledValueAt(fadeOut.calls, 30), 0);
+	assert.equal(scheduledValueAt(fadeOut.calls, 25), 1, 'the explicit fade-out stays suppressed');
+	assert.equal(scheduledValueAt(fadeOut.calls, 30), 1);
 });

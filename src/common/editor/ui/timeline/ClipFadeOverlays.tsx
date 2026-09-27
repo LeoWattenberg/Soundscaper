@@ -62,25 +62,27 @@ export function ClipFadeOverlays({ rootRef, clips, selectedIds, startFrame, endF
 		if (!target) return null;
 		const geometry = geometries.get(clip.id);
 		if (!geometry || geometry.width <= 0) return null;
-		const hasFade = (clip.fadeInFrames ?? 0) > 0 || (clip.fadeOutFrames ?? 0) > 0;
+		const curves = geometry.curves.filter(curve => !crossfadedFadeEdges.has(`${clip.id}:${curve.edge}`));
+		const hasFade = curves.length > 0;
 		const selected = selectedIds.has(clip.id);
 		if (!hasFade && !selected) return null;
-		const displayWidth = Math.max(48, Math.round(geometry.width));
+		const displayWidth = Math.round(geometry.width);
 		const displayX = (x: number): number => x / geometry.width * displayWidth;
 		const inBoundaryX = displayX(geometry.fadeInX ?? 0);
 		const outBoundaryX = displayX(geometry.fadeOutX ?? geometry.width);
 		const shapePositions = selected && showFadeShapeHandles ? placeFadeShapeHandles({
 			...geometry,
-			curves: geometry.curves.filter(curve => !crossfadedFadeEdges.has(`${clip.id}:${curve.edge}`)),
+			curves,
 		}, displayWidth, clip) : [];
 		return createPortal(<div className="audio-editor-clip-fade">
 			{hasFade && <svg className="audio-editor-clip-fade__curve" viewBox={`0 0 ${geometry.width} 100`}
 				preserveAspectRatio="none" aria-hidden="true">
-				{geometry.curves.map(curve => <path key={curve.edge} data-fade-curve={curve.edge}
+				{curves.map(curve => <path key={curve.edge} data-fade-curve={curve.edge}
 					d={curve.path} fill="none" stroke="rgba(0, 0, 0, 0.55)" strokeWidth={1.5}
 					vectorEffect="non-scaling-stroke" />)}
 			</svg>}
 			{selected && (['in', 'out'] as const).map((edge: ClipFadeEdge) => {
+				if (crossfadedFadeEdges.has(`${clip.id}:${edge}`)) return null;
 				const x = edge === 'in' ? geometry.fadeInX : geometry.fadeOutX;
 				if (x === null) return null;
 				const field = fadeField(edge);
