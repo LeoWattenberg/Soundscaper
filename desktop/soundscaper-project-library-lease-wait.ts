@@ -3,6 +3,7 @@
 const DEFAULT_POLL_INTERVAL_MS = 100
 const CONTENDED_LEASE_MESSAGE = /^Soundscaper desktop baseline writer lease is busy$/u
 const CONTENDED_SQLITE_CODES: readonly number[] = [5, 6]
+const SQLITE_PRIMARY_RESULT_CODE_MASK = 0xff
 
 export interface SoundscaperDesktopProjectLibraryLeaseWaitOptions {
 	readonly waitMs: number
@@ -41,7 +42,10 @@ function isLeaseContention(error: unknown): boolean {
 	if (!(error instanceof Error)) return false
 	if (isWriterLeaseBusy(error)) return true
 	const { errcode } = error as { readonly errcode?: unknown }
-	return typeof errcode === 'number' && CONTENDED_SQLITE_CODES.includes(errcode)
+	// node:sqlite exposes SQLite's extended result code; its low byte is the
+	// primary BUSY or LOCKED family that remains safe to retry here.
+	return typeof errcode === 'number' && Number.isSafeInteger(errcode) && errcode >= 0
+		&& CONTENDED_SQLITE_CODES.includes(errcode & SQLITE_PRIMARY_RESULT_CODE_MASK)
 }
 
 function isWriterLeaseBusy(error: unknown): error is Error {

@@ -148,6 +148,29 @@ test('Soundscaper desktop baseline initializes only exact SSCP user_version 1 da
 	retired.close()
 })
 
+test('Soundscaper startup does not write an already-current library schema', async (context) => {
+	const root = await mkdtemp(join(tmpdir(), 'soundscaper-current-schema-'))
+	context.after(() => rm(root, { recursive: true, force: true }))
+	const path = join(root, 'library.sqlite3')
+	const writer = new DatabaseSync(path)
+	initializeSoundscaperDesktopProjectLibraryDatabase(writer)
+	writer.exec('BEGIN IMMEDIATE')
+	const current = new DatabaseSync(path, { readOnly: true })
+	try {
+		current.exec('PRAGMA synchronous = NORMAL; PRAGMA trusted_schema = ON; PRAGMA foreign_keys = OFF')
+		assert.doesNotThrow(() => initializeSoundscaperDesktopProjectLibraryDatabase(current))
+		assertSoundscaperDesktopProjectLibraryDatabaseIdentity(current)
+		assert.equal(current.prepare('PRAGMA journal_mode').get()?.journal_mode, 'wal')
+		assert.equal(current.prepare('PRAGMA synchronous').get()?.synchronous, 2)
+		assert.equal(current.prepare('PRAGMA trusted_schema').get()?.trusted_schema, 0)
+		assert.equal(current.prepare('PRAGMA foreign_keys').get()?.foreign_keys, 1)
+	} finally {
+		current.close()
+		writer.exec('ROLLBACK')
+		writer.close()
+	}
+})
+
 test('an expired but still-owned writer lease renews after event-loop suspension', () => {
 	const database = new DatabaseSync(':memory:')
 	initializeSoundscaperDesktopProjectLibraryDatabase(database)
@@ -405,7 +428,7 @@ test('Soundscaper baseline lease retry recognizes only current contention', asyn
 			if (refusalAttempts === 1) {
 				throw new Error('Soundscaper desktop baseline writer lease is busy')
 			}
-			throw Object.assign(new Error('database is locked'), { errcode: 5 })
+			throw Object.assign(new Error('database is locked'), { errcode: 517 })
 		}, { waitMs: 10, pollIntervalMs: 10 }),
 		/Soundscaper desktop baseline writer lease is busy/u,
 	)
@@ -415,6 +438,27 @@ test('Soundscaper baseline lease retry recognizes only current contention', asyn
 	// is that contention keeps the loop going and the first busy error is
 	// what surfaces, not the exact number of polls a 10 ms window allows.
 	assert.ok(refusalAttempts >= 2, `expected at least two attempts, saw ${refusalAttempts}`)
+	for (const errcode of [5, 6, 261, 262, 517, 773]) {
+		let contentionAttempts = 0
+		assert.equal(await acquireSoundscaperDesktopProjectLibraryLeaseWithWait(() => {
+			contentionAttempts += 1
+			if (contentionAttempts === 1) {
+				throw Object.assign(new Error('database is locked'), { errcode })
+			}
+			return 'lease'
+		}, { waitMs: 50, pollIntervalMs: 10 }), 'lease')
+		assert.equal(contentionAttempts, 2)
+	}
+	const unrelated = Object.assign(new Error('SQLite read-only refusal'), { errcode: 264 })
+	let unrelatedAttempts = 0
+	await assert.rejects(
+		() => acquireSoundscaperDesktopProjectLibraryLeaseWithWait(() => {
+			unrelatedAttempts += 1
+			throw unrelated
+		}, { waitMs: 50, pollIntervalMs: 10 }),
+		(error: unknown) => error === unrelated,
+	)
+	assert.equal(unrelatedAttempts, 1)
 	await assert.rejects(
 		() => acquireSoundscaperDesktopProjectLibraryLeaseWithWait(() => {
 			throw new Error('Soundscaper desktop V11 writer lease is busy')
