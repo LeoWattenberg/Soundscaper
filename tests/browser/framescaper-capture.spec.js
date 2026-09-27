@@ -285,7 +285,7 @@ test.describe('Framescaper v1 recoverable capture', () => {
 
 	test('keeps capture bound to its origin while another project is edited', async ({ page }) => {
 		test.setTimeout(120_000);
-		await installCaptureHarness(page);
+		await installCaptureHarness(page, { audioFrameIntervalMs: 500 }); // Project switching, not synthetic PCM throughput, owns this case.
 		const editor = await bootEditor(page, '/framescaper/en/');
 		const originProjectId = await editor.getAttribute('data-project-id');
 		expect(originProjectId).toBeTruthy();
@@ -293,6 +293,7 @@ test.describe('Framescaper v1 recoverable capture', () => {
 
 		await selectSourceRoles(panel, ['microphone']);
 		await panel.getByRole('button', { name: 'Preview sources', exact: true }).press('Enter');
+		await expectCapturePhase(panel, 'previewing');
 		await panel.getByRole('combobox', { name: 'Countdown', exact: true }).selectOption('0');
 		await panel.getByRole('radio', { name: 'Timeline', exact: true }).check();
 		await panel.getByRole('button', { name: 'Arm capture', exact: true }).press('Enter');
@@ -301,17 +302,16 @@ test.describe('Framescaper v1 recoverable capture', () => {
 		await expect.poll(async () => (
 			await captureHarnessState(page)
 		).audioProcessorConstructions).toBe(1);
-
 		await editor.getByRole('button', { name: 'New project', exact: true }).click();
 		await expect(editor).not.toHaveAttribute('data-project-id', originProjectId);
 		const editedProjectTrackCount = await trackNameText(editor).count();
 		await chooseNestedCommandAction(page, editor, 'Tracks', ['Add new track', 'Audio track']);
 		await expect(trackNameText(editor)).toHaveCount(editedProjectTrackCount + 1);
 		panel = await waitForRecordingSetup(editor);
+		await expectCapturePhase(panel, 'recording');
 		await panel.getByRole('button', { name: 'Stop and import', exact: true }).press('Enter');
 		await expectCapturePhase(panel, 'inactive', 30_000);
 		await expect(projectBinCaptureCard(editor, 'Microphone Capture')).toHaveCount(0);
-
 		const tabs = editor.getByRole('navigation', { name: 'Project tabs' }).getByRole('tab');
 		await expect(tabs).toHaveCount(2);
 		await tabs.first().click();
