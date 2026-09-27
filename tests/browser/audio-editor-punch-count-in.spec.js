@@ -2,8 +2,13 @@ import { expect, longTone, test } from './audio-editor-test-fixtures.js';
 import {
 	bootEditor,
 	chooseCommandAction,
+	chooseDropdown,
+	closeDialog,
 	collectClientErrors,
+	disableNativeSavePicker,
+	downloadBytes,
 	importFiles,
+	openExportDialog,
 	registerAudioEditorHooks,
 } from './audio-editor-test-helpers.js';
 import { SOUNDSCAPER_DATABASE_NAME } from './helpers/editor-databases.js';
@@ -12,7 +17,8 @@ test.describe('Soundscaper punch and count-in recording', () => {
 	registerAudioEditorHooks();
 
 	test('uses the compound-meter map for an exact undoable punch', async ({ page }) => {
-		test.setTimeout(45_000);
+		test.setTimeout(90_000);
+		await disableNativeSavePicker(page);
 		await page.addInitScript(() => {
 			globalThis.__soundscaperRecorderSchedule = null;
 			globalThis.__soundscaperBufferStarts = [];
@@ -138,6 +144,20 @@ test.describe('Soundscaper punch and count-in recording', () => {
 			{ timelineStartFrame: 144_000, durationFrames: 48_000 },
 			{ timelineStartFrame: 192_000 },
 		]);
+		const rendered = await exportWav(page, editor);
+		expect(rendered.sampleRate).toBe(48_000);
+		const beforePunch = measureWindow(rendered.samples, rendered.sampleRate, 2.0, 2.5);
+		const insidePunch = measureWindow(rendered.samples, rendered.sampleRate, 3.25, 3.75);
+		const afterPunch = measureWindow(rendered.samples, rendered.sampleRate, 4.5, 5.0);
+		const signalEvidence = JSON.stringify({ beforePunch, insidePunch, afterPunch });
+		for (const original of [beforePunch, afterPunch]) {
+			expect(original.rms, signalEvidence).toBeGreaterThan(0.15);
+			expect(original.at220Hz, signalEvidence).toBeGreaterThan(0.2);
+			expect(original.at220Hz, signalEvidence).toBeGreaterThan(original.at440Hz * 20);
+		}
+		expect(insidePunch.rms, signalEvidence).toBeGreaterThan(0.04);
+		expect(insidePunch.at440Hz, signalEvidence).toBeGreaterThan(0.06);
+		expect(insidePunch.at440Hz, signalEvidence).toBeGreaterThan(insidePunch.at220Hz * 20);
 		await editor.getByRole('button', { name: 'Undo', exact: true }).click();
 		await expect(editor).toHaveAttribute('data-clip-count', '1');
 		await expect(editor.locator('[data-clip-id]')).toContainText(longTone.name);
@@ -146,6 +166,76 @@ test.describe('Soundscaper punch and count-in recording', () => {
 		expect(errors).toEqual([]);
 	});
 });
+
+async function exportWav(page, editor) {
+	const dialog = await openExportDialog(page, editor);
+	await chooseDropdown(page, dialog.locator('[data-export-field="format"]'), 'WAV');
+	await chooseDropdown(page, dialog.locator('[data-export-field="bitDepth"]'), '24-bit PCM');
+	await dialog.getByRole('button', { name: 'Export', exact: true }).click();
+	const link = dialog.locator('[data-export-download]');
+	await expect(link).toBeVisible({ timeout: 20_000 });
+	const downloadPromise = page.waitForEvent('download');
+	await link.click();
+	const rendered = readPcm24Wav(await downloadBytes(await downloadPromise));
+	await closeDialog(dialog);
+	return rendered;
+}
+
+function readPcm24Wav(bytes) {
+	const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+	expect(new TextDecoder('ascii').decode(bytes.subarray(0, 4))).toBe('RIFF');
+	expect(new TextDecoder('ascii').decode(bytes.subarray(8, 12))).toBe('WAVE');
+	let format = null;
+	let audio = null;
+	for (let offset = 12; offset + 8 <= bytes.byteLength;) {
+		const id = new TextDecoder('ascii').decode(bytes.subarray(offset, offset + 4));
+		const size = view.getUint32(offset + 4, true);
+		if (id === 'fmt ') format = bytes.subarray(offset + 8, offset + 8 + size);
+		if (id === 'data') audio = bytes.subarray(offset + 8, offset + 8 + size);
+		offset += 8 + size + (size & 1);
+	}
+	expect(format).not.toBeNull();
+	expect(audio).not.toBeNull();
+	const formatView = new DataView(format.buffer, format.byteOffset, format.byteLength);
+	expect(formatView.getUint16(0, true)).toBe(1);
+	const channelCount = formatView.getUint16(2, true);
+	const sampleRate = formatView.getUint32(4, true);
+	expect(formatView.getUint16(14, true)).toBe(24);
+	const frameCount = audio.byteLength / (channelCount * 3);
+	const samples = new Float32Array(frameCount);
+	for (let frame = 0; frame < frameCount; frame += 1) {
+		const offset = frame * channelCount * 3;
+		let value = audio[offset] | (audio[offset + 1] << 8) | (audio[offset + 2] << 16);
+		if (value & 0x80_0000) value |= 0xff00_0000;
+		samples[frame] = value / 0x80_0000;
+	}
+	return { sampleRate, samples };
+}
+
+function measureWindow(samples, sampleRate, startSeconds, endSeconds) {
+	const window = samples.subarray(
+		Math.round(startSeconds * sampleRate),
+		Math.round(endSeconds * sampleRate),
+	);
+	let squareSum = 0;
+	for (const sample of window) squareSum += sample * sample;
+	return {
+		rms: Math.sqrt(squareSum / window.length),
+		at220Hz: toneAmplitude(window, 220, sampleRate),
+		at440Hz: toneAmplitude(window, 440, sampleRate),
+	};
+}
+
+function toneAmplitude(samples, frequency, sampleRate) {
+	let cosine = 0;
+	let sine = 0;
+	for (let frame = 0; frame < samples.length; frame += 1) {
+		const angle = 2 * Math.PI * frequency * frame / sampleRate;
+		cosine += samples[frame] * Math.cos(angle);
+		sine += samples[frame] * Math.sin(angle);
+	}
+	return 2 * Math.hypot(cosine, sine) / samples.length;
+}
 
 async function persistedAudioClips(page) {
 	return page.evaluate((databaseName) => new Promise((resolve, reject) => {
