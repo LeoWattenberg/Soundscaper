@@ -1,22 +1,21 @@
 ---
 title: "Посібник з Soundscaper"
-description: "Навчіться записувати, редагувати, міксувати та доставляти проекти за допомогою Soundscaper та Framescaper."
+description: "Дізнайтеся, як записувати, редагувати, мікшувати й готувати аудіопроєкти до випуску в Soundscaper."
 template: splash
 hero:
-  tagline: Practical guides for the local-first Soundscaper and Framescaper editors.
+  tagline: Practical guides for the local-first Soundscaper audio editor.
   actions:
-    - text: Choose an editor
-      link: /docs/uk/start/choose-an-editor/
+    - text: Start the first tutorial
+      link: /docs/uk/tutorials/your-first-project/
       icon: right-arrow
       variant: primary
     - text: Open Soundscaper
       link: https://soundscaper.org/en/
       icon: external
 ---
-<!-- docs-ai-provenance: {"factPacketSha256":"eb7a4205cc2ab638e638e40d032e6ac3ecd87afa84907a96e30b52287c48474b","model":"aya-expanse:32b","modelDigest":"1603440383bd5504dc7afd01c0407b425b988dde650a8dc1a737433baa3cd432","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"eb7a4205cc2ab638e638e40d032e6ac3ecd87afa84907a96e30b52287c48474b","targetLocale":"uk"} -->
+<!-- docs-ai-provenance: {"basedOnProvenance":{"model":"aya-expanse:32b","modelDigest":"1603440383bd5504dc7afd01c0407b425b988dde650a8dc1a737433baa3cd432"},"factPacketSha256":"8d553d47981c15638e776acdae99f1547f5a864b26f05aad54102ec0c3370023","model":"gpt-6-luna","modelProvider":"codex-subagent","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"8d553d47981c15638e776acdae99f1547f5a864b26f05aad54102ec0c3370023","targetLocale":"uk"} -->
 
-Soundscaper і Framescaper — це два види однієї локально-орієнтованої системи проектів.
-Використовуйте Soundscaper для запису та детальної роботи з аудіо. Використовуйте Framescaper для редагування та складання відео.
+Soundscaper — це локальний редактор для запису, відновлення, аранжування, мікшування й аналізу аудіо та підготовки аудіопроєктів до випуску. У цьому посібнику описано такі процеси в практичних інструкціях і на прикладах готових проєктів.
 
 ## Навчальні посібники
 
@@ -44,7 +43,6 @@ Soundscaper і Framescaper — це два види однієї локальн�
 
 ## Більше початкових точок
 
-- [Створіть свій перший проект Framescaper](/framescaper/first-project/)
 - [Розуміння файлів проектів та обміну з Audacity](/projects-and-data/project-files/)
 - [Захист локально збереженої роботи](/projects-and-data/storage-backups-and-privacy/)
 - [Порівняння Soundscaper з Audacity 4 та Audition](/start/how-soundscaper-compares/)

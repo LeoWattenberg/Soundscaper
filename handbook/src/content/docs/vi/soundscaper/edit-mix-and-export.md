@@ -4,7 +4,7 @@ description: "Sắp xếp clip, cân bằng track, áp dụng hiệu ứng và t
 sidebar:
   order: 4
 ---
-<!-- docs-ai-provenance: {"factPacketSha256":"eaa07736d9143de912e22bd2c5d4a8db4f1553c1052d247826240cda8c6af620","model":"gpt-6-luna","modelProvider":"codex-subagent","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"eaa07736d9143de912e22bd2c5d4a8db4f1553c1052d247826240cda8c6af620","targetLocale":"vi"} -->
+<!-- docs-ai-provenance: {"factPacketSha256":"20388bf5b2a7139d7bcfb3a2a962c5f60ec0f91d05992a6307a4fb8b2b622534","model":"gpt-6-luna","modelProvider":"codex-subagent","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"20388bf5b2a7139d7bcfb3a2a962c5f60ec0f91d05992a6307a4fb8b2b622534","targetLocale":"vi"} -->
 
 ## Sắp xếp clip
 
@@ -98,6 +98,3 @@ nhãn.
 có điều kiện được liệt kê trong [tài liệu tham khảo định dạng được tạo tự động](/reference/).
 
 Phát tệp đã xuất bằng ứng dụng khác trước khi bàn giao hoặc xóa tài liệu nguồn.
-
-Để làm việc với hình ảnh — ghép chuỗi, hiệu ứng video và xuất MP4 hoặc WebM —
-chuyển dự án sang [Framescaper](/framescaper/) và xem [xuất video](/framescaper/video-export/).

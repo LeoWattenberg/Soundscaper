@@ -4,7 +4,7 @@ description: "Organiza os clips, equilibra as pistas, aplica efectos e crea un f
 sidebar:
   order: 4
 ---
-<!-- docs-ai-provenance: {"factPacketSha256":"eaa07736d9143de912e22bd2c5d4a8db4f1553c1052d247826240cda8c6af620","model":"qwen3.8:latest","modelDigest":"22130167c4c20e20c7b71454612966ca8e8171e9b3cc8ab6ce8aa6cbfec79643","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"eaa07736d9143de912e22bd2c5d4a8db4f1553c1052d247826240cda8c6af620","targetLocale":"gl"} -->
+<!-- docs-ai-provenance: {"basedOnProvenance":{"model":"qwen3.8:latest","modelDigest":"22130167c4c20e20c7b71454612966ca8e8171e9b3cc8ab6ce8aa6cbfec79643"},"factPacketSha256":"20388bf5b2a7139d7bcfb3a2a962c5f60ec0f91d05992a6307a4fb8b2b622534","model":"gpt-6-luna","modelProvider":"codex-subagent","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"20388bf5b2a7139d7bcfb3a2a962c5f60ec0f91d05992a6307a4fb8b2b622534","targetLocale":"gl"} -->
 
 ## Ordenar clips
 
@@ -52,5 +52,3 @@ Escolle **Ficheiro → Exportar audio** para unha entrega mesturada ou **Exporta
 Os formatos comprimidos usan o tempo de execución FFmpeg. Os formatos exactos e a dispoñibilidade condicional están listados na [referencia de formatos xerada](/reference/).
 
 Reproduce o ficheiro exportado noutro aplicativo antes de entregar ou eliminar o material de orixe.
-
-Para traballo con imaxe — compoñer unha secuencia, efectos de vídeo e unha entrega MP4 ou WebM — pasa o proxecto a [Framescaper](/framescaper/) e consulta [exportar vídeo](/framescaper/video-export/).

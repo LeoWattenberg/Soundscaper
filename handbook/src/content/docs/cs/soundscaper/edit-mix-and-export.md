@@ -4,7 +4,7 @@ description: "Uspořádejte klipy, vyvažte stopy, aplikujte efekty a vytvořte 
 sidebar:
   order: 4
 ---
-<!-- docs-ai-provenance: {"model":"gpt-5.6-luna","modelDigest":"manual","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"eaa07736d9143de912e22bd2c5d4a8db4f1553c1052d247826240cda8c6af620","targetLocale":"cs"} -->
+<!-- docs-ai-provenance: {"basedOnProvenance":{"model":"gpt-5.6-luna"},"factPacketSha256":"20388bf5b2a7139d7bcfb3a2a962c5f60ec0f91d05992a6307a4fb8b2b622534","model":"gpt-6-luna","modelProvider":"codex-subagent","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"20388bf5b2a7139d7bcfb3a2a962c5f60ec0f91d05992a6307a4fb8b2b622534","targetLocale":"cs"} -->
 
 ## Uspořádání klipů
 
@@ -107,7 +107,3 @@ dostupnost jsou uvedeny v [vygenerované referenci formátů](/reference/).
 
 Přehrajte exportovaný soubor v jiné aplikaci před dodáním nebo smazáním zdrojového
 materiálu.
-
-Pro práci s obrazem — skládání sekvence, video efekty a dodání ve formátu MP4 nebo
-WebM — přenechte projekt aplikaci [Framescaper](/framescaper/) a viz
-[export videa](/framescaper/video-export/).

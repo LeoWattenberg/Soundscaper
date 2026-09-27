@@ -4,7 +4,7 @@ description: "クリップを配置し、トラックのバランスを調整し
 sidebar:
   order: 4
 ---
-<!-- docs-ai-provenance: {"factPacketSha256":"eaa07736d9143de912e22bd2c5d4a8db4f1553c1052d247826240cda8c6af620","model":"gpt-5.6-luna","modelDigest":"manual","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"eaa07736d9143de912e22bd2c5d4a8db4f1553c1052d247826240cda8c6af620","targetLocale":"ja"} -->
+<!-- docs-ai-provenance: {"basedOnProvenance":{"model":"gpt-5.6-luna"},"factPacketSha256":"20388bf5b2a7139d7bcfb3a2a962c5f60ec0f91d05992a6307a4fb8b2b622534","model":"gpt-6-luna","modelProvider":"codex-subagent","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"20388bf5b2a7139d7bcfb3a2a962c5f60ec0f91d05992a6307a4fb8b2b622534","targetLocale":"ja"} -->
 
 ## クリップを配置する
 
@@ -53,5 +53,3 @@ Vampプラグインはオーディオを変更せずに分析します。Vampの
 圧縮形式にはFFmpegランタイムが使われます。利用できる正確な形式と条件付きの可否は、[生成された形式リファレンス](/reference/)に記載されています。
 
 納品したり元の素材を削除したりする前に、別のアプリケーションでエクスポートしたファイルを再生してください。
-
-映像作業（シーケンスの構成、ビデオエフェクト、MP4またはWebMでの納品）では、プロジェクトを[Framescaper](/framescaper/)に渡し、[ビデオのエクスポート](/framescaper/video-export/)を参照してください。

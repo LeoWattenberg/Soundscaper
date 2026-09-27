@@ -1,22 +1,21 @@
 ---
-title: "Ses Tasarımcı El Kitabı"
-description: "Soundscaper ve Framescaper ile projeleri kaydetmeyi, düzenlemeyi, karıştırmayı ve teslim etmeyi öğrenin."
+title: "Soundscaper El Kitabı"
+description: "Soundscaper ile ses projelerini kaydetmeyi, düzenlemeyi, mikslemeyi ve teslim etmeyi öğrenin."
 template: splash
 hero:
-  tagline: Practical guides for the local-first Soundscaper and Framescaper editors.
+  tagline: Practical guides for the local-first Soundscaper audio editor.
   actions:
-    - text: Choose an editor
-      link: /docs/tr/start/choose-an-editor/
+    - text: Start the first tutorial
+      link: /docs/tr/tutorials/your-first-project/
       icon: right-arrow
       variant: primary
     - text: Open Soundscaper
       link: https://soundscaper.org/en/
       icon: external
 ---
-<!-- docs-ai-provenance: {"factPacketSha256":"eb7a4205cc2ab638e638e40d032e6ac3ecd87afa84907a96e30b52287c48474b","model":"aya-expanse:32b","modelDigest":"1603440383bd5504dc7afd01c0407b425b988dde650a8dc1a737433baa3cd432","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"eb7a4205cc2ab638e638e40d032e6ac3ecd87afa84907a96e30b52287c48474b","targetLocale":"tr"} -->
+<!-- docs-ai-provenance: {"basedOnProvenance":{"model":"aya-expanse:32b","modelDigest":"1603440383bd5504dc7afd01c0407b425b988dde650a8dc1a737433baa3cd432"},"factPacketSha256":"8d553d47981c15638e776acdae99f1547f5a864b26f05aad54102ec0c3370023","model":"gpt-6-luna","modelProvider":"codex-subagent","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"8d553d47981c15638e776acdae99f1547f5a864b26f05aad54102ec0c3370023","targetLocale":"tr"} -->
 
-Soundscaper ve Framescaper, aynı yerel-önceli proje sistemine ait iki farklı görünümdür.
-Soundscaper'ı kayıt ve detaylı ses işleri için kullanın. Framescaper'ı video düzenleme ve kompozisyon için kullanın.
+Soundscaper; ses kaydetmek, onarmak, düzenlemek, mikslemek ve analiz etmek, ayrıca ses projelerini teslimata hazırlamak için yerel öncelikli bir düzenleyicidir. Bu el kitabı, söz konusu iş akışlarını göreve odaklı kılavuzlar ve eksiksiz örnek projelerle açıklar.
 
 ## Eğitimler
 
@@ -44,7 +43,6 @@ Tüm nasıl yapılır kılavuzlarına bakın [tüm nasıl yapılır kılavuzlar�
 
 ## Daha fazla başlangıç noktası
 
-- [İlk Framescaper Projenizi Oluşturun](/framescaper/first-project/)
 - [Proje Dosyalarını ve Audacity Değişimi Anlayın](/projects-and-data/project-files/)
 - [Yerel Olarak Saklanan İşin Korunması](/projects-and-data/storage-backups-and-privacy/)
 - [Soundscaper'ı Audacity 4 ve Audition ile Karşılaştırma](/start/how-soundscaper-compares/)

@@ -1,54 +1,52 @@
 ---
-title: "Soundscaper-oppaskirja"
-description: "Opi tallentamaan, muokkaamaan, sekoittamaan ja toimittamaan projekteja Soundscaperin ja Framescaperin avulla."
+title: "Soundscaper-käsikirja"
+description: "Opi äänittämään, muokkaamaan, miksaamaan ja viimeistelemään ääniprojekteja Soundscaperilla."
 template: splash
 hero:
-  tagline: Practical guides for the local-first Soundscaper and Framescaper editors.
+  tagline: Practical guides for the local-first Soundscaper audio editor.
   actions:
-    - text: Choose an editor
-      link: /docs/fi/start/choose-an-editor/
+    - text: Start the first tutorial
+      link: /docs/fi/tutorials/your-first-project/
       icon: right-arrow
       variant: primary
     - text: Open Soundscaper
       link: https://soundscaper.org/en/
       icon: external
 ---
-<!-- docs-ai-provenance: {"factPacketSha256":"eb7a4205cc2ab638e638e40d032e6ac3ecd87afa84907a96e30b52287c48474b","model":"qwen3.8:latest","modelDigest":"22130167c4c20e20c7b71454612966ca8e8171e9b3cc8ab6ce8aa6cbfec79643","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"eb7a4205cc2ab638e638e40d032e6ac3ecd87afa84907a96e30b52287c48474b","targetLocale":"fi"} -->
+<!-- docs-ai-provenance: {"basedOnProvenance":{"model":"qwen3.8:latest","modelDigest":"22130167c4c20e20c7b71454612966ca8e8171e9b3cc8ab6ce8aa6cbfec79643"},"factPacketSha256":"8d553d47981c15638e776acdae99f1547f5a864b26f05aad54102ec0c3370023","model":"gpt-6-luna","modelProvider":"codex-subagent","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"8d553d47981c15638e776acdae99f1547f5a864b26f05aad54102ec0c3370023","targetLocale":"fi"} -->
 
-Soundscaper ja Framescaper ovat kaksi näkymää samasta paikallisesti ensisijaisesta projektijärjestelmästä.
-Käytä Soundscaperia äänitykseen ja yksityiskohtaiseen äänityöhön. Käytä Framescaperia videon muokkaamiseen ja komposointiin.
+Soundscaper on paikallisesti toimiva editori äänen tallentamiseen, korjaamiseen, järjestämiseen, miksaamiseen ja analysointiin sekä valmiiden äänitiedostojen toimittamiseen. Tämä käsikirja esittelee työnkulut tehtäväkohtaisilla oppailla ja kokonaisilla esimerkkiprojekteilla.
 
-## Opetusohjelmat
+## Opastusohjelmat
 
-Opetusohjelma on oppitunti: se vie sinut läpi kokonaisen työn esimerkkia, jonka käsikirja tarjoaa, vaihe vaiheelta, ja kertoo, mitä sinun tulisi nähdä matkan varrella. Aloita täältä, jos et ole käyttänyt Soundscaperia aiemmin.
+Opastusohjelma on oppitunti: se johdattaa vaihe vaiheelta kokonaisen työn läpi käsikirjan tarjoamalla esimerkkitallenteella ja kertoo, mitä sinun pitäisi nähdä matkan varrella. Aloita tästä, jos et ole käyttänyt Soundscaperia aiemmin.
 
-- [Ensimmäinen Soundscaper-projektisi](/tutorials/your-first-project/) — Tuo äänitys, kuuntele, jaa se, vaimenna se ja vie tiedosto ulos sekä tallenna projekti.
-- [Puheäännityksen siistiminen](/tutorials/clean-up-a-voice-recording/) — Poista humina otteesta, leikkaa rumpu pois, tuo se podcastin äänenvoimakkuuteen ja vie MP3-tiedosto ulos.
-- [Musiikin asettaminen puheen alle](/tutorials/put-music-under-a-voice/) — Kerroise kaksi raidaa, vaimenna toinen toisen alle automaattisesti, sekoita ne ja vie ulos.
+- [Ensimmäinen Soundscaper-projektisi](/tutorials/your-first-project/) — Tuo äänite, kuuntele sitä, jaa se osiin, lisää häivytys, vie tiedosto ja tallenna projekti.
+- [Puheäänitteen siistiminen](/tutorials/clean-up-a-voice-recording/) — Poista äänitteestä hurina, leikkaa matala jyrinä, säädä taso podcastiin sopivaksi ja vie MP3.
+- [Musiikin lisääminen puheen alle](/tutorials/put-music-under-a-voice/) — Kerrosta kaksi raitaa, vaimenna toista automaattisesti toisen alla, miksaa ne ja vie tulos.
 
-Katso [kaikki opetusohjelmat](/tutorials/).
+Katso [kaikki opastusohjelmat](/tutorials/).
 
-## Ohjeet
+## Käytännön oppaat
 
-Jokainen ohje ottaa yhden tehtävän ja näyttää, miten sen voi tehdä Soundscaperissa omalla äänitykselläsi, käyttäen tarkkoja valikkokohtia ja dialogikenttiä. Ohjeet on ryhmitelty sen mukaan, mitä yrität tehdä.
+Jokainen opas keskittyy yhteen tehtävään ja näyttää, miten teet sen Soundscaperissa omalla äänitteelläsi. Mukana ovat tarkat valikkokohdat ja valintaikkunoiden kentät. Oppaat on ryhmitelty tavoitteen mukaan.
 
-- [Äänityksen siistiminen](/guides/cleaning-up/) — Poista kohina, naksut, rumpu ja hiljaisuus otteesta ennen kuin aloitat sen käsittelyn.
-- [Äänenvoimakkuus ja dynamiikka](/guides/volume/) — Aseta tasot, tasoita kirkkaat ja hiljaiset osat ja saavuta toimitustavoite.
-- [Muokkaus](/guides/editing/) — Leikkaa, jaa, kopioi, siirrä ja merkitse materiaalia aikajanan päällä.
-- [Efektit](/guides/effects/) — Muuta äänen luonnetta: sävelkorkeus, tempo, tila, suodatus ja vääristymä.
-- [Raidat ja vienti](/guides/tracks-and-export/) — Työskentele useiden raideiden kanssa ja renderöi tulos tiedostoon.
-- [Projektit ja tiedostot](/guides/projects/) — Tallenna, siirrä ja avaa projekteja, mukaan lukien Audacityssä tehdyt projektit.
-- [Analyysi](/guides/analysis/) — Mittaa äänenvoimakkuutta, tarkastele taajuuksia ja löydä ongelmia äänityksestä.
+- [Äänitteen siistiminen](/guides/cleaning-up/) — Poista kohina, napsahdukset, jyrinä ja tarpeettomat hiljaiset kohdat ennen jatkotyötä.
+- [Äänenvoimakkuus ja dynamiikka](/guides/volume/) — Säädä tasoja, tasaa voimakkaita ja hiljaisia kohtia ja saavuta toimituksen tavoitetaso.
+- [Muokkaaminen](/guides/editing/) — Leikkaa, jaa, kopioi, siirrä ja merkitse materiaalia aikajanalla.
+- [Efektit](/guides/effects/) — Muuta äänen luonnetta: sävelkorkeus, tempo, tila, suodatus ja särö.
+- [Raidat ja vienti](/guides/tracks-and-export/) — Työskentele useilla raidoilla ja renderöi tulos tiedostoksi.
+- [Projektit ja tiedostot](/guides/projects/) — Tallenna, siirrä ja avaa projekteja, myös Audacityssä luotuja.
+- [Analyysi](/guides/analysis/) — Mittaa äänenvoimakkuutta, tutki taajuuksia ja etsi äänitteen ongelmia.
 
-Katso [kaikki ohjeet](/guides/).
+Katso [kaikki käytännön oppaat](/guides/).
 
-## Lisää lähtökohtia
+## Lisää aloituskohtia
 
-- [Luo ensimmäinen Framescaper-projektisi](/framescaper/first-project/)
-- [Ymmärrä projektitiedostot ja Audacity-vaihto](/projects-and-data/project-files/)
-- [Suojaa paikallisesti tallennettua työtä](/projects-and-data/storage-backups-and-privacy/)
-- [Vertaa Soundscaperia Audacity 4:ään ja Auditioniin](/start/how-soundscaper-compares/).
+- [Projektitiedostojen ja Audacity-yhteensopivuuden ymmärtäminen](/projects-and-data/project-files/)
+- [Paikallisesti tallennetun työn suojaaminen](/projects-and-data/storage-backups-and-privacy/)
+- [Soundscaperin vertaaminen Audacity 4:ään ja Auditioniin](/start/how-soundscaper-compares/)
 
-## Etsi tarkka vastaus
+## Etsi täsmällinen vastaus
 
-Käytä hakukenttää löytääksesi komennon, pikanäppäimen, tuetun muodon tai vianmääritysteeman. [Viiteteokset](/reference/) on generoitu samoista rekistereistä, joita muokkaajat käyttävät, ja ne on tarkistettu tämän käsikirjan muun osan kanssa.
+Etsi hakukentällä komentoa, pikanäppäintä, tuettua tiedostomuotoa tai vianmääritysohjetta. [Viitetaulukot](/reference/) luodaan samoista rekistereistä, joita editorit käyttävät, ja ne tarkistetaan käsikirjan muun sisällön yhteydessä.

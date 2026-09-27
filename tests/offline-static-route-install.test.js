@@ -34,6 +34,19 @@ test('static web routes receive product-specific install manifests and Apple tou
 	assert.match(redirects, /^\/framescaper https:\/\/framescaper\.org\/ 301$/mu);
 	assert.match(redirects, /^\/framescaper\/en\/ https:\/\/framescaper\.org\/en\/ 301$/mu);
 	assert.match(redirects, /^\/framescaper\/embed\/de\/ https:\/\/framescaper\.org\/embed\/de\/ 301$/mu);
+	assert.match(redirects, /^\/docs\/framescaper\/ https:\/\/framescaper\.org\/docs\/ 301$/mu);
+	assert.match(
+		redirects,
+		/^\/docs\/framescaper\/first-project\/ https:\/\/framescaper\.org\/docs\/first-project\/ 301$/mu,
+	);
+	assert.match(
+		redirects,
+		/^\/docs\/en\/framescaper\/first-project\/ https:\/\/framescaper\.org\/docs\/first-project\/ 301$/mu,
+	);
+	assert.match(
+		redirects,
+		/^\/docs\/de\/framescaper\/video-export\/ https:\/\/framescaper\.org\/docs\/de\/video-export\/ 301$/mu,
+	);
 	assert.doesNotMatch(redirects, /service-worker|manifest|offline-icons|logo/u);
 	assert.match(await readFile(join(outputRoot, '404.html'), 'utf8'), /<meta name="robots" content="noindex, nofollow" \/>/u);
 });

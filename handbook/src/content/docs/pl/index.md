@@ -1,22 +1,21 @@
 ---
 title: "Podręcznik Soundscaper"
-description: "Dowiedz się, jak nagrywać, edytować, miksować i przygotowywać projekty do publikacji w Soundscaper i Framescaper."
+description: "Dowiedz się, jak nagrywać, edytować, miksować i dostarczać projekty audio w Soundscaper."
 template: splash
 hero:
-  tagline: Practical guides for the local-first Soundscaper and Framescaper editors.
+  tagline: Practical guides for the local-first Soundscaper audio editor.
   actions:
-    - text: Choose an editor
-      link: /docs/pl/start/choose-an-editor/
+    - text: Start the first tutorial
+      link: /docs/pl/tutorials/your-first-project/
       icon: right-arrow
       variant: primary
     - text: Open Soundscaper
       link: https://soundscaper.org/en/
       icon: external
 ---
+<!-- docs-ai-provenance: {"basedOnProvenance":{"model":"gpt-5.6-luna"},"factPacketSha256":"8d553d47981c15638e776acdae99f1547f5a864b26f05aad54102ec0c3370023","model":"gpt-6-luna","modelProvider":"codex-subagent","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"8d553d47981c15638e776acdae99f1547f5a864b26f05aad54102ec0c3370023","targetLocale":"pl"} -->
 
-<!-- docs-ai-provenance: {"factPacketSha256":"eb7a4205cc2ab638e638e40d032e6ac3ecd87afa84907a96e30b52287c48474b","model":"gpt-5.6-luna","modelDigest":"manual","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"eb7a4205cc2ab638e638e40d032e6ac3ecd87afa84907a96e30b52287c48474b","targetLocale":"pl"} -->
-
-Soundscaper i Framescaper to dwa widoki tego samego, lokalnego systemu projektów. Używaj Soundscaper do nagrywania i szczegółowej pracy z dźwiękiem, a Framescaper do edycji i kompozycji wideo.
+Soundscaper to lokalny edytor do nagrywania, naprawiania, aranżowania, miksowania, analizowania i przygotowywania dźwięku do publikacji. Ten podręcznik opisuje te zadania za pomocą praktycznych poradników i kompletnych projektów przykładowych.
 
 ## Samouczki
 
@@ -44,7 +43,6 @@ Zobacz [wszystkie poradniki](/guides/).
 
 ## Więcej punktów startowych
 
-- [Utwórz pierwszy projekt w Framescaper](/framescaper/first-project/)
 - [Poznaj pliki projektów i wymianę z Audacity](/projects-and-data/project-files/)
 - [Chroń lokalnie przechowywane projekty](/projects-and-data/storage-backups-and-privacy/)
 - [Porównaj Soundscaper z Audacity 4 i Audition](/start/how-soundscaper-compares/)

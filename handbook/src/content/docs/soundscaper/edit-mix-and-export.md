@@ -102,7 +102,3 @@ availability are listed in the [generated format reference](/reference/).
 
 Play the exported file in another application before delivering or deleting
 source material.
-
-For picture work — composing a sequence, video effects, and an MP4 or WebM
-delivery — hand the project to [Framescaper](/framescaper/) and see
-[export video](/framescaper/video-export/).

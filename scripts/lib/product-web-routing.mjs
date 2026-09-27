@@ -29,6 +29,10 @@ const RETIRED_PRODUCT_BASE_PATHS = Object.freeze({
 	framescaper: Object.freeze({}),
 });
 
+const RETIRED_HANDBOOK_PAGES = Object.freeze({
+	framescaper: Object.freeze(['', 'first-project', 'video-export']),
+});
+
 /**
  * The handbook is a path on a product origin, not an origin of its own.
  *
@@ -39,11 +43,11 @@ const RETIRED_PRODUCT_BASE_PATHS = Object.freeze({
  * same deployment as the editor it documents, so a link into it is live the
  * moment that deployment is.
  *
- * Only one product hosts it. Framescaper links to the same handbook across
- * origins rather than publishing a second copy under its own root.
+ * Each product publishes its own filtered handbook at the same path on its
+ * own origin. The product build selects the content, branding, and sitemap;
+ * no origin publishes the other product's tutorial tree.
  */
 const HANDBOOK_BASE_PATH = '/docs';
-const HANDBOOK_HOST_PRODUCT_ID = 'soundscaper';
 const HANDBOOK_ASSET_DIRECTORY = '_astro';
 
 const EDITOR_CAPTURE_POLICY =
@@ -120,20 +124,18 @@ export function webBuildRouting(environment = process.env) {
 }
 
 /**
- * The handbook's place in one product's build, or `null` when it hosts no handbook.
+ * The handbook's place in one product's build.
  *
  * @param {string} productId
- * @returns {Readonly<{ basePath: string, scope: string, assetScope: string }> | null}
+ * @returns {Readonly<{ basePath: string, scope: string, assetScope: string }>}
  */
 export function handbookPlan(productId) {
 	if (!PRODUCT_IDS.includes(productId)) throw new Error(`Unsupported web build product: ${String(productId)}.`);
-	return productId === HANDBOOK_HOST_PRODUCT_ID
-		? Object.freeze({
-			basePath: HANDBOOK_BASE_PATH,
-			scope: `${HANDBOOK_BASE_PATH}/`,
-			assetScope: `${HANDBOOK_BASE_PATH}/${HANDBOOK_ASSET_DIRECTORY}/`,
-		})
-		: null;
+	return Object.freeze({
+		basePath: HANDBOOK_BASE_PATH,
+		scope: `${HANDBOOK_BASE_PATH}/`,
+		assetScope: `${HANDBOOK_BASE_PATH}/${HANDBOOK_ASSET_DIRECTORY}/`,
+	});
 }
 
 /**
@@ -163,7 +165,7 @@ export function retiredProductRedirects(routing, locales) {
 	}
 	const hosted = new Set(routing.plans.map(({ productId }) => productId));
 	const retired = RETIRED_PRODUCT_BASE_PATHS[routing.productId];
-	return Object.freeze(Object.entries(retired)
+	const editorRedirects = Object.entries(retired)
 		.filter(([productId]) => !hosted.has(productId))
 		.flatMap(([productId, basePath]) => {
 			const origin = PRODUCT_SITES[productId].origin;
@@ -183,7 +185,38 @@ export function retiredProductRedirects(routing, locales) {
 					}),
 				]),
 			];
-		}));
+		});
+	const handbookRedirects = Object.entries(retired)
+		.filter(([productId]) => !hosted.has(productId))
+		.flatMap(([productId]) => {
+			const origin = PRODUCT_SITES[productId].origin;
+			const pages = RETIRED_HANDBOOK_PAGES[productId] ?? [];
+			const route = (locale, page) => [
+				routing.handbook.scope,
+				...(locale ? [`${locale}/`] : []),
+				`${productId}/`,
+				...(page ? [`${page}/`] : []),
+			].join('');
+			const destination = (locale, page) => new URL([
+				routing.handbook.scope,
+				...(locale ? [`${locale}/`] : []),
+				...(page ? [`${page}/`] : []),
+			].join(''), origin).href;
+			return [
+				...pages.map((page) => Object.freeze({
+					source: route('', page), destination: destination('', page), status: 301,
+				})),
+				...normalizedLocales.flatMap((locale) => {
+					const handbookLocale = locale.toLowerCase();
+					return pages.map((page) => Object.freeze({
+						source: route(handbookLocale, page),
+						destination: destination(handbookLocale === 'en' ? '' : handbookLocale, page),
+						status: 301,
+					}));
+				}),
+			];
+		});
+	return Object.freeze([...editorRedirects, ...handbookRedirects]);
 }
 
 /** Renders the static Cloudflare Pages `_redirects` file for one build. */

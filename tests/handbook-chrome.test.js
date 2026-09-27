@@ -29,6 +29,7 @@ test('every sidebar heading the site is configured with has a key', () => {
 		assert.equal(HANDBOOK_CHROME_COPY[`sidebar.guides.${group.slug}`], group.title, group.slug);
 	}
 	assert.ok(HANDBOOK_CHROME_KEYS.includes('site.title'));
+	assert.ok(HANDBOOK_CHROME_KEYS.includes('site.title.framescaper'));
 	assert.ok(HANDBOOK_CHROME_KEYS.length > 20);
 });
 

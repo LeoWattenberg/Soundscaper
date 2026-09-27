@@ -4,7 +4,7 @@ description: "排列剪輯、平衡軌道、應用效果並創建交付檔案。
 sidebar:
   order: 4
 ---
-<!-- docs-ai-provenance: {"factPacketSha256":"eaa07736d9143de912e22bd2c5d4a8db4f1553c1052d247826240cda8c6af620","model":"gpt-6-luna","modelProvider":"codex-subagent","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"eaa07736d9143de912e22bd2c5d4a8db4f1553c1052d247826240cda8c6af620","targetLocale":"zh-TW"} -->
+<!-- docs-ai-provenance: {"factPacketSha256":"20388bf5b2a7139d7bcfb3a2a962c5f60ec0f91d05992a6307a4fb8b2b622534","model":"gpt-6-luna","modelProvider":"codex-subagent","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"20388bf5b2a7139d7bcfb3a2a962c5f60ec0f91d05992a6307a4fb8b2b622534","targetLocale":"zh-TW"} -->
 
 ## 排列剪輯
 
@@ -52,5 +52,3 @@ Vamp 插件用於分析音頻，不會更改音頻。啓用 Vamp 插件後，選
 壓縮格式使用 FFmpeg 運行時。確切的格式和條件可用性列在[生成的格式參考](/reference/)中。
 
 在交付或刪除源材料之前，請在另一個應用程序中播放導出的檔案。
-
-對於圖片工作——組合序列、視頻效果和 MP4 或 WebM 交付——請將專案交給 [Framescaper](/framescaper/) 並查看[導出視頻](/framescaper/video-export/)。

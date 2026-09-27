@@ -4,7 +4,7 @@ description: "排列剪辑、平衡轨道、应用效果并创建交付文件。
 sidebar:
   order: 4
 ---
-<!-- docs-ai-provenance: {"basedOnProvenance":{"model":"aya-expanse:32b","modelDigest":"1603440383bd5504dc7afd01c0407b425b988dde650a8dc1a737433baa3cd432"},"factPacketSha256":"eaa07736d9143de912e22bd2c5d4a8db4f1553c1052d247826240cda8c6af620","model":"gpt-6-luna","modelProvider":"codex-subagent","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"eaa07736d9143de912e22bd2c5d4a8db4f1553c1052d247826240cda8c6af620","targetLocale":"zh-CN"} -->
+<!-- docs-ai-provenance: {"factPacketSha256":"20388bf5b2a7139d7bcfb3a2a962c5f60ec0f91d05992a6307a4fb8b2b622534","model":"gpt-6-luna","modelProvider":"codex-subagent","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"20388bf5b2a7139d7bcfb3a2a962c5f60ec0f91d05992a6307a4fb8b2b622534","targetLocale":"zh-CN"} -->
 
 ## 排列剪辑
 
@@ -52,5 +52,3 @@ Vamp 插件用于分析音频，不会更改音频。启用 Vamp 插件后，选
 压缩格式使用 FFmpeg 运行时。确切的格式和条件可用性列在[生成的格式参考](/reference/)中。
 
 在交付或删除源材料之前，请在另一个应用程序中播放导出的文件。
-
-对于图片工作——组合序列、视频效果和 MP4 或 WebM 交付——请将项目交给 [Framescaper](/framescaper/) 并查看[导出视频](/framescaper/video-export/)。

@@ -165,7 +165,7 @@ test('a Framescaper build installs one root-scoped worker and manifest for its o
 	const worker = audit.workers.framescaper;
 	assert.equal(worker.scriptUrl, '/service-worker.js');
 	assert.equal(worker.scope, '/');
-	assert.deepEqual(worker.foreignScopes, []);
+	assert.deepEqual(worker.foreignScopes, ['/docs/']);
 	assert.deepEqual(worker.fallbacks, { standard: '/en/', embedded: '/embed/en/' });
 	assert.deepEqual(
 		worker.installUrls.filter((url) => url.endsWith('/')),

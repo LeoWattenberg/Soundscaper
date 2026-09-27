@@ -4,7 +4,7 @@ description: "Järjestä klippejä, tasaa raidoja, soita efektit ja luo toimitus
 sidebar:
   order: 4
 ---
-<!-- docs-ai-provenance: {"factPacketSha256":"eaa07736d9143de912e22bd2c5d4a8db4f1553c1052d247826240cda8c6af620","model":"qwen3.8:latest","modelDigest":"22130167c4c20e20c7b71454612966ca8e8171e9b3cc8ab6ce8aa6cbfec79643","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"eaa07736d9143de912e22bd2c5d4a8db4f1553c1052d247826240cda8c6af620","targetLocale":"fi"} -->
+<!-- docs-ai-provenance: {"basedOnProvenance":{"model":"qwen3.8:latest","modelDigest":"22130167c4c20e20c7b71454612966ca8e8171e9b3cc8ab6ce8aa6cbfec79643"},"factPacketSha256":"20388bf5b2a7139d7bcfb3a2a962c5f60ec0f91d05992a6307a4fb8b2b622534","model":"gpt-6-luna","modelProvider":"codex-subagent","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"20388bf5b2a7139d7bcfb3a2a962c5f60ec0f91d05992a6307a4fb8b2b622534","targetLocale":"fi"} -->
 
 ## Klipsujen järjestäminen
 
@@ -100,7 +100,3 @@ Paketoitujen muotojen vienti käyttää FFmpeg-runtime-ympäristöä. Tarkat muo
 käytettävyys on lueteltu [generoidussa muotoviitteessä](/reference/).
 
 Toista viety tiedosto toisessa sovelluksessa ennen toimitusta tai lähtöaineiston poistamista.
-
-Kuvatyötä varten — sekvenssin koostaminen, videoefektit ja MP4- tai WebM-toimitus — siirrä
-projekti [Framescaperiin](/framescaper/) ja katso
-[videojen vienti](/framescaper/video-export/).

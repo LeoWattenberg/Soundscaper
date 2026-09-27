@@ -4,7 +4,7 @@ description: "Susun klip, seimbangkan trek, terapkan efek, dan buat file pengiri
 sidebar:
   order: 4
 ---
-<!-- docs-ai-provenance: {"model":"gpt-5.6-luna","modelDigest":"manual","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"eaa07736d9143de912e22bd2c5d4a8db4f1553c1052d247826240cda8c6af620","targetLocale":"id"} -->
+<!-- docs-ai-provenance: {"basedOnProvenance":{"model":"gpt-5.6-luna"},"factPacketSha256":"20388bf5b2a7139d7bcfb3a2a962c5f60ec0f91d05992a6307a4fb8b2b622534","model":"gpt-6-luna","modelProvider":"codex-subagent","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"20388bf5b2a7139d7bcfb3a2a962c5f60ec0f91d05992a6307a4fb8b2b622534","targetLocale":"id"} -->
 
 ## Atur klip
 
@@ -67,6 +67,3 @@ Pilih **File → Export audio** untuk pengiriman mix atau **Export selected audi
 Format terkompresi menggunakan runtime FFmpeg. Format yang tepat dan ketersediaan kondisional tercantum dalam [referensi format yang dihasilkan](/reference/).
 
 Putar file yang diekspor di aplikasi lain sebelum mengirimkan atau menghapus materi sumber.
-
-Untuk pekerjaan gambar — menyusun urutan, efek video, dan pengiriman MP4 atau WebM — serahkan proyek ke [Framescaper](/framescaper/) dan lihat
-[ekspor video](/framescaper/video-export/).

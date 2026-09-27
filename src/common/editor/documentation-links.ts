@@ -3,15 +3,29 @@ import { normalizeProductId } from '../products.js';
 /**
  * The handbook's public base URL.
  *
- * The handbook is served from a path on the Soundscaper origin rather than a
- * documentation subdomain, so it needs no DNS record or Pages project of its
- * own and ships in the same deployment as the editor. Framescaper links to the
- * same handbook across origins; there is one handbook, not one per product.
+ * Each product serves a filtered handbook from the same path on its own origin.
+ * Keeping the origin product-owned prevents one editor's tutorials from being
+ * published, searched, or canonicalized by the other editor's site.
  *
  * `scripts/lib/product-web-routing.mjs` is the build-side authority for the
  * same base path and composes the Cloudflare rules it receives.
  */
-export const DOCUMENTATION_BASE_URL = 'https://soundscaper.org/docs';
+const DOCUMENTATION_BASE_PATH = '/docs';
+const DOCUMENTATION_ORIGINS = Object.freeze({
+	soundscaper: 'https://soundscaper.org',
+	framescaper: 'https://framescaper.org',
+});
+type DocumentationProductId = keyof typeof DOCUMENTATION_ORIGINS;
+
+function normalizeDocumentationProductId(productId: string): DocumentationProductId {
+	const normalized = normalizeProductId(productId);
+	if (normalized === 'soundscaper' || normalized === 'framescaper') return normalized;
+	throw new RangeError(`Unsupported documentation product: ${normalized}.`);
+}
+
+export function documentationBaseUrl(productId: string): string {
+	return `${DOCUMENTATION_ORIGINS[normalizeDocumentationProductId(productId)]}${DOCUMENTATION_BASE_PATH}`;
+}
 
 /**
  * The languages the handbook is published in, as the path segment each is
@@ -34,9 +48,15 @@ export const HANDBOOK_LANGUAGES: readonly string[] = Object.freeze([
 export type DocumentationDestination = 'manual' | 'tutorials';
 
 const DOCUMENTATION_DESTINATION_PATHS = Object.freeze({
-	manual: '',
-	tutorials: 'first-project/',
-} satisfies Record<DocumentationDestination, string>);
+	soundscaper: Object.freeze({
+		manual: '',
+		tutorials: 'tutorials/your-first-project/',
+	}),
+	framescaper: Object.freeze({
+		manual: '',
+		tutorials: 'first-project/',
+	}),
+} satisfies Record<'soundscaper' | 'framescaper', Record<DocumentationDestination, string>>);
 
 /**
  * The handbook's path segment for a reader's language, or nothing for the
@@ -55,10 +75,10 @@ export function documentationUrl(
 	destination: DocumentationDestination,
 	locale?: string,
 ): string {
-	const normalizedProductId = normalizeProductId(productId);
-	if (!Object.hasOwn(DOCUMENTATION_DESTINATION_PATHS, destination)) {
+	const normalizedProductId = normalizeDocumentationProductId(productId);
+	if (!Object.hasOwn(DOCUMENTATION_DESTINATION_PATHS[normalizedProductId], destination)) {
 		throw new RangeError(`Unsupported documentation destination: ${destination}.`);
 	}
 
-	return `${DOCUMENTATION_BASE_URL}${handbookLanguagePath(locale)}/${normalizedProductId}/${DOCUMENTATION_DESTINATION_PATHS[destination]}`;
+	return `${documentationBaseUrl(normalizedProductId)}${handbookLanguagePath(locale)}/${DOCUMENTATION_DESTINATION_PATHS[normalizedProductId][destination]}`;
 }

@@ -159,6 +159,10 @@ function renderReferences(document) {
 	return ['## Reference', '', references.map((reference) => `- [${reference.text}](${reference.route})`).join('\n'), ''];
 }
 
+function disclosure(summary, body) {
+	return ['<details>', `<summary>${summary}</summary>`, '', body, '', '</details>'];
+}
+
 /** A schema.org HowTo for the page head, built from the same steps the page lists. */
 export function howToSchema(document, describe) {
 	const steps = document.steps
@@ -187,6 +191,8 @@ function renderGuide(guide, order, describe, groups, tutorials) {
 	const related = relatedGuides(guide, groups);
 	const group = groups.find((candidate) => candidate.guides.includes(guide));
 	const body = resolveGuideLinks([
+		'## What this guide is for {#what-this-guide-is-for}',
+		'',
 		guide.intro,
 		'',
 		':::note[Coming from Audacity?]',
@@ -208,9 +214,8 @@ function renderGuide(guide, order, describe, groups, tutorials) {
 		related.map((entry) => `- ${guideLink(entry, groups)}`).join('\n'),
 		'',
 		...renderReferences(guide),
-		'## About this guide',
-		'',
-		`The procedure on this page — every menu entry, dialog, field and button, and the result it produces — is replayed against each build of Soundscaper by the browser suite (\`${GUIDE_SPEC}\`). If any of it stops matching the editor, the build fails until the guide is corrected. The values suggested are starting points that the editor is proven to accept; whether they suit your recording is for your ears to decide.`,
+		...disclosure('How this guide stays correct',
+			`The procedure on this page — every menu entry, dialog, field and button, and the result it produces — is replayed against each build of Soundscaper by the browser suite (\`${GUIDE_SPEC}\`). If any of it stops matching the editor, the build fails until the guide is corrected. The values suggested are starting points that the editor is proven to accept; whether they suit your recording is for your ears to decide.`),
 	].join('\n'), groups, tutorials);
 	return page({ title: guide.title, description: guide.description, order, body, head: schemaHead(guide, describe) });
 }
@@ -228,6 +233,8 @@ function renderTutorial(tutorial, order, describe, groups, tutorials, fixture, e
 	const examples = tutorialExamples(tutorial);
 	const others = tutorials.filter((other) => other !== tutorial);
 	const body = resolveGuideLinks([
+		'## What this tutorial is for {#what-this-tutorial-is-for}',
+		'',
 		tutorial.intro,
 		'',
 		':::tip[What you will need]',
@@ -250,9 +257,8 @@ function renderTutorial(tutorial, order, describe, groups, tutorials, fixture, e
 		'',
 		...(others.length > 0 ? ['## Other tutorials', '', others.map(tutorialLink).join('\n'), ''] : []),
 		...renderReferences(tutorial),
-		'## About this tutorial',
-		'',
-		`This tutorial is replayed, step for step and on these very files, against each build of Soundscaper by the browser suite (\`${TUTORIAL_SPEC}\`). If a step stops working, the build fails until the tutorial is corrected, so what you read is what the editor does.`,
+		...disclosure('How this tutorial stays correct',
+			`This tutorial is replayed, step for step and on these very files, against each build of Soundscaper by the browser suite (\`${TUTORIAL_SPEC}\`). If a step stops working, the build fails until the tutorial is corrected, so what you read is what the editor does.`),
 	].join('\n'), groups, tutorials);
 	return page({ title: tutorial.title, description: tutorial.description, order, body, head: schemaHead(tutorial, describe) });
 }
@@ -289,9 +295,8 @@ function renderGuideIndex(groups, tutorials) {
 		'Each guide takes one task — the kind Audacity users search for — and shows how to do it in Soundscaper on your own recording, with the exact menu entries and dialog fields to use. A guide assumes you have material to work on and know roughly what you want; if you would rather be walked through an example first, start with the [tutorials](/tutorials/).',
 		'',
 		...sections.flatMap((section) => [section, '']),
-		'## How the guides stay correct',
-		'',
-		`The steps are data that two tools share: the generator that writes these pages and the browser suite (\`${GUIDE_SPEC}\`) that clicks through every guide against each build. A guide that no longer matches the editor fails the build rather than going stale.`,
+		...disclosure('How the guides stay correct',
+			`The steps are data that two tools share: the generator that writes these pages and the browser suite (\`${GUIDE_SPEC}\`) that clicks through every guide against each build. A guide that no longer matches the editor fails the build rather than going stale.`),
 	].join('\n');
 	return page({
 		title: 'How-to guides',
@@ -307,9 +312,8 @@ function renderTutorialIndex(tutorials, groups) {
 		'',
 		tutorials.map((tutorial) => `- ${tutorialLink(tutorial)}`).join('\n'),
 		'',
-		'## How the tutorials stay correct',
-		'',
-		`Each tutorial is replayed on its example files, step for step, against each build of Soundscaper by the browser suite (\`${TUTORIAL_SPEC}\`). A step that stops working fails the build rather than going stale.`,
+		...disclosure('How the tutorials stay correct',
+			`Each tutorial is replayed on its example files, step for step, against each build of Soundscaper by the browser suite (\`${TUTORIAL_SPEC}\`). A step that stops working fails the build rather than going stale.`),
 	].join('\n');
 	return page({
 		title: 'Tutorials',

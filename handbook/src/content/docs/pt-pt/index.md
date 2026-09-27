@@ -1,22 +1,21 @@
 ---
 title: "Manual do Soundscaper"
-description: "Aprenda a gravar, editar, misturar e entregar projetos com Soundscaper e Framescaper."
+description: "Aprenda a gravar, editar, misturar e entregar projetos de áudio com Soundscaper."
 template: splash
 hero:
-  tagline: Practical guides for the local-first Soundscaper and Framescaper editors.
+  tagline: Practical guides for the local-first Soundscaper audio editor.
   actions:
-    - text: Choose an editor
-      link: /docs/pt-pt/start/choose-an-editor/
+    - text: Start the first tutorial
+      link: /docs/pt-pt/tutorials/your-first-project/
       icon: right-arrow
       variant: primary
     - text: Open Soundscaper
       link: https://soundscaper.org/en/
       icon: external
 ---
-<!-- docs-ai-provenance: {"factPacketSha256":"eb7a4205cc2ab638e638e40d032e6ac3ecd87afa84907a96e30b52287c48474b","model":"aya-expanse:32b","modelDigest":"1603440383bd5504dc7afd01c0407b425b988dde650a8dc1a737433baa3cd432","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"eb7a4205cc2ab638e638e40d032e6ac3ecd87afa84907a96e30b52287c48474b","targetLocale":"pt-PT"} -->
+<!-- docs-ai-provenance: {"basedOnProvenance":{"model":"aya-expanse:32b","modelDigest":"1603440383bd5504dc7afd01c0407b425b988dde650a8dc1a737433baa3cd432"},"factPacketSha256":"8d553d47981c15638e776acdae99f1547f5a864b26f05aad54102ec0c3370023","model":"gpt-6-luna","modelProvider":"codex-subagent","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"8d553d47981c15638e776acdae99f1547f5a864b26f05aad54102ec0c3370023","targetLocale":"pt-PT"} -->
 
-O Soundscaper e o Framescaper são duas visualizações do mesmo sistema de projeto local-first.
-Utilize o Soundscaper para gravação e trabalho de áudio detalhado. Utilize o Framescaper para edição e composição de vídeo.
+Soundscaper é um editor local-first para gravar, reparar, organizar, misturar, analisar e preparar projetos de áudio para entrega. Este manual explica esses fluxos de trabalho com guias práticos e projetos de exemplo completos.
 
 ## Tutoriais
 
@@ -48,7 +47,6 @@ Veja [todos os guias práticos](/guides/).
 
 ## Mais pontos de partida
 
-- [Crie o seu primeiro projeto Framescaper](/framescaper/first-project/)
 - [Compreender os ficheiros de projeto e a troca com o Audacity](/projects-and-data/project-files/)
 - [Proteger o trabalho armazenado localmente](/projects-and-data/storage-backups-and-privacy/)
 - [Comparar o Soundscaper com o Audacity 4 e o Audition](/start/how-soundscaper-compares/)

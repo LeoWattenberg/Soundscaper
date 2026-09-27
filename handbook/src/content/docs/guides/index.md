@@ -112,6 +112,9 @@ Measure loudness, inspect frequencies, and find problems in a recording.
 - [Find the beats in a loop](/guides/analysis/find-the-beats/) — Let the Beat Finder analyzer mark every beat it hears.
 - [Check that speech stands out from its background](/guides/analysis/check-speech-contrast/) — Measure how far a voice sits above the noise behind it, the way accessibility guidelines ask.
 
-## How the guides stay correct
+<details>
+<summary>How the guides stay correct</summary>
 
 The steps are data that two tools share: the generator that writes these pages and the browser suite (`tests/browser/soundscaper-guides.spec.js`) that clicks through every guide against each build. A guide that no longer matches the editor fails the build rather than going stale.
+
+</details>

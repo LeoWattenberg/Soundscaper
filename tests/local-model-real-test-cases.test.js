@@ -69,6 +69,21 @@ test('every model handbook page stays derived from its real test and catalog', a
 	assert.deepEqual(result.stale, []);
 });
 
+test('model guides state their purpose and collapse implementation test detail by default', async () => {
+	const cases = validateLocalModelRealTestCases(manifest, catalog, options);
+	for (const entry of catalog.entries) {
+		const documentation = cases.find(({ modelIds }) => modelIds.includes(entry.modelId)).documentation;
+		const page = await readFile(resolve(root,
+			`handbook/src/content/docs/reference/local-models/${entry.modelId}.md`), 'utf8');
+		assert.match(page, /## Purpose and use case \{#purpose-and-use-case\}/u);
+		const purposeHeading = page.indexOf('## Purpose and use case');
+		assert.ok(page.indexOf(documentation.summary, purposeHeading) > purposeHeading);
+		assert.match(page, /<details id="what-the-packaged-test-checks">\n<summary>What the desktop test checks<\/summary>/u);
+		assert.doesNotMatch(page, /<details[^>]*\bopen\b/u);
+		assert.doesNotMatch(page, /^## What the desktop test checks/gmu);
+	}
+});
+
 test('every published model has downloadable runtime support reflected in its guide', async () => {
 	const availability = catalog.entries.map((entry) => ({ entry,
 		...localModelRuntimeAvailability(entry, runtimeSources) }));

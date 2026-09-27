@@ -1,22 +1,21 @@
 ---
 title: "Ghidul Soundscaper"
-description: "Învățați să înregistrați, editați, mixați și livrați proiecte cu Soundscaper și Framescaper."
+description: "Aflați cum să înregistrați, editați, mixați și livrați proiecte audio cu Soundscaper."
 template: splash
 hero:
-  tagline: Practical guides for the local-first Soundscaper and Framescaper editors.
+  tagline: Practical guides for the local-first Soundscaper audio editor.
   actions:
-    - text: Choose an editor
-      link: /docs/ro/start/choose-an-editor/
+    - text: Start the first tutorial
+      link: /docs/ro/tutorials/your-first-project/
       icon: right-arrow
       variant: primary
     - text: Open Soundscaper
       link: https://soundscaper.org/en/
       icon: external
 ---
-<!-- docs-ai-provenance: {"factPacketSha256":"eb7a4205cc2ab638e638e40d032e6ac3ecd87afa84907a96e30b52287c48474b","model":"aya-expanse:32b","modelDigest":"1603440383bd5504dc7afd01c0407b425b988dde650a8dc1a737433baa3cd432","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"eb7a4205cc2ab638e638e40d032e6ac3ecd87afa84907a96e30b52287c48474b","targetLocale":"ro"} -->
+<!-- docs-ai-provenance: {"basedOnProvenance":{"model":"aya-expanse:32b","modelDigest":"1603440383bd5504dc7afd01c0407b425b988dde650a8dc1a737433baa3cd432"},"factPacketSha256":"8d553d47981c15638e776acdae99f1547f5a864b26f05aad54102ec0c3370023","model":"gpt-6-luna","modelProvider":"codex-subagent","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"8d553d47981c15638e776acdae99f1547f5a864b26f05aad54102ec0c3370023","targetLocale":"ro"} -->
 
-Soundscaper și Framescaper sunt două vederi ale aceluiași sistem de proiect local-primar.
-Utilizați Soundscaper pentru înregistrare și lucrări audio detaliate. Utilizați Framescaper pentru editare și compunere video.
+Soundscaper este un editor local-first pentru înregistrarea, repararea, aranjarea, mixarea, analizarea și livrarea proiectelor audio. Acest manual explică aceste fluxuri de lucru prin ghiduri practice și proiecte complete de exemplu.
 
 ## Tutoriale
 
@@ -48,7 +47,6 @@ Vezi [toate ghidurile pas cu pas](/guides/).
 
 ## Mai multe puncte de pornire
 
-- [Creați primul tău proiect Framescaper](/framescaper/first-project/)
 - [Înțelegeți fișierele de proiect și schimbul Audacity](/projects-and-data/project-files/)
 - [Protejați lucrările stocate local](/projects-and-data/storage-backups-and-privacy/)
 - [Comparați Soundscaper cu Audacity 4 și Audition](/start/how-soundscaper-compares/)

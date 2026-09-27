@@ -1,59 +1,52 @@
 ---
-title: "Soundscaper Handbuch"
-description: "Lerne, wie du mit Soundscaper und Framescaper aufnimmst, bearbeitest, mischst und Projekte auslieferst."
+title: "Soundscaper-Handbuch"
+description: "Lerne, mit Soundscaper Audio aufzunehmen, zu bearbeiten, zu mischen und Projekte fertigzustellen."
 template: splash
 hero:
-  tagline: Practical guides for the local-first Soundscaper and Framescaper editors.
+  tagline: Practical guides for the local-first Soundscaper audio editor.
   actions:
-    - text: Choose an editor
-      link: /docs/de/start/choose-an-editor/
+    - text: Start the first tutorial
+      link: /docs/de/tutorials/your-first-project/
       icon: right-arrow
       variant: primary
     - text: Open Soundscaper
       link: https://soundscaper.org/en/
       icon: external
 ---
-<!-- docs-ai-provenance: {"factPacketSha256":"eb7a4205cc2ab638e638e40d032e6ac3ecd87afa84907a96e30b52287c48474b","model":"aya-expanse:32b","modelDigest":"1603440383bd5504dc7afd01c0407b425b988dde650a8dc1a737433baa3cd432","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"eb7a4205cc2ab638e638e40d032e6ac3ecd87afa84907a96e30b52287c48474b","targetLocale":"de"} -->
+<!-- docs-ai-provenance: {"basedOnProvenance":{"model":"aya-expanse:32b","modelDigest":"1603440383bd5504dc7afd01c0407b425b988dde650a8dc1a737433baa3cd432"},"factPacketSha256":"8d553d47981c15638e776acdae99f1547f5a864b26f05aad54102ec0c3370023","model":"gpt-6-luna","modelProvider":"codex-subagent","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"8d553d47981c15638e776acdae99f1547f5a864b26f05aad54102ec0c3370023","targetLocale":"de"} -->
 
-Soundscaper und Framescaper sind zwei Ansichten desselben lokal orientierten Projekt-Systems.
-Verwenden Sie Soundscaper für Aufnahmen und detaillierte Audioarbeiten. Verwenden Sie Framescaper für Video-Editing und -Compositing.
+Soundscaper ist ein lokal arbeitender Editor zum Aufnehmen, Reparieren, Arrangieren, Mischen und Analysieren von Audio sowie zum Fertigstellen von Audiodateien. Dieses Handbuch erklärt die Arbeitsabläufe mit aufgabenbezogenen Anleitungen und vollständigen Beispielprojekten.
 
 ## Tutorials
 
-Ein Tutorial ist eine Lektion: Es führt Sie durch eine vollständige Arbeit an einem
-Beispiel-Recording, das das Handbuch bereitstellt, Schritt für Schritt, und erklärt Ihnen, was Sie
-unterwegs sehen sollten. Beginnen Sie hier, wenn Sie Soundscaper noch nie verwendet haben.
+Ein Tutorial ist eine Lektion: Es führt dich Schritt für Schritt durch eine vollständige Arbeit an einer Beispielaufnahme aus dem Handbuch und zeigt dir, was du dabei sehen solltest. Beginne hier, wenn du Soundscaper noch nicht verwendet hast.
 
-- [Ihr erstes Soundscaper-Projekt](/tutorials/your-first-project/) — Importieren Sie eine Aufnahme, hören Sie sie an, teilen Sie sie auf, blenden Sie sie aus, exportieren Sie eine Datei und speichern Sie das Projekt.
-- [Bereinen Sie eine Sprachaufnahme](/tutorials/clean-up-a-voice-recording/) — Entfernen Sie das Brummen aus einer Aufnahme, schneiden Sie das Rauschen ab, bringen Sie sie auf Podcast-Lautstärke und exportieren Sie eine MP3.
-- [Legt Musik unter eine Stimme](/tutorials/put-music-under-a-voice/) — Schichten Sie zwei Spuren, lassen Sie eine automatisch unter der anderen ducken, mischen Sie sie ab und exportieren Sie sie.
+- [Dein erstes Soundscaper-Projekt](/tutorials/your-first-project/) — Importiere eine Aufnahme, höre sie an, teile sie, blende sie aus, exportiere eine Datei und speichere das Projekt.
+- [Eine Sprachaufnahme bereinigen](/tutorials/clean-up-a-voice-recording/) — Entferne Brummen, schneide tiefe Störgeräusche heraus, bringe die Aufnahme auf Podcast-Lautstärke und exportiere eine MP3.
+- [Musik unter eine Stimme legen](/tutorials/put-music-under-a-voice/) — Lege zwei Spuren übereinander, senke eine automatisch unter der anderen ab, mische sie und exportiere das Ergebnis.
 
 Siehe [alle Tutorials](/tutorials/).
 
 ## Anleitungen
 
-Jede Anleitung behandelt eine Aufgabe und zeigt, wie man sie in Soundscaper mit der eigenen
-Aufnahme durchführt, mit den genauen Menüeinträgen und Dialogfeldern. Die Anleitungen sind
-gruppiert nach dem, was Sie erreichen möchten.
+Jede Anleitung behandelt eine Aufgabe und zeigt, wie du sie in Soundscaper mit deiner eigenen Aufnahme ausführst, einschließlich der genauen Menüpunkte und Dialogfelder. Die Anleitungen sind nach deinem jeweiligen Ziel gruppiert.
 
-- [Bereinigung einer Aufnahme](/guides/cleaning-up/) — Entfernen Sie Rauschen, Klicks, Brummen und tote Luft aus einer Aufnahme, bevor Sie daran arbeiten.
-- [Lautstärke und Dynamik](/guides/volume/) — Pegel einstellen, laute und leise Teile ausgleichen und ein Lieferziel erreichen.
-- [Bearbeitung](/guides/editing/) — Schneiden, aufteilen, kopieren, verschieben und markieren Sie Material auf der Zeitachse.
-- [Effekte](/guides/effects/) — Ändern Sie den Charakter eines Tons: Tonhöhe, Tempo, Raum, Filterung und Verzerrung.
-- [Spuren und Export](/guides/tracks-and-export/) — Arbeiten Sie mit mehreren Spuren und rendern Sie das Ergebnis in eine Datei.
-- [Projekte und Dateien](/guides/projects/) — Speichern, verschieben und öffnen Sie Projekte, einschließlich Projekte, die in Audacity erstellt wurden.
-- [Analyse](/guides/analysis/) — Messen Sie die Lautstärke, inspizieren Sie die Frequenzen und finden Sie Probleme in einer Aufnahme.
+- [Eine Aufnahme bereinigen](/guides/cleaning-up/) — Entferne Rauschen, Klicks, Brummen und Pausen, bevor du die Aufnahme weiterbearbeitest.
+- [Lautstärke und Dynamik](/guides/volume/) — Stelle Pegel ein, gleiche laute und leise Stellen aus und erreiche den gewünschten Ausspielpegel.
+- [Bearbeiten](/guides/editing/) — Schneide, teile, kopiere, verschiebe und markiere Material auf der Zeitleiste.
+- [Effekte](/guides/effects/) — Ändere den Klangcharakter: Tonhöhe, Tempo, Raum, Filterung und Verzerrung.
+- [Spuren und Export](/guides/tracks-and-export/) — Arbeite mit mehreren Spuren und rendere das Ergebnis in eine Datei.
+- [Projekte und Dateien](/guides/projects/) — Speichere, verschiebe und öffne Projekte, auch solche aus Audacity.
+- [Analyse](/guides/analysis/) — Miss die Lautstärke, untersuche Frequenzen und finde Probleme in einer Aufnahme.
 
 Siehe [alle Anleitungen](/guides/).
 
-## Weitere Startpunkte
+## Weitere Einstiegspunkte
 
-- [Erstellen Sie Ihr erstes Framescaper-Projekt](/framescaper/first-project/)
-- [Verstehen Sie Projekt-Dateien und Audacity-Interchange](/projects-and-data/project-files/)
-- [Schützen Sie lokal gespeicherte Arbeiten](/projects-and-data/storage-backups-and-privacy/)
-- [Vergleichen Sie Soundscaper mit Audacity 4 und Audition](/start/how-soundscaper-compares/)
+- [Projektdateien und den Austausch mit Audacity verstehen](/projects-and-data/project-files/)
+- [Lokal gespeicherte Arbeit schützen](/projects-and-data/storage-backups-and-privacy/)
+- [Soundscaper mit Audacity 4 und Audition vergleichen](/start/how-soundscaper-compares/)
 
-## Finden Sie eine genaue Antwort
+## Eine genaue Antwort finden
 
-Verwenden Sie die Suchleiste, um einen Befehl, eine Abkürzung, ein unterstütztes Format oder
-ein Troubleshooting-Thema zu finden. Die [Referenz](/reference/)-Tabellen werden aus denselben Registern generiert, die von den Editoren verwendet werden, und zusammen mit dem Rest dieses Handbuchs überprüft.
+Nutze die Suche, um einen Befehl, ein Tastenkürzel, ein unterstütztes Format oder ein Problem zu finden. Die [Referenztabellen](/reference/) werden aus denselben Registern wie die Editoren erzeugt und zusammen mit dem übrigen Handbuch geprüft.

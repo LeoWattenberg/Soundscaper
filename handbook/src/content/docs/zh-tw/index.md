@@ -1,22 +1,21 @@
 ---
-title: "聲音造景手冊"
-description: "學習如何使用聲音造景和畫面造景來錄製、編輯、混音和交付專案。"
+title: "Soundscaper 手冊"
+description: "了解如何使用 Soundscaper 錄製、編輯、混音並交付音訊專案。"
 template: splash
 hero:
-  tagline: Practical guides for the local-first Soundscaper and Framescaper editors.
+  tagline: Practical guides for the local-first Soundscaper audio editor.
   actions:
-    - text: Choose an editor
-      link: /docs/zh-tw/start/choose-an-editor/
+    - text: Start the first tutorial
+      link: /docs/zh-tw/tutorials/your-first-project/
       icon: right-arrow
       variant: primary
     - text: Open Soundscaper
       link: https://soundscaper.org/en/
       icon: external
 ---
-<!-- docs-ai-provenance: {"factPacketSha256":"eb7a4205cc2ab638e638e40d032e6ac3ecd87afa84907a96e30b52287c48474b","model":"aya-expanse:32b","modelDigest":"1603440383bd5504dc7afd01c0407b425b988dde650a8dc1a737433baa3cd432","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"eb7a4205cc2ab638e638e40d032e6ac3ecd87afa84907a96e30b52287c48474b","targetLocale":"zh-TW"} -->
+<!-- docs-ai-provenance: {"basedOnProvenance":{"model":"aya-expanse:32b","modelDigest":"1603440383bd5504dc7afd01c0407b425b988dde650a8dc1a737433baa3cd432"},"factPacketSha256":"8d553d47981c15638e776acdae99f1547f5a864b26f05aad54102ec0c3370023","model":"gpt-6-luna","modelProvider":"codex-subagent","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"8d553d47981c15638e776acdae99f1547f5a864b26f05aad54102ec0c3370023","targetLocale":"zh-TW"} -->
 
-Soundscaper 和 Framescaper 是同一本地優先專案系統的兩種不同視角。
-使用 Soundscaper 進行錄音和詳細的音效工作。使用 Framescaper 進行影片編輯和合成。
+Soundscaper 是一款本機優先的編輯器，可用於錄音、修復、編排、混音、分析音訊並交付音訊專案。本手冊透過任務指南和完整範例專案介紹這些工作流程。
 
 ## 教學
 
@@ -44,7 +43,6 @@ Soundscaper 和 Framescaper 是同一本地優先專案系統的兩種不同視�
 
 ## 其他起點
 
-- [建立你的第一個 Framescaper 專案](/framescaper/first-project/)
 - [了解專案檔案和 Audacity 交換](/projects-and-data/project-files/)
 - [保護本地儲存的工作](/projects-and-data/storage-backups-and-privacy/)
 - [比較 Soundscaper 與 Audacity 4 和 Audition](/start/how-soundscaper-compares/)

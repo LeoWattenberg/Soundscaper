@@ -4,7 +4,7 @@ description: "Aranjați clipuri, echilibrați piste, aplicați efecte și creaț
 sidebar:
   order: 4
 ---
-<!-- docs-ai-provenance: {"factPacketSha256":"eaa07736d9143de912e22bd2c5d4a8db4f1553c1052d247826240cda8c6af620","model":"gpt-6-luna","modelProvider":"codex-subagent","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"eaa07736d9143de912e22bd2c5d4a8db4f1553c1052d247826240cda8c6af620","targetLocale":"ro"} -->
+<!-- docs-ai-provenance: {"factPacketSha256":"20388bf5b2a7139d7bcfb3a2a962c5f60ec0f91d05992a6307a4fb8b2b622534","model":"gpt-6-luna","modelProvider":"codex-subagent","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"20388bf5b2a7139d7bcfb3a2a962c5f60ec0f91d05992a6307a4fb8b2b622534","targetLocale":"ro"} -->
 
 ## Aranjați clipurile
 
@@ -111,7 +111,3 @@ disponibilitatea condiționată sunt listate în [referința de formate generat�
 
 Redați fișierul exportat în altă aplicație înainte de livrare sau ștergerea
 materialului sursă.
-
-Pentru lucrul cu imagini — compunerea unei secvențe, efecte video și o livrare
-MP4 sau WebM — predați proiectul către [Framescaper](/framescaper/) și consultați
-[exportarea videoclipului](/framescaper/video-export/).

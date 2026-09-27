@@ -1,22 +1,21 @@
 ---
 title: "Руководство по Soundscaper"
-description: "Изучите, как записывать, редактировать, микшировать и доставлять проекты с помощью Soundscaper и Framescaper."
+description: "Узнайте, как записывать, редактировать, микшировать и выпускать аудиопроекты в Soundscaper."
 template: splash
 hero:
-  tagline: Practical guides for the local-first Soundscaper and Framescaper editors.
+  tagline: Practical guides for the local-first Soundscaper audio editor.
   actions:
-    - text: Choose an editor
-      link: /docs/ru/start/choose-an-editor/
+    - text: Start the first tutorial
+      link: /docs/ru/tutorials/your-first-project/
       icon: right-arrow
       variant: primary
     - text: Open Soundscaper
       link: https://soundscaper.org/en/
       icon: external
 ---
-<!-- docs-ai-provenance: {"factPacketSha256":"eb7a4205cc2ab638e638e40d032e6ac3ecd87afa84907a96e30b52287c48474b","model":"aya-expanse:32b","modelDigest":"1603440383bd5504dc7afd01c0407b425b988dde650a8dc1a737433baa3cd432","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"eb7a4205cc2ab638e638e40d032e6ac3ecd87afa84907a96e30b52287c48474b","targetLocale":"ru"} -->
+<!-- docs-ai-provenance: {"basedOnProvenance":{"model":"aya-expanse:32b","modelDigest":"1603440383bd5504dc7afd01c0407b425b988dde650a8dc1a737433baa3cd432"},"factPacketSha256":"8d553d47981c15638e776acdae99f1547f5a864b26f05aad54102ec0c3370023","model":"gpt-6-luna","modelProvider":"codex-subagent","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"8d553d47981c15638e776acdae99f1547f5a864b26f05aad54102ec0c3370023","targetLocale":"ru"} -->
 
-Soundscaper и Framescaper — это два вида одной локально-ориентированной системы проекта. 
-Используйте Soundscaper для записи и детальной работы со звуком. Используйте Framescaper для видеомонтажа и композиции. 
+Soundscaper — локальный редактор для записи, восстановления, аранжировки, микширования и анализа звука, а также подготовки аудиопроектов к выпуску. В руководстве эти задачи разобраны в практических инструкциях и на примерах готовых проектов.
 
 ## Уроки 
 
@@ -44,7 +43,6 @@ Soundscaper и Framescaper — это два вида одной локальн�
 
 ## Другие стартовые точки 
 
-- [Создайте свой первый проект Framescaper](/framescaper/first-project/) 
 - [Понимание файлов проектов и обмена с Audacity](/projects-and-data/project-files/) 
 - [Защита локально хранимой работы](/projects-and-data/storage-backups-and-privacy/) 
 - [Сравнение Soundscaper с Audacity 4 и Audition](/start/how-soundscaper-compares/) 

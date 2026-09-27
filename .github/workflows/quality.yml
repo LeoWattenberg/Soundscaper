@@ -282,8 +282,13 @@ jobs:
       - name: Audit the pinned third-party payloads
         run: npm run audit:ci
 
-      - name: Check and build the handbook
+      - name: Check and build the Soundscaper handbook
         run: npm run docs:check
+
+      - name: Build the Framescaper handbook
+        run: npm run docs:build
+        env:
+          SCAPE_PRODUCT: framescaper
 
   native-platform-compile:
     name: Native compile / ${{ matrix.target.platform }} / ${{ matrix.target.arch }}

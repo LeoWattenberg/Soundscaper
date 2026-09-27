@@ -152,6 +152,7 @@ function modelPage(entry, cases, runtimeSources) {
 		VALIDATION[testCase.validation], '',
 	]);
 	const body = [
+		'## Purpose and use case {#purpose-and-use-case}', '',
 		documentation.summary, '',
 		...(documentation.modelDetails?.[entry.modelId] ? [documentation.modelDetails[entry.modelId], ''] : []),
 		'## Current availability {#current-availability}', '',
@@ -172,13 +173,15 @@ function modelPage(entry, cases, runtimeSources) {
 		published ? 'Tools → Model Manager downloads the published model artifacts and required runtime on first installation, and verifies their recorded SHA-256 digests. Processing uses the installed files locally. Open Storage and verification in Model Manager to inspect notices, repair an installation, or change the storage location.'
 			: 'These candidate artifact names describe the required package. They are not download instructions. Model Manager will expose verified installation only after the digest-pinned catalog admits them.', '',
 		table(['Artifact', 'Approximate download size'], artifacts), '',
-		'## What the desktop test checks {#what-the-packaged-test-checks}', '',
+		'<details id="what-the-packaged-test-checks">',
+		'<summary>What the desktop test checks</summary>', '',
 		...checks,
 		entry.task === 'text-to-speech'
 			? availability.offlineG2pRuntime === 'package-generated'
 				? 'The nightly-with-tests package downloads real model artifacts and verified runtimes before inference. Its required case submits one script in each of the nine language variants through the downloaded G2P helper and checks the resulting WAVs. A missing or altered helper fails closed. These costly checks run separately from the normal browser suite. A passing package run confirms basic speech generation for those selected voices, not pronunciation or perceptual quality.'
 				: 'The nightly-with-tests package downloads real model artifacts and verified runtimes before inference. The required offline G2P helper is currently absent, so this case must fail closed until that runtime is provisioned. These costly checks run separately from the normal browser suite. A passing future run will confirm basic speech generation, not pronunciation or perceptual quality.'
 			: 'The nightly-with-tests package downloads real model artifacts and verified runtimes before inference. A required model missing from the catalog fails its case. Missing native engines fail on catalog-supported platforms. These costly checks run separately from the normal browser suite. A passing run confirms basic model execution and usable output structure; it does not establish perceptual quality or accuracy on your recording.', '',
+		'</details>', '',
 		'## Review the result {#review-the-result}', '',
 		...documentation.limitations.map((limitation) => `- ${limitation}`), '',
 		'[Model test coverage and limitations](/reference/local-models/) · [Local processing guide](/help/local-processing/)',

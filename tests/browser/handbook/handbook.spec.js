@@ -12,16 +12,19 @@ import { handbookPlan } from '../../../scripts/lib/product-web-routing.mjs';
 // production, where it would land on the editor instead of a handbook page.
 const BASE = handbookPlan('soundscaper').scope;
 
-test('routes readers to product-specific first-project guides', async ({ page }) => {
+test('publishes only Soundscaper tutorials on the Soundscaper origin', async ({ page }) => {
 	await page.goto(BASE);
 	await expect(page.getByRole('heading', { level: 1, name: 'Soundscaper Handbook' })).toBeVisible();
-	await page.getByRole('link', { name: 'Choose an editor' }).first().click();
-	await expect(page).toHaveURL(new RegExp(`${BASE}start/choose-an-editor/$`, 'u'));
-	await expect(page.getByRole('heading', { level: 1, name: 'Choose an editor' })).toBeVisible();
-
-	await page.getByRole('link', { name: 'Start a Framescaper project' }).click();
-	await expect(page).toHaveURL(new RegExp(`${BASE}framescaper/first-project/$`, 'u'));
-	await expect(page.getByRole('heading', { level: 1, name: 'Your first Framescaper project' })).toBeVisible();
+	await expect(page.getByRole('link', { name: /Framescaper/u })).toHaveCount(0);
+	const foreignTutorial = await page.request.get(`${BASE}framescaper/first-project/`);
+	expect(foreignTutorial.status()).toBe(404);
+	const sharedChooser = await page.request.get(`${BASE}start/choose-an-editor/`);
+	expect(sharedChooser.status()).toBe(404);
+	await page.goto(`${BASE}soundscaper/edit-mix-and-export/`);
+	await expect(page.locator('a[href*="framescaper.org/docs"]')).toHaveCount(0);
+	await page.goto(BASE);
+	await page.getByRole('link', { name: 'Start the first tutorial' }).click();
+	await expect(page).toHaveURL(new RegExp(`${BASE}tutorials/your-first-project/$`, 'u'));
 });
 
 test('starts a newcomer on a tutorial and hands them on to the how-to guides', async ({ page }) => {
@@ -81,12 +84,22 @@ test('mobile readers can navigate the handbook sidebar', async ({ page }) => {
 	await expect(page).toHaveURL(new RegExp(`${BASE}projects-and-data/storage-backups-and-privacy/$`, 'u'));
 });
 
+test('states a local model purpose and keeps packaged-test mechanics collapsed', async ({ page }) => {
+	await page.goto(`${BASE}reference/local-models/silero-vad-v6/`);
+	await expect(page.getByRole('heading', { level: 2, name: 'Purpose and use case' })).toBeVisible();
+	const disclosure = page.locator('details#what-the-packaged-test-checks');
+	await expect(disclosure).not.toHaveAttribute('open', '');
+	await expect(disclosure.getByText(/silero-voice-activity/u)).toBeHidden();
+	await disclosure.locator('summary').click();
+	await expect(disclosure.getByText(/silero-voice-activity/u)).toBeVisible();
+});
+
 // The generated reference pages carry the widest and longest tables in the
 // handbook, so one of each shape is checked: a short one and the effect
 // inventory, whose parameter table is the largest the generator produces.
 for (const route of [
 	BASE,
-	`${BASE}soundscaper/first-project/`,
+	`${BASE}soundscaper/recording/`,
 	`${BASE}reference/generated/formats/`,
 	`${BASE}reference/generated/audio-effects/`,
 	`${BASE}guides/`,

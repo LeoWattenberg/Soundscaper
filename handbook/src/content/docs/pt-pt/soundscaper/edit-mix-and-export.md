@@ -4,7 +4,7 @@ description: "Organize clipes, equilibre faixas, aplique efeitos e crie um fiche
 sidebar:
   order: 4
 ---
-<!-- docs-ai-provenance: {"factPacketSha256":"eaa07736d9143de912e22bd2c5d4a8db4f1553c1052d247826240cda8c6af620","model":"aya-expanse:32b","modelDigest":"1603440383bd5504dc7afd01c0407b425b988dde650a8dc1a737433baa3cd432","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"eaa07736d9143de912e22bd2c5d4a8db4f1553c1052d247826240cda8c6af620","targetLocale":"pt-PT"} -->
+<!-- docs-ai-provenance: {"basedOnProvenance":{"model":"aya-expanse:32b","modelDigest":"1603440383bd5504dc7afd01c0407b425b988dde650a8dc1a737433baa3cd432"},"factPacketSha256":"20388bf5b2a7139d7bcfb3a2a962c5f60ec0f91d05992a6307a4fb8b2b622534","model":"gpt-6-luna","modelProvider":"codex-subagent","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"20388bf5b2a7139d7bcfb3a2a962c5f60ec0f91d05992a6307a4fb8b2b622534","targetLocale":"pt-PT"} -->
 
 ## Organizar clipes
 
@@ -54,5 +54,3 @@ Escolha **Ficheiro → Exportar áudio** para uma entrega misturada ou **Exporta
 Os formatos comprimidos utilizam o tempo de execução FFmpeg. Os formatos exatos e a disponibilidade condicional estão listados no [referência de formato gerada](/reference/).
 
 Reproduza o ficheiro exportado noutra aplicação antes de entregar ou eliminar o material de origem.
-
-Para trabalho de imagem — compor uma sequência, efeitos de vídeo e uma entrega MP4 ou WebM — entregue o projeto ao [Framescaper](/framescaper/) e consulte [exportar vídeo](/framescaper/video-export/).

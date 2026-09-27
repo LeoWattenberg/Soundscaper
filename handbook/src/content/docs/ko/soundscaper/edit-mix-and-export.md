@@ -4,7 +4,7 @@ description: "클립을 배치하고, 트랙의 균형을 맞추고, 효과를 �
 sidebar:
   order: 4
 ---
-<!-- docs-ai-provenance: {"model":"gpt-5.6-luna","modelDigest":"manual","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"eaa07736d9143de912e22bd2c5d4a8db4f1553c1052d247826240cda8c6af620","targetLocale":"ko"} -->
+<!-- docs-ai-provenance: {"basedOnProvenance":{"model":"gpt-5.6-luna"},"factPacketSha256":"20388bf5b2a7139d7bcfb3a2a962c5f60ec0f91d05992a6307a4fb8b2b622534","model":"gpt-6-luna","modelProvider":"codex-subagent","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"20388bf5b2a7139d7bcfb3a2a962c5f60ec0f91d05992a6307a4fb8b2b622534","targetLocale":"ko"} -->
 
 ## 클립 배치
 
@@ -51,5 +51,3 @@ Vamp 플러그인은 오디오를 바꾸지 않고 분석합니다. Vamp 설치�
 압축 형식은 FFmpeg 런타임을 사용합니다. 정확한 형식과 조건부 사용 가능 여부는 [생성된 형식 참조](/reference/)에 나열되어 있습니다.
 
 전달하거나 원본 자료를 삭제하기 전에 내보낸 파일을 다른 애플리케이션에서 재생하세요.
-
-시퀀스 구성, 비디오 효과, MP4 또는 WebM 전달과 같은 영상 작업에는 프로젝트를 [Framescaper](/framescaper/)로 넘기고 [비디오 내보내기](/framescaper/video-export/)를 참조하세요.

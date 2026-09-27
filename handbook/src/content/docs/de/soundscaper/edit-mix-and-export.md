@@ -4,7 +4,7 @@ description: "Clips anordnen, Spuren ausbalancieren, Effekte anwenden und eine A
 sidebar:
   order: 4
 ---
-<!-- docs-ai-provenance: {"factPacketSha256":"eaa07736d9143de912e22bd2c5d4a8db4f1553c1052d247826240cda8c6af620","model":"gpt-5.6-luna","modelDigest":"manual","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"eaa07736d9143de912e22bd2c5d4a8db4f1553c1052d247826240cda8c6af620","targetLocale":"de"} -->
+<!-- docs-ai-provenance: {"basedOnProvenance":{"model":"gpt-5.6-luna"},"factPacketSha256":"20388bf5b2a7139d7bcfb3a2a962c5f60ec0f91d05992a6307a4fb8b2b622534","model":"gpt-6-luna","modelProvider":"codex-subagent","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"20388bf5b2a7139d7bcfb3a2a962c5f60ec0f91d05992a6307a4fb8b2b622534","targetLocale":"de"} -->
 
 ## Clips anordnen
 
@@ -52,5 +52,3 @@ Wählen Sie **Datei → Audio exportieren** für eine gemischte Ausgabedatei ode
 Komprimierte Formate verwenden die FFmpeg-Laufzeit. Die genauen Formate und ihre bedingte Verfügbarkeit sind in der [generierten Format-Referenz](/reference/) aufgeführt.
 
 Spielen Sie die exportierte Datei in einer anderen Anwendung ab, bevor Sie sie ausliefern oder das Ausgangsmaterial löschen.
-
-Für Arbeiten mit Bildern – das Zusammenstellen einer Sequenz, Videoeffekte und eine MP4- oder WebM-Ausgabe – übergeben Sie das Projekt an [Framescaper](/framescaper/) und lesen Sie [Video exportieren](/framescaper/video-export/).

@@ -1,6 +1,6 @@
 {
 	"locale": "el",
-	"provenance": {"model":"aya-expanse:32b","modelDigest":"1603440383bd5504dc7afd01c0407b425b988dde650a8dc1a737433baa3cd432","promptVersion":"docs-chrome-v1"},
+	"provenance": {"model":"gpt-6-luna","modelProvider":"codex-subagent","promptVersion":"docs-chrome-v1","basedOnProvenance":{"model":"aya-expanse:32b","modelDigest":"1603440383bd5504dc7afd01c0407b425b988dde650a8dc1a737433baa3cd432"}},
 	"entries": {
 		"sidebar.framescaper": ["Framescaper","Framescaper"],
 		"sidebar.guides": ["How-to guides","Οδηγοί"],
@@ -31,6 +31,7 @@
 		"sidebar.soundscaper": ["Soundscaper","Soundscaper"],
 		"sidebar.start": ["Start here","Ξεκινήστε εδώ"],
 		"sidebar.tutorials": ["Tutorials","Εκπαιδευτικά βίντεο"],
-		"site.title": ["Soundscaper Handbook","Εγχειρίδιο Soundscaper"]
+		"site.title": ["Soundscaper Handbook","Εγχειρίδιο Soundscaper"],
+		"site.title.framescaper": ["Framescaper Handbook","Εγχειρίδιο του Framescaper"]
 	}
 }

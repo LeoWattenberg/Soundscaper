@@ -1,21 +1,21 @@
 ---
 title: "Soundscaper 手册"
-description: "学习如何使用 Soundscaper 和 Framescaper 录音、编辑、混音并交付项目。"
+description: "了解如何使用 Soundscaper 录制、编辑、混音并交付音频项目。"
 template: splash
 hero:
-  tagline: Practical guides for the local-first Soundscaper and Framescaper editors.
+  tagline: Practical guides for the local-first Soundscaper audio editor.
   actions:
-    - text: Choose an editor
-      link: /docs/zh-cn/start/choose-an-editor/
+    - text: Start the first tutorial
+      link: /docs/zh-cn/tutorials/your-first-project/
       icon: right-arrow
       variant: primary
     - text: Open Soundscaper
       link: https://soundscaper.org/en/
       icon: external
 ---
-<!-- docs-ai-provenance: {"factPacketSha256":"eb7a4205cc2ab638e638e40d032e6ac3ecd87afa84907a96e30b52287c48474b","model":"gpt-6-luna","modelProvider":"codex-subagent","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"eb7a4205cc2ab638e638e40d032e6ac3ecd87afa84907a96e30b52287c48474b","targetLocale":"zh-CN"} -->
+<!-- docs-ai-provenance: {"factPacketSha256":"8d553d47981c15638e776acdae99f1547f5a864b26f05aad54102ec0c3370023","model":"gpt-6-luna","modelProvider":"codex-subagent","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"8d553d47981c15638e776acdae99f1547f5a864b26f05aad54102ec0c3370023","targetLocale":"zh-CN"} -->
 
-Soundscaper 和 Framescaper 是同一套本地优先项目系统的两种视图。使用 Soundscaper 进行录音和细致的音频工作；使用 Framescaper 进行视频编辑和合成。
+Soundscaper 是一款本地优先的编辑器，可用于录音、修复、编排、混音、分析音频并交付音频项目。本手册通过任务指南和完整示例项目介绍这些工作流程。
 
 ## 教程
 
@@ -43,7 +43,6 @@ Soundscaper 和 Framescaper 是同一套本地优先项目系统的两种视图�
 
 ## 其他入门内容
 
-- [创建你的第一个 Framescaper 项目](/framescaper/first-project/)
 - [了解项目文件和 Audacity 交换格式](/projects-and-data/project-files/)
 - [保护本地存储的工作](/projects-and-data/storage-backups-and-privacy/)
 - [比较 Soundscaper、Audacity 4 和 Audition](/start/how-soundscaper-compares/)

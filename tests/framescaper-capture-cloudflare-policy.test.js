@@ -51,38 +51,34 @@ test('the Soundscaper build assigns exactly one product- and route-specific docu
  * matching rule, and a document that receives two `Permissions-Policy` values
  * or two `Cache-Control` values has an unusable one of each.
  */
-test('the handbook receives exactly one capture and cache policy on the origin that hosts it', async () => {
-	const rules = parseHeaderRules(await productHeaders('soundscaper'));
-	// The index is the collision: `/:locale/` matches `/docs/` and nothing
-	// deeper, so a handbook rule that set without detaching would leave the
-	// index alone carrying two of each header.
-	for (const path of ['/docs/', '/docs/soundscaper/first-project/']) {
-		assert.deepEqual(effectiveHeader(rules, path, 'permissions-policy'), [EMBEDDED_FRAMESCAPER_POLICY], path);
-		assert.deepEqual(effectiveHeader(rules, path, 'cache-control'), ['no-cache'], path);
+test('each product handbook receives exactly one capture and cache policy on its own origin', async () => {
+	for (const productId of ['soundscaper', 'framescaper']) {
+		const rules = parseHeaderRules(await productHeaders(productId));
+		// The index is the collision: `/:locale/` matches `/docs/` and nothing
+		// deeper, so a handbook rule that set without detaching would leave the
+		// index alone carrying two of each header.
+		for (const path of ['/docs/', '/docs/first-project/']) {
+			assert.deepEqual(effectiveHeader(rules, path, 'permissions-policy'), [EMBEDDED_FRAMESCAPER_POLICY], `${productId} ${path}`);
+			assert.deepEqual(effectiveHeader(rules, path, 'cache-control'), ['no-cache'], `${productId} ${path}`);
+		}
+		const asset = '/docs/_astro/page.BQqJ0Ynq.js';
+		assert.deepEqual(effectiveHeader(rules, asset, 'permissions-policy'), [EMBEDDED_FRAMESCAPER_POLICY]);
+		assert.deepEqual(effectiveHeader(rules, asset, 'cache-control'), ['public, max-age=31536000, immutable']);
+		// The handbook never weakens the isolation every response on the origin shares.
+		assert.deepEqual(effectiveHeader(rules, '/docs/', 'cross-origin-opener-policy'), [ISOLATION[
+			'cross-origin-opener-policy'
+		]]);
+		assert.deepEqual(effectiveHeader(rules, '/docs/', 'cross-origin-embedder-policy'), [ISOLATION[
+			'cross-origin-embedder-policy'
+		]]);
 	}
-	const asset = '/docs/_astro/page.BQqJ0Ynq.js';
-	assert.deepEqual(effectiveHeader(rules, asset, 'permissions-policy'), [EMBEDDED_FRAMESCAPER_POLICY]);
-	assert.deepEqual(effectiveHeader(rules, asset, 'cache-control'), ['public, max-age=31536000, immutable']);
-	// The handbook never weakens the isolation every response on the origin shares.
-	assert.deepEqual(effectiveHeader(rules, '/docs/', 'cross-origin-opener-policy'), [ISOLATION[
-		'cross-origin-opener-policy'
-	]]);
-	assert.deepEqual(effectiveHeader(rules, '/docs/', 'cross-origin-embedder-policy'), [ISOLATION[
-		'cross-origin-embedder-policy'
-	]]);
-});
-
-test('the Framescaper build hosts no handbook and emits no rule for one', async () => {
-	const rules = parseHeaderRules(await productHeaders('framescaper'));
-	assert.equal(rules.some(({ pattern }) => pattern.startsWith('/docs/')), false);
-	assert.deepEqual(webBuildRouting({ SCAPE_PRODUCT: 'framescaper' }).handbook, null);
 });
 
 test('the Framescaper build moves the same capture policies to its own origin root', async () => {
 	const rules = parseHeaderRules(await productHeaders('framescaper'));
 	const policyRules = rules.filter(({ headers }) => headers.has('permissions-policy'));
 	assert.deepEqual(policyRules.map(({ pattern }) => pattern), [
-		'/', '/:locale/', '/embed/:locale/', '/privacy/:locale/',
+		'/', '/:locale/', '/embed/:locale/', '/privacy/:locale/', '/docs/*',
 	]);
 	assertExactPolicies(rules, [
 		['/', FRAMESCAPER_POLICY],
@@ -90,7 +86,7 @@ test('the Framescaper build moves the same capture policies to its own origin ro
 		['/de/', FRAMESCAPER_POLICY],
 		['/embed/en/', EMBEDDED_FRAMESCAPER_POLICY],
 		['/privacy/en/', EMBEDDED_FRAMESCAPER_POLICY],
-	]);
+	], ['/docs/*']);
 	assert.deepEqual(workerRules(rules), [['/service-worker.js', '/']]);
 	assert.equal(rules.some(({ pattern }) => pattern.startsWith('/framescaper/')), false);
 });

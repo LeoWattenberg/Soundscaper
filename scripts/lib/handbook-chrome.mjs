@@ -50,6 +50,7 @@ const REFERENCE_ENTRIES = Object.freeze({
 /** Every string the site is configured with rather than written in, by key. */
 export const HANDBOOK_CHROME_COPY = Object.freeze({
 	'site.title': 'Soundscaper Handbook',
+	'site.title.framescaper': 'Framescaper Handbook',
 	'sidebar.start': 'Start here',
 	'sidebar.soundscaper': 'Soundscaper',
 	'sidebar.tutorials': 'Tutorials',

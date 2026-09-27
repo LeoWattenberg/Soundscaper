@@ -4,7 +4,7 @@ description: "Klipleri düzenle, parçaları dengele, efektler uygula ve teslim 
 sidebar:
   order: 4
 ---
-<!-- docs-ai-provenance: {"basedOnProvenance":{"model":"aya-expanse:32b","modelDigest":"1603440383bd5504dc7afd01c0407b425b988dde650a8dc1a737433baa3cd432"},"factPacketSha256":"eaa07736d9143de912e22bd2c5d4a8db4f1553c1052d247826240cda8c6af620","model":"gpt-6-luna","modelProvider":"codex-subagent","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"eaa07736d9143de912e22bd2c5d4a8db4f1553c1052d247826240cda8c6af620","targetLocale":"tr"} -->
+<!-- docs-ai-provenance: {"factPacketSha256":"20388bf5b2a7139d7bcfb3a2a962c5f60ec0f91d05992a6307a4fb8b2b622534","model":"gpt-6-luna","modelProvider":"codex-subagent","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"20388bf5b2a7139d7bcfb3a2a962c5f60ec0f91d05992a6307a4fb8b2b622534","targetLocale":"tr"} -->
 
 ## Klipleri Düzenle
 
@@ -54,5 +54,3 @@ Karışık bir teslimat için **Dosya → Ses dışa aktar**'ı veya yalnızca b
 Sıkıştırılmış formatlar FFmpeg çalışma zamanını kullanır. Kesin formatlar ve koşullu kullanılabilirlik [oluşturulan format başvurusunda](/reference/) listelenmiştir.
 
 Kaynak materyali silmeden veya teslim etmeden önce dışa aktarılan dosyayı başka bir uygulamada oynatın.
-
-Görüntü işi - bir dizi oluşturma, video efektleri ve MP4 veya WebM teslimatı - [Framescaper](/framescaper/)'e projeyi verin ve [video dışa aktar](/framescaper/video-export/)'a bakın.

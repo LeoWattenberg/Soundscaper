@@ -4,7 +4,7 @@ description: "Organiza los clips, equilibra las pistas, aplica efectos y crea un
 sidebar:
   order: 4
 ---
-<!-- docs-ai-provenance: {"factPacketSha256":"eaa07736d9143de912e22bd2c5d4a8db4f1553c1052d247826240cda8c6af620","model":"gpt-5.6-luna","modelDigest":"manual","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"eaa07736d9143de912e22bd2c5d4a8db4f1553c1052d247826240cda8c6af620","targetLocale":"es"} -->
+<!-- docs-ai-provenance: {"basedOnProvenance":{"model":"gpt-5.6-luna"},"factPacketSha256":"20388bf5b2a7139d7bcfb3a2a962c5f60ec0f91d05992a6307a4fb8b2b622534","model":"gpt-6-luna","modelProvider":"codex-subagent","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"20388bf5b2a7139d7bcfb3a2a962c5f60ec0f91d05992a6307a4fb8b2b622534","targetLocale":"es"} -->
 
 ## Organizar clips
 
@@ -53,5 +53,3 @@ Los formatos comprimidos usan el tiempo de ejecución FFmpeg. Los formatos exact
 
 
 Reproduce el archivo exportado en otra aplicación antes de entregarlo o eliminar el material de origen.
-
-Para trabajo de imagen —componer una secuencia, efectos de video y una entrega MP4 o WebM— entrega el proyecto a [Framescaper](/framescaper/) y consulta [exportar video](/framescaper/video-export/).

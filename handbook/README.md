@@ -1,14 +1,23 @@
-# Soundscaper handbook
+# Product handbooks
 
 This workspace builds the public product documentation at
-`https://soundscaper.org/docs`. Product and engineering evidence in the
-repository's existing `docs/` directory is intentionally not published here.
+`https://soundscaper.org/docs` or `https://framescaper.org/docs`, selected by
+`SCAPE_PRODUCT`. Product and engineering evidence in the repository's existing
+`docs/` directory is intentionally not published here.
 
-The handbook is a path on the Soundscaper origin, not a documentation
-subdomain, so it needs no DNS record and no Pages project of its own.
-`scripts/lib/product-web-routing.mjs` owns the base path: the Astro config, the
-editor's documentation links, the Cloudflare header rules and the browser suite
-all read it from there rather than repeating it.
+Each handbook is a path on its product origin, not a documentation subdomain,
+so it needs no additional DNS record or Pages project.
+`scripts/lib/product-web-routing.mjs` owns the build and deployment base path.
+The editor mirrors the two public origins and that base in its eager
+documentation-link module, where importing the build-side routing code would
+cross a lazy chunk boundary; tests hold that mirror, the Astro config, the
+Cloudflare rules and the browser suite to the same routes.
+
+The build also owns the product boundary. Soundscaper excludes the Framescaper
+tutorial tree; Framescaper publishes only that tree and promotes it to the
+handbook root. Links across the boundary point at the peer product's origin,
+so neither site's navigation, search index, sitemap, or canonical URLs claim
+the other product's tutorials.
 
 Run commands from the repository root:
 
@@ -86,16 +95,18 @@ refuses an anchor that names a heading without a written-out id.
 
 ## Deployment
 
-The handbook ships inside the Soundscaper deployment. `npm run build:pages`
-runs the reference, content and static-build checks, then
+The selected handbook ships inside the selected product deployment.
+`npm run build:pages` runs the reference, content and static-build checks, then
 `scripts/stage-handbook-build.mjs` copies `handbook/dist` into the product
-build under the base path, and `npm run deploy` uploads the one `dist`. There is
-nothing to attach and no second project to publish to.
+build under the base path. The root `npm run deploy` command publishes the
+Soundscaper Pages project; Framescaper is built and deployed by its explicitly
+product-scoped CI job. There is no separate handbook project to attach or
+publish.
 
 Staging fails closed rather than deploying something broken: a `handbook/dist`
-built for a different base path is refused, because Astro bakes the base into
-every asset URL and a stale build looks complete while every stylesheet points
-somewhere the deployment does not serve.
+built for a different base path or product origin is refused, because Astro
+bakes both into the output and a stale build can look complete while its links
+and stylesheets point somewhere the deployment does not serve.
 
 The repository's canonical quality and Chromium browser jobs run the handbook's
 deterministic checks and its browser suite on pull requests.

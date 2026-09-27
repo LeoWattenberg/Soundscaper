@@ -1,6 +1,6 @@
 {
 	"locale": "zh-TW",
-	"provenance": {"model":"aya-expanse:32b","modelDigest":"1603440383bd5504dc7afd01c0407b425b988dde650a8dc1a737433baa3cd432","promptVersion":"docs-chrome-v1"},
+	"provenance": {"model":"gpt-6-luna","modelProvider":"codex-subagent","promptVersion":"docs-chrome-v1","basedOnProvenance":{"model":"aya-expanse:32b","modelDigest":"1603440383bd5504dc7afd01c0407b425b988dde650a8dc1a737433baa3cd432"}},
 	"entries": {
 		"sidebar.framescaper": ["Framescaper","Framescaper"],
 		"sidebar.guides": ["How-to guides","操作指南"],
@@ -31,6 +31,7 @@
 		"sidebar.soundscaper": ["Soundscaper","Soundscaper"],
 		"sidebar.start": ["Start here","從這裡開始"],
 		"sidebar.tutorials": ["Tutorials","教學"],
-		"site.title": ["Soundscaper Handbook","Soundscaper 手冊"]
+		"site.title": ["Soundscaper Handbook","Soundscaper 手冊"],
+		"site.title.framescaper": ["Framescaper Handbook","Framescaper 手冊"]
 	}
 }

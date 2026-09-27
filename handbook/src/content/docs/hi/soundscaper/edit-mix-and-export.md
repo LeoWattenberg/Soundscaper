@@ -4,7 +4,7 @@ description: "क्लिप व्यवस्थित करें, ट्�
 sidebar:
   order: 4
 ---
-<!-- docs-ai-provenance: {"factPacketSha256":"eaa07736d9143de912e22bd2c5d4a8db4f1553c1052d247826240cda8c6af620","model":"gpt-5.6-luna","modelDigest":"manual","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"eaa07736d9143de912e22bd2c5d4a8db4f1553c1052d247826240cda8c6af620","targetLocale":"hi"} -->
+<!-- docs-ai-provenance: {"basedOnProvenance":{"model":"gpt-5.6-luna"},"factPacketSha256":"20388bf5b2a7139d7bcfb3a2a962c5f60ec0f91d05992a6307a4fb8b2b622534","model":"gpt-6-luna","modelProvider":"codex-subagent","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"20388bf5b2a7139d7bcfb3a2a962c5f60ec0f91d05992a6307a4fb8b2b622534","targetLocale":"hi"} -->
 
 ## क्लिप व्यवस्थित करें
 
@@ -55,5 +55,3 @@ Vamp प्लग-इन ऑडियो बदलने के बजाय उ
 संपीड़ित फ़ॉर्मैट FFmpeg रनटाइम का उपयोग करते हैं। सटीक फ़ॉर्मैट और शर्तों पर उपलब्धता [जनरेट किए गए फ़ॉर्मैट संदर्भ](/reference/) में सूचीबद्ध हैं।
 
 डिलीवरी करने या स्रोत सामग्री हटाने से पहले निर्यात की गई फ़ाइल को किसी अन्य ऐप में चलाकर देखें।
-
-चित्र-आधारित काम—सीक्वेंस बनाना, वीडियो इफ़ेक्ट और MP4 या WebM डिलीवरी—के लिए प्रोजेक्ट [Framescaper](/framescaper/) को दें और [वीडियो निर्यात](/framescaper/video-export/) देखें।

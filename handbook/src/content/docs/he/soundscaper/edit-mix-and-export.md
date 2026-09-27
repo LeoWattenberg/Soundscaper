@@ -4,7 +4,7 @@ description: "סידור קליפים, איזון ערוצים, יישום אפ�
 sidebar:
   order: 4
 ---
-<!-- docs-ai-provenance: {"factPacketSha256":"eaa07736d9143de912e22bd2c5d4a8db4f1553c1052d247826240cda8c6af620","model":"gpt-5.6-luna","modelDigest":"manual","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"eaa07736d9143de912e22bd2c5d4a8db4f1553c1052d247826240cda8c6af620","targetLocale":"he"} -->
+<!-- docs-ai-provenance: {"basedOnProvenance":{"model":"gpt-5.6-luna"},"factPacketSha256":"20388bf5b2a7139d7bcfb3a2a962c5f60ec0f91d05992a6307a4fb8b2b622534","model":"gpt-6-luna","modelProvider":"codex-subagent","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"20388bf5b2a7139d7bcfb3a2a962c5f60ec0f91d05992a6307a4fb8b2b622534","targetLocale":"he"} -->
 
 ## סידור קליפים
 
@@ -52,6 +52,3 @@ sidebar:
 פורמטים מכווצים משתמשים בזמן הרצת FFmpeg. פורמטים מדויקים וזמינות תנאית מפורטים ב[הפניה לפורמטים שנוצרה](/reference/).
 
 נגן את הקובץ שיוצא באפליקציה אחרת לפני מסירה או מחיקת חומר מקור.
-
-לעבודת תמונה — הרכבת רצף, אפקטי וידאו ומסירת MP4 או WebM — העבר את הפרויקט ל[Framescaper](/framescaper/) וראה
-[ייצוא וידאו](/framescaper/video-export/).

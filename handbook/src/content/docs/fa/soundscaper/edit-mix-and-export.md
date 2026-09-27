@@ -4,7 +4,7 @@ description: "کلیپ‌ها را چیدمان کنید، مسیرها را م�
 sidebar:
   order: 4
 ---
-<!-- docs-ai-provenance: {"factPacketSha256":"eaa07736d9143de912e22bd2c5d4a8db4f1553c1052d247826240cda8c6af620","model":"gpt-5.6-luna","modelDigest":"manual","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"eaa07736d9143de912e22bd2c5d4a8db4f1553c1052d247826240cda8c6af620","targetLocale":"fa"} -->
+<!-- docs-ai-provenance: {"basedOnProvenance":{"model":"gpt-5.6-luna"},"factPacketSha256":"20388bf5b2a7139d7bcfb3a2a962c5f60ec0f91d05992a6307a4fb8b2b622534","model":"gpt-6-luna","modelProvider":"codex-subagent","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"20388bf5b2a7139d7bcfb3a2a962c5f60ec0f91d05992a6307a4fb8b2b622534","targetLocale":"fa"} -->
 
 ## چیدمان کلیپ‌ها
 
@@ -55,6 +55,3 @@ sidebar:
 فرمت‌های فشرده از زمان‌باز FFmpeg استفاده می‌کنند. فرمت‌های دقیق و در دسترس بودن شرطی در [مرجع فرمت تولیدشده](/reference/) فهرست شده‌اند.
 
 فایل خروجی‌داده‌شده را قبل از تحویل یا حذف مواد اصلی در برنامه دیگری پخش کنید.
-
-برای کار با تصویر — ترکیب یک توالی، افکت‌های ویدیویی و تحویل MP4 یا WebM — پروژه را به [Framescaper](/framescaper/) بسپارید و به
-[خروجی ویدیو](/framescaper/video-export/) مراجعه کنید.

@@ -34,6 +34,6 @@ against Soundscaper, and cover the audio side of a video project too.
 3. Review [project-file and backup behavior](/projects-and-data/project-files/).
 
 Open the browser editor at
-[soundscaper.org/framescaper/en](https://soundscaper.org/framescaper/en/).
+[framescaper.org/en](https://framescaper.org/en/).
 
 For desktop assistance, see [local processing, models, and plugins](/help/local-processing/).

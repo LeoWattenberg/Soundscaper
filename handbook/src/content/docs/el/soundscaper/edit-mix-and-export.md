@@ -4,7 +4,7 @@ description: "Διατάξτε κλιπ, ισορροπήστε διαδρομέ
 sidebar:
   order: 4
 ---
-<!-- docs-ai-provenance: {"model":"gpt-5.6-luna","modelDigest":"manual","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"eaa07736d9143de912e22bd2c5d4a8db4f1553c1052d247826240cda8c6af620","targetLocale":"el"} -->
+<!-- docs-ai-provenance: {"basedOnProvenance":{"model":"gpt-5.6-luna"},"factPacketSha256":"20388bf5b2a7139d7bcfb3a2a962c5f60ec0f91d05992a6307a4fb8b2b622534","model":"gpt-6-luna","modelProvider":"codex-subagent","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"20388bf5b2a7139d7bcfb3a2a962c5f60ec0f91d05992a6307a4fb8b2b622534","targetLocale":"el"} -->
 
 ## Διατάξτε κλιπ
 
@@ -57,6 +57,3 @@ sidebar:
 Οι συμπιεσμένες μορφές χρησιμοποιούν το runtime FFmpeg. Οι ακριβείς μορφές και η συνθήκη διαθεσιμότητας αναφέρονται στην [αναφορά παραγόμενων μορφών](/reference/).
 
 Αναπαράγετε το εξαγόμενο αρχείο σε άλλη εφαρμογή πριν από την παράδοση ή τη διαγραφή του υλικού πηγής.
-
-Για εργασίες εικόνας — σύνθεση μιας ακολουθίας, εφέ βίντεο και παράδοση MP4 ή WebM — παραδώστε το έργο στο [Framescaper](/framescaper/) και δείτε
-[εξαγωγή βίντεο](/framescaper/video-export/).

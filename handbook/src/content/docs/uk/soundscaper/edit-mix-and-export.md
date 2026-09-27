@@ -4,7 +4,7 @@ description: "Розташовуйте кліпи, балансуйте дорі
 sidebar:
   order: 4
 ---
-<!-- docs-ai-provenance: {"factPacketSha256":"eaa07736d9143de912e22bd2c5d4a8db4f1553c1052d247826240cda8c6af620","model":"gpt-6-luna","modelProvider":"codex-subagent","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"eaa07736d9143de912e22bd2c5d4a8db4f1553c1052d247826240cda8c6af620","targetLocale":"uk"} -->
+<!-- docs-ai-provenance: {"factPacketSha256":"20388bf5b2a7139d7bcfb3a2a962c5f60ec0f91d05992a6307a4fb8b2b622534","model":"gpt-6-luna","modelProvider":"codex-subagent","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"20388bf5b2a7139d7bcfb3a2a962c5f60ec0f91d05992a6307a4fb8b2b622534","targetLocale":"uk"} -->
 
 ## Розташування кліпів
 
@@ -52,5 +52,3 @@ sidebar:
 Для стиснених форматів потрібне середовище виконання FFmpeg. Точні формати й умови їхньої доступності наведено у [згенерованому довіднику форматів](/reference/).
 
 Перед передаванням або видаленням вихідних матеріалів відкрийте експортований файл в іншій програмі й прослухайте його.
-
-Для роботи з відео — створення послідовності, відеоефекти та експорт MP4 чи WebM — передайте проєкт у [Framescaper](/framescaper/) і перегляньте [експорт відео](/framescaper/video-export/).

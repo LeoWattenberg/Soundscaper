@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { execFileSync } from 'node:child_process';
 
 import {
-	DOCUMENTATION_BASE_URL,
+	documentationBaseUrl,
 	HANDBOOK_LANGUAGES,
 	documentationUrl,
 } from '../src/common/editor/documentation-links.ts';
@@ -12,28 +12,31 @@ import { handbookPlan } from '../scripts/lib/product-web-routing.mjs';
 import { COMMITTED_LOCALE_TAGS } from '../src/common/i18n/locales.js';
 
 test('documentation links route each product to its own manual and first-project guide', () => {
-	assert.equal(DOCUMENTATION_BASE_URL, 'https://soundscaper.org/docs');
-	assert.equal(documentationUrl('soundscaper', 'manual'), 'https://soundscaper.org/docs/soundscaper/');
+	assert.equal(documentationBaseUrl('soundscaper'), 'https://soundscaper.org/docs');
+	assert.equal(documentationBaseUrl('framescaper'), 'https://framescaper.org/docs');
+	assert.equal(documentationUrl('soundscaper', 'manual'), 'https://soundscaper.org/docs/');
 	assert.equal(
 		documentationUrl('soundscaper', 'tutorials'),
-		'https://soundscaper.org/docs/soundscaper/first-project/',
+		'https://soundscaper.org/docs/tutorials/your-first-project/',
 	);
-	assert.equal(documentationUrl('framescaper', 'manual'), 'https://soundscaper.org/docs/framescaper/');
+	assert.equal(documentationUrl('framescaper', 'manual'), 'https://framescaper.org/docs/');
 	assert.equal(
 		documentationUrl('framescaper', 'tutorials'),
-		'https://soundscaper.org/docs/framescaper/first-project/',
+		'https://framescaper.org/docs/first-project/',
 	);
 });
 
-test('the handbook the editor links to is the one the Soundscaper build stages', () => {
-	const handbook = handbookPlan('soundscaper');
-	assert.ok(handbook);
-	assert.equal(new URL(DOCUMENTATION_BASE_URL).pathname, handbook.basePath);
-	assert.equal(new URL(DOCUMENTATION_BASE_URL).origin, 'https://soundscaper.org');
-	assert.equal(handbookPlan('framescaper'), null);
+test('each editor links to the handbook staged by its own build', () => {
+	for (const productId of ['soundscaper', 'framescaper'] as const) {
+		const handbook = handbookPlan(productId);
+		assert.ok(handbook);
+		assert.equal(new URL(documentationBaseUrl(productId)).pathname, handbook.basePath);
+		assert.equal(new URL(documentationBaseUrl(productId)).origin, `https://${productId}.org`);
+	}
 });
 
 test('documentation links reject unknown products and destinations', () => {
+	assert.throws(() => documentationBaseUrl('unknown'), /Unsupported editor product/u);
 	assert.throws(() => documentationUrl('unknown', 'manual'), /Unsupported editor product/u);
 	assert.throws(
 		() => documentationUrl('soundscaper', 'unknown' as 'manual'),
@@ -61,15 +64,19 @@ test('the editor knows exactly the languages the handbook publishes', () => {
 });
 
 test('a reader is taken to the handbook in the language they are reading', () => {
-	assert.equal(documentationUrl('soundscaper', 'manual', 'en'), 'https://soundscaper.org/docs/soundscaper/');
+	assert.equal(documentationUrl('soundscaper', 'manual', 'en'), 'https://soundscaper.org/docs/');
 	// A language the handbook does not publish takes the reader to English
 	// rather than to a page that does not exist.
-	assert.equal(documentationUrl('soundscaper', 'manual', 'kl'), 'https://soundscaper.org/docs/soundscaper/');
-	assert.equal(documentationUrl('soundscaper', 'manual', undefined), 'https://soundscaper.org/docs/soundscaper/');
+	assert.equal(documentationUrl('soundscaper', 'manual', 'kl'), 'https://soundscaper.org/docs/');
+	assert.equal(documentationUrl('soundscaper', 'manual', undefined), 'https://soundscaper.org/docs/');
 	for (const segment of HANDBOOK_LANGUAGES) {
 		assert.equal(
 			documentationUrl('soundscaper', 'tutorials', segment),
-			`https://soundscaper.org/docs/${segment}/soundscaper/first-project/`,
+			`https://soundscaper.org/docs/${segment}/tutorials/your-first-project/`,
+		);
+		assert.equal(
+			documentationUrl('framescaper', 'tutorials', segment),
+			`https://framescaper.org/docs/${segment}/first-project/`,
 		);
 	}
 });

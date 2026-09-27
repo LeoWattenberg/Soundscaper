@@ -48,6 +48,26 @@ test('Markdown protection keeps syntax-bearing content opaque to the model', () 
 	assert.doesNotThrow(() => assertStructuralParity(source, restored));
 });
 
+test('an expandable test note keeps its structure while its summary and prose translate', () => {
+	const expandable = `<details id="what-the-packaged-test-checks">
+<summary>What the desktop test checks</summary>
+
+The packaged test runs the model on a bounded fixture.
+
+</details>
+`;
+	const protectedDocument = protectMarkdown(expandable);
+	const translated = protectedDocument.markdown
+		.replace('What the desktop test checks', 'Was der Desktop-Test prüft')
+		.replace('The packaged test runs the model on a bounded fixture.', 'Der Pakettest führt das Modell mit einem begrenzten Testdatensatz aus.');
+	const restored = restoreMarkdown(translated, protectedDocument.tokens);
+
+	assert.match(restored, /^<details id="what-the-packaged-test-checks">/u);
+	assert.match(restored, /<summary>Was der Desktop-Test prüft<\/summary>/u);
+	assert.match(restored, /Der Pakettest führt das Modell/u);
+	assert.doesNotThrow(() => assertStructuralParity(expandable, restored));
+});
+
 test('restoration rejects dropped, duplicated, or invented protection tokens', () => {
 	const protectedDocument = protectMarkdown(source);
 	const firstToken = protectedDocument.tokens.keys().next().value;

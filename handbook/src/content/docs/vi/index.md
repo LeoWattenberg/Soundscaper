@@ -1,23 +1,21 @@
 ---
 title: "Cẩm nang Soundscaper"
-description: "Học cách ghi âm, chỉnh sửa, trộn và hoàn thiện dự án bằng Soundscaper và Framescaper."
+description: "Tìm hiểu cách ghi âm, chỉnh sửa, phối trộn và hoàn thiện dự án âm thanh bằng Soundscaper."
 template: splash
 hero:
-  tagline: Practical guides for the local-first Soundscaper and Framescaper editors.
+  tagline: Practical guides for the local-first Soundscaper audio editor.
   actions:
-    - text: Choose an editor
-      link: /docs/vi/start/choose-an-editor/
+    - text: Start the first tutorial
+      link: /docs/vi/tutorials/your-first-project/
       icon: right-arrow
       variant: primary
     - text: Open Soundscaper
       link: https://soundscaper.org/en/
       icon: external
 ---
-<!-- docs-ai-provenance: {"factPacketSha256":"eb7a4205cc2ab638e638e40d032e6ac3ecd87afa84907a96e30b52287c48474b","model":"gpt-6-luna","modelProvider":"codex-subagent","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"eb7a4205cc2ab638e638e40d032e6ac3ecd87afa84907a96e30b52287c48474b","targetLocale":"vi"} -->
+<!-- docs-ai-provenance: {"factPacketSha256":"8d553d47981c15638e776acdae99f1547f5a864b26f05aad54102ec0c3370023","model":"gpt-6-luna","modelProvider":"codex-subagent","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"8d553d47981c15638e776acdae99f1547f5a864b26f05aad54102ec0c3370023","targetLocale":"vi"} -->
 
-Soundscaper và Framescaper là hai giao diện của cùng một hệ thống dự án chạy cục bộ.
-Dùng Soundscaper để ghi âm và xử lý âm thanh chi tiết. Dùng Framescaper để chỉnh sửa
-và ghép video.
+Soundscaper là trình chỉnh sửa chạy cục bộ để ghi âm, khôi phục, sắp xếp, phối trộn, phân tích và hoàn thiện dự án âm thanh. Cẩm nang này giải thích các quy trình đó bằng hướng dẫn theo từng công việc và các dự án mẫu hoàn chỉnh.
 
 ## Hướng dẫn từng bước
 
@@ -49,7 +47,6 @@ Xem [tất cả hướng dẫn theo tác vụ](/guides/).
 
 ## Điểm bắt đầu khác
 
-- [Tạo dự án Framescaper đầu tiên](/framescaper/first-project/)
 - [Tìm hiểu tệp dự án và khả năng trao đổi với Audacity](/projects-and-data/project-files/)
 - [Bảo vệ nội dung được lưu cục bộ](/projects-and-data/storage-backups-and-privacy/)
 - [So sánh Soundscaper với Audacity 4 và Audition](/start/how-soundscaper-compares/)

@@ -167,11 +167,11 @@ test('every implemented manifest action resolves on the concrete editor runtime'
 		runtime.actions.help.revertFactorySettings();
 		assert.equal(uiController.getSnapshot().request.type, 'revert-factory');
 		runtime.actions.help.openManual();
-		assert.equal(uiController.getSnapshot().request.payload.url, 'https://soundscaper.org/docs/framescaper/');
+		assert.equal(uiController.getSnapshot().request.payload.url, 'https://framescaper.org/docs/');
 		runtime.actions.help.openTutorials();
 		assert.equal(
 			uiController.getSnapshot().request.payload.url,
-			'https://soundscaper.org/docs/framescaper/first-project/',
+			'https://framescaper.org/docs/first-project/',
 		);
 
 		const originalTrackId = controller.getSnapshot().selectedTrackId;

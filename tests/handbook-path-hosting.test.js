@@ -19,43 +19,48 @@ const execFileAsync = promisify(execFile);
  * build stages it and the origin's own routing accounts for it. These tests
  * hold the two halves of that to each other.
  */
-test('the handbook base path is one authority both the build and the editor read', () => {
-	assert.deepEqual(handbookPlan('soundscaper'), {
+test('each product handbook has the same path on its own origin', () => {
+	for (const productId of ['soundscaper', 'framescaper']) assert.deepEqual(handbookPlan(productId), {
 		basePath: '/docs',
 		scope: '/docs/',
 		assetScope: '/docs/_astro/',
 	});
-	assert.equal(handbookPlan('framescaper'), null);
 	assert.throws(() => handbookPlan('lightscaper'), /Unsupported web build product/u);
 	assert.deepEqual(webBuildRouting({ SCAPE_PRODUCT: 'soundscaper' }).handbook, handbookPlan('soundscaper'));
+	assert.deepEqual(webBuildRouting({ SCAPE_PRODUCT: 'framescaper' }).handbook, handbookPlan('framescaper'));
 });
 
-test('the origin names the handbook sitemap from a robots file only its root can carry', async (context) => {
-	const outputRoot = await fixture(context);
-	await generateRoutes(outputRoot, 'soundscaper');
-	assert.equal(
-		await readFile(join(outputRoot, 'robots.txt'), 'utf8'),
-		'User-agent: *\nAllow: /\n\nSitemap: https://soundscaper.org/docs/sitemap-index.xml\n',
-	);
-
-	const framescaperRoot = await fixture(context);
-	await generateRoutes(framescaperRoot, 'framescaper');
-	assert.equal(
-		await readFile(join(framescaperRoot, 'robots.txt'), 'utf8'),
-		'User-agent: *\nAllow: /\n',
-	);
+test('each origin names its own handbook sitemap from the root robots file', async (context) => {
+	for (const productId of ['soundscaper', 'framescaper']) {
+		const outputRoot = await fixture(context);
+		await generateRoutes(outputRoot, productId);
+		assert.equal(
+			await readFile(join(outputRoot, 'robots.txt'), 'utf8'),
+			`User-agent: *\nAllow: /\n\nSitemap: https://${productId}.org/docs/sitemap-index.xml\n`,
+		);
+	}
 });
 
-test('staging copies the handbook under its base path, and only into the build that hosts it', async (context) => {
-	const outputRoot = await fixture(context);
-	const handbook = await handbookFixture(context, '/docs/');
-	await stage(outputRoot, 'soundscaper', handbook);
-	assert.equal(await readFile(join(outputRoot, 'docs/index.html'), 'utf8'), indexFor('/docs/'));
-	assert.equal(await readFile(join(outputRoot, 'docs/reference/index.html'), 'utf8'), 'reference');
+test('staging copies the selected handbook under each product build', async (context) => {
+	for (const productId of ['soundscaper', 'framescaper']) {
+		const outputRoot = await fixture(context);
+		const handbook = await handbookFixture(context, '/docs/', `https://${productId}.org`);
+		await stage(outputRoot, productId, handbook);
+		assert.equal(
+			await readFile(join(outputRoot, 'docs/index.html'), 'utf8'),
+			indexFor('/docs/', `https://${productId}.org`),
+		);
+		assert.equal(await readFile(join(outputRoot, 'docs/reference/index.html'), 'utf8'), 'reference');
+	}
+});
 
-	const framescaperRoot = await fixture(context);
-	await stage(framescaperRoot, 'framescaper', handbook);
-	await assert.rejects(() => readFile(join(framescaperRoot, 'docs/index.html'), 'utf8'), /ENOENT/u);
+test('staging refuses a handbook built for the other product origin', async (context) => {
+	const outputRoot = await fixture(context);
+	const framescaperHandbook = await handbookFixture(context, '/docs/', 'https://framescaper.org');
+	await assert.rejects(
+		() => stage(outputRoot, 'soundscaper', framescaperHandbook),
+		/was built for https:\/\/framescaper\.org instead of https:\/\/soundscaper\.org/u,
+	);
 });
 
 /**
@@ -65,7 +70,7 @@ test('staging copies the handbook under its base path, and only into the build t
  */
 test('staging refuses a handbook built for a different base path', async (context) => {
 	const outputRoot = await fixture(context);
-	const stale = await handbookFixture(context, '/');
+	const stale = await handbookFixture(context, '/', 'https://soundscaper.org');
 	await assert.rejects(
 		() => stage(outputRoot, 'soundscaper', stale),
 		/was not built for the base path \/docs\//u,
@@ -78,15 +83,16 @@ test('staging refuses a handbook built for a different base path', async (contex
 
 test('staging refuses to overwrite a product route standing at the handbook base path', async (context) => {
 	const outputRoot = await fixture(context);
-	const handbook = await handbookFixture(context, '/docs/');
+	const handbook = await handbookFixture(context, '/docs/', 'https://soundscaper.org');
 	await mkdir(join(outputRoot, 'docs'), { recursive: true });
 	await writeFile(join(outputRoot, 'docs/index.html'), 'a product document');
 	await assert.rejects(() => stage(outputRoot, 'soundscaper', handbook), /already emits \/docs\//u);
 	assert.equal(await readFile(join(outputRoot, 'docs/index.html'), 'utf8'), 'a product document');
 });
 
-function indexFor(base) {
-	return `<!doctype html><link rel="stylesheet" href="${base}_astro/common.css"><title>Handbook</title>`;
+function indexFor(base, origin) {
+	return `<!doctype html><link rel="stylesheet" href="${base}_astro/common.css">`
+		+ `<link rel="canonical" href="${origin}${base}"><title>Handbook</title>`;
 }
 
 async function fixture(context) {
@@ -101,10 +107,10 @@ async function fixture(context) {
 	return outputRoot;
 }
 
-async function handbookFixture(context, base) {
+async function handbookFixture(context, base, origin) {
 	const root = await mkdtemp(join(tmpdir(), 'scape-handbook-build-'));
 	context.after(() => rm(root, { recursive: true, force: true }));
-	await writeFile(join(root, 'index.html'), indexFor(base));
+	await writeFile(join(root, 'index.html'), indexFor(base, origin));
 	await writeFile(join(root, 'sitemap-index.xml'), '<sitemapindex />');
 	await mkdir(join(root, 'reference'), { recursive: true });
 	await writeFile(join(root, 'reference/index.html'), 'reference');

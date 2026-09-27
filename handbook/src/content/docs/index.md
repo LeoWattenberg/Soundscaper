@@ -1,12 +1,12 @@
 ---
 title: Soundscaper Handbook
-description: Learn to record, edit, mix, and deliver projects with Soundscaper and Framescaper.
+description: Learn to record, edit, mix, and deliver audio projects with Soundscaper.
 template: splash
 hero:
-  tagline: Practical guides for the local-first Soundscaper and Framescaper editors.
+  tagline: Practical guides for the local-first Soundscaper audio editor.
   actions:
-    - text: Choose an editor
-      link: /docs/start/choose-an-editor/
+    - text: Start the first tutorial
+      link: /docs/tutorials/your-first-project/
       icon: right-arrow
       variant: primary
     - text: Open Soundscaper
@@ -14,9 +14,9 @@ hero:
       icon: external
 ---
 
-Soundscaper and Framescaper are two views of the same local-first project system.
-Use Soundscaper for recording and detailed audio work. Use Framescaper for video
-editing and compositing.
+Soundscaper is a local-first editor for recording, repairing, arranging, mixing,
+analyzing, and delivering audio. This handbook explains those workflows with
+task-focused guides and complete example projects.
 
 ## Tutorials
 
@@ -48,7 +48,6 @@ See [all how-to guides](/guides/).
 
 ## More starting points
 
-- [Create your first Framescaper project](/framescaper/first-project/)
 - [Understand project files and Audacity interchange](/projects-and-data/project-files/)
 - [Protect locally stored work](/projects-and-data/storage-backups-and-privacy/)
 - [Compare Soundscaper with Audacity 4 and Audition](/start/how-soundscaper-compares/)

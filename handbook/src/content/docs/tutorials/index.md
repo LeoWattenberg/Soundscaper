@@ -15,6 +15,9 @@ A tutorial is a lesson: it takes you through a complete piece of work on an exam
 - [Clean up a voice recording](/tutorials/clean-up-a-voice-recording/) — Take the hum out of a take, cut the rumble, bring it to podcast loudness and export an MP3.
 - [Put music under a voice](/tutorials/put-music-under-a-voice/) — Layer two tracks, duck one under the other automatically, mix them down and export.
 
-## How the tutorials stay correct
+<details>
+<summary>How the tutorials stay correct</summary>
 
 Each tutorial is replayed on its example files, step for step, against each build of Soundscaper by the browser suite (`tests/browser/soundscaper-tutorials.spec.js`). A step that stops working fails the build rather than going stale.
+
+</details>

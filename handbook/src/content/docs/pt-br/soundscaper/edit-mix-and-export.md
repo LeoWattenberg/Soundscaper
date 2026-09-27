@@ -4,7 +4,7 @@ description: "Organize clipes, equilibre faixas, aplique efeitos e crie um arqui
 sidebar:
   order: 4
 ---
-<!-- docs-ai-provenance: {"factPacketSha256":"eaa07736d9143de912e22bd2c5d4a8db4f1553c1052d247826240cda8c6af620","model":"gpt-5.6-luna","modelDigest":"manual","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"eaa07736d9143de912e22bd2c5d4a8db4f1553c1052d247826240cda8c6af620","targetLocale":"pt-BR"} -->
+<!-- docs-ai-provenance: {"basedOnProvenance":{"model":"gpt-5.6-luna"},"factPacketSha256":"20388bf5b2a7139d7bcfb3a2a962c5f60ec0f91d05992a6307a4fb8b2b622534","model":"gpt-6-luna","modelProvider":"codex-subagent","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"20388bf5b2a7139d7bcfb3a2a962c5f60ec0f91d05992a6307a4fb8b2b622534","targetLocale":"pt-BR"} -->
 
 ## Organizar clipes
 
@@ -103,7 +103,3 @@ Os formatos compactados usam o runtime FFmpeg. Os formatos exatos e a disponibil
 na [referência de formatos gerada](/reference/).
 
 Reproduza o arquivo exportado em outro aplicativo antes de entregá-lo ou excluir o material de origem.
-
-Para trabalhos com imagem — composição de uma sequência, efeitos de vídeo e uma entrega em MP4 ou WebM —
-encaminhe o projeto ao [Framescaper](/framescaper/) e consulte
-[exportar vídeo](/framescaper/video-export/).
