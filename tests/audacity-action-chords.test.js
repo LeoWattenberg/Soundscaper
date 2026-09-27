@@ -54,6 +54,7 @@ test('4.0.0 play/stop and play-from-cursor toggles read transport state and the 
 		};
 		const probe = {
 			...controller,
+			engine: { getPositionFrames: () => 12_345 },
 			getSnapshot: () => ({
 				...controller.getSnapshot(),
 				recording: state.recording,
@@ -79,21 +80,21 @@ test('4.0.0 play/stop and play-from-cursor toggles read transport state and the 
 		};
 		const runtime = createAudacityActionRuntime(probe, { uiController: createAudioEditorUiActionController() });
 
-		runtime.actions.transport.playStop();
+		await runtime.actions.transport.playStop();
 		assert.deepEqual(calls, ['playPause'], 'a stopped transport starts playing');
 
 		state.transportState = 'playing';
-		runtime.actions.transport.playStop();
-		assert.deepEqual(calls, ['playPause', 'stop'], 'a playing transport stops rather than pausing');
+		await runtime.actions.transport.playStop();
+		assert.deepEqual(calls, ['playPause', 'stop', 'seek:12345'], 'a playing transport stops without discarding its playhead');
 
 		state.transportState = 'stopped';
 		state.recording = true;
-		runtime.actions.transport.playStop();
-		assert.deepEqual(calls, ['playPause', 'stop', 'recording.stop'], 'Space stops an active recording');
+		await runtime.actions.transport.playStop();
+		assert.deepEqual(calls, ['playPause', 'stop', 'seek:12345', 'recording.stop'], 'Space stops an active recording');
 		state.recording = false;
 		for (const field of ['recordingStarting', 'recordingScheduling', 'scheduledRecording']) {
 			state[field] = true;
-			runtime.actions.transport.playStop();
+			await runtime.actions.transport.playStop();
 			state[field] = field === 'scheduledRecording' ? null : false;
 		}
 		assert.deepEqual(calls.slice(-3), ['recording.stop', 'recording.stop', 'recording.stop'], 'Space cancels every pending recording state');

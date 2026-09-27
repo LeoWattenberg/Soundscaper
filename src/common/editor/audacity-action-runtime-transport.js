@@ -20,11 +20,15 @@ export function createTransportActionGroup({ controller, controllerActions, proj
 	return {
 		...controllerActions.transport,
 		pause: controllerActions.transport.playPause,
-		playStop: () => {
+		playStop: async () => {
 			if (recording()) return controllerActions.recording.stop();
-			return playing()
-				? controllerActions.transport.stop()
-				: controllerActions.transport.playPause();
+			if (!playing()) return controllerActions.transport.playPause();
+			const liveFrame = Math.max(0, Math.round(Number(
+				controller.engine?.getPositionFrames?.()
+					?? controller.getTelemetrySnapshot?.()?.positionFrame,
+			) || 0));
+			await controllerActions.transport.stop();
+			return controllerActions.transport.seek(liveFrame);
 		},
 		playFromCursor: () => {
 			if (playing()) return controllerActions.transport.playPause();
