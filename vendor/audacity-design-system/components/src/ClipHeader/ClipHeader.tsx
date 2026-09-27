@@ -99,6 +99,10 @@ export const ClipHeader: React.FC<ClipHeaderProps> = ({
   // must not turn a rename the user already started into a silent no-op: the
   // captured callback is called and the host decides whether to refuse it.
   const renameCommitRef = React.useRef<((newName: string) => void) | undefined>(undefined);
+  // Enter can synchronously publish the renamed clip and unmount this focused
+  // input, which may deliver a trailing blur with a stale controlled value.
+  // Only the first completion event belongs to a rename session.
+  const renameSettledRef = React.useRef(true);
 
   React.useEffect(() => {
     if (isRenaming) {
@@ -122,6 +126,7 @@ export const ClipHeader: React.FC<ClipHeaderProps> = ({
       return;
     }
     renameCommitRef.current = onRename;
+    renameSettledRef.current = false;
     setRenameDraft(name);
     setIsRenaming(true);
   }, [name, onRename, onRenameFinished, renameRequestId]);
@@ -129,18 +134,23 @@ export const ClipHeader: React.FC<ClipHeaderProps> = ({
   const startRename = () => {
     if (!onRename) return;
     renameCommitRef.current = onRename;
+    renameSettledRef.current = false;
     setRenameDraft(name);
     setIsRenaming(true);
   };
   const commitRename = (rawValue = renameDraft) => {
+    if (renameSettledRef.current) return;
+    renameSettledRef.current = true;
     const next = rawValue.trim();
     const commit = renameCommitRef.current ?? onRename;
-    if (next && next !== name) commit?.(next);
     renameCommitRef.current = undefined;
+    if (next && next !== name) commit?.(next);
     setIsRenaming(false);
     onRenameFinished?.();
   };
   const cancelRename = () => {
+    if (renameSettledRef.current) return;
+    renameSettledRef.current = true;
     renameCommitRef.current = undefined;
     setRenameDraft(name);
     setIsRenaming(false);

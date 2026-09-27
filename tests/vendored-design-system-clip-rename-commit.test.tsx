@@ -77,7 +77,32 @@ test('Enter commits the input value when change and keydown arrive in the same R
 	await header.unmount();
 });
 
-test('a rename request without a callback never opens the editor, and Escape commits nothing', async () => {
+test('a late blur cannot replace the value an Enter commit already settled', async () => {
+	const renames: string[] = [];
+	let finished = 0;
+	const header = await mount({
+		onRename: (name: string) => { renames.push(name); },
+		onRenameFinished: () => { finished += 1; },
+		renameRequestId: 1,
+	});
+	const input = header.input();
+	assert.ok(input, 'the rename request opens the inline editor');
+	const props = reactProps(input);
+
+	await act(async () => {
+		input.value = 'Enter wins';
+		props.onChange({ target: input });
+		props.onKeyDown({ ...keyEvent('Enter'), currentTarget: input });
+		input.value = 'Stale blur';
+		props.onBlur({ currentTarget: input });
+	});
+
+	assert.deepEqual(renames, ['Enter wins']);
+	assert.equal(finished, 1, 'the rename session finishes only once');
+	await header.unmount();
+});
+
+test('a rename request without a callback never opens the editor, and Escape settles without a late blur commit', async () => {
 	const renames: string[] = [];
 	let finished = 0;
 	const header = await mount({ onRenameFinished: () => { finished += 1; }, renameRequestId: 1 });
@@ -90,7 +115,12 @@ test('a rename request without a callback never opens the editor, and Escape com
 		reactProps(header.input()!).onChange({ target: { value: 'Discarded' } });
 	});
 	await act(async () => {
-		reactProps(header.input()!).onKeyDown(keyEvent('Escape'));
+		const input = header.input();
+		assert.ok(input);
+		const props = reactProps(input);
+		props.onKeyDown(keyEvent('Escape'));
+		input.value = 'Stale blur';
+		props.onBlur({ currentTarget: input });
 	});
 	assert.deepEqual(renames, []);
 	assert.equal(finished, 2);
