@@ -56,6 +56,9 @@ export interface EditorTelemetryState {
 	readonly durationFrames: number;
 	readonly transportState: string;
 	readonly recorder: unknown;
+	readonly recordingPreviews: readonly Readonly<{
+		readonly timelineMode?: 'continuous' | 'compacted';
+	}>[];
 	readonly timedRecording: unknown;
 	readonly timedRecordingCancelling: boolean;
 	readonly meters: unknown;
@@ -82,6 +85,9 @@ export function createEditorTelemetrySnapshot(
 		playbackMode: playback.playbackMode || 'normal',
 		playbackRate: Number(playback.playbackRate) || 1,
 		recording: Boolean(state.recorder && !state.timedRecording && !state.timedRecordingCancelling),
+		compactedRecording: Boolean(state.recorder && state.recordingPreviews.some(
+			({ timelineMode }) => timelineMode === 'compacted',
+		)),
 		meters: state.meters,
 		inputMeterDb: state.inputMeterDb,
 		inputMeter: state.inputMeter,

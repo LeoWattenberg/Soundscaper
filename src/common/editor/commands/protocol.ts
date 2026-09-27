@@ -384,6 +384,8 @@ type LegacyNonBatchAudioEditorCommandPayloads = {
 		readonly sourceId: string;
 		readonly sourceStartFrame?: number;
 		readonly sourceDurationFrames?: number;
+		readonly transitionInFrames?: number;
+		readonly transitionOutFrames?: number;
 		readonly clipId: string;
 	};
 	readonly 'effect/add': EffectRackTarget & {

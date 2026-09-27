@@ -15,25 +15,33 @@ const SOURCE = Object.freeze({ sourceKey: 'device:mic', kind: 'device' as const,
 const SETTINGS = Object.freeze({ thresholdDb: -20, hysteresisDb: 0, holdFrames: 0 });
 
 test('each activation retains its exact compacted frame across chunks and pauses', () => {
+	const clockTimes = [1_790_514_321_130, 1_790_514_323_253];
 	const session = createSoundActivatedRecordingCaptureSession({
 		getSettings: () => SETTINGS,
 		getAddTimestamps: () => true,
 		setState() {},
-	}, SOURCE, () => true);
+	}, SOURCE, () => true, undefined, { now: () => clockTimes.shift()! });
 	const controller = session.wrapController({
 		start() {}, pause: () => true, resume: () => true, stop() {},
 		setMonitoring() {}, setInputGain() {},
 	});
 	controller.start();
 	session.process({ frameStart: 100, frames: 5, channels: [Float32Array.of(0, 0.5, 0, 0.8, 0.8)] });
-	assert.deepEqual(session.activationFrameOffsets, [0, 1]);
+	assert.deepEqual(session.activationTimestamps, [
+		{ offsetFrames: 0, occurredAtMs: 1_790_514_321_126 },
+		{ offsetFrames: 1, occurredAtMs: 1_790_514_321_128 },
+	]);
 	controller.pause();
 	controller.resume();
 	session.process({ frameStart: 120, frames: 3, channels: [Float32Array.of(0, 0.4, 0)] });
-	assert.deepEqual(session.activationFrameOffsets, [0, 1, 3]);
+	assert.deepEqual(session.activationTimestamps, [
+		{ offsetFrames: 0, occurredAtMs: 1_790_514_321_126 },
+		{ offsetFrames: 1, occurredAtMs: 1_790_514_321_128 },
+		{ offsetFrames: 3, occurredAtMs: 1_790_514_323_251 },
+	]);
 });
 
-test('timestamp commands create one label track and use compacted project positions', () => {
+test('timestamp commands position labels at compacted frames and title them with activation wall-clock times', () => {
 	let index = 0;
 	const commands = createSoundActivationTimestampCommands({
 		project: { id: 'project', tracks: [{ id: 'audio', type: 'audio' }] },
@@ -41,9 +49,9 @@ test('timestamp commands create one label track and use compacted project positi
 		projectSampleRate: 1_000,
 		createId: (prefix) => `${prefix}-${++index}`,
 		timestamps: [
-			{ startFrame: 1_000, offsetFrames: 0, sampleRate: 1_000 },
-			{ startFrame: 1_000, offsetFrames: 250, sampleRate: 1_000 },
-			{ startFrame: 2_000, offsetFrames: 500, sampleRate: 1_000 },
+			{ startFrame: 1_000, offsetFrames: 0, sampleRate: 1_000, occurredAtMs: 1_790_514_321_125 },
+			{ startFrame: 1_000, offsetFrames: 250, sampleRate: 1_000, occurredAtMs: 1_790_514_321_875 },
+			{ startFrame: 2_000, offsetFrames: 500, sampleRate: 1_000, occurredAtMs: 1_790_514_323_250 },
 		],
 	});
 	assert.deepEqual(commands.map((command) => command.type), ['track/add', 'label/add', 'label/add', 'label/add']);
@@ -51,11 +59,14 @@ test('timestamp commands create one label track and use compacted project positi
 		assert.equal(command.type, 'label/add');
 		return command.label;
 	});
-	assert.deepEqual(labels.map(({ startFrame, endFrame, title }) => [startFrame, endFrame, title]), [
-		[1_000, 1_000, '00:00:01.000'],
-		[1_250, 1_250, '00:00:01.250'],
-		[2_500, 2_500, '00:00:02.500'],
+	assert.deepEqual(labels.map(({ startFrame, endFrame }) => [startFrame, endFrame]), [
+		[1_000, 1_000], [1_250, 1_250], [2_500, 2_500],
 	]);
+	for (const [index, label] of labels.entries()) {
+		const title = String(label.title);
+		assert.match(title, /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}[+-]\d{2}:\d{2}$/u);
+		assert.equal(Date.parse(title), [1_790_514_321_125, 1_790_514_321_875, 1_790_514_323_250][index]);
+	}
 });
 
 test('timestamp commands reuse an existing label track and sort simultaneous source sessions', () => {
@@ -68,15 +79,39 @@ test('timestamp commands reuse an existing label track and sort simultaneous sou
 		projectSampleRate: 1_000,
 		createId: (prefix) => `${prefix}-new`,
 		timestamps: [
-			{ startFrame: 2_000, offsetFrames: 500, sampleRate: 1_000 },
-			{ startFrame: 1_000, offsetFrames: 250, sampleRate: 1_000 },
+			{ startFrame: 2_000, offsetFrames: 500, sampleRate: 1_000, occurredAtMs: 1_790_514_323_250 },
+			{ startFrame: 1_000, offsetFrames: 250, sampleRate: 1_000, occurredAtMs: 1_790_514_321_875 },
 		],
 	});
 	assert.deepEqual(commands.map((command) => command.type), ['label/add', 'label/add']);
 	assert.deepEqual(commands.map((command) => {
 		assert.equal(command.type, 'label/add');
-		return [command.trackId, command.label.startFrame];
-	}), [['existing-labels', 1_250], ['existing-labels', 2_500]]);
+		return [command.trackId, command.label.startFrame, Date.parse(String(command.label.title))];
+	}), [
+		['existing-labels', 1_250, 1_790_514_321_875],
+		['existing-labels', 2_500, 1_790_514_323_250],
+	]);
+});
+
+test('activation labels show local dates across midnight', () => {
+	const commands = createSoundActivationTimestampCommands({
+		project: { id: 'project', tracks: [{ id: 'existing-labels', type: 'label' }] },
+		labelTrackName: 'Labels',
+		projectSampleRate: 1_000,
+		createId: (prefix) => `${prefix}-new`,
+		timestamps: [
+			{ startFrame: 0, offsetFrames: 0, sampleRate: 1_000,
+				occurredAtMs: new Date(2026, 8, 27, 23, 59, 59, 900).getTime() },
+			{ startFrame: 0, offsetFrames: 200, sampleRate: 1_000,
+				occurredAtMs: new Date(2026, 8, 28, 0, 0, 0, 100).getTime() },
+		],
+	});
+	const titles = commands.map((command) => {
+		assert.equal(command.type, 'label/add');
+		return String(command.label.title);
+	});
+	assert.match(titles[0]!, /^2026-09-27T23:59:59\.900[+-]\d{2}:\d{2}$/u);
+	assert.match(titles[1]!, /^2026-09-28T00:00:00\.100[+-]\d{2}:\d{2}$/u);
 });
 
 function recordingPreview(trackId: string): RecordingPreview {
@@ -84,7 +119,10 @@ function recordingPreview(trackId: string): RecordingPreview {
 		trackId,
 		startFrame: 1_000,
 		timelineMode: 'compacted',
-		activationFrameOffsets: [0, 250],
+		activationTimestamps: [
+			{ offsetFrames: 0, occurredAtMs: 1_790_514_321_125 },
+			{ offsetFrames: 250, occurredAtMs: 1_790_514_321_875 },
+		],
 		framesToSkip: 0,
 		frames: 500,
 		framesPerBucket: 64,
@@ -167,6 +205,9 @@ test('legacy finalization commits timestamp labels with the take and discards th
 	assert.deepEqual(commands.slice(3).map((command) => (
 		(command.label as Readonly<{ startFrame: number }>).startFrame
 	)), [1_000, 1_250]);
+	assert.deepEqual(commands.slice(3).map((command) => Date.parse(
+		(command.label as Readonly<{ title: string }>).title,
+	)), [1_790_514_321_125, 1_790_514_321_875]);
 	assert.deepEqual(fixture.commits[0]?.selection, { selectTrackId: 'audio-1', selectClipId: 'clip-1' });
 
 	const discarded = finalizationFixture();
@@ -178,7 +219,7 @@ test('legacy finalization commits timestamp labels with the take and discards th
 
 test('a source routed to two tracks creates one label per activation', async () => {
 	const fixture = finalizationFixture();
-	const sharedOffsets = [0, 250];
+	const sharedActivations = recordingPreview('audio-1').activationTimestamps;
 	const entries: RoutedRecordingEntry[] = ['audio-1', 'audio-2'].map((trackId, index) => ({
 		trackId,
 		route: { kind: 'device', deviceId: 'mic', channelStart: index, channelCount: 1 },
@@ -186,7 +227,7 @@ test('a source routed to two tracks creates one label per activation', async () 
 		sourceId: `source-${index + 1}`,
 		writer: recordingWriter(),
 		previewResampler: { push: (channels) => channels, finish: () => [] },
-		preview: { ...recordingPreview(trackId), activationFrameOffsets: sharedOffsets },
+		preview: { ...recordingPreview(trackId), activationTimestamps: sharedActivations },
 		sampleRate: 1_000,
 		selection: null,
 		recordingStartFrame: 1_000,
@@ -207,7 +248,8 @@ test('a source routed to two tracks creates one label per activation', async () 
 
 test('legacy recovery omits activation labels outside the visible committed source span', async () => {
 	const fixture = finalizationFixture();
-	const preview = { ...recordingPreview('audio-1'), activationFrameOffsets: [0, 100, 499, 500, 750] };
+	const preview = { ...recordingPreview('audio-1'), activationTimestamps: [0, 100, 499, 500, 750]
+		.map((offsetFrames) => ({ offsetFrames, occurredAtMs: 1_790_514_321_125 + offsetFrames })) };
 	const failure = new Error('late write failed');
 	await assert.rejects(createLegacyRecordingFinalization(fixture.runtime).finalize({
 		...finalizationSnapshot(preview), sourceOffsetFrames: 100, fatalError: failure,
@@ -220,14 +262,15 @@ test('legacy recovery omits activation labels outside the visible committed sour
 
 test('routed recovery deduplicates activations within audio saved by either route', async () => {
 	const fixture = finalizationFixture();
-	const sharedOffsets = [0, 250, 500, 750, 900];
+	const sharedActivations = [0, 250, 500, 750, 900]
+		.map((offsetFrames) => ({ offsetFrames, occurredAtMs: 1_790_514_321_125 + offsetFrames }));
 	const entries: RoutedRecordingEntry[] = ['audio-1', 'audio-2'].map((trackId, index) => ({
 		trackId,
 		route: { kind: 'device', deviceId: 'mic', channelStart: index, channelCount: 1 },
 		sourceKey: 'device:mic', sourceId: `source-${index + 1}`,
 		writer: { ...recordingWriter(), framesWritten: index === 0 ? 500 : 800 },
 		previewResampler: { push: (channels) => channels, finish: () => [] },
-		preview: { ...recordingPreview(trackId), activationFrameOffsets: sharedOffsets },
+		preview: { ...recordingPreview(trackId), activationTimestamps: sharedActivations },
 		sampleRate: 1_000, selection: null, recordingStartFrame: 1_000,
 		sourceOffsetFrames: 0, sourceOffsetProjectFrames: 0,
 	}));
@@ -243,14 +286,15 @@ test('routed recovery deduplicates activations within audio saved by either rout
 
 test('routed recovery omits activations in a gap between saved spans of one input', async () => {
 	const fixture = finalizationFixture();
-	const sharedOffsets = [100, 550, 750, 950];
+	const sharedActivations = [100, 550, 750, 950]
+		.map((offsetFrames) => ({ offsetFrames, occurredAtMs: 1_790_514_321_125 + offsetFrames }));
 	const entries: RoutedRecordingEntry[] = ['audio-1', 'audio-2'].map((trackId, index) => ({
 		trackId,
 		route: { kind: 'device', deviceId: 'mic', channelStart: index, channelCount: 1 },
 		sourceKey: 'device:mic', sourceId: `source-${index + 1}`,
 		writer: { ...recordingWriter(), framesWritten: index === 0 ? 500 : 1_000 },
 		previewResampler: { push: (channels) => channels, finish: () => [] },
-		preview: { ...recordingPreview(trackId), activationFrameOffsets: sharedOffsets },
+		preview: { ...recordingPreview(trackId), activationTimestamps: sharedActivations },
 		sampleRate: 1_000, selection: null, recordingStartFrame: 1_000,
 		sourceOffsetFrames: index === 0 ? 0 : 700, sourceOffsetProjectFrames: index === 0 ? 0 : 700,
 	}));

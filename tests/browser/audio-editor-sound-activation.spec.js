@@ -130,7 +130,7 @@ test.describe('Soundscaper sound-activated recording', () => {
 		await editor.getByRole('button', { name: 'Stop', exact: true }).click();
 	});
 
-	test('adds one project-time label for each sound activation when timestamps are enabled', async ({ page }) => {
+	test('adds one wall-clock label for each sound activation when timestamps are enabled', async ({ page }) => {
 		test.setTimeout(45_000);
 		await page.addInitScript(() => {
 			Object.defineProperty(navigator, 'mediaDevices', { configurable: true, value: {
@@ -170,6 +170,7 @@ test.describe('Soundscaper sound-activated recording', () => {
 		await options.getByRole('button', { name: 'Sound-activated recording', exact: true }).click();
 		const record = editor.locator('[data-transport="record"] .kw-audio-editor__split-button-main button');
 		await expect(record).toHaveAttribute('aria-pressed', 'true');
+		const startedAtMs = await page.evaluate(() => Date.now());
 		const pulseEndTime = await page.evaluate(() => {
 			const { context, gain } = globalThis.__soundActivationTestInput;
 			const startTime = context.currentTime + 0.1;
@@ -183,15 +184,20 @@ test.describe('Soundscaper sound-activated recording', () => {
 		await expect.poll(() => page.evaluate(() => globalThis.__soundActivationTestInput.context.currentTime))
 			.toBeGreaterThan(pulseEndTime + 0.25);
 		await editor.getByRole('button', { name: 'Stop', exact: true }).click();
+		const stoppedAtMs = await page.evaluate(() => Date.now());
 		const labels = editor.locator('[data-label-track] [data-label-id]');
 		await expect(labels).toHaveCount(2, { timeout: 20_000 });
 		await expect(labels.first()).toHaveAttribute('data-point-label', 'true');
 		await expect(labels.last()).toHaveAttribute('data-point-label', 'true');
 		const titles = await labels.evaluateAll((nodes) => nodes.map((node) => node.getAttribute('aria-label')));
-		const timestamps = titles.map((title) => title?.match(/\d{2}:\d{2}:\d{2}\.\d{3}/u)?.[0]);
+		const timestamps = titles.map((title) => title?.match(/\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}[+-]\d{2}:\d{2}/u)?.[0]);
 		expect(timestamps).toHaveLength(2);
-		for (const timestamp of timestamps) expect(timestamp).toMatch(/^\d{2}:\d{2}:\d{2}\.\d{3}$/u);
-		expect(timestamps[1] > timestamps[0]).toBe(true);
+		const instants = timestamps.map((timestamp) => Date.parse(timestamp));
+		for (const instant of instants) {
+			expect(instant).toBeGreaterThanOrEqual(startedAtMs - 250);
+			expect(instant).toBeLessThanOrEqual(stoppedAtMs + 250);
+		}
+		expect(instants[1] - instants[0]).toBeGreaterThan(800);
 		await editor.getByRole('button', { name: 'Undo', exact: true }).click();
 		await expect(labels).toHaveCount(0);
 		expect(errors).toEqual([]);

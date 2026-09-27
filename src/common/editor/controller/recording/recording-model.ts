@@ -29,8 +29,8 @@ export interface RecordingPreview {
 	readonly trackId: string;
 	readonly startFrame: number;
 	readonly timelineMode: 'continuous' | 'compacted';
-	/** Capture-relative offsets used only by recording finalization. */
-	activationFrameOffsets?: readonly number[];
+	/** Capture-relative events used only by recording finalization. */
+	activationTimestamps?: readonly RecordingActivationTimestamp[];
 	framesToSkip: number;
 	frames: number;
 	framesPerBucket: number;
@@ -38,6 +38,11 @@ export interface RecordingPreview {
 	readonly minimums: number[];
 	readonly maximums: number[];
 	readonly buckets: number[][];
+}
+
+export interface RecordingActivationTimestamp {
+	readonly offsetFrames: number;
+	readonly occurredAtMs: number;
 }
 
 export interface RecordingPreviewSnapshot {

@@ -10,6 +10,7 @@ interface TimelinePlaybackFrameLoopOptions {
 interface TimelinePositionTelemetry {
 	readonly positionFrame?: unknown;
 	readonly transportState?: unknown;
+	readonly compactedRecording?: unknown;
 }
 
 export type TimelinePlaybackFollowMode = 'none' | 'page' | 'pinned';
@@ -42,6 +43,16 @@ export function lowRateTimelinePositionFrame(
 		(Number(sampleRate) || 48_000) / ACCESSIBLE_POSITION_UPDATES_PER_SECOND,
 	));
 	return Math.floor(positionFrame / intervalFrames) * intervalFrames;
+}
+
+/** Compacted capture advances the visible playhead only as waveform frames are written. */
+export function liveTimelinePositionFrame(
+	telemetry: TimelinePositionTelemetry,
+	readEnginePosition: () => number,
+): number {
+	return telemetry.transportState === 'recording' && telemetry.compactedRecording
+		? Math.max(0, Math.round(Number(telemetry.positionFrame) || 0))
+		: readEnginePosition();
 }
 
 export function resolveTimelinePlaybackScroll({

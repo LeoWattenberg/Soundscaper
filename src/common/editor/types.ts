@@ -218,6 +218,7 @@ export interface EditorTelemetrySnapshot {
 	readonly playbackMode: string;
 	readonly playbackRate: number;
 	readonly recording: boolean;
+	readonly compactedRecording: boolean;
 	readonly taskProgress: EditorTaskProgress | null;
 	readonly exportProgress: number;
 	readonly [metric: string]: unknown;

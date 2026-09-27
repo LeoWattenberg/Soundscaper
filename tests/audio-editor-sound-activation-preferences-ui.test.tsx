@@ -28,7 +28,7 @@ test('Soundscaper renders accessible sound activation settings over the public s
 	assert.match(markup, /aria-description="250 ms"/u);
 	assert.match(markup, /type="checkbox"[^>]+name="sound-activation-add-timestamps"/u);
 	assert.match(markup, /Add timestamps/u);
-	assert.match(markup, /Add a label at the project time of each sound activation/u);
+	assert.match(markup, /Add a label at each sound activation showing its local date and time/u);
 	assert.match(markup, /role="status"[^>]+aria-live="polite"/u);
 	assert.doesNotMatch(markup, /Sound-activated recording is off/u);
 });

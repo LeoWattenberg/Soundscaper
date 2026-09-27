@@ -8,6 +8,7 @@ export interface RecordingActivationTimestamp {
 	readonly startFrame: number;
 	readonly offsetFrames: number;
 	readonly sampleRate: number;
+	readonly occurredAtMs: number;
 }
 
 interface TimestampCommandInput {
@@ -28,16 +29,19 @@ export function createSoundActivationTimestampCommands(input: TimestampCommandIn
 		id: labelTrackId,
 		name: input.labelTrackName,
 	}));
-	const frames = input.timestamps.map((timestamp) => timestamp.startFrame + scaleSampleFrame(
+	const events = input.timestamps.map((timestamp) => ({
+		frame: timestamp.startFrame + scaleSampleFrame(
 			timestamp.offsetFrames,
 			timestamp.sampleRate,
 			input.projectSampleRate,
 			'point',
-		)).sort((left, right) => left - right);
-	for (const frame of frames) {
+		),
+		occurredAtMs: timestamp.occurredAtMs,
+	})).sort((left, right) => left.frame - right.frame);
+	for (const { frame, occurredAtMs } of events) {
 		commands.push(createAddLabelCommand(labelTrackId, {
 			id: input.createId('label'),
-			title: formatProjectTime(frame, input.projectSampleRate),
+			title: formatWallClockTime(occurredAtMs),
 			startFrame: frame,
 			endFrame: frame,
 		}));
@@ -45,12 +49,14 @@ export function createSoundActivationTimestampCommands(input: TimestampCommandIn
 	return commands;
 }
 
-function formatProjectTime(frame: number, sampleRate: number): string {
-	const totalMilliseconds = Math.round((frame / sampleRate) * 1_000);
-	const milliseconds = totalMilliseconds % 1_000;
-	const totalSeconds = Math.floor(totalMilliseconds / 1_000);
-	const seconds = totalSeconds % 60;
-	const minutes = Math.floor(totalSeconds / 60) % 60;
-	const hours = Math.floor(totalSeconds / 3_600);
-	return `${String(hours).padStart(2, '0')}:${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}.${String(milliseconds).padStart(3, '0')}`;
+function formatWallClockTime(occurredAtMs: number): string {
+	const date = new Date(occurredAtMs);
+	if (Number.isNaN(date.getTime())) throw new RangeError('The sound activation wall-clock time is invalid.');
+	const twoDigits = (value: number) => String(value).padStart(2, '0');
+	const offsetMinutes = -date.getTimezoneOffset();
+	const sign = offsetMinutes < 0 ? '-' : '+';
+	const offset = Math.abs(offsetMinutes);
+	return `${String(date.getFullYear()).padStart(4, '0')}-${twoDigits(date.getMonth() + 1)}-${twoDigits(date.getDate())}`
+		+ `T${twoDigits(date.getHours())}:${twoDigits(date.getMinutes())}:${twoDigits(date.getSeconds())}`
+		+ `.${String(date.getMilliseconds()).padStart(3, '0')}${sign}${twoDigits(Math.floor(offset / 60))}:${twoDigits(offset % 60)}`;
 }

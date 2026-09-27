@@ -133,10 +133,12 @@ test.describe('Soundscaper punch and count-in recording', () => {
 		await expect(record).toHaveAttribute('aria-pressed', 'false', { timeout: 15_000 });
 		await expect(editor).toHaveAttribute('data-clip-count', '3');
 		await expect(editor.locator('[data-save-state]')).toHaveAttribute('data-state', 'saved', { timeout: 10_000 });
+		// The new take retains the exact punch range; the old tails overlap it by
+		// 50 ms at each edge so the editor can crossfade the recording.
 		await expect.poll(() => persistedAudioClips(page)).toMatchObject([
-			{ timelineStartFrame: 0, durationFrames: 144_000 },
+			{ timelineStartFrame: 0, durationFrames: 146_400 },
 			{ timelineStartFrame: 144_000, durationFrames: 48_000 },
-			{ timelineStartFrame: 192_000 },
+			{ timelineStartFrame: 189_600 },
 		]);
 		await editor.getByRole('button', { name: 'Undo', exact: true }).click();
 		await expect(editor).toHaveAttribute('data-clip-count', '1');

@@ -45,6 +45,8 @@ export interface RecordingPunchOptions {
 	readonly sourceStartFrame: number;
 	readonly sourceDurationFrames: number;
 	readonly clipId: string;
+	readonly transitionInFrames?: number;
+	readonly transitionOutFrames?: number;
 }
 
 export interface RecordingSegmentPunch {

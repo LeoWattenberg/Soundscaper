@@ -139,6 +139,7 @@ test('routed finalization publishes saved checkpoints after a later storage fail
 	assert.deepEqual(punch.options, {
 		trackId: 'track-1', startFrame: 10, endFrame: 14,
 		sourceId: 'source-1', sourceStartFrame: 0, sourceDurationFrames: 4, clipId: 'clip-1',
+		transitionInFrames: 2_400, transitionOutFrames: 2_400,
 	});
 });
 
@@ -203,6 +204,42 @@ test('legacy finalization places consecutive checkpoints without a gap', async (
 	assert.deepEqual(punches.map(({ options }) => [options.sourceId, options.startFrame, options.endFrame]), [
 		['source-1', 10, 14], ['source-2', 14, 17],
 	]);
+});
+
+test('checkpoint finalization crossfades only the complete take boundaries in either recording mode', async () => {
+	for (const timelineMode of ['continuous', 'compacted'] as const) for (const mode of ['legacy', 'routed'] as const) {
+		const first = storedWriter('source-1');
+		const second = storedWriter('source-2');
+		const writer = createRecordingCheckpointWriter({
+			firstSourceId: 'source-1', initialWriter: first.writer,
+			metadata: { sampleRate: 48_000, channelCount: 1 }, checkpointFrames: 4,
+			createSourceId: () => 'source-2', openWriter: async () => second.writer,
+		});
+		await writer.write([new Float32Array(4)]);
+		await writer.write([new Float32Array(3)]);
+		const fixture = routedFixture(writer);
+		const preview = { ...fixture.entry.preview, timelineMode };
+		if (mode === 'legacy') {
+			await createLegacyRecordingFinalization(fixture.runtime).finalize({
+				...fixture.snapshot, entries: null, writer,
+				sourceId: 'source-1', trackId: 'track-1',
+				resampler: fixture.entry.previewResampler, preview,
+			});
+		} else {
+			await createRoutedRecordingFinalization(fixture.runtime).finalize({
+				...fixture.snapshot, entries: [{ ...fixture.entry, preview }],
+			});
+		}
+		const punches = fixture.commits[0]?.filter((command) => (
+			(command as { type: string }).type === 'punch/replace'
+		)) as Array<{ options: {
+			transitionInFrames?: number;
+			transitionOutFrames?: number;
+		} }>;
+		assert.deepEqual(punches.map(({ options }) => [
+			options.transitionInFrames, options.transitionOutFrames,
+		]), [[2_400, undefined], [undefined, 2_400]], `${timelineMode} ${mode}`);
+	}
 });
 
 test('legacy finalization refuses a checkpoint punch after project ownership changes during preparation', async () => {

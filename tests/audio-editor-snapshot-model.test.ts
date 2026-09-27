@@ -37,6 +37,7 @@ test('telemetry snapshots normalize playback defaults and isolate meter maps', (
 		durationFrames: 48,
 		transportState: 'playing',
 		recorder: {},
+		recordingPreviews: [{ timelineMode: 'compacted' }],
 		timedRecording: null,
 		timedRecordingCancelling: false,
 		meters: { master: null },
@@ -49,6 +50,7 @@ test('telemetry snapshots normalize playback defaults and isolate meter maps', (
 	assert.equal(snapshot.playbackMode, 'normal');
 	assert.equal(snapshot.playbackRate, 1);
 	assert.equal(snapshot.recording, true);
+	assert.equal(snapshot.compactedRecording, true);
 	assert.notEqual(snapshot.inputMeters, inputMeters);
 	assert.deepEqual(snapshot.taskProgress, {
 		id: 'task-1', kind: 'export', label: 'Encoding', value: 0.25,

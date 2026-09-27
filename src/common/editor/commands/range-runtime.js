@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { compareCodeUnits } from '../code-unit-order.ts';
+import { punchTransitionCutRange } from './punch-transition-range.ts';
 import {
 	clipEndFrame,
 	cloneProject,
@@ -393,14 +394,13 @@ function detachAvLinksAcrossTrackRange(project, track, range, timelineDelta) {
 export function preparePunchCommand(project, options = {}, idFactory = createStableId) {
 	const range = normalizeFrameRange(options.startFrame, options.endFrame, 'punch range');
 	const track = requireTrack(project, options.trackId);
-	// The punch edits its own track at the range it was given, so its split
-	// identities answer to that range — not to the video-conformed span a range
-	// delete would spread across a whole lane group.
+	const cutRange = punchTransitionCutRange(range, track.clipIds.map((id) => requireClip(project, id)), options);
+	// Split identities follow this track's retained cut range, never a video-conformed lane-group span.
 	const splitClipIds = {};
 	const videoEffectIds = {};
 	for (const clipId of track.clipIds) {
 		const clip = requireClip(project, clipId);
-		if (clip.timelineStartFrame >= range.startFrame || clipEndFrame(clip) <= range.endFrame) continue;
+		if (clip.timelineStartFrame >= cutRange.startFrame || clipEndFrame(clip) <= cutRange.endFrame) continue;
 		const rightId = idFactory('clip');
 		splitClipIds[clip.id] = rightId;
 		const effectIds = prepareVideoEffectIds(clip, idFactory);
@@ -414,6 +414,8 @@ export function preparePunchCommand(project, options = {}, idFactory = createSta
 		sourceId: options.sourceId,
 		sourceStartFrame: options.sourceStartFrame ?? 0,
 		...(options.sourceDurationFrames == null ? {} : { sourceDurationFrames: options.sourceDurationFrames }),
+		...(options.transitionInFrames ? { transitionInFrames: options.transitionInFrames } : {}),
+		...(options.transitionOutFrames ? { transitionOutFrames: options.transitionOutFrames } : {}),
 		clipId: options.clipId || idFactory('clip'),
 		splitClipIds,
 		videoEffectIds,
@@ -536,15 +538,11 @@ export function replaceRange(project, command) {
 export function punchReplace(project, command) {
 	const range = normalizeFrameRange(command.startFrame, command.endFrame, 'punch range');
 	const track = requireTrack(project, command.trackId);
+	const cutRange = punchTransitionCutRange(range, track.clipIds.map((id) => requireClip(project, id)), command);
 	detachAvLinksAcrossTrackRange(project, track, range, 0);
 	processTrackRange(
-		project,
-		track,
-		range,
-		false,
-		command.splitClipIds || {},
-		{},
-		command.videoEffectIds || {},
+		project, track, cutRange, false,
+		command.splitClipIds || {}, {}, command.videoEffectIds || {},
 	);
 	addClip(project, track.id, {
 		id: command.clipId,

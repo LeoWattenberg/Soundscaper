@@ -12,6 +12,7 @@ function fixture() {
 	const state = { ...stateFixture(), disposed: false };
 	const gestures = new Map<string, { params: { amount: number } }>();
 	const telemetry = { positionFrame: 0, durationFrames: 100, transportState: 'stopped', recorder: null,
+		recordingPreviews: [],
 		timedRecording: null, timedRecordingCancelling: false, meters: null, inputMeterDb: -Infinity,
 		inputMeter: null, inputMeters: {}, exportProgress: 0 };
 	const channels = createSnapshotComposition({

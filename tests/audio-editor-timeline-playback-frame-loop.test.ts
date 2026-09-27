@@ -6,6 +6,7 @@ import test from 'node:test';
 
 import {
 	createTimelinePlaybackFrameLoop,
+	liveTimelinePositionFrame,
 	lowRateTimelinePositionFrame,
 	resolveTimelinePlaybackScroll,
 } from '../src/common/editor/ui/timeline/timeline-playback-frame-loop.ts';
@@ -61,6 +62,22 @@ test('interactive playhead position is exact when settled and bounded to four up
 	assert.equal(lowRateTimelinePositionFrame({ positionFrame: 12_345, transportState: 'playing' }, sampleRate), 12_000);
 	assert.equal(lowRateTimelinePositionFrame({ positionFrame: 23_999, transportState: 'playing' }, sampleRate), 12_000);
 	assert.equal(lowRateTimelinePositionFrame({ positionFrame: 24_000, transportState: 'recording' }, sampleRate), 24_000);
+});
+
+test('live playhead follows written frames during compacted recording and the engine otherwise', () => {
+	const enginePosition = () => 48_000;
+	assert.equal(liveTimelinePositionFrame({
+		positionFrame: 100, transportState: 'recording', compactedRecording: true,
+	}, enginePosition), 100);
+	assert.equal(liveTimelinePositionFrame({
+		positionFrame: 125, transportState: 'recording', compactedRecording: true,
+	}, enginePosition), 125);
+	assert.equal(liveTimelinePositionFrame({
+		positionFrame: 100, transportState: 'recording', compactedRecording: false,
+	}, enginePosition), 48_000);
+	assert.equal(liveTimelinePositionFrame({
+		positionFrame: 100, transportState: 'playing', compactedRecording: false,
+	}, enginePosition), 48_000);
 });
 
 test('scroll-to-playhead advances by a page only after the playhead reaches the right edge', () => {

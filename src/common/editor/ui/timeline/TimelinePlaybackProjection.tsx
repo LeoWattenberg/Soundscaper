@@ -6,6 +6,7 @@ import { CLIP_CONTENT_OFFSET } from '@soundscaper/design-system/constants';
 import { useAudioEditorTelemetrySelector } from '../DesignSystemRuntime.jsx';
 import {
 	createTimelinePlaybackFrameLoop,
+	liveTimelinePositionFrame,
 	lowRateTimelinePositionFrame,
 	resolveTimelinePlaybackScroll,
 	type TimelinePlaybackFollowMode,
@@ -18,6 +19,7 @@ import {
 interface PlaybackTelemetrySnapshot {
 	readonly positionFrame?: number;
 	readonly transportState?: string;
+	readonly compactedRecording?: boolean;
 }
 
 interface PlaybackProjectionController {
@@ -102,7 +104,10 @@ export function TimelinePlaybackProjection({
 				return;
 			}
 			automaticScrollRef.current = null;
-			const frame = controller.engine?.getPositionFrames?.() ?? latestPositionRef.current;
+			const frame = liveTimelinePositionFrame(
+				controller.getTelemetrySnapshot(),
+				() => controller.engine?.getPositionFrames?.() ?? latestPositionRef.current,
+			);
 			const playheadX = CLIP_CONTENT_OFFSET
 				+ Math.max(0, Number(frame) || 0) / Math.max(1, sampleRate) * pixelsPerSecond;
 			suspendedRef.current = resolveTimelinePlaybackScroll({
@@ -128,7 +133,10 @@ export function TimelinePlaybackProjection({
 		const loop = createTimelinePlaybackFrameLoop({
 			requestFrame: (callback) => globalThis.requestAnimationFrame(callback),
 			cancelFrame: (frame) => globalThis.cancelAnimationFrame(frame),
-			readPosition: () => controller.engine?.getPositionFrames?.() ?? latestPositionRef.current,
+			readPosition: () => liveTimelinePositionFrame(
+				controller.getTelemetrySnapshot(),
+				() => controller.engine?.getPositionFrames?.() ?? latestPositionRef.current,
+			),
 			renderPosition: (frame) => projectPosition(frame, true),
 		});
 		loop.start();

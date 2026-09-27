@@ -4,7 +4,7 @@ import { readRecordingSourceMetadata } from './recording-source-metadata.ts';
 import {
 	RECORDING_DISPLAY_ROUTE_LABEL,
 } from '../../../recording-routing.js';
-import type { RecordingPreview } from '../recording-model.ts';
+import type { RecordingActivationTimestamp as RecordingCapturedActivation, RecordingPreview } from '../recording-model.ts';
 import type {
 	RecordedAudioSource,
 	RecordingFinalizationInput,
@@ -25,6 +25,7 @@ import {
 } from './recording-finalization-cleanup.ts';
 import { recordedSourceProvenance } from './recording-source-provenance.ts';
 import { finishRecordingSegments } from './recording-finalization-segments.ts';
+import { recordingPunchesWithTransitions } from './recording-punch-transitions.ts';
 import { createSoundActivationTimestampCommands, type RecordingActivationTimestamp } from './sound-activation/sound-activation-timestamp-labels.ts';
 
 function isObject(value: unknown): value is Readonly<Record<string, unknown>> {
@@ -168,7 +169,7 @@ export function createRoutedRecordingFinalization(runtime: RoutedRecordingFinali
 			const activationCoverage = new Map<string, {
 				readonly recordingStartFrame: number;
 				readonly sampleRate: number;
-				readonly offsets: readonly number[];
+				readonly activations: readonly RecordingCapturedActivation[];
 				readonly spans: Array<Readonly<{ startFrame: number; endFrame: number }>>;
 			}>();
 			let compactedEndFrame: number | null = null;
@@ -267,13 +268,16 @@ export function createRoutedRecordingFinalization(runtime: RoutedRecordingFinali
 					runtime.setRouteHealth(entry.trackId, 'skipped');
 					continue;
 				}
-				if (punches.length === 1) {
-					const only = punches[0]!;
+				const transitioned = recordingPunchesWithTransitions(
+					punches, projectRate,
+				);
+				if (transitioned.length === 1) {
+					const only = transitioned[0]!;
 					commands.push(runtime.createAddSourceCommand(only.source), runtime.preparePunchCommand(
 						projectScope.project, only.punch,
 					));
 				} else {
-					const prepared = await runtime.preparePunchSequence(projectScope.project, punches);
+					const prepared = await runtime.preparePunchSequence(projectScope.project, transitioned);
 					projectScope.assertCurrent();
 					commands.push(...prepared);
 				}
@@ -283,7 +287,7 @@ export function createRoutedRecordingFinalization(runtime: RoutedRecordingFinali
 				} else activationCoverage.set(entry.sourceKey, {
 					recordingStartFrame: entry.recordingStartFrame,
 					sampleRate: entry.sampleRate,
-					offsets: entry.preview.activationFrameOffsets ?? [],
+					activations: entry.preview.activationTimestamps ?? [],
 					spans: publishedSourceSpans,
 				});
 			}
@@ -291,7 +295,7 @@ export function createRoutedRecordingFinalization(runtime: RoutedRecordingFinali
 			if (commands.length) {
 				const timestamps: RecordingActivationTimestamp[] = [];
 				for (const coverage of activationCoverage.values()) {
-					for (const offsetFrames of coverage.offsets) {
+					for (const { offsetFrames, occurredAtMs } of coverage.activations) {
 						if (!coverage.spans.some((span) => (
 							offsetFrames >= span.startFrame && offsetFrames < span.endFrame
 						))) continue;
@@ -299,6 +303,7 @@ export function createRoutedRecordingFinalization(runtime: RoutedRecordingFinali
 							startFrame: coverage.recordingStartFrame,
 							offsetFrames,
 							sampleRate: coverage.sampleRate,
+							occurredAtMs,
 						});
 					}
 				}

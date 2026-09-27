@@ -22,6 +22,7 @@ import {
 } from './recording-finalization-cleanup.ts';
 import { createSoundActivationTimestampCommands } from './sound-activation/sound-activation-timestamp-labels.ts';
 import { finishRecordingSegments } from './recording-finalization-segments.ts';
+import { recordingPunchesWithTransitions } from './recording-punch-transitions.ts';
 
 function isObject(value: unknown): value is Readonly<Record<string, unknown>> {
 	return Boolean(value) && typeof value === 'object';
@@ -200,24 +201,28 @@ export function createLegacyRecordingFinalization(runtime: RecordingFinalization
 			}
 			projectScope.assertCurrent();
 			if (punches.length) {
-				const commands = punches.length === 1
-					? [runtime.createAddSourceCommand(punches[0]!.source), runtime.preparePunchCommand(
-						projectScope.project, punches[0]!.punch,
+				const transitioned = recordingPunchesWithTransitions(
+					punches, projectRate,
+				);
+				const commands = transitioned.length === 1
+					? [runtime.createAddSourceCommand(transitioned[0]!.source), runtime.preparePunchCommand(
+						projectScope.project, transitioned[0]!.punch,
 					)]
-					: await runtime.preparePunchSequence(projectScope.project, punches);
+					: await runtime.preparePunchSequence(projectScope.project, transitioned);
 				projectScope.assertCurrent();
 				const labelCommands = createSoundActivationTimestampCommands({
 					project: projectScope.project,
 					labelTrackName: runtime.labelTrackName ?? 'Labels',
 					projectSampleRate: projectRate,
 					createId: runtime.createStableId,
-					timestamps: (transaction.preview?.activationFrameOffsets ?? [])
-						.filter((offsetFrames) => offsetFrames >= firstPublishedSourceFrame
+					timestamps: (transaction.preview?.activationTimestamps ?? [])
+						.filter(({ offsetFrames }) => offsetFrames >= firstPublishedSourceFrame
 							&& offsetFrames < lastPublishedSourceFrame)
-						.map((offsetFrames) => ({
-						startFrame: transaction.startFrame,
-						offsetFrames,
-						sampleRate,
+						.map(({ offsetFrames, occurredAtMs }) => ({
+							startFrame: transaction.startFrame,
+							offsetFrames,
+							sampleRate,
+							occurredAtMs,
 						})),
 				});
 				runtime.commitBatch(projectScope.project, [...commands, ...labelCommands], {
