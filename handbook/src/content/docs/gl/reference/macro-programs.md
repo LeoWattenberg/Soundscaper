@@ -4,7 +4,7 @@ description: "A API de JavaScript contra a que se executa un programa de macros,
 sidebar:
   order: 7
 ---
-<!-- docs-ai-provenance: {"factPacketSha256":"375c684211bdec9dbd3614c197bda423e24858a568ad5ae3c06ab06d7db2522f","model":"qwen3.8:latest","modelDigest":"22130167c4c20e20c7b71454612966ca8e8171e9b3cc8ab6ce8aa6cbfec79643","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"375c684211bdec9dbd3614c197bda423e24858a568ad5ae3c06ab06d7db2522f","targetLocale":"gl"} -->
+<!-- docs-ai-provenance: {"basedOnProvenance":{"model":"qwen3.8:latest","modelDigest":"22130167c4c20e20c7b71454612966ca8e8171e9b3cc8ab6ce8aa6cbfec79643"},"factPacketSha256":"20c7fc2552915b97e609945b7d7c30159768baea8ff6775399b67bda15a3b14a","model":"gpt-5","modelProvider":"codex-subagent","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"20c7fc2552915b97e609945b7d7c30159768baea8ff6775399b67bda15a3b14a","targetLocale":"gl"} -->
 
 Un programa de macro é unha macro escrita en JavaScript en lugar dunha lista de pasos.
 Exécutase dentro do editor contra unha pequena API chamada `sound`, que lle permite ler
@@ -335,7 +335,7 @@ Estas son as IDs de efectos `sound.effect` e `sound.effects` aceptan, cos parám
 | Fundido de entrada | `audacity-fade-in` | ningún |
 | Fundido de saída | `audacity-fade-out` | ningún |
 | EQ de curva de filtro | `audacity-filter-curve-eq` | `points`: un array de `{ frequency, gain }`, predeterminado dous puntos planos a 20 Hz e 20 kHz; `linearFrequencyScale: false`; `filterLength: 8191` |
-| EQ paramétrico de catro bandas | `eq` | `outputGain: 0`; `bands`: catro obxectos `{ id, enabled, type, frequency, gain, q, slope }`, con picos a 100, 500, 2000 e 8000 Hz con `gain: 0`, `q: 1`, `slope: 12` |
+| Ecualizador paramétrico | `eq` | `outputGain: 0`; `bands`: catro obxectos `{ id, enabled, type, frequency, gain, q, slope }`, con picos a 100, 500, 2000 e 8000 Hz con `gain: 0`, `q: 1`, `slope: 12` |
 | Porta | `gate` | `threshold: -50`, `attack: 0.005`, `hold: 0.05`, `release: 0.1`, `rangeDb: -80` |
 | EQ gráfico | `audacity-graphic-eq` | `gains`: ganancias de 31 bandas en dB, todas 0; `interpolation: 'bspline'`; `filterLength: 8191` |
 | Filtro de paso alto | `highpass` | `frequency: 80`, `q: 0.707` |

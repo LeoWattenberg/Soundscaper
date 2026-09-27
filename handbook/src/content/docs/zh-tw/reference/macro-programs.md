@@ -4,7 +4,7 @@ description: "宏程序可調用的 JavaScript API、運行限制以及程序文
 sidebar:
   order: 7
 ---
-<!-- docs-ai-provenance: {"factPacketSha256":"375c684211bdec9dbd3614c197bda423e24858a568ad5ae3c06ab06d7db2522f","model":"gpt-6-luna","modelProvider":"codex-subagent","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"375c684211bdec9dbd3614c197bda423e24858a568ad5ae3c06ab06d7db2522f","targetLocale":"zh-TW"} -->
+<!-- docs-ai-provenance: {"basedOnProvenance":{"model":"gpt-6-luna","modelProvider":"codex-subagent"},"factPacketSha256":"20c7fc2552915b97e609945b7d7c30159768baea8ff6775399b67bda15a3b14a","model":"gpt-5","modelProvider":"codex-subagent","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"20c7fc2552915b97e609945b7d7c30159768baea8ff6775399b67bda15a3b14a","targetLocale":"zh-TW"} -->
 
 宏程序是用 JavaScript 編寫的宏，而非步驟列表。它在編輯器內部運行，通過名為 `sound` 的簡易 API 讀取打開的項目、移動選區，並應用步驟列表宏可用的相同效果和命令。除此之外，它無法訪問文件、網絡或你的其他項目。
 
@@ -258,7 +258,7 @@ try {
 | 淡入 | `audacity-fade-in` | 無 |
 | 淡出 | `audacity-fade-out` | 無 |
 | 濾波曲線均衡器 | `audacity-filter-curve-eq` | `points`：由 `{ frequency, gain }` 組成的數組，默認包含位於 20 Hz 和 20 kHz 的兩個平直點；`linearFrequencyScale: false`；`filterLength: 8191` |
-| 四段參數均衡器 | `eq` | `outputGain: 0`；`bands`：四個 `{ id, enabled, type, frequency, gain, q, slope }` 對象，中心頻率分別為 100、500、2000 和 8000 Hz，且 `gain: 0`、`q: 1`、`slope: 12` |
+| 參數等化器 | `eq` | `outputGain: 0`；`bands`：四個 `{ id, enabled, type, frequency, gain, q, slope }` 對象，中心頻率分別為 100、500、2000 和 8000 Hz，且 `gain: 0`、`q: 1`、`slope: 12` |
 | 門限 | `gate` | `threshold: -50`, `attack: 0.005`, `hold: 0.05`, `release: 0.1`, `rangeDb: -80` |
 | 圖示均衡器 | `audacity-graphic-eq` | `gains`：31 個頻段增益（dB），全部為 0；`interpolation: 'bspline'`; `filterLength: 8191` |
 | 高通濾波器 | `highpass` | `frequency: 80`, `q: 0.707` |

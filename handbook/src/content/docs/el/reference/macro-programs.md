@@ -4,7 +4,7 @@ description: "Το JavaScript API ενάντια στο οποίο εκτελε�
 sidebar:
   order: 7
 ---
-<!-- docs-ai-provenance: {"model":"gpt-5.6-luna","modelDigest":"manual","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"375c684211bdec9dbd3614c197bda423e24858a568ad5ae3c06ab06d7db2522f","targetLocale":"el"} -->
+<!-- docs-ai-provenance: {"basedOnProvenance":{"model":"gpt-5.6-luna"},"factPacketSha256":"20c7fc2552915b97e609945b7d7c30159768baea8ff6775399b67bda15a3b14a","model":"gpt-5","modelProvider":"codex-subagent","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"20c7fc2552915b97e609945b7d7c30159768baea8ff6775399b67bda15a3b14a","targetLocale":"el"} -->
 
 Ένα πρόγραμμα μακροεντολής είναι μια μακροεντολή γραμμένη ως JavaScript αντί για μια λίστα βημάτων.
 Εκτελείται μέσα στον επεξεργαστή έναντι μιας μικρής API που ονομάζεται `sound`, η οποία του επιτρέπει να διαβάζει
@@ -333,7 +333,7 @@ ExportWav.*
 | Σταδιακή αύξηση | `audacity-fade-in` | καμία |
 | Σταδιακή εξασθένηση | `audacity-fade-out` | καμία |
 | EQ καμπύλης φίλτρου | `audacity-filter-curve-eq` | `points`: ένας πίνακας `{ frequency, gain }`, προεπιλογή δύο επίπεδα σημεία στα 20 Hz και 20 kHz; `linearFrequencyScale: false`; `filterLength: 8191` |
-| Παραμετρικό EQ τεσσάρων ζωνών | `eq` | `outputGain: 0`; `bands`: τέσσερα αντικείμενα `{ id, enabled, type, frequency, gain, q, slope }`, κορυφώνοντας στα 100, 500, 2000 και 8000 Hz με `gain: 0`, `q: 1`, `slope: 12` |
+| Παραμετρικό EQ | `eq` | `outputGain: 0`; `bands`: τέσσερα αντικείμενα `{ id, enabled, type, frequency, gain, q, slope }`, κορυφώνοντας στα 100, 500, 2000 και 8000 Hz με `gain: 0`, `q: 1`, `slope: 12` |
 | Πύλη | `gate` | `threshold: -50`, `attack: 0.005`, `hold: 0.05`, `release: 0.1`, `rangeDb: -80` |
 | Γραφικό EQ | `audacity-graphic-eq` | `gains`: κέρδη 31 ζωνών σε dB, όλα 0; `interpolation: 'bspline'`; `filterLength: 8191` |
 | Φίλτρο υψηλών συχνοτήτων | `highpass` | `frequency: 80`, `q: 0.707` |

@@ -356,6 +356,8 @@ test('selection effect registry includes regular streaming effects, canonical EQ
 	);
 	assert.equal(AUDIO_SELECTION_EFFECT_DEFINITIONS.eq.maximumBands, 12);
 	assert.equal(AUDIO_SELECTION_EFFECT_DEFINITIONS.eq.preRollSeconds, 10);
+	assert.equal(audioEffectLabel('eq', 'en'), 'Parametric EQ');
+	assert.equal(audioEffectLabel('eq', 'de'), 'Parametrischer EQ');
 	assert.equal(audioSelectionEffectAppliesToAllAudio('audacity-amplify'), true);
 	assert.equal(audioSelectionEffectAppliesToAllAudio('audacity-noise-reduction'), false);
 	assert.equal(audioSelectionEffectAppliesToAllAudio('audacity-auto-duck'), false);

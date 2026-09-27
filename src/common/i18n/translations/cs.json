@@ -2,7 +2,7 @@
 	"schemaVersion": 2,
 	"locale": "cs",
 	"provenance": {
-		"machine": {"model":"branding-copy-replay","modelDigest":"sha256:dab1a7b6ddb5768c8d388ea40378d32cc25d4503142d3773e5b1500ba8dd5c69","promptVersion":"i18n-machine-v1"},
+		"machine": {"model":"parametric-eq-copy-replay","modelDigest":"sha256:e38996c458bb41a41b1f6eefa0e2046f18078963826a943f4e02944fd3458e97","promptVersion":"i18n-machine-v1"},
 		"audacity": {"repository":"audacity/audacity","headSha":"de2e43dc13474ba712ade5ea8e47550eba0e8bfb","runId":35327911264,"artifactId":10539339149,"workflowUrl":"https://github.com/audacity/audacity/actions/runs/35327911264","archiveName":"Audacity_locale_262610911.zip","archiveSha256":"13b1ff11c39a677c711a1d29738a394aaca7a200533927aab3f45bbd76c1ff8e","archiveByteLength":15413913,"licenseSpdx":"GPL-3.0-only","upstreamProjectUrl":"https://github.com/audacity/audacity","upstreamLicenseUrl":"https://github.com/audacity/audacity/blob/de2e43dc13474ba712ade5ea8e47550eba0e8bfb/LICENSE.txt","modificationNotice":"Soundscaper converts reviewed Audacity Qt TS messages to per-locale JSON catalogs, excludes unsafe or inapplicable entries, adapts reviewed placeholders and mnemonics, and removes ellipsis punctuation.","mappingVersion":3,"mappingSha256":"f4cf0434f47eaa9434d079a1623b9d9501e9c8da0d83f0c73344f7765113b57c"}
 	},
 	"entries": {
@@ -178,7 +178,6 @@
 		"assistanceTechnicalDetails": ["machine","Technical details","Technické detaily"],
 		"audacityApplied": ["machine","Applied the Audacity effect.","Efekt Audacity byl použit."],
 		"audacityEffectsTitle": ["machine","Audacity selection effects","Efekty výběru Audacity"],
-		"audacityGuidesLink": ["machine","About Mindscaper","O aplikaci Mindscaper"],
 		"audacityParityLabelAlignContent": ["machine","Align content","Zarovnat obsah"],
 		"audacityParityLabelAlignEndToEnd": ["machine","Align end to end","Zarovnat konec na konec"],
 		"audacityParityLabelAlignEndToPlayhead": ["machine","Align end to playhead","Zarovnat konec na pozici přehrávání"],
@@ -906,7 +905,7 @@
 		"effectNameCompressor": ["machine","Compressor","Kompresor"],
 		"effectNameDeesser": ["machine","De-esser","De-esser"],
 		"effectNameDelay": ["machine","Feedback delay","Zpoždění se zpětnou vazbou"],
-		"effectNameEq": ["machine","Four-band parametric EQ","Čtyřpásmový parametrický EQ"],
+		"effectNameEq": ["machine","Parametric EQ","Parametrický EQ"],
 		"effectNameGate": ["machine","Gate","Gate"],
 		"effectNameHighpass": ["machine","Resonant high-pass filter","Rezonanční horní propust"],
 		"effectNameHighpassFilter": ["machine","High-pass filter","Horní propust"],
@@ -1706,7 +1705,6 @@
 		"monoConversionYes": ["audacity","Yes","Ano"],
 		"monoTrackRequired": ["machine","Select a mono track first.","Nejprve vyberte mono stopu."],
 		"moreOptions": ["machine","More options","Další možnosti"],
-		"moreToolsLink": ["machine","More Mindscaper tools","Další nástroje Mindscaper"],
 		"morseGenerator": ["machine","Morse code","Morseova abeceda"],
 		"mouseZoomPrecision": ["machine","Mouse zoom precision","Přesnost přiblížení kolečkem myši"],
 		"mouseZoomPrecisionNote": ["machine","How many mouse-wheel notches double the timeline zoom.","Kolik kroků kolečka myši zdvojnásobí přiblížení časové osy."],
@@ -1840,7 +1838,7 @@
 		"panelVideoPreview": ["machine","Video preview","Náhled videa"],
 		"panels": ["machine","Panels","Panely"],
 		"parameterRangeError": ["machine","{label} must be between {minimum} and {maximum}.","{label} musí být mezi {minimum} a {maximum}."],
-		"parametricEq": ["machine","Four-band parametric EQ","Čtyřpásmový parametrický ekvalizér"],
+		"parametricEq": ["machine","Parametric EQ","Parametrický EQ"],
 		"parametricEqGraph": ["machine","Parametric equalizer response","Frekvenční odezva parametrického ekvalizéru"],
 		"paste": ["machine","Paste","Vložit"],
 		"pasteEffects": ["machine","Paste effects","Vložit efekty"],

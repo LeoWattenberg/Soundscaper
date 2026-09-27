@@ -2,7 +2,7 @@
 	"schemaVersion": 2,
 	"locale": "gl",
 	"provenance": {
-		"machine": {"model":"branding-copy-replay","modelDigest":"sha256:9e7ee0047d88fb6ce8e6eadc4508fe08b0aa652602a003286f9b7c211e6d451d","promptVersion":"i18n-machine-v1"},
+		"machine": {"model":"parametric-eq-copy-replay","modelDigest":"sha256:4084e0811fea65b3b67ef8afde70b01ebe0ced4f26b0c4935327a6af0e38c22b","promptVersion":"i18n-machine-v1"},
 		"audacity": {"repository":"audacity/audacity","headSha":"de2e43dc13474ba712ade5ea8e47550eba0e8bfb","runId":35327911264,"artifactId":10539339149,"workflowUrl":"https://github.com/audacity/audacity/actions/runs/35327911264","archiveName":"Audacity_locale_262610911.zip","archiveSha256":"13b1ff11c39a677c711a1d29738a394aaca7a200533927aab3f45bbd76c1ff8e","archiveByteLength":15413913,"licenseSpdx":"GPL-3.0-only","upstreamProjectUrl":"https://github.com/audacity/audacity","upstreamLicenseUrl":"https://github.com/audacity/audacity/blob/de2e43dc13474ba712ade5ea8e47550eba0e8bfb/LICENSE.txt","modificationNotice":"Soundscaper converts reviewed Audacity Qt TS messages to per-locale JSON catalogs, excludes unsafe or inapplicable entries, adapts reviewed placeholders and mnemonics, and removes ellipsis punctuation.","mappingVersion":3,"mappingSha256":"f4cf0434f47eaa9434d079a1623b9d9501e9c8da0d83f0c73344f7765113b57c"}
 	},
 	"entries": {
@@ -178,7 +178,6 @@
 		"assistanceTechnicalDetails": ["machine","Technical details","Detalles técnicos"],
 		"audacityApplied": ["machine","Applied the Audacity effect.","Aplicouse o efecto de Audacity."],
 		"audacityEffectsTitle": ["machine","Audacity selection effects","Efectos de selección de Audacity"],
-		"audacityGuidesLink": ["machine","About Mindscaper","Sobre Mindscaper"],
 		"audacityParityLabelAlignContent": ["machine","Align content","Aliñar contido"],
 		"audacityParityLabelAlignEndToEnd": ["machine","Align end to end","Aliñar extremo con extremo"],
 		"audacityParityLabelAlignEndToPlayhead": ["machine","Align end to playhead","Aliñar o final coa posición de reprodución"],
@@ -906,7 +905,7 @@
 		"effectNameCompressor": ["machine","Compressor","Compresor"],
 		"effectNameDeesser": ["machine","De-esser","De-esser"],
 		"effectNameDelay": ["machine","Feedback delay","Atraso con realimentación"],
-		"effectNameEq": ["machine","Four-band parametric EQ","EQ paramétrico de catro bandas"],
+		"effectNameEq": ["machine","Parametric EQ","Ecualizador paramétrico"],
 		"effectNameGate": ["machine","Gate","Porta de ruído"],
 		"effectNameHighpass": ["machine","Resonant high-pass filter","Filtro de paso alto resonante"],
 		"effectNameHighpassFilter": ["machine","High-pass filter","Filtro de paso alto"],
@@ -1706,7 +1705,6 @@
 		"monoConversionYes": ["audacity","Yes","Si"],
 		"monoTrackRequired": ["machine","Select a mono track first.","Selecciona primeiro unha pista mono."],
 		"moreOptions": ["machine","More options","Máis opcións"],
-		"moreToolsLink": ["machine","More Mindscaper tools","Máis ferramentas de Mindscaper"],
 		"morseGenerator": ["machine","Morse code","Código morse"],
 		"mouseZoomPrecision": ["machine","Mouse zoom precision","Precisión do zoom co rato"],
 		"mouseZoomPrecisionNote": ["machine","How many mouse-wheel notches double the timeline zoom.","Cantos chasquidos da roda do rato duplican o zoom da liña de tempo."],
@@ -1840,7 +1838,7 @@
 		"panelVideoPreview": ["machine","Video preview","Vista previa do vídeo"],
 		"panels": ["machine","Panels","Paneis"],
 		"parameterRangeError": ["machine","{label} must be between {minimum} and {maximum}.","{label} debe estar entre {minimum} e {maximum}."],
-		"parametricEq": ["machine","Four-band parametric EQ","EQ paramétrico de catro bandas"],
+		"parametricEq": ["machine","Parametric EQ","Ecualizador paramétrico"],
 		"parametricEqGraph": ["machine","Parametric equalizer response","Resposta do ecualizador paramétrico"],
 		"paste": ["machine","Paste","Pegar"],
 		"pasteEffects": ["machine","Paste effects","Pegar efectos"],

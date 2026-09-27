@@ -4,7 +4,7 @@ description: "واجهة برمجة تطبيقات JavaScript التي يعمل 
 sidebar:
   order: 7
 ---
-<!-- docs-ai-provenance: {"factPacketSha256":"375c684211bdec9dbd3614c197bda423e24858a568ad5ae3c06ab06d7db2522f","model":"gpt-5.6-luna","modelDigest":"manual","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"375c684211bdec9dbd3614c197bda423e24858a568ad5ae3c06ab06d7db2522f","targetLocale":"ar"} -->
+<!-- docs-ai-provenance: {"basedOnProvenance":{"model":"gpt-5.6-luna"},"factPacketSha256":"20c7fc2552915b97e609945b7d7c30159768baea8ff6775399b67bda15a3b14a","model":"gpt-5","modelProvider":"codex-subagent","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"20c7fc2552915b97e609945b7d7c30159768baea8ff6775399b67bda15a3b14a","targetLocale":"ar"} -->
 
 برنامج الماكرو هو ماكرو مكتوب بلغة JavaScript بدلاً من كونه قائمة خطوات.
 يُنفَّذ داخل المحرر مقابل واجهة برمجة تطبيقات صغيرة تسمى `sound`, مما يتيح له قراءة
@@ -322,7 +322,7 @@ ExportWav.*
 | تلاشي للداخل | `audacity-fade-in` | لا شيء |
 | تلاشي للخارج | `audacity-fade-out` | لا شيء |
 | معادل منحنى المرشح | `audacity-filter-curve-eq` | `points`: مصفوفة من `{ frequency, gain }`, افتراضيًا نقطتان مسطحتان عند 20 هرتز و20 كيلو هرتز؛ `linearFrequencyScale: false`؛ `filterLength: 8191` |
-| معادل بارامتري رباعي النطاقات | `eq` | `outputGain: 0`؛ `bands`: أربعة كائنات `{ id, enabled, type, frequency, gain, q, slope }`، تبلغ ذروتها عند 100 و500 و2000 و8000 هرتز مع `gain: 0`, `q: 1`, `slope: 12` |
+| المعادل البارامتري | `eq` | `outputGain: 0`؛ `bands`: أربعة كائنات `{ id, enabled, type, frequency, gain, q, slope }`، تبلغ ذروتها عند 100 و500 و2000 و8000 هرتز مع `gain: 0`, `q: 1`, `slope: 12` |
 | البوابة | `gate` | `threshold: -50`, `attack: 0.005`, `hold: 0.05`, `release: 0.1`, `rangeDb: -80` |
 | المعادل الرسومي | `audacity-graphic-eq` | `gains`: مكاسب 31 نطاقًا بالديسيبل، جميعها 0؛ `interpolation: 'bspline'`؛ `filterLength: 8191` |
 | مرشح تمرير عالٍ | `highpass` | `frequency: 80`, `q: 0.707` |

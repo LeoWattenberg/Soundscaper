@@ -2,7 +2,7 @@
 	"schemaVersion": 2,
 	"locale": "uk",
 	"provenance": {
-		"machine": {"model":"branding-copy-replay","modelDigest":"sha256:17a23dad84a462921216c04ed6d9f798a0766c9a4fe00399c378fb9a800516b9","promptVersion":"i18n-machine-v1"},
+		"machine": {"model":"parametric-eq-copy-replay","modelDigest":"sha256:4a82d951e85d1eb81587eabf447f763d0dc29a2ea67e8547856800e2fdf6add9","promptVersion":"i18n-machine-v1"},
 		"audacity": {"repository":"audacity/audacity","headSha":"de2e43dc13474ba712ade5ea8e47550eba0e8bfb","runId":35327911264,"artifactId":10539339149,"workflowUrl":"https://github.com/audacity/audacity/actions/runs/35327911264","archiveName":"Audacity_locale_262610911.zip","archiveSha256":"13b1ff11c39a677c711a1d29738a394aaca7a200533927aab3f45bbd76c1ff8e","archiveByteLength":15413913,"licenseSpdx":"GPL-3.0-only","upstreamProjectUrl":"https://github.com/audacity/audacity","upstreamLicenseUrl":"https://github.com/audacity/audacity/blob/de2e43dc13474ba712ade5ea8e47550eba0e8bfb/LICENSE.txt","modificationNotice":"Soundscaper converts reviewed Audacity Qt TS messages to per-locale JSON catalogs, excludes unsafe or inapplicable entries, adapts reviewed placeholders and mnemonics, and removes ellipsis punctuation.","mappingVersion":3,"mappingSha256":"f4cf0434f47eaa9434d079a1623b9d9501e9c8da0d83f0c73344f7765113b57c"}
 	},
 	"entries": {
@@ -178,7 +178,6 @@
 		"assistanceTechnicalDetails": ["machine","Technical details","Технічні деталі"],
 		"audacityApplied": ["machine","Applied the Audacity effect.","Ефект Audacity застосовано."],
 		"audacityEffectsTitle": ["machine","Audacity selection effects","Ефекти Audacity для позначеного"],
-		"audacityGuidesLink": ["machine","About Mindscaper","Про Mindscaper"],
 		"audacityParityLabelAlignContent": ["machine","Align content","Вирівняти вміст"],
 		"audacityParityLabelAlignEndToEnd": ["machine","Align end to end","Вирівняти встик"],
 		"audacityParityLabelAlignEndToPlayhead": ["machine","Align end to playhead","Вирівняти кінець за позицією відтворення"],
@@ -906,7 +905,7 @@
 		"effectNameCompressor": ["machine","Compressor","Компресор"],
 		"effectNameDeesser": ["machine","De-esser","Деесер"],
 		"effectNameDelay": ["machine","Feedback delay","Затримка зі зворотним зв'язком"],
-		"effectNameEq": ["machine","Four-band parametric EQ","Чотирисмуговий параметричний еквалайзер"],
+		"effectNameEq": ["machine","Parametric EQ","Параметричний еквалайзер"],
 		"effectNameGate": ["machine","Gate","Гейт"],
 		"effectNameHighpass": ["machine","Resonant high-pass filter","Резонансний фільтр верхніх частот"],
 		"effectNameHighpassFilter": ["machine","High-pass filter","Фільтр верхніх частот"],
@@ -1706,7 +1705,6 @@
 		"monoConversionYes": ["audacity","Yes","Так"],
 		"monoTrackRequired": ["machine","Select a mono track first.","Спершу виберіть монодоріжку."],
 		"moreOptions": ["machine","More options","Більше параметрів"],
-		"moreToolsLink": ["machine","More Mindscaper tools","Інші інструменти Mindscaper"],
 		"morseGenerator": ["machine","Morse code","Код Морзе"],
 		"mouseZoomPrecision": ["machine","Mouse zoom precision","Точність масштабування колесом миші"],
 		"mouseZoomPrecisionNote": ["machine","How many mouse-wheel notches double the timeline zoom.","Скільки клацань колеса миші подвоюють масштаб часової шкали."],
@@ -1840,7 +1838,7 @@
 		"panelVideoPreview": ["machine","Video preview","Попередній перегляд відео"],
 		"panels": ["machine","Panels","Панелі"],
 		"parameterRangeError": ["machine","{label} must be between {minimum} and {maximum}.","{label} має бути в межах від {minimum} до {maximum}."],
-		"parametricEq": ["machine","Four-band parametric EQ","Чотирисмуговий параметричний еквалайзер"],
+		"parametricEq": ["machine","Parametric EQ","Параметричний еквалайзер"],
 		"parametricEqGraph": ["machine","Parametric equalizer response","Частотна характеристика параметричного еквалайзера"],
 		"paste": ["machine","Paste","Вставити"],
 		"pasteEffects": ["machine","Paste effects","Вставити ефекти"],

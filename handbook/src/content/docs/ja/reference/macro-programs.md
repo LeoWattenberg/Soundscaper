@@ -4,8 +4,7 @@ description: "マクロプログラムが実行するJavaScript API、その実�
 sidebar:
   order: 7
 ---
-
-<!-- docs-ai-provenance: {"model":"gpt-5.6-luna","modelDigest":"manual","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"375c684211bdec9dbd3614c197bda423e24858a568ad5ae3c06ab06d7db2522f","targetLocale":"ja"} -->
+<!-- docs-ai-provenance: {"basedOnProvenance":{"model":"gpt-5.6-luna"},"factPacketSha256":"20c7fc2552915b97e609945b7d7c30159768baea8ff6775399b67bda15a3b14a","model":"gpt-5","modelProvider":"codex-subagent","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"20c7fc2552915b97e609945b7d7c30159768baea8ff6775399b67bda15a3b14a","targetLocale":"ja"} -->
 
 マクロプログラムは、手順のリストではなくJavaScriptで書かれたマクロです。
 エディター内で、開いているプロジェクトの読み取り、選択範囲の移動、手順リストの
@@ -298,7 +297,7 @@ try {
 | フェードイン | `audacity-fade-in` | なし |
 | フェードアウト | `audacity-fade-out` | なし |
 | フィルターカーブEQ | `audacity-filter-curve-eq` | `points`: `{ frequency, gain }` の配列。既定値は20 Hzと20 kHzにある2つのフラットな点。`linearFrequencyScale: false`、`filterLength: 8191` |
-| 4バンドパラメトリックEQ | `eq` | `outputGain: 0`。4つの `bands` オブジェクト（各オブジェクトは `{ id, enabled, type, frequency, gain, q, slope }`）があり、100、500、2000、8000 Hzをピークとして `gain: 0`、`q: 1`、`slope: 12` |
+| パラメトリックEQ | `eq` | `outputGain: 0`。4つの `bands` オブジェクト（各オブジェクトは `{ id, enabled, type, frequency, gain, q, slope }`）があり、100、500、2000、8000 Hzをピークとして `gain: 0`、`q: 1`、`slope: 12` |
 | ゲート | `gate` | `threshold: -50`、`attack: 0.005`、`hold: 0.05`、`release: 0.1`、`rangeDb: -80` |
 | グラフィックEQ | `audacity-graphic-eq` | すべて0 dBの31バンドゲインの `gains`。`interpolation: 'bspline'`、`filterLength: 8191` |
 | ハイパスフィルター | `highpass` | `frequency: 80`、`q: 0.707` |

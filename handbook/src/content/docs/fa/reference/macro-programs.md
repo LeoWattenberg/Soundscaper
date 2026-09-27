@@ -4,7 +4,7 @@ description: "رابط JavaScript برنامهٔ ماکرو، محدودیت‌�
 sidebar:
   order: 7
 ---
-<!-- docs-ai-provenance: {"factPacketSha256":"375c684211bdec9dbd3614c197bda423e24858a568ad5ae3c06ab06d7db2522f","model":"gpt-5.6-luna","modelDigest":"manual","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"375c684211bdec9dbd3614c197bda423e24858a568ad5ae3c06ab06d7db2522f","targetLocale":"fa"} -->
+<!-- docs-ai-provenance: {"basedOnProvenance":{"model":"gpt-5.6-luna"},"factPacketSha256":"20c7fc2552915b97e609945b7d7c30159768baea8ff6775399b67bda15a3b14a","model":"gpt-5","modelProvider":"codex-subagent","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"20c7fc2552915b97e609945b7d7c30159768baea8ff6775399b67bda15a3b14a","targetLocale":"fa"} -->
 
 برنامهٔ ماکرو، ماکرویی است که به‌جای فهرستی از گام‌ها با JavaScript نوشته می‌شود. این برنامه در ویرایشگر و با API کوچکی به نام `sound` اجرا می‌شود؛ API می‌تواند پروژهٔ باز را بخواند، انتخاب را جابه‌جا کند و همان افکت‌ها و فرمان‌هایی را اجرا کند که ماکروی فهرست‌گام اجرا می‌کند. به هر چیز دیگری، از فایل‌ها و شبکه گرفته تا پروژه‌های دیگر، دسترسی ندارد.
 
@@ -239,7 +239,7 @@ try {
 | محوشدن تدریجی ورودی | `audacity-fade-in` | none |
 | محوشدن تدریجی خروجی | `audacity-fade-out` | none |
 | EQ منحنی فیلتر | `audacity-filter-curve-eq` | `points`: آرایه‌ای از `{ frequency, gain }`؛ پیش‌فرض شامل دو نقطهٔ تخت در 20 Hz و 20 kHz است؛ `linearFrequencyScale: false`; `filterLength: 8191` |
-| EQ پارامتری چهاربانده | `eq` | `outputGain: 0`; `bands`: چهار شیء `{ id, enabled, type, frequency, gain, q, slope }` با قله در 100، 500، 2000 و 8000 Hz و با `gain: 0`، `q: 1`، `slope: 12` |
+| اکولایزر پارامتریک | `eq` | `outputGain: 0`; `bands`: چهار شیء `{ id, enabled, type, frequency, gain, q, slope }` با قله در 100، 500، 2000 و 8000 Hz و با `gain: 0`، `q: 1`، `slope: 12` |
 | گیت | `gate` | `threshold: -50`, `attack: 0.005`, `hold: 0.05`, `release: 0.1`, `rangeDb: -80` |
 | EQ گرافیکی | `audacity-graphic-eq` | `gains`: 31 بهرهٔ باند بر حسب dB که همگی 0 هستند؛ `interpolation: 'bspline'`; `filterLength: 8191` |
 | فیلتر high-pass | `highpass` | `frequency: 80`, `q: 0.707` |

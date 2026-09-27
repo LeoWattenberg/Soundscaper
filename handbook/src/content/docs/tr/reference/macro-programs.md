@@ -4,7 +4,7 @@ description: "Makro programının kullandığı JavaScript API, çalışma sın�
 sidebar:
   order: 7
 ---
-<!-- docs-ai-provenance: {"factPacketSha256":"375c684211bdec9dbd3614c197bda423e24858a568ad5ae3c06ab06d7db2522f","model":"gpt-6-astra","modelProvider":"codex-session","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"375c684211bdec9dbd3614c197bda423e24858a568ad5ae3c06ab06d7db2522f","targetLocale":"tr"} -->
+<!-- docs-ai-provenance: {"basedOnProvenance":{"model":"gpt-6-astra","modelProvider":"codex-session"},"factPacketSha256":"20c7fc2552915b97e609945b7d7c30159768baea8ff6775399b67bda15a3b14a","model":"gpt-5","modelProvider":"codex-subagent","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"20c7fc2552915b97e609945b7d7c30159768baea8ff6775399b67bda15a3b14a","targetLocale":"tr"} -->
 
 Makro programı, adım listesi yerine JavaScript ile yazılmış bir makrodur. Editörde `sound` adlı küçük bir API üzerinden çalışır; bu API açık projeyi okumaya, seçimi değiştirmeye ve adım listesindeki makroyla aynı efekt ve komutları uygulamaya izin verir. Dosyalara, ağa ve diğer projelerinize erişemez.
 
@@ -239,7 +239,7 @@ Burada `sound.effect` ve `sound.effects` çağrılarının kabul ettiği efekt k
 | Yumuşak Giriş | `audacity-fade-in` | yok |
 | Yumuşak Çıkış | `audacity-fade-out` | yok |
 | Filtre Eğrisi EQ | `audacity-filter-curve-eq` | `points`: bir dizi `{ frequency, gain }`, varsayılan olarak sıfır kazançlı iki nokta: 20 Hz ve 20 kHz; `linearFrequencyScale: false`; `filterLength: 8191` |
-| Dört Bantlı Parametrik EQ | `eq` | `outputGain: 0`; `bands`: dört `{ id, enabled, type, frequency, gain, q, slope }` nesnesi; tepe noktaları 100, 500, 2000 ve 8000 Hz; `gain: 0`, `q: 1`, `slope: 12` |
+| Parametrik EQ | `eq` | `outputGain: 0`; `bands`: dört `{ id, enabled, type, frequency, gain, q, slope }` nesnesi; tepe noktaları 100, 500, 2000 ve 8000 Hz; `gain: 0`, `q: 1`, `slope: 12` |
 | Kapı | `gate` | `threshold: -50`, `attack: 0.005`, `hold: 0.05`, `release: 0.1`, `rangeDb: -80` |
 | Grafik EQ | `audacity-graphic-eq` | `gains`: dB cinsinden 31 bant kazancı; hepsi 0; `interpolation: 'bspline'`; `filterLength: 8191` |
 | Rezonanslı Yüksek Geçiren Filtre | `highpass` | `frequency: 80`, `q: 0.707` |

@@ -4,8 +4,7 @@ description: "매크로 프로그램이 실행할 수 있는 JavaScript API, 적
 sidebar:
   order: 7
 ---
-
-<!-- docs-ai-provenance: {"model":"gpt-5.6-luna","modelDigest":"manual","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"375c684211bdec9dbd3614c197bda423e24858a568ad5ae3c06ab06d7db2522f","targetLocale":"ko"} -->
+<!-- docs-ai-provenance: {"basedOnProvenance":{"model":"gpt-5.6-luna"},"factPacketSha256":"20c7fc2552915b97e609945b7d7c30159768baea8ff6775399b67bda15a3b14a","model":"gpt-5","modelProvider":"codex-subagent","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"20c7fc2552915b97e609945b7d7c30159768baea8ff6775399b67bda15a3b14a","targetLocale":"ko"} -->
 
 매크로 프로그램은 단계 목록이 아니라 JavaScript로 작성한 매크로입니다.
 편집기 안에서 `sound`라는 작은 API를 통해 실행되며, 열린 프로젝트를 읽고
@@ -351,7 +350,7 @@ ExportWav.*가 기록됩니다.
 | 페이드 인 | `audacity-fade-in` | 없음 |
 | 페이드 아웃 | `audacity-fade-out` | 없음 |
 | 필터 곡선 EQ | `audacity-filter-curve-eq` | `points`: `{ frequency, gain }` 배열이며, 20 Hz와 20 kHz에 있는 두 개의 평탄한 점이 기본값; `linearFrequencyScale: false`; `filterLength: 8191` |
-| 4밴드 파라메트릭 EQ | `eq` | `outputGain: 0`; `bands`: `{ id, enabled, type, frequency, gain, q, slope }` 객체 네 개이며, 100, 500, 2000 및 8000 Hz에서 피킹하고 `gain: 0`, `q: 1`, `slope: 12`를 사용함 |
+| 파라메트릭 EQ | `eq` | `outputGain: 0`; `bands`: `{ id, enabled, type, frequency, gain, q, slope }` 객체 네 개이며, 100, 500, 2000 및 8000 Hz에서 피킹하고 `gain: 0`, `q: 1`, `slope: 12`를 사용함 |
 | 게이트 | `gate` | `threshold: -50`, `attack: 0.005`, `hold: 0.05`, `release: 0.1`, `rangeDb: -80` |
 | 그래픽 EQ | `audacity-graphic-eq` | `gains`: dB 단위의 31개 밴드 게인으로 모두 0; `interpolation: 'bspline'`; `filterLength: 8191` |
 | 하이패스 필터 | `highpass` | `frequency: 80`, `q: 0.707` |

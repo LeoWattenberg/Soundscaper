@@ -2,7 +2,7 @@
 	"schemaVersion": 2,
 	"locale": "tr",
 	"provenance": {
-		"machine": {"model":"branding-copy-replay","modelDigest":"sha256:a477bc638c5f0694d07eb362c03e4b350966d894de1fb4779effd0324d7cfb3f","promptVersion":"i18n-machine-v1"},
+		"machine": {"model":"parametric-eq-copy-replay","modelDigest":"sha256:7439c5b118f7291b93b109157817e0ec8c27c91aac64873d0ede5629e7dad511","promptVersion":"i18n-machine-v1"},
 		"audacity": {"repository":"audacity/audacity","headSha":"de2e43dc13474ba712ade5ea8e47550eba0e8bfb","runId":35327911264,"artifactId":10539339149,"workflowUrl":"https://github.com/audacity/audacity/actions/runs/35327911264","archiveName":"Audacity_locale_262610911.zip","archiveSha256":"13b1ff11c39a677c711a1d29738a394aaca7a200533927aab3f45bbd76c1ff8e","archiveByteLength":15413913,"licenseSpdx":"GPL-3.0-only","upstreamProjectUrl":"https://github.com/audacity/audacity","upstreamLicenseUrl":"https://github.com/audacity/audacity/blob/de2e43dc13474ba712ade5ea8e47550eba0e8bfb/LICENSE.txt","modificationNotice":"Soundscaper converts reviewed Audacity Qt TS messages to per-locale JSON catalogs, excludes unsafe or inapplicable entries, adapts reviewed placeholders and mnemonics, and removes ellipsis punctuation.","mappingVersion":3,"mappingSha256":"f4cf0434f47eaa9434d079a1623b9d9501e9c8da0d83f0c73344f7765113b57c"}
 	},
 	"entries": {
@@ -178,7 +178,6 @@
 		"assistanceTechnicalDetails": ["machine","Technical details","Teknik ayrıntılar"],
 		"audacityApplied": ["machine","Applied the Audacity effect.","Audacity etkisi uygulandı."],
 		"audacityEffectsTitle": ["machine","Audacity selection effects","Audacity seçim etkileri"],
-		"audacityGuidesLink": ["machine","About Mindscaper","Mindscaper Hakkında"],
 		"audacityParityLabelAlignContent": ["machine","Align content","İçeriği hizala"],
 		"audacityParityLabelAlignEndToEnd": ["machine","Align end to end","Uçtan uca hizala"],
 		"audacityParityLabelAlignEndToPlayhead": ["machine","Align end to playhead","Bitişi oynatma imlecine hizala"],
@@ -906,7 +905,7 @@
 		"effectNameCompressor": ["machine","Compressor","Kompresör"],
 		"effectNameDeesser": ["machine","De-esser","De-esser"],
 		"effectNameDelay": ["machine","Feedback delay","Geri beslemeli gecikme"],
-		"effectNameEq": ["machine","Four-band parametric EQ","Dört bantlı parametrik EQ"],
+		"effectNameEq": ["machine","Parametric EQ","Parametrik EQ"],
 		"effectNameGate": ["machine","Gate","Kapı"],
 		"effectNameHighpass": ["machine","Resonant high-pass filter","Rezonanslı yüksek geçiren filtre"],
 		"effectNameHighpassFilter": ["machine","High-pass filter","Yüksek geçiren filtre"],
@@ -1706,7 +1705,6 @@
 		"monoConversionYes": ["audacity","Yes","Evet"],
 		"monoTrackRequired": ["machine","Select a mono track first.","Önce bir mono iz seçin."],
 		"moreOptions": ["machine","More options","Diğer seçenekler"],
-		"moreToolsLink": ["machine","More Mindscaper tools","Diğer Mindscaper araçları"],
 		"morseGenerator": ["machine","Morse code","Mors kodu"],
 		"mouseZoomPrecision": ["machine","Mouse zoom precision","Fare yakınlaştırma hassasiyeti"],
 		"mouseZoomPrecisionNote": ["machine","How many mouse-wheel notches double the timeline zoom.","Fare tekerleğinin kaç kademesinin zaman çizelgesi yakınlaştırmasını iki katına çıkardığı."],
@@ -1840,7 +1838,7 @@
 		"panelVideoPreview": ["machine","Video preview","Video önizleme"],
 		"panels": ["machine","Panels","Paneller"],
 		"parameterRangeError": ["machine","{label} must be between {minimum} and {maximum}.","{label}, {minimum} ile {maximum} arasında olmalıdır."],
-		"parametricEq": ["machine","Four-band parametric EQ","Dört bantlı parametrik EQ"],
+		"parametricEq": ["machine","Parametric EQ","Parametrik EQ"],
 		"parametricEqGraph": ["machine","Parametric equalizer response","Parametrik ekolayzır tepkisi"],
 		"paste": ["machine","Paste","Yapıştır"],
 		"pasteEffects": ["machine","Paste effects","Etkileri yapıştır"],

@@ -4,8 +4,7 @@ description: "Interfejs JavaScript API udostępniany programowi makra, obowiązu
 sidebar:
   order: 7
 ---
-
-<!-- docs-ai-provenance: {"factPacketSha256":"375c684211bdec9dbd3614c197bda423e24858a568ad5ae3c06ab06d7db2522f","model":"gpt-5.6-luna","modelDigest":"manual","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"375c684211bdec9dbd3614c197bda423e24858a568ad5ae3c06ab06d7db2522f","targetLocale":"pl"} -->
+<!-- docs-ai-provenance: {"basedOnProvenance":{"model":"gpt-5.6-luna"},"factPacketSha256":"20c7fc2552915b97e609945b7d7c30159768baea8ff6775399b67bda15a3b14a","model":"gpt-5","modelProvider":"codex-subagent","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"20c7fc2552915b97e609945b7d7c30159768baea8ff6775399b67bda15a3b14a","targetLocale":"pl"} -->
 
 Program makra to makro zapisane w JavaScript zamiast w postaci listy kroków.
 Działa wewnątrz edytora za pośrednictwem niewielkiego interfejsu API o nazwie
@@ -372,7 +371,7 @@ Z poziomu programu nie można stosować wtyczek Nyquist.
 | Włączanie | `audacity-fade-in` | brak |
 | Wyłączanie | `audacity-fade-out` | brak |
 | Równanie krzywej filtru | `audacity-filter-curve-eq` | `points`: tablica wartości `{ frequency, gain }`, domyślnie dwa płaskie punkty przy 20 Hz i 20 kHz; `linearFrequencyScale: false`; `filterLength: 8191` |
-| Czteropasmowy korektor parametryczny | `eq` | `outputGain: 0`; `bands`: cztery obiekty `{ id, enabled, type, frequency, gain, q, slope }` z częstotliwościami szczytowymi 100, 500, 2000 i 8000 Hz oraz wartościami `gain: 0`, `q: 1`, `slope: 12` |
+| Korektor parametryczny | `eq` | `outputGain: 0`; `bands`: cztery obiekty `{ id, enabled, type, frequency, gain, q, slope }` z częstotliwościami szczytowymi 100, 500, 2000 i 8000 Hz oraz wartościami `gain: 0`, `q: 1`, `slope: 12` |
 | Bramka szumów | `gate` | `threshold: -50`, `attack: 0.005`, `hold: 0.05`, `release: 0.1`, `rangeDb: -80` |
 | Korektor graficzny | `audacity-graphic-eq` | `gains`: 31 wzmocnień pasm w dB, wszystkie 0; `interpolation: 'bspline'`; `filterLength: 8191` |
 | Filtr górnoprzepustowy | `highpass` | `frequency: 80`, `q: 0.707` |

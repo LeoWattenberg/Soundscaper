@@ -53,7 +53,7 @@ const COPY_ENTRIES = Object.freeze([
 	["loudnessNormalizationStreaming","Streaming (-14 LUFS)","Streaming (−14 LUFS)"],
 	["effectNameHighpass","Resonant high-pass filter","Resonanter Hochpassfilter"],
 	["effectNameLowpass","Resonant low-pass filter","Resonanter Tiefpassfilter"],
-	["effectNameEq","Four-band parametric EQ","Parametrischer 4-Band-EQ"],
+	["effectNameEq","Parametric EQ","Parametrischer EQ"],
 	["effectNameCompressor","Compressor","Kompressor"],
 	["effectNameLimiter","Limiter","Limiter"],
 	["effectNameGate","Gate","Gate"],

@@ -2,7 +2,7 @@
 	"schemaVersion": 2,
 	"locale": "hy",
 	"provenance": {
-		"machine": {"model":"branding-copy-replay","modelDigest":"sha256:d6be957433f8d3c7883e42f185138fc106d5890ea7cb2bc9753520acb64606bf","promptVersion":"i18n-machine-v1"},
+		"machine": {"model":"parametric-eq-copy-replay","modelDigest":"sha256:0d4936513d2ab0c57c24e76c91d87da357fa4f705bc9853bea7a90b3d0988a30","promptVersion":"i18n-machine-v1"},
 		"audacity": {"repository":"audacity/audacity","headSha":"de2e43dc13474ba712ade5ea8e47550eba0e8bfb","runId":35327911264,"artifactId":10539339149,"workflowUrl":"https://github.com/audacity/audacity/actions/runs/35327911264","archiveName":"Audacity_locale_262610911.zip","archiveSha256":"13b1ff11c39a677c711a1d29738a394aaca7a200533927aab3f45bbd76c1ff8e","archiveByteLength":15413913,"licenseSpdx":"GPL-3.0-only","upstreamProjectUrl":"https://github.com/audacity/audacity","upstreamLicenseUrl":"https://github.com/audacity/audacity/blob/de2e43dc13474ba712ade5ea8e47550eba0e8bfb/LICENSE.txt","modificationNotice":"Soundscaper converts reviewed Audacity Qt TS messages to per-locale JSON catalogs, excludes unsafe or inapplicable entries, adapts reviewed placeholders and mnemonics, and removes ellipsis punctuation.","mappingVersion":3,"mappingSha256":"f4cf0434f47eaa9434d079a1623b9d9501e9c8da0d83f0c73344f7765113b57c"}
 	},
 	"entries": {
@@ -178,7 +178,6 @@
 		"assistanceTechnicalDetails": ["machine","Technical details","Տեխնիկական մանրամասներ"],
 		"audacityApplied": ["machine","Applied the Audacity effect.","Կիրառվեց Audacity էֆեկտը։"],
 		"audacityEffectsTitle": ["machine","Audacity selection effects","Audacity ընտրության էֆեկտներ"],
-		"audacityGuidesLink": ["machine","About Mindscaper","Mindscaper-ի մասին"],
 		"audacityParityLabelAlignContent": ["machine","Align content","Հավասարեցնել բովանդակությունը"],
 		"audacityParityLabelAlignEndToEnd": ["machine","Align end to end","Հավասարեցնել ծայրից ծայր"],
 		"audacityParityLabelAlignEndToPlayhead": ["machine","Align end to playhead","Հավասարեցնել ավարտը նվագարկման կետին"],
@@ -906,7 +905,7 @@
 		"effectNameCompressor": ["machine","Compressor","Կոմպրեսոր"],
 		"effectNameDeesser": ["machine","De-esser","Դե-էսեր"],
 		"effectNameDelay": ["machine","Feedback delay","Հետադարձ կապով հետաձգում"],
-		"effectNameEq": ["machine","Four-band parametric EQ","Քառագոտի պարամետրիկ էկվալայզեր"],
+		"effectNameEq": ["machine","Parametric EQ","Պարամետրիկ հավասարիչ"],
 		"effectNameGate": ["machine","Gate","Գեյթ"],
 		"effectNameHighpass": ["machine","Resonant high-pass filter","Ռեզոնանսային բարձրահաճախ ֆիլտր"],
 		"effectNameHighpassFilter": ["machine","High-pass filter","Բարձրահաճախ ֆիլտր"],
@@ -1706,7 +1705,6 @@
 		"monoConversionYes": ["audacity","Yes","Այո"],
 		"monoTrackRequired": ["machine","Select a mono track first.","Նախ ընտրեք մոնո թրեք."],
 		"moreOptions": ["machine","More options","Ավելի շատ ընտրանքներ"],
-		"moreToolsLink": ["machine","More Mindscaper tools","Ավելի շատ Mindscaper գործիքներ"],
 		"morseGenerator": ["machine","Morse code","Մորզեի կոդ"],
 		"mouseZoomPrecision": ["machine","Mouse zoom precision","Մկնիկի անիվի մասշտաբման ճշգրտություն"],
 		"mouseZoomPrecisionNote": ["machine","How many mouse-wheel notches double the timeline zoom.","Մկնիկի անիվի քանի քայլն է կրկնապատկում ժամանակագծի մասշտաբը։"],
@@ -1840,7 +1838,7 @@
 		"panelVideoPreview": ["machine","Video preview","Տեսանյութի նախադիտում"],
 		"panels": ["machine","Panels","Վահանակներ"],
 		"parameterRangeError": ["machine","{label} must be between {minimum} and {maximum}.","{label}-ը պետք է լինի {minimum}-ի և {maximum}-ի միջև։"],
-		"parametricEq": ["machine","Four-band parametric EQ","Չորսշերտ պարամետրիկ էքվալայզեր"],
+		"parametricEq": ["machine","Parametric EQ","Պարամետրիկ հավասարիչ"],
 		"parametricEqGraph": ["machine","Parametric equalizer response","Պարամետրիկ էքվալայզերի հաճախականային բնութագիրը"],
 		"paste": ["machine","Paste","Տեղադրել"],
 		"pasteEffects": ["machine","Paste effects","Տեղադրել էֆեկտները"],

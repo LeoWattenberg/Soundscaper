@@ -2,7 +2,7 @@
 	"schemaVersion": 2,
 	"locale": "fi",
 	"provenance": {
-		"machine": {"model":"branding-copy-replay","modelDigest":"sha256:9e641d2a7090eaf4a7e117c63a9aa3271b24a85b1139424549bbf72c0775c9c7","promptVersion":"i18n-machine-v1"},
+		"machine": {"model":"parametric-eq-copy-replay","modelDigest":"sha256:62820c1405d2167fb387d0b58d858e13db9205d40d120e3492701b55825a5ab0","promptVersion":"i18n-machine-v1"},
 		"audacity": {"repository":"audacity/audacity","headSha":"de2e43dc13474ba712ade5ea8e47550eba0e8bfb","runId":35327911264,"artifactId":10539339149,"workflowUrl":"https://github.com/audacity/audacity/actions/runs/35327911264","archiveName":"Audacity_locale_262610911.zip","archiveSha256":"13b1ff11c39a677c711a1d29738a394aaca7a200533927aab3f45bbd76c1ff8e","archiveByteLength":15413913,"licenseSpdx":"GPL-3.0-only","upstreamProjectUrl":"https://github.com/audacity/audacity","upstreamLicenseUrl":"https://github.com/audacity/audacity/blob/de2e43dc13474ba712ade5ea8e47550eba0e8bfb/LICENSE.txt","modificationNotice":"Soundscaper converts reviewed Audacity Qt TS messages to per-locale JSON catalogs, excludes unsafe or inapplicable entries, adapts reviewed placeholders and mnemonics, and removes ellipsis punctuation.","mappingVersion":3,"mappingSha256":"f4cf0434f47eaa9434d079a1623b9d9501e9c8da0d83f0c73344f7765113b57c"}
 	},
 	"entries": {
@@ -178,7 +178,6 @@
 		"assistanceTechnicalDetails": ["machine","Technical details","Tekniset tiedot"],
 		"audacityApplied": ["machine","Applied the Audacity effect.","Audacity-tehoste käytetty."],
 		"audacityEffectsTitle": ["machine","Audacity selection effects","Audacityn valintatehosteet"],
-		"audacityGuidesLink": ["machine","About Mindscaper","Tietoja Mindscaperista"],
 		"audacityParityLabelAlignContent": ["machine","Align content","Kohdista sisältö"],
 		"audacityParityLabelAlignEndToEnd": ["machine","Align end to end","Kohdista peräkkäin"],
 		"audacityParityLabelAlignEndToPlayhead": ["machine","Align end to playhead","Kohdista loppu toistopäähän"],
@@ -906,7 +905,7 @@
 		"effectNameCompressor": ["machine","Compressor","Kompressori"],
 		"effectNameDeesser": ["machine","De-esser","De-esser"],
 		"effectNameDelay": ["machine","Feedback delay","Takaisinkytketty viive"],
-		"effectNameEq": ["machine","Four-band parametric EQ","Parametrinen 4-kaistainen EQ"],
+		"effectNameEq": ["machine","Parametric EQ","Parametrinen EQ"],
 		"effectNameGate": ["machine","Gate","Portti"],
 		"effectNameHighpass": ["machine","Resonant high-pass filter","Resonoiva ylipäästösuodin"],
 		"effectNameHighpassFilter": ["machine","High-pass filter","Ylipäästösuodin"],
@@ -1706,7 +1705,6 @@
 		"monoConversionYes": ["audacity","Yes","Kyllä"],
 		"monoTrackRequired": ["machine","Select a mono track first.","Valitse ensin monoraita."],
 		"moreOptions": ["machine","More options","Lisää vaihtoehtoja"],
-		"moreToolsLink": ["machine","More Mindscaper tools","Lisää Mindscaper-työkaluja"],
 		"morseGenerator": ["machine","Morse code","Morsekoodi"],
 		"mouseZoomPrecision": ["machine","Mouse zoom precision","Hiiren zoomaustarkkuus"],
 		"mouseZoomPrecisionNote": ["machine","How many mouse-wheel notches double the timeline zoom.","Kuinka monta hiiren rullan askelta kaksinkertaistaa aikajanan lähennyksen."],
@@ -1840,7 +1838,7 @@
 		"panelVideoPreview": ["machine","Video preview","Videoesikatselu"],
 		"panels": ["machine","Panels","Paneelit"],
 		"parameterRangeError": ["machine","{label} must be between {minimum} and {maximum}.","{label} on oltava välillä {minimum}–{maximum}."],
-		"parametricEq": ["machine","Four-band parametric EQ","Nelikaistainen parametrinen EQ"],
+		"parametricEq": ["machine","Parametric EQ","Parametrinen EQ"],
 		"parametricEqGraph": ["machine","Parametric equalizer response","Parametrisen taajuuskorjaimen taajuusvaste"],
 		"paste": ["machine","Paste","Liitä"],
 		"pasteEffects": ["machine","Paste effects","Liitä tehosteet"],

@@ -2,7 +2,7 @@
 	"schemaVersion": 2,
 	"locale": "ro",
 	"provenance": {
-		"machine": {"model":"branding-copy-replay","modelDigest":"sha256:39d55a5cb6167464d2291b048196f969ec79979352ee837908584640221592c0","promptVersion":"i18n-machine-v1"},
+		"machine": {"model":"parametric-eq-copy-replay","modelDigest":"sha256:3a89cd74716956829967f2e4c94d1df9d2abbc030be192ed443e12aa8c07603c","promptVersion":"i18n-machine-v1"},
 		"audacity": {"repository":"audacity/audacity","headSha":"de2e43dc13474ba712ade5ea8e47550eba0e8bfb","runId":35327911264,"artifactId":10539339149,"workflowUrl":"https://github.com/audacity/audacity/actions/runs/35327911264","archiveName":"Audacity_locale_262610911.zip","archiveSha256":"13b1ff11c39a677c711a1d29738a394aaca7a200533927aab3f45bbd76c1ff8e","archiveByteLength":15413913,"licenseSpdx":"GPL-3.0-only","upstreamProjectUrl":"https://github.com/audacity/audacity","upstreamLicenseUrl":"https://github.com/audacity/audacity/blob/de2e43dc13474ba712ade5ea8e47550eba0e8bfb/LICENSE.txt","modificationNotice":"Soundscaper converts reviewed Audacity Qt TS messages to per-locale JSON catalogs, excludes unsafe or inapplicable entries, adapts reviewed placeholders and mnemonics, and removes ellipsis punctuation.","mappingVersion":3,"mappingSha256":"f4cf0434f47eaa9434d079a1623b9d9501e9c8da0d83f0c73344f7765113b57c"}
 	},
 	"entries": {
@@ -178,7 +178,6 @@
 		"assistanceTechnicalDetails": ["machine","Technical details","Detalii tehnice"],
 		"audacityApplied": ["machine","Applied the Audacity effect.","A aplicat efectul Audacity."],
 		"audacityEffectsTitle": ["machine","Audacity selection effects","Efecte de selecție Audacity"],
-		"audacityGuidesLink": ["machine","About Mindscaper","Despre Mindscaper"],
 		"audacityParityLabelAlignContent": ["machine","Align content","Aliniază conținutul"],
 		"audacityParityLabelAlignEndToEnd": ["machine","Align end to end","Aliniază sfârșitul la sfârșit"],
 		"audacityParityLabelAlignEndToPlayhead": ["human","Align end to playhead","Aliniază sfârșitul la cursorul de redare"],
@@ -906,7 +905,7 @@
 		"effectNameCompressor": ["machine","Compressor","Compresor"],
 		"effectNameDeesser": ["machine","De-esser","De-esser"],
 		"effectNameDelay": ["machine","Feedback delay","Întârziere cu reacție"],
-		"effectNameEq": ["machine","Four-band parametric EQ","Egalizator parametric cu patru benzi"],
+		"effectNameEq": ["machine","Parametric EQ","Egalizator parametric"],
 		"effectNameGate": ["machine","Gate","Poartă"],
 		"effectNameHighpass": ["machine","Resonant high-pass filter","Filtru trece-sus rezonant"],
 		"effectNameHighpassFilter": ["machine","High-pass filter","Filtru trece-sus"],
@@ -1706,7 +1705,6 @@
 		"monoConversionYes": ["audacity","Yes","Da"],
 		"monoTrackRequired": ["machine","Select a mono track first.","Selectați mai întâi o pistă mono."],
 		"moreOptions": ["machine","More options","Mai multe opțiuni"],
-		"moreToolsLink": ["machine","More Mindscaper tools","Mai multe instrumente Mindscaper"],
 		"morseGenerator": ["machine","Morse code","Cod Morse"],
 		"mouseZoomPrecision": ["machine","Mouse zoom precision","Precizia zoom-ului cu mouse-ul"],
 		"mouseZoomPrecisionNote": ["machine","How many mouse-wheel notches double the timeline zoom.","Câte rotiri ale roții mouse-ului dublează zoom-ul axei temporale."],
@@ -1840,7 +1838,7 @@
 		"panelVideoPreview": ["machine","Video preview","Previzualizare video"],
 		"panels": ["machine","Panels","Panouri"],
 		"parameterRangeError": ["machine","{label} must be between {minimum} and {maximum}.","{label} trebuie să fie între {minimum} și {maximum}."],
-		"parametricEq": ["machine","Four-band parametric EQ","Egalizator parametric cu patru benzi"],
+		"parametricEq": ["machine","Parametric EQ","Egalizator parametric"],
 		"parametricEqGraph": ["machine","Parametric equalizer response","Răspunsul egalizatorului parametric"],
 		"paste": ["machine","Paste","Lipește"],
 		"pasteEffects": ["machine","Paste effects","Lipește efecte"],

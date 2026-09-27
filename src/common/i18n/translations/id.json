@@ -2,7 +2,7 @@
 	"schemaVersion": 2,
 	"locale": "id",
 	"provenance": {
-		"machine": {"model":"branding-copy-replay","modelDigest":"sha256:bac5a1758f8542609aa438cb4a81b5f49fed02a19957d21681025df6e124f050","promptVersion":"i18n-machine-v1"},
+		"machine": {"model":"parametric-eq-copy-replay","modelDigest":"sha256:6d036a12b854d44b5808b9bb08b8290c01a44c28db5216722aa48dbe5ec3ec72","promptVersion":"i18n-machine-v1"},
 		"audacity": {"repository":"audacity/audacity","headSha":"de2e43dc13474ba712ade5ea8e47550eba0e8bfb","runId":35327911264,"artifactId":10539339149,"workflowUrl":"https://github.com/audacity/audacity/actions/runs/35327911264","archiveName":"Audacity_locale_262610911.zip","archiveSha256":"13b1ff11c39a677c711a1d29738a394aaca7a200533927aab3f45bbd76c1ff8e","archiveByteLength":15413913,"licenseSpdx":"GPL-3.0-only","upstreamProjectUrl":"https://github.com/audacity/audacity","upstreamLicenseUrl":"https://github.com/audacity/audacity/blob/de2e43dc13474ba712ade5ea8e47550eba0e8bfb/LICENSE.txt","modificationNotice":"Soundscaper converts reviewed Audacity Qt TS messages to per-locale JSON catalogs, excludes unsafe or inapplicable entries, adapts reviewed placeholders and mnemonics, and removes ellipsis punctuation.","mappingVersion":3,"mappingSha256":"f4cf0434f47eaa9434d079a1623b9d9501e9c8da0d83f0c73344f7765113b57c"}
 	},
 	"entries": {
@@ -178,7 +178,6 @@
 		"assistanceTechnicalDetails": ["machine","Technical details","Detail Teknis"],
 		"audacityApplied": ["machine","Applied the Audacity effect.","Efek Audacity diterapkan."],
 		"audacityEffectsTitle": ["machine","Audacity selection effects","Efek pilihan Audacity"],
-		"audacityGuidesLink": ["machine","About Mindscaper","Tentang Mindscaper"],
 		"audacityParityLabelAlignContent": ["machine","Align content","Ratakan konten"],
 		"audacityParityLabelAlignEndToEnd": ["machine","Align end to end","Ratakan ujung ke ujung"],
 		"audacityParityLabelAlignEndToPlayhead": ["machine","Align end to playhead","Ratakan ujung ke posisi putar"],
@@ -906,7 +905,7 @@
 		"effectNameCompressor": ["machine","Compressor","Kompresor"],
 		"effectNameDeesser": ["machine","De-esser","De-esser"],
 		"effectNameDelay": ["machine","Feedback delay","Penundaan dengan umpan balik"],
-		"effectNameEq": ["machine","Four-band parametric EQ","EQ Parametrik 4 Pita"],
+		"effectNameEq": ["machine","Parametric EQ","EQ parametrik"],
 		"effectNameGate": ["machine","Gate","Gate"],
 		"effectNameHighpass": ["machine","Resonant high-pass filter","Filter lolos tinggi beresonansi"],
 		"effectNameHighpassFilter": ["machine","High-pass filter","Filter lolos tinggi"],
@@ -1706,7 +1705,6 @@
 		"monoConversionYes": ["audacity","Yes","Iya"],
 		"monoTrackRequired": ["machine","Select a mono track first.","Pilih trek mono terlebih dahulu."],
 		"moreOptions": ["machine","More options","Opsi lainnya"],
-		"moreToolsLink": ["machine","More Mindscaper tools","Alat Mindscaper lainnya"],
 		"morseGenerator": ["machine","Morse code","Kode Morse"],
 		"mouseZoomPrecision": ["machine","Mouse zoom precision","Presisi zoom roda mouse"],
 		"mouseZoomPrecisionNote": ["machine","How many mouse-wheel notches double the timeline zoom.","Jumlah klik roda mouse yang menggandakan zoom garis waktu."],
@@ -1840,7 +1838,7 @@
 		"panelVideoPreview": ["machine","Video preview","Pratinjau video"],
 		"panels": ["machine","Panels","Panel"],
 		"parameterRangeError": ["machine","{label} must be between {minimum} and {maximum}.","{label} harus antara {minimum} dan {maximum}."],
-		"parametricEq": ["machine","Four-band parametric EQ","EQ parametrik 4-band"],
+		"parametricEq": ["machine","Parametric EQ","EQ parametrik"],
 		"parametricEqGraph": ["machine","Parametric equalizer response","Respons equalizer parametrik"],
 		"paste": ["machine","Paste","Sisipkan"],
 		"pasteEffects": ["machine","Paste effects","Sisipkan efek"],

@@ -2,7 +2,7 @@
 	"schemaVersion": 2,
 	"locale": "ar",
 	"provenance": {
-		"machine": {"model":"branding-copy-replay","modelDigest":"sha256:3e35f38d629f7da63718fc97c50985c847b8c9f1a0eb29283b2b90b2c5aeb4f0","promptVersion":"i18n-machine-v1"},
+		"machine": {"model":"parametric-eq-copy-replay","modelDigest":"sha256:1231b6265a1b7f3c36a3299a221d9b2386744040041b16c18e1db0412e467252","promptVersion":"i18n-machine-v1"},
 		"audacity": {"repository":"audacity/audacity","headSha":"de2e43dc13474ba712ade5ea8e47550eba0e8bfb","runId":35327911264,"artifactId":10539339149,"workflowUrl":"https://github.com/audacity/audacity/actions/runs/35327911264","archiveName":"Audacity_locale_262610911.zip","archiveSha256":"13b1ff11c39a677c711a1d29738a394aaca7a200533927aab3f45bbd76c1ff8e","archiveByteLength":15413913,"licenseSpdx":"GPL-3.0-only","upstreamProjectUrl":"https://github.com/audacity/audacity","upstreamLicenseUrl":"https://github.com/audacity/audacity/blob/de2e43dc13474ba712ade5ea8e47550eba0e8bfb/LICENSE.txt","modificationNotice":"Soundscaper converts reviewed Audacity Qt TS messages to per-locale JSON catalogs, excludes unsafe or inapplicable entries, adapts reviewed placeholders and mnemonics, and removes ellipsis punctuation.","mappingVersion":3,"mappingSha256":"f4cf0434f47eaa9434d079a1623b9d9501e9c8da0d83f0c73344f7765113b57c"}
 	},
 	"entries": {
@@ -178,7 +178,6 @@
 		"assistanceTechnicalDetails": ["machine","Technical details","التفاصيل التقنية"],
 		"audacityApplied": ["machine","Applied the Audacity effect.","تم تطبيق تأثير Audacity."],
 		"audacityEffectsTitle": ["machine","Audacity selection effects","تأثيرات اختيار Audacity"],
-		"audacityGuidesLink": ["machine","About Mindscaper","حول Mindscaper"],
 		"audacityParityLabelAlignContent": ["machine","Align content","محاذاة المحتوى"],
 		"audacityParityLabelAlignEndToEnd": ["machine","Align end to end","محاذاة النهاية إلى النهاية"],
 		"audacityParityLabelAlignEndToPlayhead": ["machine","Align end to playhead","محاذاة النهاية إلى مؤشر التشغيل"],
@@ -906,7 +905,7 @@
 		"effectNameCompressor": ["machine","Compressor","ضاغط"],
 		"effectNameDeesser": ["machine","De-esser","مزيل الصفير"],
 		"effectNameDelay": ["machine","Feedback delay","تأخير بتغذية راجعة"],
-		"effectNameEq": ["machine","Four-band parametric EQ","معادل رباعي النطاق"],
+		"effectNameEq": ["machine","Parametric EQ","المعادل البارامتري"],
 		"effectNameGate": ["machine","Gate","البوابة"],
 		"effectNameHighpass": ["machine","Resonant high-pass filter","مرشح مرور عالٍ رنّان"],
 		"effectNameHighpassFilter": ["machine","High-pass filter","مرشح المرور العالي"],
@@ -1706,7 +1705,6 @@
 		"monoConversionYes": ["audacity","Yes","نعم"],
 		"monoTrackRequired": ["machine","Select a mono track first.","حدد مسار مونو أولاً."],
 		"moreOptions": ["machine","More options","خيارات إضافية"],
-		"moreToolsLink": ["machine","More Mindscaper tools","أدوات Mindscaper إضافية"],
 		"morseGenerator": ["machine","Morse code","شيفرة مورس"],
 		"mouseZoomPrecision": ["machine","Mouse zoom precision","دقة تكبير الماوس"],
 		"mouseZoomPrecisionNote": ["machine","How many mouse-wheel notches double the timeline zoom.","كم مستوى من عجلة الماوس يضاعف تكبير الخط الزمني."],
@@ -1840,7 +1838,7 @@
 		"panelVideoPreview": ["machine","Video preview","معاينة الفيديو"],
 		"panels": ["machine","Panels","الألواح"],
 		"parameterRangeError": ["machine","{label} must be between {minimum} and {maximum}.","يجب أن يكون {label} بين {minimum} و {maximum}."],
-		"parametricEq": ["machine","Four-band parametric EQ","المساواة البارامترية ذات الأربع نطاقات"],
+		"parametricEq": ["machine","Parametric EQ","المعادل البارامتري"],
 		"parametricEqGraph": ["machine","Parametric equalizer response","استجابة المساواة البارامترية"],
 		"paste": ["machine","Paste","لصق"],
 		"pasteEffects": ["machine","Paste effects","لصق التأثيرات"],

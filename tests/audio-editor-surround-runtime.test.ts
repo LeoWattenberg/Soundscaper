@@ -65,7 +65,7 @@ class MockAudioContext {
 		return this.make({
 			fftSize: 256,
 			getFloatTimeDomainData(values: Float32Array) { values.fill(0); },
-			getFloatFrequencyDomainData(values: Float32Array) { values.fill(-100); },
+			getFloatFrequencyData(values: Float32Array) { values.fill(-100); },
 		});
 	}
 	createBufferSource() {

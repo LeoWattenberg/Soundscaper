@@ -161,7 +161,7 @@ const REFERENCE_SEEDS: readonly ReferenceSeed[] = Object.freeze([
 	['audacity-remove-dc-offset', 'Remove DC Offset', 'Effect > Volume and compression', SOUNDSCAPER],
 	['audacity-fade-in', 'Fade In', 'Effect > Fading', SOUNDSCAPER],
 	['audacity-fade-out', 'Fade Out', 'Effect > Fading', SOUNDSCAPER],
-	['eq', 'Four-band parametric EQ', 'Effect > EQ and filters', SOUNDSCAPER],
+	['eq', 'Parametric EQ', 'Effect > EQ and filters', SOUNDSCAPER],
 	['highpass-filter', 'High-pass filter', 'Effect > EQ and filters', SOUNDSCAPER],
 	['lowpass-filter', 'Low-pass filter', 'Effect > EQ and filters', SOUNDSCAPER],
 	['notch-filter', 'Notch filter', 'Effect > EQ and filters', SOUNDSCAPER],

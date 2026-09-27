@@ -4,8 +4,7 @@ description: "मैक्रो प्रोग्राम जिस JavaScrip
 sidebar:
   order: 7
 ---
-
-<!-- docs-ai-provenance: {"factPacketSha256":"375c684211bdec9dbd3614c197bda423e24858a568ad5ae3c06ab06d7db2522f","model":"gpt-5.6-luna","modelDigest":"manual","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"375c684211bdec9dbd3614c197bda423e24858a568ad5ae3c06ab06d7db2522f","targetLocale":"hi"} -->
+<!-- docs-ai-provenance: {"basedOnProvenance":{"model":"gpt-5.6-luna"},"factPacketSha256":"20c7fc2552915b97e609945b7d7c30159768baea8ff6775399b67bda15a3b14a","model":"gpt-5","modelProvider":"codex-subagent","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"20c7fc2552915b97e609945b7d7c30159768baea8ff6775399b67bda15a3b14a","targetLocale":"hi"} -->
 
 मैक्रो प्रोग्राम चरणों की सूची के बजाय JavaScript में लिखा गया मैक्रो होता है।
 यह एडिटर के भीतर `sound` नामक छोटी API के माध्यम से चलता है, जिससे यह खुले प्रोजेक्ट को पढ़ सकता है, चयन को बदल सकता है और वही इफ़ेक्ट व कमांड लागू कर सकता है जो चरणों वाली मैक्रो लागू कर सकती है। फ़ाइलों और नेटवर्क से लेकर आपके दूसरे प्रोजेक्ट तक बाकी सब इसकी पहुँच से बाहर है।
@@ -242,7 +241,7 @@ try {
 | फ़ेड इन | `audacity-fade-in` | कोई नहीं |
 | फ़ेड आउट | `audacity-fade-out` | कोई नहीं |
 | फ़िल्टर कर्व EQ | `audacity-filter-curve-eq` | `points`: `{ frequency, gain }` की एरे, 20 Hz और 20 kHz पर दो समतल बिंदु डिफ़ॉल्ट; `linearFrequencyScale: false`; `filterLength: 8191` |
-| चार-बैंड पैरामीट्रिक EQ | `eq` | `outputGain: 0`; `bands`: चार `{ id, enabled, type, frequency, gain, q, slope }` ऑब्जेक्ट, 100, 500, 2000 और 8000 Hz पर peak, `gain: 0`, `q: 1`, `slope: 12` के साथ |
+| पैरामीट्रिक EQ | `eq` | `outputGain: 0`; `bands`: चार `{ id, enabled, type, frequency, gain, q, slope }` ऑब्जेक्ट, 100, 500, 2000 और 8000 Hz पर peak, `gain: 0`, `q: 1`, `slope: 12` के साथ |
 | गेट | `gate` | `threshold: -50`, `attack: 0.005`, `hold: 0.05`, `release: 0.1`, `rangeDb: -80` |
 | ग्राफ़िक EQ | `audacity-graphic-eq` | `gains`: dB में 31 बैंड गेन, सभी 0; `interpolation: 'bspline'`; `filterLength: 8191` |
 | हाई-पास फ़िल्टर | `highpass` | `frequency: 80`, `q: 0.707` |

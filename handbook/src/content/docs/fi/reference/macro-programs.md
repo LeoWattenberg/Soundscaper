@@ -4,7 +4,7 @@ description: "JavaScript API, jonka makro-ohjelma ajaa, rajoitukset, joiden alai
 sidebar:
   order: 7
 ---
-<!-- docs-ai-provenance: {"factPacketSha256":"375c684211bdec9dbd3614c197bda423e24858a568ad5ae3c06ab06d7db2522f","model":"qwen3.8:latest","modelDigest":"22130167c4c20e20c7b71454612966ca8e8171e9b3cc8ab6ce8aa6cbfec79643","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"375c684211bdec9dbd3614c197bda423e24858a568ad5ae3c06ab06d7db2522f","targetLocale":"fi"} -->
+<!-- docs-ai-provenance: {"basedOnProvenance":{"model":"qwen3.8:latest","modelDigest":"22130167c4c20e20c7b71454612966ca8e8171e9b3cc8ab6ce8aa6cbfec79643"},"factPacketSha256":"20c7fc2552915b97e609945b7d7c30159768baea8ff6775399b67bda15a3b14a","model":"gpt-5","modelProvider":"codex-subagent","operation":"translate","promptVersion":"docs-translate-v1","schemaVersion":1,"sourceLocale":"en","sourceSha256":"20c7fc2552915b97e609945b7d7c30159768baea8ff6775399b67bda15a3b14a","targetLocale":"fi"} -->
 
 Makro-ohjelma on makro, joka on kirjoitettu JavaScriptinä sen sijaan, että se olisi askelista koostuva lista.
 Se ajetaan editorin sisällä pienen API:n `sound` kautta, jonka avulla se voi lukea
@@ -313,7 +313,7 @@ Nämä ovat efektitunnisteet `sound.effect` ja `sound.effects` hyväksyvät, yhd
 | Fade In | `audacity-fade-in` | ei mitään |
 | Fade Out | `audacity-fade-out` | ei mitään |
 | Suodatin käyrä EQ | `audacity-filter-curve-eq` | `points`: taulukko `{ frequency, gain }`, oletusarvoisesti kaksi tasoa 20 Hz:n ja 20 kHz:n kohdalla; `linearFrequencyScale: false`; `filterLength: 8191` |
-| Neljän kaistan parametrisointi EQ | `eq` | `outputGain: 0`; `bands`: neljä `{ id, enabled, type, frequency, gain, q, slope }`-objektia, huiput 100, 500, 2000 ja 8000 Hz:n kohdalla `gain: 0`, `q: 1`, `slope: 12` |
+| Parametrinen EQ | `eq` | `outputGain: 0`; `bands`: neljä `{ id, enabled, type, frequency, gain, q, slope }`-objektia, huiput 100, 500, 2000 ja 8000 Hz:n kohdalla `gain: 0`, `q: 1`, `slope: 12` |
 | Gate | `gate` | `threshold: -50`, `attack: 0.005`, `hold: 0.05`, `release: 0.1`, `rangeDb: -80` |
 | Graafinen EQ | `audacity-graphic-eq` | `gains`: 31 kaistan vahvistukset dB:ssä, kaikki 0; `interpolation: 'bspline'`; `filterLength: 8191` |
 | Korkean taajuuden suodatin | `highpass` | `frequency: 80`, `q: 0.707` |
