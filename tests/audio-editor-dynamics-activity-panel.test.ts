@@ -2,13 +2,15 @@
 
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import React, { act } from 'react';
 
-import {
+import DynamicsActivityPanel, {
 	appendActivityReading,
 	formatDecibels,
 	peakToDecibels,
 	supportsDynamicsActivity,
 } from '../src/common/editor/ui/DynamicsActivityPanel.jsx';
+import { installReactTestDom, ReactTestElement } from './helpers/react-test-dom.ts';
 
 const READING = Object.freeze({
 	sequence: 1,
@@ -77,4 +79,66 @@ test('Audacity histories retain reduction throughout their labelled compressor a
 	assert.equal(compressor[0]?.reductionDb, -36);
 	const limiter = appendActivityReading([], { ...READING, reductionDb: -36 }, 4, -12) as Array<{ reductionDb: number }>;
 	assert.equal(limiter[0]?.reductionDb, -12);
+});
+
+test('pausing playback retains the limiter history while realtime telemetry is unavailable', async () => {
+	const dom = installReactTestDom();
+	const actGlobal = globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean };
+	const priorAct = actGlobal.IS_REACT_ACT_ENVIRONMENT;
+	const priorReact = Object.getOwnPropertyDescriptor(globalThis, 'React');
+	const priorContext = Object.getOwnPropertyDescriptor(ReactTestElement.prototype, 'getContext');
+	const frames = new Map<number, FrameRequestCallback>();
+	let nextFrame = 0;
+	let reading: typeof READING | null = READING;
+	actGlobal.IS_REACT_ACT_ENVIRONMENT = true;
+	Object.defineProperty(globalThis, 'React', { configurable: true, value: React });
+	Object.defineProperty(globalThis, 'requestAnimationFrame', {
+		configurable: true,
+		value(callback: FrameRequestCallback) {
+			nextFrame += 1;
+			frames.set(nextFrame, callback);
+			return nextFrame;
+		},
+	});
+	Object.defineProperty(globalThis, 'cancelAnimationFrame', {
+		configurable: true,
+		value(handle: number) { frames.delete(handle); },
+	});
+	Object.defineProperty(ReactTestElement.prototype, 'getContext', {
+		configurable: true,
+		value: () => ({
+			clearRect() {}, beginPath() {}, moveTo() {}, lineTo() {}, closePath() {}, fill() {}, stroke() {},
+			fillStyle: '', strokeStyle: '', lineWidth: 1, lineJoin: 'round',
+		}),
+	});
+	const { createRoot } = await import('react-dom/client');
+	const root = createRoot(dom.container as unknown as Element);
+	const runFrame = async (time: number) => {
+		const entry = frames.entries().next().value as [number, FrameRequestCallback] | undefined;
+		assert.ok(entry, 'the activity panel schedules a display frame');
+		frames.delete(entry[0]);
+		await act(async () => entry[1](time));
+	};
+	try {
+		await act(async () => root.render(React.createElement(DynamicsActivityPanel, {
+			readAnalysis: () => reading,
+			copy: {},
+			audacity: true,
+			limiter: true,
+		})));
+		await runFrame(40);
+		assert.equal(dom.one('[data-dynamics-activity-reduction]').textContent, '-6.0 dB');
+
+		reading = null;
+		await runFrame(80);
+		assert.equal(dom.one('[data-dynamics-activity-reduction]').textContent, '-6.0 dB');
+	} finally {
+		await act(async () => root.unmount());
+		actGlobal.IS_REACT_ACT_ENVIRONMENT = priorAct;
+		if (priorReact) Object.defineProperty(globalThis, 'React', priorReact);
+		else Reflect.deleteProperty(globalThis, 'React');
+		if (priorContext) Object.defineProperty(ReactTestElement.prototype, 'getContext', priorContext);
+		else Reflect.deleteProperty(ReactTestElement.prototype, 'getContext');
+		dom.restore();
+	}
 });

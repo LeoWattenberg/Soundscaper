@@ -88,10 +88,6 @@ export default function DynamicsActivityPanel({ readAnalysis, copy, audacity = f
 				sequenceRef.current = reading.sequence;
 				trailRef.current = appendActivityReading(trailRef.current, reading, capacity, reductionFloor);
 				setLatest(reading);
-			} else if (!reading && (trailRef.current.length || sequenceRef.current)) {
-				trailRef.current = [];
-				sequenceRef.current = 0;
-				setLatest(null);
 			}
 			drawDynamicsActivityCanvas(canvasRef.current, trailRef.current, capacity, drawOptionsRef.current);
 		};
