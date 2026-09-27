@@ -14,7 +14,6 @@ import {
 	effectSourceMetadata,
 	getMenuItem,
 	importFiles,
-	openAnalysisPanel,
 	openExportDialog,
 	registerAudioEditorHooks,
 	seekOnRuler,
@@ -297,10 +296,11 @@ test.describe('audio editor React/design-system workflows', () => {
 		await chooseCommandAction(page, editor, 'Generate', 'Repeat last generator');
 		await expect(editor).toHaveAttribute('data-clip-count', '2', { timeout: 15_000 });
 
-		const analysis = await openAnalysisPanel(page, editor);
-		await analysis.getByRole('button', { name: 'Analyze master', exact: true }).click();
-		await expect(editor.locator('[data-status]')).toHaveAttribute('data-state', 'success', { timeout: 15_000 });
-		await closeWorkspacePanel(editor, 'analysis');
+		await chooseCommandAction(page, editor, 'Select', 'Select all');
+		await chooseCommandAction(page, editor, 'Analyze', 'Analyze selection');
+		const analysis = page.getByRole('dialog', { name: 'Analyze selection', exact: true });
+		await expect(analysis.locator('[data-analysis-report="levels"]')).toBeVisible({ timeout: 15_000 });
+		await closeDialog(analysis);
 		await chooseCommandAction(page, editor, 'Analyze', 'Repeat last analyzer');
 		await expect(editor.locator('[data-status]')).toHaveAttribute('data-state', 'success', { timeout: 15_000 });
 		expect(errors).toEqual([]);

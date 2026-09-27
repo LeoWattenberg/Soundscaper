@@ -2,7 +2,7 @@
 	"schemaVersion": 2,
 	"locale": "pt-BR",
 	"provenance": {
-		"machine": {"model":"realtime-effect-picker-copy-replay","modelDigest":"sha256:8cb4e929cf32f7a8f366b421ed3b3e88ccafabee566b2a71411c3070d5aceeda","promptVersion":"i18n-machine-v1"},
+		"machine": {"model":"codex-gpt-6","modelDigest":"sha256:0e488270fefaf891a4962152489d98e13385d298c6b99434b9de732dbc4c94a9","promptVersion":"i18n-machine-v1"},
 		"audacity": {"repository":"audacity/audacity","headSha":"de2e43dc13474ba712ade5ea8e47550eba0e8bfb","runId":35327911264,"artifactId":10539339149,"workflowUrl":"https://github.com/audacity/audacity/actions/runs/35327911264","archiveName":"Audacity_locale_262610911.zip","archiveSha256":"13b1ff11c39a677c711a1d29738a394aaca7a200533927aab3f45bbd76c1ff8e","archiveByteLength":15413913,"licenseSpdx":"GPL-3.0-only","upstreamProjectUrl":"https://github.com/audacity/audacity","upstreamLicenseUrl":"https://github.com/audacity/audacity/blob/de2e43dc13474ba712ade5ea8e47550eba0e8bfb/LICENSE.txt","modificationNotice":"Soundscaper converts reviewed Audacity Qt TS messages to per-locale JSON catalogs, excludes unsafe or inapplicable entries, adapts reviewed placeholders and mnemonics, and removes ellipsis punctuation.","mappingVersion":3,"mappingSha256":"f4cf0434f47eaa9434d079a1623b9d9501e9c8da0d83f0c73344f7765113b57c"}
 	},
 	"entries": {
@@ -69,6 +69,7 @@
 		"analysisSummary": ["machine","{channelCount} channels · {duration} s · {sampleRate} Hz","{channelCount} canais · {duration} s · {sampleRate} Hz"],
 		"analyzeMaster": ["machine","Analyze master","Analisar master"],
 		"analyzeMenu": ["machine","Analyze","Analisar"],
+		"analyzeSelection": ["machine","Analyze selection","Analisar a seleção"],
 		"analyzeTrack": ["machine","Analyze track","Analisar faixa"],
 		"annotationAnchor": ["machine","Anchor","Âncora"],
 		"annotationColor": ["machine","Color","Cor"],
@@ -498,6 +499,7 @@
 		"clipStyleClassic": ["machine","Classic","Clássico"],
 		"clipStyleColorful": ["machine","Colorful","Colorido"],
 		"clipping": ["audacity","Clipping","Clipping"],
+		"clippingRegionDetail": ["machine","{start}–{end} s · {peak}","{start}–{end} s · {peak}"],
 		"clippingRegions": ["machine","{count} clipping regions","{count} regiões de clipping"],
 		"close": ["machine","Close","Fechar"],
 		"closeProject": ["machine","Close project","Fechar projeto"],
@@ -532,6 +534,7 @@
 		"contrastForegroundRole": ["machine","foreground","primeiro plano"],
 		"contrastPass": ["machine","Contrast meets the recommended 20 dB difference.","O contraste atende à diferença recomendada de 20 dB."],
 		"contrastRoleInvalid": ["machine","Contrast role must be foreground or background.","A função do contraste deve ser primeiro plano ou plano de fundo."],
+		"contrastSelectionInstructions": ["machine","Select and measure the foreground, then select and measure the background.","Selecione e meça o primeiro plano; depois, selecione e meça o plano de fundo."],
 		"contrastStored": ["machine","Stored contrast {role}.","{role} armazenado para contraste."],
 		"controlTrack": ["machine","Control track","Faixa de controle"],
 		"controlTrackNotFound": ["machine","The control track was not found.","A faixa de controle não foi encontrada."],
@@ -2375,7 +2378,9 @@
 		"spectrogramWindowHann": ["machine","Hann","Hann"],
 		"spectrogramWindowType": ["machine","Window type","Tipo de janela"],
 		"spectrum": ["machine","Frequency spectrum","Espectro de frequência"],
+		"spectrumConfiguration": ["machine","{size} FFT · {sampleRate} Hz","{size} FFT · {sampleRate} Hz"],
 		"spectrumPeak": ["machine","Peak frequency","Frequência de pico"],
+		"spectrumPeakDetail": ["machine","{label}: {frequency} Hz · {level}","{label}: {frequency} Hz · {level}"],
 		"split": ["machine","Split at playhead","Dividir na posição de reprodução"],
 		"splitDelete": ["machine","Split delete","Dividir e excluir"],
 		"splitIntoNewTrack": ["audacity","Split into new track","Dividir para nova faixa"],

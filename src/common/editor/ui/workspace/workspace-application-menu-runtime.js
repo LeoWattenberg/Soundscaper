@@ -13,7 +13,6 @@ import {
 } from './workspace-product-application-menu-runtime.ts';
 import { resolveSoundscaperNativeServicesWorkspaceRuntime,
 	useSoundscaperNativeServicesMenuRefresh } from './SoundscaperNativeServicesSurface.tsx';
-import { ANALYSIS_MODE_PANEL_IDS } from './workspace-panel-model.ts';
 
 export {
 	useProductNativeServicesMenuRefresh as useFramescaperNativeServicesMenuRefresh,
@@ -74,6 +73,7 @@ export function createWorkspaceApplicationMenus({
 	const soundscaperNativeServices = resolveSoundscaperNativeServicesWorkspaceRuntime({
 		productId, copy, engine: controller?.engine, controller, durationFrames,
 		selectedTrackId: snapshot.selectedTrackId ?? null,
+		selectedClipId: snapshot.selectedClipId ?? null,
 		processingBlocked: editBlocked || snapshot.readOnly === true,
 	});
 	const framescaperRuntime = createProductWorkspaceApplicationMenuRuntime({
@@ -386,14 +386,12 @@ export function createWorkspaceApplicationMenus({
 					setNyquistTarget({ prompt: !pluginId, pluginId });
 					openSurface('nyquist');
 				},
-				openAnalysis: (mode = 'levels') => {
-					openWorkspacePanel(ANALYSIS_MODE_PANEL_IDS[mode] || 'analysis');
-				},
+				openAnalysis: (mode = 'levels') => openSurface(`offline-analysis-${mode}`),
+				openRepeatAnalyzer: () => openSurface('offline-analysis-repeat'),
 				measureLoudness: () => run(async () => {
 					const report = await controller.actions.analysis.measureLoudness();
 					if (report) setDialog('delivery-report');
 				}),
-					openEbuR128: () => openWorkspacePanel('ebu-r128'),
 					setWorkspace: (workspaceId) => run(() => controller.actions.preferences.setWorkspace(workspaceId)),
 					togglePanel: toggleWorkspacePanel,
 					manual: () => openExternal(documentationUrl(productId, 'manual', locale)),

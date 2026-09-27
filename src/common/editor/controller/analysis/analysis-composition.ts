@@ -7,6 +7,7 @@ import { createEditorAnalysisVisuals } from './internal/analysis-visuals.ts';
 import { createDeferredAudioAnalysisService } from './internal/deferred-analysis-service.ts';
 import type { EditorProjectGeneration } from '../shared/lifecycle.ts';
 import type { EditorTaskProgressCoordinator } from '../shared/task-progress.ts';
+import { resolveSelectionRange } from '../../selection-range.ts';
 
 interface AnalysisWorkerCopy {
 	readonly audioAnalysisWorkerFailed: string;
@@ -25,6 +26,7 @@ export type AnalysisWorkerPort = (
 type AnalysisProject = AnalysisRenderProject & ReturnType<AnalysisDependencies['getProject']>;
 export type AnalysisCompositionState = AnalysisState & {
 	selectedTrackId: string | null;
+	selectedClipId?: string | null;
 	analysisProcessing: boolean;
 	contrastSelections: ReturnType<AnalysisDependencies['getContrastSelections']>;
 	preferences?: { readonly spectrogram?: { readonly windowSize?: number } };
@@ -65,6 +67,8 @@ export function createAnalysisComposition<Project extends AnalysisProject, Buffe
 		if (!project) throw new Error('Analysis requires an open project.');
 		return project;
 	};
+	const currentSelection = () => dependencies.getActiveSelection()
+		?? resolveSelectionRange(requireProject(), { selectedClipId: state.selectedClipId ?? null });
 	const service: AnalysisActions = dependencies.enabled ? createDeferredAudioAnalysisService({
 		lifetime: dependencies.lifetime, copy, state,
 		captureProject: () => dependencies.projectGeneration.capture(dependencies.getProject()?.id ?? null),
@@ -72,13 +76,13 @@ export function createAnalysisComposition<Project extends AnalysisProject, Buffe
 		getProject: requireProject,
 		getSelectedTrackId: () => state.selectedTrackId,
 		getRange: () => {
-			const selection = dependencies.getActiveSelection();
+			const selection = currentSelection();
 			return Object.freeze({
 				startFrame: selection?.startFrame ?? 0,
 				endFrame: selection?.endFrame ?? dependencies.projectDurationFrames(requireProject()),
 			});
 		},
-		getActiveSelection: dependencies.getActiveSelection,
+		getActiveSelection: currentSelection,
 		getSpectrumWindowSize: () => state.preferences?.spectrogram?.windowSize ?? 2048,
 		getContrastSelections: () => state.contrastSelections,
 		setContrastSelections: (value) => { state.contrastSelections = value; },

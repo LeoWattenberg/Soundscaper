@@ -136,6 +136,7 @@ export interface EngineRuntimeHost extends EnginePublicApi {
 	reversedBuffers: WeakMap<AudioBuffer, AudioBuffer>;
 	positionListeners: Set<(frame: number, durationFrames: number) => void>;
 	meterListeners: Set<(meter: EngineMeterSnapshot) => void>;
+	liveAnalysisLeaseCount: number;
 	stateListeners: Set<(state: string) => void>;
 	playbackErrorListeners: Set<(error: unknown) => void>;
 	parametricEqErrorListeners: Set<(error: unknown) => void>;

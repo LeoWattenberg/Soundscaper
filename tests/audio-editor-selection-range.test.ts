@@ -99,6 +99,13 @@ test('nothing selected resolves to no range at all', () => {
 	assert.equal(resolveSelectionRange(null), null);
 });
 
+test('a selected clip with pending import geometry yields no range until it resolves', () => {
+	const pending = project({
+		clips: [{ ...clip('clip-a', 0, 100), durationFrames: undefined }, clip('clip-b', 200, 100)],
+	});
+	assert.equal(resolveSelectionRange(pending, { selectedClipId: 'clip-a' }), null);
+});
+
 test('a time range lifts its own pieces onto a copy of every track it covers', () => {
 	const value = project();
 	const plan = prepareSplitRangeIntoNewTrackCommand(runtime(value), {

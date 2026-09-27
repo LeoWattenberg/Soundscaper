@@ -82,6 +82,7 @@ export interface SoundscaperNativeServicesMenuInput {
 	readonly editingBlocked?: boolean;
 	readonly readOnly?: boolean;
 	readonly analyzerRuntimeAvailable?: boolean;
+	readonly analyzerSelectionAvailable?: boolean;
 	readonly copy?: Readonly<Record<string, string | undefined>>;
 }
 
@@ -145,7 +146,9 @@ export function createSoundscaperNativeServicesMenuItems(
 			?? (snapshot.enabledPluginFormats.includes('vamp')
 				? null : copy.vampFormatBlocked)
 			?? (input.analyzerRuntimeAvailable === false
-				? copy.vampRuntimeUnavailable : null),
+				? copy.vampRuntimeUnavailable : null)
+			?? (input.analyzerSelectionAvailable === true
+				? null : input.copy?.timeSelectionRequired ?? 'Select a time range or clip first.'),
 		open: actions.open,
 	});
 

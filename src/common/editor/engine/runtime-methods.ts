@@ -4,6 +4,7 @@ import { engineAutomationControlMethods } from './automation-control-v21.ts';
 import { engineCutPreviewMethods } from './cut-preview.ts';
 import { engineEffectControlMethods } from './effect-control.ts';
 import { engineLifecycleMethods } from './lifecycle.ts';
+import { engineLiveAnalysisLeaseMethods } from './live-analysis-lease.ts';
 import { installEngineMethodMaps } from './method-installer.ts';
 import { engineRenderingMethods } from './rendering.ts';
 import { engineNativeEffectPdcControlMethods } from './native-effect-pdc-control.ts';
@@ -51,6 +52,7 @@ export const ENGINE_PUBLIC_METHOD_NAMES = [
 	'commitNativeEffectPdcRevision',
 	'subscribePosition',
 	'subscribeMeters',
+	'acquireLiveAnalysis',
 	'subscribeState',
 	'subscribePlaybackErrors',
 	'subscribeParametricEqErrors',
@@ -80,6 +82,7 @@ export function installEngineRuntimeMethods(target: object): void {
 		enginePlaybackOutputMethods,
 		enginePlaybackFailureMethods,
 		engineTransportControlMethods,
+		engineLiveAnalysisLeaseMethods,
 		engineCutPreviewMethods,
 		engineTransportAccessors,
 		engineAutomationControlMethods,

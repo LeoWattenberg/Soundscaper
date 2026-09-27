@@ -2,7 +2,7 @@
 	"schemaVersion": 2,
 	"locale": "ar",
 	"provenance": {
-		"machine": {"model":"realtime-effect-picker-copy-replay","modelDigest":"sha256:b652a0d8e03a240592266531d8d06d0961ed80c3c547f970d74e2db6dd53a338","promptVersion":"i18n-machine-v1"},
+		"machine": {"model":"codex-gpt-6","modelDigest":"sha256:130520bb0cbe65a5d1329056cd800704a44c5c6dad2c1850c7e2f95b49e63a73","promptVersion":"i18n-machine-v1"},
 		"audacity": {"repository":"audacity/audacity","headSha":"de2e43dc13474ba712ade5ea8e47550eba0e8bfb","runId":35327911264,"artifactId":10539339149,"workflowUrl":"https://github.com/audacity/audacity/actions/runs/35327911264","archiveName":"Audacity_locale_262610911.zip","archiveSha256":"13b1ff11c39a677c711a1d29738a394aaca7a200533927aab3f45bbd76c1ff8e","archiveByteLength":15413913,"licenseSpdx":"GPL-3.0-only","upstreamProjectUrl":"https://github.com/audacity/audacity","upstreamLicenseUrl":"https://github.com/audacity/audacity/blob/de2e43dc13474ba712ade5ea8e47550eba0e8bfb/LICENSE.txt","modificationNotice":"Soundscaper converts reviewed Audacity Qt TS messages to per-locale JSON catalogs, excludes unsafe or inapplicable entries, adapts reviewed placeholders and mnemonics, and removes ellipsis punctuation.","mappingVersion":3,"mappingSha256":"f4cf0434f47eaa9434d079a1623b9d9501e9c8da0d83f0c73344f7765113b57c"}
 	},
 	"entries": {
@@ -69,6 +69,7 @@
 		"analysisSummary": ["machine","{channelCount} channels · {duration} s · {sampleRate} Hz","{channelCount} قنوات · {duration} ث · {sampleRate} هرتز"],
 		"analyzeMaster": ["machine","Analyze master","تحليل الماستر"],
 		"analyzeMenu": ["machine","Analyze","التحليل"],
+		"analyzeSelection": ["machine","Analyze selection","تحليل التحديد"],
 		"analyzeTrack": ["machine","Analyze track","تحليل المسار"],
 		"annotationAnchor": ["machine","Anchor","تثبيت"],
 		"annotationColor": ["machine","Color","لون"],
@@ -498,6 +499,7 @@
 		"clipStyleClassic": ["machine","Classic","كلاسيكي"],
 		"clipStyleColorful": ["machine","Colorful","ملون"],
 		"clipping": ["audacity","Clipping","القطع"],
+		"clippingRegionDetail": ["machine","{start}–{end} s · {peak}","{start}–{end} s · {peak}"],
 		"clippingRegions": ["machine","{count} clipping regions","{count} مناطق القطع"],
 		"close": ["machine","Close","إغلاق"],
 		"closeProject": ["machine","Close project","إغلاق المشروع"],
@@ -532,6 +534,7 @@
 		"contrastForegroundRole": ["machine","foreground","المقدمة"],
 		"contrastPass": ["machine","Contrast meets the recommended 20 dB difference.","يلبي التناقض التوصية بفرق 20 ديسيبل."],
 		"contrastRoleInvalid": ["machine","Contrast role must be foreground or background.","يجب أن يكون دور التناقض المقدمة أو الخلفية."],
+		"contrastSelectionInstructions": ["machine","Select and measure the foreground, then select and measure the background.","حدّد المقدمة وقِسها، ثم حدّد الخلفية وقِسها."],
 		"contrastStored": ["machine","Stored contrast {role}.","تم تخزين التناقض {role}."],
 		"controlTrack": ["machine","Control track","مسار التحكم"],
 		"controlTrackNotFound": ["machine","The control track was not found.","لم يتم العثور على مسار التحكم."],
@@ -2375,7 +2378,9 @@
 		"spectrogramWindowHann": ["machine","Hann","هان"],
 		"spectrogramWindowType": ["machine","Window type","نوع النافذة"],
 		"spectrum": ["machine","Frequency spectrum","الطيف الترددي"],
+		"spectrumConfiguration": ["machine","{size} FFT · {sampleRate} Hz","{size} FFT · {sampleRate} Hz"],
 		"spectrumPeak": ["machine","Peak frequency","التردد الذروي"],
+		"spectrumPeakDetail": ["machine","{label}: {frequency} Hz · {level}","{label}: {frequency} Hz · {level}"],
 		"split": ["machine","Split at playhead","تقسيم عند مؤشر التشغيل"],
 		"splitDelete": ["machine","Split delete","تقسيم الحذف"],
 		"splitIntoNewTrack": ["audacity","Split into new track","فصل إلى مسار جديد"],

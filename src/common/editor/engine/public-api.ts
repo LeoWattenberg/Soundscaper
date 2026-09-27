@@ -7,6 +7,7 @@ import type { ProjectGraphSelection } from './project-graph-selection.ts';
 import type { AudioWarpRenderPathStatus } from '../audio-warp-runtime.ts';
 import type { SessionLoudnessHistorySnapshot } from '../production-audio/loudness-history-session.ts';
 import type { StripMeterSnapshot } from '../production-audio/strip-meter-session.ts';
+import type { StereoScopePoint } from './engine-meter-reading.ts';
 import type {
 	EngineChunkSource,
 	EngineLoop,
@@ -81,6 +82,11 @@ export interface EngineMeterReading {
 	readonly rms: number;
 	readonly dbfs: number;
 	readonly loudness?: unknown;
+	/** At most 128 log-spaced dBFS bins from an opt-in 4096-point analyser. */
+	readonly spectrumDb?: readonly number[];
+	readonly stereoCorrelation?: number | null;
+	/** At most 64 bounded XY stereo samples for the channel-correlation meter. */
+	readonly stereoScope?: readonly StereoScopePoint[];
 }
 
 export interface EngineMeterSnapshot {
@@ -231,6 +237,8 @@ export interface EnginePublicApi {
 	commitNativeEffectPdcRevision(request: EngineNativeEffectPdcRevision): EngineNativeEffectPdcCommit;
 	subscribePosition(listener: (frame: number, durationFrames: number) => void): () => boolean | void;
 	subscribeMeters(listener: (meter: EngineMeterSnapshot) => void): () => boolean | void;
+	/** Hold the bounded live spectrum and stereo side taps while an Analysis panel is visible. */
+	acquireLiveAnalysis(): () => void;
 	subscribeState(listener: (state: string) => void): () => boolean | void;
 	subscribePlaybackErrors(listener: (error: unknown) => void): () => boolean | void;
 	subscribeParametricEqErrors(listener: (error: unknown) => void): () => boolean | void;

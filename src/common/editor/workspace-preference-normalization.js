@@ -65,7 +65,9 @@ export function normalizeToolbarButtonEntries(value = {}) {
 export function normalizePanelEntries(value = {}) {
 	if (!value || typeof value !== 'object' || Array.isArray(value)) throw new TypeError('workspace.panels must be an object.');
 	const entries = {};
-	const ids = new Set([...Object.keys(DEFAULT_PANELS), ...Object.keys(value)].filter((id) => id !== 'spectrogram'));
+	const retiredPanels = new Set(['spectrogram', 'spectrum', 'clipping', 'contrast', 'ebu-r128']);
+	const inheritedAnalysisVisibility = [...retiredPanels].some((id) => value[id]?.visible === true);
+	const ids = new Set([...Object.keys(DEFAULT_PANELS), ...Object.keys(value)].filter((id) => !retiredPanels.has(id)));
 	for (const id of ids) {
 		nonEmptyString(id, 'panel ID');
 		const defaults = DEFAULT_PANELS[id] || { visible: false, dock: 'right', order: Object.keys(entries).length, size: 320 };
@@ -80,7 +82,7 @@ export function normalizePanelEntries(value = {}) {
 		const visible = entry.visible ?? defaults.visible;
 		if (typeof visible !== 'boolean') throw new TypeError(`workspace.panels.${id}.visible must be boolean.`);
 		entries[id] = {
-			visible,
+			visible: id === 'analysis' && inheritedAnalysisVisibility ? true : visible,
 			dock: oneOf(entry.dock ?? defaults.dock, DOCK_SET, `workspace.panels.${id}.dock`),
 			order: integer(entry.order ?? defaults.order, 0, `workspace.panels.${id}.order`),
 			size: finiteInRange(entry.size ?? defaults.size, 80, 4_096, `workspace.panels.${id}.size`),

@@ -13,9 +13,9 @@ import { chooseCommandAction, closeDialog, commitInput } from '../audio-editor-t
 
 const RUN_TIMEOUT = 30_000;
 
-/** Measure the selection as foreground or background and wait for the panel to report it. */
-export async function runContrast(state, entry) {
-	const panel = state.editor.locator('[data-workspace-panel="contrast"]');
+/** Measure the selection as foreground or background and wait for the dialog to report it. */
+export async function runContrast(page, state, entry) {
+	const panel = page.getByRole('dialog', { name: 'Contrast', exact: true });
 	await expect(panel).toBeVisible();
 	const button = entry.role === 'foreground' ? 'Measure foreground' : 'Measure background';
 	await panel.getByRole('button', { name: button, exact: true }).click();

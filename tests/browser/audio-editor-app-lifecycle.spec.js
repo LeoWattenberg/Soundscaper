@@ -41,8 +41,9 @@ test.describe('audio editor application lifecycle', () => {
 		const errors = collectClientErrors(page);
 		const editor = await bootEditor(page, '/embed/en/');
 		await importFiles(editor, [longTone]);
-		await chooseCommandAction(page, editor, 'Analyze', 'EBU R 128');
-		const panel = editor.locator('[data-workspace-panel="ebu-r128"]');
+		await chooseCommandAction(page, editor, 'Analyze', 'Analysis');
+		const panel = editor.locator('[data-workspace-panel="analysis"]');
+		await panel.locator('[data-analysis-section="loudness"] summary').click();
 		const state = panel.locator('[data-ebu-state]');
 
 		await expect(state).toHaveAttribute('data-ebu-state', 'standby');

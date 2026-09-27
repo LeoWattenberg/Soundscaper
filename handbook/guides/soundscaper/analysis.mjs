@@ -8,14 +8,14 @@ export const ANALYSIS_GUIDES = Object.freeze([
 	{
 		id: 'measure-loudness',
 		title: 'Measure how loud your mix is',
-		description: 'Read the integrated loudness, range and true peak of the project the way broadcasters do.',
+		description: 'Read the integrated loudness, range and true peak of a selection the way broadcasters do.',
 		audacity: 'Analyze → Measure RMS, or Loudness Normalization’s measurement',
-		intro: 'Before you normalize or export, it helps to know where you are. The EBU R 128 analyzer measures the programme the way streaming platforms and broadcasters do — integrated loudness in LUFS, loudness range, and true peak — so you can compare against a target instead of guessing from the meter.',
+		intro: 'Before you normalize or export, it helps to know where you are. Measure loudness analyzes the selection the way streaming platforms and broadcasters do — integrated loudness in LUFS, loudness range, and true peak — so you can compare against a target instead of guessing from the meter.',
 		steps: [
 			open(),
 			importAudio('music-loop', { what: 'the mix you want to measure' }),
 			selectAll(),
-			analyze({ name: 'EBU R 128', panel: 'ebu-r128' }, { see: 'Integrated loudness, loudness range and true peak for the selection.' }),
+			analyze({ name: 'Measure loudness', dialog: 'Delivery Report' }, { see: 'Integrated loudness, loudness range and true peak for the selection.' }),
 		],
 		tips: [
 			'Podcast platforms commonly ask for −16 LUFS stereo or −19 LUFS mono with true peaks below −1 dBTP; check the platform’s own guidance.',
@@ -32,7 +32,7 @@ export const ANALYSIS_GUIDES = Object.freeze([
 			open(),
 			importAudio('noisy-take', { what: 'the recording with the problem in it' }),
 			selectAll(),
-			analyze({ name: 'Plot spectrum', panel: 'spectrum' }, { see: 'A graph of level against frequency for the selection.' }),
+			analyze({ name: 'Plot spectrum', dialog: 'Plot spectrum' }, { see: 'A graph of level against frequency for the selection.' }),
 		],
 		tips: [
 			'Select only the problem passage — a stretch of hum on its own, say — so the spectrum is not dominated by the music or speech around it.',
@@ -49,7 +49,7 @@ export const ANALYSIS_GUIDES = Object.freeze([
 			open(),
 			importAudio('clicky-take', { what: 'the recording you want to check' }),
 			selectAll(),
-			analyze({ name: 'Find clipping', panel: 'clipping' }, { see: 'A list of the clipped runs, or a note that none were found.' }),
+			analyze({ name: 'Find clipping', dialog: 'Find clipping' }, { see: 'A list of the clipped runs, or a note that none were found.' }),
 		],
 		tips: [
 			'Turning a clipped recording down does not repair it; the flattened peaks stay flattened. **Effect → Noise removal and repair → Repair** can rebuild a very short clipped run.',
@@ -89,7 +89,7 @@ export const ANALYSIS_GUIDES = Object.freeze([
 			open(),
 			importAudio('noisy-take', { what: 'the recording with speech over background noise' }),
 			selectRange(0, 0.15, { where: 'a stretch of background with nobody speaking', why: 'The background measurement should contain only the noise the voice has to compete with.' }),
-			analyze({ name: 'Contrast', panel: 'contrast' }),
+			analyze({ name: 'Contrast', dialog: 'Contrast' }),
 			contrast('background'),
 			selectRange(0.3, 0.9, { where: 'a passage of speech', why: 'Pick ordinary speech rather than the loudest word, since the whole passage is averaged.' }),
 			contrast('foreground', { see: 'The foreground and background levels, their difference in dB, and whether the difference meets the recommended 20 dB.' }),

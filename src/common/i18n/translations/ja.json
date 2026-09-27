@@ -2,7 +2,7 @@
 	"schemaVersion": 2,
 	"locale": "ja",
 	"provenance": {
-		"machine": {"model":"realtime-effect-picker-copy-replay","modelDigest":"sha256:0ce009d5728ecc939481216a0514f72f600633fe85eba6aac03061f27781f9d1","promptVersion":"i18n-machine-v1"},
+		"machine": {"model":"codex-gpt-6","modelDigest":"sha256:7b7330c3e3f694659c58d07f1905261fb2e757069c71c15f2f87a39033354f33","promptVersion":"i18n-machine-v1"},
 		"audacity": {"repository":"audacity/audacity","headSha":"de2e43dc13474ba712ade5ea8e47550eba0e8bfb","runId":35327911264,"artifactId":10539339149,"workflowUrl":"https://github.com/audacity/audacity/actions/runs/35327911264","archiveName":"Audacity_locale_262610911.zip","archiveSha256":"13b1ff11c39a677c711a1d29738a394aaca7a200533927aab3f45bbd76c1ff8e","archiveByteLength":15413913,"licenseSpdx":"GPL-3.0-only","upstreamProjectUrl":"https://github.com/audacity/audacity","upstreamLicenseUrl":"https://github.com/audacity/audacity/blob/de2e43dc13474ba712ade5ea8e47550eba0e8bfb/LICENSE.txt","modificationNotice":"Soundscaper converts reviewed Audacity Qt TS messages to per-locale JSON catalogs, excludes unsafe or inapplicable entries, adapts reviewed placeholders and mnemonics, and removes ellipsis punctuation.","mappingVersion":3,"mappingSha256":"f4cf0434f47eaa9434d079a1623b9d9501e9c8da0d83f0c73344f7765113b57c"}
 	},
 	"entries": {
@@ -69,6 +69,7 @@
 		"analysisSummary": ["machine","{channelCount} channels · {duration} s · {sampleRate} Hz","{channelCount} チャンネル · {duration} 秒 · {sampleRate} Hz"],
 		"analyzeMaster": ["machine","Analyze master","マスターを分析"],
 		"analyzeMenu": ["machine","Analyze","分析"],
+		"analyzeSelection": ["machine","Analyze selection","選択範囲を分析"],
 		"analyzeTrack": ["machine","Analyze track","トラックを分析"],
 		"annotationAnchor": ["machine","Anchor","アンカー"],
 		"annotationColor": ["machine","Color","色"],
@@ -498,6 +499,7 @@
 		"clipStyleClassic": ["machine","Classic","クラシック"],
 		"clipStyleColorful": ["machine","Colorful","カラフル"],
 		"clipping": ["audacity","Clipping","クリッピング"],
+		"clippingRegionDetail": ["machine","{start}–{end} s · {peak}","{start}–{end} s · {peak}"],
 		"clippingRegions": ["machine","{count} clipping regions","{count} クリッピング領域"],
 		"close": ["machine","Close","閉じる"],
 		"closeProject": ["machine","Close project","プロジェクトを閉じる"],
@@ -532,6 +534,7 @@
 		"contrastForegroundRole": ["machine","foreground","前景"],
 		"contrastPass": ["machine","Contrast meets the recommended 20 dB difference.","コントラストが推奨される20 dBの差を満たしています"],
 		"contrastRoleInvalid": ["machine","Contrast role must be foreground or background.","コントラストの役割は前景または背景でなければなりません"],
+		"contrastSelectionInstructions": ["machine","Select and measure the foreground, then select and measure the background.","前景を選択して測定し、次に背景を選択して測定してください。"],
 		"contrastStored": ["machine","Stored contrast {role}.","{role}のコントラストを保存しました"],
 		"controlTrack": ["machine","Control track","制御トラック"],
 		"controlTrackNotFound": ["machine","The control track was not found.","制御トラックが見つかりませんでした"],
@@ -2375,7 +2378,9 @@
 		"spectrogramWindowHann": ["machine","Hann","ハンヌ"],
 		"spectrogramWindowType": ["machine","Window type","ウィンドウタイプ"],
 		"spectrum": ["machine","Frequency spectrum","周波数スペクトル"],
+		"spectrumConfiguration": ["machine","{size} FFT · {sampleRate} Hz","{size} FFT · {sampleRate} Hz"],
 		"spectrumPeak": ["machine","Peak frequency","ピーク周波数"],
+		"spectrumPeakDetail": ["machine","{label}: {frequency} Hz · {level}","{label}: {frequency} Hz · {level}"],
 		"split": ["machine","Split at playhead","プレイヘッドで分割"],
 		"splitDelete": ["machine","Split delete","分割削除"],
 		"splitIntoNewTrack": ["audacity","Split into new track","新規トラックに分割"],

@@ -32,6 +32,7 @@ export default function SoundscaperVampAnalyzerSurface({
 		controller: input.controller,
 		durationFrames: input.durationFrames,
 		selectedTrackId: input.selectedTrackId,
+		selectedClipId: input.selectedClipId,
 		port,
 	}), [input, port]);
 	const [catalog, setCatalog] = useState<unknown>(Object.freeze([]));

@@ -35,7 +35,14 @@ export function resolveSelectionRange(
 	options: Readonly<{ selectedClipId?: string | null }> = {},
 ): SelectionRange | null {
 	if (!project?.tracks || !project?.clips) return null;
-	const editing = resolveEditingSelection(project, { selectedClipId: options.selectedClipId ?? null });
+	let editing;
+	try {
+		editing = resolveEditingSelection(project, { selectedClipId: options.selectedClipId ?? null });
+	} catch (error) {
+		// Imported clips can be selected before their timeline geometry resolves.
+		if (error instanceof RangeError) return null;
+		throw error;
+	}
 	if (!editing || editing.endFrame <= editing.startFrame) return null;
 	return Object.freeze({
 		startFrame: editing.startFrame,

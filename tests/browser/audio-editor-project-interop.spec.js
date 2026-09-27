@@ -117,33 +117,28 @@ test.describe('audio editor React/design-system workflows', () => {
 		await closeEffectsPanel(effectsPanel);
 
 		const analysisPanel = await openAnalysisPanel(page, editor);
-		await expect(analysisPanel.getByRole('button', { name: 'Analyze track', exact: true })).toHaveCount(0);
-		await analysisPanel.getByRole('button', { name: 'Analyze master' }).click();
-		await expect(editor.locator('[data-status]')).toHaveAttribute('data-state', 'success', { timeout: 15_000 });
-		await expect(analysisPanel.locator('[data-analysis-value="peak"]')).not.toHaveText('−∞ dBFS');
-		await expect(analysisPanel.locator('[data-analysis-value="clipping"]')).toHaveText('0');
-		await expect(analysisPanel.locator('[data-analysis-spectrum]')).toBeVisible();
-		await expect(analysisPanel.locator('[data-analysis-spectrogram]')).toBeVisible();
+		await expect(analysisPanel.locator('[data-analysis-section]')).toHaveCount(5);
+		await analysisPanel.locator('[data-analysis-section="spectrum"] summary').click();
+		await analysisPanel.locator('[data-analysis-section="spectrogram"] summary').click();
+		await editor.getByRole('button', { name: 'Play', exact: true }).click();
+		await expect(analysisPanel.locator('[data-live-analysis-value="peak"]')).toHaveText('−∞ dBFS');
+		await expect(analysisPanel.locator('[data-live-analysis-spectrum]')).toBeVisible();
+		await expect(analysisPanel.locator('[data-live-analysis-spectrogram]')).toBeVisible();
+		await editor.getByRole('button', { name: 'Stop', exact: true }).click();
 		await closeWorkspacePanel(editor, 'analysis');
 		await expect(analysisPanel).toHaveCount(0);
 		await clipByName(editor, toneB.name).click({ position: { x: 24, y: 10 } });
 
-		for (const [command, panelId] of [
+		for (const [command, mode] of [
 			['Plot spectrum', 'spectrum'],
 			['Find clipping', 'clipping'],
 			['Contrast', 'contrast'],
-			['EBU R 128', 'ebu-r128'],
 		]) {
 			await chooseCommandAction(page, editor, 'Analyze', command);
-			const analyzerPanel = editor.locator(`[data-workspace-panel="${panelId}"]`);
-			await expect(analyzerPanel).toBeVisible();
-			await expect(analyzerPanel).toHaveCSS('resize', 'none');
-			await expect(analyzerPanel.locator('[data-floating-panel-resize-handle]')).toHaveCount(0);
-			if (panelId === 'ebu-r128') {
-				await expect(analyzerPanel.locator('.kw-audio-editor__ebu-dashboard')).toBeVisible();
-			}
-			await closeWorkspacePanel(editor, panelId);
-			await expect(analyzerPanel).toHaveCount(0);
+			const analyzerDialog = page.getByRole('dialog', { name: command, exact: true });
+			await expect(analyzerDialog).toHaveAttribute('data-analysis-mode', mode);
+			await closeDialog(analyzerDialog);
+			await expect(analyzerDialog).toHaveCount(0);
 		}
 
 		const panelsMenu = await openNestedCommandMenu(page, editor, 'View', ['Panels']);

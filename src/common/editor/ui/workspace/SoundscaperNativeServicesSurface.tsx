@@ -84,6 +84,7 @@ export interface SoundscaperVampAnalyzerSurfaceInput {
 	readonly controller: SoundscaperVampAnalyzerController;
 	readonly durationFrames: number;
 	readonly selectedTrackId: string | null;
+	readonly selectedClipId: string | null;
 	readonly bridge: SoundscaperNativeServicesBridge;
 	readonly engine: EnginePublicApi;
 	readonly projectToken: unknown;
@@ -229,6 +230,7 @@ function sameVampAnalyzerInput(
 		&& left.controller === right.controller
 		&& left.durationFrames === right.durationFrames
 		&& left.selectedTrackId === right.selectedTrackId
+		&& left.selectedClipId === right.selectedClipId
 		&& left.bridge === right.bridge
 		&& left.engine === right.engine
 		&& left.projectToken === right.projectToken);
@@ -295,6 +297,7 @@ export function resolveSoundscaperNativeServicesWorkspaceRuntime(input: Readonly
 	controller?: Parameters<typeof createSoundscaperNativeRendererBridge>[0]['controller'];
 	durationFrames?: number;
 	selectedTrackId?: string | null;
+	selectedClipId?: string | null;
 }>): Readonly<SoundscaperNativeServicesWorkspaceRuntime> | null {
 	const bridge = resolveBridge(input);
 	if (bridge === null) return null;
@@ -332,6 +335,7 @@ function soundscaperVampAnalyzerInput(input: Readonly<{
 	engine?: EnginePublicApi | null;
 	durationFrames?: number;
 	selectedTrackId?: string | null;
+	selectedClipId?: string | null;
 }>, bridge: SoundscaperNativeServicesBridge): Readonly<SoundscaperVampAnalyzerSurfaceInput> | null {
 	const controller = input.controller as SoundscaperVampAnalyzerController | null | undefined;
 	const durationFrames = Number(input.durationFrames);
@@ -339,6 +343,7 @@ function soundscaperVampAnalyzerInput(input: Readonly<{
 		|| !Number.isSafeInteger(durationFrames) || durationFrames <= 0) return null;
 	return Object.freeze({
 		controller, durationFrames, selectedTrackId: input.selectedTrackId ?? null,
+		selectedClipId: input.selectedClipId ?? null,
 		bridge, engine: input.engine,
 		projectToken: controller.project,
 	});

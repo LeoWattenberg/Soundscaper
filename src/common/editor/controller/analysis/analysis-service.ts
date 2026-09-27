@@ -16,7 +16,6 @@ import type {
 	EditorTaskScope,
 } from '../shared/lifecycle.ts';
 import { EDITOR_PROJECT_TASK_SCOPE, EditorProjectChangedError, isEditorDisposedError } from '../shared/lifecycle.ts';
-import { resolveSelectionRange } from '../../selection-range.ts';
 
 export interface AnalysisRange {
 	readonly startFrame: number;
@@ -226,9 +225,7 @@ export function createAudioAnalysisService(dependencies: AnalysisDependencies) {
 		const project = dependencies.getProject();
 		const projectToken = dependencies.captureProject();
 		const task = begin('contrastAnalyzing');
-		// Selected clips are a selection: the measurement covers the range they
-		// span, the same range every other selection-driven command reads.
-		const selection = resolveSelectionRange(project);
+		const selection = dependencies.getActiveSelection();
 		if (!selection) {
 			finish(task);
 			const error = createLocalizedError(Error, copy, 'timeSelectionRequired');
@@ -271,7 +268,7 @@ export function createAudioAnalysisService(dependencies: AnalysisDependencies) {
 	}
 
 	/**
-	 * Measure the loudness of the mix, or of the selection when there is one.
+	 * Measure the loudness of the selected range of the mix.
 	 *
 	 * It lives beside the other analyzers because it is one: it renders through
 	 * the same offline path they do, so the numbers describe the mix as a
@@ -289,10 +286,10 @@ export function createAudioAnalysisService(dependencies: AnalysisDependencies) {
 		if (!project.clips.length) return null;
 		const projectToken = dependencies.captureProject();
 		const task = begin('measuringLoudness');
-		const range = dependencies.getRange();
+		const range = dependencies.getActiveSelection();
 		try {
 			assertAnalysisChannelAdmission(project);
-			if (!(range.endFrame > range.startFrame)) throw createLocalizedError(RangeError, copy, 'timeSelectionRequired');
+			if (!range || !(range.endFrame > range.startFrame)) throw createLocalizedError(RangeError, copy, 'timeSelectionRequired');
 			const rendered = await dependencies.renderAudio('master', range, task.signal);
 			assertCurrent(task, projectToken);
 			const channels = Array.from(
@@ -307,7 +304,7 @@ export function createAudioAnalysisService(dependencies: AnalysisDependencies) {
 				sampleRate: rendered.sampleRate,
 				channelCount: channels.length,
 				range,
-				scope: loudnessMeasurementScope(dependencies.getActiveSelection()),
+				scope: loudnessMeasurementScope(range),
 			});
 			assertCurrent(task, projectToken);
 			dependencies.state.deliveryReport = report;

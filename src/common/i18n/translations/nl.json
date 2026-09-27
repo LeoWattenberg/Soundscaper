@@ -2,7 +2,7 @@
 	"schemaVersion": 2,
 	"locale": "nl",
 	"provenance": {
-		"machine": {"model":"realtime-effect-picker-copy-replay","modelDigest":"sha256:ae4d5a96db8742255adead2b9f836236d5b8cee7f65ea9cf8f8a15c4601fa343","promptVersion":"i18n-machine-v1"},
+		"machine": {"model":"codex-gpt-6","modelDigest":"sha256:f95a7f19b3d21285d6aff27df9a369fd8a007a820b61084791a8e7d2f7cb149e","promptVersion":"i18n-machine-v1"},
 		"audacity": {"repository":"audacity/audacity","headSha":"de2e43dc13474ba712ade5ea8e47550eba0e8bfb","runId":35327911264,"artifactId":10539339149,"workflowUrl":"https://github.com/audacity/audacity/actions/runs/35327911264","archiveName":"Audacity_locale_262610911.zip","archiveSha256":"13b1ff11c39a677c711a1d29738a394aaca7a200533927aab3f45bbd76c1ff8e","archiveByteLength":15413913,"licenseSpdx":"GPL-3.0-only","upstreamProjectUrl":"https://github.com/audacity/audacity","upstreamLicenseUrl":"https://github.com/audacity/audacity/blob/de2e43dc13474ba712ade5ea8e47550eba0e8bfb/LICENSE.txt","modificationNotice":"Soundscaper converts reviewed Audacity Qt TS messages to per-locale JSON catalogs, excludes unsafe or inapplicable entries, adapts reviewed placeholders and mnemonics, and removes ellipsis punctuation.","mappingVersion":3,"mappingSha256":"f4cf0434f47eaa9434d079a1623b9d9501e9c8da0d83f0c73344f7765113b57c"}
 	},
 	"entries": {
@@ -69,6 +69,7 @@
 		"analysisSummary": ["machine","{channelCount} channels · {duration} s · {sampleRate} Hz","{channelCount} kanalen · {duration} s · {sampleRate} Hz"],
 		"analyzeMaster": ["machine","Analyze master","Master analyseren"],
 		"analyzeMenu": ["machine","Analyze","Analyse"],
+		"analyzeSelection": ["machine","Analyze selection","Selectie analyseren"],
 		"analyzeTrack": ["machine","Analyze track","Track analyseren"],
 		"annotationAnchor": ["machine","Anchor","Anker"],
 		"annotationColor": ["machine","Color","Kleur"],
@@ -498,6 +499,7 @@
 		"clipStyleClassic": ["machine","Classic","Klassiek"],
 		"clipStyleColorful": ["machine","Colorful","Kleurrijk"],
 		"clipping": ["audacity","Clipping","Oversturing"],
+		"clippingRegionDetail": ["machine","{start}–{end} s · {peak}","{start}–{end} s · {peak}"],
 		"clippingRegions": ["machine","{count} clipping regions","{count} oversturingsgebieden"],
 		"close": ["machine","Close","Sluiten"],
 		"closeProject": ["machine","Close project","Project sluiten"],
@@ -532,6 +534,7 @@
 		"contrastForegroundRole": ["machine","foreground","voorgrond"],
 		"contrastPass": ["machine","Contrast meets the recommended 20 dB difference.","Het contrast voldoet aan het aanbevolen verschil van 20 dB."],
 		"contrastRoleInvalid": ["machine","Contrast role must be foreground or background.","De contrastrol moet voorgrond of achtergrond zijn."],
+		"contrastSelectionInstructions": ["machine","Select and measure the foreground, then select and measure the background.","Selecteer en meet de voorgrond en selecteer en meet daarna de achtergrond."],
 		"contrastStored": ["machine","Stored contrast {role}.","{role} voor het contrast opgeslagen."],
 		"controlTrack": ["machine","Control track","Besturingstrack"],
 		"controlTrackNotFound": ["machine","The control track was not found.","De besturingstrack is niet gevonden."],
@@ -2375,7 +2378,9 @@
 		"spectrogramWindowHann": ["machine","Hann","Hann"],
 		"spectrogramWindowType": ["machine","Window type","Venstertype"],
 		"spectrum": ["machine","Frequency spectrum","Frequentiespectrum"],
+		"spectrumConfiguration": ["machine","{size} FFT · {sampleRate} Hz","{size} FFT · {sampleRate} Hz"],
 		"spectrumPeak": ["machine","Peak frequency","Piekfrequentie"],
+		"spectrumPeakDetail": ["machine","{label}: {frequency} Hz · {level}","{label}: {frequency} Hz · {level}"],
 		"split": ["machine","Split at playhead","Splitsen bij afspeelpositie"],
 		"splitDelete": ["machine","Split delete","Splitsen + verwijderen"],
 		"splitIntoNewTrack": ["audacity","Split into new track","Splitsen naar nieuwe track"],

@@ -49,6 +49,7 @@ Product availability follows each product profile’s command filters and each l
 | Align together | `align-together` | — | Tracks > Align content | Soundscaper, Framescaper | Audacity |
 | Amplify | `audacity-amplify` | — | Effect > Volume and compression | Soundscaper | Soundscaper local |
 | Analysis | `analysis` | — | Analyze | Soundscaper | Soundscaper local |
+| Analyze selection | `analyze-selection` | — | Analyze | Soundscaper | Soundscaper local |
 | Apply preset | `action://effects/presets/apply` | — | Effect dialog > Presets | Soundscaper | Audacity |
 | At zero crossings | `zero-cross` | Z | Select | Soundscaper, Framescaper | Audacity |
 | Attach | `framescaper-proxy-attach` | — | Tools > Proxies | Framescaper | Soundscaper local |
@@ -156,7 +157,6 @@ Product availability follows each product profile’s command filters and each l
 | Duplicate | `duplicate` | Ctrl+D | Edit | Soundscaper, Framescaper | Audacity |
 | Duplicate project | `duplicate-project` | — | File > Project management | Soundscaper, Framescaper | Soundscaper local |
 | Duplicate track | `duplicate-track` | — | Tracks; Track context | Soundscaper, Framescaper | Audacity |
-| EBU R 128 | `ebu-r128-metrics` | — | Analyze | Soundscaper | Soundscaper local |
 | Echo | `audacity-echo` | — | Effect > Delay and reverb | Soundscaper | Soundscaper local |
 | Edit Video Mask/Matte | `framescaper-edit-video-mask-matte` | — | Effect | Framescaper | Soundscaper local |
 | Edit here | `claim-project-lock` | — | File | Soundscaper, Framescaper | Soundscaper local |

@@ -106,7 +106,7 @@ Save, move, and open projects, including projects made in Audacity.
 
 Measure loudness, inspect frequencies, and find problems in a recording.
 
-- [Measure how loud your mix is](/guides/analysis/measure-loudness/) — Read the integrated loudness, range and true peak of the project the way broadcasters do.
+- [Measure how loud your mix is](/guides/analysis/measure-loudness/) — Read the integrated loudness, range and true peak of a selection the way broadcasters do.
 - [See which frequencies a sound contains](/guides/analysis/plot-a-spectrum/) — Plot the spectrum of a selection to find hum, hiss or resonances.
 - [Find where a recording clipped](/guides/analysis/find-clipping/) — Locate the places where a recording hit full scale and distorted.
 - [Find the beats in a loop](/guides/analysis/find-the-beats/) — Let the Beat Finder analyzer mark every beat it hears.

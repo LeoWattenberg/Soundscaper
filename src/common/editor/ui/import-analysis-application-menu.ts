@@ -10,6 +10,7 @@ interface MenuContext {
 	readonly editBlocked: boolean;
 	readonly blocked: boolean;
 	readonly analyzerBlocked: boolean;
+	readonly openRepeatAnalyzer?: () => unknown;
 	readonly actionRuntime: Readonly<{
 		readonly generators?: Readonly<{ repeatLast?(): unknown }>;
 		readonly analysis?: Readonly<{ repeatLast?(): unknown }>;
@@ -32,7 +33,7 @@ export function createRepeatAnalyzerMenuItem(context: MenuContext) {
 	return {
 		id: 'repeat-analyzer', label: context.copy.repeatLastAnalyzer,
 		disabled: context.analyzerBlocked || !context.snapshot?.analysisRepeatable,
-		onClick: context.actionRuntime?.analysis?.repeatLast ?? NO_ACTION,
+		onClick: context.openRepeatAnalyzer ?? NO_ACTION,
 	};
 }
 

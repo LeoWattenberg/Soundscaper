@@ -32,6 +32,11 @@ const SELECTION_DEPENDENT_COMMANDS = Object.freeze([
 	'tremolo',
 	'nyquist:adjustable-fade',
 	'nyquist:clipfix',
+	'analyze-selection',
+	'plot-spectrum',
+	'find-clipping',
+	'contrast',
+	'measure-loudness',
 ]);
 
 const EFFECT_COMMANDS_WITH_DEFAULT_TARGET = new Set([
@@ -46,6 +51,8 @@ const EFFECT_COMMANDS_WITH_DEFAULT_TARGET = new Set([
 interface MenuItem {
 	readonly id?: unknown;
 	readonly disabled?: unknown;
+	readonly checked?: unknown;
+	readonly visibilityToggle?: unknown;
 	readonly items?: readonly MenuItem[];
 	readonly onClick?: unknown;
 }
@@ -137,10 +144,50 @@ test('a selected track alone still reaches the commands that only need one', () 
 	const withoutSelection = enablement('none');
 	// These act on the track or the playhead, not on a selected region, so a
 	// selection gate would withhold them from the only state they work in.
-	// Contrast belongs here too: the entry opens the panel that holds the
-	// measurements already taken, and only measuring needs a selection.
-	for (const id of ['action://delete', 'realtime-effects', 'split', 'mix-render', 'resample', 'silence-generator', 'select-all', 'contrast']) {
+	for (const id of ['action://delete', 'realtime-effects', 'split', 'mix-render', 'resample', 'silence-generator', 'select-all', 'analysis']) {
 		assert.equal(withoutSelection.get(id), true, id);
+	}
+});
+
+test('Analysis is a checked panel toggle even when the project has no clips', () => {
+	const toggled: string[] = [];
+	const input = menuInput('none') as unknown as Record<string, unknown>;
+	const project = { ...(input.project as { clips: unknown[] }), clips: [] };
+	const original = input.snapshot as {
+		preferences: { workspace: { panels: Record<string, unknown> } };
+	};
+	const snapshot = {
+		...original,
+		project,
+		preferences: {
+			...original.preferences,
+			workspace: {
+				...original.preferences.workspace,
+				panels: { ...original.preferences.workspace.panels, analysis: { visible: true } },
+			},
+		},
+	};
+	const menus = createWorkspaceApplicationMenus({
+		...input, project, snapshot, toggleWorkspacePanel: (panelId: string) => toggled.push(panelId),
+	} as Parameters<typeof createWorkspaceApplicationMenus>[0]) as readonly MenuItem[];
+	const analyze = menus.find((menu) => menu.id === 'analyze');
+	const analysis = analyze?.items?.find((item) => item.id === 'analysis');
+	assert.equal(analysis?.disabled, false);
+	assert.equal(analysis?.visibilityToggle, true);
+	assert.equal(analysis?.checked, true);
+	(analysis?.onClick as (() => void) | undefined)?.();
+	assert.deepEqual(toggled, ['analysis']);
+});
+
+test('selection analyzer dialogs cannot open into a permanently empty processing state', () => {
+	const input = menuInput('time') as unknown as Record<string, unknown>;
+	const menus = createWorkspaceApplicationMenus({
+		...input,
+		snapshot: { ...(input.snapshot as object), analysisProcessing: true },
+	} as Parameters<typeof createWorkspaceApplicationMenus>[0]) as readonly MenuItem[];
+	const analyze = menus.find((menu) => menu.id === 'analyze');
+	for (const id of ['analyze-selection', 'plot-spectrum', 'find-clipping', 'contrast', 'measure-loudness']) {
+		assert.equal(analyze?.items?.find((item) => item.id === id)?.disabled, true, id);
 	}
 });
 

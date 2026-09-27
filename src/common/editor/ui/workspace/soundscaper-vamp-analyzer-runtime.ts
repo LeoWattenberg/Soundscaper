@@ -3,6 +3,7 @@
 /** Project-fenced renderer adapter for the menu-opened Vamp analyzer. */
 
 import { createStableId } from '../../stable-id.js';
+import { resolveSelectionRange } from '../../selection-range.ts';
 import {
 	normalizeVampAnalysisRequest,
 	normalizeVampAnalysisResult,
@@ -68,6 +69,7 @@ export interface SoundscaperVampAnalyzerSessionOptions {
 	readonly controller: SoundscaperVampAnalyzerController;
 	readonly durationFrames: number;
 	readonly selectedTrackId?: string | null;
+	readonly selectedClipId?: string | null;
 	readonly port?: SoundscaperVampAnalyzerPort | null;
 	readonly createTrackId?: () => string;
 }
@@ -80,7 +82,8 @@ export function createSoundscaperVampAnalyzerSession(
 	const port = options.port ?? options.controller?.actions?.analysis?.vamp ?? null;
 	if (project === null || port === null) return null;
 	const durationFrames = positiveSafeInteger(options.durationFrames, 'Vamp project duration');
-	const range = selectedRange(project.selection, durationFrames);
+	const range = resolveSelectionRange(project, { selectedClipId: options.selectedClipId ?? null });
+	if (!range || range.endFrame > durationFrames) return null;
 	const selectedTrackId = selectedAudioTrackId(project, options.selectedTrackId ?? null);
 	const scope: VampAnalysisScope = selectedTrackId === null ? 'master' : 'track';
 	const projectId = project.id;
@@ -161,20 +164,6 @@ function admitProject(value: unknown): VampWorkspaceProject | null {
 		|| !Number.isSafeInteger(project.sampleRate) || Number(project.sampleRate) <= 0
 		|| !Array.isArray(project.tracks)) return null;
 	return project as VampWorkspaceProject;
-}
-
-function selectedRange(
-	selection: VampWorkspaceProject['selection'],
-	durationFrames: number,
-): Readonly<{ startFrame: number; endFrame: number }> {
-	const startFrame = selection?.startFrame;
-	const endFrame = selection?.endFrame;
-	if (Number.isSafeInteger(startFrame) && Number.isSafeInteger(endFrame)
-		&& Number(startFrame) >= 0 && Number(endFrame) > Number(startFrame)
-		&& Number(endFrame) <= durationFrames) {
-		return Object.freeze({ startFrame: Number(startFrame), endFrame: Number(endFrame) });
-	}
-	return Object.freeze({ startFrame: 0, endFrame: durationFrames });
 }
 
 function selectedAudioTrackId(project: VampWorkspaceProject, selectedTrackId: string | null): string | null {

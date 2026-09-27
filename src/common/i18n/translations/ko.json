@@ -2,7 +2,7 @@
 	"schemaVersion": 2,
 	"locale": "ko",
 	"provenance": {
-		"machine": {"model":"realtime-effect-picker-copy-replay","modelDigest":"sha256:f09193dbdae60a01e323d0a8e630137be9f85e115fd4649284df77a0a0be4a2d","promptVersion":"i18n-machine-v1"},
+		"machine": {"model":"codex-gpt-6","modelDigest":"sha256:82ca103a5e43694ecb782edd2da4916ad28d59b7be27c550f38c71abc5b8bfdd","promptVersion":"i18n-machine-v1"},
 		"audacity": {"repository":"audacity/audacity","headSha":"de2e43dc13474ba712ade5ea8e47550eba0e8bfb","runId":35327911264,"artifactId":10539339149,"workflowUrl":"https://github.com/audacity/audacity/actions/runs/35327911264","archiveName":"Audacity_locale_262610911.zip","archiveSha256":"13b1ff11c39a677c711a1d29738a394aaca7a200533927aab3f45bbd76c1ff8e","archiveByteLength":15413913,"licenseSpdx":"GPL-3.0-only","upstreamProjectUrl":"https://github.com/audacity/audacity","upstreamLicenseUrl":"https://github.com/audacity/audacity/blob/de2e43dc13474ba712ade5ea8e47550eba0e8bfb/LICENSE.txt","modificationNotice":"Soundscaper converts reviewed Audacity Qt TS messages to per-locale JSON catalogs, excludes unsafe or inapplicable entries, adapts reviewed placeholders and mnemonics, and removes ellipsis punctuation.","mappingVersion":3,"mappingSha256":"f4cf0434f47eaa9434d079a1623b9d9501e9c8da0d83f0c73344f7765113b57c"}
 	},
 	"entries": {
@@ -69,6 +69,7 @@
 		"analysisSummary": ["machine","{channelCount} channels · {duration} s · {sampleRate} Hz","{channelCount} 채널 · {duration} 초 · {sampleRate} Hz"],
 		"analyzeMaster": ["machine","Analyze master","마스터 분석"],
 		"analyzeMenu": ["machine","Analyze","분석"],
+		"analyzeSelection": ["machine","Analyze selection","선택 영역 분석"],
 		"analyzeTrack": ["machine","Analyze track","트랙 분석"],
 		"annotationAnchor": ["machine","Anchor","앵커"],
 		"annotationColor": ["machine","Color","색상"],
@@ -498,6 +499,7 @@
 		"clipStyleClassic": ["machine","Classic","클래식"],
 		"clipStyleColorful": ["machine","Colorful","다채로운"],
 		"clipping": ["audacity","Clipping","클리핑"],
+		"clippingRegionDetail": ["machine","{start}–{end} s · {peak}","{start}–{end} s · {peak}"],
 		"clippingRegions": ["machine","{count} clipping regions","{count} 클리핑 영역"],
 		"close": ["machine","Close","닫기"],
 		"closeProject": ["machine","Close project","프로젝트 닫기"],
@@ -532,6 +534,7 @@
 		"contrastForegroundRole": ["machine","foreground","전경"],
 		"contrastPass": ["machine","Contrast meets the recommended 20 dB difference.","대비가 권장되는 20 dB 차이를 충족합니다."],
 		"contrastRoleInvalid": ["machine","Contrast role must be foreground or background.","대비 역할은 전경 또는 배경이어야 합니다."],
+		"contrastSelectionInstructions": ["machine","Select and measure the foreground, then select and measure the background.","전경을 선택하고 측정한 다음, 배경을 선택하고 측정하세요."],
 		"contrastStored": ["machine","Stored contrast {role}.","{role} 대비 저장됨"],
 		"controlTrack": ["machine","Control track","제어 트랙"],
 		"controlTrackNotFound": ["machine","The control track was not found.","제어 트랙을 찾을 수 없습니다."],
@@ -2375,7 +2378,9 @@
 		"spectrogramWindowHann": ["machine","Hann","한"],
 		"spectrogramWindowType": ["machine","Window type","창 유형"],
 		"spectrum": ["machine","Frequency spectrum","주파수 스펙트럼"],
+		"spectrumConfiguration": ["machine","{size} FFT · {sampleRate} Hz","{size} FFT · {sampleRate} Hz"],
 		"spectrumPeak": ["machine","Peak frequency","최대 주파수"],
+		"spectrumPeakDetail": ["machine","{label}: {frequency} Hz · {level}","{label}: {frequency} Hz · {level}"],
 		"split": ["machine","Split at playhead","재생 헤드에서 분할"],
 		"splitDelete": ["machine","Split delete","분할 삭제"],
 		"splitIntoNewTrack": ["audacity","Split into new track","새 트랙으로 분할"],

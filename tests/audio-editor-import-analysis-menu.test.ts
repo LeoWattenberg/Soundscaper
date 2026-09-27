@@ -19,9 +19,10 @@ test('import and analysis application-menu items expose only opted-in workflows'
 		},
 		snapshot: { analysisRepeatable: true, generators: { canRepeatLast: true } },
 		editBlocked: false, blocked: false, analyzerBlocked: false,
+		openRepeatAnalyzer: () => { issued.push('analyzer-dialog'); },
 		actionRuntime: {
 			generators: { repeatLast: () => { issued.push('generator'); } },
-			analysis: { repeatLast: () => { issued.push('analyzer'); } },
+			analysis: { repeatLast: () => { issued.push('analyzer-action'); } },
 			io: { importRawData: () => { issued.push('raw'); } },
 			timelineAnnotations: { openRegularInterval: () => { issued.push('regular'); } },
 		},
@@ -35,6 +36,7 @@ test('import and analysis application-menu items expose only opted-in workflows'
 		['repeat-generator', false], ['repeat-analyzer', false], ['raw-data-import', false], ['regular-interval-labels', false],
 	]);
 	for (const item of items) item.onClick();
-	assert.deepEqual(issued, ['generator', 'analyzer', 'raw', 'regular']);
+	assert.deepEqual(issued, ['generator', 'analyzer-dialog', 'raw', 'regular']);
+	assert.equal(createRepeatAnalyzerMenuItem({ ...context, analyzerBlocked: true }).disabled, true);
 	assert.deepEqual(createImportAnalysisToolMenuItems({ ...context, productId: 'framescaper' }), []);
 });

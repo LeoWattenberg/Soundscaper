@@ -52,28 +52,15 @@
 	font-size: var(--editor-font-size, 12px);
 }
 
-.kw-audio-editor__panel-dock :is(
-	[data-workspace-panel-members~='analysis'],
-	[data-workspace-panel-members~='spectrum'],
-	[data-workspace-panel-members~='clipping'],
-	[data-workspace-panel-members~='contrast'],
-	[data-workspace-panel-members~='ebu-r128']
-) {
+.kw-audio-editor__panel-dock [data-workspace-panel-members~='analysis'] {
 	width: 100%;
 	height: auto;
 	flex: 1 1 0;
 	resize: none;
 }
 
-:is(
-	[data-workspace-panel='analysis'],
-	[data-workspace-panel='spectrum'],
-	[data-workspace-panel='clipping'],
-	[data-workspace-panel='contrast'],
-	[data-workspace-panel='ebu-r128']
-) .kw-audio-editor__workspace-panel-content,
-.audio-editor-analysis-inspector,
-.kw-audio-editor__ebu-dashboard {
+[data-workspace-panel='analysis'] .kw-audio-editor__workspace-panel-content,
+.audio-editor-analysis-inspector {
 	box-sizing: border-box;
 	width: 100%;
 	min-height: 100%;

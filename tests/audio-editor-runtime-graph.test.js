@@ -20,6 +20,7 @@ import {
 	createRackProject,
 	incomingConnections,
 } from './helpers/audio-editor-runtime-harness.js';
+import { ENGINE_EMIT_METERS } from '../src/common/editor/engine/runtime-symbols.ts';
 
 test('project graph meters pre-mute tracks and applies master processing', () => {
 	const context = new MockAudioContext();
@@ -37,6 +38,41 @@ test('project graph meters pre-mute tracks and applies master processing', () =>
 	});
 	assert.equal(dryContext.nodeKinds.includes('stereo-panner'), false);
 	assert.equal(dryGraph.trackInputs.size, 1);
+});
+
+test('live-analysis lease attaches a high-resolution side tap during playback and releases it', async () => {
+	const context = new MockAudioContext();
+	context.createChannelSplitter = (channels) => context.make('channel-splitter', { numberOfOutputs: channels });
+	const readings = [];
+	const engine = createAudioEditorEngine({
+		audioContextFactory: () => context,
+		onMeter: (reading) => readings.push(reading),
+		meterInterval: 1_000,
+	});
+	try {
+		engine.loadProject(createProject(), new Map([['source-1', new MockAudioBuffer(2, 48_000, 48_000)]]));
+		await engine.play();
+		engine[ENGINE_EMIT_METERS]();
+		assert.equal(Object.hasOwn(readings.at(-1).master, 'spectrumDb'), false);
+		const normalFftSize = engine.graph.masterAnalyser.fftSize;
+		const existingTransientCount = engine.graph.nodes.transientNodes?.size || 0;
+		const release = engine.acquireLiveAnalysis();
+		assert.equal(engine.graph.nodes.transientNodes.size, existingTransientCount, 'acquiring is deferred to the shared tick');
+		engine[ENGINE_EMIT_METERS]();
+		assert.equal(engine.graph.masterAnalyser.fftSize, normalFftSize);
+		assert.equal(engine.graph.nodes.transientNodes.size, existingTransientCount + 4);
+		assert.equal(engine.graph.nodes.transientNodes.has(engine.graph.masterAnalyser), false);
+		assert.ok([...engine.graph.nodes.transientNodes].some((node) => node.fftSize === 4_096));
+		assert.equal(readings.at(-1).master.spectrumDb.length, 128);
+		assert.ok(readings.at(-1).master.stereoScope.length <= 64);
+		release();
+		release();
+		assert.equal(engine.graph.nodes.transientNodes.size, existingTransientCount);
+		engine[ENGINE_EMIT_METERS]();
+		assert.equal(Object.hasOwn(readings.at(-1).master, 'spectrumDb'), false);
+	} finally {
+		await engine.dispose();
+	}
 });
 
 test('project graph builds metered group and send bus paths', () => {

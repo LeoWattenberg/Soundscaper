@@ -58,8 +58,11 @@ test.describe('Soundscaper native production workflows', () => {
 		await closeDialog(mastering);
 		await expect(toolsTrigger).toBeFocused();
 
-		await chooseCommandAction(page, editor, 'Analyze', 'EBU R 128');
-		await expect(editor.locator('[data-workspace-panel="ebu-r128"]')).toBeVisible();
+		await chooseCommandAction(page, editor, 'Analyze', 'Analysis');
+		const analysisPanel = editor.locator('[data-workspace-panel="analysis"]');
+		await expect(analysisPanel).toBeVisible();
+		await analysisPanel.locator('[data-analysis-section="loudness"] summary').click();
+		await expect(analysisPanel.locator('[data-ebu-state]')).toBeVisible();
 		await expect(page.getByRole('dialog', { name: 'Production audio', exact: true })).toHaveCount(0);
 		expect(errors).toEqual([]);
 	});

@@ -41,6 +41,7 @@ const DeliveryQueueDialog = lazyEditorModule(() => import('../inspector/Delivery
 const LabelExportDialog = lazyEditorModule(() => import('../inspector/LabelExportDialog.jsx'));
 const SelectionEffectsDialog = lazyEditorModule(() => import('../inspector/SelectionEffectsDialog.jsx'));
 const MixRenderDialog = lazyEditorModule(() => import('../dialogs/MixRenderDialog.tsx'));
+const AnalysisDialog = lazyEditorModule(() => import('../dialogs/AnalysisDialog.jsx'));
 const EditorDialog = lazyEditorModule(() => import('../dialogs/EditorDialog.jsx'));
 const GeneratorDialog = lazyEditorModule(() => import('../dialogs/GeneratorDialog.jsx'));
 const NyquistDialog = lazyEditorModule(() => import('../dialogs/NyquistDialog.jsx'));
@@ -173,7 +174,6 @@ export default function AudioEditorWorkspaceOverlays({ model }) {
 					</React.Suspense>
 				</div>
 			)}
-
 			{capabilities.audioEffects && effectWindow && (
 				<div data-effects-window-host>
 					<React.Suspense fallback={null}>
@@ -513,12 +513,14 @@ export default function AudioEditorWorkspaceOverlays({ model }) {
 					/>
 				</div>
 			)}
+			{activeSurface?.startsWith('offline-analysis-') && <div data-editor-surface={activeSurface}>
+				<AnalysisDialog mode={activeSurface.slice('offline-analysis-'.length)} controller={controller} snapshot={snapshot} copy={copy} fileService={fileService} onClose={() => setActiveSurface(null)} />
+			</div>}
 			<LocalProcessingOverlays activeSurface={activeSurface} fileService={fileService}
 				capabilities={capabilities} snapshot={snapshot} copy={copy} locale={locale}
 				selectedMediaPreparation={selectedMediaPreparation}
 				textToSpeechProjectPort={controller?.textToSpeechProjectPort ?? null}
 				setActiveSurface={setActiveSurface} />
-
 			{dialog && dialog !== 'project-compatibility' && (
 				<EditorDialog
 					aboutLabel={aboutLabel}

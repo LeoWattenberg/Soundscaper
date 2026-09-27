@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from 'react'; import { publishedCopyFor } from '../../controller/shared/presentation-localization.ts';
 import { Button } from '@soundscaper/design-system/Button';
 
-import { EbuR128WorkspacePanel } from '../toolbar/AudioEditorMeters.jsx';
 import AudioEditorMixerPanel from './AudioEditorMixerPanel.jsx';
 import { LabelManagerRow } from './LabelManagerRows.jsx';
 import ProjectBinPanel from './ProjectBinPanel.jsx';
@@ -9,11 +8,11 @@ import SourceMonitorPanel from './SourceMonitorPanel.jsx';
 import TimelineAnnotationWorkspacePanel from './TimelineAnnotationWorkspacePanel.tsx';
 import VideoPreviewPanel from './VideoPreviewPanel.jsx';
 import { SequenceTimingProjectProperties } from '../toolbar/SequenceTimingControls.jsx';
-import { ANALYSIS_MODE_PANEL_IDS, historyCommandLabel } from './workspace-panel-model.ts';
+import { historyCommandLabel } from './workspace-panel-model.ts';
 import { consumeEffectsFocusSuppression, hasEffectsFocusSuppression } from './workspace-preset-focus.js';
 import { lazyEditorModule } from '../../../offline/lazy-module.tsx';
 
-const AnalysisPanel = lazyEditorModule(() => import('../inspector/AnalysisPanel.jsx'));
+const RealtimeAnalysisPanel = lazyEditorModule(() => import('../inspector/RealtimeAnalysisPanel.jsx'));
 
 // The docked effects rack claims keyboard focus when it opens. Moving the
 // panel to another dock unmounts that rack and mounts a fresh one, which would
@@ -144,29 +143,10 @@ export default function WorkspacePanelContent({
 			/>
 		);
 	}
-	const analysisMode = Object.entries(ANALYSIS_MODE_PANEL_IDS)
-		.find(([, candidatePanelId]) => candidatePanelId === panelId)?.[0];
-	if (analysisMode) {
-		return (
-			<React.Suspense fallback={<LazyInspectorFallback copy={copy} />}>
-				<AnalysisPanel
-					mode={analysisMode}
-					controller={controller}
-					snapshot={snapshot}
-					copy={copy}
-					fileService={fileService}
-				/>
-			</React.Suspense>
-		);
-	}
-	if (panelId === 'ebu-r128') {
-		return (
-			<EbuR128WorkspacePanel
-				controller={controller}
-				copy={copy}
-				settings={playbackMeterSettings}
-			/>
-		);
+	if (panelId === 'analysis') {
+		return <React.Suspense fallback={<LazyInspectorFallback copy={copy} />}>
+			<RealtimeAnalysisPanel controller={controller} copy={copy} settings={playbackMeterSettings} active={panelActive} />
+		</React.Suspense>;
 	}
 	if (panelId === 'history') {
 		const undoEntries = snapshot.history?.undoEntries || [];

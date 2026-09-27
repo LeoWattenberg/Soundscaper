@@ -49,6 +49,7 @@ test('document snapshots expose durability, scheduling, history, and compatibili
 		history: { undoStack: ['old', 'new'], redoStack: ['redo'] },
 		clipboard: { sourceIds: [] },
 		lastAudacityEffect: { type: 'audacity-noise-reduction', params: {}, controlTrackId: null },
+		lastAnalysisRequest: { type: 'spectrum', scope: 'master', options: {} },
 		recordingKind: 'take-cycle',
 		archiveManifest: { manifest: { members: [{ id: 'project.json' }] }, unavailable: null },
 		takeCycleRecovery: Object.freeze({
@@ -142,6 +143,7 @@ test('document snapshots expose durability, scheduling, history, and compatibili
 	});
 	assert.equal(snapshot.recording, false);
 	assert.equal(snapshot.recordingKind, 'take-cycle');
+	assert.deepEqual(snapshot.lastAnalysisRequest, state.lastAnalysisRequest);
 	assert.strictEqual(snapshot.takeCycleRecovery, state.takeCycleRecovery);
 	assert.equal(Object.isFrozen(snapshot.takeCycleRecovery), true);
 	assert.strictEqual(snapshot.recordingInputs.soundActivation, SOUND_ACTIVATION_SNAPSHOT);

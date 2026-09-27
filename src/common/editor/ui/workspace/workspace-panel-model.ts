@@ -1,15 +1,6 @@
 const DEFERRED_WEB_VCR_PANEL_ID = 'web-vcr';
 
-export const ANALYSIS_MODE_PANEL_IDS = Object.freeze({
-	levels: 'analysis',
-	spectrum: 'spectrum',
-	clipping: 'clipping',
-	contrast: 'contrast',
-});
-export const ANALYZER_PANEL_IDS = Object.freeze([
-	...Object.values(ANALYSIS_MODE_PANEL_IDS),
-	'ebu-r128',
-]);
+export const ANALYZER_PANEL_IDS = Object.freeze(['analysis']);
 export const ANALYZER_PANEL_ID_SET = new Set(ANALYZER_PANEL_IDS);
 
 export const WORKSPACE_PANEL_IDS = Object.freeze([
@@ -24,10 +15,6 @@ export const WORKSPACE_PANEL_IDS = Object.freeze([
 	'effects',
 	'mixer',
 	'analysis',
-	'spectrum',
-	'clipping',
-	'contrast',
-	'ebu-r128',
 	'recording-setup',
 	DEFERRED_WEB_VCR_PANEL_ID,
 ]);
@@ -96,10 +83,6 @@ export function workspacePanelLabel(copy: EditorCopy, panelId: string): string {
 		'recording-setup': copy.panelRecordingSetup,
 		[DEFERRED_WEB_VCR_PANEL_ID]: copy.webVcrTitle,
 		analysis: copy.analysisCommand,
-		spectrum: copy.plotSpectrum,
-		clipping: copy.findClipping,
-		contrast: copy.contrast,
-		'ebu-r128': copy.meterTypeEbuR128,
 	};
 	if (analyzerLabels[panelId]) return analyzerLabels[panelId];
 	return copy[`panel${panelId[0].toUpperCase()}${panelId.slice(1)}`] || panelId;

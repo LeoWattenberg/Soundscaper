@@ -31,7 +31,7 @@ function build(
 ) {
 	const opened: string[] = [];
 	const items = createSoundscaperNativeServicesMenuItems(
-		{ productId: 'soundscaper', runtimeAvailable: true, snapshot, ...overrides },
+		{ productId: 'soundscaper', runtimeAvailable: true, snapshot, analyzerSelectionAvailable: true, ...overrides },
 		{ open: (surface) => opened.push(surface) },
 	);
 	return { items, opened };
@@ -118,6 +118,16 @@ test('Vamp analysis is menu-only and requires the enabled Vamp format', () => {
 	assert.match(entry.disabledReason, /Vamp/iu);
 	const unwired = build({ analyzerRuntimeAvailable: false });
 	assert.match(find(unwired.items.analyze, 'native-analyzer-use').disabledReason, /runtime/iu);
+});
+
+test('Vamp analysis is disabled without a selected time range or clip', () => {
+	const { items, opened } = build({ analyzerSelectionAvailable: false,
+		copy: { timeSelectionRequired: 'Select a range or clip first.' } });
+	const entry = find(items.analyze, 'native-analyzer-use');
+	assert.equal(entry.disabled, true);
+	assert.match(entry.disabledReason, /range or clip/iu);
+	assert.equal(entry.onClick, undefined);
+	assert.deepEqual(opened, []);
 });
 
 test('the surfaces that turn the tier on or repair it stay reachable while it is off', () => {

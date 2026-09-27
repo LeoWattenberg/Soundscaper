@@ -2,7 +2,7 @@
 	"schemaVersion": 2,
 	"locale": "vi",
 	"provenance": {
-		"machine": {"model":"realtime-effect-picker-copy-replay","modelDigest":"sha256:df7750c07b2febba9d3f9926e4d11b788c4fb8599765d574713172165b28c6f5","promptVersion":"i18n-machine-v1"},
+		"machine": {"model":"codex-gpt-6","modelDigest":"sha256:f6aa41fb5b349f930692d9db5723b92dcf842cbe0b465f559bce77f194c54a5b","promptVersion":"i18n-machine-v1"},
 		"audacity": {"repository":"audacity/audacity","headSha":"de2e43dc13474ba712ade5ea8e47550eba0e8bfb","runId":35327911264,"artifactId":10539339149,"workflowUrl":"https://github.com/audacity/audacity/actions/runs/35327911264","archiveName":"Audacity_locale_262610911.zip","archiveSha256":"13b1ff11c39a677c711a1d29738a394aaca7a200533927aab3f45bbd76c1ff8e","archiveByteLength":15413913,"licenseSpdx":"GPL-3.0-only","upstreamProjectUrl":"https://github.com/audacity/audacity","upstreamLicenseUrl":"https://github.com/audacity/audacity/blob/de2e43dc13474ba712ade5ea8e47550eba0e8bfb/LICENSE.txt","modificationNotice":"Soundscaper converts reviewed Audacity Qt TS messages to per-locale JSON catalogs, excludes unsafe or inapplicable entries, adapts reviewed placeholders and mnemonics, and removes ellipsis punctuation.","mappingVersion":3,"mappingSha256":"f4cf0434f47eaa9434d079a1623b9d9501e9c8da0d83f0c73344f7765113b57c"}
 	},
 	"entries": {
@@ -69,6 +69,7 @@
 		"analysisSummary": ["machine","{channelCount} channels · {duration} s · {sampleRate} Hz","{channelCount} kênh · {duration} s · {sampleRate} Hz"],
 		"analyzeMaster": ["machine","Analyze master","Phân tích master"],
 		"analyzeMenu": ["machine","Analyze","Phân tích"],
+		"analyzeSelection": ["machine","Analyze selection","Phân tích vùng chọn"],
 		"analyzeTrack": ["machine","Analyze track","Phân tích track"],
 		"annotationAnchor": ["machine","Anchor","Điểm neo"],
 		"annotationColor": ["machine","Color","Màu"],
@@ -498,6 +499,7 @@
 		"clipStyleClassic": ["machine","Classic","Cổ điển"],
 		"clipStyleColorful": ["machine","Colorful","Đầy màu sắc"],
 		"clipping": ["audacity","Clipping","Clipping - Vỡ tiếng"],
+		"clippingRegionDetail": ["machine","{start}–{end} s · {peak}","{start}–{end} s · {peak}"],
 		"clippingRegions": ["machine","{count} clipping regions","{count} vùng clipping"],
 		"close": ["machine","Close","Đóng"],
 		"closeProject": ["machine","Close project","Đóng dự án"],
@@ -532,6 +534,7 @@
 		"contrastForegroundRole": ["machine","foreground","tiền cảnh"],
 		"contrastPass": ["machine","Contrast meets the recommended 20 dB difference.","Độ tương phản đạt mức chênh lệch 20 dB được khuyến nghị."],
 		"contrastRoleInvalid": ["machine","Contrast role must be foreground or background.","Vai trò tương phản phải là tiền cảnh hoặc nền."],
+		"contrastSelectionInstructions": ["machine","Select and measure the foreground, then select and measure the background.","Chọn và đo tiền cảnh, sau đó chọn và đo nền."],
 		"contrastStored": ["machine","Stored contrast {role}.","Đã lưu {role} tương phản."],
 		"controlTrack": ["machine","Control track","Track điều khiển"],
 		"controlTrackNotFound": ["machine","The control track was not found.","Không tìm thấy track điều khiển."],
@@ -2375,7 +2378,9 @@
 		"spectrogramWindowHann": ["machine","Hann","Hann"],
 		"spectrogramWindowType": ["machine","Window type","Loại cửa sổ"],
 		"spectrum": ["machine","Frequency spectrum","Phổ tần số"],
+		"spectrumConfiguration": ["machine","{size} FFT · {sampleRate} Hz","{size} FFT · {sampleRate} Hz"],
 		"spectrumPeak": ["machine","Peak frequency","Tần số đỉnh"],
+		"spectrumPeakDetail": ["machine","{label}: {frequency} Hz · {level}","{label}: {frequency} Hz · {level}"],
 		"split": ["machine","Split at playhead","Tách tại vị trí phát"],
 		"splitDelete": ["machine","Split delete","Tách và xóa"],
 		"splitIntoNewTrack": ["audacity","Split into new track","Tách thành track mới"],

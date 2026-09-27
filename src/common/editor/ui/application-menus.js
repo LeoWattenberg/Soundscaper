@@ -34,6 +34,7 @@ import { audioSelectionEffectAppliesToAllAudio } from '../effects.js';
 import { selectAudioEditorLabelEditBlock } from '../label-edit-blocking.ts';
 import { createEffectMacroApplicationMenu } from './macro-application-menu.ts';
 import { resolveEditingActionAvailability } from '../commands/editing-selection-authority.ts';
+import { resolveSelectionRange } from '../selection-range.ts';
 
 /**
  * The video tracks an edit list would describe.
@@ -153,7 +154,11 @@ export default function createApplicationMenus({
 		hasAlignmentTarget: Boolean(selectedTrack || project?.selection?.trackIds?.length),
 	});
 	const analyzerBlocked = (blocked && !snapshot.analysisProcessing) || !project?.clips.length;
-	const importAnalysisMenuContext = { productId, copy, snapshot, editBlocked, blocked, analyzerBlocked, actionRuntime };
+	const selectionAnalyzerBlocked = analyzerBlocked || Boolean(snapshot.analysisProcessing) || !resolveSelectionRange(project, {
+		selectedClipId: snapshot.selectedClipId ?? selectedClip?.id ?? null,
+	});
+	const importAnalysisMenuContext = { productId, copy, snapshot, editBlocked, blocked,
+		analyzerBlocked: selectionAnalyzerBlocked, actionRuntime, openRepeatAnalyzer: actions.openRepeatAnalyzer };
 	const effectLabels = new Map((snapshot.effects?.selectionTypes || []).map(({ type, label }) => [type, label]));
 	const effectGroups = createEffectMenuEntries({
 		organization: preferences?.effects?.menuOrganization,
@@ -470,12 +475,14 @@ export default function createApplicationMenus({
 				createRepeatAnalyzerMenuItem(importAnalysisMenuContext),
 				divider(),
 				...productItems.analyze,
-				{ id: 'analysis', label: copy.analysisCommand, disabled: analyzerBlocked, onClick: () => actions.openAnalysis('levels') },
-				{ id: 'plot-spectrum', label: copy.plotSpectrum, disabled: analyzerBlocked, onClick: () => actions.openAnalysis('spectrum') },
-				{ id: 'find-clipping', label: copy.findClipping, disabled: analyzerBlocked, onClick: () => actions.openAnalysis('clipping') },
-				{ id: 'contrast', label: copy.contrast, disabled: analyzerBlocked, onClick: () => actions.openAnalysis('contrast') },
-				{ id: 'ebu-r128-metrics', label: copy.meterTypeEbuR128, disabled: !project, onClick: actions.openEbuR128 },
-				{ id: 'measure-loudness', label: copy.measureLoudness, disabled: analyzerBlocked, onClick: actions.measureLoudness },
+				{ id: 'analysis', label: copy.analysisCommand, disabled: !project,
+					checked: snapshot.preferences?.workspace?.panels?.analysis?.visible === true,
+					visibilityToggle: true, onClick: () => actions.togglePanel('analysis') },
+				{ id: 'analyze-selection', label: copy.analyzeSelection, disabled: selectionAnalyzerBlocked, onClick: () => actions.openAnalysis('levels') },
+				{ id: 'plot-spectrum', label: copy.plotSpectrum, disabled: selectionAnalyzerBlocked, onClick: () => actions.openAnalysis('spectrum') },
+				{ id: 'find-clipping', label: copy.findClipping, disabled: selectionAnalyzerBlocked, onClick: () => actions.openAnalysis('clipping') },
+				{ id: 'contrast', label: copy.contrast, disabled: selectionAnalyzerBlocked, onClick: () => actions.openAnalysis('contrast') },
+				{ id: 'measure-loudness', label: copy.measureLoudness, disabled: selectionAnalyzerBlocked, onClick: actions.measureLoudness },
 				{ id: 'nyquist-analyzers', label: copy.nyquist, items: nyquistItems('analyze') },
 			],
 		},

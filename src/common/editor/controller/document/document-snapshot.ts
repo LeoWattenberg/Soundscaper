@@ -374,6 +374,7 @@ export function createEditorDocumentSnapshot<Project extends SnapshotProject>(
 		analysisReport: state.analysisReport,
 		analysisProcessing: state.analysisProcessing,
 		analysisRepeatable: Boolean(state.lastAnalysisRequest),
+		lastAnalysisRequest: state.lastAnalysisRequest ?? null,
 		export: Object.freeze({ progress: state.exportProgress, output: state.exportOutput }),
 		effects: Object.freeze({
 			rackTypes: Object.freeze(runtime.getRackEffectTypes()),

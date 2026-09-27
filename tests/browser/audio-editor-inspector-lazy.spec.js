@@ -2,7 +2,7 @@ import { expect } from '@playwright/test';
 import { test } from './audio-editor-test-fixtures.js';
 
 const INSPECTOR_FEATURE_CHUNKS = Object.freeze([
-	'AnalysisPanel',
+	'RealtimeAnalysisPanel',
 	'AudioEditorEffectsOverlay',
 	'AudioEditorMacroManagerDialog',
 	'ClipPropertiesDialog',
@@ -18,8 +18,8 @@ test.describe('Inspector lazy feature boundaries', () => {
 
 		await chooseCommand(page, editor, 'Analyze', 'Analysis');
 		await expect(editor.locator('[data-workspace-panel="analysis"]')).toBeVisible();
-		await expect.poll(() => requestedScripts.some((name) => name.startsWith('AnalysisPanel-'))).toBe(true);
-		expectLoadedOnly(requestedScripts, 'AnalysisPanel');
+		await expect.poll(() => requestedScripts.some((name) => name.startsWith('RealtimeAnalysisPanel-'))).toBe(true);
+		expectLoadedOnly(requestedScripts, 'RealtimeAnalysisPanel');
 	});
 
 	test('opening Export loads its entry without preloading sibling Inspector features', async ({ page }) => {
@@ -122,7 +122,9 @@ async function chooseCommand(page, editor, menuName, commandName) {
 	const menu = page.getByRole('menu', { name: menuName, exact: true });
 	await expect(menu).toBeVisible();
 	const escapedName = commandName.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
-	const command = menu.getByRole('menuitem', { name: new RegExp(`^${escapedName}(?:\\s|$)`) }).first();
+	const name = new RegExp(`^${escapedName}(?:\\s|$)`);
+	const command = menu.getByRole('menuitem', { name })
+		.or(menu.getByRole('menuitemcheckbox', { name })).first();
 	await command.focus();
 	await page.keyboard.press('Enter');
 }

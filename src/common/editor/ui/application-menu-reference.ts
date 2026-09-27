@@ -214,9 +214,9 @@ const REFERENCE_SEEDS: readonly ReferenceSeed[] = Object.freeze([
 	['assistance-task-separate-dialogue-music-effects', 'Separate Dialogue / Music / Effects…', 'Effect > Source Separation', BOTH],
 	['assistance-task-reframe', 'Reframe…', 'Effect > Video effects', FRAMESCAPER],
 
-	// Analysis panels and guided analysis tasks.
-	['analysis', 'Analysis', 'Analyze', SOUNDSCAPER],
-	['ebu-r128-metrics', 'EBU R 128', 'Analyze', SOUNDSCAPER],
+	// Live analysis panel and selected-range analysis commands.
+	['analysis', 'Analysis', 'Analyze', SOUNDSCAPER, 'setting'],
+	['analyze-selection', 'Analyze selection', 'Analyze', SOUNDSCAPER],
 	['measure-loudness', 'Measure loudness', 'Analyze', SOUNDSCAPER],
 	['native-analyzer-use', 'Vamp Plugins', 'Analyze', SOUNDSCAPER],
 	['framescaper-motion-tracking', 'Motion Tracking', 'Analyze', FRAMESCAPER],

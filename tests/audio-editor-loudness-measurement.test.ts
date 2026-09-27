@@ -83,8 +83,8 @@ function service(overrides: Record<string, unknown> = {}, amplitude = 0.1) {
 	return { service: created, state, renders, processing, statuses };
 }
 
-test('measuring the mix reports its loudness in the delivery report vocabulary', async () => {
-	const harness = service();
+test('measuring the selection reports its loudness in the delivery report vocabulary', async () => {
+	const harness = service({ getActiveSelection: () => ({ startFrame: 0, endFrame: SAMPLE_RATE * 3 }) });
 	const report = await harness.service.measureLoudness();
 	assert.ok(report);
 
@@ -103,13 +103,13 @@ test('measuring the mix reports its loudness in the delivery report vocabulary',
 test('the measurement renders the master through the shared analysis path', async () => {
 	// Not a second render path: the numbers have to describe the mix a delivery
 	// would render, so this consumes the render the other analyzers use.
-	const harness = service();
+	const harness = service({ getActiveSelection: () => ({ startFrame: 0, endFrame: SAMPLE_RATE * 3 }) });
 	await harness.service.measureLoudness();
 	assert.deepEqual(harness.renders, [{ scope: 'master', startFrame: 0, endFrame: SAMPLE_RATE * 3 }]);
 });
 
 test('the report reaches the surface an operator already reads, and releases the busy state', async () => {
-	const harness = service();
+	const harness = service({ getActiveSelection: () => ({ startFrame: 0, endFrame: SAMPLE_RATE * 3 }) });
 	const report = await harness.service.measureLoudness();
 	assert.equal(harness.state.deliveryReport, report);
 	assert.deepEqual(harness.processing, [true, false]);
@@ -124,7 +124,8 @@ test('an empty project is not measured at all', async () => {
 });
 
 test('a failed render releases the busy state instead of wedging the editor', async () => {
-	const harness = service({ renderAudio: async () => { throw new Error('render failed'); } });
+	const harness = service({ getActiveSelection: () => ({ startFrame: 0, endFrame: SAMPLE_RATE * 3 }),
+		renderAudio: async () => { throw new Error('render failed'); } });
 	await assert.rejects(() => harness.service.measureLoudness(), /render failed/u);
 	assert.deepEqual(harness.processing, [true, false]);
 	assert.equal(harness.state.deliveryReport, undefined, 'and no half-formed report is published');
@@ -132,7 +133,7 @@ test('a failed render releases the busy state instead of wedging the editor', as
 
 test('silence is reported as unmeasurable rather than as a loudness of null', async () => {
 	// A null where a number belongs reads as a value. It is not one.
-	const harness = service({}, 0);
+	const harness = service({ getActiveSelection: () => ({ startFrame: 0, endFrame: SAMPLE_RATE * 3 }) }, 0);
 	const report = await harness.service.measureLoudness();
 	const item = report!.items.find(({ code }) => code === 'delivery.loudness-unmeasurable');
 	assert.ok(item, 'silence has no integrated loudness, and the report says so');
@@ -154,6 +155,7 @@ test('authored 7.1 measurement excludes the semantic LFE channel', async () => {
 			metadata: { adm: authoredSevenPointOneAdm() },
 		}),
 		getRange: () => ({ startFrame: 0, endFrame: channels[0].length }),
+		getActiveSelection: () => ({ startFrame: 0, endFrame: channels[0].length }),
 		renderAudio: async () => ({
 			sampleRate: SAMPLE_RATE,
 			numberOfChannels: channels.length,
@@ -165,6 +167,13 @@ test('authored 7.1 measurement excludes the semantic LFE channel', async () => {
 	const report = await harness.service.measureLoudness();
 	assert.ok(report?.items.some(({ code }) => code === 'delivery.loudness-unmeasurable'));
 	assert.equal(report?.items.some(({ code }) => code === 'delivery.loudness-measured'), false);
+});
+
+test('loudness refuses without a current selection, even when the project has audio', async () => {
+	const harness = service({ handleError: () => undefined });
+	assert.equal(await harness.service.measureLoudness(), null);
+	assert.deepEqual(harness.renders, []);
+	assert.equal(harness.state.deliveryReport, undefined);
 });
 
 test('the scope is the selection when there is one, and an empty selection is not one', () => {

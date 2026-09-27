@@ -9,7 +9,13 @@ import { createEditorTaskProgressCoordinator } from '../src/common/editor/contro
 import type { createGroupedEditorActions } from '../src/common/editor/controller/composition/action-facade.ts';
 
 function fixture(enabled = true) {
-	const project = { id: 'analysis', revision: 1, clips: [{ id: 'clip' }], tracks: [{ id: 'track', type: 'audio' }], master: {} };
+	const project = {
+		id: 'analysis', revision: 1,
+		clips: [{ id: 'clip', timelineStartFrame: 20, durationFrames: 20 }],
+		tracks: [{ id: 'track', type: 'audio', clipIds: ['clip'] }],
+		selection: { startFrame: 0, endFrame: 0, trackIds: ['track'], clipIds: ['clip'] },
+		master: {},
+	};
 	const lifetime = new EditorControllerLifetime();
 	lifetime.markReady();
 	const projectGeneration = new EditorProjectGeneration();
@@ -89,6 +95,18 @@ test('analysis snapshots its selected range before asynchronous cache lookup', a
 	await actions.run();
 	assert.deepEqual(f.errors, []);
 	assert.partialDeepStrictEqual(f.renders[0]?.[1], { startFrame: 10, endFrame: 14 });
+});
+
+test('a selected clip supplies the range for offline analysis and contrast', async () => {
+	const f = fixture();
+	f.state.selectedClipId = 'clip';
+	const actions = createAnalysisComposition({ ...f.dependencies, getActiveSelection: () => null });
+	await actions.run();
+	await actions.captureContrast('foreground');
+	assert.deepEqual(f.errors, []);
+	assert.equal(f.renders.length, 2);
+	assert.partialDeepStrictEqual(f.renders[0]?.[1], { startFrame: 20, endFrame: 40 });
+	assert.partialDeepStrictEqual(f.renders[1]?.[1], { startFrame: 20, endFrame: 40 });
 });
 
 test('malformed worker results cannot be cached or published as successful analysis', async () => {

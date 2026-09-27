@@ -2,7 +2,7 @@
 	"schemaVersion": 2,
 	"locale": "cs",
 	"provenance": {
-		"machine": {"model":"realtime-effect-picker-copy-replay","modelDigest":"sha256:b3024d7e6824abb5934558d226018dd50e02f6214c366d85750c8c3983137c76","promptVersion":"i18n-machine-v1"},
+		"machine": {"model":"codex-gpt-6","modelDigest":"sha256:929f4ad737fd3e434d2f5bbf51299b8158770532bff4bd7316e18a2f571b4a5b","promptVersion":"i18n-machine-v1"},
 		"audacity": {"repository":"audacity/audacity","headSha":"de2e43dc13474ba712ade5ea8e47550eba0e8bfb","runId":35327911264,"artifactId":10539339149,"workflowUrl":"https://github.com/audacity/audacity/actions/runs/35327911264","archiveName":"Audacity_locale_262610911.zip","archiveSha256":"13b1ff11c39a677c711a1d29738a394aaca7a200533927aab3f45bbd76c1ff8e","archiveByteLength":15413913,"licenseSpdx":"GPL-3.0-only","upstreamProjectUrl":"https://github.com/audacity/audacity","upstreamLicenseUrl":"https://github.com/audacity/audacity/blob/de2e43dc13474ba712ade5ea8e47550eba0e8bfb/LICENSE.txt","modificationNotice":"Soundscaper converts reviewed Audacity Qt TS messages to per-locale JSON catalogs, excludes unsafe or inapplicable entries, adapts reviewed placeholders and mnemonics, and removes ellipsis punctuation.","mappingVersion":3,"mappingSha256":"f4cf0434f47eaa9434d079a1623b9d9501e9c8da0d83f0c73344f7765113b57c"}
 	},
 	"entries": {
@@ -69,6 +69,7 @@
 		"analysisSummary": ["machine","{channelCount} channels · {duration} s · {sampleRate} Hz","{channelCount} kanálů · {duration} s · {sampleRate} Hz"],
 		"analyzeMaster": ["machine","Analyze master","Analyzovat master"],
 		"analyzeMenu": ["machine","Analyze","Analyzovat"],
+		"analyzeSelection": ["machine","Analyze selection","Analyzovat výběr"],
 		"analyzeTrack": ["machine","Analyze track","Analyzovat stopu"],
 		"annotationAnchor": ["machine","Anchor","Ukotvení"],
 		"annotationColor": ["machine","Color","Barva"],
@@ -498,6 +499,7 @@
 		"clipStyleClassic": ["machine","Classic","Klasický"],
 		"clipStyleColorful": ["machine","Colorful","Barevný"],
 		"clipping": ["audacity","Clipping","Přebuzení"],
+		"clippingRegionDetail": ["machine","{start}–{end} s · {peak}","{start}–{end} s · {peak}"],
 		"clippingRegions": ["machine","{count} clipping regions","{count} oblastí přebuzení"],
 		"close": ["machine","Close","Zavřít"],
 		"closeProject": ["machine","Close project","Zavřít projekt"],
@@ -532,6 +534,7 @@
 		"contrastForegroundRole": ["machine","foreground","popředí"],
 		"contrastPass": ["machine","Contrast meets the recommended 20 dB difference.","Kontrast splňuje doporučený rozdíl 20 dB."],
 		"contrastRoleInvalid": ["machine","Contrast role must be foreground or background.","Role kontrastu musí být popředí nebo pozadí."],
+		"contrastSelectionInstructions": ["machine","Select and measure the foreground, then select and measure the background.","Vyberte a změřte popředí, poté vyberte a změřte pozadí."],
 		"contrastStored": ["machine","Stored contrast {role}.","Kontrast pro {role} uložen."],
 		"controlTrack": ["machine","Control track","Řídicí stopa"],
 		"controlTrackNotFound": ["machine","The control track was not found.","Řídicí stopa nebyla nalezena."],
@@ -2375,7 +2378,9 @@
 		"spectrogramWindowHann": ["machine","Hann","Hann"],
 		"spectrogramWindowType": ["machine","Window type","Typ okna"],
 		"spectrum": ["machine","Frequency spectrum","Kmitočtové spektrum"],
+		"spectrumConfiguration": ["machine","{size} FFT · {sampleRate} Hz","{size} FFT · {sampleRate} Hz"],
 		"spectrumPeak": ["machine","Peak frequency","Špičkový kmitočet"],
+		"spectrumPeakDetail": ["machine","{label}: {frequency} Hz · {level}","{label}: {frequency} Hz · {level}"],
 		"split": ["machine","Split at playhead","Rozdělit u přehrávací hlavy"],
 		"splitDelete": ["machine","Split delete","Rozdělit a smazat"],
 		"splitIntoNewTrack": ["audacity","Split into new track","Rozdělit do nové stopy"],

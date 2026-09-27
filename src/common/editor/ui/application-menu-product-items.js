@@ -7,6 +7,7 @@ import { createFramescaperFinishingMenuItems } from './framescaper-finishing-men
 import { createFramescaperNativeServicesMenuItems } from './framescaper-native-services-menu.ts';
 import { createSoundscaperNativeServicesMenuItems } from './soundscaper-native-services-menu.ts';
 import { createSoundscaperWorkflowApplicationMenuItems } from './soundscaper-workflow-product-runtime.tsx';
+import { resolveSelectionRange } from '../selection-range.ts';
 
 export function createApplicationMenuProductTrackItems({ productId, project, editBlocked, copy, actions }) {
 	return createApplicationMenuProductItems({ productId, project, editBlocked, copy, actions }).tracks;
@@ -84,6 +85,9 @@ export function createApplicationMenuProductItems({
 		runtimeAvailable: soundscaperNativeRuntime !== null,
 		snapshot: soundscaperNativeRuntime?.snapshot ?? null,
 		analyzerRuntimeAvailable: soundscaperNativeRuntime?.vampAnalyzerAvailable,
+		analyzerSelectionAvailable: Boolean(resolveSelectionRange(project, {
+			selectedClipId: snapshot.selectedClipId ?? null,
+		})),
 		editingBlocked: editBlocked,
 		readOnly: snapshot.readOnly === true,
 		copy,

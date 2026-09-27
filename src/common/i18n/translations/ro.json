@@ -2,7 +2,7 @@
 	"schemaVersion": 2,
 	"locale": "ro",
 	"provenance": {
-		"machine": {"model":"realtime-effect-picker-copy-replay","modelDigest":"sha256:13a883755850a00079c58dd57c4c5a50beefadda0b411c7b877a541b3335a620","promptVersion":"i18n-machine-v1"},
+		"machine": {"model":"codex-gpt-6","modelDigest":"sha256:6f3a6b35f20f4780c791f18f14c990bc1eb6b21468d0c2773484367bb2118c35","promptVersion":"i18n-machine-v1"},
 		"audacity": {"repository":"audacity/audacity","headSha":"de2e43dc13474ba712ade5ea8e47550eba0e8bfb","runId":35327911264,"artifactId":10539339149,"workflowUrl":"https://github.com/audacity/audacity/actions/runs/35327911264","archiveName":"Audacity_locale_262610911.zip","archiveSha256":"13b1ff11c39a677c711a1d29738a394aaca7a200533927aab3f45bbd76c1ff8e","archiveByteLength":15413913,"licenseSpdx":"GPL-3.0-only","upstreamProjectUrl":"https://github.com/audacity/audacity","upstreamLicenseUrl":"https://github.com/audacity/audacity/blob/de2e43dc13474ba712ade5ea8e47550eba0e8bfb/LICENSE.txt","modificationNotice":"Soundscaper converts reviewed Audacity Qt TS messages to per-locale JSON catalogs, excludes unsafe or inapplicable entries, adapts reviewed placeholders and mnemonics, and removes ellipsis punctuation.","mappingVersion":3,"mappingSha256":"f4cf0434f47eaa9434d079a1623b9d9501e9c8da0d83f0c73344f7765113b57c"}
 	},
 	"entries": {
@@ -69,6 +69,7 @@
 		"analysisSummary": ["machine","{channelCount} channels · {duration} s · {sampleRate} Hz","{channelCount} canale · {duration} s · {sampleRate} Hz"],
 		"analyzeMaster": ["machine","Analyze master","Analizează masterul"],
 		"analyzeMenu": ["machine","Analyze","Meniuri de analiză"],
+		"analyzeSelection": ["machine","Analyze selection","Analizează selecția"],
 		"analyzeTrack": ["machine","Analyze track","Analizează pista"],
 		"annotationAnchor": ["machine","Anchor","Ancoră"],
 		"annotationColor": ["machine","Color","Culoare"],
@@ -498,6 +499,7 @@
 		"clipStyleClassic": ["machine","Classic","Clasic"],
 		"clipStyleColorful": ["machine","Colorful","Colorat"],
 		"clipping": ["audacity","Clipping","Clipping"],
+		"clippingRegionDetail": ["machine","{start}–{end} s · {peak}","{start}–{end} s · {peak}"],
 		"clippingRegions": ["machine","{count} clipping regions","{count} regiuni de supraînregistrare"],
 		"close": ["machine","Close","Închide"],
 		"closeProject": ["machine","Close project","Închide proiect"],
@@ -532,6 +534,7 @@
 		"contrastForegroundRole": ["machine","foreground","prim-plan"],
 		"contrastPass": ["machine","Contrast meets the recommended 20 dB difference.","Contrastul îndeplinește diferența recomandată de 20 dB."],
 		"contrastRoleInvalid": ["machine","Contrast role must be foreground or background.","Rolul contrastului trebuie să fie prim-plan sau fundal."],
+		"contrastSelectionInstructions": ["machine","Select and measure the foreground, then select and measure the background.","Selectează și măsoară prim-planul, apoi selectează și măsoară fundalul."],
 		"contrastStored": ["machine","Stored contrast {role}.","Contrastul {role} a fost stocat."],
 		"controlTrack": ["machine","Control track","Pistă de control"],
 		"controlTrackNotFound": ["machine","The control track was not found.","Pista de control nu a fost găsită."],
@@ -2375,7 +2378,9 @@
 		"spectrogramWindowHann": ["machine","Hann","Hann"],
 		"spectrogramWindowType": ["machine","Window type","Tipul ferestrei"],
 		"spectrum": ["machine","Frequency spectrum","Spectru de frecvență"],
+		"spectrumConfiguration": ["machine","{size} FFT · {sampleRate} Hz","{size} FFT · {sampleRate} Hz"],
 		"spectrumPeak": ["machine","Peak frequency","Frecvența de vârf"],
+		"spectrumPeakDetail": ["machine","{label}: {frequency} Hz · {level}","{label}: {frequency} Hz · {level}"],
 		"split": ["human","Split at playhead","Desparte la cursorul de redare"],
 		"splitDelete": ["machine","Split delete","Împarte și șterge"],
 		"splitIntoNewTrack": ["audacity","Split into new track","Divide într-o nouă pistă"],

@@ -38,6 +38,9 @@ import {
 import { playbackOutputDestination } from './playback-output.ts';
 import { observeActiveStreamCompletion, unexpectedActiveStreamAbort } from './playback-stream-failure.ts';
 import { sampleProductionMeterSessionV21 } from './production-meter-runtime-session-v21.ts';
+import { ensureLiveAnalysisTap } from './live-analysis-tap.ts';
+import { readEngineMeter, readMasterMeter } from './engine-meter-reading.ts';
+import type { MutableEngineMeterReading } from './engine-meter-reading.ts';
 import { ScheduledParameterRegistry } from './scheduled-parameter-registry.ts';
 import { isCutPreviewActive, releaseCutPreview } from './cut-preview.ts';
 import {
@@ -61,35 +64,6 @@ import type {
 	EngineRuntimeMethodMap,
 	EngineRuntimeHost,
 } from './runtime-types.ts';
-import type { EngineMeterReading } from './public-api.ts';
-
-const meterReadBuffers = new WeakMap<AnalyserNode, Float32Array>();
-
-interface MutableMeterReading {
-	peak: number;
-	rms: number;
-	dbfs: number;
-	loudness?: unknown;
-}
-
-function readMeter(analyser: AnalyserNode | null | undefined): MutableMeterReading {
-	if (!analyser?.getFloatTimeDomainData) return { peak: 0, rms: 0, dbfs: -Infinity };
-	const sampleCount = analyser.fftSize || 256;
-	let values = meterReadBuffers.get(analyser);
-	if (!values || values.length !== sampleCount) {
-		values = new Float32Array(sampleCount);
-		meterReadBuffers.set(analyser, values);
-	}
-	analyser.getFloatTimeDomainData(values as Float32Array<ArrayBuffer>);
-	let peak = 0;
-	let squares = 0;
-	for (const value of values) {
-		peak = Math.max(peak, Math.abs(value));
-		squares += value * value;
-	}
-	const rms = Math.sqrt(squares / Math.max(1, values.length));
-	return { peak, rms, dbfs: peak > 0 ? 20 * Math.log10(peak) : -Infinity };
-}
 
 interface DisposableAudioGraph {
 	readonly abortController?: AbortController;
@@ -504,13 +478,16 @@ async [ENGINE_ENSURE_MASTER_LOUDNESS_METER](context) {
 
 [ENGINE_EMIT_METERS]() {
 		if (!this.graph || !this.meterListeners.size) return;
-		const tracks: Record<string, EngineMeterReading> = {};
-		for (const [trackId, analyser] of this.graph.trackAnalysers) tracks[trackId] = readMeter(analyser);
-		const groups: Record<string, EngineMeterReading> = {};
-		const sends: Record<string, EngineMeterReading> = {};
-		for (const [busId, analyser] of this.graph.groupAnalysers || []) groups[busId] = readMeter(analyser);
-		for (const [busId, analyser] of this.graph.sendAnalysers || []) sends[busId] = readMeter(analyser);
-		const master = readMeter(this.graph.masterAnalyser);
+		const tracks: Record<string, MutableEngineMeterReading> = {};
+		for (const [trackId, analyser] of this.graph.trackAnalysers) tracks[trackId] = readEngineMeter(analyser);
+		const groups: Record<string, MutableEngineMeterReading> = {};
+		const sends: Record<string, MutableEngineMeterReading> = {};
+		for (const [busId, analyser] of this.graph.groupAnalysers || []) groups[busId] = readEngineMeter(analyser);
+		for (const [busId, analyser] of this.graph.sendAnalysers || []) sends[busId] = readEngineMeter(analyser);
+		const liveTap = this.liveAnalysisLeaseCount > 0
+			? ensureLiveAnalysisTap(this.context, this.graph)
+			: null;
+		const master = readMasterMeter(this.graph.masterAnalyser, liveTap);
 		if (this.latestMasterLoudnessMeter?.loudness) {
 			master.loudness = this.latestMasterLoudnessMeter.loudness;
 		}
@@ -521,8 +498,8 @@ async [ENGINE_ENSURE_MASTER_LOUDNESS_METER](context) {
 				this.graph.productionStripAnalysersV21,
 				this.latestMasterLoudnessMeter,
 			)
-			: {};
-		const meter = { master, tracks, groups, sends, ...production };
+			: null;
+		const meter = { master, tracks, groups, sends, ...(production ?? {}) };
 		for (const listener of this.meterListeners) listener(meter);
 	},
 

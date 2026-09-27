@@ -35,7 +35,7 @@ test('the workspace host mounts the Vamp surface only after its Analyze menu com
 		actions: { edit: { commit: () => undefined } },
 	};
 	const input = Object.freeze({
-		controller, durationFrames: 48_000, selectedTrackId: null, bridge: vampBridge, engine,
+		controller, durationFrames: 48_000, selectedTrackId: null, selectedClipId: null, bridge: vampBridge, engine,
 		projectToken: controller.project,
 	}) satisfies SoundscaperVampAnalyzerSurfaceInput;
 	const host = createSoundscaperNativeServicesSurfaceHost({
@@ -86,7 +86,7 @@ test('the lazy Vamp surface fails closed when an older bridge lacks analyzer ope
 	try {
 		await act(async () => root.render(<SoundscaperVampAnalyzerSurface
 			input={{
-				controller, durationFrames: 48_000, selectedTrackId: null,
+				controller, durationFrames: 48_000, selectedTrackId: null, selectedClipId: null,
 				bridge: {} as SoundscaperNativeServicesBridge, engine: {} as EnginePublicApi,
 				projectToken: controller.project,
 			}}

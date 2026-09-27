@@ -48,7 +48,6 @@ import type {
 } from './runtime-types.ts';
 import type { EngineAudioContext, EngineMeterSnapshot } from './public-api.ts';
 
-
 export class AudioEditorEngineDisposedError extends Error {
 	readonly code = 'ENGINE_DISPOSED';
 
@@ -151,6 +150,7 @@ export function initializeEngineRuntime(
 	engine.reversedBuffers = new WeakMap();
 	engine.positionListeners = new Set(onPosition ? [onPosition] : []);
 	engine.meterListeners = new Set(onMeter ? [onMeter] : []);
+	engine.liveAnalysisLeaseCount = 0;
 	engine.stateListeners = new Set(onState ? [onState] : []);
 	engine.parametricEqErrorListeners = new Set(onParametricEqError ? [onParametricEqError] : []);
 	engine.masterLoudnessMeter = null;

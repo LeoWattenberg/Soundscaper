@@ -193,8 +193,9 @@ test.describe('audio editor React/design-system workflows', () => {
 		await expect(playbackMeter.locator('[data-ebu-target]')).toHaveText('0');
 		await expect(speakerFlyout.getByRole('button', { name: 'Reset measurement', exact: true })).toHaveCount(0);
 		await page.keyboard.press('Escape');
-		await chooseCommandAction(page, editor, 'Analyze', 'EBU R 128');
-		const ebuPanel = editor.locator('[data-workspace-panel="ebu-r128"]');
+		await chooseCommandAction(page, editor, 'Analyze', 'Analysis');
+		const ebuPanel = editor.locator('[data-workspace-panel="analysis"]');
+		await ebuPanel.locator('[data-analysis-section="loudness"] summary').click();
 		await expect(ebuPanel.getByText('Loudness range (LRA)', { exact: true })).toBeVisible();
 		await ebuPanel.getByRole('button', { name: 'Reset measurement', exact: true }).focus();
 		await page.keyboard.press('Enter');

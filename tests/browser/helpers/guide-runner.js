@@ -310,7 +310,7 @@ async function executeStep(page, state, entry) {
 			await runMixRender(page, state, entry);
 			return;
 		case 'contrast':
-			await runContrast(state, entry);
+			await runContrast(page, state, entry);
 			return;
 		case 'macro':
 			await runMacro(page, state, entry);
@@ -346,7 +346,8 @@ async function executeStep(page, state, entry) {
 			return;
 		case 'analyze':
 			await chooseCommandAction(page, state.editor, 'Analyze', entry.name);
-			await expect(state.editor.locator(`[data-workspace-panel="${entry.panel}"]`)).toBeVisible();
+			await expect(page.getByRole('dialog', { name: entry.dialog, exact: true }))
+				.toBeVisible({ timeout: EFFECT_TIMEOUT });
 			return;
 		case 'save':
 			await chooseCommandAction(page, state.editor, 'File', 'Save project');

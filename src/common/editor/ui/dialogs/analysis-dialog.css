@@ -1,0 +1,33 @@
+/* SPDX-License-Identifier: AGPL-3.0-only */
+
+.audio-editor-analysis-dialog {
+	display: grid;
+	gap: 12px;
+}
+
+.audio-editor-analysis-dialog__plot {
+	display: block;
+	width: 100%;
+	height: 150px;
+	margin-block: 10px;
+	background: #11141a;
+	border: 1px solid var(--line);
+}
+
+.audio-editor-analysis-dialog__plot polyline {
+	fill: none;
+	stroke: #66d3c5;
+	stroke-width: 2;
+}
+
+[data-editor-surface] [data-analysis-overlay="contrast"] {
+	background: transparent;
+	backdrop-filter: none;
+	pointer-events: none;
+	place-items: start end;
+	padding-block-start: 64px;
+}
+
+[data-editor-surface] [data-analysis-overlay="contrast"] .audio-editor-controlled-dialog {
+	pointer-events: auto;
+}

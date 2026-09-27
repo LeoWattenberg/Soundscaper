@@ -2,7 +2,7 @@
 	"schemaVersion": 2,
 	"locale": "he",
 	"provenance": {
-		"machine": {"model":"realtime-effect-picker-copy-replay","modelDigest":"sha256:81329ddf726ce24d2bce1ba38e74c895f4ed41a8b9e7bf90429c3c06c03b4e4a","promptVersion":"i18n-machine-v1"},
+		"machine": {"model":"codex-gpt-6","modelDigest":"sha256:9fb84fa1100b8bf05b6e96cd11243b82564de0bc37be723ec471b80bf9194936","promptVersion":"i18n-machine-v1"},
 		"audacity": {"repository":"audacity/audacity","headSha":"de2e43dc13474ba712ade5ea8e47550eba0e8bfb","runId":35327911264,"artifactId":10539339149,"workflowUrl":"https://github.com/audacity/audacity/actions/runs/35327911264","archiveName":"Audacity_locale_262610911.zip","archiveSha256":"13b1ff11c39a677c711a1d29738a394aaca7a200533927aab3f45bbd76c1ff8e","archiveByteLength":15413913,"licenseSpdx":"GPL-3.0-only","upstreamProjectUrl":"https://github.com/audacity/audacity","upstreamLicenseUrl":"https://github.com/audacity/audacity/blob/de2e43dc13474ba712ade5ea8e47550eba0e8bfb/LICENSE.txt","modificationNotice":"Soundscaper converts reviewed Audacity Qt TS messages to per-locale JSON catalogs, excludes unsafe or inapplicable entries, adapts reviewed placeholders and mnemonics, and removes ellipsis punctuation.","mappingVersion":3,"mappingSha256":"f4cf0434f47eaa9434d079a1623b9d9501e9c8da0d83f0c73344f7765113b57c"}
 	},
 	"entries": {
@@ -69,6 +69,7 @@
 		"analysisSummary": ["machine","{channelCount} channels · {duration} s · {sampleRate} Hz","{channelCount} ערוצים · {duration} s · {sampleRate} הרץ"],
 		"analyzeMaster": ["machine","Analyze master","ניתוח מאסטר"],
 		"analyzeMenu": ["machine","Analyze","ניתוח"],
+		"analyzeSelection": ["machine","Analyze selection","ניתוח הבחירה"],
 		"analyzeTrack": ["machine","Analyze track","ניתוח רצועה"],
 		"annotationAnchor": ["machine","Anchor","עוגן"],
 		"annotationColor": ["machine","Color","צבע"],
@@ -498,6 +499,7 @@
 		"clipStyleClassic": ["machine","Classic","קלאסי"],
 		"clipStyleColorful": ["machine","Colorful","צבעוני"],
 		"clipping": ["audacity","Clipping","קטימה"],
+		"clippingRegionDetail": ["machine","{start}–{end} s · {peak}","{start}–{end} s · {peak}"],
 		"clippingRegions": ["machine","{count} clipping regions","{count} אזורי קטימה"],
 		"close": ["machine","Close","סגירה"],
 		"closeProject": ["machine","Close project","שגירת המיזם"],
@@ -532,6 +534,7 @@
 		"contrastForegroundRole": ["machine","foreground","חזית"],
 		"contrastPass": ["machine","Contrast meets the recommended 20 dB difference.","הניגודיות עומדת בהפרש המומלץ של 20 דציבל."],
 		"contrastRoleInvalid": ["machine","Contrast role must be foreground or background.","תפקיד הניגודיות חייב להיות חזית או רקע."],
+		"contrastSelectionInstructions": ["machine","Select and measure the foreground, then select and measure the background.","בחרו ומדדו את החזית, ואז בחרו ומדדו את הרקע."],
 		"contrastStored": ["machine","Stored contrast {role}.","נשמר {role} עבור הניגודיות."],
 		"controlTrack": ["machine","Control track","רצועת בקרה"],
 		"controlTrackNotFound": ["machine","The control track was not found.","רצועת הבקרה לא נמצאה."],
@@ -2375,7 +2378,9 @@
 		"spectrogramWindowHann": ["machine","Hann","Hann"],
 		"spectrogramWindowType": ["machine","Window type","סוג חלון"],
 		"spectrum": ["machine","Frequency spectrum","ספקטרום התדרים"],
+		"spectrumConfiguration": ["machine","{size} FFT · {sampleRate} Hz","{size} FFT · {sampleRate} Hz"],
 		"spectrumPeak": ["machine","Peak frequency","תדר השיא"],
+		"spectrumPeakDetail": ["machine","{label}: {frequency} Hz · {level}","{label}: {frequency} Hz · {level}"],
 		"split": ["human","Split at playhead","פיצול בסמן ההשמעה"],
 		"splitDelete": ["machine","Split delete","פיצול ומחיקה"],
 		"splitIntoNewTrack": ["machine","Split into new track","פיצול לרצועה חדשה"],

@@ -2,7 +2,7 @@
 	"schemaVersion": 2,
 	"locale": "fa",
 	"provenance": {
-		"machine": {"model":"realtime-effect-picker-copy-replay","modelDigest":"sha256:cbfaa78ad589b61dabd382083558f1e509fa737f9534822fa2998a006c8b0c2d","promptVersion":"i18n-machine-v1"},
+		"machine": {"model":"codex-gpt-6","modelDigest":"sha256:c94718f4c7755236b42d5a76e8117155dd8d7e7d0b868c9b9101fbd911434701","promptVersion":"i18n-machine-v1"},
 		"audacity": {"repository":"audacity/audacity","headSha":"de2e43dc13474ba712ade5ea8e47550eba0e8bfb","runId":35327911264,"artifactId":10539339149,"workflowUrl":"https://github.com/audacity/audacity/actions/runs/35327911264","archiveName":"Audacity_locale_262610911.zip","archiveSha256":"13b1ff11c39a677c711a1d29738a394aaca7a200533927aab3f45bbd76c1ff8e","archiveByteLength":15413913,"licenseSpdx":"GPL-3.0-only","upstreamProjectUrl":"https://github.com/audacity/audacity","upstreamLicenseUrl":"https://github.com/audacity/audacity/blob/de2e43dc13474ba712ade5ea8e47550eba0e8bfb/LICENSE.txt","modificationNotice":"Soundscaper converts reviewed Audacity Qt TS messages to per-locale JSON catalogs, excludes unsafe or inapplicable entries, adapts reviewed placeholders and mnemonics, and removes ellipsis punctuation.","mappingVersion":3,"mappingSha256":"f4cf0434f47eaa9434d079a1623b9d9501e9c8da0d83f0c73344f7765113b57c"}
 	},
 	"entries": {
@@ -69,6 +69,7 @@
 		"analysisSummary": ["machine","{channelCount} channels · {duration} s · {sampleRate} Hz","{channelCount} کانال · {duration} s · {sampleRate} Hz"],
 		"analyzeMaster": ["machine","Analyze master","تحلیل مستر"],
 		"analyzeMenu": ["machine","Analyze","تحلیل"],
+		"analyzeSelection": ["machine","Analyze selection","تحلیل انتخاب"],
 		"analyzeTrack": ["machine","Analyze track","تحلیل ترک"],
 		"annotationAnchor": ["machine","Anchor","لنگر"],
 		"annotationColor": ["machine","Color","رنگ"],
@@ -498,6 +499,7 @@
 		"clipStyleClassic": ["machine","Classic","کلاسیک"],
 		"clipStyleColorful": ["machine","Colorful","رنگارنگ"],
 		"clipping": ["audacity","Clipping","کلیپینگ"],
+		"clippingRegionDetail": ["machine","{start}–{end} s · {peak}","{start}–{end} s · {peak}"],
 		"clippingRegions": ["machine","{count} clipping regions","{count} ناحیهٔ کلیپینگ"],
 		"close": ["machine","Close","بستن"],
 		"closeProject": ["machine","Close project","بستن پروژه"],
@@ -532,6 +534,7 @@
 		"contrastForegroundRole": ["machine","foreground","پیش‌زمینه"],
 		"contrastPass": ["machine","Contrast meets the recommended 20 dB difference.","کنتراست با تفاوت پیشنهادی 20 dB مطابقت دارد."],
 		"contrastRoleInvalid": ["machine","Contrast role must be foreground or background.","نقش کنتراست باید پیش‌زمینه یا پس‌زمینه باشد."],
+		"contrastSelectionInstructions": ["machine","Select and measure the foreground, then select and measure the background.","ابتدا پیش‌زمینه را انتخاب و اندازه‌گیری کنید، سپس پس‌زمینه را انتخاب و اندازه‌گیری کنید."],
 		"contrastStored": ["machine","Stored contrast {role}.","{role} کنتراست ذخیره شد."],
 		"controlTrack": ["machine","Control track","تراک کنترل"],
 		"controlTrackNotFound": ["machine","The control track was not found.","تراک کنترل یافت نشد."],
@@ -2375,7 +2378,9 @@
 		"spectrogramWindowHann": ["machine","Hann","هان"],
 		"spectrogramWindowType": ["machine","Window type","نوع پنجره"],
 		"spectrum": ["machine","Frequency spectrum","طیف بسامدی"],
+		"spectrumConfiguration": ["machine","{size} FFT · {sampleRate} Hz","{size} FFT · {sampleRate} Hz"],
 		"spectrumPeak": ["machine","Peak frequency","بسامد اوج"],
+		"spectrumPeakDetail": ["machine","{label}: {frequency} Hz · {level}","{label}: {frequency} Hz · {level}"],
 		"split": ["machine","Split at playhead","شکافتن در نشانگر پخش"],
 		"splitDelete": ["machine","Split delete","شکافتن و حذف"],
 		"splitIntoNewTrack": ["machine","Split into new track","شکافتن به شیار جدید"],

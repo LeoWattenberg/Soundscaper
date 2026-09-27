@@ -37,10 +37,6 @@ A workspace is a saved arrangement of the panels and toolbars around the timelin
 | Effects | `effects` | Left | Visible | Visible | Hidden | Hidden | Visible |
 | Mixer | `mixer` | Bottom | Hidden | Visible | Hidden | Hidden | Hidden |
 | Analysis | `analysis` | Right | Hidden | Hidden | Hidden | Hidden | Hidden |
-| Plot spectrum | `spectrum` | Right | Hidden | Hidden | Hidden | Hidden | Hidden |
-| Find clipping | `clipping` | Right | Hidden | Hidden | Hidden | Hidden | Hidden |
-| Contrast | `contrast` | Right | Hidden | Hidden | Hidden | Hidden | Hidden |
-| EBU R 128 | `ebu-r128` | Right | Hidden | Hidden | Hidden | Hidden | Hidden |
 | Recording setup | `recording-setup` | Bottom | Hidden | Hidden | Hidden | Hidden | Hidden |
 
 ## Toolbars

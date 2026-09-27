@@ -86,10 +86,10 @@ test('Vamp label publication is one fenced editor command', async () => {
 	assert.equal(controller.commands.length, 1);
 });
 
-test('the Vamp workspace seam rejects range drift and defaults to master for a non-audio selection', async () => {
+test('the Vamp workspace seam rejects range drift and defaults to master for a non-audio track', async () => {
 	const project = {
 		...projectFixture(),
-		selection: { startFrame: 2_000, endFrame: 2_000 },
+		selection: { startFrame: 2_000, endFrame: 7_000 },
 	};
 	const controller = controllerFixture(project);
 	const session = createSoundscaperVampAnalyzerSession({
@@ -101,24 +101,40 @@ test('the Vamp workspace seam rejects range drift and defaults to master for a n
 	});
 	assert.ok(session);
 	assert.equal(session.scope, 'master');
-	assert.deepEqual([session.startFrame, session.endFrame], [0, 48_000]);
+	assert.deepEqual([session.startFrame, session.endFrame], [2_000, 7_000]);
 	await assert.rejects(
 		() => session.analyze({ ...requestFixture('master'), startFrame: 1 }, new AbortController().signal),
 		/range/iu,
 	);
 	await assert.rejects(
 		() => session.analyze({
-			...requestFixture('track'), startFrame: 0, endFrame: 48_000,
+			...requestFixture('track'), startFrame: 2_000, endFrame: 7_000,
 		}, new AbortController().signal),
 		/selected audio track/iu,
 	);
+});
+
+test('Vamp analysis requires a selected time range or clip and never expands to the project', () => {
+	const port = {
+		list: async () => [analyzerFixture()],
+		analyze: async (input: SoundscaperVampAnalysisInput) => resultFixture(input.request),
+	};
+	const project = { ...projectFixture(), selection: { startFrame: 2_000, endFrame: 2_000 } };
+	const controller = controllerFixture(project, port);
+	assert.equal(createSoundscaperVampAnalyzerSession({ controller, durationFrames: 48_000, port }), null);
+	const selectedClip = createSoundscaperVampAnalyzerSession({
+		controller, durationFrames: 48_000, selectedClipId: 'voice-clip', port,
+	});
+	assert.ok(selectedClip);
+	assert.deepEqual([selectedClip.startFrame, selectedClip.endFrame], [5_000, 8_000]);
 });
 
 function projectFixture() {
 	return {
 		id: 'project-a', revision: 7, sampleRate: 48_000,
 		selection: { startFrame: 1_000, endFrame: 9_000 },
-		tracks: [{ id: 'voice', type: 'audio' }, { id: 'labels', type: 'label' }],
+		clips: [{ id: 'voice-clip', timelineStartFrame: 5_000, durationFrames: 3_000 }],
+		tracks: [{ id: 'voice', type: 'audio', clipIds: ['voice-clip'] }, { id: 'labels', type: 'label' }],
 	};
 }
 

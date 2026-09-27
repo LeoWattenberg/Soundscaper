@@ -12,7 +12,6 @@ import {
 	chooseNestedCommandAction,
 	clipByName,
 	closeDialog,
-	closeWorkspacePanel,
 	collectClientErrors,
 	commitInput,
 	importFiles,
@@ -29,12 +28,13 @@ test.describe('analysis and Nyquist dialog coverage', () => {
 		await importFiles(editor, [createWavFixture({
 			name: 'loudness-measurement.wav', frequency: 440, duration: 0.08, channelCount: 1,
 		})]);
+		await chooseCommandAction(page, editor, 'Select', 'Select all');
 
 		await chooseCommandAction(page, editor, 'Analyze', 'Measure loudness');
 		const report = page.getByRole('dialog', { name: 'Delivery Report', exact: true });
 		await expect(report).toBeVisible({ timeout: 20_000 });
 		await expect(report.locator('[data-delivery-report]')).toContainText('loudness-measurement');
-		await expect(report.locator('[data-delivery-report]')).toContainText(/was measured\./u);
+		await expect(report.locator('[data-delivery-report]')).toContainText(/The selection was measured;/u);
 		expect(errors).toEqual([]);
 	});
 
@@ -47,31 +47,41 @@ test.describe('analysis and Nyquist dialog coverage', () => {
 		const properties = await openClipProperties(page, editor, clipByName(editor, fixture.name));
 		await commitInput(properties.getByRole('spinbutton', { name: 'Clip gain (dB)', exact: true }), '24');
 		await closeDialog(properties);
+		await chooseCommandAction(page, editor, 'Select', 'Select all');
 
-		const analysis = await openAnalysis(page, editor, 'Analysis', 'analysis');
+		const analysis = await openAnalysis(page, editor, 'Analyze selection', 'levels');
 		await expect(analysis.locator('[data-analysis-value="peak"]')).not.toHaveText('−∞ dBFS', {
 			timeout: 20_000,
 		});
-		await analysis.getByRole('button', { name: 'Analyze master', exact: true }).click();
 		await expect(analysis.locator('[data-analysis-scope]')).toHaveAttribute('data-analysis-scope', 'master', {
 			timeout: 20_000,
 		});
 		await exportReport(page, analysis, /analysis\.json$/u);
-		await closeWorkspacePanel(editor, 'analysis');
+		await closeDialog(analysis);
+		await expect(editor).not.toHaveAttribute('data-edit-block-reason', /.+/u);
+		await chooseCommandAction(page, editor, 'Analyze', 'Repeat last analyzer');
+		const repeated = page.getByRole('dialog', { name: 'Analyze selection', exact: true });
+		await expect(repeated).toHaveAttribute('data-analysis-repeat', 'true');
+		await expect(repeated.locator('[data-analysis-value="peak"]')).not.toHaveText('−∞ dBFS', {
+			timeout: 20_000,
+		});
+		await closeDialog(repeated);
 
 		const spectrum = await openAnalysis(page, editor, 'Plot spectrum', 'spectrum');
 		const spectrumReport = spectrum.locator('[data-analysis-report="spectrum"]');
 		await expect(spectrumReport).toBeVisible({ timeout: 20_000 });
 		await expect(spectrumReport).toContainText('Hz');
+		await expect(spectrum.locator('[data-analysis-value]')).toHaveCount(0);
 		await exportReport(page, spectrum, /analysis\.json$/u);
-		await closeWorkspacePanel(editor, 'spectrum');
+		await closeDialog(spectrum);
 
 		const clipping = await openAnalysis(page, editor, 'Find clipping', 'clipping');
 		const clippingReport = clipping.locator('[data-analysis-report="clipping"]');
 		await expect(clippingReport).toBeVisible({ timeout: 20_000 });
 		await expect(clippingReport.getByRole('listitem')).not.toHaveCount(0);
+		await expect(clipping.locator('[data-analysis-value]')).toHaveCount(0);
 		await exportReport(page, clipping, /analysis\.json$/u);
-		await closeWorkspacePanel(editor, 'clipping');
+		await closeDialog(clipping);
 
 		await selectTimelineRange(page, editor, 35, 145);
 		const contrast = await openAnalysis(page, editor, 'Contrast', 'contrast');
@@ -81,8 +91,9 @@ test.describe('analysis and Nyquist dialog coverage', () => {
 		const contrastReport = contrast.locator('[data-analysis-report="contrast"]');
 		await expect(contrastReport).toContainText('Difference', { timeout: 20_000 });
 		await expect(contrastReport.getByRole('status')).toBeVisible();
+		await expect(contrast.locator('[data-analysis-value]')).toHaveCount(0);
 		await exportReport(page, contrast, /analysis\.json$/u);
-		await closeWorkspacePanel(editor, 'contrast');
+		await closeDialog(contrast);
 
 		expect(errors).toEqual([]);
 	});
@@ -170,11 +181,12 @@ function clippedTone() {
 	return { name: 'analysis-clipped.wav', mimeType: 'audio/wav', buffer };
 }
 
-async function openAnalysis(page, editor, command, panelId) {
+async function openAnalysis(page, editor, command, mode) {
 	await chooseCommandAction(page, editor, 'Analyze', command);
-	const panel = editor.locator(`[data-workspace-panel="${panelId}"]`);
-	await expect(panel).toBeVisible();
-	return panel;
+	const dialog = page.getByRole('dialog', { name: command, exact: true });
+	await expect(dialog).toBeVisible();
+	await expect(dialog).toHaveAttribute('data-analysis-mode', mode);
+	return dialog;
 }
 
 async function exportReport(page, panel, fileName) {

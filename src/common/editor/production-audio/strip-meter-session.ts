@@ -167,7 +167,7 @@ function calculateSnapshot(strip: StripRef, input: StripMeterUpdate, sequence: n
 	});
 }
 
-function stereoCorrelation(channels: readonly Float32Array[]): number | null {
+export function stereoCorrelation(channels: readonly Float32Array[]): number | null {
 	const left = channels[0];
 	const right = channels[1];
 	if (!left || !right) return null;

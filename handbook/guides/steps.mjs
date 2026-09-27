@@ -199,10 +199,10 @@ export function nyquist({ menu: menuName, name, fields = [] }, extras) {
 	return step({ kind: 'nyquist', menu: menuName, name, fields: Object.freeze(fields.map((field) => Object.freeze({ ...field }))) }, extras);
 }
 
-/** Open an analyzer from the Analyze menu; `panel` is the workspace panel it opens. */
-export function analyze({ name, panel }, extras) {
-	if (typeof name !== 'string' || typeof panel !== 'string') throw new TypeError('An analyze step needs the analyzer name and its panel id.');
-	return step({ kind: 'analyze', name, panel }, extras);
+/** Open a selection analyzer from the Analyze menu and show its report dialog. */
+export function analyze({ name, dialog }, extras) {
+	if (typeof name !== 'string' || typeof dialog !== 'string') throw new TypeError('An analyze step needs the analyzer and dialog names.');
+	return step({ kind: 'analyze', name, dialog }, extras);
 }
 
 /** Export the project through File → Export audio in the named format; `mode` picks a non-default export mode. */
@@ -499,7 +499,7 @@ export function describeStep(entry, { fixture, facet = 'howto' }) {
 			return `Choose ${menuPath([entry.menu, 'Nyquist', entry.name])}.${fields} press ${bold('Apply')}.${report}`;
 		}
 		case 'analyze':
-			return `Choose ${menuPath(['Analyze', entry.name])}. The ${bold(entry.name)} panel opens.`;
+			return `Choose ${menuPath(['Analyze', entry.name])}. The ${bold(entry.dialog)} dialog opens with the selection report.`;
 		case 'export': {
 			const mode = entry.mode ? ` set ${bold('Output')} to ${bold(entry.mode)},` : '';
 			return `Choose ${menuPath(['File', 'Export audio'])}, set ${bold('Format')} to ${bold(entry.format)},${mode} and press ${bold('Export')}. The file downloads as soon as the render finishes, and its link stays in the dialog.`;
