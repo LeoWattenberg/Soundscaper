@@ -500,7 +500,7 @@ test('a Playwright child spawn error closes its log and records infrastructure f
 	assert.equal(await readFile(join(completed.runRoot, 'console.log'), 'utf8'), '');
 });
 
-test('a failed diagnostic metric gate fails an otherwise passing nightly run', async (context) => {
+test('ordinary browser and diagnostic failures name every failed phase in the terminal result', async (context) => {
 	const outputRoot = await mkdtemp(join(tmpdir(), 'soundscaper-nightly-metric-gate-'));
 	context.after(() => rm(outputRoot, { recursive: true, force: true }));
 	let childCalls = 0;
@@ -516,15 +516,20 @@ test('a failed diagnostic metric gate fails an otherwise passing nightly run', a
 		runDualOriginPhase: runDualOriginPhaseFixture,
 		startProductSites: nightlyProductSitesFixture(49994),
 		runPlaywright: async () => {
+			const code = [1, 1, 0, 0, 1, 1][childCalls] ?? 2;
 			childCalls += 1;
-			return { code: 0, signal: null };
+			return { code, signal: null };
 		},
 		writeMetricsDiagnostics: async () => ({ passed: false }),
-		writePackagedMetricsDiagnostics: async () => ({ passed: true }),
+		writePackagedMetricsDiagnostics: async () => ({ passed: false }),
 		preserveCoverageEvidence: async () => '/tmp/coverage-evidence',
 	});
 
 	assert.equal(childCalls, 6);
 	assert.equal(completed.exitCode, 1);
 	assert.equal(completed.result.status, 'failed');
+	const failure = 'Failed phases:\n- Browser tests\n- Dual-origin browser coverage\n- Performance diagnostics'
+		+ '\n- Packaged app diagnostics\n- Packaged app coverage\n- Local model tests';
+	assert.equal(completed.result.failure, failure);
+	assert.equal(JSON.parse(await readFile(join(completed.runRoot, 'run.json'), 'utf8')).failure, failure);
 });

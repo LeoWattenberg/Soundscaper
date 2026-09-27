@@ -244,11 +244,7 @@ export async function runDesktopNightlyTests(options, dependencies = {}) {
 		environment,
 	});
 	const createRunDirectory = dependencies.createRunDirectory ?? createDesktopNightlyTestsRunDirectory;
-	const created = await createRunDirectory({
-		outputRoot,
-		productId: options?.product?.id,
-		now: startedAt,
-	});
+	const created = await createRunDirectory({ outputRoot, productId: options?.product?.id, now: startedAt });
 	const runRoot = created.runRoot;
 	const writeResult = dependencies.writeResult ?? writeDesktopNightlyTestsResultEnvelope;
 	const common = {
@@ -265,10 +261,9 @@ export async function runDesktopNightlyTests(options, dependencies = {}) {
 	const startStaticServer = dependencies.startStaticServer;
 	const startProductSites = dependencies.startProductSites ?? startDesktopNightlyTestsProductSites;
 	const runPlaywright = dependencies.runPlaywright ?? runPlaywrightChild;
-	let sites = null;
-	let outcome;
-	let signal = null;
-	let failure = null;
+	let sites = null, outcome;
+	let signal = null, failure = null;
+	const failedPhases = [];
 	try {
 		options.onProgress?.(Object.freeze({ completed: 0, total: 6, label: 'Browser tests' }));
 		sites = await startProductSites({ payloadRoot: options.payloadRoot, environment, startStaticServer });
@@ -285,6 +280,7 @@ export async function runDesktopNightlyTests(options, dependencies = {}) {
 		const child = await runPlaywright(plan);
 		signal = child.signal ?? null;
 		outcome = mapDesktopNightlyTestsExit({ code: child.code, signal });
+		if (outcome.status === 'failed') failedPhases.push('Browser tests');
 		if (outcome.status === 'passed' || outcome.status === 'failed') {
 			for await (const phase of runDesktopNightlyTestsDiagnosticPhases({
 				executablePath: options.executablePath, payloadRoot: options.payloadRoot, runRoot,
@@ -294,7 +290,9 @@ export async function runDesktopNightlyTests(options, dependencies = {}) {
 				sourceRevision: options.sourceRevision ?? null, onProgress: options.onProgress,
 			}, { ...dependencies, runPlaywright })) {
 				signal = phase.child.signal ?? signal;
-				outcome = combineOutcomes(outcome, mapDesktopNightlyTestsExit(phase.child), phase.diagnostics.passed);
+				const phaseOutcome = mapDesktopNightlyTestsExit(phase.child);
+				if (phaseOutcome.status === 'failed' || phaseOutcome.status === 'passed' && !phase.diagnostics.passed) failedPhases.push(phase.label);
+				outcome = combineOutcomes(outcome, phaseOutcome, phase.diagnostics.passed);
 			}
 		}
 	} catch (error) {
@@ -309,6 +307,7 @@ export async function runDesktopNightlyTests(options, dependencies = {}) {
 			}
 		}
 	}
+	if (failedPhases.length) failure = combineFailures(failure, `Failed phases:\n- ${failedPhases.join('\n- ')}`);
 	const result = createDesktopNightlyTestsResultEnvelope({
 		...common,
 		finishedAt: now(),

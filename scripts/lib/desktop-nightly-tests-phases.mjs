@@ -29,7 +29,7 @@ export async function* runDesktopNightlyTestsDiagnosticPhases(options, dependenc
 			writeDiagnostics,
 			preserveEvidence: dependencies.preserveCoverageEvidence,
 		});
-		yield result;
+		yield Object.freeze({ ...result, label });
 		if (result.child.signal || ![0, 1].includes(result.child.code)) return;
 	}
 }

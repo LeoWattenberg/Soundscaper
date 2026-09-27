@@ -65,6 +65,10 @@ async function launch(context: TestContext, scenario: string) {
 						exitCode: 2, runRoot: globalThis.fixture.root,
 						result: { status: 'error', failure: 'Browser process could not spawn' },
 					};
+					if (globalThis.fixture.scenario === 'phase-failure-result') return {
+						exitCode: 1, runRoot: globalThis.fixture.root,
+						result: { status: 'failed', failure: 'Failed phases:\\n- Browser tests\\n- Local model tests' },
+					};
 					throw Error('Payload startup failed');
 				}
 			`,
@@ -128,18 +132,19 @@ test('an unattended passing run keeps its machine-readable verdict and never ope
 	assert.match(stdout, /SOUNDSCAPER_NIGHTLY_TESTS_RESULT .*"status":"passed"/u);
 });
 
-for (const [scenario, expected] of [
+for (const [scenario, expected, exitCode = 2] of [
 	['window', 'Progress document failed'],
 	['import', 'Runtime module missing from package'],
 	['runtime', 'Payload startup failed'],
 	['readiness', 'Electron readiness failed'],
 	['dialog', 'Payload startup failed'],
 	['failure-result', 'Browser process could not spawn'],
+	['phase-failure-result', 'Failed phases:\n- Browser tests\n- Local model tests', 1],
 	['background', 'Background startup failed'],
-]) {
+] as const) {
 	test(`nightly ${scenario} failures stay visible until acknowledged and leave a startup log`, async context => {
 		const { observation, log } = await launch(context, scenario);
-		assert.equal(observation.exitCode, 2);
+		assert.equal(observation.exitCode, exitCode);
 		assert.equal(observation.acknowledged, true);
 		assert.equal(observation.keptAlive, true);
 		assert.ok(observation.dialogs.some(dialog => dialog.detail.includes(expected)));
