@@ -151,7 +151,7 @@ async function autosaveAndReload(page, target, restartPage) {
 		await waitForSaved(editor);
 		await chooseMenu(page, editor, 'File', 'Close project');
 		await waitForAttributeChange(editor, 'data-project-id', projectId, 30_000);
-		await chooseMenu(page, editor, 'File', 'Local projects');
+		await chooseNestedMenu(page, editor, 'File', ['Project management', 'Local projects']);
 		const projects = page.getByRole('dialog', { name: 'Local projects', exact: true });
 		await projects.getByRole('button', {
 			name: new RegExp(`^${escapeRegExp(projectName)}(?:\\s|$)`, 'u'),
@@ -227,9 +227,11 @@ async function renderWav(page, target, outputDirectory) {
 	} else {
 		const path = await waitForOutput(outputDirectory, before, '.wav', 60_000);
 		signature = (await readFile(path)).subarray(0, 4).toString('ascii');
+		await dialog.locator('[data-export-action="start"]').waitFor({ state: 'visible', timeout: 60_000 });
 	}
 	if (signature !== 'RIFF') throw new Error('The rendered WAV did not have a RIFF header.');
 	await dialog.getByRole('button', { name: 'Close', exact: true }).click();
+	await dialog.waitFor({ state: 'hidden' });
 	return {};
 }
 
@@ -304,9 +306,16 @@ async function persistentDeliveryRecovery(page, target, variant, restartPage) {
 	const exportDialog = page.getByRole('dialog', { name: 'Export audio', exact: true });
 	await exportDialog.waitFor({ state: 'visible' });
 	await chooseDropdown(page, exportDialog.locator('[data-export-field="format"]'), 'WAV');
-	await exportDialog.locator('[data-delivery-preset-name]').fill(presetName);
 	await exportDialog.getByRole('button', { name: 'Save preset', exact: true }).click();
-	await exportDialog.getByRole('button', { name: 'Close', exact: true }).click();
+	await page.getByRole('menuitem', { name: 'Save as new preset', exact: true }).click();
+	const presetDialog = page.getByRole('dialog', { name: 'Save as new preset', exact: true });
+	await presetDialog.getByRole('textbox', { name: 'Preset name', exact: true }).fill(presetName);
+	await presetDialog.getByRole('button', { name: 'Save preset', exact: true }).click();
+	await presetDialog.waitFor({ state: 'hidden' });
+	await exportDialog.getByRole('button', { name: 'Preset', exact: true })
+		.filter({ hasText: presetName }).waitFor({ state: 'visible' });
+	await exportDialog.getByRole('button', { name: 'Cancel', exact: true }).click();
+	await exportDialog.waitFor({ state: 'hidden' });
 	await chooseMenu(page, editor, 'File', 'Delivery queue');
 	let queue = page.getByRole('dialog', { name: 'Delivery queue', exact: true });
 	await queue.waitFor({ state: 'visible' });
@@ -334,7 +343,7 @@ async function persistentDeliveryRecovery(page, target, variant, restartPage) {
 }
 
 async function renameProject(page, editor, projectName) {
-	await chooseMenu(page, editor, 'File', 'Rename project');
+	await chooseNestedMenu(page, editor, 'File', ['Project management', 'Rename project']);
 	const renameDialog = page.getByRole('dialog', { name: 'Rename project', exact: true });
 	await renameDialog.getByRole('textbox', { name: 'Project name', exact: true }).fill(projectName);
 	await renameDialog.getByRole('button', { name: 'Save name', exact: true }).click();
@@ -375,8 +384,9 @@ async function waitForQueueState(job, wanted, timeout) {
 	while (Date.now() < deadline) {
 		const state = await job.locator('[data-delivery-queue-state]').getAttribute('data-delivery-queue-state');
 		if (state === wanted) return;
-		if (['failed', 'cancelled', 'needs-authorization'].includes(state)) {
-			throw new Error(`Persistent delivery entered ${String(state)} instead of ${wanted}.`);
+		if (['failed', 'stale', 'cancelled', 'needs-authorization'].includes(state)) {
+			const jobId = await job.getAttribute('data-delivery-queue-job');
+			throw new Error(`Persistent delivery job ${String(jobId)} entered ${String(state)} instead of ${wanted}.`);
 		}
 		await job.page().waitForTimeout(250);
 	}

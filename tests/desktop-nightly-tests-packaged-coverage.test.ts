@@ -49,9 +49,24 @@ test('packaged coverage plan instruments only the dedicated correctness workload
 		plan.env.SOUNDSCAPER_SOAK_PACKAGED_EXECUTABLE,
 		'/opt/Soundscaper Tests/resources/nightly-tests/products/soundscaper/linux-unpacked/soundscaper',
 	);
+	assert.equal(plan.env.SOUNDSCAPER_SOAK_PERSISTENT_DELIVERY_EXECUTABLE, undefined);
+});
+
+test('packaged coverage plan preserves an explicitly verified persistent delivery executable', () => {
+	const plan = createDesktopNightlyTestsPackagedCoveragePlan({
+		executablePath: '/opt/Soundscaper Tests/soundscaper-tests',
+		payloadRoot: '/opt/Soundscaper Tests/resources/nightly-tests',
+		runRoot: '/tmp/Soundscaper-playwright-run',
+		platform: 'linux',
+		arch: 'x64',
+		environment: {
+			SOUNDSCAPER_SOAK_PERSISTENT_DELIVERY_EXECUTABLE: '/opt/verified/soundscaper',
+		},
+	});
+
 	assert.equal(
 		plan.env.SOUNDSCAPER_SOAK_PERSISTENT_DELIVERY_EXECUTABLE,
-		plan.env.SOUNDSCAPER_SOAK_PACKAGED_EXECUTABLE,
+		'/opt/verified/soundscaper',
 	);
 });
 

@@ -66,7 +66,6 @@ export function createDesktopNightlyTestsPackagedCoveragePlan({
 			GITHUB_ACTIONS: 'false',
 			SOUNDSCAPER_SOAK_CAPTURE_PACKAGED_COVERAGE: '1',
 			SOUNDSCAPER_SOAK_PACKAGED_EXECUTABLE: soakExecutable,
-			SOUNDSCAPER_SOAK_PERSISTENT_DELIVERY_EXECUTABLE: soakExecutable,
 		}),
 		logFile: join(runRoot, PACKAGED_COVERAGE_ARTIFACT_PATHS.packagedCoverageConsoleLog),
 	});

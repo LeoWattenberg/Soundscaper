@@ -19,6 +19,7 @@ import {
 import {
 	capturePackagedExecutableResourcesBeforeLaunch,
 } from './packaged-executable-resource-identity.mjs';
+import { seedDesktopNightlyPackagedLocale } from './desktop-nightly-tests-packaged-runtime.mjs';
 import { packagedRuntimeProductBaseURL } from '../../tests/browser/helpers/packaged-runtime-page.js';
 
 const REPOSITORY_ROOT = resolve(import.meta.dirname, '../..');
@@ -60,12 +61,13 @@ export async function openSoundscaperDesktopSoakSession(options, dependencies) {
 	}
 	const executablePath = await resolveDesktopExecutable(options.desktopExecutable);
 	const profile = await mkdtemp(join(tmpdir(), 'soundscaper-soak-debug-'));
-	const launch = createSoundscaperDesktopSoakLaunchEnvironment({
-		capturePackagedCoverage: options.capturePackagedCoverage === true,
-		environment: process.env,
-	});
 	let runtime = null;
 	try {
+		await seedDesktopNightlyPackagedLocale(profile);
+		const launch = createSoundscaperDesktopSoakLaunchEnvironment({
+			capturePackagedCoverage: options.capturePackagedCoverage === true,
+			environment: process.env,
+		});
 		runtime = await launchDesktopRuntime({
 			executablePath, profile, outputDirectory: options.outputDirectory, launch,
 			...dependencies,
