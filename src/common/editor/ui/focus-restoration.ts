@@ -45,13 +45,21 @@ export function resolveEditorReturnFocus(
 	fallback: EventTarget | null,
 ): HTMLElement | null {
 	const direct = editorFocusableElement(document, fallback);
-	if (direct?.isConnected) return direct;
+	if (direct && isAvailableReturnFocusTarget(document, direct)) return direct;
 	const elements = histories.get(document)?.elements || [];
 	for (let index = elements.length - 1; index >= 0; index -= 1) {
 		const element = elements[index];
-		if (element.isConnected && element.ownerDocument === document) return element;
+		if (isAvailableReturnFocusTarget(document, element)) return element;
 	}
 	return null;
+}
+
+function isAvailableReturnFocusTarget(document: Document, element: HTMLElement): boolean {
+	if (!element.isConnected || element.ownerDocument !== document) return false;
+	for (let ancestor: HTMLElement | null = element; ancestor; ancestor = ancestor.parentElement) {
+		if (ancestor.inert || ancestor.hidden || ancestor.getAttribute('aria-hidden') === 'true') return false;
+	}
+	return true;
 }
 
 function editorFocusableElement(document: Document, target: EventTarget | null): HTMLElement | null {

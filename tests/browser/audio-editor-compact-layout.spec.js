@@ -81,6 +81,18 @@ test.describe('compact layout', () => {
 		await expect(applicationMenubar(editor)).toBeHidden();
 	});
 
+	test('a dialog chosen from the drawer returns focus to the visible menu toggle', async ({ page }) => {
+		const editor = await bootCompactEditor(page);
+		const toggle = menuToggle(editor);
+		await chooseCommandAction(page, editor, 'Edit', 'Preferences');
+		const dialog = page.getByRole('dialog', { name: 'Editor preferences', exact: true });
+		await expect(dialog).toBeVisible();
+		await expect(toggle).toHaveAttribute('aria-expanded', 'false');
+		await page.keyboard.press('Escape');
+		await expect(dialog).toBeHidden();
+		await expect(toggle).toBeFocused();
+	});
+
 	test('play and stop work from the compact bar', async ({ page }) => {
 		const editor = await bootCompactEditor(page);
 		await importFiles(editor, [toneA]);
