@@ -79,7 +79,9 @@ export async function inspectImportedMediaMetadata(
 		options.signal?.throwIfAborted();
 		const tags = aiff?.tags ?? await (options.readTags ?? readMediabunnyMetadataTags)(file, options.signal);
 		options.signal?.throwIfAborted();
-		return canonicalizeImportedMediaMetadata(tags, aiff?.namespaces, aiff?.warnings);
+		const inspected = await canonicalizeImportedMediaMetadata(tags, aiff?.namespaces, aiff?.warnings);
+		options.signal?.throwIfAborted();
+		return inspected;
 	} catch (error) {
 		options.signal?.throwIfAborted();
 		return Object.freeze({
@@ -469,9 +471,7 @@ function ascii(bytes: Uint8Array, start: number, end: number): string {
 }
 
 async function sha256Hex(bytes: Uint8Array): Promise<string> {
-	const digestInput = new ArrayBuffer(bytes.byteLength);
-	new Uint8Array(digestInput).set(bytes);
-	const digest = new Uint8Array(await crypto.subtle.digest('SHA-256', digestInput));
+	const digest = new Uint8Array(await crypto.subtle.digest('SHA-256', new Uint8Array(bytes).buffer));
 	return Array.from(digest, (value) => value.toString(16).padStart(2, '0')).join('');
 }
 

@@ -67,6 +67,31 @@ test('metadata inspection is non-fatal when a container reader refuses the file'
 	assert.deepEqual(inspected.warnings, ['Metadata inspection failed: unsupported container']);
 });
 
+test('metadata inspection is non-fatal when a reader returns malformed tags', async () => {
+	const inspected = await inspectImportedMediaMetadata(new Blob(), {
+		readTags: async () => null,
+	});
+
+	assert.deepEqual(inspected.metadata, {});
+	assert.deepEqual(inspected.attachments, []);
+	assert.deepEqual(inspected.warnings, [
+		'Metadata inspection failed: Media metadata tags must be a data record.',
+	]);
+});
+
+test('metadata inspection is non-fatal when a binary tag cannot be hashed', async () => {
+	const detached = new Uint8Array([1, 2, 3]);
+	structuredClone(detached.buffer, { transfer: [detached.buffer] });
+	const inspected = await inspectImportedMediaMetadata(new Blob(), {
+		readTags: async () => ({ images: [detached] }),
+	});
+
+	assert.deepEqual(inspected.metadata, {});
+	assert.deepEqual(inspected.attachments, []);
+	assert.equal(inspected.warnings.length, 1);
+	assert.match(inspected.warnings[0] ?? '', /^Metadata inspection failed: /u);
+});
+
 test('metadata preserves reserved JSON keys without changing record prototypes', async () => {
 	const inspected = await inspectImportedMediaMetadata(new Blob(), {
 		readTags: async () => JSON.parse('{"raw":{"__proto__":{"credit":"Ada"}}}') as unknown,
@@ -222,6 +247,23 @@ test('metadata inspection preserves cancellation', async () => {
 		inspectImportedMediaMetadata(new Blob(), { signal: controller.signal, readTags: async () => ({}) }),
 		{ name: 'AbortError' },
 	);
+});
+
+test('metadata inspection preserves cancellation during attachment canonicalization', async () => {
+	const controller = new AbortController();
+	const reason = new DOMException('Import was cancelled.', 'AbortError');
+	const bytes = new Uint8Array([1, 2, 3]);
+	Object.defineProperty(bytes, 'byteLength', {
+		get() {
+			controller.abort(reason);
+			return 3;
+		},
+	});
+
+	await assert.rejects(inspectImportedMediaMetadata(new Blob(), {
+		signal: controller.signal,
+		readTags: async () => ({ images: [bytes] }),
+	}), (error: unknown) => error === reason);
 });
 
 function aiffFile(chunks: Uint8Array[]): File {
