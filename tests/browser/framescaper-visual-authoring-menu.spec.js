@@ -52,15 +52,14 @@ test.describe('Framescaper visual authoring menus', () => {
 		await expect(effect.getByRole('menuitem', { name: /^Edit Video Mask\/Matte/u })).toBeVisible();
 		await expect(effect.getByRole('menuitem', { name: /^Freeze Video/u })).toBeVisible();
 		await expect(editor.getByRole('button', {
-			name: /Add (?:Still|Title|Text|Shape|Solid|Sound Visualizer|Video Adjustment Layer)/u,
+			name: /Add (?:Still|Title|Text|Shape|Solid|Test Image|Noise|Sound Visualizer|Video Adjustment Layer)/u,
 		})).toHaveCount(0);
 	});
 
-	test('authors every generator and honors cancel or selection in the image picker', async ({
+	test('authors every generator and checks the image picker in Chromium', async ({
 		browserName,
 		page,
 	}) => {
-		test.skip(browserName !== 'chromium', 'The nightly browser coverage surface is Chromium.');
 		const clientErrors = collectClientErrors(page);
 		const editor = await bootEditor(page, '/framescaper/en/');
 		const generators = [
@@ -68,6 +67,8 @@ test.describe('Framescaper visual authoring menus', () => {
 			[EDITOR_ENGLISH_COPY['ui.framescaperMenus.addVideoText'], 'Text'],
 			[EDITOR_ENGLISH_COPY['ui.framescaperMenus.addVideoShape'], 'Shape'],
 			[EDITOR_ENGLISH_COPY['ui.framescaperMenus.addVideoSolid'], 'Solid'],
+			[EDITOR_ENGLISH_COPY['ui.framescaperMenus.addVideoTestImage'], 'Test Image'],
+			[EDITOR_ENGLISH_COPY['ui.framescaperMenus.addVideoNoise'], 'Noise'],
 		];
 		for (const [action, clipName] of generators) {
 			await chooseNestedCommandAction(
@@ -81,6 +82,10 @@ test.describe('Framescaper visual authoring menus', () => {
 			await editor.getByRole('button', { name: 'Undo', exact: true }).click();
 			await expect(clip).toHaveCount(0, UI_OPTIONS);
 			await expect(editor.locator('[data-save-state]')).toHaveAttribute('data-state', 'saved', UI_OPTIONS);
+		}
+		if (browserName !== 'chromium') {
+			expect(clientErrors).toEqual([]);
+			return;
 		}
 
 		let choosingFile = page.waitForEvent('filechooser');
@@ -111,33 +116,88 @@ test.describe('Framescaper visual authoring menus', () => {
 		expect(clientErrors).toEqual([]);
 	});
 
+	test('edits generated test images and noise through the selected visual inspector', async ({
+		browserName, page,
+	}) => {
+		await installWebkitPreviewFrameDigest(page, browserName);
+		const clientErrors = collectClientErrors(page);
+		const editor = await bootEditor(page, '/framescaper/embed/en/');
+		test.skip(!await page.evaluate(hasWebGl2Capability), 'The exact visual preview requires WebGL2.');
+		await chooseNestedCommandAction(page, editor, 'Generate', [
+			'Video Generators', EDITOR_ENGLISH_COPY['ui.framescaperMenus.addVideoTestImage'],
+		], UI_OPTIONS);
+		const image = editor.getByRole('group', { name: 'Video clip: Test Image', exact: true });
+		await expect(image).toBeVisible(UI_OPTIONS);
+		await image.press('Enter');
+		await chooseNestedCommandAction(page, editor, 'Effect', [
+			'Video Finishing', EDITOR_ENGLISH_COPY['ui.framescaperMenus.videoVisualInspector'],
+		], UI_OPTIONS);
+		let dialog = page.getByRole('dialog', { name: 'Selected Visual Inspector', exact: true });
+		await dialog.getByRole('combobox', { name: 'Pattern', exact: true }).selectOption('alignment-grid');
+		await dialog.getByRole('button', { name: 'Apply', exact: true }).click();
+		await expect(dialog.getByRole('status').last()).toHaveText('Selected visual updated.', UI_OPTIONS);
+		await page.keyboard.press('Escape');
+
+		await chooseNestedCommandAction(page, editor, 'Generate', [
+			'Video Generators', EDITOR_ENGLISH_COPY['ui.framescaperMenus.addVideoNoise'],
+		], UI_OPTIONS);
+		const noise = editor.getByRole('group', { name: 'Video clip: Noise', exact: true });
+		await expect(noise).toBeVisible(UI_OPTIONS);
+		const noiseId = await noise.getAttribute('data-clip-id');
+		expect(noiseId).toBeTruthy();
+		await noise.press('Enter');
+		await chooseNestedCommandAction(page, editor, 'Effect', [
+			'Video Finishing', EDITOR_ENGLISH_COPY['ui.framescaperMenus.videoVisualInspector'],
+		], UI_OPTIONS);
+		dialog = page.getByRole('dialog', { name: 'Selected Visual Inspector', exact: true });
+		await dialog.getByRole('combobox', { name: 'Noise mode', exact: true }).selectOption('color');
+		await dialog.getByRole('spinbutton', { name: 'Grain size (pixels)', exact: true }).fill('16');
+		await dialog.getByRole('spinbutton', { name: 'Seed', exact: true }).fill('42');
+		await dialog.getByRole('button', { name: 'Apply', exact: true }).click();
+		await expect(dialog.getByRole('status').last()).toHaveText('Selected visual updated.', UI_OPTIONS);
+		await page.keyboard.press('Escape');
+		const preview = editor.locator('[data-video-preview]');
+		await seekFramescaperTimecode(page, editor, '00:00:05:00');
+		await expectExactVisualizerFrame(preview);
+		await expect.poll(async () => (await preview.getAttribute('data-active-clip-ids'))
+			?.split(' ').includes(noiseId), UI_OPTIONS).toBe(true);
+		const firstSample = await preview.getAttribute('data-video-preview-evaluated-timeline-sample');
+		const firstDigest = await previewDigest(editor, browserName);
+		await seekFramescaperTimecode(page, editor, '00:00:05:01');
+		await expectExactVisualizerFrame(preview);
+		await expect(preview).not.toHaveAttribute('data-video-preview-evaluated-timeline-sample', firstSample, UI_OPTIONS);
+		await expect.poll(() => previewDigest(editor, browserName), {
+			timeout: 10_000, intervals: [100, 250, 500],
+		}).not.toBe(firstDigest);
+		await expect(editor.locator('[data-save-state]')).toHaveAttribute('data-state', 'saved', UI_OPTIONS);
+
+		await page.reload();
+		const restored = page.locator('[data-audio-editor]');
+		await expect(restored).toHaveAttribute('data-audio-editor-bound', 'true', UI_OPTIONS);
+		await restored.getByRole('group', { name: 'Video clip: Test Image', exact: true }).press('Enter');
+		await chooseNestedCommandAction(page, restored, 'Effect', [
+			'Video Finishing', EDITOR_ENGLISH_COPY['ui.framescaperMenus.videoVisualInspector'],
+		], UI_OPTIONS);
+		dialog = page.getByRole('dialog', { name: 'Selected Visual Inspector', exact: true });
+		await expect(dialog.getByRole('combobox', { name: 'Pattern', exact: true }))
+			.toHaveValue('alignment-grid');
+		await page.keyboard.press('Escape');
+
+		await restored.getByRole('group', { name: 'Video clip: Noise', exact: true }).press('Enter');
+		await chooseNestedCommandAction(page, restored, 'Effect', [
+			'Video Finishing', EDITOR_ENGLISH_COPY['ui.framescaperMenus.videoVisualInspector'],
+		], UI_OPTIONS);
+		dialog = page.getByRole('dialog', { name: 'Selected Visual Inspector', exact: true });
+		await expect(dialog.getByRole('combobox', { name: 'Noise mode', exact: true })).toHaveValue('color');
+		await expect(dialog.getByRole('spinbutton', { name: 'Grain size (pixels)', exact: true }))
+			.toHaveValue('16');
+		await expect(dialog.getByRole('spinbutton', { name: 'Seed', exact: true })).toHaveValue('42');
+		expect(clientErrors).toEqual([]);
+	});
+
 	test('configures a menu-authored sound visualizer for a chosen audio source', async ({ page, browserName }) => {
 		test.setTimeout(300_000);
-		// WebKit screenshots can retain the previous WebGL frame when drawing buffers are discarded.
-		// Hash the presented framebuffer after each draw to verify visible animation there.
-		if (browserName === 'webkit') await page.addInitScript(() => {
-			if (typeof WebGL2RenderingContext === 'undefined') return;
-			window.__framescaperPreviewFrameDigest = null;
-			const nativeDraw = WebGL2RenderingContext.prototype.drawArrays;
-			WebGL2RenderingContext.prototype.drawArrays = function (...args) {
-				const result = nativeDraw.apply(this, args);
-				if (this.canvas instanceof HTMLCanvasElement
-					&& this.canvas.matches('[data-video-preview-canvas]')
-					&& this.getParameter(this.FRAMEBUFFER_BINDING) === null) {
-					const pixels = new Uint8Array(this.drawingBufferWidth * this.drawingBufferHeight * 4);
-					this.readPixels(0, 0, this.drawingBufferWidth, this.drawingBufferHeight,
-						this.RGBA, this.UNSIGNED_BYTE, pixels);
-					let hash = 2166136261;
-					for (let index = 0; index < pixels.length; index += 64) {
-						for (let component = 0; component < 4; component += 1) {
-							hash = Math.imul(hash ^ pixels[index + component], 16777619);
-						}
-					}
-					window.__framescaperPreviewFrameDigest = hash >>> 0;
-				}
-				return result;
-			};
-		});
+		await installWebkitPreviewFrameDigest(page, browserName);
 		const clientErrors = collectClientErrors(page);
 		const editor = await bootEditor(page, '/framescaper/embed/en/');
 		test.skip(!await page.evaluate(hasWebGl2Capability), 'The exact visual preview requires WebGL2.');
@@ -403,6 +463,35 @@ test.describe('Framescaper visual authoring menus', () => {
 		expect(clientErrors).toEqual([]);
 	});
 });
+
+async function installWebkitPreviewFrameDigest(page, browserName) {
+	// WebKit screenshots can retain the previous WebGL frame when drawing buffers are discarded.
+	// Hash the presented framebuffer after each draw to verify visible animation there.
+	if (browserName !== 'webkit') return;
+	await page.addInitScript(() => {
+		if (typeof WebGL2RenderingContext === 'undefined') return;
+		window.__framescaperPreviewFrameDigest = null;
+		const nativeDraw = WebGL2RenderingContext.prototype.drawArrays;
+		WebGL2RenderingContext.prototype.drawArrays = function (...args) {
+			const result = nativeDraw.apply(this, args);
+			if (this.canvas instanceof HTMLCanvasElement
+				&& this.canvas.matches('[data-video-preview-canvas]')
+				&& this.getParameter(this.FRAMEBUFFER_BINDING) === null) {
+				const pixels = new Uint8Array(this.drawingBufferWidth * this.drawingBufferHeight * 4);
+				this.readPixels(0, 0, this.drawingBufferWidth, this.drawingBufferHeight,
+					this.RGBA, this.UNSIGNED_BYTE, pixels);
+				let hash = 2166136261;
+				for (let index = 0; index < pixels.length; index += 64) {
+					for (let component = 0; component < 4; component += 1) {
+						hash = Math.imul(hash ^ pixels[index + component], 16777619);
+					}
+				}
+				window.__framescaperPreviewFrameDigest = hash >>> 0;
+			}
+			return result;
+		};
+	});
+}
 
 async function expectExactVisualizerFrame(preview) {
 	await expect.poll(() => preview.evaluate((element) => {

@@ -227,7 +227,7 @@ function placementIntersects(
 function generatorKind(value: unknown): UnifiedExactRenderVisualNode['modelKind'] {
 	const generator = record(value, 'generator source.generator');
 	const kind = generator.kind;
-	if (!['title', 'text', 'shape', 'solid', 'sound-visualizer', 'external-generator'].includes(String(kind))) {
+	if (!['title', 'text', 'shape', 'solid', 'test-image', 'noise', 'sound-visualizer', 'external-generator'].includes(String(kind))) {
 		throw new RangeError('A generator source has an unsupported exact V10 kind.');
 	}
 	return kind as UnifiedExactRenderVisualNode['modelKind'];

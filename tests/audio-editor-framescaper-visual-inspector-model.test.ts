@@ -40,6 +40,34 @@ test('resizing an inspector mask changes only its width and retains its authored
 	assert.equal(output?.width, 0.4);
 });
 
+test('the visual inspector edits test image patterns and noise settings', () => {
+	const testImage = generatorProject({ kind: 'test-image', pattern: 'color-bars' });
+	const imageModel = createFramescaperVisualInspectorModel({
+		project: testImage, selectedClipId: 'clip-title',
+	});
+	assert.equal(imageModel.kind, 'test-image');
+	const imageCommand = createFramescaperVisualInspectorCommand(testImage, imageModel.clipId, {
+		generator: { kind: 'test-image', pattern: 'alignment-grid' },
+		opacity: imageModel.opacity, blendMode: imageModel.blendMode,
+		maskId: imageModel.maskId, maskWidth: imageModel.maskWidth, presetId: null,
+	}) as { readonly source: Readonly<{ readonly generator: unknown }> };
+	assert.deepEqual(imageCommand.source.generator, { kind: 'test-image', pattern: 'alignment-grid' });
+
+	const noise = generatorProject({ kind: 'noise', mode: 'monochrome', grainSize: 4, seed: 1 });
+	const noiseModel = createFramescaperVisualInspectorModel({
+		project: noise, selectedClipId: 'clip-title',
+	});
+	assert.equal(noiseModel.kind, 'noise');
+	const noiseCommand = createFramescaperVisualInspectorCommand(noise, noiseModel.clipId, {
+		generator: { kind: 'noise', mode: 'color', grainSize: 16, seed: 42 },
+		opacity: noiseModel.opacity, blendMode: noiseModel.blendMode,
+		maskId: noiseModel.maskId, maskWidth: noiseModel.maskWidth, presetId: null,
+	}) as { readonly source: Readonly<{ readonly generator: unknown }> };
+	assert.deepEqual(noiseCommand.source.generator, {
+		kind: 'noise', mode: 'color', grainSize: 16, seed: 42,
+	});
+});
+
 test('the visualizer inspector offers audio sources used in its sequence and commits source and view edits', () => {
 	const value = visualizerProject();
 	const model = createFramescaperVisualInspectorModel({ project: value, selectedClipId: 'clip-visualizer' });
@@ -157,6 +185,14 @@ function project(maskMatteIds: readonly string[]) {
 		}],
 		videoMaskMattes: [mask('mask-primary', 0.25), mask('mask-secondary', 0.5)],
 		videoVisualPresets: [],
+	};
+}
+
+function generatorProject(generator: Readonly<Record<string, unknown>>) {
+	const value = project([]);
+	return {
+		...value,
+		sources: value.sources.map((source) => ({ ...source, generator })),
 	};
 }
 

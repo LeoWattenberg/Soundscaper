@@ -171,6 +171,37 @@ function GeneratorFields(props: Readonly<{
 	}>) {
 		const generator = props.generator;
 		if (generator === null) return null;
+		if (generator.kind === 'test-image') return <fieldset disabled={props.disabled}>
+			<legend>{label(props.copy, 'testImage', FRAMESCAPER_VISUAL_INSPECTOR_ADDITIONAL_COPY.testImage)}</legend>
+			<label><span>{label(props.copy, 'testImagePattern', FRAMESCAPER_VISUAL_INSPECTOR_ADDITIONAL_COPY.testImagePattern)}</span>
+				<select data-visual-inspector-test-image-pattern value={generator.pattern}
+					onChange={(event) => props.onChange({ pattern: event.currentTarget.value })}>
+					<option value="color-bars">{label(props.copy, 'testImageColorBars', FRAMESCAPER_VISUAL_INSPECTOR_ADDITIONAL_COPY.testImageColorBars)}</option>
+					<option value="grayscale-ramp">{label(props.copy, 'testImageGrayscaleRamp', FRAMESCAPER_VISUAL_INSPECTOR_ADDITIONAL_COPY.testImageGrayscaleRamp)}</option>
+					<option value="alignment-grid">{label(props.copy, 'testImageAlignmentGrid', FRAMESCAPER_VISUAL_INSPECTOR_ADDITIONAL_COPY.testImageAlignmentGrid)}</option>
+				</select>
+			</label>
+		</fieldset>;
+		if (generator.kind === 'noise') return <fieldset disabled={props.disabled}>
+			<legend>{label(props.copy, 'noise', FRAMESCAPER_VISUAL_INSPECTOR_ADDITIONAL_COPY.noise)}</legend>
+			<label><span>{label(props.copy, 'noiseMode', FRAMESCAPER_VISUAL_INSPECTOR_ADDITIONAL_COPY.noiseMode)}</span>
+				<select data-visual-inspector-noise-mode value={generator.mode}
+					onChange={(event) => props.onChange({ mode: event.currentTarget.value })}>
+					<option value="monochrome">{label(props.copy, 'noiseMonochrome', FRAMESCAPER_VISUAL_INSPECTOR_ADDITIONAL_COPY.noiseMonochrome)}</option>
+					<option value="color">{label(props.copy, 'noiseColor', FRAMESCAPER_VISUAL_INSPECTOR_ADDITIONAL_COPY.noiseColor)}</option>
+				</select>
+			</label>
+			<label><span>{label(props.copy, 'noiseGrainSize', FRAMESCAPER_VISUAL_INSPECTOR_ADDITIONAL_COPY.noiseGrainSize)}</span>
+				<input data-visual-inspector-noise-grain-size type="number" min="1" max="64" step="1"
+					value={generator.grainSize}
+					onChange={(event) => props.onChange({ grainSize: event.currentTarget.valueAsNumber })} />
+			</label>
+			<label><span>{label(props.copy, 'noiseSeed', FRAMESCAPER_VISUAL_INSPECTOR_ADDITIONAL_COPY.noiseSeed)}</span>
+				<input data-visual-inspector-noise-seed type="number" min="0" max="4294967295" step="1"
+					value={generator.seed}
+					onChange={(event) => props.onChange({ seed: event.currentTarget.valueAsNumber })} />
+			</label>
+		</fieldset>;
 		if (generator.kind === 'sound-visualizer') {
 			const missingAudioSource = generator.sourceIds.some((id) =>
 				!props.audioSources.some((source) => source.id === id));

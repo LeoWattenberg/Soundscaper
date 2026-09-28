@@ -212,6 +212,7 @@ export async function createFramescaperSelectedExactFrameExecutionFinishing(opti
 			}
 			accepted = true;
 			const visual = visualConsumer.resolveFrame({ sequencePosition: request.sequencePosition });
+			const outputOrdinal = request.outputOrdinal ?? outputAtSequencePosition(request.sequencePosition, options.plan);
 			const visualEntries = visual.layers.flatMap(({ entries }) => entries);
 			const activeVisualIds = new Set(visualEntries.map(({ modelId }) => modelId));
 			const supplementalPictureIds = validatedFramescaperSupplementalPictureIdsFinishing(
@@ -219,10 +220,9 @@ export async function createFramescaperSelectedExactFrameExecutionFinishing(opti
 			);
 			const rawVisuals = new Map(await materializeFramescaperSelectedOpenFxVisualsNativeMedia(
 				visualEntries.filter(({ modelId }) => !supplementalPictureIds.has(modelId)), visualAssets.stills,
-				width, height, options.plan.output.canvas.fit, signal, openFxPlanes,
+				width, height, options.plan.output.canvas.fit, signal, openFxPlanes, outputOrdinal,
 				soundVisualizer ? (entry) => soundVisualizer.window(entry,
-					request.timelineSample ?? sampleAtSequencePosition(request.sequencePosition, options.plan),
-					request.outputOrdinal ?? outputAtSequencePosition(request.sequencePosition, options.plan), signal) : undefined,
+					request.timelineSample ?? sampleAtSequencePosition(request.sequencePosition, options.plan), outputOrdinal, signal) : undefined,
 			));
 			if (supplementalPictureIds.size > 0) {
 				const transparent = Object.freeze({

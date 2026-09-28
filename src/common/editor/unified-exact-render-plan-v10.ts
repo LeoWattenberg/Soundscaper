@@ -50,6 +50,8 @@ export type UnifiedExactVisualModelKind =
 	| 'text'
 	| 'shape'
 	| 'solid'
+	| 'test-image'
+	| 'noise'
 	| 'sound-visualizer'
 	| 'external-generator'
 	| 'adjustment-layer'
@@ -353,7 +355,7 @@ function assertAcyclicGeneratorDependencies(
 }
 
 const GENERATOR_KINDS: ReadonlySet<UnifiedExactVisualModelKind> = new Set([
-	'title', 'text', 'shape', 'solid', 'sound-visualizer', 'external-generator',
+	'title', 'text', 'shape', 'solid', 'test-image', 'noise', 'sound-visualizer', 'external-generator',
 ]);
 const VISUAL_KINDS: ReadonlySet<UnifiedExactVisualModelKind> = new Set([
 	'still', ...GENERATOR_KINDS, 'adjustment-layer', 'preset', 'mask-matte', 'video-freeze',

@@ -37,7 +37,8 @@ export interface FramescaperVisualInspectorAudioSource {
 export interface FramescaperVisualInspectorModel {
 	readonly clipId: string | null;
 	readonly sourceId: string | null;
-	readonly kind: 'still' | 'title' | 'text' | 'shape' | 'solid' | 'sound-visualizer' | null;
+	readonly kind: 'still' | 'title' | 'text' | 'shape' | 'solid' | 'test-image' | 'noise'
+		| 'sound-visualizer' | null;
 	readonly generator: VideoGeneratorDocumentV1 | null;
 	readonly audioSources: readonly FramescaperVisualInspectorAudioSource[];
 	readonly opacity: number;

@@ -22,6 +22,7 @@ export async function materializeFramescaperSelectedOpenFxVisualsNativeMedia(
 	fit: VideoCanvasFit,
 	signal: AbortSignal,
 	openFx: ReturnType<typeof createFramescaperSelectedOpenFxExactPlanesNativeMedia> | null,
+	outputOrdinal: number,
 	soundWindow?: (entry: UnifiedExactRenderVisualFrameEntryV13) => Promise<FramescaperSoundVisualizerWindow>,
 ): Promise<ReadonlyMap<string, UnifiedExactRenderVisualRgbaV13>> {
 	const result = new Map<string, UnifiedExactRenderVisualRgbaV13>();
@@ -41,6 +42,7 @@ export async function materializeFramescaperSelectedOpenFxVisualsNativeMedia(
 		}), {
 			targetWidth: placement.width, targetHeight: placement.height,
 			decodeStill: (source) => Promise.resolve(required(stills, source.id)),
+			outputOrdinal,
 			...(entry.modelKind === 'sound-visualizer'
 				? { soundVisualizer: await requiredSoundWindow(soundWindow, entry) } : {}),
 			signal,

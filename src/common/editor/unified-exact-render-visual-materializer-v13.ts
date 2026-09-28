@@ -17,6 +17,7 @@ import {
 	renderSoundVisualizerRgba,
 	type SoundVisualizerRgbaRequest,
 } from './sound-visualizer-rgba.ts';
+import { renderVideoNoiseRgba, renderVideoTestImageRgba } from './video-test-image-noise-rgba.ts';
 
 export type UnifiedExactRenderVisualRgbaV13 = VideoMaskMatteRgbaInputV13;
 
@@ -26,6 +27,7 @@ export interface UnifiedExactRenderVisualMaterializerOptionsV13 {
 	readonly decodeStill?: (source: VideoStillSourceV1) => Promise<UnifiedExactRenderVisualRgbaV13>;
 	readonly soundVisualizer?: Pick<SoundVisualizerRgbaRequest,
 		'channels' | 'sampleRate' | 'windowStartFrame' | 'timelineFrame'>;
+	readonly outputOrdinal?: number;
 	readonly maskInputs?: ReadonlyMap<string, VideoMaskMatteRgbaInputV13>;
 	readonly signal?: AbortSignal;
 }
@@ -72,8 +74,15 @@ export async function materializeUnifiedExactRenderVisualEntryV13(
 				width, height,
 				foregroundColor: source.generator.foregroundColor,
 				backgroundColor: source.generator.backgroundColor,
-			})
-			: generatorFrame(source.generator, width, height, options.signal);
+			}) : source.generator.kind === 'test-image'
+				? renderVideoTestImageRgba({
+					pattern: source.generator.pattern, width, height, signal: options.signal,
+				}) : source.generator.kind === 'noise'
+					? renderVideoNoiseRgba({
+						mode: source.generator.mode, grainSize: source.generator.grainSize,
+						seed: source.generator.seed, outputOrdinal: options.outputOrdinal ?? 0,
+						width, height, signal: options.signal,
+					}) : generatorFrame(source.generator, width, height, options.signal);
 	}
 	if (entry.masks.length === 0) return frame;
 	const pixels = frame.pixels.slice() as Uint8Array<ArrayBuffer>;
@@ -90,7 +99,7 @@ export async function materializeUnifiedExactRenderVisualEntryV13(
 }
 
 function generatorFrame(
-	document: Exclude<VideoGeneratorDocumentV1, Readonly<{ kind: 'external-generator' | 'sound-visualizer' }>>,
+	document: Extract<VideoGeneratorDocumentV1, Readonly<{ kind: 'title' | 'text' | 'shape' | 'solid' }>>,
 	width: number,
 	height: number,
 	signal?: AbortSignal,

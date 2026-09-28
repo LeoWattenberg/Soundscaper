@@ -26,10 +26,12 @@ Product availability follows each product profile’s command filters and each l
 | About this editor | `about-audacity` | — | Help | Soundscaper, Framescaper | Audacity |
 | Add Dissolve Transition | `framescaper-add-dissolve-transition` | — | Effect > Video Transitions | Framescaper | Soundscaper local |
 | Add Images | `framescaper-add-video-still` | — | Generate | Framescaper | Soundscaper local |
+| Add Noise | `framescaper-add-video-noise` | — | Generate > Video Generators | Framescaper | Soundscaper local |
 | Add OFX | `framescaper-ofx-add` | — | Effect > Video effects | Framescaper | Soundscaper local |
 | Add Shape | `framescaper-add-video-shape` | — | Generate > Video Generators | Framescaper | Soundscaper local |
 | Add Solid | `framescaper-add-video-solid` | — | Generate > Video Generators | Framescaper | Soundscaper local |
 | Add Sound Visualizer | `framescaper-add-sound-visualizer` | — | Generate > Video Generators | Framescaper | Soundscaper local |
+| Add Test Image | `framescaper-add-video-test-image` | — | Generate > Video Generators | Framescaper | Soundscaper local |
 | Add Text | `framescaper-add-video-text` | — | Generate > Video Generators | Framescaper | Soundscaper local |
 | Add Title/Text | `framescaper-add-video-title` | — | Generate > Video Generators | Framescaper | Soundscaper local |
 | Add Video Adjustment Layer | `framescaper-add-video-adjustment-layer` | — | Tracks | Framescaper | Soundscaper local |

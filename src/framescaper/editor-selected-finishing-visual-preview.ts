@@ -53,6 +53,7 @@ import {
 import { createFramescaperVideoExportVisualFreshnessFinishing } from './video-export-visual-freshness-finishing.ts';
 import { createFramescaperSoundVisualizerWindowReader } from './sound-visualizer-window.ts';
 import { createSelectedFinishingSoundVisualizerPreview } from './selected-finishing-sound-visualizer-preview.ts';
+import { createSelectedFinishingNoisePreview } from './selected-finishing-noise-preview.ts';
 import { resolveFramescaperVisualPlacementFinishing } from './visual-placement-finishing.ts';
 
 type Data = Readonly<Record<string, unknown>>;
@@ -113,6 +114,9 @@ export async function createFramescaperSelectedVisualPreviewSessionFinishing(
 			reader: createFramescaperSoundVisualizerWindowReader({ project, store: options.store }),
 			drawables, sampleRate: plan.timebase.sampleRate, signal: abort.signal,
 		}) : null;
+	const noisePreview = plan.nodes.some((node) => node.kind === 'visual'
+		&& node.modelKind === 'noise' && node.placement !== null)
+		? createSelectedFinishingNoisePreview({ drawables, signal: abort.signal }) : null;
 	const effectsById = exactEffectsById(plan);
 	let disposed = false;
 	let cachedSample = -1;
@@ -130,14 +134,15 @@ export async function createFramescaperSelectedVisualPreviewSessionFinishing(
 	};
 	const publish = (timelineSample: number): ProductVideoVisualPreviewFrame => {
 		const frame = resolve(timelineSample);
+		const outputOrdinal = outputAtSequencePosition(sequencePosition(plan, timelineSample), plan);
 		return Object.freeze({
 				layers: Object.freeze(frame.layers.flatMap((layer) => layer.entries.map((entry) => {
 					const video = drawables.get(entry.modelId);
 					if (!video) throw new ReferenceError(`V13 visual drawable ${entry.modelId} is unavailable.`);
 					if (soundPreview && entry.modelKind === 'sound-visualizer') {
-						const position = sequencePosition(plan, timelineSample);
-						soundPreview.update(entry, timelineSample, outputAtSequencePosition(position, plan));
+						soundPreview.update(entry, timelineSample, outputOrdinal);
 					}
+					noisePreview?.update(entry, outputOrdinal);
 					return Object.freeze({
 						trackId: layer.trackId,
 						trackIndex: layer.sequenceOrder,
@@ -180,6 +185,7 @@ export async function createFramescaperSelectedVisualPreviewSessionFinishing(
 			disposed = true;
 			abort.abort(new DOMException('The V13 preview session was disposed.', 'AbortError'));
 			soundPreview?.dispose();
+			noisePreview?.dispose();
 			exact.dispose();
 			drawables.clear();
 		},
@@ -464,7 +470,7 @@ function hasExecutableVisualState(project: Data): boolean {
 function projectBinModelKind(source: Data): UnifiedExactRenderVisualNode['modelKind'] {
 	if (source.kind === 'still') return 'still';
 	const generator = record(source.generator, 'Project Bin generator document');
-	if (!['title', 'text', 'shape', 'solid', 'sound-visualizer'].includes(String(generator.kind))) {
+	if (!['title', 'text', 'shape', 'solid', 'sound-visualizer', 'test-image', 'noise'].includes(String(generator.kind))) {
 		throw new RangeError('Dormant external generators have no Project Bin thumbnail.');
 	}
 	return generator.kind as UnifiedExactRenderVisualNode['modelKind'];
