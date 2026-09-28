@@ -9,6 +9,7 @@ import {
 	pcmWindowCoversProjectedClip,
 	projectedClipVisibleSourceSamples,
 } from './preview.ts';
+import { spectrogramPcmContextClip } from './spectrogram-pcm-context.ts';
 import {
 	generateSpectrogramPcmTiles,
 	type SpectrogramPcmColumns,
@@ -94,9 +95,11 @@ export function useSpectrogramPcmTiles({
 			if (clip.isRecordingPreview) continue;
 			const visual = controller.getClipVisualData(clip.id)
 				?? controller.getProjectBinClipVisualData?.(clip.projectBinClipId ?? clip.id);
-			if (!visual?.available || visual.buffer
-				|| pcmWindowCoversProjectedClip(visual.pcmWindow, clip, project)) continue;
-			if (!(projectedClipVisibleSourceSamples(clip, project) > MAXIMUM_WHOLE_CLIP_PCM_FRAMES)) continue;
+			if (!visual?.available || visual.buffer) continue;
+			const contextClip = spectrogramPcmContextClip(clip, fftWindowSize);
+			if (pcmWindowCoversProjectedClip(visual.pcmWindow, contextClip, project)) continue;
+			if (!(projectedClipVisibleSourceSamples(contextClip, project)
+				> MAXIMUM_WHOLE_CLIP_PCM_FRAMES)) continue;
 			const frameCount = clip.waveformEndFrame - clip.waveformStartFrame;
 			if (!(frameCount > 0)) continue;
 			const width = Math.max(MINIMUM_VISIBLE_CLIP_PIXELS,

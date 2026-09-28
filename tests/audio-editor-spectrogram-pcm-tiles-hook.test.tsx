@@ -134,6 +134,51 @@ test('a changed spectral width aborts stale tiles and unmount aborts the replace
 	}
 });
 
+test('FFT context over the PCM cap uses tiles even when a narrow window covers the painted slice', async () => {
+	const dom = installReactTestDom();
+	const { createRoot } = await import('react-dom/client');
+	const root = createRoot(dom.container as unknown as Element);
+	const actGlobal = globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean };
+	const previousAct = actGlobal.IS_REACT_ACT_ENVIRONMENT;
+	actGlobal.IS_REACT_ACT_ENVIRONMENT = true;
+	const source = { id: 'source', sampleRate: 48_000, frameCount: 400_000 };
+	const clip = { ...CLIP, durationFrames: 400_000, sourceDurationFrames: 400_000,
+		waveformStartFrame: 1_000, waveformEndFrame: 261_000 };
+	const projectedClips = [clip];
+	const sourceLookup = new Map([[source.id, source]]);
+	const requests: Array<{ startFrame: number; endFrame: number; signal?: AbortSignal }> = [];
+	const controller = {
+		getClipVisualData: () => ({ available: true, source, buffer: null,
+			pcmWindow: { startFrame: 1_000, endFrame: 261_000,
+				channels: [new Float32Array(260_000)] } }),
+		actions: { timeline: { requestWaveformPcmWindow: (
+			_clipId: string,
+			options: { startFrame: number; endFrame: number; signal?: AbortSignal },
+		) => new Promise<unknown>(() => { requests.push(options); }) } },
+	};
+	function Harness() {
+		useSpectrogramPcmTiles({
+			controller, projectedClips, sourceLookup, project: null,
+			pixelsPerSecond: 20, sampleRate: 48_000,
+			displayMode: 'spectrogram', fftWindowSize: 8_192,
+			windowType: 'hann', visualRevision: 0,
+		});
+		return null;
+	}
+	try {
+		await act(async () => root.render(<Harness />));
+		await waitFor(() => requests.length > 0);
+		assert.equal(requests[0]?.startFrame, 0,
+			'first tile includes FFT context before the painted 1,000-frame start');
+		assert.ok(requests[0]!.endFrame <= 262_140);
+	} finally {
+		await act(async () => root.unmount());
+		assert.equal(requests[0]?.signal?.aborted, true);
+		actGlobal.IS_REACT_ACT_ENVIRONMENT = previousAct;
+		dom.restore();
+	}
+});
+
 async function waitFor(predicate: () => boolean): Promise<void> {
 	for (let attempt = 0; attempt < 100; attempt += 1) {
 		if (predicate()) return;

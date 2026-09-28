@@ -34,8 +34,8 @@ test('spectrogram PCM tiles stay bounded, sequential, and aligned with global ca
 			const columns: number[][] = [];
 			for (let pixel = options.pixelStart; pixel < options.pixelEnd; pixel += options.pixelSkip) {
 				analyzedPixels.push(pixel);
-				const first = Math.floor(pixel * view.length / width);
-				columns.push([view.sampleAt(first), view.sampleAt(first + options.fftWindowSize - 1)]);
+				const center = Math.floor(pixel * view.length / width);
+				columns.push([view.sampleAt(center - 16), view.sampleAt(center + 15)]);
 			}
 			return columns;
 		},
@@ -49,8 +49,8 @@ test('spectrogram PCM tiles stay bounded, sequential, and aligned with global ca
 	const columns = result.channels[0]!;
 	assert.equal(columns.length, 16);
 	for (let index = 0; index < columns.length; index += 1) {
-		const first = index * 40;
-		assert.deepEqual(columns[index], [samples[first], samples[Math.min(samples.length - 1, first + 31)]]);
+		const center = index * 40;
+		assert.deepEqual(columns[index], [center >= 16 ? samples[center - 16] : 0, samples[center + 15]]);
 	}
 	assert.equal(result.width, 64);
 	assert.equal(result.pixelSkip, 4);
@@ -191,8 +191,108 @@ test('PFFFT retains a sustained tone through the first, middle, and last streame
 	assert.ok(ranges.every(([start, end]) => end - start <= 262_140));
 	const columns = result.channels[0]!;
 	assert.equal(columns.length, 24);
-	const toneEnergies = [columns[0]![0]!, columns[12]![0]!, columns[23]![0]!];
+	const toneEnergies = [columns[1]![0]!, columns[12]![0]!, columns[23]![0]!];
 	assert.ok(toneEnergies.every((energy) => energy > 0.001));
 	assert.ok(Math.min(...toneEnergies) / Math.max(...toneEnergies) > 0.9,
 		`the same tone must retain comparable energy across PCM tiles: ${toneEnergies}`);
+	assert.ok(columns[0]![0]! > toneEnergies[0]! * 0.4,
+		'the actual clip start retains spectral energy with half a centered window');
+});
+
+test('a highly zoomed projected slice reads centered FFT context without shifting its columns', async () => {
+	const samples = Float32Array.from({ length: 10_000 }, (_, frame) => frame / 10_000);
+	const requests: Array<readonly [number, number]> = [];
+	const result = await generateSpectrogramPcmTiles({
+		clip: {
+			id: 'clip', sourceId: 'source', timelineStartFrame: 0,
+			durationFrames: 10_000, sourceStartFrame: 0,
+			sourceDurationFrames: 10_000,
+			waveformStartFrame: 5_000, waveformEndFrame: 5_050,
+		},
+		width: 100, fftWindowSize: 256, pixelSkip: 4,
+		maximumSourceFrames: 512,
+		async requestPcmWindow(startFrame, endFrame) {
+			requests.push([startFrame, endFrame]);
+			return { startFrame, endFrame, channels: [samples.slice(startFrame, endFrame)] };
+		},
+		analyze(view, width, options) {
+			const columns: number[][] = [];
+			for (let pixel = options.pixelStart; pixel < options.pixelEnd; pixel += options.pixelSkip) {
+				const center = Math.floor(pixel * view.length / width);
+				columns.push([view.sampleAt(center - 128), view.sampleAt(center + 127)]);
+			}
+			return columns;
+		},
+	});
+	assert.ok(result);
+	assert.deepEqual(requests, [[4_872, 5_176]]);
+	const columns = result.channels[0]!;
+	assert.equal(columns.length, 25);
+	assert.deepEqual(columns[0], [samples[4_872], samples[5_127]]);
+	assert.deepEqual(columns[24], [samples[4_920], samples[5_175]]);
+});
+
+test('a projected slice at the clip end keeps left FFT context inside the clip', async () => {
+	const samples = Float32Array.from({ length: 10_000 }, (_, frame) => frame / 10_000);
+	const requests: Array<readonly [number, number]> = [];
+	const result = await generateSpectrogramPcmTiles({
+		clip: {
+			id: 'clip', sourceId: 'source', timelineStartFrame: 0,
+			durationFrames: 10_000, sourceStartFrame: 0,
+			sourceDurationFrames: 10_000,
+			waveformStartFrame: 9_950, waveformEndFrame: 10_000,
+		},
+		width: 100, fftWindowSize: 256, pixelSkip: 4,
+		maximumSourceFrames: 512,
+		async requestPcmWindow(startFrame, endFrame) {
+			requests.push([startFrame, endFrame]);
+			return { startFrame, endFrame, channels: [samples.slice(startFrame, endFrame)] };
+		},
+		analyze(view, width, options) {
+			const columns: number[][] = [];
+			for (let pixel = options.pixelStart; pixel < options.pixelEnd; pixel += options.pixelSkip) {
+				const center = Math.floor(pixel * view.length / width);
+				columns.push([view.sampleAt(center - 128), view.sampleAt(center + 127)]);
+			}
+			return columns;
+		},
+	});
+	assert.ok(result);
+	assert.deepEqual(requests, [[9_822, 10_000]]);
+	const columns = result.channels[0]!;
+	assert.deepEqual(columns[0], [samples[9_822], 0]);
+	assert.deepEqual(columns[24], [samples[9_870], 0]);
+});
+
+test('PFFFT paints a short projected tone at interior and final clip positions', async () => {
+	const samples = Float32Array.from({ length: 10_000 }, (_, frame) => (
+		0.6 * Math.sin(2 * Math.PI * 1_000 * frame / 48_000)
+	));
+	for (const { startFrame, endFrame, minimumRatio } of [
+		{ startFrame: 5_000, endFrame: 5_050, minimumRatio: 0.9 },
+		{ startFrame: 9_950, endFrame: 10_000, minimumRatio: 0.7 },
+	]) {
+		const result = await generateSpectrogramPcmTiles({
+			clip: {
+				id: 'clip', sourceId: 'source', timelineStartFrame: 0,
+				durationFrames: samples.length, sourceStartFrame: 0,
+				sourceDurationFrames: samples.length,
+				waveformStartFrame: startFrame, waveformEndFrame: endFrame,
+			},
+			width: 100, fftWindowSize: 2_048, frequencyBands: 16,
+			pixelSkip: 4, windowType: 'hann',
+			async requestPcmWindow(start, end) {
+				return { startFrame: start, endFrame: end,
+					channels: [samples.slice(start, end)] };
+			},
+		});
+		assert.ok(result);
+		const columns = result.channels[0]!;
+		assert.equal(columns.length, 25);
+		const energies = [columns[0]![0]!, columns[12]![0]!, columns[24]![0]!];
+		assert.ok(energies.every((energy) => energy > 0.001),
+			`short view ${startFrame}-${endFrame} lost tone energy: ${energies}`);
+		assert.ok(Math.min(...energies) / Math.max(...energies) > minimumRatio,
+			`short view ${startFrame}-${endFrame} changed color across its columns: ${energies}`);
+	}
 });

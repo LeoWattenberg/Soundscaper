@@ -90,6 +90,12 @@ export async function generateSpectrogramPcmTiles(
 	for (let pixel = 0; pixel < width; pixel += pixelSkip) pixelPositions.push(pixel);
 	const localStartAt = (pixel: number): number => clip.waveformStartFrame
 		+ Math.floor(pixel * frameCount / width);
+	const leftContext = Math.floor(fftWindowSize / 2);
+	const rightContext = fftWindowSize - leftContext;
+	const contextStartAt = (pixel: number): number => Math.max(0, localStartAt(pixel) - leftContext);
+	const contextEndAt = (pixel: number): number => Math.min(
+		clip.durationFrames, localStartAt(pixel) + rightContext,
+	);
 	const sourceSpan = (startFrame: number, endFrame: number): number => {
 		const range = clip.warpMap == null
 			? projectUnwarpedClipSourceRange({
@@ -111,17 +117,14 @@ export async function generateSpectrogramPcmTiles(
 	let columnsByChannel: Array<Array<readonly number[]>> | null = null;
 	for (let first = 0; first < pixelPositions.length;) {
 		signal?.throwIfAborted();
-		const startFrame = localStartAt(pixelPositions[first]!);
+		const startFrame = contextStartAt(pixelPositions[first]!);
 		let last = first;
-		let endFrame = Math.min(clip.waveformEndFrame, startFrame + fftWindowSize);
+		let endFrame = contextEndAt(pixelPositions[first]!);
 		if (sourceSpan(startFrame, endFrame) > sourceLimit) {
 			throw new RangeError('One spectrogram FFT window exceeds the bounded PCM request limit.');
 		}
 		while (last + 1 < pixelPositions.length) {
-			const candidateEnd = Math.min(
-				clip.waveformEndFrame,
-				localStartAt(pixelPositions[last + 1]!) + fftWindowSize,
-			);
+			const candidateEnd = contextEndAt(pixelPositions[last + 1]!);
 			if (sourceSpan(startFrame, candidateEnd) > sourceLimit) break;
 			last += 1;
 			endFrame = candidateEnd;
