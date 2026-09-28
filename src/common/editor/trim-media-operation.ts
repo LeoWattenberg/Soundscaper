@@ -270,68 +270,73 @@ async function trimOne(
 	const signalOptions = Object.freeze(options.signal ? { signal: options.signal } : {});
 	const requested = trimMediaRetainedRuns(source);
 	const copy = await ports.writeTrimmedCopy(source, requested, signalOptions);
-	assertReady(options);
+	let bound = false;
+	try {
+		assertReady(options);
 
-	// What the copy holds, which may legitimately be more than was asked for.
-	const written = copy.runs && copy.runs.length > 0 ? copy.runs : requested;
-	const runs = trimMediaRunsFromRanges(written);
-	const writtenFrames = runs.reduce((sum, run) => sum + (run.endFrame - run.startFrame), 0);
+		// What the copy holds, which may legitimately be more than was asked for.
+		const written = copy.runs && copy.runs.length > 0 ? copy.runs : requested;
+		const runs = trimMediaRunsFromRanges(written);
+		const writtenFrames = runs.reduce((sum, run) => sum + (run.endFrame - run.startFrame), 0);
 
-	// The one thing that must never happen quietly: a frame the plan proved was
-	// referenced is not in the copy. Keeping more than was asked for is fine and
-	// is what a keyframe-aligned cut does; keeping less is the failure. The
-	// frame count is checked against what the copy says it holds, because a
-	// writer that widened one run and dropped another would otherwise present a
-	// plausible total.
-	if (copy.frameCount !== writtenFrames || !trimMediaRangesCover(written, source.retained)) {
-		await ports.discardTrimmedCopy(copy.storageKey, signalOptions);
-		addDeliveryReportItem(draft, {
-			code: 'trim.frame-count-mismatch',
-			disposition: 'missing',
-			severity: 'error',
-			scope: { kind: 'source', id: source.sourceId },
-			data: { expectedFrames: writtenFrames, actualFrames: copy.frameCount, retainedFrames: source.retainedFrames },
-			message: 'The trimmed copy does not contain the frames the plan retained, so it was discarded.',
-		});
-		return Object.freeze({ result: result(source, 'frame-count-mismatch', null, requested) });
-	}
+		// The one thing that must never happen quietly: a frame the plan proved was
+		// referenced is not in the copy. Keeping more than was asked for is fine and
+		// is what a keyframe-aligned cut does; keeping less is the failure. The
+		// frame count is checked against what the copy says it holds, because a
+		// writer that widened one run and dropped another would otherwise present a
+		// plausible total.
+		if (copy.frameCount !== writtenFrames || !trimMediaRangesCover(written, source.retained)) {
+			addDeliveryReportItem(draft, {
+				code: 'trim.frame-count-mismatch',
+				disposition: 'missing',
+				severity: 'error',
+				scope: { kind: 'source', id: source.sourceId },
+				data: { expectedFrames: writtenFrames, actualFrames: copy.frameCount, retainedFrames: source.retainedFrames },
+				message: 'The trimmed copy does not contain the frames the plan retained, so it was discarded.',
+			});
+			return Object.freeze({ result: result(source, 'frame-count-mismatch', null, requested) });
+		}
 
-	const rebound = await ports.rebind(Object.freeze({
-		sourceId: source.sourceId,
-		storageKey: copy.storageKey,
-		frameCount: copy.frameCount,
-		byteLength: copy.byteLength,
-		runs,
-	}), signalOptions);
-	if (!rebound) {
-		await ports.discardTrimmedCopy(copy.storageKey, signalOptions);
-		addDeliveryReportItem(draft, {
-			code: 'trim.rebind-superseded',
-			disposition: 'omitted',
-			severity: 'warning',
-			scope: { kind: 'source', id: source.sourceId },
-			data: {},
-			message: 'The source changed while it was being trimmed, so the trimmed copy was discarded.',
-		});
-		return Object.freeze({ result: result(source, 'rebind-superseded', null, runs) });
-	}
-
-	addDeliveryReportItem(draft, {
-		code: 'trim.source-trimmed',
-		disposition: 'converted',
-		severity: 'info',
-		scope: { kind: 'source', id: source.sourceId },
-		data: {
-			retainedFrames: source.retainedFrames,
-			discardedFrames: source.discardedFrames,
-			ranges: runs.length,
+		const rebound = await ports.rebind(Object.freeze({
+			sourceId: source.sourceId,
+			storageKey: copy.storageKey,
+			frameCount: copy.frameCount,
 			byteLength: copy.byteLength,
-		},
-		message: 'Only the referenced ranges, plus handles, were written; the pre-trim copy is left in place.',
-	});
-	return Object.freeze({
-		result: result(source, 'trimmed', copy.storageKey, runs, copy),
-	});
+			runs,
+		}), signalOptions);
+		if (!rebound) {
+			addDeliveryReportItem(draft, {
+				code: 'trim.rebind-superseded',
+				disposition: 'omitted',
+				severity: 'warning',
+				scope: { kind: 'source', id: source.sourceId },
+				data: {},
+				message: 'The source changed while it was being trimmed, so the trimmed copy was discarded.',
+			});
+			return Object.freeze({ result: result(source, 'rebind-superseded', null, runs) });
+		}
+		bound = true;
+
+		addDeliveryReportItem(draft, {
+			code: 'trim.source-trimmed',
+			disposition: 'converted',
+			severity: 'info',
+			scope: { kind: 'source', id: source.sourceId },
+			data: {
+				retainedFrames: source.retainedFrames,
+				discardedFrames: source.discardedFrames,
+				ranges: runs.length,
+				byteLength: copy.byteLength,
+			},
+			message: 'Only the referenced ranges, plus handles, were written; the pre-trim copy is left in place.',
+		});
+		return Object.freeze({
+			result: result(source, 'trimmed', copy.storageKey, runs, copy),
+		});
+	} finally {
+		// Cancellation must not prevent cleanup of a copy that was already written.
+		if (!bound) await ports.discardTrimmedCopy(copy.storageKey, {});
+	}
 }
 
 function result(

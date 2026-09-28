@@ -184,9 +184,26 @@ test('a source rebound elsewhere mid-trim drops the trimmed copy', async () => {
 	assert.equal(harness.written.size, 0);
 });
 
+test('a failed rebind discards the copy before reporting the source failure', async () => {
+	const harness = createHarness();
+	harness.ports.rebind = async () => { throw new Error('rebind failed'); };
+	const result = await runTrimMedia(
+		{ plan: createTrimMediaPlan({ project: gappedProject(), handleFrames: 0 }) },
+		harness.ports,
+	);
+
+	assert.equal(result.sources.find(({ sourceId }) => sourceId === 'a')?.outcome, 'write-failed');
+	assert.equal(harness.written.size, 0, 'the unbound copy must not remain after rebind fails');
+});
+
 test('cancellation stops before the next source is written', async () => {
 	const controller = new AbortController();
 	const harness = createHarness({ onWrite: () => { controller.abort(new Error('cancelled')); } });
+	const discard = harness.ports.discardTrimmedCopy;
+	harness.ports.discardTrimmedCopy = async (storageKey, options) => {
+		options.signal?.throwIfAborted();
+		await discard(storageKey, options);
+	};
 
 	await assert.rejects(runTrimMedia(
 		{ plan: createTrimMediaPlan({ project: twoTrimmableSources(), handleFrames: 0 }) },
@@ -194,6 +211,7 @@ test('cancellation stops before the next source is written', async () => {
 		{ signal: controller.signal },
 	), /cancelled/u);
 	assert.equal(harness.rebinds.length, 0);
+	assert.equal(harness.written.size, 0, 'the copy completed just before cancellation must be discarded');
 });
 
 function gappedProject() {
