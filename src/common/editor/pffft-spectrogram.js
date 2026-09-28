@@ -49,16 +49,23 @@ export function pffftSpectrogramBandEnergies(waveformData, width, options = {}) 
 	const fftWindowSize = normalizeWindowSize(options.fftWindowSize);
 	const frequencyBands = normalizeBandCount(options.frequencyBands, fftWindowSize);
 	const pixelSkip = Math.max(1, Math.floor(Number(options.pixelSkip) || 1));
+	const pixelStart = Math.max(0, Math.floor(Number(options.pixelStart) || 0));
+	const pixelEnd = Math.min(width, Number.isFinite(options.pixelEnd) ? Math.floor(options.pixelEnd) : width);
 	const samplesPerPixel = waveformData.length / Math.max(1, width);
+	const sampleAt = typeof waveformData.sampleAt === 'function'
+		? (index) => waveformData.sampleAt(index)
+		: (index) => waveformData[index];
 	const window = spectrogramWindow(fftWindowSize, options.windowType);
 	const { real, imaginary } = fftScratch(fftWindowSize);
 	const columns = [];
-	for (let pixel = 0; pixel < width; pixel += pixelSkip) {
+	for (let pixel = pixelStart; pixel < pixelEnd; pixel += pixelSkip) {
 		const sampleIndex = Math.floor(pixel * samplesPerPixel);
 		if (sampleIndex >= waveformData.length) break;
 		imaginary.fill(0);
 		for (let index = 0; index < fftWindowSize; index += 1) {
-			const sample = Number(waveformData[sampleIndex + index]) || 0;
+			const sample = sampleIndex + index < waveformData.length
+				? Number(sampleAt(sampleIndex + index)) || 0
+				: 0;
 			real[index] = sample * window.values[index];
 		}
 		runtime.fft(real, imaginary, false);

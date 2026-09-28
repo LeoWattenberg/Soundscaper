@@ -58,7 +58,6 @@ export function createAudioTrackRowClipViewModels({
 				halfWave,
 				color: resolveAudioEditorColor(clip.color, resolveAudioEditorColor(trackColor)),
 				reuseSummaryForCompatibility: displayMode === 'waveform' || displayMode === 'half-wave',
-				allowPeakPyramid: displayMode !== 'spectrogram',
 				provideAudacitySpectrogram: displayMode === 'spectrogram' || displayMode === 'multiview',
 				frequencyWaveformMode: displayMode === 'waveform-three-band' || displayMode === 'waveform-rainbow'
 					? displayMode

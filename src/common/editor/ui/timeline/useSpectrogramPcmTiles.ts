@@ -66,7 +66,8 @@ interface CompletedTileRequest {
 }
 
 // Smaller clips already use the ordinary whole-clip PCM window request.
-const MAXIMUM_WHOLE_CLIP_PCM_FRAMES = 262_144;
+// The PCM reader adds two source frames on each side of the projected window.
+const MAXIMUM_WHOLE_CLIP_PCM_FRAMES = 262_140;
 
 /** Retain streamed spectrograms across the document snapshots each PCM tile publishes. */
 export function useSpectrogramPcmTiles({

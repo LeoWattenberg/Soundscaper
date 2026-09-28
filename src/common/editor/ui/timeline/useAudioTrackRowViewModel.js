@@ -7,7 +7,6 @@ import {
 	projectClipsToViewport,
 	rightmostVisibleClip,
 } from '../../design-system-adapters.js';
-import { audacityWaveformMode } from '../../audacity-waveform-renderer.js';
 import { waveformPeakLevelForResolution } from '../../design-system-adapters/waveform-internals.ts';
 import { MAXIMUM_WAVEFORM_PEAK_WINDOW_BUCKETS } from '../../waveform-peak-contract.ts';
 import { isFrequencyWaveformDisplayMode } from '../../track-display-mode.ts';
@@ -20,6 +19,8 @@ import {
 	recordingPreviewId,
 } from './preview.ts';
 import { useAudioTrackEnvelope } from './useAudioTrackEnvelope.js';
+import { createSpectrogramCanvasOptions } from './spectrogram-canvas-options.ts';
+import { useSpectrogramPcmTiles } from './useSpectrogramPcmTiles.ts';
 
 const WAVEFORM_PCM_PREFETCH_BUCKET_PIXELS = 0.25;
 
@@ -44,10 +45,9 @@ export function timelineWaveformPcmWindowRequestPixelWidth({ visual, clip, proje
 	}
 	const visibleSourceSamples = projectedClipVisibleSourceSamples(clip, project);
 	if (!(visibleSourceSamples > 0) || !(pixelWidth > 0)) return null;
-	if (displayMode === 'spectrogram') {
-		return audacityWaveformMode(pixelWidth / visibleSourceSamples) === 'summary'
-			? null
-			: undefined;
+	if (displayMode === 'spectrogram' || displayMode === 'multiview') {
+		// Longer windows are analyzed in bounded PCM tiles by useSpectrogramPcmTiles.
+		return visibleSourceSamples > 262_140 ? null : undefined;
 	}
 	const requestPixelWidth = waveformPrefetchPixelWidth(pixelWidth);
 	if (clip.warpMap != null) return requestPixelWidth;
@@ -87,6 +87,7 @@ export function useAudioTrackRowViewModel({
 	selectedClipId,
 	selectedClipIdSet,
 	displayMode,
+	spectrogramOptions = null,
 	halfWave = displayMode === 'half-wave',
 	showRms,
 	recordingPreview,
@@ -115,6 +116,20 @@ export function useAudioTrackRowViewModel({
 		viewportDurationFrames,
 		sampleRate,
 	}), [clips, renderViewportStartFrame, sampleRate, viewportDurationFrames]);
+	const resolvedSpectrogramOptions = spectrogramOptions
+		?? createSpectrogramCanvasOptions(track.spectrogram, sampleRate);
+	const spectrogramTiles = useSpectrogramPcmTiles({
+		controller,
+		project,
+		projectedClips: projection.clips,
+		sourceLookup,
+		pixelsPerSecond,
+		sampleRate,
+		displayMode,
+		fftWindowSize: resolvedSpectrogramOptions.fftWindowSize,
+		windowType: resolvedSpectrogramOptions.windowType,
+		visualRevision: viewModelRevision,
+	});
 	const { envelopePreviewRef, envelopePreviewRevision, updateEnvelope } = useAudioTrackEnvelope({
 		controller,
 		run,
@@ -208,6 +223,25 @@ export function useAudioTrackRowViewModel({
 			envelopePreviews: envelopePreviewRef.current,
 			frequencyWaveformProjector: frequencyWaveformModule?.prepareFrequencyWaveformClipProjection,
 			frequencyWaveformPreferences: viewModelRevision?.preferences?.waveformVisualization,
+		}).map((clip) => {
+			const columns = spectrogramTiles.get(String(clip.id));
+			if (!columns) return clip;
+			return {
+				...clip,
+				spectrogramColumns: columns,
+				audacityWaveform: clip.audacityWaveform || {
+					mode: 'summary',
+					channels: columns.channels.map(() => ({
+						minimum: new Float32Array(0),
+						maximum: new Float32Array(0),
+						rms: null,
+					})),
+					startFrame: clip.waveformStartFrame,
+					endFrame: clip.waveformEndFrame,
+					frameCount: clip.waveformEndFrame - clip.waveformStartFrame,
+					pixelWidth: columns.width,
+				},
+			};
 		});
 	}, [
 		controller,
@@ -226,6 +260,7 @@ export function useAudioTrackRowViewModel({
 		selectedClipId,
 		selectedClipIdSet,
 		showRms,
+		spectrogramTiles,
 		halfWave,
 		sourceLookup,
 		track.color,

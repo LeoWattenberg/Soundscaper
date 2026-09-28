@@ -66,7 +66,9 @@ export async function generateSpectrogramPcmTiles(
 	options: SpectrogramPcmTileOptions,
 ): Promise<SpectrogramPcmColumns | null> {
 	const { clip, project = null, signal } = options;
-	const { width, fftWindowSize } = options;
+	const { width } = options;
+	// PFFFT clamps its FFT input at 8,192 samples; tile reads need the same span.
+	const fftWindowSize = Math.min(8_192, options.fftWindowSize);
 	const pixelSkip = options.pixelSkip ?? 4;
 	const maximumSourceFrames = options.maximumSourceFrames ?? DEFAULT_MAXIMUM_SOURCE_FRAMES;
 	if (!Number.isFinite(width) || width <= 0 || !Number.isSafeInteger(fftWindowSize)

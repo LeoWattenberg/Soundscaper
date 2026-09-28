@@ -107,10 +107,21 @@ test('audio rows prefetch a window fine enough for the next fourfold zoom step',
 	}), 32_768);
 	assert.equal(timelineWaveformPcmWindowRequestPixelWidth({
 		visual, clip, project: null, pixelWidth: 20, displayMode: 'spectrogram',
-	}), null);
+	}), undefined, 'spectrogram requests PCM even at summary zoom');
 	assert.equal(timelineWaveformPcmWindowRequestPixelWidth({
 		visual, clip, project: null, pixelWidth: 100, displayMode: 'spectrogram',
 	}), undefined, 'spectrogram requests PCM without triggering a peak scan');
+	assert.equal(timelineWaveformPcmWindowRequestPixelWidth({
+		visual, clip, project: null, pixelWidth: 20, displayMode: 'multiview',
+	}), undefined, 'multi-view also needs PCM for its spectrogram');
+	assert.equal(timelineWaveformPcmWindowRequestPixelWidth({
+		visual,
+		clip: { ...clip, durationFrames: 300_000, sourceDurationFrames: 300_000,
+			waveformEndFrame: 300_000 },
+		project: null,
+		pixelWidth: 400,
+		displayMode: 'spectrogram',
+	}), null, 'long spectrogram windows are read in PCM tiles');
 	assert.equal(timelineWaveformPcmWindowRequestPixelWidth({
 		visual: { ...visual, pcmWindow: { channels: [new Float32Array(100)], startFrame: 0, endFrame: 100 } },
 		clip,

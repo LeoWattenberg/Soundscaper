@@ -137,6 +137,7 @@ export function AudioTrackRow({
 		displayMode,
 		halfWave,
 		showRms,
+		spectrogramOptions,
 		recordingPreview,
 		clipDragPreview,
 		projectBinDragPreview,

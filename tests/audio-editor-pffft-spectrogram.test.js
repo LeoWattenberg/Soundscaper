@@ -41,6 +41,40 @@ test('PFFFT spectrogram scratch buffers do not leak energy between edge columns 
 	assert.ok(first.at(-1).every((energy) => Number.isFinite(energy)));
 });
 
+test('PFFFT spectrogram reads projected PCM throughout a sustained clip', async () => {
+	await preparePffftSpectrogram(2048);
+	const frameCount = 48_000;
+	const samples = {
+		length: frameCount,
+		sampleAt(index) {
+			return Math.sin(2 * Math.PI * index / 8);
+		},
+	};
+	const columns = pffftSpectrogramBandEnergies(samples, 96, {
+		fftWindowSize: 2048,
+		frequencyBands: 16,
+		pixelSkip: 4,
+	});
+	const firstTone = columns[0][4];
+	assert.ok(firstTone > 0.01, `expected a sustained tone, got ${firstTone}`);
+	for (const [index, bands] of columns.entries()) {
+		assert.ok(bands[4] > firstTone * 0.8, `tone fades at column ${index}`);
+	}
+});
+
+test('PFFFT spectrogram can analyze a tile at global canvas columns', async () => {
+	await preparePffftSpectrogram(64);
+	const samples = Float32Array.from({ length: 512 }, (_, index) => Math.sin(index / 9));
+	const options = { fftWindowSize: 64, frequencyBands: 16, pixelSkip: 4 };
+	const full = pffftSpectrogramBandEnergies(samples, 32, options);
+	const tile = pffftSpectrogramBandEnergies(samples, 32, {
+		...options,
+		pixelStart: 16,
+		pixelEnd: 32,
+	});
+	assert.deepEqual(tile, full.slice(4));
+});
+
 test('PFFFT spectrogram analysis honors the selected window function', async () => {
 	await preparePffftSpectrogram(256);
 	const samples = Float32Array.from({ length: 512 }, (_, index) => (

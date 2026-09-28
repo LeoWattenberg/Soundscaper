@@ -9,6 +9,7 @@ import {
 	drawAudacityWaveformChannel,
 } from '../../audacity-waveform-renderer.js';
 import {
+	paintSpectrogram,
 	pffftSpectrogramRevision,
 	preparePffftSpectrogram,
 	renderPffftSpectrogram,
@@ -160,6 +161,7 @@ export function AudacityWaveformCanvases({
 					});
 					if (drawn) {
 						canvas.__kwWaveformPlan = clip.audacityWaveform;
+						canvas.__kwSpectrogramColumnsPlan = clip.spectrogramColumns;
 						canvas.__kwFrequencyWaveformPlan = clip.frequencyWaveform;
 						canvas.__kwFrequencyWaveformRenderer = frequencyWaveformRenderer;
 						canvas.__kwWaveformDrawKey = audacityCanvasDrawKey(canvas, clip, clipDrawKey, bounds);
@@ -216,6 +218,7 @@ export function resetAudacityClipCanvas(canvas) {
 		context.restore();
 	}
 	delete canvas.__kwWaveformPlan;
+	delete canvas.__kwSpectrogramColumnsPlan;
 	delete canvas.__kwFrequencyWaveformPlan;
 	delete canvas.__kwFrequencyWaveformRenderer;
 	delete canvas.__kwPendingFrequencyWaveform;
@@ -250,6 +253,7 @@ export function audacityCanvasDrawKey(canvas, clip, drawKey, bounds = canvas.get
 
 export function audacityCanvasPlansAreCurrent(canvas, clip, canvasDrawKey, frequencyWaveformRenderer) {
 	return canvas.__kwWaveformPlan === clip.audacityWaveform
+		&& canvas.__kwSpectrogramColumnsPlan === clip.spectrogramColumns
 		&& canvas.__kwFrequencyWaveformPlan === clip.frequencyWaveform
 		&& canvas.__kwFrequencyWaveformRenderer === frequencyWaveformRenderer
 		&& canvas.__kwWaveformDrawKey === canvasDrawKey;
@@ -320,6 +324,7 @@ export function drawAudacityClipCanvas(canvas, clip, options) {
 	context.clearRect(0, 0, width, height);
 	if (splitY > 0) {
 		drawAudacityClipSpectrogram(context, clip.spectrogramWaveform, {
+			columns: clip.spectrogramColumns,
 			width,
 			height: splitY,
 			backgroundColor: cssColor(style, '--spectrogram-background', '#010101'),
@@ -395,7 +400,10 @@ export function drawAudacityClipCanvas(canvas, clip, options) {
 export function drawAudacityClipSpectrogram(context, channels, options) {
 	context.fillStyle = options.backgroundColor;
 	context.fillRect(0, 0, options.width, options.height);
-	if (!channels?.length || !channels[0]?.length) return;
+	if ((!channels?.length || !channels[0]?.length) && !options.columns?.channels?.length) {
+		delete context.canvas.dataset.spectrogramRenderer;
+		return;
+	}
 	const spectrogramOptions = {
 		frequencyBands: 16,
 		fftWindowSize: options.fftWindowSize,
@@ -408,22 +416,27 @@ export function drawAudacityClipSpectrogram(context, channels, options) {
 		rangeDb: options.rangeDb,
 		sampleRate: options.sampleRate,
 	};
-	const channelCount = Math.min(2, channels.length);
+	const channelCount = Math.min(2, options.columns?.channels?.length || channels.length);
 	const channelGeometry = channelCount > 1
 		? audioEditorStereoChannelGeometry(options.height, options.channelHeightRatio)
 		: [{ top: 0, height: options.height }];
 	let pffftRendered = true;
 	for (let channel = 0; channel < channelCount; channel += 1) {
 		const geometry = channelGeometry[channel];
-		pffftRendered = renderPffftSpectrogram(
-			context,
-			channels[channel],
-			0,
-			geometry.top,
-			options.width,
-			geometry.height,
-			spectrogramOptions,
-		) && pffftRendered;
+		if (options.columns?.channels?.[channel]) {
+			paintSpectrogram(context, options.columns.channels[channel], 0, geometry.top,
+				options.width, geometry.height, spectrogramOptions);
+		} else {
+			pffftRendered = renderPffftSpectrogram(
+				context,
+				channels[channel],
+				0,
+				geometry.top,
+				options.width,
+				geometry.height,
+				spectrogramOptions,
+			) && pffftRendered;
+		}
 	}
 	context.canvas.dataset.spectrogramRenderer = pffftRendered ? 'pffft-wasm' : 'loading-pffft';
 	if (channelCount > 1) {

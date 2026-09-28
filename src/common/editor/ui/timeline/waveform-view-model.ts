@@ -27,6 +27,7 @@ import {
 	prepareAudioWarpWaveformWindow,
 } from './audio-warp-waveform.ts';
 import type { FrequencyWaveformProjection } from './frequency-waveform-projection.ts';
+import { createSpectrogramSampleViews } from './spectrogram-sample-view.ts';
 import {
 	coarsePeakPreviewWidth,
 	coarseWarpPeakPreviewWidth,
@@ -132,6 +133,7 @@ interface PreparedTimelineWaveform {
 
 export interface TimelineWaveformCacheEntry {
 	readonly source: unknown;
+	readonly spectrogramSource?: unknown;
 	readonly signature: string;
 	readonly data: TimelineWaveformPlanData;
 	readonly frequencySource?: unknown;
@@ -273,6 +275,7 @@ export function createTimelineClipViewModel({
 	const waveformPcmWindow = pcmWindowCoversProjectedClip(visual?.pcmWindow, clip, project)
 		? visual?.pcmWindow || null
 		: null;
+	const spectrogramSource = provideAudacitySpectrogram ? waveformBuffer || waveformPcmWindow : null;
 	const waveformPeaks = allowPeakPyramid ? visual?.peaks : null;
 	const isWarped = clip.warpMap != null;
 	const visibleSourceSamples = projectedClipVisibleSourceSamples(clip, project);
@@ -310,6 +313,7 @@ export function createTimelineClipViewModel({
 	}> | undefined;
 	if (reuseCachedWaveform && cached && cachedPlan && cachedPlan.sourceId === clip.sourceId
 		&& cachedFrequencyReady
+		&& (!provideAudacitySpectrogram || cached.spectrogramSource === spectrogramSource)
 		&& (!frequencyWaveformMode || cached.frequencySource === frequencySource)
 		&& (!cachedPlan.peakBlockSize || (
 			cachedPlan.startFrame === clip.waveformStartFrame
@@ -382,6 +386,7 @@ export function createTimelineClipViewModel({
 			},
 		});
 		if (cached?.source === waveformSource && cached.frequencySource === frequencySource
+			&& cached.spectrogramSource === spectrogramSource
 			&& cachedFrequencyReady
 			&& cached.signature === cacheSignature) {
 			Object.assign(output, cached.data);
@@ -391,6 +396,12 @@ export function createTimelineClipViewModel({
 		const maximumSamples = Math.max(32, Math.min(4096, Math.ceil(pixelWidth) * 2));
 		const usesPcm = waveformSource === waveformBuffer || waveformSource === waveformPcmWindow;
 		const pcmChannels = waveformSource === waveformBuffer
+			? Array.from(
+				{ length: waveformBuffer.numberOfChannels },
+				(_, channel) => waveformBuffer.getChannelData(channel),
+			)
+			: waveformPcmWindow?.channels;
+		const spectralPcmChannels = waveformBuffer
 			? Array.from(
 				{ length: waveformBuffer.numberOfChannels },
 				(_, channel) => waveformBuffer.getChannelData(channel),
@@ -457,13 +468,23 @@ export function createTimelineClipViewModel({
 				durationFrames: clip.durationFrames,
 				envelope: clip.envelope || [],
 			},
-			...(provideAudacitySpectrogram
-				? { spectrogramWaveform: waveform.channels.map((channel: ArrayLike<number>) => Array.from(channel)) }
+			...(provideAudacitySpectrogram && spectralPcmChannels?.length
+				? { spectrogramWaveform: createSpectrogramSampleViews(
+					Array.from(spectralPcmChannels),
+					clip as Parameters<typeof createSpectrogramSampleViews>[1],
+					{
+						sourceFrameOffset: !waveformBuffer
+							? waveformPcmWindow?.startFrame ?? 0
+							: 0,
+						project: project as Parameters<typeof createSpectrogramSampleViews>[2]['project'],
+					},
+				) }
 				: {}),
 			...(frequencyWaveform ? { frequencyWaveform } : {}),
 		};
 		cache?.set(String(clip.id), {
 			source: waveformSource,
+			spectrogramSource,
 			frequencySource,
 			signature: cacheSignature,
 			data: waveformData,
