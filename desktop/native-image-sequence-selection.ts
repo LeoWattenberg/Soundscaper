@@ -140,16 +140,22 @@ export class FramescaperNativeImageSequenceSelectionBroker {
 		} catch (error) {
 			throw new Error('The selected image-sequence file changed after selection.', { cause: error });
 		}
+		const bytes = new Uint8Array(length);
 		try {
+			if (this.#owned(selectionId, owner) !== state) {
+				throw new Error('The image-sequence selection is unavailable.');
+			}
 			await assertOpenFileCurrent(handle, identity);
-			const bytes = new Uint8Array(length);
 			const result = await handle.read(bytes, 0, length, offset);
 			if (result.bytesRead !== length) throw new Error('The selected image-sequence file returned a short range.');
 			await assertOpenFileCurrent(handle, identity);
-			return bytes;
 		} finally {
 			await handle.close();
 		}
+		if (this.#owned(selectionId, owner) !== state) {
+			throw new Error('The image-sequence selection is unavailable.');
+		}
+		return bytes;
 	}
 
 	async release(ownerValue: unknown, requestValue: unknown): Promise<boolean> {

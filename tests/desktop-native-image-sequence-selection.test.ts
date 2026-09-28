@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import assert from 'node:assert/strict';
-import { mkdtemp, symlink, unlink, writeFile } from 'node:fs/promises';
+import { mkdtemp, rm, symlink, unlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
@@ -122,4 +122,41 @@ test('the image-sequence broker bounds retained selections per owner and globall
 	await assert.rejects(
 		() => globalBroker.select(Object.freeze({ index: 99 })), /capacity/u,
 	);
+});
+
+test('an in-flight image-sequence read cannot outlive its owner or selection', async (t) => {
+	const directory = await mkdtemp(join(tmpdir(), 'framescaper-image-sequence-revocation-'));
+	t.after(() => rm(directory, { recursive: true, force: true }));
+	const frame = join(directory, 'shot.0001.png');
+	await writeFile(frame, Uint8Array.of(1, 2, 3));
+	let opaque = 0;
+	const broker = new FramescaperNativeImageSequenceSelectionBroker({
+		selectFiles: async () => [frame],
+		mintOpaqueId: () => `${(++opaque).toString(16).padStart(40, '0')}`,
+	});
+	const owner = {};
+	const first = await broker.select(owner);
+	assert.ok(first);
+	const readAfterOwnerRevocation = broker.read(owner, {
+		selectionId: first.selectionId, fileId: first.files[0]!.fileId, offset: 0, length: 1,
+	});
+	broker.disposeOwner(owner);
+	await assert.rejects(readAfterOwnerRevocation, /unavailable/u);
+
+	const otherOwner = {};
+	const second = await broker.select(otherOwner);
+	assert.ok(second);
+	const readAfterRelease = broker.read(otherOwner, {
+		selectionId: second.selectionId, fileId: second.files[0]!.fileId, offset: 0, length: 1,
+	});
+	assert.equal(await broker.release(otherOwner, { selectionId: second.selectionId }), true);
+	await assert.rejects(readAfterRelease, /unavailable/u);
+
+	const third = await broker.select(otherOwner);
+	assert.ok(third);
+	const readAfterDisposal = broker.read(otherOwner, {
+		selectionId: third.selectionId, fileId: third.files[0]!.fileId, offset: 0, length: 1,
+	});
+	broker.dispose();
+	await assert.rejects(readAfterDisposal, /unavailable/u);
 });
