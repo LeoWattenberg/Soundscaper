@@ -54,9 +54,9 @@ function sourceOf(commands: readonly Data[]): Data {
 	return commandOfType(commands, 'video-visual-source/set').source as Data;
 }
 
-test('the legacy workflow owns only the four directly invoked generator surfaces', () => {
+test('the generator workflow includes the sound visualizer', () => {
 	assert.deepEqual(FRAMESCAPER_SELECTED_GENERATOR_AUTHORING_SURFACES, [
-		'video-title', 'video-text', 'video-shape', 'video-solid',
+		'video-title', 'video-text', 'video-shape', 'video-solid', 'video-sound-visualizer',
 	]);
 	assert.ok(Object.isFrozen(FRAMESCAPER_SELECTED_GENERATOR_AUTHORING_SURFACES));
 });
@@ -100,7 +100,7 @@ test('each generator surface carries its own kind and default styling', async ()
 		generators.set(String(source.name), source.generator as Data);
 	}
 
-	assert.deepEqual([...generators.keys()], ['Title', 'Text', 'Shape', 'Solid']);
+	assert.deepEqual([...generators.keys()], ['Title', 'Text', 'Shape', 'Solid', 'Sound Visualizer']);
 	assert.deepEqual(generators.get('Title'), {
 		kind: 'title', text: 'Title', fontFamily: 'soundscaper-sans', fontSize: 96,
 		color: '#ffffffff', horizontalAlign: 'center', verticalAlign: 'middle',
@@ -114,6 +114,10 @@ test('each generator surface carries its own kind and default styling', async ()
 		strokeColor: null, strokeWidth: 0,
 	});
 	assert.deepEqual(generators.get('Solid'), { kind: 'solid', color: '#000000ff' });
+	assert.deepEqual(generators.get('Sound Visualizer'), {
+		kind: 'sound-visualizer', mode: 'waveform', sourceIds: [], windowSeconds: 1,
+		backgroundColor: '#00000000', foregroundColor: '#ffffffff',
+	});
 });
 
 test('a generator follows the selected unlocked track and lands after its existing clips', async () => {

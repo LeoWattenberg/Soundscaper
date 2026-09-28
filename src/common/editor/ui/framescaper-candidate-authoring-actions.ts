@@ -9,6 +9,7 @@ export const FRAMESCAPER_CANDIDATE_AUTHORING_SURFACES = Object.freeze([
 	'video-text',
 	'video-shape',
 	'video-solid',
+	'video-sound-visualizer',
 	'video-external-generator',
 	'video-adjustment-layer',
 	'video-visual-preset',

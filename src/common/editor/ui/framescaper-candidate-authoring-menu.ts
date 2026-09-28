@@ -79,6 +79,8 @@ export function createFramescaperCandidateAuthoringMenuItems(
 				'video-shape', 'videoGenerators'),
 			leaf('framescaper-add-video-solid', 'addVideoSolid', FRAMESCAPER_MENUS_ADDITIONAL_COPY.addVideoSolid,
 				'video-solid', 'videoGenerators'),
+			leaf('framescaper-add-sound-visualizer', 'addSoundVisualizer', FRAMESCAPER_MENUS_ADDITIONAL_COPY.addSoundVisualizer,
+				'video-sound-visualizer', 'videoGenerators'),
 			leaf('framescaper-save-video-visual-preset', 'saveVideoVisualPreset',
 				FRAMESCAPER_MENUS_ADDITIONAL_COPY.saveVideoVisualPreset, 'video-visual-preset', 'videoGenerators'),
 		],

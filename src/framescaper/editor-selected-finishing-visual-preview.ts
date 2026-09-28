@@ -17,6 +17,7 @@ import type {
 	UnifiedExactRenderPlanV13,
 	UnifiedExactRenderVisualNode,
 } from '../common/editor/unified-exact-render-plan.ts';
+import { outputAtSequencePosition } from '../common/editor/unified-exact-render-output-timing.ts';
 import type { VideoCanvasFit } from '../common/editor/video-canvas-fit.ts';
 import { registeredVideoTimingIndex } from '../common/editor/video-source-time.ts';
 import {
@@ -50,6 +51,8 @@ import {
 	type FramescaperProjectFinishing,
 } from './editor-project-finishing.ts';
 import { createFramescaperVideoExportVisualFreshnessFinishing } from './video-export-visual-freshness-finishing.ts';
+import { createFramescaperSoundVisualizerWindowReader } from './sound-visualizer-window.ts';
+import { createSelectedFinishingSoundVisualizerPreview } from './selected-finishing-sound-visualizer-preview.ts';
 import { resolveFramescaperVisualPlacementFinishing } from './visual-placement-finishing.ts';
 
 type Data = Readonly<Record<string, unknown>>;
@@ -104,6 +107,12 @@ export async function createFramescaperSelectedVisualPreviewSessionFinishing(
 			foundationPlan: plan, timingViews,
 		}) } : {}),
 	});
+	const soundPreview = plan.nodes.some((node) => node.kind === 'visual'
+		&& node.modelKind === 'sound-visualizer' && node.placement !== null)
+		? createSelectedFinishingSoundVisualizerPreview({
+			reader: createFramescaperSoundVisualizerWindowReader({ project, store: options.store }),
+			drawables, sampleRate: plan.timebase.sampleRate, signal: abort.signal,
+		}) : null;
 	const effectsById = exactEffectsById(plan);
 	let disposed = false;
 	let cachedSample = -1;
@@ -125,6 +134,10 @@ export async function createFramescaperSelectedVisualPreviewSessionFinishing(
 				layers: Object.freeze(frame.layers.flatMap((layer) => layer.entries.map((entry) => {
 					const video = drawables.get(entry.modelId);
 					if (!video) throw new ReferenceError(`V13 visual drawable ${entry.modelId} is unavailable.`);
+					if (soundPreview && entry.modelKind === 'sound-visualizer') {
+						const position = sequencePosition(plan, timelineSample);
+						soundPreview.update(entry, timelineSample, outputAtSequencePosition(position, plan));
+					}
 					return Object.freeze({
 						trackId: layer.trackId,
 						trackIndex: layer.sequenceOrder,
@@ -166,6 +179,7 @@ export async function createFramescaperSelectedVisualPreviewSessionFinishing(
 			if (disposed) return;
 			disposed = true;
 			abort.abort(new DOMException('The V13 preview session was disposed.', 'AbortError'));
+			soundPreview?.dispose();
 			exact.dispose();
 			drawables.clear();
 		},
@@ -450,7 +464,7 @@ function hasExecutableVisualState(project: Data): boolean {
 function projectBinModelKind(source: Data): UnifiedExactRenderVisualNode['modelKind'] {
 	if (source.kind === 'still') return 'still';
 	const generator = record(source.generator, 'Project Bin generator document');
-	if (!['title', 'text', 'shape', 'solid'].includes(String(generator.kind))) {
+	if (!['title', 'text', 'shape', 'solid', 'sound-visualizer'].includes(String(generator.kind))) {
 		throw new RangeError('Dormant external generators have no Project Bin thumbnail.');
 	}
 	return generator.kind as UnifiedExactRenderVisualNode['modelKind'];

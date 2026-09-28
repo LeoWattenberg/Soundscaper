@@ -2,6 +2,7 @@
 
 export const FRAMESCAPER_MENUS_ADDITIONAL_COPY = Object.freeze({
 	addDissolveTransition: "Add Dissolve Transition",
+	addSoundVisualizer: "Add Sound Visualizer",
 	addVideoAdjustmentLayer: "Add Video Adjustment Layer",
 	addVideoShape: "Add Shape",
 	addVideoSolid: "Add Solid",

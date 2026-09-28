@@ -23,12 +23,12 @@ const TRANSITIONS = Object.freeze([
 ] as const satisfies readonly FramescaperCandidateAuthoringSurface[]);
 const VISUALS = Object.freeze([
 	...TRANSITIONS,
-	'video-still', 'video-title', 'video-shape', 'video-solid',
+	'video-still', 'video-title', 'video-shape', 'video-solid', 'video-sound-visualizer',
 	'video-external-generator', 'video-adjustment-layer', 'video-mask-matte', 'video-freeze',
 ] as const satisfies readonly FramescaperCandidateAuthoringSurface[]);
 const BASELINE_VISUALS = Object.freeze([
 	...TRANSITIONS,
-	'video-still', 'video-title', 'video-text', 'video-shape', 'video-solid',
+	'video-still', 'video-title', 'video-text', 'video-shape', 'video-solid', 'video-sound-visualizer',
 	'video-adjustment-layer', 'video-visual-preset', 'video-mask-matte', 'video-freeze',
 ] as const satisfies readonly FramescaperCandidateAuthoringSurface[]);
 
@@ -94,10 +94,11 @@ test('the baseline exposes visual authoring in existing menus', async () => {
 		assert.deepEqual(items.generate[1]?.items?.map(({ id }) => id), [
 			'framescaper-add-video-title', 'framescaper-add-video-text',
 			'framescaper-add-video-shape', 'framescaper-add-video-solid',
+			'framescaper-add-sound-visualizer',
 			'framescaper-save-video-visual-preset',
 		]);
 		assert.equal(items.generate[1]?.items?.[1]?.disabled, true);
-		assert.equal(items.generate[1]?.items?.[4]?.disabled, true);
+		assert.equal(items.generate[1]?.items?.[5]?.disabled, true);
 		assert.deepEqual(items.effect.map(({ id }) => id), [
 			'framescaper-video-transitions', 'framescaper-edit-video-mask-matte',
 			'framescaper-freeze-video',
@@ -141,6 +142,7 @@ test('the baseline exposes maintained visual workflows without the external gene
 			{ id: 'framescaper-add-video-text', disabled: false },
 			{ id: 'framescaper-add-video-shape', disabled: false },
 			{ id: 'framescaper-add-video-solid', disabled: false },
+			{ id: 'framescaper-add-sound-visualizer', disabled: false },
 			{ id: 'framescaper-save-video-visual-preset', disabled: false },
 		]);
 		assert.equal(JSON.stringify(items).includes('external-video-generator'), false);

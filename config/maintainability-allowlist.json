@@ -165,7 +165,7 @@
 		"src/framescaper/editor-selected-finishing-visual-authoring-commands.ts": 559,
 		"src/framescaper/editor-selected-timeline-image-image-preview.ts": 597,
 		"src/framescaper/editor-timeline-image-publication-timeline-image.ts": 550,
-		"src/framescaper/selected-finishing-exact-frame-execution.ts": 584,
+		"src/framescaper/selected-finishing-exact-frame-execution.ts": 580,
 		"src/framescaper/video-export-strategy-finishing.ts": 555,
 		"src/soundscaper/desktop-project-library-renderer.ts": 599,
 		"src/soundscaper/editor-automation-session.ts": 571,

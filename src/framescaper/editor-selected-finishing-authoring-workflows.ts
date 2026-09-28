@@ -8,7 +8,7 @@ type Data = Record<string, unknown>;
 type ReadonlyData = Readonly<Record<string, unknown>>;
 
 export const FRAMESCAPER_SELECTED_GENERATOR_AUTHORING_SURFACES = Object.freeze([
-	'video-title', 'video-text', 'video-shape', 'video-solid',
+	'video-title', 'video-text', 'video-shape', 'video-solid', 'video-sound-visualizer',
 ] as const);
 
 export type FramescaperSelectedGeneratorAuthoringSurface =
@@ -44,6 +44,9 @@ function generatorCommand(
 	} : surface === 'video-shape' ? {
 		kind: 'shape', shape: 'rectangle', fillColor: '#ffffffff',
 		strokeColor: null, strokeWidth: 0,
+	} : surface === 'video-sound-visualizer' ? {
+		kind: 'sound-visualizer', mode: 'waveform', sourceIds: [], windowSeconds: 1,
+		backgroundColor: '#00000000', foregroundColor: '#ffffffff',
 	} : { kind: 'solid', color: '#000000ff' };
 	const source = {
 		schemaVersion: 1, kind: 'generator', id: sourceId,
@@ -117,6 +120,7 @@ function surfaceName(surface: FramescaperSelectedGeneratorAuthoringSurface): str
 	if (surface === 'video-title') return 'Title';
 	if (surface === 'video-text') return 'Text';
 	if (surface === 'video-shape') return 'Shape';
+	if (surface === 'video-sound-visualizer') return 'Sound Visualizer';
 	return 'Solid';
 }
 

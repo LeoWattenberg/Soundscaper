@@ -12,6 +12,7 @@ import type { FramescaperVideoFrameAddressFinishing } from './video-frame-addres
 import type { FramescaperSelectedOpenFxExecutionNativeMedia } from './selected-native-media-openfx-exact-planes.ts';
 import type { createFramescaperSelectedOpenFxExactPlanesNativeMedia } from './selected-native-media-openfx-exact-planes.ts';
 import { resolveFramescaperVisualPlacementFinishing } from './visual-placement-finishing.ts';
+import type { FramescaperSoundVisualizerWindow } from './sound-visualizer-window.ts';
 
 export async function materializeFramescaperSelectedOpenFxVisualsNativeMedia(
 	entries: readonly UnifiedExactRenderVisualFrameEntryV13[],
@@ -21,6 +22,7 @@ export async function materializeFramescaperSelectedOpenFxVisualsNativeMedia(
 	fit: VideoCanvasFit,
 	signal: AbortSignal,
 	openFx: ReturnType<typeof createFramescaperSelectedOpenFxExactPlanesNativeMedia> | null,
+	soundWindow?: (entry: UnifiedExactRenderVisualFrameEntryV13) => Promise<FramescaperSoundVisualizerWindow>,
 ): Promise<ReadonlyMap<string, UnifiedExactRenderVisualRgbaV13>> {
 	const result = new Map<string, UnifiedExactRenderVisualRgbaV13>();
 	for (const entry of entries) {
@@ -39,12 +41,22 @@ export async function materializeFramescaperSelectedOpenFxVisualsNativeMedia(
 		}), {
 			targetWidth: placement.width, targetHeight: placement.height,
 			decodeStill: (source) => Promise.resolve(required(stills, source.id)),
+			...(entry.modelKind === 'sound-visualizer'
+				? { soundVisualizer: await requiredSoundWindow(soundWindow, entry) } : {}),
 			signal,
 		});
 		result.set(entry.modelId, raw);
 		if (sourceId !== null) result.set(sourceId, raw);
 	}
 	return result;
+}
+
+function requiredSoundWindow(
+	read: ((entry: UnifiedExactRenderVisualFrameEntryV13) => Promise<FramescaperSoundVisualizerWindow>) | undefined,
+	entry: UnifiedExactRenderVisualFrameEntryV13,
+): Promise<FramescaperSoundVisualizerWindow> {
+	if (!read) throw new Error('A sound visualizer requires its exact PCM window.');
+	return read(entry);
 }
 
 export function orderedFramescaperSelectedOpenFxVisualEntriesNativeMedia(

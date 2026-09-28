@@ -29,6 +29,7 @@ Product availability follows each product profile’s command filters and each l
 | Add OFX | `framescaper-ofx-add` | — | Effect > Video effects | Framescaper | Soundscaper local |
 | Add Shape | `framescaper-add-video-shape` | — | Generate > Video Generators | Framescaper | Soundscaper local |
 | Add Solid | `framescaper-add-video-solid` | — | Generate > Video Generators | Framescaper | Soundscaper local |
+| Add Sound Visualizer | `framescaper-add-sound-visualizer` | — | Generate > Video Generators | Framescaper | Soundscaper local |
 | Add Text | `framescaper-add-video-text` | — | Generate > Video Generators | Framescaper | Soundscaper local |
 | Add Title/Text | `framescaper-add-video-title` | — | Generate > Video Generators | Framescaper | Soundscaper local |
 | Add Video Adjustment Layer | `framescaper-add-video-adjustment-layer` | — | Tracks | Framescaper | Soundscaper local |

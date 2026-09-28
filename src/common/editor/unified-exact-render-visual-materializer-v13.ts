@@ -13,6 +13,10 @@ import {
 	evaluateVideoMaskMatteRgbaV13,
 	type VideoMaskMatteRgbaInputV13,
 } from './video-mask-matte-rgba-v13.ts';
+import {
+	renderSoundVisualizerRgba,
+	type SoundVisualizerRgbaRequest,
+} from './sound-visualizer-rgba.ts';
 
 export type UnifiedExactRenderVisualRgbaV13 = VideoMaskMatteRgbaInputV13;
 
@@ -20,6 +24,8 @@ export interface UnifiedExactRenderVisualMaterializerOptionsV13 {
 	readonly targetWidth: number;
 	readonly targetHeight: number;
 	readonly decodeStill?: (source: VideoStillSourceV1) => Promise<UnifiedExactRenderVisualRgbaV13>;
+	readonly soundVisualizer?: Pick<SoundVisualizerRgbaRequest,
+		'channels' | 'sampleRate' | 'windowStartFrame' | 'timelineFrame'>;
 	readonly maskInputs?: ReadonlyMap<string, VideoMaskMatteRgbaInputV13>;
 	readonly signal?: AbortSignal;
 }
@@ -56,7 +62,18 @@ export async function materializeUnifiedExactRenderVisualEntryV13(
 		if (source.generator.kind === 'external-generator') {
 			throw new RangeError('External generators are unavailable in selected V13 execution.');
 		}
-		frame = generatorFrame(source.generator, width, height, options.signal);
+		frame = source.generator.kind === 'sound-visualizer'
+			? renderSoundVisualizerRgba({
+				mode: source.generator.mode,
+				channels: options.soundVisualizer?.channels ?? null,
+				sampleRate: options.soundVisualizer?.sampleRate ?? 48_000,
+				windowStartFrame: options.soundVisualizer?.windowStartFrame ?? 0,
+				timelineFrame: options.soundVisualizer?.timelineFrame ?? 0,
+				width, height,
+				foregroundColor: source.generator.foregroundColor,
+				backgroundColor: source.generator.backgroundColor,
+			})
+			: generatorFrame(source.generator, width, height, options.signal);
 	}
 	if (entry.masks.length === 0) return frame;
 	const pixels = frame.pixels.slice() as Uint8Array<ArrayBuffer>;
@@ -73,7 +90,7 @@ export async function materializeUnifiedExactRenderVisualEntryV13(
 }
 
 function generatorFrame(
-	document: Exclude<VideoGeneratorDocumentV1, Readonly<{ kind: 'external-generator' }>>,
+	document: Exclude<VideoGeneratorDocumentV1, Readonly<{ kind: 'external-generator' | 'sound-visualizer' }>>,
 	width: number,
 	height: number,
 	signal?: AbortSignal,

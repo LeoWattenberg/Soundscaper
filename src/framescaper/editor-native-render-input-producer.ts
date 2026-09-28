@@ -350,6 +350,7 @@ async function prepareKeyedCarrier(
 	const request = encodeRequest(project, exportProject, renderPlan, timing, blobs, operation);
 	const exact = await createFramescaperVideoExportExactExecutionFinishing({
 		profile: FRAMESCAPER_FINISHING_PROJECT_RUNTIME_PROFILE, project, request, store,
+		outputFrameRate: v14Plan.output.frameRate,
 		...(dependencies.openFxExecute ? { createOpenFxExecution: () => Object.freeze({
 			plan: v14Plan, execute: dependencies.openFxExecute!,
 		}) } : {}),
@@ -428,6 +429,7 @@ async function prepareVisualCarrier(
 	const exact = await createFramescaperVideoExportExactExecutionFinishing({
 		profile: FRAMESCAPER_FINISHING_PROJECT_RUNTIME_PROFILE, project,
 		request: encodeRequest(project, exportProject, renderPlan, timing, new Map(), operation), store,
+		outputFrameRate: v14Plan.output.frameRate,
 		...(openFxExecute ? { createOpenFxExecution: () => Object.freeze({
 			plan: v14Plan, execute: openFxExecute,
 		}) } : {}),

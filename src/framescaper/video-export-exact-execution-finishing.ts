@@ -4,6 +4,7 @@ import type { ProductVideoExportStrategyEncodeRequest } from '../common/editor/c
 import type { VideoKeyframeExportFrame } from '../common/editor/video-keyframe-export-frame-source.ts';
 import type { VideoKeyframeOfflineRgbaCompositor } from '../common/editor/video-keyframe-offline-rgba-contract.ts';
 import type { UnifiedExactRenderPlanV13 } from '../common/editor/unified-exact-render-plan.ts';
+import { outputAtSequencePosition } from '../common/editor/unified-exact-render-output-timing.ts';
 import type { VideoSourceTimingView } from '../common/editor/video-source-timing-view.ts';
 import type { FramescaperProjectFinishing } from './editor-project-finishing.ts';
 import {
@@ -60,6 +61,8 @@ export async function createFramescaperVideoExportExactExecutionFinishing(option
 	readonly store?: FramescaperVideoExportVisualAssetStoreFinishing;
 	readonly captureFrame?: CaptureFrameFinishing;
 	readonly createAcceleratorCanvas?: () => unknown;
+	/** Actual delivery cadence when the inherited native carrier plan is capped. */
+	readonly outputFrameRate?: Readonly<{ readonly num: number; readonly den: number }>;
 	readonly createOpenFxExecution?: CreateFramescaperOpenFxExactExecutionNativeMedia;
 	readonly createSupplementalPictureExecution?: CreateFramescaperVideoExportSupplementalPictureExecutionFinishing;
 }>): Promise<FramescaperVideoExportExactExecutionFinishing> {
@@ -135,7 +138,10 @@ export async function createFramescaperVideoExportExactExecutionFinishing(option
 			throw new TypeError('Selected finishing supplemental picture execution must return an array.');
 		}
 		const result = await exact.render({
-			sequencePosition, layers, supplementalPictures,
+			sequencePosition, timelineSample: frame.timelineSample,
+			outputOrdinal: outputAtSequencePosition(sequencePosition, visual.exactPlan,
+				options.outputFrameRate ?? visual.exactPlan.output.frameRate),
+			layers, supplementalPictures,
 			width, height, target: rgba, signal,
 		});
 		visual.accountFrame(frame, result.consumedNodeIds);
