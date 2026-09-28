@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
 	TimeCode,
 	type TimeCodeFormat,
@@ -59,8 +59,17 @@ export default function AudioEditorTimeCodeInput({
 }: AudioEditorTimeCodeInputProps) {
 	const [draft, setDraft] = useState(value);
 	const [displayFormat, setDisplayFormat] = useState(format);
-	useEffect(() => setDraft(value), [value]);
+	const editRevision = useRef(0);
+	useEffect(() => {
+		editRevision.current += 1;
+		setDraft(value);
+	}, [value]);
 	useEffect(() => setDisplayFormat(format), [format]);
+	const updateDraft = (nextValue: number) => {
+		editRevision.current += 1;
+		setDraft(nextValue);
+		onChange?.(nextValue);
+	};
 	const normalizedRate = editorTimeRate(unit, rate);
 	const normalizedValue = clampAudioEditorTimeValue(draft, minimum, maximum);
 	const directEntryValue = editorValueInUnit(normalizedValue, unit, directEntryUnit, normalizedRate);
@@ -74,15 +83,19 @@ export default function AudioEditorTimeCodeInput({
 		onBlur={(event) => {
 			if (event.currentTarget.contains(event.relatedTarget)) return;
 			if (!onCommit || normalizedValue === value) return;
+			const committedRevision = editRevision.current;
+			const restoreRejectedDraft = () => {
+				if (editRevision.current === committedRevision) setDraft(value);
+			};
 			try {
 				const outcome = onCommit(normalizedValue);
 				if (outcome && typeof (outcome as PromiseLike<unknown>).then === 'function') {
 					void Promise.resolve(outcome).then((accepted) => {
-						if (accepted === false) setDraft(value);
-					}, () => setDraft(value));
-				} else if (outcome === false) setDraft(value);
+						if (accepted === false) restoreRejectedDraft();
+					}, restoreRejectedDraft);
+				} else if (outcome === false) restoreRejectedDraft();
 			} catch {
-				setDraft(value);
+				restoreRejectedDraft();
 			}
 		}}
 	>
@@ -90,8 +103,7 @@ export default function AudioEditorTimeCodeInput({
 			aria-label={`${label}: sign`} disabled={disabled || normalizedValue === 0}
 			onClick={() => {
 				const nextValue = clampAudioEditorTimeValue(-normalizedValue, minimum, maximum);
-				setDraft(nextValue);
-				onChange?.(nextValue);
+				updateDraft(nextValue);
 			}}> {normalizedValue < 0 ? '−' : '+'} </button> : null}
 		<TimeCode
 			ariaLabel={label}
@@ -115,8 +127,7 @@ export default function AudioEditorTimeCodeInput({
 				const nextValue = clampAudioEditorTimeValue(
 					normalizedValue < 0 ? -magnitude : magnitude, minimum, maximum,
 				);
-				setDraft(nextValue);
-				onChange?.(nextValue);
+				updateDraft(nextValue);
 			}}
 		/>
 		<input className="audio-editor-timecode-input__value" type="number" name={name}
@@ -131,8 +142,7 @@ export default function AudioEditorTimeCodeInput({
 					nextDirectValue, directEntryUnit, unit, normalizedRate,
 				);
 				const bounded = clampAudioEditorTimeValue(nextValue, minimum, maximum);
-				setDraft(bounded);
-				onChange?.(bounded);
+				updateDraft(bounded);
 			}} />
 	</span>;
 }
