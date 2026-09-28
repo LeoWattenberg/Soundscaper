@@ -36,14 +36,14 @@ test('video-retime menu is a maintained Framescaper-v1 capability-gated lazy ent
 	};
 	const [item] = createVideoRetimeApplicationMenuItems(input);
 	assert.deepEqual({ id: item?.id, label: item?.label, disabled: item?.disabled }, {
-		id: 'video-retime-editor', label: 'Video retime…', disabled: false,
+		id: 'video-retime-editor', label: 'Video retime', disabled: false,
 	});
 	item?.onClick();
 	assert.equal(opened, 1);
 	assert.equal(EDITOR_ENGLISH_COPY['ui.videoRetime.videoRetimeMenu'], 'Video retime');
 	assert.equal(createVideoRetimeApplicationMenuItems({ ...input,
 		copy: { 'ui.videoRetime.videoRetimeMenu': 'Zeitverlauf bearbeiten' },
-	})[0]?.label, 'Zeitverlauf bearbeiten…');
+	})[0]?.label, 'Zeitverlauf bearbeiten');
 	assert.equal(createVideoRetimeApplicationMenuItems({
 		...input, project: project(),
 	})[0]?.disabled, false);

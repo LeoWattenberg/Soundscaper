@@ -20,7 +20,7 @@ export function createVideoCompositionApplicationMenuItems(
 	const selected = resolveSelectedVideoCompositionClip(input.project, input.selectedClipId);
 	return Object.freeze([Object.freeze({
 		id: 'video-composition-editor',
-		label: input.copy.videoCompositionMenu || 'Transform and compositing…',
+		label: input.copy.videoCompositionMenu || 'Transform and compositing',
 		disabled: !selected || selected.locked || input.editingBlocked,
 		onClick: input.open,
 	})]);

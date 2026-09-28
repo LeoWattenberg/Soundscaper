@@ -9,17 +9,24 @@ import { filterProductMenus } from '../src/common/editor/ui/application-menu-pro
 
 test('every guided task has one destination and opens its own workflow', () => {
 	const requests: unknown[] = [];
+	const taskEntries: { label?: string; icon?: unknown }[] = [];
 	const menus = mergeAssistanceTaskMenus(['edit', 'generate', 'effect', 'analyze', 'tools'].map(
 		(id) => ({ id, items: [] }),
 	), { productId: 'framescaper', available: true, copy: {}, open: (request) => requests.push(request) });
 	const visit = (items: Readonly<typeof menus>): void => {
 		for (const item of items) {
+			if (item.assistanceTask) taskEntries.push(item);
 			item.onClick?.();
 			if (item.items) visit(item.items);
 		}
 	};
 	visit(menus);
 	assert.equal(ASSISTANCE_TASKS.length, 14);
+	assert.equal(taskEntries.length, ASSISTANCE_TASKS.length);
+	for (const entry of taskEntries) {
+		assert.equal(entry.icon, String.fromCodePoint(0xF476));
+		assert.doesNotMatch(entry.label ?? '', /…|\.{3}/u);
+	}
 	assert.equal(requests.length, 14);
 	for (const task of ASSISTANCE_TASKS) {
 		const request = { mode: 'task' as const, workflowId: task.workflowId };
@@ -103,10 +110,10 @@ test('moving native configuration into Preferences preserves its assignable comm
 	const { findShortcutMenuHandler } = await import('../src/common/editor/ui/workspace-shortcuts.ts');
 	let opened = false;
 	const menus = organizeNativePreferences([{ id: 'tools', items: [{ id: 'native-audio', items: [
-		{ id: 'native-audio-preferences', label: 'Native audio and latency…', onClick: () => { opened = true; } },
+		{ id: 'native-audio-preferences', label: 'Native audio and latency', onClick: () => { opened = true; } },
 	] }] }]);
 	assert.equal(collectAudacityShortcutCommands(menus).find((command) => command.id === 'native-audio-preferences')?.label,
-		'Native audio and latency…');
+		'Native audio and latency');
 	findShortcutMenuHandler(menus, 'native-audio-preferences').handler?.();
 	assert.equal(opened, true);
 });

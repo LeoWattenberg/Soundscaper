@@ -78,7 +78,7 @@ test.describe('Framescaper dialog coverage', () => {
 			timeout: 20_000,
 		});
 		await selectVideoClip(editor);
-		await chooseNestedCommandAction(page, editor, 'Edit', ['Audio clips', 'Video proxies…']);
+		await chooseNestedCommandAction(page, editor, 'Edit', ['Audio clips', 'Video proxies']);
 		const dialog = page.getByRole('dialog', { name: 'Video proxies', exact: true });
 		const source = dialog.getByRole('combobox', { name: 'Video source', exact: true });
 		await expect(source.locator('option')).toHaveCount(1);
@@ -105,7 +105,7 @@ test.describe('Framescaper dialog coverage', () => {
 
 		await importFiles(editor, [second]);
 		await selectVideoClip(editor);
-		await chooseNestedCommandAction(page, editor, 'Edit', ['Audio clips', 'Video proxies…']);
+		await chooseNestedCommandAction(page, editor, 'Edit', ['Audio clips', 'Video proxies']);
 		const reopened = page.getByRole('dialog', { name: 'Video proxies', exact: true });
 		const reopenedSource = reopened.getByRole('combobox', { name: 'Video source', exact: true });
 		await expect(reopenedSource.locator('option')).toHaveCount(2);

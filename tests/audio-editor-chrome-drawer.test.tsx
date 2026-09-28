@@ -117,6 +117,23 @@ test('activating a menu item closes the menu, then the drawer, then runs the com
 	assert.equal((disabled.props as { onClick?: unknown }).onClick, undefined);
 });
 
+test('application menu entries render their Musescore icon', () => {
+	const icon = String.fromCodePoint(0xF476);
+	const element = renderApplicationMenuItem(
+		{ id: 'assistance-task-enhance-dialogue', label: 'Enhance Dialogue', icon },
+		'assistance-task-enhance-dialogue',
+		{ closeMenu: () => undefined },
+	);
+	const glyph = (element.props as { icon?: React.ReactElement<{
+		className: string;
+		children: string;
+		'aria-hidden': string;
+	}> }).icon;
+	assert.equal(glyph?.props.className, 'musescore-icon');
+	assert.equal(glyph?.props.children, icon);
+	assert.equal(glyph?.props['aria-hidden'], 'true');
+});
+
 test('the drawer scrim closes it and the closed panel is inert', async () => {
 	const dom = installReactTestDom();
 	const actGlobal = globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean };

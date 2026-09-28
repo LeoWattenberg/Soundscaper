@@ -2,6 +2,8 @@
 
 import type { AssistanceGuidedWorkflowId } from '../assistance/workflow-recipes.ts';
 
+export const LOCAL_ASSISTANCE_MENU_ICON = String.fromCodePoint(0xF476);
+
 export type AssistanceDialogRequest = Readonly<
 	{ mode: 'task'; workflowId: AssistanceGuidedWorkflowId } | { mode: 'advanced' }
 >;
@@ -46,6 +48,7 @@ export function assistanceDialogRequest(surface: unknown): AssistanceDialogReque
 export interface AssistanceMenuEntry {
 	readonly id?: string;
 	readonly label?: string;
+	readonly icon?: string;
 	readonly items?: readonly AssistanceMenuEntry[];
 	readonly assistanceTask?: boolean;
 	readonly onClick?: () => unknown;
@@ -70,7 +73,8 @@ export function mergeAssistanceTaskMenus(
 		for (const task of ASSISTANCE_TASKS) {
 			if (task.menu !== menu.id || (task.video && options.productId !== 'framescaper')) continue;
 			const entry: AssistanceMenuEntry = {
-				id: `assistance-task-${task.workflowId}`, label: `${assistanceTaskLabel(task.workflowId, options.copy)}…`,
+				id: `assistance-task-${task.workflowId}`, label: assistanceTaskLabel(task.workflowId, options.copy),
+				icon: LOCAL_ASSISTANCE_MENU_ICON,
 				assistanceTask: true,
 				onClick: () => options.open({ mode: 'task', workflowId: task.workflowId }),
 			};

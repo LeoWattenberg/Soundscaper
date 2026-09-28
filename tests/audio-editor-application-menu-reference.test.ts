@@ -82,6 +82,7 @@ test('the supplemental application-menu reference is a frozen unique lookup', ()
 		assert.equal(entry.id.trim(), entry.id);
 		assert.ok(entry.id.length > 0, entry.id);
 		assert.ok(entry.label.trim().length > 0, entry.id);
+		assert.doesNotMatch(entry.label, /…|\.{3}/u, entry.id);
 		assert.ok(entry.locations.length > 0, entry.id);
 		assert.ok(entry.locations.every((location) => location.trim().length > 0), entry.id);
 		assert.ok(entry.products.length > 0, entry.id);
@@ -94,6 +95,18 @@ test('the supplemental application-menu reference is a frozen unique lookup', ()
 	}
 
 	assert.deepEqual(Object.keys(APPLICATION_MENU_REFERENCE_BY_ID).sort(), [...ids].sort());
+});
+
+test('application menu labels omit ellipses in both products', () => {
+	const visit = (item: MenuItem): void => {
+		if (item.label) assert.doesNotMatch(item.label, /…|\.{3}/u, item.id ?? 'menu item');
+		for (const child of item.items ?? []) visit(child);
+	};
+	for (const product of ['soundscaper', 'framescaper'] as const) {
+		for (const menus of richApplicationMenuMatrix(product)) {
+			for (const menu of menus) visit(materializeApplicationMenu(menu) as MenuItem);
+		}
+	}
 });
 
 test('every runnable application-menu leaf has one truthful handbook reference', () => {

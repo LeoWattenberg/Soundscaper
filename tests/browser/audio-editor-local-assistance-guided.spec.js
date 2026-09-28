@@ -198,7 +198,7 @@ test.describe('menu-only Local Assistance workflows', () => {
 		await page.keyboard.press('Enter');
 		await expect(selectedClip.locator('.clip-display')).toHaveClass(/clip-display--selected/u);
 
-		await chooseCommandAction(page, editor, 'Tools', 'Advanced Local Processing…');
+		await chooseCommandAction(page, editor, 'Tools', 'Advanced Local Processing');
 		const assistance = page.getByRole('dialog', { name: 'Advanced Local Processing', exact: true });
 		await expect(assistance.getByRole('tablist')).toHaveCount(0);
 		const advanced = assistance.getByRole('tabpanel', { name: 'Advanced', exact: true });

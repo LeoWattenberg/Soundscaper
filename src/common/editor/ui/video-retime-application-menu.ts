@@ -21,7 +21,7 @@ export function createVideoRetimeApplicationMenuItems(input: VideoRetimeApplicat
 	if (model.blockReason === 'unsupported') return Object.freeze([]);
 	return Object.freeze([Object.freeze({
 		id: 'video-retime-editor',
-		label: `${input.copy['ui.videoRetime.videoRetimeMenu'] ?? input.copy.videoRetimeMenu ?? VIDEO_RETIME_ADDITIONAL_COPY.videoRetimeMenu}…`,
+		label: input.copy['ui.videoRetime.videoRetimeMenu'] ?? input.copy.videoRetimeMenu ?? VIDEO_RETIME_ADDITIONAL_COPY.videoRetimeMenu,
 		disabled: model.blockReason !== null,
 		onClick: input.open,
 	})]);

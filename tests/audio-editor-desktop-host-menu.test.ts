@@ -114,7 +114,7 @@ test('web has no desktop host rows and packaged desktop hides development comman
 test('Soundscaper desktop keeps MCP under Tools > Desktop services', () => {
 	let opened = 0;
 	const input = {
-		copy: { ...copy(), desktopMcpConnection: 'MCP connection…' },
+		copy: { ...copy(), desktopMcpConnection: 'MCP connection' },
 		development: false,
 		productName: 'Soundscaper',
 		snapshot: snapshot(),
@@ -134,7 +134,7 @@ test('Soundscaper desktop keeps MCP under Tools > Desktop services', () => {
 	assert.equal(organizeNativePreferences([{ id: 'tools', items: framescaper.tools as never }])[0]?.items?.length, 0);
 	const german = createDesktopHostMenuItems({ ...input, productId: 'soundscaper',
 		copy: { ...copy(), 'ui.desktopMcp.connection': 'MCP-Verbindung' } });
-	assert.equal(german.tools[0]?.items?.at(-1)?.label, 'MCP-Verbindung…');
+	assert.equal(german.tools[0]?.items?.at(-1)?.label, 'MCP-Verbindung');
 });
 
 test('a browser renderer build omits the desktop MCP menu row', () => {

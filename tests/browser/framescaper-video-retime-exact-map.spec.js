@@ -25,7 +25,7 @@ test('exact V2 map authoring is keyboard-reached, validated, and one-step undoab
 	await videoClip.focus();
 	await videoClip.press('Enter');
 	const audioClips = await openNestedCommandMenu(page, editor, 'Edit', ['Audio clips']);
-	const retime = getMenuItem(audioClips, 'Video retime…');
+	const retime = getMenuItem(audioClips, 'Video retime');
 	await retime.focus();
 	await retime.press('Enter');
 

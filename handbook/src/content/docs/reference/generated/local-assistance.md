@@ -51,7 +51,7 @@ Each operation has the menu entry below for use without a surrounding workflow. 
 | Speech recognition | `speech-recognition` | `advanced:speech-recognition` |
 | Subject detection | `subject-detection` | `advanced:subject-detection` |
 | Text embedding | `text-embedding` | `advanced:text-embedding` |
-| Text to speech | `text-to-speech` | Generate > Text to Speech… |
+| Text to speech | `text-to-speech` | Generate > Text to Speech |
 | Voice activity detection | `voice-activity-detection` | `advanced:voice-activity-detection` |
 | Word alignment | `word-alignment` | `advanced:word-alignment` |
 

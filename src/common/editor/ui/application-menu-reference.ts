@@ -66,9 +66,9 @@ const REFERENCE_SEEDS: readonly ReferenceSeed[] = Object.freeze([
 	['video-unlink-audio', 'Unlink audio', 'Edit > Audio clips', FRAMESCAPER],
 	['video-composition-editor', 'Transform and compositing', 'Edit > Audio clips', FRAMESCAPER],
 	['video-keyframes-editor', 'Video keyframes', 'Edit > Audio clips', FRAMESCAPER],
-	['video-retime-editor', 'Video retime…', 'Edit > Audio clips', FRAMESCAPER],
-	['video-proxy-manager', 'Video proxies…', 'Edit > Audio clips', FRAMESCAPER],
-	['assistance-task-make-highlights', 'Make Highlights…', 'Edit', FRAMESCAPER],
+	['video-retime-editor', 'Video retime', 'Edit > Audio clips', FRAMESCAPER],
+	['video-proxy-manager', 'Video proxies', 'Edit > Audio clips', FRAMESCAPER],
+	['assistance-task-make-highlights', 'Make Highlights', 'Edit', FRAMESCAPER],
 
 	// View: panels, workspaces, grid settings, external display, and desktop development.
 	['panel-project-bin', 'Project bin', 'View > Panels', BOTH, 'setting'],
@@ -144,8 +144,8 @@ const REFERENCE_SEEDS: readonly ReferenceSeed[] = Object.freeze([
 	['framescaper-add-video-shape', 'Add Shape', 'Generate > Video Generators', FRAMESCAPER],
 	['framescaper-add-video-solid', 'Add Solid', 'Generate > Video Generators', FRAMESCAPER],
 	['framescaper-save-video-visual-preset', 'Save Visual Preset', 'Generate > Video Generators', FRAMESCAPER],
-	['assistance-task-generate-editorial-text', 'Generate Editorial Text…', 'Generate', BOTH],
-	['text-to-speech', 'Text to Speech…', 'Generate', BOTH],
+	['assistance-task-generate-editorial-text', 'Generate Editorial Text', 'Generate', BOTH],
+	['text-to-speech', 'Text to Speech', 'Generate', BOTH],
 
 	// Soundscaper native effects and destructive selection effects.
 	['native-effect-manage', 'Plugin Manager', 'Effect', SOUNDSCAPER],
@@ -208,11 +208,11 @@ const REFERENCE_SEEDS: readonly ReferenceSeed[] = Object.freeze([
 	['framescaper-ofx-interact', 'Open OFX Interact', 'Effect > Video effects', FRAMESCAPER],
 
 	// Assistance tasks are desktop-only at runtime, but retain product ownership here.
-	['assistance-task-enhance-dialogue', 'Enhance Dialogue…', 'Effect > Noise removal and repair', BOTH],
-	['assistance-task-reduce-reverb', 'Reduce Reverb…', 'Effect > Noise removal and repair', BOTH],
-	['assistance-task-clean-filler-silence', 'Clean Filler & Silence…', 'Effect > Noise removal and repair', BOTH],
-	['assistance-task-separate-dialogue-music-effects', 'Separate Dialogue / Music / Effects…', 'Effect > Source Separation', BOTH],
-	['assistance-task-reframe', 'Reframe…', 'Effect > Video effects', FRAMESCAPER],
+	['assistance-task-enhance-dialogue', 'Enhance Dialogue', 'Effect > Noise removal and repair', BOTH],
+	['assistance-task-reduce-reverb', 'Reduce Reverb', 'Effect > Noise removal and repair', BOTH],
+	['assistance-task-clean-filler-silence', 'Clean Filler & Silence', 'Effect > Noise removal and repair', BOTH],
+	['assistance-task-separate-dialogue-music-effects', 'Separate Dialogue / Music / Effects', 'Effect > Source Separation', BOTH],
+	['assistance-task-reframe', 'Reframe', 'Effect > Video effects', FRAMESCAPER],
 
 	// Live analysis panel and selected-range analysis commands.
 	['analysis', 'Analysis', 'Analyze', SOUNDSCAPER, 'setting'],
@@ -220,19 +220,19 @@ const REFERENCE_SEEDS: readonly ReferenceSeed[] = Object.freeze([
 	['measure-loudness', 'Measure loudness', 'Analyze', SOUNDSCAPER],
 	['native-analyzer-use', 'Vamp Plugins', 'Analyze', SOUNDSCAPER],
 	['framescaper-motion-tracking', 'Motion Tracking', 'Analyze', FRAMESCAPER],
-	['assistance-task-transcribe-captions', 'Transcribe & Captions…', 'Analyze > Speech', BOTH],
-	['assistance-task-identify-speakers', 'Identify Speakers…', 'Analyze > Speech', BOTH],
-	['assistance-task-mark-reactions', 'Mark Reactions…', 'Analyze > Speech', BOTH],
-	['assistance-task-detect-beats-tempo', 'Detect Beats & Tempo…', 'Analyze > Music', BOTH],
-	['assistance-task-mark-cuts', 'Mark Cuts…', 'Analyze > Video', FRAMESCAPER],
+	['assistance-task-transcribe-captions', 'Transcribe & Captions', 'Analyze > Speech', BOTH],
+	['assistance-task-identify-speakers', 'Identify Speakers', 'Analyze > Speech', BOTH],
+	['assistance-task-mark-reactions', 'Mark Reactions', 'Analyze > Speech', BOTH],
+	['assistance-task-detect-beats-tempo', 'Detect Beats & Tempo', 'Analyze > Music', BOTH],
+	['assistance-task-mark-cuts', 'Mark Cuts', 'Analyze > Video', FRAMESCAPER],
 
 	// Tools: local models/assistance, mastering, and native video services.
-	['local-assistance', 'Advanced Local Processing…', 'Tools', BOTH],
-	['local-assistance-indexed-search', 'Indexed Search…', 'Tools > Search', BOTH],
-	['assistance-task-index-transcript', 'Index Transcript…', 'Tools > Search', BOTH],
-	['assistance-task-index-video', 'Index Video…', 'Tools > Search', FRAMESCAPER],
-	['manage-local-models', 'Model Manager…', 'Tools', BOTH],
-	['desktop-mcp-connection', 'MCP connection…', 'Tools > Desktop services', SOUNDSCAPER],
+	['local-assistance', 'Advanced Local Processing', 'Tools', BOTH],
+	['local-assistance-indexed-search', 'Indexed Search', 'Tools > Search', BOTH],
+	['assistance-task-index-transcript', 'Index Transcript', 'Tools > Search', BOTH],
+	['assistance-task-index-video', 'Index Video', 'Tools > Search', FRAMESCAPER],
+	['manage-local-models', 'Model Manager', 'Tools', BOTH],
+	['desktop-mcp-connection', 'MCP connection', 'Tools > Desktop services', SOUNDSCAPER],
 	['soundscaper-mastering-sequences', 'Mastering sequences', 'Tools', SOUNDSCAPER],
 	['native-audio-device', 'Native audio device', 'Tools > Audio setup', SOUNDSCAPER, 'setting'],
 	['native-audio-preferences', 'Native audio and latency', 'Tools > Audio setup', SOUNDSCAPER, 'setting'],

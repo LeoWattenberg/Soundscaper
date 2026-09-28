@@ -23,7 +23,7 @@ export function createVideoKeyframeApplicationMenuItems(input: VideoKeyframeAppl
 	if (selected === 'unsupported') return Object.freeze([]);
 	return Object.freeze([Object.freeze({
 		id: 'video-keyframes-editor',
-		label: input.copy.videoKeyframesMenu || 'Video keyframes…',
+		label: input.copy.videoKeyframesMenu || 'Video keyframes',
 		disabled: !selected || selected.locked || input.editingBlocked,
 		onClick: input.open,
 	})]);

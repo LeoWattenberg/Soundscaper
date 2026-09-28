@@ -79,7 +79,7 @@ test.describe('Framescaper v1 product lifecycle', () => {
 			await expect(audioClips
 				.getByRole('menuitem', { name: /^Video keyframes(?:\s|$)/u })).toHaveCount(0);
 			await expect(audioClips
-				.getByRole('menuitem', { name: /^Video retime…(?:\s|$)/u })).toHaveCount(0);
+				.getByRole('menuitem', { name: /^Video retime(?:\s|$)/u })).toHaveCount(0);
 			expect(clientErrors).toEqual([]);
 			expect(soundscaperErrors).toEqual([]);
 		} finally {
@@ -245,7 +245,7 @@ test.describe('Framescaper v1 product lifecycle', () => {
 		await videoClip.press('Enter');
 
 		const audioClips = await openNestedCommandMenu(page, editor, 'Edit', ['Audio clips']);
-		const retime = getMenuItem(audioClips, 'Video retime…');
+		const retime = getMenuItem(audioClips, 'Video retime');
 		await expect(retime).toBeEnabled();
 		await retime.focus();
 		await retime.press('Enter');
@@ -279,7 +279,7 @@ test.describe('Framescaper v1 product lifecycle', () => {
 		await expect(editor).toHaveAttribute('data-clip-count', '2', { timeout: 30_000 });
 
 		const audioClips = await openNestedCommandMenu(page, editor, 'Edit', ['Audio clips']);
-		const proxies = getMenuItem(audioClips, 'Video proxies…');
+		const proxies = getMenuItem(audioClips, 'Video proxies');
 		await expect(proxies).toBeEnabled();
 		await proxies.focus();
 		await proxies.press('Enter');

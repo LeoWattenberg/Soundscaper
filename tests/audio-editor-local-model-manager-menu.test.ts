@@ -15,7 +15,8 @@ test('Tools reaches Local Models in both desktops and omits it in the browser', 
 		));
 		const tools = (desktopMenus as readonly MenuItem[]).find(({ id }) => id === 'tools');
 		const manage = findMenuItem(tools?.items ?? [], 'manage-local-models');
-		assert.equal(manage?.label, 'Model Manager…');
+		assert.equal(manage?.label, 'Model Manager');
+		assert.equal(manage?.icon, String.fromCodePoint(0xF476));
 		manage?.onClick?.();
 		assert.deepEqual(opened, ['local-models']);
 		assert.equal(findMenuItem(
@@ -28,6 +29,7 @@ test('Tools reaches Local Models in both desktops and omits it in the browser', 
 interface MenuItem {
 	readonly id?: string;
 	readonly label?: string;
+	readonly icon?: string;
 	readonly items?: readonly MenuItem[];
 	onClick?(): unknown;
 }

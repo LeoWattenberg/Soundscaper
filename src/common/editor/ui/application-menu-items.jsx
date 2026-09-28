@@ -41,8 +41,8 @@ export function renderApplicationMenuItem(item, key, { closeMenu, onActivate = /
 			shortcut={item.shortcut}
 			disabled={item.disabled}
 			checked={item.visibilityToggle ? undefined : item.checked}
-			icon={item.visibilityToggle ? <span className="musescore-icon" aria-hidden="true">
-				{iconNameToChar(item.checked ? 'EYE_OPEN' : 'EYE_CLOSED')}
+			icon={item.visibilityToggle || item.icon ? <span className="musescore-icon" aria-hidden="true">
+				{item.visibilityToggle ? iconNameToChar(item.checked ? 'EYE_OPEN' : 'EYE_CLOSED') : item.icon}
 			</span> : undefined}
 			hasSubmenu={Boolean(children?.length)}
 			onClick={activate}

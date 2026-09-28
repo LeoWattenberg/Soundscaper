@@ -148,7 +148,7 @@ export function renderAssistanceReference({
 		.map((operation) => [
 			operation.label,
 			`\`${operation.id}\``,
-			operation.id === 'text-to-speech' ? 'Generate > Text to Speech…' : `\`advanced:${operation.id}\``,
+			operation.id === 'text-to-speech' ? 'Generate > Text to Speech' : `\`advanced:${operation.id}\``,
 		]);
 
 	const body = [

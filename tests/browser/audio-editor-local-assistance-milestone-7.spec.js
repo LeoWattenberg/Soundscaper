@@ -192,7 +192,7 @@ test.describe('Milestone 7 Guided workflow qualification', () => {
 		await assistance.locator('button').filter({ hasText: /^Close$/u }).click();
 		await expect(assistance).toBeHidden();
 
-		await chooseNestedCommandAction(page, editor, 'Tools', ['Search', 'Indexed Search…']);
+		await chooseNestedCommandAction(page, editor, 'Tools', ['Search', 'Indexed Search']);
 		const search = editor.getByRole('combobox', { name: 'Search commands and media', exact: true });
 		await expect(search).toBeFocused();
 		await search.fill('Launch Plan');

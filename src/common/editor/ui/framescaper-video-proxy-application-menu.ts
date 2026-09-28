@@ -27,7 +27,7 @@ export function createFramescaperVideoProxyApplicationMenuItems(
 	}
 	return Object.freeze([Object.freeze({
 		id: 'video-proxy-manager' as const,
-		label: `${input.copy['ui.videoProxy.videoProxyManager'] || input.copy.videoProxyManager || VIDEO_PROXY_ADDITIONAL_COPY.videoProxyManager}…`,
+		label: input.copy['ui.videoProxy.videoProxyManager'] || input.copy.videoProxyManager || VIDEO_PROXY_ADDITIONAL_COPY.videoProxyManager,
 		disabled: false,
 		onClick: input.open,
 	})]);

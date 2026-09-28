@@ -335,7 +335,7 @@ test('assistance reference gives text-to-speech its reviewed operation label', (
 		...assistanceInput,
 		operations: ['text-to-speech'],
 	});
-	assert.match(rendered, /\| Text to speech \| `text-to-speech` \| Generate > Text to Speech… \|/u);
+	assert.match(rendered, /\| Text to speech \| `text-to-speech` \| Generate > Text to Speech \|/u);
 });
 
 test('assistance reference refuses a workflow or distribution it has no reviewed wording for', () => {

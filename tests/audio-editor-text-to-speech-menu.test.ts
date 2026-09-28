@@ -17,7 +17,8 @@ test('desktop Generate menu opens Text to Speech in both products without select
 			assistanceAssets: true, audioGenerators: productId === 'soundscaper',
 		}, productId);
 		const entry = displayed[0]?.items?.find((item: { id: string }) => item.id === 'text-to-speech');
-		assert.equal(entry?.label, 'Text to Speech…');
+		assert.equal(entry?.label, 'Text to Speech');
+		assert.equal(entry?.icon, String.fromCodePoint(0xF476));
 		assert.equal(entry?.disabled, false);
 		entry?.onClick?.();
 		assert.equal(opened, 1);

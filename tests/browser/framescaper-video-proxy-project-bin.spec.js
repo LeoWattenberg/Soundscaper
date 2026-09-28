@@ -23,7 +23,7 @@ test('Project Bin video menu lazily opens proxies for the clicked source', async
 	await expect.poll(() => loadedProxyDialogChunks(page)).toEqual([]);
 
 	await cards.nth(1).getByRole('button', { name: /More file actions:/u }).click();
-	const proxyMenuItem = page.getByRole('menuitem', { name: 'Video proxies…', exact: true });
+	const proxyMenuItem = page.getByRole('menuitem', { name: 'Video proxies', exact: true });
 	await expect(proxyMenuItem).toBeVisible();
 	await proxyMenuItem.press('Enter');
 

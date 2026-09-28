@@ -182,12 +182,12 @@ test('the keyframe entry is menu-only for selected keyframe routes and available
 	const opened: string[] = [];
 	const input = {
 		productId: 'framescaper', capability: true, project: project(),
-		selectedClipId: 'video', editingBlocked: false, copy: { videoKeyframesMenu: 'Video keyframes…' },
+		selectedClipId: 'video', editingBlocked: false, copy: { videoKeyframesMenu: 'Video keyframes' },
 		open: () => { opened.push('video-keyframes'); },
 	};
 	const [item] = createVideoKeyframeApplicationMenuItems(input);
 	assert.deepEqual({ id: item?.id, label: item?.label, disabled: item?.disabled }, {
-		id: 'video-keyframes-editor', label: 'Video keyframes…', disabled: false,
+		id: 'video-keyframes-editor', label: 'Video keyframes', disabled: false,
 	});
 	item?.onClick();
 	assert.deepEqual(opened, ['video-keyframes']);

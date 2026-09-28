@@ -39,7 +39,7 @@ Product availability follows each product profile’s command filters and each l
 | Add to render queue | `framescaper-add-to-render-queue` | — | File > Export other | Framescaper | Soundscaper local |
 | Add track effects | `add-realtime-effects` | E | Effect | Soundscaper | Audacity |
 | Adjustable Fade | `nyquist:adjustable-fade` | — | Nyquist | Soundscaper | Audacity |
-| Advanced Local Processing… | `local-assistance` | — | Tools | Soundscaper, Framescaper | Soundscaper local |
+| Advanced Local Processing | `local-assistance` | — | Tools | Soundscaper, Framescaper | Soundscaper local |
 | Align end to end | `align-end-to-end` | — | Tracks > Align content | Soundscaper, Framescaper | Audacity |
 | Align end to playhead | `align-end-to-playhead` | — | Tracks > Align content | Soundscaper, Framescaper | Audacity |
 | Align end to selection end | `align-end-to-selection-end` | — | Tracks > Align content | Soundscaper, Framescaper | Audacity |
@@ -83,7 +83,7 @@ Product availability follows each product profile’s command filters and each l
 | Chirp | `generator://chirp` | — | Generate | Soundscaper | Audacity |
 | Classic | `workspace-classic` | — | View > Workspace | Soundscaper | Soundscaper local |
 | Classic Filters | `audacity-classic-filters` | — | Effect > Legacy effects | Soundscaper | Soundscaper local |
-| Clean Filler & Silence… | `assistance-task-clean-filler-silence` | — | Effect > Noise removal and repair | Soundscaper, Framescaper | Soundscaper local |
+| Clean Filler & Silence | `assistance-task-clean-filler-silence` | — | Effect > Noise removal and repair | Soundscaper, Framescaper | Soundscaper local |
 | Clear Audio Helper Quarantine | `desktop-clear-audio-helper-quarantine` | — | Tools | Soundscaper, Framescaper | Soundscaper local |
 | Clear Probe Helper Quarantine | `desktop-clear-probe-helper-quarantine` | — | Tools | Soundscaper, Framescaper | Soundscaper local |
 | Clear all local editor data | `clear-data` | — | File > Project management | Soundscaper, Framescaper | Soundscaper local |
@@ -148,7 +148,7 @@ Product availability follows each product profile’s command filters and each l
 | Delivery queue | `delivery-queue` | — | File | Soundscaper, Framescaper | Soundscaper local |
 | Detach | `framescaper-proxy-detach` | — | Tools > Proxies | Framescaper | Soundscaper local |
 | Detach labeled audio at silences | `disjoin-labels` | Alt+Shift+J | Edit > Labeled audio | Soundscaper | Audacity |
-| Detect Beats & Tempo… | `assistance-task-detect-beats-tempo` | — | Analyze > Music | Soundscaper, Framescaper | Soundscaper local |
+| Detect Beats & Tempo | `assistance-task-detect-beats-tempo` | — | Analyze > Music | Soundscaper, Framescaper | Soundscaper local |
 | Diagnostics | `menu-diagnostics` | — | Help | Soundscaper, Framescaper | Audacity |
 | Dialogue Chain | `framescaper-dialogue-chain` | — | View > Panels | Framescaper | Soundscaper local |
 | Discover Native Effects | `desktop-discover-native-effects` | — | Tools | Soundscaper, Framescaper | Soundscaper local |
@@ -165,7 +165,7 @@ Product availability follows each product profile’s command filters and each l
 | Effects | `toggle-effects` | — | View | Soundscaper, Framescaper | Audacity |
 | Enable multi-track recording | `show-arm-controls` | — | View | Soundscaper | Soundscaper local |
 | Enable triplets | `snap-triplets` | — | View > Snapping | Soundscaper, Framescaper | Soundscaper local |
-| Enhance Dialogue… | `assistance-task-enhance-dialogue` | — | Effect > Noise removal and repair | Soundscaper, Framescaper | Soundscaper local |
+| Enhance Dialogue | `assistance-task-enhance-dialogue` | — | Effect > Noise removal and repair | Soundscaper, Framescaper | Soundscaper local |
 | Export AUP4 | `save-aup4` | — | File > Export other | Soundscaper | Soundscaper local |
 | Export DAWproject | `export-dawproject` | — | File > Export other | Soundscaper, Framescaper | Soundscaper local |
 | Export FCPXML | `export-fcpxml` | — | File > Export other | Soundscaper, Framescaper | Soundscaper local |
@@ -197,7 +197,7 @@ Product availability follows each product profile’s command filters and each l
 | Freeze track | `soundscaper-freeze-track` | — | Tracks > Freeze | Soundscaper | Soundscaper local |
 | Fullscreen | `fullscreen` | F11 | View | Soundscaper, Framescaper | Audacity |
 | Generate | `framescaper-proxy-generate` | — | Tools > Proxies | Framescaper | Soundscaper local |
-| Generate Editorial Text… | `assistance-task-generate-editorial-text` | — | Generate | Soundscaper, Framescaper | Soundscaper local |
+| Generate Editorial Text | `assistance-task-generate-editorial-text` | — | Generate | Soundscaper, Framescaper | Soundscaper local |
 | Get effects | `nyquist-get-effects` | — | Effect > Nyquist | Soundscaper | Soundscaper local |
 | Grading & Finishing Presets | `framescaper-grading-presets` | — | Effect > Video Finishing | Framescaper | Soundscaper local |
 | Graphic EQ | `audacity-graphic-eq` | — | Effect > EQ and filters | Soundscaper | Soundscaper local |
@@ -206,16 +206,16 @@ Product availability follows each product profile’s command filters and each l
 | High-Pass Filter | `nyquist:highpass` | — | Nyquist | Soundscaper | Audacity |
 | High-pass filter | `highpass-filter` | — | Effect > EQ and filters | Soundscaper | Soundscaper local |
 | History | `toggle-history` | — | View | Soundscaper, Framescaper | Audacity |
-| Identify Speakers… | `assistance-task-identify-speakers` | — | Analyze > Speech | Soundscaper, Framescaper | Soundscaper local |
+| Identify Speakers | `assistance-task-identify-speakers` | — | Analyze > Speech | Soundscaper, Framescaper | Soundscaper local |
 | Image sequence | `framescaper-import-image-sequence` | — | File | Framescaper | Soundscaper local |
 | Import audio | `project-import` | Ctrl+Shift+I | File | Soundscaper, Framescaper | Audacity |
 | Import preset | `action://effects/presets/import` | — | Effect dialog > Presets | Soundscaper | Audacity |
 | Import raw data | `raw-data-import` | — | Tools | Soundscaper, Framescaper | Audacity |
 | Increase Gain on Focused Track | `track-gain-inc` | Alt+Shift+Up | Track context | Soundscaper, Framescaper | Audacity |
 | Increase all track heights | `increase-all-track-heights` | Ctrl+Shift+Up | View > Zoom | Soundscaper, Framescaper | Soundscaper local |
-| Index Transcript… | `assistance-task-index-transcript` | — | Tools > Search | Soundscaper, Framescaper | Soundscaper local |
-| Index Video… | `assistance-task-index-video` | — | Tools > Search | Framescaper | Soundscaper local |
-| Indexed Search… | `local-assistance-indexed-search` | — | Tools > Search | Soundscaper, Framescaper | Soundscaper local |
+| Index Transcript | `assistance-task-index-transcript` | — | Tools > Search | Soundscaper, Framescaper | Soundscaper local |
+| Index Video | `assistance-task-index-video` | — | Tools > Search | Framescaper | Soundscaper local |
+| Indexed Search | `local-assistance-indexed-search` | — | Tools > Search | Soundscaper, Framescaper | Soundscaper local |
 | Input monitoring | `action://record/toggle-input-monitoring` | — | Meter toolbar | Soundscaper | Audacity |
 | Insert | `action://trackedit/paste-insert` | — | Edit > Paste | Soundscaper, Framescaper | Audacity |
 | Insert | `insert` | Shift+V | Edit > Paste; Command inventory | Soundscaper, Framescaper | Audacity |
@@ -242,15 +242,15 @@ Product availability follows each product profile’s command filters and each l
 | Loudness Normalization | `audacity-loudness-normalization` | — | Effect > Volume and compression | Soundscaper | Soundscaper local |
 | Low-Pass Filter | `nyquist:lowpass` | — | Nyquist | Soundscaper | Audacity |
 | Low-pass filter | `lowpass-filter` | — | Effect > EQ and filters | Soundscaper | Soundscaper local |
-| MCP connection… | `desktop-mcp-connection` | — | Tools > Desktop services | Soundscaper | Soundscaper local |
+| MCP connection | `desktop-mcp-connection` | — | Tools > Desktop services | Soundscaper | Soundscaper local |
 | Macros palette | `manage-macros` | — | Tools | Soundscaper | Audacity |
-| Make Highlights… | `assistance-task-make-highlights` | — | Edit | Framescaper | Soundscaper local |
+| Make Highlights | `assistance-task-make-highlights` | — | Edit | Framescaper | Soundscaper local |
 | Make stereo track | `track-make-stereo` | — | Track context | Soundscaper, Framescaper | Audacity |
 | Manage labels | `open-label-editor` | — | Edit > Label; View | Soundscaper, Framescaper | Audacity |
 | Managed Color & Source Interpretation | `framescaper-color-management` | — | Effect > Video Finishing | Framescaper | Soundscaper local |
 | Manual | `online-handbook` | — | Help | Soundscaper, Framescaper | Audacity |
-| Mark Cuts… | `assistance-task-mark-cuts` | — | Analyze > Video | Framescaper | Soundscaper local |
-| Mark Reactions… | `assistance-task-mark-reactions` | — | Analyze > Speech | Soundscaper, Framescaper | Soundscaper local |
+| Mark Cuts | `assistance-task-mark-cuts` | — | Analyze > Video | Framescaper | Soundscaper local |
+| Mark Reactions | `assistance-task-mark-reactions` | — | Analyze > Speech | Soundscaper, Framescaper | Soundscaper local |
 | Markers | `panel-markers` | — | View > Panels | Soundscaper, Framescaper | Soundscaper local |
 | Markers | `show-markers` | — | View | Soundscaper, Framescaper | Soundscaper local |
 | Mastering sequences | `soundscaper-mastering-sequences` | — | Tools | Soundscaper | Soundscaper local |
@@ -264,7 +264,7 @@ Product availability follows each product profile’s command filters and each l
 | Mix & Render | `mix-render` | Ctrl+Shift+M | Tracks | Soundscaper | Soundscaper local |
 | Mixer | `panel-mixer` | — | View > Panels | Soundscaper, Framescaper | Soundscaper local |
 | Mixer & Routing | `framescaper-mixer` | — | View > Panels | Framescaper | Soundscaper local |
-| Model Manager… | `manage-local-models` | — | Tools | Soundscaper, Framescaper | Soundscaper local |
+| Model Manager | `manage-local-models` | — | Tools | Soundscaper, Framescaper | Soundscaper local |
 | Morse code | `local://morse-generator` | — | Generate | Soundscaper | Soundscaper local |
 | Motion Tracking | `framescaper-motion-tracking` | — | Analyze | Framescaper | Soundscaper local |
 | Move active camera one frame earlier | `multicamera-nudge-earlier` | — | Tracks > Multicamera | Framescaper | Soundscaper local |
@@ -361,10 +361,10 @@ Product availability follows each product profile’s command filters and each l
 | Record on new track | `record-on-new-track` | — | Record | Soundscaper | Audacity |
 | Recording setup | `panel-recording-setup` | — | View > Panels | Framescaper | Soundscaper local |
 | Redo | `action://trackedit/redo` | Ctrl+Shift+Z | Edit | Soundscaper, Framescaper | Audacity |
-| Reduce Reverb… | `assistance-task-reduce-reverb` | — | Effect > Noise removal and repair | Soundscaper, Framescaper | Soundscaper local |
+| Reduce Reverb | `assistance-task-reduce-reverb` | — | Effect > Noise removal and repair | Soundscaper, Framescaper | Soundscaper local |
 | Reduce item from left | `track-view-item-reduce-left` | Ctrl+Shift+Left | Keyboard navigation | Soundscaper, Framescaper | Audacity |
 | Reduce item from right | `track-view-item-reduce-right` | Ctrl+Shift+Right | Keyboard navigation | Soundscaper, Framescaper | Audacity |
-| Reframe… | `assistance-task-reframe` | — | Effect > Video effects | Framescaper | Soundscaper local |
+| Reframe | `assistance-task-reframe` | — | Effect > Video effects | Framescaper | Soundscaper local |
 | Refresh frozen track | `soundscaper-refresh-freeze` | — | Tracks > Freeze | Soundscaper | Soundscaper local |
 | Regular Interval Labels | `nyquist:equalabel` | — | Nyquist | Soundscaper | Audacity |
 | Regular interval labels | `regular-interval-labels` | — | Extra | Soundscaper, Framescaper | Audacity |
@@ -417,7 +417,7 @@ Product availability follows each product profile’s command filters and each l
 | Selection start | `skip-to-selection-start` | Ctrl+[ | View > Skip to | Soundscaper, Framescaper | Audacity |
 | Selection tool | `select-tool` | F1 | Tools toolbar | Soundscaper, Framescaper | Audacity |
 | Selection toolbar | `local://selection-toolbar` | — | View > Toolbars | Soundscaper, Framescaper | Soundscaper local |
-| Separate Dialogue / Music / Effects… | `assistance-task-separate-dialogue-music-effects` | — | Effect > Source Separation | Soundscaper, Framescaper | Soundscaper local |
+| Separate Dialogue / Music / Effects | `assistance-task-separate-dialogue-music-effects` | — | Effect > Source Separation | Soundscaper, Framescaper | Soundscaper local |
 | Set loop in/out | `set-loop-region-in-out` | I | Select > Looping | Soundscaper, Framescaper | Audacity |
 | Set loop to selection | `set-loop-region-to-selection` | Shift+L | Select > Looping | Soundscaper, Framescaper | Audacity |
 | Set selection to loop | `set-selection-to-loop` | — | Select > Looping | Soundscaper, Framescaper | Audacity |
@@ -477,7 +477,7 @@ Product availability follows each product profile’s command filters and each l
 | Support | `local://support` | — | Help | Soundscaper, Framescaper | Soundscaper local |
 | Swap stereo channels | `track-swap-channels` | — | Track context | Soundscaper, Framescaper | Audacity |
 | Switch camera | `multicamera-switch` | — | Tracks > Multicamera | Framescaper | Soundscaper local |
-| Text to Speech… | `text-to-speech` | — | Generate | Soundscaper, Framescaper | Soundscaper local |
+| Text to Speech | `text-to-speech` | — | Generate | Soundscaper, Framescaper | Soundscaper local |
 | Time signature | `playback-time-signature` | — | Transport toolbar | Soundscaper, Framescaper | Audacity |
 | Toggle Developer Tools | `desktop-toggle-dev-tools` | — | View | Soundscaper, Framescaper | Soundscaper local |
 | Toggle spectral view | `action://trackedit/global-view-spectrogram` | — | View; Tools toolbar | Soundscaper, Framescaper | Audacity |
@@ -488,7 +488,7 @@ Product availability follows each product profile’s command filters and each l
 | Track start to cursor | `select-track-start-to-cursor` | Shift+J | Select > Region | Soundscaper, Framescaper | Audacity |
 | Track start to end | `select-track-start-to-end` | — | Select > Region | Soundscaper, Framescaper | Audacity |
 | Tracks panel | `toggle-tracks` | — | View > Panels | Soundscaper, Framescaper | Audacity |
-| Transcribe & Captions… | `assistance-task-transcribe-captions` | — | Analyze > Speech | Soundscaper, Framescaper | Soundscaper local |
+| Transcribe & Captions | `assistance-task-transcribe-captions` | — | Analyze > Speech | Soundscaper, Framescaper | Soundscaper local |
 | Transform and compositing | `video-composition-editor` | — | Edit > Audio clips | Framescaper | Soundscaper local |
 | Transport toolbar | `local://transport-toolbar` | — | View > Toolbars | Soundscaper, Framescaper | Soundscaper local |
 | Tremolo | `nyquist:tremolo` | — | Nyquist | Soundscaper | Audacity |
@@ -514,8 +514,8 @@ Product availability follows each product profile’s command filters and each l
 | Video frames (24 fps) | `snap-video-24` | — | View > Snapping > Video frames | Soundscaper, Framescaper | Soundscaper local |
 | Video keyframes | `video-keyframes-editor` | — | Edit > Audio clips | Framescaper | Soundscaper local |
 | Video preview | `panel-video-preview` | — | View > Panels | Soundscaper, Framescaper | Soundscaper local |
-| Video proxies… | `video-proxy-manager` | — | Edit > Audio clips | Framescaper | Soundscaper local |
-| Video retime… | `video-retime-editor` | — | Edit > Audio clips | Framescaper | Soundscaper local |
+| Video proxies | `video-proxy-manager` | — | Edit > Audio clips | Framescaper | Soundscaper local |
+| Video retime | `video-retime-editor` | — | Edit > Audio clips | Framescaper | Soundscaper local |
 | View source | `desktop-view-source` | — | Help | Soundscaper, Framescaper | Soundscaper local |
 | Vocoder | `nyquist:vocoder` | — | Nyquist | Soundscaper | Audacity |
 | Vocoder | `vocoder` | — | Effect > Distortion and modulation | Soundscaper | Soundscaper local |

@@ -1,5 +1,5 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
-import { mergeAssistanceTaskMenus, type AssistanceDialogRequest, type AssistanceMenuEntry } from './assistance-task-catalog.ts';
+import { LOCAL_ASSISTANCE_MENU_ICON, mergeAssistanceTaskMenus, type AssistanceDialogRequest, type AssistanceMenuEntry } from './assistance-task-catalog.ts';
 
 export interface NativePreferenceEntry extends AssistanceMenuEntry {
 	readonly section: 'audio' | 'media' | 'effects';
@@ -56,7 +56,8 @@ export function prepareLocalProcessingMenus(menus: readonly AssistanceMenuEntry[
 	const textToSpeechMenus = available && typeof input.actions.openTextToSpeech === 'function'
 		? assistanceMenus.map((menu) => menu.id === 'generate' ? {
 			...menu, items: [...(menu.items ?? []), {
-				id: 'text-to-speech', label: `${input.copy['ui.textToSpeech.title'] || 'Text to Speech'}…`,
+				id: 'text-to-speech', label: input.copy['ui.textToSpeech.title'] || 'Text to Speech',
+				icon: LOCAL_ASSISTANCE_MENU_ICON,
 				assistanceTask: true,
 				disabled: input.editBlocked === true, onClick: input.actions.openTextToSpeech,
 			}],

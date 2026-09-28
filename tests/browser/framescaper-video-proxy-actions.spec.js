@@ -31,7 +31,7 @@ test('publishes, cancels, verifies, and regenerates an existing video proxy', as
 	});
 	const card = editor.locator('[data-project-bin-item]').first();
 	await card.getByRole('button', { name: /More file actions:/u }).click();
-	await page.getByRole('menuitem', { name: 'Video proxies…', exact: true }).click();
+	await page.getByRole('menuitem', { name: 'Video proxies', exact: true }).click();
 	const dialog = page.getByRole('dialog', { name: 'Video proxies', exact: true });
 	await expect(dialog).toBeVisible();
 	await expect(proxyStatus(dialog)).toContainText('No proxy is attached.');
@@ -339,7 +339,7 @@ async function selectDesktopLinkedVideoChoice(page, choice) {
 
 async function openProxyDialog(page, card) {
 	await card.getByRole('button', { name: /More file actions:/u }).click();
-	await page.getByRole('menuitem', { name: 'Video proxies…', exact: true }).click();
+	await page.getByRole('menuitem', { name: 'Video proxies', exact: true }).click();
 	await expect(page.getByRole('dialog', { name: 'Video proxies', exact: true })).toBeVisible();
 }
 

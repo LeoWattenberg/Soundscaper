@@ -20,8 +20,8 @@ const TASK_MENUS = {
 
 export async function openAssistanceTask(page, editor, label) {
 	const [menu, group] = TASK_MENUS[label];
-	if (group) await chooseNestedCommandAction(page, editor, menu, [group, `${label}…`]);
-	else await chooseCommandAction(page, editor, menu, `${label}…`);
+	if (group) await chooseNestedCommandAction(page, editor, menu, [group, label]);
+	else await chooseCommandAction(page, editor, menu, label);
 	return page.getByRole('dialog', { name: label, exact: true });
 }
 

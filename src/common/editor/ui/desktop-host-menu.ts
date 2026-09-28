@@ -126,7 +126,7 @@ export function createDesktopHostMenuItems(input: DesktopHostMenuInput | null): 
 				apply('set-native-effect-discovery-enabled', !input.snapshot.nativeEffectDiscoveryEnabled)),
 			...((typeof __SCAPE_DESKTOP_RENDERER__ === 'undefined' || __SCAPE_DESKTOP_RENDERER__)
 				&& input.productId === 'soundscaper' && input.openMcpConnection ? [
-				item('desktop-mcp-connection', `${input.copy['ui.desktopMcp.connection'] ?? 'MCP connection'}…`, input.openMcpConnection),
+				item('desktop-mcp-connection', input.copy['ui.desktopMcp.connection'] ?? 'MCP connection', input.openMcpConnection),
 			] : []),
 		])]),
 		help: Object.freeze([

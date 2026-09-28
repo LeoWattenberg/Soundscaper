@@ -27,12 +27,12 @@ test('video composition is capability-gated for writable Framescaper v1 video cl
 	const input = {
 		productId: 'framescaper', capability: true, project: project(),
 		selectedClipId: 'video', editingBlocked: false,
-		copy: { videoCompositionMenu: 'Transform and compositing…' },
+		copy: { videoCompositionMenu: 'Transform and compositing' },
 		open: () => { opened.push('video-composition'); },
 	};
 	const [item] = createVideoCompositionApplicationMenuItems(input);
 	assert.deepEqual({ id: item?.id, label: item?.label, disabled: item?.disabled }, {
-		id: 'video-composition-editor', label: 'Transform and compositing…', disabled: false,
+		id: 'video-composition-editor', label: 'Transform and compositing', disabled: false,
 	});
 	item?.onClick();
 	assert.deepEqual(opened, ['video-composition']);

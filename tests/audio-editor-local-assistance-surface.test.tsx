@@ -142,7 +142,8 @@ test('Local Assistance menu is desktop- and capability-gated and survives the Fr
 	const desktop = createLocalAssistanceMenuItems({ desktopAvailable: true,
 		capabilityActive: true, copy: ENGLISH_COPY }, { open: () => opened.push('opened') });
 	assert.equal(desktop[0]?.id, 'local-assistance');
-	assert.equal(desktop[0]?.label, 'Advanced Local Processing…');
+	assert.equal(desktop[0]?.label, 'Advanced Local Processing');
+	assert.equal(desktop[0]?.icon, String.fromCodePoint(0xF476));
 	desktop[0]?.onClick?.();
 	assert.deepEqual(opened, ['opened']);
 	assert.deepEqual(createLocalAssistanceMenuItems({ desktopAvailable: false,
@@ -154,7 +155,8 @@ test('Local Assistance menu is desktop- and capability-gated and survives the Fr
 		open: () => undefined, openIndexedSearch: () => opened.push('indexed-search'),
 	});
 	assert.equal(indexed[1]?.id, 'assistance-search');
-	assert.equal(indexed[1]?.items?.[0]?.label, 'Indexed Search…');
+	assert.equal(indexed[1]?.items?.[0]?.label, 'Indexed Search');
+	assert.equal(indexed[1]?.items?.[0]?.icon, String.fromCodePoint(0xF476));
 	indexed[1]?.items?.[0]?.onClick?.();
 	assert.deepEqual(opened, ['opened', 'indexed-search']);
 
