@@ -2,7 +2,8 @@
 
 const SOUNDSCAPER_PRODUCT_ID = 'soundscaper';
 
-export function createRendererScope({ admLayoutDelayMs = 0, aiffExportFailure = '', bwfExportFailure = '', bw64ExportFailure = '', dialogErrorOnly = false, dropEveryBextCommit = '', dropFirstBextCommit = '', exportFailure = '', failOnAdmRouteWait = false, hiddenStatus = false, hideFirstExportProgress = false, ignoreBextNativeBlur = false, importFailure = '', incompleteAdmRouteDefaults = false, projectBinVisible = false, waitFailure = '' } = {}) {
+export function createRendererScope({ admLayoutDelayMs = 0, aiffExportFailure = '', bwfExportFailure = '', bw64ExportFailure = '', dialogErrorOnly = false, dropEveryBextCommit = '', dropFirstBextCommit = '', exportFailure = '', failOnAdmRouteWait = false, hiddenStatus = false, hideFirstExportProgress = false, ignoreBextNativeBlur = false, importFailure = '', incompleteAdmRouteDefaults = false, projectActivationDelayTicks = 0, projectBinVisible = false, waitFailure = '' } = {}) {
+	let activationTicks = 0;
 	const fixture = {
 		activeOptions: [],
 		adm: {},
@@ -66,6 +67,7 @@ export function createRendererScope({ admLayoutDelayMs = 0, aiffExportFailure = 
 		Event: FakeEvent,
 		File: FakeFile,
 		setTimeout: (callback, milliseconds) => {
+			if (activationTicks > 0 && --activationTicks === 0) delete root.attributes['data-project-activation-pending'];
 			if (waitFailure && fixture.routedToProjectBin) throw new Error(waitFailure);
 			if (hideFirstExportProgress && fixture.startedRuns === 1 && fixture.progressQueries > 0) {
 				throw new Error('The smoke waited for transient first-export telemetry.');
@@ -103,6 +105,7 @@ export function createRendererScope({ admLayoutDelayMs = 0, aiffExportFailure = 
 	const input = element({
 		dispatch(event) {
 			if (event.type !== 'change') return;
+			if (root.attributes['data-project-activation-pending']) throw new Error('Import dispatched during project activation');
 			fixture.importedFile = this.files[0];
 			fixture.importedFiles.push(this.files[0]);
 			if (importFailure) {
@@ -140,6 +143,10 @@ export function createRendererScope({ admLayoutDelayMs = 0, aiffExportFailure = 
 	const newProject = element({ click: () => {
 		fixture.newProjectCount += 1;
 		root.attributes['data-clip-count'] = '0';
+		if (projectActivationDelayTicks > 0) {
+			activationTicks = projectActivationDelayTicks;
+			root.attributes['data-project-activation-pending'] = 'true';
+		}
 	} });
 	const sampleRateInput = element({
 		value: '48000',
