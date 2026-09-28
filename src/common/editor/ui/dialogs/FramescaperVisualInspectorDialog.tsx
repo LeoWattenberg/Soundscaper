@@ -13,6 +13,7 @@ import {
 	createFramescaperVisualInspectorCommand,
 	createFramescaperVisualInspectorModel,
 	type FramescaperVisualInspectorDraft,
+	type FramescaperVisualInspectorAudioSource,
 } from '../framescaper-visual-inspector-model.ts';
 import { runAwaitedAudioEditorOperation } from '../workspace/audio-editor-workspace-runner.ts';
 import type { VideoGeneratorDocumentV1 } from '../../video-visual-model-v24.ts';
@@ -97,7 +98,7 @@ export default function FramescaperVisualInspectorDialog({
 			{model.clipId === null ? <p role="status">{label(copy, 'visualInspectorSelection',
 				FRAMESCAPER_VISUAL_INSPECTOR_ADDITIONAL_COPY.visualInspectorSelection)}</p> : <>
 				<p data-visual-inspector-kind>{model.kind}</p>
-					<GeneratorFields generator={draft.generator} disabled={blocked} copy={copy}
+					<GeneratorFields generator={draft.generator} audioSources={model.audioSources} disabled={blocked} copy={copy}
 						onChange={updateGenerator} />
 				{model.presets.length > 0 && <label>
 					<span>{label(copy, 'visualPreset', FRAMESCAPER_VISUAL_INSPECTOR_ADDITIONAL_COPY.visualPreset)}</span>
@@ -163,12 +164,92 @@ export default function FramescaperVisualInspectorDialog({
 
 function GeneratorFields(props: Readonly<{
 		readonly generator: VideoGeneratorDocumentV1 | null;
+		readonly audioSources: readonly FramescaperVisualInspectorAudioSource[];
 		readonly disabled: boolean;
 		readonly copy: Readonly<Record<string, string>>;
 		readonly onChange: (changes: Readonly<Record<string, unknown>>) => void;
 	}>) {
 		const generator = props.generator;
 		if (generator === null) return null;
+		if (generator.kind === 'test-image') return <fieldset disabled={props.disabled}>
+			<legend>{label(props.copy, 'testImage', FRAMESCAPER_VISUAL_INSPECTOR_ADDITIONAL_COPY.testImage)}</legend>
+			<label><span>{label(props.copy, 'testImagePattern', FRAMESCAPER_VISUAL_INSPECTOR_ADDITIONAL_COPY.testImagePattern)}</span>
+				<select data-visual-inspector-test-image-pattern value={generator.pattern}
+					onChange={(event) => props.onChange({ pattern: event.currentTarget.value })}>
+					<option value="color-bars">{label(props.copy, 'testImageColorBars', FRAMESCAPER_VISUAL_INSPECTOR_ADDITIONAL_COPY.testImageColorBars)}</option>
+					<option value="grayscale-ramp">{label(props.copy, 'testImageGrayscaleRamp', FRAMESCAPER_VISUAL_INSPECTOR_ADDITIONAL_COPY.testImageGrayscaleRamp)}</option>
+					<option value="alignment-grid">{label(props.copy, 'testImageAlignmentGrid', FRAMESCAPER_VISUAL_INSPECTOR_ADDITIONAL_COPY.testImageAlignmentGrid)}</option>
+				</select>
+			</label>
+		</fieldset>;
+		if (generator.kind === 'noise') return <fieldset disabled={props.disabled}>
+			<legend>{label(props.copy, 'noise', FRAMESCAPER_VISUAL_INSPECTOR_ADDITIONAL_COPY.noise)}</legend>
+			<label><span>{label(props.copy, 'noiseMode', FRAMESCAPER_VISUAL_INSPECTOR_ADDITIONAL_COPY.noiseMode)}</span>
+				<select data-visual-inspector-noise-mode value={generator.mode}
+					onChange={(event) => props.onChange({ mode: event.currentTarget.value })}>
+					<option value="monochrome">{label(props.copy, 'noiseMonochrome', FRAMESCAPER_VISUAL_INSPECTOR_ADDITIONAL_COPY.noiseMonochrome)}</option>
+					<option value="color">{label(props.copy, 'noiseColor', FRAMESCAPER_VISUAL_INSPECTOR_ADDITIONAL_COPY.noiseColor)}</option>
+				</select>
+			</label>
+			<label><span>{label(props.copy, 'noiseGrainSize', FRAMESCAPER_VISUAL_INSPECTOR_ADDITIONAL_COPY.noiseGrainSize)}</span>
+				<input data-visual-inspector-noise-grain-size type="number" min="1" max="64" step="1"
+					value={generator.grainSize}
+					onChange={(event) => props.onChange({ grainSize: event.currentTarget.valueAsNumber })} />
+			</label>
+			<label><span>{label(props.copy, 'noiseSeed', FRAMESCAPER_VISUAL_INSPECTOR_ADDITIONAL_COPY.noiseSeed)}</span>
+				<input data-visual-inspector-noise-seed type="number" min="0" max="4294967295" step="1"
+					value={generator.seed}
+					onChange={(event) => props.onChange({ seed: event.currentTarget.valueAsNumber })} />
+			</label>
+		</fieldset>;
+		if (generator.kind === 'sound-visualizer') {
+			const missingAudioSource = generator.sourceIds.some((id) =>
+				!props.audioSources.some((source) => source.id === id));
+			return <fieldset disabled={props.disabled}>
+			<legend>{label(props.copy, 'soundVisualizer', FRAMESCAPER_VISUAL_INSPECTOR_ADDITIONAL_COPY.soundVisualizer)}</legend>
+			<label><span>{label(props.copy, 'visualizerMode', FRAMESCAPER_VISUAL_INSPECTOR_ADDITIONAL_COPY.visualizerMode)}</span>
+				<select data-visual-inspector-visualizer-mode value={generator.mode}
+					onChange={(event) => props.onChange({ mode: event.currentTarget.value })}>
+					<option value="waveform">{label(props.copy, 'visualizerWaveform', FRAMESCAPER_VISUAL_INSPECTOR_ADDITIONAL_COPY.visualizerWaveform)}</option>
+					<option value="spectrum">{label(props.copy, 'visualizerSpectrum', FRAMESCAPER_VISUAL_INSPECTOR_ADDITIONAL_COPY.visualizerSpectrum)}</option>
+				</select>
+			</label>
+			<label><span>{label(props.copy, 'visualizerWindow', FRAMESCAPER_VISUAL_INSPECTOR_ADDITIONAL_COPY.visualizerWindow)}</span>
+				<input data-visual-inspector-visualizer-window type="number" min="0.01" max="10" step="0.01"
+					value={generator.windowSeconds}
+					onChange={(event) => props.onChange({ windowSeconds: event.currentTarget.valueAsNumber })} />
+			</label>
+			<label><span>{label(props.copy, 'visualizerForeground', FRAMESCAPER_VISUAL_INSPECTOR_ADDITIONAL_COPY.visualizerForeground)}</span>
+				<input data-visual-inspector-visualizer-foreground value={generator.foregroundColor}
+					pattern="#[0-9a-f]{8}"
+					onChange={(event) => props.onChange({ foregroundColor: event.currentTarget.value })} />
+			</label>
+			<label><span>{label(props.copy, 'visualizerBackground', FRAMESCAPER_VISUAL_INSPECTOR_ADDITIONAL_COPY.visualizerBackground)}</span>
+				<input data-visual-inspector-visualizer-background value={generator.backgroundColor}
+					pattern="#[0-9a-f]{8}"
+					onChange={(event) => props.onChange({ backgroundColor: event.currentTarget.value })} />
+			</label>
+			<fieldset>
+				<legend>{label(props.copy, 'visualizerAudioSources', FRAMESCAPER_VISUAL_INSPECTOR_ADDITIONAL_COPY.visualizerAudioSources)}</legend>
+				<p>{missingAudioSource
+					? label(props.copy, 'visualizerMissingSource', FRAMESCAPER_VISUAL_INSPECTOR_ADDITIONAL_COPY.visualizerMissingSource)
+					: label(props.copy, 'visualizerSourceHint', FRAMESCAPER_VISUAL_INSPECTOR_ADDITIONAL_COPY.visualizerSourceHint)}</p>
+				<Button type="button" variant="secondary" disabled={generator.sourceIds.length === 0}
+					onClick={() => props.onChange({ sourceIds: [] })}>{label(props.copy, 'visualizerFollowNearest',
+						FRAMESCAPER_VISUAL_INSPECTOR_ADDITIONAL_COPY.visualizerFollowNearest)}</Button>
+				{props.audioSources.map((source) => <label key={source.id}>
+					<input type="checkbox" data-visual-inspector-visualizer-source={source.id}
+						checked={generator.sourceIds.includes(source.id)}
+						onChange={(event) => {
+							const selected = new Set(generator.sourceIds);
+							if (event.currentTarget.checked) selected.add(source.id);
+							else selected.delete(source.id);
+							props.onChange({ sourceIds: [...selected].sort() });
+						}} /> {source.name}
+				</label>)}
+			</fieldset>
+		</fieldset>;
+		}
 		if (generator.kind === 'title' || generator.kind === 'text') return <fieldset disabled={props.disabled}>
 			<legend>{generator.kind === 'title'
 				? label(props.copy, 'title', 'Title') : label(props.copy, 'text', FRAMESCAPER_VISUAL_INSPECTOR_ADDITIONAL_COPY.text)}</legend>

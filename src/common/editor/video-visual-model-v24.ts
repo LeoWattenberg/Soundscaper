@@ -63,6 +63,28 @@ export interface VideoGeneratorSolidDocumentV1 {
 	readonly color: string;
 }
 
+export interface VideoGeneratorTestImageDocumentV1 {
+	readonly kind: 'test-image';
+	readonly pattern: 'color-bars' | 'grayscale-ramp' | 'alignment-grid';
+}
+
+export interface VideoGeneratorNoiseDocumentV1 {
+	readonly kind: 'noise';
+	readonly mode: 'monochrome' | 'color';
+	readonly grainSize: number;
+	readonly seed: number;
+}
+
+export interface VideoGeneratorSoundVisualizerDocumentV1 {
+	readonly kind: 'sound-visualizer';
+	readonly mode: 'waveform' | 'spectrum';
+	/** Empty selects the nearest audio clip; IDs filter eligible audio sources. */
+	readonly sourceIds: readonly string[];
+	readonly windowSeconds: number;
+	readonly backgroundColor: string;
+	readonly foregroundColor: string;
+}
+
 export interface VideoGeneratorExternalInputV1 {
 	readonly name: string;
 	readonly sourceRef: string;
@@ -78,6 +100,9 @@ export type VideoGeneratorDocumentV1 =
 	| VideoGeneratorTextDocumentV1
 	| VideoGeneratorShapeDocumentV1
 	| VideoGeneratorSolidDocumentV1
+	| VideoGeneratorTestImageDocumentV1
+	| VideoGeneratorNoiseDocumentV1
+	| VideoGeneratorSoundVisualizerDocumentV1
 	| VideoExternalGeneratorDocumentV1;
 
 export interface VideoGeneratorSourceV1 {
@@ -142,6 +167,11 @@ const SHAPE_FIELDS = Object.freeze([
 	'kind', 'shape', 'fillColor', 'strokeColor', 'strokeWidth',
 ]);
 const SOLID_FIELDS = Object.freeze(['kind', 'color']);
+const TEST_IMAGE_FIELDS = Object.freeze(['kind', 'pattern']);
+const NOISE_FIELDS = Object.freeze(['kind', 'mode', 'grainSize', 'seed']);
+const SOUND_VISUALIZER_FIELDS = Object.freeze([
+	'kind', 'mode', 'sourceIds', 'windowSeconds', 'backgroundColor', 'foregroundColor',
+]);
 const EXTERNAL_FIELDS = Object.freeze(['kind', 'bindingId', 'inputs']);
 const EXTERNAL_INPUT_FIELDS = Object.freeze(['name', 'sourceRef']);
 const RATE_FIELDS = Object.freeze(['num', 'den']);
@@ -229,12 +259,16 @@ export function normalizeVideoAdjustmentLayerV1(value: unknown): VideoAdjustment
 
 function generatorDocument(value: unknown): VideoGeneratorDocumentV1 {
 	const discriminant = readClosedDomainRecord(value, 'video generator document', [
-		...new Set([...TEXT_FIELDS, ...SHAPE_FIELDS, ...SOLID_FIELDS, ...EXTERNAL_FIELDS]),
+		...new Set([...TEXT_FIELDS, ...SHAPE_FIELDS, ...SOLID_FIELDS, ...TEST_IMAGE_FIELDS,
+			...NOISE_FIELDS, ...SOUND_VISUALIZER_FIELDS, ...EXTERNAL_FIELDS]),
 	], ['kind']);
 	const kind = field(discriminant, 'kind', 'video generator document');
 	if (kind === 'title' || kind === 'text') return textDocument(value, kind);
 	if (kind === 'shape') return shapeDocument(value);
 	if (kind === 'solid') return solidDocument(value);
+	if (kind === 'test-image') return testImageDocument(value);
+	if (kind === 'noise') return noiseDocument(value);
+	if (kind === 'sound-visualizer') return soundVisualizerDocument(value);
 	if (kind === 'external-generator') return externalDocument(value);
 	throw new RangeError('video generator document.kind is unsupported.');
 }
@@ -269,6 +303,45 @@ function shapeDocument(value: unknown): VideoGeneratorShapeDocumentV1 {
 function solidDocument(value: unknown): VideoGeneratorSolidDocumentV1 {
 	const record = readClosedDomainRecord(value, 'video solid generator', SOLID_FIELDS);
 	return Object.freeze({ kind: 'solid' as const, color: color(field(record, 'color', 'video solid generator'), 'video solid generator.color') });
+}
+
+function testImageDocument(value: unknown): VideoGeneratorTestImageDocumentV1 {
+	const name = 'video test image generator';
+	const record = readClosedDomainRecord(value, name, TEST_IMAGE_FIELDS);
+	return Object.freeze({
+		kind: 'test-image' as const,
+		pattern: oneOf(field(record, 'pattern', name),
+			['color-bars', 'grayscale-ramp', 'alignment-grid'] as const, `${name}.pattern`),
+	});
+}
+
+function noiseDocument(value: unknown): VideoGeneratorNoiseDocumentV1 {
+	const name = 'video noise generator';
+	const record = readClosedDomainRecord(value, name, NOISE_FIELDS);
+	const seed = field(record, 'seed', name);
+	if (!Number.isInteger(seed) || Object.is(seed, -0) || (seed as number) < 0
+		|| (seed as number) > 0xffffffff) {
+		throw new RangeError(`${name}.seed must be an unsigned 32-bit integer.`);
+	}
+	return Object.freeze({
+		kind: 'noise' as const,
+		mode: oneOf(field(record, 'mode', name), ['monochrome', 'color'] as const, `${name}.mode`),
+		grainSize: boundedPositiveInteger(field(record, 'grainSize', name), 64, `${name}.grainSize`),
+		seed: seed as number,
+	});
+}
+
+function soundVisualizerDocument(value: unknown): VideoGeneratorSoundVisualizerDocumentV1 {
+	const name = 'video sound visualizer generator';
+	const record = readClosedDomainRecord(value, name, SOUND_VISUALIZER_FIELDS);
+	return Object.freeze({
+		kind: 'sound-visualizer' as const,
+		mode: oneOf(field(record, 'mode', name), ['waveform', 'spectrum'] as const, `${name}.mode`),
+		sourceIds: idCollection(field(record, 'sourceIds', name), `${name}.sourceIds`, 0, 64),
+		windowSeconds: boundedFinite(field(record, 'windowSeconds', name), 0.01, 10, `${name}.windowSeconds`),
+		backgroundColor: color(field(record, 'backgroundColor', name), `${name}.backgroundColor`),
+		foregroundColor: color(field(record, 'foregroundColor', name), `${name}.foregroundColor`),
+	});
 }
 
 function externalDocument(value: unknown): VideoExternalGeneratorDocumentV1 {

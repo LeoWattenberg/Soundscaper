@@ -29,11 +29,18 @@ export interface FramescaperVisualInspectorPreset {
 	readonly generator: VideoGeneratorDocumentV1;
 }
 
+export interface FramescaperVisualInspectorAudioSource {
+	readonly id: string;
+	readonly name: string;
+}
+
 export interface FramescaperVisualInspectorModel {
 	readonly clipId: string | null;
 	readonly sourceId: string | null;
-	readonly kind: 'still' | 'title' | 'text' | 'shape' | 'solid' | null;
+	readonly kind: 'still' | 'title' | 'text' | 'shape' | 'solid' | 'test-image' | 'noise'
+		| 'sound-visualizer' | null;
 	readonly generator: VideoGeneratorDocumentV1 | null;
+	readonly audioSources: readonly FramescaperVisualInspectorAudioSource[];
 	readonly opacity: number;
 	readonly blendMode: VideoVisualPresentationV1['blendMode'];
 	readonly maskId: string | null;
@@ -83,6 +90,8 @@ export function createFramescaperVisualInspectorModel(input: Readonly<{
 		sourceId: source.id,
 		kind: source.kind === 'still' ? 'still' : generatorKind(source.generator),
 		generator: source.kind === 'generator' ? source.generator : null,
+		audioSources: source.kind === 'generator' && source.generator.kind === 'sound-visualizer'
+			? sequenceAudioSources(project, clip.sequenceId) : Object.freeze([]),
 		opacity: presentation?.opacity ?? 1,
 		blendMode: presentation?.blendMode ?? 'normal',
 		maskId,
@@ -154,6 +163,7 @@ export function createFramescaperVisualInspectorCommand(
 function emptyModel(project: Data): FramescaperVisualInspectorModel {
 	return Object.freeze({
 		clipId: null, sourceId: null, kind: null, generator: null,
+		audioSources: Object.freeze([]),
 		opacity: 1, blendMode: 'normal', maskId: null, maskWidth: 1,
 		masks: Object.freeze(supportedMasks(project).map(({ id }) => Object.freeze({ id, name: id }))),
 		presets: boundGeneratorPresets(project),
@@ -233,6 +243,35 @@ function selectedId(value: unknown, project: Data): string | null {
 function generatorKind(value: VideoGeneratorDocumentV1) {
 	if (value.kind === 'external-generator') throw new RangeError('Dormant external generators have no selected inspector.');
 	return value.kind;
+}
+
+function sequenceAudioSources(project: Data, sequenceId: string): readonly FramescaperVisualInspectorAudioSource[] {
+	const sequence = optionalRecords(project.sequences).find(({ id }) => id === sequenceId);
+	if (!sequence || !Array.isArray(sequence.trackIds)) return Object.freeze([]);
+	const trackIds = new Set(sequence.trackIds);
+	const clipIds = new Set(optionalRecords(project.tracks)
+		.filter(({ id, type }) => type === 'audio' && trackIds.has(id))
+		.flatMap(({ clipIds: owned }) => Array.isArray(owned) ? owned : []));
+	const sourceIds = new Set(optionalRecords(project.clips)
+		.filter(({ id, kind }) => kind === 'audio' && clipIds.has(id))
+		.map(({ sourceId }) => sourceId));
+	return Object.freeze(optionalRecords(project.sources)
+		.filter(({ id, kind }) => kind === 'audio' && sourceIds.has(id))
+		.map((source) => Object.freeze({
+			id: stableId(source.id, 'visualizer audio source ID'),
+			name: displayAudioSourceName(source),
+		}))
+		.sort((left, right) => left.id < right.id ? -1 : left.id > right.id ? 1 : 0));
+}
+
+function displayAudioSourceName(source: Data): string {
+	return typeof source.name === 'string' && source.name.trim() ? source.name : String(source.id);
+}
+
+function optionalRecords(value: unknown): Data[] {
+	return Array.isArray(value) ? value.filter((entry): entry is Data => (
+		entry !== null && typeof entry === 'object' && !Array.isArray(entry)
+	)) : [];
 }
 
 function blendMode(value: unknown): VideoVisualPresentationV1['blendMode'] {

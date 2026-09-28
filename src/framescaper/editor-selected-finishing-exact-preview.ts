@@ -4,6 +4,7 @@ import { digestMediaContent } from '../common/editor/storage/media-content-diges
 import type { AudioEditorProjectStore } from '../common/editor/storage.js';
 import { multiplyDivideRationals } from '../common/editor/timeline-time.ts';
 import type { UnifiedExactRenderPlanV13 } from '../common/editor/unified-exact-render-plan.ts';
+import { outputAtSequencePosition } from '../common/editor/unified-exact-render-output-timing.ts';
 import { collectProductVideoVisualPreviewEffectIds } from '../common/editor/ui/workspace/product-video-visual-preview-effect-ledger.ts';
 import type { ProductVideoVisualPreviewFrame } from '../common/editor/ui/workspace/product-video-visual-preview-runtime.ts';
 import { DEFAULT_VIDEO_CLIP_COMPOSITION } from '../common/editor/video-clip-composition.ts';
@@ -118,7 +119,8 @@ export async function createFramescaperSelectedExactPreviewFinishing(options: Re
 					request.mediaLayers, sequence, sample, clips, sources, presentation,
 				);
 				const result = await exact.render({
-					sequencePosition: sequence, layers,
+					sequencePosition: sequence, layers, timelineSample: sample,
+					outputOrdinal: outputAtSequencePosition(sequence, options.plan),
 					width: options.plan.output.canvas.width,
 					height: options.plan.output.canvas.height,
 					target, signal: options.signal,

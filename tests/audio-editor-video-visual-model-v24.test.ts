@@ -148,6 +148,59 @@ test('generated clips use explicit source and sequence ranges without inheriting
 	assert.throws(() => normalizeVideoGeneratorClipV1({ ...clip, sourceInFrame: -1 }), /source|non-negative/iu);
 });
 
+test('test image generator documents admit only the three canonical patterns', () => {
+	const base = {
+		schemaVersion: 1, kind: 'generator', id: 'test-image-source', name: 'Test image',
+		width: 1_920, height: 1_080, frameRate: { num: 30, den: 1 }, frameCount: 150,
+	};
+	for (const pattern of ['color-bars', 'grayscale-ramp', 'alignment-grid'] as const) {
+		const document = { kind: 'test-image', pattern };
+		const normalized = normalizeVideoGeneratorSourceV1({ ...base, generator: document });
+		assert.deepEqual(normalized.generator, document);
+		assertDeepFrozen(normalized);
+	}
+	for (const generator of [
+		{ kind: 'test-image', pattern: 'unknown' },
+		{ kind: 'test-image', pattern: 'color-bars', color: '#ffffffff' },
+		{ kind: 'test-image' },
+	]) {
+		assert.throws(() => normalizeVideoGeneratorSourceV1({ ...base, generator }),
+			/pattern|unsupported|field/iu);
+	}
+});
+
+test('noise generator documents preserve bounded integer grain and uint32 seed', () => {
+	const base = {
+		schemaVersion: 1, kind: 'generator', id: 'noise-source', name: 'Noise',
+		width: 64, height: 64, frameRate: { num: 60, den: 1 }, frameCount: 600,
+	};
+	for (const mode of ['monochrome', 'color'] as const) {
+		for (const grainSize of [1, 64]) {
+			for (const seed of [0, 0xffffffff]) {
+				const document = { kind: 'noise', mode, grainSize, seed };
+				const normalized = normalizeVideoGeneratorSourceV1({ ...base, generator: document });
+				assert.deepEqual(normalized.generator, document);
+				assertDeepFrozen(normalized);
+			}
+		}
+	}
+	for (const generator of [
+		{ kind: 'noise', mode: 'pink', grainSize: 1, seed: 0 },
+		{ kind: 'noise', mode: 'color', grainSize: 0, seed: 0 },
+		{ kind: 'noise', mode: 'color', grainSize: 65, seed: 0 },
+		{ kind: 'noise', mode: 'color', grainSize: 1.5, seed: 0 },
+		{ kind: 'noise', mode: 'color', grainSize: 1, seed: -1 },
+		{ kind: 'noise', mode: 'color', grainSize: 1, seed: 0x1_0000_0000 },
+		{ kind: 'noise', mode: 'color', grainSize: 1, seed: 0.5 },
+		{ kind: 'noise', mode: 'color', grainSize: 1, seed: -0 },
+		{ kind: 'noise', mode: 'color', grainSize: 1, seed: 0, surprise: true },
+		{ kind: 'noise', mode: 'color', grainSize: 1 },
+	]) {
+		assert.throws(() => normalizeVideoGeneratorSourceV1({ ...base, generator }),
+			/mode|grainSize|seed|unsupported|field/iu);
+	}
+});
+
 test('adjustment layers are bounded timeline effect hosts with canonical explicit target tracks', () => {
 	const layer = {
 		schemaVersion: 1,

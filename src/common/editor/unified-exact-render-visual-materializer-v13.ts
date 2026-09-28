@@ -13,6 +13,11 @@ import {
 	evaluateVideoMaskMatteRgbaV13,
 	type VideoMaskMatteRgbaInputV13,
 } from './video-mask-matte-rgba-v13.ts';
+import {
+	renderSoundVisualizerRgba,
+	type SoundVisualizerRgbaRequest,
+} from './sound-visualizer-rgba.ts';
+import { renderVideoNoiseRgba, renderVideoTestImageRgba } from './video-test-image-noise-rgba.ts';
 
 export type UnifiedExactRenderVisualRgbaV13 = VideoMaskMatteRgbaInputV13;
 
@@ -20,6 +25,9 @@ export interface UnifiedExactRenderVisualMaterializerOptionsV13 {
 	readonly targetWidth: number;
 	readonly targetHeight: number;
 	readonly decodeStill?: (source: VideoStillSourceV1) => Promise<UnifiedExactRenderVisualRgbaV13>;
+	readonly soundVisualizer?: Pick<SoundVisualizerRgbaRequest,
+		'channels' | 'sampleRate' | 'windowStartFrame' | 'timelineFrame'>;
+	readonly outputOrdinal?: number;
 	readonly maskInputs?: ReadonlyMap<string, VideoMaskMatteRgbaInputV13>;
 	readonly signal?: AbortSignal;
 }
@@ -56,7 +64,25 @@ export async function materializeUnifiedExactRenderVisualEntryV13(
 		if (source.generator.kind === 'external-generator') {
 			throw new RangeError('External generators are unavailable in selected V13 execution.');
 		}
-		frame = generatorFrame(source.generator, width, height, options.signal);
+		frame = source.generator.kind === 'sound-visualizer'
+			? renderSoundVisualizerRgba({
+				mode: source.generator.mode,
+				channels: options.soundVisualizer?.channels ?? null,
+				sampleRate: options.soundVisualizer?.sampleRate ?? 48_000,
+				windowStartFrame: options.soundVisualizer?.windowStartFrame ?? 0,
+				timelineFrame: options.soundVisualizer?.timelineFrame ?? 0,
+				width, height,
+				foregroundColor: source.generator.foregroundColor,
+				backgroundColor: source.generator.backgroundColor,
+			}) : source.generator.kind === 'test-image'
+				? renderVideoTestImageRgba({
+					pattern: source.generator.pattern, width, height, signal: options.signal,
+				}) : source.generator.kind === 'noise'
+					? renderVideoNoiseRgba({
+						mode: source.generator.mode, grainSize: source.generator.grainSize,
+						seed: source.generator.seed, outputOrdinal: options.outputOrdinal ?? 0,
+						width, height, signal: options.signal,
+					}) : generatorFrame(source.generator, width, height, options.signal);
 	}
 	if (entry.masks.length === 0) return frame;
 	const pixels = frame.pixels.slice() as Uint8Array<ArrayBuffer>;
@@ -73,7 +99,7 @@ export async function materializeUnifiedExactRenderVisualEntryV13(
 }
 
 function generatorFrame(
-	document: Exclude<VideoGeneratorDocumentV1, Readonly<{ kind: 'external-generator' }>>,
+	document: Extract<VideoGeneratorDocumentV1, Readonly<{ kind: 'title' | 'text' | 'shape' | 'solid' }>>,
 	width: number,
 	height: number,
 	signal?: AbortSignal,

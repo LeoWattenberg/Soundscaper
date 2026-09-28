@@ -2,10 +2,13 @@
 
 export const FRAMESCAPER_MENUS_ADDITIONAL_COPY = Object.freeze({
 	addDissolveTransition: "Add Dissolve Transition",
+	addSoundVisualizer: "Add Sound Visualizer",
 	addVideoAdjustmentLayer: "Add Video Adjustment Layer",
+	addVideoNoise: "Add Noise",
 	addVideoShape: "Add Shape",
 	addVideoSolid: "Add Solid",
 	addVideoStill: "Add Images",
+	addVideoTestImage: "Add Test Image",
 	addVideoText: "Add Text",
 	addVideoTitle: "Add Title/Text",
 	addVideoTransition: "Add Video Transition",

@@ -341,5 +341,5 @@ const PRESENTATION_OWNER_KINDS: Readonly<Record<
 });
 
 const VISUAL_CLIP_ROLES = new Set([
-	'still', 'title', 'text', 'shape', 'solid', 'external-generator',
+	'still', 'title', 'text', 'shape', 'solid', 'test-image', 'noise', 'sound-visualizer', 'external-generator',
 ]);

@@ -14,6 +14,7 @@ import {
 	authoredCompositingOrder,
 	backgroundLinear,
 	captureBrowserFrame,
+	checkedFrame,
 	combinedGraphs,
 	combinedMask,
 	gradeLinearFrame,
@@ -21,6 +22,7 @@ import {
 	identityDescription,
 	mediaPresentation,
 	orderBucketEntries,
+	requiredFinishing,
 	renderBlendMode,
 	type TrackOrderBucketFinishing,
 } from './selected-finishing-exact-frame-support.ts';
@@ -34,10 +36,11 @@ import {
 	type UnifiedExactRenderVisualFrameEntryV13,
 } from '../common/editor/unified-exact-render-visual-consumers-v13.ts';
 import type { UnifiedExactRenderVisualRgbaV13 } from '../common/editor/unified-exact-render-visual-materializer-v13.ts';
-import type {
-	UnifiedExactRenderFinishingNode,
-	UnifiedExactRenderPlanV13,
-} from '../common/editor/unified-exact-render-plan.ts';
+import type { UnifiedExactRenderPlanV13 } from '../common/editor/unified-exact-render-plan.ts';
+import {
+	outputAtSequencePosition,
+	sampleAtSequencePosition,
+} from '../common/editor/unified-exact-render-output-timing.ts';
 import type { UnifiedExactRenderTimingSidecars } from '../common/editor/unified-exact-render-timing-authority.ts';
 import { applyVideoExactBrowserEffectsFinishing } from './editor-video-exact-browser-effects-finishing.ts';
 import type { FramescaperProjectFinishing } from './editor-project-finishing.ts';
@@ -70,10 +73,13 @@ import {
 	validatedFramescaperSupplementalPictureIdsFinishing,
 } from './selected-finishing-supplemental-picture-authority.ts';
 import { resolveFramescaperVisualPlacementFinishing } from './visual-placement-finishing.ts';
+import { createFramescaperSoundVisualizerWindowReader } from './sound-visualizer-window.ts';
 type Data = Readonly<Record<string, unknown>>;
 export interface FramescaperSelectedExactFrameExecutionFinishing {
 	render(request: Readonly<{
 		readonly sequencePosition: Readonly<{ readonly num: number; readonly den: number }>;
+		readonly timelineSample?: number;
+		readonly outputOrdinal?: number;
 		readonly layers: readonly unknown[];
 		readonly supplementalPictures?: readonly FramescaperSelectedExactSupplementalPictureFinishing[];
 		readonly width: number;
@@ -137,6 +143,9 @@ export async function createFramescaperSelectedExactFrameExecutionFinishing(opti
 		...(options.store ? { store: options.store } : {}),
 		signal: options.signal, assertCurrent: options.assertCurrent,
 	}, options.plan, finishing);
+	const soundVisualizer = options.plan.nodes.some((node) => node.kind === 'visual'
+		&& node.modelKind === 'sound-visualizer')
+		? createFramescaperSoundVisualizerWindowReader({ project: options.project, store: options.store }) : null;
 	assertReady(options);
 	const captureFrame = options.captureFrame ?? captureBrowserFrame;
 	const applyEffects = options.applyEffects ?? applyVideoExactBrowserEffectsFinishing;
@@ -203,6 +212,7 @@ export async function createFramescaperSelectedExactFrameExecutionFinishing(opti
 			}
 			accepted = true;
 			const visual = visualConsumer.resolveFrame({ sequencePosition: request.sequencePosition });
+			const outputOrdinal = request.outputOrdinal ?? outputAtSequencePosition(request.sequencePosition, options.plan);
 			const visualEntries = visual.layers.flatMap(({ entries }) => entries);
 			const activeVisualIds = new Set(visualEntries.map(({ modelId }) => modelId));
 			const supplementalPictureIds = validatedFramescaperSupplementalPictureIdsFinishing(
@@ -210,7 +220,9 @@ export async function createFramescaperSelectedExactFrameExecutionFinishing(opti
 			);
 			const rawVisuals = new Map(await materializeFramescaperSelectedOpenFxVisualsNativeMedia(
 				visualEntries.filter(({ modelId }) => !supplementalPictureIds.has(modelId)), visualAssets.stills,
-				width, height, options.plan.output.canvas.fit, signal, openFxPlanes,
+				width, height, options.plan.output.canvas.fit, signal, openFxPlanes, outputOrdinal,
+				soundVisualizer ? (entry) => soundVisualizer.window(entry,
+					request.timelineSample ?? sampleAtSequencePosition(request.sequencePosition, options.plan), outputOrdinal, signal) : undefined,
 			));
 			if (supplementalPictureIds.size > 0) {
 				const transparent = Object.freeze({
@@ -510,32 +522,16 @@ export async function createFramescaperSelectedExactFrameExecutionFinishing(opti
 		if (active) throw new Error('Selected finishing exact frame execution is active.');
 		disposed = true;
 		accelerator?.dispose();
+		soundVisualizer?.dispose();
 		for (const frame of visualAssets.stills.values()) frame.pixels.fill(0);
 	}
 
 	return Object.freeze({ render, acceleratorDisposition, dispose });
 }
-function checkedFrame(value: unknown, name: string): UnifiedExactRenderRgbaFrameV13 {
-	if (!value || typeof value !== 'object') throw new TypeError(`${name} must be an RGBA frame.`);
-	const frame = value as Partial<UnifiedExactRenderRgbaFrameV13>;
-	const width = dimension(frame.width, `${name} width`);
-	const height = dimension(frame.height, `${name} height`);
-	if (!(frame.pixels instanceof Uint8Array) || frame.pixels.byteLength !== width * height * 4) {
-		throw new RangeError(`${name} geometry changed.`);
-	}
-	return Object.freeze({ width, height, pixels: frame.pixels.slice() });
-}
-
 function requiredVisual<Value>(values: ReadonlyMap<string, Value>, id: string): Value {
 	const value = values.get(id);
 	if (!value) throw new ReferenceError(`Selected finishing visual ${id} is unavailable.`);
 	return value;
-}
-
-function requiredFinishing(plan: UnifiedExactRenderPlanV13): UnifiedExactRenderFinishingNode {
-	const values = plan.nodes.filter((node): node is UnifiedExactRenderFinishingNode => node.kind === 'finishing');
-	if (values.length !== 1) throw new ReferenceError('Selected finishing exact execution requires one finishing node.');
-	return values[0]!;
 }
 
 function assertReady(options: Readonly<{ signal: AbortSignal; assertCurrent: () => void }>): void {

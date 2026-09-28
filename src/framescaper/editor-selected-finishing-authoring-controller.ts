@@ -21,7 +21,8 @@ type Awaitable<Value> = Value | PromiseLike<Value>;
 
 export const FRAMESCAPER_SELECTED_AUTHORING_SURFACES = Object.freeze([
 	'video-transition', 'video-transition-dissolve',
-	'video-title', 'video-text', 'video-shape', 'video-solid',
+	'video-title', 'video-text', 'video-shape', 'video-solid', 'video-test-image',
+	'video-noise', 'video-sound-visualizer',
 	'video-adjustment-layer', 'video-visual-preset', 'video-mask-matte', 'video-freeze',
 ] as const satisfies readonly FramescaperCandidateAuthoringSurface[]);
 

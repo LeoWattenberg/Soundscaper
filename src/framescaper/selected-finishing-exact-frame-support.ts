@@ -40,6 +40,23 @@ export interface TrackOrderBucketFinishing {
 	entries: UnifiedExactLinearCompositionEntryV13[];
 }
 
+export function checkedFrame(value: unknown, name: string): UnifiedExactRenderRgbaFrameV13 {
+	if (!value || typeof value !== 'object') throw new TypeError(`${name} must be an RGBA frame.`);
+	const frame = value as Partial<UnifiedExactRenderRgbaFrameV13>;
+	const width = dimension(frame.width, `${name} width`);
+	const height = dimension(frame.height, `${name} height`);
+	if (!(frame.pixels instanceof Uint8Array) || frame.pixels.byteLength !== width * height * 4) {
+		throw new RangeError(`${name} geometry changed.`);
+	}
+	return Object.freeze({ width, height, pixels: frame.pixels.slice() });
+}
+
+export function requiredFinishing(plan: UnifiedExactRenderPlanV13): UnifiedExactRenderFinishingNode {
+	const values = plan.nodes.filter((node): node is UnifiedExactRenderFinishingNode => node.kind === 'finishing');
+	if (values.length !== 1) throw new ReferenceError('Selected finishing exact execution requires one finishing node.');
+	return values[0]!;
+}
+
 export function gradeVisual(
 	finishing: UnifiedExactRenderFinishingNode,
 	entry: UnifiedExactRenderVisualFrameEntryV13,
