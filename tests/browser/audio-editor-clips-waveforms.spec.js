@@ -3,6 +3,7 @@ import {
 	asymmetricStereoTone,
 	expect,
 	longTone,
+	monoTone,
 	test,
 	toneA,
 	toneB,
@@ -525,6 +526,37 @@ test.describe('audio editor React/design-system workflows', () => {
 			delete globalThis.__multiviewWaveformClears;
 		});
 		expect(errors).toEqual([]);
+	});
+
+	test('a sustained tone keeps spectrogram color across the clip', async ({ page }) => {
+		const editor = await bootEditor(page, '/embed/en/');
+		await importFiles(editor, [monoTone]);
+		const clip = clipByName(editor, monoTone.name);
+		const track = clip.locator('xpath=ancestor::div[@data-track-row]');
+		await chooseTrackMenuAction(page, editor, track, ['Track visualization', 'Spectrogram']);
+		const canvas = clip.locator('canvas.clip-body__waveform');
+		await expect(canvas).toHaveAttribute('data-spectrogram-renderer', 'pffft-wasm');
+		const painted = await canvas.evaluate((element) => {
+			const { data, width, height } = element.getContext('2d')
+				.getImageData(0, 0, element.width, element.height);
+			const coloredColumns = [0, 0, 0];
+			for (let x = 0; x < width; x += 1) {
+				for (let y = 0; y < height; y += 1) {
+					const pixel = (y * width + x) * 4;
+					if (data[pixel + 3] && data[pixel] > 48 && data[pixel] > data[pixel + 2]) {
+						coloredColumns[Math.min(2, Math.floor(x * 3 / width))] += 1;
+						break;
+					}
+				}
+			}
+			return { width, height, coloredColumns };
+		});
+		expect(painted.width).toBeGreaterThan(40);
+		expect(painted.height).toBeGreaterThan(10);
+		for (const [third, count] of painted.coloredColumns.entries()) {
+			expect(count, `spectral color in third ${third + 1}: ${JSON.stringify(painted)}`)
+				.toBeGreaterThan(painted.width / 12);
+		}
 	});
 
 	test('renders 3-band and rainbow frequency waveforms from Track visualization', async ({ page }) => {
