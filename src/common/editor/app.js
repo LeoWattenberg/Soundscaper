@@ -8,7 +8,7 @@ import { createControllerBindings } from './controller/composition/controller-bi
 import { createControllerDocumentState, createControllerDocumentCheckpoints } from './controller/document/document-state.ts'; import { publishProjectView } from './controller/document/document-snapshot.ts';
 import { createEffectsComposition } from './controller/effects/effects-composition.ts';
 import { createClipVideoComposition } from './controller/clip-video/clip-video-composition.ts';
-import { createTrackAudioComposition } from './controller/track-audio/track-audio-composition.ts';
+import { createTrackAudioComposition } from './controller/track-audio/track-audio-composition.ts'; import { spectrogramSettingsForNewTrack } from './controller/track-audio/spectrogram-track-defaults.ts';
 import { createEditorExportStateAccess } from './controller/export/export-state.ts';
 import { loadNativeEditableProject } from './controller/document/native-project-admission.ts';
 import { createControllerTimers } from './controller/composition/controller-timers.ts';
@@ -337,7 +337,7 @@ export function createAudioEditorController(_root = null, options = {}) {
 			setProject: (nextProject) => { documentState.project = nextProject; },
 			createProject: projectRuntime.createProject,
 			normalizeProjectSampleRate,
-			createInitialAudioTrackCommand: createAddTrackCommand,
+			createInitialAudioTrackCommand: (trackOptions, sampleRate) => createAddTrackCommand({ ...trackOptions, spectrogram: spectrogramSettingsForNewTrack(state.preferences.spectrogram, sampleRate) }),
 			createHistory: projectRuntime.createHistory,
 			executeCommand: projectRuntime.executeCommand,
 			loadProject: projectRuntime.loadProject,

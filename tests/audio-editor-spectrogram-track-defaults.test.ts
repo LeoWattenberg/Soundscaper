@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import assert from 'node:assert/strict';
+import { register } from 'node:module';
 import test from 'node:test';
 
 import type { AudioEditorCommand } from '../src/common/editor/commands/protocol.ts';
@@ -9,6 +10,18 @@ import {
 	type EditorTrackServiceDependencies,
 } from '../src/common/editor/controller/track-audio/internal/track-service.ts';
 import type { ControllerProject } from '../src/common/editor/controller/track-audio/track-domain-types.ts';
+import { createMemoryStore } from './helpers/audio-editor-memory-store-baseline.js';
+
+register(`data:text/javascript,${encodeURIComponent(`
+	export async function resolve(specifier, context, nextResolve) {
+		if (specifier === '@ffmpeg/core?url' || specifier === '@ffmpeg/core/wasm?url') {
+			return { url: 'data:text/javascript,export default "mock-ffmpeg-asset"', shortCircuit: true };
+		}
+		return nextResolve(specifier, context);
+	}
+`)}`, import.meta.url);
+
+const { createAudioEditorController } = await import('../src/common/editor/app.js');
 
 test('new audio tracks inherit current spectrogram preferences without replacing explicit settings', () => {
 	const commands: AudioEditorCommand[] = [];
@@ -73,12 +86,60 @@ test('new audio tracks inherit current spectrogram preferences without replacing
 	assert.deepEqual(addedAudioTracks(commands[3]), [{
 		...defaults, maximumFrequency: 4_000, windowSize: 2_048,
 	}]);
+
+	defaults = { ...defaults, minimumFrequency: 5_000 };
+	service.addTrack();
+	assert.deepEqual(addedAudioTracks(commands[4]), [{
+		...defaults, minimumFrequency: 0, maximumFrequency: 4_000,
+	}]);
 });
 
 function addedAudioTracks(command: AudioEditorCommand | undefined): readonly (Readonly<Record<string, unknown>>)[] {
 	if (!command) assert.fail('Expected a track command.');
 	const additions = command.type === 'batch' ? command.commands : [command];
 	return additions.flatMap((item) => item.type === 'track/add' && item.track.type === 'audio'
-		? [item.track.spectrogram]
+		? [item.track.spectrogram as Readonly<Record<string, unknown>>]
 		: []);
 }
+
+test('the initial audio track in a new project inherits spectrogram preferences', async () => {
+	const options = {
+		headless: true,
+		copy: {
+			ready: 'Ready', untitledProject: 'Untitled project', track: 'Track',
+			projectSaving: 'Saving', projectSaved: 'Saved', storage: 'Storage',
+			genericError: 'Error: {message}', unknownError: 'Unknown error',
+		},
+		locale: 'en',
+		store: createMemoryStore(),
+		engine: {
+			positionFrame: 0,
+			loadProject() {}, async applyProject() {}, setSourceResolver() {},
+			getPositionFrames() { return this.positionFrame; },
+			getState() { return { state: 'stopped', loop: { enabled: false } }; },
+			stop() {}, seek(frame: number) { this.positionFrame = frame; return frame; },
+			async getAudioContext() { return null; }, async dispose() {},
+		},
+		ffmpeg: { dispose() {} },
+	} as unknown as Parameters<typeof createAudioEditorController>[1];
+	const controller = createAudioEditorController(null, options);
+	try {
+		await controller.ready;
+		await controller.actions.preferences.update({ spectrogram: {
+			scale: 'log', minimumFrequency: 100, maximumFrequency: 8_000,
+			windowSize: 4_096, windowType: 'blackman', gain: 8, range: 65,
+		} });
+		await controller.actions.project.create({ sampleRate: 8_000 });
+		const project = controller.getSnapshot().project as unknown as Readonly<{
+			tracks: readonly Readonly<{ type: string; spectrogram: Readonly<Record<string, unknown>> }>[];
+		}>;
+		const track = project.tracks[0];
+		assert.equal(track?.type, 'audio');
+		assert.deepEqual(track.spectrogram, {
+			scale: 'log', minimumFrequency: 100, maximumFrequency: 4_000,
+			windowSize: 4_096, windowType: 'blackman', gain: 8, range: 65,
+		});
+	} finally {
+		await controller.dispose();
+	}
+});

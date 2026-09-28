@@ -15,6 +15,7 @@ import {
 } from '../../../commands/factories.ts';
 import type { AudioEditorCommand, CommandObject } from '../../../commands/protocol.ts';
 import type { EditorControllerLifetime } from '../../shared/lifecycle.ts';
+import { spectrogramSettingsForNewTrack } from '../spectrogram-track-defaults.ts';
 import {
 	createTrackStructuralOperationService,
 	type TrackStructuralOperationService,
@@ -107,7 +108,7 @@ export interface EditorTrackServiceDependencies {
 	readonly trackColors: readonly string[];
 	readonly recording: TrackRecordingRoutingPort;
 	getProject(): ControllerProject;
-	getSpectrogramDefaults?(): Readonly<Record<string, unknown>>;
+	getSpectrogramDefaults?(): unknown;
 	getSelectedTrackId(): string | null;
 	editingBlocked(): boolean;
 	labelEditingBlocked?(): boolean;
@@ -156,7 +157,8 @@ export function createEditorTrackService(
 		const trackId = options.id || dependencies.createId('track');
 		const audioTrackCount = project.tracks.filter((track) => track.type === 'audio').length;
 		const color = options.color || dependencies.trackColors[audioTrackCount % dependencies.trackColors.length];
-		const spectrogram = newTrackSpectrogram(project, options.spectrogram);
+		const spectrogram = spectrogramSettingsForNewTrack(
+			dependencies.getSpectrogramDefaults?.(), project.sampleRate, options.spectrogram);
 		const command = createAddTrackCommand({
 			...options,
 			type: 'audio',
@@ -186,7 +188,8 @@ export function createEditorTrackService(
 		if (!Number.isSafeInteger(requestedIndex)) throw createLocalizedError(TypeError, dependencies.copy, 'trackDestinationInvalid');
 		const baseName = String(options.name
 			|| `Video ${project.tracks.filter((track) => track.type === 'video').length + 1}`).trim();
-		const spectrogram = newTrackSpectrogram(project, options.spectrogram);
+		const spectrogram = spectrogramSettingsForNewTrack(
+			dependencies.getSpectrogramDefaults?.(), project.sampleRate, options.spectrogram);
 		const commands: AudioEditorCommand[] = [{
 			...createAddTrackCommand({
 				type: 'video',
@@ -210,23 +213,6 @@ export function createEditorTrackService(
 		}];
 		dependencies.commit({ type: 'batch', commands }, { selectTrackId: videoTrackId });
 		return videoTrackId;
-	}
-
-	function newTrackSpectrogram(
-		project: ControllerProject,
-		requested: Readonly<Record<string, unknown>> | undefined,
-	): Readonly<Record<string, unknown>> | undefined {
-		const defaults = dependencies.getSpectrogramDefaults?.();
-		if (!defaults) return requested;
-		const nyquist = project.sampleRate / 2;
-		const maximumFrequency = Math.min(Number(defaults.maximumFrequency ?? nyquist), nyquist);
-		const minimumFrequency = Number(defaults.minimumFrequency ?? 0);
-		return {
-			...defaults,
-			minimumFrequency: minimumFrequency < maximumFrequency ? minimumFrequency : 0,
-			maximumFrequency,
-			...requested,
-		};
 	}
 
 	function assignPreferredInputToTrack(trackId: string): boolean {

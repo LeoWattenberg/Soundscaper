@@ -152,7 +152,7 @@ export interface ProjectSwitchServiceRuntime<
 		name: string;
 		armed: true;
 		height: 300;
-	}>) => Readonly<{ readonly track: Project['tracks'][number] }>;
+	}>, sampleRate: number) => Readonly<{ readonly track: Project['tracks'][number] }>;
 	readonly createHistory: (project: Project | Input) => History;
 	readonly executeCommand: (history: History, command: unknown) => History;
 	readonly loadProject: (value: unknown) => Readonly<{
