@@ -15,7 +15,7 @@ import {
 } from '../../../commands/factories.ts';
 import type { AudioEditorCommand, CommandObject } from '../../../commands/protocol.ts';
 import type { EditorControllerLifetime } from '../../shared/lifecycle.ts';
-import { spectrogramSettingsForNewTrack } from '../spectrogram-track-defaults.ts';
+import { spectrogramSettingsForNewTrack } from '../../../spectrogram-track-defaults.ts';
 import {
 	createTrackStructuralOperationService,
 	type TrackStructuralOperationService,

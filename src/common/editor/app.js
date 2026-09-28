@@ -8,7 +8,7 @@ import { createControllerBindings } from './controller/composition/controller-bi
 import { createControllerDocumentState, createControllerDocumentCheckpoints } from './controller/document/document-state.ts'; import { publishProjectView } from './controller/document/document-snapshot.ts';
 import { createEffectsComposition } from './controller/effects/effects-composition.ts';
 import { createClipVideoComposition } from './controller/clip-video/clip-video-composition.ts';
-import { createTrackAudioComposition } from './controller/track-audio/track-audio-composition.ts'; import { spectrogramSettingsForNewTrack } from './controller/track-audio/spectrogram-track-defaults.ts';
+import { createTrackAudioComposition } from './controller/track-audio/track-audio-composition.ts'; import { spectrogramSettingsForNewTrack } from './spectrogram-track-defaults.ts';
 import { createEditorExportStateAccess } from './controller/export/export-state.ts';
 import { loadNativeEditableProject } from './controller/document/native-project-admission.ts';
 import { createControllerTimers } from './controller/composition/controller-timers.ts';
