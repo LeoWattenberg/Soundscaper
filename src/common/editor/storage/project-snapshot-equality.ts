@@ -1,10 +1,10 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 export function sameProjectSnapshot(left: unknown, right: unknown): boolean {
-	return sameSnapshotValue(left, right, new Map<object, object>());
+	return sameSnapshotValue(left, right, new WeakMap<object, WeakSet<object>>());
 }
 
-function sameSnapshotValue(left: unknown, right: unknown, seen: Map<object, object>): boolean {
+function sameSnapshotValue(left: unknown, right: unknown, seen: WeakMap<object, WeakSet<object>>): boolean {
 	if (Object.is(left, right)) return true;
 	if (!left || !right || typeof left !== 'object' || typeof right !== 'object') return false;
 	if (left instanceof Date || right instanceof Date) {
@@ -30,8 +30,9 @@ function sameSnapshotValue(left: unknown, right: unknown, seen: Map<object, obje
 			|| leftPrototype !== Object.prototype && leftPrototype !== null) return false;
 	}
 	const prior = seen.get(left);
-	if (prior) return prior === right;
-	seen.set(left, right);
+	if (prior?.has(right)) return true;
+	if (prior) prior.add(right);
+	else seen.set(left, new WeakSet([right]));
 	const leftKeys = Reflect.ownKeys(left);
 	const rightKeys = Reflect.ownKeys(right);
 	if (leftKeys.length !== rightKeys.length || leftKeys.some((key) => !rightKeys.includes(key))) return false;
