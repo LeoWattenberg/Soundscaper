@@ -191,14 +191,15 @@ export function createBrowserFfmpegRuntimeStore(
 						if (!lock) throw new Error('The runtime commit lock was not acquired.');
 						const currentState = await readState();
 						const active = currentState && await isComplete(currentState.active)
-							? currentState.active
-							: null;
+							? currentState.active : null;
 						const previous = currentState?.previous && await isComplete(currentState.previous)
-							? currentState.previous
-							: null;
+							? currentState.previous : null;
 						const reusableActive = active && sameRelease(active, release) ? active : null;
 						const reusablePrevious = previous && sameRelease(previous, release) ? previous : null;
-
+						if ((active?.releaseId === release.releaseId && !reusableActive)
+							|| (previous?.releaseId === release.releaseId && !reusablePrevious)) {
+							throw new Error('Runtime release ID conflicts with an installed release.');
+						}
 						if (reusableActive || reusablePrevious) {
 							const retainedPrevious = reusableActive ? previous : active;
 							if (!reusableActive) {
@@ -217,7 +218,6 @@ export function createBrowserFfmpegRuntimeStore(
 							]));
 							return;
 						}
-
 						const prior = active ?? previous;
 						const finalName = releaseCacheName(release.releaseId);
 						await cacheStorage.delete(finalName);
