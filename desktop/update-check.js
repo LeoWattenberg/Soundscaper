@@ -19,12 +19,15 @@ export class ReleaseChecker {
 	async check({ manual = false } = {}) {
 		const settings = this.#settings.snapshot();
 		if (!settings.updatesEnabled && !manual) return Object.freeze({ status: 'disabled' });
+		const now = this.#now();
 		const lastCheck = Date.parse(settings.lastUpdateCheck);
-		if (!manual && Number.isFinite(lastCheck) && this.#now() - lastCheck < CHECK_INTERVAL_MS) {
+		const elapsedSinceLastCheck = now - lastCheck;
+		if (!manual && Number.isFinite(lastCheck) && elapsedSinceLastCheck >= 0
+			&& elapsedSinceLastCheck < CHECK_INTERVAL_MS) {
 			return Object.freeze({ status: 'throttled' });
 		}
 		try {
-			await this.#settings.recordUpdateCheck(this.#now());
+			await this.#settings.recordUpdateCheck(now);
 			const response = await this.#fetch(RELEASES_API, {
 				headers: {
 					Accept: 'application/vnd.github+json',

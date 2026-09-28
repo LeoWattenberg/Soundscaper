@@ -258,3 +258,28 @@ test('startup update checks are throttled for 24 hours even after an offline att
 	assert.equal((await checker.check()).status, 'offline');
 	assert.equal(requests, 2);
 });
+
+test('a future saved check time does not suppress update checks after the clock moves back', async () => {
+	const now = Date.parse('2026-07-16T00:00:00Z');
+	let requests = 0;
+	const state = {
+		updatesEnabled: true,
+		lastUpdateCheck: new Date(now + 7 * 24 * 60 * 60 * 1000).toISOString(),
+	};
+	const settings = {
+		snapshot: () => ({ ...state }),
+		recordUpdateCheck: async (timestamp) => { state.lastUpdateCheck = new Date(timestamp).toISOString(); },
+	};
+	const checker = new ReleaseChecker({
+		currentVersion: '1.0.0',
+		settings,
+		now: () => now,
+		fetchImpl: async () => {
+			requests += 1;
+			return { ok: true, json: async () => [] };
+		},
+	});
+	assert.equal((await checker.check()).status, 'current');
+	assert.equal(requests, 1);
+	assert.equal(state.lastUpdateCheck, new Date(now).toISOString());
+});
