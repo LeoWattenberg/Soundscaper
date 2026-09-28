@@ -570,6 +570,40 @@ test.describe('audio editor React/design-system workflows', () => {
 		}
 	});
 
+	test('a tone burst has a smooth spectrogram time envelope', async ({ page }) => {
+		const burst = { ...monoTone, name: 'browser-tone-burst.wav', buffer: Buffer.from(monoTone.buffer) };
+		// Keep the 440 Hz tone only from 0.32 to 0.48 seconds.
+		for (let frame = 0; frame < 38_400; frame += 1) {
+			if (frame < 15_360 || frame >= 23_040) burst.buffer.writeInt16LE(0, 44 + frame * 2);
+		}
+		const editor = await bootEditor(page, '/embed/en/');
+		await importFiles(editor, [burst]);
+		const clip = clipByName(editor, burst.name);
+		const track = clip.locator('xpath=ancestor::div[@data-track-row]');
+		await chooseTrackMenuAction(page, editor, track, ['Track visualization', 'Spectrogram']);
+		const zoomIn = editor.getByRole('button', { name: 'Zoom in', exact: true });
+		for (let step = 0; step < 3; step += 1) await zoomIn.click();
+		const canvas = clip.locator('canvas.clip-body__waveform');
+		await expect(canvas).toHaveAttribute('data-spectrogram-renderer', 'pffft-wasm');
+		const raster = await canvas.evaluate((element) => {
+			const { data, width, height } = element.getContext('2d')
+				.getImageData(0, 0, element.width, element.height);
+			const edgeX = Math.round(width * 0.32 / 0.8);
+			let mostColors = 0;
+			for (let y = 0; y < height; y += 1) {
+				const colors = new Set();
+				for (let x = edgeX - 16; x < edgeX + 16; x += 1) {
+					const offset = (y * width + x) * 4;
+					colors.add(`${data[offset]}:${data[offset + 1]}:${data[offset + 2]}`);
+				}
+				mostColors = Math.max(mostColors, colors.size);
+			}
+			return { width, mostColors };
+		});
+		expect(raster.width).toBeGreaterThan(200);
+		expect(raster.mostColors, JSON.stringify(raster)).toBeGreaterThan(10);
+	});
+
 	test('a sustained tone stays colored at sample-depth spectrogram zoom', async ({ page }) => {
 		const errors = collectClientErrors(page);
 		const editor = await bootEditor(page, '/embed/en/');
