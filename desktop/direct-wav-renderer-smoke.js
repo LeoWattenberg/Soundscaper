@@ -417,7 +417,7 @@ export async function runDirectWavRendererSmoke(scope, plan) {
 			'new project action',
 		);
 		newProject.click();
-		await waitFor(() => editor.getAttribute('data-clip-count') === '0' ? true : null, 'new project activation');
+		await waitFor(() => editor.getAttribute('data-clip-count') === '0' && editor.getAttribute('data-project-activation-pending') !== 'true', 'new project activation');
 		await importFixture(createFixture({
 			channelCount: 6,
 			frameCount: 2_112_000,
