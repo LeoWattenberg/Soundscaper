@@ -8,6 +8,7 @@ import {
 
 test('a new audio track renders the spectrogram defaults set with no track selected', async ({ page }) => {
 	const editor = await bootEditor(page, '/embed/en/');
+	await chooseNestedCommandAction(page, editor, 'Select', ['Tracks', 'No tracks']);
 	await chooseCommandAction(page, editor, 'Edit', 'Preferences');
 	let preferences = page.getByRole('dialog', { name: 'Editor preferences', exact: true });
 	await preferences.getByRole('tab', { name: /Track display$/u }).click();
