@@ -94,10 +94,10 @@ export function standardDelayCapacityFrames(params: Readonly<Record<string, unkn
 		throw new RangeError('channelCount must be between 1 and 32.');
 	}
 	const next = normalizeStandardDelayParams(params);
-	const pitched = Number(next.pitchShift) !== 0;
+	const pitched = Number(next.pitchShift) !== 0 && Number(next.mix) !== 0;
 	if (pitched && sampleRate > 192000) throw new RangeError('StaffPad pitched delay supports sample rates up to 192000 Hz.');
 	if (pitched) assertStandardDelayPitchNativeCapacity(sampleRate, channelCount, Number(next.echoes));
-	const latency = standardDelayLatencyFrames({ ...next, mix: 1 }, sampleRate);
+	const latency = standardDelayLatencyFrames(next, sampleRate);
 	const required = Math.max(2, Math.ceil(standardDelayTailSeconds({ ...next, pitchShift: 0, mix: 1 }) * sampleRate) + latency + 2);
 	const ringCount = pitched ? Number(next.echoes) + 1 : 1;
 	const maximum = Math.floor(STANDARD_DELAY_MEMORY_LIMIT_BYTES / (ringCount * channelCount * Float32Array.BYTES_PER_ELEMENT));

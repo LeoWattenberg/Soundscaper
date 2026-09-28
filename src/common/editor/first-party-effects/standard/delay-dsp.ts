@@ -64,7 +64,7 @@ export function createStandardDelayProcessor({ sampleRate, channelCount, params 
 		}
 		pitched = nextPitched;
 		latency = standardDelayLatencyFrames(next, sampleRate);
-		stageLatency = standardDelayPitchStageLatencyFrames(next, sampleRate);
+		stageLatency = nextPitched ? standardDelayPitchStageLatencyFrames(next, sampleRate) : 0;
 		let delay = 0;
 		for (let echo = 0; echo < count; echo += 1) {
 			const interval = next.delayType === 'regular' ? 1

@@ -139,6 +139,18 @@ test('zero-time finite delay sums current-frame echoes without feedback or chann
 	}
 });
 
+test('a muted pitched delay stays dry without StaffPad and reserves unpitched history', () => {
+	const rate = 384_000;
+	const params = { time: .001, echoes: 2, pitchShift: 1, mix: 0 };
+	const dryParams = { ...params, pitchShift: 0 };
+	const input = [new Float32Array([.125, -.25, .5])];
+	assert.equal(standardEffectStateBytes('multi-tap-delay', params, rate, 1),
+		standardEffectStateBytes('multi-tap-delay', dryParams, rate, 1));
+	const processor = createStandardDelayProcessor({ sampleRate: rate, channelCount: 1, params });
+	assert.equal(processor.latencyFrames, 0);
+	assert.deepEqual(render(processor, input), input);
+});
+
 test('growing and shrinking a live stereo delay preserves the retained history in both channels', () => {
 	for (const [before, after, expectedFrame] of [[.004, .008, 44], [.008, .004, 12]]) {
 		const processor = createStandardDelayProcessor({ sampleRate, channelCount: 2,

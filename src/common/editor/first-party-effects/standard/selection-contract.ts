@@ -24,7 +24,7 @@ export function standardEffectStateBytes(type: StandardEffectType, params: Reado
 	if (type === 'noise-gate') return channels * noiseGateLatencyFrames(params, rate) * Float32Array.BYTES_PER_ELEMENT;
 	if (type !== 'multi-tap-delay') return 0;
 	const next = normalizeStandardDelayParams(params);
-	const pitched = Number(next.pitchShift) !== 0;
+	const pitched = Number(next.pitchShift) !== 0 && Number(next.mix) !== 0;
 	const rings = pitched ? Number(next.echoes) + 1 : 1;
 	const history = standardDelayCapacityFrames(next, rate, channels) * rings * channels * Float32Array.BYTES_PER_ELEMENT;
 	return history + (pitched ? STAFFPAD_MAXIMUM_MEMORY_BYTES + Number(next.echoes) * channels * (standardDelayPitchQueueFrames(next, rate) + 1024) * Float32Array.BYTES_PER_ELEMENT : 0);
