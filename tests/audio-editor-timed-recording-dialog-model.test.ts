@@ -56,6 +56,24 @@ test('timed recording dialog refuses a past start or an end before the start', (
 	}, startTimeMs - 1), null);
 });
 
+test('switching back to duration restores its valid end after an invalid end date', () => {
+	const startTimeMs = new Date(2030, 0, 2, 3, 4, 5).getTime();
+	const initial = createTimedRecordingDialogValue(startTimeMs, startTimeMs + 90_000);
+	const explicitEnd = updateTimedRecordingDialogEndMode(initial, 'end');
+	const invalidEnd = updateTimedRecordingDialogEnd(
+		explicitEnd,
+		localDateTime(new Date(startTimeMs - 60_000)),
+	);
+	assert.equal(timedRecordingDialogRange(invalidEnd, startTimeMs - 1), null);
+
+	const restoredDuration = updateTimedRecordingDialogEndMode(invalidEnd, 'duration');
+	assert.equal(restoredDuration.durationSeconds, 90);
+	assert.deepEqual(timedRecordingDialogRange(restoredDuration, startTimeMs - 1), {
+		startTimeMs,
+		endTimeMs: startTimeMs + 90_000,
+	});
+});
+
 function localDateTime(date: Date): string {
 	const local = new Date(date.getTime() - date.getTimezoneOffset() * 60_000);
 	return local.toISOString().slice(0, 19);

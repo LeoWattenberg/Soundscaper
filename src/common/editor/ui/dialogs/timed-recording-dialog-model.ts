@@ -92,6 +92,9 @@ export function updateTimedRecordingDialogEndMode(
 	value: TimedRecordingDialogValue,
 	endMode: TimedRecordingEndMode,
 ): TimedRecordingDialogValue {
+	if (endMode === 'duration') {
+		return updateTimedRecordingDialogDuration({ ...value, endMode }, value.durationSeconds);
+	}
 	return Object.freeze({ ...value, endMode });
 }
 
