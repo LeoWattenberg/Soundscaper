@@ -443,8 +443,10 @@ async function importAdmittedArchive(
 			...recognizedConversionReport(entry),
 		});
 	} catch (error) {
+		// Cancellation stops the run, but it must not skip rollback of a
+		// create-only publication this entry already made.
+		const cleanup = await clearTransferResidue(store, projectId, witness.created());
 		throwIfScapeAborted(signal);
-		const cleanup = await clearTransferResidue(store, projectId, witness.created(), signal);
 		return transferRecord({
 			index, outcome: 'failed', projectId, title, byteLength,
 			reasonCode: 'import-failed',
@@ -480,11 +482,10 @@ async function clearTransferResidue(
 	store: ProjectTransferImportStore,
 	projectId: string,
 	created: unknown,
-	signal: AbortSignal | undefined,
 ): Promise<{ residue: 'none' | 'cleared' | 'retained'; note: string }> {
 	let present: unknown;
 	try {
-		present = await store.loadProject(projectId, { ...(signal ? { signal } : {}) });
+		present = await store.loadProject(projectId);
 	} catch (error) {
 		return {
 			residue: 'retained',
