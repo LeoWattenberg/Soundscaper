@@ -22,6 +22,17 @@ test('encoded audio metadata preserves rates from common native decode container
 	assert.equal(inspectEncodedAudioSampleRate(adts(44_100)), 44_100);
 });
 
+test('BW64 metadata preserves its declared PCM rate for import decoding', () => {
+	const bw64 = encodeWav([Float32Array.of(0)], {
+		container: 'bw64',
+		sampleRate: 96_000,
+		bitDepth: 16,
+		dither: false,
+	});
+	assert.equal(inspectEncodedAudioSampleRate(bw64), 96_000);
+	assert.equal(inspectDecodedAudioSampleRate(bw64), 96_000);
+});
+
 test('decode-rate inspection reports only the rates a decoder is bound to emit', () => {
 	assert.equal(inspectDecodedAudioSampleRate(flac(96_000)), 96_000);
 	assert.equal(inspectDecodedAudioSampleRate(oggVorbis(32_000)), 32_000);

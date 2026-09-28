@@ -74,7 +74,7 @@ export function inspectDecodedAudioSampleRate(input) {
 
 function inspectWaveSampleRate(bytes) {
 	const signature = ascii(bytes, 0, 4);
-	const littleEndian = signature === 'RIFF' || signature === 'RF64';
+	const littleEndian = signature === 'RIFF' || signature === 'RF64' || signature === 'BW64';
 	if ((!littleEndian && signature !== 'RIFX') || ascii(bytes, 8, 4) !== 'WAVE') return null;
 	const view = dataView(bytes);
 	let offset = 12;
