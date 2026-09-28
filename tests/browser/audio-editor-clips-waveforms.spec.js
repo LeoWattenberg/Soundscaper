@@ -1,4 +1,5 @@
 import { WAVEFORM_PEAKS_VERSION } from '../../src/common/editor/waveform-peak-contract.ts';
+import { AUDIO_EDITOR_MAX_PIXELS_PER_SECOND } from '../../src/common/editor/timeline-zoom-limits.ts';
 import {
 	asymmetricStereoTone,
 	expect,
@@ -62,6 +63,24 @@ async function expectPeakPyramidColumnsAtMostOnePixel(waveform) {
 		resolution.pixelWidth,
 		`peak resolution ${JSON.stringify(resolution)}`,
 	).toBeLessThanOrEqual(1);
+}
+
+async function spectrogramColoredColumns(canvas) {
+	return canvas.evaluate((element) => {
+		const { data, width, height } = element.getContext('2d')
+			.getImageData(0, 0, element.width, element.height);
+		const coloredColumns = [0, 0, 0];
+		for (let x = 0; x < width; x += 1) {
+			for (let y = 0; y < height; y += 1) {
+				const pixel = (y * width + x) * 4;
+				if (data[pixel + 3] && data[pixel] > 48 && data[pixel] > data[pixel + 2]) {
+					coloredColumns[Math.min(2, Math.floor(x * 3 / width))] += 1;
+					break;
+				}
+			}
+		}
+		return { width, height, coloredColumns };
+	});
 }
 
 test.describe('audio editor React/design-system workflows', () => {
@@ -536,27 +555,50 @@ test.describe('audio editor React/design-system workflows', () => {
 		await chooseTrackMenuAction(page, editor, track, ['Track visualization', 'Spectrogram']);
 		const canvas = clip.locator('canvas.clip-body__waveform');
 		await expect(canvas).toHaveAttribute('data-spectrogram-renderer', 'pffft-wasm');
-		const painted = await canvas.evaluate((element) => {
-			const { data, width, height } = element.getContext('2d')
-				.getImageData(0, 0, element.width, element.height);
-			const coloredColumns = [0, 0, 0];
-			for (let x = 0; x < width; x += 1) {
-				for (let y = 0; y < height; y += 1) {
-					const pixel = (y * width + x) * 4;
-					if (data[pixel + 3] && data[pixel] > 48 && data[pixel] > data[pixel + 2]) {
-						coloredColumns[Math.min(2, Math.floor(x * 3 / width))] += 1;
-						break;
-					}
-				}
-			}
-			return { width, height, coloredColumns };
-		});
+		const painted = await spectrogramColoredColumns(canvas);
 		expect(painted.width).toBeGreaterThan(40);
 		expect(painted.height).toBeGreaterThan(10);
 		for (const [third, count] of painted.coloredColumns.entries()) {
 			expect(count, `spectral color in third ${third + 1}: ${JSON.stringify(painted)}`)
 				.toBeGreaterThan(painted.width / 12);
 		}
+	});
+
+	test('a sustained tone stays colored at sample-depth spectrogram zoom', async ({ page }) => {
+		const errors = collectClientErrors(page);
+		const editor = await bootEditor(page, '/embed/en/');
+		await importFiles(editor, [monoTone]);
+		const clip = clipByName(editor, monoTone.name);
+		const track = clip.locator('xpath=ancestor::div[@data-track-row]');
+		await chooseTrackMenuAction(page, editor, track, ['Track visualization', 'Spectrogram']);
+		const zoomIn = editor.getByRole('button', { name: 'Zoom in', exact: true });
+		for (let step = 0; step < 18; step += 1) await zoomIn.click();
+		const timeline = editor.locator('[data-timeline]');
+		await timeline.evaluate((element, contentX) => {
+			const scale = Number(element.dataset.timelineScrollScale) || 1;
+			element.scrollLeft = Math.floor(contentX / scale);
+			element.dispatchEvent(new Event('scroll', { bubbles: true }));
+		}, AUDIO_EDITOR_MAX_PIXELS_PER_SECOND * 0.4);
+		const canvas = clip.locator('canvas.clip-body__waveform');
+		await expect.poll(() => canvas.evaluate((element) => {
+			const plan = element.__kwWaveformPlan;
+			return plan && plan.startFrame > 2_048 && plan.endFrame < 36_352
+				? plan.endFrame - plan.startFrame
+				: Number.POSITIVE_INFINITY;
+		})).toBeLessThan(2_048);
+		await expect(canvas).toHaveAttribute('data-spectrogram-renderer', 'pffft-wasm');
+		await expect.poll(async () => {
+			const painted = await spectrogramColoredColumns(canvas);
+			return Math.min(...painted.coloredColumns) / painted.width;
+		}).toBeGreaterThan(1 / 12);
+		const painted = await spectrogramColoredColumns(canvas);
+		expect(painted.width).toBeGreaterThan(40);
+		expect(painted.height).toBeGreaterThan(10);
+		for (const [third, count] of painted.coloredColumns.entries()) {
+			expect(count, `spectral color in third ${third + 1}: ${JSON.stringify(painted)}`)
+				.toBeGreaterThan(painted.width / 12);
+		}
+		expect(errors).toEqual([]);
 	});
 
 	test('renders 3-band and rainbow frequency waveforms from Track visualization', async ({ page }) => {
