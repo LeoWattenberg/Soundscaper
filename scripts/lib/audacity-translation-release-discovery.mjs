@@ -41,18 +41,20 @@ export async function discover(options) {
 	await ensureEmptyDirectory(output);
 
 	const runsUrl = new URL(`https://api.github.com/repos/${AUDACITY.repository}/actions/workflows/translate_tx_pull_to_s3.yml/runs`);
-	runsUrl.searchParams.set('branch', AUDACITY.branch);
-	runsUrl.searchParams.set('event', 'schedule');
-	runsUrl.searchParams.set('status', 'success');
-	runsUrl.searchParams.set('per_page', '10');
+	runsUrl.searchParams.set('per_page', '100');
 	const { json: runs } = await fetchJson(runsUrl, {
 		maximum: MAX_API_BYTES,
 		label: 'Audacity workflow runs',
 		headers: githubHeaders(),
 	});
-	assert(isPlainObject(runs) && Array.isArray(runs.workflow_runs) && runs.workflow_runs.length > 0,
+	assert(isPlainObject(runs) && Array.isArray(runs.workflow_runs),
+		'GitHub returned an invalid Audacity translation run listing');
+	const latestSuccessfulScheduledRun = runs.workflow_runs.find((entry) => isPlainObject(entry)
+		&& entry.head_branch === AUDACITY.branch && entry.event === 'schedule'
+		&& entry.status === 'completed' && entry.conclusion === 'success');
+	assert(latestSuccessfulScheduledRun,
 		'GitHub returned no successful scheduled Audacity translation run');
-	const run = validateAudacityWorkflowRun(runs.workflow_runs[0]);
+	const run = validateAudacityWorkflowRun(latestSuccessfulScheduledRun);
 	const updatedAt = Date.parse(run.updated_at);
 	const age = Date.now() - updatedAt;
 	assert(Number.isFinite(updatedAt) && age >= -5 * 60_000 && age <= maxAgeHours * 3_600_000,
