@@ -175,7 +175,10 @@ export function createStreamingWindowedSincResampler(inputSampleRate, outputSamp
 	}
 
 	function pruneHistory() {
-		const retainFrom = Math.max(bufferStartFrame, Math.floor(nextInputPosition) - radius - 1);
+		// A large downsample step can jump beyond all frames received so far.
+		// Keep the buffer origin at the received boundary until later chunks arrive.
+		const retainFrom = Math.max(bufferStartFrame,
+			Math.min(totalInputFrames, Math.floor(nextInputPosition) - radius - 1));
 		const dropFrames = retainFrom - bufferStartFrame;
 		if (dropFrames <= 0) return;
 		buffered = buffered.map((values) => values.slice(Math.min(values.length, dropFrames)));

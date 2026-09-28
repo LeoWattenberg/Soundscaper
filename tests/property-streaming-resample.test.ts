@@ -164,6 +164,13 @@ test('the same signal resamples identically however it is chunked', () => {
 	);
 });
 
+test('windowed-sinc output remains chunk-stable when one output step skips beyond buffered input', () => {
+	const source = [Float32Array.from({ length: 960 }, (_, index) => Math.sin(index * 0.17) + index / 960)];
+	const oneShot = driveResampler(sincResampler(768_000, 8_000, 1), source, [source[0]!.length]);
+	const chunked = driveResampler(sincResampler(768_000, 8_000, 1), source, [8]);
+	assert.deepEqual(chunked, oneShot);
+});
+
 test('a constant input stays that constant, and silence stays silent', () => {
 	fc.assert(
 		fc.property(
