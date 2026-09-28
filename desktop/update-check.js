@@ -54,9 +54,10 @@ export function selectUpdate(releases, currentVersion, tagPrefix = 'v') {
 	if (!current) return null;
 	const includePrereleases = current.prerelease.length > 0;
 	return (Array.isArray(releases) ? releases : [])
-		.filter((release) => release && !release.draft && (!release.prerelease || includePrereleases) && String(release.tag_name || '').startsWith(tagPrefix))
+		.filter((release) => release && !release.draft && String(release.tag_name || '').startsWith(tagPrefix))
 		.map((release) => ({ release, version: parseVersion(String(release.tag_name).slice(tagPrefix.length)) }))
-		.filter(({ version }) => version && compareVersions(version, current) > 0)
+		.filter(({ release, version }) => version && (includePrereleases || (!release.prerelease && version.prerelease.length === 0))
+			&& compareVersions(version, current) > 0)
 		.sort((left, right) => compareVersions(right.version, left.version))[0]?.release || null;
 }
 

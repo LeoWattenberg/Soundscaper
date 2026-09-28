@@ -234,6 +234,16 @@ test('semantic release selection respects preview and stable channels', () => {
 	assert.equal(selectUpdate(releases, '1.0.0', 'framescaper-v').tag_name, 'framescaper-v1.4.0');
 });
 
+test('stable update checks reject prerelease tags even when release metadata marks them stable', () => {
+	const releases = [
+		{ tag_name: 'v2.0.0-rc.1', prerelease: false, draft: false },
+		{ tag_name: 'v1.2.0', prerelease: false, draft: false },
+	];
+	assert.equal(selectUpdate(releases, '1.0.0').tag_name, 'v1.2.0');
+	assert.equal(selectUpdate(releases.slice(0, 1), '1.0.0'), null);
+	assert.equal(selectUpdate(releases, '1.0.0-rc.1').tag_name, 'v2.0.0-rc.1');
+});
+
 test('startup update checks are throttled for 24 hours even after an offline attempt', async () => {
 	let now = Date.parse('2026-07-16T00:00:00Z');
 	let requests = 0;
