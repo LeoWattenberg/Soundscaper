@@ -122,6 +122,7 @@ export interface TrackAudioCompositionDependencies {
 	readonly prepareCommittedTimePitchCaches: MixRenderServiceDependencies['prepareCommittedTimePitchCaches'] & ExportSnapshotRendererRuntime['prepareCommittedTimePitchCaches'];
 	readonly getProject: () => TrackAudioCompositionProject | null;
 	readonly getCommandProject: DerivedAudioCompositionDependencies['getProject'];
+	readonly getSpectrogramDefaults?: EditorTrackServiceDependencies['getSpectrogramDefaults'];
 	readonly editingBlocked: () => boolean;
 	readonly labelEditingBlocked?: () => boolean;
 	readonly commit:

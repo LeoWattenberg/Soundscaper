@@ -113,6 +113,7 @@ export function createTrackAudioComposition(dependencies: TrackAudioCompositionD
 		copy,
 		trackColors: dependencies.trackColors,
 		getProject: dependencies.getCommandProject,
+		getSpectrogramDefaults: dependencies.getSpectrogramDefaults,
 		getSelectedTrackId: () => state.selectedTrackId,
 		editingBlocked: dependencies.editingBlocked,
 		labelEditingBlocked: dependencies.labelEditingBlocked,
