@@ -18,7 +18,9 @@ import type { NumericChannel } from '../../design-system-adapters/types.ts';
 import type { TimelineWaveformClip } from './waveform-view-model.ts';
 
 export interface SpectrogramSampleView {
+	/** Number of clip-local frames in the projected painted span. */
 	readonly length: number;
+	/** Read a frame relative to the painted span, including available FFT context. */
 	sampleAt(index: number): number;
 }
 
@@ -27,7 +29,7 @@ export interface SpectrogramSampleViewOptions {
 	readonly project?: AudioWarpRuntimeProject | null;
 }
 
-/** Expose the visible clip as PCM without building a bounded waveform preview. */
+/** Expose projected clip PCM and any supplied context without building a bounded waveform preview. */
 export function createSpectrogramSampleViews(
 	sourceChannels: readonly NumericChannel[],
 	clip: Omit<TimelineWaveformClip, 'id' | 'sourceId'>,
@@ -91,9 +93,11 @@ export function createSpectrogramSampleViews(
 	return sourceChannels.map((channel): SpectrogramSampleView => ({
 		length: frameCount,
 		sampleAt(index: number): number {
-			if (!Number.isSafeInteger(index) || index < 0 || index >= frameCount) return 0;
+			if (!Number.isSafeInteger(index)) return 0;
 			const localFrame = startFrame + index;
+			if (!Number.isSafeInteger(localFrame) || localFrame < 0 || localFrame >= durationFrames) return 0;
 			const sourceFrame = sourceFrameAt(localFrame) - sourceFrameOffset;
+			if (!Number.isSafeInteger(sourceFrame) || sourceFrame < 0 || sourceFrame >= sourceLength) return 0;
 			const sample = Number(channel[sourceFrame]);
 			const value = (Number.isFinite(sample) ? sample : 0) * signedGain * fadeEnvelope(
 				localFrame,
