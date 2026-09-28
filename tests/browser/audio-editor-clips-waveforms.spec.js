@@ -65,21 +65,26 @@ async function expectPeakPyramidColumnsAtMostOnePixel(waveform) {
 	).toBeLessThanOrEqual(1);
 }
 
-async function spectrogramColoredColumns(canvas) {
+async function spectrogramVisibleColumns(canvas) {
 	return canvas.evaluate((element) => {
 		const { data, width, height } = element.getContext('2d')
 			.getImageData(0, 0, element.width, element.height);
-		const coloredColumns = [0, 0, 0];
+		const visibleColumns = [0, 0, 0];
+		let legacyBlueSilencePixels = 0;
 		for (let x = 0; x < width; x += 1) {
+			let hasVisibleSpectrum = false;
 			for (let y = 0; y < height; y += 1) {
 				const pixel = (y * width + x) * 4;
-				if (data[pixel + 3] && data[pixel] > 48 && data[pixel] > data[pixel + 2]) {
-					coloredColumns[Math.min(2, Math.floor(x * 3 / width))] += 1;
-					break;
-				}
+				if (!data[pixel + 3]) continue;
+				const red = data[pixel];
+				const green = data[pixel + 1];
+				const blue = data[pixel + 2];
+				if (red <= 2 && green <= 2 && blue >= 250) legacyBlueSilencePixels += 1;
+				if (Math.max(red, green, blue) > 64 && red + green > 24) hasVisibleSpectrum = true;
 			}
+			if (hasVisibleSpectrum) visibleColumns[Math.min(2, Math.floor(x * 3 / width))] += 1;
 		}
-		return { width, height, coloredColumns };
+		return { width, height, visibleColumns, legacyBlueSilencePixels };
 	});
 }
 
@@ -555,11 +560,12 @@ test.describe('audio editor React/design-system workflows', () => {
 		await chooseTrackMenuAction(page, editor, track, ['Track visualization', 'Spectrogram']);
 		const canvas = clip.locator('canvas.clip-body__waveform');
 		await expect(canvas).toHaveAttribute('data-spectrogram-renderer', 'pffft-wasm');
-		const painted = await spectrogramColoredColumns(canvas);
+		const painted = await spectrogramVisibleColumns(canvas);
 		expect(painted.width).toBeGreaterThan(40);
 		expect(painted.height).toBeGreaterThan(10);
-		for (const [third, count] of painted.coloredColumns.entries()) {
-			expect(count, `spectral color in third ${third + 1}: ${JSON.stringify(painted)}`)
+		expect(painted.legacyBlueSilencePixels).toBe(0);
+		for (const [third, count] of painted.visibleColumns.entries()) {
+			expect(count, `visible spectrum in third ${third + 1}: ${JSON.stringify(painted)}`)
 				.toBeGreaterThan(painted.width / 12);
 		}
 	});
@@ -588,14 +594,15 @@ test.describe('audio editor React/design-system workflows', () => {
 		})).toBeLessThan(2_048);
 		await expect(canvas).toHaveAttribute('data-spectrogram-renderer', 'pffft-wasm');
 		await expect.poll(async () => {
-			const painted = await spectrogramColoredColumns(canvas);
-			return Math.min(...painted.coloredColumns) / painted.width;
+			const painted = await spectrogramVisibleColumns(canvas);
+			return Math.min(...painted.visibleColumns) / painted.width;
 		}).toBeGreaterThan(1 / 12);
-		const painted = await spectrogramColoredColumns(canvas);
+		const painted = await spectrogramVisibleColumns(canvas);
 		expect(painted.width).toBeGreaterThan(40);
 		expect(painted.height).toBeGreaterThan(10);
-		for (const [third, count] of painted.coloredColumns.entries()) {
-			expect(count, `spectral color in third ${third + 1}: ${JSON.stringify(painted)}`)
+		expect(painted.legacyBlueSilencePixels).toBe(0);
+		for (const [third, count] of painted.visibleColumns.entries()) {
+			expect(count, `visible spectrum in third ${third + 1}: ${JSON.stringify(painted)}`)
 				.toBeGreaterThan(painted.width / 12);
 		}
 		expect(errors).toEqual([]);
