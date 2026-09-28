@@ -20,6 +20,7 @@ import {
 } from './preview.ts';
 import { useAudioTrackEnvelope } from './useAudioTrackEnvelope.js';
 import { createSpectrogramCanvasOptions } from './spectrogram-canvas-options.ts';
+import { spectrogramPcmContextClip } from './spectrogram-pcm-context.ts';
 import { useSpectrogramPcmTiles } from './useSpectrogramPcmTiles.ts';
 
 const WAVEFORM_PCM_PREFETCH_BUCKET_PIXELS = 0.25;
@@ -39,13 +40,18 @@ function waveformPrefetchPixelWidth(pixelWidth) {
 }
 
 /** Choose a fourfold prefetch width, or PCM only when peaks cannot serve the view. */
-export function timelineWaveformPcmWindowRequestPixelWidth({ visual, clip, project, pixelWidth, displayMode = 'waveform' }) {
-	if (!visual?.available || visual.buffer || pcmWindowCoversProjectedClip(visual.pcmWindow, clip, project)) {
+export function timelineWaveformPcmWindowRequestPixelWidth({
+	visual, clip, project, pixelWidth, displayMode = 'waveform', fftWindowSize = 2048,
+}) {
+	if (!visual?.available || visual.buffer) {
 		return null;
 	}
-	const visibleSourceSamples = projectedClipVisibleSourceSamples(clip, project);
+	const hasSpectrogram = displayMode === 'spectrogram' || displayMode === 'multiview';
+	const requestClip = hasSpectrogram ? spectrogramPcmContextClip(clip, fftWindowSize) : clip;
+	if (pcmWindowCoversProjectedClip(visual.pcmWindow, requestClip, project)) return null;
+	const visibleSourceSamples = projectedClipVisibleSourceSamples(requestClip, project);
 	if (!(visibleSourceSamples > 0) || !(pixelWidth > 0)) return null;
-	if (displayMode === 'spectrogram' || displayMode === 'multiview') {
+	if (hasSpectrogram) {
 		// Longer windows are analyzed in bounded PCM tiles by useSpectrogramPcmTiles.
 		return visibleSourceSamples > 262_140 ? null : undefined;
 	}
@@ -159,12 +165,17 @@ export function useAudioTrackRowViewModel({
 			const pixelWidth = (clip.waveformEndFrame - clip.waveformStartFrame) / sampleRate * pixelsPerSecond;
 			const requestPixelWidth = timelineWaveformPcmWindowRequestPixelWidth({
 				visual, clip, project, pixelWidth, displayMode,
+				fftWindowSize: resolvedSpectrogramOptions.fftWindowSize,
 			});
 			if (requestPixelWidth === null) continue;
-			requests.set(String(clip.id), { clip, pixelWidth: requestPixelWidth });
+			const requestClip = displayMode === 'spectrogram' || displayMode === 'multiview'
+				? spectrogramPcmContextClip(clip, resolvedSpectrogramOptions.fftWindowSize)
+				: clip;
+			requests.set(String(clip.id), { clip: requestClip, pixelWidth: requestPixelWidth });
 		}
 		return requests;
-	}, [controller, displayMode, pixelsPerSecond, project, projection.clips, sampleRate, viewModelRevision]);
+	}, [controller, displayMode, pixelsPerSecond, project, projection.clips,
+		resolvedSpectrogramOptions.fftWindowSize, sampleRate, viewModelRevision]);
 	useEffect(() => {
 		const requestWindow = controller.actions.timeline.requestWaveformPcmWindow;
 		if (typeof requestWindow !== 'function') return;

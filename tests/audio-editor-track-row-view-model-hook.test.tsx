@@ -128,6 +128,20 @@ test('audio rows prefetch a window fine enough for the next fourfold zoom step',
 		project: null,
 		pixelWidth: 20,
 	}), null);
+	const narrowClip = {
+		...clip, durationFrames: 48_000, sourceDurationFrames: 48_000,
+		waveformStartFrame: 20_000, waveformEndFrame: 20_018,
+	};
+	assert.equal(timelineWaveformPcmWindowRequestPixelWidth({
+		visual: { ...visual, pcmWindow: {
+			channels: [new Float32Array(18)], startFrame: 20_000, endFrame: 20_018,
+		} },
+		clip: narrowClip,
+		project: null,
+		pixelWidth: 96,
+		displayMode: 'spectrogram',
+		fftWindowSize: 2048,
+	}), undefined, 'a visible-only PCM window still needs FFT context');
 	assert.equal(timelineWaveformPcmWindowRequestPixelWidth({
 		visual: { ...visual, buffer: { numberOfChannels: 1 } },
 		clip,

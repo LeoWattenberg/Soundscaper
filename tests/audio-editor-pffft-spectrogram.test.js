@@ -62,6 +62,23 @@ test('PFFFT spectrogram reads projected PCM throughout a sustained clip', async 
 	}
 });
 
+test('PFFFT spectrogram keeps FFT context around a projected span shorter than one window', async () => {
+	await preparePffftSpectrogram(2048);
+	const samples = {
+		length: 18,
+		sampleAt(index) {
+			return Math.sin(2 * Math.PI * index / 8);
+		},
+	};
+	const columns = pffftSpectrogramBandEnergies(samples, 96, {
+		fftWindowSize: 2048,
+		frequencyBands: 16,
+		pixelSkip: 4,
+	});
+	assert.equal(columns.length, 24);
+	assert.ok(columns.every((bands) => bands[4] > 0.01), 'each column needs PCM around its position');
+});
+
 test('PFFFT spectrogram can analyze a tile at global canvas columns', async () => {
 	await preparePffftSpectrogram(64);
 	const samples = Float32Array.from({ length: 512 }, (_, index) => Math.sin(index / 9));

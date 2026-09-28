@@ -52,7 +52,8 @@ export function pffftSpectrogramBandEnergies(waveformData, width, options = {}) 
 	const pixelStart = Math.max(0, Math.floor(Number(options.pixelStart) || 0));
 	const pixelEnd = Math.min(width, Number.isFinite(options.pixelEnd) ? Math.floor(options.pixelEnd) : width);
 	const samplesPerPixel = waveformData.length / Math.max(1, width);
-	const sampleAt = typeof waveformData.sampleAt === 'function'
+	const hasSampleAccessor = typeof waveformData.sampleAt === 'function';
+	const sampleAt = hasSampleAccessor
 		? (index) => waveformData.sampleAt(index)
 		: (index) => waveformData[index];
 	const window = spectrogramWindow(fftWindowSize, options.windowType);
@@ -63,8 +64,9 @@ export function pffftSpectrogramBandEnergies(waveformData, width, options = {}) 
 		if (sampleIndex >= waveformData.length) break;
 		imaginary.fill(0);
 		for (let index = 0; index < fftWindowSize; index += 1) {
-			const sample = sampleIndex + index < waveformData.length
-				? Number(sampleAt(sampleIndex + index)) || 0
+			const frameIndex = sampleIndex + index - Math.floor(fftWindowSize / 2);
+			const sample = hasSampleAccessor || (frameIndex >= 0 && frameIndex < waveformData.length)
+				? Number(sampleAt(frameIndex)) || 0
 				: 0;
 			real[index] = sample * window.values[index];
 		}
