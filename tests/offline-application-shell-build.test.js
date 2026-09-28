@@ -25,6 +25,7 @@ import {
 import { webBuildRouting } from '../scripts/lib/product-web-routing.mjs';
 import { STARTUP_GRAPH_REPORT_FILE } from '../scripts/lib/startup-graph-budget.mjs';
 import { SCAPE_MIME_TYPE } from '../src/common/editor/scape-project-format.ts';
+import { WORKSPACE_IMPORT_FILE_ACCEPT } from '../src/common/editor/ui/workspace/workspace-file-routing.js';
 import { ACCEPTED_PROJECT_FILE_EXTENSIONS } from '../src/common/project-file-extensions.ts';
 
 const INSTALLED_PRODUCTS = Object.freeze(['soundscaper', 'framescaper']);
@@ -255,9 +256,7 @@ test('the project file handler accepts exactly the archive suffixes every produc
 });
 
 test('each product handles the media it edits, taken from the suffixes its import picker offers', async (context) => {
-	const view = await readFile('src/common/editor/ui/workspace/AudioEditorWorkspaceView.jsx', 'utf8');
-	const advertised = /AUDIO_EDITOR_AUDIO_FILE_ACCEPT = '([^']+)'/u.exec(view)?.[1].split(',');
-	assert.ok(advertised, 'the editor still advertises one audio import accept list');
+	const advertised = WORKSPACE_IMPORT_FILE_ACCEPT.split(',');
 	const edited = { soundscaper: ['audio'], framescaper: ['audio', 'video'] };
 	for (const productId of INSTALLED_PRODUCTS) {
 		const { manifest } = await productShell(context, productId);

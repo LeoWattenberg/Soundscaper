@@ -222,7 +222,7 @@ const DEFERRED_WEB_VCR_PANEL_ID = 'web-vcr'; export default function AudioEditor
 		controller, file, openScapeProjectFile, (legacyFile) => {
 			pendingLegacyProjectRef.current = legacyFile;
 			legacyDataInputRef.current?.click();
-		}, desktopSesx), [controller, openScapeProjectFile]);
+		}, desktopSesx, (cueFile) => requestCueImport(cueFile, controller.getSnapshot().project?.id)), [controller, openScapeProjectFile, requestCueImport]);
 	const openDesktopProjectDescriptor = useCallback((descriptor) => withDesktopProjectReadDescriptor(
 		fileService,
 		descriptor,

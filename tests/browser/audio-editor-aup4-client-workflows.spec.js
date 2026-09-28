@@ -79,6 +79,7 @@ test.describe('Audacity project worker client workflows', () => {
 
 	test('reports a corrupt AUP4 worker response and recovers through another File Open', async ({ page }) => {
 		test.setTimeout(60_000);
+		await page.setViewportSize({ width: 390, height: 844 });
 		await installAup4BrowserProbe(page);
 		const editor = await bootEditor(page, '/embed/en/');
 		const originalProject = await editor.getAttribute('data-project-id');
@@ -93,10 +94,10 @@ test.describe('Audacity project worker client workflows', () => {
 		const errorToast = editor.locator('[data-editor-toast="workspace-error"]');
 		await expect(errorToast).toBeVisible({ timeout: 30_000 });
 		await expect(errorToast.locator('.toast')).toHaveClass(/toast--error/);
-		await expect(errorToast.locator('.toast__description')).not.toBeEmpty();
+		await expect(errorToast.locator('.toast__description')).toContainText('Audacity project');
 		await expect(editor).toHaveAttribute('data-project-id', originalProject);
 		await expect.poll(() => responseLog(page)).toEqual(expect.arrayContaining([
-			expect.objectContaining({ requestType: 'open-file', kind: 'error' }),
+			expect.objectContaining({ requestType: 'open-file', kind: 'error', code: 'INVALID_DATABASE' }),
 		]));
 
 		const retryChooser = page.waitForEvent('filechooser');

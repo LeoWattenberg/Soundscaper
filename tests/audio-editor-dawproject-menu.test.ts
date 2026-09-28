@@ -5,7 +5,7 @@ import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 
 import createApplicationMenus from '../src/common/editor/ui/application-menus.js';
-import { partitionWorkspaceFiles, WORKSPACE_PROJECT_FILE_ACCEPT } from '../src/common/editor/ui/workspace/workspace-file-routing.js';
+import { partitionWorkspaceFiles, WORKSPACE_OPEN_FILE_ACCEPT } from '../src/common/editor/ui/workspace/workspace-file-routing.js';
 import { WORKSPACE_PANEL_IDS } from '../src/common/editor/ui/workspace/workspace-panel-model.ts';
 import { ENGLISH_COPY, GERMAN_COPY } from '../src/common/i18n/catalogs.js';
 
@@ -114,8 +114,8 @@ test('the ordinary Open command takes a .dawproject file', async () => {
 	);
 	const view = await readFile(new URL('src/common/editor/ui/workspace/AudioEditorWorkspaceView.jsx', ROOT), 'utf8');
 	const openInput = view.slice(view.indexOf('data-aup4-input'));
-	assert.match(openInput.slice(0, openInput.indexOf('/>')), /accept=\{WORKSPACE_PROJECT_FILE_ACCEPT\}/u);
-	assert.ok(WORKSPACE_PROJECT_FILE_ACCEPT.split(',').includes('.dawproject'));
+	assert.match(openInput.slice(0, openInput.indexOf('/>')), /accept=\{WORKSPACE_OPEN_FILE_ACCEPT\}/u);
+	assert.ok(WORKSPACE_OPEN_FILE_ACCEPT.split(',').includes('.dawproject'));
 	const workspace = await readFile(new URL('src/common/editor/ui/workspace/AudioEditorWorkspace.jsx', ROOT), 'utf8');
 	assert.match(workspace, /const openProjectFile = useCallback\(\(file, desktopSesx = false\) => openWorkspaceProjectFile\(/u);
 	const menus = await readFile(new URL('src/common/editor/ui/application-menus.js', ROOT), 'utf8');

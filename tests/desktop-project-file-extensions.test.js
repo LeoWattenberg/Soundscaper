@@ -44,6 +44,21 @@ test('a packaged build opens every project suffix but saves only its own', () =>
 	}]);
 });
 
+test('File Open admits every existing media import suffix through the project chooser', () => {
+	const mediaExtensions = validateFileChoice({ purpose: 'media' }).extensions;
+	const choice = validateFileChoice({ purpose: 'project' });
+	const filterExtensions = choice.filters.flatMap((filter) => filter.extensions);
+	for (const extension of mediaExtensions) {
+		assert.equal(choice.extensions.includes(extension), true, `missing ${extension} from project allowlist`);
+		assert.equal(filterExtensions.includes(extension), true, `missing ${extension} from project filter`);
+		assert.equal(acceptsFile('project', `/tmp/recording.${extension}`), true, extension);
+		assert.equal(acceptsFile('project', `/tmp/recording.${extension.toUpperCase()}`), true, extension);
+	}
+	assert.equal(new Set(choice.extensions).size, choice.extensions.length, 'project allowlist must not repeat extensions');
+	assert.equal(new Set(filterExtensions).size, filterExtensions.length, 'project filter must not repeat extensions');
+	assert.equal(choice.extensions.includes('sesx'), true, 'desktop SESX import remains available');
+});
+
 test('native file purpose allowlists reject inherited object members', () => {
 	for (const purpose of ['constructor', '__proto__']) {
 		assert.throws(

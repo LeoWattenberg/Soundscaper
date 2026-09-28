@@ -4,7 +4,7 @@ import { Suspense } from 'react';
 import { lazyEditorModule } from '../../../offline/lazy-module.tsx';
 
 import { productProfile } from '../../../products.js';
-import { WORKSPACE_PROJECT_FILE_ACCEPT } from './workspace-file-routing.js';
+import { WORKSPACE_IMPORT_FILE_ACCEPT, WORKSPACE_OPEN_FILE_ACCEPT } from './workspace-file-routing.js';
 import AudioEditorButtonTooltips from '../AudioEditorButtonTooltips.jsx';
 import EditorOverlayHost from '../EditorOverlayHost.tsx';
 import AudioEditorMenuBar from '../AudioEditorMenuBar.jsx';
@@ -30,8 +30,6 @@ import { CueImportDestinationDialog, WorkspaceImportInput } from './cue-import-w
 
 const ProjectLockToast = lazyEditorModule(() => import('../ProjectLockToast.tsx'));
 
-const AUDIO_EDITOR_AUDIO_FILE_ACCEPT = 'audio/*,video/mp4,video/webm,.aac,.aif,.aiff,.bw64,.flac,.m4a,.m4v,.mp2,.mp3,.mp4,.oga,.ogg,.opus,.rf64,.wav,.wave,.wavpack,.webm,.wv';
-const AUDIO_EDITOR_IMPORT_FILE_ACCEPT = `${AUDIO_EDITOR_AUDIO_FILE_ACCEPT},.cue,.txt,.srt,.vtt,application/x-cue,text/plain,text/vtt,application/x-subrip`;
 const EMPTY_SPLIT_TOOL_SHORTCUTS = Object.freeze([]);
 export default function AudioEditorWorkspaceView({ model }) {
 	const skin = useEditorSkin();
@@ -215,7 +213,7 @@ export default function AudioEditorWorkspaceView({ model }) {
 				aria-label={copy.open}
 				type="file"
 				tabIndex={-1}
-				accept={WORKSPACE_PROJECT_FILE_ACCEPT}
+				accept={WORKSPACE_OPEN_FILE_ACCEPT}
 				onChange={(event) => {
 					const file = event.currentTarget.files?.[0];
 					event.currentTarget.value = '';
@@ -242,7 +240,7 @@ export default function AudioEditorWorkspaceView({ model }) {
 				}}
 			/>
 
-			<WorkspaceImportInput accept={AUDIO_EDITOR_IMPORT_FILE_ACCEPT} copy={copy} importInputRef={importInputRef} importRoutedFiles={importRoutedFiles} run={run} />
+			<WorkspaceImportInput accept={WORKSPACE_IMPORT_FILE_ACCEPT} copy={copy} importInputRef={importInputRef} importRoutedFiles={importRoutedFiles} run={run} />
 			<CueImportDestinationDialog copy={copy} runtime={cueImportDialog} />
 
 			{!compactLayout && actionBar}

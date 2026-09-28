@@ -7,6 +7,8 @@ import { ACCEPTED_PROJECT_FILE_EXTENSIONS } from '../src/common/project-file-ext
 import { openWorkspaceProjectFile } from '../src/common/editor/ui/workspace/open-workspace-project-file.ts';
 import {
 	partitionWorkspaceFiles,
+	WORKSPACE_IMPORT_FILE_ACCEPT,
+	WORKSPACE_OPEN_FILE_ACCEPT,
 	WORKSPACE_PROJECT_FILE_ACCEPT,
 } from '../src/common/editor/ui/workspace/workspace-file-routing.js';
 import { deferred } from './helpers/async-test-control.ts';
@@ -15,6 +17,14 @@ test('the ordinary project picker advertises legacy and current Audacity project
 	const accepted = new Set(WORKSPACE_PROJECT_FILE_ACCEPT.split(','));
 	for (const extension of [...ACCEPTED_PROJECT_FILE_EXTENSIONS, '.aup', '.aup3', '.aup4', '.dawproject']) {
 		assert.ok(accepted.has(extension), `File > Open must allow ${extension} files`);
+	}
+	assert.ok(!accepted.has('.sesx'), 'the browser project picker must not offer desktop SESX import');
+});
+
+test('File Open also offers every file type offered by File Import', () => {
+	const accepted = new Set(WORKSPACE_OPEN_FILE_ACCEPT.split(','));
+	for (const token of [...WORKSPACE_PROJECT_FILE_ACCEPT.split(','), ...WORKSPACE_IMPORT_FILE_ACCEPT.split(',')]) {
+		assert.ok(accepted.has(token), `File > Open must allow ${token}`);
 	}
 	assert.ok(!accepted.has('.sesx'), 'the browser project picker must not offer desktop SESX import');
 });

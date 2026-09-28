@@ -9,6 +9,7 @@ import {
 	encodeAudacityBinaryXml,
 } from '../src/common/editor/audacity-binary-xml.js';
 import {
+	assertAudacitySerializedDatabaseHeader,
 	commitAup4Autosave,
 	deleteAup4SampleBlocks,
 	initializeAup4Database,
@@ -58,6 +59,16 @@ test('native WAL-mode snapshots are normalized only in a private deserialize cop
 	assert.deepEqual([...native.subarray(18, 20)], [2, 2]);
 	assert.notEqual(prepared.buffer, native.buffer);
 	assert.throws(() => prepareAup4SerializedDatabase(Uint8Array.of(1, 2, 3)), (error) => error.code === 'INVALID_DATABASE');
+});
+
+test('a bounded header read can reject mislabeled or incomplete Audacity project files', () => {
+	const header = aup4NativeEmptyFixture().subarray(0, 100);
+	assert.doesNotThrow(() => assertAudacitySerializedDatabaseHeader(header));
+	assert.throws(() => assertAudacitySerializedDatabaseHeader(header.subarray(0, 99)),
+		(error) => error.code === 'INVALID_DATABASE');
+	const mislabeled = new Uint8Array(100);
+	assert.throws(() => assertAudacitySerializedDatabaseHeader(mislabeled),
+		(error) => error.code === 'INVALID_DATABASE' && /Audacity project/u.test(error.message));
 });
 
 test('pinned native legacy AUP4 schema upgrades transactionally to the writer profile', () => {

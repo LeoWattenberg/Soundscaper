@@ -29,12 +29,14 @@ export function useCueImportWorkspace(controller: CueImportController, projectId
 	const importInputRef = useRef<HTMLInputElement>(null);
 	const pendingRef = useRef<PendingCueImport | null>(null);
 	const [fileName, setFileName] = useState<string | null>(null);
-	const requestCueImport = useCallback((file: File) => new Promise<unknown>((resolve, reject) => {
+	// File Open may create a project before showing this choice. Its caller still
+	// holds the callback from the previous render, so it supplies the new id.
+	const requestCueImport = useCallback((file: File, expectedProjectIdentity: unknown = projectIdentity) => new Promise<unknown>((resolve, reject) => {
 		if (pendingRef.current) {
 			reject(new Error('Finish choosing a destination for the current CUE sheet first.'));
 			return;
 		}
-		pendingRef.current = { file, projectIdentity, resolve, reject };
+		pendingRef.current = { file, projectIdentity: expectedProjectIdentity, resolve, reject };
 		setFileName(file.name);
 	}), [projectIdentity]);
 	const settle = useCallback((destination: CueImportDestination | null) => {

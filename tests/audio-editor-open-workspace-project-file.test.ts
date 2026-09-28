@@ -42,3 +42,66 @@ test('a startup failure is reported without attempting to import a project', asy
 		actions: { project: { openAudacityProject: unexpected, openDawproject: unexpected } },
 	}, new File([], 'test.aup3'), unexpected), failure);
 });
+
+for (const [name, type] of [['recording.wav', 'audio/wav'], ['movie.mp4', 'video/mp4']] as const) {
+	test(`File Open creates a new project before importing ${name} on its timeline`, async () => {
+		const created = deferred<void>();
+		const calls: string[] = [];
+		const file = new File(['media'], name, { type });
+		const unexpected = () => assert.fail('media must not reach a project importer');
+		const opening = openWorkspaceProjectFile({
+			ready: Promise.resolve(),
+			actions: { project: {
+				openAudacityProject: unexpected,
+				openDawproject: unexpected,
+				create: (options: { title: string }) => {
+					calls.push(`create:${options.title}`);
+					return created.promise;
+				},
+				importFiles: (files: readonly File[], options: { destination: string }) => {
+					assert.deepEqual(files, [file]);
+					calls.push(`import:${options.destination}`);
+				},
+			} },
+		}, file, unexpected);
+		await Promise.resolve();
+		assert.deepEqual(calls, [`create:${name.replace(/\.[^.]+$/u, '')}`]);
+		created.resolve();
+		await opening;
+		assert.deepEqual(calls, [`create:${name.replace(/\.[^.]+$/u, '')}`, 'import:timeline']);
+	});
+}
+
+test('File Open creates a new project before opening labels or CUE sheets', async () => {
+	for (const [name, expected] of [['markers.vtt', 'labels'], ['album.cue', 'cue']] as const) {
+		const calls: string[] = [];
+		const file = new File(['data'], name);
+		const unexpected = () => assert.fail('the wrong importer ran');
+		await openWorkspaceProjectFile({
+			ready: Promise.resolve(),
+			actions: {
+				project: {
+					openAudacityProject: unexpected,
+					openDawproject: unexpected,
+					create: () => { calls.push('create'); },
+					importFiles: unexpected,
+				},
+				labels: { importFile: (input: File) => { assert.equal(input, file); calls.push('labels'); } },
+			},
+		}, file, unexpected, undefined, false, (input) => { assert.equal(input, file); calls.push('cue'); });
+		assert.deepEqual(calls, ['create', expected]);
+	}
+});
+
+test('File Open rejects unsupported files without creating a project', async () => {
+	const unexpected = () => assert.fail('an unsupported file must not reach any importer');
+	await assert.rejects(openWorkspaceProjectFile({
+		ready: Promise.resolve(),
+		actions: { project: {
+			openAudacityProject: unexpected,
+			openDawproject: unexpected,
+			create: unexpected,
+			importFiles: unexpected,
+		} },
+	}, new File(['archive'], 'unknown.zip'), unexpected), /supported.*file/iu);
+});

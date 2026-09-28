@@ -15,14 +15,21 @@ const PROJECT_EXTENSIONS = Object.freeze(
 	ACCEPTED_PROJECT_FILE_EXTENSIONS.map((extension) => extension.slice(1)),
 );
 const NATIVE_PROJECT_EXTENSION = PROJECT_FILE_EXTENSION.slice(1);
+const MEDIA_IMPORT_EXTENSIONS = Object.freeze([
+	'aac', 'aif', 'aiff', 'bw64', 'cue', 'flac', 'm4a', 'm4v', 'mp2', 'mp3', 'mp4',
+	'oga', 'ogg', 'opus', 'rf64', 'srt', 'txt', 'vtt', 'wav', 'wave', 'wavpack', 'webm', 'wv',
+]);
+const PROJECT_OPEN_EXTENSIONS = Object.freeze([
+	...new Set([...PROJECT_EXTENSIONS, 'aup', 'aup3', 'aup4', 'dawproject', 'sesx', ...MEDIA_IMPORT_EXTENSIONS]),
+]);
 
 const FILE_PURPOSES = Object.freeze({
 	project: Object.freeze({
 		// Every product opens every product's projects; only saving is native.
-		extensions: Object.freeze([...PROJECT_EXTENSIONS, 'aup', 'aup3', 'aup4', 'dawproject', 'sesx']),
+		extensions: PROJECT_OPEN_EXTENSIONS,
 		filters: Object.freeze([{
-			name: 'Scape, Audacity, DAWproject and Adobe Audition projects',
-			extensions: [...PROJECT_EXTENSIONS, 'aup', 'aup3', 'aup4', 'dawproject', 'sesx'],
+			name: 'Projects, audio, video, CUE sheets, and labels',
+			extensions: [...PROJECT_OPEN_EXTENSIONS],
 		}]),
 	}),
 	audio: Object.freeze({
@@ -34,8 +41,8 @@ const FILE_PURPOSES = Object.freeze({
 		filters: Object.freeze([{ name: 'Video', extensions: ['m4v', 'mp4', 'webm'] }]),
 	}),
 	media: Object.freeze({
-		extensions: Object.freeze(['aac', 'aif', 'aiff', 'bw64', 'cue', 'flac', 'm4a', 'm4v', 'mp2', 'mp3', 'mp4', 'oga', 'ogg', 'opus', 'rf64', 'srt', 'txt', 'vtt', 'wav', 'wave', 'wavpack', 'webm', 'wv']),
-		filters: Object.freeze([{ name: 'Audio, video, CUE sheets, and labels', extensions: ['aac', 'aif', 'aiff', 'bw64', 'cue', 'flac', 'm4a', 'm4v', 'mp2', 'mp3', 'mp4', 'oga', 'ogg', 'opus', 'rf64', 'srt', 'txt', 'vtt', 'wav', 'wave', 'wavpack', 'webm', 'wv'] }]),
+		extensions: MEDIA_IMPORT_EXTENSIONS,
+		filters: Object.freeze([{ name: 'Audio, video, CUE sheets, and labels', extensions: [...MEDIA_IMPORT_EXTENSIONS] }]),
 	}),
 	labels: Object.freeze({
 		extensions: Object.freeze(['srt', 'txt', 'vtt']),

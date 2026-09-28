@@ -18,6 +18,27 @@ test('the desktop project picker admits SESX without changing project associatio
 	assert.equal(OPENABLE_PROJECT_EXTENSIONS.includes('.sesx'), false);
 });
 
+test('File Open titles the desktop chooser for projects and imported files', async () => {
+	const handlers = new Map();
+	let dialogOptions;
+	registerFileCapabilityIpc({
+		channels: { chooseFiles: 'choose', releaseRead: 'release', chooseSaveTarget: 'save',
+			beginWrite: 'begin', writeChunk: 'chunk', patchFinalPrefix: 'prefix', finishWrite: 'finish', abortWrite: 'abort' },
+		desktopSmokeProbe: { resolveOpenPaths: () => null },
+		dialog: { showOpenDialog: async (_window, options) => {
+			dialogOptions = options;
+			return { canceled: true, filePaths: [] };
+		} },
+		handle: (channel, listener) => handlers.set(channel, listener),
+		ownerFor: () => ({}), pendingOpenProjects: new Map(),
+		readCapabilities: {}, saves: {}, saveTargets: {}, windowFor: () => null,
+	});
+	assert.deepEqual(await handlers.get('choose')({}, { purpose: 'project' }), []);
+	assert.equal(dialogOptions.title, 'Open file');
+	assert.ok(dialogOptions.filters[0].extensions.includes('wav'));
+	assert.ok(dialogOptions.filters[0].extensions.includes('sesx'));
+});
+
 test('selected SESX file creates a separate owner-scoped session grant', async () => {
 	const calls = [];
 	const handlers = new Map();

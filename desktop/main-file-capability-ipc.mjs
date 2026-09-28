@@ -30,7 +30,7 @@ export function registerFileCapabilityIpc({
 		const smokeFilePaths = desktopSmokeProbe.resolveOpenPaths(choice);
 		const result = smokeFilePaths !== null ? { canceled: false, filePaths: smokeFilePaths }
 			: await dialog.showOpenDialog(windowFor(), {
-				title: choice.purpose === 'project' ? 'Open project' : 'Import files',
+				title: choice.purpose === 'project' ? 'Open file' : 'Import files',
 				properties: choice.multiple ? ['openFile', 'multiSelections'] : ['openFile'], filters: choice.filters,
 			});
 		if (result.canceled) return [];

@@ -107,6 +107,44 @@ test('a project change cancels a pending CUE destination choice', async () => {
 	}
 });
 
+test('File Open keeps a CUE choice when its callback predates the new project render', async () => {
+	const dom = installReactTestDom();
+	const actGlobal = globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean };
+	const priorAct = actGlobal.IS_REACT_ACT_ENVIRONMENT;
+	actGlobal.IS_REACT_ACT_ENVIRONMENT = true;
+	const imports: Array<Readonly<{ file: File; destination: string }>> = [];
+	let requestCueImport: ((file: File, projectId?: string) => Promise<unknown>) | null = null;
+	const controller = { actions: { labels: {
+		importCueFile: (file: File, destination: string) => { imports.push({ file, destination }); return destination; },
+	} } };
+	function Harness({ projectId }: Readonly<{ projectId: string }>) {
+		const runtime = useCueImportWorkspace(controller, projectId);
+		requestCueImport = runtime.requestCueImport;
+		return <CueImportDestinationDialog copy={ENGLISH_COPY} runtime={runtime.cueImportDialog} />;
+	}
+	const { createRoot } = await import('react-dom/client');
+	const root = createRoot(dom.container as unknown as Element);
+	try {
+		await act(async () => root.render(<Harness projectId="original" />));
+		const openCue = requestCueImport!;
+		const file = { name: 'album.cue' } as File;
+		let importing!: Promise<unknown>;
+		await act(async () => { importing = openCue(file, 'new-project'); });
+		await act(async () => root.render(<Harness projectId="new-project" />));
+		assert.match(dom.one('[data-cue-import-choice]').textContent, /album\.cue/u);
+		await act(async () => {
+			buttonWithText(dom.container, ENGLISH_COPY.panelMarkers).click();
+			await importing;
+		});
+		assert.deepEqual(imports, [{ file, destination: 'markers' }]);
+		assert.equal(dom.find('[data-cue-import-choice]'), null);
+	} finally {
+		await act(async () => root.unmount());
+		actGlobal.IS_REACT_ACT_ENVIRONMENT = priorAct;
+		dom.restore();
+	}
+});
+
 function buttonWithText(root: ReactTestElement, text: string): ReactTestElement {
 	const button = root.querySelectorAll('button').find((candidate) => candidate.textContent === text);
 	assert.ok(button, `Missing button ${text}`);

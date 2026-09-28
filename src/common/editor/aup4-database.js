@@ -38,6 +38,14 @@ export {
 const SQLITE_HEADER = Uint8Array.of(0x53, 0x51, 0x4c, 0x69, 0x74, 0x65, 0x20, 0x66, 0x6f, 0x72, 0x6d, 0x61, 0x74, 0x20, 0x33, 0x00);
 
 
+/** Validate a bounded read before copying a project into browser storage. */
+export function assertAudacitySerializedDatabaseHeader(input) {
+	const source = toBytes(input);
+	if (source.byteLength < 100 || SQLITE_HEADER.some((byte, index) => source[index] !== byte)) {
+		throw new Aup4Error('This file is not a valid Audacity project (.aup3 or .aup4).', 'INVALID_DATABASE');
+	}
+}
+
 /**
  * sqlite3_deserialize cannot open a standalone main-database image whose
  * header still requests WAL, because no companion `-wal` VFS file exists.
@@ -47,9 +55,7 @@ const SQLITE_HEADER = Uint8Array.of(0x53, 0x51, 0x4c, 0x69, 0x74, 0x65, 0x20, 0x
  */
 export function prepareAudacitySerializedDatabase(input) {
 	const source = toBytes(input);
-	if (source.byteLength < 100 || SQLITE_HEADER.some((byte, index) => source[index] !== byte)) {
-		throw new Aup4Error('The file is not a SQLite database image.', 'INVALID_DATABASE');
-	}
+	assertAudacitySerializedDatabaseHeader(source);
 	const bytes = source.slice();
 	if (bytes[18] === 2 && bytes[19] === 2) {
 		bytes[18] = 1;

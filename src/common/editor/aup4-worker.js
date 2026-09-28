@@ -2,6 +2,7 @@ import sqlite3InitModule from '@sqlite.org/sqlite-wasm';
 import sqliteWasmUrl from '@sqlite.org/sqlite-wasm/sqlite3.wasm?url';
 
 import {
+	assertAudacitySerializedDatabaseHeader,
 	commitAup4Autosave,
 	discardExcludedAup4Metadata,
 	initializeAup4Database,
@@ -151,6 +152,10 @@ async function openFile(args, context) {
 	if (!file || typeof file.size !== 'number' || typeof file.slice !== 'function') throw operationError('A File is required to open an Audacity project.', 'INVALID_FILE');
 	const sourceGeneration = /\.aup3$/i.test(String(file.name || '')) ? 'aup3' : /\.aup4$/i.test(String(file.name || '')) ? 'aup4' : null;
 	if (!sourceGeneration) throw operationError('Choose an Audacity project file (.aup3 or .aup4).', 'INVALID_FILE');
+	context.checkCancelled();
+	const header = new Uint8Array(await file.slice(0, Math.min(file.size, 100)).arrayBuffer());
+	context.checkCancelled();
+	assertAudacitySerializedDatabaseHeader(header);
 	const sqlite = await initializeSqlite();
 	const pool = await initializePool();
 	const limit = portableLimit(args, Boolean(pool));
