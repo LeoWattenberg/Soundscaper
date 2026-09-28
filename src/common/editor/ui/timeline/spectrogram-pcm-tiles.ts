@@ -69,7 +69,7 @@ export async function generateSpectrogramPcmTiles(
 	const { width } = options;
 	// PFFFT clamps its FFT input at 8,192 samples; tile reads need the same span.
 	const fftWindowSize = Math.min(8_192, options.fftWindowSize);
-	const pixelSkip = options.pixelSkip ?? 4;
+	const pixelSkip = options.pixelSkip ?? 1;
 	const maximumSourceFrames = options.maximumSourceFrames ?? DEFAULT_MAXIMUM_SOURCE_FRAMES;
 	if (!Number.isFinite(width) || width <= 0 || !Number.isSafeInteger(fftWindowSize)
 		|| fftWindowSize < 32 || fftWindowSize > 8_192

@@ -3,13 +3,14 @@
  * SPDX-License-Identifier: AGPL-3.0-only
  */
 
+import { getSpectrogramColor } from '../../../vendor/audacity-design-system/components/src/utils/roseus-colormap.ts';
+
 const listeners = new Set();
 const analysisWindows = new Map();
 const fftScratchBuffers = new Map();
 const rowSpanCache = new Map();
 const colorCache = new Map();
 const MAXIMUM_ROW_SPAN_CACHE_ENTRIES = 32;
-const MAXIMUM_COLOR_CACHE_ENTRIES = 512;
 let revision = 0;
 let preparation = null;
 let runtime = null;
@@ -293,15 +294,11 @@ function scaleFrequency(value, scale) {
 }
 
 function spectrogramColor(intensity) {
-	const red = Math.round(255 * Math.min(1, intensity * 1.7));
-	const green = Math.round(255 * Math.max(0, Math.min(1, intensity * 1.7 - 0.45)));
-	const blue = Math.round(255 * Math.max(0.02, 1 - intensity * 1.35));
-	const key = `${red}|${green}|${blue}`;
-	const cached = colorCache.get(key);
+	const index = Math.round(Math.max(0, Math.min(1, intensity)) * 255);
+	const cached = colorCache.get(index);
 	if (cached) return cached;
-	const color = `rgb(${red}, ${green}, ${blue})`;
-	colorCache.set(key, color);
-	if (colorCache.size > MAXIMUM_COLOR_CACHE_ENTRIES) colorCache.delete(colorCache.keys().next().value);
+	const color = getSpectrogramColor(index / 255);
+	colorCache.set(index, color);
 	return color;
 }
 

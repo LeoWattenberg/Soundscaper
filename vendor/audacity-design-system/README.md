@@ -248,6 +248,11 @@ application overrides and source patches against the pin and upstream master.
     `4a5bdd07c6e6c400db9fea84b194ac00057623dd` into a focused button. The host supplies
     its position, shape drag, keyboard edits, and accessible values.
     Covered by `tests/vendored-design-system-fade-shape-handle.test.tsx`.
+29. `utils/roseus-colormap.ts` holds the existing Roseus color lookup that previously lived in
+    `utils/spectrogram.ts`. The timeline's PFFFT renderer imports this small module directly so
+    it can use Audacity's palette without loading the design system's spectrogram analysis or
+    `@audacity-ui/core`. `utils/spectrogram.ts` re-exports the function for existing consumers.
+    Covered by `tests/audio-editor-pffft-spectrogram.test.js`.
 
 ## Application-side adaptations
 

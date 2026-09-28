@@ -9,6 +9,7 @@ import {
 	preparePffftSpectrogram,
 } from '../src/common/editor/pffft-spectrogram.js';
 import { isPffftReady } from '../src/common/editor/pffft.js';
+import { getSpectrogramColor } from '../vendor/audacity-design-system/components/src/utils/roseus-colormap.ts';
 
 test('PFFFT spectrogram analysis returns bounded finite frequency bands', async () => {
 	assert.equal(isPffftReady(), false);
@@ -39,6 +40,24 @@ test('PFFFT spectrogram scratch buffers do not leak energy between edge columns 
 
 	assert.deepEqual(second, first);
 	assert.ok(first.at(-1).every((energy) => Number.isFinite(energy)));
+});
+
+test('overlapping Hann windows spread an impulse smoothly across adjacent pixels', async () => {
+	await preparePffftSpectrogram(512);
+	const samples = new Float32Array(4_096);
+	samples[2_048] = 1;
+	const columns = pffftSpectrogramBandEnergies(samples, 256, {
+		fftWindowSize: 512,
+		frequencyBands: 16,
+		windowType: 'hann',
+	});
+	const energy = (pixel) => columns[pixel][4];
+	assert.equal(columns.length, 256);
+	assert.ok(energy(128) > energy(124) && energy(124) > energy(120));
+	assert.ok(energy(128) > energy(132) && energy(132) > energy(136));
+	assert.ok(energy(120) > 0 && energy(136) > 0);
+	assert.equal(energy(111), 0);
+	assert.equal(energy(145), 0);
 });
 
 test('PFFFT spectrogram reads projected PCM throughout a sustained clip', async () => {
@@ -217,6 +236,25 @@ test('spectrogram dB gain and range deterministically control raster intensity',
 	assert.notDeepEqual(paint(0, 40), paint(0, 80));
 });
 
+test('spectrogram painting uses Audacity Roseus for silence, middle energy, and full scale', () => {
+	const colors = [0, 0.01, 1].map((energy) => {
+		const painted = [];
+		paintSpectrogram({
+			fillStyle: '',
+			fillRect() { painted.push(this.fillStyle); },
+		}, [[energy]], 0, 0, 1, 1, {
+			gainDb: 0,
+			maxFreq: 1,
+			minFreq: 0,
+			nyquistFrequency: 1,
+			rangeDb: 80,
+			scale: 'linear',
+		});
+		return painted[0];
+	});
+	assert.deepEqual(colors, ['#010101', '#c32884', '#fefbf9']);
+});
+
 function referenceSpectrogramColor(energies, pixelY, height, options) {
 	const normalized = 1 - pixelY / height;
 	const nyquistFrequency = options.nyquistFrequency
@@ -231,17 +269,11 @@ function referenceSpectrogramColor(energies, pixelY, height, options) {
 		Math.floor(frequency / nyquistFrequency * energies.length)));
 	const maximum = Math.max(...energies, 1e-4);
 	const intensity = Math.min(1, Math.sqrt(energies[band] / maximum) * options.intensityMultiplier);
-	const red = Math.round(255 * Math.min(1, intensity * 1.7));
-	const green = Math.round(255 * Math.max(0, Math.min(1, intensity * 1.7 - 0.45)));
-	const blue = Math.round(255 * Math.max(0.02, 1 - intensity * 1.35));
-	return `rgb(${red}, ${green}, ${blue})`;
+	return getSpectrogramColor(intensity);
 }
 
 function referenceSpectrogramDbColor(energy, gainDb, rangeDb) {
 	const decibels = 20 * Math.log10(Math.max(Number.MIN_VALUE, energy));
 	const intensity = Math.max(0, Math.min(1, (decibels + gainDb + rangeDb) / rangeDb));
-	const red = Math.round(255 * Math.min(1, intensity * 1.7));
-	const green = Math.round(255 * Math.max(0, Math.min(1, intensity * 1.7 - 0.45)));
-	const blue = Math.round(255 * Math.max(0.02, 1 - intensity * 1.35));
-	return `rgb(${red}, ${green}, ${blue})`;
+	return getSpectrogramColor(intensity);
 }

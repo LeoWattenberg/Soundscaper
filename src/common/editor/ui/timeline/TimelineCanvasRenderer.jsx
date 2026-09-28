@@ -407,7 +407,7 @@ export function drawAudacityClipSpectrogram(context, channels, options) {
 	const spectrogramOptions = {
 		frequencyBands: 16,
 		fftWindowSize: options.fftWindowSize,
-		pixelSkip: 4,
+		pixelSkip: 1,
 		scale: options.scale,
 		minFreq: options.minFreq,
 		maxFreq: options.maxFreq,

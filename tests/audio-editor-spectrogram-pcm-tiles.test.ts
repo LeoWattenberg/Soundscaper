@@ -7,6 +7,36 @@ import { projectUnwarpedClipSourceRange } from '../src/common/editor/audio-clip-
 import { audioWarpSourceRange } from '../src/common/editor/audio-warp-runtime.ts';
 import { generateSpectrogramPcmTiles } from '../src/common/editor/ui/timeline/spectrogram-pcm-tiles.ts';
 
+test('spectrogram PCM tiles analyze every display pixel by default', async () => {
+	const samples = new Float32Array(640);
+	const pixels: number[] = [];
+	const result = await generateSpectrogramPcmTiles({
+		clip: {
+			id: 'clip', sourceId: 'source', timelineStartFrame: 0,
+			durationFrames: 640, sourceStartFrame: 0, sourceDurationFrames: 640,
+			waveformStartFrame: 0, waveformEndFrame: 640,
+		},
+		width: 16,
+		fftWindowSize: 32,
+		maximumSourceFrames: 128,
+		async requestPcmWindow(startFrame, endFrame) {
+			return { startFrame, endFrame, channels: [samples.slice(startFrame, endFrame)] };
+		},
+		analyze(_view, _width, options) {
+			const columns: number[][] = [];
+			for (let pixel = options.pixelStart; pixel < options.pixelEnd; pixel += options.pixelSkip) {
+				pixels.push(pixel);
+				columns.push([pixel]);
+			}
+			return columns;
+		},
+	});
+	assert.ok(result);
+	assert.equal(result.pixelSkip, 1);
+	assert.deepEqual(pixels, Array.from({ length: 16 }, (_, pixel) => pixel));
+	assert.deepEqual(result.channels[0], pixels.map((pixel) => [pixel]));
+});
+
 test('spectrogram PCM tiles stay bounded, sequential, and aligned with global canvas columns', async () => {
 	const samples = Float32Array.from({ length: 640 }, (_, frame) => frame / 640);
 	const requests: Array<readonly [number, number]> = [];

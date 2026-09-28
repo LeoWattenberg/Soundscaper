@@ -73,7 +73,8 @@ test('streamed spectrogram tiles survive each PCM publication without restarting
 		await act(async () => publish());
 		await waitFor(() => latest.has(CLIP.id));
 		assert.ok(calls.length > 1, 'the long clip must be split into bounded requests');
-		assert.equal(latest.get(CLIP.id)?.channels[0]?.length, Math.ceil(125 / 4));
+		assert.equal(latest.get(CLIP.id)?.pixelSkip, 1);
+		assert.equal(latest.get(CLIP.id)?.channels[0]?.length, 125);
 		const completedCallCount = calls.length;
 		await act(async () => publish());
 		assert.equal(calls.length, completedCallCount, 'document snapshots reuse the completed columns');
