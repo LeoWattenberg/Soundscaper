@@ -56,6 +56,22 @@ test('native plug-in state reclamation preserves every retained project revision
 		'a malformed retained authority must fail closed before deleting any body')
 })
 
+test('saving an existing native plug-in state rejects changed persisted bytes', (context) => {
+	const database = new DatabaseSync(':memory:')
+	context.after(() => { database.close() })
+	initializeSoundscaperDesktopProjectLibraryDatabase(database)
+	const store = new SoundscaperNativePluginStateStore(database)
+	const bytes = Uint8Array.from([1, 2, 3])
+	const body = store.put(bytes)
+	assert.deepEqual(store.put(bytes), body, 'unchanged content remains idempotent')
+
+	database.prepare('UPDATE native_plugin_state_bodies SET bytes = ? WHERE body_id = ?')
+		.run(Uint8Array.from([9, 8, 7]), body.bodyId)
+	assert.throws(() => store.put(bytes), /collides with different persisted bytes/iu)
+	assert.throws(() => store.read(body.bodyId), /failed its content digest/iu,
+		'saving must not silently replace the damaged body')
+})
+
 test('Soundscaper desktop startup reclaims state left outside durable projects', async (context) => {
 	const appDataPath = await mkdtemp(join(tmpdir(), 'soundscaper-native-state-gc-'))
 	context.after(() => rm(appDataPath, { recursive: true, force: true }))

@@ -39,9 +39,10 @@ export class SoundscaperNativePluginStateStore {
 			VALUES (?, ?, ?, ?, ?)
 		`).run(descriptor.bodyId, sha256, bytes.byteLength, bytes, timestamp(now))
 		const row = this.#database.prepare(`
-			SELECT sha256, byte_length FROM native_plugin_state_bodies WHERE body_id = ?
+			SELECT sha256, byte_length, bytes FROM native_plugin_state_bodies WHERE body_id = ?
 		`).get(descriptor.bodyId)
-		if (row?.sha256 !== sha256 || row.byte_length !== bytes.byteLength) {
+		if (row?.sha256 !== sha256 || row.byte_length !== bytes.byteLength
+			|| !(row.bytes instanceof Uint8Array) || Buffer.compare(row.bytes, bytes) !== 0) {
 			throw new Error('The native plug-in state body collides with different persisted bytes.')
 		}
 		return descriptor
