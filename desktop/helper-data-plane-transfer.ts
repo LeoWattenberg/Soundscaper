@@ -47,12 +47,17 @@ export function admitHelperDataPlaneTransfers(
 		unsafe('A native helper job must transfer every exact data-plane port once.');
 	}
 	const byStream = new Map<string, HelperDataPlaneTransferPort>();
+	const seenPorts = new Set<HelperDataPlaneTransferPort>();
 	for (const [index, candidate] of value.entries()) {
 		const transfer = transferRecord(candidate, index);
 		if (byStream.has(transfer.streamId)) {
 			unsafe('A helper data-plane stream cannot transfer more than one port.');
 		}
+		if (seenPorts.has(transfer.port)) {
+			unsafe('A helper data-plane port cannot be reused for more than one stream.');
+		}
 		byStream.set(transfer.streamId, transfer.port);
+		seenPorts.add(transfer.port);
 	}
 	const bindingIds = new Set<string>();
 	for (const binding of bindings) {

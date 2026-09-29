@@ -79,6 +79,7 @@ export function cleanReadCapabilityDisplayName(value) {
 }
 
 export function safeReadCapabilityTimestamp(value) {
+	if (typeof value !== 'number') return 0;
 	const timestamp = Math.trunc(value);
 	return Number.isSafeInteger(timestamp) ? Math.max(0, timestamp) : 0;
 }
@@ -99,7 +100,8 @@ export function normalizeReadCapabilityFileIdentity(value) {
 		}
 		identity[field] = number;
 	}
-	if (!Number.isSafeInteger(identity.size)) {
+	if (!Number.isSafeInteger(identity.size)
+		|| !Number.isSafeInteger(identity.dev) || !Number.isSafeInteger(identity.ino)) {
 		throw new TypeError('A linked-original range capability requires an exact file identity');
 	}
 	return Object.freeze(identity);

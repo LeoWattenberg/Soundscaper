@@ -31,6 +31,7 @@ export class RangeReadAdmission {
 	#maximumBytes;
 	#maximumCount;
 	#ownerStates = new WeakMap();
+	#tickets = new WeakMap();
 
 	constructor({
 		hardMaximumCount,
@@ -62,6 +63,9 @@ export class RangeReadAdmission {
 
 	reserve(owner) {
 		if (this.#fenced) throw new Error(`${this.#label} admission is fenced after a cleanup failure`);
+		if ((typeof owner !== 'object' || owner === null) && typeof owner !== 'function') {
+			throw new TypeError(`${this.#label} capability requires an owner`);
+		}
 		let state = this.#ownerStates.get(owner);
 		if (!state) {
 			state = { bytes: 0, count: 0 };
@@ -75,49 +79,60 @@ export class RangeReadAdmission {
 		}
 		this.#count += 1;
 		state.count += 1;
-		return { bytes: 0, charged: false, label: this.#label, released: false, retained: false, state };
+		const ticket = Object.freeze({});
+		this.#tickets.set(ticket, { bytes: 0, charged: false, released: false, retained: false, state });
+		return ticket;
 	}
 
 	charge(ticket, size) {
-		assertLiveTicket(ticket);
-		if (ticket.charged) throw new Error(`${this.#label} capability was already charged`);
+		const entry = this.#liveTicket(ticket);
+		if (this.#fenced) throw new Error(`${this.#label} admission is fenced after a cleanup failure`);
+		if (!Number.isSafeInteger(size) || size < 0) {
+			throw new RangeError(`${this.#label} capability size must be a non-negative safe integer`);
+		}
+		if (entry.charged) throw new Error(`${this.#label} capability was already charged`);
 		if (size > this.#maximumBytes) {
 			throw new ReadCapabilityAdmissionError(
 				`${this.#label} capability bytes exceed the limit of ${this.#maximumBytes}`,
 			);
 		}
 		if (size > this.#maximumBytes - this.#bytes
-			|| size > this.#maximumBytes - ticket.state.bytes) {
+			|| size > this.#maximumBytes - entry.state.bytes) {
 			throw new ReadCapabilityAdmissionError(
 				`${this.#label} capability bytes exceed the limit of ${this.#maximumBytes}`,
 				{ retryable: true },
 			);
 		}
-		ticket.bytes = size;
-		ticket.charged = true;
+		entry.bytes = size;
+		entry.charged = true;
 		this.#bytes += size;
-		ticket.state.bytes += size;
+		entry.state.bytes += size;
 	}
 
 	release(ticket) {
-		if (!ticket || ticket.released || ticket.retained) return;
-		ticket.released = true;
+		if (ticket === null || ticket === undefined) return;
+		const entry = this.#ticket(ticket);
+		if (entry.released || entry.retained) return;
+		entry.released = true;
 		this.#count -= 1;
-		ticket.state.count -= 1;
-		if (ticket.charged) {
-			this.#bytes -= ticket.bytes;
-			ticket.state.bytes -= ticket.bytes;
+		entry.state.count -= 1;
+		if (entry.charged) {
+			this.#bytes -= entry.bytes;
+			entry.state.bytes -= entry.bytes;
 		}
 	}
 
 	retainAndFence(ticket) {
-		if (!ticket || ticket.released || ticket.retained) return;
-		ticket.retained = true;
+		if (ticket === null || ticket === undefined) return;
+		const entry = this.#ticket(ticket);
+		if (entry.released || entry.retained) return;
+		entry.retained = true;
 		this.#fenced = true;
 	}
 
 	acquireRequest(ticket) {
-		assertLiveTicket(ticket);
+		this.#liveTicket(ticket);
+		if (this.#fenced) throw new Error(`${this.#label} admission is fenced after a cleanup failure`);
 		if (this.#activeRequests >= this.#maximumActiveRequests) return null;
 		let released = false;
 		this.#activeRequests += 1;
@@ -129,6 +144,20 @@ export class RangeReadAdmission {
 			},
 		});
 		return request;
+	}
+
+	#ticket(ticket) {
+		const entry = ticket && this.#tickets.get(ticket);
+		if (!entry) throw new Error(`${this.#label} capability admission ticket is not active`);
+		return entry;
+	}
+
+	#liveTicket(ticket) {
+		const entry = this.#ticket(ticket);
+		if (entry.released || entry.retained) {
+			throw new Error(`${this.#label} capability admission is not active`);
+		}
+		return entry;
 	}
 }
 
@@ -160,12 +189,6 @@ export class LinkedOriginalRangeAdmission extends RangeReadAdmission {
 			label: 'Linked-original range',
 			maximumActiveRequests: MAX_LINKED_VIDEO_PLAYBACK_REQUESTS,
 		});
-	}
-}
-
-function assertLiveTicket(ticket) {
-	if (!ticket || ticket.released || ticket.retained) {
-		throw new Error(`${ticket?.label || 'Range read'} capability admission is not active`);
 	}
 }
 

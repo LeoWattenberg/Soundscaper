@@ -52,7 +52,7 @@ export function requiredLocatorOwner(value: unknown): object {
 }
 
 export function absoluteLinkedOriginalPath(value: unknown): string {
-	if (typeof value !== 'string' || !isAbsolute(value)) {
+	if (typeof value !== 'string' || !isAbsolute(value) || value.includes('\0')) {
 		throw new TypeError('A linked-video locator requires an absolute file path.');
 	}
 	return value;
@@ -79,6 +79,7 @@ export function nullableLocatorRevision(value: unknown): string | null {
 }
 
 export function linkedOriginalReadTimestamp(value: number): number {
+	if (typeof value !== 'number') throw new RangeError('Linked-video modification time is invalid.');
 	const timestamp = Math.max(0, Math.trunc(value));
 	if (!Number.isSafeInteger(timestamp)) throw new RangeError('Linked-video modification time is invalid.');
 	return timestamp;

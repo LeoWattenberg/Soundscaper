@@ -37,7 +37,7 @@ function assertByteLength(value: number): number {
 }
 
 function assertRootPath(value: string): string {
-	if (typeof value !== 'string' || !isAbsolute(value)) {
+	if (typeof value !== 'string' || !isAbsolute(value) || value.includes('\0')) {
 		throw new TypeError('A local-model capacity destination must be absolute.');
 	}
 	return resolve(value);
