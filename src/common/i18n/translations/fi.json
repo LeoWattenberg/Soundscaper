@@ -2,7 +2,7 @@
 	"schemaVersion": 2,
 	"locale": "fi",
 	"provenance": {
-		"machine": {"model":"codex-gpt-6","modelDigest":"sha256:34f331e2ebb636e9f59bb9dadb57237c71b524c378202d1595078ff268ec87e9","promptVersion":"i18n-machine-v1"},
+		"machine": {"model":"codex-gpt-6","modelDigest":"sha256:67854d83e3c533c52532d1a4021845313e9d01962eb7f4f4c585bad48b33713d","promptVersion":"i18n-machine-v1"},
 		"audacity": {"repository":"audacity/audacity","headSha":"de2e43dc13474ba712ade5ea8e47550eba0e8bfb","runId":35327911264,"artifactId":10539339149,"workflowUrl":"https://github.com/audacity/audacity/actions/runs/35327911264","archiveName":"Audacity_locale_262610911.zip","archiveSha256":"13b1ff11c39a677c711a1d29738a394aaca7a200533927aab3f45bbd76c1ff8e","archiveByteLength":15413913,"licenseSpdx":"GPL-3.0-only","upstreamProjectUrl":"https://github.com/audacity/audacity","upstreamLicenseUrl":"https://github.com/audacity/audacity/blob/de2e43dc13474ba712ade5ea8e47550eba0e8bfb/LICENSE.txt","modificationNotice":"Soundscaper converts reviewed Audacity Qt TS messages to per-locale JSON catalogs, excludes unsafe or inapplicable entries, adapts reviewed placeholders and mnemonics, and removes ellipsis punctuation.","mappingVersion":3,"mappingSha256":"f4cf0434f47eaa9434d079a1623b9d9501e9c8da0d83f0c73344f7765113b57c"}
 	},
 	"entries": {
@@ -1822,6 +1822,10 @@
 		"open": ["machine","Open","Avaa"],
 		"openProject": ["machine","Open projects","Avaa projektit"],
 		"openScape": ["machine","Open Scape project file ({projectExtension})","Avaa Scape-projektitiedosto ({projectExtension})"],
+		"optimizeFor": ["machine","Optimize for","Optimoi ensisijaisesti"],
+		"optimizeForDescription": ["machine","Memory keeps the current on-demand editor loading. Speed loads editor tools ahead of time; AI tools and processing engines still load when used. Restart the desktop editor to apply changes.","Muisti säilyttää editorin nykyisen latauksen tarpeen mukaan. Nopeus lataa editorin työkalut etukäteen; tekoälytyökalut ja käsittelymoottorit latautuvat edelleen vasta käytettäessä. Käynnistä työpöytäeditori uudelleen, jotta muutokset tulevat voimaan."],
+		"optimizeForMemory": ["machine","Memory","Muisti"],
+		"optimizeForSpeed": ["machine","Speed","Nopeus"],
 		"options": ["machine","Options","Asetukset"],
 		"optionsFor": ["machine","{name} options","{name}-asetukset"],
 		"output": ["machine","Output","Lähtö"],
@@ -2861,7 +2865,6 @@
 		"ui.framescaperVisualInspector.text": ["machine","Text","Teksti"],
 		"ui.framescaperVisualInspector.videoVisualInspector": ["machine","Selected Visual Inspector","Valittu visuaalinen tarkastaja"],
 		"ui.framescaperVisualInspector.visualInspectorApplied": ["machine","Selected visual updated.","Valittu visuaali päivitetty."],
-		"ui.framescaperVisualInspector.visualInspectorSelection": ["machine","Select one still, title, text, shape, or solid clip first.","Valitse ensin yksi still, otsikko, teksti, muoto tai kiinteä väri."],
 		"ui.framescaperVisualInspector.visualPreset": ["machine","Visual preset","Visuaalinen esiasetus"],
 		"ui.freesoundAttribution.panel": ["machine","Freesound","Freesound"],
 		"ui.importStatus.notice": ["machine","{notice}","{notice}"],

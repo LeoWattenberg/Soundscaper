@@ -2,7 +2,7 @@
 	"schemaVersion": 2,
 	"locale": "zh-TW",
 	"provenance": {
-		"machine": {"model":"codex-gpt-6","modelDigest":"sha256:2b21a5578b6863895bce9e959152100568155c4d48c19689d445208628b39fdb","promptVersion":"i18n-machine-v1"},
+		"machine": {"model":"codex-gpt-6","modelDigest":"sha256:43e5acb019cd5df068387de6b67eaf87847ca4831e81175ef859fc926c1debb1","promptVersion":"i18n-machine-v1"},
 		"audacity": {"repository":"audacity/audacity","headSha":"de2e43dc13474ba712ade5ea8e47550eba0e8bfb","runId":35327911264,"artifactId":10539339149,"workflowUrl":"https://github.com/audacity/audacity/actions/runs/35327911264","archiveName":"Audacity_locale_262610911.zip","archiveSha256":"13b1ff11c39a677c711a1d29738a394aaca7a200533927aab3f45bbd76c1ff8e","archiveByteLength":15413913,"licenseSpdx":"GPL-3.0-only","upstreamProjectUrl":"https://github.com/audacity/audacity","upstreamLicenseUrl":"https://github.com/audacity/audacity/blob/de2e43dc13474ba712ade5ea8e47550eba0e8bfb/LICENSE.txt","modificationNotice":"Soundscaper converts reviewed Audacity Qt TS messages to per-locale JSON catalogs, excludes unsafe or inapplicable entries, adapts reviewed placeholders and mnemonics, and removes ellipsis punctuation.","mappingVersion":3,"mappingSha256":"f4cf0434f47eaa9434d079a1623b9d9501e9c8da0d83f0c73344f7765113b57c"}
 	},
 	"entries": {
@@ -1822,6 +1822,10 @@
 		"open": ["machine","Open","開啟"],
 		"openProject": ["machine","Open projects","開啟專案"],
 		"openScape": ["machine","Open Scape project file ({projectExtension})","開啟 Scape 專案檔案（{projectExtension}）"],
+		"optimizeFor": ["machine","Optimize for","最佳化目標"],
+		"optimizeForDescription": ["machine","Memory keeps the current on-demand editor loading. Speed loads editor tools ahead of time; AI tools and processing engines still load when used. Restart the desktop editor to apply changes.","記憶體會保留編輯器目前的隨選載入方式。速度會預先載入編輯器工具；AI 工具和處理引擎仍在使用時才載入。重新啟動桌面編輯器以套用變更。"],
+		"optimizeForMemory": ["machine","Memory","記憶體"],
+		"optimizeForSpeed": ["machine","Speed","速度"],
 		"options": ["machine","Options","選項"],
 		"optionsFor": ["machine","{name} options","{name} 選項"],
 		"output": ["machine","Output","輸出"],
@@ -2861,7 +2865,6 @@
 		"ui.framescaperVisualInspector.text": ["machine","Text","文字"],
 		"ui.framescaperVisualInspector.videoVisualInspector": ["machine","Selected Visual Inspector","已選取的視覺檢查器"],
 		"ui.framescaperVisualInspector.visualInspectorApplied": ["machine","Selected visual updated.","已套用選取的視覺效果。"],
-		"ui.framescaperVisualInspector.visualInspectorSelection": ["machine","Select one still, title, text, shape, or solid clip first.","請先選取一張靜態圖像、標題、文字、形狀或實色剪輯。"],
 		"ui.framescaperVisualInspector.visualPreset": ["machine","Visual preset","視覺預設"],
 		"ui.freesoundAttribution.panel": ["machine","Freesound","Freesound"],
 		"ui.importStatus.notice": ["machine","{notice}","{notice}"],

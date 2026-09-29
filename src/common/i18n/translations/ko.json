@@ -2,7 +2,7 @@
 	"schemaVersion": 2,
 	"locale": "ko",
 	"provenance": {
-		"machine": {"model":"codex-gpt-6","modelDigest":"sha256:82ca103a5e43694ecb782edd2da4916ad28d59b7be27c550f38c71abc5b8bfdd","promptVersion":"i18n-machine-v1"},
+		"machine": {"model":"codex-gpt-6","modelDigest":"sha256:86f685746951a5dc4336af833a8b238c08eac04006c9772aa7e2b3792af16aed","promptVersion":"i18n-machine-v1"},
 		"audacity": {"repository":"audacity/audacity","headSha":"de2e43dc13474ba712ade5ea8e47550eba0e8bfb","runId":35327911264,"artifactId":10539339149,"workflowUrl":"https://github.com/audacity/audacity/actions/runs/35327911264","archiveName":"Audacity_locale_262610911.zip","archiveSha256":"13b1ff11c39a677c711a1d29738a394aaca7a200533927aab3f45bbd76c1ff8e","archiveByteLength":15413913,"licenseSpdx":"GPL-3.0-only","upstreamProjectUrl":"https://github.com/audacity/audacity","upstreamLicenseUrl":"https://github.com/audacity/audacity/blob/de2e43dc13474ba712ade5ea8e47550eba0e8bfb/LICENSE.txt","modificationNotice":"Soundscaper converts reviewed Audacity Qt TS messages to per-locale JSON catalogs, excludes unsafe or inapplicable entries, adapts reviewed placeholders and mnemonics, and removes ellipsis punctuation.","mappingVersion":3,"mappingSha256":"f4cf0434f47eaa9434d079a1623b9d9501e9c8da0d83f0c73344f7765113b57c"}
 	},
 	"entries": {
@@ -1822,6 +1822,10 @@
 		"open": ["machine","Open","열기"],
 		"openProject": ["machine","Open projects","프로젝트 열기"],
 		"openScape": ["machine","Open Scape project file ({projectExtension})","Scape 프로젝트 파일 열기 ({projectExtension})"],
+		"optimizeFor": ["machine","Optimize for","최적화 기준"],
+		"optimizeForDescription": ["machine","Memory keeps the current on-demand editor loading. Speed loads editor tools ahead of time; AI tools and processing engines still load when used. Restart the desktop editor to apply changes.","메모리는 현재처럼 필요할 때 편집기 도구를 불러옵니다. 속도는 편집기 도구를 미리 불러오지만 AI 도구와 처리 엔진은 계속 사용할 때 불러옵니다. 변경 사항을 적용하려면 데스크톱 편집기를 다시 시작하세요."],
+		"optimizeForMemory": ["machine","Memory","메모리"],
+		"optimizeForSpeed": ["machine","Speed","속도"],
 		"options": ["machine","Options","옵션"],
 		"optionsFor": ["machine","{name} options","{name} 옵션"],
 		"output": ["machine","Output","출력"],
@@ -2861,7 +2865,6 @@
 		"ui.framescaperVisualInspector.text": ["machine","Text","텍스트"],
 		"ui.framescaperVisualInspector.videoVisualInspector": ["machine","Selected Visual Inspector","선택된 시각 검사기"],
 		"ui.framescaperVisualInspector.visualInspectorApplied": ["machine","Selected visual updated.","선택된 시각 업데이트됨."],
-		"ui.framescaperVisualInspector.visualInspectorSelection": ["machine","Select one still, title, text, shape, or solid clip first.","먼저 스틸, 제목, 텍스트, 모양 또는 솔리드 클립을 선택하세요."],
 		"ui.framescaperVisualInspector.visualPreset": ["machine","Visual preset","시각 프리셋"],
 		"ui.freesoundAttribution.panel": ["machine","Freesound","Freesound"],
 		"ui.importStatus.notice": ["machine","{notice}","{notice}"],

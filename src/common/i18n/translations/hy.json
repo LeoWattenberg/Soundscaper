@@ -2,7 +2,7 @@
 	"schemaVersion": 2,
 	"locale": "hy",
 	"provenance": {
-		"machine": {"model":"codex-gpt-6","modelDigest":"sha256:2c7a2f9448d1b7e8ae20512d84b899cc06cee91f9b8e72fbef8c6d76cf4b712c","promptVersion":"i18n-machine-v1"},
+		"machine": {"model":"codex-gpt-6","modelDigest":"sha256:35ac0304a51deaa1e78065b3ed784f3e3c10a70877d35e735c41f95af29bf431","promptVersion":"i18n-machine-v1"},
 		"audacity": {"repository":"audacity/audacity","headSha":"de2e43dc13474ba712ade5ea8e47550eba0e8bfb","runId":35327911264,"artifactId":10539339149,"workflowUrl":"https://github.com/audacity/audacity/actions/runs/35327911264","archiveName":"Audacity_locale_262610911.zip","archiveSha256":"13b1ff11c39a677c711a1d29738a394aaca7a200533927aab3f45bbd76c1ff8e","archiveByteLength":15413913,"licenseSpdx":"GPL-3.0-only","upstreamProjectUrl":"https://github.com/audacity/audacity","upstreamLicenseUrl":"https://github.com/audacity/audacity/blob/de2e43dc13474ba712ade5ea8e47550eba0e8bfb/LICENSE.txt","modificationNotice":"Soundscaper converts reviewed Audacity Qt TS messages to per-locale JSON catalogs, excludes unsafe or inapplicable entries, adapts reviewed placeholders and mnemonics, and removes ellipsis punctuation.","mappingVersion":3,"mappingSha256":"f4cf0434f47eaa9434d079a1623b9d9501e9c8da0d83f0c73344f7765113b57c"}
 	},
 	"entries": {
@@ -1822,6 +1822,10 @@
 		"open": ["machine","Open","Բացել"],
 		"openProject": ["machine","Open projects","Բացել նախագծեր"],
 		"openScape": ["machine","Open Scape project file ({projectExtension})","Բացել Scape նախագծի ֆայլ ({projectExtension})"],
+		"optimizeFor": ["machine","Optimize for","Օպտիմալացնել ըստ"],
+		"optimizeForDescription": ["machine","Memory keeps the current on-demand editor loading. Speed loads editor tools ahead of time; AI tools and processing engines still load when used. Restart the desktop editor to apply changes.","Հիշողությունը պահպանում է խմբագրիչի՝ ըստ պահանջի բեռնման ներկայիս ձևը։ Արագությունը նախապես բեռնում է խմբագրիչի գործիքները, իսկ AI գործիքներն ու մշակման շարժիչները շարունակում են բեռնվել օգտագործման պահին։ Փոփոխությունները կիրառելու համար վերագործարկեք աշխատասեղանի խմբագրիչը։"],
+		"optimizeForMemory": ["machine","Memory","Հիշողություն"],
+		"optimizeForSpeed": ["machine","Speed","Արագություն"],
 		"options": ["machine","Options","Ընտրանքներ"],
 		"optionsFor": ["machine","{name} options","{name}-ի ընտրանքները"],
 		"output": ["machine","Output","Ելք"],
@@ -2861,7 +2865,6 @@
 		"ui.framescaperVisualInspector.text": ["machine","Text","Տեքստ"],
 		"ui.framescaperVisualInspector.videoVisualInspector": ["machine","Selected Visual Inspector","Ընտրված վիզուալ զննիչ"],
 		"ui.framescaperVisualInspector.visualInspectorApplied": ["machine","Selected visual updated.","Ընտրված վիզուալը թարմացված է։"],
-		"ui.framescaperVisualInspector.visualInspectorSelection": ["machine","Select one still, title, text, shape, or solid clip first.","Նախ ընտրեք մեկ կայուն, խորանարդ, տեքստ, ձև կամ միատարր հոլովակ։"],
 		"ui.framescaperVisualInspector.visualPreset": ["machine","Visual preset","Վիզուալ նախադրված"],
 		"ui.freesoundAttribution.panel": ["machine","Freesound","Freesound"],
 		"ui.importStatus.notice": ["machine","{notice}","{notice}"],

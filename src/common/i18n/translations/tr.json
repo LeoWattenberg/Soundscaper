@@ -2,7 +2,7 @@
 	"schemaVersion": 2,
 	"locale": "tr",
 	"provenance": {
-		"machine": {"model":"codex-gpt-6","modelDigest":"sha256:0d130469f4f7172c259fa4b635a7d5436d83fb5fc5adb8dc5e9903d2ac60c28a","promptVersion":"i18n-machine-v1"},
+		"machine": {"model":"codex-gpt-6","modelDigest":"sha256:fe7e5f4c3f1f9e5c49482d595278cb4668f7382f7f299834832193eb08f07ede","promptVersion":"i18n-machine-v1"},
 		"audacity": {"repository":"audacity/audacity","headSha":"de2e43dc13474ba712ade5ea8e47550eba0e8bfb","runId":35327911264,"artifactId":10539339149,"workflowUrl":"https://github.com/audacity/audacity/actions/runs/35327911264","archiveName":"Audacity_locale_262610911.zip","archiveSha256":"13b1ff11c39a677c711a1d29738a394aaca7a200533927aab3f45bbd76c1ff8e","archiveByteLength":15413913,"licenseSpdx":"GPL-3.0-only","upstreamProjectUrl":"https://github.com/audacity/audacity","upstreamLicenseUrl":"https://github.com/audacity/audacity/blob/de2e43dc13474ba712ade5ea8e47550eba0e8bfb/LICENSE.txt","modificationNotice":"Soundscaper converts reviewed Audacity Qt TS messages to per-locale JSON catalogs, excludes unsafe or inapplicable entries, adapts reviewed placeholders and mnemonics, and removes ellipsis punctuation.","mappingVersion":3,"mappingSha256":"f4cf0434f47eaa9434d079a1623b9d9501e9c8da0d83f0c73344f7765113b57c"}
 	},
 	"entries": {
@@ -1822,6 +1822,10 @@
 		"open": ["machine","Open","Aç"],
 		"openProject": ["machine","Open projects","Projeleri aç"],
 		"openScape": ["machine","Open Scape project file ({projectExtension})","Scape proje dosyasını aç ({projectExtension})"],
+		"optimizeFor": ["machine","Optimize for","Şunun için optimize et"],
+		"optimizeForDescription": ["machine","Memory keeps the current on-demand editor loading. Speed loads editor tools ahead of time; AI tools and processing engines still load when used. Restart the desktop editor to apply changes.","Bellek, düzenleyicinin mevcut ihtiyaç üzerine yükleme davranışını korur. Hız, düzenleyici araçlarını önceden yükler; yapay zekâ araçları ve işleme motorları yine kullanıldıklarında yüklenir. Değişiklikleri uygulamak için masaüstü düzenleyicisini yeniden başlatın."],
+		"optimizeForMemory": ["machine","Memory","Bellek"],
+		"optimizeForSpeed": ["machine","Speed","Hız"],
 		"options": ["machine","Options","Seçenekler"],
 		"optionsFor": ["machine","{name} options","{name} seçenekleri"],
 		"output": ["machine","Output","Çıkış"],
@@ -2861,7 +2865,6 @@
 		"ui.framescaperVisualInspector.text": ["machine","Text","Metin"],
 		"ui.framescaperVisualInspector.videoVisualInspector": ["machine","Selected Visual Inspector","Seçili Görsel Denetleyici"],
 		"ui.framescaperVisualInspector.visualInspectorApplied": ["machine","Selected visual updated.","Seçili görsel güncellendi."],
-		"ui.framescaperVisualInspector.visualInspectorSelection": ["machine","Select one still, title, text, shape, or solid clip first.","Öncelikle bir duraklatma, başlık, metin, şekil veya katı klip seçin."],
 		"ui.framescaperVisualInspector.visualPreset": ["machine","Visual preset","Görsel hazır ayar"],
 		"ui.freesoundAttribution.panel": ["machine","Freesound","Freesound"],
 		"ui.importStatus.notice": ["machine","{notice}","{notice}"],

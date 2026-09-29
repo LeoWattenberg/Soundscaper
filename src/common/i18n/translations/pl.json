@@ -2,7 +2,7 @@
 	"schemaVersion": 2,
 	"locale": "pl",
 	"provenance": {
-		"machine": {"model":"codex-gpt-6","modelDigest":"sha256:ee37223ca5969cea7baf0fbe954c79ca1c10f99da69155ece37916cfe9ef5e16","promptVersion":"i18n-machine-v1"},
+		"machine": {"model":"codex-gpt-6","modelDigest":"sha256:d31409e3f97ecd7860cdcc5a81978424bd8c2cb0ad73902040ca9096b2f5ae81","promptVersion":"i18n-machine-v1"},
 		"audacity": {"repository":"audacity/audacity","headSha":"de2e43dc13474ba712ade5ea8e47550eba0e8bfb","runId":35327911264,"artifactId":10539339149,"workflowUrl":"https://github.com/audacity/audacity/actions/runs/35327911264","archiveName":"Audacity_locale_262610911.zip","archiveSha256":"13b1ff11c39a677c711a1d29738a394aaca7a200533927aab3f45bbd76c1ff8e","archiveByteLength":15413913,"licenseSpdx":"GPL-3.0-only","upstreamProjectUrl":"https://github.com/audacity/audacity","upstreamLicenseUrl":"https://github.com/audacity/audacity/blob/de2e43dc13474ba712ade5ea8e47550eba0e8bfb/LICENSE.txt","modificationNotice":"Soundscaper converts reviewed Audacity Qt TS messages to per-locale JSON catalogs, excludes unsafe or inapplicable entries, adapts reviewed placeholders and mnemonics, and removes ellipsis punctuation.","mappingVersion":3,"mappingSha256":"f4cf0434f47eaa9434d079a1623b9d9501e9c8da0d83f0c73344f7765113b57c"}
 	},
 	"entries": {
@@ -1822,6 +1822,10 @@
 		"open": ["machine","Open","Otwórz"],
 		"openProject": ["machine","Open projects","Otwórz projekty"],
 		"openScape": ["machine","Open Scape project file ({projectExtension})","Otwórz plik projektu Scape ({projectExtension})"],
+		"optimizeFor": ["machine","Optimize for","Optymalizuj pod kątem"],
+		"optimizeForDescription": ["machine","Memory keeps the current on-demand editor loading. Speed loads editor tools ahead of time; AI tools and processing engines still load when used. Restart the desktop editor to apply changes.","Pamięć zachowuje obecne ładowanie edytora na żądanie. Prędkość ładuje narzędzia edytora z wyprzedzeniem; narzędzia AI i silniki przetwarzania nadal ładują się dopiero podczas użycia. Uruchom ponownie edytor komputerowy, aby zastosować zmiany."],
+		"optimizeForMemory": ["machine","Memory","Pamięć"],
+		"optimizeForSpeed": ["machine","Speed","Prędkość"],
 		"options": ["machine","Options","Opcje"],
 		"optionsFor": ["machine","{name} options","Opcje dla {name}"],
 		"output": ["machine","Output","Wyjście"],
@@ -2861,7 +2865,6 @@
 		"ui.framescaperVisualInspector.text": ["machine","Text","Tekst"],
 		"ui.framescaperVisualInspector.videoVisualInspector": ["machine","Selected Visual Inspector","Wybrany inspektor wizualny"],
 		"ui.framescaperVisualInspector.visualInspectorApplied": ["machine","Selected visual updated.","Wybrana wizualizacja została zaktualizowana."],
-		"ui.framescaperVisualInspector.visualInspectorSelection": ["machine","Select one still, title, text, shape, or solid clip first.","Najpierw wybierz statyczny obraz, tytuł, tekst, kształt lub klip z wypełnieniem."],
 		"ui.framescaperVisualInspector.visualPreset": ["machine","Visual preset","Predefiniowana wizualizacja"],
 		"ui.freesoundAttribution.panel": ["machine","Freesound","Freesound"],
 		"ui.importStatus.notice": ["machine","{notice}","{notice}"],

@@ -2,7 +2,7 @@
 	"schemaVersion": 2,
 	"locale": "pt-PT",
 	"provenance": {
-		"machine": {"model":"codex-gpt-6","modelDigest":"sha256:5ddc20ff525b84257ed353d496479bdad7ced5ad2e8af10a6640eaa7015e4bfb","promptVersion":"i18n-machine-v1"},
+		"machine": {"model":"codex-gpt-6","modelDigest":"sha256:8520db95e72bc3c246c209b6299dc08013cf5186b51d86ad94cd2741a4e032d5","promptVersion":"i18n-machine-v1"},
 		"audacity": {"repository":"audacity/audacity","headSha":"de2e43dc13474ba712ade5ea8e47550eba0e8bfb","runId":35327911264,"artifactId":10539339149,"workflowUrl":"https://github.com/audacity/audacity/actions/runs/35327911264","archiveName":"Audacity_locale_262610911.zip","archiveSha256":"13b1ff11c39a677c711a1d29738a394aaca7a200533927aab3f45bbd76c1ff8e","archiveByteLength":15413913,"licenseSpdx":"GPL-3.0-only","upstreamProjectUrl":"https://github.com/audacity/audacity","upstreamLicenseUrl":"https://github.com/audacity/audacity/blob/de2e43dc13474ba712ade5ea8e47550eba0e8bfb/LICENSE.txt","modificationNotice":"Soundscaper converts reviewed Audacity Qt TS messages to per-locale JSON catalogs, excludes unsafe or inapplicable entries, adapts reviewed placeholders and mnemonics, and removes ellipsis punctuation.","mappingVersion":3,"mappingSha256":"f4cf0434f47eaa9434d079a1623b9d9501e9c8da0d83f0c73344f7765113b57c"}
 	},
 	"entries": {
@@ -1822,6 +1822,10 @@
 		"open": ["machine","Open","Abrir"],
 		"openProject": ["machine","Open projects","Abrir projetos"],
 		"openScape": ["machine","Open Scape project file ({projectExtension})","Abrir ficheiro de projeto Scape ({projectExtension})"],
+		"optimizeFor": ["machine","Optimize for","Otimizar para"],
+		"optimizeForDescription": ["machine","Memory keeps the current on-demand editor loading. Speed loads editor tools ahead of time; AI tools and processing engines still load when used. Restart the desktop editor to apply changes.","Memória mantém o carregamento atual do editor a pedido. Velocidade carrega antecipadamente as ferramentas do editor; as ferramentas de IA e os motores de processamento continuam a ser carregados quando utilizados. Reinicie o editor de ambiente de trabalho para aplicar as alterações."],
+		"optimizeForMemory": ["machine","Memory","Memória"],
+		"optimizeForSpeed": ["machine","Speed","Velocidade"],
 		"options": ["machine","Options","Opções"],
 		"optionsFor": ["machine","{name} options","Opções de {name}"],
 		"output": ["machine","Output","Saída"],
@@ -2861,7 +2865,6 @@
 		"ui.framescaperVisualInspector.text": ["machine","Text","Texto"],
 		"ui.framescaperVisualInspector.videoVisualInspector": ["machine","Selected Visual Inspector","Inspector Visual selecionado"],
 		"ui.framescaperVisualInspector.visualInspectorApplied": ["machine","Selected visual updated.","Visual selecionado atualizado."],
-		"ui.framescaperVisualInspector.visualInspectorSelection": ["machine","Select one still, title, text, shape, or solid clip first.","Selecione primeiro uma imagem fixa, título, texto, forma ou clipe sólido."],
 		"ui.framescaperVisualInspector.visualPreset": ["machine","Visual preset","Predefinição visual"],
 		"ui.freesoundAttribution.panel": ["machine","Freesound","Freesound"],
 		"ui.importStatus.notice": ["machine","{notice}","{notice}"],

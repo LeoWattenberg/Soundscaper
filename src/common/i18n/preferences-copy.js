@@ -19,7 +19,7 @@ const ENTRIES = Object.freeze([
 	['optimizeFor', 'Optimize for', 'Optimieren für'],
 	['optimizeForMemory', 'Memory', 'Speicher'],
 	['optimizeForSpeed', 'Speed', 'Geschwindigkeit'],
-	['optimizeForDescription', 'Memory keeps the current on-demand loading behavior. Speed loads non-AI features early; AI features remain on demand. Changes take effect after restarting the desktop editor.', 'Speicher behält das bisherige Laden bei Bedarf bei. Geschwindigkeit lädt Funktionen ohne KI frühzeitig; KI-Funktionen werden weiterhin bei Bedarf geladen. Änderungen werden nach einem Neustart des Desktop-Editors wirksam.'],
+	['optimizeForDescription', 'Memory keeps the current on-demand editor loading. Speed loads editor tools ahead of time; AI tools and processing engines still load when used. Restart the desktop editor to apply changes.', 'Speicher behält das bisherige Laden des Editors bei Bedarf bei. Geschwindigkeit lädt Editor-Werkzeuge vorab; KI-Werkzeuge und Verarbeitungsmodule werden weiterhin erst bei Verwendung geladen. Starte den Desktop-Editor neu, um Änderungen zu übernehmen.'],
 	['preferencesEffects', 'Effects', 'Effekte'],
 	['effectOptions', 'Effect options', 'Effektoptionen'],
 	['effectMenuOrganization', 'Effect menu organization', 'Anordnung des Effektmenüs'],

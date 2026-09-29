@@ -2,7 +2,7 @@
 	"schemaVersion": 2,
 	"locale": "hi",
 	"provenance": {
-		"machine": {"model":"codex-gpt-6","modelDigest":"sha256:05d10ca8da925d8232a03689f1ae7fed86f85ad8fb8f5a4ade0dde10b2f4cbe0","promptVersion":"i18n-machine-v1"},
+		"machine": {"model":"codex-gpt-6","modelDigest":"sha256:2405cd756359ce2ad7e40256bde66233c4ea68dba6205d6c8f768c68dd609a26","promptVersion":"i18n-machine-v1"},
 		"audacity": {"repository":"audacity/audacity","headSha":"de2e43dc13474ba712ade5ea8e47550eba0e8bfb","runId":35327911264,"artifactId":10539339149,"workflowUrl":"https://github.com/audacity/audacity/actions/runs/35327911264","archiveName":"Audacity_locale_262610911.zip","archiveSha256":"13b1ff11c39a677c711a1d29738a394aaca7a200533927aab3f45bbd76c1ff8e","archiveByteLength":15413913,"licenseSpdx":"GPL-3.0-only","upstreamProjectUrl":"https://github.com/audacity/audacity","upstreamLicenseUrl":"https://github.com/audacity/audacity/blob/de2e43dc13474ba712ade5ea8e47550eba0e8bfb/LICENSE.txt","modificationNotice":"Soundscaper converts reviewed Audacity Qt TS messages to per-locale JSON catalogs, excludes unsafe or inapplicable entries, adapts reviewed placeholders and mnemonics, and removes ellipsis punctuation.","mappingVersion":3,"mappingSha256":"f4cf0434f47eaa9434d079a1623b9d9501e9c8da0d83f0c73344f7765113b57c"}
 	},
 	"entries": {
@@ -1822,6 +1822,10 @@
 		"open": ["machine","Open","खोलें"],
 		"openProject": ["machine","Open projects","परियोजनाएं खोलें"],
 		"openScape": ["machine","Open Scape project file ({projectExtension})","Scape परियोजना फ़ाइल खोलें ({projectExtension})"],
+		"optimizeFor": ["machine","Optimize for","इसके लिए अनुकूलित करें"],
+		"optimizeForDescription": ["machine","Memory keeps the current on-demand editor loading. Speed loads editor tools ahead of time; AI tools and processing engines still load when used. Restart the desktop editor to apply changes.","मेमोरी संपादक को ज़रूरत पड़ने पर लोड करने का मौजूदा तरीका बनाए रखती है। गति संपादक के टूल पहले से लोड करती है; AI टूल और प्रोसेसिंग इंजन अब भी उपयोग होने पर ही लोड होते हैं। बदलाव लागू करने के लिए डेस्कटॉप संपादक फिर शुरू करें।"],
+		"optimizeForMemory": ["machine","Memory","मेमोरी"],
+		"optimizeForSpeed": ["machine","Speed","गति"],
 		"options": ["machine","Options","विकल्प"],
 		"optionsFor": ["machine","{name} options","{name} विकल्प"],
 		"output": ["machine","Output","आउटपुट"],
@@ -2861,7 +2865,6 @@
 		"ui.framescaperVisualInspector.text": ["machine","Text","पाठ"],
 		"ui.framescaperVisualInspector.videoVisualInspector": ["machine","Selected Visual Inspector","चयनित विज़ुअल इंस्पेक्टर"],
 		"ui.framescaperVisualInspector.visualInspectorApplied": ["machine","Selected visual updated.","चयनित विज़ुअल अपडेट किया गया।"],
-		"ui.framescaperVisualInspector.visualInspectorSelection": ["machine","Select one still, title, text, shape, or solid clip first.","पहले एक स्टिल, शीर्षक, पाठ, आकृति, या ठोस क्लिप चुनें।"],
 		"ui.framescaperVisualInspector.visualPreset": ["machine","Visual preset","विज़ुअल प्रीसेट"],
 		"ui.freesoundAttribution.panel": ["machine","Freesound","Freesound"],
 		"ui.importStatus.notice": ["machine","{notice}","{notice}"],

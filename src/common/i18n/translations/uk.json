@@ -2,7 +2,7 @@
 	"schemaVersion": 2,
 	"locale": "uk",
 	"provenance": {
-		"machine": {"model":"codex-gpt-6","modelDigest":"sha256:0b3fdd3d350706d752b213589a673c0ef312489660d096477098881277f6701d","promptVersion":"i18n-machine-v1"},
+		"machine": {"model":"codex-gpt-6","modelDigest":"sha256:a0efb640c6c9948da40e509fa66a1b3ef27d1f94f33667217e5dbd005eb33750","promptVersion":"i18n-machine-v1"},
 		"audacity": {"repository":"audacity/audacity","headSha":"de2e43dc13474ba712ade5ea8e47550eba0e8bfb","runId":35327911264,"artifactId":10539339149,"workflowUrl":"https://github.com/audacity/audacity/actions/runs/35327911264","archiveName":"Audacity_locale_262610911.zip","archiveSha256":"13b1ff11c39a677c711a1d29738a394aaca7a200533927aab3f45bbd76c1ff8e","archiveByteLength":15413913,"licenseSpdx":"GPL-3.0-only","upstreamProjectUrl":"https://github.com/audacity/audacity","upstreamLicenseUrl":"https://github.com/audacity/audacity/blob/de2e43dc13474ba712ade5ea8e47550eba0e8bfb/LICENSE.txt","modificationNotice":"Soundscaper converts reviewed Audacity Qt TS messages to per-locale JSON catalogs, excludes unsafe or inapplicable entries, adapts reviewed placeholders and mnemonics, and removes ellipsis punctuation.","mappingVersion":3,"mappingSha256":"f4cf0434f47eaa9434d079a1623b9d9501e9c8da0d83f0c73344f7765113b57c"}
 	},
 	"entries": {
@@ -1822,6 +1822,10 @@
 		"open": ["machine","Open","Відкрити"],
 		"openProject": ["machine","Open projects","Відкрити проєкти"],
 		"openScape": ["machine","Open Scape project file ({projectExtension})","Відкрити файл проєкту Scape ({projectExtension})"],
+		"optimizeFor": ["machine","Optimize for","Оптимізувати для"],
+		"optimizeForDescription": ["machine","Memory keeps the current on-demand editor loading. Speed loads editor tools ahead of time; AI tools and processing engines still load when used. Restart the desktop editor to apply changes.","Пам’ять зберігає поточне завантаження редактора за потреби. Швидкість завантажує інструменти редактора заздалегідь; інструменти ШІ та рушії обробки й надалі завантажуються під час використання. Перезапустіть настільний редактор, щоб застосувати зміни."],
+		"optimizeForMemory": ["machine","Memory","Пам’ять"],
+		"optimizeForSpeed": ["machine","Speed","Швидкість"],
 		"options": ["machine","Options","Параметри"],
 		"optionsFor": ["machine","{name} options","Параметри {name}"],
 		"output": ["machine","Output","Вихід"],
@@ -2861,7 +2865,6 @@
 		"ui.framescaperVisualInspector.text": ["machine","Text","Текст"],
 		"ui.framescaperVisualInspector.videoVisualInspector": ["machine","Selected Visual Inspector","Вибраний візуальний інспектор"],
 		"ui.framescaperVisualInspector.visualInspectorApplied": ["machine","Selected visual updated.","Обране візуальне оновлення."],
-		"ui.framescaperVisualInspector.visualInspectorSelection": ["machine","Select one still, title, text, shape, or solid clip first.","Спочатку виберіть статичний кадр, заголовок, текст, форму або твердий кліп."],
 		"ui.framescaperVisualInspector.visualPreset": ["machine","Visual preset","Візуальний шаблон"],
 		"ui.freesoundAttribution.panel": ["machine","Freesound","Freesound"],
 		"ui.importStatus.notice": ["machine","{notice}","{notice}"],
