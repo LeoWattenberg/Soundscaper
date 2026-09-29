@@ -158,6 +158,25 @@ test('normal request completion permits the next serialized capability request',
 	await store.dispose();
 });
 
+test('a premature close can be retried after the stream settles', async () => {
+	const stream = controlledStream();
+	const handle = fakeHandle({ size: 1, stream });
+	const store = new ReadCapabilityStore({ openImpl: async () => handle });
+	const descriptor = await store.registerPath('/tmp/premature-close.scape', { owner: OWNER });
+	const lease = store.acquireRequest(descriptor.id);
+	assert.ok(lease);
+	lease.createReadStream({ start: 0, end: 0, autoClose: false });
+
+	await assert.rejects(lease.close(), /before its stream settles/iu);
+	assert.equal(store.acquireRequest(descriptor.id), null, 'the live stream keeps its request slot');
+	stream.emit('end');
+	await lease.close();
+	const next = store.acquireRequest(descriptor.id);
+	assert.ok(next, 'a settled stream releases the request slot after a close retry');
+	await next.close();
+	await store.dispose();
+});
+
 for (const [name, retire] of [
 	['owner revocation', (store) => store.revokeOwner(OWNER)],
 	['store disposal', (store) => store.dispose()],

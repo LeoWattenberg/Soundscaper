@@ -58,10 +58,10 @@ export function createReadCapabilityRequestLease(entry, rangeRequest, { operatio
 	};
 	const complete = () => {
 		if (completePromise) return completePromise;
+		if (stream && !streamSettled) {
+			return Promise.reject(new Error('Desktop read request cannot complete before its stream settles'));
+		}
 		completePromise = (async () => {
-			if (stream && !streamSettled) {
-				throw new Error('Desktop read request cannot complete before its stream settles');
-			}
 			finishRequest();
 			await requestBarrier.promise;
 		})();
