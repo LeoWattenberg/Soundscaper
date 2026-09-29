@@ -86,7 +86,7 @@ test.describe('transport audition shortcuts', () => {
 		expect(errors).toEqual([]);
 	});
 
-	test('P pauses and resumes recording, and the Record pause menu displays the same shortcut', async ({ page }) => {
+	test('P pauses and resumes recording, and the Play menu displays the same shortcut', async ({ page }) => {
 		await page.addInitScript(() => {
 			const mediaDevices = {
 				enumerateDevices: async () => [{ kind: 'audioinput', deviceId: 'default', groupId: 'fixture', label: 'Fixture microphone' }],
@@ -112,18 +112,32 @@ test.describe('transport audition shortcuts', () => {
 		const errors = collectClientErrors(page);
 		const editor = await bootEditor(page, '/embed/en/');
 		const record = editor.locator('[data-transport="record"] .kw-audio-editor__split-button-main button');
+		const playhead = editor.getByRole('slider', { name: 'Playhead', exact: true });
 		await record.click();
 		await expect(record).toHaveAttribute('aria-pressed', 'true');
-		await record.click();
+		await expect.poll(() => frame(playhead)).toBeGreaterThan(48_000);
+		await page.keyboard.press('p');
+		await expect(record).toHaveAccessibleName('Resume recording');
 		await editor.getByRole('button', { name: 'Record options', exact: true }).click();
 		let menu = page.getByRole('dialog', { name: 'Record options', exact: true });
 		await expect(menu.getByRole('button', { name: 'Pause recording' })).toHaveCount(0);
 		await expect(menu.getByRole('button', { name: 'Resume recording' })).toHaveCount(0);
 		await page.keyboard.press('Escape');
-		await record.click();
+		await playOptions(editor).click();
+		let playMenu = page.getByRole('menu', { name: 'Play options', exact: true });
+		await expect(menuItem(playMenu, 'Resume recording').locator('.context-menu-item-shortcut')).toHaveText('P');
+		await page.keyboard.press('Escape');
+		const paused = await frame(playhead);
+		await page.keyboard.press('p');
+		await expect(record).toHaveAccessibleName('Pause recording');
+		await expect.poll(() => frame(playhead)).toBeGreaterThan(paused + 48_000);
 		await editor.getByRole('button', { name: 'Record options', exact: true }).click();
 		menu = page.getByRole('dialog', { name: 'Record options', exact: true });
 		await expect(menu.getByRole('button', { name: 'Pause recording' })).toHaveCount(0);
+		await page.keyboard.press('Escape');
+		await playOptions(editor).click();
+		playMenu = page.getByRole('menu', { name: 'Pause options', exact: true });
+		await expect(menuItem(playMenu, 'Pause recording').locator('.context-menu-item-shortcut')).toHaveText('P');
 		await page.keyboard.press('Escape');
 		await editor.getByRole('button', { name: 'Stop', exact: true }).click();
 		await expect(record).toHaveAttribute('aria-pressed', 'false');
