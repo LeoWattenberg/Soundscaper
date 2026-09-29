@@ -14,7 +14,7 @@ import {
 } from './sound-activation/sound-activated-recording-capture-session.ts';
 import { compactSoundActivationSegments } from './sound-activation/sound-activated-recording-chunk.ts';
 import { recordingCapturePeakDb } from './recording-capture-channels.ts';
-import { scaleSampleFrame } from '../../../timeline-time.ts';
+import { scaleSampleFrame, secondsToSampleFrame } from '../../../timeline-time.ts';
 import { timedRecordingStopFrame } from '../recording-model.ts';
 import { audibleRecordingStartTime, planRecordingStartTiming } from './recording-start-timing.ts';
 
@@ -250,13 +250,15 @@ export function createLegacyRecordingCaptureService(runtime: RecordingCaptureCom
 						const schedule = recorderSchedule(audible);
 						let confirmed = await recorder.startConfirmed(schedule);
 						for (let attempt = 0; attempt < 4; attempt += 1) {
-							const target = Math.ceil((context.currentTime + 0.08 * 2 ** attempt) * context.sampleRate);
+							const target = secondsToSampleFrame(context.currentTime + 0.08 * 2 ** attempt,
+								context.sampleRate, 'enclosingEnd');
 							if (confirmed.startFrame >= target) break;
 							if (!recorder.rescheduleConfirmed) throw new Error('The recorder cannot move to a future start.');
 							confirmed = await recorder.rescheduleConfirmed({ startFrame: target,
 								stopFrame: schedule.stopFrame === undefined ? undefined : schedule.stopFrame + target - schedule.startFrame });
 						}
-						if (confirmed.startFrame <= context.currentTime * context.sampleRate) {
+						if (confirmed.startFrame <= secondsToSampleFrame(context.currentTime,
+							context.sampleRate, 'enclosingEnd')) {
 							throw new Error('The recorder could not confirm a future start.');
 						}
 						recorderArmed = true;

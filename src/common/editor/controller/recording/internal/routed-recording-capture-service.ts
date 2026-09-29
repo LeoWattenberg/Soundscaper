@@ -12,7 +12,7 @@ import {
 	type SoundActivatedRecordingCaptureSession,
 } from './sound-activation/sound-activated-recording-capture-session.ts';
 import { compactSoundActivationSegments } from './sound-activation/sound-activated-recording-chunk.ts';
-import { scaleSampleFrame } from '../../../timeline-time.ts';
+import { scaleSampleFrame, secondsToSampleFrame } from '../../../timeline-time.ts';
 import { planRoutedRecordingSources } from './routed-recording-source-plan.ts';
 import { timedRecordingStopFrame } from '../recording-model.ts';
 import { audibleRecordingStartTime, planRecordingStartTiming } from './recording-start-timing.ts';
@@ -480,9 +480,9 @@ export function createRoutedRecordingCaptureService(runtime: RoutedRecordingCapt
 						setRecorderSchedule(audible);
 						const requestedFrame = sourceSessions.find(hasController)?.startFrame;
 						if (requestedFrame === undefined) throw new Error('No recording input remains to start.');
-						const confirmedFrame = await routedRecorder!.startConfirmed((attempt) => Math.ceil(
-							(context.currentTime + 0.08 * 2 ** attempt) * context.sampleRate),
-							() => Math.ceil(context.currentTime * context.sampleRate));
+						const confirmedFrame = await routedRecorder!.startConfirmed((attempt) => secondsToSampleFrame(
+							context.currentTime + 0.08 * 2 ** attempt, context.sampleRate, 'enclosingEnd'),
+							() => secondsToSampleFrame(context.currentTime, context.sampleRate, 'enclosingEnd'));
 						recorderArmed = true;
 						return candidate + (confirmedFrame - requestedFrame) / context.sampleRate;
 					},

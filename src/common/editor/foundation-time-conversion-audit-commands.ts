@@ -126,8 +126,11 @@ export const FOUNDATION_TIME_CONVERSION_COMMAND_SITES: readonly FoundationTimeCo
 	{
 		id: 'legacy-recording-count-in',
 		file: 'src/common/editor/controller/recording/internal/legacy-recording-capture-service.ts',
-		behavior: 'Legacy capture independently encloses any finite selected stop after changing sample-rate basis; shared start and count-in timing is classified at its extracted owner.',
-		conversions: [{ helper: 'scaleSampleFrame', policies: ['enclosingEnd'] }],
+		behavior: 'Legacy capture encloses finite selected stops after a sample-rate change and recorder retry deadlines after projecting the audio-context clock onto sample frames.',
+		conversions: [
+			{ helper: 'scaleSampleFrame', policies: ['enclosingEnd'] },
+			{ helper: 'secondsToSampleFrame', policies: ['enclosingEnd'] },
+		],
 	},
 	{
 		id: 'recording-start-timing',
@@ -153,8 +156,11 @@ export const FOUNDATION_TIME_CONVERSION_COMMAND_SITES: readonly FoundationTimeCo
 	{
 		id: 'routed-recording-count-in',
 		file: 'src/common/editor/controller/recording/internal/routed-recording-capture-service.ts',
-		behavior: 'Routed capture independently encloses each source stop after changing sample-rate basis; shared start and count-in timing is classified at its extracted owner.',
-		conversions: [{ helper: 'scaleSampleFrame', policies: ['enclosingEnd'] }],
+		behavior: 'Routed capture encloses each selected source stop after a sample-rate change and shared recorder retry deadlines after projecting the audio-context clock onto sample frames.',
+		conversions: [
+			{ helper: 'scaleSampleFrame', policies: ['enclosingEnd'] },
+			{ helper: 'secondsToSampleFrame', policies: ['enclosingEnd'] },
+		],
 	},
 	{
 		id: 'timeline-annotation-controller-conversion',
