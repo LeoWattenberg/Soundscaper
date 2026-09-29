@@ -17,6 +17,8 @@ import {
 import { cancelHeldDirectWrite, installDirectPcmTarget } from './helpers/direct-pcm-save-target.js';
 
 const RETAINED_ARCHIVE_BYTES = 1024 * 1024;
+const EXPECTED_PCM_BYTES = 38_400 * 2 * 2;
+const EXPECTED_STEM_BYTES = 44 + EXPECTED_PCM_BYTES + (8 + 37 + 1) + (8 + 30);
 
 test.describe('direct File System Access stem archives', () => {
 	registerAudioEditorHooks();
@@ -41,6 +43,7 @@ test.describe('direct File System Access stem archives', () => {
 		);
 		await chooseDropdown(page, exportDialog.locator('[data-export-field="format"]'), 'WAV');
 		await chooseDropdown(page, exportDialog.locator('[data-export-field="bitDepth"]'), '16-bit PCM');
+		await chooseDropdown(page, exportDialog.locator('[data-export-field="dither"]'), 'None');
 		await exportDialog.getByRole('button', { name: 'Export', exact: true }).click();
 
 		await expect.poll(() => page.evaluate(() => globalThis.__directPcmSave.sessions[0]?.closes || 0), {
@@ -65,16 +68,24 @@ test.describe('direct File System Access stem archives', () => {
 		expect(saved.signature).toBe(0x04034b50);
 		expect(saved.endSignature).toBe(0x06054b50);
 		expect(saved.entries).toHaveLength(3);
-		expect(saved.entries.map(({ name }) => name)).toEqual([
-			expect.stringMatching(/^01-.+\.wav$/u),
-			'02-browser-tone-a.wav',
-			'03-browser-tone-b.wav',
-		]);
-		for (const entry of saved.entries) {
-			expect(entry.compressionMethod).toBe(0);
-			expect(entry.compressedBytes).toBe(entry.uncompressedBytes);
-			expect(entry.uncompressedBytes).toBeGreaterThan(44);
-		}
+		expect(saved.entries).toEqual([
+			['01-Track-1.wav', [[0, 0], [0, 0]]],
+			['02-browser-tone-a.wav', [[-10_595, -9_099], [-8_109, 2_968]]],
+			['03-browser-tone-b.wav', [[8_109, -2_968], [-11_468, -5_734]]],
+		].map(([name, samples]) => ({
+			name,
+			compressionMethod: 0,
+			compressedBytes: EXPECTED_STEM_BYTES,
+			uncompressedBytes: EXPECTED_STEM_BYTES,
+			wav: {
+				riff: 'RIFF', wave: 'WAVE', format: 'fmt ', data: 'data',
+				channels: 2, sampleRate: 48_000, bitDepth: 16, pcmBytes: EXPECTED_PCM_BYTES,
+				riffBytes: EXPECTED_STEM_BYTES - 8,
+				samples,
+				trailerId: 'id3 ', trailerBytes: 37,
+				infoId: 'LIST', infoBytes: 30,
+			},
+		})));
 		expect(saved.pickerOptions.suggestedName).toMatch(/-stems-.*\.zip$/u);
 		expect(saved.pickerOptions.types[0].accept['application/zip']).toEqual(['.zip']);
 		expect(saved.objectUrls).toEqual([]);
@@ -155,11 +166,38 @@ async function inspectDirectZipTarget(page, sessionIndex) {
 			const nameBytes = view.getUint16(offset + 28, true);
 			const extraBytes = view.getUint16(offset + 30, true);
 			const commentBytes = view.getUint16(offset + 32, true);
+			const localOffset = view.getUint32(offset + 42, true);
+			if (view.getUint32(localOffset, true) !== 0x04034b50) {
+				throw new Error('Invalid ZIP local entry.');
+			}
+			const wavOffset = localOffset + 30
+				+ view.getUint16(localOffset + 26, true) + view.getUint16(localOffset + 28, true);
+			const ascii = (at) => String.fromCharCode(...bytes.subarray(wavOffset + at, wavOffset + at + 4));
+			const pcmBytes = view.getUint32(wavOffset + 40, true);
+			const trailerOffset = 44 + pcmBytes;
+			const trailerBytes = view.getUint32(wavOffset + trailerOffset + 4, true);
+			const infoOffset = trailerOffset + 8 + trailerBytes + (trailerBytes & 1);
 			entries.push({
 				compressedBytes: view.getUint32(offset + 20, true),
 				compressionMethod: view.getUint16(offset + 10, true),
 				name: new TextDecoder().decode(bytes.subarray(offset + 46, offset + 46 + nameBytes)),
 				uncompressedBytes: view.getUint32(offset + 24, true),
+				wav: {
+					riff: ascii(0), wave: ascii(8), format: ascii(12), data: ascii(36),
+					channels: view.getUint16(wavOffset + 22, true),
+					sampleRate: view.getUint32(wavOffset + 24, true),
+					bitDepth: view.getUint16(wavOffset + 34, true),
+					pcmBytes,
+					riffBytes: view.getUint32(wavOffset + 4, true),
+					samples: [100, 1000].map((frame) => [
+						view.getInt16(wavOffset + 44 + frame * 4, true),
+						view.getInt16(wavOffset + 46 + frame * 4, true),
+					]),
+					trailerId: ascii(trailerOffset),
+					trailerBytes,
+					infoId: ascii(infoOffset),
+					infoBytes: view.getUint32(wavOffset + infoOffset + 4, true),
+				},
 			});
 			offset += 46 + nameBytes + extraBytes + commentBytes;
 		}
