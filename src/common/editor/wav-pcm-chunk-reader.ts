@@ -341,7 +341,8 @@ function readPcmSample(view: DataView, offset: number, sampleFormat: WavPcmSampl
 	}
 	if (sampleFormat === 'int32') return view.getInt32(offset, true) / 0x80000000;
 	const value = sampleFormat === 'float32' ? view.getFloat32(offset, true) : view.getFloat64(offset, true);
-	return Number.isFinite(value) ? value : 0;
+	const sample = Math.fround(value);
+	return Number.isFinite(sample) ? sample : 0;
 }
 
 function validateBextMetadata(value: unknown): void {

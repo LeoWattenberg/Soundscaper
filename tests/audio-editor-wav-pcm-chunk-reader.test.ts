@@ -86,6 +86,14 @@ test('random-access decoding preserves maintained integer and IEEE float sample 
 	}
 });
 
+test('64-bit IEEE float samples that overflow the editor buffer decode to silence', async () => {
+	const blob = createWaveBlob({ formatTag: 3, bitDepth: 64, channels: [[1e100, -1e100, 0.5]] });
+	const descriptor = await inspectWavBlobPcm(blob);
+	const reader = createWavBlobPcmChunkReader(blob, { descriptor, chunkFrames: 3 });
+
+	assert.deepEqual([...((await reader.readChunk(0)).channels[0])], [0, 0, 0.5]);
+});
+
 test('RF64 integer and IEEE float descriptors drive the same bounded random-access reader', async (t) => {
 	for (const fixture of [
 		{ name: 'integer PCM', formatTag: 1, bitDepth: 24, raw: [-8_388_608, 0, 8_388_607], expected: [-1, 0, 8_388_607 / 8_388_608] },
