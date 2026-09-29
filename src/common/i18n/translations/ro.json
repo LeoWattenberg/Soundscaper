@@ -2,7 +2,7 @@
 	"schemaVersion": 2,
 	"locale": "ro",
 	"provenance": {
-		"machine": {"model":"codex-gpt-6","modelDigest":"sha256:1f0df0742abd50c2bac85e80e6b27e7b79097dcc83a8d6167fffd5bc997412f9","promptVersion":"i18n-machine-v1"},
+		"machine": {"model":"codex-gpt-6","modelDigest":"sha256:8c351aabcbca1b680a2cddb08b18b8842a3b4bce1ca50723a2f72f2011aa7822","promptVersion":"i18n-machine-v1"},
 		"audacity": {"repository":"audacity/audacity","headSha":"de2e43dc13474ba712ade5ea8e47550eba0e8bfb","runId":35327911264,"artifactId":10539339149,"workflowUrl":"https://github.com/audacity/audacity/actions/runs/35327911264","archiveName":"Audacity_locale_262610911.zip","archiveSha256":"13b1ff11c39a677c711a1d29738a394aaca7a200533927aab3f45bbd76c1ff8e","archiveByteLength":15413913,"licenseSpdx":"GPL-3.0-only","upstreamProjectUrl":"https://github.com/audacity/audacity","upstreamLicenseUrl":"https://github.com/audacity/audacity/blob/de2e43dc13474ba712ade5ea8e47550eba0e8bfb/LICENSE.txt","modificationNotice":"Soundscaper converts reviewed Audacity Qt TS messages to per-locale JSON catalogs, excludes unsafe or inapplicable entries, adapts reviewed placeholders and mnemonics, and removes ellipsis punctuation.","mappingVersion":3,"mappingSha256":"f4cf0434f47eaa9434d079a1623b9d9501e9c8da0d83f0c73344f7765113b57c"}
 	},
 	"entries": {
@@ -650,6 +650,7 @@
 		"dockLeft": ["machine","Left","Stânga"],
 		"dockRight": ["machine","Right","Dreapta"],
 		"done": ["machine","Done","Gata"],
+		"downloadDesktopVersion": ["machine","Download desktop version","Descarcă versiunea pentru desktop"],
 		"dtmfGenerator": ["machine","DTMF tones","Tonuri DTMF"],
 		"duplicateAudio": ["audacity","Duplicate","Duplică"],
 		"duplicateProject": ["machine","Duplicate project","Duplică proiect"],
@@ -3669,6 +3670,8 @@
 		"volumeEnvelope": ["machine","Volume envelope","Înveliș de volum"],
 		"waveformView": ["machine","Waveform","Formă de undă"],
 		"webAudioUnsupported": ["machine","Web Audio is not supported in this browser.","Web Audio nu este suportat în acest browser."],
+		"webFileLimitDescription": ["machine","One or more files could not be loaded within the browser's file size or storage limits. The desktop version can handle larger files.","Unul sau mai multe fișiere nu au putut fi încărcate din cauza limitelor browserului privind dimensiunea fișierelor sau spațiul de stocare. Versiunea pentru desktop poate gestiona fișiere mai mari."],
+		"webFileLimitTitle": ["machine","Browser file limit reached","Limita de fișiere a browserului a fost atinsă"],
 		"webVcrAddress": ["machine","HTTPS address","Adresă HTTPS"],
 		"webVcrAspect": ["machine","Crop aspect","Aspectul culturii"],
 		"webVcrAspectFree": ["machine","Free","Liber"],

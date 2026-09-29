@@ -2,7 +2,7 @@
 	"schemaVersion": 2,
 	"locale": "pt-BR",
 	"provenance": {
-		"machine": {"model":"codex-gpt-6","modelDigest":"sha256:c4638bc71a641fb1c07e225db637b6ed44c0e7be89ae96b9e6e10734dc3388fd","promptVersion":"i18n-machine-v1"},
+		"machine": {"model":"codex-gpt-6","modelDigest":"sha256:93160a0bbd91484b43c4ab036d21131d6deff589b05e18a8b1d157a40d9abbe2","promptVersion":"i18n-machine-v1"},
 		"audacity": {"repository":"audacity/audacity","headSha":"de2e43dc13474ba712ade5ea8e47550eba0e8bfb","runId":35327911264,"artifactId":10539339149,"workflowUrl":"https://github.com/audacity/audacity/actions/runs/35327911264","archiveName":"Audacity_locale_262610911.zip","archiveSha256":"13b1ff11c39a677c711a1d29738a394aaca7a200533927aab3f45bbd76c1ff8e","archiveByteLength":15413913,"licenseSpdx":"GPL-3.0-only","upstreamProjectUrl":"https://github.com/audacity/audacity","upstreamLicenseUrl":"https://github.com/audacity/audacity/blob/de2e43dc13474ba712ade5ea8e47550eba0e8bfb/LICENSE.txt","modificationNotice":"Soundscaper converts reviewed Audacity Qt TS messages to per-locale JSON catalogs, excludes unsafe or inapplicable entries, adapts reviewed placeholders and mnemonics, and removes ellipsis punctuation.","mappingVersion":3,"mappingSha256":"f4cf0434f47eaa9434d079a1623b9d9501e9c8da0d83f0c73344f7765113b57c"}
 	},
 	"entries": {
@@ -650,6 +650,7 @@
 		"dockLeft": ["machine","Left","Esquerda"],
 		"dockRight": ["machine","Right","Direita"],
 		"done": ["machine","Done","Concluído"],
+		"downloadDesktopVersion": ["machine","Download desktop version","Baixar versão para desktop"],
 		"dtmfGenerator": ["machine","DTMF tones","Tons DTMF"],
 		"duplicateAudio": ["audacity","Duplicate","Duplicar"],
 		"duplicateProject": ["machine","Duplicate project","Duplicar projeto"],
@@ -3669,6 +3670,8 @@
 		"volumeEnvelope": ["machine","Volume envelope","Envelope de volume"],
 		"waveformView": ["machine","Waveform","Forma de onda"],
 		"webAudioUnsupported": ["machine","Web Audio is not supported in this browser.","O Web Audio não é compatível com este navegador."],
+		"webFileLimitDescription": ["machine","One or more files could not be loaded within the browser's file size or storage limits. The desktop version can handle larger files.","Não foi possível carregar um ou mais arquivos devido aos limites de tamanho de arquivo ou de armazenamento do navegador. A versão para desktop pode lidar com arquivos maiores."],
+		"webFileLimitTitle": ["machine","Browser file limit reached","Limite de arquivos do navegador atingido"],
 		"webVcrAddress": ["machine","HTTPS address","Endereço HTTPS"],
 		"webVcrAspect": ["machine","Crop aspect","Proporção do recorte"],
 		"webVcrAspectFree": ["machine","Free","Livre"],

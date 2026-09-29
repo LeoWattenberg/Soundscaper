@@ -2,7 +2,7 @@
 	"schemaVersion": 2,
 	"locale": "ko",
 	"provenance": {
-		"machine": {"model":"codex-gpt-6","modelDigest":"sha256:86f685746951a5dc4336af833a8b238c08eac04006c9772aa7e2b3792af16aed","promptVersion":"i18n-machine-v1"},
+		"machine": {"model":"codex-gpt-6","modelDigest":"sha256:5c81d7a1db7390daf41a35ed9af0b62ef57ea23e2c20eeaa98803860820aa42d","promptVersion":"i18n-machine-v1"},
 		"audacity": {"repository":"audacity/audacity","headSha":"de2e43dc13474ba712ade5ea8e47550eba0e8bfb","runId":35327911264,"artifactId":10539339149,"workflowUrl":"https://github.com/audacity/audacity/actions/runs/35327911264","archiveName":"Audacity_locale_262610911.zip","archiveSha256":"13b1ff11c39a677c711a1d29738a394aaca7a200533927aab3f45bbd76c1ff8e","archiveByteLength":15413913,"licenseSpdx":"GPL-3.0-only","upstreamProjectUrl":"https://github.com/audacity/audacity","upstreamLicenseUrl":"https://github.com/audacity/audacity/blob/de2e43dc13474ba712ade5ea8e47550eba0e8bfb/LICENSE.txt","modificationNotice":"Soundscaper converts reviewed Audacity Qt TS messages to per-locale JSON catalogs, excludes unsafe or inapplicable entries, adapts reviewed placeholders and mnemonics, and removes ellipsis punctuation.","mappingVersion":3,"mappingSha256":"f4cf0434f47eaa9434d079a1623b9d9501e9c8da0d83f0c73344f7765113b57c"}
 	},
 	"entries": {
@@ -650,6 +650,7 @@
 		"dockLeft": ["machine","Left","왼쪽"],
 		"dockRight": ["machine","Right","오른쪽"],
 		"done": ["machine","Done","완료"],
+		"downloadDesktopVersion": ["machine","Download desktop version","데스크톱 버전 다운로드"],
 		"dtmfGenerator": ["machine","DTMF tones","DTMF 톤"],
 		"duplicateAudio": ["audacity","Duplicate","복제"],
 		"duplicateProject": ["machine","Duplicate project","프로젝트 복제"],
@@ -3669,6 +3670,8 @@
 		"volumeEnvelope": ["machine","Volume envelope","볼륨 봉투"],
 		"waveformView": ["machine","Waveform","파형"],
 		"webAudioUnsupported": ["machine","Web Audio is not supported in this browser.","이 브라우저에서는 Web Audio를 지원하지 않습니다."],
+		"webFileLimitDescription": ["machine","One or more files could not be loaded within the browser's file size or storage limits. The desktop version can handle larger files.","브라우저의 파일 크기 또는 저장 공간 제한으로 인해 하나 이상의 파일을 불러올 수 없습니다. 데스크톱 버전에서는 더 큰 파일을 처리할 수 있습니다."],
+		"webFileLimitTitle": ["machine","Browser file limit reached","브라우저 파일 제한에 도달했습니다"],
 		"webVcrAddress": ["machine","HTTPS address","HTTPS 주소"],
 		"webVcrAspect": ["machine","Crop aspect","자르기 비율"],
 		"webVcrAspectFree": ["machine","Free","자유"],

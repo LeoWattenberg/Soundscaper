@@ -2,7 +2,7 @@
 	"schemaVersion": 2,
 	"locale": "zh-TW",
 	"provenance": {
-		"machine": {"model":"codex-gpt-6","modelDigest":"sha256:43e5acb019cd5df068387de6b67eaf87847ca4831e81175ef859fc926c1debb1","promptVersion":"i18n-machine-v1"},
+		"machine": {"model":"codex-gpt-6","modelDigest":"sha256:6b36981df65beedcc959effd643c10e8062cf30afc6f766a405a9c3e022264a3","promptVersion":"i18n-machine-v1"},
 		"audacity": {"repository":"audacity/audacity","headSha":"de2e43dc13474ba712ade5ea8e47550eba0e8bfb","runId":35327911264,"artifactId":10539339149,"workflowUrl":"https://github.com/audacity/audacity/actions/runs/35327911264","archiveName":"Audacity_locale_262610911.zip","archiveSha256":"13b1ff11c39a677c711a1d29738a394aaca7a200533927aab3f45bbd76c1ff8e","archiveByteLength":15413913,"licenseSpdx":"GPL-3.0-only","upstreamProjectUrl":"https://github.com/audacity/audacity","upstreamLicenseUrl":"https://github.com/audacity/audacity/blob/de2e43dc13474ba712ade5ea8e47550eba0e8bfb/LICENSE.txt","modificationNotice":"Soundscaper converts reviewed Audacity Qt TS messages to per-locale JSON catalogs, excludes unsafe or inapplicable entries, adapts reviewed placeholders and mnemonics, and removes ellipsis punctuation.","mappingVersion":3,"mappingSha256":"f4cf0434f47eaa9434d079a1623b9d9501e9c8da0d83f0c73344f7765113b57c"}
 	},
 	"entries": {
@@ -650,6 +650,7 @@
 		"dockLeft": ["machine","Left","左側"],
 		"dockRight": ["machine","Right","右側"],
 		"done": ["machine","Done","完成"],
+		"downloadDesktopVersion": ["machine","Download desktop version","下載桌面版"],
 		"dtmfGenerator": ["machine","DTMF tones","DTMF 音"],
 		"duplicateAudio": ["audacity","Duplicate","製作複本"],
 		"duplicateProject": ["machine","Duplicate project","複製專案"],
@@ -3669,6 +3670,8 @@
 		"volumeEnvelope": ["machine","Volume envelope","音量包絡"],
 		"waveformView": ["machine","Waveform","波形"],
 		"webAudioUnsupported": ["machine","Web Audio is not supported in this browser.","此瀏覽器不支援 Web Audio。"],
+		"webFileLimitDescription": ["machine","One or more files could not be loaded within the browser's file size or storage limits. The desktop version can handle larger files.","由於瀏覽器的檔案大小或儲存空間限制，無法載入一個或多個檔案。桌面版可以處理更大的檔案。"],
+		"webFileLimitTitle": ["machine","Browser file limit reached","已達瀏覽器檔案限制"],
 		"webVcrAddress": ["machine","HTTPS address","HTTPS 位址"],
 		"webVcrAspect": ["machine","Crop aspect","裁切比例"],
 		"webVcrAspectFree": ["machine","Free","自由"],

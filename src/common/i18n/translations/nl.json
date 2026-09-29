@@ -2,7 +2,7 @@
 	"schemaVersion": 2,
 	"locale": "nl",
 	"provenance": {
-		"machine": {"model":"codex-gpt-6","modelDigest":"sha256:b47fdb4489cd9d057af8c7cad206282281508dc6b0f8378ecd8fadc24033159a","promptVersion":"i18n-machine-v1"},
+		"machine": {"model":"codex-gpt-6","modelDigest":"sha256:7033c52060efdab485d8d8181043b96ce805d29328c9471f1e8149ed74229945","promptVersion":"i18n-machine-v1"},
 		"audacity": {"repository":"audacity/audacity","headSha":"de2e43dc13474ba712ade5ea8e47550eba0e8bfb","runId":35327911264,"artifactId":10539339149,"workflowUrl":"https://github.com/audacity/audacity/actions/runs/35327911264","archiveName":"Audacity_locale_262610911.zip","archiveSha256":"13b1ff11c39a677c711a1d29738a394aaca7a200533927aab3f45bbd76c1ff8e","archiveByteLength":15413913,"licenseSpdx":"GPL-3.0-only","upstreamProjectUrl":"https://github.com/audacity/audacity","upstreamLicenseUrl":"https://github.com/audacity/audacity/blob/de2e43dc13474ba712ade5ea8e47550eba0e8bfb/LICENSE.txt","modificationNotice":"Soundscaper converts reviewed Audacity Qt TS messages to per-locale JSON catalogs, excludes unsafe or inapplicable entries, adapts reviewed placeholders and mnemonics, and removes ellipsis punctuation.","mappingVersion":3,"mappingSha256":"f4cf0434f47eaa9434d079a1623b9d9501e9c8da0d83f0c73344f7765113b57c"}
 	},
 	"entries": {
@@ -650,6 +650,7 @@
 		"dockLeft": ["machine","Left","Links"],
 		"dockRight": ["machine","Right","Rechts"],
 		"done": ["machine","Done","Gereed"],
+		"downloadDesktopVersion": ["machine","Download desktop version","Desktopversie downloaden"],
 		"dtmfGenerator": ["machine","DTMF tones","DTMF-tonen"],
 		"duplicateAudio": ["audacity","Duplicate","Dupliceren"],
 		"duplicateProject": ["machine","Duplicate project","Project dupliceren"],
@@ -3669,6 +3670,8 @@
 		"volumeEnvelope": ["machine","Volume envelope","Volume-envelope"],
 		"waveformView": ["machine","Waveform","Golfvorm"],
 		"webAudioUnsupported": ["machine","Web Audio is not supported in this browser.","Web Audio wordt niet ondersteund in deze browser."],
+		"webFileLimitDescription": ["machine","One or more files could not be loaded within the browser's file size or storage limits. The desktop version can handle larger files.","Een of meer bestanden konden niet worden geladen vanwege de limieten van de browser voor bestandsgrootte of opslagruimte. De desktopversie kan grotere bestanden verwerken."],
+		"webFileLimitTitle": ["machine","Browser file limit reached","Bestandslimiet van de browser bereikt"],
 		"webVcrAddress": ["machine","HTTPS address","HTTPS-adres"],
 		"webVcrAspect": ["machine","Crop aspect","Beeldverhouding van uitsnede"],
 		"webVcrAspectFree": ["machine","Free","Vrij"],

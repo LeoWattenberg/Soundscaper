@@ -2,7 +2,7 @@
 	"schemaVersion": 2,
 	"locale": "vi",
 	"provenance": {
-		"machine": {"model":"codex-gpt-6","modelDigest":"sha256:b1898f5b5de44075461d1677f8e67ad69744a10e7c5373d6f4f70f8283b8fd6e","promptVersion":"i18n-machine-v1"},
+		"machine": {"model":"codex-gpt-6","modelDigest":"sha256:4ad463bb1d48444b90276151697c7464648114eccb035382468730340328573a","promptVersion":"i18n-machine-v1"},
 		"audacity": {"repository":"audacity/audacity","headSha":"de2e43dc13474ba712ade5ea8e47550eba0e8bfb","runId":35327911264,"artifactId":10539339149,"workflowUrl":"https://github.com/audacity/audacity/actions/runs/35327911264","archiveName":"Audacity_locale_262610911.zip","archiveSha256":"13b1ff11c39a677c711a1d29738a394aaca7a200533927aab3f45bbd76c1ff8e","archiveByteLength":15413913,"licenseSpdx":"GPL-3.0-only","upstreamProjectUrl":"https://github.com/audacity/audacity","upstreamLicenseUrl":"https://github.com/audacity/audacity/blob/de2e43dc13474ba712ade5ea8e47550eba0e8bfb/LICENSE.txt","modificationNotice":"Soundscaper converts reviewed Audacity Qt TS messages to per-locale JSON catalogs, excludes unsafe or inapplicable entries, adapts reviewed placeholders and mnemonics, and removes ellipsis punctuation.","mappingVersion":3,"mappingSha256":"f4cf0434f47eaa9434d079a1623b9d9501e9c8da0d83f0c73344f7765113b57c"}
 	},
 	"entries": {
@@ -650,6 +650,7 @@
 		"dockLeft": ["machine","Left","Trái"],
 		"dockRight": ["machine","Right","Phải"],
 		"done": ["machine","Done","Xong"],
+		"downloadDesktopVersion": ["machine","Download desktop version","Tải phiên bản dành cho máy tính"],
 		"dtmfGenerator": ["machine","DTMF tones","Âm DTMF"],
 		"duplicateAudio": ["audacity","Duplicate","Nhân đôi"],
 		"duplicateProject": ["machine","Duplicate project","Nhân đôi dự án"],
@@ -3669,6 +3670,8 @@
 		"volumeEnvelope": ["machine","Volume envelope","Đường bao âm lượng"],
 		"waveformView": ["machine","Waveform","Dạng sóng"],
 		"webAudioUnsupported": ["machine","Web Audio is not supported in this browser.","Trình duyệt này không hỗ trợ Web Audio."],
+		"webFileLimitDescription": ["machine","One or more files could not be loaded within the browser's file size or storage limits. The desktop version can handle larger files.","Không thể tải một hoặc nhiều tệp do giới hạn kích thước tệp hoặc dung lượng lưu trữ của trình duyệt. Phiên bản dành cho máy tính có thể xử lý các tệp lớn hơn."],
+		"webFileLimitTitle": ["machine","Browser file limit reached","Đã đạt giới hạn tệp của trình duyệt"],
 		"webVcrAddress": ["machine","HTTPS address","Địa chỉ HTTPS"],
 		"webVcrAspect": ["machine","Crop aspect","Tỷ lệ khung cắt"],
 		"webVcrAspectFree": ["machine","Free","Tự do"],

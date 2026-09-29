@@ -2,7 +2,7 @@
 	"schemaVersion": 2,
 	"locale": "hi",
 	"provenance": {
-		"machine": {"model":"codex-gpt-6","modelDigest":"sha256:2405cd756359ce2ad7e40256bde66233c4ea68dba6205d6c8f768c68dd609a26","promptVersion":"i18n-machine-v1"},
+		"machine": {"model":"codex-gpt-6","modelDigest":"sha256:7769aa0e81c3b775166c2fa85628567c4d80335976144f91ae2777fd59907057","promptVersion":"i18n-machine-v1"},
 		"audacity": {"repository":"audacity/audacity","headSha":"de2e43dc13474ba712ade5ea8e47550eba0e8bfb","runId":35327911264,"artifactId":10539339149,"workflowUrl":"https://github.com/audacity/audacity/actions/runs/35327911264","archiveName":"Audacity_locale_262610911.zip","archiveSha256":"13b1ff11c39a677c711a1d29738a394aaca7a200533927aab3f45bbd76c1ff8e","archiveByteLength":15413913,"licenseSpdx":"GPL-3.0-only","upstreamProjectUrl":"https://github.com/audacity/audacity","upstreamLicenseUrl":"https://github.com/audacity/audacity/blob/de2e43dc13474ba712ade5ea8e47550eba0e8bfb/LICENSE.txt","modificationNotice":"Soundscaper converts reviewed Audacity Qt TS messages to per-locale JSON catalogs, excludes unsafe or inapplicable entries, adapts reviewed placeholders and mnemonics, and removes ellipsis punctuation.","mappingVersion":3,"mappingSha256":"f4cf0434f47eaa9434d079a1623b9d9501e9c8da0d83f0c73344f7765113b57c"}
 	},
 	"entries": {
@@ -650,6 +650,7 @@
 		"dockLeft": ["machine","Left","बाएं"],
 		"dockRight": ["machine","Right","दाएं"],
 		"done": ["machine","Done","पूर्ण"],
+		"downloadDesktopVersion": ["machine","Download desktop version","डेस्कटॉप संस्करण डाउनलोड करें"],
 		"dtmfGenerator": ["machine","DTMF tones","DTMF टोन"],
 		"duplicateAudio": ["audacity","Duplicate","नकल बनाएं"],
 		"duplicateProject": ["machine","Duplicate project","परियोजना की नकल बनाएं"],
@@ -3669,6 +3670,8 @@
 		"volumeEnvelope": ["machine","Volume envelope","वॉल्यूम एन्वलप"],
 		"waveformView": ["machine","Waveform","वेवफ़ॉर्म"],
 		"webAudioUnsupported": ["machine","Web Audio is not supported in this browser.","इस ब्राउज़र में Web Audio समर्थित नहीं है।"],
+		"webFileLimitDescription": ["machine","One or more files could not be loaded within the browser's file size or storage limits. The desktop version can handle larger files.","ब्राउज़र की फ़ाइल आकार या स्टोरेज सीमा के कारण एक या अधिक फ़ाइलें लोड नहीं की जा सकीं। डेस्कटॉप संस्करण बड़ी फ़ाइलों को संभाल सकता है।"],
+		"webFileLimitTitle": ["machine","Browser file limit reached","ब्राउज़र की फ़ाइल सीमा पूरी हो गई"],
 		"webVcrAddress": ["machine","HTTPS address","HTTPS पता"],
 		"webVcrAspect": ["machine","Crop aspect","क्रॉप पहलू अनुपात"],
 		"webVcrAspectFree": ["machine","Free","मुक्त"],

@@ -2,7 +2,7 @@
 	"schemaVersion": 2,
 	"locale": "cs",
 	"provenance": {
-		"machine": {"model":"codex-gpt-6","modelDigest":"sha256:0bb31b62ca0b5b8bf7e2e39ca169ba630d62004e75161a482410297c53df8d75","promptVersion":"i18n-machine-v1"},
+		"machine": {"model":"codex-gpt-6","modelDigest":"sha256:f1667e519b79876eacb2fe15a019c91618bcf7559d25e8ec9cae0239ef17cd5f","promptVersion":"i18n-machine-v1"},
 		"audacity": {"repository":"audacity/audacity","headSha":"de2e43dc13474ba712ade5ea8e47550eba0e8bfb","runId":35327911264,"artifactId":10539339149,"workflowUrl":"https://github.com/audacity/audacity/actions/runs/35327911264","archiveName":"Audacity_locale_262610911.zip","archiveSha256":"13b1ff11c39a677c711a1d29738a394aaca7a200533927aab3f45bbd76c1ff8e","archiveByteLength":15413913,"licenseSpdx":"GPL-3.0-only","upstreamProjectUrl":"https://github.com/audacity/audacity","upstreamLicenseUrl":"https://github.com/audacity/audacity/blob/de2e43dc13474ba712ade5ea8e47550eba0e8bfb/LICENSE.txt","modificationNotice":"Soundscaper converts reviewed Audacity Qt TS messages to per-locale JSON catalogs, excludes unsafe or inapplicable entries, adapts reviewed placeholders and mnemonics, and removes ellipsis punctuation.","mappingVersion":3,"mappingSha256":"f4cf0434f47eaa9434d079a1623b9d9501e9c8da0d83f0c73344f7765113b57c"}
 	},
 	"entries": {
@@ -650,6 +650,7 @@
 		"dockLeft": ["machine","Left","Vlevo"],
 		"dockRight": ["machine","Right","Vpravo"],
 		"done": ["machine","Done","Hotovo"],
+		"downloadDesktopVersion": ["machine","Download desktop version","Stáhnout verzi pro počítač"],
 		"dtmfGenerator": ["machine","DTMF tones","Tóny DTMF"],
 		"duplicateAudio": ["audacity","Duplicate","Zdvojit"],
 		"duplicateProject": ["machine","Duplicate project","Zdvojit projekt"],
@@ -3669,6 +3670,8 @@
 		"volumeEnvelope": ["machine","Volume envelope","Obálka hlasitosti"],
 		"waveformView": ["machine","Waveform","Waveform"],
 		"webAudioUnsupported": ["machine","Web Audio is not supported in this browser.","Web Audio není v tomto prohlížeči podporováno."],
+		"webFileLimitDescription": ["machine","One or more files could not be loaded within the browser's file size or storage limits. The desktop version can handle larger files.","Jeden nebo více souborů se nepodařilo načíst kvůli limitu velikosti souborů nebo úložiště prohlížeče. Verze pro počítač zvládne větší soubory."],
+		"webFileLimitTitle": ["machine","Browser file limit reached","Byl dosažen limit souborů v prohlížeči"],
 		"webVcrAddress": ["machine","HTTPS address","Adresa HTTPS"],
 		"webVcrAspect": ["machine","Crop aspect","Poměr stran ořezu"],
 		"webVcrAspectFree": ["machine","Free","Volný"],

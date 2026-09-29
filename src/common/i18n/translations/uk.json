@@ -2,7 +2,7 @@
 	"schemaVersion": 2,
 	"locale": "uk",
 	"provenance": {
-		"machine": {"model":"codex-gpt-6","modelDigest":"sha256:a0efb640c6c9948da40e509fa66a1b3ef27d1f94f33667217e5dbd005eb33750","promptVersion":"i18n-machine-v1"},
+		"machine": {"model":"codex-gpt-6","modelDigest":"sha256:083febccae506d88c1d600e186dc1da2925c7f056510608c96ca99e7d1fc151d","promptVersion":"i18n-machine-v1"},
 		"audacity": {"repository":"audacity/audacity","headSha":"de2e43dc13474ba712ade5ea8e47550eba0e8bfb","runId":35327911264,"artifactId":10539339149,"workflowUrl":"https://github.com/audacity/audacity/actions/runs/35327911264","archiveName":"Audacity_locale_262610911.zip","archiveSha256":"13b1ff11c39a677c711a1d29738a394aaca7a200533927aab3f45bbd76c1ff8e","archiveByteLength":15413913,"licenseSpdx":"GPL-3.0-only","upstreamProjectUrl":"https://github.com/audacity/audacity","upstreamLicenseUrl":"https://github.com/audacity/audacity/blob/de2e43dc13474ba712ade5ea8e47550eba0e8bfb/LICENSE.txt","modificationNotice":"Soundscaper converts reviewed Audacity Qt TS messages to per-locale JSON catalogs, excludes unsafe or inapplicable entries, adapts reviewed placeholders and mnemonics, and removes ellipsis punctuation.","mappingVersion":3,"mappingSha256":"f4cf0434f47eaa9434d079a1623b9d9501e9c8da0d83f0c73344f7765113b57c"}
 	},
 	"entries": {
@@ -650,6 +650,7 @@
 		"dockLeft": ["machine","Left","Зліва"],
 		"dockRight": ["machine","Right","Справа"],
 		"done": ["machine","Done","Готово"],
+		"downloadDesktopVersion": ["machine","Download desktop version","Завантажити версію для комп’ютера"],
 		"dtmfGenerator": ["machine","DTMF tones","Тони DTMF"],
 		"duplicateAudio": ["audacity","Duplicate","Дублювати"],
 		"duplicateProject": ["machine","Duplicate project","Дублювати проєкт"],
@@ -3669,6 +3670,8 @@
 		"volumeEnvelope": ["machine","Volume envelope","Обвідна гучності"],
 		"waveformView": ["machine","Waveform","Форма хвилі"],
 		"webAudioUnsupported": ["machine","Web Audio is not supported in this browser.","Web Audio не підтримується в цьому браузері."],
+		"webFileLimitDescription": ["machine","One or more files could not be loaded within the browser's file size or storage limits. The desktop version can handle larger files.","Не вдалося завантажити один або кілька файлів через обмеження браузера на розмір файлів або обсяг сховища. Версія для комп’ютера може працювати з більшими файлами."],
+		"webFileLimitTitle": ["machine","Browser file limit reached","Досягнуто обмеження на файли в браузері"],
 		"webVcrAddress": ["machine","HTTPS address","Адреса HTTPS"],
 		"webVcrAspect": ["machine","Crop aspect","Співвідношення сторін обрізання"],
 		"webVcrAspectFree": ["machine","Free","Довільне"],

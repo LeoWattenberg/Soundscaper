@@ -2,7 +2,7 @@
 	"schemaVersion": 2,
 	"locale": "fa",
 	"provenance": {
-		"machine": {"model":"codex-gpt-6","modelDigest":"sha256:c55c6a09db863ff82d872699ddd09fe116a6613277c3d8fa686638f111a08e92","promptVersion":"i18n-machine-v1"},
+		"machine": {"model":"codex-gpt-6","modelDigest":"sha256:bcba750f60a8694c847ffd5b3fba154ba4fb8b1cd7dcdda50fc1eb6cbc27cd93","promptVersion":"i18n-machine-v1"},
 		"audacity": {"repository":"audacity/audacity","headSha":"de2e43dc13474ba712ade5ea8e47550eba0e8bfb","runId":35327911264,"artifactId":10539339149,"workflowUrl":"https://github.com/audacity/audacity/actions/runs/35327911264","archiveName":"Audacity_locale_262610911.zip","archiveSha256":"13b1ff11c39a677c711a1d29738a394aaca7a200533927aab3f45bbd76c1ff8e","archiveByteLength":15413913,"licenseSpdx":"GPL-3.0-only","upstreamProjectUrl":"https://github.com/audacity/audacity","upstreamLicenseUrl":"https://github.com/audacity/audacity/blob/de2e43dc13474ba712ade5ea8e47550eba0e8bfb/LICENSE.txt","modificationNotice":"Soundscaper converts reviewed Audacity Qt TS messages to per-locale JSON catalogs, excludes unsafe or inapplicable entries, adapts reviewed placeholders and mnemonics, and removes ellipsis punctuation.","mappingVersion":3,"mappingSha256":"f4cf0434f47eaa9434d079a1623b9d9501e9c8da0d83f0c73344f7765113b57c"}
 	},
 	"entries": {
@@ -650,6 +650,7 @@
 		"dockLeft": ["machine","Left","چپ"],
 		"dockRight": ["machine","Right","راست"],
 		"done": ["machine","Done","انجام شد"],
+		"downloadDesktopVersion": ["machine","Download desktop version","دانلود نسخهٔ دسکتاپ"],
 		"dtmfGenerator": ["machine","DTMF tones","تن‌های DTMF"],
 		"duplicateAudio": ["audacity","Duplicate","تکثیر"],
 		"duplicateProject": ["machine","Duplicate project","تکثیر پروژه"],
@@ -3669,6 +3670,8 @@
 		"volumeEnvelope": ["machine","Volume envelope","پوش حجم صدا"],
 		"waveformView": ["machine","Waveform","شکل موج"],
 		"webAudioUnsupported": ["machine","Web Audio is not supported in this browser.","Web Audio در این مرورگر پشتیبانی نمی‌شود."],
+		"webFileLimitDescription": ["machine","One or more files could not be loaded within the browser's file size or storage limits. The desktop version can handle larger files.","یک یا چند فایل به دلیل محدودیت اندازهٔ فایل یا فضای ذخیره‌سازی مرورگر بارگذاری نشدند. نسخهٔ دسکتاپ می‌تواند فایل‌های بزرگ‌تری را پردازش کند."],
+		"webFileLimitTitle": ["machine","Browser file limit reached","به سقف فایل در مرورگر رسیده‌اید"],
 		"webVcrAddress": ["machine","HTTPS address","نشانی HTTPS"],
 		"webVcrAspect": ["machine","Crop aspect","نسبت تصویر برش"],
 		"webVcrAspectFree": ["machine","Free","آزاد"],

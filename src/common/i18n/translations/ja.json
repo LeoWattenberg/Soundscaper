@@ -2,7 +2,7 @@
 	"schemaVersion": 2,
 	"locale": "ja",
 	"provenance": {
-		"machine": {"model":"codex-gpt-6","modelDigest":"sha256:b0480ea406a03f5c3e8a4f8d1c23c4cdb66dcdf1f22111f3a0ca4369060407ed","promptVersion":"i18n-machine-v1"},
+		"machine": {"model":"codex-gpt-6","modelDigest":"sha256:232e980742dfccb639e09c77cb17208170d715cbd2170deec7a9b387de206470","promptVersion":"i18n-machine-v1"},
 		"audacity": {"repository":"audacity/audacity","headSha":"de2e43dc13474ba712ade5ea8e47550eba0e8bfb","runId":35327911264,"artifactId":10539339149,"workflowUrl":"https://github.com/audacity/audacity/actions/runs/35327911264","archiveName":"Audacity_locale_262610911.zip","archiveSha256":"13b1ff11c39a677c711a1d29738a394aaca7a200533927aab3f45bbd76c1ff8e","archiveByteLength":15413913,"licenseSpdx":"GPL-3.0-only","upstreamProjectUrl":"https://github.com/audacity/audacity","upstreamLicenseUrl":"https://github.com/audacity/audacity/blob/de2e43dc13474ba712ade5ea8e47550eba0e8bfb/LICENSE.txt","modificationNotice":"Soundscaper converts reviewed Audacity Qt TS messages to per-locale JSON catalogs, excludes unsafe or inapplicable entries, adapts reviewed placeholders and mnemonics, and removes ellipsis punctuation.","mappingVersion":3,"mappingSha256":"f4cf0434f47eaa9434d079a1623b9d9501e9c8da0d83f0c73344f7765113b57c"}
 	},
 	"entries": {
@@ -650,6 +650,7 @@
 		"dockLeft": ["machine","Left","左"],
 		"dockRight": ["machine","Right","右"],
 		"done": ["machine","Done","完了"],
+		"downloadDesktopVersion": ["machine","Download desktop version","デスクトップ版をダウンロード"],
 		"dtmfGenerator": ["machine","DTMF tones","DTMFトーン"],
 		"duplicateAudio": ["audacity","Duplicate","複製"],
 		"duplicateProject": ["machine","Duplicate project","プロジェクトを複製"],
@@ -3669,6 +3670,8 @@
 		"volumeEnvelope": ["machine","Volume envelope","ボリュームエンベロープ"],
 		"waveformView": ["machine","Waveform","波形"],
 		"webAudioUnsupported": ["machine","Web Audio is not supported in this browser.","このブラウザではWeb Audioがサポートされていません。"],
+		"webFileLimitDescription": ["machine","One or more files could not be loaded within the browser's file size or storage limits. The desktop version can handle larger files.","ブラウザーのファイルサイズまたはストレージの制限により、1 つ以上のファイルを読み込めませんでした。デスクトップ版では、より大きなファイルを扱えます。"],
+		"webFileLimitTitle": ["machine","Browser file limit reached","ブラウザーのファイル制限に達しました"],
 		"webVcrAddress": ["machine","HTTPS address","HTTPSアドレス"],
 		"webVcrAspect": ["machine","Crop aspect","トリミングアスペクト"],
 		"webVcrAspectFree": ["machine","Free","自由"],
