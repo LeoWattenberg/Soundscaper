@@ -236,7 +236,7 @@ export function createClipboardEditService(
 		const project = dependencies.getProject();
 		const clipboard = dependencies.state.clipboard;
 		if (!clipboard) throw new TypeError('An audio editor clipboard is required.');
-		const trackMap: Record<string, string> = {};
+		const trackMap = Object.create(null) as Record<string, string>;
 		const sessionClipboard = dependencies.session.clipboardForProject(project.id);
 		const preparedCarrier = editSessionClipboard && sameClipboardDescriptor(editSessionClipboard.descriptor, clipboard) && dependencies.prepareEditClipboardPasteCommand ? editSessionClipboard : null;
 		const commands: AudioEditorCommand[] = missingClipboardSourcesForPaste(project.sources, sessionClipboard?.sources ?? [])
