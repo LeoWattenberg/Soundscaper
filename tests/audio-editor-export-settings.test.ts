@@ -70,6 +70,20 @@ test('unknown values cannot escape the supported export inventory', () => {
 	);
 });
 
+test('resolved export ranges keep their bounds and refuse malformed objects', () => {
+	assert.deepEqual(
+		normalizeEditorExportSettings({ range: { startFrame: 12_000, endFrame: 24_000 } }, 48_000).range,
+		{ startFrame: 12_000, endFrame: 24_000 },
+	);
+	for (const range of [
+		{ startFrame: 24_000, endFrame: 12_000 },
+		{ startFrame: '0', endFrame: 12_000 },
+		{ startFrame: null, endFrame: 12_000 },
+	]) {
+		assert.throws(() => normalizeEditorExportSettings({ range }, 48_000), /export range/iu);
+	}
+});
+
 test('BW64 export is mix-only and carries broadcast and ADM metadata', () => {
 	const bext = { description: 'Immersive master' };
 	const adm = { mode: 'authored' };

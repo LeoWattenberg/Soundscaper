@@ -154,9 +154,10 @@ function normalizeExportRange(value: unknown): EditorExportSettings['range'] {
 	if (value === 'selection' || value === 'loop') return value;
 	if (!value || typeof value !== 'object') return 'project';
 	const record = value as Readonly<Record<string, unknown>>;
-	const startFrame = Number(record.startFrame);
-	const endFrame = Number(record.endFrame);
-	if (!Number.isSafeInteger(startFrame) || startFrame < 0) return 'project';
-	if (!Number.isSafeInteger(endFrame) || endFrame <= startFrame) return 'project';
+	const { startFrame, endFrame } = record;
+	if (typeof startFrame !== 'number' || !Number.isSafeInteger(startFrame) || startFrame < 0
+		|| typeof endFrame !== 'number' || !Number.isSafeInteger(endFrame) || endFrame <= startFrame) {
+		throw new RangeError('Resolved export range must have increasing non-negative safe integer frame bounds.');
+	}
 	return Object.freeze({ startFrame, endFrame });
 }
