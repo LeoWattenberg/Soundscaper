@@ -6,6 +6,7 @@ import {
 } from './media-asset-chunk-records.ts';
 import { MediaAssetCleanupError } from './media-asset-cleanup-error.ts';
 import { MEDIA_ASSET_CHUNK_STORAGE_TYPE } from './media-asset-chunk-schema.ts';
+import { browserFileStorageFailure } from '../web-file-limit-failure.ts';
 import {
 	MediaAssetStagingLease,
 	MediaAssetStagingRepository,
@@ -45,14 +46,15 @@ export async function prepareMediaAssetStaging({
 	opfs: OpfsRepository;
 	signal?: AbortSignal;
 }>): Promise<PreparedMediaAssetStaging> {
-	const plan = database ? await opfs.planBinaryWriter(`media-${sourceId}`, { signal }) : null;
+	const plan = database ? await opfs.planBinaryWriter(`media-${sourceId}`, { signal })
+		.catch((error: unknown) => { throw browserFileStorageFailure('OPFS media planning', error); }) : null;
 	if (plan) {
 		const lease = await staging.acquire(sourceId, { path: plan.path }, database);
 		let writer: OpfsBinaryWriter | null;
 		try {
 			writer = await plan.open();
 		} catch (error) {
-			return releaseLeaseAfterFailure(lease, error);
+			return releaseLeaseAfterFailure(lease, browserFileStorageFailure('OPFS media admission', error));
 		}
 		if (writer) {
 			const sink = opfsSink(writer, lease);
@@ -134,12 +136,14 @@ function opfsSink(writer: OpfsBinaryWriter, lease: MediaAssetStagingLease): Stag
 		path: writer.path,
 		write: async (bytes, _index, signal) => {
 			await lease.checkpoint();
-			await writer.write(bytes, { signal });
+			try { await writer.write(bytes, { signal }); }
+			catch (error) { throw browserFileStorageFailure('OPFS media write', error); }
 			await lease.checkpoint();
 		},
 		close: async (signal) => {
 			await lease.checkpoint();
-			await writer.close({ signal });
+			try { await writer.close({ signal }); }
+			catch (error) { throw browserFileStorageFailure('OPFS media close', error); }
 			await lease.checkpoint();
 		},
 		abort: () => writer.abort(),

@@ -16,6 +16,7 @@ import {
 	createFramescaperVideoProxyDialogModel,
 } from '../framescaper-video-proxy-dialog-model.ts';
 import { runAwaitedAudioEditorOperation } from '../workspace/audio-editor-workspace-runner.ts';
+import { WebFileLoadLimitError, withWebFileLoadLimitContext } from '../../web-file-limit-failure.ts';
 import type { FramescaperVideoProxyModeRetime } from '../../../../framescaper/editor-video-proxy-use-policy-retime.ts';
 
 interface ProxyFileService {
@@ -133,6 +134,7 @@ export default function FramescaperVideoProxyDialog({
 				setStatus({ key: 'videoProxyCancelled' });
 				return;
 			}
+			if (kind === 'attach' && operationError instanceof WebFileLoadLimitError) return;
 			setError(feedbackFailure(operationError));
 		}).finally(() => {
 			if (abortRef.current === abort) abortRef.current = null;
@@ -155,10 +157,10 @@ export default function FramescaperVideoProxyDialog({
 	};
 	const attachCandidate = (candidate: Blob): void => {
 		if (!runtime || !selectedSourceId) return;
-		perform('attach', (signal) => runtime.attachExisting(selectedSourceId, candidate, {
+		perform('attach', (signal) => withWebFileLoadLimitContext(() => runtime.attachExisting(selectedSourceId, candidate, {
 			...(signal ? { signal } : {}),
 			onProgress: (next) => { setProgress(next); },
-		}));
+		})));
 	};
 	const chooseExisting = (): void => {
 		if (!runtime || !selectedSourceId) return;

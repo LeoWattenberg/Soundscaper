@@ -18,6 +18,7 @@ import {
 import { projectBinColorName, projectBinItems } from './project-bin-model.ts';
 import { lazyEditorModule } from '../../../offline/lazy-module.tsx';
 import { queueFreesoundClipUploadCommand } from './freesound-clip-upload-command.ts';
+import { withWebFileLoadLimitContext } from '../../web-file-limit-failure.ts';
 import { useProjectBinSourceProperties } from './use-project-bin-source-properties.jsx';
 
 const AUDIO_EDITOR_AUDIO_FILE_ACCEPT = 'audio/*,video/mp4,video/webm,.aac,.aif,.aiff,.bw64,.flac,.m4a,.m4v,.mp2,.mp3,.mp4,.oga,.ogg,.opus,.rf64,.wav,.wave,.wavpack,.webm,.wv';
@@ -118,14 +119,14 @@ export default function ProjectBinPanel({ controller, snapshot, copy, locale, fi
 	const proxyDialogOpen = proxyClipId !== null && proxyProjectIdRef.current === projectId;
 	const closeProxyDialog = () => { proxyProjectIdRef.current = null; setProxyClipId(null); };
 
-	const importFiles = async (files) => {
+	const importFiles = (files) => withWebFileLoadLimitContext(async () => {
 		if (mutationBlocked || !files.length) return undefined;
 		const projects = files.filter((file) => /\.aup[34]$/iu.test(file?.name || ''));
 		const media = files.filter((file) => !/\.aup[34]$/iu.test(file?.name || ''));
 		for (const projectFile of projects) await controller.actions.project.openAudacityProject(projectFile);
 		if (media.length) return controller.actions.project.importFiles(media, { destination: 'project-bin' });
 		return projects.length;
-	};
+	});
 	const chooseFiles = () => run(async () => {
 		if (mutationBlocked) return;
 		if (!fileService.isDesktop) {
@@ -141,21 +142,21 @@ export default function ProjectBinPanel({ controller, snapshot, copy, locale, fi
 		if (mutationBlocked) return;
 		const choice = await fileService.chooseLinkedAudioOriginal();
 		if (!choice) return;
-		await controller.actions.project.importFiles([choice.file], {
+		await withWebFileLoadLimitContext(() => controller.actions.project.importFiles([choice.file], {
 			destination: 'project-bin',
 			linkedAudioLocatorId: choice.locatorId,
 			linkedAudioLocatorRevision: choice.locatorRevision,
-		});
+		}));
 	});
 	const chooseLinkedVideo = () => run(async () => {
 		if (mutationBlocked) return;
 		const choice = await fileService.chooseLinkedVideoOriginal();
 		if (!choice) return;
-		await controller.actions.project.importFiles([choice.file], {
+		await withWebFileLoadLimitContext(() => controller.actions.project.importFiles([choice.file], {
 			destination: 'project-bin',
 			linkedVideoLocatorId: choice.locatorId,
 			linkedVideoLocatorRevision: choice.locatorRevision,
-		});
+		}));
 	});
 	const relinkLinkedAudio = (clipId) => run(async () => {
 		if (mutationBlocked) return;

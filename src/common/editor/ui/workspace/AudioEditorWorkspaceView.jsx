@@ -27,7 +27,8 @@ import { TrackAutomationRuntimeProvider } from '../soundscaper-workflow-product-
 import { useSplitToolShortcut } from '../timeline/useSplitToolShortcut.ts';
 import EditorSurfaceBoundary from '../EditorSurfaceBoundary.jsx';
 import { CueImportDestinationDialog, WorkspaceImportInput } from './cue-import-workspace.tsx';
-
+import WebFileLimitDialog from './WebFileLimitDialog.tsx';
+import { withWebFileLoadLimitContext } from '../../web-file-limit-failure.ts';
 const ProjectLockToast = lazyEditorModule(() => import('../ProjectLockToast.tsx'));
 
 const EMPTY_SPLIT_TOOL_SHORTCUTS = Object.freeze([]);
@@ -70,7 +71,7 @@ export default function AudioEditorWorkspaceView({ model }) {
 		isVideoEditorWorkspace,
 		legacyDataInputRef,
 		locale,
-		localError,
+		localError, webFileLimitPrompt, dismissWebFileLimitPrompt,
 		moveWorkspacePanel,
 		onError,
 		openEffects,
@@ -236,7 +237,7 @@ export default function AudioEditorWorkspaceView({ model }) {
 					const files = [...event.currentTarget.files];
 					event.currentTarget.value = '';
 					pendingLegacyProjectRef.current = null;
-					if (projectFile && files.length) run(() => controller.actions.project.importFiles([projectFile, ...files]));
+					if (projectFile && files.length) run(() => withWebFileLoadLimitContext(() => controller.actions.project.importFiles([projectFile, ...files])));
 				}}
 			/>
 
@@ -541,6 +542,7 @@ export default function AudioEditorWorkspaceView({ model }) {
 			<AudioEditorWorkspaceOverlays model={model} />
 			<EditorOverlayHost ref={setEditorOverlayTarget} />
 			<AudioEditorButtonTooltips rootRef={editorRef} />
+			{webFileLimitPrompt && <WebFileLimitDialog copy={copy} productId={productId} onClose={dismissWebFileLimitPrompt} />}
 		</div>
 		</TrackAutomationRuntimeProvider>
 	);

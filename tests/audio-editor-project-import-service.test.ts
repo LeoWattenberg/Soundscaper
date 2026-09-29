@@ -11,6 +11,7 @@ import {
 	createProjectImportService as createProductionProjectImportService,
 	type ProjectImportServiceRuntimeLoader,
 } from '../src/common/editor/controller/import/internal/project-import-service.ts';
+import { BrowserFileStorageError, WebFileLoadLimitError } from '../src/common/editor/web-file-limit-failure.ts';
 
 function createRuntime(): ProjectImportRuntime {
 	const callable = () => undefined;
@@ -109,6 +110,29 @@ test('project import execution loads once while option normalization stays synch
 	assert.deepEqual(importFilesCalls.map(([, , initialStatusHandled]) => initialStatusHandled), [true, true]);
 	assert.equal(loads, 1);
 	assert.equal(creations, 1);
+});
+
+test('batch import surfaces a browser storage limit after preserving the failure summary', async () => {
+	const failure = new BrowserFileStorageError('OPFS media write', new Error('disk refused'));
+	const reported: unknown[] = [];
+	const statuses: unknown[] = [];
+	const runtime = createRuntime() as Record<string, unknown>;
+	runtime.state = { importing: false };
+	runtime.isLegacyAupFile = () => false;
+	runtime.isAudioEditorVideoFile = () => true;
+	runtime.importVideoFile = async () => { throw failure; };
+	runtime.handleError = (error: unknown) => { reported.push(error); };
+	runtime.setStatus = (message: unknown) => { statuses.push(message); };
+	runtime.taskProgress = { begin: () => null };
+	runtime.copy = { importing: 'Importing', importSummary: '{successes} succeeded, {failures} failed', timelineFramesFinite: 'Frames must be finite.' };
+	const service = createProjectImportService(runtime as ProjectImportRuntime);
+
+	await assert.rejects(service.importFiles([new File([], 'movie.mp4', { type: 'video/mp4' })]),
+		(error: unknown) => error instanceof WebFileLoadLimitError
+			&& error.cause instanceof AggregateError && error.cause.errors[0] === failure);
+	assert.deepEqual(reported, [failure]);
+	assert.match(String(statuses.at(-1)), /1 failed/u);
+	assert.equal((runtime.state as { importing: boolean }).importing, false);
 });
 
 test('a linked video locator is refused and released for non-video imports', async () => {

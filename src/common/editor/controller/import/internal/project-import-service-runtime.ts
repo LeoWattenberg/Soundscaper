@@ -35,6 +35,7 @@ import {
 	createRiffAnnotationImport,
 } from '../../../timeline-annotation-riff-interchange.ts';
 import { scaleSampleFrame } from '../../../timeline-time.ts';
+import { createImportFileLimitFailures } from './import-file-limit-failures.ts';
 import type { AudioEditorCommand } from '../../../commands/protocol.ts';
 import type { ProjectImportRuntime } from './project-import-runtime.ts';
 import type { EditorTaskProgressHandle } from '../../shared/task-progress.ts';
@@ -115,16 +116,14 @@ export function createProjectImportServiceRuntime(runtime: ProjectImportRuntime)
 		state.importing = true;
 		publishDocumentSnapshot();
 		setLocalizedStatus(setStatus, copy, "importing");
-		let failures = 0;
-		let successes = 0;
-		const notices: LocalizedImportNotice[] = [];
-		let importQueue = files;
+		let failures = 0; let successes = 0;
+		const webFileLimitFailures = createImportFileLimitFailures(cancellation.signal);
+		const notices: LocalizedImportNotice[] = []; let importQueue = files;
 		const progressFiles = files.filter((file: RuntimeValue) => !isLegacyBlockFile(file));
 		const totalBytes = Math.max(1, progressFiles.reduce((sum: number, file: RuntimeValue) => (
 			sum + Math.max(1, Number(file?.size) || 0)
 		), 0));
-		let completedBytes = 0;
-		const legacyProject = files.find(isLegacyAupFile);
+		let completedBytes = 0; const legacyProject = files.find(isLegacyAupFile);
 		if (legacyProject) {
 			setImportFileProgress(legacyProject, completedBytes, totalBytes);
 			try {
@@ -143,7 +142,7 @@ export function createProjectImportServiceRuntime(runtime: ProjectImportRuntime)
 				successes += 1;
 			} catch (error) {
 				failures += 1;
-				handleError(error);
+				handleError(error); webFileLimitFailures.collect(error);
 			}
 			activeImportProgress?.update?.(1);
 			completedBytes += Math.max(1, Number(legacyProject.size) || 0);
@@ -162,7 +161,7 @@ export function createProjectImportServiceRuntime(runtime: ProjectImportRuntime)
 			} catch (error) {
 				if (cancellation.signal.aborted && !(error instanceof AggregateError)) break;
 				failures += 1;
-				handleError(error);
+				handleError(error); webFileLimitFailures.collect(error);
 			}
 			activeImportProgress?.update?.(1);
 			completedBytes += Math.max(1, Number(file?.size) || 0);
@@ -178,6 +177,7 @@ export function createProjectImportServiceRuntime(runtime: ProjectImportRuntime)
 			progressTask?.finish?.();
 			if (activeImportProgress === progressTask) activeImportProgress = null;
 		}
+		webFileLimitFailures.throwIfAny();
 	}
 
 	function setImportFileProgress(file: RuntimeValue, completedBytes: number, totalBytes: number) {

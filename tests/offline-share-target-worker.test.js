@@ -187,6 +187,30 @@ test('a share whose form cannot be read is refused rather than half stored', asy
 	assert.deepEqual([...cacheStorage.caches.keys()], []);
 });
 
+test('a cache write refusal tells the editor browser storage failed', async () => {
+	const cacheStorage = new ShareCacheStorage();
+	const cache = await cacheStorage.open(sharedFilesCacheName());
+	cache.put = async () => { throw new Error('Cache API write refused'); };
+	const { location } = await submit([mediaFile('Take.wav', 'shared')], { cacheStorage });
+	assert.equal(location.href, `${ORIGIN}/en/?share-error=storage`);
+	assert.deepEqual(await stashedTokens(cacheStorage), []);
+});
+
+test('a cache pruning refusal is reported as browser storage failure', async () => {
+	const cacheStorage = new ShareCacheStorage();
+	const cache = await cacheStorage.open(sharedFilesCacheName());
+	cache.keys = async () => { throw new Error('Cache API inventory refused'); };
+	const { location } = await submit([mediaFile('Take.wav', 'shared')], { cacheStorage });
+	assert.equal(location.href, `${ORIGIN}/en/?share-error=storage`);
+});
+
+test('an unreadable shared file keeps the ordinary refusal', async () => {
+	const unreadable = { name: 'Unreadable.wav', type: 'audio/wav', size: 1,
+		arrayBuffer: async () => { throw new Error('file cannot be read'); } };
+	const { location } = await submit([unreadable]);
+	assert.equal(location.href, `${ORIGIN}/en/?share-error=unreadable`);
+});
+
 test('a share larger than a stash may hold is refused whole rather than truncated', async () => {
 	const oversize = {
 		name: 'Feature.mp4',

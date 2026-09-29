@@ -3,6 +3,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { openWorkspaceProjectFile } from '../src/common/editor/ui/workspace/open-workspace-project-file.ts';
+import { WebFileLoadLimitError } from '../src/common/editor/web-file-limit-failure.ts';
 import { deferred } from './helpers/async-test-control.ts';
 
 for (const [name, route] of [
@@ -41,6 +42,18 @@ test('a startup failure is reported without attempting to import a project', asy
 		ready: Promise.reject(failure),
 		actions: { project: { openAudacityProject: unexpected, openDawproject: unexpected } },
 	}, new File([], 'test.aup3'), unexpected), failure);
+});
+
+test('a project-open quota refusal retains its cause and marks only the load for desktop guidance', async () => {
+	const quota = new DOMException('Disk full', 'QuotaExceededError');
+	await assert.rejects(openWorkspaceProjectFile({
+		ready: Promise.resolve(),
+		actions: { project: {
+			openAudacityProject: () => { throw quota; },
+			openDawproject: () => undefined,
+		} },
+	}, new File([], 'project.aup4'), () => undefined),
+		(error: unknown) => error instanceof WebFileLoadLimitError && error.cause === quota);
 });
 
 for (const [name, type] of [['recording.wav', 'audio/wav'], ['movie.mp4', 'video/mp4']] as const) {

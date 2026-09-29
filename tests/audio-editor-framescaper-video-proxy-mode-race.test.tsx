@@ -6,6 +6,7 @@ import test from 'node:test';
 import React, { act } from 'react';
 
 import FramescaperVideoProxyDialog from '../src/common/editor/ui/dialogs/FramescaperVideoProxyDialog.tsx';
+import { WebFileLoadLimitError } from '../src/common/editor/web-file-limit-failure.ts';
 import { CapturedVideoProxyBodyStagingError } from '../src/framescaper/editor-captured-video-proxy-bodies.ts';
 import {
 	bindFramescaperVideoProxyActionRuntime,
@@ -131,6 +132,60 @@ test('cancelling proxy body staging reports cancellation through its preserved c
 		});
 		assert.match(dom.container.textContent, /Proxy claim cleanup failed\./u);
 		assert.doesNotMatch(dom.container.textContent, /Proxy work cancelled\./u);
+	} finally {
+		await act(async () => root.unmount());
+		actGlobal.IS_REACT_ACT_ENVIRONMENT = priorAct;
+		dom.restore();
+	}
+});
+
+test('browser Attach Existing marks storage failures but keeps invalid files ordinary', async () => {
+	const dom = installTestDom();
+	const actGlobal = globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean };
+	const priorAct = actGlobal.IS_REACT_ACT_ENVIRONMENT;
+	actGlobal.IS_REACT_ACT_ENVIRONMENT = true;
+	const quota = new DOMException('Browser storage full', 'QuotaExceededError');
+	const invalid = new Error('Invalid proxy metadata');
+	let failure: Error = quota;
+	const surfaced: unknown[] = [];
+	const controller = {};
+	bindFramescaperVideoProxyActionRuntime(controller, registerFramescaperVideoProxyActionRuntime({
+		mode: () => 'auto', previewTrust: () => 'unverified',
+		setMode: async () => undefined, pressure: () => null,
+		reportPreviewPressure: async () => undefined,
+		generate: async () => undefined,
+		attachExisting: async () => { throw failure; },
+		detach: async () => undefined, regenerate: async () => undefined,
+		relinkOriginal: async () => 'relinked',
+	}));
+	const { createRoot } = await import('react-dom/client');
+	const root = createRoot(dom.container as unknown as Element);
+	try {
+		await act(async () => root.render(<FramescaperVideoProxyDialog
+			controller={controller}
+			snapshot={{ project: project(), selectedClipId: 'video-clip', missingSourceIds: [] }}
+			editingBlocked={false} copy={{}} fileService={{}}
+			run={(operation) => {
+				const result = Promise.resolve(operation());
+				void result.catch((error: unknown) => { surfaced.push(error); });
+				return result;
+			}}
+			onClose={() => undefined}
+		/>));
+		const input = dom.elements('input').find((node) => node.hasAttribute('data-video-proxy-existing-file'));
+		assert.ok(input);
+		const attach = async (): Promise<void> => act(async () => {
+			props(input).onChange({ currentTarget: { files: [new File(['proxy'], 'proxy.webm')], value: '' } });
+			await new Promise<void>((resolve) => { setImmediate(resolve); });
+		});
+		await attach();
+		assert.ok(surfaced[0] instanceof WebFileLoadLimitError);
+		assert.equal(surfaced[0].cause, quota);
+		assert.doesNotMatch(dom.container.textContent, /A file load exceeded this browser/u);
+		failure = invalid;
+		await attach();
+		assert.equal(surfaced[1], invalid);
+		assert.match(dom.container.textContent, /Invalid proxy metadata/u);
 	} finally {
 		await act(async () => root.unmount());
 		actGlobal.IS_REACT_ACT_ENVIRONMENT = priorAct;

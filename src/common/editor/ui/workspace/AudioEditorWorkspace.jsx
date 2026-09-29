@@ -33,7 +33,7 @@ import {
 import { usePrivacyPolicySurface } from '../use-privacy-policy-surface.ts';
 import { useTakeCycleRecoverySurface } from '../use-take-cycle-recovery-surface.ts';
 import { supportsDisplayAudioCapture } from '../../recording-display-input.ts';
-import { partitionWorkspaceFiles } from './workspace-file-routing.js';
+import { importWorkspaceRoutedFiles } from './import-workspace-routed-files.ts';
 import { openWorkspaceProjectFile } from './open-workspace-project-file.ts';
 import { desktopExternalDestination } from '../workspace-runtime.js'; import { createTimedRecordingDialogValue } from '../dialogs/timed-recording-dialog-model.ts';
 import { useTrackHeaderDrawerFlag, useWorkspaceCompactLayout } from './useWorkspaceCompactLayout.js';
@@ -112,10 +112,10 @@ const DEFERRED_WEB_VCR_PANEL_ID = 'web-vcr'; export default function AudioEditor
 	const toolbarPreferences = preferences?.workspace?.toolbars || {};
 	const toolbarButtonPreferences = preferences?.workspace?.toolbarButtons || {};
 	const {
-		clearError,
+		clearError, dismissWebFileLimitPrompt,
 		desktopEnvironment,
 		desktopHostRuntime,
-		localError,
+		localError, webFileLimitPrompt,
 		onError,
 		parityUi,
 		run,
@@ -228,20 +228,10 @@ const DEFERRED_WEB_VCR_PANEL_ID = 'web-vcr'; export default function AudioEditor
 		descriptor,
 		{ openMaterialized: (file) => openProjectFile(file, true), openScape: openScapeProjectFile },
 	), [fileService, openProjectFile, openScapeProjectFile]);
-	const importRoutedFiles = useCallback(async (files, importOptions = {}) => {
-		const routed = partitionWorkspaceFiles(files);
-		for (const file of routed.projects) await openProjectFile(file);
-		if (routed.media.length) {
-			await controller.actions.project.importFiles(routed.media, {
-				destination: 'auto',
-				projectBinVisible: projectBinEffectivelyOpen,
-				...importOptions,
-			});
-		}
-		for (const file of routed.labels) await controller.actions.labels.importFile(file);
-		for (const file of routed.cues) await requestCueImport(file);
-		return files.length;
-	}, [controller, openProjectFile, projectBinEffectivelyOpen, requestCueImport]);
+	const importRoutedFiles = useCallback((files, importOptions = {}) => importWorkspaceRoutedFiles({
+		controller, files, importOptions, openProjectFile,
+		projectBinVisible: projectBinEffectivelyOpen, requestCueImport,
+	}), [controller, openProjectFile, projectBinEffectivelyOpen, requestCueImport]);
 	useLaunchedFileImports({
 		controller, importFiles: importRoutedFiles, onError, desktop: fileService.isDesktop,
 	});
@@ -463,7 +453,7 @@ const DEFERRED_WEB_VCR_PANEL_ID = 'web-vcr'; export default function AudioEditor
 		automationToolEnabled,
 		blocked,
 		capabilities,
-		chromeDrawer, compactLayout,
+		chromeDrawer, compactLayout, dismissWebFileLimitPrompt,
 		closeNyquist,
 		controller,
 		copy,
@@ -542,7 +532,7 @@ const DEFERRED_WEB_VCR_PANEL_ID = 'web-vcr'; export default function AudioEditor
 		toolbarDragRef, toolbarProps, trackHeaderDrawer,
 		uiFlags,
 		workspaceRef,
-				clearError,
-				localError,
+		clearError,
+		localError, webFileLimitPrompt,
 	}} />;
 }

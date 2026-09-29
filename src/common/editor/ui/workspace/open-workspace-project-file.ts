@@ -2,6 +2,7 @@
 
 import { isProjectFileName } from '../../../project-file-extensions.ts';
 import { isWorkspaceImportFile, partitionWorkspaceFiles } from './workspace-file-routing.js';
+import { withWebFileLoadLimitContext } from '../../web-file-limit-failure.ts';
 
 interface ProjectFileController {
 	readonly ready: PromiseLike<unknown>;
@@ -17,7 +18,11 @@ interface ProjectFileController {
 	};
 }
 
-export async function openWorkspaceProjectFile(
+export function openWorkspaceProjectFile(...args: Parameters<typeof routeWorkspaceProjectFile>): Promise<unknown> {
+	return withWebFileLoadLimitContext(() => routeWorkspaceProjectFile(...args));
+}
+
+async function routeWorkspaceProjectFile(
 	controller: ProjectFileController,
 	file: File,
 	openScape: (file: File) => unknown,

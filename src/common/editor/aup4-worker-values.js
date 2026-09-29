@@ -126,6 +126,16 @@ export function operationError(message, code, details) {
 	return error;
 }
 
+/** An OPFS import failure leaves an oversized AUP4 without its in-memory fallback. */
+export function aup4PoolImportFailure(error, { size, memoryLimit }) {
+	if (size <= memoryLimit || error?.name === 'AbortError' || error?.code === 'ABORTED') return error;
+	return operationError(
+		`The AUP4 file exceeds this browser's ${Math.round(memoryLimit / 1024 / 1024)} MiB in-memory project limit and could not be written to OPFS.`,
+		'PROJECT_TOO_LARGE',
+		{ limit: memoryLimit, size, storageFailure: String(error?.message || error) },
+	);
+}
+
 export function serializeError(error) {
 	const quotaFailure = error?.name === 'QuotaExceededError' || error?.code === 22;
 	return {
@@ -196,4 +206,3 @@ export function projectDescriptor(entry) {
 		...(Number.isFinite(entry.portableLimit) ? { portableLimit: entry.portableLimit } : {}),
 	};
 }
-

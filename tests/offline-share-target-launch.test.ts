@@ -33,6 +33,7 @@ import {
 	type SharedFilesCollection,
 } from '../src/common/offline/share-target-launch.ts';
 import { installReactTestDom } from './helpers/react-test-dom.ts';
+import { WebFileLoadLimitError } from '../src/common/editor/web-file-limit-failure.ts';
 
 const ORIGIN = 'https://soundscaper.org';
 
@@ -274,6 +275,7 @@ test('a share the worker refused is reported rather than opened empty', async (t
 	assert.deepEqual(collected.addresses, ['/en/']);
 	assert.equal(collected.errors.length, 1);
 	assert.match(String((collected.errors[0] as Error).message), /larger than a share may carry/u);
+	assert.equal((collected.errors[0] as { code?: string }).code, 'SHARE_TARGET_TOO_LARGE');
 	assert.deepEqual([...cacheStorage.caches.keys()], []);
 });
 
@@ -315,10 +317,10 @@ test('the workspace routes a share through the import a launch and a drop alread
 
 test('the workspace surfaces a share collection refusal', async (t) => {
 	const workspace = await mountedWorkspace({
-		collect: ({ onError }) => {
-			onError(new Error('The files were larger than a share may carry.'));
-			return { status: 'refused', files: [] };
-		},
+		collect: ({ onError }) => collectSharedFiles({
+			href: `${ORIGIN}/en/?share-error=too-large`, onError,
+			replaceAddress: () => undefined,
+		}),
 	});
 	t.after(workspace.cleanup);
 
@@ -326,7 +328,37 @@ test('the workspace surfaces a share collection refusal', async (t) => {
 	await workspace.settle();
 
 	assert.equal(workspace.errors.length, 1);
-	assert.match(String((workspace.errors[0] as Error).message), /larger than a share may carry/u);
+	assert.ok(workspace.errors[0] instanceof WebFileLoadLimitError);
+	assert.equal((workspace.errors[0].cause as { code?: string }).code, 'SHARE_TARGET_TOO_LARGE');
+});
+
+test('the workspace offers desktop after a shared-file cache write refusal', async (t) => {
+	const workspace = await mountedWorkspace({
+		collect: ({ onError }) => collectSharedFiles({
+			href: `${ORIGIN}/en/?share-error=storage`, onError,
+			replaceAddress: () => undefined,
+		}),
+	});
+	t.after(workspace.cleanup);
+	await workspace.mount();
+	await workspace.settle();
+	assert.equal(workspace.errors.length, 1);
+	assert.ok(workspace.errors[0] instanceof WebFileLoadLimitError);
+	assert.equal((workspace.errors[0].cause as { code?: string }).code, 'SHARE_TARGET_STORAGE_FAILED');
+});
+
+test('the workspace keeps malformed share refusals as ordinary errors', async (t) => {
+	const workspace = await mountedWorkspace({
+		collect: ({ onError }) => collectSharedFiles({
+			href: `${ORIGIN}/en/?share-error=unreadable`, onError,
+			replaceAddress: () => undefined,
+		}),
+	});
+	t.after(workspace.cleanup);
+	await workspace.mount();
+	await workspace.settle();
+	assert.equal(workspace.errors.length, 1);
+	assert.equal(workspace.errors[0] instanceof WebFileLoadLimitError, false);
 });
 
 test('a desktop workspace still asks, and is answered, without a share', async (t) => {

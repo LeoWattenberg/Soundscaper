@@ -64,6 +64,7 @@ export function shareTargetFunctionSources() {
 		sharedFilesBodyUrl,
 		sharedFilesStashToken,
 		newSharedFilesToken,
+		sharedFileStorageFailure,
 		shareTargetPath,
 		isShareTargetSubmission,
 		readSharedSubmissionFiles,
@@ -137,6 +138,12 @@ function newSharedFilesToken(cryptoImpl) {
 	}
 	const bytes = cryptoImpl.getRandomValues(new Uint8Array(16));
 	return Array.from(bytes, (value) => value.toString(16).padStart(2, '0')).join('');
+}
+
+function sharedFileStorageFailure(cause) {
+	const error = new Error('The shared files could not be stored in browser cache.', { cause });
+	error.code = 'SHARE_STORAGE_FAILED';
+	return error;
 }
 
 /**
@@ -273,8 +280,10 @@ async function pruneSharedFileStashes(cache, now) {
  */
 async function stashSharedFiles({ cacheStorage, files, cryptoImpl, now }) {
 	const limits = sharedFilesLimits();
-	const cache = await cacheStorage.open(sharedFilesCacheName());
-	await pruneSharedFileStashes(cache, now);
+	const cache = await cacheStorage.open(sharedFilesCacheName())
+		.catch((error) => { throw sharedFileStorageFailure(error); });
+	await pruneSharedFileStashes(cache, now)
+		.catch((error) => { throw sharedFileStorageFailure(error); });
 	const token = newSharedFilesToken(cryptoImpl);
 	const entries = [];
 	let bytes = 0;
@@ -293,7 +302,7 @@ async function stashSharedFiles({ cacheStorage, files, cryptoImpl, now }) {
 					'content-length': String(body.byteLength),
 					'content-type': 'application/octet-stream',
 				},
-			}));
+			})).catch((error) => { throw sharedFileStorageFailure(error); });
 			entries.push({
 				name: String(file.name),
 				type: typeof file.type === 'string' ? file.type : '',
@@ -308,7 +317,7 @@ async function stashSharedFiles({ cacheStorage, files, cryptoImpl, now }) {
 				'content-length': String(new TextEncoder().encode(manifest).byteLength),
 				'content-type': 'application/json; charset=utf-8',
 			},
-		}));
+		})).catch((error) => { throw sharedFileStorageFailure(error); });
 	} catch (error) {
 		await deleteSharedFileStash(cache, token, entries.length).catch(() => undefined);
 		throw error;
@@ -353,8 +362,8 @@ export async function handleShareTargetSubmission({
 			if (stashed === null) reason = 'too-large';
 			else token = stashed;
 		}
-	} catch {
-		reason = 'unreadable';
+	} catch (error) {
+		reason = error?.code === 'SHARE_STORAGE_FAILED' ? 'storage' : 'unreadable';
 	}
 	return sharedFilesRedirect(request, configuration, token, reason);
 }

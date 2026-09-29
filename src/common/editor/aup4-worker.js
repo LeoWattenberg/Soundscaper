@@ -18,6 +18,7 @@ import { createAup4DesktopRangeFile } from './aup4-worker-desktop-range-file.ts'
 import { createAup4SnapshotWrites } from './aup4-worker-snapshot.js';
 import {
 	WORKER_VALIDATION_OPTIONS,
+	aup4PoolImportFailure,
 	mergeCompatibilityReports,
 	normalizeProjectId,
 	operationError,
@@ -192,9 +193,14 @@ async function openFile(args, context) {
 				return chunk;
 			});
 			context.checkCancelled();
-			entry = openDatabase(sqlite, pool, projectId);
 		} catch (error) {
 			try { pool.unlink(path); } catch { /* Preserve the import/cancellation error. */ }
+			context.checkCancelled();
+			throw aup4PoolImportFailure(error, { size: file.size, memoryLimit: portableLimit(args, false) });
+		}
+		try { entry = openDatabase(sqlite, pool, projectId); }
+		catch (error) {
+			try { pool.unlink(path); } catch { /* Preserve the database error. */ }
 			throw error;
 		}
 	} else {

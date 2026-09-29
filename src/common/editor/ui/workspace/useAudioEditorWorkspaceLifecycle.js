@@ -10,6 +10,7 @@ import { useDesktopHostMenuRuntime } from './useDesktopHostMenuRuntime.ts';
 import { useWorkspaceViewDefaults } from './useWorkspaceViewDefaults.ts';
 import { workspaceSwitcherOptions } from './workspace-switcher-options.ts';
 import { workspaceErrorMessage } from './workspace-error-presentation.ts';
+import { WebFileLoadLimitError } from '../../web-file-limit-failure.ts';
 
 export function useAudioEditorWorkspaceLifecycle({
 	controller,
@@ -28,6 +29,7 @@ export function useAudioEditorWorkspaceLifecycle({
 }) {
 	const [parityUi, setParityUi] = useState(() => parityRuntime.uiController.getSnapshot());
 	const [localFailure, setLocalError] = useState(null);
+	const [webFileLimitPrompt, setWebFileLimitPrompt] = useState(false);
 	const localError = workspaceErrorMessage(localFailure, copy);
 	const [desktopEnvironment, setDesktopEnvironment] = useState(null);
 	const requestedProjectOpenedRef = useRef(false);
@@ -67,10 +69,20 @@ export function useAudioEditorWorkspaceLifecycle({
 
 	const onError = useCallback((error) => {
 		if (isExpectedWorkspaceCancellation(error)) return;
-		controller.recordLocalDiagnosticError?.(error, 'workspace');
-		setLocalError(() => error);
-	}, [controller]);
+		const failure = fileService.isDesktop && error instanceof WebFileLoadLimitError
+			? error.cause instanceof AggregateError && error.cause.errors.length === 1
+				? error.cause.errors[0] : error.cause
+			: error;
+		controller.recordLocalDiagnosticError?.(failure, 'workspace');
+		if (!fileService.isDesktop && error instanceof WebFileLoadLimitError) {
+			setLocalError(null);
+			setWebFileLimitPrompt(true);
+			return;
+		}
+		setLocalError(() => failure);
+	}, [controller, fileService.isDesktop]);
 	const clearError = useCallback(() => setLocalError(null), []);
+	const dismissWebFileLimitPrompt = useCallback(() => setWebFileLimitPrompt(false), []);
 	useEffect(() => {
 		if (requestedProjectOpenedRef.current) return;
 		requestedProjectOpenedRef.current = true;
@@ -97,7 +109,7 @@ export function useAudioEditorWorkspaceLifecycle({
 	}, [controller, onError, openLaunchedProjectPicker]);
 
 	const run = useCallback((action, { clearError = true } = {}) => {
-		if (clearError) setLocalError(null);
+		if (clearError) { setLocalError(null); setWebFileLimitPrompt(false); }
 		try {
 			const value = action();
 			if (value && typeof value.catch === 'function') value.catch(onError);
@@ -170,7 +182,7 @@ export function useAudioEditorWorkspaceLifecycle({
 			.catch(onError);
 		return () => { active = false; };
 	}, [fileService, onError]);
-	return { clearError, desktopEnvironment, desktopHostRuntime, localError, onError, parityUi, run, uiFlags };
+	return { clearError, desktopEnvironment, desktopHostRuntime, dismissWebFileLimitPrompt, localError, onError, parityUi, run, uiFlags, webFileLimitPrompt };
 }
 
 /**

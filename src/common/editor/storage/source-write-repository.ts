@@ -18,6 +18,7 @@ import type { OpfsRepository } from './opfs-repository.ts';
 import type { PcmRepository } from './pcm-repository.ts';
 import type { SourceChunkRecord, SourceRecordRepository } from './source-record-repository.ts';
 import { normalizePcmChunkFrames } from './pcm-chunk-geometry.ts';
+import { browserFileStorageFailure } from '../web-file-limit-failure.ts';
 import {
 	PENDING_SOURCE_RETENTION_MS,
 	cleanupFailure,
@@ -120,7 +121,8 @@ export class SourceWriteRepository {
 			? null
 			: normalizePcmChunkFrames(metadata.chunkFrames);
 		const database = await this.#options.database();
-		const opfsWriter = await this.#options.opfs.createPcmWriter(token, persistedMetadata);
+		const opfsWriter = await this.#options.opfs.createPcmWriter(token, persistedMetadata)
+			.catch((error: unknown) => { throw browserFileStorageFailure('OPFS audio source admission', error); });
 		let stage: MediaAssetStagingLease;
 		try {
 			// The random token is the lease owner, distinct from any media asset using sourceId.
@@ -247,13 +249,13 @@ export class SourceWriteRepository {
 						const writerChunkFrames = positiveInteger(declaredChunkFrames ?? nominalChunkFrames, 0);
 						if (!writerChunkFrames) throw new RangeError('A positive source chunk size is required.');
 						if (opfsChunkFrames === null) opfsChunkFrames = writerChunkFrames;
-						await opfsWriter.write({
+						try { await opfsWriter.write({
 							...storedChunk,
 							frames: frameLength,
 							channelCount,
 							sampleRate: writeSampleRate,
 							chunkFrames: opfsChunkFrames,
-						});
+						}); } catch (error) { throw browserFileStorageFailure('OPFS audio source write', error); }
 						throwIfAborted(signal);
 						assertWriteOpen();
 					} else {
@@ -309,7 +311,8 @@ export class SourceWriteRepository {
 					throwIfAborted(signal);
 					previous = ifAbsent ? null : await options.records.getMetadata(sourceId);
 					throwIfAborted(signal);
-					writerStatistics = opfsWriter ? await opfsWriter.close() : null;
+					try { writerStatistics = opfsWriter ? await opfsWriter.close() : null; }
+					catch (error) { throw opfsWriter ? browserFileStorageFailure('OPFS audio source close', error) : error; }
 					throwIfAborted(signal);
 				} catch (error) {
 					state = 'aborted';

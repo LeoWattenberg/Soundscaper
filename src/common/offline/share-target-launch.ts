@@ -121,7 +121,9 @@ export async function collectSharedFiles(
 	// editor rather than asking for a share that has already been consumed.
 	stripSharedFilesParameters(address, options.replaceAddress ?? replaceDocumentAddress);
 	if (refusal !== null) {
-		onError(new Error(sharedFilesRefusalMessage(refusal)));
+		onError(Object.assign(new Error(sharedFilesRefusalMessage(refusal)),
+			refusal === 'too-large' ? { code: 'SHARE_TARGET_TOO_LARGE' }
+				: refusal === 'storage' ? { code: 'SHARE_TARGET_STORAGE_FAILED' } : {}));
 		return collection('refused');
 	}
 	if (token === null || !/^[a-f\d]{32}$/u.test(token)) return collection('missing');
@@ -258,6 +260,8 @@ function documentCacheStorage(): SharedFileStashStorage | null {
 function sharedFilesRefusalMessage(reason: string): string {
 	return reason === 'too-large'
 		? 'The files shared with the editor were larger than a share may carry.'
+		: reason === 'storage'
+			? 'The files shared with the editor could not be stored in browser cache.'
 		: 'The files shared with the editor could not be read.';
 }
 

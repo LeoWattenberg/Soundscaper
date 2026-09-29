@@ -16,6 +16,7 @@ import { MediaAssetWriteAdmission } from './media-asset-write-admission.ts';
 import { MediaPublicationReconciliationError, sameMediaPayload } from './media-asset-owned-publication.ts';
 import { canonicalMediaContentBlob, digestMediaContent } from './media-content-digest.ts';
 import { freshVerifiedMediaContentDigest } from './media-content-provenance.ts';
+import { browserFileStorageFailure } from '../web-file-limit-failure.ts';
 import {
 	MediaAssetWriteRepository,
 	type MediaAssetWriteOptions,
@@ -101,7 +102,8 @@ export class MediaRepository {
 			const sha256 = (await digestMediaContent(blob, { signal: admission.signal })).toLowerCase();
 			admission.throwIfCancelled();
 			const provenance = freshVerifiedMediaContentDigest(sha256);
-			storedFile = await this.#opfs.writeBlob(`media-${id}`, blob, { signal: admission.signal });
+			storedFile = await this.#opfs.writeBlob(`media-${id}`, blob, { signal: admission.signal })
+				.catch((error: unknown) => { throw browserFileStorageFailure('OPFS media write', error); });
 			if (storedFile) admission.setIdentity({ path: storedFile.path });
 			admission.bindWriterAbort(async () => {
 				if (storedFile && !published && !attemptedPublication) await this.#opfs.deletePath(storedFile.path);

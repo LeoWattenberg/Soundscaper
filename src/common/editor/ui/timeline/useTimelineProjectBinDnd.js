@@ -6,6 +6,7 @@ import {
 	parseFreesoundResultDragPayload,
 } from '../../project-bin-dnd.js';
 import { compatibleMediaTrack } from './geometry.ts';
+import { withWebFileLoadLimitContext } from '../../web-file-limit-failure.ts';
 import { NEW_AUDIO_TRACK_DROP_TARGET } from './constants.ts';
 import {
 	dataTransferHasType,
@@ -139,11 +140,11 @@ export function useTimelineProjectBinDnd({
 			return;
 		}
 		if (files.length) {
-			run(() => controller.actions.project.importFiles(files, {
+			run(() => withWebFileLoadLimitContext(() => controller.actions.project.importFiles(files, {
 				destination: 'timeline',
 				...(target.trackId ? { trackId: target.trackId } : {}),
 				timelineStartFrame: target.timelineStartFrame,
-			}));
+			})));
 		}
 	}, [clearProjectBinDragState, controller, importFreesoundSound, mutationsBlocked, project, run, timelineDropTargetAt]);
 

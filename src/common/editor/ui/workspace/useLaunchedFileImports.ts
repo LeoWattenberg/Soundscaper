@@ -30,6 +30,7 @@ import {
 	type LaunchedFiles,
 } from '../../../offline/file-handler-launch.ts';
 import { collectSharedFiles } from '../../../offline/share-target-launch.ts';
+import { markWebFileLoadLimitFailure } from '../../web-file-limit-failure.ts';
 
 export interface LaunchedFileImportsInput {
 	/** Waited on before the files are routed, because a launch beats the controller to readiness. */
@@ -72,7 +73,10 @@ export function useLaunchedFileImports({
 		// before the first collection reads a byte, so a remount finds nothing
 		// left to replay. The files land in the same buffer a launch does, which
 		// is drained by the subscription installed just below.
-		void Promise.resolve(collect({ desktop, onError })).catch(onError);
+		const reportCollectionError = (error: unknown): void => {
+			onError(desktop ? error : markWebFileLoadLimitFailure(error));
+		};
+		void Promise.resolve(collect({ desktop, onError: reportCollectionError })).catch(reportCollectionError);
 		const unsubscribe = subscribe(async (launch: LaunchedFiles) => {
 			const files = [...(launch?.files ?? [])];
 			if (files.length === 0) return;

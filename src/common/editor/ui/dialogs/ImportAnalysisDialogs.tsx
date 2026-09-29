@@ -9,6 +9,7 @@ import type { RegularIntervalAnnotationOptions } from '../../controller/document
 import AudioEditorDialogShell from '../AudioEditorDialogShell.tsx';
 import AudioEditorTimeCodeInput from '../AudioEditorTimeCodeInput.tsx';
 import { runAwaitedAudioEditorOperation } from '../workspace/audio-editor-workspace-runner.ts';
+import { withWebFileLoadLimitContext } from '../../web-file-limit-failure.ts';
 
 interface DialogController {
 	readonly project: null | Readonly<{
@@ -51,8 +52,8 @@ export function RawPcmImportDialog({ controller, copy, run, onClose, fileService
 		setImporting(true);
 		run(async () => {
 			try {
-				const wav = await prepareRawPcmWaveFile(file, { sampleFormat, byteOrder, sampleRate, channelCount, offsetBytes },
-					{ desktop: fileService?.isDesktop === true });
+				const wav = await withWebFileLoadLimitContext(() => prepareRawPcmWaveFile(file, { sampleFormat, byteOrder, sampleRate, channelCount, offsetBytes },
+					{ desktop: fileService?.isDesktop === true }));
 				if (!projectIsCurrent()) return;
 				await controller.actions.project.importFiles([wav]);
 				if (!projectIsCurrent()) return;
