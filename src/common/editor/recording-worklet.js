@@ -104,7 +104,18 @@ export class StreamingRecorderProcessor extends ProcessorBase {
 	#handleMessage(message) {
 		if (message.type === 'start') {
 			if (!this.#flush()) return;
-			this.startFrame = Number.isFinite(message.startFrame) ? Math.max(0, Math.floor(message.startFrame)) : this.nextFrame;
+			const firstAvailableFrame = Math.max(this.nextFrame,
+				Number.isFinite(globalThis.currentFrame) ? Math.floor(globalThis.currentFrame) : 0);
+			const requestedStartFrame = Number.isFinite(message.startFrame)
+				? Math.max(0, Math.floor(message.startFrame)) : firstAvailableFrame;
+			if (requestedStartFrame < firstAvailableFrame) {
+				this.recording = false;
+				this.paused = false;
+				this.port.postMessage({ type: 'error', code: 'RECORDING_START_MISSED',
+					message: 'Recording missed its scheduled start and cannot preserve sample alignment.' });
+				return;
+			}
+			this.startFrame = requestedStartFrame;
 			this.stopFrame = Number.isFinite(message.stopFrame) ? Math.max(this.startFrame, Math.floor(message.stopFrame)) : Infinity;
 			this.recording = true;
 			this.paused = false;

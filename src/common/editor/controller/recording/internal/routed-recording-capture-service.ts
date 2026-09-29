@@ -15,7 +15,7 @@ import { compactSoundActivationSegments } from './sound-activation/sound-activat
 import { scaleSampleFrame } from '../../../timeline-time.ts';
 import { planRoutedRecordingSources } from './routed-recording-source-plan.ts';
 import { timedRecordingStopFrame } from '../recording-model.ts';
-import { planRecordingStartTiming } from './recording-start-timing.ts';
+import { audibleRecordingStartTime, planRecordingStartTiming } from './recording-start-timing.ts';
 import type {
 	RecordingMediaStream,
 	RecordingStartOptions,
@@ -478,11 +478,10 @@ export function createRoutedRecordingCaptureService(runtime: RoutedRecordingCapt
 				await dropFailedSourceSessions();
 				scope.assertCurrent();
 				if (!sourceSessions.length) throw createLocalizedError(Error, { ['recordingNoInputsAvailable']: runtime.messages.noInputsAvailable }, 'recordingNoInputsAvailable');
-				setRecorderSchedule(
-					typeof playbackStartTime === 'number' && Number.isFinite(playbackStartTime)
-						? playbackStartTime
-						: scheduledTime,
-				);
+				setRecorderSchedule(audibleRecordingStartTime(
+					playbackStartTime, scheduledTime,
+					runtime.engine.getPlaybackGraphLatencyFrames?.() ?? 0, context.sampleRate,
+				));
 				state.recordingEntries = Object.freeze([...entries]);
 				state.recordingPreviews = entries.map((entry) => entry.preview);
 				state.recordingPreview = state.recordingPreviews[0] || null;

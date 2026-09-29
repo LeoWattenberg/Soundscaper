@@ -173,6 +173,18 @@ test('legacy count-in preserves singleton timing for a map-absent project', asyn
 	assert.deepEqual(fixture.seekCalls, [0]);
 });
 
+test('legacy capture begins at audible backing after graph latency, including count-in and punch', async () => {
+	const fixture = createRecordingCaptureFixture({
+		selection: { startFrame: 20, endFrame: 80 },
+		playAt: async () => 4.1,
+		playbackGraphLatencyFrames: 1536,
+	});
+	fixture.state.leadInRecording = true;
+	await createLegacyRecordingCaptureService(fixture.runtime).capture({}, createScope(() => true));
+	assert.deepEqual(fixture.recorderStartOptions, [{ startFrame: 198_356, stopFrame: 198_416 }]);
+	assert.equal(fixture.state.recordingStartFrame, 20);
+});
+
 test('legacy capture rolls back timed-past and playback-start failures after handoff', async () => {
 	const past = createRecordingCaptureFixture();
 	await assert.rejects(

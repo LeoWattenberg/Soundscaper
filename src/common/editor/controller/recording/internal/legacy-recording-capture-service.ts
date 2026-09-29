@@ -16,7 +16,7 @@ import { compactSoundActivationSegments } from './sound-activation/sound-activat
 import { recordingCapturePeakDb } from './recording-capture-channels.ts';
 import { scaleSampleFrame } from '../../../timeline-time.ts';
 import { timedRecordingStopFrame } from '../recording-model.ts';
-import { planRecordingStartTiming } from './recording-start-timing.ts';
+import { audibleRecordingStartTime, planRecordingStartTiming } from './recording-start-timing.ts';
 
 function errorName(error: unknown): string | undefined {
 	return (error as Readonly<{ name?: string }> | null)?.name;
@@ -243,11 +243,10 @@ export function createLegacyRecordingCaptureService(runtime: RecordingCaptureCom
 					timing.seekFrame,
 				);
 				scope.assertCurrent();
-				recorder.start(recorderSchedule(
-					typeof playbackStartTime === 'number' && Number.isFinite(playbackStartTime)
-						? playbackStartTime
-						: scheduledTime,
-				));
+				recorder.start(recorderSchedule(audibleRecordingStartTime(
+					playbackStartTime, scheduledTime,
+					runtime.engine.getPlaybackGraphLatencyFrames?.() ?? 0, context.sampleRate,
+				)));
 				state.recordingPaused = false;
 				publishLocalizedStatus(runtime.setStatus, runtime.messages.recording, { key: 'recording' });
 				runtime.updateTransportState('recording');

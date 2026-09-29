@@ -48,6 +48,7 @@ import {
 	settleTakeCycleRecordingSessionAfterInterruption,
 } from './take-cycle-routed-capture-settlement.ts';
 import { acquireTakeCycleRoutedSources } from './take-cycle-routed-source-acquisition.ts';
+import { audibleRecordingStartTime } from '../recording-start-timing.ts';
 export type {
 	TakeCycleRoutedCaptureEngine,
 	TakeCycleRoutedCaptureProject,
@@ -296,10 +297,9 @@ export function createTakeCycleRoutedCaptureService(
 			runtime.engine.seek(project.loop.startFrame);
 			const playbackStartTime = await runtime.engine.playAt(scheduledTime, project.loop.startFrame);
 			assertCaptureCurrent(pending);
-			const startFrame = Math.ceil(captureSampleRate * (
-				typeof playbackStartTime === 'number' && Number.isFinite(playbackStartTime)
-					? playbackStartTime
-					: scheduledTime
+			const startFrame = Math.ceil(captureSampleRate * audibleRecordingStartTime(
+				playbackStartTime, scheduledTime,
+				runtime.engine.getPlaybackGraphLatencyFrames?.() ?? 0, context.sampleRate,
 			));
 			for (const source of controlled) {
 				source.controller!.start({ startFrame });

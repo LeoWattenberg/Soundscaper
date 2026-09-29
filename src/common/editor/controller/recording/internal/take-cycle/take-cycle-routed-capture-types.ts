@@ -21,6 +21,7 @@ export type { TakeCycleRoutedCaptureProject } from './take-cycle-routed-capture-
 
 export interface TakeCycleRoutedCaptureEngine {
 	getAudioContext(): Promise<RecordingAudioContext>;
+	getPlaybackGraphLatencyFrames?(): number;
 	setLoop(loop: Readonly<{ readonly enabled: true; readonly startFrame: number; readonly endFrame: number }>): unknown;
 	seek(frame: number): unknown;
 	playAt(contextTime: number, frame: number): Promise<unknown>;

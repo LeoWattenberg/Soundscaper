@@ -152,6 +152,7 @@ export interface RecordingCapturePool {
 
 export interface RecordingEnginePort {
 	getAudioContext(): Promise<RecordingAudioContext>;
+	getPlaybackGraphLatencyFrames?(): number;
 	getPositionFrames(): number;
 	setLoop(enabled: boolean): void;
 	seek(frame: number): void;
