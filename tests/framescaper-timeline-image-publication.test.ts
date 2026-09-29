@@ -412,8 +412,8 @@ test('a publisher streams the staged body in writer-sized chunks and then publis
 
 	assert.deepEqual(published, TARGET);
 	assert.deepEqual(harness.log, ['begin', 'commit'], 'a published revision never rolls the owned body back');
-	assert.equal(harness.chunks.reduce((total, size) => total + size, 0), FIXTURE.bytes.byteLength);
-	assert.ok(harness.chunks.length > 1 && harness.chunks.every((size) => size <= 128));
+	assert.equal(FIXTURE.bytes.byteLength, 633);
+	assert.deepEqual(harness.chunks, [128, 128, 128, 128, 121]);
 	assert.equal(harness.begun[0]?.sourceId, SOURCE.storageKey);
 	assert.deepEqual(harness.begun[0]?.metadata, { name: SOURCE.name, kind: BODY_KIND, encoding: BODY_ENCODING, mimeType: SOURCE.mimeType });
 	assert.deepEqual(harness.begun[0]?.options, { expectedBytes: SOURCE.assetByteLength, expectedSha256: SOURCE.contentSha256 });

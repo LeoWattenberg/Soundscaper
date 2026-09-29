@@ -180,11 +180,11 @@ test('a rebound motion analysis is re-encoded for its new source and its project
 	const log = harnessValue.writes[0]!;
 	const written = concat(log.chunks);
 	const analysis = (motion.project.videoMotionAnalyses as Json[])[0]!;
-	assert.notDeepEqual(written, motion.fixture.bytes);
+	assert.equal(digest(written), '5939289531da4c4d96ae7cf7d0c83ec2289087ffdb7fb835cc942a4870a238e4');
 	assert.equal((JSON.parse(new TextDecoder().decode(written)) as Json).sourceId, 'video-new');
 	assert.equal(analysis.sha256, digest(written));
 	assert.equal(analysis.storageKey, `motion-sha256:${digest(written)}`);
-	assert.equal(analysis.byteLength, written.byteLength);
+	assert.equal(analysis.byteLength, 462);
 	assert.equal(log.storageKey, analysis.storageKey);
 	assert.equal(log.metadata.kind, 'motion-analysis');
 	assert.deepEqual(log.options, { expectedBytes: written.byteLength, expectedSha256: digest(written) });
