@@ -3,6 +3,7 @@
 import { createParallelStackExecutor } from './parallel-stack-dsp.ts';
 import type { ParallelStackPlan } from './parallel-stack-types.ts';
 import { createParallelStackScheduler } from './parallel-stack-scheduler.ts';
+import type { SharedParallelStackEffectMailbox } from './parallel-stack-effect-mailbox.ts';
 import {
 	createParallelStackViews, faultParallelStackViews, ParallelStackFault,
 	type SharedParallelStackBuffers, type ParallelStackViews,
@@ -14,6 +15,7 @@ interface PrepareMessage {
 	readonly plan: ParallelStackPlan;
 	readonly workerIndex: number;
 	readonly parametricEqWasmModule?: WebAssembly.Module;
+	readonly effectMailbox?: SharedParallelStackEffectMailbox;
 }
 
 let scheduler: ReturnType<typeof createParallelStackScheduler> | null = null;
@@ -34,7 +36,7 @@ globalThis.addEventListener('message', (event: MessageEvent<unknown>) => {
 				|| request.plan.tasks.length !== views.geometry.taskCount) throw new RangeError('Parallel worker plan geometry mismatch.');
 			const execute = createParallelStackExecutor(request.plan, workerIndex, {
 				parametricEqWasmModule: request.parametricEqWasmModule,
-			});
+			}, request.effectMailbox);
 			scheduler = createParallelStackScheduler(request.shared, request.plan.tasks, workerIndex, execute);
 			globalThis.postMessage({ type: 'ready', generation: views.geometry.generation, workerIndex });
 		} else if (envelope.type === 'start') {

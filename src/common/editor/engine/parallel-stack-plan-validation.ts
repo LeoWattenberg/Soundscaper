@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 import { compileParallelStackEffect } from './parallel-stack-effects.ts';
+import { PARALLEL_STACK_EFFECT_MAILBOX_BYTES_PER_EFFECT } from './parallel-stack-effect-mailbox.ts';
 import type { ParallelStackPlan, ParallelStackTask } from './parallel-stack-types.ts';
 
 export const PARALLEL_STACK_MEMORY_LIMIT = 128 * 1024 ** 2;
@@ -14,7 +15,7 @@ export function parallelStackMemoryBytes(tasks: readonly ParallelStackTask[], pl
 	let descriptors = 65536;
 	for (const task of tasks) {
 		state += task.channels * (blockFrames * 3 + task.inputDelayFrames + task.outputDelayFrames) * 4;
-		state += task.effects.reduce((sum, effect) => sum + effect.stateBytes, 0);
+		state += task.effects.reduce((sum, effect) => sum + effect.stateBytes + PARALLEL_STACK_EFFECT_MAILBOX_BYTES_PER_EFFECT, 0);
 		descriptors += 4096 + task.effects.length * 32768;
 		for (const edge of task.edges) {
 			state += task.channels * (blockFrames + edge.delayFrames) * 4;

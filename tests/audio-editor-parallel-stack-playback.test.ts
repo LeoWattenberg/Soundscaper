@@ -14,6 +14,7 @@ import { readParallelStackStatus } from '../src/common/editor/engine/parallel-st
 import { ENGINE_HANDLE_SCHEDULING_ERROR } from '../src/common/editor/engine/runtime-symbols.ts';
 import type { EngineRuntimeHost } from '../src/common/editor/engine/runtime-types.ts';
 import type { ProjectGraph } from '../src/common/editor/engine/project-graph.ts';
+import type { EngineProject } from '../src/common/editor/engine/types.ts';
 import { MockAudioContext } from './helpers/mock-audio-context.js';
 
 const request = {} as ParallelStackPlaybackRequest;
@@ -107,6 +108,29 @@ test('a worker fault after graph handoff retires it before transport can assign 
 	fail(error);
 	assert.equal(graph.abortController.signal.aborted, true);
 	assert.equal(graph.abortController.signal.reason, error);
+	assert.deepEqual(errors, [error]);
+});
+
+test('a worker fault still stops the active graph after a live effect preview replaces project identity', async () => {
+	const error = new Error('Worker missed its deadline after live preview');
+	const graph = { abortController: new AbortController() } as ProjectGraph;
+	const errors: unknown[] = [];
+	let fail: (error: Error) => void = () => { throw new Error('No active graph'); };
+	const engine = {
+		context: {}, project: {}, scrubGeneration: 1, disposed: false,
+		graph: null, meterListeners: new Set(), playbackMode: 'normal', playbackRate: 1,
+		projectGraphSelection: 'v21',
+		[ENGINE_HANDLE_SCHEDULING_ERROR]: (failure: unknown) => { errors.push(failure); },
+	} as unknown as EngineRuntimeHost;
+	registerParallelStackPlayback(engine, async (input) => {
+		fail = input.onFailure;
+		return graph;
+	});
+	assert.equal(await buildPlaybackGraph(engine, {} as AudioNode, 0), graph);
+	engine.graph = graph;
+	engine.project = {} as EngineProject;
+	fail(error);
+	assert.equal(graph.abortController.signal.aborted, true);
 	assert.deepEqual(errors, [error]);
 });
 

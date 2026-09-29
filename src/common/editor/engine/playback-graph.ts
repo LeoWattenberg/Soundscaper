@@ -34,15 +34,22 @@ export function buildPlaybackGraph(
 	return (async () => {
 		let prepared: ProjectGraph | null = null;
 		let failure: Error | null = null;
-		const current = () => !engine.disposed && engine.context === context
-			&& engine.project === project && engine.scrubGeneration === scrubGeneration;
+		const sameSession = () => !engine.disposed && engine.context === context
+			&& engine.scrubGeneration === scrubGeneration;
+		const current = () => sameSession() && engine.project === project;
+		const currentFailure = () => sameSession() && (
+			// An accepted live parameter preview replaces the project object while
+			// the same graph keeps playing. Its worker faults still belong to it.
+			(prepared !== null && engine.graph === prepared && !prepared.abortController.signal.aborted)
+			|| (engine.graph === null && engine.project === project)
+		);
 		try { prepared = await prepareParallelStackPlayback(engine, {
 			context, destination, project, fromFrame,
 			metering: engine.meterListeners.size > 0,
 			playbackMode: engine.playbackMode,
 			playbackRate: engine.playbackRate,
 			onFailure: (error) => {
-				if (!current() || failure) return;
+				if (!currentFailure() || failure) return;
 				failure = error;
 				// A fault can arrive between worker readiness and transport assigning
 				// the graph. Retire it now so the pending scheduler cannot play it.

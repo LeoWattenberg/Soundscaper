@@ -12,6 +12,8 @@ import {
 import type { ParallelStackPlan } from '../../../engine/parallel-stack-types.ts';
 import type { ProjectGraph } from '../../../engine/project-graph.ts';
 import { getParametricEqWasmModule } from '../../../engine/effect-worklets.ts';
+import { createParallelStackEffectMailbox } from '../../../engine/parallel-stack-effect-mailbox.ts';
+import { registerParallelStackLiveControls } from '../../../engine/parallel-stack-live-controls.ts';
 
 export interface ParallelStackSessionResources {
 	readonly loadWorklet: (context: AudioContext) => Promise<void>;
@@ -51,6 +53,7 @@ export async function createParallelStackSession(
 	});
 	const sessionGeneration = shared.geometry.generation;
 	const views = createParallelStackViews(shared);
+	const effectMailbox = createParallelStackEffectMailbox(plan.tasks.reduce((count, task) => count + task.effects.length, 0));
 	const workers: Worker[] = [];
 	const abortController = new AbortController();
 	let collector: AudioWorkletNode | null = null;
@@ -97,6 +100,7 @@ export async function createParallelStackSession(
 		await Promise.all(workers.map((worker, workerIndex) => {
 			const ready = waitForMessage(worker, 'ready', abortController.signal, { generation: sessionGeneration, workerIndex });
 			worker.postMessage({ type: 'prepare', shared, plan, workerIndex,
+				effectMailbox,
 				parametricEqWasmModule: getParametricEqWasmModule(request.context),
 			});
 			return ready;
@@ -126,6 +130,7 @@ export async function createParallelStackSession(
 		// Connect while unarmed: the collector renders silence until the chosen origin,
 		// even if the UI is delayed while waiting for the start acknowledgement.
 		graph = buildParallelStackAudioGraph(context, request.destination, collector, plan, latencyFrames, request.metering, abortController);
+		registerParallelStackLiveControls(graph, plan, effectMailbox);
 		const requestedStartFrame = Math.ceil((context.currentTime + 0.05) * context.sampleRate / 128) * 128;
 		const armed = waitForMessage(collector.port, 'started', abortController.signal, { generation: sessionGeneration });
 		collector.port.postMessage({ type: 'start', startFrame: requestedStartFrame });

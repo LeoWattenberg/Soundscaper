@@ -1,5 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 import { createParallelStackEffect } from './parallel-stack-effects.ts';
+import { readParallelStackEffectUpdate, validateParallelStackEffectMailbox,
+	type SharedParallelStackEffectMailbox } from './parallel-stack-effect-mailbox.ts';
 import { ParallelStackDelay, parallelStripControls } from './parallel-stack-routing.ts';
 import { validateParallelStackPlan } from './parallel-stack-plan-validation.ts';
 import type { ParallelStackPlan, ParallelStackTask, ParallelStackRuntimeModules } from './parallel-stack-types.ts';
@@ -8,10 +10,18 @@ export type ParallelStackExecutor = (taskIndex: number, planes: readonly Float32
 const channels = (width: number, frames: number): Float32Array[] => Array.from({ length: width }, () => new Float32Array(frames));
 
 /** Construct once on the assigned worker; all buffers and DSP histories stay there. */
-export function createParallelStackExecutor(plan: ParallelStackPlan, workerIndex: number, modules: ParallelStackRuntimeModules = {}): ParallelStackExecutor {
+export function createParallelStackExecutor(plan: ParallelStackPlan, workerIndex: number, modules: ParallelStackRuntimeModules = {},
+	effectMailbox?: SharedParallelStackEffectMailbox): ParallelStackExecutor {
 	validateParallelStackPlan(plan);
 	if (!Number.isInteger(workerIndex) || workerIndex < 0 || workerIndex >= plan.workerCount) throw new Error('Invalid parallel worker assignment.');
-	const runtimes = plan.tasks.map((task) => task.worker === workerIndex ? prepareTask(task, plan, modules) : null);
+	if (effectMailbox) validateParallelStackEffectMailbox(effectMailbox,
+		plan.tasks.reduce((count, task) => count + task.effects.length, 0));
+	let effectOffset = 0;
+	const runtimes = plan.tasks.map((task) => {
+		const offset = effectOffset;
+		effectOffset += task.effects.length;
+		return task.worker === workerIndex ? prepareTask(task, plan, modules, effectMailbox, offset) : null;
+	});
 	return (taskIndex, planes, sequence) => {
 		const runtime = runtimes[taskIndex];
 		if (!runtime) throw new Error('A parallel task ran on the wrong worker.');
@@ -19,7 +29,8 @@ export function createParallelStackExecutor(plan: ParallelStackPlan, workerIndex
 	};
 }
 
-function prepareTask(task: ParallelStackTask, plan: ParallelStackPlan, modules: ParallelStackRuntimeModules): (planes: readonly Float32Array[], sequence: number) => void {
+function prepareTask(task: ParallelStackTask, plan: ParallelStackPlan, modules: ParallelStackRuntimeModules,
+	effectMailbox: SharedParallelStackEffectMailbox | undefined, effectOffset: number): (planes: readonly Float32Array[], sequence: number) => void {
 	const frames = plan.blockFrames;
 	const input = channels(task.channels, frames);
 	const scratch = channels(task.channels, frames);
@@ -34,9 +45,11 @@ function prepareTask(task: ParallelStackTask, plan: ParallelStackPlan, modules: 
 	const edges = task.edges.map((edge) => ({ edge, scratch: channels(task.channels, frames),
 		delay: new ParallelStackDelay(edge.delayFrames, task.channels),
 		target: edge.sidechainEffectId ? sidechains.get(edge.sidechainEffectId)! : input }));
-	const effects = task.effects.map((effect) => ({
+	const effects = task.effects.map((effect, index) => ({
 		processor: createParallelStackEffect(effect, plan.sampleRate, task.channels, modules),
 		sidechain: sidechains.get(effect.id),
+		mailboxIndex: effectOffset + index,
+		lastVersion: 0,
 	}));
 	// Warm the actual pinned instances on this worker, before its ready acknowledgement.
 	// Every admitted kernel restores its exact cold state, including random generators.
@@ -48,6 +61,13 @@ function prepareTask(task: ParallelStackTask, plan: ParallelStackPlan, modules: 
 	let nextSequence = 0;
 	return (planes, sequence) => {
 		if (!Number.isSafeInteger(sequence) || sequence !== nextSequence) throw new Error('Parallel DSP blocks must advance consecutively.');
+		if (effectMailbox) for (const effect of effects) {
+			const update = readParallelStackEffectUpdate(effectMailbox, effect.mailboxIndex, effect.lastVersion);
+			if (!update) continue;
+			if (!effect.processor.updateParams) throw new Error('Parallel effect does not accept live parameters.');
+			effect.processor.updateParams(update.params, { transitionFrames: update.transitionFrames });
+			effect.lastVersion = update.version;
+		}
 		for (let c = 0; c < input.length; c++) {
 			if (task.inputPlanes.length) input[c]!.set(planes[task.inputPlanes[c]!]!);
 			else input[c]!.fill(0);

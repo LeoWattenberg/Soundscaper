@@ -13,6 +13,7 @@ import type { ParallelStackEffect, ParallelStackRuntimeModules } from './paralle
 
 export interface ParallelStackEffectProcessor {
 	reset(): void;
+	updateParams?(params: Readonly<Record<string, unknown>>, options?: Readonly<{ transitionFrames?: number }>): void;
 	processBlock(input: readonly Float32Array[], output: readonly Float32Array[], frames: number,
 		sidechain?: readonly Float32Array[]): void;
 }
@@ -61,8 +62,27 @@ export function createParallelStackEffect(effect: ParallelStackEffect, sampleRat
 		if (!(modules.parametricEqWasmModule instanceof WebAssembly.Module)) throw new Error('Parallel parametric EQ requires its precompiled WASM module.');
 		const runtime = new ParametricEqWasmRuntime(modules.parametricEqWasmModule, options);
 		runtime.configure(params, { effectId: effect.id, mode: 'immediate', transitionFrames: 0 });
-		return { reset() { runtime.reset(); }, processBlock(input, output, frames) {
+		let queued: Readonly<Record<string, unknown>> | null = null;
+		let queuedTransitionFrames: number | undefined;
+		const configure = (next: Readonly<Record<string, unknown>>, transitionFrames?: number): void => {
+			if (runtime.transitioning) {
+				queued = next;
+				queuedTransitionFrames = transitionFrames;
+				return;
+			}
+			runtime.configure(next, { effectId: effect.id, mode: 'auto', transitionFrames });
+		};
+		return { reset() { queued = null; runtime.reset(); },
+			updateParams(next, updateOptions) { configure(next, updateOptions?.transitionFrames); },
+			processBlock(input, output, frames) {
 			if (output[0]?.length !== frames) throw new Error('Parallel EQ requires a complete output block.');
+			if (queued && !runtime.transitioning) {
+				const next = queued;
+				const transitionFrames = queuedTransitionFrames;
+				queued = null;
+				queuedTransitionFrames = undefined;
+				configure(next, transitionFrames);
+			}
 			// The audited JavaScript API infers its bounded frame count from this full block.
 			runtime.process(input, output);
 		} };

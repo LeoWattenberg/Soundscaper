@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { DynamicsProcessor } from '../src/common/editor/dynamics-worklet.js';
 import { compileParallelStackEffect, createParallelStackEffect } from '../src/common/editor/engine/parallel-stack-effects.ts';
+import { createBitcrusherProcessor } from '../src/common/editor/first-party-effects/bitcrusher/dsp.js';
 
 const effectCases: readonly [string, Record<string, unknown>][] = [
 	['bitcrusher', { dither: 'triangular', downsampling: 3.5 }],
@@ -75,6 +76,38 @@ test('rejects allocations from pitched delay and malformed parameter state befor
 	assert.throws(() => compileParallelStackEffect({ type: 'bitcrusher', params: { nested: {} } }, 48000, 2), /bounded/iu);
 });
 
+test('live bitcrusher parameter updates preserve the running hold and dither histories', () => {
+	const params = { bitDepth: 6, downsampling: 5.5, dither: 'triangular', interpolation: 'linear', mix: 90 };
+	const next = { ...params, bitDepth: 4, mix: 60 };
+	const parallel = createParallelStackEffect(compileParallelStackEffect({ id: 'crush', type: 'bitcrusher', params }, 48000, 2), 48000, 2);
+	const reference = createBitcrusherProcessor({ channelCount: 2, params });
+	const input = [new Float32Array(512), new Float32Array(512)];
+	for (let frame = 0; frame < 512; frame++) for (let channel = 0; channel < 2; channel++) {
+		input[channel]![frame] = Math.sin(frame * .13 + channel * .4) * .8;
+	}
+	const expected = input.map(() => new Float32Array(512));
+	const actual = input.map(() => new Float32Array(512));
+	for (const [processor, output] of [[reference, expected], [parallel, actual]] as const) {
+		processor.processBlock(input.map((channel) => channel.subarray(0, 256)), output.map((channel) => channel.subarray(0, 256)), 256);
+		processor.updateParams?.(next);
+		processor.processBlock(input.map((channel) => channel.subarray(256)), output.map((channel) => channel.subarray(256)), 256);
+	}
+	assert.deepEqual(actual, expected);
+});
+
+test('live delay parameter updates retain echoes from the preceding block', () => {
+	const params = { time: .01, echoes: 1, echoGain: -6, mix: 1 };
+	const processor = createParallelStackEffect(compileParallelStackEffect({ id: 'echo', type: 'multi-tap-delay', params }, 48000, 1), 48000, 1);
+	const input = [new Float32Array(256)];
+	const output = [new Float32Array(256)];
+	input[0]![0] = 1;
+	processor.processBlock(input, output, 256);
+	input[0]!.fill(0);
+	processor.updateParams?.({ ...params, echoGain: -3 });
+	processor.processBlock(input, output, 256);
+	assert.ok(Math.abs(output[0]![224]! - 10 ** (-3 / 20)) < 1e-6);
+});
+
 test('parametric EQ uses the exact precompiled WASM processor with 128/256-frame parity', async () => {
 	const { readFile } = await import('node:fs/promises');
 	const { ParametricEqWorkletProcessor } = await import('../src/common/editor/parametric-eq/worklet.js');
@@ -105,4 +138,19 @@ test('parametric EQ uses the exact precompiled WASM processor with 128/256-frame
 	for (let offset = 0; offset < 1024; offset += 256) parallel.processBlock(input.map((c) => c.subarray(offset, offset + 256)),
 		actual.map((c) => c.subarray(offset, offset + 256)), 256);
 	assert.deepEqual(actual, expected);
+});
+
+test('live EQ updates retain its WASM instance and apply the latest update after a transition', async () => {
+	const { readFile } = await import('node:fs/promises');
+	const module = await WebAssembly.compile(await readFile(new URL('../src/common/editor/parametric-eq/parametric-eq.wasm', import.meta.url)));
+	const descriptor = compileParallelStackEffect({ id: 'eq', type: 'eq', params: { outputGain: 0, bands: [] } }, 48000, 1);
+	const processor = createParallelStackEffect(descriptor, 48000, 1, { parametricEqWasmModule: module });
+	const packet = (gain: number) => compileParallelStackEffect({ id: 'eq', type: 'eq', params: { outputGain: gain, bands: [] } }, 48000, 1).params;
+	const input = [new Float32Array(256).fill(.25)];
+	const output = [new Float32Array(256)];
+	processor.updateParams?.(packet(6), { transitionFrames: 960 });
+	processor.processBlock(input, output, 256);
+	processor.updateParams?.(packet(-6), { transitionFrames: 0 });
+	for (let block = 0; block < 10; block++) processor.processBlock(input, output, 256);
+	assert.ok(Math.abs(output[0]![255]! - .25 * 10 ** (-6 / 20)) < 1e-3);
 });

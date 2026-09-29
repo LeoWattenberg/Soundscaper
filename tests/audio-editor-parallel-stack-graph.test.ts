@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { compileParallelStackPlan } from '../src/common/editor/engine/parallel-stack-plan.ts';
 import { createParallelStackExecutor } from '../src/common/editor/engine/parallel-stack-dsp.ts';
+import { createParallelStackEffectMailbox, publishParallelStackEffectUpdate } from '../src/common/editor/engine/parallel-stack-effect-mailbox.ts';
 import { createBitcrusherProcessor } from '../src/common/editor/first-party-effects/bitcrusher/dsp.js';
 import type { EngineProject } from '../src/common/editor/engine/types.ts';
 
@@ -61,6 +62,47 @@ test('runs multiple serial effects without resetting their histories at block bo
 		for (let c = 0; c < 2; c++) planes[plan.inputPlaneIndices[0]![c]!]!.set(expectedInput[c]!.subarray(block * 256, block * 256 + 256));
 		process(block);
 		for (let c = 0; c < 2; c++) assert.deepEqual(planes[plan.outputPlaneIndices[0]![c]!]!, expected[c]!.subarray(block * 256, block * 256 + 256));
+	}
+});
+
+test('live effect snapshots reach their owning workers at block boundaries without changing sibling PCM order', () => {
+	const value = project();
+	const initial = { bitDepth: 8, downsampling: 3.5, mix: 100, interpolation: 'linear' };
+	value.tracks[0]!.effects = [{ id: 'a-crush', type: 'bitcrusher', params: initial }] as never[];
+	value.tracks[1]!.effects = [{ id: 'b-crush', type: 'bitcrusher', params: initial }] as never[];
+	const plan = compileParallelStackPlan(value, { sampleRate: 48000, workerCount: 2 });
+	const mailbox = createParallelStackEffectMailbox(plan.tasks.reduce((sum, task) => sum + task.effects.length, 0));
+	const workers = Array.from({ length: plan.workerCount }, (_, index) => createParallelStackExecutor(plan, index, {}, mailbox));
+	const planes = Array.from({ length: plan.planeCount }, () => new Float32Array(256));
+	const reference = [0, 1].map(() => createBitcrusherProcessor({ channelCount: 2, params: initial }));
+	const aIndex = plan.tasks.slice(0, plan.tasks.findIndex((task) => task.key === 'track:a'))
+		.reduce((sum, task) => sum + task.effects.length, 0);
+	const bIndex = plan.tasks.slice(0, plan.tasks.findIndex((task) => task.key === 'track:b'))
+		.reduce((sum, task) => sum + task.effects.length, 0);
+	assert.notEqual(aIndex, bIndex);
+	for (let block = 0; block < 3; block++) {
+		if (block === 1) {
+			const next = { ...initial, bitDepth: 3 };
+			assert.equal(publishParallelStackEffectUpdate(mailbox, aIndex, { params: next }), true);
+			reference[0]!.updateParams(next);
+		}
+		if (block === 2) {
+			const next = { ...initial, bitDepth: 5 };
+			assert.equal(publishParallelStackEffectUpdate(mailbox, bIndex, { params: next }), true);
+			reference[1]!.updateParams(next);
+		}
+		const expected = [0, 1].map(() => [new Float32Array(256), new Float32Array(256)]);
+		for (let track = 0; track < 2; track++) {
+			const input = plan.inputPlaneIndices[track]!.map((index) => planes[index]!);
+			for (let channel = 0; channel < 2; channel++) for (let frame = 0; frame < 256; frame++) {
+				input[channel]![frame] = Math.sin((block * 256 + frame) * .13 + track * .3 + channel * .4) * .8;
+			}
+			reference[track]!.processBlock(input, expected[track]!, 256);
+		}
+		for (const index of plan.taskOrder) workers[plan.tasks[index]!.worker]!(index, planes, block);
+		for (let track = 0; track < 2; track++) for (let channel = 0; channel < 2; channel++) {
+			assert.deepEqual(planes[plan.tracks[track]!.prePlanes[channel]!]!, expected[track]![channel]!);
+		}
 	}
 });
 

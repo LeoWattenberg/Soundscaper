@@ -39,6 +39,7 @@ import type {
 } from './runtime-types.ts';
 import { isStandardEffect } from '../first-party-effects/standard/definition.ts';
 import { standardEffectStateBytes } from '../first-party-effects/standard/selection-contract.ts';
+import { effectMessageHandler } from './effect-message-dispatch.ts';
 
 /** Rack effects whose processors accept a live parameter frame over their port. */
 const CONFIGURABLE_RACK_EFFECT_TYPES = new Set(['delay', 'bitcrusher', 'deesser', 'multiband-compressor']);
@@ -56,9 +57,11 @@ configureRackEffect(scope, targetId, effectId, params, options = {}) {
 			params: { ...(effect.params || {}), ...params },
 		}).params;
 		if (isStandardEffect(configurable)) {
-			const node = this.graph?.effectNodes?.get(effectGraphKey(scope, targetId, effectId));
+			const key = effectGraphKey(scope, targetId, effectId);
+			const node = this.graph?.effectNodes?.get(key);
 			const sampleRate = this.context?.sampleRate || this.sampleRate;
-			standardEffectStateBytes(configurable, normalized, sampleRate, node?.channelCount || 2);
+			standardEffectStateBytes(configurable, normalized, sampleRate,
+				node?.channelCount || effectMessageHandler(this.graph, key)?.channelCount || 2);
 			// The controller rebuilds the graph when a live edit changes compensation.
 			if (effectLatencyFrames(effect, sampleRate) !== effectLatencyFrames({ ...effect, params: normalized }, sampleRate)) return false;
 		}
