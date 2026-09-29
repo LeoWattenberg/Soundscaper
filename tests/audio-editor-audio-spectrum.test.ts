@@ -26,3 +26,16 @@ test('spectrum rejects invalid PCM, rates and unbounded FFT windows', () => {
 	}
 	assert.ok(calculateAudioSpectrum([new Float32Array(32)], 48_000, { offsetFrame: 100 }).bins.every(bin => bin.amplitude === 0 && bin.db === -120));
 });
+
+test('one nonfinite sample does not erase the rest of the plotted spectrum', () => {
+	const rate = 8_192;
+	const clean = Float32Array.from({ length: 64 }, (_, frame) => Math.sin(2 * Math.PI * 1_024 * frame / rate));
+	const damaged = clean.slice();
+	damaged[5] = Number.NaN;
+	damaged[17] = Number.POSITIVE_INFINITY;
+	clean[5] = 0;
+	clean[17] = 0;
+	const spectrum = calculateAudioSpectrum([damaged], rate, { size: 64 });
+	assert.deepEqual(spectrum, calculateAudioSpectrum([clean], rate, { size: 64 }));
+	assert.ok(spectrum.bins.some((bin) => bin.amplitude > 0.1));
+});

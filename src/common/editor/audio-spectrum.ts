@@ -25,7 +25,10 @@ export function calculateAudioSpectrum(
 	for (let index = 0; index < requestedSize; index += 1) {
 		const frame = offset + index;
 		let sample = 0;
-		if (frame < frameCount) for (const channel of channels) sample += (channel[frame] ?? 0) / channels.length;
+		if (frame < frameCount) for (const channel of channels) {
+			const value = channel[frame] ?? 0;
+			if (Number.isFinite(value)) sample += value / channels.length;
+		}
 		const window = 0.5 - 0.5 * Math.cos(2 * Math.PI * index / (requestedSize - 1));
 		real[index] = sample * window;
 	}
