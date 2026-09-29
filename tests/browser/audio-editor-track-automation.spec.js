@@ -99,6 +99,30 @@ test.describe('Soundscaper inline track automation', () => {
 		expect(clientErrors).toEqual([]);
 	});
 
+	test('focuses and dismisses the automation curve menu opened by keyboard', async ({ page }) => {
+		const editor = await bootEditor(page, '/embed/en/');
+		await importFiles(editor, [toneA]);
+		const row = clipByName(editor, toneA.name).locator('xpath=ancestor::div[@data-track-row]');
+		await chooseTrackMenuAction(page, editor, row, 'Add automation');
+		const curve = row.locator('[data-automation-insert-point]').first();
+		await curve.focus();
+		await page.keyboard.press('i');
+		await curve.press('Shift+F10');
+		const menu = row.getByRole('menu', { name: 'Automation curve', exact: true });
+		await expect(menu).toBeVisible();
+		await expect(menu.getByRole('menuitemradio').first()).toBeFocused();
+		await page.keyboard.press('ArrowDown');
+		await expect(menu.getByRole('menuitemradio').nth(1)).toBeFocused();
+		await page.keyboard.press('Enter');
+		await expect(menu).toHaveCount(0);
+		await expect(curve).toBeFocused();
+		await curve.press('Shift+F10');
+		await expect(menu.getByRole('menuitemradio').nth(1)).toHaveAttribute('aria-checked', 'true');
+		await page.keyboard.press('Escape');
+		await expect(menu).toHaveCount(0);
+		await expect(curve).toBeFocused();
+	});
+
 	test('persists a pointer-edited lane while keeping its controls session-only', async ({ page }) => {
 		const clientErrors = collectClientErrors(page);
 		let editor = await bootEditor(page, '/embed/en/');

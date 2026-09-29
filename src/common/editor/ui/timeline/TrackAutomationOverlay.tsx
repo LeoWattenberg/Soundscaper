@@ -33,7 +33,12 @@ import {
 	type ProjectedTrackAutomationBezierHandle,
 	type TrackAutomationSegmentKind,
 } from './track-automation-overlay-bezier.ts';
-import { TrackAutomationCurveMenu } from './TrackAutomationCurveMenu.tsx';
+import {
+	createKeyboardTrackAutomationCurveMenuState,
+	createPointerTrackAutomationCurveMenuState,
+	TrackAutomationCurveMenu,
+	type TrackAutomationCurveMenuState,
+} from './TrackAutomationCurveMenu.tsx';
 import { useTrackAutomationEditFeedback } from './useTrackAutomationEditFeedback.ts';
 
 type SegmentKind = TrackAutomationSegmentKind;
@@ -60,12 +65,6 @@ interface BezierDragState {
 }
 
 type DragState = PointDragState | BezierDragState;
-
-interface CurveMenuState {
-	readonly x: number;
-	readonly y: number;
-	readonly segmentIndex: number | null;
-}
 
 export interface TrackAutomationOverlayProps {
 	readonly controller: AutomationEditController;
@@ -111,7 +110,7 @@ export function TrackAutomationOverlay({
 	const dragRef = useRef<DragState | null>(null);
 	const draftLaneRef = useRef<AutomationLaneV21 | null>(null);
 	const [draftLane, setDraftLane] = useState<AutomationLaneV21 | null>(null);
-	const [curveMenu, setCurveMenu] = useState<CurveMenuState | null>(null);
+	const [curveMenu, setCurveMenu] = useState<TrackAutomationCurveMenuState | null>(null);
 	const { feedback, attempt } = useTrackAutomationEditFeedback();
 	const lane = draftLane ?? target.lane;
 	useEffect(() => {
@@ -323,7 +322,14 @@ export function TrackAutomationOverlay({
 		span: Readonly<{ startFrame: number; endFrame: number }>,
 	) => {
 		if (!interactive) return;
-		if (event.key === 'Enter' || event.key.toLowerCase() === 'i') {
+		if (event.key === 'ContextMenu' || (event.key === 'F10' && event.shiftKey)) {
+			event.preventDefault();
+			event.stopPropagation();
+			setCurveMenu(createKeyboardTrackAutomationCurveMenuState(
+				event.currentTarget, span, svgRef.current, projection.bodyTop,
+				lane ? resolvedPoints(lane) : [],
+			));
+		} else if (event.key === 'Enter' || event.key.toLowerCase() === 'i') {
 			event.preventDefault();
 			event.stopPropagation();
 			insertPointAtFrame(Math.round((span.startFrame + span.endFrame) / 2));
@@ -511,17 +517,11 @@ export function TrackAutomationOverlay({
 		if (!interactive) return;
 		event.preventDefault();
 		event.stopPropagation();
-		const frame = frameAtPointer(event.clientX, span.startFrame, span.endFrame);
-		const points = lane ? resolvedPoints(lane) : [];
-		const segmentIndex = points.findIndex((point, pointIndex) => (
-			pointIndex < points.length - 1 && frame >= point.frame && frame <= points[pointIndex + 1]!.frame
+		setCurveMenu(createPointerTrackAutomationCurveMenuState(
+			event, frameAtPointer(event.clientX, span.startFrame, span.endFrame),
+			svgRef.current, projection.bodyTop,
+			lane ? resolvedPoints(lane) : [],
 		));
-		const rect = svgRef.current?.getBoundingClientRect();
-		setCurveMenu({
-			x: rect ? event.clientX - rect.left : 12,
-			y: rect ? event.clientY - rect.top : projection.bodyTop,
-			segmentIndex: segmentIndex < 0 ? null : segmentIndex,
-		});
 	}
 
 	function applyMenuSegmentKind(kind: SegmentKind) {
