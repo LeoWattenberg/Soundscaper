@@ -107,3 +107,51 @@ test('worker construction failure cleans up peers already prepared', async () =>
 	}), /Worker quota/u);
 	assert.ok(workers.every((worker) => worker.terminated));
 });
+
+test('collector processor failure during startup rejects without waiting for the ready timeout', async () => {
+	const { workers, port, request, resources, plan } = fixture();
+	const cancellation = new AbortController();
+	const starting = createParallelStackSession(request, plan, 768, cancellation.signal, {
+		...resources,
+		createNode: () => {
+			const node = Object.assign(new EventTarget(), { port, connect: () => {}, disconnect: () => {} });
+			queueMicrotask(() => node.dispatchEvent(new Event('processorerror')));
+			return node as unknown as AudioWorkletNode;
+		},
+	});
+	let outcome: unknown = null;
+	const observed = starting.then(() => { outcome = 'resolved'; }, (error: unknown) => { outcome = error; });
+	await new Promise<void>((resolve) => setImmediate(resolve));
+	try {
+		assert.ok(outcome instanceof Error, 'processorerror must settle pending preparation immediately');
+		assert.match((outcome as Error).message, /parallel effect worker stopped unexpectedly/iu);
+		assert.ok(workers.every((worker) => worker.terminated));
+	} finally {
+		cancellation.abort();
+		await observed;
+	}
+});
+
+test('a failed worker prepare post does not leave an unhandled readiness rejection', async () => {
+	const { workers, request, resources, plan } = fixture();
+	const fault = new Error('Worker prepare post failed');
+	const unhandled: unknown[] = [];
+	const observe = (error: unknown): void => { unhandled.push(error); };
+	process.on('unhandledRejection', observe);
+	try {
+		await assert.rejects(createParallelStackSession(request, plan, 768, new AbortController().signal, {
+			...resources,
+			createWorker: () => {
+				const worker = new WorkerPort();
+				worker.postMessage = () => { throw fault; };
+				workers.push(worker);
+				return worker as unknown as Worker;
+			},
+		}), fault);
+		await new Promise<void>((resolve) => setImmediate(resolve));
+		assert.deepEqual(unhandled, []);
+		assert.ok(workers.every((worker) => worker.terminated));
+	} finally {
+		process.off('unhandledRejection', observe);
+	}
+});

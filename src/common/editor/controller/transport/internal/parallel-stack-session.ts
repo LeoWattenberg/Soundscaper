@@ -74,6 +74,7 @@ export async function createParallelStackSession(
 		failure = error;
 		faultParallelStackViews(views, ParallelStackFault.Worker);
 		if (installed) request.onFailure(error);
+		else abortController.abort(error);
 	};
 	const observeFailure = (event: Event): void => {
 		if (event.type !== 'message') { fail(new Error('A parallel effect worker stopped unexpectedly.')); return; }
@@ -144,12 +145,12 @@ export async function createParallelStackSession(
 		return graph;
 	} catch (error) {
 		dispose();
-		throw error;
+		throw failure ?? error;
 	}
 }
 
 function waitForMessage(port: Worker | MessagePort, type: string, signal: AbortSignal, identity: Readonly<Record<string, number>>): Promise<Record<string, unknown>> {
-	return new Promise((resolve, reject) => {
+	const pending = new Promise<Record<string, unknown>>((resolve, reject) => {
 		const cleanup = (): void => {
 			clearTimeout(timer);
 			port.removeEventListener('message', receive);
@@ -177,4 +178,7 @@ function waitForMessage(port: Worker | MessagePort, type: string, signal: AbortS
 		signal.addEventListener('abort', aborted, { once: true });
 		if (signal.aborted) aborted();
 	});
+	// A synchronous postMessage failure can abandon this waiter before Promise.all owns it.
+	void pending.catch(() => undefined);
+	return pending;
 }
