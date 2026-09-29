@@ -113,6 +113,46 @@ test('clocked recording starts can read active graph latency in context frames',
 	await engine.dispose();
 });
 
+test('clocked playback reserves recorder startup time after parallel graph preparation', async () => {
+	const { engine, entered, release } = delayedPlayback();
+	const context = await engine.getAudioContext() as unknown as MockAudioContext;
+	const starting = engine.playAt(0.08, 0);
+	await entered;
+	context.currentTime = 1;
+	release();
+	const scheduled = await starting;
+	assert.ok(scheduled >= 1.08, `source started too soon at ${String(scheduled)}`);
+	assert.equal(context.bufferSources.at(-1)?.started?.[0], scheduled);
+	engine.stop();
+	await engine.dispose();
+});
+
+test('clocked playback reserves recorder startup time with no clips after meter preparation', async () => {
+	const context = new MockAudioContext({ sampleRate: 48_000 });
+	const project = createProject();
+	project.clips = [];
+	project.tracks[0]!.clipIds = [];
+	const engine = createAudioEditorEngine({ audioContextFactory: () => context as never });
+	engine.loadProject(project as EngineProject, new Map());
+	const runtime = engine as unknown as EngineRuntimeHost;
+	const unsubscribe = engine.subscribeMeters(() => {});
+	let release: () => void = () => { throw new Error('Meter preparation has not begun'); };
+	let entered: () => void = () => { throw new Error('Meter preparation has not begun'); };
+	const meterEntered = new Promise<void>((resolve) => { entered = resolve; });
+	const meterReady = new Promise<null>((resolve) => { release = () => resolve(null); });
+	runtime[ENGINE_ENSURE_MASTER_LOUDNESS_METER] = async () => { entered(); return meterReady; };
+	const starting = engine.playAt(0.08, 0);
+	await meterEntered;
+	context.currentTime = 1;
+	release();
+	const scheduled = await starting;
+	assert.ok(scheduled >= 1.08, `source started too soon at ${String(scheduled)}`);
+	assert.equal(engine.getPlaybackAudibleStartTime(), scheduled);
+	unsubscribe();
+	engine.stop();
+	await engine.dispose();
+});
+
 test('a worker startup fault rejects clocked playAt without reporting the fault twice', async () => {
 	const context = new MockAudioContext({ sampleRate: 48_000 });
 	const engine = createAudioEditorEngine({ audioContextFactory: () => context as never });
@@ -236,5 +276,41 @@ for (const playbackMode of ['staffpad', 'audio-warp-exact'] as const) {
 		assert.equal(state, 'stopped');
 		assert.equal(graph, null);
 		assert.equal(context.bufferSources.length, 0);
+	});
+
+	test(`${playbackMode} keeps the clocked source start ahead after meter setup`, async () => {
+		const context = new MockAudioContext({ sampleRate: 48_000 });
+		const engine = createAudioEditorEngine({ audioContextFactory: () => context as never });
+		engine.loadProject(createProject() as EngineProject, new Map([
+			['source-1', new MockAudioBuffer(1, 48_000, 48_000) as unknown as AudioBuffer],
+		]));
+		await engine.getAudioContext();
+		const runtime = engine as unknown as EngineRuntimeHost;
+		runtime.playbackMode = playbackMode;
+		if (playbackMode === 'staffpad') runtime.preparedSpeedPlayback = {
+			channels: [new Float32Array(48_000)], frameCount: 48_000, sampleRate: 48_000,
+			durationFrames: 48_000, playbackRate: 1, audioBuffer: null,
+		};
+		else runtime.preparedAudioWarpPlayback = {
+			project: runtime.project as EngineProject, authorityFingerprint: '', startFrame: 0,
+			endFrame: 48_000, channels: [new Float32Array(48_000)], frameCount: 48_000,
+			sampleRate: 48_000, audioBuffer: null,
+		};
+		runtime.meterListeners.add(() => {});
+		let entered: () => void = () => { throw new Error('Meter setup has not begun'); };
+		const meterEntered = new Promise<void>((resolve) => { entered = resolve; });
+		let release: () => void = () => { throw new Error('Meter setup has not begun'); };
+		const meterReady = new Promise<void>((resolve) => { release = resolve; });
+		runtime[ENGINE_ENSURE_MASTER_LOUDNESS_METER] = async () => { entered(); await meterReady; return null; };
+		const starting = runtime[ENGINE_SCHEDULE_PREPARED_SPEED_PLAYBACK](0, 0.08, 0.08);
+		await meterEntered;
+		context.currentTime = 1;
+		release();
+		const scheduled = await starting;
+		assert.ok(scheduled >= 1.08, `source started too soon at ${String(scheduled)}`);
+		assert.equal(context.bufferSources.at(-1)?.started?.[0], scheduled);
+		assert.equal(runtime.playbackStartTime, scheduled);
+		engine.stop();
+		await engine.dispose();
 	});
 }

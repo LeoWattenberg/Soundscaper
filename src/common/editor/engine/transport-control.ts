@@ -60,10 +60,10 @@ import type {
 	EngineRuntimeHost,
 } from './runtime-types.ts';
 const DEFAULT_SCRUB_FRAME_MS = 50;
+const CLOCKED_START_LEAD_SECONDS = 0.08;
 function monotonicMilliseconds(): number {
 	return globalThis.performance?.now?.() ?? Date.now();
 }
-
 function isAbortError(error: unknown): boolean {
 	return Boolean(error && typeof error === 'object' && 'name' in error && error.name === 'AbortError');
 }
@@ -248,7 +248,7 @@ async playAt(this: EngineRuntimeHost, contextTime, fromFrame = this.positionFram
 			assertPlaybackRequestCurrent(this, generation);
 			const scheduledTime = Math.max(context.currentTime, Number(contextTime) || context.currentTime);
 			this.positionFrame = scheduledFrame;
-			const scheduled = await this[ENGINE_SCHEDULE_PREPARED_SPEED_PLAYBACK](this.positionFrame, scheduledTime);
+			const scheduled = await this[ENGINE_SCHEDULE_PREPARED_SPEED_PLAYBACK](this.positionFrame, scheduledTime, CLOCKED_START_LEAD_SECONDS);
 			assertPlaybackRequestCurrent(this, generation);
 			return scheduled;
 		}
@@ -259,7 +259,7 @@ async playAt(this: EngineRuntimeHost, contextTime, fromFrame = this.positionFram
 		assertPlaybackRequestCurrent(this, generation);
 		const scheduledTime = Math.max(context.currentTime, Number(contextTime) || context.currentTime);
 		this.positionFrame = clampFrame(fromFrame, 0, this.playbackDurationFrames);
-		const scheduled = await this[ENGINE_SCHEDULE_PLAYBACK](this.positionFrame, scheduledTime);
+		const scheduled = await this[ENGINE_SCHEDULE_PLAYBACK](this.positionFrame, scheduledTime, CLOCKED_START_LEAD_SECONDS);
 		assertPlaybackRequestCurrent(this, generation);
 		return scheduled;
 	},

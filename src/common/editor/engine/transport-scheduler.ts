@@ -70,7 +70,7 @@ async [ENGINE_SCHEDULE_CURRENT_PLAYBACK](this: EngineRuntimeHost, fromFrame, sch
 		return this[ENGINE_SCHEDULE_PLAYBACK](fromFrame, scheduledTime);
 	},
 
-async [ENGINE_SCHEDULE_PREPARED_SPEED_PLAYBACK](this: EngineRuntimeHost, fromFrame, scheduledTime = this.context?.currentTime || 0) {
+async [ENGINE_SCHEDULE_PREPARED_SPEED_PLAYBACK](this: EngineRuntimeHost, fromFrame, scheduledTime = this.context?.currentTime || 0, minimumStartLeadSeconds = 0) {
 		const context = this.context;
 		const project = this.project;
 		const scrubGeneration = this.scrubGeneration;
@@ -80,14 +80,14 @@ async [ENGINE_SCHEDULE_PREPARED_SPEED_PLAYBACK](this: EngineRuntimeHost, fromFra
 			&& this.project === project && this.scrubGeneration === scrubGeneration
 			&& activePlaybackSchedules.get(this) === scheduleOwner;
 		if (this.playbackMode === 'audio-warp-exact' && this.preparedAudioWarpPlayback) {
-			await scheduleExactWarpPlayback(
+			return scheduleExactWarpPlayback(
 				this,
 				this.preparedAudioWarpPlayback,
 				fromFrame,
 				scheduledTime,
 				current,
+				minimumStartLeadSeconds,
 			);
-			return scheduledTime;
 		}
 		const prepared = this.preparedSpeedPlayback;
 		if (!context || !project || !prepared) return scheduledTime;
@@ -135,7 +135,6 @@ async [ENGINE_SCHEDULE_PREPARED_SPEED_PLAYBACK](this: EngineRuntimeHost, fromFra
 			: playRangeStopFrame(this.playRange, frame, this.playbackDurationFrames));
 		this.playbackStartFrame = frame;
 		this.positionFrame = frame;
-		this.playbackStartTime = scheduledTime;
 		this.loopScheduleTime = Number.POSITIVE_INFINITY;
 		this.graph = {
 			nodes,
@@ -160,6 +159,8 @@ async [ENGINE_SCHEDULE_PREPARED_SPEED_PLAYBACK](this: EngineRuntimeHost, fromFra
 			latencyFrames: 0,
 		};
 		try {
+			scheduledTime = Math.max(scheduledTime, context.currentTime + minimumStartLeadSeconds);
+			this.playbackStartTime = scheduledTime;
 			source.start(scheduledTime, outputFrameAt(frame) / prepared.sampleRate);
 			sources.add(source);
 		} catch (error) {
@@ -173,7 +174,7 @@ async [ENGINE_SCHEDULE_PREPARED_SPEED_PLAYBACK](this: EngineRuntimeHost, fromFra
 		return scheduledTime;
 	},
 
-async [ENGINE_SCHEDULE_PLAYBACK](this: EngineRuntimeHost, fromFrame, scheduledTime = this.context?.currentTime || 0) {
+async [ENGINE_SCHEDULE_PLAYBACK](this: EngineRuntimeHost, fromFrame, scheduledTime = this.context?.currentTime || 0, minimumStartLeadSeconds = 0) {
 		const context = this.context;
 		const project = this.project;
 		const scrubGeneration = this.scrubGeneration;
@@ -209,7 +210,7 @@ async [ENGINE_SCHEDULE_PLAYBACK](this: EngineRuntimeHost, fromFrame, scheduledTi
 		this.graph = preparedGraph;
 		if (meteringAtBuild !== (this.meterListeners.size > 0)) {
 			this[ENGINE_HALT_GRAPH]();
-			return this[ENGINE_SCHEDULE_PLAYBACK](fromFrame, context.currentTime);
+			return this[ENGINE_SCHEDULE_PLAYBACK](fromFrame, context.currentTime, minimumStartLeadSeconds);
 		}
 		if (this.loop.enabled && this.loop.endFrame > this.loop.startFrame
 			&& (fromFrame < this.loop.startFrame || fromFrame >= this.loop.endFrame)) fromFrame = this.loop.startFrame;
@@ -251,6 +252,7 @@ async [ENGINE_SCHEDULE_PLAYBACK](this: EngineRuntimeHost, fromFrame, scheduledTi
 				signal: graph.abortController.signal,
 				onStreamUnderrun: recordWebCoreStreamUnderrun,
 				deferStartUntilPrimed: true,
+				minimumStartLeadSeconds,
 			});
 		} catch (error) {
 			if (this.graph === graph) this[ENGINE_HALT_GRAPH]();
@@ -260,7 +262,7 @@ async [ENGINE_SCHEDULE_PLAYBACK](this: EngineRuntimeHost, fromFrame, scheduledTi
 		if (this.loop !== loopAtSchedule || this.playRange !== rangeAtSchedule
 			|| meteringAtSchedule !== (this.meterListeners.size > 0)) {
 			this[ENGINE_HALT_GRAPH]();
-			return this[ENGINE_SCHEDULE_PLAYBACK](fromFrame, context.currentTime);
+			return this[ENGINE_SCHEDULE_PLAYBACK](fromFrame, context.currentTime, minimumStartLeadSeconds);
 		}
 		observeActiveStreamCompletion(this, graph, schedule.waitForStreamedClips);
 		recordWebCoreStreamPlayback(schedule.streamedClips);

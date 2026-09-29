@@ -122,6 +122,8 @@ export interface ScheduleProjectClipsOptions {
 	readonly onProgress?: ((progress: ScheduleProgress) => void) | null;
 	readonly onStreamUnderrun?: ((details: ScheduledChunkStreamUnderrun) => void) | null;
 	readonly deferStartUntilPrimed?: boolean;
+	/** Keep clocked capture starts ahead of the audio thread after asynchronous priming. */
+	readonly minimumStartLeadSeconds?: number;
 	/**
 	 * How deep each streamed clip queues, and how much it banks before it starts.
 	 * Monitoring wants the shallow defaults so the transport responds; a render that
@@ -157,6 +159,7 @@ export async function scheduleProjectClips({
 	onProgress = null,
 	onStreamUnderrun = null,
 	deferStartUntilPrimed = false,
+	minimumStartLeadSeconds = 0,
 	streamQueuePackets = null,
 	streamPrebufferPackets = null,
 }: ScheduleProjectClipsOptions): Promise<Readonly<{
@@ -247,8 +250,10 @@ export async function scheduleProjectClips({
 		}
 	}
 
-	const actualContextStartTime = chunkPlans.length && deferStartUntilPrimed
-		? Math.max(contextStartTime, (context.currentTime || 0) + 0.02)
+	const startLeadSeconds = Math.max(minimumStartLeadSeconds,
+		chunkPlans.length && deferStartUntilPrimed ? 0.02 : 0);
+	const actualContextStartTime = startLeadSeconds > 0
+		? Math.max(contextStartTime, context.currentTime + startLeadSeconds)
 		: contextStartTime;
 	scheduleProjectGains({
 		context,
