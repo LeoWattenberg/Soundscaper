@@ -114,6 +114,16 @@ test('TXT validation is fail-fast by default and can report recoverable row warn
 	);
 });
 
+test('lenient TXT import charges the total title limit only for accepted labels', () => {
+	const result = parseAudacityLabelsTxt('0\t0\tOver\n1\t1\tOK\n2\t2\tC\n', {
+		strict: false,
+		maxTotalTitleChars: 3,
+	});
+
+	assert.deepEqual(result.labels.map((label) => label.title), ['OK', 'C']);
+	assert.deepEqual(result.warnings.map((warning) => warning.code), ['TOTAL_TITLE_LIMIT']);
+});
+
 test('SubRip import handles multiline Unicode cues, long hours, and point labels', () => {
 	const input = [
 		'7',

@@ -284,13 +284,14 @@ function validateEntry(entry, context) {
 			actual: entry.title.length,
 		});
 	}
-	context.totalTitleChars += entry.title.length;
-	if (context.totalTitleChars > context.maxTotalTitleChars) {
+	const totalTitleChars = context.totalTitleChars + entry.title.length;
+	if (totalTitleChars > context.maxTotalTitleChars) {
 		throw labelError('Label titles exceed the configured total limit.', 'TOTAL_TITLE_LIMIT', {
 			line: entry.line,
 			limit: context.maxTotalTitleChars,
 		});
 	}
+	context.totalTitleChars = totalTitleChars;
 	return entry;
 }
 
