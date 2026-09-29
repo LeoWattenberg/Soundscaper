@@ -39,6 +39,12 @@ test('desktop document and locale validation accepts only committed editor route
 	assert.equal(resolveLocale(['unknown-locale']), 'en');
 });
 
+test('desktop locale resolution honours preferred language order', () => {
+	assert.equal(resolveLocale(['fr-CA', 'de']), 'fr');
+	assert.equal(resolveLocale(['en-AU', 'de']), 'en');
+	assert.equal(resolveLocale(['unknown-locale', 'de']), 'de');
+});
+
 test('static protocol resolution rejects traversal and escaping symlinks', async (context) => {
 	const root = await mkdtemp(join(tmpdir(), 'soundscaper-protocol-'));
 	const outside = await mkdtemp(join(tmpdir(), 'soundscaper-outside-'));

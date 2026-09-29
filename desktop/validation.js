@@ -234,10 +234,6 @@ export function resolveLocale(candidates, supported = SUPPORTED_LOCALES) {
 		if (!canonical) continue;
 		const exact = supportedByLower.get(canonical.toLowerCase());
 		if (exact) return exact;
-	}
-	for (const candidate of Array.isArray(candidates) ? candidates : [candidates]) {
-		const canonical = canonicalLocale(candidate);
-		if (!canonical) continue;
 		const language = canonical.split('-')[0].toLowerCase();
 		const match = supported.find((locale) => locale.split('-')[0].toLowerCase() === language);
 		if (match) return match;
