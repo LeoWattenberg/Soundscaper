@@ -3,7 +3,9 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { createStandardDelayProcessor } from '../src/common/editor/first-party-effects/standard/delay-dsp.ts';
+import { standardDelayLatencyFrames } from '../src/common/editor/first-party-effects/standard/delay-definition.ts';
 import { createNoiseGateProcessor } from '../src/common/editor/first-party-effects/standard/noise-gate-dsp.ts';
+import { effectTailFrames } from '../src/common/editor/effects.js';
 
 const sampleRate = 8000;
 type Processor = ReturnType<typeof createNoiseGateProcessor>;
@@ -42,6 +44,15 @@ test('bouncing delays shorten or lengthen successive echo intervals', () => {
 			params: { time: .015, echoes: 3, echoGain: 0, delayType } });
 		const output = render(processor, [impulse])[0];
 		assert.deepEqual(Array.from(output.keys()).filter(index => output[index] !== 0), expected);
+	}
+});
+
+test('pitched delay rack tails reach the final echo after low-rate processor latency', () => {
+	for (const pitchShift of [-2, 2]) {
+		const params = { time: .01, echoes: 1, pitchShift, mix: 1 };
+		const latency = standardDelayLatencyFrames(params, sampleRate);
+		const finalEchoFrame = latency + Math.round(params.time * sampleRate);
+		assert.ok(effectTailFrames({ type: 'multi-tap-delay', params }, sampleRate) >= finalEchoFrame);
 	}
 });
 

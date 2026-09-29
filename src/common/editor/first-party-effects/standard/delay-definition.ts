@@ -74,12 +74,14 @@ export function standardDelayLatencyFrames(params: Readonly<Record<string, unkno
 }
 
 /** Finite taps use the Nyquist bouncing interval pattern. */
-export function standardDelayTailSeconds(params: Readonly<Record<string, unknown>>): number {
+export function standardDelayTailSeconds(params: Readonly<Record<string, unknown>>, sampleRate = 48000): number {
 	const next = normalizeStandardDelayParams(params);
 	if (Number(next.mix) === 0) return 0;
 	const echoes = Number(next.echoes);
 	const duration = Number(next.time) * (next.delayType === 'regular' ? echoes : (echoes + 1) / 2);
-	return duration + (Number(next.pitchShift) === 0 ? 0 : .2 * echoes);
+	// At low sample rates the actual StaffPad latency exceeds the 0.2 s per-echo reserve.
+	return duration + (Number(next.pitchShift) === 0 ? 0
+		: Math.max(.2 * echoes, standardDelayLatencyFrames(next, sampleRate) / sampleRate));
 }
 
 /** Fresh processors reserve geometric capacity; live processors retain larger
