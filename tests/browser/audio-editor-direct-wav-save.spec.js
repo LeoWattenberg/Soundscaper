@@ -16,8 +16,8 @@ const BW64_FRAME_COUNT = 1_588_800;
 const BW64_SAMPLE_RATE = 384_000;
 const FRAME_COUNT = 792_000;
 const SAMPLE_RATE = 48_000;
-// Realtime capture consumes project-rate frames at wall-clock speed. Leave
-// four render durations for shared-CI scheduling and 384 kHz output encoding.
+// Realtime capture needs two media durations for first PCM and four for completion under shared-CI load.
+const PCM_COMPLETION_TIMEOUT_MS = Math.ceil(FRAME_COUNT / SAMPLE_RATE * 4_000);
 const BW64_COMPLETION_TIMEOUT_MS = Math.ceil(BW64_FRAME_COUNT / SAMPLE_RATE * 4_000);
 const RETAINED_PREFIX_BYTES = 2 * 1024;
 const RETAINED_SUFFIX_BYTES = 8 * 1024;
@@ -33,7 +33,7 @@ test.describe('direct native PCM File System Access publication', () => {
 	registerAudioEditorHooks();
 
 	test('streams WAV bytes, rolls back before commit, and preserves an admitted commit', async ({ page }) => {
-		test.setTimeout(120_000);
+		test.setTimeout(3 * PCM_COMPLETION_TIMEOUT_MS + 30_000);
 		const errors = collectClientErrors(page);
 		let downloads = 0;
 		page.on('download', () => { downloads += 1; });
@@ -66,7 +66,7 @@ test.describe('direct native PCM File System Access publication', () => {
 		await exportDialog.getByRole('button', { name: 'Export', exact: true }).click();
 		await expect(editor.getByText('Large project: rendering in realtime to conserve memory', { exact: true })).toBeVisible();
 		await expect.poll(() => page.evaluate(() => globalThis.__directPcmSave.sessions[0]?.closes || 0), {
-			timeout: 45_000,
+			timeout: PCM_COMPLETION_TIMEOUT_MS,
 		}).toBe(1);
 		await expect(exportDialog.getByRole('button', { name: 'Export', exact: true })).toBeVisible();
 		await expect(exportDialog.locator('[data-export-download]')).toBeHidden();
@@ -106,7 +106,7 @@ test.describe('direct native PCM File System Access publication', () => {
 
 		await exportDialog.getByRole('button', { name: 'Export', exact: true }).click();
 		await expect.poll(() => page.evaluate(() => globalThis.__directPcmSave.sessions[1]?.totalBytes || 0), {
-			timeout: 15_000,
+			timeout: PCM_COMPLETION_TIMEOUT_MS / 2,
 		}).toBeGreaterThan(44);
 		await exportDialog.getByRole('button', { name: 'Cancel export' }).click();
 		await expect(exportDialog.getByRole('button', { name: 'Export', exact: true })).toBeVisible({ timeout: 15_000 });
@@ -122,7 +122,7 @@ test.describe('direct native PCM File System Access publication', () => {
 
 		await exportDialog.getByRole('button', { name: 'Export', exact: true }).click();
 		await expect.poll(() => page.evaluate(() => globalThis.__directPcmSave.sessions[2]?.commitStarted || 0), {
-			timeout: 45_000,
+			timeout: PCM_COMPLETION_TIMEOUT_MS,
 		}).toBe(1);
 		await exportDialog.getByRole('button', { name: 'Cancel export' }).click();
 		await expect(exportDialog.getByRole('button', { name: 'Export', exact: true })).toBeVisible({ timeout: 15_000 });
@@ -177,7 +177,7 @@ test.describe('direct native PCM File System Access publication', () => {
 	});
 
 	test('streams and validates AIFF bytes without Blob fallback, then rolls back cancellation', async ({ page }) => {
-		test.setTimeout(90_000);
+		test.setTimeout(2 * PCM_COMPLETION_TIMEOUT_MS + 30_000);
 		const errors = collectClientErrors(page);
 		let downloads = 0;
 		page.on('download', () => { downloads += 1; });
@@ -206,7 +206,7 @@ test.describe('direct native PCM File System Access publication', () => {
 		await exportDialog.getByRole('button', { name: 'Export', exact: true }).click();
 		await expect(editor.getByText('Large project: rendering in realtime to conserve memory', { exact: true })).toBeVisible();
 		await expect.poll(() => page.evaluate(() => globalThis.__directPcmSave.sessions[0]?.closes || 0), {
-			timeout: 45_000,
+			timeout: PCM_COMPLETION_TIMEOUT_MS,
 		}).toBe(1);
 		await expect(exportDialog.getByRole('button', { name: 'Export', exact: true })).toBeVisible();
 		await expect(exportDialog.locator('[data-export-download]')).toBeHidden();
@@ -248,7 +248,7 @@ test.describe('direct native PCM File System Access publication', () => {
 
 		await exportDialog.getByRole('button', { name: 'Export', exact: true }).click();
 		await expect.poll(() => page.evaluate(() => globalThis.__directPcmSave.sessions[1]?.totalBytes || 0), {
-			timeout: 15_000,
+			timeout: PCM_COMPLETION_TIMEOUT_MS / 2,
 		}).toBeGreaterThan(54);
 		await exportDialog.getByRole('button', { name: 'Cancel export' }).click();
 		await expect(exportDialog.getByRole('button', { name: 'Export', exact: true })).toBeVisible({ timeout: 15_000 });
@@ -265,7 +265,7 @@ test.describe('direct native PCM File System Access publication', () => {
 	});
 
 	test('streams authored BWF bytes without Blob fallback, then rolls back cancellation after PCM', async ({ page }) => {
-		test.setTimeout(90_000);
+		test.setTimeout(2 * PCM_COMPLETION_TIMEOUT_MS + 30_000);
 		const errors = collectClientErrors(page);
 		let downloads = 0;
 		page.on('download', () => { downloads += 1; });
@@ -299,7 +299,7 @@ test.describe('direct native PCM File System Access publication', () => {
 		await exportDialog.getByRole('button', { name: 'Export', exact: true }).click();
 		await expect(editor.getByText('Large project: rendering in realtime to conserve memory', { exact: true })).toBeVisible();
 		await expect.poll(() => page.evaluate(() => globalThis.__directPcmSave.sessions[0]?.closes || 0), {
-			timeout: 45_000,
+			timeout: PCM_COMPLETION_TIMEOUT_MS,
 		}).toBe(1);
 		await expect(exportDialog.getByRole('button', { name: 'Export', exact: true })).toBeVisible();
 		await expect(exportDialog.locator('[data-export-download]')).toBeHidden();
@@ -362,7 +362,7 @@ test.describe('direct native PCM File System Access publication', () => {
 
 		await exportDialog.getByRole('button', { name: 'Export', exact: true }).click();
 		await expect.poll(() => page.evaluate(() => globalThis.__directPcmSave.sessions[1]?.nonzeroPcmBytes || 0), {
-			timeout: 15_000,
+			timeout: PCM_COMPLETION_TIMEOUT_MS / 2,
 		}).toBeGreaterThan(0);
 		await exportDialog.getByRole('button', { name: 'Cancel export' }).click();
 		await expect(exportDialog.getByRole('button', { name: 'Export', exact: true })).toBeVisible({ timeout: 15_000 });
@@ -382,7 +382,7 @@ test.describe('direct native PCM File System Access publication', () => {
 	});
 
 	test('streams authored BW64 bytes without Blob fallback, then rolls back cancellation after PCM', async ({ page }) => {
-		test.setTimeout(BW64_COMPLETION_TIMEOUT_MS + 60_000);
+		test.setTimeout(2 * BW64_COMPLETION_TIMEOUT_MS + 60_000);
 		const errors = collectClientErrors(page);
 		let downloads = 0;
 		page.on('download', () => { downloads += 1; });
@@ -489,7 +489,7 @@ test.describe('direct native PCM File System Access publication', () => {
 
 		await exportDialog.getByRole('button', { name: 'Export', exact: true }).click();
 		await expect.poll(() => page.evaluate(() => globalThis.__directPcmSave.sessions[1]?.nonzeroPcmBytes || 0), {
-			timeout: 60_000,
+			timeout: BW64_COMPLETION_TIMEOUT_MS,
 		}).toBeGreaterThan(0);
 		await cancelHeldDirectWrite(page, exportDialog.getByRole('button', { name: 'Cancel export' }), 1);
 		await expect(exportDialog.getByRole('button', { name: 'Export', exact: true })).toBeVisible({ timeout: 15_000 });
