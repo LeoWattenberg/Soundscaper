@@ -68,6 +68,7 @@ test.describe('menu-only Local Assistance workflows', () => {
 		await assistance.getByRole('button', { name: 'Manage Models', exact: true }).click();
 		const manager = page.getByRole('dialog', { name: 'Model Manager', exact: true });
 		const model = manager.locator('[data-local-model-id="deepfilternet3"]');
+		await manager.locator('details.kw-processing-details > summary').click();
 		await manager.getByRole('textbox', { name: 'Search models' }).fill('unrelated');
 		await expect(model).toHaveCount(0);
 		await expect(manager.getByRole('button', { name: 'Install from folder…' })).toBeVisible();
