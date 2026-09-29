@@ -14,6 +14,7 @@ import {
 import { createStripAnalysisScheduler } from '../production-audio/strip-analysis-scheduler.ts';
 import { canonicalStripRefKey } from '../parameter-address.ts';
 import type { StripMeterAnalyserBankV21 } from './strip-meter-analyser-bank-v21.ts';
+import { createProductionStripMeterWorkerClient } from './production-strip-meter-worker-client.ts';
 
 export interface ProductionMeterRuntimeSnapshotV21 {
 	readonly productionMeters: readonly StripMeterSnapshot[];
@@ -38,6 +39,31 @@ const MAXIMUM_HISTORY_ENTRIES = 6_000;
 const MAXIMUM_ANALYSIS_FRAMES_PER_TICK = 16 * 1_024 * 1_024;
 const sessions = new WeakMap<object, ProductionMeterRuntimeSessionV21>();
 const analyserReadBuffers = new WeakMap<AnalyserNode, Float32Array>();
+type ParallelMeterOptions = Parameters<typeof createProductionStripMeterWorkerClient>[0];
+interface ParallelMeterSession {
+	client: ReturnType<typeof createProductionStripMeterWorkerClient>;
+	readonly options: ParallelMeterOptions;
+	project: unknown;
+	banks: ReadonlyMap<string, StripMeterAnalyserBankV21> | null | undefined;
+}
+const parallelSessions = new WeakMap<object, ParallelMeterSession>();
+
+/** Desktop metering keeps strip PCM math in a dedicated worker. */
+export function enableParallelProductionMeterSessionV21(owner: object, options: ParallelMeterOptions = {}): void {
+	if (parallelSessions.has(owner)) return;
+	parallelSessions.set(owner, { client: createProductionStripMeterWorkerClient(options), options,
+		project: null, banks: null });
+}
+
+/** A stopped graph releases its worker and discards replies from that graph. */
+export function suspendParallelProductionMeterSessionV21(owner: object): void {
+	const parallel = parallelSessions.get(owner);
+	if (!parallel) return;
+	parallel.client.dispose();
+	parallel.client = createProductionStripMeterWorkerClient(parallel.options);
+	parallel.project = null;
+	parallel.banks = null;
+}
 
 /** Sample all production meters through one bounded, project-scoped session. */
 export function sampleProductionMeterSessionV21(
@@ -47,17 +73,31 @@ export function sampleProductionMeterSessionV21(
 	masterLoudness: unknown,
 ): ProductionMeterRuntimeSnapshotV21 {
 	const session = sessionFor(owner, project);
-	const bankValues = [...(banks?.values() ?? [])];
-	const byStrip = new Map(bankValues.map((bank) => [canonicalStripRefKey(bank.strip), bank]));
-	const plan = session.scheduler.plan(bankValues.map((bank) => ({
-		strip: bank.strip,
-		visible: true,
-		armed: false,
-		costFrames: bank.analysers.reduce((total, analyser) => total + analyserFrameCount(analyser), 0),
-	})));
-	for (const candidate of plan.scheduled) {
-		const bank = byStrip.get(canonicalStripRefKey(candidate.strip));
-		if (!bank) continue;
+	const parallel = parallelSessions.get(owner);
+	if (parallel && !parallel.client.failed()) {
+		if (parallel.project !== project || parallel.banks !== banks) {
+			parallel.client.reset();
+			parallel.project = project;
+			parallel.banks = banks;
+		}
+		if (!parallel.client.busy()) {
+			const scheduled = scheduledBanks(session, banks);
+			if (scheduled.length) parallel.client.submit(scheduled.map((bank) => ({
+				strip: bank.strip,
+				channelLabels: bank.channelLabels,
+				channels: bank.analysers.map(readAnalyserFramesForWorker),
+			})));
+		}
+		const loudness = session.loudnessHistory.push(masterLoudness);
+		return Object.freeze({ productionMeters: parallel.client.snapshot(),
+			...(loudness ? { productionLoudnessHistory: loudness } : {}) });
+	}
+	if (parallel) {
+		parallel.client.dispose();
+		parallelSessions.delete(owner);
+	}
+	const scheduled = scheduledBanks(session, banks);
+	for (const bank of scheduled) {
 		session.meterStore.update(bank.strip, {
 			channels: bank.analysers.map(readAnalyserFrames),
 			channelLabels: bank.channelLabels,
@@ -70,12 +110,31 @@ export function sampleProductionMeterSessionV21(
 	});
 }
 
+function scheduledBanks(
+	session: ProductionMeterRuntimeSessionV21,
+	banks: ReadonlyMap<string, StripMeterAnalyserBankV21> | null | undefined,
+): readonly StripMeterAnalyserBankV21[] {
+	const bankValues = [...(banks?.values() ?? [])];
+	const byStrip = new Map(bankValues.map((bank) => [canonicalStripRefKey(bank.strip), bank]));
+	const plan = session.scheduler.plan(bankValues.map((bank) => ({
+		strip: bank.strip,
+		visible: true,
+		armed: false,
+		costFrames: bank.analysers.reduce((total, analyser) => total + analyserFrameCount(analyser), 0),
+	})));
+	return plan.scheduled.flatMap((candidate) => {
+		const bank = byStrip.get(canonicalStripRefKey(candidate.strip));
+		return bank ? [bank] : [];
+	});
+}
+
 /** Reset is session-only; it never mutates the project, history, or export state. */
 export function resetProductionMeterSessionV21(owner: object): void {
 	const session = sessions.get(owner);
 	session?.meterStore.reset();
 	session?.scheduler.reset();
 	session?.loudnessHistory.reset();
+	suspendParallelProductionMeterSessionV21(owner);
 }
 
 function sessionFor(owner: object, project: unknown): ProductionMeterRuntimeSessionV21 {
@@ -105,6 +164,12 @@ function readAnalyserFrames(analyser: AnalyserNode): Float32Array {
 		analyserReadBuffers.set(analyser, buffer);
 	}
 	analyser.getFloatTimeDomainData(buffer as Float32Array<ArrayBuffer>);
+	return buffer;
+}
+
+function readAnalyserFramesForWorker(analyser: AnalyserNode): Float32Array<ArrayBuffer> {
+	const buffer = new Float32Array(analyserFrameCount(analyser));
+	analyser.getFloatTimeDomainData(buffer);
 	return buffer;
 }
 

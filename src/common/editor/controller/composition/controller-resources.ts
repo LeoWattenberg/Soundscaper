@@ -3,6 +3,7 @@
 import type { VideoTimingProbePort } from '../../video-timing-probe.ts'; import { setLocalizedStatus } from '../../../i18n/presentation-message.ts';
 import type { StaffPadRenderClient } from '../../staffpad/client.js';
 import { createAudioEditorEngine } from '../../engine.js';
+import { enableParallelProductionMeterSessionV21 } from '../../engine/production-meter-runtime-session-v21.ts';
 import type { EngineMeterSnapshot, EnginePitchPreserver, EnginePublicApi } from '../../engine/public-api.ts';
 import { createAudioEditorFileService } from '../../file-service.js';
 import { createProjectStore } from '../../storage.js';
@@ -26,6 +27,7 @@ export type ControllerTimePitchCache = Pick<ClipTimePitchRenderCacheCoordinator,
 >>;
 
 export interface ControllerResourceOptions {
+	readonly productId?: string;
 	readonly fileService?: ReturnType<typeof createAudioEditorFileService>;
 	readonly store?: ReturnType<typeof createProjectStore>;
 	readonly sourceBufferCacheMaxBytes?: number;
@@ -67,6 +69,7 @@ export function createControllerResources(options: ControllerResourceOptions, ca
 	const engine = options.engine || createAudioEditorEngine({
 		onPosition: callbacks.onPosition, onMeter: callbacks.onMeter, onState: callbacks.onState,
 	});
+	if (fileService.isDesktop && options.productId === 'soundscaper') enableParallelProductionMeterSessionV21(engine);
 	const renderEngineFactory = options.engineFactory || createAudioEditorEngine;
 	const clipTimePitchCache = options.clipTimePitchCache || new ClipTimePitchRenderCacheCoordinator({
 		store, client: options.staffPadRenderClient,

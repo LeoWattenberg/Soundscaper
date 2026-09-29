@@ -13,9 +13,13 @@ import {
 	createStripAnalysisScheduler,
 } from '../src/common/editor/production-audio/strip-analysis-scheduler.ts';
 import {
+	enableParallelProductionMeterSessionV21,
 	resetProductionMeterSessionV21,
 	sampleProductionMeterSessionV21,
+	suspendParallelProductionMeterSessionV21,
 } from '../src/common/editor/engine/production-meter-runtime-session-v21.ts';
+import type { ProductionStripMeterWorkerPort } from '../src/common/editor/engine/production-strip-meter-worker-client.ts';
+import { createProductionStripMeterWorkerRuntime } from '../src/common/editor/engine/production-strip-meter-worker-runtime.ts';
 import type { StripMeterAnalyserBankV21 } from '../src/common/editor/engine/strip-meter-analyser-bank-v21.ts';
 import type { StripRef } from '../src/common/editor/parameter-address.ts';
 
@@ -215,6 +219,79 @@ test('the engine meter bridge samples one bounded session and resets on demand o
 	assert.deepEqual(snapshot.productionMeters, []);
 	assert.equal(snapshot.productionLoudnessHistory, undefined);
 });
+
+test('desktop metering computes on a worker without blocking the renderer tick or retaining a stopped graph', () => {
+	const owner = {};
+	const project = {};
+	const workers: MeterWorker[] = [];
+	let reads = 0;
+	const analyser = {
+		fftSize: 4,
+		getFloatTimeDomainData(target: Float32Array): void {
+			reads += 1;
+			target.set([1, 0, -1, 0]);
+		},
+	} as unknown as AnalyserNode;
+	const bank: StripMeterAnalyserBankV21 = {
+		strip: track('desktop'), output: {} as AudioNode,
+		channelLabels: ['M'], analysers: [analyser],
+	};
+	const banks = new Map([['desktop', bank]]);
+	enableParallelProductionMeterSessionV21(owner, {
+		createWorker: () => {
+			const worker = new MeterWorker();
+			workers.push(worker);
+			return worker;
+		},
+	});
+	try {
+		const pending = sampleProductionMeterSessionV21(owner, project, banks, null);
+		assert.deepEqual(pending.productionMeters, []);
+		assert.equal(reads, 1);
+		sampleProductionMeterSessionV21(owner, project, banks, null);
+		assert.equal(reads, 1, 'a busy worker causes the next tick to skip PCM sampling');
+		workers[0]!.reply();
+		const completed = sampleProductionMeterSessionV21(owner, project, banks, null);
+		assert.equal(completed.productionMeters[0]?.channels[0]?.peak, 1);
+		assert.equal(reads, 2);
+
+		suspendParallelProductionMeterSessionV21(owner);
+		assert.equal(workers[0]?.terminated, true);
+		workers[0]!.reply();
+		const restarted = sampleProductionMeterSessionV21(owner, project, banks, null);
+		assert.deepEqual(restarted.productionMeters, [], 'the old graph cannot publish after its worker stops');
+		assert.equal(workers.length, 2);
+		workers[1]!.reply();
+		assert.equal(sampleProductionMeterSessionV21(owner, project, banks, null).productionMeters[0]?.sequence, 1);
+	} finally {
+		suspendParallelProductionMeterSessionV21(owner);
+	}
+});
+
+class MeterWorker implements ProductionStripMeterWorkerPort {
+	readonly #posts: unknown[] = [];
+	readonly #listeners = new Map<string, Set<(event: { data?: unknown }) => void>>();
+	readonly #responses: unknown[] = [];
+	readonly #runtime = createProductionStripMeterWorkerRuntime({ post: (response) => this.#responses.push(response) });
+	terminated = false;
+	postMessage(message: unknown): void { this.#posts.push(message); }
+	terminate(): void { this.terminated = true; }
+	addEventListener(type: 'message' | 'error' | 'messageerror', listener: (event: { data?: unknown }) => void): void {
+		const listeners = this.#listeners.get(type) ?? new Set();
+		listeners.add(listener);
+		this.#listeners.set(type, listeners);
+	}
+	removeEventListener(type: 'message' | 'error' | 'messageerror', listener: (event: { data?: unknown }) => void): void {
+		this.#listeners.get(type)?.delete(listener);
+	}
+	reply(): void {
+		const message = this.#posts.shift();
+		if (!message) throw new Error('No pending meter request.');
+		this.#runtime.handleMessage(message);
+		const response = this.#responses.shift();
+		for (const listener of this.#listeners.get('message') ?? []) listener({ data: structuredClone(response) });
+	}
+}
 
 function fakeAnalyser(samples: Float32Array): AnalyserNode {
 	return {

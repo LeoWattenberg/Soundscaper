@@ -37,7 +37,7 @@ import {
 } from './project-graph.ts';
 import { playbackOutputDestination } from './playback-output.ts';
 import { observeActiveStreamCompletion, unexpectedActiveStreamAbort } from './playback-stream-failure.ts';
-import { sampleProductionMeterSessionV21 } from './production-meter-runtime-session-v21.ts';
+import { sampleProductionMeterSessionV21, suspendParallelProductionMeterSessionV21 } from './production-meter-runtime-session-v21.ts';
 import { ensureLiveAnalysisTap } from './live-analysis-tap.ts';
 import { readEngineMeter, readMasterMeter } from './engine-meter-reading.ts';
 import type { MutableEngineMeterReading } from './engine-meter-reading.ts';
@@ -462,6 +462,7 @@ async [ENGINE_ENSURE_MASTER_LOUDNESS_METER](context) {
 		releaseCutPreview(this);
 		this.masterLoudnessMeter?.setRunning(false);
 		this[ENGINE_STOP_TICKER]();
+		suspendParallelProductionMeterSessionV21(this);
 		if (this.scrubTimer !== null) {
 			globalThis.clearTimeout(this.scrubTimer);
 			this.scrubTimer = null;
