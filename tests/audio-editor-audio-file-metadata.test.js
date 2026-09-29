@@ -125,6 +125,137 @@ test('metadata inspection is offset-safe and rejects malformed or implausible he
 	assert.equal(inspectEncodedAudioSampleRate(null), null);
 });
 
+test('WAV metadata ignores a truncated fmt chunk even when its rate field is present', () => {
+	const wav = encodeWav([Float32Array.of(0)], { sampleRate: 48_000, bitDepth: 16, dither: false });
+	const truncated = wav.slice(0, 36);
+	new DataView(truncated.buffer).setUint32(16, 100, true);
+	assert.equal(inspectEncodedAudioSampleRate(truncated), null);
+	assert.equal(inspectDecodedAudioSampleRate(truncated), null);
+});
+
+test('AIFF metadata ignores a truncated COMM chunk even when its rate field is present', () => {
+	const truncated = aiff(44_100);
+	new DataView(truncated.buffer).setUint32(16, 100, false);
+	assert.equal(inspectEncodedAudioSampleRate(truncated), null);
+	assert.equal(inspectDecodedAudioSampleRate(truncated), null);
+});
+
+test('FLAC metadata requires a complete STREAMINFO block', () => {
+	const truncated = flac(96_000).slice(0, 26);
+	truncated[7] = 18;
+	assert.equal(inspectEncodedAudioSampleRate(truncated), null);
+	assert.equal(inspectDecodedAudioSampleRate(truncated), null);
+});
+
+test('ADTS metadata requires a complete header before it can declare a rate', () => {
+	const truncated = adts(44_100).slice(0, 4);
+	assert.equal(inspectEncodedAudioSampleRate(truncated), null);
+	assert.equal(inspectDecodedAudioSampleRate(truncated), null);
+});
+
+test('WavPack metadata requires its complete fixed header', () => {
+	const truncated = wavPack(44_100).slice(0, 28);
+	assert.equal(inspectEncodedAudioSampleRate(truncated), null);
+	assert.equal(inspectDecodedAudioSampleRate(truncated), null);
+});
+
+test('FLAC rate inspection ignores signatures embedded in unrelated data', () => {
+	const payload = concatenate(asciiBytes('not a FLAC file'), flac(96_000));
+	assert.equal(inspectEncodedAudioSampleRate(payload), null);
+	assert.equal(inspectDecodedAudioSampleRate(payload), null);
+	const tagged = concatenate(asciiBytes('ID3'), Uint8Array.of(4, 0, 0, 0, 0, 0, 0), flac(96_000));
+	assert.equal(inspectEncodedAudioSampleRate(tagged), 96_000);
+	assert.equal(inspectDecodedAudioSampleRate(tagged), 96_000);
+});
+
+test('Ogg rate inspection reads a complete identification packet, not an embedded payload signature', () => {
+	const malformed = new Uint8Array(64);
+	malformed.set(asciiBytes('OggS'), 0);
+	malformed.set(asciiBytes('OpusHead'), 28);
+	assert.equal(inspectEncodedAudioSampleRate(malformed), null);
+	assert.equal(inspectDecodedAudioSampleRate(malformed), null);
+	assert.equal(inspectEncodedAudioSampleRate(oggVorbis(32_000)), 32_000);
+	assert.equal(inspectEncodedAudioSampleRate(oggOpus()), 48_000);
+});
+
+test('RIFX and RF64 rate inspection respects their container byte order and placeholder size', () => {
+	const rifx = new Uint8Array(36);
+	rifx.set(asciiBytes('RIFX'), 0);
+	rifx.set(asciiBytes('WAVE'), 8);
+	rifx.set(asciiBytes('fmt '), 12);
+	new DataView(rifx.buffer).setUint32(16, 16, false);
+	new DataView(rifx.buffer).setUint32(24, 88_200, false);
+	assert.equal(inspectEncodedAudioSampleRate(rifx), 88_200);
+	assert.equal(inspectDecodedAudioSampleRate(rifx), 88_200);
+	const rf64 = rifx.slice();
+	rf64.set(asciiBytes('RF64'), 0);
+	new DataView(rf64.buffer).setUint32(4, 0xffff_ffff, true);
+	new DataView(rf64.buffer).setUint32(16, 16, true);
+	new DataView(rf64.buffer).setUint32(24, 96_000, true);
+	assert.equal(inspectEncodedAudioSampleRate(rf64), 96_000);
+	assert.equal(inspectDecodedAudioSampleRate(rf64), 96_000);
+});
+
+test('AIFC rate inspection shares the AIFF COMM declaration', () => {
+	const aifc = aiff(44_100);
+	aifc.set(asciiBytes('AIFC'), 8);
+	assert.equal(inspectEncodedAudioSampleRate(aifc), 44_100);
+	assert.equal(inspectDecodedAudioSampleRate(aifc), 44_100);
+});
+
+test('untagged MPEG-2 and MPEG-2.5 headers retain their lower rate tables', () => {
+	for (const [version, frequency, expected] of [[2, 1, 24_000], [0, 2, 8_000]]) {
+		const bytes = new Uint8Array(4);
+		const header = 0xffe00000 | (version << 19) | (1 << 17) | (1 << 16) | (9 << 12) | (frequency << 10);
+		new DataView(bytes.buffer).setUint32(0, header >>> 0, false);
+		assert.equal(inspectEncodedAudioSampleRate(bytes), expected);
+		assert.equal(inspectDecodedAudioSampleRate(bytes), expected);
+	}
+});
+
+test('FLAC inspection skips an ID3 footer only when its header declares one', () => {
+	const id3 = Uint8Array.of(...asciiBytes('ID3'), 4, 0, 0x10, 0, 0, 0, 4);
+	const tagged = concatenate(id3, new Uint8Array(14), flac(96_000));
+	assert.equal(inspectEncodedAudioSampleRate(tagged), 96_000);
+	assert.equal(inspectDecodedAudioSampleRate(tagged), 96_000);
+	const invalidSize = tagged.slice();
+	invalidSize[6] = 0x80;
+	assert.equal(inspectEncodedAudioSampleRate(invalidSize), null);
+});
+
+test('Ogg inspection does not infer a codec from a later packet', () => {
+	const bytes = new Uint8Array(64);
+	bytes.set(asciiBytes('OggS'), 0);
+	bytes[26] = 2;
+	bytes[27] = 4;
+	bytes[28] = 19;
+	bytes.set(asciiBytes('data'), 29);
+	bytes.set(asciiBytes('OpusHead'), 33);
+	assert.equal(inspectEncodedAudioSampleRate(bytes), null);
+	assert.equal(inspectDecodedAudioSampleRate(bytes), null);
+});
+
+test('ADTS rate inspection waits for its optional CRC bytes', () => {
+	const protectedHeader = adts(44_100);
+	protectedHeader[1] &= ~1;
+	assert.equal(inspectEncodedAudioSampleRate(protectedHeader), null);
+	assert.equal(inspectEncodedAudioSampleRate(concatenate(protectedHeader, Uint8Array.of(0, 0))), 44_100);
+});
+
+test('MP4 rate inspection handles extended and end-of-parent moov boxes', () => {
+	const payload = track('soun', 1_000, 48_000);
+	const extended = new Uint8Array(16 + payload.byteLength);
+	const view = new DataView(extended.buffer);
+	view.setUint32(0, 1, false);
+	extended.set(asciiBytes('moov'), 4);
+	view.setBigUint64(8, BigInt(extended.byteLength), false);
+	extended.set(payload, 16);
+	assert.equal(inspectEncodedAudioSampleRate(concatenate(box('ftyp', asciiBytes('isom0000')), extended)), 48_000);
+	const toEnd = box('moov', payload);
+	new DataView(toEnd.buffer).setUint32(0, 0, false);
+	assert.equal(inspectEncodedAudioSampleRate(concatenate(box('ftyp', asciiBytes('isom0000')), toEnd)), 48_000);
+});
+
 function aiff(rate) {
 	assert.equal(rate, 44_100);
 	const bytes = new Uint8Array(38);
@@ -154,6 +285,8 @@ function flac(rate) {
 function oggVorbis(rate) {
 	const bytes = new Uint8Array(64);
 	bytes.set(asciiBytes('OggS'), 0);
+	bytes[26] = 1;
+	bytes[27] = 30;
 	bytes[28] = 1;
 	bytes.set(asciiBytes('vorbis'), 29);
 	new DataView(bytes.buffer).setUint32(40, rate, true);
@@ -163,6 +296,8 @@ function oggVorbis(rate) {
 function oggOpus() {
 	const bytes = new Uint8Array(64);
 	bytes.set(asciiBytes('OggS'), 0);
+	bytes[26] = 1;
+	bytes[27] = 19;
 	bytes.set(asciiBytes('OpusHead'), 28);
 	new DataView(bytes.buffer).setUint32(40, 44_100, true);
 	return bytes;

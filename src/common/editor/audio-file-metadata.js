@@ -82,7 +82,7 @@ function inspectWaveSampleRate(bytes) {
 		const id = ascii(bytes, offset, 4);
 		const size = view.getUint32(offset + 4, littleEndian);
 		const payload = offset + 8;
-		if (id === 'fmt ' && size >= 16 && payload + 16 <= bytes.byteLength) {
+		if (id === 'fmt ' && size >= 16 && payload + size <= bytes.byteLength) {
 			return sampleRate(view.getUint32(payload + 4, littleEndian));
 		}
 		if (size === 0xffffffff || payload + size > bytes.byteLength) return null;
@@ -101,7 +101,7 @@ function inspectAiffSampleRate(bytes) {
 		const id = ascii(bytes, offset, 4);
 		const size = view.getUint32(offset + 4, false);
 		const payload = offset + 8;
-		if (id === 'COMM' && size >= 18 && payload + 18 <= bytes.byteLength) {
+		if (id === 'COMM' && size >= 18 && payload + size <= bytes.byteLength) {
 			return sampleRate(readExtended80(view, payload + 8));
 		}
 		if (payload + size > bytes.byteLength) return null;
@@ -111,41 +111,49 @@ function inspectAiffSampleRate(bytes) {
 }
 
 function inspectFlacSampleRate(bytes) {
-	const limit = Math.min(bytes.byteLength - 4, 64 * 1024);
-	for (let offset = 0; offset <= limit; offset += 1) {
-		if (ascii(bytes, offset, 4) !== 'fLaC') continue;
-		let block = offset + 4;
-		for (let count = 0; count < 128 && block + 4 <= bytes.byteLength; count += 1) {
-			const type = bytes[block] & 0x7f;
-			const length = (bytes[block + 1] << 16) | (bytes[block + 2] << 8) | bytes[block + 3];
-			const payload = block + 4;
-			if (payload + length > bytes.byteLength) return null;
-			if (type === 0 && length >= 18) {
-				return sampleRate(
-					(bytes[payload + 10] << 12)
-					| (bytes[payload + 11] << 4)
-					| (bytes[payload + 12] >>> 4),
-				);
-			}
-			if (bytes[block] & 0x80) return null;
-			block = payload + length;
-		}
+	let offset = 0;
+	if (ascii(bytes, 0, 3) === 'ID3' && bytes.byteLength >= 10) {
+		const tagLength = syncSafeInteger(bytes, 6);
+		if (tagLength === null) return null;
+		offset = 10 + tagLength + (bytes[5] & 0x10 ? 10 : 0);
 	}
-	return null;
+	if (offset > 64 * 1024 || ascii(bytes, offset, 4) !== 'fLaC') return null;
+	const block = offset + 4;
+	if (block + 38 > bytes.byteLength || (bytes[block] & 0x7f) !== 0) return null;
+	const length = (bytes[block + 1] << 16) | (bytes[block + 2] << 8) | bytes[block + 3];
+	if (length !== 34) return null;
+	const payload = block + 4;
+	return sampleRate(
+		(bytes[payload + 10] << 12)
+		| (bytes[payload + 11] << 4)
+		| (bytes[payload + 12] >>> 4),
+	);
 }
 
 function inspectOggSampleRate(bytes) {
-	if (ascii(bytes, 0, 4) !== 'OggS') return null;
-	const limit = Math.min(bytes.byteLength, MAX_SIGNATURE_SCAN_BYTES);
-	for (let offset = 0; offset + 16 <= limit; offset += 1) {
-		if (bytes[offset] === 1 && ascii(bytes, offset + 1, 6) === 'vorbis') {
-			return sampleRate(dataView(bytes).getUint32(offset + 12, true));
+	if (bytes.byteLength < 28 || ascii(bytes, 0, 4) !== 'OggS' || bytes[4] !== 0) return null;
+	const segmentCount = bytes[26];
+	const packetOffset = 27 + segmentCount;
+	if (packetOffset > bytes.byteLength) return null;
+	let packetLength = 0;
+	let complete = false;
+	for (let index = 0; index < segmentCount; index += 1) {
+		const segmentLength = bytes[27 + index];
+		packetLength += segmentLength;
+		if (segmentLength < 255) {
+			complete = true;
+			break;
 		}
-		if (ascii(bytes, offset, 8) === 'OpusHead') {
-			// Opus packets always use a 48 kHz decode clock. The header's input
-			// rate field is informational and must not drive PCM resampling.
-			return 48_000;
-		}
+	}
+	if (!complete || packetOffset + packetLength > bytes.byteLength) return null;
+	if (packetLength >= 16 && bytes[packetOffset] === 1
+		&& ascii(bytes, packetOffset + 1, 6) === 'vorbis') {
+		return sampleRate(dataView(bytes).getUint32(packetOffset + 12, true));
+	}
+	if (packetLength >= 19 && ascii(bytes, packetOffset, 8) === 'OpusHead') {
+		// Opus packets always use a 48 kHz decode clock. The header's input
+		// rate field is informational and must not drive PCM resampling.
+		return 48_000;
 	}
 	return null;
 }
@@ -212,7 +220,7 @@ function inspectAsfSampleRate(bytes) {
 }
 
 function inspectWavPackSampleRate(bytes) {
-	if (ascii(bytes, 0, 4) !== 'wvpk' || bytes.byteLength < 28) return null;
+	if (ascii(bytes, 0, 4) !== 'wvpk' || bytes.byteLength < 32) return null;
 	const flags = dataView(bytes).getUint32(24, true);
 	return sampleRate(WAVPACK_SAMPLE_RATES[(flags >>> 23) & 0x0f]);
 }
@@ -245,6 +253,7 @@ function inspectMpegOrAdtsSampleRate(bytes, includeAdts = true) {
 			// rate would throw the reconstructed band away. Abandon the scan
 			// rather than resynchronizing onto the AAC payload below.
 			if (!includeAdts) return null;
+			if (offset + (second & 0x01 ? 7 : 9) > bytes.byteLength) continue;
 			const frequencyIndex = (bytes[offset + 2] >>> 2) & 0x0f;
 			const rate = sampleRate(AAC_SAMPLE_RATES[frequencyIndex]);
 			if (rate) return rate;
