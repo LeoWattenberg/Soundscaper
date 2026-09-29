@@ -103,6 +103,8 @@ test('advertised curve-transfer shortcuts route only the exact enabled chord', (
 	assert.equal(videoKeyframeTransferShortcut({ key: 'c', ctrlKey: true, shiftKey: true }, true), null);
 	assert.equal(videoKeyframeTransferShortcut({ key: 'c', ctrlKey: true, shiftKey: false }), null);
 	assert.equal(videoKeyframeTransferShortcut({ key: 'v', ctrlKey: false, shiftKey: true }), null);
+	assert.equal(videoKeyframeTransferShortcut({ key: 'c', ctrlKey: true, shiftKey: true, altKey: true }), null);
+	assert.equal(videoKeyframeTransferShortcut({ key: 'v', ctrlKey: true, shiftKey: true, metaKey: true }), null);
 });
 
 test('the German surface localizes both curve-creation and curve-editing interpolation choices', () => {

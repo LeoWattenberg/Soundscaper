@@ -192,6 +192,13 @@ test.describe('Framescaper v1 product lifecycle', () => {
 		expect(JSON.parse(await transfer.inputValue())).toMatchObject({
 			schemaVersion: 1, role: 'clipboard', curve: { segments: [{ kind: 'linear' }] },
 		});
+		const draftTransfer = '{"draft":"keep"}';
+		await transfer.fill(draftTransfer);
+		await transfer.dispatchEvent('keydown', {
+			key: 'c', ctrlKey: true, altKey: true, shiftKey: true,
+		});
+		await expect(transfer).toHaveValue(draftTransfer);
+		await dialog.getByRole('button', { name: 'Copy curve', exact: true }).click();
 		await target.selectOption({ label: 'Position X' });
 		await dialog.getByRole('button', { name: 'Paste curve', exact: true }).click();
 		await expect.poll(() => storedKeyframeState(page, projectId)).toMatchObject({
