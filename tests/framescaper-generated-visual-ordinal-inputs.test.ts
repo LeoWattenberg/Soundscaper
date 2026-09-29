@@ -113,8 +113,11 @@ test('exact picture execution uses delivery ordinals to animate noise', async ()
 			});
 			return target;
 		};
-		assert.notDeepEqual(await render(10), await render(11));
-		assert.deepEqual(await render(10), await render(10));
+		const tenth = await render(10);
+		const eleventh = await render(11);
+		assert.deepEqual([...tenth.subarray(4, 8)], [142, 142, 142, 255]);
+		assert.deepEqual([...eleventh.subarray(4, 8)], [68, 68, 68, 255]);
+		assert.deepEqual(tenth, await render(10));
 	} finally {
 		await exact.dispose();
 	}

@@ -16,6 +16,11 @@ import { renderAuthority, visualFreshness } from './helpers/framescaper-unified-
 
 type Data = Record<string, unknown>;
 
+function pixel(pixels: Uint8Array, x: number, y: number): number[] {
+	const offset = (y * 32 + x) * 4;
+	return Array.from(pixels.subarray(offset, offset + 4));
+}
+
 test('exact picture execution reads audio PCM and changes consecutive visualizer frames', async () => {
 	const options = framescaperV20Options();
 	options.videoTransitionsByTrackId = { 'video-track': [] };
@@ -71,8 +76,13 @@ test('exact picture execution reads audio PCM and changes consecutive visualizer
 		});
 		const firstResult = await render(0, first);
 		await render(1, second);
-		assert.ok(reads.length > 0, 'audio PCM reaches the picture renderer');
-		assert.notDeepEqual(first, second, 'the generated picture advances with the audio timeline');
+		assert.deepEqual(reads, [0], 'the picture renderer reads the first PCM chunk');
+		assert.deepEqual([pixel(first, 0, 0), pixel(first, 1, 0), pixel(first, 10, 3)], [
+			[255, 255, 255, 255], [0, 0, 0, 255], [0, 0, 0, 255],
+		], 'the first frame paints its marker and sampled waveform');
+		assert.deepEqual([pixel(second, 0, 0), pixel(second, 1, 0), pixel(second, 10, 3)], [
+			[0, 0, 0, 255], [255, 255, 255, 255], [255, 255, 255, 255],
+		], 'the next PCM window changes both the marker and waveform');
 		assert.ok(firstResult.consumedNodeIds.includes('render:visual:visualizer-clip'));
 		const canvas = {
 			width: 32, height: 16, fit: 'contain', backgroundColor: '#000000',
@@ -123,7 +133,9 @@ test('exact picture execution reads audio PCM and changes consecutive visualizer
 				frame: fractionalFrame, layers: [], width: 32, height: 16,
 				rgba: exported, signal,
 			});
-			assert.ok(exported.some((byte) => byte !== 0), 'fractional NTSC time reaches PCM rendering');
+			assert.deepEqual([pixel(exported, 1, 0), pixel(exported, 10, 3), pixel(exported, 10, 15)], [
+				[255, 255, 255, 255], [255, 255, 255, 255], [0, 0, 0, 255],
+			], 'fractional NTSC time reaches the expected marker and PCM waveform');
 		} finally {
 			await fractionalExport.dispose();
 		}

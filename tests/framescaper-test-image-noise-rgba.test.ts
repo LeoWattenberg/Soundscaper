@@ -72,7 +72,8 @@ test('noise is deterministic for a seed and frame and changes at every adjacent 
 	assert.deepEqual(pixel(next, 0, 0).slice(0, 3), [0, 0, 0]);
 	assert.deepEqual(pixel(first, 0, 0), pixel(first, 1, 1), 'the changing reference grain remains one block');
 	assert.deepEqual(pixel(first, 1, 1), pixel(first, 3, 3), 'a grain block shares one value');
-	assert.notDeepEqual(pixel(first, 4, 0), pixel(first, 8, 0), 'different blocks vary spatially');
+	assert.deepEqual([pixel(first, 4, 0), pixel(first, 8, 0)],
+		[[247, 247, 247, 255], [65, 65, 65, 255]], 'seeded blocks have exact distinct values');
 });
 
 test('one-pixel color noise still animates with no source media', () => {

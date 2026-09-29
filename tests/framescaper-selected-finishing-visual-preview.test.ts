@@ -268,12 +268,10 @@ test('a dissolve reports complementary outgoing and incoming weights across its 
 		incoming: Number(preview.resolveTransitionWeight('incoming-clip', frame * FRAME_SAMPLES)),
 	});
 
-	const early = at(6);
-	const late = at(9);
-
-	assert.equal(early.outgoing + early.incoming, 1);
-	assert.equal(late.outgoing + late.incoming, 1);
-	assert.ok(early.outgoing > late.outgoing, 'a dissolve must hand the picture over as it runs');
+	assert.deepEqual([at(6), at(9)], [
+		{ outgoing: 1, incoming: 0 },
+		{ outgoing: 0.25, incoming: 0.75 },
+	], 'the four-frame linear dissolve has exact complementary weights');
 	assert.equal(
 		preview.resolveTransitionWeight('outgoing-clip', 0),
 		null,

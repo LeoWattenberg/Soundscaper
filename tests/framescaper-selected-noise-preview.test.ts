@@ -48,7 +48,10 @@ test('live noise preview paints each output frame once and matches exact seeded 
 	preview.update(entry, 0);
 	preview.update(entry, 1);
 	assert.equal(painted.length, 2);
-	assert.notDeepEqual(painted[0], painted[1]);
+	assert.deepEqual(Array.from(painted[0]!.subarray(0, 8)),
+		[0, 35, 49, 255, 81, 42, 255, 255], 'the first frame paints the seeded colors');
+	assert.deepEqual(Array.from(painted[1]!.subarray(0, 8)),
+		[1, 64, 123, 255, 87, 130, 148, 255], 'the next frame paints its own seeded colors');
 	for (const outputOrdinal of [0, 1]) assert.deepEqual(painted[outputOrdinal],
 		renderVideoNoiseRgba({
 			mode: 'color', grainSize: 1, seed: 123, width: 8, height: 8, outputOrdinal,
