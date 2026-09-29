@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
 	buildSourceGraphs,
+	focusDependencyGraph,
 	ownerOf,
 	renderDot,
 	renderMermaid,
@@ -69,6 +70,27 @@ test('dependency edges come from imports and preserve type-only information', ()
 	assert(!dependencies.edges.some((edge) => edge.to === 'native/example'));
 	assert(overview.edges.some((edge) => edge.from === 'src/common/editor/engine'
 		&& edge.to === 'src/common/editor/controller'));
+});
+
+test('focused dependency view keeps only edges touching its owner', () => {
+	const graph = {
+		title: 'All imports', direction: 'LR',
+		nodes: ['desktop', 'editor', 'engine', 'ui', 'isolated'].map((id) => ({ id, label: id })),
+		edges: [
+			{ from: 'desktop', to: 'editor', label: '3 imports' },
+			{ from: 'editor', to: 'desktop', label: '1 import', typeOnly: true },
+			{ from: 'engine', to: 'ui', label: '2 imports' },
+		],
+	};
+	const focused = focusDependencyGraph(graph, 'desktop');
+	assert.deepEqual(focused.nodes.map(({ id }) => id), ['desktop', 'editor']);
+	assert.deepEqual(focused.edges, graph.edges.slice(0, 2));
+	assert.match(focused.title, /desktop/);
+	assert.match(renderDot(focused), /fillcolor="#e0f2fe"/);
+	assert.match(renderMermaid(focused), /style n0 fill:#e0f2fe/);
+	assert.deepEqual(focusDependencyGraph(graph, 'isolated').nodes.map(({ id }) => id), ['isolated']);
+	assert.deepEqual(focusDependencyGraph(graph, 'isolated').edges, []);
+	assert.throws(() => focusDependencyGraph(graph, 'missing'), /Unknown dependency owner/);
 });
 
 test('inheritance includes classes, interfaces, and implementation edges', () => {

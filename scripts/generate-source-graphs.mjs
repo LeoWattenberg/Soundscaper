@@ -1,9 +1,9 @@
 #!/usr/bin/env node
 import { spawnSync } from 'node:child_process';
-import { mkdir, readFile, readdir, writeFile } from 'node:fs/promises';
+import { mkdir, readFile, readdir, rm, writeFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { buildSourceGraphs, isSourcePath, renderDot, renderMermaid } from './lib/source-graphs.mjs';
+import { buildSourceGraphs, focusDependencyGraph, isSourcePath, renderDot, renderMermaid } from './lib/source-graphs.mjs';
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const outputNames = {
@@ -56,6 +56,15 @@ function renderSvg(dotPath, svgPath, graph) {
 	if (result.status !== 0) throw new Error(`Graphviz ${renderer} could not render ${dotPath}: ${result.stderr.trim()}`);
 }
 
+async function writeGraph(outputDirectory, name, graph, svg) {
+	const dotPath = path.join(outputDirectory, `${name}.dot`);
+	const mermaidPath = path.join(outputDirectory, `${name}.mmd`);
+	await mkdir(path.dirname(dotPath), { recursive: true });
+	await writeFile(dotPath, renderDot(graph));
+	await writeFile(mermaidPath, renderMermaid(graph));
+	if (svg) renderSvg(dotPath, path.join(outputDirectory, `${name}.svg`), graph);
+}
+
 async function main() {
 	const options = argumentsForRun(process.argv.slice(2));
 	if (options.help) {
@@ -70,13 +79,15 @@ async function main() {
 	await mkdir(options.outputDirectory, { recursive: true });
 	for (const [key, name] of Object.entries(outputNames)) {
 		const graph = graphs[key];
-		const dotPath = path.join(options.outputDirectory, `${name}.dot`);
-		const mermaidPath = path.join(options.outputDirectory, `${name}.mmd`);
-		await writeFile(dotPath, renderDot(graph));
-		await writeFile(mermaidPath, renderMermaid(graph));
-		if (options.svg) renderSvg(dotPath, path.join(options.outputDirectory, `${name}.svg`), graph);
+		await writeGraph(options.outputDirectory, name, graph, options.svg);
 		process.stdout.write(`${name}: ${graph.nodes.length} nodes, ${graph.edges.length} edges\n`);
 	}
+	await rm(path.join(options.outputDirectory, 'dependencies-by-owner'), { recursive: true, force: true });
+	for (const { id: owner } of graphs.dependencies.nodes) {
+		const graph = focusDependencyGraph(graphs.dependencies, owner);
+		await writeGraph(options.outputDirectory, `dependencies-by-owner/${owner}`, graph, options.svg);
+	}
+	process.stdout.write(`dependencies-by-owner: ${graphs.dependencies.nodes.length} focused views\n`);
 	process.stdout.write(`Wrote source graphs to ${options.outputDirectory}\n`);
 }
 

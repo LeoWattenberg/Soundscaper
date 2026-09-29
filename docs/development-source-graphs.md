@@ -15,6 +15,7 @@ and dependency graphs use Graphviz's `sfdp` renderer; the smaller graphs use
 | `ownership-overview` | Top-level source areas and key editor directories; residual groups account for all remaining files. |
 | `architecture-overview` | The three strongest import destinations per source area. |
 | `dependencies` | All cross-owner relative JavaScript/TypeScript imports, with type-only imports dashed. |
+| `dependencies-by-owner/<owner>` | One view per dependency owner, showing only its direct incoming and outgoing imports. The selected owner is highlighted; type-only imports remain dashed. |
 | `inheritance` | Class `extends`, class `implements`, and interface `extends` declarations. |
 | `inheritance-overview` | The largest connected inheritance family with at most 18 types. |
 | `audio-routing` | Static audio `connect` call sites, grouped by source module. |
@@ -26,3 +27,9 @@ it does not claim that all those edges are active at once. Import edges include
 relative static, dynamic, and CommonJS imports. External packages are left out
 of the dependency graph. The native source tree contributes to ownership counts,
 while import and inheritance parsing covers JavaScript and TypeScript.
+
+The focused dependency views are written under `.source-graphs/dependencies-by-owner/`
+using the owner path as the file path. For example, open
+`.source-graphs/dependencies-by-owner/src/common/editor/engine.svg` after running
+with `--svg`. Each view omits imports between neighboring owners, so use the full
+`dependencies` graph when you need the complete edge inventory.

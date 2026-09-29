@@ -192,6 +192,22 @@ function importGraph(parsed, knownPaths, groupFor, title, compact = false) {
 	};
 }
 
+/** Keep only the direct imports into and out of one source owner. */
+export function focusDependencyGraph(graph, owner) {
+	if (!graph.nodes.some((node) => node.id === owner)) {
+		throw new Error(`Unknown dependency owner: ${owner}`);
+	}
+	const edges = graph.edges.filter(({ from, to }) => from === owner || to === owner);
+	const shown = new Set([owner, ...edges.flatMap(({ from, to }) => [from, to])]);
+	return {
+		title: `Direct imports involving ${owner}`,
+		direction: graph.direction,
+		nodes: graph.nodes.filter(({ id }) => shown.has(id))
+			.map((node) => node.id === owner ? { ...node, focus: true } : node),
+		edges,
+	};
+}
+
 function declaredTypes(parsed) {
 	const declarations = new Map();
 	for (const { file, ast } of parsed) {
@@ -448,7 +464,10 @@ export function renderDot(input) {
 	}
 	for (const [group, members] of groups) {
 		if (group) lines.push(`  subgraph cluster_${groups.size + [...groups.keys()].indexOf(group)} { label="${dotText(group)}"; color="#d1d5db";`);
-		for (const node of members) lines.push(`    ${nodeIds.get(node.id)} [label="${dotText(node.label)}"];`);
+		for (const node of members) {
+			const focusStyle = node.focus ? ', style=filled, fillcolor="#e0f2fe", penwidth=2' : '';
+			lines.push(`    ${nodeIds.get(node.id)} [label="${dotText(node.label)}"${focusStyle}];`);
+		}
 		if (group) lines.push('  }');
 	}
 	for (const edge of graph.edges) {
@@ -482,6 +501,9 @@ export function renderMermaid(input) {
 		const arrow = edge.typeOnly ? '-.->' : '-->';
 		const label = edge.label ? `|"${mermaidText(edge.label)}"|` : '';
 		lines.push(`  ${nodeIds.get(edge.from)} ${arrow}${label} ${nodeIds.get(edge.to)}`);
+	}
+	for (const node of graph.nodes.filter(({ focus }) => focus)) {
+		lines.push(`  style ${nodeIds.get(node.id)} fill:#e0f2fe,stroke:#0369a1,stroke-width:2px`);
 	}
 	return `${lines.join('\n')}\n`;
 }
