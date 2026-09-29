@@ -143,6 +143,19 @@ test('the input selection is never mutated', () => {
 	assert.deepEqual(input, copy);
 });
 
+test('nonfinite samples act as silence without poisoning the bitcrusher state or adjacent channels', () => {
+	const left = tone(256);
+	const clean = Float32Array.from(left);
+	const right = tone(256, 701);
+	for (const [frame, value] of [[0, NaN], [15, Infinity], [32, -Infinity]]) {
+		left[frame] = value;
+		clean[frame] = 0;
+	}
+	const params = { bitDepth: 3, dither: 'shaped', downsampling: 7.5,
+		interpolation: 'smooth', mix: 50 };
+	assert.deepEqual(crush([left, right], params), crush([clean, right], params));
+});
+
 test('the bitcrusher is offered as both a rack insert and a destructive selection effect', () => {
 	assert.ok(AUDIO_EFFECT_DEFINITIONS.bitcrusher);
 	assert.ok(AUDIO_SELECTION_EFFECT_DEFINITIONS.bitcrusher);

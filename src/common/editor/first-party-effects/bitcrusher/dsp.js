@@ -147,7 +147,7 @@ export function createBitcrusherProcessor(options) {
 		const random = randoms[channel];
 		const first = random();
 		const second = random();
-		const codes = clamp(sample, -1, 1) / step;
+		const codes = clamp(Number.isFinite(sample) ? sample : 0, -1, 1) / step;
 		const errors = shapingErrors[channel];
 		let shaped = codes;
 		if (dither === 'shaped') {
@@ -237,7 +237,8 @@ export function createBitcrusherProcessor(options) {
 				} else heldAge += 1;
 				const position = Math.min(1, (heldAge + 1) / holdLength);
 				for (let channel = 0; channel < output.length; channel += 1) {
-					const dry = input[channel]?.[frame] ?? 0;
+					const sample = input[channel]?.[frame] ?? 0;
+					const dry = Number.isFinite(sample) ? sample : 0;
 					const crushed = channel < channelCount ? reconstruct(channel, position) : dry;
 					output[channel][frame] = dry + (crushed - dry) * wet;
 				}
