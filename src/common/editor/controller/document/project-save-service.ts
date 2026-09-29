@@ -116,6 +116,7 @@ export function createProjectSaveService<Project extends ProjectSaveSnapshot>(
 	const suspendedProjects = new Map<string, ProjectSaveAdmissionGate>();
 	const projectSaveEpochs = new Map<string, number>();
 	const persistedSnapshots = new Map<string, Project>();
+	const persistedSnapshotEpochs = new Map<string, number>();
 	const queuedSaveCounts = new Map<string, number>();
 	dependencies.beforeUnloadTarget?.addEventListener('beforeunload', warnBeforeUnload, {
 		signal: dependencies.beforeUnloadSignal,
@@ -133,7 +134,10 @@ export function createProjectSaveService<Project extends ProjectSaveSnapshot>(
 		recordPersistedSnapshot,
 		recordPersistedSnapshotFromStore,
 		getPersistedSnapshot,
-		forgetPersistedSnapshot: (projectId: string) => { persistedSnapshots.delete(projectId); },
+		forgetPersistedSnapshot: (projectId: string) => {
+			persistedSnapshots.delete(projectId);
+			advancePersistedSnapshotEpoch(projectId);
+		},
 		isPersistedSnapshotCurrent,
 		cancelScheduled,
 		drain: () => state.saveQueue,
@@ -156,13 +160,22 @@ export function createProjectSaveService<Project extends ProjectSaveSnapshot>(
 	/** Called only for a snapshot known to have been published or loaded from storage. */
 	function recordPersistedSnapshot(project: Project): void {
 		persistedSnapshots.set(project.id, structuredClone(project));
+		advancePersistedSnapshotEpoch(project.id);
+	}
+
+	function advancePersistedSnapshotEpoch(projectId: string): number {
+		const epoch = (persistedSnapshotEpochs.get(projectId) ?? 0) + 1;
+		persistedSnapshotEpochs.set(projectId, epoch);
+		return epoch;
 	}
 
 	async function recordPersistedSnapshotFromStore(
 		projectId: string,
 		loadProject: (projectId: string) => Promise<unknown>,
 	): Promise<void> {
+		const epoch = advancePersistedSnapshotEpoch(projectId);
 		const project = await loadProject(projectId);
+		if (persistedSnapshotEpochs.get(projectId) !== epoch) return;
 		if (!project || typeof project !== 'object' || (project as ProjectSaveSnapshot).id !== projectId) {
 			if (project === null && dependencies.isReadOnly()) return;
 			throw new Error('The activated project has no current stored snapshot.');

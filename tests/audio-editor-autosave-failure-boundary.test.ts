@@ -289,3 +289,45 @@ test('a durable publication conflict leaves the project dirty and fails an expli
 	assert.deepEqual(publications, ['dirty']);
 	assert.equal(errors.length, 1);
 });
+
+test('a delayed store read cannot replace a newer persisted save baseline', async () => {
+	const runtime = fixture();
+	const base: Project = { id: 'project', revision: 0 };
+	const newer: Project = { id: 'project', revision: 1 };
+	let resolveRead!: (project: Project) => void;
+	const read = new Promise<Project>((resolve) => { resolveRead = resolve; });
+	const loading = runtime.service.recordPersistedSnapshotFromStore('project', async () => read);
+	runtime.service.recordPersistedSnapshot(newer);
+	resolveRead(base);
+	await loading;
+	assert.deepEqual(runtime.service.getPersistedSnapshot('project'), newer);
+});
+
+test('a delayed store read cannot restore a forgotten save baseline', async () => {
+	const runtime = fixture();
+	const base: Project = { id: 'project', revision: 0 };
+	runtime.service.recordPersistedSnapshot(base);
+	let resolveRead!: (project: Project) => void;
+	const read = new Promise<Project>((resolve) => { resolveRead = resolve; });
+	const loading = runtime.service.recordPersistedSnapshotFromStore('project', async () => read);
+	runtime.service.forgetPersistedSnapshot('project');
+	resolveRead(base);
+	await loading;
+	assert.equal(runtime.service.getPersistedSnapshot('project'), null);
+});
+
+test('an older overlapping store read cannot replace the later read result', async () => {
+	const runtime = fixture();
+	let resolveOld!: (project: Project) => void;
+	let resolveNew!: (project: Project) => void;
+	const oldRead = new Promise<Project>((resolve) => { resolveOld = resolve; });
+	const newRead = new Promise<Project>((resolve) => { resolveNew = resolve; });
+	const oldLoading = runtime.service.recordPersistedSnapshotFromStore('project', async () => oldRead);
+	const newLoading = runtime.service.recordPersistedSnapshotFromStore('project', async () => newRead);
+	const newer: Project = { id: 'project', revision: 1 };
+	resolveNew(newer);
+	await newLoading;
+	resolveOld({ id: 'project', revision: 0 });
+	await oldLoading;
+	assert.deepEqual(runtime.service.getPersistedSnapshot('project'), newer);
+});
