@@ -42,8 +42,22 @@ test('a programme quieter than the BEXT range captures every loudness field as n
 test('a silent BWF delivery writes its file rather than failing after the render', () => {
 	const silence = new Float32Array(SAMPLE_RATE);
 	const measurement = measureBextLoudness([silence], SAMPLE_RATE);
-	const bytes = encodeWav([silence], { sampleRate: SAMPLE_RATE, bitDepth: 24, bext: { ...measurement } });
-	assert.ok(bytes.byteLength > 0);
+	let draws = 0;
+	const bytes = encodeWav([silence], {
+		sampleRate: SAMPLE_RATE, bitDepth: 24, bext: { ...measurement },
+		random: () => (++draws % 2 === 1 ? 0.875 : 0.125),
+	});
+	const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+	assert.equal(new TextDecoder().decode(bytes.subarray(0, 4)), 'RIFF');
+	assert.equal(new TextDecoder().decode(bytes.subarray(8, 12)), 'WAVE');
+	assert.equal(view.getUint32(4, true), bytes.byteLength - 8);
+	const bext = riffChunk(bytes, 'bext');
+	assert.equal(view.getUint16(bext + 8 + OFFSETS.maxTruePeakLevel, true), LOUDNESS_SENTINEL);
+	const data = riffChunk(bytes, 'data');
+	assert.equal(view.getUint32(data + 4, true), SAMPLE_RATE * 3);
+	assert.equal(bytes.byteLength, data + 8 + SAMPLE_RATE * 3);
+	assert.equal(draws, SAMPLE_RATE * 2);
+	assert.equal(bytes.subarray(data + 8).every((byte, index) => byte === (index % 3 === 0 ? 1 : 0)), true);
 });
 
 test('a measurable programme still carries its loudness numbers into the chunk', () => {
@@ -62,4 +76,13 @@ test('a measurable programme still carries its loudness numbers into the chunk',
 
 function bextField(payload: Uint8Array, field: keyof typeof OFFSETS): number {
 	return new DataView(payload.buffer, payload.byteOffset, payload.byteLength).getUint16(OFFSETS[field], true);
+}
+
+function riffChunk(bytes: Uint8Array, id: string): number {
+	const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+	for (let offset = 12; offset + 8 <= bytes.byteLength;) {
+		if (new TextDecoder().decode(bytes.subarray(offset, offset + 4)) === id) return offset;
+		offset += 8 + view.getUint32(offset + 4, true) + (view.getUint32(offset + 4, true) & 1);
+	}
+	throw new Error(`Missing ${id} WAV chunk`);
 }

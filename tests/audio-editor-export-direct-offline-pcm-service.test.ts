@@ -74,17 +74,14 @@ test('actual offline WAV, AIFF, BWF, and BW64 plans stream without Blob assembly
 		assert.equal(fixture.count('temporary'), 0, format);
 		assert.equal(fixture.count('download'), 0, format);
 		assert.equal(fixture.count('preflight'), 0, format);
-		assert.ok(fixture.encoderBlocks.length > 0, format);
-		assert.equal(
-			fixture.encoderBlocks.every((frames) => frames <= DIRECT_PCM_RENDER_CHUNK_FRAMES),
-			true,
-			format,
-		);
-		assert.equal(
-			fixture.encoderBlocks.reduce((total, frames) => total + frames, 0),
-			fixture.plan.outputFrames,
-			format,
-		);
+		const expectedFrames = converted ? 36_750 : 40_000;
+		assert.equal(fixture.plan.outputFrames, expectedFrames, format);
+		const fullBlocks = Math.floor(expectedFrames / DIRECT_PCM_RENDER_CHUNK_FRAMES);
+		const finalBlock = expectedFrames % DIRECT_PCM_RENDER_CHUNK_FRAMES;
+		assert.deepEqual(fixture.encoderBlocks, [
+			...Array<number>(fullBlocks).fill(DIRECT_PCM_RENDER_CHUNK_FRAMES),
+			...(finalBlock === 0 ? [] : [finalBlock]),
+		], format);
 		assertOrder(fixture.events, ['destination:open', 'render:offline', 'mapping', 'encoder:create', 'destination:close', 'destination:commit']);
 		if (converted) {
 			assert.equal(fixture.plan.channelCount, 1);

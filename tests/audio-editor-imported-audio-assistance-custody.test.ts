@@ -76,7 +76,22 @@ test('ordinary audio import reaches consent-ready aggregate assistance custody',
 	assert.equal(result.workflow.fence.sourceRanges[0]?.sourceSha256, source.contentSha256);
 	assert.equal(result.workflow.inputs[0]?.slotId, 'audio');
 	assert.equal(custody.events[0], 'input:audio');
-	assert.ok(custody.staged.get('audio')?.byteLength);
+	const staged = custody.staged.get('audio');
+	assert.ok(staged);
+	assert.equal(staged.byteLength, 60);
+	assert.equal(new TextDecoder().decode(staged.subarray(0, 4)), 'RIFF');
+	assert.equal(new TextDecoder().decode(staged.subarray(8, 12)), 'WAVE');
+	assert.equal(new TextDecoder().decode(staged.subarray(12, 16)), 'fmt ');
+	assert.equal(new TextDecoder().decode(staged.subarray(36, 40)), 'data');
+	const wave = new DataView(staged.buffer, staged.byteOffset, staged.byteLength);
+	assert.equal(wave.getUint32(4, true), 52);
+	assert.equal(wave.getUint16(20, true), 3);
+	assert.equal(wave.getUint16(22, true), 1);
+	assert.equal(wave.getUint32(24, true), 48_000);
+	assert.equal(wave.getUint16(34, true), 32);
+	assert.equal(wave.getUint32(40, true), 16);
+	assert.deepEqual(Array.from({ length: 4 }, (_, frame) => wave.getFloat32(44 + frame * 4, true)),
+		[0.25, 0, -0.25, 0.5]);
 });
 
 test('ordinary audio import removes a publication with stale storage digest evidence', async () => {
