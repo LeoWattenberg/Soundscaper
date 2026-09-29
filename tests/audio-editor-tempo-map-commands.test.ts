@@ -224,6 +224,14 @@ test('bpm-only tempo/set preserves a wider authoritative root signature', () => 
 	});
 });
 
+test('legacy tempo/set recovers a bounded rational from a repeating floating BPM', () => {
+	const project = createCurrentAudioEditorProject({ id: 'decimal-legacy-tempo', now: CREATED_AT });
+	const edited = apply(project, { type: 'tempo/set', bpm: 33.333333333333336 });
+
+	assert.deepEqual(tempoEvents(edited)[0]?.bpm, { num: 100, den: 3 });
+	assert.equal(legacyTempo(edited).bpm, 33.333333333333336);
+});
+
 test('tempo commands reflow musical material, preserve sample anchors, and undo atomically', () => {
 	const project = reflowProject();
 	const before = resolveRuntimeProjectProjection(project);

@@ -4,6 +4,7 @@ import {
 	deriveSampleLockedTempoEventBeats,
 	validateTempoInverseRationalClosure,
 } from '../timeline-tempo-inverse.ts';
+import { approximatePositiveRational } from '../rational-approximation.ts';
 import {
 	beatToSampleFrame,
 	compareRationals,
@@ -101,12 +102,10 @@ function setLegacyTempo(
 	const tempoMap = requireTempoMap(project);
 	const signatureMap = requireSignatureMap(project);
 	if (command.bpm != null) {
-		tempoMap.events[0] = { ...tempoMap.events[0], bpm: exactRational(
-			normalizeRational(bpm),
-			'tempo.bpm',
-			true,
-			MAXIMUM_BPM_DENOMINATOR,
-		) };
+		tempoMap.events[0] = {
+			...tempoMap.events[0],
+			bpm: approximatePositiveRational(bpm, MAXIMUM_BPM_DENOMINATOR),
+		};
 		if (tempoMap.mode === 'sampleLocked') deriveSampleLockedBeats(project, tempoMap);
 	}
 	if (command.numerator != null || command.denominator != null) {
