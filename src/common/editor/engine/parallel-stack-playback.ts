@@ -59,6 +59,10 @@ export function registerParallelStackPlayback(engine: object, factory: ParallelS
 
 export function parallelStackPlaybackEnabled(engine: object): boolean { return registrations.get(engine)?.enabled() ?? false; }
 
+export function parallelStackPreparationPending(engine: object): boolean {
+	return Boolean(registrations.get(engine)?.pending);
+}
+
 export function cancelParallelStackPreparation(engine: object): void {
 	const registration = registrations.get(engine);
 	registration?.pending?.abort();

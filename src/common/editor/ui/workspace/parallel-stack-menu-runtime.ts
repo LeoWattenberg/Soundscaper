@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { useSyncExternalStore } from 'react';
+import { parallelStackPreparationPending } from '../../engine/parallel-stack-playback.ts';
 import {
 	parallelStackPreferencesRevision,
 	readParallelStackPreferences,
@@ -11,7 +12,11 @@ import {
 } from '../../engine/parallel-stack-preferences.ts';
 
 interface ParallelStackMenuController {
-	readonly engine?: { getState(): { readonly state: string } } | null;
+	readonly engine?: {
+		getState(): { readonly state: string };
+		readonly pendingPlayRequest?: number;
+		readonly graph?: object | null;
+	} | null;
 	getSnapshot?(): { readonly recording?: boolean; readonly recordingScheduling?: boolean; readonly scheduledRecording?: unknown };
 }
 
@@ -29,8 +34,10 @@ export function createParallelStackMenuRuntime(input: Readonly<{
 	if (input.productId !== 'soundscaper' || !input.desktop) return null;
 	const activity = () => {
 		const snapshot = input.controller?.getSnapshot?.();
+		const engine = input.controller?.engine;
 		return {
-			playing: input.controller?.engine?.getState().state === 'playing',
+			playing: engine?.getState().state === 'playing' || Boolean(engine?.pendingPlayRequest)
+				|| Boolean(engine?.graph) || (engine ? parallelStackPreparationPending(engine) : false),
 			recording: snapshot ? Boolean(snapshot.recording || snapshot.recordingScheduling || snapshot.scheduledRecording) : input.recording,
 		};
 	};

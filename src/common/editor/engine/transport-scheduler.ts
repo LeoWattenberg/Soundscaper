@@ -180,7 +180,9 @@ async [ENGINE_SCHEDULE_PLAYBACK](this: EngineRuntimeHost, fromFrame, scheduledTi
 		);
 		const prepared = buildPlaybackGraph(this, this.masterLoudnessMeter?.node || playbackDestination, fromFrame);
 		const preparedGraph = prepared instanceof Promise ? await prepared : prepared;
-		if (!preparedGraph) return scheduledTime;
+		// A worker may fault after preparation resolves but before this suspended
+		// scheduler resumes. Its failure callback has already retired that graph.
+		if (!preparedGraph || preparedGraph.abortController.signal.aborted) return scheduledTime;
 		this.graph = preparedGraph;
 		scheduledTime = parallelStackSourceStartTime(preparedGraph, scheduledTime);
 		this.playbackStartTime = scheduledTime + (this.graph.latencyFrames || 0) / (context.sampleRate || DEFAULT_SAMPLE_RATE);
