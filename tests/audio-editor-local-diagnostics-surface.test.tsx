@@ -2,15 +2,16 @@
 
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import React from 'react';
+import React, { act } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 
 import { buildLocalDiagnosticsReport, createLocalDiagnosticsRuntimeIdentity } from '../src/common/editor/local-diagnostics-report.ts';
 import { AUDACITY_ACTION_STATUS, audacityActionDefinition } from '../src/common/editor/audacity-action-parity.js';
 import createApplicationMenus from '../src/common/editor/ui/application-menus.js';
-import { LocalDiagnosticsDialogView } from '../src/common/editor/ui/dialogs/LocalDiagnosticsDialog.tsx';
+import LocalDiagnosticsDialog, { LocalDiagnosticsDialogView } from '../src/common/editor/ui/dialogs/LocalDiagnosticsDialog.tsx';
 import { ENGLISH_COPY, GERMAN_COPY } from '../src/common/i18n/catalogs.js';
 import { WORKSPACE_PANEL_IDS } from '../src/common/editor/ui/workspace/workspace-panel-model.ts';
+import { installReactTestDom, reactProps } from './helpers/react-test-dom.ts';
 
 const REPORT = buildLocalDiagnosticsReport({
 	generatedAt: '2026-08-29T10:11:12.000Z',
@@ -75,6 +76,56 @@ test('the dialog is inert before generation and exposes only diagnostic summarie
 	assert.match(ready, /data-streamed-playback-observed="true"/u);
 	assert.match(ready, /data-local-diagnostics-export/u);
 	assert.doesNotMatch(ready, /private-project|Secret interview|operator|confidential/u);
+});
+
+test('a failed refresh removes the prior diagnostics report and its Export action', async () => {
+	const dom = installReactTestDom();
+	const actGlobal = globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean };
+	const priorAct = actGlobal.IS_REACT_ACT_ENVIRONMENT;
+	const priorReact = Object.getOwnPropertyDescriptor(globalThis, 'React');
+	actGlobal.IS_REACT_ACT_ENVIRONMENT = true;
+	Object.defineProperty(globalThis, 'React', { configurable: true, value: React });
+	const { createRoot } = await import('react-dom/client');
+	const root = createRoot(dom.container as unknown as Element);
+	let failEnvironment = false;
+	const recordedErrors: unknown[] = [];
+	try {
+		await act(async () => root.render(<LocalDiagnosticsDialog
+			controller={{
+				getSnapshot: () => ({ project: null, projects: [], projectTabs: [], storage: {} }),
+				getLocalDiagnosticsSnapshot: () => ({ recentErrors: [] }),
+				recordLocalDiagnosticError: (error) => { recordedErrors.push(error); },
+			}}
+			copy={ENGLISH_COPY}
+			fileService={{
+				isDesktop: true,
+				getEnvironment: async () => {
+					if (failEnvironment) throw new Error('Environment unavailable.');
+					return {};
+				},
+			}}
+			locale="en"
+			productId="soundscaper"
+			onClose={() => undefined}
+		/>));
+		const generate = dom.one('[data-local-diagnostics-generate]');
+		await act(async () => { reactProps(generate).onClick(); });
+		assert.ok(dom.find('[data-local-diagnostics-summary]'));
+		assert.ok(dom.find('[data-local-diagnostics-export]'));
+
+		failEnvironment = true;
+		await act(async () => { reactProps(generate).onClick(); });
+		assert.equal(recordedErrors.length, 1);
+		assert.match(dom.container.textContent, /could not be created or exported/u);
+		assert.equal(Boolean(dom.find('[data-local-diagnostics-summary]')), false);
+		assert.equal(Boolean(dom.find('[data-local-diagnostics-export]')), false);
+	} finally {
+		await act(async () => root.unmount());
+		actGlobal.IS_REACT_ACT_ENVIRONMENT = priorAct;
+		if (priorReact) Object.defineProperty(globalThis, 'React', priorReact);
+		else Reflect.deleteProperty(globalThis, 'React');
+		dom.restore();
+	}
 });
 
 test('Help reaches local diagnostics in both product menus', () => {

@@ -47,6 +47,7 @@ export default function LocalDiagnosticsDialog({
 	const [report, setReport] = useState<Readonly<LocalDiagnosticsReport> | null>(null);
 	const [phase, setPhase] = useState<Phase>('idle');
 	const generate = async (): Promise<void> => {
+		setReport(null);
 		setPhase('generating');
 		try {
 			const desktopEnvironment = fileService.isDesktop
