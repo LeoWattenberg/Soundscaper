@@ -239,7 +239,7 @@ async function readBoundedTextEntry(
 	throwIfScapeAborted(signal);
 	if (typeof entry.getData !== 'function') throw new Error(`The Scape archive is missing ${label}.`);
 	assertMetadataLimit(entry, label, maximumBytes);
-	const decoder = new TextDecoder();
+	const decoder = new TextDecoder('utf-8', { fatal: true });
 	const textChunks: string[] = [];
 	let byteLength = 0;
 	const writable = new WritableStream<Uint8Array>({
