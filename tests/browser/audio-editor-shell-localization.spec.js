@@ -50,11 +50,12 @@ test.describe('audio editor React/design-system workflows', () => {
 		await expect(page.locator('link[rel="icon"][href="/logo/soundscaper.svg"]')).toHaveCount(1);
 		await page.getByRole('button', { name: 'Collapse navigation' }).click();
 		await expect(page.locator('.website-brand img')).toBeVisible();
+		await waitForEditor(page);
 
 		await page.goto('/embed/en/');
 		await expect(page.locator('.website-site-sidebar')).toHaveCount(0);
 		await expect(page.locator('.website-tool-intro')).toBeHidden();
-		await expect(page.locator('[data-audio-editor]')).toHaveAttribute('data-audio-editor-bound', 'true');
+		await waitForEditor(page);
 		expect(errors).toEqual([]);
 	});
 

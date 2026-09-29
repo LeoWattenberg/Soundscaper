@@ -296,10 +296,18 @@ async function executeStep(page, state, entry) {
 			}
 			state.fixture = entry.fixture;
 			return;
-		case 'menu':
+		case 'menu': {
+			// Zoom is applied by the editor after the menu dismisses. The next
+			// guide step measures clip geometry, so wait for that view update.
+			const zoomClip = entry.path.join('/') === 'View/Zoom/Zoom in' && state.clipName
+				? guideClip(state.editor, state.clipName) : null;
+			const zoomWidth = zoomClip ? await zoomClip.evaluate((element) => element.getBoundingClientRect().width) : 0;
 			if (entry.path.length === 2) await chooseCommandAction(page, state.editor, entry.path[0], entry.path[1]);
 			else await chooseNestedCommandAction(page, state.editor, entry.path[0], entry.path.slice(1));
+			if (zoomClip) await expect.poll(() => zoomClip.evaluate((element) => element.getBoundingClientRect().width))
+				.toBeGreaterThan(zoomWidth);
 			return;
+		}
 		case 'freesound-search':
 			await runFreesoundSearch(state, entry);
 			return;
