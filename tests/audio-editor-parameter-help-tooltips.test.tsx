@@ -133,6 +133,46 @@ test('pressing a help trigger inside a label does not activate that label', asyn
 	}
 });
 
+test('a second press closes help while its trigger remains hovered and focused', async () => {
+	const mounted = await mount(<EditorHelpTooltip
+		subject="Activation threshold"
+		description="Capture begins at or above this input level."
+		helpLabel="Help"
+		hook="threshold"
+		describedBy="standing-description"
+	/>);
+	try {
+		const wrapper = mounted.dom.one('.audio-editor-help-wrap');
+		const trigger = mounted.dom.one('[data-editor-help="threshold"]');
+		const press = async () => {
+			await act(async () => {
+				reactProps(trigger).onClick({ preventDefault() {}, stopPropagation() {} });
+				await Promise.resolve();
+			});
+		};
+		const pointerDownStopped = () => {
+			let stopped = false;
+			reactProps(trigger).onPointerDown({ stopPropagation: () => { stopped = true; } });
+			return stopped;
+		};
+		await act(async () => {
+			reactProps(wrapper).onPointerEnter();
+			reactProps(trigger).onFocus();
+		});
+		assert.equal(pointerDownStopped(), false);
+		await press();
+		assert.notEqual(trigger.getAttribute('aria-describedby'), 'standing-description');
+		assert.equal(pointerDownStopped(), true, 'the flyout must not dismiss before the second click');
+		await press();
+		assert.equal(trigger.getAttribute('aria-describedby'), 'standing-description');
+		assert.equal(pointerDownStopped(), false);
+		await press();
+		assert.notEqual(trigger.getAttribute('aria-describedby'), 'standing-description');
+	} finally {
+		await mounted.cleanup();
+	}
+});
+
 async function mount(element: React.ReactElement) {
 	const dom = installReactTestDom();
 	const actGlobal = globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean };

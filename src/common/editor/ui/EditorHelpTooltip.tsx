@@ -110,12 +110,17 @@ export default function EditorHelpTooltip({
 			data-tooltip-ignore
 			onFocus={() => showTooltip('focus')}
 			onBlur={() => hideTooltip('focus')}
+			onPointerDown={(event) => {
+				// Keep the flyout's document outside-click listener from clearing the
+				// pressed state before this trigger's second click can dismiss it.
+				if (visibilityReasonsRef.current.has('press')) event.stopPropagation();
+			}}
 			onClick={(event) => {
 				// The trigger often sits inside the label of the control it explains,
 				// and a label forwards clicks to that control unless the default is cut.
 				event.preventDefault();
 				event.stopPropagation();
-				if (visibilityReasonsRef.current.has('press')) hideTooltip('press');
+				if (visibilityReasonsRef.current.has('press')) dismissTooltip();
 				else showTooltip('press');
 			}}
 		>
