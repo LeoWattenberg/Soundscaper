@@ -42,6 +42,18 @@ test('a cut list emits numbered events with source and record timecode', () => {
 	assert.equal(result.mimeType, 'text/plain');
 });
 
+test('clip names cannot inject extra EDL lines through line breaks', () => {
+	const result = createEdlExport({
+		title: 'Original', rate: RATE_24,
+		events: [event({ clipName: 'Intro\r\nTITLE: Forged\nOutro\rTail' })],
+	});
+	assert.deepEqual(result.text.trimEnd().split('\n').filter((line) => line.startsWith('TITLE:')), [
+		'TITLE: Original',
+	]);
+	assert.match(result.text, /^\* FROM CLIP NAME: Intro TITLE: Forged Outro Tail$/mu);
+	assert.equal(result.text.includes('\r'), false);
+});
+
 test('drop frame is a sequence flag, signalled in FCM and the separator', () => {
 	const nonDrop = createEdlExport({ title: 'T', rate: RATE_2997, events: [event()] });
 	assert.match(nonDrop.text, /FCM: NON-DROP FRAME/u);

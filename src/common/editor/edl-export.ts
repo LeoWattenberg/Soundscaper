@@ -125,7 +125,7 @@ export function createEdlExport(request: EdlExportRequest): EdlExportResult {
 			timecode(event?.recordInFrames, rate, dropFrame, `event ${index} record in`),
 			timecode(event?.recordOutFrames, rate, dropFrame, `event ${index} record out`),
 		].join(' '));
-		const clipName = String(event?.clipName ?? '').trim();
+		const clipName = String(event?.clipName ?? '').replaceAll(/[\r\n]+/gu, ' ').trim();
 		if (clipName) lines.push(`* FROM CLIP NAME: ${clipName}`);
 
 		if (event?.transition) {
