@@ -10,6 +10,13 @@ type SessionMode = 'speed' | 'memory';
 type WarmupResult = DesktopSpeedWarmupResult | null | void;
 type WarmupLoader = (options: DesktopSpeedWarmupOptions) => Promise<WarmupResult>;
 
+interface GateAttributes {
+	readonly 'data-desktop-speed-warmup'?: 'loading' | 'ready';
+	readonly 'data-desktop-speed-warmup-failed'?: number | 'fatal';
+	readonly 'aria-busy'?: boolean;
+	readonly inert?: boolean;
+}
+
 interface ControllerSnapshot {
 	readonly ready: boolean;
 	readonly preferences?: Readonly<{
@@ -79,16 +86,17 @@ export default function DesktopSpeedWarmupGate({
 	}, [controller, loadWarmup, mode, productId]);
 	const speed = mode === 'speed';
 	const loading = speed && !warmupReady;
+	const gateAttributes: GateAttributes = {
+		'data-desktop-speed-warmup': loading ? 'loading' : 'ready',
+		'data-desktop-speed-warmup-failed': warmupReady ? failedCount ?? undefined : undefined,
+		'aria-busy': loading ? true : undefined,
+		inert: loading,
+	};
+	const content = !speed ? children : React.isValidElement(children)
+		? React.cloneElement(children as React.ReactElement<GateAttributes>, gateAttributes)
+		: <div style={{ display: 'contents' }} {...gateAttributes}>{children}</div>;
 	return <>
-		<div
-			style={{ display: 'contents' }}
-			data-desktop-speed-warmup={speed ? loading ? 'loading' : 'ready' : undefined}
-			data-desktop-speed-warmup-failed={speed && warmupReady ? failedCount : undefined}
-			aria-busy={loading ? true : undefined}
-			inert={loading}
-		>
-			{children}
-		</div>
+		{content}
 		{loading && <div role="status" style={{
 			position: 'fixed', inset: 0, zIndex: 2147483647,
 			display: 'flex', alignItems: 'center', justifyContent: 'center',

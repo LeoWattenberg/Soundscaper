@@ -45,6 +45,7 @@ test('desktop Speed warms after readiness, blocks interactions, and keeps the mo
 			</DesktopSpeedWarmupGate>);
 		});
 		const workspace = dom.one('[data-mounted-workspace="true"]');
+		assert.equal(dom.container.firstChild, workspace);
 		assert.equal(dom.find('[data-desktop-speed-warmup]'), null);
 		await act(async () => { controller.publish(true, 'speed'); });
 		const gate = dom.one('[data-desktop-speed-warmup="loading"]');
@@ -82,6 +83,7 @@ test('web and initial Memory mode do not warm after a live switch to Speed', asy
 			root.render(<DesktopSpeedWarmupGate controller={controller} desktop productId="framescaper"
 				locale="en" copy={{}} loadWarmup={loadWarmup}><span>Workspace</span></DesktopSpeedWarmupGate>);
 		});
+		assert.equal(dom.container.firstChild, dom.one('span'));
 		await act(async () => { controller.publish(true, 'speed'); });
 		assert.equal(warmupCalls, 0);
 		assert.equal(dom.find('[data-desktop-speed-warmup]'), null);
