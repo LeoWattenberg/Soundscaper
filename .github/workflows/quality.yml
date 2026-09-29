@@ -430,6 +430,14 @@ jobs:
         if: matrix.shard == 'framescaper'
         run: node scripts/ci-provision-framescaper-boost.mjs
 
+      - name: Restore Electron binary for the desktop protocol test
+        if: matrix.shard == 'common'
+        run: |
+          if [ ! -x node_modules/electron/dist/electron ]; then
+            node node_modules/electron/install.js
+          fi
+          test -x node_modules/electron/dist/electron
+
       - name: Run the ${{ matrix.shard }} Node test shard
         run: xvfb-run --auto-servernum npm run test:shard -- --shard=${{ matrix.shard }} --require-linux-native
         env:
