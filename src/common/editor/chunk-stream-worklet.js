@@ -67,6 +67,12 @@ export class ChunkStreamPlaybackProcessor extends ProcessorBase {
 			if (blockStart != null) {
 				outputOffset = Math.max(0, Math.min(blockFrames, this.contextStartFrame - blockStart));
 				if (outputOffset >= blockFrames) return true;
+				// A late control message must skip the source frames that other tracks
+				// have already played. The packet loop below drops and acknowledges
+				// complete packets before reading the aligned position.
+				this.positionFrame = Math.max(this.positionFrame, Math.min(
+					this.endFrame, this.startFrame + Math.max(0, blockStart - this.contextStartFrame),
+				));
 			}
 			this.contextStartFrame = null;
 		}
