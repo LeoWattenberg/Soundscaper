@@ -2,7 +2,9 @@
 
 import assert from 'node:assert/strict';
 import test from 'node:test';
+import { createAudioEditorEngine } from '../src/common/editor/engine/runtime-class.ts';
 import { scheduleProjectClips } from '../src/common/editor/engine/clip-scheduler.ts';
+import { MockAudioBuffer, MockAudioContext } from './helpers/mock-audio-context.js';
 import {
 	MAX_LIVE_STREAM_PREPARATIONS,
 	prepareLiveChunkPlans,
@@ -132,6 +134,213 @@ test('cancelling playback clears the future preparation timer', async () => {
 	context.currentTime = 10;
 	await new Promise((resolve) => setTimeout(resolve, 25));
 	assert.equal(opened, 0);
+});
+
+test('a busy clip scheduler fails before a primed stream can start behind resident clips', async () => {
+	const context = {
+		...createContext(),
+		createBufferSource() {
+			const source = Object.assign(new MockNode(), {
+				playbackRate: new MockNode().gain,
+				buffer: null as AudioBuffer | null,
+				start(when: number) {
+					residentStarts.push(when);
+					context.currentTime += .006;
+				},
+			});
+			return source;
+		},
+	};
+	const residentStarts: number[] = [];
+	const streamStarts: number[] = [];
+	let cancelled = 0;
+	const clips = Array.from({ length: 5 }, (_value, index) => ({
+		id: `resident-${String(index)}`, sourceId: 'resident', timelineStartFrame: 0,
+		durationFrames: 1_024, sourceStartFrame: 0, sourceDurationFrames: 1_024,
+	}));
+	clips.push({ id: 'stream', sourceId: 'stream', timelineStartFrame: 0,
+		durationFrames: 1_024, sourceStartFrame: 0, sourceDurationFrames: 1_024 });
+	const resident = { sampleRate: 48_000, numberOfChannels: 1, length: 1_024 } as AudioBuffer;
+	await assert.rejects(scheduleProjectClips({
+		context: context as unknown as BaseAudioContext,
+		project: { sampleRate: 48_000, tracks: [{ id: 'track', type: 'audio', clipIds: clips.map((clip) => clip.id) }], clips },
+		sources: new Map([['resident', resident]]),
+		chunkSources: new Map([['stream', { ...chunkSource(), frameCount: 1_024, chunkFrames: 256 }]]),
+		trackInputs: new Map([['track', new MockNode() as unknown as AudioNode]]),
+		fromFrame: 0, toFrame: 1_024, contextStartTime: 0, sampleRate: 48_000,
+		reversedBuffers: new WeakMap(), sourceResolver: null,
+		activeSources: new Set(), allNodes: [] as AudioNode[], mode: 'live', deferStartUntilPrimed: true,
+		chunkStreamClient: { open: () => ({ ready: Promise.resolve(), primed: Promise.resolve(),
+			done: new Promise(() => {}), play: ({ contextStartFrame }: { contextStartFrame: number }) => streamStarts.push(contextStartFrame),
+			cancel: () => { cancelled += 1; } }) } as never,
+		chunkAudioNodeFactory: async () => new MockChunkNode() as unknown as AudioWorkletNode,
+	}), /shared playback start/iu);
+	assert.ok(residentStarts.length >= 1, 'an earlier resident source was scheduled');
+	assert.deepEqual(streamStarts, [], 'a late stream cannot silently begin from its first packet');
+	assert.equal(cancelled, 1);
+});
+
+test('short streamed and resident clips share the same context frame', async () => {
+	const residentStarts: number[] = [];
+	const streamStarts: number[] = [];
+	const streamEnds: number[] = [];
+	const finished = deferred<void>();
+	const context = {
+		...createContext(),
+		createBufferSource: () => Object.assign(new MockNode(), {
+			playbackRate: new MockNode().gain,
+			buffer: null as AudioBuffer | null,
+			start: (when: number) => { residentStarts.push(when); },
+		}),
+	};
+	const clips = [
+		{ id: 'resident', sourceId: 'resident', timelineStartFrame: 0,
+			durationFrames: 1_024, sourceStartFrame: 0, sourceDurationFrames: 1_024 },
+		{ id: 'stream', sourceId: 'stream', timelineStartFrame: 0,
+			durationFrames: 1_024, sourceStartFrame: 0, sourceDurationFrames: 1_024 },
+	];
+	const scheduled = await scheduleProjectClips({
+		context: context as unknown as BaseAudioContext,
+		project: { sampleRate: 48_000, tracks: [{ id: 'track', type: 'audio', clipIds: clips.map((clip) => clip.id) }], clips },
+		sources: new Map([['resident', { sampleRate: 48_000, numberOfChannels: 1, length: 1_024 } as AudioBuffer]]),
+		chunkSources: new Map([['stream', { ...chunkSource(), frameCount: 1_024, chunkFrames: 256 }]]),
+		trackInputs: new Map([['track', new MockNode() as unknown as AudioNode]]),
+		fromFrame: 0, toFrame: 480, contextStartTime: 0, sampleRate: 48_000,
+		reversedBuffers: new WeakMap(), sourceResolver: null,
+		activeSources: new Set(), allNodes: [] as AudioNode[], mode: 'live', deferStartUntilPrimed: true,
+		chunkStreamClient: { open: (options: { endFrame: number }) => {
+			streamEnds.push(options.endFrame);
+			return { ready: Promise.resolve(), primed: Promise.resolve(), done: finished.promise,
+				play: ({ contextStartFrame }: { contextStartFrame: number }) => { streamStarts.push(contextStartFrame); },
+				cancel: () => undefined };
+		} } as never,
+		chunkAudioNodeFactory: async () => new MockChunkNode() as unknown as AudioWorkletNode,
+	});
+	assert.equal(scheduled.contextStartTime, .02);
+	assert.deepEqual(residentStarts, [.02]);
+	assert.deepEqual(streamStarts, [960]);
+	assert.deepEqual(streamEnds, [480], 'the stream is trimmed to the short play range');
+	finished.resolve();
+	await scheduled.waitForStreamedClips();
+});
+
+test('a later stream whose preparation misses its playback frame fails the completion barrier', async () => {
+	const residentStarts: number[] = [];
+	const context = {
+		...createContext(),
+		createBufferSource: () => Object.assign(new MockNode(), {
+			playbackRate: new MockNode().gain,
+			buffer: null as AudioBuffer | null,
+			start: (when: number) => { residentStarts.push(when); },
+		}),
+	};
+	let cancelled = 0;
+	let played = false;
+	const scheduled = await scheduleProjectClips({
+		context: context as unknown as BaseAudioContext,
+		project: {
+			sampleRate: 48_000,
+			tracks: [{ id: 'track', type: 'audio', clipIds: ['resident', 'later'] }],
+			clips: [
+				{ id: 'resident', sourceId: 'resident', timelineStartFrame: 0,
+					durationFrames: 1_024, sourceStartFrame: 0, sourceDurationFrames: 1_024 },
+				{ id: 'later', sourceId: 'later', timelineStartFrame: 240_048,
+					durationFrames: 1_024, sourceStartFrame: 0, sourceDurationFrames: 1_024 },
+			],
+		},
+		sources: new Map([['resident', { sampleRate: 48_000, numberOfChannels: 1, length: 1_024 } as AudioBuffer]]),
+		chunkSources: new Map([['later', { ...chunkSource(), frameCount: 1_024, chunkFrames: 256 }]]),
+		trackInputs: new Map([['track', new MockNode() as unknown as AudioNode]]),
+		fromFrame: 0, toFrame: 241_072, contextStartTime: 0, sampleRate: 48_000,
+		reversedBuffers: new WeakMap(), sourceResolver: null,
+		activeSources: new Set(), allNodes: [] as AudioNode[], mode: 'live', deferStartUntilPrimed: true,
+		chunkStreamClient: { open: () => ({ ready: Promise.resolve(), primed: Promise.resolve(),
+			done: new Promise<void>(() => {}), play: () => { played = true; },
+			cancel: () => { cancelled += 1; } }) } as never,
+		chunkAudioNodeFactory: async () => new MockChunkNode() as unknown as AudioWorkletNode,
+	});
+	assert.equal(scheduled.contextStartTime, .02);
+	assert.deepEqual(residentStarts, [.02]);
+	context.currentTime = 5.022;
+	await assert.rejects(scheduled.waitForStreamedClips(), /shared playback start/iu);
+	assert.equal(played, false);
+	assert.equal(cancelled, 1);
+});
+
+test('a missed shared start rejects Play and halts already scheduled resident sources', async () => {
+	const context = new MockAudioContext({ sampleRate: 48_000 });
+	const makeSource = context.createBufferSource.bind(context);
+	context.createBufferSource = () => {
+		const source = makeSource() as ReturnType<typeof makeSource> & {
+			start: (when: number, offset: number, duration: number) => void;
+		};
+		const start = source.start;
+		source.start = (when: number, offset: number, duration: number) => {
+			start(when, offset, duration);
+			context.currentTime += .006;
+		};
+		return source;
+	};
+	const clips = Array.from({ length: 5 }, (_value, index) => ({
+		id: `resident-${String(index)}`, sourceId: 'resident', timelineStartFrame: 0,
+		durationFrames: 1_024, sourceStartFrame: 0, sourceDurationFrames: 1_024,
+	}));
+	clips.push({ id: 'stream', sourceId: 'stream', timelineStartFrame: 0,
+		durationFrames: 1_024, sourceStartFrame: 0, sourceDurationFrames: 1_024 });
+	let cancelled = 0;
+	let played = false;
+	const engine = createAudioEditorEngine({
+		audioContextFactory: () => context as never,
+		chunkStreamClient: { open: () => ({ ready: Promise.resolve(), primed: Promise.resolve(),
+			done: new Promise<void>(() => {}), play: () => { played = true; },
+			cancel: () => { cancelled += 1; } }) } as never,
+		chunkAudioNodeFactory: async () => new MockChunkNode() as unknown as AudioWorkletNode,
+	});
+	try {
+		engine.loadProject({
+			sampleRate: 48_000,
+			masterChannels: 1,
+			tracks: [{ id: 'track', type: 'audio', clipIds: clips.map((clip) => clip.id) }],
+			clips,
+			master: { gain: 1, pan: 0, mute: false, effects: [] },
+		}, new Map([['resident', new MockAudioBuffer(1, 1_024, 48_000) as unknown as AudioBuffer]]), {
+			chunkSources: new Map([['stream', { ...chunkSource(), frameCount: 1_024, chunkFrames: 256 }]]),
+		});
+		await assert.rejects(engine.play(), /shared playback start/iu);
+		assert.ok(context.bufferSources.some((source) => source.started), 'an earlier resident source was scheduled');
+		assert.ok(context.bufferSources.filter((source) => source.started).every((source) => source.stopped));
+		assert.equal(played, false);
+		assert.ok(cancelled >= 1);
+		assert.equal(engine.getState().state, 'stopped');
+	} finally {
+		await engine.dispose();
+	}
+});
+
+test('a failed stream play posts its error through the completion barrier', async () => {
+	const failure = new Error('Worklet play post failed');
+	let rejectDone!: (error: Error) => void;
+	const done = new Promise<void>((_resolve, reject) => { rejectDone = reject; });
+	const scheduled = await scheduleProjectClips({
+		context: createContext() as unknown as BaseAudioContext,
+		project: {
+			sampleRate: 48_000,
+			tracks: [{ id: 'track', type: 'audio', clipIds: ['stream'] }],
+			clips: [{ id: 'stream', sourceId: 'stream', timelineStartFrame: 0,
+				durationFrames: 1_024, sourceStartFrame: 0, sourceDurationFrames: 1_024 }],
+		},
+		sources: new Map(),
+		chunkSources: new Map([['stream', { ...chunkSource(), frameCount: 1_024, chunkFrames: 256 }]]),
+		trackInputs: new Map([['track', new MockNode() as unknown as AudioNode]]),
+		fromFrame: 0, toFrame: 1_024, contextStartTime: 0, sampleRate: 48_000,
+		reversedBuffers: new WeakMap(), sourceResolver: null,
+		activeSources: new Set(), allNodes: [] as AudioNode[], mode: 'live', deferStartUntilPrimed: true,
+		chunkStreamClient: { open: () => ({ ready: Promise.resolve(), primed: Promise.resolve(), done,
+			play: () => { rejectDone(failure); return Promise.reject(failure); },
+			cancel: () => undefined }) } as never,
+		chunkAudioNodeFactory: async () => new MockChunkNode() as unknown as AudioWorkletNode,
+	});
+	await assert.rejects(scheduled.waitForStreamedClips(), failure);
 });
 
 function createContext() {

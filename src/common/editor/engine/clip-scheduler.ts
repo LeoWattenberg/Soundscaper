@@ -16,6 +16,7 @@ import {
 	createReversedChunkSource,
 } from './clip-scheduler-chunk-sources.ts';
 import {
+	assertSharedPlaybackStart,
 	LIVE_STREAM_PREPARE_AHEAD_SECONDS,
 	prepareLiveChunkPlan,
 	prepareLiveChunkPlans,
@@ -222,6 +223,7 @@ export async function scheduleProjectClips({
 				onStreamUnderrun,
 				streamQueuePackets,
 				streamPrebufferPackets,
+				enforceSharedStartDeadline: deferStartUntilPrimed,
 			});
 		};
 		const prepareAheadFrames = LIVE_STREAM_PREPARE_AHEAD_SECONDS * sampleRate * transportRate;
@@ -245,7 +247,7 @@ export async function scheduleProjectClips({
 		}
 	}
 
-	const actualContextStartTime = streamed.length && deferStartUntilPrimed
+	const actualContextStartTime = chunkPlans.length && deferStartUntilPrimed
 		? Math.max(contextStartTime, (context.currentTime || 0) + 0.02)
 		: contextStartTime;
 	scheduleProjectGains({
@@ -267,22 +269,33 @@ export async function scheduleProjectClips({
 		transportRate,
 		tempoMap: project.tempoMap,
 	});
-	for (const plan of plans) {
-		if (!plan.originalBuffer) continue;
-		scheduleBufferPlan({
-			plan,
-			context,
-			contextStartTime: actualContextStartTime,
-			fromFrame,
-			sampleRate,
-			transportRate,
-			reversedBuffers,
-			activeSources,
-			allNodes,
-		});
-	}
-	for (const prepared of streamed) {
-		prepared.start(actualContextStartTime, fromFrame, sampleRate, transportRate);
+	const beforeSharedStart = chunkPlans.length && deferStartUntilPrimed
+		? (startTime: number): void => assertSharedPlaybackStart(context, startTime)
+		: null;
+	try {
+		for (const plan of plans) {
+			if (!plan.originalBuffer) continue;
+			scheduleBufferPlan({
+				plan,
+				context,
+				contextStartTime: actualContextStartTime,
+				fromFrame,
+				sampleRate,
+				transportRate,
+				reversedBuffers,
+				activeSources,
+				allNodes,
+				beforeStart: beforeSharedStart,
+			});
+		}
+		for (const prepared of streamed) {
+			prepared.start(actualContextStartTime, fromFrame, sampleRate, transportRate);
+		}
+	} catch (error) {
+		for (const prepared of streamed) {
+			try { prepared.cancel(); } catch { /* Preserve the scheduling failure. */ }
+		}
+		throw error;
 	}
 	const laterDone = prepareLater?.() ?? Promise.resolve();
 	if (totalChunkFrames && mode === 'offline') {
@@ -307,6 +320,7 @@ interface BufferPlanOptions {
 	readonly reversedBuffers: WeakMap<AudioBuffer, AudioBuffer>;
 	readonly activeSources: Set<AudioScheduledSourceNode>;
 	readonly allNodes: AudioNodeArray;
+	readonly beforeStart?: ((startTime: number) => void) | null;
 }
 
 function scheduleBufferPlan({
@@ -319,6 +333,7 @@ function scheduleBufferPlan({
 	reversedBuffers,
 	activeSources,
 	allNodes,
+	beforeStart = null,
 }: BufferPlanOptions): void {
 	if (!plan.originalBuffer) return;
 	const transientNodes = getTransientNodes(allNodes);
@@ -345,6 +360,13 @@ function scheduleBufferPlan({
 		timelineRate,
 		plan,
 	);
+	if (beforeStart) {
+		try { beforeStart(startTime); }
+		catch (error) {
+			releaseTransientNodes(transientNodes, scheduledNodes);
+			throw error;
+		}
+	}
 	try {
 		source.start(startTime, plan.offsetFrame / buffer.sampleRate, plan.segmentDuration * plan.playbackRate);
 		activeSources.add(source);
