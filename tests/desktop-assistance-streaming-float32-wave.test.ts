@@ -37,10 +37,13 @@ test('rollback preserves an assistance WAV after its publication was committed',
 	await sink.publish();
 	await sink.commit();
 	const committed = await readFile(outputPath);
+	assert.deepEqual(committed, Buffer.from(
+		'524946462c00000057415645666d7420100000000300010080bb000000ee020004002000'
+		+ '64617461080000000000803e000000bf', 'hex',
+	));
 
 	await sink.rollback();
 
-	assert.equal(committed.byteLength, geometry.byteLength);
 	assert.deepEqual(await readFile(outputPath), committed);
 });
 

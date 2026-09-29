@@ -71,10 +71,10 @@ test('the encode output ceiling budgets audio alongside raw video', () => {
 	const withoutAudio = framescaperNativeMediaV14OutputCeiling({
 		...base, plan: { ...base.plan, output: { ...base.plan.output, includeAudio: false } },
 	} as never);
-	// Ten seconds of PCM stereo alone outweighs 64x64 raw video, so a ceiling
-	// without an audio term refused correct completed exports at the lease.
-	assert.ok(withAudio - withoutAudio >= 10 * 48_000 * 8,
-		'a music-heavy small-canvas export must fit its output grant');
+	// Ten seconds of PCM can outweigh 64x64 raw video; the grant reserves
+	// worst-case eight-channel float32 plus its rounding margin.
+	assert.equal(withAudio - withoutAudio, 10 * 48_000 * 32 + 32,
+		'the ten-second export reserves eight-channel float32 PCM and its rounding margin');
 });
 
 test('the web fallback backend never executes through the native helper', async () => {
