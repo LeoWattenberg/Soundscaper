@@ -87,7 +87,7 @@ test('the shared finishing placement preserves portrait geometry for exact outpu
 		width: 2, height: 4,
 		pixels: new Uint8Array(2 * 4 * 4).fill(255),
 	});
-	const alphaAt = (fit: 'contain' | 'cover' | 'stretch', x: number, y: number) => {
+	const pixelAt = (fit: 'contain' | 'cover' | 'stretch', x: number, y: number) => {
 		const placement = resolveFramescaperVisualPlacementFinishing(entry, { width: 8, height: 4, fit });
 		const output = placeUnifiedExactLinearRgbaFrameV13({
 			frame,
@@ -97,11 +97,11 @@ test('the shared finishing placement preserves portrait geometry for exact outpu
 			outputHeight: 4,
 			renderDescription: placement.renderDescription,
 		});
-		return output.pixels[(y * 8 + x) * 4 + 3];
+		return Array.from(output.pixels.subarray((y * 8 + x) * 4, (y * 8 + x + 1) * 4));
 	};
 
-	assert.equal(alphaAt('contain', 0, 0), 0, 'contain must retain side bars');
-	assert.equal(alphaAt('contain', 3, 0), 1, 'contain must retain the portrait pixels');
-	assert.equal(alphaAt('cover', 0, 0), 1, 'cover must fill by cropping');
-	assert.equal(alphaAt('stretch', 0, 0), 1, 'stretch must fill by reframing');
+	assert.deepEqual(pixelAt('contain', 0, 0), [0, 0, 0, 0], 'contain must retain transparent side bars');
+	assert.deepEqual(pixelAt('contain', 3, 0), [1, 1, 1, 1], 'contain must retain the white portrait pixels');
+	assert.deepEqual(pixelAt('cover', 0, 0), [1, 1, 1, 1], 'cover must fill by cropping');
+	assert.deepEqual(pixelAt('stretch', 0, 0), [1, 1, 1, 1], 'stretch must fill by reframing');
 });

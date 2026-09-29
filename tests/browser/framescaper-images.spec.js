@@ -97,6 +97,7 @@ test.describe('Framescaper selected timeline images', () => {
 			const media = new Blob([bytes], { type: 'video/mp4' });
 			const mediaUrl = URL.createObjectURL(media);
 			let centerPixel;
+			let dimensions;
 			try {
 				const video = document.createElement('video');
 				video.muted = true;
@@ -111,6 +112,7 @@ test.describe('Framescaper selected timeline images', () => {
 					video.src = mediaUrl;
 					video.load();
 				});
+				dimensions = [video.videoWidth, video.videoHeight];
 				const canvas = document.createElement('canvas');
 				canvas.width = 64;
 				canvas.height = 64;
@@ -124,14 +126,17 @@ test.describe('Framescaper selected timeline images', () => {
 			return {
 				byteLength: bytes.byteLength,
 				box: String.fromCharCode(...bytes.subarray(4, 8)),
+				dimensions,
 				centerPixel,
 			};
 		}, encoded);
 		expect(witness.byteLength).toBeGreaterThan(32);
 		expect(witness.box).toBe('ftyp');
-		expect(witness.centerPixel[0]).toBeGreaterThan(160);
-		expect(witness.centerPixel[1]).toBeLessThan(96);
-		expect(witness.centerPixel[2]).toBeLessThan(96);
+		expect(witness.dimensions).toEqual([64, 64]);
+		// H.264 is lossy; each decoded channel should stay near the fixture's #ff2000.
+		for (const [channel, expected] of [255, 32, 0].entries()) {
+			expect(Math.abs(witness.centerPixel[channel] - expected)).toBeLessThanOrEqual(12);
+		}
 		expect(witness.centerPixel[3]).toBe(255);
 		expect(clientErrors).toEqual([]);
 	});

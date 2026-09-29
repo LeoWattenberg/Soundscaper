@@ -216,11 +216,9 @@ test('the authored clip presentation is carried into the cell the strip composit
 	const faded = await brightness(0.25);
 
 	assert.deepEqual(opaque, [255, 255, 255, 255], 'a white plate at full opacity fills the cell');
-	assert.equal(faded[3], 255, 'the plan background keeps the cell opaque');
-	assert.ok(
-		faded[0]! > 0 && faded[0]! < opaque[0]!,
-		`an authored quarter opacity must dim the plate, not drop it: ${String(faded)}`,
-	);
+	const rec709QuarterWhite = Math.round((1.099 * Math.pow(0.25, 0.45) - 0.099) * 255);
+	assert.deepEqual(faded, [rec709QuarterWhite, rec709QuarterWhite, rec709QuarterWhite, 255],
+		'a quarter-opacity white plate is encoded over opaque black in Rec.709');
 });
 
 test('an odd or undersized filmstrip box is rounded down to the even dimensions the codec admits', async (t) => {

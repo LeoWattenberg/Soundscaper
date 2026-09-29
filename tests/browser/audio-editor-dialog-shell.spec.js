@@ -2,6 +2,11 @@ import { expect } from '@playwright/test';
 import { longTone, test } from './audio-editor-test-fixtures.js';
 import { chooseNestedCommandAction, clipByName, getMenuItem, importFiles, waitForEditor } from './audio-editor-test-helpers.js';
 import { closeWorkspacePanel } from './helpers/workspace-panel-chrome.js';
+import { darkTheme } from '../../vendor/audacity-design-system/tokens/src/themes/dark.v2.ts';
+import { lightTheme } from '../../vendor/audacity-design-system/tokens/src/themes/light.v2.ts';
+
+const cssColor = (hex) => `rgb(${[1, 3, 5].map((offset) =>
+	Number.parseInt(hex.slice(offset, offset + 2), 16)).join(', ')})`;
 
 test.describe('shared audio editor dialog behavior', () => {
 	test('traps modal focus and supports Escape and outside dismissal', async ({ page }) => {
@@ -171,6 +176,7 @@ test.describe('shared audio editor dialog behavior', () => {
 		for (const theme of ['dark', 'light']) {
 			await page.evaluate((nextTheme) => { document.documentElement.dataset.theme = nextTheme; }, theme);
 			await expect(editor).toHaveCSS('color-scheme', theme);
+			const palette = theme === 'dark' ? darkTheme : lightTheme;
 			const appearance = await stepper.evaluate((element) => {
 				const input = element.querySelector('.number-stepper__input');
 				const arrow = element.querySelector('.number-stepper__arrow');
@@ -193,6 +199,7 @@ test.describe('shared audio editor dialog behavior', () => {
 					sequenceInputBorder: sequenceInputStyle.borderWidth,
 				};
 			});
+			expect(appearance.controlBackground).toBe(cssColor(palette.background.control.input.idle));
 			expect(appearance.stepperBackground).toBe(appearance.controlBackground);
 			expect(appearance.arrowBackground).toBe('rgba(0, 0, 0, 0)');
 			expect(appearance.inputBackground).toBe('rgba(0, 0, 0, 0)');

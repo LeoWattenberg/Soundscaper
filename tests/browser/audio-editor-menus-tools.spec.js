@@ -1,4 +1,5 @@
 import { darkTheme } from '../../vendor/audacity-design-system/tokens/src/themes/dark.v2.ts';
+import { lightTheme } from '../../vendor/audacity-design-system/tokens/src/themes/light.v2.ts';
 import { expect, monoTone, test, toneA } from './audio-editor-test-fixtures.js';
 import {
 	bootEditor,
@@ -19,6 +20,9 @@ import {
 	seekOnRuler,
 	setDocumentTheme,
 } from './audio-editor-test-helpers.js';
+
+const cssColor = (hex) => `rgb(${[1, 3, 5].map((offset) =>
+	Number.parseInt(hex.slice(offset, offset + 2), 16)).join(', ')})`;
 
 test.describe('audio editor React/design-system workflows', () => {
 	registerAudioEditorHooks();
@@ -481,10 +485,11 @@ test.describe('audio editor React/design-system workflows', () => {
 
 		await setDocumentTheme(page, 'light');
 		const applicationHeader = editor.locator('.kw-audio-editor__application-header');
-		const lightBackground = await applicationHeader.evaluate((element) => getComputedStyle(element).getPropertyValue('--header-bg'));
+		await expect(applicationHeader).toHaveCSS('--header-bg', lightTheme.background.surface.default);
+		await expect(applicationHeader).toHaveCSS('background-color', cssColor(lightTheme.background.surface.default));
 		await setDocumentTheme(page, 'dark');
-		const darkBackground = await applicationHeader.evaluate((element) => getComputedStyle(element).getPropertyValue('--header-bg'));
-		expect(darkBackground).not.toBe(lightBackground);
+		await expect(applicationHeader).toHaveCSS('--header-bg', darkTheme.background.surface.default);
+		await expect(applicationHeader).toHaveCSS('background-color', cssColor(darkTheme.background.surface.default));
 
 		// The timeline still holds only an empty audio track, so there is nothing
 		// for a delivery to render and File > Export audio withholds itself.

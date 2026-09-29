@@ -10,6 +10,8 @@ import {
 	seekOnRuler,
 	showToolbarButton,
 } from './audio-editor-test-helpers.js';
+import { darkTheme } from '../../vendor/audacity-design-system/tokens/src/themes/dark.v2.ts';
+import { lightTheme } from '../../vendor/audacity-design-system/tokens/src/themes/light.v2.ts';
 
 async function dragRulerSelection(page, editor) {
 	const ruler = editor.locator('[data-ruler-interaction]');
@@ -269,8 +271,19 @@ test.describe('Soundscaper timeline selection rendering', () => {
 		expect(outline.capBottom).toBe('2px');
 		expect(outline.capRight).toBe('0px');
 		expect(outline.capInnerRadius).toBe('0px');
-		expect(Number.parseFloat(outline.capOuterRadius)).toBeGreaterThan(0);
+		expect(outline.capOuterRadius).toBe('4px');
 		expect(outline.laneShadow).toBe('none');
+		const theme = await page.locator('html').getAttribute('data-theme');
+		const palette = theme === 'dark' ? darkTheme : lightTheme;
+		const expectedSelectionColor = await editor.evaluate((root, accent) => {
+			const probe = document.createElement('div');
+			probe.style.borderTop = `2px solid color-mix(in srgb, ${accent} 78%, white)`;
+			root.append(probe);
+			const color = getComputedStyle(probe).borderTopColor;
+			probe.remove();
+			return color;
+		}, palette.accent.primary);
+		expect(outline.capColor).toBe(expectedSelectionColor);
 		for (const bar of [outline.top, outline.bottom]) {
 			expect(bar.height).toBe('2px');
 			expect(bar.width).toBe(outline.rowWidth);

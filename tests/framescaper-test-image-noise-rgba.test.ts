@@ -79,9 +79,10 @@ test('one-pixel color noise still animates with no source media', () => {
 	const frame = (outputOrdinal: number) => renderVideoNoiseRgba({
 		mode: 'color', grainSize: 1, seed: 0, width: 1, height: 1, outputOrdinal,
 	});
-	assert.notDeepEqual(frame(0).pixels, frame(1).pixels);
-	assert.notDeepEqual(frame(255).pixels, frame(256).pixels);
-	assert.equal(pixel(frame(1), 0, 0)[3], 255);
+	assert.deepEqual(pixel(frame(0), 0, 0), [0, 31, 193, 255]);
+	assert.deepEqual(pixel(frame(1), 0, 0), [1, 33, 221, 255]);
+	assert.deepEqual(pixel(frame(255), 0, 0), [255, 28, 102, 255]);
+	assert.deepEqual(pixel(frame(256), 0, 0), [0, 139, 231, 255]);
 });
 
 test('noise rejects invalid output ordinals and generation dimensions', () => {
