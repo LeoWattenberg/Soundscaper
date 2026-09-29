@@ -194,3 +194,7 @@ worker-to-worklet MessageChannel. The main thread still serves storage reads and
 transport control. Live playback prepares streamed clips within a five-second
 lookahead, with at most eight preparations in flight; realtime rendering keeps
 its eager preparation and completion barrier.
+
+The proposed [realtime stack parallelism design](realtime-stack-parallelism-design.md)
+defines a shared block pipeline and a bounded DSP worker pool for independent
+effect stacks, including latency, automation, and buffer ownership requirements.
