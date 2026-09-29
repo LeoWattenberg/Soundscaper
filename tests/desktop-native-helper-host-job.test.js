@@ -124,9 +124,18 @@ function recordedRunner(recorder) {
 
 test('a hosted instance is released on the path that succeeds', async () => {
 	const recorder = recordingAddon();
-	await recordedRunner(recorder)({ grant: RECORDED_GRANT, onProgress: () => {} }).completion;
+	const result = await recordedRunner(recorder)({ grant: RECORDED_GRANT, onProgress: () => {} }).completion;
+	assert.deepEqual(result, {
+		format: 'fixture', binarySha256: RECORDED_GRANT.binarySha256,
+		reportedLatencyFrames: 64, latencyStable: true,
+		blockFrames: 256, blocksRendered: HOST_PROBE_BLOCKS,
+		renderedSha256: '4fe7b59af6de3b665b67788cc2f99892ab827efae3a467342b3bb4e3bc8e5bfe',
+		stateBytes: 8, stateRefusal: null,
+	});
 	assert.equal(recorder.live(), 0, 'a probed plug-in must not stay resident in a long-lived helper');
-	assert.equal(recorder.events.at(-1), 'close', 'the instance is released after its state is read');
+	assert.deepEqual(recorder.events, [
+		'open', ...Array.from({ length: HOST_PROBE_BLOCKS }, () => 'process'), 'save', 'close',
+	], 'the instance is released after its state is read');
 	assert.deepEqual(recorder.selections, ['fixture:gain']);
 });
 
@@ -137,7 +146,7 @@ test('a hosted instance is released when the plug-in fails mid-probe', async () 
 		/the plug-in aborted/u,
 	);
 	assert.equal(recorder.live(), 0);
-	assert.equal(recorder.events.filter((event) => event === 'close').length, 1);
+	assert.deepEqual(recorder.events, ['open', 'process', 'process', 'close']);
 });
 
 test('a cancelled host job releases its instance and never saves state through it', async () => {

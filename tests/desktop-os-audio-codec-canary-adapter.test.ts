@@ -85,9 +85,9 @@ test('canary decodes embedded MP3 through the supervised runner and binds an exa
 		contractVersion: 1, status: 'passed', target: 'win-x64', osVersion: '10.0.26100',
 		capabilityId: capability.id, capabilityDigest: digest(JSON.stringify(capability)),
 		implementation: 'windows-media-foundation', nativeApiReached: true,
-		exactTuplePassed: true, resultDigest: result.resultDigest,
+		exactTuplePassed: true,
+		resultDigest: '7ad53f8ca64fddfac46a4344d7dbb5713d1c7e6c69134ba770d3ca7761f03f70',
 	});
-	assert.match(result.resultDigest, /^[a-f0-9]{64}$/u);
 });
 
 test('canary decodes embedded AAC-LC M4A through the reviewed native method', async () => {
@@ -117,7 +117,7 @@ test('canary decodes embedded AAC-LC M4A through the reviewed native method', as
 	if (result.status !== 'passed') assert.fail('The exact AAC-LC M4A canary must pass.');
 	assert.equal(result.capabilityId, aacCapability.id);
 	assert.equal(result.implementation, 'apple-audiotoolbox-avfoundation');
-	assert.match(result.resultDigest, /^[a-f0-9]{64}$/u);
+	assert.equal(result.resultDigest, 'c8186e1c27190b5e8b33fcf03c54e5524db8bebdb6390b011c3e9e3c017f5fa2');
 });
 
 test('canary encodes deterministic float PCM and verifies exact AAC-LC M4A output', async () => {
@@ -150,7 +150,7 @@ test('canary encodes deterministic float PCM and verifies exact AAC-LC M4A outpu
 	assert.equal(result.status, 'passed');
 	if (result.status !== 'passed') assert.fail('The exact AAC encode canary must pass.');
 	assert.equal(result.capabilityId, aacEncodeCapability.id);
-	assert.match(result.resultDigest, /^[a-f0-9]{64}$/u);
+	assert.equal(result.resultDigest, 'd4d75d166275936a40627b3604a6570a556ea6efddab419c8123e1333a973510');
 });
 
 test('canary verifies exact Windows MP3 encode but never advertises it on macOS', async () => {
@@ -176,6 +176,8 @@ test('canary verifies exact Windows MP3 encode but never advertises it on macOS'
 		target: 'win-x64', runner,
 	}).runCanary(mp3Request, new AbortController().signal);
 	assert.equal(result.status, 'passed');
+	if (result.status !== 'passed') assert.fail('The exact MP3 encode canary must pass.');
+	assert.equal(result.resultDigest, '5b02220124df62ee621a867763da16a96334ca9a1267a30140b49345890b494a');
 	assert.equal(calls, 1);
 
 	const macRequest = request({

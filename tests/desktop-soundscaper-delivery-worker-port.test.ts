@@ -80,11 +80,26 @@ test('one authenticated owner-scoped worker port carries bounded backpressured m
 	assert.deepEqual(await request(channel.port2, 3, 'write-finish', { writeId: WRITE }), {
 		byteLength: 4,
 	});
-	assert.match(String(await request(channel.port2, 4, 'complete', { report: deliveryReport() })), /completed/u);
-	assert.ok(calls.some(({ name, value }) => name === 'writeChunk'
-		&& (value as { bytes: Uint8Array }).bytes.byteLength === 4));
-	assert.ok(calls.some(({ name, value }) => name === 'complete'
-		&& (value as { currentAuthority: unknown }).currentAuthority));
+	assert.equal(await request(channel.port2, 4, 'complete', { report: deliveryReport() }), 'completed');
+	assert.deepEqual(calls.map(({ name }) => name), [
+		'claimNext', 'progress', 'beginWrite', 'writeChunk', 'complete',
+	]);
+	assert.deepEqual(calls[1]?.value, { claimId: CLAIM, progress: 0.25 });
+	assert.deepEqual(calls[2]?.value, { claimId: CLAIM, fileName: 'master.wav', size: 4 });
+	assert.deepEqual(calls[3]?.value, { writeId: WRITE, offset: 0, bytes: Uint8Array.of(1, 2, 3, 4) });
+	const completed = calls[4]?.value as {
+		claimId: string; report: unknown; currentAuthority: unknown;
+		revalidateAuthority: () => Promise<unknown>;
+	};
+	assert.deepEqual({
+		claimId: completed.claimId, report: completed.report, currentAuthority: completed.currentAuthority,
+	}, {
+		claimId: CLAIM, report: deliveryReport(),
+		currentAuthority: { projectIdentity: PROJECT, planFingerprint: DESCRIPTION.planFingerprint },
+	});
+	assert.deepEqual(await completed.revalidateAuthority(), {
+		projectIdentity: PROJECT, planFingerprint: DESCRIPTION.planFingerprint,
+	});
 	await registration.dispose();
 	assert.equal(listeners.size, 0);
 });
