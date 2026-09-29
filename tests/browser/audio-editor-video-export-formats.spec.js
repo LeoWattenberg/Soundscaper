@@ -10,11 +10,15 @@ import { createDeterministicSilentVideoFixture } from './fixtures/deterministic-
 
 test.describe('video container exporters', () => {
 	registerAudioEditorHooks();
-	for (const [label, extension, mimeType, source] of [
-		['MP4 video', 'mp4', 'video/mp4', videoRetimePreviewMedia.file],
-		['WebM video', 'webm', 'video/webm', videoRetimePreviewMedia.file],
-		['MP4 video', 'mp4', 'video/mp4', createDeterministicSilentVideoFixture('recorded.webm')],
-		['WebM video', 'webm', 'video/webm', createDeterministicSilentVideoFixture('recorded.webm')],
+	for (const [label, extension, mimeType, source, dimensions] of [
+		['MP4 video', 'mp4', 'video/mp4', videoRetimePreviewMedia.file,
+			{ width: videoRetimePreviewMedia.width, height: videoRetimePreviewMedia.height }],
+		['WebM video', 'webm', 'video/webm', videoRetimePreviewMedia.file,
+			{ width: videoRetimePreviewMedia.width, height: videoRetimePreviewMedia.height }],
+		['MP4 video', 'mp4', 'video/mp4', createDeterministicSilentVideoFixture('recorded.webm'),
+			{ width: 96, height: 54 }],
+		['WebM video', 'webm', 'video/webm', createDeterministicSilentVideoFixture('recorded.webm'),
+			{ width: 96, height: 54 }],
 	]) {
 		test(`${label} downloads a playable container from ${source.name}`, async ({ page }) => {
 			test.setTimeout(90000);
@@ -57,8 +61,7 @@ test.describe('video container exporters', () => {
 			// Delivery rounds the final partial frame up to its frame-rate boundary.
 			expect(metadata.duration).toBeGreaterThanOrEqual(sourceDuration - 0.01);
 			expect(metadata.duration).toBeLessThan(sourceDuration + 0.1);
-			expect(metadata.width).toBeGreaterThan(0);
-			expect(metadata.height).toBeGreaterThan(0);
+			expect(metadata).toMatchObject(dimensions);
 			expect(errors).toEqual([]);
 		});
 	}

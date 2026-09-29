@@ -60,14 +60,31 @@ test.describe('label and interchange exporters', () => {
 			const download = await downloadPromise;
 			expect(download.suggestedFilename()).toMatch(new RegExp(`\\.${extension}$`));
 			const text = (await readFile(await download.path(), 'utf8')).replace(/^\uFEFF/, '');
-			expect(text).toContain('Intro caption');
 			if (extension === 'json') {
 				const document = JSON.parse(text);
-				expect(document.chapters).toHaveLength(2);
-				expect(document.chapters[0]).toMatchObject({ startTime: 0.25, title: 'Intro caption' });
-			} else if (extension === 'txt') expect(text).toMatch(/0\.25\d*\t1\.5\d*\tIntro caption/);
-			else expect(text).toContain(extension === 'srt'
-				? '00:00:00,250 --> 00:00:01,500' : '00:00:00.250 --> 00:00:01.500');
+				expect(document).toEqual({
+					version: '1.2.0',
+					chapters: [
+						{ startTime: 0.25, title: 'Intro caption' },
+						{ startTime: 2, title: 'Outro caption' },
+					],
+				});
+			} else if (extension === 'txt') {
+				expect(text).toBe('0.25\t1.5\tIntro caption\n2\t3.25\tOutro caption\n');
+			} else {
+				const separator = extension === 'srt' ? ',' : '.';
+				expect(text).toBe([
+					...(extension === 'vtt' ? ['WEBVTT', ''] : []),
+					'1',
+					`00:00:00${separator}250 --> 00:00:01${separator}500`,
+					'Intro caption',
+					'',
+					'2',
+					`00:00:02${separator}000 --> 00:00:03${separator}250`,
+					'Outro caption',
+					'',
+				].join('\n'));
+			}
 			await expect(dialog).toBeHidden();
 			expect(errors).toEqual([]);
 		});
