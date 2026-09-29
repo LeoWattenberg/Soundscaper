@@ -21,6 +21,6 @@ This audit closed **125 distinct bug or coverage-gap cases** with 101 new named 
 
 The shared-editor cases cover missing and short PCM channels, invalid frame geometry and destination capacity, truncated WAV/AIFF/FLAC/ADTS/WavPack headers, embedded FLAC/Ogg signatures, container variants, and CUE encoding, chronology, and limits. The Soundscaper cases cover runtime mixer input types and repository save/load ownership. The desktop cases cover capacity tickets, bounded reads, native child framing, transfer-port ownership, and linked-file identity. The Framescaper cases cover report object shape, spool write and cleanup ordering, and frame-pack publication.
 
-The fixes are in eight focused commits after `81b7d43b2`: `08cde5b18`, `4f973f180`, `1f0e74d08`, `cbd6b2207`, `4055142c1`, `8f5d8382d`, `a69f72091`, and `d8a35bc14`.
+The 125 audited cases were fixed in eight focused commits after `81b7d43b2`: `08cde5b18`, `4f973f180`, `1f0e74d08`, `cbd6b2207`, `4055142c1`, `8f5d8382d`, `a69f72091`, and `d8a35bc14`. Full-shard verification also exposed two stale parallel-stack test fixtures; `3b0f2eafa` replaces their partial plans with compiled plans.
 
 The changes do not alter the desktop assistance runtime closure. A manual **Update AI assets** run is not required.
