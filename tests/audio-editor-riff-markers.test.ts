@@ -3,6 +3,8 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import { createRiffMarkerChunks, parseRiffMarkers } from '../src/common/editor/riff-markers.ts';
+import { inspectWavBlobPcm } from '../src/common/editor/wav-import.js';
+import { encodeWav } from '../src/common/editor/wav.js';
 
 test('RIFF cue and adtl chunks round-trip point markers, regions, labels, and notes', () => {
 	const bytes = createRiffMarkerChunks([
@@ -28,6 +30,44 @@ test('RIFF marker normalization rejects unsafe offsets and resolves duplicate ge
 	const cueSize = view(bytes).getUint32(4, true);
 	assert.deepEqual(parseRiffMarkers(bytes.subarray(8, 8 + cueSize)).map(({ id }) => id), [1, 2]);
 });
+
+test('WAV import keeps valid INFO when cue markers are malformed', async () => {
+	const wav = encodeWav([Float32Array.of(0.25)], {
+		metadata: { title: 'Field recording' },
+		markers: [{ id: 7, sampleOffset: 0, label: 'Start' }],
+	});
+	view(wav).setUint32(findChunk(wav, 'cue ') + 8, 2, true);
+	const descriptor = await inspectWavBlobPcm(new Blob([new Uint8Array(wav)]));
+	assert.deepEqual(descriptor.markers, []);
+	assert.deepEqual(descriptor.info, { title: 'Field recording' });
+	assert.equal(descriptor.metadataWarnings.some((warning) => warning.code === 'riff-markers-invalid'), true);
+});
+
+test('WAV import keeps valid cue markers when INFO is malformed', async () => {
+	const wav = encodeWav([Float32Array.of(0.25)], {
+		metadata: { title: 'Field recording' },
+		markers: [{ id: 7, sampleOffset: 0, label: 'Start' }],
+	});
+	view(wav).setUint32(findChunk(wav, 'LIST', 'INFO') + 16, 0xffff_ffff, true);
+	const descriptor = await inspectWavBlobPcm(new Blob([new Uint8Array(wav)]));
+	assert.deepEqual(descriptor.markers, [{
+		id: 7, sampleOffset: 0, sampleLength: 0, label: 'Start', note: '',
+	}]);
+	assert.deepEqual(descriptor.info, {});
+	assert.equal(descriptor.metadataWarnings.some((warning) => warning.code === 'riff-info-invalid'), true);
+});
+
+function findChunk(bytes: Uint8Array, id: string, listType?: string): number {
+	const data = view(bytes);
+	for (let offset = 12; offset + 8 <= bytes.length;) {
+		const size = data.getUint32(offset + 4, true);
+		if (text(bytes, offset, 4) === id && (!listType || text(bytes, offset + 8, 4) === listType)) {
+			return offset;
+		}
+		offset += 8 + size + (size & 1);
+	}
+	throw new Error(`No ${id} chunk was found.`);
+}
 
 function view(bytes: Uint8Array): DataView {
 	return new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
