@@ -361,8 +361,8 @@ test('canonicalization preserves simple buffers and downmixes multichannel input
 	const centre = await canonicalizeBuffer(bufferFixture([
 		Float32Array.of(0), Float32Array.of(0), Float32Array.of(1),
 	]), audioContextFixture(), null, copy);
-	assert.equal(centre.getChannelData(0)[0], centre.getChannelData(1)[0]);
-	assert.ok(centre.getChannelData(0)[0]! > 0);
+	const expectedCentre = Math.fround(Math.SQRT1_2 * 0.5);
+	assert.deepEqual([centre.getChannelData(0)[0], centre.getChannelData(1)[0]], [expectedCentre, expectedCentre]);
 	const stereo = await canonicalizeBuffer(bufferFixture([
 		Float32Array.of(1), Float32Array.of(1), Float32Array.of(0),
 	]), audioContextFixture(), null, copy);

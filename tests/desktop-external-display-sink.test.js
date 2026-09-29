@@ -57,6 +57,8 @@ test('the dedicated sandbox sink verifies and presents one exact SDR RGBA frame'
 	});
 	assert.equal(draws.length, 1);
 	assert.equal(draws[0].image.width, 2);
+	assert.equal(draws[0].image.height, 1);
+	assert.deepEqual([...draws[0].image.bytes], [...rgba], 'the sink presents the exact two RGBA pixels');
 	assert.deepEqual(JSON.parse(JSON.stringify(acknowledgements)), [
 		{ version: 1, type: 'presented', sequence: 1, sha256 },
 	]);
@@ -100,6 +102,11 @@ test('the dedicated sink admits a frame larger than one 16 MiB data-plane chunk'
 	const width = 2_048;
 	const height = 2_049;
 	const rgba = new Uint8Array(width * height * 4);
+	const chunkSeam = 16 * 1024 * 1024;
+	rgba[0] = 0x12;
+	rgba[chunkSeam - 1] = 0x34;
+	rgba[chunkSeam] = 0x56;
+	rgba[rgba.length - 1] = 0x78;
 	const sha256 = createHash('sha256').update(rgba).digest('hex');
 	port.onmessage({ data: {
 		version: 1, type: 'frame', sequence: 2, evaluationFingerprint: 'cd'.repeat(32),
@@ -109,7 +116,13 @@ test('the dedicated sink admits a frame larger than one 16 MiB data-plane chunk'
 		turns: 100, delayMs: 5,
 	});
 	assert.equal(draws.length, 1);
+	assert.deepEqual([draws[0].width, draws[0].height], [width, height]);
 	assert.equal(draws[0].bytes.byteLength, rgba.byteLength);
+	assert.deepEqual([
+		draws[0].bytes[0], draws[0].bytes[chunkSeam - 1],
+		draws[0].bytes[chunkSeam], draws[0].bytes.at(-1),
+	], [0x12, 0x34, 0x56, 0x78], 'frame bytes survive both sides of the 16 MiB chunk boundary');
+	assert.equal(createHash('sha256').update(draws[0].bytes).digest('hex'), sha256);
 	assert.equal(acknowledgements[0].sequence, 2);
 });
 

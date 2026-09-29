@@ -23,6 +23,7 @@ const SHA = 'a7'.repeat(32);
 
 test('main reopens exact canonical V14 authority and resolves the enabled fingerprint itself', async () => {
 	const fixture = requestFixture();
+	const renderedPixels = Uint8Array.from({ length: fixture.frameBytes }, (_, index) => 23 + index);
 	const observed: FramescaperOpenFxExecutionRequestV1[] = [];
 	const projectEffects: unknown[] = [];
 	const service = createFramescaperOpenFxFrameExecutionService({
@@ -36,7 +37,7 @@ test('main reopens exact canonical V14 authority and resolves the enabled finger
 		timingAssets: async () => [],
 		execute: async (request) => {
 			observed.push(request);
-			return { mode: 'render', rgba: new Uint8Array(fixture.frameBytes).fill(23),
+			return { mode: 'render', rgba: renderedPixels,
 				availability: 'available', authoredStatePreserved: true,
 				backend: 'cpu', retriedOnCpu: true, reportsDegradation: true,
 				output: { streamId: 'ab'.repeat(20), byteLength: fixture.frameBytes, sha256: SHA },
@@ -50,7 +51,8 @@ test('main reopens exact canonical V14 authority and resolves the enabled finger
 	assert.equal(projectEffects.length, 1);
 	assert.equal(result.mode, 'render');
 	if (result.mode === 'render') {
-		assert.equal(result.rgba.pixels[0], 23);
+		assert.deepEqual(result.rgba.pixels, renderedPixels,
+			'every renderer pixel reaches the frame execution result in order');
 		assert.equal(result.retriedOnCpu, true);
 	}
 });

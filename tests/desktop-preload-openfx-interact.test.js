@@ -39,7 +39,7 @@ test('OpenFX Interact crosses preload as exact normalized actions and copied 64 
 				modifiers: [] },
 		],
 	};
-	const rgba = new Uint8Array(64 * 64 * 4).fill(17);
+	const rgba = Uint8Array.from({ length: 64 * 64 * 4 }, (_, index) => index % 251);
 	const fixture = await loadPreload({
 		protocolVersion: 1, project: request.project, instanceId: effect.instanceId,
 		effectStateSha256: request.effectStateSha256, width: 64, height: 64, rowBytes: 256,
@@ -52,6 +52,8 @@ test('OpenFX Interact crosses preload as exact normalized actions and copied 64 
 	const result = await fixture.bridge.nativeServices.runOpenFxInteract(request);
 	assert.equal(result.rgba.byteLength, 16_384);
 	assert.notEqual(result.rgba, rgba);
+	assert.equal(result.rgba.every((byte, index) => byte === rgba[index]), true,
+		'the copied Interact surface retains every authored channel byte in order');
 	assert.notEqual(result.parameterMutations[0].parameter, effect.parameters[0]);
 	assert.equal(result.parameterMutations[0].parameter.value, 'after');
 	assert.deepEqual([...result.acceptedSequences], [0, 1, 2, 3, 4]);

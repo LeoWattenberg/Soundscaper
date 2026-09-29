@@ -131,7 +131,12 @@ test('cancelled media-folder search opens available SESX clips and reports missi
 	const result = await createNativeProjectService(fixture.runtime).openSesx(sessionFile());
 	assert.ok(result);
 	assert.equal(result.project.clips.length, 1);
-	assert.ok((result.report as { items: { code: string }[] }).items.some((item) => item.code === 'sesx.media-missing'));
+	assert.deepEqual(
+		(result.report as { items: { code: string; scope: unknown; data: unknown }[] }).items
+			.filter(({ code }) => code.startsWith('sesx.media-'))
+			.map(({ code, scope, data }) => ({ code, scope, data })),
+		[{ code: 'sesx.media-missing', scope: { kind: 'media', id: '1' }, data: { path: 'Audio/second.wav' } }],
+	);
 	assert.deepEqual(desktop.released, [SESSION_ID]);
 	assert.equal(desktop.folderCount(), 1);
 });
@@ -142,7 +147,12 @@ test('a bounded folder scan reports unresolved media and keeps already imported 
 	const result = await createNativeProjectService(fixture.runtime).openSesx(sessionFile());
 	assert.ok(result);
 	assert.equal(result.project.clips.length, 1);
-	assert.ok((result.report as { items: { code: string }[] }).items.some((item) => item.code === 'sesx.media-scan-limited'));
+	assert.deepEqual(
+		(result.report as { items: { code: string; scope: unknown; data: unknown }[] }).items
+			.filter(({ code }) => code.startsWith('sesx.media-'))
+			.map(({ code, scope, data }) => ({ code, scope, data })),
+		[{ code: 'sesx.media-scan-limited', scope: { kind: 'media', id: '1' }, data: { path: 'Audio/second.wav' } }],
+	);
 	assert.deepEqual(fixture.switched, [result.project.id]);
 	assert.deepEqual(desktop.released, [SESSION_ID]);
 });

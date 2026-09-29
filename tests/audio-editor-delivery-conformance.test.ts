@@ -118,13 +118,18 @@ test('a corrupted master fails its reopen check and the report says why', async 
 	const truncated = bytes.subarray(0, bytes.byteLength - 300);
 	const findings = await conformDeliveredAudio(plan as never, bytesSource(truncated), { inspect: inspect as never });
 
-	const failure = findings.find(({ severity }) => severity === 'error');
-	assert.ok(failure, 'a truncated master must not conform');
-	assert.match(failure.message, /could not be reopened|not the planned/u);
+	assert.deepEqual(
+		findings.filter(({ severity }) => severity === 'error').map(({ code, data }) => ({ code, data })),
+		[{
+			code: 'delivery.conformance-unreadable',
+			data: { format: 'wav', reason: 'The WAV RIFF payload is truncated.' },
+		}],
+		'a truncated master fails the specific reopen check',
+	);
 
 	assert.throws(() => assertDeliveryConformance(findings), (error: unknown) => {
 		assert.ok(error instanceof DeliveryConformanceError);
-		assert.ok(error.findings.length > 0, 'the failure carries the findings so the report can say why');
+		assert.deepEqual(error.findings, findings, 'the failure carries the exact reopen findings');
 		return true;
 	});
 });
