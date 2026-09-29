@@ -219,7 +219,7 @@ export interface EnginePublicApi {
 	playCutPreview(selection: EngineCutPreviewSelection): Promise<void>;
 	playAtSpeed(rate: number, options?: EnginePlayAtSpeedOptions): Promise<void>;
 	/** Resolves to the actual context start after asynchronous playback priming. */
-	playAt(contextTime: number, fromFrame?: number): Promise<number>;
+	playAt(contextTime: number, fromFrame?: number, onBeforeStart?: import('./clocked-playback-start.ts').ClockedPlaybackStartHook): Promise<number>;
 	/** Active graph delay, in AudioContext sample frames; zero when no graph is active. */
 	getPlaybackGraphLatencyFrames(): number;
 	/** Active playback's audible origin, in AudioContext seconds; null when playback is stopped. */

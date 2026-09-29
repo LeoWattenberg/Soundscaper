@@ -16,6 +16,7 @@ import {
 	connect,
 } from './audio-node-utils.ts';
 import { scheduleExactWarpPlayback } from './audio-warp-playback-scheduler.ts';
+import { confirmClockedPlaybackStart } from './clocked-playback-start.ts';
 import {
 	clampFrame,
 	DEFAULT_SAMPLE_RATE,
@@ -70,7 +71,7 @@ async [ENGINE_SCHEDULE_CURRENT_PLAYBACK](this: EngineRuntimeHost, fromFrame, sch
 		return this[ENGINE_SCHEDULE_PLAYBACK](fromFrame, scheduledTime);
 	},
 
-async [ENGINE_SCHEDULE_PREPARED_SPEED_PLAYBACK](this: EngineRuntimeHost, fromFrame, scheduledTime = this.context?.currentTime || 0, minimumStartLeadSeconds = 0) {
+async [ENGINE_SCHEDULE_PREPARED_SPEED_PLAYBACK](this: EngineRuntimeHost, fromFrame, scheduledTime = this.context?.currentTime || 0, minimumStartLeadSeconds = 0, onBeforeStart) {
 		const context = this.context;
 		const project = this.project;
 		const scrubGeneration = this.scrubGeneration;
@@ -87,6 +88,7 @@ async [ENGINE_SCHEDULE_PREPARED_SPEED_PLAYBACK](this: EngineRuntimeHost, fromFra
 				scheduledTime,
 				current,
 				minimumStartLeadSeconds,
+				onBeforeStart,
 			);
 		}
 		const prepared = this.preparedSpeedPlayback;
@@ -158,13 +160,18 @@ async [ENGINE_SCHEDULE_PREPARED_SPEED_PLAYBACK](this: EngineRuntimeHost, fromFra
 			effectMessageSequences: new Map(),
 			latencyFrames: 0,
 		};
+		const graph = this.graph;
 		try {
 			scheduledTime = Math.max(scheduledTime, context.currentTime + minimumStartLeadSeconds);
+			if (onBeforeStart) scheduledTime = await confirmClockedPlaybackStart(context, scheduledTime, onBeforeStart);
+			if (this.graph !== graph || graph.abortController.signal.aborted) {
+				throw new DOMException('Playback cancelled', 'AbortError');
+			}
 			this.playbackStartTime = scheduledTime;
 			source.start(scheduledTime, outputFrameAt(frame) / prepared.sampleRate);
 			sources.add(source);
 		} catch (error) {
-			this[ENGINE_HALT_GRAPH]();
+			if (this.graph === graph) this[ENGINE_HALT_GRAPH]();
 			throw error;
 		}
 		this[ENGINE_SET_STATE]('playing');
@@ -174,7 +181,7 @@ async [ENGINE_SCHEDULE_PREPARED_SPEED_PLAYBACK](this: EngineRuntimeHost, fromFra
 		return scheduledTime;
 	},
 
-async [ENGINE_SCHEDULE_PLAYBACK](this: EngineRuntimeHost, fromFrame, scheduledTime = this.context?.currentTime || 0, minimumStartLeadSeconds = 0) {
+async [ENGINE_SCHEDULE_PLAYBACK](this: EngineRuntimeHost, fromFrame, scheduledTime = this.context?.currentTime || 0, minimumStartLeadSeconds = 0, onBeforeStart) {
 		const context = this.context;
 		const project = this.project;
 		const scrubGeneration = this.scrubGeneration;
@@ -210,7 +217,7 @@ async [ENGINE_SCHEDULE_PLAYBACK](this: EngineRuntimeHost, fromFrame, scheduledTi
 		this.graph = preparedGraph;
 		if (meteringAtBuild !== (this.meterListeners.size > 0)) {
 			this[ENGINE_HALT_GRAPH]();
-			return this[ENGINE_SCHEDULE_PLAYBACK](fromFrame, context.currentTime, minimumStartLeadSeconds);
+			return this[ENGINE_SCHEDULE_PLAYBACK](fromFrame, context.currentTime, minimumStartLeadSeconds, onBeforeStart);
 		}
 		if (this.loop.enabled && this.loop.endFrame > this.loop.startFrame
 			&& (fromFrame < this.loop.startFrame || fromFrame >= this.loop.endFrame)) fromFrame = this.loop.startFrame;
@@ -253,6 +260,7 @@ async [ENGINE_SCHEDULE_PLAYBACK](this: EngineRuntimeHost, fromFrame, scheduledTi
 				onStreamUnderrun: recordWebCoreStreamUnderrun,
 				deferStartUntilPrimed: true,
 				minimumStartLeadSeconds,
+				onBeforeStart,
 			});
 		} catch (error) {
 			if (this.graph === graph) this[ENGINE_HALT_GRAPH]();
@@ -262,7 +270,7 @@ async [ENGINE_SCHEDULE_PLAYBACK](this: EngineRuntimeHost, fromFrame, scheduledTi
 		if (this.loop !== loopAtSchedule || this.playRange !== rangeAtSchedule
 			|| meteringAtSchedule !== (this.meterListeners.size > 0)) {
 			this[ENGINE_HALT_GRAPH]();
-			return this[ENGINE_SCHEDULE_PLAYBACK](fromFrame, context.currentTime, minimumStartLeadSeconds);
+			return this[ENGINE_SCHEDULE_PLAYBACK](fromFrame, context.currentTime, minimumStartLeadSeconds, onBeforeStart);
 		}
 		observeActiveStreamCompletion(this, graph, schedule.waitForStreamedClips);
 		recordWebCoreStreamPlayback(schedule.streamedClips);

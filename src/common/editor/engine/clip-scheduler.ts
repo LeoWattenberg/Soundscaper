@@ -10,6 +10,7 @@ import {
 	type AudioNodeArray,
 } from './audio-node-utils.ts';
 import { longSourceError, throwIfAborted } from './async-utils.ts';
+import { confirmClockedPlaybackStart, type ClockedPlaybackStartHook } from './clocked-playback-start.ts';
 import {
 	chunkChannels,
 	createClipGainChain,
@@ -124,6 +125,7 @@ export interface ScheduleProjectClipsOptions {
 	readonly deferStartUntilPrimed?: boolean;
 	/** Keep clocked capture starts ahead of the audio thread after asynchronous priming. */
 	readonly minimumStartLeadSeconds?: number;
+	readonly onBeforeStart?: ClockedPlaybackStartHook;
 	/**
 	 * How deep each streamed clip queues, and how much it banks before it starts.
 	 * Monitoring wants the shallow defaults so the transport responds; a render that
@@ -160,6 +162,7 @@ export async function scheduleProjectClips({
 	onStreamUnderrun = null,
 	deferStartUntilPrimed = false,
 	minimumStartLeadSeconds = 0,
+	onBeforeStart,
 	streamQueuePackets = null,
 	streamPrebufferPackets = null,
 }: ScheduleProjectClipsOptions): Promise<Readonly<{
@@ -252,9 +255,13 @@ export async function scheduleProjectClips({
 
 	const startLeadSeconds = Math.max(minimumStartLeadSeconds,
 		chunkPlans.length && deferStartUntilPrimed ? 0.02 : 0);
-	const actualContextStartTime = startLeadSeconds > 0
+	const candidateContextStartTime = startLeadSeconds > 0
 		? Math.max(contextStartTime, context.currentTime + startLeadSeconds)
 		: contextStartTime;
+	const actualContextStartTime = onBeforeStart
+		? await confirmClockedPlaybackStart(context, candidateContextStartTime, onBeforeStart)
+		: candidateContextStartTime;
+	throwIfAborted(signal);
 	scheduleProjectGains({
 		context,
 		project,

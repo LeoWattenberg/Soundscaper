@@ -19,10 +19,10 @@ const base = Object.freeze({
 
 test('ordinary recording timing owns count-in, clamping, seek, and context-frame conversion', () => {
 	const timing = planRecordingStartTiming({ ...base, timedStartTimeMs: null });
-	assert.equal(timing.scheduledTime, 10.08);
+	assert.equal(timing.scheduledTime, 10.25);
 	assert.equal(timing.availableLeadInFrames, 96_000);
 	assert.equal(timing.seekFrame, 24_000);
-	assert.equal(timing.captureStartFrame(10.08), 579_840);
+	assert.equal(timing.captureStartFrame(10.25), 588_000);
 
 	const clamped = planRecordingStartTiming({
 		...base,

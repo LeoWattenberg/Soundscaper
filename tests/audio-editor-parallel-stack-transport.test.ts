@@ -83,6 +83,23 @@ test('a meter added during worker startup receives a metered graph', async () =>
 	await engine.dispose();
 });
 
+test('a metering rebuild preserves the recorder start barrier', async () => {
+	const { engine, entered, release } = delayedPlayback();
+	let acknowledgements = 0;
+	const starting = engine.playAt(0, 0, async (candidate) => {
+		acknowledgements += 1;
+		return candidate;
+	});
+	await entered;
+	const unsubscribe = engine.subscribeMeters(() => {});
+	release();
+	await starting;
+	assert.equal(acknowledgements, 1);
+	unsubscribe();
+	engine.stop();
+	await engine.dispose();
+});
+
 test('a newer Play retires a still preparing Play without resurrecting its graph', async () => {
 	const { engine, runtime, entered, meteringRequests } = delayedPlayback();
 	const first = engine.play();
@@ -121,9 +138,51 @@ test('clocked playback reserves recorder startup time after parallel graph prepa
 	context.currentTime = 1;
 	release();
 	const scheduled = await starting;
-	assert.ok(scheduled >= 1.08, `source started too soon at ${String(scheduled)}`);
+	assert.ok(scheduled >= 1.25, `source started too soon at ${String(scheduled)}`);
 	assert.equal(context.bufferSources.at(-1)?.started?.[0], scheduled);
 	engine.stop();
+	await engine.dispose();
+});
+
+test('clocked playback waits for capture acknowledgement before scheduling a source', async () => {
+	const { engine, entered, release } = delayedPlayback();
+	const context = await engine.getAudioContext() as unknown as MockAudioContext;
+	let acknowledged = false;
+	const starting = engine.playAt(0, 0, async (candidate) => {
+		assert.equal(context.bufferSources.at(-1)?.started, undefined);
+		acknowledged = true;
+		return candidate + 0.125;
+	});
+	await entered;
+	context.currentTime = 1;
+	release();
+	const scheduled = await starting;
+	assert.equal(acknowledged, true);
+	assert.ok(scheduled >= 1.375, `source did not use the acknowledged origin: ${String(scheduled)}`);
+	assert.equal(context.bufferSources.at(-1)?.started?.[0], scheduled);
+	engine.stop();
+	await engine.dispose();
+});
+
+test('stopping during capture acknowledgement never starts the retired source', async () => {
+	const { engine, entered, release } = delayedPlayback();
+	const context = await engine.getAudioContext() as unknown as MockAudioContext;
+	let acknowledge: () => void = () => { throw new Error('The recorder was not armed.'); };
+	let armed: () => void = () => { throw new Error('The recorder was not armed.'); };
+	const armedPromise = new Promise<void>((resolve) => { armed = resolve; });
+	const acknowledged = new Promise<void>((resolve) => { acknowledge = resolve; });
+	const starting = engine.playAt(0, 0, async (candidate) => {
+		armed();
+		await acknowledged;
+		return candidate;
+	});
+	await entered;
+	release();
+	await armedPromise;
+	engine.stop();
+	acknowledge();
+	await assert.rejects(starting, /cancel|abort/iu);
+	assert.equal(context.bufferSources.at(-1)?.started, undefined);
 	await engine.dispose();
 });
 
@@ -146,7 +205,7 @@ test('clocked playback reserves recorder startup time with no clips after meter 
 	context.currentTime = 1;
 	release();
 	const scheduled = await starting;
-	assert.ok(scheduled >= 1.08, `source started too soon at ${String(scheduled)}`);
+	assert.ok(scheduled >= 1.25, `source started too soon at ${String(scheduled)}`);
 	assert.equal(engine.getPlaybackAudibleStartTime(), scheduled);
 	unsubscribe();
 	engine.stop();

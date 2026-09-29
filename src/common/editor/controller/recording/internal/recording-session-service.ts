@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { transitionRoutedRecordingSources } from './routed-recording-transition.ts';
+import { confirmRoutedRecordingStart } from './confirmed-recording-sources.ts';
 
 type MaybePromise<T> = T | PromiseLike<T>;
 
@@ -24,6 +25,8 @@ export interface RecordingControllerLike {
 
 export interface RecordingCaptureControllerLike extends RecordingControllerLike {
 	start(options?: Readonly<{ startFrame?: number; stopFrame?: number }>): void;
+	startConfirmed?(options: Readonly<{ startFrame: number; stopFrame?: number }>): Promise<Readonly<{ startFrame: number }>>;
+	rescheduleConfirmed?(options: Readonly<{ startFrame: number; stopFrame?: number }>): Promise<Readonly<{ startFrame: number }>>;
 	pause(): boolean | void;
 	resume(): boolean | void;
 	setMonitoring(enabled: boolean): void;
@@ -42,6 +45,7 @@ export interface RoutedRecordingSourceSession {
 export interface RoutedRecordingController extends RecordingControllerLike {
 	readonly state: 'ready' | 'recording' | 'paused' | 'stopping' | 'stopped' | 'disposed';
 	start(): void;
+	startConfirmed(minimumFutureFrame?: (attempt: number) => number, currentFrame?: () => number): Promise<number>;
 	pause(): boolean;
 	resume(): boolean;
 	stop(): Promise<void>;
@@ -179,6 +183,11 @@ export function createRoutedRecordingController(
 					stopFrame: session.stopFrame,
 				});
 			}
+		},
+		async startConfirmed(minimumFutureFrame, currentFrame) {
+			const frame = await confirmRoutedRecordingStart(sourceSessions, minimumFutureFrame, currentFrame);
+			controllerState = 'recording';
+			return frame;
 		},
 		pause() {
 			if (controllerState !== 'recording') return false;

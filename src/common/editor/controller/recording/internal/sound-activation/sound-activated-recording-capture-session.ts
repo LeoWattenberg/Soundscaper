@@ -148,21 +148,24 @@ export function createSoundActivatedRecordingCaptureSession(
 		controller: RecordingCaptureControllerLike,
 	): RecordingCaptureControllerLike {
 		if (!gate) return controller;
+		const armStart = (options?: Readonly<{ startFrame?: number; stopFrame?: number }>) => {
+			const startFrame = normalizeScheduledStartFrame(options?.startFrame, sourceOffsetFrames);
+			if (startFrame !== null && startFrame > Number.MAX_SAFE_INTEGER - sourceOffsetFrames) {
+				throw new RangeError('The sound activation latency cutoff exceeds the safe frame domain.');
+			}
+			const previous = gate.state;
+			if (!gate.arm()) throw new Error('The sound activation gate could not be armed.');
+			scheduledStartFrame = startFrame;
+			expectedNextFrame = null;
+			publishState(previous);
+		};
 		return Object.freeze({
 			get state() { return controller.state; },
 			start(options?: Readonly<{ startFrame?: number; stopFrame?: number }>) {
-				const startFrame = normalizeScheduledStartFrame(options?.startFrame, sourceOffsetFrames);
-				if (startFrame !== null && startFrame > Number.MAX_SAFE_INTEGER - sourceOffsetFrames) {
-					throw new RangeError('The sound activation latency cutoff exceeds the safe frame domain.');
-				}
-				const previous = gate.state;
-				if (!gate.arm()) throw new Error('The sound activation gate could not be armed.');
-				scheduledStartFrame = startFrame;
 				// The worklet can observe this message after the scheduled frame has
 				// passed. Its first delivered chunk establishes the capture epoch;
 				// subsequent chunks must still be exactly contiguous.
-				expectedNextFrame = null;
-				publishState(previous);
+				armStart(options);
 				try {
 					controller.start(options);
 				} catch (error) {
@@ -171,6 +174,21 @@ export function createSoundActivatedRecordingCaptureSession(
 					cancel();
 					throw error;
 				}
+			},
+			async startConfirmed(options: Readonly<{ startFrame: number; stopFrame?: number }>) {
+				if (!controller.startConfirmed) throw new Error('The recording input cannot confirm its start.');
+				armStart(options);
+				try {
+					const confirmed = await controller.startConfirmed(options);
+					scheduledStartFrame = confirmed.startFrame;
+					return confirmed;
+				} catch (error) { cancel(); throw error; }
+			},
+			async rescheduleConfirmed(options: Readonly<{ startFrame: number; stopFrame?: number }>) {
+				if (!controller.rescheduleConfirmed) throw new Error('The recording input cannot move its start.');
+				const confirmed = await controller.rescheduleConfirmed(options);
+				scheduledStartFrame = confirmed.startFrame;
+				return confirmed;
 			},
 			pause() {
 				if (gate.state !== 'armed' && gate.state !== 'capturing') return false;

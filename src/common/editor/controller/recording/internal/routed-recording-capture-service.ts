@@ -470,22 +470,33 @@ export function createRoutedRecordingCaptureService(runtime: RoutedRecordingCapt
 				routedRecorder.start();
 				scope.assertCurrent();
 			} else {
+				let recorderArmed = false;
 				const playbackStartTime = await runtime.engine.playAt(
 					scheduledTime,
 					timing.seekFrame,
+					async (candidate) => {
+						const audible = audibleRecordingStartTime(candidate, scheduledTime,
+							runtime.engine.getPlaybackGraphLatencyFrames?.() ?? 0, context.sampleRate);
+						setRecorderSchedule(audible);
+						const requestedFrame = sourceSessions.find(hasController)?.startFrame;
+						if (requestedFrame === undefined) throw new Error('No recording input remains to start.');
+						const confirmedFrame = await routedRecorder!.startConfirmed((attempt) => Math.ceil(
+							(context.currentTime + 0.08 * 2 ** attempt) * context.sampleRate),
+							() => Math.ceil(context.currentTime * context.sampleRate));
+						recorderArmed = true;
+						return candidate + (confirmedFrame - requestedFrame) / context.sampleRate;
+					},
 				);
 				scope.assertCurrent();
 				await dropFailedSourceSessions();
 				scope.assertCurrent();
 				if (!sourceSessions.length) throw createLocalizedError(Error, { ['recordingNoInputsAvailable']: runtime.messages.noInputsAvailable }, 'recordingNoInputsAvailable');
-				setRecorderSchedule(audibleRecordingStartTime(
-					playbackStartTime, scheduledTime,
-					runtime.engine.getPlaybackGraphLatencyFrames?.() ?? 0, context.sampleRate,
-				));
+				if (!recorderArmed) setRecorderSchedule(audibleRecordingStartTime(
+					playbackStartTime, scheduledTime, runtime.engine.getPlaybackGraphLatencyFrames?.() ?? 0, context.sampleRate));
 				state.recordingEntries = Object.freeze([...entries]);
 				state.recordingPreviews = entries.map((entry) => entry.preview);
 				state.recordingPreview = state.recordingPreviews[0] || null;
-				routedRecorder.start();
+				if (!recorderArmed) routedRecorder.start();
 				state.recordingPaused = false;
 				publishLocalizedStatus(runtime.setStatus, runtime.messages.recording, { key: 'recording' });
 				runtime.updateTransportState('recording');

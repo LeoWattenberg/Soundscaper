@@ -188,11 +188,18 @@ async function enableParallelStacks(page, editor) {
 	await chooseNestedCommandAction(page, editor, 'Tools', ['Audio setup', 'Processing', 'Buffering', 'Recommended']);
 }
 
+async function requireSharedMemoryAudioWorkers(page) {
+	const supported = await page.evaluate(() => globalThis.crossOriginIsolated === true
+		&& typeof SharedArrayBuffer === 'function' && typeof AudioWorkletNode === 'function');
+	test.skip(!supported, 'This browser cannot share audio buffers with workers.');
+}
+
 test('desktop effect stacks process in parallel through a main-thread stall and release each generation', async ({ page }) => {
 	test.setTimeout(120_000);
 	await installParallelStackProbe(page);
 	const errors = collectClientErrors(page);
 	const editor = await bootEditor(page, '/embed/en/');
+	await requireSharedMemoryAudioWorkers(page);
 	await importFiles(editor, tones);
 	for (const trackIndex of [1, 2]) {
 		const panel = await openEffectsForTrack(editor, trackIndex);
@@ -243,6 +250,7 @@ test('completed chunks keep both effect tracks sample aligned and in order', asy
 	await installParallelStackProbe(page);
 	const errors = collectClientErrors(page);
 	const editor = await bootEditor(page, '/embed/en/');
+	await requireSharedMemoryAudioWorkers(page);
 	await importFiles(editor, tones);
 	for (const trackIndex of [1, 2]) {
 		const panel = await openEffectsForTrack(editor, trackIndex);
@@ -292,6 +300,7 @@ test('parallel effect controls preview and cancel on workers without rebuilding 
 	await installParallelStackProbe(page);
 	const errors = collectClientErrors(page);
 	const editor = await bootEditor(page, '/embed/en/');
+	await requireSharedMemoryAudioWorkers(page);
 	await importFiles(editor, [330, 660].map((frequency, index) => createWavFixture({
 		name: `parallel-live-${String(index)}.wav`, frequency, duration: 32, channelCount: 1,
 	})));
@@ -356,6 +365,37 @@ test('parallel effect controls preview and cancel on workers without rebuilding 
 	await closeEffectsPanel(panel);
 	await editor.getByRole('button', { name: 'Stop', exact: true }).click();
 	expect(await page.evaluate(() => globalThis.__parallelStackProbe.errors)).toEqual([]);
+	expect(errors).toEqual([]);
+});
+
+test('browsers without shared audio memory play through the standard engine', async ({ page }) => {
+	test.setTimeout(90_000);
+	await installParallelStackProbe(page);
+	const errors = collectClientErrors(page);
+	const editor = await bootEditor(page, '/embed/en/');
+	const supported = await page.evaluate(() => globalThis.crossOriginIsolated === true
+		&& typeof SharedArrayBuffer === 'function' && typeof AudioWorkletNode === 'function');
+	test.skip(supported, 'Shared-memory audio workers are available in this browser.');
+	await importFiles(editor, [tones[0]]);
+	const panel = await openEffectsForTrack(editor, 1);
+	await addRackEffect(page, panel, 'track', 'Bitcrusher');
+	await closeDialog(page.getByRole('dialog', { name: 'Bitcrusher', exact: true }));
+	await closeEffectsPanel(panel);
+	await enableParallelStacks(page, editor);
+	await chooseNestedCommandAction(page, editor, 'View', ['Panels', 'Mixer']);
+	await editor.getByRole('button', { name: 'Play', exact: true }).click();
+	await expect(editor.getByRole('button', { name: 'Pause', exact: true })).toBeVisible();
+	await expect.poll(() => page.evaluate(() => {
+		const fill = document.querySelector('[data-mixer-panel] .kw-audio-editor__mixer-channel--master .mixer-channel__meter-fill');
+		return 100 - Number.parseFloat(fill?.style.top ?? '100');
+	}), { timeout: 10_000 }).toBeGreaterThan(20);
+	const menu = await openNestedCommandMenu(page, editor, 'Tools', ['Audio setup', 'Processing']);
+	await expect(menu.getByRole('menuitem', { name: /Using standard processing: Shared-memory audio workers are unavailable/ })).toBeVisible();
+	expect(await page.evaluate(() => globalThis.__parallelStackProbe.workers.length)).toBe(0);
+	await page.keyboard.press('Escape');
+	await page.keyboard.press('Escape');
+	await page.keyboard.press('Escape');
+	await editor.getByRole('button', { name: 'Stop', exact: true }).click();
 	expect(errors).toEqual([]);
 });
 

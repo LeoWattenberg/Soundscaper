@@ -2,6 +2,7 @@
 
 import { calculateAudioEditorCountInFrames } from '../../transport/transport-model.ts';
 import { countInSampleFrames, secondsToSampleFrame } from '../../../timeline-time.ts';
+import { CLOCKED_RECORDING_START_LEAD_SECONDS } from '../../../recording-start-lead.ts';
 import type { RecordingProject } from '../recording-transaction-types.ts';
 
 export interface RecordingStartTimingRequest {
@@ -58,7 +59,7 @@ export function planRecordingStartTiming({
 		throw createTimedRecordingPastError();
 	}
 	const scheduledTime = remainingSeconds === null
-		? contextCurrentTime + 0.08
+		? contextCurrentTime + CLOCKED_RECORDING_START_LEAD_SECONDS
 		: contextCurrentTime + remainingSeconds;
 	const leadInFrames = remainingSeconds === null && leadInEnabled
 		? project.tempoMap != null || project.signatureMap != null

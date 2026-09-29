@@ -37,6 +37,7 @@ import {
 	disposeGraph,
 } from './transport-scheduler.ts';
 import { soundscaperNativeAudioDestination } from '../soundscaper-native-audio-renderer.ts';
+import { CLOCKED_RECORDING_START_LEAD_SECONDS } from '../recording-start-lead.ts';
 import {
 	recordWebCoreStreamPlayback,
 	recordWebCoreStreamUnderrun,
@@ -60,7 +61,6 @@ import type {
 	EngineRuntimeHost,
 } from './runtime-types.ts';
 const DEFAULT_SCRUB_FRAME_MS = 50;
-const CLOCKED_START_LEAD_SECONDS = 0.08;
 function monotonicMilliseconds(): number {
 	return globalThis.performance?.now?.() ?? Date.now();
 }
@@ -216,7 +216,7 @@ async playAtSpeed(rate, {
 		}
 	},
 
-async playAt(this: EngineRuntimeHost, contextTime, fromFrame = this.positionFrame) {
+async playAt(this: EngineRuntimeHost, contextTime, fromFrame = this.positionFrame, onBeforeStart) {
 		this[ENGINE_ASSERT_ACTIVE]();
 		if (!this.project) throw new Error('Load an audio editor project before playback.');
 		// Recording and the other clocked starts run to their own end, never to
@@ -248,7 +248,7 @@ async playAt(this: EngineRuntimeHost, contextTime, fromFrame = this.positionFram
 			assertPlaybackRequestCurrent(this, generation);
 			const scheduledTime = Math.max(context.currentTime, Number(contextTime) || context.currentTime);
 			this.positionFrame = scheduledFrame;
-			const scheduled = await this[ENGINE_SCHEDULE_PREPARED_SPEED_PLAYBACK](this.positionFrame, scheduledTime, CLOCKED_START_LEAD_SECONDS);
+			const scheduled = await this[ENGINE_SCHEDULE_PREPARED_SPEED_PLAYBACK](this.positionFrame, scheduledTime, CLOCKED_RECORDING_START_LEAD_SECONDS, onBeforeStart);
 			assertPlaybackRequestCurrent(this, generation);
 			return scheduled;
 		}
@@ -259,7 +259,7 @@ async playAt(this: EngineRuntimeHost, contextTime, fromFrame = this.positionFram
 		assertPlaybackRequestCurrent(this, generation);
 		const scheduledTime = Math.max(context.currentTime, Number(contextTime) || context.currentTime);
 		this.positionFrame = clampFrame(fromFrame, 0, this.playbackDurationFrames);
-		const scheduled = await this[ENGINE_SCHEDULE_PLAYBACK](this.positionFrame, scheduledTime, CLOCKED_START_LEAD_SECONDS);
+		const scheduled = await this[ENGINE_SCHEDULE_PLAYBACK](this.positionFrame, scheduledTime, CLOCKED_RECORDING_START_LEAD_SECONDS, onBeforeStart);
 		assertPlaybackRequestCurrent(this, generation);
 		return scheduled;
 	},

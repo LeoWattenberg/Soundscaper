@@ -239,13 +239,34 @@ export function createLegacyRecordingCaptureService(runtime: RecordingCaptureCom
 				recorder.start(recorderSchedule(scheduledTime));
 				scope.assertCurrent();
 			} else {
+				let recorderArmed = false;
 				const playbackStartTime = await runtime.engine.playAt(
 					scheduledTime,
 					timing.seekFrame,
+					async (candidate) => {
+						if (!recorder?.startConfirmed) throw new Error('The recorder cannot confirm its scheduled start.');
+						const audible = audibleRecordingStartTime(candidate, scheduledTime,
+							runtime.engine.getPlaybackGraphLatencyFrames?.() ?? 0, context.sampleRate);
+						const schedule = recorderSchedule(audible);
+						let confirmed = await recorder.startConfirmed(schedule);
+						for (let attempt = 0; attempt < 4; attempt += 1) {
+							const target = Math.ceil((context.currentTime + 0.08 * 2 ** attempt) * context.sampleRate);
+							if (confirmed.startFrame >= target) break;
+							if (!recorder.rescheduleConfirmed) throw new Error('The recorder cannot move to a future start.');
+							confirmed = await recorder.rescheduleConfirmed({ startFrame: target,
+								stopFrame: schedule.stopFrame === undefined ? undefined : schedule.stopFrame + target - schedule.startFrame });
+						}
+						if (confirmed.startFrame <= context.currentTime * context.sampleRate) {
+							throw new Error('The recorder could not confirm a future start.');
+						}
+						recorderArmed = true;
+						playbackStarted = true;
+						return candidate + (confirmed.startFrame - schedule.startFrame) / context.sampleRate;
+					},
 				);
 				playbackStarted = true;
 				scope.assertCurrent();
-				recorder.start(recorderSchedule(audibleRecordingStartTime(
+				if (!recorderArmed) recorder.start(recorderSchedule(audibleRecordingStartTime(
 					playbackStartTime, scheduledTime,
 					runtime.engine.getPlaybackGraphLatencyFrames?.() ?? 0, context.sampleRate,
 				)));

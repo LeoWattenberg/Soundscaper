@@ -156,7 +156,7 @@ export interface RecordingEnginePort {
 	getPositionFrames(): number;
 	setLoop(enabled: boolean): void;
 	seek(frame: number): void;
-	playAt(contextTime: number, frame: number): Promise<number | void>;
+	playAt(contextTime: number, frame: number, onBeforeStart?: import('../../engine/clocked-playback-start.ts').ClockedPlaybackStartHook): Promise<number | void>;
 	pause(): void;
 }
 

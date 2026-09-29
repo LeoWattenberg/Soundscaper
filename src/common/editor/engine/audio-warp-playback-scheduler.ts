@@ -8,6 +8,7 @@ import {
 	releaseTransientNodes,
 } from './audio-node-utils.ts';
 import { prepareExactAudioWarpPlayback } from './audio-warp-fallback.ts';
+import { confirmClockedPlaybackStart, type ClockedPlaybackStartHook } from './clocked-playback-start.ts';
 import { clampFrame, playRangeStopFrame } from './buffer-math.ts';
 import { createAnalyser } from './effect-rack.ts';
 import { playbackOutputDestination } from './playback-output.ts';
@@ -37,6 +38,7 @@ export async function scheduleExactWarpPlayback(
 	scheduledTime: number,
 	isCurrent: () => boolean,
 	minimumStartLeadSeconds = 0,
+	onBeforeStart?: ClockedPlaybackStartHook,
 ): Promise<number> {
 	const context = engine.context;
 	if (!context || !engine.project) return scheduledTime;
@@ -69,13 +71,14 @@ export async function scheduleExactWarpPlayback(
 	engine.playbackStartFrame = frame;
 	engine.positionFrame = frame;
 	engine.loopScheduleTime = Number.POSITIVE_INFINITY;
-	const current = scheduleWindow(
+	const current = await scheduleWindow(
 		engine,
 		graph,
 		activeWindow,
 		scheduledTime,
 		frame - activeWindow.startFrame,
 		minimumStartLeadSeconds,
+		onBeforeStart,
 	);
 	engine.playbackStartTime = current.startTime;
 	current.prefetchFollowing();
@@ -104,14 +107,15 @@ async function exactWindowAt(
 	return prepareExactAudioWarpPlayback(engine, requestedFrame, boundary);
 }
 
-function scheduleWindow(
+async function scheduleWindow(
 	engine: EngineRuntimeHost,
 	graph: ProjectGraph,
 	prepared: PreparedAudioWarpPlayback,
 	scheduledTime: number,
 	offsetFrames = 0,
 	minimumStartLeadSeconds = 0,
-): ScheduledExactWarpWindow {
+	onBeforeStart?: ClockedPlaybackStartHook,
+): Promise<ScheduledExactWarpWindow> {
 	const context = engine.context;
 	if (!context || engine.graph !== graph || graph.abortController.signal.aborted) {
 		throw new Error('Exact audio warp playback graph is unavailable.');
@@ -141,6 +145,10 @@ function scheduleWindow(
 	source.onended = release;
 	try {
 		scheduledTime = Math.max(scheduledTime, context.currentTime + minimumStartLeadSeconds);
+		if (onBeforeStart) scheduledTime = await confirmClockedPlaybackStart(context, scheduledTime, onBeforeStart);
+		if (engine.graph !== graph || graph.abortController.signal.aborted) {
+			throw new DOMException('Playback cancelled', 'AbortError');
+		}
 		source.start(scheduledTime, offsetFrames / prepared.sampleRate);
 		graph.sources.add(source);
 	} catch (error) {
