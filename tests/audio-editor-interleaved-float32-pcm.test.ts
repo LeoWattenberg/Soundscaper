@@ -36,3 +36,32 @@ test('the three sanitized WAV paths zero nonfinite samples while desktop streami
 		assert.equal(Number.isFinite(raw.getFloat32(frame * 4, true)), false);
 	}
 });
+
+test('PCM interleaving rejects missing channels and short channel buffers before writing', () => {
+	const destination = new Uint8Array(16).fill(0x7f);
+	assert.throws(
+		() => writeInterleavedFloat32Pcm(destination, [], { frameCount: 1, nonFinite: 'zero' }),
+		/at least one channel/iu,
+	);
+	assert.throws(
+		() => writeInterleavedFloat32Pcm(destination, [Float32Array.of(1, 2), Float32Array.of(3)], {
+			frameCount: 2, nonFinite: 'preserve',
+		}),
+		/channel.*frames/iu,
+	);
+	assert.deepEqual([...destination], new Array(16).fill(0x7f));
+});
+
+test('PCM interleaving rejects invalid frame geometry and destination overflow before writing', () => {
+	const destination = new Uint8Array(8).fill(0x7f);
+	for (const options of [
+		{ frameCount: -1, nonFinite: 'zero' as const },
+		{ frameCount: 1.5, nonFinite: 'zero' as const },
+		{ destinationFrameOffset: -1, nonFinite: 'zero' as const },
+		{ destinationFrameOffset: 0.5, nonFinite: 'zero' as const },
+		{ destinationFrameOffset: 2, nonFinite: 'zero' as const },
+	]) {
+		assert.throws(() => writeInterleavedFloat32Pcm(destination, [Float32Array.of(1)], options));
+		assert.deepEqual([...destination], new Array(8).fill(0x7f));
+	}
+});
