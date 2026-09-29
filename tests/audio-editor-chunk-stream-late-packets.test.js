@@ -122,6 +122,39 @@ test('a late play message retains the fractional quantum start offset', () => {
 	}
 });
 
+test('a late resume advances from the paused source frame', () => {
+	const previousCurrentFrame = globalThis.currentFrame;
+	const port = new FakePort();
+	const processor = new ChunkStreamPlaybackProcessor({ processorOptions: { messagePort: port, channelCount: 1, prebufferPackets: 1 } });
+	try {
+		port.dispatch({ type: 'configure-stream', streamId: 'late-resume', channelCount: 1,
+			startFrame: 0, endFrame: 1_024, packetFrames: AUDIO_EDITOR_TRANSFER_CHUNK_FRAMES });
+		port.dispatch({ type: 'audio-packet', streamId: 'late-resume', packetId: 'ramp', frameStart: 0,
+			channels: [Float32Array.from({ length: 1_024 }, (_, frame) => frame + 1)] });
+		port.dispatch({ type: 'play-stream', streamId: 'late-resume', contextStartFrame: 0 });
+		for (let frame = 0; frame < 512; frame += 128) {
+			globalThis.currentFrame = frame;
+			processor.process([], [[new Float32Array(128)]]);
+		}
+		port.dispatch({ type: 'pause-stream', streamId: 'late-resume' });
+		for (let frame = 512; frame < 896; frame += 128) {
+			globalThis.currentFrame = frame;
+			const silent = [new Float32Array(128)];
+			processor.process([], [silent]);
+			assert.ok(silent[0].every((sample) => sample === 0));
+		}
+		port.dispatch({ type: 'play-stream', streamId: 'late-resume', contextStartFrame: 800 });
+		globalThis.currentFrame = 896;
+		const resumed = [new Float32Array(128)];
+		processor.process([], [resumed]);
+		assert.equal(resumed[0][0], 609);
+		assert.equal(resumed[0][127], 736);
+	} finally {
+		if (previousCurrentFrame === undefined) delete globalThis.currentFrame;
+		else globalThis.currentFrame = previousCurrentFrame;
+	}
+});
+
 function render(processor, blocks) {
 	for (let block = 0; block < blocks; block += 1) {
 		processor.process([], [[new Float32Array(128), new Float32Array(128)]]);
