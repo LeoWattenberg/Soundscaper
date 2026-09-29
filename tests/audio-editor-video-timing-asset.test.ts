@@ -4,6 +4,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import {
+	createVideoTimingAssetPublication,
 	decodeVideoTimingAsset,
 	encodeVideoTimingAsset,
 	normalizeVideoTimingAssetReference,
@@ -430,6 +431,54 @@ test('durable timing publication discards its exact committed generation on meta
 	assert.equal(commits, 1);
 	assert.equal(discards, 1);
 	assert.equal(legacyWrites, 0);
+});
+
+test('cancelled timing-asset reuse stops before reading an existing body', async () => {
+	const timing = {
+		timescale: 1_000,
+		presentationTicks: [0n, 40n],
+		finalFrameDurationTicks: 40n,
+	};
+	const { reference, bytes } = createVideoTimingAssetPublication(SOURCE_SHA256, timing);
+	const controller = new AbortController();
+	const reason = new DOMException('Import cancelled.', 'AbortError');
+	let bodyReads = 0;
+	const store = {
+		async getMediaAssetMetadata() {
+			controller.abort(reason);
+			return { sha256: reference.sha256, size: reference.byteLength };
+		},
+		async beginMediaAssetWrite(): Promise<never> { throw new Error('Existing asset must not be rewritten.'); },
+		async loadMediaAsset() {
+			bodyReads += 1;
+			return new Blob([new Uint8Array(bytes)]);
+		},
+	};
+	await assert.rejects(
+		publishVideoTimingAsset(store, SOURCE_SHA256, timing, { signal: controller.signal }),
+		(error: unknown) => error === reason,
+	);
+	assert.equal(bodyReads, 0);
+});
+
+test('timing-asset loads propagate cancellation even when the store ignores its signal', async () => {
+	const { reference, bytes } = createVideoTimingAssetPublication(SOURCE_SHA256, {
+		timescale: 1_000,
+		presentationTicks: [0n],
+		finalFrameDurationTicks: 40n,
+	});
+	const controller = new AbortController();
+	const reason = new DOMException('Load cancelled.', 'AbortError');
+	const store = {
+		async loadMediaAsset() {
+			controller.abort(reason);
+			return new Blob([new Uint8Array(bytes)]);
+		},
+	};
+	await assert.rejects(
+		loadVideoTimingAsset(store, reference, { signal: controller.signal }),
+		(error: unknown) => error === reason,
+	);
 });
 
 test('durable timing load rejects oversized bodies before materializing them', async () => {

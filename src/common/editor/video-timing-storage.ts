@@ -45,9 +45,11 @@ export async function publishVideoTimingAsset(
 	created: boolean;
 	publication: OwnedMediaAssetPublication | null;
 }>> {
+	throwIfTimingAborted(options.signal);
 	const publication = createVideoTimingAssetPublication(sourceSha256, input);
 	const { reference, bytes } = publication;
 	const existing = await store.getMediaAssetMetadata(reference.storageKey);
+	throwIfTimingAborted(options.signal);
 	if (existing) {
 		if (existing.sha256 !== reference.sha256 || existing.size !== reference.byteLength) {
 			throw new Error('An immutable timing asset key is occupied by different content.');
@@ -85,6 +87,7 @@ export async function publishVideoTimingAsset(
 		if (writer.bytesWritten !== reference.byteLength) {
 			throw new Error('Published timing asset emitted an unexpected byte length.');
 		}
+		throwIfTimingAborted(options.signal);
 		ownedPublication = await writer.commitOwned(options);
 		throwIfTimingAborted(options.signal);
 		if (ownedPublication.metadata.sha256 !== reference.sha256
@@ -116,6 +119,7 @@ export async function loadVideoTimingAsset(
 	status: 'available' | 'missing' | 'corrupt' | 'source-mismatch';
 	index: VideoTimingIndex | null;
 }>> {
+	throwIfTimingAborted(options.signal);
 	let reference: Readonly<VideoTimingAssetReference>;
 	try { reference = normalizeVideoTimingAssetReference(value); } catch {
 		return Object.freeze({ status: 'corrupt', index: null });
@@ -124,14 +128,17 @@ export async function loadVideoTimingAsset(
 		return Object.freeze({ status: 'source-mismatch', index: null });
 	}
 	const blob = await store.loadMediaAsset(reference.storageKey, options);
+	throwIfTimingAborted(options.signal);
 	if (!blob) return Object.freeze({ status: 'missing', index: null });
 	try {
 		const canonicalBlob = canonicalMediaContentBlob(blob);
 		if (canonicalBlob.size !== reference.byteLength) throw new Error('length');
 		const bytes = new Uint8Array(await canonicalBlob.arrayBuffer());
+		throwIfTimingAborted(options.signal);
 		const index = validateVideoTimingAssetBytes(reference, bytes);
 		return Object.freeze({ status: 'available', index });
 	} catch {
+		throwIfTimingAborted(options.signal);
 		return Object.freeze({ status: 'corrupt', index: null });
 	}
 }
