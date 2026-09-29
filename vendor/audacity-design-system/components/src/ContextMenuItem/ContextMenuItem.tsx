@@ -289,7 +289,8 @@ export const ContextMenuItem: React.FC<ContextMenuItemProps> = ({
           // Focus first submenu item after opening
           setTimeout(() => {
             const firstSubmenuItem = submenuRef.current?.querySelector('[role="menuitem"]') as HTMLElement;
-            if (firstSubmenuItem) {
+            // Another focus target may have been chosen before this timer runs.
+            if (firstSubmenuItem && itemRef.current?.ownerDocument.activeElement === itemRef.current) {
               firstSubmenuItem.focus();
             }
           }, 0);

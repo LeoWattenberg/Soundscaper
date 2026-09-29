@@ -66,6 +66,8 @@ export function useApplicationMenuKeyboard({
 		} else if (hasSubmenu && ['ArrowRight', 'Enter'].includes(event.key)) {
 			setTimeout(() => {
 				setTimeout(() => {
+					// Do not override a choice made while the submenu was opening.
+					if (!submenuItem?.isConnected || submenuItem.ownerDocument.activeElement !== submenuItem) return;
 					focusVisibleMenuItem(submenuItem?.querySelector(':scope > .context-menu-submenu')
 						?.querySelector(MENU_ITEM_SELECTOR));
 				}, 0);
