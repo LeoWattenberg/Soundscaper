@@ -71,9 +71,7 @@ export class ReverbLiveProcessor {
 
 	updateParams(params: Partial<ReverbParams> = {}): void {
 		const normalized = normalizeReverbParams({ ...this.params, ...params });
-		const rebuild = normalized.roomSize !== this.params.roomSize
-			|| normalized.preDelay !== this.params.preDelay
-			|| normalized.stereoWidth !== this.params.stereoWidth;
+		const rebuild = normalized.preDelay !== this.params.preDelay;
 		this.params = normalized;
 		this.configure();
 		if (rebuild) this.reset();

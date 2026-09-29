@@ -159,16 +159,44 @@ test('simple realtime control edits preserve the wet tail while explicit reset c
 	assert.ok(actual.every((channel) => channel.every((sample) => sample === 0)));
 });
 
-test('structural realtime reverb edits reinitialize delay history', () => {
-	for (const update of [{ roomSize: 31 }, { preDelay: 80 }, { stereoWidth: 39 }]) {
-		const processor = new ReverbLiveProcessor(SAMPLE_RATE, PRESETS[0]);
-		const input = signal(2_048);
+test('a live stereo-width edit remixes the accumulated wet tail without clearing it', () => {
+	const params = { ...PRESETS[0], wetOnly: true, wetGainDb: 0, stereoWidth: 100 };
+	const reference = new ReverbLiveProcessor(SAMPLE_RATE, params);
+	const updated = new ReverbLiveProcessor(SAMPLE_RATE, params);
+	const input = signal(2_048);
+	for (const processor of [reference, updated]) {
 		processor.process(input, input.map((channel) => new Float32Array(channel.length)));
-		processor.updateParams(update);
-		assert.deepEqual(processBlocks(processor, input, [128]), applyAudacityBrowserReverb(input, SAMPLE_RATE, {
-			...PRESETS[0], ...update,
-		}));
 	}
+	updated.updateParams({ stereoWidth: 0 });
+	const unchangedTail = [new Float32Array(128), new Float32Array(128)];
+	const remixedTail = [new Float32Array(128), new Float32Array(128)];
+	reference.process([], unchangedTail);
+	updated.process([], remixedTail);
+	assert.ok(unchangedTail.some((channel) => channel.some((sample) => sample !== 0)));
+	for (let frame = 0; frame < 128; frame += 1) {
+		const average = (unchangedTail[0][frame] + unchangedTail[1][frame]) / 2;
+		for (const channel of remixedTail) assert.ok(Math.abs(channel[frame] - average) < 1e-7);
+	}
+});
+
+test('a live room-size edit preserves the accumulated wet tail', () => {
+	const processor = new ReverbLiveProcessor(SAMPLE_RATE, { ...PRESETS[0], wetOnly: true });
+	const input = signal(2_048);
+	processor.process(input, input.map((channel) => new Float32Array(channel.length)));
+	processor.updateParams({ roomSize: 31 });
+	const tail = [new Float32Array(128), new Float32Array(128)];
+	processor.process([], tail);
+	assert.ok(tail.some((channel) => channel.some((sample) => sample !== 0)));
+});
+
+test('pre-delay edits reinitialize realtime reverb delay history', () => {
+	const processor = new ReverbLiveProcessor(SAMPLE_RATE, PRESETS[0]);
+	const input = signal(2_048);
+	processor.process(input, input.map((channel) => new Float32Array(channel.length)));
+	processor.updateParams({ preDelay: 80 });
+	assert.deepEqual(processBlocks(processor, input, [128]), applyAudacityBrowserReverb(input, SAMPLE_RATE, {
+		...PRESETS[0], preDelay: 80,
+	}));
 });
 
 test('reverb runtime parameter messages normalize wet-only strings consistently', () => {
