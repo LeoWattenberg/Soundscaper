@@ -37,7 +37,10 @@ export async function scanEncodedAudioMarkers(
 		const signature = await readBytes(source, 0, 12);
 		const container = ascii(signature, 0, 4);
 		if (container === 'RIFF' && ascii(signature, 8, 4) === 'WAVE') {
-			return await scanRiffMarkers(source);
+			const payloadBytes = new DataView(signature.buffer, signature.byteOffset + 4, 4).getUint32(0, true);
+			if (payloadBytes < 4) return null;
+			// Appended bytes cannot supply cues or change labels inside the RIFF container.
+			return await scanRiffMarkers(source, Math.min(source.size, payloadBytes + 8));
 		}
 		const formType = ascii(signature, 8, 4);
 		if (container === 'FORM' && (formType === 'AIFF' || formType === 'AIFC')) {
@@ -49,13 +52,13 @@ export async function scanEncodedAudioMarkers(
 	}
 }
 
-async function scanRiffMarkers(source: EncodedAudioMarkerScanSource): Promise<EncodedAudioMarkerScan | null> {
+async function scanRiffMarkers(source: EncodedAudioMarkerScanSource, riffEnd: number): Promise<EncodedAudioMarkerScan | null> {
 	let cue: Uint8Array | null = null;
 	const adtl: Uint8Array[] = [];
 	let sampleRate: number | null = null;
 	let offset = 12;
 	let chunksRead = 0;
-	while (offset + 8 <= source.size && chunksRead < MAXIMUM_SCANNED_CHUNKS) {
+	while (offset + 8 <= riffEnd && chunksRead < MAXIMUM_SCANNED_CHUNKS) {
 		chunksRead += 1;
 		const header = await readBytes(source, offset, offset + 8);
 		const id = ascii(header, 0, 4);
@@ -64,7 +67,7 @@ async function scanRiffMarkers(source: EncodedAudioMarkerScanSource): Promise<En
 		const payloadEnd = payloadStart + size;
 		// A truncated final chunk is a sloppy writer, not a reason to drop the
 		// cues that were already collected from well-formed chunks before it.
-		if (!Number.isSafeInteger(payloadEnd) || payloadEnd > source.size) break;
+		if (!Number.isSafeInteger(payloadEnd) || payloadEnd > riffEnd) break;
 		if (id === 'fmt ' && size >= 16) {
 			const fmt = await readBytes(source, payloadStart, payloadStart + 16);
 			const declared = new DataView(fmt.buffer, fmt.byteOffset + 4, 4).getUint32(0, true);

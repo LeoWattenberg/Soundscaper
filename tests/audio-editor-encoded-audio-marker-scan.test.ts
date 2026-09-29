@@ -31,6 +31,7 @@ test('the marker scan tolerates foreign containers, truncated tails, and malform
 	const truncated = nonPcmWav();
 	// Declare a final chunk whose payload runs past the end of the file.
 	const withTruncatedTail = concatBytes(truncated, new TextEncoder().encode('JUNK'), Uint8Array.of(0xff, 0xff, 0, 0));
+	new DataView(withTruncatedTail.buffer).setUint32(4, withTruncatedTail.byteLength - 8, true);
 	const scan = await scanEncodedAudioMarkers(byteSource(withTruncatedTail));
 	assert.equal(scan?.markers.length, 1);
 
@@ -39,6 +40,19 @@ test('the marker scan tolerates foreign containers, truncated tails, and malform
 	const cueOffset = findChunk(malformed, 'cue ');
 	new DataView(malformed.buffer).setUint32(cueOffset + 8, 999, true);
 	assert.equal(await scanEncodedAudioMarkers(byteSource(malformed)), null);
+});
+
+test('the marker scan ignores cue chunks and labels outside the declared RIFF payload', async () => {
+	const wav = nonPcmWav();
+	const withoutCues = wav.slice(0, findChunk(wav, 'cue '));
+	new DataView(withoutCues.buffer).setUint32(4, withoutCues.byteLength - 8, true);
+	const trailingMarkers = createRiffMarkerChunks([{ id: 7, sampleOffset: 12_000, label: 'Trailer' }]);
+	assert.equal(await scanEncodedAudioMarkers(byteSource(concatBytes(withoutCues, trailingMarkers))), null);
+
+	const cueSize = new DataView(trailingMarkers.buffer).getUint32(4, true);
+	const trailingList = trailingMarkers.subarray(8 + cueSize + (cueSize & 1));
+	const scan = await scanEncodedAudioMarkers(byteSource(concatBytes(wav, trailingList)));
+	assert.deepEqual(scan?.markers.map(({ label }) => label), ['Verse']);
 });
 
 test('a non-PCM WAV that falls to the decode path still imports its cues', async () => {
