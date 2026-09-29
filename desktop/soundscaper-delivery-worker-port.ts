@@ -81,6 +81,20 @@ export function registerSoundscaperDeliveryWorkerPort(options: SoundscaperDelive
 	options.on(SOUNDSCAPER_DELIVERY_WORKER_PORT_CHANNEL, listener);
 
 	async function accept(owner: Owner, port: MainPort, value: unknown): Promise<void> {
+		const admission = { closed: false };
+		const onClose = () => { admission.closed = true; };
+		port.on('close', onClose);
+		try {
+			await acceptOpen(owner, port, value, admission);
+		} finally {
+			port.removeListener('close', onClose);
+		}
+	}
+
+	async function acceptOpen(
+		owner: Owner, port: MainPort, value: unknown, admission: { closed: boolean },
+	): Promise<void> {
+		if (admission.closed) return;
 		if (disposed || revokedOwners.has(owner)) {
 			safeClosed(port, 'owner-revoked');
 			return;
@@ -89,6 +103,7 @@ export function registerSoundscaperDeliveryWorkerPort(options: SoundscaperDelive
 		const request = exactRecord(value, ['jobId', 'currentAuthority'], 'claim request');
 		assertPathless(request, 'claim request');
 		const currentAuthority = await options.admitCurrentAuthority(owner, request.currentAuthority);
+		if (admission.closed) return;
 		if (disposed || revokedOwners.has(owner)) {
 			safeClosed(port, 'owner-revoked');
 			return;
@@ -99,14 +114,19 @@ export function registerSoundscaperDeliveryWorkerPort(options: SoundscaperDelive
 			safeClose(port);
 			return;
 		}
-		if (disposed || revokedOwners.has(owner)) {
+		if (admission.closed || disposed || revokedOwners.has(owner)) {
 			await Promise.resolve(options.service.releaseClaim(claim.claimId)).catch(() => undefined);
-			safeClosed(port, 'owner-revoked');
+			if (!admission.closed) safeClosed(port, 'owner-revoked');
 			return;
 		}
 		let plan: ReturnType<typeof validateSoundscaperPersistentAudioDeliveryPlanV1>;
 		try {
 			const revalidated = await options.admitCurrentAuthority(owner, request.currentAuthority);
+			if (admission.closed || disposed || revokedOwners.has(owner)) {
+				await Promise.resolve(options.service.releaseClaim(claim.claimId)).catch(() => undefined);
+				if (!admission.closed) safeClosed(port, 'owner-revoked');
+				return;
+			}
 			if (!sameCurrentAuthority(currentAuthority, revalidated)) {
 				throw new Error('The renderer open-project authority changed while its claim was admitted.');
 			}

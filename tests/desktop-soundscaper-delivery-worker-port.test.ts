@@ -177,6 +177,90 @@ test('the private worker validates and forwards a bounded failure report', async
 	await registration.dispose();
 });
 
+test('a worker port closed during claim admission cannot strand a claim', async () => {
+	const listeners = new Map<string, (event: unknown, value?: unknown) => void>();
+	const calls: Array<Readonly<{ name: string; value?: unknown }>> = [];
+	const service = fixtureService(calls);
+	const claimNext = service.claimNext;
+	let enterClaim!: () => void;
+	let unblockClaim!: () => void;
+	const claimEntered = new Promise<void>((resolve) => { enterClaim = resolve; });
+	const claimUnblocked = new Promise<void>((resolve) => { unblockClaim = resolve; });
+	service.claimNext = async (value, jobId) => {
+		enterClaim();
+		await claimUnblocked;
+		return claimNext(value, jobId);
+	};
+	const registration = registerSoundscaperDeliveryWorkerPort({
+		on: (channel, listener) => listeners.set(channel, listener),
+		removeListener: (channel) => listeners.delete(channel),
+		ownerFor: () => OWNER,
+		service: service as never,
+		admitCurrentAuthority: async (_owner, value) => value as never,
+		completionAuthority: async () => ({
+			projectIdentity: PROJECT, planFingerprint: DESCRIPTION.planFingerprint,
+		}),
+	});
+	const channel = new MessageChannel();
+	listeners.get(SOUNDSCAPER_DELIVERY_WORKER_PORT_CHANNEL)!({ ports: [channel.port1] }, {
+		jobId: JOB, currentAuthority: {
+			projectIdentity: PROJECT, planFingerprint: DESCRIPTION.planFingerprint,
+		},
+	});
+	await claimEntered;
+	const portClosed = new Promise<void>((resolve) => { channel.port1.once('close', resolve); });
+	channel.port2.close();
+	await portClosed;
+	unblockClaim();
+	try {
+		await until(() => calls.some(({ name, value }) => name === 'releaseClaim' && value === CLAIM));
+	} finally {
+		await registration.dispose();
+	}
+});
+
+test('owner revocation during claim revalidation releases the unregistered claim', async () => {
+	const listeners = new Map<string, (event: unknown, value?: unknown) => void>();
+	const calls: Array<Readonly<{ name: string; value?: unknown }>> = [];
+	let enterRevalidation!: () => void;
+	let unblockRevalidation!: () => void;
+	const revalidationEntered = new Promise<void>((resolve) => { enterRevalidation = resolve; });
+	const revalidationUnblocked = new Promise<void>((resolve) => { unblockRevalidation = resolve; });
+	let authorityReads = 0;
+	const registration = registerSoundscaperDeliveryWorkerPort({
+		on: (channel, listener) => listeners.set(channel, listener),
+		removeListener: (channel) => listeners.delete(channel),
+		ownerFor: () => OWNER,
+		service: fixtureService(calls) as never,
+		admitCurrentAuthority: async (_owner, value) => {
+			authorityReads += 1;
+			if (authorityReads === 2) {
+				enterRevalidation();
+				await revalidationUnblocked;
+			}
+			return value as never;
+		},
+		completionAuthority: async () => ({
+			projectIdentity: PROJECT, planFingerprint: DESCRIPTION.planFingerprint,
+		}),
+	});
+	const channel = new MessageChannel();
+	listeners.get(SOUNDSCAPER_DELIVERY_WORKER_PORT_CHANNEL)!({ ports: [channel.port1] }, {
+		jobId: JOB, currentAuthority: {
+			projectIdentity: PROJECT, planFingerprint: DESCRIPTION.planFingerprint,
+		},
+	});
+	await revalidationEntered;
+	await registration.revokeOwner(OWNER);
+	unblockRevalidation();
+	try {
+		await until(() => calls.some(({ name, value }) => name === 'releaseClaim' && value === CLAIM));
+	} finally {
+		channel.port2.close();
+		await registration.dispose();
+	}
+});
+
 test('malformed, concurrent, oversized and foreign-owner traffic is closed and released', async () => {
 	const listeners = new Map<string, (event: unknown, value?: unknown) => void>();
 	const calls: Array<Readonly<{ name: string; value?: unknown }>> = [];
