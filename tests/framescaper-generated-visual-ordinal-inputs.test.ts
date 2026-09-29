@@ -72,7 +72,10 @@ test('exact visual inputs pass the selected output ordinal into animated noise',
 	assert.ok(first);
 	assert.ok(next);
 	assert.ok(same);
-	assert.notDeepEqual(first, next, 'consecutive output frames advance the noise picture');
+	assert.deepEqual([...first.subarray(0, 4)], [10, 10, 10, 255],
+		'ordinal ten owns the opaque reference grain');
+	assert.deepEqual([...next.subarray(0, 4)], [11, 11, 11, 255],
+		'ordinal eleven advances the reference grain');
 	assert.deepEqual(first, same, 'the same frame ordinal remains deterministic');
 });
 

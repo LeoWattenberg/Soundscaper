@@ -81,6 +81,9 @@ test('live visualizer preview paints idle immediately and discards an old seek r
 		sampleRate: 1_024, windowStartFrame: 1_024, timelineFrame: 1,
 	});
 	await Promise.resolve();
-	assert.notDeepEqual(painted.at(-1), idleAfterSeek, 'matching PCM replaces the idle frame');
+	const active = painted.at(-1)!;
+	assert.notDeepEqual(active, idleAfterSeek, 'matching PCM replaces the idle frame');
+	assert.deepEqual([...active.subarray((12 * 32 + 10) * 4, (12 * 32 + 11) * 4)],
+		[102, 211, 197, 255], 'matching PCM paints the authored teal waveform');
 	preview.dispose();
 });

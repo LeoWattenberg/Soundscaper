@@ -63,7 +63,11 @@ test('a 60 fps native carrier animates adjacent silent visualizer frames despite
 			rgba: first, signal });
 		await exact.compositor({ frame: frames.frame(2), layers: [], width: 32, height: 16,
 			rgba: second, signal });
-		assert.notDeepEqual(first, second);
+		assert.deepEqual([...first.subarray(4, 8)], [255, 255, 255, 255],
+			'output frame one places the idle marker at column one');
+		assert.deepEqual([...first.subarray(8, 12)], [0, 0, 0, 255]);
+		assert.deepEqual([...second.subarray(8, 12)], [255, 255, 255, 255],
+			'output frame two advances the idle marker to column two');
 	} finally {
 		await exact.dispose();
 	}
