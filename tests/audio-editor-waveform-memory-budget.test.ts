@@ -7,11 +7,15 @@ import { generateWaveformPeaksFallback, generateStoredWaveformPeaksFallback, wav
 import { validateWaveformPeakLevels } from '../src/common/editor/design-system-adapters/waveform-internals.ts';
 
 test('waveform storage stays bounded for hour-long and much larger audio sources', () => {
-	for (const frames of [160_083_000, 10_000_000_000, 1_000_000_000_000]) {
-		for (const channels of [1, 2, 32]) {
+	const expectedBlockRatios = [1, 2, 4, 8, 32, 128, 512, 2_048, 8_192] as const;
+	for (const [frames, expectedFirstBlocks] of [
+		[160_083_000, [512, 1_024, 16_384]],
+		[10_000_000_000, [32_768, 65_536, 1_048_576]],
+		[1_000_000_000_000, [4_194_304, 8_388_608, 134_217_728]],
+	] as const) {
+		for (const [index, channels] of [1, 2, 32].entries()) {
 			const sizes = waveformPeakBlockSizes(frames, channels);
-			assert.ok(sizes[0]! > WAVEFORM_PEAK_BLOCK_SIZES[0]!);
-			assert.equal(sizes.length, WAVEFORM_PEAK_BLOCK_SIZES.length);
+			assert.deepEqual(sizes, expectedBlockRatios.map((ratio) => ratio * expectedFirstBlocks[index]!));
 			assert.ok(sizes.reduce((total, size) => total + Math.ceil(frames / size) * channels * 12, 0) <= WAVEFORM_PEAK_MAX_SOURCE_BYTES);
 		}
 	}
@@ -37,7 +41,7 @@ test('bounded stored and buffered pyramids preserve extrema and RMS and remain r
 	assert.equal(waveformPeaksHaveRms(stored), true);
 	assert.equal(validateWaveformPeakLevels(stored).levels.length, stored.levels.length);
 	const level = stored.levels[0]!;
-	assert.ok(level.blockSize > 8);
+	assert.equal(level.blockSize, 16);
 	assert.equal(level.channels[0]!.minimums[Math.floor(65_535 / level.blockSize)], -1.5);
 	assert.equal(level.channels[0]!.maximums[Math.floor(65_536 / level.blockSize)], 1.75);
 	assert.equal(waveformPeaksHaveRms({ ...stored, levels: stored.levels.map((item) => ({ ...item, blockSize: item.blockSize * 2 })) }, source), false);

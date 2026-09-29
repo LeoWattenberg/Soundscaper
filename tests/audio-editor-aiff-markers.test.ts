@@ -24,12 +24,11 @@ test('the MARK codec round-trips points, flattens regions, and truncates names a
 	assert.equal(String.fromCharCode(...chunk.subarray(0, 4)), 'MARK');
 
 	const markers = parseAiffMarkChunk(chunk.subarray(8));
-	assert.deepEqual(markers.map(({ sampleOffset, sampleLength, label, note }) => ({ sampleOffset, sampleLength, label, note })), [
-		{ sampleOffset: 100, sampleLength: 0, label: 'Point', note: '' },
-		{ sampleOffset: 200, sampleLength: 0, label: 'a'.repeat(254), note: '' },
-		{ sampleOffset: 48_000, sampleLength: 0, label: 'Region', note: '' },
+	assert.deepEqual(markers, [
+		{ id: 2, sampleOffset: 100, sampleLength: 0, label: 'Point', note: '' },
+		{ id: 3, sampleOffset: 200, sampleLength: 0, label: 'a'.repeat(254), note: '' },
+		{ id: 1, sampleOffset: 48_000, sampleLength: 0, label: 'Region', note: '' },
 	]);
-	assert.ok(markers.every(({ id }) => id > 0 && id <= AIFF_MARK_MAXIMUM_MARKERS));
 
 	assert.equal(createAiffMarkChunk([]).byteLength, 0);
 	assert.throws(() => createAiffMarkChunk(Array.from(
@@ -62,7 +61,7 @@ test('an AIFF export writes its markers as a MARK chunk the layout accounts for'
 	const unmarked = inspectAiffLayout({
 		sampleRate: 48_000, bitDepth: 16, channelCount: 1, totalFrames: 4, metadata: options.metadata,
 	});
-	assert.ok(layout.byteLength > unmarked.byteLength, 'the marker chunk occupies layout bytes');
+	assert.equal(layout.byteLength - unmarked.byteLength, 36, 'the marker chunk occupies exactly its encoded 36 bytes');
 });
 
 test('AIFF inspection surfaces MARK markers on the descriptor and tolerates malformed ones', async () => {

@@ -37,6 +37,7 @@ test('AIFF layout reports exact integer PCM geometry shared by the encoder', () 
 	assert.ok(encoded instanceof Uint8Array);
 	assert.equal(encoded.byteLength, layout.byteLength);
 	assert.equal(new DataView(encoded.buffer).getUint32(4, false), layout.formSize);
+	assert.deepEqual([...encoded.subarray(layout.headerByteLength)], [0x80, 0x00, 0x40, 0x00, 0x7f, 0xff, 0xc0, 0x00]);
 });
 
 test('AIFF layout accounts for odd PCM padding and trailing metadata once', () => {
@@ -52,7 +53,8 @@ test('AIFF layout accounts for odd PCM padding and trailing metadata once', () =
 	assert.equal(layout.headerByteLength, 54);
 	assert.equal(layout.dataByteLength, 3);
 	assert.equal(layout.dataPadByteLength, 1);
-	assert.ok(layout.trailingByteLength > 8);
+	assert.equal(layout.trailingByteLength, 68);
+	assert.equal(layout.byteLength, 126);
 	assert.equal(layout.byteLength, 54 + 3 + 1 + layout.trailingByteLength);
 
 	const encoder = createAiffStreamEncoder({ ...options, collect: false });
@@ -84,6 +86,7 @@ test('AIFF-C float layout includes its extended header and matches encoded bytes
 	assert.ok(encoded instanceof Uint8Array);
 	assert.equal(encoded.byteLength, layout.byteLength);
 	assert.equal(String.fromCharCode(...encoded.subarray(8, 12)), 'AIFC');
+	assert.deepEqual([...encoded.subarray(layout.headerByteLength)], [0x3f, 0xa0, 0x00, 0x00]);
 });
 
 test('AIFF layout enforces the unsigned 32-bit FORM boundary without PCM allocation', () => {
