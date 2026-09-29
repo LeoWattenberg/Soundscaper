@@ -17,6 +17,11 @@ import {
 	type ViewStateServiceState,
 } from './internal/view-state-service.ts';
 import type { ControllerTransportState } from './transport-state.ts';
+import { installParallelStackPlayback } from './internal/parallel-stack-registration.ts';
+
+export function enableParallelEffectStackPlayback(engine: object): void {
+	installParallelStackPlayback(engine);
+}
 
 /** What the transport and the timeline view together read from the active document. */
 export type TransportCompositionProject = TransportProject & ViewStateProject;

@@ -36,6 +36,7 @@ import { FREESOUND_ATTRIBUTION_INVENTORY_COPY_BY_LOCALE } from './editor-freesou
 import { DESKTOP_MCP_COPY_BY_LOCALE } from './editor-desktop-mcp-copy.ts';
 import { NYQUIST_ARCHIVE_COPY_BY_LOCALE } from './editor-nyquist-archive-copy.ts';
 import { TEXT_TO_SPEECH_COPY_BY_LOCALE } from './editor-text-to-speech-copy.ts';
+import { PARALLEL_STACK_COPY_BY_LOCALE } from './editor-parallel-stack-copy.ts';
 
 export interface EditorCopyOwner {
 	readonly owner: string;
@@ -114,6 +115,7 @@ const inventory = buildEditorCopyInventory(ENGLISH_COPY, GERMAN_COPY, [
 	{ owner: 'trackAutomation', ...TRACK_AUTOMATION_COPY_BY_LOCALE },
 	{ owner: 'effectMacroTemplate', en: templateEnglish, de: templateGerman },
 	{ owner: 'soundscaperNative', en: SOUNDSCAPER_NATIVE_SERVICES_COPY, aliases: processingAliases },
+	{ owner: 'parallelStacks', ...PARALLEL_STACK_COPY_BY_LOCALE },
 	{ owner: 'framescaperNative', en: FRAMESCAPER_NATIVE_SERVICES_COPY, aliases: processingAliases },
 	{ owner: 'mastering', en: SOUNDSCAPER_MASTERING_SEQUENCE_COPY },
 	{ owner: 'routing', en: SOUNDSCAPER_ROUTING_GRAPH_COPY },

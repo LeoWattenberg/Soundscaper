@@ -20,6 +20,13 @@ export function organizeNativePreferences(menus: readonly AssistanceMenuEntry[])
 			const retainedServices: AssistanceMenuEntry[] = [];
 			const candidates = desktopServices ? item.items ?? [] : [item];
 			for (const candidate of candidates) {
+				if (candidate.id === 'native-audio' && candidate.items?.some((child) => child.id === 'parallel-stack-processing')) {
+					const processing = candidate.items.filter((child) => child.id === 'parallel-stack-processing');
+					const native = candidate.items.filter((child) => child.id !== 'parallel-stack-processing');
+					items.push({ ...candidate, id: 'audio-processing-setup', items: processing });
+					if (native.length) preferences.push({ ...candidate, items: native, section: 'audio' });
+					continue;
+				}
 				const section = sectionFor(candidate.id ?? '');
 				if (section) preferences.push({ ...candidate, section });
 				else if ((typeof __SCAPE_DESKTOP_RENDERER__ === 'undefined' || __SCAPE_DESKTOP_RENDERER__)

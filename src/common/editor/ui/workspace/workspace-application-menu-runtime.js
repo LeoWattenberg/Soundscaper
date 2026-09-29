@@ -7,6 +7,7 @@ import { moveAudioEditorTrackBlock, trackSourceRate } from '../application-menu-
 import createApplicationMenus from '../application-menus.js';
 import { createDesktopHostMenuItems } from '../desktop-host-menu.ts';
 import { createVideoTrimApplicationMenuActions } from './video-trim-application-menu-actions.ts';
+import { createParallelStackMenuRuntime } from './parallel-stack-menu-runtime.ts';
 import {
 	createProductWorkspaceApplicationMenuRuntime,
 	useProductNativeServicesMenuRefresh,
@@ -142,6 +143,10 @@ export function createWorkspaceApplicationMenus({
 				framescaperNativeServices: framescaperRuntime.framescaperNativeServices,
 				soundscaperWorkflow,
 				soundscaperNativeServices,
+				parallelStackProcessing: createParallelStackMenuRuntime({
+					productId, desktop: fileService.isDesktop === true, controller, run,
+					recording: Boolean(snapshot.recording || snapshot.recordingScheduling || snapshot.scheduledRecording),
+				}),
 				executeMulticameraCommand: (command) => run(() => {
 					switch (command?.type) {
 						case 'multicamera/create':

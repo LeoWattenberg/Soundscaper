@@ -15,7 +15,6 @@ import {
 	addNode,
 	connect,
 } from './audio-node-utils.ts';
-import type { AudioNodeArray } from './audio-node-utils.ts';
 import { scheduleExactWarpPlayback } from './audio-warp-playback-scheduler.ts';
 import {
 	clampFrame,
@@ -25,23 +24,18 @@ import {
 import {
 	scheduleProjectClips,
 } from './clip-scheduler.ts';
-import {
-	createAnalyser,
-	disposeEffectNodeBindings,
-} from './effect-rack.ts';
-import {
-	getParametricEqWasmModule,
-} from './effect-worklets.ts';
-import {
-	buildProjectGraph,
-} from './project-graph.ts';
+import { createAnalyser } from './effect-rack.ts';
+import { buildPlaybackGraph } from './playback-graph.ts';
+import { disposeGraph } from './dispose-project-graph.ts';
+import { cancelParallelStackPreparation, parallelStackSourceStartTime, setParallelStackEndFrame } from './parallel-stack-playback.ts';
+export { disposeGraph } from './dispose-project-graph.ts';
 import { playbackOutputDestination } from './playback-output.ts';
 import { observeActiveStreamCompletion, unexpectedActiveStreamAbort } from './playback-stream-failure.ts';
 import { sampleProductionMeterSessionV21, suspendParallelProductionMeterSessionV21 } from './production-meter-runtime-session-v21.ts';
 import { ensureLiveAnalysisTap } from './live-analysis-tap.ts';
 import { readEngineMeter, readMasterMeter } from './engine-meter-reading.ts';
 import type { MutableEngineMeterReading } from './engine-meter-reading.ts';
-import { ScheduledParameterRegistry } from './scheduled-parameter-registry.ts';
+import { ScheduledParameterRegistry, roundScheduledParameterContextFrameOffset } from './scheduled-parameter-registry.ts';
 import { isCutPreviewActive, releaseCutPreview } from './cut-preview.ts';
 import {
 	ENGINE_CANCEL_SCRUB,
@@ -64,39 +58,6 @@ import type {
 	EngineRuntimeMethodMap,
 	EngineRuntimeHost,
 } from './runtime-types.ts';
-
-interface DisposableAudioGraph {
-	readonly abortController?: AbortController;
-	readonly sources?: Iterable<{ stop(): void }> & { clear(): void };
-	readonly nodes?: AudioNodeArray;
-	readonly effectNodes?: { clear(): void };
-	readonly effectAnalysers?: { clear(): void };
-	readonly effectMessageSequences?: { clear(): void };
-	readonly parameterRegistry?: { clear(): void };
-}
-
-export function disposeGraph(graph: DisposableAudioGraph, stopSources: boolean): void {
-	graph.abortController?.abort?.();
-	if (stopSources) {
-		for (const source of graph.sources || []) {
-			try { source.stop(); } catch { /* It may already have ended. */ }
-		}
-	}
-	const transientNodes = graph.nodes?.transientNodes;
-	for (const node of [
-		...(graph.nodes || []),
-		...(transientNodes || []),
-	].reverse()) {
-		disposeEffectNodeBindings(node);
-		try { node.disconnect(); } catch { /* It may already be disconnected. */ }
-	}
-	transientNodes?.clear();
-	graph.sources?.clear?.();
-	graph.effectNodes?.clear?.();
-	graph.effectAnalysers?.clear?.();
-	graph.effectMessageSequences?.clear?.();
-	graph.parameterRegistry?.clear?.();
-}
 
 export const engineTransportSchedulerMethods = {
 async [ENGINE_SCHEDULE_CURRENT_PLAYBACK](this: EngineRuntimeHost, fromFrame, scheduledTime = this.context?.currentTime || 0) {
@@ -217,20 +178,11 @@ async [ENGINE_SCHEDULE_PLAYBACK](this: EngineRuntimeHost, fromFrame, scheduledTi
 		const playbackDestination = playbackOutputDestination(
 			this, context, soundscaperNativeAudioDestination(context, context.destination),
 		);
-		this.graph = buildProjectGraph(
-			context,
-			this.masterLoudnessMeter?.node || playbackDestination,
-			this.project,
-			{
-			metering: this.meterListeners.size > 0,
-			respectMuteSolo: true,
-			effectAnalysis: true,
-			monitoring: true,
-			graph: this.projectGraphSelection ?? undefined,
-			parametricEqWasmModule: getParametricEqWasmModule(context),
-			onParametricEqError: (error) => this[ENGINE_EMIT_PARAMETRIC_EQ_ERROR](error),
-			},
-		);
+		const prepared = buildPlaybackGraph(this, this.masterLoudnessMeter?.node || playbackDestination, fromFrame);
+		const preparedGraph = prepared instanceof Promise ? await prepared : prepared;
+		if (!preparedGraph) return scheduledTime;
+		this.graph = preparedGraph;
+		scheduledTime = parallelStackSourceStartTime(preparedGraph, scheduledTime);
 		this.playbackStartTime = scheduledTime + (this.graph.latencyFrames || 0) / (context.sampleRate || DEFAULT_SAMPLE_RATE);
 		const graph = this.graph;
 		let schedule;
@@ -269,6 +221,8 @@ async [ENGINE_SCHEDULE_PLAYBACK](this: EngineRuntimeHost, fromFrame, scheduledTi
 		recordWebCoreStreamPlayback(schedule.streamedClips);
 		scheduledTime = schedule.contextStartTime;
 		this.playbackStartTime = scheduledTime + (this.graph.latencyFrames || 0) / (context.sampleRate || DEFAULT_SAMPLE_RATE);
+		if (!this.loop.enabled) setParallelStackEndFrame(graph, () => Math.round(scheduledTime * context.sampleRate)
+			+ roundScheduledParameterContextFrameOffset(this.playEndFrame, fromFrame, this.sampleRate, context.sampleRate, this.playbackRate, graph.latencyFrames));
 		if (this.loop.enabled && this.loop.endFrame > this.loop.startFrame) {
 			this.loopScheduleTime = scheduledTime + (this.loop.endFrame - fromFrame) / (this.sampleRate * this.playbackRate);
 			this[ENGINE_SCHEDULE_LOOP_AHEAD]();
@@ -459,6 +413,7 @@ async [ENGINE_ENSURE_MASTER_LOUDNESS_METER](context) {
 	},
 
 [ENGINE_HALT_GRAPH]() {
+		cancelParallelStackPreparation(this);
 		releaseCutPreview(this);
 		this.masterLoudnessMeter?.setRunning(false);
 		this[ENGINE_STOP_TICKER]();

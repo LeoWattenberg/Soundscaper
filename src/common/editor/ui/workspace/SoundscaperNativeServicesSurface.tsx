@@ -17,6 +17,7 @@
  */
 
 import { captureNativeProcessingReturnFocus } from './native-processing-return-focus.ts';
+import { useParallelStackMenuRefresh } from './parallel-stack-menu-runtime.ts';
 import React, { useEffect, useSyncExternalStore } from 'react';
 import { createRoot } from 'react-dom/client';
 
@@ -254,6 +255,7 @@ export function useSoundscaperNativeServicesMenuRefresh(input: Readonly<{
 	engine?: EnginePublicApi | null;
 	controller?: Parameters<typeof createSoundscaperNativeRendererBridge>[0]['controller'];
 }>): void {
+	useParallelStackMenuRefresh();
 	const bridge = resolveBridge(input);
 	const { controller } = input;
 	const store = bridge === null ? null : soundscaperNativeServicesStoreFor(bridge);

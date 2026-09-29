@@ -1,8 +1,54 @@
 # Realtime effect stacks across worker threads
 
-Status: proposed design, 29 September 2026. The metering worker is implemented;
-the DSP backend described here is not. Initial delivery targets Soundscaper
-desktop, followed by the same backend on web after browser qualification.
+Status: desktop opt-in backend implemented, 29 September 2026. The sections below
+describe the target architecture; the delivery boundary is recorded here so
+unimplemented adapters and qualification work remain explicit.
+
+## Implemented desktop backend
+
+Enable **Tools → Audio setup → Processing → Parallel effect stacks** while
+stopped. The setting defaults off and stays outside project state. The menu
+offers an automatic worker limit or 1/2/4/8 workers, and 768/1536-frame pipeline
+buffers (16/32 ms at 48 kHz). Actual workers are bounded by available hardware
+and stack count. Web playback retains its existing DSP backend.
+
+The implementation includes fixed 256-frame blocks, eight shared banks, pinned
+stack ownership, dependency scheduling, terminal output tasks, route/PDC state,
+serial effects per stack, original source scheduling and meters, generation
+cancellation, deadline faults, and sample-accurate finite-range output endpoints.
+Processors warm up on four silent blocks and reset their histories in place
+before workers acknowledge readiness, including RNG and EQ filter state.
+Assignments currently use deterministic topological round-robin placement;
+measured-cost balancing remains future work.
+
+Admitted effects reuse parametric EQ's existing WASM runtime, bitcrusher,
+de-esser, multiband compression, standard filters, tremolo, vocoder, noise gate,
+unpitched multi-tap delay, and the existing limiter/gate recurrences. Explicit
+sidechains are qualified for limiter and gate. Channel maps preserve explicit
+mapping and mono panner widening; implicit maps must already have the destination
+width. Ambiguous dynamic-width conversion falls back to the conventional graph.
+
+Admission applies to the whole V21 graph. Authored automation lanes and legacy
+strip envelopes, authored audio warp, ADM, variable-speed modes, pitched delay,
+native/Audacity plug-ins, and other unsupported effects use the conventional
+backend. The menu shows the refusal reason. Live edits use the existing graph
+rebuild path; the bounded interactive event schedule and authored automation
+consumer specified below are not yet enabled. Offline/freeze rendering keeps
+its existing engine. A failed running configuration uses the conventional engine
+on subsequent Play until processing is disabled or its configuration changes.
+
+Automated tests cover real worker execution, serial-kernel parity, sidechain and
+terminal PDC, buffer ownership and wrap, startup cancellation, exact endpoints,
+and menu admission. Chromium tests additionally exercise audible processed PCM,
+two active workers, a 500 ms UI stall, stop/restart, and unsupported-effect
+fallback. The longer hardware/OS qualification and performance measurements in
+the acceptance gates remain required before enabling this backend by default
+or making a throughput claim.
+
+A separate Electron regression uses the real `soundscaper-app://bundle` protocol,
+production isolation headers, real workers and an AudioWorklet to verify the
+same UI-stall behavior. Its CI launch disables the OS sandbox; it verifies
+renderer isolation and shared-memory operation, not OS sandbox enforcement.
 
 ## Decision
 
