@@ -171,6 +171,15 @@ test('streaming analysis handles silence, anti-phase stereo, clipping, and short
 	assert.equal(antiPhase.shortTermLufs, null);
 });
 
+test('stereo correlation retains quiet AC variation over a DC offset', () => {
+	const frames = 32_000;
+	const left = Float32Array.from({ length: frames }, (_, frame) => 0.5 + (frame % 2 ? 1e-7 : -1e-7));
+	const same = left.slice();
+	const opposite = Float32Array.from({ length: frames }, (_, frame) => 0.5 + (frame % 2 ? -1e-7 : 1e-7));
+	assert.ok(Math.abs(analyzeAudioChannels([left, same], 8_000).stereoCorrelation - 1) < 1e-12);
+	assert.ok(Math.abs(analyzeAudioChannels([left, opposite], 8_000).stereoCorrelation + 1) < 1e-12);
+});
+
 test('analysis block counts follow the EBU window cadence at exact frame boundaries', () => {
 	const analyzeFrames = (frameCount) => analyzeAudioChannels(
 		[new Float32Array(frameCount)], 8_000,

@@ -62,11 +62,11 @@ export function createStreamingAudioAnalyzer(options = {}) {
 	let sampleSquareSum = 0;
 	let clippedSamples = 0;
 	let clippedFrames = 0;
-	let leftSum = 0;
-	let rightSum = 0;
-	let leftSquareSum = 0;
-	let rightSquareSum = 0;
-	let crossSum = 0;
+	let leftMean = 0;
+	let rightMean = 0;
+	let leftVariance = 0;
+	let rightVariance = 0;
+	let covariance = 0;
 	let result = null;
 
 	function push(channels) {
@@ -98,11 +98,14 @@ export function createStreamingAudioAnalyzer(options = {}) {
 			if (channelCount >= 2) {
 				const left = Number(channels[0][frame]);
 				const right = Number(channels[1][frame]);
-				leftSum += left;
-				rightSum += right;
-				leftSquareSum += left * left;
-				rightSquareSum += right * right;
-				crossSum += left * right;
+				const count = frameCount + 1;
+				const leftDelta = left - leftMean;
+				const rightDelta = right - rightMean;
+				leftMean += leftDelta / count;
+				rightMean += rightDelta / count;
+				leftVariance += leftDelta * (left - leftMean);
+				rightVariance += rightDelta * (right - rightMean);
+				covariance += leftDelta * (right - rightMean);
 			}
 			frameCount += 1;
 		}
@@ -148,9 +151,6 @@ export function createStreamingAudioAnalyzer(options = {}) {
 
 	function calculateCorrelation() {
 		if (channelCount < 2 || frameCount < 2) return null;
-		const covariance = crossSum - leftSum * rightSum / frameCount;
-		const leftVariance = leftSquareSum - leftSum * leftSum / frameCount;
-		const rightVariance = rightSquareSum - rightSum * rightSum / frameCount;
 		const denominator = Math.sqrt(Math.max(0, leftVariance) * Math.max(0, rightVariance));
 		return denominator > 0 ? Math.max(-1, Math.min(1, covariance / denominator)) : null;
 	}
