@@ -2,7 +2,7 @@
 
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import React from 'react';
+import React, { act } from 'react';
 import { renderToStaticMarkup } from 'react-dom/server';
 
 import { resolveLocalModelManagerBridge } from '../src/common/editor/ui/local-model-manager-availability.ts';
@@ -19,6 +19,7 @@ import {
 import LocalModelManagerDialog, {
 	LocalModelManagerDialogView,
 } from '../src/common/editor/ui/dialogs/LocalModelManagerDialog.tsx';
+import { installReactTestDom, reactProps } from './helpers/react-test-dom.ts';
 
 const INSTALLABLE_MODEL = Object.freeze({
 	modelId: 'parakeet-tdt-0.6b-v2',
@@ -446,6 +447,46 @@ test('the manager view exposes runtime, sizes, correlated progress, and explicit
 	assert.match(offlineMarkup, /Installed model notices/u);
 	assert.match(offlineMarkup, /CC-BY-4\.0/u);
 	assert.match(offlineMarkup, /https:\/\/upstream\.invalid\/model/u);
+});
+
+test('searching the model table does not hide offline installation from maintenance', async () => {
+	const dom = installReactTestDom();
+	const actGlobal = globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean };
+	const priorAct = actGlobal.IS_REACT_ACT_ENVIRONMENT;
+	const priorReact = Object.getOwnPropertyDescriptor(globalThis, 'React');
+	actGlobal.IS_REACT_ACT_ENVIRONMENT = true;
+	Object.defineProperty(globalThis, 'React', { configurable: true, value: React });
+	const { createRoot } = await import('react-dom/client');
+	const root = createRoot(dom.container as unknown as Element);
+	const snapshot: LocalModelManagerSnapshot = Object.freeze({
+		phase: 'ready', runtimeAvailable: true, runtimeReason: null,
+		models: Object.freeze([INSTALLABLE_MODEL]), busyModelIds: Object.freeze([]),
+		installingModelIds: Object.freeze([]), cancellingModelIds: Object.freeze([]),
+		progress: Object.freeze([]), maintenanceOperation: null, lastResult: null,
+		notices: Object.freeze([]), noticesLoaded: false, error: null,
+	});
+	try {
+		await act(async () => root.render(<LocalModelManagerDialogView
+			copy={ENGLISH_COPY} locale="en" snapshot={snapshot}
+			onClose={() => undefined} onInstall={() => undefined}
+			onInstallPreseeded={() => undefined} onCancelInstall={() => undefined}
+			onRemove={() => undefined} onRetry={() => undefined}
+			onReconcile={() => undefined} onGarbageCollect={() => undefined}
+			onShowNotices={() => undefined} onRelocate={() => undefined}
+		/>));
+		assert.match(dom.container.textContent, /Install from folder/u);
+		await act(async () => {
+			reactProps(dom.one('.search-field__input')).onChange({ target: { value: 'no matching model' } });
+		});
+		assert.equal(dom.container.querySelectorAll('[data-local-model-id]').length, 0);
+		assert.match(dom.container.textContent, /Install from folder/u);
+	} finally {
+		await act(async () => root.unmount());
+		actGlobal.IS_REACT_ACT_ENVIRONMENT = priorAct;
+		if (priorReact) Object.defineProperty(globalThis, 'React', priorReact);
+		else Reflect.deleteProperty(globalThis, 'React');
+		dom.restore();
+	}
 });
 
 test('loading and load failure states are announced accessibly', () => {

@@ -199,7 +199,7 @@ export function LocalModelManagerDialogView({
 			copy={copy}
 			busy={globallyBusy}
 			operation={snapshot.maintenanceOperation}
-			models={models}
+			models={snapshot.models}
 			onInstallPreseeded={onInstallPreseeded}
 			onReconcile={onReconcile}
 			onGarbageCollect={onGarbageCollect}
