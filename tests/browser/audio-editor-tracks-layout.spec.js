@@ -1,3 +1,4 @@
+import { lightTheme } from '../../vendor/audacity-design-system/tokens/src/themes/light.v2.ts';
 import { expect, longTone, test, toneA } from './audio-editor-test-fixtures.js';
 import {
 	bootEditor,
@@ -430,6 +431,7 @@ test.describe('audio editor React/design-system workflows', () => {
 	test('anchors toolbar and browser zoom gestures to the project timeline', async ({ page }) => {
 		const errors = collectClientErrors(page);
 		const editor = await bootEditor(page, '/embed/en/');
+		await setDocumentTheme(page, 'light');
 		await importFiles(editor, [longTone]);
 		const timeline = editor.locator('[data-timeline]');
 		const timelinePanel = editor.locator('.audio-editor-timeline-panel');
@@ -454,7 +456,11 @@ test.describe('audio editor React/design-system workflows', () => {
 		await page.keyboard.down('Control');
 		for (let step = 0; step < 6; step += 1) await page.keyboard.press('=');
 		await page.keyboard.up('Control');
-		await expect.poll(() => waveform.evaluate((canvas) => {
+		await expect(clipByName(editor, longTone.name).locator('.clip-body')).toHaveAttribute('data-color', 'blue');
+		const waveformHex = lightTheme.audio.clip.blue.waveform;
+		const waveformRgba = [...[1, 3, 5].map((offset) =>
+			Number.parseInt(waveformHex.slice(offset, offset + 2), 16)), 255];
+		await expect.poll(() => waveform.evaluate((canvas, expected) => {
 			const context = canvas.getContext('2d');
 			const { data, width, height } = context.getImageData(0, 0, canvas.width, canvas.height);
 			const center = Math.floor(height / 2);
@@ -462,7 +468,9 @@ test.describe('audio editor React/design-system workflows', () => {
 				let painted = 0;
 				for (let x = Math.floor(width * quarter / 4); x < Math.floor(width * (quarter + 1) / 4); x += 1) {
 					for (let y = 0; y < height; y += 1) {
-						if (Math.abs(y - center) <= 2 || data[(y * width + x) * 4 + 3] === 0) continue;
+						if (Math.abs(y - center) <= 2) continue;
+						const pixel = (y * width + x) * 4;
+						if (!expected.every((value, channel) => data[pixel + channel] === value)) continue;
 						painted += 1;
 						break;
 					}
@@ -470,7 +478,7 @@ test.describe('audio editor React/design-system workflows', () => {
 				return painted;
 			});
 			return Math.min(...paintedQuarters);
-		})).toBeGreaterThan(40);
+		}, waveformRgba)).toBeGreaterThan(40);
 
 		await page.evaluate(() => {
 			const externalFocus = document.createElement('button');

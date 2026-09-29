@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { expect, test } from './audio-editor-test-fixtures.js';
+import { videoRetimePreviewMedia } from './fixtures/video-retime-preview-media.js';
 import { FIXTURE_PATH, HARNESS_ROOT, installHarnessRoutes } from './helpers/video-retime-preview-harness.js';
 test.use({ browserCoverage: false });
 test('presents the last frame when its indexed interval extends beyond the media duration', async ({ page }) => {
@@ -27,12 +28,16 @@ test('presents the last frame when its indexed interval extends beyond the media
 			const context = canvas.getContext('2d');
 			context.drawImage(video, 0, 0);
 			const pixel = Array.from(context.getImageData(32, 16, 1, 1).data);
+			const ordinalBits = Array.from({ length: 4 }, (_unused, bit) => {
+				const rgba = context.getImageData(4 + bit * 8, 6, 1, 1).data;
+				return rgba[0] > 128 && rgba[1] > 128 && rgba[2] > 128 ? 1 : 0;
+			});
 			let outsideError = null;
 			try {
 				await port.present({ ...request, intervalStartSeconds: video.duration,
 					intervalEndSeconds: video.duration + 0.1, targetSeconds: video.duration + 0.05 });
 			} catch (error) { outsideError = error.message; }
-			return { frame, repeated, pixel, outsideError, clock: video.currentTime, duration: video.duration };
+			return { frame, repeated, pixel, ordinalBits, outsideError, clock: video.currentTime, duration: video.duration };
 		} finally { video.removeAttribute('src'); video.load(); video.remove(); }
 	}, { fixturePath: FIXTURE_PATH, root: HARNESS_ROOT });
 	expect(result.frame.mediaTime).toBeGreaterThanOrEqual(0.2);
@@ -41,6 +46,8 @@ test('presents the last frame when its indexed interval extends beyond the media
 	expect(result.pixel[0]).toBeGreaterThan(200);
 	expect(result.pixel[1]).toBeGreaterThan(200);
 	expect(result.pixel[2]).toBeLessThan(50);
+	expect(result.pixel[3]).toBe(255);
+	expect(result.ordinalBits).toEqual(videoRetimePreviewMedia.pixelOracle[3].ordinalBits);
 	expect(result.repeated).toEqual(result.frame);
 	expect(result.clock).toBeGreaterThanOrEqual(0.2);
 	expect(result.clock).toBeLessThan(result.duration);

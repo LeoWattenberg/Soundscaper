@@ -90,11 +90,15 @@ test.describe('Framescaper selected-web multicamera workflow', () => {
 			await expect.poll(() => previewPictureDigest(editor), { timeout: 30_000 })
 				.not.toBe(originalPicture);
 			switchedPicture = await previewPictureDigest(editor);
-			expect((await previewQuadrants(page, editor)).map((channels) => channels.map((value) => value > 150)))
-				.toEqual([
-					[true, false, false], [false, true, false],
-					[false, false, true], [true, true, true],
-				]);
+			const quadrants = await previewQuadrants(page, editor);
+			for (const [index, expected] of [
+				[255, 0, 0], [0, 255, 0], [0, 0, 255], [255, 255, 255],
+			].entries()) {
+				for (const [channel, value] of expected.entries()) {
+					expect(Math.abs(quadrants[index][channel] - value),
+						`quadrant ${index} channel ${channel} matches its authored color`).toBeLessThanOrEqual(16);
+				}
+			}
 		} else await assertPreviewFallback(editor);
 
 		await expect(editor.getByRole('tab', { selected: true })).toBeEnabled();

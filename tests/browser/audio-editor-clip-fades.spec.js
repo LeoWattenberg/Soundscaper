@@ -104,11 +104,13 @@ test.describe('non-destructive clip fade handles', () => {
 		await expect(fadeIn).toHaveAttribute('aria-valuenow', '0.8');
 		const curves = clip.locator('.audio-editor-clip-fade__curve');
 		await expect(curves.locator('polygon')).toHaveCount(0);
-		await expect(curves.locator('path[data-fade-curve="in"]')).toHaveCount(1);
-		await expect(curves.locator('path[data-fade-curve="in"]')).toHaveAttribute('fill', 'none');
+		const curve = curves.locator('path[data-fade-curve="in"]');
+		await expect(curve).toHaveCount(1);
+		await expect(curve).toHaveAttribute('fill', 'none');
+		await expect(curve).toHaveAttribute('stroke', 'rgba(0, 0, 0, 0.55)');
 		const curveBounds = await curves.boundingBox();
 		expect(curveBounds).not.toBeNull();
-		const lineBounds = await curves.locator('path[data-fade-curve="in"]').boundingBox();
+		const lineBounds = await curve.boundingBox();
 		expect(lineBounds).not.toBeNull();
 		expect(lineBounds.y).toBeGreaterThanOrEqual(curveBounds.y - 4);
 		expect(lineBounds.y + lineBounds.height).toBeGreaterThan(curveBounds.y + curveBounds.height * 0.8);

@@ -279,7 +279,8 @@ test('a generator visual paints over the media on its track and is reported cons
 
 	const result = await render(execution, { target });
 
-	assert.deepEqual([...target.slice(0, 4)], [255, 0, 0, 255], 'the solid generator owns the canvas');
+	assert.deepEqual([...target], Array.from({ length: WIDTH * HEIGHT }, () => [255, 0, 0, 255]).flat(),
+		'the solid red generator owns every pixel of the canvas');
 	assert.deepEqual(result.consumedNodeIds,
 		['render:finishing:main-sequence', 'render:visual:generator-clip']);
 	await execution.dispose();

@@ -149,20 +149,20 @@ test('a disabled effect is bypassed without the execute port ever being reached'
 });
 
 test('effects on one target chain so each renders over the previous output', async () => {
-	const seen: number[] = [];
+	const seen: number[][] = [];
 	const built = graph({
 		plan: plan([node(), node({ instanceId: 'ofx-2' })]),
 		execute: (value: ExecuteRequest) => {
-			seen.push(value.inputs[0].rgba.pixels[0]);
+			seen.push([...value.inputs[0].rgba.pixels]);
 			return Promise.resolve(rendered(rgba(seen.length === 1 ? 7 : 9)));
 		},
 	});
 
 	const applied = await apply(built);
 
-	assert.deepEqual(seen, [3, 7]);
+	assert.deepEqual(seen, [filled(3), filled(7)]);
 	assert.deepEqual(applied.dispositions.map(({ instanceId }) => instanceId), ['ofx-1', 'ofx-2']);
-	assert.equal(applied.frame.pixels[0], 9);
+	assert.deepEqual([...applied.frame.pixels], filled(9));
 });
 
 test('only the effects attached to the requested context and target are applied', async () => {

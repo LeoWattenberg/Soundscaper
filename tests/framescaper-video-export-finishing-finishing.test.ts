@@ -157,7 +157,8 @@ test('the finishing postprocessor rewrites the export frame in place at its decl
 	const rgba = await process(run, {}, signal);
 
 	assert.equal(rgba.byteLength, BYTES);
-	assert.equal(rgba[3], 255, 'an opaque plate stays opaque through managed finishing');
+	assert.deepEqual([...rgba], Array.from({ length: WIDTH * HEIGHT }, () => [115, 115, 115, 255]).flat(),
+		'the sRGB 128 plate is re-encoded as opaque Rec.709 gray across the full frame');
 });
 
 test('an enabled exposure grade brightens the exact frame the postprocessor publishes', async () => {
@@ -166,13 +167,11 @@ test('an enabled exposure grade brightens the exact frame the postprocessor publ
 		signal,
 		options: options({ finishing: { visualPresentations: [presentation({ grade: grade() })] } }),
 	});
-	const plain = await postprocessor({ signal });
 
 	const brightened = await process(graded, {}, signal);
-	const neutral = await process(plain, {}, signal);
 
-	assert.ok(Number(brightened[0]) > Number(neutral[0]),
-		'a one-stop exposure lift must publish brighter pixels than the ungraded finisher');
+	assert.deepEqual([...brightened], Array.from({ length: WIDTH * HEIGHT }, () => [167, 167, 167, 255]).flat(),
+		'a one-stop exposure lift doubles linear gray before Rec.709 encoding');
 });
 
 test('construction refuses timing views that are not an authenticated Map', async () => {
