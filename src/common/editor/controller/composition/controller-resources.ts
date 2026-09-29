@@ -69,7 +69,7 @@ export function createControllerResources(options: ControllerResourceOptions, ca
 	const engine = options.engine || createAudioEditorEngine({
 		onPosition: callbacks.onPosition, onMeter: callbacks.onMeter, onState: callbacks.onState,
 	});
-	if (fileService.isDesktop && options.productId === 'soundscaper') enableParallelProductionMeterSessionV21(engine);
+	if (options.productId === 'soundscaper') enableParallelProductionMeterSessionV21(engine);
 	const renderEngineFactory = options.engineFactory || createAudioEditorEngine;
 	const clipTimePitchCache = options.clipTimePitchCache || new ClipTimePitchRenderCacheCoordinator({
 		store, client: options.staffPadRenderClient,

@@ -48,7 +48,7 @@ interface ParallelMeterSession {
 }
 const parallelSessions = new WeakMap<object, ParallelMeterSession>();
 
-/** Desktop metering keeps strip PCM math in a dedicated worker. */
+/** Parallel metering keeps strip PCM math in a dedicated worker. */
 export function enableParallelProductionMeterSessionV21(owner: object, options: ParallelMeterOptions = {}): void {
 	if (parallelSessions.has(owner)) return;
 	parallelSessions.set(owner, { client: createProductionStripMeterWorkerClient(options), options,
