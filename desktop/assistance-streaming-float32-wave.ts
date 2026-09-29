@@ -368,7 +368,9 @@ async function readExact(
 		signal?.throwIfAborted();
 		const length = byteLength - completed;
 		onIo?.({ kind, path, position: position + completed, byteLength: length });
+		signal?.throwIfAborted();
 		const { bytesRead } = await handle.read(output, completed, length, position + completed);
+		signal?.throwIfAborted();
 		if (bytesRead < 1) throw new Error('An assistance WAV range ended unexpectedly.');
 		completed += bytesRead;
 	}
@@ -392,9 +394,11 @@ async function writeExact(
 		signal?.throwIfAborted();
 		const length = bytes.byteLength - completed;
 		onIo?.({ kind, path, position: position + completed, byteLength: length });
+		signal?.throwIfAborted();
 		const { bytesWritten } = await handle.write(
 			bytes, completed, length, position + completed,
 		);
+		signal?.throwIfAborted();
 		if (bytesWritten < 1) throw new Error('An assistance WAV write made no progress.');
 		completed += bytesWritten;
 	}
