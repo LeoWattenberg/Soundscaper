@@ -49,8 +49,15 @@ export class ParallelStackCollector {
 
 	setEndFrame(endFrame: number): void {
 		if (this.startFrame === null || this.endFrame !== null || !Number.isSafeInteger(endFrame)
-			|| endFrame < this.startFrame || endFrame < this.expectedFrame) throw new RangeError('Invalid parallel stack output endpoint.');
+			|| endFrame < this.startFrame) throw new RangeError('Invalid parallel stack output endpoint.');
 		this.endFrame = endFrame;
+		if (endFrame < this.expectedFrame) {
+			// Rendered samples beyond this endpoint cannot be retracted. Publish the
+			// missed timing guarantee instead of throwing from a worklet message.
+			faultParallelStackViews(this.views, ParallelStackFault.Clock);
+			this.ended = true;
+			if (!this.faultReported) { this.faultReported = true; this.onFault(this.fault); }
+		} else if (endFrame === this.expectedFrame) this.finish();
 	}
 
 	process(inputs: readonly (readonly Float32Array[])[], outputs: readonly (readonly Float32Array[])[], currentFrame: number): boolean {

@@ -125,10 +125,15 @@ export async function createParallelStackSession(
 		// Connect while unarmed: the collector renders silence until the chosen origin,
 		// even if the UI is delayed while waiting for the start acknowledgement.
 		graph = buildParallelStackAudioGraph(context, request.destination, collector, plan, latencyFrames, request.metering, abortController);
-		const startFrame = Math.ceil((context.currentTime + 0.05) * context.sampleRate / 128) * 128;
-		const armed = waitForMessage(collector.port, 'started', abortController.signal, { generation: sessionGeneration, startFrame });
-		collector.port.postMessage({ type: 'start', startFrame });
-		await armed;
+		const requestedStartFrame = Math.ceil((context.currentTime + 0.05) * context.sampleRate / 128) * 128;
+		const armed = waitForMessage(collector.port, 'started', abortController.signal, { generation: sessionGeneration });
+		collector.port.postMessage({ type: 'start', startFrame: requestedStartFrame });
+		const acknowledged = await armed;
+		const startFrame = acknowledged.startFrame;
+		if (typeof startFrame !== 'number' || !Number.isSafeInteger(startFrame)
+			|| startFrame < requestedStartFrame || startFrame % shared.geometry.quantumFrames !== 0) {
+			throw new Error('Parallel stack collector acknowledged an invalid frame origin.');
+		}
 		throwIfAborted(abortController.signal);
 		if (failure || views.status() === ParallelStackStatus.Faulted) throw failure ?? new Error('Parallel stack startup failed.');
 		setParallelStackSourceStartTime(graph, Math.max(startFrame / context.sampleRate, context.currentTime + 0.02), plan.workerCount);
@@ -143,7 +148,7 @@ export async function createParallelStackSession(
 	}
 }
 
-function waitForMessage(port: Worker | MessagePort, type: string, signal: AbortSignal, identity: Readonly<Record<string, number>>): Promise<void> {
+function waitForMessage(port: Worker | MessagePort, type: string, signal: AbortSignal, identity: Readonly<Record<string, number>>): Promise<Record<string, unknown>> {
 	return new Promise((resolve, reject) => {
 		const cleanup = (): void => {
 			clearTimeout(timer);
@@ -152,14 +157,14 @@ function waitForMessage(port: Worker | MessagePort, type: string, signal: AbortS
 			port.removeEventListener('error', failed);
 			signal.removeEventListener('abort', aborted);
 		};
-		const finish = (error?: Error): void => { cleanup(); if (error) reject(error); else resolve(); };
+		const finish = (error?: Error, reply: Record<string, unknown> = {}): void => { cleanup(); if (error) reject(error); else resolve(reply); };
 		const receive = (event: Event): void => {
 			const data: unknown = (event as MessageEvent<unknown>).data;
 			if (!data || typeof data !== 'object' || !('type' in data)) return;
 			if (data.type === type) {
 				const reply = data as Record<string, unknown>;
 				finish(Object.entries(identity).every(([key, value]) => reply[key] === value)
-					? undefined : new Error('Parallel stack handshake identity mismatch.'));
+					? undefined : new Error('Parallel stack handshake identity mismatch.'), reply);
 			}
 			else if (data.type === 'error' || data.type === 'fault') failed();
 		};
