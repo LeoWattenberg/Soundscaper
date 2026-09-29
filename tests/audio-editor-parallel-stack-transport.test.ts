@@ -130,7 +130,7 @@ test('clocked recording starts can read active graph latency in context frames',
 	await engine.dispose();
 });
 
-test('clocked playback reserves recorder startup time after parallel graph preparation', async () => {
+test('clocked playback reserves normal source startup time after parallel graph preparation', async () => {
 	const { engine, entered, release } = delayedPlayback();
 	const context = await engine.getAudioContext() as unknown as MockAudioContext;
 	const starting = engine.playAt(0.08, 0);
@@ -138,7 +138,7 @@ test('clocked playback reserves recorder startup time after parallel graph prepa
 	context.currentTime = 1;
 	release();
 	const scheduled = await starting;
-	assert.ok(scheduled >= 1.25, `source started too soon at ${String(scheduled)}`);
+	assert.equal(scheduled, 1.08);
 	assert.equal(context.bufferSources.at(-1)?.started?.[0], scheduled);
 	engine.stop();
 	await engine.dispose();
@@ -186,7 +186,7 @@ test('stopping during capture acknowledgement never starts the retired source', 
 	await engine.dispose();
 });
 
-test('clocked playback reserves recorder startup time with no clips after meter preparation', async () => {
+test('clocked playback reserves normal source startup time with no clips after meter preparation', async () => {
 	const context = new MockAudioContext({ sampleRate: 48_000 });
 	const project = createProject();
 	project.clips = [];
@@ -205,7 +205,7 @@ test('clocked playback reserves recorder startup time with no clips after meter 
 	context.currentTime = 1;
 	release();
 	const scheduled = await starting;
-	assert.ok(scheduled >= 1.25, `source started too soon at ${String(scheduled)}`);
+	assert.equal(scheduled, 1.08);
 	assert.equal(engine.getPlaybackAudibleStartTime(), scheduled);
 	unsubscribe();
 	engine.stop();

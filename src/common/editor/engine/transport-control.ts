@@ -61,6 +61,7 @@ import type {
 	EngineRuntimeHost,
 } from './runtime-types.ts';
 const DEFAULT_SCRUB_FRAME_MS = 50;
+const CLOCKED_START_LEAD_SECONDS = 0.08;
 function monotonicMilliseconds(): number {
 	return globalThis.performance?.now?.() ?? Date.now();
 }
@@ -228,6 +229,9 @@ async playAt(this: EngineRuntimeHost, contextTime, fromFrame = this.positionFram
 		this.preparedSpeedPlayback = null;
 		const context = await this.getAudioContext();
 		assertPlaybackRequestCurrent(this, generation);
+		const minimumStartLeadSeconds = onBeforeStart
+			? CLOCKED_RECORDING_START_LEAD_SECONDS
+			: CLOCKED_START_LEAD_SECONDS;
 		if (projectHasAuthoredAudioWarp(this.project)
 			&& this.getAudioWarpRenderStatus().path === 'exact-offline') {
 			let scheduledFrame = clampFrame(fromFrame, 0, this.durationFrames);
@@ -248,7 +252,7 @@ async playAt(this: EngineRuntimeHost, contextTime, fromFrame = this.positionFram
 			assertPlaybackRequestCurrent(this, generation);
 			const scheduledTime = Math.max(context.currentTime, Number(contextTime) || context.currentTime);
 			this.positionFrame = scheduledFrame;
-			const scheduled = await this[ENGINE_SCHEDULE_PREPARED_SPEED_PLAYBACK](this.positionFrame, scheduledTime, CLOCKED_RECORDING_START_LEAD_SECONDS, onBeforeStart);
+			const scheduled = await this[ENGINE_SCHEDULE_PREPARED_SPEED_PLAYBACK](this.positionFrame, scheduledTime, minimumStartLeadSeconds, onBeforeStart);
 			assertPlaybackRequestCurrent(this, generation);
 			return scheduled;
 		}
@@ -259,7 +263,7 @@ async playAt(this: EngineRuntimeHost, contextTime, fromFrame = this.positionFram
 		assertPlaybackRequestCurrent(this, generation);
 		const scheduledTime = Math.max(context.currentTime, Number(contextTime) || context.currentTime);
 		this.positionFrame = clampFrame(fromFrame, 0, this.playbackDurationFrames);
-		const scheduled = await this[ENGINE_SCHEDULE_PLAYBACK](this.positionFrame, scheduledTime, CLOCKED_RECORDING_START_LEAD_SECONDS, onBeforeStart);
+		const scheduled = await this[ENGINE_SCHEDULE_PLAYBACK](this.positionFrame, scheduledTime, minimumStartLeadSeconds, onBeforeStart);
 		assertPlaybackRequestCurrent(this, generation);
 		return scheduled;
 	},
