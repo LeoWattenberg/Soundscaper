@@ -5,6 +5,7 @@
 import { createHash, type Hash } from 'node:crypto';
 
 import {
+	HELPER_DATA_PLANE_CANCEL_REASONS,
 	HELPER_DATA_CHUNK_MAXIMUM_BYTES,
 	HELPER_DATA_IN_FLIGHT_CHUNKS_MAXIMUM,
 	HELPER_DATA_PLANE_MAXIMUM_BYTES,
@@ -220,7 +221,11 @@ export class HelperDataPlaneInputReceiver {
 	}
 
 	cancel(reason: HelperDataPlaneCancelReason): HelperDataPlaneCancelMessage {
-		this.#assertOpen(); this.#cancelled = true;
+		this.#assertOpen();
+		if (!HELPER_DATA_PLANE_CANCEL_REASONS.includes(reason)) {
+			return malformed('A helper input cancellation reason is unsupported.');
+		}
+		this.#cancelled = true;
 		return Object.freeze({
 			dataPlaneVersion: HELPER_DATA_PLANE_VERSION, type: 'cancel',
 			streamId: this.#reservation.streamId, reason,

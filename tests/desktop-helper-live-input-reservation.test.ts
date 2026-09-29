@@ -50,6 +50,15 @@ test('live helper input rejects a caller-authored digest and any changed trailer
 		/trailer disagrees/iu);
 });
 
+test('an invalid receiver cancellation reason leaves the live input open for a valid cancellation', () => {
+	const receiver = new HelperDataPlaneInputReceiver(reservation);
+	assert.throws(() => receiver.cancel('invalid' as 'helper-abort'), /cancellation reason/iu);
+	assert.deepEqual(receiver.cancel('helper-abort'), {
+		dataPlaneVersion: 1, type: 'cancel', streamId: reservation.streamId,
+		reason: 'helper-abort',
+	});
+});
+
 test('the native-input receiver ACKs only after its awaited sink write settles', async () => {
 	const [host, helper] = portPair();
 	const write = deferred<void>();
