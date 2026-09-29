@@ -35,6 +35,18 @@ test('unity settings reconstruct the dry signal exactly at every crossover', () 
 	}
 });
 
+test('turning live multiband ratios to one immediately restores the dry signal', () => {
+	const processor = createMultibandCompressorProcessor({ sampleRate: rate, channelCount: 1,
+		params: { lowRatio: 10, midRatio: 10, highRatio: 10, lowThreshold: -36, midThreshold: -36, highThreshold: -36 } });
+	const loud = tone(1000, 4_800);
+	processor.processBlock([loud], [new Float32Array(loud.length)], loud.length);
+	processor.updateParams(neutral);
+	const input = tone(1000, 256);
+	const output = new Float32Array(input.length);
+	processor.processBlock([input], [output], input.length);
+	assert.deepEqual(output, input);
+});
+
 test('each threshold controls its own frequency region', () => {
 	for (const [band, hz, other] of [['low', 50, 12000], ['mid', 1000, 50], ['high', 12000, 50]] as const) {
 		const params = { ...neutral, [`${band}Ratio`]: 10, [`${band}Threshold`]: -36 };

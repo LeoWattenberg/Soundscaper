@@ -34,6 +34,7 @@ export class BandCompressor {
 		this.attack = Math.exp(-1 / (attack * this.rate));
 		this.release = Math.exp(-1 / (release * this.rate));
 		this.maximum = maximum;
+		if (ratio === 1 || maximum === 0) this.reduction = 0;
 	}
 	gain(power: number): number {
 		this.energy = this.detector * this.energy + (1 - this.detector) * power;

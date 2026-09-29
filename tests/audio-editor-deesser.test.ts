@@ -51,6 +51,29 @@ test('silence, below-threshold audio and zero reduction pass through exactly', (
 	assert.deepEqual(applyDeesser([input], rate, { ...params, reduction: 0 })[0], input);
 });
 
+test('turning live de-esser reduction off clears compression before re-enabling it', () => {
+	const processor = createDeesserProcessor({ sampleRate: rate, channelCount: 1, params });
+	const neutral = createDeesserProcessor({ sampleRate: rate, channelCount: 1,
+		params: { ...params, reduction: 0 } });
+	const loud = tone(10_000, .5, 4_800);
+	for (const candidate of [processor, neutral]) {
+		candidate.processBlock([loud], [new Float32Array(loud.length)], loud.length);
+	}
+	processor.updateParams({ reduction: 0 });
+	const input = tone(10_000, .5, 256);
+	const output = new Float32Array(input.length);
+	processor.processBlock([input], [output], input.length);
+	assert.deepEqual(output, input);
+	neutral.processBlock([input], [new Float32Array(input.length)], input.length);
+	processor.updateParams({ reduction: 12 });
+	neutral.updateParams({ reduction: 12 });
+	const reenabled = new Float32Array(input.length);
+	const expected = new Float32Array(input.length);
+	processor.processBlock([input], [reenabled], input.length);
+	neutral.processBlock([input], [expected], input.length);
+	assert.ok(reenabled.every((sample, frame) => sample === expected[frame]));
+});
+
 test('linked channels preserve their stereo ratio and streaming matches selection rendering', async () => {
 	const left = tone(9000, 0.5, 8192);
 	const channels = [left, Float32Array.from(left, value => value * 0.25)];
