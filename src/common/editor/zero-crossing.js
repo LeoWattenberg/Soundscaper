@@ -1,9 +1,10 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 /**
- * Find the nearest linked-channel zero crossing. Exact zero samples and sign
- * changes are preferred by distance, then by the lowest summed amplitude.
- * If a window has no crossing, its quietest frame is returned.
+ * Find the nearest linked-channel zero crossing. Every channel must reach zero
+ * or change sign at the same frame; otherwise the edit can still click in a
+ * channel that is far from zero. If a window has no shared crossing, its
+ * quietest frame is returned.
  */
 export function findNearestAudioZeroCrossing(channels, targetFrame, options = {}) {
 	validateChannels(channels);
@@ -51,13 +52,14 @@ function validateChannels(channels) {
 function isLinkedZeroCrossing(channels, frame) {
 	for (const channel of channels) {
 		const current = Number(channel[frame]) || 0;
-		if (current === 0) return true;
+		if (current === 0) continue;
 		if (frame > 0) {
 			const previous = Number(channel[frame - 1]) || 0;
-			if (previous === 0 || (previous < 0 && current > 0) || (previous > 0 && current < 0)) return true;
+			if (previous === 0 || (previous < 0 && current > 0) || (previous > 0 && current < 0)) continue;
 		}
+		return false;
 	}
-	return false;
+	return true;
 }
 
 function linkedAmplitude(channels, frame) {

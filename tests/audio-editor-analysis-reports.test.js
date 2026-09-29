@@ -47,3 +47,15 @@ test('zero-crossing selection uses the nearest linked-channel crossing and quiet
 		Float32Array.of(0.8, 0.4, 0.1, 0.3, 0.9),
 	], 4, { maximumDistance: 4 }), 2);
 });
+
+test('stereo zero-crossing selection avoids a loud uncrossed channel', () => {
+	const left = Float32Array.of(0.8, -0.8, -0.8, -0.2, 0.2);
+	const right = Float32Array.of(0.8, 0.8, 0.8, -0.2, 0.2);
+	assert.equal(findNearestAudioZeroCrossing([left, right], 1, { maximumDistance: 3 }), 4,
+		'a common crossing is preferred over an earlier left-only crossing');
+
+	const noCommonLeft = Float32Array.of(-1, 0.9, 0.1);
+	const noCommonRight = Float32Array.of(0.9, 0.8, 0.2);
+	assert.equal(findNearestAudioZeroCrossing([noCommonLeft, noCommonRight], 0, { maximumDistance: 2 }), 2,
+		'the quietest stereo frame is used when only one channel crosses');
+});
