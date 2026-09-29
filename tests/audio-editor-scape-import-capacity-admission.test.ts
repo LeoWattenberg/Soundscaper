@@ -207,13 +207,11 @@ test('Scape import admits exact free capacity before opening its media writer', 
 	});
 
 	assert.equal(imported.project.id, 'scape-capacity-exact');
-	const capacityIndex = store.events.indexOf('capacity-estimated');
-	assert.ok(capacityIndex >= 0);
-	assert.ok(capacityIndex < store.events.indexOf('project-revisions-loaded'));
-	assert.ok(capacityIndex < store.events.indexOf('media-write-began'));
-	assert.ok(store.events.indexOf('media-write-began') < store.events.indexOf('asset-extracted'));
-	assert.ok(store.events.indexOf('media-committed') < store.events.indexOf('project-published'));
-	assert.ok(store.events.indexOf('archive-closed') < store.events.indexOf('project-published'));
+	assert.deepEqual(store.events, [
+		'project-loaded', 'capacity-estimated', 'project-loaded', 'project-revisions-loaded',
+		'media-metadata-read', 'media-write-began', 'asset-extracted',
+		'media-bytes-written', 'media-committed', 'archive-closed', 'project-published',
+	]);
 });
 
 test('Scape archive close failure discards staging before project publication', async () => {
@@ -236,9 +234,11 @@ test('Scape archive close failure discards staging before project publication', 
 	await assert.rejects(importScapeProject(new Blob(['synthetic']), store, {
 		archiveReaderFactory: archive.readerFactory,
 	}), (error: unknown) => error === closeFailure);
-	assert.equal(store.events.includes('project-published'), false);
-	assert.ok(store.events.indexOf('media-committed') < store.events.indexOf('archive-close-failed'));
-	assert.ok(store.events.indexOf('archive-close-failed') < store.events.indexOf('media-publication-discarded'));
+	assert.deepEqual(store.events, [
+		'project-loaded', 'capacity-estimated', 'project-loaded', 'project-revisions-loaded',
+		'media-metadata-read', 'media-write-began', 'media-bytes-written',
+		'media-committed', 'archive-close-failed', 'media-publication-discarded',
+	]);
 });
 
 test('Scape import uses one controller estimate before transaction capture, remapping, and extraction', async () => {
@@ -268,14 +268,11 @@ test('Scape import uses one controller estimate before transaction capture, rema
 
 	assert.equal(imported.project.id, 'scape-controller-capacity');
 	assert.deepEqual(preflights, [[10, 'import']]);
-	assert.equal(store.events.includes('capacity-estimated'), false);
-	const capacityIndex = store.events.indexOf('controller-capacity-estimated');
-	assert.ok(store.events.indexOf('project-loaded') < capacityIndex);
-	assert.ok(capacityIndex < store.events.indexOf('project-revisions-loaded'));
-	assert.ok(capacityIndex < store.events.indexOf('media-metadata-read'));
-	assert.ok(capacityIndex < store.events.indexOf('media-write-began'));
-	assert.ok(capacityIndex < store.events.indexOf('asset-extracted'));
-	assert.ok(store.events.indexOf('media-committed') < store.events.indexOf('project-published'));
+	assert.deepEqual(store.events, [
+		'project-loaded', 'controller-capacity-estimated', 'project-loaded', 'project-revisions-loaded',
+		'media-metadata-read', 'media-write-began', 'asset-extracted',
+		'media-bytes-written', 'media-committed', 'project-published',
+	]);
 });
 
 test('collision cancellation takes precedence and does not request a storage estimate', async () => {

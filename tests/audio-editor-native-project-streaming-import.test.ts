@@ -95,9 +95,10 @@ for (const cancel of [false, true]) {
 		await assert.rejects(createNativeProjectService(fixture.runtime).openAudacityProject(nativeFile('large.aup3')),
 			cancel ? { name: 'AbortError' } : /Quota exceeded/u);
 		assert.deepEqual(fixture.deletedSources, ['one']);
-		assert.equal(events.includes('abort:two'), true);
-		assert.equal(events.includes('read:two:1'), false);
-		assert.equal(events.at(-1), 'delete-native');
+		assert.deepEqual(events, [
+			'plan', 'read:one:0', 'read:one:1', 'commit:one',
+			'read:two:0', 'abort:two', 'delete-native',
+		]);
 		assert.deepEqual(fixture.switched, []);
 		assert.equal(fixture.state.importing, false);
 	});
@@ -112,6 +113,6 @@ test('cancellation immediately after acquiring a writer still aborts that writer
 			abort: async () => { events.push('abort'); } };
 	};
 	await assert.rejects(createNativeProjectService(fixture.runtime).openAudacityProject(nativeFile('large.aup3')), { name: 'AbortError' });
-	assert.equal(events.includes('abort'), true);
+	assert.deepEqual(events, ['plan', 'abort', 'delete-native']);
 	assert.deepEqual(fixture.switched, []);
 });

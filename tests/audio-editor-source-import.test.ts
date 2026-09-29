@@ -35,10 +35,14 @@ test('video import extracts linked audio and creates a new timeline lane pair', 
 		timelineStartFrame: 12,
 	});
 
-	assert.equal(result.destination, 'timeline');
-	assert.match(result.sourceId, /^video-source-/u);
-	assert.match(String(result.audioSourceId), /^source-/u);
-	assert.match(String(result.trackId), /^video-track-/u);
+	assert.deepEqual(result, {
+		destination: 'timeline',
+		sourceId: 'video-source-1',
+		audioSourceId: 'source-1',
+		clipId: 'video-clip-1',
+		audioClipId: 'clip-1',
+		trackId: 'video-track-1',
+	});
 	const videoSource = fixture.addedSources.find(({ kind }) => kind === 'video');
 	assert.ok(videoSource);
 	assert.equal(videoSource.posterStorageKey, null);
@@ -47,7 +51,22 @@ test('video import extracts linked audio and creates a new timeline lane pair', 
 	assert.match(String(audioSource?.contentSha256), /^[a-f0-9]{64}$/u);
 	assert.equal(audioSource?.byteLength, 36);
 	assert.equal(fixture.commits.length, 1);
-	assert.equal(fixture.commits[0]?.command.commands.length, 6);
+	assert.deepEqual(fixture.commits[0]?.command.commands.map((command) => {
+		if (typeof command !== 'object' || command === null) return command;
+		const type = 'type' in command ? command.type : undefined;
+		if ('source' in command) return [type, (command.source as { id: string }).id];
+		if ('track' in command) return [type, (command.track as { id: string }).id];
+		if ('clip' in command) return [type, 'trackId' in command ? command.trackId : undefined,
+			(command.clip as { id: string }).id];
+		return command;
+	}), [
+		['source/add', 'video-source-1'],
+		['source/add', 'source-1'],
+		['track/add', 'video-track-1'],
+		['track/add', 'track-1'],
+		['clip/add', 'video-track-1', 'video-clip-1'],
+		['clip/add', 'track-1', 'clip-1'],
+	]);
 	const committedVideoSource = fixture.commits[0]?.command.commands
 		.filter(isSourceAddCommand)
 		.map(({ source }) => source)
@@ -60,7 +79,13 @@ test('video import extracts linked audio and creates a new timeline lane pair', 
 	]);
 	assert.equal(fixture.sourceBuffers.size, 1);
 	assert.equal(fixture.sourcePeaks.size, 1);
-	assert.equal(fixture.calls.at(-1), 'dispose');
+	assert.deepEqual(fixture.calls, [
+		'preflight:16777216', 'assert-project:0', 'write-media:video-source-1',
+		'capture:0:poster', 'capture:1:thumbnail', 'capture:2:thumbnail',
+		'preflight:32', 'writer-write', 'writer-commit', 'save-analysis',
+		'assert-project:0', 'assert-project:0', 'activate:video-source-1',
+		'assert-project:0', 'commit', 'warn-envelope', 'dispose',
+	]);
 });
 
 test('video import reuses both members of an existing lane group', async () => {
