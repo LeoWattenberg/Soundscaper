@@ -115,6 +115,15 @@ export function createEbuR128Meter(options = {}) {
 		if (!Number.isFinite(inputGain)) throw new RangeError('EBU R 128 input gain must be finite.');
 		const applyInputGain = inputGain !== 1;
 		const frames = channels[0].length;
+		// A rejected chunk must not advance the filters, true-peak history, or
+		// published snapshots before its first invalid sample is discovered.
+		for (let frame = 0; frame < frames; frame += 1) {
+			for (let channel = 0; channel < channelCount; channel += 1) {
+				const sourceSample = Number(channels[channel][frame]);
+				const sample = applyInputGain ? sourceSample * inputGain : sourceSample;
+				if (!Number.isFinite(sample)) throw new RangeError('PCM samples must be finite.');
+			}
+		}
 		for (let frame = 0; frame < frames; frame += 1) {
 			let weightedEnergy = 0;
 			let framePeak = 0;

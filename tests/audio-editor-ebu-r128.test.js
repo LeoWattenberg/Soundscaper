@@ -159,6 +159,24 @@ test('streaming state is chunk-invariant and pause, continue, and reset retain t
 	assert.equal(snapshot.loudness.maximumTruePeakDbtp, null);
 });
 
+test('a rejected non-finite chunk does not publish or alter later loudness measurements', () => {
+	const silence = new Float32Array(8_000);
+	const clean = createEbuR128Meter({ sampleRate: 8_000, channelCount: 1, running: true });
+	clean.push([silence]);
+	const nonFiniteInput = new Float32Array(801).fill(0.5);
+	nonFiniteInput[800] = Number.NaN;
+	const overflowingGain = new Float64Array(801).fill(0.5);
+	overflowingGain[800] = Number.MAX_VALUE;
+	for (const [malformed, gain] of [[nonFiniteInput, 1], [overflowingGain, 2]]) {
+		const meter = createEbuR128Meter({ sampleRate: 8_000, channelCount: 1, running: true });
+		let updates = 0;
+		assert.throws(() => meter.push([malformed], () => { updates += 1; }, gain), /PCM samples must be finite/u);
+		assert.equal(updates, 0);
+		meter.push([silence]);
+		assert.deepEqual(meter.snapshot(), clean.snapshot());
+	}
+});
+
 test('silence, mono/stereo summation, sample-rate variation, telemetry cadence, and LRA stability are explicit', () => {
 	for (const sampleRate of [16_000, 44_100, 48_000, 96_000]) {
 		const silence = new Float32Array(Math.round(sampleRate * 3));
