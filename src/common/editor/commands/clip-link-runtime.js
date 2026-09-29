@@ -326,6 +326,9 @@ function createSingleTrackJoinRun(project, values) {
 		if (clipEndFrame(previous) !== current.timelineStartFrame) {
 			throw new RangeError('Only adjacent clips can be joined without rendering.');
 		}
+		if (previous.kind === 'audio' && ((previous.fadeOutFrames ?? 0) > 0 || (current.fadeInFrames ?? 0) > 0)) {
+			throw new RangeError('Clips with internal fades must be rendered before joining.');
+		}
 		if (!clipsHaveContiguousSource(previous, current)) {
 			throw new RangeError('Clips with different processing or source regions must be rendered before joining.');
 		}

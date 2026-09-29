@@ -150,7 +150,7 @@ test('joining clips takes the outgoing shape from the last clip even when it use
 		clips: [
 			createAudioClip({ id: 'left', sourceId: source.id, timelineStartFrame: 0,
 				durationFrames: 50, sourceStartFrame: 0, sourceDurationFrames: 50,
-				fadeInFrames: 10, fadeInShape: 2, fadeOutFrames: 10, fadeOutShape: 2 }),
+				fadeInFrames: 10, fadeInShape: 2 }),
 			createAudioClip({ id: 'right', sourceId: source.id, timelineStartFrame: 50,
 				durationFrames: 50, sourceStartFrame: 50, sourceDurationFrames: 50,
 				fadeOutFrames: 10 }),
