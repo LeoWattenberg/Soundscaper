@@ -91,9 +91,8 @@ test('the drawable is presented once per distinct frame index rather than once p
 	for (const sample of [0, 1, SECOND_PACK_FRAME_SAMPLE, SECOND_PACK_FRAME_SAMPLE + 1, 0]) session.resolve(sample);
 
 	assert.equal(drawables.length, 1);
-	assert.equal(drawables[0]?.presented.length, 3, 'only the two index changes and the return present');
-	assert.notEqual(drawables[0]?.presented[0], drawables[0]?.presented[1]);
-	assert.equal(drawables[0]?.presented[0], drawables[0]?.presented[2]);
+	assert.deepEqual(drawables[0]?.presented, [37, 74, 37],
+		'only index changes present, with the exact first byte of each seeded frame');
 	session.dispose();
 });
 
@@ -150,10 +149,10 @@ test('the delivery fit reaches the composited image placement rather than defaul
 	const contain = await openSession({ ...scene({ fixtures }), fit: 'contain' });
 	const cover = await openSession({ ...scene({ fixtures }), fit: 'cover' });
 
-	assert.notDeepEqual(
-		entriesOf(contain.resolve(0))[0]?.renderDescription,
-		entriesOf(cover.resolve(0))[0]?.renderDescription,
-	);
+	const containPlacement = entriesOf(contain.resolve(0))[0]?.renderDescription as { sourceDisplayToCanvas: readonly number[] };
+	const coverPlacement = entriesOf(cover.resolve(0))[0]?.renderDescription as { sourceDisplayToCanvas: readonly number[] };
+	assert.deepEqual(containPlacement.sourceDisplayToCanvas, [45, 0, 0, 45, 115, 0]);
+	assert.deepEqual(coverPlacement.sourceDisplayToCanvas, [160, 0, 0, 160, 0, -230]);
 	contain.dispose();
 	cover.dispose();
 });

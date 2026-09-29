@@ -493,10 +493,10 @@ test('the background decodes through the output space and refuses a colour name 
 	const greyRec709 = backgroundLinear(plan('#808080'), rec709);
 
 	assert.deepEqual([...green], [0, 1, 0, 1], 'a saturated hexadecimal background decodes exactly');
-	assert.ok(Math.abs(grey[0] - 0.2158) < 0.001, 'mid grey decodes through the sRGB transfer');
-	assert.ok(greyRec709[0] > grey[0] + 0.01,
-		'the BT.709 transfer decodes the same byte higher than sRGB does');
-	assert.equal(grey[3], 1, 'a six-digit background is fully opaque');
+	assert.deepEqual(grey.map((value) => Number(value.toFixed(12))),
+		[0.215860500114, 0.215860500114, 0.215860500114, 1], 'mid grey uses the sRGB transfer');
+	assert.deepEqual(greyRec709.map((value) => Number(value.toFixed(12))),
+		[0.261481506933, 0.261481506933, 0.261481506933, 1], 'mid grey uses the BT.709 transfer');
 	assert.throws(() => backgroundLinear(plan('red'), finishingNode({})), (error: unknown) => (
 		error instanceof Error && /requires a hexadecimal background color/u.test(error.message)
 	));
