@@ -78,8 +78,15 @@ export function xmlElement(
 export function formatXmlNumber(value: number): string {
 	if (!Number.isFinite(value)) throw new RangeError('XML numbers must be finite.');
 	const text = String(value);
-	if (!/e/iu.test(text)) return text;
-	return value.toFixed(20).replace(/0+$/u, '').replace(/\.$/u, '.0');
+	const exponential = text.match(/^(-?)(\d+)(?:\.(\d+))?e([+-]?\d+)$/u);
+	if (!exponential) return text;
+	const sign = exponential[1] ?? '';
+	const integer = exponential[2]!;
+	const digits = integer + (exponential[3] ?? '');
+	const point = integer.length + Number(exponential[4]);
+	if (point <= 0) return `${sign}0.${'0'.repeat(-point)}${digits}`;
+	if (point >= digits.length) return sign + digits + '0'.repeat(point - digits.length);
+	return sign + digits.slice(0, point) + '.' + digits.slice(point);
 }
 
 export function serializeXmlDocument(root: XmlElement): string {
