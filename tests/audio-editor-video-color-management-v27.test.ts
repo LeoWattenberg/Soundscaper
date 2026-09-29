@@ -299,7 +299,9 @@ test('sRGB and Rec.709 outputs use named deterministic transfer functions', () =
 		rgba: [encoded, encoded, encoded, input[3]], interpretation, grade, outputSpace: 'rec709',
 	});
 	close(srgb[0], encoded, 1e-12);
-	assert.notEqual(srgb[0], rec709[0]);
+	const expectedRec709 = 1.099 * Math.pow(input[0], 0.45) - 0.099;
+	for (const channel of rec709.slice(0, 3)) close(channel, expectedRec709, 1e-12);
+	close(rec709[3], input[3], 1e-12);
 });
 
 test('a grade stack decodes once, applies each grade in linear working space, and encodes once', () => {

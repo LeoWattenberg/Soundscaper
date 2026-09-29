@@ -49,13 +49,23 @@ test('a waveform renders the changing sample envelope', () => {
 });
 
 test('the spectrum follows the existing FFT rather than a fixed picture', () => {
+	// A 1,024-point FFT at 1,024 Hz puts these tones in bins 16 and 128.
+	// With 37 logarithmic columns, those powers of two land at x=16 and x=28.
+	const width = 37;
+	const foreground = [102, 211, 197, 255];
+	const background = [0, 0, 0, 255];
 	const sine = Float32Array.from({ length: 1_024 }, (_, frame) => Math.sin(2 * Math.PI * 128 * frame / 1_024));
-	const signal = renderSoundVisualizerRgba({ ...base, mode: 'spectrum', channels: [sine] });
-	const silent = renderSoundVisualizerRgba({ ...base, mode: 'spectrum', channels: [new Float32Array(1_024)] });
+	const input = { ...base, mode: 'spectrum' as const, width };
+	const signal = renderSoundVisualizerRgba({ ...input, channels: [sine] });
+	const silent = renderSoundVisualizerRgba({ ...input, channels: [new Float32Array(1_024)] });
 	assert.notDeepEqual(signal.pixels, silent.pixels);
-	assert.notDeepEqual(signal.pixels, renderSoundVisualizerRgba({ ...base, mode: 'spectrum', channels: [sine], timelineFrame: 1 }).pixels);
-	assert.ok(Array.from({ length: base.width }, (_, x) => foregroundCount(signal.pixels, base.width, x))
-		.some((count) => count > 0));
+	assert.notDeepEqual(signal.pixels, renderSoundVisualizerRgba({ ...input, channels: [sine], timelineFrame: 1 }).pixels);
+	assert.deepEqual(pixel(signal.pixels, width, 28, 0), foreground);
+	assert.deepEqual(pixel(signal.pixels, width, 16, 0), background);
+	const lowerSine = Float32Array.from({ length: 1_024 }, (_, frame) => Math.sin(2 * Math.PI * 16 * frame / 1_024));
+	const lower = renderSoundVisualizerRgba({ ...input, channels: [lowerSine] });
+	assert.deepEqual(pixel(lower.pixels, width, 16, 0), foreground);
+	assert.deepEqual(pixel(lower.pixels, width, 28, 0), background);
 });
 
 test('packed spectrum snapshots render the same temporal average as a full window', () => {

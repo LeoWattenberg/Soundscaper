@@ -150,7 +150,17 @@ test('all built-in generator families and still decode materialize deterministic
 	for (const generator of generators) {
 		const first = await materializeBuiltIn(generator);
 		const second = await materializeBuiltIn(generator);
-		assert.equal(first.pixels.some((value, index) => index % 4 === 3 && value > 0), true, generator.kind);
+		const paintedColors = new Set<string>();
+		for (let offset = 0; offset < first.pixels.length; offset += 4) {
+			if (first.pixels[offset + 3] !== 0) {
+				paintedColors.add(Array.from(first.pixels.subarray(offset, offset + 4)).join(','));
+			}
+		}
+		const expectedColors = generator.kind === 'title' ? ['255,255,255,255']
+			: generator.kind === 'text' ? ['0,255,0,255']
+				: generator.kind === 'shape' ? ['255,255,255,255', '0,0,255,255']
+					: ['255,0,0,255'];
+		assert.deepEqual(paintedColors, new Set(expectedColors), `${generator.kind} paints its authored colors`);
 		assert.deepEqual(first, second, `${generator.kind} materialization must be deterministic`);
 	}
 	const still = await materializeUnifiedExactRenderVisualEntryV13({

@@ -12,6 +12,21 @@ import {
 	registerAudioEditorHooks,
 	setDocumentTheme,
 } from './audio-editor-test-helpers.js';
+import { darkTheme } from '../../vendor/audacity-design-system/tokens/src/themes/dark.v2.ts';
+import { lightTheme } from '../../vendor/audacity-design-system/tokens/src/themes/light.v2.ts';
+
+const cssColor = (hex) => `rgb(${[1, 3, 5].map((offset) => Number.parseInt(hex.slice(offset, offset + 2), 16)).join(', ')})`;
+
+async function mixedBackground(page, color) {
+	return page.evaluate((hex) => {
+		const probe = document.createElement('div');
+		probe.style.background = `color-mix(in srgb, ${hex} 94%, transparent)`;
+		document.body.append(probe);
+		const background = getComputedStyle(probe).backgroundColor;
+		probe.remove();
+		return background;
+	}, color);
+}
 
 test.describe('Soundscaper mixer routing graph', () => {
 	registerAudioEditorHooks();
@@ -148,8 +163,14 @@ test.describe('Soundscaper mixer routing graph', () => {
 			return { background: style.backgroundColor, color: getComputedStyle(element.querySelector('strong')).color };
 		});
 		await expect(themedNode).toBeVisible();
-		expect(lightNodeStyle.background).not.toBe(darkNodeStyle.background);
-		expect(lightNodeStyle.color).not.toBe(darkNodeStyle.color);
+		expect(lightNodeStyle).toEqual({
+			background: await mixedBackground(page, lightTheme.background.surface.inset),
+			color: cssColor(lightTheme.foreground.text.primary),
+		});
+		expect(darkNodeStyle).toEqual({
+			background: await mixedBackground(page, darkTheme.background.surface.inset),
+			color: cssColor(darkTheme.foreground.text.primary),
+		});
 		await assertNoSeriousAxeViolations(page, '[data-soundscaper-routing-graph]');
 		await page.emulateMedia({ forcedColors: 'active' });
 		const supportsForcedColors = await page.evaluate(() => (

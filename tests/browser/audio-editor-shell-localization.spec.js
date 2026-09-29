@@ -20,6 +20,11 @@ import { resolveBrowserProductTestUrl } from './helpers/browser-product-test-url
 import { localeCopy } from './helpers/locale-copy.js';
 import { GERMAN_COPY } from '../../src/common/i18n/catalogs.js';
 import { formatOptionsLabel } from '../../src/common/editor/ui/localization-template.ts';
+import { darkTheme } from '../../vendor/audacity-design-system/tokens/src/themes/dark.v2.ts';
+import { lightTheme } from '../../vendor/audacity-design-system/tokens/src/themes/light.v2.ts';
+
+const cssColor = (hex) => `rgb(${[1, 3, 5].map((offset) =>
+	Number.parseInt(hex.slice(offset, offset + 2), 16)).join(', ')})`;
 
 test.describe('audio editor React/design-system workflows', () => {
 	registerAudioEditorHooks();
@@ -289,7 +294,9 @@ test.describe('audio editor React/design-system workflows', () => {
 		await expect(tooltip).toBeVisible();
 		await expect(tooltip).toHaveAttribute('role', 'tooltip');
 		await expect(tooltip.locator('[data-audio-editor-button-tooltip]')).toHaveText('Play');
-		await expect(tooltip).not.toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
+		const theme = await page.locator('html').getAttribute('data-theme');
+		const palette = theme === 'dark' ? darkTheme : lightTheme;
+		await expect(tooltip).toHaveCSS('background-color', cssColor(palette.background.surface.elevated));
 		await play.evaluate((button) => {
 			const rect = button.getBoundingClientRect();
 			button.dispatchEvent(new PointerEvent('pointerout', {

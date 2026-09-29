@@ -312,6 +312,10 @@ test('the composition is cleared to the background the delivery states', () => {
 	);
 
 	fixture.recording.reset();
-	compositor.render([], { outputWidth: 640, outputHeight: 360, backgroundColor: '#00000080' });
-	assert.equal(Math.round(fixture.recording.clears[0].color[3] * 255), 128, 'an alpha suffix is carried too');
+	compositor.render([], { outputWidth: 640, outputHeight: 360, backgroundColor: '#10203080' });
+	assert.deepEqual(
+		fixture.recording.clears[0].color.map((channel) => Math.round(channel * 255)),
+		[16, 32, 48, 128],
+		'an alpha suffix preserves the specified RGB channels too',
+	);
 });

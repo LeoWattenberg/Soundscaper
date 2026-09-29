@@ -44,13 +44,27 @@ test.describe('Parametric EQ graph interactions', () => {
 		await editor.getByRole('button', { name: 'Play', exact: true }).click();
 		const pause = editor.getByRole('button', { name: 'Pause', exact: true });
 		await expect(pause).toBeVisible();
-		for (const source of ['input', 'output']) {
+		for (const [source, fill] of [
+			['input', 'rgba(82, 155, 255, 0.18)'],
+			['output', 'rgba(76, 222, 154, 0.22)'],
+		]) {
 			const canvas = eq.locator(`.audio-editor-parametric-eq__spectrum--${source}`);
-			await expect.poll(async () => canvas.evaluate((element) => {
+			const expected = await canvas.evaluate((element, color) => {
+				const probe = document.createElement('canvas');
+				probe.width = probe.height = 1;
+				const context = probe.getContext('2d');
+				context.fillStyle = color;
+				context.fillRect(0, 0, 1, 1);
+				return [...context.getImageData(0, 0, 1, 1).data];
+			}, fill);
+			await expect.poll(async () => canvas.evaluate((element, rgba) => {
 				const context = element.getContext('2d');
 				const pixels = context.getImageData(0, 0, element.width, element.height).data;
-				return pixels.some((value, index) => index % 4 === 3 && value > 0);
-			}), { message: `${source} spectrum should paint during realtime playback` }).toBe(true);
+				for (let offset = 0; offset < pixels.length; offset += 4) {
+					if (rgba.every((value, index) => pixels[offset + index] === value)) return true;
+				}
+				return false;
+			}, expected), { message: `${source} spectrum should paint its intended color during realtime playback` }).toBe(true);
 		}
 		await pause.click();
 		expect(errors).toEqual([]);

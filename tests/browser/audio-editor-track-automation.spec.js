@@ -13,6 +13,19 @@ import {
 	waitForEditor,
 } from './audio-editor-test-helpers.js';
 import { chooseTrackMenuAction } from './helpers/track-menu.js';
+import { darkTheme } from '../../vendor/audacity-design-system/tokens/src/themes/dark.v2.ts';
+import { lightTheme } from '../../vendor/audacity-design-system/tokens/src/themes/light.v2.ts';
+
+async function expectedAutomationStroke(page, accent) {
+	return page.evaluate((color) => {
+		const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+		path.style.stroke = `color-mix(in srgb, ${color} 82%, white)`;
+		document.body.append(path);
+		const stroke = getComputedStyle(path).stroke;
+		path.remove();
+		return stroke;
+	}, accent);
+}
 
 test.describe('Soundscaper inline track automation', () => {
 	registerAudioEditorHooks();
@@ -48,13 +61,12 @@ test.describe('Soundscaper inline track automation', () => {
 		await expect(overlay.locator('[data-automation-point-id]')).not.toHaveCount(0);
 		const themedCurve = overlay.locator('.audio-editor-track-automation-curve').first();
 		await setDocumentTheme(page, 'light');
-		const lightStroke = await themedCurve.evaluate((element) => getComputedStyle(element).stroke);
 		await expect(page.locator('html')).toHaveAttribute('data-theme', 'light');
+		await expect(themedCurve).toHaveCSS('stroke', await expectedAutomationStroke(page, lightTheme.accent.primary));
 		await setDocumentTheme(page, 'dark');
-		const darkStroke = await themedCurve.evaluate((element) => getComputedStyle(element).stroke);
 		await expect(page.locator('html')).toHaveAttribute('data-theme', 'dark');
-		expect(lightStroke).not.toBe('none');
-		expect(darkStroke).not.toBe('none');
+		const darkStroke = await expectedAutomationStroke(page, darkTheme.accent.primary);
+		await expect(themedCurve).toHaveCSS('stroke', darkStroke);
 
 		const mode = controls.getByRole('combobox', { name: 'Automation mode' });
 		await mode.selectOption('touch');
@@ -91,8 +103,8 @@ test.describe('Soundscaper inline track automation', () => {
 			stroke: getComputedStyle(element).stroke,
 			opacity: getComputedStyle(element.ownerSVGElement).opacity,
 		}));
-		expect(coexistenceStyle.stroke).not.toBe('none');
-		expect(Number(coexistenceStyle.opacity)).toBeGreaterThan(0);
+		expect(coexistenceStyle.stroke).toBe(darkStroke);
+		expect(coexistenceStyle.opacity).toBe('0.58');
 		await expect(overlay.locator('[data-automation-insert-point]')).toHaveCount(0);
 		await expect(overlay.locator('[data-track-automation-interactive]')).toHaveCount(0);
 

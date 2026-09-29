@@ -427,7 +427,10 @@ test('a Project Bin image thumbnail follows its clip source-start ticks onto the
 	const first = await binThumbnail(binScene('0'));
 	const second = await binThumbnail(binScene('1000000'));
 
-	assert.notDeepEqual([...first.pixels], [...second.pixels]);
+	assert.deepEqual([...first.pixels.subarray(0, 4)], [37, 38, 39, 255]);
+	assert.deepEqual([...first.pixels.subarray(-4)], [41, 42, 43, 255]);
+	assert.deepEqual([...second.pixels.subarray(0, 4)], [74, 75, 76, 255]);
+	assert.deepEqual([...second.pixels.subarray(-4)], [78, 79, 80, 255]);
 });
 
 test('a Project Bin image thumbnail refuses a non-positive or unbounded requested size', async () => {

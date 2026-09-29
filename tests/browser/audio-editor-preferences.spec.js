@@ -10,6 +10,9 @@ import {
 } from './audio-editor-test-helpers.js';
 import { chooseTrackMenuAction } from './helpers/track-menu.js';
 
+const cssColor = (hex) => `rgb(${[1, 3, 5].map((offset) =>
+	Number.parseInt(hex.slice(offset, offset + 2), 16)).join(', ')})`;
+
 test('desktop Preferences opens General and manages the display-only FFmpeg location', async ({ page }) => {
 	await installDesktopFfmpegFixture(page);
 	const editor = await bootEditor(page, '/embed/en/');
@@ -92,26 +95,25 @@ for (const mode of ['Light', 'Dark']) {
 		await expect(separator).toHaveAttribute('role', 'separator');
 		await expect(separator).toBeVisible();
 		const palette = mode === 'Dark' ? darkTheme : lightTheme;
-		const separatorColor = `rgb(${[1, 3, 5].map((offset) =>
-			Number.parseInt(palette.border.onElevated.slice(offset, offset + 2), 16)).join(', ')})`;
 		expect(await separator.evaluate((node) => {
 			const line = getComputedStyle(node, '::after');
 			return { height: line.height, color: line.backgroundColor };
-		})).toEqual({ height: '1px', color: separatorColor });
+		})).toEqual({ height: '1px', color: cssColor(palette.border.onElevated) });
 
 		const checkbox = preferences.getByRole('checkbox', { name: 'Follow system theme', exact: true });
 		await expect(checkbox).not.toBeChecked();
 		await expect(checkbox).toHaveCSS('border-width', '0px');
 		await expect(checkbox).toHaveCSS('outline-style', 'none');
 		await preferences.screenshot({ path: testInfo.outputPath(`appearance-${mode}.png`) });
-		const idleFill = await checkbox.evaluate((node) => getComputedStyle(node).backgroundColor);
+		const idleFill = cssColor(palette.background.control.checkbox.idle);
+		await expect(checkbox).toHaveCSS('background-color', idleFill);
 		await checkbox.hover();
 		await expect(checkbox).toHaveCSS('border-width', '0px');
-		await expect(checkbox).not.toHaveCSS('background-color', idleFill);
+		await expect(checkbox).toHaveCSS('background-color', cssColor(palette.background.control.checkbox.hover));
 		await page.mouse.move(0, 0);
 		await page.keyboard.press('Tab');
 		await checkbox.focus();
-		await expect(checkbox).not.toHaveCSS('box-shadow', 'none');
+		await expect(checkbox).toHaveCSS('box-shadow', `${cssColor(palette.border.focus)} 0px 0px 0px 2px`);
 		await page.keyboard.press('Space');
 		await expect(checkbox).toBeChecked();
 		await expect(checkbox.locator('.checkbox__icon')).toBeVisible();

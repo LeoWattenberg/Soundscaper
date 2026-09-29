@@ -64,12 +64,7 @@ async function expectYellowGuide(editor) {
 	const guide = editor.locator('[data-smart-snap-guide]');
 	await expect(guide).toBeVisible();
 	await expect(guide).toHaveAttribute('data-smart-snap-frame', String(ANCHOR_START_FRAME));
-	const [red, green, blue] = await guide.evaluate((element) => (
-		getComputedStyle(element).backgroundColor.match(/[\d.]+/gu)?.slice(0, 3).map(Number) ?? []
-	));
-	expect(red).toBeGreaterThanOrEqual(190);
-	expect(green).toBeGreaterThanOrEqual(140);
-	expect(blue).toBeLessThan(130);
+	await expect(guide).toHaveCSS('background-color', 'rgb(245, 211, 79)');
 }
 
 test.describe('Audacity 3 boundary snapping', () => {

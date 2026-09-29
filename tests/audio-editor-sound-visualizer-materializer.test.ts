@@ -26,6 +26,11 @@ const entry: UnifiedExactRenderVisualFrameEntryV13 = {
 	},
 };
 
+function pixel(pixels: Uint8Array, x: number, y: number): number[] {
+	const offset = (y * 32 + x) * 4;
+	return Array.from(pixels.subarray(offset, offset + 4));
+}
+
 test('sound visualizer materialization consumes the supplied audio window and exact output ordinal', async () => {
 	const channels = [Float32Array.from({ length: 1_024 }, (_, frame) => frame % 2 ? 0.8 : -0.8)];
 	const first = await materializeUnifiedExactRenderVisualEntryV13(entry, {
@@ -37,6 +42,12 @@ test('sound visualizer materialization consumes the supplied audio window and ex
 		soundVisualizer: { channels, sampleRate: 1_024, windowStartFrame: 1, timelineFrame: 1 },
 	});
 	assert.equal(first.pixels.length, 32 * 24 * 4);
+	assert.deepEqual(pixel(first.pixels, 10, 12), [102, 211, 197, 255],
+		'the waveform uses the authored teal foreground');
+	assert.deepEqual(pixel(first.pixels, 10, 0), [0, 0, 0, 255],
+		'the unpainted area uses the authored black background');
+	assert.deepEqual(pixel(first.pixels, 0, 0), [255, 255, 255, 255]);
+	assert.deepEqual(pixel(second.pixels, 1, 0), [255, 255, 255, 255]);
 	assert.notDeepEqual(first.pixels, second.pixels);
 });
 
@@ -45,5 +56,7 @@ test('a Project Bin sound visualizer thumbnail has an animated idle first frame'
 		targetWidth: 32, targetHeight: 24,
 	});
 	assert.equal(thumbnail.pixels.length, 32 * 24 * 4);
-	assert.ok(thumbnail.pixels.some((value, index) => index % 4 === 3 && value > 0));
+	assert.deepEqual(pixel(thumbnail.pixels, 8, 0), [0, 0, 0, 255]);
+	assert.deepEqual(pixel(thumbnail.pixels, 0, 0), [255, 255, 255, 255],
+		'the idle marker remains visible on the first frame');
 });

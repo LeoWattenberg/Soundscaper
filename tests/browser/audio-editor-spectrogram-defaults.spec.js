@@ -45,7 +45,7 @@ test('a new audio track renders the spectrogram defaults set with no track selec
 	await expect(clip.locator('xpath=ancestor::div[@data-track-row]')).toHaveAttribute('data-track-id', trackId);
 	const canvas = clip.locator('canvas.clip-body__waveform').first();
 	await expect(canvas).toHaveAttribute('data-spectrogram-renderer', 'pffft-wasm');
-	const croppedPixels = await spectrogramColoredPixelCount(canvas);
+	const cropped = await spectrogramRaster(canvas);
 
 	await chooseCommandAction(page, editor, 'Edit', 'Preferences');
 	preferences = page.getByRole('dialog', { name: 'Editor preferences', exact: true });
@@ -55,17 +55,28 @@ test('a new audio track renders the spectrogram defaults set with no track selec
 	await commitInput(settings.getByLabel('Minimum frequency (Hz)', { exact: true }), '0');
 	await preferences.getByRole('button', { name: 'Close', exact: true }).last().click();
 	await expect(lane).toHaveAttribute('data-spectrogram-minimum-frequency', '0');
-	await expect.poll(() => spectrogramColoredPixelCount(canvas))
-		.toBeGreaterThan(croppedPixels + 100);
+	await expect.poll(async () => (await spectrogramRaster(canvas)).colored)
+		.toBeGreaterThan(cropped.colored + 100);
+	const expanded = await spectrogramRaster(canvas);
+	for (const [channel, peakRow] of expanded.peakRows.entries()) {
+		expect(Math.abs(peakRow / expanded.height - (channel + 1 - 440 / 8_000) / 2))
+			.toBeLessThan(0.02);
+	}
 });
 
-async function spectrogramColoredPixelCount(canvas) {
+async function spectrogramRaster(canvas) {
 	return canvas.evaluate((element) => {
-		const { data } = element.getContext('2d').getImageData(0, 0, element.width, element.height);
-		let colored = 0;
+		const { data, width, height } = element.getContext('2d').getImageData(0, 0, element.width, element.height);
+		const rowCounts = new Array(height).fill(0);
 		for (let offset = 0; offset < data.length; offset += 4) {
-			if (data[offset + 3] && Math.max(data[offset], data[offset + 1], data[offset + 2]) >= 32) colored += 1;
+			if (data[offset + 3] && Math.max(data[offset], data[offset + 1], data[offset + 2]) >= 32) {
+				rowCounts[Math.floor(offset / 4 / width)] += 1;
+			}
 		}
-		return colored;
+		const first = rowCounts.slice(0, Math.floor(height / 2));
+		const second = rowCounts.slice(first.length);
+		return { colored: rowCounts.reduce((sum, count) => sum + count, 0),
+			peakRows: [first.indexOf(Math.max(...first)), first.length + second.indexOf(Math.max(...second))],
+			height };
 	});
 }

@@ -40,14 +40,16 @@ test('resolved color scheme changes the ramp and silence stays neutral', () => {
 	assert.equal(frequencyWaveformTheme({ colorScheme: 'dark' }), 'dark');
 	assert.equal(frequencyWaveformTheme({ colorScheme: 'light' }), 'light');
 	assert.equal(frequencyWaveformTheme({ colorScheme: '' }), 'light');
-	for (const theme of ['light', 'dark'] as const) {
-		assert.equal(frequencyWaveformPaletteColor(0, 0, 48_000, theme),
-			frequencyWaveformPaletteColor(20_000, 0, 48_000, theme));
-		assert.equal(frequencyWaveformPaletteColor(1, 1, 48_000, theme),
-			frequencyWaveformPaletteColor(100, 1, 48_000, theme));
-		assert.equal(frequencyWaveformPaletteColor(40_000, 1, 96_000, theme),
-			frequencyWaveformPaletteColor(22_050, 1, 96_000, theme));
+	for (const [theme, silence, low, middle, high] of [
+		['light', 'rgb(107, 114, 128)', 'rgb(99, 80, 155)', 'rgb(37, 124, 128)', 'rgb(176, 76, 69)'],
+		['dark', 'rgb(156, 163, 175)', 'rgb(173, 153, 220)', 'rgb(101, 185, 183)', 'rgb(230, 146, 134)'],
+	] as const) {
+		assert.equal(frequencyWaveformPaletteColor(0, 0, 48_000, theme), silence);
+		assert.equal(frequencyWaveformPaletteColor(20_000, 0, 48_000, theme), silence);
+		assert.equal(frequencyWaveformPaletteColor(1, 1, 48_000, theme), low);
+		assert.equal(frequencyWaveformPaletteColor(100, 1, 48_000, theme), low);
+		assert.equal(frequencyWaveformPaletteColor(1_000, 1, 48_000, theme), middle);
+		assert.equal(frequencyWaveformPaletteColor(40_000, 1, 96_000, theme), high);
+		assert.equal(frequencyWaveformPaletteColor(22_050, 1, 96_000, theme), high);
 	}
-	assert.notEqual(frequencyWaveformPaletteColor(1_000, 1, 48_000, 'dark'),
-		frequencyWaveformPaletteColor(1_000, 1, 48_000, 'light'));
 });

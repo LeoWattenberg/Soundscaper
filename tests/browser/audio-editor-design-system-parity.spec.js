@@ -65,7 +65,7 @@ test.describe('audio editor React/design-system workflows', () => {
 			await page.mouse.move(0, 0);
 			await page.keyboard.press('Tab');
 			await checkbox.focus();
-			await expect(checkbox).not.toHaveCSS('box-shadow', 'none');
+			await expect(checkbox).toHaveCSS('box-shadow', `${cssColor(palette.border.focus)} 0px 0px 0px 2px`);
 			await page.keyboard.press('Escape');
 			await expect(flyout).toBeHidden();
 
