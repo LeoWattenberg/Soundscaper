@@ -90,17 +90,18 @@ async function installParallelStackProbe(page) {
 			const sample = () => {
 				for (let bank = 0; bank < geometry.bankCount; bank += 1) {
 					const offset = 4 + geometry.workerCount * 2 + bank * (5 + geometry.taskCount);
-					const state = Atomics.load(words, offset);
-					if (state !== 3 && state !== 4) continue;
 					const sequence = (Atomics.load(words, offset + 1) >>> 0)
 						+ (Atomics.load(words, offset + 2) >>> 0) * 2 ** 32;
+					const state = Atomics.load(words, offset);
+					if (state !== 3 && state !== 4) continue;
 					if (captured.has(sequence)) continue;
 					const first = (bank * geometry.planeCount + effectTracks[0].inputPlanes[0]) * geometry.blockFrames;
 					const second = (bank * geometry.planeCount + effectTracks[1].inputPlanes[0]) * geometry.blockFrames;
 					const block = { sequence, a: [pcm[first], pcm[first + 1]], b: [pcm[second], pcm[second + 1]] };
 					const stillSame = (Atomics.load(words, offset + 1) >>> 0)
 						+ (Atomics.load(words, offset + 2) >>> 0) * 2 ** 32 === sequence;
-					if (stillSame && Atomics.load(words, offset) >= 2) captured.set(sequence, block);
+					const finalState = Atomics.load(words, offset);
+					if (stillSame && (finalState === 3 || finalState === 4)) captured.set(sequence, block);
 				}
 			};
 			const interval = setInterval(sample, 1);
