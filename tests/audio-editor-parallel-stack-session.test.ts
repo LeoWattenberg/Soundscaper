@@ -7,7 +7,8 @@ import {
 	type ParallelStackSessionResources,
 } from '../src/common/editor/controller/transport/internal/parallel-stack-session.ts';
 import type { ParallelStackPlaybackRequest } from '../src/common/editor/engine/parallel-stack-playback.ts';
-import type { ParallelStackPlan } from '../src/common/editor/engine/parallel-stack-types.ts';
+import { compileParallelStackPlan } from '../src/common/editor/engine/parallel-stack-plan.ts';
+import type { EngineProject } from '../src/common/editor/engine/types.ts';
 
 class Port extends EventTarget {
 	closed = false;
@@ -29,6 +30,23 @@ class WorkerPort extends Port {
 	terminate(): void { this.terminated = true; }
 }
 
+function project(): EngineProject {
+	const strip = (id: string) => ({ id, name: id, color: '', gain: 1, pan: 0,
+		mute: false, solo: false, collapsed: false, effectsActive: true, effects: [], channelCount: 2 });
+	const edge = (id: string, source: object, destination: object) => ({
+		id, kind: 'assignment', source, destination, position: 'post-fader',
+		level: 1, enabled: true, channelMap: [0, 1],
+	});
+	return {
+		schemaFamily: 'soundscaper', schemaVersion: 1, sampleRate: 48_000, masterChannels: 2,
+		tracks: [{ ...strip('a'), type: 'audio' }], master: strip('master'),
+		mixer: { schemaVersion: 1, groups: [], sends: [], cues: [], vcas: [],
+			outputs: [{ id: 'main', name: 'Main', role: 'main', channelCount: 2 }],
+			edges: [edge('a-master', { kind: 'track', id: 'a' }, { kind: 'master' }),
+				edge('master-main', { kind: 'master' }, { kind: 'output', id: 'main' })] },
+	} as unknown as EngineProject;
+}
+
 function fixture() {
 	const workers: WorkerPort[] = [];
 	const port = new Port();
@@ -37,15 +55,10 @@ function fixture() {
 		sampleRate: 48_000, currentTime: 1,
 		createGain: () => ({ connect: () => {}, disconnect: () => {}, channelCount: 2 }),
 	} as unknown as AudioContext;
-	const plan = {
-		version: 1, blockFrames: 256, bankCount: 8, workerCount: 2, planeCount: 4, latencyFrames: 0,
-		tasks: [{ worker: 0, dependencies: [] }, { worker: 1, dependencies: [0] }],
-		tracks: [{ id: 'a', channels: 2, inputPlanes: [0, 1] }],
-		outputs: [{ id: 'main', role: 'main', channels: 2, planes: [2, 3] }],
-		stripTaps: [], inputPlaneIndices: [[0, 1]], outputPlaneIndices: [[2, 3]],
-	} as unknown as ParallelStackPlan;
+	const engineProject = project();
+	const plan = compileParallelStackPlan(engineProject, { sampleRate: 48_000, workerCount: 2 });
 	const request = {
-		context, destination: {} as AudioNode, project: {}, metering: false,
+		context, destination: {} as AudioNode, project: engineProject, metering: false,
 		playbackMode: 'normal', playbackRate: 1, fromFrame: 0, onFailure: () => {},
 	} as ParallelStackPlaybackRequest;
 	const resources: ParallelStackSessionResources = {
