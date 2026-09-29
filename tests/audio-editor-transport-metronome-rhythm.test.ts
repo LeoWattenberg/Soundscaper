@@ -50,6 +50,22 @@ test('timer jitter cannot change the pulse train at all', async () => {
 	assert.deepEqual(jittery, steady);
 });
 
+test('a loop that ends between beats schedules the first pulse at every wrap', async () => {
+	const expected = Array.from({ length: RUN_SECONDS / 0.75 }, (_, loop) => [loop * 0.75, loop * 0.75 + 0.5]).flat();
+	for (const options of [
+		{ jitterSeconds: 0, stallEvery: 0, stallSeconds: 0 },
+		{ jitterSeconds: 0.03, stallEvery: 5, stallSeconds: 0.06 },
+	]) {
+		assert.deepEqual(await runMetronome(options, 0.75), expected);
+	}
+});
+
+test('a loop starting between beats keeps its project-time pulse phase across wraps', async () => {
+	const expected = Array.from({ length: RUN_SECONDS }, (_, loop) => [loop + 0.25, loop + 0.75]).flat();
+	const clicks = await runMetronome({ jitterSeconds: 0.03, stallEvery: 5, stallSeconds: 0.06 }, 1, 0.25);
+	assert.deepEqual(clicks, expected);
+});
+
 test('a stall longer than the lookahead drops pulses rather than firing them late', async () => {
 	// A pulse whose audio-clock time has already passed cannot be sounded on the beat, and
 	// sounding it late would be worse than silence. What must not happen is drift: whatever
@@ -67,7 +83,11 @@ function expectedPulses(count: number): readonly number[] {
 	return Array.from({ length: count }, (_, index) => Number((index * BEAT_SECONDS).toFixed(9)));
 }
 
-async function runMetronome(options: MetronomeRun): Promise<readonly number[]> {
+async function runMetronome(
+	options: MetronomeRun,
+	loopSeconds: number | null = null,
+	loopStartSeconds = 0,
+): Promise<readonly number[]> {
 	const clicks: number[] = [];
 	let clock = 0;
 	// A holder, not a bare local: the timer is only ever assigned inside the stub below,
@@ -103,7 +123,9 @@ async function runMetronome(options: MetronomeRun): Promise<readonly number[]> {
 		sampleRate: SAMPLE_RATE,
 		tempo: { bpm: BPM, timeSignature: { numerator: 4, denominator: 4 } },
 		selection: null,
-		loop: null,
+		loop: loopSeconds === null ? null : { enabled: true,
+			startFrame: loopStartSeconds * SAMPLE_RATE,
+			endFrame: (loopStartSeconds + loopSeconds) * SAMPLE_RATE },
 	};
 	const state: Record<string, unknown> = {
 		metronomeEnabled: true,
@@ -125,7 +147,8 @@ async function runMetronome(options: MetronomeRun): Promise<readonly number[]> {
 		engine: {
 			getState: () => ({ playbackRate: 1 }),
 			// The playhead advances with the audio clock, exactly as during playback.
-			getPositionFrames: () => Math.round(clock * SAMPLE_RATE),
+			getPositionFrames: () => Math.round((loopSeconds === null ? clock
+				: loopStartSeconds + clock % loopSeconds) * SAMPLE_RATE),
 			getAudioContext: async () => context,
 		},
 	} as unknown as TransportServiceRuntime;

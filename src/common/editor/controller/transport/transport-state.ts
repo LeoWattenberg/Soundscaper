@@ -11,6 +11,8 @@ export interface ControllerMetronomeAnchor {
 	frame: number;
 	cursorFrame: number;
 	playbackRate: number;
+	loopStartFrame: number | null;
+	loopEndFrame: number | null;
 }
 
 /**

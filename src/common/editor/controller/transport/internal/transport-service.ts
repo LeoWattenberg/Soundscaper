@@ -377,40 +377,65 @@ export function createEditorTransportService<Project extends TransportProject = 
 		const framesPerSecond = sampleRate * playbackRate;
 		if (!Number.isFinite(framesPerSecond) || framesPerSecond <= 0) return;
 		const position = Math.max(0, engine.getPositionFrames());
+		const loop = project?.loop?.enabled && project.loop.endFrame > project.loop.startFrame
+			? project.loop : null;
 		let anchor = state.metronomeAnchor;
 		// The cursor is only meaningful while the playhead keeps advancing from where it
 		// was anchored, so a seek, a rate change, or a fresh start re-anchors it.
 		const expectedFrame = anchor
 			? anchor.frame + (context.currentTime - anchor.contextTime) * framesPerSecond
 			: 0;
+		const expectedPosition = loop
+			? wrappedMetronomeFrame(expectedFrame, loop.startFrame, loop.endFrame) : expectedFrame;
+		const distance = Math.abs(position - expectedPosition);
+		const drift = loop && position >= loop.startFrame && position < loop.endFrame
+			? Math.min(distance, loop.endFrame - loop.startFrame - distance) : distance;
 		if (!anchor || anchor.playbackRate !== playbackRate
-			|| Math.abs(position - expectedFrame) > METRONOME_RESYNC_SECONDS * framesPerSecond) {
-			anchor = { contextTime: context.currentTime, frame: position, cursorFrame: position, playbackRate };
+			|| anchor.loopStartFrame !== (loop?.startFrame ?? null)
+			|| anchor.loopEndFrame !== (loop?.endFrame ?? null)
+			|| drift > METRONOME_RESYNC_SECONDS * framesPerSecond) {
+			anchor = { contextTime: context.currentTime, frame: position, cursorFrame: position, playbackRate,
+				loopStartFrame: loop?.startFrame ?? null, loopEndFrame: loop?.endFrame ?? null };
 			state.metronomeAnchor = anchor;
 		}
 		const horizonFrame = anchor.frame
 			+ (context.currentTime + METRONOME_LOOKAHEAD_SECONDS - anchor.contextTime) * framesPerSecond;
+		const scheduleAt = (positionFrame: number) => calculateAudioEditorMetronomeSchedule({
+			bpm: project?.tempo?.bpm,
+			tempoMap: project?.tempoMap,
+			signatureMap: project?.signatureMap,
+			timeSignature: project?.tempo?.timeSignature,
+			sampleRate,
+			positionFrame,
+			playbackRate,
+		});
 		for (let queued = 0; queued < METRONOME_MAXIMUM_PULSES_PER_TICK; queued += 1) {
 			const cursorFrame = Math.max(0, Math.round(anchor.cursorFrame));
-			const { beatIndex, delaySeconds, accent } = calculateAudioEditorMetronomeSchedule({
-				bpm: project?.tempo?.bpm,
-				tempoMap: project?.tempoMap,
-				signatureMap: project?.signatureMap,
-				timeSignature: project?.tempo?.timeSignature,
-				sampleRate,
-				positionFrame: cursorFrame,
-				playbackRate,
-			});
-			const pulseFrame = Math.round(cursorFrame + delaySeconds * framesPerSecond);
+			const timelineFrame = loop
+				? wrappedMetronomeFrame(cursorFrame, loop.startFrame, loop.endFrame) : cursorFrame;
+			let pulse = scheduleAt(timelineFrame);
+			const timelinePulseFrame = Math.round(timelineFrame + pulse.delaySeconds * framesPerSecond);
+			let pulseFrame = cursorFrame + timelinePulseFrame - timelineFrame;
+			if (loop && timelinePulseFrame >= loop.endFrame) {
+				pulse = scheduleAt(loop.startFrame);
+				const firstPulseFrame = Math.round(loop.startFrame + pulse.delaySeconds * framesPerSecond);
+				if (firstPulseFrame >= loop.endFrame) return;
+				pulseFrame = Math.round(cursorFrame + loop.endFrame - timelineFrame + firstPulseFrame - loop.startFrame);
+			}
 			if (pulseFrame > horizonFrame) return;
 			const when = anchor.contextTime + (pulseFrame - anchor.frame) / framesPerSecond;
 			// A pulse already behind the audio clock cannot be sounded, but the cursor still
 			// has to step past it so the window keeps moving forward.
 			if (when >= context.currentTime) {
-				emitMetronomeClick(context, when, accent ?? (beatIndex % 4 === 0 ? 'bar' : 'beat'));
+				emitMetronomeClick(context, when, pulse.accent ?? (pulse.beatIndex % 4 === 0 ? 'bar' : 'beat'));
 			}
 			anchor.cursorFrame = pulseFrame + 1;
 		}
+	}
+
+	function wrappedMetronomeFrame(frame: number, startFrame: number, endFrame: number) {
+		const length = endFrame - startFrame;
+		return startFrame + ((frame - startFrame) % length + length) % length;
 	}
 
 	function emitMetronomeClick(context: EngineAudioContext, when: number, accent: string) {
