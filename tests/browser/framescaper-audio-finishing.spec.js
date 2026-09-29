@@ -9,6 +9,7 @@ import {
 	disableNativeSavePicker,
 	importFiles,
 	openNestedCommandMenu,
+	readDownloadBytes,
 } from './audio-editor-test-helpers.js';
 import { createDeterministicAvFixture } from './fixtures/deterministic-av-media.js';
 import { FRAMESCAPER_DATABASE_NAME } from './helpers/editor-databases.js';
@@ -85,6 +86,7 @@ test.describe('Framescaper v1 audio finishing', () => {
 			automationLaneIds: ['dialogue-gain'],
 			effectTypes: ['highpass', 'gate', 'eq', 'compressor', 'limiter'],
 			captionCueCount: 2,
+			audioClipDurationFrames: 104_000,
 		});
 
 		await chooseFileAction(page, editor, 'Export video');
@@ -100,11 +102,48 @@ test.describe('Framescaper v1 audio finishing', () => {
 		await loudnessOptions.getByRole('option', { name: 'EBU R 128 (-23 LUFS)', exact: true }).click();
 		await expect(loudness).toContainText('EBU R 128 (-23 LUFS)');
 		await exportDialog.getByRole('button', { name: 'Export', exact: true }).click();
-		await expect(exportDialog.locator('[data-export-download]')).toBeVisible({ timeout: 30_000 });
-		await expect(exportDialog.locator('[data-export-download]')).toHaveAttribute('download', /\.wav$/u);
+		const download = exportDialog.locator('[data-export-download]');
+		await expect(download).toBeVisible({ timeout: 30_000 });
+		await expect(download).toHaveAttribute('download', /\.wav$/u);
+		expect(readWavDelivery(await readDownloadBytes(page, download))).toEqual({
+			format: 1,
+			channels: 2,
+			sampleRate: 48_000,
+			bitDepth: 24,
+			frames: 104_000,
+		});
 		expect(clientErrors).toEqual([]);
 	});
 });
+
+function readWavDelivery(bytes) {
+	const view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength);
+	expect(Buffer.from(bytes.subarray(0, 4)).toString('ascii')).toBe('RIFF');
+	expect(Buffer.from(bytes.subarray(8, 12)).toString('ascii')).toBe('WAVE');
+	expect(view.getUint32(4, true)).toBe(bytes.byteLength - 8);
+	let format = null;
+	let dataSize = null;
+	for (let offset = 12; offset + 8 <= bytes.byteLength;) {
+		const kind = Buffer.from(bytes.subarray(offset, offset + 4)).toString('ascii');
+		const size = view.getUint32(offset + 4, true);
+		expect(offset + 8 + size).toBeLessThanOrEqual(bytes.byteLength);
+		if (kind === 'fmt ') format = new DataView(bytes.buffer, bytes.byteOffset + offset + 8, size);
+		if (kind === 'data') dataSize = size;
+		offset += 8 + size + (size & 1);
+	}
+	expect(format).not.toBeNull();
+	expect(dataSize).not.toBeNull();
+	const channels = format.getUint16(2, true);
+	const bitDepth = format.getUint16(14, true);
+	expect(dataSize % (channels * bitDepth / 8)).toBe(0);
+	return {
+		format: format.getUint16(0, true),
+		channels,
+		sampleRate: format.getUint32(4, true),
+		bitDepth,
+		frames: dataSize / (channels * bitDepth / 8),
+	};
+}
 
 async function openFinishing(page, editor, owner, parents, itemName, title) {
 	let menu;
@@ -166,6 +205,7 @@ async function storedAudioFinishing(page, projectId, trackId) {
 				automationLaneIds: project?.automationLanes?.map(({ id: laneId }) => laneId) ?? [],
 				effectTypes: audioTrack?.effects?.map(({ type }) => type) ?? [],
 				captionCueCount: project?.videoCaptionTracks?.[0]?.cues?.length ?? 0,
+				audioClipDurationFrames: project?.clips?.find(({ kind }) => kind === 'audio')?.durationFrames ?? null,
 			};
 		} finally {
 			database.close();

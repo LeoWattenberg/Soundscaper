@@ -50,7 +50,7 @@ test.describe('audio warp and transient workflow', () => {
 		await assertNoSeriousAxeViolations(page, '[data-audio-warp-dialog]');
 
 		await dialog.getByRole('button', { name: 'Analyze transients', exact: true }).click();
-		await expect(dialog.getByText(/\d+ transients found/u)).toBeVisible({ timeout: 20_000 });
+		await expect(dialog.getByText('3 transients found', { exact: true })).toBeVisible({ timeout: 20_000 });
 		await expect(dialog).toContainText('Transient analysis complete.');
 
 		await dialog.getByRole('button', { name: 'Create identity warp map', exact: true }).click();
@@ -82,7 +82,7 @@ test.describe('audio warp and transient workflow', () => {
 		await expect(strength).toHaveValue('100');
 		await dialog.getByRole('button', { name: 'Quantize transients', exact: true }).click();
 		await expect(dialog).toContainText('Transients quantized.');
-		await expect.poll(() => map.getByRole('row').count()).toBeGreaterThan(3);
+		await expect(map.getByRole('row')).toHaveCount(6);
 
 		await strength.focus();
 		await page.keyboard.press('Home');

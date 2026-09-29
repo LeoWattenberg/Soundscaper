@@ -236,7 +236,10 @@ test.describe('native timeline annotations', () => {
 
 		const regionLabelBeforeMove = await region.getAttribute('aria-label');
 		await region.press('Control+ArrowRight');
-		await expect.poll(() => region.getAttribute('aria-label')).not.toBe(regionLabelBeforeMove);
+		await expect(region).toHaveAttribute('aria-label', regionLabelBeforeMove.replace(
+			/(\d+\.\d{3})–(\d+\.\d{3}) s$/u,
+			(_, start, end) => `${(Number(start) + 1).toFixed(3)}–${(Number(end) + 1).toFixed(3)} s`,
+		));
 		const regionLabelBeforeResize = await region.getAttribute('aria-label');
 		const endHandle = region.locator('[data-annotation-edge="end"]');
 		const endHandleBounds = await endHandle.boundingBox();

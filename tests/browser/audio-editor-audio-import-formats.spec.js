@@ -158,8 +158,8 @@ test.describe('audio file import formats', () => {
 		await expect(clipByName(editor, 'field-recording.wave')).toBeVisible();
 		const peaks = await sourcePeakChannels(page, 'field-recording.wave');
 		expect(peaks.channelCount).toBe(2);
-		expect(peaks.channels[0].maximum).toBeGreaterThan(0.2);
-		expect(peaks.channels[1].maximum).toBeGreaterThan(0.05);
+		expect(peaks.channels[0].maximum).toBeCloseTo(0.3, 3);
+		expect(peaks.channels[1].maximum).toBeCloseTo(0.1, 3);
 	});
 
 	test('File > Import bypasses a visible Project bin and creates one track per file', async ({ page }) => {
