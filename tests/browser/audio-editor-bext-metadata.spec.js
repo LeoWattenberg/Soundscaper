@@ -118,7 +118,7 @@ test.describe('Broadcast WAV metadata UI', () => {
 		expect(parsed.description).toBe('Offline delivery');
 		expect(parsed.version).toBe(2);
 		expect(parsed.timeReference).toBe('9007199254740993');
-		expect(parsed.codingHistory).toContain('A=PCM,F=48000,W=24,M=stereo,T=Soundscaper\r\n');
+		expect(parsed.codingHistory).toBe('A=PCM,F=48000,W=24,M=stereo,T=Soundscaper\r\n');
 		expect(errors).toEqual([]);
 	});
 
@@ -138,7 +138,7 @@ test.describe('Broadcast WAV metadata UI', () => {
 		expect(parsed.description).toBe('Realtime delivery');
 		expect(parsed.version).toBe(2);
 		expect(parsed.timeReference).toBe('42');
-		expect(parsed.codingHistory).toContain('A=PCM,F=48000,W=24,M=stereo,T=Soundscaper\r\n');
+		expect(parsed.codingHistory).toBe('A=PCM,F=48000,W=24,M=stereo,T=Soundscaper\r\n');
 		expect(errors).toEqual([]);
 	});
 });
