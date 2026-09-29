@@ -51,9 +51,6 @@ function manifest() {
 		'src/common/i18n/translations/fr.json': {
 			file: 'assets/fr-hash.js', isDynamicEntry: true,
 		},
-		'src/framescaper/editor-capture-runtime.ts': {
-			file: 'assets/editor-capture-runtime-hash.js', isDynamicEntry: true,
-		},
 		'node_modules/mediabunny/dist/modules/src/index.js': {
 			file: 'assets/mediabunny-hash.js', isDynamicEntry: true,
 		},
@@ -77,7 +74,7 @@ test('desktop speed selects ordinary dynamic features and keeps AI entry modules
 	assert.deepEqual(plan.excludedTranslations, ['src/common/i18n/translations/fr.json']);
 });
 
-test('desktop speed selects the built product without warming the peer product', () => {
+test('desktop speed includes cross-product feature code but rejects the peer bootstrap', () => {
 	const framescaperManifest = { ...manifest() };
 	delete (framescaperManifest as Record<string, unknown>)[
 		'src/soundscaper/ui/SoundscaperAudioEditorBootstrap.tsx'
@@ -85,10 +82,18 @@ test('desktop speed selects the built product without warming the peer product',
 	(framescaperManifest as Record<string, unknown>)[
 		'src/framescaper/ui/FramescaperAudioEditorBootstrap.tsx'
 	] = { file: 'assets/FramescaperAudioEditorBootstrap-hash.js', isDynamicEntry: true };
+	(framescaperManifest as Record<string, unknown>)[
+		'src/framescaper/editor-capture-runtime.ts'
+	] = { file: 'assets/editor-capture-runtime-hash.js', isDynamicEntry: true };
+	(framescaperManifest as Record<string, unknown>)[
+		'src/soundscaper/editor-scape-native.ts'
+	] = { file: 'assets/editor-scape-native-hash.js', isDynamicEntry: true };
 	const plan = planDesktopSpeedWarmup(framescaperManifest, 'framescaper');
 	assert.ok(plan.files.includes('assets/editor-capture-runtime-hash.js'));
+	assert.ok(plan.files.includes('assets/editor-scape-native-hash.js'));
 	assert.ok(plan.files.includes('assets/ExportDialog-hash.js'));
 	assert.ok(!plan.files.includes('assets/SoundscaperAudioEditorBootstrap-hash.js'));
+	assert.deepEqual(plan.excludedOther, []);
 });
 
 test('desktop speed does no loading for the web or Memory preference', async () => {

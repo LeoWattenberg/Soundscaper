@@ -87,7 +87,8 @@ export function planDesktopSpeedWarmup(value: unknown, productId: ProductId): De
 		} else if (AI_ENTRY.test(source)) {
 			excludedAi.push(source);
 		} else if (source.startsWith('src/common/')
-			|| source.startsWith(`src/${productId}/`)
+			|| source.startsWith('src/soundscaper/')
+			|| source.startsWith('src/framescaper/')
 			|| source.startsWith('node_modules/')
 			|| source === 'soundscaper:pffft-node-module-browser-shim') {
 			files.add(file);
