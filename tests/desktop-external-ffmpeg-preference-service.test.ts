@@ -179,6 +179,26 @@ test('runtime identity failures quarantine only the admission that actually fail
 	assert.equal(settings.calls.length, callsBeforeStaleFailure);
 });
 
+test('a stale runtime failure cannot invalidate a newly rescanned identical admission', async () => {
+	const settings = settingsFixture(null);
+	const service = createExternalFfmpegPreferenceService(ports(settings, {
+		choose: () => Promise.resolve(PATH),
+		probe: () => Promise.resolve(available()),
+	}));
+	await service.choose();
+	const previous = service.admission();
+	assert.ok(previous);
+	assert.equal((await service.rescan()).state, 'ready');
+	const current = service.admission();
+	assert.ok(current);
+	assert.notEqual(current, previous, 'a rescan publishes a distinct admission');
+	const savedCalls = settings.calls.length;
+
+	assert.equal((await service.invalidateAdmission(previous, 'identity-changed')).state, 'ready');
+	assert.equal(service.admission(), current);
+	assert.equal(settings.calls.length, savedCalls);
+});
+
 test('runtime invalidation wins over an in-flight rescan of the same admission', async () => {
 	const settings = settingsFixture(null);
 	const pending = deferred<ExternalFfmpegPreferenceProbeResult>();

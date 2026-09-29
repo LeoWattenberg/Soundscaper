@@ -235,7 +235,7 @@ export function createExternalFfmpegPreferenceService(
 			if (reason !== 'identity-changed' && reason !== 'executable-unavailable') {
 				throw new TypeError('The FFmpeg runtime invalidation reason is unsupported.');
 			}
-			if (!sameAdmission(admission, expected)) return exposedStatus();
+			if (admission === null || admission !== expected) return exposedStatus();
 			mutationEpoch += 1;
 			admission = null;
 			const unavailable = reason === 'executable-unavailable';
@@ -258,20 +258,6 @@ export function createExternalFfmpegPreferenceService(
 			return exposedStatus();
 		},
 	});
-}
-
-function sameAdmission(
-	left: ExternalFfmpegRuntimeAdmission | null,
-	right: ExternalFfmpegRuntimeAdmission,
-): boolean {
-	return left !== null && right !== null && typeof right === 'object'
-		&& left.executablePath === right.executablePath
-		&& left.version === right.version
-		&& left.capabilityGeneration === right.capabilityGeneration
-		&& left.identity.ffmpegSha256 === right.identity?.ffmpegSha256
-		&& left.identity.ffprobePath === right.identity?.ffprobePath
-		&& left.identity.ffprobeSha256 === right.identity?.ffprobeSha256
-		&& left.identity.executablePairClosureSha256 === right.identity?.executablePairClosureSha256;
 }
 
 function runtimeAdmission(
