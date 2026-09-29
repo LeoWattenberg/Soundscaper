@@ -61,10 +61,6 @@ export class StreamingRecorderProcessor extends ProcessorBase {
 		}
 
 		if (!this.recording || this.paused) return true;
-		if (!input.length) {
-			if (globalFrame + blockLength >= this.stopFrame) this.#finish();
-			return true;
-		}
 		const firstIndex = Math.max(0, this.startFrame - globalFrame);
 		const lastIndex = Math.min(blockLength, this.stopFrame - globalFrame);
 		if (lastIndex <= firstIndex) {
