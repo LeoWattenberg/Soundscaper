@@ -208,11 +208,11 @@ test('rejects oversized or structurally invalid search responses', () => {
 	);
 });
 
-test('Cloudflare invokes Functions only for the Freesound API namespace', () => {
+test('Cloudflare invokes Functions only for the Freesound API and desktop download routes', () => {
 	const routes = JSON.parse(readFileSync(new URL('../public/_routes.json', import.meta.url), 'utf8')) as unknown;
 	assert.deepEqual(routes, {
 		version: 1,
-		include: ['/api/freesound/*'],
+		include: ['/api/freesound/*', '/download/desktop', '/download/desktop/*'],
 		exclude: [],
 	});
 });

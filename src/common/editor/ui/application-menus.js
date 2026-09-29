@@ -519,6 +519,10 @@ export default function createApplicationMenus({
 					available: () => actions.installAvailable?.() === true,
 					install: () => actions.installApplication?.(),
 				}),
+				...(typeof actions.downloadDesktop === 'function' ? [{
+					id: 'download-desktop-version', label: copy.downloadDesktopVersion,
+					onClick: actions.downloadDesktop,
+				}] : []),
 				{ id: AUDIO_EDITOR_APPLICATION_MENU_ACTION_IDS.revertFactory, label: copy.revertFactorySettings, onClick: actions.revertFactorySettings },
 				divider(),
 				{ id: 'debug-storage', label: copy.debugStorage, checked: uiFlags.storagePanel, onClick: actions.toggleStoragePanel },

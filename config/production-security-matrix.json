@@ -1669,6 +1669,30 @@
 			]
 		},
 		{
+			"id": "public-browser-to-desktop-release-redirect",
+			"from": "Browser visitor following a Soundscaper or Framescaper desktop download link",
+			"to": "Product Pages download Function and the public GitHub release listing",
+			"data": "Product request host, bounded public release metadata, and a product-qualified release redirect",
+			"entryPoints": [
+				"functions/download/desktop/index.ts",
+				"public/_routes.json"
+			],
+			"evidence": [
+				{
+					"kind": "implementation",
+					"path": "functions/download/desktop/index.ts"
+				},
+				{
+					"kind": "implementation",
+					"path": "public/_routes.json"
+				},
+				{
+					"kind": "test",
+					"path": "tests/desktop-release-download.test.ts"
+				}
+			]
+		},
+		{
 			"id": "public-client-to-freesound-proxy",
 			"from": "Public browser, packaged Soundscaper client, or other network caller",
 			"to": "Soundscaper Cloudflare Pages Freesound Functions and their server-only API credential",
@@ -5292,7 +5316,7 @@
 			"currentControls": [
 				{
 					"id": "bounded-freesound-read-proxy",
-					"summary": "The Pages route map sends only `/api/freesound/*` to Functions. The read-only handlers fail closed on unrecognized hosts and browser Origins, methods outside GET/HEAD/OPTIONS, unknown or duplicate search parameters, invalid sound IDs, multiple or malformed byte ranges, and a missing or malformed server secret. They read `FREESOUND_API_KEY` only from the environment and carry that credential only in an Authorization header to the fixed https://freesound.org API; URLSearchParams constructs the query, redirects are disabled, and API JSON work has an eight-second default deadline. Successful JSON must declare `application/json`, fit a 2 MiB declared and streamed ceiling, decode as UTF-8, and normalize through a closed bounded owned contract that omits upstream pagination and preview locators. A preview locator must be a credential-free HTTPS URL on exact `cdn.freesound.org` with no port or fragment and a `/previews/` path ending in `.ogg`; the credential is not forwarded, redirects remain disabled, responses must have an allowlisted Ogg MIME, and declared and streamed bodies stop at 256 MiB. Public responses expose only owned JSON or allowlisted preview headers, set `nosniff` and explicit cache policy, scope CORS to the Soundscaper web, packaged-app, or current same origin, and normalize errors without upstream bodies or secrets. Tests cover secret confinement, admission failure before fetch, SSRF and multi-range rejection, media typing, deadlines, response ownership, and route scoping. The proxy is public: host and CORS checks constrain deployment and browser response sharing, not client authentication.",
+					"summary": "The Pages route map sends Freesound requests under `/api/freesound/*` to Functions; an independent `/download/desktop` route handles public release navigation. The read-only handlers fail closed on unrecognized hosts and browser Origins, methods outside GET/HEAD/OPTIONS, unknown or duplicate search parameters, invalid sound IDs, multiple or malformed byte ranges, and a missing or malformed server secret. They read `FREESOUND_API_KEY` only from the environment and carry that credential only in an Authorization header to the fixed https://freesound.org API; URLSearchParams constructs the query, redirects are disabled, and API JSON work has an eight-second default deadline. Successful JSON must declare `application/json`, fit a 2 MiB declared and streamed ceiling, decode as UTF-8, and normalize through a closed bounded owned contract that omits upstream pagination and preview locators. A preview locator must be a credential-free HTTPS URL on exact `cdn.freesound.org` with no port or fragment and a `/previews/` path ending in `.ogg`; the credential is not forwarded, redirects remain disabled, responses must have an allowlisted Ogg MIME, and declared and streamed bodies stop at 256 MiB. Public responses expose only owned JSON or allowlisted preview headers, set `nosniff` and explicit cache policy, scope CORS to the Soundscaper web, packaged-app, or current same origin, and normalize errors without upstream bodies or secrets. Tests cover secret confinement, admission failure before fetch, SSRF and multi-range rejection, media typing, deadlines, response ownership, and route scoping. The proxy is public: host and CORS checks constrain deployment and browser response sharing, not client authentication.",
 					"evidence": [
 						{
 							"kind": "implementation",

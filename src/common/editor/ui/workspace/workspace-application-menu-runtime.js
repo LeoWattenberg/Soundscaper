@@ -2,6 +2,7 @@ import { assistanceDialogSurface } from '../assistance-task-catalog.ts';
 import { otherProductId, productProfile } from '../../../products.js';
 import { applicationInstallPromptCapture } from '../../../offline/install-prompt.ts';
 import { documentationUrl } from '../../documentation-links.ts';
+import { desktopDownloadUrl } from '../../desktop-download-links.ts';
 import { INSTALL_APPLICATION_MENU_ITEM_ID } from '../install-application-menu.ts';
 import { moveAudioEditorTrackBlock, trackSourceRate } from '../application-menu-model.js';
 import createApplicationMenus from '../application-menus.js';
@@ -133,6 +134,7 @@ export function createWorkspaceApplicationMenus({
 				openDiagnostics: () => openSurface('local-diagnostics'),
 				installAvailable: () => installPrompt.available(),
 				installApplication: () => run(() => installPrompt.prompt()),
+				downloadDesktop: fileService.isDesktop ? undefined : () => openExternal(desktopDownloadUrl(productId)),
 				openLocalModels: fileService.isDesktop ? () => openSurface('local-models') : undefined,
 				openLocalAssistance: fileService.isDesktop ? (request = { mode: 'advanced' }) => openSurface(assistanceDialogSurface(request)) : undefined,
 				openTextToSpeech: fileService.isDesktop ? () => openSurface('text-to-speech') : undefined,

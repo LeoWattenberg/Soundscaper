@@ -20,6 +20,8 @@ test.describe('Soundscaper product surface', () => {
 		await page.keyboard.press('Escape');
 		await page.getByRole('menuitem', { name: 'Help', exact: true }).click();
 		await expect(page.getByRole('menu', { name: 'Help', exact: true }).getByRole('menuitem', { name: 'About Soundscaper', exact: true })).toBeVisible();
+		await expect(page.getByRole('menu', { name: 'Help', exact: true })
+			.getByRole('menuitem', { name: 'Download desktop version', exact: true })).toBeVisible();
 	});
 
 	test('the File menu launches an exact editable-copy intent without changing its source', async ({ page }) => {

@@ -1,5 +1,5 @@
 {
 	"version": 1,
-	"include": ["/api/freesound/*"],
+	"include": ["/api/freesound/*", "/download/desktop", "/download/desktop/*"],
 	"exclude": []
 }

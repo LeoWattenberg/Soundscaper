@@ -157,6 +157,7 @@ Product availability follows each product profile’s command filters and each l
 | Dialogue Chain | `framescaper-dialogue-chain` | — | View > Panels | Framescaper | Soundscaper local |
 | Discover Native Effects | `desktop-discover-native-effects` | — | Tools | Soundscaper, Framescaper | Soundscaper local |
 | Distortion | `audacity-distortion` | — | Effect > Distortion and modulation | Soundscaper | Soundscaper local |
+| Download desktop version | `download-desktop-version` | — | Help | Soundscaper, Framescaper | Soundscaper local |
 | Draw tool | `draw-tool` | F3 | Tools toolbar | Soundscaper | Audacity |
 | Duplicate | `duplicate` | Ctrl+D | Edit | Soundscaper, Framescaper | Audacity |
 | Duplicate project | `duplicate-project` | — | File > Project management | Soundscaper, Framescaper | Soundscaper local |

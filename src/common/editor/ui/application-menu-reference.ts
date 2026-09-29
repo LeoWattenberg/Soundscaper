@@ -260,6 +260,7 @@ const REFERENCE_SEEDS: readonly ReferenceSeed[] = Object.freeze([
 	['community-translations', 'Contribute translations', 'Help', BOTH, 'link'],
 	['install-soundscaper', 'Install Soundscaper', 'Help', SOUNDSCAPER],
 	['install-framescaper', 'Install Framescaper', 'Help', FRAMESCAPER],
+	['download-desktop-version', 'Download desktop version', 'Help', BOTH, 'link'],
 	['debug-storage', 'Debug storage', 'Help', BOTH, 'setting'],
 	['desktop-product-help-soundscaper', 'Soundscaper Help', 'Help', SOUNDSCAPER, 'link'],
 	['desktop-product-help-framescaper', 'Framescaper Help', 'Help', FRAMESCAPER, 'link'],

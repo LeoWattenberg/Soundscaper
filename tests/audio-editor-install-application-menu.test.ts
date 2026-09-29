@@ -21,6 +21,8 @@ interface MenuOptions {
 	readonly install?: () => unknown;
 }
 
+const DESKTOP_DOWNLOAD_MENU_ITEM_ID = 'download-desktop-version';
+
 function editorProject(): Record<string, unknown> {
 	return {
 		id: 'project', sampleRate: 48_000, sources: [], clips: [], tracks: [],
@@ -67,7 +69,11 @@ function menus(options: MenuOptions = {}): MenuItem[] {
 }
 
 /** The Help menu the workspace itself builds, which is where the desktop build is decided. */
-function workspaceHelpMenu(options: Readonly<{ isDesktop: boolean; productId?: string }>): MenuItem {
+function workspaceHelpMenu(options: Readonly<{
+	isDesktop: boolean;
+	productId?: string;
+	openExternal?: (url: string) => void;
+}>): MenuItem {
 	const project = editorProject();
 	const input = {
 		productId: options.productId ?? 'soundscaper',
@@ -82,6 +88,7 @@ function workspaceHelpMenu(options: Readonly<{ isDesktop: boolean; productId?: s
 		projectBinEffectivelyOpen: false, uiFlags: {},
 		desktopHostRuntime: null,
 		fileService: { isDesktop: options.isDesktop },
+		openExternal: options.openExternal ?? (() => undefined),
 		parityRuntime: { actions: null },
 		run: (operation: () => unknown) => operation(),
 	};
@@ -94,6 +101,21 @@ function workspaceHelpMenu(options: Readonly<{ isDesktop: boolean; productId?: s
 	assert.ok(menu, 'the workspace builds a Help menu');
 	return menu;
 }
+
+test('Help opens the product desktop release route only in the browser editor', () => {
+	for (const productId of ['soundscaper', 'framescaper']) {
+		const opened: string[] = [];
+		const browser = workspaceHelpMenu({ isDesktop: false, productId,
+			openExternal: (url) => { opened.push(url); } });
+		const download = browser.items?.find((entry) => entry.id === DESKTOP_DOWNLOAD_MENU_ITEM_ID);
+		assert.ok(download, `${productId} browser Help offers the desktop version`);
+		assert.equal(download.label, 'Download desktop version');
+		(download.onClick as () => void)();
+		assert.deepEqual(opened, [`https://${productId}.org/download/desktop/`]);
+		const desktop = workspaceHelpMenu({ isDesktop: true, productId });
+		assert.equal(desktop.items?.some((entry) => entry.id === DESKTOP_DOWNLOAD_MENU_ITEM_ID), false);
+	}
+});
 
 function helpMenu(options: MenuOptions = {}): MenuItem {
 	const help = menus(options).find((menu) => menu.id === 'help');
@@ -190,7 +212,7 @@ test('choosing the install entry replays the captured prompt exactly once', () =
 	assert.equal(prompts, 1);
 });
 
-test('the desktop build leaves out the install entry, and only that entry', () => {
+test('the desktop build leaves out the browser installation and download entries', () => {
 	const browser = (workspaceHelpMenu({ isDesktop: false }).items ?? []).map((item) => item.id);
 	const desktop = (workspaceHelpMenu({ isDesktop: true }).items ?? []).map((item) => item.id);
 	assert.ok(browser.includes(INSTALL_APPLICATION_MENU_ITEM_ID), 'a browser is offered the install entry');
@@ -201,7 +223,7 @@ test('the desktop build leaves out the install entry, and only that entry', () =
 	);
 	assert.deepEqual(
 		desktop,
-		browser.filter((id) => id !== INSTALL_APPLICATION_MENU_ITEM_ID),
+		browser.filter((id) => id !== INSTALL_APPLICATION_MENU_ITEM_ID && id !== DESKTOP_DOWNLOAD_MENU_ITEM_ID),
 		'the rest of Help is the same menu it was',
 	);
 });
