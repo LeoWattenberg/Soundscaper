@@ -123,10 +123,19 @@ test('a revoked device generation resets capture credits before reattachment', a
 	});
 	const credits = secondPeer.posted.filter((message) => message.kind === 'capture-credit');
 	assert.deepEqual(credits.map(({ sequence }) => sequence), [0, 1]);
+	credits[0].channels[0].set([0.25, -0.5]);
+	credits[0].channels[1].set([-0.75, 0.125]);
 	secondPeer.onmessage({ data: {
 		...credits[0], kind: 'audio', status: 'ok', framesTransferred: 128,
 	} });
-	assert.notEqual(processor.port.posted.at(-1).reason, 'malformed-message');
+	assert.deepEqual(processor.port.posted.at(-1), {
+		type: 'native-device-attached', generation: 2,
+	});
+	const output = [new Float32Array(128), new Float32Array(128)];
+	processor.process([[]], [output]);
+	assert.deepEqual([...output[0].subarray(0, 2)], [0.25, -0.5]);
+	assert.deepEqual([...output[1].subarray(0, 2)], [-0.75, 0.125]);
+	assert.equal(secondPeer.closed, false);
 });
 
 test('capture silence before attachment does not report phantom frame loss', async (context) => {

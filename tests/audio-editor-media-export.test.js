@@ -411,15 +411,15 @@ test('native dither modes honor none and keep high-pass state per channel', () =
 	let noneCalls = 0;
 	encodeWav([Float32Array.of(0, 0)], { bitDepth: 16, dither: 'none', random: () => { noneCalls += 1; return 1; } });
 	assert.equal(noneCalls, 0);
-	const values = [1, 0, 0, 1, 1, 0, 0, 1];
+	const values = [1, 0, 0, 1, 0, 1, 1, 0];
 	let index = 0;
-	const highpass = encodeWav([Float32Array.of(0, 0, 0, 0)], {
+	const highpass = encodeWav([Float32Array.of(0, 0), Float32Array.of(0, 0)], {
 		bitDepth: 16,
 		dither: 'triangular-highpass',
 		random: () => values[index++],
 	});
 	assert.equal(index, 8);
-	assert.notDeepEqual([...highpass.subarray(44)], [0, 0, 0, 0, 0, 0, 0, 0]);
+	assert.deepEqual([...highpass.subarray(44)], [1, 0, 0, 0, 255, 255, 1, 0]);
 });
 
 test('export plans cover loop range, custom channel mapping, AIFF, and FFmpeg extensions', () => {

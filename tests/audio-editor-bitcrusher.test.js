@@ -64,11 +64,9 @@ test('a fully dry mix is a bit-exact passthrough whatever else is set', () => {
 test('sample rate reduction holds each captured value for the whole interval', () => {
 	const input = Float32Array.from({ length: 24 }, (unused, index) => (index + 1) / 64);
 	const output = crush([input], { bitDepth: 16, downsampling: 4 })[0];
-	for (let frame = 0; frame < input.length; frame += 1) {
-		// Captures land on multiples of the hold length, and nothing moves between them.
-		assert.equal(output[frame], output[frame - (frame % 4)], `frame ${frame}`);
-	}
-	assert.equal(new Set(output).size, input.length / 4);
+	// Captures land at frames 0, 4, ...; the 16-bit mid-rise grid adds half a level.
+	const heldValues = [1, 5, 9, 13, 17, 21].map((value) => value / 64 + 1 / 65_536);
+	assert.deepEqual([...output], heldValues.flatMap((value) => Array(4).fill(value)));
 });
 
 test('sample and hold is a staircase while the smoother modes move within the interval', () => {
