@@ -25,6 +25,7 @@ export class StreamingRecorderProcessor extends ProcessorBase {
 		this.monitor = Boolean(processorOptions.monitor);
 		this.inputGain = clampInputGain(processorOptions.inputGain, DEFAULT_INPUT_GAIN);
 		this.recording = false;
+		this.hasCapturedFrames = false;
 		this.paused = false;
 		this.pausedAtFrame = null;
 		this.startFrame = 0;
@@ -90,6 +91,7 @@ export class StreamingRecorderProcessor extends ProcessorBase {
 				}
 			}
 			this.writeOffset += frames;
+			this.hasCapturedFrames = true;
 			frameIndex += frames;
 			if (this.writeOffset === this.chunkFrames && !this.#flush()) return true;
 		}
@@ -105,18 +107,44 @@ export class StreamingRecorderProcessor extends ProcessorBase {
 			const requestedStartFrame = Number.isFinite(message.startFrame)
 				? Math.max(0, Math.floor(message.startFrame)) : firstAvailableFrame;
 			if (requestedStartFrame < firstAvailableFrame) {
-				this.recording = false;
-				this.paused = false;
-				this.port.postMessage({ type: 'error', code: 'RECORDING_START_MISSED',
-					message: 'Recording missed its scheduled start and cannot preserve sample alignment.' });
+				if (message.confirmStart) {
+					this.port.postMessage({ type: 'start-missed', requestId: message.requestId, firstAvailableFrame });
+				} else {
+					this.recording = false;
+					this.paused = false;
+					this.port.postMessage({ type: 'error', code: 'RECORDING_START_MISSED',
+						message: 'Recording missed its scheduled start and cannot preserve sample alignment.' });
+				}
 				return;
 			}
 			this.startFrame = requestedStartFrame;
 			this.stopFrame = Number.isFinite(message.stopFrame) ? Math.max(this.startFrame, Math.floor(message.stopFrame)) : Infinity;
 			this.recording = true;
+			this.hasCapturedFrames = false;
 			this.paused = false;
 			this.pausedAtFrame = null;
-			this.port.postMessage({ type: 'started', startFrame: this.startFrame, stopFrame: this.stopFrame });
+			this.port.postMessage({ type: 'started', startFrame: this.startFrame, stopFrame: this.stopFrame,
+				...(message.confirmStart ? { requestId: message.requestId } : {}) });
+		} else if (message.type === 'reschedule') {
+			const firstAvailableFrame = Math.max(this.nextFrame,
+				Number.isFinite(globalThis.currentFrame) ? Math.floor(globalThis.currentFrame) : 0);
+			if (!this.recording || this.hasCapturedFrames || this.paused) {
+				this.port.postMessage({ type: 'reschedule-rejected', requestId: message.requestId,
+					code: 'RECORDING_ALREADY_CAPTURING' });
+				return;
+			}
+			if (!Number.isSafeInteger(message.startFrame) || message.startFrame < firstAvailableFrame) {
+				this.port.postMessage({ type: 'reschedule-rejected', requestId: message.requestId,
+					code: 'RECORDING_START_MISSED', firstAvailableFrame });
+				return;
+			}
+			const previousStartFrame = this.startFrame;
+			this.startFrame = message.startFrame;
+			this.stopFrame = Number.isFinite(message.stopFrame)
+				? Math.max(this.startFrame, Math.floor(message.stopFrame))
+				: Number.isFinite(this.stopFrame) ? this.stopFrame + this.startFrame - previousStartFrame : Infinity;
+			this.port.postMessage({ type: 'rescheduled', requestId: message.requestId,
+				startFrame: this.startFrame, stopFrame: this.stopFrame });
 		} else if (message.type === 'pause' && this.recording && !this.paused) {
 			if (!this.#flush()) return;
 			this.paused = true;
@@ -129,7 +157,8 @@ export class StreamingRecorderProcessor extends ProcessorBase {
 			this.pausedAtFrame = null;
 			this.port.postMessage({ type: 'resumed', frame: this.nextFrame });
 		} else if (message.type === 'stop') {
-			this.#finish();
+			if (this.recording) this.#finish();
+			else this.port.postMessage({ type: 'stopped', frame: this.nextFrame });
 		} else if (message.type === 'flush') {
 			this.#flush();
 		} else if (message.type === 'chunk-ack') {

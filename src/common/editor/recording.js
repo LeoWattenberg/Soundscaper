@@ -38,6 +38,7 @@ export async function createRecordingController({
 	discreteChannels = true,
 	nodeFactory,
 	stopTimeoutMs = 2_000,
+	startTimeoutMs = 5_000,
 	setTimeout: setTimeoutFn = globalThis.setTimeout?.bind(globalThis),
 	clearTimeout: clearTimeoutFn = globalThis.clearTimeout?.bind(globalThis),
 } = {}) {
@@ -49,6 +50,7 @@ export async function createRecordingController({
 	const normalizedChannelCount = normalizeRecordingChannelCount(channelCount);
 	let currentInputGain = normalizeRecordingInputGain(inputGain);
 	const normalizedStopTimeoutMs = normalizeRecordingStopTimeout(stopTimeoutMs);
+	const normalizedStartTimeoutMs = normalizeRecordingStartTimeout(startTimeoutMs);
 	await loadRecordingWorklet(context, workletUrl);
 
 	const createNode = nodeFactory || ((audioContext, name, options) => {
@@ -81,6 +83,9 @@ export async function createRecordingController({
 	let writeQueue = Promise.resolve();
 	let writeError = null;
 	let stopRequest = null;
+	let startRequest = null;
+	let rescheduleRequest = null;
+	let nextStartRequestId = 1;
 	let disposePromise = null;
 	node.port.onmessage = (event) => handleMessage(event.data || {});
 	node.port.onmessageerror = (event) => failRecording(
@@ -100,6 +105,8 @@ export async function createRecordingController({
 		get state() { return state; },
 		get pendingChunks() { return pendingChunks; },
 		start,
+		startConfirmed,
+		rescheduleConfirmed,
 		pause,
 		resume,
 		stop,
@@ -140,6 +147,8 @@ export async function createRecordingController({
 				failure = error;
 			} finally {
 				disposed = true;
+				settleStartRequest(new Error('The recording controller has been disposed.'));
+				settleRescheduleRequest(new Error('The recording controller has been disposed.'));
 				acceptingChunks = false;
 				if (stopRequest?.timer != null && typeof clearTimeoutFn === 'function') {
 					clearTimeoutFn(stopRequest.timer);
@@ -165,6 +174,10 @@ export async function createRecordingController({
 	}
 
 	function start({ startFrame, stopFrame } = {}) {
+		sendStart({ type: 'start', startFrame, stopFrame });
+	}
+
+	function sendStart(message) {
 		assertMutable();
 		if (state === 'recording' || state === 'stopping') throw new Error('Recording is already active.');
 		acceptingChunks = true;
@@ -172,12 +185,107 @@ export async function createRecordingController({
 		stopRequest = null;
 		state = 'recording';
 		try {
-			node.port.postMessage({ type: 'start', startFrame, stopFrame });
+			node.port.postMessage(message);
 		} catch (error) {
 			failRecording(error);
 			throw error;
 		}
 		notifyState();
+	}
+
+	function startConfirmed({ startFrame, stopFrame, retryLeadFrames } = {}) {
+		try {
+			assertMutable();
+			if (state === 'recording' || state === 'stopping') throw new Error('Recording is already active.');
+			if (!Number.isSafeInteger(startFrame) || startFrame < 0) {
+				throw new RangeError('Confirmed recording startFrame must be a non-negative safe integer.');
+			}
+			if (stopFrame !== undefined && (!Number.isSafeInteger(stopFrame) || stopFrame < startFrame)) {
+				throw new RangeError('Confirmed recording stopFrame must follow startFrame.');
+			}
+			const leadFrames = retryLeadFrames === undefined
+				? Math.ceil(Math.max(128, (context.sampleRate || 48_000) / 4)) : retryLeadFrames;
+			if (!Number.isSafeInteger(leadFrames) || leadFrames < 1) {
+				throw new RangeError('Confirmed recording retryLeadFrames must be a positive safe integer.');
+			}
+			let resolve;
+			let reject;
+			const promise = new Promise((resolvePromise, rejectPromise) => {
+				resolve = resolvePromise;
+				reject = rejectPromise;
+			});
+			startRequest = { resolve, reject, timer: null, requestId: nextStartRequestId++,
+				startFrame, originalStartFrame: startFrame, originalStopFrame: stopFrame,
+				leadFrames, missCount: 0, missed: false, firstAvailableFrame: undefined };
+			startRequest.timer = startAcknowledgementTimer();
+			try {
+				sendStart({ type: 'start', confirmStart: true, requestId: startRequest.requestId, startFrame, stopFrame });
+			} catch (error) {
+				settleStartRequest(error);
+			}
+			return promise;
+		} catch (error) {
+			return Promise.reject(error);
+		}
+	}
+
+	function rescheduleConfirmed({ startFrame, stopFrame } = {}) {
+		try {
+			assertMutable();
+			if (state !== 'recording' || startRequest || rescheduleRequest) {
+				throw new Error('Recording is not ready to reschedule.');
+			}
+			if (!Number.isSafeInteger(startFrame) || startFrame < 0) {
+				throw new RangeError('Confirmed recording startFrame must be a non-negative safe integer.');
+			}
+			if (stopFrame !== undefined && (!Number.isSafeInteger(stopFrame) || stopFrame < startFrame)) {
+				throw new RangeError('Confirmed recording stopFrame must follow startFrame.');
+			}
+			let resolve;
+			let reject;
+			const promise = new Promise((resolvePromise, rejectPromise) => {
+				resolve = resolvePromise;
+				reject = rejectPromise;
+			});
+			rescheduleRequest = { resolve, reject, timer: startAcknowledgementTimer(),
+				requestId: nextStartRequestId++, startFrame };
+			try {
+				node.port.postMessage({ type: 'reschedule', requestId: rescheduleRequest.requestId, startFrame, stopFrame });
+			} catch (error) {
+				failRecording(error);
+			}
+			return promise;
+		} catch (error) {
+			return Promise.reject(error);
+		}
+	}
+
+	function startAcknowledgementTimer() {
+		if (typeof setTimeoutFn !== 'function') return null;
+		return setTimeoutFn(() => {
+			const error = new Error(`The recording worklet did not acknowledge its start within ${normalizedStartTimeoutMs} milliseconds.`);
+			error.name = 'TimeoutError';
+			error.code = 'RECORDING_START_TIMEOUT';
+			failRecording(error);
+		}, normalizedStartTimeoutMs);
+	}
+
+	function settleStartRequest(error, result) {
+		if (!startRequest) return;
+		const request = startRequest;
+		startRequest = null;
+		if (request.timer != null && typeof clearTimeoutFn === 'function') clearTimeoutFn(request.timer);
+		if (error) request.reject(error);
+		else request.resolve(result);
+	}
+
+	function settleRescheduleRequest(error, result) {
+		if (!rescheduleRequest) return;
+		const request = rescheduleRequest;
+		rescheduleRequest = null;
+		if (request.timer != null && typeof clearTimeoutFn === 'function') clearTimeoutFn(request.timer);
+		if (error) request.reject(error);
+		else request.resolve(result);
 	}
 
 	function pause() {
@@ -219,6 +327,8 @@ export async function createRecordingController({
 
 	function beginStop() {
 		if (stopRequest) return stopRequest.promise;
+		settleStartRequest(new Error('Recording stopped before its start was acknowledged.'));
+		settleRescheduleRequest(new Error('Recording stopped before rescheduling was acknowledged.'));
 		let resolve;
 		let reject;
 		const promise = new Promise((resolvePromise, rejectPromise) => {
@@ -246,7 +356,53 @@ export async function createRecordingController({
 
 	function handleMessage(message) {
 		if (disposed) return;
-		if (message.type === 'audio-chunk') {
+		if (message.type === 'start-missed' && startRequest?.requestId === message.requestId) {
+			if (!Number.isSafeInteger(message.firstAvailableFrame) || message.firstAvailableFrame < 0) {
+				failRecording(new Error('The recording worklet reported an invalid available frame.'));
+				return;
+			}
+			const request = startRequest;
+			const retryLeadFrames = request.leadFrames * (2 ** request.missCount);
+			const nextFrame = Math.max(request.startFrame + 1, message.firstAvailableFrame + retryLeadFrames);
+			const nextStopFrame = request.originalStopFrame === undefined
+				? undefined : request.originalStopFrame + nextFrame - request.originalStartFrame;
+			if (!Number.isSafeInteger(nextFrame) || (nextStopFrame !== undefined && !Number.isSafeInteger(nextStopFrame))) {
+				failRecording(new RangeError('Recording start frame exceeds the safe integer range.'));
+				return;
+			}
+			request.missed = true;
+			request.missCount += 1;
+			request.firstAvailableFrame = message.firstAvailableFrame;
+			request.startFrame = nextFrame;
+			request.stopFrame = nextStopFrame;
+			request.requestId = nextStartRequestId++;
+			try {
+				node.port.postMessage({ type: 'start', confirmStart: true, requestId: request.requestId,
+					startFrame: nextFrame, stopFrame: nextStopFrame });
+			} catch (error) {
+				failRecording(error);
+			}
+		} else if (message.type === 'started' && startRequest?.requestId === message.requestId) {
+			if (message.startFrame !== startRequest.startFrame) {
+				failRecording(new Error('The recording worklet acknowledged a different start frame.'));
+				return;
+			}
+			settleStartRequest(null, { startFrame: message.startFrame,
+				...(startRequest.missed ? { missed: true, firstAvailableFrame: startRequest.firstAvailableFrame } : {}) });
+		} else if (message.type === 'rescheduled' && rescheduleRequest?.requestId === message.requestId) {
+			if (message.startFrame !== rescheduleRequest.startFrame) {
+				failRecording(new Error('The recording worklet acknowledged a different rescheduled frame.'));
+				return;
+			}
+			settleRescheduleRequest(null, { startFrame: message.startFrame });
+		} else if (message.type === 'reschedule-rejected' && rescheduleRequest?.requestId === message.requestId) {
+			const error = new Error(message.code === 'RECORDING_ALREADY_CAPTURING'
+				? 'Recording is already capturing and cannot be rescheduled.'
+				: 'Recording missed its rescheduled start.');
+			error.code = message.code;
+			if (Number.isSafeInteger(message.firstAvailableFrame)) error.firstAvailableFrame = message.firstAvailableFrame;
+			settleRescheduleRequest(error);
+		} else if (message.type === 'audio-chunk') {
 			if (!acceptingChunks) return;
 			pendingChunks += 1;
 			if (pendingChunks > maxPendingChunks) {
@@ -297,6 +453,8 @@ export async function createRecordingController({
 		const failure = error instanceof Error ? error : new Error(String(error));
 		const firstFailure = writeError == null;
 		if (firstFailure) writeError = failure;
+		settleStartRequest(failure);
+		settleRescheduleRequest(failure);
 		acceptingChunks = false;
 		if (!disposing) {
 			state = 'failed';
@@ -341,6 +499,14 @@ function normalizeRecordingStopTimeout(value) {
 	const number = Number(value);
 	if (!Number.isSafeInteger(number) || number < 1 || number > 60_000) {
 		throw new RangeError('Recording stopTimeoutMs must be between 1 and 60000 milliseconds.');
+	}
+	return number;
+}
+
+function normalizeRecordingStartTimeout(value) {
+	const number = Number(value);
+	if (!Number.isSafeInteger(number) || number < 1 || number > 60_000) {
+		throw new RangeError('Recording startTimeoutMs must be between 1 and 60000 milliseconds.');
 	}
 	return number;
 }
