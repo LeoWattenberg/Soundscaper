@@ -23,6 +23,7 @@ import {
 	readStoredLinkedOriginalProvisionalRootInventory,
 } from './linked-original-provisional-root.ts';
 import { publishSource } from './media-records.ts';
+import { ProjectCommittedMaintenanceError } from './project-committed-maintenance-error.ts';
 import { sameProjectSnapshot } from './project-snapshot-equality.ts';
 import { pruneProjectRevisions } from './project-revision-pruning.ts';
 import {
@@ -196,9 +197,14 @@ export class ProjectRepository implements ProjectRepositoryPort {
 				const mediaAsset = asRecord(this.#port.memory.mediaAssets.get(sourceId));
 				if (mediaAsset?.pendingProjectUntil) this.#port.memory.mediaAssets.set(sourceId, publishSource(mediaAsset));
 			}
-			await pruneProjectRevisions(this.#port, snapshot.id, this.#revisionLimit);
-			await postCommit?.();
-			return clone(snapshot);
+			const committedProject = clone(snapshot);
+			try {
+				await pruneProjectRevisions(this.#port, snapshot.id, this.#revisionLimit);
+				await postCommit?.();
+			} catch (cause) {
+				throw new ProjectCommittedMaintenanceError(committedProject, cause);
+			}
+			return committedProject;
 		}
 
 		await transact(database, ['projects', 'revisions', 'sources', 'mediaAssets'], 'readwrite', async ({
@@ -216,9 +222,14 @@ export class ProjectRepository implements ProjectRepositoryPort {
 				if (mediaAsset?.pendingProjectUntil) mediaAssets.put(publishSource(mediaAsset));
 			}
 		});
-		await pruneProjectRevisions(this.#port, snapshot.id, this.#revisionLimit);
-		await postCommit?.();
-		return clone(snapshot);
+		const committedProject = clone(snapshot);
+		try {
+			await pruneProjectRevisions(this.#port, snapshot.id, this.#revisionLimit);
+			await postCommit?.();
+		} catch (cause) {
+			throw new ProjectCommittedMaintenanceError(committedProject, cause);
+		}
+		return committedProject;
 	}
 
 	async maintainCurrentProject(projectId: string, maintenance: ProjectPostCommitMaintenance): Promise<void> {
