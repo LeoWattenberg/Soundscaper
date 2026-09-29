@@ -144,18 +144,24 @@ export async function awaitAssistancePowerAdmission(
 				outcome: 'deferred' as const, reason: held.reason, detail: held.detail,
 			}));
 		}, holdBudgetMs);
-		const unsubscribe = port.subscribe(() => {
+		const refreshAdmission = (): void => {
 			let next: AssistancePowerAdmission;
 			try { next = admitAssistancePower(port.observe()); }
 			catch { return; }
 			if (next.admitted) { settle(Object.freeze({ outcome: 'admitted' as const })); return; }
 			admission = next;
+		};
+		let subscribing = true;
+		const unsubscribe = port.subscribe(() => {
+			if (!subscribing) refreshAdmission();
 		});
 		if (typeof unsubscribe !== 'function') {
 			throw new TypeError('The assistance power port returned no unsubscribe.');
 		}
+		subscribing = false;
 		options.signal?.addEventListener('abort', onAbort, { once: true });
 		if (options.signal?.aborted) onAbort();
+		if (!settled) refreshAdmission();
 	});
 }
 

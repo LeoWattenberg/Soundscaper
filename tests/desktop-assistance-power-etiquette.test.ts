@@ -130,6 +130,49 @@ test('a transient hold resumes as soon as the machine returns to mains power', a
 	assert.notEqual(fired, null);
 });
 
+test('a power change while registering the listener does not miss admission', async () => {
+	const port = new FakePowerPort({ onBatteryPower: true, thermalState: 'nominal' });
+	const changingPort: AssistancePowerEtiquettePort = {
+		observe: () => port.observe(),
+		subscribe: (listener) => {
+			port.observation = MAINS;
+			return port.subscribe(listener);
+		},
+	};
+	let cleared = 0;
+	const pending = awaitAssistancePowerAdmission({
+		port: changingPort,
+		holdBudgetMs: 5_000,
+		setTimeoutImpl: (() => 1 as unknown as ReturnType<typeof setTimeout>) as unknown as typeof setTimeout,
+		clearTimeoutImpl: (() => { cleared += 1; }) as unknown as typeof clearTimeout,
+	});
+	await Promise.resolve();
+	assert.equal(cleared, 1);
+	assert.deepEqual(await pending, { outcome: 'admitted' });
+	assert.equal(port.unsubscribes, 1);
+});
+
+test('an immediate power notification during subscription admits and cleans up', async () => {
+	const port = new FakePowerPort({ onBatteryPower: true, thermalState: 'nominal' });
+	const notifyingPort: AssistancePowerEtiquettePort = {
+		observe: () => port.observe(),
+		subscribe: (listener) => {
+			const unsubscribe = port.subscribe(listener);
+			port.observation = MAINS;
+			listener();
+			return unsubscribe;
+		},
+	};
+	const pending = awaitAssistancePowerAdmission({
+		port: notifyingPort,
+		holdBudgetMs: 5_000,
+		setTimeoutImpl: (() => 1 as unknown as ReturnType<typeof setTimeout>) as unknown as typeof setTimeout,
+		clearTimeoutImpl: (() => {}) as unknown as typeof clearTimeout,
+	});
+	assert.deepEqual(await pending, { outcome: 'admitted' });
+	assert.equal(port.unsubscribes, 1);
+});
+
 test('a sustained hold reports its typed deferral once the budget elapses', async () => {
 	const port = new FakePowerPort({ onBatteryPower: false, thermalState: 'critical' });
 	let fire!: () => void;
