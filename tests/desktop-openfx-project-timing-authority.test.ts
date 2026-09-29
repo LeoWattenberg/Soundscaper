@@ -16,13 +16,14 @@ const PROJECT_SHA256 = 'a1'.repeat(32);
 
 test('project custody resolves exact VFR timing bytes without exposing a renderer body port', async () => {
 	const fixture = authorityFixture();
+	const originalBytes = new Uint8Array(fixture.bytes);
 	const assets = await authenticateOpenFxProjectTimingAssets(fixture.options());
 	assert.equal(assets.length, 1);
 	assert.deepEqual(assets[0]!.input, fixture.input);
 	assert.deepEqual(assets[0]!.bytes, fixture.bytes);
 	assert.notEqual(assets[0]!.bytes, fixture.bytes);
 	fixture.bytes[0] ^= 0xff;
-	assert.notEqual(assets[0]!.bytes[0], fixture.bytes[0]);
+	assert.deepEqual(assets[0]!.bytes, originalBytes);
 });
 
 test('project custody rejects bundle-only timing authority and changed project revisions', async () => {

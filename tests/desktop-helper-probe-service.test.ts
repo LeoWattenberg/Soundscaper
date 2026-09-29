@@ -80,8 +80,8 @@ test('helper probe service round-trips a validated probe by opaque capability id
 	const { service, jobs } = createHarness();
 	const { probeId } = await service.beginProbe({ owner: OWNER, capabilityId: CAPABILITY_ID });
 	const completion = await service.awaitProbe({ owner: OWNER, probeId });
-	assert.equal(completion.status, 'probed');
-	assert.ok(completion.status === 'probed' && completion.timingAsset.byteLength > 0);
+	assert.equal(probeId, '1'.padStart(40, '0'));
+	assert.deepEqual(completion, { status: 'probed', ...VALID_RESULT });
 	assert.equal(jobs.length, 1);
 	assert.equal(jobs[0].kind, 'probe-video-source');
 	assert.equal(jobs[0].grant.mediaPath, '/media/example.mp4');

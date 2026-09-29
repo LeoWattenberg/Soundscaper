@@ -49,14 +49,18 @@ test('main reconstructs fixed H264/AAC argv with private pipes and output', () =
 	assert.equal(workload.videoEncoder, 'ffmpeg');
 	assert.equal(workload.frameCount, 2);
 	assert.equal(workload.totalRgbaBytes, 32);
-	assert.deepEqual(ffmpegArguments.slice(0, 12), [
+	assert.deepEqual(ffmpegArguments, [
 		'-nostdin', '-y', '-f', 'rawvideo', '-pixel_format', 'rgba',
 		'-video_size', '2x2', '-framerate', '1/1', '-i', 'pipe:3',
+		'-i', 'pipe:4', '-filter:a', 'apad=whole_len=96256',
+		'-map', '0:v:0', '-map', '1:a:0',
+		'-map_metadata', '-1', '-map_chapters', '-1', '-sn', '-dn',
+		'-c:v', 'libx264', '-preset', 'medium', '-crf', '23',
+		'-pix_fmt', 'yuv420p', '-r', '1/1',
+		'-c:a', 'aac', '-b:a', '192k',
+		'-movflags', '+faststart', '-f', 'mp4',
+		'-t', '2.000000000', '/private/session/output.mp4',
 	]);
-	assert.ok(ffmpegArguments.includes('libx264'));
-	assert.ok(ffmpegArguments.includes('aac'));
-	assert.ok(ffmpegArguments.includes('pipe:4'));
-	assert.equal(ffmpegArguments.at(-1), '/private/session/output.mp4');
 });
 
 test('desktop video capabilities require the full fixed A/V plan capability set', () => {
