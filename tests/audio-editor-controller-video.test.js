@@ -7,6 +7,7 @@ import {
 	createVideoMemoryFfmpeg,
 } from './helpers/audio-editor-controller-fixtures.js';
 import { createMemoryStore } from './helpers/audio-editor-memory-store-baseline.js';
+import { assertFloat32StereoWav } from './helpers/assert-float32-stereo-wav.js';
 import {
 	CANONICAL_VIDEO_EXPORT_PLAN_VERSION,
 	COPY,
@@ -330,8 +331,7 @@ test('desktop video export API and generic FFmpeg dispatch stage raw media and a
 	});
 	assert.equal(ffmpeg.videoCalls.length, 1);
 	assert.equal(ffmpeg.videoCalls[0].videoBlobs.get(fixture.videoSource.id), rawVideo);
-	assert.equal(ffmpeg.videoCalls[0].audioMixBlob.type, 'audio/wav');
-	assert.ok(ffmpeg.videoCalls[0].audioMixBlob.size > 44);
+	await assertFloat32StereoWav(ffmpeg.videoCalls[0].audioMixBlob, 48_000, 48_000);
 	const mp4Plan = ffmpeg.videoCalls[0].plan;
 	assert.deepEqual([mp4Plan.format, mp4Plan.mimeType], ['mp4', 'video/mp4']);
 	assert.deepEqual(

@@ -50,12 +50,20 @@ test('a deliberately corrupted output fails its reopen check and the report says
 	// The report is published before the failure is thrown, so the delivery that
 	// failed can still say why.
 	const report = fixture.state.deliveryReport as {
-		items: readonly { code: string; severity: string; message?: string }[];
+		items: readonly {
+			code: string;
+			severity: string;
+			data: Record<string, unknown>;
+		}[];
 	};
-	const failure = report.items.find(({ severity }) => severity === 'error');
-	assert.ok(failure, 'the report carries the finding that failed the delivery');
-	assert.match(failure.code, /^delivery\.conformance-/u);
-	assert.match(String(failure.message), /reopened|planned/u);
+	assert.deepEqual(
+		report.items.filter(({ severity }) => severity === 'error').map(({ code, data }) => ({ code, data })),
+		[{
+			code: 'delivery.conformance-unreadable',
+			data: { format: 'wav', reason: 'The WAV RIFF payload is truncated.' },
+		}],
+		'the truncated output reports the specific reopen failure',
+	);
 });
 
 test('a delivery that fails conformance does not strand the file it staged', async () => {
@@ -95,14 +103,21 @@ test('a stems delivery conforms every stem instead of reporting nothing', async 
 
 	await createEditorExportService(fixture.runtime).handleExportAction('export');
 
-	const report = fixture.state.deliveryReport as { items: readonly { code: string }[] };
+	const report = fixture.state.deliveryReport as { items: readonly { code: string; severity: string }[] };
 	const conformance = report.items.filter(({ code }) => code.startsWith('delivery.conformance-'));
-	assert.ok(conformance.length > 0, 'a stems delivery must say what it checked');
-	assert.equal(
-		conformance.some(({ code }) => code === 'delivery.conformance-duration'),
-		true,
-		'each stem is reopened, because each one is a file the reader can read',
+	const checksPerStem = [
+		'delivery.conformance-duration',
+		'delivery.conformance-channel-count',
+		'delivery.conformance-sample-rate',
+		'delivery.conformance-sample-format',
+		'delivery.conformance-channel-map',
+	];
+	assert.deepEqual(
+		conformance.map(({ code }) => code),
+		[...checksPerStem, ...checksPerStem],
+		'each stem is reopened and checked independently',
 	);
+	assert.ok(conformance.every(({ severity }) => severity === 'info'));
 });
 
 test('a stems delivery whose stem does not reopen fails rather than publishing', async () => {
