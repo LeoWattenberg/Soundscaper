@@ -14,6 +14,19 @@ import {
 	ParallelStackBankState, ParallelStackStatus,
 } from '../src/common/editor/engine/parallel-stack-protocol.ts';
 import { ParallelStackCollector } from '../src/common/editor/engine/parallel-stack-collector.ts';
+import { createParallelStackScheduler } from '../src/common/editor/engine/parallel-stack-scheduler.ts';
+
+test('worker scheduler publishes its active state before acknowledging launch', () => {
+	const shared = createParallelStackBuffers({ generation: 12, planeCount: 1, taskCount: 1, workerCount: 1 });
+	const views = createParallelStackViews(shared);
+	const scheduler = createParallelStackScheduler(shared, [{ worker: 0, dependencies: [] }], 0, () => {});
+	// Stop first so the synchronous loop can exit immediately after its entry callback.
+	stopParallelStackBuffers(shared);
+	let acknowledgedState = -1;
+	scheduler.loop(() => { acknowledgedState = Atomics.load(views.control, views.workerStateIndex(0)); });
+	assert.equal(acknowledgedState, 1);
+	assert.equal(Atomics.load(views.control, views.workerStateIndex(0)), 2);
+});
 
 test('independent stacks execute concurrently on actual workers and retire while idle', { timeout: 10_000 }, async () => {
 	const shared = createParallelStackBuffers({ generation: 1, planeCount: 4, taskCount: 3, workerCount: 2 });
@@ -132,6 +145,7 @@ test('production worker entry clones prepared EQ WASM, acknowledges start and re
 		const started = receive();
 		worker.postMessage({ type: 'start' });
 		assert.deepEqual(await started, { type: 'started', generation: 9, workerIndex: 0 });
+		assert.equal(Atomics.load(views.control, views.workerStateIndex(0)), 1);
 		const bank = claimParallelStackBank(views, 0);
 		assert.ok(bank);
 		for (const input of plan.inputPlaneIndices[0]) bank.planes[input].fill(.25);

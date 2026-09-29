@@ -68,9 +68,10 @@ export function createParallelStackScheduler(
 	return {
 		runReady,
 		/** Call only on a dedicated Worker: control is entirely shared after entry. */
-		loop(): void {
+		loop(onStarted?: () => void): void {
 			const wakeIndex = views.workerWakeIndex(workerIndex);
 			Atomics.store(views.control, views.workerStateIndex(workerIndex), 1);
+			onStarted?.();
 			for (;;) {
 				const observedWake = Atomics.load(views.control, wakeIndex);
 				if (views.status() >= ParallelStackStatus.Stopped) break;

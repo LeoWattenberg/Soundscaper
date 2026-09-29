@@ -42,9 +42,9 @@ globalThis.addEventListener('message', (event: MessageEvent<unknown>) => {
 		} else if (envelope.type === 'start') {
 			if (!scheduler || !views || started) throw new Error('The parallel worker is not ready to start.');
 			started = true;
-			globalThis.postMessage({ type: 'started', generation: views.geometry.generation, workerIndex });
-			scheduler.loop();
-			globalThis.postMessage({ type: 'stopped', generation: views.geometry.generation, workerIndex });
+			const generation = views.geometry.generation;
+			scheduler.loop(() => globalThis.postMessage({ type: 'started', generation, workerIndex }));
+			globalThis.postMessage({ type: 'stopped', generation, workerIndex });
 		} else throw new TypeError('Unknown parallel worker message.');
 	} catch (error) {
 		if (views) faultParallelStackViews(views, ParallelStackFault.Worker);
