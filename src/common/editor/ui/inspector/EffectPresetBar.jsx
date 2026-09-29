@@ -6,6 +6,7 @@ import { DialogFooter } from '@soundscaper/design-system/Footer';
 import { TextInput } from '@soundscaper/design-system/TextInput';
 import AudioEditorDialogShell from '../AudioEditorDialogShell.tsx';
 import { takeSelectedFile } from '../file-input-selection.ts';
+import { useMenuTriggerDismissal } from '../use-menu-trigger-dismissal.ts';
 import { canonicalCopyValue } from '../../../i18n/canonical-extras.js';
 import { samePresetParams } from './effect-helpers.ts';
 import AudacityEffectHeader from './AudacityEffectHeader.jsx';
@@ -49,11 +50,21 @@ export default function EffectPresetBar({
 	dataAttribute = 'data-effect-presets',
 }) {
 	const fileRef = useRef(null);
+	const barRef = useRef(null);
+	const saveTriggerRef = useRef(null);
+	const optionsTriggerRef = useRef(null);
 	const [saveMenu, setSaveMenu] = useState(null);
 	const [optionsMenu, setOptionsMenu] = useState(null);
+	const consumeSaveDismissal = useMenuTriggerDismissal(saveTriggerRef, Boolean(saveMenu));
+	const consumeOptionsDismissal = useMenuTriggerDismissal(optionsTriggerRef, Boolean(optionsMenu));
 	const [saveAsName, setSaveAsName] = useState(null);
 	const [aboutOpen, setAboutOpen] = useState(false);
 	const about = aboutEffect == null ? null : effectAboutMetadata(aboutEffect, copy);
+	useEffect(() => {
+		const buttons = barRef.current?.querySelectorAll('.effect-header__icon-button');
+		saveTriggerRef.current = buttons?.[0] || null;
+		optionsTriggerRef.current = buttons?.[3] || null;
+	});
 
 	// An open menu or half-typed preset name belongs to whatever was being
 	// edited when it opened. When that changes underneath — a different project,
@@ -93,7 +104,7 @@ export default function EffectPresetBar({
 	};
 
 	return (
-		<div className="audio-editor-effect-preset-bar" {...{ [dataAttribute]: '' }}>
+		<div ref={barRef} className="audio-editor-effect-preset-bar" {...{ [dataAttribute]: '' }}>
 			<AudacityEffectHeader
 				copy={copy}
 				isDestructive={!automation}
@@ -108,7 +119,9 @@ export default function EffectPresetBar({
 					else onSelect(choice?.id || '');
 				}}
 				onSavePreset={(event) => {
+					if (consumeSaveDismissal()) return;
 					if (disabled) return;
+					if (saveMenu) { close(); return; }
 					setOptionsMenu(null);
 					setSaveMenu(anchor(event));
 				}}
@@ -121,7 +134,9 @@ export default function EffectPresetBar({
 				canDelete={canOverwrite}
 				onDeletePreset={() => { if (canOverwrite) onDelete(); }}
 				onMoreOptions={(event) => {
+					if (consumeOptionsDismissal()) return;
 					if (disabled && !about) return;
+					if (optionsMenu) { close(); return; }
 					setSaveMenu(null);
 					setOptionsMenu(anchor(event));
 				}}

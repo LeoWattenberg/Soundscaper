@@ -124,6 +124,37 @@ test.describe('effect presets Audacity ships', () => {
 		expect(errors).toEqual([]);
 	});
 
+	test('closes each preset action menu when its trigger is activated again', async ({ page }) => {
+		const editor = await bootEditor(page, '/embed/en/');
+		await importFiles(editor, [toneA]);
+		await page.keyboard.press('Control+k');
+		await editor.locator('[data-editor-search-input]').fill('Reverb');
+		await editor.locator('[data-editor-search-popup] [data-editor-search-key="command:audacity-reverb"]').click();
+		const dialog = page.locator('[data-selection-effects-dialog]');
+		const more = dialog.getByRole('button', { name: 'More options', exact: true });
+		await more.click();
+		const importPreset = page.getByRole('menuitem', { name: 'Import preset', exact: true });
+		await expect(importPreset).toBeVisible();
+		await more.click();
+		await expect(importPreset).toHaveCount(0);
+
+		const save = dialog.getByRole('button', { name: 'Save preset', exact: true });
+		await save.click();
+		const saveAs = page.getByRole('menuitem', { name: 'Save as new preset', exact: true });
+		await expect(saveAs).toBeVisible();
+		await save.click();
+		await expect(saveAs).toHaveCount(0);
+
+		await more.press('Enter');
+		await expect(importPreset).toBeVisible();
+		await more.press('Enter');
+		await expect(importPreset).toHaveCount(0);
+		await save.press('Enter');
+		await expect(saveAs).toBeVisible();
+		await save.press('Enter');
+		await expect(saveAs).toHaveCount(0);
+	});
+
 	test('keeps preset menus clickable after dragging an effect dialog and preserves its skin', async ({ page }) => {
 		const errors = collectClientErrors(page);
 		const editor = await bootEditor(page, '/embed/en/?useskin=sakura');
