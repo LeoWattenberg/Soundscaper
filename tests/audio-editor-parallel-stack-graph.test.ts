@@ -198,3 +198,19 @@ test('implicit differing bus widths require explicit routing instead of approxim
 	value.mixer.edges[2]!.channelMap = [0, 0];
 	assert.throws(() => runtime(value), /explicit map/iu);
 });
+
+test('mixed mono and stereo clips on one track fall back before fixed-width ingress changes center pan', () => {
+	const value = project();
+	const mixed = { ...value,
+		sources: [{ id: 'mono', channelCount: 1 }, { id: 'stereo', channelCount: 2 }],
+		clips: [{ id: 'mono-clip', sourceId: 'mono' }, { id: 'stereo-clip', sourceId: 'stereo' }],
+		tracks: [{ ...value.tracks[0]!, clipIds: ['mono-clip', 'stereo-clip'] }, value.tracks[1]!],
+	};
+	assert.throws(() => compileParallelStackPlan(mixed, { sampleRate: 48000, workerCount: 2 }), /mixed.*channel width/iu);
+	assert.throws(() => compileParallelStackPlan({ ...mixed,
+		sources: [{ id: 'mono', channelCount: 1 }, { id: 'stereo' }],
+	}, { sampleRate: 48000, workerCount: 2 }), /known clip channel width/iu);
+	assert.throws(() => compileParallelStackPlan({ ...mixed,
+		tracks: [{ ...value.tracks[0]!, clips: mixed.clips }, value.tracks[1]!],
+	}, { sampleRate: 48000, workerCount: 2 }), /canonical clip IDs/iu);
+});

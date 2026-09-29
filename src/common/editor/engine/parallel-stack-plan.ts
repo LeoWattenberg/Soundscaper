@@ -37,6 +37,7 @@ export function compileParallelStackPlan(project: EngineProject, options: Parall
 	if (project.clips?.some((clip) => clip.warpMap != null)) throw new Error('Parallel authored audio warp is not admitted.');
 	const graph = normalizeMixerGraphV21(project.mixer);
 	const tracks = (project.tracks ?? []).filter((track) => track.type === 'audio');
+	assertStableTrackInputWidths(project);
 	const owners = [...tracks, ...graph.groups, ...graph.sends, ...graph.cues, project.master];
 	if (owners.some((owner) => (owner as EngineGainOwner | undefined)?.envelope?.length)) throw new Error('Parallel gain envelope automation is not admitted yet.');
 	const adm = project.metadata?.adm;
@@ -130,6 +131,34 @@ function vcaFactor(graph: MixerGraphV21, ref: StripRef): number {
 	let gain = 1;
 	for (const vca of graph.vcas) if (vca.members.some((member) => mixerEndpointKeyV21(member) === mixerEndpointKeyV21(ref))) gain *= vca.mute ? 0 : vca.gain;
 	return gain;
+}
+/** Fixed ingress width changes mono panner behavior when another clip on the track is stereo. */
+function assertStableTrackInputWidths(project: EngineProject): void {
+	const sourceWidths = new Map<string, number>();
+	for (const source of project.sources ?? []) {
+		const width = source.channelCount;
+		if (source.id != null && typeof width === 'number' && Number.isSafeInteger(width) && width >= 1) {
+			sourceWidths.set(String(source.id), Math.min(32, width));
+		}
+	}
+	const clipSources = new Map<string, string>();
+	for (const clip of project.clips ?? []) if (clip.id != null && clip.sourceId != null) {
+		clipSources.set(String(clip.id), String(clip.sourceId));
+	}
+	for (const track of project.tracks ?? []) {
+		if (track.type !== 'audio') continue;
+		if (!Array.isArray(track.clipIds) && Array.isArray(track.clips) && track.clips.length > 0) {
+			throw new Error('Parallel stacks require canonical clip IDs to resolve channel widths.');
+		}
+		let width = 0;
+		for (const clipId of track.clipIds ?? []) {
+			const sourceId = clipSources.get(String(clipId));
+			const next = sourceId === undefined ? undefined : sourceWidths.get(sourceId);
+			if (next === undefined) throw new Error('Parallel stacks require a known clip channel width.');
+			if (width !== 0 && next !== width) throw new Error('Parallel stacks do not admit mixed clip channel widths on one track.');
+			width = next;
+		}
+	}
 }
 function topologicalTasks(tasks: readonly ParallelStackTask[], workers: number): readonly ParallelStackTask[] {
 	const order: number[] = [];
