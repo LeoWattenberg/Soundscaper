@@ -48,6 +48,7 @@ interface MockStream {
 
 interface CreatedRecorder extends Pick<RecordingControllerFactoryOptions, 'stream' | 'channelCount' | 'onChunk'> {
 	startOptions?: Readonly<{ readonly startFrame?: number; readonly stopFrame?: number }>;
+	confirmedStarts?: number;
 }
 
 test('controller exposes disabled canonical policy and rolls back rejected durable preference updates', async () => {
@@ -135,6 +136,7 @@ test('legacy capture freezes policy settings and blocks mutation through active 
 		await actions.setHoldMilliseconds(125);
 		const trackId = firstProjectTrackId(controller);
 		await controller.actions.recording.startSoundActivated({ trackId });
+		assert.equal(created[0]?.confirmedStarts, 1);
 
 		const active = controller.getSnapshot().recordingInputs.soundActivation;
 		assert.equal(active.preferenceMutationBlockReason, 'recording-active');
@@ -164,6 +166,7 @@ test('legacy capture freezes policy settings and blocks mutation through active 
 		await stopping;
 		assert.deepEqual(controller.getSnapshot().recordingInputs.soundActivation.sources, []);
 		await controller.actions.recording.start({ trackId });
+		assert.equal(created[1]?.confirmedStarts, 1);
 		assert.equal(controller.getSnapshot().recordingKind, 'ordinary');
 		assert.deepEqual(controller.getSnapshot().recordingInputs.soundActivation.sources, []);
 		await controller.actions.recording.stop();
@@ -349,11 +352,24 @@ function createRecordingControllerFactory(created: CreatedRecorder[]) {
 		const value: CreatedRecorder = { ...options };
 		created.push(value);
 		let state = 'ready';
+		const recordStart = (startOptions: Readonly<{ startFrame?: number; stopFrame?: number }>) => {
+			value.startOptions = Object.freeze({ ...startOptions });
+			state = 'recording';
+		};
 		return {
 			get state() { return state; },
 			start(options: Readonly<{ readonly startFrame?: number; readonly stopFrame?: number }> = {}) {
-				value.startOptions = Object.freeze({ ...options });
-				state = 'recording';
+				recordStart(options);
+			},
+			async startConfirmed(options: Readonly<{ startFrame: number; stopFrame?: number }>) {
+				recordStart(options);
+				value.confirmedStarts = (value.confirmedStarts ?? 0) + 1;
+				return { startFrame: options.startFrame };
+			},
+			async rescheduleConfirmed(options: Readonly<{ startFrame: number; stopFrame?: number }>) {
+				if (state !== 'recording') throw new Error('Recorder has not started.');
+				recordStart(options);
+				return { startFrame: options.startFrame };
 			},
 			pause() { if (state !== 'recording') return false; state = 'paused'; return true; },
 			resume() { if (state !== 'paused') return false; state = 'recording'; return true; },
