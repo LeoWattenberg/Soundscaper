@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { CLOCKED_RECORDING_START_LEAD_SECONDS } from '../../../../recording-start-lead.ts';
+import { secondsToSampleFrame } from '../../../../timeline-time.ts';
 import { audibleRecordingStartTime } from '../recording-start-timing.ts';
 import { confirmRoutedRecordingStart } from '../confirmed-recording-sources.ts';
 import type {
@@ -38,18 +39,18 @@ export async function startTakeCycleRoutedPlayback({
 	let recorderArmed = false;
 	const playbackStartTime = await engine.playAt(scheduledTime, loopStartFrame, async (candidate) => {
 		assertCurrent();
-		const requestedFrame = Math.ceil(context.sampleRate * audibleRecordingStartTime(
+		const requestedFrame = secondsToSampleFrame(audibleRecordingStartTime(
 			candidate, scheduledTime, engine.getPlaybackGraphLatencyFrames?.() ?? 0, context.sampleRate,
-		));
+		), context.sampleRate, 'enclosingEnd');
 		const sessions: RoutedRecordingSourceSession[] = controlled.map((source) => ({
 			kind: source.kind, controller: source.controller,
 			disconnected: false, stopped: false, startFrame: requestedFrame,
 		}));
 		const confirmedFrame = await confirmRoutedRecordingStart(
 			sessions,
-			(attempt) => Math.ceil((context.currentTime
-				+ CLOCKED_RECORDING_START_LEAD_SECONDS * 2 ** attempt) * context.sampleRate),
-			() => Math.ceil(context.currentTime * context.sampleRate),
+			(attempt) => secondsToSampleFrame(context.currentTime
+				+ CLOCKED_RECORDING_START_LEAD_SECONDS * 2 ** attempt, context.sampleRate, 'enclosingEnd'),
+			() => secondsToSampleFrame(context.currentTime, context.sampleRate, 'enclosingEnd'),
 		);
 		assertCurrent();
 		recorderArmed = true;
@@ -58,10 +59,10 @@ export async function startTakeCycleRoutedPlayback({
 	assertCurrent();
 	if (recorderArmed) return;
 	// Older engine integrations ignore the optional pre-start callback.
-	const startFrame = Math.ceil(context.sampleRate * audibleRecordingStartTime(
+	const startFrame = secondsToSampleFrame(audibleRecordingStartTime(
 		playbackStartTime, scheduledTime,
 		engine.getPlaybackGraphLatencyFrames?.() ?? 0, context.sampleRate,
-	));
+	), context.sampleRate, 'enclosingEnd');
 	for (const source of controlled) {
 		source.controller.start({ startFrame });
 		assertCurrent();

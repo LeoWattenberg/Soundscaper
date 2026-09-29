@@ -121,3 +121,23 @@ test('take cycle aborts after acknowledgement if the start scope was cancelled',
 	}), cancelled);
 	assert.deepEqual(events, ['mic:confirmed']);
 });
+
+test('take cycle resolves a fractional context instant with the enclosing sample policy', async () => {
+	let requestedFrame = -1;
+	const source = { ...recorder([], 'mic', 48_510),
+		async startConfirmed(options: Readonly<{ startFrame: number }>) {
+			requestedFrame = options.startFrame;
+			return { startFrame: options.startFrame };
+		} };
+	const engine = {
+		async playAt(_scheduledTime: number, _loopFrame: number, beforeStart?: (candidate: number) => Promise<number>) {
+			assert.ok(beforeStart);
+			return beforeStart(1.1);
+		},
+	};
+	await startTakeCycleRoutedPlayback({
+		context: { sampleRate: 44_100, currentTime: 0 }, engine, loopStartFrame: 100,
+		sources: [{ kind: 'device', controller: source }], assertCurrent() {},
+	});
+	assert.equal(requestedFrame, 48_510);
+});

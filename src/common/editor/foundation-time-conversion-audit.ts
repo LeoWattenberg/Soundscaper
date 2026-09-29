@@ -125,6 +125,12 @@ const FOUNDATION_TIME_CONVERSION_EDITOR_SITES: readonly FoundationTimeConversion
 		conversions: [{ helper: 'roundRational', policies: ['point'] }],
 	},
 	{
+		id: 'take-cycle-clocked-recording-start',
+		file: 'src/common/editor/controller/recording/internal/take-cycle/take-cycle-routed-playback-start.ts',
+		behavior: 'Take-cycle capture encloses audible playback starts and future audio-clock deadlines at the context sample rate so recorder acknowledgements and playback share one sample boundary.',
+		conversions: [{ helper: 'secondsToSampleFrame', policies: ['enclosingEnd'] }],
+	},
+	{
 		id: 'legacy-aup-timeline-import',
 		file: 'src/common/editor/aup-legacy-conversion.js',
 		behavior: 'Legacy label, selection, source, clip, and envelope timestamps become nearest sample instants during interchange import.',
