@@ -3,6 +3,7 @@
 import { expect, longTone, test } from './audio-editor-test-fixtures.js';
 import {
 	bootEditor,
+	closeWorkspacePanel,
 	collectClientErrors,
 	importFiles,
 	registerAudioEditorHooks,
@@ -77,6 +78,26 @@ const ALIGNED = {
 
 test.describe('timeline grid lines', () => {
 	registerAudioEditorHooks();
+
+	test('keeps the compact ruler aligned with full-width lanes when the track-header drawer opens and scrolls', async ({ page }) => {
+		await page.setViewportSize({ width: 390, height: 844 });
+		const editor = await bootEditor(page, '/embed/en/');
+		await closeWorkspacePanel(editor, 'project-bin');
+		const panel = editor.locator('.audio-editor-timeline-panel');
+		const timeline = editor.locator('[data-timeline]');
+		const readAlignment = () => readGridAlignment(panel, '[data-timeline-grid="viewport"] canvas');
+		await expect(editor).toHaveAttribute('data-layout', 'compact');
+		await expect(panel).toHaveAttribute('data-track-header-drawer', 'closed');
+		await expect.poll(readAlignment).toMatchObject(ALIGNED);
+
+		const toggle = editor.locator('[data-track-header-toggle]');
+		await toggle.click();
+		await expect(panel).toHaveAttribute('data-track-header-drawer', 'open');
+		await expect.poll(readAlignment).toMatchObject(ALIGNED);
+
+		await timeline.evaluate((element) => { element.scrollLeft = 120; });
+		await expect.poll(readAlignment).toMatchObject({ ...ALIGNED, scrollX: '120px' });
+	});
 
 	test('draws a line under every ruler tick and keeps them aligned through scroll, zoom and format changes', async ({ page }) => {
 		const errors = collectClientErrors(page);

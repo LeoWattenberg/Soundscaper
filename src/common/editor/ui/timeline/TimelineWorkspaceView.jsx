@@ -179,7 +179,8 @@ export function TimelineWorkspaceView({
 	);
 
 	// In the compact layout the sticky ruler corner is the track-header drawer's
-	// handle: only the toggle while closed, the usual corner content while open.
+	// handle. It overlays the ruler so both the ruler and full-width lanes start
+	// at the same time coordinate.
 	const cornerWidth = trackHeaderDrawer
 		? (trackHeaderDrawer.isOpen ? trackHeaderWidth : TRACK_HEADER_DRAWER_HANDLE_WIDTH)
 		: panelWidth;
@@ -255,7 +256,7 @@ export function TimelineWorkspaceView({
 							className="audio-editor-ruler-corner"
 							data-track-header-drawer-strip={trackHeaderDrawer ? 'true' : undefined}
 							data-open={trackHeaderDrawer ? (trackHeaderDrawer.isOpen ? 'true' : 'false') : undefined}
-							style={{ width: cornerWidth }}
+							style={{ width: cornerWidth, marginRight: trackHeaderDrawer ? -cornerWidth : undefined }}
 						>
 							{trackHeaderDrawer && <TrackHeaderDrawerToggle copy={copy} drawer={trackHeaderDrawer} />}
 							{(!trackHeaderDrawer || trackHeaderDrawer.isOpen) && <TimelineRulerCornerContent
