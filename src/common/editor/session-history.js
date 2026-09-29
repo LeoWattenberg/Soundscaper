@@ -67,7 +67,6 @@ export function createHistory(project, history) {
  */
 export function adoptImmutableHistory(project, history, knownImmutable) {
 	const normalized = normalizedHistory(project, history, false);
-	if (normalized.present.schemaVersion !== project.schemaVersion) return normalized;
 	const candidates = freezeCandidates(history, knownImmutable);
 	if (!candidates) return null;
 	try {
@@ -124,10 +123,16 @@ function normalizedHistory(project, history, copy) {
 	const normalized = copy ? clone(history) : history;
 	const present = validateProject(normalized.present, 'history.present');
 	if (present.id !== project.id) throw new RangeError('Project history must belong to the open project.');
+	if (present.schemaVersion !== project.schemaVersion) {
+		throw new RangeError('Project history present schema version must match the open project.');
+	}
 	const normalizeEntry = (entry, name) => {
 		if (!entry || typeof entry !== 'object') throw new TypeError(`${name} must be a history entry.`);
 		const snapshot = validateProject(entry.project, `${name}.project`);
 		if (snapshot.id !== project.id) throw new RangeError(`${name} belongs to another project.`);
+		if (snapshot.schemaVersion !== present.schemaVersion) {
+			throw new RangeError(`${name} schema version must match the present project.`);
+		}
 		return entry;
 	};
 	return {

@@ -59,7 +59,7 @@ export { AUDIO_EDITOR_SESSION_CLIPBOARD_SCHEMA_VERSION, createAudioEditorSession
 
 function normalizeTab(value) {
 	if (!value || typeof value !== 'object') throw new TypeError('A project tab is required.');
-	const project = validateProject(value.history?.present || value.project, 'tab project');
+	const project = validateProject(value.project || value.history?.present, 'tab project');
 	if (value.projectId != null && value.projectId !== project.id) {
 		throw new RangeError('Project tab ID does not match its project history.');
 	}

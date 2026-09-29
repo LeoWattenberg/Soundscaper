@@ -52,3 +52,37 @@ void test('opaque history documents are admitted without traversing their domain
 	assert.equal(capture.history.present.schemaVersion, 999);
 	assert.deepEqual(capture.history.present.tracks, []);
 });
+
+void test('an open tab cannot install a history whose present uses another schema version', () => {
+	const project = runtime.createProject({ id: 'schema-history' });
+	const future = { ...project, schemaVersion: project.schemaVersion + 1 };
+	const session = createAudioEditorSessionController();
+	assert.throws(() => session.openProject(project, { history: {
+		limit: 200, present: future, undoStack: [], redoStack: [],
+	} }), /history.*schema version/iu);
+	assert.deepEqual(session.getSnapshot().tabs, []);
+});
+
+void test('an open tab cannot install history belonging to another project', () => {
+	const project = runtime.createProject({ id: 'requested-project' });
+	const other = runtime.createProject({ id: 'other-project' });
+	const session = createAudioEditorSessionController();
+	assert.throws(() => session.openProject(project, { history: {
+		limit: 200, present: other, undoStack: [], redoStack: [],
+	} }), /history must belong to the open project/iu);
+	assert.deepEqual(session.getSnapshot().tabs, []);
+});
+
+void test('history cannot retain undo or redo snapshots from another schema version', () => {
+	const project = runtime.createProject({ id: 'mixed-schema-history' });
+	const future = { ...project, schemaVersion: project.schemaVersion + 1 };
+	for (const stackName of ['undoStack', 'redoStack'] as const) {
+		const session = createAudioEditorSessionController();
+		assert.throws(() => session.openProject(project, { history: {
+			limit: 200, present: project,
+			undoStack: stackName === 'undoStack' ? [{ project: future, command: { type: 'test' } }] : [],
+			redoStack: stackName === 'redoStack' ? [{ project: future, command: { type: 'test' } }] : [],
+		} }), /history.*schema version/iu);
+		assert.deepEqual(session.getSnapshot().tabs, []);
+	}
+});
