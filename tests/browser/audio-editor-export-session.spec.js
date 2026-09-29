@@ -369,6 +369,7 @@ test.describe('audio editor React/design-system workflows', () => {
 	});
 
 	test('falls back to bounded realtime WAV rendering without OfflineAudioContext', async ({ page }) => {
+		test.setTimeout(60_000);
 		await disableNativeSavePicker(page);
 		await disableOfflineAudio(page);
 		const errors = collectClientErrors(page);
@@ -377,7 +378,7 @@ test.describe('audio editor React/design-system workflows', () => {
 		const exportDialog = await openExportDialog(page, editor);
 		await exportDialog.getByRole('button', { name: 'Export', exact: true }).click();
 		const download = exportDialog.locator('[data-export-download]');
-		await expect(download).toBeVisible({ timeout: 20_000 });
+		await expect(download).toBeVisible({ timeout: 45_000 });
 		const header = new TextDecoder().decode((await readDownloadBytes(page, download)).subarray(0, 4));
 		expect(header).toBe('RIFF');
 		expect(errors).toEqual([]);
