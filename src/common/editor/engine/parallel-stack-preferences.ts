@@ -15,7 +15,7 @@ export interface ParallelStackStatus {
 }
 
 export const PARALLEL_STACK_PREFERENCES_KEY = 'soundscaper.parallel-effect-stacks.v1';
-const DEFAULTS: ParallelStackPreferences = Object.freeze({ enabled: false, workerLimit: 'auto', pipelineFrames: 768 });
+const DEFAULTS: ParallelStackPreferences = Object.freeze({ enabled: false, workerLimit: 'auto', pipelineFrames: 1536 });
 const OFF: ParallelStackStatus = Object.freeze({ state: 'off' });
 const statuses = new WeakMap<object, ParallelStackStatus>();
 const listeners = new Set<() => void>();

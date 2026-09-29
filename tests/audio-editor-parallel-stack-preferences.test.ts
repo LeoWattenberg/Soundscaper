@@ -27,7 +27,7 @@ test('parallel stack preferences default off and reject malformed persisted sett
 		'{"enabled":true,"workerLimit":3,"pipelineFrames":768}',
 		'{"enabled":true,"workerLimit":"auto","pipelineFrames":1}']) {
 		assert.deepEqual(readParallelStackPreferences(storage(value)), {
-			enabled: false, workerLimit: 'auto', pipelineFrames: 768,
+			enabled: false, workerLimit: 'auto', pipelineFrames: 1536,
 		});
 	}
 	assert.equal(readParallelStackPreferences({ getItem() { throw new Error('Denied'); } }).enabled, false);

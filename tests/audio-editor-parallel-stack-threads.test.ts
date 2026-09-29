@@ -13,6 +13,7 @@ import {
 	publishParallelStackBank, startParallelStackBuffers, stopParallelStackBuffers,
 	ParallelStackBankState, ParallelStackStatus,
 } from '../src/common/editor/engine/parallel-stack-protocol.ts';
+import { ParallelStackCollector } from '../src/common/editor/engine/parallel-stack-collector.ts';
 
 test('independent stacks execute concurrently on actual workers and retire while idle', { timeout: 10_000 }, async () => {
 	const shared = createParallelStackBuffers({ generation: 1, planeCount: 4, taskCount: 3, workerCount: 2 });
@@ -45,6 +46,60 @@ test('independent stacks execute concurrently on actual workers and retire while
 		for (const [message] of await Promise.all(stopped)) assert.equal(message, 'stopped');
 		for (let worker = 0; worker < 2; worker += 1) assert.equal(Atomics.load(views.control, views.workerStateIndex(worker)), 2);
 	} finally {
+		stopParallelStackBuffers(shared);
+		await Promise.all(workers.map((worker) => worker.terminate()));
+	}
+});
+
+test('real workers deliver every block in order and keep distinct tracks sample aligned', { timeout: 10_000 }, async () => {
+	const shared = createParallelStackBuffers({ generation: 11, planeCount: 4, taskCount: 2, workerCount: 2 });
+	const views = createParallelStackViews(shared);
+	const barrier = new SharedArrayBuffer(16);
+	const progress = new Int32Array(barrier);
+	const tasks = [{ worker: 0, dependencies: [] }, { worker: 1, dependencies: [] }];
+	const workers = [0, 1].map((workerIndex) => new Worker(new URL('./fixtures/parallel-stack-scheduler-worker.ts', import.meta.url), {
+		workerData: { shared, tasks, workerIndex, barrier, mode: 'independent-tracks' } satisfies SchedulerWorkerData,
+	}));
+	const collector = new ParallelStackCollector({
+		shared, inputPlaneIndices: [[0], [1]], outputPlaneIndices: [[2], [3]], startFrame: 0,
+	});
+	const outputs = [[new Float32Array(128)], [new Float32Array(128)]];
+	try {
+		await Promise.all(workers.map(async (worker) => {
+			const [message] = await once(worker, 'message');
+			assert.equal(message, 'ready');
+		}));
+		startParallelStackBuffers(shared);
+		// Forty blocks cross the eight-bank ring five times, with one worker intentionally slower.
+		for (let quantum = 0; quantum < 80; quantum += 1) {
+			if (quantum >= 6 && quantum % 2 === 0) {
+				const sequence = (quantum - 6) / 2;
+				const bank = views.banks[sequence % views.geometry.bankCount];
+				await waitUntil(() => bank.state() === ParallelStackBankState.Complete || views.status() === ParallelStackStatus.Faulted);
+			}
+			const inputs = [0, 1].map((track) => [Float32Array.from({ length: 128 }, (_, frame) =>
+				track * 100_000 + quantum * 128 + frame + 1)]);
+			assert.equal(collector.process(inputs, outputs, quantum * 128), true);
+			assert.equal(views.status(), ParallelStackStatus.Running);
+			if (quantum === 3) {
+				await waitUntil(() => Atomics.load(progress, 2) >= 2);
+				assert.equal(Atomics.load(progress, 3), 0, 'the second track remains held while the first is two blocks ahead');
+				Atomics.store(progress, 1, 1);
+				Atomics.notify(progress, 1);
+			}
+			for (let track = 0; track < 2; track += 1) {
+				for (let frame = 0; frame < 128; frame += 1) {
+					const expected = quantum < 6 ? 0 : track * 100_000 + (quantum - 6) * 128 + frame + 1;
+					assert.equal(outputs[track]![0]![frame], expected,
+						`track ${track}, quantum ${quantum}, frame ${frame}`);
+				}
+			}
+		}
+		assert.equal(Atomics.load(new Int32Array(barrier), 0), 2);
+		assert.equal(collector.fault, 0);
+	} finally {
+		Atomics.store(progress, 1, 1);
+		Atomics.notify(progress, 1);
 		stopParallelStackBuffers(shared);
 		await Promise.all(workers.map((worker) => worker.terminate()));
 	}

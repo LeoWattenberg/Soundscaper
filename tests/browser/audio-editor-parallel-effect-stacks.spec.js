@@ -76,6 +76,37 @@ async function installParallelStackProbe(page) {
 			}
 			return latest;
 		};
+		probe.captureTrackBlocks = (durationMs) => new Promise((resolve) => {
+			const generation = probe.generations.at(-1);
+			if (!generation) { resolve({ sampleRate: 0, blocks: [] }); return; }
+			const { shared, plan } = generation;
+			const effectTracks = plan.tasks.filter((task) => task.kind === 'stack' && task.inputPlanes.length
+				&& task.effects.some((effect) => effect.type === 'bitcrusher'));
+			if (effectTracks.length !== 2) { resolve({ sampleRate: plan.sampleRate, blocks: [] }); return; }
+			const { geometry } = shared;
+			const words = new Int32Array(shared.control);
+			const pcm = new Float32Array(shared.pcm);
+			const captured = new Map();
+			const sample = () => {
+				for (let bank = 0; bank < geometry.bankCount; bank += 1) {
+					const offset = 4 + geometry.workerCount * 2 + bank * (5 + geometry.taskCount);
+					const state = Atomics.load(words, offset);
+					if (state !== 3 && state !== 4) continue;
+					const sequence = (Atomics.load(words, offset + 1) >>> 0)
+						+ (Atomics.load(words, offset + 2) >>> 0) * 2 ** 32;
+					if (captured.has(sequence)) continue;
+					const first = (bank * geometry.planeCount + effectTracks[0].inputPlanes[0]) * geometry.blockFrames;
+					const second = (bank * geometry.planeCount + effectTracks[1].inputPlanes[0]) * geometry.blockFrames;
+					const block = { sequence, a: [pcm[first], pcm[first + 1]], b: [pcm[second], pcm[second + 1]] };
+					const stillSame = (Atomics.load(words, offset + 1) >>> 0)
+						+ (Atomics.load(words, offset + 2) >>> 0) * 2 ** 32 === sequence;
+					if (stillSame && Atomics.load(words, offset) >= 2) captured.set(sequence, block);
+				}
+			};
+			const interval = setInterval(sample, 1);
+			setTimeout(() => { clearInterval(interval); sample(); resolve({ sampleRate: plan.sampleRate,
+				blocks: [...captured.values()].sort((a, b) => a.sequence - b.sequence) }); }, durationMs);
+		});
 		probe.signal = () => {
 			const generation = probe.generations.at(-1);
 			if (!generation) return { peak: 0, changed: false };
@@ -118,7 +149,7 @@ async function installParallelStackProbe(page) {
 async function enableParallelStacks(page, editor) {
 	await chooseNestedCommandAction(page, editor, 'Tools', ['Audio setup', 'Processing', 'Parallel effect stacks']);
 	await chooseNestedCommandAction(page, editor, 'Tools', ['Audio setup', 'Processing', 'Worker limit', '2 workers']);
-	await chooseNestedCommandAction(page, editor, 'Tools', ['Audio setup', 'Processing', 'Buffering', 'Additional buffering']);
+	await chooseNestedCommandAction(page, editor, 'Tools', ['Audio setup', 'Processing', 'Buffering', 'Recommended']);
 }
 
 test('desktop effect stacks process in parallel through a main-thread stall and release each generation', async ({ page }) => {
@@ -168,6 +199,55 @@ test('desktop effect stacks process in parallel through a main-thread stall and 
 	}), { timeout: 20_000 }).toBe(true);
 	await editor.getByRole('button', { name: 'Stop', exact: true }).click();
 	expect(await page.evaluate(() => globalThis.__parallelStackProbe.errors)).toEqual([]);
+	expect(errors).toEqual([]);
+});
+
+test('completed chunks keep both effect tracks sample aligned and in order', async ({ page }) => {
+	test.setTimeout(90_000);
+	await installParallelStackProbe(page);
+	const errors = collectClientErrors(page);
+	const editor = await bootEditor(page, '/embed/en/');
+	await importFiles(editor, tones);
+	for (const trackIndex of [1, 2]) {
+		const panel = await openEffectsForTrack(editor, trackIndex);
+		await addRackEffect(page, panel, 'track', 'Bitcrusher');
+		await closeDialog(page.getByRole('dialog', { name: 'Bitcrusher', exact: true }));
+		await closeEffectsPanel(panel);
+	}
+	await enableParallelStacks(page, editor);
+	await editor.getByRole('button', { name: 'Play', exact: true }).click();
+	await expect.poll(() => page.evaluate(() => {
+		const probe = globalThis.__parallelStackProbe;
+		return probe.workers.filter((worker) => worker.ready && worker.started).length === 2 && probe.signal().peak > 0.05;
+	}), { timeout: 20_000 }).toBe(true);
+	const { sampleRate, blocks } = await page.evaluate(() => globalThis.__parallelStackProbe.captureTrackBlocks(450));
+	const phase = (samples, frequency) => {
+		const radians = 2 * Math.PI * frequency / sampleRate;
+		return Math.atan2(samples[0], (samples[1] - samples[0] * Math.cos(radians)) / Math.sin(radians));
+	};
+	const phaseError = (actual, expected) => Math.abs(Math.atan2(Math.sin(actual - expected), Math.cos(actual - expected)));
+	const audibleBlocks = blocks.filter(({ a, b }) => Math.max(...a.map(Math.abs), ...b.map(Math.abs)) > 0.05);
+	expect(audibleBlocks.length).toBeGreaterThan(8);
+	for (const block of audibleBlocks) {
+		expect(phaseError(phase(block.b, 660), 2 * phase(block.a, 330)),
+			`Tracks are offset within completed block ${JSON.stringify(block)} at ${String(sampleRate)} Hz`).toBeLessThan(0.03);
+	}
+	let consecutive = 0;
+	for (let index = 1; index < audibleBlocks.length; index += 1) {
+		const previous = audibleBlocks[index - 1];
+		const current = audibleBlocks[index];
+		if (current.sequence !== previous.sequence + 1) continue;
+		consecutive += 1;
+		expect(phaseError(phase(current.a, 330), phase(previous.a, 330) + 2 * Math.PI * 330 * 256 / sampleRate),
+			`Track chunks are out of order at sequence ${String(current.sequence)}`).toBeLessThan(0.03);
+	}
+	expect(consecutive).toBeGreaterThan(4);
+	const status = await page.evaluate(() => {
+		const words = new Int32Array(globalThis.__parallelStackProbe.generations.at(-1).shared.control);
+		return { state: Atomics.load(words, 0), fault: Atomics.load(words, 1) };
+	});
+	expect(status).toEqual({ state: 1, fault: 0 });
+	await editor.getByRole('button', { name: 'Stop', exact: true }).click();
 	expect(errors).toEqual([]);
 });
 
