@@ -112,6 +112,24 @@ test('live clip preparation stays bounded when many clips start together', async
 	assert.equal(started, plans.length);
 });
 
+test('a failed concurrent preparation cancels already primed and late priming streams', async () => {
+	const late = deferred<void>();
+	const failure = new Error('second clip failed to prime');
+	const cancelled: number[] = [];
+	const plans = [0, 1, 2].map((index) => ({ index }) as never);
+	const operation = prepareLiveChunkPlans(plans, async (plan) => {
+		const index = (plan as unknown as { index: number }).index;
+		if (index === 1) throw failure;
+		if (index === 2) await late.promise;
+		return { done: new Promise<void>(() => {}), start() {}, cancel() { cancelled.push(index); } };
+	}, null);
+	await assert.rejects(operation, failure);
+	assert.deepEqual(cancelled, [0], 'a primed source must be released on failure');
+	late.resolve();
+	await new Promise((resolve) => setImmediate(resolve));
+	assert.deepEqual(cancelled, [0, 2], 'a preparation that finishes later must also be released');
+});
+
 test('cancelling playback clears the future preparation timer', async () => {
 	const context = createContext();
 	const abort = new AbortController();
