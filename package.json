@@ -95,6 +95,7 @@
 		"quality:collect:m7-assistance-privacy": "node scripts/collect-m7-local-assistance-privacy-quality.mjs",
 		"quality:collect:m8a-capture": "node scripts/collect-m8a-capture-quality.mjs",
 		"debug:soak": "node scripts/run-soundscaper-soak.mjs",
+		"graphs:generate": "node scripts/generate-source-graphs.mjs",
 		"qa:new": "node scripts/create-qa-run.mjs",
 		"build:browser:framescaper": "node scripts/build-browser-product-site.mjs framescaper",
 		"prepare:browser:products": "node scripts/prepare-browser-product-sites.mjs",

@@ -12,6 +12,7 @@ coverage/
 .nyc_output/
 # Owner QA runs are local observations, not repository or CI state.
 /qa-runs/
+/.source-graphs/
 .desktop-build/
 .native-build/
 scripts/kokoro-g2p/.venv/
