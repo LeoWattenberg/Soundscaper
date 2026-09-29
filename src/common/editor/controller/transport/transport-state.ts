@@ -11,6 +11,7 @@ export interface ControllerMetronomeAnchor {
 	frame: number;
 	cursorFrame: number;
 	playbackRate: number;
+	audibleStartTime: number | null;
 	loopStartFrame: number | null;
 	loopEndFrame: number | null;
 }

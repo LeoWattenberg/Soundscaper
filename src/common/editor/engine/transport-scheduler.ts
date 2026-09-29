@@ -59,6 +59,8 @@ import type {
 	EngineRuntimeHost,
 } from './runtime-types.ts';
 
+const activePlaybackSchedules = new WeakMap<EngineRuntimeHost, object>();
+
 export const engineTransportSchedulerMethods = {
 async [ENGINE_SCHEDULE_CURRENT_PLAYBACK](this: EngineRuntimeHost, fromFrame, scheduledTime = this.context?.currentTime || 0) {
 		if ((this.playbackMode === 'staffpad' && this.preparedSpeedPlayback)
@@ -70,20 +72,29 @@ async [ENGINE_SCHEDULE_CURRENT_PLAYBACK](this: EngineRuntimeHost, fromFrame, sch
 
 async [ENGINE_SCHEDULE_PREPARED_SPEED_PLAYBACK](this: EngineRuntimeHost, fromFrame, scheduledTime = this.context?.currentTime || 0) {
 		const context = this.context;
+		const project = this.project;
+		const scrubGeneration = this.scrubGeneration;
+		const scheduleOwner = {};
+		activePlaybackSchedules.set(this, scheduleOwner);
+		const current = () => !this.disposed && this.context === context
+			&& this.project === project && this.scrubGeneration === scrubGeneration
+			&& activePlaybackSchedules.get(this) === scheduleOwner;
 		if (this.playbackMode === 'audio-warp-exact' && this.preparedAudioWarpPlayback) {
 			await scheduleExactWarpPlayback(
 				this,
 				this.preparedAudioWarpPlayback,
 				fromFrame,
 				scheduledTime,
+				current,
 			);
 			return scheduledTime;
 		}
 		const prepared = this.preparedSpeedPlayback;
-		if (!context || !this.project || !prepared) return scheduledTime;
+		if (!context || !project || !prepared) return scheduledTime;
 		if (this.meterListeners.size && !this.masterLoudnessMeter && !this.masterLoudnessMeterError) {
 			await this[ENGINE_ENSURE_MASTER_LOUDNESS_METER](context);
 		}
+		if (!current()) return scheduledTime;
 		this[ENGINE_HALT_GRAPH]();
 		const frame = clampFrame(fromFrame, 0, this.playbackDurationFrames);
 		const nodes: AudioNode[] = [];
@@ -164,10 +175,18 @@ async [ENGINE_SCHEDULE_PREPARED_SPEED_PLAYBACK](this: EngineRuntimeHost, fromFra
 
 async [ENGINE_SCHEDULE_PLAYBACK](this: EngineRuntimeHost, fromFrame, scheduledTime = this.context?.currentTime || 0) {
 		const context = this.context;
-		if (!context || !this.project) return scheduledTime;
+		const project = this.project;
+		const scrubGeneration = this.scrubGeneration;
+		if (!context || !project) return scheduledTime;
+		const scheduleOwner = {};
+		activePlaybackSchedules.set(this, scheduleOwner);
+		const current = () => !this.disposed && this.context === context
+			&& this.project === project && this.scrubGeneration === scrubGeneration
+			&& activePlaybackSchedules.get(this) === scheduleOwner;
 		if (this.meterListeners.size && !this.masterLoudnessMeter && !this.masterLoudnessMeterError) {
 			await this[ENGINE_ENSURE_MASTER_LOUDNESS_METER](context);
 		}
+		if (!current()) return scheduledTime;
 		this[ENGINE_HALT_GRAPH]();
 		const playbackDestination = playbackOutputDestination(
 			this, context, soundscaperNativeAudioDestination(context, context.destination),
@@ -175,6 +194,10 @@ async [ENGINE_SCHEDULE_PLAYBACK](this: EngineRuntimeHost, fromFrame, scheduledTi
 		const meteringAtBuild = this.meterListeners.size > 0;
 		const prepared = buildPlaybackGraph(this, this.masterLoudnessMeter?.node || playbackDestination, fromFrame);
 		const preparedGraph = prepared instanceof Promise ? await prepared : prepared;
+		if (!current()) {
+			if (preparedGraph) disposeGraph(preparedGraph, true);
+			return scheduledTime;
+		}
 		// A worker may fault after preparation resolves but before this suspended
 		// scheduler resumes. Its failure callback has already retired that graph.
 		if (!preparedGraph) return scheduledTime;
@@ -206,7 +229,7 @@ async [ENGINE_SCHEDULE_PLAYBACK](this: EngineRuntimeHost, fromFrame, scheduledTi
 		try {
 			schedule = await scheduleProjectClips({
 				context,
-				project: this.project,
+				project,
 				sources: this.sources,
 				trackInputs: this.graph.trackInputs,
 				trackGainParams: this.graph.trackGainParams,

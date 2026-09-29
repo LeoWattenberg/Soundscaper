@@ -37,6 +37,7 @@ export const ENGINE_PUBLIC_METHOD_NAMES = [
 	'playAtSpeed',
 	'playAt',
 	'getPlaybackGraphLatencyFrames',
+	'getPlaybackAudibleStartTime',
 	'pause',
 	'stop',
 	'seek',

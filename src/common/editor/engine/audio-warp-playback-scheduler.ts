@@ -35,6 +35,7 @@ export async function scheduleExactWarpPlayback(
 	prepared: PreparedAudioWarpPlayback,
 	fromFrame: number,
 	scheduledTime: number,
+	isCurrent: () => boolean,
 ): Promise<void> {
 	const context = engine.context;
 	if (!context || !engine.project) return;
@@ -43,9 +44,10 @@ export async function scheduleExactWarpPlayback(
 	if (engine.meterListeners.size && !engine.masterLoudnessMeter && !engine.masterLoudnessMeterError) {
 		await engine[ENGINE_ENSURE_MASTER_LOUDNESS_METER](context);
 	}
+	if (!isCurrent() || exactWarpScheduleGenerations.get(engine) !== generation) return;
 	const activeWindow = await exactWindowAt(engine, prepared, fromFrame);
 	if (!activeWindow || engine.context !== context || !engine.project
-		|| exactWarpScheduleGenerations.get(engine) !== generation) return;
+		|| !isCurrent() || exactWarpScheduleGenerations.get(engine) !== generation) return;
 	engine[ENGINE_HALT_GRAPH]();
 	const frame = clampFrame(fromFrame, activeWindow.startFrame, activeWindow.endFrame);
 	const nodes: AudioNode[] = [];

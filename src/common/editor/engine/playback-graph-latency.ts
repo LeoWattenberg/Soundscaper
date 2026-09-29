@@ -7,4 +7,8 @@ export const enginePlaybackGraphLatencyMethods = {
 		const frames = this.graph?.latencyFrames;
 		return typeof frames === 'number' && Number.isSafeInteger(frames) && frames > 0 ? frames : 0;
 	},
-} satisfies EngineRuntimeMethodMap<'getPlaybackGraphLatencyFrames'>;
+	getPlaybackAudibleStartTime(this: EngineRuntimeHost): number | null {
+		return this.state === 'playing' && this.context && Number.isFinite(this.playbackStartTime)
+			? this.playbackStartTime : null;
+	},
+} satisfies EngineRuntimeMethodMap<'getPlaybackGraphLatencyFrames' | 'getPlaybackAudibleStartTime'>;
