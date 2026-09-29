@@ -42,21 +42,43 @@ test('every interchange profile exports a current document that carries a video 
 
 	const edl = await exportProjectEdl(runtime.runtime);
 	assert.ok(edl);
-	// The clip starts one second into a 25fps sequence, so the record-in is the
-	// frame the ruler shows rather than a sample count read as a frame count.
-	assert.match(edl.text, /00:00:01:00/u);
+	// Keep source and record timecodes distinct: the clip starts at the media
+	// head but one second into the sequence, and lasts exactly two seconds.
+	assert.deepEqual(edl.text.split('\n')
+		.filter((line) => /^\d{3}\s/u.test(line))
+		.map((line) => line.trim().split(/\s+/u)), [[
+		'001', 'CAM_A', 'V', 'C',
+		'00:00:00:00', '00:00:02:00', '00:00:01:00', '00:00:03:00',
+	]]);
 
 	const otio = await exportProjectOtio(runtime.runtime);
 	assert.ok(otio);
 	const otioDocument = JSON.parse(otio.text) as {
-		tracks: { children: { children: { OTIO_SCHEMA: string; source_range?: unknown }[] }[] };
+		tracks: { children: { children: {
+			OTIO_SCHEMA: string;
+			name: string;
+			source_range: { start_time: { value: number }; duration: { value: number; rate: number } };
+			media_reference?: { target_url: string };
+		}[] }[] };
 	};
 	const videoTrack = otioDocument.tracks.children[0]!;
-	assert.equal(videoTrack.children.at(-1)?.OTIO_SCHEMA.startsWith('Clip'), true);
+	assert.deepEqual(videoTrack.children.map(({ OTIO_SCHEMA, name, source_range }) => ({
+		schema: OTIO_SCHEMA,
+		name,
+		sourceStart: source_range.start_time.value,
+		duration: source_range.duration.value,
+		rate: source_range.duration.rate,
+	})), [
+		{ schema: 'Gap.1', name: '', sourceStart: 0, duration: 25, rate: 25 },
+		{ schema: 'Clip.1', name: 'Wide', sourceStart: 0, duration: 50, rate: 25 },
+	]);
+	assert.equal(videoTrack.children[1]?.media_reference?.target_url, 'media/cam.mp4');
 
 	const fcpxml = await exportProjectFcpxml(runtime.runtime);
 	assert.ok(fcpxml);
-	assert.match(fcpxml.text, /<asset-clip/u);
+	const assetClips = fcpxml.text.match(/<asset-clip\b[^>]*\/>/gu) ?? [];
+	assert.equal(assetClips.length, 1);
+	assert.match(assetClips[0]!, /\bname="Wide" offset="1s" start="0s" duration="2s" videoRole="video"\/>$/u);
 });
 
 test('a musically anchored audio clip is exported where the tempo map puts it', async () => {
@@ -64,14 +86,23 @@ test('a musically anchored audio clip is exported where the tempo map puts it', 
 	const otio = await exportProjectOtio(runtime.runtime);
 	assert.ok(otio);
 	const otioDocument = JSON.parse(otio.text) as {
-		tracks: { children: { children: { OTIO_SCHEMA: string }[] }[] };
+		tracks: { children: { children: {
+			OTIO_SCHEMA: string;
+			source_range: { duration: { value: number; rate: number } };
+		}[] }[] };
 	};
 	const audioTrack = otioDocument.tracks.children[0]!;
 	// Four beats at 120bpm is two seconds of leader, which OTIO states as a Gap
 	// before the clip. Reading the missing sample alias as zero wrote the clip at
 	// the top of the timeline instead.
-	assert.equal(audioTrack.children[0]?.OTIO_SCHEMA.startsWith('Gap'), true);
-	assert.equal(audioTrack.children[1]?.OTIO_SCHEMA.startsWith('Clip'), true);
+	assert.deepEqual(audioTrack.children.map(({ OTIO_SCHEMA, source_range }) => ({
+		schema: OTIO_SCHEMA,
+		frames: source_range.duration.value,
+		rate: source_range.duration.rate,
+	})), [
+		{ schema: 'Gap.1', frames: 2 * SAMPLE_RATE, rate: SAMPLE_RATE },
+		{ schema: 'Clip.1', frames: SAMPLE_RATE, rate: SAMPLE_RATE },
+	]);
 });
 
 function harness(project: Readonly<Record<string, unknown>>) {

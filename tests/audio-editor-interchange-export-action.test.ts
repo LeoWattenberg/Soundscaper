@@ -55,6 +55,10 @@ test('the action saves an EDL through the interchange purpose', async () => {
 	assert.equal(saved[0].suggestedName, 'Reel-one.edl');
 	assert.equal(saved[0].mimeType, 'text/plain');
 	assert.match(result.text, /^TITLE: Reel one\nFCM: NON-DROP FRAME\n/u);
+	const savedBlob = saved[0].blob;
+	assert.ok(savedBlob instanceof Blob);
+	assert.equal(savedBlob.type, 'text/plain');
+	assert.equal(await savedBlob.text(), result.text);
 });
 
 test('the report reaches session state so the File menu entry can show it', async () => {
