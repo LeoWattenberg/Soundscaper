@@ -71,7 +71,8 @@ test.describe('menu-only Local Assistance workflows', () => {
 		await manager.locator('details.kw-processing-details > summary').click();
 		await manager.getByRole('textbox', { name: 'Search models' }).fill('unrelated');
 		await expect(model).toHaveCount(0);
-		await expect(manager.getByRole('button', { name: 'Install from folder…' })).toBeVisible();
+		await expect(manager.getByRole('button', { name: 'Install from folder', exact: true })).toBeVisible();
+		await manager.locator('details.kw-processing-details > summary').click();
 		await manager.getByRole('textbox', { name: 'Search models' }).fill('DeepFilterNet');
 		await expect(model).toBeVisible();
 		await expect(model).toHaveAttribute('data-local-model-availability', 'installable');
