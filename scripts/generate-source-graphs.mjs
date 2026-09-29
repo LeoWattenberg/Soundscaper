@@ -46,10 +46,14 @@ async function collectSources(directory, relative = '') {
 	return sources;
 }
 
-function renderSvg(dotPath, svgPath) {
-	const result = spawnSync('dot', ['-Tsvg', dotPath, '-o', svgPath], { encoding: 'utf8' });
-	if (result.error) throw new Error(`Graphviz dot is required for --svg: ${result.error.message}`);
-	if (result.status !== 0) throw new Error(`Graphviz could not render ${dotPath}: ${result.stderr.trim()}`);
+function renderSvg(dotPath, svgPath, graph) {
+	// dot's spline router can fail on large graphs, and dense dependency layouts
+	// take much longer. sfdp handles both without dropping nodes or edges.
+	const renderer = graph.nodes.length > 500 || graph.edges.length > 300 ? 'sfdp' : 'dot';
+	const arguments_ = ['-Tsvg', ...(renderer === 'sfdp' ? ['-Gsplines=false'] : []), dotPath, '-o', svgPath];
+	const result = spawnSync(renderer, arguments_, { encoding: 'utf8' });
+	if (result.error) throw new Error(`Graphviz ${renderer} is required for --svg: ${result.error.message}`);
+	if (result.status !== 0) throw new Error(`Graphviz ${renderer} could not render ${dotPath}: ${result.stderr.trim()}`);
 }
 
 async function main() {
@@ -70,7 +74,7 @@ async function main() {
 		const mermaidPath = path.join(options.outputDirectory, `${name}.mmd`);
 		await writeFile(dotPath, renderDot(graph));
 		await writeFile(mermaidPath, renderMermaid(graph));
-		if (options.svg) renderSvg(dotPath, path.join(options.outputDirectory, `${name}.svg`));
+		if (options.svg) renderSvg(dotPath, path.join(options.outputDirectory, `${name}.svg`), graph);
 		process.stdout.write(`${name}: ${graph.nodes.length} nodes, ${graph.edges.length} edges\n`);
 	}
 	process.stdout.write(`Wrote source graphs to ${options.outputDirectory}\n`);

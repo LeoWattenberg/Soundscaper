@@ -5,7 +5,9 @@ and `native/` trees and writes separate Graphviz `.dot` and Mermaid `.mmd` files
 to `.source-graphs/`. That directory is ignored by Git. No graph renderer is
 needed to generate the files; open an `.mmd` file in a Mermaid viewer or render
 a `.dot` file with Graphviz. If Graphviz is installed, run
-`npm run graphs:generate -- --svg` to create SVGs as well.
+`npm run graphs:generate -- --svg` to create SVGs as well. The full inheritance
+and dependency graphs use Graphviz's `sfdp` renderer; the smaller graphs use
+`dot`.
 
 | File stem | What it shows |
 | --- | --- |
