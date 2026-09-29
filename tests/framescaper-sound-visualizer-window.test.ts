@@ -348,7 +348,10 @@ test('empty sequences return no PCM and aborted reads stop before storage', asyn
 		mode: 'waveform', ...window, width: 8, height: 8,
 		foregroundColor: '#ffffffff', backgroundColor: '#00000000',
 	}).pixels;
-	assert.notDeepEqual(picture(empty), picture(next));
+	assert.deepEqual([...picture(empty).subarray(12, 20)],
+		[255, 255, 255, 255, 0, 0, 0, 0], 'frame 3 marks column 3 on a transparent plate');
+	assert.deepEqual([...picture(next).subarray(12, 20)],
+		[0, 0, 0, 0, 255, 255, 255, 255], 'frame 4 moves the marker to column 4');
 	const aborted = new AbortController();
 	aborted.abort(new Error('cancelled'));
 	await assert.rejects(reader.window(entry(), 12, 3, aborted.signal), /cancelled/u);

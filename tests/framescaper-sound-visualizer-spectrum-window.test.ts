@@ -136,8 +136,15 @@ test('a tone near the long-window edge contributes to spectrum only when in view
 		mode: 'spectrum', ...window, width: 160, height: 90,
 		foregroundColor: '#ffffffff', backgroundColor: '#00000000',
 	}).pixels;
-	assert.notDeepEqual(picture(long), picture(short));
-	assert.deepEqual(picture(long), picture(await reader.window(entry([], 10, 'spectrum'),
+	const longPixels = picture(long);
+	const shortPixels = picture(short);
+	const atTone = (pixels: Uint8Array, y: number) =>
+		[...pixels.subarray((y * 160 + 112) * 4, (y * 160 + 113) * 4)];
+	assert.deepEqual([atTone(longPixels, 16), atTone(shortPixels, 16),
+		atTone(longPixels, 89), atTone(shortPixels, 89)], [
+		[255, 255, 255, 255], [0, 0, 0, 0], [0, 0, 0, 0], [255, 255, 255, 255],
+	], 'the 80 Hz tone raises its spectrum bin only inside the long window');
+	assert.deepEqual(longPixels, picture(await reader.window(entry([], 10, 'spectrum'),
 		5_000, 5, signal)));
 	reader.dispose();
 });

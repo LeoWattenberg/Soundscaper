@@ -82,8 +82,10 @@ test('live visualizer preview paints idle immediately and discards an old seek r
 	});
 	await Promise.resolve();
 	const active = painted.at(-1)!;
-	assert.notDeepEqual(active, idleAfterSeek, 'matching PCM replaces the idle frame');
-	assert.deepEqual([...active.subarray((12 * 32 + 10) * 4, (12 * 32 + 11) * 4)],
+	const waveformPixel = (12 * 32 + 10) * 4;
+	assert.deepEqual([...idleAfterSeek.subarray(waveformPixel, waveformPixel + 4)],
+		[0, 0, 0, 255], 'the idle frame has no waveform at the sampled column');
+	assert.deepEqual([...active.subarray(waveformPixel, waveformPixel + 4)],
 		[102, 211, 197, 255], 'matching PCM paints the authored teal waveform');
 	preview.dispose();
 });
