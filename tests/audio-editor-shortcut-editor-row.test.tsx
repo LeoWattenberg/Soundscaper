@@ -127,7 +127,7 @@ test('focus after a removal follows the position rather than the binding', () =>
 	assert.equal(shortcutFocusTargetAfterRemove(1, 1), '[data-shortcut-add="true"]');
 });
 
-test('removing a binding hands focus to the control that took its place', async () => {
+test('changing a binding count hands focus to the next useful control', async () => {
 	const dom = installReactTestDom();
 	const actGlobal = globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean };
 	const priorAct = actGlobal.IS_REACT_ACT_ENVIRONMENT;
@@ -151,6 +151,12 @@ test('removing a binding hands focus to the control that took its place', async 
 			dom.container.ownerDocument.activeElement?.getAttribute('data-shortcut-add'),
 			'true',
 			'a lone binding carries no remove control, so the add control takes focus',
+		);
+		await act(async () => { reactProps(dom.one('[data-shortcut-add="true"]')).onClick?.({}); });
+		assert.equal(
+			dom.container.ownerDocument.activeElement?.getAttribute('data-shortcut-binding'),
+			'1',
+			'adding a binding focuses its new input',
 		);
 	} finally {
 		await act(async () => root.unmount());

@@ -119,18 +119,16 @@ export function ShortcutEditorRow({ command, preferences, controller, copy, run 
 	useLayoutEffect(() => setEntries(editableEntries(persisted)), [persisted]);
 	const errorId = useId();
 	const bindingsRef = useRef<HTMLDivElement | null>(null);
-	// Removing a binding unmounts the button that was pressed, so focus would fall
-	// to the document body and a keyboard user would have to tab in from the top
-	// of the dialog again. The row records where focus belongs and hands it over
-	// once React has rebuilt the fields.
-	const [focusAfterRemove, setFocusAfterRemove] = useState<{ readonly selector: string } | null>(null);
+	// Adding or removing a binding replaces the pressed control. Hand focus to
+	// the new field or the surviving control once React has rebuilt the row.
+	const [focusAfterChange, setFocusAfterChange] = useState<{ readonly selector: string } | null>(null);
 	useEffect(() => {
-		if (!focusAfterRemove) return;
+		if (!focusAfterChange) return;
 		const bindings = bindingsRef.current;
-		const target = bindings?.querySelector<HTMLElement>(focusAfterRemove.selector)
+		const target = bindings?.querySelector<HTMLElement>(focusAfterChange.selector)
 			|| bindings?.querySelector<HTMLElement>(SHORTCUT_ADD_CONTROL);
 		target?.focus();
-	}, [focusAfterRemove]);
+	}, [focusAfterChange]);
 	const draft = shortcutEditorDraft({
 		shortcuts: preferences.shortcuts,
 		preferenceId,
@@ -153,7 +151,11 @@ export function ShortcutEditorRow({ command, preferences, controller, copy, run 
 	const removeEntry = (index: number) => {
 		const remaining = editableEntries(entries.filter((entry, position) => position !== index));
 		setEntries(remaining);
-		setFocusAfterRemove({ selector: shortcutFocusTargetAfterRemove(index, remaining.length) });
+		setFocusAfterChange({ selector: shortcutFocusTargetAfterRemove(index, remaining.length) });
+	};
+	const addEntry = () => {
+		setEntries((current) => [...current, '']);
+		setFocusAfterChange({ selector: `[data-shortcut-binding="${entries.length}"]` });
 	};
 	return (
 		<div
@@ -193,7 +195,7 @@ export function ShortcutEditorRow({ command, preferences, controller, copy, run 
 							data-shortcut-add="true"
 							disabled={command.disabled}
 							aria-label={`${copy.shortcutAddBinding}: ${command.label}`}
-							onClick={() => setEntries((current) => [...current, ''])}
+							onClick={addEntry}
 						>{'+'}</button>}
 					</div>
 				))}

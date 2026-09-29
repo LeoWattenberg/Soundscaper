@@ -64,4 +64,19 @@ test.describe('keyboard shortcut preferences', () => {
 		await search.fill('Nyquist prompt');
 		await expect(preferences.locator('[data-shortcut-action="nyquist-prompt"]')).toBeVisible();
 	});
+
+	test('focuses a new shortcut field after Add shortcut is activated by keyboard', async ({ page }) => {
+		const editor = await bootEditor(page, '/embed/en/');
+		await chooseCommandAction(page, editor, 'Edit', 'Preferences');
+		const preferences = page.getByRole('dialog', { name: 'Editor preferences', exact: true });
+		await preferences.getByRole('tab', { name: /Keyboard shortcuts$/u }).click();
+		await preferences.getByRole('searchbox', { name: 'Search commands', exact: true }).fill('Insert');
+		const row = preferences.locator('[data-shortcut-action="insert"]');
+		await expect(row).toBeVisible();
+		const existing = await row.locator('[data-shortcut-binding]').count();
+		const add = row.locator('[data-shortcut-add="true"]');
+		await add.focus();
+		await page.keyboard.press('Enter');
+		await expect(row.locator(`[data-shortcut-binding="${existing}"]`)).toBeFocused();
+	});
 });
