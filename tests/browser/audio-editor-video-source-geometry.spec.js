@@ -1,5 +1,6 @@
 import { expect } from '@playwright/test';
 import { test } from './audio-editor-test-fixtures.js';
+import { BufferSource, Input, MP4 } from 'mediabunny';
 
 import {
 	resolveVideoSourceDisplaySize,
@@ -129,6 +130,21 @@ test.describe('3B-2b source display geometry qualification', () => {
 		});
 		expect(target.chunkCount).toBeGreaterThan(0);
 		expect(target.byteLength).toBeGreaterThan(0);
+		const encoded = Buffer.from(await page.evaluate(() => globalThis.__videoSaveTarget.chunks
+			.flatMap((chunk) => Array.from(chunk))));
+		expect(encoded.byteLength).toBe(target.byteLength);
+		const input = new Input({ source: new BufferSource(encoded), formats: [MP4] });
+		try {
+			expect(await input.getFormat()).toBe(MP4);
+			expect(await input.canRead()).toBe(true);
+			const track = await input.getPrimaryVideoTrack();
+			expect(track).not.toBeNull();
+			expect({ width: await track.getCodedWidth(), height: await track.getCodedHeight() })
+				.toEqual(ROTATED_ANAMORPHIC.display);
+			expect(await input.getAudioTracks()).toHaveLength(0);
+		} finally {
+			input.dispose();
+		}
 	});
 });
 

@@ -132,6 +132,7 @@ test('encodes and muxes a complete MP4 without FFmpeg, a lease, or shared memory
 				codedHeight,
 				audioTrackCount: audioTracks.length,
 				videoPackets: await packetEvidence(media, videoTrack),
+				pixels: await decodedPixels(media, videoTrack),
 			};
 		} finally {
 			input.dispose();
@@ -167,6 +168,27 @@ test('encodes and muxes a complete MP4 without FFmpeg, a lease, or shared memory
 				lastEnd = Math.max(lastEnd, packet.timestamp + packet.duration);
 			}
 			return { count, byteLength, firstType, lastEnd };
+		}
+
+		async function decodedPixels(mediaModule, track) {
+			const sink = new mediaModule.VideoSampleSink(track);
+			const canvas = document.createElement('canvas');
+			canvas.width = 64;
+			canvas.height = 64;
+			const context = canvas.getContext('2d', { willReadFrequently: true });
+			const frames = [];
+			for await (const sample of sink.samples()) {
+				try {
+					sample.draw(context, 0, 0, 64, 64);
+					frames.push({
+						top: [...context.getImageData(16, 24, 1, 1).data],
+						bottom: [...context.getImageData(16, 40, 1, 1).data],
+					});
+				} finally {
+					sample.close();
+				}
+			}
+			return frames;
 		}
 
 		function bounded(operation, timeoutMs) {
@@ -272,13 +294,28 @@ test('encodes and muxes a complete MP4 without FFmpeg, a lease, or shared memory
 	expect(result.codec).toMatch(/^avc1\./u);
 	expect(result.outputChunkCount).toBeGreaterThan(0);
 	expect(result.container.mimeType).toMatch(/^video\/mp4/u);
-	expect(result.container.duration).toBeGreaterThanOrEqual(1);
-	expect(result.container.duration).toBeLessThanOrEqual(1.05);
+	expect(result.container.duration).toBe(1);
 	expect(result.container.videoConfigCodec).toMatch(/^avc1\./u);
 	expect(result.container.videoConfigBytes).toBeGreaterThan(0);
 	expect(result.container.videoPackets).toMatchObject({ count: 2, firstType: 'key' });
 	expect(result.container.videoPackets.byteLength).toBeGreaterThan(0);
-	expect(result.container.videoPackets.lastEnd).toBeGreaterThanOrEqual(1);
+	expect(result.container.videoPackets.lastEnd).toBe(1);
+	// Lossy H.264 may shift channels slightly, but it must preserve the fixture's
+	// red upper half, blue lower half, and 75% opacity on the second frame.
+	const expectedPixels = [
+		{ top: [255, 64, 0, 255], bottom: [0, 64, 255, 255] },
+		{ top: [191, 48, 0, 255], bottom: [0, 48, 191, 255] },
+	];
+	expect(result.container.pixels).toHaveLength(expectedPixels.length);
+	for (const [index, frame] of result.container.pixels.entries()) {
+		for (const region of ['top', 'bottom']) {
+			for (let channel = 0; channel < 3; channel++) {
+				expect(Math.abs(frame[region][channel] - expectedPixels[index][region][channel]),
+					`frame ${index} ${region} RGB channel ${channel}`).toBeLessThanOrEqual(20);
+			}
+			expect(frame[region][3]).toBe(255);
+		}
+	}
 });
 
 function isFfmpegRuntimeRequest(value) {
