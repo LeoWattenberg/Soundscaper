@@ -207,6 +207,48 @@ test('an authoritative node focus request is consumed once and does not reclaim 
 	}
 });
 
+test('routing deletion restores fallback focus only when no later control has focus', async () => {
+	const dom = installReactTestDom();
+	const actGlobal = globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean };
+	const priorAct = actGlobal.IS_REACT_ACT_ENVIRONMENT;
+	actGlobal.IS_REACT_ACT_ENVIRONMENT = true;
+	const priorAnimationFrame = globalThis.requestAnimationFrame;
+	const frames: FrameRequestCallback[] = [];
+	globalThis.requestAnimationFrame = (callback) => { frames.push(callback); return frames.length; };
+	const { createRoot } = await import('react-dom/client');
+	const root = createRoot(dom.container as unknown as Element);
+	try {
+		await act(async () => root.render(<SoundscaperRoutingGraphView
+			project={PROJECT} graph={PROJECT.mixer} disabled={false}
+			copy={SOUNDSCAPER_ROUTING_GRAPH_COPY} dismissLabel="Close" onCommit={() => undefined}
+		/>));
+		await act(async () => reactProps(dom.one('[data-routing-edge="voice-reverb"]')).onClick?.({}));
+		const inspector = dom.one('[data-routing-inspector="edge"]');
+		const deleteButton = inspector.querySelectorAll('button').find((button) => button.textContent.includes('Delete connection'));
+		assert.ok(deleteButton);
+		await act(async () => reactProps(deleteButton).onClick?.({}));
+		const confirmButton = dom.one('[role="alert"]').querySelectorAll('button')
+			.find((button) => button.textContent.includes('Confirm delete'));
+		assert.ok(confirmButton);
+		await act(async () => reactProps(confirmButton).onClick?.({}));
+		assert.equal(frames.length, 1);
+
+		const mainOutput = dom.one('[data-routing-node="output:main"]').querySelector('.kw-routing-graph__node-main');
+		assert.ok(mainOutput);
+		mainOutput.focus();
+		frames[0]?.(0);
+		assert.equal(document.activeElement, mainOutput, 'the queued fallback must preserve a later focus choice');
+		document.body.focus();
+		frames[0]?.(0);
+		assert.equal(document.activeElement, dom.one('.kw-routing-graph__viewport'));
+	} finally {
+		await act(async () => root.unmount());
+		globalThis.requestAnimationFrame = priorAnimationFrame;
+		actGlobal.IS_REACT_ACT_ENVIRONMENT = priorAct;
+		dom.restore();
+	}
+});
+
 test('supported effect sidechain ports are filtered and remain spatially distinct', async () => {
 	const dom = installReactTestDom();
 	const actGlobal = globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean };

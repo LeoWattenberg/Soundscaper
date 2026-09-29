@@ -131,7 +131,9 @@ export default function SoundscaperRoutingGraphView({
 				setSelection(kind.endsWith('delete') ? null : candidate.selection);
 				setStatus({ key: statusKeyForCommit(kind) });
 				setToast({ type: 'success', id: ++toastIdRef.current });
-				if (kind.endsWith('delete')) requestAnimationFrame(() => viewportRef.current?.focus());
+				if (kind.endsWith('delete')) requestAnimationFrame(() => {
+					if (document.activeElement === document.body) viewportRef.current?.focus();
+				});
 			})
 			.catch((reason: unknown) => { setError(feedbackFailure(reason)); setStatus(''); setToast({ type: 'error', id: ++toastIdRef.current }); })
 			.finally(() => setPending(false));
