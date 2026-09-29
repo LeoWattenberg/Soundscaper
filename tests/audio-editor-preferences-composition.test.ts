@@ -38,6 +38,22 @@ test('preference actions preserve required persistence failures and product isol
 	assert.deepEqual((writes[0] as unknown[])[2], { policy: 'required' });
 });
 
+test('preference composition uses the supplied optimization mode for factory defaults', async () => {
+	for (const defaultOptimizationMode of ['speed', 'memory', undefined] as const) {
+		const state = { preferences: createAudioEditorPreferencesV1({ performance: { optimizeFor: 'memory' } }),
+			preferencesReadOnly: false, timelineView: 'waveform' };
+		const preferences = createPreferencesComposition({
+			productId: 'soundscaper', defaultWorkspace: 'modern', defaultOptimizationMode,
+			state, lifetime: new EditorControllerLifetime(),
+			copy: { preferencesNewerSchema: 'Newer preferences', shortcutActionRequired: 'Action needed', shortcutConflict: 'Conflict' },
+			loadSetting: async (_key, fallback) => fallback,
+			persistSetting: async () => undefined, publish: () => undefined,
+		});
+		await preferences.service.revertFactorySettings();
+		assert.equal(state.preferences.performance.optimizeFor, defaultOptimizationMode ?? 'memory');
+	}
+});
+
 export function checkPublicPreferenceActions(actions: ReturnType<typeof createAudioEditorController>['actions']): void {
 	// @ts-expect-error Visibility is a boolean at the public boundary.
 	void actions.preferences.setPanelVisibility('mixer', 'visible');

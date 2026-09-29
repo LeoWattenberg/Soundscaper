@@ -47,8 +47,8 @@ test('desktop Preferences opens General and manages the display-only FFmpeg loca
 	await expect(preferences.getByRole('group', { name: 'Language', exact: true })).toHaveCount(0);
 });
 
-test('desktop Speed loads ordinary feature code on the next launch and leaves AI on demand', async ({ page }) => {
-	test.setTimeout(60_000);
+test('desktop defaults to Speed, preserves Memory, and leaves AI code on demand', async ({ page }) => {
+	test.setTimeout(90_000);
 	const assets = await readdir(new URL(`../../${BROWSER_PRODUCT_FIXTURE_ROOT}/soundscaper/assets/`, import.meta.url));
 	const asset = (name, extension = 'js') => {
 		const file = assets.find((candidate) => candidate.startsWith(`${name}-`) && candidate.endsWith(`.${extension}`));
@@ -75,30 +75,43 @@ test('desktop Speed loads ordinary feature code on the next launch and leaves AI
 		await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(manifest) });
 	});
 	await installDesktopFfmpegFixture(page);
+	const requested = [];
+	page.on('request', (request) => { requested.push(new URL(request.url()).pathname); });
 	const editor = await bootEditor(page, '/embed/en/');
-	await chooseCommandAction(page, editor, 'Edit', 'Preferences');
-	const preferences = page.getByRole('dialog', { name: 'Editor preferences', exact: true });
-	const optimization = preferences.getByRole('group', { name: 'Optimize for', exact: true });
-	await expect(optimization.getByRole('button')).toContainText('Memory');
-	await chooseDropdown(page, optimization, 'Speed');
-	await expect.poll(() => savedOptimizationMode(page)).toBe('speed');
-	await preferences.getByRole('button', { name: 'Close', exact: true }).last().click();
+	const warmup = page.locator('[data-desktop-speed-warmup="ready"]');
+	await expect(warmup).toHaveCount(1, { timeout: 20_000 });
+	await expect(warmup).toHaveAttribute('data-desktop-speed-warmup-failed', '0');
 
 	const ordinaryChunk = manifest['src/common/editor/ui/inspector/ExportDialog.jsx']?.file;
 	const ordinaryStylesheet = manifest['src/common/editor/ui/dialogs/WorkspacePreferencesDialog.jsx'].css[0];
 	const aiChunk = manifest['src/common/editor/ui/dialogs/LocalModelManagerDialog.tsx']?.file;
 	expect(ordinaryChunk).toMatch(/^assets\/.+\.js$/u);
 	expect(aiChunk).toMatch(/^assets\/.+\.js$/u);
-
-	const requested = [];
-	page.on('request', (request) => { requested.push(new URL(request.url()).pathname); });
-	await page.reload();
-	const warmup = page.locator('[data-desktop-speed-warmup="ready"]');
-	await expect(warmup).toHaveCount(1, { timeout: 20_000 });
-	await expect(warmup).toHaveAttribute('data-desktop-speed-warmup-failed', '0');
 	expect(requested).toContain(`/${ordinaryChunk}`);
 	expect(requested).toContain(`/${ordinaryStylesheet}`);
 	expect(requested.filter((path) => /\/LocalModelManagerDialog-[^/]+\.js$/u.test(path))).toEqual([]);
+
+	await chooseCommandAction(page, editor, 'Edit', 'Preferences');
+	const preferences = page.getByRole('dialog', { name: 'Editor preferences', exact: true });
+	const optimization = preferences.getByRole('group', { name: 'Optimize for', exact: true });
+	await expect(optimization.getByRole('button')).toContainText('Speed');
+	await chooseDropdown(page, optimization, 'Memory');
+	await expect.poll(() => savedOptimizationMode(page)).toBe('memory');
+	await preferences.getByRole('button', { name: 'Close', exact: true }).last().click();
+	await page.reload();
+	const memoryEditor = page.locator('[data-audio-editor-bound="true"][data-editor-ready="true"]');
+	await expect(memoryEditor).toBeVisible({ timeout: 20_000 });
+	await expect(page.locator('[data-desktop-speed-warmup]')).toHaveCount(0);
+	await chooseCommandAction(page, memoryEditor, 'Edit', 'Preferences');
+	const memoryPreferences = page.getByRole('dialog', { name: 'Editor preferences', exact: true });
+	const memoryOptimization = memoryPreferences.getByRole('group', { name: 'Optimize for', exact: true });
+	await expect(memoryOptimization.getByRole('button')).toContainText('Memory');
+	await chooseDropdown(page, memoryOptimization, 'Speed');
+	await expect.poll(() => savedOptimizationMode(page)).toBe('speed');
+	await memoryPreferences.getByRole('button', { name: 'Close', exact: true }).last().click();
+	await page.reload();
+	await expect(warmup).toHaveCount(1, { timeout: 20_000 });
+	await expect(warmup).toHaveAttribute('data-desktop-speed-warmup-failed', '0');
 	const reopenedEditor = page.locator('[data-audio-editor-bound="true"]');
 	await chooseCommandAction(page, reopenedEditor, 'Edit', 'Preferences');
 	await expect(page.getByRole('dialog', { name: 'Editor preferences', exact: true })
@@ -107,6 +120,7 @@ test('desktop Speed loads ordinary feature code on the next launch and leaves AI
 
 test('browser Preferences opens General without the desktop-only FFmpeg location', async ({ page }) => {
 	const editor = await bootEditor(page, '/embed/en/');
+	await expect(page.locator('[data-desktop-speed-warmup]')).toHaveCount(0);
 	await chooseCommandAction(page, editor, 'Edit', 'Preferences');
 
 	const preferences = page.getByRole('dialog', { name: 'Editor preferences', exact: true });

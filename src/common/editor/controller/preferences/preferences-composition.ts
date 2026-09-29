@@ -6,6 +6,7 @@ import {
 	normalizeAudioEditorShortcut, updateAudioEditorPreferencesV1, updateCustomAudioEditorWorkspace,
 } from '../../preferences.js';
 import { createStableId } from '../../project.js';
+import type { AudioEditorOptimizationMode } from '../../performance-preferences.ts';
 import { createEditorPreferenceActionDelegates, createEditorPreferencesService } from './internal/preferences-service.ts';
 import { applyLoadedPreferenceSession } from './internal/preference-session-defaults.ts';
 import type { EditorControllerLifetime } from '../shared/lifecycle.ts';
@@ -16,6 +17,7 @@ type Preferences = ReturnType<typeof createAudioEditorPreferencesV1>;
 export function createPreferencesComposition(d: {
 	readonly productId: string;
 	readonly defaultWorkspace: string;
+	readonly defaultOptimizationMode?: AudioEditorOptimizationMode;
 	readonly state: { preferences: Preferences; preferencesReadOnly: boolean; timelineView: string };
 	readonly lifetime: EditorControllerLifetime;
 	readonly copy: Readonly<{ preferencesNewerSchema: string; shortcutActionRequired: string; shortcutConflict: string }>;
@@ -33,8 +35,13 @@ export function createPreferencesComposition(d: {
 		setReadOnly: (value) => { d.state.preferencesReadOnly = value; },
 		loadSetting: d.loadSetting, persistSetting: (key, value) => d.persistSetting(key, value),
 		persistSettingRequired: (key, value) => d.persistSetting(key, value, { policy: 'required' }),
-		publish: d.publish, loadPreferences: loadAudioEditorPreferencesV1,
-		createPreferences: (activeId) => createAudioEditorPreferencesV1({ workspace: { activeId } }),
+		publish: d.publish, loadPreferences: (saved) => {
+			const loaded = loadAudioEditorPreferencesV1(saved);
+			const savedMode = (saved as { readonly performance?: { readonly optimizeFor?: unknown } }).performance?.optimizeFor;
+			if (loaded.readOnly || d.defaultOptimizationMode !== 'speed' || savedMode === 'memory' || savedMode === 'speed') return loaded;
+			return { ...loaded, preferences: updateAudioEditorPreferencesV1(loaded.preferences, { performance: { optimizeFor: 'speed' } }) };
+		},
+		createPreferences: (activeId) => createAudioEditorPreferencesV1({ workspace: { activeId }, performance: { optimizeFor: d.defaultOptimizationMode ?? 'memory' } }),
 		applyWorkspace: applyAudioEditorWorkspace, updatePreferences: (preferences, patch) => updateAudioEditorPreferencesV1(preferences, patch ?? {}),
 		normalizeShortcut: normalizeAudioEditorShortcut, findShortcutConflicts: findAudioEditorShortcutConflicts,
 		createWorkspace: createCustomAudioEditorWorkspace, updateWorkspace: (preferences, id, changes) => updateCustomAudioEditorWorkspace(preferences, id, changes ?? {}), deleteWorkspace: deleteCustomAudioEditorWorkspace,
