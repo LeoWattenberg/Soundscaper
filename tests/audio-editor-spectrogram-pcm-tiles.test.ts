@@ -204,7 +204,6 @@ test('PFFFT retains a sustained tone through the first, middle, and last streame
 		},
 		width: 96,
 		fftWindowSize: 2_048,
-		frequencyBands: 16,
 		pixelSkip: 4,
 		windowType: 'hann',
 		async requestPcmWindow(startFrame, endFrame) {
@@ -221,11 +220,12 @@ test('PFFFT retains a sustained tone through the first, middle, and last streame
 	assert.ok(ranges.every(([start, end]) => end - start <= 262_140));
 	const columns = result.channels[0]!;
 	assert.equal(columns.length, 24);
-	const toneEnergies = [columns[1]![0]!, columns[12]![0]!, columns[23]![0]!];
+	assert.equal(columns[1]!.length, 256);
+	const toneEnergies = [columns[1]![10]!, columns[12]![10]!, columns[23]![10]!];
 	assert.ok(toneEnergies.every((energy) => energy > 0.001));
 	assert.ok(Math.min(...toneEnergies) / Math.max(...toneEnergies) > 0.9,
 		`the same tone must retain comparable energy across PCM tiles: ${toneEnergies}`);
-	assert.ok(columns[0]![0]! > toneEnergies[0]! * 0.4,
+	assert.ok(columns[0]![10]! > toneEnergies[0]! * 0.4,
 		'the actual clip start retains spectral energy with half a centered window');
 });
 

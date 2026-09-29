@@ -11,6 +11,7 @@ const fftScratchBuffers = new Map();
 const rowSpanCache = new Map();
 const colorCache = new Map();
 const MAXIMUM_ROW_SPAN_CACHE_ENTRIES = 32;
+export const DEFAULT_SPECTROGRAM_FREQUENCY_BANDS = 256;
 let revision = 0;
 let preparation = null;
 let runtime = null;
@@ -309,5 +310,6 @@ function normalizeWindowSize(value) {
 }
 
 function normalizeBandCount(value, fftWindowSize = 64) {
-	return Math.max(1, Math.min(Math.floor(normalizeWindowSize(fftWindowSize) / 2), Math.floor(Number(value) || 16)));
+	return Math.max(1, Math.min(Math.floor(normalizeWindowSize(fftWindowSize) / 2),
+		Math.floor(Number(value) || DEFAULT_SPECTROGRAM_FREQUENCY_BANDS)));
 }

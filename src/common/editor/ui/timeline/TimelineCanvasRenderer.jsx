@@ -9,6 +9,7 @@ import {
 	drawAudacityWaveformChannel,
 } from '../../audacity-waveform-renderer.js';
 import {
+	DEFAULT_SPECTROGRAM_FREQUENCY_BANDS,
 	paintSpectrogram,
 	pffftSpectrogramRevision,
 	preparePffftSpectrogram,
@@ -405,9 +406,9 @@ export function drawAudacityClipSpectrogram(context, channels, options) {
 		return;
 	}
 	const spectrogramOptions = {
-		frequencyBands: 16,
+		frequencyBands: DEFAULT_SPECTROGRAM_FREQUENCY_BANDS,
 		fftWindowSize: options.fftWindowSize,
-		pixelSkip: 1,
+		pixelSkip: options.columns?.pixelSkip ?? 1,
 		scale: options.scale,
 		minFreq: options.minFreq,
 		maxFreq: options.maxFreq,

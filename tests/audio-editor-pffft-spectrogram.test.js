@@ -31,6 +31,24 @@ test('PFFFT spectrogram analysis returns bounded finite frequency bands', async 
 	assert.ok(columns[0][4] > columns[0][0], 'the 1/8-rate tone is stronger in its expected band than at DC');
 });
 
+test('default spectrogram resolution separates nearby 440 Hz and 550 Hz tones', async () => {
+	await preparePffftSpectrogram(2_048);
+	const peakBand = (frequency) => {
+		const samples = Float32Array.from({ length: 8_192 }, (_, frame) => (
+			Math.sin(2 * Math.PI * frequency * frame / 48_000)
+		));
+		const columns = pffftSpectrogramBandEnergies(samples, 8, {
+			fftWindowSize: 2_048,
+			windowType: 'hann',
+		});
+		assert.equal(columns[4].length, 256);
+		return columns[4].indexOf(Math.max(...columns[4]));
+	};
+
+	assert.equal(peakBand(440), 4);
+	assert.equal(peakBand(550), 5);
+});
+
 test('PFFFT spectrogram scratch buffers do not leak energy between edge columns or calls', async () => {
 	await preparePffftSpectrogram(64);
 	const samples = Float32Array.from({ length: 70 }, (_, index) => index < 8 ? 1 : 0);
