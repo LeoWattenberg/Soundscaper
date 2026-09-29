@@ -93,6 +93,7 @@ export async function createFramescaperNativeRgbaFramePackV1(
 	if (totalBytes > FRAMESCAPER_RGBA_FRAME_PACK_MAXIMUM_BYTES) {
 		throw new RangeError('The frame-pack byte domain exceeds the selected retime 16 GiB stage.');
 	}
+	assertReady(request);
 	const frameBytes = Number(frameBytesBig);
 	const collector = request.createCollector
 		? await request.createCollector(maximumChunkBytes, totalBytes, request.signal)
