@@ -511,25 +511,25 @@ test.describe('audio editor React/design-system workflows', () => {
 		await display.getByRole('menu').getByRole('menuitem', { name: 'Multi-view', exact: true }).click();
 		await expect(track).toHaveAttribute('data-display-mode', 'multiview');
 		await expect(waveform).toHaveAttribute('data-waveform-owner', 'audacity');
-		// The multi-view top half stays a single background colour until PFFFT has
-		// loaded and drawn it, and the owner attribute is already 'audacity' from
-		// the waveform-only pass, so only the spectrogram's own renderer attribute
-		// says the bands are on the canvas.
 		await expect(waveform).toHaveAttribute('data-spectrogram-renderer', 'pffft-wasm');
 		const spectrogramColors = await waveform.evaluate((canvas) => {
 			const context = canvas.getContext('2d');
-			const { data, width, height } = context.getImageData(0, 0, canvas.width, Math.floor(canvas.height / 2));
+			const { data, width, height } = context.getImageData(0, 0, canvas.width, Math.floor(canvas.height / 2) - 2);
 			const colors = new Set();
 			for (let offset = 0; offset < data.length; offset += 4) {
 				if (data[offset + 3] === 0) continue;
-				colors.add(`${data[offset]}:${data[offset + 1]}:${data[offset + 2]}`);
-				if (colors.size > 4) break;
+				colors.add(`#${[0, 1, 2].map((channel) => data[offset + channel].toString(16).padStart(2, '0')).join('')}`);
 			}
-			return { colors: colors.size, width, height };
+			return { colors: [...colors], width, height };
 		});
 		expect(spectrogramColors.width).toBeGreaterThan(40);
 		expect(spectrogramColors.height).toBeGreaterThan(10);
-		expect(spectrogramColors.colors).toBeGreaterThan(1);
+		expect(spectrogramColors.colors.length).toBeGreaterThan(1);
+		expect(spectrogramColors.colors).toContain('#010101');
+		expect(spectrogramColors.colors).toContain('#fefbf9');
+		expect(spectrogramColors.colors.some((color) => [0xc3, 0x28, 0x84].every((channel, index) => (
+			Math.abs(parseInt(color.slice(1 + index * 2, 3 + index * 2), 16) - channel) <= 16
+		)))).toBe(true);
 		await waveform.evaluate((canvas) => {
 			const prototype = CanvasRenderingContext2D.prototype;
 			globalThis.__multiviewWaveformClears = 0;

@@ -39,9 +39,13 @@ function recordingContext() {
 	const calls = {
 		arcs: [],
 		fills: [],
+		fillColors: [],
 		strokes: [],
+		strokeColors: [],
 	};
 	let path = [];
+	let fillStyle = '';
+	let strokeStyle = '';
 	return {
 		calls,
 		beginPath() {
@@ -55,19 +59,21 @@ function recordingContext() {
 		},
 		stroke() {
 			calls.strokes.push(path);
+			calls.strokeColors.push(strokeStyle);
 		},
 		arc(x, y, radius, startAngle, endAngle) {
 			calls.arcs.push({ x, y, radius, startAngle, endAngle });
 		},
-		fill() {},
+		fill() { calls.fillColors.push(fillStyle); },
 		fillRect(x, y, width, height) {
 			calls.fills.push({ x, y, width, height });
+			calls.fillColors.push(fillStyle);
 		},
-		set fillStyle(value) {},
+		set fillStyle(value) { fillStyle = value; },
 		set lineCap(value) {},
 		set lineJoin(value) {},
 		set lineWidth(value) {},
-		set strokeStyle(value) {},
+		set strokeStyle(value) { strokeStyle = value; },
 	};
 }
 
@@ -158,9 +164,9 @@ test('summary plans cover a resized canvas instead of painting only a stale pref
 		width: 4,
 		centerY: 20,
 		maxAmplitude: 18,
-		sampleColor: '#000',
+		sampleColor: '#123456',
 		showRms: true,
-		rmsColor: '#888',
+		rmsColor: '#fedcba',
 	});
 
 	assert.deepEqual(
@@ -168,6 +174,10 @@ test('summary plans cover a resized canvas instead of painting only a stale pref
 		[0, 1, 2, 3],
 		'the complete live width is painted even while its plan still has the previous width',
 	);
+	assert.deepEqual(context.calls.fillColors, [
+		'#123456', '#fedcba', '#123456', '#fedcba',
+		'#123456', '#fedcba', '#123456', '#fedcba',
+	]);
 	assert.ok(
 		context.calls.fills.filter(({ x }) => x >= 2).some(({ height }) => height > 20),
 		'the right half uses the final source column instead of repeating the left prefix',
@@ -241,11 +251,14 @@ test('connecting-dot rendering includes the sample at the visible end boundary',
 		width: 8,
 		centerY: 20,
 		maxAmplitude: 18,
-		sampleColor: '#000',
-		centerLineColor: '#888',
+		sampleColor: '#2e5da8',
+		centerLineColor: '#d63c70',
 	});
 
 	assert.equal(context.calls.strokes.length, 5);
+	assert.deepEqual(context.calls.strokeColors, [
+		'#d63c70', '#2e5da8', '#2e5da8', '#2e5da8', '#2e5da8',
+	]);
 	assert.deepEqual(context.calls.strokes[0], [['moveTo', 0, 20], ['lineTo', 8, 20]]);
 	assert.deepEqual(context.calls.strokes.slice(1).map((path) => path[0][1]), [0, 2, 4, 6]);
 	assert.deepEqual(context.calls.strokes.slice(1).map((path) => path[1][1]), [2, 4, 6, 8]);
@@ -281,11 +294,13 @@ test('stem rendering includes the end boundary and adds a sample head to each po
 		width: 8,
 		centerY: 20,
 		maxAmplitude: 18,
-		sampleColor: '#000',
-		centerLineColor: '#888',
+		sampleColor: '#2e5da8',
+		centerLineColor: '#d63c70',
 	});
 
 	assert.deepEqual(context.calls.strokes.slice(0, -1).map((path) => path[0][1]), [0, 4, 8]);
+	assert.deepEqual(context.calls.strokeColors, ['#2e5da8', '#2e5da8', '#2e5da8', '#d63c70']);
+	assert.deepEqual(context.calls.fillColors, ['#2e5da8', '#2e5da8', '#2e5da8']);
 	assert.deepEqual(context.calls.strokes.at(-1), [['moveTo', 0, 20], ['lineTo', 8, 20]]);
 	assert.deepEqual(context.calls.arcs.map(({ x }) => x), [0, 4, 8]);
 	assert.ok(context.calls.arcs.every(({ radius }) => radius === 2));

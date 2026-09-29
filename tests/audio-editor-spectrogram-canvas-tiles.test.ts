@@ -23,7 +23,7 @@ test('spectrogram canvas paints compact streamed columns through the right edge'
 		columns: {
 			width: 32,
 			pixelSkip: 4,
-			channels: [Array.from({ length: 8 }, () => new Array(16).fill(0.5))],
+			channels: [Array.from({ length: 8 }, () => new Array(16).fill(0.001))],
 		},
 		fftWindowSize: 64,
 		sampleRate: 48_000,
@@ -32,8 +32,9 @@ test('spectrogram canvas paints compact streamed columns through the right edge'
 	});
 
 	assert.equal(canvas.dataset.spectrogramRenderer, 'pffft-wasm');
-	assert.ok(rectangles.some((rectangle) => rectangle.x === 28
-		&& rectangle.width === 4 && rectangle.color !== '#000'));
+	const rightEdge = rectangles.filter((rectangle) => rectangle.x === 28 && rectangle.width === 4);
+	assert.ok(rightEdge.length > 0);
+	assert.deepEqual([...new Set(rightEdge.map(({ color }) => color))], ['#c32884']);
 });
 
 test('direct spectrogram renders FFT detail across more than 200 visible frequency bands', async () => {

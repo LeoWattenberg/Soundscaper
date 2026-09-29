@@ -49,15 +49,31 @@ test('every decorative skin has readable text, button states and distinct clip i
 for (const mode of ['light', 'dark'] as const) test(`Sakura/${mode} colors time displays, track meters and ruler regions`, () => {
 	const theme = resolveSkinTheme('sakura', mode);
 	const base = mode === 'dark' ? darkTheme : lightTheme;
+	const expected = {
+		light: {
+			timecode: '#dfabc2', timeline: '#f5dfe8', selection: '#e3b4c9',
+			loopFill: '#e9c3d4', loopFillInactive: '#f1d5e0',
+			meterBackground: '#eac5d5', meterFill: '#ac316a',
+		},
+		dark: {
+			timecode: '#744e63', timeline: '#392536', selection: '#6b475c',
+			loopFill: '#593b4e', loopFillInactive: '#452d3f',
+			meterBackground: '#57394d', meterFill: '#ffaccd',
+		},
+	}[mode];
+	assert.deepEqual({
+		timecode: theme.background.control.timecode.idle,
+		timeline: theme.background.panel.timeline,
+		selection: theme.audio.selection.time,
+		loopFill: theme.audio.timeline.loopRegionFill,
+		loopFillInactive: theme.audio.timeline.loopRegionFillInactive,
+		meterBackground: theme.background.control.meter.background,
+		meterFill: theme.background.control.meter.fill,
+	}, expected);
 	for (const color of [theme.background.control.timecode.idle, theme.background.panel.timeline,
 		theme.audio.selection.time, theme.audio.timeline.loopRegionFill, theme.audio.timeline.loopRegionFillInactive]) {
 		assert.ok(wcagContrastRatio(theme.foreground.text.primary, color) >= 4.5, `ruler/timecode text on ${color}`);
 	}
-	assert.notEqual(theme.background.control.timecode.idle, base.background.control.timecode.idle);
-	assert.notEqual(theme.background.panel.timeline, base.background.panel.timeline);
-	assert.notEqual(theme.audio.timeline.loopRegionFill, base.audio.timeline.loopRegionFill);
-	assert.notEqual(theme.audio.selection.time, base.audio.selection.time);
-	assert.notEqual(theme.background.control.meter.background, base.background.control.meter.background);
 	assert.ok(wcagContrastRatio(theme.background.control.meter.fill, theme.background.control.meter.background) >= 3);
 	assert.ok(wcagContrastRatio(theme.audio.timeline.loopRegionBorder, theme.audio.timeline.loopRegionFill) >= 3);
 	assert.equal(theme.semantic.error.background, base.semantic.error.background);

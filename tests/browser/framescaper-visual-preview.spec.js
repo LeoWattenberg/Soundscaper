@@ -83,8 +83,14 @@ test.describe('Framescaper v1 exact visual preview', () => {
 			generatorCount: 1, presentationCount: 1,
 		});
 		await expectExactVisualFrame(preview, 1);
-		const redPixels = await screenshotDigest(editor.locator('[data-video-preview-canvas]'));
+		const redCanvas = editor.locator('[data-video-preview-canvas]');
+		const redPixels = await screenshotDigest(redCanvas);
 		expect(redPixels).not.toBe(originalPixels);
+		const redCenter = await screenshotCenterPixel(redCanvas);
+		expect(redCenter[0]).toBeGreaterThanOrEqual(245);
+		expect(redCenter[1]).toBeLessThanOrEqual(10);
+		expect(redCenter[2]).toBeLessThanOrEqual(10);
+		expect(redCenter[3]).toBe(255);
 
 		await chooseNestedCommandAction(
 			page, editor, 'Generate', ['Video Generators', EDITOR_ENGLISH_COPY['ui.framescaperMenus.saveVideoVisualPreset']], VISUAL_COMMAND_OPTIONS,
@@ -482,6 +488,24 @@ async function expectVisualCommandStatus(dialog, message) {
 async function screenshotDigest(canvas) {
 	await expect(canvas).toBeVisible(VISUAL_COMMAND_OPTIONS);
 	return createHash('sha256').update(await canvas.screenshot()).digest('hex');
+}
+
+async function screenshotCenterPixel(canvas) {
+	await expect(canvas).toBeVisible(VISUAL_COMMAND_OPTIONS);
+	const pngBase64 = (await canvas.screenshot()).toString('base64');
+	return canvas.evaluate(async (_element, encoded) => {
+		const bytes = Uint8Array.from(atob(encoded), (character) => character.charCodeAt(0));
+		const bitmap = await createImageBitmap(new Blob([bytes], { type: 'image/png' }));
+		try {
+			const sample = document.createElement('canvas');
+			sample.width = sample.height = 1;
+			const context = sample.getContext('2d');
+			context.drawImage(bitmap, Math.floor(bitmap.width / 2), Math.floor(bitmap.height / 2), 1, 1, 0, 0, 1, 1);
+			return Array.from(context.getImageData(0, 0, 1, 1).data);
+		} finally {
+			bitmap.close();
+		}
+	}, pngBase64);
 }
 
 async function saveProjectAndWait(page, editor) {

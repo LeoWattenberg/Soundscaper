@@ -162,7 +162,6 @@ test.describe('audio editor React/design-system workflows', () => {
 		const playbackMeter = sideMeter.locator('[data-playback-meter]');
 		await expect(playbackMeter).toHaveAttribute('data-meter-style', 'gradient');
 		const gradientPeak = playbackMeter.locator('.kw-audio-editor__playback-meter-peak').first();
-		await expect(gradientPeak).toHaveCSS('background-image', /linear-gradient/);
 		await expect(gradientPeak).not.toHaveCSS('clip-path', 'none');
 		await speakerFlyout.getByRole('radio', { name: 'RMS', exact: true }).click();
 		await expect(playbackMeter.locator('.kw-audio-editor__playback-meter-rms')).toHaveCount(2);
@@ -210,6 +209,32 @@ test.describe('audio editor React/design-system workflows', () => {
 		const reloadedInput = reloaded.locator('[data-side-recording-meter] [data-audio-meter]');
 		await expect(reloadedInput).toHaveAttribute('data-meter-type', 'ebu-r128');
 		await expect(reloadedInput).toHaveAttribute('data-ebu-scale', 'plus18');
+	});
+
+	test('vertical playback gradient uses the intended green, amber, and red stops', async ({ page }) => {
+		const editor = await bootEditor(page, '/embed/en/');
+		await editor.getByRole('button', { name: 'Playback meter settings', exact: true }).click();
+		const settings = editor.getByRole('dialog', { name: 'Playback meter settings', exact: true });
+		await settings.getByRole('radio', { name: 'Side bar (vertical)', exact: true }).click();
+		await settings.getByRole('radio', { name: 'Gradient', exact: true }).click();
+		const meter = editor.locator('[data-side-playback-meter] [data-playback-meter]');
+		await expect(meter).toHaveAttribute('data-meter-style', 'gradient');
+		const peak = meter.locator('.kw-audio-editor__playback-meter-peak').first();
+		const expectedGradients = await peak.evaluate(() => {
+			const probe = document.createElement('div');
+			document.body.append(probe);
+			try {
+				return [
+					'linear-gradient(0deg, #48b05e 0%, #48b05e 79%, #d1b63d 80%, #d64545 100%)',
+					'linear-gradient(#d64545 0%, #d1b63d 20%, #48b05e 21%, #48b05e 100%)',
+				].map((gradient) => {
+					probe.style.backgroundImage = gradient;
+					return getComputedStyle(probe).backgroundImage;
+				});
+			} finally { probe.remove(); }
+		});
+		expect(expectedGradients).not.toContain('none');
+		expect(expectedGradients).toContain(await peak.evaluate((element) => getComputedStyle(element).backgroundImage));
 	});
 
 	test('migrates legacy meter settings while preserving conventional meter choices', async ({ page }) => {

@@ -13,21 +13,26 @@ test('ordinary waveforms keep dark traces on colored clip bodies', async ({ page
 	const editor = await bootEditor(page, '/embed/en/');
 	await importFiles(editor, [toneA]);
 	const clip = clipByName(editor, toneA.name);
+	// Base and selected body colors from the committed Audacity light/dark themes.
+	const expectedBodies = {
+		light: { Red: ['rgb(255, 148, 150)', 'rgb(255, 220, 230)'], Green: ['rgb(124, 205, 112)', 'rgb(176, 255, 194)'] },
+		dark: { Red: ['rgb(246, 178, 178)', 'rgb(255, 218, 218)'], Green: ['rgb(170, 216, 155)', 'rgb(198, 255, 179)'] },
+	};
 	for (const theme of ['light', 'dark']) {
 		await setDocumentTheme(page, theme);
-		const backgrounds = [];
 		for (const color of ['Red', 'Green']) {
 			await clip.getByRole('button', { name: 'Clip menu', exact: true }).click();
 			await page.locator('.audio-editor-clip-context-menu').getByRole('menuitem', { name: /^Clip color/ }).hover();
 			await page.getByRole('menuitem', { name: color, exact: true }).click();
-			backgrounds.push(await clip.locator('.clip-body').evaluate((element) => getComputedStyle(element).backgroundColor));
+			const body = clip.locator('.clip-body');
+			const selected = await body.evaluate((element) => element.classList.contains('clip-body--selected'));
+			await expect(body).toHaveCSS('background-color', expectedBodies[theme][color][selected ? 1 : 0]);
 			const trace = await clip.locator('canvas.clip-body__waveform').evaluate((canvas) => (
 				Array.from(canvas.getContext('2d').getImageData(20, Math.floor(canvas.height / 4) - 3, 1, 1).data)
 			));
 			expect(trace[3]).toBe(255);
 			expect(Math.max(...trace.slice(0, 3))).toBeLessThan(80);
 		}
-		expect(backgrounds[0]).not.toBe(backgrounds[1]);
 	}
 });
 

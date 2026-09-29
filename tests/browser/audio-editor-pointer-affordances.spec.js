@@ -1,5 +1,8 @@
+import { resolveSkinTheme } from '../../src/common/editor/ui/skins/skin-themes.ts';
 import { expect, test, toneA } from './audio-editor-test-fixtures.js';
 import { bootEditor, clipByName, importFiles, registerAudioEditorHooks } from './audio-editor-test-helpers.js';
+
+const rgb = (hex) => `rgb(${[1, 3, 5].map((offset) => Number.parseInt(hex.slice(offset, offset + 2), 16)).join(', ')})`;
 
 test.describe('timeline pointer affordances', () => {
 	registerAudioEditorHooks();
@@ -26,12 +29,13 @@ test.describe('timeline pointer affordances', () => {
 		await expect(verticalPosition).toBeVisible();
 		expect(Math.abs((await timePosition.boundingBox()).x - x)).toBeLessThanOrEqual(1);
 		expect(Math.abs((await verticalPosition.boundingBox()).y - y)).toBeLessThanOrEqual(1);
-		const rulerBackground = await editor.locator('[data-track-ruler]').first().evaluate((element) => (
-			getComputedStyle(element).backgroundColor
-		));
-		expect(rulerBackground).toMatch(/^rgb\([^)]*\)$/u);
+		const mode = await editor.evaluate((element) => getComputedStyle(element).colorScheme === 'dark' ? 'dark' : 'light');
+		const theme = resolveSkinTheme('default', mode);
+		const ruler = editor.locator('[data-track-ruler]').first();
+		await expect(ruler).toHaveCSS('background-color', rgb(theme.background.surface.inset));
 		await expect(editor.locator('[data-timeline]')).toHaveCSS('background-size', /40px 100%/u);
 		await editor.evaluate((element) => { element.dataset.editorSkin = 'sakura'; });
+		await expect(ruler).toHaveCSS('background-color', rgb(theme.background.canvas.default));
 		await expect(editor.locator('[data-timeline]')).toHaveCSS('background-size', /40px 100%/u);
 		await page.mouse.move(4, 4);
 		await expect(timePosition).toBeHidden();

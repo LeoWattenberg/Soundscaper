@@ -238,7 +238,8 @@ test('rainbow colors use a balanced log-frequency palette and neutral silence', 
 	assert.equal(frequencyWaveformColor(100, 1, 48_000), 'rgb(99, 80, 155)');
 	assert.equal(frequencyWaveformColor(22_050, 1, 48_000), 'rgb(176, 76, 69)');
 	assert.equal(frequencyWaveformColor(1_000, 0, 48_000), 'rgb(107, 114, 128)');
-	assert.match(frequencyWaveformColor(1_000, 1, 48_000), /^rgb\(\d+, \d+, \d+\)$/);
+	assert.equal(frequencyWaveformColor(1_000, 1, 48_000), 'rgb(37, 124, 128)');
+	assert.equal(frequencyWaveformColor(1_000, 1, 48_000, 'dark'), 'rgb(101, 185, 183)');
 });
 
 test('frequency projection rejects mismatched or malformed analysis data', () => {
