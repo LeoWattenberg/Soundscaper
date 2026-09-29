@@ -1,7 +1,7 @@
 import { feedbackFailure, usePresentationFeedback } from '../presentation-feedback.ts';
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 import '../audio-editor-design-system/33-workspace-onboarding.css';
 
@@ -47,21 +47,36 @@ export default function WorkspaceOnboardingDialog({
 	storage,
 }: WorkspaceOnboardingDialogProps) {
 	const [error, setError] = usePresentationFeedback(copy);
+	const [pending, setPending] = useState(false);
+	const activeChoiceRef = useRef<symbol | null>(null);
+	useEffect(() => () => { activeChoiceRef.current = null; }, []);
 	const activeId = preferences.workspace.activeId;
 	const [initialFocus] = useState(() => (
 		isOption(activeId) ? `[data-workspace-onboarding-option="${activeId}"]` : '[data-workspace-onboarding-option]'
 	));
 	if (productId !== 'soundscaper') return null;
 	const finish = (workspaceId: string): void => {
+		activeChoiceRef.current = null;
+		setPending(false);
 		markFirstLaunchSetupComplete(productId, workspaceId, storage);
 		onClose();
 	};
 	const choose = (workspaceId: WorkspaceOnboardingOption): void => {
+		if (activeChoiceRef.current !== null) return;
+		const choiceId = Symbol('workspace-onboarding');
+		activeChoiceRef.current = choiceId;
+		setPending(true);
 		setError('');
 		void runAwaitedAudioEditorOperation(run, () => controller.actions.preferences.setWorkspace(workspaceId))
-			.then(() => finish(workspaceId))
+			.then(() => {
+				if (activeChoiceRef.current === choiceId) finish(workspaceId);
+			})
 			.catch((operationError: unknown) => {
-				setError(feedbackFailure(operationError));
+				if (activeChoiceRef.current === choiceId) setError(feedbackFailure(operationError));
+			}).finally(() => {
+				if (activeChoiceRef.current !== choiceId) return;
+				activeChoiceRef.current = null;
+				setPending(false);
 			});
 	};
 	const questionId = 'workspace-onboarding-question';
@@ -95,6 +110,7 @@ export default function WorkspaceOnboardingDialog({
 						aria-labelledby={titleId}
 						aria-describedby={descriptionId}
 						aria-current={current ? 'true' : undefined}
+						disabled={pending}
 						onClick={() => choose(workspaceId)}
 					>
 						<span id={titleId} className="audio-editor-workspace-onboarding__option-title">

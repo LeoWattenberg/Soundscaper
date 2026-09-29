@@ -141,6 +141,82 @@ test('one click on a card switches the workspace, records the choice and closes 
 	}
 });
 
+test('the one-click chooser admits only one card while a workspace switch is pending', async () => {
+	const mounted = await mountDom();
+	const selection = deferred<void>();
+	const calls: string[] = [];
+	const storage = memoryStorage();
+	let closed = 0;
+	const controller = { actions: { preferences: { setWorkspace: (id: string) => {
+		calls.push(id);
+		return selection.promise;
+	} } } };
+	try {
+		await act(async () => mounted.root.render(<WorkspaceOnboardingDialog
+			productId="soundscaper"
+			controller={controller}
+			preferences={{ workspace: { activeId: 'modern' } }}
+			copy={ENGLISH_COPY}
+			run={(operation) => operation()}
+			storage={storage}
+			onClose={() => { closed += 1; }}
+		/>));
+		await act(async () => {
+			reactProps(mounted.dom.one('[data-workspace-onboarding-option="audacity"]')).onClick({});
+			reactProps(mounted.dom.one('[data-workspace-onboarding-option="modern"]')).onClick({});
+			await Promise.resolve();
+		});
+		assert.deepEqual(calls, ['audacity']);
+		assert.equal(reactProps(mounted.dom.one('[data-workspace-onboarding-option="modern"]')).disabled, true);
+		await act(async () => {
+			selection.resolve();
+			await selection.promise;
+		});
+		assert.equal(closed, 1);
+		assert.equal(readFirstLaunchSetup('soundscaper', storage)?.workspaceId, 'audacity');
+	} finally {
+		selection.resolve();
+		await mounted.unmount();
+	}
+});
+
+test('closing during a workspace switch keeps the dismissed choice from returning', async () => {
+	const mounted = await mountDom();
+	const selection = deferred<void>();
+	const storage = memoryStorage();
+	let closed = 0;
+	try {
+		await act(async () => mounted.root.render(<WorkspaceOnboardingDialog
+			productId="soundscaper"
+			controller={{ actions: { preferences: { setWorkspace: () => selection.promise } } }}
+			preferences={{ workspace: { activeId: 'modern' } }}
+			copy={ENGLISH_COPY}
+			run={(operation) => operation()}
+			storage={storage}
+			onClose={() => { closed += 1; }}
+		/>));
+		await act(async () => {
+			reactProps(mounted.dom.one('[data-workspace-onboarding-option="audacity"]')).onClick({});
+			await Promise.resolve();
+		});
+		const backdrop = mounted.dom.one('.kw-audio-editor-dialog-backdrop');
+		await act(async () => {
+			reactProps(backdrop).onMouseDown({ target: backdrop, currentTarget: backdrop });
+		});
+		assert.equal(closed, 1);
+		assert.equal(readFirstLaunchSetup('soundscaper', storage)?.workspaceId, 'modern');
+		await act(async () => {
+			selection.resolve();
+			await selection.promise;
+		});
+		assert.equal(closed, 1);
+		assert.equal(readFirstLaunchSetup('soundscaper', storage)?.workspaceId, 'modern');
+	} finally {
+		selection.resolve();
+		await mounted.unmount();
+	}
+});
+
 test('closing the shell also records the current workspace and reports apply failures', async () => {
 	const mounted = await mountDom();
 	const storage = memoryStorage();
@@ -245,6 +321,12 @@ async function mountDom() {
 			dom.restore();
 		},
 	};
+}
+
+function deferred<Value>() {
+	let resolve!: (value: Value) => void;
+	const promise = new Promise<Value>((complete) => { resolve = complete; });
+	return { promise, resolve };
 }
 
 async function source(path: string): Promise<string> {

@@ -87,6 +87,20 @@ test.describe('workspace setup', () => {
 		await page.keyboard.press('Escape');
 		await expect(page.getByRole('dialog', { name: 'Getting started', exact: true })).toHaveCount(0);
 	});
+
+	test('uses only the first workspace card from rapid activations', async ({ page }) => {
+		const editor = await bootUnseededEditor(page, '/en/');
+		await chooseNestedCommandAction(page, editor, 'View', ['Workspace', 'Set up workspace']);
+		const dialog = page.getByRole('dialog', { name: 'Getting started', exact: true });
+		await dialog.getByRole('button', { name: 'Audacity', exact: true }).evaluate((audacity) => {
+			const soundscaper = audacity.ownerDocument.querySelector('[data-workspace-onboarding-option="modern"]');
+			if (!soundscaper) throw new Error('The Soundscaper workspace card is missing.');
+			audacity.click();
+			soundscaper.click();
+		});
+		await expect(dialog).toBeHidden();
+		await expect(editor).toHaveAttribute('data-workspace-preset', 'audacity');
+	});
 });
 
 async function bootUnseededEditor(page, path) {
