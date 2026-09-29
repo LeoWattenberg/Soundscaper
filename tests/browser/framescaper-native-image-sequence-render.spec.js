@@ -72,8 +72,10 @@ test('renders an imported native image sequence through the pathless desktop dec
 		derivedInputStageId: 'b'.repeat(40),
 		taskKind: 'encoded-export',
 	});
-	expect(journey.liveBytes).toBeGreaterThan(0);
+	expect(journey.liveBytes).toBe(journey.stages[0].carrierByteLength,
+		'the render bridge receives the complete staged carrier');
 	expect(journey.liveCompletions).toHaveLength(1);
+	expect(journey.liveCompletions[0].byteLength).toBe(journey.liveBytes);
 	expect(journey.cancellations).toEqual([]);
 	expect(clientErrors).toEqual([]);
 });

@@ -27,7 +27,7 @@ test.describe('adaptive WavPack PCM persistence', () => {
 		const persisted = await persistedPcmState(page, fixture.name);
 		expect(['opfs-pcm-v1', 'indexeddb-chunks']).toContain(persisted.storage);
 		expect(persisted.pcmEncodingVersion).toBe(1);
-		expect(persisted.uncompressedBytes).toBeGreaterThan(0);
+		expect(persisted.uncompressedBytes).toBe(105_600 * Float32Array.BYTES_PER_ELEMENT);
 		expect(persisted.storedBytes).toBeLessThan(persisted.uncompressedBytes);
 		expect(persisted.wavpackChunkCount).toBeGreaterThan(0);
 		expect(persisted.compressionRatio).toBeLessThan(1);

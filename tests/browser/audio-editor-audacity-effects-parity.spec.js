@@ -223,7 +223,7 @@ test.describe('ported Audacity effect layouts', () => {
 		await expect(dialog.getByRole('heading', { name: /^(Tone|Output)$/u })).toHaveCount(0);
 		const bassKnob = parameter(dialog, 'Bass').getByRole('slider');
 		await bassKnob.press('ArrowUp');
-		await expect.poll(async () => Number(await bassKnob.getAttribute('aria-valuenow'))).toBeGreaterThan(3);
+		await expect(bassKnob).toHaveAttribute('aria-valuenow', '3.1');
 		const knobBox = await box(bassKnob);
 		await page.mouse.dblclick(knobBox.x + knobBox.width / 2, knobBox.y + knobBox.height / 2);
 		await expect(bassKnob).toBeFocused();

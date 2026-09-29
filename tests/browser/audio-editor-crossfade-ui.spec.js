@@ -101,14 +101,12 @@ test.describe('design-system audio crossfade visuals', () => {
 		await expect(region).toBeVisible();
 
 		const fadeControls = incoming.locator('[data-clip-fade-handle], [data-clip-fade-shape-handle]');
-		const fadeControlCount = await fadeControls.count();
-		expect(fadeControlCount).toBeGreaterThan(0);
+		await expect(fadeControls).toHaveCount(1);
+		await expect(fadeControls).toHaveAttribute('data-clip-fade-handle', 'out');
 		await expect(track.locator('.audio-editor-track-window [data-crossfade-handle]')).toHaveCount(1);
 		await incoming.press('Tab');
-		for (let index = 0; index < fadeControlCount; index += 1) {
-			await expect(fadeControls.nth(index)).toBeFocused();
-			await page.keyboard.press('Tab');
-		}
+		await expect(fadeControls).toBeFocused();
+		await page.keyboard.press('Tab');
 		await expect(handle).toBeFocused();
 		const ruler = track.locator('[data-track-ruler]');
 		await handle.press('Tab');
