@@ -107,6 +107,7 @@ test('V15 verification projection refuses caption and companion artifacts before
 	);
 	assert.throws(() => projectNativeMediaV15FoundationForV14Verification(both), (error: unknown) => (
 		error instanceof NativeMediaV15FoundationProjectionRefusal
+		&& error.code === 'caption-artifacts-unbound'
 	));
 
 	// A legitimate V3 envelope holding an exact V14 plan is refused as a

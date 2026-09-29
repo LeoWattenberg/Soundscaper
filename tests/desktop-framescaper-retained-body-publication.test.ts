@@ -173,8 +173,8 @@ test('renderer neither reloads nor uploads a body retained by main', async (cont
 		{ localStore: store, desktopProjectLibrary: renderer },
 	);
 	assert.deepEqual(await adapter.createProjectIfAbsent(project), project);
-	assert.ok(uploadCount > 0, 'the initial publication transferred the new body');
-	assert.ok(loadCount > 0, 'the initial publication verified the body renderer had to transfer');
+	assert.equal(uploadCount, 1, 'the initial publication transferred the one-chunk body once');
+	assert.equal(loadCount, 1, 'the initial publication loaded the new body once');
 
 	uploadCount = 0;
 	loadCount = 0;

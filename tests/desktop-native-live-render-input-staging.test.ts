@@ -188,8 +188,10 @@ test('live V14 OpenFX mounting authenticates renderer input separately from tran
 		if (grant?.type !== 'file') throw new Error('OpenFX live stage returned no replayable video file.');
 		const native = new Uint8Array(await readFile(grant.path));
 		assert.deepEqual(audit?.transformedOutput, byteDescriptor(native));
-		assert.notEqual(audit?.rendererInput.sha256, audit?.transformedOutput.sha256);
-		assert.deepEqual([...native.subarray(native.byteLength - 16)], Array(16).fill(254));
+		const original = Buffer.concat((await carrierChunks(fixture)).map((chunk) => Buffer.from(chunk)));
+		const expected = Uint8Array.from(original);
+		expected.fill(254, expected.byteLength - 16);
+		assert.deepEqual(native, expected, 'only the four RGBA pixels are transformed');
 		await staging.settle(queueRecord(fixture), 'succeeded');
 
 		const unavailable = new FramescaperNativeLiveRenderInputStaging({
