@@ -192,9 +192,15 @@ export function normalizeLoudnessNormalizationTarget(
 		throw new TypeError('A loudness normalization target must be a preset name or an explicit target.');
 	}
 	const record = value as Readonly<Record<string, unknown>>;
+	if (typeof record.integratedLufs !== 'number') {
+		throw new TypeError('A loudness target requires a finite integrated value in LUFS.');
+	}
+	if (typeof record.truePeakCeilingDb !== 'number') {
+		throw new TypeError('A loudness target requires a finite true-peak ceiling in dBTP.');
+	}
 	const target = Object.freeze({
-		integratedLufs: Number(record.integratedLufs),
-		truePeakCeilingDb: Number(record.truePeakCeilingDb),
+		integratedLufs: record.integratedLufs,
+		truePeakCeilingDb: record.truePeakCeilingDb,
 	});
 	validateTarget(target);
 	return target;

@@ -109,6 +109,14 @@ test('an unreadable target is refused at plan time, before anything renders', ()
 		/finite true-peak ceiling/u,
 	);
 	assert.throws(
+		() => createExportPlan(project(), { ...options, loudnessNormalization: { integratedLufs: null, truePeakCeilingDb: -1 } }),
+		/finite integrated value/u,
+	);
+	assert.throws(
+		() => createExportPlan(project(), { ...options, loudnessNormalization: { integratedLufs: -23, truePeakCeilingDb: null } }),
+		/finite true-peak ceiling/u,
+	);
+	assert.throws(
 		() => createExportPlan(project(), { ...options, loudnessNormalization: 'loud' }),
 		/Unknown loudness normalization target/u,
 	);
