@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { readFile } from 'node:fs/promises';
 import { expect, test } from './audio-editor-test-fixtures.js';
 import {
 	bootEditor,
@@ -33,6 +34,9 @@ test('Framescaper v1 imports and exports caption files and publishes built-in mo
 	await dialog.getByRole('button', { name: /Export selected track/u }).click();
 	const download = await downloadPromise;
 	expect(download.suggestedFilename()).toBe('captions-1.vtt');
+	expect(await readFile(await download.path(), 'utf8')).toBe(
+		'WEBVTT\n\ncue-1\n00:00:00.000 --> 00:00:01.000\nFile-backed caption\n',
+	);
 	await expect(dialog.getByRole('status')).toHaveText('1 interchange loss recorded.');
 	await closeFinishing(dialog);
 
