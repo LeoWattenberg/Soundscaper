@@ -143,12 +143,19 @@ test('renders one exact keyed RGBA frame through the real compositor with top-do
 	expect(result.presentCalls).toBe(2);
 	expect(result.disposeCalls).toBe(1);
 	expect(result.canvas).toEqual({ width: 64, height: 64 });
-	// The top half remains red and the bottom remains blue after WebGL readback row inversion.
-	expect(result.firstPixels.top[0]).toBeGreaterThan(result.firstPixels.top[2] * 2);
-	expect(result.firstPixels.bottom[2]).toBeGreaterThan(result.firstPixels.bottom[0] * 2);
-	// The exact second keyframe sample lowers alpha/color energy without changing orientation.
-	expect(result.secondPixels.top[0]).toBeLessThan(result.firstPixels.top[0]);
-	expect(result.secondPixels.bottom[2]).toBeLessThan(result.firstPixels.bottom[2]);
+	// Allow small WebGL rounding differences while pinning keyed vignette colors and orientation.
+	for (const [frame, expected] of [
+		[result.firstPixels, { top: [196, 0, 0, 255], bottom: [0, 0, 212, 255] }],
+		[result.secondPixels, { top: [147, 0, 0, 255], bottom: [0, 0, 159, 255] }],
+	]) {
+		for (const region of ['top', 'bottom']) {
+			for (let channel = 0; channel < 3; channel++) {
+				expect(Math.abs(frame[region][channel] - expected[region][channel]),
+					`${region} RGB channel ${channel}`).toBeLessThanOrEqual(2);
+			}
+			expect(frame[region][3]).toBe(expected[region][3]);
+		}
+	}
 });
 
 test.beforeEach(async ({ page }) => {
