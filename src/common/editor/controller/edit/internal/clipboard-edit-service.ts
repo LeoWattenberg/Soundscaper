@@ -18,6 +18,7 @@ import type {
 import type { EditorControllerLifetime } from '../../shared/lifecycle.ts';
 import type { ControllerEditSessionClipboardCarrier } from '../../document/project-runtime.ts';
 import { resolveEditingSelectionAuthority } from '../../../commands/editing-selection-authority.ts';
+import { missingClipboardSourcesForPaste } from './clipboard-source-identity.ts';
 
 export interface ClipboardEditClip extends Readonly<Record<string, unknown>> {
 	readonly id: string;
@@ -238,8 +239,7 @@ export function createClipboardEditService(
 		const trackMap: Record<string, string> = {};
 		const sessionClipboard = dependencies.session.clipboardForProject(project.id);
 		const preparedCarrier = editSessionClipboard && sameClipboardDescriptor(editSessionClipboard.descriptor, clipboard) && dependencies.prepareEditClipboardPasteCommand ? editSessionClipboard : null;
-		const commands: AudioEditorCommand[] = (sessionClipboard?.sources ?? [])
-			.filter((source) => !findSource(project, source.id))
+		const commands: AudioEditorCommand[] = missingClipboardSourcesForPaste(project.sources, sessionClipboard?.sources ?? [])
 			.map((source) => preparedCarrier && source.kind !== undefined && source.kind !== 'audio' && source.kind !== 'video'
 				? { type: 'source/add', source: structuredClone(source) } as AudioEditorCommand
 				: createAddSourceCommand(source));
@@ -531,10 +531,6 @@ function sameClipboardDescriptor(left: AudioEditorClipboard, right: AudioEditorC
 
 function findClip(project: ClipboardEditProject, clipId: string | null | undefined): ClipboardEditClip | null {
 	return project.clips.find((clip) => clip.id === clipId) ?? null;
-}
-
-function findSource(project: ClipboardEditProject, sourceId: string): ClipboardEditSource | null {
-	return project.sources.find((source) => source.id === sourceId) ?? null;
 }
 
 function isMediaTrack(track: ClipboardEditTrack): track is ClipboardEditMediaTrack {
