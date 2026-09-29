@@ -431,7 +431,7 @@ jobs:
         run: node scripts/ci-provision-framescaper-boost.mjs
 
       - name: Restore Electron binary for the desktop protocol test
-        if: matrix.shard == 'common'
+        if: matrix.shard == 'common-2'
         run: |
           if [ ! -x node_modules/electron/dist/electron ]; then
             node node_modules/electron/install.js

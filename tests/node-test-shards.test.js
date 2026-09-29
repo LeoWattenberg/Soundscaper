@@ -164,6 +164,19 @@ for (const workflowName of SHARDED_WORKFLOWS) {
 	});
 }
 
+test('the Electron protocol test shard restores its native binary before running', async () => {
+	const testFile = 'desktop-parallel-stack-protocol.test.ts';
+	const shard = NODE_TEST_SHARD_IDS.find((id) => selectNodeTestFiles(ROOT, { shard: id })
+		.some((file) => basename(file) === testFile));
+	assert.ok(shard, `${testFile} must belong to a Node test shard`);
+	const job = extractJob(await readWorkflow('quality.yml'), 'tests');
+	const restore = /- name: Restore Electron binary for the desktop protocol test\n([\s\S]*?)(?=\n\s+- name:|$)/u.exec(job)?.[0];
+	assert.ok(restore, 'the Quality test job must restore the Electron binary');
+	assert.match(restore, new RegExp(`if: matrix\\.shard == '${shard}'`, 'u'));
+	assert.match(restore, /node node_modules\/electron\/install\.js/u);
+	assert.ok(job.indexOf(restore) < job.indexOf('npm run test:shard'));
+});
+
 test('the tagged stable workflow also runs every execution shard once', async () => {
 	const job = extractJob(await readWorkflow('soundscaper-stable-1.yml'), 'tests');
 	const shards = [...job.matchAll(/^\s+- shard: ([\w-]+)$/gmu)].map((match) => match[1]);
