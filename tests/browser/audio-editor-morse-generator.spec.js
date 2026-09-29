@@ -52,4 +52,16 @@ test.describe('audio editor Morse code generator', () => {
 		await closeDialog(dialog);
 		await expect(editor).toHaveAttribute('data-clip-count', '0');
 	});
+
+	test('one rapid double activation creates only one generated clip', async ({ page }) => {
+		const editor = await bootEditor(page, '/embed/en/');
+		await chooseCommandAction(page, editor, 'Generate', 'Morse code');
+		const dialog = page.getByRole('dialog', { name: 'Morse code', exact: true });
+		await dialog.getByRole('button', { name: 'Generate', exact: true }).evaluate((button) => {
+			button.click();
+			button.click();
+		});
+		await expect(dialog).toBeHidden();
+		await expect(editor).toHaveAttribute('data-clip-count', '1', { timeout: 15_000 });
+	});
 });

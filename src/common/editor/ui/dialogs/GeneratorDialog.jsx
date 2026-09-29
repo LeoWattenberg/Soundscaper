@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Button } from '@soundscaper/design-system/Button';
 import { DialogFooter } from '@soundscaper/design-system/Footer';
 import { PreferencePanel } from '@soundscaper/design-system/PreferencePanel';
@@ -24,6 +24,13 @@ const MORSE_SPEED_RANGE = Object.freeze({ minimum: 5, maximum: 60 });
 export default function GeneratorDialog({ type, controller, copy, locale, run, onClose }) {
 	const [params, setParams] = useState(() => generatorDefaults(type));
 	useEffect(() => setParams(generatorDefaults(type)), [type]);
+	const [pending, setPending] = useState(false);
+	const activeGenerationRef = useRef(null);
+	useEffect(() => {
+		activeGenerationRef.current = null;
+		setPending(false);
+		return () => { activeGenerationRef.current = null; };
+	}, [type]);
 	const update = (name, value) => setParams((current) => ({ ...current, [name]: value }));
 	const labels = generatorLayoutLabels(copy);
 	const waveformOptions = generatorWaveformOptions(copy);
@@ -35,14 +42,23 @@ export default function GeneratorDialog({ type, controller, copy, locale, run, o
 	// The generate button sits in the shared footer, outside the form, so both
 	// it and an Enter press inside a field run this one handler.
 	const generate = () => {
-		if (unsendable) return;
+		if (unsendable || activeGenerationRef.current !== null) return;
 		const options = type === 'dtmf'
 			? { ...params, durationSeconds: dtmfTiming.totalSeconds, toneSeconds: dtmfTiming.toneSeconds, silenceSeconds: dtmfTiming.silenceSeconds }
 			: params;
+		const generationId = Symbol('generator');
+		activeGenerationRef.current = generationId;
+		setPending(true);
 		void runAwaitedAudioEditorOperation(
 			run,
 			() => controller.actions.generators.generate(type, options),
-		).then(onClose).catch(() => undefined);
+		).then(() => {
+			if (activeGenerationRef.current === generationId) onClose();
+		}).catch(() => undefined).finally(() => {
+			if (activeGenerationRef.current !== generationId) return;
+			activeGenerationRef.current = null;
+			setPending(false);
+		});
 	};
 	const numberField = (name, label, options = {}) => (
 		<GeneratorNumberField
@@ -119,7 +135,7 @@ export default function GeneratorDialog({ type, controller, copy, locale, run, o
 				className="audio-editor-dialog-footer"
 				rightContent={<>
 					<Button variant="secondary" onClick={onClose}>{copy.cancel}</Button>
-					<Button variant="primary" disabled={unsendable} onClick={generate}>{copy.generate}</Button>
+					<Button variant="primary" disabled={unsendable || pending} onClick={generate}>{copy.generate}</Button>
 				</>}
 			/>}
 		>
