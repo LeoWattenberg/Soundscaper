@@ -104,8 +104,11 @@ export function timedRecordingDialogRange(
 ): TimedRecordingDialogRange | null {
 	const normalized = normalizeTimedRecordingDialogValue(value);
 	const startTimeMs = dateTimeMs(normalized.startTime);
-	const endTimeMs = dateTimeMs(normalized.endTime);
+	const endTimeMs = normalized.endMode === 'duration'
+		? startTimeMs + normalized.durationSeconds * 1_000
+		: dateTimeMs(normalized.endTime);
 	if (!Number.isFinite(startTimeMs) || !Number.isFinite(endTimeMs)
+		|| !Number.isFinite(new Date(endTimeMs).getTime())
 		|| startTimeMs <= nowMs || endTimeMs <= startTimeMs) return null;
 	return Object.freeze({ startTimeMs, endTimeMs });
 }

@@ -52,6 +52,7 @@ test('timed recording dialog refuses a past start or an end before the start', (
 	assert.equal(timedRecordingDialogRange(value, startTimeMs), null);
 	assert.equal(timedRecordingDialogRange({
 		...value,
+		endMode: 'end',
 		endTime: localDateTime(new Date(startTimeMs - 1)),
 	}, startTimeMs - 1), null);
 });
@@ -72,6 +73,26 @@ test('switching back to duration restores its valid end after an invalid end dat
 		startTimeMs,
 		endTimeMs: startTimeMs + 90_000,
 	});
+});
+
+test('duration mode keeps its elapsed duration across the fall daylight-saving transition', () => {
+	const previousTimeZone = process.env.TZ;
+	process.env.TZ = 'America/New_York';
+	try {
+		const startTimeMs = new Date(2030, 10, 3, 0, 30).getTime();
+		const value = updateTimedRecordingDialogDuration(
+			createTimedRecordingDialogValue(startTimeMs),
+			7_200,
+		);
+		assert.equal(value.endTime, '2030-11-03T01:30:00', 'the linked local end is ambiguous');
+		assert.deepEqual(timedRecordingDialogRange(value, startTimeMs - 1), {
+			startTimeMs,
+			endTimeMs: startTimeMs + 7_200_000,
+		});
+	} finally {
+		if (previousTimeZone === undefined) delete process.env.TZ;
+		else process.env.TZ = previousTimeZone;
+	}
 });
 
 function localDateTime(date: Date): string {
