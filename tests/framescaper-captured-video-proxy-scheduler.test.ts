@@ -243,8 +243,7 @@ test('an open project that is not the active one is reconciled without any activ
 	await schedule(request());
 
 	assert.deepEqual(updates, []);
-	assert.ok(!steps.includes('sync'));
-	assert.ok(!steps.includes('install'));
+	assert.deepEqual(steps, [LOAD, QUIESCE, LOAD, 'reservation-release', 'lease-release']);
 	await schedule.dispose();
 });
 
@@ -276,7 +275,6 @@ test('an open project that diverged from the durable target refuses to be reconc
 		},
 	);
 
-	assert.ok(!steps.includes('install'), 'a diverged open history is never overwritten');
 	assert.deepEqual(steps, [LOAD, QUIESCE, LOAD, 'lease-release']);
 	await schedule.dispose();
 });
@@ -317,7 +315,8 @@ test('a failing save-lease release surfaces even though the reconciliation itsel
 	const error = await settled(schedule(request()));
 
 	assert.equal(error, failure, 'a lone finalizer failure is reported as itself, not wrapped');
-	assert.ok(steps.includes('sync'), 'the landed project was still synchronized before the finalizer failed');
+	assert.deepEqual(steps, [LOAD, QUIESCE, LOAD, 'sync', 'reservation-release', 'lease-release'],
+		'the landed project is synchronized before the finalizer failure surfaces');
 	await schedule.dispose();
 });
 

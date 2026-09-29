@@ -283,6 +283,7 @@ test('a first analysis writes its body in bounded chunks and commits the new ref
 	const held = harness({ maximumChunkBytes: 24 });
 
 	const reference = await held.actions.analyze(RUN);
+	assert.equal(reference.byteLength, 595);
 
 	assert.deepEqual(held.lookups, [reference.storageKey]);
 	assert.equal(held.begins.length, 1);
@@ -294,8 +295,7 @@ test('a first analysis writes its body in bounded chunks and commits the new ref
 	});
 	assert.deepEqual(held.begins[0]?.options,
 		{ expectedBytes: reference.byteLength, expectedSha256: reference.sha256 });
-	assert.ok(held.chunks.length > 1, 'a body larger than the chunk limit is written in several writes');
-	assert.ok(held.chunks.every((chunk) => chunk.byteLength <= 24 && chunk.byteLength > 0));
+	assert.deepEqual(held.chunks.map((chunk) => chunk.byteLength), [...Array<number>(24).fill(24), 19]);
 	const body = concat(held.chunks);
 	assert.equal(body.byteLength, reference.byteLength);
 	assert.equal(bytesToHex(sha256(body)), reference.sha256);
