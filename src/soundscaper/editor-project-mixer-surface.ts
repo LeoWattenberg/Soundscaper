@@ -28,6 +28,9 @@ interface MixerSurfaceProjectV21 extends Readonly<Record<string, unknown>> {
 const STRIP_UPDATE_FIELDS = new Set([
 	'name', 'color', 'gain', 'pan', 'mute', 'solo', 'collapsed', 'effectsActive',
 ]);
+const STRIP_ADD_FIELDS = new Set([
+	'id', 'name', 'color', 'gain', 'pan', 'mute', 'solo', 'collapsed', 'effectsActive', 'effects',
+]);
 
 /**
  * Translate only the bounded flat mixer gestures still exposed by the shared
@@ -196,11 +199,14 @@ function updateRoute(
 			}
 			edges = edges.filter((edge) => !matching.includes(edge));
 			if (requestedLevel === null) continue;
+			if (typeof requestedLevel !== 'number') {
+				throw new TypeError('A mixer send level must be a canonical number or null.');
+			}
 			edges.push({
 				id: sendEdgeId(command.trackId, sendId), kind: 'send',
 				source: { kind: 'track', id: command.trackId },
 				destination: { kind: 'mixer-node', id: sendId },
-				position: 'post-fader', level: Number(requestedLevel), enabled: true,
+				position: 'post-fader', level: requestedLevel, enabled: true,
 				channelMap: defaultMixerChannelMapV21(sourceChannels, send.channelCount),
 			});
 		}
@@ -214,21 +220,53 @@ function normalizeAddedStrip(
 	index: number,
 	channelCount: number,
 ): MixerStripV21 {
+	for (const key of Object.keys(value)) {
+		if (!STRIP_ADD_FIELDS.has(key)) {
+			throw new RangeError(key === 'envelope'
+				? 'V21 strip envelopes are owned by automation lanes.'
+				: `Mixer bus field cannot be added from the shared surface: ${key}.`);
+		}
+	}
 	const label = kind === 'group' ? 'Group' : 'Send';
-	const name = typeof value.name === 'string' && value.name.trim().length > 0
-		? value.name.trim() : `${label} ${String(index + 1)}`;
+	const name = optionalText(value, 'name', `${label} ${String(index + 1)}`).trim()
+		|| `${label} ${String(index + 1)}`;
 	return {
 		id: stableId(value.id, 'mixer bus.id'), name,
-		color: typeof value.color === 'string' && value.color.length > 0
-			? value.color : kind === 'send' ? '#8c6fd1' : '#4f87c8',
-		gain: value.gain === undefined ? 1 : Number(value.gain),
-		pan: value.pan === undefined ? 0 : Number(value.pan),
-		mute: Boolean(value.mute), solo: Boolean(value.solo),
-		collapsed: value.collapsed === undefined ? true : Boolean(value.collapsed),
-		effectsActive: value.effectsActive !== false,
-		effects: Array.isArray(value.effects) ? structuredClone(value.effects) : [],
+		color: optionalText(value, 'color', kind === 'send' ? '#8c6fd1' : '#4f87c8')
+			|| (kind === 'send' ? '#8c6fd1' : '#4f87c8'),
+		gain: optionalNumber(value, 'gain', 1),
+		pan: optionalNumber(value, 'pan', 0),
+		mute: optionalBoolean(value, 'mute', false),
+		solo: optionalBoolean(value, 'solo', false),
+		collapsed: optionalBoolean(value, 'collapsed', true),
+		effectsActive: optionalBoolean(value, 'effectsActive', true),
+		effects: optionalEffects(value),
 		channelCount,
 	};
+}
+
+function optionalText(value: Record<string, unknown>, field: string, fallback: string): string {
+	if (!Object.hasOwn(value, field)) return fallback;
+	if (typeof value[field] !== 'string') throw new TypeError(`Mixer bus ${field} must be text.`);
+	return value[field];
+}
+
+function optionalNumber(value: Record<string, unknown>, field: string, fallback: number): number {
+	if (!Object.hasOwn(value, field)) return fallback;
+	if (typeof value[field] !== 'number') throw new TypeError(`Mixer bus ${field} must be a canonical number.`);
+	return value[field];
+}
+
+function optionalBoolean(value: Record<string, unknown>, field: string, fallback: boolean): boolean {
+	if (!Object.hasOwn(value, field)) return fallback;
+	if (typeof value[field] !== 'boolean') throw new TypeError(`Mixer bus ${field} must be boolean.`);
+	return value[field];
+}
+
+function optionalEffects(value: Record<string, unknown>): readonly Readonly<Record<string, unknown>>[] {
+	if (!Object.hasOwn(value, 'effects')) return [];
+	if (!Array.isArray(value.effects)) throw new TypeError('Mixer bus effects must be an array.');
+	return structuredClone(value.effects) as readonly Readonly<Record<string, unknown>>[];
 }
 
 function nodeAssignment(strip: MixerStripV21, masterChannels: number): MixerEdgeV21 {

@@ -7,6 +7,8 @@ import type {
 	ProjectRepositoryPort,
 	ProjectRevision,
 } from '../common/editor/storage/project-repository.ts'
+import { ProjectCommittedMaintenanceError } from
+	'../common/editor/storage/project-committed-maintenance-error.ts'
 import { sameProjectSnapshot } from '../common/editor/storage/project-snapshot-equality.ts'
 import {
 	cloneSoundscaperProject,
@@ -49,7 +51,11 @@ export class SoundscaperProjectRepository implements ProjectRepositoryPort {
 		projectValue: ProjectDocument,
 		postCommit?: ProjectPostCommitMaintenance,
 	): Promise<ProjectDocument> {
-		return this.#snapshot(await this.#delegate.save(this.#snapshot(projectValue), postCommit))
+		try {
+			return this.#snapshot(await this.#delegate.save(this.#snapshot(projectValue), postCommit))
+		} catch (error) {
+			throw this.#publicationError(error)
+		}
 	}
 
 	async saveIfCurrent(
@@ -57,11 +63,15 @@ export class SoundscaperProjectRepository implements ProjectRepositoryPort {
 		projectValue: ProjectDocument,
 		postCommit?: ProjectPostCommitMaintenance,
 	): Promise<ProjectDocument | null> {
-		return this.#optionalSnapshot(await this.#delegate.saveIfCurrent!(
-			this.#snapshot(expectedValue),
-			this.#snapshot(projectValue),
-			postCommit,
-		))
+		try {
+			return this.#optionalSnapshot(await this.#delegate.saveIfCurrent!(
+				this.#snapshot(expectedValue),
+				this.#snapshot(projectValue),
+				postCommit,
+			))
+		} catch (error) {
+			throw this.#publicationError(error)
+		}
 	}
 
 	claimWriteFence(projectId: string): Promise<string> {
@@ -74,9 +84,13 @@ export class SoundscaperProjectRepository implements ProjectRepositoryPort {
 		writeFence: string,
 		postCommit?: ProjectPostCommitMaintenance,
 	): Promise<ProjectDocument | null> {
-		return this.#optionalSnapshot(await this.#delegate.saveIfCurrentAndFenced!(
-			this.#snapshot(expectedValue), this.#snapshot(projectValue), writeFence, postCommit,
-		))
+		try {
+			return this.#optionalSnapshot(await this.#delegate.saveIfCurrentAndFenced!(
+				this.#snapshot(expectedValue), this.#snapshot(projectValue), writeFence, postCommit,
+			))
+		} catch (error) {
+			throw this.#publicationError(error)
+		}
 	}
 
 	async restore(projectId: string, snapshot: ProjectRestorationSnapshot): Promise<void> {
@@ -176,6 +190,11 @@ export class SoundscaperProjectRepository implements ProjectRepositoryPort {
 
 	#custody(project: ProjectDocument | unknown): ProjectDocument {
 		return loadSoundscaperProject(project).project as ProjectDocument
+	}
+
+	#publicationError(error: unknown): unknown {
+		if (!(error instanceof ProjectCommittedMaintenanceError)) return error
+		return new ProjectCommittedMaintenanceError(this.#snapshot(error.committedProject), error.cause)
 	}
 }
 function assertDelegate(value: unknown): asserts value is ProjectRepositoryPort {
