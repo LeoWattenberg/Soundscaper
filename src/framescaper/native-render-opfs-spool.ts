@@ -13,6 +13,7 @@ import type {
 const DIRECTORY = 'framescaper-native-render-spool-v1';
 const NAME = /^carrier-[a-f0-9]{32}\.bin$/u;
 const RELEASE = new WeakMap<Blob, () => Promise<void>>();
+const RELEASING = new WeakMap<Blob, Promise<void>>();
 
 export interface FramescaperNativeOpfsCollectorOptions {
 	readonly root?: FileSystemDirectoryHandle;
@@ -60,11 +61,22 @@ export async function createFramescaperNativeOpfsByteSpool(
 		|| !(signal instanceof AbortSignal)) throw new TypeError('The native OPFS collector bounds are invalid.');
 	throwIfAborted(signal);
 	const root = options.root ?? await opfsRoot();
+	throwIfAborted(signal);
 	const directory = await root.getDirectoryHandle(DIRECTORY, { create: true });
+	throwIfAborted(signal);
 	const name = options.mintName?.() ?? `carrier-${crypto.randomUUID().replaceAll('-', '')}.bin`;
 	if (!NAME.test(name)) throw new TypeError('The native OPFS carrier name is invalid.');
 	const handle = await directory.getFileHandle(name, { create: true });
-	const writable = await handle.createWritable({ keepExistingData: false });
+	let writable: FileSystemWritableFileStream | null = null;
+	try {
+		throwIfAborted(signal);
+		writable = await handle.createWritable({ keepExistingData: false });
+		throwIfAborted(signal);
+	} catch (error) {
+		if (writable) await writable.abort().catch(() => undefined);
+		await directory.removeEntry(name).catch(() => undefined);
+		throw error;
+	}
 	return new OpfsByteSpool(
 		directory, name, handle, writable, maximumChunkBytes, expectedByteLength, signal,
 	);
@@ -72,11 +84,20 @@ export async function createFramescaperNativeOpfsByteSpool(
 
 /** Remove the renderer-side spool only after main durably stages its bytes. */
 export async function releaseFramescaperNativeOpfsSpool(bytes: Blob): Promise<boolean> {
+	const inFlight = RELEASING.get(bytes);
+	if (inFlight) {
+		await inFlight;
+		return false;
+	}
 	const release = RELEASE.get(bytes);
 	if (!release) return false;
-	await release();
-	RELEASE.delete(bytes);
-	return true;
+	const pending = release();
+	RELEASING.set(bytes, pending);
+	try {
+		await pending;
+		RELEASE.delete(bytes);
+		return true;
+	} finally { RELEASING.delete(bytes); }
 }
 
 class OpfsByteSpool implements FramescaperNativeOpfsByteSpool {
@@ -91,6 +112,9 @@ class OpfsByteSpool implements FramescaperNativeOpfsByteSpool {
 	#byteLength = 0;
 	#chunkCount = 0;
 	#completed: Blob | null = null;
+	#busy = false;
+	#failed = false;
+	#aborted = false;
 
 	constructor(directory: FileSystemDirectoryHandle, name: string, handle: FileSystemFileHandle,
 		writable: FileSystemWritableFileStream, maximumChunkBytes: number,
@@ -104,38 +128,72 @@ class OpfsByteSpool implements FramescaperNativeOpfsByteSpool {
 
 	async write(bytes: Uint8Array): Promise<void> {
 		throwIfAborted(this.#signal);
-		if (!this.#writable || this.#completed) throw new Error('The native OPFS collector is closed.');
+		if (!this.#writable || this.#completed || this.#aborted || this.#failed) {
+			throw new Error('The native OPFS collector is closed after a failed write.');
+		}
+		if (this.#busy) throw new Error('The native OPFS collector has a write in progress.');
+		if (!(bytes instanceof Uint8Array)) throw new TypeError('The native OPFS collector requires bytes.');
 		if (this.#byteLength > this.#expectedByteLength - bytes.byteLength) {
 			throw new RangeError('The native OPFS collector exceeded its exact byte declaration.');
 		}
-		this.#hash.update(bytes); this.#byteLength += bytes.byteLength;
-		for (let offset = 0; offset < bytes.byteLength; offset += this.#maximumChunkBytes) {
-			throwIfAborted(this.#signal);
-			const chunk = bytes.slice(offset, Math.min(bytes.byteLength, offset + this.#maximumChunkBytes));
-			await this.#writable.write(chunk); chunk.fill(0); this.#chunkCount += 1;
+		this.#busy = true;
+		const writable = this.#writable;
+		try {
+			for (let offset = 0; offset < bytes.byteLength; offset += this.#maximumChunkBytes) {
+				throwIfAborted(this.#signal);
+				if (this.#aborted) throw new Error('The native OPFS collector is closed.');
+				const chunk = bytes.slice(offset, Math.min(bytes.byteLength, offset + this.#maximumChunkBytes));
+				try {
+					await writable.write(chunk);
+					throwIfAborted(this.#signal);
+					if (this.#aborted) throw new Error('The native OPFS collector is closed.');
+					this.#hash.update(chunk);
+					this.#byteLength += chunk.byteLength;
+					this.#chunkCount += 1;
+				} finally { chunk.fill(0); }
+			}
+		} catch (error) {
+			this.#failed = true;
+			throw error;
+		} finally {
+			this.#busy = false;
 		}
 	}
 
 	async complete(type: string): Promise<FramescaperNativeRgbaFramePackV1> {
 		throwIfAborted(this.#signal);
-		if (!this.#writable || this.#completed || this.#byteLength !== this.#expectedByteLength) {
+		if (this.#busy) throw new Error('The native OPFS collector has a write in progress.');
+		if (this.#failed) throw new Error('The native OPFS collector cannot close after a failed write.');
+		if (!this.#writable || this.#completed || this.#aborted
+			|| this.#byteLength !== this.#expectedByteLength) {
 			throw new Error('The native OPFS collector cannot close an incomplete carrier.');
 		}
-		await this.#writable.close(); this.#writable = null;
-		const file = await this.#handle.getFile();
-		if (file.size !== this.#byteLength) throw new Error('The native OPFS carrier changed length.');
-		const exposed = new Blob([file], { type });
-		this.#completed = exposed;
-		const release = async (): Promise<void> => { await this.#directory.removeEntry(this.#name); };
-		RELEASE.set(exposed, release);
-		return Object.freeze({
-			bytes: exposed,
-			byteLength: this.#byteLength, sha256: bytesToHex(this.#hash.digest()),
-			chunkCount: this.#chunkCount,
-		});
+		this.#busy = true;
+		try {
+			await this.#writable.close(); this.#writable = null;
+			throwIfAborted(this.#signal);
+			if (this.#aborted) throw new Error('The native OPFS collector is closed.');
+			const file = await this.#handle.getFile();
+			throwIfAborted(this.#signal);
+			if (this.#aborted) throw new Error('The native OPFS collector is closed.');
+			if (file.size !== this.#byteLength) throw new Error('The native OPFS carrier changed length.');
+			const exposed = new Blob([file], { type });
+			this.#completed = exposed;
+			const release = async (): Promise<void> => { await this.#directory.removeEntry(this.#name); };
+			RELEASE.set(exposed, release);
+			return Object.freeze({
+				bytes: exposed,
+				byteLength: this.#byteLength, sha256: bytesToHex(this.#hash.digest()),
+				chunkCount: this.#chunkCount,
+			});
+		} catch (error) {
+			await this.abort();
+			throw error;
+		} finally { this.#busy = false; }
 	}
 
 	async abort(): Promise<void> {
+		this.#aborted = true;
 		const writable = this.#writable; this.#writable = null;
 		if (writable) await writable.abort().catch(() => undefined);
 		if (this.#completed) RELEASE.delete(this.#completed);
