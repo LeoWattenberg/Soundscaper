@@ -1,7 +1,6 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import assert from 'node:assert/strict';
-import { performance } from 'node:perf_hooks';
 import test from 'node:test';
 
 import {
@@ -235,17 +234,18 @@ test('maximum annotation and tempo maps remain bounded through command and share
 		},
 		timelineAnnotations: annotations,
 	});
-	const startedAt = performance.now();
+	const startedCpuUsage = process.cpuUsage();
 	const edited = applyEditorCommand(project, createUpdateTimelineAnnotationsCommand(
 		annotations.map(({ id }) => id),
 		{ color: 'blue' },
 	), { now: NOW });
 	const projected = resolveRuntimeProjectProjection(edited);
-	const elapsed = performance.now() - startedAt;
+	const { user, system } = process.cpuUsage(startedCpuUsage);
+	const elapsedCpuMs = (user + system) / 1_000;
 
 	assert.equal(edited.timelineAnnotations.length, count);
 	assert.equal(projected.timelineAnnotations?.length, count);
-	assert.ok(elapsed < 2_000, `maximum annotation command and projection took ${String(Math.round(elapsed))} ms`);
+	assert.ok(elapsedCpuMs < 2_000, `maximum annotation command and projection used ${String(Math.round(elapsedCpuMs))} ms CPU`);
 });
 
 test('annotation factories validate IDs and defensively clone every nested payload', () => {
