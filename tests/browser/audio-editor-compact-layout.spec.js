@@ -93,6 +93,17 @@ test.describe('compact layout', () => {
 		await expect(toggle).toBeFocused();
 	});
 
+	test('keeps focus on a compact-bar control when leaving the open drawer', async ({ page }) => {
+		const editor = await bootCompactEditor(page);
+		const toggle = menuToggle(editor);
+		const play = editor.locator('[data-compact-bar]').getByRole('button', { name: 'Play', exact: true });
+		await toggle.click();
+		await expect(toggle).toHaveAttribute('aria-expanded', 'true');
+		await play.focus();
+		await expect(toggle).toHaveAttribute('aria-expanded', 'false');
+		await expect(play).toBeFocused();
+	});
+
 	test('play and stop work from the compact bar', async ({ page }) => {
 		const editor = await bootCompactEditor(page);
 		await importFiles(editor, [toneA]);

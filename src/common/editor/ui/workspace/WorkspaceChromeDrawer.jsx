@@ -34,6 +34,7 @@ export default function WorkspaceChromeDrawer({
 	const containerRef = useRef(null);
 	const panelRef = useRef(null);
 	const onCloseRef = useRef(onClose);
+	const departureTargetRef = useRef(null);
 	onCloseRef.current = onClose;
 
 	// The drawer is fixed to the viewport so its scrollable height is exactly
@@ -68,13 +69,20 @@ export default function WorkspaceChromeDrawer({
 	useLayoutEffect(() => {
 		const panel = panelRef.current;
 		if (open && !wasOpenRef.current) {
+			departureTargetRef.current = null;
 			const first = panel?.querySelector(FOCUSABLE_SELECTOR);
 			(first || panel)?.focus?.({ preventScroll: true });
 		} else if (!open && wasOpenRef.current) {
 			const ownerDocument = panel?.ownerDocument;
-			const target = toggleRef?.current
-				|| (ownerDocument ? resolveEditorReturnFocus(ownerDocument, null) : null);
-			target?.focus?.({ preventScroll: true });
+			const departureTarget = departureTargetRef.current;
+			departureTargetRef.current = null;
+			// Blur can close the drawer before the browser updates activeElement.
+			// Keep the control the user is moving to instead of reclaiming focus.
+			if (!departureTarget?.isConnected) {
+				const target = toggleRef?.current
+					|| (ownerDocument ? resolveEditorReturnFocus(ownerDocument, null) : null);
+				target?.focus?.({ preventScroll: true });
+			}
 		}
 		wasOpenRef.current = open;
 	}, [open, toggleRef]);
@@ -88,6 +96,7 @@ export default function WorkspaceChromeDrawer({
 		if (event.currentTarget.contains(next)) return;
 		if (next === toggleRef?.current) return;
 		if (next.closest('.kw-audio-editor__application-menu')) return;
+		departureTargetRef.current = next;
 		onCloseRef.current?.();
 	};
 
