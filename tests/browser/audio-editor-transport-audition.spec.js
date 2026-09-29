@@ -13,6 +13,25 @@ const menuItem = (menu, label) => menu.getByRole('menuitem').filter({ has: menu.
 test.describe('transport audition shortcuts', () => {
 	registerAudioEditorHooks();
 
+	test('Play options close when their trigger is activated again', async ({ page }) => {
+		const editor = await bootEditor(page, '/embed/en/');
+		const trigger = playOptions(editor);
+		const menu = page.getByRole('menu', { name: 'Play options', exact: true });
+
+		await trigger.click();
+		await expect(menu).toBeVisible();
+		await trigger.click();
+		await expect(trigger).toHaveAttribute('aria-expanded', 'false');
+		await expect(menu).toHaveCount(0);
+
+		await trigger.focus();
+		await page.keyboard.press('Enter');
+		await expect(menu).toBeVisible();
+		await trigger.focus();
+		await page.keyboard.press('Enter');
+		await expect(menu).toHaveCount(0);
+	});
+
 	test('C previews and P resumes a gap without an edit, and X stops at the audible position', async ({ page }) => {
 		const errors = collectClientErrors(page);
 		const editor = await bootEditor(page, '/embed/en/');

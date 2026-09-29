@@ -14,6 +14,7 @@ import { ToggleToolButton } from '@soundscaper/design-system/ToggleToolButton';
 import { TransportButton, type TransportButtonProps } from '@soundscaper/design-system/TransportButton';
 
 import { iconNameToChar } from '../audacity-iconcodes.js';
+import { useMenuTriggerDismissal } from './use-menu-trigger-dismissal.ts';
 
 export interface SplitButtonFlyoutPlacement {
 	readonly x: number;
@@ -74,8 +75,14 @@ export default function AudioEditorSplitButton({
 	const arrowRef = useRef<HTMLButtonElement>(null);
 	const mainRef = useRef<HTMLSpanElement>(null);
 	const [flyout, setFlyout] = useState<SplitButtonFlyoutPlacement | null>(null);
+	const consumeTriggerDismissal = useMenuTriggerDismissal(arrowRef, Boolean(flyout));
 	const closeFlyout = useCallback(() => setFlyout(null), []);
 	const openFlyout = useCallback((event: MouseEvent<HTMLButtonElement>) => {
+		if (consumeTriggerDismissal()) return;
+		if (flyout) {
+			closeFlyout();
+			return;
+		}
 		const rect = arrowRef.current?.getBoundingClientRect();
 		if (!rect) return;
 		setFlyout(splitButtonFlyoutPlacement(
@@ -83,7 +90,7 @@ export default function AudioEditorSplitButton({
 			window.innerHeight,
 			event.nativeEvent.detail === 0,
 		));
-	}, []);
+	}, [closeFlyout, consumeTriggerDismissal, flyout]);
 
 	useEffect(() => {
 		const vendorButton = mainRef.current?.querySelector('button');
