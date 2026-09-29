@@ -1,5 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
+import { readdir } from 'node:fs/promises';
+
 import { darkTheme } from '../../vendor/audacity-design-system/tokens/src/themes/dark.v2.ts';
 import { lightTheme } from '../../vendor/audacity-design-system/tokens/src/themes/light.v2.ts';
 import { expect, test } from './audio-editor-test-fixtures.js';
@@ -44,6 +46,56 @@ test('desktop Preferences opens General and manages the display-only FFmpeg loca
 	await expect(preferences.getByRole('group', { name: 'Language', exact: true })).toHaveCount(0);
 });
 
+test('desktop Speed loads ordinary feature code on the next launch and leaves AI on demand', async ({ page }) => {
+	const assets = await readdir(new URL('../../dist/assets/', import.meta.url));
+	const asset = (name) => {
+		const file = assets.find((candidate) => candidate.startsWith(`${name}-`) && candidate.endsWith('.js'));
+		if (!file) throw new Error(`Browser fixture has no ${name} chunk`);
+		return `assets/${file}`;
+	};
+	const manifest = {
+		'src/soundscaper/ui/SoundscaperAudioEditorBootstrap.tsx': {
+			file: asset('SoundscaperAudioEditorBootstrap'), isDynamicEntry: true,
+		},
+		'src/common/editor/ui/inspector/ExportDialog.jsx': {
+			file: asset('ExportDialog'), isDynamicEntry: true,
+		},
+		'src/common/editor/ui/dialogs/LocalModelManagerDialog.tsx': {
+			file: asset('LocalModelManagerDialog'), isDynamicEntry: true,
+		},
+	};
+	// The web build removes the manifest; the desktop protocol serves it directly.
+	await page.route('**/.offline-build-manifest.json', async (route) => {
+		await route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify(manifest) });
+	});
+	await installDesktopFfmpegFixture(page);
+	const editor = await bootEditor(page, '/embed/en/');
+	await chooseCommandAction(page, editor, 'Edit', 'Preferences');
+	const preferences = page.getByRole('dialog', { name: 'Editor preferences', exact: true });
+	const optimization = preferences.getByRole('group', { name: 'Optimize for', exact: true });
+	await expect(optimization.getByRole('button')).toContainText('Memory');
+	await chooseDropdown(page, optimization, 'Speed');
+	await preferences.getByRole('button', { name: 'Close', exact: true }).last().click();
+
+	const ordinaryChunk = manifest['src/common/editor/ui/inspector/ExportDialog.jsx']?.file;
+	const aiChunk = manifest['src/common/editor/ui/dialogs/LocalModelManagerDialog.tsx']?.file;
+	expect(ordinaryChunk).toMatch(/^assets\/.+\.js$/u);
+	expect(aiChunk).toMatch(/^assets\/.+\.js$/u);
+
+	const requested = [];
+	page.on('request', (request) => { requested.push(new URL(request.url()).pathname); });
+	await page.reload();
+	const warmup = page.locator('[data-desktop-speed-warmup="ready"]');
+	await expect(warmup).toHaveCount(1);
+	await expect(warmup).toHaveAttribute('data-desktop-speed-warmup-failed', '0');
+	expect(requested).toContain(`/${ordinaryChunk}`);
+	expect(requested).not.toContain(`/${aiChunk}`);
+	const reopenedEditor = page.locator('[data-audio-editor-bound="true"]');
+	await chooseCommandAction(page, reopenedEditor, 'Edit', 'Preferences');
+	await expect(page.getByRole('dialog', { name: 'Editor preferences', exact: true })
+		.getByRole('group', { name: 'Optimize for', exact: true }).getByRole('button')).toContainText('Speed');
+});
+
 test('browser Preferences opens General without the desktop-only FFmpeg location', async ({ page }) => {
 	const editor = await bootEditor(page, '/embed/en/');
 	await chooseCommandAction(page, editor, 'Edit', 'Preferences');
@@ -52,6 +104,7 @@ test('browser Preferences opens General without the desktop-only FFmpeg location
 	await expect(preferences.getByRole('tab').first()).toHaveText(/General$/u);
 	await expect(preferences.getByRole('tab', { name: /General$/u })).toHaveAttribute('aria-selected', 'true');
 	await expect(preferences.getByRole('group', { name: 'Language', exact: true })).toBeVisible();
+	await expect(preferences.getByRole('group', { name: 'Optimize for', exact: true })).toHaveCount(0);
 	await expect(preferences.locator('[data-external-ffmpeg-preference="true"]')).toHaveCount(0);
 });
 
