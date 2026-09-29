@@ -78,6 +78,19 @@ test('AIFF inspection surfaces MARK markers on the descriptor and tolerates malf
 	assert.deepEqual(tolerant.markers, []);
 });
 
+test('an AIFF MARK entry without its Pascal-string alignment byte is malformed', async () => {
+	const missingNamePadding = Uint8Array.of(
+		0, 1, // one marker
+		0, 1, // marker ID
+		0, 0, 0, 1, // sample offset
+		0, // empty Pascal string needs one alignment byte
+	);
+	assert.throws(() => parseAiffMarkChunk(missingNamePadding), /padding|truncated/iu);
+	const file = aiffFile(formChunk('MARK', missingNamePadding));
+	const descriptor = await inspectAiffBlobPcm(byteSource(file));
+	assert.deepEqual(descriptor.markers, []);
+});
+
 test('the encoded-audio marker scan reads AIFF MARK chunks and the declared rate', async () => {
 	const scan = await scanEncodedAudioMarkers(byteSource(aiffFile()));
 	assert.equal(scan?.sampleRate, 24_000);

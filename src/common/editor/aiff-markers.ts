@@ -64,7 +64,9 @@ export function parseAiffMarkChunk(payload: Uint8Array): readonly RiffMarker[] {
 			note: '',
 		}));
 		// The Pascal string pads to an even total, count byte included.
-		offset = nameEnd + ((1 + nameBytes) % 2);
+		const paddedEnd = nameEnd + ((1 + nameBytes) % 2);
+		if (paddedEnd > payload.byteLength) throw new Error('An AIFF marker name is missing its padding byte.');
+		offset = paddedEnd;
 	}
 	return Object.freeze([...markers.values()].sort(
 		(left, right) => left.sampleOffset - right.sampleOffset || left.id - right.id,
