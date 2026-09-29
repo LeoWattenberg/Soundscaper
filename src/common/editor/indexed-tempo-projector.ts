@@ -27,6 +27,7 @@ interface IndexedTempoEvent {
 export function createIndexedBeatFrameProjector(
 	tempoMap: HoldTempoMap,
 	sampleRate: number,
+	options: Readonly<{ requireExact?: boolean }> = {},
 ): (beat: RationalInput) => SampleFrame {
 	beatToSampleFrame(0, tempoMap, sampleRate, 'point');
 	const events = indexTempoEvents(tempoMap, sampleRate);
@@ -37,6 +38,9 @@ export function createIndexedBeatFrameProjector(
 			active.samplePosition,
 			tempoSegmentSamples(target, active.beat, active.bpm, sampleRate),
 		);
+		if (options.requireExact && position.denominator !== 1n) {
+			throw new RangeError('The requested beat cannot be represented as an exact sample frame.');
+		}
 		return roundRational(position.numerator, position.denominator, 'point') as SampleFrame;
 	};
 }

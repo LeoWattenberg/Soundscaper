@@ -32,7 +32,7 @@ export function convertAutomationLanePositionV21(
 		return canonicalRational(sampleFrameToBeat(frame, tempoMap, sampleRate));
 	}
 	const beat = canonicalRational(position);
-	const frame = createIndexedBeatFrameProjector(tempoMap, sampleRate)(beat);
+	const frame = createIndexedBeatFrameProjector(tempoMap, sampleRate, { requireExact: true })(beat);
 	return nonNegativeSafeInteger(frame, 'converted automation position');
 }
 

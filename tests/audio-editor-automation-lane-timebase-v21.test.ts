@@ -65,6 +65,18 @@ test('a conversion without an authoritative tempo map or a usable position is re
 	);
 });
 
+test('beat positions between sample frames are refused during a timebase switch', () => {
+	const betweenFrames = { num: 1, den: 7 };
+	assert.throws(
+		() => convertAutomationLanePositionV21(betweenFrames, 'musical-beats', 'absolute-samples', OPTIONS),
+		/exact sample frame/iu,
+	);
+	assert.throws(
+		() => convertAutomationLaneControlPositionV21(betweenFrames, 'musical-beats', 'absolute-samples', OPTIONS),
+		/exact sample frame/iu,
+	);
+});
+
 test('a conversion that would collapse or reorder authored positions is refused', () => {
 	assert.equal(assertConvertedPositionsOrderedV21([0, 1, 2]), true);
 	assert.equal(assertConvertedPositionsOrderedV21([
