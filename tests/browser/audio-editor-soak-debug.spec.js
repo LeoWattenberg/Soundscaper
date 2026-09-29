@@ -124,7 +124,13 @@ test.describe('Soundscaper packaged soak-debug UI driver', () => {
 				'decoded-media-probe',
 				'streamed-playback-diagnostics',
 				'interrupted-take-recovery',
-			].entries()) await session.execute(operationId, { variant: index + 1 });
+			].entries()) {
+				console.log(`Packaged soak started: ${operationId}`);
+				await test.step(`Packaged soak: ${operationId}`, async () => {
+					await session.execute(operationId, { variant: index + 1 });
+				});
+				console.log(`Packaged soak completed: ${operationId}`);
+			}
 			const after = await session.sample();
 			expect(before.electronWorkingSetBytes).toBeGreaterThan(0);
 			expect(after.electronWorkingSetBytes).toBeGreaterThan(0);

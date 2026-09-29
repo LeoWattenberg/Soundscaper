@@ -63,11 +63,11 @@ test('packaged soak waits for desktop export completion before closing its dialo
 		'../scripts/lib/soundscaper-soak-workflows.mjs',
 		import.meta.url,
 	), 'utf8');
-	const render = source.slice(source.indexOf('async function renderWav'));
+	const render = source.slice(source.indexOf('async function renderWav'), source.indexOf('async function foreignProjectCustody'));
 	const output = render.indexOf("waitForOutput(outputDirectory, before, '.wav', 60_000)");
 	const completed = render.indexOf("dialog.locator('[data-export-action=\"start\"]').waitFor");
-	const close = render.indexOf("getByRole('button', { name: 'Close', exact: true }).click()");
-	const hidden = render.indexOf("dialog.waitFor({ state: 'hidden' })");
+	const close = render.indexOf("getByRole('button', { name: 'Close', exact: true }).click({ timeout: 30_000 })");
+	const hidden = render.indexOf("dialog.waitFor({ state: 'hidden', timeout: 30_000 })");
 	assert.ok(output >= 0, 'the desktop soak must observe its output file');
 	assert.ok(completed > output, 'a nonempty output file must not be treated as completed rendering');
 	assert.ok(close > completed, 'the export dialog must close only after rendering finishes');

@@ -212,7 +212,7 @@ async function renderWav(page, target, outputDirectory) {
 	const dialog = page.getByRole('dialog', { name: 'Export audio', exact: true });
 	await dialog.waitFor({ state: 'visible' });
 	await chooseDropdown(page, dialog.locator('[data-export-field="format"]'), 'WAV');
-	await dialog.getByRole('button', { name: 'Export', exact: true }).click();
+	await dialog.getByRole('button', { name: 'Export', exact: true }).click({ timeout: 30_000 });
 	let signature;
 	if (target === 'browser') {
 		const link = dialog.locator('[data-export-download]');
@@ -230,8 +230,8 @@ async function renderWav(page, target, outputDirectory) {
 		await dialog.locator('[data-export-action="start"]').waitFor({ state: 'visible', timeout: 60_000 });
 	}
 	if (signature !== 'RIFF') throw new Error('The rendered WAV did not have a RIFF header.');
-	await dialog.getByRole('button', { name: 'Close', exact: true }).click();
-	await dialog.waitFor({ state: 'hidden' });
+	await dialog.getByRole('button', { name: 'Close', exact: true }).click({ timeout: 30_000 });
+	await dialog.waitFor({ state: 'hidden', timeout: 30_000 });
 	return {};
 }
 
