@@ -96,6 +96,28 @@ test.describe('audio editor React/design-system workflows', () => {
 		await page.keyboard.press('Escape');
 	});
 
+	test('keeps search open while Enter confirms composed text', async ({ page }) => {
+		const editor = await bootEditor(page, '/embed/en/');
+		await page.keyboard.press('Control+k');
+		const search = editor.locator('[data-editor-search-input]');
+		const popup = editor.locator('[data-editor-search-popup]');
+		await search.fill('project-properties');
+		await expect(popup.locator('[data-editor-search-key="command:project-properties"]')).toBeVisible();
+		const prevented = await search.evaluate((input) => {
+			const event = new KeyboardEvent('keydown', {
+				key: 'Enter', code: 'Enter', bubbles: true, cancelable: true, isComposing: true,
+			});
+			input.dispatchEvent(event);
+			return event.defaultPrevented;
+		});
+		expect(prevented).toBe(false);
+		await expect(popup).toBeVisible();
+		await expect(editor.locator('[data-workspace-panel="metadata"]')).toHaveCount(0);
+		await search.press('Enter');
+		await expect(popup).toHaveCount(0);
+		await expect(editor.locator('[data-workspace-panel="metadata"]')).toBeVisible();
+	});
+
 	test('opens configurable search effects and directly applies setting-free effects', async ({ page }) => {
 		const editor = await bootEditor(page, '/embed/en/');
 		const search = editor.locator('[data-editor-search-input]');
