@@ -48,8 +48,8 @@ test('desktop Preferences opens General and manages the display-only FFmpeg loca
 
 test('desktop Speed loads ordinary feature code on the next launch and leaves AI on demand', async ({ page }) => {
 	const assets = await readdir(new URL('../../dist/assets/', import.meta.url));
-	const asset = (name) => {
-		const file = assets.find((candidate) => candidate.startsWith(`${name}-`) && candidate.endsWith('.js'));
+	const asset = (name, extension = 'js') => {
+		const file = assets.find((candidate) => candidate.startsWith(`${name}-`) && candidate.endsWith(`.${extension}`));
 		if (!file) throw new Error(`Browser fixture has no ${name} chunk`);
 		return `assets/${file}`;
 	};
@@ -59,6 +59,10 @@ test('desktop Speed loads ordinary feature code on the next launch and leaves AI
 		},
 		'src/common/editor/ui/inspector/ExportDialog.jsx': {
 			file: asset('ExportDialog'), isDynamicEntry: true,
+		},
+		'src/common/editor/ui/dialogs/WorkspacePreferencesDialog.jsx': {
+			file: asset('WorkspacePreferencesDialog'), isDynamicEntry: true,
+			css: [asset('WorkspacePreferencesDialog', 'css')],
 		},
 		'src/common/editor/ui/dialogs/LocalModelManagerDialog.tsx': {
 			file: asset('LocalModelManagerDialog'), isDynamicEntry: true,
@@ -78,6 +82,7 @@ test('desktop Speed loads ordinary feature code on the next launch and leaves AI
 	await preferences.getByRole('button', { name: 'Close', exact: true }).last().click();
 
 	const ordinaryChunk = manifest['src/common/editor/ui/inspector/ExportDialog.jsx']?.file;
+	const ordinaryStylesheet = manifest['src/common/editor/ui/dialogs/WorkspacePreferencesDialog.jsx'].css[0];
 	const aiChunk = manifest['src/common/editor/ui/dialogs/LocalModelManagerDialog.tsx']?.file;
 	expect(ordinaryChunk).toMatch(/^assets\/.+\.js$/u);
 	expect(aiChunk).toMatch(/^assets\/.+\.js$/u);
@@ -89,6 +94,7 @@ test('desktop Speed loads ordinary feature code on the next launch and leaves AI
 	await expect(warmup).toHaveCount(1);
 	await expect(warmup).toHaveAttribute('data-desktop-speed-warmup-failed', '0');
 	expect(requested).toContain(`/${ordinaryChunk}`);
+	expect(requested).toContain(`/${ordinaryStylesheet}`);
 	expect(requested).not.toContain(`/${aiChunk}`);
 	const reopenedEditor = page.locator('[data-audio-editor-bound="true"]');
 	await chooseCommandAction(page, reopenedEditor, 'Edit', 'Preferences');
