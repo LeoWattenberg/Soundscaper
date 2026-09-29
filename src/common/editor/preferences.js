@@ -16,10 +16,8 @@ import {
 	DEFAULT_TOOLBAR_BUTTONS,
 	DEFAULT_TOOLBARS,
 } from './workspace-layout-defaults.ts';
-import {
-	DEFAULT_SOUND_ACTIVATION_PREFERENCES,
-	normalizeSoundActivationPreferences,
-} from './sound-activation-preferences.ts';
+import { normalizeRecordingSoundActivationPreferences } from './sound-activation-preferences.ts';
+import { normalizeAudioEditorPerformancePreferences } from './performance-preferences.ts';
 import {
 	AUDIO_EDITOR_DEFAULT_STARTUP_MODE,
 	AUDIO_EDITOR_STARTUP_MODES,
@@ -175,6 +173,7 @@ const FORBIDDEN_TOP_LEVEL_KEYS = new Set([
  * @property {{retainInputs: boolean, soundActivation: import('./sound-activation-preferences.ts').SoundActivationPreferences}} recording
  * @property {{playAtSpeedMode: 'naive'|'staffpad'}} playback
  * @property {{menuOrganization: 'default'|'sortby:name'}} effects
+ * @property {import('./performance-preferences.ts').AudioEditorPerformancePreferences} performance
  * @property {import('./startup-preferences.ts').AudioEditorStartupPreferences} startup
  */
 
@@ -222,20 +221,9 @@ function mergePreferences(preferences, patch = {}) {
 		recording: { ...preferences.recording, ...patch.recording },
 		playback: { ...preferences.playback, ...patch.playback },
 		effects: { ...preferences.effects, ...patch.effects },
+		performance: { ...preferences.performance, ...patch.performance },
 		startup: { ...preferences.startup, ...patch.startup },
 	};
-}
-
-function normalizeRecordingSoundActivation(recording) {
-	if (!recording || (typeof recording !== 'object' && typeof recording !== 'function')
-		|| !Object.hasOwn(recording, 'soundActivation')) {
-		return DEFAULT_SOUND_ACTIVATION_PREFERENCES;
-	}
-	const descriptor = Object.getOwnPropertyDescriptor(recording, 'soundActivation');
-	if (!descriptor?.enumerable || !('value' in descriptor)) {
-		throw new TypeError('recording.soundActivation must be an enumerable data field.');
-	}
-	return normalizeSoundActivationPreferences(descriptor.value);
 }
 /**
  * Editor-only preferences. Audio device selection, plugins, cloud accounts,
@@ -301,7 +289,7 @@ export function createAudioEditorPreferencesV1(options = {}) {
 		},
 		recording: {
 			retainInputs: options.recording?.retainInputs !== false,
-			soundActivation: normalizeRecordingSoundActivation(options.recording),
+			soundActivation: normalizeRecordingSoundActivationPreferences(options.recording),
 		},
 		playback: {
 			playAtSpeedMode: oneOf(
@@ -317,6 +305,7 @@ export function createAudioEditorPreferencesV1(options = {}) {
 				'effects.menuOrganization',
 			),
 		},
+		performance: normalizeAudioEditorPerformancePreferences(options.performance),
 		startup: {
 			mode: oneOf(
 				options.startup?.mode ?? AUDIO_EDITOR_DEFAULT_STARTUP_MODE,
@@ -484,6 +473,7 @@ export function validateAudioEditorPreferencesV1(preferences) {
 		}
 		oneOf(preferences.effects.menuOrganization, EFFECT_MENU_ORGANIZATION_SET, 'effects.menuOrganization');
 	}
+	if (preferences.performance !== undefined) normalizeAudioEditorPerformancePreferences(preferences.performance);
 	if (preferences.waveformVisualization !== undefined) normalizeWaveformVisualizationPreferences(preferences.waveformVisualization);
 	if (preferences.startup !== undefined) {
 		if (!preferences.startup || typeof preferences.startup !== 'object' || Array.isArray(preferences.startup)) {
@@ -533,6 +523,7 @@ export function loadAudioEditorPreferencesV1(value) {
 			recording: normalized.recording,
 			playback: normalized.playback,
 			effects: normalized.effects,
+			performance: normalized.performance,
 			// Preferences saved before Program start existed carry no startup
 			// section; normalization supplies the mode that matches what those
 			// sessions already did, which is to continue the last session.

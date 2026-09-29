@@ -248,6 +248,7 @@ test('editor preferences default to Modern/system/Colorful and exclude OS, cloud
 	assert.equal(preferences.import.detectTempo, true);
 	assert.equal(preferences.recording.retainInputs, true);
 	assert.equal(preferences.playback.playAtSpeedMode, 'naive');
+	assert.deepEqual(preferences.performance, { optimizeFor: 'memory' });
 	assert.deepEqual(preferences.startup, { mode: 'continue-last-session', projectId: '' });
 	assert.deepEqual(preferences.effects, { menuOrganization: 'default' });
 	assert.equal(preferences.editing.collisionBehavior, 'audacity');
@@ -268,6 +269,7 @@ test('editor preferences default to Modern/system/Colorful and exclude OS, cloud
 		view: { showMasterTrack: true },
 		recording: { retainInputs: false },
 		playback: { playAtSpeedMode: 'staffpad' },
+		performance: { optimizeFor: 'speed' },
 		shortcuts: { 'clip.split': ['S', 'Shift+S'] },
 		workspace: {
 			activeId: 'podcast',
@@ -287,6 +289,7 @@ test('editor preferences default to Modern/system/Colorful and exclude OS, cloud
 	);
 	assert.equal(custom.recording.retainInputs, false);
 	assert.equal(custom.playback.playAtSpeedMode, 'staffpad');
+	assert.equal(custom.performance.optimizeFor, 'speed');
 	assert.deepEqual(
 		createAudioEditorPreferencesV1({ startup: { mode: 'project', projectId: 'archive' } }).startup,
 		{ mode: 'project', projectId: 'archive' },
@@ -303,6 +306,7 @@ test('editor preferences default to Modern/system/Colorful and exclude OS, cloud
 	delete legacyPreferences.view;
 	delete legacyPreferences.recording;
 	delete legacyPreferences.playback;
+	delete legacyPreferences.performance;
 	delete legacyPreferences.startup;
 	delete legacyPreferences.effects;
 	for (const panel of Object.values(legacyPreferences.workspace.panels)) {
@@ -316,6 +320,7 @@ test('editor preferences default to Modern/system/Colorful and exclude OS, cloud
 	assert.equal(loadedLegacyPreferences.view.showMasterTrack, false);
 	assert.equal(loadedLegacyPreferences.recording.retainInputs, true);
 	assert.equal(loadedLegacyPreferences.playback.playAtSpeedMode, 'naive');
+	assert.equal(loadedLegacyPreferences.performance.optimizeFor, 'memory');
 	// Preferences saved before Program start existed keep continuing the last
 	// session, which is what those sessions already did.
 	assert.deepEqual(loadedLegacyPreferences.startup, { mode: 'continue-last-session', projectId: '' });
@@ -326,6 +331,9 @@ test('editor preferences default to Modern/system/Colorful and exclude OS, cloud
 		['dock', 'height', 'order', 'size', 'visible', 'width', 'x', 'y'],
 	);
 	assert.equal(updateAudioEditorPreferencesV1(preferences, { recording: { retainInputs: false } }).recording.retainInputs, false);
+	assert.equal(updateAudioEditorPreferencesV1(preferences, { performance: { optimizeFor: 'speed' } }).performance.optimizeFor, 'speed');
+	assert.throws(() => createAudioEditorPreferencesV1({ performance: { optimizeFor: 'battery' } }), /performance\.optimizeFor/);
+	assert.throws(() => validateAudioEditorPreferencesV1({ ...preferences, performance: { optimizeFor: 'battery' } }), /performance\.optimizeFor/);
 	assert.equal(updateAudioEditorPreferencesV1(preferences, { view: { showMasterTrack: true } }).view.showMasterTrack, true);
 	assert.equal(preferences.view.showMarkers, false);
 	assert.equal(updateAudioEditorPreferencesV1(preferences, { view: { showMarkers: true } }).view.showMarkers, true);

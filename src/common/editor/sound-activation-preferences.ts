@@ -78,6 +78,18 @@ export function normalizeSoundActivationPreferences(value: unknown): SoundActiva
 	});
 }
 
+export function normalizeRecordingSoundActivationPreferences(recording: unknown): SoundActivationPreferences {
+	if (!recording || (typeof recording !== 'object' && typeof recording !== 'function')
+		|| !Object.hasOwn(recording, 'soundActivation')) {
+		return DEFAULT_SOUND_ACTIVATION_PREFERENCES;
+	}
+	const descriptor = Object.getOwnPropertyDescriptor(recording, 'soundActivation');
+	if (!descriptor?.enumerable || !('value' in descriptor)) {
+		throw new TypeError('recording.soundActivation must be an enumerable data field.');
+	}
+	return normalizeSoundActivationPreferences(descriptor.value);
+}
+
 export function soundActivationSettingsFromPreferences(
 	value: unknown,
 	sampleRateValue: unknown,
