@@ -49,6 +49,7 @@ export function createLegacyRecordingCaptureService(runtime: RecordingCaptureCom
 		let writer: RecordingSourceWriter | null = null;
 		let recorder: RecordingCaptureControllerLike | null = null;
 		let soundActivation: SoundActivatedRecordingCaptureSession | null = null;
+		let playbackStarted = false;
 		const ownsGeneration = () => scope.generation === state.recordingStartGeneration;
 		const ownsStart = () => {
 			if (!ownsGeneration()) return false;
@@ -242,6 +243,7 @@ export function createLegacyRecordingCaptureService(runtime: RecordingCaptureCom
 					scheduledTime,
 					timing.seekFrame,
 				);
+				playbackStarted = true;
 				scope.assertCurrent();
 				recorder.start(recorderSchedule(audibleRecordingStartTime(
 					playbackStartTime, scheduledTime,
@@ -253,6 +255,9 @@ export function createLegacyRecordingCaptureService(runtime: RecordingCaptureCom
 			}
 		} catch (error) {
 			const handedOff = Boolean(!ownsGeneration() && recorder && state.recorder === recorder);
+			if (playbackStarted && ownsStart()) {
+				try { runtime.engine.pause(); } catch { /* Preserve the recording failure. */ }
+			}
 			if (ownsStart()) {
 				state.recordingCleanup?.();
 				state.recordingCleanup = null;

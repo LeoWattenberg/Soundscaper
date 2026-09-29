@@ -210,6 +210,28 @@ test('legacy capture rolls back timed-past and playback-start failures after han
 	assert.equal(playback.state.recorder, null);
 });
 
+test('legacy capture stops backing playback if the recorder cannot start', async () => {
+	const failure = new Error('recorder missed its start');
+	const fixture = createRecordingCaptureFixture({
+		createRecorder: async () => ({
+			start() { throw failure; },
+			pause() {}, resume() {}, async stop() {}, async dispose() {},
+			setMonitoring() {}, setInputGain() {},
+		}),
+	});
+	let pauses = 0;
+	Object.defineProperty(fixture.runtime.engine, 'pause', { value: () => { pauses += 1; } });
+	await assert.rejects(
+		createLegacyRecordingCaptureService(fixture.runtime).capture(
+			{ trackId: 'track-1' }, createScope(() => true),
+		),
+		failure,
+	);
+	assert.equal(fixture.playAtCalls.length, 1);
+	assert.equal(pauses, 1);
+	assert.equal(fixture.state.recorder, null);
+});
+
 test('legacy recorder callbacks ignore superseded work and handle silent chunks', async () => {
 	const fixture = createRecordingCaptureFixture();
 	await createLegacyRecordingCaptureService(fixture.runtime).capture(
