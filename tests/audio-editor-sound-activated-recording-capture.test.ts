@@ -26,7 +26,7 @@ function writtenSamples(
 	return record.writes.map((channels) => channels.map((channel) => [...channel]));
 }
 
-test('legacy capture gates absolute worklet chunks without changing scheduling or metering', async () => {
+test('legacy capture gates worklet chunks on scheduled frames without changing metering', async () => {
 	const fixture = createRecordingCaptureFixture({
 		soundActivationSettings: SETTINGS,
 		streamChannelCount: 1,
@@ -36,11 +36,11 @@ test('legacy capture gates absolute worklet chunks without changing scheduling o
 		createScope(() => true),
 	);
 
-	assert.deepEqual(fixture.recorderStartOptions, [{ startFrame: 195_840, stopFrame: undefined }]);
+	assert.deepEqual(fixture.recorderStartOptions, [{ startFrame: 204_000, stopFrame: undefined }]);
 	const recorder = fixture.recorderOptionsList[0];
 	assert.ok(recorder);
 	await recorder.onChunk({
-		frameStart: 195_840,
+		frameStart: fixture.recorderStartOptions[0]!.startFrame!,
 		frames: 4,
 		channels: [Float32Array.from([0, 0.5, 0, 0.25])],
 	});
@@ -58,7 +58,7 @@ test('legacy capture gates absolute worklet chunks without changing scheduling o
 
 	assert.equal(fixture.state.recorder?.pause?.(), true);
 	await recorder.onChunk({
-		frameStart: 195_844,
+		frameStart: fixture.recorderStartOptions[0]!.startFrame! + 4,
 		frames: 1,
 		channels: [Float32Array.of(1)],
 	});
@@ -66,7 +66,7 @@ test('legacy capture gates absolute worklet chunks without changing scheduling o
 	assert.equal(fixture.writerRecords[0]?.writer.framesWritten, 2);
 	assert.equal(fixture.state.recorder?.resume?.(), true);
 	await recorder.onChunk({
-		frameStart: 195_845,
+		frameStart: fixture.recorderStartOptions[0]!.startFrame! + 5,
 		frames: 2,
 		channels: [Float32Array.from([0, 0.5])],
 	});
@@ -92,11 +92,11 @@ test('exact legacy and routed punch paths explicitly bypass compacting sound act
 		createScope(() => true),
 	);
 	await legacy.recorderOptionsList[0]!.onChunk({
-		frameStart: 195_840,
+		frameStart: legacy.recorderStartOptions[0]!.startFrame!,
 		frames: 4,
 		channels: [Float32Array.from([0, 0.5, 0, 0.25])],
 	});
-	assert.deepEqual(legacy.recorderStartOptions, [{ startFrame: 195_840, stopFrame: 195_900 }]);
+	assert.deepEqual(legacy.recorderStartOptions, [{ startFrame: 204_000, stopFrame: 204_060 }]);
 	assert.deepEqual(writtenSamples(legacy.writerRecords[0]!), [[[0, 0.5, 0, 0.25]]]);
 	assert.deepEqual(legacy.soundActivationStates, []);
 
@@ -115,11 +115,11 @@ test('exact legacy and routed punch paths explicitly bypass compacting sound act
 		createScope(() => true),
 	);
 	await routed.recorderOptionsList[0]!.onChunk({
-		frameStart: 195_840,
+		frameStart: routed.recorderStartOptions[0]!.startFrame!,
 		frames: 4,
 		channels: [Float32Array.from([0, 0.5, 0, 0.25])],
 	});
-	assert.deepEqual(routed.recorderStartOptions, [{ startFrame: 195_840, stopFrame: 195_900 }]);
+	assert.deepEqual(routed.recorderStartOptions, [{ startFrame: 204_000, stopFrame: 204_060 }]);
 	assert.deepEqual(writtenSamples(routed.writerRecords[0]!), [[[0, 0.5, 0, 0.25]]]);
 	assert.deepEqual(routed.soundActivationStates, []);
 });
@@ -139,7 +139,7 @@ test('routed capture applies one input-wide decision before fan-out while every 
 	const recorder = fixture.recorderOptionsList[0];
 	assert.ok(recorder);
 	await recorder.onChunk({
-		frameStart: 195_840,
+		frameStart: fixture.recorderStartOptions[0]!.startFrame!,
 		frames: 3,
 		channels: [
 			Float32Array.from([0, 0, 0]),
@@ -179,12 +179,12 @@ test('routed input sessions gate independently and controller disposal cancels e
 
 	assert.equal(fixture.recorderOptionsList.length, 2);
 	await fixture.recorderOptionsList[0]!.onChunk({
-		frameStart: 195_840,
+		frameStart: fixture.recorderStartOptions[0]!.startFrame!,
 		frames: 2,
 		channels: [Float32Array.from([0, 0.5])],
 	});
 	await fixture.recorderOptionsList[1]!.onChunk({
-		frameStart: 195_840,
+		frameStart: fixture.recorderStartOptions[1]!.startFrame!,
 		frames: 2,
 		channels: [Float32Array.from([0, 0])],
 	});
@@ -212,7 +212,7 @@ test('sound-activated callbacks retain the capture ownership fence', async () =>
 	assert.ok(recorder);
 	current = false;
 	await recorder.onChunk({
-		frameStart: 195_840,
+		frameStart: fixture.recorderStartOptions[0]!.startFrame!,
 		frames: 1,
 		channels: [Float32Array.of(1)],
 	});
@@ -261,7 +261,7 @@ test('legacy and routed gating trim raw latency before compaction and retain zer
 					? Float32Array.of(0, 0, 0, 0)
 					: Float32Array.of(1, 1, 1, 1, 0.5, 0);
 				await recorder.onChunk({
-					frameStart: 195_840,
+					frameStart: fixture.recorderStartOptions[0]!.startFrame!,
 					frames: samples.length,
 					channels: [samples],
 				});
@@ -321,7 +321,7 @@ test('one adversarial threshold-chatter chunk has bounded persistence and observ
 				(_, index) => index % 2 === 0 ? 0.5 : 0,
 			);
 			await recorder.onChunk({
-				frameStart: 195_840,
+				frameStart: fixture.recorderStartOptions[0]!.startFrame!,
 				frames: samples.length,
 				channels: [samples],
 			});
@@ -441,7 +441,7 @@ test('non-finite recorder PCM is rejected before meters, persistence, preview, o
 	const recorder = fixture.recorderOptionsList[0];
 	assert.ok(recorder);
 	await assert.rejects(recorder.onChunk({
-		frameStart: 195_840,
+		frameStart: fixture.recorderStartOptions[0]!.startFrame!,
 		frames: 2,
 		channels: [Float32Array.of(Number.NaN, 1)],
 	}), /finite/iu);
@@ -451,7 +451,7 @@ test('non-finite recorder PCM is rejected before meters, persistence, preview, o
 	assert.deepEqual(fixture.soundActivationStates.map(({ state }) => state), ['armed']);
 
 	await recorder.onChunk({
-		frameStart: 195_840,
+		frameStart: fixture.recorderStartOptions[0]!.startFrame!,
 		frames: 1,
 		channels: [Float32Array.of(0.5)],
 	});
