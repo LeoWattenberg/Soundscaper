@@ -50,6 +50,7 @@ async function replaceProjectSnapshot(
 	expected?: ProjectDocument,
 	writeFence?: string,
 ): Promise<boolean> {
+	assertSnapshotProjectIdentity(projectId, snapshot);
 	const rows = revisionRows(projectId, snapshot.revisions);
 	const current = snapshot.current === null ? null : canonicalProject(snapshot.current);
 	const database = await port.database();
@@ -84,6 +85,17 @@ async function replaceProjectSnapshot(
 		if (current) await request(projects.put(current));
 		return true;
 	});
+}
+
+function assertSnapshotProjectIdentity(projectId: string, snapshot: ProjectSnapshotForRestore): void {
+	if (snapshot.current !== null && snapshot.current?.id !== projectId) {
+		throw new Error('Project snapshot current document does not match its project identity.');
+	}
+	for (const revision of snapshot.revisions) {
+		if (revision?.project?.id !== projectId) {
+			throw new Error('Project snapshot revision does not match its project identity.');
+		}
+	}
 }
 
 function revisionRows(
