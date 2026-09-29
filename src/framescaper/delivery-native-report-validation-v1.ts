@@ -71,8 +71,10 @@ function snapshotPlainRecord(value: unknown, name: string): Readonly<Record<stri
 		|| (Object.getPrototypeOf(value) !== Object.prototype && Object.getPrototypeOf(value) !== null)) {
 		throw new TypeError(`${name} must be a plain record.`);
 	}
+	// structuredClone reads enumerable accessors. Validate the original graph first
+	// so an untrusted report cannot execute a getter while it is snapshotted.
+	fingerprintNativeMediaPlan(value);
 	const cloned = structuredClone(value) as Record<string, unknown>;
-	fingerprintNativeMediaPlan(cloned);
 	return deepFreeze(cloned);
 }
 
@@ -91,6 +93,12 @@ export function exactRecord(
 		|| fields.some((field) => !optional.includes(field) && !Object.hasOwn(value, field))) {
 		throw new TypeError(`${name} has missing or unsupported fields.`);
 	}
+	for (const key of keys) {
+		const descriptor = Object.getOwnPropertyDescriptor(value, key);
+		if (!descriptor?.enumerable || !Object.hasOwn(descriptor, 'value')) {
+			throw new TypeError(`${name}.${String(key)} must be an own enumerable data property.`);
+		}
+	}
 	return value as Record<string, unknown>;
 }
 
@@ -98,6 +106,13 @@ export function denseArray(value: unknown, minimum: number, maximum: number, nam
 	if (!Array.isArray(value) || value.length < minimum || value.length > maximum
 		|| Reflect.ownKeys(value).length !== value.length + 1) {
 		throw new TypeError(`${name} must be a bounded dense array.`);
+	}
+	for (let index = 0; index < value.length; index += 1) {
+		const descriptor = Object.getOwnPropertyDescriptor(value, index);
+		if (!descriptor) throw new TypeError(`${name} must be a bounded dense array.`);
+		if (!descriptor.enumerable || !Object.hasOwn(descriptor, 'value')) {
+			throw new TypeError(`${name}[${String(index)}] must be an own enumerable data property.`);
+		}
 	}
 	return [...value];
 }
