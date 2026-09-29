@@ -231,7 +231,8 @@ async function runCli(options: Readonly<{
 		let child: AssistanceLlamaCppChild;
 		try {
 			child = inspectChild(options.spawn(options.executable, options.args, {
-				stdio: ['ignore', 'pipe', 'pipe'], windowsHide: true, shell: false, env: options.env,
+				// Node may append NODE_V8_COVERAGE to the supplied environment during spawn.
+				stdio: ['ignore', 'pipe', 'pipe'], windowsHide: true, shell: false, env: { ...options.env },
 			}));
 		} catch (error) {
 			reject(new Error('The authenticated llama.cpp CLI could not be started.', { cause: error }));

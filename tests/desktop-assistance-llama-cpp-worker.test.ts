@@ -242,6 +242,27 @@ test('a nonzero llama.cpp exit reports signed or unsigned status without stderr 
 	assert.equal((await readFile(paths.output)).byteLength, 0);
 });
 
+test('the restricted CLI environment accepts Node coverage propagation during spawn', async (context) => {
+	const { job } = await fixture(context);
+	const spawn: AssistanceLlamaCppSpawn = (_executable, _args, options) => {
+		assert.equal(Object.hasOwn(options.env, 'NODE_V8_COVERAGE'), false);
+		assert.equal(Object.hasOwn(options.env, 'HF_TOKEN'), false);
+		Object.defineProperty(options.env, 'NODE_V8_COVERAGE', {
+			value: '/temporary/coverage', enumerable: true, configurable: true,
+		});
+		const child = new FakeChild();
+		queueMicrotask(() => {
+			child.stdout.end(JSON.stringify(VALID_PROPOSAL));
+			child.emit('close', 0, null);
+		});
+		return child;
+	};
+	const worker = createAssistanceLlamaCppWorkerSpawnerV1({ spawn })(job, {
+		onProgress: () => undefined,
+	});
+	await worker.completion;
+});
+
 test('unsafe editorial text is refused before the reservation is populated', async (context) => {
 	const { job, paths } = await fixture(context);
 	const unsafe = {
