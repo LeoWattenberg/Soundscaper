@@ -70,6 +70,7 @@ test.describe('menu-only Local Assistance workflows', () => {
 		const model = manager.locator('[data-local-model-id="deepfilternet3"]');
 		await manager.getByRole('textbox', { name: 'Search models' }).fill('unrelated');
 		await expect(model).toHaveCount(0);
+		await expect(manager.getByRole('button', { name: 'Install from folder…' })).toBeVisible();
 		await manager.getByRole('textbox', { name: 'Search models' }).fill('DeepFilterNet');
 		await expect(model).toBeVisible();
 		await expect(model).toHaveAttribute('data-local-model-availability', 'installable');
