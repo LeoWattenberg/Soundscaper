@@ -177,7 +177,7 @@ export default function AudioEditorDialogShell({
 			}
 			const first = focusable[0];
 			const last = focusable.at(-1) || first;
-			if (!panel.contains(document.activeElement)) {
+			if (document.activeElement === panel || !panel.contains(document.activeElement)) {
 				event.preventDefault();
 				(event.shiftKey ? last : first).focus({ preventScroll: true });
 			} else if (event.shiftKey && document.activeElement === first) {

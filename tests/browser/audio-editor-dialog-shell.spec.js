@@ -32,6 +32,19 @@ test.describe('shared audio editor dialog behavior', () => {
 		await expect(dialog).toBeHidden();
 	});
 
+	test('Shift+Tab from an initially focused dialog panel wraps to its last control', async ({ page }) => {
+		const editor = await bootEditor(page);
+		await chooseCommand(page, editor, 'Edit', 'Preferences');
+		const dialog = page.getByRole('dialog', { name: 'Editor preferences', exact: true });
+		await expect(dialog).toBeVisible();
+		await expect(dialog).toBeFocused();
+		await page.keyboard.press('Shift+Tab');
+		await expect(dialog.getByRole('button', { name: 'Resize: Editor preferences', exact: true })).toBeFocused();
+		await dialog.focus();
+		await page.keyboard.press('Tab');
+		await expect(dialog.getByRole('button', { name: 'Close', exact: true }).first()).toBeFocused();
+	});
+
 	test('gives generator dialogs the same focus, resize, and Escape contract', async ({ page }) => {
 		const editor = await bootEditor(page);
 		await chooseCommand(page, editor, 'Generate', 'Tone');
