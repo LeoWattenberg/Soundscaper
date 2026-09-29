@@ -26,9 +26,23 @@ test('direct WAV upsampling captures at project rate before converting and keeps
 	await createEditorExportService(fixture.runtime).handleExportAction('export', { useFileSystemAccess: true });
 
 	assert.equal(fixture.renderRequests[0].suspendForBackpressure, false);
-	assert.ok(fixture.calls.includes('temporary:create'));
-	assert.ok(fixture.calls.includes('temporary:remove'));
-	assert.ok(fixture.calls.indexOf('render:done') < fixture.calls.indexOf('encoder:write:1'));
+	assert.deepEqual(fixture.resamplerChannelCounts, [2]);
+	assert.deepEqual(destination.admissions, [[byteLength, 'exact']]);
+	assert.deepEqual(fixture.calls, [
+		'temporary:create',
+		'render:chunk:1',
+		'render:chunk:2',
+		'render:done',
+		'encoder:write:1',
+		'encoder:write:2',
+		'temporary:remove',
+		'render:dispose',
+	]);
+	assert.deepEqual(destination.chunks.map((chunk) => [...chunk]), [
+		Array.from({ length: byteLength - 3 }, () => 0),
+		[1, 2, 3],
+	]);
+	assert.equal(destination.prepared.bytesWritten(), byteLength);
 	assert.equal(destination.commitCalls(), 1);
 	assert.deepEqual(fixture.errors, []);
 });

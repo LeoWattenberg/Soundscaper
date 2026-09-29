@@ -24,7 +24,11 @@ test('AUP4 save streams only audio PCM while retaining mixed-media compatibility
 		],
 	};
 	const staged: string[] = [];
-	const streamed: string[] = [];
+	const streamed: Array<Readonly<{
+		sourceId: string;
+		sampleRate: number;
+		channels: readonly (readonly number[])[];
+	}>> = [];
 	let initializeCalls = 0;
 	const client: NativeAup4Client = {
 		initialize: async () => { initializeCalls += 1; return { opfs: true }; },
@@ -34,8 +38,11 @@ test('AUP4 save streams only audio PCM while retaining mixed-media compatibility
 		async writeSnapshot(_id, _project, sources, options) {
 			assert.equal(options.opfs, true);
 			for await (const source of sources) {
-				streamed.push(source.sourceId);
-				assert.ok(source.channels[0].length > 0);
+				streamed.push({
+					sourceId: source.sourceId,
+					sampleRate: source.sampleRate,
+					channels: source.channels.map((channel) => [...channel]),
+				});
 			}
 			return { compatibilityReport: { items: [] } };
 		},
@@ -62,7 +69,10 @@ test('AUP4 save streams only audio PCM while retaining mixed-media compatibility
 	const service = createNativeProjectService(fixture.runtime);
 	const result = await service.saveAup4({ fileName: 'mix', useFileSystemAccess: false });
 
-	assert.deepEqual(streamed, ['cached', 'stored']);
+	assert.deepEqual(streamed, [
+		{ sourceId: 'cached', sampleRate: 48_000, channels: [[0.25, -0.25]] },
+		{ sourceId: 'stored', sampleRate: 48_000, channels: [[0.5]] },
+	]);
 	assert.deepEqual(staged, [
 		'create:aup4-export-native',
 		'commit:aup4-export-native',

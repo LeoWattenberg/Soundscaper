@@ -265,7 +265,7 @@ test('project switching during macro persistence fences stale commit and publica
 	assert.deepEqual(harness.persistedProjects, []);
 	assert.equal(harness.processing, false);
 	assert.equal(harness.publications, publicationsBeforeSwitch);
-	assert.notDeepEqual(harness.statuses.at(-1), ['Macro applied', 'success']);
+	assert.deepEqual(harness.statuses, [['Macro processing', undefined]]);
 	assert.equal(harness.errors.length, 0);
 });
 
@@ -284,7 +284,7 @@ test('a superseding macro task fences stale persistence and cleanup publication'
 	assert.deepEqual(harness.persistedProjects, []);
 	assert.equal(harness.processing, true);
 	assert.equal(harness.publications, publicationsBeforeSupersession);
-	assert.notDeepEqual(harness.statuses.at(-1), ['Macro applied', 'success']);
+	assert.deepEqual(harness.statuses, [['Macro processing', undefined]]);
 	assert.equal(harness.errors.length, 0);
 	successor.finish();
 });
@@ -319,7 +319,7 @@ test('cancelling a run aborts it without persisting anything', async () => {
 	assert.equal(harness.persistenceCommits, 0);
 	assert.deepEqual(harness.persistedProjects, []);
 	assert.equal(harness.errors.length, 0, 'a cancellation is not an error to report');
-	assert.notDeepEqual(harness.statuses.at(-1), ['Macro applied', 'success']);
+	assert.deepEqual(harness.statuses, [['Macro processing', undefined]]);
 });
 
 test('cancelling with no run in flight reports that there was nothing to stop', () => {
