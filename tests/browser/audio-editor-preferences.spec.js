@@ -95,7 +95,7 @@ test('desktop Speed loads ordinary feature code on the next launch and leaves AI
 	await expect(warmup).toHaveAttribute('data-desktop-speed-warmup-failed', '0');
 	expect(requested).toContain(`/${ordinaryChunk}`);
 	expect(requested).toContain(`/${ordinaryStylesheet}`);
-	expect(requested).not.toContain(`/${aiChunk}`);
+	expect(requested.filter((path) => /\/LocalModelManagerDialog-[^/]+\.js$/u.test(path))).toEqual([]);
 	const reopenedEditor = page.locator('[data-audio-editor-bound="true"]');
 	await chooseCommandAction(page, reopenedEditor, 'Edit', 'Preferences');
 	await expect(page.getByRole('dialog', { name: 'Editor preferences', exact: true })
