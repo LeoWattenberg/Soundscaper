@@ -183,6 +183,23 @@ test('SDF1 kills a helper that stops acknowledging a data request', async () => 
 	await session.abandon();
 });
 
+test('SDF1 retires a helper whose acknowledgement has the wrong request id', async () => {
+	const helper = new FakeHelper();
+	const authority = createSoundscaperDeliveryFilesystemProcessAuthority({
+		executablePath: '/installed/soundscaper_delivery_fs', spawnProcess: helper.spawn as never,
+	});
+	const session = await authority.open({
+		root: ROOT, reference: '2'.repeat(48), finalName: 'master.wav',
+		maximumBytes: 4, finalPrefixByteLength: 0, fence: () => undefined,
+	});
+	helper.responseRequestIdOffset = 1;
+	await assert.rejects(session.write(0, new Uint8Array([1])), /lost synchronization/u);
+	assert.equal(helper.killed, true);
+	await assert.rejects(session.write(0, new Uint8Array([1])), /helper has failed/u);
+	assert.deepEqual(helper.opcodes, [0x01, 0x02], 'no second write reaches the desynchronized helper');
+	await session.abandon();
+});
+
 class FakeHelper {
 	readonly opcodes: number[] = [];
 	readonly output = new PassThrough();
@@ -194,6 +211,7 @@ class FakeHelper {
 	data = Buffer.alloc(0);
 	exited = false;
 	killed = false;
+	responseRequestIdOffset = 0;
 	lastJson: Record<string, unknown> = {};
 
 	constructor(failCode?: string, recoveryStatus = 'missing', stallOpcode?: number) {
@@ -295,7 +313,7 @@ class FakeHelper {
 		header.write('SDF1');
 		header[4] = 1;
 		header[5] = opcode;
-		header.writeUInt32BE(requestId, 8);
+		header.writeUInt32BE(requestId + this.responseRequestIdOffset, 8);
 		header.writeUInt32BE(payload.byteLength, 12);
 		this.output.write(Buffer.concat([header, payload]));
 	}

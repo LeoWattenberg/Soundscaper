@@ -1,21 +1,11 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { spawn, type ChildProcessWithoutNullStreams } from 'node:child_process';
+import { spawn } from 'node:child_process';
 import { isAbsolute } from 'node:path';
 
-import {
-	awaitDeliveryFilesystemRequest,
-	deliveryFilesystemRequestTimeout,
-	optionalDeliveryFilesystemRequestTimeout,
-} from './soundscaper-delivery-filesystem-deadline.ts';
-import {
-	DELIVERY_FILESYSTEM_HEADER_BYTES as HEADER_BYTES,
-	DELIVERY_FILESYSTEM_MAGIC as MAGIC,
-	DELIVERY_FILESYSTEM_MAXIMUM_CONTROL_BYTES as MAXIMUM_CONTROL_BYTES,
-	DELIVERY_FILESYSTEM_VERSION as VERSION,
-	DeliveryFilesystemFrameReader,
-	type DeliveryFilesystemFrame as Frame,
-} from './soundscaper-delivery-filesystem-frame-reader.ts';
+import { optionalDeliveryFilesystemRequestTimeout } from './soundscaper-delivery-filesystem-deadline.ts';
+import { DELIVERY_FILESYSTEM_MAXIMUM_CONTROL_BYTES as MAXIMUM_CONTROL_BYTES } from './soundscaper-delivery-filesystem-frame-reader.ts';
+import { MAXIMUM_CHUNK_BYTES, OP, parseJson, startPeer, type FramedPeer, type SpawnProcess } from './soundscaper-delivery-filesystem-peer.ts';
 
 import {
 	SoundscaperDeliveryFilesystemUnavailableError,
@@ -29,18 +19,6 @@ import {
 	type SoundscaperDeliveryFileInspection,
 	type SoundscaperDeliveryRoot,
 } from './soundscaper-delivery-root.ts';
-
-const MAXIMUM_CHUNK_BYTES = 4 * 1024 * 1024;
-const ERROR = 0xff;
-
-const OP = Object.freeze({
-	init: 0x01, data: 0x02, seal: 0x03, publish: 0x04, abort: 0x05, patch: 0x06, recover: 0x07,
-	inspectFinal: 0x08,
-	ready: 0x81, acknowledged: 0x82, sealed: 0x83, published: 0x84, aborted: 0x85,
-	recovered: 0x87, finalInspection: 0x88,
-});
-
-type SpawnProcess = typeof spawn;
 
 export interface SoundscaperDeliveryFilesystemProcessOptions {
 	readonly executablePath: string;
@@ -74,7 +52,7 @@ export function createSoundscaperDeliveryFilesystemProcessAuthority(
 	const requestTimeoutMs = optionalDeliveryFilesystemRequestTimeout(options.requestTimeoutMs);
 	const authority: SoundscaperDeliveryFilesystemAuthority = {
 		async open(value) {
-			const peer = startPeer(spawnProcess, options.executablePath, [], requestTimeoutMs);
+			const peer = startPeer(spawnProcess, options.executablePath, [], requestTimeoutMs, decodeProcessError);
 			try {
 				const ready = exactRecord(await peer.request(OP.init, json({
 					schemaVersion: 1,
@@ -117,7 +95,7 @@ export function createSoundscaperDeliveryFilesystemProcessAuthority(
 			}
 		},
 		async removeRecovered(root, recoveryToken, expected, fence) {
-			const peer = startPeer(spawnProcess, options.executablePath, ['--recover'], requestTimeoutMs);
+			const peer = startPeer(spawnProcess, options.executablePath, ['--recover'], requestTimeoutMs, decodeProcessError);
 			try {
 				const response = exactRecord(await peer.request(OP.recover, json({
 					schemaVersion: 1, action: 'remove', rootPath: root.rootPath,
@@ -141,7 +119,7 @@ export function createSoundscaperDeliveryFilesystemProcessAuthority(
 			} finally { await peer.close(); }
 		},
 		async inspectFinal(root, finalName, fence) {
-			const peer = startPeer(spawnProcess, options.executablePath, ['--inspect-final'], requestTimeoutMs);
+			const peer = startPeer(spawnProcess, options.executablePath, ['--inspect-final'], requestTimeoutMs, decodeProcessError);
 			try {
 				const response = exactRecord(await peer.request(OP.inspectFinal, json({
 					schemaVersion: 1, rootPath: root.rootPath, finalName,
@@ -334,104 +312,6 @@ class ProcessSession implements SoundscaperDeliveryFilesystemSession {
 	}
 }
 
-class FramedPeer {
-	readonly #child: ChildProcessWithoutNullStreams;
-	readonly #reader: DeliveryFilesystemFrameReader;
-	readonly #requestTimeoutMs: number | null;
-	#requestId = 0;
-	#closed = false;
-	#failed = false;
-
-	constructor(child: ChildProcessWithoutNullStreams, requestTimeoutMs: number | null) {
-		this.#child = child;
-		this.#reader = new DeliveryFilesystemFrameReader(child.stdout);
-		this.#requestTimeoutMs = requestTimeoutMs;
-		child.once('error', (error) => { this.#failed = true; this.#reader.fail(error); });
-	}
-
-	async request(opcode: number, payload: Buffer, expectedOpcode: number): Promise<unknown> {
-		if (this.#closed) throw new Error('Soundscaper delivery filesystem helper is closed.');
-		if (this.#failed) throw new Error('Soundscaper delivery filesystem helper has failed.');
-		if (payload.byteLength > (opcode === OP.data ? MAXIMUM_CHUNK_BYTES : MAXIMUM_CONTROL_BYTES)) {
-			throw new RangeError('Soundscaper delivery filesystem helper payload is too large.');
-		}
-		const requestId = ++this.#requestId;
-		const exchange = (async () => {
-			await writeFrame(this.#child, { opcode, requestId, payload });
-			return this.#reader.read();
-		})();
-		const response = await awaitDeliveryFilesystemRequest(
-			exchange,
-			deliveryFilesystemRequestTimeout(
-				opcode === OP.data || opcode === OP.patch || opcode === OP.seal || opcode === OP.publish,
-				this.#requestTimeoutMs,
-			),
-			(error) => {
-				this.#failed = true;
-				this.#reader.fail(error);
-				try { this.#child.kill('SIGKILL'); } catch { /* process never spawned */ }
-			},
-		);
-		if (response.requestId !== requestId) throw new Error('Soundscaper delivery helper response lost synchronization.');
-		if (response.opcode === ERROR) throw decodeProcessError(response.payload);
-		if (response.opcode !== expectedOpcode) throw new Error('Soundscaper delivery helper returned the wrong response.');
-		return response.payload.byteLength ? parseJson(response.payload) : Object.freeze({});
-	}
-
-	async close(): Promise<void> {
-		if (this.#closed) return;
-		this.#closed = true;
-		this.#child.stdin.end();
-		if (this.#failed) {
-			try { this.#child.kill(); } catch { /* process never spawned */ }
-			return;
-		}
-		if (this.#child.exitCode === null && this.#child.signalCode === null) {
-			await new Promise<void>((resolve) => {
-				const timer = setTimeout(() => { this.#child.kill(); resolve(); }, 2_000);
-				timer.unref?.();
-				this.#child.once('exit', () => { clearTimeout(timer); resolve(); });
-			});
-		}
-	}
-}
-
-function startPeer(
-	spawnProcess: SpawnProcess,
-	executablePath: string,
-	args: string[],
-	requestTimeoutMs: number | null,
-): FramedPeer {
-	const child = spawnProcess(executablePath, args, {
-		stdio: ['pipe', 'pipe', 'pipe'], windowsHide: true,
-	});
-	let stderrBytes = 0;
-	child.stderr.on('data', (chunk: Buffer) => {
-		stderrBytes += chunk.byteLength;
-		if (stderrBytes > MAXIMUM_CONTROL_BYTES) child.stderr.destroy();
-	});
-	return new FramedPeer(child, requestTimeoutMs);
-}
-
-async function writeFrame(child: ChildProcessWithoutNullStreams, frame: Frame): Promise<void> {
-	const header = Buffer.alloc(HEADER_BYTES);
-	MAGIC.copy(header, 0);
-	header[4] = VERSION;
-	header[5] = frame.opcode;
-	header.writeUInt16BE(0, 6);
-	header.writeUInt32BE(frame.requestId, 8);
-	header.writeUInt32BE(frame.payload.byteLength, 12);
-	const value = Buffer.concat([header, frame.payload]);
-	if (child.stdin.write(value)) return;
-	await new Promise<void>((resolve, reject) => {
-		const cleanup = () => { child.stdin.off('drain', drained); child.stdin.off('error', failed); };
-		const drained = () => { cleanup(); resolve(); };
-		const failed = (error: Error) => { cleanup(); reject(error); };
-		child.stdin.once('drain', drained);
-		child.stdin.once('error', failed);
-	});
-}
-
 function decodeProcessError(payload: Buffer): Error {
 	const value = exactRecord(
 		parseJson(payload), ['schemaVersion', 'code', 'phase', 'retryable', 'detail'], 'error',
@@ -499,11 +379,6 @@ function json(value: unknown): Buffer {
 	const encoded = Buffer.from(JSON.stringify(value), 'utf8');
 	if (encoded.byteLength > MAXIMUM_CONTROL_BYTES) throw new RangeError('SDF1 control message is too large.');
 	return encoded;
-}
-
-function parseJson(value: Buffer): unknown {
-	try { return JSON.parse(value.toString('utf8')); }
-	catch { throw new Error('Soundscaper delivery helper returned invalid JSON.'); }
 }
 
 function record(value: unknown, label: string): Record<string, unknown> {
