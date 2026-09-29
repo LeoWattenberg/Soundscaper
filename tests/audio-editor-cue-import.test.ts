@@ -89,3 +89,64 @@ test('CUE import refuses timestamps that exceed safe sample-frame positions', ()
 		(error: unknown) => error instanceof AudioEditorCueImportError && error.code === 'INVALID_TIMESTAMP',
 	);
 });
+
+test('CUE import accepts a byte view with BOM and CR-only line endings', () => {
+	const bytes = new TextEncoder().encode('\uFEFFFILE "album side.wav" WAVE\rTRACK 01 AUDIO\r INDEX 01 00:00:01');
+	const padded = new Uint8Array(bytes.length + 4);
+	padded.set(bytes, 2);
+	assert.deepEqual(parseAudioEditorCueSheet(padded.subarray(2, 2 + bytes.length), { sampleRate: 44_100 }).cues, [
+		{ number: 1, title: 'Track 01', performer: '', positionFrame: 588 },
+	]);
+});
+
+test('CUE import rejects undecodable UTF-8 and embedded NUL input', () => {
+	for (const [input, code] of [
+		[Uint8Array.of(0xc3, 0x28), 'INVALID_UTF8'],
+		['TRACK 01 AUDIO\n TITLE "bad\0name"\n INDEX 01 00:00:00', 'INVALID_CHARACTER'],
+	] as const) {
+		assert.throws(
+			() => parseAudioEditorCueSheet(input, { sampleRate: 48_000 }),
+			(error: unknown) => error instanceof AudioEditorCueImportError && error.code === code,
+		);
+	}
+});
+
+test('CUE import rejects duplicate track numbers and repeated INDEX 01 directives', () => {
+	assert.throws(
+		() => parseAudioEditorCueSheet('TRACK 01 AUDIO\n INDEX 01 00:00:00\nTRACK 01 AUDIO\n INDEX 01 00:01:00', { sampleRate: 48_000 }),
+		(error: unknown) => error instanceof AudioEditorCueImportError && error.code === 'INVALID_TRACK'
+			&& error.details.line === 3,
+	);
+	assert.throws(
+		() => parseAudioEditorCueSheet('TRACK 01 AUDIO\n INDEX 01 00:00:00\n INDEX 01 00:01:00', { sampleRate: 48_000 }),
+		(error: unknown) => error instanceof AudioEditorCueImportError && error.code === 'DUPLICATE_INDEX'
+			&& error.details.line === 3,
+	);
+});
+
+test('CUE import rejects indexes that run backwards across AUDIO tracks', () => {
+	assert.throws(
+		() => parseAudioEditorCueSheet('TRACK 01 AUDIO\n INDEX 01 00:02:00\nTRACK 02 AUDIO\n INDEX 01 00:01:00', { sampleRate: 48_000 }),
+		(error: unknown) => error instanceof AudioEditorCueImportError && error.code === 'NON_CHRONOLOGICAL_INDEX',
+	);
+});
+
+test('CUE import permits a data file before one audio file but rejects malformed FILE directives', () => {
+	const parsed = parseAudioEditorCueSheet('FILE data.bin BINARY\nTRACK 01 MODE1/2352\n INDEX 01 00:00:00\nFILE "album.wav" WAVE\nTRACK 02 AUDIO\n INDEX 01 00:01:00', { sampleRate: 48_000 });
+	assert.equal(parsed.cues.length, 1);
+	assert.equal(parsed.cues[0]?.number, 2);
+	assert.throws(
+		() => parseAudioEditorCueSheet('FILE "missing-type.wav"\nTRACK 01 AUDIO\n INDEX 01 00:00:00', { sampleRate: 48_000 }),
+		(error: unknown) => error instanceof AudioEditorCueImportError && error.code === 'INVALID_FILE',
+	);
+});
+
+test('CUE import enforces input and numeric limits before authoring cues', () => {
+	assert.throws(
+		() => parseAudioEditorCueSheet('TRACK 01 AUDIO\n INDEX 01 00:00:00', { sampleRate: 48_000, maxInputChars: 5 }),
+		(error: unknown) => error instanceof AudioEditorCueImportError && error.code === 'INPUT_LIMIT',
+	);
+	for (const sampleRate of [0, 44_100.5, Number.MAX_SAFE_INTEGER + 1]) {
+		assert.throws(() => parseAudioEditorCueSheet('', { sampleRate }), RangeError);
+	}
+});
