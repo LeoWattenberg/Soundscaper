@@ -3,7 +3,7 @@
 import { createWavFixture, expect, test } from './audio-editor-test-fixtures.js';
 import {
 	addRackEffect, bootEditor, chooseNestedCommandAction, closeDialog,
-	closeEffectsPanel, collectClientErrors, importFiles, openEffectsForTrack,
+	closeEffectsPanel, collectClientErrors, commitInput, importFiles, openEffectsForTrack,
 	openNestedCommandMenu,
 } from './audio-editor-test-helpers.js';
 
@@ -48,7 +48,7 @@ async function installParallelStackProbe(page) {
 					};
 					probe.workers.push(this.parallelStackRecord);
 					if (!probe.generations.some(({ shared }) => shared.control === message.shared.control)) {
-						probe.generations.push({ shared: message.shared, plan: message.plan });
+						probe.generations.push({ shared: message.shared, plan: message.plan, effectMailbox: message.effectMailbox });
 					}
 				}
 				return super.postMessage(message, transfer);
@@ -143,6 +143,41 @@ async function installParallelStackProbe(page) {
 				}
 			}
 			return { peak, changed };
+		};
+		probe.effectDifferences = (effectType) => {
+			const generation = probe.generations.at(-1);
+			if (!generation) return null;
+			const { shared, plan } = generation;
+			const tasks = plan.tasks.filter((task) => task.kind === 'stack' && task.inputPlanes.length
+				&& task.effects.some((effect) => effect.type === effectType));
+			if (tasks.length !== 2) return null;
+			const { geometry } = shared;
+			const words = new Int32Array(shared.control);
+			const pcm = new Float32Array(shared.pcm);
+			let newest = null;
+			for (let bank = 0; bank < geometry.bankCount; bank += 1) {
+				const offset = 4 + geometry.workerCount * 2 + bank * (5 + geometry.taskCount);
+				const state = Atomics.load(words, offset);
+				if (state !== 3 && state !== 4) continue;
+				const sequence = (Atomics.load(words, offset + 1) >>> 0)
+					+ (Atomics.load(words, offset + 2) >>> 0) * 2 ** 32;
+				const differences = tasks.map((task) => {
+					const before = (bank * geometry.planeCount + task.inputPlanes[0]) * geometry.blockFrames;
+					const after = (bank * geometry.planeCount + task.prePlanes[0]) * geometry.blockFrames;
+					let delta = 0;
+					let input = 0;
+					for (let frame = 0; frame < geometry.blockFrames; frame += 1) {
+						delta += Math.abs(pcm[after + frame] - pcm[before + frame]);
+						input += Math.abs(pcm[before + frame]);
+					}
+					return input > 1 ? delta / input : null;
+				});
+				if ((Atomics.load(words, offset + 1) >>> 0)
+					+ (Atomics.load(words, offset + 2) >>> 0) * 2 ** 32 !== sequence
+					|| ![3, 4].includes(Atomics.load(words, offset))) continue;
+				if (!newest || sequence > newest.sequence) newest = { sequence, differences };
+			}
+			return newest;
 		};
 	});
 }
@@ -249,6 +284,78 @@ test('completed chunks keep both effect tracks sample aligned and in order', asy
 	});
 	expect(status).toEqual({ state: 1, fault: 0 });
 	await editor.getByRole('button', { name: 'Stop', exact: true }).click();
+	expect(errors).toEqual([]);
+});
+
+test('parallel effect controls preview and cancel on workers without rebuilding playback', async ({ page }) => {
+	test.setTimeout(90_000);
+	await installParallelStackProbe(page);
+	const errors = collectClientErrors(page);
+	const editor = await bootEditor(page, '/embed/en/');
+	await importFiles(editor, [330, 660].map((frequency, index) => createWavFixture({
+		name: `parallel-live-${String(index)}.wav`, frequency, duration: 32, channelCount: 1,
+	})));
+	for (const trackIndex of [1, 2]) {
+		const panel = await openEffectsForTrack(editor, trackIndex);
+		await addRackEffect(page, panel, 'track', 'Tremolo');
+		const dialog = page.getByRole('dialog', { name: 'Tremolo', exact: true });
+		await commitInput(dialog.locator('[data-effect-param="depth"]').getByRole('spinbutton'), '100');
+		await closeDialog(dialog);
+		await closeEffectsPanel(panel);
+	}
+	const panel = await openEffectsForTrack(editor, 1);
+	await enableParallelStacks(page, editor);
+	await editor.getByRole('button', { name: 'Play', exact: true }).click();
+	await expect.poll(() => page.evaluate(() => {
+		const probe = globalThis.__parallelStackProbe;
+		const differences = probe.effectDifferences('tremolo')?.differences;
+		return probe.workers.filter((worker) => worker.ready && worker.started).length === 2
+			&& differences?.length === 2 && differences.every((difference) => difference > 0.1);
+	}), { timeout: 20_000 }).toBe(true);
+	const initialRevision = await page.evaluate(() => {
+		const mailbox = globalThis.__parallelStackProbe.generations[0].effectMailbox;
+		return Atomics.load(new Int32Array(mailbox.control), 0);
+	});
+	await panel.locator('[data-effect-rack]').getByRole('group', { name: 'Tremolo', exact: true })
+		.getByRole('button', { name: 'Select effect', exact: true }).click();
+	const dialog = page.getByRole('dialog', { name: 'Tremolo', exact: true });
+	const depth = dialog.locator('[data-effect-param="depth"]').getByRole('slider');
+	const bounds = await depth.boundingBox();
+	expect(bounds).not.toBeNull();
+	await page.mouse.move(bounds.x + bounds.width - 8, bounds.y + bounds.height / 2);
+	await page.mouse.down();
+	await page.mouse.move(bounds.x + 8, bounds.y + bounds.height / 2, { steps: 5 });
+	await expect.poll(() => page.evaluate((revision) => {
+		const probe = globalThis.__parallelStackProbe;
+		const mailbox = probe.generations[0].effectMailbox;
+		const current = Atomics.load(new Int32Array(mailbox.control), 0);
+		const differences = probe.effectDifferences('tremolo')?.differences;
+		return probe.generations.length === 1 && probe.workers.filter((worker) => worker.started && !worker.stopped).length === 2
+			&& current > revision && differences?.[0] < 0.00001 && differences?.[1] > 0.1;
+	}, initialRevision), { timeout: 20_000, message: 'the held Depth gesture must change only the owning worker output' }).toBe(true);
+	const previewRevision = await page.evaluate(() => {
+		const mailbox = globalThis.__parallelStackProbe.generations[0].effectMailbox;
+		return Atomics.load(new Int32Array(mailbox.control), 0);
+	});
+	await page.keyboard.press('Escape');
+	await page.mouse.up();
+	await expect.poll(() => page.evaluate((revision) => {
+		const probe = globalThis.__parallelStackProbe;
+		const mailbox = probe.generations[0].effectMailbox;
+		const current = Atomics.load(new Int32Array(mailbox.control), 0);
+		const differences = probe.effectDifferences('tremolo')?.differences;
+		return probe.generations.length === 1 && current > revision
+			&& differences?.[0] > 0.1 && differences?.[1] > 0.1;
+	}, previewRevision), { timeout: 20_000, message: 'Escape must restore the original audible effect without replacing workers' }).toBe(true);
+	await expect(dialog).toBeHidden();
+	await panel.locator('[data-effect-rack]').getByRole('group', { name: 'Tremolo', exact: true })
+		.getByRole('button', { name: 'Select effect', exact: true }).click();
+	await expect(dialog).toBeVisible();
+	await expect(dialog.locator('[data-effect-param="depth"]').getByRole('spinbutton')).toHaveValue('100');
+	await closeDialog(dialog);
+	await closeEffectsPanel(panel);
+	await editor.getByRole('button', { name: 'Stop', exact: true }).click();
+	expect(await page.evaluate(() => globalThis.__parallelStackProbe.errors)).toEqual([]);
 	expect(errors).toEqual([]);
 });
 
