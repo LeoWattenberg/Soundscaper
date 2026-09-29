@@ -169,24 +169,39 @@ async [ENGINE_SCHEDULE_PLAYBACK](this: EngineRuntimeHost, fromFrame, scheduledTi
 			await this[ENGINE_ENSURE_MASTER_LOUDNESS_METER](context);
 		}
 		this[ENGINE_HALT_GRAPH]();
+		const playbackDestination = playbackOutputDestination(
+			this, context, soundscaperNativeAudioDestination(context, context.destination),
+		);
+		const meteringAtBuild = this.meterListeners.size > 0;
+		const prepared = buildPlaybackGraph(this, this.masterLoudnessMeter?.node || playbackDestination, fromFrame);
+		const preparedGraph = prepared instanceof Promise ? await prepared : prepared;
+		// A worker may fault after preparation resolves but before this suspended
+		// scheduler resumes. Its failure callback has already retired that graph.
+		if (!preparedGraph) return scheduledTime;
+		if (preparedGraph.abortController.signal.aborted) {
+			const reason: unknown = preparedGraph.abortController.signal.reason;
+			if (reason instanceof Error && reason.name !== 'AbortError') throw reason;
+			return scheduledTime;
+		}
+		this.graph = preparedGraph;
+		if (meteringAtBuild !== (this.meterListeners.size > 0)) {
+			this[ENGINE_HALT_GRAPH]();
+			return this[ENGINE_SCHEDULE_PLAYBACK](fromFrame, context.currentTime);
+		}
+		if (this.loop.enabled && this.loop.endFrame > this.loop.startFrame
+			&& (fromFrame < this.loop.startFrame || fromFrame >= this.loop.endFrame)) fromFrame = this.loop.startFrame;
 		const stopFrame = this.loop.enabled
 			? this.loop.endFrame
 			: playRangeStopFrame(this.playRange, fromFrame, this.playbackDurationFrames);
 		this.playEndFrame = Math.max(fromFrame, stopFrame);
 		this.playbackStartFrame = fromFrame;
 		this.positionFrame = fromFrame;
-		const playbackDestination = playbackOutputDestination(
-			this, context, soundscaperNativeAudioDestination(context, context.destination),
-		);
-		const prepared = buildPlaybackGraph(this, this.masterLoudnessMeter?.node || playbackDestination, fromFrame);
-		const preparedGraph = prepared instanceof Promise ? await prepared : prepared;
-		// A worker may fault after preparation resolves but before this suspended
-		// scheduler resumes. Its failure callback has already retired that graph.
-		if (!preparedGraph || preparedGraph.abortController.signal.aborted) return scheduledTime;
-		this.graph = preparedGraph;
 		scheduledTime = parallelStackSourceStartTime(preparedGraph, scheduledTime);
 		this.playbackStartTime = scheduledTime + (this.graph.latencyFrames || 0) / (context.sampleRate || DEFAULT_SAMPLE_RATE);
 		const graph = this.graph;
+		const loopAtSchedule = this.loop;
+		const rangeAtSchedule = this.playRange;
+		const meteringAtSchedule = this.meterListeners.size > 0;
 		let schedule;
 		try {
 			schedule = await scheduleProjectClips({
@@ -219,6 +234,11 @@ async [ENGINE_SCHEDULE_PLAYBACK](this: EngineRuntimeHost, fromFrame, scheduledTi
 			throw error;
 		}
 		if (this.graph !== graph) return schedule.contextStartTime;
+		if (this.loop !== loopAtSchedule || this.playRange !== rangeAtSchedule
+			|| meteringAtSchedule !== (this.meterListeners.size > 0)) {
+			this[ENGINE_HALT_GRAPH]();
+			return this[ENGINE_SCHEDULE_PLAYBACK](fromFrame, context.currentTime);
+		}
 		observeActiveStreamCompletion(this, graph, schedule.waitForStreamedClips);
 		recordWebCoreStreamPlayback(schedule.streamedClips);
 		scheduledTime = schedule.contextStartTime;

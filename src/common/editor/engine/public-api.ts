@@ -220,6 +220,8 @@ export interface EnginePublicApi {
 	playAtSpeed(rate: number, options?: EnginePlayAtSpeedOptions): Promise<void>;
 	/** Resolves to the actual context start after asynchronous playback priming. */
 	playAt(contextTime: number, fromFrame?: number): Promise<number>;
+	/** Active graph delay, in AudioContext sample frames; zero when no graph is active. */
+	getPlaybackGraphLatencyFrames(): number;
 	pause(): void;
 	stop(): void;
 	seek(frame: number): number;

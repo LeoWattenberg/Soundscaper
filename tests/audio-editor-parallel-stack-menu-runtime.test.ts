@@ -87,3 +87,22 @@ test('settings cannot change during an unsequenced parallel graph preparation', 
 	cancelParallelStackPreparation(engine);
 	await assert.rejects(preparing, { name: 'AbortError' });
 });
+
+test('settings cannot change while an asynchronous recording start is pending', () => {
+	let recordingStarting = false;
+	const runtime = createParallelStackMenuRuntime({
+		productId: 'soundscaper', desktop: true, recording: false,
+		controller: {
+			engine: { getState: () => ({ state: 'stopped' }) },
+			getSnapshot: () => ({ recording: false, recordingStarting }),
+		},
+		run: (operation) => operation(),
+	});
+	assert.ok(runtime);
+	const before = readParallelStackPreferences();
+	const menu = appendParallelStackProcessingMenu([], runtime, runtime.change)[0]!;
+	recordingStarting = true;
+	assert.equal(materializeApplicationMenu(menu).items?.[0]?.items?.[0]?.disabled, true);
+	assert.throws(() => runtime.change({ enabled: !before.enabled }), /Stop playback and recording/);
+	assert.deepEqual(readParallelStackPreferences(), before);
+});

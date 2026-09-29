@@ -83,8 +83,7 @@ test('a worker fault during graph handoff stops playback before the graph can be
 		input.onFailure(error);
 		return graph;
 	});
-	const result = await buildPlaybackGraph(engine, {} as AudioNode, 0);
-	assert.equal(result, null);
+	await assert.rejects(Promise.resolve(buildPlaybackGraph(engine, {} as AudioNode, 0)), error);
 	assert.equal(graph.abortController.signal.aborted, true);
 	assert.deepEqual(errors, [error]);
 });
@@ -107,6 +106,7 @@ test('a worker fault after graph handoff retires it before transport can assign 
 	assert.equal(await buildPlaybackGraph(engine, {} as AudioNode, 0), graph);
 	fail(error);
 	assert.equal(graph.abortController.signal.aborted, true);
+	assert.equal(graph.abortController.signal.reason, error);
 	assert.deepEqual(errors, [error]);
 });
 

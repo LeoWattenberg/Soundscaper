@@ -17,7 +17,12 @@ interface ParallelStackMenuController {
 		readonly pendingPlayRequest?: number;
 		readonly graph?: object | null;
 	} | null;
-	getSnapshot?(): { readonly recording?: boolean; readonly recordingScheduling?: boolean; readonly scheduledRecording?: unknown };
+	getSnapshot?(): {
+		readonly recording?: boolean;
+		readonly recordingStarting?: boolean;
+		readonly recordingScheduling?: boolean;
+		readonly scheduledRecording?: unknown;
+	};
 }
 
 export function useParallelStackMenuRefresh(): void {
@@ -38,7 +43,8 @@ export function createParallelStackMenuRuntime(input: Readonly<{
 		return {
 			playing: engine?.getState().state === 'playing' || Boolean(engine?.pendingPlayRequest)
 				|| Boolean(engine?.graph) || (engine ? parallelStackPreparationPending(engine) : false),
-			recording: snapshot ? Boolean(snapshot.recording || snapshot.recordingScheduling || snapshot.scheduledRecording) : input.recording,
+			recording: snapshot ? Boolean(snapshot.recording || snapshot.recordingStarting
+				|| snapshot.recordingScheduling || snapshot.scheduledRecording) : input.recording,
 		};
 	};
 	const current = activity();

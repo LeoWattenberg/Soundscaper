@@ -33,7 +33,7 @@ export function buildPlaybackGraph(
 	}
 	return (async () => {
 		let prepared: ProjectGraph | null = null;
-		let failed = false;
+		let failure: Error | null = null;
 		const current = () => !engine.disposed && engine.context === context
 			&& engine.project === project && engine.scrubGeneration === scrubGeneration;
 		try { prepared = await prepareParallelStackPlayback(engine, {
@@ -42,14 +42,18 @@ export function buildPlaybackGraph(
 			playbackMode: engine.playbackMode,
 			playbackRate: engine.playbackRate,
 			onFailure: (error) => {
-				if (!current() || failed) return;
-				failed = true;
+				if (!current() || failure) return;
+				failure = error;
 				// A fault can arrive between worker readiness and transport assigning
 				// the graph. Retire it now so the pending scheduler cannot play it.
-				if (prepared && engine.graph !== prepared) disposeGraph(prepared, true);
+				if (prepared) {
+					prepared.abortController.abort(error);
+					if (engine.graph !== prepared) disposeGraph(prepared, true);
+				}
 				engine[ENGINE_HANDLE_SCHEDULING_ERROR](error);
 			},
 		}); } catch (error) {
+			if (failure) throw failure;
 			if (error instanceof Error && error.name === 'AbortError') return null;
 			throw error;
 		}
@@ -57,9 +61,9 @@ export function buildPlaybackGraph(
 			if (prepared) disposeGraph(prepared, true);
 			return null;
 		}
-		if (failed) {
+		if (failure) {
 			if (prepared) disposeGraph(prepared, true);
-			return null;
+			throw failure;
 		}
 		return prepared ?? conventional();
 	})();
