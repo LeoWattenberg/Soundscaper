@@ -310,6 +310,43 @@ test('metronome scheduling drives and cleans up a Web Audio click without owning
 	assert.throws(() => fixture.service.normalizePlaybackFrame(Number.NaN), /finite/u);
 });
 
+test('metronome click waits for the audible start of buffered playback', async () => {
+	const fixture = createTransportFixture();
+	const starts: number[] = [];
+	fixture.setPositionFrame(0);
+	Object.assign(fixture.engine, { getPlaybackAudibleStartTime: () => 1.09 });
+	fixture.setAudioContext(metronomeContext((when) => { starts.push(when); }));
+	fixture.state.metronomeEnabled = true;
+	fixture.state.transportState = 'playing';
+	await fixture.service.runMetronomeScheduler();
+	assert.equal(starts[0], 1.1, 'the first click follows the output graph and future source start');
+	fixture.service.stopMetronome();
+});
+
+test('metronome replaces a queued click when audible playback starts later', async () => {
+	const fixture = createTransportFixture();
+	const starts: number[] = [];
+	const stops: (number | undefined)[] = [];
+	let audibleStartTime = 1.09;
+	fixture.setPositionFrame(0);
+	Object.assign(fixture.engine, { getPlaybackAudibleStartTime: () => audibleStartTime });
+	fixture.setAudioContext(metronomeContext((when) => { starts.push(when); },
+		(when) => { stops.push(when); }));
+	fixture.state.metronomeEnabled = true;
+	fixture.state.transportState = 'playing';
+	await fixture.service.runMetronomeScheduler();
+	assert.equal(Number(starts[0]?.toFixed(2)), 1.1);
+	const queuedBeforeRestart = starts.length;
+	globalThis.clearTimeout(fixture.state.metronomeTimer);
+	fixture.state.metronomeTimer = 0;
+	audibleStartTime = 1.12;
+	await fixture.service.runMetronomeScheduler();
+	assert.equal(Number(starts[queuedBeforeRestart]?.toFixed(2)), 1.13);
+	assert.equal(stops.filter((when) => when === undefined).length, queuedBeforeRestart,
+		'all clicks queued for the old output origin are cancelled');
+	fixture.service.stopMetronome();
+});
+
 test('turning the metronome off fences an in-flight audio-context lookup', async () => {
 	const fixture = createTransportFixture();
 	let resolveContext!: (value: unknown) => void;
@@ -365,7 +402,7 @@ test('restarting during audio-context lookup cannot overlap metronome schedulers
 	}
 });
 
-function metronomeContext(onStart: (when: number) => void) {
+function metronomeContext(onStart: (when: number) => void, onStop: (when?: number) => void = () => undefined) {
 	return {
 		currentTime: 1,
 		destination: {},
@@ -374,7 +411,7 @@ function metronomeContext(onStart: (when: number) => void) {
 			connect: () => undefined,
 			disconnect: () => undefined,
 			start: onStart,
-			stop: () => undefined,
+			stop: onStop,
 			set onended(_callback: (() => void) | null) { /* retained by the runtime */ },
 		}),
 		createGain: () => ({

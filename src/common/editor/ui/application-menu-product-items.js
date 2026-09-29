@@ -8,6 +8,7 @@ import { createFramescaperNativeServicesMenuItems } from './framescaper-native-s
 import { createSoundscaperNativeServicesMenuItems } from './soundscaper-native-services-menu.ts';
 import { createSoundscaperWorkflowApplicationMenuItems } from './soundscaper-workflow-product-runtime.tsx';
 import { resolveSelectionRange } from '../selection-range.ts';
+import { appendParallelStackProcessingMenu } from './parallel-stack-menu.ts';
 
 export function createApplicationMenuProductTrackItems({ productId, project, editBlocked, copy, actions }) {
 	return createApplicationMenuProductItems({ productId, project, editBlocked, copy, actions }).tracks;
@@ -103,7 +104,9 @@ export function createApplicationMenuProductItems({
 			...soundscaperNativeServices.analyze]),
 		mixer: Object.freeze([...selectedFinishing.mixer, ...soundscaperWorkflows.mixer]),
 		tools: Object.freeze([...selectedFinishing.tools, ...soundscaperWorkflows.tools,
-			...nativeServices.tools, ...soundscaperNativeServices.tools]),
+			...nativeServices.tools, ...appendParallelStackProcessingMenu(soundscaperNativeServices.tools,
+				actions.parallelStackProcessing ? { ...actions.parallelStackProcessing, productId, copy } : null,
+				(patch) => actions.parallelStackProcessing?.change(patch))]),
 		fileImport: nativeServices.fileImport,
 		fileExport: nativeServices.fileExport,
 		view: nativeServices.view,

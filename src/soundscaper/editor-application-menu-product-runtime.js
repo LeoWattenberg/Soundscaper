@@ -2,6 +2,7 @@
 
 import { createSoundscaperNativeServicesMenuItems } from '../common/editor/ui/soundscaper-native-services-menu.ts';
 import { createSoundscaperWorkflowApplicationMenuItems } from '../common/editor/ui/soundscaper-workflow-application-menu.ts';
+import { appendParallelStackProcessingMenu } from '../common/editor/ui/parallel-stack-menu.ts';
 
 const EMPTY_ITEMS = Object.freeze([]);
 
@@ -51,7 +52,9 @@ export function createApplicationMenuProductItems({
 		effect: Object.freeze([...workflows.effect, ...nativeServices.effect]),
 		analyze: workflows.analyze,
 		mixer: workflows.mixer,
-		tools: Object.freeze([...workflows.tools, ...nativeServices.tools]),
+		tools: Object.freeze([...workflows.tools, ...appendParallelStackProcessingMenu(nativeServices.tools,
+			actions.parallelStackProcessing ? { ...actions.parallelStackProcessing, productId, copy } : null,
+			(patch) => actions.parallelStackProcessing?.change(patch))]),
 		fileImport: EMPTY_ITEMS,
 		fileExport: EMPTY_ITEMS,
 		view: EMPTY_ITEMS,

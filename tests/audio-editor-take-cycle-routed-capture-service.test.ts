@@ -67,12 +67,12 @@ test('routed cycle capture pre-registers per-track groups then resamples into ex
 	]);
 });
 
-test('recorders anchor on the resolved playback start when priming defers the loop', async () => {
+test('recorders anchor on audible resolved playback after priming defers the loop', async () => {
 	const fixture = captureFixture({ tracks: ['track-a'], captureSampleRate: 44_100, playbackStartTime: 3.9 });
+	fixture.runtime.engine.getPlaybackGraphLatencyFrames = () => 1536;
 	const service = createTakeCycleRoutedCaptureService(fixture.runtime);
 	await service.start({ kind: 'take-cycle-routed-capture' }, fixture.scope);
-
-	assert.deepEqual(fixture.startOptions, [{ startFrame: Math.ceil(3.9 * 44_100) }]);
+	assert.deepEqual(fixture.startOptions, [{ startFrame: Math.ceil((3.9 + 1536 / 44_100) * 44_100) }]);
 	await service.stop();
 });
 

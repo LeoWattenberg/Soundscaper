@@ -63,6 +63,8 @@ const DYNAMIC_REFERENCE_LABELS = new Map([
 	['recent-project', 'Recent project'],
 	['workspace-custom', 'Custom workspace'],
 	['framescaper-external-display', 'External display'],
+	['parallel-stack-workers', 'Worker limit'],
+	['parallel-stack-buffering', 'Buffering'],
 ]);
 const APPLICATION_MENU_COPY = Object.freeze({
 	...ENGLISH_COPY,
@@ -269,6 +271,11 @@ function applicationMenusForState(product: ProductId, state: ApplicationMenuStat
 		},
 	});
 	const actions = richActions(state.freezeStatus ?? 'none');
+	actions.parallelStackProcessing = {
+		productId: product, desktop: true, blocked: false,
+		preferences: { enabled: false, workerLimit: 'auto', pipelineFrames: 768 },
+		status: { state: 'off' }, change: () => undefined,
+	};
 	const snapshot = {
 		productId: product,
 		project,

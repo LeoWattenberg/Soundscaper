@@ -47,14 +47,14 @@ test('engine streams persisted long sources live and schedules bounded chunks th
 		meterInterval: 1_000,
 	});
 	engine.loadProject(project, new Map(), { chunkSources: new Map([['source-1', provider]]) });
-	assert.equal(await engine.playAt(0, 0), 0.02, 'playAt reports the start deferred for streamed-source priming');
+	assert.equal(await engine.playAt(0, 0), 0.08, 'clocked playback keeps recorder startup time after streamed-source priming');
 	assert.equal(realtime.bufferSources.length, 0, 'live playback never creates a full-source AudioBufferSource');
 	assert.equal(streamClient.opens.length, 1);
 	assert.deepEqual(
 		[streamClient.opens[0].startFrame, streamClient.opens[0].endFrame],
 		[0, 70_000],
 	);
-	assert.equal(streamClient.handles[0].plays[0].contextStartFrame, 960);
+	assert.equal(streamClient.handles[0].plays[0].contextStartFrame, 3_840);
 	assert.ok(realtime.nodeKinds.includes('biquad'));
 	assert.ok(realtime.nodeKinds.includes('compressor'));
 	assert.ok(realtime.nodeKinds.includes('delay'));

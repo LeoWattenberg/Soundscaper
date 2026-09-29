@@ -37,6 +37,7 @@ import {
 	registerEffectAudioParam,
 } from './effect-parameter-bindings.ts';
 import { connectBiquad, connectDelay, connectReverb } from './effect-rack-node-builders.ts';
+import { effectMessageHandler } from './effect-message-dispatch.ts';
 export { effectGraphKey } from './effect-rack-node-registry.ts';
 import {
 	audioWorkletNodeConstructor,
@@ -454,13 +455,16 @@ export function postEffectMessage(
 ): number | false {
 	const key = effectGraphKey(scope, targetId, effectId);
 	const node = graph?.effectNodes?.get(key) as AudioWorkletNode | undefined;
-	if (!node?.port?.postMessage) return false;
+	const handler = effectMessageHandler(graph, key);
+	if (!node?.port?.postMessage && !handler) return false;
 	const currentSequence = graph?.effectMessageSequences?.get(key) || 0;
 	const sequence = requestedSequence == null
 		? currentSequence + 1
 		: safeMessageSequence(requestedSequence, 'revision');
 	if (sequence <= currentSequence) return false;
-	node.port.postMessage({ ...message, revision: sequence, sequence });
+	const envelope = { ...message, revision: sequence, sequence };
+	if (node?.port?.postMessage) node.port.postMessage(envelope);
+	else if (!handler?.post(envelope)) return false;
 	graph?.effectMessageSequences?.set(key, sequence);
 	return sequence;
 }

@@ -69,6 +69,7 @@ Product availability follows each product profile’s command filters and each l
 | Beat Finder | `nyquist:beat` | — | Nyquist | Soundscaper | Audacity |
 | Beats and measures ruler | `beats-measures-ruler` | — | Timeline ruler | Soundscaper, Framescaper | Audacity |
 | Bitcrusher | `bitcrusher` | — | Effect > Distortion and modulation | Soundscaper | Soundscaper local |
+| Buffering | `parallel-stack-buffering` | — | Tools > Audio setup > Processing > Buffering | Soundscaper | Soundscaper local |
 | Built-in generators | `effect://builtin/generators` | — | Generate | Soundscaper | Audacity |
 | Built-in processors | `effect://builtin/processors` | — | Effect | Soundscaper | Audacity |
 | CDDA frames (75 fps) | `snap-cdda` | — | View > Snapping > CD frames | Soundscaper, Framescaper | Soundscaper local |
@@ -320,6 +321,7 @@ Product availability follows each product profile’s command filters and each l
 | PAL frames (25 fps) | `snap-video-pal` | — | View > Snapping > Video frames | Soundscaper, Framescaper | Soundscaper local |
 | Pan Left on Focused Track | `track-pan-left` | Alt+Shift+Left | Track context | Soundscaper, Framescaper | Audacity |
 | Pan Right on Focused Track | `track-pan-right` | Alt+Shift+Right | Track context | Soundscaper, Framescaper | Audacity |
+| Parallel effect stacks | `parallel-stack-enabled` | — | Tools > Audio setup > Processing | Soundscaper | Soundscaper local |
 | Parametric EQ | `eq` | — | Effect > EQ and filters | Soundscaper | Soundscaper local |
 | Paste | `action://paste` | Ctrl+V | Edit | Soundscaper, Framescaper | Audacity |
 | Paste | `action://trackedit/paste-overlap` | Ctrl+Alt+V | Edit > Paste | Soundscaper, Framescaper | Audacity |
@@ -525,6 +527,7 @@ Product availability follows each product profile’s command filters and each l
 | Wahwah | `audacity-wahwah` | — | Effect > Distortion and modulation | Soundscaper | Soundscaper local |
 | Watch folders | `framescaper-watch-folders` | — | Tools | Framescaper | Soundscaper local |
 | Waveform | `action://trackedit/track-view-waveform` | — | Track context > Track visualization | Soundscaper, Framescaper | Audacity |
+| Worker limit | `parallel-stack-workers` | — | Tools > Audio setup > Processing > Worker limit | Soundscaper | Soundscaper local |
 | Zoom in | `zoom-in` | Ctrl+= | View > Zoom | Soundscaper, Framescaper | Audacity |
 | Zoom normal | `zoom-default` | Ctrl+2 | View > Zoom | Soundscaper, Framescaper | Audacity |
 | Zoom out | `zoom-out` | Ctrl+- | View > Zoom | Soundscaper, Framescaper | Audacity |

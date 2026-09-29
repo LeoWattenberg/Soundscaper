@@ -54,6 +54,34 @@ for (const scenario of ['caller cancellation', 'protocol failure']) {
 	});
 }
 
+test('an already primed stream posts its play command before play returns', async () => {
+	const worker = new Endpoint();
+	const outputPort = new Endpoint();
+	const client = new ChunkStreamClient({ workerFactory: () => worker });
+	const handle = client.open({
+		streamId: 'primed-play-deadline',
+		source: {
+			channelCount: 1, frameCount: 128, chunkFrames: 128,
+			async readStorageChunk() { return [new Float32Array(128)]; },
+		},
+		outputPort,
+	});
+	const protocolVersion = outputPort.messages[0].protocolVersion;
+	worker.dispatch({ type: 'stream-ready', streamId: handle.streamId, protocolVersion });
+	outputPort.dispatch({ type: 'worklet-ready', streamId: handle.streamId, protocolVersion, capacity: 1 });
+	await handle.ready;
+	outputPort.dispatch({ type: 'stream-primed', streamId: handle.streamId, packets: 1, frames: 128 });
+	await handle.primed;
+	const play = handle.play({ contextStartFrame: 2_048 });
+	assert.ok(play instanceof Promise);
+	assert.equal(outputPort.messages.at(-1).type, 'play-stream');
+	assert.equal(outputPort.messages.at(-1).contextStartFrame, 2_048);
+	await play;
+	const done = assert.rejects(handle.done, { name: 'AbortError' });
+	client.dispose();
+	await done;
+});
+
 class Endpoint {
 	listeners = new Set();
 	messages = [];

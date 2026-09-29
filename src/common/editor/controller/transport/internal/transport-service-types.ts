@@ -29,7 +29,8 @@ export interface TransportProject {
 }
 
 export type TransportEngine = Pick<EnginePublicApi,
-	| 'getAudioContext' | 'getPositionFrames' | 'getState' | 'pause' | 'play' | 'playAtSpeed' | 'playCutPreview'
+	| 'getAudioContext' | 'getPlaybackAudibleStartTime' | 'getPositionFrames' | 'getState'
+	| 'pause' | 'play' | 'playAtSpeed' | 'playCutPreview'
 	| 'seek' | 'setLoop' | 'setPlayRange' | 'stop'
 >;
 

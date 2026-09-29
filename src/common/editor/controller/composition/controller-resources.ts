@@ -4,6 +4,7 @@ import type { VideoTimingProbePort } from '../../video-timing-probe.ts'; import 
 import type { StaffPadRenderClient } from '../../staffpad/client.js';
 import { createAudioEditorEngine } from '../../engine.js';
 import { enableParallelProductionMeterSessionV21 } from '../../engine/production-meter-runtime-session-v21.ts';
+import { enableParallelEffectStackPlayback } from '../transport/transport-composition.ts';
 import type { EngineMeterSnapshot, EnginePitchPreserver, EnginePublicApi } from '../../engine/public-api.ts';
 import { createAudioEditorFileService } from '../../file-service.js';
 import { createProjectStore } from '../../storage.js';
@@ -70,6 +71,7 @@ export function createControllerResources(options: ControllerResourceOptions, ca
 		onPosition: callbacks.onPosition, onMeter: callbacks.onMeter, onState: callbacks.onState,
 	});
 	if (options.productId === 'soundscaper') enableParallelProductionMeterSessionV21(engine);
+	if (options.productId === 'soundscaper' && fileService.isDesktop) enableParallelEffectStackPlayback(engine);
 	const renderEngineFactory = options.engineFactory || createAudioEditorEngine;
 	const clipTimePitchCache = options.clipTimePitchCache || new ClipTimePitchRenderCacheCoordinator({
 		store, client: options.staffPadRenderClient,

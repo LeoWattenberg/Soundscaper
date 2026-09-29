@@ -45,6 +45,7 @@ export class ChunkStreamPlaybackProcessor extends ProcessorBase {
 		this.currentOffset = 0;
 		this.playing = false;
 		this.contextStartFrame = null;
+		this.contextStartPositionFrame = 0;
 		this.sourceEnded = false;
 		this.primed = false;
 		this.ended = false;
@@ -67,6 +68,12 @@ export class ChunkStreamPlaybackProcessor extends ProcessorBase {
 			if (blockStart != null) {
 				outputOffset = Math.max(0, Math.min(blockFrames, this.contextStartFrame - blockStart));
 				if (outputOffset >= blockFrames) return true;
+				// A late control message must skip the source frames that other tracks
+				// have already played. The packet loop below drops and acknowledges
+				// complete packets before reading the aligned position.
+				this.positionFrame = Math.max(this.positionFrame, Math.min(
+					this.endFrame, this.contextStartPositionFrame + Math.max(0, blockStart - this.contextStartFrame),
+				));
 			}
 			this.contextStartFrame = null;
 		}
@@ -133,6 +140,7 @@ export class ChunkStreamPlaybackProcessor extends ProcessorBase {
 			else if (message.type === 'source-ended') this.#markSourceEnded(message);
 			else if (message.type === 'play-stream') {
 				this.contextStartFrame = optionalStartFrame(message.contextStartFrame);
+				this.contextStartPositionFrame = this.positionFrame;
 				this.playing = true;
 			}
 			else if (message.type === 'pause-stream') this.playing = false;
@@ -188,6 +196,7 @@ export class ChunkStreamPlaybackProcessor extends ProcessorBase {
 		this.currentOffset = 0;
 		this.playing = false;
 		this.contextStartFrame = null;
+		this.contextStartPositionFrame = startFrame;
 		this.sourceEnded = false;
 		this.primed = false;
 		this.ended = false;

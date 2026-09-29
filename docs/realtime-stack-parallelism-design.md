@@ -1,8 +1,74 @@
 # Realtime effect stacks across worker threads
 
-Status: proposed design, 29 September 2026. The metering worker is implemented;
-the DSP backend described here is not. Initial delivery targets Soundscaper
-desktop, followed by the same backend on web after browser qualification.
+Status: desktop opt-in backend implemented, 29 September 2026. The sections below
+describe the target architecture; the delivery boundary is recorded here so
+unimplemented adapters and qualification work remain explicit.
+
+## Implemented desktop backend
+
+Enable **Tools → Audio setup → Processing → Parallel effect stacks** while
+stopped. The setting defaults off and stays outside project state. The menu
+offers an automatic worker limit or 1/2/4/8 workers, and 768/1536-frame pipeline
+buffers (16/32 ms at 48 kHz). The 1536-frame option is the default when enabled;
+the 768-frame option provides lower latency with less scheduling margin. Actual
+workers are bounded by available hardware and stack count. Web playback retains
+its existing DSP backend.
+
+The implementation includes fixed 256-frame blocks, eight shared banks, pinned
+stack ownership, dependency scheduling, terminal output tasks, route/PDC state,
+serial effects per stack, original source scheduling and meters, generation
+cancellation, deadline faults, and sample-accurate finite-range output endpoints.
+Processors warm up on four silent blocks and reset their histories in place
+before workers acknowledge readiness, including RNG and EQ filter state.
+Assignments currently use deterministic topological round-robin placement;
+measured-cost balancing remains future work.
+
+Admitted effects reuse parametric EQ's existing WASM runtime, bitcrusher,
+de-esser, multiband compression, standard filters, tremolo, vocoder, noise gate,
+unpitched multi-tap delay, and the existing limiter/gate recurrences. Explicit
+sidechains are qualified for limiter and gate. Channel maps preserve explicit
+mapping and mono panner widening; implicit maps must already have the destination
+width. Ambiguous dynamic-width conversion falls back to the conventional graph.
+
+Admission applies to the whole V21 graph. Authored automation lanes and legacy
+strip envelopes, authored audio warp, ADM, variable-speed modes, pitched delay,
+native/Audacity plug-ins, and other unsupported effects use the conventional
+backend. The menu shows the refusal reason. Live edits use the existing graph
+rebuild path; the bounded interactive event schedule and authored automation
+consumer specified below are not yet enabled. Offline/freeze rendering keeps
+its existing engine. A failed running configuration uses the conventional engine
+on subsequent Play until processing is disabled or its configuration changes.
+
+Automated tests cover real worker execution, serial-kernel parity, sidechain and
+terminal PDC, buffer ownership and wrap, startup cancellation, exact endpoints,
+and menu admission. Chromium tests additionally exercise audible processed PCM,
+two active workers, a 500 ms UI stall, stop/restart, and unsupported-effect
+fallback. The longer hardware/OS qualification and performance measurements in
+the acceptance gates remain required before enabling this backend by default
+or making a throughput claim.
+
+A separate Electron regression uses the real `soundscaper-app://bundle` protocol,
+production isolation headers, real workers and an AudioWorklet to verify the
+same UI-stall behavior. Its CI launch disables the OS sandbox; it verifies
+renderer isolation and shared-memory operation, not OS sandbox enforcement.
+
+The real-worker ordering test checks every sample of two distinct tracks over
+40 blocks and five bank wraps while one worker runs two blocks ahead. A Chromium
+test checks the 330/660 Hz tracks' relative phase in completed blocks and the
+phase progression of consecutive blocks. Both tests verify track alignment and
+chunk order beyond the peak-level smoke test.
+
+Run `node --import tsx scripts/benchmark-parallel-effect-stacks.mjs` to compare
+the production collector and workers with the same DSP plan executed serially on
+the callback thread. On one Linux host, four stereo tracks with three bitcrushers
+each at 48 kHz and 32 ms buffering used 113–120 ms of callback-thread CPU over
+four measured seconds, versus 352–358 ms for the serial proxy; output checksums
+matched. Total process CPU rose to 509–536 ms from 365–444 ms. Repeated 16 ms
+runs missed deadlines on that host, and a heavier eight-track, six-effect graph
+also missed a 32 ms deadline. These are Node proxy measurements, not a comparison
+with Chromium's conventional Web Audio graph or proof of lower total CPU. The
+backend remains opt-in, with a deadline fault returning subsequent Play to the
+conventional engine.
 
 ## Decision
 
@@ -72,19 +138,20 @@ security requirements. [MDN isolation reference](https://developer.mozilla.org/e
 
 ## Block geometry and thread ownership
 
-The following are prototype settings, subject to measured admission gates:
+The implemented geometry is subject to the broader hardware admission gates:
 
-| Setting | Initial value |
+| Setting | Current value |
 | --- | --- |
-| Render quantum `Q` | Read from the callback; qualify the initial implementation for 128 frames. |
+| Render quantum `Q` | 128 frames; another callback size faults the generation. |
 | DSP block `B` | 256 context-rate frames, two qualified quanta. |
-| Common pipeline delay `Lpipe` | 768 frames, three blocks. |
-| Processing window after collection | `Lpipe - B = 512` frames. |
+| Common pipeline delay `Lpipe` | 1536 frames by default, six blocks; 768 frames can be selected for lower latency. |
+| Processing window after collection | `Lpipe - B = 1280` frames by default, or 512 frames in the lower-latency mode. |
 | Shared banks `K` | 8; require at least `ceil(Lpipe / B) + 2`. |
 | Worker count `W` | At most 8, at most the admitted stack count, initially bounded by `hardwareConcurrency - 2`, with a floor of 1. Treat that API as a hint and use measured admission. |
 
-At 48 kHz this adds 16 ms and allows 10.67 ms from block collection to its first
-output frame. At 96 kHz those numbers halve, so the same frame counts do not
+At 48 kHz the default adds 32 ms and allows 26.67 ms from block collection to
+its first output frame; the lower-latency mode adds 16 ms and allows 10.67 ms.
+At 96 kHz those numbers halve, so the same frame counts do not
 provide the same scheduling margin. A larger mode can be selected only while
 stopped; block size and latency stay fixed within a running generation.
 Align the generation's future context-frame origin to `Q`. An unsupported or

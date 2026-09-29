@@ -35,17 +35,20 @@ export async function scheduleExactWarpPlayback(
 	prepared: PreparedAudioWarpPlayback,
 	fromFrame: number,
 	scheduledTime: number,
-): Promise<void> {
+	isCurrent: () => boolean,
+	minimumStartLeadSeconds = 0,
+): Promise<number> {
 	const context = engine.context;
-	if (!context || !engine.project) return;
+	if (!context || !engine.project) return scheduledTime;
 	const generation = (exactWarpScheduleGenerations.get(engine) ?? 0) + 1;
 	exactWarpScheduleGenerations.set(engine, generation);
 	if (engine.meterListeners.size && !engine.masterLoudnessMeter && !engine.masterLoudnessMeterError) {
 		await engine[ENGINE_ENSURE_MASTER_LOUDNESS_METER](context);
 	}
+	if (!isCurrent() || exactWarpScheduleGenerations.get(engine) !== generation) return scheduledTime;
 	const activeWindow = await exactWindowAt(engine, prepared, fromFrame);
 	if (!activeWindow || engine.context !== context || !engine.project
-		|| exactWarpScheduleGenerations.get(engine) !== generation) return;
+		|| !isCurrent() || exactWarpScheduleGenerations.get(engine) !== generation) return scheduledTime;
 	engine[ENGINE_HALT_GRAPH]();
 	const frame = clampFrame(fromFrame, activeWindow.startFrame, activeWindow.endFrame);
 	const nodes: AudioNode[] = [];
@@ -65,7 +68,6 @@ export async function scheduleExactWarpPlayback(
 		: playRangeStopFrame(engine.playRange, frame, engine.durationFrames);
 	engine.playbackStartFrame = frame;
 	engine.positionFrame = frame;
-	engine.playbackStartTime = scheduledTime;
 	engine.loopScheduleTime = Number.POSITIVE_INFINITY;
 	const current = scheduleWindow(
 		engine,
@@ -73,12 +75,15 @@ export async function scheduleExactWarpPlayback(
 		activeWindow,
 		scheduledTime,
 		frame - activeWindow.startFrame,
+		minimumStartLeadSeconds,
 	);
+	engine.playbackStartTime = current.startTime;
 	current.prefetchFollowing();
 	engine[ENGINE_SET_STATE]('playing');
 	engine.masterLoudnessMeter?.setRunning(!engine.loudnessMeasurementManuallyPaused);
 	engine[ENGINE_START_TICKER]();
 	engine[ENGINE_EMIT_POSITION]();
+	return current.startTime;
 }
 
 /** A seek or loop change can request a frame the prepared window cannot answer. */
@@ -105,6 +110,7 @@ function scheduleWindow(
 	prepared: PreparedAudioWarpPlayback,
 	scheduledTime: number,
 	offsetFrames = 0,
+	minimumStartLeadSeconds = 0,
 ): ScheduledExactWarpWindow {
 	const context = engine.context;
 	if (!context || engine.graph !== graph || graph.abortController.signal.aborted) {
@@ -134,6 +140,7 @@ function scheduleWindow(
 	};
 	source.onended = release;
 	try {
+		scheduledTime = Math.max(scheduledTime, context.currentTime + minimumStartLeadSeconds);
 		source.start(scheduledTime, offsetFrames / prepared.sampleRate);
 		graph.sources.add(source);
 	} catch (error) {
@@ -143,6 +150,7 @@ function scheduleWindow(
 	const scheduledEndTime = scheduledTime
 		+ (prepared.frameCount - offsetFrames) / prepared.sampleRate;
 	return Object.freeze({
+		startTime: scheduledTime,
 		prefetchFollowing(): void {
 			if (wholeLoop || prefetchStarted) return;
 			prefetchStarted = true;
@@ -160,6 +168,7 @@ function scheduleWindow(
 }
 
 interface ScheduledExactWarpWindow {
+	readonly startTime: number;
 	prefetchFollowing(): void;
 }
 

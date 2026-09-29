@@ -97,6 +97,17 @@ test('routed capture initializes assigned entries and hands one recorder to the 
 	assert.equal(fixture.finalizeCalls(), 1);
 });
 
+test('routed capture begins at audible backing after graph latency', async () => {
+	const fixture = createRecordingCaptureFixture({ playAt: async () => 4.1, playbackGraphLatencyFrames: 1536 });
+	fixture.state.recordingRouting = {
+		routes: { 'track-1': { kind: 'device', deviceId: 'mic', channelStart: 0, channelCount: 1 } },
+		offsets: {},
+	};
+	await createRoutedRecordingCaptureService(fixture.runtime).capture({ trackId: 'track-1' }, createScope(() => true));
+	assert.deepEqual(fixture.recorderStartOptions, [{ startFrame: 198_336, stopFrame: undefined }]);
+	assert.equal(fixture.state.recordingEntries?.[0]?.recordingStartFrame, 100);
+});
+
 test('routed capture drops a failed source controller and preserves its failure', async () => {
 	const controllerFailure = new Error('worklet failed');
 	const fixture = createRecordingCaptureFixture({

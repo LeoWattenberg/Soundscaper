@@ -89,6 +89,15 @@ export {
 /** @type {import('rolldown').CodeSplittingGroup[]} */
 export const chunkGroups = [
 	{
+		// DSP preparation and kernels load only after parallel playback is admitted.
+		name: 'editor-parallel-stacks',
+		test: /src[\\/]common[\\/]editor[\\/](?:engine[\\/]parallel-stack-(?!(?:preferences|playback)\.ts$)[^\\/]+\.ts|controller[\\/]transport[\\/]internal[\\/]parallel-stack-session\.ts)$/,
+		priority: 99,
+		minSize: 0,
+		maxSize: 400_000,
+		includeDependenciesRecursively: false,
+	},
+	{
 		// Main-process video encoding is requested only by an export operation.
 		// Keep its renderer adapter with that dynamic entry instead of the editor.
 		name: 'editor-desktop-video-codec-runtime',

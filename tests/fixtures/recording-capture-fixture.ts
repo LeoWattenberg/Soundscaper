@@ -123,6 +123,7 @@ interface RuntimeOptions {
 	) => Promise<RecordingCaptureControllerLike>;
 	readonly selection?: RecordingSelection | null;
 	readonly playAt?: (scheduledTime: number, startFrame: number) => Promise<number | void>;
+	readonly playbackGraphLatencyFrames?: number;
 	readonly streamIsLive?: () => boolean;
 	readonly soundActivationSettings?: SoundActivationSettings | null;
 	readonly streamChannelCount?: number;
@@ -184,6 +185,7 @@ export function createRecordingCaptureFixture(options: RuntimeOptions = {}) {
 				resume: async () => {},
 			}),
 			getPositionFrames: () => 100,
+			getPlaybackGraphLatencyFrames: () => options.playbackGraphLatencyFrames ?? 0,
 			setLoop: () => {},
 			seek: (frame) => { seekCalls.push(frame); },
 			playAt: async (scheduledTime, startFrame) => {

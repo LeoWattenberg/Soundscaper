@@ -173,6 +173,18 @@ test('legacy count-in preserves singleton timing for a map-absent project', asyn
 	assert.deepEqual(fixture.seekCalls, [0]);
 });
 
+test('legacy capture begins at audible backing after graph latency, including count-in and punch', async () => {
+	const fixture = createRecordingCaptureFixture({
+		selection: { startFrame: 20, endFrame: 80 },
+		playAt: async () => 4.1,
+		playbackGraphLatencyFrames: 1536,
+	});
+	fixture.state.leadInRecording = true;
+	await createLegacyRecordingCaptureService(fixture.runtime).capture({}, createScope(() => true));
+	assert.deepEqual(fixture.recorderStartOptions, [{ startFrame: 198_356, stopFrame: 198_416 }]);
+	assert.equal(fixture.state.recordingStartFrame, 20);
+});
+
 test('legacy capture rolls back timed-past and playback-start failures after handoff', async () => {
 	const past = createRecordingCaptureFixture();
 	await assert.rejects(
@@ -196,6 +208,28 @@ test('legacy capture rolls back timed-past and playback-start failures after han
 	);
 	assert.equal(playback.state.recordingCleanup, null);
 	assert.equal(playback.state.recorder, null);
+});
+
+test('legacy capture stops backing playback if the recorder cannot start', async () => {
+	const failure = new Error('recorder missed its start');
+	const fixture = createRecordingCaptureFixture({
+		createRecorder: async () => ({
+			start() { throw failure; },
+			pause() {}, resume() {}, async stop() {}, async dispose() {},
+			setMonitoring() {}, setInputGain() {},
+		}),
+	});
+	let pauses = 0;
+	Object.defineProperty(fixture.runtime.engine, 'pause', { value: () => { pauses += 1; } });
+	await assert.rejects(
+		createLegacyRecordingCaptureService(fixture.runtime).capture(
+			{ trackId: 'track-1' }, createScope(() => true),
+		),
+		failure,
+	);
+	assert.equal(fixture.playAtCalls.length, 1);
+	assert.equal(pauses, 1);
+	assert.equal(fixture.state.recorder, null);
 });
 
 test('legacy recorder callbacks ignore superseded work and handle silent chunks', async () => {

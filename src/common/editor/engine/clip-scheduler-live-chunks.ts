@@ -11,8 +11,15 @@ import type { UnknownRecord } from './types.ts';
 import type { ChunkAudioNodeFactory, ChunkStreamClientLike, ChunkStreamHandle, ScheduledChunkStreamUnderrun } from './clip-scheduler.ts';
 
 const STREAM_RESAMPLE_RADIUS = 24;
+const SHARED_START_LEAD_QUANTA = 2;
 export const LIVE_STREAM_PREPARE_AHEAD_SECONDS = 5;
 export const MAX_LIVE_STREAM_PREPARATIONS = 8;
+
+export function assertSharedPlaybackStart(context: BaseAudioContext, startTime: number): void {
+	if (startTime - context.currentTime <= SHARED_START_LEAD_QUANTA * 128 / context.sampleRate) {
+		throw new Error('The streamed and buffered sources missed their shared playback start.');
+	}
+}
 
 export async function prepareLiveChunkPlans(
 	plans: readonly ClipSchedulePlan[],
@@ -21,12 +28,28 @@ export async function prepareLiveChunkPlans(
 ): Promise<PreparedLiveChunkPlan[]> {
 	const prepared = new Array<PreparedLiveChunkPlan>(plans.length);
 	let next = 0;
+	let failed = false;
+	const cancel = (item: PreparedLiveChunkPlan): void => {
+		try { item.cancel(); } catch { /* Preserve the preparation failure. */ }
+	};
 	const worker = async (): Promise<void> => {
-		while (next < plans.length) {
-			throwIfAborted(signal);
-			const index = next++;
-			const plan = plans[index];
-			if (plan) prepared[index] = await prepare(plan);
+		try {
+			while (next < plans.length && !failed) {
+				throwIfAborted(signal);
+				const index = next++;
+				const plan = plans[index];
+				if (!plan) continue;
+				const item = await prepare(plan);
+				if (failed) { cancel(item); return; }
+				prepared[index] = item;
+				throwIfAborted(signal);
+			}
+		} catch (error) {
+			if (!failed) {
+				failed = true;
+				for (const item of prepared) if (item) cancel(item);
+			}
+			throw error;
 		}
 	};
 	await Promise.all(Array.from({ length: Math.min(plans.length, MAX_LIVE_STREAM_PREPARATIONS) }, worker));
@@ -149,6 +172,7 @@ export interface LiveChunkPlanOptions {
 	readonly onStreamUnderrun: ((details: ScheduledChunkStreamUnderrun) => void) | null;
 	readonly streamQueuePackets: number | null;
 	readonly streamPrebufferPackets: number | null;
+	readonly enforceSharedStartDeadline: boolean;
 }
 
 export interface PreparedLiveChunkPlan {
@@ -169,6 +193,7 @@ export async function prepareLiveChunkPlan({
 	onStreamUnderrun,
 	streamQueuePackets,
 	streamPrebufferPackets,
+	enforceSharedStartDeadline,
 }: LiveChunkPlanOptions): Promise<PreparedLiveChunkPlan> {
 	if (!plan.chunkSource) throw longSourceError('The long-source clip provider is unavailable.');
 	const transientNodes = getTransientNodes(allNodes);
@@ -269,7 +294,10 @@ export async function prepareLiveChunkPlan({
 					timelineRate,
 					plan,
 				);
-				void activeHandle.play({ contextStartFrame: Math.max(0, Math.round(startTime * context.sampleRate)) });
+				if (enforceSharedStartDeadline) assertSharedPlaybackStart(context, startTime);
+				void Promise.resolve(activeHandle.play({
+					contextStartFrame: Math.max(0, Math.round(startTime * context.sampleRate)),
+				})).catch(() => undefined);
 			},
 		};
 	} catch (error) {

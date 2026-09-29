@@ -372,9 +372,9 @@ test('scheduled exact warp starts snap into the active loop instead of rejecting
 	engine.loadProject(warpProject());
 	engine.setLoop({ enabled: true, startFrame: 0, endFrame: 2 });
 
-	await engine.playAt(0, 3);
+	const scheduled = await engine.playAt(0, 3);
 	assert.equal(engine.getState().positionFrame, 0);
-	assert.deepEqual(events.filter((event) => event.startsWith('start:')), ['start:0:0']);
+	assert.deepEqual(events.filter((event) => event.startsWith('start:')), [`start:${String(scheduled)}:0`]);
 	await engine.dispose();
 });
 

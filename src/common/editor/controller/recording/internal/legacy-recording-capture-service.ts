@@ -16,7 +16,7 @@ import { compactSoundActivationSegments } from './sound-activation/sound-activat
 import { recordingCapturePeakDb } from './recording-capture-channels.ts';
 import { scaleSampleFrame } from '../../../timeline-time.ts';
 import { timedRecordingStopFrame } from '../recording-model.ts';
-import { planRecordingStartTiming } from './recording-start-timing.ts';
+import { audibleRecordingStartTime, planRecordingStartTiming } from './recording-start-timing.ts';
 
 function errorName(error: unknown): string | undefined {
 	return (error as Readonly<{ name?: string }> | null)?.name;
@@ -49,6 +49,7 @@ export function createLegacyRecordingCaptureService(runtime: RecordingCaptureCom
 		let writer: RecordingSourceWriter | null = null;
 		let recorder: RecordingCaptureControllerLike | null = null;
 		let soundActivation: SoundActivatedRecordingCaptureSession | null = null;
+		let playbackStarted = false;
 		const ownsGeneration = () => scope.generation === state.recordingStartGeneration;
 		const ownsStart = () => {
 			if (!ownsGeneration()) return false;
@@ -242,18 +243,21 @@ export function createLegacyRecordingCaptureService(runtime: RecordingCaptureCom
 					scheduledTime,
 					timing.seekFrame,
 				);
+				playbackStarted = true;
 				scope.assertCurrent();
-				recorder.start(recorderSchedule(
-					typeof playbackStartTime === 'number' && Number.isFinite(playbackStartTime)
-						? playbackStartTime
-						: scheduledTime,
-				));
+				recorder.start(recorderSchedule(audibleRecordingStartTime(
+					playbackStartTime, scheduledTime,
+					runtime.engine.getPlaybackGraphLatencyFrames?.() ?? 0, context.sampleRate,
+				)));
 				state.recordingPaused = false;
 				publishLocalizedStatus(runtime.setStatus, runtime.messages.recording, { key: 'recording' });
 				runtime.updateTransportState('recording');
 			}
 		} catch (error) {
 			const handedOff = Boolean(!ownsGeneration() && recorder && state.recorder === recorder);
+			if (playbackStarted && ownsStart()) {
+				try { runtime.engine.pause(); } catch { /* Preserve the recording failure. */ }
+			}
 			if (ownsStart()) {
 				state.recordingCleanup?.();
 				state.recordingCleanup = null;

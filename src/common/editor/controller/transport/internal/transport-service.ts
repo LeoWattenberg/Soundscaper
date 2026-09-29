@@ -377,6 +377,9 @@ export function createEditorTransportService<Project extends TransportProject = 
 		const framesPerSecond = sampleRate * playbackRate;
 		if (!Number.isFinite(framesPerSecond) || framesPerSecond <= 0) return;
 		const position = Math.max(0, engine.getPositionFrames());
+		const playbackStartTime = engine.getPlaybackAudibleStartTime?.() ?? null;
+		const audibleStartTime = playbackStartTime !== null && Number.isFinite(playbackStartTime)
+			? playbackStartTime : null;
 		const loop = project?.loop?.enabled && project.loop.endFrame > project.loop.startFrame
 			? project.loop : null;
 		let anchor = state.metronomeAnchor;
@@ -391,10 +394,18 @@ export function createEditorTransportService<Project extends TransportProject = 
 		const drift = loop && position >= loop.startFrame && position < loop.endFrame
 			? Math.min(distance, loop.endFrame - loop.startFrame - distance) : distance;
 		if (!anchor || anchor.playbackRate !== playbackRate
+			|| anchor.audibleStartTime !== audibleStartTime
 			|| anchor.loopStartFrame !== (loop?.startFrame ?? null)
 			|| anchor.loopEndFrame !== (loop?.endFrame ?? null)
 			|| drift > METRONOME_RESYNC_SECONDS * framesPerSecond) {
-			anchor = { contextTime: context.currentTime, frame: position, cursorFrame: position, playbackRate,
+			if (anchor) {
+				for (const oscillator of state.metronomePending ?? []) {
+					try { oscillator.stop(); } catch { /* Already stopped. */ }
+				}
+				state.metronomePending = [];
+			}
+			anchor = { contextTime: Math.max(context.currentTime, audibleStartTime ?? context.currentTime),
+				frame: position, cursorFrame: position, playbackRate, audibleStartTime,
 				loopStartFrame: loop?.startFrame ?? null, loopEndFrame: loop?.endFrame ?? null };
 			state.metronomeAnchor = anchor;
 		}

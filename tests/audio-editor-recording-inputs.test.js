@@ -239,6 +239,34 @@ test('recording worklet keeps chunk frame starts contiguous across quantum bound
 	}
 });
 
+test('recording worklet preserves time as silence when an input block has no channels', () => {
+	const previousFrame = globalThis.currentFrame;
+	try {
+		const processor = new StreamingRecorderProcessor({
+			processorOptions: { channelCount: 1, chunkFrames: 128 },
+		});
+		const messages = [];
+		processor.port.postMessage = (message) => messages.push(message);
+		globalThis.currentFrame = 0;
+		processor.port.onmessage({ data: { type: 'start', startFrame: 0, stopFrame: 384 } });
+		processor.process([[new Float32Array(128).fill(0.25)]], [[new Float32Array(128)]]);
+		globalThis.currentFrame = 128;
+		processor.process([[]], [[new Float32Array(128)]]);
+		globalThis.currentFrame = 256;
+		processor.process([[new Float32Array(128).fill(0.5)]], [[new Float32Array(128)]]);
+		const chunks = messages.filter(({ type }) => type === 'audio-chunk');
+		assert.deepEqual(chunks.map(({ frameStart, frames }) => ({ frameStart, frames })), [
+			{ frameStart: 0, frames: 128 }, { frameStart: 128, frames: 128 }, { frameStart: 256, frames: 128 },
+		]);
+		assert.deepEqual(chunks.map(({ channels }) => channels[0][0]), [0.25, 0, 0.5]);
+		assert.ok(chunks[1].channels[0].every((sample) => sample === 0));
+		assert.equal(messages.find(({ type }) => type === 'stopped')?.frame, 384);
+	} finally {
+		if (previousFrame === undefined) delete globalThis.currentFrame;
+		else globalThis.currentFrame = previousFrame;
+	}
+});
+
 test('recording worklet stops at its producer credit bound while main thread is stalled', () => {
 	const processor = new StreamingRecorderProcessor({
 		processorOptions: { channelCount: 2, chunkFrames: 128, maxPendingChunks: 2 },

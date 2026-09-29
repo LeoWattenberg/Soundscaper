@@ -23,6 +23,22 @@ export interface RecordingStartTimingPlan {
 	readonly captureStartFrame: (contextStartTime: number) => number;
 }
 
+/** The recorder starts when project audio reaches the output clock. */
+export function audibleRecordingStartTime(
+	playbackStartTime: unknown,
+	requestedStartTime: number,
+	graphLatencyFrames: number,
+	contextSampleRate: number,
+): number {
+	if (!Number.isSafeInteger(graphLatencyFrames) || graphLatencyFrames < 0
+		|| !Number.isFinite(contextSampleRate) || contextSampleRate <= 0) {
+		throw new RangeError('Invalid playback graph latency for recording.');
+	}
+	const sourceStartTime = typeof playbackStartTime === 'number' && Number.isFinite(playbackStartTime)
+		? playbackStartTime : requestedStartTime;
+	return sourceStartTime + graphLatencyFrames / contextSampleRate;
+}
+
 /** Resolve the timing shared by legacy and routed recording starts. */
 export function planRecordingStartTiming({
 	project,

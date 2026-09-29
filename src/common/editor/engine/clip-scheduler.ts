@@ -16,6 +16,7 @@ import {
 	createReversedChunkSource,
 } from './clip-scheduler-chunk-sources.ts';
 import {
+	assertSharedPlaybackStart,
 	LIVE_STREAM_PREPARE_AHEAD_SECONDS,
 	prepareLiveChunkPlan,
 	prepareLiveChunkPlans,
@@ -121,6 +122,8 @@ export interface ScheduleProjectClipsOptions {
 	readonly onProgress?: ((progress: ScheduleProgress) => void) | null;
 	readonly onStreamUnderrun?: ((details: ScheduledChunkStreamUnderrun) => void) | null;
 	readonly deferStartUntilPrimed?: boolean;
+	/** Keep clocked capture starts ahead of the audio thread after asynchronous priming. */
+	readonly minimumStartLeadSeconds?: number;
 	/**
 	 * How deep each streamed clip queues, and how much it banks before it starts.
 	 * Monitoring wants the shallow defaults so the transport responds; a render that
@@ -156,6 +159,7 @@ export async function scheduleProjectClips({
 	onProgress = null,
 	onStreamUnderrun = null,
 	deferStartUntilPrimed = false,
+	minimumStartLeadSeconds = 0,
 	streamQueuePackets = null,
 	streamPrebufferPackets = null,
 }: ScheduleProjectClipsOptions): Promise<Readonly<{
@@ -222,6 +226,7 @@ export async function scheduleProjectClips({
 				onStreamUnderrun,
 				streamQueuePackets,
 				streamPrebufferPackets,
+				enforceSharedStartDeadline: deferStartUntilPrimed,
 			});
 		};
 		const prepareAheadFrames = LIVE_STREAM_PREPARE_AHEAD_SECONDS * sampleRate * transportRate;
@@ -245,8 +250,10 @@ export async function scheduleProjectClips({
 		}
 	}
 
-	const actualContextStartTime = streamed.length && deferStartUntilPrimed
-		? Math.max(contextStartTime, (context.currentTime || 0) + 0.02)
+	const startLeadSeconds = Math.max(minimumStartLeadSeconds,
+		chunkPlans.length && deferStartUntilPrimed ? 0.02 : 0);
+	const actualContextStartTime = startLeadSeconds > 0
+		? Math.max(contextStartTime, context.currentTime + startLeadSeconds)
 		: contextStartTime;
 	scheduleProjectGains({
 		context,
@@ -267,22 +274,33 @@ export async function scheduleProjectClips({
 		transportRate,
 		tempoMap: project.tempoMap,
 	});
-	for (const plan of plans) {
-		if (!plan.originalBuffer) continue;
-		scheduleBufferPlan({
-			plan,
-			context,
-			contextStartTime: actualContextStartTime,
-			fromFrame,
-			sampleRate,
-			transportRate,
-			reversedBuffers,
-			activeSources,
-			allNodes,
-		});
-	}
-	for (const prepared of streamed) {
-		prepared.start(actualContextStartTime, fromFrame, sampleRate, transportRate);
+	const beforeSharedStart = chunkPlans.length && deferStartUntilPrimed
+		? (startTime: number): void => assertSharedPlaybackStart(context, startTime)
+		: null;
+	try {
+		for (const plan of plans) {
+			if (!plan.originalBuffer) continue;
+			scheduleBufferPlan({
+				plan,
+				context,
+				contextStartTime: actualContextStartTime,
+				fromFrame,
+				sampleRate,
+				transportRate,
+				reversedBuffers,
+				activeSources,
+				allNodes,
+				beforeStart: beforeSharedStart,
+			});
+		}
+		for (const prepared of streamed) {
+			prepared.start(actualContextStartTime, fromFrame, sampleRate, transportRate);
+		}
+	} catch (error) {
+		for (const prepared of streamed) {
+			try { prepared.cancel(); } catch { /* Preserve the scheduling failure. */ }
+		}
+		throw error;
 	}
 	const laterDone = prepareLater?.() ?? Promise.resolve();
 	if (totalChunkFrames && mode === 'offline') {
@@ -307,6 +325,7 @@ interface BufferPlanOptions {
 	readonly reversedBuffers: WeakMap<AudioBuffer, AudioBuffer>;
 	readonly activeSources: Set<AudioScheduledSourceNode>;
 	readonly allNodes: AudioNodeArray;
+	readonly beforeStart?: ((startTime: number) => void) | null;
 }
 
 function scheduleBufferPlan({
@@ -319,6 +338,7 @@ function scheduleBufferPlan({
 	reversedBuffers,
 	activeSources,
 	allNodes,
+	beforeStart = null,
 }: BufferPlanOptions): void {
 	if (!plan.originalBuffer) return;
 	const transientNodes = getTransientNodes(allNodes);
@@ -345,6 +365,13 @@ function scheduleBufferPlan({
 		timelineRate,
 		plan,
 	);
+	if (beforeStart) {
+		try { beforeStart(startTime); }
+		catch (error) {
+			releaseTransientNodes(transientNodes, scheduledNodes);
+			throw error;
+		}
+	}
 	try {
 		source.start(startTime, plan.offsetFrame / buffer.sampleRate, plan.segmentDuration * plan.playbackRate);
 		activeSources.add(source);
