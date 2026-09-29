@@ -16,6 +16,7 @@ import type {
 	RecordingSelection,
 } from '../../recording-transaction-types.ts';
 import type { RecordingStartScope } from '../recording-session-service.ts';
+import type { ClockedPlaybackStartHook } from '../../../../engine/clocked-playback-start.ts';
 
 export type { TakeCycleRoutedCaptureProject } from './take-cycle-routed-capture-validation.ts';
 
@@ -24,7 +25,7 @@ export interface TakeCycleRoutedCaptureEngine {
 	getPlaybackGraphLatencyFrames?(): number;
 	setLoop(loop: Readonly<{ readonly enabled: true; readonly startFrame: number; readonly endFrame: number }>): unknown;
 	seek(frame: number): unknown;
-	playAt(contextTime: number, frame: number): Promise<unknown>;
+	playAt(contextTime: number, frame: number, onBeforeStart?: ClockedPlaybackStartHook): Promise<unknown>;
 	pause(): void;
 }
 

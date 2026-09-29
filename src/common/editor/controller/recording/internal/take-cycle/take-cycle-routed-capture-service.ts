@@ -48,7 +48,7 @@ import {
 	settleTakeCycleRecordingSessionAfterInterruption,
 } from './take-cycle-routed-capture-settlement.ts';
 import { acquireTakeCycleRoutedSources } from './take-cycle-routed-source-acquisition.ts';
-import { audibleRecordingStartTime } from '../recording-start-timing.ts';
+import { startTakeCycleRoutedPlayback } from './take-cycle-routed-playback-start.ts';
 export type {
 	TakeCycleRoutedCaptureEngine,
 	TakeCycleRoutedCaptureProject,
@@ -288,23 +288,16 @@ export function createTakeCycleRoutedCaptureService(
 				onInterrupted: (error, source) => interruptCapture(pending, error, source),
 			});
 			assertCaptureCurrent(pending);
-			const scheduledTime = context.currentTime + 0.08;
 			runtime.engine.setLoop({
 				enabled: true,
 				startFrame: project.loop.startFrame,
 				endFrame: project.loop.endFrame,
 			});
 			runtime.engine.seek(project.loop.startFrame);
-			const playbackStartTime = await runtime.engine.playAt(scheduledTime, project.loop.startFrame);
-			assertCaptureCurrent(pending);
-			const startFrame = Math.ceil(captureSampleRate * audibleRecordingStartTime(
-				playbackStartTime, scheduledTime,
-				runtime.engine.getPlaybackGraphLatencyFrames?.() ?? 0, context.sampleRate,
-			));
-			for (const source of controlled) {
-				source.controller!.start({ startFrame });
-				assertCaptureCurrent(pending);
-			}
+			await startTakeCycleRoutedPlayback({
+				context, engine: runtime.engine, loopStartFrame: project.loop.startFrame,
+				sources: controlled, assertCurrent: () => assertCaptureCurrent(pending),
+			});
 			return pending;
 		} catch (error) {
 			await rollbackCaptureOnce(pending, error);

@@ -32,7 +32,7 @@ test('routed cycle capture pre-registers per-track groups then resamples into ex
 	assert.ok(fixture.events.indexOf('begin-lane:track-b') < fixture.events.indexOf('create-recorder'));
 	assert.deepEqual(fixture.loopCalls, [{ enabled: true, startFrame: 100, endFrame: 500 }]);
 	assert.deepEqual(fixture.seekCalls, [100]);
-	assert.deepEqual(fixture.startOptions, [{ startFrame: 165_287 }]);
+	assert.deepEqual(fixture.startOptions, [{ startFrame: 172_784 }]);
 	assert.deepEqual(fixture.storageRequests, [{
 		requiredBytes: 48_000 * 2 * Float32Array.BYTES_PER_ELEMENT * 60,
 		operation: 'take-cycle-recording',
