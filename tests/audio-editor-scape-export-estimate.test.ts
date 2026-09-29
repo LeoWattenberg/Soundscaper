@@ -243,6 +243,23 @@ test('generated source entry segments remain safe for the Scape importer', async
 	assert.equal(inspected.manifest.assets[0].entry, 'media/_2E_2E/original');
 });
 
+test('distinct source IDs cannot collide after Scape entry escaping', async () => {
+	const source = audioProject('source-entry-collision', 1, 1).sources[0];
+	const project = {
+		...projectOnly('source-entry-collision'),
+		sources: [
+			{ ...source, id: 'a/b', storageKey: 'a/b' },
+			{ ...source, id: 'a_2Fb', storageKey: 'a_2Fb' },
+		],
+	};
+	const exported = await exportScapeProject(project, {
+		...emptyStore(),
+		readSourceChunks() { return (async function* () { yield [Float32Array.of(0)]; })(); },
+	});
+	assert.deepEqual(exported.manifest.assets.map(({ sourceId }) => sourceId), ['a/b', 'a_2Fb']);
+	assert.equal(new Set(exported.manifest.assets.map(({ entry }) => entry)).size, 2);
+});
+
 test('streamed Scape output is exempt from final-Blob admission', async () => {
 	const chunks: Uint8Array[] = [];
 	const destination = new WritableStream<Uint8Array>({

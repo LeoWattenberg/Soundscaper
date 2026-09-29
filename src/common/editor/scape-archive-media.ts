@@ -74,7 +74,7 @@ export interface ScapeExtractedAsset {
 }
 
 export function safeScapeEntryId(value: unknown): string {
-	const encoded = encodeURIComponent(String(value || '')).replaceAll('%', '_');
+	const encoded = encodeURIComponent(String(value || '')).replaceAll('_', '_5F').replaceAll('%', '_');
 	if (encoded === '.') return '_2E';
 	if (encoded === '..') return '_2E_2E';
 	return encoded;
