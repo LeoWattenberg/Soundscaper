@@ -127,7 +127,12 @@ export function configureSoundscaperCaptureSessionSecurityV1(
 		callback,
 		details = {},
 	) => {
-		callback(permissionCheck(
+		// Electron requests an empty mediaTypes grant before invoking the display
+		// handler. Keep ordinary media checks audio-only; the display handler still
+		// requires a user gesture, the main frame, and both audio and video.
+		const displayMediaPreflightAllowed = !disposed && permission === 'media'
+			&& trustedDisplayMediaPreflight(seams, webContents, details);
+		callback(displayMediaPreflightAllowed || permissionCheck(
 			webContents,
 			permission,
 			originForDocument(details.requestingUrl),
@@ -210,6 +215,26 @@ function trustedDisplayRequest(
 			&& request.userGesture === true
 			&& request.videoRequested === true
 			&& request.audioRequested === true);
+}
+
+function trustedDisplayMediaPreflight(
+	seams: SoundscaperCaptureSessionSecurityOptions,
+	webContents: unknown,
+	details: PermissionDetails,
+): boolean {
+	return seams.platform === 'win32'
+		&& details.mediaType === undefined
+		&& Array.isArray(details.mediaTypes)
+		&& details.mediaTypes.length === 0
+		&& typeof details.securityOrigin === 'string'
+		&& sameOrigin(details.securityOrigin, seams.trustedOrigin)
+		&& trustedEditorPermission(
+			seams,
+			webContents,
+			originForDocument(details.requestingUrl),
+			details,
+			true,
+		);
 }
 
 function sameOrigin(candidate: string | undefined, trustedOrigin: string): boolean {

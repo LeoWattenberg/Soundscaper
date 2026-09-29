@@ -32,7 +32,7 @@ test.describe('packaged Soundscaper display audio', () => {
 		await expect(editor).not.toHaveAttribute('data-project-activation-pending', 'true', { timeout: 30_000 });
 	});
 
-	test('records Windows loopback audio selected through Audio setup', async ({ page }) => {
+	test('records Windows loopback audio selected through Audio setup', async ({ page }, testInfo) => {
 		const editor = page.locator('[data-audio-editor]');
 		const initialClipCount = Number(await editor.getAttribute('data-clip-count'));
 		await startAudibleLoopbackTone(page);
@@ -44,11 +44,25 @@ test.describe('packaged Soundscaper display audio', () => {
 			// focus; the nightly runner's progress window can retain foreground focus.
 			await page.bringToFront();
 			await expect.poll(() => page.evaluate(() => document.hasFocus())).toBe(true);
+			await installDisplayCaptureProbe(page);
 			await setup.getByRole('button', { name: 'Choose display source', exact: true }).click();
-			await expect(setup.getByRole('button', {
+			const changeSource = setup.getByRole('button', {
 				name: 'Choose a different display source',
 				exact: true,
-			})).toBeVisible();
+			});
+			const errorToast = editor.locator('[data-editor-toast="workspace-error"]');
+			try {
+				await expect(changeSource.or(errorToast).first()).toBeVisible();
+				if (await errorToast.isVisible()) throw new Error('Audio setup reported a display capture error.');
+				await expect(changeSource).toBeVisible();
+			} catch (cause) {
+				const diagnostics = await readDisplayCaptureDiagnostics(page);
+				await testInfo.attach('display-capture-diagnostics.json', {
+					body: JSON.stringify(diagnostics, null, 2),
+					contentType: 'application/json',
+				});
+				throw new Error(`Windows display capture did not open: ${JSON.stringify(diagnostics)}`, { cause });
+			}
 			await setup.getByRole('radio', { name: 'Stereo', exact: true }).check();
 			await page.keyboard.press('Escape');
 
@@ -61,6 +75,12 @@ test.describe('packaged Soundscaper display audio', () => {
 			await editor.getByRole('button', { name: 'Stop', exact: true }).click();
 			await expect(editor).toHaveAttribute('data-clip-count', String(initialClipCount + 1));
 		} finally {
+			await page.evaluate(() => {
+				if (globalThis.__nightlyDisplayCaptureProbeInstalled) {
+					delete navigator.mediaDevices.getDisplayMedia;
+					delete globalThis.__nightlyDisplayCaptureProbeInstalled;
+				}
+			}).catch(() => undefined);
 			const stop = editor.getByRole('button', { name: 'Stop', exact: true });
 			if (await stop.isEnabled().catch(() => false)) await stop.click().catch(() => undefined);
 			await releaseOpenInputs(editor);
@@ -80,6 +100,53 @@ async function openAudioSetup(editor) {
 	await editor.locator('[data-action-bar]')
 		.getByRole('button', { name: 'Audio setup', exact: true }).click();
 	await expect(editor.getByRole('dialog', { name: 'Audio setup', exact: true })).toBeVisible();
+}
+
+async function installDisplayCaptureProbe(page) {
+	await page.evaluate(() => {
+		const mediaDevices = navigator.mediaDevices;
+		const original = mediaDevices.getDisplayMedia.bind(mediaDevices);
+		mediaDevices.getDisplayMedia = (...args) => {
+			const probe = {
+				phase: 'requested',
+				requestedAt: new Date().toISOString(),
+				documentFocused: document.hasFocus(),
+				userActivation: navigator.userActivation?.isActive ?? null,
+				videoRequested: Boolean(args[0]?.video),
+				audioRequested: Boolean(args[0]?.audio),
+			};
+			globalThis.__nightlyDisplayCaptureProbe = probe;
+			try {
+				return Promise.resolve(original(...args)).then((stream) => {
+					probe.phase = 'resolved';
+					probe.audioTrackStates = stream.getAudioTracks().map((track) => track.readyState);
+					probe.videoTrackStates = stream.getVideoTracks().map((track) => track.readyState);
+					return stream;
+				}, (error) => {
+					probe.phase = 'rejected';
+					probe.errorName = error?.name ?? null;
+					probe.errorMessage = error?.message ?? String(error);
+					throw error;
+				});
+			} catch (error) {
+				probe.phase = 'threw';
+				probe.errorName = error?.name ?? null;
+				probe.errorMessage = error?.message ?? String(error);
+				throw error;
+			}
+		};
+		globalThis.__nightlyDisplayCaptureProbeInstalled = true;
+	});
+}
+
+async function readDisplayCaptureDiagnostics(page) {
+	return page.evaluate(() => ({
+		probe: globalThis.__nightlyDisplayCaptureProbe ?? null,
+		documentFocused: document.hasFocus(),
+		visibilityState: document.visibilityState,
+		userActivation: navigator.userActivation?.isActive ?? null,
+		workspaceError: document.querySelector('[data-editor-toast="workspace-error"]')?.textContent?.trim() ?? null,
+	})).catch((error) => ({ diagnosticError: String(error) }));
 }
 
 async function releaseOpenInputs(editor) {

@@ -201,6 +201,41 @@ test('Electron 43 audio and speaker permissions keep the trusted main editor enu
 	), false);
 });
 
+test('Electron display preflight admits only an empty media request from the focused Windows editor', () => {
+	const harness = captureHarness();
+	harness.configure();
+	const preflight = {
+		requestingUrl: `${ORIGIN}/`,
+		securityOrigin: `${ORIGIN}/`,
+		isMainFrame: true,
+		mediaTypes: [] as const,
+	};
+	assert.equal(harness.permissionCheck(harness.webContents, 'media', ORIGIN, preflight), false);
+	assert.equal(harness.permissionRequest(harness.webContents, 'media', preflight), true);
+
+	for (const details of [
+		{ ...preflight, mediaTypes: ['video'] as const },
+		{ ...preflight, mediaTypes: ['audio', 'video'] as const },
+		{ ...preflight, mediaType: 'video' as const },
+		{ ...preflight, mediaTypes: undefined },
+		{ ...preflight, securityOrigin: undefined },
+		{ ...preflight, securityOrigin: 'https://example.com' },
+		{ ...preflight, requestingUrl: 'https://example.com/' },
+		{ ...preflight, isMainFrame: false },
+	]) {
+		assert.equal(harness.permissionRequest(harness.webContents, 'media', details), false);
+	}
+	assert.equal(harness.permissionRequest({}, 'media', preflight), false);
+	harness.focused = false;
+	assert.equal(harness.permissionRequest(harness.webContents, 'media', preflight), false);
+	harness.focused = true;
+	harness.destroyed = true;
+	assert.equal(harness.permissionRequest(harness.webContents, 'media', preflight), false);
+	const linux = captureHarness({ platform: 'linux' });
+	linux.configure();
+	assert.equal(linux.permissionRequest(linux.webContents, 'media', preflight), false);
+});
+
 test('trusted Windows display capture selects the first screen with loopback audio', async () => {
 	const harness = captureHarness();
 	harness.configure();
