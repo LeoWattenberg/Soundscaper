@@ -78,6 +78,28 @@ for (const backend of ['memory', 'indexeddb'] as const) {
 		assert.deepEqual((await projects.listRevisions(base.id)).map(({ revision }) => revision), [2, 1]);
 	});
 
+	test(`${backend} replacing a project with an older backup retains its current revision`, async () => {
+		const store = createProjectStore({
+			indexedDB: backend === 'indexeddb' ? createInstrumentedIndexedDB() : null,
+			preferOpfs: false,
+			databaseName: uniqueName(`project-backup-revision-${backend}`),
+			revisionLimit: 2,
+		});
+		const projects = store.projectRepository as ProjectRepositoryPort;
+		const base = createAudioEditorProjectV17({ id: 'project-backup-revision', title: 'Base', now: NOW });
+		await projects.save(base);
+		const first = applyEditorCommand(base, { type: 'project/rename', title: 'First' }, { now: NOW });
+		await projects.saveIfCurrent?.(base, first);
+		const second = applyEditorCommand(first, { type: 'project/rename', title: 'Second' }, { now: NOW });
+		await projects.saveIfCurrent?.(first, second);
+		const restored = { ...base, title: 'Restored backup' };
+
+		assert.deepEqual(await projects.saveIfCurrent?.(second, restored), restored);
+		assert.deepEqual(await projects.load(base.id), restored);
+		assert.deepEqual(await projects.load(base.id, { revision: restored.revision }), restored);
+		assert.deepEqual((await projects.listRevisions(base.id)).map(({ revision }) => revision), [2, 0]);
+	});
+
 	test(`${backend} a post-commit maintenance failure identifies the committed project`, async () => {
 		const store = createProjectStore({
 			indexedDB: backend === 'indexeddb' ? createInstrumentedIndexedDB() : null,
