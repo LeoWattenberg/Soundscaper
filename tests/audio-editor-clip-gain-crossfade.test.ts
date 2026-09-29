@@ -67,10 +67,8 @@ test('a crossfade-out contained in a clip returns to unity right after the overl
 	assert.ok(Math.abs(scheduledValueAt(fadeOut.calls, 10) - Math.SQRT1_2) < 0.002, 'the overlap should fade out');
 	assert.equal(scheduledValueAt(fadeOut.calls, 15), 0);
 	for (const frame of [16, 17, 20, 25, 29, 30]) {
-		assert.ok(
-			scheduledValueAt(fadeOut.calls, frame) >= 0.99,
-			`frame ${frame} should play at unity gain, got ${scheduledValueAt(fadeOut.calls, frame)}`,
-		);
+		assert.equal(scheduledValueAt(fadeOut.calls, frame), 1,
+			`frame ${frame} should play at unity gain`);
 	}
 });
 
@@ -106,11 +104,11 @@ test('two contained crossfade-outs each restore unity gain between them', () => 
 	);
 
 	assert.equal(scheduledValueAt(fadeOut.calls, 10), 0);
-	assert.ok(scheduledValueAt(fadeOut.calls, 11) >= 0.99, 'the gap should play at unity gain');
-	assert.ok(scheduledValueAt(fadeOut.calls, 20) >= 0.99, 'the gap should play at unity gain');
+	assert.equal(scheduledValueAt(fadeOut.calls, 11), 1, 'the gap should play at unity gain');
+	assert.equal(scheduledValueAt(fadeOut.calls, 20), 1, 'the gap should play at unity gain');
 	assert.equal(scheduledValueAt(fadeOut.calls, 25), 1);
 	assert.equal(scheduledValueAt(fadeOut.calls, 30), 0);
-	assert.ok(scheduledValueAt(fadeOut.calls, 35) >= 0.99, 'the tail should play at unity gain');
+	assert.equal(scheduledValueAt(fadeOut.calls, 35), 1, 'the tail should play at unity gain');
 });
 
 test('a crossfade consumes an explicit fade on the same edge', () => {
@@ -125,7 +123,7 @@ test('a crossfade consumes an explicit fade on the same edge', () => {
 	);
 
 	assert.equal(scheduledValueAt(fadeOut.calls, 15), 0);
-	assert.ok(Math.abs(scheduledValueAt(fadeOut.calls, 16) - 1) < 1e-9, 'unity resumes after the overlap');
+	assert.equal(scheduledValueAt(fadeOut.calls, 16), 1, 'unity resumes after the overlap');
 	assert.equal(scheduledValueAt(fadeOut.calls, 25), 1, 'the explicit fade-out stays suppressed');
 	assert.equal(scheduledValueAt(fadeOut.calls, 30), 1);
 });

@@ -97,7 +97,8 @@ test('Web Audio engine schedules canonical clips, transport, reverse, loop, and 
 	project.clips[0].reversed = true;
 	const rendered = await engine.renderMix({ startFrame: 0, endFrame: 24000, includeTail: true });
 	assert.equal(rendered.numberOfChannels, 2);
-	assert.ok(rendered.length > 24000);
+	// Half a second of audio plus 0.5 s of delay and 2.01 s of default reverb tail.
+	assert.equal(rendered.length, 144480);
 	assert.equal(offlineContexts.length, 1);
 	assert.ok(Math.abs(offlineContexts[0].bufferSources[0].buffer.getChannelData(0)[47999] - 0.1) < 1e-6);
 	assert.ok(offlineContexts[0].nodeKinds.includes('biquad'));

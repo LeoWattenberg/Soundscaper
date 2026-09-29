@@ -116,10 +116,12 @@ test('a region named twice is rendered once and delivered twice', async () => {
 		{ id: 'e2', annotationId: 'a', fadeOutFrames: 8 },
 	])));
 
-	assert.equal(calls.length, 1, 'one render for both entries');
-	assert.deepEqual([...delivered.channels[0].subarray(0, 8)], [0, 1, 2, 3, 4, 5, 6, 7]);
-	assert.equal(delivered.channels[0][15], 0, 'the second copy fades and the first does not');
-	assert.ok(delivered.channels[0][8] === 0 || delivered.channels[0][9] > 0);
+	assert.deepEqual(calls.map(({ startFrame, endFrame }) => [startFrame, endFrame]), [[0, 8]],
+		'one render supplies both entries');
+	assert.deepEqual([...delivered.channels[0]], [
+		0, 1, 2, 3, 4, 5, 6, 7,
+		0, 0.75, 1.25, 1.5, 1.5, 1.25, 0.75, 0,
+	]);
 });
 
 test('a delivery in another rate resamples each entry to its own delivered extent', async () => {
