@@ -1,3 +1,5 @@
+import { Uint8ArrayReader, Uint8ArrayWriter, ZipReader } from '@zip.js/zip.js';
+
 import {
 	expect,
 	longTone,
@@ -54,6 +56,7 @@ test.describe('audio editor React/design-system workflows', () => {
 		const exportDialog = await openExportDialog(page, editor);
 		await chooseDropdown(page, exportDialog.locator('[data-export-field="output"]'), 'Individual stems (split by tracks)');
 		await chooseDropdown(page, exportDialog.locator('[data-export-field="format"]'), 'WAV');
+		await chooseDropdown(page, exportDialog.locator('[data-export-field="bitDepth"]'), '16-bit PCM');
 		await exportDialog.getByRole('button', { name: 'Export', exact: true }).click();
 
 		const download = exportDialog.locator('[data-export-download]');
@@ -61,7 +64,34 @@ test.describe('audio editor React/design-system workflows', () => {
 		await expect(download).toHaveAttribute('download', /-stems-.*\.zip$/);
 		const archive = await readDownloadBytes(page, download);
 		expect(Array.from(archive.subarray(0, 4))).toEqual([0x50, 0x4b, 0x03, 0x04]);
-		expect(archive.length).toBeGreaterThan(200);
+		const entries = readZipCentralDirectory(archive);
+		expect(entries.map(({ name }) => name)).toEqual([
+			'01-Track-1.wav',
+			'02-browser-tone-a.wav',
+			'03-browser-tone-b.wav',
+		]);
+		const archiveReader = new ZipReader(new Uint8ArrayReader(archive), { useWebWorkers: false });
+		const wavHeaders = [];
+		for (const entry of await archiveReader.getEntries()) {
+			const wav = await entry.getData(new Uint8ArrayWriter());
+			const view = new DataView(wav.buffer, wav.byteOffset, wav.byteLength);
+			const ascii = (offset) => String.fromCharCode(...wav.subarray(offset, offset + 4));
+			wavHeaders.push({
+				riff: ascii(0),
+				wave: ascii(8),
+				format: ascii(12),
+				channels: view.getUint16(22, true),
+				sampleRate: view.getUint32(24, true),
+				bitDepth: view.getUint16(34, true),
+				data: ascii(36),
+				pcmBytes: view.getUint32(40, true),
+			});
+		}
+		await archiveReader.close();
+		expect(wavHeaders).toEqual(Array(3).fill({
+			riff: 'RIFF', wave: 'WAVE', format: 'fmt ', data: 'data',
+			channels: 2, sampleRate: 48_000, bitDepth: 16, pcmBytes: 38_400 * 2 * 2,
+		}));
 		expect(errors).toEqual([]);
 	});
 

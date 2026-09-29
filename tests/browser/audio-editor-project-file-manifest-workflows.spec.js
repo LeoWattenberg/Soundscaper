@@ -1,4 +1,5 @@
 import { Buffer } from 'node:buffer';
+import { createHash } from 'node:crypto';
 
 import {
 	BlobReader,
@@ -61,11 +62,30 @@ test.describe('project archive and checksum files', () => {
 			kind: 'archive-manifest',
 			manifestVersion: 1,
 		});
-		expect(checksumManifest.members.map(({ id }) => id)).toEqual(expect.arrayContaining([
+		const archiveReader = new ZipReader(new Uint8ArrayReader(archive), { useWebWorkers: false });
+		const archiveEntries = (await archiveReader.getEntries()).filter((entry) => !entry.directory);
+		const expectedMembers = [];
+		for (const entry of archiveEntries) {
+			const bytes = await entry.getData(new Uint8ArrayWriter());
+			expectedMembers.push({
+				id: entry.filename,
+				path: entry.filename,
+				byteLength: bytes.byteLength,
+				sha256: createHash('sha256').update(bytes).digest('hex'),
+			});
+		}
+		await archiveReader.close();
+		expectedMembers.sort((left, right) => left.id.localeCompare(right.id));
+		expect(expectedMembers.map(({ id }) => id)).toEqual(expect.arrayContaining([
 			'manifest.json',
 			'project.json',
 		]));
-		expect(checksumManifest.totalByteLength).toBeGreaterThan(toneA.buffer.byteLength);
+		expect(checksumManifest.members.map(({ id, path, byteLength, sha256 }) => ({
+			id, path, byteLength, sha256,
+		}))).toEqual(expectedMembers);
+		expect(checksumManifest.totalByteLength).toBe(expectedMembers.reduce(
+			(sum, member) => sum + member.byteLength, 0,
+		));
 		await checksumDownload.delete();
 
 		const chooserPromise = page.waitForEvent('filechooser');

@@ -29,11 +29,11 @@ test.describe('adaptive WavPack PCM persistence', () => {
 		expect(persisted.pcmEncodingVersion).toBe(1);
 		expect(persisted.uncompressedBytes).toBe(105_600 * Float32Array.BYTES_PER_ELEMENT);
 		expect(persisted.storedBytes).toBeLessThan(persisted.uncompressedBytes);
-		expect(persisted.wavpackChunkCount).toBeGreaterThan(0);
+		expect(persisted.wavpackChunkCount).toBe(2);
 		expect(persisted.compressionRatio).toBeLessThan(1);
 		expect(persisted.containerMagic).toBe(persisted.storage === 'opfs-pcm-v1' ? 'SSPCMWV1' : null);
 		expect(persisted.footerMagic).toBe(persisted.storage === 'opfs-pcm-v1' ? 'SSPCMIDX' : null);
-		expect(persisted.encodings).toContain('wavpack-f32-v1');
+		expect(persisted.encodings).toEqual(['wavpack-f32-v1', 'wavpack-f32-v1']);
 
 		await page.reload();
 		editor = await waitForEditor(page);
@@ -47,7 +47,7 @@ test.describe('adaptive WavPack PCM persistence', () => {
 		).not.toBeNull();
 		const overlayState = await copyOnWriteState(page);
 		expect(overlayState.pcmEncodingVersion).toBe(1);
-		expect(overlayState.overrideChunkCount).toBeGreaterThan(0);
+		expect(overlayState.overrideChunkCount).toBe(1);
 		expect(overlayState.encodings).not.toContain('legacy-planar');
 		expect(overlayState.encodings.length).toBe(overlayState.overrideChunkCount);
 		await editor.getByRole('button', { name: 'Undo', exact: true }).click();
@@ -55,7 +55,7 @@ test.describe('adaptive WavPack PCM persistence', () => {
 		await expect(editor.locator('[data-save-state]')).toHaveAttribute('data-state', 'saved', { timeout: 10_000 });
 
 		const seeded = await seedLegacyIndexedDbSource(page, fixture.name);
-		expect(seeded.chunkCount).toBeGreaterThan(1);
+		expect(seeded.chunkCount).toBe(2);
 		expect(await legacySourceState(page, seeded.sourceId)).toMatchObject({
 			pcmEncodingVersion: null,
 			legacyChunkCount: seeded.chunkCount,
