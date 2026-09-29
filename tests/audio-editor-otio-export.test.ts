@@ -128,13 +128,55 @@ test('simultaneous clips are emitted in code-unit ID order', () => {
 			clipIds: clips.map(({ id }) => id), hidden: false,
 		}],
 	});
-	const children = trackNamed(document, 'V1').children as Array<{
+	const stack = document.tracks as { children: Array<{ children: Array<{
 		metadata: Record<string, { clipId: string }>;
-	}>;
+	}> }> };
 	assert.deepEqual(
-		children.map(({ metadata }) => metadata[OTIO_METADATA_NAMESPACE]?.clipId),
+		stack.children.flatMap((track) => track.children
+			.map(({ metadata }) => metadata[OTIO_METADATA_NAMESPACE]?.clipId)),
 		['Z-clip', 'alpha-clip'],
 	);
+});
+
+test('overlapping clips keep their timeline positions in separate OTIO lanes', () => {
+	const clips = [
+		{
+			kind: 'audio', id: 'first', sourceId: 'src-a', title: 'First',
+			timelineStartFrame: 0, durationFrames: SAMPLE_RATE,
+			sourceStartFrame: 0, speedRatio: 1,
+		},
+		{
+			kind: 'audio', id: 'second', sourceId: 'src-a', title: 'Second',
+			timelineStartFrame: SAMPLE_RATE / 2, durationFrames: SAMPLE_RATE,
+			sourceStartFrame: 0, speedRatio: 1,
+		},
+	];
+	const { document, report } = exported({
+		clips,
+		tracks: [{ type: 'audio', id: 'a1', name: 'A1', clipIds: ['first', 'second'], mute: false }],
+	});
+	const stack = document.tracks as { children: Array<{
+		kind: string;
+		children: Array<{
+			OTIO_SCHEMA: string;
+			source_range: { duration: { value: number } };
+			metadata: Record<string, { clipId?: string }>;
+		}>;
+	}> };
+	const positions = new Map<string, number>();
+	for (const track of stack.children) {
+		assert.equal(track.kind, 'Audio');
+		let position = 0;
+		for (const child of track.children) {
+			if (child.OTIO_SCHEMA === 'Clip.1') {
+				positions.set(child.metadata[OTIO_METADATA_NAMESPACE]!.clipId!, position);
+			}
+			position += child.source_range.duration.value;
+		}
+	}
+	assert.deepEqual(positions, new Map([['first', 0], ['second', SAMPLE_RATE / 2]]));
+	assert.equal(stack.children.length, 2, 'a sequential OTIO Track cannot contain overlapping items');
+	assert.ok(report.items.some((item) => item.code === 'otio.overlapping-track-split'));
 });
 
 test('media is addressed by storage key and the conversion is reported', () => {

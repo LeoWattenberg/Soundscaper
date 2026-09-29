@@ -149,6 +149,39 @@ test('a gap we wrote is a gap the reference reader sees, in the right place', ()
 	assert.equal(items[1].schema, 'Clip');
 });
 
+test('the reference reader keeps overlapping audio at its original position', () => {
+	const overlapping = {
+		...project([]),
+		sources: [{ kind: 'audio', id: 'aud', name: 'MIX', storageKey: 'media/mix.wav' }],
+		clips: [
+			{
+				kind: 'audio', id: 'first', sourceId: 'aud', title: 'First',
+				timelineStartFrame: 0, durationFrames: SAMPLE_RATE, sourceStartFrame: 0,
+			},
+			{
+				kind: 'audio', id: 'second', sourceId: 'aud', title: 'Second',
+				timelineStartFrame: SAMPLE_RATE / 2, durationFrames: SAMPLE_RATE, sourceStartFrame: 0,
+			},
+		],
+		tracks: [{ type: 'audio', id: 'a1', name: 'A1', clipIds: ['first', 'second'], mute: false }],
+	};
+	const result = createOtioExport({
+		project: overlapping,
+		sequenceRate: { num: 30_000, den: 1_001 },
+	});
+	const [timeline] = readBack(result.text);
+	assert.equal(timeline.tracks.length, 2);
+	assert.deepEqual(
+		timeline.tracks.map((track) => ({
+			name: track.items.find((item) => item.schema === 'Clip')?.name,
+			position: track.items
+				.filter((item) => item.schema === 'Gap')
+				.reduce((sum, item) => sum + item.durationValue, 0),
+		})),
+		[{ name: 'First', position: 0 }, { name: 'Second', position: SAMPLE_RATE / 2 }],
+	);
+});
+
 /** The project's own conversion, restated here so the test does not import the writer's. */
 function frameAt(sampleFrame: number, num: number, den: number): number {
 	const exact = (sampleFrame * num) / (SAMPLE_RATE * den);

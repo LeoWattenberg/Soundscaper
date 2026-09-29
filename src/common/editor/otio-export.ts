@@ -84,6 +84,12 @@ interface TrackWalk {
 	readonly clips: readonly Readonly<Record<string, unknown>>[];
 }
 
+interface TimedClip {
+	readonly clip: Readonly<Record<string, unknown>>;
+	readonly start: number;
+	readonly end: number;
+}
+
 export function createOtioExport(request: OtioExportRequest): OtioExportResult {
 	const project = request?.project;
 	if (!project || typeof project !== 'object') throw new TypeError('An OTIO export requires a project.');
@@ -163,7 +169,7 @@ export function createOtioExport(request: OtioExportRequest): OtioExportResult {
 
 	reportNesting(project, draft);
 
-	const children = walks.map((walk) => buildTrack(walk, {
+	const children = walks.flatMap((walk) => buildTracks(walk, {
 		sampleRate, sequenceRate: rate, sourceById, draft,
 	}));
 
@@ -212,14 +218,16 @@ export function createOtioExport(request: OtioExportRequest): OtioExportResult {
 	});
 }
 
-function buildTrack(walk: TrackWalk, context: {
+function buildTracks(walk: TrackWalk, context: {
 	sampleRate: number;
 	sequenceRate: SequenceRationalRate;
 	sourceById: Map<string, Readonly<Record<string, unknown>>>;
 	draft: Draft;
-}): Record<string, unknown> {
-	const children: Record<string, unknown>[] = [];
-	let position = 0;
+}): Record<string, unknown>[] {
+	// OTIO Track children are sequential. Place overlapping items in parallel
+	// Stack tracks so each clip keeps its actual position in the timeline.
+	const lanes: TimedClip[][] = [[]];
+	const laneEnds = [0];
 	for (const clip of walk.clips) {
 		const timelineStart = nonNegativeInteger(clip.timelineStartFrame ?? 0, 'clip.timelineStartFrame');
 		const duration = positiveInteger(clip.durationFrames, 'clip.durationFrames');
@@ -239,6 +247,38 @@ function buildTrack(walk: TrackWalk, context: {
 			});
 			continue;
 		}
+		let lane = laneEnds.findIndex((position) => position <= start);
+		if (lane < 0) {
+			lane = lanes.length;
+			lanes.push([]);
+			laneEnds.push(0);
+		}
+		lanes[lane]!.push({ clip, start, end });
+		laneEnds[lane] = end;
+	}
+	if (lanes.length > 1) {
+		addDeliveryReportItem(context.draft, {
+			code: 'otio.overlapping-track-split',
+			disposition: 'converted',
+			severity: 'info',
+			scope: { kind: 'track', id: walk.id },
+			data: { lanes: lanes.length },
+			message: 'Overlapping clips were placed on parallel OTIO tracks to preserve their timing.',
+		});
+	}
+	return lanes.map((clips, lane) => buildTrack(walk, clips, context, lane, lanes.length));
+}
+
+function buildTrack(
+	walk: TrackWalk,
+	clips: readonly TimedClip[],
+	context: Parameters<typeof buildTracks>[1],
+	lane: number,
+	laneCount: number,
+): Record<string, unknown> {
+	const children: Record<string, unknown>[] = [];
+	let position = 0;
+	for (const { clip, start, end } of clips) {
 		if (start > position) {
 			children.push({
 				OTIO_SCHEMA: 'Gap.1',
@@ -252,10 +292,15 @@ function buildTrack(walk: TrackWalk, context: {
 	}
 	return {
 		OTIO_SCHEMA: 'Track.1',
-		name: walk.name,
+		name: lane === 0 ? walk.name : `${walk.name} (overlap ${lane + 1})`,
 		kind: walk.kind,
 		children,
-		metadata: { [OTIO_METADATA_NAMESPACE]: { trackId: walk.id } },
+		metadata: {
+			[OTIO_METADATA_NAMESPACE]: {
+				trackId: walk.id,
+				...(laneCount > 1 ? { overlapLane: lane } : {}),
+			},
+		},
 	};
 }
 
