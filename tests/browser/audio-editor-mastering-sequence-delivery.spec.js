@@ -24,6 +24,31 @@ import {
 test.describe('Soundscaper mastering sequence delivery', () => {
 	registerAudioEditorHooks();
 
+	test('selects a newly created sequence when another sequence already exists', async ({ page }) => {
+		const errors = collectClientErrors(page);
+		const editor = await bootEditor(page, '/embed/en/');
+		await importFiles(editor, [longTone]);
+		await chooseCommandAction(page, editor, 'Tools', 'Mastering sequences');
+		const mastering = page.getByRole('dialog', { name: 'Mastering sequences', exact: true });
+		const picker = mastering.getByRole('combobox', { name: 'Sequence', exact: true });
+		const nameForm = mastering.getByRole('form', { name: 'Sequence name', exact: true });
+
+		await mastering.getByRole('button', { name: 'New sequence', exact: true }).click();
+		await nameForm.getByRole('textbox').fill('First order');
+		await nameForm.getByRole('button', { name: 'Sequence name', exact: true }).click();
+		await expect(picker).toHaveValue(await picker.locator('option', { hasText: 'First order' }).getAttribute('value'));
+
+		await mastering.getByRole('button', { name: 'New sequence', exact: true }).click();
+		await expect(nameForm.getByRole('textbox')).toHaveValue('New sequence');
+		await nameForm.getByRole('textbox').fill('Second order');
+		await nameForm.getByRole('button', { name: 'Sequence name', exact: true }).click();
+		await expect(picker).toHaveValue(await picker.locator('option', { hasText: 'Second order' }).getAttribute('value'));
+		await picker.selectOption({ label: 'First order' });
+		await expect(nameForm.getByRole('textbox')).toHaveValue('First order');
+		await closeDialog(mastering);
+		expect(errors).toEqual([]);
+	});
+
 	test('saves an authored order and delivers its exact WAV length and cues after reopening', async ({ page }) => {
 		test.setTimeout(120_000);
 		await disableNativeSavePicker(page);

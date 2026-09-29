@@ -232,6 +232,45 @@ test('the New sequence button states the sequence the new one orders', () => {
 	assert.match(markup, /<button type="button" disabled=""[^>]*>New sequence<\/button>/u);
 });
 
+test('a newly created mastering sequence becomes the selected sequence', async () => {
+	const dom = installReactTestDom();
+	const actGlobal = globalThis as typeof globalThis & { IS_REACT_ACT_ENVIRONMENT?: boolean };
+	const priorAct = actGlobal.IS_REACT_ACT_ENVIRONMENT;
+	actGlobal.IS_REACT_ACT_ENVIRONMENT = true;
+	let project = albumProject();
+	const { createRoot } = await import('react-dom/client');
+	const root = createRoot(dom.container as unknown as Element);
+	const render = async () => {
+		const snapshot = createDocumentMasteringSequenceSnapshot(project);
+		await act(async () => root.render(<SoundscaperMasteringSequenceEditor
+			copy={SOUNDSCAPER_MASTERING_SEQUENCE_COPY}
+			disabled={false}
+			sequences={snapshot.sequences}
+			regions={snapshot.regions}
+			primarySequenceId={snapshot.primarySequenceId}
+			createId={() => 'generated'}
+			onOperation={(operation) => {
+				project = applySoundscaperProjectCommand(project, operation as never, { now: NOW });
+			}}
+		/>));
+	};
+	try {
+		await render();
+		assert.equal(reactProps(dom.one('[data-mastering-sequence-picker]')).value, 'album-order');
+		const newButton = dom.container.querySelectorAll('button')
+			.find((button) => button.textContent === SOUNDSCAPER_MASTERING_SEQUENCE_COPY.newMasteringSequence);
+		assert.ok(newButton);
+		await act(async () => reactProps(newButton).onClick());
+		await render();
+		assert.equal(project.masteringSequences.length, 2);
+		assert.equal(reactProps(dom.one('[data-mastering-sequence-picker]')).value, 'generated');
+	} finally {
+		await act(async () => root.unmount());
+		actGlobal.IS_REACT_ACT_ENVIRONMENT = priorAct;
+		dom.restore();
+	}
+});
+
 test('an undeliverable sequence shows its reason instead of hiding', () => {
 	const snapshot = createDocumentMasteringSequenceSnapshot(
 		albumProject([{ id: 'e1', annotationId: 'gone' }]),

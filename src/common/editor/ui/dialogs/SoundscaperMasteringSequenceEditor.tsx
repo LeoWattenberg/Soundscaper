@@ -111,9 +111,11 @@ export default function SoundscaperMasteringSequenceEditor({
 					</option>)}
 				</select>
 			</label>
-			<button type="button" disabled={!primarySequenceId} onClick={() => onOperation(
-				masteringSequenceAddOperation(primarySequenceId, createId(), newSequenceName),
-			)}>{copy.newMasteringSequence}</button>
+			<button type="button" disabled={!primarySequenceId} onClick={() => {
+				const id = createId();
+				onOperation(masteringSequenceAddOperation(primarySequenceId, id, newSequenceName));
+				setSelectedId(id);
+			}}>{copy.newMasteringSequence}</button>
 			{sequence && <button type="button" onClick={() => {
 				onOperation({ type: 'mastering-sequence/remove', sequenceId: sequence.id });
 				setSelectedId('');
