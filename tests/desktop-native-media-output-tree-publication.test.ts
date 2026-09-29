@@ -9,6 +9,7 @@ import test, { type TestContext } from 'node:test';
 
 import {
 	createNativeMediaOutputTreeIdentity,
+	NATIVE_MEDIA_OUTPUT_TREE_MANIFEST,
 	sealNativeMediaOutputTree,
 	type NativeMediaAuthenticatedOutputTree,
 } from '../desktop/native-media-output-tree.ts';
@@ -83,10 +84,21 @@ test('tree publication is no-clobber and never copies after a cross-device renam
 	assert.equal(await exists(crossDevice.finalPath), false);
 });
 
-test('broker trees are non-empty and a concurrent completed destination cannot be replaced', async (t) => {
+test('broker trees contain the exact authenticated inventory and a concurrent completed destination cannot be replaced', async (t) => {
 	const fixture = await treeFixture(t, 'concurrent-winner');
-	assert.ok(fixture.output.tree.fileCount >= 2,
-		'an authenticated tree contains at least one frame and its native manifest');
+	const nativeManifest = await readFile(join(fixture.temporaryPath, 'manifest.json'));
+	const sealedManifest = await readFile(join(fixture.temporaryPath, NATIVE_MEDIA_OUTPUT_TREE_MANIFEST));
+	const inventory = JSON.parse(String(sealedManifest)) as Record<string, unknown>;
+	assert.equal(fixture.output.tree.fileCount, 2);
+	assert.equal(fixture.output.tree.manifestByteLength, sealedManifest.byteLength);
+	assert.equal(fixture.output.tree.manifestSha256, digest(sealedManifest));
+	assert.equal(inventory.schemaVersion, 1);
+	assert.equal(inventory.fileCount, 2);
+	assert.equal(inventory.contentByteLength, 9 + nativeManifest.byteLength);
+	assert.deepEqual(inventory.files, [
+		{ relativePath: 'frame-00000000.png', byteLength: 9, sha256: digest(Buffer.from('png-frame')) },
+		{ relativePath: 'manifest.json', byteLength: nativeManifest.byteLength, sha256: digest(nativeManifest) },
+	]);
 	const port = createFramescaperNativePublicationNodePort(fixture.root, {
 		renameDirectory: async (source, destination) => {
 			await mkdir(destination);

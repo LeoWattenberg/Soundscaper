@@ -34,10 +34,12 @@ test('file locator registry atomically persists a private closed v2 document', a
 	const document = JSON.parse(await readFile(registryPath, 'utf8')) as Record<string, unknown>;
 	assert.deepEqual(Object.keys(document), ['schemaVersion', 'entries']);
 	assert.equal(document.schemaVersion, 2);
+	assert.deepEqual(document.entries, [entry]);
 	assert.deepEqual(await registry.read(), [entry]);
 	assert.equal(Object.isFrozen(await registry.read()), true);
 
 	await registry.write([]);
+	assert.deepEqual(JSON.parse(await readFile(registryPath, 'utf8')), { schemaVersion: 2, entries: [] });
 	assert.deepEqual(await registry.read(), []);
 	assert.equal((await stat(targetPath)).isFile(), true, 'forgetting metadata never deletes the external file');
 });

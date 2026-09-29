@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import assert from 'node:assert/strict';
-import { mkdir, mkdtemp, rm, writeFile } from 'node:fs/promises';
+import { mkdir, mkdtemp, readFile, rm, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { DatabaseSync } from 'node:sqlite';
@@ -92,6 +92,7 @@ test('validated success and failure reports survive service restart independentl
 		attempt: 1, outcome: 'completed', failureCode: null, report: completedReport,
 	}]);
 	assert.deepEqual(rows.get(completed.jobId)?.result?.report, completedReport);
+	assert.deepEqual([...await readFile(join(outputRoot, 'completed.wav'))], [1, 2, 3, 4]);
 	const conflictDescription = queuedDescription(grant.grantId, 'Conflicted master');
 	const conflict = await service.enqueue(conflictDescription, null, admission(conflictDescription));
 	const conflictClaim = await service.claimNext(authority(conflictDescription), conflict.jobId);
@@ -110,6 +111,7 @@ test('validated success and failure reports survive service restart independentl
 		revalidateAuthority: () => authority(conflictDescription),
 	}), /exists|replace|conflict/iu);
 	assert.deepEqual(service.list().entries.find(({ jobId }) => jobId === conflict.jobId)?.report, conflictReport);
+	assert.deepEqual([...await readFile(join(outputRoot, 'conflict.wav'))], [9, 9, 9, 9]);
 	await service.close();
 	service = await start();
 	assert.deepEqual(service.list().entries.find(({ jobId }) => jobId === conflict.jobId)?.report, conflictReport);
