@@ -353,6 +353,9 @@ function gcd(left: number, right: number): number {
 
 function escapeXml(value: string): string {
 	return String(value)
+		// XML 1.0 cannot carry these code points, including lone surrogates.
+		// eslint-disable-next-line no-control-regex
+		.replaceAll(/[\u0000-\u0008\u000B\u000C\u000E-\u001F\uD800-\uDFFF\uFFFE\uFFFF]/gu, '')
 		.replaceAll('&', '&amp;')
 		.replaceAll('<', '&lt;')
 		.replaceAll('>', '&gt;')

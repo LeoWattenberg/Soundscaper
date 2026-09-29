@@ -9,6 +9,7 @@ import {
 	frameDurationAttribute,
 	frameTime,
 } from '../src/common/editor/fcpxml-export.ts';
+import { parseXmlDocument } from '../src/common/editor/dawproject-xml.ts';
 
 const SAMPLE_RATE = 48_000;
 const NTSC = { num: 30_000, den: 1_001 };
@@ -127,6 +128,25 @@ test('XML-significant characters in names are escaped', () => {
 	});
 	assert.ok(text.includes('Rush &amp; &lt;Cut&gt; &quot;One&quot;'));
 	assert.doesNotMatch(text, /name="[^"]*<Cut>/u);
+});
+
+test('XML-forbidden characters in media names cannot invalidate FCPXML', () => {
+	const baseline = project();
+	const { text } = createFcpxmlExport({
+		project: project({
+			title: 'Cut\u000bOne\uD800',
+			sources: [
+				{ ...baseline.sources[0], name: 'Camera\u0000A', storageKey: 'media/camera\u000bmp4' },
+				baseline.sources[1],
+			],
+			clips: [{ ...baseline.clips[0], title: 'Wide\u001fClip\u{1F600}' }, ...baseline.clips.slice(1)],
+		}),
+		sequenceRate: NTSC,
+	});
+	assert.equal(parseXmlDocument(text).name, 'fcpxml');
+	assert.match(text, /name="CutOne"/u);
+	assert.match(text, /name="CameraA"/u);
+	assert.match(text, /name="WideClip\u{1F600}"/u);
 });
 
 test('a missing source is an error item and writes no dangling reference', () => {
