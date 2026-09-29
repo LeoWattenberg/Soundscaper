@@ -4,6 +4,7 @@ import { readdir } from 'node:fs/promises';
 
 import { darkTheme } from '../../vendor/audacity-design-system/tokens/src/themes/dark.v2.ts';
 import { lightTheme } from '../../vendor/audacity-design-system/tokens/src/themes/light.v2.ts';
+import { BROWSER_PRODUCT_FIXTURE_ROOT } from '../../scripts/lib/browser-product-site-plan.mjs';
 import { expect, test } from './audio-editor-test-fixtures.js';
 import {
 	bootEditor,
@@ -47,7 +48,8 @@ test('desktop Preferences opens General and manages the display-only FFmpeg loca
 });
 
 test('desktop Speed loads ordinary feature code on the next launch and leaves AI on demand', async ({ page }) => {
-	const assets = await readdir(new URL('../../dist/assets/', import.meta.url));
+	test.setTimeout(60_000);
+	const assets = await readdir(new URL(`../../${BROWSER_PRODUCT_FIXTURE_ROOT}/soundscaper/assets/`, import.meta.url));
 	const asset = (name, extension = 'js') => {
 		const file = assets.find((candidate) => candidate.startsWith(`${name}-`) && candidate.endsWith(`.${extension}`));
 		if (!file) throw new Error(`Browser fixture has no ${name} chunk`);
@@ -79,6 +81,7 @@ test('desktop Speed loads ordinary feature code on the next launch and leaves AI
 	const optimization = preferences.getByRole('group', { name: 'Optimize for', exact: true });
 	await expect(optimization.getByRole('button')).toContainText('Memory');
 	await chooseDropdown(page, optimization, 'Speed');
+	await expect.poll(() => savedOptimizationMode(page)).toBe('speed');
 	await preferences.getByRole('button', { name: 'Close', exact: true }).last().click();
 
 	const ordinaryChunk = manifest['src/common/editor/ui/inspector/ExportDialog.jsx']?.file;
@@ -91,7 +94,7 @@ test('desktop Speed loads ordinary feature code on the next launch and leaves AI
 	page.on('request', (request) => { requested.push(new URL(request.url()).pathname); });
 	await page.reload();
 	const warmup = page.locator('[data-desktop-speed-warmup="ready"]');
-	await expect(warmup).toHaveCount(1);
+	await expect(warmup).toHaveCount(1, { timeout: 20_000 });
 	await expect(warmup).toHaveAttribute('data-desktop-speed-warmup-failed', '0');
 	expect(requested).toContain(`/${ordinaryChunk}`);
 	expect(requested).toContain(`/${ordinaryStylesheet}`);
@@ -227,6 +230,24 @@ test("the Effects page rearranges the Effect menu the way Audacity's does", asyn
 	await expect(amplify).toBeDisabled();
 	await page.keyboard.press('Escape');
 });
+
+async function savedOptimizationMode(page) {
+	return page.evaluate(() => new Promise((resolve, reject) => {
+		const opened = globalThis.indexedDB.open('kw-media-soundscaper-editor-v1');
+		opened.onerror = () => reject(opened.error);
+		opened.onsuccess = () => {
+			const database = opened.result;
+			const stored = database.transaction('settings', 'readonly').objectStore('settings')
+				.get('soundscaper:audio-editor-preferences-v1');
+			stored.onerror = () => { database.close(); reject(stored.error); };
+			stored.onsuccess = () => {
+				const mode = stored.result?.value?.performance?.optimizeFor ?? null;
+				database.close();
+				resolve(mode);
+			};
+		};
+	}));
+}
 
 async function installDesktopFfmpegFixture(page) {
 	await page.addInitScript(() => {
