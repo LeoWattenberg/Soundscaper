@@ -84,6 +84,18 @@ test('AAC metadata maps only fields the MP4 muxer can state exactly', () => {
 	);
 });
 
+test('AAC metadata rejects impossible calendar days instead of exporting a different date', () => {
+	for (const date of [
+		'2023-02-29', '2026-04-31', '2024-02-30',
+		'2023-02-29T10:30:00+02:00', '2023-02-29Z',
+	]) {
+		assert.throws(() => browserAacMetadataTags({ date }), /AAC metadata date is invalid/u);
+	}
+	assert.deepEqual(browserAacMetadataTags({ date: '2024-02-29' }), {
+		date: new Date('2024-02-29T00:00:00.000Z'),
+	});
+});
+
 test('AAC output validation demuxes an exact AAC-LC audio-only MP4', async () => {
 	assert.deepEqual(await validateBrowserAacM4aOutput(
 		aacLcM4a48_000Fixture(), EXPECTED_M4A_GEOMETRY,

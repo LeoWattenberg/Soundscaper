@@ -36,6 +36,7 @@ export function browserAacMetadataTags(
 	}
 	const dateValue = metadata.date ?? metadata.year;
 	if (dateValue !== undefined) {
+		assertValidIsoCalendarDate(dateValue);
 		const date = /^\d{4}$/u.test(dateValue)
 			? new Date(`${dateValue}-01-01T00:00:00.000Z`)
 			: new Date(dateValue);
@@ -47,6 +48,20 @@ export function browserAacMetadataTags(
 	const unsupported = Object.keys(metadata).filter((key) => !consumed.has(key));
 	if (unsupported.length > 0) throw new BrowserAacMetadataUnsupportedError(unsupported);
 	return Object.freeze(tags);
+}
+
+function assertValidIsoCalendarDate(value: string): void {
+	const parts = /^(\d{4})-(\d{2})-(\d{2})(?!\d)/u.exec(value);
+	if (!parts) return;
+	const year = Number(parts[1]);
+	const month = Number(parts[2]);
+	const day = Number(parts[3]);
+	const calendar = new Date(0);
+	calendar.setUTCFullYear(year, month - 1, day);
+	if (calendar.getUTCFullYear() !== year || calendar.getUTCMonth() !== month - 1
+		|| calendar.getUTCDate() !== day) {
+		throw new RangeError('AAC metadata date is invalid.');
+	}
 }
 
 export class BrowserAacMetadataUnsupportedError extends Error {
