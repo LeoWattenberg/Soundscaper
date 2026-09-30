@@ -22,7 +22,12 @@ test('the utility helper negotiates only probe and the four media operations', (
 		contractVersion: 1, type: 'hello', kinds: [...NATIVE_MEDIA_HELPER_PROCESS_KINDS],
 	});
 	assert.equal((harness.messages[0]?.kinds as readonly unknown[]).includes('ofx-host'), false);
+	harness.fireHeartbeat();
+	assert.deepEqual(harness.messages.at(-1), {
+		contractVersion: 1, type: 'heartbeat', jobId: null,
+	});
 	harness.worker.dispose(0);
+	assert.equal(harness.clears(), 1);
 });
 
 test('the production utility entry reopens and self-tests the media host before creating its worker', async () => {
@@ -45,9 +50,10 @@ test('one admitted job receives its exact transferred ports and emits one valida
 			return handle(Promise.resolve({ probe: true }));
 		},
 	});
-	const port = Object.freeze({ postMessage() {}, on() {}, close() {} });
+	const port = new ClosePort();
 	harness.worker.handleMessage(probeMessage(), [port]);
 	assert.equal(harness.exits.length, 1, 'a control-only probe must reject transferred ports');
+	assert.equal(port.closes, 0, 'native-media rejection leaves an unadmitted transfer to process exit');
 
 	const accepted = workerHarness({
 		run(request) {
@@ -61,6 +67,36 @@ test('one admitted job receives its exact transferred ports and emits one valida
 	assert.deepEqual(accepted.messages.at(-1), {
 		contractVersion: 1, type: 'result', jobId: JOB_ID, result: { probe: true },
 	});
+});
+
+test('synchronous native-media runner failures preserve transfer-fatal error mapping', () => {
+	const recoverable = workerHarness({
+		run: () => { throw new Error('grant rejected'); },
+	});
+	recoverable.worker.handleMessage(probeMessage(), []);
+	assert.deepEqual(recoverable.exits, []);
+	assert.deepEqual(recoverable.messages.at(-1), {
+		contractVersion: 1,
+		type: 'error',
+		jobId: JOB_ID,
+		error: { name: 'Error', message: 'grant rejected' },
+	});
+
+	const fatal = workerHarness({
+		run: () => { throw new Error('A transferred MessagePort was not admitted.'); },
+	});
+	fatal.worker.handleMessage(probeMessage(), []);
+	assert.deepEqual(fatal.exits, [1]);
+	assert.equal(fatal.messages.some(({ type }) => type === 'error'), false);
+});
+
+test('a clean shutdown clears the native-media heartbeat and exits once', () => {
+	const harness = workerHarness();
+	harness.worker.handleMessage({ contractVersion: 1, type: 'shutdown' }, []);
+	assert.deepEqual(harness.exits, [0]);
+	assert.equal(harness.clears(), 1);
+	harness.worker.handleMessage({ contractVersion: 1, type: 'shutdown' }, []);
+	assert.deepEqual(harness.exits, [0]);
 });
 
 test('cancellation awaits helper quiescence and answers cancelled instead of a late result', async () => {
@@ -113,14 +149,25 @@ function workerHarness(
 ) {
 	const messages: Array<Record<string, unknown>> = [];
 	const exits: number[] = [];
+	let heartbeat: (() => void) | null = null;
+	let clearCount = 0;
 	const worker = createNativeMediaHelperWorker({
 		post: (message) => { messages.push(message as Record<string, unknown>); },
 		runner,
-		setIntervalImpl: (() => ({ unref() {} })) as unknown as typeof setInterval,
-		clearIntervalImpl: () => undefined,
+		setIntervalImpl: ((callback: () => void) => {
+			heartbeat = callback;
+			return { unref() {} };
+		}) as unknown as typeof setInterval,
+		clearIntervalImpl: (() => { clearCount += 1; }) as unknown as typeof clearInterval,
 		exit: (code) => { exits.push(code); },
 	});
-	return { worker, messages, exits };
+	return {
+		worker,
+		messages,
+		exits,
+		fireHeartbeat: () => heartbeat?.(),
+		clears: () => clearCount,
+	};
 }
 
 function handle(completion: Promise<unknown>) {
@@ -133,4 +180,11 @@ async function tick(): Promise<void> {
 
 function resultField(value: unknown, key: string): unknown {
 	return value && typeof value === 'object' ? (value as Record<string, unknown>)[key] : null;
+}
+
+class ClosePort {
+	closes = 0;
+	postMessage(): void {}
+	on(): void {}
+	close(): void { this.closes += 1; }
 }
