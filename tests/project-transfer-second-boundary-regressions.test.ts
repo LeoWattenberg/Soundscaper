@@ -3,8 +3,12 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import type { ProjectTransferEntry, ProjectTransferInboundMessage } from
-	'../src/common/transfer/project-transfer-handshake.ts';
+import {
+	PROJECT_TRANSFER_PROTOCOL_ID,
+	PROJECT_TRANSFER_PROTOCOL_VERSION,
+	type ProjectTransferEntry,
+	type ProjectTransferInboundMessage,
+} from '../src/common/transfer/project-transfer-handshake.ts';
 import { importTransferArchiveFiles, type TransferArchiveSource } from
 	'../src/common/transfer/transfer-manual-import.ts';
 import {
@@ -27,6 +31,34 @@ function entry(entryId = 'entry-1'): ProjectTransferEntry {
 		byteLength: 3,
 		payload: new Uint8Array([1, 2, 3]),
 		conversionReportSidecar: null,
+	};
+}
+
+function entryMessage(sessionId: string, sequence = 1): Record<string, unknown> {
+	return {
+		protocol: PROJECT_TRANSFER_PROTOCOL_ID,
+		protocolVersion: PROJECT_TRANSFER_PROTOCOL_VERSION,
+		sessionId,
+		kind: 'entry',
+		sequence,
+		...entry(),
+	};
+}
+
+function acknowledgement(
+	sessionId: string,
+	overrides: Readonly<Record<string, unknown>> = {},
+): Record<string, unknown> {
+	return {
+		protocol: PROJECT_TRANSFER_PROTOCOL_ID,
+		protocolVersion: PROJECT_TRANSFER_PROTOCOL_VERSION,
+		sessionId,
+		kind: 'ack',
+		sequence: 1,
+		entryId: 'entry-1',
+		status: 'stored',
+		reason: '',
+		...overrides,
 	};
 }
 
@@ -77,31 +109,32 @@ test('an acknowledgement belongs only to the session carried by the posted entry
 	const raw = rawPort();
 	const watch = observeTransferAcknowledgements(raw.port, [entry()], [PEER_ORIGIN]);
 	watch.port.subscribe(() => undefined);
-	watch.port.post({ kind: 'entry', entryId: 'entry-1', sessionId: 'session-right' }, PEER_ORIGIN);
+	watch.port.post(entryMessage('session-right'), PEER_ORIGIN);
 	for (const sessionId of ['session-wrong', undefined]) {
-		raw.dispatch({ origin: PEER_ORIGIN, data: {
-			kind: 'ack', entryId: 'entry-1', sessionId, status: 'stored', reason: '',
-		} });
+		raw.dispatch({ origin: PEER_ORIGIN, data: acknowledgement('session-right', { sessionId }) });
 	}
 	assert.deepEqual(watch.outcomes, []);
-	raw.dispatch({ origin: PEER_ORIGIN, data: {
-		kind: 'ack', entryId: 'entry-1', sessionId: 'session-right', status: 'stored', reason: '',
-	} });
+	raw.dispatch({ origin: PEER_ORIGIN, data: acknowledgement('session-right') });
 	assert.equal(watch.outcomes.length, 1);
 	assert.equal(watch.sessionId, 'session-right');
 });
 
-test('an acknowledgement watch does not retain malformed status or oversized peer prose', () => {
+test('an acknowledgement watch does not retain protocol-invalid peer claims', () => {
 	const raw = rawPort();
 	const watch = observeTransferAcknowledgements(raw.port, [entry()], [PEER_ORIGIN]);
 	watch.port.subscribe(() => undefined);
-	watch.port.post({ kind: 'entry', entryId: 'entry-1', sessionId: 'session-1' }, PEER_ORIGIN);
-	raw.dispatch({ origin: PEER_ORIGIN, data: {
-		kind: 'ack', entryId: 'entry-1', sessionId: 'session-1', status: 'maybe', reason: '',
-	} });
-	raw.dispatch({ origin: PEER_ORIGIN, data: {
-		kind: 'ack', entryId: 'entry-1', sessionId: 'session-1', status: 'failed', reason: 'x'.repeat(513),
-	} });
+	watch.port.post(entryMessage('session-1'), PEER_ORIGIN);
+	for (const overrides of [
+		{ status: 'maybe' },
+		{ status: 'failed', reason: 'x'.repeat(513) },
+		{ reason: 'control\u0000character' },
+		{ protocol: 'obsolete-project-transfer' },
+		{ protocolVersion: PROJECT_TRANSFER_PROTOCOL_VERSION + 1 },
+		{ sequence: 2 },
+		{ unexpected: true },
+	]) {
+		raw.dispatch({ origin: PEER_ORIGIN, data: acknowledgement('session-1', overrides) });
+	}
 	assert.deepEqual(watch.outcomes, []);
 	assert.deepEqual(watch.unanswered.map(({ entryId }) => entryId), ['entry-1']);
 });

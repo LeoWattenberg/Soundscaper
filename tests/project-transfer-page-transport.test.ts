@@ -21,6 +21,7 @@ import test from 'node:test';
 import {
 	PROJECT_TRANSFER_DEFAULT_TIMEOUT_MILLISECONDS,
 	PROJECT_TRANSFER_MAX_TIMEOUT_MILLISECONDS,
+	PROJECT_TRANSFER_PROTOCOL_ID,
 	PROJECT_TRANSFER_PROTOCOL_VERSION,
 	receiveProjectTransfer,
 	sendProjectTransfer,
@@ -268,8 +269,8 @@ test('the fallback watch ignores acknowledgements for entries not yet posted', (
 	const acknowledge = () => receive?.({
 		origin: FRAMESCAPER,
 		data: {
-			protocol: 'soundscaper-project-transfer',
-			version: PROJECT_TRANSFER_PROTOCOL_VERSION,
+			protocol: PROJECT_TRANSFER_PROTOCOL_ID,
+			protocolVersion: PROJECT_TRANSFER_PROTOCOL_VERSION,
 			sessionId: 'early-ack',
 			kind: 'ack',
 			sequence: 1,
@@ -283,9 +284,16 @@ test('the fallback watch ignores acknowledgements for entries not yet posted', (
 	assert.deepEqual(watch.outcomes, []);
 	assert.deepEqual(watch.unsent.map(({ entryId }) => entryId), ['p1']);
 	watch.port.post({
+		protocol: PROJECT_TRANSFER_PROTOCOL_ID,
+		protocolVersion: PROJECT_TRANSFER_PROTOCOL_VERSION,
 		kind: 'entry',
+		sequence: 1,
 		entryId: 'p1',
 		sessionId: 'early-ack',
+		name: 'One.sscape',
+		byteLength: 4,
+		payload: new Uint8Array(4),
+		conversionReportSidecar: null,
 	}, FRAMESCAPER);
 	acknowledge();
 	assert.deepEqual(watch.outcomes.map(({ entryId }) => entryId), ['p1']);

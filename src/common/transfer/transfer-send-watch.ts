@@ -31,6 +31,7 @@
  */
 
 import type * as Handshake from './project-transfer-handshake.ts';
+import { admitProjectTransferMessage } from './project-transfer-handshake-wire.ts';
 
 /**
  * The buffer is small and fixed: once the protocol is listening it does its own
@@ -39,8 +40,6 @@ import type * as Handshake from './project-transfer-handshake.ts';
  * allocating for.
  */
 const TRANSFER_PORT_BUFFER_LIMIT = 32;
-/** Mirrors PROJECT_TRANSFER_MAX_TEXT_LENGTH without adding the wire module to this lightweight seam. */
-const TRANSFER_ACK_REASON_LIMIT = 512;
 
 /**
  * Which ports are already buffered, so wrapping one twice is a no-op.
@@ -149,18 +148,27 @@ export function observeTransferAcknowledgements(
 		}
 		offered.set(entry.entryId, entry);
 	}
-	const posted = new Map<string, string>();
+	const posted = new Map<string, Readonly<{
+		readonly sessionId: string;
+		readonly sequence: number;
+		readonly protocolVersion: number;
+	}>>();
 	const outcomes: Handshake.ProjectTransferOutcome[] = [];
 	let sessionId = '';
 	const record = (message: Handshake.ProjectTransferInboundMessage): void => {
 		if (!message || !allowedOrigins.includes(message.origin)) return;
-		const ack = message.data as Partial<Handshake.ProjectTransferAckMessage> | null;
-		if (!ack || typeof ack !== 'object' || ack.kind !== 'ack' || typeof ack.entryId !== 'string') return;
-		const postedSessionId = posted.get(ack.entryId);
-		if (postedSessionId === undefined || typeof ack.sessionId !== 'string'
-			|| ack.sessionId !== postedSessionId) return;
-		if (ack.status !== 'stored' && ack.status !== 'failed') return;
-		if (typeof ack.reason !== 'string' || ack.reason.length > TRANSFER_ACK_REASON_LIMIT) return;
+		let ack: Handshake.ProjectTransferAckMessage | null = null;
+		try {
+			const admitted = admitProjectTransferMessage(message.data);
+			if (admitted?.kind === 'ack') ack = admitted;
+		} catch {
+			return;
+		}
+		if (!ack) return;
+		const postedEntry = posted.get(ack.entryId);
+		if (!postedEntry || ack.sessionId !== postedEntry.sessionId
+			|| ack.sequence !== postedEntry.sequence
+			|| ack.protocolVersion !== postedEntry.protocolVersion) return;
 		const entry = offered.get(ack.entryId);
 		if (!entry) return;
 		offered.delete(ack.entryId);
@@ -174,10 +182,18 @@ export function observeTransferAcknowledgements(
 		}));
 	};
 	const notePost = (message: unknown): void => {
-		const sent = message as Partial<Handshake.ProjectTransferEntryMessage> | null;
-		if (!sent || typeof sent !== 'object' || sent.kind !== 'entry') return;
-		if (typeof sent.entryId === 'string' && typeof sent.sessionId === 'string'
-			&& offered.has(sent.entryId)) posted.set(sent.entryId, sent.sessionId);
+		let sent: Handshake.ProjectTransferEntryMessage | null = null;
+		try {
+			const admitted = admitProjectTransferMessage(message);
+			if (admitted?.kind === 'entry') sent = admitted;
+		} catch {
+			return;
+		}
+		if (sent && offered.has(sent.entryId)) posted.set(sent.entryId, Object.freeze({
+			sessionId: sent.sessionId,
+			sequence: sent.sequence,
+			protocolVersion: sent.protocolVersion,
+		}));
 	};
 	const pending = (sent: boolean): readonly TransferSendPending[] => Object.freeze(
 		[...offered.values()]
