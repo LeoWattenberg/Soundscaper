@@ -251,10 +251,10 @@
 	position: relative;
 	z-index: 1;
 	display: grid;
-	height: clamp(72px, 28%, 300px);
+	height: clamp(72px, 28%, 130px);
 	min-height: 72px;
-	max-height: 320px;
-	flex: 0 1 clamp(72px, 28%, 300px);
+	max-height: 130px;
+	flex: 0 1 clamp(72px, 28%, 130px);
 	grid-template-columns: minmax(0, 2fr) minmax(0, 3fr);
 	overflow: hidden;
 	background: var(--panel);
