@@ -9,17 +9,15 @@ import {
 	syncNativeCheckpointDirectory,
 } from '../desktop/native-services-checkpoint-directory-durability.ts';
 
-for (const sourceFile of [
-	'../desktop/native-services-checkpoint-recovery.ts',
-	'../desktop/native-services-checkpoint-recovery-v3.ts',
-]) {
-	test(`${sourceFile} syncs the checkpoint directory after atomic rename`, async () => {
-		const source = await readFile(new URL(sourceFile, import.meta.url), 'utf8');
-		const store = source.slice(source.indexOf('export function createFramescaperNativeFilesystemCheckpointStore'),
-			source.indexOf('function checkpointAuthority'));
-		assert.match(store, /await rename\(temporary, destination\);\s+await syncNativeCheckpointDirectory\(directory\);/u);
-	});
-}
+test('the shared checkpoint store syncs its directory after atomic rename', async () => {
+	const source = await readFile(new URL(
+		'../desktop/native-services-checkpoint-recovery-core.ts',
+		import.meta.url,
+	), 'utf8');
+	const store = source.slice(source.indexOf('export function createFramescaperNativeFilesystemCheckpointStore'),
+		source.indexOf('function checkpointAuthority'));
+	assert.match(store, /await rename\(temporary, destination\);\s+await syncNativeCheckpointDirectory\(directory\);/u);
+});
 
 test('checkpoint directory sync tolerates only unsupported-platform errors', async () => {
 	for (const code of ['EINVAL', 'ENOTSUP', 'EOPNOTSUPP', 'EISDIR', 'EPERM']) {

@@ -5820,6 +5820,10 @@
 						},
 						{
 							"kind": "implementation",
+							"path": "desktop/native-services-checkpoint-recovery-core.ts"
+						},
+						{
+							"kind": "implementation",
 							"path": "desktop/native-services-proxy-output-broker.ts"
 						},
 						{
