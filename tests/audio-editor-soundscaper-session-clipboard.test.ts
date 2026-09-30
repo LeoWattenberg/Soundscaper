@@ -49,6 +49,8 @@ test('track duplicate clipboard captures and normalizes detached immutable autho
 
 	assert.deepEqual(normalized, captured);
 	assert.notStrictEqual(normalized, captured);
+	assert.equal(Object.isFrozen(captured), true);
+	assert.equal(Object.isFrozen(captured.effectIds), true);
 	assert.equal(Object.isFrozen(normalized), true);
 	assert.equal(Object.isFrozen(normalized.effectIds), true);
 });

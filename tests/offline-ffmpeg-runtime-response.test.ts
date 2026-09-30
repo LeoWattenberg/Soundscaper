@@ -36,6 +36,11 @@ test('a verified bounded response checks both its decoded byte count and digest'
 	assert.deepEqual(result, bytes);
 
 	await assert.rejects(() => readBoundedResponse(bytesResponse(bytes), {
+		expectedBytes: 4,
+		label: 'Runtime manifest',
+		maximumBytes: 16,
+	}), /byte length is 3; expected 4/u);
+	await assert.rejects(() => readBoundedResponse(bytesResponse(bytes), {
 		expectedSha256: '0'.repeat(64),
 		label: 'Runtime manifest',
 		maximumBytes: 16,

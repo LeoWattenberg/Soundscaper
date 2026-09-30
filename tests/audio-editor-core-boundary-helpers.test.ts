@@ -87,11 +87,13 @@ test('reset clears crossover history at the latest configured frequency', () => 
 });
 
 test('WebCodecs audio profiles preserve their exact codec-specific configuration', () => {
-	assert.deepEqual(browserWebCodecsAudioConfiguration('aac', {
-		sampleRate: 48_000, channelCount: 2, bitrate: 192_000,
-	}), {
+	const geometry = { sampleRate: 48_000, channelCount: 2, bitrate: 192_000 };
+	assert.deepEqual(browserWebCodecsAudioConfiguration('aac', geometry), {
 		codec: 'mp4a.40.2', sampleRate: 48_000, numberOfChannels: 2, bitrate: 192_000,
 		aac: { format: 'aac' },
+	});
+	assert.deepEqual(browserWebCodecsAudioConfiguration('opus', geometry), {
+		codec: 'opus', sampleRate: 48_000, numberOfChannels: 2, bitrate: 192_000,
 	});
 	assert.equal(browserWebCodecsAudioFullCodecString('opus'), 'opus');
 });
