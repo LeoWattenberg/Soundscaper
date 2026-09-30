@@ -1,7 +1,9 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import assert from 'node:assert/strict';
-import { readFile } from 'node:fs/promises';
+import { mkdtemp, readFile, rm } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
 import test from 'node:test';
 
 import { PUBLISHABLE_NATIVE_AUDIO_BACKENDS } from '../desktop/native-helper-service.ts';
@@ -229,6 +231,28 @@ test('schema V2 binds helper metrics to the observed host without a configured h
 	const relabelled = makeV2Measurement() as { observedRuntimeProfile: { audioBackend: string } };
 	relabelled.observedRuntimeProfile.audioBackend = 'coreaudio';
 	assert.throws(() => validateM5NativeHelperMeasurement(relabelled, { ...expectation, budgetSha256: qualityBudgetSha256(config), diagnosticEnvironment }), /observed runtime profile/iu);
+});
+
+test('schema V2 output retains the raw record under its observed platform filename', async (context) => {
+	const directory = await mkdtemp(join(tmpdir(), 'soundscaper-m5-quality-'));
+	context.after(() => rm(directory, { recursive: true, force: true }));
+	const measurement = makeV2Measurement();
+	const result = createM5NativeHelperResult(measurement, config);
+	const written = await writeM5NativeHelperResult(directory, result, measurement);
+	assert.equal(
+		written.rawPath,
+		join(directory, 'm5-native-helper-and-audio.windowsX64.raw.json'),
+	);
+	assert.equal(
+		written.resultPath,
+		join(directory, 'm5-native-helper-and-audio.windowsX64.passed.json'),
+	);
+	assert.deepEqual(JSON.parse(await readFile(written.rawPath, 'utf8')), measurement);
+	assert.deepEqual(JSON.parse(await readFile(written.resultPath, 'utf8')), result);
+	await assert.rejects(
+		writeM5NativeHelperResult(directory, result, measurement),
+		/EEXIST/u,
+	);
 });
 
 test('a breached threshold fails the metric gate instead of degrading to pending', () => {
