@@ -4,7 +4,18 @@ import type { EditorActionFunctions } from './editor-action-functions.ts';
 import type { EditorActionResources } from './editor-action-resources.ts';
 export type { EditorActionResources } from './editor-action-resources.ts';
 
-export const EDITOR_ACTION_FUNCTION_NAMES = [
+type MissingEditorActionFunctionNames<Names extends readonly PropertyKey[]> =
+	Exclude<keyof EditorActionFunctions, Names[number]>;
+
+function defineEditorActionFunctionNames<const Names extends readonly (keyof EditorActionFunctions)[]>(
+	names: Names & (MissingEditorActionFunctionNames<Names> extends never
+		? unknown
+		: { readonly __missingEditorActionFunctions: MissingEditorActionFunctionNames<Names> }),
+): Names {
+	return names;
+}
+
+export const EDITOR_ACTION_FUNCTION_NAMES = defineEditorActionFunctionNames([
 	'activatePanelTabPreference',
 	'addEffect',
 	'addLabel',
@@ -87,6 +98,7 @@ export const EDITOR_ACTION_FUNCTION_NAMES = [
 	'handlePlayAtSpeed',
 	'handleTransport',
 	'hasMissingTimelineSources',
+	'importCueFile',
 	'importEffectPresets',
 	'importFiles',
 	'importLabelFile',
@@ -250,7 +262,7 @@ export const EDITOR_ACTION_FUNCTION_NAMES = [
 	'updateVideoClipEffect',
 	'updateWorkspacePreference',
 	'updateZoom',
-] as const satisfies readonly (keyof EditorActionFunctions)[];
+]);
 
 
 export type EditorActionRuntime = EditorActionResources & EditorActionFunctions;

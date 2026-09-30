@@ -3,10 +3,20 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
+	EDITOR_ACTION_FUNCTION_NAMES,
 	assertEditorActionFunctions,
 	type EditorActionRuntime,
 } from '../src/common/editor/controller/composition/action-facade-runtime.ts';
+import type { EditorActionFunctions } from '../src/common/editor/controller/composition/editor-action-functions.ts';
 import { createActionFacadeRuntime } from './helpers/action-facade-runtime-fixture.ts';
+
+type AssertTrue<Value extends true> = Value;
+
+export type EditorActionFunctionInventoryIsExhaustive = AssertTrue<
+	Exclude<keyof EditorActionFunctions, typeof EDITOR_ACTION_FUNCTION_NAMES[number]> extends never
+		? true
+		: false
+>;
 
 test('a missing or non-callable dependency fails during assembly with its name', () => {
 	for (const invalid of [undefined, null, 1, {}]) {
@@ -18,6 +28,15 @@ test('a missing or non-callable dependency fails during assembly with its name',
 		assert.throws(() => assertEditorActionFunctions(scope), /Missing editor action dependency: saveNow/u);
 	}
 	assert.doesNotThrow(() => assertEditorActionFunctions(createActionFacadeRuntime()));
+});
+
+test('the CUE import action is included in runtime dependency validation', () => {
+	const scope = new Proxy(createActionFacadeRuntime(), {
+		get(target, name, receiver) {
+			return name === 'importCueFile' ? undefined : Reflect.get(target, name, receiver);
+		},
+	});
+	assert.throws(() => assertEditorActionFunctions(scope), /Missing editor action dependency: importCueFile/u);
 });
 
 // The dependency inventory must remain closed even while some legacy command
