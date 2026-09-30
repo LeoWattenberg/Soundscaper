@@ -229,8 +229,12 @@ export class FakeElement {
 
 	removeEventListener(): void {}
 
+	dispatch(type: string): void {
+		for (const listener of this.listeners.get(type) ?? []) listener({ target: this });
+	}
+
 	click(): void {
-		for (const listener of this.listeners.get('click') ?? []) listener({ target: this });
+		this.dispatch('click');
 	}
 
 	descendants(): FakeElement[] {
@@ -258,6 +262,31 @@ export class FakeElement {
 
 	querySelectorAll(selector: string): FakeElement[] {
 		return this.descendants().filter((node) => node.matches(selector));
+	}
+
+	textOf(selector: string): string[] {
+		return this.querySelectorAll(selector).map((node) => node.textContent);
+	}
+
+	count(selector: string): number {
+		return this.querySelectorAll(selector).length;
+	}
+
+	buttonLabels(): string[] {
+		return this.querySelectorAll('button').map((node) => node.textContent);
+	}
+
+	checkboxes(): FakeElement[] {
+		return this.querySelectorAll('input').filter((node) => node.type === 'checkbox');
+	}
+
+	async clickButton(label: string | RegExp): Promise<void> {
+		const button = this.querySelectorAll('button').find((node) => (
+			typeof label === 'string' ? node.textContent === label : label.test(node.textContent)
+		));
+		assert.ok(button, `no button matching ${String(label)} in ${JSON.stringify(this.buttonLabels())}`);
+		button.click();
+		await Promise.resolve();
 	}
 }
 
