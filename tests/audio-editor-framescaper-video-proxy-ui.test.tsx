@@ -57,18 +57,21 @@ test('the proxy workflow is lazy, menu-only, and does not activate native M5 pro
 	const workspaceRuntime = readFileSync('src/common/editor/ui/workspace/workspace-application-menu-runtime.js', 'utf8');
 	const finishingMenu = readFileSync('src/common/editor/ui/framescaper-video-finishing-menu.ts', 'utf8');
 	const projectBin = readFileSync('src/common/editor/ui/workspace/ProjectBinPanel.jsx', 'utf8');
+	const projectBinDialog = readFileSync('src/common/editor/ui/workspace/ProjectBinVideoProxyDialog.jsx', 'utf8');
 	const nativeMenu = readFileSync('src/common/editor/ui/framescaper-native-services-menu.ts', 'utf8');
 	assert.match(overlays, /lazyEditorModule\(\(\) => import\('\.\.\/dialogs\/FramescaperVideoProxyDialog\.tsx'\)\)/u);
 	assert.match(workspaceRuntime, /openVideoProxy:\s*\(\) => openSurface\('video-proxy'\)/u);
 	assert.match(finishingMenu, /createFramescaperVideoProxyApplicationMenuItems/u);
-	assert.match(projectBin,
+	assert.match(projectBinDialog,
 		/lazyEditorModule\(\(\) => import\('\.\.\/dialogs\/FramescaperVideoProxyDialog\.tsx'\)\)/u);
 	assert.match(projectBin, /createFramescaperVideoProxyApplicationMenuItems\(\{[\s\S]*productId: snapshot\.productId,[\s\S]*setProxyClipId\(menuVideoClip\.id\)/u);
 	assert.match(projectBin, /label=\{proxyMenuItem\.label\}[\s\S]*onClick=\{proxyMenuItem\.onClick\}/u);
-	assert.match(projectBin, /selectedClipId: proxyClipId/u,
+	assert.match(projectBin, /clipId=\{proxyClipId\}/u,
 		'the clicked Project Bin occurrence, rather than timeline selection, seeds the proxy dialog');
+	assert.match(projectBinDialog, /createPortal\([\s\S]*portalTarget/u,
+		'the Project Bin dialog escapes the panel stacking context through the editor overlay host');
 	assert.doesNotMatch(overlays, /import FramescaperVideoProxyDialog from/u);
-	assert.doesNotMatch(projectBin, /import FramescaperVideoProxyDialog from/u);
+	assert.doesNotMatch(projectBinDialog, /import FramescaperVideoProxyDialog from/u);
 	assert.match(nativeMenu, /professionalMediaProject\s*=\s*hasProject/u);
 });
 

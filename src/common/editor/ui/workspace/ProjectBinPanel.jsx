@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 import { useProjectBinFileDrop } from './use-project-bin-file-drop.js';
 import { Button } from '@soundscaper/design-system/Button';
@@ -11,22 +11,17 @@ import { selectAudioEditorEditBlock } from '../edit-blocking.ts';
 import { createFramescaperVideoProxyApplicationMenuItems } from '../framescaper-video-proxy-application-menu.ts';
 import ProjectBinCard from './ProjectBinCard.jsx';
 import ProjectBinNotices from './ProjectBinNotices.tsx';
+import ProjectBinVideoProxyDialog from './ProjectBinVideoProxyDialog.jsx';
 import {
 	dispatchLinkedAudioChoice,
 	prepareLinkedAudioChoice,
 } from './linked-audio-choice-handoff.ts';
 import { projectBinColorName, projectBinItems } from './project-bin-model.ts';
-import { lazyEditorModule } from '../../../offline/lazy-module.tsx';
 import { queueFreesoundClipUploadCommand } from './freesound-clip-upload-command.ts';
 import { withWebFileLoadLimitContext } from '../../web-file-limit-failure.ts';
 import { useProjectBinSourceProperties } from './use-project-bin-source-properties.jsx';
 
 const AUDIO_EDITOR_AUDIO_FILE_ACCEPT = 'audio/*,video/mp4,video/webm,.aac,.aif,.aiff,.bw64,.flac,.m4a,.m4v,.mp2,.mp3,.mp4,.oga,.ogg,.opus,.rf64,.wav,.wave,.wavpack,.webm,.wv';
-const FRAMESCAPER_BUILD = typeof __SCAPE_PRODUCT__ === 'undefined'
-	|| __SCAPE_PRODUCT__ === 'framescaper';
-const FramescaperVideoProxyDialog = FRAMESCAPER_BUILD
-	? lazyEditorModule(() => import('../dialogs/FramescaperVideoProxyDialog.tsx')) : null;
-
 export default function ProjectBinPanel({ controller, snapshot, copy, locale, fileService, run, blocked }) {
 	const inputRef = useRef(null);
 	const replacementInputRef = useRef(null);
@@ -468,19 +463,11 @@ export default function ProjectBinPanel({ controller, snapshot, copy, locale, fi
 			{sourceProperties.menuItem(menuVideoClip, itemMenu, closeItemMenu)}
 		</ContextMenu>
 		{sourceProperties.flyout}
-		{proxyDialogOpen && (
-			<React.Suspense fallback={<p role="status">{copy.loading}</p>}>
-				<FramescaperVideoProxyDialog
-					controller={controller}
-					snapshot={{ ...snapshot, selectedClipId: proxyClipId }}
-					editingBlocked={mutationBlocked}
-					copy={copy}
-					fileService={fileService}
-					run={run}
-					onClose={closeProxyDialog}
-				/>
-			</React.Suspense>
-		)}
+		{proxyDialogOpen && <ProjectBinVideoProxyDialog clipId={proxyClipId}
+			controller={controller} snapshot={snapshot} editingBlocked={mutationBlocked}
+			copy={copy} fileService={fileService} run={run} onClose={closeProxyDialog}
+			portalTarget={inputRef.current?.closest('#kw-audio-editor-design-system')
+				?.querySelector('[data-editor-overlay-layer]')} />}
 		{removeConfirmation && (
 			<div className="kw-audio-editor-dialog-backdrop" data-project-bin-remove-dialog>
 				<div className="kw-audio-editor-dialog kw-audio-editor__project-bin-confirm" role="alertdialog" aria-modal="true" aria-labelledby="project-bin-remove-title">
