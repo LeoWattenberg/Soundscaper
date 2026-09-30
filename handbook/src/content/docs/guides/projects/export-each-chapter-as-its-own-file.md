@@ -15,10 +15,10 @@ head:
 
 ## What this guide is for {#what-this-guide-is-for}
 
-A lecture that should become one file per topic, an album side that needs cutting into tracks, an audiobook with a chapter per file: put a marker at the start of each part and export once. Every marker opens a chapter that runs to the next one, and each chapter is written as its own file, named after the marker, inside a single archive. Audacity 3 did this with Export Multiple; Audacity 4 has not brought it back.
+A lecture that should become one file per topic, an album side that needs cutting into tracks, an audiobook with a chapter per file: put a marker at the start of each part and export once. Every marker opens a chapter that runs to the next one, and each chapter is written as its own file, named after the marker, inside a single archive. Audacity 4.0.1 provides the same workflow through Export Multiple.
 
 :::note[Coming from Audacity?]
-This is Audacity's **File → Export Audio → Export Multiple, split by labels (Audacity 3; Audacity 4 has no Export Multiple)**. The names below are Soundscaper's own, which sometimes differ.
+This is Audacity's **File → Export Audio → Labeled regions as separate audio files**. The names below are Soundscaper's own, which sometimes differ.
 :::
 
 ## Steps

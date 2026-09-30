@@ -109,8 +109,8 @@ export const PROJECT_GUIDES = Object.freeze([
 		id: 'export-each-chapter-as-its-own-file',
 		title: 'Export each chapter as its own file',
 		description: 'Split one long recording into files at the markers you have placed.',
-		audacity: 'File → Export Audio → Export Multiple, split by labels (Audacity 3; Audacity 4 has no Export Multiple)',
-		intro: 'A lecture that should become one file per topic, an album side that needs cutting into tracks, an audiobook with a chapter per file: put a marker at the start of each part and export once. Every marker opens a chapter that runs to the next one, and each chapter is written as its own file, named after the marker, inside a single archive. Audacity 3 did this with Export Multiple; Audacity 4 has not brought it back.',
+		audacity: 'File → Export Audio → Labeled regions as separate audio files',
+		intro: 'A lecture that should become one file per topic, an album side that needs cutting into tracks, an audiobook with a chapter per file: put a marker at the start of each part and export once. Every marker opens a chapter that runs to the next one, and each chapter is written as its own file, named after the marker, inside a single archive. Audacity 4.0.1 provides the same workflow through Export Multiple.',
 		steps: [
 			open(),
 			importAudio('music-loop', { what: 'the recording to split' }),

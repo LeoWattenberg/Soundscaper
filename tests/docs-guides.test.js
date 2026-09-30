@@ -263,19 +263,26 @@ test('the Freesound guide opens the panel, searches, and inserts a result into t
 	assert.doesNotMatch(page, /\bHarbor ambience\b|\bharbor\b/u, 'a how-to uses the reader’s sound');
 });
 
-test('the guides cover the Audacity 3 features Audacity 4 left out', () => {
-	// Each of these is an Audacity 3 surface with no counterpart in the Audacity 4
-	// sources the parity inventory is pinned to; the guide has to say so.
+test('the guides cover the Audacity 3 features Audacity 4.0.1 still leaves out', () => {
+	// Each of these is an Audacity 3 surface with no counterpart in the pinned
+	// inventory or the Audacity 4.0.1 release; the guide has to say so.
 	for (const id of [
 		'add-a-phaser', 'apply-the-same-effects-every-time', 'even-out-volume-with-the-legacy-compressor',
 		'check-speech-contrast', 'listen-at-a-different-speed', 'mute-every-track-at-once',
-		'mix-tracks-into-a-new-track', 'balance-tracks-in-the-mixer', 'export-each-chapter-as-its-own-file',
+		'mix-tracks-into-a-new-track', 'balance-tracks-in-the-mixer',
 	]) {
 		const guide = SOUNDSCAPER_GUIDES.find((entry) => entry.id === id);
 		assert.ok(guide, `the ${id} guide is missing`);
 		assert.match(guide.audacity, /Audacity 3/u, `${id} names its Audacity 3 origin`);
 		assert.match(guide.audacity, /Audacity 4/u, `${id} says Audacity 4 lacks it`);
 	}
+});
+
+test('the chapter export guide reflects Audacity 4.0.1 Export Multiple', () => {
+	const guide = SOUNDSCAPER_GUIDES.find((entry) => entry.id === 'export-each-chapter-as-its-own-file');
+	assert.ok(guide, 'the chapter export guide is missing');
+	assert.equal(guide.audacity, 'File → Export Audio → Labeled regions as separate audio files');
+	assert.match(guide.intro, /Audacity 4\.0\.1 provides the same workflow through Export Multiple/u);
 });
 
 test('the DC offset guide names Audacity’s own effect rather than Normalize', () => {
