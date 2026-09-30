@@ -13,7 +13,7 @@ import type {
 	TakeCycleLiveLaneCapture,
 } from '../src/common/editor/controller/recording/internal/take-cycle/take-cycle-live-capture-session.ts';
 import type { RecordingControllerFactoryOptions } from '../src/common/editor/controller/recording/recording-transaction-types.ts';
-import { waitFor } from './helpers/async-test-control.ts';
+import { deferred, waitFor } from './helpers/async-test-control.ts';
 
 test('routed cycle capture pre-registers per-track groups then resamples into exact loop-grid spans', async () => {
 	const fixture = captureFixture({ captureSampleRate: 44_100 });
@@ -577,14 +577,4 @@ function gridBoundaries(spans: readonly TakeCycleCapturePcmSpan[], start: number
 
 function sameLoopCell(start: number, end: number, origin: number, length: number): boolean {
 	return Math.floor((start - origin) / length) === Math.floor((end - 1 - origin) / length);
-}
-
-function deferred<T>() {
-	let resolve!: (value: T | PromiseLike<T>) => void;
-	let reject!: (reason?: unknown) => void;
-	const promise = new Promise<T>((resolvePromise, rejectPromise) => {
-		resolve = resolvePromise;
-		reject = rejectPromise;
-	});
-	return { promise, resolve, reject };
 }

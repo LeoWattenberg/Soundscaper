@@ -7,7 +7,7 @@ import {
 	createFramescaperBrowserRecorderFactory,
 } from '../src/common/editor/controller/capture/internal/browser/framescaper-browser-recorder-factory.ts';
 import type { CapturePacket } from '../src/common/editor/framescaper-capture-domain.ts';
-import { waitFor } from './helpers/async-test-control.ts';
+import { deferred, waitFor } from './helpers/async-test-control.ts';
 
 test('browser recorder factory retains the video encoder actual MIME type', async () => {
 	const packets: CapturePacket[] = [];
@@ -81,7 +81,7 @@ test('worklet-global frames are rebased onto the shared session origin', async (
 
 test('factory fences queued pre-pause drops from the actual pause gap', async () => {
 	const packets: CapturePacket[] = [];
-	const firstPacket = deferred();
+	const firstPacket = deferred<void>();
 	let emit!: (chunk: Readonly<{
 		frameStart: number; frames: number; channels: readonly Float32Array[];
 	}>) => PromiseLike<void> | void;
@@ -178,10 +178,4 @@ function audioData(frameStart: number, samples: readonly number[]) {
 		copyTo(destination: Float32Array) { destination.set(samples); },
 		close() {},
 	};
-}
-
-function deferred() {
-	let resolve!: () => void;
-	const promise = new Promise<void>((accept) => { resolve = accept; });
-	return Object.freeze({ promise, resolve });
 }

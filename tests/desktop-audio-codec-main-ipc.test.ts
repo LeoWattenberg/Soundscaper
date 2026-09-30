@@ -9,7 +9,7 @@ import {
 	type DesktopAudioCodecMainIpcService,
 } from '../desktop/desktop-audio-codec-main-ipc.ts';
 import type { DesktopAudioCodecCapabilityQuery } from '../desktop/desktop-audio-codec-capability-contract.ts';
-import { waitFor } from './helpers/async-test-control.ts';
+import { deferred, waitFor } from './helpers/async-test-control.ts';
 
 const CHANNELS = Object.freeze({
 	desktopAudioCodecExecute: 'soundscaper:v1:codecs:audio:execute',
@@ -264,12 +264,6 @@ function encodeRequest(input: Uint8Array, requestId = 'audio-request-1') {
 		sampleRate: 48_000, channelCount: 2, settings: { bitrateKbps: 128, vbrMode: 1 },
 		maximumOutputBytes: 8_192, requestId,
 	};
-}
-
-function deferred<Value>() {
-	let resolve!: (value: Value) => void;
-	const promise = new Promise<Value>((resolvePromise) => { resolve = resolvePromise; });
-	return { promise, resolve };
 }
 
 async function until(predicate: () => boolean): Promise<void> {

@@ -13,7 +13,7 @@ import {
 	EMPTY_ZIP32_LAYOUT,
 	extendZip32Layout,
 } from '../src/common/editor/controller/export/internal/archive/zip32.ts';
-import { waitFor } from './helpers/async-test-control.ts';
+import { deferred, waitFor } from './helpers/async-test-control.ts';
 
 class MemorySink implements SequentialZip32Sink<Uint8Array> {
 	readonly chunks: Uint8Array[] = [];
@@ -325,15 +325,6 @@ function customBlob(
 		value: () => ({ getReader: () => reader }),
 	});
 	return blob;
-}
-
-function deferred<Value>(): {
-	readonly promise: Promise<Value>;
-	readonly resolve: (value: Value) => void;
-} {
-	let resolve!: (value: Value) => void;
-	const promise = new Promise<Value>((accept) => { resolve = accept; });
-	return { promise, resolve };
 }
 
 function concatenate(chunks: readonly Uint8Array[]): Uint8Array {

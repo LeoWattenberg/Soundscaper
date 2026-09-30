@@ -5,7 +5,7 @@ import test from 'node:test';
 
 import { createProjectSaveService } from '../src/common/editor/controller/document/project-save-service.ts';
 import { estimateProjectRevisionPublication } from '../src/common/editor/project-publication-admission.ts';
-import { waitFor } from './helpers/async-test-control.ts';
+import { deferred, waitFor } from './helpers/async-test-control.ts';
 
 interface TestProject {
 	readonly schemaVersion: 9;
@@ -38,7 +38,7 @@ test('project saves serialize admission immediately before each queued write', a
 		cloneProject: (value) => ({ ...value }),
 		admitProjectPublication: (bytes) => {
 			events.push(`admit:${String(project.revision)}`);
-			const gate = deferred();
+			const gate = deferred<void>();
 			admissions.push({ bytes, gate });
 			return gate.promise;
 		},
@@ -105,7 +105,7 @@ test('a rejected publication admission leaves no save effects and the queued suc
 			return snapshot;
 		},
 		admitProjectPublication: (bytes) => {
-			const gate = deferred();
+			const gate = deferred<void>();
 			admissions.push({ bytes, gate });
 			return gate.promise;
 		},
@@ -171,19 +171,5 @@ function saveState() {
 		saveGeneration: 0,
 		pendingSaveSnapshots: new Set<TestProject>(),
 		saveQueue: Promise.resolve<unknown>(undefined),
-	};
-}
-
-function deferred(): Deferred {
-	let resolve: (() => void) | undefined;
-	let reject: ((error: unknown) => void) | undefined;
-	const promise = new Promise<void>((settle, fail) => {
-		resolve = settle;
-		reject = fail;
-	});
-	return {
-		promise,
-		resolve: () => { resolve?.(); },
-		reject: (error) => { reject?.(error); },
 	};
 }

@@ -21,7 +21,7 @@ import type {
 } from '../src/common/editor/take-cycle-recovery-envelope.ts';
 import type { TakeMediaPublicationBinding } from '../src/common/editor/take-media-recovery-journal.ts';
 import { TakeCycleRecoveryEnvelopeRepository } from '../src/common/editor/storage/take-cycle-recovery-envelope-repository.ts';
-import { waitFor } from './helpers/async-test-control.ts';
+import { deferred, waitFor } from './helpers/async-test-control.ts';
 
 const SHA_A = 'ab'.repeat(32);
 const SHA_B = 'cd'.repeat(32);
@@ -442,10 +442,4 @@ function keyValuePort(values: Map<string, unknown>) {
 			return true;
 		},
 	};
-}
-
-function deferred<Value>() {
-	let resolve!: (value: Value) => void;
-	const promise = new Promise<Value>((settle) => { resolve = settle; });
-	return { promise, resolve };
 }

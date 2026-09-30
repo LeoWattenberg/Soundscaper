@@ -19,7 +19,7 @@ import {
 } from '../src/common/editor/take-cycle-recovery-envelope.ts';
 import type { TakeMediaPublicationBinding } from '../src/common/editor/take-media-recovery-journal.ts';
 import { TakeCycleRecoveryEnvelopeRepository } from '../src/common/editor/storage/take-cycle-recovery-envelope-repository.ts';
-import { waitFor } from './helpers/async-test-control.ts';
+import { deferred, waitFor } from './helpers/async-test-control.ts';
 
 test('restart before media commit cleans every exact stage receipt and removes its envelope', async () => {
 	const fixture = await recoveryFixture({ envelope: stagedEnvelope() });
@@ -353,10 +353,4 @@ function keyValuePort(values: Map<string, unknown>) {
 			return true;
 		},
 	};
-}
-
-function deferred<Value>() {
-	let resolve!: (value: Value) => void;
-	const promise = new Promise<Value>((settle) => { resolve = settle; });
-	return { promise, resolve };
 }
