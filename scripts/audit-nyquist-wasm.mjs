@@ -7,6 +7,8 @@ import { dirname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
 
+import { readNyquistDefinedMemoryLimits as readDefinedMemoryLimits } from './lib/wasm-binary-inspection.mjs';
+
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const nyquistDirectory = join(root, 'src/common/editor/nyquist');
 const manifestPath = join(nyquistDirectory, 'source-manifest.json');
@@ -186,59 +188,6 @@ function validateMemoryBudget(wasm, findings) {
 	}
 	if (wasm.initialMemoryBytes > wasm.maximumMemoryBytes) findings.push('Nyquist initial memory exceeds maximum memory.');
 	if (wasm.maximumMemoryBytes !== 256 * 1024 * 1024) findings.push('Nyquist maximum memory must be exactly 256 MiB.');
-}
-
-function readDefinedMemoryLimits(wasm) {
-	if (wasm.byteLength < 8 || wasm.readUInt32LE(0) !== 0x6d736100 || wasm.readUInt32LE(4) !== 1) {
-		throw new Error('invalid WebAssembly header');
-	}
-	const result = [];
-	let offset = 8;
-	while (offset < wasm.byteLength) {
-		const sectionId = wasm[offset++];
-		const sectionSize = readUnsignedLeb(wasm, offset);
-		offset = sectionSize.nextOffset;
-		const end = offset + sectionSize.value;
-		if (end > wasm.byteLength) throw new Error('section extends beyond artifact');
-		if (sectionId === 5) {
-			const count = readUnsignedLeb(wasm, offset);
-			offset = count.nextOffset;
-			for (let index = 0; index < count.value; index += 1) {
-				const flags = readUnsignedLeb(wasm, offset);
-				offset = flags.nextOffset;
-				const minimum = readUnsignedLeb(wasm, offset);
-				offset = minimum.nextOffset;
-				let maximumPages = null;
-				if (flags.value & 1) {
-					const maximum = readUnsignedLeb(wasm, offset);
-					offset = maximum.nextOffset;
-					maximumPages = maximum.value;
-				}
-				result.push({
-					minimumPages: minimum.value,
-					maximumPages,
-					shared: Boolean(flags.value & 2),
-					memory64: Boolean(flags.value & 4),
-				});
-			}
-		}
-		offset = end;
-	}
-	return result;
-}
-
-function readUnsignedLeb(bytes, start) {
-	let value = 0;
-	let multiplier = 1;
-	let offset = start;
-	for (let index = 0; index < 5; index += 1) {
-		if (offset >= bytes.byteLength) throw new Error('truncated LEB128 value');
-		const byte = bytes[offset++];
-		value += (byte & 0x7f) * multiplier;
-		if ((byte & 0x80) === 0) return { value, nextOffset: offset };
-		multiplier *= 128;
-	}
-	throw new Error('LEB128 value exceeds 32 bits');
 }
 
 function sha256(value) {

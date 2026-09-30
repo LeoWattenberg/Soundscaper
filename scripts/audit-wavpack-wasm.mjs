@@ -7,6 +7,7 @@ import { dirname, extname, join, relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { assertWavPackEmscriptenToolchainIdentity } from './lib/wavpack-wasm-toolchain.mjs';
+import { readStrictDefinedMemoryLimits } from './lib/wasm-binary-inspection.mjs';
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const wavpackDirectory = join(root, 'src/common/editor/wavpack');
@@ -152,7 +153,9 @@ function auditArtifactBytes(wasmPath, wasm, manifest, findings) {
 	else if (hash !== manifest.wasm.sha256) findings.push(`WavPack artifact hash mismatch: ${hash}`);
 	if (wasm.includes(Buffer.from(root))) findings.push('The WavPack artifact embeds the local checkout path.');
 	try {
-		const memories = readDefinedMemoryLimits(wasm);
+		const memories = readStrictDefinedMemoryLimits(wasm, {
+			memory64Error: 'memory64 limits are not supported',
+		});
 		if (memories.length !== 1) {
 			findings.push(`Expected exactly one defined WASM memory, found ${memories.length}.`);
 		} else {
@@ -211,62 +214,6 @@ async function auditModule(wasm, manifest, findings) {
 	} catch (error) {
 		findings.push(`WavPack ABI smoke test failed: ${error.message}`);
 	}
-}
-
-function readDefinedMemoryLimits(wasm) {
-	if (wasm.byteLength < 8 || wasm.readUInt32LE(0) !== 0x6d736100 || wasm.readUInt32LE(4) !== 1) {
-		throw new Error('invalid WebAssembly header');
-	}
-	const limits = [];
-	let offset = 8;
-	while (offset < wasm.byteLength) {
-		const sectionId = wasm[offset++];
-		const sectionSize = readUnsignedLeb(wasm, offset);
-		offset = sectionSize.nextOffset;
-		const sectionEnd = offset + sectionSize.value;
-		if (sectionEnd > wasm.byteLength) throw new Error('section extends beyond the artifact');
-		if (sectionId === 5) {
-			const count = readUnsignedLeb(wasm, offset);
-			offset = count.nextOffset;
-			for (let index = 0; index < count.value; index += 1) {
-				const flags = readUnsignedLeb(wasm, offset);
-				offset = flags.nextOffset;
-				const memory64 = Boolean(flags.value & 0x04);
-				if (memory64) throw new Error('memory64 limits are not supported');
-				const minimum = readUnsignedLeb(wasm, offset);
-				offset = minimum.nextOffset;
-				let maximumPages = null;
-				if (flags.value & 0x01) {
-					const maximum = readUnsignedLeb(wasm, offset);
-					offset = maximum.nextOffset;
-					maximumPages = maximum.value;
-				}
-				limits.push({
-					minimumPages: minimum.value,
-					maximumPages,
-					shared: Boolean(flags.value & 0x02),
-					memory64,
-				});
-			}
-			if (offset !== sectionEnd) throw new Error('malformed memory section');
-		}
-		offset = sectionEnd;
-	}
-	return limits;
-}
-
-function readUnsignedLeb(bytes, startOffset) {
-	let offset = startOffset;
-	let value = 0;
-	let multiplier = 1;
-	for (let byteIndex = 0; byteIndex < 5; byteIndex += 1) {
-		if (offset >= bytes.byteLength) throw new Error('truncated unsigned LEB128 value');
-		const byte = bytes[offset++];
-		value += (byte & 0x7f) * multiplier;
-		if ((byte & 0x80) === 0) return { value, nextOffset: offset };
-		multiplier *= 128;
-	}
-	throw new Error('unsigned LEB128 value exceeds 32 bits');
 }
 
 function listSourceFiles(directory) {

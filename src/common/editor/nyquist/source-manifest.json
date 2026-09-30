@@ -60,7 +60,8 @@
 		{ "path": "native/patches/nyx-browser.patch", "sha256": "bfc271cc3a888402ba2dc74c622158745d730bcf2635aa4f966ec71467bd4dc4", "origin": "soundscaper-browser-adaptation" },
 		{ "path": "native/sndfile.h", "sha256": "751908e307b1c444ed8e216f18d05a4e778df8b47b06dad306fe349de36ab6ba", "origin": "soundscaper-browser-adaptation" },
 		{ "path": "../../../../scripts/build-nyquist-wasm.mjs", "sha256": "f11498a4e5aed1b639bc5fa0eeaeb5585cbf25928d87e7a4325046d15ea0c73a", "origin": "soundscaper-reproducibility" },
-		{ "path": "../../../../scripts/audit-nyquist-wasm.mjs", "sha256": "7d503c04f240c56a14fa7b3936e61f23825b586975a382ac8e7bf85b32e14667", "origin": "soundscaper-reproducibility" }
+		{ "path": "../../../../scripts/audit-nyquist-wasm.mjs", "sha256": "cac11dff901bd33d835181ca108757dd41923030d5f181792e55b474c39b3de8", "origin": "soundscaper-reproducibility" },
+		{ "path": "../../../../scripts/lib/wasm-binary-inspection.mjs", "sha256": "a2f029c0f780720d8a7b1b60d702eaed0e813dba07ea6618d17cd530f9d6aa90", "origin": "soundscaper-reproducibility" }
 	],
 	"forbiddenArtifactTokens": [
 		"aud-do-support.lsp",

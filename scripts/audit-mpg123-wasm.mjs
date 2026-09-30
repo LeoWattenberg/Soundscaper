@@ -6,6 +6,8 @@ import { readFileSync, statSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import { readCodecDefinedMemoryLimits as readDefinedMemoryLimits } from './lib/wasm-binary-inspection.mjs';
+
 const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const sourceDirectory = join(root, 'src/common/editor/mpg123');
 const manifestPath = join(sourceDirectory, 'source-manifest.json');
@@ -194,53 +196,6 @@ function allocate(exported, memory, bytes) {
 		throw new Error('allocation failed');
 	}
 	return pointer;
-}
-
-function readDefinedMemoryLimits(wasm) {
-	if (wasm.byteLength < 8 || wasm.readUInt32LE(0) !== 0x6d736100 || wasm.readUInt32LE(4) !== 1) {
-		throw new Error('invalid WebAssembly header');
-	}
-	const limits = [];
-	let offset = 8;
-	while (offset < wasm.byteLength) {
-		const sectionId = wasm[offset++];
-		const sectionSize = readUnsignedLeb(wasm, offset);
-		offset = sectionSize.nextOffset;
-		const sectionEnd = offset + sectionSize.value;
-		if (sectionEnd > wasm.byteLength) throw new Error('section extends beyond artifact');
-		if (sectionId === 5) {
-			const count = readUnsignedLeb(wasm, offset);
-			offset = count.nextOffset;
-			for (let index = 0; index < count.value; index++) {
-				const flags = readUnsignedLeb(wasm, offset); offset = flags.nextOffset;
-				const minimum = readUnsignedLeb(wasm, offset); offset = minimum.nextOffset;
-				let maximumPages = null;
-				if (flags.value & 1) {
-					const maximum = readUnsignedLeb(wasm, offset); offset = maximum.nextOffset;
-					maximumPages = maximum.value;
-				}
-				limits.push({
-					minimumPages: minimum.value, maximumPages,
-					shared: Boolean(flags.value & 2), memory64: Boolean(flags.value & 4),
-				});
-			}
-		}
-		offset = sectionEnd;
-	}
-	return limits;
-}
-
-function readUnsignedLeb(bytes, start) {
-	let result = 0;
-	let shift = 0;
-	let offset = start;
-	while (offset < bytes.byteLength && shift <= 35) {
-		const byte = bytes[offset++];
-		result += (byte & 0x7f) * 2 ** shift;
-		if ((byte & 0x80) === 0) return { value: result, nextOffset: offset };
-		shift += 7;
-	}
-	throw new Error('invalid unsigned LEB128');
 }
 
 function sha256(value) { return createHash('sha256').update(value).digest('hex'); }
