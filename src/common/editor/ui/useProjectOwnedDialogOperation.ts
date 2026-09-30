@@ -1,8 +1,8 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { useEffect, useRef, useState } from 'react';
+import { useState } from 'react';
 
-import { runAwaitedAudioEditorOperation } from './workspace/audio-editor-workspace-runner.ts';
+import { useOwnedDialogOperation } from './useOwnedDialogOperation.ts';
 
 export interface ProjectOwnedDialogOperationState<Operation> {
 	readonly disabled: boolean;
@@ -29,28 +29,18 @@ export function useProjectOwnedDialogOperation<Operation>(options: Readonly<{
 	onProjectChange(): void;
 }>): ProjectOwnedDialogOperationState<Operation> {
 	const projectIdentity = projectIdentityOf(options.project);
-	const currentProjectIdentityRef = useRef(projectIdentity);
-	const activeOperationRef = useRef<object | null>(null);
-	const onProjectChangeRef = useRef(options.onProjectChange);
-	onProjectChangeRef.current = options.onProjectChange;
-	if (currentProjectIdentityRef.current !== projectIdentity) {
-		currentProjectIdentityRef.current = projectIdentity;
-		activeOperationRef.current = null;
-	}
-	const [pending, setPending] = useState<string | null>(null);
 	const [status, setStatus] = useState('');
 	const [error, setError] = useState('');
-
-	useEffect(() => {
-		activeOperationRef.current = null;
-		setPending(null);
-		setStatus('');
-		setError('');
-		onProjectChangeRef.current();
-		return () => { activeOperationRef.current = null; };
-	}, [projectIdentity]);
-
-	const disabled = options.blocked || pending !== null;
+	const operationState = useOwnedDialogOperation({
+		owner: projectIdentity,
+		blocked: options.blocked,
+		run: options.run,
+		onOwnerChange: () => {
+			setStatus('');
+			setError('');
+			options.onProjectChange();
+		},
+	});
 	const clearFeedback = (): void => {
 		setStatus('');
 		setError('');
@@ -62,36 +52,27 @@ export function useProjectOwnedDialogOperation<Operation>(options: Readonly<{
 		onSettled?: () => void,
 		admission?: Readonly<{ readonly allowWhenBlocked?: boolean }>,
 	): void => {
-		if ((options.blocked && admission?.allowWhenBlocked !== true)
-			|| pending !== null
-			|| activeOperationRef.current !== null) return;
-		const ownership = Object.freeze({ projectIdentity });
-		const ownsOperation = (): boolean => activeOperationRef.current === ownership
-			&& currentProjectIdentityRef.current === projectIdentity;
-		activeOperationRef.current = ownership;
-		setPending(name);
-		setError('');
-		void runAwaitedAudioEditorOperation(options.run, () => ownsOperation()
-			? options.execute(operation())
-			: undefined)
-			.then(() => {
-				if (!ownsOperation()) return;
+		operationState.perform(name, () => options.execute(operation()), {
+			onStart: () => { setError(''); },
+			onSuccess: () => {
 				onSuccess?.();
 				setStatus(options.success);
-			})
-			.catch((operationError: unknown) => {
-				if (!ownsOperation()) return;
+			},
+			onFailure: (operationError) => {
 				setError(operationError instanceof Error ? operationError.message : String(operationError));
-			})
-			.finally(() => {
-				if (!ownsOperation()) return;
-				activeOperationRef.current = null;
-				onSettled?.();
-				setPending(null);
-			});
+			},
+			onSettled,
+		}, admission);
 	};
 
-	return Object.freeze({ disabled, pending, status, error, clearFeedback, perform });
+	return Object.freeze({
+		disabled: operationState.disabled,
+		pending: operationState.pending,
+		status,
+		error,
+		clearFeedback,
+		perform,
+	});
 }
 
 function projectIdentityOf(project: unknown): unknown {

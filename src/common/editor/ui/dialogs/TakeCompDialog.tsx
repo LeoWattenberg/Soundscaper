@@ -13,12 +13,12 @@ import AudioEditorTimeCodeInput, {
 	audioEditorProjectSampleRate,
 } from '../AudioEditorTimeCodeInput.tsx';
 import { formatLocalizedTemplate } from '../localization-template.ts';
-import { runAwaitedAudioEditorOperation } from '../workspace/audio-editor-workspace-runner.ts';
 import {
 	createTakeCompDialogModel,
 	takeCompDialogDraftIdentity,
 	type TakeCompDialogGroupModel,
 } from '../take-comp-dialog-model.ts';
+import { useOwnedDialogOperation } from '../useOwnedDialogOperation.ts';
 
 interface TakeCompDialogActions {
 	auditionTake(groupId: string, takeId: string): unknown;
@@ -84,10 +84,17 @@ export default function TakeCompDialog({
 	const [sharedBoundaries, setSharedBoundaries] = useState<Readonly<Record<string, number>>>(() => (
 		sharedBoundaryDrafts(group)
 	));
-	const [pending, setPending] = useState<string | null>(null);
 	const [status, setStatus] = usePresentationFeedback(copy);
 	const [error, setError] = usePresentationFeedback(copy);
-	const activeOperationRef = useRef<symbol | null>(null);
+	const operationState = useOwnedDialogOperation({
+		owner: projectId,
+		blocked: model.operationsBlocked,
+		run,
+		onOwnerChange: () => {
+			setStatus('');
+			setError('');
+		},
+	});
 	const draftedProjectId = useRef(projectId);
 
 	useEffect(() => {
@@ -99,13 +106,6 @@ export default function TakeCompDialog({
 		draftedProjectId.current = projectId;
 		setGroupId(initialGroupId);
 	}, [initialGroupId, projectId]);
-	useEffect(() => {
-		activeOperationRef.current = null;
-		setPending(null);
-		setStatus('');
-		setError('');
-		return () => { activeOperationRef.current = null; };
-	}, [projectId, setError, setStatus]);
 	const draftIdentity = JSON.stringify([projectId, takeCompDialogDraftIdentity(group)]);
 	const draftedIdentity = useRef(draftIdentity);
 	useEffect(() => {
@@ -118,7 +118,7 @@ export default function TakeCompDialog({
 		setSharedBoundaries(sharedBoundaryDrafts(group));
 	}, [draftIdentity, group]);
 
-	const disabled = model.operationsBlocked || pending !== null;
+	const disabled = operationState.disabled;
 	const selectedTake = group?.takes.find(({ id }) => id === takeId) ?? null;
 	const rangeValid = Boolean(group && selectedTake
 		&& Number.isSafeInteger(promotionStart)
@@ -132,33 +132,22 @@ export default function TakeCompDialog({
 			? copy.takeCompLocked
 			: model.blockReason === 'busy' ? copy.takeCompBusy : '';
 	const selectGroup = (nextGroupId: string): void => {
-		activeOperationRef.current = null;
-		setPending(null);
+		operationState.reset();
 		setStatus('');
 		setError('');
 		setGroupId(nextGroupId);
 	};
 
 	const perform = (name: string, operation: () => unknown, success: PresentationFeedback = { key: 'takeCompOperationComplete' }): void => {
-		if (activeOperationRef.current !== null) return;
-		const operationId = Symbol(name);
-		activeOperationRef.current = operationId;
-		setPending(name);
-		setError('');
-		void runAwaitedAudioEditorOperation(run, operation)
-			.then(() => {
-				if (activeOperationRef.current !== operationId) return;
+		operationState.perform(name, operation, {
+			onStart: () => { setError(''); },
+			onSuccess: () => {
 				setStatus(success);
-			})
-			.catch((operationError: unknown) => {
-				if (activeOperationRef.current !== operationId) return;
+			},
+			onFailure: (operationError) => {
 				setError(feedbackFailure(operationError));
-			})
-			.finally(() => {
-				if (activeOperationRef.current !== operationId) return;
-				activeOperationRef.current = null;
-				setPending(null);
-			});
+			},
+		});
 	};
 	const close = (): void => {
 		run(() => controller.actions.takeComp.stopAudition());
@@ -248,7 +237,7 @@ export default function TakeCompDialog({
 				/>}
 			</>}
 			<div className="audio-editor-take-comp__status" role="status" aria-live="polite" aria-atomic="true">
-				{error || (pending ? copy.loading : status)}
+				{error || (operationState.pending ? copy.loading : status)}
 			</div>
 		</div>
 	</AudioEditorDialogShell>;

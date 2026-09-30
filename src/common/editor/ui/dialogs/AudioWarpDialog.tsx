@@ -1,7 +1,7 @@
 import { usePresentationFeedback, feedbackFailure, type PresentationFeedback } from '../presentation-feedback.ts';
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 
 import '../audio-editor-design-system/27-audio-warp.css';
 
@@ -12,7 +12,7 @@ import AudioEditorTimeCodeInput, {
 	audioEditorProjectSampleRate,
 } from '../AudioEditorTimeCodeInput.tsx';
 import { createAudioWarpDialogModel } from '../audio-warp-dialog-model.ts';
-import { runAwaitedAudioEditorOperation } from '../workspace/audio-editor-workspace-runner.ts';
+import { useOwnedDialogOperation } from '../useOwnedDialogOperation.ts';
 
 interface AudioWarpDialogActions {
 	view(): Readonly<{
@@ -57,8 +57,6 @@ export default function AudioWarpDialog({
 	const projectIdValue = dataRecord(snapshot.project)?.id;
 	const sampleRate = audioEditorProjectSampleRate(snapshot.project);
 	const projectId = typeof projectIdValue === 'string' ? projectIdValue : null;
-	const activeOperationRef = useRef<symbol | null>(null);
-	const [pending, setPending] = useState<string | null>(null);
 	const [status, setStatus] = usePresentationFeedback(copy);
 	const [error, setError] = usePresentationFeedback(copy);
 	const [transientCount, setTransientCount] = useState<number | null>(null);
@@ -70,17 +68,22 @@ export default function AudioWarpDialog({
 	const [grooveEnabled, setGrooveEnabled] = useState(false);
 	const [grooveOffsets, setGrooveOffsets] = useState('0, 1/3');
 	const [grooveStrengthPercent, setGrooveStrengthPercent] = useState(50);
+	const operationOwner = useMemo(() => Object.freeze({
+		projectId,
+		clipId: model.clipId,
+	}), [model.clipId, projectId]);
+	const operationState = useOwnedDialogOperation({
+		owner: operationOwner,
+		blocked: model.operationsBlocked,
+		run,
+		onOwnerChange: () => {
+			setTransientCount(null);
+			setStatus('');
+			setError('');
+		},
+	});
 
-	useEffect(() => {
-		activeOperationRef.current = null;
-		setPending(null);
-		setTransientCount(null);
-		setStatus('');
-		setError('');
-		return () => { activeOperationRef.current = null; };
-	}, [model.clipId, projectId, setError, setStatus]);
-
-	const disabled = model.operationsBlocked || pending !== null;
+	const disabled = operationState.disabled;
 	const gridValid = Number.isSafeInteger(gridOrigin)
 		&& Number.isSafeInteger(gridInterval) && gridInterval > 0;
 	const blockMessage = model.blockReason === 'read-only'
@@ -100,26 +103,16 @@ export default function AudioWarpDialog({
 		success: PresentationFeedback,
 		onSuccess?: (result: unknown) => void,
 	): void => {
-		if (activeOperationRef.current !== null) return;
-		const operationId = Symbol(name);
-		activeOperationRef.current = operationId;
-		setPending(name);
-		setError('');
-		void runAwaitedAudioEditorOperation(run, operation)
-			.then((result) => {
-				if (activeOperationRef.current !== operationId) return;
+		operationState.perform(name, operation, {
+			onStart: () => { setError(''); },
+			onSuccess: (result) => {
 				onSuccess?.(result);
 				setStatus(success);
-			})
-			.catch((operationError: unknown) => {
-				if (activeOperationRef.current !== operationId) return;
+			},
+			onFailure: (operationError) => {
 				setError(feedbackFailure(operationError));
-			})
-			.finally(() => {
-				if (activeOperationRef.current !== operationId) return;
-				activeOperationRef.current = null;
-				setPending(null);
-			});
+			},
+		});
 	};
 	const exactStrength = (percent: number): RationalInput => ({ num: percent, den: 100 });
 	const quantizeOptions = () => ({
