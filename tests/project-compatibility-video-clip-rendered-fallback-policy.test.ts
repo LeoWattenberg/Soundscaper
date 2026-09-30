@@ -6,8 +6,8 @@ import test from 'node:test';
 
 const compatibilityPolicyUrl = new URL('../config/project-compatibility.json', import.meta.url);
 const securityMatrixUrl = new URL('../config/production-security-matrix.json', import.meta.url);
-const compatibilityDocumentationUrl = new URL('../docs/project-compatibility.md', import.meta.url);
-const threatModelUrl = new URL('../docs/production-threat-model.md', import.meta.url);
+const compatibilityDocumentationUrl = new URL('../docs/policies/project-compatibility.md', import.meta.url);
+const threatModelUrl = new URL('../docs/policies/security.md', import.meta.url);
 
 interface CompatibilityRule {
 	readonly id: string;

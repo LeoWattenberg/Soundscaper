@@ -16,7 +16,7 @@ const closure = JSON.parse(
 	await readFile(new URL('../config/milestone-2-closure.json', import.meta.url), 'utf8'),
 );
 const threatModel = await readFile(
-	new URL('../docs/production-threat-model.md', import.meta.url), 'utf8',
+	new URL('../docs/policies/security.md', import.meta.url), 'utf8',
 );
 
 const BOUNDARY_ID = 'browser-origin-to-peer-project-store';

@@ -7,7 +7,7 @@ import test from 'node:test';
 test('unimplemented assistance accuracy criteria stay in manual QA, not the runnable config', async () => {
 	const [config, guide] = await Promise.all([
 		readFile(new URL('../config/quality-budgets.json', import.meta.url), 'utf8').then(JSON.parse),
-		readFile(new URL('../docs/quality-budgets.md', import.meta.url), 'utf8'),
+		readFile(new URL('../docs/development/quality-diagnostics.md', import.meta.url), 'utf8'),
 	]);
 	for (const id of [
 		'm7-local-assistance-speech-accuracy',

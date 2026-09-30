@@ -79,10 +79,10 @@ test('capability and security registers carry the same RC identities without adm
 
 test('the decision and release guidance preserve the freeze and point to owner QA', async () => {
 	const [decision, soundscaperQa, framescaperQa, release] = await Promise.all([
-		text('docs/wp-9.0.0-baseline-decision.md'),
-		text('docs/qa/soundscaper.md'),
-		text('docs/qa/framescaper.md'),
-		text('docs/release-policy.md'),
+		text('docs/decisions/project-family-v1.md'),
+		text('docs/operations/qa/soundscaper.md'),
+		text('docs/operations/qa/framescaper.md'),
+		text('docs/operations/release.md'),
 	]);
 
 	assert.match(decision, /Leo Wattenberg/u);

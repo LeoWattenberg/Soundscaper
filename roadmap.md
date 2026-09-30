@@ -15,19 +15,18 @@ This file is a planning and sequencing document. It answers four questions:
 
 It is not an implementation log or an evidence register. Do not append exact fixture dimensions, byte-by-byte protocol narratives, cancellation timelines, test counts, or completed implementation history here. Put those details in the owning source of truth:
 
-- security boundaries, controls, actors, and residual risks: [production threat model](docs/production-threat-model.md) and [security matrix](config/production-security-matrix.json);
-- project preservation, fallback, and migration behavior: [project compatibility policy](docs/project-compatibility.md) and [compatibility matrix](config/project-compatibility.json);
+- security boundaries, controls, actors, and residual risks: [production threat model](docs/policies/security.md) and [security matrix](config/production-security-matrix.json);
+- project preservation, fallback, and migration behavior: [project compatibility policy](docs/policies/project-compatibility.md) and [compatibility matrix](config/project-compatibility.json);
 - milestone-2 scope, closure items, and exact verification sets: [milestone-2 closure inventory](config/milestone-2-closure.json);
-- milestone-3 sequencing, time-model decisions, and work packets: [milestone-3 plan](docs/milestone-3-plan.md);
-- milestone-4 sequencing, automation/keyframe and mixer-graph decisions, and work packets: [milestone-4 plan](docs/milestone-4-plan.md);
-- milestone-5 sequencing, helper-contract, and work packets: [milestone-5 plan](docs/milestone-5-plan.md) and [5A plan](docs/milestone-5a-soundscaper-native.md);
-- milestone-6 sequencing, delivery-model and interchange decisions, and work packets: [milestone-6 plan](docs/milestone-6-plan.md);
-- milestone-7 sequencing, runtime and model-catalog decisions, and work packets: [milestone-7 plan](docs/milestone-7-plan.md);
-- historical milestone-9 campaign design: [milestone-9 plan](docs/milestone-9-plan.md), retained for architectural provenance rather than current release authority;
-- performance fixtures, correctness thresholds, and observational diagnostics: [quality budgets](docs/quality-budgets.md) and [machine-readable budgets](config/quality-budgets.json);
-- optional human checks: the evergreen [Soundscaper](docs/qa/soundscaper.md) and [Framescaper](docs/qa/framescaper.md) owner-QA templates;
-- the owner-run release rule: [release policy](docs/release-policy.md);
-- licensing and provenance: [production licensing policy](docs/production-licensing-policy.md) and its machine-readable matrix;
+- canonical time, edit, retime, proxy, and media behavior: [time and media architecture](docs/architecture/time-and-media.md);
+- automation, mixer, keyframe, transition, and rendering behavior: [production and rendering architecture](docs/architecture/production-rendering.md);
+- helper processes and product-native execution: [native-services architecture](docs/architecture/native-services.md);
+- export, mastering, archive, and interchange behavior: [delivery and interchange architecture](docs/architecture/delivery-and-interchange.md);
+- optional model runtime, consent, review, and publication behavior: [local-assistance architecture](docs/architecture/local-assistance.md);
+- performance fixtures, correctness thresholds, and observational diagnostics: [quality budgets](docs/development/quality-diagnostics.md) and [machine-readable budgets](config/quality-budgets.json);
+- optional human checks: the evergreen [Soundscaper](docs/operations/qa/soundscaper.md) and [Framescaper](docs/operations/qa/framescaper.md) owner-QA templates;
+- the owner-run release rule: [release policy](docs/operations/release.md);
+- licensing and provenance: [production licensing policy](docs/policies/licensing.md) and its machine-readable matrix;
 - platform and product claims: [capability inventory](config/production-capabilities.json); and
 - implementation evidence: owning modules, focused tests, browser workflows, and package smoke tests linked from those policies.
 
@@ -196,7 +195,7 @@ licensing, Audacity-action, MIDI-fence, and Playwright matrices linked above.
 Correctness and parity workloads retain deterministic blocking thresholds.
 Timing, heap, RSS, and renderer observations are diagnostics tied to the
 environment that produced them; they do not establish a hardware lower bound or
-a general hardware claim. Details live in `docs/quality-budgets.md`.
+a general hardware claim. Details live in `docs/development/quality-diagnostics.md`.
 
 ### Remaining work
 
@@ -262,8 +261,8 @@ products before adding new editorial models or native engines.
   bounded direct WAV, AIFF, BWF, and admitted BW64 publication.
 
 Security claims and exact limitations for these surfaces are owned by
-`docs/production-threat-model.md`. Compatibility and fallback claims are owned
-by `docs/project-compatibility.md`. Do not duplicate those narratives here.
+`docs/policies/security.md`. Compatibility and fallback claims are owned
+by `docs/policies/project-compatibility.md`. Do not duplicate those narratives here.
 
 ### Frozen closure scope
 
@@ -337,11 +336,9 @@ foundation and both product tracks are the maintained implementation baseline.
 **Goal:** establish professional time, arrangement, and editorial models before
 adding broader production surfaces.
 
-Sequencing, the shared time-model decision, its invariants, and the bounded
-work packets are owned by [the milestone-3 plan](docs/milestone-3-plan.md).
-Milestone 3 runs as one serialized foundation phase followed by two parallel
-product tracks; the parallel tracks do not begin until the foundation's
-acceptance checks pass.
+This roadmap owns sequencing and status. The durable coordinate, rounding,
+edit, retime, and proxy invariants are described by the
+[time and media architecture](docs/architecture/time-and-media.md).
 
 ### 3.0 Shared time and schema foundation (serialized, first)
 
@@ -372,8 +369,8 @@ rows are machine-produced and revision-bound by the run that exercises them.
 
 ### Soundscaper track (3A, parallel after 3.0)
 
-Packet boundaries, dependencies, and acceptance are owned by
-[the 3A work packets](docs/milestone-3a-work-packets.md).
+The [time and media architecture](docs/architecture/time-and-media.md) records
+the maintained contracts shared by these workflows.
 
 - **Shared / Web Core — Implemented:** musically anchored ordered tempo and
   signature maps resolved sample-accurately across snapping, metronome,
@@ -429,8 +426,8 @@ The parallel Framescaper track below is also implemented and active.
 
 ### Framescaper track (3B, parallel after 3.0)
 
-Packet boundaries, dependencies, and acceptance are owned by
-[the 3B work packets](docs/milestone-3b-work-packets.md).
+The [time and media architecture](docs/architecture/time-and-media.md) records
+the maintained contracts shared by these workflows.
 
 - **Shared / Web Core — Implemented:** rational sequence rates independent of
   audio sample rate, including integer/NTSC rates, drop/non-drop SMPTE, source
@@ -470,9 +467,7 @@ Packet boundaries, dependencies, and acceptance are owned by
   and driven by a shared Tracks-menu Lock/Unlock — previews completely, and
   stays one-step undoable, whether reached from the lazy Tracks menu, the
   existing pointer handles, or the focused-clip keys; Soundscaper retains its
-  legacy behavior. Packets 3B-4 and **3B-5 — Retiming, ramps, and nested
-  sequences** are implemented locally and the slices are linked from
-  [the 3B work packets](docs/milestone-3b-work-packets.md).
+  legacy behavior.
 - **Shared / Web Core — Selected implementation active:**
   Selected F31 delegates through its immutable exact V28 foundation, which
   retains the V27-forwarded V20 nested-sequence and retime authority, and
@@ -480,7 +475,7 @@ Packet boundaries, dependencies, and acceptance are owned by
   existing Edit menu with one-step history. One exact ordinal authority drives maintained preview and browser export across integer, NTSC, CFR, verified VFR,
   reverse, freeze, ramps, nested compositions, and random seeks. Linked audio remains forward and unwarped (`audioWarp:false`). `videoRetime` is available
   only where that web-core consumer is registered; packaged Electron uses the embedded web-core path and does not claim milestone-5 native execution. See the
-  [retime export plan](docs/milestone-3b-video-retime-export-plan.md).
+  [time and media architecture](docs/architecture/time-and-media.md).
 - **Web Core — Selected implementation active:** Selected
   F31 delegates through exact V28, retains V18 multicamera identity, and
   completes the maintained editorial proxy
@@ -527,12 +522,9 @@ optional diagnostics or owner QA and do not disable the software surfaces.
 **Goal:** complete non-MIDI Soundscaper production and non-recording Framescaper
 finishing over the stable editorial models.
 
-Sequencing, the automation/keyframe and mixer-graph decisions, their
-invariants, and the bounded work packets are owned by the
-[milestone-4 plan](docs/milestone-4-plan.md). Selected S30 retains the exact
-Soundscaper V21 packet contract through its immutable S29 foundation in the
-[milestone-4A pickup](docs/milestone-4a-soundscaper-production.md); sequencing
-clearance does not close either track or milestone exit gate.
+This roadmap owns sequencing and status. The durable automation, mixer,
+keyframe, transition, and renderer-neutral contracts are described by the
+[production and rendering architecture](docs/architecture/production-rendering.md).
 
 ### Soundscaper track
 
@@ -625,7 +617,8 @@ device and plug-in checks belong in the Soundscaper QA worksheet.
 
 **Goal:** make Electron materially more capable without weakening the renderer sandbox or creating a second editor engine.
 
-The [milestone-5 plan](docs/milestone-5-plan.md) owns sequencing and the shared contract; the [milestone-5A plan](docs/milestone-5a-soundscaper-native.md) and [milestone-5B plan](docs/milestone-5b-framescaper-native-tier.md) retain product implementation history.
+The durable helper, package, native-audio, plug-in, and media boundaries are
+described by the [native-services architecture](docs/architecture/native-services.md).
 
 ### Native service architecture
 
@@ -676,9 +669,9 @@ deferred and does not gate Soundscaper Stable 1.0.
 **Goal:** produce reproducible masters, exchanges, archives, and batches without
 hidden conversions.
 
-Sequencing, the delivery-model and interchange decisions, their
-invariants, and the bounded work packets are owned by the
-[milestone-6 plan](docs/milestone-6-plan.md).
+The durable delivery-model, queue, report, archive, and interchange contracts
+are described by the
+[delivery and interchange architecture](docs/architecture/delivery-and-interchange.md).
 
 ### Soundscaper delivery
 
@@ -760,8 +753,8 @@ Disposable custody retains normalized indexes, OCR/tags, shot tables, saliency/t
 The repository includes hash-locked runnable conversion/parity tooling and retained exact artifacts and live parity for TIGER, PANNs, both Beat This checkpoints, TransNetV2, and Dereverb Room, plus a fail-closed local collector for the registered privacy workload's authenticated real-path trace. The 21-entry catalog now includes those models together with wav2vec2 and Qwen, binding versioned notices, immutable EU R2 publication, full-digest public read-back, licensing rows, and canonical entry SHA-256 values. Target packages generate and authenticate ONNX Runtime, whisper.cpp, and llama.cpp closures on all five targets, including the Windows-arm64 Sherpa Node addon. Nightly-with-tests runs every packaged real-model canary on its selected target and reports the result. Authenticated preseed remains the established zero-network path.
 Catalog identity, artifact digest, runtime/platform compatibility, selected-media authority, storage integrity, explicit consent, and external-FFmpeg machine validation remain fail-closed execution checks. The licensing worksheet is owner-only and non-gating; candidate versioned-download notices and hashes remain concrete distribution requirements. None disables unrelated build, packaging, catalog visibility, or testing.
 
-Sequencing, runtime and model-catalog decisions, lifecycle invariants, and bounded work packets
-are owned by the [milestone-7 plan](docs/milestone-7-plan.md).
+The durable runtime, model-catalog, consent, review, and publication contracts
+are described by the [local-assistance architecture](docs/architecture/local-assistance.md).
 
 - **Electron Only — Optional:** the closed operation vocabulary and guided workflows
   cover transcription, diarization, enhancement/separation, cleanup, reactions,
@@ -789,7 +782,7 @@ Framescaper capture sub-phase 8A; MIDI has moved to post-1.0 milestone 9+.
 
 ### 8A. Framescaper recording setup
 
-**Status:** **Implemented and active on selected Framescaper F31 web and desktop.** Selected F31 sets `framescaperCapture: true` and admits the exact capture route authority through its controller, app binding, and runtime probe. Recording Setup remains default-hidden and requires explicit opt-in through **View > Panels**; Record then appears only for a complete runtime stack or an owned recovery session. Real-device behavior belongs in optional Framescaper owner QA. `framescaperWebVcr: true` enables the default-hidden post-milestone extension. The owning [implementation plan](docs/milestone-8a-plan.md) and [capture privacy contract](docs/framescaper-capture-privacy.md) record the active boundary.
+**Status:** **Implemented and active on selected Framescaper F31 web and desktop.** Selected F31 sets `framescaperCapture: true` and admits the exact capture route authority through its controller, app binding, and runtime probe. Recording Setup remains default-hidden and requires explicit opt-in through **View > Panels**; Record then appears only for a complete runtime stack or an owned recovery session. Real-device behavior belongs in optional Framescaper owner QA. `framescaperWebVcr: true` enables the default-hidden extension. The [Framescaper capture contract](docs/features/framescaper-capture.md) records the active boundary.
 
 The following bullets describe the selected F31 web and desktop workflow.
 Schema-18 desktop, schema-19 web, and schema-20 web/desktop remain historical
@@ -851,7 +844,7 @@ no-device smokes do not replace optional real-device QA:
 
 ## 8+. Post-milestone-8 Framescaper Web VCR extension
 
-**Status:** **Implemented and enabled for testing.** `framescaperWebVcr` is `true`; Framescaper desktop exposes the default-hidden, Record-menu-owned surface, and creates no guest or capture grant until a direct user action summons it. Real packaged and provider behavior belongs in optional Framescaper owner QA. Sequencing, decisions, and work packets are owned by the [Web VCR plan](docs/post-milestone-8-web-vcr-plan.md).
+**Status:** **Implemented and enabled for testing.** `framescaperWebVcr` is `true`; Framescaper desktop exposes the default-hidden, Record-menu-owned surface, and creates no guest or capture grant until a direct user action summons it. Real packaged and provider behavior belongs in optional Framescaper owner QA. The durable product and security boundary is in the [Web VCR contract](docs/features/framescaper-web-vcr.md).
 
 **Goal:** capture authorized HTTPS media through an isolated Framescaper desktop browser and the milestone-8A recoverable Project Bin/timeline workflow.
 
@@ -878,7 +871,7 @@ population, retained pre-release storage promise, retention window, or worker
 tombstone to operate. Finite old document URLs redirect to the equivalent
 Framescaper route, while `/transfer/send/` and `/transfer/receive/` remain
 permanent product routes rather than cutover-retention surfaces. The governing
-[cutover decision](docs/wp-8c-cutover-decision.md) records that boundary.
+[cutover decision](docs/decisions/product-origins.md) records that boundary.
 
 **Depends on:** the maintained `.scape` archive, Project Bin, and per-route
 response-policy contracts only. It does not wait for milestone 8, 8+I, or 8+.
@@ -893,8 +886,8 @@ on the RC or stable line.
 and make movement between the two products a durable first-class action rather
 than an accident of shared browser storage.
 
-Sequencing, the topology decision, and the bounded work packets are owned by the
-[product origins plan](docs/post-milestone-8c-product-origins-plan.md).
+The [product-origins decision](docs/decisions/product-origins.md) records the
+topology and permanent handoff contract.
 
 - **Shared — Implemented:** the compatibility register fixes the editable-copy
   contract in both directions. The owning family reads the unchanged source;
@@ -1055,8 +1048,9 @@ before the first WebAPK is minted. Durability additionally waits on WP-9.0.0.
 apps that survive a real device, with an optional Google Play Trusted Web
 Activity around the same origin.
 
-Sequencing, the vehicle decision, and the bounded work packets are owned by the
-[installable distribution plan](docs/post-milestone-9-installable-distribution-plan.md).
+This section owns the vehicle decision, sequencing, and exit gate. Durable
+implementation contracts should move into the subject-oriented engineering
+documentation when that work lands.
 
 - **Web Enhanced — Planned:** two branded, localized, independently installable
   apps with maskable and themed icons, per-locale `lang`/`dir`/`start_url`, and

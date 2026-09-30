@@ -78,11 +78,11 @@ test('reviewed browser codec notices name the web and Electron renderer surfaces
 });
 
 test('active native policy records CI closure without a reviewer or manual-acquisition gate', async () => {
-	const [policy, checklist, threatModel, milestonePlan, provisioner] = await Promise.all([
-		readFile(new URL('docs/production-licensing-policy.md', repositoryUrl), 'utf8'),
-		readFile(new URL('docs/legalchecklist.md', repositoryUrl), 'utf8'),
-		readFile(new URL('docs/production-threat-model.md', repositoryUrl), 'utf8'),
-		readFile(new URL('docs/milestone-5-plan.md', repositoryUrl), 'utf8'),
+	const [policy, checklist, threatModel, nativeServices, provisioner] = await Promise.all([
+		readFile(new URL('docs/policies/licensing.md', repositoryUrl), 'utf8'),
+		readFile(new URL('docs/policies/licensing-checklist.md', repositoryUrl), 'utf8'),
+		readFile(new URL('docs/policies/security.md', repositoryUrl), 'utf8'),
+		readFile(new URL('docs/architecture/native-services.md', repositoryUrl), 'utf8'),
 		readFile(new URL('scripts/provision-milestone-5-native-sources.mjs', repositoryUrl), 'utf8'),
 	]);
 
@@ -93,9 +93,9 @@ test('active native policy records CI closure without a reviewer or manual-acqui
 		/`blocked` means required machine-verifiable license, source, notice,\s+or delivery material is absent/iu);
 	assert.doesNotMatch(checklist, /all these rows remain blocked[\s\S]{0,160}missing[\s\S]{0,80}(?:payload|target verification)/iu);
 	assert.doesNotMatch(threatModel, /there is no libwebm, libvpx[\s\S]{0,100}five-target AV1 evidence/iu);
-	assert.doesNotMatch(milestonePlan, /terms a person must accept[\s\S]{0,80}Steinberg ASIO/iu);
+	assert.doesNotMatch(nativeServices, /terms a person must accept[\s\S]{0,80}Steinberg ASIO/iu);
 	assert.doesNotMatch(provisioner, /terms a person has to read and accept[\s\S]{0,100}acquiring those bytes by hand/iu);
-	assert.match(milestonePlan, /workflow produces all five targets/iu);
+	assert.match(nativeServices, /supported producer matrix.*Windows x64.*Windows ARM64.*macOS ARM64.*Linux x64.*Linux ARM64/isu);
 });
 
 test('native policy rows separate distribution requirements from test activation', async () => {

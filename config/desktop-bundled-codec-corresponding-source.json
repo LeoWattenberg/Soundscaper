@@ -3,7 +3,7 @@
 	"nodeVersion": "26.5.0",
 	"archiveTimestamp": "1980-01-01T00:00:00.000Z",
 	"instructions": {
-		"path": "docs/desktop-bundled-codec-corresponding-source.md",
+		"path": "docs/reference/bundled-codec-corresponding-source.md",
 		"sha256": "d3203fb73522f5680a0e77020240b14b0a4aa168409646e50336763e7057c65f"
 	},
 	"soundscaperLicense": {

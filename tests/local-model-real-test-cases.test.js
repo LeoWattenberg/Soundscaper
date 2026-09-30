@@ -201,7 +201,7 @@ test('Windows ARM64 catalog admission requires its package-generated native runt
 	assert.ok(localModelRuntimeAvailability(silero, runtimeSources).availablePlatforms.includes('win32-arm64'));
 	assert.ok(localModelRuntimeAvailability(silero,
 		{ ...runtimeSources, sherpaArm64Build: undefined }).missingPlatforms.includes('win32-arm64'));
-	const nightly = await readFile(resolve(root, 'docs/local-model-nightly-tests.md'), 'utf8');
+	const nightly = await readFile(resolve(root, 'docs/operations/local-models/nightly-tests.md'), 'utf8');
 	assert.doesNotMatch(nightly, /Windows ARM64 catalog approval.*pending|separate reviewed platform update/iu);
 	assert.match(nightly, /22 published model identities/iu);
 	assert.match(nightly, kokoroG2pReady
@@ -221,18 +221,18 @@ test('native availability follows packaged file inventories and build recipes', 
 		{ ...runtimeSources, whisperBuild: { version: WHISPER_RUNTIME_VERSION, targets: [] } }).availablePlatforms, []);
 });
 
-test('milestone status records route runtime proof through package and nightly automation', async () => {
-	const [plan, roadmap, videoEvidence] = await Promise.all([
-		readFile(resolve(root, 'docs/milestone-7-plan.md'), 'utf8'),
+test('local-assistance documentation routes runtime proof through package and nightly automation', async () => {
+	const [architecture, roadmap, provenance] = await Promise.all([
+		readFile(resolve(root, 'docs/architecture/local-assistance.md'), 'utf8'),
 		readFile(resolve(root, 'roadmap.md'), 'utf8'),
-		readFile(resolve(root, 'docs/milestone-7-video-model-evidence.md'), 'utf8'),
+		readFile(resolve(root, 'docs/reference/local-model-provenance.md'), 'utf8'),
 	]);
-	assert.match(plan, /package-generated authenticated target runtimes/iu);
-	assert.match(plan, /nightly-with-tests/iu);
-	assert.doesNotMatch(plan,
+	assert.match(architecture, /Target packages generate and authenticate.*five\s+maintained desktop targets/isu);
+	assert.match(architecture, /nightly-with-tests/iu);
+	assert.doesNotMatch(architecture,
 		/only currently package-admitted execution baseline|qualification await runtime payloads|catalog entry, and payload remain pending|sherpa-onnx win-arm64 prebuild gap/iu);
-	assert.doesNotMatch(plan, /pending-external|manual sign-off as an execution switch/iu);
-	assert.doesNotMatch(videoEvidence, /are reviewed, pinned, and awaiting their first upload/iu);
+	assert.doesNotMatch(architecture, /pending-external|manual sign-off as an execution switch/iu);
+	assert.doesNotMatch(provenance, /are reviewed, pinned, and awaiting their first upload/iu);
 	assert.match(roadmap, /target packages generate and authenticate.*all five/isu);
 	assert.doesNotMatch(roadmap, /All five target closures.*remain pending/isu);
 });

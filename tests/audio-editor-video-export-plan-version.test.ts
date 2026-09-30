@@ -13,7 +13,7 @@ import {
 } from '../src/common/editor/video-export-plan-version.ts';
 
 const budgetsUrl = new URL('../config/quality-budgets.json', import.meta.url);
-const narrativeUrl = new URL('../docs/quality-budgets.md', import.meta.url);
+const narrativeUrl = new URL('../docs/development/quality-diagnostics.md', import.meta.url);
 
 function videoProject() {
 	return {

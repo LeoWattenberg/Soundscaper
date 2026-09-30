@@ -33,7 +33,7 @@
 			"sourceAuthorities": [],
 			"releaseEvidence": {
 				"publicReadbackSha256": "aa45bb08f2a6b3a239ff274e784d88aa1572d90bf038f6e966f8836c7a910ecd",
-				"catalogEntrySha256": "316f521e08fc9863b827dc7ca47e65fe2465941be5ff8b439e78c4c812444dad"
+				"catalogEntrySha256": "ceeddb50271e8a839fa4317a190ea91d78e437d9c2a84f749cc3787cfe534a87"
 			},
 			"catalogStatus": "ready",
 			"catalogBlockedBy": [],
@@ -71,7 +71,7 @@
 			"sourceAuthorities": [],
 			"releaseEvidence": {
 				"publicReadbackSha256": "5b6804fd3d62d0fc0369350de2e051f4056a3b9c0668cf78ff0b8869df325410",
-				"catalogEntrySha256": "3b0657ac1533c155b47756238ff26f9933618d892f08d6a46198b65b71edcb92"
+				"catalogEntrySha256": "6eeccaa7297d7ca25a15019d5698bc968a924223fce2cecc47114c26fe70e8d0"
 			},
 			"catalogStatus": "ready",
 			"catalogBlockedBy": [],
@@ -122,7 +122,7 @@
 			],
 			"releaseEvidence": {
 				"publicReadbackSha256": "b4346dc5d91f81369b4ed66755f08a9c6f95e9700f31a9192ac280c1d10661a6",
-				"catalogEntrySha256": "538468c34458b9d5642e1622f43892cb0d0b65b0e2bd8bf13ec637b0ae351758"
+				"catalogEntrySha256": "dde9d161a467d77d8a5e0bd00d41284e229eca8d42be0ce53b46e9b5d59e3e15"
 			},
 			"catalogStatus": "ready",
 			"catalogBlockedBy": [],
@@ -160,7 +160,7 @@
 			"sourceAuthorities": [],
 			"releaseEvidence": {
 				"publicReadbackSha256": "12116fc8bf0dcbf53ed2be431250d2e46c500c606c03a86def8a84982f0be913",
-				"catalogEntrySha256": "9da25a800864efc3f129a8abfa1579359dde8e07a7e62649318912b9bde6e0c7"
+				"catalogEntrySha256": "2f46523cc7f34bd322133d70e829f5f9ebf69b81498c4a7a6c3fd9946cf0523f"
 			},
 			"catalogStatus": "ready",
 			"catalogBlockedBy": [],
@@ -198,7 +198,7 @@
 			"sourceAuthorities": [],
 			"releaseEvidence": {
 				"publicReadbackSha256": "1f6c73508ffab6d965b73e337f4518c3c8587201c6b1e9ba3a04a650d12213f5",
-				"catalogEntrySha256": "b4a069c71889a72c38d18e38895ca2c32d3f4785a3d2a25c2accd3cb01c1c005"
+				"catalogEntrySha256": "65e69b7bcbbcf4b689209e5f4e993b550ebc89fdc24fec1216f54fa9aa152cf8"
 			},
 			"catalogStatus": "ready",
 			"catalogBlockedBy": [],
@@ -236,7 +236,7 @@
 			"sourceAuthorities": [],
 			"releaseEvidence": {
 				"publicReadbackSha256": "f82d93f91afb69ee6a5303b837512f07c3b3a6465f26663c99d8d173ce469c86",
-				"catalogEntrySha256": "cc8a19cb16cf8f1dcff25baff72b47b3771edd0088f1834d7eeabc082915bc29"
+				"catalogEntrySha256": "92e233771a9d08fd97a81fec008b7a6ce5cf37e49db9c2ec4f71183a0d920a04"
 			},
 			"catalogStatus": "ready",
 			"catalogBlockedBy": [],
@@ -273,7 +273,7 @@
 			"sourceAuthorities": [],
 			"releaseEvidence": {
 				"publicReadbackSha256": "a314685196f54a415920366655890d8245a6564985db4a9e4623438904ca1bad",
-				"catalogEntrySha256": "35dfc2938f8d9c632cc721fa9f28f6ac641e64be008875a11afa10f8a0b652a9"
+				"catalogEntrySha256": "3478e735402a70b3d673d5235a5fff07fb51a18ceb6e76820bb8642d6774285a"
 			},
 			"catalogStatus": "ready",
 			"catalogBlockedBy": [],
@@ -311,7 +311,7 @@
 			"sourceAuthorities": [],
 			"releaseEvidence": {
 				"publicReadbackSha256": "b064e04ea9640aa3f2df94ebfb5876be6d31ff14c5929d959754f8f7e272843c",
-				"catalogEntrySha256": "ac00974c0b1bec22e30bbe04cccda049d5fd79e97f38b07748a7226bdd67ebc9"
+				"catalogEntrySha256": "0480d36d8932ed65aa856d8e2f3efecf2781d04e4a3326bec6865d9142b10df7"
 			},
 			"catalogStatus": "ready",
 			"catalogBlockedBy": [],

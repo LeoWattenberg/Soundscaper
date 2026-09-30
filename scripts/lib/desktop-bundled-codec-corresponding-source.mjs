@@ -264,7 +264,7 @@ function validateClosureShape(closure) {
 	}
 	validatePinnedDescriptor(closure.instructions, 'rebuild instructions');
 	validatePinnedDescriptor(closure.soundscaperLicense, 'Soundscaper license');
-	if (closure.instructions.path !== 'docs/desktop-bundled-codec-corresponding-source.md'
+	if (closure.instructions.path !== 'docs/reference/bundled-codec-corresponding-source.md'
 		|| closure.soundscaperLicense.path !== 'LICENSE') {
 		throw new Error('Corresponding-source document authority is invalid.');
 	}

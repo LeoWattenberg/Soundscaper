@@ -11,7 +11,7 @@ import {
 } from '../src/common/project-file-extensions.ts';
 
 const policyUrl = new URL('../config/project-compatibility.json', import.meta.url);
-const documentationUrl = new URL('../docs/project-compatibility.md', import.meta.url);
+const documentationUrl = new URL('../docs/policies/project-compatibility.md', import.meta.url);
 
 test('the compatibility register states the suffix each product writes and accepts', async () => {
 	const policy = JSON.parse(await readFile(policyUrl, 'utf8'));

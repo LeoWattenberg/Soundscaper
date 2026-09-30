@@ -10,8 +10,8 @@ const DESKTOP_CONTROL = 'framescaper-capture-desktop-consent-authority';
 test('Framescaper capture policy binds consent, recovery, origin, and publication evidence', async () => {
 	const [matrix, threatModel, privacy] = await Promise.all([
 		json('config/production-security-matrix.json'),
-		text('docs/production-threat-model.md'),
-		text('docs/framescaper-capture-privacy.md'),
+		text('docs/policies/security.md'),
+		text('docs/features/framescaper-capture.md'),
 	]);
 	const cancellation = matrix.risks.find(({ id }) => id === 'long-job-cancellation');
 	const capture = cancellation?.currentControls.find(({ id }) => id === SECURITY_CONTROL);
@@ -62,7 +62,7 @@ test('Framescaper capture policy binds consent, recovery, origin, and publicatio
 	assert.match(threatModel, /policy-narrative:framescaper-capture-durability-and-atomic-publication/u);
 	assert.match(privacy, /after canonical capture and manifest commit.*without awaiting.*audio.*never a proxy job.*every valid owned captured video.*one\s+proxy job.*warning.*does not roll back/isu);
 	assert.match(privacy, /outer project\/session Web\s+Lock.*authoritative manifest.*nested.*spool Web Locks.*next manifest.*prefix.*previous prefix.*unacknowledged tail.*fails closed/isu);
-	assert.match(privacy, /Record is available.*Framescaper family-v1.*standalone web and desktop.*cross-context Web Locks.*complete\s+encoded\/raw\/manifest.*video probe.*canonical publication\s+store.*partial stack.*unavailable.*Pre-release capture generations.*provenance only/isu);
+	assert.match(privacy, /Record is available.*Framescaper family-v1.*standalone web and desktop.*cross-context Web Locks.*complete\s+encoded\/raw\/manifest.*video probe.*canonical publication\s+store.*partial stack.*unavailable/isu);
 	assert.match(privacy, /Framescaper recording is unavailable in Soundscaper.*Soundscaper.*microphone\/display policy.*camera denied/isu);
 
 	const ipc = matrix.risks.find(({ id }) => id === 'electron-renderer-ipc-boundary');
@@ -109,11 +109,11 @@ test('Framescaper capture policy binds consent, recovery, origin, and publicatio
 });
 
 test('capability activates the Framescaper family-v1 baseline while real-device QA stays optional', async () => {
-	const [capabilities, quality, roadmap, plan] = await Promise.all([
+	const [capabilities, quality, roadmap, documentation] = await Promise.all([
 		json('config/production-capabilities.json'),
 		json('config/quality-budgets.json'),
 		text('roadmap.md'),
-		text('docs/milestone-8a-plan.md'),
+		text('docs/features/framescaper-capture.md'),
 	]);
 	const framescaper = capabilities.products.framescaper;
 	assert.equal(framescaper.projectFeatures.audioRecording, false);
@@ -178,7 +178,7 @@ test('capability activates the Framescaper family-v1 baseline while real-device 
 	assert.doesNotMatch(roadmap, /Blocked until milestone 8:\*\*[^\n]*(?:Framescaper camera|Framescaper capture)/iu);
 	assert.doesNotMatch(capture, /— Planned:/u);
 	assert.equal((capture.match(/— Implemented \(active\):/gu) ?? []).length, 11);
-	assert.match(capture, /milestone-8a-plan\.md.*framescaper-capture-privacy\.md/isu);
+	assert.match(capture, /docs\/features\/framescaper-capture\.md/iu);
 	const captureFixture = quality.fixtures.find(({ id }) => id === 'm8a-capture-30m-all-sources-v1');
 	const captureWorkload = quality.workloads.find(({ id }) => id === 'm8a-capture-long-session');
 	assert.equal(captureFixture?.kind, 'observed-capture-session');
@@ -195,14 +195,16 @@ test('capability activates the Framescaper family-v1 baseline while real-device 
 		roadmap.slice(roadmap.indexOf('## 9+. Post-1.0 extensions')),
 		/### 8B\. MIDI.*Status:.*Planned.*not implemented.*excluded from stable 1\.0.*Audacity.*post-1\.0/isu,
 	);
-	assert.match(plan, /capture-only proxy route landed in commit `4f4d9d5a`.*framescaper-capture-canonical-publication\.ts.*editor-captured-video-proxy-scheduler\.ts.*captured-video-proxy-final-fence\.test\.ts/isu);
-	assert.match(plan, /crash-safe creation and append protocol landed in commit `917add78`.*framescaper-capture-app-composition\.ts.*capture-spool-append-intent-repository\.ts.*capture-spool-operation-lock\.ts.*capture-rollback-lock\.test\.ts.*capture-terminal-retirement\.test\.ts/isu);
-	assert.match(plan, /Commit `15a50dcb`.*framescaper-capture-stream-timing\.ts.*numeric.*null.*capture-shared-timing\.test\.ts/isu);
-	assert.match(plan, /Commit `70d1192e`.*framescaper-v19-capture\.spec\.js.*eight configured-Chromium.*incomplete-runtime denial.*mixed.*inactive origin.*source-ended recovery.*makes no external.*support claim/isu);
-	assert.match(plan,
-		/Commits `5ccf6447`, `2c6e2a94`, and `16029166`.*selected F31.*Chromium, Firefox, and WebKit.*eight cases.*24 configured-engine cases.*synthetic.*outside their scope/isu);
-	assert.match(plan, /Milestone 8B MIDI remains planned but unimplemented and is outside this plan/iu);
-	assert.match(plan, /Status:.*Implemented and active on selected F31 standalone web and desktop.*framescaperCapture: true.*Recording Setup.*default-hidden.*View > Panels.*framescaperWebVcr: true.*optional owner QA/isu);
+	assert.match(documentation,
+		/Framescaper family v1 provides local-first capture.*standalone web and\s+desktop.*framescaperCapture: true.*Recording Setup.*default-hidden.*View > Panels.*Web VCR.*Record-menu source adapter/isu);
+	assert.match(documentation,
+		/short-lived closed creation inventory.*closed CAS manifest.*previous-to-next durable\s+intent.*outer project\/session Web\s+Lock.*changed token fails closed/isu);
+	assert.match(documentation,
+		/after canonical capture and manifest commit.*Audio.*never a proxy job.*valid owned captured video.*one\s+proxy job.*warning.*does not roll back/isu);
+	assert.match(documentation,
+		/Chromium, Firefox, and WebKit.*eight-case browser\s+workflow.*synthetic media.*24 configured-engine cases/isu);
+	assert.match(documentation, /Actual device and packaged performance.*optional owner QA.*without creating a release status/isu);
+	assert.doesNotMatch(documentation, /\bMilestone \d|\bcommit `?[a-f\d]{7,40}`?/iu);
 });
 
 async function json(path) {

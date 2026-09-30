@@ -132,7 +132,7 @@ test('compatibility policy qualifies role-defined audio whole-mix fallback playb
 		'tests/browser/audio-editor-scape-open-compatibility.spec.js',
 	]) assert.ok(rule.evidence.includes(reference), reference);
 
-	const documentation = await readFile(new URL('../docs/project-compatibility.md', import.meta.url), 'utf8');
+	const documentation = await readFile(new URL('../docs/policies/project-compatibility.md', import.meta.url), 'utf8');
 	const normalizedDocumentation = documentation.replace(/\s+/gu, ' ');
 	assert.match(normalizedDocumentation, /exact owning-family v1.*canonical namespaced feature ID.*unavailable or unknown.*closed `project-audio-mix-v1` role.*whole-mix.*frame zero.*editor playback/isu);
 	assert.match(normalizedDocumentation, /closed role supplies.*media semantics.*feature ID.*opaque identity.*does not discover, load, or execute.*feature code/isu);

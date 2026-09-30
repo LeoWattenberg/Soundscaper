@@ -75,8 +75,8 @@ test('roadmap remains a concise forward-looking guide for agents', async () => {
 		/Soundscaper no longer emits.*old Framescaper app.*no legacy user\s+population.*transfer routes.*remain\s+permanent/isu,
 	);
 	assert.match(roadmap, /## 2\. Shared platform, storage, and media foundation.*### Exit gate/isu);
-	assert.match(roadmap, /docs\/production-threat-model\.md/iu);
-	assert.match(roadmap, /docs\/project-compatibility\.md/iu);
+	assert.match(roadmap, /docs\/policies\/security\.md/iu);
+	assert.match(roadmap, /docs\/policies\/project-compatibility\.md/iu);
 	assert.doesNotMatch(roadmap, /\b\d+ test files\b/iu);
 	assert.doesNotMatch(roadmap, /It remained green at/iu);
 	assert.doesNotMatch(roadmap, /observed .* seconds/iu);

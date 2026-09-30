@@ -5,7 +5,7 @@ import { readFile } from 'node:fs/promises';
 import test from 'node:test';
 
 const matrixUrl = new URL('../config/production-security-matrix.json', import.meta.url);
-const planUrl = new URL('../docs/desktop-codec-provider-plan.md', import.meta.url);
+const architectureUrl = new URL('../docs/architecture/desktop-codec-providers.md', import.meta.url);
 const ELECTRON_EVIDENCE = [
 	'electron-builder.config.cjs',
 	'config/electron-alternate-ffmpeg-manifest.json',
@@ -22,7 +22,7 @@ const BUNDLED_CODEC_EVIDENCE = [
 	'src/common/editor/lame/source-manifest.json',
 	'src/common/editor/twolame/source-manifest.json',
 	'src/common/editor/wavpack/NOTICE.md',
-	'docs/desktop-codec-provider-plan.md',
+	'docs/architecture/desktop-codec-providers.md',
 	'src/common/editor/desktop-wavpack-codec-profile.ts',
 	'scripts/audit-flac-wasm.mjs',
 	'scripts/audit-opus-wasm.mjs',
@@ -105,9 +105,9 @@ const FRAMESCAPER_NATIVE_MEDIA_EVIDENCE = [
 ];
 
 test('desktop codec security separates Electron framework, application, and external FFmpeg', async () => {
-	const [matrixText, plan] = await Promise.all([
+	const [matrixText, architecture] = await Promise.all([
 		readFile(matrixUrl, 'utf8'),
-		readFile(planUrl, 'utf8'),
+		readFile(architectureUrl, 'utf8'),
 	]);
 	const matrix = JSON.parse(matrixText);
 	const risks = new Map(matrix.risks.map((risk) => [risk.id, risk]));
@@ -181,30 +181,38 @@ test('desktop codec security separates Electron framework, application, and exte
 		/exactly seven reviewed compressed-audio WASM files.*libFLAC.*libopus.*libvorbis.*WavPack.*mpg123.*LAME.*TwoLAME.*complete authenticated isolation runtime closure.*exact-length.*SHA-256.*undeclared codec WASM.*deterministic seven-codec corresponding-source ZIP.*target-native OS audio codec.*mac-arm64.*win-x64.*win-arm64.*no mac-x64.*alternate Chromium libffmpeg.*five supported targets.*external-video runner.*ffmpeg\/ffprobe bytes stay outside.*WinGet\/Homebrew.*neither patent clearance nor non-infringement/iu,
 	);
 	assert.match(
-		plan,
-		/Implementation status.*seven\s+reviewed compressed-audio WebAssembly payloads.*libFLAC 1\.5\.0.*libopus 1\.6\.1.*libvorbis 1\.3\.7.*WavPack 5\.9\.0.*mpg123 1\.33\.7.*LAME 4\.0.*TwoLAME 0\.4\.0/isu,
+		architecture,
+		/Current implementation.*seven\s+reviewed compressed-audio WebAssembly payloads.*libFLAC 1\.5\.0.*libopus 1\.6\.1.*libvorbis 1\.3\.7.*WavPack 5\.9\.0.*mpg123 1\.33\.7.*LAME 4\.0.*TwoLAME 0\.4\.0/isu,
 	);
 	assert.match(
-		plan,
+		architecture,
 		/libsndfile is intentionally not added.*runtime manifest.*WASM.*transitive JavaScript.*fresh.*supervised Electron utility process/isu,
 	);
-	assert.match(plan, /existing canary and small-buffer operations.*32 MiB.*128 MiB.*contract/isu);
-	assert.match(plan, /small-buffer helpers.*synchronous WASM.*shared reservation.*aggregate.*RSS/isu);
-	assert.match(plan, /continuous-session route.*16,384.*same codec instance persists.*1 MiB.*one hour.*1,000,000,000 final file bytes.*cancellation.*progress.*validation/isu);
+	assert.match(architecture, /existing canary and small-buffer operations.*32 MiB.*128 MiB.*contract/isu);
+	assert.match(architecture, /small-buffer helpers.*synchronous WASM.*shared reservation.*aggregate.*RSS/isu);
+	assert.match(architecture, /continuous-session route.*16,384.*same codec instance persists.*1 MiB.*one hour.*1,000,000,000 final file bytes.*cancellation.*progress.*validation/isu);
 	assert.match(
-		plan,
+		architecture,
 		/Media Foundation.*AudioToolbox.*target-native.*mac-arm64.*win-x64.*win-arm64.*native codec canar.*identity-free ad-hoc code seal.*no\s+certificate.*package.*Linux.*no uniform OS tier.*FFmpeg CLI.*4\.4 through 9\.x.*Edit > Preferences > General.*BtbN\.FFmpeg\.GPL\.8\.1.*brew install ffmpeg/isu,
 	);
-	assert.match(plan, /live.*16x16.*48 kHz stereo.*exact.*ffprobe.*exactly two streams.*yuv420p.*H\.264.*AAC.*yuv420p.*VP9.*Opus/isu);
+	assert.match(architecture, /live.*16x16.*48 kHz stereo.*exact.*ffprobe.*exactly two streams.*yuv420p.*H\.264.*AAC.*yuv420p.*VP9.*Opus/isu);
 	assert.match(
-		plan,
+		architecture,
 		/Bundled and operating-system video execution are not implemented.*no\s+libwebm\/libvpx\/dav1d\/SVT-AV1\/libaom payload.*external\s+WebM.*VP9.*not AV1.*Media Foundation video.*VideoToolbox video.*no execution capability.*fail\s+closed/isu,
 	);
 	assert.match(
-		plan,
-		/time-of-check\/time-of-use.*no operating-\s*system RSS or CPU sandbox.*malicious user-selected executable/isu,
+		architecture,
+		/time-of-check\/time-of-use replacement.*does not authenticate dynamically\s+loaded libraries.*not an operating-system filesystem,\s+network, RSS, or CPU sandbox.*malicious selected executable/isu,
 	);
-	assert.doesNotMatch(plan, /patent[- ]free/iu);
+	assert.match(
+		architecture,
+		/Provider boundary.*Only `unavailable` and `unsupported` preflight results may.*fall through.*Cancellation.*security failure.*partial output is terminal/isu,
+	);
+	assert.doesNotMatch(
+		architecture,
+		/^## (?:Bundled provider|Operating-system provider|External FFmpeg|Changes and validation)$|^### AV1 implementation finding$/gmu,
+	);
+	assert.doesNotMatch(architecture, /patent[- ]free/iu);
 });
 
 function control(risks, riskId, controlId) {

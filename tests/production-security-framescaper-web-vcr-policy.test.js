@@ -52,10 +52,11 @@ test('Web VCR is enabled for ordinary Framescaper testing', async () => {
 });
 
 test('Web VCR isolated-guest control records the active lazy security boundary', async () => {
-	const [matrix, threatModel, privacy] = await Promise.all([
+	const [matrix, threatModel, captureDocumentation, webVcrDocumentation] = await Promise.all([
 		json('config/production-security-matrix.json'),
-		text('docs/production-threat-model.md'),
-		text('docs/framescaper-capture-privacy.md'),
+		text('docs/policies/security.md'),
+		text('docs/features/framescaper-capture.md'),
+		text('docs/features/framescaper-web-vcr.md'),
 	]);
 	const risk = matrix.risks.find(({ id }) => id === 'electron-renderer-ipc-boundary');
 	const control = risk?.currentControls.find(({ id }) => id === CONTROL_ID);
@@ -110,9 +111,12 @@ test('Web VCR isolated-guest control records the active lazy security boundary',
 		'tests/production-security-framescaper-web-vcr-policy.test.js',
 	]);
 	assert.match(threatModel, new RegExp(`policy-narrative:${CONTROL_ID}`, 'u'));
-	assert.match(privacy, /Web VCR.*enabled.*framescaperWebVcr.*true.*default-hidden.*Record/isu);
-	assert.match(privacy, /persistent profile.*URL.*title.*login.*crop gesture.*diagnostic.*project state/isu);
-	assert.match(privacy, /deterministic.*HTTPS fixture.*diagnosticOnly.*true.*does not establish broader.*platform.*behavior/isu);
+	assert.match(captureDocumentation,
+		/framescaperWebVcr: true.*desktop-only source adapter.*Record menu.*no guest.*direct action.*lazily/isu);
+	assert.match(webVcrDocumentation,
+		/persistent HTTPS authentication.*URL, page title, login state, crop gestures, and diagnostics stay out of.*project state/isu);
+	assert.match(webVcrDocumentation,
+		/deterministic Linux x64\/Xvfb packaged smoke.*loopback HTTPS fixture.*diagnosticOnly: true.*proves only the paths it executed.*does not establish behavior.*public providers.*other operating systems/isu);
 });
 
 test('Web VCR stays in real tests and owner QA instead of a pseudo quality workload', async () => {
@@ -123,14 +127,14 @@ test('Web VCR stays in real tests and owner QA instead of a pseudo quality workl
 	assert.equal(workload, undefined);
 	assert.equal(Object.hasOwn(quality, 'environments'), false);
 	assert.equal(Object.hasOwn(quality, 'qualification'), false);
-	const qa = await text('docs/qa/framescaper.md');
+	const qa = await text('docs/operations/qa/framescaper.md');
 	assert.match(qa, /Web VCR/iu);
 	assert.match(qa, /conditional/iu);
 });
 
-test('Web VCR roadmap and owning plan report the enabled test surface truthfully', async () => {
-	const [roadmap, plan] = await Promise.all([
-		text('roadmap.md'), text('docs/post-milestone-8-web-vcr-plan.md'),
+test('Web VCR roadmap and feature contract report the current surface truthfully', async () => {
+	const [roadmap, contract] = await Promise.all([
+		text('roadmap.md'), text('docs/features/framescaper-web-vcr.md'),
 	]);
 	const section = roadmap.slice(
 		roadmap.indexOf('## 8+. Post-milestone-8 Framescaper Web VCR extension'),
@@ -143,11 +147,11 @@ test('Web VCR roadmap and owning plan report the enabled test surface truthfully
 	assert.match(section, /4K.*unavailable/isu);
 	assert.match(section, /deterministic.*HTTPS fixture.*neither establishes.*general real-runtime.*platform claim/isu);
 	assert.match(section, /packaged feasibility.*720p.*1080p/isu);
-	assert.match(plan, /Implementation status.*implemented.*enabled for testing/isu);
-	assert.match(plan, /framescaperWebVcr.*true.*default-hidden.*Record/isu);
-	assert.match(plan, /packaged feasibility.*720p.*1080p.*diagnosticOnly.*true/isu);
-	assert.match(plan, /real-runtime behavior.*optional.*owner-QA.*4K.*unavailable/isu);
-	assert.match(plan, /loopback HTTPS fixture.*report only what they actually ran.*no broader.*platform claim/isu);
+	assert.match(contract, /## Current surface.*framescaperWebVcr: true.*Record flyout.*default-hidden/isu);
+	assert.match(contract, /Linux x64\/Xvfb packaged smoke.*720p.*1080p.*diagnosticOnly: true/isu);
+	assert.match(contract, /4K choice.*runtime\s+capture probe.*encoder backend.*capability mismatch refuses before\s+recording/isu);
+	assert.match(contract, /smoke proves only the paths it executed.*does not establish behavior.*public providers.*other operating systems/isu);
+	assert.match(contract, /loopback HTTPS fixture.*public websites are never CI dependencies/isu);
 });
 
 async function json(path) {

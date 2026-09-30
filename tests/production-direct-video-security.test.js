@@ -339,8 +339,8 @@ test('the direct video fixture records exact MP4 and WebM transport without code
 
 test('the threat and quality documents limit direct video claims to the proved transport slice', async () => {
 	const [threatModel, qualityBudgets] = await Promise.all([
-		readFile(new URL('../docs/production-threat-model.md', import.meta.url), 'utf8'),
-		readFile(new URL('../docs/quality-budgets.md', import.meta.url), 'utf8'),
+		readFile(new URL('../docs/policies/security.md', import.meta.url), 'utf8'),
+		readFile(new URL('../docs/development/quality-diagnostics.md', import.meta.url), 'utf8'),
 	]);
 	const threatStart = threatModel.indexOf('The exact MP4 route');
 	const threatEnd = threatModel.indexOf('\n### Electron renderer', threatStart);

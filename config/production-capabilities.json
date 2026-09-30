@@ -374,7 +374,7 @@
 						"tests/audio-editor-framescaper-capture-session-service.test.ts",
 						"tests/audio-editor-framescaper-capture-ui.test.tsx",
 						"tests/browser/editor-products.spec.js",
-						"docs/framescaper-capture-privacy.md",
+						"docs/features/framescaper-capture.md",
 						"src/framescaper/editor-project.ts",
 						"src/framescaper/editor-controller.ts",
 						"tests/audio-editor-framescaper-baseline.test.ts"
@@ -468,7 +468,7 @@
 						"tests/audio-editor-project-switch-service.test.ts",
 						"tests/framescaper-capture-cloudflare-policy.test.js",
 						"tests/quality-budget-m8a-capture-collector.test.ts",
-						"docs/milestone-8a-plan.md",
+						"docs/features/framescaper-capture.md",
 						"src/framescaper/editor-project.ts",
 						"tests/audio-editor-framescaper-baseline.test.ts"
 					]
@@ -554,8 +554,8 @@
 						"tests/desktop-framescaper-web-vcr-target-observer.test.ts",
 						"tests/desktop-framescaper-capture-session-security.test.ts",
 						"tests/production-security-framescaper-web-vcr-policy.test.js",
-						"docs/post-milestone-8-web-vcr-plan.md",
-						"docs/framescaper-capture-privacy.md",
+						"docs/features/framescaper-web-vcr.md",
+						"docs/features/framescaper-capture.md",
 						"src/common/editor/controller/capture/framescaper-capture-app-composition.ts",
 						"src/common/editor/controller/capture/internal/framescaper-capture-durable-session.ts",
 						"src/common/editor/storage/capture-spool-operation-lock.ts",

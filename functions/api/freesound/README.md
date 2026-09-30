@@ -149,4 +149,4 @@ and keeps the license version in attribution.
 
 The bounded implementation controls and remaining preview-stream risks are
 recorded in the
-[production threat model](../../../docs/production-threat-model.md#freesound-api-proxy).
+[production threat model](../../../docs/policies/security.md#freesound-api-proxy).

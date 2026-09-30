@@ -18,7 +18,7 @@ const ROW = /^\| (?<id>[A-Z]+-\d{2}) \| (?<check>.+?) \| (?<result>not-run|pass|
 
 for (const product of PRODUCTS) {
 	test(`${product} has an evergreen owner QA template`, async () => {
-		const markdown = await readFile(new URL(`docs/qa/${product}.md`, REPOSITORY_ROOT), 'utf8');
+		const markdown = await readFile(new URL(`docs/operations/qa/${product}.md`, REPOSITORY_ROOT), 'utf8');
 		const rows = markdown.split('\n').flatMap((line) => {
 			if (!line.startsWith('| ') || line.startsWith('| ID ') || line.startsWith('| --- ')) return [];
 			const match = ROW.exec(line);
@@ -83,10 +83,10 @@ test('the QA generator refuses a symlinked output directory', async (context) =>
 async function fixtureRepository(context) {
 	const root = await mkdtemp(join(tmpdir(), 'soundscaper-qa-run-'));
 	context.after(() => rm(root, { recursive: true, force: true }));
-	await mkdir(join(root, 'docs', 'qa'), { recursive: true });
+	await mkdir(join(root, 'docs', 'operations', 'qa'), { recursive: true });
 	for (const product of PRODUCTS) {
 		await writeFile(
-			join(root, 'docs', 'qa', `${product}.md`),
+			join(root, 'docs', 'operations', 'qa', `${product}.md`),
 			`# QA\n\nProduct: {{PRODUCT}}\nStarted (UTC): {{UTC_TIMESTAMP}}\n\n| ID | Check | Result | Notes |\n| --- | --- | --- | --- |\n| QA-01 | Check it. | not-run | |\n`,
 		);
 	}

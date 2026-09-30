@@ -17,7 +17,7 @@ interface CompatibilityPolicy {
 }
 
 const policyUrl = new URL('../config/project-compatibility.json', import.meta.url);
-const documentationUrl = new URL('../docs/project-compatibility.md', import.meta.url);
+const documentationUrl = new URL('../docs/policies/project-compatibility.md', import.meta.url);
 
 test('disposable video previews remain reproducible local relationships, not durable project media', async () => {
 	const policy = JSON.parse(await readFile(policyUrl, 'utf8')) as CompatibilityPolicy;

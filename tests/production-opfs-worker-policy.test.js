@@ -9,7 +9,7 @@ import { OPFS_SYNC_OPERATION_IDS } from '../src/common/editor/storage/opfs-sync-
 
 const closureUrl = new URL('../config/milestone-2-closure.json', import.meta.url);
 const capabilitiesUrl = new URL('../config/production-capabilities.json', import.meta.url);
-const qualityBudgetsUrl = new URL('../docs/quality-budgets.md', import.meta.url);
+const qualityBudgetsUrl = new URL('../docs/development/quality-diagnostics.md', import.meta.url);
 const roadmapUrl = new URL('../roadmap.md', import.meta.url);
 
 const OPERATION_IDS = [

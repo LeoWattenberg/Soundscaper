@@ -4,15 +4,15 @@ import assert from 'node:assert/strict';
 import { access, readFile } from 'node:fs/promises';
 import test from 'node:test';
 
-const releasePolicy = await readFile(new URL('../docs/release-policy.md', import.meta.url), 'utf8');
-const soundscaperQa = await readFile(new URL('../docs/qa/soundscaper.md', import.meta.url), 'utf8');
-const framescaperQa = await readFile(new URL('../docs/qa/framescaper.md', import.meta.url), 'utf8');
+const releasePolicy = await readFile(new URL('../docs/operations/release.md', import.meta.url), 'utf8');
+const soundscaperQa = await readFile(new URL('../docs/operations/qa/soundscaper.md', import.meta.url), 'utf8');
+const framescaperQa = await readFile(new URL('../docs/operations/qa/framescaper.md', import.meta.url), 'utf8');
 const packageManifest = JSON.parse(await readFile(new URL('../package.json', import.meta.url), 'utf8'));
 const interchangeConformance = await readFile(
-	new URL('../docs/interchange-conformance.md', import.meta.url), 'utf8');
+	new URL('../docs/reference/interchange-conformance.md', import.meta.url), 'utf8');
 const notices = await readFile(new URL('../THIRD_PARTY_LICENSES.md', import.meta.url), 'utf8');
 const technicalReadme = await readFile(new URL('../Technical_README.md', import.meta.url), 'utf8');
-const threatModel = await readFile(new URL('../docs/production-threat-model.md', import.meta.url), 'utf8');
+const threatModel = await readFile(new URL('../docs/policies/security.md', import.meta.url), 'utf8');
 const securityMatrix = JSON.parse(await readFile(
 	new URL('../config/production-security-matrix.json', import.meta.url), 'utf8'));
 const compatibilityPolicy = JSON.parse(await readFile(

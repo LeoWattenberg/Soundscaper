@@ -45,7 +45,7 @@ interface SecurityMatrix {
 }
 
 const matrixUrl = new URL('../config/production-security-matrix.json', import.meta.url);
-const threatModelUrl = new URL('../docs/production-threat-model.md', import.meta.url);
+const threatModelUrl = new URL('../docs/policies/security.md', import.meta.url);
 
 test('Freesound proxy security claims are bounded and retain deployment residuals', async () => {
 	const [matrix, threatModel] = await Promise.all([

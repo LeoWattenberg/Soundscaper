@@ -88,9 +88,9 @@ test('repin refreshes every stale file pin and the manifest integrity digest', a
 
 test('repin rejects when a pinned evidence file is missing instead of pinning nothing', async (context) => {
 	const { root } = await createStaleFixture(context);
-	await rm(join(root, 'docs/production-threat-model.md'));
+	await rm(join(root, 'docs/policies/security.md'));
 	await assert.rejects(
 		repinFfmpegRuntimeEvidence({ repositoryRoot: root }),
-		/docs\/production-threat-model\.md/u,
+		/docs\/policies\/security\.md/u,
 	);
 });

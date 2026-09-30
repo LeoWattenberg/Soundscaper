@@ -51,7 +51,7 @@ test('reviewed effects qualify only the release-bundled pure-WASM catalog', asyn
 
 test('threat model and licensing evidence preserve the external-package fence', async () => {
 	const [threatModel, licensingMatrix] = await Promise.all([
-		readFile(new URL('../docs/production-threat-model.md', import.meta.url), 'utf8'),
+		readFile(new URL('../docs/policies/security.md', import.meta.url), 'utf8'),
 		readFile(new URL('../config/production-licensing-matrix.json', import.meta.url), 'utf8').then(JSON.parse),
 	]);
 	const gate = licensingMatrix.futureDistributionGates.find(

@@ -1135,7 +1135,7 @@ implementation and locked dependencies in
 [`scripts/models/milestone-7-conversion-tool/`](scripts/models/milestone-7-conversion-tool/),
 the exact recipe in
 [`config/milestone-7-model-conversion-execution.json`](config/milestone-7-model-conversion-execution.json),
-and [reproduction instructions](docs/milestone-7-model-conversion-reproduction.md).
+and [reproduction instructions](docs/operations/local-models/conversion-reproduction.md).
 The reviewed release payload binds that recipe to its committed source revision.
 
 Keep these source directions next to the downloadable model and preserve the

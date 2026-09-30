@@ -59,7 +59,7 @@ credentials; the Audacity design system is vendored in-tree at
 `vendor/audacity-design-system/`. Contributor workflow
 and architecture boundaries are documented in
 [`CONTRIBUTING.md`](CONTRIBUTING.md) and
-[`docs/architecture.md`](docs/architecture.md).
+[`docs/architecture/overview.md`](docs/architecture/overview.md).
 
 `npm run preview` serves the production build on port 4321. Playwright keeps
 its isolated preview server on port 4322 (or `PLAYWRIGHT_PORT` when overridden).
@@ -122,7 +122,7 @@ copy. Numeric-only projects and pre-release `.scape` formats require re-import.
 The portable archive is family-qualified `formatVersion: 1`; file suffixes are
 routing hints and do not override the identity recorded in the manifest and
 project root. Stable releases follow the owner-run checks described in the
-[release policy](docs/release-policy.md).
+[release policy](docs/operations/release.md).
 
 ## Desktop preview
 
@@ -219,7 +219,7 @@ not relabel a software fallback as hardware evidence.
 ### Nightly test runner artifacts
 
 For a self-contained browser test run, see
-[end-to-end coverage](docs/end-to-end-coverage.md). Start the separate
+[end-to-end coverage](docs/development/end-to-end-coverage.md). Start the separate
 **Desktop test artifacts (internal)** workflow runs on every push to `main`.
 A manual run on `main` can package `nightly-with-tests` for selected targets:
 `all`, `windows`, or `win-x64`. CI builds and uploads the packages without
@@ -470,11 +470,7 @@ variables have already been exported into its process environment.
 6. Repeat steps 1–5 for a second Pages project named `framescaper`, connected to
    the same repository and the same production branch `main`, with build command
    `SCAPE_PRODUCT=framescaper npm run build:pages`, output directory `dist`, the
-   zone `framescaper.org`, and that apex attached as its custom domain. The
-   checked-in [`wrangler.framescaper.jsonc`](wrangler.framescaper.jsonc)
-   describes the equivalent static-assets deployment for a `wrangler deploy` run
-   from a workstation. Its preflight audits `framescaper.org`'s own routes;
-   nothing in it reaches soundscaper.org's.
+   zone `framescaper.org`, and that apex attached as its custom domain.
 
 Cloudflare will build and deploy every push to `main` and create preview
 deployments for other selected branches.

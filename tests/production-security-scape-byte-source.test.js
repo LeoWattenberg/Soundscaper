@@ -9,7 +9,7 @@ import { assertOrderedClaim } from './helpers/ordered-evidence-claim.js';
 const matrixUrl = new URL('../config/production-security-matrix.json', import.meta.url);
 const packageUrl = new URL('../package.json', import.meta.url);
 const referenceScaleTestUrl = new URL('./desktop-scape-sparse-full-import-integration.test.ts', import.meta.url);
-const threatModelUrl = new URL('../docs/production-threat-model.md', import.meta.url);
+const threatModelUrl = new URL('../docs/policies/security.md', import.meta.url);
 
 test('production evidence pins bounded random-access .scape admission', async () => {
 	const matrix = JSON.parse(await readFile(matrixUrl, 'utf8'));

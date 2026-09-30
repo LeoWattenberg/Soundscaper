@@ -1,7 +1,7 @@
 {
 	"schemaVersion": 1,
 	"groundedAt": "2026-09-13",
-	"policyDocument": "docs/production-licensing-policy.md",
+	"policyDocument": "docs/policies/licensing.md",
 	"lockfile": {
 		"path": "package-lock.json",
 		"lockfileVersion": 3,
@@ -48,7 +48,7 @@
 			"description": "Public desktop packages, notices, checksums, and source archives required for content actually redistributed. Each package contains the seven exact reviewed compressed-audio WebAssembly providers, the exact verified Electron alternate framework libffmpeg for its target, and the target-supported manifest-authenticated sherpa-onnx 1.13.5 local-assistance Node and native runtime. Release assembly emits one preferred corresponding-source ZIP for those seven providers before SHA256SUMS: it fail-closed validates their exact shipped WASM identities, source manifests, upstream archives, Soundscaper wrappers, in-tree WavPack snapshot, build scripts and transitive helpers, configuration, relink instructions, and license texts, and records every included source byte in a deterministic internal receipt. This desktop source delivery does not enable any future reactivation of the retained legacy FFmpeg WebAssembly publication tooling. macOS ARM64 and Windows x64/ARM64 Soundscaper packages additionally require a target-native, canary-tested repository-owned operating-system codec addon whose exact manifest, payload, target, byte length, and SHA-256 are authenticated through staging and packaging; Linux has no OS codec payload and macOS x64 is unsupported. User-installed external FFmpeg remains outside this artifact closure and is not copied into the release set.",
 			"artifactStatus": "build-only",
 			"noticeDeliveryStatus": "implemented",
-			"evidence": ["config/assistance-native-runtime-manifest.json", "desktop/assistance-native-runtime-payload.mjs", "config/electron-alternate-ffmpeg-manifest.json", "config/desktop-bundled-codec-corresponding-source.json", "docs/desktop-bundled-codec-corresponding-source.md", "src/common/editor/flac/source-manifest.json", "src/common/editor/opus/source-manifest.json", "src/common/editor/vorbis/source-manifest.json", "src/common/editor/wavpack/source-manifest.json", "src/common/editor/mpg123/source-manifest.json", "src/common/editor/lame/source-manifest.json", "src/common/editor/twolame/source-manifest.json", "scripts/lib/desktop-codec-policy.mjs", "scripts/lib/desktop-bundled-audio-runtime.mjs", "scripts/lib/desktop-bundled-codec-notices.mjs", "scripts/lib/desktop-bundled-codec-corresponding-source.mjs", "scripts/lib/bundled-codec-source-input.mjs", "scripts/lib/electron-alternate-ffmpeg.mjs", "scripts/desktop-release-assets.mjs", "tests/assistance-native-runtime-payload.test.js", "tests/desktop-release-package-inventory.test.js", "tests/desktop-audio-codec-runtime-staging.test.js", "tests/desktop-bundled-codec-notices.test.js", "tests/desktop-bundled-codec-corresponding-source.test.js", "THIRD_PARTY_LICENSES.md"]
+			"evidence": ["config/assistance-native-runtime-manifest.json", "desktop/assistance-native-runtime-payload.mjs", "config/electron-alternate-ffmpeg-manifest.json", "config/desktop-bundled-codec-corresponding-source.json", "docs/reference/bundled-codec-corresponding-source.md", "src/common/editor/flac/source-manifest.json", "src/common/editor/opus/source-manifest.json", "src/common/editor/vorbis/source-manifest.json", "src/common/editor/wavpack/source-manifest.json", "src/common/editor/mpg123/source-manifest.json", "src/common/editor/lame/source-manifest.json", "src/common/editor/twolame/source-manifest.json", "scripts/lib/desktop-codec-policy.mjs", "scripts/lib/desktop-bundled-audio-runtime.mjs", "scripts/lib/desktop-bundled-codec-notices.mjs", "scripts/lib/desktop-bundled-codec-corresponding-source.mjs", "scripts/lib/bundled-codec-source-input.mjs", "scripts/lib/electron-alternate-ffmpeg.mjs", "scripts/desktop-release-assets.mjs", "tests/assistance-native-runtime-payload.test.js", "tests/desktop-release-package-inventory.test.js", "tests/desktop-audio-codec-runtime-staging.test.js", "tests/desktop-bundled-codec-notices.test.js", "tests/desktop-bundled-codec-corresponding-source.test.js", "THIRD_PARTY_LICENSES.md"]
 		}
 	],
 	"npmProductionClosure": [
@@ -292,7 +292,7 @@
 			"role": "optional-native-assistance-runtime-platform-binary",
 			"artifactSurfaces": ["electron-runtime-assets", "desktop-release-assets"],
 			"noticeMarker": "`sherpa-onnx-darwin-arm64` 1.13.5",
-			"evidence": ["package-lock.json", "THIRD_PARTY_LICENSES.md", "docs/milestone-7-plan.md"]
+			"evidence": ["package-lock.json", "THIRD_PARTY_LICENSES.md", "docs/architecture/local-assistance.md"]
 		},
 		{
 			"lockPath": "node_modules/sherpa-onnx-darwin-x64",
@@ -303,7 +303,7 @@
 			"role": "optional-native-assistance-runtime-platform-binary",
 			"artifactSurfaces": [],
 			"noticeMarker": "`sherpa-onnx-darwin-x64` 1.13.5",
-			"evidence": ["package-lock.json", "THIRD_PARTY_LICENSES.md", "docs/milestone-7-plan.md"]
+			"evidence": ["package-lock.json", "THIRD_PARTY_LICENSES.md", "docs/architecture/local-assistance.md"]
 		},
 		{
 			"lockPath": "node_modules/sherpa-onnx-linux-arm64",
@@ -314,7 +314,7 @@
 			"role": "optional-native-assistance-runtime-platform-binary",
 			"artifactSurfaces": ["electron-runtime-assets", "desktop-release-assets"],
 			"noticeMarker": "`sherpa-onnx-linux-arm64` 1.13.5",
-			"evidence": ["package-lock.json", "THIRD_PARTY_LICENSES.md", "docs/milestone-7-plan.md"]
+			"evidence": ["package-lock.json", "THIRD_PARTY_LICENSES.md", "docs/architecture/local-assistance.md"]
 		},
 		{
 			"lockPath": "node_modules/sherpa-onnx-linux-x64",
@@ -325,7 +325,7 @@
 			"role": "optional-native-assistance-runtime-platform-binary",
 			"artifactSurfaces": ["electron-runtime-assets", "desktop-release-assets"],
 			"noticeMarker": "`sherpa-onnx-linux-x64` 1.13.5",
-			"evidence": ["package-lock.json", "THIRD_PARTY_LICENSES.md", "docs/milestone-7-plan.md"]
+			"evidence": ["package-lock.json", "THIRD_PARTY_LICENSES.md", "docs/architecture/local-assistance.md"]
 		},
 		{
 			"lockPath": "node_modules/sherpa-onnx-node",
@@ -336,7 +336,7 @@
 			"role": "optional-native-assistance-runtime",
 			"artifactSurfaces": ["electron-runtime-assets", "desktop-release-assets"],
 			"noticeMarker": "`sherpa-onnx-node` 1.13.5",
-			"evidence": ["package-lock.json", "THIRD_PARTY_LICENSES.md", "docs/milestone-7-plan.md"]
+			"evidence": ["package-lock.json", "THIRD_PARTY_LICENSES.md", "docs/architecture/local-assistance.md"]
 		},
 		{
 			"lockPath": "node_modules/sherpa-onnx-win-ia32",
@@ -347,7 +347,7 @@
 			"role": "optional-native-assistance-runtime-platform-binary",
 			"artifactSurfaces": [],
 			"noticeMarker": "`sherpa-onnx-win-ia32` 1.13.5",
-			"evidence": ["package-lock.json", "THIRD_PARTY_LICENSES.md", "docs/milestone-7-plan.md"]
+			"evidence": ["package-lock.json", "THIRD_PARTY_LICENSES.md", "docs/architecture/local-assistance.md"]
 		},
 		{
 			"lockPath": "node_modules/sherpa-onnx-win-x64",
@@ -358,7 +358,7 @@
 			"role": "optional-native-assistance-runtime-platform-binary",
 			"artifactSurfaces": ["electron-runtime-assets", "desktop-release-assets"],
 			"noticeMarker": "`sherpa-onnx-win-x64` 1.13.5",
-			"evidence": ["package-lock.json", "THIRD_PARTY_LICENSES.md", "docs/milestone-7-plan.md"]
+			"evidence": ["package-lock.json", "THIRD_PARTY_LICENSES.md", "docs/architecture/local-assistance.md"]
 		},
 		{
 			"lockPath": "node_modules/zod",
@@ -514,7 +514,7 @@
 			"compressionLevel": 2,
 			"targets": ["linux-x64", "linux-arm64", "mac-arm64", "win-x64", "win-arm64"],
 			"verification": "Exact reviewed float32 WavPack encode/decode slice with strict bounded parsing, startup canary, and a narrow stock WavPack 5.9.0 decoder witness. No patent-clearance or non-infringement claim is made.",
-			"evidence": ["src/common/editor/wavpack/source-manifest.json", "src/common/editor/wavpack/NOTICE.md", "src/common/editor/desktop-wavpack-codec-profile.ts", "src/common/editor/controller/export/internal/desktop-audio-export-capability.ts", "scripts/audit-wavpack-wasm.mjs", "scripts/lib/desktop-bundled-wavpack-runtime.mjs", "desktop/bundled-wavpack-audio-codec-runtime.ts", "desktop/bundled-wavpack-stream.ts", "desktop/desktop-audio-codec-registration.mjs", "tests/audio-editor-wavpack.test.js", "tests/audio-editor-desktop-export-capability.test.ts", "tests/audio-editor-desktop-export-codec-model.test.ts", "tests/audio-editor-desktop-export-dialog-capability.test.js", "tests/desktop-bundled-wavpack-audio-codec-runtime.test.ts", "tests/desktop-audio-codec-runtime-staging.test.js", "docs/desktop-codec-provider-plan.md", "THIRD_PARTY_LICENSES.md"]
+			"evidence": ["src/common/editor/wavpack/source-manifest.json", "src/common/editor/wavpack/NOTICE.md", "src/common/editor/desktop-wavpack-codec-profile.ts", "src/common/editor/controller/export/internal/desktop-audio-export-capability.ts", "scripts/audit-wavpack-wasm.mjs", "scripts/lib/desktop-bundled-wavpack-runtime.mjs", "desktop/bundled-wavpack-audio-codec-runtime.ts", "desktop/bundled-wavpack-stream.ts", "desktop/desktop-audio-codec-registration.mjs", "tests/audio-editor-wavpack.test.js", "tests/audio-editor-desktop-export-capability.test.ts", "tests/audio-editor-desktop-export-codec-model.test.ts", "tests/audio-editor-desktop-export-dialog-capability.test.js", "tests/desktop-bundled-wavpack-audio-codec-runtime.test.ts", "tests/desktop-audio-codec-runtime-staging.test.js", "docs/architecture/desktop-codec-providers.md", "THIRD_PARTY_LICENSES.md"]
 		},
 		{
 			"id": "reviewed-effect-utility-gain-wasm",
@@ -946,7 +946,7 @@
 			"status": "implemented",
 			"scope": "seven-exact-reviewed-bundled-desktop-audio-codec-wasm-modules",
 			"verification": "A preferred deterministic corresponding-source ZIP is emitted and checksummed with every desktop release. It contains exact verified upstream source archives, the complete in-tree WavPack snapshot, Soundscaper wrappers, build scripts and transitive helpers, source configuration, relink/replacement instructions, and licenses for the seven exact shipped module identities. It does not authorize any future reactivation of the retained legacy FFmpeg WebAssembly publication tooling, Electron framework internals, OS providers, external FFmpeg, patent clearance, or non-infringement.",
-			"evidence": ["config/desktop-bundled-codec-corresponding-source.json", "docs/desktop-bundled-codec-corresponding-source.md", "scripts/lib/desktop-bundled-codec-corresponding-source.mjs", "scripts/lib/bundled-codec-source-input.mjs", "scripts/desktop-release-assets.mjs", "tests/desktop-bundled-codec-corresponding-source.test.js"]
+			"evidence": ["config/desktop-bundled-codec-corresponding-source.json", "docs/reference/bundled-codec-corresponding-source.md", "scripts/lib/desktop-bundled-codec-corresponding-source.mjs", "scripts/lib/bundled-codec-source-input.mjs", "scripts/desktop-release-assets.mjs", "tests/desktop-bundled-codec-corresponding-source.test.js"]
 		},
 		{
 			"id": "web-bundled-codec-corresponding-source",
@@ -959,7 +959,7 @@
 			"id": "ffmpeg-runtime-manifest-integrity",
 			"status": "implemented",
 			"scope": "retained-legacy-publication-audit-tooling-not-production-browser-runtime",
-			"evidence": [".gitattributes", "THIRD_PARTY_LICENSES.md", "config/ffmpeg-runtime-manifest.json", "config/production-security-matrix.json", "desktop/ffmpeg-corresponding-source.json", "docs/production-licensing-policy.md", "docs/production-threat-model.md", "r2-cors.json", "scripts/lib/ffmpeg-runtime-manifest.mjs", "scripts/lib/ffmpeg-runtime-publisher.mjs", "scripts/publish-runtime-assets.mjs", "scripts/audit-ffmpeg-runtime.mjs", "tests/ffmpeg-runtime-manifest.test.js"]
+			"evidence": [".gitattributes", "THIRD_PARTY_LICENSES.md", "config/ffmpeg-runtime-manifest.json", "config/production-security-matrix.json", "desktop/ffmpeg-corresponding-source.json", "docs/policies/licensing.md", "docs/policies/security.md", "r2-cors.json", "scripts/lib/ffmpeg-runtime-manifest.mjs", "scripts/lib/ffmpeg-runtime-publisher.mjs", "scripts/publish-runtime-assets.mjs", "scripts/audit-ffmpeg-runtime.mjs", "tests/ffmpeg-runtime-manifest.test.js"]
 		},
 		{
 			"id": "web-notice-delivery",
@@ -987,20 +987,20 @@
 			"scope": "externally-authored-or-non-repository-owned-packages",
 			"blocker": "The current Utility Gain conformance package is repository-owned application code in the closed release catalog; it does not admit an externally authored or non-repository-owned package or satisfy that package's inventory, source, notice, and review duties.",
 			"enableRequires": ["package-and-transitive-license-inventory", "immutable-source-and-artifact-pins", "web-notice-delivery", "sandbox-and-effect-abi-review"],
-			"evidence": ["roadmap.md#4-parallel-production-surfaces", "docs/production-licensing-policy.md", "src/common/editor/reviewed-effects/catalog.ts", "src/common/editor/reviewed-effects/utility-gain-package.ts", "tests/audio-editor-reviewed-effects.test.ts"]
+			"evidence": ["roadmap.md#4-parallel-production-surfaces", "docs/policies/licensing.md", "src/common/editor/reviewed-effects/catalog.ts", "src/common/editor/reviewed-effects/utility-gain-package.ts", "tests/audio-editor-reviewed-effects.test.ts"]
 		},
 		{
 			"id": "native-plugins",
 			"status": "enabled",
 			"enableRequires": ["per-format-and-platform-license-review", "redistribution-and-user-installation-policy", "sandbox-and-crash-isolation-review", "notice-and-source-delivery"],
-			"evidence": ["roadmap.md#5-electron-native-services-and-extensibility", "docs/production-licensing-policy.md"]
+			"evidence": ["roadmap.md#5-electron-native-services-and-extensibility", "docs/policies/licensing.md"]
 		},
 		{
 			"id": "native-audio",
 			"status": "enabled",
 			"scope": "soundscaper-native-audio-stack-and-os-backends",
 			"enableRequires": ["authenticated-source-closure", "per-backend-license-and-trademark-review", "notice-and-corresponding-source-delivery", "five-target-build-self-test-and-packaging"],
-			"evidence": ["config/milestone-5-native-source-acquisitions.json", "docs/milestone-5a-soundscaper-native.md", "docs/production-licensing-policy.md", "native/soundscaper-helper-addon/source-manifest.json"]
+			"evidence": ["config/milestone-5-native-source-acquisitions.json", "docs/architecture/native-services.md", "docs/policies/licensing.md", "native/soundscaper-helper-addon/source-manifest.json"]
 		},
 		{
 			"id": "native-codecs",
@@ -1008,13 +1008,13 @@
 			"scope": "additional-bundled-video-codec-execution",
 			"blocker": "Stable bundled-video distribution remains deliberately disabled. The repository-owned Framescaper media host is a separate test tier with authenticated static x264, x265 Main10, libvpx, libopus, and zlib sources; its five-target CI producer performs exact-source construction, binary inspection, runtime self-test, result authentication, and package staging. Successful test artifacts do not make that host a stable Soundscaper provider. Existing compressed-audio WebAssembly providers, target-native operating-system audio providers, and live-checked user-installed FFmpeg routes remain independently governed and do not admit a bundled-video release.",
 			"enableRequires": ["codec-license-inventory", "corresponding-source-where-required", "jurisdiction-specific-patent-review", "package-notice-delivery", "supported-target-payload-build-self-test-and-package-verification"],
-			"evidence": ["roadmap.md#5-electron-native-services-and-extensibility", "docs/production-licensing-policy.md", "docs/desktop-codec-provider-plan.md", "desktop/desktop-audio-codec-registration.mjs", "desktop/bundled-audio-codec-runtime.ts", "desktop/bundled-audio-codec-helper-process.ts", "desktop/bundled-audio-codec-operation-runner.ts", "desktop/bundled-audio-codec-runtime-payload.mjs", "desktop/os-audio-codec-runtime.ts", "desktop/os-audio-codec-native-payload.mjs", "desktop/external-ffmpeg-video-operation-service.ts", "desktop/external-ffmpeg-video-verification.ts", "desktop/external-ffmpeg-video-canary-inspection.ts", "desktop/desktop-video-codec-main-ipc.ts", "src/common/editor/desktop-video-codec-runtime.ts", "native/os-audio-codec-host/CMakeLists.txt", "scripts/lib/os-audio-codec-host-ci.mjs", "scripts/lib/desktop-os-audio-codec-native-staging.mjs", "scripts/lib/desktop-os-audio-codec-native-package-verification.mjs", "native/framescaper-media-host/build/ffmpeg-9.0.1-external-sources.json", "native/framescaper-media-host/tests/codec_closure_canary.cpp", ".github/workflows/framescaper-media-host-native-build.yml", "tests/desktop-audio-codec-runtime-staging.test.js", "tests/desktop-bundled-audio-codec-operation-runner.test.ts", "tests/desktop-packaged-os-audio-codec-native.test.js", "tests/external-ffmpeg-video-verification.test.ts", "tests/external-ffmpeg-video-canary-inspection.test.ts", "tests/desktop-video-codec-main-ipc.test.ts", "tests/production-security-desktop-codec-policy.test.js"]
+			"evidence": ["roadmap.md#5-electron-native-services-and-extensibility", "docs/policies/licensing.md", "docs/architecture/desktop-codec-providers.md", "desktop/desktop-audio-codec-registration.mjs", "desktop/bundled-audio-codec-runtime.ts", "desktop/bundled-audio-codec-helper-process.ts", "desktop/bundled-audio-codec-operation-runner.ts", "desktop/bundled-audio-codec-runtime-payload.mjs", "desktop/os-audio-codec-runtime.ts", "desktop/os-audio-codec-native-payload.mjs", "desktop/external-ffmpeg-video-operation-service.ts", "desktop/external-ffmpeg-video-verification.ts", "desktop/external-ffmpeg-video-canary-inspection.ts", "desktop/desktop-video-codec-main-ipc.ts", "src/common/editor/desktop-video-codec-runtime.ts", "native/os-audio-codec-host/CMakeLists.txt", "scripts/lib/os-audio-codec-host-ci.mjs", "scripts/lib/desktop-os-audio-codec-native-staging.mjs", "scripts/lib/desktop-os-audio-codec-native-package-verification.mjs", "native/framescaper-media-host/build/ffmpeg-9.0.1-external-sources.json", "native/framescaper-media-host/tests/codec_closure_canary.cpp", ".github/workflows/framescaper-media-host-native-build.yml", "tests/desktop-audio-codec-runtime-staging.test.js", "tests/desktop-bundled-audio-codec-operation-runner.test.ts", "tests/desktop-packaged-os-audio-codec-native.test.js", "tests/external-ffmpeg-video-verification.test.ts", "tests/external-ffmpeg-video-canary-inspection.test.ts", "tests/desktop-video-codec-main-ipc.test.ts", "tests/production-security-desktop-codec-policy.test.js"]
 		},
 		{
 			"id": "local-models",
 			"status": "enabled",
 			"enableRequires": ["weights-and-code-license-review", "training-data-provenance-record", "model-card-and-use-restrictions", "versioned-download-notices-and-hashes"],
-			"evidence": ["roadmap.md#7-optional-local-assistance", "docs/production-licensing-policy.md", "docs/milestone-7-local-model-evidence.md", "config/milestone-7-model-supply-candidates.json", "config/milestone-7-model-parity-fixtures.json", "THIRD_PARTY_LICENSES.md", "scripts/lib/local-model-evidence.mjs", "tests/production-licensing-model-evidence.test.js"]
+			"evidence": ["roadmap.md#7-optional-local-assistance", "docs/policies/licensing.md", "docs/reference/local-model-provenance.md", "config/milestone-7-model-supply-candidates.json", "config/milestone-7-model-parity-fixtures.json", "THIRD_PARTY_LICENSES.md", "scripts/lib/local-model-evidence.mjs", "tests/production-licensing-model-evidence.test.js"]
 		}
 	],
 	"nativeFormatPolicies": [
@@ -1041,7 +1041,7 @@
 			"redistribution": "No JUCE-derived native payload ships until exact corresponding source, notices, target builds, self-tests, and package-content checks pass.",
 			"status": "implemented",
 			"blocker": null,
-			"evidence": ["config/milestone-5-native-source-acquisitions.json", "docs/milestone-5a-soundscaper-native.md", "native/soundscaper-helper-addon/source-manifest.json", "THIRD_PARTY_LICENSES.md"]
+			"evidence": ["config/milestone-5-native-source-acquisitions.json", "docs/architecture/native-services.md", "native/soundscaper-helper-addon/source-manifest.json", "THIRD_PARTY_LICENSES.md"]
 		},
 		{
 			"id": "audio-backend-coreaudio",
@@ -1051,7 +1051,7 @@
 			"redistribution": "No Apple SDK is redistributed; the application payload and applicable source/notices require target-specific audit and an ad-hoc execution seal.",
 			"status": "implemented",
 			"blocker": null,
-			"evidence": ["config/milestone-5-native-source-acquisitions.json", "docs/milestone-5a-soundscaper-native.md", "native/soundscaper-helper-addon/src/audio_backends.c"]
+			"evidence": ["config/milestone-5-native-source-acquisitions.json", "docs/architecture/native-services.md", "native/soundscaper-helper-addon/src/audio_backends.c"]
 		},
 		{
 			"id": "audio-backend-wasapi",
@@ -1061,7 +1061,7 @@
 			"redistribution": "No Windows SDK is redistributed; x64 and ARM64 application payloads and notices require target-specific audit.",
 			"status": "implemented",
 			"blocker": null,
-			"evidence": ["config/milestone-5-native-source-acquisitions.json", "docs/milestone-5a-soundscaper-native.md", "native/soundscaper-helper-addon/src/audio_backends.c"]
+			"evidence": ["config/milestone-5-native-source-acquisitions.json", "docs/architecture/native-services.md", "native/soundscaper-helper-addon/src/audio_backends.c"]
 		},
 		{
 			"id": "audio-backend-asio",
@@ -1071,7 +1071,7 @@
 			"redistribution": "No ASIO-derived payload or ASIO trademark/logo claim ships before corresponding source, notices, trademark review, target build self-tests, and package-content checks pass.",
 			"status": "implemented",
 			"blocker": null,
-			"evidence": ["config/milestone-5-native-source-acquisitions.json", "docs/milestone-5a-soundscaper-native.md", "native/soundscaper-helper-addon/src/audio_backends.c", "THIRD_PARTY_LICENSES.md"]
+			"evidence": ["config/milestone-5-native-source-acquisitions.json", "docs/architecture/native-services.md", "native/soundscaper-helper-addon/src/audio_backends.c", "THIRD_PARTY_LICENSES.md"]
 		},
 		{
 			"id": "audio-backend-pipewire",
@@ -1081,7 +1081,7 @@
 			"redistribution": "Only the pinned public header subset and its MIT notice are carried; no PipeWire library is redistributed.",
 			"status": "implemented",
 			"blocker": null,
-			"evidence": ["config/milestone-5-native-source-acquisitions.json", "docs/milestone-5a-soundscaper-native.md", "native/soundscaper-helper-addon/src/pipewire_session.c", "vendor/pipewire-headers/UPSTREAM", "THIRD_PARTY_LICENSES.md"]
+			"evidence": ["config/milestone-5-native-source-acquisitions.json", "docs/architecture/native-services.md", "native/soundscaper-helper-addon/src/pipewire_session.c", "vendor/pipewire-headers/UPSTREAM", "THIRD_PARTY_LICENSES.md"]
 		},
 		{
 			"id": "audio-backend-alsa",
@@ -1091,7 +1091,7 @@
 			"redistribution": "No ALSA library is redistributed; Linux application payloads still require target-specific source, notice, and package-content audit.",
 			"status": "implemented",
 			"blocker": null,
-			"evidence": ["config/milestone-5-native-source-acquisitions.json", "docs/milestone-5a-soundscaper-native.md", "native/soundscaper-helper-addon/src/audio_backends.c"]
+			"evidence": ["config/milestone-5-native-source-acquisitions.json", "docs/architecture/native-services.md", "native/soundscaper-helper-addon/src/audio_backends.c"]
 		},
 		{
 			"id": "plugin-format-vst3",
@@ -1101,7 +1101,7 @@
 			"redistribution": "The SDK source may ship with its MIT copyright and permission notice; user-installed third-party plug-in binaries are never redistributed by this project.",
 			"status": "implemented",
 			"blocker": null,
-			"evidence": ["config/milestone-5-native-source-acquisitions.json", "docs/production-licensing-policy.md", "roadmap.md#5-electron-native-services-and-extensibility"]
+			"evidence": ["config/milestone-5-native-source-acquisitions.json", "docs/policies/licensing.md", "roadmap.md#5-electron-native-services-and-extensibility"]
 		},
 		{
 			"id": "plugin-format-clap",
@@ -1111,7 +1111,7 @@
 			"redistribution": "The SDK headers may ship with notices; user-installed third-party plug-in binaries are never redistributed by this project.",
 			"status": "implemented",
 			"blocker": null,
-			"evidence": ["docs/production-licensing-policy.md", "roadmap.md#5-electron-native-services-and-extensibility"]
+			"evidence": ["docs/policies/licensing.md", "roadmap.md#5-electron-native-services-and-extensibility"]
 		},
 		{
 			"id": "plugin-format-audio-units",
@@ -1121,7 +1121,7 @@
 			"redistribution": "Nothing is redistributed; hosting binds to the platform framework at runtime on macOS only.",
 			"status": "implemented",
 			"blocker": null,
-			"evidence": ["docs/production-licensing-policy.md", "roadmap.md#5-electron-native-services-and-extensibility"]
+			"evidence": ["docs/policies/licensing.md", "roadmap.md#5-electron-native-services-and-extensibility"]
 		},
 		{
 			"id": "plugin-format-ladspa",
@@ -1131,7 +1131,7 @@
 			"redistribution": "The pinned SDK header and its LGPL-2.1-or-later notice may ship with the applicable source duties; the implemented format is Linux-only, and user-installed third-party plug-in binaries are never redistributed by this project.",
 			"status": "implemented",
 			"blocker": null,
-			"evidence": ["config/milestone-5-native-source-acquisitions.json", "docs/production-licensing-policy.md", "native/soundscaper-professional-host/src/ladspa_plugin_metadata.cpp", "tests/soundscaper-professional-native-build.test.js"]
+			"evidence": ["config/milestone-5-native-source-acquisitions.json", "docs/policies/licensing.md", "native/soundscaper-professional-host/src/ladspa_plugin_metadata.cpp", "tests/soundscaper-professional-native-build.test.js"]
 		},
 		{
 			"id": "plugin-format-lv2",
@@ -1141,7 +1141,7 @@
 			"redistribution": "The SDK headers may ship with notices; user-installed third-party plug-in binaries are never redistributed by this project.",
 			"status": "implemented",
 			"blocker": null,
-			"evidence": ["docs/production-licensing-policy.md", "roadmap.md#5-electron-native-services-and-extensibility"]
+			"evidence": ["docs/policies/licensing.md", "roadmap.md#5-electron-native-services-and-extensibility"]
 		},
 		{
 			"id": "plugin-format-vamp",
@@ -1151,7 +1151,7 @@
 			"redistribution": "The pinned SDK source may ship with its BSD-3-Clause copyright and conditions; the implemented analyzer host is cross-platform, and user-installed third-party analyzer binaries are never redistributed by this project.",
 			"status": "implemented",
 			"blocker": null,
-			"evidence": ["config/milestone-5-native-source-acquisitions.json", "docs/production-licensing-policy.md", "desktop/vamp-analyzer-contract.ts", "native/soundscaper-professional-host/src/vamp_analyzer_adapter.cpp", "tests/desktop-vamp-analyzer-contract.test.ts"]
+			"evidence": ["config/milestone-5-native-source-acquisitions.json", "docs/policies/licensing.md", "desktop/vamp-analyzer-contract.ts", "native/soundscaper-professional-host/src/vamp_analyzer_adapter.cpp", "tests/desktop-vamp-analyzer-contract.test.ts"]
 		},
 		{
 			"id": "plugin-format-ofx",
@@ -1161,7 +1161,7 @@
 			"redistribution": "The SDK headers may ship with notices; user-installed third-party effect binaries are never redistributed by this project.",
 			"status": "implemented",
 			"blocker": null,
-			"evidence": ["docs/production-licensing-policy.md", "roadmap.md#5-electron-native-services-and-extensibility", "native/framescaper-openfx-host/source-manifest.json", "native/framescaper-openfx-host/THIRD_PARTY_NOTICES.md", "config/framescaper-openfx-host-payload-manifest.json", "THIRD_PARTY_LICENSES.md"]
+			"evidence": ["docs/policies/licensing.md", "roadmap.md#5-electron-native-services-and-extensibility", "native/framescaper-openfx-host/source-manifest.json", "native/framescaper-openfx-host/THIRD_PARTY_NOTICES.md", "config/framescaper-openfx-host-payload-manifest.json", "THIRD_PARTY_LICENSES.md"]
 		},
 		{
 			"id": "codec-native-ffmpeg-current-set",
@@ -1172,7 +1172,7 @@
 			"status": "blocked",
 			"blocker": "The stable distribution policy deliberately excludes a redistributed native FFmpeg media host. Authenticated source, notices, a closed component recipe, target-native five-target CI production, binary inspection, runtime self-test, and package staging are enabled for build and testing.",
 			"testActivation": "enabled",
-			"evidence": ["docs/production-licensing-policy.md", "config/ffmpeg-runtime-manifest.json", "desktop/ffmpeg-corresponding-source.json", "native/framescaper-media-host/source-manifest.json", "native/framescaper-media-host/THIRD_PARTY_NOTICES.md", "native/framescaper-media-host/build/ffmpeg-9.0.1-external-sources.json", "native/framescaper-media-host/tests/codec_closure_canary.cpp", ".github/workflows/framescaper-media-host-native-build.yml", "config/framescaper-media-host-payload-manifest.json", "config/electron-alternate-ffmpeg-manifest.json", "scripts/lib/desktop-codec-policy.mjs", "scripts/lib/electron-alternate-ffmpeg.mjs", "THIRD_PARTY_LICENSES.md"]
+			"evidence": ["docs/policies/licensing.md", "config/ffmpeg-runtime-manifest.json", "desktop/ffmpeg-corresponding-source.json", "native/framescaper-media-host/source-manifest.json", "native/framescaper-media-host/THIRD_PARTY_NOTICES.md", "native/framescaper-media-host/build/ffmpeg-9.0.1-external-sources.json", "native/framescaper-media-host/tests/codec_closure_canary.cpp", ".github/workflows/framescaper-media-host-native-build.yml", "config/framescaper-media-host-payload-manifest.json", "config/electron-alternate-ffmpeg-manifest.json", "scripts/lib/desktop-codec-policy.mjs", "scripts/lib/electron-alternate-ffmpeg.mjs", "THIRD_PARTY_LICENSES.md"]
 		},
 		{
 			"id": "codec-hardware-acceleration",
@@ -1183,7 +1183,7 @@
 			"status": "blocked",
 			"blocker": "No hardware codec route is part of the distributed package inventory; machine-complete paths remain enabled for testing.",
 			"testActivation": "enabled",
-			"evidence": ["docs/production-licensing-policy.md", "roadmap.md#5-electron-native-services-and-extensibility"]
+			"evidence": ["docs/policies/licensing.md", "roadmap.md#5-electron-native-services-and-extensibility"]
 		},
 		{
 			"id": "codec-decode-h264-mp4",
@@ -1199,7 +1199,7 @@
 			"status": "blocked",
 			"blocker": "H.264 decode and MP4 demux are enabled for authenticated build and testing, and the five-target producer owns binary verification; stable redistribution remains disabled by the recorded AVC patent-distribution posture.",
 			"testActivation": "enabled",
-			"evidence": ["docs/production-licensing-policy.md", "docs/milestone-5b-framescaper-native-tier.md", "native/framescaper-media-host/build/ffmpeg-9.0.1-configure.json", "native/framescaper-media-host/tests/codec_closure_canary.cpp", ".github/workflows/framescaper-media-host-native-build.yml", "config/framescaper-media-host-payload-manifest.json"]
+			"evidence": ["docs/policies/licensing.md", "docs/architecture/native-services.md", "native/framescaper-media-host/build/ffmpeg-9.0.1-configure.json", "native/framescaper-media-host/tests/codec_closure_canary.cpp", ".github/workflows/framescaper-media-host-native-build.yml", "config/framescaper-media-host-payload-manifest.json"]
 		},
 		{
 			"id": "codec-decode-h264-mov",
@@ -1215,7 +1215,7 @@
 			"status": "blocked",
 			"blocker": "H.264 decode and MOV demux are enabled for authenticated build and testing, and the five-target producer owns binary verification; stable redistribution remains disabled by the recorded AVC patent-distribution posture.",
 			"testActivation": "enabled",
-			"evidence": ["docs/production-licensing-policy.md", "docs/milestone-5b-framescaper-native-tier.md", "native/framescaper-media-host/build/ffmpeg-9.0.1-configure.json", "native/framescaper-media-host/tests/codec_closure_canary.cpp", ".github/workflows/framescaper-media-host-native-build.yml", "config/framescaper-media-host-payload-manifest.json"]
+			"evidence": ["docs/policies/licensing.md", "docs/architecture/native-services.md", "native/framescaper-media-host/build/ffmpeg-9.0.1-configure.json", "native/framescaper-media-host/tests/codec_closure_canary.cpp", ".github/workflows/framescaper-media-host-native-build.yml", "config/framescaper-media-host-payload-manifest.json"]
 		},
 		{
 			"id": "codec-decode-hevc-mp4",
@@ -1231,7 +1231,7 @@
 			"status": "blocked",
 			"blocker": "HEVC decode and MP4 demux are enabled for authenticated build and testing, and the five-target producer owns binary verification; stable redistribution remains disabled by the recorded HEVC patent-pool posture.",
 			"testActivation": "enabled",
-			"evidence": ["docs/production-licensing-policy.md", "docs/milestone-5b-framescaper-native-tier.md", "native/framescaper-media-host/build/ffmpeg-9.0.1-configure.json", "native/framescaper-media-host/tests/codec_closure_canary.cpp", ".github/workflows/framescaper-media-host-native-build.yml", "config/framescaper-media-host-payload-manifest.json"]
+			"evidence": ["docs/policies/licensing.md", "docs/architecture/native-services.md", "native/framescaper-media-host/build/ffmpeg-9.0.1-configure.json", "native/framescaper-media-host/tests/codec_closure_canary.cpp", ".github/workflows/framescaper-media-host-native-build.yml", "config/framescaper-media-host-payload-manifest.json"]
 		},
 		{
 			"id": "codec-decode-hevc-mov",
@@ -1247,7 +1247,7 @@
 			"status": "blocked",
 			"blocker": "HEVC decode and MOV demux are enabled for authenticated build and testing, and the five-target producer owns binary verification; stable redistribution remains disabled by the recorded HEVC patent-pool posture.",
 			"testActivation": "enabled",
-			"evidence": ["docs/production-licensing-policy.md", "docs/milestone-5b-framescaper-native-tier.md", "native/framescaper-media-host/build/ffmpeg-9.0.1-configure.json", "native/framescaper-media-host/tests/codec_closure_canary.cpp", ".github/workflows/framescaper-media-host-native-build.yml", "config/framescaper-media-host-payload-manifest.json"]
+			"evidence": ["docs/policies/licensing.md", "docs/architecture/native-services.md", "native/framescaper-media-host/build/ffmpeg-9.0.1-configure.json", "native/framescaper-media-host/tests/codec_closure_canary.cpp", ".github/workflows/framescaper-media-host-native-build.yml", "config/framescaper-media-host-payload-manifest.json"]
 		},
 		{
 			"id": "codec-decode-vp9-webm",
@@ -1263,7 +1263,7 @@
 			"status": "blocked",
 			"blocker": "VP9 decode and WebM demux are enabled for authenticated build and testing, and the five-target producer owns binary verification; stable redistribution remains disabled by the recorded patent-distribution posture.",
 			"testActivation": "enabled",
-			"evidence": ["docs/production-licensing-policy.md", "docs/milestone-5b-framescaper-native-tier.md", "native/framescaper-media-host/build/ffmpeg-9.0.1-configure.json", "native/framescaper-media-host/tests/codec_closure_canary.cpp", ".github/workflows/framescaper-media-host-native-build.yml", "config/framescaper-media-host-payload-manifest.json"]
+			"evidence": ["docs/policies/licensing.md", "docs/architecture/native-services.md", "native/framescaper-media-host/build/ffmpeg-9.0.1-configure.json", "native/framescaper-media-host/tests/codec_closure_canary.cpp", ".github/workflows/framescaper-media-host-native-build.yml", "config/framescaper-media-host-payload-manifest.json"]
 		},
 		{
 			"id": "codec-decode-av1-mp4",
@@ -1279,7 +1279,7 @@
 			"status": "blocked",
 			"blocker": "AV1 decode and MP4 demux are enabled for authenticated build and testing, and the five-target producer owns binary verification; stable redistribution remains disabled by the recorded AV1 patent-licence posture.",
 			"testActivation": "enabled",
-			"evidence": ["docs/production-licensing-policy.md", "docs/milestone-5b-framescaper-native-tier.md", "native/framescaper-media-host/build/ffmpeg-9.0.1-configure.json", "native/framescaper-media-host/tests/codec_closure_canary.cpp", ".github/workflows/framescaper-media-host-native-build.yml", "config/framescaper-media-host-payload-manifest.json"]
+			"evidence": ["docs/policies/licensing.md", "docs/architecture/native-services.md", "native/framescaper-media-host/build/ffmpeg-9.0.1-configure.json", "native/framescaper-media-host/tests/codec_closure_canary.cpp", ".github/workflows/framescaper-media-host-native-build.yml", "config/framescaper-media-host-payload-manifest.json"]
 		},
 		{
 			"id": "codec-decode-av1-webm",
@@ -1295,7 +1295,7 @@
 			"status": "blocked",
 			"blocker": "AV1 decode and WebM demux are enabled for authenticated build and testing, and the five-target producer owns binary verification; stable redistribution remains disabled by the recorded AV1 patent-licence posture.",
 			"testActivation": "enabled",
-			"evidence": ["docs/production-licensing-policy.md", "docs/milestone-5b-framescaper-native-tier.md", "native/framescaper-media-host/build/ffmpeg-9.0.1-configure.json", "native/framescaper-media-host/tests/codec_closure_canary.cpp", ".github/workflows/framescaper-media-host-native-build.yml", "config/framescaper-media-host-payload-manifest.json"]
+			"evidence": ["docs/policies/licensing.md", "docs/architecture/native-services.md", "native/framescaper-media-host/build/ffmpeg-9.0.1-configure.json", "native/framescaper-media-host/tests/codec_closure_canary.cpp", ".github/workflows/framescaper-media-host-native-build.yml", "config/framescaper-media-host-payload-manifest.json"]
 		},
 		{
 			"id": "codec-decode-prores-mov",
@@ -1311,7 +1311,7 @@
 			"status": "blocked",
 			"blocker": "ProRes decode and MOV demux are enabled for authenticated build and testing, and the five-target producer owns binary verification; stable redistribution remains disabled by the recorded format and interoperability posture.",
 			"testActivation": "enabled",
-			"evidence": ["docs/production-licensing-policy.md", "docs/milestone-5b-framescaper-native-tier.md", "native/framescaper-media-host/build/ffmpeg-9.0.1-configure.json", "native/framescaper-media-host/tests/codec_closure_canary.cpp", ".github/workflows/framescaper-media-host-native-build.yml", "config/framescaper-media-host-payload-manifest.json"]
+			"evidence": ["docs/policies/licensing.md", "docs/architecture/native-services.md", "native/framescaper-media-host/build/ffmpeg-9.0.1-configure.json", "native/framescaper-media-host/tests/codec_closure_canary.cpp", ".github/workflows/framescaper-media-host-native-build.yml", "config/framescaper-media-host-payload-manifest.json"]
 		},
 		{
 			"id": "codec-decode-dnxhr-mxf",
@@ -1327,7 +1327,7 @@
 			"status": "blocked",
 			"blocker": "DNxHR decode and MXF demux are enabled for authenticated build and testing, and the five-target producer owns binary verification; stable redistribution remains disabled by the recorded format and patent posture.",
 			"testActivation": "enabled",
-			"evidence": ["docs/production-licensing-policy.md", "docs/milestone-5b-framescaper-native-tier.md", "native/framescaper-media-host/build/ffmpeg-9.0.1-configure.json", "native/framescaper-media-host/tests/codec_closure_canary.cpp", ".github/workflows/framescaper-media-host-native-build.yml", "config/framescaper-media-host-payload-manifest.json"]
+			"evidence": ["docs/policies/licensing.md", "docs/architecture/native-services.md", "native/framescaper-media-host/build/ffmpeg-9.0.1-configure.json", "native/framescaper-media-host/tests/codec_closure_canary.cpp", ".github/workflows/framescaper-media-host-native-build.yml", "config/framescaper-media-host-payload-manifest.json"]
 		},
 		{
 			"id": "codec-decode-png-image-sequence",
@@ -1343,7 +1343,7 @@
 			"status": "blocked",
 			"blocker": "PNG decode and image-sequence demux are enabled for authenticated build and testing, and the five-target producer owns binary verification; stable redistribution remains disabled by the recorded sequence-interoperability posture.",
 			"testActivation": "enabled",
-			"evidence": ["docs/production-licensing-policy.md", "docs/milestone-5b-framescaper-native-tier.md", "native/framescaper-media-host/build/ffmpeg-9.0.1-configure.json", "native/framescaper-media-host/tests/codec_closure_canary.cpp", ".github/workflows/framescaper-media-host-native-build.yml", "config/framescaper-media-host-payload-manifest.json"]
+			"evidence": ["docs/policies/licensing.md", "docs/architecture/native-services.md", "native/framescaper-media-host/build/ffmpeg-9.0.1-configure.json", "native/framescaper-media-host/tests/codec_closure_canary.cpp", ".github/workflows/framescaper-media-host-native-build.yml", "config/framescaper-media-host-payload-manifest.json"]
 		},
 		{
 			"id": "codec-decode-tiff-image-sequence",
@@ -1359,7 +1359,7 @@
 			"status": "blocked",
 			"blocker": "TIFF decode and image-sequence demux are enabled for authenticated build and testing, and the five-target producer owns binary verification; stable redistribution remains disabled by the recorded sequence-interoperability posture.",
 			"testActivation": "enabled",
-			"evidence": ["docs/production-licensing-policy.md", "docs/milestone-5b-framescaper-native-tier.md", "native/framescaper-media-host/build/ffmpeg-9.0.1-configure.json", "native/framescaper-media-host/tests/codec_closure_canary.cpp", ".github/workflows/framescaper-media-host-native-build.yml", "config/framescaper-media-host-payload-manifest.json"]
+			"evidence": ["docs/policies/licensing.md", "docs/architecture/native-services.md", "native/framescaper-media-host/build/ffmpeg-9.0.1-configure.json", "native/framescaper-media-host/tests/codec_closure_canary.cpp", ".github/workflows/framescaper-media-host-native-build.yml", "config/framescaper-media-host-payload-manifest.json"]
 		},
 		{
 			"id": "codec-decode-openexr-image-sequence",
@@ -1375,7 +1375,7 @@
 			"status": "blocked",
 			"blocker": "The internal EXR decoder and image-sequence demux are enabled for authenticated build and testing without libOpenEXR, and the five-target producer owns binary verification; stable redistribution remains disabled by the recorded HDR-interoperability posture.",
 			"testActivation": "enabled",
-			"evidence": ["docs/production-licensing-policy.md", "docs/milestone-5b-framescaper-native-tier.md", "native/framescaper-media-host/build/ffmpeg-9.0.1-configure.json", "native/framescaper-media-host/tests/codec_closure_canary.cpp", ".github/workflows/framescaper-media-host-native-build.yml", "config/framescaper-media-host-payload-manifest.json", "THIRD_PARTY_LICENSES.md"]
+			"evidence": ["docs/policies/licensing.md", "docs/architecture/native-services.md", "native/framescaper-media-host/build/ffmpeg-9.0.1-configure.json", "native/framescaper-media-host/tests/codec_closure_canary.cpp", ".github/workflows/framescaper-media-host-native-build.yml", "config/framescaper-media-host-payload-manifest.json", "THIRD_PARTY_LICENSES.md"]
 		},
 		{
 			"id": "codec-encode-h264-mp4",
@@ -1391,7 +1391,7 @@
 			"status": "blocked",
 			"blocker": "libx264 encode and MP4 mux are enabled for authenticated build and testing, and the five-target producer owns source, notice, and binary verification; stable redistribution remains disabled by the recorded AVC patent-distribution posture.",
 			"testActivation": "enabled",
-			"evidence": ["docs/production-licensing-policy.md", "docs/milestone-5b-framescaper-native-tier.md", "native/framescaper-media-host/build/ffmpeg-9.0.1-configure.json", "native/framescaper-media-host/tests/codec_closure_canary.cpp", ".github/workflows/framescaper-media-host-native-build.yml", "config/framescaper-media-host-payload-manifest.json"]
+			"evidence": ["docs/policies/licensing.md", "docs/architecture/native-services.md", "native/framescaper-media-host/build/ffmpeg-9.0.1-configure.json", "native/framescaper-media-host/tests/codec_closure_canary.cpp", ".github/workflows/framescaper-media-host-native-build.yml", "config/framescaper-media-host-payload-manifest.json"]
 		},
 		{
 			"id": "codec-encode-vp9-webm",
@@ -1407,7 +1407,7 @@
 			"status": "blocked",
 			"blocker": "libvpx-vp9 encode and WebM mux are enabled for authenticated build and testing, and the five-target producer owns source, notice, and binary verification; stable redistribution remains disabled by the recorded patent-distribution posture.",
 			"testActivation": "enabled",
-			"evidence": ["docs/production-licensing-policy.md", "docs/milestone-5b-framescaper-native-tier.md", "native/framescaper-media-host/build/ffmpeg-9.0.1-configure.json", "native/framescaper-media-host/tests/codec_closure_canary.cpp", ".github/workflows/framescaper-media-host-native-build.yml", "config/framescaper-media-host-payload-manifest.json"]
+			"evidence": ["docs/policies/licensing.md", "docs/architecture/native-services.md", "native/framescaper-media-host/build/ffmpeg-9.0.1-configure.json", "native/framescaper-media-host/tests/codec_closure_canary.cpp", ".github/workflows/framescaper-media-host-native-build.yml", "config/framescaper-media-host-payload-manifest.json"]
 		},
 		{
 			"id": "codec-encode-hevc-mp4-main10-hdr10",
@@ -1423,7 +1423,7 @@
 			"status": "blocked",
 			"blocker": "x265 Main10 encode and MP4 mux are enabled for authenticated build and testing, an actual 10-bit Main10 encode is a runtime canary, and the five-target producer owns source, notice, and binary verification; stable redistribution remains disabled by the recorded HEVC patent-pool and HDR10-metadata posture.",
 			"testActivation": "enabled",
-			"evidence": ["docs/production-licensing-policy.md", "docs/milestone-5b-framescaper-native-tier.md", "native/framescaper-media-host/build/ffmpeg-9.0.1-configure.json", "native/framescaper-media-host/tests/codec_closure_canary.cpp", ".github/workflows/framescaper-media-host-native-build.yml", "config/framescaper-media-host-payload-manifest.json"]
+			"evidence": ["docs/policies/licensing.md", "docs/architecture/native-services.md", "native/framescaper-media-host/build/ffmpeg-9.0.1-configure.json", "native/framescaper-media-host/tests/codec_closure_canary.cpp", ".github/workflows/framescaper-media-host-native-build.yml", "config/framescaper-media-host-payload-manifest.json"]
 		},
 		{
 			"id": "codec-encode-hevc-mp4-main10-sdr",
@@ -1439,7 +1439,7 @@
 			"status": "blocked",
 			"blocker": "x265 Main10 encode and MP4 mux are enabled for authenticated build and testing, an actual 10-bit Main10 encode is a runtime canary, and the five-target producer owns source, notice, and binary verification; stable redistribution remains disabled by the recorded HEVC patent-pool and color-interoperability posture.",
 			"testActivation": "enabled",
-			"evidence": ["docs/production-licensing-policy.md", "docs/milestone-5b-framescaper-native-tier.md", "native/framescaper-media-host/build/ffmpeg-9.0.1-configure.json", "native/framescaper-media-host/tests/codec_closure_canary.cpp", ".github/workflows/framescaper-media-host-native-build.yml", "config/framescaper-media-host-payload-manifest.json"]
+			"evidence": ["docs/policies/licensing.md", "docs/architecture/native-services.md", "native/framescaper-media-host/build/ffmpeg-9.0.1-configure.json", "native/framescaper-media-host/tests/codec_closure_canary.cpp", ".github/workflows/framescaper-media-host-native-build.yml", "config/framescaper-media-host-payload-manifest.json"]
 		},
 		{
 			"id": "codec-encode-prores-mov-proxy",
@@ -1455,7 +1455,7 @@
 			"status": "blocked",
 			"blocker": "ProRes Proxy encode and MOV mux are enabled for authenticated build and testing, and the five-target producer owns binary verification; stable redistribution remains disabled by the recorded format and interoperability posture.",
 			"testActivation": "enabled",
-			"evidence": ["docs/production-licensing-policy.md", "docs/milestone-5b-framescaper-native-tier.md", "native/framescaper-media-host/build/ffmpeg-9.0.1-configure.json", "native/framescaper-media-host/tests/codec_closure_canary.cpp", ".github/workflows/framescaper-media-host-native-build.yml", "config/framescaper-media-host-payload-manifest.json"]
+			"evidence": ["docs/policies/licensing.md", "docs/architecture/native-services.md", "native/framescaper-media-host/build/ffmpeg-9.0.1-configure.json", "native/framescaper-media-host/tests/codec_closure_canary.cpp", ".github/workflows/framescaper-media-host-native-build.yml", "config/framescaper-media-host-payload-manifest.json"]
 		},
 		{
 			"id": "codec-encode-prores-mov-422-hq",
@@ -1471,7 +1471,7 @@
 			"status": "blocked",
 			"blocker": "ProRes 422 HQ encode and MOV mux are enabled for authenticated build and testing, and the five-target producer owns binary verification; stable redistribution remains disabled by the recorded format and interoperability posture.",
 			"testActivation": "enabled",
-			"evidence": ["docs/production-licensing-policy.md", "docs/milestone-5b-framescaper-native-tier.md", "native/framescaper-media-host/build/ffmpeg-9.0.1-configure.json", "native/framescaper-media-host/tests/codec_closure_canary.cpp", ".github/workflows/framescaper-media-host-native-build.yml", "config/framescaper-media-host-payload-manifest.json"]
+			"evidence": ["docs/policies/licensing.md", "docs/architecture/native-services.md", "native/framescaper-media-host/build/ffmpeg-9.0.1-configure.json", "native/framescaper-media-host/tests/codec_closure_canary.cpp", ".github/workflows/framescaper-media-host-native-build.yml", "config/framescaper-media-host-payload-manifest.json"]
 		},
 		{
 			"id": "codec-encode-prores-mov-4444",
@@ -1487,7 +1487,7 @@
 			"status": "blocked",
 			"blocker": "ProRes 4444 encode and MOV mux are enabled for authenticated build and testing, and the five-target producer owns binary verification; stable redistribution remains disabled by the recorded format and alpha-interoperability posture.",
 			"testActivation": "enabled",
-			"evidence": ["docs/production-licensing-policy.md", "docs/milestone-5b-framescaper-native-tier.md", "native/framescaper-media-host/build/ffmpeg-9.0.1-configure.json", "native/framescaper-media-host/tests/codec_closure_canary.cpp", ".github/workflows/framescaper-media-host-native-build.yml", "config/framescaper-media-host-payload-manifest.json"]
+			"evidence": ["docs/policies/licensing.md", "docs/architecture/native-services.md", "native/framescaper-media-host/build/ffmpeg-9.0.1-configure.json", "native/framescaper-media-host/tests/codec_closure_canary.cpp", ".github/workflows/framescaper-media-host-native-build.yml", "config/framescaper-media-host-payload-manifest.json"]
 		},
 		{
 			"id": "codec-encode-dnxhr-mxf-hqx",
@@ -1503,7 +1503,7 @@
 			"status": "blocked",
 			"blocker": "DNxHR HQX encode and MXF mux are enabled for authenticated build and testing, and the five-target producer owns binary verification; stable redistribution remains disabled by the recorded format, patent, and interoperability posture.",
 			"testActivation": "enabled",
-			"evidence": ["docs/production-licensing-policy.md", "docs/milestone-5b-framescaper-native-tier.md", "native/framescaper-media-host/build/ffmpeg-9.0.1-configure.json", "native/framescaper-media-host/tests/codec_closure_canary.cpp", ".github/workflows/framescaper-media-host-native-build.yml", "config/framescaper-media-host-payload-manifest.json"]
+			"evidence": ["docs/policies/licensing.md", "docs/architecture/native-services.md", "native/framescaper-media-host/build/ffmpeg-9.0.1-configure.json", "native/framescaper-media-host/tests/codec_closure_canary.cpp", ".github/workflows/framescaper-media-host-native-build.yml", "config/framescaper-media-host-payload-manifest.json"]
 		},
 		{
 			"id": "codec-encode-ffv1-matroska",
@@ -1519,7 +1519,7 @@
 			"status": "blocked",
 			"blocker": "FFV1 encode and Matroska mux are enabled for authenticated build and testing, and the five-target producer owns binary verification; stable redistribution remains disabled by the recorded lossless-interoperability posture.",
 			"testActivation": "enabled",
-			"evidence": ["docs/production-licensing-policy.md", "docs/milestone-5b-framescaper-native-tier.md", "native/framescaper-media-host/build/ffmpeg-9.0.1-configure.json", "native/framescaper-media-host/tests/codec_closure_canary.cpp", ".github/workflows/framescaper-media-host-native-build.yml", "config/framescaper-media-host-payload-manifest.json"]
+			"evidence": ["docs/policies/licensing.md", "docs/architecture/native-services.md", "native/framescaper-media-host/build/ffmpeg-9.0.1-configure.json", "native/framescaper-media-host/tests/codec_closure_canary.cpp", ".github/workflows/framescaper-media-host-native-build.yml", "config/framescaper-media-host-payload-manifest.json"]
 		},
 		{
 			"id": "codec-encode-png-image-sequence",
@@ -1535,7 +1535,7 @@
 			"status": "blocked",
 			"blocker": "PNG encode and image-sequence mux are enabled for authenticated build and testing, and the five-target producer owns binary verification; stable redistribution remains disabled by the recorded alpha-interoperability posture.",
 			"testActivation": "enabled",
-			"evidence": ["docs/production-licensing-policy.md", "docs/milestone-5b-framescaper-native-tier.md", "native/framescaper-media-host/build/ffmpeg-9.0.1-configure.json", "native/framescaper-media-host/tests/codec_closure_canary.cpp", ".github/workflows/framescaper-media-host-native-build.yml", "config/framescaper-media-host-payload-manifest.json"]
+			"evidence": ["docs/policies/licensing.md", "docs/architecture/native-services.md", "native/framescaper-media-host/build/ffmpeg-9.0.1-configure.json", "native/framescaper-media-host/tests/codec_closure_canary.cpp", ".github/workflows/framescaper-media-host-native-build.yml", "config/framescaper-media-host-payload-manifest.json"]
 		},
 		{
 			"id": "codec-encode-tiff-image-sequence",
@@ -1551,7 +1551,7 @@
 			"status": "blocked",
 			"blocker": "TIFF encode and image-sequence mux are enabled for authenticated build and testing, and the five-target producer owns binary verification; stable redistribution remains disabled by the recorded alpha-interoperability posture.",
 			"testActivation": "enabled",
-			"evidence": ["docs/production-licensing-policy.md", "docs/milestone-5b-framescaper-native-tier.md", "native/framescaper-media-host/build/ffmpeg-9.0.1-configure.json", "native/framescaper-media-host/tests/codec_closure_canary.cpp", ".github/workflows/framescaper-media-host-native-build.yml", "config/framescaper-media-host-payload-manifest.json"]
+			"evidence": ["docs/policies/licensing.md", "docs/architecture/native-services.md", "native/framescaper-media-host/build/ffmpeg-9.0.1-configure.json", "native/framescaper-media-host/tests/codec_closure_canary.cpp", ".github/workflows/framescaper-media-host-native-build.yml", "config/framescaper-media-host-payload-manifest.json"]
 		},
 		{
 			"id": "codec-encode-openexr-image-sequence",
@@ -1567,7 +1567,7 @@
 			"status": "blocked",
 			"blocker": "The internal EXR encoder and image-sequence mux are enabled for authenticated build and testing without libOpenEXR, and the five-target producer owns binary verification; stable redistribution remains disabled by the recorded alpha/HDR-interoperability posture.",
 			"testActivation": "enabled",
-			"evidence": ["docs/production-licensing-policy.md", "docs/milestone-5b-framescaper-native-tier.md", "native/framescaper-media-host/build/ffmpeg-9.0.1-configure.json", "native/framescaper-media-host/tests/codec_closure_canary.cpp", ".github/workflows/framescaper-media-host-native-build.yml", "config/framescaper-media-host-payload-manifest.json", "THIRD_PARTY_LICENSES.md"]
+			"evidence": ["docs/policies/licensing.md", "docs/architecture/native-services.md", "native/framescaper-media-host/build/ffmpeg-9.0.1-configure.json", "native/framescaper-media-host/tests/codec_closure_canary.cpp", ".github/workflows/framescaper-media-host-native-build.yml", "config/framescaper-media-host-payload-manifest.json", "THIRD_PARTY_LICENSES.md"]
 		}
 	],
 	"localModelEvidence": [
@@ -1587,7 +1587,7 @@
 				"versioned-download-notices-and-hashes": { "status": "recorded", "summary": "Mirrored to the product store at a versioned key and verified byte for byte against the pinned digest after publication. The notice ships offline with the desktop application, which stages THIRD_PARTY_LICENSES.md into the package and reverifies its bytes at pack time; assistance runs only there." }
 			},
 			"provenanceSources": ["https://github.com/snakers4/silero-vad"],
-			"evidence": ["docs/milestone-7-plan.md", "docs/milestone-7-local-model-evidence.md"]
+			"evidence": ["docs/architecture/local-assistance.md", "docs/reference/local-model-provenance.md"]
 		},
 		{
 			"id": "parakeet-tdt-0.6b-v2",
@@ -1604,7 +1604,7 @@
 				"model-card-and-use-restrictions": { "status": "recorded", "summary": "Model card states no restriction beyond CC-BY-4.0 attribution, which the notice slice must satisfy." },
 				"versioned-download-notices-and-hashes": { "status": "recorded", "summary": "Mirrored to the product store at a versioned key and verified byte for byte against the pinned digest by reading it back from the public URL after publication. The notice ships offline with the desktop application, which stages THIRD_PARTY_LICENSES.md into the package and reverifies its bytes at pack time; assistance runs only there." }	},
 			"provenanceSources": ["https://huggingface.co/nvidia/parakeet-tdt-0.6b-v2"],
-			"evidence": ["docs/milestone-7-plan.md", "docs/milestone-7-local-model-evidence.md"]
+			"evidence": ["docs/architecture/local-assistance.md", "docs/reference/local-model-provenance.md"]
 		},
 		{
 			"id": "parakeet-tdt-0.6b-v3",
@@ -1621,7 +1621,7 @@
 				"model-card-and-use-restrictions": { "status": "recorded", "summary": "Model card states no restriction beyond CC-BY-4.0 attribution. Filler retention is not claimed by the card and is measured per model in 7A-1 rather than assumed here." },
 				"versioned-download-notices-and-hashes": { "status": "recorded", "summary": "Mirrored to the product store at a versioned key and verified byte for byte against the pinned digest by reading it back from the public URL after publication. The notice ships offline with the desktop application, which stages THIRD_PARTY_LICENSES.md into the package and reverifies its bytes at pack time; assistance runs only there." }	},
 			"provenanceSources": ["https://huggingface.co/nvidia/parakeet-tdt-0.6b-v3"],
-			"evidence": ["docs/milestone-7-plan.md", "docs/milestone-7-local-model-evidence.md"]
+			"evidence": ["docs/architecture/local-assistance.md", "docs/reference/local-model-provenance.md"]
 		},
 		{
 			"id": "whisper-large-v3-turbo-ggml",
@@ -1638,7 +1638,7 @@
 				"model-card-and-use-restrictions": { "status": "recorded", "summary": "Model card carries usage guidance rather than a licence restriction, and warns against high-stakes decision use without evaluation." },
 				"versioned-download-notices-and-hashes": { "status": "recorded", "summary": "Mirrored to the product store at a versioned key and verified byte for byte against the pinned digest by reading it back from the public URL after publication. The notice ships offline with the desktop application, which stages THIRD_PARTY_LICENSES.md into the package and reverifies its bytes at pack time; assistance runs only there." }			},
 			"provenanceSources": ["https://huggingface.co/ggerganov/whisper.cpp", "https://huggingface.co/openai/whisper-large-v3-turbo"],
-			"evidence": ["docs/milestone-7-plan.md", "docs/milestone-7-local-model-evidence.md"]
+			"evidence": ["docs/architecture/local-assistance.md", "docs/reference/local-model-provenance.md"]
 		},
 		{
 			"id": "pyannote-segmentation-3.0",
@@ -1655,7 +1655,7 @@
 				"model-card-and-use-restrictions": { "status": "recorded", "summary": "MIT terms carry no use restriction; the upstream access gate is a distribution obstacle answered by mirroring, not by an exception." },
 				"versioned-download-notices-and-hashes": { "status": "recorded", "summary": "Mirrored to the product store at a versioned key and verified byte for byte against the pinned digest by reading it back from the public URL after publication. The notice ships offline with the desktop application, which stages THIRD_PARTY_LICENSES.md into the package and reverifies its bytes at pack time; assistance runs only there." }			},
 			"provenanceSources": ["https://huggingface.co/pyannote/segmentation-3.0"],
-			"evidence": ["docs/milestone-7-plan.md", "docs/milestone-7-local-model-evidence.md"]
+			"evidence": ["docs/architecture/local-assistance.md", "docs/reference/local-model-provenance.md"]
 		},
 		{
 			"id": "speech-3d-speaker-eres2net",
@@ -1672,7 +1672,7 @@
 				"model-card-and-use-restrictions": { "status": "recorded", "summary": "Apache-2.0 terms carry no additional use restriction." },
 				"versioned-download-notices-and-hashes": { "status": "recorded", "summary": "Mirrored to the product store at a versioned key and verified byte for byte against the pinned digest by reading it back from the public URL after publication. The notice ships offline with the desktop application, which stages THIRD_PARTY_LICENSES.md into the package and reverifies its bytes at pack time; assistance runs only there." }			},
 			"provenanceSources": ["https://github.com/modelscope/3D-Speaker"],
-			"evidence": ["docs/milestone-7-plan.md", "docs/milestone-7-local-model-evidence.md"]
+			"evidence": ["docs/architecture/local-assistance.md", "docs/reference/local-model-provenance.md"]
 		},
 		{
 			"id": "deepfilternet3",
@@ -1689,7 +1689,7 @@
 				"model-card-and-use-restrictions": { "status": "recorded", "summary": "Neither offered licence adds a use restriction." },
 				"versioned-download-notices-and-hashes": { "status": "recorded", "summary": "Mirrored to the product store at a versioned key and verified byte for byte against the pinned digest by reading it back from the public URL after publication. The notice ships offline with the desktop application, which stages THIRD_PARTY_LICENSES.md into the package and reverifies its bytes at pack time; assistance runs only there." }			},
 			"provenanceSources": ["https://github.com/Rikorose/DeepFilterNet"],
-			"evidence": ["docs/milestone-7-plan.md", "docs/milestone-7-local-model-evidence.md"]
+			"evidence": ["docs/architecture/local-assistance.md", "docs/reference/local-model-provenance.md"]
 		},
 		{
 			"id": "spleeter",
@@ -1707,7 +1707,7 @@
 				"versioned-download-notices-and-hashes": { "status": "recorded", "summary": "No artifact is intentionally produced because the model is retired from the offered catalog; no payload is owed while its weight rights remain unresolved." }
 			},
 			"provenanceSources": ["https://github.com/deezer/spleeter", "https://github.com/deezer/spleeter/issues/898"],
-			"evidence": ["docs/milestone-7-plan.md", "docs/milestone-7-local-model-evidence.md"]
+			"evidence": ["docs/architecture/local-assistance.md", "docs/reference/local-model-provenance.md"]
 		},
 		{
 			"id": "demucs-v4-htdemucs",
@@ -1725,7 +1725,7 @@
 				"versioned-download-notices-and-hashes": { "status": "recorded", "summary": "No artifact is intentionally produced because the model is retired from the offered catalog; no payload is owed while its weight rights remain unresolved." }
 			},
 			"provenanceSources": ["https://github.com/facebookresearch/demucs"],
-			"evidence": ["docs/milestone-7-plan.md", "docs/milestone-7-local-model-evidence.md"]
+			"evidence": ["docs/architecture/local-assistance.md", "docs/reference/local-model-provenance.md"]
 		},
 		{
 			"id": "yunet-face-detection-2026may",
@@ -1743,7 +1743,7 @@
 				"versioned-download-notices-and-hashes": { "status": "recorded", "summary": "Mirrored to the product store at a versioned key and verified byte for byte against the pinned digest by reading it back from the public URL after publication. The notice ships offline with the desktop application, which stages THIRD_PARTY_LICENSES.md into the package and reverifies its bytes at pack time; assistance runs only there." }
 			},
 			"provenanceSources": ["https://github.com/opencv/opencv_zoo"],
-			"evidence": ["docs/milestone-7-plan.md", "docs/milestone-7-video-model-evidence.md"]
+			"evidence": ["docs/architecture/local-assistance.md", "docs/reference/local-model-provenance.md"]
 		},
 		{
 			"id": "dfine-nano-coco",
@@ -1761,7 +1761,7 @@
 				"versioned-download-notices-and-hashes": { "status": "recorded", "summary": "Mirrored to the product store at a versioned key and verified byte for byte against the pinned digest by reading it back from the public URL after publication. The notice ships offline with the desktop application, which stages THIRD_PARTY_LICENSES.md into the package and reverifies its bytes at pack time; assistance runs only there." }
 			},
 			"provenanceSources": ["https://github.com/Peterande/D-FINE", "https://huggingface.co/ustc-community/dfine-nano-coco", "https://huggingface.co/onnx-community/dfine_n_coco-ONNX"],
-			"evidence": ["docs/milestone-7-plan.md", "docs/milestone-7-video-model-evidence.md"]
+			"evidence": ["docs/architecture/local-assistance.md", "docs/reference/local-model-provenance.md"]
 		},
 		{
 			"id": "siglip2-base-patch16-224",
@@ -1779,7 +1779,7 @@
 				"versioned-download-notices-and-hashes": { "status": "recorded", "summary": "Mirrored to the product store at a versioned key and verified byte for byte against the pinned digest by reading it back from the public URL after publication. The notice ships offline with the desktop application, which stages THIRD_PARTY_LICENSES.md into the package and reverifies its bytes at pack time; assistance runs only there." }
 			},
 			"provenanceSources": ["https://huggingface.co/google/siglip2-base-patch16-224", "https://huggingface.co/onnx-community/siglip2-base-patch16-224-ONNX"],
-			"evidence": ["docs/milestone-7-plan.md", "docs/milestone-7-video-model-evidence.md"]
+			"evidence": ["docs/architecture/local-assistance.md", "docs/reference/local-model-provenance.md"]
 		},
 		{
 			"id": "nomic-embed-text-v1.5",
@@ -1797,7 +1797,7 @@
 				"versioned-download-notices-and-hashes": { "status": "recorded", "summary": "Mirrored to the product store at a versioned key and verified byte for byte against the pinned digest by reading it back from the public URL after publication. The notice ships offline with the desktop application, which stages THIRD_PARTY_LICENSES.md into the package and reverifies its bytes at pack time; assistance runs only there." }
 			},
 			"provenanceSources": ["https://huggingface.co/nomic-ai/nomic-embed-text-v1.5"],
-			"evidence": ["docs/milestone-7-plan.md", "docs/milestone-7-video-model-evidence.md"]
+			"evidence": ["docs/architecture/local-assistance.md", "docs/reference/local-model-provenance.md"]
 		},
 		{
 			"id": "ppocr-v4-mobile",
@@ -1815,7 +1815,7 @@
 				"versioned-download-notices-and-hashes": { "status": "recorded", "summary": "Mirrored to the product store at a versioned key and verified byte for byte against the pinned digest by reading it back from the public URL after publication. The notice ships offline with the desktop application, which stages THIRD_PARTY_LICENSES.md into the package and reverifies its bytes at pack time; assistance runs only there." }
 			},
 			"provenanceSources": ["https://github.com/PaddlePaddle/PaddleOCR", "https://huggingface.co/SWHL/RapidOCR"],
-			"evidence": ["docs/milestone-7-plan.md", "docs/milestone-7-video-model-evidence.md"]
+			"evidence": ["docs/architecture/local-assistance.md", "docs/reference/local-model-provenance.md"]
 		},
 		{
 			"id": "u2netp-saliency",
@@ -1833,7 +1833,7 @@
 				"versioned-download-notices-and-hashes": { "status": "recorded", "summary": "Mirrored to the product store at a versioned key and verified byte for byte against the pinned digest by reading it back from the public URL after publication. The notice ships offline with the desktop application, which stages THIRD_PARTY_LICENSES.md into the package and reverifies its bytes at pack time; assistance runs only there." }
 			},
 			"provenanceSources": ["https://github.com/xuebinqin/U-2-Net", "https://github.com/danielgatis/rembg"],
-			"evidence": ["docs/milestone-7-plan.md", "docs/milestone-7-video-model-evidence.md"]
+			"evidence": ["docs/architecture/local-assistance.md", "docs/reference/local-model-provenance.md"]
 		},
 		{
 			"id": "wav2vec2-base-960h",
@@ -1851,7 +1851,7 @@
 				"versioned-download-notices-and-hashes": { "status": "recorded", "summary": "Version 1.0.0 artifacts and their exact hashes are listed in THIRD_PARTY_LICENSES.md. Public HEAD, byte-range, CORS, and full SHA-256 readback are retained in evidence/local-model-publication/wav2vec2-base-960h.json. The release catalog binds this complete evidence row and those download identities by SHA-256." }
 			},
 			"provenanceSources": ["https://huggingface.co/facebook/wav2vec2-base-960h"],
-			"evidence": ["docs/legalchecklist.md", "docs/milestone-7-plan.md", "config/milestone-7-model-supply-candidates.json"]
+			"evidence": ["docs/policies/licensing-checklist.md", "docs/architecture/local-assistance.md", "config/milestone-7-model-supply-candidates.json"]
 		},
 		{
 			"id": "tiger-dnr",
@@ -1869,7 +1869,7 @@
 				"versioned-download-notices-and-hashes": { "status": "recorded", "summary": "Version 1.0.0 artifacts and their exact hashes are listed in THIRD_PARTY_LICENSES.md. Public HEAD, byte-range, CORS, and full SHA-256 readback are retained in evidence/local-model-publication/tiger-dnr.json. The release catalog binds this complete evidence row and those download identities by SHA-256." }
 			},
 			"provenanceSources": ["https://github.com/JusperLee/TIGER", "https://huggingface.co/JusperLee/TIGER-DnR"],
-			"evidence": ["docs/legalchecklist.md", "docs/milestone-7-plan.md", "config/milestone-7-model-supply-candidates.json"]
+			"evidence": ["docs/policies/licensing-checklist.md", "docs/architecture/local-assistance.md", "config/milestone-7-model-supply-candidates.json"]
 		},
 		{
 			"id": "panns-cnn10",
@@ -1887,7 +1887,7 @@
 				"versioned-download-notices-and-hashes": { "status": "recorded", "summary": "Version 1.0.0 artifacts and their exact hashes are listed in THIRD_PARTY_LICENSES.md. Public HEAD, byte-range, CORS, and full SHA-256 readback are retained in evidence/local-model-publication/panns-cnn10.json. The release catalog binds this complete evidence row and those download identities by SHA-256." }
 			},
 			"provenanceSources": ["https://github.com/qiuqiangkong/audioset_tagging_cnn", "https://zenodo.org/records/3987831"],
-			"evidence": ["docs/legalchecklist.md", "docs/milestone-7-plan.md", "config/milestone-7-model-supply-candidates.json"]
+			"evidence": ["docs/policies/licensing-checklist.md", "docs/architecture/local-assistance.md", "config/milestone-7-model-supply-candidates.json"]
 		},
 		{
 			"id": "beat-this-small0",
@@ -1905,7 +1905,7 @@
 				"versioned-download-notices-and-hashes": { "status": "recorded", "summary": "Version 1.1.0 artifacts and their exact hashes are listed in THIRD_PARTY_LICENSES.md. Public HEAD, byte-range, CORS, and full SHA-256 readback are retained in evidence/local-model-publication/beat-this-small0.json. The release catalog binds this complete evidence row and those download identities by SHA-256." }
 			},
 			"provenanceSources": ["https://github.com/CPJKU/beat_this"],
-			"evidence": ["docs/legalchecklist.md", "docs/milestone-7-plan.md", "config/milestone-7-model-supply-candidates.json"]
+			"evidence": ["docs/policies/licensing-checklist.md", "docs/architecture/local-assistance.md", "config/milestone-7-model-supply-candidates.json"]
 		},
 		{
 			"id": "beat-this-final0",
@@ -1923,7 +1923,7 @@
 				"versioned-download-notices-and-hashes": { "status": "recorded", "summary": "Version 1.1.0 artifacts and their exact hashes are listed in THIRD_PARTY_LICENSES.md. Public HEAD, byte-range, CORS, and full SHA-256 readback are retained in evidence/local-model-publication/beat-this-final0.json. The release catalog binds this complete evidence row and those download identities by SHA-256." }
 			},
 			"provenanceSources": ["https://github.com/CPJKU/beat_this"],
-			"evidence": ["docs/legalchecklist.md", "docs/milestone-7-plan.md", "config/milestone-7-model-supply-candidates.json"]
+			"evidence": ["docs/policies/licensing-checklist.md", "docs/architecture/local-assistance.md", "config/milestone-7-model-supply-candidates.json"]
 		},
 		{
 			"id": "qwen3-4b-q4-k-m",
@@ -1941,7 +1941,7 @@
 				"versioned-download-notices-and-hashes": { "status": "recorded", "summary": "Version 1.0.0 artifacts and their exact hashes are listed in THIRD_PARTY_LICENSES.md. Public HEAD, byte-range, CORS, and full SHA-256 readback are retained in evidence/local-model-publication/qwen3-4b-q4-k-m.json. The release catalog binds this complete evidence row and those download identities by SHA-256." }
 			},
 			"provenanceSources": ["https://huggingface.co/Qwen/Qwen3-4B-GGUF"],
-			"evidence": ["docs/legalchecklist.md", "docs/milestone-7-plan.md", "config/milestone-7-model-supply-candidates.json"]
+			"evidence": ["docs/policies/licensing-checklist.md", "docs/architecture/local-assistance.md", "config/milestone-7-model-supply-candidates.json"]
 		},
 		{
 			"id": "transnetv2",
@@ -1959,7 +1959,7 @@
 				"versioned-download-notices-and-hashes": { "status": "recorded", "summary": "Version 1.0.0 artifacts and their exact hashes are listed in THIRD_PARTY_LICENSES.md. Public HEAD, byte-range, CORS, and full SHA-256 readback are retained in evidence/local-model-publication/transnetv2.json. The release catalog binds this complete evidence row and those download identities by SHA-256." }
 			},
 			"provenanceSources": ["https://github.com/soCzech/TransNetV2"],
-			"evidence": ["docs/milestone-7-plan.md", "docs/milestone-7-video-model-evidence.md"]
+			"evidence": ["docs/architecture/local-assistance.md", "docs/reference/local-model-provenance.md"]
 		},
 		{
 			"id": "dereverb-room",
@@ -1977,7 +1977,7 @@
 				"versioned-download-notices-and-hashes": { "status": "recorded", "summary": "Version 1.0.0 artifacts and their exact hashes are listed in THIRD_PARTY_LICENSES.md. Public HEAD, byte-range, CORS, and full SHA-256 readback are retained in evidence/local-model-publication/dereverb-room.json. The release catalog binds this complete evidence row and those download identities by SHA-256." }
 			},
 			"provenanceSources": ["https://huggingface.co/anvuew/dereverb_room/tree/0b85f5b80b7f779b2dfe80f33a1b35b38af9376d", "https://huggingface.co/docs/hub/repositories-licenses", "https://github.com/ZFTurbo/MSS_ONNX_TensorRT/tree/43d939e7671d8ff6cf1922f98c2f2e4b56908e47", "https://www.gnu.org/licenses/gpl-3.0.html"],
-			"evidence": ["docs/dereverb-plan.md", "docs/dereverb-bakeoff-evidence.md", "config/milestone-7-model-supply-candidates.json", "LICENSES/local-models/README.md", "LICENSES/local-models/dereverb-room-MODEL-CARD.md", "LICENSES/local-models/GPL-3.0.txt", "LICENSES/local-models/dereverb-room-converter-LICENSE.txt", "THIRD_PARTY_LICENSES.md"]
+			"evidence": ["docs/research/dereverberation/overview.md", "docs/research/dereverberation/bakeoff.md", "config/milestone-7-model-supply-candidates.json", "LICENSES/local-models/README.md", "LICENSES/local-models/dereverb-room-MODEL-CARD.md", "LICENSES/local-models/GPL-3.0.txt", "LICENSES/local-models/dereverb-room-converter-LICENSE.txt", "THIRD_PARTY_LICENSES.md"]
 		},
 		{
 			"id": "kokoro-82m-v1.0",

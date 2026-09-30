@@ -1,7 +1,7 @@
 {
 	"schemaVersion": 1,
 	"groundedAt": "2026-09-22",
-	"modelDocument": "docs/production-threat-model.md",
+	"modelDocument": "docs/policies/security.md",
 	"productVersions": {
 		"version": "1.0.0-rc.11",
 		"stableTarget": "1.0.0"
@@ -6167,11 +6167,11 @@
 						},
 						{
 							"kind": "document",
-							"path": "docs/framescaper-capture-privacy.md"
+							"path": "docs/features/framescaper-capture.md"
 						},
 						{
 							"kind": "document",
-							"path": "docs/milestone-8a-plan.md"
+							"path": "docs/features/framescaper-capture.md"
 						}
 					],
 					"historicalPreFreezeNarrative": {
@@ -6511,11 +6511,11 @@
 						},
 						{
 							"kind": "document",
-							"path": "docs/post-milestone-8-web-vcr-plan.md"
+							"path": "docs/features/framescaper-web-vcr.md"
 						},
 						{
 							"kind": "document",
-							"path": "docs/framescaper-capture-privacy.md"
+							"path": "docs/features/framescaper-capture.md"
 						}
 					],
 					"policyAuthority": "family-v1-active"
@@ -11154,7 +11154,7 @@
 						},
 						{
 							"kind": "document",
-							"path": "docs/desktop-codec-provider-plan.md"
+							"path": "docs/architecture/desktop-codec-providers.md"
 						},
 						{
 							"kind": "implementation",
@@ -13698,11 +13698,11 @@
 						},
 						{
 							"kind": "document",
-							"path": "docs/framescaper-capture-privacy.md"
+							"path": "docs/features/framescaper-capture.md"
 						},
 						{
 							"kind": "document",
-							"path": "docs/milestone-8a-plan.md"
+							"path": "docs/features/framescaper-capture.md"
 						}
 					],
 					"historicalPreFreezeNarrative": {
@@ -14282,7 +14282,7 @@
 						},
 						{
 							"kind": "document",
-							"path": "docs/desktop-codec-provider-plan.md"
+							"path": "docs/architecture/desktop-codec-providers.md"
 						},
 						{
 							"kind": "implementation",
