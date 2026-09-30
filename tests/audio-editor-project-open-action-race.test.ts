@@ -7,6 +7,7 @@ import {
 	createGroupedEditorActions,
 	type EditorActionRuntime,
 } from '../src/common/editor/controller/composition/action-facade.ts';
+import { createActionFacadeRuntime } from './helpers/action-facade-runtime-fixture.ts';
 
 interface TestProject {
 	readonly id: string;
@@ -42,31 +43,18 @@ function createRuntime(options: Readonly<{
 	loadProject(projectId: string): Promise<TestProject | null>;
 	openProject(project: TestProject): Promise<void>;
 }>): EditorActionRuntime {
-	const callable = () => undefined;
-	const videoTrimServices = Object.freeze({
-		edge: Object.freeze({ preview: callable, commit: callable, commitStep: callable }),
-		rollRipple: Object.freeze({ preview: callable, commit: callable }),
-		slipSlide: Object.freeze({ buildStepRequest: callable, preview: callable, commit: callable }),
-		rateStretch: Object.freeze({ preview: callable, commit: callable, commitStep: callable }),
-	});
-	return new Proxy<Record<string, unknown>>({}, {
-		get(_target, name) {
-			if (name === 'capabilities') return new Proxy({}, { get: () => true });
-			if (name === 'product') return { name: 'Soundscaper' };
-			if (name === 'videoTrimServices') return videoTrimServices;
-			if (name === 'copy') return { projectNotFound: 'Not found' };
+	return new Proxy(createActionFacadeRuntime(), {
+		get(target, name, receiver) {
 			if (name === 'state') return {
-				recentProjectIds: [projectBId, projectCId], projects: [], preferences: { recording: {} },
-				audacityEffectType: 'amplify', effectPresets: {},
+				...Reflect.get(target, name, receiver) as object,
+				recentProjectIds: [projectBId, projectCId],
 			};
 			if (name === 'store') return { loadProject: options.loadProject };
 			if (name === 'openProject') return options.openProject;
 			if (name === 'sessionTab') return () => null;
-			if (name === 'engine' || name === 'analysisService') return new Proxy({}, { get: () => callable });
-			if (name === 'AUDIO_EDITOR_DEFAULT_SHORTCUTS') return {};
-			return callable;
+			return Reflect.get(target, name, receiver);
 		},
-	}) as unknown as EditorActionRuntime;
+	});
 }
 
 const projectBId = 'project-b';
