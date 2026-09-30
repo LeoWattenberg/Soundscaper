@@ -235,10 +235,10 @@ test('case 23: video proxy MIME admission accepts a canonical ordered codec list
 	);
 });
 
-test('case 24: video proxy MIME admission rejects noncanonical uppercase spellings', () => {
-	assert.throws(
-		() => validateVideoProxyOriginalMimeType('Video/webm;codecs=VP9'),
-		/is invalid/iu,
+test('case 24: video proxy MIME admission preserves case-insensitive browser spellings', () => {
+	assert.equal(
+		validateVideoProxyOriginalMimeType('Video/webm;codecs=VP9'),
+		'Video/webm;codecs=VP9',
 	);
 });
 
