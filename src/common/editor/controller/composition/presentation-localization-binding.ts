@@ -24,6 +24,9 @@ export function storagePresentationCopy(copy: Readonly<Record<string, string>>, 
 		'storageOperationRecording', 'storageOperationExport', 'storageOperationEffect',
 		'storageOperationProject', 'storageOperationImport', 'insufficientStorage',
 	]);
-	const scoped = Object.create(messages) as typeof messages & { readonly formatBytes: typeof formatBytes };
+	const scoped = Object.defineProperties(
+		Object.create(null) as typeof messages & { readonly formatBytes: typeof formatBytes },
+		Object.getOwnPropertyDescriptors(messages),
+	);
 	return Object.freeze(Object.defineProperty(scoped, 'formatBytes', { value: formatBytes, enumerable: true }));
 }
