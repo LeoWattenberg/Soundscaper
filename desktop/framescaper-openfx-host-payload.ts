@@ -2,23 +2,28 @@
 
 /** Exact current-target selection for the separately packaged OpenFX scanner and runtime host. */
 
-import { createHash } from 'node:crypto';
-import { readFile, stat } from 'node:fs/promises';
-import { basename, join, relative, resolve } from 'node:path';
+import { basename, join } from 'node:path';
+
+import {
+	DEFAULT_NATIVE_HOST_PAYLOAD_PORTS,
+	FRAMESCAPER_NATIVE_HOST_RUNTIME_TARGETS,
+	FRAMESCAPER_NATIVE_HOST_TARGET_RUNTIMES,
+	framescaperNativeHostTargetFor,
+	isMissingNativeHostPayloadError,
+	nativeHostIsolationPayloads,
+	verifyNativeHostPayloadInventory,
+	type FramescaperNativeHostTargetId,
+	type NativeHostExecutableDescriptor,
+	type NativeHostIsolationPayloadIdentity,
+	type NativeHostPayloadIdentity,
+	type NativeHostPayloadLocation,
+	type NativeHostPayloadPorts,
+} from './native-host-payload-verification.ts';
 
 type OpenFxGpuBackend = 'opengl' | 'opencl' | 'cuda' | 'metal';
 
-export const FRAMESCAPER_OPENFX_HOST_RUNTIME_TARGETS = Object.freeze({
-	'linux-x64': 'linux-x64',
-	'linux-arm64': 'linux-arm64',
-	'darwin-arm64': 'mac-arm64',
-	'win32-x64': 'win-x64',
-	'win32-arm64': 'win-arm64',
-} as const satisfies Readonly<Record<string, string>>);
-
-type RuntimeKey = keyof typeof FRAMESCAPER_OPENFX_HOST_RUNTIME_TARGETS;
-export type FramescaperOpenFxHostTargetId =
-	(typeof FRAMESCAPER_OPENFX_HOST_RUNTIME_TARGETS)[RuntimeKey];
+export const FRAMESCAPER_OPENFX_HOST_RUNTIME_TARGETS = FRAMESCAPER_NATIVE_HOST_RUNTIME_TARGETS;
+export type FramescaperOpenFxHostTargetId = FramescaperNativeHostTargetId;
 
 export type FramescaperOpenFxHostUnavailableReason =
 	| 'unsupported-platform'
@@ -28,21 +33,9 @@ export type FramescaperOpenFxHostUnavailableReason =
 	| 'payload-digest-mismatch'
 	| 'manifest-unreadable';
 
-export interface FramescaperOpenFxHostPayloadLocation {
-	readonly applicationRoot: string;
-	readonly packaged: boolean;
-	readonly resourcesPath: string;
-	readonly externalRuntimeRoot?: string;
-	readonly platform?: string;
-	readonly arch?: string;
-}
+export type FramescaperOpenFxHostPayloadLocation = NativeHostPayloadLocation;
 
-export interface FramescaperOpenFxExecutableDescriptor {
-	readonly path: string;
-	readonly byteLength: number;
-	readonly sha256: string;
-	readonly identity: Readonly<{ dev: number; ino: number }>;
-}
+export type FramescaperOpenFxExecutableDescriptor = NativeHostExecutableDescriptor;
 
 export interface FramescaperOpenFxHostDescriptor {
 	readonly target: FramescaperOpenFxHostTargetId;
@@ -69,35 +62,15 @@ export type FramescaperOpenFxHostAvailability =
 		detail: string;
 	}>;
 
-interface FileStat {
-	isFile(): boolean;
-	isSymbolicLink?(): boolean;
-	readonly size: number;
-	readonly dev: number;
-	readonly ino: number;
-}
+export type FramescaperOpenFxHostPayloadPorts = NativeHostPayloadPorts;
 
-export interface FramescaperOpenFxHostPayloadPorts {
-	readonly readFile: (path: string) => Promise<Buffer>;
-	readonly stat: (path: string) => Promise<FileStat>;
-}
-
-interface PayloadIdentity {
-	readonly path: string;
-	readonly byteLength: number;
-	readonly sha256: string;
-}
+type PayloadIdentity = NativeHostPayloadIdentity;
 
 interface PayloadPair {
 	readonly buildResult: PayloadIdentity;
 	readonly scannerPayload: PayloadIdentity;
 	readonly runtimeHostPayload: PayloadIdentity;
-	readonly isolationPayload: Readonly<{
-		readonly launcherPayload: PayloadIdentity;
-		readonly sandboxProfilePayload: PayloadIdentity;
-		readonly brokerPolicyPayload: PayloadIdentity;
-		readonly runtimeLibraryPayloads: readonly PayloadIdentity[];
-	}>;
+	readonly isolationPayload: NativeHostIsolationPayloadIdentity;
 }
 
 interface PayloadRecord extends PayloadPair {
@@ -119,19 +92,13 @@ interface PayloadManifest {
 	readonly targets: readonly TargetRecord[];
 }
 
-const DEFAULT_PORTS: FramescaperOpenFxHostPayloadPorts = Object.freeze({ readFile, stat });
+const DEFAULT_PORTS: FramescaperOpenFxHostPayloadPorts = DEFAULT_NATIVE_HOST_PAYLOAD_PORTS;
 const MANIFEST_NAME = 'config/framescaper-openfx-host-payload-manifest.json';
 const RUNTIME_PREFIX = 'native/framescaper-openfx-host';
 const SOURCE_MANIFEST = 'native/framescaper-openfx-host/source-manifest.json';
 const OPENFX_SHA256 = '7f4fcde6c4bff3ee1f95a0b73a805e662a3e030999523165b40cfbe76c1ab9f5';
 const SHA256 = /^[a-f\d]{64}$/u;
-const TARGET_RUNTIME = Object.freeze({
-	'linux-x64': 'linux-x64',
-	'linux-arm64': 'linux-arm64',
-	'mac-arm64': 'darwin-arm64',
-	'win-x64': 'win32-x64',
-	'win-arm64': 'win32-arm64',
-} as const satisfies Readonly<Record<FramescaperOpenFxHostTargetId, string>>);
+const TARGET_RUNTIME = FRAMESCAPER_NATIVE_HOST_TARGET_RUNTIMES;
 const LINUX_RUNTIME_LOADERS = Object.freeze({
 	'linux-x64': 'ld-linux-x86-64.so.2',
 	'linux-arm64': 'ld-linux-aarch64.so.1',
@@ -144,13 +111,7 @@ const TARGET_GPU_BACKENDS = Object.freeze({
 	'win-arm64': Object.freeze(['opengl', 'opencl'] as const),
 } satisfies Readonly<Record<FramescaperOpenFxHostTargetId, readonly OpenFxGpuBackend[]>>);
 
-export function framescaperOpenFxHostTargetFor(platform: string, architecture: string):
-	FramescaperOpenFxHostTargetId | null {
-	const key = `${platform}-${architecture}`;
-	return Object.hasOwn(FRAMESCAPER_OPENFX_HOST_RUNTIME_TARGETS, key)
-		? FRAMESCAPER_OPENFX_HOST_RUNTIME_TARGETS[key as RuntimeKey]
-		: null;
-}
+export const framescaperOpenFxHostTargetFor = framescaperNativeHostTargetFor;
 
 export async function describeFramescaperOpenFxHostAvailability(
 	location: FramescaperOpenFxHostPayloadLocation,
@@ -184,19 +145,22 @@ export async function describeFramescaperOpenFxHostAvailability(
 		);
 	}
 	const payload = manifest.payloads.find(({ id }) => id === targetId)!;
-	const buildResultPath = payloadPath(location, targetId, payload.buildResult.path);
-	const scannerPath = payloadPath(location, targetId, payload.scannerPayload.path);
-	const runtimePath = payloadPath(location, targetId, payload.runtimeHostPayload.path);
 	try {
 		const [, scanner, runtimeHost, launcher, sandboxProfile, brokerPolicy,
-			...runtimeLibraries] = await Promise.all([
-			verifyPayload(buildResultPath, payload.buildResult, ports),
-			verifyPayload(scannerPath, payload.scannerPayload, ports),
-			verifyPayload(runtimePath, payload.runtimeHostPayload, ports),
-			...isolationPayloads(payload.isolationPayload).map((identity) => verifyPayload(
-				payloadPath(location, targetId, identity.path), identity, ports,
-			)),
-		]);
+			...runtimeLibraries] = await verifyNativeHostPayloadInventory({
+			location,
+			runtimePrefix: RUNTIME_PREFIX,
+			targetId,
+			payloads: [
+				payload.buildResult,
+				payload.scannerPayload,
+				payload.runtimeHostPayload,
+				...nativeHostIsolationPayloads(payload.isolationPayload),
+			] as const,
+			ports,
+			developmentTraversalError:
+				'The OpenFX-host development payload leaves the application root.',
+		});
 		return Object.freeze({
 			status: 'available' as const,
 			descriptor: Object.freeze({
@@ -215,7 +179,7 @@ export async function describeFramescaperOpenFxHostAvailability(
 			}),
 		});
 	} catch (error) {
-		const missing = isMissing(error);
+		const missing = isMissingNativeHostPayloadError(error);
 		return unavailable(
 			missing ? 'payload-missing' : 'payload-digest-mismatch',
 			missing
@@ -238,26 +202,6 @@ export function createFramescaperOpenFxHostVerifier(
 		}
 		return availability.descriptor;
 	};
-}
-
-async function verifyPayload(
-	path: string,
-	payload: PayloadIdentity,
-	ports: FramescaperOpenFxHostPayloadPorts,
-): Promise<FramescaperOpenFxExecutableDescriptor> {
-	const [bytes, details] = await Promise.all([ports.readFile(path), ports.stat(path)]);
-	if (!details.isFile() || details.isSymbolicLink?.() === true
-		|| !safeIdentity(details.dev) || !safeIdentity(details.ino)
-		|| details.size !== payload.byteLength || bytes.byteLength !== payload.byteLength
-		|| createHash('sha256').update(bytes).digest('hex') !== payload.sha256) {
-		throw new TypeError('payload-digest-mismatch');
-	}
-	return Object.freeze({
-		path,
-		byteLength: payload.byteLength,
-		sha256: payload.sha256,
-		identity: Object.freeze({ dev: details.dev, ino: details.ino }),
-	});
 }
 
 function payloadManifest(value: unknown): PayloadManifest {
@@ -443,32 +387,6 @@ function samePayload(left: PayloadIdentity, right: PayloadIdentity): boolean {
 	return left.path === right.path && left.byteLength === right.byteLength && left.sha256 === right.sha256;
 }
 
-function isolationPayloads(value: PayloadPair['isolationPayload']): readonly PayloadIdentity[] {
-	return Object.freeze([
-		value.launcherPayload, value.sandboxProfilePayload, value.brokerPolicyPayload,
-		...value.runtimeLibraryPayloads,
-	]);
-}
-
-function payloadPath(location: FramescaperOpenFxHostPayloadLocation,
-	targetId: FramescaperOpenFxHostTargetId, pinnedPath: string): string {
-	return location.externalRuntimeRoot
-		? join(resolve(location.externalRuntimeRoot), RUNTIME_PREFIX, targetId, basename(pinnedPath))
-		: location.packaged
-		? join(location.resourcesPath, 'runtime', RUNTIME_PREFIX, targetId, basename(pinnedPath))
-		: safeDevelopmentPath(location.applicationRoot, pinnedPath);
-}
-
-function safeDevelopmentPath(applicationRoot: string, payloadPath_: string): string {
-	const root = resolve(applicationRoot);
-	const path = resolve(root, payloadPath_);
-	const traversal = relative(root, path);
-	if (!traversal || traversal.startsWith('..') || resolve(root, traversal) !== path) {
-		throw new TypeError('The OpenFX-host development payload leaves the application root.');
-	}
-	return path;
-}
-
 function closedRecord(value: unknown, keys: readonly string[]): Record<string, unknown> {
 	if (!value || typeof value !== 'object' || Array.isArray(value)
 		|| Object.getPrototypeOf(value) !== Object.prototype) {
@@ -483,18 +401,9 @@ function closedRecord(value: unknown, keys: readonly string[]): Record<string, u
 	return record;
 }
 
-function safeIdentity(value: number): boolean {
-	return Number.isSafeInteger(value) && value >= 0;
-}
-
 function unavailable(reason: FramescaperOpenFxHostUnavailableReason,
 	detail: string): FramescaperOpenFxHostAvailability {
 	return Object.freeze({ status: 'unavailable' as const, reason, detail });
-}
-
-function isMissing(error: unknown): boolean {
-	return typeof error === 'object' && error !== null
-		&& (error as NodeJS.ErrnoException).code === 'ENOENT';
 }
 
 function errorMessage(error: unknown): string {

@@ -2,21 +2,26 @@
 
 /** Exact current-target selection for the separately packaged Framescaper media host. */
 
-import { createHash } from 'node:crypto';
-import { readFile, stat } from 'node:fs/promises';
-import { basename, join, relative, resolve } from 'node:path';
+import { join } from 'node:path';
 
-export const FRAMESCAPER_MEDIA_HOST_RUNTIME_TARGETS = Object.freeze({
-	'linux-x64': 'linux-x64',
-	'linux-arm64': 'linux-arm64',
-	'darwin-arm64': 'mac-arm64',
-	'win32-x64': 'win-x64',
-	'win32-arm64': 'win-arm64',
-} as const satisfies Readonly<Record<string, string>>);
+import {
+	DEFAULT_NATIVE_HOST_PAYLOAD_PORTS,
+	FRAMESCAPER_NATIVE_HOST_RUNTIME_TARGETS,
+	FRAMESCAPER_NATIVE_HOST_TARGET_RUNTIMES,
+	framescaperNativeHostTargetFor,
+	isMissingNativeHostPayloadError,
+	nativeHostIsolationPayloads,
+	verifyNativeHostPayloadInventory,
+	type FramescaperNativeHostTargetId,
+	type NativeHostExecutableDescriptor,
+	type NativeHostIsolationPayloadIdentity,
+	type NativeHostPayloadIdentity,
+	type NativeHostPayloadLocation,
+	type NativeHostPayloadPorts,
+} from './native-host-payload-verification.ts';
 
-type RuntimeKey = keyof typeof FRAMESCAPER_MEDIA_HOST_RUNTIME_TARGETS;
-export type FramescaperMediaHostTargetId =
-	(typeof FRAMESCAPER_MEDIA_HOST_RUNTIME_TARGETS)[RuntimeKey];
+export const FRAMESCAPER_MEDIA_HOST_RUNTIME_TARGETS = FRAMESCAPER_NATIVE_HOST_RUNTIME_TARGETS;
+export type FramescaperMediaHostTargetId = FramescaperNativeHostTargetId;
 
 export type FramescaperMediaHostUnavailableReason =
 	| 'unsupported-platform'
@@ -26,14 +31,7 @@ export type FramescaperMediaHostUnavailableReason =
 	| 'payload-digest-mismatch'
 	| 'manifest-unreadable';
 
-export interface FramescaperMediaHostPayloadLocation {
-	readonly applicationRoot: string;
-	readonly packaged: boolean;
-	readonly resourcesPath: string;
-	readonly externalRuntimeRoot?: string;
-	readonly platform?: string;
-	readonly arch?: string;
-}
+export type FramescaperMediaHostPayloadLocation = NativeHostPayloadLocation;
 
 export interface FramescaperMediaHostDescriptor {
 	readonly target: FramescaperMediaHostTargetId;
@@ -52,12 +50,7 @@ export interface FramescaperMediaHostDescriptor {
 	}>;
 }
 
-export interface FramescaperMediaHostExecutableDescriptor {
-	readonly path: string;
-	readonly byteLength: number;
-	readonly sha256: string;
-	readonly identity: Readonly<{ dev: number; ino: number }>;
-}
+export type FramescaperMediaHostExecutableDescriptor = NativeHostExecutableDescriptor;
 
 export type FramescaperMediaHostAvailability =
 	| Readonly<{ status: 'available'; descriptor: FramescaperMediaHostDescriptor }>
@@ -67,45 +60,18 @@ export type FramescaperMediaHostAvailability =
 		detail: string;
 	}>;
 
-interface FileStat {
-	isFile(): boolean;
-	isSymbolicLink?(): boolean;
-	readonly size: number;
-	readonly dev: number;
-	readonly ino: number;
-}
+export type FramescaperMediaHostPayloadPorts = NativeHostPayloadPorts;
 
-export interface FramescaperMediaHostPayloadPorts {
-	readonly readFile: (path: string) => Promise<Buffer>;
-	readonly stat: (path: string) => Promise<FileStat>;
-}
-
-const DEFAULT_PORTS: FramescaperMediaHostPayloadPorts = Object.freeze({ readFile, stat });
+const DEFAULT_PORTS: FramescaperMediaHostPayloadPorts = DEFAULT_NATIVE_HOST_PAYLOAD_PORTS;
 const MANIFEST_NAME = 'config/framescaper-media-host-payload-manifest.json';
 const RUNTIME_PREFIX = 'native/framescaper-media-host';
 const SOURCE_MANIFEST = 'native/framescaper-media-host/source-manifest.json';
 const FFMPEG_SHA256 = 'cf38e0e28c7e5605942c4a77755349b0145804a397af37eb1fb4c77cb237f635';
 const SHA256 = /^[a-f\d]{64}$/u;
-const TARGET_RUNTIME = Object.freeze({
-	'linux-x64': 'linux-x64',
-	'linux-arm64': 'linux-arm64',
-	'mac-arm64': 'darwin-arm64',
-	'win-x64': 'win32-x64',
-	'win-arm64': 'win32-arm64',
-} as const satisfies Readonly<Record<FramescaperMediaHostTargetId, string>>);
+const TARGET_RUNTIME = FRAMESCAPER_NATIVE_HOST_TARGET_RUNTIMES;
 
-interface PayloadIdentity {
-	readonly path: string;
-	readonly byteLength: number;
-	readonly sha256: string;
-}
-
-interface IsolationPayloadIdentity {
-	readonly launcherPayload: PayloadIdentity;
-	readonly sandboxProfilePayload: PayloadIdentity;
-	readonly brokerPolicyPayload: PayloadIdentity;
-	readonly runtimeLibraryPayloads: readonly PayloadIdentity[];
-}
+type PayloadIdentity = NativeHostPayloadIdentity;
+type IsolationPayloadIdentity = NativeHostIsolationPayloadIdentity;
 
 interface PayloadRecord extends PayloadIdentity {
 	readonly id: FramescaperMediaHostTargetId;
@@ -130,15 +96,7 @@ interface PayloadManifest {
 	readonly targets: readonly TargetRecord[];
 }
 
-export function framescaperMediaHostTargetFor(
-	platform: string,
-	architecture: string,
-): FramescaperMediaHostTargetId | null {
-	const key = `${platform}-${architecture}`;
-	return Object.hasOwn(FRAMESCAPER_MEDIA_HOST_RUNTIME_TARGETS, key)
-		? FRAMESCAPER_MEDIA_HOST_RUNTIME_TARGETS[key as RuntimeKey]
-		: null;
-}
+export const framescaperMediaHostTargetFor = framescaperNativeHostTargetFor;
 
 export async function describeFramescaperMediaHostAvailability(
 	location: FramescaperMediaHostPayloadLocation,
@@ -173,13 +131,20 @@ export async function describeFramescaperMediaHostAvailability(
 	}
 	const payload = manifest.payloads.find(({ id }) => id === targetId)!;
 	try {
-		const [mediaHost, , launcher, sandboxProfile, brokerPolicy, ...runtimeLibraries] = await Promise.all([
-			verifyPayload(payloadPath(location, targetId, payload.path), payload, ports),
-			verifyPayload(payloadPath(location, targetId, payload.buildResult.path), payload.buildResult, ports),
-			...isolationPayloads(payload.isolationPayload).map((identity) => verifyPayload(
-				payloadPath(location, targetId, identity.path), identity, ports,
-			)),
-		]);
+		const [mediaHost, , launcher, sandboxProfile, brokerPolicy, ...runtimeLibraries] =
+			await verifyNativeHostPayloadInventory({
+				location,
+				runtimePrefix: RUNTIME_PREFIX,
+				targetId,
+				payloads: [
+					payload,
+					payload.buildResult,
+					...nativeHostIsolationPayloads(payload.isolationPayload),
+				] as const,
+				ports,
+				developmentTraversalError:
+					'The media-host development payload leaves the application root.',
+			});
 		return Object.freeze({
 			status: 'available' as const,
 			descriptor: Object.freeze({
@@ -198,7 +163,7 @@ export async function describeFramescaperMediaHostAvailability(
 			}),
 		});
 	} catch (error) {
-		const missing = isMissing(error);
+		const missing = isMissingNativeHostPayloadError(error);
 		return unavailable(
 			missing ? 'payload-missing' : 'payload-digest-mismatch',
 			missing ? `A Framescaper media-host payload is missing: ${errorMessage(error)}`
@@ -423,53 +388,6 @@ function samePayloadIdentity(left: PayloadIdentity, right: PayloadIdentity): boo
 	return left.path === right.path && left.byteLength === right.byteLength && left.sha256 === right.sha256;
 }
 
-function isolationPayloads(value: IsolationPayloadIdentity): readonly PayloadIdentity[] {
-	return Object.freeze([
-		value.launcherPayload, value.sandboxProfilePayload, value.brokerPolicyPayload,
-		...value.runtimeLibraryPayloads,
-	]);
-}
-
-async function verifyPayload(
-	path: string,
-	payload: PayloadIdentity,
-	ports: FramescaperMediaHostPayloadPorts,
-): Promise<FramescaperMediaHostExecutableDescriptor> {
-	const [bytes, details] = await Promise.all([ports.readFile(path), ports.stat(path)]);
-	if (!details.isFile() || details.isSymbolicLink?.() === true
-		|| !safeIdentity(details.dev) || !safeIdentity(details.ino)
-		|| details.size !== payload.byteLength || bytes.byteLength !== payload.byteLength
-		|| createHash('sha256').update(bytes).digest('hex') !== payload.sha256) {
-		throw new TypeError('payload-digest-mismatch');
-	}
-	return Object.freeze({
-		path, byteLength: payload.byteLength, sha256: payload.sha256,
-		identity: Object.freeze({ dev: details.dev, ino: details.ino }),
-	});
-}
-
-function payloadPath(
-	location: FramescaperMediaHostPayloadLocation,
-	targetId: FramescaperMediaHostTargetId,
-	pinnedPath: string,
-): string {
-	return location.externalRuntimeRoot
-		? join(resolve(location.externalRuntimeRoot), RUNTIME_PREFIX, targetId, basename(pinnedPath))
-		: location.packaged
-		? join(location.resourcesPath, 'runtime', RUNTIME_PREFIX, targetId, basename(pinnedPath))
-		: safeDevelopmentPath(location.applicationRoot, pinnedPath);
-}
-
-function safeDevelopmentPath(applicationRoot: string, payloadPath: string): string {
-	const root = resolve(applicationRoot);
-	const path = resolve(root, payloadPath);
-	const traversal = relative(root, path);
-	if (!traversal || traversal.startsWith('..') || resolve(root, traversal) !== path) {
-		throw new TypeError('The media-host development payload leaves the application root.');
-	}
-	return path;
-}
-
 function closedRecord(value: unknown, keys: readonly string[]): Record<string, unknown> {
 	if (!value || typeof value !== 'object' || Array.isArray(value)
 		|| Object.getPrototypeOf(value) !== Object.prototype) {
@@ -484,10 +402,6 @@ function closedRecord(value: unknown, keys: readonly string[]): Record<string, u
 	return record;
 }
 
-function safeIdentity(value: number): boolean {
-	return Number.isSafeInteger(value) && value >= 0;
-}
-
 function unavailable(
 	reason: FramescaperMediaHostUnavailableReason,
 	detail: string,
@@ -497,9 +411,4 @@ function unavailable(
 
 function errorMessage(error: unknown): string {
 	return error instanceof Error ? error.message : String(error);
-}
-
-function isMissing(error: unknown): boolean {
-	return typeof error === 'object' && error !== null
-		&& (error as NodeJS.ErrnoException).code === 'ENOENT';
 }

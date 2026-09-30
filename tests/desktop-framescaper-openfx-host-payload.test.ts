@@ -96,6 +96,41 @@ test('the process-spawn verifier reopens both executables on each call', async (
 	await assert.rejects(verify(), /payload-digest-mismatch/u);
 });
 
+test('the OpenFX host refuses symlink, size, missing, and inspection-time identity failures', async () => {
+	for (const [label, mutate, expected] of [
+		['symlink', (details: FileObservation) => ({ ...details, isSymbolicLink: () => true }),
+			'payload-digest-mismatch'],
+		['size', (details: FileObservation) => ({ ...details, size: details.size + 1 }),
+			'payload-digest-mismatch'],
+		['TOCTOU', (details: FileObservation, inspection: number) => ({
+			...details, ino: details.ino + (inspection > 1 ? 1 : 0),
+		}), 'payload-digest-mismatch'],
+	] as const) {
+		const base = ports(manifest());
+		const inspections = new Map<string, number>();
+		const availability = await describeFramescaperOpenFxHostAvailability(location(), {
+			readFile: base.readFile,
+			stat: async (path) => {
+				const inspection = (inspections.get(path) ?? 0) + 1;
+				inspections.set(path, inspection);
+				return mutate(await base.stat(path), inspection);
+			},
+		});
+		assert.equal(availability.status === 'unavailable' ? availability.reason : null, expected, label);
+	}
+	const base = ports(manifest());
+	const missing = await describeFramescaperOpenFxHostAvailability(location(), {
+		...base,
+		readFile: async (path) => {
+			if (path.endsWith('/framescaper-ofx-scanner')) {
+				throw Object.assign(new Error('gone'), { code: 'ENOENT' });
+			}
+			return base.readFile(path);
+		},
+	});
+	assert.equal(missing.status === 'unavailable' ? missing.reason : null, 'payload-missing');
+});
+
 function location() {
 	return Object.freeze({
 		applicationRoot: '/application', packaged: false, resourcesPath: '/unused',
@@ -182,3 +217,5 @@ function descriptor(path: string, bytes: Buffer) {
 function digest(bytes: Buffer): string {
 	return createHash('sha256').update(bytes).digest('hex');
 }
+
+type FileObservation = Awaited<ReturnType<ReturnType<typeof ports>['stat']>>;

@@ -11492,8 +11492,16 @@
 							"path": "config/framescaper-openfx-host-payload-manifest.json"
 						},
 						{
+							"kind": "implementation",
+							"path": "desktop/native-host-payload-verification.ts"
+						},
+						{
 							"kind": "test",
 							"path": "tests/native-addon-payload-manifest.test.js"
+						},
+						{
+							"kind": "test",
+							"path": "tests/desktop-native-host-payload-verification.test.ts"
 						},
 						{
 							"kind": "test",
