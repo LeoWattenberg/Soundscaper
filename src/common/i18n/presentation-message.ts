@@ -123,7 +123,9 @@ function freezePresentationMessageAt(
 				message.append.map((part, index) => {
 					if (typeof part === 'string') return part;
 					if (isPlainRecord(part)) {
-						return freezePresentationMessageAt(part as LocalizedPresentationMessage, ancestors, depth + 1);
+						return freezePresentationMessageAt(
+							part as unknown as LocalizedPresentationMessage, ancestors, depth + 1,
+						);
 					}
 					throw new TypeError(`Localized presentation append part ${String(index)} is invalid.`);
 				}),
