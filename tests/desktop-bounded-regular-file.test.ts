@@ -10,8 +10,10 @@ import {
 
 test('bounded regular-file reads require every byte promised by the initial stat', async () => {
 	const handle = fakeHandle({ declaredSize: 3, chunks: [Uint8Array.of(1, 2), new Uint8Array()] });
-	assert.deepEqual(await readBoundedRegularFile('/scratch/output', 8, { openFile: async () => handle }), {
-		status: 'unavailable', reason: 'invalid',
+	assert.deepEqual(await readBoundedRegularFile('/scratch/output', 8, {
+		failureMode: 'preserve', openFile: async () => handle,
+	}), {
+		status: 'unavailable', reason: 'changed',
 	});
 	assert.equal(handle.closed, true);
 });
@@ -46,9 +48,34 @@ test('bounded regular-file reads require a stable final stat', async () => {
 		declaredSize: 2, restatedSize: 3,
 		chunks: [Uint8Array.of(1, 2), new Uint8Array()],
 	});
-	assert.deepEqual(await readBoundedRegularFile('/scratch/output', 8, { openFile: async () => handle }), {
-		status: 'unavailable', reason: 'invalid',
+	assert.deepEqual(await readBoundedRegularFile('/scratch/output', 8, {
+		failureMode: 'preserve', openFile: async () => handle,
+	}), {
+		status: 'unavailable', reason: 'changed',
 	});
+});
+
+test('preserved bounded reads propagate open, inspection, and close failures', async () => {
+	const denied = Object.assign(new Error('denied'), { code: 'EACCES' });
+	await assert.rejects(readBoundedRegularFile('/scratch/output', 8, {
+		failureMode: 'preserve',
+		openFile: async () => { throw denied; },
+	}), (error) => error === denied);
+
+	const inspectionFailure = new Error('device detached');
+	const inspectionHandle = fakeHandle({ declaredSize: 1, chunks: [] });
+	inspectionHandle.stat = async () => { throw inspectionFailure; };
+	await assert.rejects(readBoundedRegularFile('/scratch/output', 8, {
+		failureMode: 'preserve', openFile: async () => inspectionHandle,
+	}), (error) => error === inspectionFailure);
+	assert.equal(inspectionHandle.closed, true);
+
+	const closeFailure = new Error('close failed');
+	const closeHandle = fakeHandle({ declaredSize: 1, chunks: [Uint8Array.of(1), new Uint8Array()] });
+	closeHandle.close = async () => { throw closeFailure; };
+	await assert.rejects(readBoundedRegularFile('/scratch/output', 8, {
+		failureMode: 'preserve', openFile: async () => closeHandle,
+	}), (error) => error === closeFailure);
 });
 
 function fakeHandle(options: Readonly<{

@@ -15,10 +15,11 @@ export interface BoundedRegularFileHandle {
 
 export type BoundedRegularFileResult =
 	| Readonly<{ readonly status: 'available'; readonly bytes: Uint8Array }>
-	| Readonly<{ readonly status: 'unavailable'; readonly reason: 'invalid' | 'limit' | 'missing' }>;
+	| Readonly<{ readonly status: 'unavailable'; readonly reason: 'changed' | 'invalid' | 'limit' | 'missing' }>;
 
 export interface BoundedRegularFileReadOptions {
 	readonly allowEmpty?: boolean;
+	readonly failureMode?: 'preserve' | 'unavailable';
 	readonly openFile?: (path: string, flags: number) => Promise<BoundedRegularFileHandle>;
 }
 
@@ -30,13 +31,20 @@ export async function readBoundedRegularFile(
 	if (typeof path !== 'string' || path.length < 1 || path.length > 4_096 || path.includes('\0')
 		|| !Number.isSafeInteger(maximumBytes) || maximumBytes < 1
 		|| options.allowEmpty !== undefined && typeof options.allowEmpty !== 'boolean'
+		|| options.failureMode !== undefined
+			&& options.failureMode !== 'preserve' && options.failureMode !== 'unavailable'
 		|| options.openFile !== undefined && typeof options.openFile !== 'function') {
 		throw new TypeError('The bounded regular-file read request is invalid.');
 	}
 	const openFile = options.openFile ?? openRegularFile;
+	const preserveFailure = options.failureMode === 'preserve';
 	let handle: BoundedRegularFileHandle;
 	try { handle = await openFile(path, fsConstants.O_RDONLY | fsConstants.O_NOFOLLOW); }
-	catch (error) { return unavailable(errorCode(error) === 'ENOENT' ? 'missing' : 'invalid'); }
+	catch (error) {
+		if (errorCode(error) === 'ENOENT') return unavailable('missing');
+		if (preserveFailure) throw error;
+		return unavailable('invalid');
+	}
 	try {
 		const metadata = await handle.stat();
 		if (!metadata.isFile() || !Number.isSafeInteger(metadata.size) || metadata.size < 0) {
@@ -52,18 +60,25 @@ export async function readBoundedRegularFile(
 				|| read.bytesRead > bytes.byteLength - offset) break;
 			offset += read.bytesRead;
 		}
-		if (offset !== metadata.size) return unavailable('invalid');
+		if (offset !== metadata.size) return unavailable(preserveFailure ? 'changed' : 'invalid');
 		const overflow = new Uint8Array(1);
 		const overflowRead = (await handle.read(overflow, 0, 1, metadata.size)).bytesRead;
 		if (!Number.isSafeInteger(overflowRead) || overflowRead < 0 || overflowRead > 1) {
-			return unavailable('invalid');
+			return unavailable(preserveFailure ? 'changed' : 'invalid');
 		}
 		if (overflowRead === 1) return unavailable('limit');
 		const finalMetadata = await handle.stat();
-		if (!finalMetadata.isFile() || finalMetadata.size !== metadata.size) return unavailable('invalid');
+		if (!finalMetadata.isFile() || finalMetadata.size !== metadata.size) {
+			return unavailable(preserveFailure ? 'changed' : 'invalid');
+		}
 		return Object.freeze({ status: 'available', bytes });
-	} catch { return unavailable('invalid'); }
-	finally { await handle.close().catch(() => undefined); }
+	} catch (error) {
+		if (preserveFailure) throw error;
+		return unavailable('invalid');
+	} finally {
+		if (preserveFailure) await handle.close();
+		else await handle.close().catch(() => undefined);
+	}
 }
 
 async function openRegularFile(path: string, flags: number): Promise<BoundedRegularFileHandle> {
@@ -71,7 +86,7 @@ async function openRegularFile(path: string, flags: number): Promise<BoundedRegu
 }
 
 function unavailable(
-	reason: 'invalid' | 'limit' | 'missing',
+	reason: 'changed' | 'invalid' | 'limit' | 'missing',
 ): Extract<BoundedRegularFileResult, { readonly status: 'unavailable' }> {
 	return Object.freeze({ status: 'unavailable', reason });
 }

@@ -8,10 +8,13 @@ export async function readNativeCheckpointManifestBytes(
 	path: string,
 	maximumBytes: number,
 ): Promise<Buffer | null> {
-	const result = await readBoundedRegularFile(path, maximumBytes, { allowEmpty: true });
+	const result = await readBoundedRegularFile(path, maximumBytes, {
+		allowEmpty: true,
+		failureMode: 'preserve',
+	});
 	if (result.status === 'available') return Buffer.from(result.bytes);
 	if (result.reason === 'missing') return null;
-	throw new Error(result.reason === 'limit'
+	throw new Error(result.reason === 'limit' || result.reason === 'invalid'
 		? 'A checkpoint manifest is not one bounded regular file.'
 		: 'A checkpoint manifest changed during inspection.');
 }

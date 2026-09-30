@@ -145,11 +145,11 @@ export async function readNativeRenderInputOwnedStage(
 	const result = await readBoundedRegularFile(
 		ownershipPath,
 		MAXIMUM_OWNERSHIP_BYTES,
-		{ allowEmpty: true },
+		{ allowEmpty: true, failureMode: 'preserve' },
 	);
 	if (result.status === 'unavailable') {
 		if (result.reason === 'missing') return null;
-		throw new Error(result.reason === 'limit'
+		throw new Error(result.reason === 'limit' || result.reason === 'invalid'
 			? 'A native render-input ownership record exceeds its byte ceiling.'
 			: 'A native render-input ownership record changed during inspection.');
 	}
