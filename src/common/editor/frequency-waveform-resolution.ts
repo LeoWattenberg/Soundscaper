@@ -5,14 +5,24 @@ export const DEFAULT_FREQUENCY_WAVEFORM_FINEST_BLOCK_SIZE = 256;
 
 /** Resolve the finest available full-source frequency-analysis block. */
 export function frequencyWaveformFinestBlockSize(analysis: unknown): number {
-	const levels = (analysis as Readonly<{ levels?: unknown }> | null)?.levels;
-	const firstLevel = Array.isArray(levels) ? levels[0] : null;
-	const blockSize = firstLevel && typeof firstLevel === 'object'
-		? Number((firstLevel as Readonly<{ blockSize?: unknown }>).blockSize)
-		: Number.NaN;
-	return Number.isSafeInteger(blockSize) && blockSize > 0
-		? blockSize
-		: DEFAULT_FREQUENCY_WAVEFORM_FINEST_BLOCK_SIZE;
+	try {
+		const levels = dataProperty(analysis, 'levels');
+		const firstLevel = Array.isArray(levels) ? dataProperty(levels, '0') : null;
+		const blockSize = firstLevel && typeof firstLevel === 'object'
+			? Number(dataProperty(firstLevel, 'blockSize'))
+			: Number.NaN;
+		return Number.isSafeInteger(blockSize) && blockSize > 0
+			? blockSize
+			: DEFAULT_FREQUENCY_WAVEFORM_FINEST_BLOCK_SIZE;
+	} catch {
+		return DEFAULT_FREQUENCY_WAVEFORM_FINEST_BLOCK_SIZE;
+	}
+}
+
+function dataProperty(value: unknown, key: PropertyKey): unknown {
+	if (value === null || typeof value !== 'object') return undefined;
+	const descriptor = Object.getOwnPropertyDescriptor(value, key);
+	return descriptor && 'value' in descriptor ? descriptor.value : undefined;
 }
 
 /** Whether a viewport can display finer detail than the full analysis contains. */

@@ -228,6 +228,17 @@ test('successful and cancelled scratch goes immediately, failed scratch waits a 
 	assert.throws(() => nativeScratchRetention('exploded' as never, 0), NativeScratchPolicyError);
 });
 
+test('failed scratch retention refuses a timestamp whose deadline would overflow', () => {
+	assert.throws(
+		() => nativeScratchRetention('failed', Number.MAX_SAFE_INTEGER),
+		NativeScratchPolicyError,
+	);
+	assert.deepEqual(nativeScratchRetention('succeeded', Number.MAX_SAFE_INTEGER), {
+		removeImmediately: true,
+		retainUntilMs: null,
+	});
+});
+
 test('cleanup deletes only a directory it can prove it owns', () => {
 	const expected = {
 		jobId: '1a'.repeat(20),

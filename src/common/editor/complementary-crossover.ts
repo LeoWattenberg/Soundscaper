@@ -12,13 +12,18 @@ export class ComplementaryCrossover {
 	private readonly smoothing: number;
 
 	constructor(private readonly rate: number, channels: number, frequency: number) {
-		this.previous = new Float64Array(channels);
-		this.state = new Float64Array(channels);
+		validateSampleRate(rate);
+		const channelCount = validateChannelCount(channels);
+		this.previous = new Float64Array(channelCount);
+		this.state = new Float64Array(channelCount);
 		this.coefficient = this.target = this.design(frequency);
 		this.smoothing = 1 - Math.exp(-1 / (0.005 * rate));
 	}
 
 	private design(frequency: number): number {
+		if (!Number.isFinite(frequency) || frequency < 0) {
+			throw new RangeError('Crossover frequency must be finite and non-negative.');
+		}
 		const k = Math.tan(Math.PI * Math.min(frequency, this.rate * 0.45) / this.rate);
 		return k / (1 + k);
 	}
@@ -37,4 +42,17 @@ export class ComplementaryCrossover {
 		this.state.fill(0);
 		this.coefficient = this.target;
 	}
+}
+
+function validateSampleRate(value: number): void {
+	if (!Number.isFinite(value) || value <= 0) {
+		throw new RangeError('Crossover sample rate must be finite and positive.');
+	}
+}
+
+function validateChannelCount(value: number): number {
+	if (!Number.isSafeInteger(value) || value <= 0) {
+		throw new RangeError('Crossover channel count must be a positive safe integer.');
+	}
+	return value;
 }

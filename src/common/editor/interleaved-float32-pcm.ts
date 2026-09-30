@@ -14,6 +14,9 @@ export function writeInterleavedFloat32Pcm(
 	const frameCount = options.frameCount ?? channels[0]?.length ?? 0;
 	const destinationFrameOffset = options.destinationFrameOffset ?? 0;
 	if (channels.length === 0) throw new RangeError('PCM interleaving requires at least one channel.');
+	if (options.nonFinite !== 'zero' && options.nonFinite !== 'preserve') {
+		throw new RangeError('PCM nonfinite sample handling must be zero or preserve.');
+	}
 	if (!Number.isSafeInteger(frameCount) || frameCount < 0
 		|| !Number.isSafeInteger(destinationFrameOffset) || destinationFrameOffset < 0) {
 		throw new RangeError('PCM frame count and destination offset must be non-negative safe integers.');

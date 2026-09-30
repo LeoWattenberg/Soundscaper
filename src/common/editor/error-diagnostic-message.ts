@@ -27,11 +27,41 @@ function collect(
 	}
 	if (seen.has(value)) return;
 	seen.add(value);
-	const error = value as ErrorLike;
-	const message = typeof error.message === 'string' ? error.message.trim() : '';
+	const ownMessage = dataProperty(value, 'message');
+	const messageValue = ownMessage === undefined ? domExceptionMessage(value) : ownMessage;
+	const message = typeof messageValue === 'string' ? messageValue.trim() : '';
 	if (message) messages.push(message);
-	if (Array.isArray(error.errors)) {
-		for (const nested of error.errors) collect(nested, messages, seen, depth + 1);
+	const errors = dataProperty(value, 'errors');
+	if (isArray(errors)) {
+		for (let index = 0; index < errors.length && messages.length < 32; index += 1) {
+			const descriptor = safeOwnPropertyDescriptor(errors, String(index));
+			if (descriptor && 'value' in descriptor) collect(descriptor.value, messages, seen, depth + 1);
+		}
 	}
-	if (error.cause !== undefined) collect(error.cause, messages, seen, depth + 1);
+	const cause = dataProperty(value, 'cause');
+	if (cause !== undefined) collect(cause, messages, seen, depth + 1);
+}
+
+function dataProperty(value: object, key: keyof ErrorLike): unknown {
+	const descriptor = safeOwnPropertyDescriptor(value, key);
+	return descriptor && 'value' in descriptor ? descriptor.value : undefined;
+}
+
+function safeOwnPropertyDescriptor(value: object, key: PropertyKey): PropertyDescriptor | undefined {
+	try { return Object.getOwnPropertyDescriptor(value, key); }
+	catch { return undefined; }
+}
+
+function isArray(value: unknown): value is readonly unknown[] {
+	try { return Array.isArray(value); }
+	catch { return false; }
+}
+
+function domExceptionMessage(value: object): unknown {
+	try {
+		const descriptor = Object.getOwnPropertyDescriptor(DOMException.prototype, 'message');
+		return descriptor?.get?.call(value);
+	} catch {
+		return undefined;
+	}
 }

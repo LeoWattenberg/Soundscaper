@@ -20,6 +20,8 @@ const KEY_ALIASES: ReadonlyMap<string, string> = new Map([
 	['pgup', 'PageUp'], ['pgdown', 'PageDown'], ['numpad_enter', 'NumpadEnter'],
 	['numpad-enter', 'NumpadEnter'],
 ]);
+const MODIFIER_ORDER = Object.freeze(['Ctrl', 'Meta', 'Alt', 'Shift']);
+const MODIFIERS: ReadonlySet<string> = new Set(MODIFIER_ORDER);
 
 export function normalizeAudioEditorShortcut(binding: string): string {
 	if (typeof binding !== 'string' || !binding.trim()) {
@@ -27,9 +29,16 @@ export function normalizeAudioEditorShortcut(binding: string): string {
 	}
 	const value = binding.trim();
 	const { key, modifiers: parts } = splitShortcut(value);
-	const modifiers = new Set(parts.map((part) => KEY_ALIASES.get(part.toLowerCase()) || part));
-	const ordered = ['Ctrl', 'Meta', 'Alt', 'Shift'].filter((modifier) => modifiers.has(modifier));
+	const normalizedParts = parts.map((part) => KEY_ALIASES.get(part.toLowerCase()) || part);
+	if (normalizedParts.some((part) => !MODIFIERS.has(part))) {
+		throw new TypeError('shortcut binding contains an unsupported modifier.');
+	}
+	const modifiers = new Set(normalizedParts);
+	const ordered = MODIFIER_ORDER.filter((modifier) => modifiers.has(modifier));
 	const normalizedKey = KEY_ALIASES.get(key.toLowerCase()) || (key.length === 1 ? key.toUpperCase() : key);
+	if (MODIFIERS.has(normalizedKey)) {
+		throw new TypeError('shortcut binding requires a non-modifier key.');
+	}
 	return [...ordered, normalizedKey].join('+');
 }
 

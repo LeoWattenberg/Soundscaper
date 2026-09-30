@@ -18,3 +18,15 @@ test('portable artifact stems share one bounded ASCII filename policy', () => {
 		PORTABLE_FILE_STEM_MAX_LENGTH,
 	);
 });
+
+test('portable artifact stems cannot regain a trailing separator when truncated', () => {
+	const value = `${'x'.repeat(PORTABLE_FILE_STEM_MAX_LENGTH - 1)} / suffix`;
+	const stem = portableFileStem(value, 'project');
+	assert.equal(stem, 'x'.repeat(PORTABLE_FILE_STEM_MAX_LENGTH - 1));
+	assert.doesNotMatch(stem, /[-.]$/u);
+});
+
+test('portable artifact fallbacks pass through the same filename policy', () => {
+	assert.equal(portableFileStem('../..', '../Fallback / title..'), 'Fallback-title');
+	assert.equal(portableFileStem('', '../..'), '');
+});

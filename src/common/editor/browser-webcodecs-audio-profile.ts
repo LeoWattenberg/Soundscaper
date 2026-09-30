@@ -21,8 +21,9 @@ export function browserWebCodecsAudioConfiguration(
 	codec: BrowserWebCodecsAudioCodec,
 	geometry: BrowserWebCodecsAudioGeometry,
 ): Readonly<Record<string, unknown>> {
+	const codecString = browserWebCodecsAudioFullCodecString(codec);
 	return Object.freeze({
-		codec: codec === 'aac' ? BROWSER_AAC_WEB_CODECS_CODEC : BROWSER_OPUS_WEB_CODECS_CODEC,
+		codec: codecString,
 		sampleRate: positiveInteger(geometry.sampleRate, 'sample rate'),
 		numberOfChannels: positiveInteger(geometry.channelCount, 'channel count'),
 		bitrate: positiveInteger(geometry.bitrate, 'bitrate'),
@@ -31,7 +32,9 @@ export function browserWebCodecsAudioConfiguration(
 }
 
 export function browserWebCodecsAudioFullCodecString(codec: BrowserWebCodecsAudioCodec): string {
-	return codec === 'aac' ? BROWSER_AAC_WEB_CODECS_CODEC : BROWSER_OPUS_WEB_CODECS_CODEC;
+	if (codec === 'aac') return BROWSER_AAC_WEB_CODECS_CODEC;
+	if (codec === 'opus') return BROWSER_OPUS_WEB_CODECS_CODEC;
+	throw new RangeError('Browser WebCodecs audio codec must be AAC or Opus.');
 }
 
 export async function probeBrowserWebCodecsAudioEncoding(

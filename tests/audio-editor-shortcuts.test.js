@@ -155,6 +155,17 @@ test('shortcut normalization understands every Audacity key spelling', () => {
 	}, 'Ctrl+Shift++'), true);
 });
 
+test('shortcut normalization refuses unknown modifiers instead of silently dropping them', () => {
+	assert.throws(() => normalizeAudioEditorShortcut('Ctrll+S'), /modifier/iu);
+	assert.throws(() => normalizeAudioEditorShortcut('Ctrl+Hyper+S'), /modifier/iu);
+});
+
+test('shortcut normalization refuses a modifier-only chord that can never match a key event', () => {
+	for (const binding of ['Ctrl', 'Ctrl+Alt', 'control+shift']) {
+		assert.throws(() => normalizeAudioEditorShortcut(binding), /key/iu);
+	}
+});
+
 test('legacy shortcut action IDs migrate to the canonical runtime registry IDs', () => {
 	const preferences = createAudioEditorPreferencesV1({
 		shortcuts: {

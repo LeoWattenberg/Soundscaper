@@ -138,6 +138,9 @@ export function nativeScratchRetention(
 	if (outcome !== 'failed') {
 		throw new NativeScratchPolicyError('A scratch outcome is succeeded, cancelled, or failed.');
 	}
+	if (settled > Number.MAX_SAFE_INTEGER - NATIVE_SCRATCH_FAILED_RETENTION_MS) {
+		throw new NativeScratchPolicyError('A failed scratch retention deadline must remain a safe integer.');
+	}
 	return Object.freeze({
 		removeImmediately: false,
 		retainUntilMs: settled + NATIVE_SCRATCH_FAILED_RETENTION_MS,

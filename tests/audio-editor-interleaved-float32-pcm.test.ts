@@ -65,3 +65,21 @@ test('PCM interleaving rejects invalid frame geometry and destination overflow b
 		assert.deepEqual([...destination], new Array(8).fill(0x7f));
 	}
 });
+
+test('PCM interleaving rejects an unknown nonfinite-sample policy before writing', () => {
+	const destination = new Uint8Array(4).fill(0x7f);
+	assert.throws(() => writeInterleavedFloat32Pcm(destination, [Float32Array.of(1)], {
+		nonFinite: 'clip' as never,
+	}), /nonfinite/iu);
+	assert.deepEqual([...destination], [0x7f, 0x7f, 0x7f, 0x7f]);
+});
+
+test('zero-frame PCM writes leave even a non-frame-aligned destination untouched', () => {
+	const destination = new Uint8Array(3).fill(0x7f);
+	writeInterleavedFloat32Pcm(destination, [new Float32Array()], {
+		frameCount: 0,
+		destinationFrameOffset: 0,
+		nonFinite: 'zero',
+	});
+	assert.deepEqual([...destination], [0x7f, 0x7f, 0x7f]);
+});
