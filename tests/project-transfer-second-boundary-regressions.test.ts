@@ -109,6 +109,9 @@ test('an acknowledgement belongs only to the session carried by the posted entry
 	const raw = rawPort();
 	const watch = observeTransferAcknowledgements(raw.port, [entry()], [PEER_ORIGIN]);
 	watch.port.subscribe(() => undefined);
+	raw.dispatch({ origin: PEER_ORIGIN, data: acknowledgement('session-right') });
+	assert.deepEqual(watch.outcomes, []);
+	assert.deepEqual(watch.unsent.map(({ entryId }) => entryId), ['entry-1']);
 	watch.port.post(entryMessage('session-right'), PEER_ORIGIN);
 	for (const sessionId of ['session-wrong', undefined]) {
 		raw.dispatch({ origin: PEER_ORIGIN, data: acknowledgement('session-right', { sessionId }) });
