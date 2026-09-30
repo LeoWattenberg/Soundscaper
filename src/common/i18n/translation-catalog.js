@@ -90,8 +90,13 @@ export function acceptableTranslation(source, translation) {
 	if (!sameNamedPlaceholders(source, translation)) return false;
 	const sourceTokens = protectedTokenOccurrences(source);
 	const translationTokens = protectedTokenOccurrences(translation);
-	return sourceTokens.length === translationTokens.length
-		&& sourceTokens.every((token, index) => token === translationTokens[index]);
+	const sourceIdentifiers = sourceTokens.filter((token) => token.startsWith('*'));
+	const translationIdentifiers = translationTokens.filter((token) => token.startsWith('*'));
+	if (!sameTokenOccurrences(sourceIdentifiers, translationIdentifiers)) return false;
+	return containsTokenOccurrences(
+		translationTokens.filter((token) => !token.startsWith('*')),
+		sourceTokens.filter((token) => !token.startsWith('*')),
+	);
 }
 
 export function namedPlaceholders(value) {
@@ -110,6 +115,20 @@ export function protectedTokens(value) {
 
 function protectedTokenOccurrences(value) {
 	return [...String(value).matchAll(PROTECTED_TOKEN_PATTERN)].map(([token]) => token).sort();
+}
+
+function sameTokenOccurrences(left, right) {
+	return left.length === right.length && left.every((token, index) => token === right[index]);
+}
+
+function containsTokenOccurrences(available, required) {
+	const remaining = [...available];
+	return required.every((token) => {
+		const index = remaining.indexOf(token);
+		if (index < 0) return false;
+		remaining.splice(index, 1);
+		return true;
+	});
 }
 
 function admittedTranslationOrigins(value) {

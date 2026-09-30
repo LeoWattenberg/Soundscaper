@@ -134,8 +134,8 @@ test('a translation must preserve every occurrence of a protected token', () => 
 	assert.equal(acceptableTranslation('Compare .aup4 with .aup4', 'Comparer .aup4'), false);
 });
 
-test('a translation cannot introduce a new executable identifier or file extension', () => {
-	assert.equal(acceptableTranslation('Open project', 'Ouvrir le projet .exe'), false);
+test('translations may clarify a file extension but cannot introduce a formatter identifier', () => {
+	assert.equal(acceptableTranslation('Cube LUT import', 'Import .cube LUT'), true);
 	assert.equal(acceptableTranslation('Process track', 'Traiter *other_track*'), false);
 });
 
