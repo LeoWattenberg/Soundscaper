@@ -1,10 +1,10 @@
 {
   "schemaVersion": 1,
   "candidateId": "beat-this",
-  "executionPlanSha256": "e4b830f692597a207c7659640c0c2df528431ead3485da016b94c241ccd25561",
+  "executionPlanSha256": "96d5c6d77490aca933924d0571f3a5596381aeae12a0ac04d89eae6e0bf0d948",
   "toolchain": {
     "lockFile": "scripts/models/milestone-7-conversion-tool/uv.lock",
-    "sha256": "b6c5359c93248be4a840a7c5b3a59af393a3ec676f8a48787085acaf444d7f3a"
+    "sha256": "9d96681f5ad90a9b97f146fda4bc77bcc56a21bb0058705ab4e07c3c48dc9726"
   },
   "sourceCodeArchive": {
     "path": "inputs/beat-this-ad7974846029835307ba19a3d5cefbf40b243041.tar.gz",
@@ -28,7 +28,7 @@
   "commandRuns": [
     {
       "id": "convert",
-      "commandSha256": "bcc51d0ac701939b0c2e26ce16c345cb92b1850aa1ccdadd220d4870ef4d0d43",
+      "commandSha256": "90080046d0b179f74d385a5e8d8aecd8374fafa34cf46bbc1bdee29a72b81ae2",
       "exitCode": 0,
       "stdout": {
         "path": "convert.stdout.log",
@@ -37,13 +37,13 @@
       },
       "stderr": {
         "path": "convert.stderr.log",
-        "byteLength": 3745,
-        "sha256": "1c2c291aed2eb50fb7389ed23da5987b0c8c08b8316d2cefebafde2e9d670656"
+        "byteLength": 3778,
+        "sha256": "09de2c34eda4d4483c17e033313b54df8c37a75a0b4f764411c791c38e977166"
       }
     },
     {
       "id": "parity",
-      "commandSha256": "8845c84313a5bc0422b67a2328062c862e902204b87a1d4c44157a16964dc5c1",
+      "commandSha256": "a6fd294be30d294f0694e69c4891820b22e39c0f682863105febd49b896033ce",
       "exitCode": 0,
       "stdout": {
         "path": "parity.stdout.log",

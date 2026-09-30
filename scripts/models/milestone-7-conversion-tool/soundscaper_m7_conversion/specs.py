@@ -6,7 +6,7 @@ PROTOCOL = "soundscaper-model-conversion-v1"
 
 CANDIDATES = {
     "tiger-dnr-neural-core": {
-        "plan": "2c0b500221d2cb205ca9776d1a5b8ad0b30e905dd0f85a6ac4e61c413ce1f44d",
+        "plan": "3b15b46bbbbd6e5e8ac3166116fc56cefe5ec0085d68cca1da8e3d151a813dbf",
         "revision": "9f18d4a10a7137e1ce8052cfb62215179f1287b6",
         "archive": "tiger-9f18d4a10a7137e1ce8052cfb62215179f1287b6.tar.gz",
         "artifacts": [
@@ -26,7 +26,7 @@ CANDIDATES = {
         ],
     },
     "panns-cnn10": {
-        "plan": "21c11d5603d7c6599be1ba06a303a02cffe984565d77807d5bb0d5ac77be177f",
+        "plan": "0cb8e8b8fa206dfb966947e6bdec40f65a229cdaf49e32cba01367b2d8d9fbf1",
         "revision": "d2f4b8c18eab44737fcc0de1248ae21eb43f6aa4",
         "archive": "audioset-tagging-cnn-d2f4b8c18eab44737fcc0de1248ae21eb43f6aa4.tar.gz",
         "artifacts": [
@@ -49,7 +49,7 @@ CANDIDATES = {
         ],
     },
     "beat-this": {
-        "plan": "638546ecced289b8c4c95659321bcf2966ff2438a6d0f44079e0b5fea76ef2e0",
+        "plan": "ebab32abd1d7c48a831d367825a0d65f53ed301b8b99d45bdbccbb5851e67575",
         "revision": "ad7974846029835307ba19a3d5cefbf40b243041",
         "archive": "beat-this-ad7974846029835307ba19a3d5cefbf40b243041.tar.gz",
         "artifacts": [
@@ -81,7 +81,7 @@ CANDIDATES = {
         ],
     },
     "transnetv2": {
-        "plan": "ccb5b5760bb66848f4c387f37e0215f189fb807057518a01cc7a21cc817a4a35",
+        "plan": "3dde5798e22c63aaffa082b07dc0103ab74b8c9decc694991d7a3b3151a71d04",
         "revision": "85cef72af9a916bdfd7cc94a670c9cdfbf12d1ed",
         "archive": "transnetv2-85cef72af9a916bdfd7cc94a670c9cdfbf12d1ed.tar.gz",
         "artifacts": [
@@ -112,7 +112,7 @@ CANDIDATES = {
         ],
     },
     "dereverb-room": {
-        "plan": "2630468856719b28f7e694b9800c4fa435ca06f63613103be3bf21a60666c7fd",
+        "plan": "3ab872799ac57a672ed8224d0e634627d47a05cfa7334dd1e52f09ff2027a041",
         "revision": "43d939e7671d8ff6cf1922f98c2f2e4b56908e47",
         "archive": "mss-onnx-tensorrt-43d939e7671d8ff6cf1922f98c2f2e4b56908e47.tar.gz",
         "artifacts": [

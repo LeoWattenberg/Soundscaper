@@ -12,7 +12,7 @@
       "--candidate",
       "dereverb-room",
       "--plan-sha256",
-      "2630468856719b28f7e694b9800c4fa435ca06f63613103be3bf21a60666c7fd",
+      "3ab872799ac57a672ed8224d0e634627d47a05cfa7334dd1e52f09ff2027a041",
       "--source-manifest",
       "source-input-manifest.json",
       "--output-manifest",
@@ -49,8 +49,8 @@
         "value": "1"
       }
     ],
-    "started": "2026-09-12T05:46:49.498Z",
-    "ended": "2026-09-12T05:47:28.718Z",
+    "started": "2026-09-30T19:40:54.041Z",
+    "ended": "2026-09-30T19:41:27.518Z",
     "exitCode": 0
   },
   {
@@ -66,7 +66,7 @@
       "--candidate",
       "dereverb-room",
       "--plan-sha256",
-      "2630468856719b28f7e694b9800c4fa435ca06f63613103be3bf21a60666c7fd",
+      "3ab872799ac57a672ed8224d0e634627d47a05cfa7334dd1e52f09ff2027a041",
       "--fixture",
       "parity-fixture.bin",
       "--source-runs",
@@ -80,7 +80,7 @@
       "--toolchain-lock",
       "uv.lock",
       "--toolchain-sha256",
-      "b6c5359c93248be4a840a7c5b3a59af393a3ec676f8a48787085acaf444d7f3a"
+      "9d96681f5ad90a9b97f146fda4bc77bcc56a21bb0058705ab4e07c3c48dc9726"
     ],
     "program": "/home/splowatt/git/Soundscaper/.native-build/model-conversion/.venv/bin/python",
     "environment": [
@@ -113,8 +113,8 @@
         "value": "1"
       }
     ],
-    "started": "2026-09-12T05:47:28.721Z",
-    "ended": "2026-09-12T05:48:16.525Z",
+    "started": "2026-09-30T19:41:27.518Z",
+    "ended": "2026-09-30T19:42:13.442Z",
     "exitCode": 0
   }
 ]

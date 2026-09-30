@@ -12,7 +12,7 @@
       "--candidate",
       "transnetv2",
       "--plan-sha256",
-      "ccb5b5760bb66848f4c387f37e0215f189fb807057518a01cc7a21cc817a4a35",
+      "3dde5798e22c63aaffa082b07dc0103ab74b8c9decc694991d7a3b3151a71d04",
       "--source-manifest",
       "source-input-manifest.json",
       "--output-manifest",
@@ -49,8 +49,8 @@
         "value": "1"
       }
     ],
-    "started": "2026-09-12T05:45:57.780Z",
-    "ended": "2026-09-12T05:46:08.468Z",
+    "started": "2026-09-30T19:18:47.607Z",
+    "ended": "2026-09-30T19:18:57.900Z",
     "exitCode": 0
   },
   {
@@ -66,7 +66,7 @@
       "--candidate",
       "transnetv2",
       "--plan-sha256",
-      "ccb5b5760bb66848f4c387f37e0215f189fb807057518a01cc7a21cc817a4a35",
+      "3dde5798e22c63aaffa082b07dc0103ab74b8c9decc694991d7a3b3151a71d04",
       "--fixture",
       "parity-fixture.bin",
       "--source-runs",
@@ -80,7 +80,7 @@
       "--toolchain-lock",
       "uv.lock",
       "--toolchain-sha256",
-      "b6c5359c93248be4a840a7c5b3a59af393a3ec676f8a48787085acaf444d7f3a"
+      "9d96681f5ad90a9b97f146fda4bc77bcc56a21bb0058705ab4e07c3c48dc9726"
     ],
     "program": "/home/splowatt/git/Soundscaper/.native-build/model-conversion/.venv/bin/python",
     "environment": [
@@ -113,8 +113,8 @@
         "value": "1"
       }
     ],
-    "started": "2026-09-12T05:46:08.470Z",
-    "ended": "2026-09-12T05:46:23.915Z",
+    "started": "2026-09-30T19:18:57.901Z",
+    "ended": "2026-09-30T19:19:10.878Z",
     "exitCode": 0
   }
 ]

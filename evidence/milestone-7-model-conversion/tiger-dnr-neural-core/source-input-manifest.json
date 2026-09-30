@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "protocol": "soundscaper-model-conversion-v1",
   "candidateId": "tiger-dnr-neural-core",
-  "planSha256": "2c0b500221d2cb205ca9776d1a5b8ad0b30e905dd0f85a6ac4e61c413ce1f44d",
+  "planSha256": "3b15b46bbbbd6e5e8ac3166116fc56cefe5ec0085d68cca1da8e3d151a813dbf",
   "sourceCodeArchive": {
     "path": "tiger-9f18d4a10a7137e1ce8052cfb62215179f1287b6.tar.gz",
     "revision": "9f18d4a10a7137e1ce8052cfb62215179f1287b6",

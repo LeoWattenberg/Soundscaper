@@ -12,7 +12,7 @@
       "--candidate",
       "tiger-dnr-neural-core",
       "--plan-sha256",
-      "2c0b500221d2cb205ca9776d1a5b8ad0b30e905dd0f85a6ac4e61c413ce1f44d",
+      "3b15b46bbbbd6e5e8ac3166116fc56cefe5ec0085d68cca1da8e3d151a813dbf",
       "--source-manifest",
       "source-input-manifest.json",
       "--output-manifest",
@@ -49,8 +49,8 @@
         "value": "1"
       }
     ],
-    "started": "2026-09-12T05:46:49.167Z",
-    "ended": "2026-09-12T05:53:19.654Z",
+    "started": "2026-09-30T19:20:22.435Z",
+    "ended": "2026-09-30T19:33:07.852Z",
     "exitCode": 0
   },
   {
@@ -66,7 +66,7 @@
       "--candidate",
       "tiger-dnr-neural-core",
       "--plan-sha256",
-      "2c0b500221d2cb205ca9776d1a5b8ad0b30e905dd0f85a6ac4e61c413ce1f44d",
+      "3b15b46bbbbd6e5e8ac3166116fc56cefe5ec0085d68cca1da8e3d151a813dbf",
       "--fixture",
       "parity-fixture.bin",
       "--source-runs",
@@ -80,7 +80,7 @@
       "--toolchain-lock",
       "uv.lock",
       "--toolchain-sha256",
-      "b6c5359c93248be4a840a7c5b3a59af393a3ec676f8a48787085acaf444d7f3a"
+      "9d96681f5ad90a9b97f146fda4bc77bcc56a21bb0058705ab4e07c3c48dc9726"
     ],
     "program": "/home/splowatt/git/Soundscaper/.native-build/model-conversion/.venv/bin/python",
     "environment": [
@@ -113,8 +113,8 @@
         "value": "1"
       }
     ],
-    "started": "2026-09-12T05:53:19.656Z",
-    "ended": "2026-09-12T05:57:47.610Z",
+    "started": "2026-09-30T19:33:07.853Z",
+    "ended": "2026-09-30T19:40:48.830Z",
     "exitCode": 0
   }
 ]

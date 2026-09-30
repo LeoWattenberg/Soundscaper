@@ -11,7 +11,7 @@ import tomllib
 
 from .contract import ContractError, relative_path, sha256_file
 
-TOOLCHAIN_LOCK_SHA256 = "b6c5359c93248be4a840a7c5b3a59af393a3ec676f8a48787085acaf444d7f3a"
+TOOLCHAIN_LOCK_SHA256 = "9d96681f5ad90a9b97f146fda4bc77bcc56a21bb0058705ab4e07c3c48dc9726"
 MAXIMUM_LOCK_BYTES = 4 * 1024 * 1024
 
 _COMMON = (

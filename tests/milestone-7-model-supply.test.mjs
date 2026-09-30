@@ -20,7 +20,7 @@ import {
 
 const SHA256 = 'ab'.repeat(32);
 const OTHER_SHA256 = 'cd'.repeat(32);
-const TOOLCHAIN_SHA256 = 'b6c5359c93248be4a840a7c5b3a59af393a3ec676f8a48787085acaf444d7f3a';
+const TOOLCHAIN_SHA256 = '9d96681f5ad90a9b97f146fda4bc77bcc56a21bb0058705ab4e07c3c48dc9726';
 
 function clone(value) {
 	return structuredClone(value);

@@ -79,6 +79,7 @@ print(json.dumps({"direct": direct, "locked": locked}, sort_keys=True))
 	assert.deepEqual(inventory.locked.torch, ['2.13.0', '2.13.0+cpu']);
 	assert.deepEqual(inventory.locked.torchaudio, ['2.11.0', '2.11.0+cpu']);
 	assert.deepEqual(inventory.locked.torchvision, ['0.28.0', '0.28.0+cpu']);
+	assert.deepEqual(inventory.locked.urllib3, ['2.8.0']);
 });
 
 async function pannsParityWorkspace(context) {
