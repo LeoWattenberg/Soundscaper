@@ -2,6 +2,7 @@
 
 import { sha256 } from '@noble/hashes/sha2.js';
 import { bytesToHex } from '@noble/hashes/utils.js';
+import { createAbortGuard } from '../abort-error.ts';
 
 import {
 	LINKED_VIDEO_ORIGINAL_BINDING_SCHEMA_VERSION,
@@ -26,6 +27,7 @@ import {
 
 export const LINKED_VIDEO_ORIGINAL_STORAGE_TYPE = 'linked-video-original-v1' as const;
 export const LINKED_VIDEO_PLAYBACK_VERIFY_CHUNK_BYTES = MEDIA_CONTENT_DIGEST_CHUNK_BYTES;
+const throwIfAborted = createAbortGuard('Linked video original access was cancelled.');
 
 export interface LinkedVideoOriginalSnapshot {
 	readonly blob: unknown;
@@ -563,13 +565,4 @@ function locatorReference(value: unknown): Readonly<LinkedVideoOriginalLocatorRe
 		locatorId: output.locatorId as string,
 		locatorRevision: output.locatorRevision as string,
 	});
-}
-
-function throwIfAborted(signal?: AbortSignal): void {
-	if (!signal?.aborted) return;
-	if (signal.reason !== undefined) throw signal.reason;
-	if (typeof DOMException === 'function') throw new DOMException('Linked video original access was cancelled.', 'AbortError');
-	const error = new Error('Linked video original access was cancelled.');
-	error.name = 'AbortError';
-	throw error;
 }

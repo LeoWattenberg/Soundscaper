@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { collectProjectStorageKeys } from '../retention.js';
+import { createAbortGuard } from '../abort-error.ts';
 import { request, transact } from './indexeddb-backend.ts';
 import {
 	DERIVATIVE_CACHE_ENTRY_STORE_NAME,
@@ -40,6 +41,7 @@ import {
 } from './video-derivative-repository.ts';
 
 const PENDING_SOURCE_RETENTION_MS = 24 * 60 * 60 * 1000;
+const throwIfAborted = createAbortGuard('Media storage was cancelled.');
 
 interface MediaWriteOptions {
 	readonly signal?: AbortSignal;
@@ -387,13 +389,4 @@ function nonEmptyString(value: unknown, message: string): string {
 	const text = typeof value === 'string' ? value.trim() : '';
 	if (!text) throw new TypeError(message);
 	return text;
-}
-
-function throwIfAborted(signal?: AbortSignal): void {
-	if (!signal?.aborted) return;
-	if (signal.reason !== undefined) throw signal.reason;
-	if (typeof DOMException === 'function') throw new DOMException('Media storage was cancelled.', 'AbortError');
-	const error = new Error('Media storage was cancelled.');
-	error.name = 'AbortError';
-	throw error;
 }

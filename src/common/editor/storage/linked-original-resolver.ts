@@ -11,6 +11,7 @@ import {
 	type LinkedOriginalKind,
 	type LinkedVideoOriginalSourceShape,
 } from './linked-original-binding.ts';
+import { createAbortGuard } from '../abort-error.ts';
 import type {
 	LinkedOriginalLocatorReference,
 	LinkedOriginalRepository,
@@ -27,6 +28,7 @@ import {
 } from './media-content-digest.ts';
 
 export const LINKED_ORIGINAL_STORAGE_TYPE = 'linked-original-v2' as const;
+const throwIfAborted = createAbortGuard('Linked original access was cancelled.');
 
 interface LinkedOriginalSourceBase extends Readonly<Record<string, unknown>> {
 	readonly id: string;
@@ -482,15 +484,4 @@ function opaqueToken(value: unknown, label: string): string {
 		throw new TypeError(`Linked original ${label} is invalid.`);
 	}
 	return value;
-}
-
-function throwIfAborted(signal?: AbortSignal): void {
-	if (!signal?.aborted) return;
-	if (signal.reason !== undefined) throw signal.reason;
-	if (typeof DOMException === 'function') {
-		throw new DOMException('Linked original access was cancelled.', 'AbortError');
-	}
-	const error = new Error('Linked original access was cancelled.');
-	error.name = 'AbortError';
-	throw error;
 }

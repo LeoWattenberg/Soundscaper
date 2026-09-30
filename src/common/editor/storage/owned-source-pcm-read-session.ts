@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { PCM_CONTAINER_STORAGE_TYPE } from '../wavpack/index.js';
+import { createAbortGuard } from '../abort-error.ts';
 import {
 	sameStoredSourceIdentity,
 	type StorageRecord,
@@ -21,6 +22,7 @@ import type { SourceRecordRepository } from './source-record-repository.ts';
 export const OWNED_SOURCE_PCM_MAXIMUM_DEPENDENCY_COUNT = 4_094;
 
 const SESSION_CLEANUP_REASON = new Error('Owned source PCM read sessions are being released.');
+const throwIfAborted = createAbortGuard('Owned source PCM reading was cancelled.');
 
 export interface OwnedSourcePcmReadSessionRepositoryOptions {
 	readonly records: SourceRecordRepository;
@@ -243,15 +245,4 @@ function nonEmptySourceToken(value: unknown): string {
 function nonNegativeInteger(value: unknown, fallback: number): number {
 	const number = Number(value);
 	return Number.isFinite(number) && number >= 0 ? Math.floor(number) : fallback;
-}
-
-function throwIfAborted(signal?: AbortSignal): void {
-	if (!signal?.aborted) return;
-	if (signal.reason !== undefined) throw signal.reason;
-	if (typeof DOMException === 'function') {
-		throw new DOMException('Owned source PCM reading was cancelled.', 'AbortError');
-	}
-	const error = new Error('Owned source PCM reading was cancelled.');
-	error.name = 'AbortError';
-	throw error;
 }

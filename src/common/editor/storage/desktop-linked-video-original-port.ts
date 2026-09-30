@@ -7,11 +7,14 @@ import type {
 } from './linked-video-original-resolver.ts';
 import type { LinkedVideoOriginalLocatorReference } from './linked-video-original-repository.ts';
 import type { DesktopReadFetch } from '../desktop-read-materialization.ts';
+import { createAbortGuard } from '../abort-error.ts';
 import {
 	DESKTOP_READ_PROFILE_LINKED_VIDEO_RANGE,
 	assertDesktopLinkedVideoReadProfile,
 } from '../desktop-read-profile.ts';
 import { readDesktopLinkedVideoRange } from './desktop-linked-video-range-reader.ts';
+
+const throwIfAborted = createAbortGuard('Linked-video access was cancelled.');
 
 export interface DesktopLinkedVideoOriginalChoice {
 	readonly locatorId: string;
@@ -456,13 +459,4 @@ function locatorReferences(value: unknown): readonly LinkedVideoOriginalLocatorR
 			locatorRevision: locatorToken(reference.locatorRevision, 'locator revision'),
 		});
 	}));
-}
-
-function throwIfAborted(signal?: AbortSignal): void {
-	if (!signal?.aborted) return;
-	if (signal.reason !== undefined) throw signal.reason;
-	if (typeof DOMException === 'function') throw new DOMException('Linked-video access was cancelled.', 'AbortError');
-	const error = new Error('Linked-video access was cancelled.');
-	error.name = 'AbortError';
-	throw error;
 }

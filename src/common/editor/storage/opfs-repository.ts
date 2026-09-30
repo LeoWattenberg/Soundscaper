@@ -6,6 +6,7 @@ import {
 	parsePcmContainerIndex,
 	readPcmContainerPayload,
 } from '../wavpack/index.js';
+import { createAbortGuard } from '../abort-error.ts';
 import {
 	blobWithMimeType,
 	type BlobLike,
@@ -22,6 +23,7 @@ import type { OpfsSyncOperationId } from './opfs-sync-worker-protocol.ts';
 import { syncBinaryWriter, syncPcmWriter } from './opfs-sync-writer-adapters.ts';
 
 export const DEFAULT_OPFS_DIRECTORY_NAME = 'audio-editor-sources';
+const throwIfAborted = createAbortGuard('Audio storage was cancelled.');
 
 interface PcmIndexEntry {
 	readonly index: number;
@@ -495,14 +497,6 @@ function containerRecord(entry: PcmIndexEntry, payload: unknown): Record<string,
 	};
 }
 
-function throwIfAborted(signal?: AbortSignal): void {
-	if (!signal?.aborted) return;
-	if (signal.reason !== undefined) throw signal.reason;
-	if (typeof DOMException === 'function') throw new DOMException('Audio storage was cancelled.', 'AbortError');
-	const error = new Error('Audio storage was cancelled.');
-	error.name = 'AbortError';
-	throw error;
-}
 
 function createId(prefix: string): string {
 	if (globalThis.crypto?.randomUUID) return `${prefix}-${globalThis.crypto.randomUUID()}`;

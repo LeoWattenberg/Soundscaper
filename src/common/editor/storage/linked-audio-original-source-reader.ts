@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { AUDIO_EDITOR_PCM_CHUNK_FRAMES } from '../pcm-chunks.js';
+import { createAbortGuard } from '../abort-error.ts';
 import { DESKTOP_READ_HARD_LIMIT_BYTES } from '../desktop-read-materialization.ts';
 import {
 	createAiffBlobPcmChunkReader,
@@ -63,6 +64,7 @@ type LinkedAudioPcmChunkReader = WavBlobPcmChunkReader | ReturnType<typeof creat
 const LINKED_AUDIO_MIME_TYPES = new Set(['audio/aiff', 'audio/rf64', 'audio/wav']);
 const NO_PRIMARY_FAILURE = Symbol('no linked-audio read failure');
 const SESSION_CLEANUP_REASON = new Error('Linked audio read sessions are being released.');
+const throwIfAborted = createAbortGuard('Linked audio source loading was cancelled.');
 
 /** Verified canonical Float32 reads from a bounded, pathless local PCM-container binding. */
 export class LinkedAudioOriginalSourceReader implements SourceReadFallback {
@@ -466,15 +468,4 @@ function sameAliases(
 
 function sameBinding(left: LinkedAudioOriginalBinding, right: LinkedAudioOriginalBinding): boolean {
 	return JSON.stringify(left) === JSON.stringify(right);
-}
-
-function throwIfAborted(signal?: AbortSignal): void {
-	if (!signal?.aborted) return;
-	if (signal.reason !== undefined) throw signal.reason;
-	if (typeof DOMException === 'function') {
-		throw new DOMException('Linked audio source loading was cancelled.', 'AbortError');
-	}
-	const error = new Error('Linked audio source loading was cancelled.');
-	error.name = 'AbortError';
-	throw error;
 }

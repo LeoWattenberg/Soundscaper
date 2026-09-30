@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { request, transact } from './indexeddb-backend.ts';
+import { createAbortGuard } from '../abort-error.ts';
 import type { MediaAssetStagingLease } from './media-asset-staging-repository.ts';
 import { MEDIA_ASSET_STAGING_STORE_NAME } from './media-asset-staging-schema.ts';
 import {
@@ -19,6 +20,8 @@ import {
 	sameVideoProxyClaim,
 	type VideoProxyClaimStagingInput,
 } from './video-proxy-claim-staging-record.ts';
+
+const throwIfAborted = createAbortGuard('Media storage was cancelled.');
 
 export interface MediaAssetWritePublicationResult {
 	readonly claim: Readonly<VideoProxyClaimRecord> | null;
@@ -150,13 +153,4 @@ function sameClaimedRow(
 
 function storageRecord(value: unknown): StorageRecord | null {
 	return value && typeof value === 'object' ? value as StorageRecord : null;
-}
-
-function throwIfAborted(signal?: AbortSignal): void {
-	if (!signal?.aborted) return;
-	if (signal.reason !== undefined) throw signal.reason;
-	if (typeof DOMException === 'function') throw new DOMException('Media storage was cancelled.', 'AbortError');
-	const error = new Error('Media storage was cancelled.');
-	error.name = 'AbortError';
-	throw error;
 }

@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { request, transact } from './indexeddb-backend.ts';
+import { createAbortGuard } from '../abort-error.ts';
 import { hasMalformedMediaContentProvenance } from './media-content-provenance.ts';
 import type { MediaAssetLifecycleCoordinator } from './media-asset-lifecycle-coordinator.ts';
 import type { BlobLike, StorageRecord } from './media-records.ts';
@@ -8,6 +9,7 @@ import type { StorageRepositoryPort } from './repository-port.ts';
 import { cloneStorageValue as clone } from './storage-clone.ts';
 
 const MISSING_MEDIA_MESSAGE = 'The requested local media asset is missing.';
+const throwIfAborted = createAbortGuard('Media storage was cancelled.');
 
 export interface MediaAssetLoadOptions {
 	readonly signal?: AbortSignal;
@@ -141,13 +143,4 @@ function mediaMaintenanceAbortReason(): Error {
 	const error = new Error('Media storage maintenance cancelled the retained-media read.');
 	error.name = 'AbortError';
 	return error;
-}
-
-function throwIfAborted(signal?: AbortSignal): void {
-	if (!signal?.aborted) return;
-	if (signal.reason !== undefined) throw signal.reason;
-	if (typeof DOMException === 'function') throw new DOMException('Media storage was cancelled.', 'AbortError');
-	const error = new Error('Media storage was cancelled.');
-	error.name = 'AbortError';
-	throw error;
 }

@@ -7,11 +7,14 @@ import {
 import { MediaAssetCleanupError } from './media-asset-cleanup-error.ts';
 import { MEDIA_ASSET_CHUNK_STORAGE_TYPE } from './media-asset-chunk-schema.ts';
 import { browserFileStorageFailure } from '../web-file-limit-failure.ts';
+import { createAbortGuard } from '../abort-error.ts';
 import {
 	MediaAssetStagingLease,
 	MediaAssetStagingRepository,
 } from './media-asset-staging-repository.ts';
 import type { OpfsBinaryWriter, OpfsRepository } from './opfs-repository.ts';
+
+const throwIfAborted = createAbortGuard('Media storage was cancelled.');
 
 export interface StagedMediaSink {
 	readonly storage: string;
@@ -187,13 +190,4 @@ function createMediaChunkToken(sourceId: string): string {
 	const random = globalThis.crypto?.randomUUID?.()
 		?? `${Date.now().toString(36)}-${Math.random().toString(36).slice(2)}`;
 	return `media-${sourceId}-${random}`;
-}
-
-function throwIfAborted(signal?: AbortSignal): void {
-	if (!signal?.aborted) return;
-	if (signal.reason !== undefined) throw signal.reason;
-	if (typeof DOMException === 'function') throw new DOMException('Media storage was cancelled.', 'AbortError');
-	const error = new Error('Media storage was cancelled.');
-	error.name = 'AbortError';
-	throw error;
 }

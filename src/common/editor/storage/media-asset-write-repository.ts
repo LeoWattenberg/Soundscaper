@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { sha256 } from '@noble/hashes/sha2.js';
+import { createAbortGuard } from '../abort-error.ts';
 
 import {
 	MediaAssetChunkRecords,
@@ -69,6 +70,7 @@ export const MEDIA_ASSET_MEMORY_STREAM_MAXIMUM_BYTES = 64 * 1024 * 1024;
 export { MEDIA_ASSET_CHUNK_STORAGE_TYPE };
 
 const PENDING_SOURCE_RETENTION_MS = 24 * 60 * 60 * 1000;
+const throwIfAborted = createAbortGuard('Media storage was cancelled.');
 
 interface ManagedMediaAssetWriter {
 	readonly writer: VideoProxyClaimedMediaAssetWriter;
@@ -572,13 +574,4 @@ function hex(bytes: Uint8Array): string {
 
 function isString(value: unknown): value is string {
 	return typeof value === 'string' && value.length > 0;
-}
-
-function throwIfAborted(signal?: AbortSignal): void {
-	if (!signal?.aborted) return;
-	if (signal.reason !== undefined) throw signal.reason;
-	if (typeof DOMException === 'function') throw new DOMException('Media storage was cancelled.', 'AbortError');
-	const error = new Error('Media storage was cancelled.');
-	error.name = 'AbortError';
-	throw error;
 }

@@ -4,6 +4,7 @@ import type {
 	DesktopReadFetch,
 	DesktopReadResponse,
 } from '../desktop-read-materialization.ts';
+import { throwIfAborted } from '../abort-error.ts';
 import { MEDIA_CONTENT_DIGEST_CHUNK_BYTES } from './media-content-digest.ts';
 
 export const DESKTOP_LINKED_ORIGINAL_RANGE_MAXIMUM_BYTES = MEDIA_CONTENT_DIGEST_CHUNK_BYTES;
@@ -35,7 +36,7 @@ export async function readDesktopLinkedOriginalRange(
 	if (typeof fetchRange !== 'function') {
 		throw new TypeError(`Desktop ${label} range reads require a fetch implementation.`);
 	}
-	throwIfAborted(request.signal, label);
+	throwIfAborted(request.signal, `Desktop ${label} range read cancelled.`);
 	let response: DesktopReadResponse;
 	try {
 		response = await awaitWithAbort(fetchRange(descriptor.url, {
@@ -46,15 +47,15 @@ export async function readDesktopLinkedOriginalRange(
 			...(request.signal ? { signal: request.signal } : {}),
 		}), request.signal);
 	} catch (error) {
-		throwIfAborted(request.signal, label);
+		throwIfAborted(request.signal, `Desktop ${label} range read cancelled.`);
 		throw error;
 	}
-	throwIfAborted(request.signal, label);
+	throwIfAborted(request.signal, `Desktop ${label} range read cancelled.`);
 	assertResponse(response, label);
 	let body = response.body;
 	let reader: ReadableStreamDefaultReader<Uint8Array> | null = null;
 	try {
-		throwIfAborted(request.signal, label);
+		throwIfAborted(request.signal, `Desktop ${label} range read cancelled.`);
 		if (response.ok !== true || response.status !== 206) {
 			throw new Error(`Desktop ${label} range read failed with status ${response.status || 'unknown'}.`);
 		}
@@ -77,9 +78,9 @@ export async function readDesktopLinkedOriginalRange(
 		const bytes = new Uint8Array(request.length);
 		let received = 0;
 		while (true) {
-			throwIfAborted(request.signal, label);
+			throwIfAborted(request.signal, `Desktop ${label} range read cancelled.`);
 			const result = await awaitWithAbort(reader.read(), request.signal);
-			throwIfAborted(request.signal, label);
+			throwIfAborted(request.signal, `Desktop ${label} range read cancelled.`);
 			if (!result || typeof result !== 'object') {
 				throw new TypeError(`Desktop ${label} range read returned an invalid body result.`);
 			}
@@ -96,11 +97,15 @@ export async function readDesktopLinkedOriginalRange(
 		if (received !== request.length) {
 			throw new Error(`Desktop ${label} range read returned too few body bytes.`);
 		}
-		throwIfAborted(request.signal, label);
+		throwIfAborted(request.signal, `Desktop ${label} range read cancelled.`);
 		return bytes;
 	} catch (error) {
 		let primary = error;
-		try { throwIfAborted(request.signal, label); } catch (abortError) { primary = abortError; }
+		try {
+			throwIfAborted(request.signal, `Desktop ${label} range read cancelled.`);
+		} catch (abortError) {
+			primary = abortError;
+		}
 		if (reader) cancelTransport(reader, primary);
 		else if (body) cancelTransport(body, primary);
 		throw primary;
@@ -170,15 +175,6 @@ function readContentLength(response: DesktopReadResponse, label: string): number
 		throw new Error(`Desktop ${label} range read requires a safe Content-Length.`);
 	}
 	return length;
-}
-
-function throwIfAborted(signal: AbortSignal | undefined, label: string): void {
-	if (!signal?.aborted) return;
-	if (signal.reason !== undefined) throw signal.reason;
-	if (typeof DOMException === 'function') throw new DOMException(`Desktop ${label} range read cancelled.`, 'AbortError');
-	const error = new Error(`Desktop ${label} range read cancelled.`);
-	error.name = 'AbortError';
-	throw error;
 }
 
 function awaitWithAbort<Value>(operation: PromiseLike<Value>, signal?: AbortSignal): Promise<Value> {

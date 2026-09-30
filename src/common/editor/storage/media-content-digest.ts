@@ -2,10 +2,12 @@
 
 import { sha256 } from '@noble/hashes/sha2.js';
 import { bytesToHex } from '@noble/hashes/utils.js';
+import { createAbortGuard } from '../abort-error.ts';
 
 const nativeBlobSlice = Blob.prototype.slice;
 const nativeBlobSize = Object.getOwnPropertyDescriptor(Blob.prototype, 'size')?.get;
 const nativeBlobType = Object.getOwnPropertyDescriptor(Blob.prototype, 'type')?.get;
+const throwIfAborted = createAbortGuard('Media content hashing was cancelled.');
 
 /**
  * The default and hard maximum Blob.slice().arrayBuffer() span used while
@@ -100,16 +102,6 @@ export async function digestMediaContent(
 	return bytesToHex(digest.digest());
 }
 
-function throwIfAborted(signal?: AbortSignal): void {
-	if (!signal?.aborted) return;
-	if (signal.reason !== undefined) throw signal.reason;
-	if (typeof DOMException === 'function') {
-		throw new DOMException('Media content hashing was cancelled.', 'AbortError');
-	}
-	const error = new Error('Media content hashing was cancelled.');
-	error.name = 'AbortError';
-	throw error;
-}
 
 function positiveSafeInteger(value: unknown, label: string): number {
 	if (!Number.isSafeInteger(value) || Number(value) < 1) {

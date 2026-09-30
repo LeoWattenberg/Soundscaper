@@ -5,8 +5,10 @@ import type {
 	SourcePcmReadSession,
 	SourceReadOptions,
 } from './source-read-repository.ts';
+import { createAbortGuard } from '../abort-error.ts';
 
 const NO_PRIMARY_FAILURE = Symbol('no source PCM read failure');
+const throwIfAborted = createAbortGuard('Source PCM reading was cancelled.');
 
 /**
  * Name carried by the rejection a released session answers reads with.
@@ -161,15 +163,4 @@ function isAbortError(error: unknown): boolean {
 
 function requestCancellationReason(error: unknown, signal?: AbortSignal): unknown {
 	return signal?.reason === undefined ? error : signal.reason;
-}
-
-function throwIfAborted(signal?: AbortSignal): void {
-	if (!signal?.aborted) return;
-	if (signal.reason !== undefined) throw signal.reason;
-	if (typeof DOMException === 'function') {
-		throw new DOMException('Source PCM reading was cancelled.', 'AbortError');
-	}
-	const error = new Error('Source PCM reading was cancelled.');
-	error.name = 'AbortError';
-	throw error;
 }

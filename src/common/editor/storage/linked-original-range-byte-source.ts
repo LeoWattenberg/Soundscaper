@@ -1,8 +1,10 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import { MEDIA_CONTENT_DIGEST_CHUNK_BYTES } from './media-content-digest.ts';
+import { createAbortGuard } from '../abort-error.ts';
 
 export const LINKED_ORIGINAL_RANGE_MAXIMUM_BYTES = MEDIA_CONTENT_DIGEST_CHUNK_BYTES;
+const throwIfAborted = createAbortGuard('Linked original range access was cancelled.');
 
 export interface LinkedOriginalRangeReadRequest {
 	readonly offset: number;
@@ -101,15 +103,4 @@ function positiveSafeInteger(value: unknown, label: string): number {
 		throw new RangeError(`${label} must be a positive safe integer.`);
 	}
 	return Number(value);
-}
-
-function throwIfAborted(signal?: AbortSignal): void {
-	if (!signal?.aborted) return;
-	if (signal.reason !== undefined) throw signal.reason;
-	if (typeof DOMException === 'function') {
-		throw new DOMException('Linked original range access was cancelled.', 'AbortError');
-	}
-	const error = new Error('Linked original range access was cancelled.');
-	error.name = 'AbortError';
-	throw error;
 }

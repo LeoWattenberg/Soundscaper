@@ -2,6 +2,7 @@
 
 import { sha256 } from '@noble/hashes/sha2.js';
 import { bytesToHex } from '@noble/hashes/utils.js';
+import { createAbortGuard } from '../abort-error.ts';
 
 import {
 	createLinkedOriginalRangeByteSource,
@@ -9,6 +10,8 @@ import {
 	type LinkedOriginalRangeByteSource,
 	type LinkedOriginalRangeReadRequest,
 } from './linked-original-range-byte-source.ts';
+
+const throwIfAborted = createAbortGuard('Linked original range access was cancelled.');
 
 export interface LinkedOriginalRangeLease {
 	readonly locatorRevision: unknown;
@@ -168,15 +171,4 @@ function oneShotRelease(operation: () => PromiseLike<void> | void): () => Promis
 		result ??= Promise.resolve().then(operation);
 		return result;
 	};
-}
-
-function throwIfAborted(signal?: AbortSignal): void {
-	if (!signal?.aborted) return;
-	if (signal.reason !== undefined) throw signal.reason;
-	if (typeof DOMException === 'function') {
-		throw new DOMException('Linked original range access was cancelled.', 'AbortError');
-	}
-	const error = new Error('Linked original range access was cancelled.');
-	error.name = 'AbortError';
-	throw error;
 }
