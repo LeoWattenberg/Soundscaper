@@ -51,7 +51,13 @@ export function createInstallPromptCapture(
 		? (globalThis as unknown as InstallPromptEventSource)
 		: options.source;
 	let captured: InstallPromptEvent | null = null;
-	const announce = () => options.onChange?.(captured !== null);
+	const announce = () => {
+		try {
+			options.onChange?.(captured !== null);
+		} catch {
+			// Availability observers are advisory and cannot own the capture lifecycle.
+		}
+	};
 	const capture = (event: unknown) => {
 		if (!isInstallPromptEvent(event)) return;
 		event.preventDefault();

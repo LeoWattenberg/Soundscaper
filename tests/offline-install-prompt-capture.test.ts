@@ -137,6 +137,25 @@ test('stopping the capture detaches both listeners and drops the held offer', ()
 	assert.deepEqual(announced, [true, false], 'stopping twice is silent');
 });
 
+test('stopping still detaches listeners when its availability observer throws', () => {
+	const target = fakeSource();
+	const announced: boolean[] = [];
+	const capture = createInstallPromptCapture({
+		source: target.source,
+		onChange: (available) => {
+			announced.push(available);
+			if (!available) throw new Error('observer was already unmounted');
+		},
+	});
+	target.dispatch('beforeinstallprompt', fakeOffer().event);
+
+	assert.doesNotThrow(() => capture.stop());
+	assert.equal(capture.available(), false);
+	assert.equal(target.listenerCount('beforeinstallprompt'), 0);
+	assert.equal(target.listenerCount('appinstalled'), 0);
+	assert.deepEqual(announced, [true, false]);
+});
+
 test('a later browser offer supersedes an unspent one', async () => {
 	const target = fakeSource();
 	const first = fakeOffer('dismissed');

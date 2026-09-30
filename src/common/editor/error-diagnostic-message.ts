@@ -33,7 +33,8 @@ function collect(
 	if (message) messages.push(message);
 	const errors = dataProperty(value, 'errors');
 	if (isArray(errors)) {
-		for (let index = 0; index < errors.length && messages.length < 32; index += 1) {
+		const length = safeArrayLength(errors);
+		for (let index = 0; index < length && messages.length < 32; index += 1) {
 			const descriptor = safeOwnPropertyDescriptor(errors, String(index));
 			if (descriptor && 'value' in descriptor) collect(descriptor.value, messages, seen, depth + 1);
 		}
@@ -55,6 +56,14 @@ function safeOwnPropertyDescriptor(value: object, key: PropertyKey): PropertyDes
 function isArray(value: unknown): value is readonly unknown[] {
 	try { return Array.isArray(value); }
 	catch { return false; }
+}
+
+function safeArrayLength(value: readonly unknown[]): number {
+	const length = safeOwnPropertyDescriptor(value, 'length');
+	return length && 'value' in length && typeof length.value === 'number'
+		&& Number.isSafeInteger(length.value) && length.value >= 0
+		? Math.min(length.value, 32)
+		: 0;
 }
 
 function domExceptionMessage(value: object): unknown {

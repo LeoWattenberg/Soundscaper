@@ -43,6 +43,27 @@ test('status diagnostics never invoke hostile error accessors', () => {
 	assert.equal(errorDiagnosticMessage(hostile, 'unknown'), 'unknown');
 });
 
+test('status diagnostics contain hostile aggregate array proxy traps', () => {
+	const lengthFailure = new Proxy([new Error('hidden')], {
+		get(target, key, receiver) {
+			if (key === 'length') throw new Error('length trap must be contained');
+			return Reflect.get(target, key, receiver);
+		},
+	});
+	const descriptorFailure = new Proxy([new Error('hidden')], {
+		getOwnPropertyDescriptor(target, key) {
+			if (key === '0') throw new Error('descriptor trap must be contained');
+			return Reflect.getOwnPropertyDescriptor(target, key);
+		},
+	});
+
+	assert.equal(
+		errorDiagnosticMessage({ message: 'outer', errors: lengthFailure }, 'unknown'),
+		'outer → hidden',
+	);
+	assert.equal(errorDiagnosticMessage({ message: 'outer', errors: descriptorFailure }, 'unknown'), 'outer');
+});
+
 test('status diagnostics bound adversarial aggregate breadth', () => {
 	const failure = new AggregateError(
 		Array.from({ length: 100 }, (_, index) => new Error(`failure ${String(index)}`)),
