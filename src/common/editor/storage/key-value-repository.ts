@@ -1,9 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
-import { sha256 } from '@noble/hashes/sha2.js';
-import { bytesToHex } from '@noble/hashes/utils.js';
-
 import { readCursorPage, request, transact } from './indexeddb-backend.ts';
+import { canonicalKeyValueComparison } from './key-value-canonical-comparison.ts';
 import type { StorageRepositoryPort } from './repository-port.ts';
 import { cloneStorageValue as clone } from './storage-clone.ts';
 
@@ -12,7 +10,6 @@ const KEY_VALUE_INVENTORY_PAGE_SIZE = 64;
 const MAXIMUM_KEY_VALUE_INVENTORY_RECORDS = 65_536;
 const MAXIMUM_KEY_VALUE_PREFIX_RECORDS = 4_096;
 const MAXIMUM_KEY_VALUE_ATOMIC_KEYS = 4_096;
-const COMPARISON_UTF8 = new TextEncoder();
 
 export interface KeyValuePrefixRecord {
 	readonly key: string;
@@ -64,7 +61,7 @@ export class KeyValueRepository {
 		value: unknown,
 	): Promise<boolean> {
 		if (fenceKey === key) throw new Error('A conditional key/value creation needs a distinct fence key.');
-		const expectedValue = canonicalComparisonValue(expectedFence);
+		const expectedValue = canonicalKeyValueComparison(expectedFence);
 		const record = { key, value: clone(value) };
 		const database = await this.#port.database();
 		if (!database) {
@@ -93,7 +90,7 @@ export class KeyValueRepository {
 		if (key === inventoryKey) throw new Error('An inventoried key/value creation needs distinct keys.');
 		const expectedValue = expectedInventory === undefined
 			? undefined
-			: canonicalComparisonValue(expectedInventory);
+			: canonicalKeyValueComparison(expectedInventory);
 		const record = { key, value: clone(value) };
 		const inventoryRecord = { key: inventoryKey, value: clone(nextInventory) };
 		const database = await this.#port.database();
@@ -131,7 +128,7 @@ export class KeyValueRepository {
 		intent: unknown,
 	): Promise<boolean> {
 		if (key === intentKey) throw new Error('A conditional replacement needs a distinct intent key.');
-		const expectedValue = canonicalComparisonValue(expected);
+		const expectedValue = canonicalKeyValueComparison(expected);
 		const replacementRecord = { key, value: clone(replacement) };
 		const intentRecord = { key: intentKey, value: clone(intent) };
 		const database = await this.#port.database();
@@ -156,7 +153,7 @@ export class KeyValueRepository {
 	}
 
 	async replaceIfCurrent(key: string, expected: unknown, replacement: unknown): Promise<boolean> {
-		const expectedValue = canonicalComparisonValue(expected);
+		const expectedValue = canonicalKeyValueComparison(expected);
 		const record = { key, value: clone(replacement) };
 		const database = await this.#port.database();
 		if (!database) {
@@ -183,8 +180,8 @@ export class KeyValueRepository {
 		replacement: unknown,
 	): Promise<boolean> {
 		if (fenceKey === key) throw new Error('A conditional key/value replacement needs a distinct fence key.');
-		const expectedFenceValue = canonicalComparisonValue(expectedFence);
-		const expectedValue = canonicalComparisonValue(expected);
+		const expectedFenceValue = canonicalKeyValueComparison(expectedFence);
+		const expectedValue = canonicalKeyValueComparison(expected);
 		const record = { key, value: clone(replacement) };
 		const database = await this.#port.database();
 		if (!database) {
@@ -203,7 +200,7 @@ export class KeyValueRepository {
 	}
 
 	async deleteIfCurrent(key: string, expected: unknown): Promise<boolean> {
-		const expectedValue = canonicalComparisonValue(expected);
+		const expectedValue = canonicalKeyValueComparison(expected);
 		const database = await this.#port.database();
 		if (!database) {
 			const current = this.#port.memory[this.#storeName].get(key);
@@ -229,8 +226,8 @@ export class KeyValueRepository {
 		nextInventory: unknown,
 	): Promise<boolean> {
 		if (key === inventoryKey) throw new Error('An inventoried key/value deletion needs distinct keys.');
-		const expectedValue = canonicalComparisonValue(expected);
-		const expectedInventoryValue = canonicalComparisonValue(expectedInventory);
+		const expectedValue = canonicalKeyValueComparison(expected);
+		const expectedInventoryValue = canonicalKeyValueComparison(expectedInventory);
 		const inventoryRecord = { key: inventoryKey, value: clone(nextInventory) };
 		const database = await this.#port.database();
 		if (!database) {
@@ -264,7 +261,7 @@ export class KeyValueRepository {
 		nextInventory: unknown,
 	): Promise<boolean> {
 		const deletionKeys = boundedDistinctKeys(keys, inventoryKey);
-		const expectedInventoryValue = canonicalComparisonValue(expectedInventory);
+		const expectedInventoryValue = canonicalKeyValueComparison(expectedInventory);
 		const inventoryRecord = { key: inventoryKey, value: clone(nextInventory) };
 		const database = await this.#port.database();
 		if (!database) {
@@ -468,82 +465,5 @@ function boundedDistinctKeys(keys: readonly string[], excludedKey: string): read
 function sameStoredValue(value: unknown, expected: string): boolean {
 	if (!value || typeof value !== 'object') return false;
 	const record = value as { readonly value?: unknown };
-	return canonicalComparisonValue(record.value) === expected;
-}
-
-function canonicalComparisonValue(value: unknown): string {
-	const digest = sha256.create();
-	hashComparisonValue(digest, value, new Set(), false);
-	return bytesToHex(digest.digest());
-}
-
-type ComparisonDigest = ReturnType<typeof sha256.create>;
-
-function hashComparisonValue(
-	digest: ComparisonDigest,
-	value: unknown,
-	ancestors: Set<object>,
-	arrayEntry: boolean,
-): void {
-	if (value === null || (arrayEntry && isJsonOmission(value))) {
-		writeComparisonText(digest, 'null', '');
-		return;
-	}
-	if (isJsonOmission(value)) throw new TypeError('Key/value CAS requires canonical JSON data.');
-	if (typeof value === 'string' || typeof value === 'boolean') {
-		writeComparisonText(digest, typeof value, String(value));
-		return;
-	}
-	if (typeof value === 'number') {
-		writeComparisonText(digest, 'number', Number.isFinite(value) ? JSON.stringify(value) : 'null');
-		return;
-	}
-	if (typeof value === 'bigint') throw new TypeError('Key/value CAS requires canonical JSON data.');
-	const object = value as object;
-	if (ancestors.has(object)) throw new TypeError('Key/value CAS data cannot be cyclic.');
-	if (object instanceof ArrayBuffer || ArrayBuffer.isView(object)) {
-		const bytes = object instanceof ArrayBuffer
-			? new Uint8Array(object)
-			: new Uint8Array(object.buffer, object.byteOffset, object.byteLength);
-		writeComparisonText(digest, 'binary-type', object.constructor.name);
-		writeComparisonBytes(digest, bytes);
-		return;
-	}
-	const toJSON = (object as { readonly toJSON?: unknown }).toJSON;
-	if (typeof toJSON === 'function') {
-		hashComparisonValue(digest, toJSON.call(object), ancestors, arrayEntry);
-		return;
-	}
-	ancestors.add(object);
-	try {
-		if (Array.isArray(object)) {
-			writeComparisonText(digest, 'array-length', String(object.length));
-			for (const entry of object) hashComparisonValue(digest, entry, ancestors, true);
-			return;
-		}
-		const record = object as Record<string, unknown>;
-		const keys = Object.keys(record).filter((key) => !isJsonOmission(record[key]));
-		writeComparisonText(digest, 'object-length', String(keys.length));
-		for (const key of keys) {
-			writeComparisonText(digest, 'key', key);
-			hashComparisonValue(digest, record[key], ancestors, false);
-		}
-	} finally {
-		ancestors.delete(object);
-	}
-}
-
-function isJsonOmission(value: unknown): boolean {
-	return value === undefined || typeof value === 'function' || typeof value === 'symbol';
-}
-
-function writeComparisonText(digest: ComparisonDigest, type: string, value: string): void {
-	const bytes = COMPARISON_UTF8.encode(value);
-	digest.update(COMPARISON_UTF8.encode(`${type}:${String(bytes.byteLength)}:`));
-	digest.update(bytes);
-}
-
-function writeComparisonBytes(digest: ComparisonDigest, value: Uint8Array): void {
-	digest.update(COMPARISON_UTF8.encode(`binary:${String(value.byteLength)}:`));
-	digest.update(value);
+	return canonicalKeyValueComparison(record.value) === expected;
 }
