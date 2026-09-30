@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import assert from 'node:assert/strict';
-import test, { type TestContext } from 'node:test';
+import test from 'node:test';
 
 import { createAssistanceTtsScriptBodyPublicationV1 } from
 	'../src/common/editor/assistance/tts-script-body-publication-v1.ts';
@@ -10,7 +10,6 @@ import { ASSISTANCE_TTS_SCRIPT_SCAPE_ENCODING_V1, ASSISTANCE_TTS_SCRIPT_SCAPE_KI
 import { createAudioSource } from '../src/common/editor/project-media-factory.ts';
 import { collectProjectSourceIds, collectProjectStorageKeys } from
 	'../src/common/editor/retention.js';
-import { createProjectStore } from '../src/common/editor/storage.js';
 import { canonicalMediaContentBlob } from '../src/common/editor/storage/media-content-digest.ts';
 import { FRAMESCAPER_PROJECT_RUNTIME_PROFILE } from
 	'../src/framescaper/editor-project-runtime-profile.ts';
@@ -20,6 +19,7 @@ import { prepareFramescaperDesktopPublicationBodies } from
 	'../src/framescaper/desktop-project-library-body-transfer.ts';
 import { createSoundscaperProject } from '../src/soundscaper/editor-project.ts';
 import { createSoundscaperScapeNativeRuntime } from '../src/soundscaper/editor-scape-native.ts';
+import { createMemoryProjectStore as memoryStore } from './helpers/memory-project-store.ts';
 
 const SOURCE_ID = 'generated-tts-audio';
 const SOURCE_SHA256 = 'ab'.repeat(32);
@@ -46,13 +46,6 @@ function source() {
 		sampleRate: 48_000, originalSampleRate: 48_000,
 		sampleFormat: 'float32', chunkFrames: 65_536,
 	});
-}
-
-function memoryStore(context: TestContext, label: string) {
-	const store = createProjectStore({ indexedDB: null, preferOpfs: false,
-		databaseName: `${label}-${String(Date.now())}-${String(Math.random())}` });
-	context.after(async () => { await store.close(); });
-	return store;
 }
 
 async function seed(store: ReturnType<typeof memoryStore>, result: ReturnType<typeof publication>) {

@@ -5,11 +5,10 @@ import {
 } from '../src/common/editor/project-current.ts';
 
 import assert from 'node:assert/strict';
-import test, { type TestContext } from 'node:test';
+import test from 'node:test';
 
 import { collectProjectSourceIds } from '../src/common/editor/retention.js';
 import { exportScapeProject } from '../src/common/editor/scape-project.js';
-import { createProjectStore, type AudioEditorProjectStore } from '../src/common/editor/storage.js';
 import {
 	canonicalPcmBytes,
 	digest,
@@ -25,6 +24,7 @@ import {
 	createBaselineAudioEditorProject as createCurrentAudioEditorProject,
 	importBaselineScapeProject as importScapeProject,
 } from './helpers/baseline-scape-runtime.ts';
+import { createMemoryProjectStore as memoryStore } from './helpers/memory-project-store.ts';
 
 interface ScapeImportResult {
 	readonly project: AudioEditorProjectCurrent;
@@ -117,14 +117,4 @@ function dataString(value: Readonly<Record<string, unknown>>, key: string): stri
 	const candidate = value[key];
 	if (typeof candidate !== 'string' || !candidate) throw new TypeError(`Expected ${key}.`);
 	return candidate;
-}
-
-function memoryStore(context: TestContext, label: string): AudioEditorProjectStore {
-	const store = createProjectStore({
-		indexedDB: null,
-		preferOpfs: false,
-		databaseName: `${label}-${String(Date.now())}-${String(Math.random())}`,
-	});
-	context.after(async () => { await store.close(); });
-	return store;
 }

@@ -3,14 +3,13 @@
 import { type AudioEditorProjectCurrent } from '../src/common/editor/project-current.ts';
 
 import assert from 'node:assert/strict';
-import test, { type TestContext } from 'node:test';
+import test from 'node:test';
 
 import { PROJECT_FEATURE_CAPABILITY_IDS } from '../src/common/editor/project-feature-capabilities.ts';
 import { PROJECT_OWNED_FEATURE_REQUIREMENT_IDS } from '../src/common/editor/project-owned-feature-requirements.ts';
 import { evaluateProjectFeatureRequirements } from '../src/common/editor/project-feature-requirements.ts';
 import { exportScapeProject } from '../src/common/editor/scape-project.js';
 import { serializeScapeProjectDocument } from '../src/common/editor/scape-project-document.ts';
-import { createProjectStore, type AudioEditorProjectStore } from '../src/common/editor/storage.js';
 import { PRODUCT_PROFILES } from '../src/common/products.js';
 import { readPcm, writePcm } from './helpers/project-store-pcm-fixture.ts';
 import {
@@ -23,6 +22,7 @@ import {
 	createBaselineAudioEditorProject as createCurrentAudioEditorProject,
 	importBaselineScapeProject as importScapeProject,
 } from './helpers/baseline-scape-runtime.ts';
+import { createMemoryProjectStore as memoryStore } from './helpers/memory-project-store.ts';
 
 interface ScapeImportResult {
 	readonly project: AudioEditorProjectCurrent;
@@ -108,14 +108,4 @@ function assertWarpRequirement(project: AudioEditorProjectCurrent, available: bo
 	assert.equal(item.availability, available ? 'available' : 'unavailable');
 	assert.equal(item.disposition, available ? 'native' : 'bypassed');
 	assert.equal(report.compatible, available);
-}
-
-function memoryStore(context: TestContext, label: string): AudioEditorProjectStore {
-	const store = createProjectStore({
-		indexedDB: null,
-		preferOpfs: false,
-		databaseName: `${label}-${String(Date.now())}-${String(Math.random())}`,
-	});
-	context.after(async () => { await store.close(); });
-	return store;
 }

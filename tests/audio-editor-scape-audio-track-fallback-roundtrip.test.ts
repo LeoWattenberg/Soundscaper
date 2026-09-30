@@ -4,7 +4,7 @@ import { type AudioEditorProjectCurrent } from '../src/common/editor/project-cur
 
 import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
-import test, { type TestContext } from 'node:test';
+import test from 'node:test';
 
 import { PROJECT_FEATURE_CAPABILITY_IDS } from '../src/common/editor/project-feature-capabilities.ts';
 import type { ProjectFeatureAudioTrackRenderFallback } from '../src/common/editor/project-feature-requirements.ts';
@@ -14,11 +14,11 @@ import {
 	createAudioTrack,
 } from '../src/common/editor/project-media-factory.ts';
 import { exportScapeProject } from '../src/common/editor/scape-project.js';
-import { createProjectStore } from '../src/common/editor/storage.js';
 import {
 	createBaselineAudioEditorProject as createCurrentAudioEditorProject,
 	importBaselineScapeProject as importScapeProject,
 } from './helpers/baseline-scape-runtime.ts';
+import { createMemoryProjectStore as memoryStore } from './helpers/memory-project-store.ts';
 
 const NOW = '2026-08-08T13:00:00.000Z';
 const PROJECT_ID = 'scape-audio-track-fallback';
@@ -30,7 +30,7 @@ const FALLBACK_SAMPLES = [0.125, -0.75, 1, 0] as const;
 const COLLIDING_SAMPLES = [0.875, -0.875] as const;
 const FALLBACK_DIGEST = audioAssetDigest(FALLBACK_SAMPLES);
 
-type ProjectStore = ReturnType<typeof createProjectStore>;
+type ProjectStore = ReturnType<typeof memoryStore>;
 
 interface ScapeImportResult {
 	readonly project: AudioEditorProjectCurrent;
@@ -211,14 +211,4 @@ function audioAssetDigest(samples: readonly number[]): string {
 		bytes.writeFloatLE(sample, 4 + index * Float32Array.BYTES_PER_ELEMENT);
 	}
 	return createHash('sha256').update(bytes).digest('hex');
-}
-
-function memoryStore(context: TestContext, label: string): ProjectStore {
-	const store = createProjectStore({
-		indexedDB: null,
-		preferOpfs: false,
-		databaseName: `${label}-${String(Date.now())}-${String(Math.random())}`,
-	});
-	context.after(async () => { await store.close(); });
-	return store;
 }

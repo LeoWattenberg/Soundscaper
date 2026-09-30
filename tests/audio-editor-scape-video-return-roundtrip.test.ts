@@ -3,7 +3,7 @@
 import { type AudioEditorProjectCurrent } from '../src/common/editor/project-current.ts';
 
 import assert from 'node:assert/strict';
-import test, { type TestContext } from 'node:test';
+import test from 'node:test';
 
 import { PROJECT_FEATURE_CAPABILITY_IDS } from '../src/common/editor/project-feature-capabilities.ts';
 import { evaluateProjectFeatureRequirements } from '../src/common/editor/project-feature-requirements.ts';
@@ -14,13 +14,13 @@ import {
 } from '../src/common/editor/project-media-factory.ts';
 import { digestScapeBytes } from '../src/common/editor/scape-archive-media.ts';
 import { exportScapeProject } from '../src/common/editor/scape-project.js';
-import { createProjectStore } from '../src/common/editor/storage.js';
 import { VIDEO_DERIVATIVE_RECIPES } from '../src/common/editor/storage/video-derivative-relationship.ts';
 import { PRODUCT_PROFILES } from '../src/common/products.js';
 import {
 	createBaselineAudioEditorProject as createCurrentAudioEditorProject,
 	importBaselineScapeProject as importScapeProject,
 } from './helpers/baseline-scape-runtime.ts';
+import { createMemoryProjectStore as memoryStore } from './helpers/memory-project-store.ts';
 
 const NOW = '2026-08-08T16:00:00.000Z';
 const PROJECT_ID = 'scape-video-return-roundtrip';
@@ -33,7 +33,7 @@ const CLIP_VIDEO_EFFECTS = [{
 	id: 'pixelate-a', type: 'pixelate', enabled: true, params: { blockSize: 12 },
 }] as const;
 
-type ProjectStore = ReturnType<typeof createProjectStore>;
+type ProjectStore = ReturnType<typeof memoryStore>;
 
 interface ScapeImportResult {
 	readonly project: AudioEditorProjectCurrent;
@@ -297,14 +297,4 @@ async function storedMediaBytes(store: ProjectStore, storageKey: string): Promis
 	const body = await store.loadMediaAsset(storageKey);
 	if (!body) throw new ReferenceError(`Missing stored media asset ${storageKey}.`);
 	return new Uint8Array(await body.arrayBuffer());
-}
-
-function memoryStore(context: TestContext, label: string): ProjectStore {
-	const store = createProjectStore({
-		indexedDB: null,
-		preferOpfs: false,
-		databaseName: `${label}-${String(Date.now())}-${String(Math.random())}`,
-	});
-	context.after(async () => { await store.close(); });
-	return store;
 }

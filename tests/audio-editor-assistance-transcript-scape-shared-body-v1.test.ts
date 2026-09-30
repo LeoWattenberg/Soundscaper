@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: AGPL-3.0-only */
 
 import assert from 'node:assert/strict';
-import test, { type TestContext } from 'node:test';
+import test from 'node:test';
 
 import {
 	ASSISTANCE_TRANSCRIPT_SCAPE_ENCODING_V1,
@@ -12,12 +12,12 @@ import {
 	type AssistanceSpeechRecognitionReviewSegmentV1,
 } from '../src/common/editor/assistance/transcript-body-publication-v1.ts';
 import { createAudioSource } from '../src/common/editor/project-media-factory.ts';
-import { createProjectStore } from '../src/common/editor/storage.js';
 import {
 	FRAMESCAPER_PROJECT_RUNTIME_PROFILE,
 } from '../src/framescaper/editor-project-runtime-profile.ts';
 import { createFramescaperProject } from '../src/framescaper/editor-project.ts';
 import { createFramescaperScapeNativeRuntime } from '../src/framescaper/editor-scape-native.ts';
+import { createMemoryProjectStore as memoryStore } from './helpers/memory-project-store.ts';
 
 const SOURCE_ID = 'dialogue-source';
 const SOURCE_SHA256 = 'ab'.repeat(32);
@@ -31,7 +31,7 @@ const SPEECH: readonly AssistanceSpeechRecognitionReviewSegmentV1[] = Object.fre
 	}]),
 }]);
 
-type Store = ReturnType<typeof createProjectStore>;
+type Store = ReturnType<typeof memoryStore>;
 
 test('`.scape` re-imports non-adjacent transcript assets that share one content-addressed body', async (context) => {
 	const silentA = publication('transcript-dialogue-a', 0, 4, []);
@@ -128,13 +128,4 @@ async function persistTranscriptBody(
 		kind: ASSISTANCE_TRANSCRIPT_SCAPE_KIND_V1,
 		encoding: ASSISTANCE_TRANSCRIPT_SCAPE_ENCODING_V1,
 	});
-}
-
-function memoryStore(context: TestContext, label: string): Store {
-	const store = createProjectStore({
-		indexedDB: null, preferOpfs: false,
-		databaseName: `${label}-${String(Date.now())}-${String(Math.random())}`,
-	});
-	context.after(async () => { await store.close(); });
-	return store;
 }

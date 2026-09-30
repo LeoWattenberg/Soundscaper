@@ -22,7 +22,7 @@ import {
 import { createAssistanceTranscript } from '../src/common/editor/assistance/transcript.ts';
 import { digestScapeBytes } from '../src/common/editor/scape-archive-media.ts';
 import { createAudioSource } from '../src/common/editor/project-media-factory.ts';
-import { createProjectStore, type AudioEditorProjectStore } from '../src/common/editor/storage.js';
+import type { AudioEditorProjectStore } from '../src/common/editor/storage.js';
 import { canonicalMediaContentBlob } from '../src/common/editor/storage/media-content-digest.ts';
 import {
 	FRAMESCAPER_PROJECT_RUNTIME_PROFILE,
@@ -36,6 +36,7 @@ import {
 	createSoundscaperScapeNativeRuntime,
 	type SoundscaperScapeNativeStore,
 } from '../src/soundscaper/editor-scape-native.ts';
+import { createMemoryProjectStore as memoryStore } from './helpers/memory-project-store.ts';
 
 const SOURCE_ID = 'dialogue-source';
 const SOURCE_SHA256 = 'ab'.repeat(32);
@@ -43,7 +44,7 @@ const MODEL_SHA256 = 'cd'.repeat(32);
 const NOW = '2026-08-26T00:00:00.000Z';
 const PCM = Object.freeze([0.125, -0.25, 0.5, -0.75]);
 
-type Store = ReturnType<typeof createProjectStore>;
+type Store = ReturnType<typeof memoryStore>;
 
 test('Soundscaper v1 `.scape` round-trips authenticated transcript and native plug-in bodies together', async (context) => {
 	const transcript = publication('soundscaper');
@@ -259,15 +260,6 @@ async function assertTranscriptBody(store: Store, storageKey: string, sourceId: 
 	const body = await store.loadMediaAsset(storageKey);
 	assert.ok(body);
 	assert.equal(JSON.parse(await canonicalMediaContentBlob(body).text()).sourceId, sourceId);
-}
-
-function memoryStore(context: TestContext, label: string): Store {
-	const store = createProjectStore({
-		indexedDB: null, preferOpfs: false,
-		databaseName: `${label}-${String(Date.now())}-${String(Math.random())}`,
-	});
-	context.after(async () => { await store.close(); });
-	return store;
 }
 
 function soundscaperStore(
