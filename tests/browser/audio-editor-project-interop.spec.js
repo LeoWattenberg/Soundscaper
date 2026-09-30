@@ -296,7 +296,8 @@ test.describe('audio editor React/design-system workflows', () => {
 		const compatibilityToast = await expectCompatibilityToastWithinEditor(editor);
 		await compatibilityToast.getByRole('button', { name: 'View report', exact: true }).click();
 		const reportDialog = page.getByRole('dialog', { name: 'AUP4 Compatibility Report', exact: true });
-		await expect(reportDialog.locator('[data-aup4-compatibility-report]')).toContainText('Missing: SuperVerb');
+		const missingEffectReportItem = reportDialog.locator('[data-aup4-compatibility-report] strong', { hasText: 'Missing: SuperVerb' });
+		await expect(missingEffectReportItem).toHaveAttribute('title', '/plugins/superverb.vst3');
 		await closeAup4CompatibilityReport(reportDialog);
 
 		const timeline = editor.locator('[data-timeline]');
