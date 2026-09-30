@@ -8,7 +8,7 @@ import {
 } from 'node:path';
 import { inflateSync } from 'node:zlib';
 
-// electron-builder 26.15.6's reviewed no-EULA launcher varies only by the
+// electron-builder 26.17.0's reviewed no-EULA launcher varies only by the
 // product executable. A dependency update must deliberately repin these bytes.
 const APPIMAGE_APP_RUN_SHA256 = Object.freeze({
 	framescaper: '58beef2a44a9bd1000163dda8c6c06e1d388f2b574c22b87e021f12609457abb',
@@ -43,7 +43,7 @@ const APPIMAGE_COMPATIBILITY_LIBRARY_AUTHORITY = Object.freeze({
 	}),
 	'linux-arm64': Object.freeze({}),
 });
-// electron-builder 26.15.6 copies this helper from its SHA-256-pinned
+// electron-builder 26.17.0 copies this helper from its SHA-256-pinned
 // nsis-3.0.4.1 toolset after afterPack has sealed the application resources.
 // It is package machinery, not application content, so authenticate it before
 // excluding it from the normalized NSIS-installed closure.

@@ -19,20 +19,20 @@ import {
 
 const ROOT = resolve(import.meta.dirname, '..');
 const REDIRECT_URL =
-	'https://artifacts.electronjs.org/headers/dist/v43.1.1/node-v43.1.1-headers.tar.gz';
+	'https://artifacts.electronjs.org/headers/dist/v43.7.7/node-v43.7.7-headers.tar.gz';
 
-test('CI accepts only the exact Electron 43.1.1 archive and extracted tree', async (context) => {
+test('CI accepts only the exact Electron 43.7.7 archive and extracted tree', async (context) => {
 	assert.deepEqual(ELECTRON_HEADERS_CI_SOURCE, {
-		version: '43.1.1',
-		requestUrl: 'https://electronjs.org/headers/v43.1.1/node-v43.1.1-headers.tar.gz',
+		version: '43.7.7',
+		requestUrl: 'https://electronjs.org/headers/v43.7.7/node-v43.7.7-headers.tar.gz',
 		redirectUrl: REDIRECT_URL,
 		archive: {
-			fileName: 'node-v43.1.1-headers.tar.gz', byteLength: 344_774,
-			sha256: 'b1112989ad4c4807a6bf59bfc96ce8d0f0b16962efe9818fa768e5908cc24d21',
+			fileName: 'node-v43.7.7-headers.tar.gz', byteLength: 346_855,
+			sha256: 'f697ced9453e4366258ed0ff3571122da37ba3ec9d349bd16d91856914e140f0',
 		},
 		extractedTree: {
 			algorithm: 'framescaper-portable-source-tree-sha256-v1', fileCount: 124,
-			sha256: '9eae0a9eb7630b1b53f98e4b7c69951aee2a159ff1f564eeed06b78580de62eb',
+			sha256: '3bf9d5074349e105eb6176c387b828d7ebc6914c42d0683768de2fab8e83c482',
 		},
 	});
 	const temporary = await mkdtemp(join(tmpdir(), 'soundscaper-codec-ci-auth-'));

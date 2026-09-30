@@ -1,25 +1,25 @@
 {
 	"schemaVersion": 1,
-	"groundedAt": "2026-08-24",
+	"groundedAt": "2026-09-30",
 	"purpose": "Exact source identities for Milestone 5 native build recipes. Source authentication is separate from redistribution terms, patent considerations, and runtime activation.",
 	"sources": [
 		{
 			"id": "electron-node-api-headers",
-			"version": "43.1.1",
+			"version": "43.7.7",
 			"git": {
-				"tag": "v43.1.1",
+				"tag": "v43.7.7",
 				"commit": null
 			},
 			"archive": {
-				"url": "https://electronjs.org/headers/v43.1.1/node-v43.1.1-headers.tar.gz",
-				"fileName": "node-v43.1.1-headers.tar.gz",
-				"byteLength": 344774,
-				"sha256": "b1112989ad4c4807a6bf59bfc96ce8d0f0b16962efe9818fa768e5908cc24d21"
+				"url": "https://electronjs.org/headers/v43.7.7/node-v43.7.7-headers.tar.gz",
+				"fileName": "node-v43.7.7-headers.tar.gz",
+				"byteLength": 346855,
+				"sha256": "f697ced9453e4366258ed0ff3571122da37ba3ec9d349bd16d91856914e140f0"
 			},
 			"extractedTree": {
 				"algorithm": "framescaper-portable-source-tree-sha256-v1",
 				"fileCount": 124,
-				"sha256": "9eae0a9eb7630b1b53f98e4b7c69951aee2a159ff1f564eeed06b78580de62eb"
+				"sha256": "3bf9d5074349e105eb6176c387b828d7ebc6914c42d0683768de2fab8e83c482"
 			},
 			"license": "MIT",
 			"licenseSelection": "MIT",

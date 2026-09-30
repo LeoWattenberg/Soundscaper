@@ -21,15 +21,15 @@ const BUILD_PLAN_ALGORITHM = 'soundscaper-os-audio-codec-build-plan-sha256-v1';
 const MAXIMUM_MANIFEST_BYTES = 64 * 1024;
 const MAXIMUM_PAYLOAD_BYTES = 64 * 1024 * 1024;
 const ELECTRON_HEADERS = Object.freeze({
-	version: '43.1.1',
+	version: '43.7.7',
 	archive: Object.freeze({
-		byteLength: 344_774,
-		sha256: 'b1112989ad4c4807a6bf59bfc96ce8d0f0b16962efe9818fa768e5908cc24d21',
+		byteLength: 346_855,
+		sha256: 'f697ced9453e4366258ed0ff3571122da37ba3ec9d349bd16d91856914e140f0',
 	}),
 	extractedTree: Object.freeze({
 		algorithm: 'framescaper-portable-source-tree-sha256-v1',
 		fileCount: 124,
-		sha256: '9eae0a9eb7630b1b53f98e4b7c69951aee2a159ff1f564eeed06b78580de62eb',
+		sha256: '3bf9d5074349e105eb6176c387b828d7ebc6914c42d0683768de2fab8e83c482',
 	}),
 });
 

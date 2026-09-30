@@ -16,7 +16,7 @@ import {
 const ARCH = Object.freeze({ x64: 1, arm64: 3 });
 
 test('alternate Electron FFmpeg evidence covers exactly five targets and excludes macOS x64', () => {
-	assert.equal(ELECTRON_ALTERNATE_FFMPEG_MANIFEST.electronVersion, '43.1.1');
+	assert.equal(ELECTRON_ALTERNATE_FFMPEG_MANIFEST.electronVersion, '43.7.7');
 	assert.equal(ELECTRON_ALTERNATE_FFMPEG_MANIFEST.profile,
 		'electron-alternate-without-proprietary-codecs');
 	assert.deepEqual(ELECTRON_ALTERNATE_FFMPEG_MANIFEST.targets.map(({ target }) => target), [

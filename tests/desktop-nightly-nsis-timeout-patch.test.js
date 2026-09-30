@@ -11,7 +11,7 @@ const require = createRequire(import.meta.url);
 const crossSpawn = require('cross-spawn');
 const { spawnAndWriteWithOutput } = require('builder-util/out/util.js');
 const nightlyConfig = require('../electron-builder.nightly-tests.config.cjs');
-const patchPath = resolve('patches/npm/builder-util+26.15.3.patch');
+const patchPath = resolve('patches/npm/builder-util+26.16.0.patch');
 
 test('the nightly test launcher gets a longer NSIS compile deadline without changing ordinary packaging', async () => {
 	const patch = await readFile(patchPath, 'utf8');

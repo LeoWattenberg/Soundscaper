@@ -55,8 +55,8 @@ export function deriveNativeHelperAddonBuildPolicy({ repositoryRoot, target }) {
 	const registerBytes = readRegularFileSync(root, SOURCE_REGISTER, 'native source register');
 	const register = parseJson(registerBytes, 'native source register');
 	const headers = register.sources?.find(({ id }) => id === HEADER_SOURCE_ID);
-	assert(headers && headers.version === '43.1.1' && headers.archive && headers.extractedTree,
-		'The native source register has no exact Electron 43.1.1 header source.');
+	assert(headers && headers.version === '43.7.7' && headers.archive && headers.extractedTree,
+		'The native source register has no exact Electron 43.7.7 header source.');
 	const electronHeaders = {
 		id: HEADER_SOURCE_ID,
 		version: headers.version,

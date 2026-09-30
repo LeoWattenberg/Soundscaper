@@ -59,8 +59,8 @@ export const OS_AUDIO_CODEC_HOST_SOURCE_FILES = Object.freeze([
 const NATIVE_ROOT = 'native/os-audio-codec-host';
 const ARTIFACT_NAME = 'soundscaper_os_audio_codec.node';
 const HEADER_SOURCE_ID = 'electron-node-api-headers';
-const HEADER_VERSION = '43.1.1';
-const HEADER_URL = 'https://electronjs.org/headers/v43.1.1/node-v43.1.1-headers.tar.gz';
+const HEADER_VERSION = '43.7.7';
+const HEADER_URL = 'https://electronjs.org/headers/v43.7.7/node-v43.7.7-headers.tar.gz';
 const SOURCE_ALGORITHM = 'soundscaper-os-audio-codec-source-closure-sha256-v1';
 const BUILD_PLAN_ALGORITHM = 'soundscaper-os-audio-codec-build-plan-sha256-v1';
 const MAXIMUM_SOURCE_BYTES = 2 * 1024 * 1024;
@@ -348,7 +348,7 @@ function validateHeaderSource(source) {
 	assert(source.version === HEADER_VERSION && source.git.tag === `v${HEADER_VERSION}`
 		&& source.git.commit === null && source.archive.url === HEADER_URL
 		&& source.licenseSelection === 'MIT' && source.authenticationStatus === 'pinned-metadata',
-	'OS audio codec builds require the exact registered Electron 43.1.1 Node-API headers.');
+	'OS audio codec builds require the exact registered Electron 43.7.7 Node-API headers.');
 }
 
 function readToolchainIdentity(plan) {

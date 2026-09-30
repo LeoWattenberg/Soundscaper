@@ -7,7 +7,7 @@ inventory under `licenses/professional-native/`. The exact filenames, byte
 lengths, SHA-256 digests, source targets, and selected license arms are recorded
 in [`config/soundscaper-professional-native-notices.json`](config/soundscaper-professional-native-notices.json):
 
-- Electron 43.1.1 Node-API headers — MIT; all five targets
+- Electron 43.7.7 Node-API headers — MIT; all five targets
 - JUCE 9.0.1 — AGPL-3.0-only selected; all five targets
 - CLAP 1.2.4 — MIT; all five targets
 - VST3 SDK 3.8.0 build 66 — MIT; all five targets
@@ -452,7 +452,7 @@ reject application-supplied FFmpeg and libav executables or libraries, the
 FFmpeg media host. The desktop application therefore does not redistribute an
 FFmpeg/libav application codec provider or FFmpeg WebAssembly runtime.
 
-Electron itself is a distinct framework dependency. Stock Electron 43.1.1
+Electron itself is a distinct framework dependency. Stock Electron 43.7.7
 includes a Chromium `libffmpeg` media library with proprietary codec support.
 Desktop packaging sets electron-builder's `downloadAlternateFFmpeg` option so
 the stock library is replaced with Electron's matching alternate release asset,
@@ -466,7 +466,7 @@ against
 - macOS ARM64 uses `libffmpeg.dylib`; macOS x64 is unsupported and has no row;
 - Windows x64 and ARM64 use `ffmpeg.dll`.
 
-That manifest binds Electron 43.1.1, the exact five release-archive names and
+That manifest binds Electron 43.7.7, the exact five release-archive names and
 archive SHA-256 values, and each unpacked library's byte length and SHA-256.
 The after-pack verifier re-hashes the exact framework location before final
 package assembly. The library remains part of Electron/Chromium and its notices; it
@@ -591,12 +591,12 @@ source pinning, and an update to this document before distribution.
 
 ## Desktop runtime and build tooling
 
-- Electron 43.1.1 — MIT; source: <https://github.com/electron/electron/tree/v43.1.1>. Packaged desktop applications include Electron's license and `LICENSES.chromium.html`, which carries Chromium and bundled component notices.
+- Electron 43.7.7 — MIT; source: <https://github.com/electron/electron/tree/v43.7.7>. Packaged desktop applications include Electron's license and `LICENSES.chromium.html`, which carries Chromium and bundled component notices.
 - `@modelcontextprotocol/core` 2.0.0, `@modelcontextprotocol/node` 2.0.0, and `@modelcontextprotocol/server` 2.0.0 — the pinned desktop MCP server SDK packages. Their npm metadata declares MIT; the installed `LICENSE` files record an ongoing transition to Apache-2.0 while retaining MIT for contributions without relicensing consent. Copyright the MCP project contributors; source and license at the three package release tags' common commit: <https://github.com/modelcontextprotocol/typescript-sdk/tree/cc4b41617ce3601b1290d67216ea0b194a3cd9ac>.
 - `@hono/node-server` 1.19.17 — MIT; transitive HTTP adapter for the desktop MCP server; Copyright © 2022-present Yusuke Wada and Hono contributors; source and license: <https://github.com/honojs/node-server/tree/v1.19.17>.
 - `hono` 4.13.8 — MIT; transitive HTTP routing for the desktop MCP server; Copyright © 2021-present Yusuke Wada and Hono contributors; source and license: <https://github.com/honojs/hono/tree/v4.13.8>.
 - `zod` 4.6.5 — MIT; schema validation for desktop MCP tool inputs; Copyright © 2025 Colin McDonnell; source and license: <https://github.com/colinhacks/zod/tree/v4.6.5>.
-- electron-builder 26.15.6 — MIT; build-time packaging tool, not part of the application runtime; exact npm source package: <https://registry.npmjs.org/electron-builder/-/electron-builder-26.15.6.tgz> (`sha512-jxlHRjqYrlTgLVo/aoACGpiki3QFYv8s4f2djsqaEbwTBZ9PcTBK03Tj/HMa65kiE0hdZxxbZdmVFo22eou2wA==`); upstream repository: <https://github.com/electron-userland/electron-builder>.
+- electron-builder 26.17.0 — MIT; build-time packaging tool, not part of the application runtime; exact npm source package: <https://registry.npmjs.org/electron-builder/-/electron-builder-26.17.0.tgz> (`sha512-iYHBRiagS9sDIbZx1ZD113f5rEGQvtpvTvHf70ovHKJ8mRvxwIkWX7JCwfmVQmVS4eX735p7TZmoxHnBPwF3vA==`); upstream repository: <https://github.com/electron-userland/electron-builder>.
 - `@electron/fuses` 2.1.3 — MIT; build-time hardening tool used to disable unsafe Electron runtime switches during package finalization; source: <https://github.com/electron/fuses/tree/v2.1.3>.
 - `@resvg/resvg-js` 2.6.2 — MPL-2.0; unmodified build-time rasterizer used only to derive platform icons from the existing Soundscaper SVG mark; source: <https://github.com/yisibl/resvg-js/tree/v2.6.2>.
 - `wawoff2` 2.0.1 — MIT; pinned build-time WebAssembly compiler used only to derive the browser-delivery `MusescoreIcon.woff2` from the retained upstream TTF; source: <https://github.com/fontello/wawoff2/tree/2.0.1>.

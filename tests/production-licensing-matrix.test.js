@@ -348,8 +348,8 @@ test('runtime provenance entries and distribution checks fail closed without cla
 			'THIRD_PARTY_LICENSES.md',
 		],
 	});
-	assert.deepEqual(provenance.get('electron-alternate-ffmpeg-framework-43-1-1'), {
-		id: 'electron-alternate-ffmpeg-framework-43-1-1',
+	assert.deepEqual(provenance.get('electron-alternate-ffmpeg-framework-43-7-7'), {
+		id: 'electron-alternate-ffmpeg-framework-43-7-7',
 		status: 'documented',
 		artifactSurfaces: ['electron-shell', 'desktop-release-assets'],
 		provenanceKind: 'electron-upstream-alternate-framework-library-verified-after-pack',

@@ -114,13 +114,13 @@ printf '%s' "$attempt" > "$FAKE_NPX_COUNTER"
 case "$FAKE_NPX_MODE" in
   transient-zip)
     if [ "$attempt" -eq 1 ]; then
-      echo '  x Response code 504 () for https://github.com/electron/electron/releases/download/v43.1.1/electron-v43.1.1-win32-arm64.zip' >&2
+      echo '  x Response code 504 () for https://github.com/electron/electron/releases/download/v43.7.7/electron-v43.7.7-win32-arm64.zip' >&2
       exit 17
     fi
     ;;
   transient-shasums)
     if [ "$attempt" -eq 1 ]; then
-      echo '  x Response code 504 () for https://github.com/electron/electron/releases/download/v43.1.1/SHASUMS256.txt' >&2
+      echo '  x Response code 504 () for https://github.com/electron/electron/releases/download/v43.7.7/SHASUMS256.txt' >&2
       exit 19
     fi
     ;;
@@ -149,7 +149,7 @@ case "$FAKE_NPX_MODE" in
     exit 23
     ;;
   exhausted)
-    echo '  x Response code 504 () for https://github.com/electron/electron/releases/download/v43.1.1/SHASUMS256.txt' >&2
+    echo '  x Response code 504 () for https://github.com/electron/electron/releases/download/v43.7.7/SHASUMS256.txt' >&2
     exit 29
     ;;
 esac

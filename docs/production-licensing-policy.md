@@ -98,7 +98,7 @@ Desktop packages copy the repository license, `THIRD_PARTY_LICENSES.md`, and
 the retained license directory. Desktop preparation, pre-pack, post-copy, and
 release-inventory gates reject application-supplied FFmpeg/libav and the FFmpeg
 WebAssembly runtime. Separately, electron-builder replaces stock Electron
-43.1.1's Chromium media library with Electron's matching alternate release
+43.7.7's Chromium media library with Electron's matching alternate release
 asset, intended upstream to omit proprietary codec support, and afterPack
 runs `scripts/lib/electron-alternate-ffmpeg.mjs` to verify its exact target,
 file type, byte length, and SHA-256 against
@@ -216,7 +216,7 @@ admission and its absence does not turn passing technical evidence into pending
 work.
 
 The same separation applies to Electron's Chromium media library. Stock
-Electron 43.1.1 includes proprietary codec support; packaging selects
+Electron 43.7.7 includes proprietary codec support; packaging selects
 Electron's alternate asset intended upstream to omit it. Exact digest
 verification establishes the selected framework bytes, not a complete codec
 inventory, observed codec behavior, absence of patent exposure, or patent

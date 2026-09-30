@@ -11,7 +11,7 @@ endif()
 if(NOT DEFINED SOUNDSCAPER_NODE_API_INCLUDE
 	OR NOT EXISTS "${SOUNDSCAPER_NODE_API_INCLUDE}/node_api.h")
 	message(FATAL_ERROR
-		"SOUNDSCAPER_NODE_API_INCLUDE must name authenticated Electron 43.1.1 Node-API headers")
+		"SOUNDSCAPER_NODE_API_INCLUDE must name authenticated Electron 43.7.7 Node-API headers")
 endif()
 if(NOT DEFINED SOUNDSCAPER_ADDON_VERSION
 	OR NOT SOUNDSCAPER_ADDON_VERSION MATCHES "^[0-9]+\\.[0-9]+\\.[0-9]+$")

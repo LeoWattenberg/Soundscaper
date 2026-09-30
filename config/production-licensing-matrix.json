@@ -376,12 +376,12 @@
 		{
 			"name": "electron",
 			"lockPath": "node_modules/electron",
-			"version": "43.1.1",
+			"version": "43.7.7",
 			"license": "MIT",
-			"declaredVersion": "43.1.1",
+			"declaredVersion": "43.7.7",
 			"role": "packaged-desktop-runtime",
 			"artifactSurfaces": ["electron-shell"],
-			"noticeMarker": "Electron 43.1.1",
+			"noticeMarker": "Electron 43.7.7",
 			"evidence": ["package-lock.json", "electron-builder.config.cjs", "THIRD_PARTY_LICENSES.md"]
 		}
 	],
@@ -539,7 +539,7 @@
 			"evidence": ["THIRD_PARTY_LICENSES.md", "electron-builder.config.cjs"]
 		},
 		{
-			"id": "electron-alternate-ffmpeg-framework-43-1-1",
+			"id": "electron-alternate-ffmpeg-framework-43-7-7",
 			"status": "documented",
 			"artifactSurfaces": ["electron-shell", "desktop-release-assets"],
 			"provenanceKind": "electron-upstream-alternate-framework-library-verified-after-pack",
@@ -606,7 +606,7 @@
 		"bundledFfmpegWasm": false,
 		"electronFrameworkFfmpeg": {
 			"status": "distributed-verified-framework-exception",
-			"electronVersion": "43.1.1",
+			"electronVersion": "43.7.7",
 			"profile": "electron-alternate-without-proprietary-codecs",
 			"upstreamIntent": "omit-proprietary-codec-support",
 			"providerTier": false,
@@ -740,7 +740,7 @@
 			"payloadManifest": "runtime/native/soundscaper-os-audio-codec/<target>/os-audio-codec-native-payload-manifest.json",
 			"payloadStatus": "target-native-ci-build-required-mac-arm64-win-x64-win-arm64",
 			"buildTargets": ["mac-arm64", "win-x64", "win-arm64"],
-			"buildChecks": ["pinned-electron-43.1.1-headers", "repository-source-closure", "build-plan", "target-toolchain", "native-ctest-canaries", "payload-byte-length-and-sha256"],
+			"buildChecks": ["pinned-electron-43.7.7-headers", "repository-source-closure", "build-plan", "target-toolchain", "native-ctest-canaries", "payload-byte-length-and-sha256"],
 			"packageChecks": ["canonical-build-result", "exact-two-file-target-subtree", "manifest-payload-summary-equality", "before-pack-verification", "after-pack-verification", "content-manifest-closure", "startup-reauthentication"],
 			"codeSeal": { "mac-arm64": "ad-hoc-execution-check-before-hash", "win-x64": "not-applicable", "win-arm64": "not-applicable" },
 			"windows": {

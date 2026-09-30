@@ -118,7 +118,7 @@ function makeMeasurement(): MutableMeasurement {
 			operatingSystem: 'linux',
 			architecture: 'x64',
 			rendererClass: 'unknown',
-			runtimeVersion: 'Electron 43.1.1',
+			runtimeVersion: 'Electron 43.7.7',
 		},
 		package: {
 			identity: 'soundscaper-linux-x64-development',

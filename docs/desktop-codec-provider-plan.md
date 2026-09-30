@@ -118,7 +118,7 @@ for 48 kHz stereo MP3 and AAC-LC/M4A decode, 48 kHz stereo 160 kbps AAC-LC/M4A
 encode, and—on Windows only—48 kHz stereo 192 kbps MP3 encode. The production
 workflow now builds the isolated Node-API codec addon target-native on mac-arm64,
 win-x64, and win-arm64; it does not link the professional JUCE/device/plug-in
-host. The build authenticates the exact Electron 43.1.1 headers and complete
+host. The build authenticates the exact Electron 43.7.7 headers and complete
 repository source/build-plan identity, runs the native codec canaries, and
 records the toolchain and payload digest. macOS applies and verifies only the
 identity-free ad-hoc code seal required to execute the addon; it uses no

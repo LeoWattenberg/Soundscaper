@@ -69,7 +69,7 @@ test('runtime identity admits only normalized browser or desktop facts', () => {
 		locale: 'ignored-private-locale',
 		desktopEnvironment: {
 			platform: 'darwin', arch: 'arm64', locale: 'de-DE',
-			runtimeVersions: { electron: '43.1.1', chromium: '142.0.7444.0', node: '26.5.0' },
+			runtimeVersions: { electron: '43.7.7', chromium: '150.0.7871.250', node: '24.21.0' },
 			privatePath: '/Users/operator/Library/Application Support',
 		},
 	}), {
@@ -78,7 +78,7 @@ test('runtime identity admits only normalized browser or desktop facts', () => {
 		architecture: 'arm64',
 		locale: 'de-de',
 		browser: null,
-		desktop: { electron: '43.1.1', chromium: '142.0.7444.0', node: '26.5.0' },
+		desktop: { electron: '43.7.7', chromium: '150.0.7871.250', node: '24.21.0' },
 	});
 });
 
