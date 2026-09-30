@@ -65,6 +65,7 @@ const NATIVE_EDITABLE_KEYS = new Set([
 	'backspace', 'delete', 'down', 'end', 'enter', 'home', 'left',
 	'numpadenter', 'pagedown', 'pageup', 'right', 'tab', 'up',
 ]);
+const SHORTCUT_MODIFIER_EVENT_KEYS = new Set(['alt', 'control', 'ctrl', 'meta', 'shift']);
 
 export function handleWorkspaceKeyboard(
 	event: KeyboardEventLike,
@@ -214,7 +215,8 @@ export function matchesAudioEditorShortcutBinding(
 		? 'Space'
 		: eventKeyValue.length === 1 ? eventKeyValue.toUpperCase() : eventKeyValue;
 	const modifiers = new Set(parts.modifiers);
-	if (!configuredKey || normalizeAudioEditorShortcut(configuredKey).toLowerCase()
+	if (!configuredKey || SHORTCUT_MODIFIER_EVENT_KEYS.has(eventKey.toLowerCase())) return false;
+	if (normalizeAudioEditorShortcut(configuredKey).toLowerCase()
 		!== normalizeAudioEditorShortcut(eventKey).toLowerCase()) return false;
 	if (event.altKey !== modifiers.has('Alt') || event.shiftKey !== modifiers.has('Shift')) return false;
 	const ctrl = modifiers.has('Ctrl');

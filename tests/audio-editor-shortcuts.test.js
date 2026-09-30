@@ -166,6 +166,26 @@ test('shortcut normalization refuses a modifier-only chord that can never match 
 	}
 });
 
+test('modifier-only browser keydowns are ignored before binding normalization', () => {
+	for (const [key, code, activeModifier] of [
+		['Control', 'ControlLeft', 'ctrlKey'],
+		['Shift', 'ShiftLeft', 'shiftKey'],
+		['Alt', 'AltLeft', 'altKey'],
+		['Meta', 'MetaLeft', 'metaKey'],
+	]) {
+		const event = {
+			altKey: false,
+			code,
+			ctrlKey: false,
+			key,
+			metaKey: false,
+			shiftKey: false,
+			[activeModifier]: true,
+		};
+		assert.equal(matchesAudioEditorShortcutBinding(event, 'Ctrl+K'), false, key);
+	}
+});
+
 test('legacy shortcut action IDs migrate to the canonical runtime registry IDs', () => {
 	const preferences = createAudioEditorPreferencesV1({
 		shortcuts: {
