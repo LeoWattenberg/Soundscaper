@@ -6,6 +6,10 @@ import { isAbsolute, join, posix, relative, resolve, sep, win32 } from 'node:pat
 
 const EXECUTABLE_RESOURCE_PATTERN = /(?:\.(?:c|m)?js|\.html?|\.wasm)$/u;
 const WEBASSEMBLY_RESOURCE_PATTERN = /\.wasm$/u;
+// Electron's macOS distribution places this generated notice at the application
+// Resources root. It is framework metadata, not a document the application can
+// navigate to or execute, despite its HTML suffix.
+const NON_EXECUTABLE_FRAMEWORK_RESOURCES = new Set(['LICENSES.chromium.html']);
 const MAXIMUM_EXECUTABLE_FILES = 10_000;
 const MAXIMUM_EXECUTABLE_FILE_BYTES = 64 * 1024 * 1024;
 const MAXIMUM_EXECUTABLE_TOTAL_BYTES = 1024 * 1024 * 1024;
@@ -51,6 +55,7 @@ export async function collectPackagedExecutableResourceFiles(resourcesRoot) {
 				throw new Error(`Packaged executable resources contain a special entry at ${name}.`);
 			}
 			if (!EXECUTABLE_RESOURCE_PATTERN.test(name)) continue;
+			if (NON_EXECUTABLE_FRAMEWORK_RESOURCES.has(name)) continue;
 			const metadata = await lstat(path);
 			if (metadata.size > MAXIMUM_EXECUTABLE_FILE_BYTES) {
 				throw new Error(`Packaged executable resource ${name} exceeds its byte limit.`);

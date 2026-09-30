@@ -42,6 +42,7 @@ test('packaged executable resource identity binds every external script before a
 		0x00, 0x61, 0x73, 0x6d, 0x01, 0x00, 0x00, 0x00,
 	]));
 	await writeFile(join(resources, 'renderer/index.html'), '<main></main>\n');
+	await writeFile(join(resources, 'LICENSES.chromium.html'), '<title>Chromium licenses</title>\n');
 
 	const files = await collectPackagedExecutableResourceFiles(resources);
 	assert.deepEqual(files.map(({ path }) => path), [
@@ -67,4 +68,15 @@ test('packaged executable resource identity binds every external script before a
 		capturePackagedExecutableResourcesAfterCollection(before),
 		/changed between launch and collection/u,
 	);
+});
+
+test('only Electron\'s root Chromium notice is excluded from executable resources', async (context) => {
+	const resources = await mkdtemp(join(tmpdir(), 'soundscaper-framework-resources-'));
+	context.after(() => rm(resources, { recursive: true, force: true }));
+	await mkdir(join(resources, 'renderer'), { recursive: true });
+	await writeFile(join(resources, 'LICENSES.chromium.html'), '<title>Chromium licenses</title>\n');
+	await writeFile(join(resources, 'renderer/LICENSES.chromium.html'), '<main>Application document</main>\n');
+
+	const files = await collectPackagedExecutableResourceFiles(resources);
+	assert.deepEqual(files.map(({ path }) => path), ['renderer/LICENSES.chromium.html']);
 });
