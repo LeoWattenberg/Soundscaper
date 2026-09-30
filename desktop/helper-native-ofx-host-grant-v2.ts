@@ -2,6 +2,7 @@
 
 import { assertOfxHostInvocationV2, type OfxHostInvocationV2 } from '../src/common/editor/native-ofx-host-contract-v2.ts';
 import {
+	validateHelperOfxHostGrantBody,
 	validateHelperOfxHostJobGrant,
 	type HelperOfxHostGrantValidators,
 	type HelperOfxHostJobGrant,
@@ -45,21 +46,10 @@ export function validateHelperOfxHostJobGrantV2(
 ): HelperOfxHostJobGrantV2 {
 	const record = cloneRecord(value);
 	assertOfxHostInvocationV2(record.invocation);
-	const invocation = structuredClone(record.invocation) as unknown as OfxHostInvocationV2;
-	const legacyValidationShape = {
-		...record,
-		invocation: {
-			...structuredClone(invocation),
-			schemaVersion: 1,
-			unifiedPlanVersion: 12,
-		},
-	};
-	const admitted = validateHelperOfxHostJobGrant(legacyValidationShape, validators);
-	if (admitted.plan.sha256 !== invocation.unifiedPlanSha256
-		|| admitted.pluginBinary.sha256 !== invocation.pluginBinarySha256) {
-		throw new Error('An OFX V14 helper grant changed its plan or plug-in digest.');
-	}
-	return deepFreeze({ ...admitted, invocation }) as HelperOfxHostJobGrantV2;
+	const invocation = deepFreeze(
+		structuredClone(record.invocation) as unknown as OfxHostInvocationV2,
+	);
+	return validateHelperOfxHostGrantBody(record, validators, () => invocation);
 }
 
 function cloneRecord(value: unknown): Record<string, unknown> {

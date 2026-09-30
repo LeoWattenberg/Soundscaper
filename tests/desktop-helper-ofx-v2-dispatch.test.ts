@@ -112,6 +112,24 @@ test('OFX helper dispatch preserves exact V1 and admits exact V2', () => {
 	}
 });
 
+test('OFX helper generations enforce the same bounded render grant body', () => {
+	for (const version of [1, 2] as const) {
+		const base = grant(version);
+		for (const candidate of [
+			{ ...base, pluginBinary: executable('ofx-plugin', '/plugins/dispatch.ofx', '9'.repeat(64)) },
+			{ ...base, plan: binding('host-to-helper', '40'.repeat(20)) },
+			{ ...base, inputs: [{ ...base.inputs[0], name: 'not canonical' }] },
+			{ ...base, output: { ...base.output, width: 2 } },
+		]) {
+			assert.throws(
+				() => validateHelperNativeJobGrant('ofx-host', candidate),
+				unsafeGrant,
+				`V${String(version)} must reject the same invalid render-grant body`,
+			);
+		}
+	}
+});
+
 test('OFX V2 rejects a backend value that only string-coerces to a supported name', () => {
 	assert.throws(() => createOfxHostInvocationV2({
 		...invocation(2),

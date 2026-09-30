@@ -83,9 +83,22 @@ export function validateHelperOfxHostJobGrant(
 	value: unknown,
 	validators: HelperOfxHostGrantValidators,
 ): HelperOfxHostJobGrant {
+	return validateHelperOfxHostGrantBody(value, validators, snapshotInvocation);
+}
+
+/** Validate the version-independent executable, stream, frame, and scratch grant body. */
+export function validateHelperOfxHostGrantBody<
+	Invocation extends Pick<OfxHostInvocationV1,
+		'pluginBinarySha256' | 'unifiedPlanSha256'
+		| 'inputFrameStreamIds' | 'outputFrameStreamId'>,
+>(
+	value: unknown,
+	validators: HelperOfxHostGrantValidators,
+	snapshotInvocationValue: (value: unknown) => Invocation,
+) {
 	const hasTiming = hasOwnTiming(value);
 	const record = exactRecord(value, hasTiming ? HOST_TIMING_KEYS : HOST_KEYS);
-	const invocation = snapshotInvocation(record.invocation);
+	const invocation = snapshotInvocationValue(record.invocation);
 	const videoTimingAssets = hasTiming
 		? validateHelperOfxVideoTimingAssetGrants(record.videoTimingAssets, validators.dataBinding)
 		: null;
