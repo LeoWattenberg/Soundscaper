@@ -20,6 +20,7 @@ import {
 	type NativeImageSequenceCheckpointResultV1,
 } from './native-services-publication.ts';
 import { syncNativeCheckpointDirectory } from './native-services-checkpoint-directory-durability.ts';
+import { readNativeCheckpointManifestBytes } from './native-services-checkpoint-manifest-file.ts';
 
 const SHA256 = /^[a-f0-9]{64}$/u;
 const JOB_ID = /^[a-f0-9]{40}$/u;
@@ -168,13 +169,11 @@ export function createFramescaperNativeFilesystemCheckpointStore(
 		read: async (jobIdValue: string) => {
 			const directory = await ownedScratchDirectory(scratchRoot, jobIdValue);
 			if (directory === null) return null;
-			try {
-				const bytes = await readBoundedRegularFile(join(directory, CHECKPOINT_FILE));
-				return JSON.parse(bytes.toString('utf8')) as unknown;
-			} catch (error) {
-				if (missing(error)) return null;
-				throw error;
-			}
+			const bytes = await readNativeCheckpointManifestBytes(
+				join(directory, CHECKPOINT_FILE),
+				FRAMESCAPER_NATIVE_CHECKPOINT_MAXIMUM_DURABLE_BYTES,
+			);
+			return bytes === null ? null : JSON.parse(bytes.toString('utf8')) as unknown;
 		},
 		write: async (evidenceValue: NativeImageSequenceCheckpointEvidenceV1) => {
 			const evidence = checkpointEvidence(evidenceValue);
@@ -270,7 +269,12 @@ async function ownedScratchDirectory(scratchRoot: string, jobIdValue: string): P
 		if (!stat.isDirectory() || stat.isSymbolicLink() || await realpath(directory) !== directory) {
 			throw new Error('The checkpoint scratch path is not one canonical regular directory.');
 		}
-		const manifest = JSON.parse((await readBoundedRegularFile(join(directory, 'manifest.json'))).toString('utf8')) as unknown;
+		const bytes = await readNativeCheckpointManifestBytes(
+			join(directory, 'manifest.json'),
+			FRAMESCAPER_NATIVE_CHECKPOINT_MAXIMUM_DURABLE_BYTES,
+		);
+		if (bytes === null) return null;
+		const manifest = JSON.parse(bytes.toString('utf8')) as unknown;
 		if (!plainExactRecord(manifest, ['jobId', 'manifestDigest', 'rootIdentity'])
 			|| manifest.jobId !== jobId || typeof manifest.manifestDigest !== 'string'
 			|| !SHA256.test(manifest.manifestDigest) || typeof manifest.rootIdentity !== 'string'
@@ -281,22 +285,6 @@ async function ownedScratchDirectory(scratchRoot: string, jobIdValue: string): P
 	} catch (error) {
 		if (missing(error)) return null;
 		throw error;
-	}
-}
-
-async function readBoundedRegularFile(path: string): Promise<Buffer> {
-	const handle = await open(path, constants.O_RDONLY | (constants.O_NOFOLLOW ?? 0));
-	try {
-		const stat = await handle.stat();
-		if (!stat.isFile() || stat.size > FRAMESCAPER_NATIVE_CHECKPOINT_MAXIMUM_DURABLE_BYTES) {
-			throw new Error('A checkpoint manifest is not one bounded regular file.');
-		}
-		const bytes = Buffer.alloc(stat.size);
-		const result = await handle.read(bytes, 0, bytes.length, 0);
-		if (result.bytesRead !== bytes.length) throw new Error('A checkpoint manifest changed during inspection.');
-		return bytes;
-	} finally {
-		await handle.close();
 	}
 }
 

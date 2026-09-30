@@ -17,6 +17,7 @@ import {
 	nativeRenderInputSafeSum,
 	nativeRenderInputStageId,
 } from './native-services-render-input-contract.ts';
+import { readBoundedRegularFile } from './bounded-regular-file.ts';
 
 const OWNERSHIP_FILE = /^stage-([a-f0-9]{40})\.ownership\.json$/u;
 const MAXIMUM_OWNERSHIP_BYTES = 4 * 1_024;
@@ -141,15 +142,23 @@ export async function readNativeRenderInputOwnedStage(
 	const root = await requireNativeRenderInputRoot(rootValue, true);
 	const stageId = nativeRenderInputStageId(stageIdValue);
 	const ownershipPath = nativeRenderInputOwnershipPath(root, stageId);
-	let ownership: NativeRenderInputStageOwnershipV1;
-	try {
-		ownership = nativeRenderInputStageOwnership(
-			JSON.parse((await readBoundedRegularFile(ownershipPath)).toString('utf8')) as unknown,
-		);
-	} catch (error) {
-		if (missing(error)) return null;
-		throw error;
+	const result = await readBoundedRegularFile(
+		ownershipPath,
+		MAXIMUM_OWNERSHIP_BYTES,
+		{ allowEmpty: true },
+	);
+	if (result.status === 'unavailable') {
+		if (result.reason === 'missing') return null;
+		throw new Error(result.reason === 'limit'
+			? 'A native render-input ownership record exceeds its byte ceiling.'
+			: 'A native render-input ownership record changed during inspection.');
 	}
+	if (result.bytes.byteLength < 1) {
+		throw new Error('A native render-input ownership record exceeds its byte ceiling.');
+	}
+	const ownership = nativeRenderInputStageOwnership(
+		JSON.parse(Buffer.from(result.bytes).toString('utf8')) as unknown,
+	);
 	if (ownership.stageId !== stageId) {
 		throw new Error('A native render-input ownership record changed stage identity.');
 	}
@@ -258,24 +267,6 @@ function nativeRenderInputStageOwnership(value: unknown): NativeRenderInputStage
 		throw new Error('A native render-input ownership record is not canonical.');
 	}
 	return ownership;
-}
-
-async function readBoundedRegularFile(path: string): Promise<Buffer> {
-	const handle = await open(path, constants.O_RDONLY | (constants.O_NOFOLLOW ?? 0));
-	try {
-		const details = await handle.stat();
-		if (!details.isFile() || details.size < 1 || details.size > MAXIMUM_OWNERSHIP_BYTES) {
-			throw new Error('A native render-input ownership record exceeds its byte ceiling.');
-		}
-		const bytes = Buffer.alloc(details.size);
-		const result = await handle.read(bytes, 0, bytes.length, 0);
-		if (result.bytesRead !== bytes.length) {
-			throw new Error('A native render-input ownership record changed during inspection.');
-		}
-		return bytes;
-	} finally {
-		await handle.close();
-	}
 }
 
 async function writeExclusiveSynced(path: string, payload: string): Promise<void> {

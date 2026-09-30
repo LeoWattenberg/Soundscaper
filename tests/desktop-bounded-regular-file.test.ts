@@ -30,6 +30,17 @@ test('bounded regular-file reads return an owned exact snapshot', async () => {
 	});
 });
 
+test('bounded regular-file reads can preserve an empty file for caller validation', async () => {
+	const handle = fakeHandle({ declaredSize: 0, chunks: [new Uint8Array()] });
+	assert.deepEqual(await readBoundedRegularFile('/scratch/output', 3, {
+		allowEmpty: true,
+		openFile: async () => handle,
+	}), {
+		status: 'available', bytes: new Uint8Array(),
+	});
+	assert.equal(handle.closed, true);
+});
+
 test('bounded regular-file reads require a stable final stat', async () => {
 	const handle = fakeHandle({
 		declaredSize: 2, restatedSize: 3,

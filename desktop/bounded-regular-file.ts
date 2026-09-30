@@ -18,6 +18,7 @@ export type BoundedRegularFileResult =
 	| Readonly<{ readonly status: 'unavailable'; readonly reason: 'invalid' | 'limit' | 'missing' }>;
 
 export interface BoundedRegularFileReadOptions {
+	readonly allowEmpty?: boolean;
 	readonly openFile?: (path: string, flags: number) => Promise<BoundedRegularFileHandle>;
 }
 
@@ -28,6 +29,7 @@ export async function readBoundedRegularFile(
 ): Promise<BoundedRegularFileResult> {
 	if (typeof path !== 'string' || path.length < 1 || path.length > 4_096 || path.includes('\0')
 		|| !Number.isSafeInteger(maximumBytes) || maximumBytes < 1
+		|| options.allowEmpty !== undefined && typeof options.allowEmpty !== 'boolean'
 		|| options.openFile !== undefined && typeof options.openFile !== 'function') {
 		throw new TypeError('The bounded regular-file read request is invalid.');
 	}
@@ -41,7 +43,7 @@ export async function readBoundedRegularFile(
 			return unavailable('invalid');
 		}
 		if (metadata.size > maximumBytes) return unavailable('limit');
-		if (metadata.size < 1) return unavailable('missing');
+		if (metadata.size < 1 && options.allowEmpty !== true) return unavailable('missing');
 		const bytes = new Uint8Array(metadata.size);
 		let offset = 0;
 		while (offset < bytes.byteLength) {
