@@ -239,7 +239,7 @@ test('schema V2 output retains the raw record under its observed platform filena
 	const measurement = makeV2Measurement();
 	const result = createM5NativeHelperResult(measurement, config);
 	const written = await writeM5NativeHelperResult(directory, result, measurement);
-	assert.ok('rawPath' in written);
+	assert.ok('rawPath' in written && typeof written.rawPath === 'string');
 	assert.equal(
 		written.rawPath,
 		join(directory, 'm5-native-helper-and-audio.windowsX64.raw.json'),

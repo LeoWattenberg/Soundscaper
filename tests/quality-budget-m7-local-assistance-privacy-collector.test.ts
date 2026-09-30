@@ -377,7 +377,7 @@ test('the local writer retains one raw record and one digest-bound aggregate', a
 	const measurement = makeMeasurement();
 	const result = createM7AssistancePrivacyResult(measurement, config);
 	const written = await writeM7AssistancePrivacyResult(directory, result, measurement);
-	assert.ok('rawPath' in written);
+	assert.ok('rawPath' in written && typeof written.rawPath === 'string');
 	assert.match(written.rawPath, /m7-local-assistance-privacy\.linux-x64\.passed\.raw\.json$/u);
 	assert.match(written.resultPath, /m7-local-assistance-privacy\.linux-x64\.passed\.json$/u);
 	const retainedRaw = JSON.parse(await readFile(written.rawPath, 'utf8')) as MutableMeasurement;
